@@ -41,7 +41,7 @@ void __init rk30_init_irq(void);
 void __init rk30_map_io(void);
 struct machine_desc;
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags, char **cmdline, struct meminfo *mi);
-void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned long max_i2s_rate);
+void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags);
 void __init board_clock_init(void);
 void board_gpio_suspend(void);
 void board_gpio_resume(void);
@@ -65,15 +65,14 @@ enum _codec_pll {
 	codec_pll_600mhz = 600000000,
 	codec_pll_default = codec_pll_360mhz,
 };
-enum _max_i2s_rate {
-	max_i2s_8192khz = 8192000,
-	max_i2s_11289_6khz = 11289600,
-	max_i2s_12288khz = 12288000,
-	max_i2s_22579_2khz = 22579200,
-	max_i2s_24576khz = 24576000,//HDMI
-	max_i2s_49152khz = 24576000,//HDMI
-	max_i2s_default	= max_i2s_12288khz,
-};
+//has extern 27mhz
+#define CLK_FLG_EXT_27MHZ 			(1<<0)
+//max i2s rate
+#define CLK_FLG_MAX_I2S_12288KHZ 	(1<<1)
+#define CLK_FLG_MAX_I2S_22579_2KHZ 	(1<<2)
+#define CLK_FLG_MAX_I2S_24576KHZ 	(1<<3)
+#define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
 
+#define max_i2s_12288khz (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
 
 #endif

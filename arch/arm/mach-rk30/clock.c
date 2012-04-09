@@ -216,7 +216,7 @@ int clk_enable_nolock(struct clk *clk)
 void clk_disable_nolock(struct clk *clk)
 {
 	if (clk->usecount == 0) {
-		printk(KERN_ERR "Trying disable clock %s with 0 usecount\n", clk->name);
+		CLOCK_PRINTK_ERR(KERN_ERR "Trying disable clock %s with 0 usecount\n", clk->name);
 		WARN_ON(1);
 		return;
 	}
@@ -240,7 +240,7 @@ long clk_round_rate_nolock(struct clk *clk, unsigned long rate)
 		return clk->round_rate(clk, rate);
 
 	if (clk->flags & RATE_FIXED)
-		printk(KERN_ERR "clock: clk_round_rate called on fixed-rate clock %s\n", clk->name);
+		CLOCK_PRINTK_ERR("clock: clk_round_rate called on fixed-rate clock %s\n", clk->name);
 
 	return clk->rate;
 }

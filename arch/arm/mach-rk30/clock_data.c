@@ -32,7 +32,18 @@
 #define CLK_LOOPS_JIFFY_REF 11996091ULL
 #define CLK_LOOPS_RARE_REF (1200) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RARE_REF)
- 
+
+//flags bit
+//has extern 27mhz
+#define CLK_FLG_EXT_27MHZ 			(1<<0)
+//max i2s rate
+#define CLK_FLG_MAX_I2S_12288KHZ 	(1<<1)
+#define CLK_FLG_MAX_I2S_22579_2KHZ 	(1<<2)
+#define CLK_FLG_MAX_I2S_24576KHZ 	(1<<3)
+#define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
+
+
+
 struct apll_clk_set {
 	unsigned long rate;
 	u32	pllcon0;
@@ -141,7 +152,7 @@ void cru_writel(u32 v, u32 offset)
 
 	if(cru_writel_is_pr(offset))
 	{
-		printk("cru w offset=%d,set=%x,reg=%x\n",offset,v,TEST_CRU_REG[offset/4]);
+		CRU_PRINTK_DBG("cru w offset=%d,set=%x,reg=%x\n",offset,v,TEST_CRU_REG[offset/4]);
 
 	}
 	
@@ -181,7 +192,7 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 	&&!(cru_readl(PLL_CONS(pll_id,3))&PLL_BYPASS))
 
 
-
+static u32 rk30_clock_flags=0;
 static struct clk codec_pll_clk;
 static struct clk general_pll_clk;
 static struct clk arm_pll_clk;
@@ -325,7 +336,7 @@ static int clkset_rate_freediv_autosel_parents(struct clk *clk, unsigned long ra
 	if(!p_clk)
 		return -ENOENT;
 	
-	CRU_PRINTK_ERR("%s %lu,form %s\n",clk->name,rate,p_clk->name);
+	CRU_PRINTK_DBG("%s %lu,form %s\n",clk->name,rate,p_clk->name);
 	if (clk->parent != p_clk)
 	{
 		old_div=CRU_GET_REG_BIYS_VAL(cru_readl(clk->clksel_con),clk->div_shift,clk->div_mask)+1;
@@ -1913,12 +1924,47 @@ static struct clk dclk_lcdc0_div = {
 
 static int clksel_set_rate_hdmi(struct clk *clk, unsigned long rate)
 {
-	u32 div;
-	div=clk_get_freediv(rate,clk->parent->rate,clk->div_max);
-	if(rate==(clk->parent->rate/div)&&!(clk->parent->rate%div))
+	u32 div,old_div;
+	int i;
+	unsigned long new_rate;
+	int ret=0;
+	
+	if(clk->rate==rate)
+		return 0;
+	for(i=0;i<2;i++)
+	{
+		div=clk_get_freediv(rate,clk->parents[i]->rate,clk->div_max);
+		new_rate= clk->parents[i]->rate/div;
+		if((rate==new_rate)&&!(clk->parents[i]->rate%div))
+		{
+			break;	
+		}	
+	}
+	if(i>=2)
+	{
+		CRU_PRINTK_ERR("%s can't set fixed rate%lu\n",clk->name,rate);
+		return -1;
+	}
+	
+	//CRU_PRINTK_DBG("%s set rate %lu(from %s)\n",clk->name,rate,clk->parents[i]->name);
+
+	old_div=CRU_GET_REG_BIYS_VAL(cru_readl(clk->clksel_con),
+										clk->div_shift,clk->div_mask)+1;
+	if(div>old_div)
 		set_cru_bits_w_msk(div-1,clk->div_mask,clk->div_shift,clk->clksel_con);
-	else
-		return -ENOENT;
+	
+	if(clk->parents[i]!=clk->parent)
+	{
+		ret=clk_set_parent_nolock(clk,clk->parents[i]);
+	}
+
+	if (ret)
+	{
+		CRU_PRINTK_ERR("lcdc1 %s can't get rate%lu,reparent%s(now %s) err\n",
+			clk->name,rate,clk->parents[i]->name,clk->parent->name);
+		return ret;
+	}
+	set_cru_bits_w_msk(div-1,clk->div_mask,clk->div_shift,clk->clksel_con);
 	return 0;
 }
 //hdmi
@@ -1938,14 +1984,14 @@ static int dclk_lcdc_set_rate(struct clk *clk, unsigned long rate)
 	int ret = 0;
 	struct clk *parent;
 
-	if (rate == 27 * MHZ) {
+	if (rate == 27 * MHZ&&(rk30_clock_flags&CLK_FLG_EXT_27MHZ)) {
 		parent =clk->parents[1];
+		//CRU_PRINTK_DBG(" %s from=%s\n",clk->name,parent->name);
 	} else {
-		parent=clk->parents[0];
-		
+		parent=clk->parents[0];	
 	}
-	CRU_PRINTK_DBG(" %s set rate=%lu parent %s(old %s)\n",
-			clk->name,rate,parent->name,clk->parent->name);
+	//CRU_PRINTK_DBG(" %s set rate=%lu parent %s(old %s)\n",
+			//clk->name,rate,parent->name,clk->parent->name);
 
 	if(parent!=clk->parents[1])
 	{
@@ -2877,17 +2923,41 @@ static void periph_clk_set_init(void)
 }
 
 
-void rk30_clock_common_i2s_init(unsigned long i2s_rate)
+void rk30_clock_common_i2s_init(void)
 {
-	if(i2s_rate<=i2s_12288khz||general_pll_clk.rate>=codec_pll_clk.rate)
-		clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
-	else
+	struct clk *max_clk,*min_clk;
+
+	if(general_pll_clk.rate>=codec_pll_clk.rate)
 	{
-		clk_set_parent_nolock(&clk_i2s_pll, &codec_pll_clk);
+		max_clk=&general_pll_clk;
+		min_clk=&codec_pll_clk;
+	}else
+	{
+		max_clk=&codec_pll_clk;
+		min_clk=&general_pll_clk;
 	}
+	
+	if(rk30_clock_flags&CLK_FLG_MAX_I2S_49152KHZ)
+	{
+		clk_set_parent_nolock(&clk_i2s_pll, max_clk);
+		
+	}else if(rk30_clock_flags&CLK_FLG_MAX_I2S_24576KHZ)
+	{
+	
+		clk_set_parent_nolock(&clk_i2s_pll, max_clk);
+	}
+	else if(rk30_clock_flags&CLK_FLG_MAX_I2S_22579_2KHZ)
+	{
+		clk_set_parent_nolock(&clk_i2s_pll, max_clk);
+	}
+	else if(rk30_clock_flags&CLK_FLG_MAX_I2S_12288KHZ)
+	{
+		clk_set_parent_nolock(&clk_i2s_pll, &general_pll_clk);
+		CRU_PRINTK_DBG("i2s max rate is 12288KHZ\n");
+	}
+
 }
-static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate,
-					unsigned long i2s_rate)
+static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long cpll_rate)
 {
 
 	clk_set_rate_nolock(&clk_cpu, 816*MHZ);//816
@@ -2900,7 +2970,7 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	periph_clk_set_init();
 	
 	//i2s
-	rk30_clock_common_i2s_init(i2s_rate);
+	rk30_clock_common_i2s_init();
 	
 	// uart
 	#if 0 
@@ -2934,10 +3004,12 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	//axi vepu auto sel
 	//clk_set_parent_nolock(&aclk_vepu, &general_pll_clk);
 	//clk_set_parent_nolock(&aclk_vdpu, &general_pll_clk);
-
+	
+	clk_set_rate_nolock(&aclk_vepu, 300*MHZ);
+	clk_set_rate_nolock(&aclk_vdpu, 300*MHZ);
+	
 	//gpu auto sel
 	//clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
-
 }
 
 static struct clk def_ops_clk={
@@ -2951,13 +3023,13 @@ struct clk_dump_ops dump_ops;
 
 static void clk_dump_regs(void);
 
-void __init _rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned long max_i2s_rate)
+void __init _rk30_clock_data_init(unsigned long gpll,unsigned long cpll,int flags)
 {
 	struct clk_lookup *lk;
 	
 	clk_register_dump_ops(&dump_ops);
 	clk_register_default_ops_clk(&def_ops_clk);
-	
+	rk30_clock_flags=flags;
 	for (lk = clks; lk < clks + ARRAY_SIZE(clks); lk++) {
 		#ifdef RK30_CLK_OFFBOARD_TEST
 			rk30_clkdev_add(lk);
@@ -2980,7 +3052,7 @@ void __init _rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned
 	 * Disable any unused clocks left on by the bootloader
 	 */
 	//clk_disable_unused();
-	rk30_clock_common_init(gpll,cpll,max_i2s_rate);
+	rk30_clock_common_init(gpll,cpll);
 	preset_lpj = loops_per_jiffy;
 	
 	//gpio6_b7
@@ -2989,9 +3061,9 @@ void __init _rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned
 	
 }
 
-void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,unsigned long max_i2s_rate)
+void __init rk30_clock_data_init(unsigned long gpll,unsigned long cpll,u32 flags)
 {
-	_rk30_clock_data_init(gpll,cpll,max_i2s_rate);
+	_rk30_clock_data_init(gpll,cpll,flags);
 	rk30_dvfs_init();
 }
 
