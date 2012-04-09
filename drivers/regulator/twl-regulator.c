@@ -1189,10 +1189,12 @@ static int __devinit twlreg_probe(struct platform_device *pdev)
 		initdata = pdev->dev.platform_data;
 		for (i = 0, info = NULL; i < ARRAY_SIZE(twl_of_match); i++) {
 			info = twl_of_match[i].data;
-			if (!info || info->desc.id != id)
-				continue;
-			break;
+			if (info && info->desc.id == id)
+				break;
 		}
+		if (i == ARRAY_SIZE(twl_of_match))
+			return -ENODEV;
+
 		drvdata = initdata->driver_data;
 		if (!drvdata)
 			return -EINVAL;
