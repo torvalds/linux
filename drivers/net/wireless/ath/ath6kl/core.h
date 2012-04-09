@@ -97,6 +97,9 @@ enum ath6kl_fw_capability {
 	 */
 	ATH6KL_FW_CAPABILITY_INACTIVITY_TIMEOUT,
 
+	/* Firmware has support to override rsn cap of rsn ie */
+	ATH6KL_FW_CAPABILITY_RSN_CAP_OVERRIDE,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };
