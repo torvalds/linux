@@ -3488,7 +3488,7 @@ static struct opcode group11[] = {
 };
 
 static struct gprefix pfx_0f_6f_0f_7f = {
-	N, I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
+	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
 };
 
 static struct gprefix pfx_vmovntpx = {
