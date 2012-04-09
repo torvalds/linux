@@ -342,8 +342,7 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 	ret = 0;
 
 done:
-	if (adapter->firmware)
-		release_firmware(adapter->firmware);
+	release_firmware(adapter->firmware);
 	if (ret)
 		ret = -1;
 	return ret;
