@@ -725,6 +725,10 @@ static void print_tags(struct driver_data *dd,
 		dev_info(&dd->pdev->dev, "%s [%i tags]\n", msg, count);
 }
 
+static int mtip_read_log_page(struct mtip_port *port, u8 page, u16 *buffer,
+				dma_addr_t buffer_dma, unsigned int sectors);
+static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
+						struct smart_attr *attrib);
 /*
  * Handle an error.
  *
@@ -735,12 +739,15 @@ static void print_tags(struct driver_data *dd,
  */
 static void mtip_handle_tfe(struct driver_data *dd)
 {
-	int group, tag, bit, reissue;
+	int group, tag, bit, reissue, rv;
 	struct mtip_port *port;
-	struct mtip_cmd  *command;
+	struct mtip_cmd  *cmd;
 	u32 completed;
 	struct host_to_dev_fis *fis;
 	unsigned long tagaccum[SLOTBITS_IN_LONGS];
+	unsigned char *buf;
+	char *fail_reason = NULL;
+	int fail_all_ncq_write = 0, fail_all_ncq_cmds = 0;
 
 	dev_warn(&dd->pdev->dev, "Taskfile error\n");
 
@@ -772,13 +779,13 @@ static void mtip_handle_tfe(struct driver_data *dd)
 			if (tag == MTIP_TAG_INTERNAL)
 				continue;
 
-			command = &port->commands[tag];
-			if (likely(command->comp_func)) {
+			cmd = &port->commands[tag];
+			if (likely(cmd->comp_func)) {
 				set_bit(tag, tagaccum);
-				atomic_set(&port->commands[tag].active, 0);
-				command->comp_func(port,
+				atomic_set(&cmd->active, 0);
+				cmd->comp_func(port,
 					 tag,
-					 command->comp_data,
+					 cmd->comp_data,
 					 0);
 			} else {
 				dev_err(&port->dd->pdev->dev,
@@ -798,6 +805,38 @@ static void mtip_handle_tfe(struct driver_data *dd)
 	mdelay(20);
 	mtip_restart_port(port);
 
+	/* Trying to determine the cause of the error */
+	rv = mtip_read_log_page(dd->port, ATA_LOG_SATA_NCQ,
+				dd->port->log_buf,
+				dd->port->log_buf_dma, 1);
+	if (rv) {
+		dev_warn(&dd->pdev->dev,
+			"Error in READ LOG EXT (10h) command\n");
+		/* non-critical error, don't fail the load */
+	} else {
+		buf = (unsigned char *)dd->port->log_buf;
+		if (buf[259] & 0x1) {
+			dev_info(&dd->pdev->dev,
+				"Write protect bit is set.\n");
+			set_bit(MTIP_DD_FLAG_WRITE_PROTECT_BIT, &dd->dd_flag);
+			fail_all_ncq_write = 1;
+			fail_reason = "write protect";
+		}
+		if (buf[288] == 0xF7) {
+			dev_info(&dd->pdev->dev,
+				"Exceeded Tmax, drive in thermal shutdown.\n");
+			set_bit(MTIP_DD_FLAG_OVER_TEMP_BIT, &dd->dd_flag);
+			fail_all_ncq_cmds = 1;
+			fail_reason = "thermal shutdown";
+		}
+		if (buf[288] == 0xBF) {
+			dev_info(&dd->pdev->dev,
+				"Drive indicates rebuild has failed.\n");
+			fail_all_ncq_cmds = 1;
+			fail_reason = "rebuild failed";
+		}
+	}
+
 	/* clear the tag accumulator */
 	memset(tagaccum, 0, SLOTBITS_IN_LONGS * sizeof(long));
 
@@ -806,25 +845,44 @@ static void mtip_handle_tfe(struct driver_data *dd)
 		for (bit = 0; bit < 32; bit++) {
 			reissue = 1;
 			tag = (group << 5) + bit;
+			cmd = &port->commands[tag];
 
 			/* If the active bit is set re-issue the command */
-			if (atomic_read(&port->commands[tag].active) == 0)
+			if (atomic_read(&cmd->active) == 0)
 				continue;
 
-			fis = (struct host_to_dev_fis *)
-				port->commands[tag].command;
+			fis = (struct host_to_dev_fis *)cmd->command;
 
 			/* Should re-issue? */
 			if (tag == MTIP_TAG_INTERNAL ||
 			    fis->command == ATA_CMD_SET_FEATURES)
 				reissue = 0;
+			else {
+				if (fail_all_ncq_cmds ||
+					(fail_all_ncq_write &&
+					fis->command == ATA_CMD_FPDMA_WRITE)) {
+					dev_warn(&dd->pdev->dev,
+					"  Fail: %s w/tag %d [%s].\n",
+					fis->command == ATA_CMD_FPDMA_WRITE ?
+						"write" : "read",
+					tag,
+					fail_reason != NULL ?
+						fail_reason : "unknown");
+					atomic_set(&cmd->active, 0);
+					if (cmd->comp_func) {
+						cmd->comp_func(port, tag,
+							cmd->comp_data,
+							-ENODATA);
+					}
+					continue;
+				}
+			}
 
 			/*
 			 * First check if this command has
 			 *  exceeded its retries.
 			 */
-			if (reissue &&
-			    (port->commands[tag].retries-- > 0)) {
+			if (reissue && (cmd->retries-- > 0)) {
 
 				set_bit(tag, tagaccum);
 
@@ -837,13 +895,13 @@ static void mtip_handle_tfe(struct driver_data *dd)
 			/* Retire a command that will not be reissued */
 			dev_warn(&port->dd->pdev->dev,
 				"retiring tag %d\n", tag);
-			atomic_set(&port->commands[tag].active, 0);
+			atomic_set(&cmd->active, 0);
 
-			if (port->commands[tag].comp_func)
-				port->commands[tag].comp_func(
+			if (cmd->comp_func)
+				cmd->comp_func(
 					port,
 					tag,
-					port->commands[tag].comp_data,
+					cmd->comp_data,
 					PORT_IRQ_TF_ERR);
 			else
 				dev_warn(&port->dd->pdev->dev,
@@ -1374,6 +1432,7 @@ static int mtip_standby_immediate(struct mtip_port *port)
 {
 	int rv;
 	struct host_to_dev_fis	fis;
+	unsigned long start;
 
 	/* Build the FIS. */
 	memset(&fis, 0, sizeof(struct host_to_dev_fis));
@@ -1381,15 +1440,150 @@ static int mtip_standby_immediate(struct mtip_port *port)
 	fis.opts	= 1 << 7;
 	fis.command	= ATA_CMD_STANDBYNOW1;
 
-	/* Execute the command.  Use a 15-second timeout for large drives. */
+	start = jiffies;
 	rv = mtip_exec_internal_command(port,
 					&fis,
 					5,
 					0,
 					0,
 					0,
-					GFP_KERNEL,
+					GFP_ATOMIC,
 					15000);
+	dbg_printk(MTIP_DRV_NAME "Time taken to complete standby cmd: %d ms\n",
+			jiffies_to_msecs(jiffies - start));
+	if (rv)
+		dev_warn(&port->dd->pdev->dev,
+			"STANDBY IMMEDIATE command failed.\n");
+
+	return rv;
+}
+
+/*
+ * Issue a READ LOG EXT command to the device.
+ *
+ * @port	pointer to the port structure.
+ * @page	page number to fetch
+ * @buffer	pointer to buffer
+ * @buffer_dma	dma address corresponding to @buffer
+ * @sectors	page length to fetch, in sectors
+ *
+ * return value
+ *	@rv	return value from mtip_exec_internal_command()
+ */
+static int mtip_read_log_page(struct mtip_port *port, u8 page, u16 *buffer,
+				dma_addr_t buffer_dma, unsigned int sectors)
+{
+	struct host_to_dev_fis fis;
+
+	memset(&fis, 0, sizeof(struct host_to_dev_fis));
+	fis.type	= 0x27;
+	fis.opts	= 1 << 7;
+	fis.command	= ATA_CMD_READ_LOG_EXT;
+	fis.sect_count	= sectors & 0xFF;
+	fis.sect_cnt_ex	= (sectors >> 8) & 0xFF;
+	fis.lba_low	= page;
+	fis.lba_mid	= 0;
+	fis.device	= ATA_DEVICE_OBS;
+
+	memset(buffer, 0, sectors * ATA_SECT_SIZE);
+
+	return mtip_exec_internal_command(port,
+					&fis,
+					5,
+					buffer_dma,
+					sectors * ATA_SECT_SIZE,
+					0,
+					GFP_ATOMIC,
+					MTIP_INTERNAL_COMMAND_TIMEOUT_MS);
+}
+
+/*
+ * Issue a SMART READ DATA command to the device.
+ *
+ * @port	pointer to the port structure.
+ * @buffer	pointer to buffer
+ * @buffer_dma	dma address corresponding to @buffer
+ *
+ * return value
+ *	@rv	return value from mtip_exec_internal_command()
+ */
+static int mtip_get_smart_data(struct mtip_port *port, u8 *buffer,
+					dma_addr_t buffer_dma)
+{
+	struct host_to_dev_fis fis;
+
+	memset(&fis, 0, sizeof(struct host_to_dev_fis));
+	fis.type	= 0x27;
+	fis.opts	= 1 << 7;
+	fis.command	= ATA_CMD_SMART;
+	fis.features	= 0xD0;
+	fis.sect_count	= 1;
+	fis.lba_mid	= 0x4F;
+	fis.lba_hi	= 0xC2;
+	fis.device	= ATA_DEVICE_OBS;
+
+	return mtip_exec_internal_command(port,
+					&fis,
+					5,
+					buffer_dma,
+					ATA_SECT_SIZE,
+					0,
+					GFP_ATOMIC,
+					15000);
+}
+
+/*
+ * Get the value of a smart attribute
+ *
+ * @port	pointer to the port structure
+ * @id		attribute number
+ * @attrib	pointer to return attrib information corresponding to @id
+ *
+ * return value
+ *	-EINVAL	NULL buffer passed or unsupported attribute @id.
+ *	-EPERM	Identify data not valid, SMART not supported or not enabled
+ */
+static int mtip_get_smart_attr(struct mtip_port *port, unsigned int id,
+						struct smart_attr *attrib)
+{
+	int rv, i;
+	struct smart_attr *pattr;
+
+	if (!attrib)
+		return -EINVAL;
+
+	if (!port->identify_valid) {
+		dev_warn(&port->dd->pdev->dev, "IDENTIFY DATA not valid\n");
+		return -EPERM;
+	}
+	if (!(port->identify[82] & 0x1)) {
+		dev_warn(&port->dd->pdev->dev, "SMART not supported\n");
+		return -EPERM;
+	}
+	if (!(port->identify[85] & 0x1)) {
+		dev_warn(&port->dd->pdev->dev, "SMART not enabled\n");
+		return -EPERM;
+	}
+
+	memset(port->smart_buf, 0, ATA_SECT_SIZE);
+	rv = mtip_get_smart_data(port, port->smart_buf, port->smart_buf_dma);
+	if (rv) {
+		dev_warn(&port->dd->pdev->dev, "Failed to ge SMART data\n");
+		return rv;
+	}
+
+	pattr = (struct smart_attr *)(port->smart_buf + 2);
+	for (i = 0; i < 29; i++, pattr++)
+		if (pattr->attr_id == id) {
+			memcpy(attrib, pattr, sizeof(struct smart_attr));
+			break;
+		}
+
+	if (i == 29) {
+		dev_warn(&port->dd->pdev->dev,
+			"Query for invalid SMART attribute ID\n");
+		rv = -EINVAL;
+	}
 
 	return rv;
 }
@@ -2272,7 +2466,7 @@ static ssize_t mtip_hw_show_registers(struct device *dev,
 	int size = 0;
 	int n;
 
-	size += sprintf(&buf[size], "%s:\ns_active:\n", __func__);
+	size += sprintf(&buf[size], "S ACTive:\n");
 
 	for (n = 0; n < dd->slot_groups; n++)
 		size += sprintf(&buf[size], "0x%08x\n",
@@ -2296,20 +2490,39 @@ static ssize_t mtip_hw_show_registers(struct device *dev,
 				 group_allocated);
 	}
 
-	size += sprintf(&buf[size], "completed:\n");
+	size += sprintf(&buf[size], "Completed:\n");
 
 	for (n = 0; n < dd->slot_groups; n++)
 		size += sprintf(&buf[size], "0x%08x\n",
 				readl(dd->port->completed[n]));
 
-	size += sprintf(&buf[size], "PORT_IRQ_STAT 0x%08x\n",
+	size += sprintf(&buf[size], "PORT IRQ STAT : 0x%08x\n",
 				readl(dd->port->mmio + PORT_IRQ_STAT));
-	size += sprintf(&buf[size], "HOST_IRQ_STAT 0x%08x\n",
+	size += sprintf(&buf[size], "HOST IRQ STAT : 0x%08x\n",
 				readl(dd->mmio + HOST_IRQ_STAT));
 
 	return size;
 }
+
+static ssize_t mtip_hw_show_status(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct driver_data *dd = dev_to_disk(dev)->private_data;
+	int size = 0;
+
+	if (test_bit(MTIP_DD_FLAG_OVER_TEMP_BIT, &dd->dd_flag))
+		size += sprintf(buf, "%s", "thermal_shutdown\n");
+	else if (test_bit(MTIP_DD_FLAG_WRITE_PROTECT_BIT, &dd->dd_flag))
+		size += sprintf(buf, "%s", "write_protect\n");
+	else
+		size += sprintf(buf, "%s", "online\n");
+
+	return size;
+}
+
 static DEVICE_ATTR(registers, S_IRUGO, mtip_hw_show_registers, NULL);
+static DEVICE_ATTR(status, S_IRUGO, mtip_hw_show_status, NULL);
 
 /*
  * Create the sysfs related attributes.
@@ -2328,7 +2541,10 @@ static int mtip_hw_sysfs_init(struct driver_data *dd, struct kobject *kobj)
 
 	if (sysfs_create_file(kobj, &dev_attr_registers.attr))
 		dev_warn(&dd->pdev->dev,
-			"Error creating registers sysfs entry\n");
+			"Error creating 'registers' sysfs entry\n");
+	if (sysfs_create_file(kobj, &dev_attr_status.attr))
+		dev_warn(&dd->pdev->dev,
+			"Error creating 'status' sysfs entry\n");
 	return 0;
 }
 
@@ -2348,6 +2564,7 @@ static int mtip_hw_sysfs_exit(struct driver_data *dd, struct kobject *kobj)
 		return -EINVAL;
 
 	sysfs_remove_file(kobj, &dev_attr_registers.attr);
+	sysfs_remove_file(kobj, &dev_attr_status.attr);
 
 	return 0;
 }
@@ -2566,6 +2783,8 @@ static int mtip_hw_init(struct driver_data *dd)
 	int rv;
 	unsigned int num_command_slots;
 	unsigned long timeout, timetaken;
+	unsigned char *buf;
+	struct smart_attr attr242;
 
 	dd->mmio = pcim_iomap_table(dd->pdev)[MTIP_ABAR];
 
@@ -2600,7 +2819,7 @@ static int mtip_hw_init(struct driver_data *dd)
 	/* Allocate memory for the command list. */
 	dd->port->command_list =
 		dmam_alloc_coherent(&dd->pdev->dev,
-			HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 2),
+			HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 4),
 			&dd->port->command_list_dma,
 			GFP_KERNEL);
 	if (!dd->port->command_list) {
@@ -2613,7 +2832,7 @@ static int mtip_hw_init(struct driver_data *dd)
 	/* Clear the memory we have allocated. */
 	memset(dd->port->command_list,
 		0,
-		HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 2));
+		HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 4));
 
 	/* Setup the addresse of the RX FIS. */
 	dd->port->rxfis	    = dd->port->command_list + HW_CMD_SLOT_SZ;
@@ -2629,9 +2848,18 @@ static int mtip_hw_init(struct driver_data *dd)
 	dd->port->identify_dma = dd->port->command_tbl_dma +
 					HW_CMD_TBL_AR_SZ;
 
-	/* Setup the address of the sector buffer. */
+	/* Setup the address of the sector buffer - for some non-ncq cmds */
 	dd->port->sector_buffer	= (void *) dd->port->identify + ATA_SECT_SIZE;
 	dd->port->sector_buffer_dma = dd->port->identify_dma + ATA_SECT_SIZE;
+
+	/* Setup the address of the log buf - for read log command */
+	dd->port->log_buf = (void *)dd->port->sector_buffer  + ATA_SECT_SIZE;
+	dd->port->log_buf_dma = dd->port->sector_buffer_dma + ATA_SECT_SIZE;
+
+	/* Setup the address of the smart buf - for smart read data command */
+	dd->port->smart_buf = (void *)dd->port->log_buf  + ATA_SECT_SIZE;
+	dd->port->smart_buf_dma = dd->port->log_buf_dma + ATA_SECT_SIZE;
+
 
 	/* Point the command headers at the command tables. */
 	for (i = 0; i < num_command_slots; i++) {
@@ -2759,6 +2987,43 @@ static int mtip_hw_init(struct driver_data *dd)
 		return MTIP_FTL_REBUILD_MAGIC;
 	}
 	mtip_dump_identify(dd->port);
+
+	/* check write protect, over temp and rebuild statuses */
+	rv = mtip_read_log_page(dd->port, ATA_LOG_SATA_NCQ,
+				dd->port->log_buf,
+				dd->port->log_buf_dma, 1);
+	if (rv) {
+		dev_warn(&dd->pdev->dev,
+			"Error in READ LOG EXT (10h) command\n");
+		/* non-critical error, don't fail the load */
+	} else {
+		buf = (unsigned char *)dd->port->log_buf;
+		if (buf[259] & 0x1) {
+			dev_info(&dd->pdev->dev,
+				"Write protect bit is set.\n");
+			set_bit(MTIP_DD_FLAG_WRITE_PROTECT_BIT, &dd->dd_flag);
+		}
+		if (buf[288] == 0xF7) {
+			dev_info(&dd->pdev->dev,
+				"Exceeded Tmax, drive in thermal shutdown.\n");
+			set_bit(MTIP_DD_FLAG_OVER_TEMP_BIT, &dd->dd_flag);
+		}
+		if (buf[288] == 0xBF) {
+			dev_info(&dd->pdev->dev,
+				"Drive indicates rebuild has failed.\n");
+			/* TODO */
+		}
+	}
+
+	/* get write protect progess */
+	memset(&attr242, 0, sizeof(struct smart_attr));
+	if (mtip_get_smart_attr(dd->port, 242, &attr242))
+		dev_warn(&dd->pdev->dev,
+				"Unable to check write protect progress\n");
+	else
+		dev_info(&dd->pdev->dev,
+				"Write protect progress: %d%% (%d blocks)\n",
+				attr242.cur, attr242.data);
 	return rv;
 
 out3:
@@ -2776,7 +3041,7 @@ out2:
 
 	/* Free the command/command header memory. */
 	dmam_free_coherent(&dd->pdev->dev,
-				HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 2),
+				HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 4),
 				dd->port->command_list,
 				dd->port->command_list_dma);
 out1:
@@ -2825,7 +3090,7 @@ static int mtip_hw_exit(struct driver_data *dd)
 
 	/* Free the command/command header memory. */
 	dmam_free_coherent(&dd->pdev->dev,
-			HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 2),
+			HW_PORT_PRIV_DMA_SZ + (ATA_SECT_SIZE * 4),
 			dd->port->command_list,
 			dd->port->command_list_dma);
 	/* Free the memory allocated for the for structure. */
@@ -3378,7 +3643,7 @@ static int mtip_block_remove(struct driver_data *dd)
 		kthread_stop(dd->mtip_svc_handler);
 	}
 
-	/* Clean up the sysfs attributes managed by the protocol layer. */
+	/* Clean up the sysfs attributes, if created */
 	if (test_bit(MTIP_DD_FLAG_INIT_DONE_BIT, &dd->dd_flag)) {
 		kobj = kobject_get(&disk_to_dev(dd->disk)->kobj);
 		if (kobj) {
