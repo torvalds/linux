@@ -281,7 +281,7 @@ static struct regulator_ops lp3971_dcdc_ops = {
 	.set_voltage_sel = lp3971_dcdc_set_voltage_sel,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	{
 		.name = "LDO1",
 		.id = LP3971_LDO1,

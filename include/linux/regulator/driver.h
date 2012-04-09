@@ -184,7 +184,7 @@ struct regulator_desc {
  * no other direct access).
  */
 struct regulator_dev {
-	struct regulator_desc *desc;
+	const struct regulator_desc *desc;
 	int exclusive;
 	u32 use_count;
 	u32 open_count;
@@ -210,7 +210,8 @@ struct regulator_dev {
 	struct dentry *debugfs;
 };
 
-struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
+struct regulator_dev *
+regulator_register(const struct regulator_desc *regulator_desc,
 	struct device *dev, const struct regulator_init_data *init_data,
 	void *driver_data, struct device_node *of_node);
 void regulator_unregister(struct regulator_dev *rdev);

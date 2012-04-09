@@ -123,7 +123,7 @@ static struct regulator_ops tps6105x_regulator_ops = {
 	.list_voltage	= tps6105x_regulator_list_voltage,
 };
 
-static struct regulator_desc tps6105x_regulator_desc = {
+static const struct regulator_desc tps6105x_regulator_desc = {
 	.name		= "tps6105x-boost",
 	.ops		= &tps6105x_regulator_ops,
 	.type		= REGULATOR_VOLTAGE,

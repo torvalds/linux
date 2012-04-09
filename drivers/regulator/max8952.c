@@ -159,7 +159,7 @@ static struct regulator_ops max8952_ops = {
 	.set_suspend_disable	= max8952_disable,
 };
 
-static struct regulator_desc regulator = {
+static const struct regulator_desc regulator = {
 	.name		= "MAX8952_VOUT",
 	.id		= 0,
 	.n_voltages	= MAX8952_NUM_DVS_MODE,

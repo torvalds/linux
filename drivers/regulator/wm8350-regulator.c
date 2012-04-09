@@ -1269,7 +1269,7 @@ static struct regulator_ops wm8350_isink_ops = {
 	.enable_time = wm8350_isink_enable_time,
 };
 
-static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
+static const struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {
 	{
 		.name = "DCDC1",
 		.id = WM8350_DCDC_1,

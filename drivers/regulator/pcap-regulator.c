@@ -241,7 +241,7 @@ static struct regulator_ops pcap_regulator_ops = {
 		.owner		= THIS_MODULE,			\
 	}
 
-static struct regulator_desc pcap_regulators[] = {
+static const struct regulator_desc pcap_regulators[] = {
 	VREG(V1), VREG(V2), VREG(V3), VREG(V4), VREG(V5), VREG(V6), VREG(V7),
 	VREG(V8), VREG(V9), VREG(V10), VREG(VAUX1), VREG(VAUX2), VREG(VAUX3),
 	VREG(VAUX4), VREG(VSIM), VREG(VSIM2), VREG(VVIB), VREG(SW1), VREG(SW2),

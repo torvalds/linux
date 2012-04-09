@@ -267,7 +267,7 @@ static struct regulator_ops pcf50633_regulator_ops = {
 	.is_enabled = pcf50633_regulator_is_enabled,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	[PCF50633_REGULATOR_AUTO] =
 		PCF50633_REGULATOR("auto", PCF50633_REGULATOR_AUTO, 128),
 	[PCF50633_REGULATOR_DOWN1] =
