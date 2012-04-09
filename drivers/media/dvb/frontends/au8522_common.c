@@ -127,7 +127,7 @@ void au8522_release_state(struct au8522_state *state)
 }
 EXPORT_SYMBOL(au8522_release_state);
 
-int au8522_led_gpio_enable(struct au8522_state *state, int onoff)
+static int au8522_led_gpio_enable(struct au8522_state *state, int onoff)
 {
 	struct au8522_led_config *led_config = state->config->led_cfg;
 	u8 val;
@@ -151,7 +151,6 @@ int au8522_led_gpio_enable(struct au8522_state *state, int onoff)
 	return au8522_writereg(state, 0x8000 |
 			       (led_config->gpio_output & ~0xc000), val);
 }
-EXPORT_SYMBOL(au8522_led_gpio_enable);
 
 /* led = 0 | off
  * led = 1 | signal ok
