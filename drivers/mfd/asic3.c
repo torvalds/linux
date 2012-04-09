@@ -894,10 +894,13 @@ static int __init asic3_mfd_probe(struct platform_device *pdev,
 	asic3_mmc_resources[0].start >>= asic->bus_shift;
 	asic3_mmc_resources[0].end   >>= asic->bus_shift;
 
-	ret = mfd_add_devices(&pdev->dev, pdev->id,
+	if (pdata->clock_rate) {
+		ds1wm_pdata.clock_rate = pdata->clock_rate;
+		ret = mfd_add_devices(&pdev->dev, pdev->id,
 			&asic3_cell_ds1wm, 1, mem, asic->irq_base);
-	if (ret < 0)
-		goto out;
+		if (ret < 0)
+			goto out;
+	}
 
 	if (mem_sdio && (irq >= 0)) {
 		ret = mfd_add_devices(&pdev->dev, pdev->id,
