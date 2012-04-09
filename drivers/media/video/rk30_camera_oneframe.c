@@ -381,7 +381,8 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			pcdev->camera_work_count = *count;
 		}
 	}
-
+    //must be reinit,or will be somthing wrong in irq process.
+    pcdev->active = NULL;
     RKCAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d, count:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_size, *count);
 
     return 0;
@@ -505,7 +506,6 @@ static void rk_videobuf_queue(struct videobuf_queue *vq,
             vb, vb->baddr, vb->bsize);
 
     vb->state = VIDEOBUF_QUEUED;
-
 	if (list_empty(&pcdev->capture)) {
 		list_add_tail(&vb->queue, &pcdev->capture);
 	} else {
@@ -571,7 +571,7 @@ static void rk_camera_capture_process(struct work_struct *work)
     ipp_req.timeout = 100;
     ipp_req.flag = IPP_ROT_0; 
  //   if(pcdev->icd->user_width != pcdev->zoominfo.vir_width)
- //       ipp_req.store_clip_mode =1;
+    ipp_req.store_clip_mode =1;
     ipp_req.src0.w = pcdev->zoominfo.a.c.width/scale_times;
     ipp_req.src0.h = pcdev->zoominfo.a.c.height/scale_times;
     //ipp_req.src_vir_w = pcdev->zoominfo.a.c.width; 
@@ -645,7 +645,6 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
 		pcdev->fps++;
 		if (!pcdev->active)
 			goto RK_CAMERA_IRQ_END;
-
         if (pcdev->frame_inval>0) {
             pcdev->frame_inval--;
             rk_videobuf_capture(pcdev->active,pcdev);
@@ -654,13 +653,11 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
         	RKCAMERA_TR("frame_inval : %0x",pcdev->frame_inval);
             pcdev->frame_inval = 0;
         }
-
         vb = pcdev->active;
 		/* ddl@rock-chips.com : this vb may be deleted from queue */
 		if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
         	list_del_init(&vb->queue);
 		}
-
         pcdev->active = NULL;
         if (!list_empty(&pcdev->capture)) {
             pcdev->active = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
@@ -668,7 +665,6 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
 				rk_videobuf_capture(pcdev->active,pcdev);
 			}
         }
-
         if (pcdev->active == NULL) {
 			RKCAMERA_DG("%s video_buf queue is empty!\n",__FUNCTION__);
 		}
@@ -678,14 +674,12 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
 	        do_gettimeofday(&vb->ts);
 	        vb->field_count++;
 		}
-		
 		if (CAM_WORKQUEUE_IS_EN()) {
 			wk = pcdev->camera_work + vb->i;
 			INIT_WORK(&(wk->work), rk_camera_capture_process);
-			wk->vb = vb;
+            wk->vb = vb;
 			wk->pcdev = pcdev;
 			queue_work(pcdev->camera_wq, &(wk->work));
-			
 		} else {
 			wake_up(&vb->done);
 		}
@@ -1307,6 +1301,9 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 			ratio = ((mf.width*10/usr_w) >= (mf.height*10/usr_h))?(mf.height*10/usr_h):(mf.width*10/usr_w);
 			pcdev->host_width = ratio*usr_w/10;
 			pcdev->host_height = ratio*usr_h/10;
+            //for ipp ,need 4 bit alligned.
+        	pcdev->host_width &= ~0x03;
+        	pcdev->host_height &= ~0x03;
 			RKCAMERA_DG("ratio = %d ,host:%d*%d\n",ratio,pcdev->host_width,pcdev->host_height);
 			}
 		else{ // needn't crop ,just scaled by ipp

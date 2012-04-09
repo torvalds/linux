@@ -374,7 +374,7 @@ static struct reginfo sensor_uxga[] =
 /* 1280X1024 SXGA */
 static struct reginfo sensor_sxga[] =
 {
-#if 0
+#if 1
     {0x300E, 0x34},
     {0x3011, 0x00},
     {0x3012, 0x00},
