@@ -176,6 +176,7 @@ void __init remap_early_printk(void)
 	base_addr = (u32) ioremap(base_addr, PAGE_SIZE);
 	printk(KERN_CONT "0x%x\n", base_addr);
 
+#ifdef CONFIG_MMU
 	/*
 	 * Early console is on the top of skipped TLB entries
 	 * decrease tlb_skip size ensure that hardcoded TLB entry will be
@@ -189,6 +190,7 @@ void __init remap_early_printk(void)
 	 *  cmp rX, orig_base_addr
 	 */
 	tlb_skip -= 1;
+#endif
 }
 
 void __init disable_early_printk(void)

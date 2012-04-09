@@ -290,7 +290,7 @@ int omap_prcm_register_chain_handler(struct omap_prcm_irq_setup *irq_setup)
 		goto err;
 	}
 
-	for (i = 0; i <= irq_setup->nr_regs; i++) {
+	for (i = 0; i < irq_setup->nr_regs; i++) {
 		gc = irq_alloc_generic_chip("PRCM", 1,
 			irq_setup->base_irq + i * 32, prm_base,
 			handle_level_irq);

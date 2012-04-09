@@ -228,7 +228,7 @@ M:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 Q:	http://patchwork.kernel.org/project/linux-acpi/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux
 S:	Supported
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -1251,7 +1251,6 @@ ATHEROS ATH5K WIRELESS DRIVER
 M:	Jiri Slaby <jirislaby@gmail.com>
 M:	Nick Kossifidis <mickflemm@gmail.com>
 M:	"Luis R. Rodriguez" <mcgrof@qca.qualcomm.com>
-M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath5k
@@ -2451,17 +2450,17 @@ F:	fs/ecryptfs/
 
 EDAC-CORE
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Supported
 F:	Documentation/edac.txt
-F:	drivers/edac/edac_*
+F:	drivers/edac/
 F:	include/linux/edac.h
 
 EDAC-AMD64
 M:	Doug Thompson <dougthompson@xmission.com>
 M:	Borislav Petkov <borislav.petkov@amd.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Supported
 F:	drivers/edac/amd64_edac*
@@ -2469,35 +2468,35 @@ F:	drivers/edac/amd64_edac*
 EDAC-E752X
 M:	Mark Gross <mark.gross@intel.com>
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e752x_edac.c
 
 EDAC-E7XXX
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
 
 EDAC-I82443BXGX
 M:	Tim Small <tim@buttersideup.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82443bxgx_edac.c
 
 EDAC-I3000
 M:	Jason Uhlenkott <juhlenko@akamai.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i3000_edac.c
 
 EDAC-I5000
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5000_edac.c
@@ -2526,21 +2525,21 @@ F:	drivers/edac/i7core_edac.c
 EDAC-I82975X
 M:	Ranganathan Desikan <ravi@jetztechnologies.com>
 M:	"Arvind R." <arvino55@gmail.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82975x_edac.c
 
 EDAC-PASEMI
 M:	Egor Martovetsky <egor@pasemi.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/pasemi_edac.c
 
 EDAC-R82600
 M:	Tim Small <tim@buttersideup.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
@@ -3557,17 +3556,13 @@ L:	linux-pm@vger.kernel.org
 S:	Supported
 F:	arch/x86/platform/mrst/pmu.*
 
-INTEL PRO/WIRELESS 2100 NETWORK CONNECTION SUPPORT
+INTEL PRO/WIRELESS 2100, 2200BG, 2915ABG NETWORK CONNECTION SUPPORT
+M:	Stanislav Yakovlev <stas.yakovlev@gmail.com>
 L:	linux-wireless@vger.kernel.org
-S:	Orphan
+S:	Maintained
 F:	Documentation/networking/README.ipw2100
-F:	drivers/net/wireless/ipw2x00/ipw2100.*
-
-INTEL PRO/WIRELESS 2915ABG NETWORK CONNECTION SUPPORT
-L:	linux-wireless@vger.kernel.org
-S:	Orphan
 F:	Documentation/networking/README.ipw2200
-F:	drivers/net/wireless/ipw2x00/ipw2200.*
+F:	drivers/net/wireless/ipw2x00/
 
 INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
 M:	Joseph Cihula <joseph.cihula@intel.com>
@@ -4314,6 +4309,13 @@ W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
 
+MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
+M:	Mirko Lindner <mlindner@marvell.com>
+M:	Stephen Hemminger <shemminger@vyatta.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/marvell/sk*
+
 MARVELL LIBERTAS WIRELESS DRIVER
 M:	Dan Williams <dcbw@redhat.com>
 L:	libertas-dev@lists.infradead.org
@@ -4343,12 +4345,6 @@ MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
 F:	drivers/mmc/host/mvsdio.*
-
-MARVELL YUKON / SYSKONNECT DRIVER
-M:	Mirko Lindner <mlindner@syskonnect.de>
-M:	Ralph Roesler <rroesler@syskonnect.de>
-W:	http://www.syskonnect.com
-S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -5642,7 +5638,7 @@ M:	Ohad Ben-Cohen <ohad@wizery.com>
 S:	Maintained
 F:	drivers/remoteproc/
 F:	Documentation/remoteproc.txt
-F:	include/linux/remoteproc.txt
+F:	include/linux/remoteproc.h
 
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -6121,12 +6117,6 @@ W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
 F:	drivers/usb/misc/sisusbvga/
 
-SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
-M:	Stephen Hemminger <shemminger@vyatta.com>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/marvell/sk*
-
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux-foundation.org>
 M:	Pekka Enberg <penberg@kernel.org>
@@ -6291,6 +6281,15 @@ F:	drivers/tty/serial/sunsab.h
 F:	drivers/tty/serial/sunsu.c
 F:	drivers/tty/serial/sunzilog.c
 F:	drivers/tty/serial/sunzilog.h
+
+SPARSE CHECKER
+M:	"Christopher Li" <sparse@chrisli.org>
+L:	linux-sparse@vger.kernel.org
+W:	https://sparse.wiki.kernel.org/
+T:	git git://git.kernel.org/pub/scm/devel/sparse/sparse.git
+T:	git git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
+S:	Maintained
+F:	include/linux/compiler.h
 
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>

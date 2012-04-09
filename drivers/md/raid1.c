@@ -1738,7 +1738,7 @@ static int process_checks(struct r1bio *r1_bio)
 				s = sbio->bi_io_vec[j].bv_page;
 				if (memcmp(page_address(p),
 					   page_address(s),
-					   PAGE_SIZE))
+					   sbio->bi_io_vec[j].bv_len))
 					break;
 			}
 		} else
@@ -2386,8 +2386,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 		int ok = 1;
 		for (i = 0 ; i < conf->raid_disks * 2 ; i++)
 			if (r1_bio->bios[i]->bi_end_io == end_sync_write) {
-				struct md_rdev *rdev =
-					rcu_dereference(conf->mirrors[i].rdev);
+				struct md_rdev *rdev = conf->mirrors[i].rdev;
 				ok = rdev_set_badblocks(rdev, sector_nr,
 							min_bad, 0
 					) && ok;
@@ -2636,11 +2635,13 @@ static struct r1conf *setup_conf(struct mddev *mddev)
 	return ERR_PTR(err);
 }
 
+static int stop(struct mddev *mddev);
 static int run(struct mddev *mddev)
 {
 	struct r1conf *conf;
 	int i;
 	struct md_rdev *rdev;
+	int ret;
 
 	if (mddev->level != 1) {
 		printk(KERN_ERR "md/raid1:%s: raid level not set to mirroring (%d)\n",
@@ -2705,7 +2706,11 @@ static int run(struct mddev *mddev)
 		mddev->queue->backing_dev_info.congested_data = mddev;
 		blk_queue_merge_bvec(mddev->queue, raid1_mergeable_bvec);
 	}
-	return md_integrity_register(mddev);
+
+	ret =  md_integrity_register(mddev);
+	if (ret)
+		stop(mddev);
+	return ret;
 }
 
 static int stop(struct mddev *mddev)

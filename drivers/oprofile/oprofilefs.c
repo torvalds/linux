@@ -117,25 +117,17 @@ static ssize_t ulong_write_file(struct file *file, char const __user *buf, size_
 }
 
 
-static int default_open(struct inode *inode, struct file *filp)
-{
-	if (inode->i_private)
-		filp->private_data = inode->i_private;
-	return 0;
-}
-
-
 static const struct file_operations ulong_fops = {
 	.read		= ulong_read_file,
 	.write		= ulong_write_file,
-	.open		= default_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 
 
 static const struct file_operations ulong_ro_fops = {
 	.read		= ulong_read_file,
-	.open		= default_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 
@@ -187,7 +179,7 @@ static ssize_t atomic_read_file(struct file *file, char __user *buf, size_t coun
 
 static const struct file_operations atomic_ro_fops = {
 	.read		= atomic_read_file,
-	.open		= default_open,
+	.open		= simple_open,
 	.llseek		= default_llseek,
 };
 

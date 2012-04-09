@@ -1,6 +1,8 @@
 /*
  * padata.c - generic interface to process data streams in parallel
  *
+ * See Documentation/padata.txt for an api documentation.
+ *
  * Copyright (C) 2008, 2009 secunet Security Networks AG
  * Copyright (C) 2008, 2009 Steffen Klassert <steffen.klassert@secunet.com>
  *
@@ -354,13 +356,13 @@ static int padata_setup_cpumasks(struct parallel_data *pd,
 	if (!alloc_cpumask_var(&pd->cpumask.pcpu, GFP_KERNEL))
 		return -ENOMEM;
 
-	cpumask_and(pd->cpumask.pcpu, pcpumask, cpu_active_mask);
+	cpumask_and(pd->cpumask.pcpu, pcpumask, cpu_online_mask);
 	if (!alloc_cpumask_var(&pd->cpumask.cbcpu, GFP_KERNEL)) {
 		free_cpumask_var(pd->cpumask.cbcpu);
 		return -ENOMEM;
 	}
 
-	cpumask_and(pd->cpumask.cbcpu, cbcpumask, cpu_active_mask);
+	cpumask_and(pd->cpumask.cbcpu, cbcpumask, cpu_online_mask);
 	return 0;
 }
 
@@ -564,7 +566,7 @@ EXPORT_SYMBOL(padata_unregister_cpumask_notifier);
 static bool padata_validate_cpumask(struct padata_instance *pinst,
 				    const struct cpumask *cpumask)
 {
-	if (!cpumask_intersects(cpumask, cpu_active_mask)) {
+	if (!cpumask_intersects(cpumask, cpu_online_mask)) {
 		pinst->flags |= PADATA_INVALID;
 		return false;
 	}
@@ -678,7 +680,7 @@ static int __padata_add_cpu(struct padata_instance *pinst, int cpu)
 {
 	struct parallel_data *pd;
 
-	if (cpumask_test_cpu(cpu, cpu_active_mask)) {
+	if (cpumask_test_cpu(cpu, cpu_online_mask)) {
 		pd = padata_alloc_pd(pinst, pinst->cpumask.pcpu,
 				     pinst->cpumask.cbcpu);
 		if (!pd)
@@ -746,6 +748,9 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 			return -ENOMEM;
 
 		padata_replace(pinst, pd);
+
+		cpumask_clear_cpu(cpu, pd->cpumask.cbcpu);
+		cpumask_clear_cpu(cpu, pd->cpumask.pcpu);
 	}
 
 	return 0;

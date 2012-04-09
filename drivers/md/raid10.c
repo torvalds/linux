@@ -1821,7 +1821,7 @@ static void sync_request_write(struct mddev *mddev, struct r10bio *r10_bio)
 			for (j = 0; j < vcnt; j++)
 				if (memcmp(page_address(fbio->bi_io_vec[j].bv_page),
 					   page_address(tbio->bi_io_vec[j].bv_page),
-					   PAGE_SIZE))
+					   fbio->bi_io_vec[j].bv_len))
 					break;
 			if (j == vcnt)
 				continue;

@@ -1475,7 +1475,7 @@ static int __init xlblk_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
-	if (!xen_platform_pci_unplug)
+	if (xen_hvm_domain() && !xen_platform_pci_unplug)
 		return -ENODEV;
 
 	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {

@@ -60,5 +60,5 @@ static void delay_backoff(int iterations)
 	loops += __insn_crc32_32(stack_pointer, get_cycles_low()) &
 		(loops - 1);
 
-	relax(1 << exponent);
+	relax(loops);
 }
