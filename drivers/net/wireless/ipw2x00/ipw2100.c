@@ -8508,8 +8508,7 @@ static void ipw2100_release_firmware(struct ipw2100_priv *priv,
 				     struct ipw2100_fw *fw)
 {
 	fw->version = 0;
-	if (fw->fw_entry)
-		release_firmware(fw->fw_entry);
+	release_firmware(fw->fw_entry);
 	fw->fw_entry = NULL;
 }
 
