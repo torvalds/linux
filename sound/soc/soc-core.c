@@ -1196,7 +1196,6 @@ static int soc_probe_dai_link(struct snd_soc_card *card, int num, int order)
 			card->name, num, order);
 
 	/* config components */
-	codec_dai->codec = codec;
 	cpu_dai->platform = platform;
 	codec_dai->card = card;
 	cpu_dai->card = card;
@@ -3227,6 +3226,7 @@ static inline char *fmt_multiple_name(struct device *dev,
 int snd_soc_register_dai(struct device *dev,
 		struct snd_soc_dai_driver *dai_drv)
 {
+	struct snd_soc_codec *codec;
 	struct snd_soc_dai *dai;
 
 	dev_dbg(dev, "dai register %s\n", dev_name(dev));
@@ -3249,7 +3249,18 @@ int snd_soc_register_dai(struct device *dev,
 		dai->driver->ops = &null_dai_ops;
 
 	mutex_lock(&client_mutex);
+
+	list_for_each_entry(codec, &codec_list, list) {
+		if (codec->dev == dev) {
+			dev_dbg(dev, "Mapped DAI %s to CODEC %s\n",
+				dai->name, codec->name);
+			dai->codec = codec;
+			break;
+		}
+	}
+
 	list_add(&dai->list, &dai_list);
+
 	mutex_unlock(&client_mutex);
 
 	pr_debug("Registered DAI '%s'\n", dai->name);
@@ -3293,6 +3304,7 @@ EXPORT_SYMBOL_GPL(snd_soc_unregister_dai);
 int snd_soc_register_dais(struct device *dev,
 		struct snd_soc_dai_driver *dai_drv, size_t count)
 {
+	struct snd_soc_codec *codec;
 	struct snd_soc_dai *dai;
 	int i, ret = 0;
 
@@ -3325,7 +3337,18 @@ int snd_soc_register_dais(struct device *dev,
 			dai->driver->ops = &null_dai_ops;
 
 		mutex_lock(&client_mutex);
+
+		list_for_each_entry(codec, &codec_list, list) {
+			if (codec->dev == dev) {
+				dev_dbg(dev, "Mapped DAI %s to CODEC %s\n",
+					dai->name, codec->name);
+				dai->codec = codec;
+				break;
+			}
+		}
+
 		list_add(&dai->list, &dai_list);
+
 		mutex_unlock(&client_mutex);
 
 		pr_debug("Registered DAI '%s'\n", dai->name);
@@ -3537,16 +3560,17 @@ int snd_soc_register_codec(struct device *dev,
 		fixup_codec_formats(&dai_drv[i].capture);
 	}
 
+	mutex_lock(&client_mutex);
+	list_add(&codec->list, &codec_list);
+	mutex_unlock(&client_mutex);
+
 	/* register any DAIs */
 	if (num_dai) {
 		ret = snd_soc_register_dais(dev, dai_drv, num_dai);
 		if (ret < 0)
-			goto fail;
+			dev_err(codec->dev, "Failed to regster DAIs: %d\n",
+				ret);
 	}
-
-	mutex_lock(&client_mutex);
-	list_add(&codec->list, &codec_list);
-	mutex_unlock(&client_mutex);
 
 	pr_debug("Registered codec '%s'\n", codec->name);
 	return 0;
