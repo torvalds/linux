@@ -14,6 +14,7 @@ initrd_phys-y	:= 0x20410000
 endif
 
 # Keep dtb files sorted alphabetically for each SoC
+# sam9260
 # sam9g20
 dtb-$(CONFIG_MACH_AT91SAM_DT) += usb_a9g20.dtb
 # sam9g45
