@@ -194,6 +194,10 @@ static struct irq_domain_ops at91_aic_irq_ops = {
 int __init at91_aic_of_init(struct device_node *node,
 				     struct device_node *parent)
 {
+	struct property *prop;
+	const __be32 *p;
+	u32 val;
+
 	at91_aic_base = of_iomap(node, 0);
 	at91_aic_np = node;
 
@@ -201,6 +205,14 @@ int __init at91_aic_of_init(struct device_node *node,
 						&at91_aic_irq_ops, NULL);
 	if (!at91_aic_domain)
 		panic("Unable to add AIC irq domain (DT)\n");
+
+	at91_extern_irq = 0;
+	of_property_for_each_u32(node, "atmel,external-irqs", prop, p, val) {
+		if (val > 31)
+			pr_warn("AIC: external irq %d > 31 skip it\n", val);
+		else
+			at91_extern_irq |= (1 << val);
+	}
 
 	irq_set_default_host(at91_aic_domain);
 

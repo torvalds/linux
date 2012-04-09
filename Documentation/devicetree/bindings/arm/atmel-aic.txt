@@ -15,6 +15,7 @@ Required properties:
       Valid combinations are 1, 2, 3, 4, 8.
       Default flag for internal sources should be set to 4 (active high).
 - reg: Should contain AIC registers location and length
+- atmel,external-irqs: u32 array of external irqs.
 
 Examples:
 	/*

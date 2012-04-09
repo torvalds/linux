@@ -52,6 +52,7 @@
 				compatible = "atmel,at91rm9200-aic";
 				interrupt-controller;
 				reg = <0xfffff000 0x200>;
+				atmel,external-irqs = <30 31>;
 			};
 
 			pmc: pmc@fffffc00 {

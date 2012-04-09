@@ -312,8 +312,6 @@ static void __init at91sam9x5_map_io(void)
 
 void __init at91sam9x5_initialize(void)
 {
-	at91_extern_irq = (1 << AT91SAM9X5_ID_IRQ0);
-
 	/* Register GPIO subsystem (using DT) */
 	at91_gpio_init(NULL, 0);
 }
