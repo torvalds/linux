@@ -4640,29 +4640,22 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
+static int register_kmem_files(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
-	/*
-	 * Part of this would be better living in a separate allocation
-	 * function, leaving us with just the cgroup tree population work.
-	 * We, however, depend on state such as network's proto_list that
-	 * is only initialized after cgroup creation. I found the less
-	 * cumbersome way to deal with it to defer it all to populate time
-	 */
-	return mem_cgroup_sockets_init(cont, ss);
+	return mem_cgroup_sockets_init(memcg, ss);
 };
 
-static void kmem_cgroup_destroy(struct cgroup *cont)
+static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
 {
-	mem_cgroup_sockets_destroy(cont);
+	mem_cgroup_sockets_destroy(memcg);
 }
 #else
-static int register_kmem_files(struct cgroup *cont, struct cgroup_subsys *ss)
+static int register_kmem_files(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	return 0;
 }
 
-static void kmem_cgroup_destroy(struct cgroup *cont)
+static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
 {
 }
 #endif
@@ -5034,7 +5027,7 @@ static void mem_cgroup_destroy(struct cgroup *cont)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
 
-	kmem_cgroup_destroy(cont);
+	kmem_cgroup_destroy(memcg);
 
 	mem_cgroup_put(memcg);
 }
@@ -5042,7 +5035,8 @@ static void mem_cgroup_destroy(struct cgroup *cont)
 static int mem_cgroup_populate(struct cgroup_subsys *ss,
 				struct cgroup *cont)
 {
-	return register_kmem_files(cont, ss);
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
+	return register_kmem_files(memcg, ss);
 }
 
 #ifdef CONFIG_MMU
