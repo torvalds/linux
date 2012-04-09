@@ -2643,13 +2643,14 @@ unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 
 		return r / pcd;
 	} else {
-		struct omap_dss_device *dssdev =
-			dispc_mgr_get_device(channel);
+		enum dss_hdmi_venc_clk_source_select source;
 
-		switch (dssdev->type) {
-		case OMAP_DISPLAY_TYPE_VENC:
+		source = dss_get_hdmi_venc_clk_source();
+
+		switch (source) {
+		case DSS_VENC_TV_CLK:
 			return venc_get_pixel_clock();
-		case OMAP_DISPLAY_TYPE_HDMI:
+		case DSS_HDMI_M_PCLK:
 			return hdmi_get_pixel_clock();
 		default:
 			BUG();
