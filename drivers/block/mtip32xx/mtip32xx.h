@@ -114,22 +114,22 @@
 #define __force_bit2int (unsigned int __force)
 
 /* below are bit numbers in 'flags' defined in mtip_port */
-#define MTIP_FLAG_IC_ACTIVE_BIT			0
-#define MTIP_FLAG_EH_ACTIVE_BIT			1
-#define MTIP_FLAG_SVC_THD_ACTIVE_BIT		2
-#define MTIP_FLAG_ISSUE_CMDS_BIT		4
-#define MTIP_FLAG_REBUILD_BIT			5
-#define MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT	8
+#define MTIP_PF_IC_ACTIVE_BIT			0
+#define MTIP_PF_EH_ACTIVE_BIT			1
+#define MTIP_PF_SVC_THD_ACTIVE_BIT		2
+#define MTIP_PF_ISSUE_CMDS_BIT			4
+#define MTIP_PF_REBUILD_BIT			5
+#define MTIP_PF_SVC_THD_SHOULD_STOP_BIT		8
 
 /* below are bit numbers in 'dd_flag' defined in driver_data */
-#define MTIP_DD_FLAG_REMOVE_PENDING_BIT		1
-#define MTIP_DD_FLAG_RESUME_BIT			2
-#define MTIP_DD_FLAG_CLEANUP_BIT		3
-#define MTIP_DD_FLAG_INIT_DONE_BIT		4
+#define MTIP_DDF_REMOVE_PENDING_BIT	1
+#define MTIP_DDF_RESUME_BIT		2
+#define MTIP_DDF_CLEANUP_BIT		3
+#define MTIP_DDF_INIT_DONE_BIT		4
 
-#define MTIP_DD_FLAG_WRITE_PROTECT_BIT		5
-#define MTIP_DD_FLAG_OVER_TEMP_BIT		6
-#define MTIP_DD_FLAG_REBUILD_FAILED_BIT		7
+#define MTIP_DDF_WRITE_PROTECT_BIT	5
+#define MTIP_DDF_OVER_TEMP_BIT		6
+#define MTIP_DDF_REBUILD_FAILED_BIT	7
 
 __packed struct smart_attr{
 	u8 attr_id;
