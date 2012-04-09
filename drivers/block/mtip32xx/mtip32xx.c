@@ -306,6 +306,10 @@ static inline void mtip_issue_ncq_command(struct mtip_port *port, int tag)
 			port->cmd_issue[MTIP_TAG_INDEX(tag)]);
 
 	spin_unlock_irqrestore(&port->cmd_issue_lock, flags);
+
+	/* Set the command's timeout value.*/
+	port->commands[tag].comp_time = jiffies + msecs_to_jiffies(
+					MTIP_NCQ_COMMAND_TIMEOUT_MS);
 }
 
 /*
@@ -824,10 +828,6 @@ static void mtip_handle_tfe(struct driver_data *dd)
 
 				set_bit(tag, tagaccum);
 
-				/* Update the timeout value. */
-				port->commands[tag].comp_time =
-					jiffies + msecs_to_jiffies(
-					MTIP_NCQ_COMMAND_TIMEOUT_MS);
 				/* Re-issue the command. */
 				mtip_issue_ncq_command(port, tag);
 
@@ -2204,9 +2204,7 @@ static void mtip_hw_submit_io(struct driver_data *dd, sector_t start,
 	/* Issue the command to the hardware */
 	mtip_issue_ncq_command(port, tag);
 
-	/* Set the command's timeout value.*/
-	port->commands[tag].comp_time = jiffies + msecs_to_jiffies(
-					MTIP_NCQ_COMMAND_TIMEOUT_MS);
+	return;
 }
 
 /*
@@ -2537,10 +2535,6 @@ static int mtip_service_thread(void *data)
 
 				/* Issue the command to the hardware */
 				mtip_issue_ncq_command(port, slot);
-
-				/* Set the command's timeout value.*/
-				port->commands[slot].comp_time = jiffies +
-				msecs_to_jiffies(MTIP_NCQ_COMMAND_TIMEOUT_MS);
 
 				clear_bit(slot, port->cmds_to_issue);
 			}
