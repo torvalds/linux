@@ -1357,10 +1357,8 @@ static int uea_stat_e1(struct uea_softc *sc)
 		/* release the dsp firmware as it is not needed until
 		 * the next failure
 		 */
-		if (sc->dsp_firm) {
-			release_firmware(sc->dsp_firm);
-			sc->dsp_firm = NULL;
-		}
+		release_firmware(sc->dsp_firm);
+		sc->dsp_firm = NULL;
 	}
 
 	/* always update it as atm layer could not be init when we switch to
@@ -1496,10 +1494,8 @@ static int uea_stat_e4(struct uea_softc *sc)
 		/* release the dsp firmware as it is not needed until
 		 * the next failure
 		 */
-		if (sc->dsp_firm) {
-			release_firmware(sc->dsp_firm);
-			sc->dsp_firm = NULL;
-		}
+		release_firmware(sc->dsp_firm);
+		sc->dsp_firm = NULL;
 	}
 
 	/* always update it as atm layer could not be init when we switch to
@@ -2240,8 +2236,7 @@ static void uea_stop(struct uea_softc *sc)
 	/* flush the work item, when no one can schedule it */
 	flush_work_sync(&sc->task);
 
-	if (sc->dsp_firm)
-		release_firmware(sc->dsp_firm);
+	release_firmware(sc->dsp_firm);
 	uea_leaves(INS_TO_USBDEV(sc));
 }
 
