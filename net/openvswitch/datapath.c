@@ -1635,7 +1635,9 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 
 	if (!err && a[OVS_VPORT_ATTR_OPTIONS])
 		err = ovs_vport_set_options(vport, a[OVS_VPORT_ATTR_OPTIONS]);
-	if (!err && a[OVS_VPORT_ATTR_UPCALL_PID])
+	if (err)
+		goto exit_unlock;
+	if (a[OVS_VPORT_ATTR_UPCALL_PID])
 		vport->upcall_pid = nla_get_u32(a[OVS_VPORT_ATTR_UPCALL_PID]);
 
 	reply = ovs_vport_cmd_build_info(vport, info->snd_pid, info->snd_seq,
