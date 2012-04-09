@@ -61,5 +61,6 @@ endif
 ifeq ($(CONFIG_TRACING),y)
 obj-$(CONFIG_KGDB_KDB) += trace_kdb.o
 endif
+obj-$(CONFIG_PROBE_EVENTS) += trace_probe.o
 
 libftrace-y := ftrace.o

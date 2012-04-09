@@ -373,6 +373,7 @@ config KPROBE_EVENT
 	depends on HAVE_REGS_AND_STACK_ACCESS_API
 	bool "Enable kprobes-based dynamic events"
 	select TRACING
+	select PROBE_EVENTS
 	default y
 	help
 	  This allows the user to add tracing events (similar to tracepoints)
@@ -384,6 +385,9 @@ config KPROBE_EVENT
 
 	  This option is also required by perf-probe subcommand of perf tools.
 	  If you want to use perf tools, this option is strongly recommended.
+
+config PROBE_EVENTS
+	def_bool n
 
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
