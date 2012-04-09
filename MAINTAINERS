@@ -1731,6 +1731,7 @@ S:	Supported
 F:	include/linux/capability.h
 F:	security/capability.c
 F:	security/commoncap.c 
+F:	kernel/capability.c
 
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
