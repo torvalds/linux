@@ -1264,9 +1264,15 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 					field->flags |= FIELD_IS_POINTER;
 
 				if (field->type) {
-					field->type = realloc(field->type,
-							      strlen(field->type) +
-							      strlen(last_token) + 2);
+					char *new_type;
+					new_type = realloc(field->type,
+							   strlen(field->type) +
+							   strlen(last_token) + 2);
+					if (!new_type) {
+						free(last_token);
+						goto fail;
+					}
+					field->type = new_type;
 					strcat(field->type, " ");
 					strcat(field->type, last_token);
 					free(last_token);
@@ -1291,6 +1297,7 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 		if (strcmp(token, "[") == 0) {
 			enum event_type last_type = type;
 			char *brackets = token;
+			char *new_brackets;
 			int len;
 
 			field->flags |= FIELD_IS_ARRAY;
@@ -1310,9 +1317,14 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 					len = 1;
 				last_type = type;
 
-				brackets = realloc(brackets,
-						   strlen(brackets) +
-						   strlen(token) + len);
+				new_brackets = realloc(brackets,
+						       strlen(brackets) +
+						       strlen(token) + len);
+				if (!new_brackets) {
+					free(brackets);
+					goto fail;
+				}
+				brackets = new_brackets;
 				if (len == 2)
 					strcat(brackets, " ");
 				strcat(brackets, token);
@@ -1328,7 +1340,12 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 
 			free_token(token);
 
-			brackets = realloc(brackets, strlen(brackets) + 2);
+			new_brackets = realloc(brackets, strlen(brackets) + 2);
+			if (!new_brackets) {
+				free(brackets);
+				goto fail;
+			}
+			brackets = new_brackets;
 			strcat(brackets, "]");
 
 			/* add brackets to type */
@@ -1339,10 +1356,16 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 			 * the format: type [] item;
 			 */
 			if (type == EVENT_ITEM) {
-				field->type = realloc(field->type,
-						      strlen(field->type) +
-						      strlen(field->name) +
-						      strlen(brackets) + 2);
+				char *new_type;
+				new_type = realloc(field->type,
+						   strlen(field->type) +
+						   strlen(field->name) +
+						   strlen(brackets) + 2);
+				if (!new_type) {
+					free(brackets);
+					goto fail;
+				}
+				field->type = new_type;
 				strcat(field->type, " ");
 				strcat(field->type, field->name);
 				free_token(field->name);
@@ -1350,9 +1373,15 @@ static int event_read_fields(struct event_format *event, struct format_field **f
 				field->name = token;
 				type = read_token(&token);
 			} else {
-				field->type = realloc(field->type,
-						      strlen(field->type) +
-						      strlen(brackets) + 1);
+				char *new_type;
+				new_type = realloc(field->type,
+						   strlen(field->type) +
+						   strlen(brackets) + 1);
+				if (!new_type) {
+					free(brackets);
+					goto fail;
+				}
+				field->type = new_type;
 				strcat(field->type, brackets);
 			}
 			free(brackets);
@@ -1735,10 +1764,16 @@ process_op(struct event_format *event, struct print_arg *arg, char **tok)
 		/* could just be a type pointer */
 		if ((strcmp(arg->op.op, "*") == 0) &&
 		    type == EVENT_DELIM && (strcmp(token, ")") == 0)) {
+			char *new_atom;
+
 			if (left->type != PRINT_ATOM)
 				die("bad pointer type");
-			left->atom.atom = realloc(left->atom.atom,
+			new_atom = realloc(left->atom.atom,
 					    strlen(left->atom.atom) + 3);
+			if (!new_atom)
+				goto out_free;
+
+			left->atom.atom = new_atom;
 			strcat(left->atom.atom, " *");
 			free(arg->op.op);
 			*arg = *left;
@@ -2597,7 +2632,16 @@ process_arg_token(struct event_format *event, struct print_arg *arg,
 		}
 		/* atoms can be more than one token long */
 		while (type == EVENT_ITEM) {
-			atom = realloc(atom, strlen(atom) + strlen(token) + 2);
+			char *new_atom;
+			new_atom = realloc(atom,
+					   strlen(atom) + strlen(token) + 2);
+			if (!new_atom) {
+				free(atom);
+				*tok = NULL;
+				free_token(token);
+				return EVENT_ERROR;
+			}
+			atom = new_atom;
 			strcat(atom, " ");
 			strcat(atom, token);
 			free_token(token);
