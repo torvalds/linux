@@ -2095,7 +2095,7 @@ out:
 /*
  * Called on a remote persistent tmem_get to attempt to preallocate
  * local storage for the data contained in the remote persistent page.
- * If succesfully preallocated, returns the pampd, marked as remote and
+ * If successfully preallocated, returns the pampd, marked as remote and
  * in_transit.  Else returns NULL.  Note that the appropriate tmem data
  * structure must be locked.
  */
