@@ -375,21 +375,31 @@ static void fsl_ifc_cmdfunc(struct mtd_info *mtd, unsigned int command,
 
 		return;
 
-	/* READID must read all 8 possible bytes */
 	case NAND_CMD_READID:
+	case NAND_CMD_PARAM: {
+		int timing = IFC_FIR_OP_RB;
+		if (command == NAND_CMD_PARAM)
+			timing = IFC_FIR_OP_RBCD;
+
 		out_be32(&ifc->ifc_nand.nand_fir0,
 				(IFC_FIR_OP_CMD0 << IFC_NAND_FIR0_OP0_SHIFT) |
 				(IFC_FIR_OP_UA  << IFC_NAND_FIR0_OP1_SHIFT) |
-				(IFC_FIR_OP_RB << IFC_NAND_FIR0_OP2_SHIFT));
+				(timing << IFC_NAND_FIR0_OP2_SHIFT));
 		out_be32(&ifc->ifc_nand.nand_fcr0,
-				NAND_CMD_READID << IFC_NAND_FCR0_CMD0_SHIFT);
-		/* 8 bytes for manuf, device and exts */
-		out_be32(&ifc->ifc_nand.nand_fbcr, 8);
-		ifc_nand_ctrl->read_bytes = 8;
+				command << IFC_NAND_FCR0_CMD0_SHIFT);
+		out_be32(&ifc->ifc_nand.row3, column);
+
+		/*
+		 * although currently it's 8 bytes for READID, we always read
+		 * the maximum 256 bytes(for PARAM)
+		 */
+		out_be32(&ifc->ifc_nand.nand_fbcr, 256);
+		ifc_nand_ctrl->read_bytes = 256;
 
 		set_addr(mtd, 0, 0, 0);
 		fsl_ifc_run_command(mtd);
 		return;
+	}
 
 	/* ERASE1 stores the block and page address */
 	case NAND_CMD_ERASE1:
