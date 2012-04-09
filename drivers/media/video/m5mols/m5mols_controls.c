@@ -319,6 +319,39 @@ static int m5mols_set_color_effect(struct m5mols_info *info, int val)
 	return ret;
 }
 
+static int m5mols_set_iso(struct m5mols_info *info, int auto_iso)
+{
+	u32 iso = auto_iso ? 0 : info->iso->val + 1;
+
+	return m5mols_write(&info->sd, AE_ISO, iso);
+}
+
+static int m5mols_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct v4l2_subdev *sd = to_sd(ctrl);
+	struct m5mols_info *info = to_m5mols(sd);
+	int ret = 0;
+	u8 status;
+
+	v4l2_dbg(1, m5mols_debug, sd, "%s: ctrl: %s (%d)\n",
+		 __func__, ctrl->name, info->isp_ready);
+
+	if (!info->isp_ready)
+		return -EBUSY;
+
+	switch (ctrl->id) {
+	case V4L2_CID_ISO_SENSITIVITY_AUTO:
+		ret = m5mols_read_u8(sd, AE_ISO, &status);
+		if (ret == 0)
+			ctrl->val = !status;
+		if (status != REG_ISO_AUTO)
+			info->iso->val = status - 1;
+		break;
+	}
+
+	return ret;
+}
+
 static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	unsigned int ctrl_mode = m5mols_get_ctrl_mode(ctrl);
@@ -354,6 +387,10 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = m5mols_set_exposure(info, ctrl->val);
 		break;
 
+	case V4L2_CID_ISO_SENSITIVITY:
+		ret = m5mols_set_iso(info, ctrl->val);
+		break;
+
 	case V4L2_CID_AUTO_WHITE_BALANCE:
 		ret = m5mols_set_white_balance(info, ctrl->val);
 		break;
@@ -374,7 +411,14 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
+	.g_volatile_ctrl	= m5mols_g_volatile_ctrl,
 	.s_ctrl			= m5mols_s_ctrl,
+};
+
+/* Supported manual ISO values */
+static const s64 iso_qmenu[] = {
+	/* AE_ISO: 0x01...0x07 */
+	50, 100, 200, 400, 800, 1600, 3200
 };
 
 int m5mols_init_controls(struct v4l2_subdev *sd)
@@ -404,6 +448,14 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE,
 			0, exposure_max, 1, exposure_max / 2);
 
+	/* ISO control cluster */
+	info->auto_iso = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_ISO_SENSITIVITY_AUTO, 1, ~0x03, 1);
+
+	info->iso = v4l2_ctrl_new_int_menu(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_ISO_SENSITIVITY, ARRAY_SIZE(iso_qmenu) - 1,
+			ARRAY_SIZE(iso_qmenu)/2 - 1, iso_qmenu);
+
 	info->saturation = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
 			V4L2_CID_SATURATION, 1, 5, 1, 3);
 
@@ -421,6 +473,10 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 	}
 
 	v4l2_ctrl_auto_cluster(2, &info->auto_exposure, 1, false);
+
+	info->auto_iso->flags |= V4L2_CTRL_FLAG_VOLATILE |
+				V4L2_CTRL_FLAG_UPDATE;
+	v4l2_ctrl_auto_cluster(2, &info->auto_iso, 0, false);
 
 	m5mols_set_ctrl_mode(info->auto_exposure, REG_PARAMETER);
 	m5mols_set_ctrl_mode(info->auto_wb, REG_PARAMETER);
