@@ -46,14 +46,6 @@ config SND_SH7760_AC97
 	  This option enables generic sound support for the first
 	  AC97 unit of the SH7760.
 
-config SND_FSI_DA7210
-	tristate "FSI-DA7210 sound support"
-	depends on SND_SOC_SH4_FSI && I2C
-	select SND_SOC_DA7210
-	help
-	  This option enables generic sound support for the
-	  FSI - DA7210 unit
-
 config SND_SIU_MIGOR
 	tristate "SIU sound support on Migo-R"
 	depends on SH_MIGOR
