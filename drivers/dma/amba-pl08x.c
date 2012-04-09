@@ -1615,7 +1615,7 @@ static irqreturn_t pl08x_irq(int irq, void *dev)
 			__func__, err);
 		writel(err, pl08x->base + PL080_ERR_CLEAR);
 	}
-	tc = readl(pl08x->base + PL080_INT_STATUS);
+	tc = readl(pl08x->base + PL080_TC_STATUS);
 	if (tc)
 		writel(tc, pl08x->base + PL080_TC_CLEAR);
 
