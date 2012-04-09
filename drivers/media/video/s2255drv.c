@@ -1826,8 +1826,7 @@ static void s2255_destroy(struct s2255_dev *dev)
 		usb_free_urb(dev->fw_data->fw_urb);
 		dev->fw_data->fw_urb = NULL;
 	}
-	if (dev->fw_data->fw)
-		release_firmware(dev->fw_data->fw);
+	release_firmware(dev->fw_data->fw);
 	kfree(dev->fw_data->pfw_data);
 	kfree(dev->fw_data);
 	/* reset the DSP so firmware can be reloaded next time */
