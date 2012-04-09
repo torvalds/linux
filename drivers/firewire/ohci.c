@@ -1821,8 +1821,8 @@ static void bus_reset_work(struct work_struct *work)
 {
 	struct fw_ohci *ohci =
 		container_of(work, struct fw_ohci, bus_reset_work);
-	int self_id_count, i, j, reg;
-	int generation, new_generation;
+	int self_id_count, generation, new_generation, i, j;
+	u32 reg;
 	unsigned long flags;
 	void *free_rom = NULL;
 	dma_addr_t free_rom_bus = 0;
