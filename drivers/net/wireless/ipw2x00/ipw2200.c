@@ -3657,8 +3657,7 @@ static int ipw_load(struct ipw_priv *priv)
 		priv->rxq = NULL;
 	}
 	ipw_tx_queue_free(priv);
-	if (raw)
-		release_firmware(raw);
+	release_firmware(raw);
 #ifdef CONFIG_PM
 	fw_loaded = 0;
 	raw = NULL;
