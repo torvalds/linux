@@ -341,7 +341,7 @@ Need more implementation yet....
 --------------------------------
 8. Memory hotplug event notifier
 --------------------------------
-Memory hotplug has event notifer. There are 6 types of notification.
+Memory hotplug has event notifier. There are 6 types of notification.
 
 MEMORY_GOING_ONLINE
   Generated before new memory becomes available in order to be able to
