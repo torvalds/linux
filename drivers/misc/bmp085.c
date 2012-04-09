@@ -50,6 +50,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/of.h>
 
 #define BMP085_NAME			"bmp085"
 #define BMP085_I2C_ADDRESS		0x77
@@ -85,6 +86,7 @@ struct bmp085_data {
 	u32	raw_pressure;
 	u32	temp_measurement_period;
 	unsigned long last_temp_measurement;
+	u8	chip_id;
 	s32	b6; /* calculated temperature correction coefficient */
 };
 
@@ -385,6 +387,27 @@ static int bmp085_detect(struct i2c_client *client, struct i2c_board_info *info)
 	return 0;
 }
 
+static void __init bmp085_get_of_properties(struct i2c_client *client,
+					    struct bmp085_data *data)
+{
+#ifdef CONFIG_OF
+	struct device_node *np = client->dev.of_node;
+	u32 prop;
+
+	if (!np)
+		return;
+
+	if (!of_property_read_u32(np, "chip-id", &prop))
+		data->chip_id = prop & 0xff;
+
+	if (!of_property_read_u32(np, "temp-measurement-period", &prop))
+		data->temp_measurement_period = (prop/100)*HZ;
+
+	if (!of_property_read_u32(np, "default-oversampling", &prop))
+		data->oversampling_setting = prop & 0xff;
+#endif
+}
+
 static int bmp085_init_client(struct i2c_client *client)
 {
 	struct bmp085_data *data = i2c_get_clientdata(client);
@@ -393,10 +416,15 @@ static int bmp085_init_client(struct i2c_client *client)
 	if (status < 0)
 		return status;
 
+	/* default settings */
 	data->client = client;
+	data->chip_id = BMP085_CHIP_ID;
 	data->last_temp_measurement = 0;
 	data->temp_measurement_period = 1*HZ;
 	data->oversampling_setting = 3;
+
+	bmp085_get_of_properties(client, data);
+
 	mutex_init(&data->lock);
 
 	return 0;
@@ -446,6 +474,12 @@ static int __devexit bmp085_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct of_device_id bmp085_of_match[] = {
+	{ .compatible = "bosch,bmp085", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, bmp085_of_match);
+
 static const struct i2c_device_id bmp085_id[] = {
 	{ BMP085_NAME, 0 },
 	{ }
@@ -455,7 +489,8 @@ MODULE_DEVICE_TABLE(i2c, bmp085_id);
 static struct i2c_driver bmp085_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
-		.name	= BMP085_NAME
+		.name	= BMP085_NAME,
+		.of_match_table = bmp085_of_match
 	},
 	.id_table	= bmp085_id,
 	.probe		= bmp085_probe,
