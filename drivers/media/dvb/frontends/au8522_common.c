@@ -26,6 +26,8 @@
 #include "dvb_frontend.h"
 #include "au8522_priv.h"
 
+MODULE_LICENSE("GPL");
+
 static int debug;
 
 #define dprintk(arg...)\
