@@ -80,7 +80,7 @@ static ssize_t regmap_map_read_file(struct file *file, char __user *user_buf,
 	val_len = 2 * map->format.val_bytes;
 	tot_len = reg_len + val_len + 3;      /* : \n */
 
-	for (i = 0; i < map->max_register + 1; i++) {
+	for (i = 0; i <= map->max_register; i += map->reg_stride) {
 		if (!regmap_readable(map, i))
 			continue;
 
@@ -197,7 +197,7 @@ static ssize_t regmap_access_read_file(struct file *file,
 	reg_len = regmap_calc_reg_len(map->max_register, buf, count);
 	tot_len = reg_len + 10; /* ': R W V P\n' */
 
-	for (i = 0; i < map->max_register + 1; i++) {
+	for (i = 0; i <= map->max_register; i += map->reg_stride) {
 		/* Ignore registers which are neither readable nor writable */
 		if (!regmap_readable(map, i) && !regmap_writeable(map, i))
 			continue;
