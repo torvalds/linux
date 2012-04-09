@@ -86,6 +86,13 @@ struct smtc_ipi_q IPIQ[NR_CPUS];
 static struct smtc_ipi_q freeIPIq;
 
 
+/*
+ * Number of FPU contexts for each VPE
+ */
+
+static int smtc_nconf1[MAX_SMTC_VPES];
+
+
 /* Forward declarations */
 
 void ipi_decode(struct smtc_ipi *);
@@ -174,9 +181,9 @@ static int __init tintq(char *str)
 
 __setup("tintq=", tintq);
 
-static int imstuckcount[2][8];
+static int imstuckcount[MAX_SMTC_VPES][8];
 /* vpemask represents IM/IE bits of per-VPE Status registers, low-to-high */
-static int vpemask[2][8] = {
+static int vpemask[MAX_SMTC_VPES][8] = {
 	{0, 0, 1, 0, 0, 0, 0, 1},
 	{0, 0, 0, 0, 0, 0, 0, 1}
 };
@@ -331,6 +338,22 @@ int __init smtc_build_cpu_map(int start_cpu_slot)
 
 static void smtc_tc_setup(int vpe, int tc, int cpu)
 {
+	static int cp1contexts[MAX_SMTC_VPES];
+
+	/*
+	 * Make a local copy of the available FPU contexts in order
+	 * to keep track of TCs that can have one.
+	 */
+	if (tc == 1)
+	{
+		/*
+		 * FIXME: Multi-core SMTC hasn't been tested and the
+		 *        maximum number of VPEs may change.
+		 */
+		cp1contexts[0] = smtc_nconf1[0] - 1;
+		cp1contexts[1] = smtc_nconf1[1];
+	}
+
 	settc(tc);
 	write_tc_c0_tchalt(TCHALT_H);
 	mips_ihb();
@@ -343,22 +366,29 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 	 * an active IPI queue.
 	 */
 	write_tc_c0_tccontext((sizeof(struct smtc_ipi_q) * cpu) << 16);
-	/* Bind tc to vpe */
+
+	/* Bind TC to VPE. */
 	write_tc_c0_tcbind(vpe);
+
 	/* In general, all TCs should have the same cpu_data indications. */
 	memcpy(&cpu_data[cpu], &cpu_data[0], sizeof(struct cpuinfo_mips));
-	/* For 34Kf, start with TC/CPU 0 as sole owner of single FPU context */
-	if (cpu_data[0].cputype == CPU_34K ||
-	    cpu_data[0].cputype == CPU_1004K)
+
+	/* Check to see if there is a FPU context available for this TC. */
+	if (!cp1contexts[vpe])
 		cpu_data[cpu].options &= ~MIPS_CPU_FPU;
+	else
+		cp1contexts[vpe]--;
+
+	/* Store the TC and VPE into the cpu_data structure. */
 	cpu_data[cpu].vpe_id = vpe;
 	cpu_data[cpu].tc_id = tc;
-	/* Multi-core SMTC hasn't been tested, but be prepared */
+
+	/* FIXME: Multi-core SMTC hasn't been tested, but be prepared. */
 	cpu_data[cpu].core = (read_vpe_c0_ebase() >> 1) & 0xff;
 }
 
 /*
- * Tweak to get Count registes in as close a sync as possible.  The
+ * Tweak to get Count registers synced as closely as possible. The
  * value seems good for 34K-class cores.
  */
 
@@ -466,6 +496,24 @@ void smtc_prepare_cpus(int cpus)
 	smtc_configure_tlb();
 
 	for (tc = 0, vpe = 0 ; (vpe < nvpe) && (tc < ntc) ; vpe++) {
+		/* Get number of CP1 contexts for each VPE. */
+		if (tc == 0)
+		{
+			/*
+			 * Do not call settc() for TC0 or the FPU context
+			 * value will be incorrect. Besides, we know that
+			 * we are TC0 anyway.
+			 */
+			smtc_nconf1[0] = ((read_vpe_c0_vpeconf1() &
+				VPECONF1_NCP1) >> VPECONF1_NCP1_SHIFT);
+			if (nvpe == 2)
+			{
+				settc(1);
+				smtc_nconf1[1] = ((read_vpe_c0_vpeconf1() &
+					VPECONF1_NCP1) >> VPECONF1_NCP1_SHIFT);
+				settc(0);
+			}
+		}
 		if (tcpervpe[vpe] == 0)
 			continue;
 		if (vpe != 0)
@@ -479,6 +527,18 @@ void smtc_prepare_cpus(int cpus)
 			 */
 			if (tc != 0) {
 				smtc_tc_setup(vpe, tc, cpu);
+				if (vpe != 0) {
+					/*
+					 * Set MVP bit (possibly again).  Do it
+					 * here to catch CPUs that have no TCs
+					 * bound to the VPE at reset.  In that
+					 * case, a TC must be bound to the VPE
+					 * before we can set VPEControl[MVP]
+					 */
+					write_vpe_c0_vpeconf0(
+						read_vpe_c0_vpeconf0() |
+						VPECONF0_MVP);
+				}
 				cpu++;
 			}
 			printk(" %d", tc);
