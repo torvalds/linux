@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/amba/bus.h>
+#include <linux/amba/mmci.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
 #include <linux/mtd/mtd.h>
@@ -185,6 +186,29 @@ static void __init nhk8815_onenand_init(void)
 	writel(0x02100551, FSMC_BTR(0));
 #endif
 }
+
+static struct mmci_platform_data mmcsd_plat_data = {
+	.ocr_mask = MMC_VDD_29_30,
+	.f_max = 48000000,
+	.gpio_wp = -1,
+	.gpio_cd = 111,
+	.cd_invert = true,
+	.capabilities = MMC_CAP_MMC_HIGHSPEED |
+	MMC_CAP_SD_HIGHSPEED | MMC_CAP_4_BIT_DATA,
+};
+
+static int __init nhk8815_mmcsd_init(void)
+{
+	int ret;
+
+	ret = gpio_request(112, "card detect bias");
+	if (ret)
+		return ret;
+	gpio_direction_output(112, 0);
+	amba_apb_device_add(NULL, "mmci", NOMADIK_SDI_BASE, SZ_4K, IRQ_SDMMC, 0, &mmcsd_plat_data, 0x10180180);
+	return 0;
+}
+module_init(nhk8815_mmcsd_init);
 
 static struct resource nhk8815_eth_resources[] = {
 	{
