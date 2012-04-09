@@ -169,7 +169,7 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	if (!ret)
 		ret = m5mols_write(sd, AE_ISO, scenemode.iso);
 	if (!ret)
-		ret = m5mols_mode(info, REG_CAPTURE);
+		ret = m5mols_set_mode(info, REG_CAPTURE);
 	if (!ret)
 		ret = m5mols_write(sd, CAPP_WDR_EN, scenemode.wdr);
 	if (!ret)
@@ -181,7 +181,7 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	if (!ret)
 		ret = m5mols_write(sd, CAPC_MODE, scenemode.capt_mode);
 	if (!ret)
-		ret = m5mols_mode(info, REG_MONITOR);
+		ret = m5mols_set_mode(info, REG_MONITOR);
 
 	return ret;
 }
@@ -227,73 +227,194 @@ int m5mols_lock_3a(struct m5mols_info *info, bool lock)
 	return ret;
 }
 
-/* m5mols_set_ctrl() - The main s_ctrl function called by m5mols_set_ctrl() */
-int m5mols_set_ctrl(struct v4l2_ctrl *ctrl)
+/* Set exposure/auto exposure cluster */
+static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
+{
+	struct v4l2_subdev *sd = &info->sd;
+	int ret;
+
+	ret = m5mols_lock_ae(info, exposure != V4L2_EXPOSURE_AUTO);
+	if (ret < 0)
+		return ret;
+
+	if (exposure == V4L2_EXPOSURE_AUTO) {
+		ret = m5mols_write(sd, AE_MODE, REG_AE_ALL);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (exposure == V4L2_EXPOSURE_MANUAL) {
+		ret = m5mols_write(sd, AE_MODE, REG_AE_OFF);
+		if (ret == 0)
+			ret = m5mols_write(sd, AE_MAN_GAIN_MON,
+					   info->exposure->val);
+		if (ret == 0)
+			ret = m5mols_write(sd, AE_MAN_GAIN_CAP,
+					   info->exposure->val);
+	}
+
+	return ret;
+}
+
+static int m5mols_set_white_balance(struct m5mols_info *info, int awb)
+{
+	int ret;
+
+	ret = m5mols_lock_awb(info, !awb);
+	if (ret < 0)
+		return ret;
+
+	return m5mols_write(&info->sd, AWB_MODE, awb ? REG_AWB_AUTO :
+			    REG_AWB_PRESET);
+}
+
+static int m5mols_set_saturation(struct m5mols_info *info, int val)
+{
+	int ret = m5mols_write(&info->sd, MON_CHROMA_LVL, val);
+	if (ret < 0)
+		return ret;
+
+	return m5mols_write(&info->sd, MON_CHROMA_EN, REG_CHROMA_ON);
+}
+
+static int m5mols_set_color_effect(struct m5mols_info *info, int val)
+{
+	unsigned int m_effect = REG_COLOR_EFFECT_OFF;
+	unsigned int p_effect = REG_EFFECT_OFF;
+	unsigned int cfix_r = 0, cfix_b = 0;
+	struct v4l2_subdev *sd = &info->sd;
+	int ret = 0;
+
+	switch (val) {
+	case V4L2_COLORFX_BW:
+		m_effect = REG_COLOR_EFFECT_ON;
+		break;
+	case V4L2_COLORFX_NEGATIVE:
+		p_effect = REG_EFFECT_NEGA;
+		break;
+	case V4L2_COLORFX_EMBOSS:
+		p_effect = REG_EFFECT_EMBOSS;
+		break;
+	case V4L2_COLORFX_SEPIA:
+		m_effect = REG_COLOR_EFFECT_ON;
+		cfix_r = REG_CFIXR_SEPIA;
+		cfix_b = REG_CFIXB_SEPIA;
+		break;
+	}
+
+	ret = m5mols_write(sd, PARM_EFFECT, p_effect);
+	if (!ret)
+		ret = m5mols_write(sd, MON_EFFECT, m_effect);
+
+	if (ret == 0 && m_effect == REG_COLOR_EFFECT_ON) {
+		ret = m5mols_write(sd, MON_CFIXR, cfix_r);
+		if (!ret)
+			ret = m5mols_write(sd, MON_CFIXB, cfix_b);
+	}
+
+	v4l2_dbg(1, m5mols_debug, sd,
+		 "p_effect: %#x, m_effect: %#x, r: %#x, b: %#x (%d)\n",
+		 p_effect, m_effect, cfix_r, cfix_b, ret);
+
+	return ret;
+}
+
+static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct m5mols_info *info = to_m5mols(sd);
+	int ispstate = info->mode;
 	int ret;
+
+	/*
+	 * If needed, defer restoring the controls until
+	 * the device is fully initialized.
+	 */
+	if (!info->isp_ready) {
+		info->ctrl_sync = 0;
+		return 0;
+	}
+
+	ret = m5mols_mode(info, REG_PARAMETER);
+	if (ret < 0)
+		return ret;
 
 	switch (ctrl->id) {
 	case V4L2_CID_ZOOM_ABSOLUTE:
-		return m5mols_write(sd, MON_ZOOM, ctrl->val);
+		ret = m5mols_write(sd, MON_ZOOM, ctrl->val);
+		break;
 
 	case V4L2_CID_EXPOSURE_AUTO:
-		ret = m5mols_lock_ae(info,
-			ctrl->val == V4L2_EXPOSURE_AUTO ? false : true);
-		if (!ret && ctrl->val == V4L2_EXPOSURE_AUTO)
-			ret = m5mols_write(sd, AE_MODE, REG_AE_ALL);
-		if (!ret && ctrl->val == V4L2_EXPOSURE_MANUAL) {
-			int val = info->exposure->val;
-			ret = m5mols_write(sd, AE_MODE, REG_AE_OFF);
-			if (!ret)
-				ret = m5mols_write(sd, AE_MAN_GAIN_MON, val);
-			if (!ret)
-				ret = m5mols_write(sd, AE_MAN_GAIN_CAP, val);
-		}
-		return ret;
+		ret = m5mols_set_exposure(info, ctrl->val);
+		break;
 
 	case V4L2_CID_AUTO_WHITE_BALANCE:
-		ret = m5mols_lock_awb(info, ctrl->val ? false : true);
-		if (!ret)
-			ret = m5mols_write(sd, AWB_MODE, ctrl->val ?
-				REG_AWB_AUTO : REG_AWB_PRESET);
-		return ret;
+		ret = m5mols_set_white_balance(info, ctrl->val);
+		break;
 
 	case V4L2_CID_SATURATION:
-		ret = m5mols_write(sd, MON_CHROMA_LVL, ctrl->val);
-		if (!ret)
-			ret = m5mols_write(sd, MON_CHROMA_EN, REG_CHROMA_ON);
-		return ret;
+		ret = m5mols_set_saturation(info, ctrl->val);
+		break;
 
 	case V4L2_CID_COLORFX:
-		/*
-		 * This control uses two kinds of registers: normal & color.
-		 * The normal effect belongs to category 1, while the color
-		 * one belongs to category 2.
-		 *
-		 * The normal effect uses one register: CAT1_EFFECT.
-		 * The color effect uses three registers:
-		 * CAT2_COLOR_EFFECT, CAT2_CFIXR, CAT2_CFIXB.
-		 */
-		ret = m5mols_write(sd, PARM_EFFECT,
-			ctrl->val == V4L2_COLORFX_NEGATIVE ? REG_EFFECT_NEGA :
-			ctrl->val == V4L2_COLORFX_EMBOSS ? REG_EFFECT_EMBOSS :
-			REG_EFFECT_OFF);
-		if (!ret)
-			ret = m5mols_write(sd, MON_EFFECT,
-				ctrl->val == V4L2_COLORFX_SEPIA ?
-				REG_COLOR_EFFECT_ON : REG_COLOR_EFFECT_OFF);
-		if (!ret)
-			ret = m5mols_write(sd, MON_CFIXR,
-				ctrl->val == V4L2_COLORFX_SEPIA ?
-				REG_CFIXR_SEPIA : 0);
-		if (!ret)
-			ret = m5mols_write(sd, MON_CFIXB,
-				ctrl->val == V4L2_COLORFX_SEPIA ?
-				REG_CFIXB_SEPIA : 0);
+		ret = m5mols_set_color_effect(info, ctrl->val);
+		break;
+	}
+	if (ret < 0)
+		return ret;
+
+	return m5mols_mode(info, ispstate);
+}
+
+static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
+	.s_ctrl			= m5mols_s_ctrl,
+};
+
+int m5mols_init_controls(struct v4l2_subdev *sd)
+{
+	struct m5mols_info *info = to_m5mols(sd);
+	u16 exposure_max;
+	u16 zoom_step;
+	int ret;
+
+	/* Determine the firmware dependant control range and step values */
+	ret = m5mols_read_u16(sd, AE_MAX_GAIN_MON, &exposure_max);
+	if (ret < 0)
+		return ret;
+
+	zoom_step = is_manufacturer(info, REG_SAMSUNG_OPTICS) ? 31 : 1;
+
+	v4l2_ctrl_handler_init(&info->handle, 6);
+
+	info->auto_wb = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 1);
+
+	info->auto_exposure = v4l2_ctrl_new_std_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
+			1, ~0x03, V4L2_EXPOSURE_AUTO);
+
+	info->exposure = v4l2_ctrl_new_std(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE,
+			0, exposure_max, 1, exposure_max / 2);
+
+	info->saturation = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_SATURATION, 1, 5, 1, 3);
+
+	info->zoom = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_ZOOM_ABSOLUTE, 1, 70, zoom_step, 1);
+
+	info->colorfx = v4l2_ctrl_new_std_menu(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_COLORFX, 4, 0, V4L2_COLORFX_NONE);
+
+	if (info->handle.error) {
+		int ret = info->handle.error;
+		v4l2_err(sd, "Failed to initialize controls: %d\n", ret);
+		v4l2_ctrl_handler_free(&info->handle);
 		return ret;
 	}
 
-	return -EINVAL;
+	v4l2_ctrl_auto_cluster(2, &info->auto_exposure, 1, false);
+	sd->ctrl_handler = &info->handle;
+
+	return 0;
 }

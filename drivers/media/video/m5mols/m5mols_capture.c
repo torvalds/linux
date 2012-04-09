@@ -114,7 +114,7 @@ int m5mols_start_capture(struct m5mols_info *info)
 	 * format. The frame capture is initiated during switching from Monitor
 	 * to Capture mode.
 	 */
-	ret = m5mols_mode(info, REG_MONITOR);
+	ret = m5mols_set_mode(info, REG_MONITOR);
 	if (!ret)
 		ret = m5mols_restore_controls(info);
 	if (!ret)
@@ -124,7 +124,7 @@ int m5mols_start_capture(struct m5mols_info *info)
 	if (!ret)
 		ret = m5mols_lock_3a(info, true);
 	if (!ret)
-		ret = m5mols_mode(info, REG_CAPTURE);
+		ret = m5mols_set_mode(info, REG_CAPTURE);
 	if (!ret)
 		/* Wait until a frame is captured to ISP internal memory */
 		ret = m5mols_wait_interrupt(sd, REG_INT_CAPTURE, 2000);

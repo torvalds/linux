@@ -160,12 +160,12 @@ struct m5mols_version {
  * @irq_waitq: waitqueue for the capture
  * @flags: state variable for the interrupt handler
  * @handle: control handler
- * @autoexposure: Auto Exposure control
- * @exposure: Exposure control
+ * @auto_exposure: auto/manual exposure control
+ * @exposure: manual exposure control
  * @autowb: Auto White Balance control
- * @colorfx: Color effect control
- * @saturation:	Saturation control
- * @zoom: Zoom control
+ * @colorfx: color effect control
+ * @saturation: saturation control
+ * @zoom: zoom control
  * @ver: information of the version
  * @cap: the capture mode attributes
  * @power: current sensor's power status
@@ -188,12 +188,13 @@ struct m5mols_info {
 	atomic_t irq_done;
 
 	struct v4l2_ctrl_handler handle;
+	struct {
+		/* exposure/auto-exposure cluster */
+		struct v4l2_ctrl *auto_exposure;
+		struct v4l2_ctrl *exposure;
+	};
 
-	/* Autoexposure/exposure control cluster */
-	struct v4l2_ctrl *autoexposure;
-	struct v4l2_ctrl *exposure;
-
-	struct v4l2_ctrl *autowb;
+	struct v4l2_ctrl *auto_wb;
 	struct v4l2_ctrl *colorfx;
 	struct v4l2_ctrl *saturation;
 	struct v4l2_ctrl *zoom;
@@ -277,7 +278,7 @@ int m5mols_busy_wait(struct v4l2_subdev *sd, u32 reg, u32 value, u32 mask,
  * The available executing order between each modes are as follows:
  *   PARAMETER <---> MONITOR <---> CAPTURE
  */
-int m5mols_mode(struct m5mols_info *info, u8 mode);
+int m5mols_set_mode(struct m5mols_info *info, u8 mode);
 
 int m5mols_enable_interrupt(struct v4l2_subdev *sd, u8 reg);
 int m5mols_wait_interrupt(struct v4l2_subdev *sd, u8 condition, u32 timeout);
@@ -286,6 +287,7 @@ int m5mols_start_capture(struct m5mols_info *info);
 int m5mols_do_scenemode(struct m5mols_info *info, u8 mode);
 int m5mols_lock_3a(struct m5mols_info *info, bool lock);
 int m5mols_set_ctrl(struct v4l2_ctrl *ctrl);
+int m5mols_init_controls(struct v4l2_subdev *sd);
 
 /* The firmware function */
 int m5mols_update_fw(struct v4l2_subdev *sd,
