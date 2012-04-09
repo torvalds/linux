@@ -486,7 +486,7 @@ static void __init bonito_earlytimer_init(void)
 	shmobile_earlytimer_init();
 }
 
-void __init bonito_add_early_devices(void)
+static void __init bonito_add_early_devices(void)
 {
 	r8a7740_add_early_devices();
 
