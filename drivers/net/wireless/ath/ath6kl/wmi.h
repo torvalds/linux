@@ -1271,6 +1271,16 @@ struct wmi_mcast_filter_add_del_cmd {
 	u8 mcast_mac[ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE];
 } __packed;
 
+struct wmi_set_htcap_cmd {
+	u8 band;
+	u8 ht_enable;
+	u8 ht40_supported;
+	u8 ht20_sgi;
+	u8 ht40_sgi;
+	u8 intolerant_40mhz;
+	u8 max_ampdu_len_exp;
+} __packed;
+
 /* Command Replies */
 
 /* WMI_GET_CHANNEL_LIST_CMDID reply */
@@ -2473,6 +2483,9 @@ int ath6kl_wmi_get_roam_tbl_cmd(struct wmi *wmi);
 int ath6kl_wmi_set_wmm_txop(struct wmi *wmi, u8 if_idx, enum wmi_txop_cfg cfg);
 int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 if_idx,
 				 u8 keep_alive_intvl);
+int ath6kl_wmi_set_htcap_cmd(struct wmi *wmi, u8 if_idx,
+			     enum ieee80211_band band,
+			     struct ath6kl_htcap *htcap);
 int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 
 s32 ath6kl_wmi_get_rate(s8 rate_index);

@@ -2424,31 +2424,25 @@ void ath6kl_check_wow_status(struct ath6kl *ar)
 }
 #endif
 
-static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
-			      struct ieee80211_channel *chan,
-			      enum nl80211_channel_type channel_type)
+static int ath6kl_set_htcap(struct ath6kl_vif *vif, enum ieee80211_band band,
+			    bool ht_enable)
 {
-	struct ath6kl_vif *vif;
+	struct ath6kl_htcap *htcap = &vif->htcap;
 
-	/*
-	 * 'dev' could be NULL if a channel change is required for the hardware
-	 * device itself, instead of a particular VIF.
-	 *
-	 * FIXME: To be handled properly when monitor mode is supported.
-	 */
-	if (!dev)
-		return -EBUSY;
+	if (htcap->ht_enable == ht_enable)
+		return 0;
 
-	vif = netdev_priv(dev);
+	if (ht_enable) {
+		/* Set default ht capabilities */
+		htcap->ht_enable = true;
+		htcap->cap_info = (band == IEEE80211_BAND_2GHZ) ?
+				   ath6kl_g_htcap : ath6kl_a_htcap;
+		htcap->ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
+	} else /* Disable ht */
+		memset(htcap, 0, sizeof(*htcap));
 
-	if (!ath6kl_cfg80211_ready(vif))
-		return -EIO;
-
-	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: center_freq=%u hw_value=%u\n",
-		   __func__, chan->center_freq, chan->hw_value);
-	vif->next_chan = chan->center_freq;
-
-	return 0;
+	return ath6kl_wmi_set_htcap_cmd(vif->ar->wmi, vif->fw_vif_idx,
+					band, htcap);
 }
 
 static bool ath6kl_is_p2p_ie(const u8 *pos)
@@ -2521,6 +2515,35 @@ static int ath6kl_set_ies(struct ath6kl_vif *vif,
 				       info->assocresp_ies_len);
 	if (res)
 		return res;
+
+	return 0;
+}
+
+static int ath6kl_set_channel(struct wiphy *wiphy, struct net_device *dev,
+			      struct ieee80211_channel *chan,
+			      enum nl80211_channel_type channel_type)
+{
+	struct ath6kl_vif *vif;
+
+	/*
+	 * 'dev' could be NULL if a channel change is required for the hardware
+	 * device itself, instead of a particular VIF.
+	 *
+	 * FIXME: To be handled properly when monitor mode is supported.
+	 */
+	if (!dev)
+		return -EBUSY;
+
+	vif = netdev_priv(dev);
+
+	if (!ath6kl_cfg80211_ready(vif))
+		return -EIO;
+
+	ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "%s: center_freq=%u hw_value=%u\n",
+		   __func__, chan->center_freq, chan->hw_value);
+	vif->next_chan = chan->center_freq;
+	vif->next_ch_type = channel_type;
+	vif->next_ch_band = chan->band;
 
 	return 0;
 }
@@ -2673,6 +2696,10 @@ static int ath6kl_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			return res;
 	}
 
+	if (ath6kl_set_htcap(vif, vif->next_ch_band,
+			     vif->next_ch_type != NL80211_CHAN_NO_HT))
+		return -EIO;
+
 	res = ath6kl_wmi_ap_profile_commit(ar->wmi, vif->fw_vif_idx, &p);
 	if (res < 0)
 		return res;
@@ -2706,6 +2733,13 @@ static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 
 	ath6kl_wmi_disconnect_cmd(ar->wmi, vif->fw_vif_idx);
 	clear_bit(CONNECTED, &vif->flags);
+
+	/* Restore ht setting in firmware */
+	if (ath6kl_set_htcap(vif, IEEE80211_BAND_2GHZ, true))
+		return -EIO;
+
+	if (ath6kl_set_htcap(vif, IEEE80211_BAND_5GHZ, true))
+		return -EIO;
 
 	return 0;
 }
@@ -3252,6 +3286,7 @@ struct net_device *ath6kl_interface_add(struct ath6kl *ar, char *name,
 	vif->next_mode = nw_type;
 	vif->listen_intvl_t = ATH6KL_DEFAULT_LISTEN_INTVAL;
 	vif->bmiss_time_t = ATH6KL_DEFAULT_BMISS_TIME;
+	vif->htcap.ht_enable = true;
 
 	memcpy(ndev->dev_addr, ar->mac_addr, ETH_ALEN);
 	if (fw_vif_idx != 0)
