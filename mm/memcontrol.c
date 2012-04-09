@@ -4640,7 +4640,7 @@ static int mem_control_numa_stat_open(struct inode *unused, struct file *file)
 #endif /* CONFIG_NUMA */
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_KMEM
-static int register_kmem_files(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	return mem_cgroup_sockets_init(memcg, ss);
 };
@@ -4650,7 +4650,7 @@ static void kmem_cgroup_destroy(struct mem_cgroup *memcg)
 	mem_cgroup_sockets_destroy(memcg);
 }
 #else
-static int register_kmem_files(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
+static int memcg_init_kmem(struct mem_cgroup *memcg, struct cgroup_subsys *ss)
 {
 	return 0;
 }
@@ -5010,6 +5010,17 @@ mem_cgroup_create(struct cgroup *cont)
 	memcg->move_charge_at_immigrate = 0;
 	mutex_init(&memcg->thresholds_lock);
 	spin_lock_init(&memcg->move_lock);
+
+	error = memcg_init_kmem(memcg, &mem_cgroup_subsys);
+	if (error) {
+		/*
+		 * We call put now because our (and parent's) refcnts
+		 * are already in place. mem_cgroup_put() will internally
+		 * call __mem_cgroup_free, so return directly
+		 */
+		mem_cgroup_put(memcg);
+		return ERR_PTR(error);
+	}
 	return &memcg->css;
 free_out:
 	__mem_cgroup_free(memcg);
@@ -5030,13 +5041,6 @@ static void mem_cgroup_destroy(struct cgroup *cont)
 	kmem_cgroup_destroy(memcg);
 
 	mem_cgroup_put(memcg);
-}
-
-static int mem_cgroup_populate(struct cgroup_subsys *ss,
-				struct cgroup *cont)
-{
-	struct mem_cgroup *memcg = mem_cgroup_from_cont(cont);
-	return register_kmem_files(memcg, ss);
 }
 
 #ifdef CONFIG_MMU
@@ -5622,7 +5626,6 @@ struct cgroup_subsys mem_cgroup_subsys = {
 	.create = mem_cgroup_create,
 	.pre_destroy = mem_cgroup_pre_destroy,
 	.destroy = mem_cgroup_destroy,
-	.populate = mem_cgroup_populate,
 	.can_attach = mem_cgroup_can_attach,
 	.cancel_attach = mem_cgroup_cancel_attach,
 	.attach = mem_cgroup_move_task,
