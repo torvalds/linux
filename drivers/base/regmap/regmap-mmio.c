@@ -130,6 +130,7 @@ struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
 					const struct regmap_config *config)
 {
 	struct regmap_mmio_context *ctx;
+	int min_stride;
 
 	if (config->reg_bits != 32)
 		return ERR_PTR(-EINVAL);
@@ -139,15 +140,27 @@ struct regmap_mmio_context *regmap_mmio_gen_context(void __iomem *regs,
 
 	switch (config->val_bits) {
 	case 8:
+		/* The core treats 0 as 1 */
+		min_stride = 0;
+		break;
 	case 16:
+		min_stride = 2;
+		break;
 	case 32:
+		min_stride = 4;
+		break;
 #ifdef CONFIG_64BIT
 	case 64:
+		min_stride = 8;
+		break;
 #endif
 		break;
 	default:
 		return ERR_PTR(-EINVAL);
 	}
+
+	if (config->reg_stride < min_stride)
+		return ERR_PTR(-EINVAL);
 
 	ctx = kzalloc(GFP_KERNEL, sizeof(*ctx));
 	if (!ctx)

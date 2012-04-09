@@ -62,6 +62,7 @@ struct regmap {
 
 	/* number of bits to (left) shift the reg value when formatting*/
 	int reg_shift;
+	int reg_stride;
 
 	/* regcache specific members */
 	const struct regcache_ops *cache_ops;
