@@ -35,8 +35,6 @@
 #include <mach/irqs.h>
 #include <mach/dma.h>
 
-static u64 dma_dmamask = DMA_BIT_MASK(32);
-
 static u8 exynos4210_pdma0_peri[] = {
 	DMACH_PCM0_RX,
 	DMACH_PCM0_TX,

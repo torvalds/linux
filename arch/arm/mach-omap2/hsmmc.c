@@ -506,6 +506,13 @@ static void __init omap_hsmmc_init_one(struct omap2_hsmmc_info *hsmmcinfo,
 	if (oh->dev_attr != NULL) {
 		mmc_dev_attr = oh->dev_attr;
 		mmc_data->controller_flags = mmc_dev_attr->flags;
+		/*
+		 * erratum 2.1.1.128 doesn't apply if board has
+		 * a transceiver is attached
+		 */
+		if (hsmmcinfo->transceiver)
+			mmc_data->controller_flags &=
+				~OMAP_HSMMC_BROKEN_MULTIBLOCK_READ;
 	}
 
 	pdev = platform_device_alloc(name, ctrl_nr - 1);

@@ -735,6 +735,7 @@ __nf_conntrack_alloc(struct net *net, u16 zone,
 
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 out_free:
+	atomic_dec(&net->ct.count);
 	kmem_cache_free(net->ct.nf_conntrack_cachep, ct);
 	return ERR_PTR(-ENOMEM);
 #endif

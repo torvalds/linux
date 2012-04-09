@@ -2518,12 +2518,6 @@ il4965_rs_free_sta(void *il_r, struct ieee80211_sta *sta, void *il_sta)
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static int
-il4965_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static void
 il4965_rs_dbgfs_set_mcs(struct il_lq_sta *lq_sta, u32 * rate_n_flags, int idx)
@@ -2695,7 +2689,7 @@ il4965_rs_sta_dbgfs_scale_table_read(struct file *file, char __user *user_buf,
 static const struct file_operations rs_sta_dbgfs_scale_table_ops = {
 	.write = il4965_rs_sta_dbgfs_scale_table_write,
 	.read = il4965_rs_sta_dbgfs_scale_table_read,
-	.open = il4965_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -2740,7 +2734,7 @@ il4965_rs_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.read = il4965_rs_sta_dbgfs_stats_table_read,
-	.open = il4965_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 
@@ -2768,7 +2762,7 @@ il4965_rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 
 static const struct file_operations rs_sta_dbgfs_rate_scale_data_ops = {
 	.read = il4965_rs_sta_dbgfs_rate_scale_data_read,
-	.open = il4965_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 

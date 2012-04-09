@@ -441,6 +441,8 @@ static int __init clk_disable_unused(void)
 		return 0;
 
 	pr_info("clock: disabling unused clocks to save power\n");
+
+	spin_lock_irqsave(&clockfw_lock, flags);
 	list_for_each_entry(ck, &clocks, node) {
 		if (ck->ops == &clkops_null)
 			continue;
@@ -448,10 +450,9 @@ static int __init clk_disable_unused(void)
 		if (ck->usecount > 0 || !ck->enable_reg)
 			continue;
 
-		spin_lock_irqsave(&clockfw_lock, flags);
 		arch_clock->clk_disable_unused(ck);
-		spin_unlock_irqrestore(&clockfw_lock, flags);
 	}
+	spin_unlock_irqrestore(&clockfw_lock, flags);
 
 	return 0;
 }

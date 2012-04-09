@@ -411,6 +411,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	old_obj = intel_plane->obj;
 
+	src_w = src_w >> 16;
+	src_h = src_h >> 16;
+
 	/* Pipe must be running... */
 	if (!(I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE))
 		return -EINVAL;

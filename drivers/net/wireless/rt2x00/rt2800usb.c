@@ -163,7 +163,13 @@ static bool rt2800usb_tx_sta_fifo_read_completed(struct rt2x00_dev *rt2x00dev,
 
 		/* Reschedule urb to read TX status again instantly */
 		return true;
-	} else if (rt2800usb_txstatus_pending(rt2x00dev)) {
+	}
+
+	/* Check if there is any entry that timedout waiting on TX status */
+	if (rt2800usb_txstatus_timeout(rt2x00dev))
+		queue_work(rt2x00dev->workqueue, &rt2x00dev->txdone_work);
+
+	if (rt2800usb_txstatus_pending(rt2x00dev)) {
 		/* Read register after 250 us */
 		hrtimer_start(&rt2x00dev->txstatus_timer, ktime_set(0, 250000),
 			      HRTIMER_MODE_REL);
@@ -178,7 +184,7 @@ stop_reading:
 	 * here again if status reading is needed.
 	 */
 	if (rt2800usb_txstatus_pending(rt2x00dev) &&
-	    test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
+	    !test_and_set_bit(TX_STATUS_READING, &rt2x00dev->flags))
 		return true;
 	else
 		return false;

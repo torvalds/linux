@@ -369,7 +369,7 @@ int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, u32 index, u64 data)
 	case MSR_CORE_PERF_FIXED_CTR_CTRL:
 		if (pmu->fixed_ctr_ctrl == data)
 			return 0;
-		if (!(data & 0xfffffffffffff444)) {
+		if (!(data & 0xfffffffffffff444ull)) {
 			reprogram_fixed_counters(pmu, data);
 			return 0;
 		}

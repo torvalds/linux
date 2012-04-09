@@ -1,6 +1,8 @@
 #ifndef _ASM_MICROBLAZE_CMPXCHG_H
 #define _ASM_MICROBLAZE_CMPXCHG_H
 
+#include <linux/irqflags.h>
+
 void __bad_xchg(volatile void *ptr, int size);
 
 static inline unsigned long __xchg(unsigned long x, volatile void *ptr,

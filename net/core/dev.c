@@ -1596,6 +1596,7 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 		kfree_skb(skb);
 		return NET_RX_DROP;
 	}
+	skb->skb_iif = 0;
 	skb_set_dev(skb, dev);
 	skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
@@ -4027,54 +4028,41 @@ static int dev_ifconf(struct net *net, char __user *arg)
 
 #ifdef CONFIG_PROC_FS
 
-#define BUCKET_SPACE (32 - NETDEV_HASHBITS)
-
-struct dev_iter_state {
-	struct seq_net_private p;
-	unsigned int pos; /* bucket << BUCKET_SPACE + offset */
-};
+#define BUCKET_SPACE (32 - NETDEV_HASHBITS - 1)
 
 #define get_bucket(x) ((x) >> BUCKET_SPACE)
 #define get_offset(x) ((x) & ((1 << BUCKET_SPACE) - 1))
 #define set_bucket_offset(b, o) ((b) << BUCKET_SPACE | (o))
 
-static inline struct net_device *dev_from_same_bucket(struct seq_file *seq)
+static inline struct net_device *dev_from_same_bucket(struct seq_file *seq, loff_t *pos)
 {
-	struct dev_iter_state *state = seq->private;
 	struct net *net = seq_file_net(seq);
 	struct net_device *dev;
 	struct hlist_node *p;
 	struct hlist_head *h;
-	unsigned int count, bucket, offset;
+	unsigned int count = 0, offset = get_offset(*pos);
 
-	bucket = get_bucket(state->pos);
-	offset = get_offset(state->pos);
-	h = &net->dev_name_head[bucket];
-	count = 0;
+	h = &net->dev_name_head[get_bucket(*pos)];
 	hlist_for_each_entry_rcu(dev, p, h, name_hlist) {
-		if (count++ == offset) {
-			state->pos = set_bucket_offset(bucket, count);
+		if (++count == offset)
 			return dev;
-		}
 	}
 
 	return NULL;
 }
 
-static inline struct net_device *dev_from_new_bucket(struct seq_file *seq)
+static inline struct net_device *dev_from_bucket(struct seq_file *seq, loff_t *pos)
 {
-	struct dev_iter_state *state = seq->private;
 	struct net_device *dev;
 	unsigned int bucket;
 
-	bucket = get_bucket(state->pos);
 	do {
-		dev = dev_from_same_bucket(seq);
+		dev = dev_from_same_bucket(seq, pos);
 		if (dev)
 			return dev;
 
-		bucket++;
-		state->pos = set_bucket_offset(bucket, 0);
+		bucket = get_bucket(*pos) + 1;
+		*pos = set_bucket_offset(bucket, 1);
 	} while (bucket < NETDEV_HASHENTRIES);
 
 	return NULL;
@@ -4087,33 +4075,20 @@ static inline struct net_device *dev_from_new_bucket(struct seq_file *seq)
 void *dev_seq_start(struct seq_file *seq, loff_t *pos)
 	__acquires(RCU)
 {
-	struct dev_iter_state *state = seq->private;
-
 	rcu_read_lock();
 	if (!*pos)
 		return SEQ_START_TOKEN;
 
-	/* check for end of the hash */
-	if (state->pos == 0 && *pos > 1)
+	if (get_bucket(*pos) >= NETDEV_HASHENTRIES)
 		return NULL;
 
-	return dev_from_new_bucket(seq);
+	return dev_from_bucket(seq, pos);
 }
 
 void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct net_device *dev;
-
 	++*pos;
-
-	if (v == SEQ_START_TOKEN)
-		return dev_from_new_bucket(seq);
-
-	dev = dev_from_same_bucket(seq);
-	if (dev)
-		return dev;
-
-	return dev_from_new_bucket(seq);
+	return dev_from_bucket(seq, pos);
 }
 
 void dev_seq_stop(struct seq_file *seq, void *v)
@@ -4212,13 +4187,7 @@ static const struct seq_operations dev_seq_ops = {
 static int dev_seq_open(struct inode *inode, struct file *file)
 {
 	return seq_open_net(inode, file, &dev_seq_ops,
-			    sizeof(struct dev_iter_state));
-}
-
-int dev_seq_open_ops(struct inode *inode, struct file *file,
-		     const struct seq_operations *ops)
-{
-	return seq_open_net(inode, file, ops, sizeof(struct dev_iter_state));
+			    sizeof(struct seq_net_private));
 }
 
 static const struct file_operations dev_seq_fops = {

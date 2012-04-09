@@ -1031,7 +1031,6 @@ static int __init init_hugetlbfs_fs(void)
 	}
 
 	error = PTR_ERR(vfsmount);
-	unregister_filesystem(&hugetlbfs_fs_type);
 
  out:
 	kmem_cache_destroy(hugetlbfs_inode_cachep);
