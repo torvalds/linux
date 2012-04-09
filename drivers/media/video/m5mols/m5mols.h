@@ -305,4 +305,15 @@ static inline struct v4l2_subdev *to_sd(struct v4l2_ctrl *ctrl)
 	return &info->sd;
 }
 
+static inline void m5mols_set_ctrl_mode(struct v4l2_ctrl *ctrl,
+					unsigned int mode)
+{
+	ctrl->priv = (void *)mode;
+}
+
+static inline unsigned int m5mols_get_ctrl_mode(struct v4l2_ctrl *ctrl)
+{
+	return (unsigned int)ctrl->priv;
+}
+
 #endif	/* M5MOLS_H */

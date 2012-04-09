@@ -321,10 +321,11 @@ static int m5mols_set_color_effect(struct m5mols_info *info, int val)
 
 static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 {
+	unsigned int ctrl_mode = m5mols_get_ctrl_mode(ctrl);
 	struct v4l2_subdev *sd = to_sd(ctrl);
 	struct m5mols_info *info = to_m5mols(sd);
-	int ispstate = info->mode;
-	int ret;
+	int last_mode = info->mode;
+	int ret = 0;
 
 	/*
 	 * If needed, defer restoring the controls until
@@ -335,9 +336,14 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 		return 0;
 	}
 
-	ret = m5mols_mode(info, REG_PARAMETER);
-	if (ret < 0)
-		return ret;
+	v4l2_dbg(1, m5mols_debug, sd, "%s: %s, val: %d, priv: %#x\n",
+		 __func__, ctrl->name, ctrl->val, (int)ctrl->priv);
+
+	if (ctrl_mode && ctrl_mode != info->mode) {
+		ret = m5mols_set_mode(info, ctrl_mode);
+		if (ret < 0)
+			return ret;
+	}
 
 	switch (ctrl->id) {
 	case V4L2_CID_ZOOM_ABSOLUTE:
@@ -360,10 +366,11 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = m5mols_set_color_effect(info, ctrl->val);
 		break;
 	}
-	if (ret < 0)
-		return ret;
 
-	return m5mols_mode(info, ispstate);
+	if (ret == 0 && info->mode != last_mode)
+		ret = m5mols_set_mode(info, last_mode);
+
+	return ret;
 }
 
 static const struct v4l2_ctrl_ops m5mols_ctrl_ops = {
@@ -414,6 +421,11 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 	}
 
 	v4l2_ctrl_auto_cluster(2, &info->auto_exposure, 1, false);
+
+	m5mols_set_ctrl_mode(info->auto_exposure, REG_PARAMETER);
+	m5mols_set_ctrl_mode(info->auto_wb, REG_PARAMETER);
+	m5mols_set_ctrl_mode(info->colorfx, REG_MONITOR);
+
 	sd->ctrl_handler = &info->handle;
 
 	return 0;
