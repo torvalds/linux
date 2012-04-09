@@ -1538,12 +1538,6 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 }
 
 #ifdef CONFIG_DEBUG_FS
-static int dapm_widget_power_open_file(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t dapm_widget_power_read_file(struct file *file,
 					   char __user *user_buf,
 					   size_t count, loff_t *ppos)
@@ -1607,16 +1601,10 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 }
 
 static const struct file_operations dapm_widget_power_fops = {
-	.open = dapm_widget_power_open_file,
+	.open = simple_open,
 	.read = dapm_widget_power_read_file,
 	.llseek = default_llseek,
 };
-
-static int dapm_bias_open_file(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t dapm_bias_read_file(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -1648,7 +1636,7 @@ static ssize_t dapm_bias_read_file(struct file *file, char __user *user_buf,
 }
 
 static const struct file_operations dapm_bias_fops = {
-	.open = dapm_bias_open_file,
+	.open = simple_open,
 	.read = dapm_bias_read_file,
 	.llseek = default_llseek,
 };

@@ -544,7 +544,7 @@ struct ixgbe_fdir_filter {
 	u16 action;
 };
 
-enum ixbge_state_t {
+enum ixgbe_state_t {
 	__IXGBE_TESTING,
 	__IXGBE_RESETTING,
 	__IXGBE_DOWN,

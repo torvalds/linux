@@ -527,10 +527,14 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 
 		if (data->flags & MMC_DATA_WRITE)
 			/*
-			 * The limit is really 250 ms, but that is
-			 * insufficient for some crappy cards.
+			 * The MMC spec "It is strongly recommended
+			 * for hosts to implement more than 500ms
+			 * timeout value even if the card indicates
+			 * the 250ms maximum busy length."  Even the
+			 * previous value of 300ms is known to be
+			 * insufficient for some cards.
 			 */
-			limit_us = 300000;
+			limit_us = 3000000;
 		else
 			limit_us = 100000;
 

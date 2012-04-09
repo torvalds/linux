@@ -2,6 +2,7 @@
 #define _LINUX_FIREWIRE_H
 
 #include <linux/completion.h>
+#include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -63,8 +64,6 @@
 #define CSR_DEPENDENT_INFO	0x14
 #define CSR_MODEL		0x17
 #define CSR_DIRECTORY_ID	0x20
-
-struct device;
 
 struct fw_csr_iterator {
 	const u32 *p;

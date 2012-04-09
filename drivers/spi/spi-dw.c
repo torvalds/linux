@@ -63,12 +63,6 @@ struct chip_data {
 };
 
 #ifdef CONFIG_DEBUG_FS
-static int spi_show_regs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 #define SPI_REGS_BUFSIZE	1024
 static ssize_t  spi_show_regs(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -128,7 +122,7 @@ static ssize_t  spi_show_regs(struct file *file, char __user *user_buf,
 
 static const struct file_operations mrst_spi_regs_ops = {
 	.owner		= THIS_MODULE,
-	.open		= spi_show_regs_open,
+	.open		= simple_open,
 	.read		= spi_show_regs,
 	.llseek		= default_llseek,
 };

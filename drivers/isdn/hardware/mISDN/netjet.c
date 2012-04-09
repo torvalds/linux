@@ -860,7 +860,7 @@ open_bchannel(struct tiger_hw *card, struct channel_req *rq)
 {
 	struct bchannel *bch;
 
-	if (rq->adr.channel > 2)
+	if (rq->adr.channel == 0 || rq->adr.channel > 2)
 		return -EINVAL;
 	if (rq->protocol == ISDN_P_NONE)
 		return -EINVAL;

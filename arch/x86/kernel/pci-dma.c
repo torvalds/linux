@@ -96,7 +96,8 @@ void __init pci_iommu_alloc(void)
 	}
 }
 void *dma_generic_alloc_coherent(struct device *dev, size_t size,
-				 dma_addr_t *dma_addr, gfp_t flag)
+				 dma_addr_t *dma_addr, gfp_t flag,
+				 struct dma_attrs *attrs)
 {
 	unsigned long dma_mask;
 	struct page *page;

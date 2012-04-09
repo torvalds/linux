@@ -25,7 +25,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	int i;
 
 #ifdef CONFIG_SMP
-	if (!cpu_isset(n, cpu_online_map))
+	if (!cpu_online(n))
 		return 0;
 #endif
 
