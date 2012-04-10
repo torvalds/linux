@@ -830,6 +830,7 @@ static struct attribute_group max1363_event_attribute_group = {
 static const struct iio_info max1238_info = {
 	.read_raw = &max1363_read_raw,
 	.driver_module = THIS_MODULE,
+	.update_scan_mode = &max1363_update_scan_mode,
 };
 
 static const struct iio_info max1363_info = {
