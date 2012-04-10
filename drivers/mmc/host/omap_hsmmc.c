@@ -1741,7 +1741,7 @@ static const struct of_device_id omap_mmc_of_match[] = {
 		.data = &omap4_reg_offset,
 	},
 	{},
-}
+};
 MODULE_DEVICE_TABLE(of, omap_mmc_of_match);
 
 static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
