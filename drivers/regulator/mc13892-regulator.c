@@ -519,6 +519,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 	struct mc13xxx_regulator_platform_data *pdata =
 		dev_get_platdata(&pdev->dev);
 	struct mc13xxx_regulator_init_data *mc13xxx_data;
+	struct regulator_config config = { };
 	int i, ret;
 	int num_regulators = 0;
 	u32 val;
@@ -588,9 +589,12 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 		}
 		desc = &mc13892_regulators[id].desc;
 
-		priv->regulators[i] = regulator_register(
-			desc, &pdev->dev, init_data, priv, node);
+		config.dev = &pdev->dev;
+		config.init_data = init_data;
+		config.driver_data = priv;
+		config.of_node = node;
 
+		priv->regulators[i] = regulator_register(desc, &config);
 		if (IS_ERR(priv->regulators[i])) {
 			dev_err(&pdev->dev, "failed to register regulator %s\n",
 				mc13892_regulators[i].desc.name);
