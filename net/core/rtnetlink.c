@@ -1640,14 +1640,14 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	int err;
 	struct net_device *dev;
 	unsigned int num_queues = 1;
-	unsigned int real_num_queues = 1;
 
 	if (ops->get_tx_queues) {
-		err = ops->get_tx_queues(src_net, tb, &num_queues,
-					 &real_num_queues);
-		if (err)
+		err = ops->get_tx_queues(src_net, tb);
+		if (err < 0)
 			goto err;
+		num_queues = err;
 	}
+
 	err = -ENOMEM;
 	dev = alloc_netdev_mq(ops->priv_size, ifname, ops->setup, num_queues);
 	if (!dev)
