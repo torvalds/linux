@@ -800,10 +800,11 @@ static void hwmp_rann_frame_process(struct ieee80211_sub_if_data *sdata,
 				       0, sdata);
 		mpath->sn = orig_sn;
 		mpath->rann_metric = metric + metric_txsta;
+		/* Recording RANNs sender address to send individually
+		 * addressed PREQs destined for root mesh STA */
+		memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
 	}
 
-	/* Using individually addressed PREQ for root node */
-	memcpy(mpath->rann_snd_addr, mgmt->sa, ETH_ALEN);
 	mpath->is_root = true;
 
 	if (root_is_gate)
