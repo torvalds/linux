@@ -2462,6 +2462,13 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		pp_off = I915_READ(PCH_PP_OFF_DELAYS);
 		pp_div = I915_READ(PCH_PP_DIVISOR);
 
+		if (!pp_on || !pp_off || !pp_div) {
+			DRM_INFO("bad panel power sequencing delays, disabling panel\n");
+			intel_dp_encoder_destroy(&intel_dp->base.base);
+			intel_dp_destroy(&intel_connector->base);
+			return;
+		}
+
 		/* Pull timing values out of registers */
 		cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>
 			PANEL_POWER_UP_DELAY_SHIFT;
