@@ -923,7 +923,10 @@ static int dapm_dai_check_power(struct snd_soc_dapm_widget *w)
 {
 	DAPM_UPDATE_STAT(w, power_checks);
 
-	return w->active;
+	if (w->active)
+		return w->active;
+
+	return dapm_generic_check_power(w);
 }
 
 /* Check to see if an ADC has power */
