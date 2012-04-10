@@ -78,6 +78,7 @@ struct nfc_target {
 	u8 sensb_res[NFC_SENSB_RES_MAXSIZE];
 	u8 sensf_res_len;
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
+	u8 hci_reader_gate;
 };
 
 struct nfc_genl_data {
