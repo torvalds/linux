@@ -1453,6 +1453,13 @@ config MODULE_SRCVERSION_ALL
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
 
+config MODULE_LOOSE_VERMAGIC
+	bool "Do not include local version in vermagic string"
+	help
+	  Use KERNELVERSION instead of (and which is a subset of) UTS_RELEASE in
+	  the vermagic string.  This allows compatibility with proprietary modules
+	  that do not append any local version to UTS_RELEASE.
+
 endif # MODULES
 
 config INIT_ALL_POSSIBLE
