@@ -209,7 +209,7 @@ ivb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
 }
 
 static void
-snb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
+ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 		 struct drm_i915_gem_object *obj, int crtc_x, int crtc_y,
 		 unsigned int crtc_w, unsigned int crtc_h,
 		 uint32_t x, uint32_t y,
@@ -263,8 +263,8 @@ snb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	if (obj->tiling_mode != I915_TILING_NONE)
 		dvscntr |= DVS_TILED;
 
-	/* must disable */
-	dvscntr |= DVS_TRICKLE_FEED_DISABLE;
+	if (IS_GEN6(dev))
+		dvscntr |= DVS_TRICKLE_FEED_DISABLE; /* must disable */
 	dvscntr |= DVS_ENABLE;
 
 	/* Sizes are 0 based */
@@ -296,7 +296,7 @@ snb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 }
 
 static void
-snb_disable_plane(struct drm_plane *plane)
+ilk_disable_plane(struct drm_plane *plane)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -334,7 +334,7 @@ intel_disable_primary(struct drm_crtc *crtc)
 }
 
 static int
-snb_update_colorkey(struct drm_plane *plane,
+ilk_update_colorkey(struct drm_plane *plane,
 		    struct drm_intel_sprite_colorkey *key)
 {
 	struct drm_device *dev = plane->dev;
@@ -363,7 +363,7 @@ snb_update_colorkey(struct drm_plane *plane,
 }
 
 static void
-snb_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
+ilk_get_colorkey(struct drm_plane *plane, struct drm_intel_sprite_colorkey *key)
 {
 	struct drm_device *dev = plane->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -617,6 +617,14 @@ static const struct drm_plane_funcs intel_plane_funcs = {
 	.destroy = intel_destroy_plane,
 };
 
+static uint32_t ilk_plane_formats[] = {
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_VYUY,
+};
+
 static uint32_t snb_plane_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
@@ -631,34 +639,56 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 {
 	struct intel_plane *intel_plane;
 	unsigned long possible_crtcs;
+	const uint32_t *plane_formats;
+	int num_plane_formats;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
+	if (INTEL_INFO(dev)->gen < 5)
 		return -ENODEV;
 
 	intel_plane = kzalloc(sizeof(struct intel_plane), GFP_KERNEL);
 	if (!intel_plane)
 		return -ENOMEM;
 
-	if (IS_GEN6(dev)) {
+	switch (INTEL_INFO(dev)->gen) {
+	case 5:
+	case 6:
 		intel_plane->max_downscale = 16;
-		intel_plane->update_plane = snb_update_plane;
-		intel_plane->disable_plane = snb_disable_plane;
-		intel_plane->update_colorkey = snb_update_colorkey;
-		intel_plane->get_colorkey = snb_get_colorkey;
-	} else if (IS_GEN7(dev)) {
+		intel_plane->update_plane = ilk_update_plane;
+		intel_plane->disable_plane = ilk_disable_plane;
+		intel_plane->update_colorkey = ilk_update_colorkey;
+		intel_plane->get_colorkey = ilk_get_colorkey;
+
+		if (IS_GEN6(dev)) {
+			plane_formats = snb_plane_formats;
+			num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+		} else {
+			plane_formats = ilk_plane_formats;
+			num_plane_formats = ARRAY_SIZE(ilk_plane_formats);
+		}
+		break;
+
+	case 7:
 		intel_plane->max_downscale = 2;
 		intel_plane->update_plane = ivb_update_plane;
 		intel_plane->disable_plane = ivb_disable_plane;
 		intel_plane->update_colorkey = ivb_update_colorkey;
 		intel_plane->get_colorkey = ivb_get_colorkey;
+
+		plane_formats = snb_plane_formats;
+		num_plane_formats = ARRAY_SIZE(snb_plane_formats);
+		break;
+
+	default:
+		return -ENODEV;
 	}
 
 	intel_plane->pipe = pipe;
 	possible_crtcs = (1 << pipe);
 	ret = drm_plane_init(dev, &intel_plane->base, possible_crtcs,
-			     &intel_plane_funcs, snb_plane_formats,
-			     ARRAY_SIZE(snb_plane_formats), false);
+			     &intel_plane_funcs,
+			     plane_formats, num_plane_formats,
+			     false);
 	if (ret)
 		kfree(intel_plane);
 
