@@ -1237,7 +1237,7 @@ static struct cpufreq_frequency_table cpu_dvfs_table[] = {
 
 void __init board_clock_init(void)
 {
-	rk30_clock_data_init(periph_pll_297mhz, codec_pll_360mhz, max_i2s_12288khz);
+	rk30_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
 	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), cpu_dvfs_table);
 }
 

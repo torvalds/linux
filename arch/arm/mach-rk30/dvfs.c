@@ -487,7 +487,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
     /* if up the voltage*/
     if (volt_old < volt_new) {
         if(dvfs_clk->vd->regulator&&dvfs_regulator_set_voltage(dvfs_clk->vd->regulator,volt_new, volt_new) < 0) {
-            DVFS_ERR("set voltage err\n");
+            DVFS_ERR("set voltage err up\n");
             return -1;
         }
         dvfs_clk->vd->cur_volt = volt_new;
@@ -512,7 +512,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
     /* if down the voltage */
     if (volt_old > volt_new) {
         if(dvfs_clk->vd->regulator&&dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new) < 0) {
-            DVFS_ERR("set voltage err\n");
+            DVFS_ERR("set voltage err dn\n");
             return -1;
         }
         dvfs_clk->vd->cur_volt = volt_new;

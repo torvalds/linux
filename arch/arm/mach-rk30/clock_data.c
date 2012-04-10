@@ -1029,7 +1029,8 @@ static const struct pll_clk_set cpll_clks[] = {
 	_PLL_SET_CLKS(504000, 1,  21, 1),
 	_PLL_SET_CLKS(552000, 1,  23, 1),
 	_PLL_SET_CLKS(600000, 1,  25, 1),
-	_PLL_SET_CLKS(     0, 1,  23, 1),
+	_PLL_SET_CLKS(798000, 4,  133, 1),
+	_PLL_SET_CLKS(     0, 4,  133, 1),
 };
 static struct _pll_data cpll_data=SET_PLL_DATA(CPLL_ID,(void *)cpll_clks);
 static struct clk codec_pll_clk = {
@@ -3007,7 +3008,6 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	
 	clk_set_rate_nolock(&aclk_vepu, 300*MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 300*MHZ);
-	
 	//gpu auto sel
 	//clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
 }
