@@ -937,7 +937,7 @@ static struct net_device_stats *s6gmac_stats(struct net_device *dev)
 	do {
 		unsigned long flags;
 		spin_lock_irqsave(&pd->lock, flags);
-		for (i = 0; i < sizeof(pd->stats) / sizeof(unsigned long); i++)
+		for (i = 0; i < ARRAY_SIZE(pd->stats); i++)
 			pd->stats[i] =
 				pd->carry[i] << (S6_GMAC_STAT_SIZE_MIN - 1);
 		s6gmac_stats_collect(pd, &statinf[0][0]);
