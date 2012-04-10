@@ -1054,7 +1054,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 					     intel_sdvo->sdvo_lvds_fixed_mode);
 	else
 		intel_sdvo_get_dtd_from_mode(&output_dtd, mode);
-	(void) intel_sdvo_set_output_timing(intel_sdvo, &output_dtd);
+	if (!intel_sdvo_set_output_timing(intel_sdvo, &output_dtd))
+		DRM_INFO("Setting output timings on %s failed\n",
+			 SDVO_NAME(intel_sdvo));
 
 	/* Set the input timing to the screen. Assume always input 0. */
 	if (!intel_sdvo_set_target_input(intel_sdvo))
@@ -1076,7 +1078,9 @@ static void intel_sdvo_mode_set(struct drm_encoder *encoder,
 	 * adjusted_mode.
 	 */
 	intel_sdvo_get_dtd_from_mode(&input_dtd, adjusted_mode);
-	(void) intel_sdvo_set_input_timing(intel_sdvo, &input_dtd);
+	if (!intel_sdvo_set_input_timing(intel_sdvo, &input_dtd))
+		DRM_INFO("Setting input timings on %s failed\n",
+			 SDVO_NAME(intel_sdvo));
 
 	switch (pixel_multiplier) {
 	default:
