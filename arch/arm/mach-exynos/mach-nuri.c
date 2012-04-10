@@ -571,7 +571,7 @@ static struct regulator_init_data __initdata max8997_ldo7_data = {
 
 static struct regulator_init_data __initdata max8997_ldo8_data = {
 	.constraints	= {
-		.name		= "VUSB/VDAC_3.3V_C210",
+		.name		= "VUSB+VDAC_3.3V_C210",
 		.min_uV		= 3300000,
 		.max_uV		= 3300000,
 		.valid_ops_mask	= REGULATOR_CHANGE_STATUS,
