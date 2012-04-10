@@ -2389,10 +2389,10 @@ static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def r871x_handlers_def = {
 	.standard = r8711_handlers,
-	.num_standard = sizeof(r8711_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(r8711_handlers),
 	.private = r8711_private_handler,
 	.private_args = (struct iw_priv_args *)r8711_private_args,
-	.num_private = sizeof(r8711_private_handler) / sizeof(iw_handler),
+	.num_private = ARRAY_SIZE(r8711_private_handler),
 	.num_private_args = sizeof(r8711_private_args) /
 			    sizeof(struct iw_priv_args),
 	.get_wireless_stats = r871x_get_wireless_stats
