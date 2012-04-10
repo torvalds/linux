@@ -183,8 +183,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.x.6 : this driver improve test framerate method;
 *v0.x.7 : digital zoom use the ipp to do scale and crop , otherwise ipp just do the scale. Something wrong with digital zoom if
           we do crop with cif and do scale with ipp , we will fix this  next version.
+*v0.x.8 : temp version,reinit capture list when setup video buf.
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 7)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 2, 8)
 
 /* limit to rk29 hardware capabilities */
 #define RK_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -383,6 +384,7 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	}
     //must be reinit,or will be somthing wrong in irq process.
     pcdev->active = NULL;
+    INIT_LIST_HEAD(&pcdev->capture);
     RKCAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d, count:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_size, *count);
 
     return 0;
@@ -654,6 +656,10 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
             pcdev->frame_inval = 0;
         }
         vb = pcdev->active;
+        if(!vb){
+            printk("no acticve buffer!!!\n");
+            goto RK_CAMERA_IRQ_END;
+            }
 		/* ddl@rock-chips.com : this vb may be deleted from queue */
 		if ((vb->state == VIDEOBUF_QUEUED) || (vb->state == VIDEOBUF_ACTIVE)) {
         	list_del_init(&vb->queue);
@@ -661,9 +667,14 @@ static irqreturn_t rk_camera_irq(int irq, void *data)
         pcdev->active = NULL;
         if (!list_empty(&pcdev->capture)) {
             pcdev->active = list_entry(pcdev->capture.next, struct videobuf_buffer, queue);
-			if (pcdev->active) {
+			if (pcdev->active && (pcdev->active->state == VIDEOBUF_QUEUED)) {
 				rk_videobuf_capture(pcdev->active,pcdev);
 			}
+            else if(pcdev->active){
+                printk("vb state is wrong ,del it \n");
+            	list_del_init(&(pcdev->active->queue));
+                pcdev->active = NULL;
+                }
         }
         if (pcdev->active == NULL) {
 			RKCAMERA_DG("%s video_buf queue is empty!\n",__FUNCTION__);
