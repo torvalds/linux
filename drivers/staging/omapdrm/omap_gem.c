@@ -266,6 +266,12 @@ static void omap_gem_detach_pages(struct drm_gem_object *obj)
 	omap_obj->pages = NULL;
 }
 
+/* get buffer flags */
+uint32_t omap_gem_flags(struct drm_gem_object *obj)
+{
+	return to_omap_bo(obj)->flags;
+}
+
 /** get mmap offset */
 static uint64_t mmap_offset(struct drm_gem_object *obj)
 {
@@ -764,9 +770,27 @@ static int get_pages(struct drm_gem_object *obj, struct page ***pages)
 	return 0;
 }
 
-int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages)
+/* if !remap, and we don't have pages backing, then fail, rather than
+ * increasing the pin count (which we don't really do yet anyways,
+ * because we don't support swapping pages back out).  And 'remap'
+ * might not be quite the right name, but I wanted to keep it working
+ * similarly to omap_gem_get_paddr().  Note though that mutex is not
+ * aquired if !remap (because this can be called in atomic ctxt),
+ * but probably omap_gem_get_paddr() should be changed to work in the
+ * same way.  If !remap, a matching omap_gem_put_pages() call is not
+ * required (and should not be made).
+ */
+int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
+		bool remap)
 {
 	int ret;
+	if (!remap) {
+		struct omap_gem_object *omap_obj = to_omap_bo(obj);
+		if (!omap_obj->pages)
+			return -ENOMEM;
+		*pages = omap_obj->pages;
+		return 0;
+	}
 	mutex_lock(&obj->dev->struct_mutex);
 	ret = get_pages(obj, pages);
 	mutex_unlock(&obj->dev->struct_mutex);
