@@ -470,6 +470,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = dai->codec;
 	int reg;
 	u16 vra;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
 	ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
@@ -487,6 +488,7 @@ static int ac97_aux_prepare(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	u16 vra, xsle;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 
 	vra = ac97_read(codec, AC97_EXTENDED_STATUS);
 	ac97_write(codec, AC97_EXTENDED_STATUS, vra | 0x1);
