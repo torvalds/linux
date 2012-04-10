@@ -19,6 +19,7 @@ if NET_VENDOR_WIZNET
 
 config WIZNET_W5100
 	tristate "WIZnet W5100 Ethernet support"
+	depends on HAS_IOMEM
 	---help---
 	  Support for WIZnet W5100 chips.
 
@@ -31,6 +32,7 @@ config WIZNET_W5100
 
 config WIZNET_W5300
 	tristate "WIZnet W5300 Ethernet support"
+	depends on HAS_IOMEM
 	---help---
 	  Support for WIZnet W5300 chips.
 
@@ -43,6 +45,7 @@ config WIZNET_W5300
 
 choice
 	prompt "WIZnet interface mode"
+	depends on WIZNET_W5100 || WIZNET_W5300
 	default WIZNET_BUS_ANY
 
 config WIZNET_BUS_DIRECT
@@ -69,6 +72,7 @@ endchoice
 
 config WIZNET_TX_FLOW
 	bool "Use transmit flow control"
+	depends on WIZNET_W5100 || WIZNET_W5300
 	default y
 	help
 	  This enables transmit flow control for WIZnet chips.
