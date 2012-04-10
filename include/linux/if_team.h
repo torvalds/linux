@@ -69,6 +69,7 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_U32,
 	TEAM_OPTION_TYPE_STRING,
 	TEAM_OPTION_TYPE_BINARY,
+	TEAM_OPTION_TYPE_BOOL,
 };
 
 struct team_gsetter_ctx {
@@ -79,6 +80,7 @@ struct team_gsetter_ctx {
 			const void *ptr;
 			u32 len;
 		} bin_val;
+		bool bool_val;
 	} data;
 	struct team_port *port;
 };

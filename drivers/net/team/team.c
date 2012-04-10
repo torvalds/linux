@@ -1463,6 +1463,16 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 				    ctx.data.bin_val.len, ctx.data.bin_val.ptr))
 				goto nla_put_failure;
 			break;
+		case TEAM_OPTION_TYPE_BOOL:
+			if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_FLAG))
+				goto nla_put_failure;
+			err = team_option_get(team, opt_inst, &ctx);
+			if (err)
+				goto errout;
+			if (ctx.data.bool_val &&
+			    nla_put_flag(skb, TEAM_ATTR_OPTION_DATA))
+				goto nla_put_failure;
+			break;
 		default:
 			BUG();
 		}
@@ -1524,6 +1534,7 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 	nla_for_each_nested(nl_option, info->attrs[TEAM_ATTR_LIST_OPTION], i) {
 		struct nlattr *opt_attrs[TEAM_ATTR_OPTION_MAX + 1];
 		struct nlattr *attr_port_ifindex;
+		struct nlattr *attr_data;
 		enum team_option_type opt_type;
 		int opt_port_ifindex = 0; /* != 0 for per-port options */
 		struct team_option_inst *opt_inst;
@@ -1539,8 +1550,7 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		if (err)
 			goto team_put;
 		if (!opt_attrs[TEAM_ATTR_OPTION_NAME] ||
-		    !opt_attrs[TEAM_ATTR_OPTION_TYPE] ||
-		    !opt_attrs[TEAM_ATTR_OPTION_DATA]) {
+		    !opt_attrs[TEAM_ATTR_OPTION_TYPE]) {
 			err = -EINVAL;
 			goto team_put;
 		}
@@ -1554,7 +1564,16 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		case NLA_BINARY:
 			opt_type = TEAM_OPTION_TYPE_BINARY;
 			break;
+		case NLA_FLAG:
+			opt_type = TEAM_OPTION_TYPE_BOOL;
+			break;
 		default:
+			goto team_put;
+		}
+
+		attr_data = opt_attrs[TEAM_ATTR_OPTION_DATA];
+		if (opt_type != TEAM_OPTION_TYPE_BOOL && !attr_data) {
+			err = -EINVAL;
 			goto team_put;
 		}
 
@@ -1565,9 +1584,7 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 
 		list_for_each_entry(opt_inst, &team->option_inst_list, list) {
 			struct team_option *option = opt_inst->option;
-			struct nlattr *opt_data_attr;
 			struct team_gsetter_ctx ctx;
-			int data_len;
 			int tmp_ifindex;
 
 			tmp_ifindex = opt_inst->port ?
@@ -1577,23 +1594,24 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			    tmp_ifindex != opt_port_ifindex)
 				continue;
 			opt_found = true;
-			opt_data_attr = opt_attrs[TEAM_ATTR_OPTION_DATA];
-			data_len = nla_len(opt_data_attr);
 			ctx.port = opt_inst->port;
 			switch (opt_type) {
 			case TEAM_OPTION_TYPE_U32:
-				ctx.data.u32_val = nla_get_u32(opt_data_attr);
+				ctx.data.u32_val = nla_get_u32(attr_data);
 				break;
 			case TEAM_OPTION_TYPE_STRING:
-				if (data_len > TEAM_STRING_MAX_LEN) {
+				if (nla_len(attr_data) > TEAM_STRING_MAX_LEN) {
 					err = -EINVAL;
 					goto team_put;
 				}
-				ctx.data.str_val = nla_data(opt_data_attr);
+				ctx.data.str_val = nla_data(attr_data);
 				break;
 			case TEAM_OPTION_TYPE_BINARY:
-				ctx.data.bin_val.len = data_len;
-				ctx.data.bin_val.ptr = nla_data(opt_data_attr);
+				ctx.data.bin_val.len = nla_len(attr_data);
+				ctx.data.bin_val.ptr = nla_data(attr_data);
+				break;
+			case TEAM_OPTION_TYPE_BOOL:
+				ctx.data.bool_val = attr_data ? true : false;
 				break;
 			default:
 				BUG();
