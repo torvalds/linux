@@ -2591,14 +2591,14 @@ static int ath6kl_get_rsn_capab(struct cfg80211_beacon_data *beacon,
 	/* skip pairwise cipher suite */
 	if (rsn_ie_len < 2)
 		return -EINVAL;
-	cnt = *((u16 *) rsn_ie);
+	cnt = get_unaligned_le16(rsn_ie);
 	rsn_ie += (2 + cnt * 4);
 	rsn_ie_len -= (2 + cnt * 4);
 
 	/* skip akm suite */
 	if (rsn_ie_len < 2)
 		return -EINVAL;
-	cnt = *((u16 *) rsn_ie);
+	cnt = get_unaligned_le16(rsn_ie);
 	rsn_ie += (2 + cnt * 4);
 	rsn_ie_len -= (2 + cnt * 4);
 
