@@ -96,7 +96,7 @@ struct mwifiex_bss_info {
 	u32 bss_mode;
 	struct cfg80211_ssid ssid;
 	u32 bss_chan;
-	u32 region_code;
+	u8 country_code[3];
 	u32 media_connected;
 	u32 max_power_level;
 	u32 min_power_level;

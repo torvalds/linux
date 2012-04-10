@@ -468,7 +468,8 @@ int mwifiex_get_bss_info(struct mwifiex_private *priv,
 
 	info->bss_chan = bss_desc->channel;
 
-	info->region_code = adapter->region_code;
+	memcpy(info->country_code, priv->country_code,
+	       IEEE80211_COUNTRY_STRING_LEN);
 
 	info->media_connected = priv->media_connected;
 
