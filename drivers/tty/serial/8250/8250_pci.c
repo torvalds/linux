@@ -2814,6 +2814,12 @@ void pciserial_suspend_ports(struct serial_private *priv)
 	for (i = 0; i < priv->nr; i++)
 		if (priv->line[i] >= 0)
 			serial8250_suspend_port(priv->line[i]);
+
+	/*
+	 * Ensure that every init quirk is properly torn down
+	 */
+	if (priv->quirk->exit)
+		priv->quirk->exit(priv->dev);
 }
 EXPORT_SYMBOL_GPL(pciserial_suspend_ports);
 
