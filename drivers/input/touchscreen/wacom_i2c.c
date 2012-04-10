@@ -39,7 +39,6 @@ struct wacom_features {
 struct wacom_i2c {
 	struct i2c_client *client;
 	struct input_dev *input;
-	unsigned int gpio;
 	u8 data[WACOM_QUERY_SIZE];
 };
 
@@ -91,23 +90,6 @@ static int wacom_query_device(struct i2c_client *client,
 	return 0;
 }
 
-static int wacom_i2c_fetch_data(struct wacom_i2c *wac_i2c)
-{
-	int retries = 0;
-	int ret;
-
-	do {
-		ret = i2c_master_recv(wac_i2c->client,
-				      wac_i2c->data, sizeof(wac_i2c->data));
-	} while (gpio_get_value(wac_i2c->gpio) == 0 &&
-		 retries++ < WACOM_RETRY_CNT);
-
-	if (retries >= WACOM_RETRY_CNT)
-		ret = -EIO;
-
-	return ret < 0 ? ret : 0;
-}
-
 static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 {
 	struct wacom_i2c *wac_i2c = dev_id;
@@ -117,8 +99,9 @@ static irqreturn_t wacom_i2c_irq(int irq, void *dev_id)
 	unsigned char tsw, f1, f2, ers;
 	int error;
 
-	error = wacom_i2c_fetch_data(wac_i2c);
-	if (error)
+	error = i2c_master_recv(wac_i2c->client,
+				wac_i2c->data, sizeof(wac_i2c->data));
+	if (error < 0)
 		goto out;
 
 	tsw = data[3] & 0x01;
@@ -147,12 +130,6 @@ static int wacom_i2c_open(struct input_dev *dev)
 {
 	struct wacom_i2c *wac_i2c = input_get_drvdata(dev);
 	struct i2c_client *client = wac_i2c->client;
-	int error;
-
-	/* Clear the device buffer */
-	error = wacom_i2c_fetch_data(wac_i2c);
-	if (error)
-		return error;
 
 	enable_irq(client->irq);
 
@@ -173,20 +150,11 @@ static int __devinit wacom_i2c_probe(struct i2c_client *client,
 	struct wacom_i2c *wac_i2c;
 	struct input_dev *input;
 	struct wacom_features features;
-	int gpio;
 	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "i2c_check_functionality error\n");
 		return -EIO;
-	}
-
-	gpio = irq_to_gpio(client->irq);
-	if (gpio < 0) {
-		error = gpio;
-		dev_err(&client->dev,
-			"irq_to_gpio() failed, error: %d\n", error);
-		return error;
 	}
 
 	error = wacom_query_device(client, &features);
@@ -202,7 +170,6 @@ static int __devinit wacom_i2c_probe(struct i2c_client *client,
 
 	wac_i2c->client = client;
 	wac_i2c->input = input;
-	wac_i2c->gpio = gpio;
 
 	input->name = "Wacom I2C Digitizer";
 	input->id.bustype = BUS_I2C;
@@ -228,7 +195,7 @@ static int __devinit wacom_i2c_probe(struct i2c_client *client,
 	input_set_drvdata(input, wac_i2c);
 
 	error = request_threaded_irq(client->irq, NULL, wacom_i2c_irq,
-				     IRQF_TRIGGER_FALLING,
+				     IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 				     "wacom_i2c", wac_i2c);
 	if (error) {
 		dev_err(&client->dev,
