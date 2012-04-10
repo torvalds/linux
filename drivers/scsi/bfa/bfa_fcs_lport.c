@@ -709,14 +709,10 @@ bfa_fcs_lport_deleted(struct bfa_fcs_lport_s *port)
 	bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_DELETE);
 
 	/* Base port will be deleted by the OS driver */
-	if (port->vport) {
-		bfa_fcb_lport_delete(port->fcs->bfad, port->port_cfg.roles,
-				port->fabric->vf_drv,
-				port->vport ? port->vport->vport_drv : NULL);
+	if (port->vport)
 		bfa_fcs_vport_delete_comp(port->vport);
-	} else {
+	else
 		bfa_wc_down(&port->fabric->wc);
-	}
 }
 
 
@@ -5714,16 +5710,22 @@ bfa_fcs_vport_free(struct bfa_fcs_vport_s *vport)
 			(struct bfad_vport_s *)vport->vport_drv;
 
 	bfa_fcs_fabric_delvport(__vport_fabric(vport), vport);
-
-	if (vport_drv->comp_del)
-		complete(vport_drv->comp_del);
-	else
-		kfree(vport_drv);
-
 	bfa_lps_delete(vport->lps);
+
+	if (vport_drv->comp_del) {
+		complete(vport_drv->comp_del);
+		return;
+	}
+
+	/*
+	 * We queue the vport delete work to the IM work_q from here.
+	 * The memory for the bfad_vport_s is freed from the FC function
+	 * template vport_delete entry point.
+	 */
+	if (vport_drv)
+		bfad_im_port_delete(vport_drv->drv_port.bfad,
+				&vport_drv->drv_port);
 }
-
-
 
 /*
  *  fcs_vport_public FCS virtual port public interfaces
