@@ -132,10 +132,10 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 		 * to an SKB, so we need to unmap and free potential storage */
 		if (rxq->pool[i].page != NULL) {
 			dma_unmap_page(trans->dev, rxq->pool[i].page_dma,
-				PAGE_SIZE << hw_params(trans).rx_page_order,
+				PAGE_SIZE << trans_pcie->rx_page_order,
 				DMA_FROM_DEVICE);
 			__free_pages(rxq->pool[i].page,
-				     hw_params(trans).rx_page_order);
+				     trans_pcie->rx_page_order);
 			rxq->pool[i].page = NULL;
 		}
 		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
@@ -145,11 +145,12 @@ static void iwl_trans_rxq_free_rx_bufs(struct iwl_trans *trans)
 static void iwl_trans_rx_hw_init(struct iwl_trans *trans,
 				 struct iwl_rx_queue *rxq)
 {
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	u32 rb_size;
 	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
 	u32 rb_timeout = RX_RB_TIMEOUT; /* FIXME: RX_RB_TIMEOUT for all devices? */
 
-	if (iwlagn_mod_params.amsdu_size_8K)
+	if (trans_pcie->rx_buf_size_8k)
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
 	else
 		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
@@ -1493,6 +1494,12 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 
 	memcpy(trans_pcie->setup_q_to_fifo, trans_cfg->queue_to_fifo,
 	       trans_pcie->n_q_to_fifo * sizeof(u8));
+
+	trans_pcie->rx_buf_size_8k = trans_cfg->rx_buf_size_8k;
+	if (trans_pcie->rx_buf_size_8k)
+		trans_pcie->rx_page_order = get_order(8 * 1024);
+	else
+		trans_pcie->rx_page_order = get_order(4 * 1024);
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)

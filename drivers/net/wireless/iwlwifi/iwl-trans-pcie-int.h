@@ -227,6 +227,8 @@ struct iwl_tx_queue {
  * @ucode_write_waitq: wait queue for uCode load
  * @status - transport specific status flags
  * @cmd_queue - command queue number
+ * @rx_buf_size_8k: 8 kB RX buffer size
+ * @rx_page_order: page order for receive buffer size
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -266,6 +268,9 @@ struct iwl_trans_pcie {
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u8 setup_q_to_fifo[IWL_MAX_HW_QUEUES];
 	u8 n_q_to_fifo;
+
+	bool rx_buf_size_8k;
+	u32 rx_page_order;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \

@@ -166,7 +166,6 @@ struct iwl_mod_params {
  * @valid_rx_ant: usable antennas for RX
  * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
  * @sku: sku read from EEPROM
- * @rx_page_order: Rx buffer page order
  * @ct_kill_threshold: temperature threshold - in hw dependent unit
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
@@ -182,7 +181,6 @@ struct iwl_hw_params {
 	u8  ht40_channel;
 	bool use_rts_for_aggregation;
 	u16 sku;
-	u32 rx_page_order;
 	u32 ct_kill_threshold;
 	u32 ct_kill_exit_threshold;
 	unsigned int wd_timeout;

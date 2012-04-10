@@ -305,6 +305,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  *	list of such notifications to filter. Max length is
  *	%MAX_NO_RECLAIM_CMDS.
  * @n_no_reclaim_cmds: # of commands in list
+ * @rx_buf_size_8k: 8 kB RX buffer size needed for A-MSDUs,
+ *	if unset 4k will be the RX buffer size
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -314,6 +316,8 @@ struct iwl_trans_config {
 	u8 cmd_queue;
 	const u8 *no_reclaim_cmds;
 	int n_no_reclaim_cmds;
+
+	bool rx_buf_size_8k;
 };
 
 /**

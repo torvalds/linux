@@ -765,7 +765,7 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 
 		meta->source->resp_pkt = pkt;
 		meta->source->_rx_page_addr = (unsigned long)page_address(p);
-		meta->source->_rx_page_order = hw_params(trans).rx_page_order;
+		meta->source->_rx_page_order = trans_pcie->rx_page_order;
 		meta->source->handler_status = handler_status;
 	}
 

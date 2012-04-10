@@ -274,17 +274,17 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 		if (rxq->free_count > RX_LOW_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
 
-		if (hw_params(trans).rx_page_order > 0)
+		if (trans_pcie->rx_page_order > 0)
 			gfp_mask |= __GFP_COMP;
 
 		/* Alloc a new receive buffer */
 		page = alloc_pages(gfp_mask,
-				  hw_params(trans).rx_page_order);
+				  trans_pcie->rx_page_order);
 		if (!page) {
 			if (net_ratelimit())
 				IWL_DEBUG_INFO(trans, "alloc_pages failed, "
 					   "order: %d\n",
-					   hw_params(trans).rx_page_order);
+					   trans_pcie->rx_page_order);
 
 			if ((rxq->free_count <= RX_LOW_WATERMARK) &&
 			    net_ratelimit())
@@ -303,7 +303,7 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 
 		if (list_empty(&rxq->rx_used)) {
 			spin_unlock_irqrestore(&rxq->lock, flags);
-			__free_pages(page, hw_params(trans).rx_page_order);
+			__free_pages(page, trans_pcie->rx_page_order);
 			return;
 		}
 		element = rxq->rx_used.next;
@@ -316,7 +316,7 @@ static void iwlagn_rx_allocate(struct iwl_trans *trans, gfp_t priority)
 		rxb->page = page;
 		/* Get physical address of the RB */
 		rxb->page_dma = dma_map_page(trans->dev, page, 0,
-				PAGE_SIZE << hw_params(trans).rx_page_order,
+				PAGE_SIZE << trans_pcie->rx_page_order,
 				DMA_FROM_DEVICE);
 		/* dma address must be no more than 36 bits */
 		BUG_ON(rxb->page_dma & ~DMA_BIT_MASK(36));
@@ -367,7 +367,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 	struct iwl_tx_queue *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
 	unsigned long flags;
 	bool page_stolen = false;
-	int max_len = PAGE_SIZE << hw_params(trans).rx_page_order;
+	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
 	u32 offset = 0;
 
 	if (WARN_ON(!rxb))
@@ -452,7 +452,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 
 	/* page was stolen from us -- free our reference */
 	if (page_stolen) {
-		__free_pages(rxb->page, hw_params(trans).rx_page_order);
+		__free_pages(rxb->page, trans_pcie->rx_page_order);
 		rxb->page = NULL;
 	}
 
@@ -463,7 +463,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 	if (rxb->page != NULL) {
 		rxb->page_dma =
 			dma_map_page(trans->dev, rxb->page, 0,
-				PAGE_SIZE << hw_params(trans).rx_page_order,
+				PAGE_SIZE << trans_pcie->rx_page_order,
 				DMA_FROM_DEVICE);
 		list_add_tail(&rxb->list, &rxq->rx_free);
 		rxq->free_count++;

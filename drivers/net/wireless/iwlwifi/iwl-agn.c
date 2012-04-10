@@ -1401,22 +1401,11 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 #endif
 }
 
-/* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_4K (4 * 1024)
-#define IWL_RX_BUF_SIZE_8K (8 * 1024)
-
 static void iwl_set_hw_params(struct iwl_priv *priv)
 {
 	if (cfg(priv)->ht_params)
 		hw_params(priv).use_rts_for_aggregation =
 			cfg(priv)->ht_params->use_rts_for_aggregation;
-
-	if (iwlagn_mod_params.amsdu_size_8K)
-		hw_params(priv).rx_page_order =
-			get_order(IWL_RX_BUF_SIZE_8K);
-	else
-		hw_params(priv).rx_page_order =
-			get_order(IWL_RX_BUF_SIZE_4K);
 
 	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		hw_params(priv).sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
@@ -1508,6 +1497,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.op_mode = op_mode;
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
+	trans_cfg.rx_buf_size_8k = iwlagn_mod_params.amsdu_size_8K;
 
 	ucode_flags = fw->ucode_capa.flags;
 
