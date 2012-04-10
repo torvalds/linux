@@ -724,7 +724,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)))
 		lis3l02dq_remove_trigger(indio_dev);
 error_free_interrupt:
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0)
