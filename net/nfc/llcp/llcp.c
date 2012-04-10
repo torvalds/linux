@@ -318,7 +318,7 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 
 	/* 1500 ms */
 	lto = 150;
-	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_VERSION, &lto, 1, &lto_length);
+	lto_tlv = nfc_llcp_build_tlv(LLCP_TLV_LTO, &lto, 1, &lto_length);
 	gb_len += lto_length;
 
 	pr_debug("Local wks 0x%lx\n", local->local_wks);
