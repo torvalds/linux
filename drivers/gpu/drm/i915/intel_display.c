@@ -9530,6 +9530,23 @@ static void i915_disable_vga(struct drm_device *dev)
 	POSTING_READ(vga_reg);
 }
 
+void intel_modeset_init_hw(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	intel_init_clock_gating(dev);
+
+	if (IS_IRONLAKE_M(dev)) {
+		ironlake_enable_drps(dev);
+		intel_init_emon(dev);
+	}
+
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		gen6_enable_rps(dev_priv);
+		gen6_update_ring_freq(dev_priv);
+	}
+}
+
 void intel_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -9575,17 +9592,7 @@ void intel_modeset_init(struct drm_device *dev)
 	i915_disable_vga(dev);
 	intel_setup_outputs(dev);
 
-	intel_init_clock_gating(dev);
-
-	if (IS_IRONLAKE_M(dev)) {
-		ironlake_enable_drps(dev);
-		intel_init_emon(dev);
-	}
-
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
-		gen6_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
-	}
+	intel_modeset_init_hw(dev);
 
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,

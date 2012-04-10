@@ -851,9 +851,14 @@ int i915_reset(struct drm_device *dev, u8 flags)
 		i915_gem_init_ppgtt(dev);
 
 		mutex_unlock(&dev->struct_mutex);
+
+		if (drm_core_check_feature(dev, DRIVER_MODESET))
+			intel_modeset_init_hw(dev);
+
 		drm_irq_uninstall(dev);
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
+
 		mutex_lock(&dev->struct_mutex);
 	}
 
