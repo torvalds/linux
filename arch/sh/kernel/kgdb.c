@@ -222,8 +222,31 @@ char *dbg_get_reg(int regno, void *mem, struct pt_regs *regs)
 
 void sleeping_thread_to_gdb_regs(unsigned long *gdb_regs, struct task_struct *p)
 {
+	struct pt_regs *thread_regs = task_pt_regs(p);
+	int reg;
+
+	/* Initialize to zero */
+	for (reg = 0; reg < DBG_MAX_REG_NUM; reg++)
+		gdb_regs[reg] = 0;
+
+	/*
+	 * Copy out GP regs 8 to 14.
+	 *
+	 * switch_to() relies on SR.RB toggling, so regs 0->7 are banked
+	 * and need privileged instructions to get to. The r15 value we
+	 * fetch from the thread info directly.
+	 */
+	for (reg = GDB_R8; reg < GDB_R15; reg++)
+		gdb_regs[reg] = thread_regs->regs[reg];
+
 	gdb_regs[GDB_R15] = p->thread.sp;
 	gdb_regs[GDB_PC] = p->thread.pc;
+
+	/*
+	 * Additional registers we have context for
+	 */
+	gdb_regs[GDB_PR] = thread_regs->pr;
+	gdb_regs[GDB_GBR] = thread_regs->gbr;
 }
 
 int kgdb_arch_handle_exception(int e_vector, int signo, int err_code,
