@@ -68,29 +68,28 @@ struct voltage_map_desc {
 	int min;
 	int max;
 	int step;
-	unsigned int n_bits;
 };
 
 /* Voltage maps in mV */
 static const struct voltage_map_desc ldo_voltage_map_desc = {
-	.min = 800,	.max = 3950,	.step = 50,	.n_bits = 6,
+	.min = 800,	.max = 3950,	.step = 50,
 }; /* LDO1 ~ 18, 21 all */
 
 static const struct voltage_map_desc buck1245_voltage_map_desc = {
-	.min = 650,	.max = 2225,	.step = 25,	.n_bits = 6,
+	.min = 650,	.max = 2225,	.step = 25,
 }; /* Buck1, 2, 4, 5 */
 
 static const struct voltage_map_desc buck37_voltage_map_desc = {
-	.min = 750,	.max = 3900,	.step = 50,	.n_bits = 6,
+	.min = 750,	.max = 3900,	.step = 50,
 }; /* Buck3, 7 */
 
 /* current map in mA */
 static const struct voltage_map_desc charger_current_map_desc = {
-	.min = 200,	.max = 950,	.step = 50,	.n_bits = 4,
+	.min = 200,	.max = 950,	.step = 50,
 };
 
 static const struct voltage_map_desc topoff_current_map_desc = {
-	.min = 50,	.max = 200,	.step = 10,	.n_bits = 4,
+	.min = 50,	.max = 200,	.step = 10,
 };
 
 static const struct voltage_map_desc *reg_voltage_map[] = {
@@ -429,9 +428,6 @@ static inline int max8997_get_voltage_proper_val(
 		i++;
 
 	if (desc->min + desc->step * i > max_vol)
-		return -EINVAL;
-
-	if (i >= (1 << desc->n_bits))
 		return -EINVAL;
 
 	return i;
