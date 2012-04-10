@@ -415,7 +415,7 @@ static inline int max8997_get_voltage_proper_val(
 		const struct voltage_map_desc *desc,
 		int min_vol, int max_vol)
 {
-	int i = 0;
+	int i;
 
 	if (desc == NULL)
 		return -EINVAL;
@@ -423,9 +423,10 @@ static inline int max8997_get_voltage_proper_val(
 	if (max_vol < desc->min || min_vol > desc->max)
 		return -EINVAL;
 
-	while (desc->min + desc->step * i < min_vol &&
-			desc->min + desc->step * i < desc->max)
-		i++;
+	if (min_vol < desc->min)
+		min_vol = desc->min;
+
+	i = DIV_ROUND_UP(min_vol - desc->min, desc->step);
 
 	if (desc->min + desc->step * i > max_vol)
 		return -EINVAL;
