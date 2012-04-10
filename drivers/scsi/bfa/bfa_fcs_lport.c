@@ -616,7 +616,7 @@ bfa_fcs_lport_online_actions(struct bfa_fcs_lport_s *port)
 	__port_action[port->fabric->fab_type].online(port);
 
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
-	BFA_LOG(KERN_INFO, bfad, bfa_log_level,
+	BFA_LOG(KERN_WARNING, bfad, bfa_log_level,
 		"Logical port online: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 	bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_ONLINE);
@@ -639,12 +639,12 @@ bfa_fcs_lport_offline_actions(struct bfa_fcs_lport_s *port)
 	wwn2str(lpwwn_buf, bfa_fcs_lport_get_pwwn(port));
 	if (bfa_sm_cmp_state(port->fabric,
 			bfa_fcs_fabric_sm_online) == BFA_TRUE) {
-		BFA_LOG(KERN_ERR, bfad, bfa_log_level,
+		BFA_LOG(KERN_WARNING, bfad, bfa_log_level,
 		"Logical port lost fabric connectivity: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 		bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_DISCONNECT);
 	} else {
-		BFA_LOG(KERN_INFO, bfad, bfa_log_level,
+		BFA_LOG(KERN_WARNING, bfad, bfa_log_level,
 		"Logical port taken offline: WWN = %s Role = %s\n",
 		lpwwn_buf, "Initiator");
 		bfa_fcs_lport_aen_post(port, BFA_LPORT_AEN_OFFLINE);
