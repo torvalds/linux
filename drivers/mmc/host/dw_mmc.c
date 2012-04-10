@@ -526,8 +526,10 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 		return -ENODEV;
 
 	sg_len = dw_mci_pre_dma_transfer(host, data, 0);
-	if (sg_len < 0)
+	if (sg_len < 0) {
+		host->dma_ops->stop(host);
 		return sg_len;
+	}
 
 	host->using_dma = 1;
 
