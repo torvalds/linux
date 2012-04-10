@@ -76,6 +76,11 @@ int team_port_set_team_mac(struct team_port *port)
 }
 EXPORT_SYMBOL(team_port_set_team_mac);
 
+static void team_refresh_port_linkup(struct team_port *port)
+{
+	port->linkup = port->user.linkup_enabled ? port->user.linkup :
+						   port->state.linkup;
+}
 
 /*******************
  * Options handling
@@ -880,12 +885,60 @@ static int team_mode_option_set(struct team *team, struct team_gsetter_ctx *ctx)
 	return team_change_mode(team, ctx->data.str_val);
 }
 
+static int team_user_linkup_option_get(struct team *team,
+				       struct team_gsetter_ctx *ctx)
+{
+	ctx->data.bool_val = ctx->port->user.linkup;
+	return 0;
+}
+
+static int team_user_linkup_option_set(struct team *team,
+				       struct team_gsetter_ctx *ctx)
+{
+	ctx->port->user.linkup = ctx->data.bool_val;
+	team_refresh_port_linkup(ctx->port);
+	return 0;
+}
+
+static int team_user_linkup_en_option_get(struct team *team,
+					  struct team_gsetter_ctx *ctx)
+{
+	struct team_port *port = ctx->port;
+
+	ctx->data.bool_val = port->user.linkup_enabled;
+	return 0;
+}
+
+static int team_user_linkup_en_option_set(struct team *team,
+					  struct team_gsetter_ctx *ctx)
+{
+	struct team_port *port = ctx->port;
+
+	port->user.linkup_enabled = ctx->data.bool_val;
+	team_refresh_port_linkup(ctx->port);
+	return 0;
+}
+
 static const struct team_option team_options[] = {
 	{
 		.name = "mode",
 		.type = TEAM_OPTION_TYPE_STRING,
 		.getter = team_mode_option_get,
 		.setter = team_mode_option_set,
+	},
+	{
+		.name = "user_linkup",
+		.type = TEAM_OPTION_TYPE_BOOL,
+		.per_port = true,
+		.getter = team_user_linkup_option_get,
+		.setter = team_user_linkup_option_set,
+	},
+	{
+		.name = "user_linkup_enabled",
+		.type = TEAM_OPTION_TYPE_BOOL,
+		.per_port = true,
+		.getter = team_user_linkup_en_option_get,
+		.setter = team_user_linkup_en_option_set,
 	},
 };
 
@@ -1670,10 +1723,10 @@ static int team_nl_fill_port_list_get(struct sk_buff *skb,
 		}
 		if ((port->removed &&
 		     nla_put_flag(skb, TEAM_ATTR_PORT_REMOVED)) ||
-		    (port->linkup &&
+		    (port->state.linkup &&
 		     nla_put_flag(skb, TEAM_ATTR_PORT_LINKUP)) ||
-		    nla_put_u32(skb, TEAM_ATTR_PORT_SPEED, port->speed) ||
-		    nla_put_u8(skb, TEAM_ATTR_PORT_DUPLEX, port->duplex))
+		    nla_put_u32(skb, TEAM_ATTR_PORT_SPEED, port->state.speed) ||
+		    nla_put_u8(skb, TEAM_ATTR_PORT_DUPLEX, port->state.duplex))
 			goto nla_put_failure;
 		nla_nest_end(skb, port_item);
 	}
@@ -1833,23 +1886,24 @@ static void __team_port_change_check(struct team_port *port, bool linkup)
 {
 	int err;
 
-	if (!port->removed && port->linkup == linkup)
+	if (!port->removed && port->state.linkup == linkup)
 		return;
 
 	port->changed = true;
-	port->linkup = linkup;
+	port->state.linkup = linkup;
+	team_refresh_port_linkup(port);
 	if (linkup) {
 		struct ethtool_cmd ecmd;
 
 		err = __ethtool_get_settings(port->dev, &ecmd);
 		if (!err) {
-			port->speed = ethtool_cmd_speed(&ecmd);
-			port->duplex = ecmd.duplex;
+			port->state.speed = ethtool_cmd_speed(&ecmd);
+			port->state.duplex = ecmd.duplex;
 			goto send_event;
 		}
 	}
-	port->speed = 0;
-	port->duplex = 0;
+	port->state.speed = 0;
+	port->state.duplex = 0;
 
 send_event:
 	err = team_nl_send_event_port_list_get(port->team);

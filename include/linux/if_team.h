@@ -33,6 +33,24 @@ struct team_port {
 	struct team *team;
 	int index;
 
+	bool linkup; /* either state.linkup or user.linkup */
+
+	struct {
+		bool linkup;
+		u32 speed;
+		u8 duplex;
+	} state;
+
+	/* Values set by userspace */
+	struct {
+		bool linkup;
+		bool linkup_enabled;
+	} user;
+
+	/* Custom gennetlink interface related flags */
+	bool changed;
+	bool removed;
+
 	/*
 	 * A place for storing original values of the device before it
 	 * become a port.
@@ -41,14 +59,6 @@ struct team_port {
 		unsigned char dev_addr[MAX_ADDR_LEN];
 		unsigned int mtu;
 	} orig;
-
-	bool linkup;
-	u32 speed;
-	u8 duplex;
-
-	/* Custom gennetlink interface related flags */
-	bool changed;
-	bool removed;
 
 	struct rcu_head rcu;
 };
