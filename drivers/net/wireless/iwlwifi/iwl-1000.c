@@ -24,26 +24,11 @@
  *
  *****************************************************************************/
 
-#include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/delay.h>
-#include <linux/skbuff.h>
-#include <linux/netdevice.h>
-#include <net/mac80211.h>
-#include <linux/etherdevice.h>
-#include <asm/unaligned.h>
 #include <linux/stringify.h>
-
-#include "iwl-eeprom.h"
-#include "iwl-dev.h"
-#include "iwl-core.h"
-#include "iwl-io.h"
-#include "iwl-agn.h"
-#include "iwl-agn-hw.h"
-#include "iwl-shared.h"
+#include "iwl-config.h"
 #include "iwl-cfg.h"
-#include "iwl-prph.h"
+#include "iwl-dev.h" /* still needed */
 
 /* Highest firmware API version supported */
 #define IWL1000_UCODE_API_MAX 6
@@ -63,97 +48,6 @@
 #define IWL100_FW_PRE "iwlwifi-100-"
 #define IWL100_MODULE_FIRMWARE(api) IWL100_FW_PRE __stringify(api) ".ucode"
 
-
-/*
- * For 1000, use advance thermal throttling critical temperature threshold,
- * but legacy thermal management implementation for now.
- * This is for the reason of 1000 uCode using advance thermal throttling API
- * but not implement ct_kill_exit based on ct_kill exit temperature
- * so the thermal throttling will still based on legacy thermal throttling
- * management.
- * The code here need to be modified once 1000 uCode has the advanced thermal
- * throttling algorithm in place
- */
-static void iwl1000_set_ct_threshold(struct iwl_priv *priv)
-{
-	/* want Celsius */
-	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
-	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
-}
-
-/* NIC configuration for 1000 series */
-static void iwl1000_nic_config(struct iwl_priv *priv)
-{
-	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
-		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
-		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
-
-	/* Setting digital SVR for 1000 card to 1.32V */
-	/* locking is acquired in iwl_set_bits_mask_prph() function */
-	iwl_set_bits_mask_prph(trans(priv), APMG_DIGITAL_SVR_REG,
-				APMG_SVR_DIGITAL_VOLTAGE_1_32,
-				~APMG_SVR_VOLTAGE_CONFIG_BIT_MSK);
-}
-
-static const struct iwl_sensitivity_ranges iwl1000_sensitivity = {
-	.min_nrg_cck = 95,
-	.auto_corr_min_ofdm = 90,
-	.auto_corr_min_ofdm_mrc = 170,
-	.auto_corr_min_ofdm_x1 = 120,
-	.auto_corr_min_ofdm_mrc_x1 = 240,
-
-	.auto_corr_max_ofdm = 120,
-	.auto_corr_max_ofdm_mrc = 210,
-	.auto_corr_max_ofdm_x1 = 155,
-	.auto_corr_max_ofdm_mrc_x1 = 290,
-
-	.auto_corr_min_cck = 125,
-	.auto_corr_max_cck = 200,
-	.auto_corr_min_cck_mrc = 170,
-	.auto_corr_max_cck_mrc = 400,
-	.nrg_th_cck = 95,
-	.nrg_th_ofdm = 95,
-
-	.barker_corr_th_min = 190,
-	.barker_corr_th_min_mrc = 390,
-	.nrg_th_cca = 62,
-};
-
-static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
-{
-	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
-
-	priv->hw_params.tx_chains_num =
-		num_of_ant(priv->hw_params.valid_tx_ant);
-	if (cfg(priv)->rx_with_siso_diversity)
-		priv->hw_params.rx_chains_num = 1;
-	else
-		priv->hw_params.rx_chains_num =
-			num_of_ant(priv->hw_params.valid_rx_ant);
-
-	iwl1000_set_ct_threshold(priv);
-
-	/* Set initial sensitivity parameters */
-	priv->hw_params.sens = &iwl1000_sensitivity;
-}
-
-static struct iwl_lib_ops iwl1000_lib = {
-	.set_hw_params = iwl1000_hw_set_hw_params,
-	.nic_config = iwl1000_nic_config,
-	.eeprom_ops = {
-		.regulatory_bands = {
-			EEPROM_REG_BAND_1_CHANNELS,
-			EEPROM_REG_BAND_2_CHANNELS,
-			EEPROM_REG_BAND_3_CHANNELS,
-			EEPROM_REG_BAND_4_CHANNELS,
-			EEPROM_REG_BAND_5_CHANNELS,
-			EEPROM_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_REGULATORY_BAND_NO_HT40,
-		},
-	},
-	.temperature = iwlagn_temperature,
-};
 
 static const struct iwl_base_params iwl1000_base_params = {
 	.num_of_queues = IWLAGN_NUM_QUEUES,
@@ -185,7 +79,6 @@ static const struct iwl_ht_params iwl1000_ht_params = {
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
-	.lib = &iwl1000_lib,					\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
@@ -210,7 +103,6 @@ const struct iwl_cfg iwl1000_bg_cfg = {
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,	\
-	.lib = &iwl1000_lib,					\
 	.base_params = &iwl1000_base_params,			\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.rx_with_siso_diversity = true

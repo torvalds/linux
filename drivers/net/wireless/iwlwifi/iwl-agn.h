@@ -71,6 +71,16 @@
 /* AUX (TX during scan dwell) queue */
 #define IWL_AUX_QUEUE		10
 
+/* device operations */
+extern struct iwl_lib_ops iwl1000_lib;
+extern struct iwl_lib_ops iwl2000_lib;
+extern struct iwl_lib_ops iwl2030_lib;
+extern struct iwl_lib_ops iwl5000_lib;
+extern struct iwl_lib_ops iwl5150_lib;
+extern struct iwl_lib_ops iwl6000_lib;
+extern struct iwl_lib_ops iwl6030_lib;
+
+
 
 struct iwl_ucode_capabilities;
 

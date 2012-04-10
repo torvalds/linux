@@ -704,6 +704,21 @@ struct iwl_hw_params {
 	const struct iwl_sensitivity_ranges *sens;
 };
 
+struct iwl_lib_ops {
+	/* set hw dependent parameters */
+	void (*set_hw_params)(struct iwl_priv *priv);
+	int (*set_channel_switch)(struct iwl_priv *priv,
+				  struct ieee80211_channel_switch *ch_switch);
+	/* device specific configuration */
+	void (*nic_config)(struct iwl_priv *priv);
+
+	/* eeprom operations (as defined in iwl-eeprom.h) */
+	struct iwl_eeprom_ops eeprom_ops;
+
+	/* temperature */
+	void (*temperature)(struct iwl_priv *priv);
+};
+
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 struct iwl_testmode_trace {
 	u32 buff_size;
@@ -740,6 +755,7 @@ struct iwl_priv {
 	/*data shared among all the driver's layers */
 	struct iwl_shared *shrd;
 	const struct iwl_fw *fw;
+	const struct iwl_lib_ops *lib;
 	unsigned long status;
 
 	spinlock_t sta_lock;

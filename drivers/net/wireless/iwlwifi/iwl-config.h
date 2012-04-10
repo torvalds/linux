@@ -66,8 +66,6 @@
 #include <linux/types.h>
 #include <net/mac80211.h>
 
-struct iwl_lib_ops;
-
 
 enum iwl_device_family {
 	IWL_DEVICE_FAMILY_UNDEFINED,
@@ -212,7 +210,6 @@ struct iwl_cfg {
 	u8   valid_rx_ant;
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
-	const struct iwl_lib_ops *lib;
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */

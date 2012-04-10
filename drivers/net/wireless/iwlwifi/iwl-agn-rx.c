@@ -520,8 +520,8 @@ static int iwlagn_rx_statistics(struct iwl_priv *priv,
 		iwlagn_rx_calc_noise(priv);
 		queue_work(priv->workqueue, &priv->run_time_calib_work);
 	}
-	if (cfg(priv)->lib->temperature && change)
-		cfg(priv)->lib->temperature(priv);
+	if (priv->lib->temperature && change)
+		priv->lib->temperature(priv);
 
 	spin_unlock(&priv->statistics.lock);
 
