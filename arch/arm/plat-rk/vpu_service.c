@@ -204,7 +204,7 @@ static void vpu_reset(void)
 	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, true);
 	cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
 	cru_set_soft_reset(SOFT_RST_VCODEC_AXI, true);
-	mdelay(10);
+	mdelay(1);
 	cru_set_soft_reset(SOFT_RST_VCODEC_AXI, false);
 	cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);
 	cru_set_soft_reset(SOFT_RST_VCODEC_NIU_AXI, false);
