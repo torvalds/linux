@@ -29,18 +29,6 @@
 #include <linux/string.h>
 #include "hsi_core.h"
 
-static struct device_type hsi_ctrl = {
-	.name	= "hsi_controller",
-};
-
-static struct device_type hsi_cl = {
-	.name	= "hsi_client",
-};
-
-static struct device_type hsi_port = {
-	.name	= "hsi_port",
-};
-
 static ssize_t modalias_show(struct device *dev,
 			struct device_attribute *a __maybe_unused, char *buf)
 {
@@ -54,8 +42,7 @@ static struct device_attribute hsi_bus_dev_attrs[] = {
 
 static int hsi_bus_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
-	if (dev->type == &hsi_cl)
-		add_uevent_var(env, "MODALIAS=hsi:%s", dev_name(dev));
+	add_uevent_var(env, "MODALIAS=hsi:%s", dev_name(dev));
 
 	return 0;
 }
@@ -85,7 +72,6 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (!cl)
 		return;
-	cl->device.type = &hsi_cl;
 	cl->tx_cfg = info->tx_cfg;
 	cl->rx_cfg = info->rx_cfg;
 	cl->device.bus = &hsi_bus_type;
@@ -175,15 +161,11 @@ int hsi_register_controller(struct hsi_controller *hsi)
 	unsigned int i;
 	int err;
 
-	hsi->device.type = &hsi_ctrl;
-	hsi->device.bus = &hsi_bus_type;
 	err = device_add(&hsi->device);
 	if (err < 0)
 		return err;
 	for (i = 0; i < hsi->num_ports; i++) {
 		hsi->port[i]->device.parent = &hsi->device;
-		hsi->port[i]->device.bus = &hsi_bus_type;
-		hsi->port[i]->device.type = &hsi_port;
 		err = device_add(&hsi->port[i]->device);
 		if (err < 0)
 			goto out;
