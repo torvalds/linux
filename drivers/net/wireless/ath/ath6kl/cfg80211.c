@@ -2582,28 +2582,34 @@ static int ath6kl_get_rsn_capab(struct cfg80211_beacon_data *beacon,
 	/* skip element id and length */
 	rsn_ie += 2;
 
-	/* skip version, group cipher */
-	if (rsn_ie_len < 6)
+	/* skip version */
+	if (rsn_ie_len < 2)
 		return -EINVAL;
-	rsn_ie +=  6;
-	rsn_ie_len -= 6;
+	rsn_ie +=  2;
+	rsn_ie_len -= 2;
+
+	/* skip group cipher suite */
+	if (rsn_ie_len < 4)
+		return 0;
+	rsn_ie +=  4;
+	rsn_ie_len -= 4;
 
 	/* skip pairwise cipher suite */
 	if (rsn_ie_len < 2)
-		return -EINVAL;
+		return 0;
 	cnt = get_unaligned_le16(rsn_ie);
 	rsn_ie += (2 + cnt * 4);
 	rsn_ie_len -= (2 + cnt * 4);
 
 	/* skip akm suite */
 	if (rsn_ie_len < 2)
-		return -EINVAL;
+		return 0;
 	cnt = get_unaligned_le16(rsn_ie);
 	rsn_ie += (2 + cnt * 4);
 	rsn_ie_len -= (2 + cnt * 4);
 
 	if (rsn_ie_len < 2)
-		return -EINVAL;
+		return 0;
 
 	memcpy(rsn_capab, rsn_ie, 2);
 
