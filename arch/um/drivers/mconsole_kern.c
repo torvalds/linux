@@ -22,6 +22,7 @@
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
 #include <asm/uaccess.h>
+#include <asm/switch_to.h>
 
 #include "init.h"
 #include "irq_kern.h"
