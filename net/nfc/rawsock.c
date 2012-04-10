@@ -92,8 +92,8 @@ static int rawsock_connect(struct socket *sock, struct sockaddr *_addr,
 		goto error;
 	}
 
-	if (addr->target_idx > dev->target_idx - 1 ||
-	    addr->target_idx < dev->target_idx - dev->n_targets) {
+	if (addr->target_idx > dev->target_next_idx - 1 ||
+	    addr->target_idx < dev->target_next_idx - dev->n_targets) {
 		rc = -EINVAL;
 		goto error;
 	}
