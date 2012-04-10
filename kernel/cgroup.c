@@ -3842,9 +3842,6 @@ static int cgroup_populate_dir(struct cgroup *cgrp)
 	for_each_subsys(cgrp->root, ss) {
 		struct cftype_set *set;
 
-		if (ss->populate && (err = ss->populate(ss, cgrp)) < 0)
-			return err;
-
 		list_for_each_entry(set, &ss->cftsets, node)
 			cgroup_addrm_files(cgrp, ss, set->cfts, true);
 	}
