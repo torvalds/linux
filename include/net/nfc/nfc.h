@@ -79,6 +79,7 @@ struct nfc_target {
 	u8 sensf_res_len;
 	u8 sensf_res[NFC_SENSF_RES_MAXSIZE];
 	u8 hci_reader_gate;
+	u8 logical_idx;
 };
 
 struct nfc_genl_data {
@@ -88,6 +89,7 @@ struct nfc_genl_data {
 
 struct nfc_dev {
 	unsigned idx;
+	unsigned target_idx;
 	struct nfc_target *targets;
 	int n_targets;
 	int targets_generation;

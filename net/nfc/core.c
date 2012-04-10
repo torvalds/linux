@@ -428,9 +428,14 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int n_targets)
 {
+	int i;
+
 	pr_debug("dev_name=%s n_targets=%d\n", dev_name(&dev->dev), n_targets);
 
 	dev->polling = false;
+
+	for (i = 0; i < n_targets; i++)
+		targets[i].idx = dev->target_idx++;
 
 	spin_lock_bh(&dev->targets_lock);
 
