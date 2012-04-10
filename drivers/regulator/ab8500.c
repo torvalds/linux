@@ -780,9 +780,9 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		info = &ab8500_regulator_info[i];
 		info->dev = &pdev->dev;
 
-		config->dev = &pdev->dev;
-		config->init_data = &pdata->regulator[i];
-		config->driver_data = info;
+		config.dev = &pdev->dev;
+		config.init_data = &pdata->regulator[i];
+		config.driver_data = info;
 
 		/* fix for hardware before ab8500v2.0 */
 		if (abx500_get_chip_id(info->dev) < 0x20) {
