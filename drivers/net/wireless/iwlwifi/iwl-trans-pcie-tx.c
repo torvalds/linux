@@ -668,6 +668,10 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
 			       trace_bufs[2], trace_lens[2]);
 #endif
 
+	/* start timer if queue currently empty */
+	if (q->read_ptr == q->write_ptr && trans_pcie->wd_timeout)
+		mod_timer(&txq->stuck_timer, jiffies + trans_pcie->wd_timeout);
+
 	/* Increment and update queue's write index */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
@@ -675,6 +679,22 @@ static int iwl_enqueue_hcmd(struct iwl_trans *trans, struct iwl_host_cmd *cmd)
  out:
 	spin_unlock_bh(&txq->lock);
 	return idx;
+}
+
+static inline void iwl_queue_progress(struct iwl_trans_pcie *trans_pcie,
+				      struct iwl_tx_queue *txq)
+{
+	if (!trans_pcie->wd_timeout)
+		return;
+
+	/*
+	 * if empty delete timer, otherwise move timer forward
+	 * since we're making progress on this queue
+	 */
+	if (txq->q.read_ptr == txq->q.write_ptr)
+		del_timer(&txq->stuck_timer);
+	else
+		mod_timer(&txq->stuck_timer, jiffies + trans_pcie->wd_timeout);
 }
 
 /**
@@ -711,6 +731,8 @@ static void iwl_hcmd_queue_reclaim(struct iwl_trans *trans, int txq_id,
 		}
 
 	}
+
+	iwl_queue_progress(trans_pcie, txq);
 }
 
 /**
@@ -753,8 +775,6 @@ void iwl_tx_cmd_complete(struct iwl_trans *trans, struct iwl_rx_cmd_buffer *rxb,
 	cmd_index = get_cmd_index(&txq->q, index);
 	cmd = txq->cmd[cmd_index];
 	meta = &txq->meta[cmd_index];
-
-	txq->time_stamp = jiffies;
 
 	iwlagn_unmap_tfd(trans, meta, &txq->tfds[index],
 			 DMA_BIDIRECTIONAL);
@@ -949,5 +969,8 @@ int iwl_tx_queue_reclaim(struct iwl_trans *trans, int txq_id, int index,
 		iwlagn_txq_free_tfd(trans, txq, txq->q.read_ptr, DMA_TO_DEVICE);
 		freed++;
 	}
+
+	iwl_queue_progress(trans_pcie, txq);
+
 	return freed;
 }

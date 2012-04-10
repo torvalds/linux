@@ -585,6 +585,7 @@ struct iwl_event_log {
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
 /* TX queue watchdog timeouts in mSecs */
+#define IWL_WATCHHDOG_DISABLED	(0)
 #define IWL_DEF_WD_TIMEOUT	(2000)
 #define IWL_LONG_WD_TIMEOUT	(10000)
 #define IWL_MAX_WD_TIMEOUT	(120000)
@@ -973,7 +974,6 @@ struct iwl_priv {
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
-	struct timer_list watchdog;
 
 	struct iwl_event_log event_log;
 

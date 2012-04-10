@@ -741,9 +741,6 @@ int iwl_alive_start(struct iwl_priv *priv)
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
 
-	/* Enable watchdog to monitor the driver tx queues */
-	iwl_setup_watchdog(priv);
-
 	if (iwl_is_rfkill(priv))
 		return -ERFKILL;
 
@@ -886,10 +883,6 @@ void iwl_down(struct iwl_priv *priv)
 
 	exit_pending =
 		test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
-
-	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
-	 * to prevent rearm timer */
-	del_timer_sync(&priv->watchdog);
 
 	iwl_clear_ucode_stations(priv, NULL);
 	iwl_dealloc_bcast_stations(priv);
@@ -1092,10 +1085,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	init_timer(&priv->ucode_trace);
 	priv->ucode_trace.data = (unsigned long)priv;
 	priv->ucode_trace.function = iwl_bg_ucode_trace;
-
-	init_timer(&priv->watchdog);
-	priv->watchdog.data = (unsigned long)priv;
-	priv->watchdog.function = iwl_bg_watchdog;
 }
 
 void iwl_cancel_deferred_work(struct iwl_priv *priv)
@@ -1410,8 +1399,6 @@ static void iwl_set_hw_params(struct iwl_priv *priv)
 	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
 		hw_params(priv).sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
-	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
-
 	/* Device-specific setup */
 	cfg(priv)->lib->set_hw_params(priv);
 }
@@ -1498,6 +1485,11 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	trans_cfg.rx_buf_size_8k = iwlagn_mod_params.amsdu_size_8K;
+	if (!iwlagn_mod_params.wd_disable)
+		trans_cfg.queue_watchdog_timeout =
+			cfg(priv)->base_params->wd_timeout;
+	else
+		trans_cfg.queue_watchdog_timeout = IWL_WATCHHDOG_DISABLED;
 
 	ucode_flags = fw->ucode_capa.flags;
 

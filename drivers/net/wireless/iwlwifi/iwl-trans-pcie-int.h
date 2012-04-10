@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
+#include <linux/timer.h>
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
@@ -204,7 +205,8 @@ struct iwl_tx_queue {
 	struct iwl_cmd_meta *meta;
 	struct sk_buff **skbs;
 	spinlock_t lock;
-	unsigned long time_stamp;
+	struct timer_list stuck_timer;
+	struct iwl_trans_pcie *trans_pcie;
 	u8 need_update;
 	u8 active;
 };
@@ -227,6 +229,7 @@ struct iwl_tx_queue {
  * @cmd_queue - command queue number
  * @rx_buf_size_8k: 8 kB RX buffer size
  * @rx_page_order: page order for receive buffer size
+ * @wd_timeout: queue watchdog timeout (jiffies)
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -269,10 +272,21 @@ struct iwl_trans_pcie {
 
 	bool rx_buf_size_8k;
 	u32 rx_page_order;
+
+
+	/* queue watchdog */
+	unsigned long wd_timeout;
 };
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
 	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
+
+static inline struct iwl_trans *
+iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
+{
+	return container_of((void *)trans_pcie, struct iwl_trans,
+			    trans_specific);
+}
 
 /*****************************************************
 * RX

@@ -307,6 +307,8 @@ static inline struct page *rxb_steal_page(struct iwl_rx_cmd_buffer *r)
  * @n_no_reclaim_cmds: # of commands in list
  * @rx_buf_size_8k: 8 kB RX buffer size needed for A-MSDUs,
  *	if unset 4k will be the RX buffer size
+ * @queue_watchdog_timeout: time (in ms) after which queues
+ *	are considered stuck and will trigger device restart
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -318,6 +320,7 @@ struct iwl_trans_config {
 	int n_no_reclaim_cmds;
 
 	bool rx_buf_size_8k;
+	unsigned int queue_watchdog_timeout;
 };
 
 /**
@@ -355,7 +358,6 @@ struct iwl_trans_config {
  *	irq, tasklet etc... From this point on, the device may not issue
  *	any interrupt (incl. RFKILL).
  *	May sleep
- * @check_stuck_queue: check if a specific queue is stuck
  * @wait_tx_queue_empty: wait until all tx queues are empty
  *	May sleep
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
@@ -394,7 +396,6 @@ struct iwl_trans_ops {
 	void (*free)(struct iwl_trans *trans);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
-	int (*check_stuck_queue)(struct iwl_trans *trans, int q);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
 #ifdef CONFIG_PM_SLEEP
 	int (*suspend)(struct iwl_trans *trans);
@@ -577,13 +578,6 @@ static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
 	return trans->ops->wait_tx_queue_empty(trans);
 }
 
-static inline int iwl_trans_check_stuck_queue(struct iwl_trans *trans, int q)
-{
-	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
-		  "%s bad state = %d", __func__, trans->state);
-
-	return trans->ops->check_stuck_queue(trans, q);
-}
 static inline int iwl_trans_dbgfs_register(struct iwl_trans *trans,
 					    struct dentry *dir)
 {

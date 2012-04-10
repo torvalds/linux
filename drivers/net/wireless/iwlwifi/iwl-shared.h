@@ -169,7 +169,6 @@ struct iwl_mod_params {
  * @ct_kill_threshold: temperature threshold - in hw dependent unit
  * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
  *	relevant for 1000, 6000 and up
- * @wd_timeout: TX queues watchdog timeout
  * @struct iwl_sensitivity_ranges: range of sensitivity values
  * @use_rts_for_aggregation: use rts/cts protection for HT traffic
  */
@@ -183,7 +182,6 @@ struct iwl_hw_params {
 	u16 sku;
 	u32 ct_kill_threshold;
 	u32 ct_kill_exit_threshold;
-	unsigned int wd_timeout;
 
 	const struct iwl_sensitivity_ranges *sens;
 };
@@ -221,7 +219,6 @@ enum iwl_led_mode {
  * @shadow_reg_enable: HW shadhow register bit
  * @hd_v2: v2 of enhanced sensitivity value, used for 2000 series and up
  * @no_idle_support: do not support idle mode
- * wd_disable: disable watchdog timer
  */
 struct iwl_base_params {
 	int eeprom_size;
@@ -241,7 +238,6 @@ struct iwl_base_params {
 	const bool shadow_reg_enable;
 	const bool hd_v2;
 	const bool no_idle_support;
-	const bool wd_disable;
 };
 
 /*

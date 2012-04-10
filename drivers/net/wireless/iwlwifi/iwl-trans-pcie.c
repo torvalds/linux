@@ -299,6 +299,33 @@ static inline void iwlagn_free_dma_ptr(struct iwl_trans *trans,
 	memset(ptr, 0, sizeof(*ptr));
 }
 
+static void iwl_trans_pcie_queue_stuck_timer(unsigned long data)
+{
+	struct iwl_tx_queue *txq = (void *)data;
+	struct iwl_trans_pcie *trans_pcie = txq->trans_pcie;
+	struct iwl_trans *trans = iwl_trans_pcie_get_trans(trans_pcie);
+
+	spin_lock(&txq->lock);
+	/* check if triggered erroneously */
+	if (txq->q.read_ptr == txq->q.write_ptr) {
+		spin_unlock(&txq->lock);
+		return;
+	}
+	spin_unlock(&txq->lock);
+
+
+	IWL_ERR(trans, "Queue %d stuck for %u ms.\n", txq->q.id,
+		jiffies_to_msecs(trans_pcie->wd_timeout));
+	IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
+		txq->q.read_ptr, txq->q.write_ptr);
+	IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
+		iwl_read_prph(trans, SCD_QUEUE_RDPTR(txq->q.id))
+					& (TFD_QUEUE_SIZE_MAX - 1),
+		iwl_read_prph(trans, SCD_QUEUE_WRPTR(txq->q.id)));
+
+	iwl_op_mode_nic_error(trans->op_mode);
+}
+
 static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 				struct iwl_tx_queue *txq, int slots_num,
 				u32 txq_id)
@@ -309,6 +336,10 @@ static int iwl_trans_txq_alloc(struct iwl_trans *trans,
 
 	if (WARN_ON(txq->meta || txq->cmd || txq->skbs || txq->tfds))
 		return -EINVAL;
+
+	setup_timer(&txq->stuck_timer, iwl_trans_pcie_queue_stuck_timer,
+		    (unsigned long)txq);
+	txq->trans_pcie = trans_pcie;
 
 	txq->q.n_window = slots_num;
 
@@ -471,6 +502,8 @@ static void iwl_tx_queue_free(struct iwl_trans *trans, int txq_id)
 	kfree(txq->meta);
 	txq->cmd = NULL;
 	txq->meta = NULL;
+
+	del_timer_sync(&txq->stuck_timer);
 
 	/* 0-fill queue descriptor structure */
 	memset(txq, 0, sizeof(*txq));
@@ -1347,6 +1380,10 @@ static int iwl_trans_pcie_tx(struct iwl_trans *trans, struct sk_buff *skb,
 			     &dev_cmd->hdr, firstlen,
 			     skb->data + hdr_len, secondlen);
 
+	/* start timer if queue currently empty */
+	if (q->read_ptr == q->write_ptr && trans_pcie->wd_timeout)
+		mod_timer(&txq->stuck_timer, jiffies + trans_pcie->wd_timeout);
+
 	/* Tell device the write index *just past* this latest filled TFD */
 	q->write_ptr = iwl_queue_inc_wrap(q->write_ptr, q->n_bd);
 	iwl_txq_update_write_ptr(trans, txq);
@@ -1442,8 +1479,6 @@ static void iwl_trans_pcie_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
 
 	spin_lock(&txq->lock);
 
-	txq->time_stamp = jiffies;
-
 	if (txq->q.read_ptr != tfd_num) {
 		IWL_DEBUG_TX_REPLY(trans, "[Q %d] %d -> %d (%d)\n",
 				   txq_id, txq->q.read_ptr, tfd_num, ssn);
@@ -1500,6 +1535,9 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 		trans_pcie->rx_page_order = get_order(8 * 1024);
 	else
 		trans_pcie->rx_page_order = get_order(4 * 1024);
+
+	trans_pcie->wd_timeout =
+		msecs_to_jiffies(trans_cfg->queue_watchdog_timeout);
 }
 
 static void iwl_trans_pcie_free(struct iwl_trans *trans)
@@ -1587,40 +1625,6 @@ static int iwl_trans_pcie_wait_tx_queue_empty(struct iwl_trans *trans)
 		}
 	}
 	return ret;
-}
-
-/*
- * On every watchdog tick we check (latest) time stamp. If it does not
- * change during timeout period and queue is not empty we reset firmware.
- */
-static int iwl_trans_pcie_check_stuck_queue(struct iwl_trans *trans, int cnt)
-{
-	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_tx_queue *txq = &trans_pcie->txq[cnt];
-	struct iwl_queue *q = &txq->q;
-	unsigned long timeout;
-
-	if (q->read_ptr == q->write_ptr) {
-		txq->time_stamp = jiffies;
-		return 0;
-	}
-
-	timeout = txq->time_stamp +
-		  msecs_to_jiffies(hw_params(trans).wd_timeout);
-
-	if (time_after(jiffies, timeout)) {
-		IWL_ERR(trans, "Queue %d stuck for %u ms.\n", q->id,
-			hw_params(trans).wd_timeout);
-		IWL_ERR(trans, "Current SW read_ptr %d write_ptr %d\n",
-			q->read_ptr, q->write_ptr);
-		IWL_ERR(trans, "Current HW read_ptr %d write_ptr %d\n",
-			iwl_read_prph(trans, SCD_QUEUE_RDPTR(cnt))
-				& (TFD_QUEUE_SIZE_MAX - 1),
-			iwl_read_prph(trans, SCD_QUEUE_WRPTR(cnt)));
-		return 1;
-	}
-
-	return 0;
 }
 
 static const char *get_fh_string(int cmd)
@@ -2039,7 +2043,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
 	.wait_tx_queue_empty = iwl_trans_pcie_wait_tx_queue_empty,
-	.check_stuck_queue = iwl_trans_pcie_check_stuck_queue,
 
 #ifdef CONFIG_PM_SLEEP
 	.suspend = iwl_trans_pcie_suspend,
