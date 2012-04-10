@@ -449,9 +449,10 @@ void reg_copy_to_hw(vpu_reg *reg)
 	case VPU_ENC : {
 		u32 *dst = (u32 *)enc_dev.hwregs;
 #if defined(CONFIG_ARCH_RK30)
-		writel_relaxed(0, dec_dev.hwregs + DEC_INTERRUPT_REGISTER);
+		cru_set_soft_reset(SOFT_RST_CPU_VCODEC, true);
 		cru_set_soft_reset(SOFT_RST_VCODEC_AHB, true);
 		cru_set_soft_reset(SOFT_RST_VCODEC_AHB, false);
+		cru_set_soft_reset(SOFT_RST_CPU_VCODEC, false);
 #endif
 		service.reg_codec = reg;
 
