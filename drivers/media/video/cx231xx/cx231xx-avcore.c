@@ -1595,8 +1595,8 @@ void cx231xx_set_DIF_bandpass(struct cx231xx *dev, u32 if_freq,
 	}
 
 	cx231xx_info("Enter IF=%zd\n",
-			sizeof(Dif_set_array)/sizeof(struct dif_settings));
-	for (i = 0; i < sizeof(Dif_set_array)/sizeof(struct dif_settings); i++) {
+			ARRAY_SIZE(Dif_set_array));
+	for (i = 0; i < ARRAY_SIZE(Dif_set_array); i++) {
 		if (Dif_set_array[i].if_freq == if_freq) {
 			vid_blk_write_word(dev,
 			Dif_set_array[i].register_address, Dif_set_array[i].value);
