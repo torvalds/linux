@@ -43,8 +43,6 @@
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 
-struct iwl_tx_queue;
-struct iwl_queue;
 struct iwl_host_cmd;
 
 /*This file includes the declaration that are internal to the
