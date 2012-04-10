@@ -62,6 +62,7 @@ struct nfc_ops {
 	int (*data_exchange)(struct nfc_dev *dev, u32 target_idx,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);
+	int (*check_presence)(struct nfc_dev *dev, u32 target_idx);
 };
 
 #define NFC_TARGET_IDX_ANY -1
@@ -106,6 +107,10 @@ struct nfc_dev {
 
 	int tx_headroom;
 	int tx_tailroom;
+
+	struct timer_list check_pres_timer;
+	struct workqueue_struct *check_pres_wq;
+	struct work_struct check_pres_work;
 
 	struct nfc_ops *ops;
 };

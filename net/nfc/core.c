@@ -33,6 +33,8 @@
 
 #define VERSION "0.1"
 
+#define NFC_CHECK_PRES_FREQ_MS	2000
+
 int nfc_devlist_generation;
 DEFINE_MUTEX(nfc_devlist_mutex);
 
@@ -292,8 +294,13 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 	}
 
 	rc = dev->ops->activate_target(dev, target_idx, protocol);
-	if (!rc)
+	if (!rc) {
 		dev->activated_target_idx = target_idx;
+
+		if (dev->ops->check_presence)
+			mod_timer(&dev->check_pres_timer, jiffies +
+				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
+	}
 
 error:
 	device_unlock(&dev->dev);
@@ -319,6 +326,9 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 		rc = -ENODEV;
 		goto error;
 	}
+
+	if (dev->ops->check_presence)
+		del_timer_sync(&dev->check_pres_timer);
 
 	dev->ops->deactivate_target(dev, target_idx);
 	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
@@ -367,7 +377,14 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		goto error;
 	}
 
+	if (dev->ops->check_presence)
+		del_timer_sync(&dev->check_pres_timer);
+
 	rc = dev->ops->data_exchange(dev, target_idx, skb, cb, cb_context);
+
+	if (!rc && dev->ops->check_presence)
+		mod_timer(&dev->check_pres_timer, jiffies +
+			  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
 
 error:
 	device_unlock(&dev->dev);
@@ -521,9 +538,44 @@ static void nfc_release(struct device *d)
 
 	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
 
+	if (dev->ops->check_presence) {
+		del_timer_sync(&dev->check_pres_timer);
+		destroy_workqueue(dev->check_pres_wq);
+	}
+
 	nfc_genl_data_exit(&dev->genl_data);
 	kfree(dev->targets);
 	kfree(dev);
+}
+
+static void nfc_check_pres_work(struct work_struct *work)
+{
+	struct nfc_dev *dev = container_of(work, struct nfc_dev,
+					   check_pres_work);
+	int rc;
+
+	device_lock(&dev->dev);
+
+	if (dev->activated_target_idx != NFC_TARGET_IDX_NONE &&
+	    timer_pending(&dev->check_pres_timer) == 0) {
+		rc = dev->ops->check_presence(dev, dev->activated_target_idx);
+		if (!rc) {
+			mod_timer(&dev->check_pres_timer, jiffies +
+				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
+		} else {
+			nfc_target_lost(dev, dev->activated_target_idx);
+			dev->activated_target_idx = NFC_TARGET_IDX_NONE;
+		}
+	}
+
+	device_unlock(&dev->dev);
+}
+
+static void nfc_check_pres_timeout(unsigned long data)
+{
+	struct nfc_dev *dev = (struct nfc_dev *)data;
+
+	queue_work(dev->check_pres_wq, &dev->check_pres_work);
 }
 
 struct class nfc_class = {
@@ -592,6 +644,24 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	dev->targets_generation = 1;
 
 	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
+
+	if (ops->check_presence) {
+		char name[32];
+		init_timer(&dev->check_pres_timer);
+		dev->check_pres_timer.data = (unsigned long)dev;
+		dev->check_pres_timer.function = nfc_check_pres_timeout;
+
+		INIT_WORK(&dev->check_pres_work, nfc_check_pres_work);
+		snprintf(name, sizeof(name), "nfc%d_check_pres_wq", dev->idx);
+		dev->check_pres_wq = alloc_workqueue(name, WQ_NON_REENTRANT |
+						     WQ_UNBOUND |
+						     WQ_MEM_RECLAIM, 1);
+		if (dev->check_pres_wq == NULL) {
+			kfree(dev);
+			return NULL;
+		}
+	}
+
 
 	return dev;
 }
