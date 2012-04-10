@@ -409,7 +409,7 @@ static int l3g4200d_get_data(struct i2c_client *client)
 	//int res;
 	unsigned char gyro_data[6];
 	/* x,y,z hardware data */
-	int hw_d[3] = { 0 };
+	int x = 0, y = 0, z = 0;
 
 	for(i=0;i<6;i++)
 	{
@@ -418,20 +418,24 @@ static int l3g4200d_get_data(struct i2c_client *client)
 		ret = l3g4200d_rx_data(client, &gyro_data[i], 1);
 	}
 
-	hw_d[0] = (short) (((gyro_data[1]) << 8) | gyro_data[0]);
-	hw_d[1] = (short) (((gyro_data[3]) << 8) | gyro_data[2]);
-	hw_d[2] = (short) (((gyro_data[5]) << 8) | gyro_data[4]);
+	x = (short) (((gyro_data[1]) << 8) | gyro_data[0]);
+	y = (short) (((gyro_data[3]) << 8) | gyro_data[2]);
+	z = (short) (((gyro_data[5]) << 8) | gyro_data[4]);
 
-	DBG("%s: x==%d  y==%d z==%d x==%d  y==%d z==%d\n",__func__, gyro_data[0],gyro_data[1],gyro_data[2],gyro_data[3],gyro_data[4],gyro_data[5]);
-
-
-	axis.x = ((this_data->pdata->negate_x) ? (-hw_d[this_data->pdata->axis_map_x])
-	: (hw_d[this_data->pdata->axis_map_x]));
-	axis.y = ((this_data->pdata->negate_y) ? (-hw_d[this_data->pdata->axis_map_y])
-	: (hw_d[this_data->pdata->axis_map_y]));
-	axis.z = ((this_data->pdata->negate_z) ? (-hw_d[this_data->pdata->axis_map_z])
-	: (hw_d[this_data->pdata->axis_map_z]));
-
+	DBG("%s: x=%d  y=%d z=%d \n",__func__, x,y,z);
+	if(pdata && pdata->orientation)
+	{
+		axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
+		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;	
+		axis.z = (pdata->orientation[6])*x + (pdata->orientation[7])*y + (pdata->orientation[8])*z;
+	}
+	else
+	{
+		axis.x = x;	
+		axis.y = y;
+		axis.z = z;	
+	}
+	
 	l3g4200d_report_value(client, &axis);
 
 	return 0;
@@ -559,7 +563,7 @@ static irqreturn_t l3g4200d_interrupt(int irq, void *dev_id)
 	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)dev_id;
 	
 	disable_irq_nosync(irq);
-	schedule_delayed_work(&l3g4200d->delaywork, msecs_to_jiffies(200));
+	schedule_delayed_work(&l3g4200d->delaywork, msecs_to_jiffies(20));
 	DBG("%s :enter\n",__FUNCTION__);	
 	return IRQ_HANDLED;
 }
@@ -728,7 +732,10 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 	struct l3g4200d_data *l3g4200d;
 	struct l3g4200d_platform_data *pdata = pdata = client->dev.platform_data;
 	int err;
-
+	
+	if(pdata && pdata->init)
+		pdata->init();
+	
 	l3g4200d = kzalloc(sizeof(struct l3g4200d_data), GFP_KERNEL);
 	if (!l3g4200d) {
 		DBG("[l3g4200d]:alloc data failed.\n");

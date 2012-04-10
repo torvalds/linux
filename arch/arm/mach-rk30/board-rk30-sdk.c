@@ -544,9 +544,9 @@ static struct akm8975_platform_data akm8975_info =
 	.m_layout = 
 	{
 		{
-			{-1, 0, 0},
+			{1, 0, 0},
 			{0, 0, 1},
-			{0, -1, 0},
+			{0, 1, 0},
 		},
 
 		{
@@ -578,25 +578,13 @@ static struct akm8975_platform_data akm8975_info =
 
 static int l3g4200d_init_platform_hw(void)
 {
-	if (gpio_request(L3G4200D_INT_PIN, NULL) != 0) {
-		gpio_free(L3G4200D_INT_PIN);
-		printk("%s: request l3g4200d int pin error\n", __func__);
-		return -EIO;
-	}
-	gpio_pull_updown(L3G4200D_INT_PIN, 1);
+	rk30_mux_api_set(GPIO4C3_SMCDATA3_TRACEDATA3_NAME, GPIO4C_GPIO4C3);
+	
 	return 0;
 }
 
 static struct l3g4200d_platform_data l3g4200d_info = {
-	.fs_range = 1,
-
-	.axis_map_x = 0,
-	.axis_map_y = 1,
-	.axis_map_z = 2,
-
-	.negate_x = 1,
-	.negate_y = 1,
-	.negate_z = 0,
+	.orientation = {0, 1, 0, -1, 0, 0, 0, 0, 1},
 
 	.init = l3g4200d_init_platform_hw,
 };

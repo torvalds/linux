@@ -90,6 +90,7 @@ struct l3g4200d_platform_data {
 	u8 negate_x;
 	u8 negate_y;
 	u8 negate_z;
+	signed char orientation[9];
 
 	int (*init)(void);
 	void (*exit)(void);
