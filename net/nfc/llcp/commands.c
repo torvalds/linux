@@ -102,7 +102,7 @@ u8 *nfc_llcp_build_tlv(u8 type, u8 *value, u8 value_length, u8 *tlv_length)
 	length = llcp_tlv_length[type];
 	if (length == 0 && value_length == 0)
 		return NULL;
-	else
+	else if (length == 0)
 		length = value_length;
 
 	*tlv_length = 2 + length;
