@@ -388,6 +388,9 @@ static void nfc_llcp_tx_work(struct work_struct *work)
 	skb = skb_dequeue(&local->tx_queue);
 	if (skb != NULL) {
 		pr_debug("Sending pending skb\n");
+		print_hex_dump(KERN_DEBUG, "LLCP Tx: ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb->data, skb->len, true);
+
 		nfc_data_exchange(local->dev, local->target_idx,
 				  skb, nfc_llcp_recv, local);
 	} else {
@@ -813,6 +816,10 @@ static void nfc_llcp_rx_work(struct work_struct *work)
 	ssap = nfc_llcp_ssap(skb);
 
 	pr_debug("ptype 0x%x dsap 0x%x ssap 0x%x\n", ptype, dsap, ssap);
+
+	if (ptype != LLCP_PDU_SYMM)
+		print_hex_dump(KERN_DEBUG, "LLCP Rx: ", DUMP_PREFIX_OFFSET,
+			       16, 1, skb->data, skb->len, true);
 
 	switch (ptype) {
 	case LLCP_PDU_SYMM:
