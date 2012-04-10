@@ -3978,7 +3978,7 @@ interface and may change in the future.</para>
 	    <entry spanname="id"><constant>V4L2_CID_JPEG_CHROMA_SUBSAMPLING</constant></entry>
 	    <entry>menu</entry>
 	  </row>
-	  <row id="jpeg-chroma-subsampling-control">
+	  <row id="v4l2-jpeg-chroma-subsampling">
 	    <entry spanname="descr">The chroma subsampling factors describe how
 	    each component of an input image is sampled, in respect to maximum
 	    sample rate in each spatial dimension. See <xref linkend="itu-t81"/>,
