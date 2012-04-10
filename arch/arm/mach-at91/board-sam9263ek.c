@@ -74,6 +74,7 @@ static void __init ek_init_early(void)
 static struct at91_usbh_data __initdata ek_usbh_data = {
 	.ports		= 2,
 	.vbus_pin	= { AT91_PIN_PA24, AT91_PIN_PA21 },
+	.vbus_pin_active_low = {1, 1},
 	.overcurrent_pin= {-EINVAL, -EINVAL},
 };
 

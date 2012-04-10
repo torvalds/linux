@@ -544,7 +544,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 	mc13xxx_lock(mc13892);
 	ret = mc13xxx_reg_read(mc13892, MC13892_REVISION, &val);
 	if (ret)
-		goto err_free;
+		goto err_unlock;
 
 	/* enable switch auto mode */
 	if ((val & 0x0000FFFF) == 0x45d0) {
@@ -554,7 +554,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 			MC13892_SWITCHERS4_SW1MODE_AUTO |
 			MC13892_SWITCHERS4_SW2MODE_AUTO);
 		if (ret)
-			goto err_free;
+			goto err_unlock;
 
 		ret = mc13xxx_reg_rmw(mc13892, MC13892_SWITCHERS5,
 			MC13892_SWITCHERS5_SW3MODE_M |
@@ -562,7 +562,7 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 			MC13892_SWITCHERS5_SW3MODE_AUTO |
 			MC13892_SWITCHERS5_SW4MODE_AUTO);
 		if (ret)
-			goto err_free;
+			goto err_unlock;
 	}
 	mc13xxx_unlock(mc13892);
 
@@ -607,10 +607,10 @@ static int __devinit mc13892_regulator_probe(struct platform_device *pdev)
 err:
 	while (--i >= 0)
 		regulator_unregister(priv->regulators[i]);
+	return ret;
 
-err_free:
+err_unlock:
 	mc13xxx_unlock(mc13892);
-
 	return ret;
 }
 

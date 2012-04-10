@@ -1565,8 +1565,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 			/* Obtain the value string */
 			value = strchr(data, '=');
-			if (value != NULL)
-				*value++ = '\0';
+			value++;
 
 			/* Set tmp_end to end of the string */
 			tmp_end = (char *) value + strlen(value);
@@ -1649,6 +1648,13 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			}
 
+			vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
+			if (vol->UNC == NULL) {
+				printk(KERN_WARNING "CIFS: no memory for UNC\n");
+				goto cifs_parse_mount_err;
+			}
+			strcpy(vol->UNC, string);
+
 			if (strncmp(string, "//", 2) == 0) {
 				vol->UNC[0] = '\\';
 				vol->UNC[1] = '\\';
@@ -1658,13 +1664,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 				goto cifs_parse_mount_err;
 			}
 
-			vol->UNC = kmalloc(temp_len+1, GFP_KERNEL);
-			if (vol->UNC == NULL) {
-				printk(KERN_WARNING "CIFS: no memory "
-						    "for UNC\n");
-				goto cifs_parse_mount_err;
-			}
-			strcpy(vol->UNC, string);
 			break;
 		case Opt_domain:
 			string = match_strdup(args);

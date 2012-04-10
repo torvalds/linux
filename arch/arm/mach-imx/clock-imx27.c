@@ -662,6 +662,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK(NULL, "dma", dma_clk)
 	_REGISTER_CLOCK(NULL, "rtic", rtic_clk)
 	_REGISTER_CLOCK(NULL, "brom", brom_clk)
+	_REGISTER_CLOCK(NULL, "emma", emma_clk)
 	_REGISTER_CLOCK("m2m-emmaprp.0", NULL, emma_clk)
 	_REGISTER_CLOCK(NULL, "slcdc", slcdc_clk)
 	_REGISTER_CLOCK("imx27-fec.0", NULL, fec_clk)

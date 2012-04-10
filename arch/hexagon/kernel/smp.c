@@ -35,7 +35,7 @@
 #define BASE_IPI_IRQ 26
 
 /*
- * cpu_possible_map needs to be filled out prior to setup_per_cpu_areas
+ * cpu_possible_mask needs to be filled out prior to setup_per_cpu_areas
  * (which is prior to any of our smp_prepare_cpu crap), in order to set
  * up the...  per_cpu areas.
  */
@@ -208,7 +208,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	stack_start =  ((void *) thread) + THREAD_SIZE;
 	__vmstart(start_secondary, stack_start);
 
-	while (!cpu_isset(cpu, cpu_online_map))
+	while (!cpu_online(cpu))
 		barrier();
 
 	return 0;
@@ -229,7 +229,7 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 	/*  Right now, let's just fake it. */
 	for (i = 0; i < max_cpus; i++)
-		cpu_set(i, cpu_present_map);
+		set_cpu_present(i, true);
 
 	/*  Also need to register the interrupts for IPI  */
 	if (max_cpus > 1)
@@ -269,5 +269,5 @@ void smp_start_cpus(void)
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++)
-		cpu_set(i, cpu_possible_map);
+		set_cpu_possible(i, true);
 }

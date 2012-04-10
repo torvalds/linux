@@ -138,6 +138,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	unsigned int base, top;
 	int nodes = 0;
 	int registers = 0;
+	int average;
 
 	mutex_lock(&map->lock);
 
@@ -152,8 +153,13 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 		registers += top - base + 1;
 	}
 
+	if (nodes)
+		average = registers / nodes;
+	else
+		average = 0;
+
 	seq_printf(s, "%d nodes, %d registers, average %d registers\n",
-		   nodes, registers, registers / nodes);
+		   nodes, registers, average);
 
 	mutex_unlock(&map->lock);
 
@@ -396,7 +402,7 @@ static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
 							   map->cache_word_size);
 
 			/* Is this the hardware default?  If so skip. */
-			ret = regcache_lookup_reg(map, i);
+			ret = regcache_lookup_reg(map, regtmp);
 			if (ret >= 0 && val == map->reg_defaults[ret].def)
 				continue;
 

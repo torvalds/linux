@@ -8,6 +8,8 @@
 #ifndef __ASM_AVR32_BARRIER_H
 #define __ASM_AVR32_BARRIER_H
 
+#define nop()			asm volatile("nop")
+
 #define mb()			asm volatile("" : : : "memory")
 #define rmb()			mb()
 #define wmb()			asm volatile("sync 0" : : : "memory")
