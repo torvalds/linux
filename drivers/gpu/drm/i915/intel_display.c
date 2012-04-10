@@ -5963,9 +5963,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	u32 dpll, fp = 0, fp2 = 0, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false;
 	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
-	struct intel_encoder *has_edp_encoder = NULL;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct intel_encoder *encoder;
+	struct intel_encoder *encoder, *edp_encoder = NULL;
 	const intel_limit_t *limit;
 	int ret;
 	struct fdi_m_n m_n = {0};
@@ -5974,6 +5973,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	int target_clock, pixel_multiplier, lane, link_bw, factor;
 	unsigned int pipe_bpp;
 	bool dither;
+	bool is_cpu_edp = false, is_pch_edp = false;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
 		if (encoder->base.crtc != crtc)
@@ -5999,7 +5999,12 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 			is_dp = true;
 			break;
 		case INTEL_OUTPUT_EDP:
-			has_edp_encoder = encoder;
+			is_dp = true;
+			if (intel_encoder_is_pch_edp(&encoder->base))
+				is_pch_edp = true;
+			else
+				is_cpu_edp = true;
+			edp_encoder = encoder;
 			break;
 		}
 
@@ -6062,15 +6067,13 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	lane = 0;
 	/* CPU eDP doesn't require FDI link, so just set DP M/N
 	   according to current link config */
-	if (has_edp_encoder &&
-	    !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (is_cpu_edp) {
 		target_clock = mode->clock;
-		intel_edp_link_config(has_edp_encoder,
-				      &lane, &link_bw);
+		intel_edp_link_config(edp_encoder, &lane, &link_bw);
 	} else {
 		/* [e]DP over FDI requires target mode clock
 		   instead of link clock */
-		if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
+		if (is_dp)
 			target_clock = mode->clock;
 		else
 			target_clock = adjusted_mode->clock;
@@ -6161,7 +6164,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		}
 		dpll |= DPLL_DVO_HIGH_SPEED;
 	}
-	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base))
+	if (is_dp && !is_cpu_edp)
 		dpll |= DPLL_DVO_HIGH_SPEED;
 
 	/* compute bitmask from p1 value */
@@ -6206,8 +6209,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* PCH eDP needs FDI, but CPU eDP does not */
 	if (!intel_crtc->no_pll) {
-		if (!has_edp_encoder ||
-		    intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+		if (!is_cpu_edp) {
 			I915_WRITE(PCH_FP0(pipe), fp);
 			I915_WRITE(PCH_DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
 
@@ -6285,7 +6287,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		pipeconf |= PIPECONF_DITHER_EN;
 		pipeconf |= PIPECONF_DITHER_TYPE_SP;
 	}
-	if (is_dp || intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (is_dp && !is_cpu_edp) {
 		intel_dp_set_m_n(crtc, mode, adjusted_mode);
 	} else {
 		/* For non-DP output, clear any trans DP clock recovery setting.*/
@@ -6295,9 +6297,7 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		I915_WRITE(TRANSDPLINK_N1(pipe), 0);
 	}
 
-	if (!intel_crtc->no_pll &&
-	    (!has_edp_encoder ||
-	     intel_encoder_is_pch_edp(&has_edp_encoder->base))) {
+	if (!intel_crtc->no_pll && (!edp_encoder || is_pch_edp)) {
 		I915_WRITE(PCH_DPLL(pipe), dpll);
 
 		/* Wait for the clocks to stabilize. */
@@ -6375,10 +6375,8 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	I915_WRITE(PIPE_LINK_M1(pipe), m_n.link_m);
 	I915_WRITE(PIPE_LINK_N1(pipe), m_n.link_n);
 
-	if (has_edp_encoder &&
-	    !intel_encoder_is_pch_edp(&has_edp_encoder->base)) {
+	if (is_cpu_edp)
 		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
-	}
 
 	I915_WRITE(PIPECONF(pipe), pipeconf);
 	POSTING_READ(PIPECONF(pipe));
