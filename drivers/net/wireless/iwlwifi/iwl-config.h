@@ -66,9 +66,26 @@
 #include <linux/types.h>
 #include <net/mac80211.h>
 
-struct iwl_priv;
 struct iwl_lib_ops;
 
+
+enum iwl_device_family {
+	IWL_DEVICE_FAMILY_UNDEFINED,
+	IWL_DEVICE_FAMILY_1000,
+	IWL_DEVICE_FAMILY_100,
+	IWL_DEVICE_FAMILY_2000,
+	IWL_DEVICE_FAMILY_2030,
+	IWL_DEVICE_FAMILY_105,
+	IWL_DEVICE_FAMILY_135,
+	IWL_DEVICE_FAMILY_5000,
+	IWL_DEVICE_FAMILY_5150,
+	IWL_DEVICE_FAMILY_6000,
+	IWL_DEVICE_FAMILY_6000i,
+	IWL_DEVICE_FAMILY_6005,
+	IWL_DEVICE_FAMILY_6030,
+	IWL_DEVICE_FAMILY_6050,
+	IWL_DEVICE_FAMILY_6150,
+};
 
 /*
  * LED mode
@@ -165,7 +182,6 @@ struct iwl_ht_params {
  * @eeprom_ver: EEPROM version
  * @eeprom_calib_ver: EEPROM calibration version
  * @lib: pointer to the lib ops
- * @additional_nic_config: additional nic configuration
  * @base_params: pointer to basic parameters
  * @ht_params: point to ht patameters
  * @bt_params: pointer to bt parameters
@@ -189,6 +205,7 @@ struct iwl_cfg {
 	const unsigned int ucode_api_max;
 	const unsigned int ucode_api_ok;
 	const unsigned int ucode_api_min;
+	const enum iwl_device_family device_family;
 	const u32 max_data_size;
 	const u32 max_inst_size;
 	u8   valid_tx_ant;
@@ -196,7 +213,6 @@ struct iwl_cfg {
 	u16  eeprom_ver;
 	u16  eeprom_calib_ver;
 	const struct iwl_lib_ops *lib;
-	void (*additional_nic_config)(struct iwl_priv *priv);
 	/* params not likely to change within a device family */
 	const struct iwl_base_params *base_params;
 	/* params likely to change within a device family */

@@ -78,39 +78,38 @@ static void iwl6000_set_ct_threshold(struct iwl_priv *priv)
 	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
-static void iwl6050_additional_nic_config(struct iwl_priv *priv)
-{
-	/* Indicate calibration version to uCode. */
-	if (iwl_eeprom_calib_version(priv) >= 6)
-		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
-				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
-}
-
-static void iwl6150_additional_nic_config(struct iwl_priv *priv)
-{
-	/* Indicate calibration version to uCode. */
-	if (iwl_eeprom_calib_version(priv) >= 6)
-		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
-				CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
-	iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
-		    CSR_GP_DRIVER_REG_BIT_6050_1x2);
-}
-
-static void iwl6000i_additional_nic_config(struct iwl_priv *priv)
-{
-	/* 2x2 IPA phy type */
-	iwl_write32(trans(priv), CSR_GP_DRIVER_REG,
-		     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
-}
-
 /* NIC configuration for 6000 series */
 static void iwl6000_nic_config(struct iwl_priv *priv)
 {
 	iwl_rf_config(priv);
 
-	/* do additional nic configuration if needed */
-	if (cfg(priv)->additional_nic_config)
-		cfg(priv)->additional_nic_config(priv);
+	switch (cfg(priv)->device_family) {
+	case IWL_DEVICE_FAMILY_6005:
+	case IWL_DEVICE_FAMILY_6030:
+	case IWL_DEVICE_FAMILY_6000:
+		break;
+	case IWL_DEVICE_FAMILY_6000i:
+		/* 2x2 IPA phy type */
+		iwl_write32(trans(priv), CSR_GP_DRIVER_REG,
+			     CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA);
+		break;
+	case IWL_DEVICE_FAMILY_6050:
+		/* Indicate calibration version to uCode. */
+		if (iwl_eeprom_calib_version(priv) >= 6)
+			iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
+					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+		break;
+	case IWL_DEVICE_FAMILY_6150:
+		/* Indicate calibration version to uCode. */
+		if (iwl_eeprom_calib_version(priv) >= 6)
+			iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
+					CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6);
+		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
+			    CSR_GP_DRIVER_REG_BIT_6050_1x2);
+		break;
+	default:
+		WARN_ON(1);
+	}
 }
 
 static const struct iwl_sensitivity_ranges iwl6000_sensitivity = {
@@ -333,6 +332,7 @@ static const struct iwl_bt_params iwl6000_bt_params = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
 	.ucode_api_ok = IWL6000G2_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
+	.device_family = IWL_DEVICE_FAMILY_6005,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_6005_EEPROM_VERSION,		\
@@ -387,6 +387,7 @@ const struct iwl_cfg iwl6005_2agn_mow2_cfg = {
 	.ucode_api_max = IWL6000G2_UCODE_API_MAX,		\
 	.ucode_api_ok = IWL6000G2_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000G2_UCODE_API_MIN,		\
+	.device_family = IWL_DEVICE_FAMILY_6030,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.eeprom_ver = EEPROM_6030_EEPROM_VERSION,		\
@@ -458,6 +459,7 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,			\
 	.ucode_api_ok = IWL6000_UCODE_API_OK,			\
 	.ucode_api_min = IWL6000_UCODE_API_MIN,			\
+	.device_family = IWL_DEVICE_FAMILY_6000i,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_BC,		/* .cfg overwrite */	\
@@ -465,7 +467,6 @@ const struct iwl_cfg iwl130_bg_cfg = {
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,	\
 	.lib = &iwl6000_lib,					\
-	.additional_nic_config = iwl6000i_additional_nic_config,\
 	.base_params = &iwl6000_base_params,			\
 	.led_mode = IWL_LED_BLINK
 
@@ -489,12 +490,12 @@ const struct iwl_cfg iwl6000i_2bg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
+	.device_family = IWL_DEVICE_FAMILY_6050,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.valid_tx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.valid_rx_ant = ANT_AB,		/* .cfg overwrite */	\
 	.lib = &iwl6000_lib,					\
-	.additional_nic_config = iwl6050_additional_nic_config,	\
 	.eeprom_ver = EEPROM_6050_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6050_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
@@ -516,10 +517,10 @@ const struct iwl_cfg iwl6050_2abg_cfg = {
 	.fw_name_pre = IWL6050_FW_PRE,				\
 	.ucode_api_max = IWL6050_UCODE_API_MAX,			\
 	.ucode_api_min = IWL6050_UCODE_API_MIN,			\
+	.device_family = IWL_DEVICE_FAMILY_6150,		\
 	.max_inst_size = IWL60_RTC_INST_SIZE,			\
 	.max_data_size = IWL60_RTC_DATA_SIZE,			\
 	.lib = &iwl6000_lib,					\
-	.additional_nic_config = iwl6150_additional_nic_config,	\
 	.eeprom_ver = EEPROM_6150_EEPROM_VERSION,		\
 	.eeprom_calib_ver = EEPROM_6150_TX_POWER_VERSION,	\
 	.base_params = &iwl6050_base_params,			\
@@ -543,6 +544,7 @@ const struct iwl_cfg iwl6000_3agn_cfg = {
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_ok = IWL6000_UCODE_API_OK,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
+	.device_family = IWL_DEVICE_FAMILY_6000,
 	.max_inst_size = IWL60_RTC_INST_SIZE,
 	.max_data_size = IWL60_RTC_DATA_SIZE,
 	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
