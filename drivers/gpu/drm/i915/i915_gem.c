@@ -3068,9 +3068,11 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 	if (ret)
 		return ret;
 
-	ret = i915_gem_object_wait_rendering(obj);
-	if (ret)
-		return ret;
+	if (write || obj->pending_gpu_write) {
+		ret = i915_gem_object_wait_rendering(obj);
+		if (ret)
+			return ret;
+	}
 
 	i915_gem_object_flush_gtt_write_domain(obj);
 
