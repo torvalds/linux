@@ -532,7 +532,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 		break;
 
 	case IWL_TM_CMD_APP2DEV_GET_EEPROM:
-		if (priv->shrd->eeprom) {
+		if (priv->eeprom) {
 			skb = cfg80211_testmode_alloc_reply_skb(hw->wiphy,
 				cfg(priv)->base_params->eeprom_size + 20);
 			if (!skb) {
@@ -543,7 +543,7 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 				IWL_TM_CMD_DEV2APP_EEPROM_RSP);
 			NLA_PUT(skb, IWL_TM_ATTR_EEPROM,
 				cfg(priv)->base_params->eeprom_size,
-				priv->shrd->eeprom);
+				priv->eeprom);
 			status = cfg80211_testmode_reply(skb);
 			if (status < 0)
 				IWL_ERR(priv, "Error sending msg : %d\n",

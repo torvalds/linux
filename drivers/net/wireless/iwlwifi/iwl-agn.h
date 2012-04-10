@@ -138,7 +138,6 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
-u16 iwl_eeprom_calib_version(struct iwl_shared *shrd);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
@@ -311,9 +310,6 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 {
 	return cpu_to_le32(flags|(u32)rate);
 }
-
-/* eeprom */
-void iwl_eeprom_get_mac(const struct iwl_shared *shrd, u8 *mac);
 
 extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */

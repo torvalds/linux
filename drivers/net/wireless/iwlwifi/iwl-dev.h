@@ -993,6 +993,10 @@ struct iwl_priv {
 	void *wowlan_sram;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
 
+	/* eeprom -- this is in the card's little endian byte order */
+	u8 *eeprom;
+	enum iwl_nvm_type nvm_device_type;
+
 	struct work_struct txpower_work;
 	u32 disable_sens_cal;
 	u32 disable_chain_noise_cal;

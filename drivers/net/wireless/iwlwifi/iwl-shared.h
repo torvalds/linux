@@ -313,10 +313,6 @@ struct iwl_shared {
 	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;
 	void *drv;
-
-	/* eeprom -- this is in the card's little endian byte order */
-	u8 *eeprom;
-
 };
 
 /*Whatever _m is (iwl_trans, iwl_priv, these macros will work */

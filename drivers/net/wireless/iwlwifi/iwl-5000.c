@@ -126,10 +126,10 @@ static struct iwl_sensitivity_ranges iwl5150_sensitivity = {
 
 #define IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF	(-5)
 
-static s32 iwl_temp_calib_to_offset(struct iwl_shared *shrd)
+static s32 iwl_temp_calib_to_offset(struct iwl_priv *priv)
 {
 	u16 temperature, voltage;
-	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(shrd,
+	__le16 *temp_calib = (__le16 *)iwl_eeprom_query_addr(priv,
 				EEPROM_KELVIN_TEMPERATURE);
 
 	temperature = le16_to_cpu(temp_calib[0]);
@@ -143,7 +143,7 @@ static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 {
 	const s32 volt2temp_coef = IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF;
 	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY) -
-			iwl_temp_calib_to_offset(priv->shrd);
+			iwl_temp_calib_to_offset(priv);
 
 	priv->hw_params.ct_kill_threshold = threshold * volt2temp_coef;
 }
@@ -189,7 +189,7 @@ static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 static void iwl5150_temperature(struct iwl_priv *priv)
 {
 	u32 vt = 0;
-	s32 offset =  iwl_temp_calib_to_offset(priv->shrd);
+	s32 offset =  iwl_temp_calib_to_offset(priv);
 
 	vt = le32_to_cpu(priv->statistics.common.temperature);
 	vt = vt / IWL_5150_VOLTAGE_TO_TEMPERATURE_COEFF + offset;
