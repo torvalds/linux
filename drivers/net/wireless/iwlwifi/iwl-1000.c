@@ -77,8 +77,8 @@
 static void iwl1000_set_ct_threshold(struct iwl_priv *priv)
 {
 	/* want Celsius */
-	hw_params(priv).ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
-	hw_params(priv).ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
+	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
+	priv->hw_params.ct_kill_exit_threshold = CT_KILL_EXIT_THRESHOLD;
 }
 
 /* NIC configuration for 1000 series */
@@ -122,20 +122,20 @@ static const struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 
 static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ);
 
-	hw_params(priv).tx_chains_num =
-		num_of_ant(hw_params(priv).valid_tx_ant);
+	priv->hw_params.tx_chains_num =
+		num_of_ant(priv->hw_params.valid_tx_ant);
 	if (cfg(priv)->rx_with_siso_diversity)
-		hw_params(priv).rx_chains_num = 1;
+		priv->hw_params.rx_chains_num = 1;
 	else
-		hw_params(priv).rx_chains_num =
-			num_of_ant(hw_params(priv).valid_rx_ant);
+		priv->hw_params.rx_chains_num =
+			num_of_ant(priv->hw_params.valid_rx_ant);
 
 	iwl1000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	hw_params(priv).sens = &iwl1000_sensitivity;
+	priv->hw_params.sens = &iwl1000_sensitivity;
 }
 
 static struct iwl_lib_ops iwl1000_lib = {

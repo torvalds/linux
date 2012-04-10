@@ -681,6 +681,37 @@ enum iwl_scan_type {
 	IWL_SCAN_ROC,
 };
 
+/**
+ * struct iwl_hw_params
+ *
+ * Holds the module parameters
+ *
+ * @tx_chains_num: Number of TX chains
+ * @rx_chains_num: Number of RX chains
+ * @valid_tx_ant: usable antennas for TX
+ * @valid_rx_ant: usable antennas for RX
+ * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
+ * @sku: sku read from EEPROM
+ * @ct_kill_threshold: temperature threshold - in hw dependent unit
+ * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
+ *	relevant for 1000, 6000 and up
+ * @struct iwl_sensitivity_ranges: range of sensitivity values
+ * @use_rts_for_aggregation: use rts/cts protection for HT traffic
+ */
+struct iwl_hw_params {
+	u8  tx_chains_num;
+	u8  rx_chains_num;
+	u8  valid_tx_ant;
+	u8  valid_rx_ant;
+	u8  ht40_channel;
+	bool use_rts_for_aggregation;
+	u16 sku;
+	u32 ct_kill_threshold;
+	u32 ct_kill_exit_threshold;
+
+	const struct iwl_sensitivity_ranges *sens;
+};
+
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 struct iwl_testmode_trace {
 	u32 buff_size;
@@ -738,6 +769,8 @@ struct iwl_priv {
 	struct list_head calib_results;
 
 	struct workqueue_struct *workqueue;
+
+	struct iwl_hw_params hw_params;
 
 	enum ieee80211_band band;
 	u8 valid_contexts;

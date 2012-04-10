@@ -155,37 +155,6 @@ struct iwl_mod_params {
 	bool auto_agg;
 };
 
-/**
- * struct iwl_hw_params
- *
- * Holds the module parameters
- *
- * @tx_chains_num: Number of TX chains
- * @rx_chains_num: Number of RX chains
- * @valid_tx_ant: usable antennas for TX
- * @valid_rx_ant: usable antennas for RX
- * @ht40_channel: is 40MHz width possible: BIT(IEEE80211_BAND_XXX)
- * @sku: sku read from EEPROM
- * @ct_kill_threshold: temperature threshold - in hw dependent unit
- * @ct_kill_exit_threshold: when to reeable the device - in hw dependent unit
- *	relevant for 1000, 6000 and up
- * @struct iwl_sensitivity_ranges: range of sensitivity values
- * @use_rts_for_aggregation: use rts/cts protection for HT traffic
- */
-struct iwl_hw_params {
-	u8  tx_chains_num;
-	u8  rx_chains_num;
-	u8  valid_tx_ant;
-	u8  valid_rx_ant;
-	u8  ht40_channel;
-	bool use_rts_for_aggregation;
-	u16 sku;
-	u32 ct_kill_threshold;
-	u32 ct_kill_exit_threshold;
-
-	const struct iwl_sensitivity_ranges *sens;
-};
-
 /*
  * LED mode
  *    IWL_LED_DEFAULT:  use device default
@@ -337,7 +306,6 @@ struct iwl_cfg {
  * @priv: pointer to the upper layer data
  * @trans: pointer to the transport layer data
  * @nic: pointer to the nic data
- * @hw_params: see struct iwl_hw_params
  * @lock: protect general shared data
  * @eeprom: pointer to the eeprom/OTP image
  */
@@ -347,7 +315,6 @@ struct iwl_shared {
 	const struct iwl_cfg *cfg;
 	struct iwl_trans *trans;
 	void *drv;
-	struct iwl_hw_params hw_params;
 
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
@@ -357,7 +324,6 @@ struct iwl_shared {
 /*Whatever _m is (iwl_trans, iwl_priv, these macros will work */
 #define cfg(_m)		((_m)->shrd->cfg)
 #define trans(_m)	((_m)->shrd->trans)
-#define hw_params(_m)	((_m)->shrd->hw_params)
 
 static inline bool iwl_have_debug_level(u32 level)
 {

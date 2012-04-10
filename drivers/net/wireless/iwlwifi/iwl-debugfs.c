@@ -1541,17 +1541,17 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 	if (tx->tx_power.ant_a || tx->tx_power.ant_b || tx->tx_power.ant_c) {
 		pos += scnprintf(buf + pos, bufsz - pos,
 			"tx power: (1/2 dB step)\n");
-		if ((hw_params(priv).valid_tx_ant & ANT_A) &&
+		if ((priv->hw_params.valid_tx_ant & ANT_A) &&
 		    tx->tx_power.ant_a)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna A:",
 					tx->tx_power.ant_a);
-		if ((hw_params(priv).valid_tx_ant & ANT_B) &&
+		if ((priv->hw_params.valid_tx_ant & ANT_B) &&
 		    tx->tx_power.ant_b)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna B:",
 					tx->tx_power.ant_b);
-		if ((hw_params(priv).valid_tx_ant & ANT_C) &&
+		if ((priv->hw_params.valid_tx_ant & ANT_C) &&
 		    tx->tx_power.ant_c)
 			pos += scnprintf(buf + pos, bufsz - pos,
 					fmt_hex, "antenna C:",
@@ -2405,7 +2405,7 @@ static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,
 	if (cfg(priv)->ht_params)
 		pos += scnprintf(buf + pos, bufsz - pos,
 			 "use %s for aggregation\n",
-			 (hw_params(priv).use_rts_for_aggregation) ?
+			 (priv->hw_params.use_rts_for_aggregation) ?
 				"rts/cts" : "cts-to-self");
 	else
 		pos += scnprintf(buf + pos, bufsz - pos, "N/A");
@@ -2432,9 +2432,9 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	if (sscanf(buf, "%d", &rts) != 1)
 		return -EINVAL;
 	if (rts)
-		hw_params(priv).use_rts_for_aggregation = true;
+		priv->hw_params.use_rts_for_aggregation = true;
 	else
-		hw_params(priv).use_rts_for_aggregation = false;
+		priv->hw_params.use_rts_for_aggregation = false;
 	return count;
 }
 

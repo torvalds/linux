@@ -258,40 +258,40 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 	struct iwl_shared *shrd = priv->shrd;
 	u16 radio_cfg;
 
-	hw_params(priv).sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
-	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE &&
+	priv->hw_params.sku = iwl_eeprom_query16(shrd, EEPROM_SKU_CAP);
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
 	    !cfg(priv)->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
 
-	if (!hw_params(priv).sku) {
+	if (!priv->hw_params.sku) {
 		IWL_ERR(priv, "Invalid device sku\n");
 		return -EINVAL;
 	}
 
-	IWL_INFO(priv, "Device SKU: 0x%X\n", hw_params(priv).sku);
+	IWL_INFO(priv, "Device SKU: 0x%X\n", priv->hw_params.sku);
 
 	radio_cfg = iwl_eeprom_query16(shrd, EEPROM_RADIO_CONFIG);
 
-	hw_params(priv).valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
-	hw_params(priv).valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
+	priv->hw_params.valid_tx_ant = EEPROM_RF_CFG_TX_ANT_MSK(radio_cfg);
+	priv->hw_params.valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
 
 	/* check overrides (some devices have wrong EEPROM) */
 	if (cfg(priv)->valid_tx_ant)
-		hw_params(priv).valid_tx_ant = cfg(priv)->valid_tx_ant;
+		priv->hw_params.valid_tx_ant = cfg(priv)->valid_tx_ant;
 	if (cfg(priv)->valid_rx_ant)
-		hw_params(priv).valid_rx_ant = cfg(priv)->valid_rx_ant;
+		priv->hw_params.valid_rx_ant = cfg(priv)->valid_rx_ant;
 
-	if (!hw_params(priv).valid_tx_ant || !hw_params(priv).valid_rx_ant) {
+	if (!priv->hw_params.valid_tx_ant || !priv->hw_params.valid_rx_ant) {
 		IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
-			hw_params(priv).valid_tx_ant,
-			hw_params(priv).valid_rx_ant);
+			priv->hw_params.valid_tx_ant,
+			priv->hw_params.valid_rx_ant);
 		return -EINVAL;
 	}
 
 	IWL_INFO(priv, "Valid Tx ant: 0x%X, Valid Rx ant: 0x%X\n",
-		 hw_params(priv).valid_tx_ant, hw_params(priv).valid_rx_ant);
+		 priv->hw_params.valid_tx_ant, priv->hw_params.valid_rx_ant);
 
 	return 0;
 }

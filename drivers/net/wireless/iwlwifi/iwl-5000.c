@@ -145,45 +145,45 @@ static void iwl5150_set_ct_threshold(struct iwl_priv *priv)
 	s32 threshold = (s32)CELSIUS_TO_KELVIN(CT_KILL_THRESHOLD_LEGACY) -
 			iwl_temp_calib_to_offset(priv->shrd);
 
-	hw_params(priv).ct_kill_threshold = threshold * volt2temp_coef;
+	priv->hw_params.ct_kill_threshold = threshold * volt2temp_coef;
 }
 
 static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 {
 	/* want Celsius */
-	hw_params(priv).ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
+	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
 }
 
 static void iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
-	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num =
-		num_of_ant(hw_params(priv).valid_tx_ant);
-	hw_params(priv).rx_chains_num =
-		num_of_ant(hw_params(priv).valid_rx_ant);
+	priv->hw_params.tx_chains_num =
+		num_of_ant(priv->hw_params.valid_tx_ant);
+	priv->hw_params.rx_chains_num =
+		num_of_ant(priv->hw_params.valid_rx_ant);
 
 	iwl5000_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	hw_params(priv).sens = &iwl5000_sensitivity;
+	priv->hw_params.sens = &iwl5000_sensitivity;
 }
 
 static void iwl5150_hw_set_hw_params(struct iwl_priv *priv)
 {
-	hw_params(priv).ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
+	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
 					BIT(IEEE80211_BAND_5GHZ);
 
-	hw_params(priv).tx_chains_num =
-		num_of_ant(hw_params(priv).valid_tx_ant);
-	hw_params(priv).rx_chains_num =
-		num_of_ant(hw_params(priv).valid_rx_ant);
+	priv->hw_params.tx_chains_num =
+		num_of_ant(priv->hw_params.valid_tx_ant);
+	priv->hw_params.rx_chains_num =
+		num_of_ant(priv->hw_params.valid_rx_ant);
 
 	iwl5150_set_ct_threshold(priv);
 
 	/* Set initial sensitivity parameters */
-	hw_params(priv).sens = &iwl5150_sensitivity;
+	priv->hw_params.sens = &iwl5150_sensitivity;
 }
 
 static void iwl5150_temperature(struct iwl_priv *priv)
