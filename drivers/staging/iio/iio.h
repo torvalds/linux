@@ -331,6 +331,8 @@ struct iio_buffer_setup_ops {
  * @name:		[DRIVER] name of the device.
  * @info:		[DRIVER] callbacks and constant info from driver
  * @info_exist_lock:	[INTERN] lock to prevent use during removal
+ * @setup_ops:		[DRIVER] callbacks to call before and after buffer
+ *			enable/disable
  * @chrdev:		[INTERN] associated character device
  * @groups:		[INTERN] attribute groups
  * @groupcounter:	[INTERN] index of next attribute group
