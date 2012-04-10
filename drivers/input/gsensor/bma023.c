@@ -500,7 +500,7 @@ static void bma150_work_func(struct work_struct *work)
 	schedule_delayed_work(&bma150->work, delay);
 
 }
-
+#if 0
 static ssize_t bma150_mode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -724,7 +724,7 @@ static struct attribute *bma150_attributes[] = {
 static struct attribute_group bma150_attribute_group = {
 	.attrs = bma150_attributes
 };
-
+#endif
 static int bma150_input_init(struct bma150_data *bma150)
 {
 	struct input_dev *dev;
@@ -905,12 +905,12 @@ static int bma150_probe(struct i2c_client *client,
 	err = bma150_input_init(data);
 	if (err < 0)
 		goto kfree_exit;
-
+#if 0
 	err = sysfs_create_group(&data->input->dev.kobj,
 			&bma150_attribute_group);
 	if (err < 0)
 		goto error_sysfs;
-
+#endif
 	data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	data->early_suspend.suspend = bma150_early_suspend;
 	data->early_suspend.resume = bma150_late_resume;
@@ -919,8 +919,8 @@ static int bma150_probe(struct i2c_client *client,
 	misc_register(&bma023_device);
 	return 0;
 
-error_sysfs:
-	bma150_input_delete(data);
+//error_sysfs:
+//	bma150_input_delete(data);
 
 kfree_exit:
 	kfree(data);
@@ -933,9 +933,9 @@ static int bma150_remove(struct i2c_client *client)
 {
 	struct bma150_data *data = i2c_get_clientdata(client);
 
-	bma150_set_enable(&client->dev, 0);
+	bma023_enable(&client->dev, 0);
 	unregister_early_suspend(&data->early_suspend);
-	sysfs_remove_group(&data->input->dev.kobj, &bma150_attribute_group);
+	//sysfs_remove_group(&data->input->dev.kobj, &bma150_attribute_group);
 	bma150_input_delete(data);
 	kfree(data);
 
