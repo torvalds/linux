@@ -1875,6 +1875,36 @@ static bool kick_ring(struct intel_ring_buffer *ring)
 	return false;
 }
 
+static bool i915_hangcheck_hung(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (dev_priv->hangcheck_count++ > 1) {
+		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
+		i915_handle_error(dev, true);
+
+		if (!IS_GEN2(dev)) {
+			/* Is the chip hanging on a WAIT_FOR_EVENT?
+			 * If so we can simply poke the RB_WAIT bit
+			 * and break the hang. This should work on
+			 * all but the second generation chipsets.
+			 */
+			if (kick_ring(&dev_priv->ring[RCS]))
+				return false;
+
+			if (HAS_BSD(dev) && kick_ring(&dev_priv->ring[VCS]))
+				return false;
+
+			if (HAS_BLT(dev) && kick_ring(&dev_priv->ring[BCS]))
+				return false;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 /**
  * This is called when the chip hasn't reported back with completed
  * batchbuffers in a long time. The first time this is called we simply record
@@ -1895,9 +1925,14 @@ void i915_hangcheck_elapsed(unsigned long data)
 	if (i915_hangcheck_ring_idle(&dev_priv->ring[RCS], &err) &&
 	    i915_hangcheck_ring_idle(&dev_priv->ring[VCS], &err) &&
 	    i915_hangcheck_ring_idle(&dev_priv->ring[BCS], &err)) {
-		dev_priv->hangcheck_count = 0;
-		if (err)
+		if (err) {
+			if (i915_hangcheck_hung(dev))
+				return;
+
 			goto repeat;
+		}
+
+		dev_priv->hangcheck_count = 0;
 		return;
 	}
 
@@ -1919,30 +1954,8 @@ void i915_hangcheck_elapsed(unsigned long data)
 	    dev_priv->last_acthd_blt == acthd_blt &&
 	    dev_priv->last_instdone == instdone &&
 	    dev_priv->last_instdone1 == instdone1) {
-		if (dev_priv->hangcheck_count++ > 1) {
-			DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
-			i915_handle_error(dev, true);
-
-			if (!IS_GEN2(dev)) {
-				/* Is the chip hanging on a WAIT_FOR_EVENT?
-				 * If so we can simply poke the RB_WAIT bit
-				 * and break the hang. This should work on
-				 * all but the second generation chipsets.
-				 */
-				if (kick_ring(&dev_priv->ring[RCS]))
-					goto repeat;
-
-				if (HAS_BSD(dev) &&
-				    kick_ring(&dev_priv->ring[VCS]))
-					goto repeat;
-
-				if (HAS_BLT(dev) &&
-				    kick_ring(&dev_priv->ring[BCS]))
-					goto repeat;
-			}
-
+		if (i915_hangcheck_hung(dev))
 			return;
-		}
 	} else {
 		dev_priv->hangcheck_count = 0;
 
