@@ -522,7 +522,7 @@ int nfc_llcp_send_rr(struct nfc_llcp_sock *sock)
 
 	skb_put(skb, LLCP_SEQUENCE_SIZE);
 
-	skb->data[2] = sock->recv_n % 16;
+	skb->data[2] = sock->recv_n;
 
 	skb_queue_head(&local->tx_queue, skb);
 
