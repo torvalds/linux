@@ -450,7 +450,9 @@ void reg_copy_to_hw(vpu_reg *reg)
 		u32 *dst = (u32 *)enc_dev.hwregs;
 		service.reg_codec = reg;
 
+#if defined(CONFIG_ARCH_RK30)
 		vpu_reset();
+#endif
 
 		dst[VPU_REG_EN_ENC] = src[VPU_REG_EN_ENC] & 0x6;
 
