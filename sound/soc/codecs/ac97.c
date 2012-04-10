@@ -30,7 +30,7 @@ static int ac97_prepare(struct snd_pcm_substream *substream,
 
 	int reg = (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
 		  AC97_PCM_FRONT_DAC_RATE : AC97_PCM_LR_ADC_RATE;
-	return snd_ac97_set_rate(codec->ac97, reg, runtime->rate);
+	return snd_ac97_set_rate(codec->ac97, reg, substream->runtime->rate);
 }
 
 #define STD_AC97_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
