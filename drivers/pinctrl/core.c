@@ -518,11 +518,14 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 
 	setting->pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 	if (setting->pctldev == NULL) {
-		dev_err(p->dev, "unknown pinctrl device %s in map entry",
+		dev_info(p->dev, "unknown pinctrl device %s in map entry, deferring probe",
 			map->ctrl_dev_name);
 		kfree(setting);
-		/* Eventually, this should trigger deferred probe */
-		return -ENODEV;
+		/*
+		 * OK let us guess that the driver is not there yet, and
+		 * let's defer obtaining this pinctrl handle to later...
+		 */
+		return -EPROBE_DEFER;
 	}
 
 	switch (map->type) {
