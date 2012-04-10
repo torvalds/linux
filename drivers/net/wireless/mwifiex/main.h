@@ -965,6 +965,7 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					u32 *flags, struct vif_params *params);
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev);
 
+u8 *mwifiex_11d_code_2_region(u8 code);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

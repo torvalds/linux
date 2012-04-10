@@ -1422,6 +1422,7 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	void *wdev_priv;
 	struct wireless_dev *wdev;
 	struct ieee80211_sta_ht_cap *ht_info;
+	u8 *country_code;
 
 	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
 	if (!wdev) {
@@ -1483,6 +1484,11 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 		dev_dbg(priv->adapter->dev,
 			"info: successfully registered wiphy device\n");
 	}
+
+	country_code = mwifiex_11d_code_2_region(priv->adapter->region_code);
+	if (country_code && regulatory_hint(wdev->wiphy, country_code))
+		dev_err(priv->adapter->dev,
+			"%s: regulatory_hint failed\n", __func__);
 
 	priv->wdev = wdev;
 
