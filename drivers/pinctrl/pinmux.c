@@ -323,6 +323,11 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 	const unsigned *pins;
 	unsigned num_pins;
 
+	if (!pmxops) {
+		dev_err(pctldev->dev, "does not support mux function\n");
+		return -EINVAL;
+	}
+
 	setting->data.mux.func =
 		pinmux_func_name_to_selector(pctldev, map->data.mux.function);
 	if (setting->data.mux.func < 0)
@@ -481,11 +486,14 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
-	unsigned nfuncs = pmxops->get_functions_count(pctldev);
+	unsigned nfuncs;
 	unsigned func_selector = 0;
 
-	mutex_lock(&pinctrl_mutex);
+	if (!pmxops)
+		return 0;
 
+	mutex_lock(&pinctrl_mutex);
+	nfuncs = pmxops->get_functions_count(pctldev);
 	while (func_selector < nfuncs) {
 		const char *func = pmxops->get_function_name(pctldev,
 							  func_selector);
@@ -519,6 +527,9 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
 	const struct pinmux_ops *pmxops = pctldev->desc->pmxops;
 	unsigned i, pin;
+
+	if (!pmxops)
+		return 0;
 
 	seq_puts(s, "Pinmux settings per pin\n");
 	seq_puts(s, "Format: pin (name): mux_owner gpio_owner hog?\n");

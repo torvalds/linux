@@ -448,7 +448,11 @@ static void pinconf_dump_pin(struct pinctrl_dev *pctldev,
 static int pinconf_pins_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
+	const struct pinconf_ops *ops = pctldev->desc->confops;
 	unsigned i, pin;
+
+	if (!ops || !ops->pin_config_get)
+		return 0;
 
 	seq_puts(s, "Pin config settings per pin\n");
 	seq_puts(s, "Format: pin (name): pinmux setting array\n");
