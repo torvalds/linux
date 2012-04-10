@@ -7343,8 +7343,7 @@ static struct {
 	{ "rx_fw_discards" },
 };
 
-#define BNX2_NUM_STATS (sizeof(bnx2_stats_str_arr)/\
-			sizeof(bnx2_stats_str_arr[0]))
+#define BNX2_NUM_STATS ARRAY_SIZE(bnx2_stats_str_arr)
 
 #define STATS_OFFSET32(offset_name) (offsetof(struct statistics_block, offset_name) / 4)
 
