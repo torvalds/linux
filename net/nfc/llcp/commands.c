@@ -248,7 +248,7 @@ int nfc_llcp_disconnect(struct nfc_llcp_sock *sock)
 
 	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
 
-	skb = llcp_add_header(skb, sock->ssap, sock->dsap, LLCP_PDU_DISC);
+	skb = llcp_add_header(skb, sock->dsap, sock->ssap, LLCP_PDU_DISC);
 
 	skb_queue_tail(&local->tx_queue, skb);
 
@@ -416,7 +416,7 @@ int nfc_llcp_send_dm(struct nfc_llcp_local *local, u8 ssap, u8 dsap, u8 reason)
 
 	skb_reserve(skb, dev->tx_headroom + NFC_HEADER_SIZE);
 
-	skb = llcp_add_header(skb, ssap, dsap, LLCP_PDU_DM);
+	skb = llcp_add_header(skb, dsap, ssap, LLCP_PDU_DM);
 
 	memcpy(skb_put(skb, 1), &reason, 1);
 
