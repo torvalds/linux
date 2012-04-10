@@ -655,6 +655,7 @@ struct mwifiex_adapter {
 	u8 scan_wait_q_woken;
 	struct cmd_ctrl_node *cmd_queued;
 	spinlock_t queue_lock;		/* lock for tx queues */
+	struct completion fw_load;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);
