@@ -95,7 +95,7 @@ int nfc_dev_down(struct nfc_dev *dev)
 		goto error;
 	}
 
-	if (dev->polling || dev->remote_activated) {
+	if (dev->polling || dev->activated_target_idx != NFC_TARGET_IDX_NONE) {
 		rc = -EBUSY;
 		goto error;
 	}
@@ -211,6 +211,8 @@ int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 	}
 
 	rc = dev->ops->dep_link_up(dev, target_index, comm_mode, gb, gb_len);
+	if (!rc)
+		dev->activated_target_idx = target_index;
 
 error:
 	device_unlock(&dev->dev);
@@ -246,6 +248,7 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	rc = dev->ops->dep_link_down(dev);
 	if (!rc) {
 		dev->dep_link_up = false;
+		dev->activated_target_idx = NFC_TARGET_IDX_NONE;
 		nfc_llcp_mac_is_down(dev);
 		nfc_genl_dep_link_down_event(dev);
 	}
@@ -290,7 +293,7 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 
 	rc = dev->ops->activate_target(dev, target_idx, protocol);
 	if (!rc)
-		dev->remote_activated = true;
+		dev->activated_target_idx = target_idx;
 
 error:
 	device_unlock(&dev->dev);
@@ -318,7 +321,7 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 	}
 
 	dev->ops->deactivate_target(dev, target_idx);
-	dev->remote_activated = false;
+	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
 
 error:
 	device_unlock(&dev->dev);
@@ -348,6 +351,18 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 
 	if (!device_is_registered(&dev->dev)) {
 		rc = -ENODEV;
+		kfree_skb(skb);
+		goto error;
+	}
+
+	if (dev->activated_target_idx == NFC_TARGET_IDX_NONE) {
+		rc = -ENOTCONN;
+		kfree_skb(skb);
+		goto error;
+	}
+
+	if (target_idx != dev->activated_target_idx) {
+		rc = -EADDRNOTAVAIL;
 		kfree_skb(skb);
 		goto error;
 	}
@@ -482,6 +497,7 @@ int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
 
 	dev->targets_generation++;
 	dev->n_targets--;
+	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
 
 	if (dev->n_targets) {
 		memcpy(&dev->targets[i], &dev->targets[i + 1],
@@ -574,6 +590,8 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 
 	/* first generation must not be 0 */
 	dev->targets_generation = 1;
+
+	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
 
 	return dev;
 }

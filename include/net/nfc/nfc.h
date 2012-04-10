@@ -66,6 +66,7 @@ struct nfc_ops {
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
+#define NFC_TARGET_IDX_NONE 0xffffffff
 
 struct nfc_target {
 	u32 idx;
@@ -97,7 +98,7 @@ struct nfc_dev {
 	struct device dev;
 	bool dev_up;
 	bool polling;
-	bool remote_activated;
+	u32 activated_target_idx;
 	bool dep_link_up;
 	u32 dep_rf_mode;
 	struct nfc_genl_data genl_data;
