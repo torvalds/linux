@@ -23,7 +23,6 @@
 #include <linux/io.h>
 
 #include <asm/leds.h>
-#include <asm/system.h>
 
 #define LED_STATE_ENABLED	1
 #define LED_STATE_CLAIMED	2

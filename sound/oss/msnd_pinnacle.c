@@ -1631,7 +1631,7 @@ static int ide_irq __initdata = 0;
 static int joystick_io __initdata = 0;
 
 /* If we have the digital daugherboard... */
-static int digital __initdata = 0;
+static bool digital __initdata = false;
 #endif
 
 static int fifosize __initdata =	DEFFIFOSIZE;

@@ -5539,7 +5539,8 @@ void ironlake_init_pch_refclk(struct drm_device *dev)
 		if (intel_panel_use_ssc(dev_priv) && can_ssc) {
 			DRM_DEBUG_KMS("Using SSC on panel\n");
 			temp |= DREF_SSC1_ENABLE;
-		}
+		} else
+			temp &= ~DREF_SSC1_ENABLE;
 
 		/* Get SSC going before enabling the outputs */
 		I915_WRITE(PCH_DREF_CONTROL, temp);
@@ -7580,6 +7581,12 @@ static void intel_sanitize_modesetting(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 reg, val;
 
+	/* Clear any frame start delays used for debugging left by the BIOS */
+	for_each_pipe(pipe) {
+		reg = PIPECONF(pipe);
+		I915_WRITE(reg, I915_READ(reg) & ~PIPECONF_FRAME_START_DELAY_MASK);
+	}
+
 	if (HAS_PCH_SPLIT(dev))
 		return;
 
@@ -8215,7 +8222,7 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
-static bool intel_enable_rc6(struct drm_device *dev)
+static int intel_enable_rc6(struct drm_device *dev)
 {
 	/*
 	 * Respect the kernel parameter if it is set
@@ -8233,11 +8240,11 @@ static bool intel_enable_rc6(struct drm_device *dev)
 	 * Disable rc6 on Sandybridge
 	 */
 	if (INTEL_INFO(dev)->gen == 6) {
-		DRM_DEBUG_DRIVER("Sandybridge: RC6 disabled\n");
-		return 0;
+		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
+		return INTEL_RC6_ENABLE;
 	}
-	DRM_DEBUG_DRIVER("RC6 enabled\n");
-	return 1;
+	DRM_DEBUG_DRIVER("RC6 and deep RC6 enabled\n");
+	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
 }
 
 void gen6_enable_rps(struct drm_i915_private *dev_priv)
@@ -8247,6 +8254,7 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	u32 pcu_mbox, rc6_mask = 0;
 	u32 gtfifodbg;
 	int cur_freq, min_freq, max_freq;
+	int rc6_mode;
 	int i;
 
 	/* Here begins a magic sequence of register writes to enable
@@ -8284,9 +8292,20 @@ void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
 	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
 
-	if (intel_enable_rc6(dev_priv->dev))
-		rc6_mask = GEN6_RC_CTL_RC6_ENABLE |
-			((IS_GEN7(dev_priv->dev)) ? GEN6_RC_CTL_RC6p_ENABLE : 0);
+	rc6_mode = intel_enable_rc6(dev_priv->dev);
+	if (rc6_mode & INTEL_RC6_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6_ENABLE;
+
+	if (rc6_mode & INTEL_RC6p_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6p_ENABLE;
+
+	if (rc6_mode & INTEL_RC6pp_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6pp_ENABLE;
+
+	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
+			(rc6_mode & INTEL_RC6_ENABLE) ? "on" : "off",
+			(rc6_mode & INTEL_RC6p_ENABLE) ? "on" : "off",
+			(rc6_mode & INTEL_RC6pp_ENABLE) ? "on" : "off");
 
 	I915_WRITE(GEN6_RC_CONTROL,
 		   rc6_mask |

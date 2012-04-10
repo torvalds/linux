@@ -27,6 +27,7 @@
 #include <linux/io.h>
 
 #include <asm/mach/time.h>
+#include <asm/system_misc.h>
 
 #include <mach/regs-timer.h>
 #include <mach/regs-irq.h>

@@ -44,7 +44,6 @@
 #include <linux/timer.h>
 #include <linux/ioport.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>

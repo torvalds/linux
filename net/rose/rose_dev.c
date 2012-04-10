@@ -21,7 +21,6 @@
 #include <linux/if_ether.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 
 #include <linux/inet.h>

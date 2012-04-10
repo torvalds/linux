@@ -8,7 +8,6 @@
  * is licensed "as is" without any warranty of any kind, whether express
  * or implied.
  */
-#include <mach/io.h>
 #include <mach/irqs.h>
 
 		.macro  get_irqnr_preamble, base, tmp

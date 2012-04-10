@@ -55,7 +55,7 @@ What:		/sys/bus/usb/drivers/usbtmc/devices/*/auto_abort
 Date:		August 2008
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
-		This file determines if the the transaction of the USB TMC
+		This file determines if the transaction of the USB TMC
 		device is to be automatically aborted if there is any error.
 		For more details about this, please see the document,
 		"Universal Serial Bus Test and Measurement Class Specification

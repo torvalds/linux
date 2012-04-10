@@ -1939,7 +1939,7 @@ F:	drivers/connector/
 
 CONTROL GROUPS (CGROUPS)
 M:	Tejun Heo <tj@kernel.org>
-M:	Li Zefan <lizf@cn.fujitsu.com>
+M:	Li Zefan <lizefan@huawei.com>
 L:	containers@lists.linux-foundation.org
 L:	cgroups@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tj/cgroup.git
@@ -2224,13 +2224,16 @@ W:	http://lanana.org/docs/device-list/index.html
 S:	Maintained
 
 DEVICE-MAPPER  (LVM)
-P:	Alasdair Kergon
+M:	Alasdair Kergon <agk@redhat.com>
+M:	dm-devel@redhat.com
 L:	dm-devel@redhat.com
 W:	http://sources.redhat.com/dm
 Q:	http://patchwork.kernel.org/project/dm-devel/list/
+T:	quilt http://people.redhat.com/agk/patches/linux/editing/
 S:	Maintained
 F:	Documentation/device-mapper/
 F:	drivers/md/dm*
+F:	drivers/md/persistent-data/
 F:	include/linux/device-mapper.h
 F:	include/linux/dm-*.h
 
@@ -4300,6 +4303,13 @@ W:	http://www.kernel.org/doc/man-pages
 L:	linux-man@vger.kernel.org
 S:	Maintained
 
+MARVELL GIGABIT ETHERNET DRIVERS (skge/sky2)
+M:	Mirko Lindner <mlindner@marvell.com>
+M:	Stephen Hemminger <shemminger@vyatta.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/ethernet/marvell/sk*
+
 MARVELL LIBERTAS WIRELESS DRIVER
 M:	Dan Williams <dcbw@redhat.com>
 L:	libertas-dev@lists.infradead.org
@@ -4329,12 +4339,6 @@ MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
 S:	Odd Fixes
 F:	drivers/mmc/host/mvsdio.*
-
-MARVELL YUKON / SYSKONNECT DRIVER
-M:	Mirko Lindner <mlindner@syskonnect.de>
-M:	Ralph Roesler <rroesler@syskonnect.de>
-W:	http://www.syskonnect.com
-S:	Supported
 
 MATROX FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -5171,7 +5175,7 @@ F:	kernel/delayacct.c
 PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
-M:	Ingo Molnar <mingo@elte.hu>
+M:	Ingo Molnar <mingo@redhat.com>
 M:	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git perf/core
 S:	Supported
@@ -5628,7 +5632,7 @@ M:	Ohad Ben-Cohen <ohad@wizery.com>
 S:	Maintained
 F:	drivers/remoteproc/
 F:	Documentation/remoteproc.txt
-F:	include/linux/remoteproc.txt
+F:	include/linux/remoteproc.h
 
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
@@ -5762,6 +5766,12 @@ F:	drivers/media/common/saa7146*
 F:	drivers/media/video/*7146*
 F:	include/media/*7146*
 
+SAMSUNG LAPTOP DRIVER
+M:	Corentin Chary <corentincj@iksaif.net>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86/samsung-laptop.c
+
 SAMSUNG AUDIO (ASoC) DRIVERS
 M:	Sangbeom Kim <sbkim73@samsung.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
@@ -5813,7 +5823,7 @@ S:	Maintained
 F:	drivers/watchdog/sc1200wdt.c
 
 SCHEDULER
-M:	Ingo Molnar <mingo@elte.hu>
+M:	Ingo Molnar <mingo@redhat.com>
 M:	Peter Zijlstra <peterz@infradead.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git sched/core
 S:	Maintained
@@ -6101,12 +6111,6 @@ W:	http://www.winischhofer.at/linuxsisusbvga.shtml
 S:	Maintained
 F:	drivers/usb/misc/sisusbvga/
 
-SKGE, SKY2 10/100/1000 GIGABIT ETHERNET DRIVERS
-M:	Stephen Hemminger <shemminger@vyatta.com>
-L:	netdev@vger.kernel.org
-S:	Maintained
-F:	drivers/net/ethernet/marvell/sk*
-
 SLAB ALLOCATOR
 M:	Christoph Lameter <cl@linux-foundation.org>
 M:	Pekka Enberg <penberg@kernel.org>
@@ -6271,6 +6275,15 @@ F:	drivers/tty/serial/sunsab.h
 F:	drivers/tty/serial/sunsu.c
 F:	drivers/tty/serial/sunzilog.c
 F:	drivers/tty/serial/sunzilog.h
+
+SPARSE CHECKER
+M:	"Christopher Li" <sparse@chrisli.org>
+L:	linux-sparse@vger.kernel.org
+W:	https://sparse.wiki.kernel.org/
+T:	git git://git.kernel.org/pub/scm/devel/sparse/sparse.git
+T:	git git://git.kernel.org/pub/scm/devel/sparse/chrisl/sparse.git
+S:	Maintained
+F:	include/linux/compiler.h
 
 SPEAR PLATFORM SUPPORT
 M:	Viresh Kumar <viresh.kumar@st.com>

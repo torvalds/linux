@@ -1,5 +1,3 @@
-obj-$(CONFIG_IMX_HAVE_DMA_V1) += dma-v1.o
-
 obj-$(CONFIG_SOC_IMX1) += clock-imx1.o mm-imx1.o
 obj-$(CONFIG_SOC_IMX21) += clock-imx21.o mm-imx21.o
 

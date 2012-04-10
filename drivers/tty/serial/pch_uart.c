@@ -304,11 +304,7 @@ static const int trigger_level_1[4] = { 1, 1, 1, 1 };
 #ifdef CONFIG_DEBUG_FS
 
 #define PCH_REGS_BUFSIZE	1024
-static int pch_show_regs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
+
 
 static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -362,7 +358,7 @@ static ssize_t port_show_regs(struct file *file, char __user *user_buf,
 
 static const struct file_operations port_regs_ops = {
 	.owner		= THIS_MODULE,
-	.open		= pch_show_regs_open,
+	.open		= simple_open,
 	.read		= port_show_regs,
 	.llseek		= default_llseek,
 };
@@ -844,7 +840,7 @@ static int dma_handle_rx(struct eg20t_port *priv)
 
 	sg_dma_address(sg) = priv->rx_buf_dma;
 
-	desc = priv->chan_rx->device->device_prep_slave_sg(priv->chan_rx,
+	desc = dmaengine_prep_slave_sg(priv->chan_rx,
 			sg, 1, DMA_DEV_TO_MEM,
 			DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
@@ -1003,7 +999,7 @@ static unsigned int dma_handle_tx(struct eg20t_port *priv)
 			sg_dma_len(sg) = size;
 	}
 
-	desc = priv->chan_tx->device->device_prep_slave_sg(priv->chan_tx,
+	desc = dmaengine_prep_slave_sg(priv->chan_tx,
 					priv->sg_tx_p, nent, DMA_MEM_TO_DEV,
 					DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {

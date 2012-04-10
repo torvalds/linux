@@ -33,10 +33,11 @@ static struct kvm_arch_event_perf_mapping {
 	[4] = { 0x2e, 0x41, PERF_COUNT_HW_CACHE_MISSES },
 	[5] = { 0xc4, 0x00, PERF_COUNT_HW_BRANCH_INSTRUCTIONS },
 	[6] = { 0xc5, 0x00, PERF_COUNT_HW_BRANCH_MISSES },
+	[7] = { 0x00, 0x30, PERF_COUNT_HW_REF_CPU_CYCLES },
 };
 
 /* mapping between fixed pmc index and arch_events array */
-int fixed_pmc_events[] = {1, 0, 2};
+int fixed_pmc_events[] = {1, 0, 7};
 
 static bool pmc_is_gp(struct kvm_pmc *pmc)
 {
@@ -210,6 +211,9 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	unsigned config, type = PERF_TYPE_RAW;
 	u8 event_select, unit_mask;
 
+	if (eventsel & ARCH_PERFMON_EVENTSEL_PIN_CONTROL)
+		printk_once("kvm pmu: pin control bit is ignored\n");
+
 	pmc->eventsel = eventsel;
 
 	stop_counter(pmc);
@@ -220,7 +224,7 @@ static void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
 	event_select = eventsel & ARCH_PERFMON_EVENTSEL_EVENT;
 	unit_mask = (eventsel & ARCH_PERFMON_EVENTSEL_UMASK) >> 8;
 
-	if (!(event_select & (ARCH_PERFMON_EVENTSEL_EDGE |
+	if (!(eventsel & (ARCH_PERFMON_EVENTSEL_EDGE |
 				ARCH_PERFMON_EVENTSEL_INV |
 				ARCH_PERFMON_EVENTSEL_CMASK))) {
 		config = find_arch_event(&pmc->vcpu->arch.pmu, event_select,
@@ -413,7 +417,7 @@ int kvm_pmu_read_pmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data)
 	struct kvm_pmc *counters;
 	u64 ctr;
 
-	pmc &= (3u << 30) - 1;
+	pmc &= ~(3u << 30);
 	if (!fixed && pmc >= pmu->nr_arch_gp_counters)
 		return 1;
 	if (fixed && pmc >= pmu->nr_arch_fixed_counters)

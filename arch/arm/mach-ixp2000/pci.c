@@ -26,7 +26,6 @@
 #include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <mach/hardware.h>
 
 #include <asm/mach/pci.h>

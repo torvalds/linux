@@ -257,7 +257,6 @@ static struct spi_board_info __initdata palmtt_boardinfo[] = {
 		/* MicroWire (bus 2) CS0 has an ads7846e */
 		.modalias	= "ads7846",
 		.platform_data	= &palmtt_ts_info,
-		.irq		= OMAP_GPIO_IRQ(6),
 		.max_speed_hz	= 120000	/* max sample rate at 3V */
 					* 26	/* command + data + overhead */,
 		.bus_num	= 2,
@@ -298,6 +297,7 @@ static void __init omap_palmtt_init(void)
 
 	platform_add_devices(palmtt_devices, ARRAY_SIZE(palmtt_devices));
 
+	palmtt_boardinfo[0].irq = gpio_to_irq(6);
 	spi_register_board_info(palmtt_boardinfo,ARRAY_SIZE(palmtt_boardinfo));
 	omap_serial_init();
 	omap1_usb_init(&palmtt_usb_config);

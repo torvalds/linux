@@ -44,6 +44,7 @@
 #include <linux/io.h>
 #include <linux/atomic.h>
 
+#include <asm/system_misc.h>
 #include <asm/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>

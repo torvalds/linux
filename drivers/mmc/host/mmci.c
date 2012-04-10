@@ -30,6 +30,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/amba/mmci.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 #include <asm/div64.h>
 #include <asm/io.h>
@@ -400,6 +401,7 @@ static int mmci_dma_prep_data(struct mmci_host *host, struct mmc_data *data,
 		.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
 		.src_maxburst = variant->fifohalfsize >> 2, /* # of words */
 		.dst_maxburst = variant->fifohalfsize >> 2, /* # of words */
+		.device_fc = false,
 	};
 	struct dma_chan *chan;
 	struct dma_device *device;
@@ -441,7 +443,7 @@ static int mmci_dma_prep_data(struct mmci_host *host, struct mmc_data *data,
 		return -EINVAL;
 
 	dmaengine_slave_config(chan, &conf);
-	desc = device->device_prep_slave_sg(chan, data->sg, nr_sg,
+	desc = dmaengine_prep_slave_sg(chan, data->sg, nr_sg,
 					    conf.direction, DMA_CTRL_ACK);
 	if (!desc)
 		goto unmap_exit;

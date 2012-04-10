@@ -99,7 +99,7 @@ static const struct omap_dss_hwmod_data omap4_dss_hwmod_data[] __initdata = {
 	{ "dss_hdmi", "omapdss_hdmi", -1 },
 };
 
-static void omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
+static void __init omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
 {
 	u32 reg;
 	u16 control_i2c_1;
@@ -125,7 +125,7 @@ static void omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
 	}
 }
 
-static int __init omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
+static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 {
 	u32 enable_mask, enable_shift;
 	u32 pipd_mask, pipd_shift;
@@ -166,7 +166,7 @@ int __init omap_hdmi_init(enum omap_hdmi_flags flags)
 	return 0;
 }
 
-static int __init omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
+static int omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 {
 	if (cpu_is_omap44xx())
 		return omap4_dsi_mux_pads(dsi_id, lane_mask);
@@ -174,7 +174,7 @@ static int __init omap_dsi_enable_pads(int dsi_id, unsigned lane_mask)
 	return 0;
 }
 
-static void __init omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
+static void omap_dsi_disable_pads(int dsi_id, unsigned lane_mask)
 {
 	if (cpu_is_omap44xx())
 		omap4_dsi_mux_pads(dsi_id, 0);

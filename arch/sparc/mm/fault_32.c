@@ -22,7 +22,6 @@
 #include <linux/interrupt.h>
 #include <linux/kdebug.h>
 
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/memreg.h>

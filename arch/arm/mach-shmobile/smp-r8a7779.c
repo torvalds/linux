@@ -30,7 +30,7 @@
 #include <asm/smp_twd.h>
 #include <asm/hardware/gic.h>
 
-#define AVECR 0xfe700040
+#define AVECR IOMEM(0xfe700040)
 
 static struct r8a7779_pm_ch r8a7779_ch_cpu1 = {
 	.chan_offs = 0x40, /* PWRSR0 .. PWRER0 */
@@ -138,7 +138,7 @@ void __init r8a7779_smp_prepare_cpus(void)
 	scu_enable(scu_base_addr());
 
 	/* Map the reset vector (in headsmp.S) */
-	__raw_writel(__pa(shmobile_secondary_vector), __io(AVECR));
+	__raw_writel(__pa(shmobile_secondary_vector), AVECR);
 
 	/* enable cache coherency on CPU0 */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));

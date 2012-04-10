@@ -81,7 +81,6 @@
 #include <linux/prefetch.h>
 #include <net/tcp.h>
 
-#include <asm/system.h>
 #include <asm/div64.h>
 #include <asm/irq.h>
 

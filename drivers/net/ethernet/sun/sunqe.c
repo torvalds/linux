@@ -28,7 +28,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/byteorder.h>

@@ -190,6 +190,7 @@ static struct atmel_nand_data __initdata neocore926_nand_data = {
 	.rdy_pin		= AT91_PIN_PB19,
 	.rdy_pin_active_low	= 1,
 	.enable_pin		= AT91_PIN_PD15,
+	.ecc_mode		= NAND_ECC_SOFT,
 	.parts			= neocore926_nand_partition,
 	.num_parts		= ARRAY_SIZE(neocore926_nand_partition),
 	.det_pin		= -EINVAL,

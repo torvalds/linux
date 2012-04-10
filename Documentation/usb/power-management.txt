@@ -179,7 +179,8 @@ do:
 
 	modprobe usbcore autosuspend=5
 
-Equivalently, you could add to /etc/modprobe.conf a line saying:
+Equivalently, you could add to a configuration file in /etc/modprobe.d
+a line saying:
 
 	options usbcore autosuspend=5
 

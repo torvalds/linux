@@ -77,7 +77,7 @@ extern int SendReceive(const unsigned int /* xid */ , struct cifs_ses *,
 			struct smb_hdr * /* out */ ,
 			int * /* bytes returned */ , const int long_op);
 extern int SendReceiveNoRsp(const unsigned int xid, struct cifs_ses *ses,
-			struct smb_hdr *in_buf, int flags);
+			    char *in_buf, int flags);
 extern int cifs_check_receive(struct mid_q_entry *mid,
 			struct TCP_Server_Info *server, bool log_error);
 extern int SendReceive2(const unsigned int /* xid */ , struct cifs_ses *,
@@ -91,9 +91,8 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 extern void cifs_add_credits(struct TCP_Server_Info *server,
 			     const unsigned int add);
 extern void cifs_set_credits(struct TCP_Server_Info *server, const int val);
-extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
-extern bool is_valid_oplock_break(struct smb_hdr *smb,
-				  struct TCP_Server_Info *);
+extern int checkSMB(char *buf, unsigned int length);
+extern bool is_valid_oplock_break(char *, struct TCP_Server_Info *);
 extern bool backup_cred(struct cifs_sb_info *);
 extern bool is_size_safe_to_change(struct cifsInodeInfo *, __u64 eof);
 extern void cifs_update_eof(struct cifsInodeInfo *cifsi, loff_t offset,
@@ -107,7 +106,7 @@ extern int cifs_convert_address(struct sockaddr *dst, const char *src, int len);
 extern int cifs_set_port(struct sockaddr *addr, const unsigned short int port);
 extern int cifs_fill_sockaddr(struct sockaddr *dst, const char *src, int len,
 				const unsigned short int port);
-extern int map_smb_to_linux_error(struct smb_hdr *smb, bool logErr);
+extern int map_smb_to_linux_error(char *buf, bool logErr);
 extern void header_assemble(struct smb_hdr *, char /* command */ ,
 			    const struct cifs_tcon *, int /* length of
 			    fixed section (word count) in two byte units */);
@@ -116,7 +115,7 @@ extern int small_smb_init_no_tc(const int smb_cmd, const int wct,
 				void **request_buf);
 extern int CIFS_SessSetup(unsigned int xid, struct cifs_ses *ses,
 			     const struct nls_table *nls_cp);
-extern __u16 GetNextMid(struct TCP_Server_Info *server);
+extern __u64 GetNextMid(struct TCP_Server_Info *server);
 extern struct timespec cifs_NTtimeToUnix(__le64 utc_nanoseconds_since_1601);
 extern u64 cifs_UnixTimeToNT(struct timespec);
 extern struct timespec cnvrtDosUnixTm(__le16 le_date, __le16 le_time,
@@ -484,18 +483,25 @@ int cifs_async_readv(struct cifs_readdata *rdata);
 /* asynchronous write support */
 struct cifs_writedata {
 	struct kref			refcount;
+	struct list_head		list;
+	struct completion		done;
 	enum writeback_sync_modes	sync_mode;
 	struct work_struct		work;
 	struct cifsFileInfo		*cfile;
 	__u64				offset;
+	pid_t				pid;
 	unsigned int			bytes;
 	int				result;
+	void (*marshal_iov) (struct kvec *iov,
+			     struct cifs_writedata *wdata);
 	unsigned int			nr_pages;
 	struct page			*pages[1];
 };
 
 int cifs_async_writev(struct cifs_writedata *wdata);
-struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages);
+void cifs_writev_complete(struct work_struct *work);
+struct cifs_writedata *cifs_writedata_alloc(unsigned int nr_pages,
+						work_func_t complete);
 void cifs_writedata_release(struct kref *refcount);
 
 #endif			/* _CIFSPROTO_H */

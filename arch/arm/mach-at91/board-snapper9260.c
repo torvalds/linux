@@ -110,6 +110,7 @@ static struct atmel_nand_data __initdata snapper9260_nand_data = {
 	.bus_width_16	= 0,
 	.enable_pin	= -EINVAL,
 	.det_pin	= -EINVAL,
+	.ecc_mode	= NAND_ECC_SOFT,
 };
 
 static struct sam9_smc_config __initdata snapper9260_nand_smc_config = {

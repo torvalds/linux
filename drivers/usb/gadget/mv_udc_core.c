@@ -34,7 +34,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/platform_data/mv_usb.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "mv_udc.h"

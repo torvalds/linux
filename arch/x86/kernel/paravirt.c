@@ -38,6 +38,7 @@
 #include <asm/apic.h>
 #include <asm/tlbflush.h>
 #include <asm/timer.h>
+#include <asm/special_insns.h>
 
 /* nop stub */
 void _paravirt_nop(void)

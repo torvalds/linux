@@ -229,11 +229,10 @@ static int __init numachip_system_init(void)
 }
 early_initcall(numachip_system_init);
 
-static int __cpuinit numachip_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+static int numachip_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	if (!strncmp(oem_id, "NUMASC", 6)) {
 		numachip_system = 1;
-		setup_force_cpu_cap(X86_FEATURE_X2APIC);
 		return 1;
 	}
 

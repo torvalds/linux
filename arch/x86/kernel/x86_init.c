@@ -91,6 +91,7 @@ struct x86_init_ops x86_init __initdata = {
 };
 
 struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
+	.early_percpu_clock_init	= x86_init_noop,
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 	.fixup_cpu_id			= x86_default_fixup_cpu_id,
 };
@@ -107,7 +108,9 @@ struct x86_platform_ops x86_platform = {
 	.is_untracked_pat_range		= is_ISA_range,
 	.nmi_init			= default_nmi_init,
 	.get_nmi_reason			= default_get_nmi_reason,
-	.i8042_detect			= default_i8042_detect
+	.i8042_detect			= default_i8042_detect,
+	.save_sched_clock_state 	= tsc_save_sched_clock_state,
+	.restore_sched_clock_state 	= tsc_restore_sched_clock_state,
 };
 
 EXPORT_SYMBOL_GPL(x86_platform);

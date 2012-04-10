@@ -1124,7 +1124,7 @@ static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
 		chip->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
 
 	/* Do we have a flash based bad block table ? */
-	if (chip->options & NAND_BBT_USE_FLASH)
+	if (chip->bbt_options & NAND_BBT_USE_FLASH)
 		ret = nand_update_bbt(mtd, ofs);
 	else {
 		chipnr = (int)(ofs >> chip->chip_shift);
@@ -1155,7 +1155,7 @@ static int gpmi_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return ret;
 }
 
-static int __devinit nand_boot_set_geometry(struct gpmi_nand_data *this)
+static int nand_boot_set_geometry(struct gpmi_nand_data *this)
 {
 	struct boot_rom_geometry *geometry = &this->rom_geometry;
 
@@ -1182,7 +1182,7 @@ static int __devinit nand_boot_set_geometry(struct gpmi_nand_data *this)
 }
 
 static const char  *fingerprint = "STMP";
-static int __devinit mx23_check_transcription_stamp(struct gpmi_nand_data *this)
+static int mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 {
 	struct boot_rom_geometry *rom_geo = &this->rom_geometry;
 	struct device *dev = this->dev;
@@ -1239,7 +1239,7 @@ static int __devinit mx23_check_transcription_stamp(struct gpmi_nand_data *this)
 }
 
 /* Writes a transcription stamp. */
-static int __devinit mx23_write_transcription_stamp(struct gpmi_nand_data *this)
+static int mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 {
 	struct device *dev = this->dev;
 	struct boot_rom_geometry *rom_geo = &this->rom_geometry;
@@ -1322,7 +1322,7 @@ static int __devinit mx23_write_transcription_stamp(struct gpmi_nand_data *this)
 	return 0;
 }
 
-static int __devinit mx23_boot_init(struct gpmi_nand_data  *this)
+static int mx23_boot_init(struct gpmi_nand_data  *this)
 {
 	struct device *dev = this->dev;
 	struct nand_chip *chip = &this->nand;
@@ -1391,7 +1391,7 @@ static int __devinit mx23_boot_init(struct gpmi_nand_data  *this)
 	return 0;
 }
 
-static int __devinit nand_boot_init(struct gpmi_nand_data  *this)
+static int nand_boot_init(struct gpmi_nand_data  *this)
 {
 	nand_boot_set_geometry(this);
 
@@ -1401,7 +1401,7 @@ static int __devinit nand_boot_init(struct gpmi_nand_data  *this)
 	return 0;
 }
 
-static int __devinit gpmi_set_geometry(struct gpmi_nand_data *this)
+static int gpmi_set_geometry(struct gpmi_nand_data *this)
 {
 	int ret;
 

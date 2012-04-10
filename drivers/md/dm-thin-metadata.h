@@ -11,6 +11,19 @@
 
 #define THIN_METADATA_BLOCK_SIZE 4096
 
+/*
+ * The metadata device is currently limited in size.
+ *
+ * We have one block of index, which can hold 255 index entries.  Each
+ * index entry contains allocation info about 16k metadata blocks.
+ */
+#define THIN_METADATA_MAX_SECTORS (255 * (1 << 14) * (THIN_METADATA_BLOCK_SIZE / (1 << SECTOR_SHIFT)))
+
+/*
+ * A metadata device larger than 16GB triggers a warning.
+ */
+#define THIN_METADATA_MAX_SECTORS_WARNING (16 * (1024 * 1024 * 1024 >> SECTOR_SHIFT))
+
 /*----------------------------------------------------------------*/
 
 struct dm_pool_metadata;

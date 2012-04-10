@@ -1,6 +1,7 @@
 /*
- * Driver for LP8727 Micro/Mini USB IC with intergrated charger
+ * Driver for LP8727 Micro/Mini USB IC with integrated charger
  *
+ *			Copyright (C) 2011 Texas Instruments
  *			Copyright (C) 2011 National Semiconductor
  *
  * This program is free software; you can redistribute it and/or modify
@@ -25,7 +26,7 @@
 #define INT1		0x4
 #define INT2		0x5
 #define STATUS1		0x6
-#define STATUS2 	0x7
+#define STATUS2		0x7
 #define CHGCTRL2	0x9
 
 /* CTRL1 register */
@@ -91,7 +92,7 @@ struct lp8727_chg {
 	enum lp8727_dev_id devid;
 };
 
-static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
+static int lp8727_read_bytes(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
 {
 	s32 ret;
 
@@ -102,27 +103,20 @@ static int lp8727_i2c_read(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
 	return (ret != len) ? -EIO : 0;
 }
 
-static int lp8727_i2c_write(struct lp8727_chg *pchg, u8 reg, u8 *data, u8 len)
+static inline int lp8727_read_byte(struct lp8727_chg *pchg, u8 reg, u8 *data)
 {
-	s32 ret;
+	return lp8727_read_bytes(pchg, reg, data, 1);
+}
+
+static int lp8727_write_byte(struct lp8727_chg *pchg, u8 reg, u8 data)
+{
+	int ret;
 
 	mutex_lock(&pchg->xfer_lock);
-	ret = i2c_smbus_write_i2c_block_data(pchg->client, reg, len, data);
+	ret = i2c_smbus_write_byte_data(pchg->client, reg, data);
 	mutex_unlock(&pchg->xfer_lock);
 
 	return ret;
-}
-
-static inline int lp8727_i2c_read_byte(struct lp8727_chg *pchg, u8 reg,
-				       u8 *data)
-{
-	return lp8727_i2c_read(pchg, reg, data, 1);
-}
-
-static inline int lp8727_i2c_write_byte(struct lp8727_chg *pchg, u8 reg,
-					u8 *data)
-{
-	return lp8727_i2c_write(pchg, reg, data, 1);
 }
 
 static int lp8727_is_charger_attached(const char *name, int id)
@@ -137,37 +131,41 @@ static int lp8727_is_charger_attached(const char *name, int id)
 	return (id >= ID_TA && id <= ID_USB_CHG) ? 1 : 0;
 }
 
-static void lp8727_init_device(struct lp8727_chg *pchg)
+static int lp8727_init_device(struct lp8727_chg *pchg)
 {
 	u8 val;
+	int ret;
 
 	val = ID200_EN | ADC_EN | CP_EN;
-	if (lp8727_i2c_write_byte(pchg, CTRL1, &val))
-		dev_err(pchg->dev, "i2c write err : addr=0x%.2x\n", CTRL1);
+	ret = lp8727_write_byte(pchg, CTRL1, val);
+	if (ret)
+		return ret;
 
 	val = INT_EN | CHGDET_EN;
-	if (lp8727_i2c_write_byte(pchg, CTRL2, &val))
-		dev_err(pchg->dev, "i2c write err : addr=0x%.2x\n", CTRL2);
+	ret = lp8727_write_byte(pchg, CTRL2, val);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int lp8727_is_dedicated_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	lp8727_i2c_read_byte(pchg, STATUS1, &val);
-	return (val & DCPORT);
+	lp8727_read_byte(pchg, STATUS1, &val);
+	return val & DCPORT;
 }
 
 static int lp8727_is_usb_charger(struct lp8727_chg *pchg)
 {
 	u8 val;
-	lp8727_i2c_read_byte(pchg, STATUS1, &val);
-	return (val & CHPORT);
+	lp8727_read_byte(pchg, STATUS1, &val);
+	return val & CHPORT;
 }
 
 static void lp8727_ctrl_switch(struct lp8727_chg *pchg, u8 sw)
 {
-	u8 val = sw;
-	lp8727_i2c_write_byte(pchg, SWCTRL, &val);
+	lp8727_write_byte(pchg, SWCTRL, sw);
 }
 
 static void lp8727_id_detection(struct lp8727_chg *pchg, u8 id, int vbusin)
@@ -207,9 +205,9 @@ static void lp8727_enable_chgdet(struct lp8727_chg *pchg)
 {
 	u8 val;
 
-	lp8727_i2c_read_byte(pchg, CTRL2, &val);
+	lp8727_read_byte(pchg, CTRL2, &val);
 	val |= CHGDET_EN;
-	lp8727_i2c_write_byte(pchg, CTRL2, &val);
+	lp8727_write_byte(pchg, CTRL2, val);
 }
 
 static void lp8727_delayed_func(struct work_struct *_work)
@@ -218,7 +216,7 @@ static void lp8727_delayed_func(struct work_struct *_work)
 	struct lp8727_chg *pchg =
 	    container_of(_work, struct lp8727_chg, work.work);
 
-	if (lp8727_i2c_read(pchg, INT1, intstat, 2)) {
+	if (lp8727_read_bytes(pchg, INT1, intstat, 2)) {
 		dev_err(pchg->dev, "can not read INT registers\n");
 		return;
 	}
@@ -244,20 +242,22 @@ static irqreturn_t lp8727_isr_func(int irq, void *ptr)
 	return IRQ_HANDLED;
 }
 
-static void lp8727_intr_config(struct lp8727_chg *pchg)
+static int lp8727_intr_config(struct lp8727_chg *pchg)
 {
 	INIT_DELAYED_WORK(&pchg->work, lp8727_delayed_func);
 
 	pchg->irqthread = create_singlethread_workqueue("lp8727-irqthd");
-	if (!pchg->irqthread)
+	if (!pchg->irqthread) {
 		dev_err(pchg->dev, "can not create thread for lp8727\n");
-
-	if (request_threaded_irq(pchg->client->irq,
-				 NULL,
-				 lp8727_isr_func,
-				 IRQF_TRIGGER_FALLING, "lp8727_irq", pchg)) {
-		dev_err(pchg->dev, "lp8727 irq can not be registered\n");
+		return -ENOMEM;
 	}
+
+	return request_threaded_irq(pchg->client->irq,
+				NULL,
+				lp8727_isr_func,
+				IRQF_TRIGGER_FALLING,
+				"lp8727_irq",
+				pchg);
 }
 
 static enum power_supply_property lp8727_charger_prop[] = {
@@ -300,7 +300,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		if (lp8727_is_charger_attached(psy->name, pchg->devid)) {
-			lp8727_i2c_read_byte(pchg, STATUS1, &read);
+			lp8727_read_byte(pchg, STATUS1, &read);
 			if (((read & CHGSTAT) >> 4) == EOC)
 				val->intval = POWER_SUPPLY_STATUS_FULL;
 			else
@@ -310,7 +310,7 @@ static int lp8727_battery_get_property(struct power_supply *psy,
 		}
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		lp8727_i2c_read_byte(pchg, STATUS2, &read);
+		lp8727_read_byte(pchg, STATUS2, &read);
 		read = (read & TEMP_STAT) >> 5;
 		if (read >= 0x1 && read <= 0x3)
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
@@ -351,7 +351,7 @@ static void lp8727_charger_changed(struct power_supply *psy)
 			eoc_level = pchg->chg_parm->eoc_level;
 			ichg = pchg->chg_parm->ichg;
 			val = (ichg << 4) | eoc_level;
-			lp8727_i2c_write_byte(pchg, CHGCTRL2, &val);
+			lp8727_write_byte(pchg, CHGCTRL2, val);
 		}
 	}
 }
@@ -439,15 +439,29 @@ static int lp8727_probe(struct i2c_client *cl, const struct i2c_device_id *id)
 
 	mutex_init(&pchg->xfer_lock);
 
-	lp8727_init_device(pchg);
-	lp8727_intr_config(pchg);
+	ret = lp8727_init_device(pchg);
+	if (ret) {
+		dev_err(pchg->dev, "i2c communication err: %d", ret);
+		goto error;
+	}
+
+	ret = lp8727_intr_config(pchg);
+	if (ret) {
+		dev_err(pchg->dev, "irq handler err: %d", ret);
+		goto error;
+	}
 
 	ret = lp8727_register_psy(pchg);
-	if (ret)
-		dev_err(pchg->dev,
-			"can not register power supplies. err=%d", ret);
+	if (ret) {
+		dev_err(pchg->dev, "power supplies register err: %d", ret);
+		goto error;
+	}
 
 	return 0;
+
+error:
+	kfree(pchg);
+	return ret;
 }
 
 static int __devexit lp8727_remove(struct i2c_client *cl)
@@ -466,6 +480,7 @@ static const struct i2c_device_id lp8727_ids[] = {
 	{"lp8727", 0},
 	{ }
 };
+MODULE_DEVICE_TABLE(i2c, lp8727_ids);
 
 static struct i2c_driver lp8727_driver = {
 	.driver = {
@@ -475,21 +490,9 @@ static struct i2c_driver lp8727_driver = {
 	.remove = __devexit_p(lp8727_remove),
 	.id_table = lp8727_ids,
 };
+module_i2c_driver(lp8727_driver);
 
-static int __init lp8727_init(void)
-{
-	return i2c_add_driver(&lp8727_driver);
-}
-
-static void __exit lp8727_exit(void)
-{
-	i2c_del_driver(&lp8727_driver);
-}
-
-module_init(lp8727_init);
-module_exit(lp8727_exit);
-
-MODULE_DESCRIPTION("National Semiconductor LP8727 charger driver");
-MODULE_AUTHOR
-    ("Woogyom Kim <milo.kim@ti.com>, Daniel Jeong <daniel.jeong@ti.com>");
+MODULE_DESCRIPTION("TI/National Semiconductor LP8727 charger driver");
+MODULE_AUTHOR("Woogyom Kim <milo.kim@ti.com>, "
+	      "Daniel Jeong <daniel.jeong@ti.com>");
 MODULE_LICENSE("GPL");

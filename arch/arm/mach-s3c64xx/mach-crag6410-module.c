@@ -17,6 +17,8 @@
 #include <linux/mfd/wm831x/gpio.h>
 #include <linux/mfd/wm8994/pdata.h>
 
+#include <linux/regulator/machine.h>
+
 #include <sound/wm5100.h>
 #include <sound/wm8996.h>
 #include <sound/wm8962.h>
@@ -153,6 +155,14 @@ static const struct i2c_board_info wm1259_devs[] = {
 	},
 };
 
+static struct regulator_init_data wm8994_ldo1 = {
+	.supply_regulator = "WALLVDD",
+};
+
+static struct regulator_init_data wm8994_ldo2 = {
+	.supply_regulator = "WALLVDD",
+};
+
 static struct wm8994_pdata wm8994_pdata = {
 	.gpio_base = CODEC_GPIO_BASE,
 	.gpio_defaults = {
@@ -160,8 +170,8 @@ static struct wm8994_pdata wm8994_pdata = {
 	},
 	.irq_base = CODEC_IRQ_BASE,
 	.ldo = {
-		{ .supply = "WALLVDD" },
-		{ .supply = "WALLVDD" },
+		 { .init_data = &wm8994_ldo1, },
+		 { .init_data = &wm8994_ldo2, },
 	},
 };
 

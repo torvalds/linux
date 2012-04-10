@@ -1,6 +1,3 @@
-config IMX_HAVE_DMA_V1
-	bool
-
 config HAVE_IMX_GPC
 	bool
 
@@ -38,7 +35,6 @@ config SOC_IMX1
 	bool
 	select ARCH_MX1
 	select CPU_ARM920T
-	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 
@@ -46,7 +42,6 @@ config SOC_IMX21
 	bool
 	select MACH_MX21
 	select CPU_ARM926T
-	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 
@@ -61,7 +56,6 @@ config SOC_IMX27
 	bool
 	select MACH_MX27
 	select CPU_ARM926T
-	select IMX_HAVE_DMA_V1
 	select IMX_HAVE_IOMUX_V1
 	select MXC_AVIC
 

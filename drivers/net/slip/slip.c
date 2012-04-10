@@ -64,7 +64,6 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/bitops.h>
 #include <linux/sched.h>

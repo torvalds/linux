@@ -642,7 +642,7 @@ nouveau_card_channel_init(struct drm_device *dev)
 		OUT_RING  (chan, chan->vram_handle);
 		OUT_RING  (chan, chan->gart_handle);
 	} else
-	if (dev_priv->card_type <= NV_C0) {
+	if (dev_priv->card_type <= NV_D0) {
 		ret = nouveau_gpuobj_gr_new(chan, 0x9039, 0x9039);
 		if (ret)
 			goto error;
@@ -852,7 +852,7 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_pm;
 
-	if (!dev_priv->noaccel) {
+	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_card_channel_init(dev);
 		if (ret)
 			goto out_fence;

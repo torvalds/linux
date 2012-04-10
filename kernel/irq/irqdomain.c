@@ -632,7 +632,7 @@ unsigned int irq_linear_revmap(struct irq_domain *domain,
 	return revmap[hwirq];
 }
 
-#ifdef CONFIG_VIRQ_DEBUG
+#ifdef CONFIG_IRQ_DOMAIN_DEBUG
 static int virq_debug_show(struct seq_file *m, void *private)
 {
 	unsigned long flags;
@@ -668,7 +668,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			data = irq_desc_get_chip_data(desc);
 			seq_printf(m, "0x%16p  ", data);
 
-			if (desc->irq_data.domain->of_node)
+			if (desc->irq_data.domain && desc->irq_data.domain->of_node)
 				p = desc->irq_data.domain->of_node->full_name;
 			else
 				p = none;
@@ -695,14 +695,14 @@ static const struct file_operations virq_debug_fops = {
 
 static int __init irq_debugfs_init(void)
 {
-	if (debugfs_create_file("virq_mapping", S_IRUGO, powerpc_debugfs_root,
+	if (debugfs_create_file("irq_domain_mapping", S_IRUGO, NULL,
 				 NULL, &virq_debug_fops) == NULL)
 		return -ENOMEM;
 
 	return 0;
 }
 __initcall(irq_debugfs_init);
-#endif /* CONFIG_VIRQ_DEBUG */
+#endif /* CONFIG_IRQ_DOMAIN_DEBUG */
 
 int irq_domain_simple_map(struct irq_domain *d, unsigned int irq,
 			  irq_hw_number_t hwirq)

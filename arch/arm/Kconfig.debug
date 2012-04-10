@@ -292,6 +292,22 @@ choice
 		  Note that the system will appear to hang during boot if there
 		  is nothing connected to read from the DCC.
 
+	config DEBUG_SEMIHOSTING
+		bool "Kernel low-level debug output via semihosting I"
+		help
+		  Semihosting enables code running on an ARM target to use
+		  the I/O facilities on a host debugger/emulator through a
+		  simple SVC calls. The host debugger or emulator must have
+		  semihosting enabled for the special svc call to be trapped
+		  otherwise the kernel will crash.
+
+		  This is known to work with OpenOCD, as wellas
+		  ARM's Fast Models, or any other controlling environment
+		  that implements semihosting.
+
+		  For more details about semihosting, please see
+		  chapter 8 of DUI0203I_rvct_developer_guide.pdf from ARM Ltd.
+
 endchoice
 
 config EARLY_PRINTK

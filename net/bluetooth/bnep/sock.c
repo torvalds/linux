@@ -42,7 +42,6 @@
 #include <linux/uaccess.h>
 #include <net/sock.h>
 
-#include <asm/system.h>
 
 #include "bnep.h"
 

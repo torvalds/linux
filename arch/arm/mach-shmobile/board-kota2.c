@@ -39,6 +39,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mmc/sh_mobile_sdhi.h>
 #include <mach/hardware.h>
+#include <mach/irqs.h>
 #include <mach/sh73a0.h>
 #include <mach/common.h>
 #include <asm/mach-types.h>
@@ -507,7 +508,7 @@ static void __init kota2_init(void)
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
-	l2x0_init(__io(0xf0100000), 0x40460000, 0x82000fff);
+	l2x0_init(IOMEM(0xf0100000), 0x40460000, 0x82000fff);
 #endif
 	sh73a0_add_standard_devices();
 	platform_add_devices(kota2_devices, ARRAY_SIZE(kota2_devices));

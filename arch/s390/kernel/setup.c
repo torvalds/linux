@@ -50,7 +50,7 @@
 
 #include <asm/ipl.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
+#include <asm/facility.h>
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
 #include <asm/cpcmd.h>

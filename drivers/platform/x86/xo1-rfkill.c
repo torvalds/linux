@@ -67,19 +67,8 @@ static struct platform_driver xo1_rfkill_driver = {
 	.remove		= __devexit_p(xo1_rfkill_remove),
 };
 
-static int __init xo1_rfkill_init(void)
-{
-	return platform_driver_register(&xo1_rfkill_driver);
-}
-
-static void __exit xo1_rfkill_exit(void)
-{
-	platform_driver_unregister(&xo1_rfkill_driver);
-}
+module_platform_driver(xo1_rfkill_driver);
 
 MODULE_AUTHOR("Daniel Drake <dsd@laptop.org>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:xo1-rfkill");
-
-module_init(xo1_rfkill_init);
-module_exit(xo1_rfkill_exit);

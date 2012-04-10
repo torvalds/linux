@@ -19,12 +19,7 @@
 #include <linux/slab.h>
 
 #include <linux/mfd/pcf50633/core.h>
-
-/* Two MBCS registers used during cold start */
-#define PCF50633_REG_MBCS1		0x4b
-#define PCF50633_REG_MBCS2		0x4c
-#define PCF50633_MBCS1_USBPRES 		0x01
-#define PCF50633_MBCS1_ADAPTPRES	0x01
+#include <linux/mfd/pcf50633/mbc.h>
 
 int pcf50633_register_irq(struct pcf50633 *pcf, int irq,
 			void (*handler) (int, void *), void *data)

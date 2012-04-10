@@ -15,7 +15,6 @@
 #include <linux/sched.h>
 #include <linux/kdb.h>
 #include <linux/nmi.h>
-#include <asm/system.h>
 #include "kdb_private.h"
 
 

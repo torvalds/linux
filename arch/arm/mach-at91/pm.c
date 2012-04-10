@@ -197,19 +197,6 @@ extern void at91_slow_clock(void __iomem *pmc, void __iomem *ramc0,
 extern u32 at91_slow_clock_sz;
 #endif
 
-void __iomem *at91_ramc_base[2];
-
-void __init at91_ioremap_ramc(int id, u32 addr, u32 size)
-{
-	if (id < 0 || id > 1) {
-		pr_emerg("Wrong RAM controller id (%d), cannot continue\n", id);
-		BUG();
-	}
-	at91_ramc_base[id] = ioremap(addr, size);
-	if (!at91_ramc_base[id])
-		panic("Impossible to ioremap ramc.%d 0x%x\n", id, addr);
-}
-
 static int at91_pm_enter(suspend_state_t state)
 {
 	at91_gpio_suspend();

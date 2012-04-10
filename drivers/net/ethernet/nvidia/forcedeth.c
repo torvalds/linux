@@ -69,7 +69,6 @@
 #include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #define TX_WORK_PER_LOOP  64
 #define RX_WORK_PER_LOOP  64

@@ -128,6 +128,7 @@ static int __devinit ad7314_probe(struct spi_device *spi_dev)
 		ret = PTR_ERR(chip->hwmon_dev);
 		goto error_remove_group;
 	}
+	chip->spi_dev = spi_dev;
 
 	return 0;
 error_remove_group:

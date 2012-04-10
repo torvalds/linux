@@ -26,6 +26,7 @@
 #include <linux/sh_timer.h>
 #include <mach/r8a7740.h>
 #include <mach/common.h>
+#include <mach/irqs.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
