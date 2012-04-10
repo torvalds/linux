@@ -1332,27 +1332,6 @@ static void serial8250_enable_ms(struct uart_port *port)
 }
 
 /*
- * Clear the Tegra rx fifo after a break
- *
- * FIXME: This needs to become a port specific callback once we have a
- * framework for this
- */
-static void clear_rx_fifo(struct uart_8250_port *up)
-{
-	unsigned int status, tmout = 10000;
-	do {
-		status = serial_in(up, UART_LSR);
-		if (status & (UART_LSR_FIFOE | UART_LSR_BRK_ERROR_BITS))
-			status = serial_in(up, UART_RX);
-		else
-			break;
-		if (--tmout == 0)
-			break;
-		udelay(1);
-	} while (1);
-}
-
-/*
  * serial8250_rx_chars: processes according to the passed in LSR
  * value, and returns the remaining LSR bits not handled
  * by this Rx routine.
@@ -1386,19 +1365,9 @@ serial8250_rx_chars(struct uart_8250_port *up, unsigned char lsr)
 		up->lsr_saved_flags = 0;
 
 		if (unlikely(lsr & UART_LSR_BRK_ERROR_BITS)) {
-			/*
-			 * For statistics only
-			 */
 			if (lsr & UART_LSR_BI) {
 				lsr &= ~(UART_LSR_FE | UART_LSR_PE);
 				port->icount.brk++;
-				/*
-				 * If tegra port then clear the rx fifo to
-				 * accept another break/character.
-				 */
-				if (port->type == PORT_TEGRA)
-					clear_rx_fifo(up);
-
 				/*
 				 * We do the SysRQ and SAK checking
 				 * here because otherwise the break
@@ -3037,6 +3006,7 @@ static int __devinit serial8250_probe(struct platform_device *dev)
 		port.serial_in		= p->serial_in;
 		port.serial_out		= p->serial_out;
 		port.handle_irq		= p->handle_irq;
+		port.handle_break	= p->handle_break;
 		port.set_termios	= p->set_termios;
 		port.pm			= p->pm;
 		port.dev		= &dev->dev;
@@ -3209,6 +3179,8 @@ int serial8250_register_port(struct uart_port *port)
 			uart->port.set_termios = port->set_termios;
 		if (port->pm)
 			uart->port.pm = port->pm;
+		if (port->handle_break)
+			uart->port.handle_break = port->handle_break;
 
 		if (serial8250_isa_config != NULL)
 			serial8250_isa_config(0, &uart->port,
