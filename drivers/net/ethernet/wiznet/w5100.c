@@ -682,7 +682,7 @@ static int __devinit w5100_hw_probe(struct platform_device *pdev)
 		return ret;
 	priv->irq = irq;
 
-	priv->link_gpio = data->link_gpio;
+	priv->link_gpio = data ? data->link_gpio : -EINVAL;
 	if (gpio_is_valid(priv->link_gpio)) {
 		char *link_name = devm_kzalloc(&pdev->dev, 16, GFP_KERNEL);
 		if (!link_name)
