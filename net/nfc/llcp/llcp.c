@@ -307,6 +307,8 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 	u8 *gb_cur, *version_tlv, version, version_length;
 	u8 *lto_tlv, lto, lto_length;
 	u8 *wks_tlv, wks_length;
+	u8 *miux_tlv, miux_length;
+	__be16 miux;
 	u8 gb_len = 0;
 
 	version = LLCP_VERSION_11;
@@ -323,6 +325,11 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 	wks_tlv = nfc_llcp_build_tlv(LLCP_TLV_WKS, (u8 *)&local->local_wks, 2,
 				     &wks_length);
 	gb_len += wks_length;
+
+	miux = cpu_to_be16(LLCP_MAX_MIUX);
+	miux_tlv = nfc_llcp_build_tlv(LLCP_TLV_MIUX, (u8 *)&miux, 0,
+				      &miux_length);
+	gb_len += miux_length;
 
 	gb_len += ARRAY_SIZE(llcp_magic);
 
@@ -344,6 +351,9 @@ static int nfc_llcp_build_gb(struct nfc_llcp_local *local)
 
 	memcpy(gb_cur, wks_tlv, wks_length);
 	gb_cur += wks_length;
+
+	memcpy(gb_cur, miux_tlv, miux_length);
+	gb_cur += miux_length;
 
 	kfree(version_tlv);
 	kfree(lto_tlv);
