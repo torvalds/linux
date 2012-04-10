@@ -447,6 +447,14 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 }
 EXPORT_SYMBOL(nfc_set_remote_general_bytes);
 
+u8 *nfc_get_local_general_bytes(struct nfc_dev *dev, size_t *gb_len)
+{
+	pr_debug("dev_name=%s\n", dev_name(&dev->dev));
+
+	return nfc_llcp_general_bytes(dev, gb_len);
+}
+EXPORT_SYMBOL(nfc_get_local_general_bytes);
+
 /**
  * nfc_alloc_send_skb - allocate a skb for data exchange responses
  *
