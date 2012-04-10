@@ -16,6 +16,7 @@
 #include <plat/shirq.h>
 #include <mach/generic.h>
 #include <mach/hardware.h>
+#include <mach/spear.h>
 
 /* pad multiplexing support */
 /* muxing registers */

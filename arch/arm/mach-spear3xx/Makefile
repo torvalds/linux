@@ -3,7 +3,7 @@
 #
 
 # common files
-obj-y	+= spear3xx.o clock.o
+obj-y	+= spear3xx.o
 
 # spear300 specific files
 obj-$(CONFIG_MACH_SPEAR300) += spear300.o

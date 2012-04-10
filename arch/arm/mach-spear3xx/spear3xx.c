@@ -511,6 +511,8 @@ static void __init spear3xx_timer_init(void)
 	char pclk_name[] = "pll3_48m_clk";
 	struct clk *gpt_clk, *pclk;
 
+	spear3xx_clk_init();
+
 	/* get the system timer clock */
 	gpt_clk = clk_get_sys("gpt0", NULL);
 	if (IS_ERR(gpt_clk)) {
