@@ -455,6 +455,45 @@ int nfc_targets_found(struct nfc_dev *dev,
 }
 EXPORT_SYMBOL(nfc_targets_found);
 
+int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
+{
+	struct nfc_target *tg;
+	int i;
+
+	pr_debug("dev_name %s n_target %d\n", dev_name(&dev->dev), target_idx);
+
+	spin_lock_bh(&dev->targets_lock);
+
+	for (i = 0; i < dev->n_targets; i++) {
+		tg = &dev->targets[i];
+		if (tg->idx == target_idx)
+			break;
+	}
+
+	if (i == dev->n_targets) {
+		spin_unlock_bh(&dev->targets_lock);
+		return -EINVAL;
+	}
+
+	dev->targets_generation++;
+	dev->n_targets--;
+
+	if (dev->n_targets) {
+		memcpy(&dev->targets[i], &dev->targets[i + 1],
+		       (dev->n_targets - i) * sizeof(struct nfc_target));
+	} else {
+		kfree(dev->targets);
+		dev->targets = NULL;
+	}
+
+	spin_unlock_bh(&dev->targets_lock);
+
+	nfc_genl_target_lost(dev, target_idx);
+
+	return 0;
+}
+EXPORT_SYMBOL(nfc_target_lost);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);

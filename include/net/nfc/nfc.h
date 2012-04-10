@@ -181,6 +181,7 @@ int nfc_set_remote_general_bytes(struct nfc_dev *dev,
 
 int nfc_targets_found(struct nfc_dev *dev,
 		      struct nfc_target *targets, int ntargets);
+int nfc_target_lost(struct nfc_dev *dev, u32 target_idx);
 
 int nfc_dep_link_is_up(struct nfc_dev *dev, u32 target_idx,
 		       u8 comm_mode, u8 rf_mode);
