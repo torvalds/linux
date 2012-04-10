@@ -1172,7 +1172,7 @@ static int __devinit adis16400_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+	if (spi->irq)
 		adis16400_remove_trigger(indio_dev);
 error_uninitialize_ring:
 	iio_buffer_unregister(indio_dev);

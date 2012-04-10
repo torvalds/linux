@@ -800,7 +800,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 	return 0;
 
 error_remove_trigger:
-	if (indio_dev->modes & INDIO_BUFFER_TRIGGERED)
+	if (spi->irq)
 		ade7758_remove_trigger(indio_dev);
 error_uninitialize_ring:
 	ade7758_uninitialize_ring(indio_dev);
