@@ -72,7 +72,7 @@ static int ab_active_port_set(struct team *team, struct team_gsetter_ctx *ctx)
 {
 	struct team_port *port;
 
-	list_for_each_entry_rcu(port, &team->port_list, list) {
+	list_for_each_entry(port, &team->port_list, list) {
 		if (port->dev->ifindex == ctx->data.u32_val) {
 			rcu_assign_pointer(ab_priv(team)->active_port, port);
 			return 0;
