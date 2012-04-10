@@ -140,7 +140,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	int registers = 0;
 	int average;
 
-	mutex_lock(&map->lock);
+	map->lock(map);
 
 	for (node = rb_first(&rbtree_ctx->root); node != NULL;
 	     node = rb_next(node)) {
@@ -161,7 +161,7 @@ static int rbtree_show(struct seq_file *s, void *ignored)
 	seq_printf(s, "%d nodes, %d registers, average %d registers\n",
 		   nodes, registers, average);
 
-	mutex_unlock(&map->lock);
+	map->unlock(map);
 
 	return 0;
 }
