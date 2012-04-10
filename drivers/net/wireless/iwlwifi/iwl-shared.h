@@ -121,7 +121,6 @@ extern struct iwl_mod_params iwlagn_mod_params;
  * @antenna: both antennas (use diversity), default = 0
  * @restart_fw: restart firmware, default = 1
  * @plcp_check: enable plcp health check, default = true
- * @ack_check: disable ack health check, default = false
  * @wd_disable: enable stuck queue check, default = 0
  * @bt_coex_active: enable bt coex, default = true
  * @led_mode: system default, default = 0
@@ -141,7 +140,6 @@ struct iwl_mod_params {
 	int antenna;
 	int restart_fw;
 	bool plcp_check;
-	bool ack_check;
 	int  wd_disable;
 	bool bt_coex_active;
 	int led_mode;

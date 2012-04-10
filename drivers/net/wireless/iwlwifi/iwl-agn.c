@@ -2281,9 +2281,6 @@ MODULE_PARM_DESC(bt_ch_inhibition,
 module_param_named(plcp_check, iwlagn_mod_params.plcp_check, bool, S_IRUGO);
 MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
 
-module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
-MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
-
 module_param_named(wd_disable, iwlagn_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
 		"Disable stuck queue watchdog timer 0=system default, "
