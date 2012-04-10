@@ -195,6 +195,7 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 /* scan */
 void iwlagn_post_scan(struct iwl_priv *priv);
 void iwlagn_disable_roc(struct iwl_priv *priv);
+int iwl_force_rf_reset(struct iwl_priv *priv, bool external);
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);

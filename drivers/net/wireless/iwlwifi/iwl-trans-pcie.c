@@ -1994,11 +1994,26 @@ static ssize_t iwl_dbgfs_fh_reg_read(struct file *file,
 	return ret;
 }
 
+static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
+					  const char __user *user_buf,
+					  size_t count, loff_t *ppos)
+{
+	struct iwl_trans *trans = file->private_data;
+
+	if (!trans->op_mode)
+		return -EAGAIN;
+
+	iwl_op_mode_nic_error(trans->op_mode);
+
+	return count;
+}
+
 DEBUGFS_READ_WRITE_FILE_OPS(interrupt);
 DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_FILE_OPS(rx_queue);
 DEBUGFS_READ_FILE_OPS(tx_queue);
 DEBUGFS_WRITE_FILE_OPS(csr);
+DEBUGFS_WRITE_FILE_OPS(fw_restart);
 
 /*
  * Create the debugfs files and directories
@@ -2012,6 +2027,7 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 	DEBUGFS_ADD_FILE(interrupt, dir, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(csr, dir, S_IWUSR);
 	DEBUGFS_ADD_FILE(fh_reg, dir, S_IRUSR);
+	DEBUGFS_ADD_FILE(fw_restart, dir, S_IWUSR);
 	return 0;
 }
 #else

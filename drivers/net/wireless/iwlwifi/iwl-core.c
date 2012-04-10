@@ -746,15 +746,30 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 }
 #endif
 
-static void iwl_force_rf_reset(struct iwl_priv *priv)
+int iwl_force_rf_reset(struct iwl_priv *priv, bool external)
 {
+	struct iwl_rf_reset *rf_reset;
+
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return;
+		return -EAGAIN;
 
 	if (!iwl_is_any_associated(priv)) {
 		IWL_DEBUG_SCAN(priv, "force reset rejected: not associated\n");
-		return;
+		return -ENOLINK;
 	}
+
+	rf_reset = &priv->rf_reset;
+	rf_reset->reset_request_count++;
+	if (!external && rf_reset->last_reset_jiffies &&
+	    time_after(rf_reset->last_reset_jiffies +
+		       IWL_DELAY_NEXT_FORCE_RF_RESET, jiffies)) {
+		IWL_DEBUG_INFO(priv, "RF reset rejected\n");
+		rf_reset->reset_reject_count++;
+		return -EAGAIN;
+	}
+	rf_reset->reset_success_count++;
+	rf_reset->last_reset_jiffies = jiffies;
+
 	/*
 	 * There is no easy and better way to force reset the radio,
 	 * the only known method is switching channel which will force to
@@ -766,56 +781,6 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 	 */
 	IWL_DEBUG_INFO(priv, "perform radio reset.\n");
 	iwl_internal_short_hw_scan(priv);
-}
-
-
-int iwl_force_reset(struct iwl_priv *priv, int mode, bool external)
-{
-	struct iwl_force_reset *force_reset;
-
-	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
-		return -EINVAL;
-
-	if (mode >= IWL_MAX_FORCE_RESET) {
-		IWL_DEBUG_INFO(priv, "invalid reset request.\n");
-		return -EINVAL;
-	}
-	force_reset = &priv->force_reset[mode];
-	force_reset->reset_request_count++;
-	if (!external) {
-		if (force_reset->last_force_reset_jiffies &&
-		    time_after(force_reset->last_force_reset_jiffies +
-		    force_reset->reset_duration, jiffies)) {
-			IWL_DEBUG_INFO(priv, "force reset rejected\n");
-			force_reset->reset_reject_count++;
-			return -EAGAIN;
-		}
-	}
-	force_reset->reset_success_count++;
-	force_reset->last_force_reset_jiffies = jiffies;
-	IWL_DEBUG_INFO(priv, "perform force reset (%d)\n", mode);
-	switch (mode) {
-	case IWL_RF_RESET:
-		iwl_force_rf_reset(priv);
-		break;
-	case IWL_FW_RESET:
-		/*
-		 * if the request is from external(ex: debugfs),
-		 * then always perform the request in regardless the module
-		 * parameter setting
-		 * if the request is from internal (uCode error or driver
-		 * detect failure), then fw_restart module parameter
-		 * need to be check before performing firmware reload
-		 */
-		if (!external && !iwlagn_mod_params.restart_fw) {
-			IWL_DEBUG_INFO(priv, "Cancel firmware reload based on "
-				       "module parameter setting\n");
-			break;
-		}
-		IWL_ERR(priv, "On demand firmware reload\n");
-		iwlagn_fw_error(priv, true);
-		break;
-	}
 	return 0;
 }
 
