@@ -225,9 +225,13 @@ static void rga_power_off(void)
 {
     int total_running;
     
-    printk("rga_power_off\n");
+    
 	if(!rga_service.enable)
 		return;
+
+    rga_service.enable = false;
+
+    printk("rga_power_off\n");
 
     total_running = atomic_read(&rga_service.total_running);
 	if (total_running) {
@@ -239,8 +243,7 @@ static void rga_power_off(void)
     
 	clk_disable(aclk_rga);
 	clk_disable(hclk_rga);
-
-	rga_service.enable = false;
+	
 }
 
 static int rga_flush(rga_session *session, unsigned long arg)
@@ -301,11 +304,15 @@ static int rga_check_param(const struct rga_req *req)
 {
 	/*RGA can support up to 8192*8192 resolution in RGB format,but we limit the image size to 8191*8191 here*/
 	//check src width and height
-	if (unlikely((req->src.act_w <= 0) || (req->src.act_w > 8191) || (req->src.act_h <= 0) || (req->src.act_h > 8191))) 
+
+    if(!((req->render_mode == color_fill_mode) || (req->render_mode == line_point_drawing_mode)))
     {
-		ERR("invalid source resolution act_w = %d, act_h = %d\n", req->src.act_w, req->src.act_h);
-		return  -EINVAL;
-	}
+    	if (unlikely((req->src.act_w <= 0) || (req->src.act_w > 8191) || (req->src.act_h <= 0) || (req->src.act_h > 8191))) 
+        {
+    		ERR("invalid source resolution act_w = %d, act_h = %d\n", req->src.act_w, req->src.act_h);
+    		return  -EINVAL;
+    	}
+    }
 
 	//check dst width and height
 	if (unlikely((req->dst.act_w <= 0) || (req->dst.act_w > 2048) || (req->dst.act_h <= 0) || (req->dst.act_h > 2048))) 
@@ -582,7 +589,7 @@ static void rga_try_set_reg(uint32_t num)
 }
 
 
-#if 1//RGA_TEST  
+#if RGA_TEST  
 static void print_info(struct rga_req *req)
 {      
     printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n", 
@@ -796,6 +803,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
         		ret = -EFAULT;
                 break;
         	}
+            rga_power_on();
             ret = rga_blit_sync(session, req);
             break;
 		case RGA_BLIT_ASYNC:
@@ -805,6 +813,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
         		ret = -EFAULT;
                 break;
         	}
+            rga_power_on();
 			ret = rga_blit_async(session, req);              
 			break;
 		case RGA_FLUSH:
@@ -931,7 +940,7 @@ static int rga_suspend(struct platform_device *pdev, pm_message_t state)
 	uint32_t enable;
     
     enable = rga_service.enable;    
-	rga_power_off();    
+	rga_power_off();
     rga_service.enable = enable;
 
 	return 0;
@@ -939,7 +948,13 @@ static int rga_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int rga_resume(struct platform_device *pdev)
 {    
-    rga_power_on();    
+    if(rga_service.enable)
+    {
+        rga_service.enable = false;
+        rga_power_on();
+        rga_try_set_reg(1);
+    }
+    
 	return 0;
 }
 
@@ -1186,8 +1201,8 @@ EXPORT_SYMBOL(rk_get_fb);
 extern void rk_direct_fb_show(struct fb_info * fbi);
 EXPORT_SYMBOL(rk_direct_fb_show);
 
-unsigned int src_buf[1024*1024];
-unsigned int dst_buf[1024*1024];
+unsigned int src_buf[1920*1080];
+unsigned int dst_buf[1280*800];
 
 void rga_test_0(void)
 {
@@ -1214,9 +1229,9 @@ void rga_test_0(void)
     src = src_buf;
     dst = dst_buf;
 
-    memset(src_buf, 0x80, 1024*1024*4);
+    memset(src_buf, 0x80, 1920*1080*4);
 
-    dmac_flush_range(&src_buf[0], &src_buf[1024*1024]);
+    dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
     outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
         
     #if 0
@@ -1227,31 +1242,31 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
    
-    req.src.act_w = 1024;
-    req.src.act_h = 1024;
+    req.src.act_w = 1920;
+    req.src.act_h = 1080;
 
-    req.src.vir_w = 1024;
-    req.src.vir_h = 1024;
-    req.src.yrgb_addr = (uint32_t)virt_to_phys(src_buf);
+    req.src.vir_w = 1920;
+    req.src.vir_h = 1080;
+    req.src.yrgb_addr = (uint32_t)src_buf;
     req.src.uv_addr = req.src.yrgb_addr + 1920;
     //req.src.v_addr = (uint32_t)V4200_320_240_swap0;
-    req.src.format = RK_FORMAT_RGBA_8888;
+    req.src.format = RK_FORMAT_YCbCr_420_SP;
 
-    req.dst.act_w = 1024;
-    req.dst.act_h = 1024;
+    req.dst.act_w = 1280;
+    req.dst.act_h = 736;
 
-    req.dst.vir_w = 1024;
-    req.dst.vir_h = 1024;
-    req.dst.x_offset = 1023;
+    req.dst.vir_w = 1280;
+    req.dst.vir_h = 736;
+    req.dst.x_offset = 0;
     req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
+    req.dst.yrgb_addr = (uint32_t)dst;
 
     //req.dst.format = RK_FORMAT_RGB_565;
 
     req.clip.xmin = 0;
-    req.clip.xmax = 1023;
+    req.clip.xmax = 1279;
     req.clip.ymin = 0;
-    req.clip.ymax = 1023;
+    req.clip.ymax = 799;
 
     //req.render_mode = color_fill_mode;
     //req.fg_color = 0x80ffffff;
@@ -1259,14 +1274,14 @@ void rga_test_0(void)
     req.rotate_mode = 1;
     req.scale_mode = 0;
 
-    req.alpha_rop_flag = 1;
+    req.alpha_rop_flag = 0;
     req.alpha_rop_mode = 0x1;
 
-    req.sina = 65536;
-    req.cosa = 0;
+    req.sina = 0;
+    req.cosa = 65536;
 
-    req.mmu_info.mmu_flag = 0x0;
-    req.mmu_info.mmu_en = 0;
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
 
     rga_blit_sync(&session, &req);
 

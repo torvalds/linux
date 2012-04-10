@@ -280,31 +280,11 @@ static int rga_MapUserMemory(struct page **pages,
 
                         pfn = pte_pfn(*pte);
                         Address = ((pfn << PAGE_SHIFT) | (((unsigned long)t_mem) & ~PAGE_MASK));                        
-                        pte_unmap_unlock(pte, ptl);
-                        
-                        #if 0
-                        /* Free the page table. */
-                        if (pages != NULL)
-                        {
-                            /* Release the pages if any. */
-                            if (result > 0)
-                            {
-                                for (i = 0; i < result; i++)
-                                {
-                                    if (pages[i] == NULL)
-                                    {
-                                        break;
-                                    }
-
-                                    page_cache_release(pages[i]);
-                                }
-                            }
-                        }
-                        #endif
-                        
-                        pageTable[i] = Address;
+                        pte_unmap_unlock(pte, ptl);                                                                        
                     }
                     while (0);
+
+                    pageTable[i] = Address;
                 }
                 else
                 {
