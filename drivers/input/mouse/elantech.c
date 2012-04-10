@@ -1245,6 +1245,8 @@ static void elantech_disconnect(struct psmouse *psmouse)
  */
 static int elantech_reconnect(struct psmouse *psmouse)
 {
+	psmouse_reset(psmouse);
+
 	if (elantech_detect(psmouse, 0))
 		return -1;
 
@@ -1323,6 +1325,8 @@ int elantech_init(struct psmouse *psmouse)
 	psmouse->private = etd = kzalloc(sizeof(struct elantech_data), GFP_KERNEL);
 	if (!etd)
 		return -ENOMEM;
+
+	psmouse_reset(psmouse);
 
 	etd->parity[0] = 1;
 	for (i = 1; i < 256; i++)
