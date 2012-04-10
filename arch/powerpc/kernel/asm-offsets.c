@@ -188,10 +188,6 @@ int main(void)
 	DEFINE(SLBSHADOW_STACKESID,
 	       offsetof(struct slb_shadow, save_area[SLB_NUM_BOLTED - 1].esid));
 	DEFINE(SLBSHADOW_SAVEAREA, offsetof(struct slb_shadow, save_area));
-	DEFINE(LPPACASRR0, offsetof(struct lppaca, saved_srr0));
-	DEFINE(LPPACASRR1, offsetof(struct lppaca, saved_srr1));
-	DEFINE(LPPACAANYINT, offsetof(struct lppaca, int_dword.any_int));
-	DEFINE(LPPACADECRINT, offsetof(struct lppaca, int_dword.fields.decr_int));
 	DEFINE(LPPACA_PMCINUSE, offsetof(struct lppaca, pmcregs_in_use));
 	DEFINE(LPPACA_DTLIDX, offsetof(struct lppaca, dtl_idx));
 	DEFINE(LPPACA_YIELDCOUNT, offsetof(struct lppaca, yield_count));
