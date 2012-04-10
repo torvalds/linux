@@ -113,13 +113,14 @@ typedef struct vpu_session {
  *
  * @author ChenHengming (2011-5-4)
  */
+#define VPU_REG_NUM_MAX                     (((VPU_REG_NUM_ENC)>(VPU_REG_NUM_DEC_PP))?(VPU_REG_NUM_ENC):(VPU_REG_NUM_DEC_PP))
 typedef struct vpu_reg {
 	VPU_CLIENT_TYPE		type;
 	vpu_session 		*session;
 	struct list_head	session_link;		/* link to vpu service session */
 	struct list_head	status_link;		/* link to register set list */
 	unsigned long		size;
-	unsigned long		reg[VPU_REG_NUM_DEC_PP];
+	unsigned long		reg[VPU_REG_NUM_MAX];
 } vpu_reg;
 
 typedef struct vpu_device {
@@ -448,6 +449,8 @@ void reg_copy_to_hw(vpu_reg *reg)
 	case VPU_ENC : {
 		u32 *dst = (u32 *)enc_dev.hwregs;
 		service.reg_codec = reg;
+
+		vpu_reset();
 
 		dst[VPU_REG_EN_ENC] = src[VPU_REG_EN_ENC] & 0x6;
 
