@@ -81,7 +81,16 @@ EXPORT_SYMBOL(team_port_set_team_mac);
  * Options handling
  *******************/
 
-struct team_option *__team_find_option(struct team *team, const char *opt_name)
+struct team_option_inst { /* One for each option instance */
+	struct list_head list;
+	struct team_option *option;
+	struct team_port *port; /* != NULL if per-port */
+	bool changed;
+	bool removed;
+};
+
+static struct team_option *__team_find_option(struct team *team,
+					      const char *opt_name)
 {
 	struct team_option *option;
 
@@ -92,9 +101,121 @@ struct team_option *__team_find_option(struct team *team, const char *opt_name)
 	return NULL;
 }
 
-int __team_options_register(struct team *team,
-			    const struct team_option *option,
-			    size_t option_count)
+static int __team_option_inst_add(struct team *team, struct team_option *option,
+				  struct team_port *port)
+{
+	struct team_option_inst *opt_inst;
+
+	opt_inst = kmalloc(sizeof(*opt_inst), GFP_KERNEL);
+	if (!opt_inst)
+		return -ENOMEM;
+	opt_inst->option = option;
+	opt_inst->port = port;
+	opt_inst->changed = true;
+	opt_inst->removed = false;
+	list_add_tail(&opt_inst->list, &team->option_inst_list);
+	return 0;
+}
+
+static void __team_option_inst_del(struct team_option_inst *opt_inst)
+{
+	list_del(&opt_inst->list);
+	kfree(opt_inst);
+}
+
+static void __team_option_inst_del_option(struct team *team,
+					  struct team_option *option)
+{
+	struct team_option_inst *opt_inst, *tmp;
+
+	list_for_each_entry_safe(opt_inst, tmp, &team->option_inst_list, list) {
+		if (opt_inst->option == option)
+			__team_option_inst_del(opt_inst);
+	}
+}
+
+static int __team_option_inst_add_option(struct team *team,
+					 struct team_option *option)
+{
+	struct team_port *port;
+	int err;
+
+	if (!option->per_port)
+		return __team_option_inst_add(team, option, 0);
+
+	list_for_each_entry(port, &team->port_list, list) {
+		err = __team_option_inst_add(team, option, port);
+		if (err)
+			goto inst_del_option;
+	}
+	return 0;
+
+inst_del_option:
+	__team_option_inst_del_option(team, option);
+	return err;
+}
+
+static void __team_option_inst_mark_removed_option(struct team *team,
+						   struct team_option *option)
+{
+	struct team_option_inst *opt_inst;
+
+	list_for_each_entry(opt_inst, &team->option_inst_list, list) {
+		if (opt_inst->option == option) {
+			opt_inst->changed = true;
+			opt_inst->removed = true;
+		}
+	}
+}
+
+static void __team_option_inst_del_port(struct team *team,
+					struct team_port *port)
+{
+	struct team_option_inst *opt_inst, *tmp;
+
+	list_for_each_entry_safe(opt_inst, tmp, &team->option_inst_list, list) {
+		if (opt_inst->option->per_port &&
+		    opt_inst->port == port)
+			__team_option_inst_del(opt_inst);
+	}
+}
+
+static int __team_option_inst_add_port(struct team *team,
+				       struct team_port *port)
+{
+	struct team_option *option;
+	int err;
+
+	list_for_each_entry(option, &team->option_list, list) {
+		if (!option->per_port)
+			continue;
+		err = __team_option_inst_add(team, option, port);
+		if (err)
+			goto inst_del_port;
+	}
+	return 0;
+
+inst_del_port:
+	__team_option_inst_del_port(team, port);
+	return err;
+}
+
+static void __team_option_inst_mark_removed_port(struct team *team,
+						 struct team_port *port)
+{
+	struct team_option_inst *opt_inst;
+
+	list_for_each_entry(opt_inst, &team->option_inst_list, list) {
+		if (opt_inst->port == port) {
+			opt_inst->changed = true;
+			opt_inst->removed = true;
+		}
+	}
+}
+
+static int __team_options_register(struct team *team,
+				   const struct team_option *option,
+				   size_t option_count)
 {
 	int i;
 	struct team_option **dst_opts;
@@ -107,26 +228,32 @@ int __team_options_register(struct team *team,
 	for (i = 0; i < option_count; i++, option++) {
 		if (__team_find_option(team, option->name)) {
 			err = -EEXIST;
-			goto rollback;
+			goto alloc_rollback;
 		}
 		dst_opts[i] = kmemdup(option, sizeof(*option), GFP_KERNEL);
 		if (!dst_opts[i]) {
 			err = -ENOMEM;
-			goto rollback;
+			goto alloc_rollback;
 		}
 	}
 
 	for (i = 0; i < option_count; i++) {
-		dst_opts[i]->changed = true;
-		dst_opts[i]->removed = false;
+		err = __team_option_inst_add_option(team, dst_opts[i]);
+		if (err)
+			goto inst_rollback;
 		list_add_tail(&dst_opts[i]->list, &team->option_list);
 	}
 
 	kfree(dst_opts);
 	return 0;
 
-rollback:
-	for (i = 0; i < option_count; i++)
+inst_rollback:
+	for (i--; i >= 0; i--)
+		__team_option_inst_del_option(team, dst_opts[i]);
+
+	i = option_count - 1;
+alloc_rollback:
+	for (i--; i >= 0; i--)
 		kfree(dst_opts[i]);
 
 	kfree(dst_opts);
@@ -143,10 +270,8 @@ static void __team_options_mark_removed(struct team *team,
 		struct team_option *del_opt;
 
 		del_opt = __team_find_option(team, option->name);
-		if (del_opt) {
-			del_opt->changed = true;
-			del_opt->removed = true;
-		}
+		if (del_opt)
+			__team_option_inst_mark_removed_option(team, del_opt);
 	}
 }
 
@@ -161,6 +286,7 @@ static void __team_options_unregister(struct team *team,
 
 		del_opt = __team_find_option(team, option->name);
 		if (del_opt) {
+			__team_option_inst_del_option(team, del_opt);
 			list_del(&del_opt->list);
 			kfree(del_opt);
 		}
@@ -193,22 +319,42 @@ void team_options_unregister(struct team *team,
 }
 EXPORT_SYMBOL(team_options_unregister);
 
-static int team_option_get(struct team *team, struct team_option *option,
-			   void *arg)
-{
-	return option->getter(team, arg);
-}
-
-static int team_option_set(struct team *team, struct team_option *option,
-			   void *arg)
+static int team_option_port_add(struct team *team, struct team_port *port)
 {
 	int err;
 
-	err = option->setter(team, arg);
+	err = __team_option_inst_add_port(team, port);
+	if (err)
+		return err;
+	__team_options_change_check(team);
+	return 0;
+}
+
+static void team_option_port_del(struct team *team, struct team_port *port)
+{
+	__team_option_inst_mark_removed_port(team, port);
+	__team_options_change_check(team);
+	__team_option_inst_del_port(team, port);
+}
+
+static int team_option_get(struct team *team,
+			   struct team_option_inst *opt_inst,
+			   struct team_gsetter_ctx *ctx)
+{
+	return opt_inst->option->getter(team, ctx);
+}
+
+static int team_option_set(struct team *team,
+			   struct team_option_inst *opt_inst,
+			   struct team_gsetter_ctx *ctx)
+{
+	int err;
+
+	err = opt_inst->option->setter(team, ctx);
 	if (err)
 		return err;
 
-	option->changed = true;
+	opt_inst->changed = true;
 	__team_options_change_check(team);
 	return err;
 }
@@ -642,6 +788,13 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_handler_register;
 	}
 
+	err = team_option_port_add(team, port);
+	if (err) {
+		netdev_err(dev, "Device %s failed to add per-port options\n",
+			   portname);
+		goto err_option_port_add;
+	}
+
 	team_port_list_add_port(team, port);
 	team_adjust_ops(team);
 	__team_compute_features(team);
@@ -650,6 +803,9 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 	netdev_info(dev, "Port device %s added\n", portname);
 
 	return 0;
+
+err_option_port_add:
+	netdev_rx_handler_unregister(port_dev);
 
 err_handler_register:
 	netdev_set_master(port_dev, NULL);
@@ -690,6 +846,7 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	__team_port_change_check(port, false);
 	team_port_list_del_port(team, port);
 	team_adjust_ops(team);
+	team_option_port_del(team, port);
 	netdev_rx_handler_unregister(port_dev);
 	netdev_set_master(port_dev, NULL);
 	vlan_vids_del_by_dev(port_dev, dev);
@@ -712,19 +869,15 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 
 static const char team_no_mode_kind[] = "*NOMODE*";
 
-static int team_mode_option_get(struct team *team, void *arg)
+static int team_mode_option_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	const char **str = arg;
-
-	*str = team->mode ? team->mode->kind : team_no_mode_kind;
+	ctx->data.str_val = team->mode ? team->mode->kind : team_no_mode_kind;
 	return 0;
 }
 
-static int team_mode_option_set(struct team *team, void *arg)
+static int team_mode_option_set(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	const char **str = arg;
-
-	return team_change_mode(team, *str);
+	return team_change_mode(team, ctx->data.str_val);
 }
 
 static const struct team_option team_options[] = {
@@ -756,6 +909,7 @@ static int team_init(struct net_device *dev)
 	team_adjust_ops(team);
 
 	INIT_LIST_HEAD(&team->option_list);
+	INIT_LIST_HEAD(&team->option_inst_list);
 	err = team_options_register(team, team_options, ARRAY_SIZE(team_options));
 	if (err)
 		goto err_options_register;
@@ -1238,7 +1392,8 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 {
 	struct nlattr *option_list;
 	void *hdr;
-	struct team_option *option;
+	struct team_option_inst *opt_inst;
+	int err;
 
 	hdr = genlmsg_put(skb, pid, seq, &team_nl_family, flags,
 			  TEAM_CMD_OPTIONS_GET);
@@ -1251,50 +1406,61 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 	if (!option_list)
 		return -EMSGSIZE;
 
-	list_for_each_entry(option, &team->option_list, list) {
+	list_for_each_entry(opt_inst, &team->option_inst_list, list) {
 		struct nlattr *option_item;
-		long arg;
-		struct team_option_binary tbinary;
+		struct team_option *option = opt_inst->option;
+		struct team_gsetter_ctx ctx;
 
 		/* Include only changed options if fill all mode is not on */
-		if (!fillall && !option->changed)
+		if (!fillall && !opt_inst->changed)
 			continue;
 		option_item = nla_nest_start(skb, TEAM_ATTR_ITEM_OPTION);
 		if (!option_item)
 			goto nla_put_failure;
 		if (nla_put_string(skb, TEAM_ATTR_OPTION_NAME, option->name))
 			goto nla_put_failure;
-		if (option->changed) {
+		if (opt_inst->changed) {
 			if (nla_put_flag(skb, TEAM_ATTR_OPTION_CHANGED))
 				goto nla_put_failure;
-			option->changed = false;
+			opt_inst->changed = false;
 		}
-		if (option->removed &&
+		if (opt_inst->removed &&
 		    nla_put_flag(skb, TEAM_ATTR_OPTION_REMOVED))
 			goto nla_put_failure;
+		if (opt_inst->port &&
+		    nla_put_u32(skb, TEAM_ATTR_OPTION_PORT_IFINDEX,
+				opt_inst->port->dev->ifindex))
+			goto nla_put_failure;
+		ctx.port = opt_inst->port;
 		switch (option->type) {
 		case TEAM_OPTION_TYPE_U32:
 			if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_U32))
 				goto nla_put_failure;
-			team_option_get(team, option, &arg);
-			if (nla_put_u32(skb, TEAM_ATTR_OPTION_DATA, arg))
+			err = team_option_get(team, opt_inst, &ctx);
+			if (err)
+				goto errout;
+			if (nla_put_u32(skb, TEAM_ATTR_OPTION_DATA,
+					ctx.data.u32_val))
 				goto nla_put_failure;
 			break;
 		case TEAM_OPTION_TYPE_STRING:
 			if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_STRING))
 				goto nla_put_failure;
-			team_option_get(team, option, &arg);
+			err = team_option_get(team, opt_inst, &ctx);
+			if (err)
+				goto errout;
 			if (nla_put_string(skb, TEAM_ATTR_OPTION_DATA,
-					   (char *) arg))
+					   ctx.data.str_val))
 				goto nla_put_failure;
 			break;
 		case TEAM_OPTION_TYPE_BINARY:
 			if (nla_put_u8(skb, TEAM_ATTR_OPTION_TYPE, NLA_BINARY))
 				goto nla_put_failure;
-			arg = (long) &tbinary;
-			team_option_get(team, option, &arg);
+			err = team_option_get(team, opt_inst, &ctx);
+			if (err)
+				goto errout;
 			if (nla_put(skb, TEAM_ATTR_OPTION_DATA,
-				    tbinary.data_len, tbinary.data))
+				    ctx.data.bin_val.len, ctx.data.bin_val.ptr))
 				goto nla_put_failure;
 			break;
 		default:
@@ -1307,8 +1473,10 @@ static int team_nl_fill_options_get(struct sk_buff *skb,
 	return genlmsg_end(skb, hdr);
 
 nla_put_failure:
+	err = -EMSGSIZE;
+errout:
 	genlmsg_cancel(skb, hdr);
-	return -EMSGSIZE;
+	return err;
 }
 
 static int team_nl_fill_options_get_all(struct sk_buff *skb,
@@ -1354,9 +1522,11 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	nla_for_each_nested(nl_option, info->attrs[TEAM_ATTR_LIST_OPTION], i) {
-		struct nlattr *mode_attrs[TEAM_ATTR_OPTION_MAX + 1];
+		struct nlattr *opt_attrs[TEAM_ATTR_OPTION_MAX + 1];
+		struct nlattr *attr_port_ifindex;
 		enum team_option_type opt_type;
-		struct team_option *option;
+		int opt_port_ifindex = 0; /* != 0 for per-port options */
+		struct team_option_inst *opt_inst;
 		char *opt_name;
 		bool opt_found = false;
 
@@ -1364,17 +1534,17 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			err = -EINVAL;
 			goto team_put;
 		}
-		err = nla_parse_nested(mode_attrs, TEAM_ATTR_OPTION_MAX,
+		err = nla_parse_nested(opt_attrs, TEAM_ATTR_OPTION_MAX,
 				       nl_option, team_nl_option_policy);
 		if (err)
 			goto team_put;
-		if (!mode_attrs[TEAM_ATTR_OPTION_NAME] ||
-		    !mode_attrs[TEAM_ATTR_OPTION_TYPE] ||
-		    !mode_attrs[TEAM_ATTR_OPTION_DATA]) {
+		if (!opt_attrs[TEAM_ATTR_OPTION_NAME] ||
+		    !opt_attrs[TEAM_ATTR_OPTION_TYPE] ||
+		    !opt_attrs[TEAM_ATTR_OPTION_DATA]) {
 			err = -EINVAL;
 			goto team_put;
 		}
-		switch (nla_get_u8(mode_attrs[TEAM_ATTR_OPTION_TYPE])) {
+		switch (nla_get_u8(opt_attrs[TEAM_ATTR_OPTION_TYPE])) {
 		case NLA_U32:
 			opt_type = TEAM_OPTION_TYPE_U32;
 			break;
@@ -1388,39 +1558,47 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 			goto team_put;
 		}
 
-		opt_name = nla_data(mode_attrs[TEAM_ATTR_OPTION_NAME]);
-		list_for_each_entry(option, &team->option_list, list) {
-			long arg;
-			struct nlattr *opt_data_attr;
-			struct team_option_binary tbinary;
-			int data_len;
+		opt_name = nla_data(opt_attrs[TEAM_ATTR_OPTION_NAME]);
+		attr_port_ifindex = opt_attrs[TEAM_ATTR_OPTION_PORT_IFINDEX];
+		if (attr_port_ifindex)
+			opt_port_ifindex = nla_get_u32(attr_port_ifindex);
 
+		list_for_each_entry(opt_inst, &team->option_inst_list, list) {
+			struct team_option *option = opt_inst->option;
+			struct nlattr *opt_data_attr;
+			struct team_gsetter_ctx ctx;
+			int data_len;
+			int tmp_ifindex;
+
+			tmp_ifindex = opt_inst->port ?
+				      opt_inst->port->dev->ifindex : 0;
 			if (option->type != opt_type ||
-			    strcmp(option->name, opt_name))
+			    strcmp(option->name, opt_name) ||
+			    tmp_ifindex != opt_port_ifindex)
 				continue;
 			opt_found = true;
-			opt_data_attr = mode_attrs[TEAM_ATTR_OPTION_DATA];
+			opt_data_attr = opt_attrs[TEAM_ATTR_OPTION_DATA];
 			data_len = nla_len(opt_data_attr);
+			ctx.port = opt_inst->port;
 			switch (opt_type) {
 			case TEAM_OPTION_TYPE_U32:
-				arg = nla_get_u32(opt_data_attr);
+				ctx.data.u32_val = nla_get_u32(opt_data_attr);
 				break;
 			case TEAM_OPTION_TYPE_STRING:
 				if (data_len > TEAM_STRING_MAX_LEN) {
 					err = -EINVAL;
 					goto team_put;
 				}
-				arg = (long) nla_data(opt_data_attr);
+				ctx.data.str_val = nla_data(opt_data_attr);
 				break;
 			case TEAM_OPTION_TYPE_BINARY:
-				tbinary.data_len = data_len;
-				tbinary.data = nla_data(opt_data_attr);
-				arg = (long) &tbinary;
+				ctx.data.bin_val.len = data_len;
+				ctx.data.bin_val.ptr = nla_data(opt_data_attr);
 				break;
 			default:
 				BUG();
 			}
-			err = team_option_set(team, option, &arg);
+			err = team_option_set(team, opt_inst, &ctx);
 			if (err)
 				goto team_put;
 		}

@@ -52,22 +52,21 @@ drop:
 	return false;
 }
 
-static int lb_bpf_func_get(struct team *team, void *arg)
+static int lb_bpf_func_get(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	struct team_option_binary *tbinary = team_optarg_tbinary(arg);
-
-	memset(tbinary, 0, sizeof(*tbinary));
-	if (!lb_priv(team)->orig_fprog)
+	if (!lb_priv(team)->orig_fprog) {
+		ctx->data.bin_val.len = 0;
+		ctx->data.bin_val.ptr = NULL;
 		return 0;
-
-	tbinary->data_len = lb_priv(team)->orig_fprog->len *
-			    sizeof(struct sock_filter);
-	tbinary->data = lb_priv(team)->orig_fprog->filter;
+	}
+	ctx->data.bin_val.len = lb_priv(team)->orig_fprog->len *
+				sizeof(struct sock_filter);
+	ctx->data.bin_val.ptr = lb_priv(team)->orig_fprog->filter;
 	return 0;
 }
 
 static int __fprog_create(struct sock_fprog **pfprog, u32 data_len,
-			  void *data)
+			  const void *data)
 {
 	struct sock_fprog *fprog;
 	struct sock_filter *filter = (struct sock_filter *) data;
@@ -93,16 +92,15 @@ static void __fprog_destroy(struct sock_fprog *fprog)
 	kfree(fprog);
 }
 
-static int lb_bpf_func_set(struct team *team, void *arg)
+static int lb_bpf_func_set(struct team *team, struct team_gsetter_ctx *ctx)
 {
-	struct team_option_binary *tbinary = team_optarg_tbinary(arg);
 	struct sk_filter *fp = NULL;
 	struct sock_fprog *fprog = NULL;
 	int err;
 
-	if (tbinary->data_len) {
-		err = __fprog_create(&fprog, tbinary->data_len,
-				     tbinary->data);
+	if (ctx->data.bin_val.len) {
+		err = __fprog_create(&fprog, ctx->data.bin_val.len,
+				     ctx->data.bin_val.ptr);
 		if (err)
 			return err;
 		err = sk_unattached_filter_create(&fp, fprog);

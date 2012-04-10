@@ -71,24 +71,26 @@ enum team_option_type {
 	TEAM_OPTION_TYPE_BINARY,
 };
 
+struct team_gsetter_ctx {
+	union {
+		u32 u32_val;
+		const char *str_val;
+		struct {
+			const void *ptr;
+			u32 len;
+		} bin_val;
+	} data;
+	struct team_port *port;
+};
+
 struct team_option {
 	struct list_head list;
 	const char *name;
+	bool per_port;
 	enum team_option_type type;
-	int (*getter)(struct team *team, void *arg);
-	int (*setter)(struct team *team, void *arg);
-
-	/* Custom gennetlink interface related flags */
-	bool changed;
-	bool removed;
+	int (*getter)(struct team *team, struct team_gsetter_ctx *ctx);
+	int (*setter)(struct team *team, struct team_gsetter_ctx *ctx);
 };
-
-struct team_option_binary {
-	u32 data_len;
-	void *data;
-};
-
-#define team_optarg_tbinary(arg) (*((struct team_option_binary **) arg))
 
 struct team_mode {
 	struct list_head list;
@@ -118,6 +120,7 @@ struct team {
 	struct list_head port_list;
 
 	struct list_head option_list;
+	struct list_head option_inst_list; /* list of option instances */
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
@@ -224,6 +227,7 @@ enum {
 	TEAM_ATTR_OPTION_TYPE,		/* u8 */
 	TEAM_ATTR_OPTION_DATA,		/* dynamic */
 	TEAM_ATTR_OPTION_REMOVED,	/* flag */
+	TEAM_ATTR_OPTION_PORT_IFINDEX,	/* u32 */ /* for per-port options */
 
 	__TEAM_ATTR_OPTION_MAX,
 	TEAM_ATTR_OPTION_MAX = __TEAM_ATTR_OPTION_MAX - 1,
