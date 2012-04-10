@@ -313,7 +313,7 @@ BUILD_TRAP_HANDLER(singlestep)
 
 static void kgdb_call_nmi_hook(void *ignored)
 {
-	kgdb_nmicallback(raw_smp_processor_id(), NULL);
+	kgdb_nmicallback(raw_smp_processor_id(), get_irq_regs());
 }
 
 void kgdb_roundup_cpus(unsigned long flags)
