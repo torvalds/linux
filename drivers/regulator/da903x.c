@@ -538,7 +538,7 @@ static int __devinit da903x_regulator_probe(struct platform_device *pdev)
 		ri->desc.ops = &da9030_regulator_ldo1_15_ops;
 
 	config.dev = &pdev->dev;
-	conifg.init_data = pdev->dev.platform_data;
+	config.init_data = pdev->dev.platform_data;
 	config.driver_data = ri;
 
 	rdev = regulator_register(&ri->desc, &config);
