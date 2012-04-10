@@ -306,8 +306,7 @@ static int max8998_set_voltage_ldo(struct regulator_dev *rdev,
 	int min_vol = min_uV / 1000, max_vol = max_uV / 1000;
 	const struct voltage_map_desc *desc;
 	int ldo = rdev_get_id(rdev);
-	int reg, shift = 0, mask, ret;
-	int i = 0;
+	int reg, shift = 0, mask, ret, i;
 
 	if (ldo >= ARRAY_SIZE(ldo_voltage_map))
 		return -EINVAL;
@@ -319,9 +318,10 @@ static int max8998_set_voltage_ldo(struct regulator_dev *rdev,
 	if (max_vol < desc->min || min_vol > desc->max)
 		return -EINVAL;
 
-	while (desc->min + desc->step*i < min_vol &&
-	       desc->min + desc->step*i < desc->max)
-		i++;
+	if (min_vol < desc->min)
+		min_vol = desc->min;
+
+	i = DIV_ROUND_UP(min_vol - desc->min, desc->step);
 
 	if (desc->min + desc->step*i > max_vol)
 		return -EINVAL;
@@ -359,7 +359,7 @@ static int max8998_set_voltage_buck(struct regulator_dev *rdev,
 	const struct voltage_map_desc *desc;
 	int buck = rdev_get_id(rdev);
 	int reg, shift = 0, mask, ret;
-	int difference = 0, i = 0, j = 0, previous_vol = 0;
+	int difference = 0, i, j = 0, previous_vol = 0;
 	u8 val = 0;
 	static u8 buck1_last_val;
 
@@ -374,9 +374,10 @@ static int max8998_set_voltage_buck(struct regulator_dev *rdev,
 	if (max_vol < desc->min || min_vol > desc->max)
 		return -EINVAL;
 
-	while (desc->min + desc->step*i < min_vol &&
-	       desc->min + desc->step*i < desc->max)
-		i++;
+	if (min_vol < desc->min)
+		min_vol = desc->min;
+
+	i = DIV_ROUND_UP(min_vol - desc->min, desc->step);
 
 	if (desc->min + desc->step*i > max_vol)
 		return -EINVAL;
