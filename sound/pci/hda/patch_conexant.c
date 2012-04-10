@@ -4430,7 +4430,9 @@ static void apply_fixup(struct hda_codec *codec,
 	 struct conexant_spec *spec = codec->spec;
 
 	quirk = snd_pci_quirk_lookup(codec->bus->pci, quirk);
-	if (quirk && table[quirk->value]) {
+	if (!quirk)
+		return;
+	if (table[quirk->value]) {
 		snd_printdd(KERN_INFO "hda_codec: applying pincfg for %s\n",
 			    quirk->name);
 		apply_pincfg(codec, table[quirk->value]);
