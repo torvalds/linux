@@ -105,6 +105,8 @@ static int jffs2_show_options(struct seq_file *s, struct dentry *root)
 
 	if (opts->override_compr)
 		seq_printf(s, ",compr=%s", jffs2_compr_name(opts->compr));
+	if (opts->rp_size)
+		seq_printf(s, ",rp_size=%u", opts->rp_size / 1024);
 
 	return 0;
 }
@@ -171,15 +173,18 @@ static const struct export_operations jffs2_export_ops = {
  * JFFS2 mount options.
  *
  * Opt_override_compr: override default compressor
+ * Opt_rp_size: size of reserved pool in KiB
  * Opt_err: just end of array marker
  */
 enum {
 	Opt_override_compr,
+	Opt_rp_size,
 	Opt_err,
 };
 
 static const match_table_t tokens = {
 	{Opt_override_compr, "compr=%s"},
+	{Opt_rp_size, "rp_size=%u"},
 	{Opt_err, NULL},
 };
 
@@ -187,6 +192,7 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *p, *name;
+	unsigned int opt;
 
 	if (!data)
 		return 0;
@@ -223,6 +229,17 @@ static int jffs2_parse_options(struct jffs2_sb_info *c, char *data)
 			}
 			kfree(name);
 			c->mount_opts.override_compr = true;
+			break;
+		case Opt_rp_size:
+			if (match_int(&args[0], &opt))
+				return -EINVAL;
+			opt *= 1024;
+			if (opt > c->mtd->size) {
+				pr_warn("Too large reserve pool specified, max "
+					"is %llu KB\n", c->mtd->size / 1024);
+				return -EINVAL;
+			}
+			c->mount_opts.rp_size = opt;
 			break;
 		default:
 			pr_err("Error: unrecognized mount option '%s' or missing value\n",

@@ -32,6 +32,13 @@ struct jffs2_inodirty;
 struct jffs2_mount_opts {
 	bool override_compr;
 	unsigned int compr;
+
+	/* The size of the reserved pool. The reserved pool is the JFFS2 flash
+	 * space which may only be used by root cannot be used by the other
+	 * users. This is implemented simply by means of not allowing the
+	 * latter users to write to the file system if the amount if the
+	 * available space is less then 'rp_size'. */
+	unsigned int rp_size;
 };
 
 /* A struct for the overall file system control.  Pointers to
