@@ -455,17 +455,7 @@ static int s5m8767_set_voltage_time_sel(struct regulator_dev *rdev,
 	return 0;
 }
 
-static struct regulator_ops s5m8767_ldo_ops = {
-	.list_voltage		= s5m8767_list_voltage,
-	.is_enabled		= s5m8767_reg_is_enabled,
-	.enable			= s5m8767_reg_enable,
-	.disable		= s5m8767_reg_disable,
-	.get_voltage_sel	= s5m8767_get_voltage_sel,
-	.set_voltage		= s5m8767_set_voltage,
-	.set_voltage_time_sel	= s5m8767_set_voltage_time_sel,
-};
-
-static struct regulator_ops s5m8767_buck_ops = {
+static struct regulator_ops s5m8767_ops = {
 	.list_voltage		= s5m8767_list_voltage,
 	.is_enabled		= s5m8767_reg_is_enabled,
 	.enable			= s5m8767_reg_enable,
@@ -478,14 +468,14 @@ static struct regulator_ops s5m8767_buck_ops = {
 #define regulator_desc_ldo(num)		{	\
 	.name		= "LDO"#num,		\
 	.id		= S5M8767_LDO##num,	\
-	.ops		= &s5m8767_ldo_ops,	\
+	.ops		= &s5m8767_ops,	\
 	.type		= REGULATOR_VOLTAGE,	\
 	.owner		= THIS_MODULE,		\
 }
 #define regulator_desc_buck(num)	{	\
 	.name		= "BUCK"#num,		\
 	.id		= S5M8767_BUCK##num,	\
-	.ops		= &s5m8767_buck_ops,	\
+	.ops		= &s5m8767_ops,	\
 	.type		= REGULATOR_VOLTAGE,	\
 	.owner		= THIS_MODULE,		\
 }
