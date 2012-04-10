@@ -36,6 +36,7 @@
 #include "../sysfs.h"
 #include "../events.h"
 #include "../buffer.h"
+#include "../driver.h"
 
 #include "max1363.h"
 
@@ -1290,6 +1291,9 @@ static int __devinit max1363_probe(struct i2c_client *client,
 		ret = -ENOMEM;
 		goto error_disable_reg;
 	}
+	ret = iio_map_array_register(indio_dev, client->dev.platform_data);
+	if (ret < 0)
+		goto error_free_device;
 	st = iio_priv(indio_dev);
 	st->reg = reg;
 	/* this is only used for device removal purposes */
@@ -1300,7 +1304,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 
 	ret = max1363_alloc_scan_masks(indio_dev);
 	if (ret)
-		goto error_free_device;
+		goto error_unregister_map;
 
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
@@ -1350,6 +1354,8 @@ error_cleanup_ring:
 	max1363_ring_cleanup(indio_dev);
 error_free_available_scan_masks:
 	kfree(indio_dev->available_scan_masks);
+error_unregister_map:
+	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 error_free_device:
 	iio_free_device(indio_dev);
 error_disable_reg:
@@ -1376,6 +1382,7 @@ static int max1363_remove(struct i2c_client *client)
 		regulator_disable(reg);
 		regulator_put(reg);
 	}
+	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 	iio_free_device(indio_dev);
 
 	return 0;
