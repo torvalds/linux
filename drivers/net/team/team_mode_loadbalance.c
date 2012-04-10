@@ -130,13 +130,13 @@ static const struct team_option lb_options[] = {
 	},
 };
 
-int lb_init(struct team *team)
+static int lb_init(struct team *team)
 {
 	return team_options_register(team, lb_options,
 				     ARRAY_SIZE(lb_options));
 }
 
-void lb_exit(struct team *team)
+static void lb_exit(struct team *team)
 {
 	team_options_unregister(team, lb_options,
 				ARRAY_SIZE(lb_options));

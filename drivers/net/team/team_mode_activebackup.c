@@ -90,12 +90,12 @@ static const struct team_option ab_options[] = {
 	},
 };
 
-int ab_init(struct team *team)
+static int ab_init(struct team *team)
 {
 	return team_options_register(team, ab_options, ARRAY_SIZE(ab_options));
 }
 
-void ab_exit(struct team *team)
+static void ab_exit(struct team *team)
 {
 	team_options_unregister(team, ab_options, ARRAY_SIZE(ab_options));
 }

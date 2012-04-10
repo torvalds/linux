@@ -65,7 +65,7 @@ static int __set_port_mac(struct net_device *port_dev,
 	return dev_set_mac_address(port_dev, &addr);
 }
 
-int team_port_set_orig_mac(struct team_port *port)
+static int team_port_set_orig_mac(struct team_port *port)
 {
 	return __set_port_mac(port->dev, port->orig.dev_addr);
 }
