@@ -1,6 +1,8 @@
 #ifndef RK30_LCDC_H_
 #define RK30_LCDC_H_
 
+#include<linux/rk_fb.h>
+
 #define LcdReadBit(inf, addr, msk)      ((inf->regbak.addr=inf->preg->addr)&(msk))
 #define LcdWrReg(inf, addr, val)        inf->preg->addr=inf->regbak.addr=(val)
 #define LcdRdReg(inf, addr)             (inf->preg->addr)
@@ -476,9 +478,9 @@ struct rk30_lcdc_device{
 	LCDC_REG *preg;         // LCDC reg base address and backup reg 
     	LCDC_REG regbak;
 
-	void __iomem *reg_vir_base;  // virtual basic address of lcdc register
-	u32 reg_phy_base;       // physical basic address of lcdc register
-	u32 len;               // physical map length of lcdc register
+	void __iomem *reg_vir_base;  	// virtual basic address of lcdc register
+	u32 reg_phy_base;       	// physical basic address of lcdc register
+	u32 len;               		// physical map length of lcdc register
 
 	unsigned int		irq;
 	

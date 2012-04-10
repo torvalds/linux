@@ -107,22 +107,24 @@ struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name)
 static int rk_fb_open(struct fb_info *info,int user)
 {
     struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+    int layer_id;
     CHK_SUSPEND(dev_drv);
+    layer_id = get_fb_layer_id(&info->fix);
+    dev_drv->open(dev_drv,layer_id,1);
     
-
     return 0;
     
 }
 
-static int rk_fb_release(struct fb_info *info,int user)
+static int rk_fb_close(struct fb_info *info,int user)
 {
-    struct rk_fb_inf *inf = dev_get_drvdata(info->device);
-    struct fb_fix_screeninfo *fix = &info->fix;
-    if(!strcmp(fix->id,"fb1")){
-        inf->video_mode = 0;
-    }
-
-    return 0;
+	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+    	int layer_id;
+    	CHK_SUSPEND(dev_drv);
+    	layer_id = get_fb_layer_id(&info->fix);
+    	dev_drv->open(dev_drv,layer_id,0);
+	
+    	return 0;
 }
 
 static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
@@ -469,7 +471,7 @@ static int fb_setcolreg(unsigned regno,
 static struct fb_ops fb_ops = {
     .owner          = THIS_MODULE,
     .fb_open        = rk_fb_open,
-    .fb_release     = rk_fb_release,
+    .fb_release     = rk_fb_close,
     .fb_check_var   = rk_fb_check_var,
     .fb_set_par     = rk_fb_set_par,
     .fb_blank       = rk_fb_blank,
@@ -673,7 +675,6 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
         /* Start display and show logo on boot */
         fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
         fb_show_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
-        fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_blank(FB_BLANK_UNBLANK, fb_inf->fb[fb_inf->num_fb-2]);
 	fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
     }
 #endif
@@ -723,6 +724,7 @@ int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	sprintf(dev_drv->name, "lcdc%d",id);
 	dev_drv->layer_par = def_drv->layer_par;
 	dev_drv->num_layer = def_drv->num_layer;
+	dev_drv->open      = def_drv->open;
 	dev_drv->ioctl = def_drv->ioctl;
 	dev_drv->blank = def_drv->blank;
 	dev_drv->set_par = def_drv->set_par;

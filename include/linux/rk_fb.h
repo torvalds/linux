@@ -16,7 +16,9 @@
 #ifndef __ARCH_ARM_MACH_RK30_FB_H
 #define __ARCH_ARM_MACH_RK30_FB_H
 
+#include <linux/fb.h>
 #include<linux/completion.h>
+#include<linux/spinlock.h>
 #include<asm/atomic.h>
 #include <mach/board.h>
 #include<linux/rk_screen.h>
@@ -160,6 +162,7 @@ typedef enum _TRSP_MODE
 struct layer_par {
     const char *name;
     int id;
+    bool state; 	//on or off
     u32	pseudo_pal[16];
     u32 y_offset;       //yuv/rgb offset  -->LCDC_WINx_YRGB_MSTx
     u32 c_offset;     //cb cr offset--->LCDC_WINx_CBR_MSTx
@@ -195,7 +198,8 @@ struct rk_lcdc_device_driver{
 	int first_frame ;
 
 	atomic_t in_suspend;		        //when enter suspend write or read lcdc register are forbidden
-	
+
+	int (*open)(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open);
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
 	int (*suspend)(struct rk_lcdc_device_driver *dev_drv);
 	int (*resume)(struct rk_lcdc_device_driver *dev_drv);
