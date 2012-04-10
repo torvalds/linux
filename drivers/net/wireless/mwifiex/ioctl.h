@@ -303,6 +303,7 @@ struct mwifiex_ds_misc_subsc_evt {
 
 #define MWIFIEX_MAX_VSIE_LEN       (256)
 #define MWIFIEX_MAX_VSIE_NUM       (8)
+#define MWIFIEX_VSIE_MASK_CLEAR    0x00
 #define MWIFIEX_VSIE_MASK_SCAN     0x01
 #define MWIFIEX_VSIE_MASK_ASSOC    0x02
 #define MWIFIEX_VSIE_MASK_ADHOC    0x04

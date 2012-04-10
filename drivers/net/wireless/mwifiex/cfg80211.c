@@ -1162,6 +1162,17 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 	priv->user_scan_cfg->num_ssids = request->n_ssids;
 	priv->user_scan_cfg->ssid_list = request->ssids;
 
+	if (request->ie && request->ie_len) {
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask != MWIFIEX_VSIE_MASK_CLEAR)
+				continue;
+			priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_SCAN;
+			memcpy(&priv->vs_ie[i].ie, request->ie,
+			       request->ie_len);
+			break;
+		}
+	}
+
 	for (i = 0; i < request->n_channels; i++) {
 		chan = request->channels[i];
 		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
@@ -1179,6 +1190,15 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy, struct net_device *dev,
 	if (mwifiex_set_user_scan_ioctl(priv, priv->user_scan_cfg))
 		return -EFAULT;
 
+	if (request->ie && request->ie_len) {
+		for (i = 0; i < MWIFIEX_MAX_VSIE_NUM; i++) {
+			if (priv->vs_ie[i].mask == MWIFIEX_VSIE_MASK_SCAN) {
+				priv->vs_ie[i].mask = MWIFIEX_VSIE_MASK_CLEAR;
+				memset(&priv->vs_ie[i].ie, 0,
+				       MWIFIEX_MAX_VSIE_LEN);
+			}
+		}
+	}
 	return 0;
 }
 
@@ -1439,6 +1459,7 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	}
 	wdev->iftype = NL80211_IFTYPE_STATION;
 	wdev->wiphy->max_scan_ssids = 10;
+	wdev->wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
 	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 				       BIT(NL80211_IFTYPE_ADHOC);
 
