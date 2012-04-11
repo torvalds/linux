@@ -273,9 +273,7 @@ static void w5300_hw_start(struct w5300_priv *priv)
 			  S0_MR_MACRAW : S0_MR_MACRAW_MF);
 	mmiowb();
 	w5300_command(priv, S0_CR_OPEN);
-	w5300_write(priv, W5300_S0_IMR, IS_ENABLED(CONFIG_WIZNET_TX_FLOW) ?
-					S0_IR_RECV | S0_IR_SENDOK :
-					S0_IR_RECV);
+	w5300_write(priv, W5300_S0_IMR, S0_IR_RECV | S0_IR_SENDOK);
 	w5300_write(priv, W5300_IMR, IR_S0);
 	mmiowb();
 }
@@ -371,8 +369,7 @@ static int w5300_start_tx(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct w5300_priv *priv = netdev_priv(ndev);
 
-	if (IS_ENABLED(CONFIG_WIZNET_TX_FLOW))
-		netif_stop_queue(ndev);
+	netif_stop_queue(ndev);
 
 	w5300_write_frame(priv, skb->data, skb->len);
 	mmiowb();
@@ -439,7 +436,7 @@ static irqreturn_t w5300_interrupt(int irq, void *ndev_instance)
 	w5300_write(priv, W5300_S0_IR, ir);
 	mmiowb();
 
-	if (IS_ENABLED(CONFIG_WIZNET_TX_FLOW) && (ir & S0_IR_SENDOK)) {
+	if (ir & S0_IR_SENDOK) {
 		netif_dbg(priv, tx_done, ndev, "tx done\n");
 		netif_wake_queue(ndev);
 	}

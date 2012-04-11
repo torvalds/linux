@@ -441,8 +441,7 @@ static int w5100_start_tx(struct sk_buff *skb, struct net_device *ndev)
 	struct w5100_priv *priv = netdev_priv(ndev);
 	u16 offset;
 
-	if (IS_ENABLED(CONFIG_WIZNET_TX_FLOW))
-		netif_stop_queue(ndev);
+	netif_stop_queue(ndev);
 
 	offset = w5100_read16(priv, W5100_S0_TX_WR);
 	w5100_writebuf(priv, offset, skb->data, skb->len);
@@ -517,7 +516,7 @@ static irqreturn_t w5100_interrupt(int irq, void *ndev_instance)
 	w5100_write(priv, W5100_S0_IR, ir);
 	mmiowb();
 
-	if (IS_ENABLED(CONFIG_WIZNET_TX_FLOW) && (ir & S0_IR_SENDOK)) {
+	if (ir & S0_IR_SENDOK) {
 		netif_dbg(priv, tx_done, ndev, "tx done\n");
 		netif_wake_queue(ndev);
 	}
