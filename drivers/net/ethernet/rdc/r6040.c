@@ -77,6 +77,9 @@
 #define MR_BSR		0x18	/* RX buffer size */
 #define MR_DCR		0x1A	/* RX descriptor control */
 #define MLSR		0x1C	/* Last status */
+#define  TX_FIFO_UNDR	0x0200	/* TX FIFO under-run */
+#define	 TX_EXCEEDC	0x2000	/* Transmit exceed collision */
+#define  TX_LATEC	0x4000	/* Transmit late collision */
 #define MMDIO		0x20	/* MDIO control register */
 #define  MDIO_WRITE	0x4000	/* MDIO write */
 #define  MDIO_READ	0x2000	/* MDIO read */
@@ -604,9 +607,9 @@ static void r6040_tx(struct net_device *dev)
 		/* Check for errors */
 		err = ioread16(ioaddr + MLSR);
 
-		if (err & 0x0200)
+		if (err & TX_FIFO_UNDR)
 			dev->stats.tx_fifo_errors++;
-		if (err & (0x2000 | 0x4000))
+		if (err & (TX_EXCEEDC | TX_LATEC))
 			dev->stats.tx_carrier_errors++;
 
 		if (descptr->status & DSC_OWNER_MAC)
