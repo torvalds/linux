@@ -357,7 +357,7 @@ static struct ep93xx_eth_data ep93xx_eth_data;
 
 static struct resource ep93xx_eth_resource[] = {
 	DEFINE_RES_MEM(EP93XX_ETHERNET_PHYS_BASE, 0x10000),
-	DEFINE_REQ_IRQ(IRQ_EP93XX_ETHERNET),
+	DEFINE_RES_IRQ(IRQ_EP93XX_ETHERNET),
 };
 
 static u64 ep93xx_eth_dma_mask = DMA_BIT_MASK(32);
