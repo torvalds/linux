@@ -482,6 +482,12 @@ intel_ring_sync(struct intel_ring_buffer *waiter,
 		  MI_SEMAPHORE_COMPARE |
 		  MI_SEMAPHORE_REGISTER;
 
+	/* Throughout all of the GEM code, seqno passed implies our current
+	 * seqno is >= the last seqno executed. However for hardware the
+	 * comparison is strictly greater than.
+	 */
+	seqno -= 1;
+
 	ret = intel_ring_begin(waiter, 4);
 	if (ret)
 		return ret;
