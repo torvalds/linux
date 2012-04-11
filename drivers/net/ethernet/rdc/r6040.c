@@ -137,6 +137,8 @@
 #define MBCR_DEFAULT	0x012A	/* MAC Bus Control Register */
 #define MCAST_MAX	3	/* Max number multicast addresses to filter */
 
+#define MAC_DEF_TIMEOUT	2048	/* Default MAC read/write operation timeout */
+
 /* Descriptor status */
 #define DSC_OWNER_MAC	0x8000	/* MAC is the owner of this descriptor */
 #define DSC_RX_OK	0x4000	/* RX was successful */
@@ -204,7 +206,7 @@ static char version[] __devinitdata = DRV_NAME
 /* Read a word data from PHY Chip */
 static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 {
-	int limit = 2048;
+	int limit = MAC_DEF_TIMEOUT;
 	u16 cmd;
 
 	iowrite16(MDIO_READ + reg + (phy_addr << 8), ioaddr + MMDIO);
@@ -222,7 +224,7 @@ static int r6040_phy_read(void __iomem *ioaddr, int phy_addr, int reg)
 static void r6040_phy_write(void __iomem *ioaddr,
 					int phy_addr, int reg, u16 val)
 {
-	int limit = 2048;
+	int limit = MAC_DEF_TIMEOUT;
 	u16 cmd;
 
 	iowrite16(val, ioaddr + MMWD);
@@ -361,7 +363,7 @@ err_exit:
 static void r6040_reset_mac(struct r6040_private *lp)
 {
 	void __iomem *ioaddr = lp->base;
-	int limit = 2048;
+	int limit = MAC_DEF_TIMEOUT;
 	u16 cmd;
 
 	iowrite16(MAC_RST, ioaddr + MCR1);
