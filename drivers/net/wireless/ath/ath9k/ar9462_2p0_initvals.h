@@ -1448,16 +1448,4 @@ static const u32 ar9462_common_mixed_rx_gain_table_2p0[][2] = {
 	{0x0000b1fc, 0x00000196},
 };
 
-static const u32 ar9462_2p0_BTCOEX_MAX_TXPWR_table[][2] = {
-	/* Addr      allmodes  */
-	{0x000018c0, 0x10101010},
-	{0x000018c4, 0x10101010},
-	{0x000018c8, 0x10101010},
-	{0x000018cc, 0x10101010},
-	{0x000018d0, 0x10101010},
-	{0x000018d4, 0x10101010},
-	{0x000018d8, 0x10101010},
-	{0x000018dc, 0x10101010},
-};
-
 #endif /* INITVALS_9462_2P0_H */

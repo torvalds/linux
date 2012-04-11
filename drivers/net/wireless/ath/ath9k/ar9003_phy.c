@@ -683,9 +683,6 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
-	if (AR_SREV_9462(ah))
-		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
-
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
 
