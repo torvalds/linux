@@ -358,27 +358,35 @@ err_exit:
 	return rc;
 }
 
-static void r6040_init_mac_regs(struct net_device *dev)
+static void r6040_reset_mac(struct r6040_private *lp)
 {
-	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
 	int limit = 2048;
 	u16 cmd;
 
-	/* Mask Off Interrupt */
-	iowrite16(MSK_INT, ioaddr + MIER);
-
-	/* Reset RDC MAC */
 	iowrite16(MAC_RST, ioaddr + MCR1);
 	while (limit--) {
 		cmd = ioread16(ioaddr + MCR1);
 		if (cmd & MAC_RST)
 			break;
 	}
+
 	/* Reset internal state machine */
 	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
 	iowrite16(0, ioaddr + MAC_SM);
 	mdelay(5);
+}
+
+static void r6040_init_mac_regs(struct net_device *dev)
+{
+	struct r6040_private *lp = netdev_priv(dev);
+	void __iomem *ioaddr = lp->base;
+
+	/* Mask Off Interrupt */
+	iowrite16(MSK_INT, ioaddr + MIER);
+
+	/* Reset RDC MAC */
+	r6040_reset_mac(lp);
 
 	/* MAC Bus Control Register */
 	iowrite16(MBCR_DEFAULT, ioaddr + MBCR);
@@ -445,18 +453,13 @@ static void r6040_down(struct net_device *dev)
 {
 	struct r6040_private *lp = netdev_priv(dev);
 	void __iomem *ioaddr = lp->base;
-	int limit = 2048;
 	u16 *adrp;
-	u16 cmd;
 
 	/* Stop MAC */
 	iowrite16(MSK_INT, ioaddr + MIER);	/* Mask Off Interrupt */
-	iowrite16(MAC_RST, ioaddr + MCR1);	/* Reset RDC MAC */
-	while (limit--) {
-		cmd = ioread16(ioaddr + MCR1);
-		if (cmd & MAC_RST)
-			break;
-	}
+
+	/* Reset RDC MAC */
+	r6040_reset_mac(lp);
 
 	/* Restore MAC Address to MIDx */
 	adrp = (u16 *) dev->dev_addr;
@@ -736,11 +739,7 @@ static void r6040_mac_address(struct net_device *dev)
 	u16 *adrp;
 
 	/* Reset MAC */
-	iowrite16(MAC_RST, ioaddr + MCR1);
-	/* Reset internal state machine */
-	iowrite16(MAC_SM_RST, ioaddr + MAC_SM);
-	iowrite16(0, ioaddr + MAC_SM);
-	mdelay(5);
+	r6040_reset_mac(lp);
 
 	/* Restore MAC Address */
 	adrp = (u16 *) dev->dev_addr;
