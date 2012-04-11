@@ -55,6 +55,19 @@ struct clk_aux {
 	spinlock_t		*lock;
 };
 
+/* Fractional Synth clk */
+struct frac_rate_tbl {
+	u32 div;
+};
+
+struct clk_frac {
+	struct			clk_hw hw;
+	void __iomem		*reg;
+	struct frac_rate_tbl	*rtbl;
+	u8			rtbl_cnt;
+	spinlock_t		*lock;
+};
+
 /* VCO-PLL clk */
 struct pll_rate_tbl {
 	u8 mode;
@@ -87,6 +100,9 @@ struct clk *clk_register_aux(const char *aux_name, const char *gate_name,
 		const char *parent_name, unsigned long flags, void __iomem *reg,
 		struct aux_clk_masks *masks, struct aux_rate_tbl *rtbl,
 		u8 rtbl_cnt, spinlock_t *lock, struct clk **gate_clk);
+struct clk *clk_register_frac(const char *name, const char *parent_name,
+		unsigned long flags, void __iomem *reg,
+		struct frac_rate_tbl *rtbl, u8 rtbl_cnt, spinlock_t *lock);
 struct clk *clk_register_vco_pll(const char *vco_name, const char *pll_name,
 		const char *vco_gate_name, const char *parent_name,
 		unsigned long flags, void __iomem *mode_reg, void __iomem
