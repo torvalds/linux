@@ -246,8 +246,7 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 	
 	policy->cur = rk30_getspeed(0);
 
-	/* FIXME: what's the actual transition time? */
-	policy->cpuinfo.transition_latency = 300 * 1000;
+	policy->cpuinfo.transition_latency = 40 * NSEC_PER_USEC; // make ondemand default sampling_rate to 40000
 
 
 	/*
