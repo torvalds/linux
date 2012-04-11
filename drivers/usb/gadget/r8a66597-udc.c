@@ -1170,7 +1170,7 @@ __acquires(r8a66597->lock)
 
 	switch (ctrl->bRequestType & USB_RECIP_MASK) {
 	case USB_RECIP_DEVICE:
-		status = 1 << USB_DEVICE_SELF_POWERED;
+		status = r8a66597->device_status;
 		break;
 	case USB_RECIP_INTERFACE:
 		status = 0;
@@ -1800,11 +1800,24 @@ static int r8a66597_pullup(struct usb_gadget *gadget, int is_on)
 	return 0;
 }
 
+static int r8a66597_set_selfpowered(struct usb_gadget *gadget, int is_self)
+{
+	struct r8a66597 *r8a66597 = gadget_to_r8a66597(gadget);
+
+	if (is_self)
+		r8a66597->device_status |= 1 << USB_DEVICE_SELF_POWERED;
+	else
+		r8a66597->device_status &= ~(1 << USB_DEVICE_SELF_POWERED);
+
+	return 0;
+}
+
 static struct usb_gadget_ops r8a66597_gadget_ops = {
 	.get_frame		= r8a66597_get_frame,
 	.udc_start		= r8a66597_start,
 	.udc_stop		= r8a66597_stop,
 	.pullup			= r8a66597_pullup,
+	.set_selfpowered	= r8a66597_set_selfpowered,
 };
 
 static int __exit r8a66597_remove(struct platform_device *pdev)

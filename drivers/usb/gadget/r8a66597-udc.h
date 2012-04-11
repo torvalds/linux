@@ -111,6 +111,7 @@ struct r8a66597 {
 	u16			old_vbus;
 	u16			scount;
 	u16			old_dvsq;
+	u16			device_status;	/* for GET_STATUS */
 
 	/* pipe config */
 	unsigned char bulk;
