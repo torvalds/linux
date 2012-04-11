@@ -2972,7 +2972,11 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate,unsigned long 
 	
 	//i2s
 	rk30_clock_common_i2s_init();
-	
+
+	// spi
+	clk_set_rate_nolock(&clk_spi0, clk_spi0.parent->rate);
+	clk_set_rate_nolock(&clk_spi1, clk_spi1.parent->rate);
+
 	// uart
 	#if 0 
 	clk_set_parent_nolock(&clk_uart_pll, &codec_pll_clk);
