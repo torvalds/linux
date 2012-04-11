@@ -266,6 +266,7 @@ int start_dma_without_bch_irq(struct gpmi_nand_data *this,
 	desc->callback		= dma_irq_callback;
 	desc->callback_param	= this;
 	dmaengine_submit(desc);
+	dma_async_issue_pending(get_dma_chan(this));
 
 	/* Wait for the interrupt from the DMA block. */
 	err = wait_for_completion_timeout(dma_c, msecs_to_jiffies(1000));

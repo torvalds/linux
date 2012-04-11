@@ -201,10 +201,6 @@ static struct mxs_dma_chan *to_mxs_dma_chan(struct dma_chan *chan)
 
 static dma_cookie_t mxs_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 {
-	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(tx->chan);
-
-	mxs_dma_enable_chan(mxs_chan);
-
 	return dma_cookie_assign(tx);
 }
 
@@ -558,9 +554,9 @@ static enum dma_status mxs_dma_tx_status(struct dma_chan *chan,
 
 static void mxs_dma_issue_pending(struct dma_chan *chan)
 {
-	/*
-	 * Nothing to do. We only have a single descriptor.
-	 */
+	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
+
+	mxs_dma_enable_chan(mxs_chan);
 }
 
 static int __init mxs_dma_init(struct mxs_dma_engine *mxs_dma)
