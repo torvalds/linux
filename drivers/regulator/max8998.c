@@ -359,8 +359,7 @@ static int max8998_set_voltage_buck(struct regulator_dev *rdev,
 	const struct voltage_map_desc *desc;
 	int buck = rdev_get_id(rdev);
 	int reg, shift = 0, mask, ret;
-	int difference, i, j, previous_sel;
-	u8 val = 0;
+	int i, j, previous_sel;
 	static u8 buck1_last_val;
 
 	if (buck >= ARRAY_SIZE(ldo_voltage_map))
@@ -484,19 +483,40 @@ buck2_exit:
 		break;
 	}
 
+	return ret;
+}
+
+static int max8998_set_voltage_buck_time_sel(struct regulator_dev *rdev,
+					     unsigned int old_selector,
+					     unsigned int new_selector)
+{
+	struct max8998_data *max8998 = rdev_get_drvdata(rdev);
+	struct i2c_client *i2c = max8998->iodev->i2c;
+	const struct voltage_map_desc *desc;
+	int buck = rdev_get_id(rdev);
+	u8 val = 0;
+	int difference, ret;
+
+	if (buck < MAX8998_BUCK1 || buck > MAX8998_BUCK4)
+		return -EINVAL;
+
+	desc = ldo_voltage_map[buck];
+
 	/* Voltage stabilization */
-	max8998_read_reg(i2c, MAX8998_REG_ONOFF4, &val);
+	ret = max8998_read_reg(i2c, MAX8998_REG_ONOFF4, &val);
+	if (ret)
+		return ret;
 
 	/* lp3974 hasn't got ENRAMP bit - ramp is assumed as true */
 	/* MAX8998 has ENRAMP bit implemented, so test it*/
 	if (max8998->iodev->type == TYPE_MAX8998 && !(val & MAX8998_ENRAMP))
-		return ret;
+		return 0;
 
-	difference = (i - previous_sel) * desc->step;
+	difference = (new_selector - old_selector) * desc->step;
 	if (difference > 0)
-		udelay(difference / ((val & 0x0f) + 1));
+		return difference / ((val & 0x0f) + 1);
 
-	return ret;
+	return 0;
 }
 
 static struct regulator_ops max8998_ldo_ops = {
@@ -517,6 +537,7 @@ static struct regulator_ops max8998_buck_ops = {
 	.disable		= max8998_ldo_disable,
 	.get_voltage_sel	= max8998_get_voltage_sel,
 	.set_voltage		= max8998_set_voltage_buck,
+	.set_voltage_time_sel	= max8998_set_voltage_buck_time_sel,
 	.set_suspend_enable	= max8998_ldo_enable,
 	.set_suspend_disable	= max8998_ldo_disable,
 };
