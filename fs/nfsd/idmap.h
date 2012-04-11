@@ -42,14 +42,14 @@
 #define IDMAP_NAMESZ 128
 
 #ifdef CONFIG_NFSD_V4
-int nfsd_idmap_init(void);
-void nfsd_idmap_shutdown(void);
+int nfsd_idmap_init(struct net *);
+void nfsd_idmap_shutdown(struct net *);
 #else
-static inline int nfsd_idmap_init(void)
+static inline int nfsd_idmap_init(struct net *net)
 {
 	return 0;
 }
-static inline void nfsd_idmap_shutdown(void)
+static inline void nfsd_idmap_shutdown(struct net *net)
 {
 }
 #endif

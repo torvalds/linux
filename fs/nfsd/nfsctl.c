@@ -1186,7 +1186,7 @@ static int __init init_nfsd(void)
 	if (retval)
 		goto out_free_stat;
 	nfsd_lockd_init();	/* lockd->nfsd callbacks */
-	retval = nfsd_idmap_init();
+	retval = nfsd_idmap_init(&init_net);
 	if (retval)
 		goto out_free_lockd;
 	retval = create_proc_exports_entry();
@@ -1200,7 +1200,7 @@ out_free_all:
 	remove_proc_entry("fs/nfs/exports", NULL);
 	remove_proc_entry("fs/nfs", NULL);
 out_free_idmap:
-	nfsd_idmap_shutdown();
+	nfsd_idmap_shutdown(&init_net);
 out_free_lockd:
 	nfsd_lockd_shutdown();
 	nfsd_reply_cache_shutdown();
@@ -1223,7 +1223,7 @@ static void __exit exit_nfsd(void)
 	remove_proc_entry("fs/nfs", NULL);
 	nfsd_stat_shutdown();
 	nfsd_lockd_shutdown();
-	nfsd_idmap_shutdown();
+	nfsd_idmap_shutdown(&init_net);
 	nfsd4_free_slabs();
 	nfsd_fault_inject_cleanup();
 	unregister_filesystem(&nfsd_fs_type);
