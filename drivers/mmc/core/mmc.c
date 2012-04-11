@@ -539,13 +539,9 @@ static int mmc_compare_ext_csds(struct mmc_card *card, unsigned bus_width)
 	err = mmc_get_ext_csd(card, &bw_ext_csd);
 
 	if (err || bw_ext_csd == NULL) {
-		if (bus_width != MMC_BUS_WIDTH_1)
-			err = -EINVAL;
+		err = -EINVAL;
 		goto out;
 	}
-
-	if (bus_width == MMC_BUS_WIDTH_1)
-		goto out;
 
 	/* only compare read only fields */
 	err = !((card->ext_csd.raw_partition_support ==
