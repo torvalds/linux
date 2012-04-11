@@ -187,7 +187,7 @@ struct r6040_private {
 	dma_addr_t rx_ring_dma;
 	dma_addr_t tx_ring_dma;
 	u16	tx_free_desc;
-	u16	mcr0, mcr1;
+	u16	mcr0;
 	struct net_device *dev;
 	struct mii_bus *mii_bus;
 	struct napi_struct napi;
