@@ -1409,18 +1409,8 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	ring->mmio_base = RENDER_RING_BASE;
 
 	if (INTEL_INFO(dev)->gen >= 6) {
-		ring->add_request = gen6_add_request;
-		ring->flush = gen6_render_ring_flush;
-		ring->irq_get = gen6_ring_get_irq;
-		ring->irq_put = gen6_ring_put_irq;
-		ring->irq_enable_mask = GT_USER_INTERRUPT;
-		ring->get_seqno = gen6_ring_get_seqno;
-		ring->sync_to = render_ring_sync_to;
-		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_INVALID;
-		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_RV;
-		ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_RB;
-		ring->signal_mbox[0] = GEN6_VRSYNC;
-		ring->signal_mbox[1] = GEN6_BRSYNC;
+		/* non-kms not supported on gen6+ */
+		return -ENODEV;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
 		ring->flush = render_ring_flush;
