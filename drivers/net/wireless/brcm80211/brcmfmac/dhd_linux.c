@@ -843,27 +843,26 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
 };
 
-static int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
+static int brcmf_net_attach(struct brcmf_if *ifp)
 {
+	struct brcmf_pub *drvr = ifp->drvr;
 	struct net_device *ndev;
-	u8 temp_addr[ETH_ALEN] = {
-		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
+	u8 temp_addr[ETH_ALEN];
 
-	brcmf_dbg(TRACE, "ifidx %d\n", ifidx);
+	brcmf_dbg(TRACE, "ifidx %d\n", ifp->idx);
 
-	ndev = drvr->iflist[ifidx]->ndev;
+	ndev = drvr->iflist[ifp->idx]->ndev;
 	ndev->netdev_ops = &brcmf_netdev_ops_pri;
 
 	/*
-	 * We have to use the primary MAC for virtual interfaces
+	 * determine mac address to use
 	 */
-	if (ifidx != 0) {
-		/* for virtual interfaces use the primary MAC  */
+	if (is_valid_ether_addr(ifp->mac_addr))
+		memcpy(temp_addr, ifp->mac_addr, ETH_ALEN);
+	else
 		memcpy(temp_addr, drvr->mac, ETH_ALEN);
 
-	}
-
-	if (ifidx == 1) {
+	if (ifp->idx == 1) {
 		brcmf_dbg(TRACE, "ACCESS POINT MAC:\n");
 		/*  ACCESSPOINT INTERFACE CASE */
 		temp_addr[0] |= 0X02;	/* set bit 2 ,
@@ -879,7 +878,7 @@ static int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
 	memcpy(ndev->dev_addr, temp_addr, ETH_ALEN);
 
 	/* attach to cfg80211 for primary interface */
-	if (!ifidx) {
+	if (!ifp->idx) {
 		drvr->config = brcmf_cfg80211_attach(ndev, drvr->dev, drvr);
 		if (drvr->config == NULL) {
 			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
@@ -940,7 +939,7 @@ brcmf_add_if(struct device *dev, int ifidx, char *name, u8 *mac_addr)
 	if (mac_addr != NULL)
 		memcpy(&ifp->mac_addr, mac_addr, ETH_ALEN);
 
-	if (brcmf_net_attach(drvr, ifp->idx)) {
+	if (brcmf_net_attach(ifp)) {
 		brcmf_dbg(ERROR, "brcmf_net_attach failed");
 		free_netdev(ifp->ndev);
 		drvr->iflist[ifidx] = NULL;
