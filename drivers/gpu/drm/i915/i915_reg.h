@@ -127,6 +127,9 @@
 #define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
 #define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
 
+#define GAB_CTL				0x24000
+#define   GAB_CTL_CONT_AFTER_PAGEFAULT	(1<<8)
+
 /* VGA stuff */
 
 #define VGA_ST01_MDA 0x3ba

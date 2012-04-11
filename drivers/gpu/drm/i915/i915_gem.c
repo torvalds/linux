@@ -3669,7 +3669,12 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	pd_offset <<= 16;
 
 	if (INTEL_INFO(dev)->gen == 6) {
-		uint32_t ecochk = I915_READ(GAM_ECOCHK);
+		uint32_t ecochk, gab_ctl;
+
+		gab_ctl = I915_READ(GAB_CTL);
+		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
+
+		ecochk = I915_READ(GAM_ECOCHK);
 		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
 				       ECOCHK_PPGTT_CACHE64B);
 		I915_WRITE(GFX_MODE, GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
