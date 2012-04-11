@@ -23,10 +23,15 @@ static inline void arch_kgdb_breakpoint(void)
 	__asm__ __volatile__ ("trapa #0x3c\n");
 }
 
-#define BUFMAX                 2048
-
-#define CACHE_FLUSH_IS_SAFE	1
 #define BREAK_INSTR_SIZE	2
+#define BUFMAX			2048
+
+#ifdef CONFIG_SMP
+# define CACHE_FLUSH_IS_SAFE	0
+#else
+# define CACHE_FLUSH_IS_SAFE	1
+#endif
+
 #define GDB_ADJUSTS_BREAK_OFFSET
 
 #endif /* __ASM_SH_KGDB_H */
