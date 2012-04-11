@@ -74,19 +74,24 @@
 				reg = <0x80000 0x20000>;
 			};
 
+			oftree@80000 {
+				label = "oftree";
+				reg = <0xa0000 0x20000>;
+			};
+
 			kernel@a0000 {
 				label = "kernel";
-				reg = <0xa0000 0x400000>;
+				reg = <0xc0000 0x400000>;
 			};
 
 			rootfs@4a0000 {
 				label = "rootfs";
-				reg = <0x4a0000 0x7800000>;
+				reg = <0x4c0000 0x7800000>;
 			};
 
 			data@7ca0000 {
 				label = "data";
-				reg = <0x7ca0000 0x8360000>;
+				reg = <0x7cc0000 0x8340000>;
 			};
 		};
 
