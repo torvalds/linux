@@ -29,20 +29,6 @@
 #define IEEE80211_CHANNEL_TIME (HZ / 33)
 #define IEEE80211_PASSIVE_CHANNEL_TIME (HZ / 8)
 
-struct ieee80211_bss *
-ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
-		     u8 *ssid, u8 ssid_len)
-{
-	struct cfg80211_bss *cbss;
-
-	cbss = cfg80211_get_bss(local->hw.wiphy,
-				ieee80211_get_channel(local->hw.wiphy, freq),
-				bssid, ssid, ssid_len, 0, 0);
-	if (!cbss)
-		return NULL;
-	return (void *)cbss->priv;
-}
-
 static void ieee80211_rx_bss_free(struct cfg80211_bss *cbss)
 {
 	struct ieee80211_bss *bss = (void *)cbss->priv;
