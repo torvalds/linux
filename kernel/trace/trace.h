@@ -103,6 +103,11 @@ struct kretprobe_trace_entry_head {
 	unsigned long		ret_ip;
 };
 
+struct uprobe_trace_entry_head {
+	struct trace_entry	ent;
+	unsigned long		ip;
+};
+
 /*
  * trace_flag_type is an enumeration that holds different
  * states when a trace occurs. These are:

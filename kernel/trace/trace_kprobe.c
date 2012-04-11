@@ -525,7 +525,7 @@ static int create_trace_probe(int argc, char **argv)
 
 		/* Parse fetch argument */
 		ret = traceprobe_parse_probe_arg(arg, &tp->size, &tp->args[i],
-								is_return);
+						is_return, true);
 		if (ret) {
 			pr_info("Parse error at argument[%d]. (%d)\n", i, ret);
 			goto error;
