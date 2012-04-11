@@ -21,12 +21,11 @@
  */
 #include <linux/hsi/hsi.h>
 #include <linux/compiler.h>
-#include <linux/rwsem.h>
 #include <linux/list.h>
-#include <linux/spinlock.h>
 #include <linux/kobject.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/notifier.h>
 #include "hsi_core.h"
 
 static ssize_t modalias_show(struct device *dev,
@@ -67,7 +66,6 @@ static void hsi_client_release(struct device *dev)
 static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 {
 	struct hsi_client *cl;
-	unsigned long flags;
 
 	cl = kzalloc(sizeof(*cl), GFP_KERNEL);
 	if (!cl)
@@ -79,9 +77,6 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 	cl->device.release = hsi_client_release;
 	dev_set_name(&cl->device, info->name);
 	cl->device.platform_data = info->platform_data;
-	spin_lock_irqsave(&port->clock, flags);
-	list_add_tail(&cl->link, &port->clients);
-	spin_unlock_irqrestore(&port->clock, flags);
 	if (info->archdata)
 		cl->device.archdata = *info->archdata;
 	if (device_register(&cl->device) < 0) {
@@ -106,13 +101,6 @@ static void hsi_scan_board_info(struct hsi_controller *hsi)
 
 static int hsi_remove_client(struct device *dev, void *data __maybe_unused)
 {
-	struct hsi_client *cl = to_hsi_client(dev);
-	struct hsi_port *port = to_hsi_port(dev->parent);
-	unsigned long flags;
-
-	spin_lock_irqsave(&port->clock, flags);
-	list_del(&cl->link);
-	spin_unlock_irqrestore(&port->clock, flags);
 	device_unregister(dev);
 
 	return 0;
@@ -271,8 +259,7 @@ struct hsi_controller *hsi_alloc_controller(unsigned int n_ports, gfp_t flags)
 		port[i]->stop_tx = hsi_dummy_cl;
 		port[i]->release = hsi_dummy_cl;
 		mutex_init(&port[i]->lock);
-		INIT_LIST_HEAD(&hsi->port[i]->clients);
-		spin_lock_init(&hsi->port[i]->clock);
+		ATOMIC_INIT_NOTIFIER_HEAD(&port[i]->n_head);
 		dev_set_name(&port[i]->device, "port%d", i);
 		hsi->port[i]->device.release = hsi_port_release;
 		device_initialize(&hsi->port[i]->device);
@@ -420,37 +407,67 @@ void hsi_release_port(struct hsi_client *cl)
 }
 EXPORT_SYMBOL_GPL(hsi_release_port);
 
-static int hsi_start_rx(struct hsi_client *cl, void *data __maybe_unused)
+static int hsi_event_notifier_call(struct notifier_block *nb,
+				unsigned long event, void *data __maybe_unused)
 {
-	if (cl->hsi_start_rx)
-		(*cl->hsi_start_rx)(cl);
+	struct hsi_client *cl = container_of(nb, struct hsi_client, nb);
+
+	(*cl->ehandler)(cl, event);
 
 	return 0;
 }
 
-static int hsi_stop_rx(struct hsi_client *cl, void *data __maybe_unused)
+/**
+ * hsi_register_port_event - Register a client to receive port events
+ * @cl: HSI client that wants to receive port events
+ * @cb: Event handler callback
+ *
+ * Clients should register a callback to be able to receive
+ * events from the ports. Registration should happen after
+ * claiming the port.
+ * The handler can be called in interrupt context.
+ *
+ * Returns -errno on error, or 0 on success.
+ */
+int hsi_register_port_event(struct hsi_client *cl,
+			void (*handler)(struct hsi_client *, unsigned long))
 {
-	if (cl->hsi_stop_rx)
-		(*cl->hsi_stop_rx)(cl);
+	struct hsi_port *port = hsi_get_port(cl);
 
-	return 0;
+	if (!handler || cl->ehandler)
+		return -EINVAL;
+	if (!hsi_port_claimed(cl))
+		return -EACCES;
+	cl->ehandler = handler;
+	cl->nb.notifier_call = hsi_event_notifier_call;
+
+	return atomic_notifier_chain_register(&port->n_head, &cl->nb);
 }
+EXPORT_SYMBOL_GPL(hsi_register_port_event);
 
-static int hsi_port_for_each_client(struct hsi_port *port, void *data,
-				int (*fn)(struct hsi_client *cl, void *data))
+/**
+ * hsi_unregister_port_event - Stop receiving port events for a client
+ * @cl: HSI client that wants to stop receiving port events
+ *
+ * Clients should call this function before releasing their associated
+ * port.
+ *
+ * Returns -errno on error, or 0 on success.
+ */
+int hsi_unregister_port_event(struct hsi_client *cl)
 {
-	struct hsi_client *cl;
+	struct hsi_port *port = hsi_get_port(cl);
+	int err;
 
-	spin_lock(&port->clock);
-	list_for_each_entry(cl, &port->clients, link) {
-		spin_unlock(&port->clock);
-		(*fn)(cl, data);
-		spin_lock(&port->clock);
-	}
-	spin_unlock(&port->clock);
+	WARN_ON(!hsi_port_claimed(cl));
 
-	return 0;
+	err = atomic_notifier_chain_unregister(&port->n_head, &cl->nb);
+	if (!err)
+		cl->ehandler = NULL;
+
+	return err;
 }
+EXPORT_SYMBOL_GPL(hsi_unregister_port_event);
 
 /**
  * hsi_event -Notifies clients about port events
@@ -464,22 +481,12 @@ static int hsi_port_for_each_client(struct hsi_port *port, void *data,
  * Events:
  * HSI_EVENT_START_RX - Incoming wake line high
  * HSI_EVENT_STOP_RX - Incoming wake line down
+ *
+ * Returns -errno on error, or 0 on success.
  */
-void hsi_event(struct hsi_port *port, unsigned int event)
+int hsi_event(struct hsi_port *port, unsigned long event)
 {
-	int (*fn)(struct hsi_client *cl, void *data);
-
-	switch (event) {
-	case HSI_EVENT_START_RX:
-		fn = hsi_start_rx;
-		break;
-	case HSI_EVENT_STOP_RX:
-		fn = hsi_stop_rx;
-		break;
-	default:
-		return;
-	}
-	hsi_port_for_each_client(port, NULL, fn);
+	return atomic_notifier_call_chain(&port->n_head, event, NULL);
 }
 EXPORT_SYMBOL_GPL(hsi_event);
 
