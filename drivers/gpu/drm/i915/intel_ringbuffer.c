@@ -1350,26 +1350,6 @@ static int blt_ring_flush(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static const struct intel_ring_buffer gen6_blt_ring = {
-	.name			= "blt ring",
-	.id			= BCS,
-	.mmio_base		= BLT_RING_BASE,
-	.init			= init_ring_common,
-	.write_tail		= ring_write_tail,
-	.flush			= blt_ring_flush,
-	.add_request		= gen6_add_request,
-	.get_seqno		= gen6_ring_get_seqno,
-	.irq_get		= gen6_ring_get_irq,
-	.irq_put		= gen6_ring_put_irq,
-	.irq_enable_mask	= GEN6_BLITTER_USER_INTERRUPT,
-	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
-	.sync_to		= gen6_blt_ring_sync_to,
-	.semaphore_register	= {MI_SEMAPHORE_SYNC_BR,
-				   MI_SEMAPHORE_SYNC_BV,
-				   MI_SEMAPHORE_SYNC_INVALID},
-	.signal_mbox		= {GEN6_RBSYNC, GEN6_VBSYNC},
-};
-
 int intel_init_render_ring_buffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -1534,7 +1514,25 @@ int intel_init_blt_ring_buffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[BCS];
 
-	*ring = gen6_blt_ring;
+	ring->name = "blitter ring";
+	ring->id = BCS;
+
+	ring->mmio_base = BLT_RING_BASE;
+	ring->write_tail = ring_write_tail;
+	ring->flush = blt_ring_flush;
+	ring->add_request = gen6_add_request;
+	ring->get_seqno = gen6_ring_get_seqno;
+	ring->irq_enable_mask = GEN6_BLITTER_USER_INTERRUPT;
+	ring->irq_get = gen6_ring_get_irq;
+	ring->irq_put = gen6_ring_put_irq;
+	ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+	ring->sync_to = gen6_blt_ring_sync_to;
+	ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_BR;
+	ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_BV;
+	ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_INVALID;
+	ring->signal_mbox[0] = GEN6_RBSYNC;
+	ring->signal_mbox[1] = GEN6_VBSYNC;
+	ring->init = init_ring_common;
 
 	return intel_init_ring_buffer(dev, ring);
 }
