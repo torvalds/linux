@@ -21,7 +21,7 @@
 #include <asm/hardware/vic.h>
 #include <plat/pl080.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
+#include <mach/spear.h>
 
 /* pad multiplexing support */
 /* devices */
@@ -534,7 +534,7 @@ static void __init spear3xx_timer_init(void)
 	clk_put(gpt_clk);
 	clk_put(pclk);
 
-	spear_setup_timer();
+	spear_setup_timer(SPEAR3XX_CPU_TMR_BASE, SPEAR3XX_IRQ_CPU_GPT1_1);
 }
 
 struct sys_timer spear3xx_timer = {
