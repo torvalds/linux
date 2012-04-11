@@ -490,6 +490,22 @@ enum {
 
 /* end PLL configuration algorithm for wl128x */
 
+/*
+ * Host Command Interrupt. Setting this bit masks
+ * the interrupt that the host issues to inform
+ * the FW that it has sent a command
+ * to the Wlan hardware Command Mailbox.
+ */
+#define WL12XX_INTR_TRIG_CMD		BIT(0)
+
+/*
+ * Host Event Acknowlegde Interrupt. The host
+ * sets this bit to acknowledge that it received
+ * the unsolicited information from the event
+ * mailbox.
+ */
+#define WL12XX_INTR_TRIG_EVENT_ACK	BIT(1)
+
 /*===============================================
   HI_CFG Interface Configuration Register Values
   ------------------------------------------

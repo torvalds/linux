@@ -66,7 +66,11 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 	wl1271_write(wl, wl->cmd_box_addr, buf, len, false);
 
-	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
+	/*
+	 * TODO: we just need this because one bit is in a different
+	 * place.  Is there any better way?
+	 */
+	wl->ops->trigger_cmd(wl);
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 

@@ -571,6 +571,16 @@ out:
 	return ret;
 }
 
+static void wl12xx_trigger_cmd(struct wl1271 *wl)
+{
+	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL12XX_INTR_TRIG_CMD);
+}
+
+static void wl12xx_ack_event(struct wl1271 *wl)
+{
+	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL12XX_INTR_TRIG_EVENT_ACK);
+}
+
 static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
 {
 	bool supported = false;
@@ -637,6 +647,8 @@ static void wl12xx_get_mac(struct wl1271 *wl)
 static struct wlcore_ops wl12xx_ops = {
 	.identify_chip	= wl12xx_identify_chip,
 	.boot		= wl12xx_boot,
+	.trigger_cmd	= wl12xx_trigger_cmd,
+	.ack_event	= wl12xx_ack_event,
 	.get_pg_ver	= wl12xx_get_pg_ver,
 	.get_mac	= wl12xx_get_mac,
 };

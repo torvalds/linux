@@ -305,8 +305,11 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 	if (ret < 0)
 		return ret;
 
-	/* then we let the firmware know it can go on...*/
-	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
+	/*
+	 * TODO: we just need this because one bit is in a different
+	 * place.  Is there any better way?
+	 */
+	wl->ops->ack_event(wl);
 
 	return 0;
 }

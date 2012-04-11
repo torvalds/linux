@@ -30,6 +30,8 @@
 struct wlcore_ops {
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
+	void (*trigger_cmd)(struct wl1271 *wl);
+	void (*ack_event)(struct wl1271 *wl);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
 };
@@ -343,22 +345,6 @@ int wlcore_free_hw(struct wl1271 *wl);
 **************************************************************************/
 
 /* Hardware to Embedded CPU Interrupts - first 32-bit register set */
-
-/*
- * Host Command Interrupt. Setting this bit masks
- * the interrupt that the host issues to inform
- * the FW that it has sent a command
- * to the Wlan hardware Command Mailbox.
- */
-#define INTR_TRIG_CMD       BIT(0)
-
-/*
- * Host Event Acknowlegde Interrupt. The host
- * sets this bit to acknowledge that it received
- * the unsolicited information from the event
- * mailbox.
- */
-#define INTR_TRIG_EVENT_ACK BIT(1)
 
 /*
  * The host sets this bit to inform the Wlan
