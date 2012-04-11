@@ -50,9 +50,6 @@
 #include "testmode.h"
 #include "scan.h"
 
-/* TODO: remove this once the FUSE definitions are separated */
-#include "../wl12xx/reg.h"
-
 #define WL1271_BOOT_RETRIES 3
 
 static struct conf_drv_settings default_conf = {
@@ -4993,34 +4990,6 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
-static bool wl12xx_mac_in_fuse(struct wl1271 *wl)
-{
-	bool supported = false;
-	u8 major, minor;
-
-	if (wl->chip.id == CHIP_ID_1283_PG20) {
-		major = WL128X_PG_GET_MAJOR(wl->hw_pg_ver);
-		minor = WL128X_PG_GET_MINOR(wl->hw_pg_ver);
-
-		/* in wl128x we have the MAC address if the PG is >= (2, 1) */
-		if (major > 2 || (major == 2 && minor >= 1))
-			supported = true;
-	} else {
-		major = WL127X_PG_GET_MAJOR(wl->hw_pg_ver);
-		minor = WL127X_PG_GET_MINOR(wl->hw_pg_ver);
-
-		/* in wl127x we have the MAC address if the PG is >= (3, 1) */
-		if (major == 3 && minor >= 1)
-			supported = true;
-	}
-
-	wl1271_debug(DEBUG_PROBE,
-		     "PG Ver major = %d minor = %d, MAC %s present",
-		     major, minor, supported ? "is" : "is not");
-
-	return supported;
-}
-
 static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
 					u32 oui, u32 nic, int n)
 {
@@ -5046,23 +5015,6 @@ static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
 	wl->hw->wiphy->addresses = wl->addresses;
 }
 
-static void wl12xx_get_fuse_mac(struct wl1271 *wl)
-{
-	u32 mac1, mac2;
-
-	wlcore_set_partition(wl, &wl->ptable[PART_DRPW]);
-
-	mac1 = wl1271_read32(wl, WL12XX_REG_FUSE_BD_ADDR_1);
-	mac2 = wl1271_read32(wl, WL12XX_REG_FUSE_BD_ADDR_2);
-
-	/* these are the two parts of the BD_ADDR */
-	wl->fuse_oui_addr = ((mac2 & 0xffff) << 8) +
-		((mac1 & 0xff000000) >> 24);
-	wl->fuse_nic_addr = mac1 & 0xffffff;
-
-	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
-}
-
 static int wl12xx_get_hw_info(struct wl1271 *wl)
 {
 	int ret;
@@ -5078,8 +5030,8 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 
 	wl->hw_pg_ver = wl->ops->get_pg_ver(wl);
 
-	if (wl12xx_mac_in_fuse(wl))
-		wl12xx_get_fuse_mac(wl);
+	if (wl->ops->get_mac)
+		wl->ops->get_mac(wl);
 
 	wl1271_power_off(wl);
 out:
