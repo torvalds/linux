@@ -2001,10 +2001,12 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		seqno = request->seqno;
 	}
 
-	from->sync_seqno[idx] = seqno;
 
-	return to->sync_to(to, from, seqno - 1);
+	ret = to->sync_to(to, from, seqno - 1);
+	if (!ret)
+		from->sync_seqno[idx] = seqno;
 
+	return ret;
 }
 
 static void i915_gem_object_finish_gtt(struct drm_i915_gem_object *obj)
