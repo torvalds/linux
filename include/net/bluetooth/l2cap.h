@@ -407,6 +407,16 @@ struct l2cap_conn_param_update_rsp {
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
 
 /* ----- L2CAP channels and connections ----- */
+struct l2cap_seq_list {
+	__u16	head;
+	__u16	tail;
+	__u16	mask;
+	__u16	*list;
+};
+
+#define L2CAP_SEQ_LIST_CLEAR	0xFFFF
+#define L2CAP_SEQ_LIST_TAIL	0x8000
+
 struct srej_list {
 	__u16	tx_seq;
 	struct list_head list;
@@ -501,6 +511,8 @@ struct l2cap_chan {
 	struct sk_buff		*tx_send_head;
 	struct sk_buff_head	tx_q;
 	struct sk_buff_head	srej_q;
+	struct l2cap_seq_list	srej_list;
+	struct l2cap_seq_list	retrans_list;
 	struct list_head	srej_l;
 
 	struct list_head	list;
