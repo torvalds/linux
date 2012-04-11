@@ -1073,6 +1073,11 @@ int brcmf_bus_start(struct device *dev)
 	if (ret < 0)
 		return ret;
 
+	/* add primary networking interface */
+	ret = brcmf_add_if(dev, 0, "wlan%d", drvr->mac);
+	if (ret < 0)
+		return ret;
+
 	/* signal bus ready */
 	bus_if->state = BRCMF_BUS_DATA;
 	return 0;

@@ -1383,14 +1383,6 @@ static int brcmf_usb_probe_cb(struct device *dev, const char *desc,
 		goto fail;
 	}
 
-	/* add interface and open for business */
-	ret = brcmf_add_if(dev, 0, "wlan%d", NULL);
-	if (ret) {
-		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
-		brcmf_detach(dev);
-		goto fail;
-	}
-
 	return 0;
 fail:
 	/* Release resources in reverse order */

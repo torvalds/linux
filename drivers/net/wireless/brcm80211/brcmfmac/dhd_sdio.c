@@ -3948,12 +3948,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 		}
 	}
 
-	/* add interface and open for business */
-	if (brcmf_add_if(bus->sdiodev->dev, 0, "wlan%d", NULL)) {
-		brcmf_dbg(ERROR, "Add primary net device interface failed!!\n");
-		goto fail;
-	}
-
 	return bus;
 
 fail:
