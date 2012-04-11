@@ -74,6 +74,7 @@
 #define MT_ICR		0x0C	/* TX interrupt control */
 #define MR_ICR		0x10	/* RX interrupt control */
 #define MTPR		0x14	/* TX poll command register */
+#define  TM2TX		0x0001	/* Trigger MAC to transmit */
 #define MR_BSR		0x18	/* RX buffer size */
 #define MR_DCR		0x1A	/* RX descriptor control */
 #define MLSR		0x1C	/* Last status */
@@ -420,7 +421,7 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	/* Let TX poll the descriptors
 	 * we may got called by r6040_tx_timeout which has left
 	 * some unsent tx buffers */
-	iowrite16(0x01, ioaddr + MTPR);
+	iowrite16(TM2TX, ioaddr + MTPR);
 }
 
 static void r6040_tx_timeout(struct net_device *dev)
@@ -844,7 +845,7 @@ static netdev_tx_t r6040_start_xmit(struct sk_buff *skb,
 	skb_tx_timestamp(skb);
 
 	/* Trigger the MAC to check the TX descriptor */
-	iowrite16(0x01, ioaddr + MTPR);
+	iowrite16(TM2TX, ioaddr + MTPR);
 	lp->tx_insert_ptr = descptr->vndescp;
 
 	/* If no tx resource, stop */
