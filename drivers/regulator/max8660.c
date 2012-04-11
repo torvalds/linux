@@ -367,16 +367,14 @@ static int __devinit max8660_probe(struct i2c_client *client,
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
 		dev_err(&client->dev, "Too many regulators found!\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	max8660 = kzalloc(sizeof(struct max8660) +
 			sizeof(struct regulator_dev *) * MAX8660_V_END,
 			GFP_KERNEL);
-	if (!max8660) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!max8660)
+		return -ENOMEM;
 
 	max8660->client = client;
 	rdev = max8660->rdev;
@@ -405,7 +403,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 	for (i = 0; i < pdata->num_subdevs; i++) {
 
 		if (!pdata->subdevs[i].platform_data)
-			goto err_free;
+			goto err_out;
 
 		boot_on = pdata->subdevs[i].platform_data->constraints.boot_on;
 
@@ -431,7 +429,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 		case MAX8660_V7:
 			if (!strcmp(i2c_id->name, "max8661")) {
 				dev_err(&client->dev, "Regulator not on this chip!\n");
-				goto err_free;
+				goto err_out;
 			}
 
 			if (boot_on)
@@ -441,7 +439,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 		default:
 			dev_err(&client->dev, "invalid regulator %s\n",
 				 pdata->subdevs[i].name);
-			goto err_free;
+			goto err_out;
 		}
 	}
 
@@ -469,9 +467,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 err_unregister:
 	while (--i >= 0)
 		regulator_unregister(rdev[i]);
-err_free:
-	kfree(max8660);
-out:
+err_out:
 	return ret;
 }
 
@@ -483,8 +479,6 @@ static int __devexit max8660_remove(struct i2c_client *client)
 	for (i = 0; i < MAX8660_V_END; i++)
 		if (max8660->rdev[i])
 			regulator_unregister(max8660->rdev[i]);
-	kfree(max8660);
-
 	return 0;
 }
 
