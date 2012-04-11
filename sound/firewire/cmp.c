@@ -84,7 +84,7 @@ static int pcr_modify(struct cmp_connection *c,
 	return 0;
 
 io_error:
-	cmp_error(c, "transaction failed: %s\n", rcode_string(rcode));
+	cmp_error(c, "transaction failed: %s\n", fw_rcode_string(rcode));
 	return -EIO;
 
 bus_reset:

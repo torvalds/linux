@@ -334,6 +334,7 @@ int fw_cancel_transaction(struct fw_card *card,
 int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 		       int generation, int speed, unsigned long long offset,
 		       void *payload, size_t length);
+const char *fw_rcode_string(int rcode);
 
 static inline int fw_stream_packet_destination_id(int tag, int channel, int sy)
 {
