@@ -900,6 +900,11 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 	if (rate == clk->rate)
 		goto out;
 
+	if ((clk->flags & CLK_SET_RATE_GATE) && __clk_is_enabled(clk)) {
+		ret = -EBUSY;
+		goto out;
+	}
+
 	/* calculate new rates and get the topmost changed clock */
 	top = clk_calc_new_rates(clk, rate);
 	if (!top) {
