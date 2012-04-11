@@ -814,7 +814,7 @@ gen6_ring_put_irq(struct intel_ring_buffer *ring)
 }
 
 static int
-ring_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
+i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 {
 	int ret;
 
@@ -832,37 +832,36 @@ ring_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 }
 
 static int
-render_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
+i830_dispatch_execbuffer(struct intel_ring_buffer *ring,
 				u32 offset, u32 len)
 {
-	struct drm_device *dev = ring->dev;
 	int ret;
 
-	if (IS_I830(dev) || IS_845G(dev)) {
-		ret = intel_ring_begin(ring, 4);
-		if (ret)
-			return ret;
+	ret = intel_ring_begin(ring, 4);
+	if (ret)
+		return ret;
 
-		intel_ring_emit(ring, MI_BATCH_BUFFER);
-		intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
-		intel_ring_emit(ring, offset + len - 8);
-		intel_ring_emit(ring, 0);
-	} else {
-		ret = intel_ring_begin(ring, 2);
-		if (ret)
-			return ret;
+	intel_ring_emit(ring, MI_BATCH_BUFFER);
+	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
+	intel_ring_emit(ring, offset + len - 8);
+	intel_ring_emit(ring, 0);
+	intel_ring_advance(ring);
 
-		if (INTEL_INFO(dev)->gen >= 4) {
-			intel_ring_emit(ring,
-					MI_BATCH_BUFFER_START | (2 << 6) |
-					MI_BATCH_NON_SECURE_I965);
-			intel_ring_emit(ring, offset);
-		} else {
-			intel_ring_emit(ring,
-					MI_BATCH_BUFFER_START | (2 << 6));
-			intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
-		}
-	}
+	return 0;
+}
+
+static int
+i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
+				u32 offset, u32 len)
+{
+	int ret;
+
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START | (2 << 6));
+	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
 	intel_ring_advance(ring);
 
 	return 0;
@@ -1332,7 +1331,14 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
-	ring->dispatch_execbuffer = render_ring_dispatch_execbuffer;
+	if (INTEL_INFO(dev)->gen >= 6)
+		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+	else if (INTEL_INFO(dev)->gen >= 4)
+		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
+	else if (IS_I830(dev) || IS_845G(dev))
+		ring->dispatch_execbuffer = i830_dispatch_execbuffer;
+	else
+		ring->dispatch_execbuffer = i915_dispatch_execbuffer;
 	ring->init = init_render_ring;
 	ring->cleanup = render_ring_cleanup;
 
@@ -1373,7 +1379,12 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
-	ring->dispatch_execbuffer = render_ring_dispatch_execbuffer;
+	if (INTEL_INFO(dev)->gen >= 4)
+		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
+	else if (IS_I830(dev) || IS_845G(dev))
+		ring->dispatch_execbuffer = i830_dispatch_execbuffer;
+	else
+		ring->dispatch_execbuffer = i915_dispatch_execbuffer;
 	ring->init = init_render_ring;
 	ring->cleanup = render_ring_cleanup;
 
@@ -1448,7 +1459,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 			ring->irq_get = i9xx_ring_get_irq;
 			ring->irq_put = i9xx_ring_put_irq;
 		}
-		ring->dispatch_execbuffer = ring_dispatch_execbuffer;
+		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
 	}
 	ring->init = init_ring_common;
 
