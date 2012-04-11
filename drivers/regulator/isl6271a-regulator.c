@@ -148,7 +148,7 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	pmic = kzalloc(sizeof(struct isl_pmic), GFP_KERNEL);
+	pmic = devm_kzalloc(&i2c->dev, sizeof(struct isl_pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -179,8 +179,6 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 error:
 	while (--i >= 0)
 		regulator_unregister(pmic->rdev[i]);
-
-	kfree(pmic);
 	return err;
 }
 
@@ -191,9 +189,6 @@ static int __devexit isl6271a_remove(struct i2c_client *i2c)
 
 	for (i = 0; i < 3; i++)
 		regulator_unregister(pmic->rdev[i]);
-
-	kfree(pmic);
-
 	return 0;
 }
 
