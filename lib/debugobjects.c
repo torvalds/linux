@@ -79,17 +79,17 @@ static const char *obj_states[ODEBUG_STATE_MAX] = {
 	[ODEBUG_STATE_NOTAVAILABLE]	= "not available",
 };
 
-static int fill_pool(void)
+static void fill_pool(void)
 {
 	gfp_t gfp = GFP_ATOMIC | __GFP_NORETRY | __GFP_NOWARN;
 	struct debug_obj *new;
 	unsigned long flags;
 
 	if (likely(obj_pool_free >= ODEBUG_POOL_MIN_LEVEL))
-		return obj_pool_free;
+		return;
 
 	if (unlikely(!obj_cache))
-		return obj_pool_free;
+		return;
 
 	while (obj_pool_free < ODEBUG_POOL_MIN_LEVEL) {
 
@@ -102,7 +102,6 @@ static int fill_pool(void)
 		obj_pool_free++;
 		raw_spin_unlock_irqrestore(&pool_lock, flags);
 	}
-	return obj_pool_free;
 }
 
 /*
