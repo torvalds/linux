@@ -429,7 +429,7 @@ static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
 	if (!init_data)
 		return -EINVAL;
 
-	tps = kzalloc(sizeof(*tps), GFP_KERNEL);
+	tps = devm_kzalloc(&pdev->dev, sizeof(*tps), GFP_KERNEL);
 	if (!tps)
 		return -ENOMEM;
 
@@ -479,8 +479,6 @@ static __devinit int tps6507x_pmic_probe(struct platform_device *pdev)
 fail:
 	while (--i >= 0)
 		regulator_unregister(tps->rdev[i]);
-
-	kfree(tps);
 	return error;
 }
 
@@ -492,9 +490,6 @@ static int __devexit tps6507x_pmic_remove(struct platform_device *pdev)
 
 	for (i = 0; i < TPS6507X_NUM_REGULATOR; i++)
 		regulator_unregister(tps->rdev[i]);
-
-	kfree(tps);
-
 	return 0;
 }
 

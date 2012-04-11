@@ -477,7 +477,7 @@ static __devinit int tps65912_probe(struct platform_device *pdev)
 
 	reg_data = pmic_plat_data->tps65912_pmic_init_data;
 
-	pmic = kzalloc(sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -523,8 +523,6 @@ static __devinit int tps65912_probe(struct platform_device *pdev)
 err:
 	while (--i >= 0)
 		regulator_unregister(pmic->rdev[i]);
-
-	kfree(pmic);
 	return err;
 }
 
@@ -535,8 +533,6 @@ static int __devexit tps65912_remove(struct platform_device *pdev)
 
 	for (i = 0; i < TPS65912_NUM_REGULATOR; i++)
 		regulator_unregister(tps65912_reg->rdev[i]);
-
-	kfree(tps65912_reg);
 	return 0;
 }
 

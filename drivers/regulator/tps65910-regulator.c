@@ -1109,7 +1109,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	if (!pmic_plat_data)
 		return -EINVAL;
 
-	pmic = kzalloc(sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -1136,7 +1136,6 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 		break;
 	default:
 		pr_err("Invalid tps chip version\n");
-		kfree(pmic);
 		return -ENODEV;
 	}
 
@@ -1144,7 +1143,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 			sizeof(struct regulator_desc), GFP_KERNEL);
 	if (!pmic->desc) {
 		err = -ENOMEM;
-		goto err_free_pmic;
+		goto err_out;
 	}
 
 	pmic->info = kcalloc(pmic->num_regulators,
@@ -1233,8 +1232,7 @@ err_free_info:
 	kfree(pmic->info);
 err_free_desc:
 	kfree(pmic->desc);
-err_free_pmic:
-	kfree(pmic);
+err_out:
 	return err;
 }
 
@@ -1249,7 +1247,6 @@ static int __devexit tps65910_remove(struct platform_device *pdev)
 	kfree(pmic->rdev);
 	kfree(pmic->info);
 	kfree(pmic->desc);
-	kfree(pmic);
 	return 0;
 }
 

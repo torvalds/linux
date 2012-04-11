@@ -595,7 +595,6 @@ static int pmic_remove(struct spi_device *spi)
 		hw->rdev[i] = NULL;
 	}
 	spi_set_drvdata(spi, NULL);
-	kfree(hw);
 	return 0;
 }
 
@@ -614,7 +613,7 @@ static int __devinit pmic_probe(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	hw = kzalloc(sizeof(struct tps6524x), GFP_KERNEL);
+	hw = devm_kzalloc(&spi->dev, sizeof(struct tps6524x), GFP_KERNEL);
 	if (!hw) {
 		dev_err(dev, "cannot allocate regulator private data\n");
 		return -ENOMEM;
