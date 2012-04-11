@@ -226,6 +226,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		*c = 0;
 
 	line_ip = -1;
+	parsed_line = line;
 
 	/*
 	 * Strip leading spaces:
@@ -255,8 +256,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 			offset = -1;
 		else
 			parsed_line = tmp2 + 1;
-	} else
-		parsed_line = line;
+	}
 
 	objdump_line = objdump_line__new(offset, parsed_line, privsize);
 	free(line);
