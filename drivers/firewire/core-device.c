@@ -1115,16 +1115,8 @@ static void fw_device_refresh(struct work_struct *work)
 	bool changed;
 
 	ret = reread_config_rom(device, device->generation, &changed);
-	if (ret != RCODE_COMPLETE) {
-		if (device->config_rom_retries < MAX_RETRIES / 2 &&
-		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
-			device->config_rom_retries++;
-			fw_schedule_device_work(device, RETRY_DELAY / 2);
-
-			return;
-		}
-		goto give_up;
-	}
+	if (ret != RCODE_COMPLETE)
+		goto failed_config_rom;
 
 	if (!changed) {
 		if (atomic_cmpxchg(&device->state,
@@ -1144,16 +1136,8 @@ static void fw_device_refresh(struct work_struct *work)
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 
 	ret = read_config_rom(device, device->generation);
-	if (ret != RCODE_COMPLETE) {
-		if (device->config_rom_retries < MAX_RETRIES &&
-		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
-			device->config_rom_retries++;
-			fw_schedule_device_work(device, RETRY_DELAY);
-
-			return;
-		}
-		goto give_up;
-	}
+	if (ret != RCODE_COMPLETE)
+		goto failed_config_rom;
 
 	fw_device_cdev_update(device);
 	create_units(device);
@@ -1170,7 +1154,14 @@ static void fw_device_refresh(struct work_struct *work)
 	device->config_rom_retries = 0;
 	goto out;
 
- give_up:
+ failed_config_rom:
+	if (device->config_rom_retries < MAX_RETRIES &&
+	    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
+		device->config_rom_retries++;
+		fw_schedule_device_work(device, RETRY_DELAY);
+		return;
+	}
+
 	fw_notice(card, "giving up on refresh of device %s: %s\n",
 		  dev_name(&device->device), fw_rcode_string(ret));
  gone:
