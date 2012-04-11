@@ -505,7 +505,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
 			goto out;
 		/*
-		 * As per IEEE1212 7.2, during power-up, devices can
+		 * As per IEEE1212 7.2, during initialization, devices can
 		 * reply with a 0 for the first quadlet of the config
 		 * rom to indicate that they are booting (for example,
 		 * if the firmware is on the disk of a external
@@ -1071,7 +1071,6 @@ static void fw_device_init(struct work_struct *work)
 
 enum {
 	REREAD_BIB_ERROR,
-	REREAD_BIB_GONE,
 	REREAD_BIB_UNCHANGED,
 	REREAD_BIB_CHANGED,
 };
@@ -1087,7 +1086,8 @@ static int reread_config_rom(struct fw_device *device, int generation)
 			return REREAD_BIB_ERROR;
 
 		if (i == 0 && q == 0)
-			return REREAD_BIB_GONE;
+			/* inaccessible (see read_config_rom); retry later */
+			return REREAD_BIB_ERROR;
 
 		if (q != device->config_rom[i])
 			return REREAD_BIB_CHANGED;
@@ -1113,9 +1113,6 @@ static void fw_device_refresh(struct work_struct *work)
 			return;
 		}
 		goto give_up;
-
-	case REREAD_BIB_GONE:
-		goto gone;
 
 	case REREAD_BIB_UNCHANGED:
 		if (atomic_cmpxchg(&device->state,
