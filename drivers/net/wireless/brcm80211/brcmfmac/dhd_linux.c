@@ -843,6 +843,64 @@ static const struct net_device_ops brcmf_netdev_ops_pri = {
 	.ndo_set_rx_mode = brcmf_netdev_set_multicast_list
 };
 
+static int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
+{
+	struct net_device *ndev;
+	u8 temp_addr[ETH_ALEN] = {
+		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
+
+	brcmf_dbg(TRACE, "ifidx %d\n", ifidx);
+
+	ndev = drvr->iflist[ifidx]->ndev;
+	ndev->netdev_ops = &brcmf_netdev_ops_pri;
+
+	/*
+	 * We have to use the primary MAC for virtual interfaces
+	 */
+	if (ifidx != 0) {
+		/* for virtual interfaces use the primary MAC  */
+		memcpy(temp_addr, drvr->mac, ETH_ALEN);
+
+	}
+
+	if (ifidx == 1) {
+		brcmf_dbg(TRACE, "ACCESS POINT MAC:\n");
+		/*  ACCESSPOINT INTERFACE CASE */
+		temp_addr[0] |= 0X02;	/* set bit 2 ,
+			 - Locally Administered address  */
+
+	}
+	ndev->hard_header_len = ETH_HLEN + drvr->hdrlen;
+	ndev->ethtool_ops = &brcmf_ethtool_ops;
+
+	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
+			      drvr->hdrlen;
+
+	memcpy(ndev->dev_addr, temp_addr, ETH_ALEN);
+
+	/* attach to cfg80211 for primary interface */
+	if (!ifidx) {
+		drvr->config = brcmf_cfg80211_attach(ndev, drvr->dev, drvr);
+		if (drvr->config == NULL) {
+			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
+			goto fail;
+		}
+	}
+
+	if (register_netdev(ndev) != 0) {
+		brcmf_dbg(ERROR, "couldn't register the net device\n");
+		goto fail;
+	}
+
+	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
+
+	return 0;
+
+fail:
+	ndev->netdev_ops = NULL;
+	return -EBADE;
+}
+
 int
 brcmf_add_if(struct device *dev, int ifidx, char *name, u8 *mac_addr)
 {
@@ -1019,64 +1077,6 @@ int brcmf_bus_start(struct device *dev)
 	/* signal bus ready */
 	bus_if->state = BRCMF_BUS_DATA;
 	return 0;
-}
-
-int brcmf_net_attach(struct brcmf_pub *drvr, int ifidx)
-{
-	struct net_device *ndev;
-	u8 temp_addr[ETH_ALEN] = {
-		0x00, 0x90, 0x4c, 0x11, 0x22, 0x33};
-
-	brcmf_dbg(TRACE, "ifidx %d\n", ifidx);
-
-	ndev = drvr->iflist[ifidx]->ndev;
-	ndev->netdev_ops = &brcmf_netdev_ops_pri;
-
-	/*
-	 * We have to use the primary MAC for virtual interfaces
-	 */
-	if (ifidx != 0) {
-		/* for virtual interfaces use the primary MAC  */
-		memcpy(temp_addr, drvr->mac, ETH_ALEN);
-
-	}
-
-	if (ifidx == 1) {
-		brcmf_dbg(TRACE, "ACCESS POINT MAC:\n");
-		/*  ACCESSPOINT INTERFACE CASE */
-		temp_addr[0] |= 0X02;	/* set bit 2 ,
-			 - Locally Administered address  */
-
-	}
-	ndev->hard_header_len = ETH_HLEN + drvr->hdrlen;
-	ndev->ethtool_ops = &brcmf_ethtool_ops;
-
-	drvr->rxsz = ndev->mtu + ndev->hard_header_len +
-			      drvr->hdrlen;
-
-	memcpy(ndev->dev_addr, temp_addr, ETH_ALEN);
-
-	/* attach to cfg80211 for primary interface */
-	if (!ifidx) {
-		drvr->config = brcmf_cfg80211_attach(ndev, drvr->dev, drvr);
-		if (drvr->config == NULL) {
-			brcmf_dbg(ERROR, "wl_cfg80211_attach failed\n");
-			goto fail;
-		}
-	}
-
-	if (register_netdev(ndev) != 0) {
-		brcmf_dbg(ERROR, "couldn't register the net device\n");
-		goto fail;
-	}
-
-	brcmf_dbg(INFO, "%s: Broadcom Dongle Host Driver\n", ndev->name);
-
-	return 0;
-
-fail:
-	ndev->netdev_ops = NULL;
-	return -EBADE;
 }
 
 static void brcmf_bus_detach(struct brcmf_pub *drvr)
