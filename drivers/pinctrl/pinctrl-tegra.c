@@ -1,7 +1,7 @@
 /*
  * Driver for the NVIDIA Tegra pinmux
  *
- * Copyright (c) 2011, NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2011-2012, NVIDIA CORPORATION.  All rights reserved.
  *
  * Derived from code:
  * Copyright (C) 2010 Google, Inc.
@@ -22,7 +22,8 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -31,9 +32,8 @@
 
 #include <mach/pinconf-tegra.h>
 
+#include "core.h"
 #include "pinctrl-tegra.h"
-
-#define DRIVER_NAME "tegra-pinmux"
 
 struct tegra_pmx {
 	struct device *dev;
@@ -87,7 +87,7 @@ static void tegra_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 				       struct seq_file *s,
 				       unsigned offset)
 {
-	seq_printf(s, " " DRIVER_NAME);
+	seq_printf(s, " %s", dev_name(pctldev->dev));
 }
 
 static int reserve_map(struct pinctrl_map **map, unsigned *reserved_maps,
@@ -589,49 +589,18 @@ static struct pinctrl_gpio_range tegra_pinctrl_gpio_range = {
 };
 
 static struct pinctrl_desc tegra_pinctrl_desc = {
-	.name = DRIVER_NAME,
 	.pctlops = &tegra_pinctrl_ops,
 	.pmxops = &tegra_pinmux_ops,
 	.confops = &tegra_pinconf_ops,
 	.owner = THIS_MODULE,
 };
 
-static struct of_device_id tegra_pinctrl_of_match[] __devinitdata = {
-#ifdef CONFIG_PINCTRL_TEGRA20
-	{
-		.compatible = "nvidia,tegra20-pinmux",
-		.data = tegra20_pinctrl_init,
-	},
-#endif
-#ifdef CONFIG_PINCTRL_TEGRA30
-	{
-		.compatible = "nvidia,tegra30-pinmux",
-		.data = tegra30_pinctrl_init,
-	},
-#endif
-	{},
-};
-
-static int __devinit tegra_pinctrl_probe(struct platform_device *pdev)
+int __devinit tegra_pinctrl_probe(struct platform_device *pdev,
+			const struct tegra_pinctrl_soc_data *soc_data)
 {
-	const struct of_device_id *match;
-	tegra_pinctrl_soc_initf initf = NULL;
 	struct tegra_pmx *pmx;
 	struct resource *res;
 	int i;
-
-	match = of_match_device(tegra_pinctrl_of_match, &pdev->dev);
-	if (match)
-		initf = (tegra_pinctrl_soc_initf)match->data;
-#ifdef CONFIG_PINCTRL_TEGRA20
-	if (!initf)
-		initf = tegra20_pinctrl_init;
-#endif
-	if (!initf) {
-		dev_err(&pdev->dev,
-			"Could not determine SoC-specific init func\n");
-		return -EINVAL;
-	}
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx) {
@@ -639,10 +608,10 @@ static int __devinit tegra_pinctrl_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	pmx->dev = &pdev->dev;
-
-	(*initf)(&pmx->soc);
+	pmx->soc = soc_data;
 
 	tegra_pinctrl_gpio_range.npins = pmx->soc->ngpios;
+	tegra_pinctrl_desc.name = dev_name(&pdev->dev);
 	tegra_pinctrl_desc.pins = pmx->soc->pins;
 	tegra_pinctrl_desc.npins = pmx->soc->npins;
 
@@ -697,8 +666,9 @@ static int __devinit tegra_pinctrl_probe(struct platform_device *pdev)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(tegra_pinctrl_probe);
 
-static int __devexit tegra_pinctrl_remove(struct platform_device *pdev)
+int __devexit tegra_pinctrl_remove(struct platform_device *pdev)
 {
 	struct tegra_pmx *pmx = platform_get_drvdata(pdev);
 
@@ -707,30 +677,4 @@ static int __devexit tegra_pinctrl_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static struct platform_driver tegra_pinctrl_driver = {
-	.driver = {
-		.name = DRIVER_NAME,
-		.owner = THIS_MODULE,
-		.of_match_table = tegra_pinctrl_of_match,
-	},
-	.probe = tegra_pinctrl_probe,
-	.remove = __devexit_p(tegra_pinctrl_remove),
-};
-
-static int __init tegra_pinctrl_init(void)
-{
-	return platform_driver_register(&tegra_pinctrl_driver);
-}
-arch_initcall(tegra_pinctrl_init);
-
-static void __exit tegra_pinctrl_exit(void)
-{
-	platform_driver_unregister(&tegra_pinctrl_driver);
-}
-module_exit(tegra_pinctrl_exit);
-
-MODULE_AUTHOR("Stephen Warren <swarren@nvidia.com>");
-MODULE_DESCRIPTION("NVIDIA Tegra pinctrl driver");
-MODULE_LICENSE("GPL v2");
-MODULE_DEVICE_TABLE(of, tegra_pinctrl_of_match);
+EXPORT_SYMBOL_GPL(tegra_pinctrl_remove);

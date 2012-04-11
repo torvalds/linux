@@ -139,25 +139,8 @@ struct tegra_pinctrl_soc_data {
 	unsigned ngroups;
 };
 
-/**
- * tegra_pinctrl_soc_initf() - Retrieve pin controller details for a SoC.
- * @soc_data:	This pointer must be updated to point at a struct containing
- *		details of the SoC.
- */
-typedef void (*tegra_pinctrl_soc_initf)(
-			const struct tegra_pinctrl_soc_data **soc_data);
-
-/**
- * tegra20_pinctrl_init() - Retrieve pin controller details for Tegra20
- * @soc_data:	This pointer will be updated to point at a struct containing
- *		details of Tegra20's pin controller.
- */
-void tegra20_pinctrl_init(const struct tegra_pinctrl_soc_data **soc_data);
-/**
- * tegra30_pinctrl_init() - Retrieve pin controller details for Tegra20
- * @soc_data:	This pointer will be updated to point at a struct containing
- *		details of Tegra30's pin controller.
- */
-void tegra30_pinctrl_init(const struct tegra_pinctrl_soc_data **soc_data);
+int tegra_pinctrl_probe(struct platform_device *pdev,
+			const struct tegra_pinctrl_soc_data *soc_data);
+int tegra_pinctrl_remove(struct platform_device *pdev);
 
 #endif

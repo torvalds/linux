@@ -19,7 +19,7 @@
 
 #include <mach/pinconf-tegra.h>
 
-#define PINMUX_DEV "tegra-pinmux"
+#define PINMUX_DEV "tegra20-pinctrl"
 
 #define TEGRA_MAP_MUX(_group_, _function_) \
 	PIN_MAP_MUX_GROUP_HOG_DEFAULT(PINMUX_DEV, _group_, _function_)
