@@ -799,6 +799,7 @@ static int brcmf_netdev_open(struct net_device *ndev)
 	struct brcmf_bus *bus_if = drvr->bus_if;
 	u32 toe_ol;
 	s32 ret = 0;
+	uint up = 0;
 
 	brcmf_dbg(TRACE, "ifidx %d\n", ifp->idx);
 
@@ -822,6 +823,10 @@ static int brcmf_netdev_open(struct net_device *ndev)
 			drvr->iflist[ifp->idx]->ndev->features &=
 				~NETIF_F_IP_CSUM;
 	}
+
+	/* make sure RF is ready for work */
+	brcmf_proto_cdc_set_dcmd(drvr, 0, BRCMF_C_UP, (char *)&up, sizeof(up));
+
 	/* Allow transmit calls */
 	netif_start_queue(ndev);
 	drvr->bus_if->drvr_up = true;
