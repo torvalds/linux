@@ -8880,7 +8880,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(GEN6_UCGCTL1,
 		   I915_READ(GEN6_UCGCTL1) |
-		   GEN6_BLBUNIT_CLOCK_GATE_DISABLE);
+		   GEN6_BLBUNIT_CLOCK_GATE_DISABLE |
+		   GEN6_CSUNIT_CLOCK_GATE_DISABLE);
 
 	/* According to the BSpec vol1g, bit 12 (RCPBUNIT) clock
 	 * gating disable must be set.  Failure to set it results in
