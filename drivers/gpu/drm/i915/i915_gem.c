@@ -3669,7 +3669,10 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 	pd_offset <<= 16;
 
 	if (INTEL_INFO(dev)->gen == 6) {
-		uint32_t ecochk, gab_ctl;
+		uint32_t ecochk, gab_ctl, ecobits;
+
+		ecobits = I915_READ(GAC_ECO_BITS); 
+		I915_WRITE(GAC_ECO_BITS, ecobits | ECOBITS_PPGTT_CACHE64B);
 
 		gab_ctl = I915_READ(GAB_CTL);
 		I915_WRITE(GAB_CTL, gab_ctl | GAB_CTL_CONT_AFTER_PAGEFAULT);
