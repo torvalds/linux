@@ -1307,6 +1307,9 @@ static void unmap_single_vma(struct mmu_gather *tlb,
 	if (end <= vma->vm_start)
 		return;
 
+	if (vma->vm_file)
+		uprobe_munmap(vma, start, end);
+
 	if (vma->vm_flags & VM_ACCOUNT)
 		*nr_accounted += (end - start) >> PAGE_SHIFT;
 

@@ -1112,7 +1112,7 @@ int uprobe_mmap(struct vm_area_struct *vma)
 /*
  * Called in context of a munmap of a vma.
  */
-void uprobe_munmap(struct vm_area_struct *vma)
+void uprobe_munmap(struct vm_area_struct *vma, unsigned long start, unsigned long end)
 {
 	struct list_head tmp_list;
 	struct uprobe *uprobe, *u;
@@ -1138,7 +1138,7 @@ void uprobe_munmap(struct vm_area_struct *vma)
 		list_del(&uprobe->pending_list);
 		vaddr = vma_address(vma, uprobe->offset);
 
-		if (vaddr >= vma->vm_start && vaddr < vma->vm_end) {
+		if (vaddr >= start && vaddr < end) {
 			/*
 			 * An unregister could have removed the probe before
 			 * unmap. So check before we decrement the count.
