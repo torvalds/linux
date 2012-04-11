@@ -1527,7 +1527,7 @@ void ath5k_eeprom_detach(struct ath5k_hw *ah);
 
 /* Protocol Control Unit Functions */
 /* Helpers */
-int ath5k_hw_get_frame_duration(struct ath5k_hw *ah,
+int ath5k_hw_get_frame_duration(struct ath5k_hw *ah, enum ieee80211_band band,
 		int len, struct ieee80211_rate *rate, bool shortpre);
 unsigned int ath5k_hw_get_default_slottime(struct ath5k_hw *ah);
 unsigned int ath5k_hw_get_default_sifs(struct ath5k_hw *ah);
