@@ -129,13 +129,14 @@ static int exports_open(struct inode *inode, struct file *file)
 {
 	int err;
 	struct seq_file *seq;
+	struct nfsd_net *nn = net_generic(&init_net, nfsd_net_id);
 
 	err = seq_open(file, &nfs_exports_op);
 	if (err)
 		return err;
 
 	seq = file->private_data;
-	seq->private = &svc_export_cache;
+	seq->private = nn->svc_export_cache;
 	return 0;
 }
 

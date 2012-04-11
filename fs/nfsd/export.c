@@ -40,7 +40,6 @@ typedef struct svc_export	svc_export;
 #define	EXPKEY_HASHBITS		8
 #define	EXPKEY_HASHMAX		(1 << EXPKEY_HASHBITS)
 #define	EXPKEY_HASHMASK		(EXPKEY_HASHMAX -1)
-static struct cache_head *expkey_table[EXPKEY_HASHMAX];
 
 static void expkey_put(struct kref *ref)
 {
@@ -241,10 +240,9 @@ static struct cache_head *expkey_alloc(void)
 		return NULL;
 }
 
-static struct cache_detail svc_expkey_cache = {
+static struct cache_detail svc_expkey_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPKEY_HASHMAX,
-	.hash_table	= expkey_table,
 	.name		= "nfsd.fh",
 	.cache_put	= expkey_put,
 	.cache_upcall	= expkey_upcall,
@@ -883,12 +881,13 @@ static struct svc_export *exp_find(struct cache_detail *cd,
 				   u32 *fsidv, struct cache_req *reqp)
 {
 	struct svc_export *exp;
-	struct svc_expkey *ek = exp_find_key(&svc_expkey_cache, clp, fsid_type, fsidv, reqp);
+	struct nfsd_net *nn = net_generic(cd->net, nfsd_net_id);
+	struct svc_expkey *ek = exp_find_key(nn->svc_expkey_cache, clp, fsid_type, fsidv, reqp);
 	if (IS_ERR(ek))
 		return ERR_CAST(ek);
 
 	exp = exp_get_by_name(cd, clp, &ek->ek_path, reqp);
-	cache_put(&ek->h, &svc_expkey_cache);
+	cache_put(&ek->h, nn->svc_expkey_cache);
 
 	if (IS_ERR(exp))
 		return ERR_CAST(exp);
@@ -1232,7 +1231,6 @@ const struct seq_operations nfs_exports_op = {
 	.show	= e_show,
 };
 
-
 /*
  * Initialize the exports module.
  */
@@ -1251,11 +1249,18 @@ nfsd_export_init(struct net *net)
 	if (rv)
 		goto destroy_export_cache;
 
-	rv = cache_register_net(&svc_expkey_cache, net);
-	if (rv)
+	nn->svc_expkey_cache = cache_create_net(&svc_expkey_cache_template, net);
+	if (IS_ERR(nn->svc_expkey_cache)) {
+		rv = PTR_ERR(nn->svc_expkey_cache);
 		goto unregister_export_cache;
+	}
+	rv = cache_register_net(nn->svc_expkey_cache, net);
+	if (rv)
+		goto destroy_expkey_cache;
 	return 0;
 
+destroy_expkey_cache:
+	cache_destroy_net(nn->svc_expkey_cache, net);
 unregister_export_cache:
 	cache_unregister_net(nn->svc_export_cache, net);
 destroy_export_cache:
@@ -1271,7 +1276,7 @@ nfsd_export_flush(struct net *net)
 {
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
-	cache_purge(&svc_expkey_cache);
+	cache_purge(nn->svc_expkey_cache);
 	cache_purge(nn->svc_export_cache);
 }
 
@@ -1285,10 +1290,11 @@ nfsd_export_shutdown(struct net *net)
 
 	dprintk("nfsd: shutting down export module (net: %p).\n", net);
 
-	cache_unregister_net(&svc_expkey_cache, net);
+	cache_unregister_net(nn->svc_expkey_cache, net);
 	cache_unregister_net(nn->svc_export_cache, net);
+	cache_destroy_net(nn->svc_expkey_cache, net);
 	cache_destroy_net(nn->svc_export_cache, net);
-	svcauth_unix_purge();
+	svcauth_unix_purge(net);
 
 	dprintk("nfsd: export shutdown complete (net: %p).\n", net);
 }
