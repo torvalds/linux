@@ -132,13 +132,13 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp);
  */
 int			nfsd_export_init(struct net *);
 void			nfsd_export_shutdown(struct net *);
-void			nfsd_export_flush(void);
+void			nfsd_export_flush(struct net *);
 struct svc_export *	rqst_exp_get_by_name(struct svc_rqst *,
 					     struct path *);
 struct svc_export *	rqst_exp_parent(struct svc_rqst *,
 					struct path *);
 struct svc_export *	rqst_find_fsidzero_export(struct svc_rqst *);
-int			exp_rootfh(struct auth_domain *, 
+int			exp_rootfh(struct net *, struct auth_domain *,
 					char *path, struct knfsd_fh *, int maxsize);
 __be32			exp_pseudoroot(struct svc_rqst *, struct svc_fh *);
 __be32			nfserrno(int errno);

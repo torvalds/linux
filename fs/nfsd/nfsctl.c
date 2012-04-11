@@ -354,7 +354,7 @@ static ssize_t write_filehandle(struct file *file, char *buf, size_t size)
 	if (!dom)
 		return -ENOMEM;
 
-	len = exp_rootfh(dom, path, &fh,  maxsize);
+	len = exp_rootfh(&init_net, dom, path, &fh,  maxsize);
 	auth_domain_put(dom);
 	if (len)
 		return len;

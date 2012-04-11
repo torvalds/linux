@@ -15,11 +15,13 @@
 #include <linux/namei.h>
 #include <linux/module.h>
 #include <linux/exportfs.h>
+#include <linux/sunrpc/svc_xprt.h>
 
 #include <net/ipv6.h>
 
 #include "nfsd.h"
 #include "nfsfh.h"
+#include "netns.h"
 
 #define NFSDDBG_FACILITY	NFSDDBG_EXPORT
 
@@ -297,8 +299,6 @@ svc_expkey_update(struct cache_detail *cd, struct svc_expkey *new,
 
 #define	EXPORT_HASHBITS		8
 #define	EXPORT_HASHMAX		(1<< EXPORT_HASHBITS)
-
-static struct cache_head *export_table[EXPORT_HASHMAX];
 
 static void nfsd4_fslocs_free(struct nfsd4_fs_locations *fsloc)
 {
@@ -708,10 +708,9 @@ static struct cache_head *svc_export_alloc(void)
 		return NULL;
 }
 
-struct cache_detail svc_export_cache = {
+struct cache_detail svc_export_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPORT_HASHMAX,
-	.hash_table	= export_table,
 	.name		= "nfsd.export",
 	.cache_put	= svc_export_put,
 	.cache_upcall	= svc_export_upcall,
@@ -835,7 +834,7 @@ static struct svc_export *exp_parent(struct cache_detail *cd, svc_client *clp,
  * since its harder to fool a kernel module than a user space program.
  */
 int
-exp_rootfh(svc_client *clp, char *name,
+exp_rootfh(struct net *net, svc_client *clp, char *name,
 	   struct knfsd_fh *f, int maxsize)
 {
 	struct svc_export	*exp;
@@ -843,7 +842,8 @@ exp_rootfh(svc_client *clp, char *name,
 	struct inode		*inode;
 	struct svc_fh		fh;
 	int			err;
-	struct cache_detail	*cd = &svc_export_cache;
+	struct nfsd_net		*nn = net_generic(net, nfsd_net_id);
+	struct cache_detail	*cd = nn->svc_export_cache;
 
 	err = -EPERM;
 	/* NB: we probably ought to check that it's NUL-terminated */
@@ -930,7 +930,8 @@ struct svc_export *
 rqst_exp_get_by_name(struct svc_rqst *rqstp, struct path *path)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
-	struct cache_detail *cd = &svc_export_cache;
+	struct nfsd_net *nn = net_generic(rqstp->rq_xprt->xpt_net, nfsd_net_id);
+	struct cache_detail *cd = nn->svc_export_cache;
 
 	if (rqstp->rq_client == NULL)
 		goto gss;
@@ -960,7 +961,8 @@ struct svc_export *
 rqst_exp_find(struct svc_rqst *rqstp, int fsid_type, u32 *fsidv)
 {
 	struct svc_export *gssexp, *exp = ERR_PTR(-ENOENT);
-	struct cache_detail *cd = &svc_export_cache;
+	struct nfsd_net *nn = net_generic(rqstp->rq_xprt->xpt_net, nfsd_net_id);
+	struct cache_detail *cd = nn->svc_export_cache;
 
 	if (rqstp->rq_client == NULL)
 		goto gss;
@@ -1238,26 +1240,39 @@ int
 nfsd_export_init(struct net *net)
 {
 	int rv;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
 	dprintk("nfsd: initializing export module (net: %p).\n", net);
 
-	rv = cache_register_net(&svc_export_cache, net);
+	nn->svc_export_cache = cache_create_net(&svc_export_cache_template, net);
+	if (IS_ERR(nn->svc_export_cache))
+		return PTR_ERR(nn->svc_export_cache);
+	rv = cache_register_net(nn->svc_export_cache, net);
 	if (rv)
-		return rv;
+		goto destroy_export_cache;
+
 	rv = cache_register_net(&svc_expkey_cache, net);
 	if (rv)
-		cache_unregister_net(&svc_export_cache, net);
-	return rv;
+		goto unregister_export_cache;
+	return 0;
 
+unregister_export_cache:
+	cache_unregister_net(nn->svc_export_cache, net);
+destroy_export_cache:
+	cache_destroy_net(nn->svc_export_cache, net);
+	return rv;
 }
 
 /*
  * Flush exports table - called when last nfsd thread is killed
  */
 void
-nfsd_export_flush(void)
+nfsd_export_flush(struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
 	cache_purge(&svc_expkey_cache);
-	cache_purge(&svc_export_cache);
+	cache_purge(nn->svc_export_cache);
 }
 
 /*
@@ -1266,11 +1281,13 @@ nfsd_export_flush(void)
 void
 nfsd_export_shutdown(struct net *net)
 {
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 
 	dprintk("nfsd: shutting down export module (net: %p).\n", net);
 
 	cache_unregister_net(&svc_expkey_cache, net);
-	cache_unregister_net(&svc_export_cache, net);
+	cache_unregister_net(nn->svc_export_cache, net);
+	cache_destroy_net(nn->svc_export_cache, net);
 	svcauth_unix_purge();
 
 	dprintk("nfsd: export shutdown complete (net: %p).\n", net);

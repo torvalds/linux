@@ -261,7 +261,7 @@ static void nfsd_last_thread(struct svc_serv *serv, struct net *net)
 
 	printk(KERN_WARNING "nfsd: last server has exited, flushing export "
 			    "cache\n");
-	nfsd_export_flush();
+	nfsd_export_flush(net);
 }
 
 void nfsd_reset_versions(void)

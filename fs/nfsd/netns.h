@@ -28,6 +28,8 @@ struct cld_net;
 
 struct nfsd_net {
 	struct cld_net *cld_net;
+
+	struct cache_detail *svc_export_cache;
 };
 
 extern int nfsd_net_id;
