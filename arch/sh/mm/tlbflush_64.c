@@ -28,33 +28,6 @@
 #include <asm/pgalloc.h>
 #include <asm/mmu_context.h>
 
-extern void die(const char *,struct pt_regs *,long);
-
-#define PFLAG(val,flag)   (( (val) & (flag) ) ? #flag : "" )
-#define PPROT(flag) PFLAG(pgprot_val(prot),flag)
-
-static inline void print_prots(pgprot_t prot)
-{
-	printk("prot is 0x%016llx\n",pgprot_val(prot));
-
-	printk("%s %s %s %s %s\n",PPROT(_PAGE_SHARED),PPROT(_PAGE_READ),
-	       PPROT(_PAGE_EXECUTE),PPROT(_PAGE_WRITE),PPROT(_PAGE_USER));
-}
-
-static inline void print_vma(struct vm_area_struct *vma)
-{
-	printk("vma start 0x%08lx\n", vma->vm_start);
-	printk("vma end   0x%08lx\n", vma->vm_end);
-
-	print_prots(vma->vm_page_prot);
-	printk("vm_flags 0x%08lx\n", vma->vm_flags);
-}
-
-static inline void print_task(struct task_struct *tsk)
-{
-	printk("Task pid %d\n", task_pid_nr(tsk));
-}
-
 static pte_t *lookup_pte(struct mm_struct *mm, unsigned long address)
 {
 	pgd_t *dir;
@@ -131,43 +104,15 @@ retry:
 	down_read(&mm->mmap_sem);
 
 	vma = find_vma(mm, address);
-
-	if (!vma) {
-#ifdef DEBUG_FAULT
-		print_task(tsk);
-		printk("%s:%d fault, address is 0x%08x PC %016Lx textaccess %d writeaccess %d\n",
-		       __func__, __LINE__,
-		       address,regs->pc,textaccess,writeaccess);
-		show_regs(regs);
-#endif
+	if (!vma)
 		goto bad_area;
-	}
-	if (vma->vm_start <= address) {
+	if (vma->vm_start <= address)
 		goto good_area;
-	}
-
-	if (!(vma->vm_flags & VM_GROWSDOWN)) {
-#ifdef DEBUG_FAULT
-		print_task(tsk);
-		printk("%s:%d fault, address is 0x%08x PC %016Lx textaccess %d writeaccess %d\n",
-		       __func__, __LINE__,
-		       address,regs->pc,textaccess,writeaccess);
-		show_regs(regs);
-
-		print_vma(vma);
-#endif
+	if (!(vma->vm_flags & VM_GROWSDOWN))
 		goto bad_area;
-	}
-	if (expand_stack(vma, address)) {
-#ifdef DEBUG_FAULT
-		print_task(tsk);
-		printk("%s:%d fault, address is 0x%08x PC %016Lx textaccess %d writeaccess %d\n",
-		       __func__, __LINE__,
-		       address,regs->pc,textaccess,writeaccess);
-		show_regs(regs);
-#endif
+	if (expand_stack(vma, address))
 		goto bad_area;
-	}
+
 /*
  * Ok, we have a good vm_area for this memory access, so
  * we can handle it..
@@ -251,9 +196,6 @@ no_pte:
  * Fix it, but check if it's kernel or user first..
  */
 bad_area:
-#ifdef DEBUG_FAULT
-	printk("fault:bad area\n");
-#endif
 	up_read(&mm->mmap_sem);
 
 	if (user_mode(regs)) {
@@ -266,9 +208,6 @@ bad_area:
 			printk("user mode bad_area address=%08lx pid=%d (%s) pc=%08lx\n",
 				address, task_pid_nr(current), current->comm,
 				(unsigned long) regs->pc);
-#if 0
-			show_regs(regs);
-#endif
 		}
 		if (is_global_init(tsk)) {
 			panic("INIT had user mode bad_area\n");
@@ -283,9 +222,6 @@ bad_area:
 	}
 
 no_context:
-#ifdef DEBUG_FAULT
-	printk("fault:No context\n");
-#endif
 	/* Are we prepared to handle this kernel fault?  */
 	fixup = search_exception_tables(regs->pc);
 	if (fixup) {
