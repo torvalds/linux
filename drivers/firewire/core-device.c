@@ -481,6 +481,7 @@ static int read_rom(struct fw_device *device,
  * generation changes under us, read_config_rom will fail and get retried.
  * It's better to start all over in this case because the node from which we
  * are reading the ROM may have changed the ROM during the reset.
+ * Returns either a result code or a negative error code.
  */
 static int read_config_rom(struct fw_device *device, int generation)
 {
@@ -488,7 +489,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	const u32 *old_rom, *new_rom;
 	u32 *rom, *stack;
 	u32 sp, key;
-	int i, end, length, ret = -1;
+	int i, end, length, ret;
 
 	rom = kmalloc(sizeof(*rom) * MAX_CONFIG_ROM_SIZE +
 		      sizeof(*stack) * MAX_CONFIG_ROM_SIZE, GFP_KERNEL);
@@ -502,7 +503,8 @@ static int read_config_rom(struct fw_device *device, int generation)
 
 	/* First read the bus info block. */
 	for (i = 0; i < 5; i++) {
-		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
+		ret = read_rom(device, generation, i, &rom[i]);
+		if (ret != RCODE_COMPLETE)
 			goto out;
 		/*
 		 * As per IEEE1212 7.2, during initialization, devices can
@@ -512,8 +514,10 @@ static int read_config_rom(struct fw_device *device, int generation)
 		 * harddisk).  In that case we just fail, and the
 		 * retry mechanism will try again later.
 		 */
-		if (i == 0 && rom[i] == 0)
+		if (i == 0 && rom[i] == 0) {
+			ret = RCODE_BUSY;
 			goto out;
+		}
 	}
 
 	device->max_speed = device->node->max_speed;
@@ -563,11 +567,14 @@ static int read_config_rom(struct fw_device *device, int generation)
 		 */
 		key = stack[--sp];
 		i = key & 0xffffff;
-		if (WARN_ON(i >= MAX_CONFIG_ROM_SIZE))
+		if (WARN_ON(i >= MAX_CONFIG_ROM_SIZE)) {
+			ret = -ENXIO;
 			goto out;
+		}
 
 		/* Read header quadlet for the block to get the length. */
-		if (read_rom(device, generation, i, &rom[i]) != RCODE_COMPLETE)
+		ret = read_rom(device, generation, i, &rom[i]);
+		if (ret != RCODE_COMPLETE)
 			goto out;
 		end = i + (rom[i] >> 16) + 1;
 		if (end > MAX_CONFIG_ROM_SIZE) {
@@ -590,8 +597,8 @@ static int read_config_rom(struct fw_device *device, int generation)
 		 * it references another block, and push it in that case.
 		 */
 		for (; i < end; i++) {
-			if (read_rom(device, generation, i, &rom[i]) !=
-			    RCODE_COMPLETE)
+			ret = read_rom(device, generation, i, &rom[i]);
+			if (ret != RCODE_COMPLETE)
 				goto out;
 
 			if ((key >> 30) != 3 || (rom[i] >> 30) < 2)
@@ -619,8 +626,10 @@ static int read_config_rom(struct fw_device *device, int generation)
 
 	old_rom = device->config_rom;
 	new_rom = kmemdup(rom, length * 4, GFP_KERNEL);
-	if (new_rom == NULL)
+	if (new_rom == NULL) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	down_write(&fw_device_rwsem);
 	device->config_rom = new_rom;
@@ -628,7 +637,7 @@ static int read_config_rom(struct fw_device *device, int generation)
 	up_write(&fw_device_rwsem);
 
 	kfree(old_rom);
-	ret = 0;
+	ret = RCODE_COMPLETE;
 	device->max_rec	= rom[2] >> 12 & 0xf;
 	device->cmc	= rom[2] >> 30 & 1;
 	device->irmc	= rom[2] >> 31 & 1;
@@ -967,15 +976,17 @@ static void fw_device_init(struct work_struct *work)
 	 * device.
 	 */
 
-	if (read_config_rom(device, device->generation) < 0) {
+	ret = read_config_rom(device, device->generation);
+	if (ret != RCODE_COMPLETE) {
 		if (device->config_rom_retries < MAX_RETRIES &&
 		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
 			device->config_rom_retries++;
 			fw_schedule_device_work(device, RETRY_DELAY);
 		} else {
 			if (device->node->link_on)
-				fw_notice(card, "giving up on Config ROM for node id %x\n",
-					  device->node_id);
+				fw_notice(card, "giving up on node %x: reading config rom failed: %s\n",
+					  device->node_id,
+					  fw_rcode_string(ret));
 			if (device->node == card->root_node)
 				fw_schedule_bm_work(card, 0);
 			fw_device_release(&device->device);
@@ -1132,7 +1143,8 @@ static void fw_device_refresh(struct work_struct *work)
 	 */
 	device_for_each_child(&device->device, NULL, shutdown_unit);
 
-	if (read_config_rom(device, device->generation) < 0) {
+	ret = read_config_rom(device, device->generation);
+	if (ret != RCODE_COMPLETE) {
 		if (device->config_rom_retries < MAX_RETRIES &&
 		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
 			device->config_rom_retries++;
@@ -1159,8 +1171,8 @@ static void fw_device_refresh(struct work_struct *work)
 	goto out;
 
  give_up:
-	fw_notice(card, "giving up on refresh of device %s\n",
-		  dev_name(&device->device));
+	fw_notice(card, "giving up on refresh of device %s: %s\n",
+		  dev_name(&device->device), fw_rcode_string(ret));
  gone:
 	atomic_set(&device->state, FW_DEVICE_GONE);
 	PREPARE_DELAYED_WORK(&device->work, fw_device_shutdown);
