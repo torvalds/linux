@@ -1228,17 +1228,17 @@ const struct seq_operations nfs_exports_op = {
  * Initialize the exports module.
  */
 int
-nfsd_export_init(void)
+nfsd_export_init(struct net *net)
 {
 	int rv;
-	dprintk("nfsd: initializing export module.\n");
+	dprintk("nfsd: initializing export module (net: %p).\n", net);
 
-	rv = cache_register_net(&svc_export_cache, &init_net);
+	rv = cache_register_net(&svc_export_cache, net);
 	if (rv)
 		return rv;
-	rv = cache_register_net(&svc_expkey_cache, &init_net);
+	rv = cache_register_net(&svc_expkey_cache, net);
 	if (rv)
-		cache_unregister_net(&svc_export_cache, &init_net);
+		cache_unregister_net(&svc_export_cache, net);
 	return rv;
 
 }
@@ -1257,14 +1257,14 @@ nfsd_export_flush(void)
  * Shutdown the exports module.
  */
 void
-nfsd_export_shutdown(void)
+nfsd_export_shutdown(struct net *net)
 {
 
-	dprintk("nfsd: shutting down export module.\n");
+	dprintk("nfsd: shutting down export module (net: %p).\n", net);
 
-	cache_unregister_net(&svc_expkey_cache, &init_net);
-	cache_unregister_net(&svc_export_cache, &init_net);
+	cache_unregister_net(&svc_expkey_cache, net);
+	cache_unregister_net(&svc_export_cache, net);
 	svcauth_unix_purge();
 
-	dprintk("nfsd: export shutdown complete.\n");
+	dprintk("nfsd: export shutdown complete (net: %p).\n", net);
 }

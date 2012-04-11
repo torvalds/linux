@@ -130,8 +130,8 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp);
 /*
  * Function declarations
  */
-int			nfsd_export_init(void);
-void			nfsd_export_shutdown(void);
+int			nfsd_export_init(struct net *);
+void			nfsd_export_shutdown(struct net *);
 void			nfsd_export_flush(void);
 struct svc_export *	rqst_exp_get_by_name(struct svc_rqst *,
 					     struct path *);
