@@ -44,7 +44,7 @@ void kirkwood_enable_pcie(void)
 		writel(curr | CGC_PEX0, CLOCK_GATING_CTRL);
 }
 
-void __init kirkwood_pcie_id(u32 *dev, u32 *rev)
+void kirkwood_pcie_id(u32 *dev, u32 *rev)
 {
 	kirkwood_enable_pcie();
 	*dev = orion_pcie_dev_id((void __iomem *)PCIE_VIRT_BASE);
@@ -181,7 +181,6 @@ static void __init pcie1_ioresources_init(struct pcie_port *pp)
 
 static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 {
-	extern unsigned int kirkwood_clk_ctrl;
 	struct pcie_port *pp;
 	int index;
 
@@ -200,12 +199,10 @@ static int __init kirkwood_pcie_setup(int nr, struct pci_sys_data *sys)
 
 	switch (index) {
 	case 0:
-		kirkwood_clk_ctrl |= CGC_PEX0;
 		kirkwood_enable_pcie_clk("0");
 		pcie0_ioresources_init(pp);
 		break;
 	case 1:
-		kirkwood_clk_ctrl |= CGC_PEX1;
 		kirkwood_enable_pcie_clk("1");
 		pcie1_ioresources_init(pp);
 		break;
