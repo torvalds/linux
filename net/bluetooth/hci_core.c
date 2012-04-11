@@ -2334,7 +2334,7 @@ static inline struct hci_conn *hci_low_sent(struct hci_dev *hdev, __u8 type, int
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_conn *conn = NULL, *c;
-	int num = 0, min = ~0;
+	unsigned int num = 0, min = ~0;
 
 	/* We don't have to lock device here. Connections are always
 	 * added and removed with TX task disabled. */
@@ -2415,7 +2415,7 @@ static inline struct hci_chan *hci_chan_sent(struct hci_dev *hdev, __u8 type,
 {
 	struct hci_conn_hash *h = &hdev->conn_hash;
 	struct hci_chan *chan = NULL;
-	int num = 0, min = ~0, cur_prio = 0;
+	unsigned int num = 0, min = ~0, cur_prio = 0;
 	struct hci_conn *conn;
 	int cnt, q, conn_num = 0;
 
