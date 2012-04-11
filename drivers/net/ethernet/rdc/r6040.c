@@ -605,7 +605,7 @@ static void r6040_tx(struct net_device *dev)
 		err = ioread16(ioaddr + MLSR);
 
 		if (err & 0x0200)
-			dev->stats.rx_fifo_errors++;
+			dev->stats.tx_fifo_errors++;
 		if (err & (0x2000 | 0x4000))
 			dev->stats.tx_carrier_errors++;
 
