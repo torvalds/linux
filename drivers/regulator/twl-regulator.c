@@ -175,15 +175,14 @@ static int twl6030reg_is_enabled(struct regulator_dev *rdev)
 	struct twlreg_info	*info = rdev_get_drvdata(rdev);
 	int			grp = 0, val;
 
-	if (!(twl_class_is_6030() && (info->features & TWL6025_SUBCLASS)))
-		grp = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_GRP);
-	if (grp < 0)
-		return grp;
-
-	if (!(twl_class_is_6030() && (info->features & TWL6025_SUBCLASS)))
+	if (!(twl_class_is_6030() && (info->features & TWL6025_SUBCLASS))) {
+		grp = twlreg_grp(rdev);
+		if (grp < 0)
+			return grp;
 		grp &= P1_GRP_6030;
-	else
+	} else {
 		grp = 1;
+	}
 
 	val = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_STATE);
 	val = TWL6030_CFG_STATE_APP(val);
@@ -197,7 +196,7 @@ static int twl4030reg_enable(struct regulator_dev *rdev)
 	int			grp;
 	int			ret;
 
-	grp = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_GRP);
+	grp = twlreg_grp(rdev);
 	if (grp < 0)
 		return grp;
 
@@ -215,7 +214,7 @@ static int twl6030reg_enable(struct regulator_dev *rdev)
 	int			ret;
 
 	if (!(twl_class_is_6030() && (info->features & TWL6025_SUBCLASS)))
-		grp = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_GRP);
+		grp = twlreg_grp(rdev);
 	if (grp < 0)
 		return grp;
 
@@ -245,7 +244,7 @@ static int twl4030reg_disable(struct regulator_dev *rdev)
 	int			grp;
 	int			ret;
 
-	grp = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_GRP);
+	grp = twlreg_grp(rdev);
 	if (grp < 0)
 		return grp;
 
@@ -357,7 +356,7 @@ static int twl6030reg_set_mode(struct regulator_dev *rdev, unsigned mode)
 	int val;
 
 	if (!(twl_class_is_6030() && (info->features & TWL6025_SUBCLASS)))
-		grp = twlreg_read(info, TWL_MODULE_PM_RECEIVER, VREG_GRP);
+		grp = twlreg_grp(rdev);
 
 	if (grp < 0)
 		return grp;
