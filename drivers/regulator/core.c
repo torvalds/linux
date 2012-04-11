@@ -2833,12 +2833,14 @@ regulator_register(const struct regulator_desc *regulator_desc,
 	const struct regulator_init_data *init_data;
 	static atomic_t regulator_no = ATOMIC_INIT(0);
 	struct regulator_dev *rdev;
-	struct device *dev = config->dev;
+	struct device *dev;
 	int ret, i;
 	const char *supply = NULL;
 
 	if (regulator_desc == NULL || config == NULL)
 		return ERR_PTR(-EINVAL);
+
+	dev = config->dev;
 
 	if (regulator_desc->name == NULL || regulator_desc->ops == NULL)
 		return ERR_PTR(-EINVAL);
