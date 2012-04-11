@@ -8547,7 +8547,7 @@ void intel_init_emon(struct drm_device *dev)
 	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
-static int intel_enable_rc6(struct drm_device *dev)
+int intel_enable_rc6(const struct drm_device *dev)
 {
 	/*
 	 * Respect the kernel parameter if it is set

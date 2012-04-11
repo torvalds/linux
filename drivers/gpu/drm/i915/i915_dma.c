@@ -2139,6 +2139,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		}
 	}
 
+	i915_setup_sysfs(dev);
+
 	/* Must be done after probing outputs */
 	intel_opregion_init(dev);
 	acpi_video_register();
@@ -2189,6 +2191,8 @@ int i915_driver_unload(struct drm_device *dev)
 	spin_lock(&mchdev_lock);
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
+
+	i915_teardown_sysfs(dev);
 
 	if (dev_priv->mm.inactive_shrinker.shrink)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);

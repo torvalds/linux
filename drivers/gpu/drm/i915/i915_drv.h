@@ -1385,6 +1385,10 @@ extern int i915_restore_state(struct drm_device *dev);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
+/* i915_sysfs.c */
+void i915_setup_sysfs(struct drm_device *dev_priv);
+void i915_teardown_sysfs(struct drm_device *dev_priv);
+
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
@@ -1441,6 +1445,7 @@ extern void ironlake_enable_rc6(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
+extern int intel_enable_rc6(const struct drm_device *dev);
 
 extern bool i915_semaphore_is_enabled(struct drm_device *dev);
 extern void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
