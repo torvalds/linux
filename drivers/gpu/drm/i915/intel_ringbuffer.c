@@ -1265,22 +1265,6 @@ void intel_ring_advance(struct intel_ring_buffer *ring)
 	ring->write_tail(ring, ring->tail);
 }
 
-/* ring buffer for bit-stream decoder */
-
-static const struct intel_ring_buffer bsd_ring = {
-	.name                   = "bsd ring",
-	.id			= VCS,
-	.mmio_base		= BSD_RING_BASE,
-	.init			= init_ring_common,
-	.write_tail		= ring_write_tail,
-	.flush			= bsd_ring_flush,
-	.add_request		= ring_add_request,
-	.get_seqno		= ring_get_seqno,
-	.irq_get		= bsd_ring_get_irq,
-	.irq_put		= bsd_ring_put_irq,
-	.dispatch_execbuffer	= ring_dispatch_execbuffer,
-};
-
 
 static void gen6_bsd_ring_write_tail(struct intel_ring_buffer *ring,
 				     u32 value)
@@ -1342,27 +1326,6 @@ gen6_ring_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 	return 0;
 }
-
-/* ring buffer for Video Codec for Gen6+ */
-static const struct intel_ring_buffer gen6_bsd_ring = {
-	.name			= "gen6 bsd ring",
-	.id			= VCS,
-	.mmio_base		= GEN6_BSD_RING_BASE,
-	.init			= init_ring_common,
-	.write_tail		= gen6_bsd_ring_write_tail,
-	.flush			= gen6_ring_flush,
-	.add_request		= gen6_add_request,
-	.get_seqno		= gen6_ring_get_seqno,
-	.irq_enable_mask	= GEN6_BSD_USER_INTERRUPT,
-	.irq_get		= gen6_ring_get_irq,
-	.irq_put		= gen6_ring_put_irq,
-	.dispatch_execbuffer	= gen6_ring_dispatch_execbuffer,
-	.sync_to		= gen6_bsd_ring_sync_to,
-	.semaphore_register	= {MI_SEMAPHORE_SYNC_VR,
-				   MI_SEMAPHORE_SYNC_INVALID,
-				   MI_SEMAPHORE_SYNC_VB},
-	.signal_mbox		= {GEN6_RVSYNC, GEN6_BVSYNC},
-};
 
 /* Blitter support (SandyBridge+) */
 
@@ -1531,10 +1494,37 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[VCS];
 
-	if (IS_GEN6(dev) || IS_GEN7(dev))
-		*ring = gen6_bsd_ring;
-	else
-		*ring = bsd_ring;
+	ring->name = "bsd ring";
+	ring->id = VCS;
+
+	if (IS_GEN6(dev) || IS_GEN7(dev)) {
+		ring->mmio_base = GEN6_BSD_RING_BASE;
+		ring->write_tail = gen6_bsd_ring_write_tail;
+		ring->flush = gen6_ring_flush;
+		ring->add_request = gen6_add_request;
+		ring->get_seqno = gen6_ring_get_seqno;
+		ring->irq_enable_mask = GEN6_BSD_USER_INTERRUPT;
+		ring->irq_get = gen6_ring_get_irq;
+		ring->irq_put = gen6_ring_put_irq;
+		ring->dispatch_execbuffer = gen6_ring_dispatch_execbuffer;
+		ring->sync_to = gen6_bsd_ring_sync_to;
+		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_VR;
+		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_INVALID;
+		ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_VB;
+		ring->signal_mbox[0] = GEN6_RVSYNC;
+		ring->signal_mbox[1] = GEN6_BVSYNC;
+	} else {
+		ring->mmio_base = BSD_RING_BASE;
+		ring->write_tail = ring_write_tail;
+		ring->flush = bsd_ring_flush;
+		ring->add_request = ring_add_request;
+		ring->get_seqno = ring_get_seqno;
+		ring->irq_get = bsd_ring_get_irq;
+		ring->irq_put = bsd_ring_put_irq;
+		ring->dispatch_execbuffer = ring_dispatch_execbuffer;
+	}
+	ring->init = init_ring_common;
+
 
 	return intel_init_ring_buffer(dev, ring);
 }
