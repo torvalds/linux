@@ -2,6 +2,7 @@
  * Helper routines for SuperH Clock Pulse Generator blocks (CPG).
  *
  *  Copyright (C) 2010  Magnus Damm
+ *  Copyright (C) 2010 - 2012  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,26 +14,41 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 
-static int sh_clk_mstp32_enable(struct clk *clk)
+static int sh_clk_mstp_enable(struct clk *clk)
 {
-	iowrite32(ioread32(clk->mapped_reg) & ~(1 << clk->enable_bit),
-		  clk->mapped_reg);
+	if (clk->flags & CLK_ENABLE_REG_8BIT)
+		iowrite8(ioread8(clk->mapped_reg) & ~(1 << clk->enable_bit),
+			 clk->mapped_reg);
+	else if (clk->flags & CLK_ENABLE_REG_16BIT)
+		iowrite16(ioread16(clk->mapped_reg) & ~(1 << clk->enable_bit),
+			  clk->mapped_reg);
+	else
+		iowrite32(ioread32(clk->mapped_reg) & ~(1 << clk->enable_bit),
+			  clk->mapped_reg);
+
 	return 0;
 }
 
-static void sh_clk_mstp32_disable(struct clk *clk)
+static void sh_clk_mstp_disable(struct clk *clk)
 {
-	iowrite32(ioread32(clk->mapped_reg) | (1 << clk->enable_bit),
-		  clk->mapped_reg);
+	if (clk->flags & CLK_ENABLE_REG_8BIT)
+		iowrite8(ioread8(clk->mapped_reg) | (1 << clk->enable_bit),
+			 clk->mapped_reg);
+	else if (clk->flags & CLK_ENABLE_REG_16BIT)
+		iowrite16(ioread16(clk->mapped_reg) | (1 << clk->enable_bit),
+			  clk->mapped_reg);
+	else
+		iowrite32(ioread32(clk->mapped_reg) | (1 << clk->enable_bit),
+			  clk->mapped_reg);
 }
 
-static struct sh_clk_ops sh_clk_mstp32_clk_ops = {
-	.enable		= sh_clk_mstp32_enable,
-	.disable	= sh_clk_mstp32_disable,
+static struct sh_clk_ops sh_clk_mstp_clk_ops = {
+	.enable		= sh_clk_mstp_enable,
+	.disable	= sh_clk_mstp_disable,
 	.recalc		= followparent_recalc,
 };
 
-int __init sh_clk_mstp32_register(struct clk *clks, int nr)
+int __init sh_clk_mstp_register(struct clk *clks, int nr)
 {
 	struct clk *clkp;
 	int ret = 0;
@@ -40,7 +56,7 @@ int __init sh_clk_mstp32_register(struct clk *clks, int nr)
 
 	for (k = 0; !ret && (k < nr); k++) {
 		clkp = clks + k;
-		clkp->ops = &sh_clk_mstp32_clk_ops;
+		clkp->ops = &sh_clk_mstp_clk_ops;
 		ret |= clk_register(clkp);
 	}
 
