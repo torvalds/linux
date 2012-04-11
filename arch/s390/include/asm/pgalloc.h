@@ -22,10 +22,7 @@ void crst_table_free(struct mm_struct *, unsigned long *);
 
 unsigned long *page_table_alloc(struct mm_struct *, unsigned long);
 void page_table_free(struct mm_struct *, unsigned long *);
-#ifdef CONFIG_HAVE_RCU_TABLE_FREE
 void page_table_free_rcu(struct mmu_gather *, unsigned long *);
-void __tlb_remove_table(void *_table);
-#endif
 
 static inline void clear_table(unsigned long *s, unsigned long val, size_t n)
 {
