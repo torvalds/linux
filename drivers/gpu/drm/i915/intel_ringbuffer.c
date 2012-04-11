@@ -565,27 +565,6 @@ pc_render_add_request(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static int
-render_ring_add_request(struct intel_ring_buffer *ring,
-			u32 *result)
-{
-	u32 seqno = i915_gem_next_request_seqno(ring);
-	int ret;
-
-	ret = intel_ring_begin(ring, 4);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
-	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring, seqno);
-	intel_ring_emit(ring, MI_USER_INTERRUPT);
-	intel_ring_advance(ring);
-
-	*result = seqno;
-	return 0;
-}
-
 static u32
 gen6_ring_get_seqno(struct intel_ring_buffer *ring)
 {
@@ -751,7 +730,7 @@ bsd_ring_flush(struct intel_ring_buffer *ring,
 }
 
 static int
-ring_add_request(struct intel_ring_buffer *ring,
+i9xx_add_request(struct intel_ring_buffer *ring,
 		 u32 *result)
 {
 	u32 seqno;
@@ -1323,7 +1302,7 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_put = gen5_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT | GT_PIPE_NOTIFY;
 	} else {
-		ring->add_request = render_ring_add_request;
+		ring->add_request = i9xx_add_request;
 		ring->flush = render_ring_flush;
 		ring->get_seqno = ring_get_seqno;
 		ring->irq_get = i9xx_ring_get_irq;
@@ -1371,7 +1350,7 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 		ring->irq_put = gen5_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT | GT_PIPE_NOTIFY;
 	} else {
-		ring->add_request = render_ring_add_request;
+		ring->add_request = i9xx_add_request;
 		ring->flush = render_ring_flush;
 		ring->get_seqno = ring_get_seqno;
 		ring->irq_get = i9xx_ring_get_irq;
@@ -1448,7 +1427,7 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	} else {
 		ring->mmio_base = BSD_RING_BASE;
 		ring->flush = bsd_ring_flush;
-		ring->add_request = ring_add_request;
+		ring->add_request = i9xx_add_request;
 		ring->get_seqno = ring_get_seqno;
 		if (IS_GEN5(dev)) {
 			ring->irq_enable_mask = GT_BSD_USER_INTERRUPT;
