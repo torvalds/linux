@@ -1397,7 +1397,7 @@ int wl1271_plt_start(struct wl1271 *wl)
 		if (ret < 0)
 			goto power_off;
 
-		ret = wl1271_boot(wl);
+		ret = wl->ops->boot(wl);
 		if (ret < 0)
 			goto power_off;
 
@@ -1426,7 +1426,7 @@ irq_disable:
 		   work function will not do anything.) Also, any other
 		   possible concurrent operations will fail due to the
 		   current state, hence the wl1271 struct should be safe. */
-		wl1271_disable_interrupts(wl);
+		wlcore_disable_interrupts(wl);
 		wl1271_flush_deferred_work(wl);
 		cancel_work_sync(&wl->netstack_work);
 		mutex_lock(&wl->mutex);
@@ -1453,7 +1453,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	 * Otherwise, the interrupt handler might be called and exit without
 	 * reading the interrupt status.
 	 */
-	wl1271_disable_interrupts(wl);
+	wlcore_disable_interrupts(wl);
 	mutex_lock(&wl->mutex);
 	if (!wl->plt) {
 		mutex_unlock(&wl->mutex);
@@ -1463,7 +1463,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 		 * may have been disabled when op_stop was called. It will,
 		 * however, balance the above call to disable_interrupts().
 		 */
-		wl1271_enable_interrupts(wl);
+		wlcore_enable_interrupts(wl);
 
 		wl1271_error("cannot power down because not in PLT "
 			     "state: %d", wl->state);
@@ -1734,7 +1734,7 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	 * disable and re-enable interrupts in order to flush
 	 * the threaded_irq
 	 */
-	wl1271_disable_interrupts(wl);
+	wlcore_disable_interrupts(wl);
 
 	/*
 	 * set suspended flag to avoid triggering a new threaded_irq
@@ -1742,7 +1742,7 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	 */
 	set_bit(WL1271_FLAG_SUSPENDED, &wl->flags);
 
-	wl1271_enable_interrupts(wl);
+	wlcore_enable_interrupts(wl);
 	flush_work(&wl->tx_work);
 	flush_delayed_work(&wl->elp_work);
 
@@ -1774,7 +1774,7 @@ static int wl1271_op_resume(struct ieee80211_hw *hw)
 		wl1271_debug(DEBUG_MAC80211,
 			     "run postponed irq_work directly");
 		wl1271_irq(0, wl);
-		wl1271_enable_interrupts(wl);
+		wlcore_enable_interrupts(wl);
 	}
 
 	mutex_lock(&wl->mutex);
@@ -1818,7 +1818,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	 * Otherwise, the interrupt handler might be called and exit without
 	 * reading the interrupt status.
 	 */
-	wl1271_disable_interrupts(wl);
+	wlcore_disable_interrupts(wl);
 	mutex_lock(&wl->mutex);
 	if (wl->state == WL1271_STATE_OFF) {
 		mutex_unlock(&wl->mutex);
@@ -1828,7 +1828,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 		 * may have been disabled when op_stop was called. It will,
 		 * however, balance the above call to disable_interrupts().
 		 */
-		wl1271_enable_interrupts(wl);
+		wlcore_enable_interrupts(wl);
 		return;
 	}
 
@@ -2034,7 +2034,7 @@ static bool wl12xx_init_fw(struct wl1271 *wl)
 		if (ret < 0)
 			goto power_off;
 
-		ret = wl1271_boot(wl);
+		ret = wl->ops->boot(wl);
 		if (ret < 0)
 			goto power_off;
 
@@ -2054,7 +2054,7 @@ irq_disable:
 		   work function will not do anything.) Also, any other
 		   possible concurrent operations will fail due to the
 		   current state, hence the wl1271 struct should be safe. */
-		wl1271_disable_interrupts(wl);
+		wlcore_disable_interrupts(wl);
 		wl1271_flush_deferred_work(wl);
 		cancel_work_sync(&wl->netstack_work);
 		mutex_lock(&wl->mutex);

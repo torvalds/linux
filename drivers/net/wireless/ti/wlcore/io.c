@@ -32,12 +32,6 @@
 #include "io.h"
 #include "tx.h"
 
-/*
- * TODO: this is here just for now, it will be removed when we move
- * the top_reg stuff to wl12xx
- */
-#include "../wl12xx/reg.h"
-
 bool wl1271_set_block_size(struct wl1271 *wl)
 {
 	if (wl->if_ops->set_block_size) {
@@ -48,15 +42,17 @@ bool wl1271_set_block_size(struct wl1271 *wl)
 	return false;
 }
 
-void wl1271_disable_interrupts(struct wl1271 *wl)
+void wlcore_disable_interrupts(struct wl1271 *wl)
 {
 	disable_irq(wl->irq);
 }
+EXPORT_SYMBOL_GPL(wlcore_disable_interrupts);
 
-void wl1271_enable_interrupts(struct wl1271 *wl)
+void wlcore_enable_interrupts(struct wl1271 *wl)
 {
 	enable_irq(wl->irq);
 }
+EXPORT_SYMBOL_GPL(wlcore_enable_interrupts);
 
 int wlcore_translate_addr(struct wl1271 *wl, int addr)
 {
@@ -175,48 +171,3 @@ void wl1271_io_init(struct wl1271 *wl)
 	if (wl->if_ops->init)
 		wl->if_ops->init(wl->dev);
 }
-
-void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val)
-{
-	/* write address >> 1 + 0x30000 to OCP_POR_CTR */
-	addr = (addr >> 1) + 0x30000;
-	wl1271_write32(wl, WL12XX_OCP_POR_CTR, addr);
-
-	/* write value to OCP_POR_WDATA */
-	wl1271_write32(wl, WL12XX_OCP_DATA_WRITE, val);
-
-	/* write 1 to OCP_CMD */
-	wl1271_write32(wl, WL12XX_OCP_CMD, OCP_CMD_WRITE);
-}
-
-u16 wl1271_top_reg_read(struct wl1271 *wl, int addr)
-{
-	u32 val;
-	int timeout = OCP_CMD_LOOP;
-
-	/* write address >> 1 + 0x30000 to OCP_POR_CTR */
-	addr = (addr >> 1) + 0x30000;
-	wl1271_write32(wl, WL12XX_OCP_POR_CTR, addr);
-
-	/* write 2 to OCP_CMD */
-	wl1271_write32(wl, WL12XX_OCP_CMD, OCP_CMD_READ);
-
-	/* poll for data ready */
-	do {
-		val = wl1271_read32(wl, WL12XX_OCP_DATA_READ);
-	} while (!(val & OCP_READY_MASK) && --timeout);
-
-	if (!timeout) {
-		wl1271_warning("Top register access timed out.");
-		return 0xffff;
-	}
-
-	/* check data status and return if OK */
-	if ((val & OCP_STATUS_MASK) == OCP_STATUS_OK)
-		return val & 0xffff;
-	else {
-		wl1271_warning("Top register access returned error.");
-		return 0xffff;
-	}
-}
-EXPORT_SYMBOL_GPL(wl1271_top_reg_read);
