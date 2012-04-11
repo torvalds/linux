@@ -1342,21 +1342,17 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	if (INTEL_INFO(dev)->gen >= 6) {
 		/* non-kms not supported on gen6+ */
 		return -ENODEV;
-	} else if (IS_GEN5(dev)) {
-		ring->add_request = pc_render_add_request;
-		ring->flush = render_ring_flush;
-		ring->get_seqno = pc_render_get_seqno;
-		ring->irq_get = gen5_ring_get_irq;
-		ring->irq_put = gen5_ring_put_irq;
-		ring->irq_enable_mask = GT_USER_INTERRUPT | GT_PIPE_NOTIFY;
-	} else {
-		ring->add_request = i9xx_add_request;
-		ring->flush = render_ring_flush;
-		ring->get_seqno = ring_get_seqno;
-		ring->irq_get = i9xx_ring_get_irq;
-		ring->irq_put = i9xx_ring_put_irq;
-		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
+
+	/* Note: gem is not supported on gen5/ilk without kms (the corresponding
+	 * gem_init ioctl returns with -ENODEV). Hence we do not need to set up
+	 * the special gen5 functions. */
+	ring->add_request = i9xx_add_request;
+	ring->flush = render_ring_flush;
+	ring->get_seqno = ring_get_seqno;
+	ring->irq_get = i9xx_ring_get_irq;
+	ring->irq_put = i9xx_ring_put_irq;
+	ring->irq_enable_mask = I915_USER_INTERRUPT;
 	ring->write_tail = ring_write_tail;
 	if (INTEL_INFO(dev)->gen >= 4)
 		ring->dispatch_execbuffer = i965_dispatch_execbuffer;
