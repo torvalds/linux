@@ -78,11 +78,6 @@ static int rx_alloc_method = RX_ALLOC_METHOD_AUTO;
  */
 static unsigned int rx_refill_threshold = 90;
 
-/* This is the percentage fill level to which an RX queue will be refilled
- * when the "RX refill threshold" is reached.
- */
-static unsigned int rx_refill_limit = 95;
-
 /*
  * RX maximum head room required.
  *
@@ -342,7 +337,7 @@ static void efx_recycle_rx_buffer(struct efx_channel *channel,
  * efx_fast_push_rx_descriptors - push new RX descriptors quickly
  * @rx_queue:		RX descriptor queue
  * This will aim to fill the RX descriptor queue up to
- * @rx_queue->@fast_fill_limit. If there is insufficient atomic
+ * @rx_queue->@max_fill. If there is insufficient atomic
  * memory to do so, a slow fill will be scheduled.
  *
  * The caller must provide serialisation (none is used here). In practise,
@@ -367,7 +362,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 			rx_queue->min_fill = fill_level;
 	}
 
-	space = rx_queue->fast_fill_limit - fill_level;
+	space = rx_queue->max_fill - fill_level;
 	if (space < EFX_RX_BATCH)
 		goto out;
 
@@ -375,7 +370,7 @@ void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 		   "RX queue %d fast-filling descriptor ring from"
 		   " level %d to level %d using %s allocation\n",
 		   efx_rx_queue_index(rx_queue), fill_level,
-		   rx_queue->fast_fill_limit,
+		   rx_queue->max_fill,
 		   channel->rx_alloc_push_pages ? "page" : "skb");
 
 	do {
@@ -681,7 +676,7 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	unsigned int max_fill, trigger, limit;
+	unsigned int max_fill, trigger;
 
 	netif_dbg(rx_queue->efx, drv, rx_queue->efx->net_dev,
 		  "initialising RX queue %d\n", efx_rx_queue_index(rx_queue));
@@ -695,11 +690,9 @@ void efx_init_rx_queue(struct efx_rx_queue *rx_queue)
 	/* Initialise limit fields */
 	max_fill = efx->rxq_entries - EFX_RXD_HEAD_ROOM;
 	trigger = max_fill * min(rx_refill_threshold, 100U) / 100U;
-	limit = max_fill * min(rx_refill_limit, 100U) / 100U;
 
 	rx_queue->max_fill = max_fill;
 	rx_queue->fast_fill_trigger = trigger;
-	rx_queue->fast_fill_limit = limit;
 
 	/* Set up RX descriptor ring */
 	rx_queue->enabled = true;
