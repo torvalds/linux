@@ -128,6 +128,9 @@
 #define MID_3M		0x82	/* MID3 Medium */
 #define MID_3H		0x84	/* MID3 High */
 #define PHY_CC		0x88	/* PHY status change configuration register */
+#define  SCEN		0x8000	/* PHY status change enable */
+#define  PHYAD_SHIFT	8	/* PHY address shift */
+#define  TMRDIV_SHIFT	0	/* Timer divider shift */
 #define PHY_ST		0x8A	/* PHY status register */
 #define MAC_SM		0xAC	/* MAC status machine */
 #define  MAC_SM_RST	0x0002	/* MAC status machine reset */
@@ -1132,10 +1135,15 @@ static int __devinit r6040_init_one(struct pci_dev *pdev,
 		err = -EIO;
 		goto err_out_free_res;
 	}
+
 	/* If PHY status change register is still set to zero it means the
-	 * bootloader didn't initialize it */
+	 * bootloader didn't initialize it, so we set it to:
+	 * - enable phy status change
+	 * - enable all phy addresses
+	 * - set to lowest timer divider */
 	if (ioread16(ioaddr + PHY_CC) == 0)
-		iowrite16(0x9f07, ioaddr + PHY_CC);
+		iowrite16(SCEN | PHY_MAX_ADDR << PHYAD_SHIFT |
+				7 << TMRDIV_SHIFT, ioaddr + PHY_CC);
 
 	/* Init system & device */
 	lp->base = ioaddr;
