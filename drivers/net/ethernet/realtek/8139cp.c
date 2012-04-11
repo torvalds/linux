@@ -958,6 +958,11 @@ static inline void cp_start_hw (struct cp_private *cp)
 	cpw8(Cmd, RxOn | TxOn);
 }
 
+static void cp_enable_irq(struct cp_private *cp)
+{
+	cpw16_f(IntrMask, cp_intr_mask);
+}
+
 static void cp_init_hw (struct cp_private *cp)
 {
 	struct net_device *dev = cp->dev;
@@ -996,8 +1001,6 @@ static void cp_init_hw (struct cp_private *cp)
 	cpw32_f(TxRingAddr + 4, (ring_dma >> 16) >> 16);
 
 	cpw16(MultiIntr, 0);
-
-	cpw16_f(IntrMask, cp_intr_mask);
 
 	cpw8_f(Cfg9346, Cfg9346_Lock);
 }
@@ -1129,6 +1132,8 @@ static int cp_open (struct net_device *dev)
 	rc = request_irq(dev->irq, cp_interrupt, IRQF_SHARED, dev->name, dev);
 	if (rc)
 		goto err_out_hw;
+
+	cp_enable_irq(cp);
 
 	netif_carrier_off(dev);
 	mii_check_media(&cp->mii_if, netif_msg_link(cp), true);
@@ -2031,6 +2036,7 @@ static int cp_resume (struct pci_dev *pdev)
 	/* FIXME: sh*t may happen if the Rx ring buffer is depleted */
 	cp_init_rings_index (cp);
 	cp_init_hw (cp);
+	cp_enable_irq(cp);
 	netif_start_queue (dev);
 
 	spin_lock_irqsave (&cp->lock, flags);
