@@ -205,8 +205,6 @@ static int twl4030reg_enable(struct regulator_dev *rdev)
 
 	ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_GRP, grp);
 
-	udelay(info->delay);
-
 	return ret;
 }
 
@@ -224,10 +222,21 @@ static int twl6030reg_enable(struct regulator_dev *rdev)
 	ret = twlreg_write(info, TWL_MODULE_PM_RECEIVER, VREG_STATE,
 			grp << TWL6030_CFG_STATE_GRP_SHIFT |
 			TWL6030_CFG_STATE_ON);
-
-	udelay(info->delay);
-
 	return ret;
+}
+
+static int twl4030reg_enable_time(struct regulator_dev *rdev)
+{
+	struct twlreg_info	*info = rdev_get_drvdata(rdev);
+
+	return info->delay;
+}
+
+static int twl6030reg_enable_time(struct regulator_dev *rdev)
+{
+	struct twlreg_info	*info = rdev_get_drvdata(rdev);
+
+	return info->delay;
 }
 
 static int twl4030reg_disable(struct regulator_dev *rdev)
@@ -503,6 +512,7 @@ static struct regulator_ops twl4030ldo_ops = {
 	.enable		= twl4030reg_enable,
 	.disable	= twl4030reg_disable,
 	.is_enabled	= twl4030reg_is_enabled,
+	.enable_time	= twl4030reg_enable_time,
 
 	.set_mode	= twl4030reg_set_mode,
 
@@ -623,6 +633,7 @@ static struct regulator_ops twl6030ldo_ops = {
 	.enable		= twl6030reg_enable,
 	.disable	= twl6030reg_disable,
 	.is_enabled	= twl6030reg_is_enabled,
+	.enable_time	= twl6030reg_enable_time,
 
 	.set_mode	= twl6030reg_set_mode,
 
@@ -656,6 +667,7 @@ static struct regulator_ops twl4030fixed_ops = {
 	.enable		= twl4030reg_enable,
 	.disable	= twl4030reg_disable,
 	.is_enabled	= twl4030reg_is_enabled,
+	.enable_time	= twl4030reg_enable_time,
 
 	.set_mode	= twl4030reg_set_mode,
 
@@ -670,6 +682,7 @@ static struct regulator_ops twl6030fixed_ops = {
 	.enable		= twl6030reg_enable,
 	.disable	= twl6030reg_disable,
 	.is_enabled	= twl6030reg_is_enabled,
+	.enable_time	= twl6030reg_enable_time,
 
 	.set_mode	= twl6030reg_set_mode,
 
@@ -680,6 +693,7 @@ static struct regulator_ops twl6030_fixed_resource = {
 	.enable		= twl6030reg_enable,
 	.disable	= twl6030reg_disable,
 	.is_enabled	= twl6030reg_is_enabled,
+	.enable_time	= twl6030reg_enable_time,
 	.get_status	= twl6030reg_get_status,
 };
 
@@ -876,6 +890,7 @@ static struct regulator_ops twlsmps_ops = {
 	.enable			= twl6030reg_enable,
 	.disable		= twl6030reg_disable,
 	.is_enabled		= twl6030reg_is_enabled,
+	.enable_time		= twl6030reg_enable_time,
 
 	.set_mode		= twl6030reg_set_mode,
 
