@@ -369,7 +369,7 @@ typedef struct rga_service_info {
     atomic_t		total_running;
     
     struct rga_reg        *reg;
-    uint32_t            cmd_buff[28*16];/* cmd_buff for rga */
+    uint32_t            cmd_buff[28*8];/* cmd_buff for rga */
     uint32_t            *pre_scale_buf;
     atomic_t            int_disable;     /* 0 int enable 1 int disable  */
     atomic_t            cmd_num;
