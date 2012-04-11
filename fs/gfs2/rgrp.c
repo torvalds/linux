@@ -1002,11 +1002,13 @@ struct gfs2_qadata *gfs2_qadata_get(struct gfs2_inode *ip)
  * Returns: the struct gfs2_qadata
  */
 
-static struct gfs2_blkreserv *gfs2_blkrsv_get(struct gfs2_inode *ip)
+static int gfs2_blkrsv_get(struct gfs2_inode *ip)
 {
 	BUG_ON(ip->i_res != NULL);
-	ip->i_res = kzalloc(sizeof(struct gfs2_blkreserv), GFP_NOFS);
-	return ip->i_res;
+	ip->i_res = kmem_cache_zalloc(gfs2_rsrv_cachep, GFP_NOFS);
+	if (!ip->i_res)
+		return -ENOMEM;
+	return 0;
 }
 
 /**
@@ -1164,7 +1166,7 @@ static int get_local_rgrp(struct gfs2_inode *ip, u64 *last_unlinked)
 static void gfs2_blkrsv_put(struct gfs2_inode *ip)
 {
 	BUG_ON(ip->i_res == NULL);
-	kfree(ip->i_res);
+	kmem_cache_free(gfs2_rsrv_cachep, ip->i_res);
 	ip->i_res = NULL;
 }
 
@@ -1179,14 +1181,15 @@ int gfs2_inplace_reserve(struct gfs2_inode *ip, u32 requested)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_blkreserv *rs;
-	int error = 0;
+	int error;
 	u64 last_unlinked = NO_BLOCK;
 	int tries = 0;
 
-	rs = gfs2_blkrsv_get(ip);
-	if (!rs)
-		return -ENOMEM;
+	error = gfs2_blkrsv_get(ip);
+	if (error)
+		return error;
 
+	rs = ip->i_res;
 	rs->rs_requested = requested;
 	if (gfs2_assert_warn(sdp, requested)) {
 		error = -EINVAL;

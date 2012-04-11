@@ -143,6 +143,12 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_quotad_cachep)
 		goto fail;
 
+	gfs2_rsrv_cachep = kmem_cache_create("gfs2_mblk",
+					     sizeof(struct gfs2_blkreserv),
+					       0, 0, NULL);
+	if (!gfs2_rsrv_cachep)
+		goto fail;
+
 	register_shrinker(&qd_shrinker);
 
 	error = register_filesystem(&gfs2_fs_type);
@@ -186,6 +192,9 @@ fail:
 	unregister_shrinker(&qd_shrinker);
 	gfs2_glock_exit();
 
+	if (gfs2_rsrv_cachep)
+		kmem_cache_destroy(gfs2_rsrv_cachep);
+
 	if (gfs2_quotad_cachep)
 		kmem_cache_destroy(gfs2_quotad_cachep);
 
@@ -226,6 +235,7 @@ static void __exit exit_gfs2_fs(void)
 	rcu_barrier();
 
 	mempool_destroy(gfs2_bh_pool);
+	kmem_cache_destroy(gfs2_rsrv_cachep);
 	kmem_cache_destroy(gfs2_quotad_cachep);
 	kmem_cache_destroy(gfs2_rgrpd_cachep);
 	kmem_cache_destroy(gfs2_bufdata_cachep);
