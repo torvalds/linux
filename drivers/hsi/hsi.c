@@ -100,7 +100,7 @@ static void hsi_new_client(struct hsi_port *port, struct hsi_board_info *info)
 		cl->device.archdata = *info->archdata;
 	if (device_register(&cl->device) < 0) {
 		pr_err("hsi: failed to register client: %s\n", info->name);
-		kfree(cl);
+		put_device(&cl->device);
 	}
 }
 
