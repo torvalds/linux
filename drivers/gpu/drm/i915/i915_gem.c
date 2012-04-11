@@ -1953,6 +1953,18 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
+/**
+ * i915_gem_object_sync - sync an object to a ring.
+ *
+ * @obj: object which may be in use on another ring.
+ * @to: ring we wish to use the object on. May be NULL.
+ *
+ * This code is meant to abstract object synchronization with the GPU.
+ * Calling with NULL implies synchronizing the object with the CPU
+ * rather than a particular GPU ring.
+ *
+ * Returns 0 if successful, else propagates up the lower layer error.
+ */
 int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		     struct intel_ring_buffer *to)
@@ -1964,7 +1976,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (from == NULL || to == from)
 		return 0;
 
-	if (!i915_semaphore_is_enabled(obj->base.dev))
+	if (to == NULL || !i915_semaphore_is_enabled(obj->base.dev))
 		return i915_gem_object_wait_rendering(obj);
 
 	idx = intel_ring_sync_index(from, to);
