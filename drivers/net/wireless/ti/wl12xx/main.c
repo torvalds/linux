@@ -26,6 +26,7 @@
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
+#include "../wlcore/io.h"
 
 #include "reg.h"
 
@@ -180,8 +181,21 @@ out:
 	return ret;
 }
 
+static s8 wl12xx_get_pg_ver(struct wl1271 *wl)
+{
+	u32 die_info;
+
+	if (wl->chip.id == CHIP_ID_1283_PG20)
+		die_info = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
+	else
+		die_info = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
+
+	return (s8) (die_info & PG_VER_MASK) >> PG_VER_OFFSET;
+}
+
 static struct wlcore_ops wl12xx_ops = {
 	.identify_chip = wl12xx_identify_chip,
+	.get_pg_ver     = wl12xx_get_pg_ver,
 };
 
 static int __devinit wl12xx_probe(struct platform_device *pdev)

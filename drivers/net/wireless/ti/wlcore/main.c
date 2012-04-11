@@ -5066,7 +5066,6 @@ static void wl12xx_get_fuse_mac(struct wl1271 *wl)
 static int wl12xx_get_hw_info(struct wl1271 *wl)
 {
 	int ret;
-	u32 die_info;
 
 	ret = wl12xx_set_power_on(wl);
 	if (ret < 0)
@@ -5077,20 +5076,11 @@ static int wl12xx_get_hw_info(struct wl1271 *wl)
 	wl->fuse_oui_addr = 0;
 	wl->fuse_nic_addr = 0;
 
-	/* TODO: properly detect PG ver and read MAC addr in other families */
-	if (wl->chip.id == CHIP_ID_1283_PG20)
-		die_info = wl1271_top_reg_read(wl, WL128X_REG_FUSE_DATA_2_1);
-	else if (wl->chip.id < CHIP_ID_1283_PG20)
-		die_info = wl1271_top_reg_read(wl, WL127X_REG_FUSE_DATA_2_1);
-	else
-		goto skip_mac;
-
-	wl->hw_pg_ver = (s8) (die_info & PG_VER_MASK) >> PG_VER_OFFSET;
+	wl->hw_pg_ver = wl->ops->get_pg_ver(wl);
 
 	if (wl12xx_mac_in_fuse(wl))
 		wl12xx_get_fuse_mac(wl);
 
-skip_mac:
 	wl1271_power_off(wl);
 out:
 	return ret;
