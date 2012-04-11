@@ -5399,6 +5399,13 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	{}
 };
 
+static const struct alc_model_fixup alc882_fixup_models[] = {
+	{.id = ALC882_FIXUP_ACER_ASPIRE_4930G, .name = "acer-aspire-4930g"},
+	{.id = ALC882_FIXUP_ACER_ASPIRE_8930G, .name = "acer-aspire-8930g"},
+	{.id = ALC883_FIXUP_ACER_EAPD, .name = "acer-aspire"},
+	{}
+};
+
 /*
  * BIOS auto configuration
  */
@@ -5439,7 +5446,8 @@ static int patch_alc882(struct hda_codec *codec)
 	if (err < 0)
 		goto error;
 
-	alc_pick_fixup(codec, NULL, alc882_fixup_tbl, alc882_fixups);
+	alc_pick_fixup(codec, alc882_fixup_models, alc882_fixup_tbl,
+		       alc882_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
 
 	alc_auto_parse_customize_define(codec);
