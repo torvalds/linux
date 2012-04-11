@@ -307,16 +307,6 @@ config MMC_ATMELMCI_DMA
 
 	  If unsure, say N.
 
-config MMC_IMX
-	tristate "Motorola i.MX Multimedia Card Interface support"
-	depends on ARCH_MX1
-	help
-	  This selects the Motorola i.MX Multimedia card Interface.
-	  If you have a i.MX platform with a Multimedia Card slot,
-	  say Y or M here.
-
-	  If unsure, say N.
-
 config MMC_MSM
 	tristate "Qualcomm SDCC Controller Support"
 	depends on MMC && ARCH_MSM
