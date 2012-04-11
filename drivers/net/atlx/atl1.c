@@ -2476,7 +2476,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 					"pcie phy link down %x\n", status);
 			if (netif_running(adapter->netdev)) {	/* reset MAC */
 				iowrite32(0, adapter->hw.hw_addr + REG_IMR);
-				schedule_work(&adapter->pcie_dma_to_rst_task);
+				schedule_work(&adapter->reset_dev_task);
 				return IRQ_HANDLED;
 			}
 		}
@@ -2488,7 +2488,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 					"pcie DMA r/w error (status = 0x%x)\n",
 					status);
 			iowrite32(0, adapter->hw.hw_addr + REG_IMR);
-			schedule_work(&adapter->pcie_dma_to_rst_task);
+			schedule_work(&adapter->reset_dev_task);
 			return IRQ_HANDLED;
 		}
 
@@ -2633,10 +2633,10 @@ static void atl1_down(struct atl1_adapter *adapter)
 	atl1_clean_rx_ring(adapter);
 }
 
-static void atl1_tx_timeout_task(struct work_struct *work)
+static void atl1_reset_dev_task(struct work_struct *work)
 {
 	struct atl1_adapter *adapter =
-		container_of(work, struct atl1_adapter, tx_timeout_task);
+		container_of(work, struct atl1_adapter, reset_dev_task);
 	struct net_device *netdev = adapter->netdev;
 
 	netif_device_detach(netdev);
@@ -3034,11 +3034,9 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 		    (unsigned long)adapter);
 	adapter->phy_timer_pending = false;
 
-	INIT_WORK(&adapter->tx_timeout_task, atl1_tx_timeout_task);
+	INIT_WORK(&adapter->reset_dev_task, atl1_reset_dev_task);
 
 	INIT_WORK(&adapter->link_chg_task, atlx_link_chg_task);
-
-	INIT_WORK(&adapter->pcie_dma_to_rst_task, atl1_tx_timeout_task);
 
 	err = register_netdev(netdev);
 	if (err)
