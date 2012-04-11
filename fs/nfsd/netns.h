@@ -33,7 +33,7 @@ struct nfsd_net {
 	struct cache_detail *svc_export_cache;
 
 	struct cache_detail *idtoname_cache;
-
+	struct cache_detail *nametoid_cache;
 };
 
 extern int nfsd_net_id;
