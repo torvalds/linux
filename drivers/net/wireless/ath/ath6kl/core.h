@@ -159,6 +159,14 @@ struct ath6kl_fw_ie {
 #define AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE \
 	"ath6k/AR6004/hw1.1/bdata.DB132.bin"
 
+/* AR6004 1.2 definitions */
+#define AR6004_HW_1_2_VERSION                 0x300007e8
+#define AR6004_HW_1_2_FW_DIR			"ath6k/AR6004/hw1.2"
+#define AR6004_HW_1_2_FIRMWARE_FILE           "fw.ram.bin"
+#define AR6004_HW_1_2_BOARD_DATA_FILE         "ath6k/AR6004/hw1.2/bdata.bin"
+#define AR6004_HW_1_2_DEFAULT_BOARD_DATA_FILE \
+	"ath6k/AR6004/hw1.2/bdata.bin"
+
 /* Per STA data, used in AP mode */
 #define STA_PS_AWAKE		BIT(0)
 #define	STA_PS_SLEEP		BIT(1)
