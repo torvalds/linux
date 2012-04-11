@@ -995,6 +995,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&ring->active_list);
 	INIT_LIST_HEAD(&ring->request_list);
 	INIT_LIST_HEAD(&ring->gpu_write_list);
+	ring->size = 32 * PAGE_SIZE;
 
 	init_waitqueue_head(&ring->irq_queue);
 	spin_lock_init(&ring->irq_lock);
@@ -1268,7 +1269,6 @@ static const struct intel_ring_buffer render_ring = {
 	.name			= "render ring",
 	.id			= RCS,
 	.mmio_base		= RENDER_RING_BASE,
-	.size			= 32 * PAGE_SIZE,
 	.init			= init_render_ring,
 	.write_tail		= ring_write_tail,
 	.flush			= render_ring_flush,
@@ -1291,7 +1291,6 @@ static const struct intel_ring_buffer bsd_ring = {
 	.name                   = "bsd ring",
 	.id			= VCS,
 	.mmio_base		= BSD_RING_BASE,
-	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
 	.write_tail		= ring_write_tail,
 	.flush			= bsd_ring_flush,
@@ -1369,7 +1368,6 @@ static const struct intel_ring_buffer gen6_bsd_ring = {
 	.name			= "gen6 bsd ring",
 	.id			= VCS,
 	.mmio_base		= GEN6_BSD_RING_BASE,
-	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
 	.write_tail		= gen6_bsd_ring_write_tail,
 	.flush			= gen6_ring_flush,
@@ -1413,7 +1411,6 @@ static const struct intel_ring_buffer gen6_blt_ring = {
 	.name			= "blt ring",
 	.id			= BCS,
 	.mmio_base		= BLT_RING_BASE,
-	.size			= 32 * PAGE_SIZE,
 	.init			= init_ring_common,
 	.write_tail		= ring_write_tail,
 	.flush			= blt_ring_flush,
