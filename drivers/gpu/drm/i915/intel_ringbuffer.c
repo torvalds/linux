@@ -1265,26 +1265,6 @@ void intel_ring_advance(struct intel_ring_buffer *ring)
 	ring->write_tail(ring, ring->tail);
 }
 
-static const struct intel_ring_buffer render_ring = {
-	.name			= "render ring",
-	.id			= RCS,
-	.mmio_base		= RENDER_RING_BASE,
-	.init			= init_render_ring,
-	.write_tail		= ring_write_tail,
-	.flush			= render_ring_flush,
-	.add_request		= render_ring_add_request,
-	.get_seqno		= ring_get_seqno,
-	.irq_get		= render_ring_get_irq,
-	.irq_put		= render_ring_put_irq,
-	.dispatch_execbuffer	= render_ring_dispatch_execbuffer,
-	.cleanup		= render_ring_cleanup,
-	.sync_to		= render_ring_sync_to,
-	.semaphore_register	= {MI_SEMAPHORE_SYNC_INVALID,
-				   MI_SEMAPHORE_SYNC_RV,
-				   MI_SEMAPHORE_SYNC_RB},
-	.signal_mbox		= {GEN6_VRSYNC, GEN6_BRSYNC},
-};
-
 /* ring buffer for bit-stream decoder */
 
 static const struct intel_ring_buffer bsd_ring = {
@@ -1432,7 +1412,10 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 
-	*ring = render_ring;
+	ring->name = "render ring";
+	ring->id = RCS;
+	ring->mmio_base = RENDER_RING_BASE;
+
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
 		ring->flush = gen6_render_ring_flush;
@@ -1440,10 +1423,30 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->irq_put = gen6_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT;
 		ring->get_seqno = gen6_ring_get_seqno;
+		ring->sync_to = render_ring_sync_to;
+		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_INVALID;
+		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_RV;
+		ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_RB;
+		ring->signal_mbox[0] = GEN6_VRSYNC;
+		ring->signal_mbox[1] = GEN6_BRSYNC;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
+		ring->flush = render_ring_flush;
 		ring->get_seqno = pc_render_get_seqno;
+		ring->irq_get = render_ring_get_irq;
+		ring->irq_put = render_ring_put_irq;
+	} else {
+		ring->add_request = render_ring_add_request;
+		ring->flush = render_ring_flush;
+		ring->get_seqno = ring_get_seqno;
+		ring->irq_get = render_ring_get_irq;
+		ring->irq_put = render_ring_put_irq;
 	}
+	ring->write_tail = ring_write_tail;
+	ring->dispatch_execbuffer = render_ring_dispatch_execbuffer;
+	ring->init = init_render_ring;
+	ring->cleanup = render_ring_cleanup;
+
 
 	if (!I915_NEED_GFX_HWS(dev)) {
 		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
@@ -1458,16 +1461,40 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 
-	*ring = render_ring;
+	ring->name = "render ring";
+	ring->id = RCS;
+	ring->mmio_base = RENDER_RING_BASE;
+
 	if (INTEL_INFO(dev)->gen >= 6) {
 		ring->add_request = gen6_add_request;
+		ring->flush = gen6_render_ring_flush;
 		ring->irq_get = gen6_ring_get_irq;
 		ring->irq_put = gen6_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT;
+		ring->get_seqno = gen6_ring_get_seqno;
+		ring->sync_to = render_ring_sync_to;
+		ring->semaphore_register[0] = MI_SEMAPHORE_SYNC_INVALID;
+		ring->semaphore_register[1] = MI_SEMAPHORE_SYNC_RV;
+		ring->semaphore_register[2] = MI_SEMAPHORE_SYNC_RB;
+		ring->signal_mbox[0] = GEN6_VRSYNC;
+		ring->signal_mbox[1] = GEN6_BRSYNC;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
+		ring->flush = render_ring_flush;
 		ring->get_seqno = pc_render_get_seqno;
+		ring->irq_get = render_ring_get_irq;
+		ring->irq_put = render_ring_put_irq;
+	} else {
+		ring->add_request = render_ring_add_request;
+		ring->flush = render_ring_flush;
+		ring->get_seqno = ring_get_seqno;
+		ring->irq_get = render_ring_get_irq;
+		ring->irq_put = render_ring_put_irq;
 	}
+	ring->write_tail = ring_write_tail;
+	ring->dispatch_execbuffer = render_ring_dispatch_execbuffer;
+	ring->init = init_render_ring;
+	ring->cleanup = render_ring_cleanup;
 
 	if (!I915_NEED_GFX_HWS(dev))
 		ring->status_page.page_addr = dev_priv->status_page_dmah->vaddr;
