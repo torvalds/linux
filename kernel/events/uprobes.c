@@ -160,6 +160,11 @@ static int __replace_page(struct vm_area_struct *vma, struct page *page, struct 
 	get_page(kpage);
 	page_add_new_anon_rmap(kpage, vma, addr);
 
+	if (!PageAnon(page)) {
+		dec_mm_counter(mm, MM_FILEPAGES);
+		inc_mm_counter(mm, MM_ANONPAGES);
+	}
+
 	flush_cache_page(vma, addr, pte_pfn(*ptep));
 	ptep_clear_flush(vma, addr, ptep);
 	set_pte_at_notify(mm, addr, ptep, mk_pte(kpage, vma->vm_page_prot));
