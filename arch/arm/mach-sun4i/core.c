@@ -30,8 +30,8 @@
 #include <linux/memblock.h>
 #include <linux/bootmem.h>
 #include <linux/export.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/leds.h>

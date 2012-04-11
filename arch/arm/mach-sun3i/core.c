@@ -12,8 +12,8 @@
 #include <linux/gfp.h>
 #include <linux/clockchips.h>
 #include <linux/export.h>
+#include <linux/clkdev.h>
 
-#include <asm/clkdev.h>
 #include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
@@ -28,7 +28,6 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/clkdev.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 
