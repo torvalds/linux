@@ -28,6 +28,9 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+
 #include "sdhci.h"
 #include "sdhci-pltfm.h"
 
@@ -164,6 +167,46 @@ static struct sdhci_ops pxav3_sdhci_ops = {
 	.platform_send_init_74_clocks = pxav3_gen_init_74_clocks,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id sdhci_pxav3_of_match[] = {
+	{
+		.compatible = "mrvl,pxav3-mmc",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, sdhci_pxav3_of_match);
+
+static struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
+{
+	struct sdhci_pxa_platdata *pdata;
+	struct device_node *np = dev->of_node;
+	u32 bus_width;
+	u32 clk_delay_cycles;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return NULL;
+
+	if (of_find_property(np, "non-removable", NULL))
+		pdata->flags |= PXA_FLAG_CARD_PERMANENT;
+
+	of_property_read_u32(np, "bus-width", &bus_width);
+	if (bus_width == 8)
+		pdata->flags |= PXA_FLAG_SD_8_BIT_CAPABLE_SLOT;
+
+	of_property_read_u32(np, "mrvl,clk-delay-cycles", &clk_delay_cycles);
+	if (clk_delay_cycles > 0)
+		pdata->clk_delay_cycles = clk_delay_cycles;
+
+	return pdata;
+}
+#else
+static inline struct sdhci_pxa_platdata *pxav3_get_mmc_pdata(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 {
 	struct sdhci_pltfm_host *pltfm_host;
@@ -171,6 +214,8 @@ static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct sdhci_host *host = NULL;
 	struct sdhci_pxa *pxa = NULL;
+	const struct of_device_id *match;
+
 	int ret;
 	struct clk *clk;
 
@@ -201,6 +246,10 @@ static int __devinit sdhci_pxav3_probe(struct platform_device *pdev)
 
 	/* enable 1/8V DDR capable */
 	host->mmc->caps |= MMC_CAP_1_8V_DDR;
+
+	match = of_match_device(of_match_ptr(sdhci_pxav3_of_match), &pdev->dev);
+	if (match)
+		pdata = pxav3_get_mmc_pdata(dev);
 
 	if (pdata) {
 		if (pdata->flags & PXA_FLAG_CARD_PERMANENT) {
@@ -263,6 +312,9 @@ static int __devexit sdhci_pxav3_remove(struct platform_device *pdev)
 static struct platform_driver sdhci_pxav3_driver = {
 	.driver		= {
 		.name	= "sdhci-pxav3",
+#ifdef CONFIG_OF
+		.of_match_table = sdhci_pxav3_of_match,
+#endif
 		.owner	= THIS_MODULE,
 		.pm	= SDHCI_PLTFM_PMOPS,
 	},
