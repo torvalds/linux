@@ -49,8 +49,11 @@
 #define VIRTIO_NET_F_CTRL_RX	18	/* Control channel RX mode support */
 #define VIRTIO_NET_F_CTRL_VLAN	19	/* Control channel VLAN filtering */
 #define VIRTIO_NET_F_CTRL_RX_EXTRA 20	/* Extra RX mode control support */
+#define VIRTIO_NET_F_GUEST_ANNOUNCE 21	/* Guest can announce device on the
+					 * network */
 
 #define VIRTIO_NET_S_LINK_UP	1	/* Link is up */
+#define VIRTIO_NET_S_ANNOUNCE	2	/* Announcement is needed */
 
 struct virtio_net_config {
 	/* The config defining mac address (if VIRTIO_NET_F_MAC) */
@@ -151,5 +154,16 @@ struct virtio_net_ctrl_mac {
 #define VIRTIO_NET_CTRL_VLAN       2
  #define VIRTIO_NET_CTRL_VLAN_ADD             0
  #define VIRTIO_NET_CTRL_VLAN_DEL             1
+
+/*
+ * Control link announce acknowledgement
+ *
+ * The command VIRTIO_NET_CTRL_ANNOUNCE_ACK is used to indicate that
+ * driver has recevied the notification; device would clear the
+ * VIRTIO_NET_S_ANNOUNCE bit in the status field after it receives
+ * this command.
+ */
+#define VIRTIO_NET_CTRL_ANNOUNCE       3
+ #define VIRTIO_NET_CTRL_ANNOUNCE_ACK         0
 
 #endif /* _LINUX_VIRTIO_NET_H */
