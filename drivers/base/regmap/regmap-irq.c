@@ -50,6 +50,7 @@ static void regmap_irq_lock(struct irq_data *data)
 static void regmap_irq_sync_unlock(struct irq_data *data)
 {
 	struct regmap_irq_chip_data *d = irq_data_get_irq_chip_data(data);
+	struct regmap *map = d->map;
 	int i, ret;
 
 	/*
@@ -59,7 +60,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	 */
 	for (i = 0; i < d->chip->num_regs; i++) {
 		ret = regmap_update_bits(d->map, d->chip->mask_base +
-						(i * map->map->reg_stride),
+						(i * map->reg_stride),
 					 d->mask_buf_def[i], d->mask_buf[i]);
 		if (ret != 0)
 			dev_err(d->map->dev, "Failed to sync masks in %x\n",
@@ -72,6 +73,7 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 static void regmap_irq_enable(struct irq_data *data)
 {
 	struct regmap_irq_chip_data *d = irq_data_get_irq_chip_data(data);
+	struct regmap *map = d->map;
 	const struct regmap_irq *irq_data = irq_to_regmap_irq(d, data->irq);
 
 	d->mask_buf[irq_data->reg_offset / map->reg_stride] &= ~irq_data->mask;
@@ -80,6 +82,7 @@ static void regmap_irq_enable(struct irq_data *data)
 static void regmap_irq_disable(struct irq_data *data)
 {
 	struct regmap_irq_chip_data *d = irq_data_get_irq_chip_data(data);
+	struct regmap *map = d->map;
 	const struct regmap_irq *irq_data = irq_to_regmap_irq(d, data->irq);
 
 	d->mask_buf[irq_data->reg_offset / map->reg_stride] |= irq_data->mask;
