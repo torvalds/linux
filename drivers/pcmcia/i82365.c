@@ -208,7 +208,7 @@ static pcic_t pcic[] = {
     { "VIA VT83C469", IS_CIRRUS|IS_VIA },
 };
 
-#define PCIC_COUNT	(sizeof(pcic)/sizeof(pcic_t))
+#define PCIC_COUNT	ARRAY_SIZE(pcic)
 
 /*====================================================================*/
 
