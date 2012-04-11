@@ -1069,31 +1069,30 @@ static void fw_device_init(struct work_struct *work)
 	put_device(&device->device);	/* our reference */
 }
 
-enum {
-	REREAD_BIB_ERROR,
-	REREAD_BIB_UNCHANGED,
-	REREAD_BIB_CHANGED,
-};
-
 /* Reread and compare bus info block and header of root directory */
-static int reread_config_rom(struct fw_device *device, int generation)
+static int reread_config_rom(struct fw_device *device, int generation,
+			     bool *changed)
 {
 	u32 q;
-	int i;
+	int i, rcode;
 
 	for (i = 0; i < 6; i++) {
-		if (read_rom(device, generation, i, &q) != RCODE_COMPLETE)
-			return REREAD_BIB_ERROR;
+		rcode = read_rom(device, generation, i, &q);
+		if (rcode != RCODE_COMPLETE)
+			return rcode;
 
 		if (i == 0 && q == 0)
 			/* inaccessible (see read_config_rom); retry later */
-			return REREAD_BIB_ERROR;
+			return RCODE_BUSY;
 
-		if (q != device->config_rom[i])
-			return REREAD_BIB_CHANGED;
+		if (q != device->config_rom[i]) {
+			*changed = true;
+			return RCODE_COMPLETE;
+		}
 	}
 
-	return REREAD_BIB_UNCHANGED;
+	*changed = false;
+	return RCODE_COMPLETE;
 }
 
 static void fw_device_refresh(struct work_struct *work)
@@ -1101,10 +1100,11 @@ static void fw_device_refresh(struct work_struct *work)
 	struct fw_device *device =
 		container_of(work, struct fw_device, work.work);
 	struct fw_card *card = device->card;
-	int node_id = device->node_id;
+	int ret, node_id = device->node_id;
+	bool changed;
 
-	switch (reread_config_rom(device, device->generation)) {
-	case REREAD_BIB_ERROR:
+	ret = reread_config_rom(device, device->generation, &changed);
+	if (ret != RCODE_COMPLETE) {
 		if (device->config_rom_retries < MAX_RETRIES / 2 &&
 		    atomic_read(&device->state) == FW_DEVICE_INITIALIZING) {
 			device->config_rom_retries++;
@@ -1113,8 +1113,9 @@ static void fw_device_refresh(struct work_struct *work)
 			return;
 		}
 		goto give_up;
+	}
 
-	case REREAD_BIB_UNCHANGED:
+	if (!changed) {
 		if (atomic_cmpxchg(&device->state,
 				   FW_DEVICE_INITIALIZING,
 				   FW_DEVICE_RUNNING) == FW_DEVICE_GONE)
@@ -1123,9 +1124,6 @@ static void fw_device_refresh(struct work_struct *work)
 		fw_device_update(work);
 		device->config_rom_retries = 0;
 		goto out;
-
-	case REREAD_BIB_CHANGED:
-		break;
 	}
 
 	/*
