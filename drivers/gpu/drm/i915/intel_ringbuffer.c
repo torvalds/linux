@@ -1415,9 +1415,12 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 	ring->name = "bsd ring";
 	ring->id = VCS;
 
+	ring->write_tail = ring_write_tail;
 	if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		ring->mmio_base = GEN6_BSD_RING_BASE;
-		ring->write_tail = gen6_bsd_ring_write_tail;
+		/* gen6 bsd needs a special wa for tail updates */
+		if (IS_GEN6(dev))
+			ring->write_tail = gen6_bsd_ring_write_tail;
 		ring->flush = gen6_ring_flush;
 		ring->add_request = gen6_add_request;
 		ring->get_seqno = gen6_ring_get_seqno;
@@ -1433,7 +1436,6 @@ int intel_init_bsd_ring_buffer(struct drm_device *dev)
 		ring->signal_mbox[1] = GEN6_BVSYNC;
 	} else {
 		ring->mmio_base = BSD_RING_BASE;
-		ring->write_tail = ring_write_tail;
 		ring->flush = bsd_ring_flush;
 		ring->add_request = ring_add_request;
 		ring->get_seqno = ring_get_seqno;
