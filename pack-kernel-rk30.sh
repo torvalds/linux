@@ -7,9 +7,6 @@ arch/arm/mach-rk30/clock_data.c
 arch/arm/mach-rk30/ddr*.c
 
 arch/arm/plat-rk/vpu*.c
-
-# exclude drivers/net/wireless/rkwifi/fw_path.c
-drivers/net/wireless/rkwifi/[abcdeghijklmnopqrstuvwxyz]*.c
 )
 
 DIRS=(
@@ -27,9 +24,6 @@ arch/arm/configs/rk29*
 
 drivers/*rk28*.c
 include/*rk28*
-
-drivers/net/wireless/rkwifi/*.h
-drivers/net/wireless/rkwifi/include
 
 drivers/staging/rk29/vivante
 
