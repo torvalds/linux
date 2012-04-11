@@ -189,18 +189,17 @@ static int __devinit max1586_pmic_probe(struct i2c_client *client,
 	struct max1586_data *max1586;
 	int i, id, ret = -ENOMEM;
 
-	max1586 = kzalloc(sizeof(struct max1586_data) +
+	max1586 = devm_kzalloc(&client->dev, sizeof(struct max1586_data) +
 			sizeof(struct regulator_dev *) * (MAX1586_V6 + 1),
 			GFP_KERNEL);
 	if (!max1586)
-		goto out;
+		return -ENOMEM;
 
 	max1586->client = client;
 
-	if (!pdata->v3_gain) {
-		ret = -EINVAL;
-		goto out_unmap;
-	}
+	if (!pdata->v3_gain)
+		return -EINVAL;
+
 	max1586->min_uV = MAX1586_V3_MIN_UV / 1000 * pdata->v3_gain / 1000;
 	max1586->max_uV = MAX1586_V3_MAX_UV / 1000 * pdata->v3_gain / 1000;
 
@@ -234,9 +233,6 @@ static int __devinit max1586_pmic_probe(struct i2c_client *client,
 err:
 	while (--i >= 0)
 		regulator_unregister(rdev[i]);
-out_unmap:
-	kfree(max1586);
-out:
 	return ret;
 }
 
@@ -248,8 +244,6 @@ static int __devexit max1586_pmic_remove(struct i2c_client *client)
 	for (i = 0; i <= MAX1586_V6; i++)
 		if (max1586->rdev[i])
 			regulator_unregister(max1586->rdev[i]);
-	kfree(max1586);
-
 	return 0;
 }
 
