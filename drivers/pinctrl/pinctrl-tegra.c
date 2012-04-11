@@ -83,12 +83,14 @@ static int tegra_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static void tegra_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 				       struct seq_file *s,
 				       unsigned offset)
 {
 	seq_printf(s, " %s", dev_name(pctldev->dev));
 }
+#endif
 
 static int reserve_map(struct pinctrl_map **map, unsigned *reserved_maps,
 		       unsigned *num_maps, unsigned reserve)
@@ -295,7 +297,9 @@ static struct pinctrl_ops tegra_pinctrl_ops = {
 	.get_groups_count = tegra_pinctrl_get_groups_count,
 	.get_group_name = tegra_pinctrl_get_group_name,
 	.get_group_pins = tegra_pinctrl_get_group_pins,
+#ifdef CONFIG_DEBUG_FS
 	.pin_dbg_show = tegra_pinctrl_pin_dbg_show,
+#endif
 	.dt_node_to_map = tegra_pinctrl_dt_node_to_map,
 	.dt_free_map = tegra_pinctrl_dt_free_map,
 };
@@ -385,6 +389,7 @@ static struct pinmux_ops tegra_pinmux_ops = {
 static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 			     const struct tegra_pingroup *g,
 			     enum tegra_pinconf_param param,
+			     bool report_err,
 			     s8 *bank, s16 *reg, s8 *bit, s8 *width)
 {
 	switch (param) {
@@ -472,9 +477,10 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 	}
 
 	if (*reg < 0) {
-		dev_err(pmx->dev,
-			"Config param %04x not supported on group %s\n",
-			param, g->name);
+		if (report_err)
+			dev_err(pmx->dev,
+				"Config param %04x not supported on group %s\n",
+				param, g->name);
 		return -ENOTSUPP;
 	}
 
@@ -507,7 +513,8 @@ static int tegra_pinconf_group_get(struct pinctrl_dev *pctldev,
 
 	g = &pmx->soc->groups[group];
 
-	ret = tegra_pinconf_reg(pmx, g, param, &bank, &reg, &bit, &width);
+	ret = tegra_pinconf_reg(pmx, g, param, true, &bank, &reg, &bit,
+				&width);
 	if (ret < 0)
 		return ret;
 
@@ -534,7 +541,8 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 
 	g = &pmx->soc->groups[group];
 
-	ret = tegra_pinconf_reg(pmx, g, param, &bank, &reg, &bit, &width);
+	ret = tegra_pinconf_reg(pmx, g, param, true, &bank, &reg, &bit,
+				&width);
 	if (ret < 0)
 		return ret;
 
@@ -563,23 +571,78 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
+#ifdef CONFIG_DEBUG_FS
 static void tegra_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 				   struct seq_file *s, unsigned offset)
 {
 }
 
-static void tegra_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
-					 struct seq_file *s, unsigned selector)
+static const char *strip_prefix(const char *s)
 {
+	const char *comma = strchr(s, ',');
+	if (!comma)
+		return s;
+
+	return comma + 1;
 }
+
+static void tegra_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
+					 struct seq_file *s, unsigned group)
+{
+	struct tegra_pmx *pmx = pinctrl_dev_get_drvdata(pctldev);
+	const struct tegra_pingroup *g;
+	int i, ret;
+	s8 bank, bit, width;
+	s16 reg;
+	u32 val;
+
+	g = &pmx->soc->groups[group];
+
+	for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
+		ret = tegra_pinconf_reg(pmx, g, cfg_params[i].param, false,
+					&bank, &reg, &bit, &width);
+		if (ret < 0)
+			continue;
+
+		val = pmx_readl(pmx, bank, reg);
+		val >>= bit;
+		val &= (1 << width) - 1;
+
+		seq_printf(s, "\n\t%s=%u",
+			   strip_prefix(cfg_params[i].property), val);
+	}
+}
+
+static void tegra_pinconf_config_dbg_show(struct pinctrl_dev *pctldev,
+					  struct seq_file *s,
+					  unsigned long config)
+{
+	enum tegra_pinconf_param param = TEGRA_PINCONF_UNPACK_PARAM(config);
+	u16 arg = TEGRA_PINCONF_UNPACK_ARG(config);
+	const char *pname = "unknown";
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(cfg_params); i++) {
+		if (cfg_params[i].param == param) {
+			pname = cfg_params[i].property;
+			break;
+		}
+	}
+
+	seq_printf(s, "%s=%d", strip_prefix(pname), arg);
+}
+#endif
 
 struct pinconf_ops tegra_pinconf_ops = {
 	.pin_config_get = tegra_pinconf_get,
 	.pin_config_set = tegra_pinconf_set,
 	.pin_config_group_get = tegra_pinconf_group_get,
 	.pin_config_group_set = tegra_pinconf_group_set,
+#ifdef CONFIG_DEBUG_FS
 	.pin_config_dbg_show = tegra_pinconf_dbg_show,
 	.pin_config_group_dbg_show = tegra_pinconf_group_dbg_show,
+	.pin_config_config_dbg_show = tegra_pinconf_config_dbg_show,
+#endif
 };
 
 static struct pinctrl_gpio_range tegra_pinctrl_gpio_range = {
