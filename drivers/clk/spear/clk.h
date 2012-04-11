@@ -68,6 +68,20 @@ struct clk_frac {
 	spinlock_t		*lock;
 };
 
+/* GPT clk */
+struct gpt_rate_tbl {
+	u16 mscale;
+	u16 nscale;
+};
+
+struct clk_gpt {
+	struct			clk_hw hw;
+	void __iomem		*reg;
+	struct gpt_rate_tbl	*rtbl;
+	u8			rtbl_cnt;
+	spinlock_t		*lock;
+};
+
 /* VCO-PLL clk */
 struct pll_rate_tbl {
 	u8 mode;
@@ -103,6 +117,9 @@ struct clk *clk_register_aux(const char *aux_name, const char *gate_name,
 struct clk *clk_register_frac(const char *name, const char *parent_name,
 		unsigned long flags, void __iomem *reg,
 		struct frac_rate_tbl *rtbl, u8 rtbl_cnt, spinlock_t *lock);
+struct clk *clk_register_gpt(const char *name, const char *parent_name, unsigned
+		long flags, void __iomem *reg, struct gpt_rate_tbl *rtbl, u8
+		rtbl_cnt, spinlock_t *lock);
 struct clk *clk_register_vco_pll(const char *vco_name, const char *pll_name,
 		const char *vco_gate_name, const char *parent_name,
 		unsigned long flags, void __iomem *mode_reg, void __iomem
