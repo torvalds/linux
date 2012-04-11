@@ -4,7 +4,7 @@
  * Copyright (C) 2004 Sten Wang <sten.wang@rdc.com.tw>
  * Copyright (C) 2007
  *	Daniel Gimpelevich <daniel@gimpelevich.san-francisco.ca.us>
- *	Florian Fainelli <florian@openwrt.org>
+ * Copyright (C) 2007-2012 Florian Fainelli <florian@openwrt.org>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
