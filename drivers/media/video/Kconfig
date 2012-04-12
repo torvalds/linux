@@ -797,6 +797,19 @@ source "drivers/media/video/saa7164/Kconfig"
 
 source "drivers/media/video/zoran/Kconfig"
 
+config STA2X11_VIP
+	tristate "STA2X11 VIP Video For Linux"
+	depends on STA2X11
+	select VIDEO_ADV7180 if VIDEO_HELPER_CHIPS_AUTO
+	select VIDEOBUF_DMA_CONTIG
+	depends on PCI && VIDEO_V4L2 && VIRT_TO_BUS
+	help
+	  Say Y for support for STA2X11 VIP (Video Input Port) capture
+	  device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sta2x11_vip.
+
 endif # V4L_PCI_DRIVERS
 
 #
