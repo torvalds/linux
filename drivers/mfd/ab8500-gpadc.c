@@ -605,6 +605,31 @@ static int ab8500_gpadc_runtime_idle(struct device *dev)
 	return 0;
 }
 
+static int ab8500_gpadc_suspend(struct device *dev)
+{
+	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+
+	mutex_lock(&gpadc->ab8500_gpadc_lock);
+
+	pm_runtime_get_sync(dev);
+
+	regulator_disable(gpadc->regu);
+	return 0;
+}
+
+static int ab8500_gpadc_resume(struct device *dev)
+{
+	struct ab8500_gpadc *gpadc = dev_get_drvdata(dev);
+
+	regulator_enable(gpadc->regu);
+
+	pm_runtime_mark_last_busy(gpadc->dev);
+	pm_runtime_put_autosuspend(gpadc->dev);
+
+	mutex_unlock(&gpadc->ab8500_gpadc_lock);
+	return 0;
+}
+
 static int ab8500_gpadc_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -698,6 +723,9 @@ static const struct dev_pm_ops ab8500_gpadc_pm_ops = {
 	SET_RUNTIME_PM_OPS(ab8500_gpadc_runtime_suspend,
 			   ab8500_gpadc_runtime_resume,
 			   ab8500_gpadc_runtime_idle)
+	SET_SYSTEM_SLEEP_PM_OPS(ab8500_gpadc_suspend,
+				ab8500_gpadc_resume)
+
 };
 
 static struct platform_driver ab8500_gpadc_driver = {
