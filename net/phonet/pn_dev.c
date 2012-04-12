@@ -44,7 +44,7 @@ struct phonet_net {
 	struct phonet_routes routes;
 };
 
-int phonet_net_id __read_mostly;
+static int phonet_net_id __read_mostly;
 
 static struct phonet_net *phonet_pernet(struct net *net)
 {
