@@ -2180,6 +2180,10 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 	}
 
 	bio = bio_alloc(GFP_NOFS, 1);
+	if (!bio) {
+		free_io_failure(inode, failrec, 0);
+		return -EIO;
+	}
 	bio->bi_private = state;
 	bio->bi_end_io = failed_bio->bi_end_io;
 	bio->bi_sector = failrec->logical >> 9;
