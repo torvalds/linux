@@ -22,7 +22,14 @@
 /* This is not in the standard.  It represents a tolerable tbtt drift below
  * which we do no TSF adjustment.
  */
-#define TBTT_MINIMUM_ADJUSTMENT 10
+#define TOFFSET_MINIMUM_ADJUSTMENT 10
+
+/* This is not in the standard.  It represents the maximum Toffset jump above
+ * which we'll invalidate the Toffset setpoint and choose a new setpoint.  This
+ * could be, for instance, in case a neighbor is restarted and its TSF counter
+ * reset.
+ * */
+#define TOFFSET_MAXIMUM_ADJUSTMENT 30000		/* 30 ms */
 
 struct sync_method {
 	u8 method;
@@ -156,15 +163,22 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
 		s64 t_clockdrift = sta->t_offset_setpoint
 				   - sta->t_offset;
-
-		msync_dbg("STA %pM : sta->t_offset=%lld,"
-			  " sta->t_offset_setpoint=%lld,"
-			  " t_clockdrift=%lld",
+		msync_dbg("STA %pM : sta->t_offset=%lld, sta->t_offset_setpoint=%lld, t_clockdrift=%lld",
 			  sta->sta.addr,
 			  (long long) sta->t_offset,
 			  (long long)
 			  sta->t_offset_setpoint,
 			  (long long) t_clockdrift);
+
+		if (t_clockdrift > TOFFSET_MAXIMUM_ADJUSTMENT ||
+			t_clockdrift < -TOFFSET_MAXIMUM_ADJUSTMENT) {
+			msync_dbg("STA %pM : t_clockdrift=%lld too large, setpoint reset",
+				  sta->sta.addr,
+				  (long long) t_clockdrift);
+			clear_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
+			goto no_sync;
+		}
+
 		rcu_read_unlock();
 
 		spin_lock_bh(&ifmsh->sync_offset_lock);
@@ -200,7 +214,7 @@ static void mesh_sync_offset_adjust_tbtt(struct ieee80211_sub_if_data *sdata)
 	spin_lock_bh(&ifmsh->sync_offset_lock);
 
 	if (ifmsh->sync_offset_clockdrift_max >
-		TBTT_MINIMUM_ADJUSTMENT) {
+		TOFFSET_MINIMUM_ADJUSTMENT) {
 		/* Since ajusting the tsf here would
 		 * require a possibly blocking call
 		 * to the driver tsf setter, we punt
