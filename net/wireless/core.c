@@ -708,6 +708,10 @@ void wiphy_unregister(struct wiphy *wiphy)
 	flush_work(&rdev->scan_done_wk);
 	cancel_work_sync(&rdev->conn_work);
 	flush_work(&rdev->event_work);
+
+	if (rdev->wowlan && rdev->ops->set_wakeup)
+		rdev->ops->set_wakeup(&rdev->wiphy, false);
+	cfg80211_rdev_free_wowlan(rdev);
 }
 EXPORT_SYMBOL(wiphy_unregister);
 
@@ -720,7 +724,6 @@ void cfg80211_dev_free(struct cfg80211_registered_device *rdev)
 	mutex_destroy(&rdev->sched_scan_mtx);
 	list_for_each_entry_safe(scan, tmp, &rdev->bss_list, list)
 		cfg80211_put_bss(&scan->pub);
-	cfg80211_rdev_free_wowlan(rdev);
 	kfree(rdev);
 }
 

@@ -19,15 +19,6 @@
 #include "ieee80211_i.h"
 #include "rate.h"
 
-bool ieee80111_cfg_override_disables_ht40(struct ieee80211_sub_if_data *sdata)
-{
-	const __le16 flg = cpu_to_le16(IEEE80211_HT_CAP_SUP_WIDTH_20_40);
-	if ((sdata->u.mgd.ht_capa_mask.cap_info & flg) &&
-	    !(sdata->u.mgd.ht_capa.cap_info & flg))
-		return true;
-	return false;
-}
-
 static void __check_htcap_disable(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_sta_ht_cap *ht_cap,
 				  u16 flag)

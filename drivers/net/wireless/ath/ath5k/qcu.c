@@ -20,6 +20,8 @@
 Queue Control Unit, DCF Control Unit Functions
 \********************************************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"

@@ -1142,16 +1142,19 @@ static const struct nla_policy txq_params_policy[NL80211_TXQ_ATTR_MAX + 1] = {
 static int parse_txq_params(struct nlattr *tb[],
 			    struct ieee80211_txq_params *txq_params)
 {
-	if (!tb[NL80211_TXQ_ATTR_QUEUE] || !tb[NL80211_TXQ_ATTR_TXOP] ||
+	if (!tb[NL80211_TXQ_ATTR_AC] || !tb[NL80211_TXQ_ATTR_TXOP] ||
 	    !tb[NL80211_TXQ_ATTR_CWMIN] || !tb[NL80211_TXQ_ATTR_CWMAX] ||
 	    !tb[NL80211_TXQ_ATTR_AIFS])
 		return -EINVAL;
 
-	txq_params->queue = nla_get_u8(tb[NL80211_TXQ_ATTR_QUEUE]);
+	txq_params->ac = nla_get_u8(tb[NL80211_TXQ_ATTR_AC]);
 	txq_params->txop = nla_get_u16(tb[NL80211_TXQ_ATTR_TXOP]);
 	txq_params->cwmin = nla_get_u16(tb[NL80211_TXQ_ATTR_CWMIN]);
 	txq_params->cwmax = nla_get_u16(tb[NL80211_TXQ_ATTR_CWMAX]);
 	txq_params->aifs = nla_get_u8(tb[NL80211_TXQ_ATTR_AIFS]);
+
+	if (txq_params->ac >= NL80211_NUM_ACS)
+		return -EINVAL;
 
 	return 0;
 }
@@ -1329,6 +1332,11 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 		if (netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_AP &&
 		    netdev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_GO) {
 			result = -EINVAL;
+			goto bad_res;
+		}
+
+		if (!netif_running(netdev)) {
+			result = -ENETDOWN;
 			goto bad_res;
 		}
 
@@ -2540,6 +2548,10 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 		    sizeof(struct nl80211_sta_flag_update),
 		    &sinfo->sta_flags))
 		goto nla_put_failure;
+	if ((sinfo->filled & STATION_INFO_T_OFFSET) &&
+		nla_put_u64(msg, NL80211_STA_INFO_T_OFFSET,
+			    sinfo->t_offset))
+		goto nla_put_failure;
 	nla_nest_end(msg, sinfoattr);
 
 	if ((sinfo->filled & STATION_INFO_ASSOC_REQ_IES) &&
@@ -3340,6 +3352,8 @@ static int nl80211_get_mesh_config(struct sk_buff *skb,
 		       cur_params.element_ttl) ||
 	    nla_put_u8(msg, NL80211_MESHCONF_AUTO_OPEN_PLINKS,
 		       cur_params.auto_open_plinks) ||
+	    nla_put_u32(msg, NL80211_MESHCONF_SYNC_OFFSET_MAX_NEIGHBOR,
+			cur_params.dot11MeshNbrOffsetMaxNeighbor) ||
 	    nla_put_u8(msg, NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES,
 		       cur_params.dot11MeshHWMPmaxPREQretries) ||
 	    nla_put_u32(msg, NL80211_MESHCONF_PATH_REFRESH_TIME,
@@ -3385,6 +3399,7 @@ static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_A
 	[NL80211_MESHCONF_TTL] = { .type = NLA_U8 },
 	[NL80211_MESHCONF_ELEMENT_TTL] = { .type = NLA_U8 },
 	[NL80211_MESHCONF_AUTO_OPEN_PLINKS] = { .type = NLA_U8 },
+	[NL80211_MESHCONF_SYNC_OFFSET_MAX_NEIGHBOR] = { .type = NLA_U32 },
 
 	[NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES] = { .type = NLA_U8 },
 	[NL80211_MESHCONF_PATH_REFRESH_TIME] = { .type = NLA_U32 },
@@ -3402,6 +3417,7 @@ static const struct nla_policy nl80211_meshconf_params_policy[NL80211_MESHCONF_A
 
 static const struct nla_policy
 	nl80211_mesh_setup_params_policy[NL80211_MESH_SETUP_ATTR_MAX+1] = {
+	[NL80211_MESH_SETUP_ENABLE_VENDOR_SYNC] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_USERSPACE_AUTH] = { .type = NLA_FLAG },
@@ -3454,6 +3470,9 @@ do {\
 			mask, NL80211_MESHCONF_ELEMENT_TTL, nla_get_u8);
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, auto_open_plinks,
 			mask, NL80211_MESHCONF_AUTO_OPEN_PLINKS, nla_get_u8);
+	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshNbrOffsetMaxNeighbor,
+			mask, NL80211_MESHCONF_SYNC_OFFSET_MAX_NEIGHBOR,
+			nla_get_u32);
 	FILL_IN_MESH_PARAM_IF_SET(tb, cfg, dot11MeshHWMPmaxPREQretries,
 			mask, NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES,
 			nla_get_u8);
@@ -3510,6 +3529,12 @@ static int nl80211_parse_mesh_setup(struct genl_info *info,
 			     info->attrs[NL80211_ATTR_MESH_SETUP],
 			     nl80211_mesh_setup_params_policy))
 		return -EINVAL;
+
+	if (tb[NL80211_MESH_SETUP_ENABLE_VENDOR_SYNC])
+		setup->sync_method =
+		(nla_get_u8(tb[NL80211_MESH_SETUP_ENABLE_VENDOR_SYNC])) ?
+		 IEEE80211_SYNC_METHOD_VENDOR :
+		 IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET;
 
 	if (tb[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL])
 		setup->path_sel_proto =
@@ -6077,6 +6102,7 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_wowlan new_triggers = {};
 	struct wiphy_wowlan_support *wowlan = &rdev->wiphy.wowlan;
 	int err, i;
+	bool prev_enabled = rdev->wowlan;
 
 	if (!rdev->wiphy.wowlan.flags && !rdev->wiphy.wowlan.n_patterns)
 		return -EOPNOTSUPP;
@@ -6208,6 +6234,9 @@ static int nl80211_set_wowlan(struct sk_buff *skb, struct genl_info *info)
 		cfg80211_rdev_free_wowlan(rdev);
 		rdev->wowlan = NULL;
 	}
+
+	if (rdev->ops->set_wakeup && prev_enabled != !!rdev->wowlan)
+		rdev->ops->set_wakeup(&rdev->wiphy, rdev->wowlan);
 
 	return 0;
  error:
@@ -6467,7 +6496,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_get_key,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6499,7 +6528,7 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.doit = nl80211_set_beacon,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6507,7 +6536,7 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.doit = nl80211_start_ap,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6515,7 +6544,7 @@ static struct genl_ops nl80211_ops[] = {
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 		.doit = nl80211_stop_ap,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6531,7 +6560,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_set_station,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6547,7 +6576,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_del_station,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6580,7 +6609,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_del_mpath,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6588,7 +6617,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_set_bss,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6614,7 +6643,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_get_mesh_config,
 		.policy = nl80211_policy,
 		/* can be retrieved by unprivileged users */
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6747,7 +6776,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_setdel_pmksa,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6755,7 +6784,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_setdel_pmksa,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6763,7 +6792,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_flush_pmksa,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -6923,7 +6952,7 @@ static struct genl_ops nl80211_ops[] = {
 		.doit = nl80211_probe_client,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = NL80211_FLAG_NEED_NETDEV |
+		.internal_flags = NL80211_FLAG_NEED_NETDEV_UP |
 				  NL80211_FLAG_NEED_RTNL,
 	},
 	{
@@ -8000,6 +8029,39 @@ void nl80211_pmksa_candidate_notify(struct cfg80211_registered_device *rdev,
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
+
+	genlmsg_end(msg, hdr);
+
+	genlmsg_multicast_netns(wiphy_net(&rdev->wiphy), msg, 0,
+				nl80211_mlme_mcgrp.id, gfp);
+	return;
+
+ nla_put_failure:
+	genlmsg_cancel(msg, hdr);
+	nlmsg_free(msg);
+}
+
+void nl80211_ch_switch_notify(struct cfg80211_registered_device *rdev,
+			      struct net_device *netdev, int freq,
+			      enum nl80211_channel_type type, gfp_t gfp)
+{
+	struct sk_buff *msg;
+	void *hdr;
+
+	msg = nlmsg_new(NLMSG_GOODSIZE, gfp);
+	if (!msg)
+		return;
+
+	hdr = nl80211hdr_put(msg, 0, 0, 0, NL80211_CMD_CH_SWITCH_NOTIFY);
+	if (!hdr) {
+		nlmsg_free(msg);
+		return;
+	}
+
+	if (nla_put_u32(msg, NL80211_ATTR_IFINDEX, netdev->ifindex) ||
+	    nla_put_u32(msg, NL80211_ATTR_WIPHY_FREQ, freq) ||
+	    nla_put_u32(msg, NL80211_ATTR_WIPHY_CHANNEL_TYPE, type))
+		goto nla_put_failure;
 
 	genlmsg_end(msg, hdr);
 

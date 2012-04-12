@@ -40,6 +40,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -3037,4 +3039,24 @@ ath5k_set_beacon_filter(struct ieee80211_hw *hw, bool enable)
 		rfilt &= ~AR5K_RX_FILTER_BEACON;
 	ath5k_hw_set_rx_filter(ah, rfilt);
 	ah->filter_flags = rfilt;
+}
+
+void _ath5k_printk(const struct ath5k_hw *ah, const char *level,
+		   const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+
+	va_start(args, fmt);
+
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (ah && ah->hw)
+		printk("%s" pr_fmt("%s: %pV"),
+		       level, wiphy_name(ah->hw->wiphy), &vaf);
+	else
+		printk("%s" pr_fmt("%pV"), level, &vaf);
+
+	va_end(args);
 }

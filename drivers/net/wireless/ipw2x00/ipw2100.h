@@ -135,15 +135,6 @@ enum {
 	IPW_HW_STATE_ENABLED = 0
 };
 
-struct ssid_context {
-	char ssid[IW_ESSID_MAX_SIZE + 1];
-	int ssid_len;
-	unsigned char bssid[ETH_ALEN];
-	int port_type;
-	int channel;
-
-};
-
 extern const char *port_type_str[];
 extern const char *band_str[];
 

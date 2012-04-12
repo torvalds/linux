@@ -201,10 +201,10 @@ struct mwifiex_wmm_desc {
 	u32 packets_out[MAX_NUM_TID];
 	/* spin lock to protect ra_list */
 	spinlock_t ra_list_spinlock;
-	struct mwifiex_wmm_ac_status ac_status[IEEE80211_MAX_QUEUES];
-	enum mwifiex_wmm_ac_e ac_down_graded_vals[IEEE80211_MAX_QUEUES];
+	struct mwifiex_wmm_ac_status ac_status[IEEE80211_NUM_ACS];
+	enum mwifiex_wmm_ac_e ac_down_graded_vals[IEEE80211_NUM_ACS];
 	u32 drv_pkt_delay_max;
-	u8 queue_priority[IEEE80211_MAX_QUEUES];
+	u8 queue_priority[IEEE80211_NUM_ACS];
 	u32 user_pri_pkt_tx_ctrl[WMM_HIGHEST_PRIORITY + 1];	/* UP: 0 to 7 */
 	/* Number of transmit packets queued */
 	atomic_t tx_pkts_queued;
@@ -269,7 +269,7 @@ struct mwifiex_bssdescriptor {
 	u8  disable_11n;
 	struct ieee80211_ht_cap *bcn_ht_cap;
 	u16 ht_cap_offset;
-	struct ieee80211_ht_info *bcn_ht_info;
+	struct ieee80211_ht_operation *bcn_ht_oper;
 	u16 ht_info_offset;
 	u8 *bcn_bss_co_2040;
 	u16 bss_co_2040_offset;
@@ -448,7 +448,6 @@ struct mwifiex_private {
 	struct dentry *dfs_dev_dir;
 #endif
 	u8 nick_name[16];
-	u8 qual_level, qual_noise;
 	u16 current_key_index;
 	struct semaphore async_sem;
 	u8 scan_pending_on_block;
@@ -459,6 +458,9 @@ struct mwifiex_private {
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct wps wps;
 	u8 scan_block;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
+	u8 subsc_evt_rssi_state;
 };
 
 enum mwifiex_ba_status {
@@ -896,8 +898,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type);
 int mwifiex_enable_hs(struct mwifiex_adapter *adapter);
 int mwifiex_disable_auto_ds(struct mwifiex_private *priv);
-int mwifiex_get_signal_info(struct mwifiex_private *priv,
-			    struct mwifiex_ds_get_signal *signal);
 int mwifiex_drv_get_data_rate(struct mwifiex_private *priv,
 			      struct mwifiex_rate_cfg *rate);
 int mwifiex_request_scan(struct mwifiex_private *priv,

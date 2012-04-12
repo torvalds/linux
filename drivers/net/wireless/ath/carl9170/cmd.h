@@ -114,7 +114,7 @@ __regwrite_out :							\
 
 #define carl9170_regwrite_result()					\
 	__err;								\
-} while (0);
+} while (0)
 
 
 #define carl9170_async_regwrite_get_buf()				\
@@ -126,7 +126,7 @@ do {									\
 		__err = -ENOMEM;					\
 		goto __async_regwrite_out;				\
 	}								\
-} while (0);
+} while (0)
 
 #define carl9170_async_regwrite_begin(carl)				\
 do {									\
@@ -169,6 +169,6 @@ __async_regwrite_out:							\
 
 #define carl9170_async_regwrite_result()				\
 	__err;								\
-} while (0);
+} while (0)
 
 #endif /* __CMD_H */

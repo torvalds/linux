@@ -157,7 +157,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 */
 
 	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS;
+		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
+		     IEEE80211_HW_SCAN_WHILE_IDLE;
 
 	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
@@ -437,7 +438,6 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	unsigned long flags;
 	u32 base, status = 0xffffffff;
 	int ret = -EIO;
-	const struct fw_img *img;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
@@ -445,7 +445,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
-	base = priv->shrd->device_pointers.error_event_table;
+	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
 		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
 		ret = iwl_grab_nic_access_silent(trans(priv));
@@ -458,6 +458,8 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
+			const struct fw_img *img;
+
 			img = &(priv->fw->img[IWL_UCODE_WOWLAN]);
 			if (!priv->wowlan_sram) {
 				priv->wowlan_sram =
@@ -653,6 +655,8 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
+		if (!trans(priv)->ops->tx_agg_setup)
+			break;
 		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
@@ -1003,7 +1007,7 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_PAN];
 	int err = 0;
 
-	if (!(priv->shrd->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
 	if (!(ctx->interface_modes & BIT(NL80211_IFTYPE_P2P_CLIENT)))
@@ -1091,7 +1095,7 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	if (!(priv->shrd->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
+	if (!(priv->valid_contexts & BIT(IWL_RXON_CTX_PAN)))
 		return -EOPNOTSUPP;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");

@@ -65,6 +65,13 @@
 
 #include "iwl-dev.h"
 
+/* The first 11 queues (0-10) are used otherwise */
+#define IWLAGN_FIRST_AMPDU_QUEUE	11
+
+/* AUX (TX during scan dwell) queue */
+#define IWL_AUX_QUEUE		10
+
+
 struct iwl_ucode_capabilities;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
@@ -85,7 +92,6 @@ int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
 				 struct iwl_rx_cmd_buffer *rxb,
 				 struct iwl_device_cmd *cmd);
 void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state);
-void iwl_nic_error(struct iwl_op_mode *op_mode);
 
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
@@ -115,9 +121,6 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 			struct iwl_rxon_context *ctx);
 
 /* uCode */
-int iwlagn_rx_calib_result(struct iwl_priv *priv,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd);
 int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwl_send_prio_tbl(struct iwl_priv *priv);
 int iwl_init_alive_start(struct iwl_priv *priv);
@@ -128,6 +131,9 @@ int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_priv *priv,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
+int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
+			    char **buf, bool display);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
@@ -384,6 +390,15 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 		return 0;
 
 	return iwl_is_ready(priv);
+}
+
+static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
+{
+	if (state)
+		set_bit(STATUS_POWER_PMI, &priv->status);
+	else
+		clear_bit(STATUS_POWER_PMI, &priv->status);
+	iwl_trans_set_pmi(trans(priv), state);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG

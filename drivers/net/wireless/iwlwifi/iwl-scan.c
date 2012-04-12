@@ -69,7 +69,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 	if (!test_bit(STATUS_READY, &priv->status) ||
 	    !test_bit(STATUS_GEO_CONFIGURED, &priv->status) ||
 	    !test_bit(STATUS_SCAN_HW, &priv->status) ||
-	    test_bit(STATUS_FW_ERROR, &priv->shrd->status))
+	    test_bit(STATUS_FW_ERROR, &priv->status))
 		return -EIO;
 
 	ret = iwl_dvm_send_cmd(priv, &cmd);
@@ -451,6 +451,46 @@ static u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 	return iwl_limit_dwell(priv, passive);
 }
 
+/* Return valid, unused, channel for a passive scan to reset the RF */
+static u8 iwl_get_single_channel_number(struct iwl_priv *priv,
+				 enum ieee80211_band band)
+{
+	const struct iwl_channel_info *ch_info;
+	int i;
+	u8 channel = 0;
+	u8 min, max;
+	struct iwl_rxon_context *ctx;
+
+	if (band == IEEE80211_BAND_5GHZ) {
+		min = 14;
+		max = priv->channel_count;
+	} else {
+		min = 0;
+		max = 14;
+	}
+
+	for (i = min; i < max; i++) {
+		bool busy = false;
+
+		for_each_context(priv, ctx) {
+			busy = priv->channel_info[i].channel ==
+				le16_to_cpu(ctx->staging.channel);
+			if (busy)
+				break;
+		}
+
+		if (busy)
+			continue;
+
+		channel = priv->channel_info[i].channel;
+		ch_info = iwl_get_channel_info(priv, band, channel);
+		if (is_channel_valid(ch_info))
+			break;
+	}
+
+	return channel;
+}
+
 static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 					   struct ieee80211_vif *vif,
 					   enum ieee80211_band band,
@@ -793,9 +833,6 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	band = priv->scan_band;
 
-	if (cfg(priv)->scan_rx_antennas[band])
-		rx_ant = cfg(priv)->scan_rx_antennas[band];
-
 	if (band == IEEE80211_BAND_2GHZ &&
 	    cfg(priv)->bt_params &&
 	    cfg(priv)->bt_params->advanced_bt_coexist) {
@@ -809,8 +846,12 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 
-	/* In power save mode use one chain, otherwise use all chains */
-	if (test_bit(STATUS_POWER_PMI, &priv->shrd->status)) {
+	/*
+	 * In power save mode while associated use one chain,
+	 * otherwise use all chains
+	 */
+	if (test_bit(STATUS_POWER_PMI, &priv->status) &&
+	    !(priv->hw->conf.flags & IEEE80211_CONF_IDLE)) {
 		/* rx_ant has been set to all valid chains previously */
 		active_chains = rx_ant &
 				((u8)(priv->chain_noise_data.active_chains));

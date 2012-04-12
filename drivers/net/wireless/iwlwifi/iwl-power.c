@@ -403,12 +403,12 @@ int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
 	}
 
 	if (cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK)
-		set_bit(STATUS_POWER_PMI, &priv->shrd->status);
+		iwl_dvm_set_pmi(priv, true);
 
 	ret = iwl_set_power(priv, cmd);
 	if (!ret) {
 		if (!(cmd->flags & IWL_POWER_DRIVER_ALLOW_SLEEP_MSK))
-			clear_bit(STATUS_POWER_PMI, &priv->shrd->status);
+			iwl_dvm_set_pmi(priv, false);
 
 		if (update_chains)
 			iwl_update_chain_flags(priv);
