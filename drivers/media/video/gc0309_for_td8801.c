@@ -19,7 +19,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk29_camera.h>
+#include <plat/rk_camera.h>
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);

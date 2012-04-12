@@ -19,7 +19,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk29_camera.h>
+#include <plat/rk_camera.h>
 #include "ov5640.h"
 
 static int debug;
@@ -63,7 +63,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_Scene         1
 #define CONFIG_SENSOR_DigitalZoom   0
 #define CONFIG_SENSOR_Exposure      0
-#define CONFIG_SENSOR_Flash         0
+#define CONFIG_SENSOR_Flash         1
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 #ifdef CONFIG_OV5640_AUTOFOCUS
@@ -3778,7 +3778,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
-    int ret = 0;
+    int ret = 0,i;
 
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)

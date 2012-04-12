@@ -19,7 +19,7 @@ o* Driver for MT9M001 CMOS Image Sensor from Micron
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk29_camera.h>
+#include <plat/rk_camera.h>
 
 static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
@@ -64,7 +64,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_DigitalZoom   0
 #define CONFIG_SENSOR_Focus         0
 #define CONFIG_SENSOR_Exposure      0
-#define CONFIG_SENSOR_Flash         0
+#define CONFIG_SENSOR_Flash         1
 #define CONFIG_SENSOR_Mirror        0
 #define CONFIG_SENSOR_Flip          0
 
@@ -1800,7 +1800,6 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	#endif
 
 	#if CONFIG_SENSOR_Flash
-	sensor_set_flash();
 	qctrl = soc_camera_find_qctrl(&sensor_ops, V4L2_CID_FLASH);
 	if (qctrl)
         sensor->info_priv.flash = qctrl->default_value;
@@ -2049,7 +2048,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
     if ((int)winseqe_set_addr  != sensor->info_priv.winseqe_cur_addr) {
         #if CONFIG_SENSOR_Flash
-        if (sensor_fmt_capturechk(sd,f) == true) {      /* ddl@rock-chips.com : Capture */
+        if (sensor_fmt_capturechk(sd,mf) == true) {      /* ddl@rock-chips.com : Capture */
             if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                 sensor_ioctrl(icd, Sensor_Flash, Flash_On);
                 SENSOR_DG("%s flash on in capture!\n", SENSOR_NAME_STRING());
@@ -2065,7 +2064,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
         if (ret != 0) {
             SENSOR_TR("%s set format capability failed\n", SENSOR_NAME_STRING());
             #if CONFIG_SENSOR_Flash
-            if (sensor_fmt_capturechk(sd,f) == true) {
+            if (sensor_fmt_capturechk(sd,mf) == true) {
                 if ((sensor->info_priv.flash == 1) || (sensor->info_priv.flash == 2)) {
                     sensor_ioctrl(icd, Sensor_Flash, Flash_Off);
                     SENSOR_TR("%s Capture format set fail, flash off !\n", SENSOR_NAME_STRING());

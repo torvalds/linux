@@ -19,7 +19,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
-#include <mach/rk29_camera.h>
+#include <plat/rk_camera.h>
 #include <linux/delay.h>
 #include "s5k6aa.h"
 static int debug;
