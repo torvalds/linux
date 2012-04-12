@@ -220,7 +220,6 @@ static int rga_MapUserMemory(struct page **pages,
     uint32_t i;
     uint32_t status;
     uint32_t Address;
-    uint32_t t_mem;
     status = 0;
     Address = 0;
 
@@ -243,10 +242,8 @@ static int rga_MapUserMemory(struct page **pages,
             struct vm_area_struct *vma;
 
             for(i=0; i<pageCount; i++)
-            {
-                t_mem = (Memory + i) << PAGE_SHIFT;
-                
-                vma = find_vma(current->mm, t_mem);
+            {                
+                vma = find_vma(current->mm, (Memory + i) << PAGE_SHIFT);
 
                 if (vma && (vma->vm_flags & VM_PFNMAP) )
                 {
@@ -255,15 +252,24 @@ static int rga_MapUserMemory(struct page **pages,
                         pte_t       * pte;
                         spinlock_t  * ptl;
                         unsigned long pfn;                                                                        
+                        pgd_t * pgd;
+                        pud_t * pud;
+                        
+                        pgd = pgd_offset(current->mm, (Memory + i) << PAGE_SHIFT);
 
-                        pgd_t * pgd = pgd_offset(current->mm, t_mem);
-                        pud_t * pud = pud_offset(pgd, t_mem);
+                        if(pgd_val(*pgd) == 0)
+                        {
+                            printk("pgd value is zero \n");
+                            break;
+                        }
+                        
+                        pud = pud_offset(pgd, (Memory + i) << PAGE_SHIFT);
                         if (pud)
                         {
-                            pmd_t * pmd = pmd_offset(pud, t_mem);
+                            pmd_t * pmd = pmd_offset(pud, (Memory + i) << PAGE_SHIFT);
                             if (pmd)
                             {
-                                pte = pte_offset_map_lock(current->mm, pmd, t_mem, &ptl);
+                                pte = pte_offset_map_lock(current->mm, pmd, (Memory + i) << PAGE_SHIFT, &ptl);
                                 if (!pte)
                                 {
                                     break;
@@ -280,7 +286,7 @@ static int rga_MapUserMemory(struct page **pages,
                         }
 
                         pfn = pte_pfn(*pte);
-                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)t_mem) & ~PAGE_MASK));                        
+                        Address = ((pfn << PAGE_SHIFT) | (((unsigned long)((Memory + i) << PAGE_SHIFT)) & ~PAGE_MASK));                        
                         pte_unmap_unlock(pte, ptl);                                                                        
                     }
                     while (0);

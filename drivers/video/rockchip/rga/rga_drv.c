@@ -96,6 +96,8 @@ static struct clk *hclk_rga;
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);
 static void rga_del_running_list(void);
+static void rga_try_set_reg(uint32_t num);
+
 
 
 /* Logging */
@@ -263,11 +265,14 @@ static int rga_flush(rga_session *session, unsigned long arg)
 	if (unlikely(ret_timeout < 0)) {
 		pr_err("flush pid %d wait task ret %d\n", session->pid, ret);                    
         rga_soft_reset();
+        rga_del_running_list();
         ret = -ETIMEDOUT;
 	} else if (0 == ret_timeout) {
 		pr_err("flush pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
         printk("bus  = %.8x\n", rga_read(RGA_INT));
         rga_soft_reset();
+        rga_del_running_list();
+        rga_try_set_reg(1);
 		ret = -ETIMEDOUT;
 	}
 
@@ -345,6 +350,7 @@ static void rga_copy_reg(struct rga_reg *reg, uint32_t offset)
     
     atomic_add(1, &rga_service.cmd_num);
 	atomic_add(1, &reg->session->task_running);
+    atomic_add(1, &rga_service.total_running);
     
     cmd_buf = (uint32_t *)rga_service.cmd_buff + offset*28;
     reg_p = (uint32_t *)reg->cmd_reg;
@@ -573,10 +579,7 @@ static void rga_try_set_reg(uint32_t num)
                 /* Start proc */
                 atomic_set(&reg->session->done, 0);                
                 rga_write(0x1, RGA_CMD_CTRL);
-
-                atomic_add(1, &rga_service.total_running);
-                atomic_add(1, &reg->session->task_running);
-
+                
                 #if RGA_TEST
                 {
                     uint32_t i;
@@ -765,12 +768,15 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     {
 		pr_err("sync pid %d wait task ret %d\n", session->pid, ret_timeout);        
         rga_soft_reset();
+        rga_del_running_list();
         ret = -ETIMEDOUT;
 	} 
     else if (0 == ret_timeout)
     {
 		pr_err("sync pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
         rga_soft_reset();
+        rga_del_running_list();
+        rga_try_set_reg(1);
 		ret = -ETIMEDOUT;
 	}
 
@@ -1175,7 +1181,6 @@ static int __init rga_init(void)
 	}
 
     //rga_test_0();
-    //rga_test_1();
     
 	INFO("Module initialized.\n");  
     
