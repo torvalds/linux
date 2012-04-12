@@ -1436,7 +1436,7 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 		goto err;
 
 	fps = &per_cpu(fcoe_percpu, cpu);
-	spin_lock_bh(&fps->fcoe_rx_list.lock);
+	spin_lock(&fps->fcoe_rx_list.lock);
 	if (unlikely(!fps->thread)) {
 		/*
 		 * The targeted CPU is not ready, let's target
@@ -1447,12 +1447,12 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 				"ready for incoming skb- using first online "
 				"CPU.\n");
 
-		spin_unlock_bh(&fps->fcoe_rx_list.lock);
+		spin_unlock(&fps->fcoe_rx_list.lock);
 		cpu = cpumask_first(cpu_online_mask);
 		fps = &per_cpu(fcoe_percpu, cpu);
-		spin_lock_bh(&fps->fcoe_rx_list.lock);
+		spin_lock(&fps->fcoe_rx_list.lock);
 		if (!fps->thread) {
-			spin_unlock_bh(&fps->fcoe_rx_list.lock);
+			spin_unlock(&fps->fcoe_rx_list.lock);
 			goto err;
 		}
 	}
@@ -1463,24 +1463,17 @@ static int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 	 * so we're free to queue skbs into it's queue.
 	 */
 
-	/* If this is a SCSI-FCP frame, and this is already executing on the
-	 * correct CPU, and the queue for this CPU is empty, then go ahead
-	 * and process the frame directly in the softirq context.
-	 * This lets us process completions without context switching from the
-	 * NET_RX softirq, to our receive processing thread, and then back to
-	 * BLOCK softirq context.
+	/*
+	 * Note: We used to have a set of conditions under which we would
+	 * call fcoe_recv_frame directly, rather than queuing to the rx list
+	 * as it could save a few cycles, but doing so is prohibited, as
+	 * fcoe_recv_frame has several paths that may sleep, which is forbidden
+	 * in softirq context.
 	 */
-	if (fh->fh_type == FC_TYPE_FCP &&
-	    cpu == smp_processor_id() &&
-	    skb_queue_empty(&fps->fcoe_rx_list)) {
-		spin_unlock_bh(&fps->fcoe_rx_list.lock);
-		fcoe_recv_frame(skb);
-	} else {
-		__skb_queue_tail(&fps->fcoe_rx_list, skb);
-		if (fps->fcoe_rx_list.qlen == 1)
-			wake_up_process(fps->thread);
-		spin_unlock_bh(&fps->fcoe_rx_list.lock);
-	}
+	__skb_queue_tail(&fps->fcoe_rx_list, skb);
+	if (fps->thread->state == TASK_INTERRUPTIBLE)
+		wake_up_process(fps->thread);
+	spin_unlock(&fps->fcoe_rx_list.lock);
 
 	return 0;
 err:
@@ -1797,23 +1790,29 @@ static int fcoe_percpu_receive_thread(void *arg)
 {
 	struct fcoe_percpu_s *p = arg;
 	struct sk_buff *skb;
+	struct sk_buff_head tmp;
+
+	skb_queue_head_init(&tmp);
 
 	set_user_nice(current, -20);
 
 	while (!kthread_should_stop()) {
 
 		spin_lock_bh(&p->fcoe_rx_list.lock);
-		while ((skb = __skb_dequeue(&p->fcoe_rx_list)) == NULL) {
+		skb_queue_splice_init(&p->fcoe_rx_list, &tmp);
+		spin_unlock_bh(&p->fcoe_rx_list.lock);
+
+		while ((skb = __skb_dequeue(&tmp)) != NULL)
+			fcoe_recv_frame(skb);
+
+		spin_lock_bh(&p->fcoe_rx_list.lock);
+		if (!skb_queue_len(&p->fcoe_rx_list)) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			spin_unlock_bh(&p->fcoe_rx_list.lock);
 			schedule();
 			set_current_state(TASK_RUNNING);
-			if (kthread_should_stop())
-				return 0;
-			spin_lock_bh(&p->fcoe_rx_list.lock);
-		}
-		spin_unlock_bh(&p->fcoe_rx_list.lock);
-		fcoe_recv_frame(skb);
+		} else
+			spin_unlock_bh(&p->fcoe_rx_list.lock);
 	}
 	return 0;
 }
@@ -2187,8 +2186,12 @@ static int fcoe_create(struct net_device *netdev, enum fip_state fip_mode)
 	/* start FIP Discovery and FLOGI */
 	lport->boot_time = jiffies;
 	fc_fabric_login(lport);
-	if (!fcoe_link_ok(lport))
+	if (!fcoe_link_ok(lport)) {
+		rtnl_unlock();
 		fcoe_ctlr_link_up(&fcoe->ctlr);
+		mutex_unlock(&fcoe_config_mutex);
+		return rc;
+	}
 
 out_nodev:
 	rtnl_unlock();
@@ -2261,31 +2264,14 @@ static int fcoe_link_ok(struct fc_lport *lport)
 static void fcoe_percpu_clean(struct fc_lport *lport)
 {
 	struct fcoe_percpu_s *pp;
-	struct fcoe_rcv_info *fr;
-	struct sk_buff_head *list;
-	struct sk_buff *skb, *next;
-	struct sk_buff *head;
+	struct sk_buff *skb;
 	unsigned int cpu;
 
 	for_each_possible_cpu(cpu) {
 		pp = &per_cpu(fcoe_percpu, cpu);
-		spin_lock_bh(&pp->fcoe_rx_list.lock);
-		list = &pp->fcoe_rx_list;
-		head = list->next;
-		for (skb = head; skb != (struct sk_buff *)list;
-		     skb = next) {
-			next = skb->next;
-			fr = fcoe_dev_from_skb(skb);
-			if (fr->fr_dev == lport) {
-				__skb_unlink(skb, list);
-				kfree_skb(skb);
-			}
-		}
 
-		if (!pp->thread || !cpu_online(cpu)) {
-			spin_unlock_bh(&pp->fcoe_rx_list.lock);
+		if (!pp->thread || !cpu_online(cpu))
 			continue;
-		}
 
 		skb = dev_alloc_skb(0);
 		if (!skb) {
@@ -2294,6 +2280,7 @@ static void fcoe_percpu_clean(struct fc_lport *lport)
 		}
 		skb->destructor = fcoe_percpu_flush_done;
 
+		spin_lock_bh(&pp->fcoe_rx_list.lock);
 		__skb_queue_tail(&pp->fcoe_rx_list, skb);
 		if (pp->fcoe_rx_list.qlen == 1)
 			wake_up_process(pp->thread);

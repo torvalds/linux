@@ -55,7 +55,6 @@
 #include <linux/nsproxy.h>
 #include <linux/rcupdate.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include "nfs4_fs.h"

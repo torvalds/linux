@@ -18,6 +18,5 @@
 #define IO_SPACE_LIMIT 0xffffffff
 
 #define __io(p)		((void __iomem*)((p) + IXP23XX_PCI_IO_VIRT))
-#define __mem_pci(a)	(a)
 
 #endif

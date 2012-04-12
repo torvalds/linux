@@ -27,6 +27,7 @@ config MACH_MOP500
 	select UX500_SOC_DB8500
 	select I2C
 	select I2C_NOMADIK
+	select SOC_BUS
 	help
 	  Include support for the MOP500 development platform.
 
@@ -57,6 +58,12 @@ config UX500_AUTO_PLATFORM
 	  At least one platform needs to be selected in order to build
 	  a working kernel. If everything else is disabled, this
 	  automatically enables MACH_MOP500.
+
+config MACH_UX500_DT
+	bool "Generic U8500 support using device tree"
+	depends on MACH_MOP500
+	select USE_OF
+
 endmenu
 
 config UX500_DEBUG_UART

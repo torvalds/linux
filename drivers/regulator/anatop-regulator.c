@@ -138,9 +138,10 @@ static int __devinit anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->owner = THIS_MODULE;
 	sreg->mfd = anatopmfd;
-	ret = of_property_read_u32(np, "reg", &sreg->control_reg);
+	ret = of_property_read_u32(np, "anatop-reg-offset",
+				   &sreg->control_reg);
 	if (ret) {
-		dev_err(dev, "no reg property set\n");
+		dev_err(dev, "no anatop-reg-offset property set\n");
 		goto anatop_probe_end;
 	}
 	ret = of_property_read_u32(np, "anatop-vol-bit-width",

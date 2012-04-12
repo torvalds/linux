@@ -43,7 +43,6 @@
 #include <linux/nsproxy.h>
 #include <linux/pid_namespace.h>
 
-#include <asm/system.h>
 
 #include "nfs4_fs.h"
 #include "callback.h"

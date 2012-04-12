@@ -19,4 +19,7 @@ extern void do_BUG(const char *file, int line);
 
 #include <asm-generic/bug.h>
 
+struct pt_regs;
+extern void die_if_kernel(char *str, struct pt_regs *regs) __attribute__ ((noreturn));
+
 #endif

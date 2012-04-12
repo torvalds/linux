@@ -114,15 +114,6 @@ static struct omap_smsc911x_platform_data smsc911x_cfg = {
 
 static inline void __init omap3evm_init_smsc911x(void)
 {
-	struct clk *l3ck;
-	unsigned int rate;
-
-	l3ck = clk_get(NULL, "l3_ck");
-	if (IS_ERR(l3ck))
-		rate = 100000000;
-	else
-		rate = clk_get_rate(l3ck);
-
 	/* Configure ethernet controller reset gpio */
 	if (cpu_is_omap3430()) {
 		if (get_omap3_evm_rev() == OMAP3EVM_BOARD_GEN_1)
@@ -487,7 +478,6 @@ static struct platform_device omap3evm_wlan_regulator = {
 };
 
 struct wl12xx_platform_data omap3evm_wlan_data __initdata = {
-	.irq = OMAP_GPIO_IRQ(OMAP3EVM_WLAN_IRQ_GPIO),
 	.board_ref_clock = WL12XX_REFCLOCK_38, /* 38.4 MHz */
 };
 #endif
@@ -623,6 +613,7 @@ static void __init omap3_evm_wl12xx_init(void)
 	int ret;
 
 	/* WL12xx WLAN Init */
+	omap3evm_wlan_data.irq = gpio_to_irq(OMAP3EVM_WLAN_IRQ_GPIO);
 	ret = wl12xx_set_platform_data(&omap3evm_wlan_data);
 	if (ret)
 		pr_err("error setting wl12xx data: %d\n", ret);
@@ -632,9 +623,15 @@ static void __init omap3_evm_wl12xx_init(void)
 #endif
 }
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
+	REGULATOR_SUPPLY("vdd33a", "smsc911x.0"),
+};
+
 static void __init omap3_evm_init(void)
 {
 	omap3_evm_get_revision();
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	if (cpu_is_omap3630())
 		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);

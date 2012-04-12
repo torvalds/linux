@@ -70,7 +70,6 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 #include <linux/io.h>
-#include <asm/system.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

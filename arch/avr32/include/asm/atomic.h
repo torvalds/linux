@@ -15,7 +15,7 @@
 #define __ASM_AVR32_ATOMIC_H
 
 #include <linux/types.h>
-#include <asm/system.h>
+#include <asm/cmpxchg.h>
 
 #define ATOMIC_INIT(i)  { (i) }
 

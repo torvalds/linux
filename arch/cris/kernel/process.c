@@ -16,7 +16,6 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/init_task.h>

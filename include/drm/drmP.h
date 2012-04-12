@@ -91,6 +91,7 @@ struct drm_device;
 #define DRM_UT_CORE 		0x01
 #define DRM_UT_DRIVER		0x02
 #define DRM_UT_KMS		0x04
+#define DRM_UT_PRIME		0x08
 /*
  * Three debug levels are defined.
  * drm_core, drm_driver, drm_kms
@@ -150,6 +151,7 @@ int drm_err(const char *func, const char *format, ...);
 #define DRIVER_IRQ_VBL2    0x800
 #define DRIVER_GEM         0x1000
 #define DRIVER_MODESET     0x2000
+#define DRIVER_PRIME       0x4000
 
 #define DRIVER_BUS_PCI 0x1
 #define DRIVER_BUS_PLATFORM 0x2
@@ -215,6 +217,11 @@ int drm_err(const char *func, const char *format, ...);
 		drm_ut_debug_printk(DRM_UT_KMS, DRM_NAME, 		\
 					 __func__, fmt, ##args);	\
 	} while (0)
+#define DRM_DEBUG_PRIME(fmt, args...)					\
+	do {								\
+		drm_ut_debug_printk(DRM_UT_PRIME, DRM_NAME,		\
+					__func__, fmt, ##args);		\
+	} while (0)
 #define DRM_LOG(fmt, args...)						\
 	do {								\
 		drm_ut_debug_printk(DRM_UT_CORE, NULL,			\
@@ -238,6 +245,7 @@ int drm_err(const char *func, const char *format, ...);
 #else
 #define DRM_DEBUG_DRIVER(fmt, args...) do { } while (0)
 #define DRM_DEBUG_KMS(fmt, args...)	do { } while (0)
+#define DRM_DEBUG_PRIME(fmt, args...)	do { } while (0)
 #define DRM_DEBUG(fmt, arg...)		 do { } while (0)
 #define DRM_LOG(fmt, arg...)		do { } while (0)
 #define DRM_LOG_KMS(fmt, args...) do { } while (0)
@@ -410,6 +418,12 @@ struct drm_pending_event {
 	void (*destroy)(struct drm_pending_event *event);
 };
 
+/* initial implementaton using a linked list - todo hashtab */
+struct drm_prime_file_private {
+	struct list_head head;
+	struct mutex lock;
+};
+
 /** File private data */
 struct drm_file {
 	int authenticated;
@@ -437,6 +451,8 @@ struct drm_file {
 	wait_queue_head_t event_wait;
 	struct list_head event_list;
 	int event_space;
+
+	struct drm_prime_file_private prime;
 };
 
 /** Wait queue */
@@ -652,6 +668,12 @@ struct drm_gem_object {
 	uint32_t pending_write_domain;
 
 	void *driver_private;
+
+	/* dma buf exported from this GEM object */
+	struct dma_buf *export_dma_buf;
+
+	/* dma buf attachment backing this object */
+	struct dma_buf_attachment *import_attach;
 };
 
 #include "drm_crtc.h"
@@ -889,6 +911,20 @@ struct drm_driver {
 	void (*gem_free_object) (struct drm_gem_object *obj);
 	int (*gem_open_object) (struct drm_gem_object *, struct drm_file *);
 	void (*gem_close_object) (struct drm_gem_object *, struct drm_file *);
+
+	/* prime: */
+	/* export handle -> fd (see drm_gem_prime_handle_to_fd() helper) */
+	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
+				uint32_t handle, uint32_t flags, int *prime_fd);
+	/* import fd -> handle (see drm_gem_prime_fd_to_handle() helper) */
+	int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
+				int prime_fd, uint32_t *handle);
+	/* export GEM -> dmabuf */
+	struct dma_buf * (*gem_prime_export)(struct drm_device *dev,
+				struct drm_gem_object *obj, int flags);
+	/* import dmabuf -> GEM */
+	struct drm_gem_object * (*gem_prime_import)(struct drm_device *dev,
+				struct dma_buf *dma_buf);
 
 	/* vga arb irq handler */
 	void (*vgaarb_irq)(struct drm_device *dev, bool state);
@@ -1508,6 +1544,32 @@ extern int drm_bufs_info(struct seq_file *m, void *data);
 extern int drm_vblank_info(struct seq_file *m, void *data);
 extern int drm_clients_info(struct seq_file *m, void* data);
 extern int drm_gem_name_info(struct seq_file *m, void *data);
+
+
+extern int drm_gem_prime_handle_to_fd(struct drm_device *dev,
+		struct drm_file *file_priv, uint32_t handle, uint32_t flags,
+		int *prime_fd);
+extern int drm_gem_prime_fd_to_handle(struct drm_device *dev,
+		struct drm_file *file_priv, int prime_fd, uint32_t *handle);
+
+extern int drm_prime_handle_to_fd_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file_priv);
+extern int drm_prime_fd_to_handle_ioctl(struct drm_device *dev, void *data,
+					struct drm_file *file_priv);
+
+extern struct sg_table *drm_prime_pages_to_sg(struct page **pages, int nr_pages);
+extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *sg);
+
+
+void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
+void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
+int drm_prime_add_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
+int drm_prime_lookup_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle);
+void drm_prime_remove_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
+
+int drm_prime_add_dma_buf(struct drm_device *dev, struct drm_gem_object *obj);
+int drm_prime_lookup_obj(struct drm_device *dev, struct dma_buf *buf,
+			 struct drm_gem_object **obj);
 
 #if DRM_DEBUG_CODE
 extern int drm_vma_info(struct seq_file *m, void *data);

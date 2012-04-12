@@ -13,7 +13,6 @@
 #include <asm/cpu.h>
 #include <asm/processor.h>
 #include <linux/atomic.h>
-#include <asm/system.h>
 #include <asm/hardirq.h>
 #include <asm/mmu_context.h>
 #include <asm/mipsmtregs.h>

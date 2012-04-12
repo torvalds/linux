@@ -793,7 +793,6 @@ filelayout_clear_request_commit(struct nfs_page *req)
 	if (!test_and_clear_bit(PG_COMMIT_TO_DS, &req->wb_flags))
 		goto out;
 	if (list_is_singular(&req->wb_list)) {
-		struct inode *inode = req->wb_context->dentry->d_inode;
 		struct pnfs_layout_segment *lseg;
 
 		/* From here we can find the bucket, but for the moment,

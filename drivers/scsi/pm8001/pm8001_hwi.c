@@ -2093,6 +2093,7 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 	struct ata_task_resp *resp ;
 	u32 *sata_resp;
 	struct pm8001_device *pm8001_dev;
+	unsigned long flags;
 
 	psataPayload = (struct sata_completion_resp *)(piomb + 4);
 	status = le32_to_cpu(psataPayload->status);
@@ -2382,26 +2383,26 @@ mpi_sata_completion(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		ts->stat = SAS_DEV_NO_RESPONSE;
 		break;
 	}
-	spin_lock_irq(&t->task_state_lock);
+	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
-		spin_unlock_irq(&t->task_state_lock);
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("task 0x%p done with io_status 0x%x"
 			" resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			t, status, ts->resp, ts->stat));
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 	} else if (t->uldd_task) {
-		spin_unlock_irq(&t->task_state_lock);
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* ditto */
 		spin_unlock_irq(&pm8001_ha->lock);
 		t->task_done(t);
 		spin_lock_irq(&pm8001_ha->lock);
 	} else if (!t->uldd_task) {
-		spin_unlock_irq(&t->task_state_lock);
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/*ditto*/
 		spin_unlock_irq(&pm8001_ha->lock);
@@ -2423,6 +2424,7 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 	u32 tag = le32_to_cpu(psataPayload->tag);
 	u32 port_id = le32_to_cpu(psataPayload->port_id);
 	u32 dev_id = le32_to_cpu(psataPayload->device_id);
+	unsigned long flags;
 
 	ccb = &pm8001_ha->ccb_info[tag];
 	t = ccb->task;
@@ -2593,26 +2595,26 @@ static void mpi_sata_event(struct pm8001_hba_info *pm8001_ha , void *piomb)
 		ts->stat = SAS_OPEN_TO;
 		break;
 	}
-	spin_lock_irq(&t->task_state_lock);
+	spin_lock_irqsave(&t->task_state_lock, flags);
 	t->task_state_flags &= ~SAS_TASK_STATE_PENDING;
 	t->task_state_flags &= ~SAS_TASK_AT_INITIATOR;
 	t->task_state_flags |= SAS_TASK_STATE_DONE;
 	if (unlikely((t->task_state_flags & SAS_TASK_STATE_ABORTED))) {
-		spin_unlock_irq(&t->task_state_lock);
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		PM8001_FAIL_DBG(pm8001_ha,
 			pm8001_printk("task 0x%p done with io_status 0x%x"
 			" resp 0x%x stat 0x%x but aborted by upper layer!\n",
 			t, event, ts->resp, ts->stat));
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 	} else if (t->uldd_task) {
-		spin_unlock_irq(&t->task_state_lock);
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/* ditto */
 		spin_unlock_irq(&pm8001_ha->lock);
 		t->task_done(t);
 		spin_lock_irq(&pm8001_ha->lock);
 	} else if (!t->uldd_task) {
-		spin_unlock_irq(&t->task_state_lock);
+		spin_unlock_irqrestore(&t->task_state_lock, flags);
 		pm8001_ccb_task_free(pm8001_ha, t, ccb, tag);
 		mb();/*ditto*/
 		spin_unlock_irq(&pm8001_ha->lock);

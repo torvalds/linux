@@ -286,7 +286,7 @@ static void sh_mmcif_start_dma_rx(struct sh_mmcif_host *host)
 			 DMA_FROM_DEVICE);
 	if (ret > 0) {
 		host->dma_active = true;
-		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
+		desc = dmaengine_prep_slave_sg(chan, sg, ret,
 			DMA_DEV_TO_MEM, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
 
@@ -335,7 +335,7 @@ static void sh_mmcif_start_dma_tx(struct sh_mmcif_host *host)
 			 DMA_TO_DEVICE);
 	if (ret > 0) {
 		host->dma_active = true;
-		desc = chan->device->device_prep_slave_sg(chan, sg, ret,
+		desc = dmaengine_prep_slave_sg(chan, sg, ret,
 			DMA_MEM_TO_DEV, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	}
 
@@ -746,7 +746,6 @@ static u32 sh_mmcif_set_cmd(struct sh_mmcif_host *host,
 	case MMC_SET_WRITE_PROT:
 	case MMC_CLR_WRITE_PROT:
 	case MMC_ERASE:
-	case MMC_GEN_CMD:
 		tmp |= CMD_SET_RBSY;
 		break;
 	}
@@ -829,7 +828,6 @@ static void sh_mmcif_start_cmd(struct sh_mmcif_host *host,
 	case MMC_SET_WRITE_PROT:
 	case MMC_CLR_WRITE_PROT:
 	case MMC_ERASE:
-	case MMC_GEN_CMD:
 		mask = MASK_START_CMD | MASK_MRBSYE;
 		break;
 	default:

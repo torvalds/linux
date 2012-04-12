@@ -89,7 +89,7 @@ static const struct spi_device_id wm831x_spi_ids[] = {
 	{ "wm8326", WM8326 },
 	{ },
 };
-MODULE_DEVICE_TABLE(spi, wm831x_spi_id);
+MODULE_DEVICE_TABLE(spi, wm831x_spi_ids);
 
 static struct spi_driver wm831x_spi_driver = {
 	.driver = {

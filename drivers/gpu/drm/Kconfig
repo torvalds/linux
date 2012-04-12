@@ -9,6 +9,7 @@ menuconfig DRM
 	depends on (AGP || AGP=n) && !EMULATED_CMPXCHG && MMU
 	select I2C
 	select I2C_ALGOBIT
+	select DMA_SHARED_BUFFER
 	help
 	  Kernel-level support for the Direct Rendering Infrastructure (DRI)
 	  introduced in XFree86 4.0. If you say Y here, you need to select

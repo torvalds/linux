@@ -20,7 +20,6 @@
  *
  */
 
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <linux/types.h>
 #include <linux/fcntl.h>

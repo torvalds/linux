@@ -99,7 +99,6 @@
 #include <linux/notifier.h>
 #include <linux/device.h>
 #include <linux/io.h>
-#include <asm/system.h>
 #include <linux/uaccess.h>
 #include <linux/kdb.h>
 #include <linux/ctype.h>

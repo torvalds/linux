@@ -27,7 +27,6 @@
 #include <linux/devpts_fs.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 
 #ifdef CONFIG_UNIX98_PTYS
 static struct tty_driver *ptm_driver;

@@ -270,11 +270,11 @@ static struct file_system_type cpuset_fs_type = {
  * are online.  If none are online, walk up the cpuset hierarchy
  * until we find one that does have some online cpus.  If we get
  * all the way to the top and still haven't found any online cpus,
- * return cpu_online_map.  Or if passed a NULL cs from an exit'ing
- * task, return cpu_online_map.
+ * return cpu_online_mask.  Or if passed a NULL cs from an exit'ing
+ * task, return cpu_online_mask.
  *
  * One way or another, we guarantee to return some non-empty subset
- * of cpu_online_map.
+ * of cpu_online_mask.
  *
  * Call with callback_mutex held.
  */
@@ -867,7 +867,7 @@ static int update_cpumask(struct cpuset *cs, struct cpuset *trialcs,
 	int retval;
 	int is_load_balanced;
 
-	/* top_cpuset.cpus_allowed tracks cpu_online_map; it's read-only */
+	/* top_cpuset.cpus_allowed tracks cpu_online_mask; it's read-only */
 	if (cs == &top_cpuset)
 		return -EACCES;
 
@@ -2149,7 +2149,7 @@ void __init cpuset_init_smp(void)
  *
  * Description: Returns the cpumask_var_t cpus_allowed of the cpuset
  * attached to the specified @tsk.  Guaranteed to return some non-empty
- * subset of cpu_online_map, even if this means going outside the
+ * subset of cpu_online_mask, even if this means going outside the
  * tasks cpuset.
  **/
 
@@ -2162,10 +2162,9 @@ void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
 	mutex_unlock(&callback_mutex);
 }
 
-int cpuset_cpus_allowed_fallback(struct task_struct *tsk)
+void cpuset_cpus_allowed_fallback(struct task_struct *tsk)
 {
 	const struct cpuset *cs;
-	int cpu;
 
 	rcu_read_lock();
 	cs = task_cs(tsk);
@@ -2186,22 +2185,10 @@ int cpuset_cpus_allowed_fallback(struct task_struct *tsk)
 	 * changes in tsk_cs()->cpus_allowed. Otherwise we can temporary
 	 * set any mask even if it is not right from task_cs() pov,
 	 * the pending set_cpus_allowed_ptr() will fix things.
+	 *
+	 * select_fallback_rq() will fix things ups and set cpu_possible_mask
+	 * if required.
 	 */
-
-	cpu = cpumask_any_and(&tsk->cpus_allowed, cpu_active_mask);
-	if (cpu >= nr_cpu_ids) {
-		/*
-		 * Either tsk->cpus_allowed is wrong (see above) or it
-		 * is actually empty. The latter case is only possible
-		 * if we are racing with remove_tasks_in_empty_cpuset().
-		 * Like above we can temporary set any mask and rely on
-		 * set_cpus_allowed_ptr() as synchronization point.
-		 */
-		do_set_cpus_allowed(tsk, cpu_possible_mask);
-		cpu = cpumask_any(cpu_active_mask);
-	}
-
-	return cpu;
 }
 
 void cpuset_init_current_mems_allowed(void)

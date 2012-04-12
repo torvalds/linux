@@ -550,7 +550,7 @@ int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
 	seq_put_decimal_ull(m, ' ', shared);
 	seq_put_decimal_ull(m, ' ', text);
 	seq_put_decimal_ull(m, ' ', 0);
-	seq_put_decimal_ull(m, ' ', text);
+	seq_put_decimal_ull(m, ' ', data);
 	seq_put_decimal_ull(m, ' ', 0);
 	seq_putc(m, '\n');
 

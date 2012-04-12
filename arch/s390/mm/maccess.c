@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/gfp.h>
-#include <asm/system.h>
+#include <asm/ctl_reg.h>
 
 /*
  * This function writes to kernel memory bypassing DAT and possible

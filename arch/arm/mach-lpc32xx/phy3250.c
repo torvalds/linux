@@ -37,6 +37,7 @@
 
 #include <mach/hardware.h>
 #include <mach/platform.h>
+#include <mach/board.h>
 #include <mach/gpio-lpc32xx.h>
 #include "common.h"
 
@@ -255,6 +256,8 @@ static struct platform_device *phy3250_devs[] __initdata = {
 	&lpc32xx_watchdog_device,
 	&lpc32xx_gpio_led_device,
 	&lpc32xx_adc_device,
+	&lpc32xx_ohci_device,
+	&lpc32xx_net_device,
 };
 
 static struct amba_device *amba_devs[] __initdata = {

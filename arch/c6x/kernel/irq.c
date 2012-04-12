@@ -27,6 +27,7 @@
 #include <linux/kernel_stat.h>
 
 #include <asm/megamod-pic.h>
+#include <asm/special_insns.h>
 
 unsigned long irq_err_count;
 

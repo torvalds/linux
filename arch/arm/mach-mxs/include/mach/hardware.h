@@ -20,10 +20,4 @@
 #ifndef __MACH_MXS_HARDWARE_H__
 #define __MACH_MXS_HARDWARE_H__
 
-#ifdef __ASSEMBLER__
-#define IOMEM(addr)	(addr)
-#else
-#define IOMEM(addr)	((void __force __iomem *)(addr))
-#endif
-
 #endif /* __MACH_MXS_HARDWARE_H__ */

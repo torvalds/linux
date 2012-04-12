@@ -27,12 +27,6 @@ static size_t regmap_calc_reg_len(int max_val, char *buf, size_t buf_size)
 	return strlen(buf);
 }
 
-static int regmap_open_file(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t regmap_name_read_file(struct file *file,
 				     char __user *user_buf, size_t count,
 				     loff_t *ppos)
@@ -57,7 +51,7 @@ static ssize_t regmap_name_read_file(struct file *file,
 }
 
 static const struct file_operations regmap_name_fops = {
-	.open = regmap_open_file,
+	.open = simple_open,
 	.read = regmap_name_read_file,
 	.llseek = default_llseek,
 };
@@ -174,7 +168,7 @@ static ssize_t regmap_map_write_file(struct file *file,
 #endif
 
 static const struct file_operations regmap_map_fops = {
-	.open = regmap_open_file,
+	.open = simple_open,
 	.read = regmap_map_read_file,
 	.write = regmap_map_write_file,
 	.llseek = default_llseek,
@@ -243,7 +237,7 @@ out:
 }
 
 static const struct file_operations regmap_access_fops = {
-	.open = regmap_open_file,
+	.open = simple_open,
 	.read = regmap_access_read_file,
 	.llseek = default_llseek,
 };

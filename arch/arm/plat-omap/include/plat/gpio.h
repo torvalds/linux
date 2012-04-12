@@ -158,10 +158,6 @@
 #define OMAP_MPUIO(nr)		(OMAP_MAX_GPIO_LINES + (nr))
 #define OMAP_GPIO_IS_MPUIO(nr)	((nr) >= OMAP_MAX_GPIO_LINES)
 
-#define OMAP_GPIO_IRQ(nr)	(OMAP_GPIO_IS_MPUIO(nr) ? \
-				 IH_MPUIO_BASE + ((nr) & 0x0f) : \
-				 IH_GPIO_BASE + (nr))
-
 struct omap_gpio_dev_attr {
 	int bank_width;		/* GPIO bank width */
 	bool dbck_flag;		/* dbck required or not - True for OMAP3&4 */
@@ -218,30 +214,14 @@ extern void omap_set_gpio_debounce(int gpio, int enable);
 extern void omap_set_gpio_debounce_time(int gpio, int enable);
 /*-------------------------------------------------------------------------*/
 
-/* Wrappers for "new style" GPIO calls, using the new infrastructure
+/*
+ * Wrappers for "new style" GPIO calls, using the new infrastructure
  * which lets us plug in FPGA, I2C, and other implementations.
- * *
+ *
  * The original OMAP-specific calls should eventually be removed.
  */
 
 #include <linux/errno.h>
 #include <asm-generic/gpio.h>
-
-static inline int irq_to_gpio(unsigned irq)
-{
-	int tmp;
-
-	/* omap1 SOC mpuio */
-	if (cpu_class_is_omap1() && (irq < (IH_MPUIO_BASE + 16)))
-		return (irq - IH_MPUIO_BASE) + OMAP_MAX_GPIO_LINES;
-
-	/* SOC gpio */
-	tmp = irq - IH_GPIO_BASE;
-	if (tmp < OMAP_MAX_GPIO_LINES)
-		return tmp;
-
-	/* we don't supply reverse mappings for non-SOC gpios */
-	return -EIO;
-}
 
 #endif

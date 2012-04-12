@@ -21,6 +21,7 @@
 #include <asm/chpid.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>
+#include <asm/ctl_reg.h>
 
 #include "sclp.h"
 

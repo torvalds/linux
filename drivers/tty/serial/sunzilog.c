@@ -37,6 +37,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
+#include <asm/setup.h>
 
 #if defined(CONFIG_SERIAL_SUNZILOG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ
@@ -1580,7 +1581,7 @@ static int __init sunzilog_init(void)
 	if (err)
 		goto out_unregister_uart;
 
-	if (!zilog_irq) {
+	if (zilog_irq) {
 		struct uart_sunzilog_port *up = sunzilog_irq_chain;
 		err = request_irq(zilog_irq, sunzilog_interrupt, IRQF_SHARED,
 				  "zs", sunzilog_irq_chain);
@@ -1621,7 +1622,7 @@ static void __exit sunzilog_exit(void)
 {
 	platform_driver_unregister(&zs_driver);
 
-	if (!zilog_irq) {
+	if (zilog_irq) {
 		struct uart_sunzilog_port *up = sunzilog_irq_chain;
 
 		/* Disable Interrupts */

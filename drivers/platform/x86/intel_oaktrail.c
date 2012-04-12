@@ -313,6 +313,7 @@ static struct dmi_system_id __initdata oaktrail_dmi_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, oaktrail_dmi_table);
 
 static int __init oaktrail_init(void)
 {
@@ -394,4 +395,3 @@ MODULE_AUTHOR("Yin Kangkai (kangkai.yin@intel.com)");
 MODULE_DESCRIPTION("Intel Oaktrail Platform ACPI Extras");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("dmi:*:svnIntelCorporation:pnOakTrailplatform:*");

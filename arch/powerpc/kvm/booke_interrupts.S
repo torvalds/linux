@@ -402,19 +402,25 @@ lightweight_exit:
 	/* Save vcpu pointer for the exception handlers. */
 	mtspr	SPRN_SPRG_WVCPU, r4
 
+	lwz	r5, VCPU_SHARED(r4)
+
 	/* Can't switch the stack pointer until after IVPR is switched,
 	 * because host interrupt handlers would get confused. */
 	lwz	r1, VCPU_GPR(r1)(r4)
 
-	/* Host interrupt handlers may have clobbered these guest-readable
-	 * SPRGs, so we need to reload them here with the guest's values. */
-	lwz	r3, VCPU_SPRG4(r4)
+	/*
+	 * Host interrupt handlers may have clobbered these
+	 * guest-readable SPRGs, or the guest kernel may have
+	 * written directly to the shared area, so we
+	 * need to reload them here with the guest's values.
+	 */
+	lwz	r3, VCPU_SHARED_SPRG4(r5)
 	mtspr	SPRN_SPRG4W, r3
-	lwz	r3, VCPU_SPRG5(r4)
+	lwz	r3, VCPU_SHARED_SPRG5(r5)
 	mtspr	SPRN_SPRG5W, r3
-	lwz	r3, VCPU_SPRG6(r4)
+	lwz	r3, VCPU_SHARED_SPRG6(r5)
 	mtspr	SPRN_SPRG6W, r3
-	lwz	r3, VCPU_SPRG7(r4)
+	lwz	r3, VCPU_SHARED_SPRG7(r5)
 	mtspr	SPRN_SPRG7W, r3
 
 #ifdef CONFIG_KVM_EXIT_TIMING

@@ -17,6 +17,8 @@
 #include <linux/export.h>
 #include <linux/suspend.h>
 
+#include <asm/system_misc.h>
+
 #include <plat/omap-pm.h>
 #include <plat/omap_device.h>
 #include "common.h"

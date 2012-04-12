@@ -54,7 +54,6 @@
 #include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 /* gadget stack */

@@ -43,7 +43,7 @@ void hpios_delay_micro_seconds(u32 num_micro_sec)
 
 On error, return -ENOMEM, and *pMemArea.size = 0
 */
-u16 hpios_locked_mem_alloc(struct consistent_dma_area *p_mem_area, u32 size,
+int hpios_locked_mem_alloc(struct consistent_dma_area *p_mem_area, u32 size,
 	struct pci_dev *pdev)
 {
 	/*?? any benefit in using managed dmam_alloc_coherent? */

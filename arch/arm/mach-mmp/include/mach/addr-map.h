@@ -11,12 +11,6 @@
 #ifndef __ASM_MACH_ADDR_MAP_H
 #define __ASM_MACH_ADDR_MAP_H
 
-#ifndef __ASSEMBLER__
-#define IOMEM(x)	((void __iomem *)(x))
-#else
-#define IOMEM(x)	(x)
-#endif
-
 /* APB - Application Subsystem Peripheral Bus
  *
  * NOTE: the DMA controller registers are actually on the AXI fabric #1

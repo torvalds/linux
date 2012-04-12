@@ -31,6 +31,8 @@
 #include <asm/uctx.h>
 #include <asm/siginfo.h>
 #include <asm/visasm.h>
+#include <asm/switch_to.h>
+#include <asm/cacheflush.h>
 
 #include "entry.h"
 #include "systbls.h"

@@ -389,7 +389,7 @@ static int exofs_sync_fs(struct super_block *sb, int wait)
 	ios->length = offsetof(struct exofs_fscb, s_dev_table_oid);
 	memset(fscb, 0, ios->length);
 	fscb->s_nextid = cpu_to_le64(sbi->s_nextid);
-	fscb->s_numfiles = cpu_to_le32(sbi->s_numfiles);
+	fscb->s_numfiles = cpu_to_le64(sbi->s_numfiles);
 	fscb->s_magic = cpu_to_le16(sb->s_magic);
 	fscb->s_newfs = 0;
 	fscb->s_version = EXOFS_FSCB_VER;
@@ -529,7 +529,8 @@ static int exofs_devs_2_odi(struct exofs_dt_device_info *dt_dev,
 			     struct osd_dev_info *odi)
 {
 	odi->systemid_len = le32_to_cpu(dt_dev->systemid_len);
-	memcpy(odi->systemid, dt_dev->systemid, odi->systemid_len);
+	if (likely(odi->systemid_len))
+		memcpy(odi->systemid, dt_dev->systemid, OSD_SYSTEMID_LEN);
 
 	odi->osdname_len = le32_to_cpu(dt_dev->osdname_len);
 	odi->osdname = dt_dev->osdname;
@@ -565,7 +566,7 @@ int __alloc_dev_table(struct exofs_sb_info *sbi, unsigned numdevs,
 
 	aoded = kzalloc(sizeof(*aoded), GFP_KERNEL);
 	if (unlikely(!aoded)) {
-		EXOFS_ERR("ERROR: faild allocating Device array[%d]\n",
+		EXOFS_ERR("ERROR: failed allocating Device array[%d]\n",
 			  numdevs);
 		return -ENOMEM;
 	}

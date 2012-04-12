@@ -299,7 +299,6 @@ static inline int pdev_bad_for_parity(struct pci_dev *dev)
  */
 void pcibios_fixup_bus(struct pci_bus *bus)
 {
-	struct pci_sys_data *root = bus->sysdata;
 	struct pci_dev *dev;
 	u16 features = PCI_COMMAND_SERR | PCI_COMMAND_PARITY | PCI_COMMAND_FAST_BACK;
 

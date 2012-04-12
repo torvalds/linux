@@ -1,6 +1,7 @@
 #include <linux/mm.h>
 #include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
+#include <asm/traps.h>
 
 /*
  * Write back the dirty D-caches, but not invalidate them.

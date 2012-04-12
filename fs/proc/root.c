@@ -115,12 +115,13 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 	if (IS_ERR(sb))
 		return ERR_CAST(sb);
 
+	if (!proc_parse_options(options, ns)) {
+		deactivate_locked_super(sb);
+		return ERR_PTR(-EINVAL);
+	}
+
 	if (!sb->s_root) {
 		sb->s_flags = flags;
-		if (!proc_parse_options(options, ns)) {
-			deactivate_locked_super(sb);
-			return ERR_PTR(-EINVAL);
-		}
 		err = proc_fill_super(sb);
 		if (err) {
 			deactivate_locked_super(sb);

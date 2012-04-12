@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -2704,16 +2704,14 @@ lpfc_offline_prep(struct lpfc_hba * phba)
 				}
 				spin_lock_irq(shost->host_lock);
 				ndlp->nlp_flag &= ~NLP_NPR_ADISC;
-
+				spin_unlock_irq(shost->host_lock);
 				/*
 				 * Whenever an SLI4 port goes offline, free the
-				 * RPI.  A new RPI when the adapter port comes
-				 * back online.
+				 * RPI. Get a new RPI when the adapter port
+				 * comes back online.
 				 */
 				if (phba->sli_rev == LPFC_SLI_REV4)
 					lpfc_sli4_free_rpi(phba, ndlp->nlp_rpi);
-
-				spin_unlock_irq(shost->host_lock);
 				lpfc_unreg_rpi(vports[i], ndlp);
 			}
 		}
@@ -2786,9 +2784,13 @@ lpfc_scsi_buf_update(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->hbalock);
 	spin_lock(&phba->scsi_buf_list_lock);
-	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list)
+	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list) {
 		sb->cur_iocbq.sli4_xritag =
 			phba->sli4_hba.xri_ids[sb->cur_iocbq.sli4_lxritag];
+		set_bit(sb->cur_iocbq.sli4_lxritag, phba->sli4_hba.xri_bmask);
+		phba->sli4_hba.max_cfg_param.xri_used++;
+		phba->sli4_hba.xri_count++;
+	}
 	spin_unlock(&phba->scsi_buf_list_lock);
 	spin_unlock_irq(&phba->hbalock);
 	return 0;
@@ -3723,6 +3725,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		break;
 
 	case LPFC_FIP_EVENT_TYPE_FCF_DEAD:
+		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2549 FCF (x%x) disconnected from network, "
 			"tag:x%x\n", acqe_fip->index, acqe_fip->event_tag);
@@ -3784,6 +3787,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		}
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
+		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
 		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fip->index, acqe_fip->event_tag);
@@ -5226,8 +5230,7 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	 * rpi is normalized to a zero base because the physical rpi is
 	 * port based.
 	 */
-	curr_rpi_range = phba->sli4_hba.next_rpi -
-		phba->sli4_hba.max_cfg_param.rpi_base;
+	curr_rpi_range = phba->sli4_hba.next_rpi;
 	spin_unlock_irq(&phba->hbalock);
 
 	/*
@@ -5818,10 +5821,9 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 					readl(phba->sli4_hba.u.if_type2.
 					      ERR2regaddr);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2888 Port Error Detected "
-					"during POST: "
-					"port status reg 0x%x, "
-					"port_smphr reg 0x%x, "
+					"2888 Unrecoverable port error "
+					"following POST: port status reg "
+					"0x%x, port_smphr reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
 					reg_data.word0,
 					portsmphr_reg.word0,
@@ -6142,7 +6144,6 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->sli4_hba.next_xri = phba->sli4_hba.max_cfg_param.xri_base;
 		phba->vpi_base = phba->sli4_hba.max_cfg_param.vpi_base;
 		phba->vfi_base = phba->sli4_hba.max_cfg_param.vfi_base;
-		phba->sli4_hba.next_rpi = phba->sli4_hba.max_cfg_param.rpi_base;
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
@@ -7231,6 +7232,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 	uint32_t rdy_chk, num_resets = 0, reset_again = 0;
 	union lpfc_sli4_cfg_shdr *shdr;
 	struct lpfc_register reg_data;
+	uint16_t devid;
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
 	switch (if_type) {
@@ -7277,7 +7279,9 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 			       LPFC_SLIPORT_INIT_PORT);
 			writel(reg_data.word0, phba->sli4_hba.u.if_type2.
 			       CTRLregaddr);
-
+			/* flush */
+			pci_read_config_word(phba->pcidev,
+					     PCI_DEVICE_ID, &devid);
 			/*
 			 * Poll the Port Status Register and wait for RDY for
 			 * up to 10 seconds.  If the port doesn't respond, treat
@@ -7315,11 +7319,10 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 				phba->work_status[1] = readl(
 					phba->sli4_hba.u.if_type2.ERR2regaddr);
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2890 Port Error Detected "
-					"during Port Reset: "
-					"port status reg 0x%x, "
+					"2890 Port error detected during port "
+					"reset(%d): port status reg 0x%x, "
 					"error 1=0x%x, error 2=0x%x\n",
-					reg_data.word0,
+					num_resets, reg_data.word0,
 					phba->work_status[0],
 					phba->work_status[1]);
 				rc = -ENODEV;
