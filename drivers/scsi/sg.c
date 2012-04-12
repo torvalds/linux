@@ -137,7 +137,8 @@ typedef struct sg_request {	/* SG_MAX_QUEUE requests outstanding per file */
 	char res_used;		/* 1 -> using reserve buffer, 0 -> not ... */
 	char orphan;		/* 1 -> drop on sight, 0 -> normal */
 	char sg_io_owned;	/* 1 -> packet belongs to SG_IO */
-	volatile char done;	/* 0->before bh, 1->before read, 2->read */
+	/* done protected by rq_list_lock */
+	char done;		/* 0->before bh, 1->before read, 2->read */
 	struct request *rq;
 	struct bio *bio;
 	struct execute_work ew;
@@ -760,6 +761,17 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 	return 0;
 }
 
+static int srp_done(Sg_fd *sfp, Sg_request *srp)
+{
+	unsigned long flags;
+	int ret;
+
+	read_lock_irqsave(&sfp->rq_list_lock, flags);
+	ret = srp->done;
+	read_unlock_irqrestore(&sfp->rq_list_lock, flags);
+	return ret;
+}
+
 static int
 sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 {
@@ -791,7 +803,7 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 		if (result < 0)
 			return result;
 		result = wait_event_interruptible(sfp->read_wait,
-			(srp->done || sdp->detached));
+			(srp_done(sfp, srp) || sdp->detached));
 		if (sdp->detached)
 			return -ENODEV;
 		write_lock_irq(&sfp->rq_list_lock);
