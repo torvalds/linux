@@ -427,6 +427,16 @@ config CPU_SUBTYPE_SH7724
 	help
 	  Select SH7724 if you have an SH-MobileR2R CPU.
 
+config CPU_SUBTYPE_SH7734
+	bool "Support SH7734 processor"
+	select CPU_SH4A
+	select CPU_SHX2
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select USB_ARCH_HAS_OHCI
+	select USB_ARCH_HAS_EHCI
+	help
+	  Select SH7734 if you have a SH4A SH7734 CPU.
+
 config CPU_SUBTYPE_SH7757
 	bool "Support SH7757 processor"
 	select CPU_SH4A
@@ -584,7 +594,7 @@ config SH_CLK_CPG
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
-		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757
+		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757 && !CPU_SUBTYPE_SH7734
 
 source "kernel/time/Kconfig"
 
