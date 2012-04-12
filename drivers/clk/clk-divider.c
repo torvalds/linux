@@ -67,8 +67,8 @@ static int clk_divider_bestdiv(struct clk_hw *hw, unsigned long rate,
 	if (divider->flags & CLK_DIVIDER_ONE_BASED)
 		maxdiv--;
 
-	if (!best_parent_rate) {
-		parent_rate = __clk_get_rate(__clk_get_parent(hw->clk));
+	if (!(__clk_get_flags(hw->clk) & CLK_SET_RATE_PARENT)) {
+		parent_rate = *best_parent_rate;
 		bestdiv = DIV_ROUND_UP(parent_rate, rate);
 		bestdiv = bestdiv == 0 ? 1 : bestdiv;
 		bestdiv = bestdiv > maxdiv ? maxdiv : bestdiv;
@@ -108,13 +108,7 @@ static long clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 	int div;
 	div = clk_divider_bestdiv(hw, rate, prate);
 
-	if (prate)
-		return *prate / div;
-	else {
-		unsigned long r;
-		r = __clk_get_rate(__clk_get_parent(hw->clk));
-		return r / div;
-	}
+	return *prate / div;
 }
 
 static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate)
