@@ -744,14 +744,14 @@ static void cfhsi_wake_up(struct work_struct *work)
 		size_t fifo_occupancy = 0;
 
 		/* Wakeup timeout */
-		dev_err(&cfhsi->ndev->dev, "%s: Timeout.\n",
+		dev_dbg(&cfhsi->ndev->dev, "%s: Timeout.\n",
 			__func__);
 
 		/* Check FIFO to check if modem has sent something. */
 		WARN_ON(cfhsi->dev->cfhsi_fifo_occupancy(cfhsi->dev,
 					&fifo_occupancy));
 
-		dev_err(&cfhsi->ndev->dev, "%s: Bytes in FIFO: %u.\n",
+		dev_dbg(&cfhsi->ndev->dev, "%s: Bytes in FIFO: %u.\n",
 				__func__, (unsigned) fifo_occupancy);
 
 		/* Check if we misssed the interrupt. */
