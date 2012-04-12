@@ -824,8 +824,30 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
             }
             break;
         }
-        #ifdef CONFIG_SENSOR_01
         case 1:
+        {
+            if ((w==176) && (h==144)) {
+                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_1;
+            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_1
+            } else if ((w==240) && (h==160)) {
+                *val = CONFIG_SENSOR_240X160_FPS_FIXED_1;
+            #endif
+            } else if ((w==320) && (h==240)) {
+                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_1;
+            } else if ((w==352) && (h==288)) {
+                *val = CONFIG_SENSOR_CIF_FPS_FIXED_1;
+            } else if ((w==640) && (h==480)) {
+                *val = CONFIG_SENSOR_VGA_FPS_FIXED_1;
+            } else if ((w==720) && (h==480)) {
+                *val = CONFIG_SENSOR_480P_FPS_FIXED_1;
+            } else if ((w==1280) && (h==720)) {
+                *val = CONFIG_SENSOR_720P_FPS_FIXED_1;
+            }
+            break;
+        }
+
+        #ifdef CONFIG_SENSOR_01
+        case 2:
         {
             if ((w==176) && (h==144)) {
                 *val = CONFIG_SENSOR_QCIF_FPS_FIXED_01;
@@ -848,7 +870,7 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
         }
         #endif
         #ifdef CONFIG_SENSOR_02
-        case 2:
+        case 3:
         {
             if ((w==176) && (h==144)) {
                 *val = CONFIG_SENSOR_QCIF_FPS_FIXED_02;
@@ -871,27 +893,6 @@ static void rk29_sensor_fps_get(int idx, unsigned int *val, int w, int h)
         }
         #endif
         
-        case 3:
-        {
-            if ((w==176) && (h==144)) {
-                *val = CONFIG_SENSOR_QCIF_FPS_FIXED_1;
-            #ifdef CONFIG_SENSOR_240X160_FPS_FIXED_1
-            } else if ((w==240) && (h==160)) {
-                *val = CONFIG_SENSOR_240X160_FPS_FIXED_1;
-            #endif
-            } else if ((w==320) && (h==240)) {
-                *val = CONFIG_SENSOR_QVGA_FPS_FIXED_1;
-            } else if ((w==352) && (h==288)) {
-                *val = CONFIG_SENSOR_CIF_FPS_FIXED_1;
-            } else if ((w==640) && (h==480)) {
-                *val = CONFIG_SENSOR_VGA_FPS_FIXED_1;
-            } else if ((w==720) && (h==480)) {
-                *val = CONFIG_SENSOR_480P_FPS_FIXED_1;
-            } else if ((w==1280) && (h==720)) {
-                *val = CONFIG_SENSOR_720P_FPS_FIXED_1;
-            }
-            break;
-        }
         #ifdef CONFIG_SENSOR_11
         case 4:
         {

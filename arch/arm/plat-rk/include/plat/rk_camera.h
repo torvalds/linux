@@ -199,6 +199,7 @@ typedef struct rk_sensor_user_init_data{
 	struct reginfo_t * rk_sensor_init_data;
 	int rk_sensor_winseq_size;
 	struct reginfo_t * rk_sensor_init_winseq;
+	int rk_sensor_init_data_size;
 }rk_sensor_user_init_data_s;
 
 typedef struct rk_camera_device_register_info {

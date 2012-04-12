@@ -282,57 +282,186 @@ static struct reginfo_t rk_init_data_sensor_winseqreg_1[] =
        {0x0000, 0x00,0,0}
 };
 #endif
+#if CONFIG_SENSOR_IIC_ADDR_01
+static struct reginfo_t rk_init_data_sensor_reg_01[] =
+{
+    {0x0000, 0x00,0,0}
+};
+static struct reginfo_t rk_init_data_sensor_winseqreg_01[] =
+{
+       {0x0000, 0x00,0,0}
+};
+#endif
+#if CONFIG_SENSOR_IIC_ADDR_02
+static struct reginfo_t rk_init_data_sensor_reg_02[] =
+{
+    {0x0000, 0x00,0,0}
+};
+static struct reginfo_t rk_init_data_sensor_winseqreg_02[] =
+{
+       {0x0000, 0x00,0,0}
+};
+#endif
+#if CONFIG_SENSOR_IIC_ADDR_11
+static struct reginfo_t rk_init_data_sensor_reg_11[] =
+{
+    {0x0000, 0x00,0,0}
+};
+static struct reginfo_t rk_init_data_sensor_winseqreg_11[] =
+{
+       {0x0000, 0x00,0,0}
+};
+#endif
+#if CONFIG_SENSOR_IIC_ADDR_12
+static struct reginfo_t rk_init_data_sensor_reg_12[] =
+{
+    {0x0000, 0x00,0,0}
+};
+static struct reginfo_t rk_init_data_sensor_winseqreg_12[] =
+{
+       {0x0000, 0x00,0,0}
+};
+#endif
 static rk_sensor_user_init_data_s rk_init_data_sensor[RK_CAM_NUM] = 
 {
+    #if CONFIG_SENSOR_IIC_ADDR_0
     {
        .rk_sensor_init_width = INVALID_VALUE,
        .rk_sensor_init_height = INVALID_VALUE,
        .rk_sensor_init_bus_param = INVALID_VALUE,
        .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_0,
-       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_0,
-       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
-    },{
-        .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
-       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
-    },{
-        .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
-       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
-    },{
-        .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
-       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
-    },{
-        .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
-       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
-    },{
-        .rk_sensor_init_width = INVALID_VALUE,
-       .rk_sensor_init_height = INVALID_VALUE,
-       .rk_sensor_init_bus_param = INVALID_VALUE,
-       .rk_sensor_init_pixelcode = INVALID_VALUE,
-       .rk_sensor_init_data = NULL,//rk_init_data_sensor_reg_1,
-       .rk_sensor_init_winseq = NULL,//rk_init_data_sensor_winseqreg_1,
-       .rk_sensor_winseq_size = 0,//sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data = rk_init_data_sensor_reg_0,
+       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_0,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_0) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_0) / sizeof(struct reginfo_t),
     },
+    #else
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,
+       .rk_sensor_init_winseq = NULL,
+       .rk_sensor_winseq_size = 0,
+       .rk_sensor_init_data_size = 0,
+    },
+    #endif
+    #if CONFIG_SENSOR_IIC_ADDR_1
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = rk_init_data_sensor_reg_1,
+       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_1,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_1) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_1) / sizeof(struct reginfo_t),
+    },
+    #else
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,
+       .rk_sensor_init_winseq = NULL,
+       .rk_sensor_winseq_size = 0,
+       .rk_sensor_init_data_size = 0,
+    },
+    #endif
+    #if CONFIG_SENSOR_IIC_ADDR_01
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = rk_init_data_sensor_reg_01,
+       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_01,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_01) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_01) / sizeof(struct reginfo_t),
+    },
+    #else
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,
+       .rk_sensor_init_winseq = NULL,
+       .rk_sensor_winseq_size = 0,
+       .rk_sensor_init_data_size = 0,
+    },
+    #endif
+    #if CONFIG_SENSOR_IIC_ADDR_02
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = rk_init_data_sensor_reg_02,
+       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_02,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_02) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_02) / sizeof(struct reginfo_t),
+    },
+    #else
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,
+       .rk_sensor_init_winseq = NULL,
+       .rk_sensor_winseq_size = 0,
+       .rk_sensor_init_data_size = 0,
+    },
+    #endif
+    #if CONFIG_SENSOR_IIC_ADDR_11
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = rk_init_data_sensor_reg_11,
+       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_11,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_11) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_11) / sizeof(struct reginfo_t),
+    },
+    #else
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,
+       .rk_sensor_init_winseq = NULL,
+       .rk_sensor_winseq_size = 0,
+       .rk_sensor_init_data_size = 0,
+    },
+    #endif
+    #if CONFIG_SENSOR_IIC_ADDR_12
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = rk_init_data_sensor_reg_12,
+       .rk_sensor_init_winseq = rk_init_data_sensor_winseqreg_12,
+       .rk_sensor_winseq_size = sizeof(rk_init_data_sensor_winseqreg_12) / sizeof(struct reginfo_t),
+       .rk_sensor_init_data_size = sizeof(rk_init_data_sensor_reg_12) / sizeof(struct reginfo_t),
+    },
+    #else
+    {
+       .rk_sensor_init_width = INVALID_VALUE,
+       .rk_sensor_init_height = INVALID_VALUE,
+       .rk_sensor_init_bus_param = INVALID_VALUE,
+       .rk_sensor_init_pixelcode = INVALID_VALUE,
+       .rk_sensor_init_data = NULL,
+       .rk_sensor_init_winseq = NULL,
+       .rk_sensor_winseq_size = 0,
+       .rk_sensor_init_data_size = 0,
+    },
+    #endif
 
  };
 #include "../../../drivers/media/video/rk30_camera.c"

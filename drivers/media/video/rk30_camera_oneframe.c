@@ -382,9 +382,6 @@ static int rk_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 			pcdev->camera_work_count = *count;
 		}
 	}
-    //must be reinit,or will be somthing wrong in irq process.
-    pcdev->active = NULL;
-    INIT_LIST_HEAD(&pcdev->capture);
     RKCAMERA_DG("%s..%d.. videobuf size:%d, vipmem_buf size:%d, count:%d \n",__FUNCTION__,__LINE__, *size,pcdev->vipmem_size, *count);
 
     return 0;
@@ -1811,7 +1808,11 @@ static int rk_camera_s_stream(struct soc_camera_device *icd, int enable)
 		RKCAMERA_DG("STREAM_OFF cancel timer and flush work:0x%x \n", ret);
 	}
 	write_cif_reg(pcdev->base,CIF_CIF_CTRL, cif_ctrl_val);
-
+    //must be reinit,or will be somthing wrong in irq process.
+    if(enable == false){
+        pcdev->active = NULL;
+        INIT_LIST_HEAD(&pcdev->capture);
+        }
 	RKCAMERA_DG("%s.. enable : 0x%x , CIF_CIF_CTRL = 0x%x\n", __FUNCTION__, enable,read_cif_reg(pcdev->base,CIF_CIF_CTRL));
 	return 0;
 }
