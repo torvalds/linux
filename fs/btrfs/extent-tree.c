@@ -3152,14 +3152,13 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 /*
  * returns target flags in extended format or 0 if restripe for this
  * chunk_type is not in progress
+ *
+ * should be called with either volume_mutex or balance_lock held
  */
 static u64 get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
 {
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
 	u64 target = 0;
-
-	BUG_ON(!mutex_is_locked(&fs_info->volume_mutex) &&
-	       !spin_is_locked(&fs_info->balance_lock));
 
 	if (!bctl)
 		return 0;
