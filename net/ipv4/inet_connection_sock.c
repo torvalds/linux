@@ -514,7 +514,7 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 
 	/* Normally all the openreqs are young and become mature
 	 * (i.e. converted to established socket) for first timeout.
-	 * If synack was not acknowledged for 3 seconds, it means
+	 * If synack was not acknowledged for 1 second, it means
 	 * one of the following things: synack was lost, ack was lost,
 	 * rtt is high or nobody planned to ack (i.e. synflood).
 	 * When server is a bit loaded, queue is populated with old
