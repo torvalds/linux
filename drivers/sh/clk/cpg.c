@@ -2,6 +2,7 @@
  * Helper routines for SuperH Clock Pulse Generator blocks (CPG).
  *
  *  Copyright (C) 2010  Magnus Damm
+ *  Copyright (C) 2010 - 2012  Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,26 +14,44 @@
 #include <linux/io.h>
 #include <linux/sh_clk.h>
 
-static int sh_clk_mstp32_enable(struct clk *clk)
+static unsigned int sh_clk_read(struct clk *clk)
 {
-	iowrite32(ioread32(clk->mapped_reg) & ~(1 << clk->enable_bit),
-		  clk->mapped_reg);
+	if (clk->flags & CLK_ENABLE_REG_8BIT)
+		return ioread8(clk->mapped_reg);
+	else if (clk->flags & CLK_ENABLE_REG_16BIT)
+		return ioread16(clk->mapped_reg);
+
+	return ioread32(clk->mapped_reg);
+}
+
+static void sh_clk_write(int value, struct clk *clk)
+{
+	if (clk->flags & CLK_ENABLE_REG_8BIT)
+		iowrite8(value, clk->mapped_reg);
+	else if (clk->flags & CLK_ENABLE_REG_16BIT)
+		iowrite16(value, clk->mapped_reg);
+	else
+		iowrite32(value, clk->mapped_reg);
+}
+
+static int sh_clk_mstp_enable(struct clk *clk)
+{
+	sh_clk_write(sh_clk_read(clk) & ~(1 << clk->enable_bit), clk);
 	return 0;
 }
 
-static void sh_clk_mstp32_disable(struct clk *clk)
+static void sh_clk_mstp_disable(struct clk *clk)
 {
-	iowrite32(ioread32(clk->mapped_reg) | (1 << clk->enable_bit),
-		  clk->mapped_reg);
+	sh_clk_write(sh_clk_read(clk) | (1 << clk->enable_bit), clk);
 }
 
-static struct sh_clk_ops sh_clk_mstp32_clk_ops = {
-	.enable		= sh_clk_mstp32_enable,
-	.disable	= sh_clk_mstp32_disable,
+static struct sh_clk_ops sh_clk_mstp_clk_ops = {
+	.enable		= sh_clk_mstp_enable,
+	.disable	= sh_clk_mstp_disable,
 	.recalc		= followparent_recalc,
 };
 
-int __init sh_clk_mstp32_register(struct clk *clks, int nr)
+int __init sh_clk_mstp_register(struct clk *clks, int nr)
 {
 	struct clk *clkp;
 	int ret = 0;
@@ -40,7 +59,7 @@ int __init sh_clk_mstp32_register(struct clk *clks, int nr)
 
 	for (k = 0; !ret && (k < nr); k++) {
 		clkp = clks + k;
-		clkp->ops = &sh_clk_mstp32_clk_ops;
+		clkp->ops = &sh_clk_mstp_clk_ops;
 		ret |= clk_register(clkp);
 	}
 
@@ -72,7 +91,7 @@ static unsigned long sh_clk_div6_recalc(struct clk *clk)
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
 			     table, NULL);
 
-	idx = ioread32(clk->mapped_reg) & 0x003f;
+	idx = sh_clk_read(clk) & 0x003f;
 
 	return clk->freq_table[idx].frequency;
 }
@@ -98,10 +117,10 @@ static int sh_clk_div6_set_parent(struct clk *clk, struct clk *parent)
 	if (ret < 0)
 		return ret;
 
-	value = ioread32(clk->mapped_reg) &
+	value = sh_clk_read(clk) &
 		~(((1 << clk->src_width) - 1) << clk->src_shift);
 
-	iowrite32(value | (i << clk->src_shift), clk->mapped_reg);
+	sh_clk_write(value | (i << clk->src_shift), clk);
 
 	/* Rebuild the frequency table */
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
@@ -119,10 +138,10 @@ static int sh_clk_div6_set_rate(struct clk *clk, unsigned long rate)
 	if (idx < 0)
 		return idx;
 
-	value = ioread32(clk->mapped_reg);
+	value = sh_clk_read(clk);
 	value &= ~0x3f;
 	value |= idx;
-	iowrite32(value, clk->mapped_reg);
+	sh_clk_write(value, clk);
 	return 0;
 }
 
@@ -133,9 +152,9 @@ static int sh_clk_div6_enable(struct clk *clk)
 
 	ret = sh_clk_div6_set_rate(clk, clk->rate);
 	if (ret == 0) {
-		value = ioread32(clk->mapped_reg);
+		value = sh_clk_read(clk);
 		value &= ~0x100; /* clear stop bit to enable clock */
-		iowrite32(value, clk->mapped_reg);
+		sh_clk_write(value, clk);
 	}
 	return ret;
 }
@@ -144,10 +163,10 @@ static void sh_clk_div6_disable(struct clk *clk)
 {
 	unsigned long value;
 
-	value = ioread32(clk->mapped_reg);
+	value = sh_clk_read(clk);
 	value |= 0x100; /* stop clock */
 	value |= 0x3f; /* VDIV bits must be non-zero, overwrite divider */
-	iowrite32(value, clk->mapped_reg);
+	sh_clk_write(value, clk);
 }
 
 static struct sh_clk_ops sh_clk_div6_clk_ops = {
@@ -182,7 +201,7 @@ static int __init sh_clk_init_parent(struct clk *clk)
 		return -EINVAL;
 	}
 
-	val  = (ioread32(clk->mapped_reg) >> clk->src_shift);
+	val  = (sh_clk_read(clk) >> clk->src_shift);
 	val &= (1 << clk->src_width) - 1;
 
 	if (val >= clk->parent_num) {
@@ -252,7 +271,7 @@ static unsigned long sh_clk_div4_recalc(struct clk *clk)
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
 			     table, &clk->arch_flags);
 
-	idx = (ioread32(clk->mapped_reg) >> clk->enable_bit) & 0x000f;
+	idx = (sh_clk_read(clk) >> clk->enable_bit) & 0x000f;
 
 	return clk->freq_table[idx].frequency;
 }
@@ -270,15 +289,15 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 	 */
 
 	if (parent->flags & CLK_ENABLE_ON_INIT)
-		value = ioread32(clk->mapped_reg) & ~(1 << 7);
+		value = sh_clk_read(clk) & ~(1 << 7);
 	else
-		value = ioread32(clk->mapped_reg) | (1 << 7);
+		value = sh_clk_read(clk) | (1 << 7);
 
 	ret = clk_reparent(clk, parent);
 	if (ret < 0)
 		return ret;
 
-	iowrite32(value, clk->mapped_reg);
+	sh_clk_write(value, clk);
 
 	/* Rebiuld the frequency table */
 	clk_rate_table_build(clk, clk->freq_table, table->nr_divisors,
@@ -295,10 +314,10 @@ static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate)
 	if (idx < 0)
 		return idx;
 
-	value = ioread32(clk->mapped_reg);
+	value = sh_clk_read(clk);
 	value &= ~(0xf << clk->enable_bit);
 	value |= (idx << clk->enable_bit);
-	iowrite32(value, clk->mapped_reg);
+	sh_clk_write(value, clk);
 
 	if (d4t->kick)
 		d4t->kick(clk);
@@ -308,13 +327,13 @@ static int sh_clk_div4_set_rate(struct clk *clk, unsigned long rate)
 
 static int sh_clk_div4_enable(struct clk *clk)
 {
-	iowrite32(ioread32(clk->mapped_reg) & ~(1 << 8), clk->mapped_reg);
+	sh_clk_write(sh_clk_read(clk) & ~(1 << 8), clk);
 	return 0;
 }
 
 static void sh_clk_div4_disable(struct clk *clk)
 {
-	iowrite32(ioread32(clk->mapped_reg) | (1 << 8), clk->mapped_reg);
+	sh_clk_write(sh_clk_read(clk) | (1 << 8), clk);
 }
 
 static struct sh_clk_ops sh_clk_div4_clk_ops = {
