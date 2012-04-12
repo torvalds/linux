@@ -111,14 +111,15 @@ static long clk_divider_round_rate(struct clk_hw *hw, unsigned long rate,
 	return *prate / div;
 }
 
-static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate)
+static int clk_divider_set_rate(struct clk_hw *hw, unsigned long rate,
+				unsigned long parent_rate)
 {
 	struct clk_divider *divider = to_clk_divider(hw);
 	unsigned int div;
 	unsigned long flags = 0;
 	u32 val;
 
-	div = __clk_get_rate(__clk_get_parent(hw->clk)) / rate;
+	div = parent_rate / rate;
 
 	if (!(divider->flags & CLK_DIVIDER_ONE_BASED))
 		div--;

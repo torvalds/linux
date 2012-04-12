@@ -88,19 +88,11 @@ struct clk_hw {
  * 		array index into the value programmed into the hardware.
  * 		Returns 0 on success, -EERROR otherwise.
  *
- * @set_rate:	Change the rate of this clock. If this callback returns
- * 		CLK_SET_RATE_PARENT, the rate change will be propagated to the
- * 		parent clock (which may propagate again if the parent clock
- * 		also sets this flag). The requested rate of the parent is
- * 		passed back from the callback in the second 'unsigned long *'
- * 		argument.  Note that it is up to the hardware clock's set_rate
- * 		implementation to insure that clocks do not run out of spec
- * 		when propgating the call to set_rate up to the parent.  One way
- * 		to do this is to gate the clock (via clk_disable and/or
- * 		clk_unprepare) before calling clk_set_rate, then ungating it
- * 		afterward.  If your clock also has the CLK_GATE_SET_RATE flag
- * 		set then this will insure safety.  Returns 0 on success,
- * 		-EERROR otherwise.
+ * @set_rate:	Change the rate of this clock. The requested rate is specified
+ *		by the second argument, which should typically be the return
+ *		of .round_rate call.  The third argument gives the parent rate
+ *		which is likely helpful for most .set_rate implementation.
+ *		Returns 0 on success, -EERROR otherwise.
  *
  * The clk_enable/clk_disable and clk_prepare/clk_unprepare pairs allow
  * implementations to split any work between atomic (enable) and sleepable
@@ -125,7 +117,8 @@ struct clk_ops {
 					unsigned long *);
 	int		(*set_parent)(struct clk_hw *hw, u8 index);
 	u8		(*get_parent)(struct clk_hw *hw);
-	int		(*set_rate)(struct clk_hw *hw, unsigned long);
+	int		(*set_rate)(struct clk_hw *hw, unsigned long,
+				    unsigned long);
 	void		(*init)(struct clk_hw *hw);
 };
 
