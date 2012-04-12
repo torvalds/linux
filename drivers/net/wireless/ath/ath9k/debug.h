@@ -60,6 +60,7 @@ struct ath_buf;
  * @tsfoor: TSF out of range, indicates that the corrected TSF received
  * from a beacon differs from the PCU's internal TSF by more than a
  * (programmable) threshold
+ * @local_timeout: Internal bus timeout.
  */
 struct ath_interrupt_stats {
 	u32 total;
@@ -85,7 +86,29 @@ struct ath_interrupt_stats {
 	u32 dtim;
 	u32 bb_watchdog;
 	u32 tsfoor;
+
+	/* Sync-cause stats */
+	u32 sync_cause_all;
+	u32 sync_rtc_irq;
+	u32 sync_mac_irq;
+	u32 eeprom_illegal_access;
+	u32 apb_timeout;
+	u32 pci_mode_conflict;
+	u32 host1_fatal;
+	u32 host1_perr;
+	u32 trcv_fifo_perr;
+	u32 radm_cpl_ep;
+	u32 radm_cpl_dllp_abort;
+	u32 radm_cpl_tlp_abort;
+	u32 radm_cpl_ecrc_err;
+	u32 radm_cpl_timeout;
+	u32 local_timeout;
+	u32 pm_access;
+	u32 mac_awake;
+	u32 mac_asleep;
+	u32 mac_sleep_access;
 };
+
 
 /**
  * struct ath_tx_stats - Statistics about TX

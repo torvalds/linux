@@ -956,6 +956,12 @@ bool ath9k_hw_check_alive(struct ath_hw *ah);
 
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
 
+#ifdef CONFIG_ATH9K_DEBUGFS
+void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause);
+#else
+static void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause) {}
+#endif
+
 /* Generic hw timer primitives */
 struct ath_gen_timer *ath_gen_timer_alloc(struct ath_hw *ah,
 					  void (*trigger)(void *),
