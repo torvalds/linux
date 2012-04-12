@@ -301,6 +301,11 @@ iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
 			    trans_specific);
 }
 
+struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
+				       const struct pci_device_id *ent,
+				       const struct iwl_cfg *cfg);
+void iwl_trans_pcie_free(struct iwl_trans *trans);
+
 /*****************************************************
 * RX
 ******************************************************/

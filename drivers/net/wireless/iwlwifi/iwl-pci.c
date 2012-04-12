@@ -285,7 +285,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return 0;
 
 out_free_trans:
-	iwl_trans_free(iwl_trans);
+	iwl_trans_pcie_free(iwl_trans);
 	pci_set_drvdata(pdev, NULL);
 	return -EFAULT;
 }
@@ -296,7 +296,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	iwl_drv_stop(trans_pcie->drv);
-	iwl_trans_free(trans);
+	iwl_trans_pcie_free(trans);
 
 	pci_set_drvdata(pdev, NULL);
 }

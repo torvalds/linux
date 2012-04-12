@@ -1549,7 +1549,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans_pcie->command_names = trans_cfg->command_names;
 }
 
-static void iwl_trans_pcie_free(struct iwl_trans *trans)
+void iwl_trans_pcie_free(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie =
 		IWL_TRANS_GET_PCIE_TRANS(trans);
@@ -2044,7 +2044,7 @@ static int iwl_trans_pcie_dbgfs_register(struct iwl_trans *trans,
 
 #endif /*CONFIG_IWLWIFI_DEBUGFS */
 
-const struct iwl_trans_ops trans_ops_pcie = {
+static const struct iwl_trans_ops trans_ops_pcie = {
 	.start_hw = iwl_trans_pcie_start_hw,
 	.stop_hw = iwl_trans_pcie_stop_hw,
 	.fw_alive = iwl_trans_pcie_fw_alive,
@@ -2060,8 +2060,6 @@ const struct iwl_trans_ops trans_ops_pcie = {
 
 	.tx_agg_disable = iwl_trans_pcie_tx_agg_disable,
 	.tx_agg_setup = iwl_trans_pcie_tx_agg_setup,
-
-	.free = iwl_trans_pcie_free,
 
 	.dbgfs_register = iwl_trans_pcie_dbgfs_register,
 
