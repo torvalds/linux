@@ -906,6 +906,11 @@ config MFD_RC5T583
 	  Additional drivers must be enabled in order to use the
 	  different functionality of the device.
 
+config MFD_STA2X11
+	bool "STA2X11 multi function device support"
+	depends on STA2X11
+	select MFD_CORE
+
 config MFD_ANATOP
 	bool "Support for Freescale i.MX on-chip ANATOP controller"
 	depends on SOC_IMX6Q
