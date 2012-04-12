@@ -667,16 +667,16 @@ static int s3c_rtc_resume(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id s3c_rtc_dt_match[] = {
 	{
-		.compatible = "samsung,s3c2410-rtc"
+		.compatible = "samsung,s3c2410-rtc",
 		.data = TYPE_S3C2410,
 	}, {
-		.compatible = "samsung,s3c2416-rtc"
+		.compatible = "samsung,s3c2416-rtc",
 		.data = TYPE_S3C2416,
 	}, {
-		.compatible = "samsung,s3c2443-rtc"
+		.compatible = "samsung,s3c2443-rtc",
 		.data = TYPE_S3C2443,
 	}, {
-		.compatible = "samsung,s3c6410-rtc"
+		.compatible = "samsung,s3c6410-rtc",
 		.data = TYPE_S3C64XX,
 	},
 	{},
