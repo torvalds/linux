@@ -301,7 +301,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	struct usb_interface *iface;
 	unsigned int ep, attr;
 	int is_playback = subs->direction == SNDRV_PCM_STREAM_PLAYBACK;
-	int err;
+	int err, implicit_fb = 0;
 
 	iface = usb_ifnum_to_if(dev, fmt->iface);
 	if (WARN_ON(!iface))
@@ -326,25 +326,34 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 	 * assume it as adaptive-out or sync-in.
 	 */
 	attr = fmt->ep_attr & USB_ENDPOINT_SYNCTYPE;
-	if (((is_playback && attr == USB_ENDPOINT_SYNC_ASYNC) ||
-	     (! is_playback && attr == USB_ENDPOINT_SYNC_ADAPTIVE)) &&
-	    altsd->bNumEndpoints >= 2) {
-		switch (subs->stream->chip->usb_id) {
-		case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
-		case USB_ID(0x0763, 0x2081):
+
+	switch (subs->stream->chip->usb_id) {
+	case USB_ID(0x0763, 0x2080): /* M-Audio FastTrack Ultra */
+	case USB_ID(0x0763, 0x2081):
+		if (is_playback) {
+			implicit_fb = 1;
 			ep = 0x81;
 			iface = usb_ifnum_to_if(dev, 2);
+
+			if (!iface || iface->num_altsetting == 0)
+				return -EINVAL;
+
 			alts = &iface->altsetting[1];
 			goto add_sync_ep;
 		}
+	}
 
+	if (((is_playback && attr == USB_ENDPOINT_SYNC_ASYNC) ||
+	     (!is_playback && attr == USB_ENDPOINT_SYNC_ADAPTIVE)) &&
+	    altsd->bNumEndpoints >= 2) {
 		/* check sync-pipe endpoint */
 		/* ... and check descriptor size before accessing bSynchAddress
 		   because there is a version of the SB Audigy 2 NX firmware lacking
 		   the audio fields in the endpoint descriptors */
 		if ((get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) != 0x01 ||
 		    (get_endpoint(alts, 1)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
-		     get_endpoint(alts, 1)->bSynchAddress != 0)) {
+		     get_endpoint(alts, 1)->bSynchAddress != 0 &&
+		     !implicit_fb)) {
 			snd_printk(KERN_ERR "%d:%d:%d : invalid synch pipe\n",
 				   dev->devnum, fmt->iface, fmt->altsetting);
 			return -EINVAL;
@@ -352,16 +361,22 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		ep = get_endpoint(alts, 1)->bEndpointAddress;
 		if (get_endpoint(alts, 0)->bLength >= USB_DT_ENDPOINT_AUDIO_SIZE &&
 		    (( is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress | USB_DIR_IN)) ||
-		     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)))) {
+		     (!is_playback && ep != (unsigned int)(get_endpoint(alts, 0)->bSynchAddress & ~USB_DIR_IN)) ||
+		     ( is_playback && !implicit_fb))) {
 			snd_printk(KERN_ERR "%d:%d:%d : invalid synch pipe\n",
 				   dev->devnum, fmt->iface, fmt->altsetting);
 			return -EINVAL;
 		}
+
+		implicit_fb = (get_endpoint(alts, 1)->bmAttributes & USB_ENDPOINT_USAGE_MASK)
+				== USB_ENDPOINT_USAGE_IMPLICIT_FB;
+
 add_sync_ep:
 		subs->sync_endpoint = snd_usb_add_endpoint(subs->stream->chip,
 							   alts, ep, !subs->direction,
-							   SND_USB_ENDPOINT_TYPE_SYNC);
-
+							   implicit_fb ?
+								SND_USB_ENDPOINT_TYPE_DATA :
+								SND_USB_ENDPOINT_TYPE_SYNC);
 		if (!subs->sync_endpoint)
 			return -EINVAL;
 
