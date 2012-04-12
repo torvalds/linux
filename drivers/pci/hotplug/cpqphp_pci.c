@@ -127,7 +127,7 @@ int cpqhp_unconfigure_device(struct pci_func* func)
 		struct pci_dev* temp = pci_get_bus_and_slot(func->bus, PCI_DEVFN(func->device, j));
 		if (temp) {
 			pci_dev_put(temp);
-			pci_remove_bus_device(temp);
+			pci_stop_and_remove_bus_device(temp);
 		}
 	}
 	return 0;

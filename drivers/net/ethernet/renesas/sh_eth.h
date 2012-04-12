@@ -1,8 +1,8 @@
 /*
  *  SuperH Ethernet device driver
  *
- *  Copyright (C) 2006-2008 Nobuhiro Iwamatsu
- *  Copyright (C) 2008-2011 Renesas Solutions Corp.
+ *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
+ *  Copyright (C) 2008-2012 Renesas Solutions Corp.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,8 @@
 #define RX_RING_SIZE	64	/* Rx ring size */
 #define ETHERSMALL		60
 #define PKT_BUF_SZ		1538
+#define SH_ETH_TSU_TIMEOUT_MS	500
+#define SH_ETH_TSU_CAM_ENTRIES	32
 
 enum {
 	/* E-DMAC registers */
@@ -96,6 +98,8 @@ enum {
 	CEECR,
 	MAFCR,
 	RTRATE,
+	CSMR,
+	RMII_MII,
 
 	/* TSU Absolute address */
 	ARSTR,
@@ -170,6 +174,7 @@ static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[RMCR]	= 0x0458,
 	[RPADIR]	= 0x0460,
 	[FCFTR]	= 0x0468,
+	[CSMR] = 0x04E4,
 
 	[ECMR]	= 0x0500,
 	[ECSR]	= 0x0510,
@@ -198,6 +203,7 @@ static const u16 sh_eth_offset_gigabit[SH_ETH_MAX_REGISTER_OFFSET] = {
 	[CERCR]	= 0x0768,
 	[CEECR]	= 0x0770,
 	[MAFCR]	= 0x0778,
+	[RMII_MII] =  0x0790,
 
 	[ARSTR]	= 0x0000,
 	[TSU_CTRST]	= 0x0004,
@@ -375,7 +381,7 @@ static const u16 sh_eth_offset_fast_sh3_sh2[SH_ETH_MAX_REGISTER_OFFSET] = {
 /*
  * Register's bits
  */
-#ifdef CONFIG_CPU_SUBTYPE_SH7763
+#if defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
 /* EDSR */
 enum EDSR_BIT {
 	EDSR_ENT = 0x01, EDSR_ENR = 0x02,
@@ -677,13 +683,17 @@ enum TSU_FWSLC_BIT {
 	TSU_FWSLC_CAMSEL11 = 0x0002, TSU_FWSLC_CAMSEL10 = 0x0001,
 };
 
+/* TSU_VTAGn */
+#define TSU_VTAG_ENABLE		0x80000000
+#define TSU_VTAG_VID_MASK	0x00000fff
+
 /*
  * The sh ether Tx buffer descriptors.
  * This structure should be 20 bytes.
  */
 struct sh_eth_txdesc {
 	u32 status;		/* TD0 */
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN)
 	u16 pad0;		/* TD1 */
 	u16 buffer_length;	/* TD1 */
 #else
@@ -700,7 +710,7 @@ struct sh_eth_txdesc {
  */
 struct sh_eth_rxdesc {
 	u32 status;		/* RD0 */
-#if defined(CONFIG_CPU_LITTLE_ENDIAN)
+#if defined(__LITTLE_ENDIAN)
 	u16 frame_length;	/* RD1 */
 	u16 buffer_length;	/* RD1 */
 #else
@@ -745,6 +755,7 @@ struct sh_eth_cpu_data {
 	unsigned rpadir:1;		/* E-DMAC have RPADIR */
 	unsigned no_trimd:1;		/* E-DMAC DO NOT have TRIMD */
 	unsigned no_ade:1;	/* E-DMAC DO NOT have ADE bit in EESR */
+	unsigned hw_crc:1;	/* E-DMAC have CSMR */
 };
 
 struct sh_eth_private {
@@ -759,7 +770,6 @@ struct sh_eth_private {
 	struct sh_eth_txdesc *tx_ring;
 	struct sk_buff **rx_skbuff;
 	struct sk_buff **tx_skbuff;
-	struct net_device_stats stats;
 	struct timer_list timer;
 	spinlock_t lock;
 	u32 cur_rx, dirty_rx;	/* Producer/consumer ring indices */
@@ -779,6 +789,8 @@ struct sh_eth_private {
 	char post_rx;		/* POST receive */
 	char post_fw;		/* POST forward */
 	struct net_device_stats tsu_stats;	/* TSU forward status */
+	int port;		/* for TSU */
+	int vlan_num_ids;	/* for VLAN tag filter */
 
 	unsigned no_ether_link:1;
 	unsigned ether_link_active_low:1;
@@ -810,6 +822,12 @@ static inline unsigned long sh_eth_read(struct net_device *ndev,
 	struct sh_eth_private *mdp = netdev_priv(ndev);
 
 	return ioread32(mdp->addr + mdp->reg_offset[enum_index]);
+}
+
+static inline void *sh_eth_tsu_get_offset(struct sh_eth_private *mdp,
+					  int enum_index)
+{
+	return mdp->tsu_addr + mdp->reg_offset[enum_index];
 }
 
 static inline void sh_eth_tsu_write(struct sh_eth_private *mdp,

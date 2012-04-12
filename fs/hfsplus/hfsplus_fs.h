@@ -317,6 +317,11 @@ static inline unsigned short hfsplus_min_io_size(struct super_block *sb)
 
 
 /*
+ * hfs+-specific ioctl for making the filesystem bootable
+ */
+#define HFSPLUS_IOC_BLESS _IO('h', 0x80)
+
+/*
  * Functions in any *.c used in other files
  */
 

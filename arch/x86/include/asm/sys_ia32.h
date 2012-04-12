@@ -10,6 +10,8 @@
 #ifndef _ASM_X86_SYS_IA32_H
 #define _ASM_X86_SYS_IA32_H
 
+#ifdef CONFIG_COMPAT
+
 #include <linux/compiler.h>
 #include <linux/linkage.h>
 #include <linux/types.h>
@@ -36,8 +38,6 @@ asmlinkage long sys32_rt_sigaction(int, struct sigaction32 __user *,
 				   struct sigaction32 __user *, unsigned int);
 asmlinkage long sys32_sigaction(int, struct old_sigaction32 __user *,
 				struct old_sigaction32 __user *);
-asmlinkage long sys32_rt_sigprocmask(int, compat_sigset_t __user *,
-				     compat_sigset_t __user *, unsigned int);
 asmlinkage long sys32_alarm(unsigned int);
 
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int *, int);
@@ -83,4 +83,7 @@ asmlinkage long sys32_ipc(u32, int, int, int, compat_uptr_t, u32);
 
 asmlinkage long sys32_fanotify_mark(int, unsigned int, u32, u32, int,
 				    const char __user *);
+
+#endif /* CONFIG_COMPAT */
+
 #endif /* _ASM_X86_SYS_IA32_H */

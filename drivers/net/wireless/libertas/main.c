@@ -1269,14 +1269,10 @@ int lbs_get_firmware(struct device *dev, const char *user_helper,
 
   fail:
 	/* Failed */
-	if (*helper) {
-		release_firmware(*helper);
-		*helper = NULL;
-	}
-	if (*mainfw) {
-		release_firmware(*mainfw);
-		*mainfw = NULL;
-	}
+	release_firmware(*helper);
+	*helper = NULL;
+	release_firmware(*mainfw);
+	*mainfw = NULL;
 
 	return -ENOENT;
 }

@@ -2003,7 +2003,6 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 	s32 err = 0;
 	u16 channel;
 	u32 freq;
-	u64 notify_timestamp;
 	u16 notify_capability;
 	u16 notify_interval;
 	u8 *notify_ie;
@@ -2026,7 +2025,6 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 	freq = ieee80211_channel_to_frequency(channel, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
-	notify_timestamp = jiffies_to_msecs(jiffies)*1000; /* uSec */
 	notify_capability = le16_to_cpu(bi->capability);
 	notify_interval = le16_to_cpu(bi->beacon_period);
 	notify_ie = (u8 *)bi + le16_to_cpu(bi->ie_offset);
@@ -2040,10 +2038,9 @@ static s32 brcmf_inform_single_bss(struct brcmf_cfg80211_priv *cfg_priv,
 	WL_CONN("Capability: %X\n", notify_capability);
 	WL_CONN("Beacon interval: %d\n", notify_interval);
 	WL_CONN("Signal: %d\n", notify_signal);
-	WL_CONN("notify_timestamp: %#018llx\n", notify_timestamp);
 
 	bss = cfg80211_inform_bss(wiphy, notify_channel, (const u8 *)bi->BSSID,
-		notify_timestamp, notify_capability, notify_interval, notify_ie,
+		0, notify_capability, notify_interval, notify_ie,
 		notify_ielen, notify_signal, GFP_KERNEL);
 
 	if (!bss)
@@ -2098,7 +2095,6 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	s32 err = 0;
 	u16 channel;
 	u32 freq;
-	u64 notify_timestamp;
 	u16 notify_capability;
 	u16 notify_interval;
 	u8 *notify_ie;
@@ -2134,7 +2130,6 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	freq = ieee80211_channel_to_frequency(channel, band->band);
 	notify_channel = ieee80211_get_channel(wiphy, freq);
 
-	notify_timestamp = jiffies_to_msecs(jiffies)*1000; /* uSec */
 	notify_capability = le16_to_cpu(bi->capability);
 	notify_interval = le16_to_cpu(bi->beacon_period);
 	notify_ie = (u8 *)bi + le16_to_cpu(bi->ie_offset);
@@ -2145,10 +2140,9 @@ static s32 wl_inform_ibss(struct brcmf_cfg80211_priv *cfg_priv,
 	WL_CONN("capability: %X\n", notify_capability);
 	WL_CONN("beacon interval: %d\n", notify_interval);
 	WL_CONN("signal: %d\n", notify_signal);
-	WL_CONN("notify_timestamp: %#018llx\n", notify_timestamp);
 
 	bss = cfg80211_inform_bss(wiphy, notify_channel, bssid,
-		notify_timestamp, notify_capability, notify_interval,
+		0, notify_capability, notify_interval,
 		notify_ie, notify_ielen, notify_signal, GFP_KERNEL);
 
 	if (!bss) {

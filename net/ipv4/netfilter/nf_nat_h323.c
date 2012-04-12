@@ -568,6 +568,16 @@ static int nat_callforwarding(struct sk_buff *skb, struct nf_conn *ct,
 	return 0;
 }
 
+static struct nf_ct_helper_expectfn q931_nat = {
+	.name		= "Q.931",
+	.expectfn	= ip_nat_q931_expect,
+};
+
+static struct nf_ct_helper_expectfn callforwarding_nat = {
+	.name		= "callforwarding",
+	.expectfn	= ip_nat_callforwarding_expect,
+};
+
 /****************************************************************************/
 static int __init init(void)
 {
@@ -590,6 +600,8 @@ static int __init init(void)
 	RCU_INIT_POINTER(nat_h245_hook, nat_h245);
 	RCU_INIT_POINTER(nat_callforwarding_hook, nat_callforwarding);
 	RCU_INIT_POINTER(nat_q931_hook, nat_q931);
+	nf_ct_helper_expectfn_register(&q931_nat);
+	nf_ct_helper_expectfn_register(&callforwarding_nat);
 	return 0;
 }
 
@@ -605,6 +617,8 @@ static void __exit fini(void)
 	RCU_INIT_POINTER(nat_h245_hook, NULL);
 	RCU_INIT_POINTER(nat_callforwarding_hook, NULL);
 	RCU_INIT_POINTER(nat_q931_hook, NULL);
+	nf_ct_helper_expectfn_unregister(&q931_nat);
+	nf_ct_helper_expectfn_unregister(&callforwarding_nat);
 	synchronize_rcu();
 }
 

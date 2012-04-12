@@ -171,6 +171,20 @@ DEFINE_EVENT(local_only_evt, drv_resume,
 	TP_ARGS(local)
 );
 
+TRACE_EVENT(drv_set_wakeup,
+	TP_PROTO(struct ieee80211_local *local, bool enabled),
+	TP_ARGS(local, enabled),
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, enabled)
+	),
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->enabled = enabled;
+	),
+	TP_printk(LOCAL_PR_FMT " enabled:%d", LOCAL_PR_ARG, __entry->enabled)
+);
+
 DEFINE_EVENT(local_only_evt, drv_stop,
 	TP_PROTO(struct ieee80211_local *local),
 	TP_ARGS(local)
@@ -296,7 +310,7 @@ TRACE_EVENT(drv_bss_info_changed,
 		__entry->dtimper = info->dtim_period;
 		__entry->bcnint = info->beacon_int;
 		__entry->assoc_cap = info->assoc_capability;
-		__entry->timestamp = info->timestamp;
+		__entry->timestamp = info->last_tsf;
 		__entry->basic_rates = info->basic_rates;
 		__entry->enable_beacon = info->enable_beacon;
 		__entry->ht_operation_mode = info->ht_operation_mode;
@@ -306,49 +320,6 @@ TRACE_EVENT(drv_bss_info_changed,
 		LOCAL_PR_FMT  VIF_PR_FMT " changed:%#x",
 		LOCAL_PR_ARG, VIF_PR_ARG, __entry->changed
 	)
-);
-
-DECLARE_EVENT_CLASS(tx_sync_evt,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata,
-		 const u8 *bssid,
-		 enum ieee80211_tx_sync_type type),
-	TP_ARGS(local, sdata, bssid, type),
-
-	TP_STRUCT__entry(
-		LOCAL_ENTRY
-		VIF_ENTRY
-		__array(char, bssid, ETH_ALEN)
-		__field(u32, sync_type)
-	),
-
-	TP_fast_assign(
-		LOCAL_ASSIGN;
-		VIF_ASSIGN;
-		memcpy(__entry->bssid, bssid, ETH_ALEN);
-		__entry->sync_type = type;
-	),
-
-	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT " bssid:%pM type:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, __entry->bssid, __entry->sync_type
-	)
-);
-
-DEFINE_EVENT(tx_sync_evt, drv_tx_sync,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata,
-		 const u8 *bssid,
-		 enum ieee80211_tx_sync_type type),
-	TP_ARGS(local, sdata, bssid, type)
-);
-
-DEFINE_EVENT(tx_sync_evt, drv_finish_tx_sync,
-	TP_PROTO(struct ieee80211_local *local,
-		 struct ieee80211_sub_if_data *sdata,
-		 const u8 *bssid,
-		 enum ieee80211_tx_sync_type type),
-	TP_ARGS(local, sdata, bssid, type)
 );
 
 TRACE_EVENT(drv_prepare_multicast,
@@ -667,6 +638,34 @@ TRACE_EVENT(drv_sta_state,
 	)
 );
 
+TRACE_EVENT(drv_sta_rc_update,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta,
+		 u32 changed),
+
+	TP_ARGS(local, sdata, sta, changed),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(u32, changed)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		__entry->changed = changed;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT  STA_PR_FMT " changed: 0x%x",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG, __entry->changed
+	)
+);
+
 TRACE_EVENT(drv_sta_add,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
@@ -720,15 +719,14 @@ TRACE_EVENT(drv_sta_remove,
 TRACE_EVENT(drv_conf_tx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 u16 queue,
-		 const struct ieee80211_tx_queue_params *params),
+		 u16 ac, const struct ieee80211_tx_queue_params *params),
 
-	TP_ARGS(local, sdata, queue, params),
+	TP_ARGS(local, sdata, ac, params),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
-		__field(u16, queue)
+		__field(u16, ac)
 		__field(u16, txop)
 		__field(u16, cw_min)
 		__field(u16, cw_max)
@@ -739,7 +737,7 @@ TRACE_EVENT(drv_conf_tx,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
-		__entry->queue = queue;
+		__entry->ac = ac;
 		__entry->txop = params->txop;
 		__entry->cw_max = params->cw_max;
 		__entry->cw_min = params->cw_min;
@@ -748,8 +746,8 @@ TRACE_EVENT(drv_conf_tx,
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT  " queue:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, __entry->queue
+		LOCAL_PR_FMT  VIF_PR_FMT  " AC:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->ac
 	)
 );
 

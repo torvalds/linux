@@ -227,11 +227,8 @@ static int rtl92s_init_sw_vars(struct ieee80211_hw *hw)
 
 	/* for firmware buf */
 	rtlpriv->rtlhal.pfirmware = vzalloc(sizeof(struct rt_firmware));
-	if (!rtlpriv->rtlhal.pfirmware) {
-		RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
-			 "Can't alloc buffer for fw\n");
+	if (!rtlpriv->rtlhal.pfirmware)
 		return 1;
-	}
 
 	rtlpriv->max_fw_size = RTL8190_MAX_RAW_FIRMWARE_CODE_SIZE;
 

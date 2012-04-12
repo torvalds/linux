@@ -74,37 +74,16 @@ struct iwl_cmd;
 
 #define TIME_UNIT		1024
 
-struct iwl_lib_ops {
-	/* set hw dependent parameters */
-	void (*set_hw_params)(struct iwl_priv *priv);
-	int (*set_channel_switch)(struct iwl_priv *priv,
-				  struct ieee80211_channel_switch *ch_switch);
-	/* device specific configuration */
-	void (*nic_config)(struct iwl_priv *priv);
-
-	/* eeprom operations (as defined in iwl-eeprom.h) */
-	struct iwl_eeprom_ops eeprom_ops;
-
-	/* temperature */
-	void (*temperature)(struct iwl_priv *priv);
-};
-
 /***************************
  *   L i b                 *
  ***************************/
 
-void iwl_set_rxon_hwcrypto(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-			   int hw_decrypt);
-int iwl_check_rxon_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
-int iwl_full_rxon_required(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
 			 struct iwl_rxon_context *ctx);
 void iwl_set_flags_for_band(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
 			    enum ieee80211_band band,
 			    struct ieee80211_vif *vif);
-u8 iwl_get_single_channel_number(struct iwl_priv *priv,
-				  enum ieee80211_band band);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
 bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
@@ -157,7 +136,6 @@ static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
 ******************************************************/
 void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
-void iwl_setup_watchdog(struct iwl_priv *priv);
 /*****************************************************
  * TX power
  ****************************************************/
@@ -171,7 +149,6 @@ int iwl_scan_cancel(struct iwl_priv *priv);
 void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 void iwl_force_scan_end(struct iwl_priv *priv);
 void iwl_internal_short_hw_scan(struct iwl_priv *priv);
-int iwl_force_reset(struct iwl_priv *priv, int mode, bool external);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
 void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
@@ -199,23 +176,13 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
  *   S e n d i n g     H o s t     C o m m a n d s   *
  *****************************************************/
 
-void iwl_bg_watchdog(unsigned long data);
 u32 iwl_usecs_to_beacons(struct iwl_priv *priv, u32 usec, u32 beacon_interval);
 __le32 iwl_add_beacon_time(struct iwl_priv *priv, u32 base,
 			   u32 addon, u32 beacon_interval);
 
-
-/*****************************************************
-*  GEOS
-******************************************************/
-int iwl_init_geos(struct iwl_priv *priv);
-void iwl_free_geos(struct iwl_priv *priv);
-
 extern void iwl_send_bt_config(struct iwl_priv *priv);
 extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
-
-int iwl_send_rxon_timing(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)

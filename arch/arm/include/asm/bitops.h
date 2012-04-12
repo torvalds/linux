@@ -24,7 +24,7 @@
 #endif
 
 #include <linux/compiler.h>
-#include <asm/system.h>
+#include <linux/irqflags.h>
 
 #define smp_mb__before_clear_bit()	smp_mb()
 #define smp_mb__after_clear_bit()	smp_mb()

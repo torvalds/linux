@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -89,7 +90,7 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ, "register dump data address 0x%x\n",
-		regdump_addr);
+		   regdump_addr);
 	regdump_addr = TARG_VTOP(ar->target_type, regdump_addr);
 
 	/* fetch register dump data */
@@ -106,9 +107,9 @@ static void ath6kl_hif_dump_fw_crash(struct ath6kl *ar)
 
 	BUILD_BUG_ON(REG_DUMP_COUNT_AR6003 % 4);
 
-	for (i = 0; i < REG_DUMP_COUNT_AR6003 / 4; i++) {
+	for (i = 0; i < REG_DUMP_COUNT_AR6003; i += 4) {
 		ath6kl_info("%d: 0x%8.8x 0x%8.8x 0x%8.8x 0x%8.8x\n",
-			    4 * i,
+			    i,
 			    le32_to_cpu(regdump_val[i]),
 			    le32_to_cpu(regdump_val[i + 1]),
 			    le32_to_cpu(regdump_val[i + 2]),
@@ -134,6 +135,7 @@ static int ath6kl_hif_proc_dbg_intr(struct ath6kl_device *dev)
 		ath6kl_warn("Failed to clear debug interrupt: %d\n", ret);
 
 	ath6kl_hif_dump_fw_crash(dev->ar);
+	ath6kl_read_fwlogs(dev->ar);
 
 	return ret;
 }
@@ -283,7 +285,7 @@ static int ath6kl_hif_proc_counter_intr(struct ath6kl_device *dev)
 			     dev->irq_en_reg.cntr_int_status_en;
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
-		"valid interrupt source(s) in COUNTER_INT_STATUS: 0x%x\n",
+		   "valid interrupt source(s) in COUNTER_INT_STATUS: 0x%x\n",
 		counter_int_status);
 
 	/*
@@ -358,7 +360,7 @@ static int ath6kl_hif_proc_cpu_intr(struct ath6kl_device *dev)
 	}
 
 	ath6kl_dbg(ATH6KL_DBG_IRQ,
-		"valid interrupt source(s) in CPU_INT_STATUS: 0x%x\n",
+		   "valid interrupt source(s) in CPU_INT_STATUS: 0x%x\n",
 		cpu_int_status);
 
 	/* Clear the interrupt */

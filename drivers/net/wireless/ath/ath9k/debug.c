@@ -26,11 +26,6 @@
 #define REG_READ_D(_ah, _reg) \
 	ath9k_hw_common(_ah)->ops->read((_ah), (_reg))
 
-static int ath9k_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t ath9k_debugfs_read_buf(struct file *file, char __user *user_buf,
 				      size_t count, loff_t *ppos)
@@ -83,7 +78,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 static const struct file_operations fops_debug = {
 	.read = read_file_debug,
 	.write = write_file_debug,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -129,7 +124,7 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 static const struct file_operations fops_tx_chainmask = {
 	.read = read_file_tx_chainmask,
 	.write = write_file_tx_chainmask,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -172,7 +167,7 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 static const struct file_operations fops_rx_chainmask = {
 	.read = read_file_rx_chainmask,
 	.write = write_file_rx_chainmask,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -223,7 +218,7 @@ static ssize_t write_file_disable_ani(struct file *file,
 static const struct file_operations fops_disable_ani = {
 	.read = read_file_disable_ani,
 	.write = write_file_disable_ani,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -324,7 +319,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_dma = {
 	.read = read_file_dma,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -446,7 +441,7 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_interrupt = {
 	.read = read_file_interrupt,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -529,6 +524,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("hw-put-tx-buf:   ", puttxbuf);
 	PR("hw-tx-start:     ", txstart);
 	PR("hw-tx-proc-desc: ", txprocdesc);
+	PR("TX-Failed:       ", txfailed);
 	len += snprintf(buf + len, size - len,
 			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
 			sc->tx.txq_map[WME_AC_BE],
@@ -738,9 +734,9 @@ static ssize_t read_file_misc(struct file *file, char __user *user_buf,
 
 	len += snprintf(buf + len, sizeof(buf) - len,
 			"VIF-COUNTS: AP: %i STA: %i MESH: %i WDS: %i"
-			" ADHOC: %i OTHER: %i TOTAL: %hi BEACON-VIF: %hi\n",
+			" ADHOC: %i TOTAL: %hi BEACON-VIF: %hi\n",
 			iter_data.naps, iter_data.nstations, iter_data.nmeshes,
-			iter_data.nwds, iter_data.nadhocs, iter_data.nothers,
+			iter_data.nwds, iter_data.nadhocs,
 			sc->nvifs, sc->nbcnvifs);
 
 	if (len > sizeof(buf))
@@ -852,28 +848,28 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 
 static const struct file_operations fops_xmit = {
 	.read = read_file_xmit,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations fops_stations = {
 	.read = read_file_stations,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations fops_misc = {
 	.read = read_file_misc,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
 
 static const struct file_operations fops_reset = {
 	.read = read_file_reset,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -915,6 +911,21 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len,
 			"%22s : %10u\n", "DECRYPT BUSY ERR",
 			sc->debug.stats.rxstats.decrypt_busy_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-LENGTH-ERR",
+			sc->debug.stats.rxstats.rx_len_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-OOM-ERR",
+			sc->debug.stats.rxstats.rx_oom_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-RATE-ERR",
+			sc->debug.stats.rxstats.rx_rate_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-DROP-RXFLUSH",
+			sc->debug.stats.rxstats.rx_drop_rxflush);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-TOO-MANY-FRAGS",
+			sc->debug.stats.rxstats.rx_too_many_frags_err);
 
 	PHY_ERR("UNDERRUN ERR", ATH9K_PHYERR_UNDERRUN);
 	PHY_ERR("TIMING ERR", ATH9K_PHYERR_TIMING);
@@ -949,6 +960,12 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len,
 			"%22s : %10u\n", "RX-Bytes-All",
 			sc->debug.stats.rxstats.rx_bytes_all);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-Beacons",
+			sc->debug.stats.rxstats.rx_beacons);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-Frags",
+			sc->debug.stats.rxstats.rx_frags);
 
 	if (len > size)
 		len = size;
@@ -963,7 +980,6 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
-#define RX_STAT_INC(c) sc->debug.stats.rxstats.c++
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 #define RX_SAMP_DBG(c) (sc->debug.bb_mac_samp[sc->debug.sampidx].rs\
 			[sc->debug.rsidx].c)
@@ -1009,14 +1025,13 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 
 #endif
 
-#undef RX_STAT_INC
 #undef RX_PHY_ERR_INC
 #undef RX_SAMP_DBG
 }
 
 static const struct file_operations fops_recv = {
 	.read = read_file_recv,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1055,7 +1070,7 @@ static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
 static const struct file_operations fops_regidx = {
 	.read = read_file_regidx,
 	.write = write_file_regidx,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1102,7 +1117,7 @@ static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
 static const struct file_operations fops_regval = {
 	.read = read_file_regval,
 	.write = write_file_regval,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1191,7 +1206,7 @@ static ssize_t read_file_dump_nfcal(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_dump_nfcal = {
 	.read = read_file_dump_nfcal,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1219,7 +1234,7 @@ static ssize_t read_file_base_eeprom(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_base_eeprom = {
 	.read = read_file_base_eeprom,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
@@ -1247,7 +1262,7 @@ static ssize_t read_file_modal_eeprom(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_modal_eeprom = {
 	.read = read_file_modal_eeprom,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };

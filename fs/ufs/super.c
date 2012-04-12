@@ -73,7 +73,6 @@
 #include <stdarg.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -1157,16 +1156,17 @@ magic_found:
 			    "fast symlink size (%u)\n", uspi->s_maxsymlinklen);
 		uspi->s_maxsymlinklen = maxsymlen;
 	}
+	sb->s_max_links = UFS_LINK_MAX;
 
 	inode = ufs_iget(sb, UFS_ROOTINO);
 	if (IS_ERR(inode)) {
 		ret = PTR_ERR(inode);
 		goto failed;
 	}
-	sb->s_root = d_alloc_root(inode);
+	sb->s_root = d_make_root(inode);
 	if (!sb->s_root) {
 		ret = -ENOMEM;
-		goto dalloc_failed;
+		goto failed;
 	}
 
 	ufs_setup_cstotal(sb);
@@ -1180,8 +1180,6 @@ magic_found:
 	UFSD("EXIT\n");
 	return 0;
 
-dalloc_failed:
-	iput(inode);
 failed:
 	if (ubh)
 		ubh_brelse_uspi (uspi);

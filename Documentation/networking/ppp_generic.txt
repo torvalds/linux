@@ -342,7 +342,7 @@ an interface unit are:
 				numbers on received multilink fragments
 	SC_MP_XSHORTSEQ		transmit short multilink sequence nos.
 
-  The values of these flags are defined in <linux/if_ppp.h>.  Note
+  The values of these flags are defined in <linux/ppp-ioctl.h>.  Note
   that the values of the SC_MULTILINK, SC_MP_SHORTSEQ and
   SC_MP_XSHORTSEQ bits are ignored if the CONFIG_PPP_MULTILINK option
   is not selected.
@@ -358,7 +358,7 @@ an interface unit are:
 
 * PPPIOCSCOMPRESS sets the parameters for packet compression or
   decompression.  The argument should point to a ppp_option_data
-  structure (defined in <linux/if_ppp.h>), which contains a
+  structure (defined in <linux/ppp-ioctl.h>), which contains a
   pointer/length pair which should describe a block of memory
   containing a CCP option specifying a compression method and its
   parameters.  The ppp_option_data struct also contains a `transmit'
@@ -395,7 +395,7 @@ an interface unit are:
 
 * PPPIOCSNPMODE sets the network-protocol mode for a given network
   protocol.  The argument should point to an npioctl struct (defined
-  in <linux/if_ppp.h>).  The `protocol' field gives the PPP protocol
+  in <linux/ppp-ioctl.h>).  The `protocol' field gives the PPP protocol
   number for the protocol to be affected, and the `mode' field
   specifies what to do with packets for that protocol:
 

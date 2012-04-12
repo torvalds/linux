@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/nl80211.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
@@ -347,7 +349,7 @@ init_ath5k_pci(void)
 
 	ret = pci_register_driver(&ath5k_pci_driver);
 	if (ret) {
-		printk(KERN_ERR "ath5k_pci: can't register pci driver\n");
+		pr_err("pci: can't register pci driver\n");
 		return ret;
 	}
 

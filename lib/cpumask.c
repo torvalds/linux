@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/cpumask.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/bootmem.h>
 
 int __first_cpu(const cpumask_t *srcp)
@@ -25,18 +25,6 @@ int __next_cpu_nr(int n, const cpumask_t *srcp)
 }
 EXPORT_SYMBOL(__next_cpu_nr);
 #endif
-
-int __any_online_cpu(const cpumask_t *mask)
-{
-	int cpu;
-
-	for_each_cpu(cpu, mask) {
-		if (cpu_online(cpu))
-			break;
-	}
-	return cpu;
-}
-EXPORT_SYMBOL(__any_online_cpu);
 
 /**
  * cpumask_next_and - get the next cpu in *src1p & *src2p

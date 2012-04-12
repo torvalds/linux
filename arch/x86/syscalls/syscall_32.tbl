@@ -181,7 +181,7 @@
 172	i386	prctl			sys_prctl
 173	i386	rt_sigreturn		ptregs_rt_sigreturn		stub32_rt_sigreturn
 174	i386	rt_sigaction		sys_rt_sigaction		sys32_rt_sigaction
-175	i386	rt_sigprocmask		sys_rt_sigprocmask		sys32_rt_sigprocmask
+175	i386	rt_sigprocmask		sys_rt_sigprocmask
 176	i386	rt_sigpending		sys_rt_sigpending		sys32_rt_sigpending
 177	i386	rt_sigtimedwait		sys_rt_sigtimedwait		compat_sys_rt_sigtimedwait
 178	i386	rt_sigqueueinfo		sys_rt_sigqueueinfo		sys32_rt_sigqueueinfo
@@ -288,7 +288,7 @@
 279	i386	mq_timedsend		sys_mq_timedsend		compat_sys_mq_timedsend
 280	i386	mq_timedreceive		sys_mq_timedreceive		compat_sys_mq_timedreceive
 281	i386	mq_notify		sys_mq_notify			compat_sys_mq_notify
-282	i386	mq_getsetaddr		sys_mq_getsetattr		compat_sys_mq_getsetattr
+282	i386	mq_getsetattr		sys_mq_getsetattr		compat_sys_mq_getsetattr
 283	i386	kexec_load		sys_kexec_load			compat_sys_kexec_load
 284	i386	waitid			sys_waitid			compat_sys_waitid
 # 285 sys_setaltroot

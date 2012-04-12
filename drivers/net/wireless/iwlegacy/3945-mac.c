@@ -2466,7 +2466,7 @@ il3945_bg_alive_start(struct work_struct *data)
 	    container_of(data, struct il_priv, alive_start.work);
 
 	mutex_lock(&il->mutex);
-	if (test_bit(S_EXIT_PENDING, &il->status))
+	if (test_bit(S_EXIT_PENDING, &il->status) || il->txq == NULL)
 		goto out;
 
 	il3945_alive_start(il);
@@ -2673,8 +2673,6 @@ il3945_bg_restart(struct work_struct *data)
 
 	if (test_and_clear_bit(S_FW_ERROR, &il->status)) {
 		mutex_lock(&il->mutex);
-		/* FIXME: vif can be dereferenced */
-		il->vif = NULL;
 		il->is_open = 0;
 		mutex_unlock(&il->mutex);
 		il3945_down(il);

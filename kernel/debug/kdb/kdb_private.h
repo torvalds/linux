@@ -246,6 +246,13 @@ extern void debug_kusage(void);
 
 extern void kdb_set_current_task(struct task_struct *);
 extern struct task_struct *kdb_current_task;
+
+#ifdef CONFIG_KDB_KEYBOARD
+extern void kdb_kbd_cleanup_state(void);
+#else /* ! CONFIG_KDB_KEYBOARD */
+#define kdb_kbd_cleanup_state()
+#endif /* ! CONFIG_KDB_KEYBOARD */
+
 #ifdef CONFIG_MODULES
 extern struct list_head *kdb_modules;
 #endif /* CONFIG_MODULES */

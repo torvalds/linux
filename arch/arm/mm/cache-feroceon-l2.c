@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <asm/cacheflush.h>
+#include <asm/cp15.h>
 #include <plat/cache-feroceon-l2.h>
 
 /*

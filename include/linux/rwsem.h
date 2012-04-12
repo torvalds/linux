@@ -14,7 +14,6 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 
-#include <asm/system.h>
 #include <linux/atomic.h>
 
 struct rw_semaphore;

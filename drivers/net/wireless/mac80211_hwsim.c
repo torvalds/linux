@@ -632,6 +632,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_rx_status rx_status;
+	struct ieee80211_rate *txrate = ieee80211_get_tx_rate(hw, info);
 
 	if (data->idle) {
 		wiphy_debug(hw->wiphy, "Trying to TX when idle - reject\n");
@@ -639,7 +640,6 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	}
 
 	memset(&rx_status, 0, sizeof(rx_status));
-	rx_status.mactime = le64_to_cpu(__mac80211_hwsim_get_tsf(data));
 	rx_status.flag |= RX_FLAG_MACTIME_MPDU;
 	rx_status.freq = data->channel->center_freq;
 	rx_status.band = data->channel->band;
@@ -667,6 +667,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	spin_lock(&hwsim_radio_lock);
 	list_for_each_entry(data2, &hwsim_radios, list) {
 		struct sk_buff *nskb;
+		struct ieee80211_mgmt *mgmt;
 
 		if (data == data2)
 			continue;
@@ -684,6 +685,17 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 
 		if (mac80211_hwsim_addr_match(data2, hdr->addr1))
 			ack = true;
+
+		/* set bcn timestamp relative to receiver mactime */
+		rx_status.mactime =
+				le64_to_cpu(__mac80211_hwsim_get_tsf(data2));
+		mgmt = (struct ieee80211_mgmt *) nskb->data;
+		if (ieee80211_is_beacon(mgmt->frame_control) ||
+		    ieee80211_is_probe_resp(mgmt->frame_control))
+			mgmt->u.beacon.timestamp = cpu_to_le64(
+				rx_status.mactime +
+				24 * 8 * 10 / txrate->bitrate);
+
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));
 		ieee80211_rx_irqsafe(data2->hw, nskb);
 	}
@@ -697,12 +709,6 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	bool ack;
 	struct ieee80211_tx_info *txi;
 	u32 _pid;
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
-	struct mac80211_hwsim_data *data = hw->priv;
-
-	if (ieee80211_is_beacon(mgmt->frame_control) ||
-	    ieee80211_is_probe_resp(mgmt->frame_control))
-		mgmt->u.beacon.timestamp = __mac80211_hwsim_get_tsf(data);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -799,11 +805,9 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
 	struct ieee80211_hw *hw = arg;
-	struct mac80211_hwsim_data *data = hw->priv;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 	u32 _pid;
-	struct ieee80211_mgmt *mgmt;
 
 	hwsim_check_magic(vif);
 
@@ -816,9 +820,6 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	if (skb == NULL)
 		return;
 	info = IEEE80211_SKB_CB(skb);
-
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	mgmt->u.beacon.timestamp = __mac80211_hwsim_get_tsf(data);
 
 	mac80211_hwsim_monitor_rx(hw, skb);
 
@@ -1443,7 +1444,7 @@ DEFINE_SIMPLE_ATTRIBUTE(hwsim_fops_group,
 			hwsim_fops_group_read, hwsim_fops_group_write,
 			"%llx\n");
 
-struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(
+static struct mac80211_hwsim_data *get_hwsim_data_ref_from_addr(
 			     struct mac_address *addr)
 {
 	struct mac80211_hwsim_data *data;
@@ -1788,9 +1789,11 @@ static int __init init_mac80211_hwsim(void)
 			    IEEE80211_HW_SIGNAL_DBM |
 			    IEEE80211_HW_SUPPORTS_STATIC_SMPS |
 			    IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
-			    IEEE80211_HW_AMPDU_AGGREGATION;
+			    IEEE80211_HW_AMPDU_AGGREGATION |
+			    IEEE80211_HW_WANT_MONITOR_VIF;
 
-		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
+				    WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);

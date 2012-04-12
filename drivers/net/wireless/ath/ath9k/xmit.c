@@ -955,7 +955,9 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf,
 	 */
 	rate = ieee80211_get_rts_cts_rate(sc->hw, tx_info);
 	info->rtscts_rate = rate->hw_value;
-	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
+
+	if (tx_info->control.vif &&
+	    tx_info->control.vif->bss_conf.use_short_preamble)
 		info->rtscts_rate |= rate->hw_value_short;
 
 	for (i = 0; i < 4; i++) {
@@ -1290,14 +1292,11 @@ void ath_tx_aggr_resume(struct ath_softc *sc, struct ieee80211_sta *sta, u16 tid
 
 	an = (struct ath_node *)sta->drv_priv;
 
-	if (sc->sc_flags & SC_OP_TXAGGR) {
-		txtid = ATH_AN_2_TID(an, tid);
-		txtid->baw_size =
-			IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
-		txtid->state |= AGGR_ADDBA_COMPLETE;
-		txtid->state &= ~AGGR_ADDBA_PROGRESS;
-		ath_tx_resume_tid(sc, txtid);
-	}
+	txtid = ATH_AN_2_TID(an, tid);
+	txtid->baw_size = IEEE80211_MIN_AMPDU_BUF << sta->ht_cap.ampdu_factor;
+	txtid->state |= AGGR_ADDBA_COMPLETE;
+	txtid->state &= ~AGGR_ADDBA_PROGRESS;
+	ath_tx_resume_tid(sc, txtid);
 }
 
 /********************/
@@ -1356,8 +1355,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	 * based intr on the EOSP frames.
 	 */
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
-		qi.tqi_qflags = TXQ_FLAG_TXOKINT_ENABLE |
-				TXQ_FLAG_TXERRINT_ENABLE;
+		qi.tqi_qflags = TXQ_FLAG_TXINT_ENABLE;
 	} else {
 		if (qtype == ATH9K_TX_QUEUE_UAPSD)
 			qi.tqi_qflags = TXQ_FLAG_TXDESCINT_ENABLE;
@@ -1523,7 +1521,7 @@ void ath_draintxq(struct ath_softc *sc, struct ath_txq *txq, bool retry_tx)
 	ath_drain_txq_list(sc, txq, &txq->axq_q, retry_tx);
 
 	/* flush any pending frames if aggregation is enabled */
-	if ((sc->sc_flags & SC_OP_TXAGGR) && !retry_tx)
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && !retry_tx)
 		ath_txq_drain_pending_buffers(sc, txq);
 
 	ath_txq_unlock_complete(sc, txq);
@@ -1871,7 +1869,7 @@ static void ath_tx_start_dma(struct ath_softc *sc, struct sk_buff *skb,
 	struct ath_buf *bf;
 	u8 tidno;
 
-	if ((sc->sc_flags & SC_OP_TXAGGR) && txctl->an &&
+	if ((sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) && txctl->an &&
 		ieee80211_is_data_qos(hdr->frame_control)) {
 		tidno = ieee80211_get_qos_ctl(hdr)[0] &
 			IEEE80211_QOS_CTL_TID_MASK;
@@ -2141,7 +2139,7 @@ static void ath_tx_process_buffer(struct ath_softc *sc, struct ath_txq *txq,
 	} else
 		ath_tx_complete_aggr(sc, txq, bf, bf_head, ts, txok, true);
 
-	if (sc->sc_flags & SC_OP_TXAGGR)
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		ath_txq_schedule(sc, txq);
 }
 
@@ -2166,7 +2164,7 @@ static void ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 
 		if (list_empty(&txq->axq_q)) {
 			txq->axq_link = NULL;
-			if (sc->sc_flags & SC_OP_TXAGGR)
+			if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 				ath_txq_schedule(sc, txq);
 			break;
 		}
@@ -2263,10 +2261,9 @@ static void ath_tx_complete_poll_work(struct work_struct *work)
 
 void ath_tx_tasklet(struct ath_softc *sc)
 {
+	struct ath_hw *ah = sc->sc_ah;
+	u32 qcumask = ((1 << ATH9K_NUM_TX_QUEUES) - 1) & ah->intr_txqs;
 	int i;
-	u32 qcumask = ((1 << ATH9K_NUM_TX_QUEUES) - 1);
-
-	ath9k_hw_gettxintrtxqs(sc->sc_ah, &qcumask);
 
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i) && (qcumask & (1 << i)))

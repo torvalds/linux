@@ -95,7 +95,7 @@ described as 'basic' will be available.
 Capability: basic
 Architectures: all
 Type: system ioctl
-Parameters: none
+Parameters: machine type identifier (KVM_VM_*)
 Returns: a VM fd that can be used to control the new virtual machine.
 
 The new VM has no virtual cpus and no memory.  An mmap() of a VM fd
@@ -103,6 +103,11 @@ will access the virtual machine's physical address space; offset zero
 corresponds to guest physical address zero.  Use of mmap() on a VM fd
 is discouraged if userspace memory allocation (KVM_CAP_USER_MEMORY) is
 available.
+You most certainly want to use 0 as machine type.
+
+In order to create user controlled virtual machines on S390, check
+KVM_CAP_S390_UCONTROL and use the flag KVM_VM_S390_UCONTROL as
+privileged user (CAP_SYS_ADMIN).
 
 4.3 KVM_GET_MSR_INDEX_LIST
 
@@ -212,6 +217,11 @@ Userspace can control the threading (SMT) mode of the guest by its
 allocation of vcpu ids.  For example, if userspace wants
 single-threaded guest vcpus, it should make all vcpu ids be a multiple
 of the number of vcpus per vcore.
+
+For virtual cpus that have been created with S390 user controlled virtual
+machines, the resulting vcpu fd can be memory mapped at page offset
+KVM_S390_SIE_PAGE_OFFSET in order to obtain a memory map of the virtual
+cpu's hardware control block.
 
 4.8 KVM_GET_DIRTY_LOG (vm ioctl)
 
@@ -1159,6 +1169,14 @@ following flags are specified:
 
 /* Depends on KVM_CAP_IOMMU */
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
+/* The following two depend on KVM_CAP_PCI_2_3 */
+#define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
+#define KVM_DEV_ASSIGN_MASK_INTX	(1 << 2)
+
+If KVM_DEV_ASSIGN_PCI_2_3 is set, the kernel will manage legacy INTx interrupts
+via the PCI-2.3-compliant device-level mask, thus enable IRQ sharing with other
+assigned devices or host devices. KVM_DEV_ASSIGN_MASK_INTX specifies the
+guest's view on the INTx mask, see KVM_ASSIGN_SET_INTX_MASK for details.
 
 The KVM_DEV_ASSIGN_ENABLE_IOMMU flag is a mandatory option to ensure
 isolation of the device.  Usages not specifying this flag are deprecated.
@@ -1399,6 +1417,71 @@ The following flags are defined:
 If datamatch flag is set, the event will be signaled only if the written value
 to the registered address is equal to datamatch in struct kvm_ioeventfd.
 
+4.59 KVM_DIRTY_TLB
+
+Capability: KVM_CAP_SW_TLB
+Architectures: ppc
+Type: vcpu ioctl
+Parameters: struct kvm_dirty_tlb (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_dirty_tlb {
+	__u64 bitmap;
+	__u32 num_dirty;
+};
+
+This must be called whenever userspace has changed an entry in the shared
+TLB, prior to calling KVM_RUN on the associated vcpu.
+
+The "bitmap" field is the userspace address of an array.  This array
+consists of a number of bits, equal to the total number of TLB entries as
+determined by the last successful call to KVM_CONFIG_TLB, rounded up to the
+nearest multiple of 64.
+
+Each bit corresponds to one TLB entry, ordered the same as in the shared TLB
+array.
+
+The array is little-endian: the bit 0 is the least significant bit of the
+first byte, bit 8 is the least significant bit of the second byte, etc.
+This avoids any complications with differing word sizes.
+
+The "num_dirty" field is a performance hint for KVM to determine whether it
+should skip processing the bitmap and just invalidate everything.  It must
+be set to the number of set bits in the bitmap.
+
+4.60 KVM_ASSIGN_SET_INTX_MASK
+
+Capability: KVM_CAP_PCI_2_3
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_assigned_pci_dev (in)
+Returns: 0 on success, -1 on error
+
+Allows userspace to mask PCI INTx interrupts from the assigned device.  The
+kernel will not deliver INTx interrupts to the guest between setting and
+clearing of KVM_ASSIGN_SET_INTX_MASK via this interface.  This enables use of
+and emulation of PCI 2.3 INTx disable command register behavior.
+
+This may be used for both PCI 2.3 devices supporting INTx disable natively and
+older devices lacking this support. Userspace is responsible for emulating the
+read value of the INTx disable bit in the guest visible PCI command register.
+When modifying the INTx disable state, userspace should precede updating the
+physical device command register by calling this ioctl to inform the kernel of
+the new intended INTx mask state.
+
+Note that the kernel uses the device INTx disable bit to internally manage the
+device interrupt state for PCI 2.3 devices.  Reads of this register may
+therefore not match the expected value.  Writes should always use the guest
+intended INTx disable value rather than attempting to read-copy-update the
+current physical device state.  Races between user and kernel updates to the
+INTx disable bit are handled lazily in the kernel.  It's possible the device
+may generate unintended interrupts, but they will not be injected into the
+guest.
+
+See KVM_ASSIGN_DEV_IRQ for the data structure.  The target device is specified
+by assigned_dev_id.  In the flags field, only KVM_DEV_ASSIGN_MASK_INTX is
+evaluated.
+
 4.62 KVM_CREATE_SPAPR_TCE
 
 Capability: KVM_CAP_SPAPR_TCE
@@ -1490,6 +1573,101 @@ following algorithm:
 
 Some guests configure the LINT1 NMI input to cause a panic, aiding in
 debugging.
+
+4.65 KVM_S390_UCAS_MAP
+
+Capability: KVM_CAP_S390_UCONTROL
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_ucas_mapping (in)
+Returns: 0 in case of success
+
+The parameter is defined like this:
+	struct kvm_s390_ucas_mapping {
+		__u64 user_addr;
+		__u64 vcpu_addr;
+		__u64 length;
+	};
+
+This ioctl maps the memory at "user_addr" with the length "length" to
+the vcpu's address space starting at "vcpu_addr". All parameters need to
+be alligned by 1 megabyte.
+
+4.66 KVM_S390_UCAS_UNMAP
+
+Capability: KVM_CAP_S390_UCONTROL
+Architectures: s390
+Type: vcpu ioctl
+Parameters: struct kvm_s390_ucas_mapping (in)
+Returns: 0 in case of success
+
+The parameter is defined like this:
+	struct kvm_s390_ucas_mapping {
+		__u64 user_addr;
+		__u64 vcpu_addr;
+		__u64 length;
+	};
+
+This ioctl unmaps the memory in the vcpu's address space starting at
+"vcpu_addr" with the length "length". The field "user_addr" is ignored.
+All parameters need to be alligned by 1 megabyte.
+
+4.67 KVM_S390_VCPU_FAULT
+
+Capability: KVM_CAP_S390_UCONTROL
+Architectures: s390
+Type: vcpu ioctl
+Parameters: vcpu absolute address (in)
+Returns: 0 in case of success
+
+This call creates a page table entry on the virtual cpu's address space
+(for user controlled virtual machines) or the virtual machine's address
+space (for regular virtual machines). This only works for minor faults,
+thus it's recommended to access subject memory page via the user page
+table upfront. This is useful to handle validity intercepts for user
+controlled virtual machines to fault in the virtual cpu's lowcore pages
+prior to calling the KVM_RUN ioctl.
+
+4.68 KVM_SET_ONE_REG
+
+Capability: KVM_CAP_ONE_REG
+Architectures: all
+Type: vcpu ioctl
+Parameters: struct kvm_one_reg (in)
+Returns: 0 on success, negative value on failure
+
+struct kvm_one_reg {
+       __u64 id;
+       __u64 addr;
+};
+
+Using this ioctl, a single vcpu register can be set to a specific value
+defined by user space with the passed in struct kvm_one_reg, where id
+refers to the register identifier as described below and addr is a pointer
+to a variable with the respective size. There can be architecture agnostic
+and architecture specific registers. Each have their own range of operation
+and their own constants and width. To keep track of the implemented
+registers, find a list below:
+
+  Arch  |       Register        | Width (bits)
+        |                       |
+  PPC   | KVM_REG_PPC_HIOR      | 64
+
+4.69 KVM_GET_ONE_REG
+
+Capability: KVM_CAP_ONE_REG
+Architectures: all
+Type: vcpu ioctl
+Parameters: struct kvm_one_reg (in and out)
+Returns: 0 on success, negative value on failure
+
+This ioctl allows to receive the value of a single register implemented
+in a vcpu. The register to read is indicated by the "id" field of the
+kvm_one_reg struct passed in. On success, the register value can be found
+at the memory location pointed to by "addr".
+
+The list of registers accessible using this interface is identical to the
+list in 4.64.
 
 5. The kvm_run structure
 
@@ -1651,6 +1829,20 @@ s390 specific.
 
 s390 specific.
 
+		/* KVM_EXIT_S390_UCONTROL */
+		struct {
+			__u64 trans_exc_code;
+			__u32 pgm_code;
+		} s390_ucontrol;
+
+s390 specific. A page fault has occurred for a user controlled virtual
+machine (KVM_VM_S390_UNCONTROL) on it's host page table that cannot be
+resolved by the kernel.
+The program code and the translation exception code that were placed
+in the cpu's lowcore are presented here as defined by the z Architecture
+Principles of Operation Book in the Chapter for Dynamic Address Translation
+(DAT)
+
 		/* KVM_EXIT_DCR */
 		struct {
 			__u32 dcrn;
@@ -1693,6 +1885,29 @@ developer registration required to access it).
 		/* Fix the size of the union. */
 		char padding[256];
 	};
+
+	/*
+	 * shared registers between kvm and userspace.
+	 * kvm_valid_regs specifies the register classes set by the host
+	 * kvm_dirty_regs specified the register classes dirtied by userspace
+	 * struct kvm_sync_regs is architecture specific, as well as the
+	 * bits for kvm_valid_regs and kvm_dirty_regs
+	 */
+	__u64 kvm_valid_regs;
+	__u64 kvm_dirty_regs;
+	union {
+		struct kvm_sync_regs regs;
+		char padding[1024];
+	} s;
+
+If KVM_CAP_SYNC_REGS is defined, these fields allow userspace to access
+certain guest registers without having to call SET/GET_*REGS. Thus we can
+avoid some system call overhead if userspace has to handle the exit.
+Userspace can query the validity of the structure by checking
+kvm_valid_regs for specific bits. These bits are architecture specific
+and usually define the validity of a groups of registers. (e.g. one bit
+ for general purpose registers)
+
 };
 
 6. Capabilities that can be enabled
@@ -1741,3 +1956,45 @@ HTAB address part of SDR1 contains an HVA instead of a GPA, as PAPR keeps the
 HTAB invisible to the guest.
 
 When this capability is enabled, KVM_EXIT_PAPR_HCALL can occur.
+
+6.3 KVM_CAP_SW_TLB
+
+Architectures: ppc
+Parameters: args[0] is the address of a struct kvm_config_tlb
+Returns: 0 on success; -1 on error
+
+struct kvm_config_tlb {
+	__u64 params;
+	__u64 array;
+	__u32 mmu_type;
+	__u32 array_len;
+};
+
+Configures the virtual CPU's TLB array, establishing a shared memory area
+between userspace and KVM.  The "params" and "array" fields are userspace
+addresses of mmu-type-specific data structures.  The "array_len" field is an
+safety mechanism, and should be set to the size in bytes of the memory that
+userspace has reserved for the array.  It must be at least the size dictated
+by "mmu_type" and "params".
+
+While KVM_RUN is active, the shared region is under control of KVM.  Its
+contents are undefined, and any modification by userspace results in
+boundedly undefined behavior.
+
+On return from KVM_RUN, the shared region will reflect the current state of
+the guest's TLB.  If userspace makes any changes, it must call KVM_DIRTY_TLB
+to tell KVM which entries have been changed, prior to calling KVM_RUN again
+on this vcpu.
+
+For mmu types KVM_MMU_FSL_BOOKE_NOHV and KVM_MMU_FSL_BOOKE_HV:
+ - The "params" field is of type "struct kvm_book3e_206_tlb_params".
+ - The "array" field points to an array of type "struct
+   kvm_book3e_206_tlb_entry".
+ - The array consists of all entries in the first TLB, followed by all
+   entries in the second TLB.
+ - Within a TLB, entries are ordered first by increasing set number.  Within a
+   set, entries are ordered by way (increasing ESEL).
+ - The hash for determining set number in TLB0 is: (MAS2 >> 12) & (num_sets - 1)
+   where "num_sets" is the tlb_sizes[] value divided by the tlb_ways[] value.
+ - The tsize field of mas1 shall be set to 4K on TLB0, even though the
+   hardware ignores this value for TLB0.

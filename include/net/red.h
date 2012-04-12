@@ -2,6 +2,7 @@
 #define __NET_SCHED_RED_H
 
 #include <linux/types.h>
+#include <linux/bug.h>
 #include <net/pkt_sched.h>
 #include <net/inet_ecn.h>
 #include <net/dsfield.h>

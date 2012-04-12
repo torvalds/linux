@@ -41,7 +41,7 @@ static int __init start_kernel_proc(void *unused)
 	cpu_tasks[0].pid = pid;
 	cpu_tasks[0].task = current;
 #ifdef CONFIG_SMP
-	cpu_online_map = cpumask_of_cpu(0);
+	init_cpu_online(get_cpu_mask(0));
 #endif
 	start_kernel();
 	return 0;

@@ -27,11 +27,11 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
+#include <asm/mach/time.h>
 
 #include <plat/gpio-nomadik.h>
 #include <plat/mtu.h>
 
-#include <mach/setup.h>
 #include <mach/nand.h>
 #include <mach/fsmc.h>
 
@@ -185,20 +185,11 @@ static void __init nhk8815_onenand_init(void)
 #endif
 }
 
-#define __MEM_4K_RESOURCE(x) \
-	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
+static AMBA_APB_DEVICE(uart0, "uart0", 0, NOMADIK_UART0_BASE,
+	{ IRQ_UART0 }, NULL);
 
-static struct amba_device uart0_device = {
-	.dev = { .init_name = "uart0" },
-	__MEM_4K_RESOURCE(NOMADIK_UART0_BASE),
-	.irq = {IRQ_UART0, NO_IRQ},
-};
-
-static struct amba_device uart1_device = {
-	.dev = { .init_name = "uart1" },
-	__MEM_4K_RESOURCE(NOMADIK_UART1_BASE),
-	.irq = {IRQ_UART1, NO_IRQ},
-};
+static AMBA_APB_DEVICE(uart1, "uart1", 0, NOMADIK_UART1_BASE,
+	{ IRQ_UART1 }, NULL);
 
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
@@ -255,10 +246,7 @@ static void __init nomadik_timer_init(void)
 	src_cr |= SRC_CR_INIT_VAL;
 	writel(src_cr, io_p2v(NOMADIK_SRC_BASE));
 
-	/* Save global pointer to mtu, used by platform timer code */
-	mtu_base = io_p2v(NOMADIK_MTU0_BASE);
-
-	nmdk_timer_init();
+	nmdk_timer_init(io_p2v(NOMADIK_MTU0_BASE));
 }
 
 static struct sys_timer nomadik_timer = {

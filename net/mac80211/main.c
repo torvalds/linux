@@ -102,9 +102,6 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 	might_sleep();
 
-	/* If this off-channel logic ever changes,  ieee80211_on_oper_channel
-	 * may need to change as well.
-	 */
 	offchannel_flag = local->hw.conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	if (local->scan_channel) {
 		chan = local->scan_channel;
@@ -560,8 +557,10 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 			WIPHY_FLAG_4ADDR_AP |
 			WIPHY_FLAG_4ADDR_STATION |
 			WIPHY_FLAG_REPORTS_OBSS |
-			WIPHY_FLAG_OFFCHAN_TX |
-			WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
+			WIPHY_FLAG_OFFCHAN_TX;
+
+	if (ops->remain_on_channel)
+		wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	wiphy->features = NL80211_FEATURE_SK_TX_STATUS |
 			  NL80211_FEATURE_HT_IBSS;
@@ -592,11 +591,10 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->hw.max_report_rates = 0;
 	local->hw.max_rx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
 	local->hw.max_tx_aggregation_subframes = IEEE80211_MAX_AMPDU_BUF;
+	local->hw.offchannel_tx_hw_queue = IEEE80211_INVAL_HW_QUEUE;
 	local->hw.conf.long_frame_max_tx_count = wiphy->retry_long;
 	local->hw.conf.short_frame_max_tx_count = wiphy->retry_short;
 	local->user_power_level = -1;
-	local->uapsd_queues = IEEE80211_DEFAULT_UAPSD_QUEUES;
-	local->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
 
 	INIT_LIST_HEAD(&local->interfaces);
@@ -689,6 +687,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		/* keep last -- depends on hw flags! */
 		WLAN_CIPHER_SUITE_AES_CMAC
 	};
+
+	if (hw->flags & IEEE80211_HW_QUEUE_CONTROL &&
+	    (local->hw.offchannel_tx_hw_queue == IEEE80211_INVAL_HW_QUEUE ||
+	     local->hw.offchannel_tx_hw_queue >= local->hw.queues))
+		return -EINVAL;
 
 	if ((hw->wiphy->wowlan.flags || hw->wiphy->wowlan.n_patterns)
 #ifdef CONFIG_PM

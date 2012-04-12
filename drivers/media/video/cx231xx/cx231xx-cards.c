@@ -861,7 +861,6 @@ void cx231xx_release_resources(struct cx231xx *dev)
 	kfree(dev->sliced_cc_mode.alt_max_pkt_size);
 	kfree(dev->ts1_mode.alt_max_pkt_size);
 	kfree(dev);
-	dev = NULL;
 }
 
 /*

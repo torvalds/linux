@@ -7,7 +7,7 @@
 
 /* Current FCoE HSI version number composed of two fields (16 bit) */
 /* Implies on a change broken previous HSI */
-#define FCOE_HSI_MAJOR_VERSION (1)
+#define FCOE_HSI_MAJOR_VERSION (2)
 /* Implies on a change which does not broken previous HSI */
 #define FCOE_HSI_MINOR_VERSION (1)
 
@@ -47,6 +47,7 @@
 #define FCOE_KCQE_COMPLETION_STATUS_CTX_FREE_FAILURE	(0x4)
 #define FCOE_KCQE_COMPLETION_STATUS_NIC_ERROR			(0x5)
 #define FCOE_KCQE_COMPLETION_STATUS_WRONG_HSI_VERSION   (0x6)
+#define FCOE_KCQE_COMPLETION_STATUS_PARITY_ERROR	(0x81)
 
 /* CQE type */
 #define FCOE_PENDING_CQE_TYPE			0

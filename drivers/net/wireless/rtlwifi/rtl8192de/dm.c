@@ -405,7 +405,7 @@ static void rtl92d_dm_dig(struct ieee80211_hw *hw)
 		de_digtable.last_min_undecorated_pwdb_for_dm =
 				 de_digtable.min_undecorated_pwdb_for_dm;
 	}
-	if (rtlpriv->dm.dm_initialgain_enable == false)
+	if (!rtlpriv->dm.dm_initialgain_enable)
 		return;
 
 	/* because we will send data pkt when scanning

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
+ * Copyright (c) 2011 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -197,6 +198,8 @@ struct hif_scatter_req {
 	u8 *virt_dma_buf;
 
 	struct hif_scatter_item scat_list[1];
+
+	u32 scat_q_depth;
 };
 
 struct ath6kl_irq_proc_registers {
@@ -220,6 +223,7 @@ struct ath6kl_irq_enable_reg {
 } __packed;
 
 struct ath6kl_device {
+	/* protects irq_proc_reg and irq_en_reg below */
 	spinlock_t lock;
 	struct ath6kl_irq_proc_registers irq_proc_reg;
 	struct ath6kl_irq_enable_reg irq_en_reg;
@@ -252,6 +256,12 @@ struct ath6kl_hif_ops {
 	int (*power_on)(struct ath6kl *ar);
 	int (*power_off)(struct ath6kl *ar);
 	void (*stop)(struct ath6kl *ar);
+	int (*pipe_send)(struct ath6kl *ar, u8 pipe, struct sk_buff *hdr_buf,
+			 struct sk_buff *buf);
+	void (*pipe_get_default)(struct ath6kl *ar, u8 *pipe_ul, u8 *pipe_dl);
+	int (*pipe_map_service)(struct ath6kl *ar, u16 service_id, u8 *pipe_ul,
+				u8 *pipe_dl);
+	u16 (*pipe_get_free_queue_number)(struct ath6kl *ar, u8 pipe);
 };
 
 int ath6kl_hif_setup(struct ath6kl_device *dev);

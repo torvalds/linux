@@ -1,7 +1,7 @@
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/interface_capabilities
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/device_capabilities
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		These files show the various USB TMC capabilities as described
 		by the device itself.  The full description of the bitfields
@@ -15,7 +15,7 @@ Description:
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/usb488_interface_capabilities
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/usb488_device_capabilities
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		These files show the various USB TMC capabilities as described
 		by the device itself.  The full description of the bitfields
@@ -29,7 +29,7 @@ Description:
 
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/TermChar
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		This file is the TermChar value to be sent to the USB TMC
 		device as described by the document, "Universal Serial Bus Test
@@ -42,7 +42,7 @@ Description:
 
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/TermCharEnabled
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
 		This file determines if the TermChar is to be sent to the
 		device on every transaction or not.  For more details about
@@ -53,9 +53,9 @@ Description:
 
 What:		/sys/bus/usb/drivers/usbtmc/devices/*/auto_abort
 Date:		August 2008
-Contact:	Greg Kroah-Hartman <gregkh@suse.de>
+Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
-		This file determines if the the transaction of the USB TMC
+		This file determines if the transaction of the USB TMC
 		device is to be automatically aborted if there is any error.
 		For more details about this, please see the document,
 		"Universal Serial Bus Test and Measurement Class Specification

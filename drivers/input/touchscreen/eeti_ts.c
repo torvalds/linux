@@ -320,20 +320,8 @@ static struct i2c_driver eeti_ts_driver = {
 	.id_table = eeti_ts_id,
 };
 
-static int __init eeti_ts_init(void)
-{
-	return i2c_add_driver(&eeti_ts_driver);
-}
-
-static void __exit eeti_ts_exit(void)
-{
-	i2c_del_driver(&eeti_ts_driver);
-}
+module_i2c_driver(eeti_ts_driver);
 
 MODULE_DESCRIPTION("EETI Touchscreen driver");
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_LICENSE("GPL");
-
-module_init(eeti_ts_init);
-module_exit(eeti_ts_exit);
-

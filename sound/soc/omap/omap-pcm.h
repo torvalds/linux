@@ -25,6 +25,8 @@
 #ifndef __OMAP_PCM_H__
 #define __OMAP_PCM_H__
 
+struct snd_pcm_substream;
+
 struct omap_pcm_dma_data {
 	char		*name;		/* stream identifier */
 	int		dma_req;	/* DMA request line */

@@ -230,6 +230,21 @@ int pm_qos_request_active(struct pm_qos_request *req)
 EXPORT_SYMBOL_GPL(pm_qos_request_active);
 
 /**
+ * pm_qos_work_fn - the timeout handler of pm_qos_update_request_timeout
+ * @work: work struct for the delayed work (timeout)
+ *
+ * This cancels the timeout request by falling back to the default at timeout.
+ */
+static void pm_qos_work_fn(struct work_struct *work)
+{
+	struct pm_qos_request *req = container_of(to_delayed_work(work),
+						  struct pm_qos_request,
+						  work);
+
+	pm_qos_update_request(req, PM_QOS_DEFAULT_VALUE);
+}
+
+/**
  * pm_qos_add_request - inserts new qos request into the list
  * @req: pointer to a preallocated handle
  * @pm_qos_class: identifies which list of qos request to use
@@ -253,6 +268,7 @@ void pm_qos_add_request(struct pm_qos_request *req,
 		return;
 	}
 	req->pm_qos_class = pm_qos_class;
+	INIT_DELAYED_WORK(&req->work, pm_qos_work_fn);
 	pm_qos_update_target(pm_qos_array[pm_qos_class]->constraints,
 			     &req->node, PM_QOS_ADD_REQ, value);
 }
@@ -279,12 +295,43 @@ void pm_qos_update_request(struct pm_qos_request *req,
 		return;
 	}
 
+	if (delayed_work_pending(&req->work))
+		cancel_delayed_work_sync(&req->work);
+
 	if (new_value != req->node.prio)
 		pm_qos_update_target(
 			pm_qos_array[req->pm_qos_class]->constraints,
 			&req->node, PM_QOS_UPDATE_REQ, new_value);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
+
+/**
+ * pm_qos_update_request_timeout - modifies an existing qos request temporarily.
+ * @req : handle to list element holding a pm_qos request to use
+ * @new_value: defines the temporal qos request
+ * @timeout_us: the effective duration of this qos request in usecs.
+ *
+ * After timeout_us, this qos request is cancelled automatically.
+ */
+void pm_qos_update_request_timeout(struct pm_qos_request *req, s32 new_value,
+				   unsigned long timeout_us)
+{
+	if (!req)
+		return;
+	if (WARN(!pm_qos_request_active(req),
+		 "%s called for unknown object.", __func__))
+		return;
+
+	if (delayed_work_pending(&req->work))
+		cancel_delayed_work_sync(&req->work);
+
+	if (new_value != req->node.prio)
+		pm_qos_update_target(
+			pm_qos_array[req->pm_qos_class]->constraints,
+			&req->node, PM_QOS_UPDATE_REQ, new_value);
+
+	schedule_delayed_work(&req->work, usecs_to_jiffies(timeout_us));
+}
 
 /**
  * pm_qos_remove_request - modifies an existing qos request
@@ -304,6 +351,9 @@ void pm_qos_remove_request(struct pm_qos_request *req)
 		WARN(1, KERN_ERR "pm_qos_remove_request() called for unknown object\n");
 		return;
 	}
+
+	if (delayed_work_pending(&req->work))
+		cancel_delayed_work_sync(&req->work);
 
 	pm_qos_update_target(pm_qos_array[req->pm_qos_class]->constraints,
 			     &req->node, PM_QOS_REMOVE_REQ,
@@ -469,21 +519,18 @@ static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
 static int __init pm_qos_power_init(void)
 {
 	int ret = 0;
+	int i;
 
-	ret = register_pm_qos_misc(&cpu_dma_pm_qos);
-	if (ret < 0) {
-		printk(KERN_ERR "pm_qos_param: cpu_dma_latency setup failed\n");
-		return ret;
+	BUILD_BUG_ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
+
+	for (i = 1; i < PM_QOS_NUM_CLASSES; i++) {
+		ret = register_pm_qos_misc(pm_qos_array[i]);
+		if (ret < 0) {
+			printk(KERN_ERR "pm_qos_param: %s setup failed\n",
+			       pm_qos_array[i]->name);
+			return ret;
+		}
 	}
-	ret = register_pm_qos_misc(&network_lat_pm_qos);
-	if (ret < 0) {
-		printk(KERN_ERR "pm_qos_param: network_latency setup failed\n");
-		return ret;
-	}
-	ret = register_pm_qos_misc(&network_throughput_pm_qos);
-	if (ret < 0)
-		printk(KERN_ERR
-			"pm_qos_param: network_throughput setup failed\n");
 
 	return ret;
 }

@@ -245,7 +245,6 @@ static int ar5008_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_WRITE(ah, AR_PHY(0x37), reg32);
 
 	ah->curchan = chan;
-	ah->curchan_rad_index = -1;
 
 	return 0;
 }
@@ -834,9 +833,10 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	    AR_SREV_9287_11_OR_LATER(ah))
 		REG_WRITE_ARRAY(&ah->iniModesTxGain, modesIndex, regWrites);
 
-	if (AR_SREV_9271_10(ah))
-		REG_WRITE_ARRAY(&ah->iniModes_9271_1_0_only,
-				modesIndex, regWrites);
+	if (AR_SREV_9271_10(ah)) {
+		REG_SET_BIT(ah, AR_PHY_SPECTRAL_SCAN, AR_PHY_SPECTRAL_SCAN_ENA);
+		REG_RMW_FIELD(ah, AR_PHY_RF_CTL3, AR_PHY_TX_END_TO_ADC_ON, 0xa);
+	}
 
 	ENABLE_REGWRITE_BUFFER(ah);
 
@@ -858,21 +858,11 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 
 	REGWRITE_BUFFER_FLUSH(ah);
 
-	if (AR_SREV_9271(ah)) {
-		if (ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE) == 1)
-			REG_WRITE_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
-					modesIndex, regWrites);
-		else
-			REG_WRITE_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
-					modesIndex, regWrites);
-	}
-
 	REG_WRITE_ARRAY(&ah->iniBB_RfGain, freqIndex, regWrites);
 
-	if (IS_CHAN_A_FAST_CLOCK(ah, chan)) {
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex,
+	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
+		REG_WRITE_ARRAY(&ah->iniModesFastClock, modesIndex,
 				regWrites);
-	}
 
 	ar5008_hw_override_ini(ah, chan);
 	ar5008_hw_set_channel_regs(ah, chan);
@@ -1056,45 +1046,7 @@ static bool ar5008_hw_ani_control_old(struct ath_hw *ah,
 		break;
 	}
 	case ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION:{
-		static const int m1ThreshLow[] = { 127, 50 };
-		static const int m2ThreshLow[] = { 127, 40 };
-		static const int m1Thresh[] = { 127, 0x4d };
-		static const int m2Thresh[] = { 127, 0x40 };
-		static const int m2CountThr[] = { 31, 16 };
-		static const int m2CountThrLow[] = { 63, 48 };
 		u32 on = param ? 1 : 0;
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M1_THRESH_LOW,
-			      m1ThreshLow[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2_THRESH_LOW,
-			      m2ThreshLow[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M1_THRESH,
-			      m1Thresh[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2_THRESH,
-			      m2Thresh[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2COUNT_THR,
-			      m2CountThr[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2COUNT_THR_LOW,
-			      m2CountThrLow[on]);
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH_LOW,
-			      m1ThreshLow[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH_LOW,
-			      m2ThreshLow[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH,
-			      m1Thresh[on]);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH,
-			      m2Thresh[on]);
 
 		if (on)
 			REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,

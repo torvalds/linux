@@ -41,7 +41,6 @@
 #include <linux/firmware.h>
 
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/dma.h>
 
 #include <scsi/scsi_cmnd.h>

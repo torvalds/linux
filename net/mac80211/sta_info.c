@@ -1195,13 +1195,15 @@ ieee80211_sta_ps_deliver_response(struct sta_info *sta,
 			    ieee80211_is_qos_nullfunc(hdr->frame_control))
 				qoshdr = ieee80211_get_qos_ctl(hdr);
 
-			/* set EOSP for the frame */
-			if (reason == IEEE80211_FRAME_RELEASE_UAPSD &&
-			    qoshdr && skb_queue_empty(&frames))
-				*qoshdr |= IEEE80211_QOS_CTL_EOSP;
+			/* end service period after last frame */
+			if (skb_queue_empty(&frames)) {
+				if (reason == IEEE80211_FRAME_RELEASE_UAPSD &&
+				    qoshdr)
+					*qoshdr |= IEEE80211_QOS_CTL_EOSP;
 
-			info->flags |= IEEE80211_TX_STATUS_EOSP |
-				       IEEE80211_TX_CTL_REQ_TX_STATUS;
+				info->flags |= IEEE80211_TX_STATUS_EOSP |
+					       IEEE80211_TX_CTL_REQ_TX_STATUS;
+			}
 
 			if (qoshdr)
 				tids |= BIT(*qoshdr & IEEE80211_QOS_CTL_TID_MASK);

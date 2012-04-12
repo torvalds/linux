@@ -123,6 +123,7 @@
 #define WM8904_EQ23                             0x9C
 #define WM8904_EQ24                             0x9D
 #define WM8904_CONTROL_INTERFACE_TEST_1         0xA1
+#define WM8904_ADC_TEST_0			0xC6
 #define WM8904_ANALOGUE_OUTPUT_BIAS_0           0xCC
 #define WM8904_FLL_NCO_TEST_0                   0xF7
 #define WM8904_FLL_NCO_TEST_1                   0xF8
@@ -1555,6 +1556,16 @@
 #define WM8904_USER_KEY_MASK                    0x0002  /* USER_KEY */
 #define WM8904_USER_KEY_SHIFT                        1  /* USER_KEY */
 #define WM8904_USER_KEY_WIDTH                        1  /* USER_KEY */
+
+/*
+ * R198 (0xC6) - ADC Test 0
+ */
+#define WM8904_ADC_128_OSR_TST_MODE             0x0004  /* ADC_128_OSR_TST_MODE */
+#define WM8904_ADC_128_OSR_TST_MODE_SHIFT            2  /* ADC_128_OSR_TST_MODE */
+#define WM8904_ADC_128_OSR_TST_MODE_WIDTH            1  /* ADC_128_OSR_TST_MODE */
+#define WM8904_ADC_BIASX1P5                     0x0001  /* ADC_BIASX1P5 */
+#define WM8904_ADC_BIASX1P5_SHIFT                    0  /* ADC_BIASX1P5 */
+#define WM8904_ADC_BIASX1P5_WIDTH                    1  /* ADC_BIASX1P5 */
 
 /*
  * R204 (0xCC) - Analogue Output Bias 0

@@ -245,6 +245,8 @@
  *	TCP_CLOSE		socket is finished
  */
 
+#define pr_fmt(fmt) "TCP: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/types.h>
@@ -858,7 +860,7 @@ wait_for_memory:
 	}
 
 out:
-	if (copied)
+	if (copied && !(flags & MSG_SENDPAGE_NOTLAST))
 		tcp_push(sk, flags, mss_now, tp->nonagle);
 	return copied;
 
@@ -1675,7 +1677,8 @@ do_prequeue:
 
 				if (tp->ucopy.dma_cookie < 0) {
 
-					printk(KERN_ALERT "dma_cookie < 0\n");
+					pr_alert("%s: dma_cookie < 0\n",
+						 __func__);
 
 					/* Exception. Bailout! */
 					if (!copied)
@@ -1884,9 +1887,9 @@ bool tcp_check_oom(struct sock *sk, int shift)
 	out_of_socket_memory = tcp_out_of_memory(sk);
 
 	if (too_many_orphans && net_ratelimit())
-		pr_info("TCP: too many orphaned sockets\n");
+		pr_info("too many orphaned sockets\n");
 	if (out_of_socket_memory && net_ratelimit())
-		pr_info("TCP: out of memory -- consider tuning tcp_mem\n");
+		pr_info("out of memory -- consider tuning tcp_mem\n");
 	return too_many_orphans || out_of_socket_memory;
 }
 
@@ -3311,9 +3314,8 @@ void __init tcp_init(void)
 	sysctl_tcp_rmem[1] = 87380;
 	sysctl_tcp_rmem[2] = max(87380, max_share);
 
-	printk(KERN_INFO "TCP: Hash tables configured "
-	       "(established %u bind %u)\n",
-	       tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);
+	pr_info("Hash tables configured (established %u bind %u)\n",
+		tcp_hashinfo.ehash_mask + 1, tcp_hashinfo.bhash_size);
 
 	tcp_register_congestion_control(&tcp_reno);
 

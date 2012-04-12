@@ -2512,10 +2512,8 @@ static void __exit at76_mod_exit(void)
 
 	printk(KERN_INFO DRIVER_DESC " " DRIVER_VERSION " unloading\n");
 	usb_deregister(&at76_driver);
-	for (i = 0; i < ARRAY_SIZE(firmwares); i++) {
-		if (firmwares[i].fw)
-			release_firmware(firmwares[i].fw);
-	}
+	for (i = 0; i < ARRAY_SIZE(firmwares); i++)
+		release_firmware(firmwares[i].fw);
 	led_trigger_unregister_simple(ledtrig_tx);
 }
 

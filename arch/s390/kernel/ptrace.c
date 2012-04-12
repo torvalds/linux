@@ -20,15 +20,15 @@
 #include <linux/regset.h>
 #include <linux/tracehook.h>
 #include <linux/seccomp.h>
+#include <linux/compat.h>
 #include <trace/syscall.h>
-#include <asm/compat.h>
 #include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+#include <asm/switch_to.h>
 #include "entry.h"
 
 #ifdef CONFIG_COMPAT

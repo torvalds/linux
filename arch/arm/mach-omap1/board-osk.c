@@ -34,14 +34,11 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/smc91x.h>
-
+#include <linux/omapfb.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
-
 #include <linux/i2c/tps65010.h>
-
-#include <mach/hardware.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -51,6 +48,9 @@
 #include <plat/usb.h>
 #include <plat/mux.h>
 #include <plat/tc.h>
+
+#include <mach/hardware.h>
+
 #include "common.h"
 
 /* At OMAP5912 OSK the Ethernet is directly connected to CS1 */
@@ -129,8 +129,6 @@ static struct resource osk5912_smc91x_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= OMAP_GPIO_IRQ(0),
-		.end	= OMAP_GPIO_IRQ(0),
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
 	},
 };
@@ -147,8 +145,6 @@ static struct platform_device osk5912_smc91x_device = {
 
 static struct resource osk5912_cf_resources[] = {
 	[0] = {
-		.start	= OMAP_GPIO_IRQ(62),
-		.end	= OMAP_GPIO_IRQ(62),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -240,7 +236,6 @@ static struct tps65010_board tps_board = {
 static struct i2c_board_info __initdata osk_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("tps65010", 0x48),
-		.irq		= OMAP_GPIO_IRQ(OMAP_MPUIO(1)),
 		.platform_data	= &tps_board,
 
 	},
@@ -299,12 +294,6 @@ static struct omap_lcd_config osk_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 #endif
-
-static struct omap_board_config_kernel osk_config[] __initdata = {
-#ifdef	CONFIG_OMAP_OSK_MISTRAL
-	{ OMAP_TAG_LCD,			&osk_lcd_config },
-#endif
-};
 
 #ifdef	CONFIG_OMAP_OSK_MISTRAL
 
@@ -414,7 +403,6 @@ static struct spi_board_info __initdata mistral_boardinfo[] = { {
 	/* MicroWire (bus 2) CS0 has an ads7846e */
 	.modalias		= "ads7846",
 	.platform_data		= &mistral_ts_info,
-	.irq			= OMAP_GPIO_IRQ(4),
 	.max_speed_hz		= 120000 /* max sample rate at 3V */
 					* 26 /* command + data + overhead */,
 	.bus_num		= 2,
@@ -477,6 +465,7 @@ static void __init osk_mistral_init(void)
 	gpio_direction_input(4);
 	irq_set_irq_type(gpio_to_irq(4), IRQ_TYPE_EDGE_FALLING);
 
+	mistral_boardinfo[0].irq = gpio_to_irq(4);
 	spi_register_board_info(mistral_boardinfo,
 			ARRAY_SIZE(mistral_boardinfo));
 
@@ -548,9 +537,11 @@ static void __init osk_init(void)
 
 	osk_flash_resource.end = osk_flash_resource.start = omap_cs3_phys();
 	osk_flash_resource.end += SZ_32M - 1;
+	osk5912_smc91x_resources[1].start = gpio_to_irq(0);
+	osk5912_smc91x_resources[1].end = gpio_to_irq(0);
+	osk5912_cf_resources[0].start = gpio_to_irq(62);
+	osk5912_cf_resources[0].end = gpio_to_irq(62);
 	platform_add_devices(osk5912_devices, ARRAY_SIZE(osk5912_devices));
-	omap_board_config = osk_config;
-	omap_board_config_size = ARRAY_SIZE(osk_config);
 
 	l = omap_readl(USB_TRANSCEIVER_CTRL);
 	l |= (3 << 1);
@@ -564,9 +555,15 @@ static void __init osk_init(void)
 		gpio_direction_input(OMAP_MPUIO(1));
 
 	omap_serial_init();
+	osk_i2c_board_info[0].irq = gpio_to_irq(OMAP_MPUIO(1));
 	omap_register_i2c_bus(1, 400, osk_i2c_board_info,
 			      ARRAY_SIZE(osk_i2c_board_info));
 	osk_mistral_init();
+
+#ifdef	CONFIG_OMAP_OSK_MISTRAL
+	omapfb_set_lcd_config(&osk_lcd_config);
+#endif
+
 }
 
 MACHINE_START(OMAP_OSK, "TI-OSK")

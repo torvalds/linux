@@ -1100,7 +1100,7 @@ EXPORT_SYMBOL(hash_for_home_map);
 
 /*
  * cpu_cacheable_map lists all the cpus whose caches the hypervisor can
- * flush on our behalf.  It is set to cpu_possible_map OR'ed with
+ * flush on our behalf.  It is set to cpu_possible_mask OR'ed with
  * hash_for_home_map, and it is what should be passed to
  * hv_flush_remote() to flush all caches.  Note that if there are
  * dedicated hypervisor driver tiles that have authorized use of their
@@ -1186,7 +1186,7 @@ static void __init setup_cpu_maps(void)
 			      sizeof(cpu_lotar_map));
 	if (rc < 0) {
 		pr_err("warning: no HV_INQ_TILES_LOTAR; using AVAIL\n");
-		cpu_lotar_map = cpu_possible_map;
+		cpu_lotar_map = *cpu_possible_mask;
 	}
 
 #if CHIP_HAS_CBOX_HOME_MAP()
@@ -1196,9 +1196,9 @@ static void __init setup_cpu_maps(void)
 			      sizeof(hash_for_home_map));
 	if (rc < 0)
 		early_panic("hv_inquire_tiles(HFH_CACHE) failed: rc %d\n", rc);
-	cpumask_or(&cpu_cacheable_map, &cpu_possible_map, &hash_for_home_map);
+	cpumask_or(&cpu_cacheable_map, cpu_possible_mask, &hash_for_home_map);
 #else
-	cpu_cacheable_map = cpu_possible_map;
+	cpu_cacheable_map = *cpu_possible_mask;
 #endif
 }
 

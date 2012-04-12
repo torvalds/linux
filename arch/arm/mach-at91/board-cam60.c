@@ -140,6 +140,7 @@ static struct atmel_nand_data __initdata cam60_nand_data = {
 	.det_pin	= -EINVAL,
 	.rdy_pin	= AT91_PIN_PA9,
 	.enable_pin	= AT91_PIN_PA7,
+	.ecc_mode	= NAND_ECC_SOFT,
 	.parts		= cam60_nand_partition,
 	.num_parts	= ARRAY_SIZE(cam60_nand_partition),
 };

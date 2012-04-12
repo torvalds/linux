@@ -29,7 +29,7 @@
 #define NFS_MNT_VERSION		1
 #define NFS_MNT3_VERSION	3
 
-#define NFS_PIPE_DIRNAME "/nfs"
+#define NFS_PIPE_DIRNAME "nfs"
 
 /*
  * NFS stats. The good thing with these values is that NFSv3 errors are

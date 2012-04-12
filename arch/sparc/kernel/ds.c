@@ -1244,10 +1244,7 @@ static struct vio_driver ds_driver = {
 	.id_table	= ds_match,
 	.probe		= ds_probe,
 	.remove		= ds_remove,
-	.driver		= {
-		.name	= "ds",
-		.owner	= THIS_MODULE,
-	}
+	.name		= "ds",
 };
 
 static int __init ds_init(void)

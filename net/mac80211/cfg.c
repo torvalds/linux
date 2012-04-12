@@ -412,6 +412,10 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		sinfo->llid = le16_to_cpu(sta->llid);
 		sinfo->plid = le16_to_cpu(sta->plid);
 		sinfo->plink_state = sta->plink_state;
+		if (test_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN)) {
+			sinfo->filled |= STATION_INFO_T_OFFSET;
+			sinfo->t_offset = sta->t_offset;
+		}
 #endif
 	}
 
@@ -640,6 +644,10 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	ieee80211_bss_info_change_notify(sdata, changed);
 
+	netif_carrier_on(dev);
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		netif_carrier_on(vlan->dev);
+
 	return 0;
 }
 
@@ -665,7 +673,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 
 static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata, *vlan;
 	struct beacon_data *old;
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
@@ -673,6 +681,10 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	old = rtnl_dereference(sdata->u.ap.beacon);
 	if (!old)
 		return -ENOENT;
+
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
+		netif_carrier_off(vlan->dev);
+	netif_carrier_off(dev);
 
 	RCU_INIT_POINTER(sdata->u.ap.beacon, NULL);
 
@@ -1235,6 +1247,7 @@ static int copy_mesh_setup(struct ieee80211_if_mesh *ifmsh,
 	/* now copy the rest of the setup parameters */
 	ifmsh->mesh_id_len = setup->mesh_id_len;
 	memcpy(ifmsh->mesh_id, setup->mesh_id, ifmsh->mesh_id_len);
+	ifmsh->mesh_sp_id = setup->sync_method;
 	ifmsh->mesh_pp_id = setup->path_sel_proto;
 	ifmsh->mesh_pm_id = setup->path_metric;
 	ifmsh->security = IEEE80211_MESH_SEC_NONE;
@@ -1279,6 +1292,9 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 		conf->dot11MeshTTL = nconf->element_ttl;
 	if (_chg_mesh_attr(NL80211_MESHCONF_AUTO_OPEN_PLINKS, mask))
 		conf->auto_open_plinks = nconf->auto_open_plinks;
+	if (_chg_mesh_attr(NL80211_MESHCONF_SYNC_OFFSET_MAX_NEIGHBOR, mask))
+		conf->dot11MeshNbrOffsetMaxNeighbor =
+			nconf->dot11MeshNbrOffsetMaxNeighbor;
 	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES, mask))
 		conf->dot11MeshHWMPmaxPREQretries =
 			nconf->dot11MeshHWMPmaxPREQretries;
@@ -1437,6 +1453,9 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	if (!local->ops->conf_tx)
 		return -EOPNOTSUPP;
 
+	if (local->hw.queues < IEEE80211_NUM_ACS)
+		return -EOPNOTSUPP;
+
 	memset(&p, 0, sizeof(p));
 	p.aifs = params->aifs;
 	p.cw_max = params->cwmax;
@@ -1449,14 +1468,11 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 	 */
 	p.uapsd = false;
 
-	if (params->queue >= local->hw.queues)
-		return -EINVAL;
-
-	sdata->tx_conf[params->queue] = p;
-	if (drv_conf_tx(local, sdata, params->queue, &p)) {
+	sdata->tx_conf[params->ac] = p;
+	if (drv_conf_tx(local, sdata, params->ac, &p)) {
 		wiphy_debug(local->hw.wiphy,
-			    "failed to set TX queue parameters for queue %d\n",
-			    params->queue);
+			    "failed to set TX queue parameters for AC %d\n",
+			    params->ac);
 		return -EINVAL;
 	}
 
@@ -2090,6 +2106,10 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 
 	IEEE80211_SKB_CB(skb)->flags = flags;
 
+	if (flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		IEEE80211_SKB_CB(skb)->hw_queue =
+			local->hw.offchannel_tx_hw_queue;
+
 	skb->dev = sdata->dev;
 
 	*cookie = (unsigned long) skb;
@@ -2131,6 +2151,8 @@ static int ieee80211_mgmt_tx(struct wiphy *wiphy, struct net_device *dev,
 		/* modify cookie to prevent API mismatches */
 		*cookie ^= 2;
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_TX_OFFCHAN;
+		IEEE80211_SKB_CB(skb)->hw_queue =
+			local->hw.offchannel_tx_hw_queue;
 		local->hw_roc_skb = skb;
 		local->hw_roc_skb_for_status = skb;
 		mutex_unlock(&local->mtx);
@@ -2350,8 +2372,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_req.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(&sdata->vif, skb);
-		ieee80211_add_ext_srates_ie(&sdata->vif, skb);
+		ieee80211_add_srates_ie(&sdata->vif, skb, false);
+		ieee80211_add_ext_srates_ie(&sdata->vif, skb, false);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_RESPONSE:
@@ -2364,8 +2386,8 @@ ieee80211_prep_tdls_encap_data(struct wiphy *wiphy, struct net_device *dev,
 		tf->u.setup_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(&sdata->vif, skb);
-		ieee80211_add_ext_srates_ie(&sdata->vif, skb);
+		ieee80211_add_srates_ie(&sdata->vif, skb, false);
+		ieee80211_add_ext_srates_ie(&sdata->vif, skb, false);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	case WLAN_TDLS_SETUP_CONFIRM:
@@ -2425,8 +2447,8 @@ ieee80211_prep_tdls_direct(struct wiphy *wiphy, struct net_device *dev,
 		mgmt->u.action.u.tdls_discover_resp.capability =
 			cpu_to_le16(ieee80211_get_tdls_sta_capab(sdata));
 
-		ieee80211_add_srates_ie(&sdata->vif, skb);
-		ieee80211_add_ext_srates_ie(&sdata->vif, skb);
+		ieee80211_add_srates_ie(&sdata->vif, skb, false);
+		ieee80211_add_ext_srates_ie(&sdata->vif, skb, false);
 		ieee80211_tdls_add_ext_capab(skb);
 		break;
 	default:
@@ -2673,6 +2695,13 @@ ieee80211_wiphy_get_channel(struct wiphy *wiphy)
 	return local->oper_channel;
 }
 
+#ifdef CONFIG_PM
+static void ieee80211_set_wakeup(struct wiphy *wiphy, bool enabled)
+{
+	drv_set_wakeup(wiphy_priv(wiphy), enabled);
+}
+#endif
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -2741,4 +2770,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.probe_client = ieee80211_probe_client,
 	.get_channel = ieee80211_wiphy_get_channel,
 	.set_noack_map = ieee80211_set_noack_map,
+#ifdef CONFIG_PM
+	.set_wakeup = ieee80211_set_wakeup,
+#endif
 };

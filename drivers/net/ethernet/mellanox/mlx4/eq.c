@@ -79,7 +79,8 @@ enum {
 			       (1ull << MLX4_EVENT_TYPE_SRQ_LIMIT)	    | \
 			       (1ull << MLX4_EVENT_TYPE_CMD)		    | \
 			       (1ull << MLX4_EVENT_TYPE_COMM_CHANNEL)       | \
-			       (1ull << MLX4_EVENT_TYPE_FLR_EVENT))
+			       (1ull << MLX4_EVENT_TYPE_FLR_EVENT)	    | \
+			       (1ull << MLX4_EVENT_TYPE_FATAL_WARNING))
 
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {
@@ -443,6 +444,35 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			queue_work(priv->mfunc.master.comm_wq,
 				   &priv->mfunc.master.slave_flr_event_work);
 			break;
+
+		case MLX4_EVENT_TYPE_FATAL_WARNING:
+			if (eqe->subtype == MLX4_FATAL_WARNING_SUBTYPE_WARMING) {
+				if (mlx4_is_master(dev))
+					for (i = 0; i < dev->num_slaves; i++) {
+						mlx4_dbg(dev, "%s: Sending "
+							"MLX4_FATAL_WARNING_SUBTYPE_WARMING"
+							" to slave: %d\n", __func__, i);
+						if (i == dev->caps.function)
+							continue;
+						mlx4_slave_event(dev, i, eqe);
+					}
+				mlx4_err(dev, "Temperature Threshold was reached! "
+					"Threshold: %d celsius degrees; "
+					"Current Temperature: %d\n",
+					be16_to_cpu(eqe->event.warming.warning_threshold),
+					be16_to_cpu(eqe->event.warming.current_temperature));
+			} else
+				mlx4_warn(dev, "Unhandled event FATAL WARNING (%02x), "
+					  "subtype %02x on EQ %d at index %u. owner=%x, "
+					  "nent=0x%x, slave=%x, ownership=%s\n",
+					  eqe->type, eqe->subtype, eq->eqn,
+					  eq->cons_index, eqe->owner, eq->nent,
+					  eqe->slave_id,
+					  !!(eqe->owner & 0x80) ^
+					  !!(eq->cons_index & eq->nent) ? "HW" : "SW");
+
+			break;
+
 		case MLX4_EVENT_TYPE_EEC_CATAS_ERROR:
 		case MLX4_EVENT_TYPE_ECC_DETECT:
 		default:
@@ -1036,7 +1066,7 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int vec = 0, err = 0, i;
 
-	spin_lock(&priv->msix_ctl.pool_lock);
+	mutex_lock(&priv->msix_ctl.pool_lock);
 	for (i = 0; !vec && i < dev->caps.comp_pool; i++) {
 		if (~priv->msix_ctl.pool_bm & 1ULL << i) {
 			priv->msix_ctl.pool_bm |= 1ULL << i;
@@ -1058,7 +1088,7 @@ int mlx4_assign_eq(struct mlx4_dev *dev, char* name, int * vector)
 			eq_set_ci(&priv->eq_table.eq[vec], 1);
 		}
 	}
-	spin_unlock(&priv->msix_ctl.pool_lock);
+	mutex_unlock(&priv->msix_ctl.pool_lock);
 
 	if (vec) {
 		*vector = vec;
@@ -1079,13 +1109,13 @@ void mlx4_release_eq(struct mlx4_dev *dev, int vec)
 	if (likely(i >= 0)) {
 		/*sanity check , making sure were not trying to free irq's
 		  Belonging to a legacy EQ*/
-		spin_lock(&priv->msix_ctl.pool_lock);
+		mutex_lock(&priv->msix_ctl.pool_lock);
 		if (priv->msix_ctl.pool_bm & 1ULL << i) {
 			free_irq(priv->eq_table.eq[vec].irq,
 				 &priv->eq_table.eq[vec]);
 			priv->msix_ctl.pool_bm &= ~(1ULL << i);
 		}
-		spin_unlock(&priv->msix_ctl.pool_lock);
+		mutex_unlock(&priv->msix_ctl.pool_lock);
 	}
 
 }

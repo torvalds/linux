@@ -44,7 +44,6 @@
 #include <linux/security.h>
 #include <net/sock.h>
 
-#include <asm/system.h>
 #include <linux/uaccess.h>
 
 #include <net/bluetooth/bluetooth.h>

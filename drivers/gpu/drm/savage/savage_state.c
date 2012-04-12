@@ -1057,7 +1057,8 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 				DRM_ERROR("indexed drawing command extends "
 					  "beyond end of command buffer\n");
 				DMA_FLUSH();
-				return -EINVAL;
+				ret = -EINVAL;
+				goto done;
 			}
 			/* fall through */
 		case SAVAGE_CMD_DMA_PRIM:
@@ -1076,7 +1077,7 @@ int savage_bci_cmdbuf(struct drm_device *dev, void *data, struct drm_file *file_
 				      cmdbuf->vb_stride,
 				      cmdbuf->nbox, cmdbuf->box_addr);
 				if (ret != 0)
-					return ret;
+					goto done;
 				first_draw_cmd = NULL;
 			}
 		}

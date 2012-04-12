@@ -20,6 +20,8 @@
  *	software is provided AS-IS with no warranties.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -33,6 +35,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 
+#define DEBUG
 #define NAME "it8712f_wdt"
 
 MODULE_AUTHOR("Jorge Boncompte - DTI2 <jorge@dti2.net>");
@@ -45,8 +48,8 @@ static int margin = 60;		/* in seconds */
 module_param(margin, int, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
 
 static unsigned long wdt_open;
@@ -158,10 +161,10 @@ static void it8712f_wdt_update_margin(void)
 	 */
 	if (units <= max_units) {
 		config |= WDT_UNIT_SEC; /* else UNIT is MINUTES */
-		printk(KERN_INFO NAME ": timer margin %d seconds\n", units);
+		pr_info("timer margin %d seconds\n", units);
 	} else {
 		units /= 60;
-		printk(KERN_INFO NAME ": timer margin %d minutes\n", units);
+		pr_info("timer margin %d minutes\n", units);
 	}
 	superio_outb(config, WDT_CONFIG);
 
@@ -184,7 +187,7 @@ static int it8712f_wdt_enable(void)
 	if (ret)
 		return ret;
 
-	printk(KERN_DEBUG NAME ": enabling watchdog timer\n");
+	pr_debug("enabling watchdog timer\n");
 	superio_select(LDN_GPIO);
 
 	superio_outb(wdt_control_reg, WDT_CONTROL);
@@ -204,7 +207,7 @@ static int it8712f_wdt_disable(void)
 	if (ret)
 		return ret;
 
-	printk(KERN_DEBUG NAME ": disabling watchdog timer\n");
+	pr_debug("disabling watchdog timer\n");
 	superio_select(LDN_GPIO);
 
 	superio_outb(0, WDT_CONFIG);
@@ -331,12 +334,10 @@ static int it8712f_wdt_open(struct inode *inode, struct file *file)
 static int it8712f_wdt_release(struct inode *inode, struct file *file)
 {
 	if (expect_close != 42) {
-		printk(KERN_WARNING NAME
-			": watchdog device closed unexpectedly, will not"
-			" disable the watchdog timer\n");
+		pr_warn("watchdog device closed unexpectedly, will not disable the watchdog timer\n");
 	} else if (!nowayout) {
 		if (it8712f_wdt_disable())
-			printk(KERN_WARNING NAME "Watchdog disable failed\n");
+			pr_warn("Watchdog disable failed\n");
 	}
 	expect_close = 0;
 	clear_bit(0, &wdt_open);
@@ -374,13 +375,13 @@ static int __init it8712f_wdt_find(unsigned short *address)
 	superio_select(LDN_GAME);
 	superio_outb(1, ACT_REG);
 	if (!(superio_inb(ACT_REG) & 0x01)) {
-		printk(KERN_ERR NAME ": Device not activated, skipping\n");
+		pr_err("Device not activated, skipping\n");
 		goto exit;
 	}
 
 	*address = superio_inw(BASE_REG);
 	if (*address == 0) {
-		printk(KERN_ERR NAME ": Base address not set, skipping\n");
+		pr_err("Base address not set, skipping\n");
 		goto exit;
 	}
 
@@ -394,8 +395,7 @@ static int __init it8712f_wdt_find(unsigned short *address)
 	if (margin > (max_units * 60))
 		margin = (max_units * 60);
 
-	printk(KERN_INFO NAME ": Found IT%04xF chip revision %d - "
-		"using DogFood address 0x%x\n",
+	pr_info("Found IT%04xF chip revision %d - using DogFood address 0x%x\n",
 		chip_type, revision, *address);
 
 exit:
@@ -411,27 +411,26 @@ static int __init it8712f_wdt_init(void)
 		return -ENODEV;
 
 	if (!request_region(address, 1, "IT8712F Watchdog")) {
-		printk(KERN_WARNING NAME ": watchdog I/O region busy\n");
+		pr_warn("watchdog I/O region busy\n");
 		return -EBUSY;
 	}
 
 	err = it8712f_wdt_disable();
 	if (err) {
-		printk(KERN_ERR NAME ": unable to disable watchdog timer.\n");
+		pr_err("unable to disable watchdog timer\n");
 		goto out;
 	}
 
 	err = register_reboot_notifier(&it8712f_wdt_notifier);
 	if (err) {
-		printk(KERN_ERR NAME ": unable to register reboot notifier\n");
+		pr_err("unable to register reboot notifier\n");
 		goto out;
 	}
 
 	err = misc_register(&it8712f_wdt_miscdev);
 	if (err) {
-		printk(KERN_ERR NAME
-			": cannot register miscdev on minor=%d (err=%d)\n",
-			WATCHDOG_MINOR, err);
+		pr_err("cannot register miscdev on minor=%d (err=%d)\n",
+		       WATCHDOG_MINOR, err);
 		goto reboot_out;
 	}
 

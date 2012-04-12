@@ -815,10 +815,9 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 	lbs_deb_enter(LBS_DEB_CS);
 
 	card = kzalloc(sizeof(struct if_cs_card), GFP_KERNEL);
-	if (!card) {
-		pr_err("error in kzalloc\n");
+	if (!card)
 		goto out;
-	}
+
 	card->p_dev = p_dev;
 	p_dev->priv = card;
 
@@ -952,10 +951,8 @@ out2:
 out1:
 	pcmcia_disable_device(p_dev);
 out:
-	if (helper)
-		release_firmware(helper);
-	if (mainfw)
-		release_firmware(mainfw);
+	release_firmware(helper);
+	release_firmware(mainfw);
 
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;

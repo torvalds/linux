@@ -809,7 +809,33 @@ static void rt2800pci_pretbtt_tasklet(unsigned long data)
 static void rt2800pci_tbtt_tasklet(unsigned long data)
 {
 	struct rt2x00_dev *rt2x00dev = (struct rt2x00_dev *)data;
+	struct rt2800_drv_data *drv_data = rt2x00dev->drv_data;
+	u32 reg;
+
 	rt2x00lib_beacondone(rt2x00dev);
+
+	if (rt2x00dev->intf_ap_count) {
+		/*
+		 * The rt2800pci hardware tbtt timer is off by 1us per tbtt
+		 * causing beacon skew and as a result causing problems with
+		 * some powersaving clients over time. Shorten the beacon
+		 * interval every 64 beacons by 64us to mitigate this effect.
+		 */
+		if (drv_data->tbtt_tick == (BCN_TBTT_OFFSET - 2)) {
+			rt2x00pci_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+			rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_INTERVAL,
+					   (rt2x00dev->beacon_int * 16) - 1);
+			rt2x00pci_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		} else if (drv_data->tbtt_tick == (BCN_TBTT_OFFSET - 1)) {
+			rt2x00pci_register_read(rt2x00dev, BCN_TIME_CFG, &reg);
+			rt2x00_set_field32(&reg, BCN_TIME_CFG_BEACON_INTERVAL,
+					   (rt2x00dev->beacon_int * 16));
+			rt2x00pci_register_write(rt2x00dev, BCN_TIME_CFG, reg);
+		}
+		drv_data->tbtt_tick++;
+		drv_data->tbtt_tick %= BCN_TBTT_OFFSET;
+	}
+
 	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2800pci_enable_interrupt(rt2x00dev, INT_MASK_CSR_TBTT);
 }

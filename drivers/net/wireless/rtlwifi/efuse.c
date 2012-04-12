@@ -777,7 +777,7 @@ static void efuse_write_data_case1(struct ieee80211_hw *hw, u16 *efuse_addr,
 				dataempty = false;
 		}
 
-		if (dataempty == false) {
+		if (!dataempty) {
 			*efuse_addr = *efuse_addr + (tmp_word_cnts * 2) + 1;
 			*write_state = PG_STATE_HEADER;
 		} else {

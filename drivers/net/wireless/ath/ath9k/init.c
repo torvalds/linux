@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/dma-mapping.h>
 #include <linux/slab.h>
 #include <linux/ath9k_platform.h>
@@ -172,7 +174,7 @@ static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		iowrite32(val, sc->mem + reg_offset);
@@ -188,7 +190,7 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		val = ioread32(sc->mem + reg_offset);
@@ -219,7 +221,7 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 	unsigned long uninitialized_var(flags);
 	u32 val;
 
-	if (ah->config.serialize_regmode == SER_REG_MODE_ON) {
+	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		spin_lock_irqsave(&sc->sc_serial_rw, flags);
 		val = __ath9k_reg_rmw(sc, reg_offset, set, clr);
 		spin_unlock_irqrestore(&sc->sc_serial_rw, flags);
@@ -484,19 +486,11 @@ static void ath9k_init_misc(struct ath_softc *sc)
 {
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	int i = 0;
+
 	setup_timer(&common->ani.timer, ath_ani_calibrate, (unsigned long)sc);
 
 	sc->config.txpowlimit = ATH_TXPOWER_MAX;
-
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
-		sc->sc_flags |= SC_OP_TXAGGR;
-		sc->sc_flags |= SC_OP_RXAGGR;
-	}
-
-	sc->rx.defant = ath9k_hw_getdefantenna(sc->sc_ah);
-
 	memcpy(common->bssidmask, ath_bcast_mac, ETH_ALEN);
-
 	sc->beacon.slottime = ATH9K_SLOT_TIME_9;
 
 	for (i = 0; i < ARRAY_SIZE(sc->beacon.bslot); i++)
@@ -526,6 +520,8 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	ah->reg_ops.rmw = ath9k_reg_rmw;
 	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
+
+	sc->dfs_detector = dfs_pattern_detector_init(NL80211_DFS_UNSET);
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -684,11 +680,12 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS;
+	hw->wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	hw->queues = 4;
 	hw->max_rates = 4;
 	hw->channel_change_time = 5000;
-	hw->max_listen_interval = 10;
+	hw->max_listen_interval = 1;
 	hw->max_rate_tries = 10;
 	hw->sta_data_size = sizeof(struct ath_node);
 	hw->vif_data_size = sizeof(struct ath_vif);
@@ -787,6 +784,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 			goto error_world;
 	}
 
+	setup_timer(&sc->rx_poll_timer, ath_rx_poll, (unsigned long)sc);
 	sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 
 	ath_init_leds(sc);
@@ -829,6 +827,8 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 			ath_tx_cleanupq(sc, &sc->tx.txq[i]);
 
 	ath9k_hw_deinit(sc->sc_ah);
+	if (sc->dfs_detector != NULL)
+		sc->dfs_detector->exit(sc->dfs_detector);
 
 	kfree(sc->sc_ah);
 	sc->sc_ah = NULL;
@@ -874,17 +874,14 @@ static int __init ath9k_init(void)
 	/* Register rate control algorithm */
 	error = ath_rate_control_register();
 	if (error != 0) {
-		printk(KERN_ERR
-			"ath9k: Unable to register rate control "
-			"algorithm: %d\n",
-			error);
+		pr_err("Unable to register rate control algorithm: %d\n",
+		       error);
 		goto err_out;
 	}
 
 	error = ath_pci_init();
 	if (error < 0) {
-		printk(KERN_ERR
-			"ath9k: No PCI devices found, driver not installed.\n");
+		pr_err("No PCI devices found, driver not installed\n");
 		error = -ENODEV;
 		goto err_rate_unregister;
 	}
@@ -913,6 +910,6 @@ static void __exit ath9k_exit(void)
 	ath_ahb_exit();
 	ath_pci_exit();
 	ath_rate_control_unregister();
-	printk(KERN_INFO "%s: Driver unloaded\n", dev_info);
+	pr_info("%s: Driver unloaded\n", dev_info);
 }
 module_exit(ath9k_exit);

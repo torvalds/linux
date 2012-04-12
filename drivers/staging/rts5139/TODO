@@ -2,4 +2,8 @@ TODO:
 - support more USB card reader of Realtek family
 - use kernel coding style
 - checkpatch.pl fixes
-
+- stop having thousands of lines of code duplicated with staging/rts_pstor
+- This driver contains an entire SD/MMC stack -- it should use the stack in
+  drivers/mmc instead, as a host driver e.g. drivers/mmc/host/realtek-usb.c;
+  see drivers/mmc/host/ushc.c as an example.
+- This driver presents cards as SCSI devices, but they should be MMC devices.

@@ -3,6 +3,7 @@
  */
 
 #include <linux/nl80211.h>
+#include <net/cfg80211.h>
 #include "ieee80211_i.h"
 
 static enum ieee80211_chan_mode

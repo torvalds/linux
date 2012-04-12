@@ -226,7 +226,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	int r, i;
 
 	rdev = radeon_get_rdev(bo->bdev);
-	r = radeon_fence_create(rdev, &fence, rdev->copy_ring);
+	r = radeon_fence_create(rdev, &fence, radeon_copy_ring_index(rdev));
 	if (unlikely(r)) {
 		return r;
 	}
@@ -255,7 +255,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
 		return -EINVAL;
 	}
-	if (!rdev->ring[rdev->copy_ring].ready) {
+	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
 		return -EINVAL;
 	}
@@ -266,7 +266,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	if (rdev->family >= CHIP_R600) {
 		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
 			/* no need to sync to our own or unused rings */
-			if (i == rdev->copy_ring || !rdev->ring[i].ready)
+			if (i == radeon_copy_ring_index(rdev) || !rdev->ring[i].ready)
 				continue;
 
 			if (!fence->semaphore) {
@@ -283,12 +283,12 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 			radeon_semaphore_emit_signal(rdev, i, fence->semaphore);
 			radeon_ring_unlock_commit(rdev, &rdev->ring[i]);
 
-			r = radeon_ring_lock(rdev, &rdev->ring[rdev->copy_ring], 3);
+			r = radeon_ring_lock(rdev, &rdev->ring[radeon_copy_ring_index(rdev)], 3);
 			/* FIXME: handle ring lock error */
 			if (r)
 				continue;
-			radeon_semaphore_emit_wait(rdev, rdev->copy_ring, fence->semaphore);
-			radeon_ring_unlock_commit(rdev, &rdev->ring[rdev->copy_ring]);
+			radeon_semaphore_emit_wait(rdev, radeon_copy_ring_index(rdev), fence->semaphore);
+			radeon_ring_unlock_commit(rdev, &rdev->ring[radeon_copy_ring_index(rdev)]);
 		}
 	}
 
@@ -410,7 +410,8 @@ static int radeon_bo_move(struct ttm_buffer_object *bo,
 		radeon_move_null(bo, new_mem);
 		return 0;
 	}
-	if (!rdev->ring[RADEON_RING_TYPE_GFX_INDEX].ready || rdev->asic->copy == NULL) {
+	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready ||
+	    rdev->asic->copy.copy == NULL) {
 		/* use memcpy */
 		goto memcpy;
 	}

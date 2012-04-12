@@ -499,7 +499,8 @@ il3945_pass_packet_to_mac80211(struct il_priv *il, struct il_rx_buf *rxb,
 				      le32_to_cpu(rx_end->status), stats);
 
 	skb_add_rx_frag(skb, 0, rxb->page,
-			(void *)rx_hdr->payload - (void *)pkt, len);
+			(void *)rx_hdr->payload - (void *)pkt, len,
+			len);
 
 	il_update_stats(il, false, fc, len);
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
@@ -1855,11 +1856,12 @@ il3945_bg_reg_txpower_periodic(struct work_struct *work)
 	struct il_priv *il = container_of(work, struct il_priv,
 					  _3945.thermal_periodic.work);
 
-	if (test_bit(S_EXIT_PENDING, &il->status))
-		return;
-
 	mutex_lock(&il->mutex);
+	if (test_bit(S_EXIT_PENDING, &il->status) || il->txq == NULL)
+		goto out;
+
 	il3945_reg_txpower_periodic(il);
+out:
 	mutex_unlock(&il->mutex);
 }
 

@@ -30,6 +30,7 @@
 #include <plat/omap-pm.h>
 #include "common.h"
 
+#include "iomap.h"
 #include "mux.h"
 #include "control.h"
 #include "display.h"
@@ -98,7 +99,7 @@ static const struct omap_dss_hwmod_data omap4_dss_hwmod_data[] __initdata = {
 	{ "dss_hdmi", "omapdss_hdmi", -1 },
 };
 
-static void omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
+static void __init omap4_hdmi_mux_pads(enum omap_hdmi_flags flags)
 {
 	u32 reg;
 	u16 control_i2c_1;
@@ -157,7 +158,7 @@ static int omap4_dsi_mux_pads(int dsi_id, unsigned lanes)
 	return 0;
 }
 
-int omap_hdmi_init(enum omap_hdmi_flags flags)
+int __init omap_hdmi_init(enum omap_hdmi_flags flags)
 {
 	if (cpu_is_omap44xx())
 		omap4_hdmi_mux_pads(flags);

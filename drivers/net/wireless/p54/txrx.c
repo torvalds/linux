@@ -914,8 +914,7 @@ void p54_tx_80211(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->hw_queue = queue;
 	txhdr->backlog = priv->tx_stats[queue].len - 1;
 	memset(txhdr->durations, 0, sizeof(txhdr->durations));
-	txhdr->tx_antenna = ((info->antenna_sel_tx == 0) ?
-		2 : info->antenna_sel_tx - 1) & priv->tx_diversity_mask;
+	txhdr->tx_antenna = 2 & priv->tx_diversity_mask;
 	if (priv->rxhw == 5) {
 		txhdr->longbow.cts_rate = cts_rate;
 		txhdr->longbow.output_power = cpu_to_le16(priv->output_power);

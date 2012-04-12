@@ -748,7 +748,8 @@ static void ath_rc_rate_set_rtscts(struct ath_softc *sc,
 	 * If 802.11g protection is enabled, determine whether to use RTS/CTS or
 	 * just CTS.  Note that this is only done for OFDM/HT unicast frames.
 	 */
-	if ((sc->sc_flags & SC_OP_PROTECT_ENABLE) &&
+	if ((tx_info->control.vif &&
+	     tx_info->control.vif->bss_conf.use_cts_prot) &&
 	    (rate_table->info[rix].phy == WLAN_RC_PHY_OFDM ||
 	     WLAN_RC_PHY_HT(rate_table->info[rix].phy))) {
 		rates[0].flags |= IEEE80211_TX_RC_USE_CTS_PROTECT;
@@ -1298,12 +1299,13 @@ static u8 ath_rc_build_ht_caps(struct ath_softc *sc, struct ieee80211_sta *sta,
 	return caps;
 }
 
-static bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an,
+static bool ath_tx_aggr_check(struct ath_softc *sc, struct ieee80211_sta *sta,
 			      u8 tidno)
 {
+	struct ath_node *an = (struct ath_node *)sta->drv_priv;
 	struct ath_atx_tid *txtid;
 
-	if (!(sc->sc_flags & SC_OP_TXAGGR))
+	if (!sta->ht_cap.ht_supported)
 		return false;
 
 	txtid = ATH_AN_2_TID(an, tidno);
@@ -1374,13 +1376,11 @@ static void ath_tx_status(void *priv, struct ieee80211_supported_band *sband,
 		if (ieee80211_is_data_qos(fc) &&
 		    skb_get_queue_mapping(skb) != IEEE80211_AC_VO) {
 			u8 *qc, tid;
-			struct ath_node *an;
 
 			qc = ieee80211_get_qos_ctl(hdr);
 			tid = qc[0] & 0xf;
-			an = (struct ath_node *)sta->drv_priv;
 
-			if(ath_tx_aggr_check(sc, an, tid))
+			if(ath_tx_aggr_check(sc, sta, tid))
 				ieee80211_start_tx_ba_session(sta, tid, 0);
 		}
 	}
@@ -1436,7 +1436,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 
 static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 			    struct ieee80211_sta *sta, void *priv_sta,
-			    u32 changed, enum nl80211_channel_type oper_chan_type)
+			    u32 changed)
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
@@ -1447,12 +1447,11 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 
 	/* FIXME: Handle AP mode later when we support CWM */
 
-	if (changed & IEEE80211_RC_HT_CHANGED) {
+	if (changed & IEEE80211_RC_BW_CHANGED) {
 		if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 			return;
 
-		if (oper_chan_type == NL80211_CHAN_HT40MINUS ||
-		    oper_chan_type == NL80211_CHAN_HT40PLUS)
+		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			oper_cw40 = true;
 
 		if (oper_cw40)
@@ -1479,12 +1478,6 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 }
 
 #ifdef CONFIG_ATH9K_DEBUGFS
-
-static int ath9k_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 				size_t count, loff_t *ppos)
@@ -1553,7 +1546,7 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 
 static const struct file_operations fops_rcstat = {
 	.read = read_file_rcstat,
-	.open = ath9k_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE
 };
 

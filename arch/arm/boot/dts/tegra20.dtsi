@@ -4,12 +4,44 @@
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&intc>;
 
+	pmc@7000f400 {
+		compatible = "nvidia,tegra20-pmc";
+		reg = <0x7000e400 0x400>;
+	};
+
 	intc: interrupt-controller@50041000 {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		reg = < 0x50041000 0x1000 >,
 		      < 0x50040100 0x0100 >;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 56 0x04
+			      0 57 0x04>;
+	};
+
+	apbdma: dma@6000a000 {
+		compatible = "nvidia,tegra20-apbdma";
+		reg = <0x6000a000 0x1200>;
+		interrupts = < 0 104 0x04
+			       0 105 0x04
+			       0 106 0x04
+			       0 107 0x04
+			       0 108 0x04
+			       0 109 0x04
+			       0 110 0x04
+			       0 111 0x04
+			       0 112 0x04
+			       0 113 0x04
+			       0 114 0x04
+			       0 115 0x04
+			       0 116 0x04
+			       0 117 0x04
+			       0 118 0x04
+			       0 119 0x04 >;
 	};
 
 	i2c@7000c000 {
@@ -44,18 +76,18 @@
 		interrupts = < 0 53 0x04 >;
 	};
 
-	i2s@70002800 {
+	tegra_i2s1: i2s@70002800 {
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002800 0x200>;
 		interrupts = < 0 13 0x04 >;
-		dma-channel = < 2 >;
+		nvidia,dma-request-selector = < &apbdma 2 >;
 	};
 
-	i2s@70002a00 {
+	tegra_i2s2: i2s@70002a00 {
 		compatible = "nvidia,tegra20-i2s";
 		reg = <0x70002a00 0x200>;
 		interrupts = < 0 3 0x04 >;
-		dma-channel = < 1 >;
+		nvidia,dma-request-selector = < &apbdma 1 >;
 	};
 
 	das@70000c00 {
@@ -75,6 +107,8 @@
 			       0 89 0x04 >;
 		#gpio-cells = <2>;
 		gpio-controller;
+		#interrupt-cells = <2>;
+		interrupt-controller;
 	};
 
 	pinmux: pinmux@70000000 {
@@ -120,6 +154,13 @@
 		interrupts = < 0 91 0x04 >;
 	};
 
+	emc@7000f400 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nvidia,tegra20-emc";
+		reg = <0x7000f400 0x200>;
+	};
+
 	sdhci@c8000000 {
 		compatible = "nvidia,tegra20-sdhci";
 		reg = <0xc8000000 0x200>;
@@ -149,6 +190,7 @@
 		reg = <0xc5000000 0x4000>;
 		interrupts = < 0 20 0x04 >;
 		phy_type = "utmi";
+		nvidia,has-legacy-mode;
 	};
 
 	usb@c5004000 {

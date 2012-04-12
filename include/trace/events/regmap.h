@@ -4,10 +4,10 @@
 #if !defined(_TRACE_REGMAP_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_REGMAP_H
 
-#include <linux/device.h>
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
 
+struct device;
 struct regmap;
 
 /*
@@ -137,6 +137,42 @@ TRACE_EVENT(regcache_sync,
 
 	TP_printk("%s type=%s status=%s", __get_str(name),
 		  __get_str(type), __get_str(status))
+);
+
+DECLARE_EVENT_CLASS(regmap_bool,
+
+	TP_PROTO(struct device *dev, bool flag),
+
+	TP_ARGS(dev, flag),
+
+	TP_STRUCT__entry(
+		__string(	name,		dev_name(dev)	)
+		__field(	int,		flag		)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, dev_name(dev));
+		__entry->flag = flag;
+	),
+
+	TP_printk("%s flag=%d", __get_str(name),
+		  (int)__entry->flag)
+);
+
+DEFINE_EVENT(regmap_bool, regmap_cache_only,
+
+	TP_PROTO(struct device *dev, bool flag),
+
+	TP_ARGS(dev, flag)
+
+);
+
+DEFINE_EVENT(regmap_bool, regmap_cache_bypass,
+
+	TP_PROTO(struct device *dev, bool flag),
+
+	TP_ARGS(dev, flag)
+
 );
 
 #endif /* _TRACE_REGMAP_H */

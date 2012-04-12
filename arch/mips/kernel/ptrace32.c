@@ -32,7 +32,6 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 

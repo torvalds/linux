@@ -94,68 +94,6 @@ void iwlagn_temperature(struct iwl_priv *priv)
 	iwl_tt_handler(priv);
 }
 
-u16 iwl_eeprom_calib_version(struct iwl_shared *shrd)
-{
-	struct iwl_eeprom_calib_hdr *hdr;
-
-	hdr = (struct iwl_eeprom_calib_hdr *)iwl_eeprom_query_addr(shrd,
-							EEPROM_CALIB_ALL);
-	return hdr->version;
-
-}
-
-/*
- * EEPROM
- */
-static u32 eeprom_indirect_address(const struct iwl_shared *shrd, u32 address)
-{
-	u16 offset = 0;
-
-	if ((address & INDIRECT_ADDRESS) == 0)
-		return address;
-
-	switch (address & INDIRECT_TYPE_MSK) {
-	case INDIRECT_HOST:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_HOST);
-		break;
-	case INDIRECT_GENERAL:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_GENERAL);
-		break;
-	case INDIRECT_REGULATORY:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_REGULATORY);
-		break;
-	case INDIRECT_TXP_LIMIT:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_TXP_LIMIT);
-		break;
-	case INDIRECT_TXP_LIMIT_SIZE:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_TXP_LIMIT_SIZE);
-		break;
-	case INDIRECT_CALIBRATION:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_CALIBRATION);
-		break;
-	case INDIRECT_PROCESS_ADJST:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_PROCESS_ADJST);
-		break;
-	case INDIRECT_OTHERS:
-		offset = iwl_eeprom_query16(shrd, EEPROM_LINK_OTHERS);
-		break;
-	default:
-		IWL_ERR(shrd->trans, "illegal indirect type: 0x%X\n",
-		address & INDIRECT_TYPE_MSK);
-		break;
-	}
-
-	/* translate the offset from words to byte */
-	return (address & ADDRESS_MSK) + (offset << 1);
-}
-
-const u8 *iwl_eeprom_query_addr(const struct iwl_shared *shrd, size_t offset)
-{
-	u32 address = eeprom_indirect_address(shrd, offset);
-	BUG_ON(address >= shrd->cfg->base_params->eeprom_size);
-	return &shrd->eeprom[address];
-}
-
 struct iwl_mod_params iwlagn_mod_params = {
 	.amsdu_size_8K = 1,
 	.restart_fw = 1,
@@ -228,13 +166,13 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 				 IWL_SCD_BE_MSK | IWL_SCD_BK_MSK |
 				 IWL_SCD_MGMT_MSK;
 	if ((flush_control & BIT(IWL_RXON_CTX_PAN)) &&
-	    (priv->shrd->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
+	    (priv->valid_contexts != BIT(IWL_RXON_CTX_BSS)))
 		flush_cmd.fifo_control |= IWL_PAN_SCD_VO_MSK |
 				IWL_PAN_SCD_VI_MSK | IWL_PAN_SCD_BE_MSK |
 				IWL_PAN_SCD_BK_MSK | IWL_PAN_SCD_MGMT_MSK |
 				IWL_PAN_SCD_MULTICAST_MSK;
 
-	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
 		flush_cmd.fifo_control |= IWL_AGG_TX_QUEUE_MSK;
 
 	IWL_DEBUG_INFO(priv, "fifo queue control: 0X%x\n",
@@ -615,7 +553,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
 	IWL_DEBUG_COEX(priv, "Message Type = 0x%X, SSN = 0x%X, "
-			"Update Req = 0x%X",
+			"Update Req = 0x%X\n",
 		(BT_UART_MSG_FRAME1MSGTYPE_MSK & uart_msg->frame1) >>
 			BT_UART_MSG_FRAME1MSGTYPE_POS,
 		(BT_UART_MSG_FRAME1SSN_MSK & uart_msg->frame1) >>
@@ -624,7 +562,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 			BT_UART_MSG_FRAME1UPDATEREQ_POS);
 
 	IWL_DEBUG_COEX(priv, "Open connections = 0x%X, Traffic load = 0x%X, "
-			"Chl_SeqN = 0x%X, In band = 0x%X",
+			"Chl_SeqN = 0x%X, In band = 0x%X\n",
 		(BT_UART_MSG_FRAME2OPENCONNECTIONS_MSK & uart_msg->frame2) >>
 			BT_UART_MSG_FRAME2OPENCONNECTIONS_POS,
 		(BT_UART_MSG_FRAME2TRAFFICLOAD_MSK & uart_msg->frame2) >>
@@ -635,7 +573,7 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 			BT_UART_MSG_FRAME2INBAND_POS);
 
 	IWL_DEBUG_COEX(priv, "SCO/eSCO = 0x%X, Sniff = 0x%X, A2DP = 0x%X, "
-			"ACL = 0x%X, Master = 0x%X, OBEX = 0x%X",
+			"ACL = 0x%X, Master = 0x%X, OBEX = 0x%X\n",
 		(BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3) >>
 			BT_UART_MSG_FRAME3SCOESCO_POS,
 		(BT_UART_MSG_FRAME3SNIFF_MSK & uart_msg->frame3) >>
@@ -649,12 +587,12 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME3OBEX_MSK & uart_msg->frame3) >>
 			BT_UART_MSG_FRAME3OBEX_POS);
 
-	IWL_DEBUG_COEX(priv, "Idle duration = 0x%X",
+	IWL_DEBUG_COEX(priv, "Idle duration = 0x%X\n",
 		(BT_UART_MSG_FRAME4IDLEDURATION_MSK & uart_msg->frame4) >>
 			BT_UART_MSG_FRAME4IDLEDURATION_POS);
 
 	IWL_DEBUG_COEX(priv, "Tx Activity = 0x%X, Rx Activity = 0x%X, "
-			"eSCO Retransmissions = 0x%X",
+			"eSCO Retransmissions = 0x%X\n",
 		(BT_UART_MSG_FRAME5TXACTIVITY_MSK & uart_msg->frame5) >>
 			BT_UART_MSG_FRAME5TXACTIVITY_POS,
 		(BT_UART_MSG_FRAME5RXACTIVITY_MSK & uart_msg->frame5) >>
@@ -662,14 +600,14 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 		(BT_UART_MSG_FRAME5ESCORETRANSMIT_MSK & uart_msg->frame5) >>
 			BT_UART_MSG_FRAME5ESCORETRANSMIT_POS);
 
-	IWL_DEBUG_COEX(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X",
+	IWL_DEBUG_COEX(priv, "Sniff Interval = 0x%X, Discoverable = 0x%X\n",
 		(BT_UART_MSG_FRAME6SNIFFINTERVAL_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6SNIFFINTERVAL_POS,
 		(BT_UART_MSG_FRAME6DISCOVERABLE_MSK & uart_msg->frame6) >>
 			BT_UART_MSG_FRAME6DISCOVERABLE_POS);
 
 	IWL_DEBUG_COEX(priv, "Sniff Activity = 0x%X, Page = "
-			"0x%X, Inquiry = 0x%X, Connectable = 0x%X",
+			"0x%X, Inquiry = 0x%X, Connectable = 0x%X\n",
 		(BT_UART_MSG_FRAME7SNIFFACTIVITY_MSK & uart_msg->frame7) >>
 			BT_UART_MSG_FRAME7SNIFFACTIVITY_POS,
 		(BT_UART_MSG_FRAME7PAGE_MSK & uart_msg->frame7) >>
@@ -856,7 +794,7 @@ static u8 iwl_count_chain_bitmap(u32 chain_bitmap)
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	bool is_single = is_single_rx_stream(priv);
-	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->shrd->status);
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
 	u8 idle_rx_cnt, active_rx_cnt, valid_rx_cnt;
 	u32 active_chains;
 	u16 rx_chain;
@@ -868,7 +806,7 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	if (priv->chain_noise_data.active_chains)
 		active_chains = priv->chain_noise_data.active_chains;
 	else
-		active_chains = hw_params(priv).valid_rx_ant;
+		active_chains = priv->hw_params.valid_rx_ant;
 
 	if (cfg(priv)->bt_params &&
 	    cfg(priv)->bt_params->advanced_bt_coexist &&
@@ -1189,6 +1127,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 
 	memcpy(&rxon, &ctx->active, sizeof(rxon));
 
+	priv->ucode_loaded = false;
 	iwl_trans_stop_device(trans(priv));
 
 	priv->wowlan = true;
@@ -1237,7 +1176,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 				.flags = CMD_SYNC,
 				.data[0] = key_data.rsc_tsc,
 				.dataflags[0] = IWL_HCMD_DFL_NOCOPY,
-				.len[0] = sizeof(key_data.rsc_tsc),
+				.len[0] = sizeof(*key_data.rsc_tsc),
 			};
 
 			ret = iwl_dvm_send_cmd(priv, &rsc_tsc_cmd);
@@ -1294,6 +1233,12 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
 			 iwl_is_rfkill(priv) ? "RF" : "CT");
+		return -EIO;
+	}
+
+	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
+		IWL_ERR(priv, "Command %s failed: FW Error\n",
+			get_cmd_string(cmd->id));
 		return -EIO;
 	}
 

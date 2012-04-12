@@ -152,11 +152,7 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
 
-	info->pixmap.size = 64*1024;
-	info->pixmap.buf_align = 8;
-	info->pixmap.access_align = 32;
-	info->pixmap.flags = FB_PIXMAP_SYSTEM;
-	info->pixmap.scan_align = 1;
+	/* Use default scratch pixmap (info->pixmap.flags = FB_PIXMAP_SYSTEM) */
 
 	DRM_DEBUG_KMS("allocated %dx%d fb: 0x%08x, bo %p\n",
 		      fb->width, fb->height,
@@ -258,6 +254,16 @@ void intel_fbdev_fini(struct drm_device *dev)
 	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;
 }
+
+void intel_fbdev_set_suspend(struct drm_device *dev, int state)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	if (!dev_priv->fbdev)
+		return;
+
+	fb_set_suspend(dev_priv->fbdev->helper.fbdev, state);
+}
+
 MODULE_LICENSE("GPL and additional rights");
 
 void intel_fb_output_poll_changed(struct drm_device *dev)

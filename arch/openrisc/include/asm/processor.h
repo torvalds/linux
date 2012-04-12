@@ -81,8 +81,8 @@ extern inline void prepare_to_copy(struct task_struct *tsk)
 #define INIT_THREAD  { }
 
 
-#define KSTK_EIP(tsk)   (task_pt_regs(tsk)->pc);
-#define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp);
+#define KSTK_EIP(tsk)   (task_pt_regs(tsk)->pc)
+#define KSTK_ESP(tsk)   (task_pt_regs(tsk)->sp)
 
 
 extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);

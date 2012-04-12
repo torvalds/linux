@@ -15,12 +15,6 @@
 #include "rate.h"
 #include "debugfs.h"
 
-int mac80211_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 #define DEBUGFS_FORMAT_BUFFER_SIZE 100
 
 int mac80211_format_buffer(char __user *userbuf, size_t count,
@@ -50,7 +44,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 #define DEBUGFS_READONLY_FILE_OPS(name)			\
 static const struct file_operations name## _ops = {			\
 	.read = name## _read,						\
-	.open = mac80211_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
@@ -93,87 +87,8 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations reset_ops = {
 	.write = reset_write,
-	.open = mac80211_open_file_generic,
+	.open = simple_open,
 	.llseek = noop_llseek,
-};
-
-static ssize_t uapsd_queues_read(struct file *file, char __user *user_buf,
-				 size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	return mac80211_format_buffer(user_buf, count, ppos, "0x%x\n",
-				      local->uapsd_queues);
-}
-
-static ssize_t uapsd_queues_write(struct file *file,
-				  const char __user *user_buf,
-				  size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	u8 val;
-	int ret;
-
-	ret = kstrtou8_from_user(user_buf, count, 0, &val);
-	if (ret)
-		return ret;
-
-	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_AC_MASK)
-		return -ERANGE;
-
-	local->uapsd_queues = val;
-
-	return count;
-}
-
-static const struct file_operations uapsd_queues_ops = {
-	.read = uapsd_queues_read,
-	.write = uapsd_queues_write,
-	.open = mac80211_open_file_generic,
-	.llseek = default_llseek,
-};
-
-static ssize_t uapsd_max_sp_len_read(struct file *file, char __user *user_buf,
-				     size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-
-	return mac80211_format_buffer(user_buf, count, ppos, "0x%x\n",
-				      local->uapsd_max_sp_len);
-}
-
-static ssize_t uapsd_max_sp_len_write(struct file *file,
-				      const char __user *user_buf,
-				      size_t count, loff_t *ppos)
-{
-	struct ieee80211_local *local = file->private_data;
-	unsigned long val;
-	char buf[10];
-	size_t len;
-	int ret;
-
-	len = min(count, sizeof(buf) - 1);
-	if (copy_from_user(buf, user_buf, len))
-		return -EFAULT;
-	buf[len] = '\0';
-
-	ret = kstrtoul(buf, 0, &val);
-
-	if (ret)
-		return -EINVAL;
-
-	if (val & ~IEEE80211_WMM_IE_STA_QOSINFO_SP_MASK)
-		return -ERANGE;
-
-	local->uapsd_max_sp_len = val;
-
-	return count;
-}
-
-static const struct file_operations uapsd_max_sp_len_ops = {
-	.read = uapsd_max_sp_len_read,
-	.write = uapsd_max_sp_len_write,
-	.open = mac80211_open_file_generic,
-	.llseek = default_llseek,
 };
 
 static ssize_t channel_type_read(struct file *file, char __user *user_buf,
@@ -333,7 +248,7 @@ static ssize_t stats_ ##name## _read(struct file *file,			\
 									\
 static const struct file_operations stats_ ##name## _ops = {		\
 	.read = stats_ ##name## _read,					\
-	.open = mac80211_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
@@ -362,8 +277,6 @@ void debugfs_hw_add(struct ieee80211_local *local)
 	DEBUGFS_ADD(wep_iv);
 	DEBUGFS_ADD(queues);
 	DEBUGFS_ADD_MODE(reset, 0200);
-	DEBUGFS_ADD(uapsd_queues);
-	DEBUGFS_ADD(uapsd_max_sp_len);
 	DEBUGFS_ADD(channel_type);
 	DEBUGFS_ADD(hwflags);
 	DEBUGFS_ADD(user_power);

@@ -15,7 +15,6 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -88,6 +87,8 @@ static int parse_one(char *param,
 		     char *val,
 		     const struct kernel_param *params,
 		     unsigned num_params,
+		     s16 min_level,
+		     s16 max_level,
 		     int (*handle_unknown)(char *param, char *val))
 {
 	unsigned int i;
@@ -96,6 +97,9 @@ static int parse_one(char *param,
 	/* Find parameter */
 	for (i = 0; i < num_params; i++) {
 		if (parameq(param, params[i].name)) {
+			if (params[i].level < min_level
+			    || params[i].level > max_level)
+				return 0;
 			/* No one handled NULL, so do it here. */
 			if (!val && params[i].ops->set != param_set_bool
 			    && params[i].ops->set != param_set_bint)
@@ -175,6 +179,8 @@ int parse_args(const char *name,
 	       char *args,
 	       const struct kernel_param *params,
 	       unsigned num,
+	       s16 min_level,
+	       s16 max_level,
 	       int (*unknown)(char *param, char *val))
 {
 	char *param, *val;
@@ -190,7 +196,8 @@ int parse_args(const char *name,
 
 		args = next_arg(args, &param, &val);
 		irq_was_disabled = irqs_disabled();
-		ret = parse_one(param, val, params, num, unknown);
+		ret = parse_one(param, val, params, num,
+				min_level, max_level, unknown);
 		if (irq_was_disabled && !irqs_disabled()) {
 			printk(KERN_WARNING "parse_args(): option '%s' enabled "
 					"irq's!\n", param);
@@ -298,35 +305,18 @@ EXPORT_SYMBOL(param_ops_charp);
 /* Actually could be a bool or an int, for historical reasons. */
 int param_set_bool(const char *val, const struct kernel_param *kp)
 {
-	bool v;
-	int ret;
-
 	/* No equals means "set"... */
 	if (!val) val = "1";
 
 	/* One of =[yYnN01] */
-	ret = strtobool(val, &v);
-	if (ret)
-		return ret;
-
-	if (kp->flags & KPARAM_ISBOOL)
-		*(bool *)kp->arg = v;
-	else
-		*(int *)kp->arg = v;
-	return 0;
+	return strtobool(val, kp->arg);
 }
 EXPORT_SYMBOL(param_set_bool);
 
 int param_get_bool(char *buffer, const struct kernel_param *kp)
 {
-	bool val;
-	if (kp->flags & KPARAM_ISBOOL)
-		val = *(bool *)kp->arg;
-	else
-		val = *(int *)kp->arg;
-
 	/* Y and N chosen as being relatively non-coder friendly */
-	return sprintf(buffer, "%c", val ? 'Y' : 'N');
+	return sprintf(buffer, "%c", *(bool *)kp->arg ? 'Y' : 'N');
 }
 EXPORT_SYMBOL(param_get_bool);
 
@@ -344,7 +334,6 @@ int param_set_invbool(const char *val, const struct kernel_param *kp)
 	struct kernel_param dummy;
 
 	dummy.arg = &boolval;
-	dummy.flags = KPARAM_ISBOOL;
 	ret = param_set_bool(val, &dummy);
 	if (ret == 0)
 		*(bool *)kp->arg = !boolval;
@@ -373,7 +362,6 @@ int param_set_bint(const char *val, const struct kernel_param *kp)
 	/* Match bool exactly, by re-using it. */
 	boolkp = *kp;
 	boolkp.arg = &v;
-	boolkp.flags |= KPARAM_ISBOOL;
 
 	ret = param_set_bool(val, &boolkp);
 	if (ret == 0)
@@ -394,7 +382,7 @@ static int param_array(const char *name,
 		       unsigned int min, unsigned int max,
 		       void *elem, int elemsize,
 		       int (*set)(const char *, const struct kernel_param *kp),
-		       u16 flags,
+		       s16 level,
 		       unsigned int *num)
 {
 	int ret;
@@ -404,7 +392,7 @@ static int param_array(const char *name,
 	/* Get the name right for errors. */
 	kp.name = name;
 	kp.arg = elem;
-	kp.flags = flags;
+	kp.level = level;
 
 	*num = 0;
 	/* We expect a comma-separated list of values. */
@@ -445,7 +433,7 @@ static int param_array_set(const char *val, const struct kernel_param *kp)
 	unsigned int temp_num;
 
 	return param_array(kp->name, val, 1, arr->max, arr->elem,
-			   arr->elemsize, arr->ops->set, kp->flags,
+			   arr->elemsize, arr->ops->set, kp->level,
 			   arr->num ?: &temp_num);
 }
 

@@ -105,8 +105,7 @@ bool rtl_ps_set_rf_state(struct ieee80211_hw *hw,
 
 	case ERFOFF:
 
-		if ((changesource == RF_CHANGE_BY_HW)
-		    && (ppsc->hwradiooff == false)) {
+		if ((changesource == RF_CHANGE_BY_HW) && !ppsc->hwradiooff) {
 			ppsc->hwradiooff = true;
 		}
 

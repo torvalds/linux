@@ -998,7 +998,6 @@
 #define SCR_RXBCUSEDK				BIT(7)
 
 /* General definitions */
-#define MAC_ADDR_LEN				6
 #define LAST_ENTRY_OF_TX_PKT_BUFFER		255
 #define LAST_ENTRY_OF_TX_PKT_BUFFER_DUAL_MAC	127
 

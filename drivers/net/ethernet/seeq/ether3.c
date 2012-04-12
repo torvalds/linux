@@ -64,7 +64,6 @@
 #include <linux/delay.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/ecard.h>
 #include <asm/io.h>
 
@@ -643,7 +642,7 @@ if (next_ptr < RX_START || next_ptr >= RX_END) {
 			if (next_ptr <= this_ptr)
 				length += RX_END - RX_START;
 
-			skb = dev_alloc_skb(length + 2);
+			skb = netdev_alloc_skb(dev, length + 2);
 			if (skb) {
 				unsigned char *buf;
 

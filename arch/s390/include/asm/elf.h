@@ -129,7 +129,6 @@ typedef s390_fp_regs compat_elf_fpregset_t;
 typedef s390_compat_regs compat_elf_gregset_t;
 
 #include <linux/sched.h>	/* for task_struct */
-#include <asm/system.h>		/* for save_access_regs */
 #include <asm/mmu_context.h>
 
 #include <asm/vdso.h>

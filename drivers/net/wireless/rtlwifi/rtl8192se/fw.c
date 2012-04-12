@@ -272,7 +272,7 @@ static bool _rtl92s_firmware_checkready(struct ieee80211_hw *hw,
 
 		/* Turn On CPU */
 		rtstatus = _rtl92s_firmware_enable_cpu(hw);
-		if (rtstatus != true) {
+		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG,
 				 "Enable CPU fail!\n");
 			goto status_check_fail;
@@ -445,14 +445,14 @@ int rtl92s_download_fw(struct ieee80211_hw *hw)
 		rtstatus = _rtl92s_firmware_downloadcode(hw, puc_mappedfile,
 				ul_filelength);
 
-		if (rtstatus != true) {
+		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "fail!\n");
 			goto fail;
 		}
 
 		/* <3> Check whether load FW process is ready */
 		rtstatus = _rtl92s_firmware_checkready(hw, fwstatus);
-		if (rtstatus != true) {
+		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_ERR, DBG_EMERG, "fail!\n");
 			goto fail;
 		}

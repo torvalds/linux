@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010-2011 Atheros Communications Inc.
+ * Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -110,6 +111,8 @@ struct wmi {
 	u8 fat_pipe_exist;
 	struct ath6kl *parent_dev;
 	u8 pwr_mode;
+
+	/* protects fat_pipe_exist and stream_exist_for_ac */
 	spinlock_t lock;
 	enum htc_endpoint_id ep_id;
 	struct sq_threshold_params
@@ -178,6 +181,9 @@ enum wmi_data_hdr_flags {
 
 #define WMI_DATA_HDR_META_MASK      0x7
 #define WMI_DATA_HDR_META_SHIFT     13
+
+#define WMI_DATA_HDR_PAD_BEFORE_DATA_MASK               0xFF
+#define WMI_DATA_HDR_PAD_BEFORE_DATA_SHIFT              0x8
 
 /* Macros for operating on WMI_DATA_HDR (info3) field */
 #define WMI_DATA_HDR_IF_IDX_MASK    0xF
@@ -420,6 +426,7 @@ enum wmi_cmd_id {
 	WMI_SET_FRAMERATES_CMDID,
 	WMI_SET_AP_PS_CMDID,
 	WMI_SET_QOS_SUPP_CMDID,
+	WMI_SET_IE_CMDID,
 
 	/* WMI_THIN_RESERVED_... mark the start and end
 	 * values for WMI_THIN_RESERVED command IDs. These
@@ -624,6 +631,11 @@ enum wmi_mgmt_frame_type {
 	WMI_FRAME_ASSOC_REQ,
 	WMI_FRAME_ASSOC_RESP,
 	WMI_NUM_MGMT_FRAME
+};
+
+enum wmi_ie_field_type {
+	WMI_RSN_IE_CAPB	= 0x1,
+	WMI_IE_FULL	= 0xFF,  /* indicats full IE */
 };
 
 /* WMI_CONNECT_CMDID  */
@@ -997,6 +1009,12 @@ struct wmi_listen_int_cmd {
 	__le16 num_beacons;
 } __packed;
 
+/* WMI_SET_BMISS_TIME_CMDID */
+struct wmi_bmiss_time_cmd {
+	__le16 bmiss_time;
+	__le16 num_beacons;
+};
+
 /* WMI_SET_POWER_MODE_CMDID */
 enum wmi_power_mode {
 	REC_POWER = 0x01,
@@ -1014,7 +1032,7 @@ struct wmi_power_mode_cmd {
  */
 enum power_save_fail_event_policy {
 	SEND_POWER_SAVE_FAIL_EVENT_ALWAYS = 1,
-	IGNORE_POWER_SAVE_FAIL_EVENT_DURING_SCAN = 2,
+	IGNORE_PS_FAIL_DURING_SCAN = 2,
 };
 
 struct wmi_power_params_cmd {
@@ -1212,7 +1230,7 @@ struct wmi_snr_threshold_params_cmd {
 
 enum wmi_preamble_policy {
 	WMI_IGNORE_BARKER_IN_ERP = 0,
-	WMI_DONOT_IGNORE_BARKER_IN_ERP
+	WMI_FOLLOW_BARKER_IN_ERP,
 };
 
 struct wmi_set_lpreamble_cmd {
@@ -1257,6 +1275,16 @@ struct wmi_mcast_filter_cmd {
 #define ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE 6
 struct wmi_mcast_filter_add_del_cmd {
 	u8 mcast_mac[ATH6KL_MCAST_FILTER_MAC_ADDR_SIZE];
+} __packed;
+
+struct wmi_set_htcap_cmd {
+	u8 band;
+	u8 ht_enable;
+	u8 ht40_supported;
+	u8 ht20_sgi;
+	u8 ht40_sgi;
+	u8 intolerant_40mhz;
+	u8 max_ampdu_len_exp;
 } __packed;
 
 /* Command Replies */
@@ -1904,6 +1932,14 @@ struct wmi_set_appie_cmd {
 	u8 ie_info[0];
 } __packed;
 
+struct wmi_set_ie_cmd {
+	u8 ie_id;
+	u8 ie_field;	/* enum wmi_ie_field_type */
+	u8 ie_len;
+	u8 reserved;
+	u8 ie_info[0];
+} __packed;
+
 /* Notify the WSC registration status to the target */
 #define WSC_REG_ACTIVE     1
 #define WSC_REG_INACTIVE   0
@@ -2126,6 +2162,15 @@ struct wmi_rx_frame_format_cmd {
 
 	/* for alignment */
 	u8 reserved[1];
+} __packed;
+
+struct wmi_ap_hidden_ssid_cmd {
+	u8 hidden_ssid;
+} __packed;
+
+struct wmi_set_inact_period_cmd {
+	__le32 inact_period;
+	u8 num_null_func;
 } __packed;
 
 /* AP mode events */
@@ -2413,6 +2458,8 @@ int ath6kl_wmi_probedssid_cmd(struct wmi *wmi, u8 if_idx, u8 index, u8 flag,
 int ath6kl_wmi_listeninterval_cmd(struct wmi *wmi, u8 if_idx,
 				  u16 listen_interval,
 				  u16 listen_beacons);
+int ath6kl_wmi_bmisstime_cmd(struct wmi *wmi, u8 if_idx,
+			     u16 bmiss_time, u16 num_beacons);
 int ath6kl_wmi_powermode_cmd(struct wmi *wmi, u8 if_idx, u8 pwr_mode);
 int ath6kl_wmi_pmparams_cmd(struct wmi *wmi, u8 if_idx, u16 idle_period,
 			    u16 ps_poll_num, u16 dtim_policy,
@@ -2450,6 +2497,9 @@ int ath6kl_wmi_get_roam_tbl_cmd(struct wmi *wmi);
 int ath6kl_wmi_set_wmm_txop(struct wmi *wmi, u8 if_idx, enum wmi_txop_cfg cfg);
 int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 if_idx,
 				 u8 keep_alive_intvl);
+int ath6kl_wmi_set_htcap_cmd(struct wmi *wmi, u8 if_idx,
+			     enum ieee80211_band band,
+			     struct ath6kl_htcap *htcap);
 int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len);
 
 s32 ath6kl_wmi_get_rate(s8 rate_index);
@@ -2484,6 +2534,7 @@ u8 ath6kl_wmi_get_traffic_class(u8 user_priority);
 
 u8 ath6kl_wmi_determine_user_priority(u8 *pkt, u32 layer2_pri);
 /* AP mode */
+int ath6kl_wmi_ap_hidden_ssid(struct wmi *wmi, u8 if_idx, bool enable);
 int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, u8 if_idx,
 				 struct wmi_connect_cmd *p);
 
@@ -2499,14 +2550,14 @@ int ath6kl_wmi_set_rx_frame_format_cmd(struct wmi *wmi, u8 if_idx,
 int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 			     const u8 *ie, u8 ie_len);
 
+int ath6kl_wmi_set_ie_cmd(struct wmi *wmi, u8 if_idx, u8 ie_id, u8 ie_field,
+			  const u8 *ie_info, u8 ie_len);
+
 /* P2P */
 int ath6kl_wmi_disable_11b_rates_cmd(struct wmi *wmi, bool disable);
 
 int ath6kl_wmi_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 				  u32 dur);
-
-int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
-			       u32 wait, const u8 *data, u16 data_len);
 
 int ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id, u32 freq,
 			       u32 wait, const u8 *data, u16 data_len,
@@ -2524,6 +2575,8 @@ int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx);
 
 int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 			     const u8 *ie, u8 ie_len);
+
+int ath6kl_wmi_set_inact_period(struct wmi *wmi, u8 if_idx, int inact_timeout);
 
 void ath6kl_wmi_sscan_timer(unsigned long ptr);
 

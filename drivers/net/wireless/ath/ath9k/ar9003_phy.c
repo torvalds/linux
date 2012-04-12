@@ -152,7 +152,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_WRITE(ah, AR_PHY_65NM_CH0_SYNTH7, reg32);
 
 	ah->curchan = chan;
-	ah->curchan_rad_index = -1;
 
 	return 0;
 }
@@ -679,17 +678,16 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 	 * different modal values.
 	 */
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional,
+		REG_WRITE_ARRAY(&ah->iniModesFastClock,
 				modesIndex, regWrites);
 
-	if (AR_SREV_9330(ah))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
-
-	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
-		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
+	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
 	if (AR_SREV_9462(ah))
 		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
+
+	if (chan->channel == 2484)
+		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);
 
 	ah->modes_index = modesIndex;
 	ar9003_hw_override_ini(ah);
@@ -824,55 +822,6 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * on == 0 means more noise imm
 		 */
 		u32 on = param ? 1 : 0;
-		/*
-		 * make register setting for default
-		 * (weak sig detect ON) come from INI file
-		 */
-		int m1ThreshLow = on ?
-			aniState->iniDef.m1ThreshLow : m1ThreshLow_off;
-		int m2ThreshLow = on ?
-			aniState->iniDef.m2ThreshLow : m2ThreshLow_off;
-		int m1Thresh = on ?
-			aniState->iniDef.m1Thresh : m1Thresh_off;
-		int m2Thresh = on ?
-			aniState->iniDef.m2Thresh : m2Thresh_off;
-		int m2CountThr = on ?
-			aniState->iniDef.m2CountThr : m2CountThr_off;
-		int m2CountThrLow = on ?
-			aniState->iniDef.m2CountThrLow : m2CountThrLow_off;
-		int m1ThreshLowExt = on ?
-			aniState->iniDef.m1ThreshLowExt : m1ThreshLowExt_off;
-		int m2ThreshLowExt = on ?
-			aniState->iniDef.m2ThreshLowExt : m2ThreshLowExt_off;
-		int m1ThreshExt = on ?
-			aniState->iniDef.m1ThreshExt : m1ThreshExt_off;
-		int m2ThreshExt = on ?
-			aniState->iniDef.m2ThreshExt : m2ThreshExt_off;
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M1_THRESH_LOW,
-			      m1ThreshLow);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2_THRESH_LOW,
-			      m2ThreshLow);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M1_THRESH, m1Thresh);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2_THRESH, m2Thresh);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2COUNT_THR, m2CountThr);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2COUNT_THR_LOW,
-			      m2CountThrLow);
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH_LOW, m1ThreshLowExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH_LOW, m2ThreshLowExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH, m1ThreshExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH, m2ThreshExt);
 
 		if (on)
 			REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,
@@ -1320,13 +1269,9 @@ static int ar9003_hw_fast_chan_change(struct ath_hw *ah,
 	 * different modal values.
 	 */
 	if (IS_CHAN_A_FAST_CLOCK(ah, chan))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, modesIndex, regWrites);
+		REG_WRITE_ARRAY(&ah->iniModesFastClock, modesIndex, regWrites);
 
-	if (AR_SREV_9330(ah))
-		REG_WRITE_ARRAY(&ah->iniModesAdditional, 1, regWrites);
-
-	if (AR_SREV_9340(ah) && !ah->is_clk_25mhz)
-		REG_WRITE_ARRAY(&ah->iniModesAdditional_40M, 1, regWrites);
+	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
 
 	ah->modes_index = modesIndex;
 	*ini_reloaded = true;

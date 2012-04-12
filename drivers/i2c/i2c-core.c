@@ -14,7 +14,8 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.		     */
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
+    MA 02110-1301 USA.							     */
 /* ------------------------------------------------------------------------- */
 
 /* With some changes from Kyösti Mälkki <kmalkki@cc.hut.fi>.
@@ -1386,8 +1387,10 @@ int i2c_master_send(const struct i2c_client *client, const char *buf, int count)
 
 	ret = i2c_transfer(adap, &msg, 1);
 
-	/* If everything went ok (i.e. 1 msg transmitted), return #bytes
-	   transmitted, else error code. */
+	/*
+	 * If everything went ok (i.e. 1 msg transmitted), return #bytes
+	 * transmitted, else error code.
+	 */
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_master_send);
@@ -1414,8 +1417,10 @@ int i2c_master_recv(const struct i2c_client *client, char *buf, int count)
 
 	ret = i2c_transfer(adap, &msg, 1);
 
-	/* If everything went ok (i.e. 1 msg transmitted), return #bytes
-	   transmitted, else error code. */
+	/*
+	 * If everything went ok (i.e. 1 msg received), return #bytes received,
+	 * else error code.
+	 */
 	return (ret == 1) ? count : ret;
 }
 EXPORT_SYMBOL(i2c_master_recv);

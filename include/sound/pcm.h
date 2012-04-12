@@ -264,7 +264,7 @@ struct snd_pcm_hw_constraint_ratdens {
 
 struct snd_pcm_hw_constraint_list {
 	unsigned int count;
-	unsigned int *list;
+	const unsigned int *list;
 	unsigned int mask;
 };
 
@@ -454,6 +454,7 @@ struct snd_pcm {
 	void *private_data;
 	void (*private_free) (struct snd_pcm *pcm);
 	struct device *dev; /* actual hw device this belongs to */
+	bool internal; /* pcm is for internal use only */
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	struct snd_pcm_oss oss;
 #endif
@@ -473,6 +474,9 @@ struct snd_pcm_notify {
 extern const struct file_operations snd_pcm_f_ops[2];
 
 int snd_pcm_new(struct snd_card *card, const char *id, int device,
+		int playback_count, int capture_count,
+		struct snd_pcm **rpcm);
+int snd_pcm_new_internal(struct snd_card *card, const char *id, int device,
 		int playback_count, int capture_count,
 		struct snd_pcm **rpcm);
 int snd_pcm_new_stream(struct snd_pcm *pcm, int stream, int substream_count);
@@ -781,7 +785,8 @@ void snd_interval_muldivk(const struct snd_interval *a, const struct snd_interva
 			  unsigned int k, struct snd_interval *c);
 void snd_interval_mulkdiv(const struct snd_interval *a, unsigned int k,
 			  const struct snd_interval *b, struct snd_interval *c);
-int snd_interval_list(struct snd_interval *i, unsigned int count, unsigned int *list, unsigned int mask);
+int snd_interval_list(struct snd_interval *i, unsigned int count,
+		      const unsigned int *list, unsigned int mask);
 int snd_interval_ratnum(struct snd_interval *i,
 			unsigned int rats_count, struct snd_ratnum *rats,
 			unsigned int *nump, unsigned int *denp);

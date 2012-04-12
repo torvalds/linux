@@ -168,6 +168,7 @@ struct gfs2_rindex {
 #define GFS2_RGF_METAONLY	0x00000002
 #define GFS2_RGF_DATAONLY	0x00000004
 #define GFS2_RGF_NOALLOC	0x00000008
+#define GFS2_RGF_TRIMMED	0x00000010
 
 struct gfs2_rgrp {
 	struct gfs2_meta_header rg_header;

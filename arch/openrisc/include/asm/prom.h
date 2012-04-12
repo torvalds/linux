@@ -24,6 +24,7 @@
 
 #include <linux/types.h>
 #include <asm/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/atomic.h>
 #include <linux/of_irq.h>
 #include <linux/of_fdt.h>
@@ -62,15 +63,6 @@ extern const void *of_get_mac_address(struct device_node *np);
  */
 struct pci_dev;
 extern int of_irq_map_pci(struct pci_dev *pdev, struct of_irq *out_irq);
-
-/* This routine is here to provide compatibility with how powerpc
- * handles IRQ mapping for OF device nodes.  We precompute and permanently
- * register them in the platform_device objects, whereas powerpc computes them
- * on request.
- */
-static inline void irq_dispose_mapping(unsigned int virq)
-{
-}
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

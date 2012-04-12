@@ -751,10 +751,8 @@ success:
 	ret = 0;
 
 out:
-	if (helper)
-		release_firmware(helper);
-	if (mainfw)
-		release_firmware(mainfw);
+	release_firmware(helper);
+	release_firmware(mainfw);
 
 	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
 	return ret;

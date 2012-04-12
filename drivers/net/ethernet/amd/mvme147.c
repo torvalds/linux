@@ -22,7 +22,6 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/mvme147hw.h>

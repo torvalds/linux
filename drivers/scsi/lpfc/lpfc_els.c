@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2011 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2012 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -925,9 +925,17 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		 * due to new FCF discovery
 		 */
 		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
-		    (phba->fcf.fcf_flag & FCF_DISCOVERY) &&
-		    !((irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
-		     (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED))) {
+		    (phba->fcf.fcf_flag & FCF_DISCOVERY)) {
+			if (phba->link_state < LPFC_LINK_UP)
+				goto stop_rr_fcf_flogi;
+			if ((phba->fcoe_cvl_eventtag_attn ==
+			     phba->fcoe_cvl_eventtag) &&
+			    (irsp->ulpStatus == IOSTAT_LOCAL_REJECT) &&
+			    (irsp->un.ulpWord[4] == IOERR_SLI_ABORTED))
+				goto stop_rr_fcf_flogi;
+			else
+				phba->fcoe_cvl_eventtag_attn =
+					phba->fcoe_cvl_eventtag;
 			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
 					"2611 FLOGI failed on FCF (x%x), "
 					"status:x%x/x%x, tmo:x%x, perform "
@@ -943,6 +951,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				goto out;
 		}
 
+stop_rr_fcf_flogi:
 		/* FLOGI failure */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
 				"2858 FLOGI failure Status:x%x/x%x TMO:x%x\n",
@@ -1526,7 +1535,6 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 			memcpy(&ndlp->active_rrqs.xri_bitmap,
 				&rrq.xri_bitmap,
 				sizeof(ndlp->active_rrqs.xri_bitmap));
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		/* Since we are swapping the ndlp passed in with the new one
 		 * and the did has already been swapped, copy over the
 		 * state and names.
@@ -1536,6 +1544,7 @@ lpfc_plogi_confirm_nport(struct lpfc_hba *phba, uint32_t *prsp,
 		memcpy(&new_ndlp->nlp_nodename, &ndlp->nlp_nodename,
 			sizeof(struct lpfc_name));
 		new_ndlp->nlp_state = ndlp->nlp_state;
+		lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 		/* Fix up the rport accordingly */
 		rport = ndlp->rport;
 		if (rport) {
@@ -7172,7 +7181,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			goto out;
 		/* FDISC failed */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0126 FDISC failed. (%d/%d)\n",
+				 "0126 FDISC failed. (x%x/x%x)\n",
 				 irsp->ulpStatus, irsp->un.ulpWord[4]);
 		goto fdisc_failed;
 	}
@@ -7283,6 +7292,7 @@ lpfc_issue_els_fdisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	int rc;
 
 	vport->port_state = LPFC_FDISC;
+	vport->fc_myDID = 0;
 	cmdsize = (sizeof(uint32_t) + sizeof(struct serv_parm));
 	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp, did,
 				     ELS_CMD_FDISC);

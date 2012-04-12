@@ -34,23 +34,8 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			       ARRAY_SIZE(ar9271Modes_9271), 5);
 		INIT_INI_ARRAY(&ah->iniCommon, ar9271Common_9271,
 			       ARRAY_SIZE(ar9271Common_9271), 2);
-		INIT_INI_ARRAY(&ah->iniCommon_normal_cck_fir_coeff_9271,
-			       ar9287Common_normal_cck_fir_coeff_9287_1_1,
-			       ARRAY_SIZE(ar9287Common_normal_cck_fir_coeff_9287_1_1), 2);
-		INIT_INI_ARRAY(&ah->iniCommon_japan_2484_cck_fir_coeff_9271,
-			       ar9287Common_japan_2484_cck_fir_coeff_9287_1_1,
-			       ARRAY_SIZE(ar9287Common_japan_2484_cck_fir_coeff_9287_1_1), 2);
-		INIT_INI_ARRAY(&ah->iniModes_9271_1_0_only,
-			       ar9271Modes_9271_1_0_only,
-			       ARRAY_SIZE(ar9271Modes_9271_1_0_only), 5);
 		INIT_INI_ARRAY(&ah->iniModes_9271_ANI_reg, ar9271Modes_9271_ANI_reg,
 			       ARRAY_SIZE(ar9271Modes_9271_ANI_reg), 5);
-		INIT_INI_ARRAY(&ah->iniModes_high_power_tx_gain_9271,
-			       ar9271Modes_high_power_tx_gain_9271,
-			       ARRAY_SIZE(ar9271Modes_high_power_tx_gain_9271), 5);
-		INIT_INI_ARRAY(&ah->iniModes_normal_power_tx_gain_9271,
-			       ar9271Modes_normal_power_tx_gain_9271,
-			       ARRAY_SIZE(ar9271Modes_normal_power_tx_gain_9271), 5);
 		return;
 	}
 
@@ -79,7 +64,7 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 		INIT_INI_ARRAY(&ah->iniCommon, ar9280Common_9280_2,
 			       ARRAY_SIZE(ar9280Common_9280_2), 2);
 
-		INIT_INI_ARRAY(&ah->iniModesAdditional,
+		INIT_INI_ARRAY(&ah->iniModesFastClock,
 			       ar9280Modes_fast_clock_9280_2,
 			       ARRAY_SIZE(ar9280Modes_fast_clock_9280_2), 3);
 	} else if (AR_SREV_9160_10_OR_LATER(ah)) {
@@ -160,11 +145,6 @@ static void ar9002_hw_init_mode_regs(struct ath_hw *ah)
 			INI_RA(addac, 31,1) = 0;
 		}
 	}
-}
-
-/* Support for Japan ch.14 (2484) spread */
-void ar9002_hw_cck_chan14_spread(struct ath_hw *ah)
-{
 	if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniCckfirNormal,
 		       ar9287Common_normal_cck_fir_coeff_9287_1_1,
@@ -204,14 +184,10 @@ static void ar9280_20_hw_init_rxgain_ini(struct ath_hw *ah)
 	}
 }
 
-static void ar9280_20_hw_init_txgain_ini(struct ath_hw *ah)
+static void ar9280_20_hw_init_txgain_ini(struct ath_hw *ah, u32 txgain_type)
 {
-	u32 txgain_type;
-
 	if (ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV) >=
 	    AR5416_EEP_MINOR_VER_19) {
-		txgain_type = ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE);
-
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
 			INIT_INI_ARRAY(&ah->iniModesTxGain,
 			ar9280Modes_high_power_tx_gain_9280_2,
@@ -227,8 +203,22 @@ static void ar9280_20_hw_init_txgain_ini(struct ath_hw *ah)
 	}
 }
 
+static void ar9271_hw_init_txgain_ini(struct ath_hw *ah, u32 txgain_type)
+{
+	if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER)
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9271Modes_high_power_tx_gain_9271,
+			       ARRAY_SIZE(ar9271Modes_high_power_tx_gain_9271), 5);
+	else
+		INIT_INI_ARRAY(&ah->iniModesTxGain,
+			       ar9271Modes_normal_power_tx_gain_9271,
+			       ARRAY_SIZE(ar9271Modes_normal_power_tx_gain_9271), 5);
+}
+
 static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 {
+	u32 txgain_type = ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE);
+
 	if (AR_SREV_9287_11_OR_LATER(ah))
 		INIT_INI_ARRAY(&ah->iniModesRxGain,
 		ar9287Modes_rx_gain_9287_1_1,
@@ -236,15 +226,15 @@ static void ar9002_hw_init_mode_gain_regs(struct ath_hw *ah)
 	else if (AR_SREV_9280_20(ah))
 		ar9280_20_hw_init_rxgain_ini(ah);
 
-	if (AR_SREV_9287_11_OR_LATER(ah)) {
+	if (AR_SREV_9271(ah)) {
+		ar9271_hw_init_txgain_ini(ah, txgain_type);
+	} else if (AR_SREV_9287_11_OR_LATER(ah)) {
 		INIT_INI_ARRAY(&ah->iniModesTxGain,
 		ar9287Modes_tx_gain_9287_1_1,
 		ARRAY_SIZE(ar9287Modes_tx_gain_9287_1_1), 5);
 	} else if (AR_SREV_9280_20(ah)) {
-		ar9280_20_hw_init_txgain_ini(ah);
+		ar9280_20_hw_init_txgain_ini(ah, txgain_type);
 	} else if (AR_SREV_9285_12_OR_LATER(ah)) {
-		u32 txgain_type = ah->eep_ops->get_eeprom(ah, EEP_TXGAIN_TYPE);
-
 		/* txgain table */
 		if (txgain_type == AR5416_EEP_TXGAIN_HIGH_POWER) {
 			if (AR_SREV_9285E_20(ah)) {

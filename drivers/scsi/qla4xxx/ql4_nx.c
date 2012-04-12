@@ -841,11 +841,8 @@ qla4_8xxx_rom_lock(struct scsi_qla_host *ha)
 		done = qla4_8xxx_rd_32(ha, QLA82XX_PCIE_REG(PCIE_SEM2_LOCK));
 		if (done == 1)
 			break;
-		if (timeout >= qla4_8xxx_rom_lock_timeout) {
-			ql4_printk(KERN_WARNING, ha,
-			    "%s: Failed to acquire rom lock", __func__);
+		if (timeout >= qla4_8xxx_rom_lock_timeout)
 			return -1;
-		}
 
 		timeout++;
 
@@ -995,18 +992,6 @@ qla4_8xxx_pinit_from_rom(struct scsi_qla_host *ha, int verbose)
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xfeffffff);
 	else
 		qla4_8xxx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0xffffffff);
-
-	/* reset ms */
-	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
-	val |= (1 << 1);
-	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
-
-	msleep(20);
-	/* unreset ms */
-	val = qla4_8xxx_rd_32(ha, QLA82XX_CRB_QDR_NET + 0xe4);
-	val &= ~(1 << 1);
-	qla4_8xxx_wr_32(ha, QLA82XX_CRB_QDR_NET + 0xe4, val);
-	msleep(20);
 
 	qla4_8xxx_rom_unlock(ha);
 

@@ -50,7 +50,6 @@
 static const struct file_operations default_file_operations;
 static struct vfsmount *usbfs_mount;
 static int usbfs_mount_count;	/* = 0 */
-static int ignore_mount = 0;
 
 static struct dentry *devices_usbfs_dentry;
 static int num_buses;	/* = 0 */
@@ -256,7 +255,7 @@ static int remount(struct super_block *sb, int *flags, char *data)
 	 * i.e. it's a simple_pin_fs from create_special_files,
 	 * then ignore it.
 	 */
-	if (ignore_mount)
+	if (*flags & MS_KERNMOUNT)
 		return 0;
 
 	if (parse_options(sb, data)) {
@@ -429,18 +428,10 @@ static loff_t default_file_lseek (struct file *file, loff_t offset, int orig)
 	return retval;
 }
 
-static int default_open (struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static const struct file_operations default_file_operations = {
 	.read =		default_read_file,
 	.write =	default_write_file,
-	.open =		default_open,
+	.open =		simple_open,
 	.llseek =	default_file_lseek,
 };
 
@@ -454,7 +445,6 @@ static const struct super_operations usbfs_ops = {
 static int usbfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
-	struct dentry *root;
 
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
@@ -462,19 +452,11 @@ static int usbfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_op = &usbfs_ops;
 	sb->s_time_gran = 1;
 	inode = usbfs_get_inode(sb, S_IFDIR | 0755, 0);
-
-	if (!inode) {
-		dbg("%s: could not get inode!",__func__);
-		return -ENOMEM;
-	}
-
-	root = d_alloc_root(inode);
-	if (!root) {
+	sb->s_root = d_make_root(inode);
+	if (!sb->s_root) {
 		dbg("%s: could not get root dentry!",__func__);
-		iput(inode);
 		return -ENOMEM;
 	}
-	sb->s_root = root;
 	return 0;
 }
 
@@ -591,19 +573,12 @@ static int create_special_files (void)
 	struct dentry *parent;
 	int retval;
 
-	/* the simple_pin_fs calls will call remount with no options
-	 * without this flag that would overwrite the real mount options (if any)
-	 */
-	ignore_mount = 1;
-
 	/* create the devices special file */
 	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
 		printk(KERN_ERR "Unable to get usbfs mount\n");
 		goto exit;
 	}
-
-	ignore_mount = 0;
 
 	parent = usbfs_mount->mnt_root;
 	devices_usbfs_dentry = fs_create_file ("devices",

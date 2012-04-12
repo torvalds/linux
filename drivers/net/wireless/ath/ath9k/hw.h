@@ -708,7 +708,6 @@ struct ath_hw {
 	struct ar5416Stats stats;
 	struct ath9k_tx_queue_info txq[ATH9K_NUM_TX_QUEUES];
 
-	int16_t curchan_rad_index;
 	enum ath9k_int imask;
 	u32 imrs2_reg;
 	u32 txok_interrupt_mask;
@@ -762,11 +761,6 @@ struct ath_hw {
 
 	u32 sta_id1_defaults;
 	u32 misc_mode;
-	enum {
-		AUTO_32KHZ,
-		USE_32KHZ,
-		DONT_USE_32KHZ,
-	} enable_32kHz_clock;
 
 	/* Private to hardware code */
 	struct ath_hw_private_ops private_ops;
@@ -783,7 +777,6 @@ struct ath_hw {
 	u32 *analogBank7Data;
 	u32 *bank6Temp;
 
-	u8 txpower_limit;
 	int coverage_class;
 	u32 slottime;
 	u32 globaltxtimeout;
@@ -827,19 +820,14 @@ struct ath_hw {
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
 	struct ar5416IniArray iniPcieSerdesLowPower;
-	struct ar5416IniArray iniModesAdditional;
-	struct ar5416IniArray iniModesAdditional_40M;
+	struct ar5416IniArray iniModesFastClock;
+	struct ar5416IniArray iniAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
-	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray ini_japan2484;
-	struct ar5416IniArray iniCommon_normal_cck_fir_coeff_9271;
-	struct ar5416IniArray iniCommon_japan_2484_cck_fir_coeff_9271;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
-	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
-	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
 	struct ar5416IniArray ini_radio_post_sys2ant;
 	struct ar5416IniArray ini_BTCOEX_MAX_TXPWR;
 
@@ -853,7 +841,6 @@ struct ath_hw {
 	struct ath_gen_timer_table hw_gen_timers;
 
 	struct ar9003_txs *ts_ring;
-	void *ts_start;
 	u32 ts_paddr_start;
 	u32 ts_paddr_end;
 	u16 ts_tail;
@@ -920,11 +907,10 @@ static inline u8 get_streams(int mask)
 }
 
 /* Initialization, Detach, Reset */
-const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
-		   struct ath9k_hw_cal_data *caldata, bool bChannelChange);
+		   struct ath9k_hw_cal_data *caldata, bool fastcc);
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
@@ -934,7 +920,6 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio);
 void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 			 u32 ah_signal_type);
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
-u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
 
 /* General Operation */
@@ -988,9 +973,6 @@ void ath_gen_timer_isr(struct ath_hw *hw);
 
 void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 
-/* HTC */
-void ath9k_hw_htc_resetinit(struct ath_hw *ah);
-
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
@@ -1000,7 +982,6 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan);
  * Code Specific to AR5008, AR9001 or AR9002,
  * we stuff these here to avoid callbacks for AR9003.
  */
-void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
 int ar9002_hw_rf_claim(struct ath_hw *ah);
 void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
 
@@ -1021,7 +1002,6 @@ int ar9003_paprd_create_curve(struct ath_hw *ah,
 int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
 int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);
-void ar9003_hw_set_paprd_txdesc(struct ath_hw *ah, void *ds, u8 chains);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);

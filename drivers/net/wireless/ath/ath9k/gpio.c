@@ -362,7 +362,8 @@ void ath9k_stop_btcoex(struct ath_softc *sc)
 		ath9k_hw_btcoex_disable(ah);
 		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_3WIRE)
 			ath9k_btcoex_timer_pause(sc);
-		ath_mci_flush_profile(&sc->btcoex.mci);
+		if (ath9k_hw_get_btcoex_scheme(ah) == ATH_BTCOEX_CFG_MCI)
+			ath_mci_flush_profile(&sc->btcoex.mci);
 	}
 }
 

@@ -1,5 +1,6 @@
 #------------------------------------------------------------------------------
-# Copyright (c) 2004-2010 Atheros Communications Inc.
+# Copyright (c) 2004-2011 Atheros Communications Inc.
+# Copyright (c) 2011-2012 Qualcomm Atheros, Inc.
 # All rights reserved.
 #
 #
@@ -24,7 +25,8 @@
 obj-$(CONFIG_ATH6KL) += ath6kl_core.o
 ath6kl_core-y += debug.o
 ath6kl_core-y += hif.o
-ath6kl_core-y += htc.o
+ath6kl_core-y += htc_mbox.o
+ath6kl_core-y += htc_pipe.o
 ath6kl_core-y += bmi.o
 ath6kl_core-y += cfg80211.o
 ath6kl_core-y += init.o

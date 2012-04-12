@@ -43,10 +43,8 @@
 static int poodle_jack_func;
 static int poodle_spk_func;
 
-static void poodle_ext_control(struct snd_soc_codec *codec)
+static void poodle_ext_control(struct snd_soc_dapm_context *dapm)
 {
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
 	/* set up jack connection */
 	if (poodle_jack_func == POODLE_HP) {
 		/* set = unmute headphone */
@@ -81,7 +79,7 @@ static int poodle_startup(struct snd_pcm_substream *substream)
 	mutex_lock(&codec->mutex);
 
 	/* check the jack status at stream startup */
-	poodle_ext_control(codec);
+	poodle_ext_control(&codec->dapm);
 
 	mutex_unlock(&codec->mutex);
 
@@ -152,13 +150,13 @@ static int poodle_get_jack(struct snd_kcontrol *kcontrol,
 static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
 	if (poodle_jack_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	poodle_jack_func = ucontrol->value.integer.value[0];
-	poodle_ext_control(codec);
+	poodle_ext_control(&card->dapm);
 	return 1;
 }
 
@@ -172,13 +170,13 @@ static int poodle_get_spk(struct snd_kcontrol *kcontrol,
 static int poodle_set_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec =  snd_kcontrol_chip(kcontrol);
+	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
 	if (poodle_spk_func == ucontrol->value.integer.value[0])
 		return 0;
 
 	poodle_spk_func = ucontrol->value.integer.value[0];
-	poodle_ext_control(codec);
+	poodle_ext_control(&card->dapm);
 	return 1;
 }
 

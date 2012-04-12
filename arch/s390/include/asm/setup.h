@@ -140,6 +140,20 @@ extern char vmpoff_cmd[];
 #define NSS_NAME_SIZE	8
 extern char kernel_nss_name[];
 
+#ifdef CONFIG_PFAULT
+extern int pfault_init(void);
+extern void pfault_fini(void);
+#else /* CONFIG_PFAULT */
+#define pfault_init()		({-1;})
+#define pfault_fini()		do { } while (0)
+#endif /* CONFIG_PFAULT */
+
+extern void cmma_init(void);
+
+extern void (*_machine_restart)(char *command);
+extern void (*_machine_halt)(void);
+extern void (*_machine_power_off)(void);
+
 #else /* __ASSEMBLY__ */
 
 #ifndef __s390x__

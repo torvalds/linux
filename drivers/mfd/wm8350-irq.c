@@ -496,7 +496,6 @@ int wm8350_irq_init(struct wm8350 *wm8350, int irq,
 
 	mutex_init(&wm8350->irq_lock);
 	wm8350->chip_irq = irq;
-	wm8350->irq_base = pdata->irq_base;
 
 	if (pdata && pdata->irq_base > 0)
 		irq_base = pdata->irq_base;

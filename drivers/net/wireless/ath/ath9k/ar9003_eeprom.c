@@ -5060,8 +5060,6 @@ static void ath9k_hw_ar9300_set_txpower(struct ath_hw *ah,
 			i, targetPowerValT2[i]);
 	}
 
-	ah->txpower_limit = regulatory->max_power_level;
-
 	/* Write target power array to registers */
 	ar9003_hw_tx_power_regwrite(ah, targetPowerValT2);
 	ar9003_hw_calibration_apply(ah, chan->channel);

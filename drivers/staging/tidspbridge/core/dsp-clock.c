@@ -29,9 +29,6 @@
 #include <dspbridge/dev.h>
 #include "_tiomap.h"
 
-/*  ----------------------------------- Trace & Debug */
-#include <dspbridge/dbc.h>
-
 /*  ----------------------------------- This */
 #include <dspbridge/clk.h>
 

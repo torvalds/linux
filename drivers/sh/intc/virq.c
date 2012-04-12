@@ -17,7 +17,7 @@
 #include <linux/export.h>
 #include "internals.h"
 
-static struct intc_map_entry intc_irq_xlate[NR_IRQS];
+static struct intc_map_entry intc_irq_xlate[INTC_NR_IRQS];
 
 struct intc_virq_list {
 	unsigned int irq;

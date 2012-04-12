@@ -65,6 +65,23 @@
 
 #include "iwl-dev.h"
 
+/* The first 11 queues (0-10) are used otherwise */
+#define IWLAGN_FIRST_AMPDU_QUEUE	11
+
+/* AUX (TX during scan dwell) queue */
+#define IWL_AUX_QUEUE		10
+
+/* device operations */
+extern struct iwl_lib_ops iwl1000_lib;
+extern struct iwl_lib_ops iwl2000_lib;
+extern struct iwl_lib_ops iwl2030_lib;
+extern struct iwl_lib_ops iwl5000_lib;
+extern struct iwl_lib_ops iwl5150_lib;
+extern struct iwl_lib_ops iwl6000_lib;
+extern struct iwl_lib_ops iwl6030_lib;
+
+
+
 struct iwl_ucode_capabilities;
 
 extern struct ieee80211_ops iwlagn_hw_ops;
@@ -85,7 +102,6 @@ int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
 				 struct iwl_rx_cmd_buffer *rxb,
 				 struct iwl_device_cmd *cmd);
 void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state);
-void iwl_nic_error(struct iwl_op_mode *op_mode);
 
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
@@ -115,9 +131,6 @@ void iwlagn_config_ht40(struct ieee80211_conf *conf,
 			struct iwl_rxon_context *ctx);
 
 /* uCode */
-int iwlagn_rx_calib_result(struct iwl_priv *priv,
-			    struct iwl_rx_cmd_buffer *rxb,
-			    struct iwl_device_cmd *cmd);
 int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
 void iwl_send_prio_tbl(struct iwl_priv *priv);
 int iwl_init_alive_start(struct iwl_priv *priv);
@@ -128,11 +141,13 @@ int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_priv *priv,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
+void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
+int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
+			    char **buf, bool display);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
 void iwlagn_temperature(struct iwl_priv *priv);
-u16 iwl_eeprom_calib_version(struct iwl_shared *shrd);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
@@ -189,6 +204,7 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 /* scan */
 void iwlagn_post_scan(struct iwl_priv *priv);
 void iwlagn_disable_roc(struct iwl_priv *priv);
+int iwl_force_rf_reset(struct iwl_priv *priv, bool external);
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
@@ -305,9 +321,6 @@ static inline __le32 iwl_hw_set_rate_n_flags(u8 rate, u32 flags)
 	return cpu_to_le32(flags|(u32)rate);
 }
 
-/* eeprom */
-void iwl_eeprom_get_mac(const struct iwl_shared *shrd, u8 *mac);
-
 extern int iwl_alive_start(struct iwl_priv *priv);
 /* svtool */
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
@@ -384,6 +397,15 @@ static inline int iwl_is_ready_rf(struct iwl_priv *priv)
 		return 0;
 
 	return iwl_is_ready(priv);
+}
+
+static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
+{
+	if (state)
+		set_bit(STATUS_POWER_PMI, &priv->status);
+	else
+		clear_bit(STATUS_POWER_PMI, &priv->status);
+	iwl_trans_set_pmi(trans(priv), state);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
