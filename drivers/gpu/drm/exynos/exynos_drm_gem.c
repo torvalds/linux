@@ -56,9 +56,28 @@ static unsigned int convert_to_vm_err_msg(int msg)
 	return out_msg;
 }
 
-static unsigned int mask_gem_flags(unsigned int flags)
+static int check_gem_flags(unsigned int flags)
 {
-	return flags &= EXYNOS_BO_NONCONTIG;
+	if (flags & ~(EXYNOS_BO_MASK)) {
+		DRM_ERROR("invalid flags.\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static unsigned long roundup_gem_size(unsigned long size, unsigned int flags)
+{
+	if (!IS_NONCONTIG_BUFFER(flags)) {
+		if (size >= SZ_1M)
+			return roundup(size, SECTION_SIZE);
+		else if (size >= SZ_64K)
+			return roundup(size, SZ_64K);
+		else
+			goto out;
+	}
+out:
+	return roundup(size, PAGE_SIZE);
 }
 
 static struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
@@ -319,10 +338,17 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 	struct exynos_drm_gem_buf *buf;
 	int ret;
 
-	size = roundup(size, PAGE_SIZE);
-	DRM_DEBUG_KMS("%s: size = 0x%lx\n", __FILE__, size);
+	if (!size) {
+		DRM_ERROR("invalid size.\n");
+		return ERR_PTR(-EINVAL);
+	}
 
-	flags = mask_gem_flags(flags);
+	size = roundup_gem_size(size, flags);
+	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	ret = check_gem_flags(flags);
+	if (ret)
+		return ERR_PTR(ret);
 
 	buf = exynos_drm_init_buf(dev, size);
 	if (!buf)
@@ -331,7 +357,7 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 	exynos_gem_obj = exynos_drm_gem_init(dev, size);
 	if (!exynos_gem_obj) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_fini_buf;
 	}
 
 	exynos_gem_obj->buffer = buf;
@@ -347,18 +373,19 @@ struct exynos_drm_gem_obj *exynos_drm_gem_create(struct drm_device *dev,
 		ret = exynos_drm_gem_get_pages(&exynos_gem_obj->base);
 		if (ret < 0) {
 			drm_gem_object_release(&exynos_gem_obj->base);
-			goto err;
+			goto err_fini_buf;
 		}
 	} else {
 		ret = exynos_drm_alloc_buf(dev, buf, flags);
 		if (ret < 0) {
 			drm_gem_object_release(&exynos_gem_obj->base);
-			goto err;
+			goto err_fini_buf;
 		}
 	}
 
 	return exynos_gem_obj;
-err:
+
+err_fini_buf:
 	exynos_drm_fini_buf(dev, buf);
 	return ERR_PTR(ret);
 }
