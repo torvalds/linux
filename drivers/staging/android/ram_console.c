@@ -50,7 +50,7 @@ void ram_console_enable_console(int enabled)
 		ram_console.flags &= ~CON_ENABLED;
 }
 
-static int __init ram_console_probe(struct platform_device *pdev)
+static int __devinit ram_console_probe(struct platform_device *pdev)
 {
 	struct ram_console_platform_data *pdata = pdev->dev.platform_data;
 	struct persistent_ram_zone *prz;
@@ -78,11 +78,12 @@ static struct platform_driver ram_console_driver = {
 	.driver		= {
 		.name	= "ram_console",
 	},
+	.probe = ram_console_probe,
 };
 
 static int __init ram_console_module_init(void)
 {
-	return platform_driver_probe(&ram_console_driver, ram_console_probe);
+	return platform_driver_register(&ram_console_driver);
 }
 
 #ifndef CONFIG_PRINTK
