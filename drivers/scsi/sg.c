@@ -157,7 +157,6 @@ typedef struct sg_fd {		/* holds the state of a file descriptor */
 	Sg_request req_arr[SG_MAX_QUEUE];	/* used as singly-linked list */
 	char low_dma;		/* as in parent but possibly overridden to 1 */
 	char force_packid;	/* 1 -> pack_id input to read(), 0 -> ignored */
-	volatile char closed;	/* 1 -> fd closed but request(s) outstanding */
 	char cmd_q;		/* 1 -> allow command queuing, 0 -> don't */
 	char next_cmd_len;	/* 0 -> automatic (def), >0 -> use on next write() */
 	char keep_orphan;	/* 0 -> drop orphan (def), 1 -> keep for read() */
@@ -328,8 +327,6 @@ sg_release(struct inode *inode, struct file *filp)
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
 		return -ENXIO;
 	SCSI_LOG_TIMEOUT(3, printk("sg_release: %s\n", sdp->disk->disk_name));
-
-	sfp->closed = 1;
 
 	sdp->exclude = 0;
 	wake_up_interruptible(&sdp->o_excl_wait);
@@ -1118,8 +1115,11 @@ sg_poll(struct file *filp, poll_table * wait)
 	int count = 0;
 	unsigned long iflags;
 
-	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp))
-	    || sfp->closed)
+	sfp = filp->private_data;
+	if (!sfp)
+		return POLLERR;
+	sdp = sfp->parentdp;
+	if (!sdp)
 		return POLLERR;
 	poll_wait(filp, &sfp->read_wait, wait);
 	read_lock_irqsave(&sfp->rq_list_lock, iflags);
@@ -2515,9 +2515,9 @@ static void sg_proc_debug_helper(struct seq_file *s, Sg_device * sdp)
 			   fp->reserve.bufflen,
 			   (int) fp->reserve.k_use_sg,
 			   (int) fp->low_dma);
-		seq_printf(s, "   cmd_q=%d f_packid=%d k_orphan=%d closed=%d\n",
+		seq_printf(s, "   cmd_q=%d f_packid=%d k_orphan=%d closed=0\n",
 			   (int) fp->cmd_q, (int) fp->force_packid,
-			   (int) fp->keep_orphan, (int) fp->closed);
+			   (int) fp->keep_orphan);
 		for (m = 0, srp = fp->headrp;
 				srp != NULL;
 				++m, srp = srp->nextrp) {
