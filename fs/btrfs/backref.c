@@ -1414,6 +1414,8 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 
 void free_ipath(struct inode_fs_paths *ipath)
 {
+	if (!ipath)
+		return;
 	kfree(ipath->fspath);
 	kfree(ipath);
 }
