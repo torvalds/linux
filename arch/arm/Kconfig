@@ -1514,6 +1514,14 @@ config BL_SWITCHER
 	  transparently handle transition between a cluster of A15's
 	  and a cluster of A7's in a big.LITTLE system.
 
+config BL_SWITCHER_DUMMY_IF
+	tristate "Simple big.LITTLE switcher user interface"
+	depends on BL_SWITCHER && DEBUG_KERNEL
+	help
+	  This is a simple and dummy char dev interface to control
+	  the big.LITTLE switcher core code.  It is meant for
+	  debugging purposes only.
+
 choice
 	prompt "Memory split"
 	default VMSPLIT_3G
