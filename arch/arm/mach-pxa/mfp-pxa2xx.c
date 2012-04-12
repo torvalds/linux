@@ -366,14 +366,22 @@ static int pxa2xx_mfp_suspend(void)
 	}
 
 	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
-
 		saved_gafr[0][i] = GAFR_L(i);
 		saved_gafr[1][i] = GAFR_U(i);
 		saved_gpdr[i] = GPDR(i * 32);
 		saved_pgsr[i] = PGSR(i);
-
-		GPDR(i * 32) = gpdr_lpm[i];
 	}
+
+	/* set GPDR bits taking into account MFP_LPM_KEEP_OUTPUT */
+	for (i = 0; i < pxa_last_gpio; i++) {
+		if ((gpdr_lpm[gpio_to_bank(i)] & GPIO_bit(i)) ||
+		    ((gpio_desc[i].config & MFP_LPM_KEEP_OUTPUT) &&
+		     (saved_gpdr[gpio_to_bank(i)] & GPIO_bit(i))))
+			GPDR(i) |= GPIO_bit(i);
+		else
+			GPDR(i) &= ~GPIO_bit(i);
+	}
+
 	return 0;
 }
 
