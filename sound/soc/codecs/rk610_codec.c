@@ -47,6 +47,13 @@
 #define	DBG(x...)
 #endif
 
+//it can change rk610 output volume 
+//0x0000 ~ 0xFFFF
+#define Volume_Output 0xF42
+//it can change rk610 input volume
+//0x00 ~ 0x0E
+#define Volume_Input 0x07
+
 #define OUT_CAPLESS  (1)   //是否为无电容输出，1:无电容输出，0:有电容输出
 
 static u32 gVolReg = 0x00;  ///0x0f; //用于记录音量寄存器
@@ -451,8 +458,8 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 
     if (mute)
 	{
-		rk610_codec_write(codec,ACCELCODEC_R17, gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
-		rk610_codec_write(codec,ACCELCODEC_R18, gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
+		rk610_codec_write(codec,ACCELCODEC_R17, 0xFF);  //AOL
+		rk610_codec_write(codec,ACCELCODEC_R18, 0xFF);  //AOR
         rk610_codec_write(codec,ACCELCODEC_R19, 0xFF);  //AOM
         rk610_codec_write(codec,ACCELCODEC_R04, ASC_INT_MUTE_L|ASC_INT_MUTE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);  //soft mute
 	//add for standby
@@ -599,7 +606,7 @@ void rk610_codec_reg_set(void)
 {
     struct snd_soc_codec *codec = rk610_codec_codec;
     unsigned int digital_gain;
-
+	unsigned int mic_vol = Volume_Input;
 	rk610_codec_write(codec,ACCELCODEC_R1D, 0x30);
 	rk610_codec_write(codec,ACCELCODEC_R1E, 0x40);
 
@@ -616,13 +623,22 @@ void rk610_codec_reg_set(void)
 
 	rk610_codec_write(codec,ACCELCODEC_R0C, 0x10|ASC_INPUT_VOL_0DB);   //LIL
     rk610_codec_write(codec,ACCELCODEC_R0D, 0x10|ASC_INPUT_VOL_0DB);   //LIR
-    rk610_codec_write(codec,ACCELCODEC_R0E, 0x10|ASC_INPUT_VOL_0DB);   //MIC
+
 #ifdef USE_MIC_IN
-    rk610_codec_write(codec,ACCELCODEC_R12, 0x4c|ASC_MIC_INPUT|ASC_MIC_BOOST_20DB);   //Select MIC input
+	if(mic_vol > 0x07)
+	{
+		rk610_codec_write(codec,ACCELCODEC_R12, 0x4c|ASC_MIC_INPUT|ASC_MIC_BOOST_20DB);   //Select MIC input
+		mic_vol -= 0x07;
+	}	
+	else
+		rk610_codec_write(codec,ACCELCODEC_R12, 0x4c|ASC_MIC_INPUT);   //Select MIC input
     rk610_codec_write(codec,ACCELCODEC_R1C, ASC_DEM_ENABLE);  //0x00);  //use default value
 #else
     rk610_codec_write(codec,ACCELCODEC_R12, 0x4c);   //Select Line input
 #endif
+
+    rk610_codec_write(codec,ACCELCODEC_R0E, 0x10|mic_vol);   //MIC
+	
 	// Diable route PGA->R/L Mixer, PGA gain 0db.
     rk610_codec_write(codec,ACCELCODEC_R13, 0x05 | 0 << 3);
     rk610_codec_write(codec,ACCELCODEC_R14, 0x05 | 0 << 3);
@@ -637,7 +653,7 @@ void rk610_codec_reg_set(void)
     rk610_codec_write(codec,ACCELCODEC_R09, ASC_I2S_MODE|ASC_16BIT_MODE|ASC_NORMAL_LRCLK|ASC_LRSWAP_DISABLE|ASC_MASTER_MODE|ASC_NORMAL_BCLK);
     rk610_codec_write(codec,ACCELCODEC_R00, ASC_HPF_ENABLE|ASC_DSM_MODE_DISABLE|ASC_SCRAMBLE_DISABLE|ASC_DITHER_ENABLE|ASC_BCLKDIV_4);
     //2volume,input,output
-    digital_gain = 0xE42;
+    digital_gain = Volume_Output;
     rk610_codec_write(codec,ACCELCODEC_R05, (digital_gain >> 8) & 0xFF);
     rk610_codec_write(codec,ACCELCODEC_R06, digital_gain & 0xFF);
     rk610_codec_write(codec,ACCELCODEC_R07, (digital_gain >> 8) & 0xFF);
