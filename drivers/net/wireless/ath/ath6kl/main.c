@@ -758,6 +758,10 @@ static void ath6kl_update_target_stats(struct ath6kl_vif *vif, u8 *ptr, u32 len)
 	stats->wow_evt_discarded +=
 		le16_to_cpu(tgt_stats->wow_stats.wow_evt_discarded);
 
+	stats->arp_received = le32_to_cpu(tgt_stats->arp_stats.arp_received);
+	stats->arp_replied = le32_to_cpu(tgt_stats->arp_stats.arp_replied);
+	stats->arp_matched = le32_to_cpu(tgt_stats->arp_stats.arp_matched);
+
 	if (test_bit(STATS_UPDATE_PEND, &vif->flags)) {
 		clear_bit(STATS_UPDATE_PEND, &vif->flags);
 		wake_up(&ar->event_wq);

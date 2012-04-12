@@ -616,6 +616,12 @@ static ssize_t read_file_tgt_stats(struct file *file, char __user *user_buf,
 			 "Num disconnects", tgt_stats->cs_discon_cnt);
 	len += scnprintf(buf + len, buf_len - len, "%20s %10d\n",
 			 "Beacon avg rssi", tgt_stats->cs_ave_beacon_rssi);
+	len += scnprintf(buf + len, buf_len - len, "%20s %10d\n",
+			 "ARP pkt received", tgt_stats->arp_received);
+	len += scnprintf(buf + len, buf_len - len, "%20s %10d\n",
+			 "ARP pkt matched", tgt_stats->arp_matched);
+	len += scnprintf(buf + len, buf_len - len, "%20s %10d\n",
+			 "ARP pkt replied", tgt_stats->arp_replied);
 
 	if (len > buf_len)
 		len = buf_len;
