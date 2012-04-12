@@ -29,6 +29,7 @@
 
 #include "omap_hwmod_common_data.h"
 
+#include "smartreflex.h"
 #include "prm-regbits-34xx.h"
 #include "cm-regbits-34xx.h"
 #include "wd_timer.h"
@@ -374,6 +375,16 @@ static struct omap_hwmod_ocp_if omap3_l4_core__i2c3 = {
 		}
 	},
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_irq_info omap3_smartreflex_mpu_irqs[] = {
+	{ .irq = 18},
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_irq_info omap3_smartreflex_core_irqs[] = {
+	{ .irq = 19},
+	{ .irq = -1 }
 };
 
 /* L4 CORE -> SR1 interface */
@@ -1480,6 +1491,28 @@ static struct omap_hwmod omap3xxx_dss_core_hwmod = {
 	.masters_cnt	= ARRAY_SIZE(omap3xxx_dss_masters),
 };
 
+/*
+ * 'dispc' class
+ * display controller
+ */
+
+static struct omap_hwmod_class_sysconfig omap3_dispc_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0010,
+	.syss_offs	= 0x0014,
+	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE |
+			   SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSC_HAS_ENAWAKEUP),
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
+			   MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3_dispc_hwmod_class = {
+	.name	= "dispc",
+	.sysc	= &omap3_dispc_sysc,
+};
+
 /* l4_core -> dss_dispc */
 static struct omap_hwmod_ocp_if omap3xxx_l4_core__dss_dispc = {
 	.master		= &omap3xxx_l4_core_hwmod,
@@ -1503,7 +1536,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_dss_dispc_slaves[] = {
 
 static struct omap_hwmod omap3xxx_dss_dispc_hwmod = {
 	.name		= "dss_dispc",
-	.class		= &omap2_dispc_hwmod_class,
+	.class		= &omap3_dispc_hwmod_class,
 	.mpu_irqs	= omap2_dispc_irqs,
 	.main_clk	= "dss1_alwon_fck",
 	.prcm		= {
@@ -2642,6 +2675,10 @@ static struct omap_hwmod_class omap36xx_smartreflex_hwmod_class = {
 };
 
 /* SR1 */
+static struct omap_smartreflex_dev_attr sr1_dev_attr = {
+	.sensor_voltdm_name   = "mpu_iva",
+};
+
 static struct omap_hwmod_ocp_if *omap3_sr1_slaves[] = {
 	&omap3_l4_core__sr1,
 };
@@ -2650,7 +2687,6 @@ static struct omap_hwmod omap34xx_sr1_hwmod = {
 	.name		= "sr1_hwmod",
 	.class		= &omap34xx_smartreflex_hwmod_class,
 	.main_clk	= "sr1_fck",
-	.vdd_name	= "mpu_iva",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -2662,6 +2698,8 @@ static struct omap_hwmod omap34xx_sr1_hwmod = {
 	},
 	.slaves		= omap3_sr1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3_sr1_slaves),
+	.dev_attr	= &sr1_dev_attr,
+	.mpu_irqs	= omap3_smartreflex_mpu_irqs,
 	.flags		= HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
@@ -2669,7 +2707,6 @@ static struct omap_hwmod omap36xx_sr1_hwmod = {
 	.name		= "sr1_hwmod",
 	.class		= &omap36xx_smartreflex_hwmod_class,
 	.main_clk	= "sr1_fck",
-	.vdd_name	= "mpu_iva",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -2681,9 +2718,15 @@ static struct omap_hwmod omap36xx_sr1_hwmod = {
 	},
 	.slaves		= omap3_sr1_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3_sr1_slaves),
+	.dev_attr	= &sr1_dev_attr,
+	.mpu_irqs	= omap3_smartreflex_mpu_irqs,
 };
 
 /* SR2 */
+static struct omap_smartreflex_dev_attr sr2_dev_attr = {
+	.sensor_voltdm_name	= "core",
+};
+
 static struct omap_hwmod_ocp_if *omap3_sr2_slaves[] = {
 	&omap3_l4_core__sr2,
 };
@@ -2692,7 +2735,6 @@ static struct omap_hwmod omap34xx_sr2_hwmod = {
 	.name		= "sr2_hwmod",
 	.class		= &omap34xx_smartreflex_hwmod_class,
 	.main_clk	= "sr2_fck",
-	.vdd_name	= "core",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -2704,6 +2746,8 @@ static struct omap_hwmod omap34xx_sr2_hwmod = {
 	},
 	.slaves		= omap3_sr2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3_sr2_slaves),
+	.dev_attr	= &sr2_dev_attr,
+	.mpu_irqs	= omap3_smartreflex_core_irqs,
 	.flags		= HWMOD_SET_DEFAULT_CLOCKACT,
 };
 
@@ -2711,7 +2755,6 @@ static struct omap_hwmod omap36xx_sr2_hwmod = {
 	.name		= "sr2_hwmod",
 	.class		= &omap36xx_smartreflex_hwmod_class,
 	.main_clk	= "sr2_fck",
-	.vdd_name	= "core",
 	.prcm		= {
 		.omap2 = {
 			.prcm_reg_id = 1,
@@ -2723,6 +2766,8 @@ static struct omap_hwmod omap36xx_sr2_hwmod = {
 	},
 	.slaves		= omap3_sr2_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3_sr2_slaves),
+	.dev_attr	= &sr2_dev_attr,
+	.mpu_irqs	= omap3_smartreflex_core_irqs,
 };
 
 /*
@@ -3523,12 +3568,6 @@ static __initdata struct omap_hwmod *omap3xxx_hwmods[] = {
 	&omap3xxx_uart2_hwmod,
 	&omap3xxx_uart3_hwmod,
 
-	/* dss class */
-	&omap3xxx_dss_dispc_hwmod,
-	&omap3xxx_dss_dsi1_hwmod,
-	&omap3xxx_dss_rfbi_hwmod,
-	&omap3xxx_dss_venc_hwmod,
-
 	/* i2c class */
 	&omap3xxx_i2c1_hwmod,
 	&omap3xxx_i2c2_hwmod,
@@ -3635,6 +3674,15 @@ static __initdata struct omap_hwmod *am35xx_hwmods[] = {
 	NULL
 };
 
+static __initdata struct omap_hwmod *omap3xxx_dss_hwmods[] = {
+	/* dss class */
+	&omap3xxx_dss_dispc_hwmod,
+	&omap3xxx_dss_dsi1_hwmod,
+	&omap3xxx_dss_rfbi_hwmod,
+	&omap3xxx_dss_venc_hwmod,
+	NULL
+};
+
 int __init omap3xxx_hwmod_init(void)
 {
 	int r;
@@ -3708,6 +3756,21 @@ int __init omap3xxx_hwmod_init(void)
 
 	if (h)
 		r = omap_hwmod_register(h);
+	if (r < 0)
+		return r;
+
+	/*
+	 * DSS code presumes that dss_core hwmod is handled first,
+	 * _before_ any other DSS related hwmods so register common
+	 * DSS hwmods last to ensure that dss_core is already registered.
+	 * Otherwise some change things may happen, for ex. if dispc
+	 * is handled before dss_core and DSS is enabled in bootloader
+	 * DIPSC will be reset with outputs enabled which sometimes leads
+	 * to unrecoverable L3 error.
+	 * XXX The long-term fix to this is to ensure modules are set up
+	 * in dependency order in the hwmod core code.
+	 */
+	r = omap_hwmod_register(omap3xxx_dss_hwmods);
 
 	return r;
 }

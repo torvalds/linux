@@ -315,11 +315,9 @@ static int logfs_get_sb_final(struct super_block *sb)
 	if (IS_ERR(rootdir))
 		goto fail;
 
-	sb->s_root = d_alloc_root(rootdir);
-	if (!sb->s_root) {
-		iput(rootdir);
+	sb->s_root = d_make_root(rootdir);
+	if (!sb->s_root)
 		goto fail;
-	}
 
 	/* at that point we know that ->put_super() will be called */
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
@@ -486,14 +484,15 @@ static void logfs_kill_sb(struct super_block *sb)
 	/* Alias entries slow down mount, so evict as many as possible */
 	sync_filesystem(sb);
 	logfs_write_anchor(sb);
+	free_areas(sb);
 
 	/*
 	 * From this point on alias entries are simply dropped - and any
 	 * writes to the object store are considered bugs.
 	 */
-	super->s_flags |= LOGFS_SB_FLAG_SHUTDOWN;
 	log_super("LogFS: Now in shutdown\n");
 	generic_shutdown_super(sb);
+	super->s_flags |= LOGFS_SB_FLAG_SHUTDOWN;
 
 	BUG_ON(super->s_dirty_used_bytes || super->s_dirty_free_bytes);
 
@@ -541,6 +540,7 @@ static struct dentry *logfs_get_sb_device(struct logfs_super *super,
 	 * the filesystem incompatible with 32bit systems.
 	 */
 	sb->s_maxbytes	= (1ull << 43) - 1;
+	sb->s_max_links = LOGFS_LINK_MAX;
 	sb->s_op	= &logfs_super_operations;
 	sb->s_flags	= flags | MS_NOATIME;
 
@@ -626,7 +626,10 @@ static int __init logfs_init(void)
 	if (ret)
 		goto out2;
 
-	return register_filesystem(&logfs_fs_type);
+	ret = register_filesystem(&logfs_fs_type);
+	if (!ret)
+		return 0;
+	logfs_destroy_inode_cache();
 out2:
 	logfs_compr_exit();
 out1:

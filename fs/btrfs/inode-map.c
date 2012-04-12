@@ -438,7 +438,8 @@ int btrfs_save_ino_cache(struct btrfs_root *root,
 					  trans->bytes_reserved);
 	if (ret)
 		goto out;
-	trace_btrfs_space_reservation(root->fs_info, "ino_cache", (u64)trans,
+	trace_btrfs_space_reservation(root->fs_info, "ino_cache",
+				      (u64)(unsigned long)trans,
 				      trans->bytes_reserved, 1);
 again:
 	inode = lookup_free_ino_inode(root, path);
@@ -500,7 +501,8 @@ again:
 out_put:
 	iput(inode);
 out_release:
-	trace_btrfs_space_reservation(root->fs_info, "ino_cache", (u64)trans,
+	trace_btrfs_space_reservation(root->fs_info, "ino_cache",
+				      (u64)(unsigned long)trans,
 				      trans->bytes_reserved, 0);
 	btrfs_block_rsv_release(root, trans->block_rsv, trans->bytes_reserved);
 out:

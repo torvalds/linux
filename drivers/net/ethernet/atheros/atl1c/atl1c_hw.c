@@ -224,7 +224,7 @@ int atl1c_read_mac_addr(struct atl1c_hw *hw)
 		random_ether_addr(hw->perm_mac_addr);
 
 	memcpy(hw->mac_addr, hw->perm_mac_addr, sizeof(hw->perm_mac_addr));
-	return 0;
+	return err;
 }
 
 /*

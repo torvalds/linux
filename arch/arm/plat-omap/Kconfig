@@ -14,6 +14,7 @@ config ARCH_OMAP1
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select GENERIC_IRQ_CHIP
+	select IRQ_DOMAIN
 	select HAVE_IDE
 	select NEED_MACH_MEMORY_H
 	help
@@ -24,6 +25,8 @@ config ARCH_OMAP2PLUS
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_CHIP
 	select OMAP_DM_TIMER
+	select USE_OF
+	select PROC_DEVICETREE if PROC_FS
 	help
 	  "Systems based on OMAP2, OMAP3 or OMAP4"
 
@@ -109,14 +112,6 @@ config OMAP_MUX_WARNINGS
 	  Choose Y here to warn whenever driver initialization logic needs
 	  to change the pin multiplexing setup.	 When there are no warnings
 	  printed, it's safe to deselect OMAP_MUX for your product.
-
-config OMAP_MCBSP
-	bool "McBSP support"
-	depends on ARCH_OMAP
-	default y
-	help
-	  Say Y here if you want support for the OMAP Multichannel
-	  Buffered Serial Port.
 
 config OMAP_MBOX_FWK
 	tristate "Mailbox framework support"

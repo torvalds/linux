@@ -2046,10 +2046,9 @@ static int ext3_fill_super (struct super_block *sb, void *data, int silent)
 		ext3_msg(sb, KERN_ERR, "error: corrupt root inode, run e2fsck");
 		goto failed_mount3;
 	}
-	sb->s_root = d_alloc_root(root);
+	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		ext3_msg(sb, KERN_ERR, "error: get root dentry failed");
-		iput(root);
 		ret = -ENOMEM;
 		goto failed_mount3;
 	}

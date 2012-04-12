@@ -22,7 +22,6 @@
 
 struct file;
 struct xfs_inode;
-struct xfs_iomap;
 struct attrlist_cursor_kern;
 
 /*

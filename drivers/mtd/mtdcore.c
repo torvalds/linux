@@ -119,7 +119,7 @@ static int mtd_cls_suspend(struct device *dev, pm_message_t state)
 {
 	struct mtd_info *mtd = dev_get_drvdata(dev);
 
-	return mtd_suspend(mtd);
+	return mtd ? mtd_suspend(mtd) : 0;
 }
 
 static int mtd_cls_resume(struct device *dev)

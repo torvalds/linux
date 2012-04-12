@@ -640,6 +640,10 @@ void dasd_enable_device(struct dasd_device *device)
 		dasd_set_target_state(device, DASD_STATE_NEW);
 	/* Now wait for the devices to come up. */
 	wait_event(dasd_init_waitq, _wait_for_device(device));
+
+	dasd_reload_device(device);
+	if (device->discipline->kick_validate)
+		device->discipline->kick_validate(device);
 }
 
 /*
@@ -3260,6 +3264,12 @@ void dasd_generic_path_event(struct ccw_device *cdev, int *path_event)
 			device->path_data.npm &= ~eventlpm;
 			device->path_data.tbvpm |= eventlpm;
 			dasd_schedule_device_bh(device);
+		}
+		if (path_event[chp] & PE_PATHGROUP_ESTABLISHED) {
+			DBF_DEV_EVENT(DBF_WARNING, device, "%s",
+				      "Pathgroup re-established\n");
+			if (device->discipline->kick_validate)
+				device->discipline->kick_validate(device);
 		}
 	}
 	dasd_put_device(device);

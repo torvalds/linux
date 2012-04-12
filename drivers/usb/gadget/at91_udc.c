@@ -29,7 +29,6 @@
 #include <linux/clk.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <linux/prefetch.h>
 
 #include <asm/byteorder.h>
 #include <mach/hardware.h>
@@ -41,6 +40,7 @@
 #include <mach/board.h>
 #include <mach/cpu.h>
 #include <mach/at91sam9261_matrix.h>
+#include <mach/at91_matrix.h>
 
 #include "at91_udc.h"
 
@@ -558,6 +558,7 @@ static int at91_ep_disable (struct usb_ep * _ep)
 
 	/* restore the endpoint's pristine config */
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->ep.maxpacket = ep->maxpacket;
 
 	/* reset fifos and endpoint */
@@ -910,9 +911,9 @@ static void pullup(struct at91_udc *udc, int is_on)
 		} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
 			u32	usbpucr;
 
-			usbpucr = at91_sys_read(AT91_MATRIX_USBPUCR);
+			usbpucr = at91_matrix_read(AT91_MATRIX_USBPUCR);
 			usbpucr |= AT91_MATRIX_USBPUCR_PUON;
-			at91_sys_write(AT91_MATRIX_USBPUCR, usbpucr);
+			at91_matrix_write(AT91_MATRIX_USBPUCR, usbpucr);
 		}
 	} else {
 		stop_activity(udc);
@@ -928,9 +929,9 @@ static void pullup(struct at91_udc *udc, int is_on)
 		} else if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()) {
 			u32	usbpucr;
 
-			usbpucr = at91_sys_read(AT91_MATRIX_USBPUCR);
+			usbpucr = at91_matrix_read(AT91_MATRIX_USBPUCR);
 			usbpucr &= ~AT91_MATRIX_USBPUCR_PUON;
-			at91_sys_write(AT91_MATRIX_USBPUCR, usbpucr);
+			at91_matrix_write(AT91_MATRIX_USBPUCR, usbpucr);
 		}
 		clk_off(udc);
 	}

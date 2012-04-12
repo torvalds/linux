@@ -75,21 +75,45 @@ void iwl_notification_wait_init(struct iwl_notif_wait_data *notif_wait)
 void iwl_notification_wait_notify(struct iwl_notif_wait_data *notif_wait,
 				  struct iwl_rx_packet *pkt)
 {
+	bool triggered = false;
+
 	if (!list_empty(&notif_wait->notif_waits)) {
 		struct iwl_notification_wait *w;
 
 		spin_lock(&notif_wait->notif_wait_lock);
 		list_for_each_entry(w, &notif_wait->notif_waits, list) {
-			if (w->cmd != pkt->hdr.cmd)
+			int i;
+			bool found = false;
+
+			/*
+			 * If it already finished (triggered) or has been
+			 * aborted then don't evaluate it again to avoid races,
+			 * Otherwise the function could be called again even
+			 * though it returned true before
+			 */
+			if (w->triggered || w->aborted)
 				continue;
-			w->triggered = true;
-			if (w->fn)
-				w->fn(notif_wait, pkt, w->fn_data);
+
+			for (i = 0; i < w->n_cmds; i++) {
+				if (w->cmds[i] == pkt->hdr.cmd) {
+					found = true;
+					break;
+				}
+			}
+			if (!found)
+				continue;
+
+			if (!w->fn || w->fn(notif_wait, pkt, w->fn_data)) {
+				w->triggered = true;
+				triggered = true;
+			}
 		}
 		spin_unlock(&notif_wait->notif_wait_lock);
 
-		wake_up_all(&notif_wait->notif_waitq);
 	}
+
+	if (triggered)
+		wake_up_all(&notif_wait->notif_waitq);
 }
 
 void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
@@ -109,14 +133,18 @@ void iwl_abort_notification_waits(struct iwl_notif_wait_data *notif_wait)
 void
 iwl_init_notification_wait(struct iwl_notif_wait_data *notif_wait,
 			   struct iwl_notification_wait *wait_entry,
-			   u8 cmd,
-			   void (*fn)(struct iwl_notif_wait_data *notif_wait,
+			   const u8 *cmds, int n_cmds,
+			   bool (*fn)(struct iwl_notif_wait_data *notif_wait,
 				      struct iwl_rx_packet *pkt, void *data),
 			   void *fn_data)
 {
+	if (WARN_ON(n_cmds > MAX_NOTIF_CMDS))
+		n_cmds = MAX_NOTIF_CMDS;
+
 	wait_entry->fn = fn;
 	wait_entry->fn_data = fn_data;
-	wait_entry->cmd = cmd;
+	wait_entry->n_cmds = n_cmds;
+	memcpy(wait_entry->cmds, cmds, n_cmds);
 	wait_entry->triggered = false;
 	wait_entry->aborted = false;
 

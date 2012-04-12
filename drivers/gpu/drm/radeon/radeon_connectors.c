@@ -827,6 +827,27 @@ static int radeon_dvi_get_modes(struct drm_connector *connector)
 	return ret;
 }
 
+static bool radeon_check_hpd_status_unchanged(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+	enum drm_connector_status status;
+
+	/* We only trust HPD on R600 and newer ASICS. */
+	if (rdev->family >= CHIP_R600
+	  && radeon_connector->hpd.hpd != RADEON_HPD_NONE) {
+		if (radeon_hpd_sense(rdev, radeon_connector->hpd.hpd))
+			status = connector_status_connected;
+		else
+			status = connector_status_disconnected;
+		if (connector->status == status)
+			return true;
+	}
+
+	return false;
+}
+
 /*
  * DVI is complicated
  * Do a DDC probe, if DDC probe passes, get the full EDID so
@@ -850,6 +871,9 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 	int i;
 	enum drm_connector_status ret = connector_status_disconnected;
 	bool dret = false;
+
+	if (!force && radeon_check_hpd_status_unchanged(connector))
+		return connector->status;
 
 	if (radeon_connector->ddc_bus)
 		dret = radeon_ddc_probe(radeon_connector);
@@ -945,6 +969,10 @@ radeon_dvi_detect(struct drm_connector *connector, bool force)
 				continue;
 
 			encoder = obj_to_encoder(obj);
+
+			if (encoder->encoder_type != DRM_MODE_ENCODER_DAC ||
+			    encoder->encoder_type != DRM_MODE_ENCODER_TVDAC)
+				continue;
 
 			encoder_funcs = encoder->helper_private;
 			if (encoder_funcs->detect) {
@@ -1057,7 +1085,7 @@ static int radeon_dvi_mode_valid(struct drm_connector *connector,
 		    (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_B))
 			return MODE_OK;
 		else if (radeon_connector->connector_object_id == CONNECTOR_OBJECT_ID_HDMI_TYPE_A) {
-			if (ASIC_IS_DCE3(rdev)) {
+			if (ASIC_IS_DCE6(rdev)) {
 				/* HDMI 1.3+ supports max clock of 340 Mhz */
 				if (mode->clock > 340000)
 					return MODE_CLOCK_HIGH;
@@ -1117,13 +1145,23 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 	    (connector->connector_type == DRM_MODE_CONNECTOR_LVDS)) {
 		struct drm_display_mode *mode;
 
-		if (!radeon_dig_connector->edp_on)
-			atombios_set_edp_panel_power(connector,
-						     ATOM_TRANSMITTER_ACTION_POWER_ON);
-		ret = radeon_ddc_get_modes(radeon_connector);
-		if (!radeon_dig_connector->edp_on)
-			atombios_set_edp_panel_power(connector,
-						     ATOM_TRANSMITTER_ACTION_POWER_OFF);
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP) {
+			if (!radeon_dig_connector->edp_on)
+				atombios_set_edp_panel_power(connector,
+							     ATOM_TRANSMITTER_ACTION_POWER_ON);
+			ret = radeon_ddc_get_modes(radeon_connector);
+			if (!radeon_dig_connector->edp_on)
+				atombios_set_edp_panel_power(connector,
+							     ATOM_TRANSMITTER_ACTION_POWER_OFF);
+		} else {
+			/* need to setup ddc on the bridge */
+			if (radeon_connector_encoder_get_dp_bridge_encoder_id(connector) !=
+			    ENCODER_OBJECT_ID_NONE) {
+				if (encoder)
+					radeon_atom_ext_encoder_setup_ddc(encoder);
+			}
+			ret = radeon_ddc_get_modes(radeon_connector);
+		}
 
 		if (ret > 0) {
 			if (encoder) {
@@ -1134,7 +1172,6 @@ static int radeon_dp_get_modes(struct drm_connector *connector)
 			return ret;
 		}
 
-		encoder = radeon_best_single_encoder(connector);
 		if (!encoder)
 			return 0;
 
@@ -1240,6 +1277,9 @@ radeon_dp_detect(struct drm_connector *connector, bool force)
 	enum drm_connector_status ret = connector_status_disconnected;
 	struct radeon_connector_atom_dig *radeon_dig_connector = radeon_connector->con_priv;
 	struct drm_encoder *encoder = radeon_best_single_encoder(connector);
+
+	if (!force && radeon_check_hpd_status_unchanged(connector))
+		return connector->status;
 
 	if (radeon_connector->edid) {
 		kfree(radeon_connector->edid);

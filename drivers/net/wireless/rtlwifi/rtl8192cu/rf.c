@@ -479,7 +479,7 @@ static bool _rtl92c_phy_rf6052_config_parafile(struct ieee80211_hw *hw)
 				      BRFSI_RFENV << 16, u4_regvalue);
 			break;
 		}
-		if (rtstatus != true) {
+		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 				 "Radio[%d] Fail!!", rfpath);
 			goto phy_rf_cfg_fail;

@@ -1190,14 +1190,9 @@ static int block_til_ready(struct tty_struct *tty, struct file * filp,
 int rs_open(struct tty_struct *tty, struct file * filp)
 {
 	struct m68k_serial	*info;
-	int 			retval, line;
+	int retval;
 
-	line = tty->index;
-	
-	if (line >= NR_PORTS || line < 0) /* we have exactly one */
-		return -ENODEV;
-
-	info = &m68k_soft[line];
+	info = &m68k_soft[tty->index];
 
 	if (serial_paranoia_check(info, tty->name, "rs_open"))
 		return -ENODEV;

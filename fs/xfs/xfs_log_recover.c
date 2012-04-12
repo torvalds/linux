@@ -965,9 +965,9 @@ xlog_find_tail(
 		log->l_curr_cycle++;
 	atomic64_set(&log->l_tail_lsn, be64_to_cpu(rhead->h_tail_lsn));
 	atomic64_set(&log->l_last_sync_lsn, be64_to_cpu(rhead->h_lsn));
-	xlog_assign_grant_head(&log->l_grant_reserve_head, log->l_curr_cycle,
+	xlog_assign_grant_head(&log->l_reserve_head.grant, log->l_curr_cycle,
 					BBTOB(log->l_curr_block));
-	xlog_assign_grant_head(&log->l_grant_write_head, log->l_curr_cycle,
+	xlog_assign_grant_head(&log->l_write_head.grant, log->l_curr_cycle,
 					BBTOB(log->l_curr_block));
 
 	/*
@@ -1489,7 +1489,7 @@ xlog_recover_add_to_cont_trans(
 	old_ptr = item->ri_buf[item->ri_cnt-1].i_addr;
 	old_len = item->ri_buf[item->ri_cnt-1].i_len;
 
-	ptr = kmem_realloc(old_ptr, len+old_len, old_len, 0u);
+	ptr = kmem_realloc(old_ptr, len+old_len, old_len, KM_SLEEP);
 	memcpy(&ptr[old_len], dp, len); /* d, s, l */
 	item->ri_buf[item->ri_cnt-1].i_len += len;
 	item->ri_buf[item->ri_cnt-1].i_addr = ptr;
@@ -1981,7 +1981,7 @@ xfs_qm_dqcheck(
 
 	if (!errs && ddq->d_id) {
 		if (ddq->d_blk_softlimit &&
-		    be64_to_cpu(ddq->d_bcount) >=
+		    be64_to_cpu(ddq->d_bcount) >
 				be64_to_cpu(ddq->d_blk_softlimit)) {
 			if (!ddq->d_btimer) {
 				if (flags & XFS_QMOPT_DOWARN)
@@ -1992,7 +1992,7 @@ xfs_qm_dqcheck(
 			}
 		}
 		if (ddq->d_ino_softlimit &&
-		    be64_to_cpu(ddq->d_icount) >=
+		    be64_to_cpu(ddq->d_icount) >
 				be64_to_cpu(ddq->d_ino_softlimit)) {
 			if (!ddq->d_itimer) {
 				if (flags & XFS_QMOPT_DOWARN)
@@ -2003,7 +2003,7 @@ xfs_qm_dqcheck(
 			}
 		}
 		if (ddq->d_rtb_softlimit &&
-		    be64_to_cpu(ddq->d_rtbcount) >=
+		    be64_to_cpu(ddq->d_rtbcount) >
 				be64_to_cpu(ddq->d_rtb_softlimit)) {
 			if (!ddq->d_rtbtimer) {
 				if (flags & XFS_QMOPT_DOWARN)
@@ -3695,7 +3695,7 @@ xlog_do_recover(
 
 	/* Convert superblock from on-disk format */
 	sbp = &log->l_mp->m_sb;
-	xfs_sb_from_disk(sbp, XFS_BUF_TO_SBP(bp));
+	xfs_sb_from_disk(log->l_mp, XFS_BUF_TO_SBP(bp));
 	ASSERT(sbp->sb_magicnum == XFS_SB_MAGIC);
 	ASSERT(xfs_sb_good_version(sbp));
 	xfs_buf_relse(bp);

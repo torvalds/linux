@@ -39,7 +39,9 @@ enum e_ctrl {
 	BLUE,
 	RED,
 	GAMMA,
+	EXPOSURE,
 	AUTOGAIN,
+	GAIN,
 	HFLIP,
 	VFLIP,
 	SHARPNESS,
@@ -131,7 +133,9 @@ static void setcontrast(struct gspca_dev *gspca_dev);
 static void setcolors(struct gspca_dev *gspca_dev);
 static void setredblue(struct gspca_dev *gspca_dev);
 static void setgamma(struct gspca_dev *gspca_dev);
-static void setautogain(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
+static void setgain(struct gspca_dev *gspca_dev);
 static void sethvflip(struct gspca_dev *gspca_dev);
 static void setsharpness(struct gspca_dev *gspca_dev);
 static void setillum(struct gspca_dev *gspca_dev);
@@ -213,6 +217,18 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 	    },
 	    .set_control = setgamma
 	},
+[EXPOSURE] = {
+	    {
+		.id      = V4L2_CID_EXPOSURE,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Exposure",
+		.minimum = 500,
+		.maximum = 1500,
+		.step    = 1,
+		.default_value = 1024
+	    },
+	    .set_control = setexposure
+	},
 [AUTOGAIN] = {
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -223,7 +239,19 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.step    = 1,
 		.default_value = 1
 	    },
-	    .set_control = setautogain
+	    .set = sd_setautogain,
+	},
+[GAIN] = {
+	    {
+		.id      = V4L2_CID_GAIN,
+		.type    = V4L2_CTRL_TYPE_INTEGER,
+		.name    = "Gain",
+		.minimum = 4,
+		.maximum = 49,
+		.step    = 1,
+		.default_value = 15
+	    },
+	    .set_control = setgain
 	},
 [HFLIP] = {
 	    {
@@ -290,60 +318,87 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 
 /* table of the disabled controls */
 static const __u32 ctrl_dis[] = {
-[SENSOR_ADCM1700] =	(1 << AUTOGAIN) |
+[SENSOR_ADCM1700] =	(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
+			(1 << GAIN) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_GC0307] =	(1 << HFLIP) |
+[SENSOR_GC0307] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_HV7131R] =	(1 << HFLIP) |
+[SENSOR_HV7131R] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MI0360] =	(1 << HFLIP) |
+[SENSOR_MI0360] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MI0360B] =	(1 << HFLIP) |
+[SENSOR_MI0360B] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MO4000] =	(1 << HFLIP) |
+[SENSOR_MO4000] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_MT9V111] =	(1 << HFLIP) |
+[SENSOR_MT9V111] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_OM6802] =	(1 << HFLIP) |
+[SENSOR_OM6802] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_OV7630] =	(1 << HFLIP),
+[SENSOR_OV7630] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP),
 
-[SENSOR_OV7648] =	(1 << HFLIP),
+[SENSOR_OV7648] =	(1 << EXPOSURE) |
+			(1 << GAIN) |
+			(1 << HFLIP),
 
-[SENSOR_OV7660] =	(1 << AUTOGAIN) |
+[SENSOR_OV7660] =	(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
+			(1 << GAIN) |
 			(1 << HFLIP) |
 			(1 << VFLIP),
 
-[SENSOR_PO1030] =	(1 << AUTOGAIN) |
+[SENSOR_PO1030] =	(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
+			(1 << GAIN) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_PO2030N] =	(1 << AUTOGAIN) |
-			(1 << FREQ),
+[SENSOR_PO2030N] =	(1 << FREQ),
 
-[SENSOR_SOI768] =	(1 << AUTOGAIN) |
+[SENSOR_SOI768] =	(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
+			(1 << GAIN) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
 
-[SENSOR_SP80708] =	(1 << AUTOGAIN) |
+[SENSOR_SP80708] =	(1 << EXPOSURE) |
+			(1 << AUTOGAIN) |
+			(1 << GAIN) |
 			(1 << HFLIP) |
 			(1 << VFLIP) |
 			(1 << FREQ),
@@ -1242,14 +1297,6 @@ static const u8 po2030n_sensor_param1[][8] = {
 	{0xa1, 0x6e, 0x05, 0x6f, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x6e, 0x06, 0x02, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x6e, 0x07, 0x25, 0x00, 0x00, 0x00, 0x10},
-	{0xa1, 0x6e, 0x15, 0x04, 0x00, 0x00, 0x00, 0x10},
-	{0xc1, 0x6e, 0x16, 0x52, 0x40, 0x48, 0x00, 0x10},
-/*after start*/
-	{0xa1, 0x6e, 0x15, 0x0f, 0x00, 0x00, 0x00, 0x10},
-	{DELAY, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 5ms */
-	{0xa1, 0x6e, 0x1a, 0x05, 0x00, 0x00, 0x00, 0x10},
-	{DELAY, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, /* delay 5ms */
-	{0xa1, 0x6e, 0x1b, 0x53, 0x00, 0x00, 0x00, 0x10},
 	{}
 };
 
@@ -1858,7 +1905,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return gspca_dev->usb_err;
 }
 
-static u32 setexposure(struct gspca_dev *gspca_dev,
+static u32 expo_adjust(struct gspca_dev *gspca_dev,
 			u32 expo)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1982,28 +2029,28 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			expo = 0x002dc6c0;
 		else if (expo < 0x02a0)
 			expo = 0x02a0;
-		sd->exposure = setexposure(gspca_dev, expo);
+		sd->exposure = expo_adjust(gspca_dev, expo);
 		break;
 	case SENSOR_MI0360:
 	case SENSOR_MO4000:
 		expo = brightness << 4;
-		sd->exposure = setexposure(gspca_dev, expo);
+		sd->exposure = expo_adjust(gspca_dev, expo);
 		break;
 	case SENSOR_MI0360B:
 		expo = brightness << 2;
-		sd->exposure = setexposure(gspca_dev, expo);
+		sd->exposure = expo_adjust(gspca_dev, expo);
 		break;
 	case SENSOR_GC0307:
 		expo = brightness;
-		sd->exposure = setexposure(gspca_dev, expo);
+		sd->exposure = expo_adjust(gspca_dev, expo);
 		return;			/* don't set the Y offset */
 	case SENSOR_MT9V111:
 		expo = brightness << 2;
-		sd->exposure = setexposure(gspca_dev, expo);
+		sd->exposure = expo_adjust(gspca_dev, expo);
 		return;			/* don't set the Y offset */
 	case SENSOR_OM6802:
 		expo = brightness << 2;
-		sd->exposure = setexposure(gspca_dev, expo);
+		sd->exposure = expo_adjust(gspca_dev, expo);
 		return;			/* Y offset already set */
 	}
 
@@ -2112,6 +2159,23 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x20, gamma, sizeof gamma);
 }
 
+static void setexposure(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_PO2030N) {
+		u8 rexpo[] =		/* 1a: expo H, 1b: expo M */
+			{0xa1, 0x6e, 0x1a, 0x00, 0x40, 0x00, 0x00, 0x10};
+
+		rexpo[3] = sd->ctrls[EXPOSURE].val >> 8;
+		i2c_w8(gspca_dev, rexpo);
+		msleep(6);
+		rexpo[2] = 0x1b;
+		rexpo[3] = sd->ctrls[EXPOSURE].val;
+		i2c_w8(gspca_dev, rexpo);
+	}
+}
+
 static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -2137,6 +2201,19 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = AG_CNT_START;
 	else
 		sd->ag_cnt = -1;
+}
+
+static void setgain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_PO2030N) {
+		u8 rgain[] =		/* 15: gain */
+			{0xa1, 0x6e, 0x15, 0x00, 0x40, 0x00, 0x00, 0x15};
+
+		rgain[3] = sd->ctrls[GAIN].val;
+		i2c_w8(gspca_dev, rgain);
+	}
 }
 
 static void sethvflip(struct gspca_dev *gspca_dev)
@@ -2623,6 +2700,10 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setcontrast(gspca_dev);
 	setcolors(gspca_dev);
 	setautogain(gspca_dev);
+	if (!(gspca_dev->ctrl_inac & ((1 << EXPOSURE) | (1 << GAIN)))) {
+		setexposure(gspca_dev);
+		setgain(gspca_dev);
+	}
 	setfreq(gspca_dev);
 
 	sd->pktsz = sd->npkt = 0;
@@ -2719,6 +2800,12 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	}
 }
 
+/* !! coarse_grained_expo_autogain is not used !! */
+#define exp_too_low_cnt bridge
+#define exp_too_high_cnt sensor
+
+#include "autogain_functions.h"
+
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -2736,6 +2823,13 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 
 	delta = atomic_read(&sd->avg_lum);
 	PDEBUG(D_FRAM, "mean lum %d", delta);
+
+	if (sd->sensor == SENSOR_PO2030N) {
+		auto_gain_n_exposure(gspca_dev, delta, luma_mean, luma_delta,
+					15, 1024);
+		return;
+	}
+
 	if (delta < luma_mean - luma_delta ||
 	    delta > luma_mean + luma_delta) {
 		switch (sd->sensor) {
@@ -2744,7 +2838,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 			expotimes += (luma_mean - delta) >> 6;
 			if (expotimes < 0)
 				expotimes = 0;
-			sd->exposure = setexposure(gspca_dev,
+			sd->exposure = expo_adjust(gspca_dev,
 						   (unsigned int) expotimes);
 			break;
 		case SENSOR_HV7131R:
@@ -2752,7 +2846,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 			expotimes += (luma_mean - delta) >> 4;
 			if (expotimes < 0)
 				expotimes = 0;
-			sd->exposure = setexposure(gspca_dev,
+			sd->exposure = expo_adjust(gspca_dev,
 					(unsigned int) (expotimes << 8));
 			break;
 		case SENSOR_OM6802:
@@ -2761,7 +2855,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 			expotimes += (luma_mean - delta) >> 2;
 			if (expotimes < 0)
 				expotimes = 0;
-			sd->exposure = setexposure(gspca_dev,
+			sd->exposure = expo_adjust(gspca_dev,
 						   (unsigned int) expotimes);
 			setredblue(gspca_dev);
 			break;
@@ -2773,7 +2867,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 			expotimes += (luma_mean - delta) >> 6;
 			if (expotimes < 0)
 				expotimes = 0;
-			sd->exposure = setexposure(gspca_dev,
+			sd->exposure = expo_adjust(gspca_dev,
 						   (unsigned int) expotimes);
 			setredblue(gspca_dev);
 			break;
@@ -2948,16 +3042,18 @@ marker_found:
 	}
 }
 
-static int sd_get_jcomp(struct gspca_dev *gspca_dev,
-			struct v4l2_jpegcompression *jcomp)
+static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	memset(jcomp, 0, sizeof *jcomp);
-	jcomp->quality = sd->quality;
-	jcomp->jpeg_markers = V4L2_JPEG_MARKER_DHT
-			| V4L2_JPEG_MARKER_DQT;
-	return 0;
+	sd->ctrls[AUTOGAIN].val = val;
+	if (val)
+		gspca_dev->ctrl_inac |= (1 << EXPOSURE) | (1 << GAIN);
+	else
+		gspca_dev->ctrl_inac &= ~(1 << EXPOSURE) & ~(1 << GAIN);
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
+	return gspca_dev->usb_err;
 }
 
 static int sd_querymenu(struct gspca_dev *gspca_dev,
@@ -3012,7 +3108,6 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
-	.get_jcomp = sd_get_jcomp,
 	.querymenu = sd_querymenu,
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	.int_pkt_scan = sd_int_pkt_scan,

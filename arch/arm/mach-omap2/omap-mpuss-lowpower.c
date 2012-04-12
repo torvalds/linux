@@ -263,12 +263,10 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
 	 * In MPUSS OSWR or device OFF, interrupt controller  contest is lost.
 	 */
 	mpuss_clear_prev_logic_pwrst();
-	pwrdm_clear_all_prev_pwrst(mpuss_pd);
 	if ((pwrdm_read_next_pwrst(mpuss_pd) == PWRDM_POWER_RET) &&
 		(pwrdm_read_logic_retst(mpuss_pd) == PWRDM_POWER_OFF))
 		save_state = 2;
 
-	clear_cpu_prev_pwrst(cpu);
 	cpu_clear_prev_logic_pwrst(cpu);
 	set_cpu_next_pwrst(cpu, power_state);
 	set_cpu_wakeup_addr(cpu, virt_to_phys(omap4_cpu_resume));
@@ -300,7 +298,7 @@ int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state)
  * @cpu : CPU ID
  * @power_state: CPU low power state.
  */
-int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
+int __cpuinit omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state)
 {
 	unsigned int cpu_state = 0;
 

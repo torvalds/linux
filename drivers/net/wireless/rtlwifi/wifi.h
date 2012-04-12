@@ -67,7 +67,7 @@
 #define QOS_QUEUE_NUM				4
 #define RTL_MAC80211_NUM_QUEUE			5
 #define REALTEK_USB_VENQT_MAX_BUF_SIZE		254
-
+#define RTL_USB_MAX_RX_COUNT			100
 #define QBSS_LOAD_SIZE				5
 #define MAX_WMMELE_LENGTH			64
 
@@ -1629,6 +1629,10 @@ struct rtl_priv {
 	   interface or hardware */
 	unsigned long status;
 
+	/* data buffer pointer for USB reads */
+	__le32 *usb_data;
+	int usb_data_index;
+
 	/*This must be the last item so
 	   that it points to the data allocated
 	   beyond  this structure like:
@@ -1954,37 +1958,35 @@ static inline void rtl_write_dword(struct rtl_priv *rtlpriv,
 static inline u32 rtl_get_bbreg(struct ieee80211_hw *hw,
 				u32 regaddr, u32 bitmask)
 {
-	return ((struct rtl_priv *)(hw)->priv)->cfg->ops->get_bbreg(hw,
-								    regaddr,
-								    bitmask);
+	struct rtl_priv *rtlpriv = hw->priv;
+
+	return rtlpriv->cfg->ops->get_bbreg(hw, regaddr, bitmask);
 }
 
 static inline void rtl_set_bbreg(struct ieee80211_hw *hw, u32 regaddr,
 				 u32 bitmask, u32 data)
 {
-	((struct rtl_priv *)(hw)->priv)->cfg->ops->set_bbreg(hw,
-							     regaddr, bitmask,
-							     data);
+	struct rtl_priv *rtlpriv = hw->priv;
 
+	rtlpriv->cfg->ops->set_bbreg(hw, regaddr, bitmask, data);
 }
 
 static inline u32 rtl_get_rfreg(struct ieee80211_hw *hw,
 				enum radio_path rfpath, u32 regaddr,
 				u32 bitmask)
 {
-	return ((struct rtl_priv *)(hw)->priv)->cfg->ops->get_rfreg(hw,
-								    rfpath,
-								    regaddr,
-								    bitmask);
+	struct rtl_priv *rtlpriv = hw->priv;
+
+	return rtlpriv->cfg->ops->get_rfreg(hw, rfpath, regaddr, bitmask);
 }
 
 static inline void rtl_set_rfreg(struct ieee80211_hw *hw,
 				 enum radio_path rfpath, u32 regaddr,
 				 u32 bitmask, u32 data)
 {
-	((struct rtl_priv *)(hw)->priv)->cfg->ops->set_rfreg(hw,
-							     rfpath, regaddr,
-							     bitmask, data);
+	struct rtl_priv *rtlpriv = hw->priv;
+
+	rtlpriv->cfg->ops->set_rfreg(hw, rfpath, regaddr, bitmask, data);
 }
 
 static inline bool is_hal_stop(struct rtl_hal *rtlhal)

@@ -510,3 +510,22 @@ Why:	The pci_scan_bus_parented() interface creates a new root bus.  The
 	convert to using pci_scan_root_bus() so they can supply a list of
 	bus resources when the bus is created.
 Who:	Bjorn Helgaas <bhelgaas@google.com>
+
+----------------------------
+
+What:	Low Performance USB Block driver ("CONFIG_BLK_DEV_UB")
+When:	3.6
+Why:	This driver provides support for USB storage devices like "USB
+	sticks". As of now, it is deactivated in Debian, Fedora and
+        Ubuntu. All current users can switch over to usb-storage
+        (CONFIG_USB_STORAGE) which only drawback is the additional SCSI
+        stack.
+Who:	Sebastian Andrzej Siewior <sebastian@breakpoint.cc>
+
+----------------------------
+
+What:	kmap_atomic(page, km_type)
+When:	3.5
+Why:	The old kmap_atomic() with two arguments is deprecated, we only
+	keep it for backward compatibility for few cycles and then drop it.
+Who:	Cong Wang <amwang@redhat.com>

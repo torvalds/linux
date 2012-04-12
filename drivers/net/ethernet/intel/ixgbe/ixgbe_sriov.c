@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -67,7 +67,8 @@ static int ixgbe_find_enabled_vfs(struct ixgbe_adapter *adapter)
 	vf_devfn = pdev->devfn + 0x80;
 	pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID, device_id, NULL);
 	while (pvfdev) {
-		if (pvfdev->devfn == vf_devfn)
+		if (pvfdev->devfn == vf_devfn &&
+		    (pvfdev->bus->number >= pdev->bus->number))
 			vfs_found++;
 		vf_devfn += 2;
 		pvfdev = pci_get_device(IXGBE_INTEL_VENDOR_ID,
@@ -257,7 +258,7 @@ static void ixgbe_restore_vf_macvlans(struct ixgbe_adapter *adapter)
 
 	list_for_each(pos, &adapter->vf_mvs.l) {
 		entry = list_entry(pos, struct vf_macvlans, l);
-		if (entry->free == false)
+		if (!entry->free)
 			hw->mac.ops.set_rar(hw, entry->rar_entry,
 					    entry->vf_macvlan,
 					    entry->vf, IXGBE_RAH_AV);
@@ -646,6 +647,9 @@ static int ixgbe_rcv_msg_from_vf(struct ixgbe_adapter *adapter, u32 vf)
 			ixgbe_ndo_set_vf_spoofchk(adapter->netdev, vf, false);
 		retval = ixgbe_set_vf_macvlan(adapter, vf, index,
 					      (unsigned char *)(&msgbuf[1]));
+		if (retval == -ENOSPC)
+			e_warn(drv, "VF %d has requested a MACVLAN filter "
+				    "but there is no space for it\n", vf);
 		break;
 	default:
 		e_err(drv, "Unhandled Msg %8.8x\n", msgbuf[0]);

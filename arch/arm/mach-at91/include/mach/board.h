@@ -88,7 +88,7 @@ extern void __init at91_add_device_eth(struct macb_platform_data *data);
 struct at91_usbh_data {
 	u8		ports;		/* number of ports on root hub */
 	int		vbus_pin[2];	/* port power-control pin */
-	u8              vbus_pin_inverted;
+	u8              vbus_pin_active_low[2];
 	u8              overcurrent_supported;
 	int             overcurrent_pin[2];
 	u8              overcurrent_status[2];
@@ -107,6 +107,8 @@ struct atmel_nand_data {
 	u8		ale;		/* address line number connected to ALE */
 	u8		cle;		/* address line number connected to CLE */
 	u8		bus_width_16;	/* buswidth is 16 bit */
+	u8		correction_cap; /* PMECC correction capability */
+	u16		sector_size;    /* Sector size for PMECC */
 	struct mtd_partition *parts;
 	unsigned int	num_parts;
 };
@@ -179,7 +181,9 @@ extern void __init at91_add_device_lcdc(struct atmel_lcdfb_info *data);
 extern void __init at91_add_device_ac97(struct ac97c_platform_data *data);
 
  /* ISI */
-extern void __init at91_add_device_isi(void);
+struct isi_platform_data;
+extern void __init at91_add_device_isi(struct isi_platform_data *data,
+		bool use_pck_as_mck);
 
  /* Touchscreen Controller */
 struct at91_tsadcc_data {

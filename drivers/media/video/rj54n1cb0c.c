@@ -1407,18 +1407,7 @@ static struct i2c_driver rj54n1_i2c_driver = {
 	.id_table	= rj54n1_id,
 };
 
-static int __init rj54n1_mod_init(void)
-{
-	return i2c_add_driver(&rj54n1_i2c_driver);
-}
-
-static void __exit rj54n1_mod_exit(void)
-{
-	i2c_del_driver(&rj54n1_i2c_driver);
-}
-
-module_init(rj54n1_mod_init);
-module_exit(rj54n1_mod_exit);
+module_i2c_driver(rj54n1_i2c_driver);
 
 MODULE_DESCRIPTION("Sharp RJ54N1CB0C Camera driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

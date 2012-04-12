@@ -35,7 +35,6 @@
 #include <linux/dmaengine.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
-#include <linux/module.h>
 
 #include <asm/irq.h>
 #include <mach/sdma.h>
@@ -1102,11 +1101,13 @@ static int sdma_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 	case DMA_SLAVE_CONFIG:
 		if (dmaengine_cfg->direction == DMA_DEV_TO_MEM) {
 			sdmac->per_address = dmaengine_cfg->src_addr;
-			sdmac->watermark_level = dmaengine_cfg->src_maxburst;
+			sdmac->watermark_level = dmaengine_cfg->src_maxburst *
+						dmaengine_cfg->src_addr_width;
 			sdmac->word_size = dmaengine_cfg->src_addr_width;
 		} else {
 			sdmac->per_address = dmaengine_cfg->dst_addr;
-			sdmac->watermark_level = dmaengine_cfg->dst_maxburst;
+			sdmac->watermark_level = dmaengine_cfg->dst_maxburst *
+						dmaengine_cfg->dst_addr_width;
 			sdmac->word_size = dmaengine_cfg->dst_addr_width;
 		}
 		sdmac->direction = dmaengine_cfg->direction;

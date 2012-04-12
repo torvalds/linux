@@ -1135,7 +1135,7 @@ asmlinkage void do_mt(struct pt_regs *regs)
 		printk(KERN_DEBUG "YIELD Scheduler Exception\n");
 		break;
 	case 5:
-		printk(KERN_DEBUG "Gating Storage Schedulier Exception\n");
+		printk(KERN_DEBUG "Gating Storage Scheduler Exception\n");
 		break;
 	default:
 		printk(KERN_DEBUG "*** UNKNOWN THREAD EXCEPTION %d ***\n",

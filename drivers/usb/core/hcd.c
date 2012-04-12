@@ -2352,7 +2352,7 @@ static int usb_hcd_request_irqs(struct usb_hcd *hcd,
 					"io mem" : "io base",
 					(unsigned long long)hcd->rsrc_start);
 	} else {
-		hcd->irq = -1;
+		hcd->irq = 0;
 		if (hcd->rsrc_start)
 			dev_info(hcd->self.controller, "%s 0x%08llx\n",
 					(hcd->driver->flags & HCD_MEMORY) ?
@@ -2447,8 +2447,10 @@ int usb_add_hcd(struct usb_hcd *hcd,
 			&& device_can_wakeup(&hcd->self.root_hub->dev))
 		dev_dbg(hcd->self.controller, "supports USB remote wakeup\n");
 
-	/* enable irqs just before we start the controller */
-	if (usb_hcd_is_primary_hcd(hcd)) {
+	/* enable irqs just before we start the controller,
+	 * if the BIOS provides legacy PCI irqs.
+	 */
+	if (usb_hcd_is_primary_hcd(hcd) && irqnum) {
 		retval = usb_hcd_request_irqs(hcd, irqnum, irqflags);
 		if (retval)
 			goto err_request_irq;
@@ -2506,7 +2508,7 @@ err_register_root_hub:
 	clear_bit(HCD_FLAG_POLL_RH, &hcd->flags);
 	del_timer_sync(&hcd->rh_timer);
 err_hcd_driver_start:
-	if (usb_hcd_is_primary_hcd(hcd) && hcd->irq >= 0)
+	if (usb_hcd_is_primary_hcd(hcd) && hcd->irq > 0)
 		free_irq(irqnum, hcd);
 err_request_irq:
 err_hcd_driver_setup:
@@ -2571,7 +2573,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	del_timer_sync(&hcd->rh_timer);
 
 	if (usb_hcd_is_primary_hcd(hcd)) {
-		if (hcd->irq >= 0)
+		if (hcd->irq > 0)
 			free_irq(hcd->irq, hcd);
 	}
 

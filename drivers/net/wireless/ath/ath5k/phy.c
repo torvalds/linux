@@ -22,6 +22,8 @@
 * PHY related functions *
 \***********************/
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>

@@ -103,9 +103,6 @@
 /* EEPROM */
 #define IWLAGN_EEPROM_IMG_SIZE		2048
 
-#define IWLAGN_CMD_FIFO_NUM		7
 #define IWLAGN_NUM_QUEUES		20
-#define IWLAGN_NUM_AMPDU_QUEUES		9
-#define IWLAGN_FIRST_AMPDU_QUEUE	11
 
 #endif /* __iwl_agn_hw_h__ */

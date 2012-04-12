@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/ioport.h>
 #include <linux/c2port.h>
 
 #define DATA_PORT	0x325

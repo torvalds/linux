@@ -1521,6 +1521,9 @@ static struct vport *lookup_vport(struct ovs_header *ovs_header,
 		vport = ovs_vport_locate(nla_data(a[OVS_VPORT_ATTR_NAME]));
 		if (!vport)
 			return ERR_PTR(-ENODEV);
+		if (ovs_header->dp_ifindex &&
+		    ovs_header->dp_ifindex != get_dpifindex(vport->dp))
+			return ERR_PTR(-ENODEV);
 		return vport;
 	} else if (a[OVS_VPORT_ATTR_PORT_NO]) {
 		u32 port_no = nla_get_u32(a[OVS_VPORT_ATTR_PORT_NO]);

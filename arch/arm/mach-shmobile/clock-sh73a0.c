@@ -88,7 +88,7 @@ static unsigned long div2_recalc(struct clk *clk)
 	return clk->parent->rate / 2;
 }
 
-static struct clk_ops div2_clk_ops = {
+static struct sh_clk_ops div2_clk_ops = {
 	.recalc		= div2_recalc,
 };
 
@@ -97,7 +97,7 @@ static unsigned long div7_recalc(struct clk *clk)
 	return clk->parent->rate / 7;
 }
 
-static struct clk_ops div7_clk_ops = {
+static struct sh_clk_ops div7_clk_ops = {
 	.recalc		= div7_recalc,
 };
 
@@ -106,7 +106,7 @@ static unsigned long div13_recalc(struct clk *clk)
 	return clk->parent->rate / 13;
 }
 
-static struct clk_ops div13_clk_ops = {
+static struct sh_clk_ops div13_clk_ops = {
 	.recalc		= div13_recalc,
 };
 
@@ -122,7 +122,7 @@ static struct clk extal2_div2_clk = {
 	.parent		= &sh73a0_extal2_clk,
 };
 
-static struct clk_ops main_clk_ops = {
+static struct sh_clk_ops main_clk_ops = {
 	.recalc		= followparent_recalc,
 };
 
@@ -156,7 +156,7 @@ static unsigned long pll_recalc(struct clk *clk)
 	return clk->parent->rate * mult;
 }
 
-static struct clk_ops pll_clk_ops = {
+static struct sh_clk_ops pll_clk_ops = {
 	.recalc		= pll_recalc,
 };
 
@@ -365,6 +365,114 @@ static struct clk div6_clks[DIV6_NR] = {
 			dsi_parent, ARRAY_SIZE(dsi_parent), 12, 3),
 };
 
+/* DSI DIV */
+static unsigned long dsiphy_recalc(struct clk *clk)
+{
+	u32 value;
+
+	value = __raw_readl(clk->mapping->base);
+
+	/* FIXME */
+	if (!(value & 0x000B8000))
+		return clk->parent->rate;
+
+	value &= 0x3f;
+	value += 1;
+
+	if ((value < 12) ||
+	    (value > 33)) {
+		pr_err("DSIPHY has wrong value (%d)", value);
+		return 0;
+	}
+
+	return clk->parent->rate / value;
+}
+
+static long dsiphy_round_rate(struct clk *clk, unsigned long rate)
+{
+	return clk_rate_mult_range_round(clk, 12, 33, rate);
+}
+
+static void dsiphy_disable(struct clk *clk)
+{
+	u32 value;
+
+	value = __raw_readl(clk->mapping->base);
+	value &= ~0x000B8000;
+
+	__raw_writel(value , clk->mapping->base);
+}
+
+static int dsiphy_enable(struct clk *clk)
+{
+	u32 value;
+	int multi;
+
+	value = __raw_readl(clk->mapping->base);
+	multi = (value & 0x3f) + 1;
+
+	if ((multi < 12) || (multi > 33))
+		return -EIO;
+
+	__raw_writel(value | 0x000B8000, clk->mapping->base);
+
+	return 0;
+}
+
+static int dsiphy_set_rate(struct clk *clk, unsigned long rate)
+{
+	u32 value;
+	int idx;
+
+	idx = rate / clk->parent->rate;
+	if ((idx < 12) || (idx > 33))
+		return -EINVAL;
+
+	idx += -1;
+
+	value = __raw_readl(clk->mapping->base);
+	value = (value & ~0x3f) + idx;
+
+	__raw_writel(value, clk->mapping->base);
+
+	return 0;
+}
+
+static struct sh_clk_ops dsiphy_clk_ops = {
+	.recalc		= dsiphy_recalc,
+	.round_rate	= dsiphy_round_rate,
+	.set_rate	= dsiphy_set_rate,
+	.enable		= dsiphy_enable,
+	.disable	= dsiphy_disable,
+};
+
+static struct clk_mapping dsi0phy_clk_mapping = {
+	.phys	= DSI0PHYCR,
+	.len	= 4,
+};
+
+static struct clk_mapping dsi1phy_clk_mapping = {
+	.phys	= DSI1PHYCR,
+	.len	= 4,
+};
+
+static struct clk dsi0phy_clk = {
+	.ops		= &dsiphy_clk_ops,
+	.parent		= &div6_clks[DIV6_DSI0P], /* late install */
+	.mapping	= &dsi0phy_clk_mapping,
+};
+
+static struct clk dsi1phy_clk = {
+	.ops		= &dsiphy_clk_ops,
+	.parent		= &div6_clks[DIV6_DSI1P], /* late install */
+	.mapping	= &dsi1phy_clk_mapping,
+};
+
+static struct clk *late_main_clks[] = {
+	&dsi0phy_clk,
+	&dsi1phy_clk,
+};
+
 enum { MSTP001,
 	MSTP129, MSTP128, MSTP127, MSTP126, MSTP125, MSTP118, MSTP116, MSTP100,
 	MSTP219,
@@ -429,6 +537,8 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_ICK_ID("dsit_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSIT]),
 	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.0", &div6_clks[DIV6_DSI0P]),
 	CLKDEV_ICK_ID("dsip_clk", "sh-mipi-dsi.1", &div6_clks[DIV6_DSI1P]),
+	CLKDEV_ICK_ID("dsiphy_clk", "sh-mipi-dsi.0", &dsi0phy_clk),
+	CLKDEV_ICK_ID("dsiphy_clk", "sh-mipi-dsi.1", &dsi1phy_clk),
 
 	/* MSTP32 clocks */
 	CLKDEV_DEV_ID("i2c-sh_mobile.2", &mstp_clks[MSTP001]), /* I2C2 */
@@ -504,10 +614,13 @@ void __init sh73a0_clock_init(void)
 	if (!ret)
 		ret = sh_clk_mstp32_register(mstp_clks, MSTP_NR);
 
+	for (k = 0; !ret && (k < ARRAY_SIZE(late_main_clks)); k++)
+		ret = clk_register(late_main_clks[k]);
+
 	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	if (!ret)
-		clk_init();
+		shmobile_clk_init();
 	else
 		panic("failed to setup sh73a0 clocks\n");
 }

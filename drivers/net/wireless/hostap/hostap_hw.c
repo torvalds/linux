@@ -347,11 +347,9 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
 		return -EINTR;
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd - kmalloc failed\n",
-		       dev->name);
+	if (entry == NULL)
 		return -ENOMEM;
-	}
+
 	atomic_set(&entry->usecnt, 1);
 	entry->type = CMD_SLEEP;
 	entry->cmd = cmd;
@@ -515,11 +513,9 @@ static int hfa384x_cmd_callback(struct net_device *dev, u16 cmd, u16 param0,
 	}
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
-	if (entry == NULL) {
-		printk(KERN_DEBUG "%s: hfa384x_cmd_callback - kmalloc "
-		       "failed\n", dev->name);
+	if (entry == NULL)
 		return -ENOMEM;
-	}
+
 	atomic_set(&entry->usecnt, 1);
 	entry->type = CMD_CALLBACK;
 	entry->cmd = cmd;
@@ -1470,7 +1466,7 @@ static int prism2_hw_enable(struct net_device *dev, int initial)
 	 * before it starts acting as an AP, so reset port automatically
 	 * here just in case */
 	if (initial && prism2_reset_port(dev)) {
-		printk("%s: MAC port 0 reseting failed\n", dev->name);
+		printk("%s: MAC port 0 resetting failed\n", dev->name);
 		return 1;
 	}
 
@@ -1561,7 +1557,7 @@ static void prism2_hw_reset(struct net_device *dev)
 	static long last_reset = 0;
 
 	/* do not reset card more than once per second to avoid ending up in a
-	 * busy loop reseting the card */
+	 * busy loop resetting the card */
 	if (time_before_eq(jiffies, last_reset + HZ))
 		return;
 	last_reset = jiffies;
@@ -2978,11 +2974,9 @@ static int prism2_set_tim(struct net_device *dev, int aid, int set)
 	local = iface->local;
 
 	new_entry = kzalloc(sizeof(*new_entry), GFP_ATOMIC);
-	if (new_entry == NULL) {
-		printk(KERN_DEBUG "%s: prism2_set_tim: kmalloc failed\n",
-		       local->dev->name);
+	if (new_entry == NULL)
 		return -ENOMEM;
-	}
+
 	new_entry->aid = aid;
 	new_entry->set = set;
 

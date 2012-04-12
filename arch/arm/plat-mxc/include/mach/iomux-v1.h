@@ -96,6 +96,6 @@ extern int mxc_gpio_mode(int gpio_mode);
 extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 		const char *label);
 
-extern int __init imx_iomuxv1_init(void __iomem *base, int numports);
+extern int imx_iomuxv1_init(void __iomem *base, int numports);
 
 #endif /* __MACH_IOMUX_V1_H__ */

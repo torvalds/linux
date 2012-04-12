@@ -415,13 +415,13 @@ static pteval_t iomap_pte(pteval_t val)
 static pteval_t xen_pte_val(pte_t pte)
 {
 	pteval_t pteval = pte.pte;
-
+#if 0
 	/* If this is a WC pte, convert back from Xen WC to Linux WC */
 	if ((pteval & (_PAGE_PAT | _PAGE_PCD | _PAGE_PWT)) == _PAGE_PAT) {
 		WARN_ON(!pat_enabled);
 		pteval = (pteval & ~_PAGE_PAT) | _PAGE_PWT;
 	}
-
+#endif
 	if (xen_initial_domain() && (pteval & _PAGE_IOMAP))
 		return pteval;
 
@@ -463,7 +463,7 @@ void xen_set_pat(u64 pat)
 static pte_t xen_make_pte(pteval_t pte)
 {
 	phys_addr_t addr = (pte & PTE_PFN_MASK);
-
+#if 0
 	/* If Linux is trying to set a WC pte, then map to the Xen WC.
 	 * If _PAGE_PAT is set, then it probably means it is really
 	 * _PAGE_PSE, so avoid fiddling with the PAT mapping and hope
@@ -476,7 +476,7 @@ static pte_t xen_make_pte(pteval_t pte)
 		if ((pte & (_PAGE_PCD | _PAGE_PWT)) == _PAGE_PWT)
 			pte = (pte & ~(_PAGE_PCD | _PAGE_PWT)) | _PAGE_PAT;
 	}
-
+#endif
 	/*
 	 * Unprivileged domains are allowed to do IOMAPpings for
 	 * PCI passthrough, but not map ISA space.  The ISA
@@ -1071,14 +1071,14 @@ static void drop_other_mm_ref(void *info)
 	struct mm_struct *mm = info;
 	struct mm_struct *active_mm;
 
-	active_mm = percpu_read(cpu_tlbstate.active_mm);
+	active_mm = this_cpu_read(cpu_tlbstate.active_mm);
 
-	if (active_mm == mm && percpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
+	if (active_mm == mm && this_cpu_read(cpu_tlbstate.state) != TLBSTATE_OK)
 		leave_mm(smp_processor_id());
 
 	/* If this cpu still has a stale cr3 reference, then make sure
 	   it has been flushed. */
-	if (percpu_read(xen_current_cr3) == __pa(mm->pgd))
+	if (this_cpu_read(xen_current_cr3) == __pa(mm->pgd))
 		load_cr3(swapper_pg_dir);
 }
 
@@ -1185,17 +1185,17 @@ static void __init xen_pagetable_setup_done(pgd_t *base)
 
 static void xen_write_cr2(unsigned long cr2)
 {
-	percpu_read(xen_vcpu)->arch.cr2 = cr2;
+	this_cpu_read(xen_vcpu)->arch.cr2 = cr2;
 }
 
 static unsigned long xen_read_cr2(void)
 {
-	return percpu_read(xen_vcpu)->arch.cr2;
+	return this_cpu_read(xen_vcpu)->arch.cr2;
 }
 
 unsigned long xen_read_cr2_direct(void)
 {
-	return percpu_read(xen_vcpu_info.arch.cr2);
+	return this_cpu_read(xen_vcpu_info.arch.cr2);
 }
 
 static void xen_flush_tlb(void)
@@ -1278,12 +1278,12 @@ static void xen_flush_tlb_others(const struct cpumask *cpus,
 
 static unsigned long xen_read_cr3(void)
 {
-	return percpu_read(xen_cr3);
+	return this_cpu_read(xen_cr3);
 }
 
 static void set_current_cr3(void *v)
 {
-	percpu_write(xen_current_cr3, (unsigned long)v);
+	this_cpu_write(xen_current_cr3, (unsigned long)v);
 }
 
 static void __xen_write_cr3(bool kernel, unsigned long cr3)
@@ -1306,7 +1306,7 @@ static void __xen_write_cr3(bool kernel, unsigned long cr3)
 	xen_extend_mmuext_op(&op);
 
 	if (kernel) {
-		percpu_write(xen_cr3, cr3);
+		this_cpu_write(xen_cr3, cr3);
 
 		/* Update xen_current_cr3 once the batch has actually
 		   been submitted. */
@@ -1322,7 +1322,7 @@ static void xen_write_cr3(unsigned long cr3)
 
 	/* Update while interrupts are disabled, so its atomic with
 	   respect to ipis */
-	percpu_write(xen_cr3, cr3);
+	this_cpu_write(xen_cr3, cr3);
 
 	__xen_write_cr3(true, cr3);
 

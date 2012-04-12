@@ -26,6 +26,7 @@
 
 #include <mach/board.h>
 #include <mach/at91rm9200_mc.h>
+#include <mach/at91_ramc.h>
 
 
 /*
@@ -156,7 +157,7 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 	/*
 	 * Use 16 bit accesses unless/until we need 8-bit i/o space.
 	 */
-	csr = at91_sys_read(AT91_SMC_CSR(cf->board->chipselect)) & ~AT91_SMC_DBW;
+	csr = at91_ramc_read(0, AT91_SMC_CSR(cf->board->chipselect)) & ~AT91_SMC_DBW;
 
 	/*
 	 * NOTE: this CF controller ignores IOIS16, so we can't really do
@@ -175,7 +176,7 @@ static int at91_cf_set_io_map(struct pcmcia_socket *s, struct pccard_io_map *io)
 		csr |= AT91_SMC_DBW_16;
 		pr_debug("%s: 16bit i/o bus\n", driver_name);
 	}
-	at91_sys_write(AT91_SMC_CSR(cf->board->chipselect), csr);
+	at91_ramc_write(0, AT91_SMC_CSR(cf->board->chipselect), csr);
 
 	io->start = cf->socket.io_offset;
 	io->stop = io->start + SZ_2K - 1;

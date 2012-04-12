@@ -420,10 +420,13 @@ nla_put_failure:
 static int iwl_testmode_cfg_init_calib(struct iwl_priv *priv)
 {
 	struct iwl_notification_wait calib_wait;
+	static const u8 calib_complete[] = {
+		CALIBRATION_COMPLETE_NOTIFICATION
+	};
 	int ret;
 
 	iwl_init_notification_wait(&priv->notif_wait, &calib_wait,
-				   CALIBRATION_COMPLETE_NOTIFICATION,
+				   calib_complete, ARRAY_SIZE(calib_complete),
 				   NULL, NULL);
 	ret = iwl_init_alive_start(priv);
 	if (ret) {
@@ -598,11 +601,11 @@ static int iwl_testmode_driver(struct ieee80211_hw *hw, struct nlattr **tb)
 			IWL_ERR(priv, "No uCode has not been loaded\n");
 			return -EINVAL;
 		} else {
-			img = &priv->fw->img[priv->shrd->ucode_type];
+			img = &priv->fw->img[priv->cur_ucode];
 			inst_size = img->sec[IWL_UCODE_SECTION_INST].len;
 			data_size = img->sec[IWL_UCODE_SECTION_DATA].len;
 		}
-		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_TYPE, priv->shrd->ucode_type);
+		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_TYPE, priv->cur_ucode);
 		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_INST_SIZE, inst_size);
 		NLA_PUT_U32(skb, IWL_TM_ATTR_FW_DATA_SIZE, data_size);
 		status = cfg80211_testmode_reply(skb);

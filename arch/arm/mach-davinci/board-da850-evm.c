@@ -44,7 +44,7 @@
 #include <mach/aemif.h>
 #include <mach/spi.h>
 
-#define DA850_EVM_PHY_ID		"0:00"
+#define DA850_EVM_PHY_ID		"davinci_mdio-0:00"
 #define DA850_LCD_PWR_PIN		GPIO_TO_PIN(2, 8)
 #define DA850_LCD_BL_PIN		GPIO_TO_PIN(2, 15)
 

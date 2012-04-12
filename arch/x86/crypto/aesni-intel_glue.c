@@ -28,6 +28,7 @@
 #include <crypto/aes.h>
 #include <crypto/cryptd.h>
 #include <crypto/ctr.h>
+#include <asm/cpu_device_id.h>
 #include <asm/i387.h>
 #include <asm/aes.h>
 #include <crypto/scatterwalk.h>
@@ -1107,12 +1108,12 @@ static int __driver_rfc4106_encrypt(struct aead_request *req)
 		one_entry_in_sg = 1;
 		scatterwalk_start(&src_sg_walk, req->src);
 		scatterwalk_start(&assoc_sg_walk, req->assoc);
-		src = scatterwalk_map(&src_sg_walk, 0);
-		assoc = scatterwalk_map(&assoc_sg_walk, 0);
+		src = scatterwalk_map(&src_sg_walk);
+		assoc = scatterwalk_map(&assoc_sg_walk);
 		dst = src;
 		if (unlikely(req->src != req->dst)) {
 			scatterwalk_start(&dst_sg_walk, req->dst);
-			dst = scatterwalk_map(&dst_sg_walk, 0);
+			dst = scatterwalk_map(&dst_sg_walk);
 		}
 
 	} else {
@@ -1136,11 +1137,11 @@ static int __driver_rfc4106_encrypt(struct aead_request *req)
 	 * back to the packet. */
 	if (one_entry_in_sg) {
 		if (unlikely(req->src != req->dst)) {
-			scatterwalk_unmap(dst, 0);
+			scatterwalk_unmap(dst);
 			scatterwalk_done(&dst_sg_walk, 0, 0);
 		}
-		scatterwalk_unmap(src, 0);
-		scatterwalk_unmap(assoc, 0);
+		scatterwalk_unmap(src);
+		scatterwalk_unmap(assoc);
 		scatterwalk_done(&src_sg_walk, 0, 0);
 		scatterwalk_done(&assoc_sg_walk, 0, 0);
 	} else {
@@ -1189,12 +1190,12 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 		one_entry_in_sg = 1;
 		scatterwalk_start(&src_sg_walk, req->src);
 		scatterwalk_start(&assoc_sg_walk, req->assoc);
-		src = scatterwalk_map(&src_sg_walk, 0);
-		assoc = scatterwalk_map(&assoc_sg_walk, 0);
+		src = scatterwalk_map(&src_sg_walk);
+		assoc = scatterwalk_map(&assoc_sg_walk);
 		dst = src;
 		if (unlikely(req->src != req->dst)) {
 			scatterwalk_start(&dst_sg_walk, req->dst);
-			dst = scatterwalk_map(&dst_sg_walk, 0);
+			dst = scatterwalk_map(&dst_sg_walk);
 		}
 
 	} else {
@@ -1219,11 +1220,11 @@ static int __driver_rfc4106_decrypt(struct aead_request *req)
 
 	if (one_entry_in_sg) {
 		if (unlikely(req->src != req->dst)) {
-			scatterwalk_unmap(dst, 0);
+			scatterwalk_unmap(dst);
 			scatterwalk_done(&dst_sg_walk, 0, 0);
 		}
-		scatterwalk_unmap(src, 0);
-		scatterwalk_unmap(assoc, 0);
+		scatterwalk_unmap(src);
+		scatterwalk_unmap(assoc);
 		scatterwalk_done(&src_sg_walk, 0, 0);
 		scatterwalk_done(&assoc_sg_walk, 0, 0);
 	} else {
@@ -1253,14 +1254,19 @@ static struct crypto_alg __rfc4106_alg = {
 };
 #endif
 
+
+static const struct x86_cpu_id aesni_cpu_id[] = {
+	X86_FEATURE_MATCH(X86_FEATURE_AES),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, aesni_cpu_id);
+
 static int __init aesni_init(void)
 {
 	int err;
 
-	if (!cpu_has_aes) {
-		printk(KERN_INFO "Intel AES-NI instructions are not detected.\n");
+	if (!x86_match_cpu(aesni_cpu_id))
 		return -ENODEV;
-	}
 
 	if ((err = crypto_fpu_init()))
 		goto fpu_err;

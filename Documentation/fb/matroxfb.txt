@@ -177,8 +177,8 @@ sgram    - tells to driver that you have Gxx0 with SGRAM memory. It has no
            effect without `init'.
 sdram    - tells to driver that you have Gxx0 with SDRAM memory.
            It is a default.
-inv24    - change timings parameters for 24bpp modes on Millenium and
-           Millenium II. Specify this if you see strange color shadows around
+inv24    - change timings parameters for 24bpp modes on Millennium and
+           Millennium II. Specify this if you see strange color shadows around
 	   characters.
 noinv24  - use standard timings. It is the default.
 inverse  - invert colors on screen (for LCD displays)
@@ -204,9 +204,9 @@ grayscale - enable grayscale summing. It works in PSEUDOCOLOR modes (text,
 	    can paint colors.
 nograyscale - disable grayscale summing. It is default.
 cross4MB - enables that pixel line can cross 4MB boundary. It is default for
-           non-Millenium.
+           non-Millennium.
 nocross4MB - pixel line must not cross 4MB boundary. It is default for
-             Millenium I or II, because of these devices have hardware
+             Millennium I or II, because of these devices have hardware
 	     limitations which do not allow this. But this option is
 	     incompatible with some (if not all yet released) versions of
 	     XF86_FBDev.

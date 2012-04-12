@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/nl80211.h>
 #include <linux/pci.h>
 #include <linux/pci-aspm.h>
@@ -171,14 +173,13 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret =  pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		printk(KERN_ERR "ath9k: 32-bit DMA not available\n");
+		pr_err("32-bit DMA not available\n");
 		goto err_dma;
 	}
 
 	ret = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32));
 	if (ret) {
-		printk(KERN_ERR "ath9k: 32-bit DMA consistent "
-			"DMA enable failed\n");
+		pr_err("32-bit DMA consistent DMA enable failed\n");
 		goto err_dma;
 	}
 
@@ -224,7 +225,7 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	mem = pci_iomap(pdev, 0, 0);
 	if (!mem) {
-		printk(KERN_ERR "PCI memory map error\n") ;
+		pr_err("PCI memory map error\n") ;
 		ret = -EIO;
 		goto err_iomap;
 	}

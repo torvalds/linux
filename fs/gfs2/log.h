@@ -53,10 +53,7 @@ extern unsigned int gfs2_struct2blk(struct gfs2_sbd *sdp, unsigned int nstruct,
 
 extern int gfs2_log_reserve(struct gfs2_sbd *sdp, unsigned int blks);
 extern void gfs2_log_incr_head(struct gfs2_sbd *sdp);
-
-extern struct buffer_head *gfs2_log_get_buf(struct gfs2_sbd *sdp);
-extern struct buffer_head *gfs2_log_fake_buf(struct gfs2_sbd *sdp,
-				      struct buffer_head *real);
+extern u64 gfs2_log_bmap(struct gfs2_sbd *sdp, unsigned int lbn);
 extern void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl);
 extern void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *trans);
 extern void gfs2_remove_from_ail(struct gfs2_bufdata *bd);

@@ -90,8 +90,7 @@ static int fsp_reg_read(struct psmouse *psmouse, int reg_addr, int *reg_val)
 	 * to do that for writes because sysfs set helper does this for
 	 * us.
 	 */
-	ps2_command(ps2dev, NULL, PSMOUSE_CMD_DISABLE);
-	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
+	psmouse_deactivate(psmouse);
 
 	ps2_begin_command(ps2dev);
 
@@ -128,8 +127,7 @@ static int fsp_reg_read(struct psmouse *psmouse, int reg_addr, int *reg_val)
 
  out:
 	ps2_end_command(ps2dev);
-	ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE);
-	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
+	psmouse_activate(psmouse);
 	dev_dbg(&ps2dev->serio->dev, "READ REG: 0x%02x is 0x%02x (rc = %d)\n",
 		reg_addr, *reg_val, rc);
 	return rc;
@@ -213,8 +211,7 @@ static int fsp_page_reg_read(struct psmouse *psmouse, int *reg_val)
 	unsigned char param[3];
 	int rc = -1;
 
-	ps2_command(ps2dev, NULL, PSMOUSE_CMD_DISABLE);
-	psmouse_set_state(psmouse, PSMOUSE_CMD_MODE);
+	psmouse_deactivate(psmouse);
 
 	ps2_begin_command(ps2dev);
 
@@ -239,8 +236,7 @@ static int fsp_page_reg_read(struct psmouse *psmouse, int *reg_val)
 
  out:
 	ps2_end_command(ps2dev);
-	ps2_command(ps2dev, NULL, PSMOUSE_CMD_ENABLE);
-	psmouse_set_state(psmouse, PSMOUSE_ACTIVATED);
+	psmouse_activate(psmouse);
 	dev_dbg(&ps2dev->serio->dev, "READ PAGE REG: 0x%02x (rc = %d)\n",
 		*reg_val, rc);
 	return rc;

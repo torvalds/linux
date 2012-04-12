@@ -11,6 +11,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/device.h>
 #include <linux/debugfs.h>
 #include <linux/rbtree.h>
 #include <linux/seq_file.h>
@@ -357,7 +358,8 @@ static int regcache_rbtree_write(struct regmap *map, unsigned int reg,
 	return 0;
 }
 
-static int regcache_rbtree_sync(struct regmap *map)
+static int regcache_rbtree_sync(struct regmap *map, unsigned int min,
+				unsigned int max)
 {
 	struct regcache_rbtree_ctx *rbtree_ctx;
 	struct rb_node *node;
@@ -365,19 +367,37 @@ static int regcache_rbtree_sync(struct regmap *map)
 	unsigned int regtmp;
 	unsigned int val;
 	int ret;
-	int i;
+	int i, base, end;
 
 	rbtree_ctx = map->cache;
 	for (node = rb_first(&rbtree_ctx->root); node; node = rb_next(node)) {
 		rbnode = rb_entry(node, struct regcache_rbtree_node, node);
-		for (i = 0; i < rbnode->blklen; i++) {
+
+		if (rbnode->base_reg < min)
+			continue;
+		if (rbnode->base_reg > max)
+			break;
+		if (rbnode->base_reg + rbnode->blklen < min)
+			continue;
+
+		if (min > rbnode->base_reg)
+			base = min - rbnode->base_reg;
+		else
+			base = 0;
+
+		if (max < rbnode->base_reg + rbnode->blklen)
+			end = rbnode->base_reg + rbnode->blklen - max;
+		else
+			end = rbnode->blklen;
+
+		for (i = base; i < end; i++) {
 			regtmp = rbnode->base_reg + i;
 			val = regcache_rbtree_get_register(rbnode, i,
 							   map->cache_word_size);
 
 			/* Is this the hardware default?  If so skip. */
 			ret = regcache_lookup_reg(map, i);
-			if (ret > 0 && val == map->reg_defaults[ret].def)
+			if (ret >= 0 && val == map->reg_defaults[ret].def)
 				continue;
 
 			map->cache_bypass = 1;

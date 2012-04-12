@@ -233,20 +233,6 @@ void __ref cpu_die(void)
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
-int __cpu_logical_map[NR_CPUS];
-
-void __init smp_setup_processor_id(void)
-{
-	int i;
-	u32 cpu = is_smp() ? read_cpuid_mpidr() & 0xff : 0;
-
-	cpu_logical_map(0) = cpu;
-	for (i = 1; i < NR_CPUS; ++i)
-		cpu_logical_map(i) = i == cpu ? 0 : i;
-
-	printk(KERN_INFO "Booting Linux on physical CPU %d\n", cpu);
-}
-
 /*
  * Called by both boot and secondaries to move global data into
  * per-processor storage.
@@ -259,6 +245,8 @@ static void __cpuinit smp_store_cpu_info(unsigned int cpuid)
 
 	store_cpu_topology(cpuid);
 }
+
+static void percpu_timer_setup(void);
 
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
@@ -309,13 +297,6 @@ asmlinkage void __cpuinit secondary_start_kernel(void)
 	 */
 	percpu_timer_setup();
 
-	while (!cpu_active(cpu))
-		cpu_relax();
-
-	/*
-	 * cpu_active bit is set, so it's safe to enalbe interrupts
-	 * now.
-	 */
 	local_irq_enable();
 	local_fiq_enable();
 
@@ -443,9 +424,7 @@ static DEFINE_PER_CPU(struct clock_event_device, percpu_clockevent);
 static void ipi_timer(void)
 {
 	struct clock_event_device *evt = &__get_cpu_var(percpu_clockevent);
-	irq_enter();
 	evt->event_handler(evt);
-	irq_exit();
 }
 
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
@@ -475,7 +454,20 @@ static void __cpuinit broadcast_timer_setup(struct clock_event_device *evt)
 	clockevents_register_device(evt);
 }
 
-void __cpuinit percpu_timer_setup(void)
+static struct local_timer_ops *lt_ops;
+
+#ifdef CONFIG_LOCAL_TIMERS
+int local_timer_register(struct local_timer_ops *ops)
+{
+	if (lt_ops)
+		return -EBUSY;
+
+	lt_ops = ops;
+	return 0;
+}
+#endif
+
+static void __cpuinit percpu_timer_setup(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
@@ -483,7 +475,7 @@ void __cpuinit percpu_timer_setup(void)
 	evt->cpumask = cpumask_of(cpu);
 	evt->broadcast = smp_timer_broadcast;
 
-	if (local_timer_setup(evt))
+	if (!lt_ops || lt_ops->setup(evt))
 		broadcast_timer_setup(evt);
 }
 
@@ -498,7 +490,8 @@ static void percpu_timer_stop(void)
 	unsigned int cpu = smp_processor_id();
 	struct clock_event_device *evt = &per_cpu(percpu_clockevent, cpu);
 
-	local_timer_stop(evt);
+	if (lt_ops)
+		lt_ops->stop(evt);
 }
 #endif
 
@@ -548,7 +541,9 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 
 	switch (ipinr) {
 	case IPI_TIMER:
+		irq_enter();
 		ipi_timer();
+		irq_exit();
 		break;
 
 	case IPI_RESCHEDULE:
@@ -556,15 +551,21 @@ void handle_IPI(int ipinr, struct pt_regs *regs)
 		break;
 
 	case IPI_CALL_FUNC:
+		irq_enter();
 		generic_smp_call_function_interrupt();
+		irq_exit();
 		break;
 
 	case IPI_CALL_FUNC_SINGLE:
+		irq_enter();
 		generic_smp_call_function_single_interrupt();
+		irq_exit();
 		break;
 
 	case IPI_CPU_STOP:
+		irq_enter();
 		ipi_cpu_stop(cpu);
+		irq_exit();
 		break;
 
 	default:

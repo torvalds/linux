@@ -76,8 +76,8 @@ static int max1586_v3_set(struct regulator_dev *rdev, int min_uV, int max_uV,
 	if (min_uV < max1586->min_uV)
 		min_uV = max1586->min_uV;
 
-	*selector = ((min_uV - max1586->min_uV) * MAX1586_V3_MAX_VSEL +
-			range_uV - 1) / range_uV;
+	*selector = DIV_ROUND_UP((min_uV - max1586->min_uV) *
+				 MAX1586_V3_MAX_VSEL, range_uV);
 	if (max1586_v3_calc_voltage(max1586, *selector) > max_uV)
 		return -EINVAL;
 

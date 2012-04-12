@@ -892,7 +892,8 @@ void mlx4_en_free_resources(struct mlx4_en_priv *priv)
 
 	for (i = 0; i < priv->rx_ring_num; i++) {
 		if (priv->rx_ring[i].rx_info)
-			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i]);
+			mlx4_en_destroy_rx_ring(priv, &priv->rx_ring[i],
+				priv->prof->rx_ring_size, priv->stride);
 		if (priv->rx_cq[i].buf)
 			mlx4_en_destroy_cq(priv, &priv->rx_cq[i]);
 	}
@@ -1047,10 +1048,8 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 
 	dev = alloc_etherdev_mqs(sizeof(struct mlx4_en_priv),
 	    prof->tx_ring_num, prof->rx_ring_num);
-	if (dev == NULL) {
-		mlx4_err(mdev, "Net device allocation failed\n");
+	if (dev == NULL)
 		return -ENOMEM;
-	}
 
 	SET_NETDEV_DEV(dev, &mdev->dev->pdev->dev);
 	dev->dev_id =  port - 1;
@@ -1063,6 +1062,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	memset(priv, 0, sizeof(struct mlx4_en_priv));
 	priv->dev = dev;
 	priv->mdev = mdev;
+	priv->ddev = &mdev->pdev->dev;
 	priv->prof = prof;
 	priv->port = port;
 	priv->port_up = false;

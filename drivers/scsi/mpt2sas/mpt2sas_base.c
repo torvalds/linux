@@ -132,7 +132,7 @@ static int mpt2sas_remove_dead_ioc_func(void *arg)
 		pdev = ioc->pdev;
 		if ((pdev == NULL))
 			return -1;
-		pci_remove_bus_device(pdev);
+		pci_stop_and_remove_bus_device(pdev);
 		return 0;
 }
 
@@ -2575,6 +2575,11 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 
 	ioc->chain_lookup = (struct chain_tracker *)__get_free_pages(
 	    GFP_KERNEL, ioc->chain_pages);
+	if (!ioc->chain_lookup) {
+		printk(MPT2SAS_ERR_FMT "chain_lookup: get_free_pages failed, "
+		    "sz(%d)\n", ioc->name, (int)sz);
+		goto out;
+	}
 	ioc->chain_dma_pool = pci_pool_create("chain pool", ioc->pdev,
 	    ioc->request_sz, 16, 0);
 	if (!ioc->chain_dma_pool) {
@@ -4548,7 +4553,7 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 		printk(MPT2SAS_ERR_FMT "%s: pci error recovery reset\n",
 		    ioc->name, __func__);
 		r = 0;
-		goto out;
+		goto out_unlocked;
 	}
 
 	if (mpt2sas_fwfault_debug)
@@ -4604,6 +4609,7 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 	mutex_unlock(&ioc->reset_in_progress_mutex);
 
+ out_unlocked:
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: exit\n", ioc->name,
 	    __func__));
 	return r;

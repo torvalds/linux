@@ -109,12 +109,12 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		return r;
 	}
 
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	idx = rdev->ib_pool.head_id;
 retry:
 	if (cretry > 5) {
 		dev_err(rdev->dev, "failed to get an ib after 5 retry\n");
-		mutex_unlock(&rdev->ib_pool.mutex);
+		radeon_mutex_unlock(&rdev->ib_pool.mutex);
 		radeon_fence_unref(&fence);
 		return -ENOMEM;
 	}
@@ -133,13 +133,14 @@ retry:
 				(*ib)->gpu_addr += (*ib)->sa_bo.offset;
 				(*ib)->fence = fence;
 				(*ib)->vm_id = 0;
+				(*ib)->is_const_ib = false;
 				/* ib are most likely to be allocated in a ring fashion
 				 * thus rdev->ib_pool.head_id should be the id of the
 				 * oldest ib
 				 */
 				rdev->ib_pool.head_id = (1 + idx);
 				rdev->ib_pool.head_id &= (RADEON_IB_POOL_SIZE - 1);
-				mutex_unlock(&rdev->ib_pool.mutex);
+				radeon_mutex_unlock(&rdev->ib_pool.mutex);
 				return 0;
 			}
 		}
@@ -158,7 +159,7 @@ retry:
 		}
 		idx = (idx + 1) & (RADEON_IB_POOL_SIZE - 1);
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 	radeon_fence_unref(&fence);
 	return r;
 }
@@ -171,12 +172,12 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 	if (tmp == NULL) {
 		return;
 	}
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (tmp->fence && !tmp->fence->emitted) {
 		radeon_sa_bo_free(rdev, &tmp->sa_bo);
 		radeon_fence_unref(&tmp->fence);
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 }
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
@@ -204,22 +205,25 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int radeon_ib_pool_init(struct radeon_device *rdev)
 {
+	struct radeon_sa_manager tmp;
 	int i, r;
 
-	mutex_lock(&rdev->ib_pool.mutex);
-	if (rdev->ib_pool.ready) {
-		mutex_unlock(&rdev->ib_pool.mutex);
-		return 0;
-	}
-
-	r = radeon_sa_bo_manager_init(rdev, &rdev->ib_pool.sa_manager,
+	r = radeon_sa_bo_manager_init(rdev, &tmp,
 				      RADEON_IB_POOL_SIZE*64*1024,
 				      RADEON_GEM_DOMAIN_GTT);
 	if (r) {
-		mutex_unlock(&rdev->ib_pool.mutex);
 		return r;
 	}
 
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
+	if (rdev->ib_pool.ready) {
+		radeon_mutex_unlock(&rdev->ib_pool.mutex);
+		radeon_sa_bo_manager_fini(rdev, &tmp);
+		return 0;
+	}
+
+	rdev->ib_pool.sa_manager = tmp;
+	INIT_LIST_HEAD(&rdev->ib_pool.sa_manager.sa_bo);
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 		rdev->ib_pool.ibs[i].fence = NULL;
 		rdev->ib_pool.ibs[i].idx = i;
@@ -236,7 +240,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (radeon_debugfs_ring_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for rings !\n");
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 	return 0;
 }
 
@@ -244,7 +248,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 {
 	unsigned i;
 
-	mutex_lock(&rdev->ib_pool.mutex);
+	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (rdev->ib_pool.ready) {
 		for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 			radeon_sa_bo_free(rdev, &rdev->ib_pool.ibs[i].sa_bo);
@@ -253,7 +257,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 		radeon_sa_bo_manager_fini(rdev, &rdev->ib_pool.sa_manager);
 		rdev->ib_pool.ready = false;
 	}
-	mutex_unlock(&rdev->ib_pool.mutex);
+	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 }
 
 int radeon_ib_pool_start(struct radeon_device *rdev)
@@ -475,7 +479,9 @@ static struct drm_info_list radeon_debugfs_ring_info_list[] = {
 static int radeon_debugfs_ib_info(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct radeon_ib *ib = node->info_ent->data;
+	struct drm_device *dev = node->minor->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_ib *ib = &rdev->ib_pool.ibs[*((unsigned*)node->info_ent->data)];
 	unsigned i;
 
 	if (ib == NULL) {
@@ -492,13 +498,17 @@ static int radeon_debugfs_ib_info(struct seq_file *m, void *data)
 
 static struct drm_info_list radeon_debugfs_ib_list[RADEON_IB_POOL_SIZE];
 static char radeon_debugfs_ib_names[RADEON_IB_POOL_SIZE][32];
+static unsigned radeon_debugfs_ib_idx[RADEON_IB_POOL_SIZE];
 #endif
 
 int radeon_debugfs_ring_init(struct radeon_device *rdev)
 {
 #if defined(CONFIG_DEBUG_FS)
-	return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
-					ARRAY_SIZE(radeon_debugfs_ring_info_list));
+	if (rdev->family >= CHIP_CAYMAN)
+		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
+						ARRAY_SIZE(radeon_debugfs_ring_info_list));
+	else
+		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list, 1);
 #else
 	return 0;
 #endif
@@ -511,10 +521,11 @@ int radeon_debugfs_ib_init(struct radeon_device *rdev)
 
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 		sprintf(radeon_debugfs_ib_names[i], "radeon_ib_%04u", i);
+		radeon_debugfs_ib_idx[i] = i;
 		radeon_debugfs_ib_list[i].name = radeon_debugfs_ib_names[i];
 		radeon_debugfs_ib_list[i].show = &radeon_debugfs_ib_info;
 		radeon_debugfs_ib_list[i].driver_features = 0;
-		radeon_debugfs_ib_list[i].data = &rdev->ib_pool.ibs[i];
+		radeon_debugfs_ib_list[i].data = &radeon_debugfs_ib_idx[i];
 	}
 	return radeon_debugfs_add_files(rdev, radeon_debugfs_ib_list,
 					RADEON_IB_POOL_SIZE);

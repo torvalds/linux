@@ -872,18 +872,7 @@ static struct i2c_driver mt9v022_i2c_driver = {
 	.id_table	= mt9v022_id,
 };
 
-static int __init mt9v022_mod_init(void)
-{
-	return i2c_add_driver(&mt9v022_i2c_driver);
-}
-
-static void __exit mt9v022_mod_exit(void)
-{
-	i2c_del_driver(&mt9v022_i2c_driver);
-}
-
-module_init(mt9v022_mod_init);
-module_exit(mt9v022_mod_exit);
+module_i2c_driver(mt9v022_i2c_driver);
 
 MODULE_DESCRIPTION("Micron MT9V022 Camera driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");

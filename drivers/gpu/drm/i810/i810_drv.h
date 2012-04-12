@@ -116,12 +116,14 @@ typedef struct drm_i810_private {
 
 				/* i810_dma.c */
 extern int i810_driver_dma_quiescent(struct drm_device *dev);
-void i810_driver_reclaim_buffers(struct drm_device *dev,
-			         struct drm_file *file_priv);
+extern void i810_driver_reclaim_buffers_locked(struct drm_device *dev,
+					       struct drm_file *file_priv);
 extern int i810_driver_load(struct drm_device *, unsigned long flags);
 extern void i810_driver_lastclose(struct drm_device *dev);
 extern void i810_driver_preclose(struct drm_device *dev,
 				 struct drm_file *file_priv);
+extern void i810_driver_reclaim_buffers_locked(struct drm_device *dev,
+					       struct drm_file *file_priv);
 extern int i810_driver_device_is_agp(struct drm_device *dev);
 
 extern long i810_ioctl(struct file *file, unsigned int cmd, unsigned long arg);

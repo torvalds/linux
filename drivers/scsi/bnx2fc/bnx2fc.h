@@ -62,7 +62,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.9"
+#define BNX2FC_VERSION		"1.0.10"
 
 #define PFX			"bnx2fc: "
 
@@ -114,6 +114,8 @@
 #define BNX2FC_HASH_TBL_CHUNK_SIZE	(16 * 1024)
 
 #define BNX2FC_MAX_SEQS			255
+#define BNX2FC_MAX_RETRY_CNT		3
+#define BNX2FC_MAX_RPORT_RETRY_CNT	255
 
 #define BNX2FC_READ			(1 << 1)
 #define BNX2FC_WRITE			(1 << 0)
@@ -121,8 +123,10 @@
 #define BNX2FC_MIN_XID			0
 #define BNX2FC_MAX_XID			\
 			(BNX2FC_MAX_OUTSTANDING_CMNDS + BNX2FC_ELSTM_XIDS - 1)
+#define FCOE_MAX_NUM_XIDS		0x2000
 #define FCOE_MIN_XID			(BNX2FC_MAX_XID + 1)
-#define FCOE_MAX_XID			(FCOE_MIN_XID + 4095)
+#define FCOE_MAX_XID			(FCOE_MIN_XID + FCOE_MAX_NUM_XIDS - 1)
+#define FCOE_XIDS_PER_CPU		(FCOE_MIN_XID + (512 * nr_cpu_ids) - 1)
 #define BNX2FC_MAX_LUN			0xFFFF
 #define BNX2FC_MAX_FCP_TGT		256
 #define BNX2FC_MAX_CMD_LEN		16

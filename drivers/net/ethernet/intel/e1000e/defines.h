@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -126,6 +126,13 @@
     E1000_RXDEXT_STATERR_CXE |            \
     E1000_RXDEXT_STATERR_RXE)
 
+#define E1000_MRQC_RSS_FIELD_MASK              0xFFFF0000
+#define E1000_MRQC_RSS_FIELD_IPV4_TCP          0x00010000
+#define E1000_MRQC_RSS_FIELD_IPV4              0x00020000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP_EX       0x00040000
+#define E1000_MRQC_RSS_FIELD_IPV6              0x00100000
+#define E1000_MRQC_RSS_FIELD_IPV6_TCP          0x00200000
+
 #define E1000_RXDPS_HDRSTAT_HDRSP              0x00008000
 
 /* Management Control */
@@ -170,6 +177,7 @@
 #define E1000_RCTL_VFE            0x00040000    /* vlan filter enable */
 #define E1000_RCTL_CFIEN          0x00080000    /* canonical form enable */
 #define E1000_RCTL_CFI            0x00100000    /* canonical form indicator */
+#define E1000_RCTL_DPF            0x00400000    /* Discard Pause Frames */
 #define E1000_RCTL_PMCF           0x00800000    /* pass MAC control frames */
 #define E1000_RCTL_BSEX           0x02000000    /* Buffer size extension */
 #define E1000_RCTL_SECRC          0x04000000    /* Strip Ethernet CRC */
@@ -326,6 +334,7 @@
 /* Receive Checksum Control */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
 #define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
+#define E1000_RXCSUM_PCSD      0x00002000   /* packet checksum disabled */
 
 /* Header split receive */
 #define E1000_RFCTL_NFSW_DIS            0x00000040

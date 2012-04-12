@@ -319,4 +319,5 @@ struct btrfs_mapping_tree;
 int repair_io_failure(struct btrfs_mapping_tree *map_tree, u64 start,
 			u64 length, u64 logical, struct page *page,
 			int mirror_num);
+int end_extent_writepage(struct page *page, int err, u64 start, u64 end);
 #endif

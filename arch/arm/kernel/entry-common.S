@@ -10,8 +10,14 @@
 
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
-#include <mach/entry-macro.S>
 #include <asm/unwind.h>
+
+#ifdef CONFIG_NEED_RET_TO_USER
+#include <mach/entry-macro.S>
+#else
+	.macro  arch_ret_to_user, tmp1, tmp2
+	.endm
+#endif
 
 #include "entry-header.S"
 
@@ -149,6 +155,11 @@ ENDPROC(ret_from_fork)
 #endif
 #endif
 
+.macro mcount_adjust_addr rd, rn
+	bic	\rd, \rn, #1		@ clear the Thumb bit if present
+	sub	\rd, \rd, #MCOUNT_INSN_SIZE
+.endm
+
 .macro __mcount suffix
 	mcount_enter
 	ldr	r0, =ftrace_trace_function
@@ -173,8 +184,7 @@ ENDPROC(ret_from_fork)
 	mcount_exit
 
 1: 	mcount_get_lr	r1			@ lr of instrumented func
-	mov	r0, lr				@ instrumented function
-	sub	r0, r0, #MCOUNT_INSN_SIZE
+	mcount_adjust_addr	r0, lr		@ instrumented function
 	adr	lr, BSYM(2f)
 	mov	pc, r2
 2:	mcount_exit
@@ -184,8 +194,7 @@ ENDPROC(ret_from_fork)
 	mcount_enter
 
 	mcount_get_lr	r1			@ lr of instrumented func
-	mov	r0, lr				@ instrumented function
-	sub	r0, r0, #MCOUNT_INSN_SIZE
+	mcount_adjust_addr	r0, lr		@ instrumented function
 
 	.globl ftrace_call\suffix
 ftrace_call\suffix:
@@ -205,11 +214,11 @@ ftrace_graph_call\suffix:
 #ifdef CONFIG_DYNAMIC_FTRACE
 	@ called from __ftrace_caller, saved in mcount_enter
 	ldr	r1, [sp, #16]		@ instrumented routine (func)
+	mcount_adjust_addr	r1, r1
 #else
 	@ called from __mcount, untouched in lr
-	mov	r1, lr			@ instrumented routine (func)
+	mcount_adjust_addr	r1, lr	@ instrumented routine (func)
 #endif
-	sub	r1, r1, #MCOUNT_INSN_SIZE
 	mov	r2, fp			@ frame pointer
 	bl	prepare_ftrace_return
 	mcount_exit

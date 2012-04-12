@@ -55,6 +55,7 @@
  * @WLAN_STA_4ADDR_EVENT: 4-addr event was already sent for this frame.
  * @WLAN_STA_INSERTED: This station is inserted into the hash table.
  * @WLAN_STA_RATE_CONTROL: rate control was initialized for this station.
+ * @WLAN_STA_TOFFSET_KNOWN: toffset calculated for this station is valid.
  */
 enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTH,
@@ -76,6 +77,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_4ADDR_EVENT,
 	WLAN_STA_INSERTED,
 	WLAN_STA_RATE_CONTROL,
+	WLAN_STA_TOFFSET_KNOWN,
 };
 
 #define STA_TID_NUM 16
@@ -101,6 +103,7 @@ enum ieee80211_sta_info_flags {
  * @dialog_token: dialog token for aggregation session
  * @timeout: session timeout value to be filled in ADDBA requests
  * @state: session state (see above)
+ * @last_tx: jiffies of last tx activity
  * @stop_initiator: initiator of a session stop
  * @tx_stop: TX DelBA frame when stopping
  * @buf_size: reorder buffer size at receiver
@@ -122,6 +125,7 @@ struct tid_ampdu_tx {
 	struct timer_list addba_resp_timer;
 	struct sk_buff_head pending;
 	unsigned long state;
+	unsigned long last_tx;
 	u16 timeout;
 	u8 dialog_token;
 	u8 stop_initiator;
@@ -139,6 +143,7 @@ struct tid_ampdu_tx {
  * @reorder_time: jiffies when skb was added
  * @session_timer: check if peer keeps Tx-ing on the TID (by timeout value)
  * @reorder_timer: releases expired frames from the reorder buffer.
+ * @last_rx: jiffies of last rx activity
  * @head_seq_num: head sequence number in reordering buffer.
  * @stored_mpdu_num: number of MPDUs in reordering buffer
  * @ssn: Starting Sequence Number expected to be aggregated.
@@ -163,6 +168,7 @@ struct tid_ampdu_rx {
 	unsigned long *reorder_time;
 	struct timer_list session_timer;
 	struct timer_list reorder_timer;
+	unsigned long last_rx;
 	u16 head_seq_num;
 	u16 stored_mpdu_num;
 	u16 ssn;
@@ -264,6 +270,7 @@ struct sta_ampdu_mlme {
  * @plink_timeout: timeout of peer link
  * @plink_timer: peer link watch timer
  * @plink_timer_was_running: used by suspend/resume to restore timers
+ * @t_offset: timing offset relative to this host
  * @debugfs: debug filesystem info
  * @dead: set to true when sta is unlinked
  * @uploaded: set to true when sta is uploaded to the driver
@@ -353,6 +360,8 @@ struct sta_info {
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;
+	s64 t_offset;
+	s64 t_offset_setpoint;
 #endif
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -364,6 +373,8 @@ struct sta_info {
 
 	unsigned int lost_packets;
 	unsigned int beacon_loss_count;
+
+	bool supports_40mhz;
 
 	/* keep last! */
 	struct ieee80211_sta sta;

@@ -104,9 +104,6 @@
 #define UCB_MODE_DYN_VFLAG_ENA	(1 << 12)
 #define UCB_MODE_AUD_OFF_CAN	(1 << 13)
 
-struct ucb1x00_plat_data {
-	int		gpio_base;
-};
 
 struct ucb1x00_irq {
 	void *devid;
@@ -119,7 +116,7 @@ struct ucb1x00 {
 	unsigned int		irq;
 	struct semaphore	adc_sem;
 	spinlock_t		io_lock;
-	const struct mcp_device_id *id;
+	u16			id;
 	u16			io_dir;
 	u16			io_out;
 	u16			adc_cr;

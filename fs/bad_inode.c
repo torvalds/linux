@@ -9,7 +9,7 @@
  */
 
 #include <linux/fs.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/stat.h>
 #include <linux/time.h>
 #include <linux/namei.h>

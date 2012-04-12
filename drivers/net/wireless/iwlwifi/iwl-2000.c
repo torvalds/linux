@@ -86,9 +86,8 @@ static void iwl2000_nic_config(struct iwl_priv *priv)
 {
 	iwl_rf_config(priv);
 
-	if (cfg(priv)->iq_invert)
-		iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
-			    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
+	iwl_set_bit(trans(priv), CSR_GP_DRIVER_REG,
+		    CSR_GP_DRIVER_REG_BIT_RADIO_IQ_INVER);
 }
 
 static const struct iwl_sensitivity_ranges iwl2000_sensitivity = {
@@ -172,7 +171,6 @@ static struct iwl_lib_ops iwl2030_lib = {
 static const struct iwl_base_params iwl2000_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.pll_cfg_val = 0,
 	.max_ll_items = OTP_MAX_LL_ITEMS_2x00,
 	.shadow_ram_support = true,
@@ -191,7 +189,6 @@ static const struct iwl_base_params iwl2000_base_params = {
 static const struct iwl_base_params iwl2030_base_params = {
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
-	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.pll_cfg_val = 0,
 	.max_ll_items = OTP_MAX_LL_ITEMS_2x00,
 	.shadow_ram_support = true,
@@ -234,8 +231,7 @@ static const struct iwl_bt_params iwl2030_bt_params = {
 	.base_params = &iwl2000_base_params,			\
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
-	.led_mode = IWL_LED_RF_STATE,				\
-	.iq_invert = true					\
+	.led_mode = IWL_LED_RF_STATE
 
 const struct iwl_cfg iwl2000_2bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 2200 BGN",
@@ -264,8 +260,7 @@ const struct iwl_cfg iwl2000_2bgn_d_cfg = {
 	.need_temp_offset_calib = true,				\
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
-	.adv_pm = true,						\
-	.iq_invert = true					\
+	.adv_pm = true
 
 const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 2230 BGN",
@@ -288,8 +283,7 @@ const struct iwl_cfg iwl2030_2bgn_cfg = {
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
-	.rx_with_siso_diversity = true,				\
-	.iq_invert = true					\
+	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl105_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 105 BGN",
@@ -319,8 +313,7 @@ const struct iwl_cfg iwl105_bgn_d_cfg = {
 	.temp_offset_v2 = true,					\
 	.led_mode = IWL_LED_RF_STATE,				\
 	.adv_pm = true,						\
-	.rx_with_siso_diversity = true,				\
-	.iq_invert = true					\
+	.rx_with_siso_diversity = true
 
 const struct iwl_cfg iwl135_bgn_cfg = {
 	.name = "Intel(R) Centrino(R) Wireless-N 135 BGN",

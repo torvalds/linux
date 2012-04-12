@@ -122,8 +122,8 @@ extern int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags);
 
 extern unsigned long get_wchan(struct task_struct *p);
 
-#define KSTK_EIP(tsk)	(task_pt_regs(task)->pc)
-#define	KSTK_ESP(tsk)	(task_pt_regs(task)->sp)
+#define KSTK_EIP(task)	(task_pt_regs(task)->pc)
+#define KSTK_ESP(task)	(task_pt_regs(task)->sp)
 
 #define cpu_relax()		do { } while (0)
 

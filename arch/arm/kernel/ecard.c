@@ -242,6 +242,7 @@ static void ecard_init_pgtables(struct mm_struct *mm)
 
 	memcpy(dst_pgd, src_pgd, sizeof(pgd_t) * (EASI_SIZE / PGDIR_SIZE));
 
+	vma.vm_flags = VM_EXEC;
 	vma.vm_mm = mm;
 
 	flush_tlb_range(&vma, IO_START, IO_START + IO_SIZE);

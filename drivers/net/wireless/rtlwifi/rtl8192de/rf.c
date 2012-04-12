@@ -601,7 +601,7 @@ bool rtl92d_phy_rf6052_config(struct ieee80211_hw *hw)
 				      u4_regvalue);
 			break;
 		}
-		if (rtstatus != true) {
+		if (!rtstatus) {
 			RT_TRACE(rtlpriv, COMP_INIT, DBG_TRACE,
 				 "Radio[%d] Fail!!", rfpath);
 			goto phy_rf_cfg_fail;

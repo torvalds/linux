@@ -454,8 +454,7 @@ static netdev_tx_t ipip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev)
 			dev->stats.tx_fifo_errors++;
 			goto tx_error;
 		}
-		if ((dst = rt->rt_gateway) == 0)
-			goto tx_error_icmp;
+		dst = rt->rt_gateway;
 	}
 
 	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
@@ -893,7 +892,7 @@ static int __init ipip_init(void)
 	err = xfrm4_tunnel_register(&ipip_handler, AF_INET);
 	if (err < 0) {
 		unregister_pernet_device(&ipip_net_ops);
-		printk(KERN_INFO "ipip init: can't register tunnel\n");
+		pr_info("%s: can't register tunnel\n", __func__);
 	}
 	return err;
 }
@@ -901,7 +900,7 @@ static int __init ipip_init(void)
 static void __exit ipip_fini(void)
 {
 	if (xfrm4_tunnel_deregister(&ipip_handler, AF_INET))
-		printk(KERN_INFO "ipip close: can't deregister tunnel\n");
+		pr_info("%s: can't deregister tunnel\n", __func__);
 
 	unregister_pernet_device(&ipip_net_ops);
 }

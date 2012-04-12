@@ -1533,10 +1533,9 @@ struct net_device *init_atmel_card(unsigned short irq, unsigned long port,
 
 	/* Create the network device object. */
 	dev = alloc_etherdev(sizeof(*priv));
-	if (!dev) {
-		printk(KERN_ERR "atmel: Couldn't alloc_etherdev\n");
+	if (!dev)
 		return NULL;
-	}
+
 	if (dev_alloc_name(dev, dev->name) < 0) {
 		printk(KERN_ERR "atmel: Couldn't get name!\n");
 		goto err_out_free;

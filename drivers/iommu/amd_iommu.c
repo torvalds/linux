@@ -2804,7 +2804,7 @@ static int amd_iommu_dma_supported(struct device *dev, u64 mask)
  * we don't need to preallocate the protection domains anymore.
  * For now we have to.
  */
-static void prealloc_protection_domains(void)
+static void __init prealloc_protection_domains(void)
 {
 	struct iommu_dev_data *dev_data;
 	struct dma_ops_domain *dma_dom;
@@ -2863,6 +2863,9 @@ static unsigned device_dma_ops_init(void)
 
 	for_each_pci_dev(pdev) {
 		if (!check_device(&pdev->dev)) {
+
+			iommu_ignore_device(&pdev->dev);
+
 			unhandled += 1;
 			continue;
 		}

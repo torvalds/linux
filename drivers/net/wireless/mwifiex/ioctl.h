@@ -85,34 +85,6 @@ struct mwifiex_ds_get_stats {
 	u32 wep_icv_error[4];
 };
 
-#define BCN_RSSI_AVG_MASK               0x00000002
-#define BCN_NF_AVG_MASK                 0x00000200
-#define ALL_RSSI_INFO_MASK              0x00000fff
-
-struct mwifiex_ds_get_signal {
-	/*
-	 * Bit0:  Last Beacon RSSI,  Bit1:  Average Beacon RSSI,
-	 * Bit2:  Last Data RSSI,    Bit3:  Average Data RSSI,
-	 * Bit4:  Last Beacon SNR,   Bit5:  Average Beacon SNR,
-	 * Bit6:  Last Data SNR,     Bit7:  Average Data SNR,
-	 * Bit8:  Last Beacon NF,    Bit9:  Average Beacon NF,
-	 * Bit10: Last Data NF,      Bit11: Average Data NF
-	 */
-	u16 selector;
-	s16 bcn_rssi_last;
-	s16 bcn_rssi_avg;
-	s16 data_rssi_last;
-	s16 data_rssi_avg;
-	s16 bcn_snr_last;
-	s16 bcn_snr_avg;
-	s16 data_snr_last;
-	s16 data_snr_avg;
-	s16 bcn_nf_last;
-	s16 bcn_nf_avg;
-	s16 data_nf_last;
-	s16 data_nf_avg;
-};
-
 #define MWIFIEX_MAX_VER_STR_LEN    128
 
 struct mwifiex_ver_ext {
@@ -306,6 +278,27 @@ struct mwifiex_ds_misc_gen_ie {
 struct mwifiex_ds_misc_cmd {
 	u32 len;
 	u8 cmd[MWIFIEX_SIZE_OF_CMD_BUFFER];
+};
+
+#define BITMASK_BCN_RSSI_LOW	BIT(0)
+#define BITMASK_BCN_RSSI_HIGH	BIT(4)
+
+enum subsc_evt_rssi_state {
+	EVENT_HANDLED,
+	RSSI_LOW_RECVD,
+	RSSI_HIGH_RECVD
+};
+
+struct subsc_evt_cfg {
+	u8 abs_value;
+	u8 evt_freq;
+};
+
+struct mwifiex_ds_misc_subsc_evt {
+	u16 action;
+	u16 events;
+	struct subsc_evt_cfg bcn_l_rssi_cfg;
+	struct subsc_evt_cfg bcn_h_rssi_cfg;
 };
 
 #define MWIFIEX_MAX_VSIE_LEN       (256)

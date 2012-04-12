@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/node.h>
 #include <linux/gfp.h>
+#include <linux/slab.h>
 #include <linux/percpu.h>
 
 #include "base.h"
@@ -208,6 +209,25 @@ static ssize_t print_cpus_offline(struct device *dev,
 }
 static DEVICE_ATTR(offline, 0444, print_cpus_offline, NULL);
 
+static void cpu_device_release(struct device *dev)
+{
+	/*
+	 * This is an empty function to prevent the driver core from spitting a
+	 * warning at us.  Yes, I know this is directly opposite of what the
+	 * documentation for the driver core and kobjects say, and the author
+	 * of this code has already been publically ridiculed for doing
+	 * something as foolish as this.  However, at this point in time, it is
+	 * the only way to handle the issue of statically allocated cpu
+	 * devices.  The different architectures will have their cpu device
+	 * code reworked to properly handle this in the near future, so this
+	 * function will then be changed to correctly free up the memory held
+	 * by the cpu device.
+	 *
+	 * Never copy this way of doing things, or you too will be made fun of
+	 * on the linux-kerenl list, you have been warned.
+	 */
+}
+
 /*
  * register_cpu - Setup a sysfs device for a CPU.
  * @cpu - cpu->hotpluggable field set to 1 will generate a control file in
@@ -221,8 +241,13 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 	int error;
 
 	cpu->node_id = cpu_to_node(num);
+	memset(&cpu->dev, 0x00, sizeof(struct device));
 	cpu->dev.id = num;
 	cpu->dev.bus = &cpu_subsys;
+	cpu->dev.release = cpu_device_release;
+#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
+	cpu->dev.bus->uevent = arch_cpu_uevent;
+#endif
 	error = device_register(&cpu->dev);
 	if (!error && cpu->hotpluggable)
 		register_cpu_control(cpu);
@@ -247,6 +272,10 @@ struct device *get_cpu_device(unsigned cpu)
 }
 EXPORT_SYMBOL_GPL(get_cpu_device);
 
+#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
+static DEVICE_ATTR(modalias, 0444, arch_print_cpu_modalias, NULL);
+#endif
+
 static struct attribute *cpu_root_attrs[] = {
 #ifdef CONFIG_ARCH_CPU_PROBE_RELEASE
 	&dev_attr_probe.attr,
@@ -257,6 +286,9 @@ static struct attribute *cpu_root_attrs[] = {
 	&cpu_attrs[2].attr.attr,
 	&dev_attr_kernel_max.attr,
 	&dev_attr_offline.attr,
+#ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
+	&dev_attr_modalias.attr,
+#endif
 	NULL
 };
 

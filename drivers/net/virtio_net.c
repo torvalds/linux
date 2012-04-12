@@ -255,7 +255,7 @@ static int receive_mergeable(struct virtnet_info *vi, struct sk_buff *skb)
 static void receive_buf(struct net_device *dev, void *buf, unsigned int len)
 {
 	struct virtnet_info *vi = netdev_priv(dev);
-	struct virtnet_stats __percpu *stats = this_cpu_ptr(vi->stats);
+	struct virtnet_stats *stats = this_cpu_ptr(vi->stats);
 	struct sk_buff *skb;
 	struct page *page;
 	struct skb_vnet_hdr *hdr;
@@ -549,7 +549,7 @@ static unsigned int free_old_xmit_skbs(struct virtnet_info *vi)
 {
 	struct sk_buff *skb;
 	unsigned int len, tot_sgs = 0;
-	struct virtnet_stats __percpu *stats = this_cpu_ptr(vi->stats);
+	struct virtnet_stats *stats = this_cpu_ptr(vi->stats);
 
 	while ((skb = virtqueue_get_buf(vi->svq, &len)) != NULL) {
 		pr_debug("Sent skb %p\n", skb);
@@ -688,8 +688,7 @@ static struct rtnl_link_stats64 *virtnet_stats(struct net_device *dev,
 	unsigned int start;
 
 	for_each_possible_cpu(cpu) {
-		struct virtnet_stats __percpu *stats
-			= per_cpu_ptr(vi->stats, cpu);
+		struct virtnet_stats *stats = per_cpu_ptr(vi->stats, cpu);
 		u64 tpackets, tbytes, rpackets, rbytes;
 
 		do {
@@ -1061,7 +1060,7 @@ static int virtnet_probe(struct virtio_device *vdev)
 	if (virtio_config_val_len(vdev, VIRTIO_NET_F_MAC,
 				  offsetof(struct virtio_net_config, mac),
 				  dev->dev_addr, dev->addr_len) < 0)
-		random_ether_addr(dev->dev_addr);
+		eth_hw_addr_random(dev);
 
 	/* Set up our device-specific information */
 	vi = netdev_priv(dev);

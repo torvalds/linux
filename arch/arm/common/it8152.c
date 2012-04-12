@@ -299,8 +299,8 @@ int __init it8152_pci_setup(int nr, struct pci_sys_data *sys)
 		goto err1;
 	}
 
-	pci_add_resource(&sys->resources, &it8152_io);
-	pci_add_resource(&sys->resources, &it8152_mem);
+	pci_add_resource_offset(&sys->resources, &it8152_io, sys->io_offset);
+	pci_add_resource_offset(&sys->resources, &it8152_mem, sys->mem_offset);
 
 	if (platform_notify || platform_notify_remove) {
 		printk(KERN_ERR "PCI: Can't use platform_notify\n");
@@ -319,13 +319,6 @@ err1:
 err0:
 	return -EBUSY;
 }
-
-/*
- * If we set up a device for bus mastering, we need to check the latency
- * timer as we don't have even crappy BIOSes to set it properly.
- * The implementation is from arch/i386/pci/i386.c
- */
-unsigned int pcibios_max_latency = 255;
 
 /* ITE bridge requires setting latency timer to avoid early bus access
    termination by PCI bus master devices

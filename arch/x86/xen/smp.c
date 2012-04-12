@@ -75,8 +75,14 @@ static void __cpuinit cpu_bringup(void)
 
 	xen_setup_cpu_clockevents();
 
+	notify_cpu_starting(cpu);
+
+	ipi_call_lock();
 	set_cpu_online(cpu, true);
-	percpu_write(cpu_state, CPU_ONLINE);
+	ipi_call_unlock();
+
+	this_cpu_write(cpu_state, CPU_ONLINE);
+
 	wmb();
 
 	/* We can take interrupts now: we're officially "up". */
@@ -409,6 +415,13 @@ static void __cpuinit xen_play_dead(void) /* used only with HOTPLUG_CPU */
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
 	cpu_bringup();
+	/*
+	 * Balance out the preempt calls - as we are running in cpu_idle
+	 * loop which has been called at bootup from cpu_bringup_and_idle.
+	 * The cpucpu_bringup_and_idle called cpu_bringup which made a
+	 * preempt_disable() So this preempt_enable will balance it out.
+	 */
+	preempt_enable();
 }
 
 #else /* !CONFIG_HOTPLUG_CPU */

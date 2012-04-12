@@ -1,7 +1,7 @@
 Introduction
 ============
 
-This document descibes a collection of device-mapper targets that
+This document describes a collection of device-mapper targets that
 between them implement thin-provisioning and snapshots.
 
 The main highlight of this implementation, compared to the previous

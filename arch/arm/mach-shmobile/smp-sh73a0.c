@@ -23,6 +23,7 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <mach/common.h>
+#include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/smp_twd.h>
 #include <asm/hardware/gic.h>
@@ -40,6 +41,8 @@ static void __iomem *scu_base_addr(void)
 
 static DEFINE_SPINLOCK(scu_lock);
 static unsigned long tmp;
+
+static DEFINE_TWD_LOCAL_TIMER(twd_local_timer, 0xf0000600, 29);
 
 static void modify_scu_cpu_psr(unsigned long set, unsigned long clr)
 {
@@ -59,11 +62,7 @@ unsigned int __init sh73a0_get_core_count(void)
 {
 	void __iomem *scu_base = scu_base_addr();
 
-#ifdef CONFIG_HAVE_ARM_TWD
-	/* twd_base needs to be initialized before percpu_timer_setup() */
-	twd_base = (void __iomem *)0xf0000600;
-#endif
-
+	shmobile_twd_init(&twd_local_timer);
 	return scu_get_core_count(scu_base);
 }
 
@@ -79,7 +78,7 @@ int __cpuinit sh73a0_boot_secondary(unsigned int cpu)
 	/* enable cache coherency */
 	modify_scu_cpu_psr(0, 3 << (cpu * 8));
 
-	if (((__raw_readw(__io(PSTR)) >> (4 * cpu)) & 3) == 3)
+	if (((__raw_readl(__io(PSTR)) >> (4 * cpu)) & 3) == 3)
 		__raw_writel(1 << cpu, __io(WUPCR));	/* wake up */
 	else
 		__raw_writel(1 << cpu, __io(SRESCR));	/* reset */

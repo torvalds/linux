@@ -596,33 +596,19 @@ int apei_read(u64 *val, struct acpi_generic_address *reg)
 {
 	int rc;
 	u64 address;
-	u32 tmp, width = reg->bit_width;
 	acpi_status status;
 
 	rc = apei_check_gar(reg, &address);
 	if (rc)
 		return rc;
 
-	if (width == 64)
-		width = 32;	/* Break into two 32-bit transfers */
-
 	*val = 0;
 	switch(reg->space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		status = acpi_os_read_memory((acpi_physical_address)
-					     address, &tmp, width);
+		status = acpi_os_read_memory64((acpi_physical_address)
+					     address, val, reg->bit_width);
 		if (ACPI_FAILURE(status))
 			return -EIO;
-		*val = tmp;
-
-		if (reg->bit_width == 64) {
-			/* Read the top 32 bits */
-			status = acpi_os_read_memory((acpi_physical_address)
-						     (address + 4), &tmp, 32);
-			if (ACPI_FAILURE(status))
-				return -EIO;
-			*val |= ((u64)tmp << 32);
-		}
 		break;
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		status = acpi_os_read_port(address, (u32 *)val, reg->bit_width);
@@ -642,31 +628,18 @@ int apei_write(u64 val, struct acpi_generic_address *reg)
 {
 	int rc;
 	u64 address;
-	u32 width = reg->bit_width;
 	acpi_status status;
 
 	rc = apei_check_gar(reg, &address);
 	if (rc)
 		return rc;
 
-	if (width == 64)
-		width = 32;	/* Break into two 32-bit transfers */
-
 	switch (reg->space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		status = acpi_os_write_memory((acpi_physical_address)
-					      address, ACPI_LODWORD(val),
-					      width);
+		status = acpi_os_write_memory64((acpi_physical_address)
+					      address, val, reg->bit_width);
 		if (ACPI_FAILURE(status))
 			return -EIO;
-
-		if (reg->bit_width == 64) {
-			status = acpi_os_write_memory((acpi_physical_address)
-						      (address + 4),
-						      ACPI_HIDWORD(val), 32);
-			if (ACPI_FAILURE(status))
-				return -EIO;
-		}
 		break;
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 		status = acpi_os_write_port(address, val, reg->bit_width);

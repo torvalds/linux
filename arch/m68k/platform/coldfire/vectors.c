@@ -33,8 +33,6 @@ asmlinkage void dbginterrupt_c(struct frame *fp)
 
 /***************************************************************************/
 
-extern e_vector	*_ramvec;
-
 /* Assembler routines */
 asmlinkage void buserr(void);
 asmlinkage void trap(void);

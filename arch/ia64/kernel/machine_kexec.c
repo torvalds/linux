@@ -157,7 +157,7 @@ void arch_crash_save_vmcoreinfo(void)
 #endif
 #ifdef CONFIG_PGTABLE_3
 	VMCOREINFO_CONFIG(PGTABLE_3);
-#elif  CONFIG_PGTABLE_4
+#elif defined(CONFIG_PGTABLE_4)
 	VMCOREINFO_CONFIG(PGTABLE_4);
 #endif
 }

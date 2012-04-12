@@ -19,6 +19,22 @@
 #include "hda_local.h"
 #include "hda_jack.h"
 
+bool is_jack_detectable(struct hda_codec *codec, hda_nid_t nid)
+{
+	if (codec->no_jack_detect)
+		return false;
+	if (!(snd_hda_query_pin_caps(codec, nid) & AC_PINCAP_PRES_DETECT))
+		return false;
+	if (!codec->ignore_misc_bit &&
+	    (get_defcfg_misc(snd_hda_codec_get_pincfg(codec, nid)) &
+	     AC_DEFCFG_MISC_NO_PRESENCE))
+		return false;
+	if (!(get_wcaps(codec, nid) & AC_WCAP_UNSOL_CAP))
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_HDA(is_jack_detectable);
+
 /* execute pin sense measurement */
 static u32 read_pin_sense(struct hda_codec *codec, hda_nid_t nid)
 {
@@ -282,7 +298,8 @@ int snd_hda_jack_add_kctl(struct hda_codec *codec, hda_nid_t nid,
 EXPORT_SYMBOL_HDA(snd_hda_jack_add_kctl);
 
 static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
-			 const struct auto_pin_cfg *cfg)
+			 const struct auto_pin_cfg *cfg,
+			 char *lastname, int *lastidx)
 {
 	unsigned int def_conf, conn;
 	char name[44];
@@ -298,6 +315,10 @@ static int add_jack_kctl(struct hda_codec *codec, hda_nid_t nid,
 		return 0;
 
 	snd_hda_get_pin_label(codec, nid, cfg, name, sizeof(name), &idx);
+	if (!strcmp(name, lastname) && idx == *lastidx)
+		idx++;
+	strncpy(lastname, name, 44);
+	*lastidx = idx;
 	err = snd_hda_jack_add_kctl(codec, nid, name, idx);
 	if (err < 0)
 		return err;
@@ -311,41 +332,42 @@ int snd_hda_jack_add_kctls(struct hda_codec *codec,
 			   const struct auto_pin_cfg *cfg)
 {
 	const hda_nid_t *p;
-	int i, err;
+	int i, err, lastidx = 0;
+	char lastname[44] = "";
 
 	for (i = 0, p = cfg->line_out_pins; i < cfg->line_outs; i++, p++) {
-		err = add_jack_kctl(codec, *p, cfg);
+		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0, p = cfg->hp_pins; i < cfg->hp_outs; i++, p++) {
 		if (*p == *cfg->line_out_pins) /* might be duplicated */
 			break;
-		err = add_jack_kctl(codec, *p, cfg);
+		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0, p = cfg->speaker_pins; i < cfg->speaker_outs; i++, p++) {
 		if (*p == *cfg->line_out_pins) /* might be duplicated */
 			break;
-		err = add_jack_kctl(codec, *p, cfg);
+		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0; i < cfg->num_inputs; i++) {
-		err = add_jack_kctl(codec, cfg->inputs[i].pin, cfg);
+		err = add_jack_kctl(codec, cfg->inputs[i].pin, cfg, lastname, &lastidx);
 		if (err < 0)
 			return err;
 	}
 	for (i = 0, p = cfg->dig_out_pins; i < cfg->dig_outs; i++, p++) {
-		err = add_jack_kctl(codec, *p, cfg);
+		err = add_jack_kctl(codec, *p, cfg, lastname, &lastidx);
 		if (err < 0)
 			return err;
 	}
-	err = add_jack_kctl(codec, cfg->dig_in_pin, cfg);
+	err = add_jack_kctl(codec, cfg->dig_in_pin, cfg, lastname, &lastidx);
 	if (err < 0)
 		return err;
-	err = add_jack_kctl(codec, cfg->mono_out_pin, cfg);
+	err = add_jack_kctl(codec, cfg->mono_out_pin, cfg, lastname, &lastidx);
 	if (err < 0)
 		return err;
 	return 0;

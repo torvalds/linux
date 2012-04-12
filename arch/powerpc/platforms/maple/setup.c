@@ -262,7 +262,7 @@ static void __init maple_init_IRQ(void)
 		flags |= MPIC_BIG_ENDIAN;
 
 	/* XXX Maple specific bits */
-	flags |= MPIC_U3_HT_IRQS | MPIC_WANTS_RESET;
+	flags |= MPIC_U3_HT_IRQS;
 	/* All U3/U4 are big-endian, older SLOF firmware doesn't encode this */
 	flags |= MPIC_BIG_ENDIAN;
 

@@ -1226,13 +1226,13 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	wdata->battery.use_for_apm = 0;
 
-	power_supply_powers(&wdata->battery, &hdev->dev);
-
 	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
 	if (ret) {
 		hid_err(hdev, "Cannot register battery device\n");
 		goto err_battery;
 	}
+
+	power_supply_powers(&wdata->battery, &hdev->dev);
 
 	ret = wiimote_leds_create(wdata);
 	if (ret)

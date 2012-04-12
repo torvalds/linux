@@ -53,7 +53,7 @@ struct davinci_mdio_regs {
 	u32	control;
 #define CONTROL_IDLE		BIT(31)
 #define CONTROL_ENABLE		BIT(30)
-#define CONTROL_MAX_DIV		(0xff)
+#define CONTROL_MAX_DIV		(0xffff)
 
 	u32	alive;
 	u32	link;
@@ -318,9 +318,9 @@ static int __devinit davinci_mdio_probe(struct platform_device *pdev)
 
 	data->clk = clk_get(dev, NULL);
 	if (IS_ERR(data->clk)) {
-		data->clk = NULL;
 		dev_err(dev, "failed to get device clock\n");
 		ret = PTR_ERR(data->clk);
+		data->clk = NULL;
 		goto bail_out;
 	}
 

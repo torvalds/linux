@@ -373,12 +373,22 @@ allocate_buffers(struct TCP_Server_Info *server)
 static bool
 server_unresponsive(struct TCP_Server_Info *server)
 {
-	if (echo_retries > 0 && server->tcpStatus == CifsGood &&
-	    time_after(jiffies, server->lstrp +
-				(echo_retries * SMB_ECHO_INTERVAL))) {
+	/*
+	 * We need to wait 2 echo intervals to make sure we handle such
+	 * situations right:
+	 * 1s  client sends a normal SMB request
+	 * 2s  client gets a response
+	 * 30s echo workqueue job pops, and decides we got a response recently
+	 *     and don't need to send another
+	 * ...
+	 * 65s kernel_recvmsg times out, and we see that we haven't gotten
+	 *     a response in >60s.
+	 */
+	if (server->tcpStatus == CifsGood &&
+	    time_after(jiffies, server->lstrp + 2 * SMB_ECHO_INTERVAL)) {
 		cERROR(1, "Server %s has not responded in %d seconds. "
 			  "Reconnecting...", server->hostname,
-			  (echo_retries * SMB_ECHO_INTERVAL / HZ));
+			  (2 * SMB_ECHO_INTERVAL) / HZ);
 		cifs_reconnect(server);
 		wake_up(&server->response_q);
 		return true;
@@ -642,19 +652,11 @@ static void clean_demultiplex_info(struct TCP_Server_Info *server)
 	spin_unlock(&GlobalMid_Lock);
 	wake_up_all(&server->response_q);
 
-	/*
-	 * Check if we have blocked requests that need to free. Note that
-	 * cifs_max_pending is normally 50, but can be set at module install
-	 * time to as little as two.
-	 */
-	spin_lock(&GlobalMid_Lock);
-	if (atomic_read(&server->inFlight) >= cifs_max_pending)
-		atomic_set(&server->inFlight, cifs_max_pending - 1);
-	/*
-	 * We do not want to set the max_pending too low or we could end up
-	 * with the counter going negative.
-	 */
-	spin_unlock(&GlobalMid_Lock);
+	/* check if we have blocked requests that need to free */
+	spin_lock(&server->req_lock);
+	if (server->credits <= 0)
+		server->credits = 1;
+	spin_unlock(&server->req_lock);
 	/*
 	 * Although there should not be any requests blocked on this queue it
 	 * can not hurt to be paranoid and try to wake up requests that may
@@ -773,10 +775,11 @@ standard_receive3(struct TCP_Server_Info *server, struct mid_q_entry *mid)
 		cifs_dump_mem("Bad SMB: ", buf,
 			min_t(unsigned int, server->total_read, 48));
 
-	if (mid)
-		handle_mid(mid, server, smb_buffer, length);
+	if (!mid)
+		return length;
 
-	return length;
+	handle_mid(mid, server, smb_buffer, length);
+	return 0;
 }
 
 static int
@@ -1908,7 +1911,8 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 	tcp_ses->noblocksnd = volume_info->noblocksnd;
 	tcp_ses->noautotune = volume_info->noautotune;
 	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
-	atomic_set(&tcp_ses->inFlight, 0);
+	tcp_ses->in_flight = 0;
+	tcp_ses->credits = 1;
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
 	INIT_LIST_HEAD(&tcp_ses->pending_mid_q);
@@ -2125,7 +2129,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	down_read(&key->sem);
 	upayload = key->payload.data;
 	if (IS_ERR_OR_NULL(upayload)) {
-		rc = PTR_ERR(key);
+		rc = upayload ? PTR_ERR(upayload) : -EINVAL;
 		goto out_key_put;
 	}
 
@@ -2142,14 +2146,14 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 
 	len = delim - payload;
 	if (len > MAX_USERNAME_SIZE || len <= 0) {
-		cFYI(1, "Bad value from username search (len=%ld)", len);
+		cFYI(1, "Bad value from username search (len=%zd)", len);
 		rc = -EINVAL;
 		goto out_key_put;
 	}
 
 	vol->username = kstrndup(payload, len, GFP_KERNEL);
 	if (!vol->username) {
-		cFYI(1, "Unable to allocate %ld bytes for username", len);
+		cFYI(1, "Unable to allocate %zd bytes for username", len);
 		rc = -ENOMEM;
 		goto out_key_put;
 	}
@@ -2157,7 +2161,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 
 	len = key->datalen - (len + 1);
 	if (len > MAX_PASSWORD_SIZE || len <= 0) {
-		cFYI(1, "Bad len for password search (len=%ld)", len);
+		cFYI(1, "Bad len for password search (len=%zd)", len);
 		rc = -EINVAL;
 		kfree(vol->username);
 		vol->username = NULL;
@@ -2167,7 +2171,7 @@ cifs_set_cifscreds(struct smb_vol *vol, struct cifs_ses *ses)
 	++delim;
 	vol->password = kstrndup(delim, len, GFP_KERNEL);
 	if (!vol->password) {
-		cFYI(1, "Unable to allocate %ld bytes for password", len);
+		cFYI(1, "Unable to allocate %zd bytes for password", len);
 		rc = -ENOMEM;
 		kfree(vol->username);
 		vol->username = NULL;
@@ -3370,7 +3374,7 @@ cifs_ra_pages(struct cifs_sb_info *cifs_sb)
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
-	int rc = 0;
+	int rc;
 	int xid;
 	struct cifs_ses *pSesInfo;
 	struct cifs_tcon *tcon;
@@ -3397,6 +3401,7 @@ try_mount_again:
 		FreeXid(xid);
 	}
 #endif
+	rc = 0;
 	tcon = NULL;
 	pSesInfo = NULL;
 	srvTcp = NULL;
@@ -3758,9 +3763,11 @@ int cifs_negotiate_protocol(unsigned int xid, struct cifs_ses *ses)
 	if (server->maxBuf != 0)
 		return 0;
 
+	cifs_set_credits(server, 1);
 	rc = CIFSSMBNegotiate(xid, ses);
 	if (rc == -EAGAIN) {
 		/* retry only once on 1st time connection */
+		cifs_set_credits(server, 1);
 		rc = CIFSSMBNegotiate(xid, ses);
 		if (rc == -EAGAIN)
 			rc = -EHOSTDOWN;
@@ -3857,10 +3864,8 @@ cifs_construct_tcon(struct cifs_sb_info *cifs_sb, uid_t fsuid)
 	struct smb_vol *vol_info;
 
 	vol_info = kzalloc(sizeof(*vol_info), GFP_KERNEL);
-	if (vol_info == NULL) {
-		tcon = ERR_PTR(-ENOMEM);
-		goto out;
-	}
+	if (vol_info == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	vol_info->local_nls = cifs_sb->local_nls;
 	vol_info->linux_uid = fsuid;

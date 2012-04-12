@@ -593,7 +593,7 @@ static int tlv320aic23_probe(struct snd_soc_codec *codec)
 
 	snd_soc_write(codec, TLV320AIC23_ACTIVE, 0x1);
 
-	snd_soc_add_controls(codec, tlv320aic23_snd_controls,
+	snd_soc_add_codec_controls(codec, tlv320aic23_snd_controls,
 				ARRAY_SIZE(tlv320aic23_snd_controls));
 
 	return 0;

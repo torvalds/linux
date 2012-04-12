@@ -27,8 +27,10 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/omapfb.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -41,10 +43,10 @@
 #include <plat/board.h>
 #include <plat/irda.h>
 #include <plat/keypad.h>
-#include "common.h"
 
-#include <linux/spi/spi.h>
-#include <linux/spi/ads7846.h>
+#include <mach/hardware.h>
+
+#include "common.h"
 
 #define PALMZ71_USBDETECT_GPIO	0
 #define PALMZ71_PENIRQ_GPIO	6
@@ -239,10 +241,6 @@ static struct omap_lcd_config palmz71_lcd_config __initdata = {
 	.ctrl_name = "internal",
 };
 
-static struct omap_board_config_kernel palmz71_config[] __initdata = {
-	{OMAP_TAG_LCD,	&palmz71_lcd_config},
-};
-
 static irqreturn_t
 palmz71_powercable(int irq, void *dev_id)
 {
@@ -313,9 +311,6 @@ omap_palmz71_init(void)
 	palmz71_gpio_setup(1);
 	omap_mpu_wdt_mode(0);
 
-	omap_board_config = palmz71_config;
-	omap_board_config_size = ARRAY_SIZE(palmz71_config);
-
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	spi_register_board_info(palmz71_boardinfo,
@@ -324,6 +319,8 @@ omap_palmz71_init(void)
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, NULL, 0);
 	palmz71_gpio_setup(0);
+
+	omapfb_set_lcd_config(&palmz71_lcd_config);
 }
 
 MACHINE_START(OMAP_PALMZ71, "OMAP310 based Palm Zire71")

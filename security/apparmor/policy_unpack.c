@@ -84,7 +84,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
  * @new: profile if it has been allocated (MAYBE NULL)
  * @name: name of the profile being manipulated (MAYBE NULL)
  * @info: any extra info about the failure (MAYBE NULL)
- * @e: buffer position info (NOT NULL)
+ * @e: buffer position info
  * @error: error code
  *
  * Returns: %0 or error
@@ -95,7 +95,8 @@ static int audit_iface(struct aa_profile *new, const char *name,
 	struct aa_profile *profile = __aa_current_profile();
 	struct common_audit_data sa;
 	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.iface.pos = e->pos - e->start;
+	if (e)
+		sa.aad.iface.pos = e->pos - e->start;
 	sa.aad.iface.target = new;
 	sa.aad.name = name;
 	sa.aad.info = info;
@@ -468,7 +469,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 {
 	struct aa_profile *profile = NULL;
 	const char *name = NULL;
-	int error = -EPROTO;
+	int i, error = -EPROTO;
 	kernel_cap_t tmpcap;
 	u32 tmp;
 
@@ -554,10 +555,34 @@ static struct aa_profile *unpack_profile(struct aa_ext *e)
 			goto fail;
 		if (!unpack_u32(e, &(profile->caps.extended.cap[1]), NULL))
 			goto fail;
+		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+			goto fail;
 	}
 
 	if (!unpack_rlimits(e, profile))
 		goto fail;
+
+	if (unpack_nameX(e, AA_STRUCT, "policydb")) {
+		/* generic policy dfa - optional and may be NULL */
+		profile->policy.dfa = unpack_dfa(e);
+		if (IS_ERR(profile->policy.dfa)) {
+			error = PTR_ERR(profile->policy.dfa);
+			profile->policy.dfa = NULL;
+			goto fail;
+		}
+		if (!unpack_u32(e, &profile->policy.start[0], "start"))
+			/* default start state */
+			profile->policy.start[0] = DFA_START;
+		/* setup class index */
+		for (i = AA_CLASS_FILE; i <= AA_CLASS_LAST; i++) {
+			profile->policy.start[i] =
+				aa_dfa_next(profile->policy.dfa,
+					    profile->policy.start[0],
+					    i);
+		}
+		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
+			goto fail;
+	}
 
 	/* get file rules */
 	profile->file.dfa = unpack_dfa(e);

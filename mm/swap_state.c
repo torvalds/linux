@@ -300,16 +300,6 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 			new_page = alloc_page_vma(gfp_mask, vma, addr);
 			if (!new_page)
 				break;		/* Out of memory */
-			/*
-			 * The memcg-specific accounting when moving
-			 * pages around the LRU lists relies on the
-			 * page's owner (memcg) to be valid.  Usually,
-			 * pages are assigned to a new owner before
-			 * being put on the LRU list, but since this
-			 * is not the case here, the stale owner from
-			 * a previous allocation cycle must be reset.
-			 */
-			mem_cgroup_reset_owner(new_page);
 		}
 
 		/*
@@ -382,25 +372,23 @@ struct page *read_swap_cache_async(swp_entry_t entry, gfp_t gfp_mask,
 struct page *swapin_readahead(swp_entry_t entry, gfp_t gfp_mask,
 			struct vm_area_struct *vma, unsigned long addr)
 {
-	int nr_pages;
 	struct page *page;
-	unsigned long offset;
-	unsigned long end_offset;
+	unsigned long offset = swp_offset(entry);
+	unsigned long start_offset, end_offset;
+	unsigned long mask = (1UL << page_cluster) - 1;
 
-	/*
-	 * Get starting offset for readaround, and number of pages to read.
-	 * Adjust starting address by readbehind (for NUMA interleave case)?
-	 * No, it's very unlikely that swap layout would follow vma layout,
-	 * more likely that neighbouring swap pages came from the same node:
-	 * so use the same "addr" to choose the same node for each swap read.
-	 */
-	nr_pages = valid_swaphandles(entry, &offset);
-	for (end_offset = offset + nr_pages; offset < end_offset; offset++) {
+	/* Read a page_cluster sized and aligned cluster around offset. */
+	start_offset = offset & ~mask;
+	end_offset = offset | mask;
+	if (!start_offset)	/* First page is swap header. */
+		start_offset++;
+
+	for (offset = start_offset; offset <= end_offset ; offset++) {
 		/* Ok, do the async read-ahead now */
 		page = read_swap_cache_async(swp_entry(swp_type(entry), offset),
 						gfp_mask, vma, addr);
 		if (!page)
-			break;
+			continue;
 		page_cache_release(page);
 	}
 	lru_add_drain();	/* Push any new pages onto the LRU now */

@@ -838,10 +838,10 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 			}
 		}
 		if (page) {
-			void *mapaddr = kmap_atomic(page, KM_USER0);
+			void *mapaddr = kmap_atomic(page);
 			void *buf = mapaddr + offset;
 			offset += fuse_copy_do(cs, &buf, &count);
-			kunmap_atomic(mapaddr, KM_USER0);
+			kunmap_atomic(mapaddr);
 		} else
 			offset += fuse_copy_do(cs, NULL, &count);
 	}

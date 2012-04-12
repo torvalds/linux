@@ -30,6 +30,7 @@
 
 #include <linux/usb.h>
 #include <linux/module.h>
+#include <linux/firmware.h>
 
 #include "osdep_service.h"
 #include "drv_types.h"
@@ -89,6 +90,7 @@ static struct usb_device_id rtl871x_usb_id_tbl[] = {
 	{USB_DEVICE(0x0DF6, 0x0045)},
 	{USB_DEVICE(0x0DF6, 0x0059)}, /* 11n mode disable */
 	{USB_DEVICE(0x0DF6, 0x004B)},
+	{USB_DEVICE(0x0DF6, 0x005B)},
 	{USB_DEVICE(0x0DF6, 0x005D)},
 	{USB_DEVICE(0x0DF6, 0x0063)},
 	/* Sweex */
@@ -104,10 +106,10 @@ static struct usb_device_id rtl871x_usb_id_tbl[] = {
 /* RTL8191SU */
 	/* Realtek */
 	{USB_DEVICE(0x0BDA, 0x8172)},
+	{USB_DEVICE(0x0BDA, 0x8192)},
 	/* Amigo */
 	{USB_DEVICE(0x0EB0, 0x9061)},
 	/* ASUS/EKB */
-	{USB_DEVICE(0x0BDA, 0x8172)},
 	{USB_DEVICE(0x13D3, 0x3323)},
 	{USB_DEVICE(0x13D3, 0x3311)}, /* 11n mode disable */
 	{USB_DEVICE(0x13D3, 0x3342)},
@@ -158,7 +160,6 @@ static struct usb_device_id rtl871x_usb_id_tbl[] = {
 
 /* RTL8192SU */
 	/* Realtek */
-	{USB_DEVICE(0x0BDA, 0x8174)},
 	{USB_DEVICE(0x0BDA, 0x8174)},
 	/* Belkin */
 	{USB_DEVICE(0x050D, 0x845A)},
@@ -280,7 +281,6 @@ static uint r8712_usb_dvobj_init(struct _adapter *padapter)
 	}
 	if ((r8712_alloc_io_queue(padapter)) == _FAIL)
 		status = _FAIL;
-	sema_init(&(padapter->dvobjpriv.usb_suspend_sema), 0);
 	return status;
 }
 
@@ -389,6 +389,7 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 	pdvobjpriv = &padapter->dvobjpriv;
 	pdvobjpriv->padapter = padapter;
 	padapter->dvobjpriv.pusbdev = udev;
+	padapter->pusb_intf = pusb_intf;
 	usb_set_intfdata(pusb_intf, pnetdev);
 	SET_NETDEV_DEV(pnetdev, &pusb_intf->dev);
 	/* step 2. */
@@ -595,10 +596,11 @@ static int r871xu_drv_init(struct usb_interface *pusb_intf,
 			       "%pM\n", mac);
 		memcpy(pnetdev->dev_addr, mac, ETH_ALEN);
 	}
-	/* step 6. Tell the network stack we exist */
-	if (register_netdev(pnetdev) != 0)
+	/* step 6. Load the firmware asynchronously */
+	if (rtl871x_load_fw(padapter))
 		goto error;
 	spin_lock_init(&padapter->lockRxFF0Filter);
+	mutex_init(&padapter->mutex_start);
 	return 0;
 error:
 	usb_put_dev(udev);
@@ -620,6 +622,10 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 
 	usb_set_intfdata(pusb_intf, NULL);
 	if (padapter) {
+		if (padapter->fw_found)
+			release_firmware(padapter->fw);
+		/* never exit with a firmware callback pending */
+		wait_for_completion(&padapter->rtl8712_fw_ready);
 		if (drvpriv.drv_registered == true)
 			padapter->bSurpriseRemoved = true;
 		if (pnetdev != NULL) {
@@ -629,7 +635,8 @@ static void r871xu_dev_remove(struct usb_interface *pusb_intf)
 		flush_scheduled_work();
 		udelay(1);
 		/*Stop driver mlme relation timer */
-		r8712_stop_drv_timers(padapter);
+		if (padapter->fw_found)
+			r8712_stop_drv_timers(padapter);
 		r871x_dev_unload(padapter);
 		r8712_free_drv_sw(padapter);
 	}

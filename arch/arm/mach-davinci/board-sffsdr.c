@@ -35,14 +35,15 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-#include <mach/dm644x.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
 #include <mach/usb.h>
 
-#define SFFSDR_PHY_ID		"0:01"
+#include "davinci.h"
+
+#define SFFSDR_PHY_ID		"davinci_mdio-0:01"
 static struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
 	/* U-Boot Environment: Block 0
 	 * UBL:                Block 1

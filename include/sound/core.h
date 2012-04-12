@@ -26,7 +26,6 @@
 #include <linux/mutex.h>		/* struct mutex */
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
-#include <linux/device.h>
 #include <linux/stringify.h>
 
 /* number of supported soundcards */
@@ -39,10 +38,10 @@
 #define CONFIG_SND_MAJOR	116	/* standard configuration */
 
 /* forward declarations */
-#ifdef CONFIG_PCI
 struct pci_dev;
-#endif
 struct module;
+struct device;
+struct device_attribute;
 
 /* device allocation stuff */
 
@@ -417,6 +416,7 @@ static inline int __snd_bug_on(int cond)
 #define gameport_get_port_data(gp) (gp)->port_data
 #endif
 
+#ifdef CONFIG_PCI
 /* PCI quirk list helper */
 struct snd_pci_quirk {
 	unsigned short subvendor;	/* PCI subvendor ID */
@@ -456,5 +456,6 @@ snd_pci_quirk_lookup(struct pci_dev *pci, const struct snd_pci_quirk *list);
 const struct snd_pci_quirk *
 snd_pci_quirk_lookup_id(u16 vendor, u16 device,
 			const struct snd_pci_quirk *list);
+#endif
 
 #endif /* __SOUND_CORE_H */

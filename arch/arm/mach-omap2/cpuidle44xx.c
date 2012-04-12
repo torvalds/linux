@@ -65,7 +65,6 @@ static int omap4_enter_idle(struct cpuidle_device *dev,
 	struct timespec ts_preidle, ts_postidle, ts_idle;
 	u32 cpu1_state;
 	int idle_time;
-	int new_state_idx;
 	int cpu_id = smp_processor_id();
 
 	/* Used to keep track of the total time in idle */
@@ -84,8 +83,8 @@ static int omap4_enter_idle(struct cpuidle_device *dev,
 	 */
 	cpu1_state = pwrdm_read_pwrst(cpu1_pd);
 	if (cpu1_state != PWRDM_POWER_OFF) {
-		new_state_idx = drv->safe_state_index;
-		cx = cpuidle_get_statedata(&dev->states_usage[new_state_idx]);
+		index = drv->safe_state_index;
+		cx = cpuidle_get_statedata(&dev->states_usage[index]);
 	}
 
 	if (index > 0)

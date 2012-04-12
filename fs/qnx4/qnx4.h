@@ -27,8 +27,6 @@ extern struct dentry *qnx4_lookup(struct inode *dir, struct dentry *dentry, stru
 extern unsigned long qnx4_count_free_blocks(struct super_block *sb);
 extern unsigned long qnx4_block_map(struct inode *inode, long iblock);
 
-extern struct buffer_head *qnx4_bread(struct inode *, int, int);
-
 extern const struct inode_operations qnx4_dir_inode_operations;
 extern const struct file_operations qnx4_dir_operations;
 extern int qnx4_is_free(struct super_block *sb, long block);

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -34,6 +34,7 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/vmalloc.h>
 
 #include "e1000.h"
 
@@ -257,7 +258,7 @@ static int e1000_set_settings(struct net_device *netdev,
 	 * When SoL/IDER sessions are active, autoneg/speed/duplex
 	 * cannot be changed
 	 */
-	if (e1000_check_reset_block(hw)) {
+	if (hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot change link characteristics when SoL/IDER is "
 		      "active.\n");
 		return -EINVAL;
@@ -536,7 +537,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 		ret_val = e1000_read_nvm(hw, first_word, 1, &eeprom_buff[0]);
 		ptr++;
 	}
-	if (((eeprom->offset + eeprom->len) & 1) && (ret_val == 0))
+	if (((eeprom->offset + eeprom->len) & 1) && (!ret_val))
 		/* need read/modify/write of last changed EEPROM word */
 		/* only the first byte of the word is being modified */
 		ret_val = e1000_read_nvm(hw, last_word, 1,
@@ -552,7 +553,7 @@ static int e1000_set_eeprom(struct net_device *netdev,
 	memcpy(ptr, bytes, eeprom->len);
 
 	for (i = 0; i < last_word - first_word + 1; i++)
-		eeprom_buff[i] = cpu_to_le16(eeprom_buff[i]);
+		cpu_to_le16s(&eeprom_buff[i]);
 
 	ret_val = e1000_write_nvm(hw, first_word,
 				  last_word - first_word + 1, eeprom_buff);
@@ -605,94 +606,112 @@ static void e1000_get_ringparam(struct net_device *netdev,
 				struct ethtool_ringparam *ring)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_ring *tx_ring = adapter->tx_ring;
-	struct e1000_ring *rx_ring = adapter->rx_ring;
 
 	ring->rx_max_pending = E1000_MAX_RXD;
 	ring->tx_max_pending = E1000_MAX_TXD;
-	ring->rx_pending = rx_ring->count;
-	ring->tx_pending = tx_ring->count;
+	ring->rx_pending = adapter->rx_ring_count;
+	ring->tx_pending = adapter->tx_ring_count;
 }
 
 static int e1000_set_ringparam(struct net_device *netdev,
 			       struct ethtool_ringparam *ring)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
-	struct e1000_ring *tx_ring, *tx_old;
-	struct e1000_ring *rx_ring, *rx_old;
-	int err;
+	struct e1000_ring *temp_tx = NULL, *temp_rx = NULL;
+	int err = 0, size = sizeof(struct e1000_ring);
+	bool set_tx = false, set_rx = false;
+	u16 new_rx_count, new_tx_count;
 
 	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
 		return -EINVAL;
 
+	new_rx_count = clamp_t(u32, ring->rx_pending, E1000_MIN_RXD,
+			       E1000_MAX_RXD);
+	new_rx_count = ALIGN(new_rx_count, REQ_RX_DESCRIPTOR_MULTIPLE);
+
+	new_tx_count = clamp_t(u32, ring->tx_pending, E1000_MIN_TXD,
+			       E1000_MAX_TXD);
+	new_tx_count = ALIGN(new_tx_count, REQ_TX_DESCRIPTOR_MULTIPLE);
+
+	if ((new_tx_count == adapter->tx_ring_count) &&
+	    (new_rx_count == adapter->rx_ring_count))
+		/* nothing to do */
+		return 0;
+
 	while (test_and_set_bit(__E1000_RESETTING, &adapter->state))
 		usleep_range(1000, 2000);
 
-	if (netif_running(adapter->netdev))
-		e1000e_down(adapter);
+	if (!netif_running(adapter->netdev)) {
+		/* Set counts now and allocate resources during open() */
+		adapter->tx_ring->count = new_tx_count;
+		adapter->rx_ring->count = new_rx_count;
+		adapter->tx_ring_count = new_tx_count;
+		adapter->rx_ring_count = new_rx_count;
+		goto clear_reset;
+	}
 
-	tx_old = adapter->tx_ring;
-	rx_old = adapter->rx_ring;
+	set_tx = (new_tx_count != adapter->tx_ring_count);
+	set_rx = (new_rx_count != adapter->rx_ring_count);
 
-	err = -ENOMEM;
-	tx_ring = kmemdup(tx_old, sizeof(struct e1000_ring), GFP_KERNEL);
-	if (!tx_ring)
-		goto err_alloc_tx;
+	/* Allocate temporary storage for ring updates */
+	if (set_tx) {
+		temp_tx = vmalloc(size);
+		if (!temp_tx) {
+			err = -ENOMEM;
+			goto free_temp;
+		}
+	}
+	if (set_rx) {
+		temp_rx = vmalloc(size);
+		if (!temp_rx) {
+			err = -ENOMEM;
+			goto free_temp;
+		}
+	}
 
-	rx_ring = kmemdup(rx_old, sizeof(struct e1000_ring), GFP_KERNEL);
-	if (!rx_ring)
-		goto err_alloc_rx;
+	e1000e_down(adapter);
 
-	adapter->tx_ring = tx_ring;
-	adapter->rx_ring = rx_ring;
-
-	rx_ring->count = max(ring->rx_pending, (u32)E1000_MIN_RXD);
-	rx_ring->count = min(rx_ring->count, (u32)(E1000_MAX_RXD));
-	rx_ring->count = ALIGN(rx_ring->count, REQ_RX_DESCRIPTOR_MULTIPLE);
-
-	tx_ring->count = max(ring->tx_pending, (u32)E1000_MIN_TXD);
-	tx_ring->count = min(tx_ring->count, (u32)(E1000_MAX_TXD));
-	tx_ring->count = ALIGN(tx_ring->count, REQ_TX_DESCRIPTOR_MULTIPLE);
-
-	if (netif_running(adapter->netdev)) {
-		/* Try to get new resources before deleting old */
-		err = e1000e_setup_rx_resources(adapter);
-		if (err)
-			goto err_setup_rx;
-		err = e1000e_setup_tx_resources(adapter);
-		if (err)
-			goto err_setup_tx;
-
-		/*
-		 * restore the old in order to free it,
-		 * then add in the new
-		 */
-		adapter->rx_ring = rx_old;
-		adapter->tx_ring = tx_old;
-		e1000e_free_rx_resources(adapter);
-		e1000e_free_tx_resources(adapter);
-		kfree(tx_old);
-		kfree(rx_old);
-		adapter->rx_ring = rx_ring;
-		adapter->tx_ring = tx_ring;
-		err = e1000e_up(adapter);
+	/*
+	 * We can't just free everything and then setup again, because the
+	 * ISRs in MSI-X mode get passed pointers to the Tx and Rx ring
+	 * structs.  First, attempt to allocate new resources...
+	 */
+	if (set_tx) {
+		memcpy(temp_tx, adapter->tx_ring, size);
+		temp_tx->count = new_tx_count;
+		err = e1000e_setup_tx_resources(temp_tx);
 		if (err)
 			goto err_setup;
 	}
+	if (set_rx) {
+		memcpy(temp_rx, adapter->rx_ring, size);
+		temp_rx->count = new_rx_count;
+		err = e1000e_setup_rx_resources(temp_rx);
+		if (err)
+			goto err_setup_rx;
+	}
 
-	clear_bit(__E1000_RESETTING, &adapter->state);
-	return 0;
-err_setup_tx:
-	e1000e_free_rx_resources(adapter);
+	/* ...then free the old resources and copy back any new ring data */
+	if (set_tx) {
+		e1000e_free_tx_resources(adapter->tx_ring);
+		memcpy(adapter->tx_ring, temp_tx, size);
+		adapter->tx_ring_count = new_tx_count;
+	}
+	if (set_rx) {
+		e1000e_free_rx_resources(adapter->rx_ring);
+		memcpy(adapter->rx_ring, temp_rx, size);
+		adapter->rx_ring_count = new_rx_count;
+	}
+
 err_setup_rx:
-	adapter->rx_ring = rx_old;
-	adapter->tx_ring = tx_old;
-	kfree(rx_ring);
-err_alloc_rx:
-	kfree(tx_ring);
-err_alloc_tx:
-	e1000e_up(adapter);
+	if (err && set_tx)
+		e1000e_free_tx_resources(temp_tx);
 err_setup:
+	e1000e_up(adapter);
+free_temp:
+	vfree(temp_tx);
+	vfree(temp_rx);
+clear_reset:
 	clear_bit(__E1000_RESETTING, &adapter->state);
 	return err;
 }
@@ -1069,7 +1088,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	tx_ring->buffer_info = kcalloc(tx_ring->count,
 				       sizeof(struct e1000_buffer),
 				       GFP_KERNEL);
-	if (!(tx_ring->buffer_info)) {
+	if (!tx_ring->buffer_info) {
 		ret_val = 1;
 		goto err_nomem;
 	}
@@ -1131,7 +1150,7 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	rx_ring->buffer_info = kcalloc(rx_ring->count,
 				       sizeof(struct e1000_buffer),
 				       GFP_KERNEL);
-	if (!(rx_ring->buffer_info)) {
+	if (!rx_ring->buffer_info) {
 		ret_val = 5;
 		goto err_nomem;
 	}
@@ -1579,11 +1598,13 @@ static int e1000_run_loopback_test(struct e1000_adapter *adapter)
 
 static int e1000_loopback_test(struct e1000_adapter *adapter, u64 *data)
 {
+	struct e1000_hw *hw = &adapter->hw;
+
 	/*
 	 * PHY loopback cannot be performed if SoL/IDER
 	 * sessions are active
 	 */
-	if (e1000_check_reset_block(&adapter->hw)) {
+	if (hw->phy.ops.check_reset_block(hw)) {
 		e_err("Cannot do PHY loopback test when SoL/IDER is active.\n");
 		*data = 0;
 		goto out;
@@ -1837,11 +1858,11 @@ static int e1000_set_phys_id(struct net_device *netdev,
 		break;
 
 	case ETHTOOL_ID_ON:
-		adapter->hw.mac.ops.led_on(&adapter->hw);
+		hw->mac.ops.led_on(hw);
 		break;
 
 	case ETHTOOL_ID_OFF:
-		adapter->hw.mac.ops.led_off(&adapter->hw);
+		hw->mac.ops.led_off(hw);
 		break;
 	}
 	return 0;
@@ -1955,6 +1976,53 @@ static void e1000_get_strings(struct net_device *netdev, u32 stringset,
 	}
 }
 
+static int e1000_get_rxnfc(struct net_device *netdev,
+			   struct ethtool_rxnfc *info, u32 *rule_locs)
+{
+	info->data = 0;
+
+	switch (info->cmd) {
+	case ETHTOOL_GRXFH: {
+		struct e1000_adapter *adapter = netdev_priv(netdev);
+		struct e1000_hw *hw = &adapter->hw;
+		u32 mrqc = er32(MRQC);
+
+		if (!(mrqc & E1000_MRQC_RSS_FIELD_MASK))
+			return 0;
+
+		switch (info->flow_type) {
+		case TCP_V4_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4_TCP)
+				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V4_FLOW:
+		case SCTP_V4_FLOW:
+		case AH_ESP_V4_FLOW:
+		case IPV4_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV4)
+				info->data |= RXH_IP_SRC | RXH_IP_DST;
+			break;
+		case TCP_V6_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6_TCP)
+				info->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+			/* fall through */
+		case UDP_V6_FLOW:
+		case SCTP_V6_FLOW:
+		case AH_ESP_V6_FLOW:
+		case IPV6_FLOW:
+			if (mrqc & E1000_MRQC_RSS_FIELD_IPV6)
+				info->data |= RXH_IP_SRC | RXH_IP_DST;
+			break;
+		default:
+			break;
+		}
+		return 0;
+	}
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_settings		= e1000_get_settings,
 	.set_settings		= e1000_set_settings,
@@ -1981,6 +2049,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_sset_count		= e1000e_get_sset_count,
 	.get_coalesce		= e1000_get_coalesce,
 	.set_coalesce		= e1000_set_coalesce,
+	.get_rxnfc		= e1000_get_rxnfc,
 };
 
 void e1000e_set_ethtool_ops(struct net_device *netdev)

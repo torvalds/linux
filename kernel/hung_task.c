@@ -119,15 +119,20 @@ static void check_hung_task(struct task_struct *t, unsigned long timeout)
  * For preemptible RCU it is sufficient to call rcu_read_unlock in order
  * to exit the grace period. For classic RCU, a reschedule is required.
  */
-static void rcu_lock_break(struct task_struct *g, struct task_struct *t)
+static bool rcu_lock_break(struct task_struct *g, struct task_struct *t)
 {
+	bool can_cont;
+
 	get_task_struct(g);
 	get_task_struct(t);
 	rcu_read_unlock();
 	cond_resched();
 	rcu_read_lock();
+	can_cont = pid_alive(g) && pid_alive(t);
 	put_task_struct(t);
 	put_task_struct(g);
+
+	return can_cont;
 }
 
 /*
@@ -154,9 +159,7 @@ static void check_hung_uninterruptible_tasks(unsigned long timeout)
 			goto unlock;
 		if (!--batch_count) {
 			batch_count = HUNG_TASK_BATCHING;
-			rcu_lock_break(g, t);
-			/* Exit if t or g was unhashed during refresh. */
-			if (t->state == TASK_DEAD || g->state == TASK_DEAD)
+			if (!rcu_lock_break(g, t))
 				goto unlock;
 		}
 		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */

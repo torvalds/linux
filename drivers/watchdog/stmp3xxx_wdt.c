@@ -174,7 +174,7 @@ static int stmp3xxx_wdt_release(struct inode *inode, struct file *file)
 	if (!nowayout) {
 		if (!test_bit(WDT_OK_TO_CLOSE, &wdt_status)) {
 			wdt_ping();
-			pr_debug("%s: Device closed unexpectdly\n", __func__);
+			pr_debug("%s: Device closed unexpectedly\n", __func__);
 			ret = -EINVAL;
 		} else {
 			wdt_disable();

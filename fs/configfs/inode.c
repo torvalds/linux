@@ -44,8 +44,6 @@
 static struct lock_class_key default_group_class[MAX_LOCK_DEPTH];
 #endif
 
-extern struct super_block * configfs_sb;
-
 static const struct address_space_operations configfs_aops = {
 	.readpage	= simple_readpage,
 	.write_begin	= simple_write_begin,
@@ -132,9 +130,10 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_ctime = iattr->ia_ctime;
 }
 
-struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent * sd)
+struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
+				 struct super_block *s)
 {
-	struct inode * inode = new_inode(configfs_sb);
+	struct inode * inode = new_inode(s);
 	if (inode) {
 		inode->i_ino = get_next_ino();
 		inode->i_mapping->a_ops = &configfs_aops;
@@ -188,36 +187,35 @@ static void configfs_set_inode_lock_class(struct configfs_dirent *sd,
 int configfs_create(struct dentry * dentry, umode_t mode, int (*init)(struct inode *))
 {
 	int error = 0;
-	struct inode * inode = NULL;
-	if (dentry) {
-		if (!dentry->d_inode) {
-			struct configfs_dirent *sd = dentry->d_fsdata;
-			if ((inode = configfs_new_inode(mode, sd))) {
-				if (dentry->d_parent && dentry->d_parent->d_inode) {
-					struct inode *p_inode = dentry->d_parent->d_inode;
-					p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
-				}
-				configfs_set_inode_lock_class(sd, inode);
-				goto Proceed;
-			}
-			else
-				error = -ENOMEM;
-		} else
-			error = -EEXIST;
-	} else
-		error = -ENOENT;
-	goto Done;
+	struct inode *inode = NULL;
+	struct configfs_dirent *sd;
+	struct inode *p_inode;
 
- Proceed:
-	if (init)
+	if (!dentry)
+		return -ENOENT;
+
+	if (dentry->d_inode)
+		return -EEXIST;
+
+	sd = dentry->d_fsdata;
+	inode = configfs_new_inode(mode, sd, dentry->d_sb);
+	if (!inode)
+		return -ENOMEM;
+
+	p_inode = dentry->d_parent->d_inode;
+	p_inode->i_mtime = p_inode->i_ctime = CURRENT_TIME;
+	configfs_set_inode_lock_class(sd, inode);
+
+	if (init) {
 		error = init(inode);
-	if (!error) {
-		d_instantiate(dentry, inode);
-		if (S_ISDIR(mode) || S_ISLNK(mode))
-			dget(dentry);  /* pin link and directory dentries in core */
-	} else
-		iput(inode);
- Done:
+		if (error) {
+			iput(inode);
+			return error;
+		}
+	}
+	d_instantiate(dentry, inode);
+	if (S_ISDIR(mode) || S_ISLNK(mode))
+		dget(dentry);  /* pin link and directory dentries in core */
 	return error;
 }
 

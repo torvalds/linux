@@ -79,7 +79,6 @@ extern void *cmm_calloc_buf(struct cmm_object *hcmm_mgr,
  *      -EPERM:      Failed to initialize critical sect sync object.
  *
  *  Requires:
- *      cmm_init(void) called.
  *      ph_cmm_mgr != NULL.
  *      mgr_attrts->min_block_size >= 4 bytes.
  *  Ensures:
@@ -109,20 +108,6 @@ extern int cmm_create(struct cmm_object **ph_cmm_mgr,
  *      Memory resources used by Cmm Mgr are freed.
  */
 extern int cmm_destroy(struct cmm_object *hcmm_mgr, bool force);
-
-/*
- *  ======== cmm_exit ========
- *  Purpose:
- *     Discontinue usage of module. Cleanup CMM module if CMM cRef reaches zero.
- *  Parameters:
- *     n/a
- *  Returns:
- *     n/a
- *  Requires:
- *     CMM is initialized.
- *  Ensures:
- */
-extern void cmm_exit(void);
 
 /*
  *  ======== cmm_free_buf ========
@@ -183,19 +168,6 @@ extern int cmm_get_handle(void *hprocessor,
  */
 extern int cmm_get_info(struct cmm_object *hcmm_mgr,
 			       struct cmm_info *cmm_info_obj);
-
-/*
- *  ======== cmm_init ========
- *  Purpose:
- *      Initializes private state of CMM module.
- *  Parameters:
- *  Returns:
- *      TRUE if initialized; FALSE if error occurred.
- *  Requires:
- *  Ensures:
- *      CMM initialized.
- */
-extern bool cmm_init(void);
 
 /*
  *  ======== cmm_register_gppsm_seg ========
@@ -333,7 +305,6 @@ extern int cmm_xlator_free_buf(struct cmm_xlatorobject *xlator,
  *      0:        Success.
  *      -EFAULT:    Bad translator handle.
  *  Requires:
- *      (refs > 0)
  *      (paddr != NULL)
  *      (ul_size > 0)
  *  Ensures:
@@ -355,7 +326,6 @@ extern int cmm_xlator_info(struct cmm_xlatorobject *xlator,
  *  Returns:
  *     Valid address on success, else NULL.
  *  Requires:
- *      refs > 0
  *      paddr != NULL
  *      xtype >= CMM_VA2PA) && (xtype <= CMM_DSPPA2PA)
  *  Ensures:

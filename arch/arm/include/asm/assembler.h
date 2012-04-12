@@ -137,6 +137,11 @@
 	disable_irq
 	.endm
 
+	.macro	save_and_disable_irqs_notrace, oldcpsr
+	mrs	\oldcpsr, cpsr
+	disable_irq_notrace
+	.endm
+
 /*
  * Restore interrupt state previously stored in a register.  We don't
  * guarantee that this will preserve the flags.
@@ -237,7 +242,7 @@
  */
 #ifdef CONFIG_THUMB2_KERNEL
 
-	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort, t=T()
+	.macro	usraccoff, instr, reg, ptr, inc, off, cond, abort, t=TUSER()
 9999:
 	.if	\inc == 1
 	\instr\cond\()b\()\t\().w \reg, [\ptr, #\off]
@@ -277,7 +282,7 @@
 
 #else	/* !CONFIG_THUMB2_KERNEL */
 
-	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort, t=T()
+	.macro	usracc, instr, reg, ptr, inc, cond, rept, abort, t=TUSER()
 	.rept	\rept
 9999:
 	.if	\inc == 1

@@ -22,7 +22,7 @@
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/consumer.h>
 
 #include "sirfsoc_uart.h"
 
@@ -673,12 +673,10 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 	port->irq = res->start;
 
 	if (sirfport->hw_flow_ctrl) {
-		sirfport->pmx = pinmux_get(&pdev->dev, NULL);
-		ret = IS_ERR(sirfport->pmx);
+		sirfport->p = pinctrl_get_select_default(&pdev->dev);
+		ret = IS_ERR(sirfport->p);
 		if (ret)
-			goto pmx_err;
-
-		pinmux_enable(sirfport->pmx);
+			goto pin_err;
 	}
 
 	port->ops = &sirfsoc_uart_ops;
@@ -695,11 +693,9 @@ int sirfsoc_uart_probe(struct platform_device *pdev)
 
 port_err:
 	platform_set_drvdata(pdev, NULL);
-	if (sirfport->hw_flow_ctrl) {
-		pinmux_disable(sirfport->pmx);
-		pinmux_put(sirfport->pmx);
-	}
-pmx_err:
+	if (sirfport->hw_flow_ctrl)
+		pinctrl_put(sirfport->p);
+pin_err:
 irq_err:
 	devm_iounmap(&pdev->dev, port->membase);
 err:
@@ -711,10 +707,8 @@ static int sirfsoc_uart_remove(struct platform_device *pdev)
 	struct sirfsoc_uart_port *sirfport = platform_get_drvdata(pdev);
 	struct uart_port *port = &sirfport->port;
 	platform_set_drvdata(pdev, NULL);
-	if (sirfport->hw_flow_ctrl) {
-		pinmux_disable(sirfport->pmx);
-		pinmux_put(sirfport->pmx);
-	}
+	if (sirfport->hw_flow_ctrl)
+		pinctrl_put(sirfport->p);
 	devm_iounmap(&pdev->dev, port->membase);
 	uart_remove_one_port(&sirfsoc_uart_drv, port);
 	return 0;

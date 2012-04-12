@@ -19,7 +19,6 @@ obj-y				+= acpi.o \
 
 # All the builtin files are in the "acpi." module_param namespace.
 acpi-y				+= osl.o utils.o reboot.o
-acpi-y				+= atomicio.o
 acpi-y				+= nvs.o
 
 # sleep related files

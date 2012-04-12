@@ -96,9 +96,9 @@ static struct irq_chip flipper_pic = {
  *
  */
 
-static struct irq_host *flipper_irq_host;
+static struct irq_domain *flipper_irq_host;
 
-static int flipper_pic_map(struct irq_host *h, unsigned int virq,
+static int flipper_pic_map(struct irq_domain *h, unsigned int virq,
 			   irq_hw_number_t hwirq)
 {
 	irq_set_chip_data(virq, h->host_data);
@@ -107,13 +107,13 @@ static int flipper_pic_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int flipper_pic_match(struct irq_host *h, struct device_node *np)
+static int flipper_pic_match(struct irq_domain *h, struct device_node *np)
 {
 	return 1;
 }
 
 
-static struct irq_host_ops flipper_irq_host_ops = {
+static const struct irq_domain_ops flipper_irq_domain_ops = {
 	.map = flipper_pic_map,
 	.match = flipper_pic_match,
 };
@@ -130,10 +130,10 @@ static void __flipper_quiesce(void __iomem *io_base)
 	out_be32(io_base + FLIPPER_ICR, 0xffffffff);
 }
 
-struct irq_host * __init flipper_pic_init(struct device_node *np)
+struct irq_domain * __init flipper_pic_init(struct device_node *np)
 {
 	struct device_node *pi;
-	struct irq_host *irq_host = NULL;
+	struct irq_domain *irq_domain = NULL;
 	struct resource res;
 	void __iomem *io_base;
 	int retval;
@@ -159,17 +159,15 @@ struct irq_host * __init flipper_pic_init(struct device_node *np)
 
 	__flipper_quiesce(io_base);
 
-	irq_host = irq_alloc_host(np, IRQ_HOST_MAP_LINEAR, FLIPPER_NR_IRQS,
-				  &flipper_irq_host_ops, -1);
-	if (!irq_host) {
-		pr_err("failed to allocate irq_host\n");
+	irq_domain = irq_domain_add_linear(np, FLIPPER_NR_IRQS,
+				  &flipper_irq_domain_ops, io_base);
+	if (!irq_domain) {
+		pr_err("failed to allocate irq_domain\n");
 		return NULL;
 	}
 
-	irq_host->host_data = io_base;
-
 out:
-	return irq_host;
+	return irq_domain;
 }
 
 unsigned int flipper_pic_get_irq(void)

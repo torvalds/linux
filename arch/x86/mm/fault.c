@@ -673,7 +673,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 
 	stackend = end_of_stack(tsk);
 	if (tsk != &init_task && *stackend != STACK_END_MAGIC)
-		printk(KERN_ALERT "Thread overran stack, or stack corrupted\n");
+		printk(KERN_EMERG "Thread overran stack, or stack corrupted\n");
 
 	tsk->thread.cr2		= address;
 	tsk->thread.trap_no	= 14;
@@ -684,7 +684,7 @@ no_context(struct pt_regs *regs, unsigned long error_code,
 		sig = 0;
 
 	/* Executive summary in case the body of the oops scrolled away */
-	printk(KERN_EMERG "CR2: %016lx\n", address);
+	printk(KERN_DEFAULT "CR2: %016lx\n", address);
 
 	oops_end(flags, regs, sig);
 }

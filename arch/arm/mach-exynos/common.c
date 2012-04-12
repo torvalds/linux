@@ -26,10 +26,12 @@
 #include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
+#include <asm/cacheflush.h>
 
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
 #include <mach/regs-gpio.h>
+#include <mach/pmu.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
@@ -45,6 +47,8 @@
 #include <plat/regs-serial.h>
 
 #include "common.h"
+#define L2_AUX_VAL 0x7C470001
+#define L2_AUX_MASK 0xC200ffff
 
 static const char name_exynos4210[] = "EXYNOS4210";
 static const char name_exynos4212[] = "EXYNOS4212";
@@ -173,7 +177,12 @@ static struct map_desc exynos4_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S5P_VA_DMC0,
 		.pfn		= __phys_to_pfn(EXYNOS4_PA_DMC0),
-		.length		= SZ_4K,
+		.length		= SZ_64K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5P_VA_DMC1,
+		.pfn		= __phys_to_pfn(EXYNOS4_PA_DMC1),
+		.length		= SZ_64K,
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)S3C_VA_USB_HSPHY,
@@ -200,14 +209,6 @@ static struct map_desc exynos4_iodesc1[] __initdata = {
 		.type		= MT_DEVICE,
 	},
 };
-
-static void exynos_idle(void)
-{
-	if (!need_resched())
-		cpu_do_idle();
-
-	local_irq_enable();
-}
 
 void exynos4_restart(char mode, const char *cmd)
 {
@@ -402,7 +403,7 @@ void __init exynos4_init_irq(void)
 	gic_bank_offset = soc_is_exynos4412() ? 0x4000 : 0x8000;
 
 	if (!of_have_populated_dt())
-		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset);
+		gic_init_bases(0, IRQ_PPI(0), S5P_VA_GIC_DIST, S5P_VA_GIC_CPU, gic_bank_offset, NULL);
 #ifdef CONFIG_OF
 	else
 		of_irq_init(exynos4_dt_irq_match);
@@ -441,23 +442,48 @@ core_initcall(exynos4_core_init);
 #ifdef CONFIG_CACHE_L2X0
 static int __init exynos4_l2x0_cache_init(void)
 {
-	/* TAG, Data Latency Control: 2cycle */
-	__raw_writel(0x110, S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
+	int ret;
+	ret = l2x0_of_init(L2_AUX_VAL, L2_AUX_MASK);
+	if (!ret) {
+		l2x0_regs_phys = virt_to_phys(&l2x0_saved_regs);
+		clean_dcache_area(&l2x0_regs_phys, sizeof(unsigned long));
+		return 0;
+	}
 
-	if (soc_is_exynos4210())
-		__raw_writel(0x110, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
-	else if (soc_is_exynos4212() || soc_is_exynos4412())
-		__raw_writel(0x120, S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+	if (!(__raw_readl(S5P_VA_L2CC + L2X0_CTRL) & 0x1)) {
+		l2x0_saved_regs.phy_base = EXYNOS4_PA_L2CC;
+		/* TAG, Data Latency Control: 2 cycles */
+		l2x0_saved_regs.tag_latency = 0x110;
 
-	/* L2X0 Prefetch Control */
-	__raw_writel(0x30000007, S5P_VA_L2CC + L2X0_PREFETCH_CTRL);
+		if (soc_is_exynos4212() || soc_is_exynos4412())
+			l2x0_saved_regs.data_latency = 0x120;
+		else
+			l2x0_saved_regs.data_latency = 0x110;
 
-	/* L2X0 Power Control */
-	__raw_writel(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN,
-		     S5P_VA_L2CC + L2X0_POWER_CTRL);
+		l2x0_saved_regs.prefetch_ctrl = 0x30000007;
+		l2x0_saved_regs.pwr_ctrl =
+			(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN);
 
-	l2x0_init(S5P_VA_L2CC, 0x7C470001, 0xC200ffff);
+		l2x0_regs_phys = virt_to_phys(&l2x0_saved_regs);
 
+		__raw_writel(l2x0_saved_regs.tag_latency,
+				S5P_VA_L2CC + L2X0_TAG_LATENCY_CTRL);
+		__raw_writel(l2x0_saved_regs.data_latency,
+				S5P_VA_L2CC + L2X0_DATA_LATENCY_CTRL);
+
+		/* L2X0 Prefetch Control */
+		__raw_writel(l2x0_saved_regs.prefetch_ctrl,
+				S5P_VA_L2CC + L2X0_PREFETCH_CTRL);
+
+		/* L2X0 Power Control */
+		__raw_writel(l2x0_saved_regs.pwr_ctrl,
+				S5P_VA_L2CC + L2X0_POWER_CTRL);
+
+		clean_dcache_area(&l2x0_regs_phys, sizeof(unsigned long));
+		clean_dcache_area(&l2x0_saved_regs, sizeof(struct l2x0_regs));
+	}
+
+	l2x0_init(S5P_VA_L2CC, L2_AUX_VAL, L2_AUX_MASK);
 	return 0;
 }
 
@@ -467,10 +493,6 @@ early_initcall(exynos4_l2x0_cache_init);
 int __init exynos_init(void)
 {
 	printk(KERN_INFO "EXYNOS: Initializing architecture\n");
-
-	/* set idle function */
-	pm_idle = exynos_idle;
-
 	return device_register(&exynos4_dev);
 }
 
@@ -673,7 +695,7 @@ static void exynos4_irq_eint0_15(unsigned int irq, struct irq_desc *desc)
 	chained_irq_exit(chip, desc);
 }
 
-int __init exynos4_init_irq_eint(void)
+static int __init exynos4_init_irq_eint(void)
 {
 	int irq;
 

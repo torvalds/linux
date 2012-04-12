@@ -6,6 +6,7 @@
 
 #include <linux/sched.h>
 #include <linux/tracepoint.h>
+#include <linux/binfmts.h>
 
 /*
  * Tracepoint for calling kthread_stop, performed to end a kthread:
@@ -276,6 +277,32 @@ TRACE_EVENT(sched_process_fork,
 );
 
 /*
+ * Tracepoint for exec:
+ */
+TRACE_EVENT(sched_process_exec,
+
+	TP_PROTO(struct task_struct *p, pid_t old_pid,
+		 struct linux_binprm *bprm),
+
+	TP_ARGS(p, old_pid, bprm),
+
+	TP_STRUCT__entry(
+		__string(	filename,	bprm->filename	)
+		__field(	pid_t,		pid		)
+		__field(	pid_t,		old_pid		)
+	),
+
+	TP_fast_assign(
+		__assign_str(filename, bprm->filename);
+		__entry->pid		= p->pid;
+		__entry->old_pid	= p->pid;
+	),
+
+	TP_printk("filename=%s pid=%d old_pid=%d", __get_str(filename),
+		  __entry->pid, __entry->old_pid)
+);
+
+/*
  * XXX the below sched_stat tracepoints only apply to SCHED_OTHER/BATCH/IDLE
  *     adding sched_stat support to SCHED_FIFO/RR would be welcome.
  */
@@ -368,56 +395,6 @@ TRACE_EVENT(sched_stat_runtime,
 			__entry->comm, __entry->pid,
 			(unsigned long long)__entry->runtime,
 			(unsigned long long)__entry->vruntime)
-);
-
-#ifdef CREATE_TRACE_POINTS
-static inline u64 trace_get_sleeptime(struct task_struct *tsk)
-{
-#ifdef CONFIG_SCHEDSTATS
-	u64 block, sleep;
-
-	block = tsk->se.statistics.block_start;
-	sleep = tsk->se.statistics.sleep_start;
-	tsk->se.statistics.block_start = 0;
-	tsk->se.statistics.sleep_start = 0;
-
-	return block ? block : sleep ? sleep : 0;
-#else
-	return 0;
-#endif
-}
-#endif
-
-/*
- * Tracepoint for accounting sleeptime (time the task is sleeping
- * or waiting for I/O).
- */
-TRACE_EVENT(sched_stat_sleeptime,
-
-	TP_PROTO(struct task_struct *tsk, u64 now),
-
-	TP_ARGS(tsk, now),
-
-	TP_STRUCT__entry(
-		__array( char,	comm,	TASK_COMM_LEN	)
-		__field( pid_t,	pid			)
-		__field( u64,	sleeptime		)
-	),
-
-	TP_fast_assign(
-		memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
-		__entry->pid		= tsk->pid;
-		__entry->sleeptime = trace_get_sleeptime(tsk);
-		__entry->sleeptime = __entry->sleeptime ?
-				now - __entry->sleeptime : 0;
-	)
-	TP_perf_assign(
-		__perf_count(__entry->sleeptime);
-	),
-
-	TP_printk("comm=%s pid=%d sleeptime=%Lu [ns]",
-			__entry->comm, __entry->pid,
-			(unsigned long long)__entry->sleeptime)
 );
 
 /*

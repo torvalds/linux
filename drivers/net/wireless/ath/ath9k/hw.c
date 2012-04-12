@@ -1491,10 +1491,83 @@ static void ath9k_hw_apply_gpio_override(struct ath_hw *ah)
 	}
 }
 
+static bool ath9k_hw_check_dcs(u32 dma_dbg, u32 num_dcu_states,
+			       int *hang_state, int *hang_pos)
+{
+	static u32 dcu_chain_state[] = {5, 6, 9}; /* DCU chain stuck states */
+	u32 chain_state, dcs_pos, i;
+
+	for (dcs_pos = 0; dcs_pos < num_dcu_states; dcs_pos++) {
+		chain_state = (dma_dbg >> (5 * dcs_pos)) & 0x1f;
+		for (i = 0; i < 3; i++) {
+			if (chain_state == dcu_chain_state[i]) {
+				*hang_state = chain_state;
+				*hang_pos = dcs_pos;
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+#define DCU_COMPLETE_STATE        1
+#define DCU_COMPLETE_STATE_MASK 0x3
+#define NUM_STATUS_READS         50
+static bool ath9k_hw_detect_mac_hang(struct ath_hw *ah)
+{
+	u32 chain_state, comp_state, dcs_reg = AR_DMADBG_4;
+	u32 i, hang_pos, hang_state, num_state = 6;
+
+	comp_state = REG_READ(ah, AR_DMADBG_6);
+
+	if ((comp_state & DCU_COMPLETE_STATE_MASK) != DCU_COMPLETE_STATE) {
+		ath_dbg(ath9k_hw_common(ah), RESET,
+			"MAC Hang signature not found at DCU complete\n");
+		return false;
+	}
+
+	chain_state = REG_READ(ah, dcs_reg);
+	if (ath9k_hw_check_dcs(chain_state, num_state, &hang_state, &hang_pos))
+		goto hang_check_iter;
+
+	dcs_reg = AR_DMADBG_5;
+	num_state = 4;
+	chain_state = REG_READ(ah, dcs_reg);
+	if (ath9k_hw_check_dcs(chain_state, num_state, &hang_state, &hang_pos))
+		goto hang_check_iter;
+
+	ath_dbg(ath9k_hw_common(ah), RESET,
+		"MAC Hang signature 1 not found\n");
+	return false;
+
+hang_check_iter:
+	ath_dbg(ath9k_hw_common(ah), RESET,
+		"DCU registers: chain %08x complete %08x Hang: state %d pos %d\n",
+		chain_state, comp_state, hang_state, hang_pos);
+
+	for (i = 0; i < NUM_STATUS_READS; i++) {
+		chain_state = REG_READ(ah, dcs_reg);
+		chain_state = (chain_state >> (5 * hang_pos)) & 0x1f;
+		comp_state = REG_READ(ah, AR_DMADBG_6);
+
+		if (((comp_state & DCU_COMPLETE_STATE_MASK) !=
+					DCU_COMPLETE_STATE) ||
+		    (chain_state != hang_state))
+			return false;
+	}
+
+	ath_dbg(ath9k_hw_common(ah), RESET, "MAC Hang signature 1 found\n");
+
+	return true;
+}
+
 bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
 	u32 reg;
+
+	if (AR_SREV_9300(ah))
+		return !ath9k_hw_detect_mac_hang(ah);
 
 	if (AR_SREV_9285_12_OR_LATER(ah))
 		return true;
@@ -1976,8 +2049,7 @@ static bool ath9k_hw_set_power_awake(struct ath_hw *ah, int setChip)
 	if (setChip) {
 		if ((REG_READ(ah, AR_RTC_STATUS) &
 		     AR_RTC_STATUS_M) == AR_RTC_STATUS_SHUTDOWN) {
-			if (ath9k_hw_set_reset_reg(ah,
-					   ATH9K_RESET_POWER_ON) != true) {
+			if (!ath9k_hw_set_reset_reg(ah, ATH9K_RESET_POWER_ON)) {
 				return false;
 			}
 			if (!AR_SREV_9300_20_OR_LATER(ah))

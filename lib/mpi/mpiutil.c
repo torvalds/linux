@@ -58,6 +58,9 @@ mpi_ptr_t mpi_alloc_limb_space(unsigned nlimbs)
 {
 	size_t len = nlimbs * sizeof(mpi_limb_t);
 
+	if (!len)
+		return NULL;
+
 	return kmalloc(len, GFP_KERNEL);
 }
 
@@ -135,7 +138,7 @@ int mpi_copy(MPI *copied, const MPI a)
 	size_t i;
 	MPI b;
 
-	*copied = MPI_NULL;
+	*copied = NULL;
 
 	if (a) {
 		b = mpi_alloc(a->nlimbs);

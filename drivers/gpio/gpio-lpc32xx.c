@@ -96,7 +96,7 @@ static const char *gpio_p2_names[LPC32XX_GPIO_P2_MAX] = {
 };
 
 static const char *gpio_p3_names[LPC32XX_GPIO_P3_MAX] = {
-	"gpi000", "gpio01", "gpio02", "gpio03",
+	"gpio00", "gpio01", "gpio02", "gpio03",
 	"gpio04", "gpio05"
 };
 

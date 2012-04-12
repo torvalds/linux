@@ -54,11 +54,9 @@
 
 struct omap_uart_state {
 	int num;
-	int can_sleep;
 
 	struct list_head node;
 	struct omap_hwmod *oh;
-	struct platform_device *pdev;
 };
 
 static LIST_HEAD(uart_list);
@@ -107,18 +105,18 @@ static void omap_uart_set_noidle(struct platform_device *pdev)
 	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_NO);
 }
 
-static void omap_uart_set_forceidle(struct platform_device *pdev)
+static void omap_uart_set_smartidle(struct platform_device *pdev)
 {
 	struct omap_device *od = to_omap_device(pdev);
 
-	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_FORCE);
+	omap_hwmod_set_slave_idlemode(od->hwmods[0], HWMOD_IDLEMODE_SMART);
 }
 
 #else
 static void omap_uart_enable_wakeup(struct platform_device *pdev, bool enable)
 {}
 static void omap_uart_set_noidle(struct platform_device *pdev) {}
-static void omap_uart_set_forceidle(struct platform_device *pdev) {}
+static void omap_uart_set_smartidle(struct platform_device *pdev) {}
 #endif /* CONFIG_PM */
 
 #ifdef CONFIG_OMAP_MUX
@@ -349,7 +347,7 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 	omap_up.uartclk = OMAP24XX_BASE_BAUD * 16;
 	omap_up.flags = UPF_BOOT_AUTOCONF;
 	omap_up.get_context_loss_count = omap_pm_get_dev_context_loss_count;
-	omap_up.set_forceidle = omap_uart_set_forceidle;
+	omap_up.set_forceidle = omap_uart_set_smartidle;
 	omap_up.set_noidle = omap_uart_set_noidle;
 	omap_up.enable_wakeup = omap_uart_enable_wakeup;
 	omap_up.dma_rx_buf_size = info->dma_rx_buf_size;
@@ -380,8 +378,6 @@ void __init omap_serial_init_port(struct omap_board_data *bdata,
 		omap_device_disable_idle_on_suspend(pdev);
 
 	oh->mux = omap_hwmod_mux_init(bdata->pads, bdata->pads_cnt);
-
-	uart->pdev = pdev;
 
 	oh->dev_attr = uart;
 

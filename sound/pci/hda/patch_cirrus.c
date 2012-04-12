@@ -609,7 +609,7 @@ static int add_output(struct hda_codec *codec, hda_nid_t dac, int idx,
 		"Front Speaker", "Surround Speaker", "Bass Speaker"
 	};
 	static const char * const line_outs[] = {
-		"Front Line-Out", "Surround Line-Out", "Bass Line-Out"
+		"Front Line Out", "Surround Line Out", "Bass Line Out"
 	};
 
 	fix_volume_caps(codec, dac);
@@ -635,7 +635,7 @@ static int add_output(struct hda_codec *codec, hda_nid_t dac, int idx,
 		if (num_ctls > 1)
 			name = line_outs[idx];
 		else
-			name = "Line-Out";
+			name = "Line Out";
 		break;
 	}
 
@@ -988,8 +988,10 @@ static void cs_automic(struct hda_codec *codec)
 			change_cur_input(codec, !spec->automic_idx, 0);
 	} else {
 		if (present) {
-			spec->last_input = spec->cur_input;
-			spec->cur_input = spec->automic_idx;
+			if (spec->cur_input != spec->automic_idx) {
+				spec->last_input = spec->cur_input;
+				spec->cur_input = spec->automic_idx;
+			}
 		} else  {
 			spec->cur_input = spec->last_input;
 		}

@@ -14,7 +14,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
@@ -53,14 +53,6 @@ struct wb_writeback_work {
 };
 
 /*
- * Include the creation of the trace points after defining the
- * wb_writeback_work structure so that the definition remains local to this
- * file.
- */
-#define CREATE_TRACE_POINTS
-#include <trace/events/writeback.h>
-
-/*
  * We don't actually have pdflush, but this one is exported though /proc...
  */
 int nr_pdflush_threads;
@@ -91,6 +83,14 @@ static inline struct inode *wb_inode(struct list_head *head)
 {
 	return list_entry(head, struct inode, i_wb_list);
 }
+
+/*
+ * Include the creation of the trace points after defining the
+ * wb_writeback_work structure and inline functions so that the definition
+ * remains local to this file.
+ */
+#define CREATE_TRACE_POINTS
+#include <trace/events/writeback.h>
 
 /* Wakeup flusher thread or forker thread to fork it. Requires bdi->wb_lock. */
 static void bdi_wakeup_flusher(struct backing_dev_info *bdi)
@@ -1284,7 +1284,7 @@ int writeback_inodes_sb_if_idle(struct super_block *sb, enum wb_reason reason)
 EXPORT_SYMBOL(writeback_inodes_sb_if_idle);
 
 /**
- * writeback_inodes_sb_if_idle	-	start writeback if none underway
+ * writeback_inodes_sb_nr_if_idle	-	start writeback if none underway
  * @sb: the superblock
  * @nr: the number of pages to write
  * @reason: reason why some writeback work was initiated

@@ -641,10 +641,10 @@ static int __cap_is_valid(struct ceph_cap *cap)
 	unsigned long ttl;
 	u32 gen;
 
-	spin_lock(&cap->session->s_cap_lock);
+	spin_lock(&cap->session->s_gen_ttl_lock);
 	gen = cap->session->s_cap_gen;
 	ttl = cap->session->s_cap_ttl;
-	spin_unlock(&cap->session->s_cap_lock);
+	spin_unlock(&cap->session->s_gen_ttl_lock);
 
 	if (cap->cap_gen < gen || time_after_eq(jiffies, ttl)) {
 		dout("__cap_is_valid %p cap %p issued %s "

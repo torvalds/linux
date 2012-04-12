@@ -56,6 +56,7 @@
 #include <linux/mmc/sh_mmcif.h>
 #include <linux/pagemap.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
@@ -1327,7 +1328,7 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto clean_up2;
 
-	mmc_add_host(mmc);
+	INIT_DELAYED_WORK(&host->timeout_work, mmcif_timeout_work);
 
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);
 
@@ -1338,22 +1339,26 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	}
 	ret = request_threaded_irq(irq[1], sh_mmcif_intr, sh_mmcif_irqt, 0, "sh_mmc:int", host);
 	if (ret) {
-		free_irq(irq[0], host);
 		dev_err(&pdev->dev, "request_irq error (sh_mmc:int)\n");
-		goto clean_up3;
+		goto clean_up4;
 	}
 
-	INIT_DELAYED_WORK(&host->timeout_work, mmcif_timeout_work);
+	ret = mmc_add_host(mmc);
+	if (ret < 0)
+		goto clean_up5;
 
-	mmc_detect_change(host->mmc, 0);
+	dev_pm_qos_expose_latency_limit(&pdev->dev, 100);
 
 	dev_info(&pdev->dev, "driver version %s\n", DRIVER_VERSION);
 	dev_dbg(&pdev->dev, "chip ver H'%04x\n",
 		sh_mmcif_readl(host->addr, MMCIF_CE_VERSION) & 0x0000ffff);
 	return ret;
 
+clean_up5:
+	free_irq(irq[1], host);
+clean_up4:
+	free_irq(irq[0], host);
 clean_up3:
-	mmc_remove_host(mmc);
 	pm_runtime_suspend(&pdev->dev);
 clean_up2:
 	pm_runtime_disable(&pdev->dev);
@@ -1373,6 +1378,8 @@ static int __devexit sh_mmcif_remove(struct platform_device *pdev)
 
 	host->dying = true;
 	pm_runtime_get_sync(&pdev->dev);
+
+	dev_pm_qos_hide_latency_limit(&pdev->dev);
 
 	mmc_remove_host(host->mmc);
 	sh_mmcif_writel(host->addr, MMCIF_CE_INT_MASK, MASK_ALL);

@@ -243,6 +243,7 @@ static bool ath_prepare_reset(struct ath_softc *sc, bool retry_tx, bool flush)
 
 	sc->hw_busy_count = 0;
 	del_timer_sync(&common->ani.timer);
+	del_timer_sync(&sc->rx_poll_timer);
 
 	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
@@ -284,6 +285,7 @@ static bool ath_complete_reset(struct ath_softc *sc, bool start)
 
 		ieee80211_queue_delayed_work(sc->hw, &sc->tx_complete_work, 0);
 		ieee80211_queue_delayed_work(sc->hw, &sc->hw_pll_work, HZ/2);
+		ath_start_rx_poll(sc, 3);
 		if (!common->disable_ani)
 			ath_start_ani(common);
 	}
@@ -914,10 +916,19 @@ void ath_hw_check(struct work_struct *work)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	unsigned long flags;
 	int busy;
+	u8 is_alive, nbeacon = 1;
 
 	ath9k_ps_wakeup(sc);
-	if (ath9k_hw_check_alive(sc->sc_ah))
+	is_alive = ath9k_hw_check_alive(sc->sc_ah);
+
+	if (is_alive && !AR_SREV_9300(sc->sc_ah))
 		goto out;
+	else if (!is_alive && AR_SREV_9300(sc->sc_ah)) {
+		ath_dbg(common, RESET,
+			"DCU stuck is detected. Schedule chip reset\n");
+		RESET_STAT_INC(sc, RESET_TYPE_MAC_HANG);
+		goto sched_reset;
+	}
 
 	spin_lock_irqsave(&common->cc_lock, flags);
 	busy = ath_update_survey_stats(sc);
@@ -928,12 +939,18 @@ void ath_hw_check(struct work_struct *work)
 	if (busy >= 99) {
 		if (++sc->hw_busy_count >= 3) {
 			RESET_STAT_INC(sc, RESET_TYPE_BB_HANG);
-			ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
+			goto sched_reset;
 		}
-
-	} else if (busy >= 0)
+	} else if (busy >= 0) {
 		sc->hw_busy_count = 0;
+		nbeacon = 3;
+	}
 
+	ath_start_rx_poll(sc, nbeacon);
+	goto out;
+
+sched_reset:
+	ieee80211_queue_work(sc->hw, &sc->hw_reset_work);
 out:
 	ath9k_ps_restore(sc);
 }
@@ -1135,6 +1152,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	if (ath_tx_start(hw, skb, &txctl) != 0) {
 		ath_dbg(common, XMIT, "TX failed\n");
+		TX_STAT_INC(txctl.txq->axq_qnum, txfailed);
 		goto exit;
 	}
 
@@ -1153,6 +1171,7 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 	mutex_lock(&sc->mutex);
 
 	ath_cancel_work(sc);
+	del_timer_sync(&sc->rx_poll_timer);
 
 	if (sc->sc_flags & SC_OP_INVALID) {
 		ath_dbg(common, ANY, "Device not present\n");
@@ -1385,6 +1404,24 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 	}
 }
 
+void ath_start_rx_poll(struct ath_softc *sc, u8 nbeacon)
+{
+	if (!AR_SREV_9300(sc->sc_ah))
+		return;
+
+	if (!(sc->sc_flags & SC_OP_PRIM_STA_VIF))
+		return;
+
+	mod_timer(&sc->rx_poll_timer, jiffies + msecs_to_jiffies
+			(nbeacon * sc->cur_beacon_conf.beacon_interval));
+}
+
+void ath_rx_poll(unsigned long data)
+{
+	struct ath_softc *sc = (struct ath_softc *)data;
+
+	ieee80211_queue_work(sc->hw, &sc->hw_check_work);
+}
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif)
@@ -1906,6 +1943,8 @@ static void ath9k_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 		sc->last_rssi = ATH_RSSI_DUMMY_MARKER;
 		sc->sc_ah->stats.avgbrssi = ATH_RSSI_DUMMY_MARKER;
 
+		ath_start_rx_poll(sc, 3);
+
 		if (!common->disable_ani) {
 			sc->sc_flags |= SC_OP_ANI_RUN;
 			ath_start_ani(common);
@@ -1945,6 +1984,7 @@ static void ath9k_config_bss(struct ath_softc *sc, struct ieee80211_vif *vif)
 		/* Stop ANI */
 		sc->sc_flags &= ~SC_OP_ANI_RUN;
 		del_timer_sync(&common->ani.timer);
+		del_timer_sync(&sc->rx_poll_timer);
 		memset(&sc->caldata, 0, sizeof(sc->caldata));
 	}
 }
@@ -1988,6 +2028,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		} else {
 			sc->sc_flags &= ~SC_OP_ANI_RUN;
 			del_timer_sync(&common->ani.timer);
+			del_timer_sync(&sc->rx_poll_timer);
 		}
 	}
 

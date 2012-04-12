@@ -529,6 +529,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("hw-put-tx-buf:   ", puttxbuf);
 	PR("hw-tx-start:     ", txstart);
 	PR("hw-tx-proc-desc: ", txprocdesc);
+	PR("TX-Failed:       ", txfailed);
 	len += snprintf(buf + len, size - len,
 			"%s%11p%11p%10p%10p\n", "txq-memory-address:",
 			sc->tx.txq_map[WME_AC_BE],
@@ -915,6 +916,21 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len,
 			"%22s : %10u\n", "DECRYPT BUSY ERR",
 			sc->debug.stats.rxstats.decrypt_busy_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-LENGTH-ERR",
+			sc->debug.stats.rxstats.rx_len_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-OOM-ERR",
+			sc->debug.stats.rxstats.rx_oom_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-RATE-ERR",
+			sc->debug.stats.rxstats.rx_rate_err);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-DROP-RXFLUSH",
+			sc->debug.stats.rxstats.rx_drop_rxflush);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-TOO-MANY-FRAGS",
+			sc->debug.stats.rxstats.rx_too_many_frags_err);
 
 	PHY_ERR("UNDERRUN ERR", ATH9K_PHYERR_UNDERRUN);
 	PHY_ERR("TIMING ERR", ATH9K_PHYERR_TIMING);
@@ -949,6 +965,12 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 	len += snprintf(buf + len, size - len,
 			"%22s : %10u\n", "RX-Bytes-All",
 			sc->debug.stats.rxstats.rx_bytes_all);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-Beacons",
+			sc->debug.stats.rxstats.rx_beacons);
+	len += snprintf(buf + len, size - len,
+			"%22s : %10u\n", "RX-Frags",
+			sc->debug.stats.rxstats.rx_frags);
 
 	if (len > size)
 		len = size;
@@ -963,7 +985,6 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 {
-#define RX_STAT_INC(c) sc->debug.stats.rxstats.c++
 #define RX_PHY_ERR_INC(c) sc->debug.stats.rxstats.phy_err_stats[c]++
 #define RX_SAMP_DBG(c) (sc->debug.bb_mac_samp[sc->debug.sampidx].rs\
 			[sc->debug.rsidx].c)
@@ -1009,7 +1030,6 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 
 #endif
 
-#undef RX_STAT_INC
 #undef RX_PHY_ERR_INC
 #undef RX_SAMP_DBG
 }

@@ -96,12 +96,6 @@ struct insn {
 #define X86_VEX_P(vex)	((vex) & 0x03)		/* VEX3 Byte2, VEX2 Byte1 */
 #define X86_VEX_M_MAX	0x1f			/* VEX3.M Maximum value */
 
-/* The last prefix is needed for two-byte and three-byte opcodes */
-static inline insn_byte_t insn_last_prefix(struct insn *insn)
-{
-	return insn->prefixes.bytes[3];
-}
-
 extern void insn_init(struct insn *insn, const void *kaddr, int x86_64);
 extern void insn_get_prefixes(struct insn *insn);
 extern void insn_get_opcode(struct insn *insn);
@@ -158,6 +152,18 @@ static inline insn_byte_t insn_vex_p_bits(struct insn *insn)
 		return X86_VEX_P(insn->vex_prefix.bytes[1]);
 	else
 		return X86_VEX_P(insn->vex_prefix.bytes[2]);
+}
+
+/* Get the last prefix id from last prefix or VEX prefix */
+static inline int insn_last_prefix_id(struct insn *insn)
+{
+	if (insn_is_avx(insn))
+		return insn_vex_p_bits(insn);	/* VEX_p is a SIMD prefix id */
+
+	if (insn->prefixes.bytes[3])
+		return inat_get_last_prefix_id(insn->prefixes.bytes[3]);
+
+	return 0;
 }
 
 /* Offset of each field from kaddr */

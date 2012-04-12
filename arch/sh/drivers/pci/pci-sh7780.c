@@ -74,7 +74,7 @@ struct pci_errors {
 	{ SH4_PCIINT_MLCK,	"master lock error" },
 	{ SH4_PCIINT_TABT,	"target-target abort" },
 	{ SH4_PCIINT_TRET,	"target retry time out" },
-	{ SH4_PCIINT_MFDE,	"master function disable erorr" },
+	{ SH4_PCIINT_MFDE,	"master function disable error" },
 	{ SH4_PCIINT_PRTY,	"address parity error" },
 	{ SH4_PCIINT_SERR,	"SERR" },
 	{ SH4_PCIINT_TWDP,	"data parity error for target write" },

@@ -349,11 +349,11 @@ acpi_parse_int_src_ovr(struct acpi_subtable_header * header,
 
 	iosapic_override_isa_irq(p->source_irq, p->global_irq,
 				 ((p->inti_flags & ACPI_MADT_POLARITY_MASK) ==
-				  ACPI_MADT_POLARITY_ACTIVE_HIGH) ?
-				 IOSAPIC_POL_HIGH : IOSAPIC_POL_LOW,
+				  ACPI_MADT_POLARITY_ACTIVE_LOW) ?
+				 IOSAPIC_POL_LOW : IOSAPIC_POL_HIGH,
 				 ((p->inti_flags & ACPI_MADT_TRIGGER_MASK) ==
-				 ACPI_MADT_TRIGGER_EDGE) ?
-				 IOSAPIC_EDGE : IOSAPIC_LEVEL);
+				 ACPI_MADT_TRIGGER_LEVEL) ?
+				 IOSAPIC_LEVEL : IOSAPIC_EDGE);
 	return 0;
 }
 

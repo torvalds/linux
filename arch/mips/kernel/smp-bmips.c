@@ -8,7 +8,6 @@
  * SMP support for BMIPS
  */
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/sched.h>
 #include <linux/mm.h>

@@ -53,6 +53,7 @@ int	se_dev_set_is_nonrot(struct se_device *, int);
 int	se_dev_set_emulate_rest_reord(struct se_device *dev, int);
 int	se_dev_set_queue_depth(struct se_device *, u32);
 int	se_dev_set_max_sectors(struct se_device *, u32);
+int	se_dev_set_fabric_max_sectors(struct se_device *, u32);
 int	se_dev_set_optimal_sectors(struct se_device *, u32);
 int	se_dev_set_block_size(struct se_device *, u32);
 struct se_lun *core_dev_add_lun(struct se_portal_group *, struct se_hba *,
@@ -75,6 +76,8 @@ struct se_hba *core_alloc_hba(const char *, u32, u32);
 int	core_delete_hba(struct se_hba *);
 
 /* target_core_tmr.c */
+void	core_tmr_abort_task(struct se_device *, struct se_tmr_req *,
+			struct se_session *);
 int	core_tmr_lun_reset(struct se_device *, struct se_tmr_req *,
 		struct list_head *, struct se_cmd *);
 
@@ -90,7 +93,7 @@ void	core_tpg_wait_for_nacl_pr_ref(struct se_node_acl *);
 struct se_lun *core_tpg_pre_addlun(struct se_portal_group *, u32);
 int	core_tpg_post_addlun(struct se_portal_group *, struct se_lun *,
 		u32, void *);
-struct se_lun *core_tpg_pre_dellun(struct se_portal_group *, u32, int *);
+struct se_lun *core_tpg_pre_dellun(struct se_portal_group *, u32 unpacked_lun);
 int	core_tpg_post_dellun(struct se_portal_group *, struct se_lun *);
 
 /* target_core_transport.c */

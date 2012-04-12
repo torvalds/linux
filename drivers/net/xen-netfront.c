@@ -47,6 +47,7 @@
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/page.h>
+#include <xen/platform_pci.h>
 #include <xen/grant_table.h>
 
 #include <xen/interface/io/netif.h>
@@ -489,6 +490,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int frags = skb_shinfo(skb)->nr_frags;
 	unsigned int offset = offset_in_page(data);
 	unsigned int len = skb_headlen(skb);
+	unsigned long flags;
 
 	frags += DIV_ROUND_UP(offset + len, PAGE_SIZE);
 	if (unlikely(frags > MAX_SKB_FRAGS + 1)) {
@@ -498,12 +500,12 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	}
 
-	spin_lock_irq(&np->tx_lock);
+	spin_lock_irqsave(&np->tx_lock, flags);
 
 	if (unlikely(!netif_carrier_ok(dev) ||
 		     (frags > 1 && !xennet_can_sg(dev)) ||
 		     netif_needs_gso(skb, netif_skb_features(skb)))) {
-		spin_unlock_irq(&np->tx_lock);
+		spin_unlock_irqrestore(&np->tx_lock, flags);
 		goto drop;
 	}
 
@@ -574,7 +576,7 @@ static int xennet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!netfront_tx_slot_available(np))
 		netif_stop_queue(dev);
 
-	spin_unlock_irq(&np->tx_lock);
+	spin_unlock_irqrestore(&np->tx_lock, flags);
 
 	return NETDEV_TX_OK;
 
@@ -1228,6 +1230,33 @@ static int xennet_set_features(struct net_device *dev,
 	return 0;
 }
 
+static irqreturn_t xennet_interrupt(int irq, void *dev_id)
+{
+	struct net_device *dev = dev_id;
+	struct netfront_info *np = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&np->tx_lock, flags);
+
+	if (likely(netif_carrier_ok(dev))) {
+		xennet_tx_buf_gc(dev);
+		/* Under tx_lock: protects access to rx shared-ring indexes. */
+		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx))
+			napi_schedule(&np->napi);
+	}
+
+	spin_unlock_irqrestore(&np->tx_lock, flags);
+
+	return IRQ_HANDLED;
+}
+
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void xennet_poll_controller(struct net_device *dev)
+{
+	xennet_interrupt(0, dev);
+}
+#endif
+
 static const struct net_device_ops xennet_netdev_ops = {
 	.ndo_open            = xennet_open,
 	.ndo_uninit          = xennet_uninit,
@@ -1239,6 +1268,9 @@ static const struct net_device_ops xennet_netdev_ops = {
 	.ndo_validate_addr   = eth_validate_addr,
 	.ndo_fix_features    = xennet_fix_features,
 	.ndo_set_features    = xennet_set_features,
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	.ndo_poll_controller = xennet_poll_controller,
+#endif
 };
 
 static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev)
@@ -1248,11 +1280,8 @@ static struct net_device * __devinit xennet_create_dev(struct xenbus_device *dev
 	struct netfront_info *np;
 
 	netdev = alloc_etherdev(sizeof(struct netfront_info));
-	if (!netdev) {
-		printk(KERN_WARNING "%s> alloc_etherdev failed.\n",
-		       __func__);
+	if (!netdev)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	np                   = netdev_priv(netdev);
 	np->xbdev            = dev;
@@ -1446,26 +1475,6 @@ static int xen_net_read_mac(struct xenbus_device *dev, u8 mac[])
 
 	kfree(macstr);
 	return 0;
-}
-
-static irqreturn_t xennet_interrupt(int irq, void *dev_id)
-{
-	struct net_device *dev = dev_id;
-	struct netfront_info *np = netdev_priv(dev);
-	unsigned long flags;
-
-	spin_lock_irqsave(&np->tx_lock, flags);
-
-	if (likely(netif_carrier_ok(dev))) {
-		xennet_tx_buf_gc(dev);
-		/* Under tx_lock: protects access to rx shared-ring indexes. */
-		if (RING_HAS_UNCONSUMED_RESPONSES(&np->rx))
-			napi_schedule(&np->napi);
-	}
-
-	spin_unlock_irqrestore(&np->tx_lock, flags);
-
-	return IRQ_HANDLED;
 }
 
 static int setup_netfront(struct xenbus_device *dev, struct netfront_info *info)
@@ -1955,6 +1964,9 @@ static int __init netif_init(void)
 
 	if (xen_initial_domain())
 		return 0;
+
+	if (!xen_platform_pci_unplug)
+		return -ENODEV;
 
 	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");
 

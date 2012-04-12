@@ -26,6 +26,9 @@ temperatures. Note that the driver detects how many fan headers /
 temperature sensors are actually implemented on the motherboard, so you will
 likely see fewer temperature and fan inputs.
 
+The Fujitsu Theseus hwmon solution also contains an integrated watchdog.
+This watchdog is fully supported by the sch5636 driver.
+
 An application note describing the Theseus' registers, as well as an
 application note describing the protocol for communicating with the
 microcontroller is available upon request. Please mail me if you want a copy.

@@ -202,13 +202,12 @@ static inline void CDV_MSG_WRITE32(uint port, uint offset, u32 value)
 	pci_dev_put(pci_root);
 }
 
-#define PSB_APM_CMD			0x0
-#define PSB_APM_STS			0x04
 #define PSB_PM_SSC			0x20
 #define PSB_PM_SSS			0x30
-#define PSB_PWRGT_GFX_MASK		0x3
-#define CDV_PWRGT_DISPLAY_CNTR		0x000fc00c
-#define CDV_PWRGT_DISPLAY_STS		0x000fc00c
+#define PSB_PWRGT_GFX_ON		0x02
+#define PSB_PWRGT_GFX_OFF		0x01
+#define PSB_PWRGT_GFX_D0		0x00
+#define PSB_PWRGT_GFX_D3		0x03
 
 static void cdv_init_pm(struct drm_device *dev)
 {
@@ -221,26 +220,22 @@ static void cdv_init_pm(struct drm_device *dev)
 	dev_priv->ospm_base = CDV_MSG_READ32(PSB_PUNIT_PORT,
 							PSB_OSPMBA) & 0xFFFF;
 
-	/* Force power on for now */
+	/* Power status */
 	pwr_cnt = inl(dev_priv->apm_base + PSB_APM_CMD);
-	pwr_cnt &= ~PSB_PWRGT_GFX_MASK;
 
+	/* Enable the GPU */
+	pwr_cnt &= ~PSB_PWRGT_GFX_MASK;
+	pwr_cnt |= PSB_PWRGT_GFX_ON;
 	outl(pwr_cnt, dev_priv->apm_base + PSB_APM_CMD);
+
+	/* Wait for the GPU power */
 	for (i = 0; i < 5; i++) {
 		u32 pwr_sts = inl(dev_priv->apm_base + PSB_APM_STS);
 		if ((pwr_sts & PSB_PWRGT_GFX_MASK) == 0)
-			break;
+			return;
 		udelay(10);
 	}
-	pwr_cnt = inl(dev_priv->ospm_base + PSB_PM_SSC);
-	pwr_cnt &= ~CDV_PWRGT_DISPLAY_CNTR;
-	outl(pwr_cnt, dev_priv->ospm_base + PSB_PM_SSC);
-	for (i = 0; i < 5; i++) {
-		u32 pwr_sts = inl(dev_priv->ospm_base + PSB_PM_SSS);
-		if ((pwr_sts & CDV_PWRGT_DISPLAY_STS) == 0)
-			break;
-		udelay(10);
-	}
+	dev_err(dev->dev, "GPU: power management timed out.\n");
 }
 
 /**
@@ -249,11 +244,50 @@ static void cdv_init_pm(struct drm_device *dev)
  *
  *	Save the state we need in order to be able to restore the interface
  *	upon resume from suspend
- *
- *	FIXME: review
  */
 static int cdv_save_display_registers(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_save_area *regs = &dev_priv->regs;
+	struct drm_connector *connector;
+
+	dev_info(dev->dev, "Saving GPU registers.\n");
+
+	pci_read_config_byte(dev->pdev, 0xF4, &regs->cdv.saveLBB);
+
+	regs->cdv.saveDSPCLK_GATE_D = REG_READ(DSPCLK_GATE_D);
+	regs->cdv.saveRAMCLK_GATE_D = REG_READ(RAMCLK_GATE_D);
+
+	regs->cdv.saveDSPARB = REG_READ(DSPARB);
+	regs->cdv.saveDSPFW[0] = REG_READ(DSPFW1);
+	regs->cdv.saveDSPFW[1] = REG_READ(DSPFW2);
+	regs->cdv.saveDSPFW[2] = REG_READ(DSPFW3);
+	regs->cdv.saveDSPFW[3] = REG_READ(DSPFW4);
+	regs->cdv.saveDSPFW[4] = REG_READ(DSPFW5);
+	regs->cdv.saveDSPFW[5] = REG_READ(DSPFW6);
+
+	regs->cdv.saveADPA = REG_READ(ADPA);
+
+	regs->cdv.savePP_CONTROL = REG_READ(PP_CONTROL);
+	regs->cdv.savePFIT_PGM_RATIOS = REG_READ(PFIT_PGM_RATIOS);
+	regs->saveBLC_PWM_CTL = REG_READ(BLC_PWM_CTL);
+	regs->saveBLC_PWM_CTL2 = REG_READ(BLC_PWM_CTL2);
+	regs->cdv.saveLVDS = REG_READ(LVDS);
+
+	regs->cdv.savePFIT_CONTROL = REG_READ(PFIT_CONTROL);
+
+	regs->cdv.savePP_ON_DELAYS = REG_READ(PP_ON_DELAYS);
+	regs->cdv.savePP_OFF_DELAYS = REG_READ(PP_OFF_DELAYS);
+	regs->cdv.savePP_CYCLE = REG_READ(PP_CYCLE);
+
+	regs->cdv.saveVGACNTRL = REG_READ(VGACNTRL);
+
+	regs->cdv.saveIER = REG_READ(PSB_INT_ENABLE_R);
+	regs->cdv.saveIMR = REG_READ(PSB_INT_MASK_R);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		connector->funcs->dpms(connector, DRM_MODE_DPMS_OFF);
+
 	return 0;
 }
 
@@ -267,16 +301,113 @@ static int cdv_save_display_registers(struct drm_device *dev)
  */
 static int cdv_restore_display_registers(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_save_area *regs = &dev_priv->regs;
+	struct drm_connector *connector;
+	u32 temp;
+
+	pci_write_config_byte(dev->pdev, 0xF4, regs->cdv.saveLBB);
+
+	REG_WRITE(DSPCLK_GATE_D, regs->cdv.saveDSPCLK_GATE_D);
+	REG_WRITE(RAMCLK_GATE_D, regs->cdv.saveRAMCLK_GATE_D);
+
+	/* BIOS does below anyway */
+	REG_WRITE(DPIO_CFG, 0);
+	REG_WRITE(DPIO_CFG, DPIO_MODE_SELECT_0 | DPIO_CMN_RESET_N);
+
+	temp = REG_READ(DPLL_A);
+	if ((temp & DPLL_SYNCLOCK_ENABLE) == 0) {
+		REG_WRITE(DPLL_A, temp | DPLL_SYNCLOCK_ENABLE);
+		REG_READ(DPLL_A);
+	}
+
+	temp = REG_READ(DPLL_B);
+	if ((temp & DPLL_SYNCLOCK_ENABLE) == 0) {
+		REG_WRITE(DPLL_B, temp | DPLL_SYNCLOCK_ENABLE);
+		REG_READ(DPLL_B);
+	}
+
+	udelay(500);
+
+	REG_WRITE(DSPFW1, regs->cdv.saveDSPFW[0]);
+	REG_WRITE(DSPFW2, regs->cdv.saveDSPFW[1]);
+	REG_WRITE(DSPFW3, regs->cdv.saveDSPFW[2]);
+	REG_WRITE(DSPFW4, regs->cdv.saveDSPFW[3]);
+	REG_WRITE(DSPFW5, regs->cdv.saveDSPFW[4]);
+	REG_WRITE(DSPFW6, regs->cdv.saveDSPFW[5]);
+
+	REG_WRITE(DSPARB, regs->cdv.saveDSPARB);
+	REG_WRITE(ADPA, regs->cdv.saveADPA);
+
+	REG_WRITE(BLC_PWM_CTL2, regs->saveBLC_PWM_CTL2);
+	REG_WRITE(LVDS, regs->cdv.saveLVDS);
+	REG_WRITE(PFIT_CONTROL, regs->cdv.savePFIT_CONTROL);
+	REG_WRITE(PFIT_PGM_RATIOS, regs->cdv.savePFIT_PGM_RATIOS);
+	REG_WRITE(BLC_PWM_CTL, regs->saveBLC_PWM_CTL);
+	REG_WRITE(PP_ON_DELAYS, regs->cdv.savePP_ON_DELAYS);
+	REG_WRITE(PP_OFF_DELAYS, regs->cdv.savePP_OFF_DELAYS);
+	REG_WRITE(PP_CYCLE, regs->cdv.savePP_CYCLE);
+	REG_WRITE(PP_CONTROL, regs->cdv.savePP_CONTROL);
+
+	REG_WRITE(VGACNTRL, regs->cdv.saveVGACNTRL);
+
+	REG_WRITE(PSB_INT_ENABLE_R, regs->cdv.saveIER);
+	REG_WRITE(PSB_INT_MASK_R, regs->cdv.saveIMR);
+
+	/* Fix arbitration bug */
+	CDV_MSG_WRITE32(3, 0x30, 0x08027108);
+
+	drm_mode_config_reset(dev);
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+		connector->funcs->dpms(connector, DRM_MODE_DPMS_ON);
+
+	/* Resume the modeset for every activated CRTC */
+	drm_helper_resume_force_mode(dev);
 	return 0;
 }
 
 static int cdv_power_down(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 pwr_cnt, pwr_mask, pwr_sts;
+	int tries = 5;
+
+	pwr_cnt = inl(dev_priv->apm_base + PSB_APM_CMD);
+	pwr_cnt &= ~PSB_PWRGT_GFX_MASK;
+	pwr_cnt |= PSB_PWRGT_GFX_OFF;
+	pwr_mask = PSB_PWRGT_GFX_MASK;
+
+	outl(pwr_cnt, dev_priv->apm_base + PSB_APM_CMD);
+
+	while (tries--) {
+		pwr_sts = inl(dev_priv->apm_base + PSB_APM_STS);
+		if ((pwr_sts & pwr_mask) == PSB_PWRGT_GFX_D3)
+			return 0;
+		udelay(10);
+	}
 	return 0;
 }
 
 static int cdv_power_up(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	u32 pwr_cnt, pwr_mask, pwr_sts;
+	int tries = 5;
+
+	pwr_cnt = inl(dev_priv->apm_base + PSB_APM_CMD);
+	pwr_cnt &= ~PSB_PWRGT_GFX_MASK;
+	pwr_cnt |= PSB_PWRGT_GFX_ON;
+	pwr_mask = PSB_PWRGT_GFX_MASK;
+
+	outl(pwr_cnt, dev_priv->apm_base + PSB_APM_CMD);
+
+	while (tries--) {
+		pwr_sts = inl(dev_priv->apm_base + PSB_APM_STS);
+		if ((pwr_sts & pwr_mask) == PSB_PWRGT_GFX_D0)
+			return 0;
+		udelay(10);
+	}
 	return 0;
 }
 
@@ -321,6 +452,8 @@ static int cdv_chip_setup(struct drm_device *dev)
 	cdv_get_core_freq(dev);
 	gma_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
+	REG_WRITE(PORT_HOTPLUG_EN, 0);
+	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
 	return 0;
 }
 

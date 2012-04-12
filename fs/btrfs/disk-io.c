@@ -962,6 +962,13 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
 
+	/*
+	 * We need to mask out eg. __GFP_HIGHMEM and __GFP_DMA32 as we're doing
+	 * slab allocation from alloc_extent_state down the callchain where
+	 * it'd hit a BUG_ON as those flags are not allowed.
+	 */
+	gfp_flags &= ~GFP_SLAB_BUG_MASK;
+
 	ret = try_release_extent_state(map, tree, page, gfp_flags);
 	if (!ret)
 		return 0;
@@ -2253,6 +2260,12 @@ int open_ctree(struct super_block *sb,
 		goto fail_sb_buffer;
 	}
 
+	if (sectorsize < PAGE_SIZE) {
+		printk(KERN_WARNING "btrfs: Incompatible sector size "
+		       "found on %s\n", sb->s_id);
+		goto fail_sb_buffer;
+	}
+
 	mutex_lock(&fs_info->chunk_mutex);
 	ret = btrfs_read_sys_array(tree_root);
 	mutex_unlock(&fs_info->chunk_mutex);
@@ -2293,6 +2306,12 @@ int open_ctree(struct super_block *sb,
 	}
 
 	btrfs_close_extra_devices(fs_devices);
+
+	if (!fs_devices->latest_bdev) {
+		printk(KERN_CRIT "btrfs: failed to read devices on %s\n",
+		       sb->s_id);
+		goto fail_tree_roots;
+	}
 
 retry_root_backup:
 	blocksize = btrfs_level_size(tree_root,

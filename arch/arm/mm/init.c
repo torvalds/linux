@@ -32,7 +32,6 @@
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/memblock.h>
 
 #include "mm.h"
 
@@ -310,7 +309,7 @@ static void arm_memory_present(void)
 
 static bool arm_memblock_steal_permitted = true;
 
-phys_addr_t arm_memblock_steal(phys_addr_t size, phys_addr_t align)
+phys_addr_t __init arm_memblock_steal(phys_addr_t size, phys_addr_t align)
 {
 	phys_addr_t phys;
 

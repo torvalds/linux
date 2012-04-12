@@ -728,18 +728,19 @@ static int ca0132_hp_switch_put(struct snd_kcontrol *kcontrol,
 
 	err = chipio_read(codec, REG_CODEC_MUTE, &data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	/* *valp 0 is mute, 1 is unmute */
 	data = (data & 0x7f) | (*valp ? 0 : 0x80);
-	chipio_write(codec, REG_CODEC_MUTE, data);
+	err = chipio_write(codec, REG_CODEC_MUTE, data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	spec->curr_hp_switch = *valp;
 
+ exit:
 	snd_hda_power_down(codec);
-	return 1;
+	return err < 0 ? err : 1;
 }
 
 static int ca0132_speaker_switch_get(struct snd_kcontrol *kcontrol,
@@ -770,18 +771,19 @@ static int ca0132_speaker_switch_put(struct snd_kcontrol *kcontrol,
 
 	err = chipio_read(codec, REG_CODEC_MUTE, &data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	/* *valp 0 is mute, 1 is unmute */
 	data = (data & 0xef) | (*valp ? 0 : 0x10);
-	chipio_write(codec, REG_CODEC_MUTE, data);
+	err = chipio_write(codec, REG_CODEC_MUTE, data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	spec->curr_speaker_switch = *valp;
 
+ exit:
 	snd_hda_power_down(codec);
-	return 1;
+	return err < 0 ? err : 1;
 }
 
 static int ca0132_hp_volume_get(struct snd_kcontrol *kcontrol,
@@ -819,25 +821,26 @@ static int ca0132_hp_volume_put(struct snd_kcontrol *kcontrol,
 
 	err = chipio_read(codec, REG_CODEC_HP_VOL_L, &data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	val = 31 - left_vol;
 	data = (data & 0xe0) | val;
-	chipio_write(codec, REG_CODEC_HP_VOL_L, data);
+	err = chipio_write(codec, REG_CODEC_HP_VOL_L, data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	val = 31 - right_vol;
 	data = (data & 0xe0) | val;
-	chipio_write(codec, REG_CODEC_HP_VOL_R, data);
+	err = chipio_write(codec, REG_CODEC_HP_VOL_R, data);
 	if (err < 0)
-		return err;
+		goto exit;
 
 	spec->curr_hp_volume[0] = left_vol;
 	spec->curr_hp_volume[1] = right_vol;
 
+ exit:
 	snd_hda_power_down(codec);
-	return 1;
+	return err < 0 ? err : 1;
 }
 
 static int add_hp_switch(struct hda_codec *codec, hda_nid_t nid)
@@ -936,6 +939,8 @@ static int ca0132_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		err = add_in_volume(codec, spec->dig_in, "IEC958");
+		if (err < 0)
+			return err;
 	}
 	return 0;
 }

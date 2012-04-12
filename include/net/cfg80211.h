@@ -13,6 +13,7 @@
 #include <linux/netdevice.h>
 #include <linux/debugfs.h>
 #include <linux/list.h>
+#include <linux/bug.h>
 #include <linux/netlink.h>
 #include <linux/skbuff.h>
 #include <linux/nl80211.h>
@@ -520,6 +521,7 @@ struct station_parameters {
  * @STATION_INFO_ASSOC_REQ_IES: @assoc_req_ies filled
  * @STATION_INFO_STA_FLAGS: @sta_flags filled
  * @STATION_INFO_BEACON_LOSS_COUNT: @beacon_loss_count filled
+ * @STATION_INFO_T_OFFSET: @t_offset filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -541,7 +543,8 @@ enum station_info_flags {
 	STATION_INFO_CONNECTED_TIME	= 1<<16,
 	STATION_INFO_ASSOC_REQ_IES	= 1<<17,
 	STATION_INFO_STA_FLAGS		= 1<<18,
-	STATION_INFO_BEACON_LOSS_COUNT	= 1<<19
+	STATION_INFO_BEACON_LOSS_COUNT	= 1<<19,
+	STATION_INFO_T_OFFSET		= 1<<20,
 };
 
 /**
@@ -619,8 +622,10 @@ struct sta_bss_parameters {
  * @llid: mesh local link id
  * @plid: mesh peer link id
  * @plink_state: mesh peer link state
- * @signal: signal strength of last received packet in dBm
- * @signal_avg: signal strength average in dBm
+ * @signal: the signal strength, type depends on the wiphy's signal_type
+	NOTE: For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
+ * @signal_avg: avg signal strength, type depends on the wiphy's signal_type
+	NOTE: For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
  * @txrate: current unicast bitrate from this station
  * @rxrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station
@@ -640,6 +645,7 @@ struct sta_bss_parameters {
  * @assoc_req_ies_len: Length of assoc_req_ies buffer in octets.
  * @sta_flags: station flags mask & values
  * @beacon_loss_count: Number of times beacon loss event has triggered.
+ * @t_offset: Time offset of the station relative to this host.
  */
 struct station_info {
 	u32 filled;
@@ -668,6 +674,7 @@ struct station_info {
 	size_t assoc_req_ies_len;
 
 	u32 beacon_loss_count;
+	s64 t_offset;
 
 	/*
 	 * Note: Add a new enum station_info_flags value for each new field and
@@ -795,6 +802,8 @@ struct mesh_config {
 	/* ttl used in path selection information elements */
 	u8  element_ttl;
 	bool auto_open_plinks;
+	/* neighbor offset synchronization */
+	u32 dot11MeshNbrOffsetMaxNeighbor;
 	/* HWMP parameters */
 	u8  dot11MeshHWMPmaxPREQretries;
 	u32 path_refresh_time;
@@ -818,6 +827,7 @@ struct mesh_config {
  * struct mesh_setup - 802.11s mesh setup configuration
  * @mesh_id: the mesh ID
  * @mesh_id_len: length of the mesh ID, at least 1 and at most 32 bytes
+ * @sync_method: which synchronization method to use
  * @path_sel_proto: which path selection protocol to use
  * @path_metric: which metric to use
  * @ie: vendor information elements (optional)
@@ -831,8 +841,9 @@ struct mesh_config {
 struct mesh_setup {
 	const u8 *mesh_id;
 	u8 mesh_id_len;
-	u8  path_sel_proto;
-	u8  path_metric;
+	u8 sync_method;
+	u8 path_sel_proto;
+	u8 path_metric;
 	const u8 *ie;
 	u8 ie_len;
 	bool is_authenticated;
@@ -842,7 +853,7 @@ struct mesh_setup {
 
 /**
  * struct ieee80211_txq_params - TX queue parameters
- * @queue: TX queue identifier (NL80211_TXQ_Q_*)
+ * @ac: AC identifier
  * @txop: Maximum burst time in units of 32 usecs, 0 meaning disabled
  * @cwmin: Minimum contention window [a value of the form 2^n-1 in the range
  *	1..32767]
@@ -851,7 +862,7 @@ struct mesh_setup {
  * @aifs: Arbitration interframe space [0..255]
  */
 struct ieee80211_txq_params {
-	enum nl80211_txq_q queue;
+	enum nl80211_ac ac;
 	u16 txop;
 	u16 cwmin;
 	u16 cwmax;
@@ -1333,6 +1344,9 @@ struct cfg80211_gtk_rekey_data {
  *	be %NULL or contain the enabled Wake-on-Wireless triggers that are
  *	configured for the device.
  * @resume: wiphy device needs to be resumed
+ * @set_wakeup: Called when WoWLAN is enabled/disabled, use this callback
+ *	to call device_set_wakeup_enable() to enable/disable wakeup from
+ *	the device.
  *
  * @add_virtual_intf: create a new virtual interface with the given name,
  *	must set the struct wireless_dev's iftype. Beware: You must create
@@ -1504,6 +1518,7 @@ struct cfg80211_gtk_rekey_data {
 struct cfg80211_ops {
 	int	(*suspend)(struct wiphy *wiphy, struct cfg80211_wowlan *wow);
 	int	(*resume)(struct wiphy *wiphy);
+	void	(*set_wakeup)(struct wiphy *wiphy, bool enabled);
 
 	struct net_device * (*add_virtual_intf)(struct wiphy *wiphy,
 						char *name,
@@ -3338,6 +3353,17 @@ void cfg80211_report_obss_beacon(struct wiphy *wiphy,
 int cfg80211_can_beacon_sec_chan(struct wiphy *wiphy,
 				 struct ieee80211_channel *chan,
 				 enum nl80211_channel_type channel_type);
+
+/*
+ * cfg80211_ch_switch_notify - update wdev channel and notify userspace
+ * @dev: the device which switched channels
+ * @freq: new channel frequency (in MHz)
+ * @type: channel type
+ *
+ * Acquires wdev_lock, so must only be called from sleepable driver context!
+ */
+void cfg80211_ch_switch_notify(struct net_device *dev, int freq,
+			       enum nl80211_channel_type type);
 
 /*
  * cfg80211_calculate_bitrate - calculate actual bitrate (in 100Kbps units)

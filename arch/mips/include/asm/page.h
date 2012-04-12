@@ -39,9 +39,6 @@
 #define HPAGE_MASK	(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 #else /* !CONFIG_HUGETLB_PAGE */
-# ifndef BUILD_BUG
-#  define BUILD_BUG() do { extern void __build_bug(void); __build_bug(); } while (0)
-# endif
 #define HPAGE_SHIFT	({BUILD_BUG(); 0; })
 #define HPAGE_SIZE	({BUILD_BUG(); 0; })
 #define HPAGE_MASK	({BUILD_BUG(); 0; })

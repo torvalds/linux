@@ -136,10 +136,8 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 	 */
 	if (dummy_buf == NULL) {
 		dummy_buf = kmalloc(RX_BUFLEN+2, GFP_KERNEL);
-		if (dummy_buf == NULL) {
-			printk(KERN_ERR "MACE: couldn't allocate dummy buffer\n");
+		if (dummy_buf == NULL)
 			return -ENOMEM;
-		}
 	}
 
 	if (macio_request_resources(mdev, "mace")) {
@@ -149,7 +147,6 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 
 	dev = alloc_etherdev(PRIV_BYTES);
 	if (!dev) {
-		printk(KERN_ERR "MACE: can't allocate ethernet device !\n");
 		rc = -ENOMEM;
 		goto err_release;
 	}
@@ -447,7 +444,7 @@ static int mace_open(struct net_device *dev)
     memset((char *)mp->rx_cmds, 0, N_RX_RING * sizeof(struct dbdma_cmd));
     cp = mp->rx_cmds;
     for (i = 0; i < N_RX_RING - 1; ++i) {
-	skb = dev_alloc_skb(RX_BUFLEN + 2);
+	skb = netdev_alloc_skb(dev, RX_BUFLEN + 2);
 	if (!skb) {
 	    data = dummy_buf;
 	} else {
@@ -959,7 +956,7 @@ static irqreturn_t mace_rxdma_intr(int irq, void *dev_id)
 	cp = mp->rx_cmds + i;
 	skb = mp->rx_bufs[i];
 	if (!skb) {
-	    skb = dev_alloc_skb(RX_BUFLEN + 2);
+	    skb = netdev_alloc_skb(dev, RX_BUFLEN + 2);
 	    if (skb) {
 		skb_reserve(skb, 2);
 		mp->rx_bufs[i] = skb;

@@ -1185,39 +1185,6 @@ mwifiex_drv_get_driver_version(struct mwifiex_adapter *adapter, char *version,
 }
 
 /*
- * Sends IOCTL request to get signal information.
- *
- * This function allocates the IOCTL request buffer, fills it
- * with requisite parameters and calls the IOCTL handler.
- */
-int mwifiex_get_signal_info(struct mwifiex_private *priv,
-			    struct mwifiex_ds_get_signal *signal)
-{
-	int status;
-
-	signal->selector = ALL_RSSI_INFO_MASK;
-
-	/* Signal info can be obtained only if connected */
-	if (!priv->media_connected) {
-		dev_dbg(priv->adapter->dev,
-			"info: Can not get signal in disconnected state\n");
-		return -1;
-	}
-
-	status = mwifiex_send_cmd_sync(priv, HostCmd_CMD_RSSI_INFO,
-				       HostCmd_ACT_GEN_GET, 0, signal);
-
-	if (!status) {
-		if (signal->selector & BCN_RSSI_AVG_MASK)
-			priv->qual_level = signal->bcn_rssi_avg;
-		if (signal->selector & BCN_NF_AVG_MASK)
-			priv->qual_noise = signal->bcn_nf_avg;
-	}
-
-	return status;
-}
-
-/*
  * Sends IOCTL request to set encoding parameters.
  *
  * This function allocates the IOCTL request buffer, fills it

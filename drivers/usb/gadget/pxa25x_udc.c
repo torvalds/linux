@@ -283,6 +283,7 @@ static int pxa25x_ep_disable (struct usb_ep *_ep)
 	pxa25x_ep_fifo_flush (_ep);
 
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
 	local_irq_restore(flags);
@@ -995,7 +996,7 @@ static int pxa25x_udc_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	udc = container_of(_gadget, struct pxa25x_udc, gadget);
 
 	if (udc->transceiver)
-		return otg_set_power(udc->transceiver, mA);
+		return usb_phy_set_power(udc->transceiver, mA);
 	return -EOPNOTSUPP;
 }
 
@@ -1192,6 +1193,7 @@ static void udc_reinit(struct pxa25x_udc *dev)
 			list_add_tail (&ep->ep.ep_list, &dev->gadget.ep_list);
 
 		ep->desc = NULL;
+		ep->ep.desc = NULL;
 		ep->stopped = 0;
 		INIT_LIST_HEAD (&ep->queue);
 		ep->pio_irqs = 0;
@@ -1301,7 +1303,8 @@ fail:
 
 	/* connect to bus through transceiver */
 	if (dev->transceiver) {
-		retval = otg_set_peripheral(dev->transceiver, &dev->gadget);
+		retval = otg_set_peripheral(dev->transceiver->otg,
+						&dev->gadget);
 		if (retval) {
 			DMSG("can't bind to transceiver\n");
 			if (driver->unbind)
@@ -1360,7 +1363,7 @@ static int pxa25x_stop(struct usb_gadget_driver *driver)
 	local_irq_enable();
 
 	if (dev->transceiver)
-		(void) otg_set_peripheral(dev->transceiver, NULL);
+		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
 	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
@@ -2159,7 +2162,7 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->dev = &pdev->dev;
 	dev->mach = pdev->dev.platform_data;
 
-	dev->transceiver = otg_get_transceiver();
+	dev->transceiver = usb_get_transceiver();
 
 	if (gpio_is_valid(dev->mach->gpio_pullup)) {
 		if ((retval = gpio_request(dev->mach->gpio_pullup,
@@ -2238,7 +2241,7 @@ lubbock_fail0:
 		gpio_free(dev->mach->gpio_pullup);
  err_gpio_pullup:
 	if (dev->transceiver) {
-		otg_put_transceiver(dev->transceiver);
+		usb_put_transceiver(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 	clk_put(dev->clk);
@@ -2280,7 +2283,7 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 	clk_put(dev->clk);
 
 	if (dev->transceiver) {
-		otg_put_transceiver(dev->transceiver);
+		usb_put_transceiver(dev->transceiver);
 		dev->transceiver = NULL;
 	}
 

@@ -173,7 +173,7 @@ void inode_dio_wait(struct inode *inode)
 	if (atomic_read(&inode->i_dio_count))
 		__inode_dio_wait(inode);
 }
-EXPORT_SYMBOL_GPL(inode_dio_wait);
+EXPORT_SYMBOL(inode_dio_wait);
 
 /*
  * inode_dio_done - signal finish of a direct I/O requests
@@ -187,7 +187,7 @@ void inode_dio_done(struct inode *inode)
 	if (atomic_dec_and_test(&inode->i_dio_count))
 		wake_up_bit(&inode->i_state, __I_DIO_WAKEUP);
 }
-EXPORT_SYMBOL_GPL(inode_dio_done);
+EXPORT_SYMBOL(inode_dio_done);
 
 /*
  * How many pages are in the queue?

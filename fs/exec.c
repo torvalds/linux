@@ -63,6 +63,8 @@
 #include <trace/events/task.h>
 #include "internal.h"
 
+#include <trace/events/sched.h>
+
 int core_uses_pid;
 char core_pattern[CORENAME_MAX_SIZE] = "core";
 unsigned int core_pipe_limit;
@@ -79,15 +81,13 @@ static atomic_t call_count = ATOMIC_INIT(1);
 static LIST_HEAD(formats);
 static DEFINE_RWLOCK(binfmt_lock);
 
-int __register_binfmt(struct linux_binfmt * fmt, int insert)
+void __register_binfmt(struct linux_binfmt * fmt, int insert)
 {
-	if (!fmt)
-		return -EINVAL;
+	BUG_ON(!fmt);
 	write_lock(&binfmt_lock);
 	insert ? list_add(&fmt->lh, &formats) :
 		 list_add_tail(&fmt->lh, &formats);
 	write_unlock(&binfmt_lock);
-	return 0;	
 }
 
 EXPORT_SYMBOL(__register_binfmt);
@@ -822,7 +822,7 @@ static int exec_mmap(struct mm_struct *mm)
 	/* Notify parent that we're no longer interested in the old VM */
 	tsk = current;
 	old_mm = current->mm;
-	sync_mm_rss(tsk, old_mm);
+	sync_mm_rss(old_mm);
 	mm_release(tsk, old_mm);
 
 	if (old_mm) {
@@ -848,6 +848,7 @@ static int exec_mmap(struct mm_struct *mm)
 	if (old_mm) {
 		up_read(&old_mm->mmap_sem);
 		BUG_ON(active_mm != old_mm);
+		setmax_mm_hiwater_rss(&tsk->signal->maxrss, old_mm);
 		mm_update_next_owner(old_mm);
 		mmput(old_mm);
 		return 0;
@@ -975,8 +976,8 @@ static int de_thread(struct task_struct *tsk)
 	sig->notify_count = 0;
 
 no_thread_group:
-	if (current->mm)
-		setmax_mm_hiwater_rss(&sig->maxrss, current->mm);
+	/* we have changed execution domain */
+	tsk->exit_signal = SIGCHLD;
 
 	exit_itimers(sig);
 	flush_itimer_signals();
@@ -1071,6 +1072,21 @@ void set_task_comm(struct task_struct *tsk, char *buf)
 	perf_event_comm(tsk);
 }
 
+static void filename_to_taskname(char *tcomm, const char *fn, unsigned int len)
+{
+	int i, ch;
+
+	/* Copies the binary name from after last slash */
+	for (i = 0; (ch = *(fn++)) != '\0';) {
+		if (ch == '/')
+			i = 0; /* overwrite what we wrote */
+		else
+			if (i < len - 1)
+				tcomm[i++] = ch;
+	}
+	tcomm[i] = '\0';
+}
+
 int flush_old_exec(struct linux_binprm * bprm)
 {
 	int retval;
@@ -1085,6 +1101,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 
 	set_mm_exe_file(bprm->mm, bprm->file);
 
+	filename_to_taskname(bprm->tcomm, bprm->filename, sizeof(bprm->tcomm));
 	/*
 	 * Release all of the old mmap stuff
 	 */
@@ -1096,7 +1113,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	bprm->mm = NULL;		/* We're using it now */
 
 	set_fs(USER_DS);
-	current->flags &= ~(PF_RANDOMIZE | PF_KTHREAD);
+	current->flags &= ~(PF_RANDOMIZE | PF_FORKNOEXEC | PF_KTHREAD);
 	flush_thread();
 	current->personality &= ~bprm->per_clear;
 
@@ -1116,10 +1133,6 @@ EXPORT_SYMBOL(would_dump);
 
 void setup_new_exec(struct linux_binprm * bprm)
 {
-	int i, ch;
-	const char *name;
-	char tcomm[sizeof(current->comm)];
-
 	arch_pick_mmap_layout(current->mm);
 
 	/* This is the point of no return */
@@ -1130,18 +1143,7 @@ void setup_new_exec(struct linux_binprm * bprm)
 	else
 		set_dumpable(current->mm, suid_dumpable);
 
-	name = bprm->filename;
-
-	/* Copies the binary name from after last slash */
-	for (i=0; (ch = *(name++)) != '\0';) {
-		if (ch == '/')
-			i = 0; /* overwrite what we wrote */
-		else
-			if (i < (sizeof(tcomm) - 1))
-				tcomm[i++] = ch;
-	}
-	tcomm[i] = '\0';
-	set_task_comm(current, tcomm);
+	set_task_comm(current, bprm->tcomm);
 
 	/* Set the new mm task size. We have to do that late because it may
 	 * depend on TIF_32BIT which is only updated in flush_thread() on
@@ -1338,13 +1340,13 @@ int remove_arg_zero(struct linux_binprm *bprm)
 			ret = -EFAULT;
 			goto out;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 
 		for (; offset < PAGE_SIZE && kaddr[offset];
 				offset++, bprm->p++)
 			;
 
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		put_arg_page(page);
 
 		if (offset == PAGE_SIZE)
@@ -1401,9 +1403,10 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			 */
 			bprm->recursion_depth = depth;
 			if (retval >= 0) {
-				if (depth == 0)
-					ptrace_event(PTRACE_EVENT_EXEC,
-							old_pid);
+				if (depth == 0) {
+					trace_sched_process_exec(current, old_pid, bprm);
+					ptrace_event(PTRACE_EVENT_EXEC, old_pid);
+				}
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)
@@ -1914,7 +1917,6 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 {
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
-	struct completion *vfork_done;
 	int core_waiters = -EBUSY;
 
 	init_completion(&core_state->startup);
@@ -1926,22 +1928,9 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
-	if (unlikely(core_waiters < 0))
-		goto fail;
-
-	/*
-	 * Make sure nobody is waiting for us to release the VM,
-	 * otherwise we can deadlock when we wait on each other
-	 */
-	vfork_done = tsk->vfork_done;
-	if (vfork_done) {
-		tsk->vfork_done = NULL;
-		complete(vfork_done);
-	}
-
-	if (core_waiters)
+	if (core_waiters > 0)
 		wait_for_completion(&core_state->startup);
-fail:
+
 	return core_waiters;
 }
 

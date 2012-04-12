@@ -168,6 +168,7 @@ struct battery_thresh sharpsl_battery_levels_noac[] = {
 #define MAXCTRL_SEL_SH   4
 #define MAXCTRL_STR      (1u << 7)
 
+extern int max1111_read_channel(int);
 /*
  * Read MAX1111 ADC
  */
@@ -176,8 +177,6 @@ int sharpsl_pm_pxa_read_max1111(int channel)
 	/* Ugly, better move this function into another module */
 	if (machine_is_tosa())
 	    return 0;
-
-	extern int max1111_read_channel(int);
 
 	/* max1111 accepts channels from 0-3, however,
 	 * it is encoded from 0-7 here in the code.

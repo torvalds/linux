@@ -24,6 +24,7 @@
 
 struct kxtj9_platform_data {
 	unsigned int min_interval;	/* minimum poll interval (in milli-seconds) */
+	unsigned int init_interval;	/* initial poll interval (in milli-seconds) */
 
 	/*
 	 * By default, x is axis 0, y is axis 1, z is axis 2; these can be
@@ -51,16 +52,6 @@ struct kxtj9_platform_data {
 	#define KXTJ9_G_4G		(1 << 3)
 	#define KXTJ9_G_8G		(1 << 4)
 	u8 g_range;
-
-	/* DATA_CTRL_REG: controls the output data rate of the part */
-	#define ODR12_5F		0
-	#define ODR25F			1
-	#define ODR50F			2
-	#define ODR100F			3
-	#define ODR200F			4
-	#define ODR400F			5
-	#define ODR800F			6
-	u8 data_odr_init;
 
 	int (*init)(void);
 	void (*exit)(void);

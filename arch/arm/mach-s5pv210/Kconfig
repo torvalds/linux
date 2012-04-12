@@ -65,6 +65,11 @@ config S5PV210_SETUP_SPI
 	help
 	  Common setup code for SPI GPIO configurations.
 
+config S5PV210_SETUP_USB_PHY
+	bool
+	help
+	  Common setup code for USB PHY controller
+
 menu "S5PC110 Machines"
 
 config MACH_AQUILA
@@ -107,6 +112,7 @@ config MACH_GONI
 	select S5PV210_SETUP_KEYPAD
 	select S5PV210_SETUP_SDHCI
 	select S5PV210_SETUP_FIMC
+	select S5PV210_SETUP_USB_PHY
 	help
 	  Machine support for Samsung GONI board
 	  S5PC110(MCP) is one of package option of S5PV210
@@ -118,6 +124,10 @@ config MACH_SMDKC110
 	select S3C_DEV_I2C2
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_MFC
 	select SAMSUNG_DEV_IDE
 	select S5PV210_SETUP_I2C1
 	select S5PV210_SETUP_I2C2
@@ -142,6 +152,11 @@ config MACH_SMDKV210
 	select S3C_DEV_I2C2
 	select S3C_DEV_RTC
 	select S3C_DEV_WDT
+	select S5P_DEV_FIMC0
+	select S5P_DEV_FIMC1
+	select S5P_DEV_FIMC2
+	select S5P_DEV_JPEG
+	select S5P_DEV_MFC
 	select SAMSUNG_DEV_ADC
 	select SAMSUNG_DEV_BACKLIGHT
 	select SAMSUNG_DEV_IDE

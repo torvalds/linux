@@ -1221,9 +1221,9 @@ mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 					sizeof(struct ieee_types_header) -
 					bss_entry->beacon_buf);
 			break;
-		case WLAN_EID_HT_INFORMATION:
-			bss_entry->bcn_ht_info = (struct ieee80211_ht_info *)
-					(current_ptr +
+		case WLAN_EID_HT_OPERATION:
+			bss_entry->bcn_ht_oper =
+				(struct ieee80211_ht_operation *)(current_ptr +
 					sizeof(struct ieee_types_header));
 			bss_entry->ht_info_offset = (u16) (current_ptr +
 					sizeof(struct ieee_types_header) -
@@ -1493,7 +1493,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 	priv->curr_bss_params.bss_descriptor.bcn_ht_cap = NULL;
 	priv->curr_bss_params.bss_descriptor.ht_cap_offset =
 		0;
-	priv->curr_bss_params.bss_descriptor.bcn_ht_info = NULL;
+	priv->curr_bss_params.bss_descriptor.bcn_ht_oper = NULL;
 	priv->curr_bss_params.bss_descriptor.ht_info_offset =
 		0;
 	priv->curr_bss_params.bss_descriptor.bcn_bss_co_2040 =
@@ -1667,8 +1667,9 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		memcpy(bssid, bcn_param->bssid, ETH_ALEN);
 
-		rssi = (s32) (bcn_param->rssi);
-		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%02X\n", rssi);
+		rssi = (s32) bcn_param->rssi;
+		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
+		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
 
 		beacon_period = le16_to_cpu(bcn_param->beacon_period);
 
@@ -2019,8 +2020,8 @@ mwifiex_save_curr_bcn(struct mwifiex_private *priv)
 			(curr_bss->beacon_buf +
 			 curr_bss->ht_cap_offset);
 
-	if (curr_bss->bcn_ht_info)
-		curr_bss->bcn_ht_info = (struct ieee80211_ht_info *)
+	if (curr_bss->bcn_ht_oper)
+		curr_bss->bcn_ht_oper = (struct ieee80211_ht_operation *)
 			(curr_bss->beacon_buf +
 			 curr_bss->ht_info_offset);
 

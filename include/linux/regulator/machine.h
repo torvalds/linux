@@ -139,12 +139,10 @@ struct regulation_constraints {
  * make struct device available late such as I2C and is the preferred
  * form.
  *
- * @dev: Device structure for the consumer.
  * @dev_name: Result of dev_name() for the consumer.
  * @supply: Name for the supply.
  */
 struct regulator_consumer_supply {
-	struct device *dev;	/* consumer */
 	const char *dev_name;   /* dev_name() for consumer */
 	const char *supply;	/* consumer supply - e.g. "vcc" */
 };

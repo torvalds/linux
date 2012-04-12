@@ -233,8 +233,8 @@ static inline unsigned long *trailer_entry_ptr(unsigned long v)
 }
 
 /* prototypes for external interrupt handler and worker */
-static void hws_ext_handler(unsigned int ext_int_code,
-				unsigned int param32, unsigned long param64);
+static void hws_ext_handler(struct ext_code ext_code,
+			    unsigned int param32, unsigned long param64);
 
 static void worker(struct work_struct *work);
 
@@ -673,7 +673,7 @@ int hwsampler_activate(unsigned int cpu)
 	return rc;
 }
 
-static void hws_ext_handler(unsigned int ext_int_code,
+static void hws_ext_handler(struct ext_code ext_code,
 			    unsigned int param32, unsigned long param64)
 {
 	struct hws_cpu_buffer *cb;

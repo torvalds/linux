@@ -259,8 +259,14 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	current->mm->free_area_cache = current->mm->mmap_base;
 	current->mm->cached_hole_size = 0;
 
+	retval = setup_arg_pages(bprm, STACK_TOP, EXSTACK_DEFAULT);
+	if (retval < 0) {
+		/* Someone check-me: is this error path enough? */
+		send_sig(SIGKILL, current, 0);
+		return retval;
+	}
+
 	install_exec_creds(bprm);
- 	current->flags &= ~PF_FORKNOEXEC;
 
 	if (N_MAGIC(ex) == OMAGIC) {
 		unsigned long text_addr, map_size;
@@ -349,13 +355,6 @@ beyond_if:
 	retval = set_brk(current->mm->start_brk, current->mm->brk);
 	if (retval < 0) {
 		send_sig(SIGKILL, current, 0);
-		return retval;
-	}
-
-	retval = setup_arg_pages(bprm, STACK_TOP, EXSTACK_DEFAULT);
-	if (retval < 0) { 
-		/* Someone check-me: is this error path enough? */ 
-		send_sig(SIGKILL, current, 0); 
 		return retval;
 	}
 
@@ -454,7 +453,8 @@ out:
 
 static int __init init_aout_binfmt(void)
 {
-	return register_binfmt(&aout_format);
+	register_binfmt(&aout_format);
+	return 0;
 }
 
 static void __exit exit_aout_binfmt(void)

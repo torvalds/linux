@@ -596,7 +596,8 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 		return;
 	}
 
-	skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb), len);
+	skb_add_rx_frag(skb, 0, rxb->page, (void *)hdr - rxb_addr(rxb), len,
+			len);
 
 	il_update_stats(il, false, fc, len);
 	memcpy(IEEE80211_SKB_RXCB(skb), stats, sizeof(*stats));
@@ -2849,9 +2850,9 @@ void
 il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
 			    struct ieee80211_tx_info *info)
 {
-	struct ieee80211_tx_rate *r = &info->control.rates[0];
+	struct ieee80211_tx_rate *r = &info->status.rates[0];
 
-	info->antenna_sel_tx =
+	info->status.antenna =
 	    ((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
 	if (rate_n_flags & RATE_MCS_HT_MSK)
 		r->flags |= IEEE80211_TX_RC_MCS;
@@ -5651,8 +5652,6 @@ il4965_bg_restart(struct work_struct *data)
 
 	if (test_and_clear_bit(S_FW_ERROR, &il->status)) {
 		mutex_lock(&il->mutex);
-		/* FIXME: do we dereference vif without mutex locked ? */
-		il->vif = NULL;
 		il->is_open = 0;
 
 		__il4965_down(il);

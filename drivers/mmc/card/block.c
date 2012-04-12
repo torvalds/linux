@@ -1685,7 +1685,7 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 
 	if ((md->area_type & MMC_BLK_DATA_AREA_BOOT) &&
 	     card->ext_csd.boot_ro_lockable) {
-		mode_t mode;
+		umode_t mode;
 
 		if (card->ext_csd.boot_ro_lock & EXT_CSD_BOOT_WP_B_PWR_WP_DIS)
 			mode = S_IRUGO;
@@ -1694,6 +1694,7 @@ static int mmc_add_disk(struct mmc_blk_data *md)
 
 		md->power_ro_lock.show = power_ro_lock_show;
 		md->power_ro_lock.store = power_ro_lock_store;
+		sysfs_attr_init(&md->power_ro_lock.attr);
 		md->power_ro_lock.attr.mode = mode;
 		md->power_ro_lock.attr.name =
 					"ro_lock_until_next_power_on";

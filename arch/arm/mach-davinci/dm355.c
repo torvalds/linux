@@ -18,7 +18,6 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/dm355.h>
 #include <mach/cputype.h>
 #include <mach/edma.h>
 #include <mach/psc.h>
@@ -31,6 +30,7 @@
 #include <mach/spi.h>
 #include <mach/gpio-davinci.h>
 
+#include "davinci.h"
 #include "clock.h"
 #include "mux.h"
 
@@ -871,6 +871,7 @@ void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
 void __init dm355_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm355);
+	davinci_map_sysmod();
 }
 
 static int __init dm355_init_devices(void)

@@ -30,8 +30,7 @@
 #include <linux/input.h>
 #include <linux/i2c/tps65010.h>
 #include <linux/smc91x.h>
-
-#include <mach/hardware.h>
+#include <linux/omapfb.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -43,9 +42,11 @@
 #include <plat/irda.h>
 #include <plat/usb.h>
 #include <plat/keypad.h>
-#include "common.h"
 #include <plat/flash.h>
 
+#include <mach/hardware.h>
+
+#include "common.h"
 #include "board-h2.h"
 
 /* At OMAP1610 Innovator the Ethernet is directly connected to CS1 */
@@ -325,18 +326,12 @@ static struct platform_device h2_irda_device = {
 	.resource	= h2_irda_resources,
 };
 
-static struct platform_device h2_lcd_device = {
-	.name		= "lcd_h2",
-	.id		= -1,
-};
-
 static struct platform_device *h2_devices[] __initdata = {
 	&h2_nor_device,
 	&h2_nand_device,
 	&h2_smc91x_device,
 	&h2_irda_device,
 	&h2_kp_device,
-	&h2_lcd_device,
 };
 
 static void __init h2_init_smc91x(void)
@@ -391,10 +386,6 @@ static struct omap_lcd_config h2_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
 
-static struct omap_board_config_kernel h2_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&h2_lcd_config },
-};
-
 static void __init h2_init(void)
 {
 	h2_init_smc91x();
@@ -438,13 +429,13 @@ static void __init h2_init(void)
 	omap_cfg_reg(N19_1610_KBR5);
 
 	platform_add_devices(h2_devices, ARRAY_SIZE(h2_devices));
-	omap_board_config = h2_config;
-	omap_board_config_size = ARRAY_SIZE(h2_config);
 	omap_serial_init();
 	omap_register_i2c_bus(1, 100, h2_i2c_board_info,
 			      ARRAY_SIZE(h2_i2c_board_info));
 	omap1_usb_init(&h2_usb_config);
 	h2_mmc_init();
+
+	omapfb_set_lcd_config(&h2_lcd_config);
 }
 
 MACHINE_START(OMAP_H2, "TI-H2")

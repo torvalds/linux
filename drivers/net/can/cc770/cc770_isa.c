@@ -110,6 +110,11 @@ MODULE_PARM_DESC(bcr, "Bus configuration register (default=0x40 [CBY])");
 #define CC770_IOSIZE          0x20
 #define CC770_IOSIZE_INDIRECT 0x02
 
+/* Spinlock for cc770_isa_port_write_reg_indirect
+ * and cc770_isa_port_read_reg_indirect
+ */
+static DEFINE_SPINLOCK(cc770_isa_port_lock);
+
 static struct platform_device *cc770_isa_devs[MAXDEV];
 
 static u8 cc770_isa_mem_read_reg(const struct cc770_priv *priv, int reg)
@@ -138,18 +143,27 @@ static u8 cc770_isa_port_read_reg_indirect(const struct cc770_priv *priv,
 					     int reg)
 {
 	unsigned long base = (unsigned long)priv->reg_base;
+	unsigned long flags;
+	u8 val;
 
+	spin_lock_irqsave(&cc770_isa_port_lock, flags);
 	outb(reg, base);
-	return inb(base + 1);
+	val = inb(base + 1);
+	spin_unlock_irqrestore(&cc770_isa_port_lock, flags);
+
+	return val;
 }
 
 static void cc770_isa_port_write_reg_indirect(const struct cc770_priv *priv,
 						int reg, u8 val)
 {
 	unsigned long base = (unsigned long)priv->reg_base;
+	unsigned long flags;
 
+	spin_lock_irqsave(&cc770_isa_port_lock, flags);
 	outb(reg, base);
 	outb(val, base + 1);
+	spin_unlock_irqrestore(&cc770_isa_port_lock, flags);
 }
 
 static int __devinit cc770_isa_probe(struct platform_device *pdev)

@@ -70,7 +70,6 @@ static struct usb_driver ssu100_driver = {
 	.id_table		       = id_table,
 	.suspend		       = usb_serial_suspend,
 	.resume			       = usb_serial_resume,
-	.no_dynamic_id		       = 1,
 	.supports_autosuspend	       = 1,
 };
 
@@ -677,7 +676,6 @@ static struct usb_serial_driver ssu100_device = {
 	},
 	.description	     = DRIVER_DESC,
 	.id_table	     = id_table,
-	.usb_driver	     = &ssu100_driver,
 	.num_ports	     = 1,
 	.open		     = ssu100_open,
 	.close		     = ssu100_close,
@@ -693,41 +691,11 @@ static struct usb_serial_driver ssu100_device = {
 	.disconnect          = usb_serial_generic_disconnect,
 };
 
-static int __init ssu100_init(void)
-{
-	int retval;
+static struct usb_serial_driver * const serial_drivers[] = {
+	&ssu100_device, NULL
+};
 
-	dbg("%s", __func__);
-
-	/* register with usb-serial */
-	retval = usb_serial_register(&ssu100_device);
-
-	if (retval)
-		goto failed_usb_sio_register;
-
-	retval = usb_register(&ssu100_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-	       DRIVER_DESC "\n");
-
-	return 0;
-
-failed_usb_register:
-	usb_serial_deregister(&ssu100_device);
-failed_usb_sio_register:
-	return retval;
-}
-
-static void __exit ssu100_exit(void)
-{
-	usb_deregister(&ssu100_driver);
-	usb_serial_deregister(&ssu100_device);
-}
-
-module_init(ssu100_init);
-module_exit(ssu100_exit);
+module_usb_serial_driver(ssu100_driver, serial_drivers);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

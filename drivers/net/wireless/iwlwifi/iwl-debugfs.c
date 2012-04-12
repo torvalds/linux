@@ -240,7 +240,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 			IWL_ERR(priv, "No uCode has been loadded.\n");
 			return -EINVAL;
 		}
-		img = &priv->fw->img[priv->shrd->ucode_type];
+		img = &priv->fw->img[priv->cur_ucode];
 		priv->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	}
 	len = priv->dbgfs_sram_len;
@@ -375,14 +375,19 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 				 i, station->sta.sta.addr,
 				 station->sta.station_flags_msk);
 		pos += scnprintf(buf + pos, bufsz - pos,
-				"TID\tseq_num\trate_n_flags\n");
+				"TID seqno  next_rclmd "
+				"rate_n_flags state txq\n");
 
 		for (j = 0; j < IWL_MAX_TID_COUNT; j++) {
 			tid_data = &priv->tid_data[i][j];
 			pos += scnprintf(buf + pos, bufsz - pos,
-				"%d:\t%#x\t%#x",
+				"%d:  0x%.4x 0x%.4x     0x%.8x   "
+				"%d     %.2d",
 				j, tid_data->seq_number,
-				tid_data->agg.rate_n_flags);
+				tid_data->next_reclaimed,
+				tid_data->agg.rate_n_flags,
+				tid_data->agg.state,
+				tid_data->agg.txq_id);
 
 			if (tid_data->agg.wait_for_ba)
 				pos += scnprintf(buf + pos, bufsz - pos,
@@ -550,9 +555,9 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_SCAN_HW:\t\t %d\n",
 		test_bit(STATUS_SCAN_HW, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_POWER_PMI:\t %d\n",
-		test_bit(STATUS_POWER_PMI, &priv->shrd->status));
+		test_bit(STATUS_POWER_PMI, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_FW_ERROR:\t %d\n",
-		test_bit(STATUS_FW_ERROR, &priv->shrd->status));
+		test_bit(STATUS_FW_ERROR, &priv->status));
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
@@ -2479,6 +2484,44 @@ static ssize_t iwl_dbgfs_echo_test_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_log_event_read(struct file *file,
+					 char __user *user_buf,
+					 size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char *buf;
+	int pos = 0;
+	ssize_t ret = -ENOMEM;
+
+	ret = pos = iwl_dump_nic_event_log(priv, true, &buf, true);
+	if (buf) {
+		ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+		kfree(buf);
+	}
+	return ret;
+}
+
+static ssize_t iwl_dbgfs_log_event_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	u32 event_log_flag;
+	char buf[8];
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &event_log_flag) != 1)
+		return -EFAULT;
+	if (event_log_flag == 1)
+		iwl_dump_nic_event_log(priv, true, NULL, false);
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -2503,6 +2546,7 @@ DEBUGFS_READ_FILE_OPS(bt_traffic);
 DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
 DEBUGFS_WRITE_FILE_OPS(echo_test);
+DEBUGFS_READ_WRITE_FILE_OPS(log_event);
 
 /*
  * Create the debugfs files and directories
@@ -2566,6 +2610,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(echo_test, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(log_event, dir_debug, S_IWUSR | S_IRUSR);
+
 	if (iwl_advanced_bt_coexist(priv))
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
 

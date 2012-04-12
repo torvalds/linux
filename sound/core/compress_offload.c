@@ -441,19 +441,22 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 		params = kmalloc(sizeof(*params), GFP_KERNEL);
 		if (!params)
 			return -ENOMEM;
-		if (copy_from_user(params, (void __user *)arg, sizeof(*params)))
-			return -EFAULT;
+		if (copy_from_user(params, (void __user *)arg, sizeof(*params))) {
+			retval = -EFAULT;
+			goto out;
+		}
 		retval = snd_compr_allocate_buffer(stream, params);
 		if (retval) {
-			kfree(params);
-			return -ENOMEM;
+			retval = -ENOMEM;
+			goto out;
 		}
 		retval = stream->ops->set_params(stream, params);
 		if (retval)
 			goto out;
 		stream->runtime->state = SNDRV_PCM_STATE_SETUP;
-	} else
+	} else {
 		return -EPERM;
+	}
 out:
 	kfree(params);
 	return retval;

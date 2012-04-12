@@ -173,9 +173,9 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 			cur_size = min_t(unsigned long, compressed_size,
 				       PAGE_CACHE_SIZE);
 
-			kaddr = kmap_atomic(cpage, KM_USER0);
+			kaddr = kmap_atomic(cpage);
 			write_extent_buffer(leaf, kaddr, ptr, cur_size);
-			kunmap_atomic(kaddr, KM_USER0);
+			kunmap_atomic(kaddr);
 
 			i++;
 			ptr += cur_size;
@@ -187,10 +187,10 @@ static noinline int insert_inline_extent(struct btrfs_trans_handle *trans,
 		page = find_get_page(inode->i_mapping,
 				     start >> PAGE_CACHE_SHIFT);
 		btrfs_set_file_extent_compression(leaf, ei, 0);
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		offset = start & (PAGE_CACHE_SIZE - 1);
 		write_extent_buffer(leaf, kaddr + offset, ptr, size);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		page_cache_release(page);
 	}
 	btrfs_mark_buffer_dirty(leaf);
@@ -422,10 +422,10 @@ again:
 			 * sending it down to disk
 			 */
 			if (offset) {
-				kaddr = kmap_atomic(page, KM_USER0);
+				kaddr = kmap_atomic(page);
 				memset(kaddr + offset, 0,
 				       PAGE_CACHE_SIZE - offset);
-				kunmap_atomic(kaddr, KM_USER0);
+				kunmap_atomic(kaddr);
 			}
 			will_compress = 1;
 		}
@@ -1555,6 +1555,7 @@ static void btrfs_writepage_fixup_worker(struct btrfs_work *work)
 	struct inode *inode;
 	u64 page_start;
 	u64 page_end;
+	int ret;
 
 	fixup = container_of(work, struct btrfs_writepage_fixup, work);
 	page = fixup->page;
@@ -1582,12 +1583,21 @@ again:
 				     page_end, &cached_state, GFP_NOFS);
 		unlock_page(page);
 		btrfs_start_ordered_extent(inode, ordered, 1);
+		btrfs_put_ordered_extent(ordered);
 		goto again;
 	}
 
-	BUG();
+	ret = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
+	if (ret) {
+		mapping_set_error(page->mapping, ret);
+		end_extent_writepage(page, ret, page_start, page_end);
+		ClearPageChecked(page);
+		goto out;
+	 }
+
 	btrfs_set_extent_delalloc(inode, page_start, page_end, &cached_state);
 	ClearPageChecked(page);
+	set_page_dirty(page);
 out:
 	unlock_extent_cached(&BTRFS_I(inode)->io_tree, page_start, page_end,
 			     &cached_state, GFP_NOFS);
@@ -1630,7 +1640,7 @@ static int btrfs_writepage_start_hook(struct page *page, u64 start, u64 end)
 	fixup->work.func = btrfs_writepage_fixup_worker;
 	fixup->page = page;
 	btrfs_queue_worker(&root->fs_info->fixup_workers, &fixup->work);
-	return -EAGAIN;
+	return -EBUSY;
 }
 
 static int insert_reserved_file_extent(struct btrfs_trans_handle *trans,
@@ -1863,7 +1873,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	} else {
 		ret = get_state_private(io_tree, start, &private);
 	}
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	if (ret)
 		goto zeroit;
 
@@ -1872,7 +1882,7 @@ static int btrfs_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	if (csum != private)
 		goto zeroit;
 
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 good:
 	return 0;
 
@@ -1884,7 +1894,7 @@ zeroit:
 		       (unsigned long long)private);
 	memset(kaddr + offset, 1, end - start + 1);
 	flush_dcache_page(page);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 	if (private == 0)
 		return 0;
 	return -EIO;
@@ -4575,12 +4585,30 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 		ret = btrfs_insert_dir_item(trans, root, name, name_len,
 					    parent_inode, &key,
 					    btrfs_inode_type(inode), index);
-		BUG_ON(ret);
+		if (ret)
+			goto fail_dir_item;
 
 		btrfs_i_size_write(parent_inode, parent_inode->i_size +
 				   name_len * 2);
 		parent_inode->i_mtime = parent_inode->i_ctime = CURRENT_TIME;
 		ret = btrfs_update_inode(trans, root, parent_inode);
+	}
+	return ret;
+
+fail_dir_item:
+	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
+		u64 local_index;
+		int err;
+		err = btrfs_del_root_ref(trans, root->fs_info->tree_root,
+				 key.objectid, root->root_key.objectid,
+				 parent_ino, &local_index, name, name_len);
+
+	} else if (add_backref) {
+		u64 local_index;
+		int err;
+
+		err = btrfs_del_inode_ref(trans, root, name, name_len,
+					  ino, parent_ino, &local_index);
 	}
 	return ret;
 }
@@ -4909,12 +4937,12 @@ static noinline int uncompress_inline(struct btrfs_path *path,
 	ret = btrfs_decompress(compress_type, tmp, page,
 			       extent_offset, inline_size, max_size);
 	if (ret) {
-		char *kaddr = kmap_atomic(page, KM_USER0);
+		char *kaddr = kmap_atomic(page);
 		unsigned long copy_size = min_t(u64,
 				  PAGE_CACHE_SIZE - pg_offset,
 				  max_size - extent_offset);
 		memset(kaddr + pg_offset, 0, copy_size);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 	}
 	kfree(tmp);
 	return 0;
@@ -5691,11 +5719,11 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 			unsigned long flags;
 
 			local_irq_save(flags);
-			kaddr = kmap_atomic(page, KM_IRQ0);
+			kaddr = kmap_atomic(page);
 			csum = btrfs_csum_data(root, kaddr + bvec->bv_offset,
 					       csum, bvec->bv_len);
 			btrfs_csum_final(csum, (char *)&csum);
-			kunmap_atomic(kaddr, KM_IRQ0);
+			kunmap_atomic(kaddr);
 			local_irq_restore(flags);
 
 			flush_dcache_page(bvec->bv_page);
@@ -6401,18 +6429,23 @@ int btrfs_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	unsigned long zero_start;
 	loff_t size;
 	int ret;
+	int reserved = 0;
 	u64 page_start;
 	u64 page_end;
 
 	ret  = btrfs_delalloc_reserve_space(inode, PAGE_CACHE_SIZE);
-	if (!ret)
+	if (!ret) {
 		ret = btrfs_update_time(vma->vm_file);
+		reserved = 1;
+	}
 	if (ret) {
 		if (ret == -ENOMEM)
 			ret = VM_FAULT_OOM;
 		else /* -ENOSPC, -EIO, etc */
 			ret = VM_FAULT_SIGBUS;
-		goto out;
+		if (reserved)
+			goto out;
+		goto out_noreserve;
 	}
 
 	ret = VM_FAULT_NOPAGE; /* make the VM retry the fault */
@@ -6495,6 +6528,7 @@ out_unlock:
 	unlock_page(page);
 out:
 	btrfs_delalloc_release_space(inode, PAGE_CACHE_SIZE);
+out_noreserve:
 	return ret;
 }
 
@@ -6690,8 +6724,10 @@ int btrfs_create_subvol_root(struct btrfs_trans_handle *trans,
 	int err;
 	u64 index = 0;
 
-	inode = btrfs_new_inode(trans, new_root, NULL, "..", 2, new_dirid,
-				new_dirid, S_IFDIR | 0700, &index);
+	inode = btrfs_new_inode(trans, new_root, NULL, "..", 2,
+				new_dirid, new_dirid,
+				S_IFDIR | (~current_umask() & S_IRWXUGO),
+				&index);
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 	inode->i_op = &btrfs_dir_inode_operations;

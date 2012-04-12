@@ -14,6 +14,8 @@
 #ifndef LINUX_MMC_DW_MMC_H
 #define LINUX_MMC_DW_MMC_H
 
+#include <linux/scatterlist.h>
+
 #define MAX_MCI_SLOTS	2
 
 enum dw_mci_state {
@@ -40,7 +42,7 @@ struct mmc_data;
  * @lock: Spinlock protecting the queue and associated data.
  * @regs: Pointer to MMIO registers.
  * @sg: Scatterlist entry currently being processed by PIO code, if any.
- * @pio_offset: Offset into the current scatterlist entry.
+ * @sg_miter: PIO mapping scatterlist iterator.
  * @cur_slot: The slot which is currently using the controller.
  * @mrq: The request currently being processed on @cur_slot,
  *	or NULL if the controller is idle.
@@ -115,7 +117,7 @@ struct dw_mci {
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
-	unsigned int		pio_offset;
+	struct sg_mapping_iter	sg_miter;
 
 	struct dw_mci_slot	*cur_slot;
 	struct mmc_request	*mrq;

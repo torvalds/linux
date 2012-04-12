@@ -932,20 +932,20 @@ mwifiex_cmd_802_11_ad_hoc_start(struct mwifiex_private *priv,
 		/* Fill HT INFORMATION */
 		ht_info = (struct mwifiex_ie_types_htinfo *) pos;
 		memset(ht_info, 0, sizeof(struct mwifiex_ie_types_htinfo));
-		ht_info->header.type = cpu_to_le16(WLAN_EID_HT_INFORMATION);
+		ht_info->header.type = cpu_to_le16(WLAN_EID_HT_OPERATION);
 		ht_info->header.len =
-				cpu_to_le16(sizeof(struct ieee80211_ht_info));
+			cpu_to_le16(sizeof(struct ieee80211_ht_operation));
 
-		ht_info->ht_info.control_chan =
+		ht_info->ht_oper.primary_chan =
 			(u8) priv->curr_bss_params.bss_descriptor.channel;
 		if (adapter->sec_chan_offset) {
-			ht_info->ht_info.ht_param = adapter->sec_chan_offset;
-			ht_info->ht_info.ht_param |=
+			ht_info->ht_oper.ht_param = adapter->sec_chan_offset;
+			ht_info->ht_oper.ht_param |=
 					IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 		}
-		ht_info->ht_info.operation_mode =
+		ht_info->ht_oper.operation_mode =
 		     cpu_to_le16(IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT);
-		ht_info->ht_info.basic_set[0] = 0xff;
+		ht_info->ht_oper.basic_set[0] = 0xff;
 		pos += sizeof(struct mwifiex_ie_types_htinfo);
 		cmd_append_size +=
 				sizeof(struct mwifiex_ie_types_htinfo);

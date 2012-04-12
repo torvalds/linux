@@ -188,8 +188,6 @@ extern u32 get_ibs_caps(void);
 #ifdef CONFIG_PERF_EVENTS
 extern void perf_events_lapic_init(void);
 
-#define PERF_EVENT_INDEX_OFFSET			0
-
 /*
  * Abuse bit 3 of the cpu eflags register to indicate proper PEBS IP fixups.
  * This flag is otherwise unused and ABI specified to be 0, so nobody should
@@ -240,6 +238,14 @@ static inline void perf_get_x86_pmu_capability(struct x86_pmu_capability *cap)
 }
 
 static inline void perf_events_lapic_init(void)	{ }
+#endif
+
+#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD)
+ extern void amd_pmu_enable_virt(void);
+ extern void amd_pmu_disable_virt(void);
+#else
+ static inline void amd_pmu_enable_virt(void) { }
+ static inline void amd_pmu_disable_virt(void) { }
 #endif
 
 #endif /* _ASM_X86_PERF_EVENT_H */

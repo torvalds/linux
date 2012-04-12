@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/sh_intc.h>
@@ -445,6 +446,7 @@ void __init sh73a0_init_irq(void)
 		setup_irq(gic_spi(1 + k), &sh73a0_irq_pin_cascade[k]);
 
 		n = intcs_evt2irq(to_intc_vect(gic_spi(1 + k)));
+		WARN_ON(irq_alloc_desc_at(n, numa_node_id()) != n);
 		irq_set_chip_and_handler_name(n, &intca_gic_irq_chip,
 					      handle_level_irq, "level");
 		set_irq_flags(n, IRQF_VALID); /* yuck */

@@ -777,6 +777,7 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	spin_lock(&block_group->lock);
 	if (block_group->disk_cache_state != BTRFS_DC_WRITTEN) {
 		spin_unlock(&block_group->lock);
+		btrfs_free_path(path);
 		goto out;
 	}
 	spin_unlock(&block_group->lock);
@@ -1067,7 +1068,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 		spin_unlock(&block_group->lock);
 		ret = 0;
 #ifdef DEBUG
-		printk(KERN_ERR "btrfs: failed to write free space cace "
+		printk(KERN_ERR "btrfs: failed to write free space cache "
 		       "for block group %llu\n", block_group->key.objectid);
 #endif
 	}
@@ -2242,7 +2243,7 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 		if (entry->bitmap) {
 			ret = btrfs_alloc_from_bitmap(block_group,
 						      cluster, entry, bytes,
-						      min_start);
+						      cluster->window_start);
 			if (ret == 0) {
 				node = rb_next(&entry->offset_index);
 				if (!node)
@@ -2251,6 +2252,7 @@ u64 btrfs_alloc_from_cluster(struct btrfs_block_group_cache *block_group,
 						 offset_index);
 				continue;
 			}
+			cluster->window_start += bytes;
 		} else {
 			ret = entry->offset;
 
@@ -2475,7 +2477,7 @@ setup_cluster_bitmap(struct btrfs_block_group_cache *block_group,
 	}
 
 	list_for_each_entry(entry, bitmaps, list) {
-		if (entry->bytes < min_bytes)
+		if (entry->bytes < bytes)
 			continue;
 		ret = btrfs_bitmap_cluster(block_group, entry, cluster, offset,
 					   bytes, cont1_bytes, min_bytes);

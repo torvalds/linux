@@ -13,6 +13,20 @@
 
 	i2c@7000c000 {
 		clock-frequency = <400000>;
+
+		wm8903: wm8903@1a {
+			compatible = "wlf,wm8903";
+			reg = <0x1a>;
+			interrupt-parent = <&gpio>;
+			interrupts = < 187 0x04 >;
+
+			gpio-controller;
+			#gpio-cells = <2>;
+
+			micdet-cfg = <0>;
+			micdet-delay = <100>;
+			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
+		};
 	};
 
 	i2c@7000c400 {
@@ -30,6 +44,32 @@
 			compatible = "adt7461";
 			reg = <0x4c>;
 		};
+	};
+
+	i2s@70002a00 {
+		status = "disable";
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm8903-seaboard",
+			     "nvidia,tegra-audio-wm8903";
+		nvidia,model = "NVIDIA Tegra Seaboard";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "ROP",
+			"Int Spk", "RON",
+			"Int Spk", "LOP",
+			"Int Spk", "LON",
+			"Mic Jack", "MICBIAS",
+			"IN1R", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8903>;
+
+		nvidia,spkr-en-gpios = <&wm8903 2 0>;
+		nvidia,hp-det-gpios = <&gpio 185 0>; /* gpio PX1 */
 	};
 
 	serial@70006000 {
@@ -91,6 +131,44 @@
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
 			gpio-key,wakeup;
+		};
+	};
+
+	emc@7000f400 {
+		emc-table@190000 {
+			reg = < 190000 >;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 190000 >;
+			nvidia,emc-registers = < 0x0000000c 0x00000026
+				0x00000009 0x00000003 0x00000004 0x00000004
+				0x00000002 0x0000000c 0x00000003 0x00000003
+				0x00000002 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x0000059f
+				0x00000000 0x00000003 0x00000003 0x00000003
+				0x00000003 0x00000001 0x0000000b 0x000000c8
+				0x00000003 0x00000007 0x00000004 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xa06204ae
+				0x007dc010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
+		};
+
+		emc-table@380000 {
+			reg = < 380000 >;
+			compatible = "nvidia,tegra20-emc-table";
+			clock-frequency = < 380000 >;
+			nvidia,emc-registers = < 0x00000017 0x0000004b
+				0x00000012 0x00000006 0x00000004 0x00000005
+				0x00000003 0x0000000c 0x00000006 0x00000006
+				0x00000003 0x00000001 0x00000004 0x00000005
+				0x00000004 0x00000009 0x0000000d 0x00000b5f
+				0x00000000 0x00000003 0x00000003 0x00000006
+				0x00000006 0x00000001 0x00000011 0x000000c8
+				0x00000003 0x0000000e 0x00000007 0x0000000f
+				0x00000002 0x00000000 0x00000000 0x00000002
+				0x00000000 0x00000000 0x00000083 0xe044048b
+				0x007d8010 0x00000000 0x00000000 0x00000000
+				0x00000000 0x00000000 0x00000000 0x00000000 >;
 		};
 	};
 };

@@ -379,7 +379,7 @@ static ssize_t hdaps_temp1_show(struct device *dev,
 	int ret;
 
 	ret = hdaps_readb_one(HDAPS_PORT_TEMP1, &temp);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return sprintf(buf, "%u\n", temp);
@@ -392,7 +392,7 @@ static ssize_t hdaps_temp2_show(struct device *dev,
 	int ret;
 
 	ret = hdaps_readb_one(HDAPS_PORT_TEMP2, &temp);
-	if (ret < 0)
+	if (ret)
 		return ret;
 
 	return sprintf(buf, "%u\n", temp);

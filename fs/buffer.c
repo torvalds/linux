@@ -29,7 +29,7 @@
 #include <linux/file.h>
 #include <linux/quotaops.h>
 #include <linux/highmem.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/writeback.h>
 #include <linux/hash.h>
 #include <linux/suspend.h>

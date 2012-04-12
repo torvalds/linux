@@ -23,12 +23,6 @@ struct resource {
 	struct resource *parent, *sibling, *child;
 };
 
-struct resource_list {
-	struct resource_list *next;
-	struct resource *res;
-	struct pci_dev *dev;
-};
-
 /*
  * IO resources have these defined flags.
  */

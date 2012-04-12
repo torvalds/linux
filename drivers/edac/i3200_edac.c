@@ -15,6 +15,8 @@
 #include <linux/io.h>
 #include "edac_core.h"
 
+#include <asm-generic/io-64-nonatomic-lo-hi.h>
+
 #define I3200_REVISION        "1.1"
 
 #define EDAC_MOD_STR        "i3200_edac"
@@ -100,19 +102,6 @@ struct i3200_priv {
 };
 
 static int nr_channels;
-
-#ifndef readq
-static inline __u64 readq(const volatile void __iomem *addr)
-{
-	const volatile u32 __iomem *p = addr;
-	u32 low, high;
-
-	low = readl(p);
-	high = readl(p + 1);
-
-	return low + ((u64)high << 32);
-}
-#endif
 
 static int how_many_channels(struct pci_dev *pdev)
 {
@@ -456,7 +445,7 @@ static void __devexit i3200_remove_one(struct pci_dev *pdev)
 	edac_mc_free(mci);
 }
 
-static const struct pci_device_id i3200_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(i3200_pci_tbl) = {
 	{
 		PCI_VEND_DEV(INTEL, 3200_HB), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		I3200},

@@ -1546,13 +1546,13 @@ int kernel_kexec(void)
 		if (error)
 			goto Resume_console;
 		/* At this point, dpm_suspend_start() has been called,
-		 * but *not* dpm_suspend_noirq(). We *must* call
-		 * dpm_suspend_noirq() now.  Otherwise, drivers for
+		 * but *not* dpm_suspend_end(). We *must* call
+		 * dpm_suspend_end() now.  Otherwise, drivers for
 		 * some devices (e.g. interrupt controllers) become
 		 * desynchronized with the actual state of the
 		 * hardware at resume time, and evil weirdness ensues.
 		 */
-		error = dpm_suspend_noirq(PMSG_FREEZE);
+		error = dpm_suspend_end(PMSG_FREEZE);
 		if (error)
 			goto Resume_devices;
 		error = disable_nonboot_cpus();
@@ -1579,7 +1579,7 @@ int kernel_kexec(void)
 		local_irq_enable();
  Enable_cpus:
 		enable_nonboot_cpus();
-		dpm_resume_noirq(PMSG_RESTORE);
+		dpm_resume_start(PMSG_RESTORE);
  Resume_devices:
 		dpm_resume_end(PMSG_RESTORE);
  Resume_console:

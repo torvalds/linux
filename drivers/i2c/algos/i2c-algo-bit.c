@@ -103,8 +103,14 @@ static int sclhi(struct i2c_algo_bit_data *adap)
 		 * chips may hold it low ("clock stretching") while they
 		 * are processing data internally.
 		 */
-		if (time_after(jiffies, start + adap->timeout))
+		if (time_after(jiffies, start + adap->timeout)) {
+			/* Test one last time, as we may have been preempted
+			 * between last check and timeout test.
+			 */
+			if (getscl(adap))
+				break;
 			return -ETIMEDOUT;
+		}
 		cond_resched();
 	}
 #ifdef DEBUG
@@ -610,10 +616,11 @@ static u32 bit_func(struct i2c_adapter *adap)
 
 /* -----exported algorithm data: -------------------------------------	*/
 
-static const struct i2c_algorithm i2c_bit_algo = {
+const struct i2c_algorithm i2c_bit_algo = {
 	.master_xfer	= bit_xfer,
 	.functionality	= bit_func,
 };
+EXPORT_SYMBOL(i2c_bit_algo);
 
 /*
  * registering functions to load algorithms at runtime

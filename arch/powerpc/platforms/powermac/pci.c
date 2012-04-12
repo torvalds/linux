@@ -1059,9 +1059,6 @@ void __init pmac_pci_init(void)
 	}
 	/* pmac_check_ht_link(); */
 
-	/* We can allocate missing resources if any */
-	pci_probe_only = 0;
-
 #else /* CONFIG_PPC64 */
 	init_p2pbridge();
 	init_second_ohare();

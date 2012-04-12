@@ -73,6 +73,8 @@ static const char netdev_features_strings[NETDEV_FEATURE_COUNT][ETH_GSTRING_LEN]
 	[NETIF_F_RXCSUM_BIT] =           "rx-checksum",
 	[NETIF_F_NOCACHE_COPY_BIT] =     "tx-nocache-copy",
 	[NETIF_F_LOOPBACK_BIT] =         "loopback",
+	[NETIF_F_RXFCS_BIT] =            "rx-fcs",
+	[NETIF_F_RXALL_BIT] =            "rx-all",
 };
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
@@ -1189,6 +1191,8 @@ static noinline_for_stack int ethtool_flash_device(struct net_device *dev,
 
 	if (!dev->ethtool_ops->flash_device)
 		return -EOPNOTSUPP;
+
+	efl.data[ETHTOOL_FLASH_MAX_FILENAME - 1] = 0;
 
 	return dev->ethtool_ops->flash_device(dev, &efl);
 }

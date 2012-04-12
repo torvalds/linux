@@ -1008,18 +1008,7 @@ static struct i2c_driver mt9m111_i2c_driver = {
 	.id_table	= mt9m111_id,
 };
 
-static int __init mt9m111_mod_init(void)
-{
-	return i2c_add_driver(&mt9m111_i2c_driver);
-}
-
-static void __exit mt9m111_mod_exit(void)
-{
-	i2c_del_driver(&mt9m111_i2c_driver);
-}
-
-module_init(mt9m111_mod_init);
-module_exit(mt9m111_mod_exit);
+module_i2c_driver(mt9m111_i2c_driver);
 
 MODULE_DESCRIPTION("Micron/Aptina MT9M111/MT9M112/MT9M131 Camera driver");
 MODULE_AUTHOR("Robert Jarzmik");

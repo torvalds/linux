@@ -591,7 +591,7 @@ static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
 	u64 flags = sbio->spag[ix].flags;
 
 	page = sbio->bio->bi_io_vec[ix].bv_page;
-	buffer = kmap_atomic(page, KM_USER0);
+	buffer = kmap_atomic(page);
 	if (flags & BTRFS_EXTENT_FLAG_DATA) {
 		ret = scrub_checksum_data(sbio->sdev,
 					  sbio->spag + ix, buffer);
@@ -603,7 +603,7 @@ static int scrub_fixup_check(struct scrub_bio *sbio, int ix)
 	} else {
 		WARN_ON(1);
 	}
-	kunmap_atomic(buffer, KM_USER0);
+	kunmap_atomic(buffer);
 
 	return ret;
 }
@@ -792,7 +792,7 @@ static void scrub_checksum(struct btrfs_work *work)
 	}
 	for (i = 0; i < sbio->count; ++i) {
 		page = sbio->bio->bi_io_vec[i].bv_page;
-		buffer = kmap_atomic(page, KM_USER0);
+		buffer = kmap_atomic(page);
 		flags = sbio->spag[i].flags;
 		logical = sbio->logical + i * PAGE_SIZE;
 		ret = 0;
@@ -807,7 +807,7 @@ static void scrub_checksum(struct btrfs_work *work)
 		} else {
 			WARN_ON(1);
 		}
-		kunmap_atomic(buffer, KM_USER0);
+		kunmap_atomic(buffer);
 		if (ret) {
 			ret = scrub_recheck_error(sbio, i);
 			if (!ret) {
@@ -1367,7 +1367,8 @@ out:
 }
 
 static noinline_for_stack int scrub_chunk(struct scrub_dev *sdev,
-	u64 chunk_tree, u64 chunk_objectid, u64 chunk_offset, u64 length)
+	u64 chunk_tree, u64 chunk_objectid, u64 chunk_offset, u64 length,
+	u64 dev_offset)
 {
 	struct btrfs_mapping_tree *map_tree =
 		&sdev->dev->dev_root->fs_info->mapping_tree;
@@ -1391,7 +1392,8 @@ static noinline_for_stack int scrub_chunk(struct scrub_dev *sdev,
 		goto out;
 
 	for (i = 0; i < map->num_stripes; ++i) {
-		if (map->stripes[i].dev == sdev->dev) {
+		if (map->stripes[i].dev == sdev->dev &&
+		    map->stripes[i].physical == dev_offset) {
 			ret = scrub_stripe(sdev, map, i, chunk_offset, length);
 			if (ret)
 				goto out;
@@ -1487,7 +1489,7 @@ int scrub_enumerate_chunks(struct scrub_dev *sdev, u64 start, u64 end)
 			break;
 		}
 		ret = scrub_chunk(sdev, chunk_tree, chunk_objectid,
-				  chunk_offset, length);
+				  chunk_offset, length, found_key.offset);
 		btrfs_put_block_group(cache);
 		if (ret)
 			break;

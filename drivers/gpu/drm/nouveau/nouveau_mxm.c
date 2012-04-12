@@ -582,6 +582,35 @@ mxm_shadow_dsm(struct drm_device *dev, u8 version)
 
 #define WMI_WMMX_GUID "F6CB5C3C-9CAE-4EBD-B577-931EA32A2CC0"
 
+static u8
+wmi_wmmx_mxmi(struct drm_device *dev, u8 version)
+{
+	u32 mxmi_args[] = { 0x494D584D /* MXMI */, version, 0 };
+	struct acpi_buffer args = { sizeof(mxmi_args), mxmi_args };
+	struct acpi_buffer retn = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	acpi_status status;
+
+	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
+	if (ACPI_FAILURE(status)) {
+		MXM_DBG(dev, "WMMX MXMI returned %d\n", status);
+		return 0x00;
+	}
+
+	obj = retn.pointer;
+	if (obj->type == ACPI_TYPE_INTEGER) {
+		version = obj->integer.value;
+		MXM_DBG(dev, "WMMX MXMI version %d.%d\n",
+			     (version >> 4), version & 0x0f);
+	} else {
+		version = 0;
+		MXM_DBG(dev, "WMMX MXMI returned non-integer\n");
+	}
+
+	kfree(obj);
+	return version;
+}
+
 static bool
 mxm_shadow_wmi(struct drm_device *dev, u8 version)
 {
@@ -592,7 +621,15 @@ mxm_shadow_wmi(struct drm_device *dev, u8 version)
 	union acpi_object *obj;
 	acpi_status status;
 
-	if (!wmi_has_guid(WMI_WMMX_GUID))
+	if (!wmi_has_guid(WMI_WMMX_GUID)) {
+		MXM_DBG(dev, "WMMX GUID not found\n");
+		return false;
+	}
+
+	mxms_args[1] = wmi_wmmx_mxmi(dev, 0x00);
+	if (!mxms_args[1])
+		mxms_args[1] = wmi_wmmx_mxmi(dev, version);
+	if (!mxms_args[1])
 		return false;
 
 	status = wmi_evaluate_method(WMI_WMMX_GUID, 0, 0, &args, &retn);
@@ -656,7 +693,16 @@ nouveau_mxm_init(struct drm_device *dev)
 
 	if (mxm_shadow(dev, mxm[0])) {
 		MXM_MSG(dev, "failed to locate valid SIS\n");
+#if 0
+		/* we should, perhaps, fall back to some kind of limited
+		 * mode here if the x86 vbios hasn't already done the
+		 * work for us (so we prevent loading with completely
+		 * whacked vbios tables).
+		 */
 		return -EINVAL;
+#else
+		return 0;
+#endif
 	}
 
 	MXM_MSG(dev, "MXMS Version %d.%d\n",

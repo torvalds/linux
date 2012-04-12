@@ -992,10 +992,9 @@ static irqreturn_t emac_irq(int irq, void *dev_id)
 
 static struct sk_buff *emac_rx_alloc(struct emac_priv *priv)
 {
-	struct sk_buff *skb = dev_alloc_skb(priv->rx_buf_size);
+	struct sk_buff *skb = netdev_alloc_skb(priv->ndev, priv->rx_buf_size);
 	if (WARN_ON(!skb))
 		return NULL;
-	skb->dev = priv->ndev;
 	skb_reserve(skb, NET_IP_ALIGN);
 	return skb;
 }
@@ -1009,7 +1008,7 @@ static void emac_rx_handler(void *token, int len, int status)
 	int			ret;
 
 	/* free and bail if we are shutting down */
-	if (unlikely(!netif_running(ndev) || !netif_carrier_ok(ndev))) {
+	if (unlikely(!netif_running(ndev))) {
 		dev_kfree_skb_any(skb);
 		return;
 	}
@@ -1038,7 +1037,9 @@ static void emac_rx_handler(void *token, int len, int status)
 recycle:
 	ret = cpdma_chan_submit(priv->rxchan, skb, skb->data,
 			skb_tailroom(skb), GFP_KERNEL);
-	if (WARN_ON(ret < 0))
+
+	WARN_ON(ret == -ENOMEM);
+	if (unlikely(ret < 0))
 		dev_kfree_skb_any(skb);
 }
 
@@ -1255,15 +1256,15 @@ static int emac_dev_setmac_addr(struct net_device *ndev, void *addr)
 	struct sockaddr *sa = addr;
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	/* Store mac addr in priv and rx channel and set it in EMAC hw */
 	memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
 	memcpy(ndev->dev_addr, sa->sa_data, ndev->addr_len);
+	ndev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
 	/* MAC address is configured only after the interface is enabled. */
 	if (netif_running(ndev)) {
-		memcpy(priv->mac_addr, sa->sa_data, ndev->addr_len);
 		emac_setmac(priv, EMAC_DEF_RX_CH, priv->mac_addr);
 	}
 
@@ -1600,8 +1601,9 @@ static int emac_dev_open(struct net_device *ndev)
 		if (IS_ERR(priv->phydev)) {
 			dev_err(emac_dev, "could not connect to phy %s\n",
 				priv->phy_id);
+			ret = PTR_ERR(priv->phydev);
 			priv->phydev = NULL;
-			return PTR_ERR(priv->phydev);
+			return ret;
 		}
 
 		priv->link = 0;
@@ -1789,7 +1791,6 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	ndev = alloc_etherdev(sizeof(struct emac_priv));
 	if (!ndev) {
-		dev_err(&pdev->dev, "error allocating net_device\n");
 		rc = -ENOMEM;
 		goto free_clk;
 	}
@@ -1897,7 +1898,8 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	if (!is_valid_ether_addr(priv->mac_addr)) {
 		/* Use random MAC if none passed */
-		random_ether_addr(priv->mac_addr);
+		eth_hw_addr_random(ndev);
+		memcpy(priv->mac_addr, ndev->dev_addr, ndev->addr_len);
 		dev_warn(&pdev->dev, "using random MAC addr: %pM\n",
 							priv->mac_addr);
 	}

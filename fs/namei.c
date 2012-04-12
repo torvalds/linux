@@ -15,7 +15,7 @@
  */
 
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
@@ -161,7 +161,7 @@ static char *getname_flags(const char __user *filename, int flags, int *empty)
 
 char *getname(const char __user * filename)
 {
-	return getname_flags(filename, 0, 0);
+	return getname_flags(filename, 0, NULL);
 }
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -642,7 +642,7 @@ follow_link(struct path *link, struct nameidata *nd, void **p)
 	cond_resched();
 	current->total_link_count++;
 
-	touch_atime(link->mnt, dentry);
+	touch_atime(link);
 	nd_set_link(nd, NULL);
 
 	error = security_inode_follow_link(link->dentry, nd);
@@ -1095,8 +1095,10 @@ static struct dentry *d_inode_lookup(struct dentry *parent, struct dentry *dentr
 	struct dentry *old;
 
 	/* Don't create child dentry for a dead directory. */
-	if (unlikely(IS_DEADDIR(inode)))
+	if (unlikely(IS_DEADDIR(inode))) {
+		dput(dentry);
 		return ERR_PTR(-ENOENT);
+	}
 
 	old = inode->i_op->lookup(inode, dentry, nd);
 	if (unlikely(old)) {
@@ -1373,6 +1375,157 @@ static inline int can_lookup(struct inode *inode)
 }
 
 /*
+ * We can do the critical dentry name comparison and hashing
+ * operations one word at a time, but we are limited to:
+ *
+ * - Architectures with fast unaligned word accesses. We could
+ *   do a "get_unaligned()" if this helps and is sufficiently
+ *   fast.
+ *
+ * - Little-endian machines (so that we can generate the mask
+ *   of low bytes efficiently). Again, we *could* do a byte
+ *   swapping load on big-endian architectures if that is not
+ *   expensive enough to make the optimization worthless.
+ *
+ * - non-CONFIG_DEBUG_PAGEALLOC configurations (so that we
+ *   do not trap on the (extremely unlikely) case of a page
+ *   crossing operation.
+ *
+ * - Furthermore, we need an efficient 64-bit compile for the
+ *   64-bit case in order to generate the "number of bytes in
+ *   the final mask". Again, that could be replaced with a
+ *   efficient population count instruction or similar.
+ */
+#ifdef CONFIG_DCACHE_WORD_ACCESS
+
+#ifdef CONFIG_64BIT
+
+/*
+ * Jan Achrenius on G+: microoptimized version of
+ * the simpler "(mask & ONEBYTES) * ONEBYTES >> 56"
+ * that works for the bytemasks without having to
+ * mask them first.
+ */
+static inline long count_masked_bytes(unsigned long mask)
+{
+	return mask*0x0001020304050608ul >> 56;
+}
+
+static inline unsigned int fold_hash(unsigned long hash)
+{
+	hash += hash >> (8*sizeof(int));
+	return hash;
+}
+
+#else	/* 32-bit case */
+
+/* Carl Chatfield / Jan Achrenius G+ version for 32-bit */
+static inline long count_masked_bytes(long mask)
+{
+	/* (000000 0000ff 00ffff ffffff) -> ( 1 1 2 3 ) */
+	long a = (0x0ff0001+mask) >> 23;
+	/* Fix the 1 for 00 case */
+	return a & mask;
+}
+
+#define fold_hash(x) (x)
+
+#endif
+
+unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+{
+	unsigned long a, mask;
+	unsigned long hash = 0;
+
+	for (;;) {
+		a = *(unsigned long *)name;
+		if (len < sizeof(unsigned long))
+			break;
+		hash += a;
+		hash *= 9;
+		name += sizeof(unsigned long);
+		len -= sizeof(unsigned long);
+		if (!len)
+			goto done;
+	}
+	mask = ~(~0ul << len*8);
+	hash += mask & a;
+done:
+	return fold_hash(hash);
+}
+EXPORT_SYMBOL(full_name_hash);
+
+#define REPEAT_BYTE(x)	((~0ul / 0xff) * (x))
+#define ONEBYTES	REPEAT_BYTE(0x01)
+#define SLASHBYTES	REPEAT_BYTE('/')
+#define HIGHBITS	REPEAT_BYTE(0x80)
+
+/* Return the high bit set in the first byte that is a zero */
+static inline unsigned long has_zero(unsigned long a)
+{
+	return ((a - ONEBYTES) & ~a) & HIGHBITS;
+}
+
+/*
+ * Calculate the length and hash of the path component, and
+ * return the length of the component;
+ */
+static inline unsigned long hash_name(const char *name, unsigned int *hashp)
+{
+	unsigned long a, mask, hash, len;
+
+	hash = a = 0;
+	len = -sizeof(unsigned long);
+	do {
+		hash = (hash + a) * 9;
+		len += sizeof(unsigned long);
+		a = *(unsigned long *)(name+len);
+		/* Do we have any NUL or '/' bytes in this word? */
+		mask = has_zero(a) | has_zero(a ^ SLASHBYTES);
+	} while (!mask);
+
+	/* The mask *below* the first high bit set */
+	mask = (mask - 1) & ~mask;
+	mask >>= 7;
+	hash += a & mask;
+	*hashp = fold_hash(hash);
+
+	return len + count_masked_bytes(mask);
+}
+
+#else
+
+unsigned int full_name_hash(const unsigned char *name, unsigned int len)
+{
+	unsigned long hash = init_name_hash();
+	while (len--)
+		hash = partial_name_hash(*name++, hash);
+	return end_name_hash(hash);
+}
+EXPORT_SYMBOL(full_name_hash);
+
+/*
+ * We know there's a real path component here of at least
+ * one character.
+ */
+static inline unsigned long hash_name(const char *name, unsigned int *hashp)
+{
+	unsigned long hash = init_name_hash();
+	unsigned long len = 0, c;
+
+	c = (unsigned char)*name;
+	do {
+		len++;
+		hash = partial_name_hash(c, hash);
+		c = (unsigned char)name[len];
+	} while (c && c != '/');
+	*hashp = end_name_hash(hash);
+	return len;
+}
+
+#endif
+
+/*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
  * the final dentry. We expect 'base' to be positive and a directory.
@@ -1392,31 +1545,22 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 
 	/* At this point we know we have a real path component. */
 	for(;;) {
-		unsigned long hash;
 		struct qstr this;
-		unsigned int c;
+		long len;
 		int type;
 
 		err = may_lookup(nd);
  		if (err)
 			break;
 
+		len = hash_name(name, &this.hash);
 		this.name = name;
-		c = *(const unsigned char *)name;
-
-		hash = init_name_hash();
-		do {
-			name++;
-			hash = partial_name_hash(c, hash);
-			c = *(const unsigned char *)name;
-		} while (c && (c != '/'));
-		this.len = name - (const char *) this.name;
-		this.hash = end_name_hash(hash);
+		this.len = len;
 
 		type = LAST_NORM;
-		if (this.name[0] == '.') switch (this.len) {
+		if (name[0] == '.') switch (len) {
 			case 2:
-				if (this.name[1] == '.') {
+				if (name[1] == '.') {
 					type = LAST_DOTDOT;
 					nd->flags |= LOOKUP_JUMPED;
 				}
@@ -1435,12 +1579,18 @@ static int link_path_walk(const char *name, struct nameidata *nd)
 			}
 		}
 
-		/* remove trailing slashes? */
-		if (!c)
+		if (!name[len])
 			goto last_component;
-		while (*++name == '/');
-		if (!*name)
+		/*
+		 * If it wasn't NUL, we know it was '/'. Skip that
+		 * slash, and continue until no more slashes.
+		 */
+		do {
+			len++;
+		} while (unlikely(name[len] == '/'));
+		if (!name[len])
 			goto last_component;
+		name += len;
 
 		err = walk_component(nd, &next, &this, type, LOOKUP_FOLLOW);
 		if (err < 0)
@@ -1773,24 +1923,21 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 {
 	struct qstr this;
-	unsigned long hash;
 	unsigned int c;
 
 	WARN_ON_ONCE(!mutex_is_locked(&base->d_inode->i_mutex));
 
 	this.name = name;
 	this.len = len;
+	this.hash = full_name_hash(name, len);
 	if (!len)
 		return ERR_PTR(-EACCES);
 
-	hash = init_name_hash();
 	while (len--) {
 		c = *(const unsigned char *)name++;
 		if (c == '/' || c == '\0')
 			return ERR_PTR(-EACCES);
-		hash = partial_name_hash(c, hash);
 	}
-	this.hash = end_name_hash(hash);
 	/*
 	 * See if the low-level filesystem might want
 	 * to use its own hash..
@@ -1825,7 +1972,7 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 int user_path_at(int dfd, const char __user *name, unsigned flags,
 		 struct path *path)
 {
-	return user_path_at_empty(dfd, name, flags, path, 0);
+	return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
 static int user_path_parent(int dfd, const char __user *path,
@@ -2138,7 +2285,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		/* sayonara */
 		error = complete_walk(nd);
 		if (error)
-			return ERR_PTR(-ECHILD);
+			return ERR_PTR(error);
 
 		error = -ENOTDIR;
 		if (nd->flags & LOOKUP_DIRECTORY) {
@@ -2237,7 +2384,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	/* Why this, you ask?  _Now_ we might have grown LOOKUP_JUMPED... */
 	error = complete_walk(nd);
 	if (error)
-		goto exit;
+		return ERR_PTR(error);
 	error = -EISDIR;
 	if (S_ISDIR(nd->inode->i_mode))
 		goto exit;
@@ -2545,6 +2692,7 @@ SYSCALL_DEFINE3(mknod, const char __user *, filename, umode_t, mode, unsigned, d
 int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	int error = may_create(dir, dentry);
+	unsigned max_links = dir->i_sb->s_max_links;
 
 	if (error)
 		return error;
@@ -2556,6 +2704,9 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	error = security_inode_mkdir(dir, dentry, mode);
 	if (error)
 		return error;
+
+	if (max_links && dir->i_nlink >= max_links)
+		return -EMLINK;
 
 	error = dir->i_op->mkdir(dir, dentry, mode);
 	if (!error)
@@ -2887,6 +3038,7 @@ SYSCALL_DEFINE2(symlink, const char __user *, oldname, const char __user *, newn
 int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_dentry)
 {
 	struct inode *inode = old_dentry->d_inode;
+	unsigned max_links = dir->i_sb->s_max_links;
 	int error;
 
 	if (!inode)
@@ -2917,6 +3069,8 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 	/* Make sure we don't allow creating hardlink to an unlinked file */
 	if (inode->i_nlink == 0)
 		error =  -ENOENT;
+	else if (max_links && inode->i_nlink >= max_links)
+		error = -EMLINK;
 	else
 		error = dir->i_op->link(old_dentry, dir, new_dentry);
 	mutex_unlock(&inode->i_mutex);
@@ -3026,6 +3180,7 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 {
 	int error = 0;
 	struct inode *target = new_dentry->d_inode;
+	unsigned max_links = new_dir->i_sb->s_max_links;
 
 	/*
 	 * If we are going to change the parent - check write permissions,
@@ -3047,6 +3202,11 @@ static int vfs_rename_dir(struct inode *old_dir, struct dentry *old_dentry,
 
 	error = -EBUSY;
 	if (d_mountpoint(old_dentry) || d_mountpoint(new_dentry))
+		goto out;
+
+	error = -EMLINK;
+	if (max_links && !target && new_dir != old_dir &&
+	    new_dir->i_nlink >= max_links)
 		goto out;
 
 	if (target)
@@ -3347,9 +3507,9 @@ retry:
 	if (err)
 		goto fail;
 
-	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr = kmap_atomic(page);
 	memcpy(kaddr, symname, len-1);
-	kunmap_atomic(kaddr, KM_USER0);
+	kunmap_atomic(kaddr);
 
 	err = pagecache_write_end(NULL, mapping, 0, len-1, len-1,
 							page, fsdata);
