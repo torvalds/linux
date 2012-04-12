@@ -587,8 +587,12 @@ unsigned long __clk_round_rate(struct clk *clk, unsigned long rate)
 	if (!clk)
 		return -EINVAL;
 
-	if (!clk->ops->round_rate)
-		return clk->rate;
+	if (!clk->ops->round_rate) {
+		if (clk->flags & CLK_SET_RATE_PARENT)
+			return __clk_round_rate(clk->parent, rate);
+		else
+			return clk->rate;
+	}
 
 	if (clk->parent)
 		parent_rate = clk->parent->rate;
