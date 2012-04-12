@@ -31,6 +31,8 @@
 #define GIC_DIST_TARGET			0x800
 #define GIC_DIST_CONFIG			0xc00
 #define GIC_DIST_SOFTINT		0xf00
+#define GIC_DIST_SGI_PENDING_CLEAR	0xf10
+#define GIC_DIST_SGI_PENDING_SET	0xf20
 
 #define GICH_HCR			0x0
 #define GICH_VTR			0x4
@@ -72,6 +74,8 @@ static inline void gic_init(unsigned int nr, int start,
 {
 	gic_init_bases(nr, start, dist, cpu, 0, NULL);
 }
+
+void gic_migrate_target(unsigned int new_cpu_id);
 
 #endif /* __ASSEMBLY */
 
