@@ -369,6 +369,9 @@ void ath_beacon_tasklet(unsigned long data)
 	if (ath9k_hw_numtxpending(ah, sc->beacon.beaconq) != 0) {
 		sc->beacon.bmisscnt++;
 
+		if (!ath9k_hw_check_alive(ah))
+			ieee80211_queue_work(sc->hw, &sc->hw_check_work);
+
 		if (sc->beacon.bmisscnt < BSTUCK_THRESH * sc->nbcnvifs) {
 			ath_dbg(common, BSTUCK,
 				"missed %u consecutive beacons\n",
