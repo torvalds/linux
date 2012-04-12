@@ -15,9 +15,6 @@ void snd_usb_release_substream_urbs(struct snd_usb_substream *subs, int force);
 int snd_usb_substream_prepare(struct snd_usb_substream *subs,
 			      struct snd_pcm_runtime *runtime);
 
-int snd_usb_substream_playback_trigger(struct snd_pcm_substream *substream, int cmd);
-int snd_usb_substream_capture_trigger(struct snd_pcm_substream *substream, int cmd);
-
 
 #define SND_USB_ENDPOINT_TYPE_DATA     0
 #define SND_USB_ENDPOINT_TYPE_SYNC     1

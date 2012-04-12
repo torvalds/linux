@@ -145,6 +145,10 @@ struct snd_usb_substream {
 	struct snd_urb_ctx syncurb[SYNC_URBS];	/* sync urb table */
 	char *syncbuf;				/* sync buffer for all sync URBs */
 	dma_addr_t sync_dma;			/* DMA address of syncbuf */
+	/* data and sync endpoints for this stream */
+	struct snd_usb_endpoint *data_endpoint;
+	struct snd_usb_endpoint *sync_endpoint;
+	unsigned long flags;
 
 	u64 formats;			/* format bitmasks (all or'ed) */
 	unsigned int num_formats;		/* number of supported audio formats (list) */
