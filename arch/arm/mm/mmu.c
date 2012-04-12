@@ -312,8 +312,10 @@ static void __init build_mem_type_table(void)
 			cachepolicy = CPOLICY_WRITEBACK;
 		ecc_mask = 0;
 	}
+#ifndef CONFIG_PLAT_RK
 	if (is_smp())
 		cachepolicy = CPOLICY_WRITEALLOC;
+#endif
 
 	/*
 	 * Strip out features not present on earlier architectures.
