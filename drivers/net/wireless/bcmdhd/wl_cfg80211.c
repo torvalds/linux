@@ -6709,7 +6709,6 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 				&__wl_band_2ghz;
 				index = IEEE80211_BAND_2GHZ;
 		}
-#if defined WL_ENABLE_P2P_IF
 		if ((index >= 0) && nmode) {
 			wiphy->bands[index]->ht_cap.cap =
 			IEEE80211_HT_CAP_DSSSCCK40
@@ -6718,7 +6717,6 @@ s32 wl_update_wiphybands(struct wl_priv *wl)
 			wiphy->bands[index]->ht_cap.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K;
 			wiphy->bands[index]->ht_cap.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16;
 		}
-#endif
 	}
 
 	wiphy_apply_custom_regulatory(wiphy, &brcm_regdom);
