@@ -985,9 +985,8 @@ static int ath6kl_set_addrwin_reg(struct ath6kl *ar, u32 reg_addr, u32 addr)
 	}
 
 	if (status) {
-		ath6kl_err("%s: failed to write initial bytes of 0x%x "
-			   "to window reg: 0x%X\n", __func__,
-			   addr, reg_addr);
+		ath6kl_err("%s: failed to write initial bytes of 0x%x to window reg: 0x%X\n",
+			   __func__, addr, reg_addr);
 		return status;
 	}
 
@@ -1076,8 +1075,8 @@ static int ath6kl_sdio_bmi_credits(struct ath6kl *ar)
 					 (u8 *)&ar->bmi.cmd_credits, 4,
 					 HIF_RD_SYNC_BYTE_INC);
 		if (ret) {
-			ath6kl_err("Unable to decrement the command credit "
-						"count register: %d\n", ret);
+			ath6kl_err("Unable to decrement the command credit count register: %d\n",
+				   ret);
 			return ret;
 		}
 

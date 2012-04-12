@@ -463,9 +463,9 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 					      P2P_FLAG_MACADDR_REQ |
 					      P2P_FLAG_HMODEL_REQ);
 		if (ret) {
-			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to request P2P "
-				   "capabilities (%d) - assuming P2P not "
-				   "supported\n", ret);
+			ath6kl_dbg(ATH6KL_DBG_TRC,
+				   "failed to request P2P capabilities (%d) - assuming P2P not supported\n",
+				   ret);
 			ar->p2p = false;
 		}
 	}
@@ -474,8 +474,9 @@ static int ath6kl_target_config_wlan_params(struct ath6kl *ar, int idx)
 		/* Enable Probe Request reporting for P2P */
 		ret = ath6kl_wmi_probe_report_req_cmd(ar->wmi, idx, true);
 		if (ret) {
-			ath6kl_dbg(ATH6KL_DBG_TRC, "failed to enable Probe "
-				   "Request reporting (%d)\n", ret);
+			ath6kl_dbg(ATH6KL_DBG_TRC,
+				   "failed to enable Probe Request reporting (%d)\n",
+				   ret);
 		}
 	}
 

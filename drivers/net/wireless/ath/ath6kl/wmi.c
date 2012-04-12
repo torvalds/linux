@@ -460,8 +460,9 @@ static int ath6kl_wmi_remain_on_chnl_event_rx(struct wmi *wmi, u8 *datap,
 		   freq, dur);
 	chan = ieee80211_get_channel(ar->wiphy, freq);
 	if (!chan) {
-		ath6kl_dbg(ATH6KL_DBG_WMI, "remain_on_chnl: Unknown channel "
-			   "(freq=%u)\n", freq);
+		ath6kl_dbg(ATH6KL_DBG_WMI,
+			   "remain_on_chnl: Unknown channel (freq=%u)\n",
+			   freq);
 		return -EINVAL;
 	}
 	id = vif->last_roc_id;
@@ -488,12 +489,14 @@ static int ath6kl_wmi_cancel_remain_on_chnl_event_rx(struct wmi *wmi,
 	ev = (struct wmi_cancel_remain_on_chnl_event *) datap;
 	freq = le32_to_cpu(ev->freq);
 	dur = le32_to_cpu(ev->duration);
-	ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: freq=%u dur=%u "
-		   "status=%u\n", freq, dur, ev->status);
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "cancel_remain_on_chnl: freq=%u dur=%u status=%u\n",
+		   freq, dur, ev->status);
 	chan = ieee80211_get_channel(ar->wiphy, freq);
 	if (!chan) {
-		ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl: Unknown "
-			   "channel (freq=%u)\n", freq);
+		ath6kl_dbg(ATH6KL_DBG_WMI,
+			   "cancel_remain_on_chnl: Unknown channel (freq=%u)\n",
+			   freq);
 		return -EINVAL;
 	}
 	if (vif->last_cancel_roc_id &&
@@ -548,12 +551,12 @@ static int ath6kl_wmi_rx_probe_req_event_rx(struct wmi *wmi, u8 *datap, int len,
 	freq = le32_to_cpu(ev->freq);
 	dlen = le16_to_cpu(ev->len);
 	if (datap + len < ev->data + dlen) {
-		ath6kl_err("invalid wmi_p2p_rx_probe_req_event: "
-			   "len=%d dlen=%u\n", len, dlen);
+		ath6kl_err("invalid wmi_p2p_rx_probe_req_event: len=%d dlen=%u\n",
+			   len, dlen);
 		return -EINVAL;
 	}
-	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_probe_req: len=%u freq=%u "
-		   "probe_req_report=%d\n",
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "rx_probe_req: len=%u freq=%u probe_req_report=%d\n",
 		   dlen, freq, vif->probe_req_report);
 
 	if (vif->probe_req_report || vif->nw_type == AP_NETWORK)
@@ -592,8 +595,8 @@ static int ath6kl_wmi_rx_action_event_rx(struct wmi *wmi, u8 *datap, int len,
 	freq = le32_to_cpu(ev->freq);
 	dlen = le16_to_cpu(ev->len);
 	if (datap + len < ev->data + dlen) {
-		ath6kl_err("invalid wmi_rx_action_event: "
-			   "len=%d dlen=%u\n", len, dlen);
+		ath6kl_err("invalid wmi_rx_action_event: len=%d dlen=%u\n",
+			   len, dlen);
 		return -EINVAL;
 	}
 	ath6kl_dbg(ATH6KL_DBG_WMI, "rx_action: len=%u freq=%u\n", dlen, freq);
@@ -777,16 +780,15 @@ static int ath6kl_wmi_connect_event_rx(struct wmi *wmi, u8 *datap, int len,
 		/* AP mode start/STA connected event */
 		struct net_device *dev = vif->ndev;
 		if (memcmp(dev->dev_addr, ev->u.ap_bss.bssid, ETH_ALEN) == 0) {
-			ath6kl_dbg(ATH6KL_DBG_WMI, "%s: freq %d bssid %pM "
-				   "(AP started)\n",
+			ath6kl_dbg(ATH6KL_DBG_WMI,
+				   "%s: freq %d bssid %pM (AP started)\n",
 				   __func__, le16_to_cpu(ev->u.ap_bss.ch),
 				   ev->u.ap_bss.bssid);
 			ath6kl_connect_ap_mode_bss(
 				vif, le16_to_cpu(ev->u.ap_bss.ch));
 		} else {
-			ath6kl_dbg(ATH6KL_DBG_WMI, "%s: aid %u mac_addr %pM "
-				   "auth=%u keymgmt=%u cipher=%u apsd_info=%u "
-				   "(STA connected)\n",
+			ath6kl_dbg(ATH6KL_DBG_WMI,
+				   "%s: aid %u mac_addr %pM auth=%u keymgmt=%u cipher=%u apsd_info=%u (STA connected)\n",
 				   __func__, ev->u.ap_sta.aid,
 				   ev->u.ap_sta.mac_addr,
 				   ev->u.ap_sta.auth,
@@ -1229,8 +1231,9 @@ static int ath6kl_wmi_neighbor_report_event_rx(struct wmi *wmi, u8 *datap,
 	ev = (struct wmi_neighbor_report_event *) datap;
 	if (sizeof(*ev) + ev->num_neighbors * sizeof(struct wmi_neighbor_info)
 	    > len) {
-		ath6kl_dbg(ATH6KL_DBG_WMI, "truncated neighbor event "
-			   "(num=%d len=%d)\n", ev->num_neighbors, len);
+		ath6kl_dbg(ATH6KL_DBG_WMI,
+			   "truncated neighbor event (num=%d len=%d)\n",
+			   ev->num_neighbors, len);
 		return -EINVAL;
 	}
 	for (i = 0; i < ev->num_neighbors; i++) {
@@ -2129,8 +2132,8 @@ int ath6kl_wmi_addkey_cmd(struct wmi *wmi, u8 if_idx, u8 key_index,
 	struct wmi_add_cipher_key_cmd *cmd;
 	int ret;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "addkey cmd: key_index=%u key_type=%d "
-		   "key_usage=%d key_len=%d key_op_ctrl=%d\n",
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "addkey cmd: key_index=%u key_type=%d key_usage=%d key_len=%d key_op_ctrl=%d\n",
 		   key_index, key_type, key_usage, key_len, key_op_ctrl);
 
 	if ((key_index > WMI_MAX_KEY_INDEX) || (key_len > WMI_MAX_KEY_LEN) ||
@@ -3047,8 +3050,8 @@ int ath6kl_wmi_ap_profile_commit(struct wmi *wmip, u8 if_idx,
 
 	res = ath6kl_wmi_cmd_send(wmip, if_idx, skb, WMI_AP_CONFIG_COMMIT_CMDID,
 				  NO_SYNC_WMIFLAG);
-	ath6kl_dbg(ATH6KL_DBG_WMI, "%s: nw_type=%u auth_mode=%u ch=%u "
-		   "ctrl_flags=0x%x-> res=%d\n",
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "%s: nw_type=%u auth_mode=%u ch=%u ctrl_flags=0x%x-> res=%d\n",
 		   __func__, p->nw_type, p->auth_mode, le16_to_cpu(p->ch),
 		   le32_to_cpu(p->ctrl_flags), res);
 	return res;
@@ -3208,8 +3211,9 @@ int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 	if (!skb)
 		return -ENOMEM;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "set_appie_cmd: mgmt_frm_type=%u "
-		   "ie_len=%u\n", mgmt_frm_type, ie_len);
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "set_appie_cmd: mgmt_frm_type=%u ie_len=%u\n",
+		   mgmt_frm_type, ie_len);
 	p = (struct wmi_set_appie_cmd *) skb->data;
 	p->mgmt_frm_type = mgmt_frm_type;
 	p->ie_len = ie_len;
@@ -3310,8 +3314,9 @@ static int ath6kl_wmi_send_action_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 	wmi->last_mgmt_tx_frame = buf;
 	wmi->last_mgmt_tx_frame_len = data_len;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "send_action_cmd: id=%u freq=%u wait=%u "
-		   "len=%u\n", id, freq, wait, data_len);
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "send_action_cmd: id=%u freq=%u wait=%u len=%u\n",
+		   id, freq, wait, data_len);
 	p = (struct wmi_send_action_cmd *) skb->data;
 	p->id = cpu_to_le32(id);
 	p->freq = cpu_to_le32(freq);
@@ -3348,8 +3353,9 @@ static int __ath6kl_wmi_send_mgmt_cmd(struct wmi *wmi, u8 if_idx, u32 id,
 	wmi->last_mgmt_tx_frame = buf;
 	wmi->last_mgmt_tx_frame_len = data_len;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "send_action_cmd: id=%u freq=%u wait=%u "
-		   "len=%u\n", id, freq, wait, data_len);
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "send_action_cmd: id=%u freq=%u wait=%u len=%u\n",
+		   id, freq, wait, data_len);
 	p = (struct wmi_send_mgmt_cmd *) skb->data;
 	p->id = cpu_to_le32(id);
 	p->freq = cpu_to_le32(freq);
@@ -3402,8 +3408,9 @@ int ath6kl_wmi_send_probe_response_cmd(struct wmi *wmi, u8 if_idx, u32 freq,
 	if (!skb)
 		return -ENOMEM;
 
-	ath6kl_dbg(ATH6KL_DBG_WMI, "send_probe_response_cmd: freq=%u dst=%pM "
-		   "len=%u\n", freq, dst, data_len);
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "send_probe_response_cmd: freq=%u dst=%pM len=%u\n",
+		   freq, dst, data_len);
 	p = (struct wmi_p2p_probe_response_cmd *) skb->data;
 	p->freq = cpu_to_le32(freq);
 	memcpy(p->destination_addr, dst, ETH_ALEN);

@@ -693,8 +693,8 @@ ath6kl_add_bss_if_needed(struct ath6kl_vif *vif,
 					  ie, 2 + vif->ssid_len + beacon_ie_len,
 					  0, GFP_KERNEL);
 		if (bss)
-			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "added bss %pM to "
-				   "cfg80211\n", bssid);
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
+				   "added bss %pM to cfg80211\n", bssid);
 		kfree(ie);
 	} else
 		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "cfg80211 already has a bss\n");
@@ -927,8 +927,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 				       WMI_FRAME_PROBE_REQ,
 				       request->ie, request->ie_len);
 	if (ret) {
-		ath6kl_err("failed to set Probe Request appie for "
-			   "scan");
+		ath6kl_err("failed to set Probe Request appie for scan");
 		return ret;
 	}
 
@@ -945,8 +944,7 @@ static int ath6kl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 
 		channels = kzalloc(n_channels * sizeof(u16), GFP_KERNEL);
 		if (channels == NULL) {
-			ath6kl_warn("failed to set scan channels, "
-				    "scan all channels");
+			ath6kl_warn("failed to set scan channels, scan all channels");
 			n_channels = 0;
 		}
 
@@ -1125,9 +1123,8 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		ar->ap_mode_bkey.key_len = key->key_len;
 		memcpy(ar->ap_mode_bkey.key, key->key, key->key_len);
 		if (!test_bit(CONNECTED, &vif->flags)) {
-			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay initial group "
-				   "key configuration until AP mode has been "
-				   "started\n");
+			ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
+				   "Delay initial group key configuration until AP mode has been started\n");
 			/*
 			 * The key will be set in ath6kl_connect_ap_mode() once
 			 * the connected event is received from the target.
@@ -1143,8 +1140,8 @@ static int ath6kl_cfg80211_add_key(struct wiphy *wiphy, struct net_device *ndev,
 		 * the AP mode has properly started
 		 * (ath6kl_install_statioc_wep_keys).
 		 */
-		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG, "Delay WEP key configuration "
-			   "until AP mode has been started\n");
+		ath6kl_dbg(ATH6KL_DBG_WLAN_CFG,
+			   "Delay WEP key configuration until AP mode has been started\n");
 		vif->wep_key_list[key_index].key_len = key->key_len;
 		memcpy(vif->wep_key_list[key_index].key, key->key,
 		       key->key_len);
@@ -1976,8 +1973,7 @@ static int ath6kl_wow_sta(struct ath6kl *ar, struct ath6kl_vif *vif)
 				sizeof(discvr_pattern), discvr_offset,
 				discvr_pattern, discvr_mask);
 		if (ret) {
-			ath6kl_err("failed to add WOW mDNS/SSDP/LLMNR "
-				   "pattern\n");
+			ath6kl_err("failed to add WOW mDNS/SSDP/LLMNR pattern\n");
 			return ret;
 		}
 	}
@@ -2161,8 +2157,8 @@ static int ath6kl_wow_resume(struct ath6kl *ar)
 	ret = ath6kl_wmi_set_host_sleep_mode_cmd(ar->wmi, vif->fw_vif_idx,
 						 ATH6KL_HOST_MODE_AWAKE);
 	if (ret) {
-		ath6kl_warn("Failed to configure host sleep mode for "
-			    "wow resume: %d\n", ret);
+		ath6kl_warn("Failed to configure host sleep mode for wow resume: %d\n",
+			    ret);
 		ar->state = ATH6KL_STATE_WOW;
 		return ret;
 	}
@@ -3292,8 +3288,7 @@ void ath6kl_cfg80211_stop_all(struct ath6kl *ar)
 		ar->wmi->saved_pwr_mode = ar->wmi->pwr_mode;
 
 		if (ath6kl_wmi_powermode_cmd(ar->wmi, 0, REC_POWER) != 0)
-			ath6kl_warn("ath6kl_deep_sleep_enable: "
-				    "wmi_powermode_cmd failed\n");
+			ath6kl_warn("ath6kl_deep_sleep_enable: wmi_powermode_cmd failed\n");
 		return;
 	}
 
