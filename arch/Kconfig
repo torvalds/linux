@@ -219,11 +219,15 @@ config ARCH_WANT_OLD_COMPAT_IPC
 config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help
-	  This symbol should be selected by an architecure if it provides
-	  asm/syscall.h, specifically syscall_get_arguments(),
-	  syscall_get_arch(), and syscall_set_return_value().  Additionally,
-	  its system call entry path must respect a return value of -1 from
-	  __secure_computing() and/or secure_computing().
+	  This symbol should be selected by an architecure if it provides:
+	  asm/syscall.h:
+	  - syscall_get_arch()
+	  - syscall_get_arguments()
+	  - syscall_rollback()
+	  - syscall_set_return_value()
+	  SIGSYS siginfo_t support must be implemented.
+	  __secure_computing()/secure_computing()'s return value must be
+	  checked, with -1 resulting in the syscall being skipped.
 
 config SECCOMP_FILTER
 	def_bool y
