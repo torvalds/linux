@@ -6,6 +6,8 @@
  * License terms: GNU General Public License (GPL) version 2.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME fmt
+
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/device.h>
@@ -1127,21 +1129,7 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 	return 0;
 }
 
-static int cfhsi_open(struct net_device *dev)
-{
-	return 0;
-}
-
-static int cfhsi_close(struct net_device *dev)
-{
-	return 0;
-}
-
-static const struct net_device_ops cfhsi_ops = {
-	.ndo_open = cfhsi_open,
-	.ndo_stop = cfhsi_close,
-	.ndo_start_xmit = cfhsi_xmit
-};
+static const struct net_device_ops cfhsi_ops;
 
 static void cfhsi_setup(struct net_device *dev)
 {
@@ -1167,7 +1155,7 @@ int cfhsi_probe(struct platform_device *pdev)
 {
 	struct cfhsi *cfhsi = NULL;
 	struct net_device *ndev;
-	struct cfhsi_dev *dev;
+
 	int res;
 
 	ndev = alloc_netdev(sizeof(struct cfhsi), "cfhsi%d", cfhsi_setup);
@@ -1178,6 +1166,34 @@ int cfhsi_probe(struct platform_device *pdev)
 	cfhsi->ndev = ndev;
 	cfhsi->pdev = pdev;
 
+	/* Assign the HSI device. */
+	cfhsi->dev = pdev->dev.platform_data;
+
+	/* Assign the driver to this HSI device. */
+	cfhsi->dev->drv = &cfhsi->drv;
+
+	/* Register network device. */
+	res = register_netdev(ndev);
+	if (res) {
+		dev_err(&ndev->dev, "%s: Registration error: %d.\n",
+			__func__, res);
+		free_netdev(ndev);
+	}
+	/* Add CAIF HSI device to list. */
+	spin_lock(&cfhsi_list_lock);
+	list_add_tail(&cfhsi->list, &cfhsi_list);
+	spin_unlock(&cfhsi_list_lock);
+
+	return res;
+}
+
+static int cfhsi_open(struct net_device *ndev)
+{
+	struct cfhsi *cfhsi = netdev_priv(ndev);
+	int res;
+
+	clear_bit(CFHSI_SHUTDOWN, &cfhsi->bits);
+
 	/* Initialize state vaiables. */
 	cfhsi->tx_state = CFHSI_TX_STATE_IDLE;
 	cfhsi->rx_state.state = CFHSI_RX_STATE_DESC;
@@ -1187,12 +1203,6 @@ int cfhsi_probe(struct platform_device *pdev)
 	cfhsi->q_low_mark = LOW_WATER_MARK;
 	cfhsi->q_high_mark = HIGH_WATER_MARK;
 
-	/* Assign the HSI device. */
-	dev = (struct cfhsi_dev *)pdev->dev.platform_data;
-	cfhsi->dev = dev;
-
-	/* Assign the driver to this HSI device. */
-	dev->drv = &cfhsi->drv;
 
 	/*
 	 * Allocate a TX buffer with the size of a HSI packet descriptors
@@ -1260,9 +1270,9 @@ int cfhsi_probe(struct platform_device *pdev)
 	clear_bit(CFHSI_AWAKE, &cfhsi->bits);
 
 	/* Create work thread. */
-	cfhsi->wq = create_singlethread_workqueue(pdev->name);
+	cfhsi->wq = create_singlethread_workqueue(cfhsi->pdev->name);
 	if (!cfhsi->wq) {
-		dev_err(&ndev->dev, "%s: Failed to create work queue.\n",
+		dev_err(&cfhsi->ndev->dev, "%s: Failed to create work queue.\n",
 			__func__);
 		res = -ENODEV;
 		goto err_create_wq;
@@ -1286,11 +1296,6 @@ int cfhsi_probe(struct platform_device *pdev)
 	cfhsi->aggregation_timer.data = (unsigned long)cfhsi;
 	cfhsi->aggregation_timer.function = cfhsi_aggregation_tout;
 
-	/* Add CAIF HSI device to list. */
-	spin_lock(&cfhsi_list_lock);
-	list_add_tail(&cfhsi->list, &cfhsi_list);
-	spin_unlock(&cfhsi_list_lock);
-
 	/* Activate HSI interface. */
 	res = cfhsi->dev->cfhsi_up(cfhsi->dev);
 	if (res) {
@@ -1303,15 +1308,7 @@ int cfhsi_probe(struct platform_device *pdev)
 	/* Flush FIFO */
 	res = cfhsi_flush_fifo(cfhsi);
 	if (res) {
-		dev_err(&ndev->dev, "%s: Can't flush FIFO: %d.\n",
-			__func__, res);
-		goto err_net_reg;
-	}
-
-	/* Register network device. */
-	res = register_netdev(ndev);
-	if (res) {
-		dev_err(&ndev->dev, "%s: Registration error: %d.\n",
+		dev_err(&cfhsi->ndev->dev, "%s: Can't flush FIFO: %d.\n",
 			__func__, res);
 		goto err_net_reg;
 	}
@@ -1328,13 +1325,12 @@ int cfhsi_probe(struct platform_device *pdev)
  err_alloc_rx:
 	kfree(cfhsi->tx_buf);
  err_alloc_tx:
-	free_netdev(ndev);
-
 	return res;
 }
 
-static void cfhsi_shutdown(struct cfhsi *cfhsi)
+static int cfhsi_close(struct net_device *ndev)
 {
+	struct cfhsi *cfhsi = netdev_priv(ndev);
 	u8 *tx_buf, *rx_buf, *flip_buf;
 
 	/* going to shutdown driver */
@@ -1364,14 +1360,18 @@ static void cfhsi_shutdown(struct cfhsi *cfhsi)
 	/* Deactivate interface */
 	cfhsi->dev->cfhsi_down(cfhsi->dev);
 
-	/* Finally unregister the network device. */
-	unregister_netdev(cfhsi->ndev);
-
 	/* Free buffers. */
 	kfree(tx_buf);
 	kfree(rx_buf);
 	kfree(flip_buf);
+	return 0;
 }
+
+static const struct net_device_ops cfhsi_ops = {
+	.ndo_open = cfhsi_open,
+	.ndo_stop = cfhsi_close,
+	.ndo_start_xmit = cfhsi_xmit
+};
 
 int cfhsi_remove(struct platform_device *pdev)
 {
@@ -1389,10 +1389,6 @@ int cfhsi_remove(struct platform_device *pdev)
 			/* Remove from list. */
 			list_del(list_node);
 			spin_unlock(&cfhsi_list_lock);
-
-			/* Shutdown driver. */
-			cfhsi_shutdown(cfhsi);
-
 			return 0;
 		}
 	}
@@ -1423,8 +1419,7 @@ static void __exit cfhsi_exit_module(void)
 		list_del(list_node);
 		spin_unlock(&cfhsi_list_lock);
 
-		/* Shutdown driver. */
-		cfhsi_shutdown(cfhsi);
+		unregister_netdevice(cfhsi->ndev);
 
 		spin_lock(&cfhsi_list_lock);
 	}
@@ -1448,8 +1443,6 @@ static int __init cfhsi_init_module(void)
 			result);
 		goto err_dev_register;
 	}
-
-	return result;
 
  err_dev_register:
 	return result;
