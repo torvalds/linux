@@ -7219,6 +7219,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	e_dev_info("%s\n", ixgbe_default_device_descr);
 	cards_found++;
+
+	if (ixgbe_sysfs_init(adapter))
+		e_err(probe, "failed to allocate sysfs resources\n");
+
 	return 0;
 
 err_register:
@@ -7265,6 +7269,8 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	}
 
 #endif
+	ixgbe_sysfs_exit(adapter);
+
 #ifdef IXGBE_FCOE
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
 		ixgbe_cleanup_fcoe(adapter);

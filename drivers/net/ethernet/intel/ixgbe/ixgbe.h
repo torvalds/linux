@@ -331,6 +331,26 @@ struct ixgbe_q_vector {
 	/* for dynamic allocation of rings associated with this q_vector */
 	struct ixgbe_ring ring[0] ____cacheline_internodealigned_in_smp;
 };
+#ifdef CONFIG_IXGBE_HWMON
+
+#define IXGBE_HWMON_TYPE_LOC		0
+#define IXGBE_HWMON_TYPE_TEMP		1
+#define IXGBE_HWMON_TYPE_CAUTION	2
+#define IXGBE_HWMON_TYPE_MAX		3
+
+struct hwmon_attr {
+	struct device_attribute dev_attr;
+	struct ixgbe_hw *hw;
+	struct ixgbe_thermal_diode_data *sensor;
+	char name[12];
+};
+
+struct hwmon_buff {
+	struct device *device;
+	struct hwmon_attr *hwmon_list;
+	unsigned int n_hwmon;
+};
+#endif /* CONFIG_IXGBE_HWMON */
 
 /*
  * microsecond values for various ITR rates shifted by 2 to fit itr register
@@ -535,6 +555,10 @@ struct ixgbe_adapter {
 
 	u32 timer_event_accumulator;
 	u32 vferr_refcount;
+	struct kobject *info_kobj;
+#ifdef CONFIG_IXGBE_HWMON
+	struct hwmon_buff ixgbe_hwmon_buff;
+#endif /* CONFIG_IXGBE_HWMON */
 };
 
 struct ixgbe_fdir_filter {
@@ -635,6 +659,8 @@ extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #endif
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 extern void ixgbe_do_reset(struct net_device *netdev);
+extern void ixgbe_sysfs_exit(struct ixgbe_adapter *adapter);
+extern int ixgbe_sysfs_init(struct ixgbe_adapter *adapter);
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_ring *tx_ring,

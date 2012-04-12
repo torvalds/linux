@@ -193,6 +193,14 @@ config IXGBE
 	  To compile this driver as a module, choose M here. The module
 	  will be called ixgbe.
 
+config IXGBE_HWMON
+	bool "Intel(R) 10GbE PCI Express adapters HWMON support"
+	default y
+	depends on IXGBE && HWMON && !(IXGBE=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on some of
+	  our cards, via a hwmon sysfs interface.
+
 config IXGBE_DCA
 	bool "Direct Cache Access (DCA) Support"
 	default y

@@ -3669,9 +3669,8 @@ s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw)
 	u8  i;
 	struct ixgbe_thermal_sensor_data *data = &hw->mac.thermal_sensor_data;
 
-	/* Only support thermal sensors attached to 82599 physical port 0 */
-	if ((hw->mac.type != ixgbe_mac_82599EB) ||
-	     (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)) {
+	/* Only support thermal sensors attached to physical port 0 */
+	if ((IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)) {
 		status = IXGBE_NOT_IMPLEMENTED;
 		goto out;
 	}
@@ -3732,9 +3731,8 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw)
 
 	memset(data, 0, sizeof(struct ixgbe_thermal_sensor_data));
 
-	/* Only support thermal sensors attached to 82599 physical port 0 */
-	if ((hw->mac.type != ixgbe_mac_82599EB) ||
-	    (IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)) {
+	/* Only support thermal sensors attached to physical port 0 */
+	if ((IXGBE_READ_REG(hw, IXGBE_STATUS) & IXGBE_STATUS_LAN_ID_1)) {
 		status = IXGBE_NOT_IMPLEMENTED;
 		goto out;
 	}
