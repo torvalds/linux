@@ -1897,7 +1897,9 @@ int bitmap_load(mddev_t *mddev)
 			 * re-add of a missing device */
 			start = mddev->recovery_cp;
 
+		mutex_lock(&mddev->bitmap_info.mutex);
 		err = bitmap_init_from_disk(bitmap, start);
+		mutex_unlock(&mddev->bitmap_info.mutex);
 	}
 	if (err)
 		goto out;
