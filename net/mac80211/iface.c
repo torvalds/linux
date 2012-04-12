@@ -163,7 +163,8 @@ static int ieee80211_check_queues(struct ieee80211_sub_if_data *sdata)
 			return -EINVAL;
 	}
 
-	if (sdata->vif.type != NL80211_IFTYPE_AP) {
+	if ((sdata->vif.type != NL80211_IFTYPE_AP) ||
+	    !(sdata->local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)) {
 		sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 		return 0;
 	}
