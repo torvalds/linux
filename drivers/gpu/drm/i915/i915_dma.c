@@ -26,6 +26,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "drmP.h"
 #include "drm.h"
 #include "drm_crtc_helper.h"
@@ -43,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <acpi/video.h>
+#include <asm/pat.h>
 
 static void i915_write_hws_pga(struct drm_device *dev)
 {
@@ -787,6 +790,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_LLC:
 		value = HAS_LLC(dev);
 		break;
+	case I915_PARAM_HAS_ALIASING_PPGTT:
+		value = dev_priv->mm.aliasing_ppgtt ? 1 : 0;
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
@@ -1158,14 +1164,14 @@ static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_
 	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
-		printk(KERN_INFO "i915: switched on\n");
+		pr_info("switched on\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		/* i915 resume handler doesn't set to D0 */
 		pci_set_power_state(dev->pdev, PCI_D0);
 		i915_resume(dev);
 		dev->switch_power_state = DRM_SWITCH_POWER_ON;
 	} else {
-		printk(KERN_ERR "i915: switched off\n");
+		pr_err("switched off\n");
 		dev->switch_power_state = DRM_SWITCH_POWER_CHANGING;
 		i915_suspend(dev, pmm);
 		dev->switch_power_state = DRM_SWITCH_POWER_OFF;
@@ -1216,10 +1222,8 @@ static int i915_load_gem_init(struct drm_device *dev)
 		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
 		 * aperture accordingly when using aliasing ppgtt. */
 		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
-		/* For paranoia keep the guard page in between. */
-		gtt_size -= PAGE_SIZE;
 
-		i915_gem_do_init(dev, 0, mappable_size, gtt_size);
+		i915_gem_init_global_gtt(dev, 0, mappable_size, gtt_size);
 
 		ret = i915_gem_init_aliasing_ppgtt(dev);
 		if (ret) {
@@ -1237,7 +1241,8 @@ static int i915_load_gem_init(struct drm_device *dev)
 		 * should be enough to keep any prefetching inside of the
 		 * aperture.
 		 */
-		i915_gem_do_init(dev, 0, mappable_size, gtt_size - PAGE_SIZE);
+		i915_gem_init_global_gtt(dev, 0, mappable_size,
+					 gtt_size);
 	}
 
 	ret = i915_gem_init_hw(dev);
@@ -1931,6 +1936,29 @@ ips_ping_for_i915_load(void)
 	}
 }
 
+static void
+i915_mtrr_setup(struct drm_i915_private *dev_priv, unsigned long base,
+		unsigned long size)
+{
+	dev_priv->mm.gtt_mtrr = -1;
+
+#if defined(CONFIG_X86_PAT)
+	if (cpu_has_pat)
+		return;
+#endif
+
+	/* Set up a WC MTRR for non-PAT systems.  This is more common than
+	 * one would think, because the kernel disables PAT on first
+	 * generation Core chips because WC PAT gets overridden by a UC
+	 * MTRR if present.  Even if a UC MTRR isn't present.
+	 */
+	dev_priv->mm.gtt_mtrr = mtrr_add(base, size, MTRR_TYPE_WRCOMB, 1);
+	if (dev_priv->mm.gtt_mtrr < 0) {
+		DRM_INFO("MTRR allocation failed.  Graphics "
+			 "performance may suffer.\n");
+	}
+}
+
 /**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
@@ -1945,8 +1973,16 @@ ips_ping_for_i915_load(void)
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
+	struct intel_device_info *info;
 	int ret = 0, mmio_bar;
-	uint32_t agp_size;
+	uint32_t aperture_size;
+
+	info = (struct intel_device_info *) flags;
+
+	/* Refuse to load on gen6+ without kms enabled. */
+	if (info->gen >= 6 && !drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 
 	/* i915 has 4 more counters */
 	dev->counters += 4;
@@ -1961,7 +1997,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = (void *)dev_priv;
 	dev_priv->dev = dev;
-	dev_priv->info = (struct intel_device_info *) flags;
+	dev_priv->info = info;
 
 	if (i915_get_bridge_dev(dev)) {
 		ret = -EIO;
@@ -2000,27 +2036,16 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_rmmap;
 	}
 
-	agp_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
+	aperture_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
 
 	dev_priv->mm.gtt_mapping =
-		io_mapping_create_wc(dev->agp->base, agp_size);
+		io_mapping_create_wc(dev->agp->base, aperture_size);
 	if (dev_priv->mm.gtt_mapping == NULL) {
 		ret = -EIO;
 		goto out_rmmap;
 	}
 
-	/* Set up a WC MTRR for non-PAT systems.  This is more common than
-	 * one would think, because the kernel disables PAT on first
-	 * generation Core chips because WC PAT gets overridden by a UC
-	 * MTRR if present.  Even if a UC MTRR isn't present.
-	 */
-	dev_priv->mm.gtt_mtrr = mtrr_add(dev->agp->base,
-					 agp_size,
-					 MTRR_TYPE_WRCOMB, 1);
-	if (dev_priv->mm.gtt_mtrr < 0) {
-		DRM_INFO("MTRR allocation failed.  Graphics "
-			 "performance may suffer.\n");
-	}
+	i915_mtrr_setup(dev_priv, dev->agp->base, aperture_size);
 
 	/* The i915 workqueue is primarily used for batched retirement of
 	 * requests (and thus managing bo) once the task has been completed
@@ -2272,7 +2297,7 @@ int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  * mode setting case, we want to restore the kernel's initial mode (just
  * in case the last client left us in a bad state).
  *
- * Additionally, in the non-mode setting case, we'll tear down the AGP
+ * Additionally, in the non-mode setting case, we'll tear down the GTT
  * and DMA structures, since the kernel won't be using them, and clea
  * up any GEM state.
  */
@@ -2350,16 +2375,10 @@ struct drm_ioctl_desc i915_ioctls[] = {
 
 int i915_max_ioctl = DRM_ARRAY_SIZE(i915_ioctls);
 
-/**
- * Determine if the device really is AGP or not.
- *
- * All Intel graphics chipsets are treated as AGP, even if they are really
- * PCI-e.
- *
- * \param dev   The device to be tested.
- *
- * \returns
- * A value of 1 is always retured to indictate every i9x5 is AGP.
+/*
+ * This is really ugly: Because old userspace abused the linux agp interface to
+ * manage the gtt, we need to claim that all intel devices are agp.  For
+ * otherwise the drm core refuses to initialize the agp support code.
  */
 int i915_driver_device_is_agp(struct drm_device * dev)
 {

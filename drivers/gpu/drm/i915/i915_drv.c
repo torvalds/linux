@@ -84,6 +84,12 @@ MODULE_PARM_DESC(lvds_downclock,
 		"Use panel (LVDS/eDP) downclocking for power savings "
 		"(default: false)");
 
+int i915_lvds_channel_mode __read_mostly;
+module_param_named(lvds_channel_mode, i915_lvds_channel_mode, int, 0600);
+MODULE_PARM_DESC(lvds_channel_mode,
+		 "Specify LVDS channel mode "
+		 "(0=probe BIOS [default], 1=single-channel, 2=dual-channel)");
+
 int i915_panel_use_ssc __read_mostly = -1;
 module_param_named(lvds_use_ssc, i915_panel_use_ssc, int, 0600);
 MODULE_PARM_DESC(lvds_use_ssc,
@@ -93,8 +99,8 @@ MODULE_PARM_DESC(lvds_use_ssc,
 int i915_vbt_sdvo_panel_type __read_mostly = -1;
 module_param_named(vbt_sdvo_panel_type, i915_vbt_sdvo_panel_type, int, 0600);
 MODULE_PARM_DESC(vbt_sdvo_panel_type,
-		"Override selection of SDVO panel mode in the VBT "
-		"(default: auto)");
+		"Override/Ignore selection of SDVO panel mode in the VBT "
+		"(-2=ignore, -1=auto [default], index in VBT BIOS table)");
 
 static bool i915_try_reset __read_mostly = true;
 module_param_named(reset, i915_try_reset, bool, 0600);
@@ -209,6 +215,7 @@ static const struct intel_device_info intel_ironlake_d_info = {
 	.gen = 5,
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_bsd_ring = 1,
+	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_ironlake_m_info = {
@@ -216,6 +223,7 @@ static const struct intel_device_info intel_ironlake_m_info = {
 	.need_gfx_hws = 1, .has_hotplug = 1,
 	.has_fbc = 1,
 	.has_bsd_ring = 1,
+	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_d_info = {
@@ -224,6 +232,7 @@ static const struct intel_device_info intel_sandybridge_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
+	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_sandybridge_m_info = {
@@ -233,6 +242,7 @@ static const struct intel_device_info intel_sandybridge_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
+	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_d_info = {
@@ -241,6 +251,7 @@ static const struct intel_device_info intel_ivybridge_d_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
+	.has_pch_split = 1,
 };
 
 static const struct intel_device_info intel_ivybridge_m_info = {
@@ -250,6 +261,43 @@ static const struct intel_device_info intel_ivybridge_m_info = {
 	.has_bsd_ring = 1,
 	.has_blt_ring = 1,
 	.has_llc = 1,
+	.has_pch_split = 1,
+};
+
+static const struct intel_device_info intel_valleyview_m_info = {
+	.gen = 7, .is_mobile = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_fbc = 0,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
+	.is_valleyview = 1,
+};
+
+static const struct intel_device_info intel_valleyview_d_info = {
+	.gen = 7,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_fbc = 0,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
+	.is_valleyview = 1,
+};
+
+static const struct intel_device_info intel_haswell_d_info = {
+	.is_haswell = 1, .gen = 7,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
+	.has_llc = 1,
+	.has_pch_split = 1,
+};
+
+static const struct intel_device_info intel_haswell_m_info = {
+	.is_haswell = 1, .gen = 7, .is_mobile = 1,
+	.need_gfx_hws = 1, .has_hotplug = 1,
+	.has_bsd_ring = 1,
+	.has_blt_ring = 1,
+	.has_llc = 1,
+	.has_pch_split = 1,
 };
 
 static const struct pci_device_id pciidlist[] = {		/* aka */
@@ -308,6 +356,7 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 #define INTEL_PCH_IBX_DEVICE_ID_TYPE	0x3b00
 #define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
 #define INTEL_PCH_PPT_DEVICE_ID_TYPE	0x1e00
+#define INTEL_PCH_LPT_DEVICE_ID_TYPE	0x8c00
 
 void intel_detect_pch(struct drm_device *dev)
 {
@@ -336,6 +385,9 @@ void intel_detect_pch(struct drm_device *dev)
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
+			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_LPT;
+				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 			}
 		}
 		pci_dev_put(pch);
@@ -444,6 +496,31 @@ int __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 	dev_priv->gt_fifo_count--;
 
 	return ret;
+}
+
+void vlv_force_wake_get(struct drm_i915_private *dev_priv)
+{
+	int count;
+
+	count = 0;
+
+	/* Already awake? */
+	if ((I915_READ(0x130094) & 0xa1) == 0xa1)
+		return;
+
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffffffff);
+	POSTING_READ(FORCEWAKE_VLV);
+
+	count = 0;
+	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_ACK_VLV) & 1) == 0)
+		udelay(10);
+}
+
+void vlv_force_wake_put(struct drm_i915_private *dev_priv)
+{
+	I915_WRITE_NOTRACE(FORCEWAKE_VLV, 0xffff0000);
+	/* FIXME: confirm VLV behavior with Punit folks */
+	POSTING_READ(FORCEWAKE_VLV);
 }
 
 static int i915_drm_freeze(struct drm_device *dev)
@@ -992,6 +1069,13 @@ module_exit(i915_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
+
+/* We give fast paths for the really cool registers */
+#define NEEDS_FORCE_WAKE(dev_priv, reg) \
+       (((dev_priv)->info->gen >= 6) && \
+        ((reg) < 0x40000) &&            \
+        ((reg) != FORCEWAKE)) && \
+       (!IS_VALLEYVIEW((dev_priv)->dev))
 
 #define __i915_read(x, y) \
 u##x i915_read##x(struct drm_i915_private *dev_priv, u32 reg) { \

@@ -45,6 +45,18 @@
 	ret__;								\
 })
 
+#define wait_for_atomic_us(COND, US) ({ \
+	int i, ret__ = -ETIMEDOUT;	\
+	for (i = 0; i < (US); i++) {	\
+		if ((COND)) {		\
+			ret__ = 0;	\
+			break;		\
+		}			\
+		udelay(1);		\
+	}				\
+	ret__;				\
+})
+
 #define wait_for(COND, MS) _wait_for(COND, MS, 1)
 #define wait_for_atomic(COND, MS) _wait_for(COND, MS, 0)
 
@@ -293,7 +305,8 @@ extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
 void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
-extern bool intel_sdvo_init(struct drm_device *dev, int output_device);
+extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
+			    bool is_sdvob);
 extern void intel_dvo_init(struct drm_device *dev);
 extern void intel_tv_init(struct drm_device *dev);
 extern void intel_mark_busy(struct drm_device *dev,
@@ -418,5 +431,7 @@ extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
+
+extern u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg);
 
 #endif /* __INTEL_DRV_H__ */

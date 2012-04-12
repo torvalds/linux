@@ -182,8 +182,6 @@ static void intel_dsm_platform_mux_info(void)
 			DRM_DEBUG_DRIVER("  hpd mux info: %s\n",
 			       intel_dsm_mux_type(info->buffer.pointer[3]));
 		}
-	} else {
-		DRM_ERROR("MUX INFO call failed\n");
 	}
 
 out:

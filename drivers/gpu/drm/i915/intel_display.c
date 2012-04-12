@@ -24,6 +24,7 @@
  *	Eric Anholt <eric@anholt.net>
  */
 
+#include <linux/dmi.h>
 #include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/input.h>
@@ -360,6 +361,110 @@ static const intel_limit_t intel_limits_ironlake_display_port = {
 	.find_pll = intel_find_pll_ironlake_dp,
 };
 
+u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
+{
+	unsigned long flags;
+	u32 val = 0;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
+		DRM_ERROR("DPIO idle wait timed out\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(DPIO_REG, reg);
+	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_READ | DPIO_PORTID |
+		   DPIO_BYTE);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
+		DRM_ERROR("DPIO read wait timed out\n");
+		goto out_unlock;
+	}
+	val = I915_READ(DPIO_DATA);
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+	return val;
+}
+
+static void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
+			     u32 val)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
+		DRM_ERROR("DPIO idle wait timed out\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(DPIO_DATA, val);
+	I915_WRITE(DPIO_REG, reg);
+	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_WRITE | DPIO_PORTID |
+		   DPIO_BYTE);
+	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100))
+		DRM_ERROR("DPIO write wait timed out\n");
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+}
+
+static void vlv_init_dpio(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	/* Reset the DPIO config */
+	I915_WRITE(DPIO_CTL, 0);
+	POSTING_READ(DPIO_CTL);
+	I915_WRITE(DPIO_CTL, 1);
+	POSTING_READ(DPIO_CTL);
+}
+
+static int intel_dual_link_lvds_callback(const struct dmi_system_id *id)
+{
+	DRM_INFO("Forcing lvds to dual link mode on %s\n", id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_dual_link_lvds[] = {
+	{
+		.callback = intel_dual_link_lvds_callback,
+		.ident = "Apple MacBook Pro (Core i5/i7 Series)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MacBookPro8,2"),
+		},
+	},
+	{ }	/* terminating entry */
+};
+
+static bool is_dual_link_lvds(struct drm_i915_private *dev_priv,
+			      unsigned int reg)
+{
+	unsigned int val;
+
+	/* use the module option value if specified */
+	if (i915_lvds_channel_mode > 0)
+		return i915_lvds_channel_mode == 2;
+
+	if (dmi_check_system(intel_dual_link_lvds))
+		return true;
+
+	if (dev_priv->lvds_val)
+		val = dev_priv->lvds_val;
+	else {
+		/* BIOS should set the proper LVDS register value at boot, but
+		 * in reality, it doesn't set the value when the lid is closed;
+		 * we need to check "the value to be set" in VBT when LVDS
+		 * register is uninitialized.
+		 */
+		val = I915_READ(reg);
+		if (!(val & ~LVDS_DETECTED))
+			val = dev_priv->bios_lvds_val;
+		dev_priv->lvds_val = val;
+	}
+	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
+}
+
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 						int refclk)
 {
@@ -368,8 +473,7 @@ static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 	const intel_limit_t *limit;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP) {
+		if (is_dual_link_lvds(dev_priv, PCH_LVDS)) {
 			/* LVDS dual channel */
 			if (refclk == 100000)
 				limit = &intel_limits_ironlake_dual_lvds_100m;
@@ -397,8 +501,7 @@ static const intel_limit_t *intel_g4x_limit(struct drm_crtc *crtc)
 	const intel_limit_t *limit;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
+		if (is_dual_link_lvds(dev_priv, LVDS))
 			/* LVDS with dual channel */
 			limit = &intel_limits_g4x_dual_channel_lvds;
 		else
@@ -536,8 +639,7 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		 * reliably set up different single/dual channel state, if we
 		 * even can.
 		 */
-		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
+		if (is_dual_link_lvds(dev_priv, LVDS))
 			clock.p2 = limit->p2.p2_fast;
 		else
 			clock.p2 = limit->p2.p2_slow;
@@ -2537,7 +2639,7 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 reg, temp, i;
+	u32 reg, temp, i, retry;
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -2589,15 +2691,19 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(reg);
 		udelay(500);
 
-		reg = FDI_RX_IIR(pipe);
-		temp = I915_READ(reg);
-		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-		if (temp & FDI_RX_BIT_LOCK) {
-			I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
-			DRM_DEBUG_KMS("FDI train 1 done.\n");
-			break;
+		for (retry = 0; retry < 5; retry++) {
+			reg = FDI_RX_IIR(pipe);
+			temp = I915_READ(reg);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+			if (temp & FDI_RX_BIT_LOCK) {
+				I915_WRITE(reg, temp | FDI_RX_BIT_LOCK);
+				DRM_DEBUG_KMS("FDI train 1 done.\n");
+				break;
+			}
+			udelay(50);
 		}
+		if (retry < 5)
+			break;
 	}
 	if (i == 4)
 		DRM_ERROR("FDI train 1 fail!\n");
@@ -2638,15 +2744,19 @@ static void gen6_fdi_link_train(struct drm_crtc *crtc)
 		POSTING_READ(reg);
 		udelay(500);
 
-		reg = FDI_RX_IIR(pipe);
-		temp = I915_READ(reg);
-		DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
-
-		if (temp & FDI_RX_SYMBOL_LOCK) {
-			I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
-			DRM_DEBUG_KMS("FDI train 2 done.\n");
-			break;
+		for (retry = 0; retry < 5; retry++) {
+			reg = FDI_RX_IIR(pipe);
+			temp = I915_READ(reg);
+			DRM_DEBUG_KMS("FDI_RX_IIR 0x%x\n", temp);
+			if (temp & FDI_RX_SYMBOL_LOCK) {
+				I915_WRITE(reg, temp | FDI_RX_SYMBOL_LOCK);
+				DRM_DEBUG_KMS("FDI train 2 done.\n");
+				break;
+			}
+			udelay(50);
 		}
+		if (retry < 5)
+			break;
 	}
 	if (i == 4)
 		DRM_ERROR("FDI train 2 fail!\n");
@@ -3457,6 +3567,11 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 	return true;
 }
 
+static int valleyview_get_display_clock_speed(struct drm_device *dev)
+{
+	return 400000; /* FIXME */
+}
+
 static int i945_get_display_clock_speed(struct drm_device *dev)
 {
 	return 400000;
@@ -3602,6 +3717,20 @@ static const struct intel_watermark_params g4x_wm_info = {
 static const struct intel_watermark_params g4x_cursor_wm_info = {
 	I965_CURSOR_FIFO,
 	I965_CURSOR_MAX_WM,
+	I965_CURSOR_DFT_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
+};
+static const struct intel_watermark_params valleyview_wm_info = {
+	VALLEYVIEW_FIFO_SIZE,
+	VALLEYVIEW_MAX_WM,
+	VALLEYVIEW_MAX_WM,
+	2,
+	G4X_FIFO_LINE_SIZE,
+};
+static const struct intel_watermark_params valleyview_cursor_wm_info = {
+	I965_CURSOR_FIFO,
+	VALLEYVIEW_CURSOR_MAX_WM,
 	I965_CURSOR_DFT_WM,
 	2,
 	G4X_FIFO_LINE_SIZE,
@@ -4128,7 +4257,133 @@ static bool g4x_compute_srwm(struct drm_device *dev,
 			      display, cursor);
 }
 
+static bool vlv_compute_drain_latency(struct drm_device *dev,
+				     int plane,
+				     int *plane_prec_mult,
+				     int *plane_dl,
+				     int *cursor_prec_mult,
+				     int *cursor_dl)
+{
+	struct drm_crtc *crtc;
+	int clock, pixel_size;
+	int entries;
+
+	crtc = intel_get_crtc_for_plane(dev, plane);
+	if (crtc->fb == NULL || !crtc->enabled)
+		return false;
+
+	clock = crtc->mode.clock;	/* VESA DOT Clock */
+	pixel_size = crtc->fb->bits_per_pixel / 8;	/* BPP */
+
+	entries = (clock / 1000) * pixel_size;
+	*plane_prec_mult = (entries > 256) ?
+		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
+	*plane_dl = (64 * (*plane_prec_mult) * 4) / ((clock / 1000) *
+						     pixel_size);
+
+	entries = (clock / 1000) * 4;	/* BPP is always 4 for cursor */
+	*cursor_prec_mult = (entries > 256) ?
+		DRAIN_LATENCY_PRECISION_32 : DRAIN_LATENCY_PRECISION_16;
+	*cursor_dl = (64 * (*cursor_prec_mult) * 4) / ((clock / 1000) * 4);
+
+	return true;
+}
+
+/*
+ * Update drain latency registers of memory arbiter
+ *
+ * Valleyview SoC has a new memory arbiter and needs drain latency registers
+ * to be programmed. Each plane has a drain latency multiplier and a drain
+ * latency value.
+ */
+
+static void vlv_update_drain_latency(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_prec, planea_dl, planeb_prec, planeb_dl;
+	int cursora_prec, cursora_dl, cursorb_prec, cursorb_dl;
+	int plane_prec_mult, cursor_prec_mult; /* Precision multiplier is
+							either 16 or 32 */
+
+	/* For plane A, Cursor A */
+	if (vlv_compute_drain_latency(dev, 0, &plane_prec_mult, &planea_dl,
+				      &cursor_prec_mult, &cursora_dl)) {
+		cursora_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_CURSORA_PRECISION_32 : DDL_CURSORA_PRECISION_16;
+		planea_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_PLANEA_PRECISION_32 : DDL_PLANEA_PRECISION_16;
+
+		I915_WRITE(VLV_DDL1, cursora_prec |
+				(cursora_dl << DDL_CURSORA_SHIFT) |
+				planea_prec | planea_dl);
+	}
+
+	/* For plane B, Cursor B */
+	if (vlv_compute_drain_latency(dev, 1, &plane_prec_mult, &planeb_dl,
+				      &cursor_prec_mult, &cursorb_dl)) {
+		cursorb_prec = (cursor_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_CURSORB_PRECISION_32 : DDL_CURSORB_PRECISION_16;
+		planeb_prec = (plane_prec_mult == DRAIN_LATENCY_PRECISION_32) ?
+			DDL_PLANEB_PRECISION_32 : DDL_PLANEB_PRECISION_16;
+
+		I915_WRITE(VLV_DDL2, cursorb_prec |
+				(cursorb_dl << DDL_CURSORB_SHIFT) |
+				planeb_prec | planeb_dl);
+	}
+}
+
 #define single_plane_enabled(mask) is_power_of_2(mask)
+
+static void valleyview_update_wm(struct drm_device *dev)
+{
+	static const int sr_latency_ns = 12000;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int planea_wm, planeb_wm, cursora_wm, cursorb_wm;
+	int plane_sr, cursor_sr;
+	unsigned int enabled = 0;
+
+	vlv_update_drain_latency(dev);
+
+	if (g4x_compute_wm0(dev, 0,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planea_wm, &cursora_wm))
+		enabled |= 1;
+
+	if (g4x_compute_wm0(dev, 1,
+			    &valleyview_wm_info, latency_ns,
+			    &valleyview_cursor_wm_info, latency_ns,
+			    &planeb_wm, &cursorb_wm))
+		enabled |= 2;
+
+	plane_sr = cursor_sr = 0;
+	if (single_plane_enabled(enabled) &&
+	    g4x_compute_srwm(dev, ffs(enabled) - 1,
+			     sr_latency_ns,
+			     &valleyview_wm_info,
+			     &valleyview_cursor_wm_info,
+			     &plane_sr, &cursor_sr))
+		I915_WRITE(FW_BLC_SELF_VLV, FW_CSPWRDWNEN);
+	else
+		I915_WRITE(FW_BLC_SELF_VLV,
+			   I915_READ(FW_BLC_SELF_VLV) & ~FW_CSPWRDWNEN);
+
+	DRM_DEBUG_KMS("Setting FIFO watermarks - A: plane=%d, cursor=%d, B: plane=%d, cursor=%d, SR: plane=%d, cursor=%d\n",
+		      planea_wm, cursora_wm,
+		      planeb_wm, cursorb_wm,
+		      plane_sr, cursor_sr);
+
+	I915_WRITE(DSPFW1,
+		   (plane_sr << DSPFW_SR_SHIFT) |
+		   (cursorb_wm << DSPFW_CURSORB_SHIFT) |
+		   (planeb_wm << DSPFW_PLANEB_SHIFT) |
+		   planea_wm);
+	I915_WRITE(DSPFW2,
+		   (I915_READ(DSPFW2) & DSPFW_CURSORA_MASK) |
+		   (cursora_wm << DSPFW_CURSORA_SHIFT));
+	I915_WRITE(DSPFW3,
+		   (I915_READ(DSPFW3) | (cursor_sr << DSPFW_CURSOR_SR_SHIFT)));
+}
 
 static void g4x_update_wm(struct drm_device *dev)
 {
@@ -5113,6 +5368,233 @@ static void i9xx_update_pll_dividers(struct drm_crtc *crtc,
 	}
 }
 
+static void intel_update_lvds(struct drm_crtc *crtc, intel_clock_t *clock,
+			      struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 temp, lvds_sync = 0;
+
+	temp = I915_READ(LVDS);
+	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
+	if (pipe == 1) {
+		temp |= LVDS_PIPEB_SELECT;
+	} else {
+		temp &= ~LVDS_PIPEB_SELECT;
+	}
+	/* set the corresponsding LVDS_BORDER bit */
+	temp |= dev_priv->lvds_border_bits;
+	/* Set the B0-B3 data pairs corresponding to whether we're going to
+	 * set the DPLLs for dual-channel mode or not.
+	 */
+	if (clock->p2 == 7)
+		temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
+	else
+		temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
+
+	/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
+	 * appropriately here, but we need to look more thoroughly into how
+	 * panels behave in the two modes.
+	 */
+	/* set the dithering flag on LVDS as needed */
+	if (INTEL_INFO(dev)->gen >= 4) {
+		if (dev_priv->lvds_dither)
+			temp |= LVDS_ENABLE_DITHER;
+		else
+			temp &= ~LVDS_ENABLE_DITHER;
+	}
+	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
+		lvds_sync |= LVDS_HSYNC_POLARITY;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
+		lvds_sync |= LVDS_VSYNC_POLARITY;
+	if ((temp & (LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY))
+	    != lvds_sync) {
+		char flags[2] = "-+";
+		DRM_INFO("Changing LVDS panel from "
+			 "(%chsync, %cvsync) to (%chsync, %cvsync)\n",
+			 flags[!(temp & LVDS_HSYNC_POLARITY)],
+			 flags[!(temp & LVDS_VSYNC_POLARITY)],
+			 flags[!(lvds_sync & LVDS_HSYNC_POLARITY)],
+			 flags[!(lvds_sync & LVDS_VSYNC_POLARITY)]);
+		temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
+		temp |= lvds_sync;
+	}
+	I915_WRITE(LVDS, temp);
+}
+
+static void i9xx_update_pll(struct drm_crtc *crtc,
+			    struct drm_display_mode *mode,
+			    struct drm_display_mode *adjusted_mode,
+			    intel_clock_t *clock, intel_clock_t *reduced_clock,
+			    int num_connectors)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 dpll;
+	bool is_sdvo;
+
+	is_sdvo = intel_pipe_has_type(crtc, INTEL_OUTPUT_SDVO) ||
+		intel_pipe_has_type(crtc, INTEL_OUTPUT_HDMI);
+
+	dpll = DPLL_VGA_MODE_DIS;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+		dpll |= DPLLB_MODE_LVDS;
+	else
+		dpll |= DPLLB_MODE_DAC_SERIAL;
+	if (is_sdvo) {
+		int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
+		if (pixel_multiplier > 1) {
+			if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
+				dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
+		}
+		dpll |= DPLL_DVO_HIGH_SPEED;
+	}
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+		dpll |= DPLL_DVO_HIGH_SPEED;
+
+	/* compute bitmask from p1 value */
+	if (IS_PINEVIEW(dev))
+		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
+	else {
+		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+		if (IS_G4X(dev) && reduced_clock)
+			dpll |= (1 << (reduced_clock->p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
+	}
+	switch (clock->p2) {
+	case 5:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
+		break;
+	case 7:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
+		break;
+	case 10:
+		dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
+		break;
+	case 14:
+		dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
+		break;
+	}
+	if (INTEL_INFO(dev)->gen >= 4)
+		dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
+
+	if (is_sdvo && intel_pipe_has_type(crtc, INTEL_OUTPUT_TVOUT))
+		dpll |= PLL_REF_INPUT_TVCLKINBC;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_TVOUT))
+		/* XXX: just matching BIOS for now */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		dpll |= 3;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	else
+		dpll |= PLL_REF_INPUT_DREFCLK;
+
+	dpll |= DPLL_VCO_ENABLE;
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+		intel_update_lvds(crtc, clock, adjusted_mode);
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
+		intel_dp_set_m_n(crtc, mode, adjusted_mode);
+
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	if (INTEL_INFO(dev)->gen >= 4) {
+		u32 temp = 0;
+		if (is_sdvo) {
+			temp = intel_mode_get_pixel_multiplier(adjusted_mode);
+			if (temp > 1)
+				temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+			else
+				temp = 0;
+		}
+		I915_WRITE(DPLL_MD(pipe), temp);
+	} else {
+		/* The pixel multiplier can only be updated once the
+		 * DPLL is enabled and the clocks are stable.
+		 *
+		 * So write it again.
+		 */
+		I915_WRITE(DPLL(pipe), dpll);
+	}
+}
+
+static void i8xx_update_pll(struct drm_crtc *crtc,
+			    struct drm_display_mode *adjusted_mode,
+			    intel_clock_t *clock,
+			    int num_connectors)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 dpll;
+
+	dpll = DPLL_VGA_MODE_DIS;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+	} else {
+		if (clock->p1 == 2)
+			dpll |= PLL_P1_DIVIDE_BY_TWO;
+		else
+			dpll |= (clock->p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT;
+		if (clock->p2 == 4)
+			dpll |= PLL_P2_DIVIDE_BY_4;
+	}
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_TVOUT))
+		/* XXX: just matching BIOS for now */
+		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
+		dpll |= 3;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
+		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	else
+		dpll |= PLL_REF_INPUT_DREFCLK;
+
+	dpll |= DPLL_VCO_ENABLE;
+	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	I915_WRITE(DPLL(pipe), dpll);
+
+	/* Wait for the clocks to stabilize. */
+	POSTING_READ(DPLL(pipe));
+	udelay(150);
+
+	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
+	 * This is an exception to the general rule that mode_set doesn't turn
+	 * things on.
+	 */
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
+		intel_update_lvds(crtc, clock, adjusted_mode);
+
+	/* The pixel multiplier can only be updated once the
+	 * DPLL is enabled and the clocks are stable.
+	 *
+	 * So write it again.
+	 */
+	I915_WRITE(DPLL(pipe), dpll);
+}
+
 static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			      struct drm_display_mode *mode,
 			      struct drm_display_mode *adjusted_mode,
@@ -5126,15 +5608,13 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	int plane = intel_crtc->plane;
 	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
-	u32 dpll, dspcntr, pipeconf, vsyncshift;
-	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
-	bool is_crt = false, is_lvds = false, is_tv = false, is_dp = false;
+	u32 dspcntr, pipeconf, vsyncshift;
+	bool ok, has_reduced_clock = false, is_sdvo = false;
+	bool is_lvds = false, is_tv = false, is_dp = false;
 	struct drm_mode_config *mode_config = &dev->mode_config;
 	struct intel_encoder *encoder;
 	const intel_limit_t *limit;
 	int ret;
-	u32 temp;
-	u32 lvds_sync = 0;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, base.head) {
 		if (encoder->base.crtc != crtc)
@@ -5150,14 +5630,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			if (encoder->needs_tv_clock)
 				is_tv = true;
 			break;
-		case INTEL_OUTPUT_DVO:
-			is_dvo = true;
-			break;
 		case INTEL_OUTPUT_TVOUT:
 			is_tv = true;
-			break;
-		case INTEL_OUTPUT_ANALOG:
-			is_crt = true;
 			break;
 		case INTEL_OUTPUT_DISPLAYPORT:
 			is_dp = true;
@@ -5205,71 +5679,12 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	i9xx_update_pll_dividers(crtc, &clock, has_reduced_clock ?
 				 &reduced_clock : NULL);
 
-	dpll = DPLL_VGA_MODE_DIS;
-
-	if (!IS_GEN2(dev)) {
-		if (is_lvds)
-			dpll |= DPLLB_MODE_LVDS;
-		else
-			dpll |= DPLLB_MODE_DAC_SERIAL;
-		if (is_sdvo) {
-			int pixel_multiplier = intel_mode_get_pixel_multiplier(adjusted_mode);
-			if (pixel_multiplier > 1) {
-				if (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
-					dpll |= (pixel_multiplier - 1) << SDVO_MULTIPLIER_SHIFT_HIRES;
-			}
-			dpll |= DPLL_DVO_HIGH_SPEED;
-		}
-		if (is_dp)
-			dpll |= DPLL_DVO_HIGH_SPEED;
-
-		/* compute bitmask from p1 value */
-		if (IS_PINEVIEW(dev))
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT_PINEVIEW;
-		else {
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			if (IS_G4X(dev) && has_reduced_clock)
-				dpll |= (1 << (reduced_clock.p1 - 1)) << DPLL_FPA1_P1_POST_DIV_SHIFT;
-		}
-		switch (clock.p2) {
-		case 5:
-			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_5;
-			break;
-		case 7:
-			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_7;
-			break;
-		case 10:
-			dpll |= DPLL_DAC_SERIAL_P2_CLOCK_DIV_10;
-			break;
-		case 14:
-			dpll |= DPLLB_LVDS_P2_CLOCK_DIV_14;
-			break;
-		}
-		if (INTEL_INFO(dev)->gen >= 4)
-			dpll |= (6 << PLL_LOAD_PULSE_PHASE_SHIFT);
-	} else {
-		if (is_lvds) {
-			dpll |= (1 << (clock.p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-		} else {
-			if (clock.p1 == 2)
-				dpll |= PLL_P1_DIVIDE_BY_TWO;
-			else
-				dpll |= (clock.p1 - 2) << DPLL_FPA01_P1_POST_DIV_SHIFT;
-			if (clock.p2 == 4)
-				dpll |= PLL_P2_DIVIDE_BY_4;
-		}
-	}
-
-	if (is_sdvo && is_tv)
-		dpll |= PLL_REF_INPUT_TVCLKINBC;
-	else if (is_tv)
-		/* XXX: just matching BIOS for now */
-		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
-		dpll |= 3;
-	else if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
-		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
+	if (IS_GEN2(dev))
+		i8xx_update_pll(crtc, adjusted_mode, &clock, num_connectors);
 	else
-		dpll |= PLL_REF_INPUT_DREFCLK;
+		i9xx_update_pll(crtc, mode, adjusted_mode, &clock,
+				has_reduced_clock ? &reduced_clock : NULL,
+				num_connectors);
 
 	/* setup pipeconf */
 	pipeconf = I915_READ(PIPECONF(pipe));
@@ -5306,96 +5721,8 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 		}
 	}
 
-	dpll |= DPLL_VCO_ENABLE;
-
 	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe == 0 ? 'A' : 'B');
 	drm_mode_debug_printmodeline(mode);
-
-	I915_WRITE(DPLL(pipe), dpll & ~DPLL_VCO_ENABLE);
-
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	/* The LVDS pin pair needs to be on before the DPLLs are enabled.
-	 * This is an exception to the general rule that mode_set doesn't turn
-	 * things on.
-	 */
-	if (is_lvds) {
-		temp = I915_READ(LVDS);
-		temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
-		if (pipe == 1) {
-			temp |= LVDS_PIPEB_SELECT;
-		} else {
-			temp &= ~LVDS_PIPEB_SELECT;
-		}
-		/* set the corresponsding LVDS_BORDER bit */
-		temp |= dev_priv->lvds_border_bits;
-		/* Set the B0-B3 data pairs corresponding to whether we're going to
-		 * set the DPLLs for dual-channel mode or not.
-		 */
-		if (clock.p2 == 7)
-			temp |= LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP;
-		else
-			temp &= ~(LVDS_B0B3_POWER_UP | LVDS_CLKB_POWER_UP);
-
-		/* It would be nice to set 24 vs 18-bit mode (LVDS_A3_POWER_UP)
-		 * appropriately here, but we need to look more thoroughly into how
-		 * panels behave in the two modes.
-		 */
-		/* set the dithering flag on LVDS as needed */
-		if (INTEL_INFO(dev)->gen >= 4) {
-			if (dev_priv->lvds_dither)
-				temp |= LVDS_ENABLE_DITHER;
-			else
-				temp &= ~LVDS_ENABLE_DITHER;
-		}
-		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-			lvds_sync |= LVDS_HSYNC_POLARITY;
-		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-			lvds_sync |= LVDS_VSYNC_POLARITY;
-		if ((temp & (LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY))
-		    != lvds_sync) {
-			char flags[2] = "-+";
-			DRM_INFO("Changing LVDS panel from "
-				 "(%chsync, %cvsync) to (%chsync, %cvsync)\n",
-				 flags[!(temp & LVDS_HSYNC_POLARITY)],
-				 flags[!(temp & LVDS_VSYNC_POLARITY)],
-				 flags[!(lvds_sync & LVDS_HSYNC_POLARITY)],
-				 flags[!(lvds_sync & LVDS_VSYNC_POLARITY)]);
-			temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-			temp |= lvds_sync;
-		}
-		I915_WRITE(LVDS, temp);
-	}
-
-	if (is_dp) {
-		intel_dp_set_m_n(crtc, mode, adjusted_mode);
-	}
-
-	I915_WRITE(DPLL(pipe), dpll);
-
-	/* Wait for the clocks to stabilize. */
-	POSTING_READ(DPLL(pipe));
-	udelay(150);
-
-	if (INTEL_INFO(dev)->gen >= 4) {
-		temp = 0;
-		if (is_sdvo) {
-			temp = intel_mode_get_pixel_multiplier(adjusted_mode);
-			if (temp > 1)
-				temp = (temp - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
-			else
-				temp = 0;
-		}
-		I915_WRITE(DPLL_MD(pipe), temp);
-	} else {
-		/* The pixel multiplier can only be updated once the
-		 * DPLL is enabled and the clocks are stable.
-		 *
-		 * So write it again.
-		 */
-		I915_WRITE(DPLL(pipe), dpll);
-	}
 
 	if (HAS_PIPE_CXSR(dev)) {
 		if (intel_crtc->lowfreq_avail) {
@@ -7796,7 +8123,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
 			/* PCH SDVOB multiplex with HDMIB */
-			found = intel_sdvo_init(dev, PCH_SDVOB);
+			found = intel_sdvo_init(dev, PCH_SDVOB, true);
 			if (!found)
 				intel_hdmi_init(dev, HDMIB);
 			if (!found && (I915_READ(PCH_DP_B) & DP_DETECTED))
@@ -7820,7 +8147,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOB\n");
-			found = intel_sdvo_init(dev, SDVOB);
+			found = intel_sdvo_init(dev, SDVOB, true);
 			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
 				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
 				intel_hdmi_init(dev, SDVOB);
@@ -7836,7 +8163,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
 			DRM_DEBUG_KMS("probing SDVOC\n");
-			found = intel_sdvo_init(dev, SDVOC);
+			found = intel_sdvo_init(dev, SDVOC, false);
 		}
 
 		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
@@ -8617,6 +8944,54 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	}
 }
 
+static void valleyview_init_clock_gating(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe;
+	uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+
+	I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
+
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
+
+	/* According to the spec, bit 13 (RCZUNIT) must be set on IVB.
+	 * This implements the WaDisableRCZUnitClockGating workaround.
+	 */
+	I915_WRITE(GEN6_UCGCTL2, GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
+
+	I915_WRITE(ILK_DSPCLK_GATE, IVB_VRHUNIT_CLK_GATE);
+
+	I915_WRITE(IVB_CHICKEN3,
+		   CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE |
+		   CHICKEN3_DGMG_DONE_FIX_DISABLE);
+
+	/* Apply the WaDisableRHWOOptimizationForRenderHang workaround. */
+	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
+		   GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC);
+
+	/* WaApplyL3ControlAndL3ChickenMode requires those two on Ivy Bridge */
+	I915_WRITE(GEN7_L3CNTLREG1, GEN7_WA_FOR_GEN7_L3_CONTROL);
+	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER, GEN7_WA_L3_CHICKEN_MODE);
+
+	/* This is required by WaCatErrorRejectionIssue */
+	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
+		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
+		   GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
+
+	for_each_pipe(pipe) {
+		I915_WRITE(DSPCNTR(pipe),
+			   I915_READ(DSPCNTR(pipe)) |
+			   DISPPLANE_TRICKLE_FEED_DISABLE);
+		intel_flush_display_plane(dev_priv, pipe);
+	}
+
+	I915_WRITE(CACHE_MODE_1, I915_READ(CACHE_MODE_1) |
+		   (PIXEL_SUBSPAN_COLLECT_OPT_DISABLE << 16) |
+		   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+}
+
 static void g4x_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -8871,7 +9246,10 @@ static void intel_init_display(struct drm_device *dev)
 	}
 
 	/* Returns the core display clock speed */
-	if (IS_I945G(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
+	if (IS_VALLEYVIEW(dev))
+		dev_priv->display.get_display_clock_speed =
+			valleyview_get_display_clock_speed;
+	else if (IS_I945G(dev) || (IS_G33(dev) && !IS_PINEVIEW_M(dev)))
 		dev_priv->display.get_display_clock_speed =
 			i945_get_display_clock_speed;
 	else if (IS_I915G(dev))
@@ -8966,6 +9344,12 @@ static void intel_init_display(struct drm_device *dev)
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
+	} else if (IS_VALLEYVIEW(dev)) {
+		dev_priv->display.update_wm = valleyview_update_wm;
+		dev_priv->display.init_clock_gating =
+			valleyview_init_clock_gating;
+		dev_priv->display.force_wake_get = vlv_force_wake_get;
+		dev_priv->display.force_wake_put = vlv_force_wake_put;
 	} else if (IS_PINEVIEW(dev)) {
 		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
 					    dev_priv->is_ddr3,
@@ -9049,7 +9433,7 @@ static void quirk_pipea_force(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	dev_priv->quirks |= QUIRK_PIPEA_FORCE;
-	DRM_DEBUG_DRIVER("applying pipe a force quirk\n");
+	DRM_INFO("applying pipe a force quirk\n");
 }
 
 /*
@@ -9059,6 +9443,18 @@ static void quirk_ssc_force_disable(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	dev_priv->quirks |= QUIRK_LVDS_SSC_DISABLE;
+	DRM_INFO("applying lvds SSC disable quirk\n");
+}
+
+/*
+ * A machine (e.g. Acer Aspire 5734Z) may need to invert the panel backlight
+ * brightness value
+ */
+static void quirk_invert_brightness(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	dev_priv->quirks |= QUIRK_INVERT_BRIGHTNESS;
+	DRM_INFO("applying inverted panel brightness quirk\n");
 }
 
 struct intel_quirk {
@@ -9093,6 +9489,9 @@ struct intel_quirk intel_quirks[] = {
 
 	/* Sony Vaio Y cannot use SSC on LVDS */
 	{ 0x0046, 0x104d, 0x9076, quirk_ssc_force_disable },
+
+	/* Acer Aspire 5734Z must invert backlight brightness */
+	{ 0x2a42, 0x1025, 0x0459, quirk_invert_brightness },
 };
 
 static void intel_init_quirks(struct drm_device *dev)
@@ -9235,6 +9634,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	if (IS_IRONLAKE_M(dev))
 		ironlake_disable_rc6(dev);
+
+	if (IS_VALLEYVIEW(dev))
+		vlv_init_dpio(dev);
 
 	mutex_unlock(&dev->struct_mutex);
 

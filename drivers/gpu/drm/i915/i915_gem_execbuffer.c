@@ -266,6 +266,12 @@ eb_destroy(struct eb_objects *eb)
 	kfree(eb);
 }
 
+static inline int use_cpu_reloc(struct drm_i915_gem_object *obj)
+{
+	return (obj->base.write_domain == I915_GEM_DOMAIN_CPU ||
+		obj->cache_level != I915_CACHE_NONE);
+}
+
 static int
 i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 				   struct eb_objects *eb,
@@ -273,6 +279,7 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_gem_object *target_obj;
+	struct drm_i915_gem_object *target_i915_obj;
 	uint32_t target_offset;
 	int ret = -EINVAL;
 
@@ -281,7 +288,8 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 	if (unlikely(target_obj == NULL))
 		return -ENOENT;
 
-	target_offset = to_intel_bo(target_obj)->gtt_offset;
+	target_i915_obj = to_intel_bo(target_obj);
+	target_offset = target_i915_obj->gtt_offset;
 
 	/* The target buffer should have appeared before us in the
 	 * exec_object list, so it should have a GTT space bound by now.
@@ -352,10 +360,18 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		return ret;
 	}
 
+	/* We can't wait for rendering with pagefaults disabled */
+	if (obj->active && in_atomic())
+		return -EFAULT;
+
 	reloc->delta += target_offset;
-	if (obj->base.write_domain == I915_GEM_DOMAIN_CPU) {
+	if (use_cpu_reloc(obj)) {
 		uint32_t page_offset = reloc->offset & ~PAGE_MASK;
 		char *vaddr;
+
+		ret = i915_gem_object_set_to_cpu_domain(obj, 1);
+		if (ret)
+			return ret;
 
 		vaddr = kmap_atomic(obj->pages[reloc->offset >> PAGE_SHIFT]);
 		*(uint32_t *)(vaddr + page_offset) = reloc->delta;
@@ -364,10 +380,6 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		struct drm_i915_private *dev_priv = dev->dev_private;
 		uint32_t __iomem *reloc_entry;
 		void __iomem *reloc_page;
-
-		/* We can't wait for rendering with pagefaults disabled */
-		if (obj->active && in_atomic())
-			return -EFAULT;
 
 		ret = i915_gem_object_set_to_gtt_domain(obj, 1);
 		if (ret)
@@ -383,6 +395,16 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		io_mapping_unmap_atomic(reloc_page);
 	}
 
+	/* Sandybridge PPGTT errata: We need a global gtt mapping for MI and
+	 * pipe_control writes because the gpu doesn't properly redirect them
+	 * through the ppgtt for non_secure batchbuffers. */
+	if (unlikely(IS_GEN6(dev) &&
+	    reloc->write_domain == I915_GEM_DOMAIN_INSTRUCTION &&
+	    !target_i915_obj->has_global_gtt_mapping)) {
+		i915_gem_gtt_bind_object(target_i915_obj,
+					 target_i915_obj->cache_level);
+	}
+
 	/* and update the user's relocation entry */
 	reloc->presumed_offset = target_offset;
 
@@ -393,30 +415,46 @@ static int
 i915_gem_execbuffer_relocate_object(struct drm_i915_gem_object *obj,
 				    struct eb_objects *eb)
 {
+#define N_RELOC(x) ((x) / sizeof(struct drm_i915_gem_relocation_entry))
+	struct drm_i915_gem_relocation_entry stack_reloc[N_RELOC(512)];
 	struct drm_i915_gem_relocation_entry __user *user_relocs;
 	struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
-	int i, ret;
+	int remain, ret;
 
 	user_relocs = (void __user *)(uintptr_t)entry->relocs_ptr;
-	for (i = 0; i < entry->relocation_count; i++) {
-		struct drm_i915_gem_relocation_entry reloc;
 
-		if (__copy_from_user_inatomic(&reloc,
-					      user_relocs+i,
-					      sizeof(reloc)))
+	remain = entry->relocation_count;
+	while (remain) {
+		struct drm_i915_gem_relocation_entry *r = stack_reloc;
+		int count = remain;
+		if (count > ARRAY_SIZE(stack_reloc))
+			count = ARRAY_SIZE(stack_reloc);
+		remain -= count;
+
+		if (__copy_from_user_inatomic(r, user_relocs, count*sizeof(r[0])))
 			return -EFAULT;
 
-		ret = i915_gem_execbuffer_relocate_entry(obj, eb, &reloc);
-		if (ret)
-			return ret;
+		do {
+			u64 offset = r->presumed_offset;
 
-		if (__copy_to_user_inatomic(&user_relocs[i].presumed_offset,
-					    &reloc.presumed_offset,
-					    sizeof(reloc.presumed_offset)))
-			return -EFAULT;
+			ret = i915_gem_execbuffer_relocate_entry(obj, eb, r);
+			if (ret)
+				return ret;
+
+			if (r->presumed_offset != offset &&
+			    __copy_to_user_inatomic(&user_relocs->presumed_offset,
+						    &r->presumed_offset,
+						    sizeof(r->presumed_offset))) {
+				return -EFAULT;
+			}
+
+			user_relocs++;
+			r++;
+		} while (--count);
 	}
 
 	return 0;
+#undef N_RELOC
 }
 
 static int
@@ -465,6 +503,13 @@ i915_gem_execbuffer_relocate(struct drm_device *dev,
 #define  __EXEC_OBJECT_HAS_FENCE (1<<31)
 
 static int
+need_reloc_mappable(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_gem_exec_object2 *entry = obj->exec_entry;
+	return entry->relocation_count && !use_cpu_reloc(obj);
+}
+
+static int
 pin_and_fence_object(struct drm_i915_gem_object *obj,
 		     struct intel_ring_buffer *ring)
 {
@@ -477,8 +522,7 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 		has_fenced_gpu_access &&
 		entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 		obj->tiling_mode != I915_TILING_NONE;
-	need_mappable =
-		entry->relocation_count ? true : need_fence;
+	need_mappable = need_fence || need_reloc_mappable(obj);
 
 	ret = i915_gem_object_pin(obj, entry->alignment, need_mappable);
 	if (ret)
@@ -535,8 +579,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 			has_fenced_gpu_access &&
 			entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 			obj->tiling_mode != I915_TILING_NONE;
-		need_mappable =
-			entry->relocation_count ? true : need_fence;
+		need_mappable = need_fence || need_reloc_mappable(obj);
 
 		if (need_mappable)
 			list_move(&obj->exec_list, &ordered_objects);
@@ -576,8 +619,7 @@ i915_gem_execbuffer_reserve(struct intel_ring_buffer *ring,
 				has_fenced_gpu_access &&
 				entry->flags & EXEC_OBJECT_NEEDS_FENCE &&
 				obj->tiling_mode != I915_TILING_NONE;
-			need_mappable =
-				entry->relocation_count ? true : need_fence;
+			need_mappable = need_fence || need_reloc_mappable(obj);
 
 			if ((entry->alignment && obj->gtt_offset & (entry->alignment - 1)) ||
 			    (need_mappable && !obj->map_and_fenceable))
@@ -955,7 +997,7 @@ validate_exec_list(struct drm_i915_gem_exec_object2 *exec,
 		if (!access_ok(VERIFY_WRITE, ptr, length))
 			return -EFAULT;
 
-		if (fault_in_pages_readable(ptr, length))
+		if (fault_in_multipages_readable(ptr, length))
 			return -EFAULT;
 	}
 
