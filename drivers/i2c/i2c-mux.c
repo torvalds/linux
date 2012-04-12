@@ -31,11 +31,11 @@ struct i2c_mux_priv {
 	struct i2c_algorithm algo;
 
 	struct i2c_adapter *parent;
-	void *mux_dev;	/* the mux chip/device */
+	void *mux_priv;	/* the mux chip/device */
 	u32  chan_id;	/* the channel id */
 
-	int (*select)(struct i2c_adapter *, void *mux_dev, u32 chan_id);
-	int (*deselect)(struct i2c_adapter *, void *mux_dev, u32 chan_id);
+	int (*select)(struct i2c_adapter *, void *mux_priv, u32 chan_id);
+	int (*deselect)(struct i2c_adapter *, void *mux_priv, u32 chan_id);
 };
 
 static int i2c_mux_master_xfer(struct i2c_adapter *adap,
@@ -47,11 +47,11 @@ static int i2c_mux_master_xfer(struct i2c_adapter *adap,
 
 	/* Switch to the right mux port and perform the transfer. */
 
-	ret = priv->select(parent, priv->mux_dev, priv->chan_id);
+	ret = priv->select(parent, priv->mux_priv, priv->chan_id);
 	if (ret >= 0)
 		ret = parent->algo->master_xfer(parent, msgs, num);
 	if (priv->deselect)
-		priv->deselect(parent, priv->mux_dev, priv->chan_id);
+		priv->deselect(parent, priv->mux_priv, priv->chan_id);
 
 	return ret;
 }
@@ -67,12 +67,12 @@ static int i2c_mux_smbus_xfer(struct i2c_adapter *adap,
 
 	/* Select the right mux port and perform the transfer. */
 
-	ret = priv->select(parent, priv->mux_dev, priv->chan_id);
+	ret = priv->select(parent, priv->mux_priv, priv->chan_id);
 	if (ret >= 0)
 		ret = parent->algo->smbus_xfer(parent, addr, flags,
 					read_write, command, size, data);
 	if (priv->deselect)
-		priv->deselect(parent, priv->mux_dev, priv->chan_id);
+		priv->deselect(parent, priv->mux_priv, priv->chan_id);
 
 	return ret;
 }
@@ -87,7 +87,8 @@ static u32 i2c_mux_functionality(struct i2c_adapter *adap)
 }
 
 struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
-				void *mux_dev, u32 force_nr, u32 chan_id,
+				struct device *mux_dev,
+				void *mux_priv, u32 force_nr, u32 chan_id,
 				int (*select) (struct i2c_adapter *,
 					       void *, u32),
 				int (*deselect) (struct i2c_adapter *,
@@ -102,7 +103,7 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 
 	/* Set up private adapter data */
 	priv->parent = parent;
-	priv->mux_dev = mux_dev;
+	priv->mux_priv = mux_priv;
 	priv->chan_id = chan_id;
 	priv->select = select;
 	priv->deselect = deselect;

@@ -105,7 +105,8 @@ static int __devinit gpiomux_probe(struct platform_device *pdev)
 	for (i = 0; i < pdata->n_values; i++) {
 		u32 nr = pdata->base_nr ? (pdata->base_nr + i) : 0;
 
-		mux->adap[i] = i2c_add_mux_adapter(parent, mux, nr, i,
+		mux->adap[i] = i2c_add_mux_adapter(parent, &pdev->dev, mux,
+						   nr, i,
 						   gpiomux_select, deselect);
 		if (!mux->adap[i]) {
 			ret = -ENODEV;
