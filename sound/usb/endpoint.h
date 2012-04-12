@@ -1,21 +1,6 @@
 #ifndef __USBAUDIO_ENDPOINT_H
 #define __USBAUDIO_ENDPOINT_H
 
-void snd_usb_init_substream(struct snd_usb_stream *as,
-			    int stream,
-			    struct audioformat *fp);
-
-int snd_usb_init_substream_urbs(struct snd_usb_substream *subs,
-				unsigned int period_bytes,
-				unsigned int rate,
-				unsigned int frame_bits);
-
-void snd_usb_release_substream_urbs(struct snd_usb_substream *subs, int force);
-
-int snd_usb_substream_prepare(struct snd_usb_substream *subs,
-			      struct snd_pcm_runtime *runtime);
-
-
 #define SND_USB_ENDPOINT_TYPE_DATA     0
 #define SND_USB_ENDPOINT_TYPE_SYNC     1
 
