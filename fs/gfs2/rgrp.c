@@ -1297,7 +1297,7 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal, unsigned char state,
 {
 	struct gfs2_bitmap *bi = NULL;
 	const u32 length = rgd->rd_length;
-	u32 blk = BFITNOENT;
+	u32 biblk = BFITNOENT;
 	unsigned int buf, x;
 	const u8 *buffer = NULL;
 
@@ -1334,8 +1334,8 @@ do_search:
 		if (state != GFS2_BLKST_UNLINKED && bi->bi_clone)
 			buffer = bi->bi_clone + bi->bi_offset;
 
-		blk = gfs2_bitfit(buffer, bi->bi_len, goal, state);
-		if (blk != BFITNOENT)
+		biblk = gfs2_bitfit(buffer, bi->bi_len, goal, state);
+		if (biblk != BFITNOENT)
 			break;
 
 		if ((goal == 0) && (state == GFS2_BLKST_FREE))
@@ -1348,10 +1348,10 @@ skip:
 		goal = 0;
 	}
 
-	if (blk != BFITNOENT)
+	if (biblk != BFITNOENT)
 		*rbi = bi;
 
-	return blk;
+	return biblk;
 }
 
 /**
