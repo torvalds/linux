@@ -24,11 +24,17 @@
  */
 #define TOFFSET_MINIMUM_ADJUSTMENT 10
 
+/* This is not in the standard. It is a margin added to the
+ * Toffset setpoint to mitigate TSF overcorrection
+ * introduced by TSF adjustment latency.
+ */
+#define TOFFSET_SET_MARGIN 20
+
 /* This is not in the standard.  It represents the maximum Toffset jump above
  * which we'll invalidate the Toffset setpoint and choose a new setpoint.  This
  * could be, for instance, in case a neighbor is restarted and its TSF counter
  * reset.
- * */
+ */
 #define TOFFSET_MAXIMUM_ADJUSTMENT 30000		/* 30 ms */
 
 struct sync_method {
