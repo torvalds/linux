@@ -2116,7 +2116,7 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	if (sg_next(&sg_src[sg_len - 1]) == sg_src)
 		desc->cyclic = true;
 
-	if (direction != DMA_NONE) {
+	if (direction != DMA_TRANS_NONE) {
 		dma_addr_t dev_addr = d40_get_dev_addr(chan, direction);
 
 		if (direction == DMA_DEV_TO_MEM)
