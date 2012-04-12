@@ -791,40 +791,35 @@ sg_ioctl(struct file *filp, unsigned int cmd_in, unsigned long arg)
 
 	switch (cmd_in) {
 	case SG_IO:
-		{
-			int blocking = 1;	/* ignore O_NONBLOCK flag */
-
+		if (sdp->detached)
+			return -ENODEV;
+		if (!scsi_block_when_processing_errors(sdp->device))
+			return -ENXIO;
+		if (!access_ok(VERIFY_WRITE, p, SZ_SG_IO_HDR))
+			return -EFAULT;
+		result = sg_new_write(sfp, filp, p, SZ_SG_IO_HDR,
+				 1, read_only, 1, &srp);
+		if (result < 0)
+			return result;
+		while (1) {
+			result = 0;	/* following macro to beat race condition */
+			__wait_event_interruptible(sfp->read_wait,
+				(srp->done || sdp->detached),
+				result);
 			if (sdp->detached)
 				return -ENODEV;
-			if (!scsi_block_when_processing_errors(sdp->device))
-				return -ENXIO;
-			if (!access_ok(VERIFY_WRITE, p, SZ_SG_IO_HDR))
-				return -EFAULT;
-			result =
-			    sg_new_write(sfp, filp, p, SZ_SG_IO_HDR,
-					 blocking, read_only, 1, &srp);
-			if (result < 0)
-				return result;
-			while (1) {
-				result = 0;	/* following macro to beat race condition */
-				__wait_event_interruptible(sfp->read_wait,
-					(srp->done || sdp->detached),
-					result);
-				if (sdp->detached)
-					return -ENODEV;
-				write_lock_irq(&sfp->rq_list_lock);
-				if (srp->done) {
-					srp->done = 2;
-					write_unlock_irq(&sfp->rq_list_lock);
-					break;
-				}
-				srp->orphan = 1;
+			write_lock_irq(&sfp->rq_list_lock);
+			if (srp->done) {
+				srp->done = 2;
 				write_unlock_irq(&sfp->rq_list_lock);
-				return result;	/* -ERESTARTSYS because signal hit process */
+				break;
 			}
-			result = sg_new_read(sfp, p, SZ_SG_IO_HDR, srp);
-			return (result < 0) ? result : 0;
+			srp->orphan = 1;
+			write_unlock_irq(&sfp->rq_list_lock);
+			return result;	/* -ERESTARTSYS because signal hit process */
 		}
+		result = sg_new_read(sfp, p, SZ_SG_IO_HDR, srp);
+		return (result < 0) ? result : 0;
 	case SG_SET_TIMEOUT:
 		result = get_user(val, ip);
 		if (result)
