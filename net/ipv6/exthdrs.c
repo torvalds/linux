@@ -153,6 +153,7 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff *skb)
 
 	while (len > 0) {
 		int optlen = nh[off + 1] + 2;
+		int i;
 
 		switch (nh[off]) {
 		case IPV6_TLV_PAD0:
@@ -160,6 +161,21 @@ static int ip6_parse_tlv(struct tlvtype_proc *procs, struct sk_buff *skb)
 			break;
 
 		case IPV6_TLV_PADN:
+			/* RFC 2460 states that the purpose of PadN is
+			 * to align the containing header to multiples
+			 * of 8. 7 is therefore the highest valid value.
+			 * See also RFC 4942, Section 2.1.9.5.
+			 */
+			if (optlen > 7)
+				goto bad;
+			/* RFC 4942 recommends receiving hosts to
+			 * actively check PadN payload to contain
+			 * only zeroes.
+			 */
+			for (i = 2; i < optlen; i++) {
+				if (nh[off + i] != 0)
+					goto bad;
+			}
 			break;
 
 		default: /* Other TLV code so scan list */
