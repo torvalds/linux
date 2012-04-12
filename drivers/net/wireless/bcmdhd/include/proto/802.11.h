@@ -21,7 +21,7 @@
  *
  * Fundamental types and constants relating to 802.11
  *
- * $Id: 802.11.h 309193 2012-01-19 00:03:57Z $
+ * $Id: 802.11.h 320583 2012-03-12 15:09:36Z $
  */
 
 #ifndef _802_11_H_
@@ -2064,6 +2064,9 @@ typedef enum vht_op_chan_width {
 #endif
 
 #define WFA_OUI_TYPE_TPC	8
+#ifdef WLTDLS
+#define WFA_OUI_TYPE_WFD	10
+#endif 
 
 
 #define RSN_AKM_NONE		0	
@@ -2143,6 +2146,7 @@ BWL_PRE_PACKED_STRUCT struct dot11_timeout_ie {
 	uint32 value;		
 } BWL_POST_PACKED_STRUCT;
 typedef struct dot11_timeout_ie dot11_timeout_ie_t;
+
 
 
 BWL_PRE_PACKED_STRUCT struct dot11_gtk_ie {

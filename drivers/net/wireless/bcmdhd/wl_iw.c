@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_iw.c 302026 2011-12-09 11:51:50Z $
+ * $Id: wl_iw.c 312290 2012-02-02 02:52:18Z $
  */
 
 #if defined(USE_IW)
@@ -150,11 +150,20 @@ static void wl_iw_timerfunc(ulong data);
 static void wl_iw_set_event_mask(struct net_device *dev);
 static int wl_iw_iscan(iscan_info_t *iscan, wlc_ssid_t *ssid, uint16 action);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 29)
-#define IW_DEV_IF(dev)        ((wl_iw_t *)netdev_priv(dev))
+
+typedef struct priv_link {
+	wl_iw_t *wliw;
+} priv_link_t;
+
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 24))
+#define WL_DEV_LINK(dev)       (priv_link_t*)(dev->priv)
 #else
-#define IW_DEV_IF(dev)        ((wl_iw_t *)dev->priv)
+#define WL_DEV_LINK(dev)       (priv_link_t*)netdev_priv(dev)
 #endif
+
+
+#define IW_DEV_IF(dev)          ((wl_iw_t*)(WL_DEV_LINK(dev))->wliw)
 
 static void swap_key_from_BE(
 	        wl_wsec_key_t *key

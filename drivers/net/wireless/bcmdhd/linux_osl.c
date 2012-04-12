@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c 309193 2012-01-19 00:03:57Z $
+ * $Id: linux_osl.c 311099 2012-01-27 14:46:59Z $
  */
 
 #define LINUX_PORT

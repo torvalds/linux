@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmnvram.h 288000 2011-10-05 19:05:16Z $
+ * $Id: bcmnvram.h 320632 2012-03-12 19:22:42Z $
  */
 
 #ifndef _bcmnvram_h_
@@ -133,4 +133,47 @@ uint8 nvram_calc_crc(struct nvram_header * nvh);
 
 #define BCM_JUMBO_NVRAM_DELIMIT '\n'
 #define BCM_JUMBO_START "Broadcom Jumbo Nvram file"
+
+#if (defined(FAILSAFE_UPGRADE) || defined(CONFIG_FAILSAFE_UPGRADE) || \
+	defined(__CONFIG_FAILSAFE_UPGRADE_SUPPORT__))
+#define IMAGE_SIZE "image_size"
+#define BOOTPARTITION "bootpartition"
+#define IMAGE_BOOT BOOTPARTITION
+#define PARTIALBOOTS "partialboots"
+#define MAXPARTIALBOOTS "maxpartialboots"
+#define IMAGE_1ST_FLASH_TRX "flash0.trx"
+#define IMAGE_1ST_FLASH_OS "flash0.os"
+#define IMAGE_2ND_FLASH_TRX "flash0.trx2"
+#define IMAGE_2ND_FLASH_OS "flash0.os2"
+#define IMAGE_FIRST_OFFSET "image_first_offset"
+#define IMAGE_SECOND_OFFSET "image_second_offset"
+#define LINUX_FIRST "linux"
+#define LINUX_SECOND "linux2"
+#endif
+
+#if (defined(DUAL_IMAGE) || defined(CONFIG_DUAL_IMAGE) || \
+	defined(__CONFIG_DUAL_IMAGE_FLASH_SUPPORT__))
+
+#define IMAGE_BOOT "image_boot"
+#define BOOTPARTITION IMAGE_BOOT
+
+#define IMAGE_1ST_FLASH_TRX "flash0.trx"
+#define IMAGE_1ST_FLASH_OS "flash0.os"
+#define IMAGE_2ND_FLASH_TRX "flash0.trx2"
+#define IMAGE_2ND_FLASH_OS "flash0.os2"
+#define IMAGE_SIZE "image_size"
+
+
+#define IMAGE_FIRST_OFFSET "image_first_offset"
+#define IMAGE_SECOND_OFFSET "image_second_offset"
+
+
+#define LINUX_FIRST "linux"
+#define LINUX_SECOND "linux2"
+#define POLICY_TOGGLE "toggle"
+#define LINUX_PART_TO_FLASH "linux_to_flash"
+#define LINUX_FLASH_POLICY "linux_flash_policy"
+
+#endif 
+
 #endif 

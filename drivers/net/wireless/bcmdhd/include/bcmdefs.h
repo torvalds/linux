@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdefs.h 309174 2012-01-18 23:10:14Z $
+ * $Id: bcmdefs.h 316830 2012-02-23 20:29:22Z $
  */
 
 #ifndef	_bcmdefs_h_
@@ -55,6 +55,7 @@
 #define CONST	const
 #ifndef BCMFASTPATH
 #define BCMFASTPATH
+#define BCMFASTPATH_HOST
 #endif 
 
 
@@ -192,6 +193,11 @@ typedef struct {
 
 #define BCMDONGLEOVERHEAD	(BCMDONGLEHDRSZ + BCMDONGLEPADSZ)
 
+
+#if defined(NO_BCMDBG_ASSERT)
+# undef BCMDBG_ASSERT
+# undef BCMASSERT_LOG
+#endif
 
 #if defined(BCMASSERT_LOG)
 #define BCMASSERT_SUPPORT

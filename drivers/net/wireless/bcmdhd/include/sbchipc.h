@@ -5,7 +5,7 @@
  * JTAG, 0/1/2 UARTs, clock frequency control, a watchdog interrupt timer,
  * GPIO interface, extbus, and support for serial and parallel flashes.
  *
- * $Id: sbchipc.h 309193 2012-01-19 00:03:57Z $
+ * $Id: sbchipc.h 325465 2012-04-03 11:16:11Z $
  *
  * Copyright (C) 1999-2012, Broadcom Corporation
  * 
@@ -184,8 +184,8 @@ typedef volatile struct {
 
 	
 	uint32	clkdiv2;
-	uint32	PAD;
 	
+	uint32	otpcontrol1;
 	uint32	fabid;			
 
 	
@@ -513,6 +513,30 @@ typedef volatile struct {
 #define OTPC_TMM_SHIFT		8
 #define OTPC_ODM		0x00000800
 #define OTPC_PROGEN		0x80000000
+
+
+#define OTPC_40NM_PROGSEL_SHIFT	0
+#define OTPC_40NM_PCOUNT_SHIFT	1
+#define OTPC_40NM_PCOUNT_WR	0xA
+#define OTPC_40NM_PCOUNT_V1X	0xB
+#define OTPC_40NM_REGCSEL_SHIFT	5
+#define OTPC_40NM_REGCSEL_DEF	0x4
+#define OTPC_40NM_PROGIN_SHIFT	8
+#define OTPC_40NM_R2X_SHIFT	10
+#define OTPC_40NM_ODM_SHIFT	11
+#define OTPC_40NM_DF_SHIFT	15
+#define OTPC_40NM_VSEL_SHIFT	16
+#define OTPC_40NM_VSEL_WR	0xA
+#define OTPC_40NM_VSEL_V1X	0xA
+#define OTPC_40NM_VSEL_R1X	0x5
+#define OTPC_40NM_COFAIL_SHIFT	30
+
+#define OTPC1_CPCSEL_SHIFT	0
+#define OTPC1_CPCSEL_DEF	6
+#define OTPC1_TM_SHIFT		8
+#define OTPC1_TM_WR		0x84
+#define OTPC1_TM_V1X		0x84
+#define OTPC1_TM_R1X		0x4
 
 
 #define OTPP_COL_MASK		0x000000ff
@@ -1437,6 +1461,10 @@ typedef volatile struct {
 #define CCTRL5357_NFLASH		(1<<16) 
 
 
+#define CCTRL43217_EXTPA_C0             (1<<13) 
+#define CCTRL43217_EXTPA_C1             (1<<8)  
+
+
 #define RES4328_EXT_SWITCHER_PWM	0	
 #define RES4328_BB_SWITCHER_PWM		1	
 #define RES4328_BB_SWITCHER_BURST	2	
@@ -1923,6 +1951,10 @@ typedef volatile struct {
 #define CCTRL_4330_SDIO_HOST_WAKE	0x00000004    
 #define CCTRL_4330_JTAG_DISABLE	0x00000008    
 
+#define PMU_VREG0_ADDR				0
+#define PMU_VREG0_DISABLE_PULLD_BT_SHIFT	2
+#define PMU_VREG0_DISABLE_PULLD_WL_SHIFT	3
+
 
 #define RES4334_LPLDO_PU		0
 #define RES4334_RESET_PULLDN_DIS	1
@@ -1979,6 +2011,10 @@ typedef volatile struct {
 
 
 #define CCTRL4334_HSIC_LDO_PU		(1  << 23)
+
+
+#define CCTRL1_4324_GPIO_SEL            (1 << 0)    
+#define CCTRL1_4324_SDIO_HOST_WAKE (1 << 2)  
 
 
 

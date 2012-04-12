@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: hndpmu.c 309997 2012-01-21 06:26:00Z $
+ * $Id: hndpmu.c 324060 2012-03-27 23:26:47Z $
  */
 
 #include <bcm_cfg.h>

@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.c 309908 2012-01-21 00:14:29Z $
+ * $Id: siutils.c 323774 2012-03-27 00:16:45Z $
  */
 
 #include <bcm_cfg.h>
@@ -1131,6 +1131,11 @@ si_watchdog_ms(si_t *sih, uint32 ms)
 	si_watchdog(sih, wd_msticks * ms);
 }
 
+uint32 si_watchdog_msticks(void)
+{
+	return wd_msticks;
+}
+
 bool
 si_taclear(si_t *sih, bool details)
 {
@@ -1934,6 +1939,10 @@ si_socram_srmem_size(si_t *sih)
 	uint corerev;
 	uint32 coreinfo;
 	uint memsize = 0;
+
+	if ((CHIPID(sih->chip) == BCM4334_CHIP_ID) && (CHIPREV(sih->chiprev) < 2)) {
+		return (32 * 1024);
+	}
 
 	sii = SI_INFO(sih);
 

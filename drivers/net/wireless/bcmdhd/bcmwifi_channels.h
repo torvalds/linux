@@ -23,11 +23,11 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmwifi.h 309193 2012-01-19 00:03:57Z $
+ * $Id: bcmwifi_channels.h 309193 2012-01-19 00:03:57Z $
  */
 
-#ifndef	_bcmwifi_h_
-#define	_bcmwifi_h_
+#ifndef	_bcmwifi_channels_h_
+#define	_bcmwifi_channels_h_
 
 
 

@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dbus.h 309193 2012-01-19 00:03:57Z $
+ * $Id: dbus.h 323680 2012-03-26 17:52:31Z $
  */
 
 #ifndef __DBUS_H__
@@ -68,8 +68,11 @@ enum {
 #define ERR_CBMASK_RXFAIL		0x00000002
 #define ERR_CBMASK_ALL			0xFFFFFFFF
 
-#define DBUS_CBCTL_WRITE		0
-#define DBUS_CBCTL_READ			1
+#define DBUS_CBCTL_WRITE			0
+#define DBUS_CBCTL_READ				1
+#if defined(INTR_EP_ENABLE)
+#define DBUS_CBINTR_POLL			2
+#endif /* defined(INTR_EP_ENABLE) */
 
 #define DBUS_TX_RETRY_LIMIT		3		/* retries for failed txirb */
 #define DBUS_TX_TIMEOUT_INTERVAL	250		/* timeout for txirb complete, in ms */

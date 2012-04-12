@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils.h 309193 2012-01-19 00:03:57Z $
+ * $Id: siutils.h 321982 2012-03-19 06:58:08Z $
  */
 
 #ifndef	_siutils_h_
@@ -189,6 +189,7 @@ extern uint32 si_socdevram_remap_size(si_t *sih);
 
 extern void si_watchdog(si_t *sih, uint ticks);
 extern void si_watchdog_ms(si_t *sih, uint32 ms);
+extern uint32 si_watchdog_msticks(void);
 extern void *si_gpiosetcore(si_t *sih);
 extern uint32 si_gpiocontrol(si_t *sih, uint32 mask, uint32 val, uint8 priority);
 extern uint32 si_gpioouten(si_t *sih, uint32 mask, uint32 val, uint8 priority);

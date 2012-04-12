@@ -18,7 +18,7 @@
 *      Notwithstanding the above, under no circumstances may you combine this
 * software in any way with any other Broadcom software provided under a license
 * other than the GPL, without Broadcom's express prior written consent.
-* $Id: dhd_wlfc.h 294267 2011-11-04 23:41:52Z $
+* $Id: dhd_wlfc.h 322459 2012-03-20 22:36:07Z $
 *
 */
 #ifndef __wlfc_host_driver_definitions_h__
@@ -62,6 +62,7 @@ typedef enum ewlfc_packet_state {
 typedef enum ewlfc_mac_entry_action {
 	eWLFC_MAC_ENTRY_ACTION_ADD,
 	eWLFC_MAC_ENTRY_ACTION_DEL,
+	eWLFC_MAC_ENTRY_ACTION_UPDATE,
 	eWLFC_MAC_ENTRY_ACTION_MAX
 } ewlfc_mac_entry_action_t;
 
@@ -222,7 +223,7 @@ typedef struct athost_wl_status_info {
 	athost_wl_stat_counters_t stats;
 
 	/* the additional ones are for bc/mc and ATIM FIFO */
-	int     FIFO_credit[AC_COUNT + 2];
+	int		FIFO_credit[AC_COUNT + 2];
 
 	/* Credit borrow counts for each FIFO from each of the other FIFOs */
 	int		credits_borrowed[AC_COUNT + 2][AC_COUNT + 2];

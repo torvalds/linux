@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfgp2p.h 308397 2012-01-15 07:32:58Z $
+ * $Id: wl_cfgp2p.h 316197 2012-02-21 13:16:39Z $
  */
 #ifndef _wl_cfgp2p_h_
 #define _wl_cfgp2p_h_
@@ -269,7 +269,7 @@ wl_cfgp2p_unregister_ndev(struct wl_priv *wl);
 #define WL_P2P_WILDCARD_SSID "DIRECT-"
 #define WL_P2P_WILDCARD_SSID_LEN 7
 #define WL_P2P_INTERFACE_PREFIX "p2p"
-#define WL_P2P_TEMP_CHAN "11"
+#define WL_P2P_TEMP_CHAN 11
 
 
 #define IS_GAS_REQ(frame, len) (wl_cfgp2p_is_gas_action(frame, len) && \

@@ -20,7 +20,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: bcmutils.c 309397 2012-01-19 15:36:59Z $
+ * $Id: bcmutils.c 312855 2012-02-04 02:01:18Z $
  */
 
 #include <bcm_cfg.h>
@@ -174,6 +174,10 @@ pktsegcnt_war(osl_t *osh, void *p)
 		len = PKTLEN(osh, p);
 		if (len > 128) {
 			pktdata = (uint8 *)PKTDATA(osh, p);	/* starting address of data */
+			/* Check for page boundary straddle (2048B) */
+			if (((uintptr)pktdata & ~0x7ff) != ((uintptr)(pktdata+len) & ~0x7ff))
+				cnt++;
+
 			align64 = (uint)((uintptr)pktdata & 0x3f);	/* aligned to 64B */
 			align64 = (64 - align64) & 0x3f;
 			len -= align64;		/* bytes from aligned 64B to end */
@@ -624,7 +628,7 @@ pktq_mdeq(struct pktq *pq, uint prec_bmp, int *prec_out)
 	while ((prec = pq->hi_prec) > 0 && pq->q[prec].head == NULL)
 		pq->hi_prec--;
 
-	while ((prec_bmp & (1 << prec)) == 0 || pq->q[prec].head == NULL)
+	while ((pq->q[prec].head == NULL) || ((prec_bmp & (1 << prec)) == 0))
 		if (prec-- == 0)
 			return NULL;
 

@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmcdc.h 309825 2012-01-20 20:16:13Z $
+ * $Id: bcmcdc.h 318308 2012-03-02 02:23:42Z $
  */
 #ifndef _bcmcdc_h_
 #define	_bcmcdc_h_
@@ -83,6 +83,7 @@ struct bdc_header {
 #define BDC_FLAG_80211_PKT	0x01	
 #define BDC_FLAG_SUM_GOOD	0x04	
 #define BDC_FLAG_SUM_NEEDED	0x08	
+#define BDC_FLAG_EVENT_MSG	0x08	
 #define BDC_FLAG_VER_MASK	0xf0	
 #define BDC_FLAG_VER_SHIFT	4	
 

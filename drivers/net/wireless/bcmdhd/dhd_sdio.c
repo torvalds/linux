@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 309548 2012-01-20 01:13:08Z $
+ * $Id: dhd_sdio.c 325483 2012-04-03 13:22:22Z $
  */
 
 #include <typedefs.h>
@@ -162,7 +162,12 @@ typedef struct dhd_console {
 #define	REMAP_ENAB(bus)			((bus)->remap)
 #define	REMAP_ISADDR(bus, a)		(((a) >= ((bus)->orig_ramsize)) && ((a) < ((bus)->ramsize)))
 #define	KSO_ENAB(bus)			((bus)->kso)
-#define	SLPAUTO_ENAB(bus)		((bus)->_slpauto)
+#define	SR_ENAB(bus)			((bus)->_srenab)
+#define	SLPAUTO_ENAB(bus)		((SR_ENAB(bus)) && ((bus)->_slpauto))
+#define	MIN_RSRC_ADDR			(SI_ENUM_BASE + 0x618)
+#define	MIN_RSRC_SR			0x3
+#define	CORE_CAPEXT_ADDR		(SI_ENUM_BASE + 0x64c)
+#define	CORE_CAPEXT_SR_SUPPORTED_MASK	(1 << 1)
 
 #define	OOB_WAKEUP_ENAB(bus)		((bus)->_oobwakeup)
 #define	GPIO_DEV_SRSTATE		16	/* Host gpio17 mapped to device gpio0 SR state */
@@ -187,6 +192,7 @@ typedef struct dhd_bus {
 	uint		ramrev;			/* SOCRAM core revision */
 	uint32		ramsize;		/* Size of RAM in SOCRAM (bytes) */
 	uint32		orig_ramsize;		/* Size of RAM in SOCRAM (bytes) */
+	uint32		srmemsize;		/* Size of SRMEM */
 
 	uint32		bus;			/* gSPI or SDIO bus */
 	uint32		hostintmask;		/* Copy of Host Interrupt Mask */
@@ -320,6 +326,7 @@ typedef struct dhd_bus {
 	bool		kso;
 	bool		_slpauto;
 	bool		_oobwakeup;
+	bool		_srenab;
 } dhd_bus_t;
 
 /* clkstate */
@@ -582,6 +589,76 @@ dhdsdio_oobwakeup_init(dhd_bus_t *bus)
 }
 #endif /* USE_OOB_GPIO1 */
 
+/*
+ * Query if FW is in SR mode
+ */
+static bool
+dhdsdio_sr_cap(dhd_bus_t *bus)
+{
+	bool cap = FALSE;
+	uint32 min = 0, core_capext;
+
+	core_capext = bcmsdh_reg_read(bus->sdh, CORE_CAPEXT_ADDR, 4);
+	if (!(core_capext & CORE_CAPEXT_SR_SUPPORTED_MASK) && !(bus->sih->chip == BCM4324_CHIP_ID))
+		return FALSE;
+
+	min = bcmsdh_reg_read(bus->sdh, MIN_RSRC_ADDR, 4);
+	if (min == MIN_RSRC_SR) {
+		cap = TRUE;
+
+		if ((bus->sih->chip == BCM4334_CHIP_ID) && (bus->sih->chiprev < 3)) {
+			cap = FALSE;
+
+			DHD_ERROR(("Only 4334 >= B2 supports SR: curr rev %d\n",
+				bus->sih->chiprev));
+		}
+	}
+
+	return cap;
+}
+
+static int
+dhdsdio_srwar_init(dhd_bus_t *bus)
+{
+
+	bcmsdh_gpio_init(bus->sdh);
+
+#ifdef USE_OOB_GPIO1
+	dhdsdio_oobwakeup_init(bus);
+#endif
+
+
+	return 0;
+}
+
+static int
+dhdsdio_sr_init(dhd_bus_t *bus)
+{
+	uint8 val;
+	int err = 0;
+
+	if ((bus->sih->chip == BCM4334_CHIP_ID) && (bus->sih->chiprev == 2))
+		dhdsdio_srwar_init(bus);
+
+	val = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_WAKEUPCTRL, NULL);
+	val |= 1 << SBSDIO_FUNC1_WCTRL_HTWAIT_SHIFT;
+	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_WAKEUPCTRL,
+		1 << SBSDIO_FUNC1_WCTRL_HTWAIT_SHIFT, &err);
+	val = bcmsdh_cfg_read(bus->sdh, SDIO_FUNC_1, SBSDIO_FUNC1_WAKEUPCTRL, NULL);
+
+	/* Add CMD14 Support */
+	dhdsdio_devcap_set(bus,
+		(SDIOD_CCCR_BRCM_CARDCAP_CMD14_SUPPORT | SDIOD_CCCR_BRCM_CARDCAP_CMD14_EXT));
+
+	bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1,
+		SBSDIO_FUNC1_CHIPCLKCSR, SBSDIO_FORCE_HT, &err);
+
+	bus->_slpauto = dhd_slpauto ? TRUE : FALSE;
+
+	bus->_srenab = TRUE;
+
+	return 0;
+}
 
 /*
  * FIX: Be sure KSO bit is enabled
@@ -608,7 +685,6 @@ dhdsdio_clk_kso_init(dhd_bus_t *bus)
 			DHD_ERROR(("%s: SBSDIO_FUNC1_SLEEPCSR err: 0x%x\n", __FUNCTION__, err));
 	}
 
-
 	return 0;
 }
 
@@ -624,7 +700,7 @@ dhdsdio_clk_kso_enab(dhd_bus_t *bus, bool on)
 
 	if (err)
 		DHD_TRACE(("%s: KSO toggle %d failed: %d\n", __FUNCTION__, on, err));
-	return 0;
+	return err;
 }
 
 static int
@@ -953,15 +1029,15 @@ dhdsdio_htclk(dhd_bus_t *bus, bool on, bool pendok)
 		}
 
 		bus->clkstate = CLK_SDONLY;
-
-		bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, clkreq, &err);
-		DHD_INFO(("CLKCTL: turned OFF\n"));
-		if (err) {
-			DHD_ERROR(("%s: Failed access turning clock off: %d\n",
-			           __FUNCTION__, err));
-			return BCME_ERROR;
+		if (!SR_ENAB(bus)) {
+			bcmsdh_cfg_write(sdh, SDIO_FUNC_1, SBSDIO_FUNC1_CHIPCLKCSR, clkreq, &err);
+			DHD_INFO(("CLKCTL: turned OFF\n"));
+			if (err) {
+				DHD_ERROR(("%s: Failed access turning clock off: %d\n",
+				           __FUNCTION__, err));
+				return BCME_ERROR;
+			}
 		}
-
 	}
 	return BCME_OK;
 }
@@ -1108,6 +1184,7 @@ dhdsdio_clkctl(dhd_bus_t *bus, uint target, bool pendok)
 #ifdef DHD_DEBUG
 		if (dhd_console_ms == 0)
 #endif /* DHD_DEBUG */
+		if (bus->poll == 0)
 			dhd_os_wd_timer(bus->dhd, 0);
 		break;
 	}
@@ -2176,24 +2253,36 @@ static int
 dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 {
 	uint32 addr;
-	int rv;
+	int rv, i;
+	uint32 shaddr = 0;
 
-	/* Read last word in memory to determine address of sdpcm_shared structure */
-	if ((rv = dhdsdio_membytes(bus, FALSE, bus->ramsize - 4, (uint8 *)&addr, 4)) < 0)
-		return rv;
+	shaddr = bus->ramsize - 4;
 
-	addr = ltoh32(addr);
+	i = 0;
+	do {
+		/* Read last word in memory to determine address of sdpcm_shared structure */
+		if ((rv = dhdsdio_membytes(bus, FALSE, shaddr, (uint8 *)&addr, 4)) < 0)
+			return rv;
 
-	DHD_INFO(("sdpcm_shared address 0x%08X\n", addr));
+		addr = ltoh32(addr);
 
-	/*
-	 * Check if addr is valid.
-	 * NVRAM length at the end of memory should have been overwritten.
-	 */
-	if (addr == 0 || ((~addr >> 16) & 0xffff) == (addr & 0xffff)) {
-		DHD_ERROR(("%s: address (0x%08x) of sdpcm_shared invalid\n", __FUNCTION__, addr));
-		return BCME_ERROR;
-	}
+		DHD_INFO(("sdpcm_shared address 0x%08X\n", addr));
+
+		/*
+		 * Check if addr is valid.
+		 * NVRAM length at the end of memory should have been overwritten.
+		 */
+		if (addr == 0 || ((~addr >> 16) & 0xffff) == (addr & 0xffff)) {
+			if ((bus->srmemsize > 0) && (i++ == 0)) {
+				shaddr -= bus->srmemsize;
+			} else {
+				DHD_ERROR(("%s: address (0x%08x) of sdpcm_shared invalid\n",
+					__FUNCTION__, addr));
+				return BCME_ERROR;
+			}
+		} else
+			break;
+	} while (i < 2);
 
 	/* Read hndrte_shared structure */
 	if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)sh, sizeof(sdpcm_shared_t))) < 0)
@@ -3596,10 +3685,8 @@ dhd_bus_init(dhd_pub_t *dhdp, bool enforce_mutex)
 		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_0, SDIOD_CCCR_IOEN, enable, NULL);
 	}
 
-	/* Restore previous clock setting */
-	if (SLPAUTO_ENAB(bus))
-		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1,
-			SBSDIO_FUNC1_CHIPCLKCSR, SBSDIO_FORCE_HT, &err);
+	if (dhdsdio_sr_cap(bus))
+		dhdsdio_sr_init(bus);
 	else
 		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1,
 			SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
@@ -5739,6 +5826,8 @@ dhdsdio_chipmatch(uint16 chipid)
 		return TRUE;
 	if (chipid == BCM4324_CHIP_ID)
 		return TRUE;
+	if (chipid == BCM4335_CHIP_ID)
+		return TRUE;
 	return FALSE;
 }
 
@@ -5748,13 +5837,9 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 {
 	int ret;
 	dhd_bus_t *bus;
-	dhd_cmn_t *cmn;
 #ifdef GET_CUSTOM_MAC_ENABLE
 	struct ether_addr ea_addr;
 #endif /* GET_CUSTOM_MAC_ENABLE */
-#ifdef PROP_TXSTATUS
-	uint up = 0;
-#endif
 
 	/* Init global variables at run-time, not as part of the declaration.
 	 * This is required to support init/de-init of the driver. Initialization
@@ -5850,15 +5935,11 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 	bus->usebufpool = FALSE; /* Use bufpool if allocated, else use locally malloced rxbuf */
 
 	/* attach the common module */
-	if (!(cmn = dhd_common_init(osh))) {
-		DHD_ERROR(("%s: dhd_common_init failed\n", __FUNCTION__));
-		goto fail;
-	}
+	dhd_common_init(osh);
 
 	/* attempt to attach to the dongle */
 	if (!(dhdsdio_probe_attach(bus, osh, sdh, regsva, devid))) {
 		DHD_ERROR(("%s: dhdsdio_probe_attach failed\n", __FUNCTION__));
-		dhd_common_deinit(NULL, cmn);
 		goto fail;
 	}
 
@@ -5867,9 +5948,6 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 		DHD_ERROR(("%s: dhd_attach failed\n", __FUNCTION__));
 		goto fail;
 	}
-
-	bus->dhd->cmn = cmn;
-	cmn->dhd = bus->dhd;
 
 	/* Allocate buffers */
 	if (!(dhdsdio_probe_malloc(bus, osh, sdh))) {
@@ -5920,10 +5998,6 @@ dhdsdio_probe(uint16 venid, uint16 devid, uint16 bus_no, uint16 slot,
 		goto fail;
 	}
 
-#ifdef PROP_TXSTATUS
-	if (dhd_download_fw_on_driverload)
-		dhd_wl_ioctl_cmd(bus->dhd, WLC_UP, (char *)&up, sizeof(up), TRUE, 0);
-#endif
 	return bus;
 
 fail:
@@ -5939,6 +6013,7 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 	uint8 clkctl = 0;
 
 	bus->alp_only = TRUE;
+	bus->sih = NULL;
 
 	/* Return the window to backplane enumeration space for core access */
 	if (dhdsdio_set_siaddr_window(bus, SI_ENUM_BASE)) {
@@ -6052,13 +6127,14 @@ dhdsdio_probe_attach(struct dhd_bus *bus, osl_t *osh, void *sdh, void *regsva,
 			goto fail;
 		}
 
-
 		bus->ramsize = bus->orig_ramsize;
 		if (dhd_dongle_memsize)
 			dhd_dongle_setmemsize(bus, dhd_dongle_memsize);
 
 		DHD_ERROR(("DHD: dongle ram size is set to %d(orig %d)\n",
 			bus->ramsize, bus->orig_ramsize));
+
+		bus->srmemsize = si_socram_srmem_size(bus->sih);
 	}
 
 	/* ...but normally deal with the SDPCMDEV core */
@@ -6231,22 +6307,12 @@ dhdsdio_download_firmware(struct dhd_bus *bus, osl_t *osh, void *sdh)
 
 	DHD_OS_WAKE_LOCK(bus->dhd);
 
-	if (!SLPAUTO_ENAB(bus)) {
-		/* Download the firmware */
-		dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
-	} else {
-		int err = 0;
-		bcmsdh_cfg_write(bus->sdh, SDIO_FUNC_1,
-			SBSDIO_FUNC1_CHIPCLKCSR, SBSDIO_ALP_AVAIL_REQ, &err);
-	}
+	/* Download the firmware */
+	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 
 	ret = _dhdsdio_download_firmware(bus) == 0;
 
-	/* For SLPAUTO, keep ALP_REQ otherwise device can go into deep-sleep
-	 * without host request
-	 */
-	if (!SLPAUTO_ENAB(bus))
-		dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
+	dhdsdio_clkctl(bus, CLK_SDONLY, FALSE);
 
 	DHD_OS_WAKE_UNLOCK(bus->dhd);
 	return ret;
@@ -6262,14 +6328,16 @@ dhdsdio_release(dhd_bus_t *bus, osl_t *osh)
 	if (bus) {
 		ASSERT(osh);
 
+		if (bus->dhd) {
+			dongle_isolation = bus->dhd->dongle_isolation;
+			dhd_detach(bus->dhd);
+		}
+
 		/* De-register interrupt handler */
 		bcmsdh_intr_disable(bus->sdh);
 		bcmsdh_intr_dereg(bus->sdh);
 
 		if (bus->dhd) {
-			dhd_common_deinit(bus->dhd, NULL);
-			dongle_isolation = bus->dhd->dongle_isolation;
-			dhd_detach(bus->dhd);
 			dhdsdio_release_dongle(bus, osh, dongle_isolation, TRUE);
 			dhd_free(bus->dhd);
 			bus->dhd = NULL;
@@ -6393,6 +6461,7 @@ dhd_bus_unregister(void)
 	bcmsdh_unregister();
 }
 
+#if defined(BCMLXSDMMC)
 /* Register a dummy SDIO client driver in order to be notified of new SDIO device */
 int dhd_bus_reg_sdio_notify(void* semaphore)
 {
@@ -6403,6 +6472,7 @@ void dhd_bus_unreg_sdio_notify(void)
 {
 	bcmsdh_unreg_sdio_notify();
 }
+#endif /* defined(BCMLXSDMMC) */
 
 #ifdef BCMEMBEDIMAGE
 static int
@@ -6852,6 +6922,13 @@ dhd_bus_devreset(dhd_pub_t *dhdp, uint8 flag)
 	return bcmerror;
 }
 
+/* Get Chip ID version */
+uint dhd_bus_chip_id(dhd_pub_t *dhdp)
+{
+	dhd_bus_t *bus = dhdp->bus;
+
+	return  bus->sih->chip;
+}
 int
 dhd_bus_membytes(dhd_pub_t *dhdp, bool set, uint32 address, uint8 *data, uint size)
 {

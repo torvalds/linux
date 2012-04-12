@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h 309548 2012-01-20 01:13:08Z $
+ * $Id: bcmsdh.h 313885 2012-02-09 03:55:26Z $
  */
 
 /**
@@ -55,7 +55,13 @@ typedef void (*bcmsdh_cb_fn_t)(void *);
  *    implementation may maintain a single "default" handle (e.g. the first or
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
+
+#if defined(NDIS630)
+extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
+	void **regsva, uint irq, shared_info_t *sh);
+#else
 extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl, void **regsva, uint irq);
+#endif
 
 /* Detach - freeup resources allocated in attach */
 extern int bcmsdh_detach(osl_t *osh, void *sdh);
@@ -70,6 +76,8 @@ extern int bcmsdh_intr_disable(void *sdh);
 /* Register/deregister device interrupt handler. */
 extern int bcmsdh_intr_reg(void *sdh, bcmsdh_cb_fn_t fn, void *argh);
 extern int bcmsdh_intr_dereg(void *sdh);
+/* Enable/disable SD card interrupt forward */
+extern void bcmsdh_intr_forward(void *sdh, bool pass);
 
 #if defined(DHD_DEBUG)
 /* Query pending interrupt status from the host controller */

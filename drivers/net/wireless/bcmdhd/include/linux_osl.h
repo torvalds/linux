@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.h 309193 2012-01-19 00:03:57Z $
+ * $Id: linux_osl.h 325514 2012-04-03 17:18:09Z $
  */
 
 #ifndef _linux_osl_h_
@@ -359,6 +359,42 @@ extern struct sk_buff *osl_pkt_tonative(osl_t *osh, void *pkt);
 
 #define	DMA_MAP(osh, va, size, direction, p, dmah) \
 	osl_dma_map((osh), (va), (size), (direction))
+
+#ifdef PKTC
+
+struct chain_node {
+	struct sk_buff	*link;
+	unsigned int	flags:3, pkts:9, bytes:20;
+};
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 14)
+#define CHAIN_NODE(skb)		((struct chain_node*)&(((struct sk_buff*)skb)->tstamp))
+#else
+#define CHAIN_NODE(skb)		((struct chain_node*)&(((struct sk_buff*)skb)->stamp))
+#endif
+
+#define	PKTCCNT(skb)		(CHAIN_NODE(skb)->pkts)
+#define	PKTCLEN(skb)		(CHAIN_NODE(skb)->bytes)
+#define	PKTCFLAGS(skb)		(CHAIN_NODE(skb)->flags)
+#define	PKTCSETCNT(skb, c)	(CHAIN_NODE(skb)->pkts = (c) & ((1 << 9) - 1))
+#define	PKTCSETLEN(skb, l)	(CHAIN_NODE(skb)->bytes = (l) & ((1 << 20) - 1))
+#define	PKTCSETFLAG(skb, fb)	(CHAIN_NODE(skb)->flags |= (fb))
+#define	PKTCCLRFLAG(skb, fb)	(CHAIN_NODE(skb)->flags &= ~(fb))
+#define	PKTCLINK(skb)		(CHAIN_NODE(skb)->link)
+#define	PKTSETCLINK(skb, x)	(CHAIN_NODE(skb)->link = (struct sk_buff*)(x))
+#define	PKTISCHAINED(skb)	(PKTCLINK(skb) != NULL)
+#define FOREACH_CHAINED_PKT(skb, nskb) \
+	for (; (skb) != NULL; (skb) = (nskb)) \
+		if ((nskb) = PKTCLINK(skb), PKTSETCLINK((skb), NULL), 1)
+#define	PKTCFREE(osh, skb, send) \
+do { \
+	void *nskb; \
+	ASSERT((skb) != NULL); \
+	FOREACH_CHAINED_PKT((skb), nskb) { \
+		PKTFREE((osh), (skb), (send)); \
+	} \
+} while (0)
+#endif 
 
 #else 
 

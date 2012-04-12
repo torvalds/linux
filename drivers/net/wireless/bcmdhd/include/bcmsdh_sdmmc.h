@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.h 294363 2011-11-06 23:02:20Z $
+ * $Id: bcmsdh_sdmmc.h 313732 2012-02-08 19:49:00Z $
  */
 
 #ifndef __BCMSDH_SDMMC_H__
@@ -82,9 +82,10 @@ struct sdioh_info {
 	uint8 		num_funcs;		/* Supported funcs on client */
 	uint32 		com_cis_ptr;
 	uint32 		func_cis_ptr[SDIOD_MAX_IOFUNCS];
-	uint		max_dma_len;
-	uint		max_dma_descriptors;	/* DMA Descriptors supported by this controller. */
-//	SDDMA_DESCRIPTOR	SGList[32];	/* Scatter/Gather DMA List */
+
+#define SDIOH_SDMMC_MAX_SG_ENTRIES	32
+	struct scatterlist sg_list[SDIOH_SDMMC_MAX_SG_ENTRIES];
+	bool		use_rxchain;
 };
 
 /************************************************************

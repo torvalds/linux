@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: sbutils.c 300516 2011-12-04 17:39:44Z $
+ * $Id: sbutils.c 310902 2012-01-26 19:45:33Z $
  */
 
 #include <bcm_cfg.h>

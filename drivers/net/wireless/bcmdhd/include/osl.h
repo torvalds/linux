@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: osl.h 301926 2011-12-09 02:00:46Z $
+ * $Id: osl.h 320905 2012-03-13 15:33:25Z $
  */
 
 #ifndef _osl_h_
@@ -67,5 +67,22 @@ typedef void  (*osl_wreg_fn_t)(void *ctx, volatile void *reg, unsigned int val, 
 #else
 #define OSL_SYSUPTIME_SUPPORT TRUE
 #endif 
+
+#if !defined(PKTC)
+#define	PKTCCNT(skb)		(0)
+#define	PKTCLEN(skb)		(0)
+#define	PKTCFLAGS(skb)		(0)
+#define	PKTCSETCNT(skb, c)
+#define	PKTCSETLEN(skb, l)
+#define	PKTCSETFLAG(skb, fb)
+#define	PKTCCLRFLAG(skb, fb)
+#define	PKTCLINK(skb)		PKTLINK(skb)
+#define	PKTSETCLINK(skb, x)	PKTSETLINK((skb), (x))
+#define	PKTISCHAINED(skb)	FALSE
+#define FOREACH_CHAINED_PKT(skb, nskb) \
+	for ((nskb) = NULL; (skb) != NULL; (skb) = (nskb))
+#define	PKTCFREE		PKTFREE
+#endif
+
 
 #endif	

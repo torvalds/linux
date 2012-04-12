@@ -22,7 +22,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: bcmwifi.c 309193 2012-01-19 00:03:57Z $
+ * $Id: bcmwifi_channels.c 309193 2012-01-19 00:03:57Z $
  */
 
 #include <bcm_cfg.h>
@@ -41,7 +41,13 @@
 #define ASSERT(exp)
 #endif
 #endif 
+
+#ifdef _bcmwifi_c_
+
 #include <bcmwifi.h>
+#else
+#include <bcmwifi_channels.h>
+#endif
 
 #if defined(WIN32) && (defined(BCMDLL) || defined(WLMDLL))
 #include <bcmstdlib.h> 	

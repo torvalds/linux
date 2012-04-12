@@ -22,7 +22,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: aiutils.c 309193 2012-01-19 00:03:57Z $
+ * $Id: aiutils.c 321247 2012-03-14 21:14:33Z $
  */
 #include <bcm_cfg.h>
 #include <typedefs.h>
@@ -673,6 +673,7 @@ ai_core_disable(si_t *sih, uint32 bits)
 {
 	si_info_t *sii;
 	volatile uint32 dummy;
+	uint32 status;
 	aidmp_t *ai;
 
 	sii = SI_INFO(sih);
@@ -683,6 +684,18 @@ ai_core_disable(si_t *sih, uint32 bits)
 	
 	if (R_REG(sii->osh, &ai->resetctrl) & AIRC_RESET)
 		return;
+
+	
+	SPINWAIT(((status = R_REG(sii->osh, &ai->resetstatus)) != 0), 300);
+
+	
+	if (status != 0) {
+		
+		
+		SPINWAIT(((status = R_REG(sii->osh, &ai->resetstatus)) != 0), 10000);
+		
+		
+	}
 
 	W_REG(sii->osh, &ai->ioctrl, bits);
 	dummy = R_REG(sii->osh, &ai->ioctrl);

@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdevs.h 309997 2012-01-21 06:26:00Z $
+ * $Id: bcmdevs.h 324551 2012-03-29 18:36:03Z $
  */
 
 #ifndef	_BCMDEVS_H
@@ -159,9 +159,12 @@
 #define BCM94313HMG_SSID_VEN1	0x0609
 
 
-#define BCM4335_D11AC_ID	0x43a9
-#define BCM4335_D11AC2G_ID	0x43aa
-#define BCM4335_D11AC5G_ID	0x43ab
+#define BCM4335_D11AC_ID	0x43ae
+#define BCM4335_D11AC2G_ID	0x43af
+#define BCM4335_D11AC5G_ID	0x43b0
+#define BCM4352_D11AC_ID	0x43b1		
+#define BCM4352_D11AC2G_ID	0x43b2		
+#define BCM4352_D11AC5G_ID	0x43b3		
 
 #define	BCMGPRS_UART_ID		0x4333		
 #define	BCMGPRS2_UART_ID	0x4344		
@@ -258,6 +261,8 @@
 #define	BCM43242_CHIP_ID	43242		
 #define BCM4334_CHIP_ID		0x4334		
 #define BCM4360_CHIP_ID		0x4360          
+#define BCM4352_CHIP_ID		0x4352          
+#define BCM43526_CHIP_ID	0xAA06
 
 #define BCM4335_CHIP_ID         0x4335
 

@@ -89,12 +89,12 @@ static const struct net_device_ops dhd_mon_if_ops = {
 	.ndo_open		= dhd_mon_if_open,
 	.ndo_stop		= dhd_mon_if_stop,
 	.ndo_start_xmit		= dhd_mon_if_subif_start_xmit,
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 3, 0))
-	.ndo_set_rx_mode	= dhd_mon_if_set_multicast_list,
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 2, 0))
+	.ndo_set_rx_mode = dhd_mon_if_set_multicast_list,
 #else
 	.ndo_set_multicast_list = dhd_mon_if_set_multicast_list,
 #endif
-	.ndo_set_mac_address	= dhd_mon_if_change_mac,
+	.ndo_set_mac_address 	= dhd_mon_if_change_mac,
 };
 
 /**
@@ -231,6 +231,7 @@ static int dhd_mon_if_subif_start_xmit(struct sk_buff *skb, struct net_device *n
 		pdata = (unsigned char*)skb->data;
 		memcpy(pdata, dst_mac_addr, sizeof(dst_mac_addr));
 		memcpy(pdata + sizeof(dst_mac_addr), src_mac_addr, sizeof(src_mac_addr));
+		PKTSETPRIO(skb, 0);
 
 		MON_PRINT("if name: %s, matched if name %s\n", ndev->name, mon_if->real_ndev->name);
 
