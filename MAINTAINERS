@@ -6471,6 +6471,7 @@ S:	Odd Fixes
 F:	drivers/staging/olpc_dcon/
 
 STAGING - OZMO DEVICES USB OVER WIFI DRIVER
+M:	Rupesh Gujare <rgujare@ozmodevices.com>
 M:	Chris Kelly <ckelly@ozmodevices.com>
 S:	Maintained
 F:	drivers/staging/ozwpan/
