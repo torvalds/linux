@@ -202,4 +202,11 @@ config LPC32XX_ADC
 	  touchscreen driver, so you can only select one of the two drivers
 	  (lpc32xx_adc or lpc32xx_ts). Provides direct access via sysfs.
 
+config SPEAR_ADC
+	tristate "ST SPEAr ADC"
+	depends on PLAT_SPEAR
+	help
+	  Say yes here to build support for the integrated ADC inside the
+	  ST SPEAr SoC. Provides direct access via sysfs.
+
 endmenu
