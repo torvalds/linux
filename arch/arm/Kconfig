@@ -1599,6 +1599,14 @@ config HAVE_ARM_TWD
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
+config MCPM
+	bool "Multi-Cluster Power Management"
+	depends on CPU_V7 && SMP
+	help
+	  This option provides the common power management infrastructure
+	  for (multi-)cluster based systems, such as big.LITTLE based
+	  systems.
+
 choice
 	prompt "Memory split"
 	default VMSPLIT_3G
