@@ -679,7 +679,7 @@ struct dlm_query_join_packet {
 };
 
 union dlm_query_join_response {
-	u32 intval;
+	__be32 intval;
 	struct dlm_query_join_packet packet;
 };
 
@@ -755,8 +755,8 @@ struct dlm_query_region {
 struct dlm_node_info {
 	u8 ni_nodenum;
 	u8 pad1;
-	u16 ni_ipv4_port;
-	u32 ni_ipv4_address;
+	__be16 ni_ipv4_port;
+	__be32 ni_ipv4_address;
 };
 
 struct dlm_query_nodeinfo {
