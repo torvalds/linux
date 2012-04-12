@@ -57,6 +57,9 @@ static void __init rk30_l2_cache_init(void)
 				|L2_LY_SET(6,L2_LY_RD_OFF)
 				|L2_LY_SET(1,L2_LY_WR_OFF), RK30_L2C_BASE + L2X0_DATA_LATENCY_CTRL);
 
+	/* L2X0 Prefetch Control */
+	writel_relaxed(0x70000003, RK30_L2C_BASE + L2X0_PREFETCH_CTRL);
+
 	/* L2X0 Power Control */
 	writel_relaxed(L2X0_DYNAMIC_CLK_GATING_EN | L2X0_STNDBY_MODE_EN, RK30_L2C_BASE + L2X0_POWER_CTRL);
 
