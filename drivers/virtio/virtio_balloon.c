@@ -234,11 +234,14 @@ static void virtballoon_changed(struct virtio_device *vdev)
 
 static inline s64 towards_target(struct virtio_balloon *vb)
 {
-	u32 v;
+	__le32 v;
+	s64 target;
+
 	vb->vdev->config->get(vb->vdev,
 			      offsetof(struct virtio_balloon_config, num_pages),
 			      &v, sizeof(v));
-	return (s64)v - vb->num_pages;
+	target = le32_to_cpu(v);
+	return target - vb->num_pages;
 }
 
 static void update_balloon_size(struct virtio_balloon *vb)
