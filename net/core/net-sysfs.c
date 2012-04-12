@@ -74,15 +74,14 @@ static ssize_t netdev_store(struct device *dev, struct device_attribute *attr,
 			    int (*set)(struct net_device *, unsigned long))
 {
 	struct net_device *net = to_net_dev(dev);
-	char *endp;
 	unsigned long new;
 	int ret = -EINVAL;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
 
-	new = simple_strtoul(buf, &endp, 0);
-	if (endp == buf)
+	ret = kstrtoul(buf, 0, &new);
+	if (ret)
 		goto err;
 
 	if (!rtnl_trylock())
