@@ -75,7 +75,6 @@ struct clk;
 
 struct timer_regs {
 	u32 tidr;
-	u32 tiocp_cfg;
 	u32 tistat;
 	u32 tisr;
 	u32 tier;
