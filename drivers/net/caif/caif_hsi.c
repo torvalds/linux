@@ -1129,15 +1129,11 @@ static int cfhsi_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int cfhsi_open(struct net_device *dev)
 {
-	netif_wake_queue(dev);
-
 	return 0;
 }
 
 static int cfhsi_close(struct net_device *dev)
 {
-	netif_stop_queue(dev);
-
 	return 0;
 }
 
@@ -1319,9 +1315,6 @@ int cfhsi_probe(struct platform_device *pdev)
 			__func__, res);
 		goto err_net_reg;
 	}
-
-	netif_stop_queue(ndev);
-
 	return res;
 
  err_net_reg:
@@ -1343,9 +1336,6 @@ int cfhsi_probe(struct platform_device *pdev)
 static void cfhsi_shutdown(struct cfhsi *cfhsi)
 {
 	u8 *tx_buf, *rx_buf, *flip_buf;
-
-	/* Stop TXing */
-	netif_tx_stop_all_queues(cfhsi->ndev);
 
 	/* going to shutdown driver */
 	set_bit(CFHSI_SHUTDOWN, &cfhsi->bits);
