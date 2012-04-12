@@ -2035,20 +2035,20 @@ out_err:
 }
 
 /* FIXME: Move this to PCI code */
-#define PCI_PRI_TLP_OFF		(1 << 2)
+#define PCI_PRI_TLP_OFF		(1 << 15)
 
 bool pci_pri_tlp_required(struct pci_dev *pdev)
 {
-	u16 control;
+	u16 status;
 	int pos;
 
 	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_PRI);
 	if (!pos)
 		return false;
 
-	pci_read_config_word(pdev, pos + PCI_PRI_CTRL, &control);
+	pci_read_config_word(pdev, pos + PCI_PRI_STATUS, &status);
 
-	return (control & PCI_PRI_TLP_OFF) ? true : false;
+	return (status & PCI_PRI_TLP_OFF) ? true : false;
 }
 
 /*
