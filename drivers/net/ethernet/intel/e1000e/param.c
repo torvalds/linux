@@ -166,8 +166,8 @@ E1000_PARAM(WriteProtectNVM, "Write-protect NVM [WARNING: disabling this can lea
  *
  * Default Value: 1 (enabled)
  */
-E1000_PARAM(CrcStripping, "Enable CRC Stripping, disable if your BMC needs " \
-                          "the CRC");
+E1000_PARAM(CrcStripping,
+	    "Enable CRC Stripping, disable if your BMC needs the CRC");
 
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
@@ -360,8 +360,8 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 				adapter->itr = 20000;
 				break;
 			case 4:
-				e_info("%s set to simplified (2000-8000 ints) "
-				       "mode\n", opt.name);
+				e_info("%s set to simplified (2000-8000 ints) mode\n",
+				       opt.name);
 				adapter->itr_setting = 4;
 				break;
 			default:

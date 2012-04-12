@@ -259,8 +259,7 @@ static int e1000_set_settings(struct net_device *netdev,
 	 * cannot be changed
 	 */
 	if (hw->phy.ops.check_reset_block(hw)) {
-		e_err("Cannot change link characteristics when SoL/IDER is "
-		      "active.\n");
+		e_err("Cannot change link characteristics when SoL/IDER is active.\n");
 		return -EINVAL;
 	}
 
@@ -727,9 +726,8 @@ static bool reg_pattern_test(struct e1000_adapter *adapter, u64 *data,
 				      (test[pat] & write));
 		val = E1000_READ_REG_ARRAY(&adapter->hw, reg, offset);
 		if (val != (test[pat] & write & mask)) {
-			e_err("pattern test reg %04X failed: got 0x%08X "
-			      "expected 0x%08X\n", reg + offset, val,
-			      (test[pat] & write & mask));
+			e_err("pattern test reg %04X failed: got 0x%08X expected 0x%08X\n",
+			      reg + offset, val, (test[pat] & write & mask));
 			*data = reg;
 			return 1;
 		}
@@ -744,8 +742,8 @@ static bool reg_set_and_check(struct e1000_adapter *adapter, u64 *data,
 	__ew32(&adapter->hw, reg, write & mask);
 	val = __er32(&adapter->hw, reg);
 	if ((write & mask) != (val & mask)) {
-		e_err("set/check reg %04X test failed: got 0x%08X "
-		      "expected 0x%08X\n", reg, (val & mask), (write & mask));
+		e_err("set/check reg %04X test failed: got 0x%08X expected 0x%08X\n",
+		      reg, (val & mask), (write & mask));
 		*data = reg;
 		return 1;
 	}
@@ -797,8 +795,8 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	ew32(STATUS, toggle);
 	after = er32(STATUS) & toggle;
 	if (value != after) {
-		e_err("failed STATUS register test got: 0x%08X expected: "
-		      "0x%08X\n", after, value);
+		e_err("failed STATUS register test got: 0x%08X expected: 0x%08X\n",
+		      after, value);
 		*data = 1;
 		return 1;
 	}
@@ -1791,8 +1789,7 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->supported &= ~WAKE_UCAST;
 
 		if (adapter->wol & E1000_WUFC_EX)
-			e_err("Interface does not support directed (unicast) "
-			      "frame wake-up packets\n");
+			e_err("Interface does not support directed (unicast) frame wake-up packets\n");
 	}
 
 	if (adapter->wol & E1000_WUFC_EX)
