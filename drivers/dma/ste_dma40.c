@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
 #include <linux/amba/bus.h>
+#include <linux/regulator/consumer.h>
 
 #include <plat/ste_dma40.h>
 
