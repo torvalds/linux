@@ -26,6 +26,7 @@
 #include <linux/clk.h>
 #include <linux/scatterlist.h>
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
@@ -1203,11 +1204,11 @@ static void mmci_dt_populate_generic_pdata(struct device_node *np,
 {
 	int bus_width = 0;
 
-	of_property_read_u32(np, "wp-gpios", &pdata->gpio_wp);
+	pdata->gpio_wp = of_get_named_gpio(np, "wp-gpios", 0);
 	if (!pdata->gpio_wp)
 		pdata->gpio_wp = -1;
 
-	of_property_read_u32(np, "cd-gpios", &pdata->gpio_cd);
+	pdata->gpio_cd = of_get_named_gpio(np, "cd-gpios", 0);
 	if (!pdata->gpio_cd)
 		pdata->gpio_cd = -1;
 
