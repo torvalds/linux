@@ -24,6 +24,8 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
+#include <linux/of.h>
+#include <linux/of_i2c.h>
 
 /* multiplexer per channel data */
 struct i2c_mux_priv {
@@ -125,6 +127,25 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 	priv->adap.algo_data = priv;
 	priv->adap.dev.parent = &parent->dev;
 
+	/*
+	 * Try to populate the mux adapter's of_node, expands to
+	 * nothing if !CONFIG_OF.
+	 */
+	if (mux_dev->of_node) {
+		struct device_node *child;
+		u32 reg;
+
+		for_each_child_of_node(mux_dev->of_node, child) {
+			ret = of_property_read_u32(child, "reg", &reg);
+			if (ret)
+				continue;
+			if (chan_id == reg) {
+				priv->adap.dev.of_node = child;
+				break;
+			}
+		}
+	}
+
 	if (force_nr) {
 		priv->adap.nr = force_nr;
 		ret = i2c_add_numbered_adapter(&priv->adap);
@@ -141,6 +162,8 @@ struct i2c_adapter *i2c_add_mux_adapter(struct i2c_adapter *parent,
 
 	dev_info(&parent->dev, "Added multiplexed i2c bus %d\n",
 		 i2c_adapter_id(&priv->adap));
+
+	of_i2c_register_devices(&priv->adap);
 
 	return &priv->adap;
 }
