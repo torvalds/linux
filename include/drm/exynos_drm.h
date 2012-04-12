@@ -85,7 +85,7 @@ struct drm_exynos_gem_mmap {
 struct drm_exynos_vidi_connection {
 	unsigned int connection;
 	unsigned int extensions;
-	uint64_t *edid;
+	uint64_t edid;
 };
 
 struct drm_exynos_plane_set_zpos {
