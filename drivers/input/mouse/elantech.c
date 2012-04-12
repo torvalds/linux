@@ -486,7 +486,6 @@ static void elantech_input_sync_v4(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
-	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
 	input_mt_report_pointer_emulation(dev, true);
 	input_sync(dev);
 }
@@ -967,6 +966,7 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 	if (elantech_set_range(psmouse, &x_min, &y_min, &x_max, &y_max, &width))
 		return -1;
 
+	__set_bit(INPUT_PROP_POINTER, dev->propbit);
 	__set_bit(EV_KEY, dev->evbit);
 	__set_bit(EV_ABS, dev->evbit);
 	__clear_bit(EV_REL, dev->evbit);
@@ -1017,7 +1017,9 @@ static int elantech_set_input_params(struct psmouse *psmouse)
 			 */
 			psmouse_warn(psmouse, "couldn't query resolution data.\n");
 		}
-
+		/* v4 is clickpad, with only one button. */
+		__set_bit(INPUT_PROP_BUTTONPAD, dev->propbit);
+		__clear_bit(BTN_RIGHT, dev->keybit);
 		__set_bit(BTN_TOOL_QUADTAP, dev->keybit);
 		/* For X to recognize me as touchpad. */
 		input_set_abs_params(dev, ABS_X, x_min, x_max, 0, 0);
@@ -1245,6 +1247,8 @@ static void elantech_disconnect(struct psmouse *psmouse)
  */
 static int elantech_reconnect(struct psmouse *psmouse)
 {
+	psmouse_reset(psmouse);
+
 	if (elantech_detect(psmouse, 0))
 		return -1;
 
@@ -1323,6 +1327,8 @@ int elantech_init(struct psmouse *psmouse)
 	psmouse->private = etd = kzalloc(sizeof(struct elantech_data), GFP_KERNEL);
 	if (!etd)
 		return -ENOMEM;
+
+	psmouse_reset(psmouse);
 
 	etd->parity[0] = 1;
 	for (i = 1; i < 256; i++)

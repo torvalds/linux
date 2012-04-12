@@ -228,7 +228,7 @@ M:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 Q:	http://patchwork.kernel.org/project/linux-acpi/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux
 S:	Supported
 F:	drivers/acpi/
 F:	drivers/pnp/pnpacpi/
@@ -1522,8 +1522,8 @@ M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jh/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
 S:	Maintained
 F:	drivers/bluetooth/
 
@@ -1533,8 +1533,8 @@ M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jh/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
 S:	Maintained
 F:	net/bluetooth/
 F:	include/net/bluetooth/
@@ -2451,17 +2451,17 @@ F:	fs/ecryptfs/
 
 EDAC-CORE
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Supported
 F:	Documentation/edac.txt
-F:	drivers/edac/edac_*
+F:	drivers/edac/
 F:	include/linux/edac.h
 
 EDAC-AMD64
 M:	Doug Thompson <dougthompson@xmission.com>
 M:	Borislav Petkov <borislav.petkov@amd.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Supported
 F:	drivers/edac/amd64_edac*
@@ -2469,35 +2469,35 @@ F:	drivers/edac/amd64_edac*
 EDAC-E752X
 M:	Mark Gross <mark.gross@intel.com>
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e752x_edac.c
 
 EDAC-E7XXX
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/e7xxx_edac.c
 
 EDAC-I82443BXGX
 M:	Tim Small <tim@buttersideup.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82443bxgx_edac.c
 
 EDAC-I3000
 M:	Jason Uhlenkott <juhlenko@akamai.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i3000_edac.c
 
 EDAC-I5000
 M:	Doug Thompson <dougthompson@xmission.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i5000_edac.c
@@ -2526,21 +2526,21 @@ F:	drivers/edac/i7core_edac.c
 EDAC-I82975X
 M:	Ranganathan Desikan <ravi@jetztechnologies.com>
 M:	"Arvind R." <arvino55@gmail.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/i82975x_edac.c
 
 EDAC-PASEMI
 M:	Egor Martovetsky <egor@pasemi.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/pasemi_edac.c
 
 EDAC-R82600
 M:	Tim Small <tim@buttersideup.com>
-L:	bluesmoke-devel@lists.sourceforge.net (moderated for non-subscribers)
+L:	linux-edac@vger.kernel.org
 W:	bluesmoke.sourceforge.net
 S:	Maintained
 F:	drivers/edac/r82600_edac.c
@@ -4528,8 +4528,7 @@ S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
 NATSEMI ETHERNET DRIVER (DP8381x)
-M:	Tim Hockin <thockin@hockin.org>
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/natsemi/natsemi.c
 
 NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
@@ -4798,6 +4797,7 @@ F:	arch/arm/mach-omap2/clockdomain2xxx_3xxx.c
 F:	arch/arm/mach-omap2/clockdomain44xx.c
 
 OMAP AUDIO SUPPORT
+M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
 L:	alsa-devel@alsa-project.org (subscribers-only)
 L:	linux-omap@vger.kernel.org
@@ -5111,6 +5111,11 @@ F:	drivers/i2c/algos/i2c-algo-pca.c
 F:	drivers/i2c/busses/i2c-pca-*
 F:	include/linux/i2c-algo-pca.h
 F:	include/linux/i2c-pca-platform.h
+
+PCDP - PRIMARY CONSOLE AND DEBUG PORT
+M:	Khalid Aziz <khalid.aziz@hp.com>
+S:	Maintained
+F:	drivers/firmware/pcdp.*
 
 PCI ERROR RECOVERY
 M:     Linas Vepstas <linasvepstas@gmail.com>
@@ -7456,8 +7461,7 @@ F:	include/linux/wm97xx.h
 
 WOLFSON MICROELECTRONICS DRIVERS
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
-M:	Ian Lartey <ian@opensource.wolfsonmicro.com>
-M:	Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
+L:	patches@opensource.wolfsonmicro.com
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices

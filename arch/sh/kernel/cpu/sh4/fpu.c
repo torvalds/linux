@@ -16,6 +16,7 @@
 #include <cpu/fpu.h>
 #include <asm/processor.h>
 #include <asm/fpu.h>
+#include <asm/traps.h>
 
 /* The PR (precision) bit in the FP Status Register must be clear when
  * an frchg instruction is executed, otherwise the instruction is undefined.
