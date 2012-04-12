@@ -1247,10 +1247,8 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	err = hci_send_cmd(hdev, HCI_OP_WRITE_LE_HOST_SUPPORTED, sizeof(hci_cp),
 			   &hci_cp);
-	if (err < 0) {
+	if (err < 0)
 		mgmt_pending_remove(cmd);
-		goto unlock;
-	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -1300,10 +1298,8 @@ static int add_uuid(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_ADD_UUID, hdev, data, len);
-	if (!cmd) {
+	if (!cmd)
 		err = -ENOMEM;
-		goto failed;
-	}
 
 failed:
 	hci_dev_unlock(hdev);
@@ -1388,10 +1384,8 @@ update_class:
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_REMOVE_UUID, hdev, data, len);
-	if (!cmd) {
+	if (!cmd)
 		err = -ENOMEM;
-		goto unlock;
-	}
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -1442,10 +1436,8 @@ static int set_dev_class(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	cmd = mgmt_pending_add(sk, MGMT_OP_SET_DEV_CLASS, hdev, data, len);
-	if (!cmd) {
+	if (!cmd)
 		err = -ENOMEM;
-		goto unlock;
-	}
 
 unlock:
 	hci_dev_unlock(hdev);
