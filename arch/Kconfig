@@ -220,8 +220,10 @@ config HAVE_ARCH_SECCOMP_FILTER
 	bool
 	help
 	  This symbol should be selected by an architecure if it provides
-	  asm/syscall.h, specifically syscall_get_arguments() and
-	  syscall_get_arch().
+	  asm/syscall.h, specifically syscall_get_arguments(),
+	  syscall_get_arch(), and syscall_set_return_value().  Additionally,
+	  its system call entry path must respect a return value of -1 from
+	  __secure_computing() and/or secure_computing().
 
 config SECCOMP_FILTER
 	def_bool y

@@ -199,15 +199,20 @@ static int seccomp_check_filter(struct sock_filter *filter, unsigned int flen)
 static u32 seccomp_run_filters(int syscall)
 {
 	struct seccomp_filter *f;
-	u32 ret = SECCOMP_RET_KILL;
+	u32 ret = SECCOMP_RET_ALLOW;
+
+	/* Ensure unexpected behavior doesn't result in failing open. */
+	if (WARN_ON(current->seccomp.filter == NULL))
+		return SECCOMP_RET_KILL;
+
 	/*
 	 * All filters in the list are evaluated and the lowest BPF return
-	 * value always takes priority.
+	 * value always takes priority (ignoring the DATA).
 	 */
 	for (f = current->seccomp.filter; f; f = f->prev) {
-		ret = sk_run_filter(NULL, f->insns);
-		if (ret != SECCOMP_RET_ALLOW)
-			break;
+		u32 cur_ret = sk_run_filter(NULL, f->insns);
+		if ((cur_ret & SECCOMP_RET_ACTION) < (ret & SECCOMP_RET_ACTION))
+			ret = cur_ret;
 	}
 	return ret;
 }
@@ -346,11 +351,13 @@ static int mode1_syscalls_32[] = {
 };
 #endif
 
-void __secure_computing(int this_syscall)
+int __secure_computing(int this_syscall)
 {
 	int mode = current->seccomp.mode;
 	int exit_sig = 0;
 	int *syscall;
+	u32 ret = SECCOMP_RET_KILL;
+	int data;
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:
@@ -361,14 +368,26 @@ void __secure_computing(int this_syscall)
 #endif
 		do {
 			if (*syscall == this_syscall)
-				return;
+				return 0;
 		} while (*++syscall);
 		exit_sig = SIGKILL;
 		break;
 #ifdef CONFIG_SECCOMP_FILTER
 	case SECCOMP_MODE_FILTER:
-		if (seccomp_run_filters(this_syscall) == SECCOMP_RET_ALLOW)
-			return;
+		ret = seccomp_run_filters(this_syscall);
+		data = ret & SECCOMP_RET_DATA;
+		switch (ret & SECCOMP_RET_ACTION) {
+		case SECCOMP_RET_ERRNO:
+			/* Set the low-order 16-bits as a errno. */
+			syscall_set_return_value(current, task_pt_regs(current),
+						 -data, 0);
+			goto skip;
+		case SECCOMP_RET_ALLOW:
+			return 0;
+		case SECCOMP_RET_KILL:
+		default:
+			break;
+		}
 		exit_sig = SIGSYS;
 		break;
 #endif
@@ -379,8 +398,11 @@ void __secure_computing(int this_syscall)
 #ifdef SECCOMP_DEBUG
 	dump_stack();
 #endif
-	audit_seccomp(this_syscall, exit_code, SECCOMP_RET_KILL);
+	audit_seccomp(this_syscall, exit_sig, ret);
 	do_exit(exit_sig);
+skip:
+	audit_seccomp(this_syscall, exit_sig, ret);
+	return -1;
 }
 
 long prctl_get_seccomp(void)
