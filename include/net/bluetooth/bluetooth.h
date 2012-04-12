@@ -178,7 +178,6 @@ static inline void bacpy(bdaddr_t *dst, bdaddr_t *src)
 
 void baswap(bdaddr_t *dst, bdaddr_t *src);
 char *batostr(bdaddr_t *ba);
-bdaddr_t *strtoba(char *str);
 
 /* Common socket structures and functions */
 
