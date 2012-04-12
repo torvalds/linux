@@ -539,9 +539,6 @@ static int bitmap_new_disk_sb(struct bitmap *bitmap)
 	bitmap->events_cleared = bitmap->mddev->events;
 	sb->events_cleared = cpu_to_le64(bitmap->mddev->events);
 
-	bitmap->flags |= BITMAP_HOSTENDIAN;
-	sb->version = cpu_to_le32(BITMAP_MAJOR_HOSTENDIAN);
-
 	kunmap_atomic(sb);
 
 	return 0;
