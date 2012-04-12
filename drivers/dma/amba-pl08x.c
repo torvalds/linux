@@ -95,10 +95,14 @@ static struct amba_driver pl08x_amba_driver;
  * struct vendor_data - vendor-specific config parameters for PL08x derivatives
  * @channels: the number of channels available in this variant
  * @dualmaster: whether this version supports dual AHB masters or not.
+ * @nomadik: whether the channels have Nomadik security extension bits
+ *	that need to be checked for permission before use and some registers are
+ *	missing
  */
 struct vendor_data {
 	u8 channels;
 	bool dualmaster;
+	bool nomadik;
 };
 
 /*
@@ -385,7 +389,7 @@ pl08x_get_phy_channel(struct pl08x_driver_data *pl08x,
 
 		spin_lock_irqsave(&ch->lock, flags);
 
-		if (!ch->serving) {
+		if (!ch->locked && !ch->serving) {
 			ch->serving = virt_chan;
 			ch->signal = -1;
 			spin_unlock_irqrestore(&ch->lock, flags);
@@ -1483,6 +1487,9 @@ bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
  */
 static void pl08x_ensure_on(struct pl08x_driver_data *pl08x)
 {
+	/* The Nomadik variant does not have the config register */
+	if (pl08x->vd->nomadik)
+		return;
 	writel(PL080_CONFIG_ENABLE, pl08x->base + PL080_CONFIG);
 }
 
@@ -1772,8 +1779,10 @@ static int pl08x_debugfs_show(struct seq_file *s, void *data)
 		spin_lock_irqsave(&ch->lock, flags);
 		virt_chan = ch->serving;
 
-		seq_printf(s, "%d\t\t%s\n",
-			   ch->id, virt_chan ? virt_chan->name : "(none)");
+		seq_printf(s, "%d\t\t%s%s\n",
+			   ch->id,
+			   virt_chan ? virt_chan->name : "(none)",
+			   ch->locked ? " LOCKED" : "");
 
 		spin_unlock_irqrestore(&ch->lock, flags);
 	}
@@ -1917,7 +1926,7 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	/* Initialize physical channels */
-	pl08x->phy_chans = kmalloc((vd->channels * sizeof(*pl08x->phy_chans)),
+	pl08x->phy_chans = kzalloc((vd->channels * sizeof(*pl08x->phy_chans)),
 			GFP_KERNEL);
 	if (!pl08x->phy_chans) {
 		dev_err(&adev->dev, "%s failed to allocate "
@@ -1932,8 +1941,23 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 		ch->id = i;
 		ch->base = pl08x->base + PL080_Cx_BASE(i);
 		spin_lock_init(&ch->lock);
-		ch->serving = NULL;
 		ch->signal = -1;
+
+		/*
+		 * Nomadik variants can have channels that are locked
+		 * down for the secure world only. Lock up these channels
+		 * by perpetually serving a dummy virtual channel.
+		 */
+		if (vd->nomadik) {
+			u32 val;
+
+			val = readl(ch->base + PL080_CH_CONFIG);
+			if (val & (PL080N_CONFIG_ITPROT | PL080N_CONFIG_SECPROT)) {
+				dev_info(&adev->dev, "physical channel %d reserved for secure access only\n", i);
+				ch->locked = true;
+			}
+		}
+
 		dev_dbg(&adev->dev, "physical channel %d is %s\n",
 			i, pl08x_phy_channel_busy(ch) ? "BUSY" : "FREE");
 	}
@@ -2016,6 +2040,12 @@ static struct vendor_data vendor_pl080 = {
 	.dualmaster = true,
 };
 
+static struct vendor_data vendor_nomadik = {
+	.channels = 8,
+	.dualmaster = true,
+	.nomadik = true,
+};
+
 static struct vendor_data vendor_pl081 = {
 	.channels = 2,
 	.dualmaster = false,
@@ -2036,9 +2066,9 @@ static struct amba_id pl08x_ids[] = {
 	},
 	/* Nomadik 8815 PL080 variant */
 	{
-		.id	= 0x00280880,
+		.id	= 0x00280080,
 		.mask	= 0x00ffffff,
-		.data	= &vendor_pl080,
+		.data	= &vendor_nomadik,
 	},
 	{ 0, 0 },
 };
