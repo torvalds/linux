@@ -5202,7 +5202,7 @@ S:	Maintained
 F:	include/linux/personality.h
 
 PHONET PROTOCOL
-M:	Remi Denis-Courmont <remi.denis-courmont@nokia.com>
+M:	Remi Denis-Courmont <courmisch@gmail.com>
 S:	Supported
 F:	Documentation/networking/phonet.txt
 F:	include/linux/phonet.h
