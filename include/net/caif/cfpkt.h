@@ -188,11 +188,18 @@ struct cfpkt *cfpkt_fromnative(enum caif_direction dir, void *nativepkt);
  */
 void *cfpkt_tonative(struct cfpkt *pkt);
 
-
 /*
  * Returns packet information for a packet.
  * pkt Packet to get info from;
  * @return Packet information
  */
 struct caif_payload_info *cfpkt_info(struct cfpkt *pkt);
+
+/** cfpkt_set_prio - set priority for a CAIF packet.
+ *
+ * @pkt: The CAIF packet to be adjusted.
+ * @prio: one of TC_PRIO_ constants.
+ */
+void cfpkt_set_prio(struct cfpkt *pkt, int prio);
+
 #endif				/* CFPKT_H_ */
