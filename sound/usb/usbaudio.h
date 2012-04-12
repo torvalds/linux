@@ -47,6 +47,7 @@ struct snd_usb_audio {
 	int num_suspended_intf;
 
 	struct list_head pcm_list;	/* list of pcm streams */
+	struct list_head ep_list;	/* list of audio-related endpoints */
 	int pcm_devs;
 
 	struct list_head midi_list;	/* list of midi interfaces */
