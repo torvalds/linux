@@ -14,7 +14,9 @@
  *      2 of the License, or (at your option) any later version.
  */
 
+#include <linux/cpu.h>
 #include <linux/types.h>
+#include <linux/delay.h>
 #include <linux/stat.h>
 #include <linux/device.h>
 #include <linux/init.h>
@@ -709,13 +711,26 @@ static int vio_cmo_bus_probe(struct vio_dev *viodev)
 	struct vio_driver *viodrv = to_vio_driver(dev->driver);
 	unsigned long flags;
 	size_t size;
+	bool dma_capable = false;
 
-	/*
-	 * Check to see that device has a DMA window and configure
-	 * entitlement for the device.
-	 */
-	if (of_get_property(viodev->dev.of_node,
-	                    "ibm,my-dma-window", NULL)) {
+	/* A device requires entitlement if it has a DMA window property */
+	switch (viodev->family) {
+	case VDEVICE:
+		if (of_get_property(viodev->dev.of_node,
+					"ibm,my-dma-window", NULL))
+			dma_capable = true;
+		break;
+	case PFO:
+		dma_capable = false;
+		break;
+	default:
+		dev_warn(dev, "unknown device family: %d\n", viodev->family);
+		BUG();
+		break;
+	}
+
+	/* Configure entitlement for the device. */
+	if (dma_capable) {
 		/* Check that the driver is CMO enabled and get desired DMA */
 		if (!viodrv->get_desired_dma) {
 			dev_err(dev, "%s: device driver does not support CMO\n",
@@ -1050,6 +1065,94 @@ static void vio_cmo_sysfs_init(void) { }
 EXPORT_SYMBOL(vio_cmo_entitlement_update);
 EXPORT_SYMBOL(vio_cmo_set_dev_desired);
 
+
+/*
+ * Platform Facilities Option (PFO) support
+ */
+
+/**
+ * vio_h_cop_sync - Perform a synchronous PFO co-processor operation
+ *
+ * @vdev - Pointer to a struct vio_dev for device
+ * @op - Pointer to a struct vio_pfo_op for the operation parameters
+ *
+ * Calls the hypervisor to synchronously perform the PFO operation
+ * described in @op.  In the case of a busy response from the hypervisor,
+ * the operation will be re-submitted indefinitely unless a non-zero timeout
+ * is specified or an error occurs. The timeout places a limit on when to
+ * stop re-submitting a operation, the total time can be exceeded if an
+ * operation is in progress.
+ *
+ * If op->hcall_ret is not NULL, this will be set to the return from the
+ * last h_cop_op call or it will be 0 if an error not involving the h_call
+ * was encountered.
+ *
+ * Returns:
+ *	0 on success,
+ *	-EINVAL if the h_call fails due to an invalid parameter,
+ *	-E2BIG if the h_call can not be performed synchronously,
+ *	-EBUSY if a timeout is specified and has elapsed,
+ *	-EACCES if the memory area for data/status has been rescinded, or
+ *	-EPERM if a hardware fault has been indicated
+ */
+int vio_h_cop_sync(struct vio_dev *vdev, struct vio_pfo_op *op)
+{
+	struct device *dev = &vdev->dev;
+	unsigned long deadline = 0;
+	long hret = 0;
+	int ret = 0;
+
+	if (op->timeout)
+		deadline = jiffies + msecs_to_jiffies(op->timeout);
+
+	while (true) {
+		hret = plpar_hcall_norets(H_COP, op->flags,
+				vdev->resource_id,
+				op->in, op->inlen, op->out,
+				op->outlen, op->csbcpb);
+
+		if (hret == H_SUCCESS ||
+		    (hret != H_NOT_ENOUGH_RESOURCES &&
+		     hret != H_BUSY && hret != H_RESOURCE) ||
+		    (op->timeout && time_after(deadline, jiffies)))
+			break;
+
+		dev_dbg(dev, "%s: hcall ret(%ld), retrying.\n", __func__, hret);
+	}
+
+	switch (hret) {
+	case H_SUCCESS:
+		ret = 0;
+		break;
+	case H_OP_MODE:
+	case H_TOO_BIG:
+		ret = -E2BIG;
+		break;
+	case H_RESCINDED:
+		ret = -EACCES;
+		break;
+	case H_HARDWARE:
+		ret = -EPERM;
+		break;
+	case H_NOT_ENOUGH_RESOURCES:
+	case H_RESOURCE:
+	case H_BUSY:
+		ret = -EBUSY;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		dev_dbg(dev, "%s: Sync h_cop_op failure (ret:%d) (hret:%ld)\n",
+				__func__, ret, hret);
+
+	op->hcall_err = hret;
+	return ret;
+}
+EXPORT_SYMBOL(vio_h_cop_sync);
+
 static struct iommu_table *vio_build_iommu_table(struct vio_dev *dev)
 {
 	const unsigned char *dma_window;
@@ -1211,35 +1314,87 @@ static void __devinit vio_dev_release(struct device *dev)
 struct vio_dev *vio_register_device_node(struct device_node *of_node)
 {
 	struct vio_dev *viodev;
+	struct device_node *parent_node;
 	const unsigned int *unit_address;
+	const unsigned int *pfo_resid = NULL;
+	enum vio_dev_family family;
+	const char *of_node_name = of_node->name ? of_node->name : "<unknown>";
 
-	/* we need the 'device_type' property, in order to match with drivers */
-	if (of_node->type == NULL) {
-		printk(KERN_WARNING "%s: node %s missing 'device_type'\n",
-				__func__,
-				of_node->name ? of_node->name : "<unknown>");
+	/*
+	 * Determine if this node is a under the /vdevice node or under the
+	 * /ibm,platform-facilities node.  This decides the device's family.
+	 */
+	parent_node = of_get_parent(of_node);
+	if (parent_node) {
+		if (!strcmp(parent_node->full_name, "/ibm,platform-facilities"))
+			family = PFO;
+		else if (!strcmp(parent_node->full_name, "/vdevice"))
+			family = VDEVICE;
+		else {
+			pr_warn("%s: parent(%s) of %s not recognized.\n",
+					__func__,
+					parent_node->full_name,
+					of_node_name);
+			of_node_put(parent_node);
+			return NULL;
+		}
+		of_node_put(parent_node);
+	} else {
+		pr_warn("%s: could not determine the parent of node %s.\n",
+				__func__, of_node_name);
 		return NULL;
 	}
 
-	unit_address = of_get_property(of_node, "reg", NULL);
-	if (unit_address == NULL) {
-		printk(KERN_WARNING "%s: node %s missing 'reg'\n",
-				__func__,
-				of_node->name ? of_node->name : "<unknown>");
-		return NULL;
+	if (family == PFO) {
+		if (of_get_property(of_node, "interrupt-controller", NULL)) {
+			pr_debug("%s: Skipping the interrupt controller %s.\n",
+					__func__, of_node_name);
+			return NULL;
+		}
 	}
 
 	/* allocate a vio_dev for this node */
 	viodev = kzalloc(sizeof(struct vio_dev), GFP_KERNEL);
-	if (viodev == NULL)
+	if (viodev == NULL) {
+		pr_warn("%s: allocation failure for VIO device.\n", __func__);
 		return NULL;
+	}
 
-	viodev->irq = irq_of_parse_and_map(of_node, 0);
+	/* we need the 'device_type' property, in order to match with drivers */
+	viodev->family = family;
+	if (viodev->family == VDEVICE) {
+		if (of_node->type != NULL)
+			viodev->type = of_node->type;
+		else {
+			pr_warn("%s: node %s is missing the 'device_type' "
+					"property.\n", __func__, of_node_name);
+			goto out;
+		}
 
-	dev_set_name(&viodev->dev, "%x", *unit_address);
+		unit_address = of_get_property(of_node, "reg", NULL);
+		if (unit_address == NULL) {
+			pr_warn("%s: node %s missing 'reg'\n",
+					__func__, of_node_name);
+			goto out;
+		}
+		dev_set_name(&viodev->dev, "%x", *unit_address);
+		viodev->irq = irq_of_parse_and_map(of_node, 0);
+		viodev->unit_address = *unit_address;
+	} else {
+		/* PFO devices need their resource_id for submitting COP_OPs
+		 * This is an optional field for devices, but is required when
+		 * performing synchronous ops */
+		pfo_resid = of_get_property(of_node, "ibm,resource-id", NULL);
+		if (pfo_resid != NULL)
+			viodev->resource_id = *pfo_resid;
+
+		unit_address = NULL;
+		dev_set_name(&viodev->dev, "%s", of_node_name);
+		viodev->type = of_node_name;
+		viodev->irq = 0;
+	}
+
 	viodev->name = of_node->name;
-	viodev->type = of_node->type;
-	viodev->unit_address = *unit_address;
 	viodev->dev.of_node = of_node_get(of_node);
 
 	if (firmware_has_feature(FW_FEATURE_CMO))
@@ -1267,8 +1422,44 @@ struct vio_dev *vio_register_device_node(struct device_node *of_node)
 	}
 
 	return viodev;
+
+out:	/* Use this exit point for any return prior to device_register */
+	kfree(viodev);
+
+	return NULL;
 }
 EXPORT_SYMBOL(vio_register_device_node);
+
+/*
+ * vio_bus_scan_for_devices - Scan OF and register each child device
+ * @root_name - OF node name for the root of the subtree to search.
+ *		This must be non-NULL
+ *
+ * Starting from the root node provide, register the device node for
+ * each child beneath the root.
+ */
+static void vio_bus_scan_register_devices(char *root_name)
+{
+	struct device_node *node_root, *node_child;
+
+	if (!root_name)
+		return;
+
+	node_root = of_find_node_by_name(NULL, root_name);
+	if (node_root) {
+
+		/*
+		 * Create struct vio_devices for each virtual device in
+		 * the device tree. Drivers will associate with them later.
+		 */
+		node_child = of_get_next_child(node_root, NULL);
+		while (node_child) {
+			vio_register_device_node(node_child);
+			node_child = of_get_next_child(node_root, node_child);
+		}
+		of_node_put(node_root);
+	}
+}
 
 /**
  * vio_bus_init: - Initialize the virtual IO bus
@@ -1276,7 +1467,6 @@ EXPORT_SYMBOL(vio_register_device_node);
 static int __init vio_bus_init(void)
 {
 	int err;
-	struct device_node *node_vroot;
 
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		vio_cmo_sysfs_init();
@@ -1301,19 +1491,8 @@ static int __init vio_bus_init(void)
 	if (firmware_has_feature(FW_FEATURE_CMO))
 		vio_cmo_bus_init();
 
-	node_vroot = of_find_node_by_name(NULL, "vdevice");
-	if (node_vroot) {
-		struct device_node *of_node;
-
-		/*
-		 * Create struct vio_devices for each virtual device in
-		 * the device tree. Drivers will associate with them later.
-		 */
-		for (of_node = node_vroot->child; of_node != NULL;
-				of_node = of_node->sibling)
-			vio_register_device_node(of_node);
-		of_node_put(node_vroot);
-	}
+	vio_bus_scan_register_devices("vdevice");
+	vio_bus_scan_register_devices("ibm,platform-facilities");
 
 	return 0;
 }
@@ -1436,12 +1615,28 @@ struct vio_dev *vio_find_node(struct device_node *vnode)
 {
 	const uint32_t *unit_address;
 	char kobj_name[20];
+	struct device_node *vnode_parent;
+	const char *dev_type;
+
+	vnode_parent = of_get_parent(vnode);
+	if (!vnode_parent)
+		return NULL;
+
+	dev_type = of_get_property(vnode_parent, "device_type", NULL);
+	of_node_put(vnode_parent);
+	if (!dev_type)
+		return NULL;
 
 	/* construct the kobject name from the device node */
-	unit_address = of_get_property(vnode, "reg", NULL);
-	if (!unit_address)
+	if (!strcmp(dev_type, "vdevice")) {
+		unit_address = of_get_property(vnode, "reg", NULL);
+		if (!unit_address)
+			return NULL;
+		snprintf(kobj_name, sizeof(kobj_name), "%x", *unit_address);
+	} else if (!strcmp(dev_type, "ibm,platform-facilities"))
+		snprintf(kobj_name, sizeof(kobj_name), "%s", vnode->name);
+	else
 		return NULL;
-	snprintf(kobj_name, sizeof(kobj_name), "%x", *unit_address);
 
 	return vio_find_name(kobj_name);
 }
