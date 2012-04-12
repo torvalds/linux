@@ -49,7 +49,6 @@ extern struct clk *clk_get_io(void);
 extern unsigned char ltq_boot_select(void);
 /* find out what caused the last cpu reset */
 extern int ltq_reset_cause(void);
-#define LTQ_RST_CAUSE_WDTRST	0x20
 
 #define IOPORT_RESOURCE_START	0x10000000
 #define IOPORT_RESOURCE_END	0xffffffff

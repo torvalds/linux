@@ -133,6 +133,8 @@ extern __iomem void *ltq_cgu_membase;
 #define LTQ_WDT_BASE_ADDR	0x1F8803F0
 #define LTQ_WDT_SIZE		0x10
 
+#define LTQ_RST_CAUSE_WDTRST	0x20
+
 /* STP - serial to parallel conversion unit */
 #define LTQ_STP_BASE_ADDR	0x1E100BB0
 #define LTQ_STP_SIZE		0x40
