@@ -1210,7 +1210,7 @@ int cfhsi_probe(struct platform_device *pdev)
 
 static void cfhsi_shutdown(struct cfhsi *cfhsi)
 {
-	u8 *tx_buf, *rx_buf;
+	u8 *tx_buf, *rx_buf, *flip_buf;
 
 	/* Stop TXing */
 	netif_tx_stop_all_queues(cfhsi->ndev);
@@ -1234,7 +1234,7 @@ static void cfhsi_shutdown(struct cfhsi *cfhsi)
 	/* Store bufferes: will be freed later. */
 	tx_buf = cfhsi->tx_buf;
 	rx_buf = cfhsi->rx_buf;
-
+	flip_buf = cfhsi->rx_flip_buf;
 	/* Flush transmit queues. */
 	cfhsi_abort_tx(cfhsi);
 
@@ -1247,6 +1247,7 @@ static void cfhsi_shutdown(struct cfhsi *cfhsi)
 	/* Free buffers. */
 	kfree(tx_buf);
 	kfree(rx_buf);
+	kfree(flip_buf);
 }
 
 int cfhsi_remove(struct platform_device *pdev)
