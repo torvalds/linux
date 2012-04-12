@@ -176,7 +176,6 @@ static __initdata struct tegra_clk_init_table paz00_clk_init_table[] = {
 	{ "uarta",	"pll_p",	216000000,	true },
 	{ "uartc",	"pll_p",	216000000,	true },
 
-	{ "pll_p_out4",	"pll_p",	24000000,	true },
 	{ "usbd",	"clk_m",	12000000,	false },
 	{ "usb2",	"clk_m",	12000000,	false },
 	{ "usb3",	"clk_m",	12000000,	false },
