@@ -33,6 +33,8 @@
 #define BANK_OFF(n)	(((n) < 3) ? (n) << 2 : 0x100 + (((n) - 3) << 2))
 #define GPLR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5))
 #define GPDR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x0c)
+#define GPSR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x18)
+#define GPCR(x)		__REG2(0x40E00000, BANK_OFF((x) >> 5) + 0x24)
 
 #define PWER_WE35	(1 << 24)
 
@@ -348,6 +350,7 @@ static inline void pxa27x_mfp_init(void) {}
 #ifdef CONFIG_PM
 static unsigned long saved_gafr[2][4];
 static unsigned long saved_gpdr[4];
+static unsigned long saved_gplr[4];
 static unsigned long saved_pgsr[4];
 
 static int pxa2xx_mfp_suspend(void)
@@ -369,7 +372,11 @@ static int pxa2xx_mfp_suspend(void)
 		saved_gafr[0][i] = GAFR_L(i);
 		saved_gafr[1][i] = GAFR_U(i);
 		saved_gpdr[i] = GPDR(i * 32);
+		saved_gplr[i] = GPLR(i * 32);
 		saved_pgsr[i] = PGSR(i);
+
+		GPSR(i * 32) = PGSR(i);
+		GPCR(i * 32) = ~PGSR(i);
 	}
 
 	/* set GPDR bits taking into account MFP_LPM_KEEP_OUTPUT */
@@ -392,6 +399,8 @@ static void pxa2xx_mfp_resume(void)
 	for (i = 0; i <= gpio_to_bank(pxa_last_gpio); i++) {
 		GAFR_L(i) = saved_gafr[0][i];
 		GAFR_U(i) = saved_gafr[1][i];
+		GPSR(i * 32) = saved_gplr[i];
+		GPCR(i * 32) = ~saved_gplr[i];
 		GPDR(i * 32) = saved_gpdr[i];
 		PGSR(i) = saved_pgsr[i];
 	}
