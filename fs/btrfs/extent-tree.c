@@ -4205,7 +4205,7 @@ static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
 	num_bytes += div64_u64(data_used + meta_used, 50);
 
 	if (num_bytes * 3 > meta_used)
-		num_bytes = div64_u64(meta_used, 3) * 2;
+		num_bytes = div64_u64(meta_used, 3);
 
 	return ALIGN(num_bytes, fs_info->extent_root->leafsize << 10);
 }
