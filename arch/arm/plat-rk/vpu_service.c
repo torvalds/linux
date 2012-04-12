@@ -131,6 +131,7 @@ typedef struct vpu_device {
 
 typedef struct vpu_service_info {
 	spinlock_t		lock;
+	spinlock_t		lock_power;
 	struct timer_list	timer;			/* timer for power off */
 	struct list_head	waiting;		/* link to link_reg in struct vpu_reg */
 	struct list_head	running;		/* link to link_reg in struct vpu_reg */
@@ -264,8 +265,11 @@ static void vpu_service_power_off(void)
 {
 	int total_running;
 
-	if (!service.enabled)
+	spin_lock_bh(&service.lock_power);
+	if (!service.enabled) {
+		spin_unlock_bh(&service.lock_power);
 		return;
+	}
 
 	service.enabled = false;
 	total_running = atomic_read(&service.total_running);
@@ -289,6 +293,7 @@ static void vpu_service_power_off(void)
 	clk_disable(aclk_vepu);
 	clk_disable(clk_vpu);
 	printk("done\n");
+	spin_unlock_bh(&service.lock_power);
 }
 
 static void vpu_service_power_off_work_func(unsigned long data)
@@ -310,7 +315,7 @@ static void vpu_service_power_on(void)
 {
 	clk_enable(clk_vpu); /* notify vpu on without lock. */
 
-	spin_lock_bh(&service.lock);
+	spin_lock_bh(&service.lock_power);
 	if (!service.enabled) {
 		service.enabled = true;
 		printk("vpu: power on\n");
@@ -331,9 +336,9 @@ static void vpu_service_power_on(void)
 		service.timer.expires = jiffies + POWER_OFF_DELAY;
 		service.timer.function = vpu_service_power_off_work_func;
 		add_timer(&service.timer);
-		spin_unlock_bh(&service.lock);
+		spin_unlock_bh(&service.lock_power);
 	} else {
-		spin_unlock_bh(&service.lock);
+		spin_unlock_bh(&service.lock_power);
 		vpu_service_power_maintain();
 	}
 
@@ -1137,6 +1142,7 @@ static int __init vpu_service_init(void)
 	INIT_LIST_HEAD(&service.done);
 	INIT_LIST_HEAD(&service.session);
 	spin_lock_init(&service.lock);
+	spin_lock_init(&service.lock_power);
 	service.reg_codec	= NULL;
 	service.reg_pproc	= NULL;
 	atomic_set(&service.total_running, 0);
