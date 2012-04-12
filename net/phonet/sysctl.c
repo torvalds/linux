@@ -27,6 +27,10 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 
+#include <net/sock.h>
+#include <linux/phonet.h>
+#include <net/phonet/phonet.h>
+
 #define DYNAMIC_PORT_MIN	0x40
 #define DYNAMIC_PORT_MAX	0x7f
 
