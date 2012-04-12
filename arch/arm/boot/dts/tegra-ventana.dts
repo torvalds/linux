@@ -335,4 +335,8 @@
 	sdhci@c8000600 {
 		support-8bit;
 	};
+
+	usb@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
+	};
 };

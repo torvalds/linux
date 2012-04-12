@@ -351,4 +351,8 @@
 			linux,default-trigger = "rfkill0";
 		};
 	};
+
+	usb@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	};
 };
