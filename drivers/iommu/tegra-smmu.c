@@ -733,7 +733,7 @@ static int smmu_iommu_attach_dev(struct iommu_domain *domain,
 		pr_info("Reserve \"page zero\" for AVP vectors using a common dummy\n");
 	}
 
-	dev_dbg(smmu->dev, "%s is attached\n", dev_name(c->dev));
+	dev_dbg(smmu->dev, "%s is attached\n", dev_name(dev));
 	return 0;
 
 err_client:
