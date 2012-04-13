@@ -3031,7 +3031,7 @@ int snd_soc_dai_digital_mute(struct snd_soc_dai *dai, int mute)
 	if (dai->driver && dai->driver->ops->digital_mute)
 		return dai->driver->ops->digital_mute(dai, mute);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_dai_digital_mute);
 
