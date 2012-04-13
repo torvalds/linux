@@ -1132,6 +1132,7 @@ void nmk_gpio_read_pull(int gpio_bank, u32 *pull_up)
 static int __devinit nmk_gpio_probe(struct platform_device *dev)
 {
 	struct nmk_gpio_platform_data *pdata = dev->dev.platform_data;
+	struct device_node *np = dev->dev.of_node;
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
 	struct resource *res;
@@ -1141,8 +1142,28 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	int irq;
 	int ret;
 
-	if (!pdata)
+	if (!pdata && !np) {
+		dev_err(&dev->dev, "No platform data or device tree found\n");
 		return -ENODEV;
+	}
+
+	if (np) {
+		pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		if (of_get_property(np, "supports-sleepmode", NULL))
+			pdata->supports_sleepmode = true;
+
+		if (of_property_read_u32(np, "gpio-bank", &dev->id)) {
+			dev_err(&dev->dev, "gpio-bank property not found\n");
+			ret = -EINVAL;
+			goto out_dt;
+		}
+
+		pdata->first_gpio = dev->id * NMK_GPIO_PER_CHIP;
+		pdata->num_gpio   = NMK_GPIO_PER_CHIP;
+	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1185,6 +1206,7 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 		ret = -ENOMEM;
 		goto out_clk;
 	}
+
 	/*
 	 * The virt address in nmk_chip->addr is in the nomadik register space,
 	 * so we can simply convert the resource address, without remapping
@@ -1211,6 +1233,8 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
 	clk_disable(nmk_chip->clk);
 
+	chip->of_node = np;
+
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
 		goto out_free;
@@ -1218,12 +1242,13 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	BUG_ON(nmk_chip->bank >= ARRAY_SIZE(nmk_gpio_chips));
 
 	nmk_gpio_chips[nmk_chip->bank] = nmk_chip;
+
 	platform_set_drvdata(dev, nmk_chip);
 
 	nmk_gpio_init_irq(nmk_chip);
 
-	dev_info(&dev->dev, "at address %p\n",
-		 nmk_chip->addr);
+	dev_info(&dev->dev, "at address %p\n", nmk_chip->addr);
+
 	return 0;
 
 out_free:
@@ -1238,13 +1263,23 @@ out_release:
 out:
 	dev_err(&dev->dev, "Failure %i for GPIO %i-%i\n", ret,
 		  pdata->first_gpio, pdata->first_gpio+31);
+out_dt:
+	if (np)
+		kfree(pdata);
+
 	return ret;
 }
+
+static const struct of_device_id nmk_gpio_match[] = {
+	{ .compatible = "st,nomadik-gpio", },
+	{}
+};
 
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "gpio",
+		.of_match_table = nmk_gpio_match,
 	},
 	.probe = nmk_gpio_probe,
 };
