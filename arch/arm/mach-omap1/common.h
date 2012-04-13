@@ -63,4 +63,6 @@ extern bool omap_32k_timer_init(void);
 
 extern u32 omap_irq_flags;
 
+extern int ocpi_enable(void);
+
 #endif /* __ARCH_ARM_MACH_OMAP1_COMMON_H */
