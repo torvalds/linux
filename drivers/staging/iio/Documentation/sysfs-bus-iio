@@ -453,9 +453,9 @@ What:		/sys/.../events/in_magn_z_raw_thresh_rising_value
 What:		/sys/.../events/in_magn_z_raw_thresh_falling_value
 What:		/sys/.../events/in_voltageY_supply_raw_thresh_rising_value
 What:		/sys/.../events/in_voltageY_supply_raw_thresh_falling_value
+What:		/sys/.../events/in_voltageY_raw_thresh_rising_value
 What:		/sys/.../events/in_voltageY_raw_thresh_falling_value
-What:		/sys/.../events/in_voltageY_raw_thresh_falling_value
-What:		/sys/.../events/in_tempY_raw_thresh_falling_value
+What:		/sys/.../events/in_tempY_raw_thresh_rising_value
 What:		/sys/.../events/in_tempY_raw_thresh_falling_value
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
@@ -490,9 +490,9 @@ What:		/sys/.../events/in_magn_z_raw_roc_rising_value
 What:		/sys/.../events/in_magn_z_raw_roc_falling_value
 What:		/sys/.../events/in_voltageY_supply_raw_roc_rising_value
 What:		/sys/.../events/in_voltageY_supply_raw_roc_falling_value
+What:		/sys/.../events/in_voltageY_raw_roc_rising_value
 What:		/sys/.../events/in_voltageY_raw_roc_falling_value
-What:		/sys/.../events/in_voltageY_raw_roc_falling_value
-What:		/sys/.../events/in_tempY_raw_roc_falling_value
+What:		/sys/.../events/in_tempY_raw_roc_rising_value
 What:		/sys/.../events/in_tempY_raw_roc_falling_value
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
