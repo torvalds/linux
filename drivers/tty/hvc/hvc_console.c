@@ -317,8 +317,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	/* Check and then increment for fast path open. */
 	if (hp->port.count++ > 0) {
 		spin_unlock_irqrestore(&hp->port.lock, flags);
-		/* FIXME why taking a reference here? */
-		tty_kref_get(tty);
 		hvc_kick();
 		return 0;
 	} /* else count == 0 */
@@ -338,7 +336,6 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 	 */
 	if (rc) {
 		tty_port_tty_set(&hp->port, NULL);
-		tty_kref_put(tty);
 		tty->driver_data = NULL;
 		tty_port_put(&hp->port);
 		printk(KERN_ERR "hvc_open: request_irq failed with rc %d.\n", rc);
@@ -393,7 +390,6 @@ static void hvc_close(struct tty_struct *tty, struct file * filp)
 		spin_unlock_irqrestore(&hp->port.lock, flags);
 	}
 
-	tty_kref_put(tty);
 	tty_port_put(&hp->port);
 }
 
@@ -433,7 +429,6 @@ static void hvc_hangup(struct tty_struct *tty)
 
 	while(temp_open_count) {
 		--temp_open_count;
-		tty_kref_put(tty);
 		tty_port_put(&hp->port);
 	}
 }
