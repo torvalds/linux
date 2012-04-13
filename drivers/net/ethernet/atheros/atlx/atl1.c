@@ -2499,77 +2499,68 @@ static irqreturn_t atl1_intr(int irq, void *data)
 {
 	struct atl1_adapter *adapter = netdev_priv(data);
 	u32 status;
-	int max_ints = 10;
 
 	status = adapter->cmb.cmb->int_stats;
 	if (!status)
 		return IRQ_NONE;
 
-	do {
-		/* clear CMB interrupt status at once */
-		adapter->cmb.cmb->int_stats = 0;
+	/* clear CMB interrupt status at once */
+	adapter->cmb.cmb->int_stats = 0;
 
-		if (status & ISR_GPHY)	/* clear phy status */
-			atlx_clear_phy_int(adapter);
+	if (status & ISR_GPHY)	/* clear phy status */
+		atlx_clear_phy_int(adapter);
 
-		/* clear ISR status, and Enable CMB DMA/Disable Interrupt */
-		iowrite32(status | ISR_DIS_INT, adapter->hw.hw_addr + REG_ISR);
+	/* clear ISR status, and Enable CMB DMA/Disable Interrupt */
+	iowrite32(status | ISR_DIS_INT, adapter->hw.hw_addr + REG_ISR);
 
-		/* check if SMB intr */
-		if (status & ISR_SMB)
-			atl1_inc_smb(adapter);
+	/* check if SMB intr */
+	if (status & ISR_SMB)
+		atl1_inc_smb(adapter);
 
-		/* check if PCIE PHY Link down */
-		if (status & ISR_PHY_LINKDOWN) {
-			if (netif_msg_intr(adapter))
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
-					"pcie phy link down %x\n", status);
-			if (netif_running(adapter->netdev)) {	/* reset MAC */
-				atlx_irq_disable(adapter);
-				schedule_work(&adapter->pcie_dma_to_rst_task);
-				return IRQ_HANDLED;
-			}
-		}
-
-		/* check if DMA read/write error ? */
-		if (status & (ISR_DMAR_TO_RST | ISR_DMAW_TO_RST)) {
-			if (netif_msg_intr(adapter))
-				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
-					"pcie DMA r/w error (status = 0x%x)\n",
-					status);
+	/* check if PCIE PHY Link down */
+	if (status & ISR_PHY_LINKDOWN) {
+		if (netif_msg_intr(adapter))
+			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				"pcie phy link down %x\n", status);
+		if (netif_running(adapter->netdev)) {	/* reset MAC */
 			atlx_irq_disable(adapter);
 			schedule_work(&adapter->pcie_dma_to_rst_task);
 			return IRQ_HANDLED;
 		}
+	}
 
-		/* link event */
-		if (status & ISR_GPHY) {
-			adapter->soft_stats.tx_carrier_errors++;
-			atl1_check_for_link(adapter);
-		}
+	/* check if DMA read/write error ? */
+	if (status & (ISR_DMAR_TO_RST | ISR_DMAW_TO_RST)) {
+		if (netif_msg_intr(adapter))
+			dev_printk(KERN_DEBUG, &adapter->pdev->dev,
+				"pcie DMA r/w error (status = 0x%x)\n",
+				status);
+		atlx_irq_disable(adapter);
+		schedule_work(&adapter->pcie_dma_to_rst_task);
+		return IRQ_HANDLED;
+	}
 
-		/* transmit or receive event */
-		if (status & (ISR_CMB_TX | ISR_CMB_RX) &&
-		    atl1_sched_rings_clean(adapter))
-			break;
+	/* link event */
+	if (status & ISR_GPHY) {
+		adapter->soft_stats.tx_carrier_errors++;
+		atl1_check_for_link(adapter);
+	}
 
-		/* rx exception */
-		if (unlikely(status & (ISR_RXF_OV | ISR_RFD_UNRUN |
-			ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
-			ISR_HOST_RRD_OV))) {
-			if (netif_msg_intr(adapter))
-				dev_printk(KERN_DEBUG,
-					&adapter->pdev->dev,
-					"rx exception, ISR = 0x%x\n",
-					status);
-			if (atl1_sched_rings_clean(adapter))
-				break;
-		}
+	/* transmit or receive event */
+	if (status & (ISR_CMB_TX | ISR_CMB_RX))
+	    atl1_sched_rings_clean(adapter);
 
-		if (--max_ints < 0)
-			break;
-
-	} while ((status = adapter->cmb.cmb->int_stats));
+	/* rx exception */
+	if (unlikely(status & (ISR_RXF_OV | ISR_RFD_UNRUN |
+		ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
+		ISR_HOST_RRD_OV))) {
+		if (netif_msg_intr(adapter))
+			dev_printk(KERN_DEBUG,
+				&adapter->pdev->dev,
+				"rx exception, ISR = 0x%x\n",
+				status);
+		atl1_sched_rings_clean(adapter);
+	}
 
 	/* re-enable Interrupt */
 	iowrite32(ISR_DIS_SMB | ISR_DIS_DMA, adapter->hw.hw_addr + REG_ISR);
