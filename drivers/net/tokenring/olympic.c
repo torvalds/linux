@@ -1732,18 +1732,6 @@ static struct pci_driver olympic_driver = {
 	.remove		= __devexit_p(olympic_remove_one),
 };
 
-static int __init olympic_pci_init(void) 
-{
-	return pci_register_driver(&olympic_driver) ;
-}
-
-static void __exit olympic_pci_cleanup(void)
-{
-	pci_unregister_driver(&olympic_driver) ; 
-}	
-
-
-module_init(olympic_pci_init) ; 
-module_exit(olympic_pci_cleanup) ; 
+module_pci_driver(olympic_driver);
 
 MODULE_LICENSE("GPL");

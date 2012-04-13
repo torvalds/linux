@@ -1826,18 +1826,6 @@ static struct pci_driver xl_3c359_driver = {
 	.remove		= __devexit_p(xl_remove_one),
 };
 
-static int __init xl_pci_init (void)
-{
-	return pci_register_driver(&xl_3c359_driver);
-}
-
-
-static void __exit xl_pci_cleanup (void)
-{
-	pci_unregister_driver (&xl_3c359_driver);
-}
-
-module_init(xl_pci_init);
-module_exit(xl_pci_cleanup);
+module_pci_driver(xl_3c359_driver);
 
 MODULE_LICENSE("GPL") ; 

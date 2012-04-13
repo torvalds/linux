@@ -233,16 +233,4 @@ static struct pci_driver tms_pci_driver = {
 	.remove		= __devexit_p(tms_pci_detach),
 };
 
-static int __init tms_pci_init (void)
-{
-	return pci_register_driver(&tms_pci_driver);
-}
-
-static void __exit tms_pci_rmmod (void)
-{
-	pci_unregister_driver (&tms_pci_driver);
-}
-
-module_init(tms_pci_init);
-module_exit(tms_pci_rmmod);
-
+module_pci_driver(tms_pci_driver);

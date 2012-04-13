@@ -1904,14 +1904,6 @@ static struct pci_driver streamer_pci_driver = {
   .remove   = __devexit_p(streamer_remove_one),
 };
 
-static int __init streamer_init_module(void) {
-  return pci_register_driver(&streamer_pci_driver);
-}
+module_pci_driver(streamer_pci_driver);
 
-static void __exit streamer_cleanup_module(void) {
-  pci_unregister_driver(&streamer_pci_driver);
-}
-
-module_init(streamer_init_module);
-module_exit(streamer_cleanup_module);
 MODULE_LICENSE("GPL");
