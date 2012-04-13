@@ -786,7 +786,7 @@ static void __exit rk30_lcdc_exit(void)
 
 
 
-fs_initcall_sync(rk30_lcdc_init);
+fs_initcall(rk30_lcdc_init);
 module_exit(rk30_lcdc_exit);
 
 
