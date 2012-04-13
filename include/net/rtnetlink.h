@@ -78,7 +78,7 @@ struct rtnl_link_ops {
 	int			(*fill_xstats)(struct sk_buff *skb,
 					       const struct net_device *dev);
 	int			(*get_tx_queues)(struct net *net,
-						 const struct nlattr *tb[]);
+						 struct nlattr *tb[]);
 };
 
 extern int	__rtnl_link_register(struct rtnl_link_ops *ops);
