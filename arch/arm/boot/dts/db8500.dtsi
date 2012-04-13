@@ -55,7 +55,7 @@
 
 		gpio0: gpio@8012e000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8012e000 0x80>;
 			interrupts = <0 119 0x4>;
 			supports-sleepmode;
@@ -64,7 +64,7 @@
 
 		gpio1: gpio@8012e080 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8012e080 0x80>;
 			interrupts = <0 120 0x4>;
 			supports-sleepmode;
@@ -73,7 +73,7 @@
 
 		gpio2: gpio@8000e000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e000 0x80>;
 			interrupts = <0 121 0x4>;
 			supports-sleepmode;
@@ -82,7 +82,7 @@
 
 		gpio3: gpio@8000e080 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e080 0x80>;
 			interrupts = <0 122 0x4>;
 			supports-sleepmode;
@@ -91,7 +91,7 @@
 
 		gpio4: gpio@8000e100 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e100 0x80>;
 			interrupts = <0 123 0x4>;
 			supports-sleepmode;
@@ -100,7 +100,7 @@
 
 		gpio5: gpio@8000e180 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8000e180 0x80>;
 			interrupts = <0 124 0x4>;
 			supports-sleepmode;
@@ -109,7 +109,7 @@
 
 		gpio6: gpio@8011e000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8011e000 0x80>;
 			interrupts = <0 125 0x4>;
 			supports-sleepmode;
@@ -118,7 +118,7 @@
 
 		gpio7: gpio@8011e080 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0x8011e080 0x80>;
 			interrupts = <0 126 0x4>;
 			supports-sleepmode;
@@ -127,7 +127,7 @@
 
 		gpio8: gpio@a03fe000 {
 			compatible = "stericsson,db8500-gpio",
-				"stmicroelectronics,nomadik-gpio";
+				"st,nomadik-gpio";
 			reg =  <0xa03fe000 0x80>;
 			interrupts = <0 127 0x4>;
 			supports-sleepmode;
