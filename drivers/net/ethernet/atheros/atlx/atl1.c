@@ -2069,12 +2069,13 @@ rrd_ok:
 	return count;
 }
 
-static void atl1_intr_tx(struct atl1_adapter *adapter)
+static int atl1_intr_tx(struct atl1_adapter *adapter)
 {
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
 	struct atl1_buffer *buffer_info;
 	u16 sw_tpd_next_to_clean;
 	u16 cmb_tpd_next_to_clean;
+	int count = 0;
 
 	sw_tpd_next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	cmb_tpd_next_to_clean = le16_to_cpu(adapter->cmb.cmb->tpd_cons_idx);
@@ -2094,12 +2095,16 @@ static void atl1_intr_tx(struct atl1_adapter *adapter)
 
 		if (++sw_tpd_next_to_clean == tpd_ring->count)
 			sw_tpd_next_to_clean = 0;
+
+		count++;
 	}
 	atomic_set(&tpd_ring->next_to_clean, sw_tpd_next_to_clean);
 
 	if (netif_queue_stopped(adapter->netdev) &&
 	    netif_carrier_ok(adapter->netdev))
 		netif_wake_queue(adapter->netdev);
+
+	return count;
 }
 
 static u16 atl1_tpd_avail(struct atl1_tpd_ring *tpd_ring)
@@ -2441,10 +2446,13 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	return NETDEV_TX_OK;
 }
 
-static int atl1_rx_clean(struct napi_struct *napi, int budget)
+static int atl1_rings_clean(struct napi_struct *napi, int budget)
 {
 	struct atl1_adapter *adapter = container_of(napi, struct atl1_adapter, napi);
 	int work_done = atl1_intr_rx(adapter, budget);
+
+	if (atl1_intr_tx(adapter))
+		work_done = budget;
 
 	/* Let's come again to process some more packets */
 	if (work_done >= budget)
@@ -2456,7 +2464,7 @@ static int atl1_rx_clean(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-static inline int atl1_sched_rx(struct atl1_adapter* adapter)
+static inline int atl1_sched_rings_clean(struct atl1_adapter* adapter)
 {
 	if (likely(napi_schedule_prep(&adapter->napi))) {
 		__napi_schedule(&adapter->napi);
@@ -2527,12 +2535,9 @@ static irqreturn_t atl1_intr(int irq, void *data)
 			atl1_check_for_link(adapter);
 		}
 
-		/* transmit event */
-		if (status & ISR_CMB_TX)
-			atl1_intr_tx(adapter);
-
-		/* rx event */
-		if (status & ISR_CMB_RX && atl1_sched_rx(adapter))
+		/* transmit or receive event */
+		if (status & (ISR_CMB_TX | ISR_CMB_RX) &&
+		    atl1_sched_rings_clean(adapter))
 			/* Go away with INTs disabled */
 			return IRQ_HANDLED;
 
@@ -2545,7 +2550,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 					&adapter->pdev->dev,
 					"rx exception, ISR = 0x%x\n",
 					status);
-			if (atl1_sched_rx(adapter))
+			if (atl1_sched_rings_clean(adapter))
 				return IRQ_HANDLED;
 		}
 
@@ -3005,7 +3010,7 @@ static int __devinit atl1_probe(struct pci_dev *pdev,
 
 	netdev->netdev_ops = &atl1_netdev_ops;
 	netdev->watchdog_timeo = 5 * HZ;
-	netif_napi_add(netdev, &adapter->napi, atl1_rx_clean, 64);
+	netif_napi_add(netdev, &adapter->napi, atl1_rings_clean, 64);
 
 	netdev->ethtool_ops = &atl1_ethtool_ops;
 	adapter->bd_number = cards_found;
