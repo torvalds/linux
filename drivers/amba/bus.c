@@ -247,8 +247,7 @@ static int amba_pm_restore(struct device *dev)
 /*
  * Hooks to provide runtime PM of the pclk (bus clock).  It is safe to
  * enable/disable the bus clock at runtime PM suspend/resume as this
- * does not result in loss of context.  However, disabling vcore power
- * would do, so we leave that to the driver.
+ * does not result in loss of context.
  */
 static int amba_pm_runtime_suspend(struct device *dev)
 {
@@ -354,39 +353,6 @@ static void amba_put_disable_pclk(struct amba_device *pcdev)
 	clk_put(pclk);
 }
 
-static int amba_get_enable_vcore(struct amba_device *pcdev)
-{
-	struct regulator *vcore = regulator_get(&pcdev->dev, "vcore");
-	int ret;
-
-	pcdev->vcore = vcore;
-
-	if (IS_ERR(vcore)) {
-		/* It is OK not to supply a vcore regulator */
-		if (PTR_ERR(vcore) == -ENODEV)
-			return 0;
-		return PTR_ERR(vcore);
-	}
-
-	ret = regulator_enable(vcore);
-	if (ret) {
-		regulator_put(vcore);
-		pcdev->vcore = ERR_PTR(-ENODEV);
-	}
-
-	return ret;
-}
-
-static void amba_put_disable_vcore(struct amba_device *pcdev)
-{
-	struct regulator *vcore = pcdev->vcore;
-
-	if (!IS_ERR(vcore)) {
-		regulator_disable(vcore);
-		regulator_put(vcore);
-	}
-}
-
 /*
  * These are the device model conversion veneers; they convert the
  * device model structures to our more specific structures.
@@ -399,10 +365,6 @@ static int amba_probe(struct device *dev)
 	int ret;
 
 	do {
-		ret = amba_get_enable_vcore(pcdev);
-		if (ret)
-			break;
-
 		ret = amba_get_enable_pclk(pcdev);
 		if (ret)
 			break;
@@ -420,7 +382,6 @@ static int amba_probe(struct device *dev)
 		pm_runtime_put_noidle(dev);
 
 		amba_put_disable_pclk(pcdev);
-		amba_put_disable_vcore(pcdev);
 	} while (0);
 
 	return ret;
@@ -442,7 +403,6 @@ static int amba_remove(struct device *dev)
 	pm_runtime_put_noidle(dev);
 
 	amba_put_disable_pclk(pcdev);
-	amba_put_disable_vcore(pcdev);
 
 	return ret;
 }
