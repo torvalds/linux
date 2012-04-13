@@ -2502,18 +2502,19 @@ static irqreturn_t atl1_intr(int irq, void *data)
 		if (status & ISR_CMB_TX)
 			atl1_intr_tx(adapter);
 
+		/* rx event */
+		if (status & ISR_CMB_RX)
+			alt1_intr_rx(adapter);
+
 		/* rx exception */
 		if (unlikely(status & (ISR_RXF_OV | ISR_RFD_UNRUN |
 			ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
-			ISR_HOST_RRD_OV | ISR_CMB_RX))) {
-			if (status & (ISR_RXF_OV | ISR_RFD_UNRUN |
-				ISR_RRD_OV | ISR_HOST_RFD_UNRUN |
-				ISR_HOST_RRD_OV))
-				if (netif_msg_intr(adapter))
-					dev_printk(KERN_DEBUG,
-						&adapter->pdev->dev,
-						"rx exception, ISR = 0x%x\n",
-						status);
+			ISR_HOST_RRD_OV))) {
+			if (netif_msg_intr(adapter))
+				dev_printk(KERN_DEBUG,
+					&adapter->pdev->dev,
+					"rx exception, ISR = 0x%x\n",
+					status);
 			atl1_intr_rx(adapter);
 		}
 
