@@ -59,6 +59,8 @@ static ssize_t show_disp_info(struct device *dev,
 	int layer_id = get_fb_layer_id(&fbi->fix);
 	if(dev_drv->get_disp_info)
 		dev_drv->get_disp_info(dev_drv,layer_id);
+
+	return 0;
 }
 
 static ssize_t show_phys(struct device *dev,
@@ -78,11 +80,45 @@ static ssize_t show_virt(struct device *dev,
 		fbi->screen_base,fbi->fix.smem_len);
 }
 
+static ssize_t show_fb_state(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	int layer_id = get_fb_layer_id(&fbi->fix);
+	int state = dev_drv->get_layer_state(dev_drv,layer_id);
+	return snprintf(buf, PAGE_SIZE, "%s\n",state?"enabled":"disabled");
+	
+}
+static ssize_t set_fb_state(struct device *dev,struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	int state;
+	int ret;
+	ret = kstrtoint(buf, 0, &state);
+	if(ret)
+	{
+		return ret;
+	}
+	if(state)
+	{
+		fbi->fbops->fb_open(fbi,1);
+	}
+	else
+	{
+		fbi->fbops->fb_release(fbi,1);
+	}
+	return count;
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
 	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
+	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

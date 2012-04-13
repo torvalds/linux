@@ -210,6 +210,7 @@ struct rk_lcdc_device_driver{
 	int (*pan_display)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*get_disp_info)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*load_screen)(struct rk_lcdc_device_driver *dev_drv, bool initscreen);
+	int (*get_layer_state)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	
 };
 

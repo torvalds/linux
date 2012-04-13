@@ -110,7 +110,14 @@ static int rk_fb_open(struct fb_info *info,int user)
     int layer_id;
     CHK_SUSPEND(dev_drv);
     layer_id = get_fb_layer_id(&info->fix);
-    dev_drv->open(dev_drv,layer_id,1);
+    if(dev_drv->layer_par[layer_id]->state)
+    {
+    	return 0;    // if this layer aready opened ,no need to reopen
+    }
+    else
+    {
+    	dev_drv->open(dev_drv,layer_id,1);
+    }
     
     return 0;
     
@@ -122,7 +129,14 @@ static int rk_fb_close(struct fb_info *info,int user)
     	int layer_id;
     	CHK_SUSPEND(dev_drv);
     	layer_id = get_fb_layer_id(&info->fix);
-    	dev_drv->open(dev_drv,layer_id,0);
+	if(!dev_drv->layer_par[layer_id]->state)
+	{
+		return 0;
+	}
+	else
+	{
+    		dev_drv->open(dev_drv,layer_id,0);
+	}
 	
     	return 0;
 }
@@ -652,6 +666,8 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	dev_drv->load_screen 	= def_drv->load_screen;
 	dev_drv->def_layer_par 	= def_drv->def_layer_par;
 	dev_drv->num_layer	= def_drv->num_layer;
+	dev_drv->get_layer_state= def_drv->get_layer_state;
+	dev_drv->get_disp_info  = def_drv->get_disp_info;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);
@@ -737,6 +753,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         fb_inf->num_fb++;	
 	}
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
+    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_open(fb_inf->fb[fb_inf->num_fb-2],1);
     fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_set_par(fb_inf->fb[fb_inf->num_fb-2]);
     if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
         /* Start display and show logo on boot */

@@ -190,7 +190,6 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
               v_VERPRD(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
 	LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
               v_VASP(screen->vsync_len + screen->upper_margin));
-	LcdMskReg(lcdc_dev,SYS_CTRL1, m_W1_EN, v_W1_EN(1));  //default,enable win1 for ui display
 	// let above to take effect
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
                                                         
@@ -242,6 +241,7 @@ static int win0_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(open));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	lcdc_dev->driver.layer_par[0]->state = open;
 	printk(KERN_INFO "lcdc%d win0 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
 }
@@ -249,6 +249,7 @@ static int win1_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(open));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	lcdc_dev->driver.layer_par[1]->state = open;
 	printk(KERN_INFO "lcdc%d win1 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
 }
@@ -549,7 +550,30 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 		default:
 			break;
 	}
-		
+
+	return 0;
+}
+static int rk30_lcdc_get_layer_state(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+{
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	struct layer_par *par = dev_drv->layer_par[layer_id];
+
+	if(layer_id == 0)
+	{
+		par->state = LcdReadBit(lcdc_dev,SYS_CTRL1,m_W0_EN);
+	}
+	else if( layer_id == 1)
+	{
+		par->state = LcdReadBit(lcdc_dev,SYS_CTRL1,m_W1_EN);
+	}
+
+	return par->state;
+	
+}
+
+static int rk30_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+{
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	return 0;
 }
 
@@ -607,6 +631,8 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.blank         		= rk30_lcdc_blank,
 	.pan_display            = rk30_lcdc_pan_display,
 	.load_screen		= rk30_load_screen,
+	.get_layer_state	= rk30_lcdc_get_layer_state,
+	.get_disp_info		= rk30_get_disp_info,
 };
 #ifdef CONFIG_PM
 static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
