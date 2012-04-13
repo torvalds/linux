@@ -108,8 +108,6 @@ static void get_htc_packet_credit_based(struct htc_target *target,
 
 		/* get packet at head, but don't remove it */
 		packet = list_first_entry(&ep->txq, struct htc_packet, list);
-		if (packet == NULL)
-			break;
 
 		ath6kl_dbg(ATH6KL_DBG_HTC,
 			   "%s: got head packet:0x%p , queue depth: %d\n",
@@ -803,8 +801,6 @@ static int htc_send_packets_multiple(struct htc_target *target,
 
 	/* get first packet to find out which ep the packets will go into */
 	packet = list_first_entry(pkt_queue, struct htc_packet, list);
-	if (packet == NULL)
-		return -EINVAL;
 
 	if (packet->endpoint >= ENDPOINT_MAX) {
 		WARN_ON_ONCE(1);
@@ -1636,10 +1632,6 @@ static int ath6kl_htc_pipe_add_rxbuf_multiple(struct htc_target *target,
 		return -EINVAL;
 
 	first = list_first_entry(pkt_queue, struct htc_packet, list);
-	if (first == NULL) {
-		WARN_ON_ONCE(1);
-		return -EINVAL;
-	}
 
 	if (first->endpoint >= ENDPOINT_MAX) {
 		WARN_ON_ONCE(1);
