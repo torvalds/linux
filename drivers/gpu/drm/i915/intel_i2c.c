@@ -383,7 +383,7 @@ gmbus_xfer(struct i2c_adapter *adapter,
 	 */
 	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
 		     10)) {
-		DRM_INFO("GMBUS [%s] timed out waiting for idle\n",
+		DRM_DEBUG_KMS("GMBUS [%s] timed out waiting for idle\n",
 			 adapter->name);
 		ret = -ETIMEDOUT;
 	}
@@ -399,7 +399,8 @@ clear_err:
 	 */
 	if (wait_for((I915_READ(GMBUS2 + reg_offset) & GMBUS_ACTIVE) == 0,
 		     10))
-		DRM_INFO("GMBUS [%s] timed out after NAK\n", adapter->name);
+		DRM_DEBUG_KMS("GMBUS [%s] timed out after NAK\n",
+			      adapter->name);
 
 	/* Toggle the Software Clear Interrupt bit. This has the effect
 	 * of resetting the GMBUS controller and so clearing the
@@ -409,7 +410,7 @@ clear_err:
 	I915_WRITE(GMBUS1 + reg_offset, 0);
 	I915_WRITE(GMBUS0 + reg_offset, 0);
 
-	DRM_DEBUG_DRIVER("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
+	DRM_DEBUG_KMS("GMBUS [%s] NAK for addr: %04x %c(%d)\n",
 			 adapter->name, msgs[i].addr,
 			 (msgs[i].flags & I2C_M_RD) ? 'r' : 'w', msgs[i].len);
 
