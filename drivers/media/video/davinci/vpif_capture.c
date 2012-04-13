@@ -2312,26 +2312,70 @@ static int vpif_remove(struct platform_device *device)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 /**
  * vpif_suspend: vpif device suspend
- *
- * TODO: Add suspend code here
  */
-static int
-vpif_suspend(struct device *dev)
+static int vpif_suspend(struct device *dev)
 {
-	return -1;
+
+	struct common_obj *common;
+	struct channel_obj *ch;
+	int i;
+
+	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
+		/* Get the pointer to the channel object */
+		ch = vpif_obj.dev[i];
+		common = &ch->common[VPIF_VIDEO_INDEX];
+		mutex_lock(&common->lock);
+		if (ch->usrs && common->io_usrs) {
+			/* Disable channel */
+			if (ch->channel_id == VPIF_CHANNEL0_VIDEO) {
+				enable_channel0(0);
+				channel0_intr_enable(0);
+			}
+			if (ch->channel_id == VPIF_CHANNEL1_VIDEO ||
+			    common->started == 2) {
+				enable_channel1(0);
+				channel1_intr_enable(0);
+			}
+		}
+		mutex_unlock(&common->lock);
+	}
+
+	return 0;
 }
 
-/**
+/*
  * vpif_resume: vpif device suspend
- *
- * TODO: Add resume code here
  */
-static int
-vpif_resume(struct device *dev)
+static int vpif_resume(struct device *dev)
 {
-	return -1;
+	struct common_obj *common;
+	struct channel_obj *ch;
+	int i;
+
+	for (i = 0; i < VPIF_CAPTURE_MAX_DEVICES; i++) {
+		/* Get the pointer to the channel object */
+		ch = vpif_obj.dev[i];
+		common = &ch->common[VPIF_VIDEO_INDEX];
+		mutex_lock(&common->lock);
+		if (ch->usrs && common->io_usrs) {
+			/* Disable channel */
+			if (ch->channel_id == VPIF_CHANNEL0_VIDEO) {
+				enable_channel0(1);
+				channel0_intr_enable(1);
+			}
+			if (ch->channel_id == VPIF_CHANNEL1_VIDEO ||
+			    common->started == 2) {
+				enable_channel1(1);
+				channel1_intr_enable(1);
+			}
+		}
+		mutex_unlock(&common->lock);
+	}
+
+	return 0;
 }
 
 static const struct dev_pm_ops vpif_dev_pm_ops = {
@@ -2339,11 +2383,16 @@ static const struct dev_pm_ops vpif_dev_pm_ops = {
 	.resume = vpif_resume,
 };
 
+#define vpif_pm_ops (&vpif_dev_pm_ops)
+#else
+#define vpif_pm_ops NULL
+#endif
+
 static __refdata struct platform_driver vpif_driver = {
 	.driver	= {
 		.name	= "vpif_capture",
 		.owner	= THIS_MODULE,
-		.pm = &vpif_dev_pm_ops,
+		.pm	= vpif_pm_ops,
 	},
 	.probe = vpif_probe,
 	.remove = vpif_remove,
