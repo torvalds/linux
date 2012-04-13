@@ -287,25 +287,126 @@ static inline void __ew32flash(struct e1000_hw *hw, unsigned long reg, u32 val)
 #define ew16flash(reg, val)	__ew16flash(hw, (reg), (val))
 #define ew32flash(reg, val)	__ew32flash(hw, (reg), (val))
 
-static void e1000_toggle_lanphypc_value_ich8lan(struct e1000_hw *hw)
+/**
+ *  e1000_phy_is_accessible_pchlan - Check if able to access PHY registers
+ *  @hw: pointer to the HW structure
+ *
+ *  Test access to the PHY registers by reading the PHY ID registers.  If
+ *  the PHY ID is already known (e.g. resume path) compare it with known ID,
+ *  otherwise assume the read PHY ID is correct if it is valid.
+ *
+ *  Assumes the sw/fw/hw semaphore is already acquired.
+ **/
+static bool e1000_phy_is_accessible_pchlan(struct e1000_hw *hw)
 {
-	u32 reg;
+	u16 phy_reg;
+	u32 phy_id;
 
-	/* Set Phy Config Counter to 50msec */
-	reg = er32(FEXTNVM3);
-	reg &= ~E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK;
-	reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
-	ew32(FEXTNVM3, reg);
+	hw->phy.ops.read_reg_locked(hw, PHY_ID1, &phy_reg);
+	phy_id = (u32)(phy_reg << 16);
+	hw->phy.ops.read_reg_locked(hw, PHY_ID2, &phy_reg);
+	phy_id |= (u32)(phy_reg & PHY_REVISION_MASK);
 
-	/* Toggle LANPHYPC Value bit */
-	reg = er32(CTRL);
-	reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
-	reg &= ~E1000_CTRL_LANPHYPC_VALUE;
-	ew32(CTRL, reg);
-	e1e_flush();
-	udelay(10);
-	reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
-	ew32(CTRL, reg);
+	if (hw->phy.id) {
+		if (hw->phy.id == phy_id)
+			return true;
+	} else {
+		if ((phy_id != 0) && (phy_id != PHY_REVISION_MASK))
+			hw->phy.id = phy_id;
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ *  e1000_init_phy_workarounds_pchlan - PHY initialization workarounds
+ *  @hw: pointer to the HW structure
+ *
+ *  Workarounds/flow necessary for PHY initialization during driver load
+ *  and resume paths.
+ **/
+static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
+{
+	u32 mac_reg, fwsm = er32(FWSM);
+	s32 ret_val;
+
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val) {
+		e_dbg("Failed to initialize PHY flow\n");
+		return ret_val;
+	}
+
+	/*
+	 * The MAC-PHY interconnect may be in SMBus mode.  If the PHY is
+	 * inaccessible and resetting the PHY is not blocked, toggle the
+	 * LANPHYPC Value bit to force the interconnect to PCIe mode.
+	 */
+	switch (hw->mac.type) {
+	case e1000_pch2lan:
+		/*
+		 * Gate automatic PHY configuration by hardware on
+		 * non-managed 82579
+		 */
+		if (!(fwsm & E1000_ICH_FWSM_FW_VALID))
+			e1000_gate_hw_phy_config_ich8lan(hw, true);
+
+		if (e1000_phy_is_accessible_pchlan(hw))
+			break;
+
+		/* fall-through */
+	case e1000_pchlan:
+		if ((hw->mac.type == e1000_pchlan) &&
+		    (fwsm & E1000_ICH_FWSM_FW_VALID))
+			break;
+
+		if (hw->phy.ops.check_reset_block(hw)) {
+			e_dbg("Required LANPHYPC toggle blocked by ME\n");
+			break;
+		}
+
+		e_dbg("Toggling LANPHYPC\n");
+
+		/* Set Phy Config Counter to 50msec */
+		mac_reg = er32(FEXTNVM3);
+		mac_reg &= ~E1000_FEXTNVM3_PHY_CFG_COUNTER_MASK;
+		mac_reg |= E1000_FEXTNVM3_PHY_CFG_COUNTER_50MSEC;
+		ew32(FEXTNVM3, mac_reg);
+
+		/* Toggle LANPHYPC Value bit */
+		mac_reg = er32(CTRL);
+		mac_reg |= E1000_CTRL_LANPHYPC_OVERRIDE;
+		mac_reg &= ~E1000_CTRL_LANPHYPC_VALUE;
+		ew32(CTRL, mac_reg);
+		e1e_flush();
+		udelay(10);
+		mac_reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
+		ew32(CTRL, mac_reg);
+		e1e_flush();
+		msleep(50);
+		break;
+	default:
+		break;
+	}
+
+	hw->phy.ops.release(hw);
+
+	/*
+	 * Reset the PHY before any access to it.  Doing so, ensures
+	 * that the PHY is in a known good state before we read/write
+	 * PHY registers.  The generic reset is sufficient here,
+	 * because we haven't determined the PHY type yet.
+	 */
+	ret_val = e1000e_phy_hw_reset_generic(hw);
+
+	/* Ungate automatic PHY configuration on non-managed 82579 */
+	if ((hw->mac.type == e1000_pch2lan) &&
+	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
+		usleep_range(10000, 20000);
+		e1000_gate_hw_phy_config_ich8lan(hw, false);
+	}
+
+	return ret_val;
 }
 
 /**
@@ -335,65 +436,34 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->ops.power_down           = e1000_power_down_phy_copper_ich8lan;
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
-	if (!hw->phy.ops.check_reset_block(hw)) {
-		u32 fwsm = er32(FWSM);
-
-		/*
-		 * The MAC-PHY interconnect may still be in SMBus mode after
-		 * Sx->S0.  If resetting the PHY is not blocked, toggle the
-		 * LANPHYPC Value bit to force the interconnect to PCIe mode.
-		 */
-		e1000_toggle_lanphypc_value_ich8lan(hw);
-		msleep(50);
-
-		/*
-		 * Gate automatic PHY configuration by hardware on
-		 * non-managed 82579
-		 */
-		if ((hw->mac.type == e1000_pch2lan) &&
-		    !(fwsm & E1000_ICH_FWSM_FW_VALID))
-			e1000_gate_hw_phy_config_ich8lan(hw, true);
-
-		/*
-		 * Reset the PHY before any access to it.  Doing so, ensures
-		 * that the PHY is in a known good state before we read/write
-		 * PHY registers.  The generic reset is sufficient here,
-		 * because we haven't determined the PHY type yet.
-		 */
-		ret_val = e1000e_phy_hw_reset_generic(hw);
-		if (ret_val)
-			return ret_val;
-
-		/* Ungate automatic PHY configuration on non-managed 82579 */
-		if ((hw->mac.type == e1000_pch2lan) &&
-		    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
-			usleep_range(10000, 20000);
-			e1000_gate_hw_phy_config_ich8lan(hw, false);
-		}
-	}
-
 	phy->id = e1000_phy_unknown;
-	switch (hw->mac.type) {
-	default:
-		ret_val = e1000e_get_phy_id(hw);
-		if (ret_val)
-			return ret_val;
-		if ((phy->id != 0) && (phy->id != PHY_REVISION_MASK))
+
+	ret_val = e1000_init_phy_workarounds_pchlan(hw);
+	if (ret_val)
+		return ret_val;
+
+	if (phy->id == e1000_phy_unknown)
+		switch (hw->mac.type) {
+		default:
+			ret_val = e1000e_get_phy_id(hw);
+			if (ret_val)
+				return ret_val;
+			if ((phy->id != 0) && (phy->id != PHY_REVISION_MASK))
+				break;
+			/* fall-through */
+		case e1000_pch2lan:
+			/*
+			 * In case the PHY needs to be in mdio slow mode,
+			 * set slow mode and try to get the PHY id again.
+			 */
+			ret_val = e1000_set_mdio_slow_mode_hv(hw);
+			if (ret_val)
+				return ret_val;
+			ret_val = e1000e_get_phy_id(hw);
+			if (ret_val)
+				return ret_val;
 			break;
-		/* fall-through */
-	case e1000_pch2lan:
-		/*
-		 * In case the PHY needs to be in mdio slow mode,
-		 * set slow mode and try to get the PHY id again.
-		 */
-		ret_val = e1000_set_mdio_slow_mode_hv(hw);
-		if (ret_val)
-			return ret_val;
-		ret_val = e1000e_get_phy_id(hw);
-		if (ret_val)
-			return ret_val;
-		break;
-	}
+		}
 	phy->type = e1000e_get_phy_type_from_id(phy->id);
 
 	switch (phy->type) {
@@ -3736,41 +3806,16 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
  **/
 void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 {
-	u16 phy_id1, phy_id2;
 	s32 ret_val;
 
-	if ((hw->mac.type != e1000_pch2lan) ||
-	    hw->phy.ops.check_reset_block(hw))
+	if (hw->mac.type < e1000_pch2lan)
 		return;
 
-	ret_val = hw->phy.ops.acquire(hw);
+	ret_val = e1000_init_phy_workarounds_pchlan(hw);
 	if (ret_val) {
-		e_dbg("Failed to acquire PHY semaphore in resume\n");
+		e_dbg("Failed to init PHY flow ret_val=%d\n", ret_val);
 		return;
 	}
-
-	/* Test access to the PHY registers by reading the ID regs */
-	ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID1, &phy_id1);
-	if (ret_val)
-		goto release;
-	ret_val = hw->phy.ops.read_reg_locked(hw, PHY_ID2, &phy_id2);
-	if (ret_val)
-		goto release;
-
-	if (hw->phy.id == ((u32)(phy_id1 << 16) |
-			   (u32)(phy_id2 & PHY_REVISION_MASK)))
-		goto release;
-
-	e1000_toggle_lanphypc_value_ich8lan(hw);
-
-	hw->phy.ops.release(hw);
-	msleep(50);
-	e1000_phy_hw_reset(hw);
-	msleep(50);
-	return;
-
-release:
-	hw->phy.ops.release(hw);
 }
 
 /**
