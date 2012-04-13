@@ -649,7 +649,7 @@ static void drms_uA_update(struct regulator_dev *rdev)
 	/* get input voltage */
 	input_uV = 0;
 	if (rdev->supply)
-		input_uV = _regulator_get_voltage(rdev);
+		input_uV = regulator_get_voltage(rdev->supply);
 	if (input_uV <= 0)
 		input_uV = rdev->constraints->input_uV;
 	if (input_uV <= 0)
