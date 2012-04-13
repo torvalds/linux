@@ -267,8 +267,8 @@ struct dip_infoframe {
 			uint8_t ITC_EC_Q_SC;
 			/* PB4 - VIC 6:0 */
 			uint8_t VIC;
-			/* PB5 - PR 3:0 */
-			uint8_t PR;
+			/* PB5 - YQ 7:6, CN 5:4, PR 3:0 */
+			uint8_t YQ_CN_PR;
 			/* PB6 to PB13 */
 			uint16_t top_bar_end;
 			uint16_t bottom_bar_start;
