@@ -464,17 +464,19 @@ EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
 /**
  * blkg_conf_prep - parse and prepare for per-blkg config update
  * @blkcg: target block cgroup
+ * @pol: target policy
  * @input: input string
  * @ctx: blkg_conf_ctx to be filled
  *
  * Parse per-blkg config update from @input and initialize @ctx with the
  * result.  @ctx->blkg points to the blkg to be updated and @ctx->v the new
- * value.  This function returns with RCU read locked and must be paired
- * with blkg_conf_finish().
+ * value.  This function returns with RCU read lock and queue lock held and
+ * must be paired with blkg_conf_finish().
  */
-int blkg_conf_prep(struct blkio_cgroup *blkcg, const char *input,
+int blkg_conf_prep(struct blkio_cgroup *blkcg,
+		   const struct blkio_policy_type *pol, const char *input,
 		   struct blkg_conf_ctx *ctx)
-	__acquires(rcu)
+	__acquires(rcu) __acquires(disk->queue->queue_lock)
 {
 	struct gendisk *disk;
 	struct blkio_group *blkg;
@@ -490,14 +492,14 @@ int blkg_conf_prep(struct blkio_cgroup *blkcg, const char *input,
 		return -EINVAL;
 
 	rcu_read_lock();
-
 	spin_lock_irq(disk->queue->queue_lock);
+
 	blkg = blkg_lookup_create(blkcg, disk->queue, false);
-	spin_unlock_irq(disk->queue->queue_lock);
 
 	if (IS_ERR(blkg)) {
 		ret = PTR_ERR(blkg);
 		rcu_read_unlock();
+		spin_unlock_irq(disk->queue->queue_lock);
 		put_disk(disk);
 		/*
 		 * If queue was bypassing, we should retry.  Do so after a
@@ -527,8 +529,9 @@ EXPORT_SYMBOL_GPL(blkg_conf_prep);
  * with blkg_conf_prep().
  */
 void blkg_conf_finish(struct blkg_conf_ctx *ctx)
-	__releases(rcu)
+	__releases(ctx->disk->queue->queue_lock) __releases(rcu)
 {
+	spin_unlock_irq(ctx->disk->queue->queue_lock);
 	rcu_read_unlock();
 	put_disk(ctx->disk);
 }

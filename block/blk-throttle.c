@@ -993,7 +993,7 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	struct throtl_grp *tg;
 	int ret;
 
-	ret = blkg_conf_prep(blkcg, buf, &ctx);
+	ret = blkg_conf_prep(blkcg, &blkio_policy_throtl, buf, &ctx);
 	if (ret)
 		return ret;
 

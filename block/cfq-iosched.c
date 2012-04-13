@@ -1400,7 +1400,7 @@ static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 	struct cfq_group *cfqg;
 	int ret;
 
-	ret = blkg_conf_prep(blkcg, buf, &ctx);
+	ret = blkg_conf_prep(blkcg, &blkio_policy_cfq, buf, &ctx);
 	if (ret)
 		return ret;
 

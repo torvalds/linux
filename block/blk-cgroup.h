@@ -128,7 +128,8 @@ struct blkg_conf_ctx {
 	u64			v;
 };
 
-int blkg_conf_prep(struct blkio_cgroup *blkcg, const char *input,
+int blkg_conf_prep(struct blkio_cgroup *blkcg,
+		   const struct blkio_policy_type *pol, const char *input,
 		   struct blkg_conf_ctx *ctx);
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
 
