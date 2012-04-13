@@ -10,10 +10,6 @@ config UX500_SOC_COMMON
 	select ARM_ERRATA_764369
 	select CACHE_L2X0
 
-config UX500_SOC_DB5500
-	bool
-	select MFD_DB5500_PRCMU
-
 config UX500_SOC_DB8500
 	bool
 	select MFD_DB8500_PRCMU
@@ -45,15 +41,8 @@ config MACH_SNOWBALL
 	help
 	  Include support for the snowball development platform.
 
-config MACH_U5500
-	bool "U5500 Development platform"
-	select UX500_SOC_DB5500
-	help
-	  Include support for the U5500 development platform.
-
 config UX500_AUTO_PLATFORM
 	def_bool y
-	depends on !MACH_U5500
 	select MACH_MOP500
 	help
 	  At least one platform needs to be selected in order to build
@@ -73,19 +62,5 @@ config UX500_DEBUG_UART
 	help
 	  Choose the UART on which kernel low-level debug messages should be
 	  output.
-
-config U5500_MODEM_IRQ
-	bool "Modem IRQ support"
-	depends on UX500_SOC_DB5500
-	default y
-	help
-	  Add support for handling IRQ:s from modem side
-
-config U5500_MBOX
-	bool "Mailbox support"
-	depends on U5500_MODEM_IRQ
-	default y
-	help
-	  Add support for U5500 mailbox communication with modem side
 
 endif
