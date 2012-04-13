@@ -85,8 +85,7 @@
 
 struct tegra20_das {
 	struct device *dev;
-	void __iomem *regs;
-	struct dentry *debug;
+	struct regmap *regmap;
 };
 
 /*
