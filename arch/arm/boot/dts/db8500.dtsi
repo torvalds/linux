@@ -60,6 +60,8 @@
 			interrupts = <0 119 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <0>;
 		};
 
 		gpio1: gpio@8012e080 {
@@ -69,6 +71,8 @@
 			interrupts = <0 120 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <1>;
 		};
 
 		gpio2: gpio@8000e000 {
@@ -78,6 +82,8 @@
 			interrupts = <0 121 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <2>;
 		};
 
 		gpio3: gpio@8000e080 {
@@ -87,6 +93,8 @@
 			interrupts = <0 122 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <3>;
 		};
 
 		gpio4: gpio@8000e100 {
@@ -96,6 +104,8 @@
 			interrupts = <0 123 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <4>;
 		};
 
 		gpio5: gpio@8000e180 {
@@ -105,6 +115,8 @@
 			interrupts = <0 124 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <5>;
 		};
 
 		gpio6: gpio@8011e000 {
@@ -114,6 +126,8 @@
 			interrupts = <0 125 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <6>;
 		};
 
 		gpio7: gpio@8011e080 {
@@ -123,6 +137,8 @@
 			interrupts = <0 126 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <7>;
 		};
 
 		gpio8: gpio@a03fe000 {
@@ -132,6 +148,8 @@
 			interrupts = <0 127 0x4>;
 			supports-sleepmode;
 			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-bank = <8>;
 		};
 
 		usb@a03e0000 {

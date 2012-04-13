@@ -30,35 +30,35 @@
 			wakeup = <1>;
 			linux,code = <2>;
 			label = "userpb";
-			gpios = <&gpio1 0>;
+			gpios = <&gpio1 0 0>;
 		};
 		button@2 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <3>;
 			label = "userpb";
-			gpios = <&gpio4 23>;
+			gpios = <&gpio4 23 0>;
 		};
 		button@3 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <4>;
 			label = "userpb";
-			gpios = <&gpio4 23>;
+			gpios = <&gpio4 24 0>;
 		};
 		button@4 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <5>;
 			label = "userpb";
-			gpios = <&gpio5 1>;
+			gpios = <&gpio5 1 0>;
 		};
 		button@5 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <6>;
 			label = "userpb";
-			gpios = <&gpio5 2>;
+			gpios = <&gpio5 2 0>;
 		};
 	};
 
