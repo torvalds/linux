@@ -295,7 +295,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
-	.irqs           = { 80, 80, 80, 80 },
+	.irqs			= SCIx_IRQ_MUXED(evt2irq(0xC00)),
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 };
 
@@ -314,7 +314,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
-	.irqs           = { 81, 81, 81, 81 },
+	.irqs			= SCIx_IRQ_MUXED(evt2irq(0xC20)),
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 };
 
@@ -333,7 +333,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type           = PORT_SCIF,
-	.irqs           = { 82, 82, 82, 82 },
+	.irqs			= SCIx_IRQ_MUXED(evt2irq(0xC40)),
 	.regtype	= SCIx_SH4_SCIF_NO_SCSPTR_REGTYPE,
 };
 
@@ -352,7 +352,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_3,
 	.type           = PORT_SCIFA,
-	.irqs           = { 56, 56, 56, 56 },
+	.irqs			= SCIx_IRQ_MUXED(evt2irq(0x900)),
 };
 
 static struct platform_device scif3_device = {
@@ -370,7 +370,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_3,
 	.type           = PORT_SCIFA,
-	.irqs           = { 88, 88, 88, 88 },
+	.irqs			= SCIx_IRQ_MUXED(evt2irq(0xD00)),
 };
 
 static struct platform_device scif4_device = {
@@ -388,7 +388,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE,
 	.scbrr_algo_id	= SCBRR_ALGO_3,
 	.type           = PORT_SCIFA,
-	.irqs           = { 109, 109, 109, 109 },
+	.irqs			= SCIx_IRQ_MUXED(evt2irq(0xFA0)),
 };
 
 static struct platform_device scif5_device = {

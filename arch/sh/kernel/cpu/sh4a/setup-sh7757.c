@@ -28,7 +28,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 40, 40, 40, 40 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x700)),
 };
 
 static struct platform_device scif2_device = {
@@ -45,7 +45,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 76, 76, 76, 76 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xB80)),
 };
 
 static struct platform_device scif3_device = {
@@ -62,7 +62,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_REIE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 104, 104, 104, 104 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0xF00)),
 };
 
 static struct platform_device scif4_device = {
