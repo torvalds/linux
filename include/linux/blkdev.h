@@ -35,6 +35,12 @@ struct bsg_job;
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
 
+/*
+ * Maximum number of blkcg policies allowed to be registered concurrently.
+ * Defined here to simplify include dependency.
+ */
+#define BLKCG_MAX_POLS		2
+
 struct request;
 typedef void (rq_end_io_fn)(struct request *, int);
 
@@ -363,7 +369,6 @@ struct request_queue {
 
 	struct list_head	icq_list;
 #ifdef CONFIG_BLK_CGROUP
-	/* XXX: array size hardcoded to avoid include dependency (temporary) */
 	struct list_head	blkg_list;
 #endif
 

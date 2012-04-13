@@ -4157,7 +4157,6 @@ static struct blkio_policy_type blkio_policy_cfq = {
 		.blkio_init_group_fn =		cfq_init_blkio_group,
 		.blkio_reset_group_stats_fn =	cfqg_stats_reset,
 	},
-	.plid = BLKIO_POLICY_PROP,
 	.pdata_size = sizeof(struct cfq_group),
 	.cftypes = cfq_blkcg_files,
 };
@@ -4181,27 +4180,31 @@ static int __init cfq_init(void)
 #else
 		cfq_group_idle = 0;
 #endif
+
+	ret = blkio_policy_register(&blkio_policy_cfq);
+	if (ret)
+		return ret;
+
 	cfq_pool = KMEM_CACHE(cfq_queue, 0);
 	if (!cfq_pool)
-		return -ENOMEM;
+		goto err_pol_unreg;
 
 	ret = elv_register(&iosched_cfq);
-	if (ret) {
-		kmem_cache_destroy(cfq_pool);
-		return ret;
-	}
+	if (ret)
+		goto err_free_pool;
 
-#ifdef CONFIG_CFQ_GROUP_IOSCHED
-	blkio_policy_register(&blkio_policy_cfq);
-#endif
 	return 0;
+
+err_free_pool:
+	kmem_cache_destroy(cfq_pool);
+err_pol_unreg:
+	blkio_policy_unregister(&blkio_policy_cfq);
+	return ret;
 }
 
 static void __exit cfq_exit(void)
 {
-#ifdef CONFIG_CFQ_GROUP_IOSCHED
 	blkio_policy_unregister(&blkio_policy_cfq);
-#endif
 	elv_unregister(&iosched_cfq);
 	kmem_cache_destroy(cfq_pool);
 }

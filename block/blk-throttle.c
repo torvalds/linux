@@ -1089,7 +1089,6 @@ static struct blkio_policy_type blkio_policy_throtl = {
 		.blkio_exit_group_fn = throtl_exit_blkio_group,
 		.blkio_reset_group_stats_fn = throtl_reset_group_stats,
 	},
-	.plid = BLKIO_POLICY_THROTL,
 	.pdata_size = sizeof(struct throtl_grp),
 	.cftypes = throtl_files,
 };
@@ -1271,8 +1270,7 @@ static int __init throtl_init(void)
 	if (!kthrotld_workqueue)
 		panic("Failed to create kthrotld\n");
 
-	blkio_policy_register(&blkio_policy_throtl);
-	return 0;
+	return blkio_policy_register(&blkio_policy_throtl);
 }
 
 module_init(throtl_init);

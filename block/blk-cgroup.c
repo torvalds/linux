@@ -31,7 +31,7 @@ static LIST_HEAD(all_q_list);
 struct blkio_cgroup blkio_root_cgroup = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
-static struct blkio_policy_type *blkio_policy[BLKIO_NR_POLICIES];
+static struct blkio_policy_type *blkio_policy[BLKCG_MAX_POLS];
 
 struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 {
@@ -67,7 +67,7 @@ static void blkg_free(struct blkio_group *blkg)
 	if (!blkg)
 		return;
 
-	for (i = 0; i < BLKIO_NR_POLICIES; i++) {
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkio_policy_type *pol = blkio_policy[i];
 		struct blkg_policy_data *pd = blkg->pd[i];
 
@@ -107,7 +107,7 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 	blkg->refcnt = 1;
 	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
 
-	for (i = 0; i < BLKIO_NR_POLICIES; i++) {
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkio_policy_type *pol = blkio_policy[i];
 		struct blkg_policy_data *pd;
 
@@ -127,7 +127,7 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 	}
 
 	/* invoke per-policy init */
-	for (i = 0; i < BLKIO_NR_POLICIES; i++) {
+	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkio_policy_type *pol = blkio_policy[i];
 
 		if (pol)
@@ -320,7 +320,7 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	 * anyway.  If you get hit by a race, retry.
 	 */
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		for (i = 0; i < BLKIO_NR_POLICIES; i++) {
+		for (i = 0; i < BLKCG_MAX_POLS; i++) {
 			struct blkio_policy_type *pol = blkio_policy[i];
 
 			if (pol && pol->ops.blkio_reset_group_stats_fn)
@@ -729,46 +729,75 @@ struct cgroup_subsys blkio_subsys = {
 };
 EXPORT_SYMBOL_GPL(blkio_subsys);
 
-void blkio_policy_register(struct blkio_policy_type *blkiop)
+/**
+ * blkio_policy_register - register a blkcg policy
+ * @blkiop: blkcg policy to register
+ *
+ * Register @blkiop with blkcg core.  Might sleep and @blkiop may be
+ * modified on successful registration.  Returns 0 on success and -errno on
+ * failure.
+ */
+int blkio_policy_register(struct blkio_policy_type *blkiop)
 {
 	struct request_queue *q;
+	int i, ret;
 
 	mutex_lock(&blkcg_pol_mutex);
 
-	blkcg_bypass_start();
+	/* find an empty slot */
+	ret = -ENOSPC;
+	for (i = 0; i < BLKCG_MAX_POLS; i++)
+		if (!blkio_policy[i])
+			break;
+	if (i >= BLKCG_MAX_POLS)
+		goto out_unlock;
 
-	BUG_ON(blkio_policy[blkiop->plid]);
-	blkio_policy[blkiop->plid] = blkiop;
+	/* register and update blkgs */
+	blkiop->plid = i;
+	blkio_policy[i] = blkiop;
+
+	blkcg_bypass_start();
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		update_root_blkg_pd(q, blkiop);
-
 	blkcg_bypass_end();
 
+	/* everything is in place, add intf files for the new policy */
 	if (blkiop->cftypes)
 		WARN_ON(cgroup_add_cftypes(&blkio_subsys, blkiop->cftypes));
-
+	ret = 0;
+out_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(blkio_policy_register);
 
+/**
+ * blkiop_policy_unregister - unregister a blkcg policy
+ * @blkiop: blkcg policy to unregister
+ *
+ * Undo blkio_policy_register(@blkiop).  Might sleep.
+ */
 void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 {
 	struct request_queue *q;
 
 	mutex_lock(&blkcg_pol_mutex);
 
+	if (WARN_ON(blkio_policy[blkiop->plid] != blkiop))
+		goto out_unlock;
+
+	/* kill the intf files first */
 	if (blkiop->cftypes)
 		cgroup_rm_cftypes(&blkio_subsys, blkiop->cftypes);
 
-	blkcg_bypass_start();
-
-	BUG_ON(blkio_policy[blkiop->plid] != blkiop);
+	/* unregister and update blkgs */
 	blkio_policy[blkiop->plid] = NULL;
 
+	blkcg_bypass_start();
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		update_root_blkg_pd(q, blkiop);
 	blkcg_bypass_end();
-
+out_unlock:
 	mutex_unlock(&blkcg_pol_mutex);
 }
 EXPORT_SYMBOL_GPL(blkio_policy_unregister);
