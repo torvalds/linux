@@ -239,6 +239,8 @@ static int postconfig(struct comedi_device *dev)
 			s->len_chanlist = 1;
 
 		if (s->do_cmd) {
+			unsigned int buf_size;
+
 			BUG_ON((s->subdev_flags & (SDF_CMD_READ |
 						   SDF_CMD_WRITE)) == 0);
 			BUG_ON(!s->do_cmdtest);
@@ -254,19 +256,20 @@ static int postconfig(struct comedi_device *dev)
 			async->subdevice = s;
 			s->async = async;
 
-#define DEFAULT_BUF_MAXSIZE (64*1024)
-#define DEFAULT_BUF_SIZE (64*1024)
-
-			async->max_bufsize = DEFAULT_BUF_MAXSIZE;
+			async->max_bufsize =
+				comedi_default_buf_maxsize_kb * 1024;
+			buf_size = comedi_default_buf_size_kb * 1024;
+			if (buf_size > async->max_bufsize)
+				buf_size = async->max_bufsize;
 
 			async->prealloc_buf = NULL;
 			async->prealloc_bufsz = 0;
-			if (comedi_buf_alloc(dev, s, DEFAULT_BUF_SIZE) < 0) {
+			if (comedi_buf_alloc(dev, s, buf_size) < 0) {
 				printk(KERN_INFO "Buffer allocation failed\n");
 				return -ENOMEM;
 			}
 			if (s->buf_change) {
-				ret = s->buf_change(dev, s, DEFAULT_BUF_SIZE);
+				ret = s->buf_change(dev, s, buf_size);
 				if (ret < 0)
 					return ret;
 			}
