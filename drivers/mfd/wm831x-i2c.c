@@ -111,7 +111,7 @@ static int wm831x_i2c_write_device(struct wm831x *wm831x, unsigned short reg,
 
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
-	return (ret == 1) ? count : ret;
+	return (ret == 1) ? 0 : ret;
 #else
 	struct i2c_client *i2c = wm831x->control_data;
 	unsigned char msg[bytes + 2];

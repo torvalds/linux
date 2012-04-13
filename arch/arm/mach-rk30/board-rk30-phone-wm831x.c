@@ -863,6 +863,6 @@ static struct wm831x_pdata wm831x_platdata = {
 		&wm831x_regulator_init_ldo[10],
 	},
 	/** ISINK1 = 0 and so on*/
-	.isink = {&wm831x_regulator_init_isink[0], &wm831x_regulator_init_isink[1]},
+	//.isink = {&wm831x_regulator_init_isink[0], &wm831x_regulator_init_isink[1]},
 };
 #endif

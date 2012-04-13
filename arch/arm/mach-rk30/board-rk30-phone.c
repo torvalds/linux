@@ -336,7 +336,7 @@ static struct ili2102_platform_data ili2102_info = {
 	.y_max			= 800,
 	.gpio_reset     = TOUCH_GPIO_RESET,
 	.gpio_reset_active_low = 1,
-	.gpio_pendown		= TOUCH_GPIO_RESET,
+	.gpio_pendown		= TOUCH_GPIO_INT,
 	.pendown_iomux_name = GPIO4C2_SMCDATA2_TRACEDATA2_NAME,
 	.resetpin_iomux_name = GPIO4D0_SMCDATA8_TRACEDATA8_NAME,
 	.pendown_iomux_mode = GPIO4C_GPIO4C2,
@@ -1605,6 +1605,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
+#if 0
 #include "board-rk30-phone-wm831x.c"
 
 static struct i2c_board_info __initdata i2c1_info[] = {
@@ -1618,6 +1619,7 @@ static struct i2c_board_info __initdata i2c1_info[] = {
 	},
 #endif
 };
+#endif
 #endif
 
 #ifdef CONFIG_I2C2_RK30
@@ -1664,6 +1666,41 @@ static struct i2c_board_info __initdata i2c4_info[] = {
 };
 #endif
 
+#ifdef CONFIG_I2C_GPIO_RK30
+#include "board-rk30-phone-wm831x.c"
+
+#define I2C_SDA_PIN     RK30_PIN2_PD7   //set sda_pin here
+#define I2C_SCL_PIN     RK30_PIN2_PD6   //set scl_pin here
+static int rk30_i2c_io_init(void)
+{
+        //set iomux (gpio) here
+        rk30_mux_api_set(GPIO2D7_I2C1SCL_NAME, GPIO2D_GPIO2D7);
+        rk30_mux_api_set(GPIO2D6_I2C1SDA_NAME, GPIO2D_GPIO2D6);
+
+        return 0;
+}
+struct i2c_gpio_platform_data default_i2c_gpio_data = {
+       .sda_pin = I2C_SDA_PIN,
+       .scl_pin = I2C_SCL_PIN,
+       .udelay = 5, // clk = 500/udelay = 100Khz
+       .timeout = 100,//msecs_to_jiffies(100),
+       .bus_num    = 5,
+       .io_init = rk30_i2c_io_init,
+};
+static struct i2c_board_info __initdata i2c_gpio_info[] = {
+#if defined (CONFIG_MFD_WM831X_I2C)
+		{
+			.type		   = "wm8310",
+			.addr		   = 0x34,
+			.flags		   = 0,
+			.irq		   = RK30_PIN6_PA4,
+			.platform_data = &wm831x_platdata,
+		},
+#endif
+};
+#endif
+
+
 static void __init rk30_i2c_register_board_info(void)
 {
 #ifdef CONFIG_I2C0_RK30
@@ -1681,6 +1718,10 @@ static void __init rk30_i2c_register_board_info(void)
 #ifdef CONFIG_I2C4_RK30
 	i2c_register_board_info(4, i2c4_info, ARRAY_SIZE(i2c4_info));
 #endif
+#ifdef CONFIG_I2C_GPIO_RK30
+	i2c_register_board_info(5, i2c_gpio_info, ARRAY_SIZE(i2c_gpio_info));
+#endif
+
 }
 //end of i2c
 

@@ -40,7 +40,6 @@ static int inv_i2c_write(struct i2c_adapter *i2c_adap,
 	msgs[0].buf = (unsigned char *)data;
 	msgs[0].len = len;
 	msgs[0].scl_rate = MPU_I2C_RATE;
-	//msgs[0].udelay = 200;
 
 	res = i2c_transfer(i2c_adap, msgs, 1);
 	if (res == 1)
@@ -80,14 +79,12 @@ static int inv_i2c_read(struct i2c_adapter *i2c_adap,
 	msgs[0].buf = &reg;
 	msgs[0].len = 1;
 	msgs[0].scl_rate = MPU_I2C_RATE;
-	//msgs[0].udelay = 200;
 	
 	msgs[1].addr = address;
 	msgs[1].flags = I2C_M_RD;
 	msgs[1].buf = data;
 	msgs[1].len = len;
 	msgs[1].scl_rate = MPU_I2C_RATE;	
-	//msgs[1].udelay = 200;
 
 	res = i2c_transfer(i2c_adap, msgs, 2);
 	if (res == 2)
@@ -107,8 +104,7 @@ static int mpu_memory_read(struct i2c_adapter *i2c_adap,
 	unsigned char bank[2];
 	unsigned char addr[2];
 	unsigned char buf;
-
-	struct i2c_msg msgs[4];
+	struct i2c_msg msgs[2];
 	int res;
 
 	if (!data || !i2c_adap) {
@@ -130,31 +126,35 @@ static int mpu_memory_read(struct i2c_adapter *i2c_adap,
 	msgs[0].buf = bank;
 	msgs[0].len = sizeof(bank);
 	msgs[0].scl_rate = MPU_I2C_RATE;
-	//msgs[0].udelay = 200;
+
+	res = i2c_transfer(i2c_adap, msgs, 1);
+	if (res != 1)
+		return res;
+
+	msgs[0].addr = mpu_addr;
+	msgs[0].flags = 0;
+	msgs[0].buf = addr;
+	msgs[0].len = sizeof(addr);
+	msgs[0].scl_rate = MPU_I2C_RATE;
+	
+	res = i2c_transfer(i2c_adap, msgs, 1);
+	if (res != 1)
+		return res;
+
+	msgs[0].addr = mpu_addr;
+	msgs[0].flags = 0;
+	msgs[0].buf = &buf;
+	msgs[0].len = 1;
+	msgs[0].scl_rate = MPU_I2C_RATE;
 
 	msgs[1].addr = mpu_addr;
-	msgs[1].flags = 0;
-	msgs[1].buf = addr;
-	msgs[1].len = sizeof(addr);
+	msgs[1].flags = I2C_M_RD;
+	msgs[1].buf = data;
+	msgs[1].len = len;
 	msgs[1].scl_rate = MPU_I2C_RATE;
-	//msgs[1].udelay = 200;
-
-	msgs[2].addr = mpu_addr;
-	msgs[2].flags = 0;
-	msgs[2].buf = &buf;
-	msgs[2].len = 1;
-	msgs[2].scl_rate = MPU_I2C_RATE;
-	//msgs[2].udelay = 200;
-
-	msgs[3].addr = mpu_addr;
-	msgs[3].flags = I2C_M_RD;
-	msgs[3].buf = data;
-	msgs[3].len = len;
-	msgs[3].scl_rate = MPU_I2C_RATE;
-	//msgs[3].udelay = 200;
-
-	res = i2c_transfer(i2c_adap, msgs, 4);
-	if (res == 4)
+	
+	res = i2c_transfer(i2c_adap, msgs, 2);
+	if (res == 2)
 		return 0;
 	else if(res == 0)
 		return -EBUSY;
@@ -171,7 +171,7 @@ static int mpu_memory_write(struct i2c_adapter *i2c_adap,
 	unsigned char addr[2];
 	unsigned char buf[513];
 
-	struct i2c_msg msgs[3];
+	struct i2c_msg msgs[2];
 	int res;
 
 	if (!data || !i2c_adap) {
@@ -198,24 +198,28 @@ static int mpu_memory_write(struct i2c_adapter *i2c_adap,
 	msgs[0].buf = bank;
 	msgs[0].len = sizeof(bank);
 	msgs[0].scl_rate = MPU_I2C_RATE;
-	//msgs[0].udelay = 200; 
 
-	msgs[1].addr = mpu_addr;
-	msgs[1].flags = 0;
-	msgs[1].buf = addr;
-	msgs[1].len = sizeof(addr);
-	msgs[1].scl_rate = MPU_I2C_RATE;
-	//msgs[1].udelay = 200;
+	res = i2c_transfer(i2c_adap, msgs, 1);
+	if (res != 1)
+		return res;
 
-	msgs[2].addr = mpu_addr;
-	msgs[2].flags = 0;
-	msgs[2].buf = (unsigned char *)buf;
-	msgs[2].len = len + 1;
-	msgs[2].scl_rate = MPU_I2C_RATE;
-	//msgs[2].udelay = 200;
+	msgs[0].addr = mpu_addr;
+	msgs[0].flags = 0;
+	msgs[0].buf = addr;
+	msgs[0].scl_rate = MPU_I2C_RATE;
 
-	res = i2c_transfer(i2c_adap, msgs, 3);
-	if (res == 3)
+	res = i2c_transfer(i2c_adap, msgs, 1);
+	if (res != 1)
+		return res;
+
+	msgs[0].addr = mpu_addr;
+	msgs[0].flags = 0;
+	msgs[0].buf = (unsigned char *)buf;
+	msgs[0].len = len + 1;
+	msgs[0].scl_rate = MPU_I2C_RATE;
+
+	res = i2c_transfer(i2c_adap, msgs, 1);
+	if (res == 1)
 		return 0;
 	else if(res == 0)
 		return -EBUSY;
