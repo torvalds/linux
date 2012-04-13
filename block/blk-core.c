@@ -416,7 +416,8 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
  * In bypass mode, only the dispatch FIFO queue of @q is used.  This
  * function makes @q enter bypass mode and drains all requests which were
  * throttled or issued before.  On return, it's guaranteed that no request
- * is being throttled or has ELVPRIV set.
+ * is being throttled or has ELVPRIV set and blk_queue_bypass() %true
+ * inside queue or RCU read lock.
  */
 void blk_queue_bypass_start(struct request_queue *q)
 {
@@ -426,6 +427,8 @@ void blk_queue_bypass_start(struct request_queue *q)
 	spin_unlock_irq(q->queue_lock);
 
 	blk_drain_queue(q, false);
+	/* ensure blk_queue_bypass() is %true inside RCU read lock */
+	synchronize_rcu();
 }
 EXPORT_SYMBOL_GPL(blk_queue_bypass_start);
 
@@ -462,7 +465,15 @@ void blk_cleanup_queue(struct request_queue *q)
 
 	spin_lock_irq(lock);
 
-	/* dead queue is permanently in bypass mode till released */
+	/*
+	 * Dead queue is permanently in bypass mode till released.  Note
+	 * that, unlike blk_queue_bypass_start(), we aren't performing
+	 * synchronize_rcu() after entering bypass mode to avoid the delay
+	 * as some drivers create and destroy a lot of queues while
+	 * probing.  This is still safe because blk_release_queue() will be
+	 * called only after the queue refcnt drops to zero and nothing,
+	 * RCU or not, would be traversing the queue by then.
+	 */
 	q->bypass_depth++;
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
 

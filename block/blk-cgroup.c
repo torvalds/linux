@@ -137,6 +137,38 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 	return blkg;
 }
 
+static struct blkio_group *__blkg_lookup(struct blkio_cgroup *blkcg,
+					 struct request_queue *q)
+{
+	struct blkio_group *blkg;
+	struct hlist_node *n;
+
+	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node)
+		if (blkg->q == q)
+			return blkg;
+	return NULL;
+}
+
+/**
+ * blkg_lookup - lookup blkg for the specified blkcg - q pair
+ * @blkcg: blkcg of interest
+ * @q: request_queue of interest
+ *
+ * Lookup blkg for the @blkcg - @q pair.  This function should be called
+ * under RCU read lock and is guaranteed to return %NULL if @q is bypassing
+ * - see blk_queue_bypass_start() for details.
+ */
+struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
+				struct request_queue *q)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	if (unlikely(blk_queue_bypass(q)))
+		return NULL;
+	return __blkg_lookup(blkcg, q);
+}
+EXPORT_SYMBOL_GPL(blkg_lookup);
+
 struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 				       struct request_queue *q,
 				       bool for_root)
@@ -150,13 +182,11 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 	/*
 	 * This could be the first entry point of blkcg implementation and
 	 * we shouldn't allow anything to go through for a bypassing queue.
-	 * The following can be removed if blkg lookup is guaranteed to
-	 * fail on a bypassing queue.
 	 */
 	if (unlikely(blk_queue_bypass(q)) && !for_root)
 		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
 
-	blkg = blkg_lookup(blkcg, q);
+	blkg = __blkg_lookup(blkcg, q);
 	if (blkg)
 		return blkg;
 
@@ -184,20 +214,6 @@ out:
 	return blkg;
 }
 EXPORT_SYMBOL_GPL(blkg_lookup_create);
-
-/* called under rcu_read_lock(). */
-struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
-				struct request_queue *q)
-{
-	struct blkio_group *blkg;
-	struct hlist_node *n;
-
-	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node)
-		if (blkg->q == q)
-			return blkg;
-	return NULL;
-}
-EXPORT_SYMBOL_GPL(blkg_lookup);
 
 static void blkg_destroy(struct blkio_group *blkg)
 {
