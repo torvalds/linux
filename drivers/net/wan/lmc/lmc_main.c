@@ -1736,18 +1736,7 @@ static struct pci_driver lmc_driver = {
 	.remove		= __devexit_p(lmc_remove_one),
 };
 
-static int __init init_lmc(void)
-{
-    return pci_register_driver(&lmc_driver);
-}
-
-static void __exit exit_lmc(void)
-{
-    pci_unregister_driver(&lmc_driver);
-}
-
-module_init(init_lmc);
-module_exit(exit_lmc);
+module_pci_driver(lmc_driver);
 
 unsigned lmc_mii_readreg (lmc_softc_t * const sc, unsigned devaddr, unsigned regno) /*fold00*/
 {
