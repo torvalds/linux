@@ -18,6 +18,4 @@ config SOC_XWAY
 	select HW_HAS_PCI
 endchoice
 
-source "arch/mips/lantiq/xway/Kconfig"
-
 endif
