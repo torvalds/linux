@@ -196,8 +196,8 @@ static void __init omap_map_sram(void)
 	 * Looks like we need to preserve some bootloader code at the
 	 * beginning of SRAM for jumping to flash for reboot to work...
 	 */
-	memset((void *)omap_sram_base + SRAM_BOOTLOADER_SZ, 0,
-	       omap_sram_size - SRAM_BOOTLOADER_SZ);
+	memset_io(omap_sram_base + SRAM_BOOTLOADER_SZ, 0,
+		  omap_sram_size - SRAM_BOOTLOADER_SZ);
 }
 
 /*
