@@ -258,7 +258,7 @@ config PPC_ICSWX_PID
 	default y
 	---help---
 	  The PID register in server is used explicitly for ICSWX.  In
-	  embedded systems PID managment is done by the system.
+	  embedded systems PID management is done by the system.
 
 config PPC_ICSWX_USE_SIGILL
 	bool "Should a bad CT cause a SIGILL?"
@@ -266,7 +266,7 @@ config PPC_ICSWX_USE_SIGILL
 	default n
 	---help---
 	  Should a bad CT used for "non-record form ICSWX" cause an
-	  illegal intruction signal or should it be silent as
+	  illegal instruction signal or should it be silent as
 	  architected.
 
 	  If in doubt, say N here.
