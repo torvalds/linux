@@ -6770,7 +6770,7 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 	if (!visible && !intel_crtc->cursor_visible)
 		return;
 
-	if (IS_IVYBRIDGE(dev)) {
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 		I915_WRITE(CURPOS_IVB(pipe), pos);
 		ivb_update_cursor(crtc, base);
 	} else {
