@@ -783,6 +783,7 @@ static void br_multicast_send_query(struct net_bridge *br,
 	struct br_ip br_group;
 
 	if (!netif_running(br->dev) || br->multicast_disabled ||
+	    !br->multicast_querier ||
 	    timer_pending(&br->multicast_querier_timer))
 		return;
 
@@ -1565,6 +1566,7 @@ void br_multicast_init(struct net_bridge *br)
 	br->hash_max = 512;
 
 	br->multicast_router = 1;
+	br->multicast_querier = 0;
 	br->multicast_last_member_count = 2;
 	br->multicast_startup_query_count = 2;
 
@@ -1758,6 +1760,24 @@ unlock:
 	spin_unlock_bh(&br->multicast_lock);
 
 	return err;
+}
+
+int br_multicast_set_querier(struct net_bridge *br, unsigned long val)
+{
+	val = !!val;
+
+	spin_lock_bh(&br->multicast_lock);
+	if (br->multicast_querier == val)
+		goto unlock;
+
+	br->multicast_querier = val;
+	if (val)
+		br_multicast_start_querier(br);
+
+unlock:
+	spin_unlock_bh(&br->multicast_lock);
+
+	return 0;
 }
 
 int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val)
