@@ -523,7 +523,7 @@ static struct platform_device device_i2c4 = {
 #endif
 
 #ifdef CONFIG_I2C_GPIO_RK30
-struct platform_device device_i2c_gpio = {
+static struct platform_device device_i2c_gpio = {
         .name   = "i2c-gpio",
         .id = 5,
         .dev            = {
