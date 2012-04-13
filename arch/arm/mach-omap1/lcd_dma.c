@@ -77,11 +77,6 @@ void omap_set_lcd_dma_b1(unsigned long addr, u16 fb_xres, u16 fb_yres,
 }
 EXPORT_SYMBOL(omap_set_lcd_dma_b1);
 
-void omap_set_lcd_dma_src_port(int port)
-{
-	lcd_dma.src_port = port;
-}
-
 void omap_set_lcd_dma_ext_controller(int external)
 {
 	lcd_dma.ext_ctrl = external;
