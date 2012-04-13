@@ -176,23 +176,6 @@ struct iio_chan_spec {
 #define IIO_ST(si, rb, sb, sh)						\
 	{ .sign = si, .realbits = rb, .storagebits = sb, .shift = sh }
 
-/* Macro assumes input channels */
-#define IIO_CHAN(_type, _mod, _indexed, _proc, _name, _chan, _chan2, \
-		 _inf_mask, _address, _si, _stype, _event_mask)		\
-	{ .type = _type,						\
-	  .output = 0,							\
-	  .modified = _mod,						\
-	  .indexed = _indexed,						\
-	  .processed_val = _proc,					\
-	  .extend_name = _name,						\
-	  .channel = _chan,						\
-	  .channel2 = _chan2,						\
-	  .info_mask = _inf_mask,					\
-	  .address = _address,						\
-	  .scan_index = _si,						\
-	  .scan_type = _stype,						\
-	  .event_mask = _event_mask }
-
 #define IIO_CHAN_SOFT_TIMESTAMP(_si)					\
 	{ .type = IIO_TIMESTAMP, .channel = -1,				\
 			.scan_index = _si, .scan_type = IIO_ST('s', 64, 64, 0) }
