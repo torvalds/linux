@@ -275,13 +275,17 @@ static u32 atl1_check_link(struct atl1_adapter *adapter);
 #define ISR_DIS_SMB				0x20000000
 #define ISR_DIS_DMA				0x40000000
 
-/* Normal Interrupt mask  */
-#define IMR_NORMAL_MASK	(\
+/* Normal Interrupt mask without RX/TX enabled */
+#define IMR_NORXTX_MASK	(\
 	ISR_SMB		|\
 	ISR_GPHY	|\
 	ISR_PHY_LINKDOWN|\
 	ISR_DMAR_TO_RST	|\
-	ISR_DMAW_TO_RST	|\
+	ISR_DMAW_TO_RST)
+
+/* Normal Interrupt mask  */
+#define IMR_NORMAL_MASK	(\
+	IMR_NORXTX_MASK	|\
 	ISR_CMB_TX	|\
 	ISR_CMB_RX)
 

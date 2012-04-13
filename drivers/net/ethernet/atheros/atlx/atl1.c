@@ -2460,20 +2460,33 @@ static int atl1_rings_clean(struct napi_struct *napi, int budget)
 
 	napi_complete(napi);
 	/* re-enable Interrupt */
-	iowrite32(ISR_DIS_SMB | ISR_DIS_DMA, adapter->hw.hw_addr + REG_ISR);
+	if (likely(adapter->int_enabled))
+		atlx_imr_set(adapter, IMR_NORMAL_MASK);
 	return work_done;
 }
 
 static inline int atl1_sched_rings_clean(struct atl1_adapter* adapter)
 {
-	if (likely(napi_schedule_prep(&adapter->napi))) {
-		__napi_schedule(&adapter->napi);
-		return 1;
-	}
+	if (!napi_schedule_prep(&adapter->napi))
+		/* It is possible in case even the RX/TX ints are disabled via IMR
+		 * register the ISR bits are set anyway (but do not produce IRQ).
+		 * To handle such situation the napi functions used to check is
+		 * something scheduled or not.
+		 */
+		return 0;
 
-	dev_printk(KERN_ERR, &adapter->pdev->dev,
-		   "rx: INTs must be disabled!");
-	return 0;
+	__napi_schedule(&adapter->napi);
+
+	/*
+	 * Disable RX/TX ints via IMR register if it is
+	 * allowed. NAPI handler must reenable them in same
+	 * way.
+	 */
+	if (!adapter->int_enabled)
+		return 1;
+
+	atlx_imr_set(adapter, IMR_NORXTX_MASK);
+	return 1;
 }
 
 /*
@@ -2538,8 +2551,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 		/* transmit or receive event */
 		if (status & (ISR_CMB_TX | ISR_CMB_RX) &&
 		    atl1_sched_rings_clean(adapter))
-			/* Go away with INTs disabled */
-			return IRQ_HANDLED;
+			break;
 
 		/* rx exception */
 		if (unlikely(status & (ISR_RXF_OV | ISR_RFD_UNRUN |
@@ -2551,7 +2563,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 					"rx exception, ISR = 0x%x\n",
 					status);
 			if (atl1_sched_rings_clean(adapter))
-				return IRQ_HANDLED;
+				break;
 		}
 
 		if (--max_ints < 0)
