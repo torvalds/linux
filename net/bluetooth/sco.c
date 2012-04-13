@@ -61,8 +61,6 @@ static struct bt_sock_list sco_sk_list = {
 static void __sco_chan_add(struct sco_conn *conn, struct sock *sk, struct sock *parent);
 static void sco_chan_del(struct sock *sk, int err);
 
-static int  sco_conn_del(struct hci_conn *conn, int err);
-
 static void sco_sock_close(struct sock *sk);
 static void sco_sock_kill(struct sock *sk);
 
