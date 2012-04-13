@@ -823,55 +823,6 @@ static bool ar9003_hw_ani_control(struct ath_hw *ah,
 		 * on == 0 means more noise imm
 		 */
 		u32 on = param ? 1 : 0;
-		/*
-		 * make register setting for default
-		 * (weak sig detect ON) come from INI file
-		 */
-		int m1ThreshLow = on ?
-			aniState->iniDef.m1ThreshLow : m1ThreshLow_off;
-		int m2ThreshLow = on ?
-			aniState->iniDef.m2ThreshLow : m2ThreshLow_off;
-		int m1Thresh = on ?
-			aniState->iniDef.m1Thresh : m1Thresh_off;
-		int m2Thresh = on ?
-			aniState->iniDef.m2Thresh : m2Thresh_off;
-		int m2CountThr = on ?
-			aniState->iniDef.m2CountThr : m2CountThr_off;
-		int m2CountThrLow = on ?
-			aniState->iniDef.m2CountThrLow : m2CountThrLow_off;
-		int m1ThreshLowExt = on ?
-			aniState->iniDef.m1ThreshLowExt : m1ThreshLowExt_off;
-		int m2ThreshLowExt = on ?
-			aniState->iniDef.m2ThreshLowExt : m2ThreshLowExt_off;
-		int m1ThreshExt = on ?
-			aniState->iniDef.m1ThreshExt : m1ThreshExt_off;
-		int m2ThreshExt = on ?
-			aniState->iniDef.m2ThreshExt : m2ThreshExt_off;
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M1_THRESH_LOW,
-			      m1ThreshLow);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2_THRESH_LOW,
-			      m2ThreshLow);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M1_THRESH, m1Thresh);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2_THRESH, m2Thresh);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR,
-			      AR_PHY_SFCORR_M2COUNT_THR, m2CountThr);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_LOW,
-			      AR_PHY_SFCORR_LOW_M2COUNT_THR_LOW,
-			      m2CountThrLow);
-
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH_LOW, m1ThreshLowExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH_LOW, m2ThreshLowExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M1_THRESH, m1ThreshExt);
-		REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT,
-			      AR_PHY_SFCORR_EXT_M2_THRESH, m2ThreshExt);
 
 		if (on)
 			REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,

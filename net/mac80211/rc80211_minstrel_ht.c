@@ -686,8 +686,7 @@ minstrel_ht_get_rate(void *priv, struct ieee80211_sta *sta, void *priv_sta,
 
 static void
 minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
-                        struct ieee80211_sta *sta, void *priv_sta,
-			enum nl80211_channel_type oper_chan_type)
+                        struct ieee80211_sta *sta, void *priv_sta)
 {
 	struct minstrel_priv *mp = priv;
 	struct minstrel_ht_sta_priv *msp = priv_sta;
@@ -734,10 +733,6 @@ minstrel_ht_update_caps(void *priv, struct ieee80211_supported_band *sband,
 
 	if (sta_cap & IEEE80211_HT_CAP_LDPC_CODING)
 		mi->tx_flags |= IEEE80211_TX_CTL_LDPC;
-
-	if (oper_chan_type != NL80211_CHAN_HT40MINUS &&
-	    oper_chan_type != NL80211_CHAN_HT40PLUS)
-		sta_cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 
 	smps = (sta_cap & IEEE80211_HT_CAP_SM_PS) >>
 		IEEE80211_HT_CAP_SM_PS_SHIFT;
@@ -788,17 +783,15 @@ static void
 minstrel_ht_rate_init(void *priv, struct ieee80211_supported_band *sband,
                       struct ieee80211_sta *sta, void *priv_sta)
 {
-	struct minstrel_priv *mp = priv;
-
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta, mp->hw->conf.channel_type);
+	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
 }
 
 static void
 minstrel_ht_rate_update(void *priv, struct ieee80211_supported_band *sband,
                         struct ieee80211_sta *sta, void *priv_sta,
-                        u32 changed, enum nl80211_channel_type oper_chan_type)
+                        u32 changed)
 {
-	minstrel_ht_update_caps(priv, sband, sta, priv_sta, oper_chan_type);
+	minstrel_ht_update_caps(priv, sband, sta, priv_sta);
 }
 
 static void *

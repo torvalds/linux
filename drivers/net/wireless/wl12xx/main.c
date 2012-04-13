@@ -232,7 +232,7 @@ static struct conf_drv_settings default_conf = {
 				.rule        = CONF_BCN_RULE_PASS_ON_APPEARANCE,
 			},
 			[1] = {
-				.ie          = WLAN_EID_HT_INFORMATION,
+				.ie          = WLAN_EID_HT_OPERATION,
 				.rule        = CONF_BCN_RULE_PASS_ON_CHANGE,
 			},
 		},
@@ -5242,7 +5242,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->wiphy->max_sched_scan_ie_len = WL1271_CMD_TEMPL_MAX_SIZE -
 		sizeof(struct ieee80211_header);
 
-	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD;
+	wl->hw->wiphy->flags |= WIPHY_FLAG_AP_UAPSD |
+				WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
 
 	/* make sure all our channels fit in the scanned_ch bitmask */
 	BUILD_BUG_ON(ARRAY_SIZE(wl1271_channels) +

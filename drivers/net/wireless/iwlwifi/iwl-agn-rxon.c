@@ -24,6 +24,7 @@
  *
  *****************************************************************************/
 
+#include <linux/etherdevice.h>
 #include "iwl-dev.h"
 #include "iwl-agn.h"
 #include "iwl-core.h"
@@ -59,9 +60,12 @@ static int iwlagn_disable_pan(struct iwl_priv *priv,
 	__le32 old_filter = send->filter_flags;
 	u8 old_dev_type = send->dev_type;
 	int ret;
+	static const u8 deactivate_cmd[] = {
+		REPLY_WIPAN_DEACTIVATION_COMPLETE
+	};
 
 	iwl_init_notification_wait(&priv->notif_wait, &disable_wait,
-				   REPLY_WIPAN_DEACTIVATION_COMPLETE,
+				   deactivate_cmd, ARRAY_SIZE(deactivate_cmd),
 				   NULL, NULL);
 
 	send->filter_flags &= ~RXON_FILTER_ASSOC_MSK;
@@ -184,6 +188,109 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv,
 	ret = iwl_dvm_send_cmd_pdu(priv, ctx->rxon_assoc_cmd,
 				CMD_ASYNC, sizeof(rxon_assoc), &rxon_assoc);
 	return ret;
+}
+
+static u16 iwl_adjust_beacon_interval(u16 beacon_val, u16 max_beacon_val)
+{
+	u16 new_val;
+	u16 beacon_factor;
+
+	/*
+	 * If mac80211 hasn't given us a beacon interval, program
+	 * the default into the device (not checking this here
+	 * would cause the adjustment below to return the maximum
+	 * value, which may break PAN.)
+	 */
+	if (!beacon_val)
+		return DEFAULT_BEACON_INTERVAL;
+
+	/*
+	 * If the beacon interval we obtained from the peer
+	 * is too large, we'll have to wake up more often
+	 * (and in IBSS case, we'll beacon too much)
+	 *
+	 * For example, if max_beacon_val is 4096, and the
+	 * requested beacon interval is 7000, we'll have to
+	 * use 3500 to be able to wake up on the beacons.
+	 *
+	 * This could badly influence beacon detection stats.
+	 */
+
+	beacon_factor = (beacon_val + max_beacon_val) / max_beacon_val;
+	new_val = beacon_val / beacon_factor;
+
+	if (!new_val)
+		new_val = max_beacon_val;
+
+	return new_val;
+}
+
+static int iwl_send_rxon_timing(struct iwl_priv *priv,
+				struct iwl_rxon_context *ctx)
+{
+	u64 tsf;
+	s32 interval_tm, rem;
+	struct ieee80211_conf *conf = NULL;
+	u16 beacon_int;
+	struct ieee80211_vif *vif = ctx->vif;
+
+	conf = &priv->hw->conf;
+
+	lockdep_assert_held(&priv->mutex);
+
+	memset(&ctx->timing, 0, sizeof(struct iwl_rxon_time_cmd));
+
+	ctx->timing.timestamp = cpu_to_le64(priv->timestamp);
+	ctx->timing.listen_interval = cpu_to_le16(conf->listen_interval);
+
+	beacon_int = vif ? vif->bss_conf.beacon_int : 0;
+
+	/*
+	 * TODO: For IBSS we need to get atim_window from mac80211,
+	 *	 for now just always use 0
+	 */
+	ctx->timing.atim_window = 0;
+
+	if (ctx->ctxid == IWL_RXON_CTX_PAN &&
+	    (!ctx->vif || ctx->vif->type != NL80211_IFTYPE_STATION) &&
+	    iwl_is_associated(priv, IWL_RXON_CTX_BSS) &&
+	    priv->contexts[IWL_RXON_CTX_BSS].vif &&
+	    priv->contexts[IWL_RXON_CTX_BSS].vif->bss_conf.beacon_int) {
+		ctx->timing.beacon_interval =
+			priv->contexts[IWL_RXON_CTX_BSS].timing.beacon_interval;
+		beacon_int = le16_to_cpu(ctx->timing.beacon_interval);
+	} else if (ctx->ctxid == IWL_RXON_CTX_BSS &&
+		   iwl_is_associated(priv, IWL_RXON_CTX_PAN) &&
+		   priv->contexts[IWL_RXON_CTX_PAN].vif &&
+		   priv->contexts[IWL_RXON_CTX_PAN].vif->bss_conf.beacon_int &&
+		   (!iwl_is_associated_ctx(ctx) || !ctx->vif ||
+		    !ctx->vif->bss_conf.beacon_int)) {
+		ctx->timing.beacon_interval =
+			priv->contexts[IWL_RXON_CTX_PAN].timing.beacon_interval;
+		beacon_int = le16_to_cpu(ctx->timing.beacon_interval);
+	} else {
+		beacon_int = iwl_adjust_beacon_interval(beacon_int,
+			IWL_MAX_UCODE_BEACON_INTERVAL * TIME_UNIT);
+		ctx->timing.beacon_interval = cpu_to_le16(beacon_int);
+	}
+
+	ctx->beacon_int = beacon_int;
+
+	tsf = priv->timestamp; /* tsf is modifed by do_div: copy it */
+	interval_tm = beacon_int * TIME_UNIT;
+	rem = do_div(tsf, interval_tm);
+	ctx->timing.beacon_init_val = cpu_to_le32(interval_tm - rem);
+
+	ctx->timing.dtim_period = vif ? (vif->bss_conf.dtim_period ?: 1) : 1;
+
+	IWL_DEBUG_ASSOC(priv,
+			"beacon interval %d beacon timer %d beacon tim %d\n",
+			le16_to_cpu(ctx->timing.beacon_interval),
+			le32_to_cpu(ctx->timing.beacon_init_val),
+			le16_to_cpu(ctx->timing.atim_window));
+
+	return iwl_dvm_send_cmd_pdu(priv, ctx->rxon_timing_cmd,
+				CMD_SYNC, sizeof(ctx->timing), &ctx->timing);
 }
 
 static int iwlagn_rxon_disconn(struct iwl_priv *priv,
@@ -309,7 +416,7 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 	int slot0 = 300, slot1 = 0;
 	int ret;
 
-	if (priv->shrd->valid_contexts == BIT(IWL_RXON_CTX_BSS))
+	if (priv->valid_contexts == BIT(IWL_RXON_CTX_BSS))
 		return 0;
 
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
@@ -392,6 +499,154 @@ int iwlagn_set_pan_params(struct iwl_priv *priv)
 		IWL_ERR(priv, "Error setting PAN parameters (%d)\n", ret);
 
 	return ret;
+}
+
+static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
+				  struct iwl_rxon_context *ctx, int hw_decrypt)
+{
+	struct iwl_rxon_cmd *rxon = &ctx->staging;
+
+	if (hw_decrypt)
+		rxon->filter_flags &= ~RXON_FILTER_DIS_DECRYPT_MSK;
+	else
+		rxon->filter_flags |= RXON_FILTER_DIS_DECRYPT_MSK;
+
+}
+
+/* validate RXON structure is valid */
+static int iwl_check_rxon_cmd(struct iwl_priv *priv,
+			      struct iwl_rxon_context *ctx)
+{
+	struct iwl_rxon_cmd *rxon = &ctx->staging;
+	u32 errors = 0;
+
+	if (rxon->flags & RXON_FLG_BAND_24G_MSK) {
+		if (rxon->flags & RXON_FLG_TGJ_NARROW_BAND_MSK) {
+			IWL_WARN(priv, "check 2.4G: wrong narrow\n");
+			errors |= BIT(0);
+		}
+		if (rxon->flags & RXON_FLG_RADAR_DETECT_MSK) {
+			IWL_WARN(priv, "check 2.4G: wrong radar\n");
+			errors |= BIT(1);
+		}
+	} else {
+		if (!(rxon->flags & RXON_FLG_SHORT_SLOT_MSK)) {
+			IWL_WARN(priv, "check 5.2G: not short slot!\n");
+			errors |= BIT(2);
+		}
+		if (rxon->flags & RXON_FLG_CCK_MSK) {
+			IWL_WARN(priv, "check 5.2G: CCK!\n");
+			errors |= BIT(3);
+		}
+	}
+	if ((rxon->node_addr[0] | rxon->bssid_addr[0]) & 0x1) {
+		IWL_WARN(priv, "mac/bssid mcast!\n");
+		errors |= BIT(4);
+	}
+
+	/* make sure basic rates 6Mbps and 1Mbps are supported */
+	if ((rxon->ofdm_basic_rates & IWL_RATE_6M_MASK) == 0 &&
+	    (rxon->cck_basic_rates & IWL_RATE_1M_MASK) == 0) {
+		IWL_WARN(priv, "neither 1 nor 6 are basic\n");
+		errors |= BIT(5);
+	}
+
+	if (le16_to_cpu(rxon->assoc_id) > 2007) {
+		IWL_WARN(priv, "aid > 2007\n");
+		errors |= BIT(6);
+	}
+
+	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK))
+			== (RXON_FLG_CCK_MSK | RXON_FLG_SHORT_SLOT_MSK)) {
+		IWL_WARN(priv, "CCK and short slot\n");
+		errors |= BIT(7);
+	}
+
+	if ((rxon->flags & (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK))
+			== (RXON_FLG_CCK_MSK | RXON_FLG_AUTO_DETECT_MSK)) {
+		IWL_WARN(priv, "CCK and auto detect");
+		errors |= BIT(8);
+	}
+
+	if ((rxon->flags & (RXON_FLG_AUTO_DETECT_MSK |
+			    RXON_FLG_TGG_PROTECT_MSK)) ==
+			    RXON_FLG_TGG_PROTECT_MSK) {
+		IWL_WARN(priv, "TGg but no auto-detect\n");
+		errors |= BIT(9);
+	}
+
+	if (rxon->channel == 0) {
+		IWL_WARN(priv, "zero channel is invalid\n");
+		errors |= BIT(10);
+	}
+
+	WARN(errors, "Invalid RXON (%#x), channel %d",
+	     errors, le16_to_cpu(rxon->channel));
+
+	return errors ? -EINVAL : 0;
+}
+
+/**
+ * iwl_full_rxon_required - check if full RXON (vs RXON_ASSOC) cmd is needed
+ * @priv: staging_rxon is compared to active_rxon
+ *
+ * If the RXON structure is changing enough to require a new tune,
+ * or is clearing the RXON_FILTER_ASSOC_MSK, then return 1 to indicate that
+ * a new tune (full RXON command, rather than RXON_ASSOC cmd) is required.
+ */
+static int iwl_full_rxon_required(struct iwl_priv *priv,
+				  struct iwl_rxon_context *ctx)
+{
+	const struct iwl_rxon_cmd *staging = &ctx->staging;
+	const struct iwl_rxon_cmd *active = &ctx->active;
+
+#define CHK(cond)							\
+	if ((cond)) {							\
+		IWL_DEBUG_INFO(priv, "need full RXON - " #cond "\n");	\
+		return 1;						\
+	}
+
+#define CHK_NEQ(c1, c2)						\
+	if ((c1) != (c2)) {					\
+		IWL_DEBUG_INFO(priv, "need full RXON - "	\
+			       #c1 " != " #c2 " - %d != %d\n",	\
+			       (c1), (c2));			\
+		return 1;					\
+	}
+
+	/* These items are only settable from the full RXON command */
+	CHK(!iwl_is_associated_ctx(ctx));
+	CHK(compare_ether_addr(staging->bssid_addr, active->bssid_addr));
+	CHK(compare_ether_addr(staging->node_addr, active->node_addr));
+	CHK(compare_ether_addr(staging->wlap_bssid_addr,
+				active->wlap_bssid_addr));
+	CHK_NEQ(staging->dev_type, active->dev_type);
+	CHK_NEQ(staging->channel, active->channel);
+	CHK_NEQ(staging->air_propagation, active->air_propagation);
+	CHK_NEQ(staging->ofdm_ht_single_stream_basic_rates,
+		active->ofdm_ht_single_stream_basic_rates);
+	CHK_NEQ(staging->ofdm_ht_dual_stream_basic_rates,
+		active->ofdm_ht_dual_stream_basic_rates);
+	CHK_NEQ(staging->ofdm_ht_triple_stream_basic_rates,
+		active->ofdm_ht_triple_stream_basic_rates);
+	CHK_NEQ(staging->assoc_id, active->assoc_id);
+
+	/* flags, filter_flags, ofdm_basic_rates, and cck_basic_rates can
+	 * be updated with the RXON_ASSOC command -- however only some
+	 * flag transitions are allowed using RXON_ASSOC */
+
+	/* Check if we are not switching bands */
+	CHK_NEQ(staging->flags & RXON_FLG_BAND_24G_MSK,
+		active->flags & RXON_FLG_BAND_24G_MSK);
+
+	/* Check if we are switching association toggle */
+	CHK_NEQ(staging->filter_flags & RXON_FILTER_ASSOC_MSK,
+		active->filter_flags & RXON_FILTER_ASSOC_MSK);
+
+#undef CHK
+#undef CHK_NEQ
+
+	return 0;
 }
 
 /**
@@ -547,7 +802,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	const struct iwl_channel_info *ch_info;
 	int ret = 0;
 
-	IWL_DEBUG_MAC80211(priv, "enter: changed %#x", changed);
+	IWL_DEBUG_MAC80211(priv, "enter: changed %#x\n", changed);
 
 	mutex_lock(&priv->mutex);
 

@@ -378,7 +378,7 @@ static int cmp_bss_core(struct cfg80211_bss *a,
 			       b->len_information_elements);
 	}
 
-	return memcmp(a->bssid, b->bssid, ETH_ALEN);
+	return compare_ether_addr(a->bssid, b->bssid);
 }
 
 static int cmp_bss(struct cfg80211_bss *a,

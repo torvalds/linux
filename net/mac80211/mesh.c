@@ -13,9 +13,6 @@
 #include "ieee80211_i.h"
 #include "mesh.h"
 
-#define MESHCONF_CAPAB_ACCEPT_PLINKS 0x01
-#define MESHCONF_CAPAB_FORWARDING    0x08
-
 #define TMR_RUNNING_HK	0
 #define TMR_RUNNING_MP	1
 #define TMR_RUNNING_MPR	2
@@ -69,11 +66,13 @@ static void ieee80211_mesh_housekeeping_timer(unsigned long data)
  *
  * @ie: information elements of a management frame from the mesh peer
  * @sdata: local mesh subif
+ * @basic_rates: BSSBasicRateSet of the peer candidate
  *
  * This function checks if the mesh configuration of a mesh point matches the
  * local mesh configuration, i.e. if both nodes belong to the same mesh network.
  */
-bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_data *sdata)
+bool mesh_matches_local(struct ieee802_11_elems *ie,
+			struct ieee80211_sub_if_data *sdata, u32 basic_rates)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
@@ -97,10 +96,13 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_dat
 	     (ifmsh->mesh_auth_id == ie->mesh_config->meshconf_auth)))
 		goto mismatch;
 
+	if (sdata->vif.bss_conf.basic_rates != basic_rates)
+		goto mismatch;
+
 	/* disallow peering with mismatched channel types for now */
-	if (ie->ht_info_elem &&
+	if (ie->ht_operation &&
 	    (local->_oper_channel_type !=
-	     ieee80211_ht_info_to_channel_type(ie->ht_info_elem)))
+	     ieee80211_ht_oper_to_channel_type(ie->ht_operation)))
 		goto mismatch;
 
 	return true;
@@ -251,8 +253,10 @@ mesh_add_meshconf_ie(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	/* Mesh capability */
 	ifmsh->accepting_plinks = mesh_plink_availables(sdata);
 	*pos = MESHCONF_CAPAB_FORWARDING;
-	*pos++ |= ifmsh->accepting_plinks ?
+	*pos |= ifmsh->accepting_plinks ?
 	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
+	*pos++ |= ifmsh->adjusting_tbtt ?
+	    MESHCONF_CAPAB_TBTT_ADJUSTING : 0x00;
 	*pos++ = 0x00;
 
 	return 0;
@@ -371,7 +375,7 @@ int mesh_add_ht_cap_ie(struct sk_buff *skb,
 	return 0;
 }
 
-int mesh_add_ht_info_ie(struct sk_buff *skb,
+int mesh_add_ht_oper_ie(struct sk_buff *skb,
 			struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -385,11 +389,11 @@ int mesh_add_ht_info_ie(struct sk_buff *skb,
 	if (!ht_cap->ht_supported || channel_type == NL80211_CHAN_NO_HT)
 		return 0;
 
-	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_info))
+	if (skb_tailroom(skb) < 2 + sizeof(struct ieee80211_ht_operation))
 		return -ENOMEM;
 
-	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_info));
-	ieee80211_ie_build_ht_info(pos, ht_cap, channel, channel_type);
+	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
+	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type);
 
 	return 0;
 }
@@ -573,14 +577,21 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_configure_filter(local);
 
 	ifmsh->mesh_cc_id = 0;	/* Disabled */
-	ifmsh->mesh_sp_id = 0;	/* Neighbor Offset */
 	ifmsh->mesh_auth_id = 0;	/* Disabled */
+	/* register sync ops from extensible synchronization framework */
+	ifmsh->sync_ops = ieee80211_mesh_sync_ops_get(ifmsh->mesh_sp_id);
+	ifmsh->adjusting_tbtt = false;
+	ifmsh->sync_offset_clockdrift_max = 0;
 	set_bit(MESH_WORK_HOUSEKEEPING, &ifmsh->wrkq_flags);
 	ieee80211_mesh_root_setup(ifmsh);
 	ieee80211_queue_work(&local->hw, &sdata->work);
 	sdata->vif.bss_conf.beacon_int = MESH_DEFAULT_BEACON_INTERVAL;
+	sdata->vif.bss_conf.basic_rates =
+		ieee80211_mandatory_rates(sdata->local,
+					  sdata->local->hw.conf.channel->band);
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON |
 						BSS_CHANGED_BEACON_ENABLED |
+						BSS_CHANGED_BASIC_RATES |
 						BSS_CHANGED_BEACON_INT);
 }
 
@@ -616,9 +627,10 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee802_11_elems elems;
 	struct ieee80211_channel *channel;
-	u32 supp_rates = 0;
+	u32 supp_rates = 0, basic_rates = 0;
 	size_t baselen;
 	int freq;
 	enum ieee80211_band band = rx_status->band;
@@ -649,11 +661,16 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
+	supp_rates = ieee80211_sta_get_rates(local, &elems,
+					     band, &basic_rates);
+
 	if (elems.mesh_id && elems.mesh_config &&
-	    mesh_matches_local(&elems, sdata)) {
-		supp_rates = ieee80211_sta_get_rates(local, &elems, band);
+	    mesh_matches_local(&elems, sdata, basic_rates))
 		mesh_neighbour_update(mgmt->sa, supp_rates, sdata, &elems);
-	}
+
+	if (ifmsh->sync_ops)
+		ifmsh->sync_ops->rx_bcn_presp(sdata,
+			stype, mgmt, &elems, rx_status);
 }
 
 static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
@@ -721,6 +738,9 @@ void ieee80211_mesh_work(struct ieee80211_sub_if_data *sdata)
 
 	if (test_and_clear_bit(MESH_WORK_ROOT, &ifmsh->wrkq_flags))
 		ieee80211_mesh_rootpath(sdata);
+
+	if (test_and_clear_bit(MESH_WORK_DRIFT_ADJUST, &ifmsh->wrkq_flags))
+		mesh_sync_adjust_tbtt(sdata);
 }
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local)
@@ -761,4 +781,5 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 		    (unsigned long) sdata);
 	INIT_LIST_HEAD(&ifmsh->preq_queue.list);
 	spin_lock_init(&ifmsh->mesh_preq_queue_lock);
+	spin_lock_init(&ifmsh->sync_offset_lock);
 }
