@@ -36,28 +36,28 @@
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <3>;
-			label = "userpb";
+			label = "extkb1";
 			gpios = <&gpio4 23 0>;
 		};
 		button@3 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <4>;
-			label = "userpb";
+			label = "extkb2";
 			gpios = <&gpio4 24 0>;
 		};
 		button@4 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <5>;
-			label = "userpb";
+			label = "extkb3";
 			gpios = <&gpio5 1 0>;
 		};
 		button@5 {
 			debounce_interval = <50>;
 			wakeup = <1>;
 			linux,code = <6>;
-			label = "userpb";
+			label = "extkb4";
 			gpios = <&gpio5 2 0>;
 		};
 	};
