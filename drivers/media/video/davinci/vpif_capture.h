@@ -151,6 +151,7 @@ struct vpif_config_params {
 	u32 min_bufsize[VPIF_CAPTURE_NUM_CHANNELS];
 	u32 channel_bufsize[VPIF_CAPTURE_NUM_CHANNELS];
 	u8 default_device[VPIF_CAPTURE_NUM_CHANNELS];
+	u32 video_limit[VPIF_CAPTURE_NUM_CHANNELS];
 	u8 max_device_type;
 };
 /* Struct which keeps track of the line numbers for the sliced vbi service */

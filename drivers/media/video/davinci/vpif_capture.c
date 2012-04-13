@@ -217,6 +217,23 @@ static int vpif_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	/* Calculate the size of the buffer */
 	*size = config_params.channel_bufsize[ch->channel_id];
 
+	/*
+	 * Checking if the buffer size exceeds the available buffer
+	 * ycmux_mode = 0 means 1 channel mode HD and
+	 * ycmux_mode = 1 means 2 channels mode SD
+	 */
+	if (ch->vpifparams.std_info.ycmux_mode == 0) {
+		if (config_params.video_limit[ch->channel_id])
+			while (*size * *count > (config_params.video_limit[0]
+						+ config_params.video_limit[1]))
+				(*count)--;
+	} else {
+		if (config_params.video_limit[ch->channel_id])
+			while (*size * *count >
+				config_params.video_limit[ch->channel_id])
+				(*count)--;
+	}
+
 	if (*count < config_params.min_numbuffers)
 		*count = config_params.min_numbuffers;
 	return 0;
@@ -890,7 +907,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 		}
 	}
 
-	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != reqbuf->type)
+	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != reqbuf->type || !vpif_dev)
 		return -EINVAL;
 
 	index = VPIF_VIDEO_INDEX;
@@ -902,7 +919,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 
 	/* Initialize videobuf queue as per the buffer type */
 	videobuf_queue_dma_contig_init(&common->buffer_queue,
-					    &video_qops, NULL,
+					    &video_qops, vpif_dev,
 					    &common->irqlock,
 					    reqbuf->type,
 					    common->fmt.fmt.pix.field,
@@ -2171,6 +2188,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	struct video_device *vfd;
 	struct resource *res;
 	int subdev_count;
+	size_t size;
 
 	vpif_dev = &pdev->dev;
 
@@ -2223,6 +2241,23 @@ static __init int vpif_probe(struct platform_device *pdev)
 			 VPIF_CAPTURE_VERSION);
 		/* Set video_dev to the video device */
 		ch->video_dev = vfd;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (res) {
+		size = resource_size(res);
+		/* The resources are divided into two equal memory and when we
+		 * have HD output we can add them together
+		 */
+		for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
+			ch = vpif_obj.dev[j];
+			ch->channel_id = j;
+			/* only enabled if second resource exists */
+			config_params.video_limit[ch->channel_id] = 0;
+			if (size)
+				config_params.video_limit[ch->channel_id] =
+									size/2;
+		}
 	}
 
 	for (j = 0; j < VPIF_CAPTURE_MAX_DEVICES; j++) {
