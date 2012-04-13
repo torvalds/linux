@@ -389,30 +389,71 @@ enum adis16260_channel {
 };
 #define ADIS16260_GYRO_CHANNEL_SET(axis, mod)				\
 	struct iio_chan_spec adis16260_channels_##axis[] = {		\
-		IIO_CHAN(IIO_ANGL_VEL, 1, 0, 0, NULL, 0, mod,		\
-			 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |	\
-			 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 gyro, ADIS16260_SCAN_GYRO,			\
-			 IIO_ST('s', 14, 16, 0), 0),			\
-		IIO_CHAN(IIO_ANGL, 1, 0, 0, NULL, 0, mod,		\
-			 0,						\
-			 angle, ADIS16260_SCAN_ANGL,			\
-			 IIO_ST('u', 14, 16, 0), 0),			\
-		IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,			\
-			 IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 temp, ADIS16260_SCAN_TEMP,			\
-			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "supply", 0, 0,		\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 in_supply, ADIS16260_SCAN_SUPPLY,		\
-			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,		\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 in_aux, ADIS16260_SCAN_AUX_ADC,		\
-			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN_SOFT_TIMESTAMP(5)				\
+		{							\
+			.type = IIO_ANGL_VEL,				\
+			.modified = 1,					\
+			.channel2 = mod,				\
+			.info_mask = IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT | \
+			IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+			.address = gyro,				\
+			.scan_index = ADIS16260_SCAN_GYRO,		\
+			.scan_type = {					\
+				.sign = 's',				\
+				.realbits = 14,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_ANGL,				\
+			.modified = 1,					\
+			.channel2 = mod,				\
+			.address = angle,				\
+			.scan_index = ADIS16260_SCAN_ANGL,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 14,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_TEMP,				\
+			.indexed = 1,					\
+			.channel = 0,					\
+			.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT | \
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+			.address = temp,				\
+			.scan_index = ADIS16260_SCAN_TEMP,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 12,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_VOLTAGE,				\
+			.indexed = 1,					\
+			.channel = 0,					\
+			.extend_name = "supply",			\
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
+			.address = in_supply,				\
+			.scan_index = ADIS16260_SCAN_SUPPLY,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 12,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_VOLTAGE,				\
+			.indexed = 1,					\
+			.channel = 1,					\
+			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
+			.address = in_aux,				\
+			.scan_index = ADIS16260_SCAN_AUX_ADC,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 12,				\
+				.storagebits = 16,			\
+			},						\
+		},							\
+		IIO_CHAN_SOFT_TIMESTAMP(5),				\
 	}
 
 static const ADIS16260_GYRO_CHANNEL_SET(x, IIO_MOD_X);
