@@ -946,7 +946,7 @@ static int tg_print_cpu_rwstat(struct cgroup *cgrp, struct cftype *cft,
 {
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
 
-	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat, BLKIO_POLICY_THROTL,
+	blkcg_print_blkgs(sf, blkcg, tg_prfill_cpu_rwstat, &blkio_policy_throtl,
 			  cft->private, true);
 	return 0;
 }
@@ -973,7 +973,7 @@ static int tg_print_conf_u64(struct cgroup *cgrp, struct cftype *cft,
 			     struct seq_file *sf)
 {
 	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp), tg_prfill_conf_u64,
-			  BLKIO_POLICY_THROTL, cft->private, false);
+			  &blkio_policy_throtl, cft->private, false);
 	return 0;
 }
 
@@ -981,7 +981,7 @@ static int tg_print_conf_uint(struct cgroup *cgrp, struct cftype *cft,
 			      struct seq_file *sf)
 {
 	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp), tg_prfill_conf_uint,
-			  BLKIO_POLICY_THROTL, cft->private, false);
+			  &blkio_policy_throtl, cft->private, false);
 	return 0;
 }
 

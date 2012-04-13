@@ -117,11 +117,12 @@ extern void blkio_policy_register(struct blkio_policy_type *);
 extern void blkio_policy_unregister(struct blkio_policy_type *);
 extern void blkg_destroy_all(struct request_queue *q, bool destroy_root);
 extern void update_root_blkg_pd(struct request_queue *q,
-				enum blkio_policy_id plid);
+				const struct blkio_policy_type *pol);
 
 void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
 		       u64 (*prfill)(struct seq_file *, void *, int),
-		       int pol, int data, bool show_total);
+		       const struct blkio_policy_type *pol, int data,
+		       bool show_total);
 u64 __blkg_prfill_u64(struct seq_file *sf, void *pdata, u64 v);
 u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
 			 const struct blkg_rwstat *rwstat);
@@ -333,7 +334,7 @@ static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
 static inline void blkg_destroy_all(struct request_queue *q,
 				    bool destory_root) { }
 static inline void update_root_blkg_pd(struct request_queue *q,
-				       enum blkio_policy_id plid) { }
+				       const struct blkio_policy_type *pol) { }
 
 static inline void *blkg_to_pdata(struct blkio_group *blkg,
 				struct blkio_policy_type *pol) { return NULL; }

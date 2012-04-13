@@ -226,17 +226,17 @@ static void blkg_destroy(struct blkio_group *blkg)
  * aren't shot down.  This broken and racy implementation is temporary.
  * Eventually, blkg shoot down will be replaced by proper in-place update.
  */
-void update_root_blkg_pd(struct request_queue *q, enum blkio_policy_id plid)
+void update_root_blkg_pd(struct request_queue *q,
+			 const struct blkio_policy_type *pol)
 {
-	struct blkio_policy_type *pol = blkio_policy[plid];
 	struct blkio_group *blkg = blkg_lookup(&blkio_root_cgroup, q);
 	struct blkg_policy_data *pd;
 
 	if (!blkg)
 		return;
 
-	kfree(blkg->pd[plid]);
-	blkg->pd[plid] = NULL;
+	kfree(blkg->pd[pol->plid]);
+	blkg->pd[pol->plid] = NULL;
 
 	if (!pol)
 		return;
@@ -244,7 +244,7 @@ void update_root_blkg_pd(struct request_queue *q, enum blkio_policy_id plid)
 	pd = kzalloc(sizeof(*pd) + pol->pdata_size, GFP_KERNEL);
 	WARN_ON_ONCE(!pd);
 
-	blkg->pd[plid] = pd;
+	blkg->pd[pol->plid] = pd;
 	pd->blkg = blkg;
 	pol->ops.blkio_init_group_fn(blkg);
 }
@@ -360,7 +360,8 @@ static const char *blkg_dev_name(struct blkio_group *blkg)
  */
 void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
 		       u64 (*prfill)(struct seq_file *, void *, int),
-		       int pol, int data, bool show_total)
+		       const struct blkio_policy_type *pol, int data,
+		       bool show_total)
 {
 	struct blkio_group *blkg;
 	struct hlist_node *n;
@@ -368,8 +369,8 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
 
 	spin_lock_irq(&blkcg->lock);
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
-		if (blkg->pd[pol])
-			total += prfill(sf, blkg->pd[pol]->pdata, data);
+		if (blkg->pd[pol->plid])
+			total += prfill(sf, blkg->pd[pol->plid]->pdata, data);
 	spin_unlock_irq(&blkcg->lock);
 
 	if (show_total)
@@ -739,7 +740,7 @@ void blkio_policy_register(struct blkio_policy_type *blkiop)
 	BUG_ON(blkio_policy[blkiop->plid]);
 	blkio_policy[blkiop->plid] = blkiop;
 	list_for_each_entry(q, &all_q_list, all_q_node)
-		update_root_blkg_pd(q, blkiop->plid);
+		update_root_blkg_pd(q, blkiop);
 
 	blkcg_bypass_end();
 
@@ -765,7 +766,7 @@ void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 	blkio_policy[blkiop->plid] = NULL;
 
 	list_for_each_entry(q, &all_q_list, all_q_node)
-		update_root_blkg_pd(q, blkiop->plid);
+		update_root_blkg_pd(q, blkiop);
 	blkcg_bypass_end();
 
 	mutex_unlock(&blkcg_pol_mutex);
