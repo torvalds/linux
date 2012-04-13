@@ -346,7 +346,7 @@ static void config_vpif_params(struct vpif_params *vpifparams,
 
 			value = regr(reg);
 			/* Set data width */
-			value &= ((~(unsigned int)(0x3)) <<
+			value &= ~(0x3u <<
 					VPIF_CH_DATA_WIDTH_BIT);
 			value |= ((vpifparams->params.data_sz) <<
 						     VPIF_CH_DATA_WIDTH_BIT);
