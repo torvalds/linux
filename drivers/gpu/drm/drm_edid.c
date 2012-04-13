@@ -1037,11 +1037,61 @@ drm_dmt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 	return modes;
 }
 
+static int
+drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
+			struct detailed_timing *timing)
+{
+	int i, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+
+	for (i = 0; i < num_extra_modes; i++) {
+		const struct minimode *m = &extra_modes[i];
+		newmode = drm_gtf_mode(dev, m->w, m->h, m->r, 0, 0);
+
+		if (!mode_in_range(newmode, edid, timing)) {
+			drm_mode_destroy(dev, newmode);
+			continue;
+		}
+
+		drm_mode_probed_add(connector, newmode);
+		modes++;
+	}
+
+	return modes;
+}
+
+static int
+drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
+			struct detailed_timing *timing)
+{
+	int i, modes = 0;
+	struct drm_display_mode *newmode;
+	struct drm_device *dev = connector->dev;
+	bool rb = drm_monitor_supports_rb(edid);
+
+	for (i = 0; i < num_extra_modes; i++) {
+		const struct minimode *m = &extra_modes[i];
+		newmode = drm_cvt_mode(dev, m->w, m->h, m->r, rb, 0, 0);
+
+		if (!mode_in_range(newmode, edid, timing)) {
+			drm_mode_destroy(dev, newmode);
+			continue;
+		}
+
+		drm_mode_probed_add(connector, newmode);
+		modes++;
+	}
+
+	return modes;
+}
+
 static void
 do_inferred_modes(struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 	struct detailed_non_pixel *data = &timing->data.other_data;
+	struct detailed_data_monitor_range *range = &data->data.range;
 
 	if (data->type != EDID_DETAIL_MONITOR_RANGE)
 		return;
@@ -1049,6 +1099,29 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 	closure->modes += drm_dmt_modes_for_range(closure->connector,
 						  closure->edid,
 						  timing);
+	
+	if (!version_greater(closure->edid, 1, 1))
+		return; /* GTF not defined yet */
+
+	switch (range->flags) {
+	case 0x02: /* secondary gtf, XXX could do more */
+	case 0x00: /* default gtf */
+		closure->modes += drm_gtf_modes_for_range(closure->connector,
+							  closure->edid,
+							  timing);
+		break;
+	case 0x04: /* cvt, only in 1.4+ */
+		if (!version_greater(closure->edid, 1, 3))
+			break;
+
+		closure->modes += drm_cvt_modes_for_range(closure->connector,
+							  closure->edid,
+							  timing);
+		break;
+	case 0x01: /* just the ranges, no formula */
+	default:
+		break;
+	}
 }
 
 static int
