@@ -1017,7 +1017,7 @@ mode_in_range(const struct drm_display_mode *mode, struct edid *edid,
 }
 
 static int
-drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
+drm_dmt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 			struct detailed_timing *timing)
 {
 	int i, modes = 0;
@@ -1045,7 +1045,7 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 	int gtf = (closure->edid->features & DRM_EDID_FEATURE_DEFAULT_GTF);
 
 	if (gtf && data->type == EDID_DETAIL_MONITOR_RANGE)
-		closure->modes += drm_gtf_modes_for_range(closure->connector,
+		closure->modes += drm_dmt_modes_for_range(closure->connector,
 							  closure->edid,
 							  timing);
 }
