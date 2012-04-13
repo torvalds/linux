@@ -66,53 +66,50 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	return -EINVAL;
 }
 
+#define AD7476_CHAN(bits)					\
+	{							\
+	.type = IIO_VOLTAGE,					\
+	.indexed = 1,						\
+	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
+	.scan_type = {						\
+		.sign = 'u',					\
+		.realbits = bits,				\
+		.storagebits = 16,				\
+		.shift = 12 - bits,				\
+	},							\
+}
+
 static const struct ad7476_chip_info ad7476_chip_info_tbl[] = {
 	[ID_AD7466] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7467] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 10, 16, 2), 0),
+		.channel[0] = AD7476_CHAN(10),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7468] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1 , 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 8, 16, 4), 0),
+		.channel[0] = AD7476_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7475] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7476] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7477] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 10, 16, 2), 0),
+		.channel[0] = AD7476_CHAN(10),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7478] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 8, 16, 4), 0),
+		.channel[0] = AD7476_CHAN(8),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 	},
 	[ID_AD7495] = {
-		.channel[0] = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				       IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				       0, 0, IIO_ST('u', 12, 16, 0), 0),
+		.channel[0] = AD7476_CHAN(12),
 		.channel[1] = IIO_CHAN_SOFT_TIMESTAMP(1),
 		.int_vref_mv = 2500,
 	},
