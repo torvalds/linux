@@ -164,7 +164,7 @@ struct iio_chan_spec {
 	long			info_mask;
 	long			event_mask;
 	const struct iio_chan_spec_ext_info *ext_info;
-	char			*extend_name;
+	const char		*extend_name;
 	const char		*datasheet_name;
 	unsigned		processed_val:1;
 	unsigned		modified:1;
