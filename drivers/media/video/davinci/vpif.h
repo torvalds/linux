@@ -569,6 +569,21 @@ static inline void ch3_set_vbi_addr(unsigned long top_strt_luma,
 	regw(btm_strt_luma, VPIF_CH3_BTM_STRT_ADD_VANC);
 }
 
+static inline int vpif_intr_status(int channel)
+{
+	int status = 0;
+	int mask;
+
+	if (channel < 0 || channel > 3)
+		return 0;
+
+	mask = 1 << channel;
+	status = regr(VPIF_STATUS) & mask;
+	regw(status, VPIF_STATUS_CLR);
+
+	return status;
+}
+
 #define VPIF_MAX_NAME	(30)
 
 /* This structure will store size parameters as per the mode selected by user */

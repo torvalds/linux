@@ -307,6 +307,9 @@ static irqreturn_t vpif_channel_isr(int irq, void *dev_id)
 	int channel_id = 0;
 
 	channel_id = *(int *)(dev_id);
+	if (!vpif_intr_status(channel_id + 2))
+		return IRQ_NONE;
+
 	ch = dev->dev[channel_id];
 	field = ch->common[VPIF_VIDEO_INDEX].fmt.fmt.pix.field;
 	for (i = 0; i < VPIF_NUMOBJECTS; i++) {
