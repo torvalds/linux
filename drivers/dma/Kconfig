@@ -255,6 +255,7 @@ config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
 	depends on ARCH_SA1100
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the DMA engine found on Intel StrongARM SA-1100 and
 	  SA-1110 SoCs.  This DMA engine can only be used with on-chip
@@ -262,6 +263,9 @@ config DMA_SA11X0
 
 config DMA_ENGINE
 	bool
+
+config DMA_VIRTUAL_CHANNELS
+	tristate
 
 comment "DMA Clients"
 	depends on DMA_ENGINE
