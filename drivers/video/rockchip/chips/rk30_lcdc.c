@@ -474,12 +474,12 @@ static int rk30_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 	}
 	if(layer_id==0)
 	{
-		par = &(dev_drv->layer_par[0]);
+		par = dev_drv->layer_par[0];
         	win0_set_par(lcdc_dev,screen,par);
 	}
 	else if(layer_id==1)
 	{
-		par = &(dev_drv->layer_par[1]);
+		par = dev_drv->layer_par[1];
         	win1_set_par(lcdc_dev,screen,par);
 	}
 	
@@ -500,12 +500,12 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 	}
 	if(layer_id==0)
 	{
-		par = &(dev_drv->layer_par[0]);
+		par = dev_drv->layer_par[0];
         	win0_display(lcdc_dev,par);
 	}
 	else if(layer_id==1)
 	{
-		par = &(dev_drv->layer_par[1]);
+		par = dev_drv->layer_par[1];
         	win1_display(lcdc_dev,par);
 	}
 	if(dev_drv->first_frame)  //this is the first frame of the system ,enable frame start interrupt
@@ -596,7 +596,7 @@ static struct layer_par lcdc_layer[] = {
 
 static struct rk_lcdc_device_driver lcdc_driver = {
 	.name			= "lcdc",
-	.layer_par		= lcdc_layer,
+	.def_layer_par		= lcdc_layer,
 	.num_layer		= ARRAY_SIZE(lcdc_layer),
 	.open			= rk30_lcdc_open,
 	.init_lcdc		= init_rk30_lcdc,
@@ -617,26 +617,25 @@ static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
 	clk_disable(lcdc_dev->aclk);
-	printk("%s>>>>\n",__func__);
 	return 0;
 }
 
 static int rk30_lcdc_resume(struct platform_device *pdev)
 {
 	struct rk30_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
+	
 	clk_enable(lcdc_dev->hclk);
 	clk_enable(lcdc_dev->dclk);
 	clk_enable(lcdc_dev->aclk);
 	usleep_range(10*1000, 10*1000);
 	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0xc4);  //resume reg
 	usleep_range(40*1000, 40*1000);
-	printk("%s>>>>\n",__func__);
 	return 0;
 }
 
 #else
 #define rk30_lcdc_suspend NULL
-#define rk30_lcddc_resume NULL
+#define rk30_lcdc_resume NULL
 #endif
 
 static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
@@ -694,13 +693,9 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	
     	lcdc_dev->preg = (LCDC_REG*)lcdc_dev->reg_vir_base;
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
-	init_lcdc_device_driver(&lcdc_driver,&(lcdc_dev->driver),lcdc_dev->id);
 	lcdc_dev->driver.dev=&pdev->dev;
-	
-	/*****************	set lcdc screen	********/
 	lcdc_dev->driver.screen = screen;
 	
-	/*****************	lcdc register		********/
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
 	if(lcdc_dev->irq < 0)
 	{
@@ -714,7 +709,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	       ret = -EBUSY;
 	       goto err3;
 	}
-	ret = rk_fb_register(&(lcdc_dev->driver));
+	ret = rk_fb_register(&(lcdc_dev->driver),&lcdc_driver,lcdc_dev->id);
 	if(ret < 0)
 	{
 		printk(KERN_ERR "registe fb for lcdc0 failed!\n");

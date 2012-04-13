@@ -160,7 +160,7 @@ typedef enum _TRSP_MODE
 } TRSP_MODE;
 
 struct layer_par {
-    const char *name;
+    char name[5];
     int id;
     bool state; 	//on or off
     u32	pseudo_pal[16];
@@ -187,7 +187,8 @@ struct rk_lcdc_device_driver{
 	int id;
 	struct device  *dev;
 	
-	struct layer_par *layer_par;
+	struct layer_par *layer_par[RK_MAX_FB_SUPPORT];
+	struct layer_par *def_layer_par;
 	int num_layer;
 	int fb_index_base;                     //the first fb index of the lcdc device
 	rk_screen *screen;
@@ -222,10 +223,9 @@ struct rk_fb_inf {
 
     int video_mode;  //when play video set it to 1
 };
-extern int rk_fb_register(struct rk_lcdc_device_driver *fb_device_driver);
-extern int rk_fb_unregister(struct rk_lcdc_device_driver *fb_device_driver);
-extern int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
-	struct rk_lcdc_device_driver *dev_drv,int id);
+extern int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
+	struct rk_lcdc_device_driver *def_drv,int id);
+extern int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv);
 extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern int rkfb_create_sysfs(struct fb_info *fbi);

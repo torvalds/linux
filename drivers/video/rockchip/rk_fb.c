@@ -145,7 +145,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	}
 	else
 	{
-		 par = &dev_drv->layer_par[layer_id];
+		 par = dev_drv->layer_par[layer_id];
 	}
 	switch (par->format)
     	{
@@ -347,7 +347,7 @@ static int rk_fb_set_par(struct fb_info *info)
     }
     else
     {
-	par = &dev_drv->layer_par[layer_id];
+	par = dev_drv->layer_par[layer_id];
     }
     if((!strcmp(fix->id,"fb0"))||(!strcmp(fix->id,"fb2")))  //four ui
     {
@@ -599,7 +599,69 @@ static int rk_release_fb_buffer(struct fb_info *fbi)
 	return 0;
 	
 }
-int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
+static int init_layer_par(struct rk_lcdc_device_driver *dev_drv)
+{
+       int i;
+       struct layer_par * def_par = NULL;
+       int num_par = dev_drv->num_layer;
+       for(i = 0; i < num_par; i++)
+       {
+               struct layer_par *par = NULL;
+               par =  kzalloc(sizeof(struct layer_par), GFP_KERNEL);
+               if(!par)
+               {
+                       printk(KERN_ERR "kzmalloc for layer_par fail!");
+                       return   -ENOMEM;
+                       
+               }
+	       def_par = &dev_drv->def_layer_par[i];
+               strcpy(par->name,def_par->name);
+               par->id = def_par->id;
+               par->support_3d = def_par->support_3d;
+               dev_drv->layer_par[i] = par;
+       }
+               
+       return 0;
+       
+       
+}
+
+
+static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
+	struct rk_lcdc_device_driver *def_drv,int id)
+{
+	if(!def_drv)
+	{
+		printk(KERN_ERR "default lcdc device driver is null!\n");
+		return -EINVAL;
+	}
+	if(!dev_drv)
+	{
+		printk(KERN_ERR "lcdc device driver is null!\n");
+		return -EINVAL;	
+	}
+	sprintf(dev_drv->name, "lcdc%d",id);
+	dev_drv->open      	= def_drv->open;
+	dev_drv->init_lcdc 	= def_drv->init_lcdc;
+	dev_drv->ioctl 		= def_drv->ioctl;
+	dev_drv->blank 		= def_drv->blank;
+	dev_drv->set_par 	= def_drv->set_par;
+	dev_drv->pan_display 	= def_drv->pan_display;
+	dev_drv->suspend 	= def_drv->suspend;
+	dev_drv->resume 	= def_drv->resume;
+	dev_drv->load_screen 	= def_drv->load_screen;
+	dev_drv->def_layer_par 	= def_drv->def_layer_par;
+	dev_drv->num_layer	= def_drv->num_layer;
+	init_layer_par(dev_drv);
+	init_completion(&dev_drv->frame_done);
+	spin_lock_init(&dev_drv->cpl_lock);
+	dev_drv->first_frame = 1;
+	
+	return 0;
+}
+
+int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
+	struct rk_lcdc_device_driver *def_drv,int id)
 {
 	struct rk_fb_inf *fb_inf = platform_get_drvdata(g_fb_pdev);
 	struct fb_info *fbi;
@@ -626,6 +688,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
         	return -ENOENT;
     	}
     	lcdc_id = i;
+	init_lcdc_device_driver(dev_drv, def_drv,id);
 	set_lcd_info(dev_drv->screen, fb_inf->mach_info->lcd_info);
 	dev_drv->init_lcdc(dev_drv);
 	dev_drv->load_screen(dev_drv,1);
@@ -660,7 +723,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
         fbi->var.hsync_len = fb_inf->lcdc_dev_drv[lcdc_id]->screen->hsync_len;
         fbi->fbops			 = &fb_ops;
         fbi->flags			 = FBINFO_FLAG_DEFAULT;
-        fbi->pseudo_palette  = fb_inf->lcdc_dev_drv[lcdc_id]->layer_par[i].pseudo_pal;
+        fbi->pseudo_palette  = fb_inf->lcdc_dev_drv[lcdc_id]->layer_par[i]->pseudo_pal;
         rk_request_fb_buffer(fbi,fb_inf->num_fb);
         ret = register_framebuffer(fbi);
         if(ret<0)
@@ -700,6 +763,11 @@ int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv)
 		return -ENOENT;
 	}
 
+	for(i = 0; i < fb_num; i++)
+	{
+		kfree(dev_drv->layer_par[i]);
+	}
+
 	for(i=fb_index_base;i<(fb_index_base+fb_num);i++)
 	{
 		fbi = fb_inf->fb[i];
@@ -712,37 +780,6 @@ int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv)
 	return 0;
 }
 
-int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
-	struct rk_lcdc_device_driver *dev_drv,int id)
-{
-	if(!def_drv)
-	{
-		printk(KERN_ERR "default lcdc device driver is null!\n");
-		return -EINVAL;
-	}
-	if(!dev_drv)
-	{
-		printk(KERN_ERR "lcdc device driver is null!\n");
-		return -EINVAL;	
-	}
-	sprintf(dev_drv->name, "lcdc%d",id);
-	dev_drv->layer_par = def_drv->layer_par;
-	dev_drv->num_layer = def_drv->num_layer;
-	dev_drv->open      = def_drv->open;
-	dev_drv->init_lcdc = def_drv->init_lcdc;
-	dev_drv->ioctl = def_drv->ioctl;
-	dev_drv->blank = def_drv->blank;
-	dev_drv->set_par = def_drv->set_par;
-	dev_drv->pan_display = def_drv->pan_display;
-	dev_drv->suspend = def_drv->suspend;
-	dev_drv->resume = def_drv->resume;
-	dev_drv->load_screen = def_drv->load_screen;
-	init_completion(&dev_drv->frame_done);
-	spin_lock_init(&dev_drv->cpl_lock);
-	dev_drv->first_frame = 1;
-	
-	return 0;
-}
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
