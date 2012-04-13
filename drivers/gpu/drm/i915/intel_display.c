@@ -8585,6 +8585,10 @@ int intel_enable_rc6(const struct drm_device *dev)
 	if (INTEL_INFO(dev)->gen == 5)
 		return 0;
 
+	/* Sorry Haswell, no RC6 for you for now. */
+	if (IS_HASWELL(dev))
+		return 0;
+
 	/*
 	 * Disable rc6 on Sandybridge
 	 */
