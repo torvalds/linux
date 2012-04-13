@@ -638,8 +638,8 @@ acpi_ns_check_package(struct acpi_predefined_data *data,
 			/* Create the new outer package and populate it */
 
 			status =
-			    acpi_ns_repair_package_list(data,
-							return_object_ptr);
+			    acpi_ns_wrap_with_package(data, *elements,
+						      return_object_ptr);
 			if (ACPI_FAILURE(status)) {
 				return (status);
 			}

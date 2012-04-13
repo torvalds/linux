@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -204,6 +204,7 @@ enum e1e_registers {
 	E1000_WUC      = 0x05800, /* Wakeup Control - RW */
 	E1000_WUFC     = 0x05808, /* Wakeup Filter Control - RW */
 	E1000_WUS      = 0x05810, /* Wakeup Status - RO */
+	E1000_MRQC     = 0x05818, /* Multiple Receive Control - RW */
 	E1000_MANC     = 0x05820, /* Management Control - RW */
 	E1000_FFLT     = 0x05F00, /* Flexible Filter Length Table - RW Array */
 	E1000_HOST_IF  = 0x08800, /* Host Interface */
@@ -219,6 +220,10 @@ enum e1e_registers {
 	E1000_SWSM      = 0x05B50, /* SW Semaphore */
 	E1000_FWSM      = 0x05B54, /* FW Semaphore */
 	E1000_SWSM2     = 0x05B58, /* Driver-only SW semaphore */
+	E1000_RETA_BASE = 0x05C00, /* Redirection Table - RW */
+#define E1000_RETA(_n)	(E1000_RETA_BASE + ((_n) * 4))
+	E1000_RSSRK_BASE = 0x05C80, /* RSS Random Key - RW */
+#define E1000_RSSRK(_n)	(E1000_RSSRK_BASE + ((_n) * 4))
 	E1000_FFLT_DBG  = 0x05F04, /* Debug Register */
 	E1000_PCH_RAICC_BASE = 0x05F50, /* Receive Address Initial CRC */
 #define E1000_PCH_RAICC(_n)	(E1000_PCH_RAICC_BASE + ((_n) * 4))
@@ -776,6 +781,7 @@ struct e1000_mac_operations {
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	void (*config_collision_dist)(struct e1000_hw *);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
@@ -824,6 +830,7 @@ struct e1000_nvm_operations {
 	s32  (*acquire)(struct e1000_hw *);
 	s32  (*read)(struct e1000_hw *, u16, u16, u16 *);
 	void (*release)(struct e1000_hw *);
+	void (*reload)(struct e1000_hw *);
 	s32  (*update)(struct e1000_hw *);
 	s32  (*valid_led_default)(struct e1000_hw *, u16 *);
 	s32  (*validate)(struct e1000_hw *);
@@ -964,8 +971,8 @@ struct e1000_dev_spec_ich8lan {
 struct e1000_hw {
 	struct e1000_adapter *adapter;
 
-	u8 __iomem *hw_addr;
-	u8 __iomem *flash_address;
+	void __iomem *hw_addr;
+	void __iomem *flash_address;
 
 	struct e1000_mac_info  mac;
 	struct e1000_fc_info   fc;

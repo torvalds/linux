@@ -471,7 +471,7 @@ static const struct i2c_device_id ir_kbd_id[] = {
 	{ }
 };
 
-static struct i2c_driver driver = {
+static struct i2c_driver ir_kbd_driver = {
 	.driver = {
 		.name   = "ir-kbd-i2c",
 	},
@@ -480,21 +480,10 @@ static struct i2c_driver driver = {
 	.id_table       = ir_kbd_id,
 };
 
+module_i2c_driver(ir_kbd_driver);
+
 /* ----------------------------------------------------------------------- */
 
 MODULE_AUTHOR("Gerd Knorr, Michal Kochanowicz, Christoph Bartelmus, Ulrich Mueller");
 MODULE_DESCRIPTION("input driver for i2c IR remote controls");
 MODULE_LICENSE("GPL");
-
-static int __init ir_init(void)
-{
-	return i2c_add_driver(&driver);
-}
-
-static void __exit ir_fini(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(ir_init);
-module_exit(ir_fini);

@@ -851,17 +851,7 @@ static struct i2c_driver lm8323_i2c_driver = {
 };
 MODULE_DEVICE_TABLE(i2c, lm8323_id);
 
-static int __init lm8323_init(void)
-{
-	return i2c_add_driver(&lm8323_i2c_driver);
-}
-module_init(lm8323_init);
-
-static void __exit lm8323_exit(void)
-{
-	i2c_del_driver(&lm8323_i2c_driver);
-}
-module_exit(lm8323_exit);
+module_i2c_driver(lm8323_i2c_driver);
 
 MODULE_AUTHOR("Timo O. Karjalainen <timo.o.karjalainen@nokia.com>");
 MODULE_AUTHOR("Daniel Stone");

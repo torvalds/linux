@@ -577,9 +577,15 @@ void tick_broadcast_switch_to_oneshot(void)
 	raw_spin_lock_irqsave(&tick_broadcast_lock, flags);
 
 	tick_broadcast_device.mode = TICKDEV_MODE_ONESHOT;
+
+	if (cpumask_empty(tick_get_broadcast_mask()))
+		goto end;
+
 	bc = tick_broadcast_device.evtdev;
 	if (bc)
 		tick_broadcast_setup_oneshot(bc);
+
+end:
 	raw_spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }
 

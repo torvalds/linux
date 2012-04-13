@@ -25,65 +25,18 @@ config ANDROID_LOGGER
 	tristate "Android log driver"
 	default n
 
-config ANDROID_RAM_CONSOLE
-	bool "Android RAM buffer console"
-	depends on !S390 && !UML
-	default n
-
-config ANDROID_RAM_CONSOLE_ENABLE_VERBOSE
-	bool "Enable verbose console messages on Android RAM console"
-	default y
-	depends on ANDROID_RAM_CONSOLE
-
-menuconfig ANDROID_RAM_CONSOLE_ERROR_CORRECTION
-	bool "Android RAM Console Enable error correction"
-	default n
-	depends on ANDROID_RAM_CONSOLE
-	depends on !ANDROID_RAM_CONSOLE_EARLY_INIT
+config ANDROID_PERSISTENT_RAM
+	bool
+	depends on HAVE_MEMBLOCK
 	select REED_SOLOMON
 	select REED_SOLOMON_ENC8
 	select REED_SOLOMON_DEC8
 
-if ANDROID_RAM_CONSOLE_ERROR_CORRECTION
-
-config ANDROID_RAM_CONSOLE_ERROR_CORRECTION_DATA_SIZE
-	int "Android RAM Console Data data size"
-	default 128
-	help
-	  Must be a power of 2.
-
-config ANDROID_RAM_CONSOLE_ERROR_CORRECTION_ECC_SIZE
-	int "Android RAM Console ECC size"
-	default 16
-
-config ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE
-	int "Android RAM Console Symbol size"
-	default 8
-
-config ANDROID_RAM_CONSOLE_ERROR_CORRECTION_POLYNOMIAL
-	hex "Android RAM Console Polynomial"
-	default 0x19 if (ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE = 4)
-	default 0x29 if (ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE = 5)
-	default 0x61 if (ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE = 6)
-	default 0x89 if (ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE = 7)
-	default 0x11d if (ANDROID_RAM_CONSOLE_ERROR_CORRECTION_SYMBOL_SIZE = 8)
-
-endif # ANDROID_RAM_CONSOLE_ERROR_CORRECTION
-
-config ANDROID_RAM_CONSOLE_EARLY_INIT
-	bool "Start Android RAM console early"
+config ANDROID_RAM_CONSOLE
+	bool "Android RAM buffer console"
+	depends on !S390 && !UML && HAVE_MEMBLOCK
+	select ANDROID_PERSISTENT_RAM
 	default n
-	depends on ANDROID_RAM_CONSOLE
-
-config ANDROID_RAM_CONSOLE_EARLY_ADDR
-	hex "Android RAM console virtual address"
-	default 0
-	depends on ANDROID_RAM_CONSOLE_EARLY_INIT
-
-config ANDROID_RAM_CONSOLE_EARLY_SIZE
-	hex "Android RAM console buffer size"
-	default 0
-	depends on ANDROID_RAM_CONSOLE_EARLY_INIT
 
 config ANDROID_TIMED_OUTPUT
 	bool "Timed output class driver"
@@ -101,6 +54,32 @@ config ANDROID_LOW_MEMORY_KILLER
 	  Register processes to be killed when memory is low
 
 source "drivers/staging/android/switch/Kconfig"
+
+config ANDROID_INTF_ALARM
+	bool "Android alarm driver"
+	depends on RTC_CLASS
+	default n
+	help
+	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
+	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
+	  Also provides an interface to set the wall time which must be used
+	  for elapsed realtime to work.
+
+config ANDROID_INTF_ALARM_DEV
+	bool "Android alarm device"
+	depends on ANDROID_INTF_ALARM
+	default y
+	help
+	  Exports the alarm interface to user-space.
+
+config ANDROID_ALARM_OLDDRV_COMPAT
+	bool "Android Alarm compatability with old drivers"
+	depends on ANDROID_INTF_ALARM
+	default n
+	help
+	  Provides preprocessor alias to aid compatability with
+	  older out-of-tree drivers that use the Android Alarm
+	  in-kernel API. This will be removed eventually.
 
 endif # if ANDROID
 

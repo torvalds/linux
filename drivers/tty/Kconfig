@@ -365,7 +365,7 @@ config PPC_EPAPR_HV_BYTECHAN
 
 config PPC_EARLY_DEBUG_EHV_BC
 	bool "Early console (udbg) support for ePAPR hypervisors"
-	depends on PPC_EPAPR_HV_BYTECHAN
+	depends on PPC_EPAPR_HV_BYTECHAN=y
 	help
 	  Select this option to enable early console (a.k.a. "udbg") support
 	  via an ePAPR byte channel.  You also need to choose the byte channel

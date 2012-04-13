@@ -32,7 +32,6 @@
 #include <linux/nmi.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
@@ -104,15 +103,13 @@ void cpu_idle(void)
 		rcu_idle_exit();
 		tick_nohz_idle_exit();
 
-		preempt_enable_no_resched();
-
 #ifdef CONFIG_HOTPLUG_CPU
-		if (cpu_is_offline(cpu))
+		if (cpu_is_offline(cpu)) {
+			sched_preempt_enable_no_resched();
 			cpu_play_dead();
+		}
 #endif
-
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 

@@ -129,9 +129,9 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION("0.33.1");
 
 #ifdef MODULE
-static const char *pardev[] = {[0 ... W9966_MAXCAMS] = ""};
+static char *pardev[] = {[0 ... W9966_MAXCAMS] = ""};
 #else
-static const char *pardev[] = {[0 ... W9966_MAXCAMS] = "aggressive"};
+static char *pardev[] = {[0 ... W9966_MAXCAMS] = "aggressive"};
 #endif
 module_param_array(pardev, charp, NULL, 0);
 MODULE_PARM_DESC(pardev, "pardev: where to search for\n"

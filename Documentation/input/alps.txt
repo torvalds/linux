@@ -13,7 +13,8 @@ Detection
 
 All ALPS touchpads should respond to the "E6 report" command sequence:
 E8-E6-E6-E6-E9. An ALPS touchpad should respond with either 00-00-0A or
-00-00-64.
+00-00-64 if no buttons are pressed. The bits 0-2 of the first byte will be 1s
+if some buttons are pressed.
 
 If the E6 report is successful, the touchpad model is identified using the "E7
 report" sequence: E8-E7-E7-E7-E9. The response is the model signature and is
@@ -131,8 +132,8 @@ number of contacts (f1 and f0 in the table below).
  byte 5:    0    1    ?    ?    ?    ?   f1   f0
 
 This packet only appears after a position packet with the mt bit set, and
-ususally only appears when there are two or more contacts (although
-ocassionally it's seen with only a single contact).
+usually only appears when there are two or more contacts (although
+occassionally it's seen with only a single contact).
 
 The final v3 packet type is the trackstick packet.
 

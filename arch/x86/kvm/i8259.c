@@ -307,6 +307,7 @@ static void pic_ioport_write(void *opaque, u32 addr, u32 val)
 		if (val & 0x10) {
 			s->init4 = val & 1;
 			s->last_irr = 0;
+			s->irr &= s->elcr;
 			s->imr = 0;
 			s->priority_add = 0;
 			s->special_mask = 0;

@@ -42,8 +42,10 @@ enum suspend_stat_step {
 	SUSPEND_FREEZE = 1,
 	SUSPEND_PREPARE,
 	SUSPEND_SUSPEND,
+	SUSPEND_SUSPEND_LATE,
 	SUSPEND_SUSPEND_NOIRQ,
 	SUSPEND_RESUME_NOIRQ,
+	SUSPEND_RESUME_EARLY,
 	SUSPEND_RESUME
 };
 
@@ -53,8 +55,10 @@ struct suspend_stats {
 	int	failed_freeze;
 	int	failed_prepare;
 	int	failed_suspend;
+	int	failed_suspend_late;
 	int	failed_suspend_noirq;
 	int	failed_resume;
+	int	failed_resume_early;
 	int	failed_resume_noirq;
 #define	REC_FAILED_NUM	2
 	int	last_failed_dev;

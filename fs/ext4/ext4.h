@@ -53,7 +53,7 @@
 		printk(KERN_DEBUG f, ## a);				\
 	} while (0)
 #else
-#define ext4_debug(f, a...)	do {} while (0)
+#define ext4_debug(fmt, ...)	no_printk(fmt, ##__VA_ARGS__)
 #endif
 
 #define EXT4_ERROR_INODE(inode, fmt, a...) \
@@ -184,6 +184,8 @@ struct mpage_da_data {
 #define	EXT4_IO_END_UNWRITTEN	0x0001
 #define EXT4_IO_END_ERROR	0x0002
 #define EXT4_IO_END_QUEUED	0x0004
+#define EXT4_IO_END_DIRECT	0x0008
+#define EXT4_IO_END_IN_FSYNC	0x0010
 
 struct ext4_io_page {
 	struct page	*p_page;
@@ -192,18 +194,25 @@ struct ext4_io_page {
 
 #define MAX_IO_PAGES 128
 
+/*
+ * For converting uninitialized extents on a work queue.
+ *
+ * 'page' is only used from the writepage() path; 'pages' is only used for
+ * buffered writes; they are used to keep page references until conversion
+ * takes place.  For AIO/DIO, neither field is filled in.
+ */
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished IO list */
 	struct inode		*inode;		/* file being written to */
 	unsigned int		flag;		/* unwritten or not */
-	struct page		*page;		/* page struct for buffer write */
+	struct page		*page;		/* for writepage() path */
 	loff_t			offset;		/* offset in the file */
 	ssize_t			size;		/* size of the extent */
 	struct work_struct	work;		/* data work queue */
 	struct kiocb		*iocb;		/* iocb struct for AIO */
 	int			result;		/* error value for AIO */
-	int			num_io_pages;
-	struct ext4_io_page	*pages[MAX_IO_PAGES];
+	int			num_io_pages;   /* for writepages() */
+	struct ext4_io_page	*pages[MAX_IO_PAGES]; /* for writepages() */
 } ext4_io_end_t;
 
 struct ext4_io_submit {
@@ -923,6 +932,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_ERRORS_CONT		0x00010	/* Continue on errors */
 #define EXT4_MOUNT_ERRORS_RO		0x00020	/* Remount fs ro on errors */
 #define EXT4_MOUNT_ERRORS_PANIC		0x00040	/* Panic on errors */
+#define EXT4_MOUNT_ERRORS_MASK		0x00070
 #define EXT4_MOUNT_MINIX_DF		0x00080	/* Mimics the Minix statfs */
 #define EXT4_MOUNT_NOLOAD		0x00100	/* Don't use existing journal*/
 #define EXT4_MOUNT_DATA_FLAGS		0x00C00	/* Mode for data writes: */
@@ -941,7 +951,6 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_DIOREAD_NOLOCK	0x400000 /* Enable support for dio read nolocking */
 #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
-#define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
 #define EXT4_MOUNT_MBLK_IO_SUBMIT	0x4000000 /* multi-block io submits */
 #define EXT4_MOUNT_DELALLOC		0x8000000 /* Delalloc support */
 #define EXT4_MOUNT_DATA_ERR_ABORT	0x10000000 /* Abort on file data write */
@@ -1142,6 +1151,7 @@ struct ext4_sb_info {
 	unsigned int s_mount_opt;
 	unsigned int s_mount_opt2;
 	unsigned int s_mount_flags;
+	unsigned int s_def_mount_opt;
 	ext4_fsblk_t s_sb_block;
 	uid_t s_resuid;
 	gid_t s_resgid;
@@ -1420,8 +1430,9 @@ static inline void ext4_clear_state_flags(struct ext4_inode_info *ei)
 #define EXT4_FEATURE_INCOMPAT_FLEX_BG		0x0200
 #define EXT4_FEATURE_INCOMPAT_EA_INODE		0x0400 /* EA in inode */
 #define EXT4_FEATURE_INCOMPAT_DIRDATA		0x1000 /* data in dirent */
-#define EXT4_FEATURE_INCOMPAT_INLINEDATA	0x2000 /* data in inode */
+#define EXT4_FEATURE_INCOMPAT_BG_USE_META_CSUM	0x2000 /* use crc32c for bg */
 #define EXT4_FEATURE_INCOMPAT_LARGEDIR		0x4000 /* >2GB or 3-lvl htree */
+#define EXT4_FEATURE_INCOMPAT_INLINEDATA	0x8000 /* data in inode */
 
 #define EXT2_FEATURE_COMPAT_SUPP	EXT4_FEATURE_COMPAT_EXT_ATTR
 #define EXT2_FEATURE_INCOMPAT_SUPP	(EXT4_FEATURE_INCOMPAT_FILETYPE| \
@@ -1612,7 +1623,11 @@ struct dx_hash_info
 	u32		*seed;
 };
 
-#define EXT4_HTREE_EOF	0x7fffffff
+
+/* 32 and 64 bit signed EOF for dx directories */
+#define EXT4_HTREE_EOF_32BIT   ((1UL  << (32 - 1)) - 1)
+#define EXT4_HTREE_EOF_64BIT   ((1ULL << (64 - 1)) - 1)
+
 
 /*
  * Control parameters used by ext4_htree_next_block
@@ -1794,8 +1809,14 @@ extern struct ext4_group_desc * ext4_get_group_desc(struct super_block * sb,
 						    ext4_group_t block_group,
 						    struct buffer_head ** bh);
 extern int ext4_should_retry_alloc(struct super_block *sb, int *retries);
-struct buffer_head *ext4_read_block_bitmap(struct super_block *sb,
-				      ext4_group_t block_group);
+
+extern struct buffer_head *ext4_read_block_bitmap_nowait(struct super_block *sb,
+						ext4_group_t block_group);
+extern int ext4_wait_block_bitmap(struct super_block *sb,
+				  ext4_group_t block_group,
+				  struct buffer_head *bh);
+extern struct buffer_head *ext4_read_block_bitmap(struct super_block *sb,
+						  ext4_group_t block_group);
 extern void ext4_init_block_bitmap(struct super_block *sb,
 				   struct buffer_head *bh,
 				   ext4_group_t group,
@@ -1841,6 +1862,7 @@ extern void ext4_check_inodes_bitmap(struct super_block *);
 extern void ext4_mark_bitmap_end(int start_bit, int end_bit, char *bitmap);
 extern int ext4_init_inode_table(struct super_block *sb,
 				 ext4_group_t group, int barrier);
+extern void ext4_end_bitmap_read(struct buffer_head *bh, int uptodate);
 
 /* mballoc.c */
 extern long ext4_mb_stats;

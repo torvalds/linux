@@ -18,19 +18,39 @@
 #ifndef arch_irq_stat
 #define arch_irq_stat() 0
 #endif
-#ifndef arch_idle_time
-#define arch_idle_time(cpu) 0
-#endif
+
+#ifdef arch_idle_time
+
+static cputime64_t get_idle_time(int cpu)
+{
+	cputime64_t idle;
+
+	idle = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE];
+	if (cpu_online(cpu) && !nr_iowait_cpu(cpu))
+		idle += arch_idle_time(cpu);
+	return idle;
+}
+
+static cputime64_t get_iowait_time(int cpu)
+{
+	cputime64_t iowait;
+
+	iowait = kcpustat_cpu(cpu).cpustat[CPUTIME_IOWAIT];
+	if (cpu_online(cpu) && nr_iowait_cpu(cpu))
+		iowait += arch_idle_time(cpu);
+	return iowait;
+}
+
+#else
 
 static u64 get_idle_time(int cpu)
 {
 	u64 idle, idle_time = get_cpu_idle_time_us(cpu, NULL);
 
-	if (idle_time == -1ULL) {
+	if (idle_time == -1ULL)
 		/* !NO_HZ so we can rely on cpustat.idle */
 		idle = kcpustat_cpu(cpu).cpustat[CPUTIME_IDLE];
-		idle += arch_idle_time(cpu);
-	} else
+	else
 		idle = usecs_to_cputime64(idle_time);
 
 	return idle;
@@ -48,6 +68,8 @@ static u64 get_iowait_time(int cpu)
 
 	return iowait;
 }
+
+#endif
 
 static int show_stat(struct seq_file *p, void *v)
 {
@@ -89,18 +111,19 @@ static int show_stat(struct seq_file *p, void *v)
 	}
 	sum += arch_irq_stat();
 
-	seq_printf(p, "cpu  %llu %llu %llu %llu %llu %llu %llu %llu %llu "
-		"%llu\n",
-		(unsigned long long)cputime64_to_clock_t(user),
-		(unsigned long long)cputime64_to_clock_t(nice),
-		(unsigned long long)cputime64_to_clock_t(system),
-		(unsigned long long)cputime64_to_clock_t(idle),
-		(unsigned long long)cputime64_to_clock_t(iowait),
-		(unsigned long long)cputime64_to_clock_t(irq),
-		(unsigned long long)cputime64_to_clock_t(softirq),
-		(unsigned long long)cputime64_to_clock_t(steal),
-		(unsigned long long)cputime64_to_clock_t(guest),
-		(unsigned long long)cputime64_to_clock_t(guest_nice));
+	seq_puts(p, "cpu ");
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(user));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(nice));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(system));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(idle));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(iowait));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(irq));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(softirq));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(steal));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(guest));
+	seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(guest_nice));
+	seq_putc(p, '\n');
+
 	for_each_online_cpu(i) {
 		/* Copy values here to work around gcc-2.95.3, gcc-2.96 */
 		user = kcpustat_cpu(i).cpustat[CPUTIME_USER];
@@ -113,26 +136,24 @@ static int show_stat(struct seq_file *p, void *v)
 		steal = kcpustat_cpu(i).cpustat[CPUTIME_STEAL];
 		guest = kcpustat_cpu(i).cpustat[CPUTIME_GUEST];
 		guest_nice = kcpustat_cpu(i).cpustat[CPUTIME_GUEST_NICE];
-		seq_printf(p,
-			"cpu%d %llu %llu %llu %llu %llu %llu %llu %llu %llu "
-			"%llu\n",
-			i,
-			(unsigned long long)cputime64_to_clock_t(user),
-			(unsigned long long)cputime64_to_clock_t(nice),
-			(unsigned long long)cputime64_to_clock_t(system),
-			(unsigned long long)cputime64_to_clock_t(idle),
-			(unsigned long long)cputime64_to_clock_t(iowait),
-			(unsigned long long)cputime64_to_clock_t(irq),
-			(unsigned long long)cputime64_to_clock_t(softirq),
-			(unsigned long long)cputime64_to_clock_t(steal),
-			(unsigned long long)cputime64_to_clock_t(guest),
-			(unsigned long long)cputime64_to_clock_t(guest_nice));
+		seq_printf(p, "cpu%d", i);
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(user));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(nice));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(system));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(idle));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(iowait));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(irq));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(softirq));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(steal));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(guest));
+		seq_put_decimal_ull(p, ' ', cputime64_to_clock_t(guest_nice));
+		seq_putc(p, '\n');
 	}
 	seq_printf(p, "intr %llu", (unsigned long long)sum);
 
 	/* sum again ? it could be updated? */
 	for_each_irq_nr(j)
-		seq_printf(p, " %u", kstat_irqs(j));
+		seq_put_decimal_ull(p, ' ', kstat_irqs(j));
 
 	seq_printf(p,
 		"\nctxt %llu\n"
@@ -149,7 +170,7 @@ static int show_stat(struct seq_file *p, void *v)
 	seq_printf(p, "softirq %llu", (unsigned long long)sum_softirq);
 
 	for (i = 0; i < NR_SOFTIRQS; i++)
-		seq_printf(p, " %u", per_softirq_sums[i]);
+		seq_put_decimal_ull(p, ' ', per_softirq_sums[i]);
 	seq_putc(p, '\n');
 
 	return 0;
@@ -157,10 +178,13 @@ static int show_stat(struct seq_file *p, void *v)
 
 static int stat_open(struct inode *inode, struct file *file)
 {
-	unsigned size = 4096 * (1 + num_possible_cpus() / 32);
+	unsigned size = 1024 + 128 * num_possible_cpus();
 	char *buf;
 	struct seq_file *m;
 	int res;
+
+	/* minimum size to display an interrupt count : 2 bytes */
+	size += 2 * nr_irqs;
 
 	/* don't ask for more than the kmalloc() max size */
 	if (size > KMALLOC_MAX_SIZE)
@@ -173,7 +197,7 @@ static int stat_open(struct inode *inode, struct file *file)
 	if (!res) {
 		m = file->private_data;
 		m->buf = buf;
-		m->size = size;
+		m->size = ksize(buf);
 	} else
 		kfree(buf);
 	return res;

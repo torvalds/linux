@@ -14,6 +14,7 @@
 #include <linux/irq.h>
 #include <linux/thread_info.h>
 #include <linux/kbuild.h>
+#include <asm/pda.h>
 
 int main(void)
 {

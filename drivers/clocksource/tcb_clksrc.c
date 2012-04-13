@@ -19,6 +19,8 @@
  *   - Two channels combine to create a free-running 32 bit counter
  *     with a base rate of 5+ MHz, packaged as a clocksource (with
  *     resolution better than 200 nsec).
+ *   - Some chips support 32 bit counter. A single channel is used for
+ *     this 32 bit free-running counter. the second channel is not used.
  *
  *   - The third channel may be used to provide a 16-bit clockevent
  *     source, used in either periodic or oneshot mode.  This runs
@@ -52,6 +54,11 @@ static cycle_t tc_get_cycles(struct clocksource *cs)
 
 	raw_local_irq_restore(flags);
 	return (upper << 16) | lower;
+}
+
+static cycle_t tc_get_cycles32(struct clocksource *cs)
+{
+	return __raw_readl(tcaddr + ATMEL_TC_REG(0, CV));
 }
 
 static struct clocksource clksrc = {
@@ -209,6 +216,48 @@ static void __init setup_clkevents(struct atmel_tc *tc, int clk32k_divisor_idx)
 
 #endif
 
+static void __init tcb_setup_dual_chan(struct atmel_tc *tc, int mck_divisor_idx)
+{
+	/* channel 0:  waveform mode, input mclk/8, clock TIOA0 on overflow */
+	__raw_writel(mck_divisor_idx			/* likely divide-by-8 */
+			| ATMEL_TC_WAVE
+			| ATMEL_TC_WAVESEL_UP		/* free-run */
+			| ATMEL_TC_ACPA_SET		/* TIOA0 rises at 0 */
+			| ATMEL_TC_ACPC_CLEAR,		/* (duty cycle 50%) */
+			tcaddr + ATMEL_TC_REG(0, CMR));
+	__raw_writel(0x0000, tcaddr + ATMEL_TC_REG(0, RA));
+	__raw_writel(0x8000, tcaddr + ATMEL_TC_REG(0, RC));
+	__raw_writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* no irqs */
+	__raw_writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(0, CCR));
+
+	/* channel 1:  waveform mode, input TIOA0 */
+	__raw_writel(ATMEL_TC_XC1			/* input: TIOA0 */
+			| ATMEL_TC_WAVE
+			| ATMEL_TC_WAVESEL_UP,		/* free-run */
+			tcaddr + ATMEL_TC_REG(1, CMR));
+	__raw_writel(0xff, tcaddr + ATMEL_TC_REG(1, IDR));	/* no irqs */
+	__raw_writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(1, CCR));
+
+	/* chain channel 0 to channel 1*/
+	__raw_writel(ATMEL_TC_TC1XC1S_TIOA0, tcaddr + ATMEL_TC_BMR);
+	/* then reset all the timers */
+	__raw_writel(ATMEL_TC_SYNC, tcaddr + ATMEL_TC_BCR);
+}
+
+static void __init tcb_setup_single_chan(struct atmel_tc *tc, int mck_divisor_idx)
+{
+	/* channel 0:  waveform mode, input mclk/8 */
+	__raw_writel(mck_divisor_idx			/* likely divide-by-8 */
+			| ATMEL_TC_WAVE
+			| ATMEL_TC_WAVESEL_UP,		/* free-run */
+			tcaddr + ATMEL_TC_REG(0, CMR));
+	__raw_writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* no irqs */
+	__raw_writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(0, CCR));
+
+	/* then reset all the timers */
+	__raw_writel(ATMEL_TC_SYNC, tcaddr + ATMEL_TC_BCR);
+}
+
 static int __init tcb_clksrc_init(void)
 {
 	static char bootinfo[] __initdata
@@ -260,34 +309,19 @@ static int __init tcb_clksrc_init(void)
 			divided_rate / 1000000,
 			((divided_rate + 500000) % 1000000) / 1000);
 
-	/* tclib will give us three clocks no matter what the
-	 * underlying platform supports.
-	 */
-	clk_enable(tc->clk[1]);
-
-	/* channel 0:  waveform mode, input mclk/8, clock TIOA0 on overflow */
-	__raw_writel(best_divisor_idx			/* likely divide-by-8 */
-			| ATMEL_TC_WAVE
-			| ATMEL_TC_WAVESEL_UP		/* free-run */
-			| ATMEL_TC_ACPA_SET		/* TIOA0 rises at 0 */
-			| ATMEL_TC_ACPC_CLEAR,		/* (duty cycle 50%) */
-			tcaddr + ATMEL_TC_REG(0, CMR));
-	__raw_writel(0x0000, tcaddr + ATMEL_TC_REG(0, RA));
-	__raw_writel(0x8000, tcaddr + ATMEL_TC_REG(0, RC));
-	__raw_writel(0xff, tcaddr + ATMEL_TC_REG(0, IDR));	/* no irqs */
-	__raw_writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(0, CCR));
-
-	/* channel 1:  waveform mode, input TIOA0 */
-	__raw_writel(ATMEL_TC_XC1			/* input: TIOA0 */
-			| ATMEL_TC_WAVE
-			| ATMEL_TC_WAVESEL_UP,		/* free-run */
-			tcaddr + ATMEL_TC_REG(1, CMR));
-	__raw_writel(0xff, tcaddr + ATMEL_TC_REG(1, IDR));	/* no irqs */
-	__raw_writel(ATMEL_TC_CLKEN, tcaddr + ATMEL_TC_REG(1, CCR));
-
-	/* chain channel 0 to channel 1, then reset all the timers */
-	__raw_writel(ATMEL_TC_TC1XC1S_TIOA0, tcaddr + ATMEL_TC_BMR);
-	__raw_writel(ATMEL_TC_SYNC, tcaddr + ATMEL_TC_BCR);
+	if (tc->tcb_config && tc->tcb_config->counter_width == 32) {
+		/* use apropriate function to read 32 bit counter */
+		clksrc.read = tc_get_cycles32;
+		/* setup ony channel 0 */
+		tcb_setup_single_chan(tc, best_divisor_idx);
+	} else {
+		/* tclib will give us three clocks no matter what the
+		 * underlying platform supports.
+		 */
+		clk_enable(tc->clk[1]);
+		/* setup both channel 0 & 1 */
+		tcb_setup_dual_chan(tc, best_divisor_idx);
+	}
 
 	/* and away we go! */
 	clocksource_register_hz(&clksrc, divided_rate);

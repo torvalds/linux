@@ -1013,6 +1013,25 @@ static int set_rate_constraints(struct snd_ice1712 *ice,
 					  ice->hw_rates);
 }
 
+/* if the card has the internal rate locked (is_pro_locked), limit runtime
+   hw rates to the current internal rate only.
+*/
+static void constrain_rate_if_locked(struct snd_pcm_substream *substream)
+{
+	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned int rate;
+	if (is_pro_rate_locked(ice)) {
+		rate = ice->get_rate(ice);
+		if (rate >= runtime->hw.rate_min
+		    && rate <= runtime->hw.rate_max) {
+			runtime->hw.rate_min = rate;
+			runtime->hw.rate_max = rate;
+		}
+	}
+}
+
+
 /* multi-channel playback needs alignment 8x32bit regardless of the channels
  * actually used
  */
@@ -1046,6 +1065,7 @@ static int snd_vt1724_playback_pro_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	constrain_rate_if_locked(substream);
 	if (ice->pro_open)
 		ice->pro_open(ice, substream);
 	return 0;
@@ -1066,6 +1086,7 @@ static int snd_vt1724_capture_pro_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	constrain_rate_if_locked(substream);
 	if (ice->pro_open)
 		ice->pro_open(ice, substream);
 	return 0;
@@ -1215,6 +1236,7 @@ static int snd_vt1724_playback_spdif_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	constrain_rate_if_locked(substream);
 	if (ice->spdif.ops.open)
 		ice->spdif.ops.open(ice, substream);
 	return 0;
@@ -1251,6 +1273,7 @@ static int snd_vt1724_capture_spdif_open(struct snd_pcm_substream *substream)
 				   VT1724_BUFFER_ALIGN);
 	snd_pcm_hw_constraint_step(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_BYTES,
 				   VT1724_BUFFER_ALIGN);
+	constrain_rate_if_locked(substream);
 	if (ice->spdif.ops.open)
 		ice->spdif.ops.open(ice, substream);
 	return 0;

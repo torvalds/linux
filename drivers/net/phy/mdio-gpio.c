@@ -255,13 +255,13 @@ static inline int __init mdio_ofgpio_init(void)
 	return platform_driver_register(&mdio_ofgpio_driver);
 }
 
-static inline void __exit mdio_ofgpio_exit(void)
+static inline void mdio_ofgpio_exit(void)
 {
 	platform_driver_unregister(&mdio_ofgpio_driver);
 }
 #else
 static inline int __init mdio_ofgpio_init(void) { return 0; }
-static inline void __exit mdio_ofgpio_exit(void) { }
+static inline void mdio_ofgpio_exit(void) { }
 #endif /* CONFIG_OF_GPIO */
 
 static struct platform_driver mdio_gpio_driver = {

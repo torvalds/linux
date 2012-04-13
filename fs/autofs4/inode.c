@@ -19,6 +19,7 @@
 #include <linux/parser.h>
 #include <linux/bitops.h>
 #include <linux/magic.h>
+#include <linux/compat.h>
 #include "autofs_i.h"
 #include <linux/module.h>
 
@@ -224,6 +225,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	set_autofs_type_indirect(&sbi->type);
 	sbi->min_proto = 0;
 	sbi->max_proto = 0;
+	sbi->compat_daemon = is_compat_task();
 	mutex_init(&sbi->wq_mutex);
 	mutex_init(&sbi->pipe_mutex);
 	spin_lock_init(&sbi->fs_lock);
@@ -245,12 +247,9 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	if (!ino)
 		goto fail_free;
 	root_inode = autofs4_get_inode(s, S_IFDIR | 0755);
-	if (!root_inode)
-		goto fail_ino;
-
-	root = d_alloc_root(root_inode);
+	root = d_make_root(root_inode);
 	if (!root)
-		goto fail_iput;
+		goto fail_ino;
 	pipe = NULL;
 
 	root->d_fsdata = ino;
@@ -315,9 +314,6 @@ fail_fput:
 fail_dput:
 	dput(root);
 	goto fail_free;
-fail_iput:
-	printk("autofs: get root dentry failed\n");
-	iput(root_inode);
 fail_ino:
 	kfree(ino);
 fail_free:

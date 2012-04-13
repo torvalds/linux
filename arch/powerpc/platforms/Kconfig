@@ -2,7 +2,6 @@ menu "Platform support"
 
 source "arch/powerpc/platforms/powernv/Kconfig"
 source "arch/powerpc/platforms/pseries/Kconfig"
-source "arch/powerpc/platforms/iseries/Kconfig"
 source "arch/powerpc/platforms/chrp/Kconfig"
 source "arch/powerpc/platforms/512x/Kconfig"
 source "arch/powerpc/platforms/52xx/Kconfig"
@@ -87,6 +86,14 @@ config MPIC_WEIRD
 	bool
 	default n
 
+config MPIC_MSGR
+	bool "MPIC message register support"
+	depends on MPIC
+	default n
+	help
+	  Enables support for the MPIC message registers.  These
+	  registers are used for inter-processor communication.
+
 config PPC_I8259
 	bool
 	default n
@@ -138,7 +145,7 @@ config MPIC_BROKEN_REGREAD
 	  of the register contents in software.
 
 config IBMVIO
-	depends on PPC_PSERIES || PPC_ISERIES
+	depends on PPC_PSERIES
 	bool
 	default y
 

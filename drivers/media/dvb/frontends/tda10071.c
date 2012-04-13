@@ -1215,7 +1215,7 @@ error:
 EXPORT_SYMBOL(tda10071_attach);
 
 static struct dvb_frontend_ops tda10071_ops = {
-	.delsys = { SYS_DVBT, SYS_DVBT2 },
+	.delsys = { SYS_DVBS, SYS_DVBS2 },
 	.info = {
 		.name = "NXP TDA10071",
 		.frequency_min = 950000,

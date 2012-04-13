@@ -12,13 +12,11 @@
 #include <asm/current.h>
 #include <asm/processor.h>
 #include <asm/cputable.h>
-#include <asm/firmware.h>
 #include <asm/hvcall.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 #include <asm/pmc.h>
-#include <asm/system.h>
 
 #include "cacheinfo.h"
 
@@ -341,8 +339,7 @@ static void __cpuinit register_cpu_online(unsigned int cpu)
 	int i, nattrs;
 
 #ifdef CONFIG_PPC64
-	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
-			cpu_has_feature(CPU_FTR_SMT))
+	if (cpu_has_feature(CPU_FTR_SMT))
 		device_create_file(s, &dev_attr_smt_snooze_delay);
 #endif
 
@@ -414,8 +411,7 @@ static void unregister_cpu_online(unsigned int cpu)
 	BUG_ON(!c->hotpluggable);
 
 #ifdef CONFIG_PPC64
-	if (!firmware_has_feature(FW_FEATURE_ISERIES) &&
-			cpu_has_feature(CPU_FTR_SMT))
+	if (cpu_has_feature(CPU_FTR_SMT))
 		device_remove_file(s, &dev_attr_smt_snooze_delay);
 #endif
 

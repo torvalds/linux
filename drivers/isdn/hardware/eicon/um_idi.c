@@ -14,30 +14,30 @@
 #define DIVAS_MAX_XDI_ADAPTERS	64
 
 /* --------------------------------------------------------------------------
-		IMPORTS
+   IMPORTS
    -------------------------------------------------------------------------- */
 extern void diva_os_wakeup_read(void *os_context);
 extern void diva_os_wakeup_close(void *os_context);
 /* --------------------------------------------------------------------------
-		LOCALS
+   LOCALS
    -------------------------------------------------------------------------- */
 static LIST_HEAD(adapter_q);
 static diva_os_spin_lock_t adapter_lock;
 
 static diva_um_idi_adapter_t *diva_um_idi_find_adapter(dword nr);
-static void cleanup_adapter(diva_um_idi_adapter_t * a);
-static void cleanup_entity(divas_um_idi_entity_t * e);
-static int diva_user_mode_idi_adapter_features(diva_um_idi_adapter_t * a,
+static void cleanup_adapter(diva_um_idi_adapter_t *a);
+static void cleanup_entity(divas_um_idi_entity_t *e);
+static int diva_user_mode_idi_adapter_features(diva_um_idi_adapter_t *a,
 					       diva_um_idi_adapter_features_t
-					       * features);
-static int process_idi_request(divas_um_idi_entity_t * e,
-			       const diva_um_idi_req_hdr_t * req);
-static int process_idi_rc(divas_um_idi_entity_t * e, byte rc);
-static int process_idi_ind(divas_um_idi_entity_t * e, byte ind);
-static int write_return_code(divas_um_idi_entity_t * e, byte rc);
+					       *features);
+static int process_idi_request(divas_um_idi_entity_t *e,
+			       const diva_um_idi_req_hdr_t *req);
+static int process_idi_rc(divas_um_idi_entity_t *e, byte rc);
+static int process_idi_ind(divas_um_idi_entity_t *e, byte ind);
+static int write_return_code(divas_um_idi_entity_t *e, byte rc);
 
 /* --------------------------------------------------------------------------
-		MAIN
+   MAIN
    -------------------------------------------------------------------------- */
 int diva_user_mode_idi_init(void)
 {
@@ -46,10 +46,10 @@ int diva_user_mode_idi_init(void)
 }
 
 /* --------------------------------------------------------------------------
-		Copy adapter features to user supplied buffer
+   Copy adapter features to user supplied buffer
    -------------------------------------------------------------------------- */
 static int
-diva_user_mode_idi_adapter_features(diva_um_idi_adapter_t * a,
+diva_user_mode_idi_adapter_features(diva_um_idi_adapter_t *a,
 				    diva_um_idi_adapter_features_t *
 				    features)
 {
@@ -63,14 +63,14 @@ diva_user_mode_idi_adapter_features(diva_um_idi_adapter_t * a,
 
 		sync_req.GetName.Req = 0;
 		sync_req.GetName.Rc = IDI_SYNC_REQ_GET_NAME;
-		(*(a->d.request)) ((ENTITY *) & sync_req);
+		(*(a->d.request)) ((ENTITY *)&sync_req);
 		strlcpy(features->name, sync_req.GetName.name,
 			sizeof(features->name));
 
 		sync_req.GetSerial.Req = 0;
 		sync_req.GetSerial.Rc = IDI_SYNC_REQ_GET_SERIAL;
 		sync_req.GetSerial.serial = 0;
-		(*(a->d.request)) ((ENTITY *) & sync_req);
+		(*(a->d.request))((ENTITY *)&sync_req);
 		features->serial_number = sync_req.GetSerial.serial;
 	}
 
@@ -78,7 +78,7 @@ diva_user_mode_idi_adapter_features(diva_um_idi_adapter_t * a,
 }
 
 /* --------------------------------------------------------------------------
-		REMOVE ADAPTER
+   REMOVE ADAPTER
    -------------------------------------------------------------------------- */
 void diva_user_mode_idi_remove_adapter(int adapter_nr)
 {
@@ -98,7 +98,7 @@ void diva_user_mode_idi_remove_adapter(int adapter_nr)
 }
 
 /* --------------------------------------------------------------------------
-		CALLED ON DRIVER EXIT (UNLOAD)
+   CALLED ON DRIVER EXIT (UNLOAD)
    -------------------------------------------------------------------------- */
 void diva_user_mode_idi_finit(void)
 {
@@ -116,15 +116,15 @@ void diva_user_mode_idi_finit(void)
 }
 
 /* -------------------------------------------------------------------------
-		CREATE AND INIT IDI ADAPTER
-	 ------------------------------------------------------------------------- */
-int diva_user_mode_idi_create_adapter(const DESCRIPTOR * d, int adapter_nr)
+   CREATE AND INIT IDI ADAPTER
+   ------------------------------------------------------------------------- */
+int diva_user_mode_idi_create_adapter(const DESCRIPTOR *d, int adapter_nr)
 {
 	diva_os_spin_lock_magic_t old_irql;
 	diva_um_idi_adapter_t *a =
-	    (diva_um_idi_adapter_t *) diva_os_malloc(0,
-						     sizeof
-						     (diva_um_idi_adapter_t));
+		(diva_um_idi_adapter_t *) diva_os_malloc(0,
+							 sizeof
+							 (diva_um_idi_adapter_t));
 
 	if (!a) {
 		return (-1);
@@ -145,7 +145,7 @@ int diva_user_mode_idi_create_adapter(const DESCRIPTOR * d, int adapter_nr)
 }
 
 /* ------------------------------------------------------------------------
-			Find adapter by Adapter number
+   Find adapter by Adapter number
    ------------------------------------------------------------------------ */
 static diva_um_idi_adapter_t *diva_um_idi_find_adapter(dword nr)
 {
@@ -159,14 +159,14 @@ static diva_um_idi_adapter_t *diva_um_idi_find_adapter(dword nr)
 			break;
 		a = NULL;
 	}
-	return(a);
+	return (a);
 }
 
 /* ------------------------------------------------------------------------
-		Cleanup this adapter and cleanup/delete all entities assigned
-		to this adapter
+   Cleanup this adapter and cleanup/delete all entities assigned
+   to this adapter
    ------------------------------------------------------------------------ */
-static void cleanup_adapter(diva_um_idi_adapter_t * a)
+static void cleanup_adapter(diva_um_idi_adapter_t *a)
 {
 	struct list_head *tmp, *safe;
 	divas_um_idi_entity_t *e;
@@ -184,9 +184,9 @@ static void cleanup_adapter(diva_um_idi_adapter_t * a)
 }
 
 /* ------------------------------------------------------------------------
-		Cleanup, but NOT delete this entity
+   Cleanup, but NOT delete this entity
    ------------------------------------------------------------------------ */
-static void cleanup_entity(divas_um_idi_entity_t * e)
+static void cleanup_entity(divas_um_idi_entity_t *e)
 {
 	e->os_ref = NULL;
 	e->status = 0;
@@ -203,7 +203,7 @@ static void cleanup_entity(divas_um_idi_entity_t * e)
 
 
 /* ------------------------------------------------------------------------
-		Create ENTITY, link it to the adapter and remove pointer to entity
+   Create ENTITY, link it to the adapter and remove pointer to entity
    ------------------------------------------------------------------------ */
 void *divas_um_idi_create_entity(dword adapter_nr, void *file)
 {
@@ -236,12 +236,12 @@ void *divas_um_idi_create_entity(dword adapter_nr, void *file)
 
 		diva_os_enter_spin_lock(&adapter_lock, &old_irql, "create_entity");
 		/*
-		   Look for Adapter requested
-		 */
+		  Look for Adapter requested
+		*/
 		if (!(a = diva_um_idi_find_adapter(adapter_nr))) {
 			/*
-			   No adapter was found, or this adapter was removed
-			 */
+			  No adapter was found, or this adapter was removed
+			*/
 			diva_os_leave_spin_lock(&adapter_lock, &old_irql, "create_entity");
 
 			DBG_LOG(("A: no adapter(%ld)", adapter_nr));
@@ -267,7 +267,7 @@ void *divas_um_idi_create_entity(dword adapter_nr, void *file)
 }
 
 /* ------------------------------------------------------------------------
-		Unlink entity and free memory 
+   Unlink entity and free memory
    ------------------------------------------------------------------------ */
 int divas_um_idi_delete_entity(int adapter_nr, void *entity)
 {
@@ -296,8 +296,8 @@ int divas_um_idi_delete_entity(int adapter_nr, void *entity)
 }
 
 /* --------------------------------------------------------------------------
-		Called by application to read data from IDI
-	 -------------------------------------------------------------------------- */
+   Called by application to read data from IDI
+   -------------------------------------------------------------------------- */
 int diva_um_idi_read(void *entity,
 		     void *os_handle,
 		     void *dst,
@@ -319,20 +319,20 @@ int diva_um_idi_read(void *entity,
 	    (a->status & DIVA_UM_IDI_ADAPTER_REMOVED)) {
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "read");
 		DBG_ERR(("E(%08x) read failed - adapter removed", e))
-		return (-1);
+			return (-1);
 	}
 
 	DBG_TRC(("A(%d) E(%08x) read(%d)", a->adapter_nr, e, max_length));
 
 	/*
-	   Try to read return code first
-	 */
+	  Try to read return code first
+	*/
 	data = diva_data_q_get_segment4read(&e->rc);
 	q = &e->rc;
 
 	/*
-	   No return codes available, read indications now
-	 */
+	  No return codes available, read indications now
+	*/
 	if (!data) {
 		if (!(e->status & DIVA_UM_IDI_RC_PENDING)) {
 			DBG_TRC(("A(%d) E(%08x) read data", a->adapter_nr, e));
@@ -348,8 +348,8 @@ int diva_um_idi_read(void *entity,
 		if ((length = diva_data_q_get_segment_length(q)) >
 		    max_length) {
 			/*
-			   Not enough space to read message
-			 */
+			  Not enough space to read message
+			*/
 			DBG_ERR(("A: A(%d) E(%08x) read small buffer",
 				 a->adapter_nr, e, ret));
 			diva_os_leave_spin_lock(&adapter_lock, &old_irql,
@@ -357,14 +357,14 @@ int diva_um_idi_read(void *entity,
 			return (-2);
 		}
 		/*
-		   Copy it to user, this function does access ONLY locked an verified
-		   memory, also we can access it witch spin lock held
-		 */
+		  Copy it to user, this function does access ONLY locked an verified
+		  memory, also we can access it witch spin lock held
+		*/
 
 		if ((ret = (*cp_fn) (os_handle, dst, data, length)) >= 0) {
 			/*
-			   Acknowledge only if read was successful
-			 */
+			  Acknowledge only if read was successful
+			*/
 			diva_data_q_ack_segment4read(q);
 		}
 	}
@@ -399,7 +399,7 @@ int diva_um_idi_write(void *entity,
 	    (a->status & DIVA_UM_IDI_ADAPTER_REMOVED)) {
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "write");
 		DBG_ERR(("E(%08x) write failed - adapter removed", e))
-		return (-1);
+			return (-1);
 	}
 
 	DBG_TRC(("A(%d) E(%08x) write(%d)", a->adapter_nr, e, length));
@@ -416,9 +416,9 @@ int diva_um_idi_write(void *entity,
 	}
 
 	/*
-	   Copy function does access only locked verified memory,
-	   also it can be called with spin lock held
-	 */
+	  Copy function does access only locked verified memory,
+	  also it can be called with spin lock held
+	*/
 	if ((ret = (*cp_fn) (os_handle, e->buffer, src, length)) < 0) {
 		DBG_TRC(("A: A(%d) E(%08x) write error=%d", a->adapter_nr,
 			 e, ret));
@@ -426,32 +426,32 @@ int diva_um_idi_write(void *entity,
 		return (ret);
 	}
 
-	req = (diva_um_idi_req_hdr_t *) & e->buffer[0];
+	req = (diva_um_idi_req_hdr_t *)&e->buffer[0];
 
 	switch (req->type) {
 	case DIVA_UM_IDI_GET_FEATURES:{
-			DBG_LOG(("A(%d) get_features", a->adapter_nr));
-			if (!(data =
-			     diva_data_q_get_segment4write(&e->data))) {
-				DBG_ERR(("A(%d) get_features, no free buffer",
-					 a->adapter_nr));
-				diva_os_leave_spin_lock(&adapter_lock,
-							&old_irql,
-							"write");
-				return (0);
-			}
-			diva_user_mode_idi_adapter_features(a, &(((diva_um_idi_ind_hdr_t
-								*) data)->hdr.features));
-			((diva_um_idi_ind_hdr_t *) data)->type =
-			    DIVA_UM_IDI_IND_FEATURES;
-			((diva_um_idi_ind_hdr_t *) data)->data_length = 0;
-			diva_data_q_ack_segment4write(&e->data,
-						      sizeof(diva_um_idi_ind_hdr_t));
-
-			diva_os_leave_spin_lock(&adapter_lock, &old_irql, "write");
-
-			diva_os_wakeup_read(e->os_context);
+		DBG_LOG(("A(%d) get_features", a->adapter_nr));
+		if (!(data =
+		      diva_data_q_get_segment4write(&e->data))) {
+			DBG_ERR(("A(%d) get_features, no free buffer",
+				 a->adapter_nr));
+			diva_os_leave_spin_lock(&adapter_lock,
+						&old_irql,
+						"write");
+			return (0);
 		}
+		diva_user_mode_idi_adapter_features(a, &(((diva_um_idi_ind_hdr_t
+							   *) data)->hdr.features));
+		((diva_um_idi_ind_hdr_t *) data)->type =
+			DIVA_UM_IDI_IND_FEATURES;
+		((diva_um_idi_ind_hdr_t *) data)->data_length = 0;
+		diva_data_q_ack_segment4write(&e->data,
+					      sizeof(diva_um_idi_ind_hdr_t));
+
+		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "write");
+
+		diva_os_wakeup_read(e->os_context);
+	}
 		break;
 
 	case DIVA_UM_IDI_REQ:
@@ -486,9 +486,9 @@ int diva_um_idi_write(void *entity,
 }
 
 /* --------------------------------------------------------------------------
-			CALLBACK FROM XDI
-	 -------------------------------------------------------------------------- */
-static void diva_um_idi_xdi_callback(ENTITY * entity)
+   CALLBACK FROM XDI
+   -------------------------------------------------------------------------- */
+static void diva_um_idi_xdi_callback(ENTITY *entity)
 {
 	divas_um_idi_entity_t *e = DIVAS_CONTAINING_RECORD(entity,
 							   divas_um_idi_entity_t,
@@ -529,8 +529,8 @@ static void diva_um_idi_xdi_callback(ENTITY * entity)
 	}
 }
 
-static int process_idi_request(divas_um_idi_entity_t * e,
-			       const diva_um_idi_req_hdr_t * req)
+static int process_idi_request(divas_um_idi_entity_t *e,
+			       const diva_um_idi_req_hdr_t *req)
 {
 	int assign = 0;
 	byte Req = (byte) req->Req;
@@ -579,7 +579,7 @@ static int process_idi_request(divas_um_idi_entity_t * e,
 	e->e.Req = Req;
 	e->e.ReqCh = (byte) req->ReqCh;
 	e->e.X->PLength = (word) req->data_length;
-	e->e.X->P = (byte *) & req[1];	/* Our buffer is safe */
+	e->e.X->P = (byte *)&req[1];	/* Our buffer is safe */
 
 	DBG_TRC(("A(%d) E(%08x) request(%02x-%02x-%02x (%d))",
 		 e->adapter->adapter_nr, e, e->e.Id, e->e.Req,
@@ -595,9 +595,9 @@ static int process_idi_request(divas_um_idi_entity_t * e,
 	if (assign) {
 		if (e->e.Rc == OUT_OF_RESOURCES) {
 			/*
-			   XDI has no entities more, call was not forwarded to the card,
-			   no callback will be scheduled
-			 */
+			  XDI has no entities more, call was not forwarded to the card,
+			  no callback will be scheduled
+			*/
 			DBG_ERR(("A: A(%d) E(%08x) XDI out of entities",
 				 e->adapter->adapter_nr, e));
 
@@ -621,7 +621,7 @@ static int process_idi_request(divas_um_idi_entity_t * e,
 	return (0);
 }
 
-static int process_idi_rc(divas_um_idi_entity_t * e, byte rc)
+static int process_idi_rc(divas_um_idi_entity_t *e, byte rc)
 {
 	DBG_TRC(("A(%d) E(%08x) rc(%02x-%02x-%02x)",
 		 e->adapter->adapter_nr, e, e->e.Id, rc, e->e.RcCh));
@@ -674,20 +674,20 @@ static int process_idi_rc(divas_um_idi_entity_t * e, byte rc)
 	return (1);
 }
 
-static int process_idi_ind(divas_um_idi_entity_t * e, byte ind)
+static int process_idi_ind(divas_um_idi_entity_t *e, byte ind)
 {
 	int do_wakeup = 0;
 
 	if (e->e.complete != 0x02) {
 		diva_um_idi_ind_hdr_t *pind =
-		    (diva_um_idi_ind_hdr_t *)
-		    diva_data_q_get_segment4write(&e->data);
+			(diva_um_idi_ind_hdr_t *)
+			diva_data_q_get_segment4write(&e->data);
 		if (pind) {
 			e->e.RNum = 1;
-			e->e.R->P = (byte *) & pind[1];
+			e->e.R->P = (byte *)&pind[1];
 			e->e.R->PLength =
-			    (word) (diva_data_q_get_max_length(&e->data) -
-				    sizeof(*pind));
+				(word) (diva_data_q_get_max_length(&e->data) -
+					sizeof(*pind));
 			DBG_TRC(("A(%d) E(%08x) ind_1(%02x-%02x-%02x)-[%d-%d]",
 				 e->adapter->adapter_nr, e, e->e.Id, ind,
 				 e->e.IndCh, e->e.RLength,
@@ -703,7 +703,7 @@ static int process_idi_ind(divas_um_idi_entity_t * e, byte ind)
 		}
 	} else {
 		diva_um_idi_ind_hdr_t *pind =
-		    (diva_um_idi_ind_hdr_t *) (e->e.R->P);
+			(diva_um_idi_ind_hdr_t *) (e->e.R->P);
 
 		DBG_TRC(("A(%d) E(%08x) ind(%02x-%02x-%02x)-[%d]",
 			 e->adapter->adapter_nr, e, e->e.Id, ind,
@@ -728,14 +728,14 @@ static int process_idi_ind(divas_um_idi_entity_t * e, byte ind)
 }
 
 /* --------------------------------------------------------------------------
-		Write return code to the return code queue of entity
-	 -------------------------------------------------------------------------- */
-static int write_return_code(divas_um_idi_entity_t * e, byte rc)
+   Write return code to the return code queue of entity
+   -------------------------------------------------------------------------- */
+static int write_return_code(divas_um_idi_entity_t *e, byte rc)
 {
 	diva_um_idi_ind_hdr_t *prc;
 
 	if (!(prc =
-	     (diva_um_idi_ind_hdr_t *) diva_data_q_get_segment4write(&e->rc)))
+	      (diva_um_idi_ind_hdr_t *) diva_data_q_get_segment4write(&e->rc)))
 	{
 		DBG_ERR(("A: A(%d) E(%08x) rc(%02x) lost",
 			 e->adapter->adapter_nr, e, rc));
@@ -753,9 +753,9 @@ static int write_return_code(divas_um_idi_entity_t * e, byte rc)
 }
 
 /* --------------------------------------------------------------------------
-		Return amount of entries that can be bead from this entity or
-		-1 if adapter was removed
-	 -------------------------------------------------------------------------- */
+   Return amount of entries that can be bead from this entity or
+   -1 if adapter was removed
+   -------------------------------------------------------------------------- */
 int diva_user_mode_idi_ind_ready(void *entity, void *os_handle)
 {
 	divas_um_idi_entity_t *e;
@@ -771,16 +771,16 @@ int diva_user_mode_idi_ind_ready(void *entity, void *os_handle)
 
 	if ((!a) || (a->status & DIVA_UM_IDI_ADAPTER_REMOVED)) {
 		/*
-		   Adapter was unloaded
-		 */
+		  Adapter was unloaded
+		*/
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "ind_ready");
 		return (-1);	/* adapter was removed */
 	}
 	if (e->status & DIVA_UM_IDI_REMOVED) {
 		/*
-		   entity was removed as result of adapter removal
-		   user should assign this entity again
-		 */
+		  entity was removed as result of adapter removal
+		  user should assign this entity again
+		*/
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "ind_ready");
 		return (-1);
 	}
@@ -827,7 +827,7 @@ int divas_um_idi_entity_assigned(void *entity)
 	DBG_TRC(("Id:%02x, rc_count:%d, status:%08x", e->e.Id, e->rc_count,
 		 e->status))
 
-	diva_os_leave_spin_lock(&adapter_lock, &old_irql, "assigned?");
+		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "assigned?");
 
 	return (ret);
 }
@@ -850,23 +850,23 @@ int divas_um_idi_entity_start_remove(void *entity)
 
 	if (e->rc_count) {
 		/*
-		   Entity BUSY
-		 */
+		  Entity BUSY
+		*/
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "start_remove");
 		return (1);
 	}
 
 	if (!e->e.Id) {
 		/*
-		   Remove request was already pending, and arrived now
-		 */
+		  Remove request was already pending, and arrived now
+		*/
 		diva_os_leave_spin_lock(&adapter_lock, &old_irql, "start_remove");
 		return (0);	/* REMOVE was pending */
 	}
 
 	/*
-	   Now send remove request
-	 */
+	  Now send remove request
+	*/
 	e->e.Req = REMOVE;
 	e->e.ReqCh = 0;
 

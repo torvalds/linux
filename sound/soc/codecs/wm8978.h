@@ -67,6 +67,8 @@
 #define WM8978_OUT3_MIXER_CONTROL		0x38
 #define WM8978_OUT4_MIXER_CONTROL		0x39
 
+#define WM8978_MAX_REGISTER			0x39
+
 #define WM8978_CACHEREGNUM			58
 
 /* Clock divider Id's */

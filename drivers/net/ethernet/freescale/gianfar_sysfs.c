@@ -1,5 +1,5 @@
 /*
- * drivers/net/gianfar_sysfs.c
+ * drivers/net/ethernet/freescale/gianfar_sysfs.c
  *
  * Gianfar Ethernet Driver
  * This driver is designed for the non-CPM ethernet controllers

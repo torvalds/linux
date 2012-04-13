@@ -294,6 +294,7 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 {
 	struct musb		*musb = hci;
 	void __iomem		*reg_base = musb->ctrl_base;
+	struct usb_otg		*otg = musb->xceiv->otg;
 	unsigned long		flags;
 	irqreturn_t		ret = IRQ_NONE;
 	u32			status;
@@ -351,14 +352,14 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 			WARNING("VBUS error workaround (delay coming)\n");
 		} else if (is_host_enabled(musb) && drvvbus) {
 			MUSB_HST_MODE(musb);
-			musb->xceiv->default_a = 1;
+			otg->default_a = 1;
 			musb->xceiv->state = OTG_STATE_A_WAIT_VRISE;
 			portstate(musb->port1_status |= USB_PORT_STAT_POWER);
 			del_timer(&otg_workaround);
 		} else {
 			musb->is_active = 0;
 			MUSB_DEV_MODE(musb);
-			musb->xceiv->default_a = 0;
+			otg->default_a = 0;
 			musb->xceiv->state = OTG_STATE_B_IDLE;
 			portstate(musb->port1_status &= ~USB_PORT_STAT_POWER);
 		}
@@ -424,7 +425,7 @@ static int da8xx_musb_init(struct musb *musb)
 		goto fail;
 
 	usb_nop_xceiv_register();
-	musb->xceiv = otg_get_transceiver();
+	musb->xceiv = usb_get_transceiver();
 	if (!musb->xceiv)
 		goto fail;
 
@@ -457,7 +458,7 @@ static int da8xx_musb_exit(struct musb *musb)
 
 	phy_off();
 
-	otg_put_transceiver(musb->xceiv);
+	usb_put_transceiver(musb->xceiv);
 	usb_nop_xceiv_unregister();
 
 	return 0;
@@ -478,7 +479,7 @@ static const struct musb_platform_ops da8xx_ops = {
 
 static u64 da8xx_dmamask = DMA_BIT_MASK(32);
 
-static int __init da8xx_probe(struct platform_device *pdev)
+static int __devinit da8xx_probe(struct platform_device *pdev)
 {
 	struct musb_hdrc_platform_data	*pdata = pdev->dev.platform_data;
 	struct platform_device		*musb;
@@ -562,7 +563,7 @@ err0:
 	return ret;
 }
 
-static int __exit da8xx_remove(struct platform_device *pdev)
+static int __devexit da8xx_remove(struct platform_device *pdev)
 {
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
@@ -576,7 +577,8 @@ static int __exit da8xx_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver da8xx_driver = {
-	.remove		= __exit_p(da8xx_remove),
+	.probe		= da8xx_probe,
+	.remove		= __devexit_p(da8xx_remove),
 	.driver		= {
 		.name	= "musb-da8xx",
 	},
@@ -588,9 +590,9 @@ MODULE_LICENSE("GPL v2");
 
 static int __init da8xx_init(void)
 {
-	return platform_driver_probe(&da8xx_driver, da8xx_probe);
+	return platform_driver_register(&da8xx_driver);
 }
-subsys_initcall(da8xx_init);
+module_init(da8xx_init);
 
 static void __exit da8xx_exit(void)
 {

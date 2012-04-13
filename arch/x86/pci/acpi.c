@@ -60,6 +60,16 @@ static const struct dmi_system_id pci_use_crs_table[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
 		},
 	},
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=42619 */
+	{
+		.callback = set_use_crs,
+		.ident = "MSI MS-7253",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-7253"),
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
+		},
+	},
 
 	/* Now for the blacklist.. */
 
@@ -282,9 +292,6 @@ static void add_resources(struct pci_root_info *info)
 	int i;
 	struct resource *res, *root, *conflict;
 
-	if (!pci_use_crs)
-		return;
-
 	coalesce_windows(info, IORESOURCE_MEM);
 	coalesce_windows(info, IORESOURCE_IO);
 
@@ -336,8 +343,13 @@ get_current_resources(struct acpi_device *device, int busnum,
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, setup_resource,
 				&info);
 
-	add_resources(&info);
-	return;
+	if (pci_use_crs) {
+		add_resources(&info);
+
+		return;
+	}
+
+	kfree(info.name);
 
 name_alloc_fail:
 	kfree(info.res);
@@ -404,7 +416,12 @@ struct pci_bus * __devinit pci_acpi_scan_root(struct acpi_pci_root *root)
 		kfree(sd);
 	} else {
 		get_current_resources(device, busnum, domain, &resources);
-		if (list_empty(&resources))
+
+		/*
+		 * _CRS with no apertures is normal, so only fall back to
+		 * defaults or native bridge info if we're ignoring _CRS.
+		 */
+		if (!pci_use_crs)
 			x86_pci_root_bus_resources(busnum, &resources);
 		bus = pci_create_root_bus(NULL, busnum, &pci_root_ops, sd,
 					  &resources);

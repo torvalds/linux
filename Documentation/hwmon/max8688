@@ -42,9 +42,9 @@ attributes are read-only.
 
 in1_label		"vout1"
 in1_input		Measured voltage. From READ_VOUT register.
-in1_min			Minumum Voltage. From VOUT_UV_WARN_LIMIT register.
+in1_min			Minimum Voltage. From VOUT_UV_WARN_LIMIT register.
 in1_max			Maximum voltage. From VOUT_OV_WARN_LIMIT register.
-in1_lcrit		Critical minumum Voltage. VOUT_UV_FAULT_LIMIT register.
+in1_lcrit		Critical minimum Voltage. VOUT_UV_FAULT_LIMIT register.
 in1_crit		Critical maximum voltage. From VOUT_OV_FAULT_LIMIT register.
 in1_min_alarm		Voltage low alarm. From VOLTAGE_UV_WARNING status.
 in1_max_alarm		Voltage high alarm. From VOLTAGE_OV_WARNING status.

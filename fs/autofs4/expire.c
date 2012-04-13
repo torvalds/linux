@@ -124,6 +124,7 @@ start:
 	/* Negative dentry - try next */
 	if (!simple_positive(q)) {
 		spin_unlock(&p->d_lock);
+		lock_set_subclass(&q->d_lock.dep_map, 0, _RET_IP_);
 		p = q;
 		goto again;
 	}
@@ -186,6 +187,7 @@ again:
 	/* Negative dentry - try next */
 	if (!simple_positive(ret)) {
 		spin_unlock(&p->d_lock);
+		lock_set_subclass(&ret->d_lock.dep_map, 0, _RET_IP_);
 		p = ret;
 		goto again;
 	}

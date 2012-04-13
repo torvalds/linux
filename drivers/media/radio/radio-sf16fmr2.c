@@ -9,16 +9,23 @@
 #include <linux/delay.h>
 #include <linux/module.h>	/* Modules 			*/
 #include <linux/init.h>		/* Initdata			*/
+#include <linux/slab.h>
 #include <linux/ioport.h>	/* request_region		*/
 #include <linux/io.h>		/* outb, outb_p			*/
+#include <linux/isa.h>
 #include <sound/tea575x-tuner.h>
 
 MODULE_AUTHOR("Ondrej Zary");
 MODULE_DESCRIPTION("MediaForte SF16-FMR2 FM radio card driver");
 MODULE_LICENSE("GPL");
 
+static int radio_nr = -1;
+module_param(radio_nr, int, 0444);
+MODULE_PARM_DESC(radio_nr, "Radio device number");
+
 struct fmr2 {
 	int io;
+	struct v4l2_device v4l2_dev;
 	struct snd_tea575x tea;
 	struct v4l2_ctrl *volume;
 	struct v4l2_ctrl *balance;
@@ -26,7 +33,6 @@ struct fmr2 {
 
 /* the port is hardwired so no need to support multiple cards */
 #define FMR2_PORT	0x384
-static struct fmr2 fmr2_card;
 
 /* TEA575x tuner pins */
 #define STR_DATA	(1 << 0)
@@ -172,7 +178,7 @@ static int fmr2_tea_ext_init(struct snd_tea575x *tea)
 		fmr2->volume = v4l2_ctrl_new_std(&tea->ctrl_handler, &fmr2_ctrl_ops, V4L2_CID_AUDIO_VOLUME, 0, 68, 2, 56);
 		fmr2->balance = v4l2_ctrl_new_std(&tea->ctrl_handler, &fmr2_ctrl_ops, V4L2_CID_AUDIO_BALANCE, -68, 68, 2, 0);
 		if (tea->ctrl_handler.error) {
-			printk(KERN_ERR "radio-sf16fmr2: can't initialize contrls\n");
+			printk(KERN_ERR "radio-sf16fmr2: can't initialize controls\n");
 			return tea->ctrl_handler.error;
 		}
 	}
@@ -180,26 +186,46 @@ static int fmr2_tea_ext_init(struct snd_tea575x *tea)
 	return 0;
 }
 
-static int __init fmr2_init(void)
+static int __devinit fmr2_probe(struct device *pdev, unsigned int dev)
 {
-	struct fmr2 *fmr2 = &fmr2_card;
+	struct fmr2 *fmr2;
+	int err;
 
+	fmr2 = kzalloc(sizeof(*fmr2), GFP_KERNEL);
+	if (fmr2 == NULL)
+		return -ENOMEM;
+
+	strlcpy(fmr2->v4l2_dev.name, dev_name(pdev),
+			sizeof(fmr2->v4l2_dev.name));
 	fmr2->io = FMR2_PORT;
 
-	if (!request_region(fmr2->io, 2, "SF16-FMR2")) {
+	if (!request_region(fmr2->io, 2, fmr2->v4l2_dev.name)) {
 		printk(KERN_ERR "radio-sf16fmr2: I/O port 0x%x already in use\n", fmr2->io);
+		kfree(fmr2);
 		return -EBUSY;
 	}
 
+	dev_set_drvdata(pdev, fmr2);
+	err = v4l2_device_register(pdev, &fmr2->v4l2_dev);
+	if (err < 0) {
+		v4l2_err(&fmr2->v4l2_dev, "Could not register v4l2_device\n");
+		release_region(fmr2->io, 2);
+		kfree(fmr2);
+		return err;
+	}
+	fmr2->tea.v4l2_dev = &fmr2->v4l2_dev;
 	fmr2->tea.private_data = fmr2;
+	fmr2->tea.radio_nr = radio_nr;
 	fmr2->tea.ops = &fmr2_tea_ops;
 	fmr2->tea.ext_init = fmr2_tea_ext_init;
 	strlcpy(fmr2->tea.card, "SF16-FMR2", sizeof(fmr2->tea.card));
-	strcpy(fmr2->tea.bus_info, "ISA");
+	snprintf(fmr2->tea.bus_info, sizeof(fmr2->tea.bus_info), "ISA:%s",
+			fmr2->v4l2_dev.name);
 
 	if (snd_tea575x_init(&fmr2->tea)) {
 		printk(KERN_ERR "radio-sf16fmr2: Unable to detect TEA575x tuner\n");
 		release_region(fmr2->io, 2);
+		kfree(fmr2);
 		return -ENODEV;
 	}
 
@@ -207,12 +233,33 @@ static int __init fmr2_init(void)
 	return 0;
 }
 
-static void __exit fmr2_exit(void)
+static int __exit fmr2_remove(struct device *pdev, unsigned int dev)
 {
-	struct fmr2 *fmr2 = &fmr2_card;
+	struct fmr2 *fmr2 = dev_get_drvdata(pdev);
 
 	snd_tea575x_exit(&fmr2->tea);
 	release_region(fmr2->io, 2);
+	v4l2_device_unregister(&fmr2->v4l2_dev);
+	kfree(fmr2);
+	return 0;
+}
+
+struct isa_driver fmr2_driver = {
+	.probe		= fmr2_probe,
+	.remove		= fmr2_remove,
+	.driver		= {
+		.name	= "radio-sf16fmr2",
+	},
+};
+
+static int __init fmr2_init(void)
+{
+	return isa_register_driver(&fmr2_driver, 1);
+}
+
+static void __exit fmr2_exit(void)
+{
+	isa_unregister_driver(&fmr2_driver);
 }
 
 module_init(fmr2_init);

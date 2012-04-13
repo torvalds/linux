@@ -38,26 +38,26 @@ static char *events[] = { "ISDN_STAT_STAVAIL",
 			  "ISDN_STAT_CAUSE" };
 #endif
 
-int indicate_status(int card, int event,ulong Channel,char *Data)
+int indicate_status(int card, int event, ulong Channel, char *Data)
 {
 	isdn_ctrl cmd;
 
 #ifdef DEBUG
 	pr_debug("%s: Indicating event %s on Channel %d\n",
-		sc_adapter[card]->devicename, events[event-256], Channel);
+		 sc_adapter[card]->devicename, events[event - 256], Channel);
 #endif
-	if (Data != NULL){
+	if (Data != NULL) {
 		pr_debug("%s: Event data: %s\n", sc_adapter[card]->devicename,
-			Data);
+			 Data);
 		switch (event) {
-			case ISDN_STAT_BSENT:
-				memcpy(&cmd.parm.length, Data, sizeof(cmd.parm.length));
-				break;
-			case ISDN_STAT_ICALL:
-				memcpy(&cmd.parm.setup, Data, sizeof(cmd.parm.setup));
-				break;
-			default:
-				strcpy(cmd.parm.num, Data);
+		case ISDN_STAT_BSENT:
+			memcpy(&cmd.parm.length, Data, sizeof(cmd.parm.length));
+			break;
+		case ISDN_STAT_ICALL:
+			memcpy(&cmd.parm.setup, Data, sizeof(cmd.parm.setup));
+			break;
+		default:
+			strcpy(cmd.parm.num, Data);
 		}
 	}
 

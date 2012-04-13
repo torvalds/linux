@@ -108,6 +108,7 @@ void __init omap3xxx_voltagedomains_init(void)
 	 * XXX Will depend on the process, validation, and binning
 	 * for the currently-running IC
 	 */
+#ifdef CONFIG_PM_OPP
 	if (cpu_is_omap3630()) {
 		omap3_voltdm_mpu.volt_data = omap36xx_vddmpu_volt_data;
 		omap3_voltdm_core.volt_data = omap36xx_vddcore_volt_data;
@@ -115,6 +116,7 @@ void __init omap3xxx_voltagedomains_init(void)
 		omap3_voltdm_mpu.volt_data = omap34xx_vddmpu_volt_data;
 		omap3_voltdm_core.volt_data = omap34xx_vddcore_volt_data;
 	}
+#endif
 
 	if (cpu_is_omap3517() || cpu_is_omap3505())
 		voltdms = voltagedomains_am35xx;

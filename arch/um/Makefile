@@ -28,6 +28,7 @@ ifeq ($(SUBARCH),i386)
 endif
 ifeq ($(SUBARCH),x86_64)
         HEADER_ARCH := x86
+	KBUILD_CFLAGS += -mcmodel=large
 endif
 
 HOST_DIR := arch/$(HEADER_ARCH)
@@ -50,7 +51,7 @@ KBUILD_CPPFLAGS += -I$(srctree)/$(HOST_DIR)/um
 #
 # These apply to USER_CFLAGS to.
 
-KBUILD_CFLAGS += $(CFLAGS) $(CFLAGS-y) -D__arch_um__ -DSUBARCH=\"$(SUBARCH)\" \
+KBUILD_CFLAGS += $(CFLAGS) $(CFLAGS-y) -D__arch_um__ \
 	$(ARCH_INCLUDE) $(MODE_INCLUDE) -Dvmap=kernel_vmap	\
 	-Din6addr_loopback=kernel_in6addr_loopback \
 	-Din6addr_any=kernel_in6addr_any -Dstrrchr=kernel_strrchr
@@ -99,7 +100,7 @@ KBUILD_KCONFIG := $(HOST_DIR)/um/Kconfig
 
 archheaders:
 	$(Q)$(MAKE) -C '$(srctree)' KBUILD_SRC= \
-		ARCH=$(SUBARCH) O='$(objtree)' archheaders
+		ARCH=$(HEADER_ARCH) O='$(objtree)' archheaders
 
 archprepare: include/generated/user_constants.h
 

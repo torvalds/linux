@@ -1130,6 +1130,9 @@ static int pep_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int flags = msg->msg_flags;
 	int err, done;
 
+	if (len > USHRT_MAX)
+		return -EMSGSIZE;
+
 	if ((msg->msg_flags & ~(MSG_DONTWAIT|MSG_EOR|MSG_NOSIGNAL|
 				MSG_CMSG_COMPAT)) ||
 			!(msg->msg_flags & MSG_EOR))

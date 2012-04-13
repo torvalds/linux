@@ -341,7 +341,7 @@ static struct iio_chan_spec max1361_channels[] =
 static struct iio_chan_spec max1363_channels[] =
 	MAX1363_4X_CHANS(12, MAX1363_EV_M);
 
-/* Appies to max1236, max1237 */
+/* Applies to max1236, max1237 */
 static const enum max1363_modes max1236_mode_list[] = {
 	_s0, _s1, _s2, _s3,
 	s0to1, s0to2, s0to3,
@@ -543,9 +543,9 @@ static int max1363_read_thresh(struct iio_dev *indio_dev,
 {
 	struct max1363_state *st = iio_priv(indio_dev);
 	if (IIO_EVENT_CODE_EXTRACT_DIR(event_code) == IIO_EV_DIR_FALLING)
-		*val = st->thresh_low[IIO_EVENT_CODE_EXTRACT_NUM(event_code)];
+		*val = st->thresh_low[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)];
 	else
-		*val = st->thresh_high[IIO_EVENT_CODE_EXTRACT_NUM(event_code)];
+		*val = st->thresh_high[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)];
 	return 0;
 }
 
@@ -568,10 +568,10 @@ static int max1363_write_thresh(struct iio_dev *indio_dev,
 
 	switch (IIO_EVENT_CODE_EXTRACT_DIR(event_code)) {
 	case IIO_EV_DIR_FALLING:
-		st->thresh_low[IIO_EVENT_CODE_EXTRACT_NUM(event_code)] = val;
+		st->thresh_low[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)] = val;
 		break;
 	case IIO_EV_DIR_RISING:
-		st->thresh_high[IIO_EVENT_CODE_EXTRACT_NUM(event_code)] = val;
+		st->thresh_high[IIO_EVENT_CODE_EXTRACT_CHAN(event_code)] = val;
 		break;
 	}
 
@@ -622,7 +622,7 @@ static int max1363_read_event_config(struct iio_dev *indio_dev,
 	struct max1363_state *st = iio_priv(indio_dev);
 
 	int val;
-	int number = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int number = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 	mutex_lock(&indio_dev->mlock);
 	if (IIO_EVENT_CODE_EXTRACT_DIR(event_code) == IIO_EV_DIR_FALLING)
 		val = (1 << number) & st->mask_low;
@@ -775,7 +775,7 @@ static int max1363_write_event_config(struct iio_dev *indio_dev,
 	int ret = 0;
 	struct max1363_state *st = iio_priv(indio_dev);
 	u16 unifiedmask;
-	int number = IIO_EVENT_CODE_EXTRACT_NUM(event_code);
+	int number = IIO_EVENT_CODE_EXTRACT_CHAN(event_code);
 
 	mutex_lock(&indio_dev->mlock);
 	unifiedmask = st->mask_low | st->mask_high;
@@ -1245,10 +1245,31 @@ static int max1363_initial_setup(struct max1363_state *st)
 	return max1363_set_scan_mode(st);
 }
 
+static int __devinit max1363_alloc_scan_masks(struct iio_dev *indio_dev)
+{
+	struct max1363_state *st = iio_priv(indio_dev);
+	unsigned long *masks;
+	int i;
+
+	masks = kzalloc(BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*sizeof(long)*
+			  (st->chip_info->num_modes + 1), GFP_KERNEL);
+	if (!masks)
+		return -ENOMEM;
+
+	for (i = 0; i < st->chip_info->num_modes; i++)
+		bitmap_copy(masks + BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*i,
+			    max1363_mode_table[st->chip_info->mode_list[i]]
+			    .modemask, MAX1363_MAX_CHANNELS);
+
+	indio_dev->available_scan_masks = masks;
+
+	return 0;
+}
+
 static int __devinit max1363_probe(struct i2c_client *client,
 				   const struct i2c_device_id *id)
 {
-	int ret, i;
+	int ret;
 	struct max1363_state *st;
 	struct iio_dev *indio_dev;
 	struct regulator *reg;
@@ -1276,19 +1297,10 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	st->chip_info = &max1363_chip_info_tbl[id->driver_data];
 	st->client = client;
 
-	indio_dev->available_scan_masks
-		= kzalloc(BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*sizeof(long)*
-			  (st->chip_info->num_modes + 1), GFP_KERNEL);
-	if (!indio_dev->available_scan_masks) {
-		ret = -ENOMEM;
+	ret = max1363_alloc_scan_masks(indio_dev);
+	if (ret)
 		goto error_free_device;
-	}
 
-	for (i = 0; i < st->chip_info->num_modes; i++)
-		bitmap_copy(indio_dev->available_scan_masks +
-			    BITS_TO_LONGS(MAX1363_MAX_CHANNELS)*i,
-			    max1363_mode_table[st->chip_info->mode_list[i]]
-			    .modemask, MAX1363_MAX_CHANNELS);
 	/* Estabilish that the iio_dev is a child of the i2c device */
 	indio_dev->dev.parent = &client->dev;
 	indio_dev->name = id->name;
