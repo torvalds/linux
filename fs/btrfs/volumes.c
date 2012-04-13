@@ -3324,12 +3324,14 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	stripe_size = devices_info[ndevs-1].max_avail;
 	num_stripes = ndevs * dev_stripes;
 
-	if (stripe_size * num_stripes > max_chunk_size * ncopies) {
+	if (stripe_size * ndevs > max_chunk_size * ncopies) {
 		stripe_size = max_chunk_size * ncopies;
-		do_div(stripe_size, num_stripes);
+		do_div(stripe_size, ndevs);
 	}
 
 	do_div(stripe_size, dev_stripes);
+
+	/* align to BTRFS_STRIPE_LEN */
 	do_div(stripe_size, BTRFS_STRIPE_LEN);
 	stripe_size *= BTRFS_STRIPE_LEN;
 
