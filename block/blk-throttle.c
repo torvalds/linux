@@ -995,35 +995,31 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
 	struct blkg_conf_ctx ctx;
 	struct throtl_grp *tg;
+	struct throtl_data *td;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, &blkio_policy_throtl, buf, &ctx);
 	if (ret)
 		return ret;
 
-	ret = -EINVAL;
 	tg = blkg_to_tg(ctx.blkg);
-	if (tg) {
-		struct throtl_data *td = ctx.blkg->q->td;
+	td = ctx.blkg->q->td;
 
-		if (!ctx.v)
-			ctx.v = -1;
+	if (!ctx.v)
+		ctx.v = -1;
 
-		if (is_u64)
-			*(u64 *)((void *)tg + cft->private) = ctx.v;
-		else
-			*(unsigned int *)((void *)tg + cft->private) = ctx.v;
+	if (is_u64)
+		*(u64 *)((void *)tg + cft->private) = ctx.v;
+	else
+		*(unsigned int *)((void *)tg + cft->private) = ctx.v;
 
-		/* XXX: we don't need the following deferred processing */
-		xchg(&tg->limits_changed, true);
-		xchg(&td->limits_changed, true);
-		throtl_schedule_delayed_work(td, 0);
-
-		ret = 0;
-	}
+	/* XXX: we don't need the following deferred processing */
+	xchg(&tg->limits_changed, true);
+	xchg(&td->limits_changed, true);
+	throtl_schedule_delayed_work(td, 0);
 
 	blkg_conf_finish(&ctx);
-	return ret;
+	return 0;
 }
 
 static int tg_set_conf_u64(struct cgroup *cgrp, struct cftype *cft,
@@ -1230,7 +1226,7 @@ void blk_throtl_drain(struct request_queue *q)
 int blk_throtl_init(struct request_queue *q)
 {
 	struct throtl_data *td;
-	struct blkio_group *blkg;
+	int ret;
 
 	td = kzalloc_node(sizeof(*td), GFP_KERNEL, q->node);
 	if (!td)
@@ -1243,28 +1239,18 @@ int blk_throtl_init(struct request_queue *q)
 	q->td = td;
 	td->queue = q;
 
-	/* alloc and init root group. */
-	rcu_read_lock();
-	spin_lock_irq(q->queue_lock);
-
-	blkg = blkg_lookup_create(&blkio_root_cgroup, q, true);
-	if (!IS_ERR(blkg))
-		q->root_blkg = blkg;
-
-	spin_unlock_irq(q->queue_lock);
-	rcu_read_unlock();
-
-	if (!q->root_blkg) {
+	/* activate policy */
+	ret = blkcg_activate_policy(q, &blkio_policy_throtl);
+	if (ret)
 		kfree(td);
-		return -ENOMEM;
-	}
-	return 0;
+	return ret;
 }
 
 void blk_throtl_exit(struct request_queue *q)
 {
 	BUG_ON(!q->td);
 	throtl_shutdown_wq(q);
+	blkcg_deactivate_policy(q, &blkio_policy_throtl);
 	kfree(q->td);
 }
 

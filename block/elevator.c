@@ -896,8 +896,6 @@ static int elevator_switch(struct request_queue *q, struct elevator_type *new_e)
 	ioc_clear_queue(q);
 	spin_unlock_irq(q->queue_lock);
 
-	blkg_destroy_all(q, false);
-
 	/* allocate, init and register new elevator */
 	err = -ENOMEM;
 	q->elevator = elevator_alloc(q, new_e);

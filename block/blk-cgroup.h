@@ -64,6 +64,9 @@ struct blkg_policy_data {
 	/* the blkg this per-policy data belongs to */
 	struct blkio_group *blkg;
 
+	/* used during policy activation */
+	struct list_head alloc_node;
+
 	/* pol->pdata_size bytes of private data used by policy impl */
 	char pdata[] __aligned(__alignof__(unsigned long long));
 };
@@ -108,9 +111,11 @@ extern void blkcg_exit_queue(struct request_queue *q);
 /* Blkio controller policy registration */
 extern int blkio_policy_register(struct blkio_policy_type *);
 extern void blkio_policy_unregister(struct blkio_policy_type *);
+extern int blkcg_activate_policy(struct request_queue *q,
+				 const struct blkio_policy_type *pol);
+extern void blkcg_deactivate_policy(struct request_queue *q,
+				    const struct blkio_policy_type *pol);
 extern void blkg_destroy_all(struct request_queue *q, bool destroy_root);
-extern void update_root_blkg_pd(struct request_queue *q,
-				const struct blkio_policy_type *pol);
 
 void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
 		       u64 (*prfill)(struct seq_file *, void *, int),
@@ -325,10 +330,12 @@ static inline void blkcg_drain_queue(struct request_queue *q) { }
 static inline void blkcg_exit_queue(struct request_queue *q) { }
 static inline int blkio_policy_register(struct blkio_policy_type *blkiop) { return 0; }
 static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
+static inline int blkcg_activate_policy(struct request_queue *q,
+					const struct blkio_policy_type *pol) { return 0; }
+static inline void blkcg_deactivate_policy(struct request_queue *q,
+					   const struct blkio_policy_type *pol) { }
 static inline void blkg_destroy_all(struct request_queue *q,
 				    bool destory_root) { }
-static inline void update_root_blkg_pd(struct request_queue *q,
-				       const struct blkio_policy_type *pol) { }
 
 static inline void *blkg_to_pdata(struct blkio_group *blkg,
 				struct blkio_policy_type *pol) { return NULL; }

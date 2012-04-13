@@ -1406,8 +1406,7 @@ static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 
 	ret = -EINVAL;
 	cfqg = blkg_to_cfqg(ctx.blkg);
-	if (cfqg && (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN &&
-				ctx.v <= CFQ_WEIGHT_MAX))) {
+	if (!ctx.v || (ctx.v >= CFQ_WEIGHT_MIN && ctx.v <= CFQ_WEIGHT_MAX)) {
 		cfqg->dev_weight = ctx.v;
 		cfqg->new_weight = cfqg->dev_weight ?: blkcg->cfq_weight;
 		ret = 0;
@@ -3938,7 +3937,7 @@ static void cfq_exit_queue(struct elevator_queue *e)
 #ifndef CONFIG_CFQ_GROUP_IOSCHED
 	kfree(cfqd->root_group);
 #endif
-	update_root_blkg_pd(q, &blkio_policy_cfq);
+	blkcg_deactivate_policy(q, &blkio_policy_cfq);
 	kfree(cfqd);
 }
 
@@ -3946,7 +3945,7 @@ static int cfq_init_queue(struct request_queue *q)
 {
 	struct cfq_data *cfqd;
 	struct blkio_group *blkg __maybe_unused;
-	int i;
+	int i, ret;
 
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
 	if (!cfqd)
@@ -3960,28 +3959,20 @@ static int cfq_init_queue(struct request_queue *q)
 
 	/* Init root group and prefer root group over other groups by default */
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-	rcu_read_lock();
-	spin_lock_irq(q->queue_lock);
+	ret = blkcg_activate_policy(q, &blkio_policy_cfq);
+	if (ret)
+		goto out_free;
 
-	blkg = blkg_lookup_create(&blkio_root_cgroup, q, true);
-	if (!IS_ERR(blkg)) {
-		q->root_blkg = blkg;
-		cfqd->root_group = blkg_to_cfqg(blkg);
-	}
-
-	spin_unlock_irq(q->queue_lock);
-	rcu_read_unlock();
+	cfqd->root_group = blkg_to_cfqg(q->root_blkg);
 #else
+	ret = -ENOMEM;
 	cfqd->root_group = kzalloc_node(sizeof(*cfqd->root_group),
 					GFP_KERNEL, cfqd->queue->node);
-	if (cfqd->root_group)
-		cfq_init_cfqg_base(cfqd->root_group);
-#endif
-	if (!cfqd->root_group) {
-		kfree(cfqd);
-		return -ENOMEM;
-	}
+	if (!cfqd->root_group)
+		goto out_free;
 
+	cfq_init_cfqg_base(cfqd->root_group);
+#endif
 	cfqd->root_group->weight = 2 * CFQ_WEIGHT_DEFAULT;
 
 	/*
@@ -4031,6 +4022,10 @@ static int cfq_init_queue(struct request_queue *q)
 	 */
 	cfqd->last_delayed_sync = jiffies - HZ;
 	return 0;
+
+out_free:
+	kfree(cfqd);
+	return ret;
 }
 
 /*
