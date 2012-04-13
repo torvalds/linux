@@ -114,7 +114,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_TE | SCSCR_RE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCI,
-	.irqs		= { 23, 23, 23, 0 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x4E0)),
 	.ops		= &sh770x_sci_port_ops,
 	.regshift	= 1,
 };
@@ -135,7 +135,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_TE | SCSCR_RE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= { 56, 56, 56, 56 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x900)),
 	.ops		= &sh770x_sci_port_ops,
 	.regtype	= SCIx_SH3_SCIF_REGTYPE,
 };
@@ -157,7 +157,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_TE | SCSCR_RE,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_IRDA,
-	.irqs		= { 52, 52, 52, 52 },
+	.irqs		= SCIx_IRQ_MUXED(evt2irq(0x880)),
 	.ops		= &sh770x_sci_port_ops,
 	.regshift	= 1,
 };
