@@ -681,7 +681,7 @@ static s32 e1000_set_default_fc_generic(struct e1000_hw *hw)
 		return ret_val;
 	}
 
-	if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == 0)
+	if (!(nvm_data & NVM_WORD0F_PAUSE_MASK))
 		hw->fc.requested_mode = e1000_fc_none;
 	else if ((nvm_data & NVM_WORD0F_PAUSE_MASK) == NVM_WORD0F_ASM_DIR)
 		hw->fc.requested_mode = e1000_fc_tx_pause;

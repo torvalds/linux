@@ -228,9 +228,7 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_hw *hw)
 	/* FWSM register */
 	mac->has_fwsm = true;
 	/* ARC supported; valid only if manageability features are enabled. */
-	mac->arc_subsystem_valid =
-	        (er32(FWSM) & E1000_FWSM_MODE_MASK)
-	                ? true : false;
+	mac->arc_subsystem_valid = !!(er32(FWSM) & E1000_FWSM_MODE_MASK);
 	/* Adaptive IFS not supported */
 	mac->adaptive_ifs = false;
 
