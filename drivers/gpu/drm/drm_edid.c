@@ -1016,10 +1016,6 @@ mode_in_range(const struct drm_display_mode *mode, struct edid *edid,
 	return true;
 }
 
-/*
- * XXX If drm_dmt_modes ever regrows the CVT-R modes (and it will) this will
- * need to account for them.
- */
 static int
 drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 			struct detailed_timing *timing)
