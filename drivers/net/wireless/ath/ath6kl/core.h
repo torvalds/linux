@@ -126,9 +126,9 @@ struct ath6kl_fw_ie {
 #define AR6003_HW_2_0_FIRMWARE_FILE		"athwlan.bin.z77"
 #define AR6003_HW_2_0_TCMD_FIRMWARE_FILE	"athtcmd_ram.bin"
 #define AR6003_HW_2_0_PATCH_FILE		"data.patch.bin"
-#define AR6003_HW_2_0_BOARD_DATA_FILE "ath6k/AR6003/hw2.0/bdata.bin"
+#define AR6003_HW_2_0_BOARD_DATA_FILE AR6003_HW_2_0_FW_DIR "/bdata.bin"
 #define AR6003_HW_2_0_DEFAULT_BOARD_DATA_FILE \
-			"ath6k/AR6003/hw2.0/bdata.SD31.bin"
+			AR6003_HW_2_0_FW_DIR "/bdata.SD31.bin"
 
 /* AR6003 3.0 definitions */
 #define AR6003_HW_2_1_1_VERSION                 0x30000582
@@ -139,33 +139,33 @@ struct ath6kl_fw_ie {
 #define AR6003_HW_2_1_1_UTF_FIRMWARE_FILE	"utf.bin"
 #define AR6003_HW_2_1_1_TESTSCRIPT_FILE	"nullTestFlow.bin"
 #define AR6003_HW_2_1_1_PATCH_FILE		"data.patch.bin"
-#define AR6003_HW_2_1_1_BOARD_DATA_FILE "ath6k/AR6003/hw2.1.1/bdata.bin"
+#define AR6003_HW_2_1_1_BOARD_DATA_FILE AR6003_HW_2_1_1_FW_DIR "/bdata.bin"
 #define AR6003_HW_2_1_1_DEFAULT_BOARD_DATA_FILE	\
-			"ath6k/AR6003/hw2.1.1/bdata.SD31.bin"
+			AR6003_HW_2_1_1_FW_DIR "/bdata.SD31.bin"
 
 /* AR6004 1.0 definitions */
 #define AR6004_HW_1_0_VERSION                 0x30000623
 #define AR6004_HW_1_0_FW_DIR			"ath6k/AR6004/hw1.0"
 #define AR6004_HW_1_0_FIRMWARE_FILE		"fw.ram.bin"
-#define AR6004_HW_1_0_BOARD_DATA_FILE         "ath6k/AR6004/hw1.0/bdata.bin"
+#define AR6004_HW_1_0_BOARD_DATA_FILE         AR6004_HW_1_0_FW_DIR "/bdata.bin"
 #define AR6004_HW_1_0_DEFAULT_BOARD_DATA_FILE \
-	"ath6k/AR6004/hw1.0/bdata.DB132.bin"
+	AR6004_HW_1_0_FW_DIR "/bdata.DB132.bin"
 
 /* AR6004 1.1 definitions */
 #define AR6004_HW_1_1_VERSION                 0x30000001
 #define AR6004_HW_1_1_FW_DIR			"ath6k/AR6004/hw1.1"
 #define AR6004_HW_1_1_FIRMWARE_FILE		"fw.ram.bin"
-#define AR6004_HW_1_1_BOARD_DATA_FILE         "ath6k/AR6004/hw1.1/bdata.bin"
+#define AR6004_HW_1_1_BOARD_DATA_FILE         AR6004_HW_1_1_FW_DIR "/bdata.bin"
 #define AR6004_HW_1_1_DEFAULT_BOARD_DATA_FILE \
-	"ath6k/AR6004/hw1.1/bdata.DB132.bin"
+	AR6004_HW_1_1_FW_DIR "/bdata.DB132.bin"
 
 /* AR6004 1.2 definitions */
 #define AR6004_HW_1_2_VERSION                 0x300007e8
 #define AR6004_HW_1_2_FW_DIR			"ath6k/AR6004/hw1.2"
 #define AR6004_HW_1_2_FIRMWARE_FILE           "fw.ram.bin"
-#define AR6004_HW_1_2_BOARD_DATA_FILE         "ath6k/AR6004/hw1.2/bdata.bin"
+#define AR6004_HW_1_2_BOARD_DATA_FILE         AR6004_HW_1_2_FW_DIR "/bdata.bin"
 #define AR6004_HW_1_2_DEFAULT_BOARD_DATA_FILE \
-	"ath6k/AR6004/hw1.2/bdata.bin"
+	AR6004_HW_1_2_FW_DIR "/bdata.bin"
 
 /* Per STA data, used in AP mode */
 #define STA_PS_AWAKE		BIT(0)
