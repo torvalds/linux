@@ -27,12 +27,12 @@ enum blkio_policy_id {
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
 
-#ifdef CONFIG_BLK_CGROUP
-
 /* CFQ specific, out here for blkcg->cfq_weight */
 #define CFQ_WEIGHT_MIN		10
 #define CFQ_WEIGHT_MAX		1000
 #define CFQ_WEIGHT_DEFAULT	500
+
+#ifdef CONFIG_BLK_CGROUP
 
 enum blkg_rwstat_type {
 	BLKG_RWSTAT_READ,
