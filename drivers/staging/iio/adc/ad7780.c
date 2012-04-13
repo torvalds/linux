@@ -126,14 +126,32 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 
 static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 	[ID_AD7780] = {
-		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				    IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				    0, 0, IIO_ST('s', 24, 32, 8), 0),
+		.channel = {
+			.type = IIO_VOLTAGE,
+			.indexed = 1,
+			.channel = 0,
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.scan_type = {
+				.sign = 's',
+				.realbits = 24,
+				.storagebits = 32,
+				.shift = 8,
+			},
+		},
 	},
 	[ID_AD7781] = {
-		.channel = IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 0, 0,
-				    IIO_CHAN_INFO_SCALE_SHARED_BIT,
-				    0, 0, IIO_ST('s', 20, 32, 12), 0),
+		.channel = {
+			.type = IIO_VOLTAGE,
+			.indexed = 1,
+			.channel = 0,
+			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.scan_type = {
+				.sign = 's',
+				.realbits = 20,
+				.storagebits = 32,
+				.shift = 12,
+			},
+		},
 	},
 };
 
