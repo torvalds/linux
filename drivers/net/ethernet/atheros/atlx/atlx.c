@@ -169,6 +169,7 @@ static inline void atlx_imr_set(struct atlx_adapter *adapter,
 static void atlx_irq_enable(struct atlx_adapter *adapter)
 {
 	atlx_imr_set(adapter, IMR_NORMAL_MASK);
+	adapter->int_enabled = true;
 }
 
 /*
@@ -177,6 +178,7 @@ static void atlx_irq_enable(struct atlx_adapter *adapter)
  */
 static void atlx_irq_disable(struct atlx_adapter *adapter)
 {
+	adapter->int_enabled = false;
 	atlx_imr_set(adapter, 0);
 	synchronize_irq(adapter->pdev->irq);
 }

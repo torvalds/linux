@@ -783,6 +783,12 @@ struct atl1_adapter {
 	u16 ict;		/* interrupt clear timer (2us resolution */
 	struct mii_if_info mii;	/* MII interface info */
 
+	/*
+	 * Use this value to check is napi handler allowed to
+	 * enable ints or not
+	 */
+	bool int_enabled;
+
 	u32 bd_number;		/* board number */
 	bool pci_using_64;
 	struct atl1_hw hw;
