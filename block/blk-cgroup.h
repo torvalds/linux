@@ -115,7 +115,6 @@ extern int blkcg_activate_policy(struct request_queue *q,
 				 const struct blkio_policy_type *pol);
 extern void blkcg_deactivate_policy(struct request_queue *q,
 				    const struct blkio_policy_type *pol);
-extern void blkg_destroy_all(struct request_queue *q, bool destroy_root);
 
 void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
 		       u64 (*prfill)(struct seq_file *, void *, int),
@@ -334,8 +333,6 @@ static inline int blkcg_activate_policy(struct request_queue *q,
 					const struct blkio_policy_type *pol) { return 0; }
 static inline void blkcg_deactivate_policy(struct request_queue *q,
 					   const struct blkio_policy_type *pol) { }
-static inline void blkg_destroy_all(struct request_queue *q,
-				    bool destory_root) { }
 
 static inline void *blkg_to_pdata(struct blkio_group *blkg,
 				struct blkio_policy_type *pol) { return NULL; }
@@ -354,8 +351,7 @@ extern struct blkio_cgroup *bio_blkio_cgroup(struct bio *bio);
 extern struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
 				       struct request_queue *q);
 struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
-				       struct request_queue *q,
-				       bool for_root);
+				       struct request_queue *q);
 #else
 struct cgroup;
 static inline struct blkio_cgroup *

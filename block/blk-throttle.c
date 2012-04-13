@@ -285,7 +285,7 @@ static struct throtl_grp *throtl_lookup_create_tg(struct throtl_data *td,
 	} else {
 		struct blkio_group *blkg;
 
-		blkg = blkg_lookup_create(blkcg, q, false);
+		blkg = blkg_lookup_create(blkcg, q);
 
 		/* if %NULL and @q is alive, fall back to root_tg */
 		if (!IS_ERR(blkg))

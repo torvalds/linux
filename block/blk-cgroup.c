@@ -25,8 +25,6 @@
 #define MAX_KEY_LEN 100
 
 static DEFINE_MUTEX(blkcg_pol_mutex);
-static DEFINE_MUTEX(all_q_mutex);
-static LIST_HEAD(all_q_list);
 
 struct blkio_cgroup blkio_root_cgroup = { .cfq_weight = 2 * CFQ_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
@@ -179,22 +177,14 @@ struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
 }
 EXPORT_SYMBOL_GPL(blkg_lookup);
 
-struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
-				       struct request_queue *q,
-				       bool for_root)
+static struct blkio_group *__blkg_lookup_create(struct blkio_cgroup *blkcg,
+						struct request_queue *q)
 	__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct blkio_group *blkg;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(q->queue_lock);
-
-	/*
-	 * This could be the first entry point of blkcg implementation and
-	 * we shouldn't allow anything to go through for a bypassing queue.
-	 */
-	if (unlikely(blk_queue_bypass(q)) && !for_root)
-		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
 
 	blkg = __blkg_lookup(blkcg, q);
 	if (blkg)
@@ -223,6 +213,18 @@ struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
 out:
 	return blkg;
 }
+
+struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
+				       struct request_queue *q)
+{
+	/*
+	 * This could be the first entry point of blkcg implementation and
+	 * we shouldn't allow anything to go through for a bypassing queue.
+	 */
+	if (unlikely(blk_queue_bypass(q)))
+		return ERR_PTR(blk_queue_dead(q) ? -EINVAL : -EBUSY);
+	return __blkg_lookup_create(blkcg, q);
+}
 EXPORT_SYMBOL_GPL(blkg_lookup_create);
 
 static void blkg_destroy(struct blkio_group *blkg)
@@ -249,12 +251,10 @@ static void blkg_destroy(struct blkio_group *blkg)
 /**
  * blkg_destroy_all - destroy all blkgs associated with a request_queue
  * @q: request_queue of interest
- * @destroy_root: whether to destroy root blkg or not
  *
- * Destroy blkgs associated with @q.  If @destroy_root is %true, all are
- * destroyed; otherwise, root blkg is left alone.
+ * Destroy all blkgs associated with @q.
  */
-void blkg_destroy_all(struct request_queue *q, bool destroy_root)
+static void blkg_destroy_all(struct request_queue *q)
 {
 	struct blkio_group *blkg, *n;
 
@@ -263,10 +263,6 @@ void blkg_destroy_all(struct request_queue *q, bool destroy_root)
 	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
 		struct blkio_cgroup *blkcg = blkg->blkcg;
 
-		/* skip root? */
-		if (!destroy_root && blkg->blkcg == &blkio_root_cgroup)
-			continue;
-
 		spin_lock(&blkcg->lock);
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
@@ -274,7 +270,6 @@ void blkg_destroy_all(struct request_queue *q, bool destroy_root)
 
 	spin_unlock_irq(q->queue_lock);
 }
-EXPORT_SYMBOL_GPL(blkg_destroy_all);
 
 static void blkg_rcu_free(struct rcu_head *rcu_head)
 {
@@ -492,7 +487,7 @@ int blkg_conf_prep(struct blkio_cgroup *blkcg,
 	spin_lock_irq(disk->queue->queue_lock);
 
 	if (blkcg_policy_enabled(disk->queue, pol))
-		blkg = blkg_lookup_create(blkcg, disk->queue, false);
+		blkg = blkg_lookup_create(blkcg, disk->queue);
 	else
 		blkg = ERR_PTR(-EINVAL);
 
@@ -625,20 +620,9 @@ done:
  */
 int blkcg_init_queue(struct request_queue *q)
 {
-	int ret;
-
 	might_sleep();
 
-	ret = blk_throtl_init(q);
-	if (ret)
-		return ret;
-
-	mutex_lock(&all_q_mutex);
-	INIT_LIST_HEAD(&q->all_q_node);
-	list_add_tail(&q->all_q_node, &all_q_list);
-	mutex_unlock(&all_q_mutex);
-
-	return 0;
+	return blk_throtl_init(q);
 }
 
 /**
@@ -662,12 +646,7 @@ void blkcg_drain_queue(struct request_queue *q)
  */
 void blkcg_exit_queue(struct request_queue *q)
 {
-	mutex_lock(&all_q_mutex);
-	list_del_init(&q->all_q_node);
-	mutex_unlock(&all_q_mutex);
-
-	blkg_destroy_all(q, true);
-
+	blkg_destroy_all(q);
 	blk_throtl_exit(q);
 }
 
@@ -741,7 +720,7 @@ int blkcg_activate_policy(struct request_queue *q,
 	spin_lock_irq(q->queue_lock);
 
 	rcu_read_lock();
-	blkg = blkg_lookup_create(&blkio_root_cgroup, q, true);
+	blkg = __blkg_lookup_create(&blkio_root_cgroup, q);
 	rcu_read_unlock();
 
 	if (IS_ERR(blkg)) {

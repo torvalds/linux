@@ -1348,7 +1348,7 @@ static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
 	} else {
 		struct blkio_group *blkg;
 
-		blkg = blkg_lookup_create(blkcg, q, false);
+		blkg = blkg_lookup_create(blkcg, q);
 		if (!IS_ERR(blkg))
 			cfqg = blkg_to_cfqg(blkg);
 	}
