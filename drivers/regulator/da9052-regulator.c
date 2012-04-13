@@ -19,6 +19,9 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+#ifdef CONFIG_OF
+#include <linux/regulator/of_regulator.h>
+#endif
 
 #include <linux/mfd/da9052/da9052.h>
 #include <linux/mfd/da9052/reg.h>
@@ -425,8 +428,32 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 	}
 
 	config.dev = &pdev->dev;
-	config.init_data = pdata->regulators[pdev->id];
 	config.driver_data = regulator;
+	if (pdata && pdata->regulators) {
+		config.init_data = pdata->regulators[pdev->id];
+	} else {
+#ifdef CONFIG_OF
+		struct device_node *nproot = da9052->dev->of_node;
+		struct device_node *np;
+
+		if (!nproot)
+			return -ENODEV;
+
+		nproot = of_find_node_by_name(nproot, "regulators");
+		if (!nproot)
+			return -ENODEV;
+
+		for (np = of_get_next_child(nproot, NULL); !np;
+		     np = of_get_next_child(nproot, np)) {
+			if (!of_node_cmp(np->name,
+					 regulator->info->reg_desc.name)) {
+				config.init_data = of_get_regulator_init_data(
+					&pdev->dev, np);
+				break;
+			}
+		}
+#endif
+	}
 
 	regulator->rdev = regulator_register(&regulator->info->reg_desc,
 					     &config);
