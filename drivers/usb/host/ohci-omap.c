@@ -205,8 +205,9 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 	need_transceiver = need_transceiver
 			|| machine_is_omap_h2() || machine_is_omap_h3();
 
-	if (cpu_is_omap16xx())
-		ocpi_enable();
+	/* XXX OMAP16xx only */
+	if (config->ocpi_enable)
+		config->ocpi_enable();
 
 #ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {

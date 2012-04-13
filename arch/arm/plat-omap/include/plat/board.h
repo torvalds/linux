@@ -91,6 +91,8 @@ struct omap_usb_config {
 	u32 (*usb0_init)(unsigned nwires, unsigned is_device);
 	u32 (*usb1_init)(unsigned nwires);
 	u32 (*usb2_init)(unsigned nwires, unsigned alt_pingroup);
+
+	int (*ocpi_enable)(void);
 };
 
 struct omap_lcd_config {
