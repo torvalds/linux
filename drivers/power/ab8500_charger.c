@@ -2551,13 +2551,12 @@ static int __devinit ab8500_charger_probe(struct platform_device *pdev)
 
 	/* get charger specific platform data */
 	plat_data = pdev->dev.platform_data;
-	di->pdata = plat_data->charger;
-
-	if (!di->pdata) {
+	if (!plat_data || !plat_data->charger) {
 		dev_err(di->dev, "no charger platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}
+	di->pdata = plat_data->charger;
 
 	/* get battery specific platform data */
 	di->bat = plat_data->battery;
