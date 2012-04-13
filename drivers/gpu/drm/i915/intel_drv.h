@@ -234,6 +234,8 @@ struct cxsr_latency {
 #define DIP_TYPE_AVI    0x82
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
+#define DIP_AVI_PR_1    0
+#define DIP_AVI_PR_2    1
 
 #define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
