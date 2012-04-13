@@ -1682,7 +1682,7 @@ static int vpif_querycap(struct file *file, void  *priv,
 
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	strlcpy(cap->driver, "vpif capture", sizeof(cap->driver));
-	strlcpy(cap->bus_info, "DM646x Platform", sizeof(cap->bus_info));
+	strlcpy(cap->bus_info, "VPIF Platform", sizeof(cap->bus_info));
 	strlcpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;
@@ -2190,7 +2190,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, vpif_channel_isr, IRQF_DISABLED,
-					"DM646x_Capture",
+					"VPIF_Capture",
 				(void *)(&vpif_obj.dev[k]->channel_id))) {
 				err = -EBUSY;
 				i--;
@@ -2219,7 +2219,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		vfd->v4l2_dev = &vpif_obj.v4l2_dev;
 		vfd->release = video_device_release;
 		snprintf(vfd->name, sizeof(vfd->name),
-			 "DM646x_VPIFCapture_DRIVER_V%s",
+			 "VPIF_Capture_DRIVER_V%s",
 			 VPIF_CAPTURE_VERSION);
 		/* Set video_dev to the video device */
 		ch->video_dev = vfd;
@@ -2278,8 +2278,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 			vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 
-	v4l2_info(&vpif_obj.v4l2_dev,
-			"DM646x VPIF capture driver initialized\n");
+	v4l2_info(&vpif_obj.v4l2_dev, "VPIF capture driver initialized\n");
 	return 0;
 
 probe_subdev_out:

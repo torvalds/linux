@@ -46,7 +46,7 @@ MODULE_DESCRIPTION("TI DaVinci VPIF Display driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(VPIF_DISPLAY_VERSION);
 
-#define DM646X_V4L2_STD (V4L2_STD_525_60 | V4L2_STD_625_50)
+#define VPIF_V4L2_STD (V4L2_STD_525_60 | V4L2_STD_625_50)
 
 #define vpif_err(fmt, arg...)	v4l2_err(&vpif_obj.v4l2_dev, fmt, ## arg)
 #define vpif_dbg(level, debug, fmt, arg...)	\
@@ -972,7 +972,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
-	if (!(*std_id & DM646X_V4L2_STD))
+	if (!(*std_id & VPIF_V4L2_STD))
 		return -EINVAL;
 
 	if (common->started) {
@@ -1223,7 +1223,7 @@ static int vpif_enum_output(struct file *file, void *fh,
 
 	strcpy(output->name, config->output[output->index]);
 	output->type = V4L2_OUTPUT_TYPE_ANALOG;
-	output->std = DM646X_V4L2_STD;
+	output->std = VPIF_V4L2_STD;
 
 	return 0;
 }
@@ -1608,7 +1608,7 @@ static struct video_device vpif_video_template = {
 	.name		= "vpif",
 	.fops		= &vpif_fops,
 	.ioctl_ops	= &vpif_ioctl_ops,
-	.tvnorms	= DM646X_V4L2_STD,
+	.tvnorms	= VPIF_V4L2_STD,
 	.current_norm	= V4L2_STD_625_50,
 
 };
@@ -1710,7 +1710,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
 			if (request_irq(i, vpif_channel_isr, IRQF_DISABLED,
-					"DM646x_Display",
+					"VPIF_Display",
 				(void *)(&vpif_obj.dev[k]->channel_id))) {
 				err = -EBUSY;
 				goto vpif_int_err;
@@ -1740,7 +1740,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 		vfd->v4l2_dev = &vpif_obj.v4l2_dev;
 		vfd->release = video_device_release;
 		snprintf(vfd->name, sizeof(vfd->name),
-			 "DM646x_VPIFDisplay_DRIVER_V%s",
+			 "VPIF_Display_DRIVER_V%s",
 			 VPIF_DISPLAY_VERSION);
 
 		/* Set video_dev to the video device */
@@ -1826,7 +1826,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	}
 
 	v4l2_info(&vpif_obj.v4l2_dev,
-			"DM646x VPIF display driver initialized\n");
+			" VPIF display driver initialized\n");
 	return 0;
 
 probe_subdev_out:

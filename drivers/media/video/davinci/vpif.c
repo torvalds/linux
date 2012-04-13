@@ -1,5 +1,5 @@
 /*
- * vpif - DM646x Video Port Interface driver
+ * vpif - Video Port Interface driver
  * VPIF is a receiver and transmitter for video data. It has two channels(0, 1)
  * that receiveing video byte stream and two channels(2, 3) for video output.
  * The hardware supports SDTV, HDTV formats, raw data capture.

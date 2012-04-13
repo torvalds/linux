@@ -1,5 +1,5 @@
 /*
- * DM646x display header file
+ * VPIF display header file
  *
  * Copyright (C) 2009 Texas Instruments Incorporated - http://www.ti.com/
  *
