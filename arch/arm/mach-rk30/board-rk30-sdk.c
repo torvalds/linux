@@ -787,7 +787,7 @@ static int rk_fb_io_init(struct rk29_fb_setting_info *fb_setting)
 }
 static int rk_fb_io_disable(void)
 {
-	gpio_set_value(LCD_EN_PIN, ~LCD_EN_VALUE);
+	gpio_set_value(LCD_EN_PIN, LCD_EN_VALUE? 0:1);
 	return 0;
 }
 static int rk_fb_io_enable(void)
