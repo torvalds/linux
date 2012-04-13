@@ -1793,3 +1793,11 @@ int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
 	}
 	return 0;
 }
+
+int ieee80211_ave_rssi(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	return ifmgd->ave_beacon_signal;
+}
