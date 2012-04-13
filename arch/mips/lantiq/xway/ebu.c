@@ -14,10 +14,6 @@
 
 #include <lantiq_soc.h>
 
-/* all access to the ebu must be locked */
-DEFINE_SPINLOCK(ebu_lock);
-EXPORT_SYMBOL_GPL(ebu_lock);
-
 static struct resource ltq_ebu_resource = {
 	.name	= "ebu",
 	.start	= LTQ_EBU_BASE_ADDR,

@@ -229,6 +229,7 @@ config LANTIQ
 	select SWAP_IO_SPACE
 	select BOOT_RAW
 	select HAVE_CLK
+	select USE_OF
 
 config LASAT
 	bool "LASAT Networks platforms"

@@ -18,4 +18,13 @@ config SOC_XWAY
 	select HW_HAS_PCI
 endchoice
 
+
+choice
+	prompt "Devicetree"
+
+config DT_EASY50712
+	bool "Easy50712"
+	depends on SOC_XWAY
+endchoice
+
 endif

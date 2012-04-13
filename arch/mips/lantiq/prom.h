@@ -26,4 +26,6 @@ struct ltq_soc_info {
 extern void ltq_soc_detect(struct ltq_soc_info *i);
 extern void ltq_soc_init(void);
 
+extern struct boot_param_header __dtb_start;
+
 #endif

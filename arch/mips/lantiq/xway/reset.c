@@ -37,13 +37,6 @@
 #define RCU_BOOT_SEL_SHIFT	26
 #define RCU_BOOT_SEL_MASK	0x7
 
-static struct resource ltq_rcu_resource = {
-	.name   = "rcu",
-	.start  = LTQ_RCU_BASE_ADDR,
-	.end    = LTQ_RCU_BASE_ADDR + LTQ_RCU_SIZE - 1,
-	.flags  = IORESOURCE_MEM,
-};
-
 /* remapped base addr of the reset control unit */
 static void __iomem *ltq_rcu_membase;
 
@@ -91,17 +84,21 @@ static void ltq_machine_power_off(void)
 
 static int __init mips_reboot_setup(void)
 {
-	/* insert and request the memory region */
-	if (insert_resource(&iomem_resource, &ltq_rcu_resource) < 0)
-		panic("Failed to insert rcu memory");
+	struct resource res;
+	struct device_node *np =
+		of_find_compatible_node(NULL, NULL, "lantiq,rcu-xway");
 
-	if (request_mem_region(ltq_rcu_resource.start,
-			resource_size(&ltq_rcu_resource), "rcu") < 0)
-		panic("Failed to request rcu memory");
+	/* check if all the reset register range is available */
+	if (!np)
+		panic("Failed to load reset resources from devicetree");
 
-	/* remap rcu register range */
-	ltq_rcu_membase = ioremap_nocache(ltq_rcu_resource.start,
-				resource_size(&ltq_rcu_resource));
+	if (of_address_to_resource(np, 0, &res))
+		panic("Failed to get rcu memory range");
+
+	if (request_mem_region(res.start, resource_size(&res), res.name) < 0)
+		pr_err("Failed to request rcu memory");
+
+	ltq_rcu_membase = ioremap_nocache(res.start, resource_size(&res));
 	if (!ltq_rcu_membase)
 		panic("Failed to remap core memory");
 
