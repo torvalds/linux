@@ -1247,7 +1247,7 @@ static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
 				struct btrfs_path *path,
 				iterate_irefs_t *iterate, void *ctx)
 {
-	int ret;
+	int ret = 0;
 	int slot;
 	u32 cur;
 	u32 len;
@@ -1259,7 +1259,7 @@ static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
 	struct btrfs_inode_ref *iref;
 	struct btrfs_key found_key;
 
-	while (1) {
+	while (!ret) {
 		ret = inode_ref_info(inum, parent ? parent+1 : 0, fs_root, path,
 					&found_key);
 		if (ret < 0)
@@ -1288,10 +1288,8 @@ static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
 				 (unsigned long long)found_key.objectid,
 				 (unsigned long long)fs_root->objectid);
 			ret = iterate(parent, iref, eb, ctx);
-			if (ret) {
-				free_extent_buffer(eb);
+			if (ret)
 				break;
-			}
 			len = sizeof(*iref) + name_len;
 			iref = (struct btrfs_inode_ref *)((char *)iref + len);
 		}
