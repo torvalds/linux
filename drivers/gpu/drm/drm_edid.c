@@ -1042,12 +1042,13 @@ do_inferred_modes(struct detailed_timing *timing, void *c)
 {
 	struct detailed_mode_closure *closure = c;
 	struct detailed_non_pixel *data = &timing->data.other_data;
-	int gtf = (closure->edid->features & DRM_EDID_FEATURE_DEFAULT_GTF);
 
-	if (gtf && data->type == EDID_DETAIL_MONITOR_RANGE)
-		closure->modes += drm_dmt_modes_for_range(closure->connector,
-							  closure->edid,
-							  timing);
+	if (data->type != EDID_DETAIL_MONITOR_RANGE)
+		return;
+
+	closure->modes += drm_dmt_modes_for_range(closure->connector,
+						  closure->edid,
+						  timing);
 }
 
 static int
