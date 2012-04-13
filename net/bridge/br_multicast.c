@@ -1689,9 +1689,23 @@ unlock:
 	return err;
 }
 
-int br_multicast_toggle(struct net_bridge *br, unsigned long val)
+static void br_multicast_start_querier(struct net_bridge *br)
 {
 	struct net_bridge_port *port;
+
+	br_multicast_open(br);
+
+	list_for_each_entry(port, &br->port_list, list) {
+		if (port->state == BR_STATE_DISABLED ||
+		    port->state == BR_STATE_BLOCKING)
+			continue;
+
+		__br_multicast_enable_port(port);
+	}
+}
+
+int br_multicast_toggle(struct net_bridge *br, unsigned long val)
+{
 	int err = 0;
 	struct net_bridge_mdb_htable *mdb;
 
@@ -1721,14 +1735,7 @@ rollback:
 			goto rollback;
 	}
 
-	br_multicast_open(br);
-	list_for_each_entry(port, &br->port_list, list) {
-		if (port->state == BR_STATE_DISABLED ||
-		    port->state == BR_STATE_BLOCKING)
-			continue;
-
-		__br_multicast_enable_port(port);
-	}
+	br_multicast_start_querier(br);
 
 unlock:
 	spin_unlock_bh(&br->multicast_lock);
