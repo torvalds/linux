@@ -1317,7 +1317,7 @@ static void print_rxdd(struct rxd_desc *rxdd, u32 rxd_val1, u16 len,
 
 static void print_rxfd(struct rxf_desc *rxfd)
 {
-	DBG("=== RxF desc CHIP ORDER/ENDIANESS =============\n"
+	DBG("=== RxF desc CHIP ORDER/ENDIANNESS =============\n"
 	    "info 0x%x va_lo %u pa_lo 0x%x pa_hi 0x%x len 0x%x\n",
 	    rxfd->info, rxfd->va_lo, rxfd->pa_lo, rxfd->pa_hi, rxfd->len);
 }

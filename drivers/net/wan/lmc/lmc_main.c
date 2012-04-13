@@ -1120,7 +1120,7 @@ static void lmc_running_reset (struct net_device *dev) /*fold00*/
 {
     lmc_softc_t *sc = dev_to_sc(dev);
 
-    lmc_trace(dev, "lmc_runnig_reset in");
+    lmc_trace(dev, "lmc_running_reset in");
 
     /* stop interrupts */
     /* Clear the interrupt mask */

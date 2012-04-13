@@ -3785,7 +3785,7 @@ IPW2100_ORD(STAT_TX_HOST_REQUESTS, "requested Host Tx's (MSDU)"),
 	    IPW2100_ORD(COUNTRY_CODE,
 				"IEEE country code as recv'd from beacon"),
 	    IPW2100_ORD(COUNTRY_CHANNELS,
-				"channels suported by country"),
+				"channels supported by country"),
 	    IPW2100_ORD(RESET_CNT, "adapter resets (warm)"),
 	    IPW2100_ORD(BEACON_INTERVAL, "Beacon interval"),
 	    IPW2100_ORD(ANTENNA_DIVERSITY,
@@ -4074,7 +4074,7 @@ static int ipw2100_switch_mode(struct ipw2100_priv *priv, u32 mode)
 	ipw2100_firmware.version = 0;
 #endif
 
-	printk(KERN_INFO "%s: Reseting on mode change.\n", priv->net_dev->name);
+	printk(KERN_INFO "%s: Resetting on mode change.\n", priv->net_dev->name);
 	priv->reset_backoff = 0;
 	schedule_reset(priv);
 

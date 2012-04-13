@@ -83,7 +83,7 @@ static const char main_strings[][ETH_GSTRING_LEN] = {
 #define NUM_ALL_STATS	(NUM_MAIN_STATS + NUM_PORT_STATS + NUM_PKT_STATS + NUM_PERF_STATS)
 
 static const char mlx4_en_test_names[][ETH_GSTRING_LEN]= {
-	"Interupt Test",
+	"Interrupt Test",
 	"Link Test",
 	"Speed Test",
 	"Register Test",
