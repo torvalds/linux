@@ -412,12 +412,14 @@ static const struct drm_display_mode edid_est_modes[] = {
 		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) }, /* 1152x864@75Hz */
 };
 
-static const struct {
+struct minimode {
 	short w;
 	short h;
 	short r;
 	short rb;
-} est3_modes[] = {
+};
+
+static const struct minimode est3_modes[] = {
 	/* byte 6 */
 	{ 640, 350, 85, 0 },
 	{ 640, 400, 85, 0 },
