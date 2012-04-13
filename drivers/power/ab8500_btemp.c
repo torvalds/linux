@@ -978,12 +978,12 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 
 	/* get btemp specific platform data */
 	plat_data = pdev->dev.platform_data;
-	di->pdata = plat_data->btemp;
-	if (!di->pdata) {
+	if (!plat_data || !plat_data->btemp) {
 		dev_err(di->dev, "no btemp platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}
+	di->pdata = plat_data->btemp;
 
 	/* get battery specific platform data */
 	di->bat = plat_data->battery;
