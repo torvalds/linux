@@ -21,7 +21,7 @@
 #define NR_IRQS 32
 
 /* IRQ numbers used for linux IPIs. */
-#define IRQ_RESCHEDULE 1
+#define IRQ_RESCHEDULE 0
 
 #define irq_canonicalize(irq)   (irq)
 

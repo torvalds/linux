@@ -31,6 +31,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/miscdevice.h>
@@ -48,7 +50,6 @@
 
 #define SC1200_MODULE_VER	"build 20020303"
 #define SC1200_MODULE_NAME	"sc1200wdt"
-#define PFX			SC1200_MODULE_NAME ": "
 
 #define	MAX_TIMEOUT	255	/* 255 minutes */
 #define PMIR		(io)	/* Power Management Index Register */
@@ -71,7 +72,6 @@
 #define UART2_IRQ	0x04	/* Serial1 */
 /* 5 -7 are reserved */
 
-static char banner[] __initdata = PFX SC1200_MODULE_VER;
 static int timeout = 1;
 static int io = -1;
 static int io_len = 2;		/* for non plug and play */
@@ -93,8 +93,8 @@ MODULE_PARM_DESC(io, "io port");
 module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "range is 0-255 minutes, default is 1");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
@@ -176,7 +176,7 @@ static int sc1200wdt_open(struct inode *inode, struct file *file)
 		timeout = MAX_TIMEOUT;
 
 	sc1200wdt_start();
-	printk(KERN_INFO PFX "Watchdog enabled, timeout = %d min(s)", timeout);
+	pr_info("Watchdog enabled, timeout = %d min(s)", timeout);
 
 	return nonseekable_open(inode, file);
 }
@@ -254,11 +254,10 @@ static int sc1200wdt_release(struct inode *inode, struct file *file)
 {
 	if (expect_close == 42) {
 		sc1200wdt_stop();
-		printk(KERN_INFO PFX "Watchdog disabled\n");
+		pr_info("Watchdog disabled\n");
 	} else {
 		sc1200wdt_write_data(WDTO, timeout);
-		printk(KERN_CRIT PFX
-			"Unexpected close!, timeout = %d min(s)\n", timeout);
+		pr_crit("Unexpected close!, timeout = %d min(s)\n", timeout);
 	}
 	clear_bit(0, &open_flag);
 	expect_close = 0;
@@ -361,12 +360,11 @@ static int scl200wdt_pnp_probe(struct pnp_dev *dev,
 	io_len = pnp_port_len(wdt_dev, 0);
 
 	if (!request_region(io, io_len, SC1200_MODULE_NAME)) {
-		printk(KERN_ERR PFX "Unable to register IO port %#x\n", io);
+		pr_err("Unable to register IO port %#x\n", io);
 		return -EBUSY;
 	}
 
-	printk(KERN_INFO "scl200wdt: PnP device found at io port %#x/%d\n",
-								io, io_len);
+	pr_info("PnP device found at io port %#x/%d\n", io, io_len);
 	return 0;
 }
 
@@ -392,7 +390,7 @@ static int __init sc1200wdt_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "%s\n", banner);
+	pr_info("%s\n", SC1200_MODULE_VER);
 
 #if defined CONFIG_PNP
 	if (isapnp) {
@@ -403,7 +401,7 @@ static int __init sc1200wdt_init(void)
 #endif
 
 	if (io == -1) {
-		printk(KERN_ERR PFX "io parameter must be specified\n");
+		pr_err("io parameter must be specified\n");
 		ret = -EINVAL;
 		goto out_pnp;
 	}
@@ -416,7 +414,7 @@ static int __init sc1200wdt_init(void)
 #endif
 
 	if (!request_region(io, io_len, SC1200_MODULE_NAME)) {
-		printk(KERN_ERR PFX "Unable to register IO port %#x\n", io);
+		pr_err("Unable to register IO port %#x\n", io);
 		ret = -EBUSY;
 		goto out_pnp;
 	}
@@ -427,16 +425,14 @@ static int __init sc1200wdt_init(void)
 
 	ret = register_reboot_notifier(&sc1200wdt_notifier);
 	if (ret) {
-		printk(KERN_ERR PFX
-			"Unable to register reboot notifier err = %d\n", ret);
+		pr_err("Unable to register reboot notifier err = %d\n", ret);
 		goto out_io;
 	}
 
 	ret = misc_register(&sc1200wdt_miscdev);
 	if (ret) {
-		printk(KERN_ERR PFX
-			"Unable to register miscdev on minor %d\n",
-							WATCHDOG_MINOR);
+		pr_err("Unable to register miscdev on minor %d\n",
+		       WATCHDOG_MINOR);
 		goto out_rbt;
 	}
 

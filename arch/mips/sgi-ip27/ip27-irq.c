@@ -27,7 +27,6 @@
 #include <asm/bootinfo.h>
 #include <asm/io.h>
 #include <asm/mipsregs.h>
-#include <asm/system.h>
 
 #include <asm/processor.h>
 #include <asm/pci/bridge.h>

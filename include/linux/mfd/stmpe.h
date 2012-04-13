@@ -28,6 +28,7 @@ enum stmpe_partnum {
 	STMPE1601,
 	STMPE2401,
 	STMPE2403,
+	STMPE_NBR_PARTS
 };
 
 /*

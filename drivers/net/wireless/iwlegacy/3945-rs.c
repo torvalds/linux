@@ -821,12 +821,6 @@ out:
 }
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-static int
-il3945_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
 
 static ssize_t
 il3945_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
@@ -862,7 +856,7 @@ il3945_sta_dbgfs_stats_table_read(struct file *file, char __user *user_buf,
 
 static const struct file_operations rs_sta_dbgfs_stats_table_ops = {
 	.read = il3945_sta_dbgfs_stats_table_read,
-	.open = il3945_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 

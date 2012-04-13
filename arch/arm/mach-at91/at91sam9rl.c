@@ -15,6 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/system_misc.h>
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91sam9rl.h>
@@ -288,19 +289,15 @@ static void __init at91sam9rl_ioremap_registers(void)
 {
 	at91_ioremap_shdwc(AT91SAM9RL_BASE_SHDWC);
 	at91_ioremap_rstc(AT91SAM9RL_BASE_RSTC);
+	at91_ioremap_ramc(0, AT91SAM9RL_BASE_SDRAMC, 512);
 	at91sam926x_ioremap_pit(AT91SAM9RL_BASE_PIT);
 	at91sam9_ioremap_smc(0, AT91SAM9RL_BASE_SMC);
-}
-
-static void at91sam9rl_idle(void)
-{
-	at91_sys_write(AT91_PMC_SCDR, AT91_PMC_PCK);
-	cpu_do_idle();
+	at91_ioremap_matrix(AT91SAM9RL_BASE_MATRIX);
 }
 
 static void __init at91sam9rl_initialize(void)
 {
-	arm_pm_idle = at91sam9rl_idle;
+	arm_pm_idle = at91sam9_idle;
 	arm_pm_restart = at91sam9_alt_restart;
 	at91_extern_irq = (1 << AT91SAM9RL_ID_IRQ0);
 

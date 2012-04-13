@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/dmaengine.h>
+#include <linux/types.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -57,6 +58,8 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_hwparams_to_dma_slave_config(substream, params, &slave_config);
 	if (ret)
 		return ret;
+
+	slave_config.device_fc = false;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		slave_config.dst_addr = dma_params->dma_addr;

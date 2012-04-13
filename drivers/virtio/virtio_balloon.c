@@ -398,21 +398,8 @@ static int restore_common(struct virtio_device *vdev)
 	return 0;
 }
 
-static int virtballoon_thaw(struct virtio_device *vdev)
-{
-	return restore_common(vdev);
-}
-
 static int virtballoon_restore(struct virtio_device *vdev)
 {
-	struct virtio_balloon *vb = vdev->priv;
-
-	/*
-	 * If a request wasn't complete at the time of freezing, this
-	 * could have been set.
-	 */
-	vb->need_stats_update = 0;
-
 	return restore_common(vdev);
 }
 #endif
@@ -434,7 +421,6 @@ static struct virtio_driver virtio_balloon_driver = {
 #ifdef CONFIG_PM
 	.freeze	=	virtballoon_freeze,
 	.restore =	virtballoon_restore,
-	.thaw =		virtballoon_thaw,
 #endif
 };
 

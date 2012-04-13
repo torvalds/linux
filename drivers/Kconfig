@@ -50,6 +50,8 @@ source "drivers/i2c/Kconfig"
 
 source "drivers/spi/Kconfig"
 
+source "drivers/hsi/Kconfig"
+
 source "drivers/pps/Kconfig"
 
 source "drivers/ptp/Kconfig"
@@ -129,6 +131,10 @@ source "drivers/hwspinlock/Kconfig"
 source "drivers/clocksource/Kconfig"
 
 source "drivers/iommu/Kconfig"
+
+source "drivers/remoteproc/Kconfig"
+
+source "drivers/rpmsg/Kconfig"
 
 source "drivers/virt/Kconfig"
 

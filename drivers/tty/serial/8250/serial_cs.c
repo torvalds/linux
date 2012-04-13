@@ -43,7 +43,6 @@
 #include <linux/delay.h>
 #include <linux/major.h>
 #include <asm/io.h>
-#include <asm/system.h>
 
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ciscode.h>

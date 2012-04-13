@@ -19,6 +19,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -71,7 +73,7 @@ static struct {
 static void cpu5wdt_trigger(unsigned long unused)
 {
 	if (verbose > 2)
-		printk(KERN_DEBUG PFX "trigger at %i ticks\n", ticks);
+		pr_debug("trigger at %i ticks\n", ticks);
 
 	if (cpu5wdt_device.running)
 		ticks--;
@@ -96,7 +98,7 @@ static void cpu5wdt_reset(void)
 	ticks = cpu5wdt_device.default_ticks;
 
 	if (verbose)
-		printk(KERN_DEBUG PFX "reset (%i ticks)\n", (int) ticks);
+		pr_debug("reset (%i ticks)\n", (int) ticks);
 
 }
 
@@ -129,7 +131,7 @@ static int cpu5wdt_stop(void)
 	ticks = cpu5wdt_device.default_ticks;
 	spin_unlock_irqrestore(&cpu5wdt_lock, flags);
 	if (verbose)
-		printk(KERN_CRIT PFX "stop not possible\n");
+		pr_crit("stop not possible\n");
 	return -EIO;
 }
 
@@ -219,8 +221,7 @@ static int __devinit cpu5wdt_init(void)
 	int err;
 
 	if (verbose)
-		printk(KERN_DEBUG PFX
-				"port=0x%x, verbose=%i\n", port, verbose);
+		pr_debug("port=0x%x, verbose=%i\n", port, verbose);
 
 	init_completion(&cpu5wdt_device.stop);
 	cpu5wdt_device.queue = 0;
@@ -228,7 +229,7 @@ static int __devinit cpu5wdt_init(void)
 	cpu5wdt_device.default_ticks = ticks;
 
 	if (!request_region(port, CPU5WDT_EXTENT, PFX)) {
-		printk(KERN_ERR PFX "request_region failed\n");
+		pr_err("request_region failed\n");
 		err = -EBUSY;
 		goto no_port;
 	}
@@ -237,16 +238,16 @@ static int __devinit cpu5wdt_init(void)
 	val = inb(port + CPU5WDT_STATUS_REG);
 	val = (val >> 2) & 1;
 	if (!val)
-		printk(KERN_INFO PFX "sorry, was my fault\n");
+		pr_info("sorry, was my fault\n");
 
 	err = misc_register(&cpu5wdt_misc);
 	if (err < 0) {
-		printk(KERN_ERR PFX "misc_register failed\n");
+		pr_err("misc_register failed\n");
 		goto no_misc;
 	}
 
 
-	printk(KERN_INFO PFX "init success\n");
+	pr_info("init success\n");
 	return 0;
 
 no_misc:

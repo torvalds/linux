@@ -179,7 +179,6 @@
 #include <linux/stat.h>
 #include <linux/io.h>
 
-#include <asm/system.h>
 #include <asm/dma.h>
 
 #include <scsi/scsi.h>

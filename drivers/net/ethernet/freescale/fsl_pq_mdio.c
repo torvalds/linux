@@ -356,13 +356,13 @@ static int fsl_pq_mdio_probe(struct platform_device *ofdev)
 
 		if (prop)
 			tbiaddr = *prop;
-	}
 
-	if (tbiaddr == -1) {
-		err = -EBUSY;
-		goto err_free_irqs;
-	} else {
-		out_be32(tbipa, tbiaddr);
+		if (tbiaddr == -1) {
+			err = -EBUSY;
+			goto err_free_irqs;
+		} else {
+			out_be32(tbipa, tbiaddr);
+		}
 	}
 
 	err = of_mdiobus_register(new_bus, np);

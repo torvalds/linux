@@ -52,7 +52,6 @@
 #include <linux/io.h>
 #include <linux/gfp.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/dma.h>
 

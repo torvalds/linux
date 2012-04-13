@@ -2717,9 +2717,6 @@ static int alc_auto_fill_adc_caps(struct hda_codec *codec)
 	int max_nums = ARRAY_SIZE(spec->private_adc_nids);
 	int i, nums = 0;
 
-	if (spec->shared_mic_hp)
-		max_nums = 1; /* no multi streams with the shared HP/mic */
-
 	nid = codec->start_nid;
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
 		hda_nid_t src;
@@ -4076,6 +4073,7 @@ static void alc_remove_invalid_adc_nids(struct hda_codec *codec)
 	if (spec->dyn_adc_switch)
 		return;
 
+ again:
 	nums = 0;
 	for (n = 0; n < spec->num_adc_nids; n++) {
 		hda_nid_t cap = spec->private_capsrc_nids[n];
@@ -4096,6 +4094,11 @@ static void alc_remove_invalid_adc_nids(struct hda_codec *codec)
 	if (!nums) {
 		/* check whether ADC-switch is possible */
 		if (!alc_check_dyn_adc_switch(codec)) {
+			if (spec->shared_mic_hp) {
+				spec->shared_mic_hp = 0;
+				spec->private_imux[0].num_items = 1;
+				goto again;
+			}
 			printk(KERN_WARNING "hda_codec: %s: no valid ADC found;"
 			       " using fallback 0x%x\n",
 			       codec->chip_name, spec->private_adc_nids[0]);
@@ -4113,7 +4116,7 @@ static void alc_remove_invalid_adc_nids(struct hda_codec *codec)
 
 	if (spec->auto_mic)
 		alc_auto_mic_check_imux(codec); /* check auto-mic setups */
-	else if (spec->input_mux->num_items == 1)
+	else if (spec->input_mux->num_items == 1 || spec->shared_mic_hp)
 		spec->num_adc_nids = 1; /* reduce to a single ADC */
 }
 

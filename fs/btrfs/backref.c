@@ -116,6 +116,7 @@ add_parent:
  * to a logical address
  */
 static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
+					int search_commit_root,
 					struct __prelim_ref *ref,
 					struct ulist *parents)
 {
@@ -131,6 +132,7 @@ static int __resolve_indirect_ref(struct btrfs_fs_info *fs_info,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	path->search_commit_root = !!search_commit_root;
 
 	root_key.objectid = ref->root_id;
 	root_key.type = BTRFS_ROOT_ITEM_KEY;
@@ -188,6 +190,7 @@ out:
  * resolve all indirect backrefs from the list
  */
 static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
+				   int search_commit_root,
 				   struct list_head *head)
 {
 	int err;
@@ -212,7 +215,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			continue;
 		if (ref->count == 0)
 			continue;
-		err = __resolve_indirect_ref(fs_info, ref, parents);
+		err = __resolve_indirect_ref(fs_info, search_commit_root,
+					     ref, parents);
 		if (err) {
 			if (ret == 0)
 				ret = err;
@@ -586,6 +590,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_head *head;
 	int info_level = 0;
 	int ret;
+	int search_commit_root = (trans == BTRFS_BACKREF_SEARCH_COMMIT_ROOT);
 	struct list_head prefs_delayed;
 	struct list_head prefs;
 	struct __prelim_ref *ref;
@@ -600,6 +605,7 @@ static int find_parent_nodes(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path)
 		return -ENOMEM;
+	path->search_commit_root = !!search_commit_root;
 
 	/*
 	 * grab both a lock on the path and a lock on the delayed ref head.
@@ -614,35 +620,39 @@ again:
 		goto out;
 	BUG_ON(ret == 0);
 
-	/*
-	 * look if there are updates for this ref queued and lock the head
-	 */
-	delayed_refs = &trans->transaction->delayed_refs;
-	spin_lock(&delayed_refs->lock);
-	head = btrfs_find_delayed_ref_head(trans, bytenr);
-	if (head) {
-		if (!mutex_trylock(&head->mutex)) {
-			atomic_inc(&head->node.refs);
-			spin_unlock(&delayed_refs->lock);
+	if (trans != BTRFS_BACKREF_SEARCH_COMMIT_ROOT) {
+		/*
+		 * look if there are updates for this ref queued and lock the
+		 * head
+		 */
+		delayed_refs = &trans->transaction->delayed_refs;
+		spin_lock(&delayed_refs->lock);
+		head = btrfs_find_delayed_ref_head(trans, bytenr);
+		if (head) {
+			if (!mutex_trylock(&head->mutex)) {
+				atomic_inc(&head->node.refs);
+				spin_unlock(&delayed_refs->lock);
 
-			btrfs_release_path(path);
+				btrfs_release_path(path);
 
-			/*
-			 * Mutex was contended, block until it's
-			 * released and try again
-			 */
-			mutex_lock(&head->mutex);
-			mutex_unlock(&head->mutex);
-			btrfs_put_delayed_ref(&head->node);
-			goto again;
+				/*
+				 * Mutex was contended, block until it's
+				 * released and try again
+				 */
+				mutex_lock(&head->mutex);
+				mutex_unlock(&head->mutex);
+				btrfs_put_delayed_ref(&head->node);
+				goto again;
+			}
+			ret = __add_delayed_refs(head, seq, &info_key,
+						 &prefs_delayed);
+			if (ret) {
+				spin_unlock(&delayed_refs->lock);
+				goto out;
+			}
 		}
-		ret = __add_delayed_refs(head, seq, &info_key, &prefs_delayed);
-		if (ret) {
-			spin_unlock(&delayed_refs->lock);
-			goto out;
-		}
+		spin_unlock(&delayed_refs->lock);
 	}
-	spin_unlock(&delayed_refs->lock);
 
 	if (path->slots[0]) {
 		struct extent_buffer *leaf;
@@ -679,7 +689,7 @@ again:
 	if (ret)
 		goto out;
 
-	ret = __resolve_indirect_refs(fs_info, &prefs);
+	ret = __resolve_indirect_refs(fs_info, search_commit_root, &prefs);
 	if (ret)
 		goto out;
 
@@ -1074,8 +1084,7 @@ int tree_backref_for_extent(unsigned long *ptr, struct extent_buffer *eb,
 	return 0;
 }
 
-static int iterate_leaf_refs(struct btrfs_fs_info *fs_info,
-				struct btrfs_path *path, u64 logical,
+static int iterate_leaf_refs(struct btrfs_fs_info *fs_info, u64 logical,
 				u64 orig_extent_item_objectid,
 				u64 extent_item_pos, u64 root,
 				iterate_extent_inodes_t *iterate, void *ctx)
@@ -1143,35 +1152,38 @@ static int iterate_leaf_refs(struct btrfs_fs_info *fs_info,
  * calls iterate() for every inode that references the extent identified by
  * the given parameters.
  * when the iterator function returns a non-zero value, iteration stops.
- * path is guaranteed to be in released state when iterate() is called.
  */
 int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
-				struct btrfs_path *path,
 				u64 extent_item_objectid, u64 extent_item_pos,
+				int search_commit_root,
 				iterate_extent_inodes_t *iterate, void *ctx)
 {
 	int ret;
 	struct list_head data_refs = LIST_HEAD_INIT(data_refs);
 	struct list_head shared_refs = LIST_HEAD_INIT(shared_refs);
 	struct btrfs_trans_handle *trans;
-	struct ulist *refs;
-	struct ulist *roots;
+	struct ulist *refs = NULL;
+	struct ulist *roots = NULL;
 	struct ulist_node *ref_node = NULL;
 	struct ulist_node *root_node = NULL;
 	struct seq_list seq_elem;
-	struct btrfs_delayed_ref_root *delayed_refs;
-
-	trans = btrfs_join_transaction(fs_info->extent_root);
-	if (IS_ERR(trans))
-		return PTR_ERR(trans);
+	struct btrfs_delayed_ref_root *delayed_refs = NULL;
 
 	pr_debug("resolving all inodes for extent %llu\n",
 			extent_item_objectid);
 
-	delayed_refs = &trans->transaction->delayed_refs;
-	spin_lock(&delayed_refs->lock);
-	btrfs_get_delayed_seq(delayed_refs, &seq_elem);
-	spin_unlock(&delayed_refs->lock);
+	if (search_commit_root) {
+		trans = BTRFS_BACKREF_SEARCH_COMMIT_ROOT;
+	} else {
+		trans = btrfs_join_transaction(fs_info->extent_root);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+
+		delayed_refs = &trans->transaction->delayed_refs;
+		spin_lock(&delayed_refs->lock);
+		btrfs_get_delayed_seq(delayed_refs, &seq_elem);
+		spin_unlock(&delayed_refs->lock);
+	}
 
 	ret = btrfs_find_all_leafs(trans, fs_info, extent_item_objectid,
 				   extent_item_pos, seq_elem.seq,
@@ -1188,7 +1200,7 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 		while (!ret && (root_node = ulist_next(roots, root_node))) {
 			pr_debug("root %llu references leaf %llu\n",
 					root_node->val, ref_node->val);
-			ret = iterate_leaf_refs(fs_info, path, ref_node->val,
+			ret = iterate_leaf_refs(fs_info, ref_node->val,
 						extent_item_objectid,
 						extent_item_pos, root_node->val,
 						iterate, ctx);
@@ -1198,8 +1210,11 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 	ulist_free(refs);
 	ulist_free(roots);
 out:
-	btrfs_put_delayed_seq(delayed_refs, &seq_elem);
-	btrfs_end_transaction(trans, fs_info->extent_root);
+	if (!search_commit_root) {
+		btrfs_put_delayed_seq(delayed_refs, &seq_elem);
+		btrfs_end_transaction(trans, fs_info->extent_root);
+	}
+
 	return ret;
 }
 
@@ -1210,6 +1225,7 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 	int ret;
 	u64 extent_item_pos;
 	struct btrfs_key found_key;
+	int search_commit_root = path->search_commit_root;
 
 	ret = extent_from_logical(fs_info, logical, path,
 					&found_key);
@@ -1220,8 +1236,9 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 		return ret;
 
 	extent_item_pos = logical - found_key.objectid;
-	ret = iterate_extent_inodes(fs_info, path, found_key.objectid,
-					extent_item_pos, iterate, ctx);
+	ret = iterate_extent_inodes(fs_info, found_key.objectid,
+					extent_item_pos, search_commit_root,
+					iterate, ctx);
 
 	return ret;
 }
@@ -1342,12 +1359,6 @@ int paths_from_inode(u64 inum, struct inode_fs_paths *ipath)
 				inode_to_path, ipath);
 }
 
-/*
- * allocates space to return multiple file system paths for an inode.
- * total_bytes to allocate are passed, note that space usable for actual path
- * information will be total_bytes - sizeof(struct inode_fs_paths).
- * the returned pointer must be freed with free_ipath() in the end.
- */
 struct btrfs_data_container *init_data_container(u32 total_bytes)
 {
 	struct btrfs_data_container *data;
@@ -1403,5 +1414,6 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 
 void free_ipath(struct inode_fs_paths *ipath)
 {
+	kfree(ipath->fspath);
 	kfree(ipath);
 }

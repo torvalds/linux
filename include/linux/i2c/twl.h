@@ -761,7 +761,7 @@ struct twl_regulator_driver_data {
 
 /*----------------------------------------------------------------------*/
 
-int twl4030_sih_setup(int module);
+int twl4030_sih_setup(struct device *dev, int module, int irq_base);
 
 /* Offsets to Power Registers */
 #define TWL4030_VDAC_DEV_GRP		0x3B

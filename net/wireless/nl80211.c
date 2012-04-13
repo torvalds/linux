@@ -2386,7 +2386,9 @@ nla_put_failure:
 }
 
 static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
-				int flags, struct net_device *dev,
+				int flags,
+				struct cfg80211_registered_device *rdev,
+				struct net_device *dev,
 				const u8 *mac_addr, struct station_info *sinfo)
 {
 	void *hdr;
@@ -2425,12 +2427,18 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 	if (sinfo->filled & STATION_INFO_PLINK_STATE)
 		NLA_PUT_U8(msg, NL80211_STA_INFO_PLINK_STATE,
 			    sinfo->plink_state);
-	if (sinfo->filled & STATION_INFO_SIGNAL)
-		NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL,
-			   sinfo->signal);
-	if (sinfo->filled & STATION_INFO_SIGNAL_AVG)
-		NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL_AVG,
-			   sinfo->signal_avg);
+	switch (rdev->wiphy.signal_type) {
+	case CFG80211_SIGNAL_TYPE_MBM:
+		if (sinfo->filled & STATION_INFO_SIGNAL)
+			NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL,
+				   sinfo->signal);
+		if (sinfo->filled & STATION_INFO_SIGNAL_AVG)
+			NLA_PUT_U8(msg, NL80211_STA_INFO_SIGNAL_AVG,
+				   sinfo->signal_avg);
+		break;
+	default:
+		break;
+	}
 	if (sinfo->filled & STATION_INFO_TX_BITRATE) {
 		if (!nl80211_put_sta_rate(msg, &sinfo->txrate,
 					  NL80211_STA_INFO_TX_BITRATE))
@@ -2523,7 +2531,7 @@ static int nl80211_dump_station(struct sk_buff *skb,
 		if (nl80211_send_station(skb,
 				NETLINK_CB(cb->skb).pid,
 				cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				netdev, mac_addr,
+				dev, netdev, mac_addr,
 				&sinfo) < 0)
 			goto out;
 
@@ -2568,7 +2576,7 @@ static int nl80211_get_station(struct sk_buff *skb, struct genl_info *info)
 		return -ENOMEM;
 
 	if (nl80211_send_station(msg, info->snd_pid, info->snd_seq, 0,
-				 dev, mac_addr, &sinfo) < 0) {
+				 rdev, dev, mac_addr, &sinfo) < 0) {
 		nlmsg_free(msg);
 		return -ENOBUFS;
 	}
@@ -7596,7 +7604,8 @@ void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 	if (!msg)
 		return;
 
-	if (nl80211_send_station(msg, 0, 0, 0, dev, mac_addr, sinfo) < 0) {
+	if (nl80211_send_station(msg, 0, 0, 0,
+				 rdev, dev, mac_addr, sinfo) < 0) {
 		nlmsg_free(msg);
 		return;
 	}

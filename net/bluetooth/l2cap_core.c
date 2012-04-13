@@ -49,7 +49,6 @@
 #include <linux/crc16.h>
 #include <net/sock.h>
 
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include <net/bluetooth/bluetooth.h>

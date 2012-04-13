@@ -29,7 +29,6 @@
 #include <linux/mutex.h>
 
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/rtc.h>
 

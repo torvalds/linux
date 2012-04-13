@@ -1,4 +1,4 @@
-#ifndef __ALPHA_SYSTEM_H
+#ifndef _ALPHA_ATOMIC_H
 #error Do not include xchg.h directly!
 #else
 /*

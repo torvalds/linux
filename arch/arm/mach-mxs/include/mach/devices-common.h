@@ -66,6 +66,16 @@ struct platform_device *__init mxs_add_flexcan(
 		const struct mxs_flexcan_data *data,
 		const struct flexcan_platform_data *pdata);
 
+/* gpmi-nand */
+#include <linux/mtd/gpmi-nand.h>
+struct mxs_gpmi_nand_data {
+	const char *devid;
+	const struct resource res[GPMI_NAND_RES_SIZE];
+};
+struct platform_device *__init
+mxs_add_gpmi_nand(const struct gpmi_nand_platform_data *pdata,
+		const struct mxs_gpmi_nand_data *data);
+
 /* i2c */
 struct mxs_mxs_i2c_data {
 	int id;

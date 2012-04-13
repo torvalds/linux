@@ -834,7 +834,7 @@ static enum blk_eh_timer_return qla4xxx_eh_cmd_timed_out(struct scsi_cmnd *sc)
 static void qla4xxx_set_port_speed(struct Scsi_Host *shost)
 {
 	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct iscsi_cls_host *ihost = shost_priv(shost);
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	uint32_t speed = ISCSI_PORT_SPEED_UNKNOWN;
 
 	qla4xxx_get_firmware_state(ha);
@@ -859,7 +859,7 @@ static void qla4xxx_set_port_speed(struct Scsi_Host *shost)
 static void qla4xxx_set_port_state(struct Scsi_Host *shost)
 {
 	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct iscsi_cls_host *ihost = shost_priv(shost);
+	struct iscsi_cls_host *ihost = shost->shost_data;
 	uint32_t state = ISCSI_PORT_STATE_DOWN;
 
 	if (test_bit(AF_LINK_UP, &ha->flags))
@@ -3445,7 +3445,6 @@ static void qla4xxx_free_adapter(struct scsi_qla_host *ha)
 int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 {
 	int status = 0;
-	uint8_t revision_id;
 	unsigned long mem_base, mem_len, db_base, db_len;
 	struct pci_dev *pdev = ha->pdev;
 
@@ -3457,10 +3456,9 @@ int qla4_8xxx_iospace_config(struct scsi_qla_host *ha)
 		goto iospace_error_exit;
 	}
 
-	pci_read_config_byte(pdev, PCI_REVISION_ID, &revision_id);
 	DEBUG2(printk(KERN_INFO "%s: revision-id=%d\n",
-	    __func__, revision_id));
-	ha->revision_id = revision_id;
+	    __func__, pdev->revision));
+	ha->revision_id = pdev->revision;
 
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0); /* 0 is for BAR 0 */

@@ -18,7 +18,6 @@
 #include <linux/mount.h>
 #include <linux/fs.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/ext2_fs.h>
 #include <linux/falloc.h>
 #include <linux/swap.h>
 #include <linux/crc32.h>

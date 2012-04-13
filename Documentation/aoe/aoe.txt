@@ -35,7 +35,7 @@ CREATING DEVICE NODES
     sh Documentation/aoe/mkshelf.sh /dev/etherd 0
 
   There is also an autoload script that shows how to edit
-  /etc/modprobe.conf to ensure that the aoe module is loaded when
+  /etc/modprobe.d/aoe.conf to ensure that the aoe module is loaded when
   necessary.
 
 USING DEVICE NODES

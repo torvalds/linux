@@ -32,7 +32,6 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "langwell_udc.h"

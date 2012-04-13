@@ -27,7 +27,6 @@
 #include <linux/interrupt.h>
 #include <linux/llist.h>
 
-#include <asm/system.h>
 
 /**
  * llist_add_batch - add several linked entries in batch

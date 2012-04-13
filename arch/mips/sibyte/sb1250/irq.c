@@ -26,7 +26,6 @@
 
 #include <asm/errno.h>
 #include <asm/signal.h>
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/io.h>
 
