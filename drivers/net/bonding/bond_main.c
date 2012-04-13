@@ -4820,7 +4820,7 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 	return 0;
 }
 
-static int bond_get_tx_queues(struct net *net, const struct nlattr *tb[])
+static int bond_get_tx_queues(struct net *net, struct nlattr *tb[])
 {
 	return tx_queues;
 }
