@@ -499,20 +499,21 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 					   int hsize, int vsize, int fresh)
 {
-	struct drm_display_mode *mode = NULL;
 	int i;
 
 	for (i = 0; i < drm_num_dmt_modes; i++) {
 		const struct drm_display_mode *ptr = &drm_dmt_modes[i];
-		if (hsize == ptr->hdisplay &&
-			vsize == ptr->vdisplay &&
-			fresh == drm_mode_vrefresh(ptr)) {
-			/* get the expected default mode */
-			mode = drm_mode_duplicate(dev, ptr);
-			break;
-		}
+		if (hsize != ptr->hdisplay)
+			continue;
+		if (vsize != ptr->vdisplay)
+			continue;
+		if (fresh != drm_mode_vrefresh(ptr))
+			continue;
+
+		return drm_mode_duplicate(dev, ptr);
 	}
-	return mode;
+
+	return NULL;
 }
 EXPORT_SYMBOL(drm_mode_find_dmt);
 
