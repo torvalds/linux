@@ -309,8 +309,10 @@ static ssize_t w1_f1C_write_pio(struct file *filp, struct kobject *kobj,
 	mutex_lock(&sl->master->mutex);
 
 	/* Write the PIO data */
-	if (w1_reset_select_slave(sl))
+	if (w1_reset_select_slave(sl)) {
+		mutex_unlock(&sl->master->mutex);
 		return -1;
+	}
 
 	/* set bit 7..2 to value '1' */
 	*buf = *buf | 0xFC;
