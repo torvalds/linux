@@ -200,6 +200,7 @@ struct rk_lcdc_device_driver{
 	atomic_t in_suspend;		        //when enter suspend write or read lcdc register are forbidden
 
 	int (*open)(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open);
+	int (*init_lcdc)(struct rk_lcdc_device_driver *dev_drv);
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);
 	int (*suspend)(struct rk_lcdc_device_driver *dev_drv);
 	int (*resume)(struct rk_lcdc_device_driver *dev_drv);
@@ -207,12 +208,12 @@ struct rk_lcdc_device_driver{
 	int (*set_par)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*pan_display)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*get_disp_info)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
-	int (*load_screen)(struct rk_lcdc_device_driver *lcdc_dev, bool initscreen);
+	int (*load_screen)(struct rk_lcdc_device_driver *dev_drv, bool initscreen);
 	
 };
 
 struct rk_fb_inf {
-    struct rk29fb_info * lcd_info;     //lcd io control info
+    struct rk29fb_info * mach_info;     //lcd io control info
     struct fb_info *fb[RK_MAX_FB_SUPPORT];
     int num_fb;
     

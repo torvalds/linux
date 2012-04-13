@@ -42,9 +42,9 @@ module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
 #define DBG(x...) do { if(unlikely(dbg_thresd)) printk(KERN_INFO x); } while (0)
 
 
-static int init_rk30_lcdc(struct rk30_lcdc_device *lcdc_dev)
+static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
 {
-
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	if(lcdc_dev->id == 0) //lcdc0
 	{
 		lcdc_dev->hclk = clk_get(NULL,"hclk_lcdc0"); 
@@ -599,6 +599,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.layer_par		= lcdc_layer,
 	.num_layer		= ARRAY_SIZE(lcdc_layer),
 	.open			= rk30_lcdc_open,
+	.init_lcdc		= init_rk30_lcdc,
 	.ioctl			= rk30_lcdc_ioctl,
 	.suspend		= rk30_lcdc_early_suspend,
 	.resume			= rk30_lcdc_early_resume,
@@ -697,21 +698,8 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	lcdc_dev->driver.dev=&pdev->dev;
 	
 	/*****************	set lcdc screen	********/
-	set_lcd_info(screen, NULL);
 	lcdc_dev->driver.screen = screen;
-	/*****************	INIT LCDC		********/
-	ret = init_rk30_lcdc(lcdc_dev);
-	if(ret < 0)
-	{
-		printk(KERN_ERR "init rk30 lcdc failed!\n");
-		goto err3;
-	}
-	ret = rk30_load_screen(&(lcdc_dev->driver),1);
-	if(ret < 0)
-	{
-		printk(KERN_ERR "rk30 load screen for lcdc0 failed!\n");
-		goto err3;
-	}
+	
 	/*****************	lcdc register		********/
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
 	if(lcdc_dev->irq < 0)

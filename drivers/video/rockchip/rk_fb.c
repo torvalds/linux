@@ -338,6 +338,7 @@ static int rk_fb_set_par(struct fb_info *info)
     u32 xvir = var->xres_virtual;
     u32 yvir = var->yres_virtual;
     u8 data_format = var->nonstd&0xff;
+    var->pixclock = dev_drv->pixclock;
     CHK_SUSPEND(dev_drv);
     layer_id = get_fb_layer_id(fix);
     if(layer_id < 0)
@@ -358,6 +359,7 @@ static int rk_fb_set_par(struct fb_info *info)
         xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel ,for vide0
         ysize = (var->grayscale>>20) & 0xfff;
     }
+    
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
 #if 1
     switch (data_format)
@@ -624,7 +626,9 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv)
         	return -ENOENT;
     	}
     	lcdc_id = i;
-	
+	set_lcd_info(dev_drv->screen, fb_inf->mach_info->lcd_info);
+	dev_drv->init_lcdc(dev_drv);
+	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
 	dev_drv->fb_index_base = fb_inf->num_fb;
     for(i=0;i<dev_drv->num_layer;i++)
@@ -725,6 +729,7 @@ int init_lcdc_device_driver(struct rk_lcdc_device_driver *def_drv,
 	dev_drv->layer_par = def_drv->layer_par;
 	dev_drv->num_layer = def_drv->num_layer;
 	dev_drv->open      = def_drv->open;
+	dev_drv->init_lcdc = def_drv->init_lcdc;
 	dev_drv->ioctl = def_drv->ioctl;
 	dev_drv->blank = def_drv->blank;
 	dev_drv->set_par = def_drv->set_par;
@@ -752,7 +757,7 @@ static void rkfb_early_suspend(struct early_suspend *h)
 						early_suspend);
 	struct rk_fb_inf *inf = info->inf;
 	int i;
-	inf->lcd_info->io_disable();
+	inf->mach_info->io_disable();
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
 		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,1);
@@ -765,7 +770,7 @@ static void rkfb_early_resume(struct early_suspend *h)
 						early_suspend);
 	struct rk_fb_inf *inf = info->inf;
 	int i;
-   	inf->lcd_info->io_enable();
+   	inf->mach_info->io_enable();
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
 		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
@@ -786,7 +791,7 @@ static struct suspend_info suspend_info = {
 static int __devinit rk_fb_probe (struct platform_device *pdev)
 {
 	struct rk_fb_inf *fb_inf = NULL;
-	struct rk29fb_info * lcd_info = NULL;
+	struct rk29fb_info * mach_info = NULL;
 	int ret = 0;
 	g_fb_pdev=pdev;
     	/* Malloc rk_fb_inf and set it to pdev for drvdata */
@@ -797,10 +802,10 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
         	ret = -ENOMEM;
     	}
 	platform_set_drvdata(pdev,fb_inf);
-	lcd_info =  pdev->dev.platform_data;
-	fb_inf->lcd_info = lcd_info;
-	if(lcd_info->io_init)
-		lcd_info->io_init(NULL);
+	mach_info =  pdev->dev.platform_data;
+	fb_inf->mach_info = mach_info;
+	if(mach_info->io_init)
+		mach_info->io_init(NULL);
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	suspend_info.inf = fb_inf;
 	register_early_suspend(&suspend_info.early_suspend);
