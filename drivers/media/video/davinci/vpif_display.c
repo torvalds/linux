@@ -1709,7 +1709,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 	k = 0;
 	while ((res = platform_get_resource(pdev, IORESOURCE_IRQ, k))) {
 		for (i = res->start; i <= res->end; i++) {
-			if (request_irq(i, vpif_channel_isr, IRQF_DISABLED,
+			if (request_irq(i, vpif_channel_isr, IRQF_SHARED,
 					"VPIF_Display",
 				(void *)(&vpif_obj.dev[k]->channel_id))) {
 				err = -EBUSY;
