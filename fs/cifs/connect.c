@@ -1123,7 +1123,7 @@ static int get_option_ul(substring_t args[], unsigned long *option)
 	string = match_strdup(args);
 	if (string == NULL)
 		return -ENOMEM;
-	rc = kstrtoul(string, 10, option);
+	rc = kstrtoul(string, 0, option);
 	kfree(string);
 
 	return rc;
