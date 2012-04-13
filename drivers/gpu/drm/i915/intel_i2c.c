@@ -217,7 +217,7 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 		   (len << GMBUS_BYTE_COUNT_SHIFT) |
 		   (msg->addr << GMBUS_SLAVE_ADDR_SHIFT) |
 		   GMBUS_SLAVE_READ | GMBUS_SW_RDY);
-	do {
+	while (len) {
 		int ret;
 		u32 val, loop = 0;
 		u32 gmbus2;
@@ -235,7 +235,7 @@ gmbus_xfer_read(struct drm_i915_private *dev_priv, struct i2c_msg *msg,
 			*buf++ = val & 0xff;
 			val >>= 8;
 		} while (--len && ++loop < 4);
-	} while (len);
+	}
 
 	return 0;
 }
