@@ -115,21 +115,6 @@ struct snd_usb_substream {
 	unsigned int cur_rate;		/* current rate (for hw_params callback) */
 	unsigned int period_bytes;	/* current period bytes (for hw_params callback) */
 	unsigned int altset_idx;     /* USB data format: index of alternate setting */
-	unsigned int datapipe;   /* the data i/o pipe */
-	unsigned int syncpipe;   /* 1 - async out or adaptive in */
-	unsigned int datainterval;	/* log_2 of data packet interval */
-	unsigned int syncinterval;  /* P for adaptive mode, 0 otherwise */
-	unsigned int freqn;      /* nominal sampling rate in fs/fps in Q16.16 format */
-	unsigned int freqm;      /* momentary sampling rate in fs/fps in Q16.16 format */
-	int          freqshift;  /* how much to shift the feedback value to get Q16.16 */
-	unsigned int freqmax;    /* maximum sampling rate, used for buffer management */
-	unsigned int phase;      /* phase accumulator */
-	unsigned int maxpacksize;	/* max packet size in bytes */
-	unsigned int maxframesize;	/* max packet size in frames */
-	unsigned int curpacksize;	/* current packet size in bytes (for capture) */
-	unsigned int curframesize;	/* current packet size in frames (for capture) */
-	unsigned int syncmaxsize;	/* sync endpoint packet size */
-	unsigned int fill_max: 1;	/* fill max packet size always */
 	unsigned int txfr_quirk:1;	/* allow sub-frame alignment */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 
