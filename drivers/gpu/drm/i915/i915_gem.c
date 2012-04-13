@@ -876,6 +876,7 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 
 	if (obj->gtt_space &&
 	    obj->cache_level == I915_CACHE_NONE &&
+	    obj->tiling_mode == I915_TILING_NONE &&
 	    obj->map_and_fenceable &&
 	    obj->base.write_domain != I915_GEM_DOMAIN_CPU) {
 		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file);
