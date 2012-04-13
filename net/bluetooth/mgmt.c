@@ -2884,7 +2884,7 @@ int mgmt_write_scan_failed(struct hci_dev *hdev, u8 scan, u8 status)
 	return 0;
 }
 
-int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key, u8 persistent)
+int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key, bool persistent)
 {
 	struct mgmt_ev_new_link_key ev;
 
