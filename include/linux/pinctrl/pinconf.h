@@ -33,6 +33,8 @@ struct seq_file;
  *	per-device info for a certain pin in debugfs
  * @pin_config_group_dbg_show: optional debugfs display hook that will provide
  *	per-device info for a certain group in debugfs
+ * @pin_config_config_dbg_show: optional debugfs display hook that will decode
+ *	and display a driver's pin configuration parameter
  */
 struct pinconf_ops {
 #ifdef CONFIG_GENERIC_PINCONF
@@ -56,6 +58,9 @@ struct pinconf_ops {
 	void (*pin_config_group_dbg_show) (struct pinctrl_dev *pctldev,
 					   struct seq_file *s,
 					   unsigned selector);
+	void (*pin_config_config_dbg_show) (struct pinctrl_dev *pctldev,
+					    struct seq_file *s,
+					    unsigned long config);
 };
 
 #endif

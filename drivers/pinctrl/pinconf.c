@@ -379,7 +379,15 @@ int pinconf_apply_setting(struct pinctrl_setting const *setting)
 
 void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map)
 {
+	struct pinctrl_dev *pctldev;
+	const struct pinconf_ops *confops;
 	int i;
+
+	pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
+	if (pctldev)
+		confops = pctldev->desc->confops;
+	else
+		confops = NULL;
 
 	switch (map->type) {
 	case PIN_MAP_TYPE_CONFIGS_PIN:
@@ -394,8 +402,15 @@ void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map)
 
 	seq_printf(s, "%s\n", map->data.configs.group_or_pin);
 
-	for (i = 0; i < map->data.configs.num_configs; i++)
-		seq_printf(s, "config %08lx\n", map->data.configs.configs[i]);
+	for (i = 0; i < map->data.configs.num_configs; i++) {
+		seq_printf(s, "config ");
+		if (confops && confops->pin_config_config_dbg_show)
+			confops->pin_config_config_dbg_show(pctldev, s,
+						map->data.configs.configs[i]);
+		else
+			seq_printf(s, "%08lx", map->data.configs.configs[i]);
+		seq_printf(s, "\n");
+	}
 }
 
 void pinconf_show_setting(struct seq_file *s,
@@ -403,6 +418,7 @@ void pinconf_show_setting(struct seq_file *s,
 {
 	struct pinctrl_dev *pctldev = setting->pctldev;
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	const struct pinconf_ops *confops = pctldev->desc->confops;
 	struct pin_desc *desc;
 	int i;
 
@@ -428,8 +444,15 @@ void pinconf_show_setting(struct seq_file *s,
 	 * FIXME: We should really get the pin controler to dump the config
 	 * values, so they can be decoded to something meaningful.
 	 */
-	for (i = 0; i < setting->data.configs.num_configs; i++)
-		seq_printf(s, " %08lx", setting->data.configs.configs[i]);
+	for (i = 0; i < setting->data.configs.num_configs; i++) {
+		seq_printf(s, " ");
+		if (confops && confops->pin_config_config_dbg_show)
+			confops->pin_config_config_dbg_show(pctldev, s,
+				setting->data.configs.configs[i]);
+		else
+			seq_printf(s, "%08lx",
+				   setting->data.configs.configs[i]);
+	}
 
 	seq_printf(s, "\n");
 }
