@@ -3410,7 +3410,7 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
 	*p++ = htonl(test_stateid->ts_num_ids);
 
 	list_for_each_entry_safe(stateid, next, &test_stateid->ts_stateid_list, ts_id_list) {
-		*p++ = htonl(stateid->ts_id_status);
+		*p++ = stateid->ts_id_status;
 	}
 
 	ADJUST_ARGS();
