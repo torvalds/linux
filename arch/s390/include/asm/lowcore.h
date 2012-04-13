@@ -1,5 +1,5 @@
 /*
- *    Copyright IBM Corp. 1999,2010
+ *    Copyright IBM Corp. 1999,2012
  *    Author(s): Hartmut Penner <hp@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Denis Joseph Barrow,
@@ -11,14 +11,6 @@
 #include <linux/types.h>
 #include <asm/ptrace.h>
 #include <asm/cpu.h>
-
-void restart_int_handler(void);
-void ext_int_handler(void);
-void system_call(void);
-void pgm_check_handler(void);
-void mcck_int_handler(void);
-void io_int_handler(void);
-void psw_restart_int_handler(void);
 
 #ifdef CONFIG_32BIT
 
@@ -56,7 +48,7 @@ struct _lowcore {
 	psw_t	mcck_new_psw;			/* 0x0070 */
 	psw_t	io_new_psw;			/* 0x0078 */
 	__u32	ext_params;			/* 0x0080 */
-	__u16	cpu_addr;			/* 0x0084 */
+	__u16	ext_cpu_addr;			/* 0x0084 */
 	__u16	ext_int_code;			/* 0x0086 */
 	__u16	svc_ilc;			/* 0x0088 */
 	__u16	svc_code;			/* 0x008a */
@@ -117,32 +109,37 @@ struct _lowcore {
 	__u64	steal_timer;			/* 0x0288 */
 	__u64	last_update_timer;		/* 0x0290 */
 	__u64	last_update_clock;		/* 0x0298 */
+	__u64	int_clock;			/* 0x02a0 */
+	__u64	mcck_clock;			/* 0x02a8 */
+	__u64	clock_comparator;		/* 0x02b0 */
 
 	/* Current process. */
-	__u32	current_task;			/* 0x02a0 */
-	__u32	thread_info;			/* 0x02a4 */
-	__u32	kernel_stack;			/* 0x02a8 */
+	__u32	current_task;			/* 0x02b8 */
+	__u32	thread_info;			/* 0x02bc */
+	__u32	kernel_stack;			/* 0x02c0 */
 
-	/* Interrupt and panic stack. */
-	__u32	async_stack;			/* 0x02ac */
-	__u32	panic_stack;			/* 0x02b0 */
+	/* Interrupt, panic and restart stack. */
+	__u32	async_stack;			/* 0x02c4 */
+	__u32	panic_stack;			/* 0x02c8 */
+	__u32	restart_stack;			/* 0x02cc */
+
+	/* Restart function and parameter. */
+	__u32	restart_fn;			/* 0x02d0 */
+	__u32	restart_data;			/* 0x02d4 */
+	__u32	restart_source;			/* 0x02d8 */
 
 	/* Address space pointer. */
-	__u32	kernel_asce;			/* 0x02b4 */
-	__u32	user_asce;			/* 0x02b8 */
-	__u32	current_pid;			/* 0x02bc */
+	__u32	kernel_asce;			/* 0x02dc */
+	__u32	user_asce;			/* 0x02e0 */
+	__u32	current_pid;			/* 0x02e4 */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x02c0 */
-	__u32	softirq_pending;		/* 0x02c4 */
-	__u32	percpu_offset;			/* 0x02c8 */
-	__u32	ext_call_fast;			/* 0x02cc */
-	__u64	int_clock;			/* 0x02d0 */
-	__u64	mcck_clock;			/* 0x02d8 */
-	__u64	clock_comparator;		/* 0x02e0 */
-	__u32	machine_flags;			/* 0x02e8 */
-	__u32	ftrace_func;			/* 0x02ec */
-	__u8	pad_0x02f8[0x0300-0x02f0];	/* 0x02f0 */
+	__u32	cpu_nr;				/* 0x02e8 */
+	__u32	softirq_pending;		/* 0x02ec */
+	__u32	percpu_offset;			/* 0x02f0 */
+	__u32	machine_flags;			/* 0x02f4 */
+	__u32	ftrace_func;			/* 0x02f8 */
+	__u8	pad_0x02fc[0x0300-0x02fc];	/* 0x02fc */
 
 	/* Interrupt response block */
 	__u8	irb[64];			/* 0x0300 */
@@ -157,7 +154,9 @@ struct _lowcore {
 	__u32	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e04 */
 	__u32	vmcore_info;			/* 0x0e08 */
-	__u8	pad_0x0e0c[0x0f00-0x0e0c];	/* 0x0e0c */
+	__u8	pad_0x0e0c[0x0e18-0x0e0c];	/* 0x0e0c */
+	__u32	os_info;			/* 0x0e18 */
+	__u8	pad_0x0e1c[0x0f00-0x0e1c];	/* 0x0e1c */
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */
@@ -189,7 +188,7 @@ struct _lowcore {
 	__u32	ipl_parmblock_ptr;		/* 0x0014 */
 	__u8	pad_0x0018[0x0080-0x0018];	/* 0x0018 */
 	__u32	ext_params;			/* 0x0080 */
-	__u16	cpu_addr;			/* 0x0084 */
+	__u16	ext_cpu_addr;			/* 0x0084 */
 	__u16	ext_int_code;			/* 0x0086 */
 	__u16	svc_ilc;			/* 0x0088 */
 	__u16	svc_code;			/* 0x008a */
@@ -254,34 +253,39 @@ struct _lowcore {
 	__u64	steal_timer;			/* 0x02e0 */
 	__u64	last_update_timer;		/* 0x02e8 */
 	__u64	last_update_clock;		/* 0x02f0 */
+	__u64	int_clock;			/* 0x02f8 */
+	__u64	mcck_clock;			/* 0x0300 */
+	__u64	clock_comparator;		/* 0x0308 */
 
 	/* Current process. */
-	__u64	current_task;			/* 0x02f8 */
-	__u64	thread_info;			/* 0x0300 */
-	__u64	kernel_stack;			/* 0x0308 */
+	__u64	current_task;			/* 0x0310 */
+	__u64	thread_info;			/* 0x0318 */
+	__u64	kernel_stack;			/* 0x0320 */
 
-	/* Interrupt and panic stack. */
-	__u64	async_stack;			/* 0x0310 */
-	__u64	panic_stack;			/* 0x0318 */
+	/* Interrupt, panic and restart stack. */
+	__u64	async_stack;			/* 0x0328 */
+	__u64	panic_stack;			/* 0x0330 */
+	__u64	restart_stack;			/* 0x0338 */
+
+	/* Restart function and parameter. */
+	__u64	restart_fn;			/* 0x0340 */
+	__u64	restart_data;			/* 0x0348 */
+	__u64	restart_source;			/* 0x0350 */
 
 	/* Address space pointer. */
-	__u64	kernel_asce;			/* 0x0320 */
-	__u64	user_asce;			/* 0x0328 */
-	__u64	current_pid;			/* 0x0330 */
+	__u64	kernel_asce;			/* 0x0358 */
+	__u64	user_asce;			/* 0x0360 */
+	__u64	current_pid;			/* 0x0368 */
 
 	/* SMP info area */
-	__u32	cpu_nr;				/* 0x0338 */
-	__u32	softirq_pending;		/* 0x033c */
-	__u64	percpu_offset;			/* 0x0340 */
-	__u64	ext_call_fast;			/* 0x0348 */
-	__u64	int_clock;			/* 0x0350 */
-	__u64	mcck_clock;			/* 0x0358 */
-	__u64	clock_comparator;		/* 0x0360 */
-	__u64	vdso_per_cpu_data;		/* 0x0368 */
-	__u64	machine_flags;			/* 0x0370 */
-	__u64	ftrace_func;			/* 0x0378 */
-	__u64	gmap;				/* 0x0380 */
-	__u8	pad_0x0388[0x0400-0x0388];	/* 0x0388 */
+	__u32	cpu_nr;				/* 0x0370 */
+	__u32	softirq_pending;		/* 0x0374 */
+	__u64	percpu_offset;			/* 0x0378 */
+	__u64	vdso_per_cpu_data;		/* 0x0380 */
+	__u64	machine_flags;			/* 0x0388 */
+	__u64	ftrace_func;			/* 0x0390 */
+	__u64	gmap;				/* 0x0398 */
+	__u8	pad_0x03a0[0x0400-0x03a0];	/* 0x03a0 */
 
 	/* Interrupt response block. */
 	__u8	irb[64];			/* 0x0400 */
@@ -298,8 +302,15 @@ struct _lowcore {
 	 */
 	__u64	ipib;				/* 0x0e00 */
 	__u32	ipib_checksum;			/* 0x0e08 */
-	__u64	vmcore_info;			/* 0x0e0c */
-	__u8	pad_0x0e14[0x0f00-0x0e14];	/* 0x0e14 */
+	/*
+	 * Because the vmcore_info pointer is not 8 byte aligned it never
+	 * should not be accessed directly. For accessing the pointer, first
+	 * copy it to a local pointer variable.
+	 */
+	__u8	vmcore_info[8];			/* 0x0e0c */
+	__u8	pad_0x0e14[0x0e18-0x0e14];	/* 0x0e14 */
+	__u64	os_info;			/* 0x0e18 */
+	__u8	pad_0x0e20[0x0f00-0x0e20];	/* 0x0e20 */
 
 	/* Extended facility list */
 	__u64	stfle_fac_list[32];		/* 0x0f00 */

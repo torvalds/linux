@@ -629,18 +629,7 @@ static struct spi_driver ams369fg06_driver = {
 	.resume		= ams369fg06_resume,
 };
 
-static int __init ams369fg06_init(void)
-{
-	return spi_register_driver(&ams369fg06_driver);
-}
-
-static void __exit ams369fg06_exit(void)
-{
-	spi_unregister_driver(&ams369fg06_driver);
-}
-
-module_init(ams369fg06_init);
-module_exit(ams369fg06_exit);
+module_spi_driver(ams369fg06_driver);
 
 MODULE_AUTHOR("Jingoo Han <jg1.han@samsung.com>");
 MODULE_DESCRIPTION("ams369fg06 LCD Driver");

@@ -36,16 +36,15 @@
 
 static inline u32 wl1251_read32(struct wl1251 *wl, int addr)
 {
-	u32 response;
+	wl->if_ops->read(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
 
-	wl->if_ops->read(wl, addr, &response, sizeof(u32));
-
-	return response;
+	return le32_to_cpu(wl->buffer_32);
 }
 
 static inline void wl1251_write32(struct wl1251 *wl, int addr, u32 val)
 {
-	wl->if_ops->write(wl, addr, &val, sizeof(u32));
+	wl->buffer_32 = cpu_to_le32(val);
+	wl->if_ops->write(wl, addr, &wl->buffer_32, sizeof(wl->buffer_32));
 }
 
 static inline u32 wl1251_read_elp(struct wl1251 *wl, int addr)

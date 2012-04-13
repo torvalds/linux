@@ -32,8 +32,6 @@
 #include <asm/proc-fns.h>
 #include <asm/irq.h>
 
-#include <mach/idle.h>
-
 #include <plat/cpu-freq.h>
 
 #include <mach/regs-clock.h>
@@ -164,7 +162,7 @@ void __init s3c2412_map_io(void)
 
 	/* set our idle function */
 
-	s3c24xx_idle = s3c2412_idle;
+	arm_pm_idle = s3c2412_idle;
 
 	/* register our io-tables */
 

@@ -1130,7 +1130,7 @@ static int cxgb4vf_set_mac_addr(struct net_device *dev, void *_addr)
 	struct port_info *pi = netdev_priv(dev);
 
 	if (!is_valid_ether_addr(addr->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	ret = t4vf_change_mac(pi->adapter, pi->viid, pi->xact_addr_filt,
 			      addr->sa_data, true);
@@ -2596,8 +2596,6 @@ static int __devinit cxgb4vf_pci_probe(struct pci_dev *pdev,
 		netdev = alloc_etherdev_mq(sizeof(struct port_info),
 					   MAX_PORT_QSETS);
 		if (netdev == NULL) {
-			dev_err(&pdev->dev, "cannot allocate netdev for"
-				" port %d\n", port_id);
 			t4vf_free_vi(adapter, viid);
 			err = -ENOMEM;
 			goto err_free_dev;

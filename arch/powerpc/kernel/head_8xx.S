@@ -220,7 +220,7 @@ DataAccess:
 	mfspr	r4,SPRN_DAR
 	li	r10,0x00f0
 	mtspr	SPRN_DAR,r10	/* Tag DAR, to be used in DTLB Error */
-	EXC_XFER_EE_LITE(0x300, handle_page_fault)
+	EXC_XFER_LITE(0x300, handle_page_fault)
 
 /* Instruction access exception.
  * This is "never generated" by the MPC8xx.  We jump to it for other
@@ -231,7 +231,7 @@ InstructionAccess:
 	EXCEPTION_PROLOG
 	mr	r4,r12
 	mr	r5,r9
-	EXC_XFER_EE_LITE(0x400, handle_page_fault)
+	EXC_XFER_LITE(0x400, handle_page_fault)
 
 /* External interrupt */
 	EXCEPTION(0x500, HardwareInterrupt, do_IRQ, EXC_XFER_LITE)

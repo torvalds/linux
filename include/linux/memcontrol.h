@@ -77,7 +77,8 @@ extern void mem_cgroup_uncharge_end(void);
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_uncharge_cache_page(struct page *page);
 
-extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask);
+extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+				     int order);
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
 
 extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
@@ -138,6 +139,34 @@ static inline bool mem_cgroup_disabled(void)
 	if (mem_cgroup_subsys.disabled)
 		return true;
 	return false;
+}
+
+void __mem_cgroup_begin_update_page_stat(struct page *page, bool *locked,
+					 unsigned long *flags);
+
+extern atomic_t memcg_moving;
+
+static inline void mem_cgroup_begin_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+	if (mem_cgroup_disabled())
+		return;
+	rcu_read_lock();
+	*locked = false;
+	if (atomic_read(&memcg_moving))
+		__mem_cgroup_begin_update_page_stat(page, locked, flags);
+}
+
+void __mem_cgroup_end_update_page_stat(struct page *page,
+				unsigned long *flags);
+static inline void mem_cgroup_end_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+	if (mem_cgroup_disabled())
+		return;
+	if (*locked)
+		__mem_cgroup_end_update_page_stat(page, flags);
+	rcu_read_unlock();
 }
 
 void mem_cgroup_update_page_stat(struct page *page,
@@ -298,21 +327,6 @@ static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
 {
 }
 
-static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *memcg)
-{
-	return 0;
-}
-
-static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *memcg,
-						int priority)
-{
-}
-
-static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *memcg,
-						int priority)
-{
-}
-
 static inline bool mem_cgroup_disabled(void)
 {
 	return true;
@@ -355,6 +369,16 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 {
 }
 
+static inline void mem_cgroup_begin_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+}
+
+static inline void mem_cgroup_end_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+}
+
 static inline void mem_cgroup_inc_page_stat(struct page *page,
 					    enum mem_cgroup_page_stat_item idx)
 {
@@ -391,7 +415,7 @@ static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
 				struct page *newpage)
 {
 }
-#endif /* CONFIG_CGROUP_MEM_CONT */
+#endif /* CONFIG_CGROUP_MEM_RES_CTLR */
 
 #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
 static inline bool

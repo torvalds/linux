@@ -120,6 +120,9 @@ config HAVE_KRETPROBES
 
 config HAVE_OPTPROBES
 	bool
+
+config HAVE_NMI_WATCHDOG
+	bool
 #
 # An arch should select this if it provides all these things:
 #

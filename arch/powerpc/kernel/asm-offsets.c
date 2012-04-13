@@ -46,9 +46,6 @@
 #include <asm/hvcall.h>
 #include <asm/xics.h>
 #endif
-#ifdef CONFIG_PPC_ISERIES
-#include <asm/iseries/alpaca.h>
-#endif
 #ifdef CONFIG_PPC_POWERNV
 #include <asm/opal.h>
 #endif
@@ -147,7 +144,7 @@ int main(void)
 	DEFINE(PACAKBASE, offsetof(struct paca_struct, kernelbase));
 	DEFINE(PACAKMSR, offsetof(struct paca_struct, kernel_msr));
 	DEFINE(PACASOFTIRQEN, offsetof(struct paca_struct, soft_enabled));
-	DEFINE(PACAHARDIRQEN, offsetof(struct paca_struct, hard_enabled));
+	DEFINE(PACAIRQHAPPENED, offsetof(struct paca_struct, irq_happened));
 	DEFINE(PACACONTEXTID, offsetof(struct paca_struct, context.id));
 #ifdef CONFIG_PPC_MM_SLICES
 	DEFINE(PACALOWSLICESPSIZE, offsetof(struct paca_struct,
@@ -382,17 +379,6 @@ int main(void)
 
 #ifdef CONFIG_BUG
 	DEFINE(BUG_ENTRY_SIZE, sizeof(struct bug_entry));
-#endif
-
-#ifdef CONFIG_PPC_ISERIES
-	/* the assembler miscalculates the VSID values */
-	DEFINE(PAGE_OFFSET_ESID, GET_ESID(PAGE_OFFSET));
-	DEFINE(PAGE_OFFSET_VSID, KERNEL_VSID(PAGE_OFFSET));
-	DEFINE(VMALLOC_START_ESID, GET_ESID(VMALLOC_START));
-	DEFINE(VMALLOC_START_VSID, KERNEL_VSID(VMALLOC_START));
-
-	/* alpaca */
-	DEFINE(ALPACA_SIZE, sizeof(struct alpaca));
 #endif
 
 	DEFINE(PGD_TABLE_SIZE, PGD_TABLE_SIZE);

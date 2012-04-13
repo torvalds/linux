@@ -55,14 +55,9 @@
 
 /*
  * MAX_REQ is the maximum number of requests that WE will send
- * on one socket concurrently. It also matches the most common
- * value of max multiplex returned by servers.  We may
- * eventually want to use the negotiated value (in case
- * future servers can handle more) when we are more confident that
- * we will not have problems oveloading the socket with pending
- * write data.
+ * on one socket concurrently.
  */
-#define CIFS_MAX_REQ 50
+#define CIFS_MAX_REQ 32767
 
 #define RFC1001_NAME_LEN 15
 #define RFC1001_NAME_LEN_WITH_NULL (RFC1001_NAME_LEN + 1)
@@ -255,7 +250,9 @@ struct TCP_Server_Info {
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
 	bool tcp_nodelay;
-	atomic_t inFlight;  /* number of requests on the wire to server */
+	int credits;  /* send no more requests at once */
+	unsigned int in_flight;  /* number of requests on the wire to server */
+	spinlock_t req_lock;  /* protect the two values above */
 	struct mutex srv_mutex;
 	struct task_struct *tsk;
 	char server_GUID[16];
@@ -263,6 +260,7 @@ struct TCP_Server_Info {
 	bool session_estab; /* mark when very first sess is established */
 	u16 dialect; /* dialect index that server chose */
 	enum securityEnum secType;
+	bool oplocks:1; /* enable oplocks */
 	unsigned int maxReq;	/* Clients should submit no more */
 	/* than maxReq distinct unanswered SMBs to the server when using  */
 	/* multiplexed reads or writes */
@@ -306,6 +304,36 @@ struct TCP_Server_Info {
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
 #endif
 };
+
+static inline unsigned int
+in_flight(struct TCP_Server_Info *server)
+{
+	unsigned int num;
+	spin_lock(&server->req_lock);
+	num = server->in_flight;
+	spin_unlock(&server->req_lock);
+	return num;
+}
+
+static inline int*
+get_credits_field(struct TCP_Server_Info *server)
+{
+	/*
+	 * This will change to switch statement when we reserve slots for echos
+	 * and oplock breaks.
+	 */
+	return &server->credits;
+}
+
+static inline bool
+has_credits(struct TCP_Server_Info *server, int *credits)
+{
+	int num;
+	spin_lock(&server->req_lock);
+	num = *credits;
+	spin_unlock(&server->req_lock);
+	return num > 0;
+}
 
 /*
  * Macros to allow the TCP_Server_Info->net field and related code to drop out
@@ -1009,9 +1037,6 @@ GLOBAL_EXTERN unsigned int CIFSMaxBufSize;  /* max size not including hdr */
 GLOBAL_EXTERN unsigned int cifs_min_rcv;    /* min size of big ntwrk buf pool */
 GLOBAL_EXTERN unsigned int cifs_min_small;  /* min size of small buf pool */
 GLOBAL_EXTERN unsigned int cifs_max_pending; /* MAX requests at once to server*/
-
-/* reconnect after this many failed echo attempts */
-GLOBAL_EXTERN unsigned short echo_retries;
 
 #ifdef CONFIG_CIFS_ACL
 GLOBAL_EXTERN struct rb_root uidtree;

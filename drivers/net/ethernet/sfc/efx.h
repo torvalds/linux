@@ -40,9 +40,9 @@ extern void efx_rx_strategy(struct efx_channel *channel);
 extern void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue);
 extern void efx_rx_slow_fill(unsigned long context);
 extern void __efx_rx_packet(struct efx_channel *channel,
-			    struct efx_rx_buffer *rx_buf, bool checksummed);
+			    struct efx_rx_buffer *rx_buf);
 extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-			  unsigned int len, bool checksummed, bool discard);
+			  unsigned int len, u16 flags);
 extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 
 #define EFX_MAX_DMAQ_SIZE 4096UL
@@ -95,6 +95,7 @@ static inline void efx_filter_rfs_expire(struct efx_channel *channel) {}
 #endif
 
 /* Channels */
+extern int efx_channel_dummy_op_int(struct efx_channel *channel);
 extern void efx_process_channel_now(struct efx_channel *channel);
 extern int
 efx_realloc_channels(struct efx_nic *efx, u32 rxq_entries, u32 txq_entries);
@@ -143,6 +144,12 @@ static inline void efx_schedule_channel(struct efx_channel *channel)
 	channel->work_pending = true;
 
 	napi_schedule(&channel->napi_str);
+}
+
+static inline void efx_schedule_channel_irq(struct efx_channel *channel)
+{
+	channel->event_test_cpu = raw_smp_processor_id();
+	efx_schedule_channel(channel);
 }
 
 extern void efx_link_status_changed(struct efx_nic *efx);

@@ -1,4 +1,4 @@
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/bitops.h>
 #include <asm/types.h>
 

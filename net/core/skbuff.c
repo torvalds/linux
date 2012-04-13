@@ -592,6 +592,7 @@ static void __copy_skb_header(struct sk_buff *new, const struct sk_buff *old)
 	new->rxhash		= old->rxhash;
 	new->ooo_okay		= old->ooo_okay;
 	new->l4_rxhash		= old->l4_rxhash;
+	new->no_fcs		= old->no_fcs;
 #ifdef CONFIG_XFRM
 	new->sp			= secpath_get(old->sp);
 #endif
@@ -2906,7 +2907,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	nskb->prev = p;
 
 	nskb->data_len += p->len;
-	nskb->truesize += p->len;
+	nskb->truesize += p->truesize;
 	nskb->len += p->len;
 
 	*head = nskb;
@@ -2916,6 +2917,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	p = nskb;
 
 merge:
+	p->truesize += skb->truesize - len;
 	if (offset > headlen) {
 		unsigned int eat = offset - headlen;
 

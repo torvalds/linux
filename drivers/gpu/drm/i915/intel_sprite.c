@@ -225,16 +225,16 @@ snb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	/* Mask out pixel format bits in case we change it */
 	dvscntr &= ~DVS_PIXFORMAT_MASK;
-	dvscntr &= ~DVS_RGB_ORDER_RGBX;
+	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
-		dvscntr |= DVS_FORMAT_RGBX888;
+		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_RGBX;
+		dvscntr |= DVS_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:
@@ -501,7 +501,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 			mutex_lock(&dev->struct_mutex);
 		}
-		i915_gem_object_unpin(old_obj);
+		intel_unpin_fb_obj(old_obj);
 	}
 
 out_unlock:
@@ -528,7 +528,7 @@ intel_disable_plane(struct drm_plane *plane)
 		goto out;
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_object_unpin(intel_plane->obj);
+	intel_unpin_fb_obj(intel_plane->obj);
 	intel_plane->obj = NULL;
 	mutex_unlock(&dev->struct_mutex);
 out:

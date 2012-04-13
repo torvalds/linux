@@ -46,75 +46,15 @@
 #define DRV_NAME "ak4104-codec"
 
 struct ak4104_private {
-	enum snd_soc_control_type control_type;
-	void *control_data;
+	struct regmap *regmap;
 };
-
-static int ak4104_fill_cache(struct snd_soc_codec *codec)
-{
-	int i;
-	u8 *reg_cache = codec->reg_cache;
-	struct spi_device *spi = codec->control_data;
-
-	for (i = 0; i < codec->driver->reg_cache_size; i++) {
-		int ret = spi_w8r8(spi, i | AK4104_READ);
-		if (ret < 0) {
-			dev_err(&spi->dev, "SPI write failure\n");
-			return ret;
-		}
-
-		reg_cache[i] = ret;
-	}
-
-	return 0;
-}
-
-static unsigned int ak4104_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
-{
-	u8 *reg_cache = codec->reg_cache;
-
-	if (reg >= codec->driver->reg_cache_size)
-		return -EINVAL;
-
-	return reg_cache[reg];
-}
-
-static int ak4104_spi_write(struct snd_soc_codec *codec, unsigned int reg,
-			    unsigned int value)
-{
-	u8 *cache = codec->reg_cache;
-	struct spi_device *spi = codec->control_data;
-
-	if (reg >= codec->driver->reg_cache_size)
-		return -EINVAL;
-
-	/* only write to the hardware if value has changed */
-	if (cache[reg] != value) {
-		u8 tmp[2] = { (reg & AK4104_REG_MASK) | AK4104_WRITE, value };
-
-		if (spi_write(spi, tmp, sizeof(tmp))) {
-			dev_err(&spi->dev, "SPI write failed\n");
-			return -EIO;
-		}
-
-		cache[reg] = value;
-	}
-
-	return 0;
-}
 
 static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	int val = 0;
-
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	if (val < 0)
-		return val;
-
-	val &= ~(AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1);
+	int ret;
 
 	/* set DAI format */
 	switch (format & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -135,7 +75,13 @@ static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
 		return -EINVAL;
 
-	return ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
+	ret = snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
+				  AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1,
+				  val);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int ak4104_hw_params(struct snd_pcm_substream *substream,
@@ -148,7 +94,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 
 	/* set the IEC958 bits: consumer mode, no copyright bit */
 	val |= IEC958_AES0_CON_NOT_COPYRIGHT;
-	ak4104_spi_write(codec, AK4104_REG_CHN_STATUS(0), val);
+	snd_soc_write(codec, AK4104_REG_CHN_STATUS(0), val);
 
 	val = 0;
 
@@ -167,7 +113,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	return ak4104_spi_write(codec, AK4104_REG_CHN_STATUS(3), val);
+	return snd_soc_write(codec, AK4104_REG_CHN_STATUS(3), val);
 }
 
 static const struct snd_soc_dai_ops ak4101_dai_ops = {
@@ -192,67 +138,57 @@ static struct snd_soc_dai_driver ak4104_dai = {
 static int ak4104_probe(struct snd_soc_codec *codec)
 {
 	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
-	int ret, val;
+	int ret;
 
-	codec->control_data = ak4104->control_data;
-
-	/* read all regs and fill the cache */
-	ret = ak4104_fill_cache(codec);
-	if (ret < 0) {
-		dev_err(codec->dev, "failed to fill register cache\n");
+	codec->control_data = ak4104->regmap;
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
+	if (ret != 0)
 		return ret;
-	}
-
-	/* read the 'reserved' register - according to the datasheet, it
-	 * should contain 0x5b. Not a good way to verify the presence of
-	 * the device, but there is no hardware ID register. */
-	if (ak4104_read_reg_cache(codec, AK4104_REG_RESERVED) !=
-					 AK4104_RESERVED_VAL)
-		return -ENODEV;
 
 	/* set power-up and non-reset bits */
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	val |= AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN;
-	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
+	ret = snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
+				  AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
+				  AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
 	if (ret < 0)
 		return ret;
 
 	/* enable transmitter */
-	val = ak4104_read_reg_cache(codec, AK4104_REG_TX);
-	val |= AK4104_TX_TXE;
-	ret = ak4104_spi_write(codec, AK4104_REG_TX, val);
+	ret = snd_soc_update_bits(codec, AK4104_REG_TX,
+				  AK4104_TX_TXE, AK4104_TX_TXE);
 	if (ret < 0)
 		return ret;
 
-	dev_info(codec->dev, "SPI device initialized\n");
 	return 0;
 }
 
 static int ak4104_remove(struct snd_soc_codec *codec)
 {
-	int val, ret;
+	snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
+			    AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN, 0);
 
-	val = ak4104_read_reg_cache(codec, AK4104_REG_CONTROL1);
-	if (val < 0)
-		return val;
-
-	/* clear power-up and non-reset bits */
-	val &= ~(AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
-	ret = ak4104_spi_write(codec, AK4104_REG_CONTROL1, val);
-
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_codec_driver soc_codec_device_ak4104 = {
 	.probe =	ak4104_probe,
 	.remove =	ak4104_remove,
-	.reg_cache_size = AK4104_NUM_REGS,
-	.reg_word_size = sizeof(u8),
+};
+
+static const struct regmap_config ak4104_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.max_register = AK4104_NUM_REGS - 1,
+	.read_flag_mask = AK4104_READ,
+	.write_flag_mask = AK4104_WRITE,
+
+	.cache_type = REGCACHE_RBTREE,
 };
 
 static int ak4104_spi_probe(struct spi_device *spi)
 {
 	struct ak4104_private *ak4104;
+	unsigned int val;
 	int ret;
 
 	spi->bits_per_word = 8;
@@ -266,17 +202,41 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	if (ak4104 == NULL)
 		return -ENOMEM;
 
-	ak4104->control_data = spi;
-	ak4104->control_type = SND_SOC_SPI;
+	ak4104->regmap = regmap_init_spi(spi, &ak4104_regmap);
+	if (IS_ERR(ak4104->regmap)) {
+		ret = PTR_ERR(ak4104->regmap);
+		return ret;
+	}
+
+	/* read the 'reserved' register - according to the datasheet, it
+	 * should contain 0x5b. Not a good way to verify the presence of
+	 * the device, but there is no hardware ID register. */
+	ret = regmap_read(ak4104->regmap, AK4104_REG_RESERVED, &val);
+	if (ret != 0)
+		goto err;
+	if (val != AK4104_RESERVED_VAL) {
+		ret = -ENODEV;
+		goto err;
+	}
+
 	spi_set_drvdata(spi, ak4104);
 
 	ret = snd_soc_register_codec(&spi->dev,
 			&soc_codec_device_ak4104, &ak4104_dai, 1);
+	if (ret != 0)
+		goto err;
+
+	return 0;
+
+err:
+	regmap_exit(ak4104->regmap);
 	return ret;
 }
 
 static int __devexit ak4104_spi_remove(struct spi_device *spi)
 {
+	struct ak4104_private *ak4101 = spi_get_drvdata(spi);
+	regmap_exit(ak4101->regmap);
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
 }
@@ -290,17 +250,7 @@ static struct spi_driver ak4104_spi_driver = {
 	.remove = __devexit_p(ak4104_spi_remove),
 };
 
-static int __init ak4104_init(void)
-{
-	return spi_register_driver(&ak4104_spi_driver);
-}
-module_init(ak4104_init);
-
-static void __exit ak4104_exit(void)
-{
-	spi_unregister_driver(&ak4104_spi_driver);
-}
-module_exit(ak4104_exit);
+module_spi_driver(ak4104_spi_driver);
 
 MODULE_AUTHOR("Daniel Mack <daniel@caiaq.de>");
 MODULE_DESCRIPTION("Asahi Kasei AK4104 ALSA SoC driver");

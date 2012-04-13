@@ -132,7 +132,7 @@ static struct of_device_id mpc52xx_sdma_ids[] __initdata = {
 
 static struct mpc52xx_intr __iomem *intr;
 static struct mpc52xx_sdma __iomem *sdma;
-static struct irq_host *mpc52xx_irqhost = NULL;
+static struct irq_domain *mpc52xx_irqhost = NULL;
 
 static unsigned char mpc52xx_map_senses[4] = {
 	IRQ_TYPE_LEVEL_HIGH,
@@ -301,7 +301,7 @@ static int mpc52xx_is_extirq(int l1, int l2)
 /**
  * mpc52xx_irqhost_xlate - translate virq# from device tree interrupts property
  */
-static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
+static int mpc52xx_irqhost_xlate(struct irq_domain *h, struct device_node *ct,
 				 const u32 *intspec, unsigned int intsize,
 				 irq_hw_number_t *out_hwirq,
 				 unsigned int *out_flags)
@@ -335,7 +335,7 @@ static int mpc52xx_irqhost_xlate(struct irq_host *h, struct device_node *ct,
 /**
  * mpc52xx_irqhost_map - Hook to map from virq to an irq_chip structure
  */
-static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
+static int mpc52xx_irqhost_map(struct irq_domain *h, unsigned int virq,
 			       irq_hw_number_t irq)
 {
 	int l1irq;
@@ -384,7 +384,7 @@ static int mpc52xx_irqhost_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static struct irq_host_ops mpc52xx_irqhost_ops = {
+static const struct irq_domain_ops mpc52xx_irqhost_ops = {
 	.xlate = mpc52xx_irqhost_xlate,
 	.map = mpc52xx_irqhost_map,
 };
@@ -444,9 +444,9 @@ void __init mpc52xx_init_irq(void)
 	 * As last step, add an irq host to translate the real
 	 * hw irq information provided by the ofw to linux virq
 	 */
-	mpc52xx_irqhost = irq_alloc_host(picnode, IRQ_HOST_MAP_LINEAR,
+	mpc52xx_irqhost = irq_domain_add_linear(picnode,
 	                                 MPC52xx_IRQ_HIGHTESTHWIRQ,
-	                                 &mpc52xx_irqhost_ops, -1);
+	                                 &mpc52xx_irqhost_ops, NULL);
 
 	if (!mpc52xx_irqhost)
 		panic(__FILE__ ": Cannot allocate the IRQ host\n");

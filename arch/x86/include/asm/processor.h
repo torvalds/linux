@@ -162,6 +162,7 @@ extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
+void print_cpu_msr(struct cpuinfo_x86 *);
 extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
@@ -474,61 +475,6 @@ struct thread_struct {
 	unsigned		io_bitmap_max;
 };
 
-static inline unsigned long native_get_debugreg(int regno)
-{
-	unsigned long val = 0;	/* Damn you, gcc! */
-
-	switch (regno) {
-	case 0:
-		asm("mov %%db0, %0" :"=r" (val));
-		break;
-	case 1:
-		asm("mov %%db1, %0" :"=r" (val));
-		break;
-	case 2:
-		asm("mov %%db2, %0" :"=r" (val));
-		break;
-	case 3:
-		asm("mov %%db3, %0" :"=r" (val));
-		break;
-	case 6:
-		asm("mov %%db6, %0" :"=r" (val));
-		break;
-	case 7:
-		asm("mov %%db7, %0" :"=r" (val));
-		break;
-	default:
-		BUG();
-	}
-	return val;
-}
-
-static inline void native_set_debugreg(int regno, unsigned long value)
-{
-	switch (regno) {
-	case 0:
-		asm("mov %0, %%db0"	::"r" (value));
-		break;
-	case 1:
-		asm("mov %0, %%db1"	::"r" (value));
-		break;
-	case 2:
-		asm("mov %0, %%db2"	::"r" (value));
-		break;
-	case 3:
-		asm("mov %0, %%db3"	::"r" (value));
-		break;
-	case 6:
-		asm("mov %0, %%db6"	::"r" (value));
-		break;
-	case 7:
-		asm("mov %0, %%db7"	::"r" (value));
-		break;
-	default:
-		BUG();
-	}
-}
-
 /*
  * Set IOPL bits in EFLAGS from given mask
  */
@@ -573,14 +519,6 @@ static inline void native_swapgs(void)
 #else
 #define __cpuid			native_cpuid
 #define paravirt_enabled()	0
-
-/*
- * These special macros can be used to get or set a debugging register
- */
-#define get_debugreg(var, register)				\
-	(var) = native_get_debugreg(register)
-#define set_debugreg(value, register)				\
-	native_set_debugreg(register, value)
 
 static inline void load_sp0(struct tss_struct *tss,
 			    struct thread_struct *thread)

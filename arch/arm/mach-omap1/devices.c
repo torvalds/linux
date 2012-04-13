@@ -28,7 +28,6 @@
 #include <plat/mux.h>
 #include <plat/mmc.h>
 #include <plat/omap7xx.h>
-#include <plat/mcbsp.h>
 
 #include "clock.h"
 
@@ -250,16 +249,8 @@ static struct platform_device omap_pcm = {
 	.id	= -1,
 };
 
-OMAP_MCBSP_PLATFORM_DEVICE(1);
-OMAP_MCBSP_PLATFORM_DEVICE(2);
-OMAP_MCBSP_PLATFORM_DEVICE(3);
-
 static void omap_init_audio(void)
 {
-	platform_device_register(&omap_mcbsp1);
-	platform_device_register(&omap_mcbsp2);
-	if (!cpu_is_omap7xx())
-		platform_device_register(&omap_mcbsp3);
 	platform_device_register(&omap_pcm);
 }
 

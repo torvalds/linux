@@ -88,6 +88,9 @@ extern int SendReceiveBlockingLock(const unsigned int xid,
 			struct smb_hdr *in_buf ,
 			struct smb_hdr *out_buf,
 			int *bytes_returned);
+extern void cifs_add_credits(struct TCP_Server_Info *server,
+			     const unsigned int add);
+extern void cifs_set_credits(struct TCP_Server_Info *server, const int val);
 extern int checkSMB(struct smb_hdr *smb, __u16 mid, unsigned int length);
 extern bool is_valid_oplock_break(struct smb_hdr *smb,
 				  struct TCP_Server_Info *);
@@ -168,7 +171,13 @@ extern struct smb_vol *cifs_get_volume_info(char *mount_data,
 					    const char *devname);
 extern int cifs_mount(struct cifs_sb_info *, struct smb_vol *);
 extern void cifs_umount(struct cifs_sb_info *);
+
+#if IS_ENABLED(CONFIG_CIFS_DFS_UPCALL)
 extern void cifs_dfs_release_automount_timer(void);
+#else /* ! IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) */
+#define cifs_dfs_release_automount_timer()	do { } while (0)
+#endif /* ! IS_ENABLED(CONFIG_CIFS_DFS_UPCALL) */
+
 void cifs_proc_init(void);
 void cifs_proc_clean(void);
 

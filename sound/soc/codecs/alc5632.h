@@ -51,6 +51,7 @@
 #define ALC5632_ADC_REC_MONOMIX			(1 << 0)
 
 #define ALC5632_VOICE_DAC_VOL			0x18 /* voice dac vol */
+#define ALC5632_I2S_OUT_CTL				0x1A /* undocumented reg. found in path scheme */
 /* ALC5632_OUTPUT_MIXER_CTRL :			*/
 /* same remark as for reg 2 line vs speaker	*/
 #define ALC5632_OUTPUT_MIXER_CTRL		0x1C /* out mix ctrl */

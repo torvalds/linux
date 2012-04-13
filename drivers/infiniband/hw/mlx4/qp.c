@@ -1884,6 +1884,7 @@ int mlx4_ib_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		wmb();
 
 		if (wr->opcode < 0 || wr->opcode >= ARRAY_SIZE(mlx4_ib_opcode)) {
+			*bad_wr = wr;
 			err = -EINVAL;
 			goto out;
 		}

@@ -55,4 +55,3 @@ struct i2c_driver ddc_driver = {
 	.remove		= __devexit_p(s5p_ddc_remove),
 	.command		= NULL,
 };
-EXPORT_SYMBOL(ddc_driver);

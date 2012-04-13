@@ -57,8 +57,8 @@
  *	Note that *all* calls to CMOS_READ and CMOS_WRITE are done with
  *	interrupts disabled. Due to the index-port/data-port (0x70/0x71)
  *	design of the RTC, we don't want two different things trying to
- *	get to it at once. (e.g. the periodic 11 min sync from time.c vs.
- *	this driver.)
+ *	get to it at once. (e.g. the periodic 11 min sync from
+ *      kernel/time/ntp.c vs. this driver.)
  */
 
 #include <linux/interrupt.h>

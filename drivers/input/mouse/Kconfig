@@ -322,4 +322,21 @@ config MOUSE_SYNAPTICS_I2C
 	  To compile this driver as a module, choose M here: the
 	  module will be called synaptics_i2c.
 
+config MOUSE_SYNAPTICS_USB
+	tristate "Synaptics USB device support"
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to use a Synaptics USB touchpad or pointing
+	  stick.
+
+	  While these devices emulate an USB mouse by default and can be used
+	  with standard usbhid driver, this driver, together with its X.Org
+	  counterpart, allows you to fully utilize capabilities of the device.
+	  More information can be found at:
+	  <http://jan-steinhoff.de/linux/synaptics-usb.html>
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called synaptics_usb.
+
 endif

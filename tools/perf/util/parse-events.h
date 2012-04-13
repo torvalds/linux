@@ -76,8 +76,11 @@ int parse_events_add_breakpoint(struct list_head *list, int *idx,
 				void *ptr, char *type);
 int parse_events_add_pmu(struct list_head *list, int *idx,
 			 char *pmu , struct list_head *head_config);
-void parse_events_error(struct list_head *list, int *idx,
-			char const *msg);
+void parse_events_update_lists(struct list_head *list_event,
+			       struct list_head *list_all);
+void parse_events_error(struct list_head *list_all,
+			struct list_head *list_event,
+			int *idx, char const *msg);
 
 void print_events(const char *event_glob);
 void print_events_type(u8 type);

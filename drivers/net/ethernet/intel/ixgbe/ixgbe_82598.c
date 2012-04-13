@@ -213,15 +213,15 @@ static s32 ixgbe_start_hw_82598(struct ixgbe_hw *hw)
 	for (i = 0; ((i < hw->mac.max_tx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_TXCTRL(i));
-		regval &= ~IXGBE_DCA_TXCTRL_TX_WB_RO_EN;
+		regval &= ~IXGBE_DCA_TXCTRL_DESC_WRO_EN;
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_TXCTRL(i), regval);
 	}
 
 	for (i = 0; ((i < hw->mac.max_rx_queues) &&
 	     (i < IXGBE_DCA_MAX_QUEUES_82598)); i++) {
 		regval = IXGBE_READ_REG(hw, IXGBE_DCA_RXCTRL(i));
-		regval &= ~(IXGBE_DCA_RXCTRL_DESC_WRO_EN |
-			    IXGBE_DCA_RXCTRL_DESC_HSRO_EN);
+		regval &= ~(IXGBE_DCA_RXCTRL_DATA_WRO_EN |
+			    IXGBE_DCA_RXCTRL_HEAD_WRO_EN);
 		IXGBE_WRITE_REG(hw, IXGBE_DCA_RXCTRL(i), regval);
 	}
 
@@ -617,7 +617,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 				*link_up = false;
 		}
 
-		if (*link_up == false)
+		if (!*link_up)
 			goto out;
 	}
 
@@ -645,7 +645,7 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
 
-	if ((hw->device_id == IXGBE_DEV_ID_82598AT2) && (*link_up == true) &&
+	if ((hw->device_id == IXGBE_DEV_ID_82598AT2) && *link_up &&
 	    (ixgbe_validate_link_ready(hw) != 0))
 		*link_up = false;
 

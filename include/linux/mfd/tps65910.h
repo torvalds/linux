@@ -768,6 +768,12 @@
 /* Max number of TPS65910/11 regulators */
 #define TPS65910_NUM_REGS				13
 
+/* External sleep controls through EN1/EN2/EN3/SLEEP inputs */
+#define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN1		0x1
+#define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN2		0x2
+#define TPS65910_SLEEP_CONTROL_EXT_INPUT_EN3		0x4
+#define TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP		0x8
+
 /**
  * struct tps65910_board
  * Board platform data may be used to initialize regulators.
@@ -779,6 +785,7 @@ struct tps65910_board {
 	int irq_base;
 	int vmbch_threshold;
 	int vmbch2_threshold;
+	unsigned long regulator_ext_sleep_control[TPS65910_NUM_REGS];
 	struct regulator_init_data *tps65910_pmic_init_data[TPS65910_NUM_REGS];
 };
 

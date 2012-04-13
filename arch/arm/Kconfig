@@ -186,6 +186,9 @@ config GENERIC_ISA_DMA
 config FIQ
 	bool
 
+config NEED_RET_TO_USER
+	bool
+
 config ARCH_MTD_XIP
 	bool
 
@@ -479,6 +482,7 @@ config ARCH_IOP13XX
 	select ARCH_SUPPORTS_MSI
 	select VMSPLIT_1G
 	select NEED_MACH_MEMORY_H
+	select NEED_RET_TO_USER
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -486,6 +490,7 @@ config ARCH_IOP32X
 	bool "IOP32x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
@@ -497,6 +502,7 @@ config ARCH_IOP33X
 	bool "IOP33x-based"
 	depends on MMU
 	select CPU_XSCALE
+	select NEED_RET_TO_USER
 	select PLAT_IOP
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB

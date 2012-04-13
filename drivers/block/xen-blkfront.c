@@ -1475,6 +1475,9 @@ static int __init xlblk_init(void)
 	if (!xen_domain())
 		return -ENODEV;
 
+	if (!xen_platform_pci_unplug)
+		return -ENODEV;
+
 	if (register_blkdev(XENVBD_MAJOR, DEV_NAME)) {
 		printk(KERN_WARNING "xen_blk: can't get major %d with name %s\n",
 		       XENVBD_MAJOR, DEV_NAME);

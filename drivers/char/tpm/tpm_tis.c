@@ -76,7 +76,7 @@ enum tis_defaults {
 #define	TPM_RID(l)			(0x0F04 | ((l) << 12))
 
 static LIST_HEAD(tis_chips);
-static DEFINE_SPINLOCK(tis_lock);
+static DEFINE_MUTEX(tis_lock);
 
 #if defined(CONFIG_PNP) && defined(CONFIG_ACPI)
 static int is_itpm(struct pnp_dev *dev)
@@ -367,7 +367,12 @@ static int probe_itpm(struct tpm_chip *chip)
 		0x00, 0x00, 0x00, 0xf1
 	};
 	size_t len = sizeof(cmd_getticks);
-	int rem_itpm = itpm;
+	bool rem_itpm = itpm;
+	u16 vendor = ioread16(chip->vendor.iobase + TPM_DID_VID(0));
+
+	/* probe only iTPMS */
+	if (vendor != TPM_VID_INTEL)
+		return 0;
 
 	itpm = 0;
 
@@ -390,9 +395,6 @@ static int probe_itpm(struct tpm_chip *chip)
 out:
 	itpm = rem_itpm;
 	tpm_tis_ready(chip);
-	/* some TPMs need a break here otherwise they will not work
-	 * correctly on the immediately subsequent command */
-	msleep(chip->vendor.timeout_b);
 	release_locality(chip, chip->vendor.locality, 0);
 
 	return rc;
@@ -508,7 +510,7 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 			resource_size_t len, unsigned int irq)
 {
 	u32 vendor, intfcaps, intmask;
-	int rc, i, irq_s, irq_e;
+	int rc, i, irq_s, irq_e, probe;
 	struct tpm_chip *chip;
 
 	if (!(chip = tpm_register_hardware(dev, &tpm_tis)))
@@ -538,11 +540,12 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 		 vendor >> 16, ioread8(chip->vendor.iobase + TPM_RID(0)));
 
 	if (!itpm) {
-		itpm = probe_itpm(chip);
-		if (itpm < 0) {
+		probe = probe_itpm(chip);
+		if (probe < 0) {
 			rc = -ENODEV;
 			goto out_err;
 		}
+		itpm = (probe == 0) ? 0 : 1;
 	}
 
 	if (itpm)
@@ -689,9 +692,9 @@ static int tpm_tis_init(struct device *dev, resource_size_t start,
 	}
 
 	INIT_LIST_HEAD(&chip->vendor.list);
-	spin_lock(&tis_lock);
+	mutex_lock(&tis_lock);
 	list_add(&chip->vendor.list, &tis_chips);
-	spin_unlock(&tis_lock);
+	mutex_unlock(&tis_lock);
 
 
 	return 0;
@@ -855,7 +858,7 @@ static void __exit cleanup_tis(void)
 {
 	struct tpm_vendor_specific *i, *j;
 	struct tpm_chip *chip;
-	spin_lock(&tis_lock);
+	mutex_lock(&tis_lock);
 	list_for_each_entry_safe(i, j, &tis_chips, list) {
 		chip = to_tpm_chip(i);
 		tpm_remove_hardware(chip->dev);
@@ -871,7 +874,7 @@ static void __exit cleanup_tis(void)
 		iounmap(i->iobase);
 		list_del(&i->list);
 	}
-	spin_unlock(&tis_lock);
+	mutex_unlock(&tis_lock);
 #ifdef CONFIG_PNP
 	if (!force) {
 		pnp_unregister_driver(&tis_pnp_driver);

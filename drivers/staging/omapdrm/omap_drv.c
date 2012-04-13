@@ -21,6 +21,7 @@
 
 #include "drm_crtc_helper.h"
 #include "drm_fb_helper.h"
+#include "omap_dmm_tiler.h"
 
 #define DRIVER_NAME		MODULE_NAME
 #define DRIVER_DESC		"OMAP DRM"
@@ -570,6 +571,11 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = priv;
 
+	priv->wq = alloc_workqueue("omapdrm",
+			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
+
+	INIT_LIST_HEAD(&priv->obj_list);
+
 	omap_gem_init(dev);
 
 	ret = omap_modeset_init(dev);
@@ -598,6 +604,8 @@ static int dev_load(struct drm_device *dev, unsigned long flags)
 
 static int dev_unload(struct drm_device *dev)
 {
+	struct omap_drm_private *priv = dev->dev_private;
+
 	DBG("unload: dev=%p", dev);
 
 	drm_vblank_cleanup(dev);
@@ -606,6 +614,9 @@ static int dev_unload(struct drm_device *dev)
 	omap_fbdev_free(dev);
 	omap_modeset_free(dev);
 	omap_gem_deinit(dev);
+
+	flush_workqueue(priv->wq);
+	destroy_workqueue(priv->wq);
 
 	kfree(dev->dev_private);
 	dev->dev_private = NULL;
@@ -792,6 +803,9 @@ static void pdev_shutdown(struct platform_device *device)
 static int pdev_probe(struct platform_device *device)
 {
 	DBG("%s", device->name);
+	if (platform_driver_register(&omap_dmm_driver))
+		dev_err(&device->dev, "DMM registration failed\n");
+
 	return drm_platform_init(&omap_drm_driver, device);
 }
 
@@ -799,6 +813,8 @@ static int pdev_remove(struct platform_device *device)
 {
 	DBG("");
 	drm_platform_exit(&omap_drm_driver, device);
+
+	platform_driver_unregister(&omap_dmm_driver);
 	return 0;
 }
 

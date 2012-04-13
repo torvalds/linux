@@ -138,7 +138,7 @@ static inline int hist_entry__tui_annotate(struct hist_entry *self __used,
 #define K_LEFT -1
 #define K_RIGHT -2
 #else
-#include "ui/keysyms.h"
+#include "../ui/keysyms.h"
 int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 			     void(*timer)(void *arg), void *arg, int delay_secs);
 

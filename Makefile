@@ -1,7 +1,7 @@
 VERSION = 3
 PATCHLEVEL = 3
 SUBLEVEL = 0
-EXTRAVERSION = -rc7
+EXTRAVERSION =
 NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*
@@ -1467,6 +1467,13 @@ kernelrelease:
 
 kernelversion:
 	@echo $(KERNELVERSION)
+
+# Clear a bunch of variables before executing the submake
+tools/: FORCE
+	$(Q)$(MAKE) LDFLAGS= MAKEFLAGS= -C $(src)/tools/
+
+tools/%: FORCE
+	$(Q)$(MAKE) LDFLAGS= MAKEFLAGS= -C $(src)/tools/ $*
 
 # Single targets
 # ---------------------------------------------------------------------------

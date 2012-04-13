@@ -3348,7 +3348,7 @@ static void calc_timer_values(struct perf_event *event,
 	*running = ctx_time - event->tstamp_running;
 }
 
-void __weak perf_update_user_clock(struct perf_event_mmap_page *userpg, u64 now)
+void __weak arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 {
 }
 
@@ -3398,7 +3398,7 @@ void perf_event_update_userpage(struct perf_event *event)
 	userpg->time_running = running +
 			atomic64_read(&event->child_total_time_running);
 
-	perf_update_user_clock(userpg, now);
+	arch_perf_update_userpage(userpg, now);
 
 	barrier();
 	++userpg->lock;
@@ -7116,6 +7116,13 @@ void __init perf_event_init(void)
 
 	/* do not patch jump label more than once per second */
 	jump_label_rate_limit(&perf_sched_events, HZ);
+
+	/*
+	 * Build time assertion that we keep the data_head at the intended
+	 * location.  IOW, validation we got the __reserved[] size right.
+	 */
+	BUILD_BUG_ON((offsetof(struct perf_event_mmap_page, data_head))
+		     != 1024);
 }
 
 static int __init perf_event_sysfs_init(void)
@@ -7147,8 +7154,7 @@ unlock:
 device_initcall(perf_event_sysfs_init);
 
 #ifdef CONFIG_CGROUP_PERF
-static struct cgroup_subsys_state *perf_cgroup_create(
-	struct cgroup_subsys *ss, struct cgroup *cont)
+static struct cgroup_subsys_state *perf_cgroup_create(struct cgroup *cont)
 {
 	struct perf_cgroup *jc;
 
@@ -7165,8 +7171,7 @@ static struct cgroup_subsys_state *perf_cgroup_create(
 	return &jc->css;
 }
 
-static void perf_cgroup_destroy(struct cgroup_subsys *ss,
-				struct cgroup *cont)
+static void perf_cgroup_destroy(struct cgroup *cont)
 {
 	struct perf_cgroup *jc;
 	jc = container_of(cgroup_subsys_state(cont, perf_subsys_id),
@@ -7182,8 +7187,7 @@ static int __perf_cgroup_move(void *info)
 	return 0;
 }
 
-static void perf_cgroup_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-			       struct cgroup_taskset *tset)
+static void perf_cgroup_attach(struct cgroup *cgrp, struct cgroup_taskset *tset)
 {
 	struct task_struct *task;
 
@@ -7191,8 +7195,8 @@ static void perf_cgroup_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 		task_function_call(task, __perf_cgroup_move, task);
 }
 
-static void perf_cgroup_exit(struct cgroup_subsys *ss, struct cgroup *cgrp,
-		struct cgroup *old_cgrp, struct task_struct *task)
+static void perf_cgroup_exit(struct cgroup *cgrp, struct cgroup *old_cgrp,
+			     struct task_struct *task)
 {
 	/*
 	 * cgroup_exit() is called in the copy_process() failure path.

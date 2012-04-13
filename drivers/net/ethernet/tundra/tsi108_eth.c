@@ -1148,7 +1148,7 @@ static int tsi108_set_mac(struct net_device *dev, void *addr)
 	int i;
 
 	if (!is_valid_ether_addr(addr))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	for (i = 0; i < 6; i++)
 		/* +2 is for the offset of the HW addr type */
@@ -1582,10 +1582,8 @@ tsi108_init_one(struct platform_device *pdev)
 	/* Create an ethernet device instance */
 
 	dev = alloc_etherdev(sizeof(struct tsi108_prv_data));
-	if (!dev) {
-		printk("tsi108_eth: Could not allocate a device structure\n");
+	if (!dev)
 		return -ENOMEM;
-	}
 
 	printk("tsi108_eth%d: probe...\n", pdev->id);
 	data = netdev_priv(dev);

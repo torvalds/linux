@@ -308,6 +308,7 @@ comment "Digest"
 config CRYPTO_CRC32C
 	tristate "CRC32c CRC algorithm"
 	select CRYPTO_HASH
+	select CRC32
 	help
 	  Castagnoli, et al Cyclic Redundancy-Check Algorithm.  Used
 	  by iSCSI for header and data digests and by others.
@@ -645,6 +646,24 @@ config CRYPTO_CAMELLIA
 	select CRYPTO_ALGAPI
 	help
 	  Camellia cipher algorithms module.
+
+	  Camellia is a symmetric key block cipher developed jointly
+	  at NTT and Mitsubishi Electric Corporation.
+
+	  The Camellia specifies three key sizes: 128, 192 and 256 bits.
+
+	  See also:
+	  <https://info.isl.ntt.co.jp/crypt/eng/camellia/index_s.html>
+
+config CRYPTO_CAMELLIA_X86_64
+	tristate "Camellia cipher algorithm (x86_64)"
+	depends on (X86 || UML_X86) && 64BIT
+	depends on CRYPTO
+	select CRYPTO_ALGAPI
+	select CRYPTO_LRW
+	select CRYPTO_XTS
+	help
+	  Camellia cipher algorithm module (x86_64).
 
 	  Camellia is a symmetric key block cipher developed jointly
 	  at NTT and Mitsubishi Electric Corporation.

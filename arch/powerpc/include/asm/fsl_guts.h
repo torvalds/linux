@@ -4,7 +4,7 @@
  * Authors: Jeff Brown
  *          Timur Tabi <timur@freescale.com>
  *
- * Copyright 2004,2007 Freescale Semiconductor, Inc
+ * Copyright 2004,2007,2012 Freescale Semiconductor, Inc
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -113,6 +113,10 @@ struct ccsr_guts_86xx {
 	__be32	srds2cr0;	/* 0x.0f40 - SerDes2 Control Register 0 */
 	__be32	srds2cr1;	/* 0x.0f44 - SerDes2 Control Register 0 */
 } __attribute__ ((packed));
+
+
+/* Alternate function signal multiplex control */
+#define MPC85xx_PMUXCR_QE(x) (0x8000 >> (x))
 
 #ifdef CONFIG_PPC_86xx
 

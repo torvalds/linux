@@ -73,8 +73,8 @@ void __init gemini_init_irq(void)
 	unsigned int i, mode = 0, level = 0;
 
 	/*
-	 * Disable arch_idle() by default since it is buggy
-	 * For more info see arch/arm/mach-gemini/include/mach/system.h
+	 * Disable the idle handler by default since it is buggy
+	 * For more info see arch/arm/mach-gemini/idle.c
 	 */
 	disable_hlt();
 

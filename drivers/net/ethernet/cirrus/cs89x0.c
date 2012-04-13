@@ -911,7 +911,7 @@ dma_rx(struct net_device *dev)
 	}
 
 	/* Malloc up new buffer. */
-	skb = dev_alloc_skb(length + 2);
+	skb = netdev_alloc_skb(dev, length + 2);
 	if (skb == NULL) {
 		if (net_debug)	/* I don't think we want to do this to a stressed system */
 			printk("%s: Memory squeeze, dropping packet.\n", dev->name);
@@ -1616,7 +1616,7 @@ net_rx(struct net_device *dev)
 	}
 
 	/* Malloc up new buffer. */
-	skb = dev_alloc_skb(length + 2);
+	skb = netdev_alloc_skb(dev, length + 2);
 	if (skb == NULL) {
 #if 0		/* Again, this seems a cruel thing to do */
 		printk(KERN_WARNING "%s: Memory squeeze, dropping packet.\n", dev->name);

@@ -15,6 +15,7 @@
 #include <linux/mfd/wm8994/core.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/regmap.h>
+#include <linux/device.h>
 
 #include "wm8994.h"
 

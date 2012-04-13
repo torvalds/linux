@@ -1164,7 +1164,7 @@ static void eth16i_rx(struct net_device *dev)
 		else {   /* Ok so now we should have a good packet */
 			struct sk_buff *skb;
 
-			skb = dev_alloc_skb(pkt_len + 3);
+			skb = netdev_alloc_skb(dev, pkt_len + 3);
 			if( skb == NULL ) {
 				printk(KERN_WARNING "%s: Could'n allocate memory for packet (len %d)\n",
 				       dev->name, pkt_len);

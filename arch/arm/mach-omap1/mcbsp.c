@@ -420,18 +420,6 @@ static int __init omap1_mcbsp_init(void)
 		return -ENODEV;
 
 	if (cpu_is_omap7xx())
-		omap_mcbsp_count = OMAP7XX_MCBSP_COUNT;
-	else if (cpu_is_omap15xx())
-		omap_mcbsp_count = OMAP15XX_MCBSP_COUNT;
-	else if (cpu_is_omap16xx())
-		omap_mcbsp_count = OMAP16XX_MCBSP_COUNT;
-
-	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
-								GFP_KERNEL);
-	if (!mcbsp_ptr)
-		return -ENOMEM;
-
-	if (cpu_is_omap7xx())
 		omap_mcbsp_register_board_cfg(omap7xx_mcbsp_res_0,
 					OMAP7XX_MCBSP_RES_SZ,
 					omap7xx_mcbsp_pdata,
@@ -449,7 +437,7 @@ static int __init omap1_mcbsp_init(void)
 					omap16xx_mcbsp_pdata,
 					OMAP16XX_MCBSP_COUNT);
 
-	return omap_mcbsp_init();
+	return 0;
 }
 
 arch_initcall(omap1_mcbsp_init);

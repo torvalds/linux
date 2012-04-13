@@ -257,10 +257,10 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	/* Do sanity checks on the superblock */
 	if (super.magic != CRAMFS_MAGIC) {
-		/* check for wrong endianess */
+		/* check for wrong endianness */
 		if (super.magic == CRAMFS_MAGIC_WEND) {
 			if (!silent)
-				printk(KERN_ERR "cramfs: wrong endianess\n");
+				printk(KERN_ERR "cramfs: wrong endianness\n");
 			goto out;
 		}
 
@@ -270,7 +270,7 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 		mutex_unlock(&read_mutex);
 		if (super.magic != CRAMFS_MAGIC) {
 			if (super.magic == CRAMFS_MAGIC_WEND && !silent)
-				printk(KERN_ERR "cramfs: wrong endianess\n");
+				printk(KERN_ERR "cramfs: wrong endianness\n");
 			else if (!silent)
 				printk(KERN_ERR "cramfs: wrong magic\n");
 			goto out;
@@ -318,11 +318,9 @@ static int cramfs_fill_super(struct super_block *sb, void *data, int silent)
 	root = get_cramfs_inode(sb, &super.root, 0);
 	if (IS_ERR(root))
 		goto out;
-	sb->s_root = d_alloc_root(root);
-	if (!sb->s_root) {
-		iput(root);
+	sb->s_root = d_make_root(root);
+	if (!sb->s_root)
 		goto out;
-	}
 	return 0;
 out:
 	kfree(sbi);

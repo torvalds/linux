@@ -1,0 +1,12 @@
+TODO:
+	- review user mode interface and determine if ioctls can be replaced
+	  with something better. correctly export data structures to user mode
+	  if ioctls are still required and allocate ioctl numbers from
+	  ioctl-number.txt.
+	- check USB HCD implementation is complete and correct.
+	- remove any debug and trace code.
+	- code review by USB developer community.
+	- testing with as many devices as possible.
+
+Please send any patches for this driver to Chris Kelly <ckelly@ozmodevices.com>
+and Greg Kroah-Hartman <gregkh@linuxfoundation.org>.

@@ -643,14 +643,14 @@ static bool __perf_sched_find_counter(struct perf_sched *sched)
 	/* Prefer fixed purpose counters */
 	if (x86_pmu.num_counters_fixed) {
 		idx = X86_PMC_IDX_FIXED;
-		for_each_set_bit_cont(idx, c->idxmsk, X86_PMC_IDX_MAX) {
+		for_each_set_bit_from(idx, c->idxmsk, X86_PMC_IDX_MAX) {
 			if (!__test_and_set_bit(idx, sched->state.used))
 				goto done;
 		}
 	}
 	/* Grab the first unused counter starting with idx */
 	idx = sched->state.counter;
-	for_each_set_bit_cont(idx, c->idxmsk, X86_PMC_IDX_FIXED) {
+	for_each_set_bit_from(idx, c->idxmsk, X86_PMC_IDX_FIXED) {
 		if (!__test_and_set_bit(idx, sched->state.used))
 			goto done;
 	}
@@ -1622,6 +1622,9 @@ static int x86_pmu_event_idx(struct perf_event *event)
 {
 	int idx = event->hw.idx;
 
+	if (!x86_pmu.attr_rdpmc)
+		return 0;
+
 	if (x86_pmu.num_counters_fixed && idx >= X86_PMC_IDX_FIXED) {
 		idx -= X86_PMC_IDX_FIXED;
 		idx |= 1 << 30;
@@ -1706,14 +1709,19 @@ static struct pmu pmu = {
 	.flush_branch_stack	= x86_pmu_flush_branch_stack,
 };
 
-void perf_update_user_clock(struct perf_event_mmap_page *userpg, u64 now)
+void arch_perf_update_userpage(struct perf_event_mmap_page *userpg, u64 now)
 {
+	userpg->cap_usr_time = 0;
+	userpg->cap_usr_rdpmc = x86_pmu.attr_rdpmc;
+	userpg->pmc_width = x86_pmu.cntval_bits;
+
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		return;
 
 	if (!boot_cpu_has(X86_FEATURE_NONSTOP_TSC))
 		return;
 
+	userpg->cap_usr_time = 1;
 	userpg->time_mult = this_cpu_read(cyc2ns);
 	userpg->time_shift = CYC2NS_SCALE_FACTOR;
 	userpg->time_offset = this_cpu_read(cyc2ns_offset) - now;

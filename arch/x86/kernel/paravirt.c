@@ -26,6 +26,7 @@
 
 #include <asm/bug.h>
 #include <asm/paravirt.h>
+#include <asm/debugreg.h>
 #include <asm/desc.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>

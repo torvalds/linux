@@ -299,18 +299,31 @@ struct perf_event_mmap_page {
 	/*
 	 * Bits needed to read the hw events in user-space.
 	 *
-	 *   u32 seq;
-	 *   s64 count;
+	 *   u32 seq, time_mult, time_shift, idx, width;
+	 *   u64 count, enabled, running;
+	 *   u64 cyc, time_offset;
+	 *   s64 pmc = 0;
 	 *
 	 *   do {
 	 *     seq = pc->lock;
-	 *
 	 *     barrier()
-	 *     if (pc->index) {
-	 *       count = pmc_read(pc->index - 1);
-	 *       count += pc->offset;
-	 *     } else
-	 *       goto regular_read;
+	 *
+	 *     enabled = pc->time_enabled;
+	 *     running = pc->time_running;
+	 *
+	 *     if (pc->cap_usr_time && enabled != running) {
+	 *       cyc = rdtsc();
+	 *       time_offset = pc->time_offset;
+	 *       time_mult   = pc->time_mult;
+	 *       time_shift  = pc->time_shift;
+	 *     }
+	 *
+	 *     idx = pc->index;
+	 *     count = pc->offset;
+	 *     if (pc->cap_usr_rdpmc && idx) {
+	 *       width = pc->pmc_width;
+	 *       pmc = rdpmc(idx - 1);
+	 *     }
 	 *
 	 *     barrier();
 	 *   } while (pc->lock != seq);
@@ -323,14 +336,57 @@ struct perf_event_mmap_page {
 	__s64	offset;			/* add to hardware event value */
 	__u64	time_enabled;		/* time event active */
 	__u64	time_running;		/* time event on cpu */
-	__u32	time_mult, time_shift;
+	union {
+		__u64	capabilities;
+		__u64	cap_usr_time  : 1,
+			cap_usr_rdpmc : 1,
+			cap_____res   : 62;
+	};
+
+	/*
+	 * If cap_usr_rdpmc this field provides the bit-width of the value
+	 * read using the rdpmc() or equivalent instruction. This can be used
+	 * to sign extend the result like:
+	 *
+	 *   pmc <<= 64 - width;
+	 *   pmc >>= 64 - width; // signed shift right
+	 *   count += pmc;
+	 */
+	__u16	pmc_width;
+
+	/*
+	 * If cap_usr_time the below fields can be used to compute the time
+	 * delta since time_enabled (in ns) using rdtsc or similar.
+	 *
+	 *   u64 quot, rem;
+	 *   u64 delta;
+	 *
+	 *   quot = (cyc >> time_shift);
+	 *   rem = cyc & ((1 << time_shift) - 1);
+	 *   delta = time_offset + quot * time_mult +
+	 *              ((rem * time_mult) >> time_shift);
+	 *
+	 * Where time_offset,time_mult,time_shift and cyc are read in the
+	 * seqcount loop described above. This delta can then be added to
+	 * enabled and possible running (if idx), improving the scaling:
+	 *
+	 *   enabled += delta;
+	 *   if (idx)
+	 *     running += delta;
+	 *
+	 *   quot = count / running;
+	 *   rem  = count % running;
+	 *   count = quot * enabled + (rem * enabled) / running;
+	 */
+	__u16	time_shift;
+	__u32	time_mult;
 	__u64	time_offset;
 
 		/*
 		 * Hole for extension of the self monitor capabilities
 		 */
 
-	__u64	__reserved[121];	/* align to 1k */
+	__u64	__reserved[120];	/* align to 1k */
 
 	/*
 	 * Control data for the mmap() data buffer.

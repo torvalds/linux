@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2010-2012 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -221,6 +221,11 @@ static void debug_log_cleanup(struct bat_priv *bat_priv)
 }
 #endif
 
+static int bat_algorithms_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bat_algo_seq_print_text, NULL);
+}
+
 static int originators_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
@@ -274,6 +279,7 @@ struct bat_debuginfo bat_debuginfo_##_name = {	\
 		}				\
 };
 
+static BAT_DEBUGINFO(routing_algos, S_IRUGO, bat_algorithms_open);
 static BAT_DEBUGINFO(originators, S_IRUGO, originators_open);
 static BAT_DEBUGINFO(gateways, S_IRUGO, gateways_open);
 static BAT_DEBUGINFO(softif_neigh, S_IRUGO, softif_neigh_open);
@@ -293,9 +299,25 @@ static struct bat_debuginfo *mesh_debuginfos[] = {
 
 void debugfs_init(void)
 {
+	struct bat_debuginfo *bat_debug;
+	struct dentry *file;
+
 	bat_debugfs = debugfs_create_dir(DEBUGFS_BAT_SUBDIR, NULL);
 	if (bat_debugfs == ERR_PTR(-ENODEV))
 		bat_debugfs = NULL;
+
+	if (!bat_debugfs)
+		goto out;
+
+	bat_debug = &bat_debuginfo_routing_algos;
+	file = debugfs_create_file(bat_debug->attr.name,
+				   S_IFREG | bat_debug->attr.mode,
+				   bat_debugfs, NULL, &bat_debug->fops);
+	if (!file)
+		pr_err("Can't add debugfs file: %s\n", bat_debug->attr.name);
+
+out:
+	return;
 }
 
 void debugfs_destroy(void)

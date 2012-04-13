@@ -48,10 +48,6 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 #define WM8974_POWER1_BIASEN  0x08
 #define WM8974_POWER1_BUFIOEN 0x04
 
-struct wm8974_priv {
-	enum snd_soc_control_type control_type;
-};
-
 #define wm8974_reset(c)	snd_soc_write(c, WM8974_RESET, 0)
 
 static const char *wm8974_companding[] = {"Off", "NC", "u-law", "A-law" };
@@ -235,7 +231,7 @@ SND_SOC_DAPM_OUTPUT("SPKOUTP"),
 SND_SOC_DAPM_OUTPUT("SPKOUTN"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8974_dapm_routes[] = {
 	/* Mono output mixer */
 	{"Mono Mixer", "PCM Playback Switch", "DAC"},
 	{"Mono Mixer", "Aux Playback Switch", "Aux Input"},
@@ -268,17 +264,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* Inputs */
 	{"Aux Input", NULL, "AUX"},
 };
-
-static int wm8974_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8974_dapm_widgets,
-				  ARRAY_SIZE(wm8974_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 struct pll_ {
 	unsigned int pre_div:1;
@@ -611,9 +596,6 @@ static int wm8974_probe(struct snd_soc_codec *codec)
 	}
 
 	wm8974_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	snd_soc_add_controls(codec, wm8974_snd_controls,
-			     ARRAY_SIZE(wm8974_snd_controls));
-	wm8974_add_widgets(codec);
 
 	return ret;
 }
@@ -634,32 +616,30 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8974 = {
 	.reg_cache_size = ARRAY_SIZE(wm8974_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8974_reg,
+
+	.controls = wm8974_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8974_snd_controls),
+	.dapm_widgets = wm8974_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8974_dapm_widgets),
+	.dapm_routes = wm8974_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8974_dapm_routes),
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8974_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
-	struct wm8974_priv *wm8974;
 	int ret;
-
-	wm8974 = kzalloc(sizeof(struct wm8974_priv), GFP_KERNEL);
-	if (wm8974 == NULL)
-		return -ENOMEM;
-
-	i2c_set_clientdata(i2c, wm8974);
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8974, &wm8974_dai, 1);
-	if (ret < 0)
-		kfree(wm8974);
+
 	return ret;
 }
 
 static __devexit int wm8974_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+
 	return 0;
 }
 
@@ -678,27 +658,22 @@ static struct i2c_driver wm8974_i2c_driver = {
 	.remove =   __devexit_p(wm8974_i2c_remove),
 	.id_table = wm8974_i2c_id,
 };
-#endif
 
 static int __init wm8974_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8974_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register wm8974 I2C driver: %d\n",
 		       ret);
 	}
-#endif
 	return ret;
 }
 module_init(wm8974_modinit);
 
 static void __exit wm8974_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8974_i2c_driver);
-#endif
 }
 module_exit(wm8974_exit);
 

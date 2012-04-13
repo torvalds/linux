@@ -113,9 +113,7 @@ void cpu_idle(void)
 			while (!need_resched())
 				cpu_relax();
 		}
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 		check_pgt_cache();
 	}
 }
@@ -138,9 +136,7 @@ void cpu_idle(void)
 			while (!need_resched())
 				cpu_relax();
 		}
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 		check_pgt_cache();
 	}
 }

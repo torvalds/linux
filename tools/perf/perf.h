@@ -10,6 +10,9 @@ void get_term_dimensions(struct winsize *ws);
 #define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	"model name"
+#ifndef __NR_perf_event_open
+# define __NR_perf_event_open 336
+#endif
 #endif
 
 #if defined(__x86_64__)
@@ -17,6 +20,9 @@ void get_term_dimensions(struct winsize *ws);
 #define rmb()		asm volatile("lfence" ::: "memory")
 #define cpu_relax()	asm volatile("rep; nop" ::: "memory");
 #define CPUINFO_PROC	"model name"
+#ifndef __NR_perf_event_open
+# define __NR_perf_event_open 298
+#endif
 #endif
 
 #ifdef __powerpc__

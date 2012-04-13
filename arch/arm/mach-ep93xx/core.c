@@ -279,48 +279,14 @@ static struct amba_pl010_data ep93xx_uart_data = {
 	.set_mctrl	= ep93xx_uart_set_mctrl,
 };
 
-static struct amba_device uart1_device = {
-	.dev		= {
-		.init_name	= "apb:uart1",
-		.platform_data	= &ep93xx_uart_data,
-	},
-	.res		= {
-		.start	= EP93XX_UART1_PHYS_BASE,
-		.end	= EP93XX_UART1_PHYS_BASE + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_EP93XX_UART1, NO_IRQ },
-	.periphid	= 0x00041010,
-};
+static AMBA_APB_DEVICE(uart1, "apb:uart1", 0x00041010, EP93XX_UART1_PHYS_BASE,
+	{ IRQ_EP93XX_UART1 }, &ep93xx_uart_data);
 
-static struct amba_device uart2_device = {
-	.dev		= {
-		.init_name	= "apb:uart2",
-		.platform_data	= &ep93xx_uart_data,
-	},
-	.res		= {
-		.start	= EP93XX_UART2_PHYS_BASE,
-		.end	= EP93XX_UART2_PHYS_BASE + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_EP93XX_UART2, NO_IRQ },
-	.periphid	= 0x00041010,
-};
+static AMBA_APB_DEVICE(uart2, "apb:uart2", 0x00041010, EP93XX_UART2_PHYS_BASE,
+	{ IRQ_EP93XX_UART2 }, &ep93xx_uart_data);
 
-static struct amba_device uart3_device = {
-	.dev		= {
-		.init_name	= "apb:uart3",
-		.platform_data	= &ep93xx_uart_data,
-	},
-	.res		= {
-		.start	= EP93XX_UART3_PHYS_BASE,
-		.end	= EP93XX_UART3_PHYS_BASE + 0x0fff,
-		.flags	= IORESOURCE_MEM,
-	},
-	.irq		= { IRQ_EP93XX_UART3, NO_IRQ },
-	.periphid	= 0x00041010,
-};
-
+static AMBA_APB_DEVICE(uart3, "apb:uart3", 0x00041010, EP93XX_UART3_PHYS_BASE,
+	{ IRQ_EP93XX_UART3 }, &ep93xx_uart_data);
 
 static struct resource ep93xx_rtc_resource[] = {
 	{
@@ -817,23 +783,12 @@ void __init ep93xx_register_i2s(void)
 #define EP93XX_I2SCLKDIV_MASK		(EP93XX_SYSCON_I2SCLKDIV_ORIDE | \
 					 EP93XX_SYSCON_I2SCLKDIV_SPOL)
 
-int ep93xx_i2s_acquire(unsigned i2s_pins, unsigned i2s_config)
+int ep93xx_i2s_acquire(void)
 {
 	unsigned val;
 
-	/* Sanity check */
-	if (i2s_pins & ~EP93XX_SYSCON_DEVCFG_I2S_MASK)
-		return -EINVAL;
-	if (i2s_config & ~EP93XX_I2SCLKDIV_MASK)
-		return -EINVAL;
-
-	/* Must have only one of I2SONSSP/I2SONAC97 set */
-	if ((i2s_pins & EP93XX_SYSCON_DEVCFG_I2SONSSP) ==
-	    (i2s_pins & EP93XX_SYSCON_DEVCFG_I2SONAC97))
-		return -EINVAL;
-
-	ep93xx_devcfg_clear_bits(EP93XX_SYSCON_DEVCFG_I2S_MASK);
-	ep93xx_devcfg_set_bits(i2s_pins);
+	ep93xx_devcfg_set_clear(EP93XX_SYSCON_DEVCFG_I2SONAC97,
+			EP93XX_SYSCON_DEVCFG_I2S_MASK);
 
 	/*
 	 * This is potentially racy with the clock api for i2s_mclk, sclk and 
@@ -843,7 +798,7 @@ int ep93xx_i2s_acquire(unsigned i2s_pins, unsigned i2s_config)
 	 */
 	val = __raw_readl(EP93XX_SYSCON_I2SCLKDIV);
 	val &= ~EP93XX_I2SCLKDIV_MASK;
-	val |= i2s_config;
+	val |= EP93XX_SYSCON_I2SCLKDIV_ORIDE | EP93XX_SYSCON_I2SCLKDIV_SPOL;
 	ep93xx_syscon_swlocked_write(val, EP93XX_SYSCON_I2SCLKDIV);
 
 	return 0;

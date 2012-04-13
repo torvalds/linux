@@ -855,7 +855,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 	if (transport_is_bbb()) {
 		switch (ctrl->bRequest) {
 
-		case USB_BULK_RESET_REQUEST:
+		case US_BULK_RESET_REQUEST:
 			if (ctrl->bRequestType != (USB_DIR_OUT |
 					USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 				break;
@@ -871,7 +871,7 @@ static int class_setup_req(struct fsg_dev *fsg,
 			value = DELAYED_STATUS;
 			break;
 
-		case USB_BULK_GET_MAX_LUN_REQUEST:
+		case US_BULK_GET_MAX_LUN:
 			if (ctrl->bRequestType != (USB_DIR_IN |
 					USB_TYPE_CLASS | USB_RECIP_INTERFACE))
 				break;
@@ -2125,7 +2125,7 @@ static int send_status(struct fsg_dev *fsg)
 	struct fsg_lun		*curlun = fsg->curlun;
 	struct fsg_buffhd	*bh;
 	int			rc;
-	u8			status = USB_STATUS_PASS;
+	u8			status = US_BULK_STAT_OK;
 	u32			sd, sdinfo = 0;
 
 	/* Wait for the next buffer to become available */
@@ -2146,11 +2146,11 @@ static int send_status(struct fsg_dev *fsg)
 
 	if (fsg->phase_error) {
 		DBG(fsg, "sending phase-error status\n");
-		status = USB_STATUS_PHASE_ERROR;
+		status = US_BULK_STAT_PHASE;
 		sd = SS_INVALID_COMMAND;
 	} else if (sd != SS_NO_SENSE) {
 		DBG(fsg, "sending command-failure status\n");
-		status = USB_STATUS_FAIL;
+		status = US_BULK_STAT_FAIL;
 		VDBG(fsg, "  sense data: SK x%02x, ASC x%02x, ASCQ x%02x;"
 				"  info x%x\n",
 				SK(sd), ASC(sd), ASCQ(sd), sdinfo);
@@ -2160,12 +2160,12 @@ static int send_status(struct fsg_dev *fsg)
 		struct bulk_cs_wrap	*csw = bh->buf;
 
 		/* Store and send the Bulk-only CSW */
-		csw->Signature = cpu_to_le32(USB_BULK_CS_SIG);
+		csw->Signature = cpu_to_le32(US_BULK_CS_SIGN);
 		csw->Tag = fsg->tag;
 		csw->Residue = cpu_to_le32(fsg->residue);
 		csw->Status = status;
 
-		bh->inreq->length = USB_BULK_CS_WRAP_LEN;
+		bh->inreq->length = US_BULK_CS_WRAP_LEN;
 		bh->inreq->zero = 0;
 		start_transfer(fsg, fsg->bulk_in, bh->inreq,
 				&bh->inreq_busy, &bh->state);
@@ -2609,16 +2609,16 @@ static int do_scsi_command(struct fsg_dev *fsg)
 static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 {
 	struct usb_request		*req = bh->outreq;
-	struct fsg_bulk_cb_wrap	*cbw = req->buf;
+	struct bulk_cb_wrap	*cbw = req->buf;
 
 	/* Was this a real packet?  Should it be ignored? */
 	if (req->status || test_bit(IGNORE_BULK_OUT, &fsg->atomic_bitflags))
 		return -EINVAL;
 
 	/* Is the CBW valid? */
-	if (req->actual != USB_BULK_CB_WRAP_LEN ||
+	if (req->actual != US_BULK_CB_WRAP_LEN ||
 			cbw->Signature != cpu_to_le32(
-				USB_BULK_CB_SIG)) {
+				US_BULK_CB_SIGN)) {
 		DBG(fsg, "invalid CBW: len %u sig 0x%x\n",
 				req->actual,
 				le32_to_cpu(cbw->Signature));
@@ -2638,7 +2638,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	}
 
 	/* Is the CBW meaningful? */
-	if (cbw->Lun >= FSG_MAX_LUNS || cbw->Flags & ~USB_BULK_IN_FLAG ||
+	if (cbw->Lun >= FSG_MAX_LUNS || cbw->Flags & ~US_BULK_FLAG_IN ||
 			cbw->Length <= 0 || cbw->Length > MAX_COMMAND_SIZE) {
 		DBG(fsg, "non-meaningful CBW: lun = %u, flags = 0x%x, "
 				"cmdlen %u\n",
@@ -2656,7 +2656,7 @@ static int received_cbw(struct fsg_dev *fsg, struct fsg_buffhd *bh)
 	/* Save the command for later */
 	fsg->cmnd_size = cbw->Length;
 	memcpy(fsg->cmnd, cbw->CDB, fsg->cmnd_size);
-	if (cbw->Flags & USB_BULK_IN_FLAG)
+	if (cbw->Flags & US_BULK_FLAG_IN)
 		fsg->data_dir = DATA_DIR_TO_HOST;
 	else
 		fsg->data_dir = DATA_DIR_FROM_HOST;
@@ -2685,7 +2685,7 @@ static int get_next_command(struct fsg_dev *fsg)
 		}
 
 		/* Queue a request to read a Bulk-only CBW */
-		set_bulk_out_req_length(fsg, bh, USB_BULK_CB_WRAP_LEN);
+		set_bulk_out_req_length(fsg, bh, US_BULK_CB_WRAP_LEN);
 		start_transfer(fsg, fsg->bulk_out, bh->outreq,
 				&bh->outreq_busy, &bh->state);
 

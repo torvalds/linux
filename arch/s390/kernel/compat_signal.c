@@ -581,7 +581,6 @@ give_sigsegv:
 int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		    siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
 {
-	sigset_t blocked;
 	int ret;
 
 	/* Set up the stack frame */
@@ -591,10 +590,7 @@ int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		ret = setup_frame32(sig, ka, oldset, regs);
 	if (ret)
 		return ret;
-	sigorsets(&blocked, &current->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&blocked, sig);
-	set_current_blocked(&blocked);
+	block_sigmask(ka, sig);
 	return 0;
 }
 

@@ -611,9 +611,11 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 	delta_stc = buf->pts - (1UL << 31);
 	x1 = first->dev_stc - delta_stc;
 	x2 = last->dev_stc - delta_stc;
+	if (x1 == x2)
+		goto done;
+
 	y1 = (first->dev_sof + 2048) << 16;
 	y2 = (last->dev_sof + 2048) << 16;
-
 	if (y2 < y1)
 		y2 += 2048 << 16;
 
@@ -631,14 +633,16 @@ void uvc_video_clock_update(struct uvc_streaming *stream,
 		  x1, x2, y1, y2, clock->sof_offset);
 
 	/* Second step, SOF to host clock conversion. */
-	ts = timespec_sub(last->host_ts, first->host_ts);
 	x1 = (uvc_video_clock_host_sof(first) + 2048) << 16;
 	x2 = (uvc_video_clock_host_sof(last) + 2048) << 16;
-	y1 = NSEC_PER_SEC;
-	y2 = (ts.tv_sec + 1) * NSEC_PER_SEC + ts.tv_nsec;
-
 	if (x2 < x1)
 		x2 += 2048 << 16;
+	if (x1 == x2)
+		goto done;
+
+	ts = timespec_sub(last->host_ts, first->host_ts);
+	y1 = NSEC_PER_SEC;
+	y2 = (ts.tv_sec + 1) * NSEC_PER_SEC + ts.tv_nsec;
 
 	/* Interpolated and host SOF timestamps can wrap around at slightly
 	 * different times. Handle this by adding or removing 2048 to or from

@@ -108,34 +108,22 @@ struct dma_pl330_platdata s5p6450_pdma_pdata = {
 	.peri_id = s5p6450_pdma_peri,
 };
 
-struct amba_device s5p64x0_device_pdma = {
-	.dev = {
-		.init_name = "dma-pl330",
-		.dma_mask = &dma_dmamask,
-		.coherent_dma_mask = DMA_BIT_MASK(32),
-	},
-	.res = {
-		.start = S5P64X0_PA_PDMA,
-		.end = S5P64X0_PA_PDMA + SZ_4K,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_DMA0, NO_IRQ},
-	.periphid = 0x00041330,
-};
+AMBA_AHB_DEVICE(s5p64x0_pdma, "dma-pl330", 0x00041330, S5P64X0_PA_PDMA,
+	{IRQ_DMA0}, NULL);
 
 static int __init s5p64x0_dma_init(void)
 {
 	if (soc_is_s5p6450()) {
 		dma_cap_set(DMA_SLAVE, s5p6450_pdma_pdata.cap_mask);
 		dma_cap_set(DMA_CYCLIC, s5p6450_pdma_pdata.cap_mask);
-		s5p64x0_device_pdma.dev.platform_data = &s5p6450_pdma_pdata;
+		s5p64x0_pdma_device.dev.platform_data = &s5p6450_pdma_pdata;
 	} else {
 		dma_cap_set(DMA_SLAVE, s5p6440_pdma_pdata.cap_mask);
 		dma_cap_set(DMA_CYCLIC, s5p6440_pdma_pdata.cap_mask);
-		s5p64x0_device_pdma.dev.platform_data = &s5p6440_pdma_pdata;
+		s5p64x0_pdma_device.dev.platform_data = &s5p6440_pdma_pdata;
 	}
 
-	amba_device_register(&s5p64x0_device_pdma, &iomem_resource);
+	amba_device_register(&s5p64x0_pdma_device, &iomem_resource);
 
 	return 0;
 }

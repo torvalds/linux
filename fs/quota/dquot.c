@@ -71,6 +71,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
+#include <linux/sched.h>
 #include <linux/kmod.h>
 #include <linux/namei.h>
 #include <linux/capability.h>

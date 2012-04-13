@@ -233,6 +233,11 @@ static inline struct ipv6hdr *ipipv6_hdr(const struct sk_buff *skb)
 	return (struct ipv6hdr *)skb_transport_header(skb);
 }
 
+static inline __u8 ipv6_tclass(const struct ipv6hdr *iph)
+{
+	return (ntohl(*(__be32 *)iph) >> 20) & 0xff;
+}
+
 /* 
    This structure contains results of exthdrs parsing
    as offsets from skb->nh.
@@ -324,6 +329,7 @@ struct ipv6_pinfo {
 				__unused_2:6;
 	__s16			mcast_hops:9;
 #endif
+	int			ucast_oif;
 	int			mcast_oif;
 
 	/* pktoption flags */
@@ -360,7 +366,7 @@ struct ipv6_pinfo {
 				dontfrag:1;
 	__u8			min_hopcount;
 	__u8			tclass;
-	__u8			padding;
+	__u8			rcv_tclass;
 
 	__u32			dst_cookie;
 

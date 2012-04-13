@@ -76,7 +76,15 @@ static LIST_HEAD(link_list);
 #define POLICY_DEFAULT 0	/* BIOS default setting */
 #define POLICY_PERFORMANCE 1	/* high performance */
 #define POLICY_POWERSAVE 2	/* high power saving */
+
+#ifdef CONFIG_PCIEASPM_PERFORMANCE
+static int aspm_policy = POLICY_PERFORMANCE;
+#elif defined CONFIG_PCIEASPM_POWERSAVE
+static int aspm_policy = POLICY_POWERSAVE;
+#else
 static int aspm_policy;
+#endif
+
 static const char *policy_str[] = {
 	[POLICY_DEFAULT] = "default",
 	[POLICY_PERFORMANCE] = "performance",
@@ -499,6 +507,9 @@ static int pcie_aspm_sanity_check(struct pci_dev *pdev)
 	struct pci_dev *child;
 	int pos;
 	u32 reg32;
+
+	if (aspm_disabled)
+		return 0;
 
 	/*
 	 * Some functions in a slot might not all be PCIe functions,

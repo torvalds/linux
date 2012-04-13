@@ -519,7 +519,7 @@ static int dib0090_fw_identify(struct dvb_frontend *fe)
 	return 0;
 
 identification_error:
-	return -EIO;;
+	return -EIO;
 }
 
 static void dib0090_reset_digital(struct dvb_frontend *fe, const struct dib0090_config *cfg)

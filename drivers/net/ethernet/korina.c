@@ -1108,10 +1108,9 @@ static int korina_probe(struct platform_device *pdev)
 	int rc;
 
 	dev = alloc_etherdev(sizeof(struct korina_private));
-	if (!dev) {
-		printk(KERN_ERR DRV_NAME ": alloc_etherdev failed\n");
+	if (!dev)
 		return -ENOMEM;
-	}
+
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	lp = netdev_priv(dev);
 
@@ -1150,7 +1149,6 @@ static int korina_probe(struct platform_device *pdev)
 
 	lp->td_ring = kmalloc(TD_RING_SIZE + RD_RING_SIZE, GFP_KERNEL);
 	if (!lp->td_ring) {
-		printk(KERN_ERR DRV_NAME ": cannot allocate descriptors\n");
 		rc = -ENXIO;
 		goto probe_err_td_ring;
 	}

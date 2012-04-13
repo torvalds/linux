@@ -41,6 +41,7 @@
 #include <asm/cpcmd.h>
 #include <asm/lowcore.h>
 #include <asm/debug.h>
+#include <asm/ipl.h>
 #include "entry.h"
 
 void (*pgm_check_table[128])(struct pt_regs *regs);
@@ -144,8 +145,8 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	for (i = 0; i < kstack_depth_to_print; i++) {
 		if (((addr_t) stack & (THREAD_SIZE-1)) == 0)
 			break;
-		if (i && ((i * sizeof (long) % 32) == 0))
-			printk("\n       ");
+		if ((i * sizeof(long) % 32) == 0)
+			printk("%s       ", i == 0 ? "" : "\n");
 		printk(LONG, *stack++);
 	}
 	printk("\n");
@@ -239,6 +240,7 @@ void die(struct pt_regs *regs, const char *str)
 	static int die_counter;
 
 	oops_enter();
+	lgr_info_log();
 	debug_stop_all();
 	console_verbose();
 	spin_lock_irq(&die_lock);
