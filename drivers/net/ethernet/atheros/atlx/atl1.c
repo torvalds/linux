@@ -266,7 +266,7 @@ static s32 atl1_reset_hw(struct atl1_hw *hw)
 	 * interrupts & Clear any pending interrupt events
 	 */
 	/*
-	 * iowrite32(0, hw->hw_addr + REG_IMR);
+	 * atlx_irq_disable(adapter);
 	 * iowrite32(0xffffffff, hw->hw_addr + REG_ISR);
 	 */
 
@@ -2512,7 +2512,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
 					"pcie phy link down %x\n", status);
 			if (netif_running(adapter->netdev)) {	/* reset MAC */
-				iowrite32(0, adapter->hw.hw_addr + REG_IMR);
+				atlx_irq_disable(adapter);
 				schedule_work(&adapter->pcie_dma_to_rst_task);
 				return IRQ_HANDLED;
 			}
@@ -2524,7 +2524,7 @@ static irqreturn_t atl1_intr(int irq, void *data)
 				dev_printk(KERN_DEBUG, &adapter->pdev->dev,
 					"pcie DMA r/w error (status = 0x%x)\n",
 					status);
-			iowrite32(0, adapter->hw.hw_addr + REG_IMR);
+			atlx_irq_disable(adapter);
 			schedule_work(&adapter->pcie_dma_to_rst_task);
 			return IRQ_HANDLED;
 		}
