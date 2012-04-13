@@ -653,6 +653,8 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	u32 tsf, intval, nexttbtt;
 
 	ath9k_reset_beacon_status(sc);
+	if (!(sc->sc_flags & SC_OP_BEACONS))
+		ath9k_hw_settsf64(ah, sc->beacon.bc_tstamp);
 
 	intval = TU_TO_USEC(conf->beacon_interval);
 	tsf = roundup(ath9k_hw_gettsf32(ah) + TU_TO_USEC(FUDGE), intval);
