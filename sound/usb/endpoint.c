@@ -771,7 +771,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
 
 	ep->datainterval = fmt->datainterval;
 	ep->maxpacksize = fmt->maxpacksize;
-	ep->fill_max = fmt->attributes & UAC_EP_CS_ATTR_FILL_MAX;
+	ep->fill_max = !!(fmt->attributes & UAC_EP_CS_ATTR_FILL_MAX);
 
 	if (snd_usb_get_speed(ep->chip->dev) == USB_SPEED_FULL)
 		ep->freqn = get_usb_full_speed_rate(params_rate(hw_params));
