@@ -2196,8 +2196,10 @@ static int ath6kl_cfg80211_deepsleep_suspend(struct ath6kl *ar)
 	if (!vif)
 		return -EIO;
 
-	if (!ath6kl_cfg80211_ready(vif))
+	if (!test_bit(WMI_READY, &ar->flag)) {
+		ath6kl_err("deepsleep failed as wmi is not ready\n");
 		return -EIO;
+	}
 
 	ath6kl_cfg80211_stop_all(ar);
 
