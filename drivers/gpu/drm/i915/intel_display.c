@@ -9312,7 +9312,7 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.force_wake_put = __gen6_gt_force_wake_put;
 
 		/* IVB configs may use multi-threaded forcewake */
-		if (IS_IVYBRIDGE(dev)) {
+		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
 			u32	ecobus;
 
 			/* A small trick here - if the bios hasn't configured MT forcewake,
