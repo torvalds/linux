@@ -258,7 +258,7 @@ static void blkg_destroy_all(struct request_queue *q)
 {
 	struct blkio_group *blkg, *n;
 
-	spin_lock_irq(q->queue_lock);
+	lockdep_assert_held(q->queue_lock);
 
 	list_for_each_entry_safe(blkg, n, &q->blkg_list, q_node) {
 		struct blkio_cgroup *blkcg = blkg->blkcg;
@@ -267,8 +267,6 @@ static void blkg_destroy_all(struct request_queue *q)
 		blkg_destroy(blkg);
 		spin_unlock(&blkcg->lock);
 	}
-
-	spin_unlock_irq(q->queue_lock);
 }
 
 static void blkg_rcu_free(struct rcu_head *rcu_head)
@@ -646,7 +644,10 @@ void blkcg_drain_queue(struct request_queue *q)
  */
 void blkcg_exit_queue(struct request_queue *q)
 {
+	spin_lock_irq(q->queue_lock);
 	blkg_destroy_all(q);
+	spin_unlock_irq(q->queue_lock);
+
 	blk_throtl_exit(q);
 }
 
@@ -801,6 +802,10 @@ void blkcg_deactivate_policy(struct request_queue *q,
 	spin_lock_irq(q->queue_lock);
 
 	__clear_bit(pol->plid, q->blkcg_pols);
+
+	/* if no policy is left, no need for blkgs - shoot them down */
+	if (bitmap_empty(q->blkcg_pols, BLKCG_MAX_POLS))
+		blkg_destroy_all(q);
 
 	list_for_each_entry(blkg, &q->blkg_list, q_node) {
 		/* grab blkcg lock too while removing @pd from @blkg */
