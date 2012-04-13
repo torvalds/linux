@@ -158,6 +158,7 @@ struct vpif_config_params {
 	u32 min_bufsize[VPIF_DISPLAY_NUM_CHANNELS];
 	u32 channel_bufsize[VPIF_DISPLAY_NUM_CHANNELS];
 	u8 numbuffers[VPIF_DISPLAY_NUM_CHANNELS];
+	u32 video_limit[VPIF_DISPLAY_NUM_CHANNELS];
 	u8 min_numbuffers;
 };
 
