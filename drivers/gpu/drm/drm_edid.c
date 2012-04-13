@@ -486,18 +486,29 @@ static void edid_fixup_preferred(struct drm_connector *connector,
 	preferred_mode->type |= DRM_MODE_TYPE_PREFERRED;
 }
 
+static bool
+mode_is_rb(const struct drm_display_mode *mode)
+{
+	return (mode->htotal - mode->hdisplay == 160) &&
+	       (mode->hsync_end - mode->hdisplay == 80) &&
+	       (mode->hsync_end - mode->hsync_start == 32) &&
+	       (mode->vsync_start - mode->vdisplay == 3);
+}
+
 /*
  * drm_mode_find_dmt - Create a copy of a mode if present in DMT
  * @dev: Device to duplicate against
  * @hsize: Mode width
  * @vsize: Mode height
  * @fresh: Mode refresh rate
+ * @rb: Mode reduced-blanking-ness
  *
  * Walk the DMT mode list looking for a match for the given parameters.
  * Return a newly allocated copy of the mode, or NULL if not found.
  */
 struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
-					   int hsize, int vsize, int fresh)
+					   int hsize, int vsize, int fresh,
+					   bool rb)
 {
 	int i;
 
@@ -508,6 +519,8 @@ struct drm_display_mode *drm_mode_find_dmt(struct drm_device *dev,
 		if (vsize != ptr->vdisplay)
 			continue;
 		if (fresh != drm_mode_vrefresh(ptr))
+			continue;
+		if (rb != mode_is_rb(ptr))
 			continue;
 
 		return drm_mode_duplicate(dev, ptr);
@@ -742,10 +755,17 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 	}
 
 	/* check whether it can be found in default mode table */
-	mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate);
+	if (drm_monitor_supports_rb(edid)) {
+		mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate,
+					 true);
+		if (mode)
+			return mode;
+	}
+	mode = drm_mode_find_dmt(dev, hsize, vsize, vrefresh_rate, false);
 	if (mode)
 		return mode;
 
+	/* okay, generate it */
 	switch (timing_level) {
 	case LEVEL_DMT:
 		break;
@@ -920,15 +940,6 @@ static struct drm_display_mode *drm_mode_detailed(struct drm_device *dev,
 }
 
 static bool
-mode_is_rb(const struct drm_display_mode *mode)
-{
-	return (mode->htotal - mode->hdisplay == 160) &&
-	       (mode->hsync_end - mode->hdisplay == 80) &&
-	       (mode->hsync_end - mode->hsync_start == 32) &&
-	       (mode->vsync_start - mode->vdisplay == 3);
-}
-
-static bool
 mode_in_hsync_range(const struct drm_display_mode *mode,
 		    struct edid *edid, u8 *t)
 {
@@ -1073,8 +1084,8 @@ drm_est3_modes(struct drm_connector *connector, struct detailed_timing *timing)
 				mode = drm_mode_find_dmt(connector->dev,
 							 est3_modes[m].w,
 							 est3_modes[m].h,
-							 est3_modes[m].r
-							 /*, est3_modes[m].rb */);
+							 est3_modes[m].r,
+							 est3_modes[m].rb);
 				if (mode) {
 					drm_mode_probed_add(connector, mode);
 					modes++;
