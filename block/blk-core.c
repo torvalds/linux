@@ -421,14 +421,18 @@ void blk_drain_queue(struct request_queue *q, bool drain_all)
  */
 void blk_queue_bypass_start(struct request_queue *q)
 {
+	bool drain;
+
 	spin_lock_irq(q->queue_lock);
-	q->bypass_depth++;
+	drain = !q->bypass_depth++;
 	queue_flag_set(QUEUE_FLAG_BYPASS, q);
 	spin_unlock_irq(q->queue_lock);
 
-	blk_drain_queue(q, false);
-	/* ensure blk_queue_bypass() is %true inside RCU read lock */
-	synchronize_rcu();
+	if (drain) {
+		blk_drain_queue(q, false);
+		/* ensure blk_queue_bypass() is %true inside RCU read lock */
+		synchronize_rcu();
+	}
 }
 EXPORT_SYMBOL_GPL(blk_queue_bypass_start);
 
@@ -577,6 +581,15 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	 */
 	q->queue_lock = &q->__queue_lock;
 
+	/*
+	 * A queue starts its life with bypass turned on to avoid
+	 * unnecessary bypass on/off overhead and nasty surprises during
+	 * init.  The initial bypass will be finished at the end of
+	 * blk_init_allocated_queue().
+	 */
+	q->bypass_depth = 1;
+	__set_bit(QUEUE_FLAG_BYPASS, &q->queue_flags);
+
 	if (blkcg_init_queue(q))
 		goto fail_id;
 
@@ -672,15 +685,15 @@ blk_init_allocated_queue(struct request_queue *q, request_fn_proc *rfn,
 
 	q->sg_reserved_size = INT_MAX;
 
-	/*
-	 * all done
-	 */
-	if (!elevator_init(q, NULL)) {
-		blk_queue_congestion_threshold(q);
-		return q;
-	}
+	/* init elevator */
+	if (elevator_init(q, NULL))
+		return NULL;
 
-	return NULL;
+	blk_queue_congestion_threshold(q);
+
+	/* all done, end the initial bypass */
+	blk_queue_bypass_end(q);
+	return q;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue);
 
