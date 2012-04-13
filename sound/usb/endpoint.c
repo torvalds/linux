@@ -517,7 +517,6 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
  */
 static int deactivate_urbs(struct snd_usb_endpoint *ep, int force, int can_sleep)
 {
-	unsigned long flags;
 	unsigned int i;
 	int async;
 
