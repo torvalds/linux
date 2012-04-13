@@ -377,6 +377,13 @@ static inline int of_property_read_u64(const struct device_node *np,
 	return -ENOSYS;
 }
 
+static inline int of_property_match_string(struct device_node *np,
+					   const char *propname,
+					   const char *string)
+{
+	return -ENOSYS;
+}
+
 static inline struct device_node *of_parse_phandle(struct device_node *np,
 						   const char *phandle_name,
 						   int index)
