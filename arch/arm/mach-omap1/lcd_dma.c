@@ -57,7 +57,7 @@ static struct lcd_dma_info {
 	void *cb_data;
 
 	int active;
-	unsigned long addr, size;
+	unsigned long addr;
 	int rotate, data_type, xres, yres;
 	int vxres;
 	int mirror;

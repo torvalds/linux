@@ -475,13 +475,11 @@ static int omap_device_count_resources(struct omap_device *od)
 static int omap_device_fill_resources(struct omap_device *od,
 				      struct resource *res)
 {
-	int c = 0;
 	int i, r;
 
 	for (i = 0; i < od->hwmods_cnt; i++) {
 		r = omap_hwmod_fill_resources(od->hwmods[i], res);
 		res += r;
-		c += r;
 	}
 
 	return 0;

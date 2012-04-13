@@ -136,8 +136,6 @@ omap_otg_init(struct omap_usb_config *config)
 #endif
 	pr_debug("OTG_SYSCON_1 = %08x\n", omap_readl(OTG_SYSCON_1));
 	omap_writel(syscon, OTG_SYSCON_1);
-
-	status = 0;
 }
 
 #else
