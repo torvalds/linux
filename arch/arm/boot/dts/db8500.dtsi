@@ -163,7 +163,7 @@
 		};
 
 		i2c@80004000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80004000 0x1000>;
 			interrupts = <0 21 0x4>;
 			#address-cells = <1>;
@@ -171,7 +171,7 @@
 		};
 
 		i2c@80122000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80122000 0x1000>;
 			interrupts = <0 22 0x4>;
 			#address-cells = <1>;
@@ -179,7 +179,7 @@
 		};
 
 		i2c@80128000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80128000 0x1000>;
 			interrupts = <0 55 0x4>;
 			#address-cells = <1>;
@@ -187,7 +187,7 @@
 		};
 
 		i2c@80110000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x80110000 0x1000>;
 			interrupts = <0 12 0x4>;
 			#address-cells = <1>;
@@ -195,7 +195,7 @@
 		};
 
 		i2c@8012a000 {
-			compatible = "stericsson,db8500-i2c", "stmicroelectronics,nomadik-i2c";
+			compatible = "stericsson,db8500-i2c", "st,nomadik-i2c";
 			reg = <0x8012a000 0x1000>;
 			interrupts = <0 51 0x4>;
 			#address-cells = <1>;
