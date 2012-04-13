@@ -2504,8 +2504,12 @@ static irqreturn_t atl1_intr(int irq, void *data)
 	if (!status)
 		return IRQ_NONE;
 
-	/* clear CMB interrupt status at once */
-	adapter->cmb.cmb->int_stats = 0;
+	/* clear CMB interrupt status at once,
+	 * but leave rx/tx interrupt status in case it should be dropped
+	 * only if rx/tx processing queued. In other case interrupt
+	 * can be lost.
+	 */
+	adapter->cmb.cmb->int_stats = status & (ISR_CMB_TX | ISR_CMB_RX);
 
 	if (status & ISR_GPHY)	/* clear phy status */
 		atlx_clear_phy_int(adapter);
@@ -2547,8 +2551,10 @@ static irqreturn_t atl1_intr(int irq, void *data)
 	}
 
 	/* transmit or receive event */
-	if (status & (ISR_CMB_TX | ISR_CMB_RX))
-	    atl1_sched_rings_clean(adapter);
+	if (status & (ISR_CMB_TX | ISR_CMB_RX) &&
+	    atl1_sched_rings_clean(adapter))
+		adapter->cmb.cmb->int_stats = adapter->cmb.cmb->int_stats &
+					      ~(ISR_CMB_TX | ISR_CMB_RX);
 
 	/* rx exception */
 	if (unlikely(status & (ISR_RXF_OV | ISR_RFD_UNRUN |
