@@ -4191,6 +4191,10 @@
 #define  WRPLL_PLL_SELECT_SSC			(0x01<<28)
 #define  WRPLL_PLL_SELECT_NON_SCC		(0x02<<28)
 #define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
+/* WRPLL divider programming */
+#define  WRPLL_DIVIDER_REFERENCE(x)		((x)<<0)
+#define  WRPLL_DIVIDER_POST(x)			((x)<<8)
+#define  WRPLL_DIVIDER_FEEDBACK(x)		((x)<<16)
 
 /* Port clock selection */
 #define PORT_CLK_SEL_A			0x46100
