@@ -17,11 +17,8 @@
 #define TX_SETUP                        1 //unit us
 void i2c_adap_sel(struct rk30_i2c *i2c, int nr, int adap_type)
 {
-        unsigned int p = readl(i2c->con_base);
-
-        p = rk30_set_bit(p, adap_type, I2C_ADAP_SEL_BIT(nr));
-        p = rk30_set_bit(p, adap_type, I2C_ADAP_SEL_MASK(nr));
-        writel(p, i2c->con_base);
+        writel((1 << I2C_ADAP_SEL_BIT(nr)) | (1 << I2C_ADAP_SEL_MASK(nr)) ,
+                        i2c->con_base);
 }
 
 #ifdef CONFIG_CPU_FREQ

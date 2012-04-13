@@ -919,6 +919,10 @@ if I2C_RK30
 					bool "With RK30 I2C Controller"
 			endchoice
 		endif
+        config I2C_GPIO_RK30
+                bool "Simulation with GPIO"
+                default n
+                select I2C_GPIO
 endif
 config I2C_RK29
 	tristate "RK29 i2c interface (I2C)"

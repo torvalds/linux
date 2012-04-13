@@ -10,6 +10,7 @@
 #include <asm/setup.h>
 #include <plat/board.h>
 #include <mach/sram.h>
+#include <linux/i2c-gpio.h>
 
 struct rk30_i2c_platform_data {
 	char *name;
@@ -35,6 +36,10 @@ struct wifi_platform_data {
 
 extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
 extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
+
+#ifdef CONFIG_I2C_ALGOBIT
+extern struct i2c_gpio_platform_data default_i2c_gpio_data; 
+#endif
 
 void __init rk30_map_common_io(void);
 void __init rk30_init_irq(void);

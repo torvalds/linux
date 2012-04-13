@@ -1283,6 +1283,29 @@ static struct i2c_board_info __initdata i2c4_info[] = {
 };
 #endif
 
+#ifdef CONFIG_I2C_GPIO_RK30
+#define I2C_SDA_PIN     INVALID_GPIO// RK30_PIN2_PD6   //set sda_pin here
+#define I2C_SCL_PIN     INVALID_GPIO//RK30_PIN2_PD7   //set scl_pin here
+static int rk30_i2c_io_init(void)
+{
+        //set iomux (gpio) here
+        //rk30_mux_api_set(GPIO2D7_I2C1SCL_NAME, GPIO2D_GPIO2D7);
+        //rk30_mux_api_set(GPIO2D6_I2C1SDA_NAME, GPIO2D_GPIO2D6);
+
+        return 0;
+}
+struct i2c_gpio_platform_data default_i2c_gpio_data = {
+       .sda_pin = I2C_SDA_PIN,
+       .scl_pin = I2C_SCL_PIN,
+       .udelay = 5, // clk = 500/udelay = 100Khz
+       .timeout = 100,//msecs_to_jiffies(100),
+       .bus_num    = 5,
+       .io_init = rk30_i2c_io_init,
+};
+static struct i2c_board_info __initdata i2c_gpio_info[] = {
+};
+#endif
+
 static void __init rk30_i2c_register_board_info(void)
 {
 #ifdef CONFIG_I2C0_RK30
@@ -1299,6 +1322,9 @@ static void __init rk30_i2c_register_board_info(void)
 #endif
 #ifdef CONFIG_I2C4_RK30
 	i2c_register_board_info(4, i2c4_info, ARRAY_SIZE(i2c4_info));
+#endif
+#ifdef CONFIG_I2C_GPIO_RK30
+	i2c_register_board_info(5, i2c_gpio_info, ARRAY_SIZE(i2c_gpio_info));
 #endif
 }
 //end of i2c

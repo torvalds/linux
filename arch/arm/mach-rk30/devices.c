@@ -522,6 +522,16 @@ static struct platform_device device_i2c4 = {
 };
 #endif
 
+#ifdef CONFIG_I2C_GPIO_RK30
+struct platform_device device_i2c_gpio = {
+        .name   = "i2c-gpio",
+        .id = 5,
+        .dev            = {
+                .platform_data = &default_i2c_gpio_data,
+        },
+};
+#endif
+
 static void __init rk30_init_i2c(void)
 {
 #ifdef CONFIG_I2C0_RK30
@@ -538,6 +548,9 @@ static void __init rk30_init_i2c(void)
 #endif
 #ifdef CONFIG_I2C4_RK30
 	platform_device_register(&device_i2c4);
+#endif
+#ifdef CONFIG_I2C_GPIO_RK30
+	platform_device_register(&device_i2c_gpio);
 #endif
 }
 //end of i2c
