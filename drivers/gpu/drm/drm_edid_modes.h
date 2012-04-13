@@ -473,6 +473,17 @@ static const struct minimode est3_modes[] = {
 };
 static const int num_est3_modes = sizeof(est3_modes) / sizeof(est3_modes[0]);
 
+static const struct minimode extra_modes[] = {
+	{ 1024, 576,  60, 0 },
+	{ 1366, 768,  60, 0 },
+	{ 1600, 900,  60, 0 },
+	{ 1680, 945,  60, 0 },
+	{ 1920, 1080, 60, 0 },
+	{ 2048, 1152, 60, 0 },
+	{ 2048, 1536, 60, 0 },
+};
+static const int num_extra_modes = sizeof(extra_modes) / sizeof(extra_modes[0]);
+
 /*
  * Probably taken from CEA-861 spec.
  * This table is converted from xorg's hw/xfree86/modes/xf86EdidModes.c.
