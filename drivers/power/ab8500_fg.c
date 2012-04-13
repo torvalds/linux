@@ -2462,12 +2462,12 @@ static int __devinit ab8500_fg_probe(struct platform_device *pdev)
 
 	/* get fg specific platform data */
 	plat_data = pdev->dev.platform_data;
-	di->pdata = plat_data->fg;
-	if (!di->pdata) {
+	if (!plat_data || !plat_data->fg) {
 		dev_err(di->dev, "no fg platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}
+	di->pdata = plat_data->fg;
 
 	/* get battery specific platform data */
 	di->bat = plat_data->battery;
