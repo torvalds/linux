@@ -24,9 +24,7 @@
 
 #define MAX_KEY_LEN 100
 
-static DEFINE_SPINLOCK(blkio_list_lock);
-static LIST_HEAD(blkio_list);
-
+static DEFINE_MUTEX(blkcg_pol_mutex);
 static DEFINE_MUTEX(all_q_mutex);
 static LIST_HEAD(all_q_list);
 
@@ -311,8 +309,9 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgroup);
 	struct blkio_group *blkg;
 	struct hlist_node *n;
+	int i;
 
-	spin_lock(&blkio_list_lock);
+	mutex_lock(&blkcg_pol_mutex);
 	spin_lock_irq(&blkcg->lock);
 
 	/*
@@ -321,15 +320,16 @@ blkiocg_reset_stats(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 	 * anyway.  If you get hit by a race, retry.
 	 */
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		struct blkio_policy_type *pol;
+		for (i = 0; i < BLKIO_NR_POLICIES; i++) {
+			struct blkio_policy_type *pol = blkio_policy[i];
 
-		list_for_each_entry(pol, &blkio_list, list)
-			if (pol->ops.blkio_reset_group_stats_fn)
+			if (pol && pol->ops.blkio_reset_group_stats_fn)
 				pol->ops.blkio_reset_group_stats_fn(blkg);
+		}
 	}
 
 	spin_unlock_irq(&blkcg->lock);
-	spin_unlock(&blkio_list_lock);
+	mutex_unlock(&blkcg_pol_mutex);
 	return 0;
 }
 
@@ -732,20 +732,21 @@ void blkio_policy_register(struct blkio_policy_type *blkiop)
 {
 	struct request_queue *q;
 
+	mutex_lock(&blkcg_pol_mutex);
+
 	blkcg_bypass_start();
-	spin_lock(&blkio_list_lock);
 
 	BUG_ON(blkio_policy[blkiop->plid]);
 	blkio_policy[blkiop->plid] = blkiop;
-	list_add_tail(&blkiop->list, &blkio_list);
-
-	spin_unlock(&blkio_list_lock);
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		update_root_blkg_pd(q, blkiop->plid);
+
 	blkcg_bypass_end();
 
 	if (blkiop->cftypes)
 		WARN_ON(cgroup_add_cftypes(&blkio_subsys, blkiop->cftypes));
+
+	mutex_unlock(&blkcg_pol_mutex);
 }
 EXPORT_SYMBOL_GPL(blkio_policy_register);
 
@@ -753,19 +754,20 @@ void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 {
 	struct request_queue *q;
 
+	mutex_lock(&blkcg_pol_mutex);
+
 	if (blkiop->cftypes)
 		cgroup_rm_cftypes(&blkio_subsys, blkiop->cftypes);
 
 	blkcg_bypass_start();
-	spin_lock(&blkio_list_lock);
 
 	BUG_ON(blkio_policy[blkiop->plid] != blkiop);
 	blkio_policy[blkiop->plid] = NULL;
-	list_del_init(&blkiop->list);
 
-	spin_unlock(&blkio_list_lock);
 	list_for_each_entry(q, &all_q_list, all_q_node)
 		update_root_blkg_pd(q, blkiop->plid);
 	blkcg_bypass_end();
+
+	mutex_unlock(&blkcg_pol_mutex);
 }
 EXPORT_SYMBOL_GPL(blkio_policy_unregister);

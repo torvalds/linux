@@ -102,7 +102,6 @@ struct blkio_policy_ops {
 };
 
 struct blkio_policy_type {
-	struct list_head list;
 	struct blkio_policy_ops ops;
 	enum blkio_policy_id plid;
 	size_t pdata_size;		/* policy specific private data size */
