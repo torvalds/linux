@@ -465,7 +465,7 @@ static int tsl2563_write_raw(struct iio_dev *indio_dev,
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
-	if (chan->channel == 0)
+	if (chan->channel == IIO_MOD_LIGHT_BOTH)
 		chip->calib0 = calib_from_sysfs(val);
 	else
 		chip->calib1 = calib_from_sysfs(val);
@@ -534,6 +534,7 @@ static const struct iio_chan_spec tsl2563_channels[] = {
 	{
 		.type = IIO_LIGHT,
 		.indexed = 1,
+		.processed_val = 1,
 		.channel = 0,
 	}, {
 		.type = IIO_INTENSITY,
