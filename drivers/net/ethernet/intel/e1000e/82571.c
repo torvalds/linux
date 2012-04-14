@@ -295,9 +295,8 @@ static s32 e1000_init_mac_params_82571(struct e1000_hw *hw)
 		 * ARC supported; valid only if manageability features are
 		 * enabled.
 		 */
-		mac->arc_subsystem_valid =
-			(er32(FWSM) & E1000_FWSM_MODE_MASK)
-			? true : false;
+		mac->arc_subsystem_valid = !!(er32(FWSM) &
+					      E1000_FWSM_MODE_MASK);
 		break;
 	case e1000_82574:
 	case e1000_82583:
@@ -798,7 +797,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 	/* Check for pending operations. */
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
 		usleep_range(1000, 2000);
-		if ((er32(EECD) & E1000_EECD_FLUPD) == 0)
+		if (!(er32(EECD) & E1000_EECD_FLUPD))
 			break;
 	}
 
@@ -822,7 +821,7 @@ static s32 e1000_update_nvm_checksum_82571(struct e1000_hw *hw)
 
 	for (i = 0; i < E1000_FLASH_UPDATES; i++) {
 		usleep_range(1000, 2000);
-		if ((er32(EECD) & E1000_EECD_FLUPD) == 0)
+		if (!(er32(EECD) & E1000_EECD_FLUPD))
 			break;
 	}
 
