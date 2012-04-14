@@ -45,7 +45,6 @@
 #define HAS_eDP (intel_pipe_has_type(crtc, INTEL_OUTPUT_EDP))
 
 bool intel_pipe_has_type(struct drm_crtc *crtc, int type);
-static void intel_update_watermarks(struct drm_device *dev);
 static void intel_increase_pllclock(struct drm_crtc *crtc);
 static void intel_crtc_update_cursor(struct drm_crtc *crtc, bool on);
 
@@ -4820,7 +4819,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 	 */
 }
 
-void sandybridge_update_wm(struct drm_device *dev)
+static void sandybridge_update_wm(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int latency = SNB_READ_WM0_LATENCY() * 100;	/* In unit 0.1us */
@@ -5125,7 +5124,7 @@ static void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
  * We don't use the sprite, so we can ignore that.  And on Crestline we have
  * to set the non-SR watermarks to 8.
  */
-static void intel_update_watermarks(struct drm_device *dev)
+void intel_update_watermarks(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 

@@ -422,7 +422,7 @@ extern void intel_write_eld(struct drm_encoder *encoder,
 extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
 
 /* For use by IVB LP watermark workaround in intel_sprite.c */
-extern void sandybridge_update_wm(struct drm_device *dev);
+extern void intel_update_watermarks(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 					   uint32_t sprite_width,
 					   int pixel_size);

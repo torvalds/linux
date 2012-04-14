@@ -112,13 +112,13 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	 */
 	if (crtc_w != src_w || crtc_h != src_h) {
 		dev_priv->sprite_scaling_enabled = true;
-		sandybridge_update_wm(dev);
+		intel_update_watermarks(dev);
 		intel_wait_for_vblank(dev, pipe);
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
 	} else {
 		dev_priv->sprite_scaling_enabled = false;
 		/* potentially re-enable LP watermarks */
-		sandybridge_update_wm(dev);
+		intel_update_watermarks(dev);
 	}
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
