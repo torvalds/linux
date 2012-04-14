@@ -381,7 +381,11 @@ i915_gem_execbuffer_relocate_entry(struct drm_i915_gem_object *obj,
 		uint32_t __iomem *reloc_entry;
 		void __iomem *reloc_page;
 
-		ret = i915_gem_object_set_to_gtt_domain(obj, 1);
+		ret = i915_gem_object_set_to_gtt_domain(obj, true);
+		if (ret)
+			return ret;
+
+		ret = i915_gem_object_put_fence(obj);
 		if (ret)
 			return ret;
 
