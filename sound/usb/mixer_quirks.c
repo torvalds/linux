@@ -557,6 +557,69 @@ static int snd_maudio_ftu_create_mixer(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
+static int snd_ebox44_create_ctl(struct usb_mixer_interface *mixer,
+				int unitid, int control, int cmask,
+				int val_type, const char *name)
+{
+	struct usb_mixer_elem_info *cval;
+	struct snd_kcontrol *kctl;
+
+	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	if (!cval)
+		return -ENOMEM;
+
+	cval->id = unitid;
+	cval->mixer = mixer;
+
+	cval->val_type = val_type;
+	cval->channels = 1;
+	cval->control = control;
+	cval->cmask = cmask;
+
+	/* Volume controls will override these values */
+	cval->min = 0;
+	cval->max = 1;
+	cval->res = 0;
+
+	cval->dBmin = 0;
+	cval->dBmax = 0;
+
+	kctl = snd_ctl_new1(snd_usb_feature_unit_ctl, cval);
+	if (!kctl) {
+		kfree(cval);
+		return -ENOMEM;
+	}
+
+	snprintf(kctl->id.name, sizeof(kctl->id.name), name);
+	kctl->private_free = usb_mixer_elem_free;
+	return snd_usb_mixer_add_control(mixer, kctl);
+}
+
+/*
+ * Create mixer for Electrix Ebox-44
+ *
+ * The mixer units from this device are corrupt, and even where they
+ * are valid they presents mono controls as L and R channels of
+ * stereo. So we create a good mixer in code.
+ */
+
+static int snd_ebox44_create_mixer(struct usb_mixer_interface *mixer)
+{
+	snd_ebox44_create_ctl(mixer, 4, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Headphone Playback Switch");
+	snd_ebox44_create_ctl(mixer, 4, 2, 0x1, USB_MIXER_S16, "Headphone A Mix Playback Volume");
+	snd_ebox44_create_ctl(mixer, 4, 2, 0x2, USB_MIXER_S16, "Headphone B Mix Playback Volume");
+
+	snd_ebox44_create_ctl(mixer, 7, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Output Playback Switch");
+	snd_ebox44_create_ctl(mixer, 7, 2, 0x1, USB_MIXER_S16, "Output A Playback Volume");
+	snd_ebox44_create_ctl(mixer, 7, 2, 0x2, USB_MIXER_S16, "Output B Playback Volume");
+
+	snd_ebox44_create_ctl(mixer, 10, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Input Capture Switch");
+	snd_ebox44_create_ctl(mixer, 10, 2, 0x1, USB_MIXER_S16, "Input A Capture Volume");
+	snd_ebox44_create_ctl(mixer, 10, 2, 0x2, USB_MIXER_S16, "Input B Capture Volume");
+
+	return 0;
+}
+
 void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
 			       unsigned char samplerate_id)
 {
@@ -618,6 +681,10 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		err = snd_nativeinstruments_create_mixer(mixer,
 				snd_nativeinstruments_ta10_mixers,
 				ARRAY_SIZE(snd_nativeinstruments_ta10_mixers));
+		break;
+
+	case USB_ID(0x200c, 0x1018): /* Electrix Ebox-44 */
+		err = snd_ebox44_create_mixer(mixer);
 		break;
 	}
 
