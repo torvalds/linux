@@ -888,7 +888,7 @@ static struct pci_driver pti_pci_driver = {
 	.name		= PCINAME,
 	.id_table	= pci_ids,
 	.probe		= pti_pci_probe,
-	.remove		= pti_pci_remove,
+	.remove		= __devexit_p(pti_pci_remove),
 };
 
 /**
