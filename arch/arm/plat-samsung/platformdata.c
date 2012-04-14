@@ -57,6 +57,4 @@ void s3c_sdhci_set_platdata(struct s3c_sdhci_platdata *pd,
 		set->host_caps2 |= pd->host_caps2;
 	if (pd->pm_caps)
 		set->pm_caps |= pd->pm_caps;
-	if (pd->clk_type)
-		set->clk_type = pd->clk_type;
 }
