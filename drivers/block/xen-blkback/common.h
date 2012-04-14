@@ -146,11 +146,6 @@ enum blkif_protocol {
 	BLKIF_PROTOCOL_X86_64 = 3,
 };
 
-enum blkif_backend_type {
-	BLKIF_BACKEND_PHY  = 1,
-	BLKIF_BACKEND_FILE = 2,
-};
-
 struct xen_vbd {
 	/* What the domain refers to this vbd as. */
 	blkif_vdev_t		handle;
@@ -177,7 +172,6 @@ struct xen_blkif {
 	unsigned int		irq;
 	/* Comms information. */
 	enum blkif_protocol	blk_protocol;
-	enum blkif_backend_type blk_backend_type;
 	union blkif_back_rings	blk_rings;
 	void			*blk_ring;
 	/* The VBD attached to this interface. */
