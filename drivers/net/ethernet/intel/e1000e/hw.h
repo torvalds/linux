@@ -200,6 +200,10 @@ enum e1e_registers {
 #define E1000_RA        (E1000_RAL(0))
 	E1000_RAH_BASE = 0x05404, /* Receive Address High - RW */
 #define E1000_RAH(_n)   (E1000_RAH_BASE + ((_n) * 8))
+	E1000_SHRAL_BASE = 0x05438, /* Shared Receive Address Low - RW */
+#define E1000_SHRAL(_n)   (E1000_SHRAL_BASE + ((_n) * 8))
+	E1000_SHRAH_BASE = 0x0543C, /* Shared Receive Address High - RW */
+#define E1000_SHRAH(_n)   (E1000_SHRAH_BASE + ((_n) * 8))
 	E1000_VFTA     = 0x05600, /* VLAN Filter Table Array - RW Array */
 	E1000_WUC      = 0x05800, /* Wakeup Control - RW */
 	E1000_WUFC     = 0x05808, /* Wakeup Filter Control - RW */
@@ -782,6 +786,7 @@ struct e1000_mac_operations {
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
 	void (*config_collision_dist)(struct e1000_hw *);
+	void (*rar_set)(struct e1000_hw *, u8 *, u32);
 	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 

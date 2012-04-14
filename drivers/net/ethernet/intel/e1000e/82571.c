@@ -1762,7 +1762,8 @@ void e1000e_set_laa_state_82571(struct e1000_hw *hw, bool state)
 		 * incoming packets directed to this port are dropped.
 		 * Eventually the LAA will be in RAR[0] and RAR[14].
 		 */
-		e1000e_rar_set(hw, hw->mac.addr, hw->mac.rar_entry_count - 1);
+		hw->mac.ops.rar_set(hw, hw->mac.addr,
+				    hw->mac.rar_entry_count - 1);
 }
 
 /**
@@ -1926,6 +1927,7 @@ static const struct e1000_mac_operations e82571_mac_ops = {
 	.setup_led		= e1000e_setup_led_generic,
 	.config_collision_dist	= e1000e_config_collision_dist_generic,
 	.read_mac_addr		= e1000_read_mac_addr_82571,
+	.rar_set		= e1000e_rar_set_generic,
 };
 
 static const struct e1000_phy_operations e82_phy_ops_igp = {

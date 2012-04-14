@@ -115,6 +115,7 @@
 #define PCIE_ICH8_SNOOP_ALL		PCIE_NO_SNOOP_ALL
 
 #define E1000_ICH_RAR_ENTRIES		7
+#define E1000_PCH2_RAR_ENTRIES		5 /* RAR[0], SHRA[0-3] */
 
 #define PHY_PAGE_SHIFT 5
 #define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
@@ -259,6 +260,7 @@ static s32  e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
 static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw);
+static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index);
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw);
 static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate);
 
@@ -672,8 +674,11 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->ops.led_on = e1000_led_on_ich8lan;
 		mac->ops.led_off = e1000_led_off_ich8lan;
 		break;
-	case e1000_pchlan:
 	case e1000_pch2lan:
+		mac->rar_entry_count = E1000_PCH2_RAR_ENTRIES;
+		mac->ops.rar_set = e1000_rar_set_pch2lan;
+		/* fall-through */
+	case e1000_pchlan:
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_pchlan;
 		/* ID LED init */
@@ -1045,6 +1050,70 @@ static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw)
 	fwsm = er32(FWSM);
 	return (fwsm & E1000_ICH_FWSM_FW_VALID) &&
 	       (fwsm & (E1000_ICH_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT));
+}
+
+/**
+ *  e1000_rar_set_pch2lan - Set receive address register
+ *  @hw: pointer to the HW structure
+ *  @addr: pointer to the receive address
+ *  @index: receive address array register
+ *
+ *  Sets the receive address array register at index to the address passed
+ *  in by addr.  For 82579, RAR[0] is the base address register that is to
+ *  contain the MAC address but RAR[1-6] are reserved for manageability (ME).
+ *  Use SHRA[0-3] in place of those reserved for ME.
+ **/
+static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index)
+{
+	u32 rar_low, rar_high;
+
+	/*
+	 * HW expects these in little endian so we reverse the byte order
+	 * from network order (big endian) to little endian
+	 */
+	rar_low = ((u32)addr[0] |
+		   ((u32)addr[1] << 8) |
+		   ((u32)addr[2] << 16) | ((u32)addr[3] << 24));
+
+	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
+
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
+		rar_high |= E1000_RAH_AV;
+
+	if (index == 0) {
+		ew32(RAL(index), rar_low);
+		e1e_flush();
+		ew32(RAH(index), rar_high);
+		e1e_flush();
+		return;
+	}
+
+	if (index < hw->mac.rar_entry_count) {
+		s32 ret_val;
+
+		ret_val = e1000_acquire_swflag_ich8lan(hw);
+		if (ret_val)
+			goto out;
+
+		ew32(SHRAL(index - 1), rar_low);
+		e1e_flush();
+		ew32(SHRAH(index - 1), rar_high);
+		e1e_flush();
+
+		e1000_release_swflag_ich8lan(hw);
+
+		/* verify the register updates */
+		if ((er32(SHRAL(index - 1)) == rar_low) &&
+		    (er32(SHRAH(index - 1)) == rar_high))
+			return;
+
+		e_dbg("SHRA[%d] might be locked by ME - FWSM=0x%8.8x\n",
+		      (index - 1), er32(FWSM));
+	}
+
+out:
+	e_dbg("Failed to write receive address at index %d\n", index);
 }
 
 /**
@@ -4100,6 +4169,7 @@ static const struct e1000_mac_operations ich8_mac_ops = {
 	.setup_physical_interface= e1000_setup_copper_link_ich8lan,
 	/* id_led_init dependent on mac type */
 	.config_collision_dist	= e1000e_config_collision_dist_generic,
+	.rar_set		= e1000e_rar_set_generic,
 };
 
 static const struct e1000_phy_operations ich8_phy_ops = {

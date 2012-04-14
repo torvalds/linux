@@ -3209,7 +3209,7 @@ static int e1000e_write_uc_addr_list(struct net_device *netdev)
 		netdev_for_each_uc_addr(ha, netdev) {
 			if (!rar_entries)
 				break;
-			e1000e_rar_set(hw, ha->addr, rar_entries--);
+			hw->mac.ops.rar_set(hw, ha->addr, rar_entries--);
 			count++;
 		}
 	}
@@ -4018,6 +4018,7 @@ static int e1000_close(struct net_device *netdev)
 static int e1000_set_mac(struct net_device *netdev, void *p)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
+	struct e1000_hw *hw = &adapter->hw;
 	struct sockaddr *addr = p;
 
 	if (!is_valid_ether_addr(addr->sa_data))
@@ -4026,7 +4027,7 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(adapter->hw.mac.addr, addr->sa_data, netdev->addr_len);
 
-	e1000e_rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
+	hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr, 0);
 
 	if (adapter->flags & FLAG_RESET_OVERWRITES_LAA) {
 		/* activate the work around */
@@ -4040,9 +4041,8 @@ static int e1000_set_mac(struct net_device *netdev, void *p)
 		 * are dropped. Eventually the LAA will be in RAR[0] and
 		 * RAR[14]
 		 */
-		e1000e_rar_set(&adapter->hw,
-			      adapter->hw.mac.addr,
-			      adapter->hw.mac.rar_entry_count - 1);
+		hw->mac.ops.rar_set(&adapter->hw, adapter->hw.mac.addr,
+				    adapter->hw.mac.rar_entry_count - 1);
 	}
 
 	return 0;
@@ -4621,7 +4621,7 @@ link_up:
 	 * reset from the other port. Set the appropriate LAA in RAR[0]
 	 */
 	if (e1000e_get_laa_state_82571(hw))
-		e1000e_rar_set(hw, adapter->hw.mac.addr, 0);
+		hw->mac.ops.rar_set(hw, adapter->hw.mac.addr, 0);
 
 	if (adapter->flags2 & FLAG2_CHECK_PHY_HANG)
 		e1000e_check_82574_phy_workaround(adapter);
