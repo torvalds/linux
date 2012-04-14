@@ -3416,7 +3416,7 @@ static void intel_update_lvds(struct drm_crtc *crtc, intel_clock_t *clock,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe;
-	u32 temp, lvds_sync = 0;
+	u32 temp;
 
 	temp = I915_READ(LVDS);
 	temp |= LVDS_PORT_EN | LVDS_A0A2_CLKA_POWER_UP;
@@ -3446,22 +3446,11 @@ static void intel_update_lvds(struct drm_crtc *crtc, intel_clock_t *clock,
 		else
 			temp &= ~LVDS_ENABLE_DITHER;
 	}
+	temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
 	if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-		lvds_sync |= LVDS_HSYNC_POLARITY;
+		temp |= LVDS_HSYNC_POLARITY;
 	if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-		lvds_sync |= LVDS_VSYNC_POLARITY;
-	if ((temp & (LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY))
-	    != lvds_sync) {
-		char flags[2] = "-+";
-		DRM_INFO("Changing LVDS panel from "
-			 "(%chsync, %cvsync) to (%chsync, %cvsync)\n",
-			 flags[!(temp & LVDS_HSYNC_POLARITY)],
-			 flags[!(temp & LVDS_VSYNC_POLARITY)],
-			 flags[!(lvds_sync & LVDS_HSYNC_POLARITY)],
-			 flags[!(lvds_sync & LVDS_VSYNC_POLARITY)]);
-		temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-		temp |= lvds_sync;
-	}
+		temp |= LVDS_VSYNC_POLARITY;
 	I915_WRITE(LVDS, temp);
 }
 
@@ -4012,7 +4001,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	int ret;
 	struct fdi_m_n m_n = {0};
 	u32 temp;
-	u32 lvds_sync = 0;
 	int target_clock, pixel_multiplier, lane, link_bw, factor;
 	unsigned int pipe_bpp;
 	bool dither;
@@ -4305,22 +4293,11 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 		 * appropriately here, but we need to look more thoroughly into how
 		 * panels behave in the two modes.
 		 */
+		temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
 		if (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC)
-			lvds_sync |= LVDS_HSYNC_POLARITY;
+			temp |= LVDS_HSYNC_POLARITY;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC)
-			lvds_sync |= LVDS_VSYNC_POLARITY;
-		if ((temp & (LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY))
-		    != lvds_sync) {
-			char flags[2] = "-+";
-			DRM_INFO("Changing LVDS panel from "
-				 "(%chsync, %cvsync) to (%chsync, %cvsync)\n",
-				 flags[!(temp & LVDS_HSYNC_POLARITY)],
-				 flags[!(temp & LVDS_VSYNC_POLARITY)],
-				 flags[!(lvds_sync & LVDS_HSYNC_POLARITY)],
-				 flags[!(lvds_sync & LVDS_VSYNC_POLARITY)]);
-			temp &= ~(LVDS_HSYNC_POLARITY | LVDS_VSYNC_POLARITY);
-			temp |= lvds_sync;
-		}
+			temp |= LVDS_VSYNC_POLARITY;
 		I915_WRITE(PCH_LVDS, temp);
 	}
 
