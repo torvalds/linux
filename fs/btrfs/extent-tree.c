@@ -529,9 +529,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache,
 	 * allocate blocks for the tree root we can't do the fast caching since
 	 * we likely hold important locks.
 	 */
-	if (trans && (!trans->transaction->in_commit) &&
-	    (root && root != root->fs_info->tree_root) &&
-	    btrfs_test_opt(root, SPACE_CACHE)) {
+	if (fs_info->mount_opt & BTRFS_MOUNT_SPACE_CACHE) {
 		ret = load_free_space_cache(fs_info, cache);
 
 		spin_lock(&cache->lock);
@@ -3152,14 +3150,13 @@ static void set_avail_alloc_bits(struct btrfs_fs_info *fs_info, u64 flags)
 /*
  * returns target flags in extended format or 0 if restripe for this
  * chunk_type is not in progress
+ *
+ * should be called with either volume_mutex or balance_lock held
  */
 static u64 get_restripe_target(struct btrfs_fs_info *fs_info, u64 flags)
 {
 	struct btrfs_balance_control *bctl = fs_info->balance_ctl;
 	u64 target = 0;
-
-	BUG_ON(!mutex_is_locked(&fs_info->volume_mutex) &&
-	       !spin_is_locked(&fs_info->balance_lock));
 
 	if (!bctl)
 		return 0;
@@ -4205,7 +4202,7 @@ static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
 	num_bytes += div64_u64(data_used + meta_used, 50);
 
 	if (num_bytes * 3 > meta_used)
-		num_bytes = div64_u64(meta_used, 3) * 2;
+		num_bytes = div64_u64(meta_used, 3);
 
 	return ALIGN(num_bytes, fs_info->extent_root->leafsize << 10);
 }
