@@ -11,12 +11,6 @@ config UBIFS_FS
 	help
 	  UBIFS is a file system for flash devices which works on top of UBI.
 
-config UBIFS_FS_XATTR
-	bool "Extended attributes support"
-	depends on UBIFS_FS
-	help
-	  This option enables support of extended attributes.
-
 config UBIFS_FS_ADVANCED_COMPR
 	bool "Advanced compression options"
 	depends on UBIFS_FS
