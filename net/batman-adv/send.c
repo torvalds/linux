@@ -111,7 +111,7 @@ static int prepare_packet_buffer(struct bat_priv *bat_priv,
 
 	realloc_packet_buffer(hard_iface, new_len);
 
-	atomic_set(&bat_priv->tt_crc, tt_local_crc(bat_priv));
+	bat_priv->tt_crc = tt_local_crc(bat_priv);
 
 	/* reset the sending counter */
 	atomic_set(&bat_priv->tt_ogm_append_cnt, TT_OGM_APPEND_MAX);

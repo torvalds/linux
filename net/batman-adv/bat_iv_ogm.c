@@ -575,8 +575,7 @@ static void bat_iv_ogm_schedule(struct hard_iface *hard_iface,
 			htonl((uint32_t)atomic_read(&hard_iface->seqno));
 
 	batman_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
-	batman_ogm_packet->tt_crc = htons((uint16_t)
-						atomic_read(&bat_priv->tt_crc));
+	batman_ogm_packet->tt_crc = htons(bat_priv->tt_crc);
 	if (tt_num_changes >= 0)
 		batman_ogm_packet->tt_num_changes = tt_num_changes;
 
