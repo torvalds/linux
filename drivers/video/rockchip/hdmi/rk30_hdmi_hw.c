@@ -137,6 +137,7 @@ static void rk30_hdmi_config_phy(unsigned char vic)
 	{
 		case HDMI_1920x1080p_60Hz:
 		case HDMI_1920x1080p_50Hz:
+		#if 0	
 			rk30_hdmi_config_phy_reg(0x158, 0x0E);
 			rk30_hdmi_config_phy_reg(0x15c, 0x00);
 			rk30_hdmi_config_phy_reg(0x160, 0x60);
@@ -144,8 +145,19 @@ static void rk30_hdmi_config_phy(unsigned char vic)
 			rk30_hdmi_config_phy_reg(0x168, 0xDA);
 			rk30_hdmi_config_phy_reg(0x16c, 0xA2);
 			rk30_hdmi_config_phy_reg(0x170, 0x0e);
-			rk30_hdmi_config_phy_reg(0x174, 0x20);
+			rk30_hdmi_config_phy_reg(0x174, 0x22);
 			rk30_hdmi_config_phy_reg(0x178, 0x00);
+		#else	
+			rk30_hdmi_config_phy_reg(0x158, 0x0E);
+			rk30_hdmi_config_phy_reg(0x15c, 0x00);
+			rk30_hdmi_config_phy_reg(0x160, 0x77);
+			rk30_hdmi_config_phy_reg(0x164, 0x00);
+			rk30_hdmi_config_phy_reg(0x168, 0xDA);
+			rk30_hdmi_config_phy_reg(0x16c, 0xA1);
+			rk30_hdmi_config_phy_reg(0x170, 0x06);
+			rk30_hdmi_config_phy_reg(0x174, 0x22);
+			rk30_hdmi_config_phy_reg(0x178, 0x00);
+		#endif
 			break;
 			
 		case HDMI_1920x1080i_60Hz:
@@ -366,7 +378,7 @@ int rk30_hdmi_config_audio(struct hdmi_audio *audio)
 	//set_audio_if I2S
 	HDMIWrReg(AUDIO_CTRL1, 0x00); //internal CTS, disable down sample, i2s input, disable MCLK
 	HDMIWrReg(AUDIO_CTRL2, 0x40); 
-	HDMIWrReg(I2S_AUDIO_CTRL, v_I2S_MODE(I2S_MODE_STANDARD) | v_I2S_CHANNEL( (audio->channel + audio->channel%2)/2));	
+	HDMIWrReg(I2S_AUDIO_CTRL, v_I2S_MODE(I2S_MODE_STANDARD) | v_I2S_CHANNEL( audio->channel - ((audio->channel%2)? 0 : 1) ) );	
 	HDMIWrReg(I2S_INPUT_SWAP, 0x00); //no swap
 	HDMIMskReg(value, AV_CTRL1, m_AUDIO_SAMPLE_RATE, v_AUDIO_SAMPLE_RATE(rate))	
 	HDMIWrReg(SRC_NUM_AUDIO_LEN, word_length);

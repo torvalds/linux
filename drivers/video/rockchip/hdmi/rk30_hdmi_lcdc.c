@@ -505,7 +505,7 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 	if(rc == 0 &&  hdmi->lcdc->load_screen) {
 		
 		hdmi->lcdc->load_screen(hdmi->lcdc, 0);
-		par = &dev_drv->layer_par[1];
+		par = dev_drv->layer_par[1];
    		par->xsize = screen->x_res;
     	par->ysize = screen->y_res;
 		hdmi->lcdc->set_par(hdmi->lcdc, 1);

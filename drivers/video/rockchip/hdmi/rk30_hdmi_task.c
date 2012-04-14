@@ -55,6 +55,8 @@ int hdmi_sys_init(void)
 	hdmi->audio.rate		= HDMI_AUDIO_DEFAULT_RATE;
 	hdmi->audio.word_length	= HDMI_AUDIO_DEFAULT_WORD_LENGTH;
 	
+	memset(&hdmi->edid, 0, sizeof(struct hdmi_edid));
+	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	return 0;
 }
 
@@ -142,19 +144,23 @@ void hdmi_work(struct work_struct *work)
 	
 	hotplug = rk30_hdmi_detect_hotplug();
 	hdmi_dbg(hdmi->dev, "[%s] hotplug %02x curvalue %d\n", __FUNCTION__, hotplug, hdmi->hotplug);
-	if(hotplug != hdmi->hotplug)
-	{
-		hdmi->hotplug  = hotplug;
-		if(hdmi->hotplug  == HDMI_HPD_INSERT)
-			hdmi->state = READ_PARSE_EDID;
-		else {
+	
+	if(hotplug == HDMI_HPD_REMOVED) {
 			hdmi_sys_remove();
+		if(hotplug != hdmi->hotplug) {
+			hdmi->hotplug  = hotplug;
 			kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
+		}
+		if(hdmi->wait == 1) {	
+			complete(&hdmi->complete);
+			hdmi->wait = 0;						
+		}
 			return;
 		}			
+	else if(hotplug != hdmi->hotplug) {	
+		hdmi->hotplug  = hotplug;
+		hdmi->state = READ_PARSE_EDID;
 	}
-	else if(hotplug == HDMI_HPD_REMOVED)
-		rk30_hdmi_removed();
 	
 	do {
 		state_last = hdmi->state;

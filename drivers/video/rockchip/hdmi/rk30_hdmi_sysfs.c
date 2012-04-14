@@ -1,6 +1,7 @@
 #include <linux/ctype.h>
 #include <linux/string.h>
 #include <linux/display-sys.h>
+#include <linux/interrupt.h>
 #include "rk30_hdmi.h"
 
 static int hdmi_get_enable(struct rk_display_device *device)
@@ -14,11 +15,16 @@ static int hdmi_set_enable(struct rk_display_device *device, int enable)
 {
 	struct hdmi *hdmi = device->priv_data;
 	
-//	if(hdmi->enable == enable)
-//		return 0;
-//	hdmi->enable = enable;
-//	hdmi->command = HDMI_CONFIG_DISPLAY;
-//	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
+	if(hdmi->enable == enable)
+		return 0;
+	hdmi->enable = enable;
+	if(enable == 0) {
+		disable_irq(hdmi->irq);
+		hdmi->command = HDMI_CONFIG_ENABLE;
+		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
+	}
+	else
+		enable_irq(hdmi->irq);
 	return 0;
 }
 

@@ -41,7 +41,7 @@ enum {
 	I2S_CHANNEL_5_6 = 7,
 	I2S_CHANNEL_7_8 = 0xf
 };
-#define v_I2S_CHANNEL(n)	( n << 2 )
+#define v_I2S_CHANNEL(n)	( (n) << 2 )
 
 #define I2S_INPUT_SWAP		0x40
 
@@ -202,6 +202,41 @@ enum {
 #define EXT_VIDEO_PARA_VBLANK_L		0xF4
 #define EXT_VIDEO_PARA_VDELAY		0xF8
 #define EXT_VIDEO_PARA_VSYNCWIDTH	0xFC
+
+#define PHY_PLL_SPEED				0x158
+	#define v_TEST_EN(n)			(n << 6)
+	#define v_PLLA_BYPASS(n)		(n << 4)
+	#define v_PLLB_SPEED(n)			(n << 2)
+	#define v_PLLA_SPEED(n)			(n)
+	enum {
+		PLL_SPEED_LOWEST = 0,
+		PLL_SPEED_MIDLOW,
+		PLL_SPEED_MIDHIGH,
+		PLL_SPEED_HIGHEST
+	};
+
+#define PHY_PLL_17					0x15c		// PLL A & B config bit 17
+	#define v_PLLA_BIT17(n)			(n << 2)
+	#define v_PLLB_BIT17(n)			(n << 1)
+	
+#define PHY_BGR						0x160
+	#define v_BGR_DISCONNECT(n)		(n << 7)
+	#define v_BGR_V_OFFSET(n)		(n << 4)
+	#define v_BGR_I_OFFSET(n)		(n)
+
+#define PHY_PLLA_1					0x164
+#define PHY_PLLA_2					0x168
+#define PHY_PLLB_1					0x16c
+#define PHY_PLLB_2					0x170
+
+#define PHY_DRIVER_PREEMPHASIS		0x174
+	#define v_TMDS_SWING(n)			(n << 4)
+	#define v_PRE_EMPHASIS(n)		(n)
+	
+#define PHY_PLL_16_AML				0x178		// PLL A & B config bit 16 and AML control
+	#define v_PLLA_BIT16(n)			(n << 5)
+	#define v_PLLB_BIT16(n)			(n << 4)
+	#define v_AML(n)				(n)
 
 #define INTR_MASK1					0x248
 #define INTR_MASK2					0x24c

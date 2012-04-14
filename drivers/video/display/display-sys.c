@@ -151,10 +151,10 @@ static ssize_t display_store_mode(struct device *dev,
 static struct device_attribute display_attrs[] = {
 	__ATTR(name, S_IRUGO, display_show_name, NULL),
 	__ATTR(type, S_IRUGO, display_show_type, NULL),
-	__ATTR(enable, S_IRUGO | /*S_IWUGO*/S_IWUSR, display_show_enable, display_store_enable),
+	__ATTR(enable, 0664, display_show_enable, display_store_enable),
 	__ATTR(connect, S_IRUGO, display_show_connect, NULL),
 	__ATTR(modes, S_IRUGO, display_show_modes, NULL),
-	__ATTR(mode, S_IRUGO | /*S_IWUGO*/S_IWUSR, display_show_mode, display_store_mode)
+	__ATTR(mode, 0664, display_show_mode, display_store_mode)
 };
 
 static int display_suspend(struct device *dev, pm_message_t state)
