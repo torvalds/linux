@@ -31,7 +31,7 @@
 #define CTL_11G_EXT (CTL_11G | EXT_ADDITIVE)
 #define CTL_11B_EXT (CTL_11B | EXT_ADDITIVE)
 #define REDUCE_SCALED_POWER_BY_TWO_CHAIN     6  /* 10*log10(2)*2 */
-#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   9  /* 10*log10(3)*2 */
+#define REDUCE_SCALED_POWER_BY_THREE_CHAIN   10 /* 10*log10(3)*2 */
 #define PWRINCR_3_TO_1_CHAIN      9             /* 10*log(3)*2 */
 #define PWRINCR_3_TO_2_CHAIN      3             /* floor(10*log(3/2)*2) */
 #define PWRINCR_2_TO_1_CHAIN      6             /* 10*log(2)*2 */
