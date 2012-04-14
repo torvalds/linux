@@ -1339,7 +1339,7 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	memcpy(tt_request->dst, dst_orig_node->orig, ETH_ALEN);
 	tt_request->header.ttl = TTL;
 	tt_request->ttvn = ttvn;
-	tt_request->tt_data = tt_crc;
+	tt_request->tt_data = htons(tt_crc);
 	tt_request->flags = TT_REQUEST;
 
 	if (full_table)
