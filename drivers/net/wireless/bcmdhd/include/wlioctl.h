@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wlioctl.h 325538 2012-04-03 19:46:57Z $
+ * $Id: wlioctl.h 326733 2012-04-10 18:54:41Z $
  */
 
 #ifndef _wlioctl_h_
@@ -194,8 +194,7 @@ typedef struct wl_bss_info {
 	int8		phy_noise;		/* noise (in dBm) */
 
 	uint8		n_cap;			/* BSS is 802.11N Capable */
-	uint32		nbss_cap;		/* 802.11N BSS Capabilities (based on HT_CAP_*) */
-	uint32		vbss_cap;		/* 802.11AC BSS Capabilities (based on VHT_CAP) */
+	uint32		nbss_cap;		/* 802.11N+AC BSS Capabilities */
 	uint8		ctl_ch;			/* 802.11N BSS control channel number */
 	uint8		padding1[3];		/* explicit struct alignment padding */
 	uint16		vht_rxmcsmap;		/* VHT rx mcs map */
@@ -211,6 +210,14 @@ typedef struct wl_bss_info {
 	/* Add new fields here */
 	/* variable length Information Elements */
 } wl_bss_info_t;
+
+/* bss_info_cap_t flags */
+#define WL_BSS_FLAGS_FROM_BEACON	0x01	/* bss_info derived from beacon */
+#define WL_BSS_FLAGS_FROM_CACHE		0x02	/* bss_info collected from cache */
+#define WL_BSS_FLAGS_RSSI_ONCHANNEL 0x04 /* rssi info was received on channel (vs offchannel) */
+
+/* bssinfo flag for nbss_cap */
+#define VHT_BI_SGI_80MHZ			0x00000100
 
 typedef struct wl_bsscfg {
 	uint32	wsec;
@@ -311,10 +318,6 @@ typedef enum wl_scan_type {
 } wl_scan_type_t;
 
 #define WLC_EXTDSCAN_MAX_SSID		5
-
-#define WL_BSS_FLAGS_FROM_BEACON	0x01	/* bss_info derived from beacon */
-#define WL_BSS_FLAGS_FROM_CACHE		0x02	/* bss_info collected from cache */
-#define WL_BSS_FLAGS_RSSI_ONCHANNEL     0x04 /* rssi info was received on channel (vs offchannel) */
 
 typedef struct wl_extdscan_params {
 	int8 		nprobes;		/* 0, passive, otherwise active */
@@ -903,12 +906,6 @@ typedef struct {
 #ifdef BCMWAPI_WAI
 #define WSEC_SMS4_ENABLED(wsec)	((wsec) & SMS4_ENABLED)
 #endif /* BCMWAPI_WAI */
-
-#ifdef MFP
-#define MFP_CAPABLE		0x0200
-#define MFP_REQUIRED	0x0400
-#define MFP_SHA256		0x0800 /* a special configuration for STA for WIFI test tool */
-#endif /* MFP */
 
 #ifdef MFP
 #define MFP_CAPABLE		0x0200
@@ -1856,7 +1853,7 @@ typedef struct wl_po {
 /* bitflags for SGI support (sgi_rx iovar) */
 #define WLC_N_SGI_20			0x01
 #define WLC_N_SGI_40			0x02
-#define WLC_AC_SGI_80			0x04
+#define WLC_VHT_SGI_80			0x04
 
 /* when sgi_tx==WLC_SGI_ALL, bypass rate selection, enable sgi for all mcs */
 #define WLC_SGI_ALL				0x02
@@ -2689,6 +2686,7 @@ typedef struct wl_txchain_pwr_offsets {
 #define WL_PSTA_VAL		0x00008000
 #define WL_TBTT_VAL		0x00010000
 #define WL_NIC_VAL		0x00020000
+#define WL_PWRSEL_VAL	0x00040000
 /* use top-bit for WL_TIME_STAMP_VAL because this is a modifier
  * rather than a message-type of its own
  */
@@ -3639,6 +3637,8 @@ enum {
 #define	ENABLE_BD_SCAN_BIT		5
 #define ENABLE_ADAPTSCAN_BIT		6
 #define IMMEDIATE_EVENT_BIT		8
+#define SUPPRESS_SSID_BIT		9
+#define ENABLE_NET_OFFLOAD_BIT		10
 
 #define SORT_CRITERIA_MASK		0x0001
 #define AUTO_NET_SWITCH_MASK	0x0002
@@ -3649,6 +3649,8 @@ enum {
 #define ENABLE_BD_SCAN_MASK		0x0020
 #define ENABLE_ADAPTSCAN_MASK	0x00c0
 #define IMMEDIATE_EVENT_MASK	0x0100
+#define SUPPRESS_SSID_MASK	0x0200
+#define ENABLE_NET_OFFLOAD_MASK	0x0400
 
 #define PFN_VERSION				2
 #define PFN_SCANRESULT_VERSION	1
@@ -4903,78 +4905,98 @@ typedef struct {
  * Traffic management structures/defines.
  */
 
-/* Traffic management bandwidth	parameters */
-#define	TRF_MGMT_MAX_PRIORITIES		3
+/* Traffic management bandwidth parameters */
+#define TRF_MGMT_MAX_PRIORITIES                 3
 
-#define	TRF_MGMT_FLAG_ADD_DSCP		0x0001	/* Add DSCP	to IP TOS field	*/
-#define	TRF_MGMT_FLAG_DISABLE_SHAPING	0x0002	/* Only	support	traffic	clasification */
-
+#define TRF_MGMT_FLAG_ADD_DSCP                  0x0001  /* Add DSCP to IP TOS field */
+#define TRF_MGMT_FLAG_DISABLE_SHAPING           0x0002  /* Only support traffic clasification */
+#define TRF_MGMT_FLAG_DISABLE_PRIORITY_TAGGING  0x0004  /* Don't override packet's priority */
 
 /* Traffic management priority classes */
-typedef	enum trf_mgmt_priority_class {
-	trf_mgmt_priority_low		= 0,	/* Maps	to 802.1p BK */
-	trf_mgmt_priority_medium	= 1,	/* Maps	to 802.1p BE */
-	trf_mgmt_priority_high		= 2,	/* Maps	to 802.1p VI */
-	trf_mgmt_priority_invalid	= (trf_mgmt_priority_high + 1)
+typedef enum trf_mgmt_priority_class {
+	trf_mgmt_priority_low           = 0,            /* Maps to 802.1p BO */
+	trf_mgmt_priority_medium        = 1,            /* Maps to 802.1p BE */
+	trf_mgmt_priority_high          = 2,            /* Maps to 802.1p VI */
+	trf_mgmt_priority_invalid       = (trf_mgmt_priority_high + 1)
 } trf_mgmt_priority_class_t;
 
 /* Traffic management configuration parameters */
-typedef	struct trf_mgmt_config {
-	uint32	trf_mgmt_enabled;				/* 0 - disabled, 1 - enabled */
-	uint32	flags;						/* See TRF_MGMT_FLAG_xxx defines */
-	uint32	host_ip_addr;
-	uint32	host_subnet_mask;
-	uint32	downlink_bandwidth;				/* In units of kbps */
-	uint32	uplink_bandwidth;				/* In units of kbps */
-	uint32	min_tx_bandwidth[TRF_MGMT_MAX_PRIORITIES];
-	uint32	min_rx_bandwidth[TRF_MGMT_MAX_PRIORITIES];
+typedef struct trf_mgmt_config {
+	uint32  trf_mgmt_enabled;                           /* 0 - disabled, 1 - enabled */
+	uint32  flags;                                      /* See TRF_MGMT_FLAG_xxx defines */
+	uint32  host_ip_addr;                               /* My IP address to determine subnet */
+	uint32  host_subnet_mask;                           /* My subnet mask */
+	uint32  downlink_bandwidth;                         /* In units of kbps */
+	uint32  uplink_bandwidth;                           /* In units of kbps */
+	uint32  min_tx_bandwidth[TRF_MGMT_MAX_PRIORITIES];  /* Minimum guaranteed tx bandwidth */
+	uint32  min_rx_bandwidth[TRF_MGMT_MAX_PRIORITIES];  /* Minimum guaranteed rx bandwidth */
 } trf_mgmt_config_t;
 
 /* Traffic management filter */
-typedef	struct trf_mgmt_filter {
-	uint32	dst_ip_addr;	/* His IP address */
-	uint16	dst_port;	/* His L4 port */
-	uint16	src_port;	/* My L4 port */
-	uint16	prot;		/* L4 protocol (only TCP or UDP protocols) */
-	uint16	flags;		/* TBD.	For	now, this must be zero.	*/
-	trf_mgmt_priority_class_t priority;	/* 802.1p priority for filtered	packets	*/
+typedef struct trf_mgmt_filter {
+	struct ether_addr           dst_ether_addr;         /* His L2 address */
+	uint32                      dst_ip_addr;            /* His IP address */
+	uint16                      dst_port;               /* His L4 port */
+	uint16                      src_port;               /* My L4 port */
+	uint16                      prot;                   /* L4 protocol (only TCP or UDP) */
+	uint16                      flags;                  /* TBD. For now, this must be zero. */
+	trf_mgmt_priority_class_t   priority;               /* Priority for filtered packets */
 } trf_mgmt_filter_t;
 
-/* Traffic management filter list (variable length)	*/
-typedef	struct trf_mgmt_filter_list	{
-	uint32		    num_filters;
+/* Traffic management filter list (variable length) */
+typedef struct trf_mgmt_filter_list     {
+	uint32              num_filters;
 	trf_mgmt_filter_t   filter[1];
 } trf_mgmt_filter_list_t;
 
-/* Traffic management shaping info */
-typedef	struct trf_mgmt_shaping_info {
-	uint32	max_bps;			/* Max bytes consumed or produced per second */
-	uint32	max_bytes_per_sampling_period;	/* Max bytes consumed or produced per sample */
-	uint32	shaping_delay_threshold;	/* Theshold for starting traffic delays	 */
-	uint32	num_bytes_produced_per_sec;	/* Bytes produced over the sampling period */
-	uint32	num_bytes_consumed_per_sec;	/* Bytes consumed over the sampling period */
+/* Traffic management global info used for all queues */
+typedef struct trf_mgmt_global_info {
+	uint32  maximum_bytes_per_second;
+	uint32  maximum_bytes_per_sampling_period;
+	uint32  total_bytes_consumed_per_second;
+	uint32  total_bytes_consumed_per_sampling_period;
+	uint32  total_unused_bytes_per_sampling_period;
+} trf_mgmt_global_info_t;
+
+/* Traffic management shaping info per priority queue */
+typedef struct trf_mgmt_shaping_info {
+	uint32  gauranteed_bandwidth_percentage;
+	uint32  guaranteed_bytes_per_second;
+	uint32  guaranteed_bytes_per_sampling_period;
+	uint32  num_bytes_produced_per_second;
+	uint32  num_bytes_consumed_per_second;
+	uint32  num_queued_packets;                         /* Number of packets in queue */
+	uint32  num_queued_bytes;                           /* Number of bytes in queue */
 } trf_mgmt_shaping_info_t;
 
 /* Traffic management shaping info array */
-typedef	struct trf_mgmt_shaping_info_array {
-	trf_mgmt_shaping_info_t	   tx_queue_shaping_info[TRF_MGMT_MAX_PRIORITIES];
-	trf_mgmt_shaping_info_t	   rx_queue_shaping_info[TRF_MGMT_MAX_PRIORITIES];
+typedef struct trf_mgmt_shaping_info_array {
+	trf_mgmt_global_info_t   tx_global_shaping_info;
+	trf_mgmt_shaping_info_t  tx_queue_shaping_info[TRF_MGMT_MAX_PRIORITIES];
+	trf_mgmt_global_info_t   rx_global_shaping_info;
+	trf_mgmt_shaping_info_t  rx_queue_shaping_info[TRF_MGMT_MAX_PRIORITIES];
 } trf_mgmt_shaping_info_array_t;
 
 
 /* Traffic management statistical counters */
-typedef	struct trf_mgmt_stats {
-	uint32	num_processed_packets;	/* Number of packets processed */
-	uint32	num_processed_bytes;	/* Number of bytes processed */
-	uint32	num_queued_packets;	/* Number of packets in	queue */
-	uint32	num_queued_bytes;	/* Number of bytes in queue	*/
-	uint32	num_discarded_packets;	/* Number of packets discarded from queue */
+typedef struct trf_mgmt_stats {
+	uint32  num_processed_packets;      /* Number of packets processed */
+	uint32  num_processed_bytes;        /* Number of bytes processed */
+	uint32  num_discarded_packets;      /* Number of packets discarded from queue */
 } trf_mgmt_stats_t;
 
-/* Traffic management statisics	array */
-typedef	struct trf_mgmt_stats_array	{
-	trf_mgmt_stats_t    tx_queue_stats[TRF_MGMT_MAX_PRIORITIES];
-	trf_mgmt_stats_t    rx_queue_stats[TRF_MGMT_MAX_PRIORITIES];
+/* Traffic management statisics array */
+typedef struct trf_mgmt_stats_array     {
+	trf_mgmt_stats_t  tx_queue_stats[TRF_MGMT_MAX_PRIORITIES];
+	trf_mgmt_stats_t  rx_queue_stats[TRF_MGMT_MAX_PRIORITIES];
 } trf_mgmt_stats_array_t;
+
+typedef struct powersel_params {
+	/* LPC Params exposed via IOVAR */
+	int32		tp_ratio_thresh;  /* Throughput ratio threshold */
+	uint8		rate_stab_thresh; /* Thresh for rate stability based on nupd */
+	uint8		pwr_stab_thresh; /* Number of successes before power step down */
+	uint8		pwr_sel_exp_time; /* Time lapse for expiry of database */
+} powersel_params_t;
 
 #endif /* _wlioctl_h_ */

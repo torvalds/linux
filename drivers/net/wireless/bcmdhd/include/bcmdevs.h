@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmdevs.h 324551 2012-03-29 18:36:03Z $
+ * $Id: bcmdevs.h 327007 2012-04-11 22:45:50Z $
  */
 
 #ifndef	_BCMDEVS_H
@@ -340,6 +340,7 @@
 #define	BFL_PACTRL		0x00000002  
 #define BFL_AIRLINEMODE	0x00000004  
 #define	BFL_ADCDIV		0x00000008  
+#define	BFL_RFPLL	        0x00000008  
 #define	BFL_ENETROBO		0x00000010  
 #define	BFL_NOPLLDOWN		0x00000020  
 #define	BFL_CCKHIPWR		0x00000040  

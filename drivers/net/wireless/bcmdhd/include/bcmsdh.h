@@ -23,7 +23,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh.h 313885 2012-02-09 03:55:26Z $
+ * $Id: bcmsdh.h 326276 2012-04-06 23:16:42Z $
  */
 
 /**
@@ -56,7 +56,7 @@ typedef void (*bcmsdh_cb_fn_t)(void *);
  *    most recent one) to enable single-instance implementations to pass NULL.
  */
 
-#if defined(NDIS630)
+#if defined(NDISVER) && (NDISVER >= 0x0630) && 1
 extern bcmsdh_info_t *bcmsdh_attach(osl_t *osh, void *cfghdl,
 	void **regsva, uint irq, shared_info_t *sh);
 #else

@@ -28,7 +28,7 @@
 
 #define	EPI_MAJOR_VERSION	1
 
-#define	EPI_MINOR_VERSION	23
+#define	EPI_MINOR_VERSION	26
 
 #define	EPI_RC_NUMBER		0
 
@@ -36,13 +36,13 @@
 
 #define	EPI_BUILD_NUMBER	0
 
-#define	EPI_VERSION		1, 23, 0, 0
+#define	EPI_VERSION		1, 26, 0, 0
 
-#define	EPI_VERSION_NUM		0x01170000
+#define	EPI_VERSION_NUM		0x011a0000
 
-#define EPI_VERSION_DEV		1.23.0
+#define EPI_VERSION_DEV		1.26.0
 
 
-#define	EPI_VERSION_STR		"1.23 (r325707)"
+#define	EPI_VERSION_STR		"1.26 (r327295)"
 
 #endif 

@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 322404 2012-03-20 20:41:32Z $
+ * $Id: dhd.h 327089 2012-04-12 02:05:07Z $
  */
 
 /****************
@@ -74,9 +74,12 @@ enum dhd_bus_state {
 
 /* Firmware requested operation mode */
 #define STA_MASK			0x0001
-#define HOSTAPD_MASK			0x0002
+#define HOSTAPD_MASK		0x0002
 #define WFD_MASK			0x0004
-#define SOFTAP_FW_MASK			0x0008
+#define SOFTAP_FW_MASK	0x0008
+#define P2P_GO_ENABLED		0x0010
+#define P2P_GC_ENABLED		0x0020
+#define CONCURENT_MASK		0x00F0
 
 /* max sequential rxcntl timeouts to set HANG event */
 #define MAX_CNTL_TIMEOUT  2
