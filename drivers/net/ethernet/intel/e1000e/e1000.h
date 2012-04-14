@@ -673,9 +673,19 @@ static inline s32 e1e_rphy(struct e1000_hw *hw, u32 offset, u16 *data)
 	return hw->phy.ops.read_reg(hw, offset, data);
 }
 
+static inline s32 e1e_rphy_locked(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	return hw->phy.ops.read_reg_locked(hw, offset, data);
+}
+
 static inline s32 e1e_wphy(struct e1000_hw *hw, u32 offset, u16 data)
 {
 	return hw->phy.ops.write_reg(hw, offset, data);
+}
+
+static inline s32 e1e_wphy_locked(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	return hw->phy.ops.write_reg_locked(hw, offset, data);
 }
 
 static inline s32 e1000_get_cable_length(struct e1000_hw *hw)
