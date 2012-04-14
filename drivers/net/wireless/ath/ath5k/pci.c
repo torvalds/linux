@@ -340,28 +340,4 @@ static struct pci_driver ath5k_pci_driver = {
 	.driver.pm	= ATH5K_PM_OPS,
 };
 
-/*
- * Module init/exit functions
- */
-static int __init
-init_ath5k_pci(void)
-{
-	int ret;
-
-	ret = pci_register_driver(&ath5k_pci_driver);
-	if (ret) {
-		pr_err("pci: can't register pci driver\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static void __exit
-exit_ath5k_pci(void)
-{
-	pci_unregister_driver(&ath5k_pci_driver);
-}
-
-module_init(init_ath5k_pci);
-module_exit(exit_ath5k_pci);
+module_pci_driver(ath5k_pci_driver);

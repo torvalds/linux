@@ -5893,18 +5893,7 @@ static struct pci_driver mwl8k_driver = {
 	.shutdown	= __devexit_p(mwl8k_shutdown),
 };
 
-static int __init mwl8k_init(void)
-{
-	return pci_register_driver(&mwl8k_driver);
-}
-
-static void __exit mwl8k_exit(void)
-{
-	pci_unregister_driver(&mwl8k_driver);
-}
-
-module_init(mwl8k_init);
-module_exit(mwl8k_exit);
+module_pci_driver(mwl8k_driver);
 
 MODULE_DESCRIPTION(MWL8K_DESC);
 MODULE_VERSION(MWL8K_VERSION);
