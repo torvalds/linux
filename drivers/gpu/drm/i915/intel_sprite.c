@@ -219,7 +219,7 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	int pipe = intel_plane->pipe, pixel_size;
-	u32 dvscntr, dvsscale = 0;
+	u32 dvscntr, dvsscale;
 
 	dvscntr = I915_READ(DVSCNTR(pipe));
 
@@ -275,7 +275,8 @@ ilk_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	intel_update_sprite_watermarks(dev, pipe, crtc_w, pixel_size);
 
-	if (crtc_w != src_w || crtc_h != src_h)
+	dvsscale = 0;
+	if (IS_GEN5(dev) || crtc_w != src_w || crtc_h != src_h)
 		dvsscale = DVS_SCALE_ENABLE | (src_w << 16) | src_h;
 
 	I915_WRITE(DVSSTRIDE(pipe), fb->pitches[0]);
