@@ -38,7 +38,6 @@
 #include <mach/hardware.h>
 #include <mach/common.h>
 #include <mach/iomux-mx35.h>
-#include <mach/audmux.h>
 
 #include "devices-imx35.h"
 
@@ -251,22 +250,6 @@ void __init eukrea_mbimxsd35_baseboard_init(void)
 	if (mxc_iomux_v3_setup_multiple_pads(eukrea_mbimxsd_pads,
 			ARRAY_SIZE(eukrea_mbimxsd_pads)))
 		printk(KERN_ERR "error setting mbimxsd pads !\n");
-
-#if defined(CONFIG_SND_SOC_EUKREA_TLV320)
-	/* SSI unit master I2S codec connected to SSI_AUD4 */
-	mxc_audmux_v2_configure_port(0,
-			MXC_AUDMUX_V2_PTCR_SYN |
-			MXC_AUDMUX_V2_PTCR_TFSDIR |
-			MXC_AUDMUX_V2_PTCR_TFSEL(3) |
-			MXC_AUDMUX_V2_PTCR_TCLKDIR |
-			MXC_AUDMUX_V2_PTCR_TCSEL(3),
-			MXC_AUDMUX_V2_PDCR_RXDSEL(3)
-	);
-	mxc_audmux_v2_configure_port(3,
-			MXC_AUDMUX_V2_PTCR_SYN,
-			MXC_AUDMUX_V2_PDCR_RXDSEL(0)
-	);
-#endif
 
 	imx35_add_imx_uart1(&uart_pdata);
 	imx35_add_ipu_core(&mx3_ipu_data);

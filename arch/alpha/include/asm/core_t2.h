@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <asm/compiler.h>
-#include <asm/system.h>
 
 /*
  * T2 is the internal name for the core logic chipset which provides

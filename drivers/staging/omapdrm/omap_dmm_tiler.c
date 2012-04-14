@@ -34,6 +34,8 @@
 #include "omap_dmm_tiler.h"
 #include "omap_dmm_priv.h"
 
+#define DMM_DRIVER_NAME "dmm"
+
 /* mappings for associating views to luts */
 static struct tcm *containers[TILFMT_NFORMATS];
 static struct dmm *omap_dmm;
@@ -465,7 +467,12 @@ size_t tiler_vsize(enum tiler_fmt fmt, uint16_t w, uint16_t h)
 	return round_up(geom[fmt].cpp * w, PAGE_SIZE) * h;
 }
 
-int omap_dmm_remove(void)
+bool dmm_is_initialized(void)
+{
+	return omap_dmm ? true : false;
+}
+
+static int omap_dmm_remove(struct platform_device *dev)
 {
 	struct tiler_block *block, *_block;
 	int i;
@@ -499,39 +506,48 @@ int omap_dmm_remove(void)
 		if (omap_dmm->irq != -1)
 			free_irq(omap_dmm->irq, omap_dmm);
 
+		iounmap(omap_dmm->base);
 		kfree(omap_dmm);
+		omap_dmm = NULL;
 	}
 
 	return 0;
 }
 
-int omap_dmm_init(struct drm_device *dev)
+static int omap_dmm_probe(struct platform_device *dev)
 {
 	int ret = -EFAULT, i;
 	struct tcm_area area = {0};
 	u32 hwinfo, pat_geom, lut_table_size;
-	struct omap_drm_platform_data *pdata = dev->dev->platform_data;
-
-	if (!pdata || !pdata->dmm_pdata) {
-		dev_err(dev->dev, "dmm platform data not present, skipping\n");
-		return ret;
-	}
+	struct resource *mem;
 
 	omap_dmm = kzalloc(sizeof(*omap_dmm), GFP_KERNEL);
 	if (!omap_dmm) {
-		dev_err(dev->dev, "failed to allocate driver data section\n");
+		dev_err(&dev->dev, "failed to allocate driver data section\n");
 		goto fail;
 	}
 
 	/* lookup hwmod data - base address and irq */
-	omap_dmm->base = pdata->dmm_pdata->base;
-	omap_dmm->irq = pdata->dmm_pdata->irq;
-	omap_dmm->dev = dev->dev;
-
-	if (!omap_dmm->base) {
-		dev_err(dev->dev, "failed to get dmm base address\n");
+	mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!mem) {
+		dev_err(&dev->dev, "failed to get base address resource\n");
 		goto fail;
 	}
+
+	omap_dmm->base = ioremap(mem->start, SZ_2K);
+
+	if (!omap_dmm->base) {
+		dev_err(&dev->dev, "failed to get dmm base address\n");
+		goto fail;
+	}
+
+	omap_dmm->irq = platform_get_irq(dev, 0);
+	if (omap_dmm->irq < 0) {
+		dev_err(&dev->dev, "failed to get IRQ resource\n");
+		goto fail;
+	}
+
+	omap_dmm->dev = &dev->dev;
 
 	hwinfo = readl(omap_dmm->base + DMM_PAT_HWINFO);
 	omap_dmm->num_engines = (hwinfo >> 24) & 0x1F;
@@ -556,7 +572,7 @@ int omap_dmm_init(struct drm_device *dev)
 				"omap_dmm_irq_handler", omap_dmm);
 
 	if (ret) {
-		dev_err(dev->dev, "couldn't register IRQ %d, error %d\n",
+		dev_err(&dev->dev, "couldn't register IRQ %d, error %d\n",
 			omap_dmm->irq, ret);
 		omap_dmm->irq = -1;
 		goto fail;
@@ -575,25 +591,30 @@ int omap_dmm_init(struct drm_device *dev)
 
 	omap_dmm->lut = vmalloc(lut_table_size * sizeof(*omap_dmm->lut));
 	if (!omap_dmm->lut) {
-		dev_err(dev->dev, "could not allocate lut table\n");
+		dev_err(&dev->dev, "could not allocate lut table\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	omap_dmm->dummy_page = alloc_page(GFP_KERNEL | __GFP_DMA32);
 	if (!omap_dmm->dummy_page) {
-		dev_err(dev->dev, "could not allocate dummy page\n");
+		dev_err(&dev->dev, "could not allocate dummy page\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
+
+	/* set dma mask for device */
+	/* NOTE: this is a workaround for the hwmod not initializing properly */
+	dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+
 	omap_dmm->dummy_pa = page_to_phys(omap_dmm->dummy_page);
 
 	/* alloc refill memory */
-	omap_dmm->refill_va = dma_alloc_coherent(dev->dev,
+	omap_dmm->refill_va = dma_alloc_coherent(&dev->dev,
 				REFILL_BUFFER_SIZE * omap_dmm->num_engines,
 				&omap_dmm->refill_pa, GFP_KERNEL);
 	if (!omap_dmm->refill_va) {
-		dev_err(dev->dev, "could not allocate refill memory\n");
+		dev_err(&dev->dev, "could not allocate refill memory\n");
 		goto fail;
 	}
 
@@ -602,7 +623,7 @@ int omap_dmm_init(struct drm_device *dev)
 			omap_dmm->num_engines * sizeof(struct refill_engine),
 			GFP_KERNEL);
 	if (!omap_dmm->engines) {
-		dev_err(dev->dev, "could not allocate engines\n");
+		dev_err(&dev->dev, "could not allocate engines\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -624,7 +645,7 @@ int omap_dmm_init(struct drm_device *dev)
 	omap_dmm->tcm = kzalloc(omap_dmm->num_lut * sizeof(*omap_dmm->tcm),
 				GFP_KERNEL);
 	if (!omap_dmm->tcm) {
-		dev_err(dev->dev, "failed to allocate lut ptrs\n");
+		dev_err(&dev->dev, "failed to allocate lut ptrs\n");
 		ret = -ENOMEM;
 		goto fail;
 	}
@@ -636,7 +657,7 @@ int omap_dmm_init(struct drm_device *dev)
 						NULL);
 
 		if (!omap_dmm->tcm[i]) {
-			dev_err(dev->dev, "failed to allocate container\n");
+			dev_err(&dev->dev, "failed to allocate container\n");
 			ret = -ENOMEM;
 			goto fail;
 		}
@@ -676,7 +697,7 @@ int omap_dmm_init(struct drm_device *dev)
 	return 0;
 
 fail:
-	omap_dmm_remove();
+	omap_dmm_remove(dev);
 	return ret;
 }
 
@@ -766,9 +787,17 @@ int tiler_map_show(struct seq_file *s, void *arg)
 	const char *a2d = special;
 	const char *m2dp = m2d, *a2dp = a2d;
 	char nice[128];
-	int h_adj = omap_dmm->lut_height / ydiv;
-	int w_adj = omap_dmm->lut_width / xdiv;
+	int h_adj;
+	int w_adj;
 	unsigned long flags;
+
+	if (!omap_dmm) {
+		/* early return if dmm/tiler device is not initialized */
+		return 0;
+	}
+
+	h_adj = omap_dmm->lut_height / ydiv;
+	w_adj = omap_dmm->lut_width / xdiv;
 
 	map = kzalloc(h_adj * sizeof(*map), GFP_KERNEL);
 	global_map = kzalloc((w_adj + 1) * h_adj, GFP_KERNEL);
@@ -828,3 +857,17 @@ error:
 	return 0;
 }
 #endif
+
+struct platform_driver omap_dmm_driver = {
+	.probe = omap_dmm_probe,
+	.remove = omap_dmm_remove,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = DMM_DRIVER_NAME,
+	},
+};
+
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Andy Gross <andy.gross@ti.com>");
+MODULE_DESCRIPTION("OMAP DMM/Tiler Driver");
+MODULE_ALIAS("platform:" DMM_DRIVER_NAME);

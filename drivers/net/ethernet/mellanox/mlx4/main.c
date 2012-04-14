@@ -394,7 +394,7 @@ static int mlx4_how_many_lives_vf(struct mlx4_dev *dev)
 	return ret;
 }
 
-static int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
+int mlx4_is_slave_active(struct mlx4_dev *dev, int slave)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_slave_state *s_slave;
@@ -643,6 +643,99 @@ static ssize_t set_port_type(struct device *dev,
 out:
 	mlx4_start_sense(mdev);
 	mutex_unlock(&priv->port_mutex);
+	return err ? err : count;
+}
+
+enum ibta_mtu {
+	IB_MTU_256  = 1,
+	IB_MTU_512  = 2,
+	IB_MTU_1024 = 3,
+	IB_MTU_2048 = 4,
+	IB_MTU_4096 = 5
+};
+
+static inline int int_to_ibta_mtu(int mtu)
+{
+	switch (mtu) {
+	case 256:  return IB_MTU_256;
+	case 512:  return IB_MTU_512;
+	case 1024: return IB_MTU_1024;
+	case 2048: return IB_MTU_2048;
+	case 4096: return IB_MTU_4096;
+	default: return -1;
+	}
+}
+
+static inline int ibta_mtu_to_int(enum ibta_mtu mtu)
+{
+	switch (mtu) {
+	case IB_MTU_256:  return  256;
+	case IB_MTU_512:  return  512;
+	case IB_MTU_1024: return 1024;
+	case IB_MTU_2048: return 2048;
+	case IB_MTU_4096: return 4096;
+	default: return -1;
+	}
+}
+
+static ssize_t show_port_ib_mtu(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
+						   port_mtu_attr);
+	struct mlx4_dev *mdev = info->dev;
+
+	if (mdev->caps.port_type[info->port] == MLX4_PORT_TYPE_ETH)
+		mlx4_warn(mdev, "port level mtu is only used for IB ports\n");
+
+	sprintf(buf, "%d\n",
+			ibta_mtu_to_int(mdev->caps.port_ib_mtu[info->port]));
+	return strlen(buf);
+}
+
+static ssize_t set_port_ib_mtu(struct device *dev,
+			     struct device_attribute *attr,
+			     const char *buf, size_t count)
+{
+	struct mlx4_port_info *info = container_of(attr, struct mlx4_port_info,
+						   port_mtu_attr);
+	struct mlx4_dev *mdev = info->dev;
+	struct mlx4_priv *priv = mlx4_priv(mdev);
+	int err, port, mtu, ibta_mtu = -1;
+
+	if (mdev->caps.port_type[info->port] == MLX4_PORT_TYPE_ETH) {
+		mlx4_warn(mdev, "port level mtu is only used for IB ports\n");
+		return -EINVAL;
+	}
+
+	err = sscanf(buf, "%d", &mtu);
+	if (err > 0)
+		ibta_mtu = int_to_ibta_mtu(mtu);
+
+	if (err <= 0 || ibta_mtu < 0) {
+		mlx4_err(mdev, "%s is invalid IBTA mtu\n", buf);
+		return -EINVAL;
+	}
+
+	mdev->caps.port_ib_mtu[info->port] = ibta_mtu;
+
+	mlx4_stop_sense(mdev);
+	mutex_lock(&priv->port_mutex);
+	mlx4_unregister_device(mdev);
+	for (port = 1; port <= mdev->caps.num_ports; port++) {
+		mlx4_CLOSE_PORT(mdev, port);
+		err = mlx4_SET_PORT(mdev, port);
+		if (err) {
+			mlx4_err(mdev, "Failed to set port %d, "
+				      "aborting\n", port);
+			goto err_set_port;
+		}
+	}
+	err = mlx4_register_device(mdev);
+err_set_port:
+	mutex_unlock(&priv->port_mutex);
+	mlx4_start_sense(mdev);
 	return err ? err : count;
 }
 
@@ -1133,6 +1226,8 @@ static int mlx4_init_hca(struct mlx4_dev *dev)
 			goto err_stop_fw;
 		}
 
+		dev->caps.max_fmr_maps = (1 << (32 - ilog2(dev->caps.num_mpts))) - 1;
+
 		init_hca.log_uar_sz = ilog2(dev->caps.num_uars);
 		init_hca.uar_page_sz = PAGE_SHIFT - 12;
 
@@ -1363,12 +1458,10 @@ static int mlx4_setup_hca(struct mlx4_dev *dev)
 					  "with caps = 0\n", port, err);
 			dev->caps.ib_port_def_cap[port] = ib_port_default_caps;
 
-			err = mlx4_check_ext_port_caps(dev, port);
-			if (err)
-				mlx4_warn(dev, "failed to get port %d extended "
-					  "port capabilities support info (%d)."
-					  " Assuming not supported\n",
-					  port, err);
+			if (mlx4_is_mfunc(dev))
+				dev->caps.port_ib_mtu[port] = IB_MTU_2048;
+			else
+				dev->caps.port_ib_mtu[port] = IB_MTU_4096;
 
 			err = mlx4_SET_PORT(dev, port);
 			if (err) {
@@ -1524,6 +1617,24 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 		info->port = -1;
 	}
 
+	sprintf(info->dev_mtu_name, "mlx4_port%d_mtu", port);
+	info->port_mtu_attr.attr.name = info->dev_mtu_name;
+	if (mlx4_is_mfunc(dev))
+		info->port_mtu_attr.attr.mode = S_IRUGO;
+	else {
+		info->port_mtu_attr.attr.mode = S_IRUGO | S_IWUSR;
+		info->port_mtu_attr.store     = set_port_ib_mtu;
+	}
+	info->port_mtu_attr.show      = show_port_ib_mtu;
+	sysfs_attr_init(&info->port_mtu_attr.attr);
+
+	err = device_create_file(&dev->pdev->dev, &info->port_mtu_attr);
+	if (err) {
+		mlx4_err(dev, "Failed to create mtu file for port %d\n", port);
+		device_remove_file(&info->dev->pdev->dev, &info->port_attr);
+		info->port = -1;
+	}
+
 	return err;
 }
 
@@ -1533,6 +1644,7 @@ static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
 		return;
 
 	device_remove_file(&info->dev->pdev->dev, &info->port_attr);
+	device_remove_file(&info->dev->pdev->dev, &info->port_mtu_attr);
 }
 
 static int mlx4_init_steering(struct mlx4_dev *dev)
@@ -1545,13 +1657,11 @@ static int mlx4_init_steering(struct mlx4_dev *dev)
 	if (!priv->steer)
 		return -ENOMEM;
 
-	for (i = 0; i < num_entries; i++) {
+	for (i = 0; i < num_entries; i++)
 		for (j = 0; j < MLX4_NUM_STEERS; j++) {
 			INIT_LIST_HEAD(&priv->steer[i].promisc_qps[j]);
 			INIT_LIST_HEAD(&priv->steer[i].steer_entries[j]);
 		}
-		INIT_LIST_HEAD(&priv->steer[i].high_prios);
-	}
 	return 0;
 }
 

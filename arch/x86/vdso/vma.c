@@ -172,8 +172,7 @@ static int setup_additional_pages(struct linux_binprm *bprm,
 
 	ret = install_special_mapping(mm, addr, size,
 				      VM_READ|VM_EXEC|
-				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				      VM_ALWAYSDUMP,
+				      VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				      pages);
 	if (ret) {
 		current->mm->context.vdso = NULL;

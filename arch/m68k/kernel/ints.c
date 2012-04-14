@@ -15,7 +15,6 @@
 #include <linux/init.h>
 
 #include <asm/setup.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/traps.h>
 #include <asm/page.h>

@@ -28,8 +28,8 @@ int symbol__annotate_init(struct map *map __used, struct symbol *sym)
 int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	size_t sizeof_sym_hist = (sizeof(struct sym_hist) +
-				  (sym->end - sym->start) * sizeof(u64));
+	const size_t size = sym->end - sym->start + 1;
+	size_t sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(u64));
 
 	notes->src = zalloc(sizeof(*notes->src) + symbol_conf.nr_events * sizeof_sym_hist);
 	if (notes->src == NULL)
@@ -64,8 +64,8 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 	pr_debug3("%s: addr=%#" PRIx64 "\n", __func__, map->unmap_ip(map, addr));
 
-	if (addr >= sym->end)
-		return 0;
+	if (addr < sym->start || addr > sym->end)
+		return -ERANGE;
 
 	offset = addr - sym->start;
 	h = annotation__histogram(notes, evidx);
@@ -84,10 +84,15 @@ static struct objdump_line *objdump_line__new(s64 offset, char *line, size_t pri
 
 	if (self != NULL) {
 		self->offset = offset;
-		self->line = line;
+		self->line = strdup(line);
+		if (self->line == NULL)
+			goto out_delete;
 	}
 
 	return self;
+out_delete:
+	free(self);
+	return NULL;
 }
 
 void objdump_line__free(struct objdump_line *self)
@@ -112,7 +117,7 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 }
 
 static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
-			       int evidx, u64 len, int min_pcnt,
+			       u64 start, int evidx, u64 len, int min_pcnt,
 			       int printed, int max_lines,
 			       struct objdump_line *queue)
 {
@@ -128,6 +133,7 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 		struct source_line *src_line = notes->src->lines;
 		struct sym_hist *h = annotation__histogram(notes, evidx);
 		s64 offset = oline->offset;
+		const u64 addr = start + offset;
 		struct objdump_line *next;
 
 		next = objdump__get_next_ip_line(&notes->src->source, oline);
@@ -157,7 +163,7 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 			list_for_each_entry_from(queue, &notes->src->source, node) {
 				if (queue == oline)
 					break;
-				objdump_line__print(queue, sym, evidx, len,
+				objdump_line__print(queue, sym, start, evidx, len,
 						    0, 0, 1, NULL);
 			}
 		}
@@ -180,6 +186,7 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 
 		color_fprintf(stdout, color, " %7.2f", percent);
 		printf(" :	");
+		color_fprintf(stdout, PERF_COLOR_MAGENTA, "  %" PRIx64 ":", addr);
 		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", oline->line);
 	} else if (max_lines && printed >= max_lines)
 		return 1;
@@ -201,7 +208,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct objdump_line *objdump_line;
-	char *line = NULL, *tmp, *tmp2, *c;
+	char *line = NULL, *parsed_line, *tmp, *tmp2, *c;
 	size_t line_len;
 	s64 line_ip, offset = -1;
 
@@ -219,6 +226,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		*c = 0;
 
 	line_ip = -1;
+	parsed_line = line;
 
 	/*
 	 * Strip leading spaces:
@@ -246,13 +254,16 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 		offset = line_ip - start;
 		if (offset < 0 || (u64)line_ip > end)
 			offset = -1;
+		else
+			parsed_line = tmp2 + 1;
 	}
 
-	objdump_line = objdump_line__new(offset, line, privsize);
-	if (objdump_line == NULL) {
-		free(line);
+	objdump_line = objdump_line__new(offset, parsed_line, privsize);
+	free(line);
+
+	if (objdump_line == NULL)
 		return -1;
-	}
+
 	objdump__add_line(&notes->src->source, objdump_line);
 
 	return 0;
@@ -315,7 +326,7 @@ fallback:
 		       "Please use:\n\n"
 		       "  perf buildid-cache -av vmlinux\n\n"
 		       "or:\n\n"
-		       "  --vmlinux vmlinux",
+		       "  --vmlinux vmlinux\n",
 		       sym->name, build_id_msg ?: "");
 		goto out_free_filename;
 	}
@@ -408,7 +419,7 @@ static int symbol__get_source_line(struct symbol *sym, struct map *map,
 	if (!notes->src->lines)
 		return -1;
 
-	start = map->unmap_ip(map, sym->start);
+	start = map__rip_2objdump(map, sym->start);
 
 	for (i = 0; i < len; i++) {
 		char *path = NULL;
@@ -493,6 +504,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 	const char *filename = dso->long_name, *d_filename;
 	struct annotation *notes = symbol__annotation(sym);
 	struct objdump_line *pos, *queue = NULL;
+	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
@@ -516,8 +528,9 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			queue_len = 0;
 		}
 
-		switch (objdump_line__print(pos, sym, evidx, len, min_pcnt,
-					    printed, max_lines, queue)) {
+		switch (objdump_line__print(pos, sym, start, evidx, len,
+					    min_pcnt, printed, max_lines,
+					    queue)) {
 		case 0:
 			++printed;
 			if (context) {
@@ -561,16 +574,12 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
-	struct objdump_line *pos;
-	int len = sym->end - sym->start;
+	int len = sym->end - sym->start, offset;
 
 	h->sum = 0;
-
-	list_for_each_entry(pos, &notes->src->source, node) {
-		if (pos->offset != -1 && pos->offset < len) {
-			h->addr[pos->offset] = h->addr[pos->offset] * 7 / 8;
-			h->sum += h->addr[pos->offset];
-		}
+	for (offset = 0; offset < len; ++offset) {
+		h->addr[offset] = h->addr[offset] * 7 / 8;
+		h->sum += h->addr[offset];
 	}
 }
 

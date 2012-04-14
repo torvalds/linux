@@ -34,7 +34,8 @@
 /* r2 is special: it holds 'current', and it made nonvolatile in the
  * kernel with the -ffixed-r2 gcc option. */
 #define HOST_R2         12
-#define HOST_NV_GPRS    16
+#define HOST_CR         16
+#define HOST_NV_GPRS    20
 #define HOST_NV_GPR(n)  (HOST_NV_GPRS + ((n - 14) * 4))
 #define HOST_MIN_STACK_SIZE (HOST_NV_GPR(31) + 4)
 #define HOST_STACK_SIZE (((HOST_MIN_STACK_SIZE + 15) / 16) * 16) /* Align. */
@@ -296,8 +297,10 @@ heavyweight_exit:
 
 	/* Return to kvm_vcpu_run(). */
 	lwz	r4, HOST_STACK_LR(r1)
+	lwz	r5, HOST_CR(r1)
 	addi	r1, r1, HOST_STACK_SIZE
 	mtlr	r4
+	mtcr	r5
 	/* r3 still contains the return code from kvmppc_handle_exit(). */
 	blr
 
@@ -314,6 +317,8 @@ _GLOBAL(__kvmppc_vcpu_run)
 	stw	r3, HOST_RUN(r1)
 	mflr	r3
 	stw	r3, HOST_STACK_LR(r1)
+	mfcr	r5
+	stw	r5, HOST_CR(r1)
 
 	/* Save host non-volatile register state to stack. */
 	stw	r14, HOST_NV_GPR(r14)(r1)
@@ -402,19 +407,25 @@ lightweight_exit:
 	/* Save vcpu pointer for the exception handlers. */
 	mtspr	SPRN_SPRG_WVCPU, r4
 
+	lwz	r5, VCPU_SHARED(r4)
+
 	/* Can't switch the stack pointer until after IVPR is switched,
 	 * because host interrupt handlers would get confused. */
 	lwz	r1, VCPU_GPR(r1)(r4)
 
-	/* Host interrupt handlers may have clobbered these guest-readable
-	 * SPRGs, so we need to reload them here with the guest's values. */
-	lwz	r3, VCPU_SPRG4(r4)
+	/*
+	 * Host interrupt handlers may have clobbered these
+	 * guest-readable SPRGs, or the guest kernel may have
+	 * written directly to the shared area, so we
+	 * need to reload them here with the guest's values.
+	 */
+	lwz	r3, VCPU_SHARED_SPRG4(r5)
 	mtspr	SPRN_SPRG4W, r3
-	lwz	r3, VCPU_SPRG5(r4)
+	lwz	r3, VCPU_SHARED_SPRG5(r5)
 	mtspr	SPRN_SPRG5W, r3
-	lwz	r3, VCPU_SPRG6(r4)
+	lwz	r3, VCPU_SHARED_SPRG6(r5)
 	mtspr	SPRN_SPRG6W, r3
-	lwz	r3, VCPU_SPRG7(r4)
+	lwz	r3, VCPU_SHARED_SPRG7(r5)
 	mtspr	SPRN_SPRG7W, r3
 
 #ifdef CONFIG_KVM_EXIT_TIMING

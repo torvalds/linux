@@ -130,8 +130,8 @@ typedef struct compat_siginfo {
 			unsigned int _pid;	/* which child */
 			unsigned int _uid;	/* sender's uid */
 			int _status;		/* exit code */
-			s64 _utime;
-			s64 _stime;
+			compat_s64 _utime;
+			compat_s64 _stime;
 		} _sigchld_x32;
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */

@@ -661,7 +661,7 @@ static void mace_dma_rx_frame(struct net_device *dev, struct mace_frame *mf)
 	} else {
 		unsigned int frame_length = mf->rcvcnt + ((frame_status & 0x0F) << 8 );
 
-		skb = dev_alloc_skb(frame_length + 2);
+		skb = netdev_alloc_skb(dev, frame_length + 2);
 		if (!skb) {
 			dev->stats.rx_dropped++;
 			return;

@@ -214,14 +214,13 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 	if (!try_module_get(serial->type->driver.owner))
 		goto error_module_get;
 
-	/* perform the standard setup */
-	retval = tty_init_termios(tty);
-	if (retval)
-		goto error_init_termios;
-
 	retval = usb_autopm_get_interface(serial->interface);
 	if (retval)
 		goto error_get_interface;
+
+	retval = tty_standard_install(driver, tty);
+	if (retval)
+		goto error_init_termios;
 
 	mutex_unlock(&serial->disc_mutex);
 
@@ -231,14 +230,11 @@ static int serial_install(struct tty_driver *driver, struct tty_struct *tty)
 
 	tty->driver_data = port;
 
-	/* Final install (we use the default method) */
-	tty_driver_kref_get(driver);
-	tty->count++;
-	driver->ttys[idx] = tty;
 	return retval;
 
- error_get_interface:
  error_init_termios:
+	usb_autopm_put_interface(serial->interface);
+ error_get_interface:
 	module_put(serial->type->driver.owner);
  error_module_get:
  error_no_port:
@@ -1239,7 +1235,6 @@ static int __init usb_serial_init(void)
 		goto exit_bus;
 	}
 
-	usb_serial_tty_driver->owner = THIS_MODULE;
 	usb_serial_tty_driver->driver_name = "usbserial";
 	usb_serial_tty_driver->name = "ttyUSB";
 	usb_serial_tty_driver->major = SERIAL_TTY_MAJOR;
@@ -1338,7 +1333,7 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, prepare_write_buffer);
 }
 
-int usb_serial_register(struct usb_serial_driver *driver)
+static int usb_serial_register(struct usb_serial_driver *driver)
 {
 	int retval;
 
@@ -1372,10 +1367,8 @@ int usb_serial_register(struct usb_serial_driver *driver)
 	mutex_unlock(&table_lock);
 	return retval;
 }
-EXPORT_SYMBOL_GPL(usb_serial_register);
 
-
-void usb_serial_deregister(struct usb_serial_driver *device)
+static void usb_serial_deregister(struct usb_serial_driver *device)
 {
 	printk(KERN_INFO "USB Serial deregistering driver %s\n",
 	       device->description);
@@ -1384,7 +1377,76 @@ void usb_serial_deregister(struct usb_serial_driver *device)
 	usb_serial_bus_deregister(device);
 	mutex_unlock(&table_lock);
 }
-EXPORT_SYMBOL_GPL(usb_serial_deregister);
+
+/**
+ * usb_serial_register_drivers - register drivers for a usb-serial module
+ * @udriver: usb_driver used for matching devices/interfaces
+ * @serial_drivers: NULL-terminated array of pointers to drivers to be registered
+ *
+ * Registers @udriver and all the drivers in the @serial_drivers array.
+ * Automatically fills in the .no_dynamic_id field in @udriver and
+ * the .usb_driver field in each serial driver.
+ */
+int usb_serial_register_drivers(struct usb_driver *udriver,
+		struct usb_serial_driver * const serial_drivers[])
+{
+	int rc;
+	const struct usb_device_id *saved_id_table;
+	struct usb_serial_driver * const *sd;
+
+	/*
+	 * udriver must be registered before any of the serial drivers,
+	 * because the store_new_id() routine for the serial drivers (in
+	 * bus.c) probes udriver.
+	 *
+	 * Performance hack: We don't want udriver to be probed until
+	 * the serial drivers are registered, because the probe would
+	 * simply fail for lack of a matching serial driver.
+	 * Therefore save off udriver's id_table until we are all set.
+	 */
+	saved_id_table = udriver->id_table;
+	udriver->id_table = NULL;
+
+	udriver->no_dynamic_id = 1;
+	rc = usb_register(udriver);
+	if (rc)
+		return rc;
+
+	for (sd = serial_drivers; *sd; ++sd) {
+		(*sd)->usb_driver = udriver;
+		rc = usb_serial_register(*sd);
+		if (rc)
+			goto failed;
+	}
+
+	/* Now restore udriver's id_table and look for matches */
+	udriver->id_table = saved_id_table;
+	rc = driver_attach(&udriver->drvwrap.driver);
+	return 0;
+
+ failed:
+	while (sd-- > serial_drivers)
+		usb_serial_deregister(*sd);
+	usb_deregister(udriver);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(usb_serial_register_drivers);
+
+/**
+ * usb_serial_deregister_drivers - deregister drivers for a usb-serial module
+ * @udriver: usb_driver to unregister
+ * @serial_drivers: NULL-terminated array of pointers to drivers to be deregistered
+ *
+ * Deregisters @udriver and all the drivers in the @serial_drivers array.
+ */
+void usb_serial_deregister_drivers(struct usb_driver *udriver,
+		struct usb_serial_driver * const serial_drivers[])
+{
+	for (; *serial_drivers; ++serial_drivers)
+		usb_serial_deregister(*serial_drivers);
+	usb_deregister(udriver);
+}
+EXPORT_SYMBOL_GPL(usb_serial_deregister_drivers);
 
 /* Module information */
 MODULE_AUTHOR(DRIVER_AUTHOR);

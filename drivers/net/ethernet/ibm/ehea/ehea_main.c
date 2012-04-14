@@ -1,5 +1,5 @@
 /*
- *  linux/drivers/net/ehea/ehea_main.c
+ *  linux/drivers/net/ethernet/ibm/ehea/ehea_main.c
  *
  *  eHEA ethernet device driver for IBM eServer System p
  *
@@ -336,7 +336,9 @@ static struct rtnl_link_stats64 *ehea_get_stats64(struct net_device *dev,
 	stats->tx_bytes = tx_bytes;
 	stats->rx_packets = rx_packets;
 
-	return &port->stats;
+	stats->multicast = port->stats.multicast;
+	stats->rx_errors = port->stats.rx_errors;
+	return stats;
 }
 
 static void ehea_update_stats(struct work_struct *work)
@@ -2980,7 +2982,6 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	dev = alloc_etherdev_mq(sizeof(struct ehea_port), EHEA_MAX_PORT_RES);
 
 	if (!dev) {
-		pr_err("no mem for net_device\n");
 		ret = -ENOMEM;
 		goto out_err;
 	}

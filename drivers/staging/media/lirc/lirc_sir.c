@@ -49,7 +49,6 @@
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include <linux/poll.h>
-#include <asm/system.h>
 #include <linux/io.h>
 #include <asm/irq.h>
 #include <linux/fcntl.h>

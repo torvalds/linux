@@ -34,6 +34,7 @@
 #include <linux/videodev2.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/module.h>
 
 #include <mach/mux.h>
 

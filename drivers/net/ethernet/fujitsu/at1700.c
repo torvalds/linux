@@ -52,7 +52,6 @@
 #include <linux/crc32.h>
 #include <linux/bitops.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
@@ -757,7 +756,7 @@ net_rx(struct net_device *dev)
 				dev->stats.rx_errors++;
 				break;
 			}
-			skb = dev_alloc_skb(pkt_len+3);
+			skb = netdev_alloc_skb(dev, pkt_len + 3);
 			if (skb == NULL) {
 				printk("%s: Memory squeeze, dropping packet (len %d).\n",
 					   dev->name, pkt_len);

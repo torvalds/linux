@@ -15,7 +15,7 @@
 
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <asm/system.h>
+#include <linux/rtc.h>
 #include <asm/pgtable.h>
 #include <asm/machdep.h>
 #include <asm/MC68EZ328.h>
@@ -25,7 +25,7 @@
 
 /***************************************************************************/
 
-void m68328_timer_gettod(int *year, int *mon, int *day, int *hour, int *min, int *sec);
+int m68328_hwclk(int set, struct rtc_time *t);
 
 /***************************************************************************/
 
@@ -69,7 +69,7 @@ void config_BSP(char *command, int len)
   else command[0] = 0;
 #endif
  
-  mach_gettod = m68328_timer_gettod;
+  mach_hwclk = m68328_hwclk;
   mach_reset = m68ez328_reset;
 }
 

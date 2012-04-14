@@ -817,16 +817,12 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_clk_get;
 	}
 
-	clk_enable(ctx->bus_clk);
-
 	ctx->lcd_clk = clk_get(dev, "sclk_fimd");
 	if (IS_ERR(ctx->lcd_clk)) {
 		dev_err(dev, "failed to get lcd clock\n");
 		ret = PTR_ERR(ctx->lcd_clk);
 		goto err_bus_clk;
 	}
-
-	clk_enable(ctx->lcd_clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -864,16 +860,10 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 		goto err_req_irq;
 	}
 
-	ctx->clkdiv = fimd_calc_clkdiv(ctx, &panel->timing);
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
 	ctx->default_win = pdata->default_win;
 	ctx->panel = panel;
-
-	panel->timing.pixclock = clk_get_rate(ctx->lcd_clk) / ctx->clkdiv;
-
-	DRM_DEBUG_KMS("pixel clock = %d, clkdiv = %d\n",
-			panel->timing.pixclock, ctx->clkdiv);
 
 	subdrv = &ctx->subdrv;
 
@@ -889,9 +879,14 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, ctx);
 
-	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
+
+	ctx->clkdiv = fimd_calc_clkdiv(ctx, &panel->timing);
+	panel->timing.pixclock = clk_get_rate(ctx->lcd_clk) / ctx->clkdiv;
+
+	DRM_DEBUG_KMS("pixel clock = %d, clkdiv = %d\n",
+			panel->timing.pixclock, ctx->clkdiv);
 
 	for (win = 0; win < WINDOWS_NR; win++)
 		fimd_clear_win(ctx, win);
@@ -1012,7 +1007,7 @@ static const struct dev_pm_ops fimd_pm_ops = {
 	SET_RUNTIME_PM_OPS(fimd_runtime_suspend, fimd_runtime_resume, NULL)
 };
 
-static struct platform_driver fimd_driver = {
+struct platform_driver fimd_driver = {
 	.probe		= fimd_probe,
 	.remove		= __devexit_p(fimd_remove),
 	.driver		= {
@@ -1021,21 +1016,3 @@ static struct platform_driver fimd_driver = {
 		.pm	= &fimd_pm_ops,
 	},
 };
-
-static int __init fimd_init(void)
-{
-	return platform_driver_register(&fimd_driver);
-}
-
-static void __exit fimd_exit(void)
-{
-	platform_driver_unregister(&fimd_driver);
-}
-
-module_init(fimd_init);
-module_exit(fimd_exit);
-
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_DESCRIPTION("Samsung DRM FIMD Driver");
-MODULE_LICENSE("GPL");

@@ -41,9 +41,8 @@ int mwifiex_11n_rx_reorder_pkt(struct mwifiex_private *,
 			       u16 seqNum,
 			       u16 tid, u8 *ta,
 			       u8 pkttype, void *payload);
-void mwifiex_11n_delete_ba_stream_tbl(struct mwifiex_private *priv, int Tid,
-				     u8 *PeerMACAddr, u8 type,
-				     int initiator);
+void mwifiex_del_ba_tbl(struct mwifiex_private *priv, int Tid,
+			u8 *PeerMACAddr, u8 type, int initiator);
 void mwifiex_11n_ba_stream_timeout(struct mwifiex_private *priv,
 				   struct host_cmd_ds_11n_batimeout *event);
 int mwifiex_ret_11n_addba_resp(struct mwifiex_private *priv,

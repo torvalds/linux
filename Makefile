@@ -1,7 +1,7 @@
 VERSION = 3
-PATCHLEVEL = 3
+PATCHLEVEL = 4
 SUBLEVEL = 0
-EXTRAVERSION = -rc6
+EXTRAVERSION = -rc2
 NAME = Saber-toothed Squirrel
 
 # *DOCUMENTATION*
@@ -1170,7 +1170,7 @@ MRPROPER_FILES += .config .config.old .version .old_version             \
 #
 clean: rm-dirs  := $(CLEAN_DIRS)
 clean: rm-files := $(CLEAN_FILES)
-clean-dirs      := $(addprefix _clean_, . $(vmlinux-alldirs) Documentation)
+clean-dirs      := $(addprefix _clean_, . $(vmlinux-alldirs) Documentation samples)
 
 PHONY += $(clean-dirs) clean archclean
 $(clean-dirs):
@@ -1467,6 +1467,13 @@ kernelrelease:
 
 kernelversion:
 	@echo $(KERNELVERSION)
+
+# Clear a bunch of variables before executing the submake
+tools/: FORCE
+	$(Q)$(MAKE) LDFLAGS= MAKEFLAGS= -C $(src)/tools/
+
+tools/%: FORCE
+	$(Q)$(MAKE) LDFLAGS= MAKEFLAGS= -C $(src)/tools/ $*
 
 # Single targets
 # ---------------------------------------------------------------------------

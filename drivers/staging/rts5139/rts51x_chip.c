@@ -541,7 +541,7 @@ int rts51x_get_rsp(struct rts51x_chip *chip, int rsp_len, int timeout)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_get_card_status(struct rts51x_chip *chip, u16 * status)
+int rts51x_get_card_status(struct rts51x_chip *chip, u16 *status)
 {
 	int retval;
 	u16 val;
@@ -577,7 +577,7 @@ int rts51x_write_register(struct rts51x_chip *chip, u16 addr, u8 mask, u8 data)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_read_register(struct rts51x_chip *chip, u16 addr, u8 * data)
+int rts51x_read_register(struct rts51x_chip *chip, u16 addr, u8 *data)
 {
 	int retval;
 
@@ -620,7 +620,7 @@ int rts51x_ep0_write_register(struct rts51x_chip *chip, u16 addr, u8 mask,
 	return STATUS_SUCCESS;
 }
 
-int rts51x_ep0_read_register(struct rts51x_chip *chip, u16 addr, u8 * data)
+int rts51x_ep0_read_register(struct rts51x_chip *chip, u16 addr, u8 *data)
 {
 	int retval;
 	u16 value = 0;
@@ -720,7 +720,7 @@ int rts51x_seq_read_register(struct rts51x_chip *chip, u16 addr, u16 len,
 	return STATUS_SUCCESS;
 }
 
-int rts51x_read_ppbuf(struct rts51x_chip *chip, u8 * buf, int buf_len)
+int rts51x_read_ppbuf(struct rts51x_chip *chip, u8 *buf, int buf_len)
 {
 	int retval;
 
@@ -735,7 +735,7 @@ int rts51x_read_ppbuf(struct rts51x_chip *chip, u8 * buf, int buf_len)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_write_ppbuf(struct rts51x_chip *chip, u8 * buf, int buf_len)
+int rts51x_write_ppbuf(struct rts51x_chip *chip, u8 *buf, int buf_len)
 {
 	int retval;
 
@@ -776,7 +776,7 @@ int rts51x_write_phy_register(struct rts51x_chip *chip, u8 addr, u8 val)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_read_phy_register(struct rts51x_chip *chip, u8 addr, u8 * val)
+int rts51x_read_phy_register(struct rts51x_chip *chip, u8 addr, u8 *val)
 {
 	int retval;
 
@@ -921,7 +921,7 @@ void rts51x_trace_msg(struct rts51x_chip *chip, unsigned char *buf, int clear)
 }
 #endif
 
-void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 * status,
+void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 *status,
 		      u8 status_len)
 {
 	struct sd_info *sd_card = &(chip->sd_card);

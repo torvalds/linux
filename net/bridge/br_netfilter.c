@@ -62,6 +62,15 @@ static int brnf_filter_pppoe_tagged __read_mostly = 0;
 #define brnf_filter_pppoe_tagged 0
 #endif
 
+#define IS_IP(skb) \
+	(!vlan_tx_tag_present(skb) && skb->protocol == htons(ETH_P_IP))
+
+#define IS_IPV6(skb) \
+	(!vlan_tx_tag_present(skb) && skb->protocol == htons(ETH_P_IPV6))
+
+#define IS_ARP(skb) \
+	(!vlan_tx_tag_present(skb) && skb->protocol == htons(ETH_P_ARP))
+
 static inline __be16 vlan_proto(const struct sk_buff *skb)
 {
 	if (vlan_tx_tag_present(skb))
@@ -639,8 +648,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 		return NF_DROP;
 	br = p->br;
 
-	if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
-	    IS_PPPOE_IPV6(skb)) {
+	if (IS_IPV6(skb) || IS_VLAN_IPV6(skb) || IS_PPPOE_IPV6(skb)) {
 		if (!brnf_call_ip6tables && !br->nf_call_ip6tables)
 			return NF_ACCEPT;
 
@@ -651,8 +659,7 @@ static unsigned int br_nf_pre_routing(unsigned int hook, struct sk_buff *skb,
 	if (!brnf_call_iptables && !br->nf_call_iptables)
 		return NF_ACCEPT;
 
-	if (skb->protocol != htons(ETH_P_IP) && !IS_VLAN_IP(skb) &&
-	    !IS_PPPOE_IP(skb))
+	if (!IS_IP(skb) && !IS_VLAN_IP(skb) && !IS_PPPOE_IP(skb))
 		return NF_ACCEPT;
 
 	nf_bridge_pull_encap_header_rcsum(skb);
@@ -701,7 +708,7 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 	struct nf_bridge_info *nf_bridge = skb->nf_bridge;
 	struct net_device *in;
 
-	if (skb->protocol != htons(ETH_P_ARP) && !IS_VLAN_ARP(skb)) {
+	if (!IS_ARP(skb) && !IS_VLAN_ARP(skb)) {
 		in = nf_bridge->physindev;
 		if (nf_bridge->mask & BRNF_PKT_TYPE) {
 			skb->pkt_type = PACKET_OTHERHOST;
@@ -717,6 +724,7 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 		       skb->dev, br_forward_finish, 1);
 	return 0;
 }
+
 
 /* This is the 'purely bridged' case.  For IP, we pass the packet to
  * netfilter with indev and outdev set to the bridge device,
@@ -744,11 +752,9 @@ static unsigned int br_nf_forward_ip(unsigned int hook, struct sk_buff *skb,
 	if (!parent)
 		return NF_DROP;
 
-	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
-	    IS_PPPOE_IP(skb))
+	if (IS_IP(skb) || IS_VLAN_IP(skb) || IS_PPPOE_IP(skb))
 		pf = PF_INET;
-	else if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
-		 IS_PPPOE_IPV6(skb))
+	else if (IS_IPV6(skb) || IS_VLAN_IPV6(skb) || IS_PPPOE_IPV6(skb))
 		pf = PF_INET6;
 	else
 		return NF_ACCEPT;
@@ -795,7 +801,7 @@ static unsigned int br_nf_forward_arp(unsigned int hook, struct sk_buff *skb,
 	if (!brnf_call_arptables && !br->nf_call_arptables)
 		return NF_ACCEPT;
 
-	if (skb->protocol != htons(ETH_P_ARP)) {
+	if (!IS_ARP(skb)) {
 		if (!IS_VLAN_ARP(skb))
 			return NF_ACCEPT;
 		nf_bridge_pull_encap_header(skb);
@@ -853,11 +859,9 @@ static unsigned int br_nf_post_routing(unsigned int hook, struct sk_buff *skb,
 	if (!realoutdev)
 		return NF_DROP;
 
-	if (skb->protocol == htons(ETH_P_IP) || IS_VLAN_IP(skb) ||
-	    IS_PPPOE_IP(skb))
+	if (IS_IP(skb) || IS_VLAN_IP(skb) || IS_PPPOE_IP(skb))
 		pf = PF_INET;
-	else if (skb->protocol == htons(ETH_P_IPV6) || IS_VLAN_IPV6(skb) ||
-		 IS_PPPOE_IPV6(skb))
+	else if (IS_IPV6(skb) || IS_VLAN_IPV6(skb) || IS_PPPOE_IPV6(skb))
 		pf = PF_INET6;
 	else
 		return NF_ACCEPT;

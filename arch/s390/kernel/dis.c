@@ -24,7 +24,6 @@
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <linux/atomic.h>

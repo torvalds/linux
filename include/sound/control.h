@@ -40,7 +40,7 @@ struct snd_kcontrol_new {
 	snd_ctl_elem_iface_t iface;	/* interface identifier */
 	unsigned int device;		/* device/client number */
 	unsigned int subdevice;		/* subdevice (substream) number */
-	unsigned char *name;		/* ASCII name of item */
+	const unsigned char *name;	/* ASCII name of item */
 	unsigned int index;		/* index of item */
 	unsigned int access;		/* access rights */
 	unsigned int count;		/* count of same elements */
@@ -226,6 +226,11 @@ snd_ctl_add_slave_uncached(struct snd_kcontrol *master,
 {
 	return _snd_ctl_add_slave(master, slave, SND_CTL_SLAVE_NEED_UPDATE);
 }
+
+int snd_ctl_add_vmaster_hook(struct snd_kcontrol *kctl,
+			     void (*hook)(void *private_data, int),
+			     void *private_data);
+void snd_ctl_sync_vmaster_hook(struct snd_kcontrol *kctl);
 
 /*
  * Helper functions for jack-detection controls

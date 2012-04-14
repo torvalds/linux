@@ -348,7 +348,6 @@ static struct at24_platform_data m24c01 = {
 static struct i2c_board_info __initdata h4_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("isp1301_omap", 0x2d),
-		.irq		= OMAP_GPIO_IRQ(125),
 	},
 	{	/* EEPROM on mainboard */
 		I2C_BOARD_INFO("24c01", 0x52),
@@ -377,6 +376,7 @@ static void __init omap_h4_init(void)
 	 */
 
 	board_mkp_init();
+	h4_i2c_board_info[0].irq = gpio_to_irq(125);
 	i2c_register_board_info(1, h4_i2c_board_info,
 			ARRAY_SIZE(h4_i2c_board_info));
 

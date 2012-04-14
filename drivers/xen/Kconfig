@@ -178,4 +178,20 @@ config XEN_PRIVCMD
 	depends on XEN
 	default m
 
+config XEN_ACPI_PROCESSOR
+	tristate "Xen ACPI processor"
+	depends on XEN && X86 && ACPI_PROCESSOR && CPU_FREQ
+	default m
+	help
+          This ACPI processor uploads Power Management information to the Xen hypervisor.
+
+	  To do that the driver parses the Power Management data and uploads said
+	  information to the Xen hypervisor. Then the Xen hypervisor can select the
+          proper Cx and Pxx states. It also registers itslef as the SMM so that
+          other drivers (such as ACPI cpufreq scaling driver) will not load.
+
+          To compile this driver as a module, choose M here: the
+          module will be called xen_acpi_processor  If you do not know what to choose,
+          select M here. If the CPUFREQ drivers are built in, select Y here.
+
 endmenu

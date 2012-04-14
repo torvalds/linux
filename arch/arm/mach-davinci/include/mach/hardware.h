@@ -19,8 +19,6 @@
  * and the chip/board init code should then explicitly include
  * <chipname>.h
  */
-#define DAVINCI_SYSTEM_MODULE_BASE        0x01C40000
-
 /*
  * I/O mapping
  */
@@ -31,11 +29,5 @@
 #define io_v2p(va)			((va) - IO_OFFSET)
 #define __IO_ADDRESS(x)			((x) + IO_OFFSET)
 #define IO_ADDRESS(pa)			IOMEM(__IO_ADDRESS(pa))
-
-#ifdef __ASSEMBLER__
-#define IOMEM(x)                	x
-#else
-#define IOMEM(x)                	((void __force __iomem *)(x))
-#endif
 
 #endif /* __ASM_ARCH_HARDWARE_H */

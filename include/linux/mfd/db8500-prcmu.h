@@ -11,6 +11,24 @@
 #define __MFD_DB8500_PRCMU_H
 
 #include <linux/interrupt.h>
+#include <linux/bitops.h>
+
+/*
+ * Registers
+ */
+#define DB8500_PRCM_GPIOCR 0x138
+#define DB8500_PRCM_GPIOCR_DBG_UARTMOD_CMD0	BIT(0)
+#define DB8500_PRCM_GPIOCR_DBG_STM_APE_CMD	BIT(9)
+#define DB8500_PRCM_GPIOCR_DBG_STM_MOD_CMD1	BIT(11)
+#define DB8500_PRCM_GPIOCR_SPI2_SELECT		BIT(23)
+
+#define DB8500_PRCM_LINE_VALUE 0x170
+#define DB8500_PRCM_LINE_VALUE_HSI_CAWAKE0	BIT(3)
+
+#define DB8500_PRCM_DSI_SW_RESET 0x324
+#define DB8500_PRCM_DSI_SW_RESET_DSI0_SW_RESETN BIT(0)
+#define DB8500_PRCM_DSI_SW_RESET_DSI1_SW_RESETN BIT(1)
+#define DB8500_PRCM_DSI_SW_RESET_DSI2_SW_RESETN BIT(2)
 
 /* This portion previously known as <mach/prcmu-fw-defs_v1.h> */
 
@@ -421,40 +439,22 @@ enum auto_enable {
 /* End of file previously known as prcmu-fw-defs_v1.h */
 
 /**
- * enum hw_acc_dev - enum for hw accelerators
- * @HW_ACC_SVAMMDSP: for SVAMMDSP
- * @HW_ACC_SVAPIPE:  for SVAPIPE
- * @HW_ACC_SIAMMDSP: for SIAMMDSP
- * @HW_ACC_SIAPIPE: for SIAPIPE
- * @HW_ACC_SGA: for SGA
- * @HW_ACC_B2R2: for B2R2
- * @HW_ACC_MCDE: for MCDE
- * @HW_ACC_ESRAM1: for ESRAM1
- * @HW_ACC_ESRAM2: for ESRAM2
- * @HW_ACC_ESRAM3: for ESRAM3
- * @HW_ACC_ESRAM4: for ESRAM4
- * @NUM_HW_ACC: number of hardware accelerators
+ * enum prcmu_power_status - results from set_power_state
+ * @PRCMU_SLEEP_OK: Sleep went ok
+ * @PRCMU_DEEP_SLEEP_OK: DeepSleep went ok
+ * @PRCMU_IDLE_OK: Idle went ok
+ * @PRCMU_DEEPIDLE_OK: DeepIdle went ok
+ * @PRCMU_PRCMU2ARMPENDINGIT_ER: Pending interrupt detected
+ * @PRCMU_ARMPENDINGIT_ER: Pending interrupt detected
  *
- * Different hw accelerators which can be turned ON/
- * OFF or put into retention (MMDSPs and ESRAMs).
- * Used with EPOD API.
- *
- * NOTE! Deprecated, to be removed when all users switched over to use the
- * regulator API.
  */
-enum hw_acc_dev {
-	HW_ACC_SVAMMDSP,
-	HW_ACC_SVAPIPE,
-	HW_ACC_SIAMMDSP,
-	HW_ACC_SIAPIPE,
-	HW_ACC_SGA,
-	HW_ACC_B2R2,
-	HW_ACC_MCDE,
-	HW_ACC_ESRAM1,
-	HW_ACC_ESRAM2,
-	HW_ACC_ESRAM3,
-	HW_ACC_ESRAM4,
-	NUM_HW_ACC
+enum prcmu_power_status {
+	PRCMU_SLEEP_OK			= 0xf3,
+	PRCMU_DEEP_SLEEP_OK		= 0xf6,
+	PRCMU_IDLE_OK			= 0xf0,
+	PRCMU_DEEPIDLE_OK		= 0xe3,
+	PRCMU_PRCMU2ARMPENDINGIT_ER	= 0x91,
+	PRCMU_ARMPENDINGIT_ER		= 0x93,
 };
 
 /*
@@ -493,6 +493,20 @@ struct prcmu_auto_pm_config {
 	u8 sva_policy;
 };
 
+#define PRCMU_FW_PROJECT_U8500		2
+#define PRCMU_FW_PROJECT_U9500		4
+#define PRCMU_FW_PROJECT_U8500_C2	7
+#define PRCMU_FW_PROJECT_U9500_C2	11
+#define PRCMU_FW_PROJECT_U8520		13
+#define PRCMU_FW_PROJECT_U8420		14
+
+struct prcmu_fw_version {
+	u8 project;
+	u8 api_version;
+	u8 func_version;
+	u8 errata;
+};
+
 #ifdef CONFIG_MFD_DB8500_PRCMU
 
 void db8500_prcmu_early_init(void);
@@ -500,42 +514,41 @@ int prcmu_set_rc_a2p(enum romcode_write);
 enum romcode_read prcmu_get_rc_p2a(void);
 enum ap_pwrst prcmu_get_xp70_current_state(void);
 bool prcmu_has_arm_maxopp(void);
-bool prcmu_is_u8400(void);
-int prcmu_set_ape_opp(u8 opp);
-int prcmu_get_ape_opp(void);
+struct prcmu_fw_version *prcmu_get_fw_version(void);
 int prcmu_request_ape_opp_100_voltage(bool enable);
 int prcmu_release_usb_wakeup_state(void);
-int prcmu_set_ddr_opp(u8 opp);
-int prcmu_get_ddr_opp(void);
-/* NOTE! Use regulator framework instead */
-int prcmu_set_hwacc(u16 hw_acc_dev, u8 state);
 void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
 	struct prcmu_auto_pm_config *idle);
 bool prcmu_is_auto_pm_enabled(void);
 
 int prcmu_config_clkout(u8 clkout, u8 source, u8 div);
 int prcmu_set_clock_divider(u8 clock, u8 divider);
-int prcmu_config_hotdog(u8 threshold);
-int prcmu_config_hotmon(u8 low, u8 high);
-int prcmu_start_temp_sense(u16 cycles32k);
-int prcmu_stop_temp_sense(void);
+int db8500_prcmu_config_hotdog(u8 threshold);
+int db8500_prcmu_config_hotmon(u8 low, u8 high);
+int db8500_prcmu_start_temp_sense(u16 cycles32k);
+int db8500_prcmu_stop_temp_sense(void);
 int prcmu_abb_read(u8 slave, u8 reg, u8 *value, u8 size);
 int prcmu_abb_write(u8 slave, u8 reg, u8 *value, u8 size);
 
 void prcmu_ac_wake_req(void);
 void prcmu_ac_sleep_req(void);
-void prcmu_modem_reset(void);
-void prcmu_enable_spi2(void);
-void prcmu_disable_spi2(void);
+void db8500_prcmu_modem_reset(void);
 
-int prcmu_config_a9wdog(u8 num, bool sleep_auto_off);
-int prcmu_enable_a9wdog(u8 id);
-int prcmu_disable_a9wdog(u8 id);
-int prcmu_kick_a9wdog(u8 id);
-int prcmu_load_a9wdog(u8 id, u32 val);
+int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off);
+int db8500_prcmu_enable_a9wdog(u8 id);
+int db8500_prcmu_disable_a9wdog(u8 id);
+int db8500_prcmu_kick_a9wdog(u8 id);
+int db8500_prcmu_load_a9wdog(u8 id, u32 val);
 
 void db8500_prcmu_system_reset(u16 reset_code);
 int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk, bool keep_ap_pll);
+u8 db8500_prcmu_get_power_state_result(void);
+int db8500_prcmu_gic_decouple(void);
+int db8500_prcmu_gic_recouple(void);
+int db8500_prcmu_copy_gic_settings(void);
+bool db8500_prcmu_gic_pending_irq(void);
+bool db8500_prcmu_pending_irq(void);
+bool db8500_prcmu_is_cpu_in_wfi(int cpu);
 void db8500_prcmu_enable_wakeups(u32 wakeups);
 int db8500_prcmu_set_epod(u16 epod_id, u8 epod_state);
 int db8500_prcmu_request_clock(u8 clock, bool enable);
@@ -549,6 +562,14 @@ u16 db8500_prcmu_get_reset_code(void);
 bool db8500_prcmu_is_ac_wake_requested(void);
 int db8500_prcmu_set_arm_opp(u8 opp);
 int db8500_prcmu_get_arm_opp(void);
+int db8500_prcmu_set_ape_opp(u8 opp);
+int db8500_prcmu_get_ape_opp(void);
+int db8500_prcmu_set_ddr_opp(u8 opp);
+int db8500_prcmu_get_ddr_opp(void);
+
+u32 db8500_prcmu_read(unsigned int reg);
+void db8500_prcmu_write(unsigned int reg, u32 value);
+void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value);
 
 #else /* !CONFIG_MFD_DB8500_PRCMU */
 
@@ -574,17 +595,17 @@ static inline bool prcmu_has_arm_maxopp(void)
 	return false;
 }
 
-static inline bool prcmu_is_u8400(void)
+static inline struct prcmu_fw_version *prcmu_get_fw_version(void)
 {
-	return false;
+	return NULL;
 }
 
-static inline int prcmu_set_ape_opp(u8 opp)
+static inline int db8500_prcmu_set_ape_opp(u8 opp)
 {
 	return 0;
 }
 
-static inline int prcmu_get_ape_opp(void)
+static inline int db8500_prcmu_get_ape_opp(void)
 {
 	return APE_100_OPP;
 }
@@ -599,19 +620,14 @@ static inline int prcmu_release_usb_wakeup_state(void)
 	return 0;
 }
 
-static inline int prcmu_set_ddr_opp(u8 opp)
+static inline int db8500_prcmu_set_ddr_opp(u8 opp)
 {
 	return 0;
 }
 
-static inline int prcmu_get_ddr_opp(void)
+static inline int db8500_prcmu_get_ddr_opp(void)
 {
 	return DDR_100_OPP;
-}
-
-static inline int prcmu_set_hwacc(u16 hw_acc_dev, u8 state)
-{
-	return 0;
 }
 
 static inline void prcmu_configure_auto_pm(struct prcmu_auto_pm_config *sleep,
@@ -634,22 +650,22 @@ static inline int prcmu_set_clock_divider(u8 clock, u8 divider)
 	return 0;
 }
 
-static inline int prcmu_config_hotdog(u8 threshold)
+static inline int db8500_prcmu_config_hotdog(u8 threshold)
 {
 	return 0;
 }
 
-static inline int prcmu_config_hotmon(u8 low, u8 high)
+static inline int db8500_prcmu_config_hotmon(u8 low, u8 high)
 {
 	return 0;
 }
 
-static inline int prcmu_start_temp_sense(u16 cycles32k)
+static inline int db8500_prcmu_start_temp_sense(u16 cycles32k)
 {
 	return 0;
 }
 
-static inline int prcmu_stop_temp_sense(void)
+static inline int db8500_prcmu_stop_temp_sense(void)
 {
 	return 0;
 }
@@ -668,22 +684,17 @@ static inline void prcmu_ac_wake_req(void) {}
 
 static inline void prcmu_ac_sleep_req(void) {}
 
-static inline void prcmu_modem_reset(void) {}
-
-static inline int prcmu_enable_spi2(void)
-{
-	return 0;
-}
-
-static inline int prcmu_disable_spi2(void)
-{
-	return 0;
-}
+static inline void db8500_prcmu_modem_reset(void) {}
 
 static inline void db8500_prcmu_system_reset(u16 reset_code) {}
 
 static inline int db8500_prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)
+{
+	return 0;
+}
+
+static inline u8 db8500_prcmu_get_power_state_result(void)
 {
 	return 0;
 }
@@ -729,27 +740,27 @@ static inline u16 db8500_prcmu_get_reset_code(void)
 	return 0;
 }
 
-static inline int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
+static inline int db8500_prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 {
 	return 0;
 }
 
-static inline int prcmu_enable_a9wdog(u8 id)
+static inline int db8500_prcmu_enable_a9wdog(u8 id)
 {
 	return 0;
 }
 
-static inline int prcmu_disable_a9wdog(u8 id)
+static inline int db8500_prcmu_disable_a9wdog(u8 id)
 {
 	return 0;
 }
 
-static inline int prcmu_kick_a9wdog(u8 id)
+static inline int db8500_prcmu_kick_a9wdog(u8 id)
 {
 	return 0;
 }
 
-static inline int prcmu_load_a9wdog(u8 id, u32 val)
+static inline int db8500_prcmu_load_a9wdog(u8 id, u32 val)
 {
 	return 0;
 }
@@ -768,6 +779,16 @@ static inline int db8500_prcmu_get_arm_opp(void)
 {
 	return 0;
 }
+
+static inline u32 db8500_prcmu_read(unsigned int reg)
+{
+	return 0;
+}
+
+static inline void db8500_prcmu_write(unsigned int reg, u32 value) {}
+
+static inline void db8500_prcmu_write_masked(unsigned int reg, u32 mask,
+	u32 value) {}
 
 #endif /* !CONFIG_MFD_DB8500_PRCMU */
 

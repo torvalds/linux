@@ -641,6 +641,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 			info->chip.ecc.bytes = 3;
 		}
 		info->chip.ecc.size = 512;
+		info->chip.ecc.strength = pdata->ecc_bits;
 		break;
 	default:
 		ret = -EINVAL;
@@ -752,8 +753,8 @@ syndrome_done:
 	if (ret < 0)
 		goto err_scan;
 
-	ret = mtd_device_parse_register(&info->mtd, NULL, 0,
-			pdata->parts, pdata->nr_parts);
+	ret = mtd_device_parse_register(&info->mtd, NULL, NULL, pdata->parts,
+					pdata->nr_parts);
 
 	if (ret < 0)
 		goto err_scan;

@@ -110,15 +110,16 @@ ctnetlink_dump_tuples(struct sk_buff *skb,
 	struct nf_conntrack_l3proto *l3proto;
 	struct nf_conntrack_l4proto *l4proto;
 
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
 	ret = ctnetlink_dump_tuples_ip(skb, tuple, l3proto);
 
-	if (unlikely(ret < 0))
-		return ret;
-
-	l4proto = __nf_ct_l4proto_find(tuple->src.l3num, tuple->dst.protonum);
-	ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
-
+	if (ret >= 0) {
+		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
+					       tuple->dst.protonum);
+		ret = ctnetlink_dump_tuples_proto(skb, tuple, l4proto);
+	}
+	rcu_read_unlock();
 	return ret;
 }
 
@@ -691,8 +692,17 @@ static int ctnetlink_done(struct netlink_callback *cb)
 {
 	if (cb->args[1])
 		nf_ct_put((struct nf_conn *)cb->args[1]);
+	if (cb->data)
+		kfree(cb->data);
 	return 0;
 }
+
+struct ctnetlink_dump_filter {
+	struct {
+		u_int32_t val;
+		u_int32_t mask;
+	} mark;
+};
 
 static int
 ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
@@ -703,6 +713,10 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 	struct hlist_nulls_node *n;
 	struct nfgenmsg *nfmsg = nlmsg_data(cb->nlh);
 	u_int8_t l3proto = nfmsg->nfgen_family;
+	int res;
+#ifdef CONFIG_NF_CONNTRACK_MARK
+	const struct ctnetlink_dump_filter *filter = cb->data;
+#endif
 
 	spin_lock_bh(&nf_conntrack_lock);
 	last = (struct nf_conn *)cb->args[1];
@@ -723,11 +737,20 @@ restart:
 					continue;
 				cb->args[1] = 0;
 			}
-			if (ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
-						cb->nlh->nlmsg_seq,
-						NFNL_MSG_TYPE(
-							cb->nlh->nlmsg_type),
-						ct) < 0) {
+#ifdef CONFIG_NF_CONNTRACK_MARK
+			if (filter && !((ct->mark & filter->mark.mask) ==
+					filter->mark.val)) {
+				continue;
+			}
+#endif
+			rcu_read_lock();
+			res =
+			ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).pid,
+					    cb->nlh->nlmsg_seq,
+					    NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
+					    ct);
+			rcu_read_unlock();
+			if (res < 0) {
 				nf_conntrack_get(&ct->ct_general);
 				cb->args[1] = (unsigned long)ct;
 				goto out;
@@ -894,6 +917,7 @@ static const struct nla_policy ct_nla_policy[CTA_MAX+1] = {
 	[CTA_NAT_DST]		= { .type = NLA_NESTED },
 	[CTA_TUPLE_MASTER]	= { .type = NLA_NESTED },
 	[CTA_ZONE]		= { .type = NLA_U16 },
+	[CTA_MARK_MASK]		= { .type = NLA_U32 },
 };
 
 static int
@@ -943,20 +967,21 @@ ctnetlink_del_conntrack(struct sock *ctnl, struct sk_buff *skb,
 		}
 	}
 
-	if (nf_conntrack_event_report(IPCT_DESTROY, ct,
-				      NETLINK_CB(skb).pid,
-				      nlmsg_report(nlh)) < 0) {
+	if (del_timer(&ct->timeout)) {
+		if (nf_conntrack_event_report(IPCT_DESTROY, ct,
+					      NETLINK_CB(skb).pid,
+					      nlmsg_report(nlh)) < 0) {
+			nf_ct_delete_from_lists(ct);
+			/* we failed to report the event, try later */
+			nf_ct_insert_dying_list(ct);
+			nf_ct_put(ct);
+			return 0;
+		}
+		/* death_by_timeout would report the event again */
+		set_bit(IPS_DYING_BIT, &ct->status);
 		nf_ct_delete_from_lists(ct);
-		/* we failed to report the event, try later */
-		nf_ct_insert_dying_list(ct);
 		nf_ct_put(ct);
-		return 0;
 	}
-
-	/* death_by_timeout would report the event again */
-	set_bit(IPS_DYING_BIT, &ct->status);
-
-	nf_ct_kill(ct);
 	nf_ct_put(ct);
 
 	return 0;
@@ -977,9 +1002,28 @@ ctnetlink_get_conntrack(struct sock *ctnl, struct sk_buff *skb,
 	u16 zone;
 	int err;
 
-	if (nlh->nlmsg_flags & NLM_F_DUMP)
-		return netlink_dump_start(ctnl, skb, nlh, ctnetlink_dump_table,
-					  ctnetlink_done, 0);
+	if (nlh->nlmsg_flags & NLM_F_DUMP) {
+		struct netlink_dump_control c = {
+			.dump = ctnetlink_dump_table,
+			.done = ctnetlink_done,
+		};
+#ifdef CONFIG_NF_CONNTRACK_MARK
+		if (cda[CTA_MARK] && cda[CTA_MARK_MASK]) {
+			struct ctnetlink_dump_filter *filter;
+
+			filter = kzalloc(sizeof(struct ctnetlink_dump_filter),
+					 GFP_ATOMIC);
+			if (filter == NULL)
+				return -ENOMEM;
+
+			filter->mark.val = ntohl(nla_get_be32(cda[CTA_MARK]));
+			filter->mark.mask =
+				ntohl(nla_get_be32(cda[CTA_MARK_MASK]));
+			c.data = filter;
+		}
+#endif
+		return netlink_dump_start(ctnl, skb, nlh, &c);
+	}
 
 	err = ctnetlink_parse_zone(cda[CTA_ZONE], &zone);
 	if (err < 0)
@@ -1041,16 +1085,13 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 	if (!parse_nat_setup) {
 #ifdef CONFIG_MODULES
 		rcu_read_unlock();
-		spin_unlock_bh(&nf_conntrack_lock);
 		nfnl_unlock();
 		if (request_module("nf-nat-ipv4") < 0) {
 			nfnl_lock();
-			spin_lock_bh(&nf_conntrack_lock);
 			rcu_read_lock();
 			return -EOPNOTSUPP;
 		}
 		nfnl_lock();
-		spin_lock_bh(&nf_conntrack_lock);
 		rcu_read_lock();
 		if (nfnetlink_parse_nat_setup_hook)
 			return -EAGAIN;
@@ -1612,14 +1653,16 @@ ctnetlink_exp_dump_mask(struct sk_buff *skb,
 	if (!nest_parms)
 		goto nla_put_failure;
 
+	rcu_read_lock();
 	l3proto = __nf_ct_l3proto_find(tuple->src.l3num);
 	ret = ctnetlink_dump_tuples_ip(skb, &m, l3proto);
-
-	if (unlikely(ret < 0))
-		goto nla_put_failure;
-
-	l4proto = __nf_ct_l4proto_find(tuple->src.l3num, tuple->dst.protonum);
+	if (ret >= 0) {
+		l4proto = __nf_ct_l4proto_find(tuple->src.l3num,
+					       tuple->dst.protonum);
 	ret = ctnetlink_dump_tuples_proto(skb, &m, l4proto);
+	}
+	rcu_read_unlock();
+
 	if (unlikely(ret < 0))
 		goto nla_put_failure;
 
@@ -1638,6 +1681,11 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 	struct nf_conn *master = exp->master;
 	long timeout = ((long)exp->timeout.expires - (long)jiffies) / HZ;
 	struct nf_conn_help *help;
+#ifdef CONFIG_NF_NAT_NEEDED
+	struct nlattr *nest_parms;
+	struct nf_conntrack_tuple nat_tuple = {};
+#endif
+	struct nf_ct_helper_expectfn *expfn;
 
 	if (timeout < 0)
 		timeout = 0;
@@ -1651,9 +1699,29 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 				 CTA_EXPECT_MASTER) < 0)
 		goto nla_put_failure;
 
+#ifdef CONFIG_NF_NAT_NEEDED
+	if (exp->saved_ip || exp->saved_proto.all) {
+		nest_parms = nla_nest_start(skb, CTA_EXPECT_NAT | NLA_F_NESTED);
+		if (!nest_parms)
+			goto nla_put_failure;
+
+		NLA_PUT_BE32(skb, CTA_EXPECT_NAT_DIR, htonl(exp->dir));
+
+		nat_tuple.src.l3num = nf_ct_l3num(master);
+		nat_tuple.src.u3.ip = exp->saved_ip;
+		nat_tuple.dst.protonum = nf_ct_protonum(master);
+		nat_tuple.src.u = exp->saved_proto;
+
+		if (ctnetlink_exp_dump_tuple(skb, &nat_tuple,
+						CTA_EXPECT_NAT_TUPLE) < 0)
+	                goto nla_put_failure;
+	        nla_nest_end(skb, nest_parms);
+	}
+#endif
 	NLA_PUT_BE32(skb, CTA_EXPECT_TIMEOUT, htonl(timeout));
 	NLA_PUT_BE32(skb, CTA_EXPECT_ID, htonl((unsigned long)exp));
 	NLA_PUT_BE32(skb, CTA_EXPECT_FLAGS, htonl(exp->flags));
+	NLA_PUT_BE32(skb, CTA_EXPECT_CLASS, htonl(exp->class));
 	help = nfct_help(master);
 	if (help) {
 		struct nf_conntrack_helper *helper;
@@ -1662,6 +1730,9 @@ ctnetlink_exp_dump_expect(struct sk_buff *skb,
 		if (helper)
 			NLA_PUT_STRING(skb, CTA_EXPECT_HELP_NAME, helper->name);
 	}
+	expfn = nf_ct_helper_expectfn_find_by_symbol(exp->expectfn);
+	if (expfn != NULL)
+		NLA_PUT_STRING(skb, CTA_EXPECT_FN, expfn->name);
 
 	return 0;
 
@@ -1819,6 +1890,9 @@ static const struct nla_policy exp_nla_policy[CTA_EXPECT_MAX+1] = {
 	[CTA_EXPECT_HELP_NAME]	= { .type = NLA_NUL_STRING },
 	[CTA_EXPECT_ZONE]	= { .type = NLA_U16 },
 	[CTA_EXPECT_FLAGS]	= { .type = NLA_U32 },
+	[CTA_EXPECT_CLASS]	= { .type = NLA_U32 },
+	[CTA_EXPECT_NAT]	= { .type = NLA_NESTED },
+	[CTA_EXPECT_FN]		= { .type = NLA_NUL_STRING },
 };
 
 static int
@@ -1836,9 +1910,11 @@ ctnetlink_get_expect(struct sock *ctnl, struct sk_buff *skb,
 	int err;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		return netlink_dump_start(ctnl, skb, nlh,
-					  ctnetlink_exp_dump_table,
-					  ctnetlink_exp_done, 0);
+		struct netlink_dump_control c = {
+			.dump = ctnetlink_exp_dump_table,
+			.done = ctnetlink_exp_done,
+		};
+		return netlink_dump_start(ctnl, skb, nlh, &c);
 	}
 
 	err = ctnetlink_parse_zone(cda[CTA_EXPECT_ZONE], &zone);
@@ -1992,6 +2068,41 @@ ctnetlink_change_expect(struct nf_conntrack_expect *x,
 	return -EOPNOTSUPP;
 }
 
+static const struct nla_policy exp_nat_nla_policy[CTA_EXPECT_NAT_MAX+1] = {
+	[CTA_EXPECT_NAT_DIR]	= { .type = NLA_U32 },
+	[CTA_EXPECT_NAT_TUPLE]	= { .type = NLA_NESTED },
+};
+
+static int
+ctnetlink_parse_expect_nat(const struct nlattr *attr,
+			   struct nf_conntrack_expect *exp,
+			   u_int8_t u3)
+{
+#ifdef CONFIG_NF_NAT_NEEDED
+	struct nlattr *tb[CTA_EXPECT_NAT_MAX+1];
+	struct nf_conntrack_tuple nat_tuple = {};
+	int err;
+
+	nla_parse_nested(tb, CTA_EXPECT_NAT_MAX, attr, exp_nat_nla_policy);
+
+	if (!tb[CTA_EXPECT_NAT_DIR] || !tb[CTA_EXPECT_NAT_TUPLE])
+		return -EINVAL;
+
+	err = ctnetlink_parse_tuple((const struct nlattr * const *)tb,
+					&nat_tuple, CTA_EXPECT_NAT_TUPLE, u3);
+	if (err < 0)
+		return err;
+
+	exp->saved_ip = nat_tuple.src.u3.ip;
+	exp->saved_proto = nat_tuple.src.u;
+	exp->dir = ntohl(nla_get_be32(tb[CTA_EXPECT_NAT_DIR]));
+
+	return 0;
+#else
+	return -EOPNOTSUPP;
+#endif
+}
+
 static int
 ctnetlink_create_expect(struct net *net, u16 zone,
 			const struct nlattr * const cda[],
@@ -2003,6 +2114,8 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 	struct nf_conntrack_expect *exp;
 	struct nf_conn *ct;
 	struct nf_conn_help *help;
+	struct nf_conntrack_helper *helper = NULL;
+	u_int32_t class = 0;
 	int err = 0;
 
 	/* caller guarantees that those three CTA_EXPECT_* exist */
@@ -2021,6 +2134,40 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 	if (!h)
 		return -ENOENT;
 	ct = nf_ct_tuplehash_to_ctrack(h);
+
+	/* Look for helper of this expectation */
+	if (cda[CTA_EXPECT_HELP_NAME]) {
+		const char *helpname = nla_data(cda[CTA_EXPECT_HELP_NAME]);
+
+		helper = __nf_conntrack_helper_find(helpname, nf_ct_l3num(ct),
+						    nf_ct_protonum(ct));
+		if (helper == NULL) {
+#ifdef CONFIG_MODULES
+			if (request_module("nfct-helper-%s", helpname) < 0) {
+				err = -EOPNOTSUPP;
+				goto out;
+			}
+
+			helper = __nf_conntrack_helper_find(helpname,
+							    nf_ct_l3num(ct),
+							    nf_ct_protonum(ct));
+			if (helper) {
+				err = -EAGAIN;
+				goto out;
+			}
+#endif
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+	}
+
+	if (cda[CTA_EXPECT_CLASS] && helper) {
+		class = ntohl(nla_get_be32(cda[CTA_EXPECT_CLASS]));
+		if (class > helper->expect_class_max) {
+			err = -EINVAL;
+			goto out;
+		}
+	}
 	exp = nf_ct_expect_alloc(ct);
 	if (!exp) {
 		err = -ENOMEM;
@@ -2047,18 +2194,35 @@ ctnetlink_create_expect(struct net *net, u16 zone,
 		} else
 			exp->flags = 0;
 	}
+	if (cda[CTA_EXPECT_FN]) {
+		const char *name = nla_data(cda[CTA_EXPECT_FN]);
+		struct nf_ct_helper_expectfn *expfn;
 
-	exp->class = 0;
-	exp->expectfn = NULL;
+		expfn = nf_ct_helper_expectfn_find_by_name(name);
+		if (expfn == NULL) {
+			err = -EINVAL;
+			goto err_out;
+		}
+		exp->expectfn = expfn->expectfn;
+	} else
+		exp->expectfn = NULL;
+
+	exp->class = class;
 	exp->master = ct;
-	exp->helper = NULL;
+	exp->helper = helper;
 	memcpy(&exp->tuple, &tuple, sizeof(struct nf_conntrack_tuple));
 	memcpy(&exp->mask.src.u3, &mask.src.u3, sizeof(exp->mask.src.u3));
 	exp->mask.src.u.all = mask.src.u.all;
 
+	if (cda[CTA_EXPECT_NAT]) {
+		err = ctnetlink_parse_expect_nat(cda[CTA_EXPECT_NAT],
+						 exp, u3);
+		if (err < 0)
+			goto err_out;
+	}
 	err = nf_ct_expect_related_report(exp, pid, report);
+err_out:
 	nf_ct_expect_put(exp);
-
 out:
 	nf_ct_put(nf_ct_tuplehash_to_ctrack(h));
 	return err;

@@ -16,7 +16,6 @@
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/init_task.h>
@@ -115,9 +114,7 @@ void cpu_idle (void)
 				idle = default_idle;
 			idle();
 		}
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 	}
 }
 

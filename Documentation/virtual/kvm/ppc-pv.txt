@@ -81,28 +81,8 @@ additional registers to the magic page. If you add fields to the magic page,
 also define a new hypercall feature to indicate that the host can give you more
 registers. Only if the host supports the additional features, make use of them.
 
-The magic page has the following layout as described in
-arch/powerpc/include/asm/kvm_para.h:
-
-struct kvm_vcpu_arch_shared {
-	__u64 scratch1;
-	__u64 scratch2;
-	__u64 scratch3;
-	__u64 critical;		/* Guest may not get interrupts if == r1 */
-	__u64 sprg0;
-	__u64 sprg1;
-	__u64 sprg2;
-	__u64 sprg3;
-	__u64 srr0;
-	__u64 srr1;
-	__u64 dar;
-	__u64 msr;
-	__u32 dsisr;
-	__u32 int_pending;	/* Tells the guest if we have an interrupt */
-};
-
-Additions to the page must only occur at the end. Struct fields are always 32
-or 64 bit aligned, depending on them being 32 or 64 bit wide respectively.
+The magic page layout is described by struct kvm_vcpu_arch_shared
+in arch/powerpc/include/asm/kvm_para.h.
 
 Magic page features
 ===================

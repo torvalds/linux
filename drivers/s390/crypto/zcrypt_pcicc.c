@@ -65,13 +65,11 @@ static struct ap_device_id zcrypt_pcicc_ids[] = {
 	{ /* end of list */ },
 };
 
-#ifndef CONFIG_ZCRYPT_MONOLITHIC
 MODULE_DEVICE_TABLE(ap, zcrypt_pcicc_ids);
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("PCICC Cryptographic Coprocessor device driver, "
 		   "Copyright 2001, 2006 IBM Corporation");
 MODULE_LICENSE("GPL");
-#endif
 
 static int zcrypt_pcicc_probe(struct ap_device *ap_dev);
 static void zcrypt_pcicc_remove(struct ap_device *ap_dev);
@@ -614,7 +612,5 @@ void zcrypt_pcicc_exit(void)
 	ap_driver_unregister(&zcrypt_pcicc_driver);
 }
 
-#ifndef CONFIG_ZCRYPT_MONOLITHIC
 module_init(zcrypt_pcicc_init);
 module_exit(zcrypt_pcicc_exit);
-#endif

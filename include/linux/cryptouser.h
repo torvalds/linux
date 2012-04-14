@@ -100,3 +100,6 @@ struct crypto_report_rng {
 	char type[CRYPTO_MAX_NAME];
 	unsigned int seedsize;
 };
+
+#define CRYPTO_REPORT_MAXSIZE (sizeof(struct crypto_user_alg) + \
+			       sizeof(struct crypto_report_blkcipher))

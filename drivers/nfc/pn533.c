@@ -736,6 +736,8 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 	nfc_tgt->sens_res = be16_to_cpu(tgt_type_a->sens_res);
 	nfc_tgt->sel_res = tgt_type_a->sel_res;
+	nfc_tgt->nfcid1_len = tgt_type_a->nfcid_len;
+	memcpy(nfc_tgt->nfcid1, tgt_type_a->nfcid_data, nfc_tgt->nfcid1_len);
 
 	return 0;
 }
@@ -781,6 +783,9 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 	else
 		nfc_tgt->supported_protocols = NFC_PROTO_FELICA_MASK;
 
+	memcpy(nfc_tgt->sensf_res, &tgt_felica->opcode, 9);
+	nfc_tgt->sensf_res_len = 9;
+
 	return 0;
 }
 
@@ -823,6 +828,8 @@ static int pn533_target_found_jewel(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 	nfc_tgt->supported_protocols = NFC_PROTO_JEWEL_MASK;
 	nfc_tgt->sens_res = be16_to_cpu(tgt_jewel->sens_res);
+	nfc_tgt->nfcid1_len = 4;
+	memcpy(nfc_tgt->nfcid1, tgt_jewel->jewelid, nfc_tgt->nfcid1_len);
 
 	return 0;
 }
@@ -901,6 +908,8 @@ static int pn533_target_found(struct pn533 *dev,
 
 	if (resp->tg != 1)
 		return -EPROTO;
+
+	memset(&nfc_tgt, 0, sizeof(struct nfc_target));
 
 	target_data_len = resp_len - sizeof(struct pn533_poll_response);
 
@@ -1307,6 +1316,8 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 		nfc_dev_dbg(&dev->interface->dev, "Creating new target");
 
 		nfc_target.supported_protocols = NFC_PROTO_NFC_DEP_MASK;
+		nfc_target.nfcid1_len = 10;
+		memcpy(nfc_target.nfcid1, resp->nfcid3t, nfc_target.nfcid1_len);
 		rc = nfc_targets_found(dev->nfc_dev, &nfc_target, 1);
 		if (rc)
 			return 0;
@@ -1329,20 +1340,14 @@ static int pn533_in_dep_link_up_complete(struct pn533 *dev, void *arg,
 }
 
 static int pn533_dep_link_up(struct nfc_dev *nfc_dev, int target_idx,
-						u8 comm_mode, u8 rf_mode)
+			     u8 comm_mode, u8* gb, size_t gb_len)
 {
 	struct pn533 *dev = nfc_get_drvdata(nfc_dev);
 	struct pn533_cmd_jump_dep *cmd;
-	u8 cmd_len, local_gt_len, *local_gt;
+	u8 cmd_len;
 	int rc;
 
 	nfc_dev_dbg(&dev->interface->dev, "%s", __func__);
-
-	if (rf_mode == NFC_RF_TARGET) {
-		nfc_dev_err(&dev->interface->dev, "Target mode not supported");
-		return -EOPNOTSUPP;
-	}
-
 
 	if (dev->poll_mod_count) {
 		nfc_dev_err(&dev->interface->dev,
@@ -1356,11 +1361,7 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, int target_idx,
 		return -EBUSY;
 	}
 
-	local_gt = nfc_get_local_general_bytes(dev->nfc_dev, &local_gt_len);
-	if (local_gt_len > NFC_MAX_GT_LEN)
-		return -EINVAL;
-
-	cmd_len = sizeof(struct pn533_cmd_jump_dep) + local_gt_len;
+	cmd_len = sizeof(struct pn533_cmd_jump_dep) + gb_len;
 	cmd = kzalloc(cmd_len, GFP_KERNEL);
 	if (cmd == NULL)
 		return -ENOMEM;
@@ -1369,9 +1370,9 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, int target_idx,
 
 	cmd->active = !comm_mode;
 	cmd->baud = 0;
-	if (local_gt != NULL) {
+	if (gb != NULL && gb_len > 0) {
 		cmd->next = 4; /* We have some Gi */
-		memcpy(cmd->gt, local_gt, local_gt_len);
+		memcpy(cmd->gt, gb, gb_len);
 	} else {
 		cmd->next = 0;
 	}

@@ -32,6 +32,14 @@
 
 #define NV_DPMS_CLEARED 0x80
 
+struct dp_train_func {
+	void (*link_set)(struct drm_device *, struct dcb_entry *, int crtc,
+			 int nr, u32 bw, bool enhframe);
+	void (*train_set)(struct drm_device *, struct dcb_entry *, u8 pattern);
+	void (*train_adj)(struct drm_device *, struct dcb_entry *,
+			  u8 lane, u8 swing, u8 preem);
+};
+
 struct nouveau_encoder {
 	struct drm_encoder_slave base;
 
@@ -78,9 +86,19 @@ get_slave_funcs(struct drm_encoder *enc)
 	return to_encoder_slave(enc)->slave_funcs;
 }
 
+/* nouveau_dp.c */
+int nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
+		     uint8_t *data, int data_nr);
+bool nouveau_dp_detect(struct drm_encoder *);
+void nouveau_dp_dpms(struct drm_encoder *, int mode, u32 datarate,
+		     struct dp_train_func *);
+u8 *nouveau_dp_bios_data(struct drm_device *, struct dcb_entry *, u8 **);
+
 struct nouveau_connector *
 nouveau_encoder_connector_get(struct nouveau_encoder *encoder);
 int nv50_sor_create(struct drm_connector *, struct dcb_entry *);
+void nv50_sor_dp_calc_tu(struct drm_device *, int, int, u32, u32);
 int nv50_dac_create(struct drm_connector *, struct dcb_entry *);
+
 
 #endif /* __NOUVEAU_ENCODER_H__ */

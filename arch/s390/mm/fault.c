@@ -32,10 +32,10 @@
 #include <linux/uaccess.h>
 #include <linux/hugetlb.h>
 #include <asm/asm-offsets.h>
-#include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
+#include <asm/facility.h>
 #include "../kernel/entry.h"
 
 #ifndef CONFIG_64BIT
@@ -532,7 +532,7 @@ void pfault_fini(void)
 static DEFINE_SPINLOCK(pfault_lock);
 static LIST_HEAD(pfault_list);
 
-static void pfault_interrupt(unsigned int ext_int_code,
+static void pfault_interrupt(struct ext_code ext_code,
 			     unsigned int param32, unsigned long param64)
 {
 	struct task_struct *tsk;
@@ -545,7 +545,7 @@ static void pfault_interrupt(unsigned int ext_int_code,
 	 * in the 'cpu address' field associated with the
          * external interrupt. 
 	 */
-	subcode = ext_int_code >> 16;
+	subcode = ext_code.subcode;
 	if ((subcode & 0xff00) != __SUBCODE_MASK)
 		return;
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_PFL]++;

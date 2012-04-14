@@ -249,15 +249,4 @@ static struct i2c_driver cs5345_driver = {
 	.id_table	= cs5345_id,
 };
 
-static __init int init_cs5345(void)
-{
-	return i2c_add_driver(&cs5345_driver);
-}
-
-static __exit void exit_cs5345(void)
-{
-	i2c_del_driver(&cs5345_driver);
-}
-
-module_init(init_cs5345);
-module_exit(exit_cs5345);
+module_i2c_driver(cs5345_driver);

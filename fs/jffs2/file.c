@@ -10,6 +10,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/time.h>
@@ -85,7 +87,8 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	unsigned char *pg_buf;
 	int ret;
 
-	D2(printk(KERN_DEBUG "jffs2_do_readpage_nolock(): ino #%lu, page at offset 0x%lx\n", inode->i_ino, pg->index << PAGE_CACHE_SHIFT));
+	jffs2_dbg(2, "%s(): ino #%lu, page at offset 0x%lx\n",
+		  __func__, inode->i_ino, pg->index << PAGE_CACHE_SHIFT);
 
 	BUG_ON(!PageLocked(pg));
 
@@ -105,7 +108,7 @@ static int jffs2_do_readpage_nolock (struct inode *inode, struct page *pg)
 	flush_dcache_page(pg);
 	kunmap(pg);
 
-	D2(printk(KERN_DEBUG "readpage finished\n"));
+	jffs2_dbg(2, "readpage finished\n");
 	return ret;
 }
 
@@ -144,7 +147,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 		return -ENOMEM;
 	*pagep = pg;
 
-	D1(printk(KERN_DEBUG "jffs2_write_begin()\n"));
+	jffs2_dbg(1, "%s()\n", __func__);
 
 	if (pageofs > inode->i_size) {
 		/* Make new hole frag from old EOF to new page */
@@ -153,8 +156,8 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 		struct jffs2_full_dnode *fn;
 		uint32_t alloc_len;
 
-		D1(printk(KERN_DEBUG "Writing new hole frag 0x%x-0x%x between current EOF and new page\n",
-			  (unsigned int)inode->i_size, pageofs));
+		jffs2_dbg(1, "Writing new hole frag 0x%x-0x%x between current EOF and new page\n",
+			  (unsigned int)inode->i_size, pageofs);
 
 		ret = jffs2_reserve_space(c, sizeof(ri), &alloc_len,
 					  ALLOC_NORMAL, JFFS2_SUMMARY_INODE_SIZE);
@@ -198,7 +201,8 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 			f->metadata = NULL;
 		}
 		if (ret) {
-			D1(printk(KERN_DEBUG "Eep. add_full_dnode_to_inode() failed in write_begin, returned %d\n", ret));
+			jffs2_dbg(1, "Eep. add_full_dnode_to_inode() failed in write_begin, returned %d\n",
+				  ret);
 			jffs2_mark_node_obsolete(c, fn->raw);
 			jffs2_free_full_dnode(fn);
 			jffs2_complete_reservation(c);
@@ -222,7 +226,7 @@ static int jffs2_write_begin(struct file *filp, struct address_space *mapping,
 		if (ret)
 			goto out_page;
 	}
-	D1(printk(KERN_DEBUG "end write_begin(). pg->flags %lx\n", pg->flags));
+	jffs2_dbg(1, "end write_begin(). pg->flags %lx\n", pg->flags);
 	return ret;
 
 out_page:
@@ -248,8 +252,9 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	int ret = 0;
 	uint32_t writtenlen = 0;
 
-	D1(printk(KERN_DEBUG "jffs2_write_end(): ino #%lu, page at 0x%lx, range %d-%d, flags %lx\n",
-		  inode->i_ino, pg->index << PAGE_CACHE_SHIFT, start, end, pg->flags));
+	jffs2_dbg(1, "%s(): ino #%lu, page at 0x%lx, range %d-%d, flags %lx\n",
+		  __func__, inode->i_ino, pg->index << PAGE_CACHE_SHIFT,
+		  start, end, pg->flags);
 
 	/* We need to avoid deadlock with page_cache_read() in
 	   jffs2_garbage_collect_pass(). So the page must be
@@ -268,7 +273,8 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 	ri = jffs2_alloc_raw_inode();
 
 	if (!ri) {
-		D1(printk(KERN_DEBUG "jffs2_write_end(): Allocation of raw inode failed\n"));
+		jffs2_dbg(1, "%s(): Allocation of raw inode failed\n",
+			  __func__);
 		unlock_page(pg);
 		page_cache_release(pg);
 		return -ENOMEM;
@@ -315,13 +321,14 @@ static int jffs2_write_end(struct file *filp, struct address_space *mapping,
 		/* generic_file_write has written more to the page cache than we've
 		   actually written to the medium. Mark the page !Uptodate so that
 		   it gets reread */
-		D1(printk(KERN_DEBUG "jffs2_write_end(): Not all bytes written. Marking page !uptodate\n"));
+		jffs2_dbg(1, "%s(): Not all bytes written. Marking page !uptodate\n",
+			__func__);
 		SetPageError(pg);
 		ClearPageUptodate(pg);
 	}
 
-	D1(printk(KERN_DEBUG "jffs2_write_end() returning %d\n",
-					writtenlen > 0 ? writtenlen : ret));
+	jffs2_dbg(1, "%s() returning %d\n",
+		  __func__, writtenlen > 0 ? writtenlen : ret);
 	unlock_page(pg);
 	page_cache_release(pg);
 	return writtenlen > 0 ? writtenlen : ret;

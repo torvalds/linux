@@ -374,6 +374,7 @@ extern void intel_init_emon(struct drm_device *dev);
 extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 				      struct drm_i915_gem_object *obj,
 				      struct intel_ring_buffer *pipelined);
+extern void intel_unpin_fb_obj(struct drm_i915_gem_object *obj);
 
 extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct intel_framebuffer *ifb,
@@ -381,7 +382,7 @@ extern int intel_framebuffer_init(struct drm_device *dev,
 				  struct drm_i915_gem_object *obj);
 extern int intel_fbdev_init(struct drm_device *dev);
 extern void intel_fbdev_fini(struct drm_device *dev);
-
+extern void intel_fbdev_set_suspend(struct drm_device *dev, int state);
 extern void intel_prepare_page_flip(struct drm_device *dev, int plane);
 extern void intel_finish_page_flip(struct drm_device *dev, int pipe);
 extern void intel_finish_page_flip_plane(struct drm_device *dev, int plane);

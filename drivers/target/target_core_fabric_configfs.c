@@ -108,7 +108,7 @@ static int target_fabric_mappedlun_link(
 	 * tpg_1/attrib/demo_mode_write_protect=1
 	 */
 	spin_lock_irq(&lacl->se_lun_nacl->device_list_lock);
-	deve = &lacl->se_lun_nacl->device_list[lacl->mapped_lun];
+	deve = lacl->se_lun_nacl->device_list[lacl->mapped_lun];
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS)
 		lun_access = deve->lun_flags;
 	else
@@ -137,7 +137,7 @@ static int target_fabric_mappedlun_unlink(
 	struct se_lun_acl *lacl = container_of(to_config_group(lun_acl_ci),
 			struct se_lun_acl, se_lun_group);
 	struct se_node_acl *nacl = lacl->se_lun_nacl;
-	struct se_dev_entry *deve = &nacl->device_list[lacl->mapped_lun];
+	struct se_dev_entry *deve = nacl->device_list[lacl->mapped_lun];
 	struct se_portal_group *se_tpg;
 	/*
 	 * Determine if the underlying MappedLUN has already been released..
@@ -168,7 +168,7 @@ static ssize_t target_fabric_mappedlun_show_write_protect(
 	ssize_t len;
 
 	spin_lock_irq(&se_nacl->device_list_lock);
-	deve = &se_nacl->device_list[lacl->mapped_lun];
+	deve = se_nacl->device_list[lacl->mapped_lun];
 	len = sprintf(page, "%d\n",
 			(deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY) ?
 			1 : 0);

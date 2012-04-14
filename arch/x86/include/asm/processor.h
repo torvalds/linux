@@ -14,13 +14,13 @@ struct mm_struct;
 #include <asm/sigcontext.h>
 #include <asm/current.h>
 #include <asm/cpufeature.h>
-#include <asm/system.h>
 #include <asm/page.h>
 #include <asm/pgtable_types.h>
 #include <asm/percpu.h>
 #include <asm/msr.h>
 #include <asm/desc_defs.h>
 #include <asm/nops.h>
+#include <asm/special_insns.h>
 
 #include <linux/personality.h>
 #include <linux/cpumask.h>
@@ -29,6 +29,15 @@ struct mm_struct;
 #include <linux/math64.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/irqflags.h>
+
+/*
+ * We handle most unaligned accesses in hardware.  On the other hand
+ * unaligned DMA can be quite expensive on some Nehalem processors.
+ *
+ * Based on this we disable the IP header alignment in network drivers.
+ */
+#define NET_IP_ALIGN	0
 
 #define HBP_NUM 4
 /*
@@ -162,6 +171,7 @@ extern void early_cpu_init(void);
 extern void identify_boot_cpu(void);
 extern void identify_secondary_cpu(struct cpuinfo_x86 *);
 extern void print_cpu_info(struct cpuinfo_x86 *);
+void print_cpu_msr(struct cpuinfo_x86 *);
 extern void init_scattered_cpuid_features(struct cpuinfo_x86 *c);
 extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
@@ -474,61 +484,6 @@ struct thread_struct {
 	unsigned		io_bitmap_max;
 };
 
-static inline unsigned long native_get_debugreg(int regno)
-{
-	unsigned long val = 0;	/* Damn you, gcc! */
-
-	switch (regno) {
-	case 0:
-		asm("mov %%db0, %0" :"=r" (val));
-		break;
-	case 1:
-		asm("mov %%db1, %0" :"=r" (val));
-		break;
-	case 2:
-		asm("mov %%db2, %0" :"=r" (val));
-		break;
-	case 3:
-		asm("mov %%db3, %0" :"=r" (val));
-		break;
-	case 6:
-		asm("mov %%db6, %0" :"=r" (val));
-		break;
-	case 7:
-		asm("mov %%db7, %0" :"=r" (val));
-		break;
-	default:
-		BUG();
-	}
-	return val;
-}
-
-static inline void native_set_debugreg(int regno, unsigned long value)
-{
-	switch (regno) {
-	case 0:
-		asm("mov %0, %%db0"	::"r" (value));
-		break;
-	case 1:
-		asm("mov %0, %%db1"	::"r" (value));
-		break;
-	case 2:
-		asm("mov %0, %%db2"	::"r" (value));
-		break;
-	case 3:
-		asm("mov %0, %%db3"	::"r" (value));
-		break;
-	case 6:
-		asm("mov %0, %%db6"	::"r" (value));
-		break;
-	case 7:
-		asm("mov %0, %%db7"	::"r" (value));
-		break;
-	default:
-		BUG();
-	}
-}
-
 /*
  * Set IOPL bits in EFLAGS from given mask
  */
@@ -573,14 +528,6 @@ static inline void native_swapgs(void)
 #else
 #define __cpuid			native_cpuid
 #define paravirt_enabled()	0
-
-/*
- * These special macros can be used to get or set a debugging register
- */
-#define get_debugreg(var, register)				\
-	(var) = native_get_debugreg(register)
-#define set_debugreg(value, register)				\
-	native_set_debugreg(register, value)
 
 static inline void load_sp0(struct tss_struct *tss,
 			    struct thread_struct *thread)
@@ -1026,5 +973,15 @@ extern bool cpu_has_amd_erratum(const int *);
 #else
 #define cpu_has_amd_erratum(x)	(false)
 #endif /* CONFIG_CPU_SUP_AMD */
+
+void cpu_idle_wait(void);
+
+extern unsigned long arch_align_stack(unsigned long sp);
+extern void free_init_pages(char *what, unsigned long begin, unsigned long end);
+
+void default_idle(void);
+bool set_pm_idle_to_default(void);
+
+void stop_this_cpu(void *dummy);
 
 #endif /* _ASM_X86_PROCESSOR_H */

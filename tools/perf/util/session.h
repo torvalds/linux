@@ -73,6 +73,10 @@ int perf_session__resolve_callchain(struct perf_session *self, struct perf_evsel
 				    struct ip_callchain *chain,
 				    struct symbol **parent);
 
+struct branch_info *machine__resolve_bstack(struct machine *self,
+					    struct thread *thread,
+					    struct branch_stack *bs);
+
 bool perf_session__has_traces(struct perf_session *self, const char *msg);
 
 void mem_bswap_64(void *src, int byte_size);
