@@ -301,6 +301,8 @@
 							* transactions */
 #define E1000_DMACR_DMAC_LX_SHIFT       28
 #define E1000_DMACR_DMAC_EN             0x80000000 /* Enable DMA Coalescing */
+/* DMA Coalescing BMC-to-OS Watchdog Enable */
+#define E1000_DMACR_DC_BMC2OSW_EN	0x00008000
 
 #define E1000_DMCTXTH_DMCTTHR_MASK      0x00000FFF /* DMA Coalescing Transmit
 							* Threshold */
