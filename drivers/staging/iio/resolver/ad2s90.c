@@ -55,6 +55,7 @@ static const struct iio_chan_spec ad2s90_chan = {
 	.type = IIO_ANGL,
 	.indexed = 1,
 	.channel = 0,
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 };
 
 static int __devinit ad2s90_probe(struct spi_device *spi)
