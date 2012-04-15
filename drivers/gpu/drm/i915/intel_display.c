@@ -3478,8 +3478,11 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 			return false;
 	}
 
-	/* All interlaced capable intel hw wants timings in frames. */
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	/* All interlaced capable intel hw wants timings in frames. Note though
+	 * that intel_lvds_mode_fixup does some funny tricks with the crtc
+	 * timings, so we need to be careful not to clobber these.*/
+	if (!(adjusted_mode->private_flags & INTEL_MODE_CRTC_TIMINGS_SET))
+		drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	return true;
 }
