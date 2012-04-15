@@ -87,7 +87,8 @@ static const struct iio_chan_spec ad5421_channels[] = {
 		.indexed = 1,
 		.output = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT |
 			IIO_CHAN_INFO_OFFSET_SHARED_BIT |
 			IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
 			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
@@ -304,7 +305,7 @@ static int ad5421_read_raw(struct iio_dev *indio_dev,
 		return -EINVAL;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		ret = ad5421_read(indio_dev, AD5421_REG_DAC_DATA);
 		if (ret < 0)
 			return ret;
@@ -340,7 +341,7 @@ static int ad5421_write_raw(struct iio_dev *indio_dev,
 	const unsigned int max_val = 1 << 16;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 

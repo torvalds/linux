@@ -158,7 +158,8 @@ static const struct attribute_group ad5446_attribute_group = {
 	.indexed = 1, \
 	.output = 1, \
 	.channel = 0, \
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT, \
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
+	IIO_CHAN_INFO_SCALE_SHARED_BIT,	\
 	.scan_type = IIO_ST('u', (bits), (storage), (shift)) \
 }
 
@@ -274,7 +275,7 @@ static int ad5446_write_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 

@@ -85,7 +85,8 @@ enum ad5380_type {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
 		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,		\
 	.scan_type = IIO_ST('u', (_bits), 16, 14 - (_bits))	\
@@ -292,7 +293,7 @@ static int ad5380_write_raw(struct iio_dev *indio_dev,
 	struct ad5380_state *st = iio_priv(indio_dev);
 
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_CALIBSCALE:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
@@ -322,7 +323,7 @@ static int ad5380_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_CALIBSCALE:
 		ret = regmap_read(st->regmap, ad5380_info_to_reg(chan, info),
 					val);

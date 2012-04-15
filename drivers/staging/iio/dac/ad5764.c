@@ -79,7 +79,8 @@ enum ad5764_type {
 	.output = 1,						\
 	.channel = (_chan),					\
 	.address = (_chan),					\
-	.info_mask = IIO_CHAN_INFO_OFFSET_SHARED_BIT |		\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_OFFSET_SHARED_BIT |		\
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,		\
@@ -188,7 +189,7 @@ static int ad5764_write_raw(struct iio_dev *indio_dev,
 	unsigned int reg;
 
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 		val <<= chan->scan_type.shift;
@@ -228,7 +229,7 @@ static int ad5764_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (info) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		reg = AD5764_REG_DATA(chan->address);
 		ret = ad5764_read(indio_dev, reg, val);
 		if (ret < 0)

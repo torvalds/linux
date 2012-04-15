@@ -235,7 +235,7 @@ static int ad5064_read_raw(struct iio_dev *indio_dev,
 	int scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		*val = st->dac_cache[chan->channel];
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
@@ -260,7 +260,7 @@ static int ad5064_write_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val > (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
@@ -308,7 +308,8 @@ static struct iio_chan_spec_ext_info ad5064_ext_info[] = {
 	.indexed = 1,						\
 	.output = 1,						\
 	.channel = (chan),					\
-	.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,	\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+	IIO_CHAN_INFO_SCALE_SEPARATE_BIT,			\
 	.address = AD5064_ADDR_DAC(chan),			\
 	.scan_type = IIO_ST('u', (bits), 16, 20 - (bits)),	\
 	.ext_info = ad5064_ext_info,				\

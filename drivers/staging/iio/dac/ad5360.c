@@ -103,7 +103,8 @@ enum ad5360_type {
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
 	.output = 1,						\
-	.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT |	\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
 		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,	\
@@ -319,7 +320,7 @@ static int ad5360_write_raw(struct iio_dev *indio_dev,
 	unsigned int ofs_index;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= max_val || val < 0)
 			return -EINVAL;
 
@@ -376,7 +377,7 @@ static int ad5360_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		ret = ad5360_read(indio_dev, AD5360_READBACK_X1A,
 			chan->address);
 		if (ret < 0)

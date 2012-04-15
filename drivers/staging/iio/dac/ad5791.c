@@ -78,7 +78,8 @@ static int ad5791_spi_read(struct spi_device *spi, u8 addr, u32 *val)
 	.indexed = 1,					\
 	.address = AD5791_ADDR_DAC0,			\
 	.channel = 0,					\
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT | \
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |	\
 		IIO_CHAN_INFO_OFFSET_SHARED_BIT,	\
 	.scan_type = IIO_ST('u', bits, 24, shift)	\
 }
@@ -231,7 +232,7 @@ static int ad5791_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		ret = ad5791_spi_read(st->spi, chan->address, val);
 		if (ret)
 			return ret;
@@ -263,7 +264,7 @@ static int ad5791_write_raw(struct iio_dev *indio_dev,
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		val &= AD5791_RES_MASK(chan->scan_type.realbits);
 		val <<= chan->scan_type.shift;
 

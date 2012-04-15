@@ -98,7 +98,8 @@ enum ad5686_supported_device_ids {
 		.indexed = 1,					\
 		.output = 1,					\
 		.channel = chan,				\
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,	\
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
 		.address = AD5686_ADDR_DAC(chan),			\
 		.scan_type = IIO_ST('u', bits, 16, shift)	\
 }
@@ -296,7 +297,7 @@ static int ad5686_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		ret = ad5686_spi_read(st, chan->address);
 		mutex_unlock(&indio_dev->mlock);
@@ -326,7 +327,7 @@ static int ad5686_write_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val > (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
