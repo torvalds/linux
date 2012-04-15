@@ -43,7 +43,7 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	unsigned int scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -70,7 +70,8 @@ static int ad7476_read_raw(struct iio_dev *indio_dev,
 	{							\
 	.type = IIO_VOLTAGE,					\
 	.indexed = 1,						\
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+	IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
 	.scan_type = {						\
 		.sign = 'u',					\
 		.realbits = bits,				\

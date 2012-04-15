@@ -630,7 +630,7 @@ static int ad7793_read_raw(struct iio_dev *indio_dev,
 	bool unipolar = !!(st->conf & AD7793_CONF_UNIPOLAR);
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -760,7 +760,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 0,
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 0,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -771,7 +772,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 1,
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 1,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -782,7 +784,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -794,7 +797,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 24, 32, 0)
 		},
@@ -803,7 +807,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.address = AD7793_CH_TEMP,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
 			.scan_type = IIO_ST('s', 24, 32, 0),
 		},
@@ -813,7 +818,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 5,
 			.scan_type = IIO_ST('s', 24, 32, 0),
 		},
@@ -827,7 +833,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 0,
 			.channel2 = 0,
 			.address = AD7793_CH_AIN1P_AIN1M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 0,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -838,7 +845,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 1,
 			.channel2 = 1,
 			.address = AD7793_CH_AIN2P_AIN2M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 1,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -849,7 +857,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN3P_AIN3M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -861,7 +870,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.channel = 2,
 			.channel2 = 2,
 			.address = AD7793_CH_AIN1M_AIN1M,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_index = 2,
 			.scan_type = IIO_ST('s', 16, 32, 0)
 		},
@@ -870,7 +880,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 0,
 			.address = AD7793_CH_TEMP,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 4,
 			.scan_type = IIO_ST('s', 16, 32, 0),
 		},
@@ -880,7 +891,8 @@ static const struct ad7793_chip_info ad7793_chip_info_tbl[] = {
 			.indexed = 1,
 			.channel = 4,
 			.address = AD7793_CH_AVDD_MONITOR,
-			.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 			.scan_index = 5,
 			.scan_type = IIO_ST('s', 16, 32, 0),
 		},

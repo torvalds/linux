@@ -849,7 +849,7 @@ static int ad7192_read_raw(struct iio_dev *indio_dev,
 	bool unipolar = !!(st->conf & AD7192_CONF_UNIPOLAR);
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -981,7 +981,8 @@ static const struct iio_info ad7195_info = {
 	  .extend_name = _name,						\
 	  .channel = _chan,						\
 	  .channel2 = _chan2,						\
-	  .info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
+	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -990,7 +991,8 @@ static const struct iio_info ad7195_info = {
 	{ .type = IIO_VOLTAGE,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
-	  .info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,		\
+	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	  IIO_CHAN_INFO_SCALE_SHARED_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}
@@ -999,7 +1001,8 @@ static const struct iio_info ad7195_info = {
 	{ .type = IIO_TEMP,						\
 	  .indexed = 1,							\
 	  .channel = _chan,						\
-	  .info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+	  .info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	  IIO_CHAN_INFO_SCALE_SEPARATE_BIT,				\
 	  .address = _address,						\
 	  .scan_index = _si,						\
 	  .scan_type =  IIO_ST('s', 24, 32, 0)}

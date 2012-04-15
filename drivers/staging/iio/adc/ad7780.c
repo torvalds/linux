@@ -94,7 +94,7 @@ static int ad7780_read_raw(struct iio_dev *indio_dev,
 	unsigned long scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		ret = ad7780_read(st, &smpl);
 		mutex_unlock(&indio_dev->mlock);
@@ -130,7 +130,8 @@ static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 			.type = IIO_VOLTAGE,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_type = {
 				.sign = 's',
 				.realbits = 24,
@@ -144,7 +145,8 @@ static const struct ad7780_chip_info ad7780_chip_info_tbl[] = {
 			.type = IIO_VOLTAGE,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			IIO_CHAN_INFO_SCALE_SHARED_BIT,
 			.scan_type = {
 				.sign = 's',
 				.realbits = 20,

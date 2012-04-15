@@ -508,6 +508,7 @@ static int ad7280_channel_init(struct ad7280_state *st)
 			}
 			st->channels[cnt].indexed = 1;
 			st->channels[cnt].info_mask =
+				IIO_CHAN_INFO_RAW_SEPARATE_BIT |
 				IIO_CHAN_INFO_SCALE_SHARED_BIT;
 			st->channels[cnt].address =
 				AD7280A_DEVADDR(dev) << 8 | ch;
@@ -524,7 +525,9 @@ static int ad7280_channel_init(struct ad7280_state *st)
 	st->channels[cnt].channel2 = dev * 6;
 	st->channels[cnt].address = AD7280A_ALL_CELLS;
 	st->channels[cnt].indexed = 1;
-	st->channels[cnt].info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT;
+	st->channels[cnt].info_mask =
+		IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SHARED_BIT;
 	st->channels[cnt].scan_index = cnt;
 	st->channels[cnt].scan_type.sign = 'u';
 	st->channels[cnt].scan_type.realbits = 32;
@@ -788,7 +791,7 @@ static int ad7280_read_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (chan->address == AD7280A_ALL_CELLS)
 			ret = ad7280_read_all_channels(st, st->scan_cnt, NULL);

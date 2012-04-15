@@ -150,7 +150,7 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 	u32 status;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 
 		status = CHANNEL_NUM(chan->channel) |
@@ -180,7 +180,8 @@ static int spear_read_raw(struct iio_dev *indio_dev,
 #define SPEAR_ADC_CHAN(idx) {				\
 	.type = IIO_VOLTAGE,				\
 	.indexed = 1,					\
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,	\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+	IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
 	.channel = idx,					\
 	.scan_type = {					\
 		.sign = 'u',				\

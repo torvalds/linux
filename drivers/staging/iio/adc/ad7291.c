@@ -461,7 +461,7 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 	s16 signval;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		switch (chan->type) {
 		case IIO_VOLTAGE:
 			mutex_lock(&chip->state_lock);
@@ -536,7 +536,8 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 #define AD7291_VOLTAGE_CHAN(_chan)					\
 {									\
 	.type = IIO_VOLTAGE,						\
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,			\
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
+	IIO_CHAN_INFO_SCALE_SHARED_BIT,					\
 	.indexed = 1,							\
 	.channel = _chan,						\
 	.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)|\
@@ -554,7 +555,8 @@ static const struct iio_chan_spec ad7291_channels[] = {
 	AD7291_VOLTAGE_CHAN(7),
 	{
 		.type = IIO_TEMP,
-		.info_mask = IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+				IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
 				IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.indexed = 1,
 		.channel = 0,

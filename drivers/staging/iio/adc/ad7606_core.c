@@ -88,7 +88,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 	unsigned int scale_uv;
 
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		if (iio_buffer_enabled(indio_dev))
 			ret = -EBUSY;
@@ -229,14 +229,15 @@ static const struct attribute_group ad7606_attribute_group_range = {
 	.attrs = ad7606_attributes_range,
 };
 
-#define AD7606_CHANNEL(num)				\
-	{						\
-		.type = IIO_VOLTAGE,			\
-		.indexed = 1,				\
-		.channel = num,				\
-		.address = num,				\
-		.scan_index = num,			\
-		.scan_type = IIO_ST('s', 16, 16, 0),	\
+#define AD7606_CHANNEL(num)					\
+	{							\
+		.type = IIO_VOLTAGE,				\
+		.indexed = 1,					\
+		.channel = num,					\
+		.address = num,					\
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+		.scan_index = num,				\
+		.scan_type = IIO_ST('s', 16, 16, 0),		\
 	}
 
 static struct iio_chan_spec ad7606_8_channels[] = {
