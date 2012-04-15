@@ -167,6 +167,8 @@ enum regulator_type {
 
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
+ * @enable_reg: Register for control when using regmap enable/disable ops
+ * @enable_mask: Mask for control when using regmap enable/disable ops
  */
 struct regulator_desc {
 	const char *name;
@@ -180,6 +182,8 @@ struct regulator_desc {
 
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
+	unsigned int enable_reg;
+	unsigned int enable_mask;
 };
 
 /**
@@ -258,6 +262,9 @@ int regulator_mode_to_status(unsigned int);
 
 int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev);
 int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel);
+int regulator_is_enabled_regmap(struct regulator_dev *rdev);
+int regulator_enable_regmap(struct regulator_dev *rdev);
+int regulator_disable_regmap(struct regulator_dev *rdev);
 
 void *regulator_get_init_drvdata(struct regulator_init_data *reg_init_data);
 
