@@ -87,7 +87,7 @@ static int adis16080_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&indio_dev->mlock);
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		ret = adis16080_spi_write(indio_dev,
 					  chan->address |
 					  ADIS16080_DIN_WRITE);
@@ -110,21 +110,25 @@ static const struct iio_chan_spec adis16080_channels[] = {
 		.type = IIO_ANGL_VEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = ADIS16080_DIN_GYRO,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 0,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = ADIS16080_DIN_AIN1,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = ADIS16080_DIN_AIN2,
 	}, {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = ADIS16080_DIN_TEMP,
 	}
 };
