@@ -761,8 +761,12 @@ relocate_new_kernel:
 	mr	r30, r4
 	mr	r31, r5
 
-	/* Load our MSR_IS and TID to MMUCR for TLB search */
-	mfspr	r3,SPRN_PID
+	/* 
+	 * Load the PID with kernel PID (0).
+	 * Also load our MSR_IS and TID to MMUCR for TLB search.
+	 */
+	li	r3, 0
+	mtspr	SPRN_PID, r3
 	mfmsr	r4
 	andi.	r4,r4,MSR_IS@l
 	beq	wmmucr
