@@ -124,7 +124,7 @@ void enable_kernel_altivec(void)
 	if (current->thread.regs && (current->thread.regs->msr & MSR_VEC))
 		giveup_altivec(current);
 	else
-		giveup_altivec(NULL);	/* just enable AltiVec for kernel - force */
+		giveup_altivec_notask();
 #else
 	giveup_altivec(last_task_used_altivec);
 #endif /* CONFIG_SMP */

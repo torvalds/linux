@@ -40,6 +40,7 @@ static inline void discard_lazy_cpu_state(void)
 #ifdef CONFIG_ALTIVEC
 extern void flush_altivec_to_thread(struct task_struct *);
 extern void giveup_altivec(struct task_struct *);
+extern void giveup_altivec_notask(void);
 #else
 static inline void flush_altivec_to_thread(struct task_struct *t)
 {
