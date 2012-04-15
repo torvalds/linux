@@ -679,23 +679,9 @@ static int wm831x_buckp_set_suspend_voltage(struct regulator_dev *rdev,
 	return wm831x_buckp_set_voltage_int(rdev, reg, uV, uV, &selector);
 }
 
-static int wm831x_buckp_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct wm831x_dcdc *dcdc = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = dcdc->wm831x;
-	u16 reg = dcdc->base + WM831X_DCDC_ON_CONFIG;
-	int val;
-
-	val = wm831x_reg_read(wm831x, reg);
-	if (val < 0)
-		return val;
-
-	return val & WM831X_DC3_ON_VSEL_MASK;
-}
-
 static struct regulator_ops wm831x_buckp_ops = {
 	.set_voltage = wm831x_buckp_set_voltage,
-	.get_voltage_sel = wm831x_buckp_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = wm831x_buckp_list_voltage,
 	.set_suspend_voltage = wm831x_buckp_set_suspend_voltage,
 
@@ -753,10 +739,13 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 	dcdc->desc.n_voltages = WM831X_BUCKP_MAX_SELECTOR + 1;
 	dcdc->desc.ops = &wm831x_buckp_ops;
 	dcdc->desc.owner = THIS_MODULE;
+	dcdc->desc.vsel_reg = dcdc->base + WM831X_DCDC_ON_CONFIG;
+	dcdc->desc.vsel_mask = WM831X_DC3_ON_VSEL_MASK;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->dcdc[id];
 	config.driver_data = dcdc;
+	config.regmap = wm831x->regmap;
 
 	dcdc->regulator = regulator_register(&dcdc->desc, &config);
 	if (IS_ERR(dcdc->regulator)) {
