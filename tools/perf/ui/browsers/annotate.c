@@ -260,22 +260,16 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 				    void *arg, int delay_secs)
 {
 	struct map_symbol *ms = browser->b.priv;
+	struct disasm_line *dl = browser->selection;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes;
 	struct symbol *target;
-	char *s = strstr(browser->selection->line, "callq ");
 	u64 ip;
 
-	if (s == NULL)
+	if (strcmp(dl->name, "callq"))
 		return false;
 
-	s = strchr(s, ' ');
-	if (s++ == NULL) {
-		ui_helpline__puts("Invallid callq instruction.");
-		return true;
-	}
-
-	ip = strtoull(s, NULL, 16);
+	ip = strtoull(dl->operands, NULL, 16);
 	ip = ms->map->map_ip(ms->map, ip);
 	target = map__find_symbol(ms->map, ip, NULL);
 	if (target == NULL) {
@@ -321,22 +315,19 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
-	const char *jumps[] = { "je ", "jne ", "ja ", "jmpq ", "js ", "jmp ", NULL };
-	struct disasm_line *dl;
+	const char *jumps[] = { "je", "jne", "ja", "jmpq", "js", "jmp", NULL };
+	struct disasm_line *dl = browser->selection;
 	s64 idx, offset;
-	char *s = NULL;
+	char *s;
 	int i = 0;
 
-	while (jumps[i]) {
-		s = strstr(browser->selection->line, jumps[i++]);
-		if (s)
-			break;
-	}
+	while (jumps[i] && strcmp(dl->name, jumps[i]))
+		++i;
 
-	if (s == NULL)
+	if (jumps[i] == NULL)
 		return false;
 
-	s = strchr(s, '+');
+	s = strchr(dl->operands, '+');
 	if (s++ == NULL) {
 		ui_helpline__puts("Invallid jump instruction.");
 		return true;
