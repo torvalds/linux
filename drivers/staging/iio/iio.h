@@ -26,8 +26,9 @@ enum iio_data_type {
 
 /* Could add the raw attributes as well - allowing buffer only devices */
 enum iio_chan_info_enum {
-	/* 0 is reserved for raw attributes */
-	IIO_CHAN_INFO_SCALE = 1,
+	IIO_CHAN_INFO_RAW = 0,
+	IIO_CHAN_INFO_PROCESSED,
+	IIO_CHAN_INFO_SCALE,
 	IIO_CHAN_INFO_OFFSET,
 	IIO_CHAN_INFO_CALIBSCALE,
 	IIO_CHAN_INFO_CALIBBIAS,
@@ -42,6 +43,10 @@ enum iio_chan_info_enum {
 #define IIO_CHAN_INFO_SHARED_BIT(type) BIT(type*2)
 #define IIO_CHAN_INFO_SEPARATE_BIT(type) BIT(type*2 + 1)
 
+#define IIO_CHAN_INFO_RAW_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_RAW)
+#define IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT			\
+	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_PROCESSED)
 #define IIO_CHAN_INFO_SCALE_SEPARATE_BIT		\
 	IIO_CHAN_INFO_SEPARATE_BIT(IIO_CHAN_INFO_SCALE)
 #define IIO_CHAN_INFO_SCALE_SHARED_BIT			\

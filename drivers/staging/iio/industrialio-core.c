@@ -576,7 +576,8 @@ error_ret:
 static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 					struct iio_chan_spec const *chan)
 {
-	int ret, i, attrcount = 0;
+	int ret, attrcount = 0;
+	int i = 4;
 	const struct iio_chan_spec_ext_info *ext_info;
 
 	if (chan->channel < 0)
@@ -595,7 +596,7 @@ static int iio_device_add_channel_sysfs(struct iio_dev *indio_dev,
 		goto error_ret;
 	attrcount++;
 
-	for_each_set_bit(i, &chan->info_mask, sizeof(long)*8) {
+	for_each_set_bit_from(i, &chan->info_mask, sizeof(long)*8) {
 		ret = __iio_add_chan_devattr(iio_chan_info_postfix[i/2],
 					     chan,
 					     &iio_read_channel_info,
