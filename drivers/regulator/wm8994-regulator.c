@@ -86,29 +86,6 @@ static int wm8994_ldo1_list_voltage(struct regulator_dev *rdev,
 	return (selector * 100000) + 2400000;
 }
 
-static int wm8994_ldo1_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
-	int val;
-
-	val = wm8994_reg_read(ldo->wm8994, WM8994_LDO_1);
-	if (val < 0)
-		return val;
-
-	return (val & WM8994_LDO1_VSEL_MASK) >> WM8994_LDO1_VSEL_SHIFT;
-}
-
-static int wm8994_ldo1_set_voltage_sel(struct regulator_dev *rdev,
-				       unsigned selector)
-{
-	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
-
-	selector <<= WM8994_LDO1_VSEL_SHIFT;
-
-	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_1,
-			       WM8994_LDO1_VSEL_MASK, selector);
-}
-
 static struct regulator_ops wm8994_ldo1_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
@@ -116,8 +93,8 @@ static struct regulator_ops wm8994_ldo1_ops = {
 	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo1_list_voltage,
-	.get_voltage_sel = wm8994_ldo1_get_voltage_sel,
-	.set_voltage_sel = wm8994_ldo1_set_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
 static int wm8994_ldo2_list_voltage(struct regulator_dev *rdev,
@@ -146,29 +123,6 @@ static int wm8994_ldo2_list_voltage(struct regulator_dev *rdev,
 	}
 }
 
-static int wm8994_ldo2_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
-	int val;
-
-	val = wm8994_reg_read(ldo->wm8994, WM8994_LDO_2);
-	if (val < 0)
-		return val;
-
-	return (val & WM8994_LDO2_VSEL_MASK) >> WM8994_LDO2_VSEL_SHIFT;
-}
-
-static int wm8994_ldo2_set_voltage_sel(struct regulator_dev *rdev,
-				       unsigned selector)
-{
-	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
-
-	selector <<= WM8994_LDO2_VSEL_SHIFT;
-
-	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_2,
-			       WM8994_LDO2_VSEL_MASK, selector);
-}
-
 static struct regulator_ops wm8994_ldo2_ops = {
 	.enable = wm8994_ldo_enable,
 	.disable = wm8994_ldo_disable,
@@ -176,8 +130,8 @@ static struct regulator_ops wm8994_ldo2_ops = {
 	.enable_time = wm8994_ldo_enable_time,
 
 	.list_voltage = wm8994_ldo2_list_voltage,
-	.get_voltage_sel = wm8994_ldo2_get_voltage_sel,
-	.set_voltage_sel = wm8994_ldo2_set_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 };
 
 static const struct regulator_desc wm8994_ldo_desc[] = {
@@ -186,6 +140,8 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 		.id = 1,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = WM8994_LDO1_MAX_SELECTOR + 1,
+		.vsel_reg = WM8994_LDO_1,
+		.vsel_mask = WM8994_LDO1_VSEL_MASK,
 		.ops = &wm8994_ldo1_ops,
 		.owner = THIS_MODULE,
 	},
@@ -194,6 +150,8 @@ static const struct regulator_desc wm8994_ldo_desc[] = {
 		.id = 2,
 		.type = REGULATOR_VOLTAGE,
 		.n_voltages = WM8994_LDO2_MAX_SELECTOR + 1,
+		.vsel_reg = WM8994_LDO_2,
+		.vsel_mask = WM8994_LDO2_VSEL_MASK,
 		.ops = &wm8994_ldo2_ops,
 		.owner = THIS_MODULE,
 	},
@@ -243,6 +201,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = pdata->ldo[id].init_data;
 	config.driver_data = ldo;
+	config.regmap = wm8994->regmap;
 
 	ldo->regulator = regulator_register(&wm8994_ldo_desc[id], &config);
 	if (IS_ERR(ldo->regulator)) {
