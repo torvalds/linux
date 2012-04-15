@@ -32,6 +32,7 @@
  */
 
 #include <linux/dcbnl.h>
+#include <linux/math64.h>
 
 #include "mlx4_en.h"
 
@@ -227,9 +228,9 @@ static int mlx4_en_dcbnl_ieee_setmaxrate(struct net_device *dev,
 		/* Convert from Kbps into HW units, rounding result up.
 		 * Setting to 0, means unlimited BW.
 		 */
-		tmp[i] =
-			(maxrate->tc_maxrate[i] + MLX4_RATELIMIT_UNITS_IN_KB -
-			 1) / MLX4_RATELIMIT_UNITS_IN_KB;
+		tmp[i] = div_u64(maxrate->tc_maxrate[i] +
+				 MLX4_RATELIMIT_UNITS_IN_KB - 1,
+				 MLX4_RATELIMIT_UNITS_IN_KB);
 	}
 
 	err = mlx4_en_config_port_scheduler(priv, NULL, tmp);
