@@ -1056,7 +1056,7 @@ static struct fb_ops s3c_fb_ops = {
  *
  * Calculate the pixel clock when none has been given through platform data.
  */
-static void __devinit s3c_fb_missing_pixclock(struct fb_videomode *mode)
+static void s3c_fb_missing_pixclock(struct fb_videomode *mode)
 {
 	u64 pixclk = 1000000000000ULL;
 	u32 div;
