@@ -96,7 +96,7 @@ void __init kirkwood_clk_init(void)
 	ge1 = kirkwood_register_gate("ge1",    CGC_BIT_GE1);
 	sata0 = kirkwood_register_gate("sata0",  CGC_BIT_SATA0);
 	sata1 = kirkwood_register_gate("sata1",  CGC_BIT_SATA1);
-	kirkwood_register_gate("usb0",   CGC_BIT_USB0);
+	usb0 = kirkwood_register_gate("usb0",   CGC_BIT_USB0);
 	kirkwood_register_gate("sdio",   CGC_BIT_SDIO);
 	kirkwood_register_gate("crypto", CGC_BIT_CRYPTO);
 	kirkwood_register_gate("xor0",   CGC_BIT_XOR0);
@@ -115,6 +115,7 @@ void __init kirkwood_clk_init(void)
 	orion_clkdev_add(NULL, "orion_wdt", tclk);
 	orion_clkdev_add("0", "sata_mv.0", sata0);
 	orion_clkdev_add("1", "sata_mv.0", sata1);
+	orion_clkdev_add(NULL, "orion-ehci.0", usb0);
 }
 
 /*****************************************************************************
