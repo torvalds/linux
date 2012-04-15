@@ -2569,6 +2569,7 @@ extern int dev_addr_init(struct net_device *dev);
 
 /* Functions used for unicast addresses handling */
 extern int dev_uc_add(struct net_device *dev, unsigned char *addr);
+extern int dev_uc_add_excl(struct net_device *dev, unsigned char *addr);
 extern int dev_uc_del(struct net_device *dev, unsigned char *addr);
 extern int dev_uc_sync(struct net_device *to, struct net_device *from);
 extern void dev_uc_unsync(struct net_device *to, struct net_device *from);
@@ -2578,6 +2579,7 @@ extern void dev_uc_init(struct net_device *dev);
 /* Functions used for multicast addresses handling */
 extern int dev_mc_add(struct net_device *dev, unsigned char *addr);
 extern int dev_mc_add_global(struct net_device *dev, unsigned char *addr);
+extern int dev_mc_add_excl(struct net_device *dev, unsigned char *addr);
 extern int dev_mc_del(struct net_device *dev, unsigned char *addr);
 extern int dev_mc_del_global(struct net_device *dev, unsigned char *addr);
 extern int dev_mc_sync(struct net_device *to, struct net_device *from);
