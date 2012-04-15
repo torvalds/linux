@@ -238,11 +238,12 @@ enum {
 /*
  * The callback notifies userspace to release buffers when skb DMA is done in
  * lower device, the skb last reference should be 0 when calling this.
- * The desc is used to track userspace buffer index.
+ * The ctx field is used to track device context.
+ * The desc field is used to track userspace buffer index.
  */
 struct ubuf_info {
-	void (*callback)(void *);
-	void *arg;
+	void (*callback)(struct ubuf_info *);
+	void *ctx;
 	unsigned long desc;
 };
 

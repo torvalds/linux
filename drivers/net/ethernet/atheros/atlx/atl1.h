@@ -764,8 +764,8 @@ struct atl1_adapter {
 	spinlock_t lock;
 	struct napi_struct napi;
 	struct work_struct tx_timeout_task;
+	struct work_struct reset_dev_task;
 	struct work_struct link_chg_task;
-	struct work_struct pcie_dma_to_rst_task;
 
 	struct timer_list phy_config_timer;
 	bool phy_timer_pending;
