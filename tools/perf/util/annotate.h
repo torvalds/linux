@@ -11,10 +11,13 @@ struct disasm_line {
 	struct list_head node;
 	s64		 offset;
 	char		 *line;
+	char		 *name;
+	char		 *operands;
 };
 
 void disasm_line__free(struct disasm_line *dl);
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
+size_t disasm__fprintf(struct list_head *head, FILE *fp);
 
 struct sym_hist {
 	u64		sum;

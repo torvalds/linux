@@ -80,16 +80,50 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 
 static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
 {
-	struct disasm_line *dl = malloc(sizeof(*dl) + privsize);
+	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
 
 	if (dl != NULL) {
 		dl->offset = offset;
 		dl->line = strdup(line);
 		if (dl->line == NULL)
 			goto out_delete;
+
+		if (offset != -1) {
+			char *name = dl->line, tmp;
+
+			while (isspace(name[0]))
+				++name;
+
+			if (name[0] == '\0')
+				goto out_delete;
+
+			dl->operands = name + 1;
+
+			while (dl->operands[0] != '\0' &&
+			       !isspace(dl->operands[0]))
+				++dl->operands;
+
+			tmp = dl->operands[0];
+			dl->operands[0] = '\0';
+			dl->name = strdup(name);
+
+			if (dl->name == NULL)
+				goto out_free_line;
+
+			dl->operands[0] = tmp;
+
+			if (dl->operands[0] != '\0') {
+				dl->operands++;
+				while (isspace(dl->operands[0]))
+					++dl->operands;
+			}
+		}
 	}
 
 	return dl;
+
+out_free_line:
+	free(dl->line);
 out_delete:
 	free(dl);
 	return NULL;
@@ -98,6 +132,7 @@ out_delete:
 void disasm_line__free(struct disasm_line *dl)
 {
 	free(dl->line);
+	free(dl->name);
 	free(dl);
 }
 
@@ -589,6 +624,34 @@ void disasm__purge(struct list_head *head)
 		list_del(&pos->node);
 		disasm_line__free(pos);
 	}
+}
+
+static size_t disasm_line__fprintf(struct disasm_line *dl, FILE *fp)
+{
+	size_t printed;
+
+	if (dl->offset == -1)
+		return fprintf(fp, "%s\n", dl->line);
+
+	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->name);
+
+	if (dl->operands[0] != '\0') {
+		printed += fprintf(fp, "%.*s %s\n", 6 - (int)printed, " ",
+				   dl->operands);
+	}
+
+	return printed + fprintf(fp, "\n");
+}
+
+size_t disasm__fprintf(struct list_head *head, FILE *fp)
+{
+	struct disasm_line *pos;
+	size_t printed = 0;
+
+	list_for_each_entry(pos, head, node)
+		printed += disasm_line__fprintf(pos, fp);
+
+	return printed;
 }
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
