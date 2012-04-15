@@ -19,6 +19,7 @@
 #include <linux/notifier.h>
 #include <linux/regulator/consumer.h>
 
+struct regmap;
 struct regulator_dev;
 struct regulator_init_data;
 
@@ -187,12 +188,14 @@ struct regulator_desc {
  * @driver_data: private regulator data
  * @of_node: OpenFirmware node to parse for device tree bindings (may be
  *           NULL).
+ * @regmap: regmap to use for core regmap helpers
  */
 struct regulator_config {
 	struct device *dev;
 	const struct regulator_init_data *init_data;
 	void *driver_data;
 	struct device_node *of_node;
+	struct regmap *regmap;
 };
 
 /*
@@ -223,6 +226,7 @@ struct regulator_dev {
 	struct device dev;
 	struct regulation_constraints *constraints;
 	struct regulator *supply;	/* for tree */
+	struct regmap *regmap;
 
 	struct delayed_work disable_work;
 	int deferred_disables;
