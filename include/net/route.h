@@ -50,7 +50,7 @@ struct rtable {
 	__be32			rt_key_src;
 
 	int			rt_genid;
-	unsigned		rt_flags;
+	unsigned int		rt_flags;
 	__u16			rt_type;
 	__u8			rt_key_tos;
 
@@ -185,8 +185,8 @@ extern unsigned short	ip_rt_frag_needed(struct net *net, const struct iphdr *iph
 					  unsigned short new_mtu, struct net_device *dev);
 extern void		ip_rt_send_redirect(struct sk_buff *skb);
 
-extern unsigned		inet_addr_type(struct net *net, __be32 addr);
-extern unsigned		inet_dev_addr_type(struct net *net, const struct net_device *dev, __be32 addr);
+extern unsigned int		inet_addr_type(struct net *net, __be32 addr);
+extern unsigned int		inet_dev_addr_type(struct net *net, const struct net_device *dev, __be32 addr);
 extern void		ip_rt_multicast_event(struct in_device *);
 extern int		ip_rt_ioctl(struct net *, unsigned int cmd, void __user *arg);
 extern void		ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);

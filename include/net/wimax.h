@@ -423,8 +423,8 @@ struct wimax_dev {
 	int (*op_reset)(struct wimax_dev *wimax_dev);
 
 	struct rfkill *rfkill;
-	unsigned rf_hw;
-	unsigned rf_sw;
+	unsigned int rf_hw;
+	unsigned int rf_sw;
 	char name[32];
 
 	struct dentry *debugfs_dentry;

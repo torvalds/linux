@@ -839,7 +839,7 @@ static void ip_vs_process_message_v0(struct net *net, const char *buffer,
 
 	p = (char *)buffer + sizeof(struct ip_vs_sync_mesg_v0);
 	for (i=0; i<m->nr_conns; i++) {
-		unsigned flags, state;
+		unsigned int flags, state;
 
 		if (p + SIMPLE_CONN_SIZE > buffer+buflen) {
 			IP_VS_ERR_RL("BACKUP v0, bogus conn\n");
@@ -1109,7 +1109,7 @@ static void ip_vs_process_message(struct net *net, __u8 *buffer,
 
 		for (i=0; i<nr_conns; i++) {
 			union ip_vs_sync_conn *s;
-			unsigned size;
+			unsigned int size;
 			int retc;
 
 			p = msg_end;

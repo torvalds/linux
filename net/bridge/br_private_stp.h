@@ -29,10 +29,9 @@
 #define BR_MIN_PATH_COST	1
 #define BR_MAX_PATH_COST	65535
 
-struct br_config_bpdu
-{
-	unsigned	topology_change:1;
-	unsigned	topology_change_ack:1;
+struct br_config_bpdu {
+	unsigned int	topology_change:1;
+	unsigned int	topology_change_ack:1;
 	bridge_id	root;
 	int		root_path_cost;
 	bridge_id	bridge_id;

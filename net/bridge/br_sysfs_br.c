@@ -297,7 +297,7 @@ static ssize_t store_group_addr(struct device *d,
 				const char *buf, size_t len)
 {
 	struct net_bridge *br = to_bridge(d);
-	unsigned new_addr[6];
+	unsigned int new_addr[6];
 	int i;
 
 	if (!capable(CAP_NET_ADMIN))

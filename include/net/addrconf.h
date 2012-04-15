@@ -92,7 +92,7 @@ extern void			addrconf_leave_solict(struct inet6_dev *idev,
 					const struct in6_addr *addr);
 
 static inline unsigned long addrconf_timeout_fixup(u32 timeout,
-						    unsigned unit)
+						   unsigned int unit)
 {
 	if (timeout == 0xffffffff)
 		return ~0UL;

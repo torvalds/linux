@@ -1125,7 +1125,7 @@ skip:
 	}
 }
 
-static inline bool inetdev_valid_mtu(unsigned mtu)
+static inline bool inetdev_valid_mtu(unsigned int mtu)
 {
 	return mtu >= 68;
 }

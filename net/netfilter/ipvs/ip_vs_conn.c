@@ -86,42 +86,42 @@ struct ip_vs_aligned_lock
 static struct ip_vs_aligned_lock
 __ip_vs_conntbl_lock_array[CT_LOCKARRAY_SIZE] __cacheline_aligned;
 
-static inline void ct_read_lock(unsigned key)
+static inline void ct_read_lock(unsigned int key)
 {
 	read_lock(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_read_unlock(unsigned key)
+static inline void ct_read_unlock(unsigned int key)
 {
 	read_unlock(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_write_lock(unsigned key)
+static inline void ct_write_lock(unsigned int key)
 {
 	write_lock(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_write_unlock(unsigned key)
+static inline void ct_write_unlock(unsigned int key)
 {
 	write_unlock(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_read_lock_bh(unsigned key)
+static inline void ct_read_lock_bh(unsigned int key)
 {
 	read_lock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_read_unlock_bh(unsigned key)
+static inline void ct_read_unlock_bh(unsigned int key)
 {
 	read_unlock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_write_lock_bh(unsigned key)
+static inline void ct_write_lock_bh(unsigned int key)
 {
 	write_lock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
 
-static inline void ct_write_unlock_bh(unsigned key)
+static inline void ct_write_unlock_bh(unsigned int key)
 {
 	write_unlock_bh(&__ip_vs_conntbl_lock_array[key&CT_LOCKARRAY_MASK].l);
 }
@@ -130,7 +130,7 @@ static inline void ct_write_unlock_bh(unsigned key)
 /*
  *	Returns hash value for IPVS connection entry
  */
-static unsigned int ip_vs_conn_hashkey(struct net *net, int af, unsigned proto,
+static unsigned int ip_vs_conn_hashkey(struct net *net, int af, unsigned int proto,
 				       const union nf_inet_addr *addr,
 				       __be16 port)
 {
@@ -188,7 +188,7 @@ static unsigned int ip_vs_conn_hashkey_conn(const struct ip_vs_conn *cp)
  */
 static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
 {
-	unsigned hash;
+	unsigned int hash;
 	int ret;
 
 	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
@@ -224,7 +224,7 @@ static inline int ip_vs_conn_hash(struct ip_vs_conn *cp)
  */
 static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 {
-	unsigned hash;
+	unsigned int hash;
 	int ret;
 
 	/* unhash it and decrease its reference counter */
@@ -257,7 +257,7 @@ static inline int ip_vs_conn_unhash(struct ip_vs_conn *cp)
 static inline struct ip_vs_conn *
 __ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 {
-	unsigned hash;
+	unsigned int hash;
 	struct ip_vs_conn *cp;
 	struct hlist_node *n;
 
@@ -344,7 +344,7 @@ EXPORT_SYMBOL_GPL(ip_vs_conn_in_get_proto);
 /* Get reference to connection template */
 struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 {
-	unsigned hash;
+	unsigned int hash;
 	struct ip_vs_conn *cp;
 	struct hlist_node *n;
 
@@ -394,7 +394,7 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
  *	p->vaddr, p->vport: pkt dest address (foreign host) */
 struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 {
-	unsigned hash;
+	unsigned int hash;
 	struct ip_vs_conn *cp, *ret=NULL;
 	struct hlist_node *n;
 
@@ -824,7 +824,7 @@ void ip_vs_conn_expire_now(struct ip_vs_conn *cp)
  */
 struct ip_vs_conn *
 ip_vs_conn_new(const struct ip_vs_conn_param *p,
-	       const union nf_inet_addr *daddr, __be16 dport, unsigned flags,
+	       const union nf_inet_addr *daddr, __be16 dport, unsigned int flags,
 	       struct ip_vs_dest *dest, __u32 fwmark)
 {
 	struct ip_vs_conn *cp;
@@ -1057,7 +1057,7 @@ static const struct file_operations ip_vs_conn_fops = {
 	.release = seq_release_net,
 };
 
-static const char *ip_vs_origin_name(unsigned flags)
+static const char *ip_vs_origin_name(unsigned int flags)
 {
 	if (flags & IP_VS_CONN_F_SYNC)
 		return "SYNC";
@@ -1169,7 +1169,7 @@ void ip_vs_random_dropentry(struct net *net)
 	 * Randomly scan 1/32 of the whole table every second
 	 */
 	for (idx = 0; idx < (ip_vs_conn_tab_size>>5); idx++) {
-		unsigned hash = net_random() & ip_vs_conn_tab_mask;
+		unsigned int hash = net_random() & ip_vs_conn_tab_mask;
 		struct hlist_node *n;
 
 		/*

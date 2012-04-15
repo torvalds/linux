@@ -78,7 +78,7 @@ static int ipv4_local_port_range(ctl_table *table, int write,
 static void inet_get_ping_group_range_table(struct ctl_table *table, gid_t *low, gid_t *high)
 {
 	gid_t *data = table->data;
-	unsigned seq;
+	unsigned int seq;
 	do {
 		seq = read_seqbegin(&sysctl_local_ports.lock);
 

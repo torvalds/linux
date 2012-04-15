@@ -3166,7 +3166,7 @@ int sock_queue_err_skb(struct sock *sk, struct sk_buff *skb)
 	int len = skb->len;
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-	    (unsigned)sk->sk_rcvbuf)
+	    (unsigned int)sk->sk_rcvbuf)
 		return -ENOMEM;
 
 	skb_orphan(skb);

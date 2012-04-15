@@ -101,7 +101,7 @@ static inline unsigned long rif_hash(const unsigned char *addr)
 
 static int tr_header(struct sk_buff *skb, struct net_device *dev,
 		     unsigned short type,
-		     const void *daddr, const void *saddr, unsigned len)
+		     const void *daddr, const void *saddr, unsigned int len)
 {
 	struct trh_hdr *trh;
 	int hdr_len;
@@ -193,7 +193,7 @@ __be16 tr_type_trans(struct sk_buff *skb, struct net_device *dev)
 
 	struct trh_hdr *trh;
 	struct trllc *trllc;
-	unsigned riflen=0;
+	unsigned int riflen=0;
 
 	skb->dev = dev;
 	skb_reset_mac_header(skb);

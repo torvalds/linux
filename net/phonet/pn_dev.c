@@ -268,7 +268,7 @@ static int phonet_device_autoconf(struct net_device *dev)
 static void phonet_route_autodel(struct net_device *dev)
 {
 	struct phonet_net *pnn = phonet_pernet(dev_net(dev));
-	unsigned i;
+	unsigned int i;
 	DECLARE_BITMAP(deleted, 64);
 
 	/* Remove left-over Phonet routes */

@@ -31,7 +31,7 @@ struct dn_fib_res {
 
 struct dn_fib_nh {
 	struct net_device	*nh_dev;
-	unsigned		nh_flags;
+	unsigned int		nh_flags;
 	unsigned char		nh_scope;
 	int			nh_weight;
 	int			nh_power;
@@ -45,7 +45,7 @@ struct dn_fib_info {
 	int 			fib_treeref;
 	atomic_t		fib_clntref;
 	int			fib_dead;
-	unsigned		fib_flags;
+	unsigned int		fib_flags;
 	int			fib_protocol;
 	__le16			fib_prefsrc;
 	__u32			fib_priority;
@@ -140,7 +140,7 @@ extern void dn_fib_table_cleanup(void);
  */
 extern void dn_fib_rules_init(void);
 extern void dn_fib_rules_cleanup(void);
-extern unsigned dnet_addr_type(__le16 addr);
+extern unsigned int dnet_addr_type(__le16 addr);
 extern int dn_fib_lookup(struct flowidn *fld, struct dn_fib_res *res);
 
 extern int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb);

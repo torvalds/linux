@@ -149,7 +149,7 @@ static int store_bool_attr(char *buff, size_t count,
 		 atomic_read(attr) == 1 ? "enabled" : "disabled",
 		 enabled == 1 ? "enabled" : "disabled");
 
-	atomic_set(attr, (unsigned)enabled);
+	atomic_set(attr, (unsigned int)enabled);
 	return count;
 }
 
@@ -268,7 +268,7 @@ static ssize_t store_vis_mode(struct kobject *kobj, struct attribute *attr,
 		 "client" : "server", vis_mode_tmp == VIS_TYPE_CLIENT_UPDATE ?
 		 "client" : "server");
 
-	atomic_set(&bat_priv->vis_mode, (unsigned)vis_mode_tmp);
+	atomic_set(&bat_priv->vis_mode, (unsigned int)vis_mode_tmp);
 	return count;
 }
 
@@ -354,7 +354,7 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 		 curr_gw_mode_str, buff);
 
 	gw_deselect(bat_priv);
-	atomic_set(&bat_priv->gw_mode, (unsigned)gw_mode_tmp);
+	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
 	return count;
 }
 

@@ -88,7 +88,7 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 	int err = -ENOBUFS;
 
 	br_debug(port->br, "port %u(%s) event %d\n",
-		 (unsigned)port->port_no, port->dev->name, event);
+		 (unsigned int)port->port_no, port->dev->name, event);
 
 	skb = nlmsg_new(br_nlmsg_size(), GFP_ATOMIC);
 	if (skb == NULL)

@@ -305,7 +305,7 @@ static inline void x25_unregister_sysctl(void) {};
 #endif /* CONFIG_SYSCTL */
 
 struct x25_skb_cb {
-	unsigned flags;
+	unsigned int flags;
 };
 #define X25_SKB_CB(s) ((struct x25_skb_cb *) ((s)->cb))
 

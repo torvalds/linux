@@ -130,7 +130,7 @@ static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 
 	if (atomic_read(&sk->sk_rmem_alloc) + skb->truesize >=
-		(unsigned)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
+		(unsigned int)sk->sk_rcvbuf && rx_flow_is_on(cf_sk)) {
 		if (net_ratelimit())
 			pr_debug("sending flow OFF (queue len = %d %d)\n",
 					atomic_read(&cf_sk->sk.sk_rmem_alloc),

@@ -345,7 +345,7 @@ static inline int ipv6_addr_equal(const struct in6_addr *a1,
 static inline int __ipv6_prefix_equal(const __be32 *a1, const __be32 *a2,
 				      unsigned int prefixlen)
 {
-	unsigned pdw, pbi;
+	unsigned int pdw, pbi;
 
 	/* check complete u32 in prefix */
 	pdw = prefixlen >> 5;

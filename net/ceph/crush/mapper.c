@@ -68,8 +68,8 @@ int crush_find_rule(struct crush_map *map, int ruleset, int type, int size)
 static int bucket_perm_choose(struct crush_bucket *bucket,
 			      int x, int r)
 {
-	unsigned pr = r % bucket->size;
-	unsigned i, s;
+	unsigned int pr = r % bucket->size;
+	unsigned int i, s;
 
 	/* start a new permutation if @x has changed */
 	if (bucket->perm_x != x || bucket->perm_n == 0) {
@@ -100,13 +100,13 @@ static int bucket_perm_choose(struct crush_bucket *bucket,
 	for (i = 0; i < bucket->perm_n; i++)
 		dprintk(" perm_choose have %d: %d\n", i, bucket->perm[i]);
 	while (bucket->perm_n <= pr) {
-		unsigned p = bucket->perm_n;
+		unsigned int p = bucket->perm_n;
 		/* no point in swapping the final entry */
 		if (p < bucket->size - 1) {
 			i = crush_hash32_3(bucket->hash, x, bucket->id, p) %
 				(bucket->size - p);
 			if (i) {
-				unsigned t = bucket->perm[p + i];
+				unsigned int t = bucket->perm[p + i];
 				bucket->perm[p + i] = bucket->perm[p];
 				bucket->perm[p] = t;
 			}

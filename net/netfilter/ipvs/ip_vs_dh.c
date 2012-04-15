@@ -68,7 +68,7 @@ struct ip_vs_dh_bucket {
 /*
  *	Returns hash value for IPVS DH entry
  */
-static inline unsigned ip_vs_dh_hashkey(int af, const union nf_inet_addr *addr)
+static inline unsigned int ip_vs_dh_hashkey(int af, const union nf_inet_addr *addr)
 {
 	__be32 addr_fold = addr->ip;
 

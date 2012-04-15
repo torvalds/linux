@@ -142,7 +142,7 @@ static inline void ip_vs_lblc_free(struct ip_vs_lblc_entry *en)
 /*
  *	Returns hash value for IPVS LBLC entry
  */
-static inline unsigned
+static inline unsigned int
 ip_vs_lblc_hashkey(int af, const union nf_inet_addr *addr)
 {
 	__be32 addr_fold = addr->ip;
@@ -163,7 +163,7 @@ ip_vs_lblc_hashkey(int af, const union nf_inet_addr *addr)
 static void
 ip_vs_lblc_hash(struct ip_vs_lblc_table *tbl, struct ip_vs_lblc_entry *en)
 {
-	unsigned hash = ip_vs_lblc_hashkey(en->af, &en->addr);
+	unsigned int hash = ip_vs_lblc_hashkey(en->af, &en->addr);
 
 	list_add(&en->list, &tbl->bucket[hash]);
 	atomic_inc(&tbl->entries);
@@ -178,7 +178,7 @@ static inline struct ip_vs_lblc_entry *
 ip_vs_lblc_get(int af, struct ip_vs_lblc_table *tbl,
 	       const union nf_inet_addr *addr)
 {
-	unsigned hash = ip_vs_lblc_hashkey(af, addr);
+	unsigned int hash = ip_vs_lblc_hashkey(af, addr);
 	struct ip_vs_lblc_entry *en;
 
 	list_for_each_entry(en, &tbl->bucket[hash], list)

@@ -127,7 +127,7 @@ int nfc_genl_dep_link_up_event(struct nfc_dev *dev, u32 target_idx,
 			       u8 comm_mode, u8 rf_mode);
 int nfc_genl_dep_link_down_event(struct nfc_dev *dev);
 
-struct nfc_dev *nfc_get_device(unsigned idx);
+struct nfc_dev *nfc_get_device(unsigned int idx);
 
 static inline void nfc_put_device(struct nfc_dev *dev)
 {

@@ -8,7 +8,7 @@
 
 #define IPV6_ADDR_SCOPE_TYPE(scope)	((scope) << 16)
 
-static inline unsigned ipv6_addr_scope2type(unsigned scope)
+static inline unsigned int ipv6_addr_scope2type(unsigned int scope)
 {
 	switch (scope) {
 	case IPV6_ADDR_SCOPE_NODELOCAL:

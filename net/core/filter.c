@@ -531,7 +531,7 @@ int sk_chk_filter(struct sock_filter *filter, unsigned int flen)
 			 * Compare this with conditional jumps below,
 			 * where offsets are limited. --ANK (981016)
 			 */
-			if (ftest->k >= (unsigned)(flen-pc-1))
+			if (ftest->k >= (unsigned int)(flen-pc-1))
 				return -EINVAL;
 			break;
 		case BPF_S_JMP_JEQ_K:

@@ -612,7 +612,7 @@ static void link_activate(struct tipc_link *l_ptr)
  * @event: state machine event to process
  */
 
-static void link_state_event(struct tipc_link *l_ptr, unsigned event)
+static void link_state_event(struct tipc_link *l_ptr, unsigned int event)
 {
 	struct tipc_link *other;
 	u32 cont_intv = l_ptr->continuity_interval;

@@ -77,7 +77,7 @@ __setup("ether=", netdev_boot_setup);
  */
 int eth_header(struct sk_buff *skb, struct net_device *dev,
 	       unsigned short type,
-	       const void *daddr, const void *saddr, unsigned len)
+	       const void *daddr, const void *saddr, unsigned int len)
 {
 	struct ethhdr *eth = (struct ethhdr *)skb_push(skb, ETH_HLEN);
 

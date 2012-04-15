@@ -81,7 +81,7 @@ struct udp_table {
 extern struct udp_table udp_table;
 extern void udp_table_init(struct udp_table *, const char *);
 static inline struct udp_hslot *udp_hashslot(struct udp_table *table,
-					     struct net *net, unsigned num)
+					     struct net *net, unsigned int num)
 {
 	return &table->hash[udp_hashfn(net, num, table->mask)];
 }

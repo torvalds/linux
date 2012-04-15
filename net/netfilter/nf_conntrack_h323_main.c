@@ -1230,7 +1230,7 @@ static struct nf_conntrack_expect *find_expect(struct nf_conn *ct,
 
 /****************************************************************************/
 static int set_expect_timeout(struct nf_conntrack_expect *exp,
-			      unsigned timeout)
+			      unsigned int timeout)
 {
 	if (!exp || !del_timer(&exp->timeout))
 		return 0;

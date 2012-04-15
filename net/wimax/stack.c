@@ -187,7 +187,7 @@ out:
 
 static
 void __check_new_state(enum wimax_st old_state, enum wimax_st new_state,
-		       unsigned allowed_states_bm)
+		       unsigned int allowed_states_bm)
 {
 	if (WARN_ON(((1 << new_state) & allowed_states_bm) == 0)) {
 		printk(KERN_ERR "SW BUG! Forbidden state change %u -> %u\n",
@@ -425,7 +425,8 @@ static
 size_t wimax_addr_scnprint(char *addr_str, size_t addr_str_size,
 			   unsigned char *addr, size_t addr_len)
 {
-	unsigned cnt, total;
+	unsigned int cnt, total;
+
 	for (total = cnt = 0; cnt < addr_len; cnt++)
 		total += scnprintf(addr_str + total, addr_str_size - total,
 				   "%02x%c", addr[cnt],

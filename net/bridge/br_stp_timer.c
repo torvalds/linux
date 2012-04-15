@@ -56,7 +56,7 @@ static void br_message_age_timer_expired(unsigned long arg)
 		return;
 
 	br_info(br, "port %u(%s) neighbor %.2x%.2x.%pM lost\n",
-		(unsigned) p->port_no, p->dev->name,
+		(unsigned int) p->port_no, p->dev->name,
 		id->prio[0], id->prio[1], &id->addr);
 
 	/*
@@ -84,7 +84,7 @@ static void br_forward_delay_timer_expired(unsigned long arg)
 	struct net_bridge *br = p->br;
 
 	br_debug(br, "port %u(%s) forward delay timer\n",
-		 (unsigned) p->port_no, p->dev->name);
+		 (unsigned int) p->port_no, p->dev->name);
 	spin_lock(&br->lock);
 	if (p->state == BR_STATE_LISTENING) {
 		p->state = BR_STATE_LEARNING;
@@ -131,7 +131,7 @@ static void br_hold_timer_expired(unsigned long arg)
 	struct net_bridge_port *p = (struct net_bridge_port *) arg;
 
 	br_debug(p->br, "port %u(%s) hold timer expired\n",
-		 (unsigned) p->port_no, p->dev->name);
+		 (unsigned int) p->port_no, p->dev->name);
 
 	spin_lock(&p->br->lock);
 	if (p->config_pending)

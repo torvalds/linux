@@ -302,11 +302,12 @@ struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, struct dn_kern_rta
 		struct rtattr *attr = RTA_DATA(rta->rta_mx);
 
 		while(RTA_OK(attr, attrlen)) {
-			unsigned flavour = attr->rta_type;
+			unsigned int flavour = attr->rta_type;
+
 			if (flavour) {
 				if (flavour > RTAX_MAX)
 					goto err_inval;
-				fi->fib_metrics[flavour-1] = *(unsigned*)RTA_DATA(attr);
+				fi->fib_metrics[flavour-1] = *(unsigned int *)RTA_DATA(attr);
 			}
 			attr = RTA_NEXT(attr, attrlen);
 		}

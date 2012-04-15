@@ -371,7 +371,7 @@ err:
 static int lowpan_header_create(struct sk_buff *skb,
 			   struct net_device *dev,
 			   unsigned short type, const void *_daddr,
-			   const void *_saddr, unsigned len)
+			   const void *_saddr, unsigned int len)
 {
 	u8 tmp, iphc0, iphc1, *hc06_ptr;
 	struct ipv6hdr *hdr;

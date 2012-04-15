@@ -48,7 +48,7 @@ static struct ip_vs_protocol *ip_vs_proto_table[IP_VS_PROTO_TAB_SIZE];
  */
 static int __used __init register_ip_vs_protocol(struct ip_vs_protocol *pp)
 {
-	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
+	unsigned int hash = IP_VS_PROTO_HASH(pp->protocol);
 
 	pp->next = ip_vs_proto_table[hash];
 	ip_vs_proto_table[hash] = pp;
@@ -69,7 +69,7 @@ static int
 register_ip_vs_proto_netns(struct net *net, struct ip_vs_protocol *pp)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
-	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
+	unsigned int hash = IP_VS_PROTO_HASH(pp->protocol);
 	struct ip_vs_proto_data *pd =
 			kzalloc(sizeof(struct ip_vs_proto_data), GFP_ATOMIC);
 
@@ -94,7 +94,7 @@ register_ip_vs_proto_netns(struct net *net, struct ip_vs_protocol *pp)
 static int unregister_ip_vs_protocol(struct ip_vs_protocol *pp)
 {
 	struct ip_vs_protocol **pp_p;
-	unsigned hash = IP_VS_PROTO_HASH(pp->protocol);
+	unsigned int hash = IP_VS_PROTO_HASH(pp->protocol);
 
 	pp_p = &ip_vs_proto_table[hash];
 	for (; *pp_p; pp_p = &(*pp_p)->next) {
@@ -117,7 +117,7 @@ unregister_ip_vs_proto_netns(struct net *net, struct ip_vs_proto_data *pd)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data **pd_p;
-	unsigned hash = IP_VS_PROTO_HASH(pd->pp->protocol);
+	unsigned int hash = IP_VS_PROTO_HASH(pd->pp->protocol);
 
 	pd_p = &ipvs->proto_data_table[hash];
 	for (; *pd_p; pd_p = &(*pd_p)->next) {
@@ -139,7 +139,7 @@ unregister_ip_vs_proto_netns(struct net *net, struct ip_vs_proto_data *pd)
 struct ip_vs_protocol * ip_vs_proto_get(unsigned short proto)
 {
 	struct ip_vs_protocol *pp;
-	unsigned hash = IP_VS_PROTO_HASH(proto);
+	unsigned int hash = IP_VS_PROTO_HASH(proto);
 
 	for (pp = ip_vs_proto_table[hash]; pp; pp = pp->next) {
 		if (pp->protocol == proto)
@@ -157,7 +157,7 @@ struct ip_vs_proto_data *
 __ipvs_proto_data_get(struct netns_ipvs *ipvs, unsigned short proto)
 {
 	struct ip_vs_proto_data *pd;
-	unsigned hash = IP_VS_PROTO_HASH(proto);
+	unsigned int hash = IP_VS_PROTO_HASH(proto);
 
 	for (pd = ipvs->proto_data_table[hash]; pd; pd = pd->next) {
 		if (pd->pp->protocol == proto)

@@ -177,11 +177,11 @@ static int dn_fib_rule_compare(struct fib_rule *rule, struct fib_rule_hdr *frh,
 	return 1;
 }
 
-unsigned dnet_addr_type(__le16 addr)
+unsigned int dnet_addr_type(__le16 addr)
 {
 	struct flowidn fld = { .daddr = addr };
 	struct dn_fib_res res;
-	unsigned ret = RTN_UNICAST;
+	unsigned int ret = RTN_UNICAST;
 	struct dn_fib_table *tb = dn_fib_get_table(RT_TABLE_LOCAL, 0);
 
 	res.r = NULL;

@@ -413,7 +413,7 @@ int ip_options_compile(struct net *net,
 					opt->is_changed = 1;
 				}
 			} else {
-				unsigned overflow = optptr[3]>>4;
+				unsigned int overflow = optptr[3]>>4;
 				if (overflow == 15) {
 					pp_ptr = optptr + 3;
 					goto error;

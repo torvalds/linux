@@ -478,8 +478,8 @@ union ip_set_name_index {
 
 #define IP_SET_OP_GET_BYNAME	0x00000006	/* Get set index by name */
 struct ip_set_req_get_set {
-	unsigned op;
-	unsigned version;
+	unsigned int op;
+	unsigned int version;
 	union ip_set_name_index set;
 };
 
@@ -488,8 +488,8 @@ struct ip_set_req_get_set {
 
 #define IP_SET_OP_VERSION	0x00000100	/* Ask kernel version */
 struct ip_set_req_version {
-	unsigned op;
-	unsigned version;
+	unsigned int op;
+	unsigned int version;
 };
 
 #endif /*_IP_SET_H */

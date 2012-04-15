@@ -120,7 +120,7 @@ struct ifmcaddr6 {
 	unsigned char		mca_crcount;
 	unsigned long		mca_sfcount[2];
 	struct timer_list	mca_timer;
-	unsigned		mca_flags;
+	unsigned int		mca_flags;
 	int			mca_users;
 	atomic_t		mca_refcnt;
 	spinlock_t		mca_lock;

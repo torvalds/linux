@@ -263,7 +263,7 @@ rescan:
 void inet_twdr_hangman(unsigned long data)
 {
 	struct inet_timewait_death_row *twdr;
-	int unsigned need_timer;
+	unsigned int need_timer;
 
 	twdr = (struct inet_timewait_death_row *)data;
 	spin_lock(&twdr->death_lock);
