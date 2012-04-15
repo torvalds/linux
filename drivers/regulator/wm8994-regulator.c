@@ -98,18 +98,11 @@ static int wm8994_ldo1_get_voltage_sel(struct regulator_dev *rdev)
 	return (val & WM8994_LDO1_VSEL_MASK) >> WM8994_LDO1_VSEL_SHIFT;
 }
 
-static int wm8994_ldo1_set_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV, unsigned *s)
+static int wm8994_ldo1_set_voltage_sel(struct regulator_dev *rdev,
+				       unsigned selector)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
-	int selector, v;
 
-	selector = (min_uV - 2400000) / 100000;
-	v = wm8994_ldo1_list_voltage(rdev, selector);
-	if (v < 0 || v > max_uV)
-		return -EINVAL;
-
-	*s = selector;
 	selector <<= WM8994_LDO1_VSEL_SHIFT;
 
 	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_1,
@@ -124,7 +117,7 @@ static struct regulator_ops wm8994_ldo1_ops = {
 
 	.list_voltage = wm8994_ldo1_list_voltage,
 	.get_voltage_sel = wm8994_ldo1_get_voltage_sel,
-	.set_voltage = wm8994_ldo1_set_voltage,
+	.set_voltage_sel = wm8994_ldo1_set_voltage_sel,
 };
 
 static int wm8994_ldo2_list_voltage(struct regulator_dev *rdev,
@@ -165,33 +158,11 @@ static int wm8994_ldo2_get_voltage_sel(struct regulator_dev *rdev)
 	return (val & WM8994_LDO2_VSEL_MASK) >> WM8994_LDO2_VSEL_SHIFT;
 }
 
-static int wm8994_ldo2_set_voltage(struct regulator_dev *rdev,
-				   int min_uV, int max_uV, unsigned *s)
+static int wm8994_ldo2_set_voltage_sel(struct regulator_dev *rdev,
+				       unsigned selector)
 {
 	struct wm8994_ldo *ldo = rdev_get_drvdata(rdev);
-	int selector, v;
 
-	switch (ldo->wm8994->type) {
-	case WM8994:
-		selector = (min_uV - 900000) / 100000;
-		break;
-	case WM8958:
-		selector = (min_uV - 1000000) / 100000;
-		break;
-	case WM1811:
-		selector = (min_uV - 950000) / 100000;
-		if (selector == 0)
-			selector = 1;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	v = wm8994_ldo2_list_voltage(rdev, selector);
-	if (v < 0 || v > max_uV)
-		return -EINVAL;
-
-	*s = selector;
 	selector <<= WM8994_LDO2_VSEL_SHIFT;
 
 	return wm8994_set_bits(ldo->wm8994, WM8994_LDO_2,
@@ -206,7 +177,7 @@ static struct regulator_ops wm8994_ldo2_ops = {
 
 	.list_voltage = wm8994_ldo2_list_voltage,
 	.get_voltage_sel = wm8994_ldo2_get_voltage_sel,
-	.set_voltage = wm8994_ldo2_set_voltage,
+	.set_voltage_sel = wm8994_ldo2_set_voltage_sel,
 };
 
 static const struct regulator_desc wm8994_ldo_desc[] = {
