@@ -535,44 +535,38 @@ errout:
 }
 
 /* Dump information about entries, in response to GETNEIGH */
-int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
+int br_fdb_dump(struct sk_buff *skb,
+		struct netlink_callback *cb,
+		struct net_device *dev,
+		int idx)
 {
-	struct net *net = sock_net(skb->sk);
-	struct net_device *dev;
-	int idx = 0;
+	struct net_bridge *br = netdev_priv(dev);
+	int i;
 
-	rcu_read_lock();
-	for_each_netdev_rcu(net, dev) {
-		struct net_bridge *br = netdev_priv(dev);
-		int i;
+	if (!(dev->priv_flags & IFF_EBRIDGE))
+		goto out;
 
-		if (!(dev->priv_flags & IFF_EBRIDGE))
-			continue;
+	for (i = 0; i < BR_HASH_SIZE; i++) {
+		struct hlist_node *h;
+		struct net_bridge_fdb_entry *f;
 
-		for (i = 0; i < BR_HASH_SIZE; i++) {
-			struct hlist_node *h;
-			struct net_bridge_fdb_entry *f;
+		hlist_for_each_entry_rcu(f, h, &br->hash[i], hlist) {
+			if (idx < cb->args[0])
+				goto skip;
 
-			hlist_for_each_entry_rcu(f, h, &br->hash[i], hlist) {
-				if (idx < cb->args[0])
-					goto skip;
-
-				if (fdb_fill_info(skb, br, f,
-						  NETLINK_CB(cb->skb).pid,
-						  cb->nlh->nlmsg_seq,
-						  RTM_NEWNEIGH,
-						  NLM_F_MULTI) < 0)
-					break;
+			if (fdb_fill_info(skb, br, f,
+					  NETLINK_CB(cb->skb).pid,
+					  cb->nlh->nlmsg_seq,
+					  RTM_NEWNEIGH,
+					  NLM_F_MULTI) < 0)
+				break;
 skip:
-				++idx;
-			}
+			++idx;
 		}
 	}
-	rcu_read_unlock();
 
-	cb->args[0] = idx;
-
-	return skb->len;
+out:
+	return idx;
 }
 
 /* Update (create or replace) forwarding database entry */
@@ -614,43 +608,11 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 }
 
 /* Add new permanent fdb entry with RTM_NEWNEIGH */
-int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+int br_fdb_add(struct ndmsg *ndm, struct net_device *dev,
+	       unsigned char *addr, u16 nlh_flags)
 {
-	struct net *net = sock_net(skb->sk);
-	struct ndmsg *ndm;
-	struct nlattr *tb[NDA_MAX+1];
-	struct net_device *dev;
 	struct net_bridge_port *p;
-	const __u8 *addr;
-	int err;
-
-	ASSERT_RTNL();
-	err = nlmsg_parse(nlh, sizeof(*ndm), tb, NDA_MAX, NULL);
-	if (err < 0)
-		return err;
-
-	ndm = nlmsg_data(nlh);
-	if (ndm->ndm_ifindex == 0) {
-		pr_info("bridge: RTM_NEWNEIGH with invalid ifindex\n");
-		return -EINVAL;
-	}
-
-	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
-	if (dev == NULL) {
-		pr_info("bridge: RTM_NEWNEIGH with unknown ifindex\n");
-		return -ENODEV;
-	}
-
-	if (!tb[NDA_LLADDR] || nla_len(tb[NDA_LLADDR]) != ETH_ALEN) {
-		pr_info("bridge: RTM_NEWNEIGH with invalid address\n");
-		return -EINVAL;
-	}
-
-	addr = nla_data(tb[NDA_LLADDR]);
-	if (!is_valid_ether_addr(addr)) {
-		pr_info("bridge: RTM_NEWNEIGH with invalid ether address\n");
-		return -EINVAL;
-	}
+	int err = 0;
 
 	if (!(ndm->ndm_state & (NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE))) {
 		pr_info("bridge: RTM_NEWNEIGH with invalid state %#x\n", ndm->ndm_state);
@@ -670,14 +632,14 @@ int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		rcu_read_unlock();
 	} else {
 		spin_lock_bh(&p->br->hash_lock);
-		err = fdb_add_entry(p, addr, ndm->ndm_state, nlh->nlmsg_flags);
+		err = fdb_add_entry(p, addr, ndm->ndm_state, nlh_flags);
 		spin_unlock_bh(&p->br->hash_lock);
 	}
 
 	return err;
 }
 
-static int fdb_delete_by_addr(struct net_bridge_port *p, const u8 *addr)
+static int fdb_delete_by_addr(struct net_bridge_port *p, u8 *addr)
 {
 	struct net_bridge *br = p->br;
 	struct hlist_head *head = &br->hash[br_mac_hash(addr)];
@@ -692,39 +654,11 @@ static int fdb_delete_by_addr(struct net_bridge_port *p, const u8 *addr)
 }
 
 /* Remove neighbor entry with RTM_DELNEIGH */
-int br_fdb_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+int br_fdb_delete(struct ndmsg *ndm, struct net_device *dev,
+		  unsigned char *addr)
 {
-	struct net *net = sock_net(skb->sk);
-	struct ndmsg *ndm;
 	struct net_bridge_port *p;
-	struct nlattr *llattr;
-	const __u8 *addr;
-	struct net_device *dev;
 	int err;
-
-	ASSERT_RTNL();
-	if (nlmsg_len(nlh) < sizeof(*ndm))
-		return -EINVAL;
-
-	ndm = nlmsg_data(nlh);
-	if (ndm->ndm_ifindex == 0) {
-		pr_info("bridge: RTM_DELNEIGH with invalid ifindex\n");
-		return -EINVAL;
-	}
-
-	dev = __dev_get_by_index(net, ndm->ndm_ifindex);
-	if (dev == NULL) {
-		pr_info("bridge: RTM_DELNEIGH with unknown ifindex\n");
-		return -ENODEV;
-	}
-
-	llattr = nlmsg_find_attr(nlh, sizeof(*ndm), NDA_LLADDR);
-	if (llattr == NULL || nla_len(llattr) != ETH_ALEN) {
-		pr_info("bridge: RTM_DELNEIGH with invalid address\n");
-		return -EINVAL;
-	}
-
-	addr = nla_data(llattr);
 
 	p = br_port_get_rtnl(dev);
 	if (p == NULL) {

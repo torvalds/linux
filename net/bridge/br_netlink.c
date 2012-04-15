@@ -232,18 +232,6 @@ int __init br_netlink_init(void)
 			      br_rtm_setlink, NULL, NULL);
 	if (err)
 		goto err3;
-	err = __rtnl_register(PF_BRIDGE, RTM_NEWNEIGH,
-			      br_fdb_add, NULL, NULL);
-	if (err)
-		goto err3;
-	err = __rtnl_register(PF_BRIDGE, RTM_DELNEIGH,
-			      br_fdb_delete, NULL, NULL);
-	if (err)
-		goto err3;
-	err = __rtnl_register(PF_BRIDGE, RTM_GETNEIGH,
-			      NULL, br_fdb_dump, NULL);
-	if (err)
-		goto err3;
 
 	return 0;
 

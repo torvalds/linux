@@ -360,9 +360,18 @@ extern int br_fdb_insert(struct net_bridge *br,
 extern void br_fdb_update(struct net_bridge *br,
 			  struct net_bridge_port *source,
 			  const unsigned char *addr);
-extern int br_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb);
-extern int br_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
-extern int br_fdb_delete(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg);
+
+extern int br_fdb_delete(struct ndmsg *ndm,
+			 struct net_device *dev,
+			 unsigned char *addr);
+extern int br_fdb_add(struct ndmsg *nlh,
+		      struct net_device *dev,
+		      unsigned char *addr,
+		      u16 nlh_flags);
+extern int br_fdb_dump(struct sk_buff *skb,
+		       struct netlink_callback *cb,
+		       struct net_device *dev,
+		       int idx);
 
 /* br_forward.c */
 extern void br_deliver(const struct net_bridge_port *to,
