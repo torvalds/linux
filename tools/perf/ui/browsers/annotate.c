@@ -15,7 +15,7 @@ struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
-	struct objdump_line *selection;
+	struct disasm_line	  *selection;
 	u64		    start;
 	int		    nr_asm_entries;
 	int		    nr_entries;
@@ -25,26 +25,25 @@ struct annotate_browser {
 	char		    search_bf[128];
 };
 
-struct objdump_line_rb_node {
+struct disasm_line_rb_node {
 	struct rb_node	rb_node;
 	double		percent;
 	u32		idx;
 	int		idx_asm;
 };
 
-static inline
-struct objdump_line_rb_node *objdump_line__rb(struct objdump_line *self)
+static inline struct disasm_line_rb_node *disasm_line__rb(struct disasm_line *dl)
 {
-	return (struct objdump_line_rb_node *)(self + 1);
+	return (struct disasm_line_rb_node *)(dl + 1);
 }
 
-static bool objdump_line__filter(struct ui_browser *browser, void *entry)
+static bool disasm_line__filter(struct ui_browser *browser, void *entry)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 
 	if (ab->hide_src_code) {
-		struct objdump_line *ol = list_entry(entry, struct objdump_line, node);
-		return ol->offset == -1;
+		struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
+		return dl->offset == -1;
 	}
 
 	return false;
@@ -53,17 +52,17 @@ static bool objdump_line__filter(struct ui_browser *browser, void *entry)
 static void annotate_browser__write(struct ui_browser *self, void *entry, int row)
 {
 	struct annotate_browser *ab = container_of(self, struct annotate_browser, b);
-	struct objdump_line *ol = list_entry(entry, struct objdump_line, node);
+	struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
 	bool current_entry = ui_browser__is_current_entry(self, row);
 	bool change_color = (!ab->hide_src_code &&
 			     (!current_entry || (self->use_navkeypressed &&
 					         !self->navkeypressed)));
 	int width = self->width;
 
-	if (ol->offset != -1) {
-		struct objdump_line_rb_node *olrb = objdump_line__rb(ol);
-		ui_browser__set_percent_color(self, olrb->percent, current_entry);
-		slsmg_printf(" %7.2f ", olrb->percent);
+	if (dl->offset != -1) {
+		struct disasm_line_rb_node *dlrb = disasm_line__rb(dl);
+		ui_browser__set_percent_color(self, dlrb->percent, current_entry);
+		slsmg_printf(" %7.2f ", dlrb->percent);
 	} else {
 		ui_browser__set_percent_color(self, 0, current_entry);
 		slsmg_write_nstring(" ", 9);
@@ -76,16 +75,16 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	if (!self->navkeypressed)
 		width += 1;
 
-	if (ol->offset != -1 && change_color)
+	if (dl->offset != -1 && change_color)
 		ui_browser__set_color(self, HE_COLORSET_CODE);
 
-	if (!*ol->line)
+	if (!*dl->line)
 		slsmg_write_nstring(" ", width - 18);
-	else if (ol->offset == -1)
-		slsmg_write_nstring(ol->line, width - 18);
+	else if (dl->offset == -1)
+		slsmg_write_nstring(dl->line, width - 18);
 	else {
 		char bf[64];
-		u64 addr = ol->offset;
+		u64 addr = dl->offset;
 		int printed, color = -1;
 
 		if (!ab->use_offset)
@@ -97,28 +96,27 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(bf, printed);
 		if (change_color)
 			ui_browser__set_color(self, color);
-		slsmg_write_nstring(ol->line, width - 18 - printed);
+		slsmg_write_nstring(dl->line, width - 18 - printed);
 	}
 
 	if (current_entry)
-		ab->selection = ol;
+		ab->selection = dl;
 }
 
-static double objdump_line__calc_percent(struct objdump_line *self,
-					 struct symbol *sym, int evidx)
+static double disasm_line__calc_percent(struct disasm_line *dl, struct symbol *sym, int evidx)
 {
 	double percent = 0.0;
 
-	if (self->offset != -1) {
+	if (dl->offset != -1) {
 		int len = sym->end - sym->start;
 		unsigned int hits = 0;
 		struct annotation *notes = symbol__annotation(sym);
 		struct source_line *src_line = notes->src->lines;
 		struct sym_hist *h = annotation__histogram(notes, evidx);
-		s64 offset = self->offset;
-		struct objdump_line *next;
+		s64 offset = dl->offset;
+		struct disasm_line *next;
 
-		next = objdump__get_next_ip_line(&notes->src->source, self);
+		next = disasm__get_next_ip_line(&notes->src->source, dl);
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
 			if (src_line) {
@@ -139,27 +137,26 @@ static double objdump_line__calc_percent(struct objdump_line *self,
 	return percent;
 }
 
-static void objdump__insert_line(struct rb_root *self,
-				 struct objdump_line_rb_node *line)
+static void disasm_rb_tree__insert(struct rb_root *root, struct disasm_line_rb_node *dlrb)
 {
-	struct rb_node **p = &self->rb_node;
+	struct rb_node **p = &root->rb_node;
 	struct rb_node *parent = NULL;
-	struct objdump_line_rb_node *l;
+	struct disasm_line_rb_node *l;
 
 	while (*p != NULL) {
 		parent = *p;
-		l = rb_entry(parent, struct objdump_line_rb_node, rb_node);
-		if (line->percent < l->percent)
+		l = rb_entry(parent, struct disasm_line_rb_node, rb_node);
+		if (dlrb->percent < l->percent)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
 	}
-	rb_link_node(&line->rb_node, parent, p);
-	rb_insert_color(&line->rb_node, self);
+	rb_link_node(&dlrb->rb_node, parent, p);
+	rb_insert_color(&dlrb->rb_node, root);
 }
 
 static void annotate_browser__set_top(struct annotate_browser *self,
-				      struct objdump_line *pos, u32 idx)
+				      struct disasm_line *pos, u32 idx)
 {
 	unsigned back;
 
@@ -168,9 +165,9 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 	self->b.top_idx = self->b.index = idx;
 
 	while (self->b.top_idx != 0 && back != 0) {
-		pos = list_entry(pos->node.prev, struct objdump_line, node);
+		pos = list_entry(pos->node.prev, struct disasm_line, node);
 
-		if (objdump_line__filter(&self->b, &pos->node))
+		if (disasm_line__filter(&self->b, &pos->node))
 			continue;
 
 		--self->b.top_idx;
@@ -184,11 +181,11 @@ static void annotate_browser__set_top(struct annotate_browser *self,
 static void annotate_browser__set_rb_top(struct annotate_browser *browser,
 					 struct rb_node *nd)
 {
-	struct objdump_line_rb_node *rbpos;
-	struct objdump_line *pos;
+	struct disasm_line_rb_node *rbpos;
+	struct disasm_line *pos;
 
-	rbpos = rb_entry(nd, struct objdump_line_rb_node, rb_node);
-	pos = ((struct objdump_line *)rbpos) - 1;
+	rbpos = rb_entry(nd, struct disasm_line_rb_node, rb_node);
+	pos = ((struct disasm_line *)rbpos) - 1;
 	annotate_browser__set_top(browser, pos, rbpos->idx);
 	browser->curr_hot = nd;
 }
@@ -199,20 +196,20 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos;
+	struct disasm_line *pos;
 
 	browser->entries = RB_ROOT;
 
 	pthread_mutex_lock(&notes->lock);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
-		struct objdump_line_rb_node *rbpos = objdump_line__rb(pos);
-		rbpos->percent = objdump_line__calc_percent(pos, sym, evidx);
+		struct disasm_line_rb_node *rbpos = disasm_line__rb(pos);
+		rbpos->percent = disasm_line__calc_percent(pos, sym, evidx);
 		if (rbpos->percent < 0.01) {
 			RB_CLEAR_NODE(&rbpos->rb_node);
 			continue;
 		}
-		objdump__insert_line(&browser->entries, rbpos);
+		disasm_rb_tree__insert(&browser->entries, rbpos);
 	}
 	pthread_mutex_unlock(&notes->lock);
 
@@ -221,38 +218,38 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 
 static bool annotate_browser__toggle_source(struct annotate_browser *browser)
 {
-	struct objdump_line *ol;
-	struct objdump_line_rb_node *olrb;
+	struct disasm_line *dl;
+	struct disasm_line_rb_node *dlrb;
 	off_t offset = browser->b.index - browser->b.top_idx;
 
 	browser->b.seek(&browser->b, offset, SEEK_CUR);
-	ol = list_entry(browser->b.top, struct objdump_line, node);
-	olrb = objdump_line__rb(ol);
+	dl = list_entry(browser->b.top, struct disasm_line, node);
+	dlrb = disasm_line__rb(dl);
 
 	if (browser->hide_src_code) {
-		if (olrb->idx_asm < offset)
-			offset = olrb->idx;
+		if (dlrb->idx_asm < offset)
+			offset = dlrb->idx;
 
 		browser->b.nr_entries = browser->nr_entries;
 		browser->hide_src_code = false;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
-		browser->b.top_idx = olrb->idx - offset;
-		browser->b.index = olrb->idx;
+		browser->b.top_idx = dlrb->idx - offset;
+		browser->b.index = dlrb->idx;
 	} else {
-		if (olrb->idx_asm < 0) {
+		if (dlrb->idx_asm < 0) {
 			ui_helpline__puts("Only available for assembly lines.");
 			browser->b.seek(&browser->b, -offset, SEEK_CUR);
 			return false;
 		}
 
-		if (olrb->idx_asm < offset)
-			offset = olrb->idx_asm;
+		if (dlrb->idx_asm < offset)
+			offset = dlrb->idx_asm;
 
 		browser->b.nr_entries = browser->nr_asm_entries;
 		browser->hide_src_code = true;
 		browser->b.seek(&browser->b, -offset, SEEK_CUR);
-		browser->b.top_idx = olrb->idx_asm - offset;
-		browser->b.index = olrb->idx_asm;
+		browser->b.top_idx = dlrb->idx_asm - offset;
+		browser->b.index = dlrb->idx_asm;
 	}
 
 	return true;
@@ -302,20 +299,20 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	return true;
 }
 
-static struct objdump_line *
-	annotate_browser__find_offset(struct annotate_browser *browser,
-				      s64 offset, s64 *idx)
+static
+struct disasm_line *annotate_browser__find_offset(struct annotate_browser *browser,
+					  s64 offset, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos;
+	struct disasm_line *pos;
 
 	*idx = 0;
 	list_for_each_entry(pos, &notes->src->source, node) {
 		if (pos->offset == offset)
 			return pos;
-		if (!objdump_line__filter(&browser->b, &pos->node))
+		if (!disasm_line__filter(&browser->b, &pos->node))
 			++*idx;
 	}
 
@@ -325,7 +322,7 @@ static struct objdump_line *
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
 	const char *jumps[] = { "je ", "jne ", "ja ", "jmpq ", "js ", "jmp ", NULL };
-	struct objdump_line *line;
+	struct disasm_line *dl;
 	s64 idx, offset;
 	char *s = NULL;
 	int i = 0;
@@ -346,29 +343,29 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 	}
 
 	offset = strtoll(s, NULL, 16);
-	line = annotate_browser__find_offset(browser, offset, &idx);
-	if (line == NULL) {
+	dl = annotate_browser__find_offset(browser, offset, &idx);
+	if (dl == NULL) {
 		ui_helpline__puts("Invallid jump offset");
 		return true;
 	}
 
-	annotate_browser__set_top(browser, line, idx);
+	annotate_browser__set_top(browser, dl, idx);
 	
 	return true;
 }
 
-static struct objdump_line *
-	annotate_browser__find_string(struct annotate_browser *browser,
-				      char *s, s64 *idx)
+static
+struct disasm_line *annotate_browser__find_string(struct annotate_browser *browser,
+					  char *s, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos = browser->selection;
+	struct disasm_line *pos = browser->selection;
 
 	*idx = browser->b.index;
 	list_for_each_entry_continue(pos, &notes->src->source, node) {
-		if (objdump_line__filter(&browser->b, &pos->node))
+		if (disasm_line__filter(&browser->b, &pos->node))
 			continue;
 
 		++*idx;
@@ -382,32 +379,32 @@ static struct objdump_line *
 
 static bool __annotate_browser__search(struct annotate_browser *browser)
 {
-	struct objdump_line *line;
+	struct disasm_line *dl;
 	s64 idx;
 
-	line = annotate_browser__find_string(browser, browser->search_bf, &idx);
-	if (line == NULL) {
+	dl = annotate_browser__find_string(browser, browser->search_bf, &idx);
+	if (dl == NULL) {
 		ui_helpline__puts("String not found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, line, idx);
+	annotate_browser__set_top(browser, dl, idx);
 	browser->searching_backwards = false;
 	return true;
 }
 
-static struct objdump_line *
-	annotate_browser__find_string_reverse(struct annotate_browser *browser,
-					      char *s, s64 *idx)
+static
+struct disasm_line *annotate_browser__find_string_reverse(struct annotate_browser *browser,
+						  char *s, s64 *idx)
 {
 	struct map_symbol *ms = browser->b.priv;
 	struct symbol *sym = ms->sym;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos = browser->selection;
+	struct disasm_line *pos = browser->selection;
 
 	*idx = browser->b.index;
 	list_for_each_entry_continue_reverse(pos, &notes->src->source, node) {
-		if (objdump_line__filter(&browser->b, &pos->node))
+		if (disasm_line__filter(&browser->b, &pos->node))
 			continue;
 
 		--*idx;
@@ -421,16 +418,16 @@ static struct objdump_line *
 
 static bool __annotate_browser__search_reverse(struct annotate_browser *browser)
 {
-	struct objdump_line *line;
+	struct disasm_line *dl;
 	s64 idx;
 
-	line = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
-	if (line == NULL) {
+	dl = annotate_browser__find_string_reverse(browser, browser->search_bf, &idx);
+	if (dl == NULL) {
 		ui_helpline__puts("String not found!");
 		return false;
 	}
 
-	annotate_browser__set_top(browser, line, idx);
+	annotate_browser__set_top(browser, dl, idx);
 	browser->searching_backwards = true;
 	return true;
 }
@@ -613,7 +610,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			 void(*timer)(void *arg), void *arg,
 			 int delay_secs)
 {
-	struct objdump_line *pos, *n;
+	struct disasm_line *pos, *n;
 	struct annotation *notes;
 	struct map_symbol ms = {
 		.map = map,
@@ -624,7 +621,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.refresh = ui_browser__list_head_refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
-			.filter  = objdump_line__filter,
+			.filter  = disasm_line__filter,
 			.priv	 = &ms,
 			.use_navkeypressed = true,
 		},
@@ -637,7 +634,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	if (map->dso->annotate_warned)
 		return -1;
 
-	if (symbol__annotate(sym, map, sizeof(struct objdump_line_rb_node)) < 0) {
+	if (symbol__annotate(sym, map, sizeof(struct disasm_line_rb_node)) < 0) {
 		ui__error("%s", ui_helpline__last_msg);
 		return -1;
 	}
@@ -648,12 +645,12 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	browser.start = map__rip_2objdump(map, sym->start);
 
 	list_for_each_entry(pos, &notes->src->source, node) {
-		struct objdump_line_rb_node *rbpos;
+		struct disasm_line_rb_node *rbpos;
 		size_t line_len = strlen(pos->line);
 
 		if (browser.b.width < line_len)
 			browser.b.width = line_len;
-		rbpos = objdump_line__rb(pos);
+		rbpos = disasm_line__rb(pos);
 		rbpos->idx = browser.nr_entries++;
 		if (pos->offset != -1)
 			rbpos->idx_asm = browser.nr_asm_entries++;
@@ -667,7 +664,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	ret = annotate_browser__run(&browser, evidx, timer, arg, delay_secs);
 	list_for_each_entry_safe(pos, n, &notes->src->source, node) {
 		list_del(&pos->node);
-		objdump_line__free(pos);
+		disasm_line__free(pos);
 	}
 	return ret;
 }

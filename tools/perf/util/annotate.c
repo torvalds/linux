@@ -78,36 +78,35 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	return 0;
 }
 
-static struct objdump_line *objdump_line__new(s64 offset, char *line, size_t privsize)
+static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
 {
-	struct objdump_line *self = malloc(sizeof(*self) + privsize);
+	struct disasm_line *dl = malloc(sizeof(*dl) + privsize);
 
-	if (self != NULL) {
-		self->offset = offset;
-		self->line = strdup(line);
-		if (self->line == NULL)
+	if (dl != NULL) {
+		dl->offset = offset;
+		dl->line = strdup(line);
+		if (dl->line == NULL)
 			goto out_delete;
 	}
 
-	return self;
+	return dl;
 out_delete:
-	free(self);
+	free(dl);
 	return NULL;
 }
 
-void objdump_line__free(struct objdump_line *self)
+void disasm_line__free(struct disasm_line *dl)
 {
-	free(self->line);
-	free(self);
+	free(dl->line);
+	free(dl);
 }
 
-static void objdump__add_line(struct list_head *head, struct objdump_line *line)
+static void disasm__add(struct list_head *head, struct disasm_line *line)
 {
 	list_add_tail(&line->node, head);
 }
 
-struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
-					       struct objdump_line *pos)
+struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos)
 {
 	list_for_each_entry_continue(pos, head, node)
 		if (pos->offset >= 0)
@@ -116,15 +115,14 @@ struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 	return NULL;
 }
 
-static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
-			       u64 start, int evidx, u64 len, int min_pcnt,
-			       int printed, int max_lines,
-			       struct objdump_line *queue)
+static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 start,
+		      int evidx, u64 len, int min_pcnt, int printed,
+		      int max_lines, struct disasm_line *queue)
 {
 	static const char *prev_line;
 	static const char *prev_color;
 
-	if (oline->offset != -1) {
+	if (dl->offset != -1) {
 		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
@@ -132,11 +130,11 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 		struct annotation *notes = symbol__annotation(sym);
 		struct source_line *src_line = notes->src->lines;
 		struct sym_hist *h = annotation__histogram(notes, evidx);
-		s64 offset = oline->offset;
+		s64 offset = dl->offset;
 		const u64 addr = start + offset;
-		struct objdump_line *next;
+		struct disasm_line *next;
 
-		next = objdump__get_next_ip_line(&notes->src->source, oline);
+		next = disasm__get_next_ip_line(&notes->src->source, dl);
 
 		while (offset < (s64)len &&
 		       (next == NULL || offset < next->offset)) {
@@ -161,9 +159,9 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 
 		if (queue != NULL) {
 			list_for_each_entry_from(queue, &notes->src->source, node) {
-				if (queue == oline)
+				if (queue == dl)
 					break;
-				objdump_line__print(queue, sym, start, evidx, len,
+				disasm_line__print(queue, sym, start, evidx, len,
 						    0, 0, 1, NULL);
 			}
 		}
@@ -187,17 +185,17 @@ static int objdump_line__print(struct objdump_line *oline, struct symbol *sym,
 		color_fprintf(stdout, color, " %7.2f", percent);
 		printf(" :	");
 		color_fprintf(stdout, PERF_COLOR_MAGENTA, "  %" PRIx64 ":", addr);
-		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", oline->line);
+		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", dl->line);
 	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
 		if (queue)
 			return -1;
 
-		if (!*oline->line)
+		if (!*dl->line)
 			printf("         :\n");
 		else
-			printf("         :	%s\n", oline->line);
+			printf("         :	%s\n", dl->line);
 	}
 
 	return 0;
@@ -207,7 +205,7 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 				      FILE *file, size_t privsize)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *objdump_line;
+	struct disasm_line *dl;
 	char *line = NULL, *parsed_line, *tmp, *tmp2, *c;
 	size_t line_len;
 	s64 line_ip, offset = -1;
@@ -258,13 +256,13 @@ static int symbol__parse_objdump_line(struct symbol *sym, struct map *map,
 			parsed_line = tmp2 + 1;
 	}
 
-	objdump_line = objdump_line__new(offset, parsed_line, privsize);
+	dl = disasm_line__new(offset, parsed_line, privsize);
 	free(line);
 
-	if (objdump_line == NULL)
+	if (dl == NULL)
 		return -1;
 
-	objdump__add_line(&notes->src->source, objdump_line);
+	disasm__add(&notes->src->source, dl);
 
 	return 0;
 }
@@ -503,7 +501,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 	struct dso *dso = map->dso;
 	const char *filename = dso->long_name, *d_filename;
 	struct annotation *notes = symbol__annotation(sym);
-	struct objdump_line *pos, *queue = NULL;
+	struct disasm_line *pos, *queue = NULL;
 	u64 start = map__rip_2objdump(map, sym->start);
 	int printed = 2, queue_len = 0;
 	int more = 0;
@@ -528,7 +526,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			queue_len = 0;
 		}
 
-		switch (objdump_line__print(pos, sym, start, evidx, len,
+		switch (disasm_line__print(pos, sym, start, evidx, len,
 					    min_pcnt, printed, max_lines,
 					    queue)) {
 		case 0:
@@ -583,13 +581,13 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 	}
 }
 
-void objdump_line_list__purge(struct list_head *head)
+void disasm__purge(struct list_head *head)
 {
-	struct objdump_line *pos, *n;
+	struct disasm_line *pos, *n;
 
 	list_for_each_entry_safe(pos, n, head, node) {
 		list_del(&pos->node);
-		objdump_line__free(pos);
+		disasm_line__free(pos);
 	}
 }
 
@@ -618,7 +616,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 	if (print_lines)
 		symbol__free_source_line(sym, len);
 
-	objdump_line_list__purge(&symbol__annotation(sym)->src->source);
+	disasm__purge(&symbol__annotation(sym)->src->source);
 
 	return 0;
 }

@@ -7,15 +7,14 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 
-struct objdump_line {
+struct disasm_line {
 	struct list_head node;
 	s64		 offset;
 	char		 *line;
 };
 
-void objdump_line__free(struct objdump_line *self);
-struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
-					       struct objdump_line *pos);
+void disasm_line__free(struct disasm_line *dl);
+struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
 
 struct sym_hist {
 	u64		sum;
@@ -32,7 +31,7 @@ struct source_line {
  *
  * @histogram: Array of addr hit histograms per event being monitored
  * @lines: If 'print_lines' is specified, per source code line percentages
- * @source: source parsed from objdump -dS
+ * @source: source parsed from a disassembler like objdump -dS
  *
  * lines is allocated, percentages calculated and all sorted by percentage
  * when the annotation is about to be presented, so the percentages are for
@@ -82,7 +81,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 			    int context);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
-void objdump_line_list__purge(struct list_head *head);
+void disasm__purge(struct list_head *head);
 
 int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 			 bool print_lines, bool full_paths, int min_pcnt,
