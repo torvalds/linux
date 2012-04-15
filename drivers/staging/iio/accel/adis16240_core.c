@@ -365,7 +365,7 @@ static int adis16240_read_raw(struct iio_dev *indio_dev,
 	s16 val16;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16240_addresses[chan->address][0];
 		ret = adis16240_spi_read_reg_16(indio_dev, addr, &val16);
@@ -473,7 +473,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "supply",
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 		.scan_index = ADIS16240_SCAN_SUPPLY,
 		.scan_type = {
@@ -485,6 +486,7 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = in_aux,
 		.scan_index = ADIS16240_SCAN_AUX_ADC,
 		.scan_type = {
@@ -496,7 +498,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.type = IIO_ACCEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		.address = accel_x,
 		.scan_index = ADIS16240_SCAN_ACC_X,
@@ -509,7 +512,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.type = IIO_ACCEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		.address = accel_y,
 		.scan_index = ADIS16240_SCAN_ACC_Y,
@@ -522,7 +526,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.type = IIO_ACCEL,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		.address = accel_z,
 		.scan_index = ADIS16240_SCAN_ACC_Z,
@@ -535,7 +540,8 @@ static struct iio_chan_spec adis16240_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = temp,
 		.scan_index = ADIS16240_SCAN_TEMP,
 		.scan_type = {

@@ -257,7 +257,7 @@ static int lis3l02dq_read_raw(struct iio_dev *indio_dev,
 	u8 reg;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		/* Take the iio_dev status lock */
 		mutex_lock(&indio_dev->mlock);
 		if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
@@ -513,7 +513,8 @@ static irqreturn_t lis3l02dq_event_handler(int irq, void *private)
 }
 
 #define LIS3L02DQ_INFO_MASK				\
-	(IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
+	(IIO_CHAN_INFO_RAW_SEPARATE_BIT |		\
+	 IIO_CHAN_INFO_SCALE_SHARED_BIT |		\
 	 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
 	 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT)
 

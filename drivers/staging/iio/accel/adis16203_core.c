@@ -305,7 +305,7 @@ static int adis16203_read_raw(struct iio_dev *indio_dev,
 	u8 addr;
 	s16 val16;
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16203_addresses[chan->address][0];
 		ret = adis16203_spi_read_reg_16(indio_dev, addr, &val16);
@@ -377,7 +377,8 @@ static struct iio_chan_spec adis16203_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "supply",
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 		.scan_index = ADIS16203_SCAN_SUPPLY,
 		.scan_type = {
@@ -389,7 +390,8 @@ static struct iio_chan_spec adis16203_channels[] = {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_aux,
 		.scan_index = ADIS16203_SCAN_AUX_ADC,
 		.scan_type = {
@@ -401,7 +403,8 @@ static struct iio_chan_spec adis16203_channels[] = {
 		.type = IIO_INCLI,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SHARED_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
 		.address = incli_x,
 		.scan_index = ADIS16203_SCAN_INCLI_X,
@@ -414,7 +417,8 @@ static struct iio_chan_spec adis16203_channels[] = {
 		.type = IIO_INCLI,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
-		.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SHARED_BIT,
 		.address = incli_y,
 		.scan_index = ADIS16203_SCAN_INCLI_Y,
 		.scan_type = {
@@ -426,7 +430,8 @@ static struct iio_chan_spec adis16203_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
 		IIO_CHAN_INFO_OFFSET_SEPARATE_BIT,
 		.address = temp,
 		.scan_index = ADIS16203_SCAN_TEMP,
