@@ -77,7 +77,7 @@ static inline struct scatterlist *ah_req_sg(struct crypto_ahash *ahash,
 
 static int ip_clear_mutable_options(const struct iphdr *iph, __be32 *daddr)
 {
-	unsigned char * optptr = (unsigned char*)(iph+1);
+	unsigned char *optptr = (unsigned char *)(iph+1);
 	int  l = iph->ihl*4 - sizeof(struct iphdr);
 	int  optlen;
 

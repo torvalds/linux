@@ -185,7 +185,7 @@ static struct rtnl_link_stats64 *ipip_get_stats64(struct net_device *dev,
 	return tot;
 }
 
-static struct ip_tunnel * ipip_tunnel_lookup(struct net *net,
+static struct ip_tunnel *ipip_tunnel_lookup(struct net *net,
 		__be32 remote, __be32 local)
 {
 	unsigned int h0 = HASH(remote);
@@ -260,7 +260,7 @@ static void ipip_tunnel_link(struct ipip_net *ipn, struct ip_tunnel *t)
 	rcu_assign_pointer(*tp, t);
 }
 
-static struct ip_tunnel * ipip_tunnel_locate(struct net *net,
+static struct ip_tunnel *ipip_tunnel_locate(struct net *net,
 		struct ip_tunnel_parm *parms, int create)
 {
 	__be32 remote = parms->iph.daddr;

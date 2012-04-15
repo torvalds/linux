@@ -138,7 +138,7 @@ static struct jprobe tcp_jprobe = {
 	.entry	= jtcp_rcv_established,
 };
 
-static int tcpprobe_open(struct inode * inode, struct file * file)
+static int tcpprobe_open(struct inode *inode, struct file *file)
 {
 	/* Reset (empty) log */
 	spin_lock_bh(&tcp_probe.lock);
