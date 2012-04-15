@@ -42,11 +42,6 @@ EXPORT_SYMBOL(iio_bus_type);
 
 static struct dentry *iio_debugfs_dentry;
 
-static const char * const iio_data_type_name[] = {
-	[IIO_RAW] = "raw",
-	[IIO_PROCESSED] = "input",
-};
-
 static const char * const iio_direction[] = {
 	[0] = "in",
 	[1] = "out",

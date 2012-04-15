@@ -112,7 +112,6 @@ static struct iio_chan_spec ad5933_channels[] = {
 	{
 		.type = IIO_TEMP,
 		.indexed = 1,
-		.processed_val = 1,
 		.channel = 0,
 		.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT,
 		.address = AD5933_REG_TEMP_DATA,

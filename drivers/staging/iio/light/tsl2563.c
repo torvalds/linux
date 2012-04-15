@@ -535,7 +535,6 @@ static const struct iio_chan_spec tsl2563_channels[] = {
 	{
 		.type = IIO_LIGHT,
 		.indexed = 1,
-		.processed_val = 1,
 		.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT,
 		.channel = 0,
 	}, {

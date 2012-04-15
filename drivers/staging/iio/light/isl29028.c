@@ -391,7 +391,6 @@ static const struct attribute_group isl29108_group = {
 static const struct iio_chan_spec isl29028_channels[] = {
 	{
 		.type = IIO_LIGHT,
-		.processed_val = 1,
 		.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}, {
