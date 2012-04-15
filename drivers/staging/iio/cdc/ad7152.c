@@ -329,7 +329,7 @@ static int ad7152_read_raw(struct iio_dev *indio_dev,
 	mutex_lock(&indio_dev->mlock);
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		/* First set whether in differential mode */
 
 		regval = chip->setup[chan->channel];
@@ -436,7 +436,8 @@ static const struct iio_chan_spec ad7152_channels[] = {
 		.type = IIO_CAPACITANCE,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}, {
@@ -445,14 +446,16 @@ static const struct iio_chan_spec ad7152_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.channel2 = 2,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}, {
 		.type = IIO_CAPACITANCE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}, {
@@ -461,7 +464,8 @@ static const struct iio_chan_spec ad7152_channels[] = {
 		.indexed = 1,
 		.channel = 1,
 		.channel2 = 3,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
 		IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |
 		IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 	}
