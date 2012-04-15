@@ -2904,33 +2904,6 @@ static void ixgbe_configure_rscctl(struct ixgbe_adapter *adapter,
 	IXGBE_WRITE_REG(hw, IXGBE_RSCCTL(reg_idx), rscctrl);
 }
 
-/**
- *  ixgbe_set_uta - Set unicast filter table address
- *  @adapter: board private structure
- *
- *  The unicast table address is a register array of 32-bit registers.
- *  The table is meant to be used in a way similar to how the MTA is used
- *  however due to certain limitations in the hardware it is necessary to
- *  set all the hash bits to 1 and use the VMOLR ROPE bit as a promiscuous
- *  enable bit to allow vlan tag stripping when promiscuous mode is enabled
- **/
-static void ixgbe_set_uta(struct ixgbe_adapter *adapter)
-{
-	struct ixgbe_hw *hw = &adapter->hw;
-	int i;
-
-	/* The UTA table only exists on 82599 hardware and newer */
-	if (hw->mac.type < ixgbe_mac_82599EB)
-		return;
-
-	/* we only need to do this if VMDq is enabled */
-	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
-		return;
-
-	for (i = 0; i < 128; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_UTA(i), ~0);
-}
-
 #define IXGBE_MAX_RX_DESC_POLL 10
 static void ixgbe_rx_desc_queue_enable(struct ixgbe_adapter *adapter,
 				       struct ixgbe_ring *ring)
@@ -3223,8 +3196,6 @@ static void ixgbe_configure_rx(struct ixgbe_adapter *adapter)
 
 	/* Program registers for the distribution of queues */
 	ixgbe_setup_mrqc(adapter);
-
-	ixgbe_set_uta(adapter);
 
 	/* set_rx_buffer_len must be called before ring initialization */
 	ixgbe_set_rx_buffer_len(adapter);
