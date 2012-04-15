@@ -46,41 +46,6 @@ struct wm831x_ldo {
  * Shared
  */
 
-static int wm831x_ldo_is_enabled(struct regulator_dev *rdev)
-{
-	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = ldo->wm831x;
-	int mask = 1 << rdev_get_id(rdev);
-	int reg;
-
-	reg = wm831x_reg_read(wm831x, WM831X_LDO_ENABLE);
-	if (reg < 0)
-		return reg;
-
-	if (reg & mask)
-		return 1;
-	else
-		return 0;
-}
-
-static int wm831x_ldo_enable(struct regulator_dev *rdev)
-{
-	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = ldo->wm831x;
-	int mask = 1 << rdev_get_id(rdev);
-
-	return wm831x_set_bits(wm831x, WM831X_LDO_ENABLE, mask, mask);
-}
-
-static int wm831x_ldo_disable(struct regulator_dev *rdev)
-{
-	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = ldo->wm831x;
-	int mask = 1 << rdev_get_id(rdev);
-
-	return wm831x_set_bits(wm831x, WM831X_LDO_ENABLE, mask, 0);
-}
-
 static irqreturn_t wm831x_ldo_uv_irq(int irq, void *data)
 {
 	struct wm831x_ldo *ldo = data;
@@ -285,9 +250,9 @@ static struct regulator_ops wm831x_gp_ldo_ops = {
 	.get_status = wm831x_gp_ldo_get_status,
 	.get_optimum_mode = wm831x_gp_ldo_get_optimum_mode,
 
-	.is_enabled = wm831x_ldo_is_enabled,
-	.enable = wm831x_ldo_enable,
-	.disable = wm831x_ldo_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 };
 
 static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
@@ -336,6 +301,8 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	ldo->desc.owner = THIS_MODULE;
 	ldo->desc.vsel_reg = ldo->base + WM831X_LDO_ON_CONTROL;
 	ldo->desc.vsel_mask = WM831X_LDO1_ON_VSEL_MASK;
+	ldo->desc.enable_reg = WM831X_LDO_ENABLE;
+	ldo->desc.enable_mask = 1 << id;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->ldo[id];
@@ -541,9 +508,9 @@ static struct regulator_ops wm831x_aldo_ops = {
 	.set_mode = wm831x_aldo_set_mode,
 	.get_status = wm831x_aldo_get_status,
 
-	.is_enabled = wm831x_ldo_is_enabled,
-	.enable = wm831x_ldo_enable,
-	.disable = wm831x_ldo_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 };
 
 static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
@@ -592,6 +559,8 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 	ldo->desc.owner = THIS_MODULE;
 	ldo->desc.vsel_reg = ldo->base + WM831X_LDO_ON_CONTROL;
 	ldo->desc.vsel_mask = WM831X_LDO7_ON_VSEL_MASK;
+	ldo->desc.enable_reg = WM831X_LDO_ENABLE;
+	ldo->desc.enable_mask = 1 << id;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->ldo[id];
@@ -726,9 +695,9 @@ static struct regulator_ops wm831x_alive_ldo_ops = {
 	.set_suspend_voltage = wm831x_alive_ldo_set_suspend_voltage,
 	.get_status = wm831x_alive_ldo_get_status,
 
-	.is_enabled = wm831x_ldo_is_enabled,
-	.enable = wm831x_ldo_enable,
-	.disable = wm831x_ldo_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 };
 
 static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
@@ -778,6 +747,8 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	ldo->desc.owner = THIS_MODULE;
 	ldo->desc.vsel_reg = ldo->base + WM831X_ALIVE_LDO_ON_CONTROL;
 	ldo->desc.vsel_mask = WM831X_LDO11_ON_VSEL_MASK;
+	ldo->desc.enable_reg = WM831X_LDO_ENABLE;
+	ldo->desc.enable_mask = 1 << id;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->ldo[id];
