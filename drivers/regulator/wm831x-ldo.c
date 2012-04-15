@@ -160,22 +160,6 @@ static int wm831x_gp_ldo_set_suspend_voltage(struct regulator_dev *rdev,
 	return wm831x_gp_ldo_set_voltage_int(rdev, reg, uV, uV, &selector);
 }
 
-static int wm831x_gp_ldo_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = ldo->wm831x;
-	int reg = ldo->base + WM831X_LDO_ON_CONTROL;
-	int ret;
-
-	ret = wm831x_reg_read(wm831x, reg);
-	if (ret < 0)
-		return ret;
-
-	ret &= WM831X_LDO1_ON_VSEL_MASK;
-
-	return ret;
-}
-
 static unsigned int wm831x_gp_ldo_get_mode(struct regulator_dev *rdev)
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
@@ -293,7 +277,7 @@ static unsigned int wm831x_gp_ldo_get_optimum_mode(struct regulator_dev *rdev,
 
 static struct regulator_ops wm831x_gp_ldo_ops = {
 	.list_voltage = wm831x_gp_ldo_list_voltage,
-	.get_voltage_sel = wm831x_gp_ldo_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage = wm831x_gp_ldo_set_voltage,
 	.set_suspend_voltage = wm831x_gp_ldo_set_suspend_voltage,
 	.get_mode = wm831x_gp_ldo_get_mode,
@@ -350,10 +334,13 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 	ldo->desc.n_voltages = WM831X_GP_LDO_MAX_SELECTOR + 1;
 	ldo->desc.ops = &wm831x_gp_ldo_ops;
 	ldo->desc.owner = THIS_MODULE;
+	ldo->desc.vsel_reg = ldo->base + WM831X_LDO_ON_CONTROL;
+	ldo->desc.vsel_mask = WM831X_LDO1_ON_VSEL_MASK;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->ldo[id];
 	config.driver_data = ldo;
+	config.regmap = wm831x->regmap;
 
 	ldo->regulator = regulator_register(&ldo->desc, &config);
 	if (IS_ERR(ldo->regulator)) {
@@ -472,22 +459,6 @@ static int wm831x_aldo_set_suspend_voltage(struct regulator_dev *rdev,
 	return wm831x_aldo_set_voltage_int(rdev, reg, uV, uV, &selector);
 }
 
-static int wm831x_aldo_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = ldo->wm831x;
-	int reg = ldo->base + WM831X_LDO_ON_CONTROL;
-	int ret;
-
-	ret = wm831x_reg_read(wm831x, reg);
-	if (ret < 0)
-		return ret;
-
-	ret &= WM831X_LDO7_ON_VSEL_MASK;
-
-	return ret;
-}
-
 static unsigned int wm831x_aldo_get_mode(struct regulator_dev *rdev)
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
@@ -563,7 +534,7 @@ static int wm831x_aldo_get_status(struct regulator_dev *rdev)
 
 static struct regulator_ops wm831x_aldo_ops = {
 	.list_voltage = wm831x_aldo_list_voltage,
-	.get_voltage_sel = wm831x_aldo_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage = wm831x_aldo_set_voltage,
 	.set_suspend_voltage = wm831x_aldo_set_suspend_voltage,
 	.get_mode = wm831x_aldo_get_mode,
@@ -619,10 +590,13 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 	ldo->desc.n_voltages = WM831X_ALDO_MAX_SELECTOR + 1;
 	ldo->desc.ops = &wm831x_aldo_ops;
 	ldo->desc.owner = THIS_MODULE;
+	ldo->desc.vsel_reg = ldo->base + WM831X_LDO_ON_CONTROL;
+	ldo->desc.vsel_mask = WM831X_LDO7_ON_VSEL_MASK;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->ldo[id];
 	config.driver_data = ldo;
+	config.regmap = wm831x->regmap;
 
 	ldo->regulator = regulator_register(&ldo->desc, &config);
 	if (IS_ERR(ldo->regulator)) {
@@ -728,22 +702,6 @@ static int wm831x_alive_ldo_set_suspend_voltage(struct regulator_dev *rdev,
 	return wm831x_alive_ldo_set_voltage_int(rdev, reg, uV, uV, &selector);
 }
 
-static int wm831x_alive_ldo_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
-	struct wm831x *wm831x = ldo->wm831x;
-	int reg = ldo->base + WM831X_ALIVE_LDO_ON_CONTROL;
-	int ret;
-
-	ret = wm831x_reg_read(wm831x, reg);
-	if (ret < 0)
-		return ret;
-
-	ret &= WM831X_LDO11_ON_VSEL_MASK;
-
-	return ret;
-}
-
 static int wm831x_alive_ldo_get_status(struct regulator_dev *rdev)
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
@@ -763,7 +721,7 @@ static int wm831x_alive_ldo_get_status(struct regulator_dev *rdev)
 
 static struct regulator_ops wm831x_alive_ldo_ops = {
 	.list_voltage = wm831x_alive_ldo_list_voltage,
-	.get_voltage_sel = wm831x_alive_ldo_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage = wm831x_alive_ldo_set_voltage,
 	.set_suspend_voltage = wm831x_alive_ldo_set_suspend_voltage,
 	.get_status = wm831x_alive_ldo_get_status,
@@ -818,10 +776,13 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	ldo->desc.n_voltages = WM831X_ALIVE_LDO_MAX_SELECTOR + 1;
 	ldo->desc.ops = &wm831x_alive_ldo_ops;
 	ldo->desc.owner = THIS_MODULE;
+	ldo->desc.vsel_reg = ldo->base + WM831X_ALIVE_LDO_ON_CONTROL;
+	ldo->desc.vsel_mask = WM831X_LDO11_ON_VSEL_MASK;
 
 	config.dev = pdev->dev.parent;
 	config.init_data = pdata->ldo[id];
 	config.driver_data = ldo;
+	config.regmap = wm831x->regmap;
 
 	ldo->regulator = regulator_register(&ldo->desc, &config);
 	if (IS_ERR(ldo->regulator)) {
