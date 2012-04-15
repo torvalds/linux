@@ -874,14 +874,6 @@ _GLOBAL(__setup_e500mc_ivors)
 	sync
 	blr
 
-/*
- * extern void giveup_altivec(struct task_struct *prev)
- *
- * The e500 core does not have an AltiVec unit.
- */
-_GLOBAL(giveup_altivec)
-	blr
-
 #ifdef CONFIG_SPE
 /*
  * extern void giveup_spe(struct task_struct *prev)
