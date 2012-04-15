@@ -325,14 +325,21 @@ nouveau_display_create(struct drm_device *dev)
 
 	ret = disp->create(dev);
 	if (ret)
-		return ret;
+		goto disp_create_err;
 
 	if (dev->mode_config.num_crtc) {
 		ret = drm_vblank_init(dev, dev->mode_config.num_crtc);
 		if (ret)
-			return ret;
+			goto vblank_err;
 	}
 
+	return 0;
+
+vblank_err:
+	disp->destroy(dev);
+disp_create_err:
+	drm_kms_helper_poll_fini(dev);
+	drm_mode_config_cleanup(dev);
 	return ret;
 }
 
