@@ -2011,6 +2011,33 @@ nla_put_failure:
 	return -EMSGSIZE;
 }
 
+static inline size_t rtnl_fdb_nlmsg_size(void)
+{
+	return NLMSG_ALIGN(sizeof(struct ndmsg)) + nla_total_size(ETH_ALEN);
+}
+
+static void rtnl_fdb_notify(struct net_device *dev, u8 *addr, int type)
+{
+	struct net *net = dev_net(dev);
+	struct sk_buff *skb;
+	int err = -ENOBUFS;
+
+	skb = nlmsg_new(rtnl_fdb_nlmsg_size(), GFP_ATOMIC);
+	if (!skb)
+		goto errout;
+
+	err = nlmsg_populate_fdb_fill(skb, dev, addr, 0, 0, type, NTF_SELF);
+	if (err < 0) {
+		kfree_skb(skb);
+		goto errout;
+	}
+
+	rtnl_notify(skb, net, 0, RTNLGRP_NEIGH, NULL, GFP_ATOMIC);
+	return;
+errout:
+	rtnl_set_sk_err(net, RTNLGRP_NEIGH, err);
+}
+
 static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 {
 	struct net *net = sock_net(skb->sk);
@@ -2067,8 +2094,10 @@ static int rtnl_fdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 		err = dev->netdev_ops->ndo_fdb_add(ndm, dev, addr,
 						   nlh->nlmsg_flags);
 
-		if (!err)
+		if (!err) {
+			rtnl_fdb_notify(dev, addr, RTM_NEWNEIGH);
 			ndm->ndm_flags &= ~NTF_SELF;
+		}
 	}
 out:
 	return err;
@@ -2125,8 +2154,10 @@ static int rtnl_fdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	if ((ndm->ndm_flags & NTF_SELF) && dev->netdev_ops->ndo_fdb_del) {
 		err = dev->netdev_ops->ndo_fdb_del(ndm, dev, addr);
 
-		if (!err)
+		if (!err) {
+			rtnl_fdb_notify(dev, addr, RTM_DELNEIGH);
 			ndm->ndm_flags &= ~NTF_SELF;
+		}
 	}
 out:
 	return err;
