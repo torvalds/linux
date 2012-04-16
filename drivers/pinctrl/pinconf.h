@@ -58,7 +58,7 @@ static inline int pinconf_apply_setting(struct pinctrl_setting const *setting)
 
 #endif
 
-#if defined(CONFIG_PINMUX) && defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_PINCONF) && defined(CONFIG_DEBUG_FS)
 
 void pinconf_show_map(struct seq_file *s, struct pinctrl_map const *map);
 void pinconf_show_setting(struct seq_file *s,
