@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/highmem.h>
@@ -1196,20 +1197,69 @@ static const struct mmc_host_ops mmci_ops = {
 	.get_cd		= mmci_get_cd,
 };
 
+#ifdef CONFIG_OF
+static void mmci_dt_populate_generic_pdata(struct device_node *np,
+					struct mmci_platform_data *pdata)
+{
+	int bus_width = 0;
+
+	of_property_read_u32(np, "wp-gpios", &pdata->gpio_wp);
+	if (!pdata->gpio_wp)
+		pdata->gpio_wp = -1;
+
+	of_property_read_u32(np, "cd-gpios", &pdata->gpio_cd);
+	if (!pdata->gpio_cd)
+		pdata->gpio_cd = -1;
+
+	if (of_get_property(np, "cd-inverted", NULL))
+		pdata->cd_invert = true;
+	else
+		pdata->cd_invert = false;
+
+	of_property_read_u32(np, "max-frequency", &pdata->f_max);
+	if (!pdata->f_max)
+		pr_warn("%s has no 'max-frequency' property\n", np->full_name);
+
+	if (of_get_property(np, "mmc-cap-mmc-highspeed", NULL))
+		pdata->capabilities |= MMC_CAP_MMC_HIGHSPEED;
+	if (of_get_property(np, "mmc-cap-sd-highspeed", NULL))
+		pdata->capabilities |= MMC_CAP_SD_HIGHSPEED;
+
+	of_property_read_u32(np, "bus-width", &bus_width);
+	switch (bus_width) {
+	case 0 :
+		/* No bus-width supplied. */
+		break;
+	case 4 :
+		pdata->capabilities |= MMC_CAP_4_BIT_DATA;
+		break;
+	case 8 :
+		pdata->capabilities |= MMC_CAP_8_BIT_DATA;
+		break;
+	default :
+		pr_warn("%s: Unsupported bus width\n", np->full_name);
+	}
+}
+#endif
+
 static int __devinit mmci_probe(struct amba_device *dev,
 	const struct amba_id *id)
 {
 	struct mmci_platform_data *plat = dev->dev.platform_data;
+	struct device_node *np = dev->dev.of_node;
 	struct variant_data *variant = id->data;
 	struct mmci_host *host;
 	struct mmc_host *mmc;
 	int ret;
 
-	/* must have platform data */
-	if (!plat) {
-		ret = -EINVAL;
-		goto out;
+	/* Must have platform data or Device Tree. */
+	if (!plat && !np) {
+		dev_err(&dev->dev, "No plat data or DT found\n");
+		return -EINVAL;
 	}
+
+	if (np)
+		mmci_dt_populate_generic_pdata(np, plat);
 
 	ret = amba_request_regions(dev, DRIVER_NAME);
 	if (ret)
