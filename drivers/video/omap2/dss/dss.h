@@ -430,7 +430,6 @@ void dispc_ovl_set_channel_out(enum omap_plane plane,
 		enum omap_channel channel);
 
 void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable);
-void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width, u16 height);
 u32 dispc_mgr_get_vsync_irq(enum omap_channel channel);
 u32 dispc_mgr_get_framedone_irq(enum omap_channel channel);
 bool dispc_mgr_go_busy(enum omap_channel channel);

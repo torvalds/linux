@@ -983,7 +983,8 @@ static void dispc_ovl_enable_replication(enum omap_plane plane, bool enable)
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable, shift, shift);
 }
 
-void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width, u16 height)
+static void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width,
+		u16 height)
 {
 	u32 val;
 	BUG_ON((width > (1 << 11)) || (height > (1 << 11)));
