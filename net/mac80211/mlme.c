@@ -3387,8 +3387,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		 */
 		printk(KERN_DEBUG "%s: waiting for beacon from %pM\n",
 		       sdata->name, ifmgd->bssid);
-		assoc_data->timeout = jiffies +
-				TU_TO_EXP_TIME(req->bss->beacon_interval);
+		assoc_data->timeout = TU_TO_EXP_TIME(req->bss->beacon_interval);
 	} else {
 		assoc_data->have_beacon = true;
 		assoc_data->sent_assoc = false;
