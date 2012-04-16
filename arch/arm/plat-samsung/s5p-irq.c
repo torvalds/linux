@@ -1,5 +1,4 @@
-/* arch/arm/plat-s5p/irq.c
- *
+/*
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/
  *

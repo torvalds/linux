@@ -1,5 +1,4 @@
-/* linux/arch/arm/plat-s5p/irq-gpioint.c
- *
+/*
  * Copyright (c) 2010 Samsung Electronics Co., Ltd.
  * Author: Kyungmin Park <kyungmin.park@samsung.com>
  * Author: Joonyoung Shim <jy0922.shim@samsung.com>

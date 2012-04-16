@@ -12,9 +12,6 @@ obj-				:=
 
 # Core files
 
-obj-y				+= irq.o
-obj-$(CONFIG_S5P_EXT_INT)	+= irq-eint.o
-obj-$(CONFIG_S5P_GPIO_INT)	+= irq-gpioint.o
 obj-$(CONFIG_S5P_PM)		+= pm.o irq-pm.o
 obj-$(CONFIG_S5P_SLEEP)		+= sleep.o
 obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o

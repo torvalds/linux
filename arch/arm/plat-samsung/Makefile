@@ -20,6 +20,9 @@ obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
 obj-$(CONFIG_S5P_CLOCK)		+= s5p-clock.o
 
 obj-$(CONFIG_SAMSUNG_IRQ_VIC_TIMER) += irq-vic-timer.o
+obj-$(CONFIG_S5P_IRQ)		+= s5p-irq.o
+obj-$(CONFIG_S5P_EXT_INT)	+= s5p-irq-eint.o
+obj-$(CONFIG_S5P_GPIO_INT)	+= s5p-irq-gpioint.o
 
 # ADC
 
