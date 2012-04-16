@@ -58,7 +58,7 @@ static struct notifier_block ocrdma_inet6addr_notifier = {
 	.notifier_call = ocrdma_inet6addr_event
 };
 
-int ocrdma_get_instance(void)
+static int ocrdma_get_instance(void)
 {
 	int instance = 0;
 
@@ -265,7 +265,7 @@ static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
-int ocrdma_register_device(struct ocrdma_dev *dev)
+static int ocrdma_register_device(struct ocrdma_dev *dev)
 {
 	strlcpy(dev->ibdev.name, "ocrdma%d", IB_DEVICE_NAME_MAX);
 	ocrdma_get_guid(dev, (u8 *)&dev->ibdev.node_guid);
@@ -528,7 +528,7 @@ static void ocrdma_event_handler(struct ocrdma_dev *dev, u32 event)
 	};
 }
 
-struct ocrdma_driver ocrdma_drv = {
+static struct ocrdma_driver ocrdma_drv = {
 	.name			= "ocrdma_driver",
 	.add			= ocrdma_add,
 	.remove			= ocrdma_remove,

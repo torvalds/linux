@@ -159,7 +159,7 @@ enum ib_qp_state get_ibqp_state(enum ocrdma_qp_state qps)
 	return IB_QPS_ERR;
 }
 
-enum ocrdma_qp_state get_ocrdma_qp_state(enum ib_qp_state qps)
+static enum ocrdma_qp_state get_ocrdma_qp_state(enum ib_qp_state qps)
 {
 	switch (qps) {
 	case IB_QPS_RESET:
@@ -384,8 +384,8 @@ static void ocrdma_free_eq_vect_gen2(struct ocrdma_dev *dev)
 	dev->nic_info.msix.start_vector -= 1;
 }
 
-int ocrdma_mbx_delete_q(struct ocrdma_dev *dev, struct ocrdma_queue_info *q,
-			int queue_type)
+static int ocrdma_mbx_delete_q(struct ocrdma_dev *dev, struct ocrdma_queue_info *q,
+			       int queue_type)
 {
 	u8 opcode = 0;
 	int status;
@@ -516,9 +516,9 @@ static void ocrdma_destroy_qp_eqs(struct ocrdma_dev *dev)
 		ocrdma_destroy_eq(dev, &dev->qp_eq_tbl[i]);
 }
 
-int ocrdma_mbx_mq_cq_create(struct ocrdma_dev *dev,
-			    struct ocrdma_queue_info *cq,
-			    struct ocrdma_queue_info *eq)
+static int ocrdma_mbx_mq_cq_create(struct ocrdma_dev *dev,
+				   struct ocrdma_queue_info *cq,
+				   struct ocrdma_queue_info *eq)
 {
 	struct ocrdma_create_cq_cmd *cmd = dev->mbx_cmd;
 	struct ocrdma_create_cq_cmd_rsp *rsp = dev->mbx_cmd;
