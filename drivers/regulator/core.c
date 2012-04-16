@@ -2335,6 +2335,9 @@ int regulator_set_optimum_mode(struct regulator *regulator, int uA_load)
 	 */
 	ret = -EINVAL;
 
+	if (!rdev->desc->ops->set_mode)
+		goto out;
+
 	/* get output voltage */
 	output_uV = _regulator_get_voltage(rdev);
 	if (output_uV <= 0) {
