@@ -17,6 +17,7 @@ obj-y				+= clock.o
 obj-y				+= pwm-clock.o
 
 obj-$(CONFIG_SAMSUNG_CLKSRC)	+= clock-clksrc.o
+obj-$(CONFIG_S5P_CLOCK)		+= s5p-clock.o
 
 obj-$(CONFIG_SAMSUNG_IRQ_VIC_TIMER) += irq-vic-timer.o
 
