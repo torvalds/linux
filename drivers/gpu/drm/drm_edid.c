@@ -149,13 +149,13 @@ EXPORT_SYMBOL(drm_edid_header_is_valid);
  * Sanity check the EDID block (base or extension).  Return 0 if the block
  * doesn't check out, or 1 if it's valid.
  */
-bool drm_edid_block_valid(u8 *raw_edid)
+bool drm_edid_block_valid(u8 *raw_edid, int block)
 {
 	int i;
 	u8 csum = 0;
 	struct edid *edid = (struct edid *)raw_edid;
 
-	if (raw_edid[0] == 0x00) {
+	if (block == 0) {
 		int score = drm_edid_header_is_valid(raw_edid);
 		if (score == 8) ;
 		else if (score >= 6) {
@@ -219,7 +219,7 @@ bool drm_edid_is_valid(struct edid *edid)
 		return false;
 
 	for (i = 0; i <= edid->extensions; i++)
-		if (!drm_edid_block_valid(raw + i * EDID_LENGTH))
+		if (!drm_edid_block_valid(raw + i * EDID_LENGTH, i))
 			return false;
 
 	return true;
@@ -299,7 +299,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 	for (i = 0; i < 4; i++) {
 		if (drm_do_probe_ddc_edid(adapter, block, 0, EDID_LENGTH))
 			goto out;
-		if (drm_edid_block_valid(block))
+		if (drm_edid_block_valid(block, 0))
 			break;
 		if (i == 0 && drm_edid_is_zero(block, EDID_LENGTH)) {
 			connector->null_edid_counter++;
@@ -324,7 +324,7 @@ drm_do_get_edid(struct drm_connector *connector, struct i2c_adapter *adapter)
 				  block + (valid_extensions + 1) * EDID_LENGTH,
 				  j, EDID_LENGTH))
 				goto out;
-			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH)) {
+			if (drm_edid_block_valid(block + (valid_extensions + 1) * EDID_LENGTH, j)) {
 				valid_extensions++;
 				break;
 			}
