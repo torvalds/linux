@@ -101,18 +101,37 @@ const char *edac_mem_types[] = {
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 
-/* 'ptr' points to a possibly unaligned item X such that sizeof(X) is 'size'.
- * Adjust 'ptr' so that its alignment is at least as stringent as what the
- * compiler would provide for X and return the aligned result.
+/**
+ * edac_align_ptr - Prepares the pointer offsets for a single-shot allocation
+ * @p:		pointer to a pointer with the memory offset to be used. At
+ *		return, this will be incremented to point to the next offset
+ * @size:	Size of the data structure to be reserved
+ * @n_elems:	Number of elements that should be reserved
  *
  * If 'size' is a constant, the compiler will optimize this whole function
- * down to either a no-op or the addition of a constant to the value of 'ptr'.
+ * down to either a no-op or the addition of a constant to the value of '*p'.
+ *
+ * The 'p' pointer is absolutely needed to keep the proper advancing
+ * further in memory to the proper offsets when allocating the struct along
+ * with its embedded structs, as edac_device_alloc_ctl_info() does it
+ * above, for example.
+ *
+ * At return, the pointer 'p' will be incremented to be used on a next call
+ * to this function.
  */
-void *edac_align_ptr(void *ptr, unsigned size)
+void *edac_align_ptr(void **p, unsigned size, int n_elems)
 {
 	unsigned align, r;
+	void *ptr = *p;
 
-	/* Here we assume that the alignment of a "long long" is the most
+	*p += size * n_elems;
+
+	/*
+	 * 'p' can possibly be an unaligned item X such that sizeof(X) is
+	 * 'size'.  Adjust 'p' so that its alignment is at least as
+	 * stringent as what the compiler would provide for X and return
+	 * the aligned result.
+	 * Here we assume that the alignment of a "long long" is the most
 	 * stringent alignment that the compiler will ever provide by default.
 	 * As far as I know, this is a reasonable assumption.
 	 */
@@ -131,6 +150,8 @@ void *edac_align_ptr(void *ptr, unsigned size)
 
 	if (r == 0)
 		return (char *)ptr;
+
+	*p += align - r;
 
 	return (void *)(((unsigned long)ptr) + align - r);
 }
@@ -154,6 +175,7 @@ void *edac_align_ptr(void *ptr, unsigned size)
 struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 				unsigned nr_chans, int edac_index)
 {
+	void *ptr = NULL;
 	struct mem_ctl_info *mci;
 	struct csrow_info *csi, *csrow;
 	struct rank_info *chi, *chp, *chan;
@@ -168,11 +190,11 @@ struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
 	 * stringent as what the compiler would provide if we could simply
 	 * hardcode everything into a single struct.
 	 */
-	mci = (struct mem_ctl_info *)0;
-	csi = edac_align_ptr(&mci[1], sizeof(*csi));
-	chi = edac_align_ptr(&csi[nr_csrows], sizeof(*chi));
-	dimm = edac_align_ptr(&chi[nr_chans * nr_csrows], sizeof(*dimm));
-	pvt = edac_align_ptr(&dimm[nr_chans * nr_csrows], sz_pvt);
+	mci = edac_align_ptr(&ptr, sizeof(*mci), 1);
+	csi = edac_align_ptr(&ptr, sizeof(*csi), nr_csrows);
+	chi = edac_align_ptr(&ptr, sizeof(*chi), nr_csrows * nr_chans);
+	dimm = edac_align_ptr(&ptr, sizeof(*dimm), nr_csrows * nr_chans);
+	pvt = edac_align_ptr(&ptr, sz_pvt, 1);
 	size = ((unsigned long)pvt) + sz_pvt;
 
 	mci = kzalloc(size, GFP_KERNEL);
