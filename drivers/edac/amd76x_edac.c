@@ -29,7 +29,6 @@
 	edac_mc_chipset_printk(mci, level, "amd76x", fmt, ##arg)
 
 #define AMD76X_NR_CSROWS 8
-#define AMD76X_NR_CHANS  1
 #define AMD76X_NR_DIMMS  4
 
 /* AMD 76x register addresses - device 0 function 0 - PCI bridge */
@@ -146,8 +145,10 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			row = (info->ecc_mode_status >> 4) & 0xf;
-			edac_mc_handle_ue(mci, mci->csrows[row].first_page, 0,
-					row, mci->ctl_name);
+			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+					     mci->csrows[row].first_page, 0, 0,
+					     row, 0, -1,
+					     mci->ctl_name, "", NULL);
 		}
 	}
 
@@ -159,8 +160,10 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 
 		if (handle_errors) {
 			row = info->ecc_mode_status & 0xf;
-			edac_mc_handle_ce(mci, mci->csrows[row].first_page, 0,
-					0, row, 0, mci->ctl_name);
+			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+					     mci->csrows[row].first_page, 0, 0,
+					     row, 0, -1,
+					     mci->ctl_name, "", NULL);
 		}
 	}
 
@@ -232,7 +235,8 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 		EDAC_SECDED,
 		EDAC_SECDED
 	};
-	struct mem_ctl_info *mci = NULL;
+	struct mem_ctl_info *mci;
+	struct edac_mc_layer layers[2];
 	u32 ems;
 	u32 ems_mode;
 	struct amd76x_error_info discard;
@@ -240,11 +244,17 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	debugf0("%s()\n", __func__);
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS, &ems);
 	ems_mode = (ems >> 10) & 0x3;
-	mci = edac_mc_alloc(0, AMD76X_NR_CSROWS, AMD76X_NR_CHANS, 0);
 
-	if (mci == NULL) {
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = AMD76X_NR_CSROWS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = 1;
+	layers[1].is_virt_csrow = false;
+	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
+
+	if (mci == NULL)
 		return -ENOMEM;
-	}
 
 	debugf0("%s(): mci = %p\n", __func__, mci);
 	mci->dev = &pdev->dev;
