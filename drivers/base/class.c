@@ -301,15 +301,20 @@ void class_destroy(struct class *cls)
  * otherwise if it is NULL, the iteration starts at the beginning of
  * the list.
  */
-void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
-			 struct device *start, const struct device_type *type)
+int class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
+			struct device *start, const struct device_type *type)
 {
 	struct klist_node *start_knode = NULL;
+	int error;
 
 	if (start)
 		start_knode = &start->knode_class;
-	klist_iter_init_node(&class->p->klist_devices, &iter->ki, start_knode);
-	iter->type = type;
+	error = klist_iter_init_node(&class->p->klist_devices, &iter->ki,
+				     start_knode);
+	if (!error)
+		iter->type = type;
+
+	return error;
 }
 EXPORT_SYMBOL_GPL(class_dev_iter_init);
 
@@ -387,14 +392,15 @@ int class_for_each_device(struct class *class, struct device *start,
 		return -EINVAL;
 	}
 
-	class_dev_iter_init(&iter, class, start, NULL);
-	while ((dev = class_dev_iter_next(&iter))) {
-		error = fn(dev, data);
-		if (error)
-			break;
+	error = class_dev_iter_init(&iter, class, start, NULL);
+	if (!error) {
+		while ((dev = class_dev_iter_next(&iter))) {
+			error = fn(dev, data);
+			if (error)
+				break;
+		}
+		class_dev_iter_exit(&iter);
 	}
-	class_dev_iter_exit(&iter);
-
 	return error;
 }
 EXPORT_SYMBOL_GPL(class_for_each_device);
@@ -434,7 +440,9 @@ struct device *class_find_device(struct class *class, struct device *start,
 		return NULL;
 	}
 
-	class_dev_iter_init(&iter, class, start, NULL);
+	if (class_dev_iter_init(&iter, class, start, NULL) < 0)
+		return NULL;
+
 	while ((dev = class_dev_iter_next(&iter))) {
 		if (match(dev, data)) {
 			get_device(dev);

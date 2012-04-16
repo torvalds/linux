@@ -296,11 +296,13 @@ int bus_for_each_dev(struct bus_type *bus, struct device *start,
 	if (!bus)
 		return -EINVAL;
 
-	klist_iter_init_node(&bus->p->klist_devices, &i,
-			     (start ? &start->p->knode_bus : NULL));
-	while ((dev = next_device(&i)) && !error)
-		error = fn(dev, data);
-	klist_iter_exit(&i);
+	error = klist_iter_init_node(&bus->p->klist_devices, &i,
+				     (start ? &start->p->knode_bus : NULL));
+	if (!error) {
+		while ((dev = next_device(&i)) && !error)
+			error = fn(dev, data);
+		klist_iter_exit(&i);
+	}
 	return error;
 }
 EXPORT_SYMBOL_GPL(bus_for_each_dev);
@@ -330,8 +332,10 @@ struct device *bus_find_device(struct bus_type *bus,
 	if (!bus)
 		return NULL;
 
-	klist_iter_init_node(&bus->p->klist_devices, &i,
-			     (start ? &start->p->knode_bus : NULL));
+	if (klist_iter_init_node(&bus->p->klist_devices, &i,
+				 (start ? &start->p->knode_bus : NULL)) < 0)
+		return NULL;
+
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;
@@ -384,7 +388,9 @@ struct device *subsys_find_device_by_id(struct bus_type *subsys, unsigned int id
 		return NULL;
 
 	if (hint) {
-		klist_iter_init_node(&subsys->p->klist_devices, &i, &hint->p->knode_bus);
+		if (klist_iter_init_node(&subsys->p->klist_devices, &i,
+					 &hint->p->knode_bus) < 0)
+			return NULL;
 		dev = next_device(&i);
 		if (dev && dev->id == id && get_device(dev)) {
 			klist_iter_exit(&i);
@@ -446,11 +452,13 @@ int bus_for_each_drv(struct bus_type *bus, struct device_driver *start,
 	if (!bus)
 		return -EINVAL;
 
-	klist_iter_init_node(&bus->p->klist_drivers, &i,
-			     start ? &start->p->knode_bus : NULL);
-	while ((drv = next_driver(&i)) && !error)
-		error = fn(drv, data);
-	klist_iter_exit(&i);
+	error = klist_iter_init_node(&bus->p->klist_drivers, &i,
+				     start ? &start->p->knode_bus : NULL);
+	if (!error) {
+		while ((drv = next_driver(&i)) && !error)
+			error = fn(drv, data);
+		klist_iter_exit(&i);
+	}
 	return error;
 }
 EXPORT_SYMBOL_GPL(bus_for_each_drv);
@@ -1111,15 +1119,19 @@ EXPORT_SYMBOL_GPL(bus_sort_breadthfirst);
  * otherwise if it is NULL, the iteration starts at the beginning of
  * the list.
  */
-void subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
-			  struct device *start, const struct device_type *type)
+int subsys_dev_iter_init(struct subsys_dev_iter *iter, struct bus_type *subsys,
+			 struct device *start, const struct device_type *type)
 {
 	struct klist_node *start_knode = NULL;
+	int error;
 
 	if (start)
 		start_knode = &start->p->knode_bus;
-	klist_iter_init_node(&subsys->p->klist_devices, &iter->ki, start_knode);
-	iter->type = type;
+	error = klist_iter_init_node(&subsys->p->klist_devices, &iter->ki,
+				     start_knode);
+	if (!error)
+		iter->type = type;
+	return error;
 }
 EXPORT_SYMBOL_GPL(subsys_dev_iter_init);
 

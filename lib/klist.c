@@ -278,13 +278,19 @@ EXPORT_SYMBOL_GPL(klist_node_attached);
  * Similar to klist_iter_init(), but starts the action off with @n,
  * instead of with the list head.
  */
-void klist_iter_init_node(struct klist *k, struct klist_iter *i,
-			  struct klist_node *n)
+int klist_iter_init_node(struct klist *k, struct klist_iter *i,
+			 struct klist_node *n)
 {
+	if (n) {
+		kref_get(&n->n_ref);
+		if (!n->n_klist) {
+			kref_put(&n->n_ref);
+			return -ENODEV;
+		}
+	}
 	i->i_klist = k;
 	i->i_cur = n;
-	if (n)
-		kref_get(&n->n_ref);
+	return 0;
 }
 EXPORT_SYMBOL_GPL(klist_iter_init_node);
 
