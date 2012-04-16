@@ -50,8 +50,6 @@ int gfs2_trans_begin(struct gfs2_sbd *sdp, unsigned int blocks,
 	if (revokes)
 		tr->tr_reserved += gfs2_struct2blk(sdp, revokes,
 						   sizeof(u64));
-	INIT_LIST_HEAD(&tr->tr_list_buf);
-
 	gfs2_holder_init(sdp->sd_trans_gl, LM_ST_SHARED, 0, &tr->tr_t_gh);
 
 	error = gfs2_glock_nq(&tr->tr_t_gh);
@@ -93,10 +91,21 @@ static void gfs2_log_release(struct gfs2_sbd *sdp, unsigned int blks)
 	up_read(&sdp->sd_log_flush_lock);
 }
 
+static void gfs2_print_trans(const struct gfs2_trans *tr)
+{
+	print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
+	printk(KERN_WARNING "GFS2: blocks=%u revokes=%u reserved=%u touched=%d\n",
+	       tr->tr_blocks, tr->tr_revokes, tr->tr_reserved, tr->tr_touched);
+	printk(KERN_WARNING "GFS2: Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
+	       tr->tr_num_buf_new, tr->tr_num_buf_rm,
+	       tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
+	       tr->tr_num_revoke, tr->tr_num_revoke_rm);
+}
+
 void gfs2_trans_end(struct gfs2_sbd *sdp)
 {
 	struct gfs2_trans *tr = current->journal_info;
-
+	s64 nbuf;
 	BUG_ON(!tr);
 	current->journal_info = NULL;
 
@@ -110,16 +119,13 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 		return;
 	}
 
-	if (gfs2_assert_withdraw(sdp, tr->tr_num_buf <= tr->tr_blocks)) {
-		fs_err(sdp, "tr_num_buf = %u, tr_blocks = %u ",
-		       tr->tr_num_buf, tr->tr_blocks);
-		print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
-	}
-	if (gfs2_assert_withdraw(sdp, tr->tr_num_revoke <= tr->tr_revokes)) {
-		fs_err(sdp, "tr_num_revoke = %u, tr_revokes = %u ",
-		       tr->tr_num_revoke, tr->tr_revokes);
-		print_symbol(KERN_WARNING "GFS2: Transaction created at: %s\n", tr->tr_ip);
-	}
+	nbuf = tr->tr_num_buf_new + tr->tr_num_databuf_new;
+	nbuf -= tr->tr_num_buf_rm;
+	nbuf -= tr->tr_num_databuf_rm;
+
+	if (gfs2_assert_withdraw(sdp, (nbuf <= tr->tr_blocks) &&
+				       (tr->tr_num_revoke <= tr->tr_revokes)))
+		gfs2_print_trans(tr);
 
 	gfs2_log_commit(sdp, tr);
 	if (tr->tr_t_gh.gh_gl) {

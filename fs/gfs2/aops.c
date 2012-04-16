@@ -1084,7 +1084,6 @@ int gfs2_releasepage(struct page *page, gfp_t gfp_mask)
 		bd = bh->b_private;
 		if (bd) {
 			gfs2_assert_warn(sdp, bd->bd_bh == bh);
-			gfs2_assert_warn(sdp, list_empty(&bd->bd_list_tr));
 			if (!list_empty(&bd->bd_le.le_list)) {
 				if (!buffer_pinned(bh))
 					list_del_init(&bd->bd_le.le_list);

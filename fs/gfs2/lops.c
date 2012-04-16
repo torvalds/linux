@@ -396,12 +396,8 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	lock_buffer(bd->bd_bh);
 	gfs2_log_lock(sdp);
-	if (!list_empty(&bd->bd_list_tr))
-		goto out;
 	tr = current->journal_info;
 	tr->tr_touched = 1;
-	tr->tr_num_buf++;
-	list_add(&bd->bd_list_tr, &tr->tr_list_buf);
 	if (!list_empty(&le->le_list))
 		goto out;
 	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
@@ -781,18 +777,10 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 
 	lock_buffer(bd->bd_bh);
 	gfs2_log_lock(sdp);
-	if (tr) {
-		if (!list_empty(&bd->bd_list_tr))
-			goto out;
+	if (tr)
 		tr->tr_touched = 1;
-		if (gfs2_is_jdata(ip)) {
-			tr->tr_num_buf++;
-			list_add(&bd->bd_list_tr, &tr->tr_list_buf);
-		}
-	}
 	if (!list_empty(&le->le_list))
 		goto out;
-
 	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	if (gfs2_is_jdata(ip)) {

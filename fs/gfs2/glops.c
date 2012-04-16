@@ -94,7 +94,6 @@ static void gfs2_ail_empty_gl(struct gfs2_glock *gl)
 	/* A shortened, inline version of gfs2_trans_begin() */
 	tr.tr_reserved = 1 + gfs2_struct2blk(sdp, tr.tr_revokes, sizeof(u64));
 	tr.tr_ip = (unsigned long)__builtin_return_address(0);
-	INIT_LIST_HEAD(&tr.tr_list_buf);
 	gfs2_log_reserve(sdp, tr.tr_reserved);
 	BUG_ON(current->journal_info);
 	current->journal_info = &tr;
