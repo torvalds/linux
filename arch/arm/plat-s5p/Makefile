@@ -12,8 +12,6 @@ obj-				:=
 
 # Core files
 
-obj-$(CONFIG_S5P_PM)		+= pm.o irq-pm.o
-obj-$(CONFIG_S5P_SLEEP)		+= sleep.o
 obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o
 
 # devices

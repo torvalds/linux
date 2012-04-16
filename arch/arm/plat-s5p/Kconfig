@@ -33,18 +33,6 @@ config S5P_DEV_UART
 	def_bool y
 	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 
-config S5P_PM
-	bool
-	help
-	  Common code for power management support on S5P and newer SoCs
-	  Note: Do not select this for S5P6440 and S5P6450.
-
-config S5P_SLEEP
-	bool
-	help
-	  Internal config node to apply common S5P sleep management code.
-	  Can be selected by S5P and newer SoCs with similar sleep procedure.
-
 config S5P_DEV_FIMC0
 	bool
 	help
