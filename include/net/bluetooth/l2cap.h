@@ -532,7 +532,6 @@ struct l2cap_ops {
 	void			(*state_change) (void *data, int state);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
-
 };
 
 struct l2cap_conn {
