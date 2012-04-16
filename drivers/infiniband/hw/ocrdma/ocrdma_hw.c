@@ -2546,7 +2546,7 @@ static int ocrdma_create_mq_eq(struct ocrdma_dev *dev)
 
 static int ocrdma_create_qp_eqs(struct ocrdma_dev *dev)
 {
-	int num_eq, i, status;
+	int num_eq, i, status = 0;
 	int irq;
 	unsigned long flags = 0;
 

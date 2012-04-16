@@ -334,7 +334,7 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_pd *pd,
 {
 	int status;
 	u64 db_page_addr;
-	u64 dpp_page_addr;
+	u64 dpp_page_addr = 0;
 	u32 db_page_size;
 	struct ocrdma_alloc_pd_uresp rsp;
 	struct ocrdma_ucontext *uctx = get_ocrdma_ucontext(ib_ctx);
@@ -368,7 +368,8 @@ static int ocrdma_copy_pd_uresp(struct ocrdma_pd *pd,
 	return 0;
 
 ucopy_err:
-	ocrdma_del_mmap(pd->uctx, dpp_page_addr, OCRDMA_DPP_PAGE_SIZE);
+	if (pd->dpp_enabled)
+		ocrdma_del_mmap(pd->uctx, dpp_page_addr, OCRDMA_DPP_PAGE_SIZE);
 dpp_map_err:
 	ocrdma_del_mmap(pd->uctx, db_page_addr, db_page_size);
 	return status;
