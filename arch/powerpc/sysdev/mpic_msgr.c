@@ -27,6 +27,7 @@
 
 static struct mpic_msgr **mpic_msgrs;
 static unsigned int mpic_msgr_count;
+static DEFINE_RAW_SPINLOCK(msgrs_lock);
 
 static inline void _mpic_msgr_mer_write(struct mpic_msgr *msgr, u32 value)
 {
@@ -56,12 +57,11 @@ struct mpic_msgr *mpic_msgr_get(unsigned int reg_num)
 	if (reg_num >= mpic_msgr_count)
 		return ERR_PTR(-ENODEV);
 
-	raw_spin_lock_irqsave(&msgr->lock, flags);
-	if (mpic_msgrs[reg_num]->in_use == MSGR_FREE) {
-		msgr = mpic_msgrs[reg_num];
+	raw_spin_lock_irqsave(&msgrs_lock, flags);
+	msgr = mpic_msgrs[reg_num];
+	if (msgr->in_use == MSGR_FREE)
 		msgr->in_use = MSGR_INUSE;
-	}
-	raw_spin_unlock_irqrestore(&msgr->lock, flags);
+	raw_spin_unlock_irqrestore(&msgrs_lock, flags);
 
 	return msgr;
 }
