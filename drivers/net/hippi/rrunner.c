@@ -142,8 +142,9 @@ static int __devinit rr_init_one(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	printk(KERN_INFO "%s: Essential RoadRunner serial HIPPI "
-	       "at 0x%08llx, irq %i, PCI latency %i\n", dev->name,
-	       pci_resource_start(pdev, 0), pdev->irq, pci_latency);
+	       "at 0x%llx, irq %i, PCI latency %i\n", dev->name,
+	       (unsigned long long)pci_resource_start(pdev, 0),
+	       pdev->irq, pci_latency);
 
 	/*
 	 * Remap the MMIO regs into kernel space.
