@@ -925,10 +925,6 @@ static int smb347_irq_init(struct smb347_charger *smb)
 	if (ret < 0)
 		goto fail_readonly;
 
-	ret = smb347_irq_enable(smb);
-	if (ret < 0)
-		goto fail_readonly;
-
 	smb347_set_writable(smb, false);
 	smb->client->irq = irq;
 	return 0;
@@ -1241,6 +1237,8 @@ static int smb347_probe(struct i2c_client *client,
 		if (ret < 0) {
 			dev_warn(dev, "failed to initialize IRQ: %d\n", ret);
 			dev_warn(dev, "disabling IRQ support\n");
+		} else {
+			smb347_irq_enable(smb);
 		}
 	}
 
