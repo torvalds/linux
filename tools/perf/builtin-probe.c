@@ -85,21 +85,58 @@ static int parse_probe_event(const char *str)
 	return ret;
 }
 
+static int set_target(const char *ptr)
+{
+	int found = 0;
+	const char *buf;
+
+	/*
+	 * The first argument after options can be an absolute path
+	 * to an executable / library or kernel module.
+	 *
+	 * TODO: Support relative path, and $PATH, $LD_LIBRARY_PATH,
+	 * short module name.
+	 */
+	if (!params.target && ptr && *ptr == '/') {
+		params.target = ptr;
+		found = 1;
+		buf = ptr + (strlen(ptr) - 3);
+
+		if (strcmp(buf, ".ko"))
+			params.uprobes = true;
+
+	}
+
+	return found;
+}
+
 static int parse_probe_event_argv(int argc, const char **argv)
 {
-	int i, len, ret;
+	int i, len, ret, found_target;
 	char *buf;
+
+	found_target = set_target(argv[0]);
+	if (found_target && argc == 1)
+		return 0;
 
 	/* Bind up rest arguments */
 	len = 0;
-	for (i = 0; i < argc; i++)
+	for (i = 0; i < argc; i++) {
+		if (i == 0 && found_target)
+			continue;
+
 		len += strlen(argv[i]) + 1;
+	}
 	buf = zalloc(len + 1);
 	if (buf == NULL)
 		return -ENOMEM;
 	len = 0;
-	for (i = 0; i < argc; i++)
+	for (i = 0; i < argc; i++) {
+		if (i == 0 && found_target)
+			continue;
+
 		len += sprintf(&buf[len], "%s ", argv[i]);
+	}
 	params.mod_events = true;
 	ret = parse_probe_event(buf);
 	free(buf);
