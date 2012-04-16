@@ -187,14 +187,14 @@ struct intel_overlay {
 	void (*flip_tail)(struct intel_overlay *);
 };
 
-static struct overlay_registers *
+static struct overlay_registers __iomem *
 intel_overlay_map_regs(struct intel_overlay *overlay)
 {
 	drm_i915_private_t *dev_priv = overlay->dev->dev_private;
-	struct overlay_registers *regs;
+	struct overlay_registers __iomem *regs;
 
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		regs = overlay->reg_bo->phys_obj->handle->vaddr;
+		regs = (struct overlay_registers __iomem *)overlay->reg_bo->phys_obj->handle->vaddr;
 	else
 		regs = io_mapping_map_wc(dev_priv->mm.gtt_mapping,
 					 overlay->reg_bo->gtt_offset);
@@ -203,7 +203,7 @@ intel_overlay_map_regs(struct intel_overlay *overlay)
 }
 
 static void intel_overlay_unmap_regs(struct intel_overlay *overlay,
-				     struct overlay_registers *regs)
+				     struct overlay_registers __iomem *regs)
 {
 	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		io_mapping_unmap(regs);
@@ -619,14 +619,15 @@ static const u16 uv_static_hcoeffs[N_HORIZ_UV_TAPS * N_PHASES] = {
 	0x3000, 0x0800, 0x3000
 };
 
-static void update_polyphase_filter(struct overlay_registers *regs)
+static void update_polyphase_filter(struct overlay_registers __iomem *regs)
 {
-	memcpy(regs->Y_HCOEFS, y_static_hcoeffs, sizeof(y_static_hcoeffs));
-	memcpy(regs->UV_HCOEFS, uv_static_hcoeffs, sizeof(uv_static_hcoeffs));
+	memcpy_toio(regs->Y_HCOEFS, y_static_hcoeffs, sizeof(y_static_hcoeffs));
+	memcpy_toio(regs->UV_HCOEFS, uv_static_hcoeffs,
+		    sizeof(uv_static_hcoeffs));
 }
 
 static bool update_scaling_factors(struct intel_overlay *overlay,
-				   struct overlay_registers *regs,
+				   struct overlay_registers __iomem *regs,
 				   struct put_image_params *params)
 {
 	/* fixed point with a 12 bit shift */
@@ -665,16 +666,19 @@ static bool update_scaling_factors(struct intel_overlay *overlay,
 	overlay->old_xscale = xscale;
 	overlay->old_yscale = yscale;
 
-	regs->YRGBSCALE = (((yscale & FRACT_MASK) << 20) |
-			   ((xscale >> FP_SHIFT)  << 16) |
-			   ((xscale & FRACT_MASK) << 3));
+	iowrite32(((yscale & FRACT_MASK) << 20) |
+		  ((xscale >> FP_SHIFT)  << 16) |
+		  ((xscale & FRACT_MASK) << 3),
+		 &regs->YRGBSCALE);
 
-	regs->UVSCALE = (((yscale_UV & FRACT_MASK) << 20) |
-			 ((xscale_UV >> FP_SHIFT)  << 16) |
-			 ((xscale_UV & FRACT_MASK) << 3));
+	iowrite32(((yscale_UV & FRACT_MASK) << 20) |
+		  ((xscale_UV >> FP_SHIFT)  << 16) |
+		  ((xscale_UV & FRACT_MASK) << 3),
+		 &regs->UVSCALE);
 
-	regs->UVSCALEV = ((((yscale    >> FP_SHIFT) << 16) |
-			   ((yscale_UV >> FP_SHIFT) << 0)));
+	iowrite32((((yscale    >> FP_SHIFT) << 16) |
+		   ((yscale_UV >> FP_SHIFT) << 0)),
+		 &regs->UVSCALEV);
 
 	if (scale_changed)
 		update_polyphase_filter(regs);
@@ -683,30 +687,32 @@ static bool update_scaling_factors(struct intel_overlay *overlay,
 }
 
 static void update_colorkey(struct intel_overlay *overlay,
-			    struct overlay_registers *regs)
+			    struct overlay_registers __iomem *regs)
 {
 	u32 key = overlay->color_key;
 
 	switch (overlay->crtc->base.fb->bits_per_pixel) {
 	case 8:
-		regs->DCLRKV = 0;
-		regs->DCLRKM = CLK_RGB8I_MASK | DST_KEY_ENABLE;
+		iowrite32(0, &regs->DCLRKV);
+		iowrite32(CLK_RGB8I_MASK | DST_KEY_ENABLE, &regs->DCLRKM);
 		break;
 
 	case 16:
 		if (overlay->crtc->base.fb->depth == 15) {
-			regs->DCLRKV = RGB15_TO_COLORKEY(key);
-			regs->DCLRKM = CLK_RGB15_MASK | DST_KEY_ENABLE;
+			iowrite32(RGB15_TO_COLORKEY(key), &regs->DCLRKV);
+			iowrite32(CLK_RGB15_MASK | DST_KEY_ENABLE,
+				  &regs->DCLRKM);
 		} else {
-			regs->DCLRKV = RGB16_TO_COLORKEY(key);
-			regs->DCLRKM = CLK_RGB16_MASK | DST_KEY_ENABLE;
+			iowrite32(RGB16_TO_COLORKEY(key), &regs->DCLRKV);
+			iowrite32(CLK_RGB16_MASK | DST_KEY_ENABLE,
+				  &regs->DCLRKM);
 		}
 		break;
 
 	case 24:
 	case 32:
-		regs->DCLRKV = key;
-		regs->DCLRKM = CLK_RGB24_MASK | DST_KEY_ENABLE;
+		iowrite32(key, &regs->DCLRKV);
+		iowrite32(CLK_RGB24_MASK | DST_KEY_ENABLE, &regs->DCLRKM);
 		break;
 	}
 }
@@ -761,9 +767,10 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 				      struct put_image_params *params)
 {
 	int ret, tmp_width;
-	struct overlay_registers *regs;
+	struct overlay_registers __iomem *regs;
 	bool scale_changed = false;
 	struct drm_device *dev = overlay->dev;
+	u32 swidth, swidthsw, sheight, ostride;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
 	BUG_ON(!mutex_is_locked(&dev->mode_config.mutex));
@@ -782,16 +789,18 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		goto out_unpin;
 
 	if (!overlay->active) {
+		u32 oconfig;
 		regs = intel_overlay_map_regs(overlay);
 		if (!regs) {
 			ret = -ENOMEM;
 			goto out_unpin;
 		}
-		regs->OCONFIG = OCONF_CC_OUT_8BIT;
+		oconfig = OCONF_CC_OUT_8BIT;
 		if (IS_GEN4(overlay->dev))
-			regs->OCONFIG |= OCONF_CSC_MODE_BT709;
-		regs->OCONFIG |= overlay->crtc->pipe == 0 ?
+			oconfig |= OCONF_CSC_MODE_BT709;
+		oconfig |= overlay->crtc->pipe == 0 ?
 			OCONF_PIPE_A : OCONF_PIPE_B;
+		iowrite32(oconfig, &regs->OCONFIG);
 		intel_overlay_unmap_regs(overlay, regs);
 
 		ret = intel_overlay_on(overlay);
@@ -805,42 +814,46 @@ static int intel_overlay_do_put_image(struct intel_overlay *overlay,
 		goto out_unpin;
 	}
 
-	regs->DWINPOS = (params->dst_y << 16) | params->dst_x;
-	regs->DWINSZ = (params->dst_h << 16) | params->dst_w;
+	iowrite32((params->dst_y << 16) | params->dst_x, &regs->DWINPOS);
+	iowrite32((params->dst_h << 16) | params->dst_w, &regs->DWINSZ);
 
 	if (params->format & I915_OVERLAY_YUV_PACKED)
 		tmp_width = packed_width_bytes(params->format, params->src_w);
 	else
 		tmp_width = params->src_w;
 
-	regs->SWIDTH = params->src_w;
-	regs->SWIDTHSW = calc_swidthsw(overlay->dev,
-				       params->offset_Y, tmp_width);
-	regs->SHEIGHT = params->src_h;
-	regs->OBUF_0Y = new_bo->gtt_offset + params->offset_Y;
-	regs->OSTRIDE = params->stride_Y;
+	swidth = params->src_w;
+	swidthsw = calc_swidthsw(overlay->dev, params->offset_Y, tmp_width);
+	sheight = params->src_h;
+	iowrite32(new_bo->gtt_offset + params->offset_Y, &regs->OBUF_0Y);
+	ostride = params->stride_Y;
 
 	if (params->format & I915_OVERLAY_YUV_PLANAR) {
 		int uv_hscale = uv_hsubsampling(params->format);
 		int uv_vscale = uv_vsubsampling(params->format);
 		u32 tmp_U, tmp_V;
-		regs->SWIDTH |= (params->src_w/uv_hscale) << 16;
+		swidth |= (params->src_w/uv_hscale) << 16;
 		tmp_U = calc_swidthsw(overlay->dev, params->offset_U,
 				      params->src_w/uv_hscale);
 		tmp_V = calc_swidthsw(overlay->dev, params->offset_V,
 				      params->src_w/uv_hscale);
-		regs->SWIDTHSW |= max_t(u32, tmp_U, tmp_V) << 16;
-		regs->SHEIGHT |= (params->src_h/uv_vscale) << 16;
-		regs->OBUF_0U = new_bo->gtt_offset + params->offset_U;
-		regs->OBUF_0V = new_bo->gtt_offset + params->offset_V;
-		regs->OSTRIDE |= params->stride_UV << 16;
+		swidthsw |= max_t(u32, tmp_U, tmp_V) << 16;
+		sheight |= (params->src_h/uv_vscale) << 16;
+		iowrite32(new_bo->gtt_offset + params->offset_U, &regs->OBUF_0U);
+		iowrite32(new_bo->gtt_offset + params->offset_V, &regs->OBUF_0V);
+		ostride |= params->stride_UV << 16;
 	}
+
+	iowrite32(swidth, &regs->SWIDTH);
+	iowrite32(swidthsw, &regs->SWIDTHSW);
+	iowrite32(sheight, &regs->SHEIGHT);
+	iowrite32(ostride, &regs->OSTRIDE);
 
 	scale_changed = update_scaling_factors(overlay, regs, params);
 
 	update_colorkey(overlay, regs);
 
-	regs->OCMD = overlay_cmd_reg(params);
+	iowrite32(overlay_cmd_reg(params), &regs->OCMD);
 
 	intel_overlay_unmap_regs(overlay, regs);
 
@@ -860,7 +873,7 @@ out_unpin:
 
 int intel_overlay_switch_off(struct intel_overlay *overlay)
 {
-	struct overlay_registers *regs;
+	struct overlay_registers __iomem *regs;
 	struct drm_device *dev = overlay->dev;
 	int ret;
 
@@ -879,7 +892,7 @@ int intel_overlay_switch_off(struct intel_overlay *overlay)
 		return ret;
 
 	regs = intel_overlay_map_regs(overlay);
-	regs->OCMD = 0;
+	iowrite32(0, &regs->OCMD);
 	intel_overlay_unmap_regs(overlay, regs);
 
 	ret = intel_overlay_off(overlay);
@@ -1250,10 +1263,11 @@ out_free:
 }
 
 static void update_reg_attrs(struct intel_overlay *overlay,
-			     struct overlay_registers *regs)
+			     struct overlay_registers __iomem *regs)
 {
-	regs->OCLRC0 = (overlay->contrast << 18) | (overlay->brightness & 0xff);
-	regs->OCLRC1 = overlay->saturation;
+	iowrite32((overlay->contrast << 18) | (overlay->brightness & 0xff),
+		  &regs->OCLRC0);
+	iowrite32(overlay->saturation, &regs->OCLRC1);
 }
 
 static bool check_gamma_bounds(u32 gamma1, u32 gamma2)
@@ -1306,7 +1320,7 @@ int intel_overlay_attrs(struct drm_device *dev, void *data,
 	struct drm_intel_overlay_attrs *attrs = data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_overlay *overlay;
-	struct overlay_registers *regs;
+	struct overlay_registers __iomem *regs;
 	int ret;
 
 	if (!dev_priv) {
@@ -1396,7 +1410,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_overlay *overlay;
 	struct drm_i915_gem_object *reg_bo;
-	struct overlay_registers *regs;
+	struct overlay_registers __iomem *regs;
 	int ret;
 
 	if (!HAS_OVERLAY(dev))
@@ -1451,7 +1465,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	if (!regs)
 		goto out_unpin_bo;
 
-	memset(regs, 0, sizeof(struct overlay_registers));
+	memset_io(regs, 0, sizeof(struct overlay_registers));
 	update_polyphase_filter(regs);
 	update_reg_attrs(overlay, regs);
 
@@ -1499,14 +1513,17 @@ struct intel_overlay_error_state {
 	u32 isr;
 };
 
-static struct overlay_registers *
+static struct overlay_registers __iomem *
 intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 {
 	drm_i915_private_t *dev_priv = overlay->dev->dev_private;
-	struct overlay_registers *regs;
+	struct overlay_registers __iomem *regs;
 
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		regs = overlay->reg_bo->phys_obj->handle->vaddr;
+		/* Cast to make sparse happy, but it's wc memory anyway, so
+		 * equivalent to the wc io mapping on X86. */
+		regs = (struct overlay_registers __iomem *)
+			overlay->reg_bo->phys_obj->handle->vaddr;
 	else
 		regs = io_mapping_map_atomic_wc(dev_priv->mm.gtt_mapping,
 						overlay->reg_bo->gtt_offset);
@@ -1515,7 +1532,7 @@ intel_overlay_map_regs_atomic(struct intel_overlay *overlay)
 }
 
 static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay,
-					    struct overlay_registers *regs)
+					struct overlay_registers __iomem *regs)
 {
 	if (!OVERLAY_NEEDS_PHYSICAL(overlay->dev))
 		io_mapping_unmap_atomic(regs);
@@ -1540,9 +1557,9 @@ intel_overlay_capture_error_state(struct drm_device *dev)
 	error->dovsta = I915_READ(DOVSTA);
 	error->isr = I915_READ(ISR);
 	if (OVERLAY_NEEDS_PHYSICAL(overlay->dev))
-		error->base = (long) overlay->reg_bo->phys_obj->handle->vaddr;
+		error->base = (__force long)overlay->reg_bo->phys_obj->handle->vaddr;
 	else
-		error->base = (long) overlay->reg_bo->gtt_offset;
+		error->base = overlay->reg_bo->gtt_offset;
 
 	regs = intel_overlay_map_regs_atomic(overlay);
 	if (!regs)
