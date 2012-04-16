@@ -2366,18 +2366,6 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
-static ssize_t extent_cache_hits_show(struct ext4_attr *a,
-				      struct ext4_sb_info *sbi, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%lu\n", sbi->extent_cache_hits);
-}
-
-static ssize_t extent_cache_misses_show(struct ext4_attr *a,
-					struct ext4_sb_info *sbi, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%lu\n", sbi->extent_cache_misses);
-}
-
 static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 					  struct ext4_sb_info *sbi,
 					  const char *buf, size_t count)
@@ -2435,8 +2423,6 @@ static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
 EXT4_RO_ATTR(delayed_allocation_blocks);
 EXT4_RO_ATTR(session_write_kbytes);
 EXT4_RO_ATTR(lifetime_write_kbytes);
-EXT4_RO_ATTR(extent_cache_hits);
-EXT4_RO_ATTR(extent_cache_misses);
 EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, sbi_ui_show,
 		 inode_readahead_blks_store, s_inode_readahead_blks);
 EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
@@ -2452,8 +2438,6 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(delayed_allocation_blocks),
 	ATTR_LIST(session_write_kbytes),
 	ATTR_LIST(lifetime_write_kbytes),
-	ATTR_LIST(extent_cache_hits),
-	ATTR_LIST(extent_cache_misses),
 	ATTR_LIST(inode_readahead_blks),
 	ATTR_LIST(inode_goal),
 	ATTR_LIST(mb_stats),
