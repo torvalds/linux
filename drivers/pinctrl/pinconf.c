@@ -478,7 +478,7 @@ static int pinconf_pins_show(struct seq_file *s, void *what)
 		return 0;
 
 	seq_puts(s, "Pin config settings per pin\n");
-	seq_puts(s, "Format: pin (name): pinmux setting array\n");
+	seq_puts(s, "Format: pin (name): configs\n");
 
 	mutex_lock(&pinctrl_mutex);
 
@@ -529,7 +529,7 @@ static int pinconf_groups_show(struct seq_file *s, void *what)
 		return 0;
 
 	seq_puts(s, "Pin config settings per pin group\n");
-	seq_puts(s, "Format: group (name): pinmux setting array\n");
+	seq_puts(s, "Format: group (name): configs\n");
 
 	mutex_lock(&pinctrl_mutex);
 
