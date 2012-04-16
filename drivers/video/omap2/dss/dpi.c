@@ -156,7 +156,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 		t->pixel_clock = pck;
 	}
 
-	dispc_mgr_set_lcd_timings(dssdev->manager->id, t);
+	dispc_mgr_set_timings(dssdev->manager->id, t);
 
 	return 0;
 }

@@ -992,7 +992,7 @@ static void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width,
 	dispc_write_reg(DISPC_SIZE_MGR(channel), val);
 }
 
-void dispc_set_digit_size(u16 width, u16 height)
+static void dispc_mgr_set_digit_size(u16 width, u16 height)
 {
 	u32 val;
 	BUG_ON((width > (1 << 11)) || (height > (1 << 11)));
@@ -2341,37 +2341,42 @@ static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
 }
 
 /* change name to mode? */
-void dispc_mgr_set_lcd_timings(enum omap_channel channel,
+void dispc_mgr_set_timings(enum omap_channel channel,
 		struct omap_video_timings *timings)
 {
 	unsigned xtot, ytot;
 	unsigned long ht, vt;
 
-	if (!_dispc_lcd_timings_ok(timings->hsw, timings->hfp,
-				timings->hbp, timings->vsw,
-				timings->vfp, timings->vbp))
-		BUG();
-
-	_dispc_mgr_set_lcd_timings(channel, timings->hsw, timings->hfp,
-			timings->hbp, timings->vsw, timings->vfp,
-			timings->vbp);
-
-	dispc_mgr_set_lcd_size(channel, timings->x_res, timings->y_res);
-
-	xtot = timings->x_res + timings->hfp + timings->hsw + timings->hbp;
-	ytot = timings->y_res + timings->vfp + timings->vsw + timings->vbp;
-
-	ht = (timings->pixel_clock * 1000) / xtot;
-	vt = (timings->pixel_clock * 1000) / xtot / ytot;
-
 	DSSDBG("channel %d xres %u yres %u\n", channel, timings->x_res,
 			timings->y_res);
-	DSSDBG("pck %u\n", timings->pixel_clock);
-	DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
+
+	if (dispc_mgr_is_lcd(channel)) {
+		if (!dispc_lcd_timings_ok(timings))
+			BUG();
+
+		_dispc_mgr_set_lcd_timings(channel, timings->hsw, timings->hfp,
+				timings->hbp, timings->vsw, timings->vfp,
+				timings->vbp);
+
+		dispc_mgr_set_lcd_size(channel, timings->x_res, timings->y_res);
+
+		xtot = timings->x_res + timings->hfp + timings->hsw +
+				timings->hbp;
+		ytot = timings->y_res + timings->vfp + timings->vsw +
+				timings->vbp;
+
+		ht = (timings->pixel_clock * 1000) / xtot;
+		vt = (timings->pixel_clock * 1000) / xtot / ytot;
+
+		DSSDBG("pck %u\n", timings->pixel_clock);
+		DSSDBG("hsw %d hfp %d hbp %d vsw %d vfp %d vbp %d\n",
 			timings->hsw, timings->hfp, timings->hbp,
 			timings->vsw, timings->vfp, timings->vbp);
 
-	DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
+		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
+	} else {
+		dispc_mgr_set_digit_size(timings->x_res, timings->y_res);
+	}
 }
 
 static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,

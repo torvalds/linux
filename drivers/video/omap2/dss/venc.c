@@ -421,6 +421,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 {
 	u32 l;
 	int r;
+	struct omap_video_timings timings;
 
 	venc_reset();
 	venc_write_config(venc_timings_to_config(&dssdev->panel.timings));
@@ -440,8 +441,10 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 
 	venc_write_reg(VENC_OUTPUT_CONTROL, l);
 
-	dispc_set_digit_size(dssdev->panel.timings.x_res,
-			dssdev->panel.timings.y_res/2);
+	timings = dssdev->panel.timings;
+	timings.y_res /= 2;
+
+	dispc_mgr_set_timings(dssdev->manager->id, &timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)
