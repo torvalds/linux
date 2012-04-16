@@ -1,5 +1,5 @@
 /*
- * June 2006 steve.glendinning@smsc.com
+ * June 2006 Steve Glendinning <steve.glendinning@shawell.net>
  *
  * Polaris-specific resource declaration
  *

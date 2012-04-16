@@ -1,7 +1,7 @@
 /*
  * smscufx.c -- Framebuffer driver for SMSC UFX USB controller
  *
- * Copyright (C) 2011 Steve Glendinning <steve.glendinning@smsc.com>
+ * Copyright (C) 2011 Steve Glendinning <steve.glendinning@shawell.net>
  * Copyright (C) 2009 Roberto De Ioris <roberto@unbit.it>
  * Copyright (C) 2009 Jaya Kumar <jayakumar.lkml@gmail.com>
  * Copyright (C) 2009 Bernie Thompson <bernie@plugable.com>
@@ -1972,6 +1972,6 @@ MODULE_PARM_DESC(console, "Allow fbcon to be used on this display");
 module_param(fb_defio, bool, S_IWUSR | S_IRUSR | S_IWGRP | S_IRGRP);
 MODULE_PARM_DESC(fb_defio, "Enable fb_defio mmap support");
 
-MODULE_AUTHOR("Steve Glendinning <steve.glendinning@smsc.com>");
+MODULE_AUTHOR("Steve Glendinning <steve.glendinning@shawell.net>");
 MODULE_DESCRIPTION("SMSC UFX kernel framebuffer driver");
 MODULE_LICENSE("GPL");
