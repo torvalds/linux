@@ -644,7 +644,7 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 				wm831x_set_bits(wm831x,
 						WM831X_GPIO1_CONTROL + i,
 						WM831X_GPN_FN_MASK,
-						0x0004);				
+						0x0003);				
 			}	// set gpio2 sleep/wakeup
 					
 		} else {
@@ -701,7 +701,7 @@ void __sramfunc board_pmu_resume(void)
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
 	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);     //set gpio6_b1 output high
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
-
+	sram_udelay(10000);
 }
 static struct wm831x_pdata wm831x_platdata = {
 
