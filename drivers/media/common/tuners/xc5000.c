@@ -631,7 +631,10 @@ static int xc5000_fwupload(struct dvb_frontend *fe)
 		ret = xc_load_i2c_sequence(fe,  fw->data);
 		if (XC_RESULT_SUCCESS == ret)
 			ret = xc_set_xtal(fe);
-		printk(KERN_INFO "xc5000: firmware upload complete...\n");
+		if (XC_RESULT_SUCCESS == ret)
+			printk(KERN_INFO "xc5000: firmware upload complete...\n");
+		else
+			printk(KERN_ERR "xc5000: firmware upload failed...\n");
 	}
 
 out:
