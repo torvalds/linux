@@ -20,6 +20,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #ifdef CONFIG_OF
+#include <linux/of.h>
 #include <linux/regulator/of_regulator.h>
 #endif
 
