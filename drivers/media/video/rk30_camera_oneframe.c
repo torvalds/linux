@@ -103,10 +103,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define  INPUT_MODE_RAW 			(0x04<<2)
 #define  INPUT_MODE_JPEG 			(0x05<<2)
 #define  INPUT_MODE_MIPI			(0x06<<2)
-#define	YUV_INPUT_ORDER_UYVY	(0x00<<5)
-#define YUV_INPUT_ORDER_YVYU		(0x01<<5)
-#define YUV_INPUT_ORDER_VYUY		(0x02<<5)
-#define YUV_INPUT_ORDER_YUYV		(0x03<<5)
+#define	YUV_INPUT_ORDER_UYVY(ori)	(ori & (~(0x01<<5)))
+#define YUV_INPUT_ORDER_YVYU(ori)		((ori & (~(0x01<<6)))|(0x01<<5))
+#define YUV_INPUT_ORDER_VYUY(ori)		((ori & (~(0x01<<5))) | (0x1<<6))
+#define YUV_INPUT_ORDER_YUYV(ori)		(ori|(0x03<<5))
 #define YUV_INPUT_422		(0x00<<7)
 #define YUV_INPUT_420		(0x01<<7)
 #define INPUT_420_ORDER_EVEN		(0x00<<8)
@@ -144,6 +144,12 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define ENANABLE_INVERT_PCLK_CIF1		((0x1<<28)|(0x1<<12))
 #define DISABLE_INVERT_PCLK_CIF1		((0x1<<28)|(0x0<<12))
 
+#define CRU_CIF_RST_REG30 0x128
+#define MASK_RST_CIF0 (0x01 << 30)
+#define MASK_RST_CIF1 (0x01 << 31)
+#define RQUEST_RST_CIF0 (0x01 << 14)
+#define RQUEST_RST_CIF1 (0x01 << 15)
+
 #define MIN(x,y)   ((x<y) ? x: y)
 #define MAX(x,y)    ((x>y) ? x: y)
 #define RK_SENSOR_24MHZ      24*1000*1000          /* MHz */
@@ -155,7 +161,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define write_cru_reg(addr, val)  __raw_writel(val, addr+RK30_CRU_BASE)
 #define read_cru_reg(addr) __raw_readl(addr+RK30_CRU_BASE)
-#define mask_cru_reg(addr, msk, val)	write_cif_reg(addr+RK30_CRU_BASE, (val)|((~(msk))&read_cif_reg(addr+RK30_CRU_BASE)))
+#define mask_cru_reg(addr, msk, val)	write_cru_reg(addr,(val)|((~(msk))&read_cru_reg(addr)))
 
 #ifdef CONFIG_VIDEO_RK29_DIGITALZOOM_IPP_OFF
 #define CAM_WORKQUEUE_IS_EN()   ((pcdev->host_width != pcdev->icd->user_width) || (pcdev->host_height != pcdev->icd->user_height)\
@@ -231,6 +237,8 @@ struct rk_camera_reg
 	unsigned int cifFs;
 	unsigned int cifIntEn;
 	unsigned int cifFmt;
+    unsigned int cifVirWidth;
+    unsigned int cifScale;
 //	unsigned int VipCrm;
 	enum rk_camera_reg_state Inval;
 };
@@ -888,7 +896,16 @@ static void rk_camera_remove_device(struct soc_camera_device *icd)
 	if (read_cif_reg(pcdev->base,CIF_CIF_CTRL) & ENABLE_CAPTURE) {
 		rk_camera_s_stream(icd,0);
 	}
-
+    //soft reset  the registers
+    #if 0 //has somthing wrong when suspend and resume now
+    if(IS_CIF0()){
+        write_cru_reg(CRU_CIF_RST_REG30,MASK_RST_CIF0|RQUEST_RST_CIF0 | (read_cru_reg(CRU_CIF_RST_REG30)));
+        write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF0)) | MASK_RST_CIF0);
+    }else{
+        write_cru_reg(CRU_CIF_RST_REG30,MASK_RST_CIF1|RQUEST_RST_CIF1 | (read_cru_reg(CRU_CIF_RST_REG30)));
+        write_cru_reg(CRU_CIF_RST_REG30,(read_cru_reg(CRU_CIF_RST_REG30)&(~RQUEST_RST_CIF1)) | MASK_RST_CIF1);
+    }
+    #endif
     v4l2_subdev_call(sd, core, ioctl, RK29_CAM_SUBDEV_DEACTIVATE,NULL);
 	rk_camera_deactivate(pcdev);
 
@@ -976,7 +993,7 @@ static int rk_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
     } else {
 		if(IS_CIF0())
 			{
-			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFEFFF ) | DISABLE_INVERT_PCLK_CIF0);
+			write_cru_reg(CRU_PCLK_REG30, (read_cru_reg(CRU_PCLK_REG30) & 0xFFFFEFF ) | DISABLE_INVERT_PCLK_CIF0);
             RKCAMERA_DG("diable cif0 pclk invert\n");
 			}
 		else
@@ -1064,20 +1081,20 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
     switch (host_pixfmt)
     {
         case V4L2_PIX_FMT_NV16:
-            cif_fmt_val |= YUV_OUTPUT_422;
-		cif_fmt_val |= UV_STORAGE_ORDER_UVUV;
+            cif_fmt_val &= ~YUV_OUTPUT_422;
+		cif_fmt_val &= ~UV_STORAGE_ORDER_UVUV;
 		pcdev->frame_inval = RK_CAM_FRAME_INVAL_DC;
 		pcdev->pixfmt = host_pixfmt;
             break;
 	case V4L2_PIX_FMT_NV61:
-		cif_fmt_val |= YUV_OUTPUT_422;
+		cif_fmt_val &= ~YUV_OUTPUT_422;
 		cif_fmt_val |= UV_STORAGE_ORDER_VUVU;
 		pcdev->frame_inval = RK_CAM_FRAME_INVAL_DC;
 		pcdev->pixfmt = host_pixfmt;
 		break;
         case V4L2_PIX_FMT_NV12:
             cif_fmt_val |= YUV_OUTPUT_420;
-		cif_fmt_val |= UV_STORAGE_ORDER_UVUV;
+		cif_fmt_val &= ~UV_STORAGE_ORDER_UVUV;
 			if (pcdev->frame_inval != RK_CAM_FRAME_INVAL_INIT)
 				pcdev->frame_inval = RK_CAM_FRAME_INVAL_INIT;
 			pcdev->pixfmt = host_pixfmt;
@@ -1096,19 +1113,19 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
     switch (icd_code)
     {
         case V4L2_MBUS_FMT_UYVY8_2X8:
-            cif_fmt_val |= YUV_INPUT_ORDER_UYVY;
+            cif_fmt_val = YUV_INPUT_ORDER_UYVY(cif_fmt_val);
             break;
         case V4L2_MBUS_FMT_YUYV8_2X8:
-            cif_fmt_val |= YUV_INPUT_ORDER_YUYV;
+            cif_fmt_val = YUV_INPUT_ORDER_YUYV(cif_fmt_val);
             break;
-	case V4L2_MBUS_FMT_YVYU8_2X8:
-		cif_fmt_val |= YUV_INPUT_ORDER_YVYU;
-		break;
-	case V4L2_MBUS_FMT_VYUY8_2X8:
-		cif_fmt_val |= YUV_INPUT_ORDER_VYUY;
-		break;
+    	case V4L2_MBUS_FMT_YVYU8_2X8:
+    		cif_fmt_val = YUV_INPUT_ORDER_YVYU(cif_fmt_val);
+    		break;
+    	case V4L2_MBUS_FMT_VYUY8_2X8:
+    		cif_fmt_val = YUV_INPUT_ORDER_VYUY(cif_fmt_val);
+    		break;
         default :
-			cif_fmt_val |= YUV_INPUT_ORDER_YUYV;
+			cif_fmt_val = YUV_INPUT_ORDER_YUYV(cif_fmt_val);
             break;
     }
     write_cif_reg(pcdev->base,CIF_CIF_FOR, read_cif_reg(pcdev->base,CIF_CIF_FOR) |cif_fmt_val);         /* ddl@rock-chips.com: VIP capture mode and capture format must be set before FS register set */
@@ -1606,11 +1623,13 @@ static int rk_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
 		pcdev->reginfo_suspend.cifFs = read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE);
 		pcdev->reginfo_suspend.cifIntEn = read_cif_reg(pcdev->base,CIF_CIF_INTEN);
 		pcdev->reginfo_suspend.cifFmt= read_cif_reg(pcdev->base,CIF_CIF_FOR);
+		pcdev->reginfo_suspend.cifVirWidth = read_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH);
+		pcdev->reginfo_suspend.cifScale= read_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL);
 		//pcdev->reginfo_suspend.VipCrm = read_vip_reg(pcdev->base,RK29_VIP_CRM);
 
-		tmp = pcdev->reginfo_suspend.cifFs>>16;		/* ddl@rock-chips.com */
-		tmp += pcdev->reginfo_suspend.cifCrop>>16;
-		pcdev->reginfo_suspend.cifFs = (pcdev->reginfo_suspend.cifFs & 0xffff) | (tmp<<16);
+		//tmp = pcdev->reginfo_suspend.cifFs>>16;		/* ddl@rock-chips.com */
+		//tmp += pcdev->reginfo_suspend.cifCrop>>16;
+		//pcdev->reginfo_suspend.cifFs = (pcdev->reginfo_suspend.cifFs & 0xffff) | (tmp<<16);
 
 		pcdev->reginfo_suspend.Inval = Reg_Validate;
 		rk_camera_deactivate(pcdev);
@@ -1635,13 +1654,13 @@ static int rk_camera_resume(struct soc_camera_device *icd)
 	if ((pcdev->icd == icd) && (icd->ops->resume)) {
 		if (pcdev->reginfo_suspend.Inval == Reg_Validate) {
 			rk_camera_activate(pcdev, icd);
-			write_cif_reg(pcdev->base,CIF_CIF_INTEN, pcdev->reginfo_suspend.cifIntEn);
-			//write_cif_reg(pcdev->base,RK29_VIP_CRM, pcdev->reginfo_suspend.VipCrm);
 			write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl&~ENABLE_CAPTURE);
+			write_cif_reg(pcdev->base,CIF_CIF_INTEN, pcdev->reginfo_suspend.cifIntEn);
 			write_cif_reg(pcdev->base,CIF_CIF_CROP, pcdev->reginfo_suspend.cifCrop);
 			write_cif_reg(pcdev->base,CIF_CIF_SET_SIZE, pcdev->reginfo_suspend.cifFs);
 			write_cif_reg(pcdev->base,CIF_CIF_FOR, pcdev->reginfo_suspend.cifFmt);
-			
+			write_cif_reg(pcdev->base,CIF_CIF_VIR_LINE_WIDTH,pcdev->reginfo_suspend.cifVirWidth);
+			write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL, pcdev->reginfo_suspend.cifScale);
 			rk_videobuf_capture(pcdev->active,pcdev);
 			rk_camera_s_stream(icd, 1);
 			pcdev->reginfo_suspend.Inval = Reg_Invalidate;
