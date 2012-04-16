@@ -523,7 +523,21 @@ int __init arm_add_memory(phys_addr_t start, unsigned long size)
 	 */
 	size -= start & ~PAGE_MASK;
 	bank->start = PAGE_ALIGN(start);
-	bank->size  = size & PAGE_MASK;
+
+#ifndef CONFIG_LPAE
+	if (bank->start + size < bank->start) {
+		printk(KERN_CRIT "Truncating memory at 0x%08llx to fit in "
+			"32-bit physical address space\n", (long long)start);
+		/*
+		 * To ensure bank->start + bank->size is representable in
+		 * 32 bits, we use ULONG_MAX as the upper limit rather than 4GB.
+		 * This means we lose a page after masking.
+		 */
+		size = ULONG_MAX - bank->start;
+	}
+#endif
+
+	bank->size = size & PAGE_MASK;
 
 	/*
 	 * Check whether this memory region has non-zero size or
