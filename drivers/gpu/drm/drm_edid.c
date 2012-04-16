@@ -1699,10 +1699,10 @@ static void drm_add_display_info(struct edid *edid,
 	}
 
 	info->color_formats = DRM_COLOR_FORMAT_RGB444;
-	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB444)
-		info->color_formats = DRM_COLOR_FORMAT_YCRCB444;
-	if (info->color_formats & DRM_EDID_FEATURE_RGB_YCRCB422)
-		info->color_formats = DRM_COLOR_FORMAT_YCRCB422;
+	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB444)
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
+	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB422)
+		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
 
 	/* Get data from CEA blocks if present */
 	edid_ext = drm_find_cea_extension(edid);
