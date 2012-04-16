@@ -3184,6 +3184,123 @@ sensitivity adjustments.</entry>
 	  </row>
 	  <row><entry></entry></row>
 
+	  <row id="v4l2-scene-mode">
+	    <entry spanname="id"><constant>V4L2_CID_SCENE_MODE</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_scene_mode</entry>
+	  </row><row><entry spanname="descr">This control allows to select
+scene programs as the camera automatic modes optimized for common shooting
+scenes. Within these modes the camera determines best exposure, aperture,
+focusing, light metering, white balance and equivalent sensitivity. The
+controls of those parameters are influenced by the scene mode control.
+An exact behavior in each mode is subject to the camera specification.
+
+<para>When the scene mode feature is not used, this control should be set to
+<constant>V4L2_SCENE_MODE_NONE</constant> to make sure the other possibly
+related controls are accessible. The following scene programs are defined:
+</para>
+</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_NONE</constant>&nbsp;</entry>
+		  <entry>The scene mode feature is disabled.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_BACKLIGHT</constant>&nbsp;</entry>
+		  <entry>Backlight. Compensates for dark shadows when light is
+		  coming from behind a subject, also by automatically turning
+		  on the flash.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_BEACH_SNOW</constant>&nbsp;</entry>
+		  <entry>Beach and snow. This mode compensates for all-white or
+bright scenes, which tend to look gray and low contrast, when camera's automatic
+exposure is based on an average scene brightness. To compensate, this mode
+automatically slightly overexposes the frames. The white balance may also be
+adjusted to compensate for the fact that reflected snow looks bluish rather
+than white.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_CANDLELIGHT</constant>&nbsp;</entry>
+		  <entry>Candle light. The camera generally raises the ISO
+sensitivity and lowers the shutter speed. This mode compensates for relatively
+close subject in the scene. The flash is disabled in order to preserve the
+ambiance of the light.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_DAWN_DUSK</constant>&nbsp;</entry>
+		  <entry>Dawn and dusk. Preserves the colors seen in low
+natural light before dusk and after down. The camera may turn off the flash,
+and automatically focus at infinity. It will usually boost saturation and
+lower the shutter speed.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_FALL_COLORS</constant>&nbsp;</entry>
+		  <entry>Fall colors. Increases saturation and adjusts white
+balance for color enhancement. Pictures of autumn leaves get saturated reds
+and yellows.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_FIREWORKS</constant>&nbsp;</entry>
+		  <entry>Fireworks. Long exposure times are used to capture
+the expanding burst of light from a firework. The camera may invoke image
+stabilization.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_LANDSCAPE</constant>&nbsp;</entry>
+		  <entry>Landscape. The camera may choose a small aperture to
+provide deep depth of field and long exposure duration to help capture detail
+in dim light conditions. The focus is fixed at infinity. Suitable for distant
+and wide scenery.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_NIGHT</constant>&nbsp;</entry>
+		  <entry>Night, also known as Night Landscape. Designed for low
+light conditions, it preserves detail in the dark areas without blowing out bright
+objects. The camera generally sets itself to a medium-to-high ISO sensitivity,
+with a relatively long exposure time, and turns flash off. As such, there will be
+increased image noise and the possibility of blurred image.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_PARTY_INDOOR</constant>&nbsp;</entry>
+		  <entry>Party and indoor. Designed to capture indoor scenes
+that are lit by indoor background lighting as well as the flash. The camera
+usually increases ISO sensitivity, and adjusts exposure for the low light
+conditions.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_PORTRAIT</constant>&nbsp;</entry>
+		  <entry>Portrait. The camera adjusts the aperture so that the
+depth of field is reduced, which helps to isolate the subject against a smooth
+background. Most cameras recognize the presence of faces in the scene and focus
+on them. The color hue is adjusted to enhance skin tones. The intensity of the
+flash is often reduced.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_SPORTS</constant>&nbsp;</entry>
+		  <entry>Sports. Significantly increases ISO and uses a fast
+shutter speed to freeze motion of rapidly-moving subjects. Increased image
+noise may be seen in this mode.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_SUNSET</constant>&nbsp;</entry>
+		  <entry>Sunset. Preserves deep hues seen in sunsets and
+sunrises. It bumps up the saturation.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_SCENE_MODE_TEXT</constant>&nbsp;</entry>
+		  <entry>Text. It applies extra contrast and sharpness, it is
+typically a black-and-white mode optimized for readability. Automatic focus
+may be switched to close-up mode and this setting may also involve some
+lens-distortion correction.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry></entry></row>
+
 	</tbody>
       </tgroup>
     </table>
