@@ -58,11 +58,6 @@ static bool blkcg_policy_enabled(struct request_queue *q,
 	return pol && test_bit(pol->plid, q->blkcg_pols);
 }
 
-static size_t blkg_pd_size(const struct blkcg_policy *pol)
-{
-	return sizeof(struct blkg_policy_data) + pol->pdata_size;
-}
-
 /**
  * blkg_free - free a blkg
  * @blkg: blkg to free
@@ -122,7 +117,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
 			continue;
 
 		/* alloc per-policy data and attach it to blkg */
-		pd = kzalloc_node(blkg_pd_size(pol), GFP_ATOMIC, q->node);
+		pd = kzalloc_node(pol->pd_size, GFP_ATOMIC, q->node);
 		if (!pd) {
 			blkg_free(blkg);
 			return NULL;
@@ -346,7 +341,8 @@ static const char *blkg_dev_name(struct blkcg_gq *blkg)
  * cftype->read_seq_string method.
  */
 void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
-		       u64 (*prfill)(struct seq_file *, void *, int),
+		       u64 (*prfill)(struct seq_file *,
+				     struct blkg_policy_data *, int),
 		       const struct blkcg_policy *pol, int data,
 		       bool show_total)
 {
@@ -357,7 +353,7 @@ void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 	spin_lock_irq(&blkcg->lock);
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node)
 		if (blkcg_policy_enabled(blkg->q, pol))
-			total += prfill(sf, blkg->pd[pol->plid]->pdata, data);
+			total += prfill(sf, blkg->pd[pol->plid], data);
 	spin_unlock_irq(&blkcg->lock);
 
 	if (show_total)
@@ -368,14 +364,14 @@ EXPORT_SYMBOL_GPL(blkcg_print_blkgs);
 /**
  * __blkg_prfill_u64 - prfill helper for a single u64 value
  * @sf: seq_file to print to
- * @pdata: policy private data of interest
+ * @pd: policy private data of interest
  * @v: value to print
  *
- * Print @v to @sf for the device assocaited with @pdata.
+ * Print @v to @sf for the device assocaited with @pd.
  */
-u64 __blkg_prfill_u64(struct seq_file *sf, void *pdata, u64 v)
+u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v)
 {
-	const char *dname = blkg_dev_name(pdata_to_blkg(pdata));
+	const char *dname = blkg_dev_name(pd->blkg);
 
 	if (!dname)
 		return 0;
@@ -388,12 +384,12 @@ EXPORT_SYMBOL_GPL(__blkg_prfill_u64);
 /**
  * __blkg_prfill_rwstat - prfill helper for a blkg_rwstat
  * @sf: seq_file to print to
- * @pdata: policy private data of interest
+ * @pd: policy private data of interest
  * @rwstat: rwstat to print
  *
- * Print @rwstat to @sf for the device assocaited with @pdata.
+ * Print @rwstat to @sf for the device assocaited with @pd.
  */
-u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
+u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			 const struct blkg_rwstat *rwstat)
 {
 	static const char *rwstr[] = {
@@ -402,7 +398,7 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
 		[BLKG_RWSTAT_SYNC]	= "Sync",
 		[BLKG_RWSTAT_ASYNC]	= "Async",
 	};
-	const char *dname = blkg_dev_name(pdata_to_blkg(pdata));
+	const char *dname = blkg_dev_name(pd->blkg);
 	u64 v;
 	int i;
 
@@ -421,30 +417,31 @@ u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
 /**
  * blkg_prfill_stat - prfill callback for blkg_stat
  * @sf: seq_file to print to
- * @pdata: policy private data of interest
- * @off: offset to the blkg_stat in @pdata
+ * @pd: policy private data of interest
+ * @off: offset to the blkg_stat in @pd
  *
  * prfill callback for printing a blkg_stat.
  */
-u64 blkg_prfill_stat(struct seq_file *sf, void *pdata, int off)
+u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd, int off)
 {
-	return __blkg_prfill_u64(sf, pdata, blkg_stat_read(pdata + off));
+	return __blkg_prfill_u64(sf, pd, blkg_stat_read((void *)pd + off));
 }
 EXPORT_SYMBOL_GPL(blkg_prfill_stat);
 
 /**
  * blkg_prfill_rwstat - prfill callback for blkg_rwstat
  * @sf: seq_file to print to
- * @pdata: policy private data of interest
- * @off: offset to the blkg_rwstat in @pdata
+ * @pd: policy private data of interest
+ * @off: offset to the blkg_rwstat in @pd
  *
  * prfill callback for printing a blkg_rwstat.
  */
-u64 blkg_prfill_rwstat(struct seq_file *sf, void *pdata, int off)
+u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
+		       int off)
 {
-	struct blkg_rwstat rwstat = blkg_rwstat_read(pdata + off);
+	struct blkg_rwstat rwstat = blkg_rwstat_read((void *)pd + off);
 
-	return __blkg_prfill_rwstat(sf, pdata, &rwstat);
+	return __blkg_prfill_rwstat(sf, pd, &rwstat);
 }
 EXPORT_SYMBOL_GPL(blkg_prfill_rwstat);
 
@@ -733,7 +730,7 @@ int blkcg_activate_policy(struct request_queue *q,
 
 	/* allocate policy_data for all existing blkgs */
 	while (cnt--) {
-		pd = kzalloc_node(blkg_pd_size(pol), GFP_KERNEL, q->node);
+		pd = kzalloc_node(pol->pd_size, GFP_KERNEL, q->node);
 		if (!pd) {
 			ret = -ENOMEM;
 			goto out_free;
@@ -831,6 +828,9 @@ EXPORT_SYMBOL_GPL(blkcg_deactivate_policy);
 int blkcg_policy_register(struct blkcg_policy *pol)
 {
 	int i, ret;
+
+	if (WARN_ON(pol->pd_size < sizeof(struct blkg_policy_data)))
+		return -EINVAL;
 
 	mutex_lock(&blkcg_pol_mutex);
 

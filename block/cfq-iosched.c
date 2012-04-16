@@ -217,6 +217,9 @@ struct cfqg_stats {
 
 /* This is per cgroup per device grouping structure */
 struct cfq_group {
+	/* must be the first member */
+	struct blkg_policy_data pd;
+
 	/* group service_tree member */
 	struct rb_node rb_node;
 
@@ -409,6 +412,21 @@ CFQ_CFQQ_FNS(deep);
 CFQ_CFQQ_FNS(wait_busy);
 #undef CFQ_CFQQ_FNS
 
+static inline struct cfq_group *pd_to_cfqg(struct blkg_policy_data *pd)
+{
+	return pd ? container_of(pd, struct cfq_group, pd) : NULL;
+}
+
+static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg)
+{
+	return pd_to_cfqg(blkg_to_pd(blkg, &blkcg_policy_cfq));
+}
+
+static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
+{
+	return pd_to_blkg(&cfqg->pd);
+}
+
 #if defined(CONFIG_CFQ_GROUP_IOSCHED) && defined(CONFIG_DEBUG_BLK_CGROUP)
 
 /* cfqg stats flags */
@@ -553,16 +571,6 @@ static inline void cfqg_stats_update_avg_queue_size(struct cfq_group *cfqg) { }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 
-static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg)
-{
-	return blkg_to_pdata(blkg, &blkcg_policy_cfq);
-}
-
-static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
-{
-	return pdata_to_blkg(cfqg);
-}
-
 static inline void cfqg_get(struct cfq_group *cfqg)
 {
 	return blkg_get(cfqg_to_blkg(cfqg));
@@ -662,8 +670,6 @@ static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
 
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
 
-static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg) { return NULL; }
-static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg) { return NULL; }
 static inline void cfqg_get(struct cfq_group *cfqg) { }
 static inline void cfqg_put(struct cfq_group *cfqg) { }
 
@@ -1374,13 +1380,14 @@ static void cfq_link_cfqq_cfqg(struct cfq_queue *cfqq, struct cfq_group *cfqg)
 	cfqg_get(cfqg);
 }
 
-static u64 cfqg_prfill_weight_device(struct seq_file *sf, void *pdata, int off)
+static u64 cfqg_prfill_weight_device(struct seq_file *sf,
+				     struct blkg_policy_data *pd, int off)
 {
-	struct cfq_group *cfqg = pdata;
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
 
 	if (!cfqg->dev_weight)
 		return 0;
-	return __blkg_prfill_u64(sf, pdata, cfqg->dev_weight);
+	return __blkg_prfill_u64(sf, pd, cfqg->dev_weight);
 }
 
 static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
@@ -1467,9 +1474,10 @@ static int cfqg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
 }
 
 #ifdef CONFIG_DEBUG_BLK_CGROUP
-static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf, void *pdata, int off)
+static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf,
+				      struct blkg_policy_data *pd, int off)
 {
-	struct cfq_group *cfqg = pdata;
+	struct cfq_group *cfqg = pd_to_cfqg(pd);
 	u64 samples = blkg_stat_read(&cfqg->stats.avg_queue_size_samples);
 	u64 v = 0;
 
@@ -1477,7 +1485,7 @@ static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf, void *pdata, int off)
 		v = blkg_stat_read(&cfqg->stats.avg_queue_size_sum);
 		do_div(v, samples);
 	}
-	__blkg_prfill_u64(sf, pdata, v);
+	__blkg_prfill_u64(sf, pd, v);
 	return 0;
 }
 
@@ -4161,7 +4169,7 @@ static struct blkcg_policy blkcg_policy_cfq = {
 		.pd_init_fn		= cfq_pd_init,
 		.pd_reset_stats_fn	= cfq_pd_reset_stats,
 	},
-	.pdata_size = sizeof(struct cfq_group),
+	.pd_size = sizeof(struct cfq_group),
 	.cftypes = cfq_blkcg_files,
 };
 #endif

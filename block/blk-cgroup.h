@@ -59,16 +59,25 @@ struct blkg_rwstat {
 	uint64_t			cnt[BLKG_RWSTAT_NR];
 };
 
-/* per-blkg per-policy data */
+/*
+ * A blkcg_gq (blkg) is association between a block cgroup (blkcg) and a
+ * request_queue (q).  This is used by blkcg policies which need to track
+ * information per blkcg - q pair.
+ *
+ * There can be multiple active blkcg policies and each has its private
+ * data on each blkg, the size of which is determined by
+ * blkcg_policy->pd_size.  blkcg core allocates and frees such areas
+ * together with blkg and invokes pd_init/exit_fn() methods.
+ *
+ * Such private data must embed struct blkg_policy_data (pd) at the
+ * beginning and pd_size can't be smaller than pd.
+ */
 struct blkg_policy_data {
 	/* the blkg this per-policy data belongs to */
 	struct blkcg_gq			*blkg;
 
 	/* used during policy activation */
 	struct list_head		alloc_node;
-
-	/* pol->pdata_size bytes of private data used by policy impl */
-	char				pdata[] __aligned(__alignof__(unsigned long long));
 };
 
 /* association between a blk cgroup and a request queue */
@@ -100,7 +109,7 @@ struct blkcg_policy {
 	struct blkcg_policy_ops		ops;
 	int				plid;
 	/* policy specific private data size */
-	size_t				pdata_size;
+	size_t				pd_size;
 	/* cgroup files for the policy */
 	struct cftype			*cftypes;
 };
@@ -125,14 +134,16 @@ void blkcg_deactivate_policy(struct request_queue *q,
 			     const struct blkcg_policy *pol);
 
 void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
-		       u64 (*prfill)(struct seq_file *, void *, int),
+		       u64 (*prfill)(struct seq_file *,
+				     struct blkg_policy_data *, int),
 		       const struct blkcg_policy *pol, int data,
 		       bool show_total);
-u64 __blkg_prfill_u64(struct seq_file *sf, void *pdata, u64 v);
-u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
+u64 __blkg_prfill_u64(struct seq_file *sf, struct blkg_policy_data *pd, u64 v);
+u64 __blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
 			 const struct blkg_rwstat *rwstat);
-u64 blkg_prfill_stat(struct seq_file *sf, void *pdata, int off);
-u64 blkg_prfill_rwstat(struct seq_file *sf, void *pdata, int off);
+u64 blkg_prfill_stat(struct seq_file *sf, struct blkg_policy_data *pd, int off);
+u64 blkg_prfill_rwstat(struct seq_file *sf, struct blkg_policy_data *pd,
+		       int off);
 
 struct blkg_conf_ctx {
 	struct gendisk			*disk;
@@ -152,26 +163,21 @@ void blkg_conf_finish(struct blkg_conf_ctx *ctx);
  *
  * Return pointer to private data associated with the @blkg-@pol pair.
  */
-static inline void *blkg_to_pdata(struct blkcg_gq *blkg,
-				  struct blkcg_policy *pol)
+static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
+						  struct blkcg_policy *pol)
 {
-	return blkg ? blkg->pd[pol->plid]->pdata : NULL;
+	return blkg ? blkg->pd[pol->plid] : NULL;
 }
 
 /**
  * pdata_to_blkg - get blkg associated with policy private data
- * @pdata: policy private data of interest
+ * @pd: policy private data of interest
  *
- * @pdata is policy private data.  Determine the blkg it's associated with.
+ * @pd is policy private data.  Determine the blkg it's associated with.
  */
-static inline struct blkcg_gq *pdata_to_blkg(void *pdata)
+static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd)
 {
-	if (pdata) {
-		struct blkg_policy_data *pd =
-			container_of(pdata, struct blkg_policy_data, pdata);
-		return pd->blkg;
-	}
-	return NULL;
+	return pd ? pd->blkg : NULL;
 }
 
 /**
@@ -342,6 +348,9 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 
 struct cgroup;
 
+struct blkg_policy_data {
+};
+
 struct blkcg_gq {
 };
 
@@ -361,10 +370,9 @@ static inline int blkcg_activate_policy(struct request_queue *q,
 static inline void blkcg_deactivate_policy(struct request_queue *q,
 					   const struct blkcg_policy *pol) { }
 
-static inline void *blkg_to_pdata(struct blkcg_gq *blkg,
-				  struct blkcg_policy *pol) { return NULL; }
-static inline struct blkcg_gq *pdata_to_blkg(void *pdata,
-				  struct blkcg_policy *pol) { return NULL; }
+static inline struct blkg_policy_data *blkg_to_pd(struct blkcg_gq *blkg,
+						  struct blkcg_policy *pol) { return NULL; }
+static inline struct blkcg_gq *pd_to_blkg(struct blkg_policy_data *pd) { return NULL; }
 static inline char *blkg_path(struct blkcg_gq *blkg) { return NULL; }
 static inline void blkg_get(struct blkcg_gq *blkg) { }
 static inline void blkg_put(struct blkcg_gq *blkg) { }
