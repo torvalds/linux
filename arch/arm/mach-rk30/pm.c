@@ -9,7 +9,9 @@
 #include <linux/crc32.h>
 #include <linux/io.h>
 #include <linux/wakelock.h>
+#include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
+#include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/gic.h>
 
 #include <mach/pmu.h>
@@ -52,6 +54,7 @@ void __sramfunc sram_printch(char byte)
 	gate_save_soc_clk((1 << ((CLK_GATE_PCLK_UART0 + CONFIG_RK_DEBUG_UART) % 16)),
 			  clk_gate8, CRU_CLKGATES_CON(8),
 			  (1 << (((CLK_GATE_PCLK_UART0 + CONFIG_RK_DEBUG_UART) % 16) + 16)));
+	sram_udelay(1);
 
 	writel_relaxed(byte, DEBUG_UART_BASE);
 	dsb();
@@ -143,7 +146,7 @@ static void __sramfunc ddr_testmode(void)
 static void __sramfunc ddr_testmode(void) {}
 #endif
 
-static void dump_irq(void)
+static noinline void rk30_pm_dump_irq(void)
 {
 	u32 irq_gpio = (readl_relaxed(RK30_GICD_BASE + GIC_DIST_PENDING_SET + 8) >> 22) & 0x7F;
 	printk("wakeup irq: %08x %08x %08x %08x\n",
@@ -175,7 +178,7 @@ do { \
 	} \
 } while (0)
 
-static void dump_inten(void)
+static noinline void rk30_pm_dump_inten(void)
 {
 	DUMP_GPIO_INTEN(0);
 	DUMP_GPIO_INTEN(1);
@@ -189,8 +192,7 @@ static void pm_pll_wait_lock(int pll_idx)
 {
 	u32 pll_state[4] = { 1, 0, 2, 3 };
 	u32 bit = 0x10u << pll_state[pll_idx];
-	int delay = 2400000;
-	udelay(25);
+	u32 delay = pll_idx == APLL_ID ? 24000000U : 2400000000U;
 	while (delay > 0) {
 		if (grf_readl(GRF_SOC_STATUS0) & bit)
 			break;
@@ -218,8 +220,18 @@ static unsigned long save_sp;
 extern void __sramfunc ddr_selfrefresh_enter(void);
 extern void __sramfunc ddr_selfrefresh_exit(void);
 
-static void interface_ctr_reg_pread(void)
+static noinline void interface_ctr_reg_pread(void)
 {
+	u32 addr;
+
+	flush_cache_all();
+	outer_flush_all();
+	flush_tlb_all();
+
+	for (addr = (u32)SRAM_CODE_OFFSET; addr < (u32)SRAM_CODE_END; addr += PAGE_SIZE)
+		readl_relaxed(addr);
+	for (addr = (u32)SRAM_DATA_OFFSET; addr < (u32)SRAM_DATA_END; addr += PAGE_SIZE)
+		readl_relaxed(addr);
 	readl_relaxed(RK30_PMU_BASE);
 	readl_relaxed(RK30_GRF_BASE);
 	readl_relaxed(RK30_DDR_PCTL_BASE);
@@ -384,7 +396,7 @@ static int rk30_pm_enter(suspend_state_t state)
 #endif
 
 	// dump GPIO INTEN for debug
-	dump_inten();
+	rk30_pm_dump_inten();
 
 	//gpio6_b7
 	grf_writel(0xc0004000, 0x10c);
@@ -483,7 +495,6 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	board_gpio_suspend();
 
-	flush_tlb_all();
 	interface_ctr_reg_pread();
 
 	sram_printch('4');
@@ -526,7 +537,7 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	sram_printascii("0\n");
 
-	dump_irq();
+	rk30_pm_dump_irq();
 
 	return 0;
 }
