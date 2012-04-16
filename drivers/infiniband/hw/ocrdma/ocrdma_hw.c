@@ -675,7 +675,7 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 {
 	struct ocrdma_qp *qp = NULL;
 	struct ocrdma_cq *cq = NULL;
-	struct ib_event ib_evt = { 0 };
+	struct ib_event ib_evt;
 	int cq_event = 0;
 	int qp_event = 1;
 	int srq_event = 0;
@@ -687,6 +687,8 @@ static void ocrdma_dispatch_ibevent(struct ocrdma_dev *dev,
 		qp = dev->qp_tbl[cqe->qpvalid_qpid & OCRDMA_AE_MCQE_QPID_MASK];
 	if (cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQVALID)
 		cq = dev->cq_tbl[cqe->cqvalid_cqid & OCRDMA_AE_MCQE_CQID_MASK];
+
+	ib_evt.device = &dev->ibdev;
 
 	switch (type) {
 	case OCRDMA_CQ_ERROR:
