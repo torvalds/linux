@@ -44,7 +44,7 @@ static struct cpufreq_frequency_table *freq_table = default_freq_table;
 #define MASK_FURTHER_CPUFREQ            0x30
 /* With 0x00(NOCHANGE), it depends on the previous "further" status */
 static int no_cpufreq_access;
-static unsigned int suspend_freq = 1008 * 1000;
+static unsigned int suspend_freq = 816 * 1000;
 
 #define NUM_CPUS	2
 static struct workqueue_struct *freq_wq;
