@@ -3514,6 +3514,6 @@ int __init ip_rt_init(void)
  */
 void __init ip_static_sysctl_init(void)
 {
-	register_sysctl_paths(ipv4_path, ipv4_skeleton);
+	kmemleak_not_leak(register_sysctl_paths(ipv4_path, ipv4_skeleton));
 }
 #endif
