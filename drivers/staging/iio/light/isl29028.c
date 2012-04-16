@@ -272,7 +272,7 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 	mutex_lock(&chip->lock);
 	switch (chan->type) {
 	case IIO_PROXIMITY:
-		if (mask != IIO_CHAN_INFO_SAMP_FREQ_SEPARATE_BIT) {
+		if (mask != IIO_CHAN_INFO_SAMP_FREQ) {
 			dev_err(chip->dev,
 				"proximity: mask value 0x%08lx not supported\n",
 				mask);
@@ -294,7 +294,7 @@ static int isl29028_write_raw(struct iio_dev *indio_dev,
 		break;
 
 	case IIO_LIGHT:
-		if (mask != IIO_CHAN_INFO_SCALE_SEPARATE_BIT) {
+		if (mask != IIO_CHAN_INFO_SCALE) {
 			dev_err(chip->dev,
 				"light: mask value 0x%08lx not supported\n",
 				mask);
@@ -349,14 +349,14 @@ static int isl29028_read_raw(struct iio_dev *indio_dev,
 		ret = IIO_VAL_INT;
 		break;
 
-	case IIO_CHAN_INFO_SAMP_FREQ_SEPARATE_BIT:
+	case IIO_CHAN_INFO_SAMP_FREQ:
 		if (chan->type != IIO_PROXIMITY)
 			break;
 		*val = chip->prox_sampling;
 		ret = IIO_VAL_INT;
 		break;
 
-	case IIO_CHAN_INFO_SCALE_SEPARATE_BIT:
+	case IIO_CHAN_INFO_SCALE:
 		if (chan->type != IIO_LIGHT)
 			break;
 		*val = chip->lux_scale;
