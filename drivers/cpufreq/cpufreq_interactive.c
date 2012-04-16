@@ -571,7 +571,14 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 
 		if (!hispeed_freq)
 #ifdef CONFIG_PLAT_RK
-			hispeed_freq = 816000;
+		{
+			unsigned int index;
+			hispeed_freq = policy->max;
+			if (policy->min < 816000)
+				hispeed_freq = 816000;
+			else if (cpufreq_frequency_table_target(policy, freq_table, policy->min + 1, CPUFREQ_RELATION_L, &index) == 0)
+				hispeed_freq = freq_table[index].frequency;
+		}
 #else
 			hispeed_freq = policy->max;
 #endif
