@@ -65,6 +65,28 @@ void exynos_dp_lane_swap(struct exynos_dp_device *dp, bool enable)
 	writel(reg, dp->reg_base + EXYNOS_DP_LANE_MAP);
 }
 
+void exynos_dp_init_analog_param(struct exynos_dp_device *dp)
+{
+	u32 reg;
+
+	reg = TX_TERMINAL_CTRL_50_OHM;
+	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_1);
+
+	reg = SEL_24M | TX_DVDD_BIT_1_0625V;
+	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_2);
+
+	reg = DRIVE_DVDD_BIT_1_0625V | VCO_BIT_600_MICRO;
+	writel(reg, dp->reg_base + EXYNOS_DP_ANALOG_CTL_3);
+
+	reg = PD_RING_OSC | AUX_TERMINAL_CTRL_50_OHM |
+		TX_CUR1_2X | TX_CUR_8_MA;
+	writel(reg, dp->reg_base + EXYNOS_DP_PLL_FILTER_CTL_1);
+
+	reg = CH3_AMP_400_MV | CH2_AMP_400_MV |
+		CH1_AMP_400_MV | CH0_AMP_400_MV;
+	writel(reg, dp->reg_base + EXYNOS_DP_TX_AMP_TUNING_CTL);
+}
+
 void exynos_dp_init_interrupt(struct exynos_dp_device *dp)
 {
 	/* Set interrupt pin assertion polarity as high */
@@ -131,6 +153,7 @@ void exynos_dp_reset(struct exynos_dp_device *dp)
 
 	writel(0x00000101, dp->reg_base + EXYNOS_DP_SOC_GENERAL_CTL);
 
+	exynos_dp_init_analog_param(dp);
 	exynos_dp_init_interrupt(dp);
 }
 
