@@ -77,8 +77,6 @@ struct blkio_group {
 	struct list_head q_node;
 	struct hlist_node blkcg_node;
 	struct blkio_cgroup *blkcg;
-	/* Store cgroup path */
-	char path[128];
 	/* reference count */
 	int refcnt;
 
@@ -167,9 +165,24 @@ static inline struct blkio_group *pdata_to_blkg(void *pdata)
 	return NULL;
 }
 
-static inline char *blkg_path(struct blkio_group *blkg)
+/**
+ * blkg_path - format cgroup path of blkg
+ * @blkg: blkg of interest
+ * @buf: target buffer
+ * @buflen: target buffer length
+ *
+ * Format the path of the cgroup of @blkg into @buf.
+ */
+static inline int blkg_path(struct blkio_group *blkg, char *buf, int buflen)
 {
-	return blkg->path;
+	int ret;
+
+	rcu_read_lock();
+	ret = cgroup_path(blkg->blkcg->css.cgroup, buf, buflen);
+	rcu_read_unlock();
+	if (ret)
+		strncpy(buf, "<unavailable>", buflen);
+	return ret;
 }
 
 /**

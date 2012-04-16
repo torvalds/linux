@@ -114,7 +114,6 @@ static struct blkio_group *blkg_alloc(struct blkio_cgroup *blkcg,
 	INIT_LIST_HEAD(&blkg->q_node);
 	blkg->blkcg = blkcg;
 	blkg->refcnt = 1;
-	cgroup_path(blkcg->css.cgroup, blkg->path, sizeof(blkg->path));
 
 	for (i = 0; i < BLKCG_MAX_POLS; i++) {
 		struct blkio_policy_type *pol = blkio_policy[i];

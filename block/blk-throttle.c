@@ -155,9 +155,12 @@ static inline int throtl_tg_##name(const struct throtl_grp *tg)		\
 
 THROTL_TG_FNS(on_rr);
 
-#define throtl_log_tg(td, tg, fmt, args...)				\
-	blk_add_trace_msg((td)->queue, "throtl %s " fmt,		\
-			  blkg_path(tg_to_blkg(tg)), ##args);		\
+#define throtl_log_tg(td, tg, fmt, args...)	do {			\
+	char __pbuf[128];						\
+									\
+	blkg_path(tg_to_blkg(tg), __pbuf, sizeof(__pbuf));		\
+	blk_add_trace_msg((td)->queue, "throtl %s " fmt, __pbuf, ##args); \
+} while (0)
 
 #define throtl_log(td, fmt, args...)	\
 	blk_add_trace_msg((td)->queue, "throtl " fmt, ##args)

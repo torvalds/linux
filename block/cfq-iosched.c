@@ -573,14 +573,21 @@ static inline void cfqg_put(struct cfq_group *cfqg)
 	return blkg_put(cfqg_to_blkg(cfqg));
 }
 
-#define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	\
+#define cfq_log_cfqq(cfqd, cfqq, fmt, args...)	do {			\
+	char __pbuf[128];						\
+									\
+	blkg_path(cfqg_to_blkg((cfqq)->cfqg), __pbuf, sizeof(__pbuf));	\
 	blk_add_trace_msg((cfqd)->queue, "cfq%d%c %s " fmt, (cfqq)->pid, \
-			cfq_cfqq_sync((cfqq)) ? 'S' : 'A', \
-			blkg_path(cfqg_to_blkg((cfqq)->cfqg)), ##args)
+			  cfq_cfqq_sync((cfqq)) ? 'S' : 'A',		\
+			  __pbuf, ##args);				\
+} while (0)
 
-#define cfq_log_cfqg(cfqd, cfqg, fmt, args...)				\
-	blk_add_trace_msg((cfqd)->queue, "%s " fmt,			\
-			blkg_path(cfqg_to_blkg((cfqg))), ##args)	\
+#define cfq_log_cfqg(cfqd, cfqg, fmt, args...)	do {			\
+	char __pbuf[128];						\
+									\
+	blkg_path(cfqg_to_blkg(cfqg), __pbuf, sizeof(__pbuf));		\
+	blk_add_trace_msg((cfqd)->queue, "%s " fmt, __pbuf, ##args);	\
+} while (0)
 
 static inline void cfqg_stats_update_io_add(struct cfq_group *cfqg,
 					    struct cfq_group *curr_cfqg, int rw)
