@@ -2907,7 +2907,7 @@ static int snd_soc_dai_link_event(struct snd_soc_dapm_widget *w,
 	if (config->formats) {
 		fmt = ffs(config->formats) - 1;
 	} else {
-		dev_warn(w->dapm->dev, "Invalid format %lx specified\n",
+		dev_warn(w->dapm->dev, "Invalid format %llx specified\n",
 			 config->formats);
 		fmt = 0;
 	}
