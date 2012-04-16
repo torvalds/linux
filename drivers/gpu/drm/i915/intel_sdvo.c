@@ -443,9 +443,17 @@ static const char *cmd_status_names[] = {
 static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 				 const void *args, int args_len)
 {
-	u8 buf[args_len*2 + 2], status;
-	struct i2c_msg msgs[args_len + 3];
-	int i, ret;
+	u8 *buf, status;
+	struct i2c_msg *msgs;
+	int i, ret = true;
+
+	buf = (u8 *)kzalloc(args_len * 2 + 2, GFP_KERNEL);
+	if (!buf)
+		return false;
+
+	msgs = kcalloc(args_len + 3, sizeof(*msgs), GFP_KERNEL);
+	if (!msgs)
+		return false;
 
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
@@ -479,15 +487,19 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
-		return false;
+		ret = false;
+		goto out;
 	}
 	if (ret != i+3) {
 		/* failure in I2C transfer */
 		DRM_DEBUG_KMS("I2c transfer returned %d/%d\n", ret, i+3);
-		return false;
+		ret = false;
 	}
 
-	return true;
+out:
+	kfree(msgs);
+	kfree(buf);
+	return ret;
 }
 
 static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
