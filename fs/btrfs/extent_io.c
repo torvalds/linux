@@ -2304,7 +2304,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	u64 start;
 	u64 end;
 	int whole_page;
-	int failed_mirror;
+	int mirror;
 	int ret;
 
 	if (err)
@@ -2343,20 +2343,18 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		}
 		spin_unlock(&tree->lock);
 
+		mirror = (int)(unsigned long)bio->bi_bdev;
 		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
 			ret = tree->ops->readpage_end_io_hook(page, start, end,
-							      state);
+							      state, mirror);
 			if (ret)
 				uptodate = 0;
 			else
 				clean_io_failure(start, page);
 		}
 
-		if (!uptodate)
-			failed_mirror = (int)(unsigned long)bio->bi_bdev;
-
 		if (!uptodate && tree->ops && tree->ops->readpage_io_failed_hook) {
-			ret = tree->ops->readpage_io_failed_hook(page, failed_mirror);
+			ret = tree->ops->readpage_io_failed_hook(page, mirror);
 			if (!ret && !err &&
 			    test_bit(BIO_UPTODATE, &bio->bi_flags))
 				uptodate = 1;
@@ -2371,8 +2369,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			 * can't handle the error it will return -EIO and we
 			 * remain responsible for that page.
 			 */
-			ret = bio_readpage_error(bio, page, start, end,
-							failed_mirror, NULL);
+			ret = bio_readpage_error(bio, page, start, end, mirror, NULL);
 			if (ret == 0) {
 				uptodate =
 					test_bit(BIO_UPTODATE, &bio->bi_flags);
@@ -4465,7 +4462,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	}
 
 	clear_bit(EXTENT_BUFFER_IOERR, &eb->bflags);
-	eb->failed_mirror = 0;
+	eb->read_mirror = 0;
 	atomic_set(&eb->io_pages, num_reads);
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
