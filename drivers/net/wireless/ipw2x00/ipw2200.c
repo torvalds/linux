@@ -11443,20 +11443,6 @@ static void ipw_bg_down(struct work_struct *work)
 	mutex_unlock(&priv->mutex);
 }
 
-/* Called by register_netdev() */
-static int ipw_net_init(struct net_device *dev)
-{
-	int rc = 0;
-	struct ipw_priv *priv = libipw_priv(dev);
-
-	mutex_lock(&priv->mutex);
-	if (ipw_up(priv))
-		rc = -EIO;
-	mutex_unlock(&priv->mutex);
-
-	return rc;
-}
-
 static int ipw_wdev_init(struct net_device *dev)
 {
 	int i, rc = 0;
@@ -11725,7 +11711,6 @@ static void ipw_prom_free(struct ipw_priv *priv)
 #endif
 
 static const struct net_device_ops ipw_netdev_ops = {
-	.ndo_init		= ipw_net_init,
 	.ndo_open		= ipw_net_open,
 	.ndo_stop		= ipw_net_stop,
 	.ndo_set_rx_mode	= ipw_net_set_multicast_list,
@@ -11846,6 +11831,12 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 		IPW_ERROR("failed to create sysfs device attributes\n");
 		mutex_unlock(&priv->mutex);
 		goto out_release_irq;
+	}
+
+	if (ipw_up(priv)) {
+		mutex_unlock(&priv->mutex);
+		err = -EIO;
+		goto out_remove_sysfs;
 	}
 
 	mutex_unlock(&priv->mutex);
