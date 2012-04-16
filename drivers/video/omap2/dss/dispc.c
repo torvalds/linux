@@ -983,21 +983,13 @@ static void dispc_ovl_enable_replication(enum omap_plane plane, bool enable)
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), enable, shift, shift);
 }
 
-static void dispc_mgr_set_lcd_size(enum omap_channel channel, u16 width,
+static void dispc_mgr_set_size(enum omap_channel channel, u16 width,
 		u16 height)
 {
 	u32 val;
-	BUG_ON((width > (1 << 11)) || (height > (1 << 11)));
+
 	val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
 	dispc_write_reg(DISPC_SIZE_MGR(channel), val);
-}
-
-static void dispc_mgr_set_digit_size(u16 width, u16 height)
-{
-	u32 val;
-	BUG_ON((width > (1 << 11)) || (height > (1 << 11)));
-	val = FLD_VAL(height - 1, 26, 16) | FLD_VAL(width - 1, 10, 0);
-	dispc_write_reg(DISPC_SIZE_MGR(OMAP_DSS_CHANNEL_DIGIT), val);
 }
 
 static void dispc_read_plane_fifo_sizes(void)
@@ -2286,6 +2278,12 @@ void dispc_mgr_enable_stallmode(enum omap_channel channel, bool enable)
 		REG_FLD_MOD(DISPC_CONTROL, enable, 11, 11);
 }
 
+static bool _dispc_mgr_size_ok(u16 width, u16 height)
+{
+	return width <= dss_feat_get_param_max(FEAT_PARAM_MGR_WIDTH) &&
+		height <= dss_feat_get_param_max(FEAT_PARAM_MGR_HEIGHT);
+}
+
 static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
 		int vsw, int vfp, int vbp)
 {
@@ -2310,11 +2308,20 @@ static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
 	return true;
 }
 
-bool dispc_lcd_timings_ok(struct omap_video_timings *timings)
+bool dispc_mgr_timings_ok(enum omap_channel channel,
+		struct omap_video_timings *timings)
 {
-	return _dispc_lcd_timings_ok(timings->hsw, timings->hfp,
-			timings->hbp, timings->vsw,
-			timings->vfp, timings->vbp);
+	bool timings_ok;
+
+	timings_ok = _dispc_mgr_size_ok(timings->x_res, timings->y_res);
+
+	if (dispc_mgr_is_lcd(channel))
+		timings_ok =  timings_ok && _dispc_lcd_timings_ok(timings->hsw,
+						timings->hfp, timings->hbp,
+						timings->vsw, timings->vfp,
+						timings->vbp);
+
+	return timings_ok;
 }
 
 static void _dispc_mgr_set_lcd_timings(enum omap_channel channel, int hsw,
@@ -2350,15 +2357,13 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 	DSSDBG("channel %d xres %u yres %u\n", channel, timings->x_res,
 			timings->y_res);
 
-	if (dispc_mgr_is_lcd(channel)) {
-		if (!dispc_lcd_timings_ok(timings))
-			BUG();
+	if (!dispc_mgr_timings_ok(channel, timings))
+		BUG();
 
+	if (dispc_mgr_is_lcd(channel)) {
 		_dispc_mgr_set_lcd_timings(channel, timings->hsw, timings->hfp,
 				timings->hbp, timings->vsw, timings->vfp,
 				timings->vbp);
-
-		dispc_mgr_set_lcd_size(channel, timings->x_res, timings->y_res);
 
 		xtot = timings->x_res + timings->hfp + timings->hsw +
 				timings->hbp;
@@ -2374,9 +2379,9 @@ void dispc_mgr_set_timings(enum omap_channel channel,
 			timings->vsw, timings->vfp, timings->vbp);
 
 		DSSDBG("hsync %luHz, vsync %luHz\n", ht, vt);
-	} else {
-		dispc_mgr_set_digit_size(timings->x_res, timings->y_res);
 	}
+
+	dispc_mgr_set_size(channel, timings->x_res, timings->y_res);
 }
 
 static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
