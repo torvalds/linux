@@ -1312,6 +1312,8 @@ add_detailed_modes(struct drm_connector *connector, struct edid *edid,
 #define VENDOR_BLOCK    0x03
 #define SPEAKER_BLOCK	0x04
 #define EDID_BASIC_AUDIO	(1 << 6)
+#define EDID_CEA_YCRCB444	(1 << 5)
+#define EDID_CEA_YCRCB422	(1 << 4)
 
 /**
  * Search EDID for CEA extension block.
@@ -1666,11 +1668,27 @@ static void drm_add_display_info(struct edid *edid,
 	info->bpc = 0;
 	info->color_formats = 0;
 
-	/* Only defined for 1.4 with digital displays */
-	if (edid->revision < 4)
+	if (edid->revision < 3)
 		return;
 
 	if (!(edid->input & DRM_EDID_INPUT_DIGITAL))
+		return;
+
+	/* Get data from CEA blocks if present */
+	edid_ext = drm_find_cea_extension(edid);
+	if (edid_ext) {
+		info->cea_rev = edid_ext[1];
+
+		/* The existence of a CEA block should imply RGB support */
+		info->color_formats = DRM_COLOR_FORMAT_RGB444;
+		if (edid_ext[3] & EDID_CEA_YCRCB444)
+			info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
+		if (edid_ext[3] & EDID_CEA_YCRCB422)
+			info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
+	}
+
+	/* Only defined for 1.4 with digital displays */
+	if (edid->revision < 4)
 		return;
 
 	switch (edid->input & DRM_EDID_DIGITAL_DEPTH_MASK) {
@@ -1698,18 +1716,11 @@ static void drm_add_display_info(struct edid *edid,
 		break;
 	}
 
-	info->color_formats = DRM_COLOR_FORMAT_RGB444;
+	info->color_formats |= DRM_COLOR_FORMAT_RGB444;
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB444)
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB444;
 	if (edid->features & DRM_EDID_FEATURE_RGB_YCRCB422)
 		info->color_formats |= DRM_COLOR_FORMAT_YCRCB422;
-
-	/* Get data from CEA blocks if present */
-	edid_ext = drm_find_cea_extension(edid);
-	if (!edid_ext)
-		return;
-
-	info->cea_rev = edid_ext[1];
 }
 
 /**
