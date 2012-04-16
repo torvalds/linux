@@ -27,6 +27,8 @@ extern const struct gfs2_log_operations gfs2_rg_lops;
 extern const struct gfs2_log_operations gfs2_databuf_lops;
 
 extern const struct gfs2_log_operations *gfs2_log_ops[];
+extern void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page);
+extern void gfs2_log_flush_bio(struct gfs2_sbd *sdp, int rw);
 
 static inline unsigned int buf_limit(struct gfs2_sbd *sdp)
 {
