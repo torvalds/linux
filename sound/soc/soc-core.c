@@ -1072,6 +1072,8 @@ static int soc_probe_platform(struct snd_soc_card *card,
 		snd_soc_dapm_new_dai_widgets(&platform->dapm, dai);
 	}
 
+	platform->dapm.idle_bias_off = 1;
+
 	if (driver->probe) {
 		ret = driver->probe(platform);
 		if (ret < 0) {

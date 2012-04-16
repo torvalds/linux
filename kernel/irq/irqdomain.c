@@ -23,7 +23,6 @@ static LIST_HEAD(irq_domain_list);
 static DEFINE_MUTEX(irq_domain_mutex);
 
 static DEFINE_MUTEX(revmap_trees_mutex);
-static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_domain *irq_default_domain;
 
 /**
@@ -184,13 +183,16 @@ struct irq_domain *irq_domain_add_linear(struct device_node *of_node,
 }
 
 struct irq_domain *irq_domain_add_nomap(struct device_node *of_node,
+					 unsigned int max_irq,
 					 const struct irq_domain_ops *ops,
 					 void *host_data)
 {
 	struct irq_domain *domain = irq_domain_alloc(of_node,
 					IRQ_DOMAIN_MAP_NOMAP, ops, host_data);
-	if (domain)
+	if (domain) {
+		domain->revmap_data.nomap.max_irq = max_irq ? max_irq : ~0;
 		irq_domain_add(domain);
+	}
 	return domain;
 }
 
@@ -262,22 +264,6 @@ void irq_set_default_host(struct irq_domain *domain)
 	irq_default_domain = domain;
 }
 
-/**
- * irq_set_virq_count() - Set the maximum number of linux irqs
- * @count: number of linux irqs, capped with NR_IRQS
- *
- * This is mainly for use by platforms like iSeries who want to program
- * the virtual irq number in the controller to avoid the reverse mapping
- */
-void irq_set_virq_count(unsigned int count)
-{
-	pr_debug("irq: Trying to set virq count to %d\n", count);
-
-	BUG_ON(count < NUM_ISA_INTERRUPTS);
-	if (count < NR_IRQS)
-		irq_virq_count = count;
-}
-
 static int irq_setup_virq(struct irq_domain *domain, unsigned int virq,
 			    irq_hw_number_t hwirq)
 {
@@ -320,13 +306,12 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 		pr_debug("irq: create_direct virq allocation failed\n");
 		return 0;
 	}
-	if (virq >= irq_virq_count) {
+	if (virq >= domain->revmap_data.nomap.max_irq) {
 		pr_err("ERROR: no free irqs available below %i maximum\n",
-			irq_virq_count);
+			domain->revmap_data.nomap.max_irq);
 		irq_free_desc(virq);
 		return 0;
 	}
-
 	pr_debug("irq: create_direct obtained virq %d\n", virq);
 
 	if (irq_setup_virq(domain, virq, virq)) {
@@ -350,7 +335,8 @@ unsigned int irq_create_direct_mapping(struct irq_domain *domain)
 unsigned int irq_create_mapping(struct irq_domain *domain,
 				irq_hw_number_t hwirq)
 {
-	unsigned int virq, hint;
+	unsigned int hint;
+	int virq;
 
 	pr_debug("irq: irq_create_mapping(0x%p, 0x%lx)\n", domain, hwirq);
 
@@ -377,13 +363,13 @@ unsigned int irq_create_mapping(struct irq_domain *domain,
 		return irq_domain_legacy_revmap(domain, hwirq);
 
 	/* Allocate a virtual interrupt number */
-	hint = hwirq % irq_virq_count;
+	hint = hwirq % nr_irqs;
 	if (hint == 0)
 		hint++;
 	virq = irq_alloc_desc_from(hint, 0);
-	if (!virq)
+	if (virq <= 0)
 		virq = irq_alloc_desc_from(1, 0);
-	if (!virq) {
+	if (virq <= 0) {
 		pr_debug("irq: -> virq allocation failed\n");
 		return 0;
 	}
@@ -515,7 +501,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 			      irq_hw_number_t hwirq)
 {
 	unsigned int i;
-	unsigned int hint = hwirq % irq_virq_count;
+	unsigned int hint = hwirq % nr_irqs;
 
 	/* Look for default domain if nececssary */
 	if (domain == NULL)
@@ -536,7 +522,7 @@ unsigned int irq_find_mapping(struct irq_domain *domain,
 		if (data && (data->domain == domain) && (data->hwirq == hwirq))
 			return i;
 		i++;
-		if (i >= irq_virq_count)
+		if (i >= nr_irqs)
 			i = 1;
 	} while(i != hint);
 	return 0;
@@ -642,8 +628,9 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	void *data;
 	int i;
 
-	seq_printf(m, "%-5s  %-7s  %-15s  %-18s  %s\n", "virq", "hwirq",
-		      "chip name", "chip data", "domain name");
+	seq_printf(m, "%-5s  %-7s  %-15s  %-*s  %s\n", "irq", "hwirq",
+		      "chip name", (int)(2 * sizeof(void *) + 2), "chip data",
+		      "domain name");
 
 	for (i = 1; i < nr_irqs; i++) {
 		desc = irq_to_desc(i);
@@ -666,7 +653,7 @@ static int virq_debug_show(struct seq_file *m, void *private)
 			seq_printf(m, "%-15s  ", p);
 
 			data = irq_desc_get_chip_data(desc);
-			seq_printf(m, "0x%16p  ", data);
+			seq_printf(m, data ? "0x%p  " : "  %p  ", data);
 
 			if (desc->irq_data.domain && desc->irq_data.domain->of_node)
 				p = desc->irq_data.domain->of_node->full_name;

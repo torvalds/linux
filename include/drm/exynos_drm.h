@@ -85,7 +85,7 @@ struct drm_exynos_gem_mmap {
 struct drm_exynos_vidi_connection {
 	unsigned int connection;
 	unsigned int extensions;
-	uint64_t *edid;
+	uint64_t edid;
 };
 
 struct drm_exynos_plane_set_zpos {
@@ -96,7 +96,8 @@ struct drm_exynos_plane_set_zpos {
 /* memory type definitions. */
 enum e_drm_exynos_gem_mem_type {
 	/* Physically Non-Continuous memory. */
-	EXYNOS_BO_NONCONTIG	= 1 << 0
+	EXYNOS_BO_NONCONTIG	= 1 << 0,
+	EXYNOS_BO_MASK		= EXYNOS_BO_NONCONTIG
 };
 
 #define DRM_EXYNOS_GEM_CREATE		0x00

@@ -34,8 +34,7 @@ Current Status: linux-2.6.34-mmotm(development version of 2010/April)
 
 Features:
  - accounting anonymous pages, file caches, swap caches usage and limiting them.
- - private LRU and reclaim routine. (system's global LRU and private LRU
-   work independently from each other)
+ - pages are linked to per-memcg LRU exclusively, and there is no global LRU.
  - optionally, memory+swap usage can be accounted and limited.
  - hierarchical accounting
  - soft limit
@@ -154,7 +153,7 @@ updated. page_cgroup has its own LRU on cgroup.
 2.2.1 Accounting details
 
 All mapped anon pages (RSS) and cache pages (Page Cache) are accounted.
-Some pages which are never reclaimable and will not be on the global LRU
+Some pages which are never reclaimable and will not be on the LRU
 are not accounted. We just account pages under usual VM management.
 
 RSS pages are accounted at page_fault unless they've already been accounted
