@@ -41,7 +41,7 @@ enum android_alarm_type {
 /*
  * The alarm interface is similar to the hrtimer interface but adds support
  * for wakeup from suspend. It also adds an elapsed realtime clock that can
- * be used for periodic timers that need to keep runing while the system is
+ * be used for periodic timers that need to keep running while the system is
  * suspended and not be disrupted when the wall time is set.
  */
 
