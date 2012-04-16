@@ -1033,7 +1033,9 @@ void lbs_remove_card(struct lbs_private *priv)
 	lbs_deb_enter(LBS_DEB_MAIN);
 
 	lbs_remove_mesh(priv);
-	lbs_scan_deinit(priv);
+
+	if (priv->wiphy_registered)
+		lbs_scan_deinit(priv);
 
 	/* worker thread destruction blocks on the in-flight command which
 	 * should have been cleared already in lbs_stop_card().
@@ -1127,6 +1129,11 @@ void lbs_stop_card(struct lbs_private *priv)
 	if (!priv)
 		goto out;
 	dev = priv->dev;
+
+	/* If the netdev isn't registered, it means that lbs_start_card() was
+	 * never called so we have nothing to do here. */
+	if (dev->reg_state != NETREG_REGISTERED)
+		goto out;
 
 	netif_stop_queue(dev);
 	netif_carrier_off(dev);
