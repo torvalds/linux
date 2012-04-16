@@ -541,16 +541,14 @@ u64 gfs2_ri_total(struct gfs2_sbd *sdp)
 	struct inode *inode = sdp->sd_rindex;
 	struct gfs2_inode *ip = GFS2_I(inode);
 	char buf[sizeof(struct gfs2_rindex)];
-	struct file_ra_state ra_state;
 	int error, rgrps;
 
-	file_ra_state_init(&ra_state, inode->i_mapping);
 	for (rgrps = 0;; rgrps++) {
 		loff_t pos = rgrps * sizeof(struct gfs2_rindex);
 
 		if (pos + sizeof(struct gfs2_rindex) > i_size_read(inode))
 			break;
-		error = gfs2_internal_read(ip, &ra_state, buf, &pos,
+		error = gfs2_internal_read(ip, buf, &pos,
 					   sizeof(struct gfs2_rindex));
 		if (error != sizeof(struct gfs2_rindex))
 			break;
@@ -586,14 +584,12 @@ static int rgd_insert(struct gfs2_rgrpd *rgd)
 
 /**
  * read_rindex_entry - Pull in a new resource index entry from the disk
- * @ip: The GFS2 inode
- * @ra_state: The read-ahead state
+ * @ip: Pointer to the rindex inode
  *
  * Returns: 0 on success, > 0 on EOF, error code otherwise
  */
 
-static int read_rindex_entry(struct gfs2_inode *ip,
-			     struct file_ra_state *ra_state)
+static int read_rindex_entry(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	loff_t pos = sdp->sd_rgrps * sizeof(struct gfs2_rindex);
@@ -604,7 +600,7 @@ static int read_rindex_entry(struct gfs2_inode *ip,
 	if (pos >= i_size_read(&ip->i_inode))
 		return 1;
 
-	error = gfs2_internal_read(ip, ra_state, (char *)&buf, &pos,
+	error = gfs2_internal_read(ip, (char *)&buf, &pos,
 				   sizeof(struct gfs2_rindex));
 
 	if (error != sizeof(struct gfs2_rindex))
@@ -660,13 +656,10 @@ fail:
 static int gfs2_ri_update(struct gfs2_inode *ip)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
-	struct inode *inode = &ip->i_inode;
-	struct file_ra_state ra_state;
 	int error;
 
-	file_ra_state_init(&ra_state, inode->i_mapping);
 	do {
-		error = read_rindex_entry(ip, &ra_state);
+		error = read_rindex_entry(ip);
 	} while (error == 0);
 
 	if (error < 0)
