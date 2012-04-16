@@ -77,7 +77,8 @@ OPTIONS
 
 -F::
 --funcs::
-	Show available functions in given module or kernel.
+	Show available functions in given module or kernel. With -x/--exec,
+	can also list functions in a user space executable / shared library.
 
 --filter=FILTER::
 	(Only for --vars and --funcs) Set filter. FILTER is a combination of glob
@@ -97,6 +98,11 @@ OPTIONS
 
 --max-probes::
 	Set the maximum number of probe points for an event. Default is 128.
+
+-x::
+--exec=PATH::
+	Specify path to the executable or shared library file for user
+	space tracing. Can also be used with --funcs option.
 
 PROBE SYNTAX
 ------------
@@ -182,6 +188,13 @@ Delete all probes on schedule().
 
  ./perf probe --del='schedule*'
 
+Add probes at zfree() function on /bin/zsh
+
+ ./perf probe -x /bin/zsh zfree
+
+Add probes at malloc() function on libc
+
+ ./perf probe -x /lib/libc.so.6 malloc
 
 SEE ALSO
 --------
