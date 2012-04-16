@@ -1644,6 +1644,18 @@ static u8 link_to_mgmt(u8 link_type, u8 addr_type)
 	}
 }
 
+static u8 mgmt_to_le(u8 mgmt_type)
+{
+	switch (mgmt_type) {
+	case MGMT_ADDR_LE_PUBLIC:
+		return ADDR_LE_DEV_PUBLIC;
+
+	default:
+		/* Fallback to LE Random address type */
+		return ADDR_LE_DEV_RANDOM;
+	}
+}
+
 static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 			   u16 data_len)
 {
@@ -2652,7 +2664,8 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 		else
 			type = HCI_SMP_LTK_SLAVE;
 
-		hci_add_ltk(hdev, &key->addr.bdaddr, key->addr.type,
+		hci_add_ltk(hdev, &key->addr.bdaddr,
+			    mgmt_to_le(key->addr.type),
 			    type, 0, key->authenticated, key->val,
 			    key->enc_size, key->ediv, key->rand);
 	}
