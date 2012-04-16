@@ -87,9 +87,9 @@
 	mfspr	r8, SPRN_TBRL
 	mfspr	r9, SPRN_TBRU
 	cmpw	r9, r7
-	PPC_STL	r8, VCPU_TIMING_EXIT_TBL(r4)
+	stw	r8, VCPU_TIMING_EXIT_TBL(r4)
 	bne-	1b
-	PPC_STL	r9, VCPU_TIMING_EXIT_TBU(r4)
+	stw	r9, VCPU_TIMING_EXIT_TBU(r4)
 #endif
 
 	oris	r8, r6, MSR_CE@h
@@ -216,7 +216,7 @@ _GLOBAL(kvmppc_handler_\intno\()_\srr1)
 	PPC_STL	r4, VCPU_GPR(r4)(r11)
 	PPC_LL	r4, THREAD_NORMSAVE(0)(r10)
 	PPC_STL	r5, VCPU_GPR(r5)(r11)
-	PPC_STL	r13, VCPU_CR(r11)
+	stw	r13, VCPU_CR(r11)
 	mfspr	r5, \srr0
 	PPC_STL	r3, VCPU_GPR(r10)(r11)
 	PPC_LL	r3, THREAD_NORMSAVE(2)(r10)
@@ -243,7 +243,7 @@ _GLOBAL(kvmppc_handler_\intno\()_\srr1)
 	PPC_STL	r4, VCPU_GPR(r4)(r11)
 	PPC_LL	r4, GPR9(r8)
 	PPC_STL	r5, VCPU_GPR(r5)(r11)
-	PPC_STL	r9, VCPU_CR(r11)
+	stw	r9, VCPU_CR(r11)
 	mfspr	r5, \srr0
 	PPC_STL	r3, VCPU_GPR(r8)(r11)
 	PPC_LL	r3, GPR10(r8)
@@ -315,7 +315,7 @@ _GLOBAL(kvmppc_resume_host)
 	mfspr	r6, SPRN_SPRG4
 	PPC_STL	r5, VCPU_LR(r4)
 	mfspr	r7, SPRN_SPRG5
-	PPC_STL	r3, VCPU_VRSAVE(r4)
+	stw	r3, VCPU_VRSAVE(r4)
 	PPC_STD(r6, VCPU_SHARED_SPRG4, r11)
 	mfspr	r8, SPRN_SPRG6
 	PPC_STD(r7, VCPU_SHARED_SPRG5, r11)
@@ -551,7 +551,7 @@ lightweight_exit:
 	PPC_LL	r3, VCPU_LR(r4)
 	PPC_LL	r5, VCPU_XER(r4)
 	PPC_LL	r6, VCPU_CTR(r4)
-	PPC_LL	r7, VCPU_CR(r4)
+	lwz	r7, VCPU_CR(r4)
 	PPC_LL	r8, VCPU_PC(r4)
 	PPC_LD(r9, VCPU_SHARED_MSR, r11)
 	PPC_LL	r0, VCPU_GPR(r0)(r4)
@@ -574,9 +574,9 @@ lightweight_exit:
 	mfspr	r9, SPRN_TBRL
 	mfspr	r8, SPRN_TBRU
 	cmpw	r8, r6
-	PPC_STL	r9, VCPU_TIMING_LAST_ENTER_TBL(r4)
+	stw	r9, VCPU_TIMING_LAST_ENTER_TBL(r4)
 	bne	1b
-	PPC_STL	r8, VCPU_TIMING_LAST_ENTER_TBU(r4)
+	stw	r8, VCPU_TIMING_LAST_ENTER_TBU(r4)
 #endif
 
 	/*
