@@ -291,6 +291,7 @@ config CHARGER_MAX8998
 config CHARGER_SMB347
 	tristate "Summit Microelectronics SMB347 Battery Charger"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.
