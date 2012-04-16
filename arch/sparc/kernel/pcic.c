@@ -722,7 +722,7 @@ static unsigned int pcic_cycles_offset(void)
 	 */
 	count = ((count / HZ) * USECS_PER_JIFFY) / (TICK_TIMER_LIMIT / HZ);
 
-	/* Coordinate with the fact that timer_cs rate is 2MHz */
+	/* Coordinate with the sparc_config.clock_rate setting */
 	return count * 2;
 }
 
@@ -735,10 +735,10 @@ void __init pci_time_init(void)
 
 #ifndef CONFIG_SMP
 	/*
-	 * It's in SBUS dimension, because timer_cs is in this dimension.
+	 * The clock_rate is in SBUS dimension.
 	 * We take into account this in pcic_cycles_offset()
 	 */
-	timer_cs_period = SBUS_CLOCK_RATE / HZ;
+	sparc_config.clock_rate = SBUS_CLOCK_RATE / HZ;
 	sparc_config.features |= FEAT_L10_CLOCKEVENT;
 #endif
 	sparc_config.features |= FEAT_L10_CLOCKSOURCE;
