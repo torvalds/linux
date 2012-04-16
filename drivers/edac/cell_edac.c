@@ -48,8 +48,9 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 	syndrome = (ar & 0x000000001fe00000ul) >> 21;
 
 	/* TODO: Decoding of the error address */
-	edac_mc_handle_ce(mci, csrow->first_page + pfn, offset,
-			  syndrome, 0, chan, "");
+	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			     csrow->first_page + pfn, offset, syndrome,
+			     0, chan, -1, "", "", NULL);
 }
 
 static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
@@ -69,7 +70,9 @@ static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
 	offset = address & ~PAGE_MASK;
 
 	/* TODO: Decoding of the error address */
-	edac_mc_handle_ue(mci, csrow->first_page + pfn, offset, 0, "");
+	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			     csrow->first_page + pfn, offset, 0,
+			     0, chan, -1, "", "", NULL);
 }
 
 static void cell_edac_check(struct mem_ctl_info *mci)
@@ -156,7 +159,7 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 			"Initialized on node %d, chanmask=0x%x,"
 			" first_page=0x%lx, nr_pages=0x%x\n",
 			priv->node, priv->chanmask,
-			csrow->first_page, dimm->nr_pages);
+			csrow->first_page, nr_pages);
 		break;
 	}
 }
@@ -165,9 +168,10 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 {
 	struct cbe_mic_tm_regs __iomem	*regs;
 	struct mem_ctl_info		*mci;
+	struct edac_mc_layer		layers[2];
 	struct cell_edac_priv		*priv;
 	u64				reg;
-	int				rc, chanmask;
+	int				rc, chanmask, num_chans;
 
 	regs = cbe_get_cpu_mic_tm_regs(cbe_node_to_cpu(pdev->id));
 	if (regs == NULL)
@@ -192,8 +196,16 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 		in_be64(&regs->mic_fir));
 
 	/* Allocate & init EDAC MC data structure */
-	mci = edac_mc_alloc(sizeof(struct cell_edac_priv), 1,
-			    chanmask == 3 ? 2 : 1, pdev->id);
+	num_chans = chanmask == 3 ? 2 : 1;
+
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = 1;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = num_chans;
+	layers[1].is_virt_csrow = false;
+	mci = new_edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
+			    sizeof(struct cell_edac_priv));
 	if (mci == NULL)
 		return -ENOMEM;
 	priv = mci->pvt_info;
