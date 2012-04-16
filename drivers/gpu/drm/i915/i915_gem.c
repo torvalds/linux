@@ -282,8 +282,8 @@ __copy_to_user_swizzled(char __user *cpu_vaddr,
 }
 
 static inline int
-__copy_from_user_swizzled(char __user *gpu_vaddr, int gpu_offset,
-			  const char *cpu_vaddr,
+__copy_from_user_swizzled(char *gpu_vaddr, int gpu_offset,
+			  const char __user *cpu_vaddr,
 			  int length)
 {
 	int ret, cpu_offset = 0;
@@ -558,11 +558,14 @@ fast_user_write(struct io_mapping *mapping,
 		char __user *user_data,
 		int length)
 {
-	char *vaddr_atomic;
+	void __iomem *vaddr_atomic;
+	void *vaddr;
 	unsigned long unwritten;
 
 	vaddr_atomic = io_mapping_map_atomic_wc(mapping, page_base);
-	unwritten = __copy_from_user_inatomic_nocache(vaddr_atomic + page_offset,
+	/* We can use the cpu mem copy function because this is X86. */
+	vaddr = (void __force*)vaddr_atomic + page_offset;
+	unwritten = __copy_from_user_inatomic_nocache(vaddr,
 						      user_data, length);
 	io_mapping_unmap_atomic(vaddr_atomic);
 	return unwritten;
