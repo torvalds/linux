@@ -21,53 +21,9 @@
 #include <asm/mcfgpio.h>
 
 static struct mcf_gpio_chip mcf_gpio_chips[] = {
-	{
-		.gpio_chip			= {
-			.label			= "PA",
-			.request		= mcf_gpio_request,
-			.free			= mcf_gpio_free,
-			.direction_input	= mcf_gpio_direction_input,
-			.direction_output	= mcf_gpio_direction_output,
-			.get			= mcf_gpio_get_value,
-			.set			= mcf_gpio_set_value,
-			.ngpio			= 16,
-		},
-		.pddr				= (void __iomem *) MCFSIM_PADDR,
-		.podr				= (void __iomem *) MCFSIM_PADAT,
-		.ppdr				= (void __iomem *) MCFSIM_PADAT,
-	},
-	{
-		.gpio_chip			= {
-			.label			= "PB",
-			.request		= mcf_gpio_request,
-			.free			= mcf_gpio_free,
-			.direction_input	= mcf_gpio_direction_input,
-			.direction_output	= mcf_gpio_direction_output,
-			.get			= mcf_gpio_get_value,
-			.set			= mcf_gpio_set_value,
-			.base			= 16,
-			.ngpio			= 16,
-		},
-		.pddr				= (void __iomem *) MCFSIM_PBDDR,
-		.podr				= (void __iomem *) MCFSIM_PBDAT,
-		.ppdr				= (void __iomem *) MCFSIM_PBDAT,
-	},
-	{
-		.gpio_chip			= {
-			.label			= "PC",
-			.request		= mcf_gpio_request,
-			.free			= mcf_gpio_free,
-			.direction_input	= mcf_gpio_direction_input,
-			.direction_output	= mcf_gpio_direction_output,
-			.get			= mcf_gpio_get_value,
-			.set			= mcf_gpio_set_value,
-			.base			= 32,
-			.ngpio			= 16,
-		},
-		.pddr				= (void __iomem *) MCFSIM_PCDDR,
-		.podr				= (void __iomem *) MCFSIM_PCDAT,
-		.ppdr				= (void __iomem *) MCFSIM_PCDAT,
-	},
+	MCFGPS(PA,  0, 16, MCFSIM_PADDR, MCFSIM_PADAT, MCFSIM_PADAT),
+	MCFGPS(PB, 16, 16, MCFSIM_PBDDR, MCFSIM_PBDAT, MCFSIM_PBDAT),
+	MCFGPS(Pc, 32, 16, MCFSIM_PCDDR, MCFSIM_PCDAT, MCFSIM_PCDAT),
 };
 
 static int __init mcf_gpio_init(void)
