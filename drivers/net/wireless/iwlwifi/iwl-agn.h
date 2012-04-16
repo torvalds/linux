@@ -495,4 +495,85 @@ do {									\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
+/* API method exported for mvm hybrid state */
+void iwl_setup_deferred_work(struct iwl_priv *priv);
+int iwl_send_wimax_coex(struct iwl_priv *priv);
+int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
+void iwl_debug_config(struct iwl_priv *priv);
+int iwl_alloc_traffic_mem(struct iwl_priv *priv);
+void iwl_set_hw_params(struct iwl_priv *priv);
+void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags);
+int iwl_init_drv(struct iwl_priv *priv);
+void iwl_uninit_drv(struct iwl_priv *priv);
+void iwl_send_bt_config(struct iwl_priv *priv);
+void iwl_rf_kill_ct_config(struct iwl_priv *priv);
+int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwl_teardown_interface(struct iwl_priv *priv,
+			    struct ieee80211_vif *vif,
+			    bool mode_change);
+int iwl_full_rxon_required(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwlagn_update_qos(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
+void iwlagn_check_needed_chains(struct iwl_priv *priv,
+				struct iwl_rxon_context *ctx,
+				struct ieee80211_bss_conf *bss_conf);
+void iwlagn_chain_noise_reset(struct iwl_priv *priv);
+int iwlagn_update_beacon(struct iwl_priv *priv,
+			 struct ieee80211_vif *vif);
+void iwl_tt_handler(struct iwl_priv *priv);
+void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode);
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue);
+void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state);
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
+void iwl_nic_error(struct iwl_op_mode *op_mode);
+void iwl_cmd_queue_full(struct iwl_op_mode *op_mode);
+void iwl_nic_config(struct iwl_op_mode *op_mode);
+int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
+		       struct ieee80211_sta *sta, bool set);
+void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
+			      enum ieee80211_rssi_event rssi_event);
+int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw);
+int iwlagn_mac_tx_last_beacon(struct ieee80211_hw *hw);
+void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop);
+void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, int queue);
+void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+			       struct ieee80211_channel_switch *ch_switch);
+int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta,
+			 enum ieee80211_sta_state old_state,
+			 enum ieee80211_sta_state new_state);
+int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    enum ieee80211_ampdu_mlme_action action,
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			    u8 buf_size);
+int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif,
+		       struct cfg80211_scan_request *req);
+void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif,
+			   enum sta_notify_cmd cmd,
+			   struct ieee80211_sta *sta);
+void iwlagn_configure_filter(struct ieee80211_hw *hw,
+			     unsigned int changed_flags,
+			     unsigned int *total_flags,
+			     u64 multicast);
+int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif, u16 queue,
+		       const struct ieee80211_tx_queue_params *params);
+void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_gtk_rekey_data *data);
+void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_key_conf *keyconf,
+				struct ieee80211_sta *sta,
+				u32 iv32, u16 *phase1key);
+int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key);
+void iwlagn_mac_stop(struct ieee80211_hw *hw);
+void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
+int iwlagn_mac_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan);
 #endif /* __iwl_agn_h__ */

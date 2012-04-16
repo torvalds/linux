@@ -178,7 +178,7 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 	return 0;
 }
 
-static int iwl_send_wimax_coex(struct iwl_priv *priv)
+int iwl_send_wimax_coex(struct iwl_priv *priv)
 {
 	struct iwl_wimax_coex_cmd coex_cmd;
 
