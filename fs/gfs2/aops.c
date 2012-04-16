@@ -807,7 +807,7 @@ static int gfs2_stuffed_write_end(struct inode *inode, struct buffer_head *dibh,
 
 	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);
-		ip->i_gh.gh_flags |= GL_NOCACHE;
+		sdp->sd_rindex_uptodate = 0;
 	}
 
 	brelse(dibh);
@@ -873,7 +873,7 @@ static int gfs2_write_end(struct file *file, struct address_space *mapping,
 
 	if (inode == sdp->sd_rindex) {
 		adjust_fs_space(inode);
-		ip->i_gh.gh_flags |= GL_NOCACHE;
+		sdp->sd_rindex_uptodate = 0;
 	}
 
 	brelse(dibh);

@@ -238,6 +238,10 @@ static int ea_dealloc_unstuffed(struct gfs2_inode *ip, struct buffer_head *bh,
 	unsigned int x;
 	int error;
 
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
 	if (GFS2_EA_IS_STUFFED(ea))
 		return 0;
 
@@ -1330,6 +1334,10 @@ static int ea_dealloc_indirect(struct gfs2_inode *ip)
 	unsigned int x;
 	int error;
 
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
 	memset(&rlist, 0, sizeof(struct gfs2_rgrp_list));
 
 	error = gfs2_meta_read(ip->i_gl, ip->i_eattr, DIO_WAIT, &indbh);
@@ -1438,6 +1446,10 @@ static int ea_dealloc_block(struct gfs2_inode *ip)
 	struct buffer_head *dibh;
 	struct gfs2_holder gh;
 	int error;
+
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
 
 	rgd = gfs2_blk2rgrpd(sdp, ip->i_eattr, 1);
 	if (!rgd) {

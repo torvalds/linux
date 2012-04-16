@@ -565,7 +565,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			result = -ENOMEM;
 			break;
 		}
-		pNodeList = (PSNodeList)kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)), (int)GFP_ATOMIC);
+		pNodeList = kmalloc(sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)), (int)GFP_ATOMIC);
 		if (pNodeList == NULL) {
 			result = -ENOMEM;
 			break;
@@ -601,6 +601,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			}
 		}
 		if (copy_to_user(pReq->data, pNodeList, sizeof(SNodeList) + (sNodeList.uItem * sizeof(SNodeItem)))) {
+			kfree(pNodeList);
 			result = -EFAULT;
 			break;
 		}
