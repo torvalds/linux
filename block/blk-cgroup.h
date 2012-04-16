@@ -279,7 +279,7 @@ static inline void blkg_rwstat_add(struct blkg_rwstat *rwstat,
  * This function can be called without synchronization and takes care of
  * u64 atomicity.
  */
-static struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
+static inline struct blkg_rwstat blkg_rwstat_read(struct blkg_rwstat *rwstat)
 {
 	unsigned int start;
 	struct blkg_rwstat tmp;
