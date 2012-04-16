@@ -1741,8 +1741,6 @@ int hci_register_dev(struct hci_dev *hdev)
 	struct list_head *head = &hci_dev_list, *p;
 	int i, id, error;
 
-	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
-
 	if (!hdev->open || !hdev->close)
 		return -EINVAL;
 
@@ -1762,6 +1760,9 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	sprintf(hdev->name, "hci%d", id);
 	hdev->id = id;
+
+	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
+
 	list_add_tail(&hdev->list, head);
 
 	mutex_init(&hdev->lock);
