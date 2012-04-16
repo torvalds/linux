@@ -54,7 +54,7 @@ struct xc5000_priv {
 	struct list_head hybrid_tuner_instance_list;
 
 	u32 if_khz;
-	u32 xtal_khz;
+	u16 xtal_khz;
 	u32 freq_hz;
 	u32 bandwidth;
 	u8  video_standard;

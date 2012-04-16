@@ -34,7 +34,7 @@ struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
 	u8   radio_input;
-	u32  xtal_khz;
+	u16  xtal_khz;
 
 	int chip_id;
 };
