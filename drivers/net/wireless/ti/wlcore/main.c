@@ -1629,6 +1629,7 @@ static int wl1271_op_suspend(struct ieee80211_hw *hw,
 	wl12xx_for_each_wlvif(wl, wlvif) {
 		ret = wl1271_configure_suspend(wl, wlvif, wow);
 		if (ret < 0) {
+			mutex_unlock(&wl->mutex);
 			wl1271_warning("couldn't prepare device to suspend");
 			return ret;
 		}
