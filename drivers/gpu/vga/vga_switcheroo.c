@@ -28,6 +28,8 @@
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
 
+#include <linux/vgaarb.h>
+
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
 	struct fb_info *fb_info;
@@ -122,7 +124,7 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 	vgasr_priv.clients[index].reprobe = reprobe;
 	vgasr_priv.clients[index].can_switch = can_switch;
 	vgasr_priv.clients[index].id = -1;
-	if (pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW)
+	if (pdev == vga_default_device())
 		vgasr_priv.clients[index].active = true;
 
 	vgasr_priv.registered_clients |= (1 << index);
@@ -230,9 +232,8 @@ static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 	if (new_client->pwr_state == VGA_SWITCHEROO_OFF)
 		vga_switchon(new_client);
 
-	/* swap shadow resource to denote boot VGA device has changed so X starts on new device */
-	active->pdev->resource[PCI_ROM_RESOURCE].flags &= ~IORESOURCE_ROM_SHADOW;
-	new_client->pdev->resource[PCI_ROM_RESOURCE].flags |= IORESOURCE_ROM_SHADOW;
+	vga_set_default_device(new_client->pdev);
+
 	return 0;
 }
 
