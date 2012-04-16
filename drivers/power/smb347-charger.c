@@ -1285,17 +1285,7 @@ static struct i2c_driver smb347_driver = {
 	.id_table     = smb347_id,
 };
 
-static int __init smb347_init(void)
-{
-	return i2c_add_driver(&smb347_driver);
-}
-module_init(smb347_init);
-
-static void __exit smb347_exit(void)
-{
-	i2c_del_driver(&smb347_driver);
-}
-module_exit(smb347_exit);
+module_i2c_driver(smb347_driver);
 
 MODULE_AUTHOR("Bruce E. Robertson <bruce.e.robertson@intel.com>");
 MODULE_AUTHOR("Mika Westerberg <mika.westerberg@linux.intel.com>");
