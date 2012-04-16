@@ -1305,20 +1305,20 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 		ext4_msg(sb, KERN_ERR,
 			"Cannot change journaled "
 			"quota options when quota turned on");
-		return 0;
+		return -1;
 	}
 	qname = match_strdup(args);
 	if (!qname) {
 		ext4_msg(sb, KERN_ERR,
 			"Not enough memory for storing quotafile name");
-		return 0;
+		return -1;
 	}
 	if (sbi->s_qf_names[qtype] &&
 		strcmp(sbi->s_qf_names[qtype], qname)) {
 		ext4_msg(sb, KERN_ERR,
 			"%s quota file already specified", QTYPE2NAME(qtype));
 		kfree(qname);
-		return 0;
+		return -1;
 	}
 	sbi->s_qf_names[qtype] = qname;
 	if (strchr(sbi->s_qf_names[qtype], '/')) {
@@ -1326,7 +1326,7 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 			"quotafile must be on filesystem root");
 		kfree(sbi->s_qf_names[qtype]);
 		sbi->s_qf_names[qtype] = NULL;
-		return 0;
+		return -1;
 	}
 	set_opt(sb, QUOTA);
 	return 1;
@@ -1341,7 +1341,7 @@ static int clear_qf_name(struct super_block *sb, int qtype)
 		sbi->s_qf_names[qtype]) {
 		ext4_msg(sb, KERN_ERR, "Cannot change journaled quota options"
 			" when quota turned on");
-		return 0;
+		return -1;
 	}
 	/*
 	 * The space will be released later when all options are confirmed
@@ -1450,6 +1450,16 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 	const struct mount_opts *m;
 	int arg = 0;
 
+#ifdef CONFIG_QUOTA
+	if (token == Opt_usrjquota)
+		return set_qf_name(sb, USRQUOTA, &args[0]);
+	else if (token == Opt_grpjquota)
+		return set_qf_name(sb, GRPQUOTA, &args[0]);
+	else if (token == Opt_offusrjquota)
+		return clear_qf_name(sb, USRQUOTA);
+	else if (token == Opt_offgrpjquota)
+		return clear_qf_name(sb, GRPQUOTA);
+#endif
 	if (args->from && match_int(args, &arg))
 		return -1;
 	switch (token) {
@@ -1549,18 +1559,6 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 				sbi->s_mount_opt |= m->mount_opt;
 			}
 #ifdef CONFIG_QUOTA
-		} else if (token == Opt_usrjquota) {
-			if (!set_qf_name(sb, USRQUOTA, &args[0]))
-				return -1;
-		} else if (token == Opt_grpjquota) {
-			if (!set_qf_name(sb, GRPQUOTA, &args[0]))
-				return -1;
-		} else if (token == Opt_offusrjquota) {
-			if (!clear_qf_name(sb, USRQUOTA))
-				return -1;
-		} else if (token == Opt_offgrpjquota) {
-			if (!clear_qf_name(sb, GRPQUOTA))
-				return -1;
 		} else if (m->flags & MOPT_QFMT) {
 			if (sb_any_quota_loaded(sb) &&
 			    sbi->s_jquota_fmt != m->mount_opt) {
