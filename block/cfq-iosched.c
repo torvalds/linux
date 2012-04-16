@@ -4165,12 +4165,11 @@ static struct elevator_type iosched_cfq = {
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 static struct blkcg_policy blkcg_policy_cfq = {
-	.ops = {
-		.pd_init_fn		= cfq_pd_init,
-		.pd_reset_stats_fn	= cfq_pd_reset_stats,
-	},
-	.pd_size = sizeof(struct cfq_group),
-	.cftypes = cfq_blkcg_files,
+	.pd_size		= sizeof(struct cfq_group),
+	.cftypes		= cfq_blkcg_files,
+
+	.pd_init_fn		= cfq_pd_init,
+	.pd_reset_stats_fn	= cfq_pd_reset_stats,
 };
 #endif
 

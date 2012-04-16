@@ -78,8 +78,8 @@ static void blkg_free(struct blkcg_gq *blkg)
 		if (!pd)
 			continue;
 
-		if (pol && pol->ops.pd_exit_fn)
-			pol->ops.pd_exit_fn(blkg);
+		if (pol && pol->pd_exit_fn)
+			pol->pd_exit_fn(blkg);
 
 		kfree(pd);
 	}
@@ -132,7 +132,7 @@ static struct blkcg_gq *blkg_alloc(struct blkcg *blkcg, struct request_queue *q)
 		struct blkcg_policy *pol = blkcg_policy[i];
 
 		if (blkcg_policy_enabled(blkg->q, pol))
-			pol->ops.pd_init_fn(blkg);
+			pol->pd_init_fn(blkg);
 	}
 
 	return blkg;
@@ -305,8 +305,8 @@ static int blkcg_reset_stats(struct cgroup *cgroup, struct cftype *cftype,
 			struct blkcg_policy *pol = blkcg_policy[i];
 
 			if (blkcg_policy_enabled(blkg->q, pol) &&
-			    pol->ops.pd_reset_stats_fn)
-				pol->ops.pd_reset_stats_fn(blkg);
+			    pol->pd_reset_stats_fn)
+				pol->pd_reset_stats_fn(blkg);
 		}
 	}
 
@@ -758,7 +758,7 @@ int blkcg_activate_policy(struct request_queue *q,
 
 		blkg->pd[pol->plid] = pd;
 		pd->blkg = blkg;
-		pol->ops.pd_init_fn(blkg);
+		pol->pd_init_fn(blkg);
 
 		spin_unlock(&blkg->blkcg->lock);
 	}
@@ -804,8 +804,8 @@ void blkcg_deactivate_policy(struct request_queue *q,
 		/* grab blkcg lock too while removing @pd from @blkg */
 		spin_lock(&blkg->blkcg->lock);
 
-		if (pol->ops.pd_exit_fn)
-			pol->ops.pd_exit_fn(blkg);
+		if (pol->pd_exit_fn)
+			pol->pd_exit_fn(blkg);
 
 		kfree(blkg->pd[pol->plid]);
 		blkg->pd[pol->plid] = NULL;

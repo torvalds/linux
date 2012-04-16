@@ -1100,13 +1100,12 @@ static void throtl_shutdown_wq(struct request_queue *q)
 }
 
 static struct blkcg_policy blkcg_policy_throtl = {
-	.ops = {
-		.pd_init_fn		= throtl_pd_init,
-		.pd_exit_fn		= throtl_pd_exit,
-		.pd_reset_stats_fn	= throtl_pd_reset_stats,
-	},
-	.pd_size = sizeof(struct throtl_grp),
-	.cftypes = throtl_files,
+	.pd_size		= sizeof(struct throtl_grp),
+	.cftypes		= throtl_files,
+
+	.pd_init_fn		= throtl_pd_init,
+	.pd_exit_fn		= throtl_pd_exit,
+	.pd_reset_stats_fn	= throtl_pd_reset_stats,
 };
 
 bool blk_throtl_bio(struct request_queue *q, struct bio *bio)

@@ -99,19 +99,17 @@ typedef void (blkcg_pol_init_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_exit_pd_fn)(struct blkcg_gq *blkg);
 typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkcg_gq *blkg);
 
-struct blkcg_policy_ops {
-	blkcg_pol_init_pd_fn		*pd_init_fn;
-	blkcg_pol_exit_pd_fn		*pd_exit_fn;
-	blkcg_pol_reset_pd_stats_fn	*pd_reset_stats_fn;
-};
-
 struct blkcg_policy {
-	struct blkcg_policy_ops		ops;
 	int				plid;
 	/* policy specific private data size */
 	size_t				pd_size;
 	/* cgroup files for the policy */
 	struct cftype			*cftypes;
+
+	/* operations */
+	blkcg_pol_init_pd_fn		*pd_init_fn;
+	blkcg_pol_exit_pd_fn		*pd_exit_fn;
+	blkcg_pol_reset_pd_stats_fn	*pd_reset_stats_fn;
 };
 
 extern struct blkcg blkcg_root;
