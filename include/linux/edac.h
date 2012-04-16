@@ -13,6 +13,7 @@
 #define _LINUX_EDAC_H_
 
 #include <linux/atomic.h>
+#include <linux/device.h>
 #include <linux/kobject.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
@@ -448,14 +449,15 @@ struct edac_mc_layer {
 	__p;								\
 })
 
-
-/* FIXME: add the proper per-location error counts */
 struct dimm_info {
+	struct device dev;
+
 	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
 
 	/* Memory location data */
 	unsigned location[EDAC_MAX_LAYERS];
 
+	struct kobject kobj;		/* sysfs kobject for this csrow */
 	struct mem_ctl_info *mci;	/* the parent */
 
 	u32 grain;		/* granularity of reported error in bytes */
@@ -484,6 +486,8 @@ struct dimm_info {
  *	  patches in this series will fix this issue.
  */
 struct rank_info {
+	struct device dev;
+
 	int chan_idx;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
@@ -492,6 +496,8 @@ struct rank_info {
 };
 
 struct csrow_info {
+	struct device dev;
+
 	/* Used only by edac_mc_find_csrow_by_page() */
 	unsigned long first_page;	/* first page number in csrow */
 	unsigned long last_page;	/* last page number in csrow */
@@ -517,15 +523,6 @@ struct mcidev_sysfs_group {
 	const struct mcidev_sysfs_attribute *mcidev_attr; /* group attributes */
 };
 
-struct mcidev_sysfs_group_kobj {
-	struct list_head list;		/* list for all instances within a mc */
-
-	struct kobject kobj;		/* kobj for the group */
-
-	const struct mcidev_sysfs_group *grp;	/* group description table */
-	struct mem_ctl_info *mci;	/* the parent */
-};
-
 /* mcidev_sysfs_attribute structure
  *	used for driver sysfs attributes and in mem_ctl_info
  * 	sysfs top level entries
@@ -536,13 +533,27 @@ struct mcidev_sysfs_attribute {
 	const struct mcidev_sysfs_group *grp;	/* Points to a group of attributes */
 
 	/* Ops for show/store values at the attribute - not used on group */
-        ssize_t (*show)(struct mem_ctl_info *,char *);
-        ssize_t (*store)(struct mem_ctl_info *, const char *,size_t);
+	ssize_t (*show)(struct mem_ctl_info *, char *);
+	ssize_t (*store)(struct mem_ctl_info *, const char *, size_t);
+
+	void *priv;
+};
+
+/*
+ * struct errcount_attribute - used to store the several error counts
+ */
+struct errcount_attribute_data {
+	int n_layers;
+	int pos[EDAC_MAX_LAYERS];
+	int layer0, layer1, layer2;
 };
 
 /* MEMORY controller information structure
  */
 struct mem_ctl_info {
+	struct device			dev;
+	struct bus_type			bus;
+
 	struct list_head link;	/* for global list of mem_ctl_info structs */
 
 	struct module *owner;	/* Module owner of this control struct */
@@ -587,7 +598,15 @@ struct mem_ctl_info {
 	struct csrow_info *csrows;
 	unsigned nr_csrows, num_cschannel;
 
-	/* Memory Controller hierarchy */
+	/*
+	 * Memory Controller hierarchy
+	 *
+	 * There are basically two types of memory controller: the ones that
+	 * sees memory sticks ("dimms"), and the ones that sees memory ranks.
+	 * All old memory controllers enumerate memories per rank, but most
+	 * of the recent drivers enumerate memories per DIMM, instead.
+	 * When the memory controller is per rank, mem_is_per_rank is true.
+	 */
 	unsigned n_layers;
 	struct edac_mc_layer *layers;
 	bool mem_is_per_rank;

@@ -19,12 +19,12 @@
  *
  * edac_mc objects
  */
-extern int edac_sysfs_setup_mc_kset(void);
-extern void edac_sysfs_teardown_mc_kset(void);
-extern int edac_mc_register_sysfs_main_kobj(struct mem_ctl_info *mci);
-extern void edac_mc_unregister_sysfs_main_kobj(struct mem_ctl_info *mci);
+	/* on edac_mc_sysfs.c */
+int edac_mc_sysfs_init(void);
+void edac_mc_sysfs_exit(void);
 extern int edac_create_sysfs_mci_device(struct mem_ctl_info *mci);
 extern void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci);
+void edac_unregister_sysfs(struct mem_ctl_info *mci);
 extern int edac_get_log_ue(void);
 extern int edac_get_log_ce(void);
 extern int edac_get_panic_on_ue(void);
@@ -34,6 +34,7 @@ extern int edac_mc_get_panic_on_ue(void);
 extern int edac_get_poll_msec(void);
 extern int edac_mc_get_poll_msec(void);
 
+	/* on edac_device.c */
 extern int edac_device_register_sysfs_main_kobj(
 				struct edac_device_ctl_info *edac_dev);
 extern void edac_device_unregister_sysfs_main_kobj(
