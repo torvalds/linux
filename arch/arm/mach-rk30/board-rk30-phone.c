@@ -641,7 +641,7 @@ static struct wm8994_pdata wm8994_platform_data = {
 	.gpio_defaults[10] = 0x2100,	
 #endif		
 
-	.ldo[0]	= { RK30_PIN6_PB2, NULL, &wm8994_ldo1_data },	/* XM0FRNB_2 */
+	.ldo[0]	= { RK30_PIN3_PA6, NULL, &wm8994_ldo1_data,GPIO3A6_SDMMC0RSTNOUT_NAME, GPIO3A_GPIO3A6},	/* XM0FRNB_2 */
 	.ldo[1]	= { 0, NULL, &wm8994_ldo2_data },
 
 	.micdet_irq = 0,
@@ -655,7 +655,7 @@ static struct wm8994_pdata wm8994_platform_data = {
 #ifdef CONFIG_RK_HEADSET_DET
 #define HEADSET_GPIO RK29_PIN4_PD2
 struct rk_headset_pdata rk_headset_info = {
-	.Headset_gpio		= RK30_PIN6_PA1,
+	.Headset_gpio		= RK30_PIN6_PA5,
 	.headset_in_type= HEADSET_IN_HIGH,
 	.Hook_gpio = RK30_PIN1_PB2,//Detection Headset--Must be set
 	.hook_key_code = KEY_MEDIA,
