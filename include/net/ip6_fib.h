@@ -129,7 +129,7 @@ static inline void rt6_clean_expires(struct rt6_info *rt)
 		dst_release(rt->dst.from);
 
 	rt->rt6i_flags &= ~RTF_EXPIRES;
-	rt->dst.expires = 0;
+	rt->dst.from = NULL;
 }
 
 static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
