@@ -79,11 +79,8 @@
 #define SUB_NUM_CTL_MODES_AT_5G_40 2
 #define SUB_NUM_CTL_MODES_AT_2G_40 3
 
-#define INCREASE_MAXPOW_BY_TWO_CHAIN     6  /* 10*log10(2)*2 */
-#define INCREASE_MAXPOW_BY_THREE_CHAIN   10 /* 10*log10(3)*2 */
-
-#define REDUCE_SCALED_POWER_BY_TWO_CHAIN	6  /* 10*log10(2)*2 */
-#define REDUCE_SCALED_POWER_BY_THREE_CHAIN	10 /* 10*log10(3)*2 */
+#define POWER_CORRECTION_FOR_TWO_CHAIN		6  /* 10*log10(2)*2 */
+#define POWER_CORRECTION_FOR_THREE_CHAIN	10 /* 10*log10(3)*2 */
 
 /*
  * For AR9285 and later chipsets, the following bits are not being programmed

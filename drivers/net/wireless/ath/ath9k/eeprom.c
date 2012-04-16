@@ -303,10 +303,10 @@ u16 ath9k_hw_get_scaled_power(struct ath_hw *ah, u16 power_limit,
 	case 1:
 		break;
 	case 2:
-		reduction += REDUCE_SCALED_POWER_BY_TWO_CHAIN;
+		reduction += POWER_CORRECTION_FOR_TWO_CHAIN;
 		break;
 	case 3:
-		reduction += REDUCE_SCALED_POWER_BY_THREE_CHAIN;
+		reduction += POWER_CORRECTION_FOR_THREE_CHAIN;
 		break;
 	}
 
@@ -327,10 +327,10 @@ void ath9k_hw_update_regulatory_maxpower(struct ath_hw *ah)
 	case 1:
 		break;
 	case 2:
-		regulatory->max_power_level += INCREASE_MAXPOW_BY_TWO_CHAIN;
+		regulatory->max_power_level += POWER_CORRECTION_FOR_TWO_CHAIN;
 		break;
 	case 3:
-		regulatory->max_power_level += INCREASE_MAXPOW_BY_THREE_CHAIN;
+		regulatory->max_power_level += POWER_CORRECTION_FOR_THREE_CHAIN;
 		break;
 	default:
 		ath_dbg(common, EEPROM, "Invalid chainmask configuration\n");
