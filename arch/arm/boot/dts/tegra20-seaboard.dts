@@ -64,11 +64,6 @@
 				nvidia,pins = "dap4";
 				nvidia,function = "dap4";
 			};
-			ddc {
-				nvidia,pins = "ddc", "owc", "spdi", "spdo",
-					"uac";
-				nvidia,function = "rsvd2";
-			};
 			dta {
 				nvidia,pins = "dta", "dtb", "dtc", "dtd", "dte";
 				nvidia,function = "vi";
@@ -129,13 +124,13 @@
 					"lspi", "lvp1", "lvs";
 				nvidia,function = "displaya";
 			};
+			owc {
+				nvidia,pins = "owc", "spdi", "spdo", "uac";
+				nvidia,function = "rsvd2";
+			};
 			pmc {
 				nvidia,pins = "pmc";
 				nvidia,function = "pwr_on";
-			};
-			pta {
-				nvidia,pins = "pta";
-				nvidia,function = "i2c2";
 			};
 			rm {
 				nvidia,pins = "rm";
@@ -176,7 +171,7 @@
 			conf_ata {
 				nvidia,pins = "ata", "atb", "atc", "atd",
 					"cdev1", "cdev2", "dap1", "dap2",
-					"dap4", "dtf", "gma", "gmc", "gmd",
+					"dap4", "ddc", "dtf", "gma", "gmc", "gmd",
 					"gme", "gpu", "gpu7", "i2cp", "irrx",
 					"irtx", "pta", "rm", "sdc", "sdd",
 					"slxd", "slxk", "spdi", "spdo", "uac",
@@ -185,7 +180,7 @@
 				nvidia,tristate = <0>;
 			};
 			conf_ate {
-				nvidia,pins = "ate", "csus", "dap3", "ddc",
+				nvidia,pins = "ate", "csus", "dap3",
 					"gpv", "owc", "slxc", "spib", "spid",
 					"spie";
 				nvidia,pull = <0>;
@@ -255,6 +250,39 @@
 				nvidia,slew-rate-falling = <3>;
 			};
 		};
+
+		state_i2cmux_ddc: pinmux_i2cmux_ddc {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "i2c2";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
+
+		state_i2cmux_pta: pinmux_i2cmux_pta {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
+			};
+		};
+
+		state_i2cmux_idle: pinmux_i2cmux_idle {
+			ddc {
+				nvidia,pins = "ddc";
+				nvidia,function = "rsvd4";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "rsvd4";
+			};
+		};
 	};
 
 	i2s@70002800 {
@@ -309,6 +337,31 @@
 			reg = <0xb>;
 			ti,i2c-retry-count = <2>;
 			ti,poll-retry-count = <10>;
+		};
+	};
+
+	i2cmux {
+		compatible = "i2c-mux-pinctrl";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		i2c-parent = <&{/i2c@7000c400}>;
+
+		pinctrl-names = "ddc", "pta", "idle";
+		pinctrl-0 = <&state_i2cmux_ddc>;
+		pinctrl-1 = <&state_i2cmux_pta>;
+		pinctrl-2 = <&state_i2cmux_idle>;
+
+		i2c@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
+		i2c@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 	};
 
