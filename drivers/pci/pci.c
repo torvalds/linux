@@ -991,8 +991,8 @@ static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
 	}
 }
 
-static void pci_restore_config_space(struct pci_dev *pdev, int start, int end,
-				     int retry)
+static void pci_restore_config_space_range(struct pci_dev *pdev,
+					   int start, int end, int retry)
 {
 	int index;
 
@@ -1000,6 +1000,18 @@ static void pci_restore_config_space(struct pci_dev *pdev, int start, int end,
 		pci_restore_config_dword(pdev, 4 * index,
 					 pdev->saved_config_space[index],
 					 retry);
+}
+
+static void pci_restore_config_space(struct pci_dev *pdev)
+{
+	if (pdev->hdr_type == PCI_HEADER_TYPE_NORMAL) {
+		pci_restore_config_space_range(pdev, 10, 15, 0);
+		/* Restore BARs before the command register. */
+		pci_restore_config_space_range(pdev, 4, 9, 10);
+		pci_restore_config_space_range(pdev, 0, 3, 0);
+	} else {
+		pci_restore_config_space_range(pdev, 0, 15, 0);
+	}
 }
 
 /** 
@@ -1015,13 +1027,7 @@ void pci_restore_state(struct pci_dev *dev)
 	pci_restore_pcie_state(dev);
 	pci_restore_ats_state(dev);
 
-	pci_restore_config_space(dev, 10, 15, 0);
-	/*
-	 * The Base Address register should be programmed before the command
-	 * register(s)
-	 */
-	pci_restore_config_space(dev, 4, 9, 10);
-	pci_restore_config_space(dev, 0, 3, 0);
+	pci_restore_config_space(dev);
 
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
