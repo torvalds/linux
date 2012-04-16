@@ -71,6 +71,25 @@ enum dev_type {
 #define DEV_FLAG_X64		BIT(DEV_X64)
 
 /**
+ * enum hw_event_mc_err_type - type of the detected error
+ *
+ * @HW_EVENT_ERR_CORRECTED:	Corrected Error - Indicates that an ECC
+ *				corrected error was detected
+ * @HW_EVENT_ERR_UNCORRECTED:	Uncorrected Error - Indicates an error that
+ *				can't be corrected by ECC, but it is not
+ *				fatal (maybe it is on an unused memory area,
+ *				or the memory controller could recover from
+ *				it for example, by re-trying the operation).
+ * @HW_EVENT_ERR_FATAL:		Fatal Error - Uncorrected error that could not
+ *				be recovered.
+ */
+enum hw_event_mc_err_type {
+	HW_EVENT_ERR_CORRECTED,
+	HW_EVENT_ERR_UNCORRECTED,
+	HW_EVENT_ERR_FATAL,
+};
+
+/**
  * enum mem_type - memory types. For a more detailed reference, please see
  *			http://en.wikipedia.org/wiki/DRAM
  *
@@ -312,7 +331,89 @@ enum scrub_type {
  * PS - I enjoyed writing all that about as much as you enjoyed reading it.
  */
 
-/* FIXME: add a per-dimm ce error count */
+/**
+ * enum edac_mc_layer - memory controller hierarchy layer
+ *
+ * @EDAC_MC_LAYER_BRANCH:	memory layer is named "branch"
+ * @EDAC_MC_LAYER_CHANNEL:	memory layer is named "channel"
+ * @EDAC_MC_LAYER_SLOT:		memory layer is named "slot"
+ * @EDAC_MC_LAYER_CHIP_SELECT:	memory layer is named "chip select"
+ *
+ * This enum is used by the drivers to tell edac_mc_sysfs what name should
+ * be used when describing a memory stick location.
+ */
+enum edac_mc_layer_type {
+	EDAC_MC_LAYER_BRANCH,
+	EDAC_MC_LAYER_CHANNEL,
+	EDAC_MC_LAYER_SLOT,
+	EDAC_MC_LAYER_CHIP_SELECT,
+};
+
+/**
+ * struct edac_mc_layer - describes the memory controller hierarchy
+ * @layer:		layer type
+ * @size:		number of components per layer. For example,
+ *			if the channel layer has two channels, size = 2
+ * @is_virt_csrow:	This layer is part of the "csrow" when old API
+ *			compatibility mode is enabled. Otherwise, it is
+ *			a channel
+ */
+struct edac_mc_layer {
+	enum edac_mc_layer_type	type;
+	unsigned		size;
+	bool			is_virt_csrow;
+};
+
+/*
+ * Maximum number of layers used by the memory controller to uniquely
+ * identify a single memory stick.
+ * NOTE: Changing this constant requires not only to change the constant
+ * below, but also to change the existing code at the core, as there are
+ * some code there that are optimized for 3 layers.
+ */
+#define EDAC_MAX_LAYERS		3
+
+/**
+ * EDAC_DIMM_PTR - Macro responsible to find a pointer inside a pointer array
+ *		   for the element given by [layer0,layer1,layer2] position
+ *
+ * @layers:	a struct edac_mc_layer array, describing how many elements
+ *		were allocated for each layer
+ * @var:	name of the var where we want to get the pointer
+ *		(like mci->dimms)
+ * @n_layers:	Number of layers at the @layers array
+ * @layer0:	layer0 position
+ * @layer1:	layer1 position. Unused if n_layers < 2
+ * @layer2:	layer2 position. Unused if n_layers < 3
+ *
+ * For 1 layer, this macro returns &var[layer0]
+ * For 2 layers, this macro is similar to allocate a bi-dimensional array
+ *		and to return "&var[layer0][layer1]"
+ * For 3 layers, this macro is similar to allocate a tri-dimensional array
+ *		and to return "&var[layer0][layer1][layer2]"
+ *
+ * A loop could be used here to make it more generic, but, as we only have
+ * 3 layers, this is a little faster.
+ * By design, layers can never be 0 or more than 3. If that ever happens,
+ * a NULL is returned, causing an OOPS during the memory allocation routine,
+ * with would point to the developer that he's doing something wrong.
+ */
+#define EDAC_DIMM_PTR(layers, var, nlayers, layer0, layer1, layer2) ({	\
+	typeof(var) __p;						\
+	if ((nlayers) == 1)						\
+		__p = &var[layer0];					\
+	else if ((nlayers) == 2)					\
+		__p = &var[(layer1) + ((layers[1]).size * (layer0))];	\
+	else if ((nlayers) == 3)					\
+		__p = &var[(layer2) + ((layers[2]).size * ((layer1) +	\
+			    ((layers[1]).size * (layer0))))];		\
+	else								\
+		__p = NULL;						\
+	__p;								\
+})
+
+
+/* FIXME: add the proper per-location error counts */
 struct dimm_info {
 	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
 	unsigned memory_controller;
