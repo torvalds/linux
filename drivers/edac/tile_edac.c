@@ -71,7 +71,10 @@ static void tile_edac_check(struct mem_ctl_info *mci)
 	if (mem_error.sbe_count != priv->ce_count) {
 		dev_dbg(mci->dev, "ECC CE err on node %d\n", priv->node);
 		priv->ce_count = mem_error.sbe_count;
-		edac_mc_handle_ce(mci, 0, 0, 0, 0, 0, mci->ctl_name);
+		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+				     0, 0, 0,
+				     0, 0, -1,
+				     mci->ctl_name, "", NULL);
 	}
 }
 
@@ -122,6 +125,7 @@ static int __devinit tile_edac_mc_probe(struct platform_device *pdev)
 	char			hv_file[32];
 	int			hv_devhdl;
 	struct mem_ctl_info	*mci;
+	struct edac_mc_layer	layers[2];
 	struct tile_edac_priv	*priv;
 	int			rc;
 
@@ -131,8 +135,14 @@ static int __devinit tile_edac_mc_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	/* A TILE MC has a single channel and one chip-select row. */
-	mci = edac_mc_alloc(sizeof(struct tile_edac_priv),
-		TILE_EDAC_NR_CSROWS, TILE_EDAC_NR_CHANS, pdev->id);
+	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
+	layers[0].size = TILE_EDAC_NR_CSROWS;
+	layers[0].is_virt_csrow = true;
+	layers[1].type = EDAC_MC_LAYER_CHANNEL;
+	layers[1].size = TILE_EDAC_NR_CHANS;
+	layers[1].is_virt_csrow = false;
+	mci = new_edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
+			    sizeof(struct tile_edac_priv));
 	if (mci == NULL)
 		return -ENOMEM;
 	priv = mci->pvt_info;
