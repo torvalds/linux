@@ -17,7 +17,7 @@
 #include "blk.h"
 #include "blk-cgroup.h"
 
-static struct blkio_policy_type blkio_policy_cfq __maybe_unused;
+static struct blkcg_policy blkcg_policy_cfq __maybe_unused;
 
 /*
  * tunables
@@ -202,7 +202,7 @@ struct cfqg_stats {
 	struct blkg_stat		dequeue;
 	/* total time spent waiting for it to be assigned a timeslice. */
 	struct blkg_stat		group_wait_time;
-	/* time spent idling for this blkio_group */
+	/* time spent idling for this blkcg_gq */
 	struct blkg_stat		idle_time;
 	/* total time with empty current active q with other requests queued */
 	struct blkg_stat		empty_time;
@@ -553,12 +553,12 @@ static inline void cfqg_stats_update_avg_queue_size(struct cfq_group *cfqg) { }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
 
-static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg)
+static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg)
 {
-	return blkg_to_pdata(blkg, &blkio_policy_cfq);
+	return blkg_to_pdata(blkg, &blkcg_policy_cfq);
 }
 
-static inline struct blkio_group *cfqg_to_blkg(struct cfq_group *cfqg)
+static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg)
 {
 	return pdata_to_blkg(cfqg);
 }
@@ -637,7 +637,7 @@ static inline void cfqg_stats_update_completion(struct cfq_group *cfqg,
 				io_start_time - start_time);
 }
 
-static void cfqg_stats_reset(struct blkio_group *blkg)
+static void cfq_pd_reset_stats(struct blkcg_gq *blkg)
 {
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 	struct cfqg_stats *stats = &cfqg->stats;
@@ -662,8 +662,8 @@ static void cfqg_stats_reset(struct blkio_group *blkg)
 
 #else	/* CONFIG_CFQ_GROUP_IOSCHED */
 
-static inline struct cfq_group *blkg_to_cfqg(struct blkio_group *blkg) { return NULL; }
-static inline struct blkio_group *cfqg_to_blkg(struct cfq_group *cfqg) { return NULL; }
+static inline struct cfq_group *blkg_to_cfqg(struct blkcg_gq *blkg) { return NULL; }
+static inline struct blkcg_gq *cfqg_to_blkg(struct cfq_group *cfqg) { return NULL; }
 static inline void cfqg_get(struct cfq_group *cfqg) { }
 static inline void cfqg_put(struct cfq_group *cfqg) { }
 
@@ -1331,7 +1331,7 @@ static void cfq_init_cfqg_base(struct cfq_group *cfqg)
 }
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static void cfq_init_blkio_group(struct blkio_group *blkg)
+static void cfq_pd_init(struct blkcg_gq *blkg)
 {
 	struct cfq_group *cfqg = blkg_to_cfqg(blkg);
 
@@ -1344,16 +1344,16 @@ static void cfq_init_blkio_group(struct blkio_group *blkg)
  * be held.
  */
 static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
-						struct blkio_cgroup *blkcg)
+						struct blkcg *blkcg)
 {
 	struct request_queue *q = cfqd->queue;
 	struct cfq_group *cfqg = NULL;
 
-	/* avoid lookup for the common case where there's no blkio cgroup */
-	if (blkcg == &blkio_root_cgroup) {
+	/* avoid lookup for the common case where there's no blkcg */
+	if (blkcg == &blkcg_root) {
 		cfqg = cfqd->root_group;
 	} else {
-		struct blkio_group *blkg;
+		struct blkcg_gq *blkg;
 
 		blkg = blkg_lookup_create(blkcg, q);
 		if (!IS_ERR(blkg))
@@ -1386,8 +1386,8 @@ static u64 cfqg_prfill_weight_device(struct seq_file *sf, void *pdata, int off)
 static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
 				    struct seq_file *sf)
 {
-	blkcg_print_blkgs(sf, cgroup_to_blkio_cgroup(cgrp),
-			  cfqg_prfill_weight_device, &blkio_policy_cfq, 0,
+	blkcg_print_blkgs(sf, cgroup_to_blkcg(cgrp),
+			  cfqg_prfill_weight_device, &blkcg_policy_cfq, 0,
 			  false);
 	return 0;
 }
@@ -1395,19 +1395,19 @@ static int cfqg_print_weight_device(struct cgroup *cgrp, struct cftype *cft,
 static int cfq_print_weight(struct cgroup *cgrp, struct cftype *cft,
 			    struct seq_file *sf)
 {
-	seq_printf(sf, "%u\n", cgroup_to_blkio_cgroup(cgrp)->cfq_weight);
+	seq_printf(sf, "%u\n", cgroup_to_blkcg(cgrp)->cfq_weight);
 	return 0;
 }
 
 static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 				  const char *buf)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 	struct blkg_conf_ctx ctx;
 	struct cfq_group *cfqg;
 	int ret;
 
-	ret = blkg_conf_prep(blkcg, &blkio_policy_cfq, buf, &ctx);
+	ret = blkg_conf_prep(blkcg, &blkcg_policy_cfq, buf, &ctx);
 	if (ret)
 		return ret;
 
@@ -1425,8 +1425,8 @@ static int cfqg_set_weight_device(struct cgroup *cgrp, struct cftype *cft,
 
 static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
-	struct blkio_group *blkg;
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
+	struct blkcg_gq *blkg;
 	struct hlist_node *n;
 
 	if (val < CFQ_WEIGHT_MIN || val > CFQ_WEIGHT_MAX)
@@ -1449,9 +1449,9 @@ static int cfq_set_weight(struct cgroup *cgrp, struct cftype *cft, u64 val)
 static int cfqg_print_stat(struct cgroup *cgrp, struct cftype *cft,
 			   struct seq_file *sf)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_stat, &blkio_policy_cfq,
+	blkcg_print_blkgs(sf, blkcg, blkg_prfill_stat, &blkcg_policy_cfq,
 			  cft->private, false);
 	return 0;
 }
@@ -1459,9 +1459,9 @@ static int cfqg_print_stat(struct cgroup *cgrp, struct cftype *cft,
 static int cfqg_print_rwstat(struct cgroup *cgrp, struct cftype *cft,
 			     struct seq_file *sf)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 
-	blkcg_print_blkgs(sf, blkcg, blkg_prfill_rwstat, &blkio_policy_cfq,
+	blkcg_print_blkgs(sf, blkcg, blkg_prfill_rwstat, &blkcg_policy_cfq,
 			  cft->private, true);
 	return 0;
 }
@@ -1485,10 +1485,10 @@ static u64 cfqg_prfill_avg_queue_size(struct seq_file *sf, void *pdata, int off)
 static int cfqg_print_avg_queue_size(struct cgroup *cgrp, struct cftype *cft,
 				     struct seq_file *sf)
 {
-	struct blkio_cgroup *blkcg = cgroup_to_blkio_cgroup(cgrp);
+	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 
 	blkcg_print_blkgs(sf, blkcg, cfqg_prfill_avg_queue_size,
-			  &blkio_policy_cfq, 0, false);
+			  &blkcg_policy_cfq, 0, false);
 	return 0;
 }
 #endif	/* CONFIG_DEBUG_BLK_CGROUP */
@@ -1580,7 +1580,7 @@ static struct cftype cfq_blkcg_files[] = {
 };
 #else /* GROUP_IOSCHED */
 static struct cfq_group *cfq_lookup_create_cfqg(struct cfq_data *cfqd,
-						struct blkio_cgroup *blkcg)
+						struct blkcg *blkcg)
 {
 	return cfqd->root_group;
 }
@@ -3135,7 +3135,7 @@ static void check_blkcg_changed(struct cfq_io_cq *cic, struct bio *bio)
 	uint64_t id;
 
 	rcu_read_lock();
-	id = bio_blkio_cgroup(bio)->id;
+	id = bio_blkcg(bio)->id;
 	rcu_read_unlock();
 
 	/*
@@ -3166,14 +3166,14 @@ static struct cfq_queue *
 cfq_find_alloc_queue(struct cfq_data *cfqd, bool is_sync, struct cfq_io_cq *cic,
 		     struct bio *bio, gfp_t gfp_mask)
 {
-	struct blkio_cgroup *blkcg;
+	struct blkcg *blkcg;
 	struct cfq_queue *cfqq, *new_cfqq = NULL;
 	struct cfq_group *cfqg;
 
 retry:
 	rcu_read_lock();
 
-	blkcg = bio_blkio_cgroup(bio);
+	blkcg = bio_blkcg(bio);
 	cfqg = cfq_lookup_create_cfqg(cfqd, blkcg);
 	cfqq = cic_to_cfqq(cic, is_sync);
 
@@ -3944,14 +3944,14 @@ static void cfq_exit_queue(struct elevator_queue *e)
 #ifndef CONFIG_CFQ_GROUP_IOSCHED
 	kfree(cfqd->root_group);
 #endif
-	blkcg_deactivate_policy(q, &blkio_policy_cfq);
+	blkcg_deactivate_policy(q, &blkcg_policy_cfq);
 	kfree(cfqd);
 }
 
 static int cfq_init_queue(struct request_queue *q)
 {
 	struct cfq_data *cfqd;
-	struct blkio_group *blkg __maybe_unused;
+	struct blkcg_gq *blkg __maybe_unused;
 	int i, ret;
 
 	cfqd = kmalloc_node(sizeof(*cfqd), GFP_KERNEL | __GFP_ZERO, q->node);
@@ -3966,7 +3966,7 @@ static int cfq_init_queue(struct request_queue *q)
 
 	/* Init root group and prefer root group over other groups by default */
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-	ret = blkcg_activate_policy(q, &blkio_policy_cfq);
+	ret = blkcg_activate_policy(q, &blkcg_policy_cfq);
 	if (ret)
 		goto out_free;
 
@@ -4156,10 +4156,10 @@ static struct elevator_type iosched_cfq = {
 };
 
 #ifdef CONFIG_CFQ_GROUP_IOSCHED
-static struct blkio_policy_type blkio_policy_cfq = {
+static struct blkcg_policy blkcg_policy_cfq = {
 	.ops = {
-		.blkio_init_group_fn =		cfq_init_blkio_group,
-		.blkio_reset_group_stats_fn =	cfqg_stats_reset,
+		.pd_init_fn		= cfq_pd_init,
+		.pd_reset_stats_fn	= cfq_pd_reset_stats,
 	},
 	.pdata_size = sizeof(struct cfq_group),
 	.cftypes = cfq_blkcg_files,
@@ -4185,7 +4185,7 @@ static int __init cfq_init(void)
 		cfq_group_idle = 0;
 #endif
 
-	ret = blkio_policy_register(&blkio_policy_cfq);
+	ret = blkcg_policy_register(&blkcg_policy_cfq);
 	if (ret)
 		return ret;
 
@@ -4202,13 +4202,13 @@ static int __init cfq_init(void)
 err_free_pool:
 	kmem_cache_destroy(cfq_pool);
 err_pol_unreg:
-	blkio_policy_unregister(&blkio_policy_cfq);
+	blkcg_policy_unregister(&blkcg_policy_cfq);
 	return ret;
 }
 
 static void __exit cfq_exit(void)
 {
-	blkio_policy_unregister(&blkio_policy_cfq);
+	blkcg_policy_unregister(&blkcg_policy_cfq);
 	elv_unregister(&iosched_cfq);
 	kmem_cache_destroy(cfq_pool);
 }

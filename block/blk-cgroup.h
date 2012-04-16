@@ -37,7 +37,7 @@ enum blkg_rwstat_type {
 	BLKG_RWSTAT_TOTAL = BLKG_RWSTAT_NR,
 };
 
-struct blkio_cgroup {
+struct blkcg {
 	struct cgroup_subsys_state	css;
 	spinlock_t			lock;
 	struct hlist_head		blkg_list;
@@ -45,7 +45,7 @@ struct blkio_cgroup {
 	/* for policies to test whether associated blkcg has changed */
 	uint64_t			id;
 
-	/* TODO: per-policy storage in blkio_cgroup */
+	/* TODO: per-policy storage in blkcg */
 	unsigned int			cfq_weight;	/* belongs to cfq */
 };
 
@@ -62,7 +62,7 @@ struct blkg_rwstat {
 /* per-blkg per-policy data */
 struct blkg_policy_data {
 	/* the blkg this per-policy data belongs to */
-	struct blkio_group		*blkg;
+	struct blkcg_gq			*blkg;
 
 	/* used during policy activation */
 	struct list_head		alloc_node;
@@ -71,12 +71,13 @@ struct blkg_policy_data {
 	char				pdata[] __aligned(__alignof__(unsigned long long));
 };
 
-struct blkio_group {
+/* association between a blk cgroup and a request queue */
+struct blkcg_gq {
 	/* Pointer to the associated request_queue */
 	struct request_queue		*q;
 	struct list_head		q_node;
 	struct hlist_node		blkcg_node;
-	struct blkio_cgroup		*blkcg;
+	struct blkcg			*blkcg;
 	/* reference count */
 	int				refcnt;
 
@@ -85,18 +86,18 @@ struct blkio_group {
 	struct rcu_head			rcu_head;
 };
 
-typedef void (blkio_init_group_fn)(struct blkio_group *blkg);
-typedef void (blkio_exit_group_fn)(struct blkio_group *blkg);
-typedef void (blkio_reset_group_stats_fn)(struct blkio_group *blkg);
+typedef void (blkcg_pol_init_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_exit_pd_fn)(struct blkcg_gq *blkg);
+typedef void (blkcg_pol_reset_pd_stats_fn)(struct blkcg_gq *blkg);
 
-struct blkio_policy_ops {
-	blkio_init_group_fn		*blkio_init_group_fn;
-	blkio_exit_group_fn		*blkio_exit_group_fn;
-	blkio_reset_group_stats_fn	*blkio_reset_group_stats_fn;
+struct blkcg_policy_ops {
+	blkcg_pol_init_pd_fn		*pd_init_fn;
+	blkcg_pol_exit_pd_fn		*pd_exit_fn;
+	blkcg_pol_reset_pd_stats_fn	*pd_reset_stats_fn;
 };
 
-struct blkio_policy_type {
-	struct blkio_policy_ops		ops;
+struct blkcg_policy {
+	struct blkcg_policy_ops		ops;
 	int				plid;
 	/* policy specific private data size */
 	size_t				pdata_size;
@@ -104,29 +105,28 @@ struct blkio_policy_type {
 	struct cftype			*cftypes;
 };
 
-extern struct blkio_cgroup blkio_root_cgroup;
+extern struct blkcg blkcg_root;
 
-struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup);
-struct blkio_cgroup *bio_blkio_cgroup(struct bio *bio);
-struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg,
-				struct request_queue *q);
-struct blkio_group *blkg_lookup_create(struct blkio_cgroup *blkcg,
-				       struct request_queue *q);
+struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup);
+struct blkcg *bio_blkcg(struct bio *bio);
+struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, struct request_queue *q);
+struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
+				    struct request_queue *q);
 int blkcg_init_queue(struct request_queue *q);
 void blkcg_drain_queue(struct request_queue *q);
 void blkcg_exit_queue(struct request_queue *q);
 
 /* Blkio controller policy registration */
-int blkio_policy_register(struct blkio_policy_type *);
-void blkio_policy_unregister(struct blkio_policy_type *);
+int blkcg_policy_register(struct blkcg_policy *pol);
+void blkcg_policy_unregister(struct blkcg_policy *pol);
 int blkcg_activate_policy(struct request_queue *q,
-			  const struct blkio_policy_type *pol);
+			  const struct blkcg_policy *pol);
 void blkcg_deactivate_policy(struct request_queue *q,
-			     const struct blkio_policy_type *pol);
+			     const struct blkcg_policy *pol);
 
-void blkcg_print_blkgs(struct seq_file *sf, struct blkio_cgroup *blkcg,
+void blkcg_print_blkgs(struct seq_file *sf, struct blkcg *blkcg,
 		       u64 (*prfill)(struct seq_file *, void *, int),
-		       const struct blkio_policy_type *pol, int data,
+		       const struct blkcg_policy *pol, int data,
 		       bool show_total);
 u64 __blkg_prfill_u64(struct seq_file *sf, void *pdata, u64 v);
 u64 __blkg_prfill_rwstat(struct seq_file *sf, void *pdata,
@@ -136,13 +136,12 @@ u64 blkg_prfill_rwstat(struct seq_file *sf, void *pdata, int off);
 
 struct blkg_conf_ctx {
 	struct gendisk			*disk;
-	struct blkio_group		*blkg;
+	struct blkcg_gq			*blkg;
 	u64				v;
 };
 
-int blkg_conf_prep(struct blkio_cgroup *blkcg,
-		   const struct blkio_policy_type *pol, const char *input,
-		   struct blkg_conf_ctx *ctx);
+int blkg_conf_prep(struct blkcg *blkcg, const struct blkcg_policy *pol,
+		   const char *input, struct blkg_conf_ctx *ctx);
 void blkg_conf_finish(struct blkg_conf_ctx *ctx);
 
 
@@ -153,8 +152,8 @@ void blkg_conf_finish(struct blkg_conf_ctx *ctx);
  *
  * Return pointer to private data associated with the @blkg-@pol pair.
  */
-static inline void *blkg_to_pdata(struct blkio_group *blkg,
-			      struct blkio_policy_type *pol)
+static inline void *blkg_to_pdata(struct blkcg_gq *blkg,
+				  struct blkcg_policy *pol)
 {
 	return blkg ? blkg->pd[pol->plid]->pdata : NULL;
 }
@@ -165,7 +164,7 @@ static inline void *blkg_to_pdata(struct blkio_group *blkg,
  *
  * @pdata is policy private data.  Determine the blkg it's associated with.
  */
-static inline struct blkio_group *pdata_to_blkg(void *pdata)
+static inline struct blkcg_gq *pdata_to_blkg(void *pdata)
 {
 	if (pdata) {
 		struct blkg_policy_data *pd =
@@ -183,7 +182,7 @@ static inline struct blkio_group *pdata_to_blkg(void *pdata)
  *
  * Format the path of the cgroup of @blkg into @buf.
  */
-static inline int blkg_path(struct blkio_group *blkg, char *buf, int buflen)
+static inline int blkg_path(struct blkcg_gq *blkg, char *buf, int buflen)
 {
 	int ret;
 
@@ -201,14 +200,14 @@ static inline int blkg_path(struct blkio_group *blkg, char *buf, int buflen)
  *
  * The caller should be holding queue_lock and an existing reference.
  */
-static inline void blkg_get(struct blkio_group *blkg)
+static inline void blkg_get(struct blkcg_gq *blkg)
 {
 	lockdep_assert_held(blkg->q->queue_lock);
 	WARN_ON_ONCE(!blkg->refcnt);
 	blkg->refcnt++;
 }
 
-void __blkg_release(struct blkio_group *blkg);
+void __blkg_release(struct blkcg_gq *blkg);
 
 /**
  * blkg_put - put a blkg reference
@@ -216,7 +215,7 @@ void __blkg_release(struct blkio_group *blkg);
  *
  * The caller should be holding queue_lock.
  */
-static inline void blkg_put(struct blkio_group *blkg)
+static inline void blkg_put(struct blkcg_gq *blkg)
 {
 	lockdep_assert_held(blkg->q->queue_lock);
 	WARN_ON_ONCE(blkg->refcnt <= 0);
@@ -343,32 +342,32 @@ static inline void blkg_rwstat_reset(struct blkg_rwstat *rwstat)
 
 struct cgroup;
 
-struct blkio_group {
+struct blkcg_gq {
 };
 
-struct blkio_policy_type {
+struct blkcg_policy {
 };
 
-static inline struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup) { return NULL; }
-static inline struct blkio_cgroup *bio_blkio_cgroup(struct bio *bio) { return NULL; }
-static inline struct blkio_group *blkg_lookup(struct blkio_cgroup *blkcg, void *key) { return NULL; }
+static inline struct blkcg *cgroup_to_blkcg(struct cgroup *cgroup) { return NULL; }
+static inline struct blkcg *bio_blkcg(struct bio *bio) { return NULL; }
+static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg, void *key) { return NULL; }
 static inline int blkcg_init_queue(struct request_queue *q) { return 0; }
 static inline void blkcg_drain_queue(struct request_queue *q) { }
 static inline void blkcg_exit_queue(struct request_queue *q) { }
-static inline int blkio_policy_register(struct blkio_policy_type *blkiop) { return 0; }
-static inline void blkio_policy_unregister(struct blkio_policy_type *blkiop) { }
+static inline int blkcg_policy_register(struct blkcg_policy *pol) { return 0; }
+static inline void blkcg_policy_unregister(struct blkcg_policy *pol) { }
 static inline int blkcg_activate_policy(struct request_queue *q,
-					const struct blkio_policy_type *pol) { return 0; }
+					const struct blkcg_policy *pol) { return 0; }
 static inline void blkcg_deactivate_policy(struct request_queue *q,
-					   const struct blkio_policy_type *pol) { }
+					   const struct blkcg_policy *pol) { }
 
-static inline void *blkg_to_pdata(struct blkio_group *blkg,
-				struct blkio_policy_type *pol) { return NULL; }
-static inline struct blkio_group *pdata_to_blkg(void *pdata,
-				struct blkio_policy_type *pol) { return NULL; }
-static inline char *blkg_path(struct blkio_group *blkg) { return NULL; }
-static inline void blkg_get(struct blkio_group *blkg) { }
-static inline void blkg_put(struct blkio_group *blkg) { }
+static inline void *blkg_to_pdata(struct blkcg_gq *blkg,
+				  struct blkcg_policy *pol) { return NULL; }
+static inline struct blkcg_gq *pdata_to_blkg(void *pdata,
+				  struct blkcg_policy *pol) { return NULL; }
+static inline char *blkg_path(struct blkcg_gq *blkg) { return NULL; }
+static inline void blkg_get(struct blkcg_gq *blkg) { }
+static inline void blkg_put(struct blkcg_gq *blkg) { }
 
 #endif	/* CONFIG_BLK_CGROUP */
 #endif	/* _BLK_CGROUP_H */

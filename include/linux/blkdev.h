@@ -31,7 +31,7 @@ struct blk_trace;
 struct request;
 struct sg_io_hdr;
 struct bsg_job;
-struct blkio_group;
+struct blkcg_gq;
 
 #define BLKDEV_MIN_RQ	4
 #define BLKDEV_MAX_RQ	128	/* Default maximum */
@@ -371,7 +371,7 @@ struct request_queue {
 	struct list_head	icq_list;
 #ifdef CONFIG_BLK_CGROUP
 	DECLARE_BITMAP		(blkcg_pols, BLKCG_MAX_POLS);
-	struct blkio_group	*root_blkg;
+	struct blkcg_gq		*root_blkg;
 	struct list_head	blkg_list;
 #endif
 
