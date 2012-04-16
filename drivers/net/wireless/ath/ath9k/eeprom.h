@@ -699,6 +699,14 @@ void ath9k_hw_get_gain_boundaries_pdadcs(struct ath_hw *ah,
 				u16 *pPdGainBoundaries, u8 *pPDADCValues,
 				u16 numXpdGains);
 
+static inline u16 ath9k_hw_fbin2freq(u8 fbin, bool is2GHz)
+{
+	if (fbin == AR5416_BCHAN_UNUSED)
+		return fbin;
+
+	return (u16) ((is2GHz) ? (2300 + fbin) : (4800 + 5 * fbin));
+}
+
 #define ar5416_get_ntxchains(_txchainmask)			\
 	(((_txchainmask >> 2) & 1) +                            \
 	 ((_txchainmask >> 1) & 1) + (_txchainmask & 1))
