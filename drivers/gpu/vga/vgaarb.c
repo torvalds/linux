@@ -136,6 +136,11 @@ struct pci_dev *vga_default_device(void)
 {
 	return vga_default;
 }
+
+void vga_set_default_device(struct pci_dev *pdev)
+{
+	vga_default = pdev;
+}
 #endif
 
 static inline void vga_irq_set_state(struct vga_device *vgadev, bool state)
@@ -605,10 +610,12 @@ static bool vga_arbiter_del_pci_device(struct pci_dev *pdev)
 		goto bail;
 	}
 
+#ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 	if (vga_default == pdev) {
 		pci_dev_put(vga_default);
 		vga_default = NULL;
 	}
+#endif
 
 	if (vgadev->decodes & (VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM))
 		vga_decode_count--;

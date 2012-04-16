@@ -31,6 +31,7 @@
 #ifndef LINUX_VGA_H
 #define LINUX_VGA_H
 
+#include <video/vga.h>
 
 /* Legacy VGA regions */
 #define VGA_RSRC_NONE	       0x00
@@ -181,6 +182,7 @@ extern void vga_put(struct pci_dev *pdev, unsigned int rsrc);
 
 #ifndef __ARCH_HAS_VGA_DEFAULT_DEVICE
 extern struct pci_dev *vga_default_device(void);
+extern void vga_set_default_device(struct pci_dev *pdev);
 #endif
 
 /**
