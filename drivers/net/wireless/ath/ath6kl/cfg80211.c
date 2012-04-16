@@ -3121,7 +3121,7 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 
 	ath6kl_wmi_scanparams_cmd(ar->wmi, vif->fw_vif_idx,
 				  interval, interval,
-				  10, 0, 0, 0, 3, 0, 0, 0);
+				  vif->bg_scan_period, 0, 0, 0, 3, 0, 0, 0);
 
 	if (request->n_ssids && request->ssids[0].ssid_len) {
 		for (i = 0; i < request->n_ssids; i++) {
