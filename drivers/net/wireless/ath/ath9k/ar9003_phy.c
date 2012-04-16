@@ -208,11 +208,12 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 			continue;
 		negative = 0;
 		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
-			cur_bb_spur = FBIN2FREQ(spur_fbin_ptr[i],
-					IS_CHAN_2GHZ(chan)) - synth_freq;
+			cur_bb_spur = ath9k_hw_fbin2freq(spur_fbin_ptr[i],
+							 IS_CHAN_2GHZ(chan));
 		else
-			cur_bb_spur = spur_freq[i] - synth_freq;
+			cur_bb_spur = spur_freq[i];
 
+		cur_bb_spur -= synth_freq;
 		if (cur_bb_spur < 0) {
 			negative = 1;
 			cur_bb_spur = -cur_bb_spur;
@@ -442,7 +443,8 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 	ar9003_hw_spur_ofdm_clear(ah);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
-		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
+		freq_offset = ath9k_hw_fbin2freq(spurChansPtr[i], mode);
+		freq_offset -= synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);
 			break;
