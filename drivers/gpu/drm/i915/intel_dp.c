@@ -1149,6 +1149,7 @@ static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("Turn eDP power off\n");
 
 	WARN(intel_dp->want_panel_vdd, "Cannot turn power off while VDD is on\n");
+	ironlake_panel_vdd_off_sync(intel_dp); /* finish any pending work */
 
 	pp = ironlake_get_pp_control(dev_priv);
 	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
