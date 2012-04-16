@@ -9503,7 +9503,7 @@ struct intel_quirk {
 	void (*hook)(struct drm_device *dev);
 };
 
-struct intel_quirk intel_quirks[] = {
+static struct intel_quirk intel_quirks[] = {
 	/* HP Mini needs pipe A force quirk (LP: #322104) */
 	{ 0x27ae, 0x103c, 0x361a, quirk_pipea_force },
 

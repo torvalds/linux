@@ -1832,7 +1832,7 @@ static int i915_forcewake_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int i915_forcewake_release(struct inode *inode, struct file *file)
+static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_device *dev = inode->i_private;
 	struct drm_i915_private *dev_priv = dev->dev_private;

@@ -891,8 +891,8 @@ err:
 	return ret;
 }
 
-int intel_init_ring_buffer(struct drm_device *dev,
-			   struct intel_ring_buffer *ring)
+static int intel_init_ring_buffer(struct drm_device *dev,
+				  struct intel_ring_buffer *ring)
 {
 	struct drm_i915_gem_object *obj;
 	int ret;

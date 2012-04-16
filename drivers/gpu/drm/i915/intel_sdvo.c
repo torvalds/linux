@@ -1258,7 +1258,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 						    dev_priv->crt_ddc_pin));
 }
 
-enum drm_connector_status
+static enum drm_connector_status
 intel_sdvo_tmds_sink_detect(struct drm_connector *connector)
 {
 	struct intel_sdvo *intel_sdvo = intel_attached_sdvo(connector);
