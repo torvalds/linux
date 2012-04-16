@@ -97,11 +97,9 @@ static inline void iwl_set_calib_hdr(struct iwl_calib_hdr *hdr, u8 cmd)
 void iwl_down(struct iwl_priv *priv);
 void iwl_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_prepare_restart(struct iwl_priv *priv);
-void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb);
 int __must_check iwl_rx_dispatch(struct iwl_op_mode *op_mode,
 				 struct iwl_rx_cmd_buffer *rxb,
 				 struct iwl_device_cmd *cmd);
-void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state);
 
 bool iwl_check_for_ct_kill(struct iwl_priv *priv);
 
@@ -119,6 +117,8 @@ int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,
 			 u32 flags, u16 len, const void *data);
 
 /* RXON */
+void iwl_connection_init_rx_config(struct iwl_priv *priv,
+				   struct iwl_rxon_context *ctx);
 int iwlagn_set_pan_params(struct iwl_priv *priv);
 int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
 void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx);
@@ -129,6 +129,14 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 			     u32 changes);
 void iwlagn_config_ht40(struct ieee80211_conf *conf,
 			struct iwl_rxon_context *ctx);
+void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
+void iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch,
+			 struct iwl_rxon_context *ctx);
+void iwl_set_flags_for_band(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    enum ieee80211_band band,
+			    struct ieee80211_vif *vif);
+void iwl_set_rate(struct iwl_priv *priv);
 
 /* uCode */
 int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
@@ -141,9 +149,9 @@ int iwl_send_calib_results(struct iwl_priv *priv);
 int iwl_calib_set(struct iwl_priv *priv,
 		  const struct iwl_calib_hdr *cmd, int len);
 void iwl_calib_free_results(struct iwl_priv *priv);
-void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand);
 int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 			    char **buf, bool display);
+int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 
 /* lib */
 int iwlagn_send_tx_power(struct iwl_priv *priv);
@@ -151,6 +159,15 @@ void iwlagn_temperature(struct iwl_priv *priv);
 int iwlagn_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control);
 int iwlagn_send_beacon_cmd(struct iwl_priv *priv);
+int iwl_send_statistics_request(struct iwl_priv *priv,
+				u8 flags, bool clear);
+
+static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
+			struct iwl_priv *priv, enum ieee80211_band band)
+{
+	return priv->hw->wiphy->bands[band];
+}
+
 #ifdef CONFIG_PM_SLEEP
 int iwlagn_send_patterns(struct iwl_priv *priv,
 			 struct cfg80211_wowlan *wowlan);
@@ -160,6 +177,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan);
 /* rx */
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 void iwl_setup_rx_handlers(struct iwl_priv *priv);
+void iwl_chswitch_done(struct iwl_priv *priv, bool is_success);
 
 
 /* tx */
@@ -205,6 +223,30 @@ u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 void iwlagn_post_scan(struct iwl_priv *priv);
 void iwlagn_disable_roc(struct iwl_priv *priv);
 int iwl_force_rf_reset(struct iwl_priv *priv, bool external);
+void iwl_init_scan_params(struct iwl_priv *priv);
+int iwl_scan_cancel(struct iwl_priv *priv);
+void iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
+void iwl_force_scan_end(struct iwl_priv *priv);
+void iwl_internal_short_hw_scan(struct iwl_priv *priv);
+void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
+void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
+void iwl_cancel_scan_deferred_work(struct iwl_priv *priv);
+int __must_check iwl_scan_initiate(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif,
+				   enum iwl_scan_type scan_type,
+				   enum ieee80211_band band);
+
+/* For faster active scanning, scan will move to the next channel if fewer than
+ * PLCP_QUIET_THRESH packets are heard on this channel within
+ * ACTIVE_QUIET_TIME after sending probe request.  This shortens the dwell
+ * time if it's a quiet channel (nothing responded to our probe, and there's
+ * no other traffic).
+ * Disable "quiet" feature by setting PLCP_QUIET_THRESH to 0. */
+#define IWL_ACTIVE_QUIET_TIME       cpu_to_le16(10)  /* msec */
+#define IWL_PLCP_QUIET_THRESH       cpu_to_le16(1)  /* packets */
+
+#define IWL_SCAN_CHECK_WATCHDOG		(HZ * 7)
+
 
 /* bt coex */
 void iwlagn_send_advance_bt_config(struct iwl_priv *priv);
@@ -216,6 +258,12 @@ void iwlagn_bt_setup_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_cancel_deferred_work(struct iwl_priv *priv);
 void iwlagn_bt_coex_rssi_monitor(struct iwl_priv *priv);
 void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena);
+
+static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
+{
+	return cfg(priv)->bt_params &&
+	       cfg(priv)->bt_params->advanced_bt_coexist;
+}
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 const char *iwl_get_tx_fail_reason(u32 status);
@@ -255,8 +303,6 @@ void iwl_deactivate_station(struct iwl_priv *priv, const u8 sta_id,
 u8 iwl_prep_station(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    const u8 *addr, bool is_ap, struct ieee80211_sta *sta);
 
-void iwl_sta_fill_lq(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
-		     u8 sta_id, struct iwl_link_quality_cmd *link_cmd);
 int iwl_send_lq_cmd(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		    struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
@@ -264,6 +310,9 @@ int iwl_add_sta_callback(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 int iwl_sta_update_ht(struct iwl_priv *priv, struct iwl_rxon_context *ctx,
 		      struct ieee80211_sta *sta);
 
+bool iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
+			    struct iwl_rxon_context *ctx,
+			    struct ieee80211_sta_ht_cap *ht_cap);
 
 static inline int iwl_sta_id(struct ieee80211_sta *sta)
 {

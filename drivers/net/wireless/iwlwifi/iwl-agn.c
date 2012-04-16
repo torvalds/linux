@@ -289,6 +289,25 @@ out:
 	mutex_unlock(&priv->mutex);
 }
 
+int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
+{
+	struct iwl_statistics_cmd statistics_cmd = {
+		.configuration_flags =
+			clear ? IWL_STATS_CONF_CLEAR_STATS : 0,
+	};
+
+	if (flags & CMD_ASYNC)
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					CMD_ASYNC,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
+	else
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					CMD_SYNC,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
+}
+
 /**
  * iwl_bg_statistics_periodic - Timer callback to queue statistics
  *
@@ -726,6 +745,29 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	}
 }
 
+static void iwl_send_bt_config(struct iwl_priv *priv)
+{
+	struct iwl_bt_cmd bt_cmd = {
+		.lead_time = BT_LEAD_TIME_DEF,
+		.max_kill = BT_MAX_KILL_DEF,
+		.kill_ack_mask = 0,
+		.kill_cts_mask = 0,
+	};
+
+	if (!iwlagn_mod_params.bt_coex_active)
+		bt_cmd.flags = BT_COEX_DISABLE;
+	else
+		bt_cmd.flags = BT_COEX_ENABLE;
+
+	priv->bt_enable_flag = bt_cmd.flags;
+	IWL_DEBUG_INFO(priv, "BT coex %s\n",
+		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
+
+	if (iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			     CMD_SYNC, sizeof(struct iwl_bt_cmd), &bt_cmd))
+		IWL_ERR(priv, "failed to send BT Coex Config\n");
+}
+
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
@@ -789,8 +831,6 @@ int iwl_alive_start(struct iwl_priv *priv)
 	iwlagn_send_calib_cfg_rt(priv, IWL_CALIB_CFG_DC_IDX);
 
 	ieee80211_wake_queues(priv->hw);
-
-	priv->active_rate = IWL_RATES_MASK;
 
 	/* Configure Tx antenna selection based on H/W config */
 	iwlagn_send_tx_ant_config(priv, priv->hw_params.valid_tx_ant);
@@ -1524,7 +1564,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	ucode_flags = fw->ucode_capa.flags;
 
 #ifndef CONFIG_IWLWIFI_P2P
-	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 #endif
 
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
@@ -2121,6 +2161,65 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	return pos;
 }
 
+static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
+{
+	unsigned int reload_msec;
+	unsigned long reload_jiffies;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_have_debug_level(IWL_DL_FW_ERRORS))
+		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
+#endif
+
+	/* uCode is no longer loaded. */
+	priv->ucode_loaded = false;
+
+	/* Set the FW error flag -- cleared on iwl_down */
+	set_bit(STATUS_FW_ERROR, &priv->status);
+
+	/* Cancel currently queued command. */
+	clear_bit(STATUS_HCMD_ACTIVE, &priv->shrd->status);
+
+	iwl_abort_notification_waits(&priv->notif_wait);
+
+	/* Keep the restart process from trying to send host
+	 * commands by clearing the ready bit */
+	clear_bit(STATUS_READY, &priv->status);
+
+	wake_up(&trans(priv)->wait_command_queue);
+
+	if (!ondemand) {
+		/*
+		 * If firmware keep reloading, then it indicate something
+		 * serious wrong and firmware having problem to recover
+		 * from it. Instead of keep trying which will fill the syslog
+		 * and hang the system, let's just stop it
+		 */
+		reload_jiffies = jiffies;
+		reload_msec = jiffies_to_msecs((long) reload_jiffies -
+					(long) priv->reload_jiffies);
+		priv->reload_jiffies = reload_jiffies;
+		if (reload_msec <= IWL_MIN_RELOAD_DURATION) {
+			priv->reload_count++;
+			if (priv->reload_count >= IWL_MAX_CONTINUE_RELOAD_CNT) {
+				IWL_ERR(priv, "BUG_ON, Stop restarting\n");
+				return;
+			}
+		} else
+			priv->reload_count = 0;
+	}
+
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+		if (iwlagn_mod_params.restart_fw) {
+			IWL_DEBUG_FW_ERRORS(priv,
+				  "Restarting adapter due to uCode error.\n");
+			queue_work(priv->workqueue, &priv->restart);
+		} else
+			IWL_DEBUG_FW_ERRORS(priv,
+				  "Detected FW error, but not restarting\n");
+	}
+}
+
 static void iwl_nic_error(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
@@ -2208,6 +2307,27 @@ void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 	}
 
 	priv->passive_no_rx = false;
+}
+
+static void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+
+	info = IEEE80211_SKB_CB(skb);
+	kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
+	dev_kfree_skb_any(skb);
+}
+
+static void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	if (state)
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+	else
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
 }
 
 const struct iwl_op_mode_ops iwl_dvm_ops = {

@@ -190,7 +190,6 @@ enum iwl_rxon_context_id {
 	NUM_IWL_RXON_CTX
 };
 
-int iwlagn_hw_valid_rtc_data_addr(u32 addr);
 const char *get_cmd_string(u8 cmd);
 
 #define IWL_CMD(x) case x: return #x

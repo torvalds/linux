@@ -2826,6 +2826,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	struct iwl_station_priv *sta_priv;
 	struct iwl_lq_sta *lq_sta;
 	struct ieee80211_supported_band *sband;
+	unsigned long supp; /* must be unsigned long for for_each_set_bit */
 
 	sta_priv = (struct iwl_station_priv *) sta->drv_priv;
 	lq_sta = &sta_priv->lq_sta;
@@ -2855,8 +2856,15 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	lq_sta->max_rate_idx = -1;
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
 	lq_sta->is_green = rs_use_green(sta);
-	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
-	lq_sta->band = priv->band;
+	lq_sta->band = sband->band;
+	/*
+	 * active legacy rates as per supported rates bitmap
+	 */
+	supp = sta->supp_rates[sband->band];
+	lq_sta->active_legacy_rate = 0;
+	for_each_set_bit(i, &supp, BITS_PER_LONG)
+		lq_sta->active_legacy_rate |= BIT(sband->bitrates[i].hw_value);
+
 	/*
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
 	 * supp_rates[] does not; shift to convert format, force 9 MBits off.

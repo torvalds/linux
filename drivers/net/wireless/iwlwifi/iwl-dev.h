@@ -861,8 +861,6 @@ struct iwl_priv {
 
 	__le16 switch_channel;
 
-	u16 active_rate;
-
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
