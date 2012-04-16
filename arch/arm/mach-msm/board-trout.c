@@ -19,6 +19,7 @@
 #include <linux/platform_device.h>
 #include <linux/clkdev.h>
 
+#include <asm/system_info.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

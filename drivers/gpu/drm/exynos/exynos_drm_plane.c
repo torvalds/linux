@@ -24,6 +24,10 @@ struct exynos_plane {
 
 static const uint32_t formats[] = {
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV12M,
+	DRM_FORMAT_NV12MT,
 };
 
 static int
