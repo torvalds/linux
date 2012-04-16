@@ -139,10 +139,10 @@ struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
 
-	u32 flags;
-
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	DEFINE_DMA_UNMAP_LEN(len);
+
+	u32 flags;
 };
 
 /*
