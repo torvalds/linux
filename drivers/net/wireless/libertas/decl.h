@@ -19,6 +19,10 @@ struct lbs_fw_table {
 };
 
 struct lbs_private;
+typedef void (*lbs_fw_cb)(struct lbs_private *priv, int ret,
+		const struct firmware *helper, const struct firmware *mainfw);
+
+struct lbs_private;
 struct sk_buff;
 struct net_device;
 struct cmd_ds_command;
@@ -70,5 +74,9 @@ int lbs_get_firmware(struct device *dev, u32 card_model,
 			const struct lbs_fw_table *fw_table,
 			const struct firmware **helper,
 			const struct firmware **mainfw);
+int lbs_get_firmware_async(struct lbs_private *priv, struct device *device,
+			   u32 card_model, const struct lbs_fw_table *fw_table,
+			   lbs_fw_cb callback);
+void lbs_wait_for_firmware_load(struct lbs_private *priv);
 
 #endif
