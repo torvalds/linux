@@ -143,8 +143,14 @@ static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
 
 static inline void rt6_update_expires(struct rt6_info *rt, int timeout)
 {
-	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from)
-		dst_release(rt->dst.from);
+	if (!(rt->rt6i_flags & RTF_EXPIRES)) {
+		if (rt->dst.from)
+			dst_release(rt->dst.from);
+		/* dst_set_expires relies on expires == 0 
+		 * if it has not been set previously.
+		 */
+		rt->dst.expires = 0;
+	}
 
 	dst_set_expires(&rt->dst, timeout);
 	rt->rt6i_flags |= RTF_EXPIRES;
