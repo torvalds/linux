@@ -890,8 +890,8 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out2;
 	}
 
-	ret = lbs_get_firmware(&p_dev->dev, NULL, NULL, card->model,
-				&fw_table[0], &helper, &mainfw);
+	ret = lbs_get_firmware(&p_dev->dev, card->model, &fw_table[0],
+				&helper, &mainfw);
 	if (ret) {
 		pr_err("failed to find firmware (%d)\n", ret);
 		goto out2;
