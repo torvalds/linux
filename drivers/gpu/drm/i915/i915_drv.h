@@ -122,11 +122,11 @@ struct opregion_asle;
 struct drm_i915_private;
 
 struct intel_opregion {
-	struct opregion_header *header;
-	struct opregion_acpi *acpi;
-	struct opregion_swsci *swsci;
-	struct opregion_asle *asle;
-	void *vbt;
+	struct opregion_header __iomem *header;
+	struct opregion_acpi __iomem *acpi;
+	struct opregion_swsci __iomem *swsci;
+	struct opregion_asle __iomem *asle;
+	void __iomem *vbt;
 	u32 __iomem *lid_state;
 };
 #define OPREGION_SIZE            (8*1024)
