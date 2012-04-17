@@ -2352,7 +2352,7 @@ static struct drm_i915_fence_reg *
 i915_find_fence_reg(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_i915_fence_reg *reg, *first, *avail;
+	struct drm_i915_fence_reg *reg, *avail;
 	int i;
 
 	/* First try to find a free reg */
@@ -2370,24 +2370,14 @@ i915_find_fence_reg(struct drm_device *dev)
 		return NULL;
 
 	/* None available, try to steal one or wait for a user to finish */
-	avail = first = NULL;
 	list_for_each_entry(reg, &dev_priv->mm.fence_list, lru_list) {
 		if (reg->pin_count)
 			continue;
 
-		if (first == NULL)
-			first = reg;
-
-		if (reg->obj->last_fenced_seqno == 0) {
-			avail = reg;
-			break;
-		}
+		return reg;
 	}
 
-	if (avail == NULL)
-		avail = first;
-
-	return avail;
+	return NULL;
 }
 
 /**
