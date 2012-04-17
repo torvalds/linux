@@ -36,6 +36,7 @@
 
 #define GPIOBASE	0x44
 #define GPIO_IO_SIZE	64
+#define GPIO_IO_SIZE_CENTERTON	128
 
 #define WDTBASE		0x84
 #define WDT_IO_SIZE	64
@@ -77,6 +78,7 @@ static struct mfd_cell tunnelcreek_cells[] = {
 static DEFINE_PCI_DEVICE_TABLE(lpc_sch_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SCH_LPC) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_ITC_LPC) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_CENTERTON_ILB) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, lpc_sch_ids);
@@ -115,7 +117,11 @@ static int __devinit lpc_sch_probe(struct pci_dev *dev,
 	}
 
 	gpio_sch_resource.start = base_addr;
-	gpio_sch_resource.end = base_addr + GPIO_IO_SIZE - 1;
+
+	if (id->device == PCI_DEVICE_ID_INTEL_CENTERTON_ILB)
+		gpio_sch_resource.end = base_addr + GPIO_IO_SIZE_CENTERTON - 1;
+	else
+		gpio_sch_resource.end = base_addr + GPIO_IO_SIZE - 1;
 
 	for (i=0; i < ARRAY_SIZE(lpc_sch_cells); i++)
 		lpc_sch_cells[i].id = id->device;
@@ -125,7 +131,8 @@ static int __devinit lpc_sch_probe(struct pci_dev *dev,
 	if (ret)
 		goto out_dev;
 
-	if (id->device == PCI_DEVICE_ID_INTEL_ITC_LPC) {
+	if (id->device == PCI_DEVICE_ID_INTEL_ITC_LPC
+	 || id->device == PCI_DEVICE_ID_INTEL_CENTERTON_ILB) {
 		pci_read_config_dword(dev, WDTBASE, &base_addr_cfg);
 		if (!(base_addr_cfg & (1 << 31))) {
 			dev_err(&dev->dev, "Decode of the WDT I/O range disabled\n");
