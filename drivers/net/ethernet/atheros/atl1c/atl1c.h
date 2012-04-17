@@ -583,8 +583,14 @@ struct atl1c_adapter {
 #define AT_WRITE_REGW(a, reg, value) (\
 		writew((value), ((a)->hw_addr + reg)))
 
-#define AT_READ_REGW(a, reg) (\
-		readw((a)->hw_addr + reg))
+#define AT_READ_REGW(a, reg, pdata) do {				\
+		if (unlikely((a)->hibernate)) {				\
+			readw((a)->hw_addr + reg);			\
+			*(u16 *)pdata = readw((a)->hw_addr + reg);	\
+		} else {						\
+			*(u16 *)pdata = readw((a)->hw_addr + reg);	\
+		}							\
+	} while (0)
 
 #define AT_WRITE_REG_ARRAY(a, reg, offset, value) ( \
 		writel((value), (((a)->hw_addr + reg) + ((offset) << 2))))

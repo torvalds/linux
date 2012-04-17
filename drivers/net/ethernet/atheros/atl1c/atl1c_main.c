@@ -995,10 +995,10 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 			(u32)((tpd_ring[atl1c_trans_normal].dma &
 				AT_DMA_HI_ADDR_MASK) >> 32));
 	/* just enable normal priority TX queue */
-	AT_WRITE_REG(hw, REG_NTPD_HEAD_ADDR_LO,
+	AT_WRITE_REG(hw, REG_TPD_PRI0_ADDR_LO,
 			(u32)(tpd_ring[atl1c_trans_normal].dma &
 				AT_DMA_LO_ADDR_MASK));
-	AT_WRITE_REG(hw, REG_HTPD_HEAD_ADDR_LO,
+	AT_WRITE_REG(hw, REG_TPD_PRI1_ADDR_LO,
 			(u32)(tpd_ring[atl1c_trans_high].dma &
 				AT_DMA_LO_ADDR_MASK));
 	AT_WRITE_REG(hw, REG_TPD_RING_SIZE,
@@ -1519,16 +1519,11 @@ static bool atl1c_clean_tx_irq(struct atl1c_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 	u16 next_to_clean = atomic_read(&tpd_ring->next_to_clean);
 	u16 hw_next_to_clean;
-	u16 shift;
-	u32 data;
+	u16 reg;
 
-	if (type == atl1c_trans_high)
-		shift = MB_HTPD_CONS_IDX_SHIFT;
-	else
-		shift = MB_NTPD_CONS_IDX_SHIFT;
+	reg = type == atl1c_trans_high ? REG_TPD_PRI1_CIDX : REG_TPD_PRI0_CIDX;
 
-	AT_READ_REG(&adapter->hw, REG_MB_PRIO_CONS_IDX, &data);
-	hw_next_to_clean = (data >> shift) & MB_PRIO_PROD_IDX_MASK;
+	AT_READ_REGW(&adapter->hw, reg, &hw_next_to_clean);
 
 	while (next_to_clean != hw_next_to_clean) {
 		buffer_info = &tpd_ring->buffer_info[next_to_clean];
@@ -2090,23 +2085,10 @@ static void atl1c_tx_queue(struct atl1c_adapter *adapter, struct sk_buff *skb,
 			   struct atl1c_tpd_desc *tpd, enum atl1c_trans_queue type)
 {
 	struct atl1c_tpd_ring *tpd_ring = &adapter->tpd_ring[type];
-	u32 prod_data;
+	u16 reg;
 
-	AT_READ_REG(&adapter->hw, REG_MB_PRIO_PROD_IDX, &prod_data);
-	switch (type) {
-	case atl1c_trans_high:
-		prod_data &= 0xFFFF0000;
-		prod_data |= tpd_ring->next_to_use & 0xFFFF;
-		break;
-	case atl1c_trans_normal:
-		prod_data &= 0x0000FFFF;
-		prod_data |= (tpd_ring->next_to_use & 0xFFFF) << 16;
-		break;
-	default:
-		break;
-	}
-	wmb();
-	AT_WRITE_REG(&adapter->hw, REG_MB_PRIO_PROD_IDX, prod_data);
+	reg = type == atl1c_trans_high ? REG_TPD_PRI1_PIDX : REG_TPD_PRI0_PIDX;
+	AT_WRITE_REGW(&adapter->hw, reg, tpd_ring->next_to_use);
 }
 
 static netdev_tx_t atl1c_xmit_frame(struct sk_buff *skb,

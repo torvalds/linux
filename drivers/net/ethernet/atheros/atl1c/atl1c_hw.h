@@ -455,8 +455,8 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_RRD0_HEAD_ADDR_LO		0x1568
 #define REG_RRD_RING_SIZE		0x1578
 #define RRD_RING_SIZE_MASK		0x0FFF
-#define REG_HTPD_HEAD_ADDR_LO		0x157C
-#define REG_NTPD_HEAD_ADDR_LO		0x1580
+#define REG_TPD_PRI1_ADDR_LO		0x157C
+#define REG_TPD_PRI0_ADDR_LO		0x1580
 #define REG_TPD_RING_SIZE		0x1584
 #define TPD_RING_SIZE_MASK		0xFFFF
 
@@ -562,15 +562,10 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define MB_RFDX_PROD_IDX_MASK		0xFFFF
 #define REG_MB_RFD0_PROD_IDX		0x15E0
 
-#define MB_PRIO_PROD_IDX_MASK		0xFFFF
-#define REG_MB_PRIO_PROD_IDX		0x15F0
-#define MB_HTPD_PROD_IDX_SHIFT		0
-#define MB_NTPD_PROD_IDX_SHIFT		16
-
-#define MB_PRIO_CONS_IDX_MASK		0xFFFF
-#define REG_MB_PRIO_CONS_IDX		0x15F4
-#define MB_HTPD_CONS_IDX_SHIFT		0
-#define MB_NTPD_CONS_IDX_SHIFT		16
+#define REG_TPD_PRI1_PIDX               0x15F0	/* 16bit,hi-tpd producer idx */
+#define REG_TPD_PRI0_PIDX		0x15F2	/* 16bit,lo-tpd producer idx */
+#define REG_TPD_PRI1_CIDX		0x15F4	/* 16bit,hi-tpd consumer idx */
+#define REG_TPD_PRI0_CIDX		0x15F6	/* 16bit,lo-tpd consumer idx */
 
 #define REG_MB_RFD01_CONS_IDX		0x15F8
 #define MB_RFD0_CONS_IDX_MASK		0x0000FFFF
