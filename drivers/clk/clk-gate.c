@@ -28,32 +28,38 @@
 
 #define to_clk_gate(_hw) container_of(_hw, struct clk_gate, hw)
 
-static void clk_gate_set_bit(struct clk_gate *gate)
+/*
+ * It works on following logic:
+ *
+ * For enabling clock, enable = 1
+ *	set2dis = 1	-> clear bit	-> set = 0
+ *	set2dis = 0	-> set bit	-> set = 1
+ *
+ * For disabling clock, enable = 0
+ *	set2dis = 1	-> set bit	-> set = 1
+ *	set2dis = 0	-> clear bit	-> set = 0
+ *
+ * So, result is always: enable xor set2dis.
+ */
+static void clk_gate_endisable(struct clk_hw *hw, int enable)
 {
-	u32 reg;
+	struct clk_gate *gate = to_clk_gate(hw);
+	int set = gate->flags & CLK_GATE_SET_TO_DISABLE ? 1 : 0;
 	unsigned long flags = 0;
+	u32 reg;
+
+	set ^= enable;
 
 	if (gate->lock)
 		spin_lock_irqsave(gate->lock, flags);
 
 	reg = readl(gate->reg);
-	reg |= BIT(gate->bit_idx);
-	writel(reg, gate->reg);
 
-	if (gate->lock)
-		spin_unlock_irqrestore(gate->lock, flags);
-}
+	if (set)
+		reg |= BIT(gate->bit_idx);
+	else
+		reg &= ~BIT(gate->bit_idx);
 
-static void clk_gate_clear_bit(struct clk_gate *gate)
-{
-	u32 reg;
-	unsigned long flags = 0;
-
-	if (gate->lock)
-		spin_lock_irqsave(gate->lock, flags);
-
-	reg = readl(gate->reg);
-	reg &= ~BIT(gate->bit_idx);
 	writel(reg, gate->reg);
 
 	if (gate->lock)
@@ -62,24 +68,14 @@ static void clk_gate_clear_bit(struct clk_gate *gate)
 
 static int clk_gate_enable(struct clk_hw *hw)
 {
-	struct clk_gate *gate = to_clk_gate(hw);
-
-	if (gate->flags & CLK_GATE_SET_TO_DISABLE)
-		clk_gate_clear_bit(gate);
-	else
-		clk_gate_set_bit(gate);
+	clk_gate_endisable(hw, 1);
 
 	return 0;
 }
 
 static void clk_gate_disable(struct clk_hw *hw)
 {
-	struct clk_gate *gate = to_clk_gate(hw);
-
-	if (gate->flags & CLK_GATE_SET_TO_DISABLE)
-		clk_gate_set_bit(gate);
-	else
-		clk_gate_clear_bit(gate);
+	clk_gate_endisable(hw, 0);
 }
 
 static int clk_gate_is_enabled(struct clk_hw *hw)
