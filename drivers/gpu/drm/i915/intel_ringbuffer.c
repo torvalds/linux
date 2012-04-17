@@ -786,7 +786,8 @@ i965_dispatch_execbuffer(struct intel_ring_buffer *ring, u32 offset, u32 length)
 		return ret;
 
 	intel_ring_emit(ring,
-			MI_BATCH_BUFFER_START | (2 << 6) |
+			MI_BATCH_BUFFER_START |
+			MI_BATCH_GTT |
 			MI_BATCH_NON_SECURE_I965);
 	intel_ring_emit(ring, offset);
 	intel_ring_advance(ring);
@@ -823,7 +824,7 @@ i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
 	if (ret)
 		return ret;
 
-	intel_ring_emit(ring, MI_BATCH_BUFFER_START | (2 << 6));
+	intel_ring_emit(ring, MI_BATCH_BUFFER_START | MI_BATCH_GTT);
 	intel_ring_emit(ring, offset | MI_BATCH_NON_SECURE);
 	intel_ring_advance(ring);
 

@@ -231,6 +231,7 @@
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
+#define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
 #define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
