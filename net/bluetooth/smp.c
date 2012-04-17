@@ -785,17 +785,6 @@ int smp_conn_security(struct l2cap_conn *conn, __u8 sec_level)
 
 	if (hcon->link_mode & HCI_LM_MASTER) {
 		struct smp_cmd_pairing cp;
-		struct link_key *key;
-
-		key = hci_find_link_key_type(hcon->hdev, conn->dst,
-							HCI_LK_SMP_LTK);
-		if (key) {
-			struct key_master_id *master = (void *) key->data;
-
-			hci_le_start_enc(hcon, master->ediv, master->rand,
-								key->val);
-			goto done;
-		}
 
 		build_pairing_cmd(conn, &cp, NULL, authreq);
 		smp->preq[0] = SMP_CMD_PAIRING_REQ;
