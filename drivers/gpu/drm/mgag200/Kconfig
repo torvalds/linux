@@ -1,0 +1,14 @@
+config DRM_MGAG200
+	tristate "Kernel modesetting driver for MGA G200 server engines"
+	depends on DRM && PCI && EXPERIMENTAL
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select DRM_KMS_HELPER
+	help
+	 This is a KMS driver for the MGA G200 server chips, it
+         does not support the original MGA G200 or any of the desktop
+         chips. It requires 0.3.0 of the modesetting userspace driver,
+         and a version of mga driver that will fail on KMS enabled
+         devices.
+

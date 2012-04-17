@@ -189,3 +189,4 @@ source "drivers/gpu/drm/udl/Kconfig"
 
 source "drivers/gpu/drm/ast/Kconfig"
 
+source "drivers/gpu/drm/mgag200/Kconfig"
