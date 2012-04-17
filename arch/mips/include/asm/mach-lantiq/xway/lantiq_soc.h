@@ -59,6 +59,11 @@
 #define BS_NAND			0x6
 #define BS_RMII0		0x7
 
+/* helpers used to access the cgu */
+#define ltq_cgu_w32(x, y)	ltq_w32((x), ltq_cgu_membase + (y))
+#define ltq_cgu_r32(x)		ltq_r32(ltq_cgu_membase + (x))
+extern __iomem void *ltq_cgu_membase;
+
 /*
  * during early_printk no ioremap is possible
  * lets use KSEG1 instead
