@@ -221,18 +221,25 @@ struct tipc_port *tipc_createport_raw(void *usr_handle,
 	p_ptr->usr_handle = usr_handle;
 	p_ptr->max_pkt = MAX_PKT_DEFAULT;
 	p_ptr->ref = ref;
-	msg = &p_ptr->phdr;
-	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, NAMED_H_SIZE, 0);
-	msg_set_origport(msg, ref);
 	INIT_LIST_HEAD(&p_ptr->wait_list);
 	INIT_LIST_HEAD(&p_ptr->subscription.nodesub_list);
 	p_ptr->dispatcher = dispatcher;
 	p_ptr->wakeup = wakeup;
 	p_ptr->user_port = NULL;
 	k_init_timer(&p_ptr->timer, (Handler)port_timeout, ref);
-	spin_lock_bh(&tipc_port_list_lock);
 	INIT_LIST_HEAD(&p_ptr->publications);
 	INIT_LIST_HEAD(&p_ptr->port_list);
+
+	/*
+	 * Must hold port list lock while initializing message header template
+	 * to ensure a change to node's own network address doesn't result
+	 * in template containing out-dated network address information
+	 */
+
+	spin_lock_bh(&tipc_port_list_lock);
+	msg = &p_ptr->phdr;
+	tipc_msg_init(msg, importance, TIPC_NAMED_MSG, NAMED_H_SIZE, 0);
+	msg_set_origport(msg, ref);
 	list_add_tail(&p_ptr->port_list, &ports);
 	spin_unlock_bh(&tipc_port_list_lock);
 	return p_ptr;
