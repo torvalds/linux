@@ -38,6 +38,7 @@
 #include "iwl-dev.h"
 #include "iwl-agn.h"
 #include "iwl-op-mode.h"
+#include "iwl-modparams.h"
 
 #define RS_NAME "iwl-agn-rs"
 
@@ -419,7 +420,7 @@ static int rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 
 	load = rs_tl_get_load(lq_data, tid);
 
-	if ((iwlagn_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
+	if ((iwlwifi_mod_params.auto_agg) || (load > IWL_AGG_LOAD_THRESHOLD)) {
 		IWL_DEBUG_HT(priv, "Starting Tx agg: STA: %pM tid: %d\n",
 				sta->addr, tid);
 		ret = ieee80211_start_tx_ba_session(sta, tid, 5000);

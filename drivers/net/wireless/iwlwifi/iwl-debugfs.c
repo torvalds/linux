@@ -39,6 +39,7 @@
 #include "iwl-debug.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"
+#include "iwl-modparams.h"
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\

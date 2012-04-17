@@ -48,7 +48,6 @@
 #include "iwl-agn-rs.h"
 #include "iwl-agn-tt.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
 #include "iwl-op-mode.h"
 #include "iwl-notif-wait.h"
 

@@ -37,6 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
+#include "iwl-modparams.h"
 
 #define IWL_CMD_ENTRY(x) [x] = #x
 
@@ -337,7 +338,7 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (iwlagn_mod_params.plcp_check &&
+	if (iwlwifi_mod_params.plcp_check &&
 	    !iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_rf_reset(priv, false);
 }
@@ -747,7 +748,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	}
 
 	/* In case of HW accelerated crypto and bad decryption, drop */
-	if (!iwlagn_mod_params.sw_crypto &&
+	if (!iwlwifi_mod_params.sw_crypto &&
 	    iwlagn_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 

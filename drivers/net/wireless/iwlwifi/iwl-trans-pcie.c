@@ -70,7 +70,6 @@
 
 #include "iwl-drv.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
 #include "iwl-trans-pcie-int.h"
 #include "iwl-csr.h"
 #include "iwl-prph.h"

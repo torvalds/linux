@@ -37,6 +37,7 @@
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
+#include "iwl-modparams.h"
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 {
@@ -91,17 +92,6 @@ void iwlagn_temperature(struct iwl_priv *priv)
 	priv->temperature = le32_to_cpu(priv->statistics.common.temperature);
 	iwl_tt_handler(priv);
 }
-
-struct iwl_mod_params iwlagn_mod_params = {
-	.amsdu_size_8K = 1,
-	.restart_fw = 1,
-	.plcp_check = true,
-	.bt_coex_active = true,
-	.power_level = IWL_POWER_INDEX_1,
-	.bt_ch_announce = true,
-	.auto_agg = true,
-	/* the rest are 0 by default */
-};
 
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 {
@@ -343,7 +333,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * (might be in monitor mode), or the interface is in
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
-	if (!iwlagn_mod_params.bt_coex_active ||
+	if (!iwlwifi_mod_params.bt_coex_active ||
 	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
 	} else {
@@ -1152,7 +1142,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto out;
 
-	if (!iwlagn_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.sw_crypto) {
 		/* mark all keys clear */
 		priv->ucode_key_table = 0;
 		ctx->key_mapping_keys = 0;

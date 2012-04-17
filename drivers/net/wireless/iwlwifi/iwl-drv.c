@@ -71,6 +71,7 @@
 #include "iwl-agn-hw.h"
 #include "iwl-fw.h"
 #include "iwl-config.h"
+#include "iwl-modparams.h"
 
 /* private includes */
 #include "iwl-fw-file.h"
@@ -924,3 +925,90 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 	kfree(drv);
 }
+
+
+/* shared module parameters */
+struct iwl_mod_params iwlwifi_mod_params = {
+	.amsdu_size_8K = 1,
+	.restart_fw = 1,
+	.plcp_check = true,
+	.bt_coex_active = true,
+	.power_level = IWL_POWER_INDEX_1,
+	.bt_ch_announce = true,
+	.auto_agg = true,
+	/* the rest are 0 by default */
+};
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+module_param_named(debug, iwlwifi_mod_params.debug_level, uint,
+		   S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "debug output mask");
+#endif
+
+module_param_named(swcrypto, iwlwifi_mod_params.sw_crypto, int, S_IRUGO);
+MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
+module_param_named(11n_disable, iwlwifi_mod_params.disable_11n, uint, S_IRUGO);
+MODULE_PARM_DESC(11n_disable,
+	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
+module_param_named(amsdu_size_8K, iwlwifi_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, int, S_IRUGO);
+MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
+
+module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
+		   int, S_IRUGO);
+MODULE_PARM_DESC(antenna_coupling,
+		 "specify antenna coupling in dB (defualt: 0 dB)");
+
+module_param_named(bt_ch_inhibition, iwlwifi_mod_params.bt_ch_announce,
+		   bool, S_IRUGO);
+MODULE_PARM_DESC(bt_ch_inhibition,
+		 "Enable BT channel inhibition (default: enable)");
+
+module_param_named(plcp_check, iwlwifi_mod_params.plcp_check, bool, S_IRUGO);
+MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
+
+module_param_named(wd_disable, iwlwifi_mod_params.wd_disable, int, S_IRUGO);
+MODULE_PARM_DESC(wd_disable,
+		"Disable stuck queue watchdog timer 0=system default, "
+		"1=disable, 2=enable (default: 0)");
+
+/*
+ * set bt_coex_active to true, uCode will do kill/defer
+ * every time the priority line is asserted (BT is sending signals on the
+ * priority line in the PCIx).
+ * set bt_coex_active to false, uCode will ignore the BT activity and
+ * perform the normal operation
+ *
+ * User might experience transmit issue on some platform due to WiFi/BT
+ * co-exist problem. The possible behaviors are:
+ *   Able to scan and finding all the available AP
+ *   Not able to associate with any AP
+ * On those platforms, WiFi communication can be restored by set
+ * "bt_coex_active" module parameter to "false"
+ *
+ * default: bt_coex_active = true (BT_COEX_ENABLE)
+ */
+module_param_named(bt_coex_active, iwlwifi_mod_params.bt_coex_active,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(bt_coex_active, "enable wifi/bt co-exist (default: enable)");
+
+module_param_named(led_mode, iwlwifi_mod_params.led_mode, int, S_IRUGO);
+MODULE_PARM_DESC(led_mode, "0=system default, "
+		"1=On(RF On)/Off(RF Off), 2=blinking, 3=Off (default: 0)");
+
+module_param_named(power_save, iwlwifi_mod_params.power_save,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(power_save,
+		 "enable WiFi power management (default: disable)");
+
+module_param_named(power_level, iwlwifi_mod_params.power_level,
+		int, S_IRUGO);
+MODULE_PARM_DESC(power_level,
+		 "default power save level (range from 1 - 5, default: 1)");
+
+module_param_named(auto_agg, iwlwifi_mod_params.auto_agg,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(auto_agg,
+		 "enable agg w/o check traffic load (default: enable)");

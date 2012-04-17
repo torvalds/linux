@@ -49,6 +49,7 @@
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
+#include "iwl-modparams.h"
 
 /*****************************************************************************
  *
@@ -202,7 +203,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 					  WIPHY_WOWLAN_DISCONNECT |
 					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
 					  WIPHY_WOWLAN_RFKILL_RELEASE;
-		if (!iwlagn_mod_params.sw_crypto)
+		if (!iwlwifi_mod_params.sw_crypto)
 			hw->wiphy->wowlan.flags |=
 				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 				WIPHY_WOWLAN_GTK_REKEY_FAILURE;
@@ -214,7 +215,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 					IWLAGN_WOWLAN_MAX_PATTERN_LEN;
 	}
 
-	if (iwlagn_mod_params.power_save)
+	if (iwlwifi_mod_params.power_save)
 		hw->wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	else
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -365,7 +366,7 @@ void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	if (iwlagn_mod_params.sw_crypto)
+	if (iwlwifi_mod_params.sw_crypto)
 		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -531,7 +532,7 @@ int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (iwlagn_mod_params.sw_crypto) {
+	if (iwlwifi_mod_params.sw_crypto) {
 		IWL_DEBUG_MAC80211(priv, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -642,7 +643,7 @@ int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
 			break;
 		IWL_DEBUG_HT(priv, "start Rx\n");
 		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
@@ -654,7 +655,7 @@ int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_START:
 		if (!priv->trans->ops->tx_agg_setup)
 			break;
-		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);

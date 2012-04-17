@@ -72,7 +72,6 @@
 #include "iwl-drv.h"
 #include "iwl-trans.h"
 #include "iwl-trans-pcie-int.h"
-#include "iwl-shared.h"
 
 #define IWL_PCI_DEVICE(dev, subdev, cfg) \
 	.vendor = PCI_VENDOR_ID_INTEL,  .device = (dev), \

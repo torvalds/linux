@@ -41,6 +41,7 @@
 #include "iwl-commands.h"
 #include "iwl-debug.h"
 #include "iwl-agn-tt.h"
+#include "iwl-modparams.h"
 
 /* default Thermal Throttling transaction table
  * Current state   |         Throttling Down               |  Throttling Up

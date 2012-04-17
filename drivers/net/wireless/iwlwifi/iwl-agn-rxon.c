@@ -29,6 +29,7 @@
 #include "iwl-agn.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
+#include "iwl-modparams.h"
 
 /*
  * initialize rxon structure with default values from eeprom
@@ -1129,7 +1130,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		return 0;
 	}
 
-	iwl_set_rxon_hwcrypto(priv, ctx, !iwlagn_mod_params.sw_crypto);
+	iwl_set_rxon_hwcrypto(priv, ctx, !iwlwifi_mod_params.sw_crypto);
 
 	IWL_DEBUG_INFO(priv,
 		       "Going to commit RXON\n"

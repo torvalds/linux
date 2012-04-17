@@ -30,15 +30,6 @@
 
 #include "iwl-commands.h"
 
-enum iwl_power_level {
-	IWL_POWER_INDEX_1,
-	IWL_POWER_INDEX_2,
-	IWL_POWER_INDEX_3,
-	IWL_POWER_INDEX_4,
-	IWL_POWER_INDEX_5,
-	IWL_POWER_NUM
-};
-
 struct iwl_power_mgr {
 	struct iwl_powertable_cmd sleep_cmd;
 	struct iwl_powertable_cmd sleep_cmd_next;

@@ -68,7 +68,16 @@
 #include <linux/gfp.h>
 #include <net/mac80211.h>
 
-extern struct iwl_mod_params iwlagn_mod_params;
+extern struct iwl_mod_params iwlwifi_mod_params;
+
+enum iwl_power_level {
+	IWL_POWER_INDEX_1,
+	IWL_POWER_INDEX_2,
+	IWL_POWER_INDEX_3,
+	IWL_POWER_INDEX_4,
+	IWL_POWER_INDEX_5,
+	IWL_POWER_NUM
+};
 
 #define IWL_DISABLE_HT_ALL	BIT(0)
 #define IWL_DISABLE_HT_TXAGG	BIT(1)

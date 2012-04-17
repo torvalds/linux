@@ -29,12 +29,12 @@
 #ifndef __iwl_debug_h__
 #define __iwl_debug_h__
 
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
 
 static inline bool iwl_have_debug_level(u32 level)
 {
-	return iwlagn_mod_params.debug_level & level;
+	return iwlwifi_mod_params.debug_level & level;
 }
 
 void __iwl_err(struct device *dev, bool rfkill_prefix, bool only_trace,
