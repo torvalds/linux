@@ -50,9 +50,27 @@ static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_file *file);
 static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj);
 
+static void i915_gem_write_fence(struct drm_device *dev, int reg,
+				 struct drm_i915_gem_object *obj);
+static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
+					 struct drm_i915_fence_reg *fence,
+					 bool enable);
+
 static int i915_gem_inactive_shrink(struct shrinker *shrinker,
 				    struct shrink_control *sc);
 static void i915_gem_object_truncate(struct drm_i915_gem_object *obj);
+
+static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
+{
+	if (obj->tiling_mode)
+		i915_gem_release_mmap(obj);
+
+	/* As we do not have an associated fence register, we will force
+	 * a tiling change if we ever need to acquire one.
+	 */
+	obj->tiling_changed = false;
+	obj->fence_reg = I915_FENCE_REG_NONE;
+}
 
 /* some bookkeeping */
 static void i915_gem_info_add_obj(struct drm_i915_private *dev_priv,
@@ -2301,6 +2319,32 @@ static void i915_gem_write_fence(struct drm_device *dev, int reg,
 	}
 }
 
+static inline int fence_number(struct drm_i915_private *dev_priv,
+			       struct drm_i915_fence_reg *fence)
+{
+	return fence - dev_priv->fence_regs;
+}
+
+static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
+					 struct drm_i915_fence_reg *fence,
+					 bool enable)
+{
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	int reg = fence_number(dev_priv, fence);
+
+	i915_gem_write_fence(obj->base.dev, reg, enable ? obj : NULL);
+
+	if (enable) {
+		obj->fence_reg = reg;
+		fence->obj = obj;
+		list_move_tail(&fence->lru_list, &dev_priv->mm.fence_list);
+	} else {
+		obj->fence_reg = I915_FENCE_REG_NONE;
+		fence->obj = NULL;
+		list_del_init(&fence->lru_list);
+	}
+}
+
 static int
 i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 {
@@ -2339,24 +2383,20 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 int
 i915_gem_object_put_fence(struct drm_i915_gem_object *obj)
 {
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 	int ret;
-
-	if (obj->tiling_mode)
-		i915_gem_release_mmap(obj);
 
 	ret = i915_gem_object_flush_fence(obj);
 	if (ret)
 		return ret;
 
-	if (obj->fence_reg != I915_FENCE_REG_NONE) {
-		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	if (obj->fence_reg == I915_FENCE_REG_NONE)
+		return 0;
 
-		WARN_ON(dev_priv->fence_regs[obj->fence_reg].pin_count);
-		i915_gem_clear_fence_reg(obj->base.dev,
-					 &dev_priv->fence_regs[obj->fence_reg]);
-
-		obj->fence_reg = I915_FENCE_REG_NONE;
-	}
+	i915_gem_object_update_fence(obj,
+				     &dev_priv->fence_regs[obj->fence_reg],
+				     false);
+	i915_gem_object_fence_lost(obj);
 
 	return 0;
 }
