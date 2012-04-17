@@ -881,7 +881,7 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	struct omap_nand_info *info = container_of(mtd, struct omap_nand_info,
 							mtd);
 	unsigned long timeo = jiffies;
-	int status = NAND_STATUS_FAIL, state = this->state;
+	int status, state = this->state;
 
 	if (state == FL_ERASING)
 		timeo += (HZ * 400) / 1000;
@@ -896,6 +896,8 @@ static int omap_wait(struct mtd_info *mtd, struct nand_chip *chip)
 			break;
 		cond_resched();
 	}
+
+	status = gpmc_nand_read(info->gpmc_cs, GPMC_NAND_DATA);
 	return status;
 }
 
