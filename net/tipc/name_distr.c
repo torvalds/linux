@@ -77,10 +77,28 @@ struct publ_list {
 	u32 size;
 };
 
+static struct publ_list publ_zone = {
+	.list = LIST_HEAD_INIT(publ_zone.list),
+	.size = 0,
+};
+
 static struct publ_list publ_cluster = {
 	.list = LIST_HEAD_INIT(publ_cluster.list),
 	.size = 0,
 };
+
+static struct publ_list publ_node = {
+	.list = LIST_HEAD_INIT(publ_node.list),
+	.size = 0,
+};
+
+static struct publ_list *publ_lists[] = {
+	NULL,
+	&publ_zone,	/* publ_lists[TIPC_ZONE_SCOPE]		*/
+	&publ_cluster,	/* publ_lists[TIPC_CLUSTER_SCOPE]	*/
+	&publ_node	/* publ_lists[TIPC_NODE_SCOPE]		*/
+};
+
 
 /**
  * publ_to_item - add publication info to a publication message
@@ -139,8 +157,8 @@ void tipc_named_publish(struct publication *publ)
 	struct sk_buff *buf;
 	struct distr_item *item;
 
-	list_add_tail(&publ->local_list, &publ_cluster.list);
-	publ_cluster.size++;
+	list_add_tail(&publ->local_list, &publ_lists[publ->scope]->list);
+	publ_lists[publ->scope]->size++;
 
 	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);
 	if (!buf) {
@@ -163,7 +181,7 @@ void tipc_named_withdraw(struct publication *publ)
 	struct distr_item *item;
 
 	list_del(&publ->local_list);
-	publ_cluster.size--;
+	publ_lists[publ->scope]->size--;
 
 	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
@@ -243,6 +261,7 @@ void tipc_named_node_up(unsigned long nodearg)
 
 	read_lock_bh(&tipc_nametbl_lock);
 	named_distribute(&message_list, node, &publ_cluster, max_item_buf);
+	named_distribute(&message_list, node, &publ_zone, max_item_buf);
 	read_unlock_bh(&tipc_nametbl_lock);
 
 	tipc_link_send_names(&message_list, (u32)node);
@@ -340,11 +359,13 @@ void tipc_named_recv(struct sk_buff *buf)
 void tipc_named_reinit(void)
 {
 	struct publication *publ;
+	int scope;
 
 	write_lock_bh(&tipc_nametbl_lock);
 
-	list_for_each_entry(publ, &publ_cluster.list, local_list)
-		publ->node = tipc_own_addr;
+	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_CLUSTER_SCOPE; scope++)
+		list_for_each_entry(publ, &publ_lists[scope]->list, local_list)
+			publ->node = tipc_own_addr;
 
 	write_unlock_bh(&tipc_nametbl_lock);
 }
