@@ -463,6 +463,10 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	else
 		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
+	WARN_ON_ONCE(!is_agg && txq_id != info->hw_queue);
+	WARN_ON_ONCE(is_agg &&
+		     priv->queue_to_mac80211[txq_id] != info->hw_queue);
+
 	if (iwl_trans_tx(priv->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
@@ -492,14 +496,14 @@ drop_unlock_priv:
 	return -1;
 }
 
-static int iwlagn_alloc_agg_txq(struct iwl_priv *priv, int ac)
+static int iwlagn_alloc_agg_txq(struct iwl_priv *priv, int mq)
 {
 	int q;
 
 	for (q = IWLAGN_FIRST_AMPDU_QUEUE;
 	     q < priv->cfg->base_params->num_of_queues; q++) {
 		if (!test_and_set_bit(q, priv->agg_q_alloc)) {
-			priv->queue_to_ac[q] = ac;
+			priv->queue_to_mac80211[q] = mq;
 			return q;
 		}
 	}
@@ -510,7 +514,7 @@ static int iwlagn_alloc_agg_txq(struct iwl_priv *priv, int ac)
 static void iwlagn_dealloc_agg_txq(struct iwl_priv *priv, int q)
 {
 	clear_bit(q, priv->agg_q_alloc);
-	priv->queue_to_ac[q] = IWL_INVALID_AC;
+	priv->queue_to_mac80211[q] = IWL_INVALID_MAC80211_QUEUE;
 }
 
 int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
@@ -602,6 +606,7 @@ turn_off:
 int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
+	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 	struct iwl_tid_data *tid_data;
 	int sta_id, txq_id, ret;
 
@@ -621,7 +626,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
-	txq_id = iwlagn_alloc_agg_txq(priv, tid_to_ac[tid]);
+	txq_id = iwlagn_alloc_agg_txq(priv, ctx->ac_to_queue[tid_to_ac[tid]]);
 	if (txq_id < 0) {
 		IWL_DEBUG_TX_QUEUES(priv,
 			"No free aggregation queue for %pM/%d\n",

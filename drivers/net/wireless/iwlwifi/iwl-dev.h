@@ -727,9 +727,9 @@ struct iwl_priv {
 
 	unsigned long transport_queue_stop;
 	bool passive_no_rx;
-#define IWL_INVALID_AC	0xff
-	u8 queue_to_ac[IWL_MAX_HW_QUEUES];
-	atomic_t ac_stop_count[IEEE80211_NUM_ACS];
+#define IWL_INVALID_MAC80211_QUEUE	0xff
+	u8 queue_to_mac80211[IWL_MAX_HW_QUEUES];
+	atomic_t queue_stop_count[IWL_MAX_HW_QUEUES];
 
 	unsigned long agg_q_alloc[BITS_TO_LONGS(IWL_MAX_HW_QUEUES)];
 

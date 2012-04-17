@@ -578,24 +578,6 @@ static const u8 iwlagn_pan_ac_to_queue[] = {
 	7, 6, 5, 4,
 };
 
-static const u8 iwlagn_bss_queue_to_ac[] = {
-	IEEE80211_AC_VO,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_BE,
-	IEEE80211_AC_BK,
-};
-
-static const u8 iwlagn_pan_queue_to_ac[] = {
-	IEEE80211_AC_VO,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_BE,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BK,
-	IEEE80211_AC_BE,
-	IEEE80211_AC_VI,
-	IEEE80211_AC_VO,
-};
-
 void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 {
 	int i;
@@ -1030,12 +1012,12 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 	priv->bt_status = bt_status;
 	priv->bt_is_sco = bt_is_sco;
 
-	/* reset all queues */
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		atomic_set(&priv->ac_stop_count[i], 0);
-
+	/* reset aggregation queues */
 	for (i = IWLAGN_FIRST_AMPDU_QUEUE; i < IWL_MAX_HW_QUEUES; i++)
-		priv->queue_to_ac[i] = IWL_INVALID_AC;
+		priv->queue_to_mac80211[i] = IWL_INVALID_MAC80211_QUEUE;
+	/* and stop counts */
+	for (i = 0; i < IWL_MAX_HW_QUEUES; i++)
+		atomic_set(&priv->queue_stop_count[i], 0);
 
 	memset(priv->agg_q_alloc, 0, sizeof(priv->agg_q_alloc));
 }
@@ -1491,8 +1473,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		STATISTICS_NOTIFICATION,
 		REPLY_TX,
 	};
-	const u8 *q_to_ac;
-	int n_q_to_ac;
 	int i;
 
 	/************************
@@ -1575,16 +1555,12 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		trans_cfg.queue_to_fifo = iwlagn_ipan_queue_to_tx_fifo;
 		trans_cfg.n_queue_to_fifo =
 			ARRAY_SIZE(iwlagn_ipan_queue_to_tx_fifo);
-		q_to_ac = iwlagn_pan_queue_to_ac;
-		n_q_to_ac = ARRAY_SIZE(iwlagn_pan_queue_to_ac);
 	} else {
 		priv->sta_key_max_num = STA_KEY_MAX_NUM;
 		trans_cfg.cmd_queue = IWL_DEFAULT_CMD_QUEUE_NUM;
 		trans_cfg.queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
 		trans_cfg.n_queue_to_fifo =
 			ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
-		q_to_ac = iwlagn_bss_queue_to_ac;
-		n_q_to_ac = ARRAY_SIZE(iwlagn_bss_queue_to_ac);
 	}
 
 	/* Configure transport layer */
@@ -1670,8 +1646,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		trans_cfg.queue_to_fifo = iwlagn_default_queue_to_tx_fifo;
 		trans_cfg.n_queue_to_fifo =
 			ARRAY_SIZE(iwlagn_default_queue_to_tx_fifo);
-		q_to_ac = iwlagn_bss_queue_to_ac;
-		n_q_to_ac = ARRAY_SIZE(iwlagn_bss_queue_to_ac);
 
 		/* Configure transport layer again*/
 		iwl_trans_configure(priv->trans, &trans_cfg);
@@ -1680,14 +1654,13 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/*******************
 	 * 5. Setup priv
 	 *******************/
-	for (i = 0; i < IEEE80211_NUM_ACS; i++)
-		atomic_set(&priv->ac_stop_count[i], 0);
-
 	for (i = 0; i < IWL_MAX_HW_QUEUES; i++) {
-		if (i < n_q_to_ac)
-			priv->queue_to_ac[i] = q_to_ac[i];
-		else
-			priv->queue_to_ac[i] = IWL_INVALID_AC;
+		priv->queue_to_mac80211[i] = IWL_INVALID_MAC80211_QUEUE;
+		if (i < IWLAGN_FIRST_AMPDU_QUEUE &&
+		    i != IWL_DEFAULT_CMD_QUEUE_NUM &&
+		    i != IWL_IPAN_CMD_QUEUE_NUM)
+			priv->queue_to_mac80211[i] = i;
+		atomic_set(&priv->queue_stop_count[i], 0);
 	}
 
 	WARN_ON(trans_cfg.queue_to_fifo[trans_cfg.cmd_queue] !=
@@ -2256,56 +2229,56 @@ static void iwl_wimax_active(struct iwl_op_mode *op_mode)
 void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-	int ac = priv->queue_to_ac[queue];
+	int mq = priv->queue_to_mac80211[queue];
 
-	if (WARN_ON_ONCE(ac == IWL_INVALID_AC))
+	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
 		return;
 
-	if (atomic_inc_return(&priv->ac_stop_count[ac]) > 1) {
+	if (atomic_inc_return(&priv->queue_stop_count[mq]) > 1) {
 		IWL_DEBUG_TX_QUEUES(priv,
-			"queue %d (AC %d) already stopped\n",
-			queue, ac);
+			"queue %d (mac80211 %d) already stopped\n",
+			queue, mq);
 		return;
 	}
 
-	set_bit(ac, &priv->transport_queue_stop);
-	ieee80211_stop_queue(priv->hw, ac);
+	set_bit(mq, &priv->transport_queue_stop);
+	ieee80211_stop_queue(priv->hw, mq);
 }
 
 void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
-	int ac = priv->queue_to_ac[queue];
+	int mq = priv->queue_to_mac80211[queue];
 
-	if (WARN_ON_ONCE(ac == IWL_INVALID_AC))
+	if (WARN_ON_ONCE(mq == IWL_INVALID_MAC80211_QUEUE))
 		return;
 
-	if (atomic_dec_return(&priv->ac_stop_count[ac]) > 0) {
+	if (atomic_dec_return(&priv->queue_stop_count[mq]) > 0) {
 		IWL_DEBUG_TX_QUEUES(priv,
-			"queue %d (AC %d) already awake\n",
-			queue, ac);
+			"queue %d (mac80211 %d) already awake\n",
+			queue, mq);
 		return;
 	}
 
-	clear_bit(ac, &priv->transport_queue_stop);
+	clear_bit(mq, &priv->transport_queue_stop);
 
 	if (!priv->passive_no_rx)
-		ieee80211_wake_queue(priv->hw, ac);
+		ieee80211_wake_queue(priv->hw, mq);
 }
 
 void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 {
-	int ac;
+	int mq;
 
 	if (!priv->passive_no_rx)
 		return;
 
-	for (ac = IEEE80211_AC_VO; ac < IEEE80211_NUM_ACS; ac++) {
-		if (!test_bit(ac, &priv->transport_queue_stop)) {
-			IWL_DEBUG_TX_QUEUES(priv, "Wake queue %d");
-			ieee80211_wake_queue(priv->hw, ac);
+	for (mq = 0; mq < IWLAGN_FIRST_AMPDU_QUEUE; mq++) {
+		if (!test_bit(mq, &priv->transport_queue_stop)) {
+			IWL_DEBUG_TX_QUEUES(priv, "Wake queue %d", mq);
+			ieee80211_wake_queue(priv->hw, mq);
 		} else {
-			IWL_DEBUG_TX_QUEUES(priv, "Don't wake queue %d");
+			IWL_DEBUG_TX_QUEUES(priv, "Don't wake queue %d", mq);
 		}
 	}
 

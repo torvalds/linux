@@ -146,7 +146,13 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_NEED_DTIM_PERIOD |
 		    IEEE80211_HW_SPECTRUM_MGMT |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		    IEEE80211_HW_QUEUE_CONTROL |
+		    IEEE80211_HW_SUPPORTS_PS |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
+		    IEEE80211_HW_SCAN_WHILE_IDLE;
+
+	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
 
 	/*
 	 * Including the following line will crash some AP's.  This
@@ -154,10 +160,6 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 * the AP software can be fixed.
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	 */
-
-	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		     IEEE80211_HW_SCAN_WHILE_IDLE;
 
 	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
@@ -224,8 +226,11 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	/* we create the 802.11 header and a zero-length SSID element */
 	hw->wiphy->max_scan_ie_len = capa->max_probe_length - 24 - 2;
 
-	/* Default value; 4 EDCA QOS priorities */
-	hw->queues = 4;
+	/*
+	 * We don't use all queues: 4 and 9 are unused and any
+	 * aggregation queue gets mapped down to the AC queue.
+	 */
+	hw->queues = IWLAGN_FIRST_AMPDU_QUEUE;
 
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
@@ -1218,7 +1223,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	struct ieee80211_vif *vif = ctx->vif;
-	int err;
+	int err, ac;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -1248,11 +1253,20 @@ int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		priv->bt_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
 	}
 
+	/* set up queue mappings */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		vif->hw_queue[ac] = ctx->ac_to_queue[ac];
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		vif->cab_queue = ctx->mcast_queue;
+	else
+		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
+
 	return 0;
 }
 
 static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif)
+				    struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
