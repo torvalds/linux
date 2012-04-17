@@ -1213,7 +1213,19 @@ static void uart_set_termios(struct tty_struct *tty,
 	struct uart_port *uport = state->uart_port;
 	unsigned long flags;
 	unsigned int cflag = tty->termios.c_cflag;
+	unsigned int iflag_mask = IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK;
+	bool sw_changed = false;
 
+	/*
+	 * Drivers doing software flow control also need to know
+	 * about changes to these input settings.
+	 */
+	if (uport->flags & UPF_SOFT_FLOW) {
+		iflag_mask |= IXANY|IXON|IXOFF;
+		sw_changed =
+		   tty->termios.c_cc[VSTART] != old_termios->c_cc[VSTART] ||
+		   tty->termios.c_cc[VSTOP] != old_termios->c_cc[VSTOP];
+	}
 
 	/*
 	 * These are the bits that are used to setup various
@@ -1221,11 +1233,11 @@ static void uart_set_termios(struct tty_struct *tty,
 	 * bits in c_cflag; c_[io]speed will always be set
 	 * appropriately by set_termios() in tty_ioctl.c
 	 */
-#define RELEVANT_IFLAG(iflag)	((iflag) & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 	if ((cflag ^ old_termios->c_cflag) == 0 &&
 	    tty->termios.c_ospeed == old_termios->c_ospeed &&
 	    tty->termios.c_ispeed == old_termios->c_ispeed &&
-	    RELEVANT_IFLAG(tty->termios.c_iflag ^ old_termios->c_iflag) == 0) {
+	    ((tty->termios.c_iflag ^ old_termios->c_iflag) & iflag_mask) == 0 &&
+	    !sw_changed) {
 		return;
 	}
 
