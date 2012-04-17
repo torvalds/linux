@@ -126,6 +126,25 @@ int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
 }
 
 /**
+ * pin_get_name_from_id() - look up a pin name from a pin id
+ * @pctldev: the pin control device to lookup the pin on
+ * @name: the name of the pin to look up
+ */
+const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
+{
+	const struct pin_desc *desc;
+
+	desc = pin_desc_get(pctldev, pin);
+	if (desc == NULL) {
+		dev_err(pctldev->dev, "failed to get pin(%d) name\n",
+			pin);
+		return NULL;
+	}
+
+	return desc->name;
+}
+
+/**
  * pin_is_valid() - check if pin exists on controller
  * @pctldev: the pin control device to check the pin on
  * @pin: pin to check, use the local pin controller index number
@@ -1011,6 +1030,7 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 		const unsigned *pins;
 		unsigned num_pins;
 		const char *gname = ops->get_group_name(pctldev, selector);
+		const char *pname;
 		int ret;
 		int i;
 
@@ -1020,10 +1040,14 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 			seq_printf(s, "%s [ERROR GETTING PINS]\n",
 				   gname);
 		else {
-			seq_printf(s, "group: %s, pins = [ ", gname);
-			for (i = 0; i < num_pins; i++)
-				seq_printf(s, "%d ", pins[i]);
-			seq_puts(s, "]\n");
+			seq_printf(s, "group: %s\n", gname);
+			for (i = 0; i < num_pins; i++) {
+				pname = pin_get_name(pctldev, pins[i]);
+				if (WARN_ON(!pname))
+					return -EINVAL;
+				seq_printf(s, "pin %d (%s)\n", pins[i], pname);
+			}
+			seq_puts(s, "\n");
 		}
 		selector++;
 	}
