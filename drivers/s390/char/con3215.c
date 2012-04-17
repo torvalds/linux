@@ -336,7 +336,11 @@ static inline void raw3215_try_io(struct raw3215_info *raw)
 static void raw3215_wakeup(unsigned long data)
 {
 	struct raw3215_info *raw = (struct raw3215_info *) data;
-	tty_wakeup(raw->tty);
+	struct tty_struct *tty;
+
+	tty = tty_port_tty_get(&raw->port);
+	tty_wakeup(tty);
+	tty_kref_put(tty);
 }
 
 /*
