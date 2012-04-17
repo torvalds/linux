@@ -240,8 +240,6 @@ do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(DEST);	\
 do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(SRC);	\
 } while (0)
 
-#define cpu_off		offsetof(struct thread_info, cpu)
-
 #ifdef CONFIG_SMP
 #ifdef CONFIG_SPARC64
 #define emit_load_cpu(REG)						\
