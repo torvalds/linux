@@ -297,20 +297,6 @@ enum atl1c_dma_req_block {
 	atl1c_dma_req_4096 = 5
 };
 
-enum atl1c_rss_mode {
-	atl1c_rss_mode_disable = 0,
-	atl1c_rss_sig_que = 1,
-	atl1c_rss_mul_que_sig_int = 2,
-	atl1c_rss_mul_que_mul_int = 4,
-};
-
-enum atl1c_rss_type {
-	atl1c_rss_disable = 0,
-	atl1c_rss_ipv4 = 1,
-	atl1c_rss_ipv4_tcp = 2,
-	atl1c_rss_ipv6 = 4,
-	atl1c_rss_ipv6_tcp = 8
-};
 
 enum atl1c_nic_type {
 	athr_l1c = 0,
@@ -451,9 +437,6 @@ struct atl1c_hw {
 	u16 tpd_thresh;
 	u8 tpd_burst;   /* Number of TPD to prefetch in cache-aligned burst. */
 	u8 rfd_burst;
-	enum atl1c_rss_type rss_type;
-	enum atl1c_rss_mode rss_mode;
-	u8 rss_hash_bits;
 	u32 base_cpu;
 	u32 indirect_tab;
 	u8 mac_addr[ETH_ALEN];
@@ -586,11 +569,10 @@ struct atl1c_adapter {
 	/* All Descriptor memory */
 	struct atl1c_ring_header ring_header;
 	struct atl1c_tpd_ring tpd_ring[AT_MAX_TRANSMIT_QUEUE];
-	struct atl1c_rfd_ring rfd_ring[AT_MAX_RECEIVE_QUEUE];
-	struct atl1c_rrd_ring rrd_ring[AT_MAX_RECEIVE_QUEUE];
+	struct atl1c_rfd_ring rfd_ring;
+	struct atl1c_rrd_ring rrd_ring;
 	struct atl1c_cmb cmb;
 	struct atl1c_smb smb;
-	int num_rx_queues;
 	u32 bd_number;     /* board number;*/
 };
 

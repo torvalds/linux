@@ -461,17 +461,11 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_SMB_BASE_ADDR_HI		0x1548
 #define REG_SMB_BASE_ADDR_LO		0x154C
 #define REG_RFD0_HEAD_ADDR_LO		0x1550
-#define REG_RFD1_HEAD_ADDR_LO		0x1554
-#define REG_RFD2_HEAD_ADDR_LO		0x1558
-#define REG_RFD3_HEAD_ADDR_LO		0x155C
 #define REG_RFD_RING_SIZE		0x1560
 #define RFD_RING_SIZE_MASK		0x0FFF
 #define REG_RX_BUF_SIZE			0x1564
 #define RX_BUF_SIZE_MASK		0xFFFF
 #define REG_RRD0_HEAD_ADDR_LO		0x1568
-#define REG_RRD1_HEAD_ADDR_LO		0x156C
-#define REG_RRD2_HEAD_ADDR_LO		0x1570
-#define REG_RRD3_HEAD_ADDR_LO		0x1574
 #define REG_RRD_RING_SIZE		0x1578
 #define RRD_RING_SIZE_MASK		0x0FFF
 #define REG_HTPD_HEAD_ADDR_LO		0x157C
@@ -479,30 +473,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_TPD_RING_SIZE		0x1584
 #define TPD_RING_SIZE_MASK		0xFFFF
 #define REG_CMB_BASE_ADDR_LO		0x1588
-
-/* RSS about */
-#define REG_RSS_KEY0                    0x14B0
-#define REG_RSS_KEY1                    0x14B4
-#define REG_RSS_KEY2                    0x14B8
-#define REG_RSS_KEY3                    0x14BC
-#define REG_RSS_KEY4                    0x14C0
-#define REG_RSS_KEY5                    0x14C4
-#define REG_RSS_KEY6                    0x14C8
-#define REG_RSS_KEY7                    0x14CC
-#define REG_RSS_KEY8                    0x14D0
-#define REG_RSS_KEY9                    0x14D4
-#define REG_IDT_TABLE0                	0x14E0
-#define REG_IDT_TABLE1                  0x14E4
-#define REG_IDT_TABLE2                  0x14E8
-#define REG_IDT_TABLE3                  0x14EC
-#define REG_IDT_TABLE4                  0x14F0
-#define REG_IDT_TABLE5                  0x14F4
-#define REG_IDT_TABLE6                  0x14F8
-#define REG_IDT_TABLE7                  0x14FC
-#define REG_IDT_TABLE                   REG_IDT_TABLE0
-#define REG_RSS_HASH_VALUE              0x15B0
-#define REG_RSS_HASH_FLAG               0x15B4
-#define REG_BASE_CPU_NUMBER             0x15B8
 
 /* TXQ Control Register */
 #define REG_TXQ_CTRL                	0x1590
@@ -608,9 +578,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 /* Mail box */
 #define MB_RFDX_PROD_IDX_MASK		0xFFFF
 #define REG_MB_RFD0_PROD_IDX		0x15E0
-#define REG_MB_RFD1_PROD_IDX		0x15E4
-#define REG_MB_RFD2_PROD_IDX		0x15E8
-#define REG_MB_RFD3_PROD_IDX		0x15EC
 
 #define MB_PRIO_PROD_IDX_MASK		0xFFFF
 #define REG_MB_PRIO_PROD_IDX		0x15F0
@@ -625,9 +592,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_MB_RFD01_CONS_IDX		0x15F8
 #define MB_RFD0_CONS_IDX_MASK		0x0000FFFF
 #define MB_RFD1_CONS_IDX_MASK		0xFFFF0000
-#define REG_MB_RFD23_CONS_IDX		0x15FC
-#define MB_RFD2_CONS_IDX_MASK		0x0000FFFF
-#define MB_RFD3_CONS_IDX_MASK		0xFFFF0000
 
 /* Interrupt Status Register */
 #define REG_ISR    			0x1600
