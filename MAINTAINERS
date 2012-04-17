@@ -2321,9 +2321,9 @@ S:	Supported
 F:	drivers/acpi/dock.c
 
 DOCUMENTATION
-M:	Randy Dunlap <rdunlap@xenotime.net>
+M:	Rob Landley <rob@landley.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt http://xenotime.net/kernel-doc-patches/current/
+T:	TBD
 S:	Maintained
 F:	Documentation/
 
