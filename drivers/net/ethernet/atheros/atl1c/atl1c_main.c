@@ -1453,8 +1453,6 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	/* set MTU */
 	AT_WRITE_REG(hw, REG_MTU, hw->max_frame_size + ETH_HLEN +
 			VLAN_HLEN + ETH_FCS_LEN);
-	/* HDS, disable */
-	AT_WRITE_REG(hw, REG_HDS_CTRL, 0);
 
 	atl1c_configure_tx(adapter);
 	atl1c_configure_rx(adapter);
