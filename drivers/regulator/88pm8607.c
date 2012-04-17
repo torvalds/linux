@@ -31,8 +31,6 @@ struct pm8607_regulator_info {
 	int	vol_shift;
 	int	update_reg;
 	int	update_bit;
-	int	enable_reg;
-	int	enable_bit;
 	int	slope_double;
 };
 
@@ -262,42 +260,13 @@ static int pm8607_get_voltage_sel(struct regulator_dev *rdev)
 	return val;
 }
 
-static int pm8607_enable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, info->enable_reg,
-			       1 << info->enable_bit,
-			       1 << info->enable_bit);
-}
-
-static int pm8607_disable(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-
-	return pm860x_set_bits(info->i2c, info->enable_reg,
-			       1 << info->enable_bit, 0);
-}
-
-static int pm8607_is_enabled(struct regulator_dev *rdev)
-{
-	struct pm8607_regulator_info *info = rdev_get_drvdata(rdev);
-	int ret;
-
-	ret = pm860x_reg_read(info->i2c, info->enable_reg);
-	if (ret < 0)
-		return ret;
-
-	return !!((unsigned char)ret & (1 << info->enable_bit));
-}
-
 static struct regulator_ops pm8607_regulator_ops = {
 	.list_voltage	= pm8607_list_voltage,
 	.set_voltage_sel = pm8607_set_voltage_sel,
 	.get_voltage_sel = pm8607_get_voltage_sel,
-	.enable		= pm8607_enable,
-	.disable	= pm8607_disable,
-	.is_enabled	= pm8607_is_enabled,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 };
 
 #define PM8607_DVC(vreg, ureg, ubit, ereg, ebit)			\
@@ -309,13 +278,13 @@ static struct regulator_ops pm8607_regulator_ops = {
 		.id	= PM8607_ID_##vreg,				\
 		.owner	= THIS_MODULE,					\
 		.n_voltages = ARRAY_SIZE(vreg##_table),			\
+		.enable_reg = PM8607_##ereg,				\
+		.enable_mask = 1 << (ebit),				\
 	},								\
 	.vol_reg	= PM8607_##vreg,				\
 	.vol_shift	= (0),						\
 	.update_reg	= PM8607_##ureg,				\
 	.update_bit	= (ubit),					\
-	.enable_reg	= PM8607_##ereg,				\
-	.enable_bit	= (ebit),					\
 	.slope_double	= (0),						\
 	.vol_table	= (unsigned int *)&vreg##_table,		\
 	.vol_suspend	= (unsigned int *)&vreg##_suspend_table,	\
@@ -330,11 +299,11 @@ static struct regulator_ops pm8607_regulator_ops = {
 		.id	= PM8607_ID_LDO##_id,				\
 		.owner	= THIS_MODULE,					\
 		.n_voltages = ARRAY_SIZE(LDO##_id##_table),		\
+		.enable_reg = PM8607_##ereg,				\
+		.enable_mask = 1 << (ebit),				\
 	},								\
 	.vol_reg	= PM8607_##vreg,				\
 	.vol_shift	= (shift),					\
-	.enable_reg	= PM8607_##ereg,				\
-	.enable_bit	= (ebit),					\
 	.slope_double	= (0),						\
 	.vol_table	= (unsigned int *)&LDO##_id##_table,		\
 	.vol_suspend	= (unsigned int *)&LDO##_id##_suspend_table,	\
@@ -394,6 +363,11 @@ static int __devinit pm8607_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = pdata;
 	config.driver_data = info;
+
+	if (chip->id == CHIP_PM8607)
+		config.regmap = chip->regmap;
+	else
+		config.regmap = chip->regmap_companion;
 
 	/* replace driver_data with info */
 	info->regulator = regulator_register(&info->desc, &config);
