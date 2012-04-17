@@ -1,3 +1,4 @@
+#include <linux/module.h>
 #include <linux/spinlock.h>
 #include <mach/pmu.h>
 #include <mach/sram.h>
@@ -60,6 +61,7 @@ void pmu_set_power_domain(enum pmu_power_domain pd, bool on)
 	}
 	spin_unlock_irqrestore(&pmu_pd_lock, flags);
 }
+EXPORT_SYMBOL(pmu_set_power_domain);
 
 static DEFINE_SPINLOCK(pmu_misc_con1_lock);
 
@@ -84,3 +86,4 @@ void pmu_set_idle_request(enum pmu_idle_req req, bool idle)
 		;
 	spin_unlock_irqrestore(&pmu_misc_con1_lock, flags);
 }
+EXPORT_SYMBOL(pmu_set_idle_request);
