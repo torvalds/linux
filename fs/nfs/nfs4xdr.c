@@ -4940,7 +4940,7 @@ static int decode_getacl(struct xdr_stream *xdr, struct rpc_rqst *req,
 				res->acl_len = attrlen;
 				goto out;
 			}
-			dprintk("NFS: acl reply: attrlen %zu > page_len %u\n",
+			dprintk("NFS: acl reply: attrlen %u > page_len %zu\n",
 					attrlen, page_len);
 			return -EINVAL;
 		}
