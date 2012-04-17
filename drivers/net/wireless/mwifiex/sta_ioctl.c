@@ -155,20 +155,26 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
  * information.
  */
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
-			      u8 *bssid, s32 rssi, u8 *ie_buf,
-			      size_t ie_len, u16 beacon_period,
-			      u16 cap_info_bitmap, u8 band,
+			      struct cfg80211_bss *bss,
 			      struct mwifiex_bssdescriptor *bss_desc)
 {
 	int ret;
+	u8 *beacon_ie;
 
-	memcpy(bss_desc->mac_address, bssid, ETH_ALEN);
-	bss_desc->rssi = rssi;
-	bss_desc->beacon_buf = ie_buf;
-	bss_desc->beacon_buf_size = ie_len;
-	bss_desc->beacon_period = beacon_period;
-	bss_desc->cap_info_bitmap = cap_info_bitmap;
-	bss_desc->bss_band = band;
+	beacon_ie = kmemdup(bss->information_elements, bss->len_beacon_ies,
+			    GFP_KERNEL);
+	if (!beacon_ie) {
+		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
+		return -ENOMEM;
+	}
+
+	memcpy(bss_desc->mac_address, bss->bssid, ETH_ALEN);
+	bss_desc->rssi = bss->signal;
+	bss_desc->beacon_buf = beacon_ie;
+	bss_desc->beacon_buf_size = bss->len_beacon_ies;
+	bss_desc->beacon_period = bss->beacon_interval;
+	bss_desc->cap_info_bitmap = bss->capability;
+	bss_desc->bss_band = *(u8 *)bss->priv;
 	if (bss_desc->cap_info_bitmap & WLAN_CAPABILITY_PRIVACY) {
 		dev_dbg(priv->adapter->dev, "info: InterpretIE: AP WEP enabled\n");
 		bss_desc->privacy = MWIFIEX_802_11_PRIV_FILTER_8021X_WEP;
@@ -180,9 +186,9 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	else
 		bss_desc->bss_mode = NL80211_IFTYPE_STATION;
 
-	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc,
-					      ie_buf, ie_len);
+	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
 
+	kfree(beacon_ie);
 	return ret;
 }
 
@@ -197,7 +203,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	int ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
 	struct mwifiex_bssdescriptor *bss_desc = NULL;
-	u8 *beacon_ie = NULL;
 
 	priv->scan_block = false;
 
@@ -210,19 +215,7 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 			return -ENOMEM;
 		}
 
-		beacon_ie = kmemdup(bss->information_elements,
-					bss->len_beacon_ies, GFP_KERNEL);
-		if (!beacon_ie) {
-			kfree(bss_desc);
-			dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
-			return -ENOMEM;
-		}
-
-		ret = mwifiex_fill_new_bss_desc(priv, bss->bssid, bss->signal,
-						beacon_ie, bss->len_beacon_ies,
-						bss->beacon_interval,
-						bss->capability,
-						*(u8 *)bss->priv, bss_desc);
+		ret = mwifiex_fill_new_bss_desc(priv, bss, bss_desc);
 		if (ret)
 			goto done;
 	}
@@ -269,7 +262,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 		    (!mwifiex_ssid_cmp(&priv->curr_bss_params.bss_descriptor.
 				       ssid, &bss_desc->ssid))) {
 			kfree(bss_desc);
-			kfree(beacon_ie);
 			return 0;
 		}
 
@@ -304,7 +296,6 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 
 done:
 	kfree(bss_desc);
-	kfree(beacon_ie);
 	return ret;
 }
 
