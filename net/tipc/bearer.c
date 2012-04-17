@@ -449,7 +449,7 @@ int tipc_enable_bearer(const char *name, u32 disc_domain, u32 priority)
 		if (tipc_in_scope(disc_domain, tipc_own_addr)) {
 			disc_domain = tipc_own_addr & TIPC_CLUSTER_MASK;
 			res = 0;   /* accept any node in own cluster */
-		} else if (in_own_cluster(disc_domain))
+		} else if (in_own_cluster_exact(disc_domain))
 			res = 0;   /* accept specified node in own cluster */
 	}
 	if (res) {

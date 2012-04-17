@@ -342,7 +342,7 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 	list_add(&publ->zone_list, &info->zone_list);
 	info->zone_list_size++;
 
-	if (in_own_cluster(node)) {
+	if (in_own_cluster_exact(node)) {
 		list_add(&publ->cluster_list, &info->cluster_list);
 		info->cluster_list_size++;
 	}
@@ -411,7 +411,7 @@ found:
 
 	/* Remove publication from cluster scope list, if present */
 
-	if (in_own_cluster(node)) {
+	if (in_own_cluster_exact(node)) {
 		list_del(&publ->cluster_list);
 		info->cluster_list_size--;
 	}
@@ -604,7 +604,7 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 		publ = list_first_entry(&info->node_list, struct publication,
 					node_list);
 		list_move_tail(&publ->node_list, &info->node_list);
-	} else if (in_own_cluster(*destnode)) {
+	} else if (in_own_cluster_exact(*destnode)) {
 		if (list_empty(&info->cluster_list))
 			goto no_match;
 		publ = list_first_entry(&info->cluster_list, struct publication,

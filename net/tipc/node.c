@@ -72,7 +72,7 @@ struct tipc_node *tipc_node_find(u32 addr)
 	struct tipc_node *node;
 	struct hlist_node *pos;
 
-	if (unlikely(!in_own_cluster(addr)))
+	if (unlikely(!in_own_cluster_exact(addr)))
 		return NULL;
 
 	hlist_for_each_entry(node, pos, &node_htable[tipc_hashfn(addr)], hash) {
