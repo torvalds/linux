@@ -90,7 +90,7 @@ struct i2c_client *of_find_i2c_device_by_node(struct device_node *node)
 	if (!dev)
 		return NULL;
 
-	return to_i2c_client(dev);
+	return i2c_verify_client(dev);
 }
 EXPORT_SYMBOL(of_find_i2c_device_by_node);
 
