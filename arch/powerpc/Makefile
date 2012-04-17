@@ -69,6 +69,16 @@ LDFLAGS_vmlinux	:= $(LDFLAGS_vmlinux-y)
 
 CFLAGS-$(CONFIG_PPC64)	:= -mminimal-toc -mtraceback=no -mcall-aixdesc
 CFLAGS-$(CONFIG_PPC32)	:= -ffixed-r2 -mmultiple
+
+CFLAGS-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=power7,-mtune=power4)
+CFLAGS-$(CONFIG_CELL_CPU) += $(call cc-option,-mcpu=cell)
+CFLAGS-$(CONFIG_POWER4_CPU) += $(call cc-option,-mcpu=power4)
+CFLAGS-$(CONFIG_POWER5_CPU) += $(call cc-option,-mcpu=power5)
+CFLAGS-$(CONFIG_POWER6_CPU) += $(call cc-option,-mcpu=power6)
+CFLAGS-$(CONFIG_POWER7_CPU) += $(call cc-option,-mcpu=power7)
+
+CFLAGS-$(CONFIG_TUNE_CELL) += $(call cc-option,-mtune=cell)
+
 KBUILD_CPPFLAGS	+= -Iarch/$(ARCH)
 KBUILD_AFLAGS	+= -Iarch/$(ARCH)
 KBUILD_CFLAGS	+= -msoft-float -pipe -Iarch/$(ARCH) $(CFLAGS-y)
@@ -76,22 +86,11 @@ CPP		= $(CC) -E $(KBUILD_CFLAGS)
 
 CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
 
-ifeq ($(CONFIG_PPC64),y)
-ifeq ($(CONFIG_POWER4_ONLY),y)
-	KBUILD_CFLAGS += $(call cc-option,-mcpu=power4)
-else
-	KBUILD_CFLAGS += $(call cc-option,-mtune=power4)
-endif
-endif
-
 KBUILD_LDFLAGS_MODULE += arch/powerpc/lib/crtsavres.o
 
-ifeq ($(CONFIG_TUNE_CELL),y)
-	KBUILD_CFLAGS += $(call cc-option,-mtune=cell)
-endif
-
-# No AltiVec instruction when building kernel
+# No AltiVec or VSX instructions when building kernel
 KBUILD_CFLAGS += $(call cc-option,-mno-altivec)
+KBUILD_CFLAGS += $(call cc-option,-mno-vsx)
 
 # No SPE instruction when building kernel
 # (We use all available options to help semi-broken compilers)

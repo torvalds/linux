@@ -78,6 +78,36 @@ config PPC_BOOK3E_64
 
 endchoice
 
+choice
+	prompt "CPU selection"
+	depends on PPC64
+	default GENERIC_CPU
+	help
+	  This will create a kernel which is optimised for a particular CPU.
+	  The resulting kernel may not run on other CPUs, so use this with care.
+
+	  If unsure, select Generic.
+
+config GENERIC_CPU
+	bool "Generic"
+
+config CELL_CPU
+	bool "Cell Broadband Engine"
+
+config POWER4_CPU
+	bool "POWER4"
+
+config POWER5_CPU
+	bool "POWER5"
+
+config POWER6_CPU
+	bool "POWER6"
+
+config POWER7_CPU
+	bool "POWER7"
+
+endchoice
+
 config PPC_BOOK3S
 	def_bool y
 	depends on PPC_BOOK3S_32 || PPC_BOOK3S_64
