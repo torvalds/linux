@@ -234,10 +234,11 @@ archprepare: checkbin
 # Use the file '.tmp_gas_check' for binutils tests, as gas won't output
 # to stdout and these checks are run even on install targets.
 TOUT	:= .tmp_gas_check
-# Ensure this is binutils 2.12.1 (or 2.12.90.0.7) or later for altivec
-# instructions.
-# gcc-3.4 and binutils-2.14 are a fatal combination.
 
+# Check gcc and binutils versions:
+# - gcc-3.4 and binutils-2.14 are a fatal combination
+# - Require gcc 4.0 or above on 64-bit
+# - gcc-4.2.0 has issues compiling modules on 64-bit
 checkbin:
 	@if test "$(call cc-version)" = "0304" ; then \
 		if ! /bin/echo mftb 5 | $(AS) -v -mppc -many -o $(TOUT) >/dev/null 2>&1 ; then \
@@ -247,6 +248,12 @@ checkbin:
 			false; \
 		fi ; \
 	fi
+	@if test "$(call cc-version)" -lt "0400" \
+	    && test "x${CONFIG_PPC64}" = "xy" ; then \
+                echo -n "Sorry, GCC v4.0 or above is required to build " ; \
+                echo "the 64-bit powerpc kernel." ; \
+                false ; \
+        fi
 	@if test "$(call cc-fullversion)" = "040200" \
 	    && test "x${CONFIG_MODULES}${CONFIG_PPC64}" = "xyy" ; then \
 		echo -n '*** GCC-4.2.0 cannot compile the 64-bit powerpc ' ; \
