@@ -1045,19 +1045,23 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 {
 	struct atl1c_hw *hw = &adapter->hw;
-	u32 dev_ctrl_data;
-	u32 max_pay_load;
+	int max_pay_load;
 	u16 tx_offload_thresh;
 	u32 txq_ctrl_data;
 
 	tx_offload_thresh = MAX_TX_OFFLOAD_THRESH;
 	AT_WRITE_REG(hw, REG_TX_TSO_OFFLOAD_THRESH,
 		(tx_offload_thresh >> 3) & TX_TSO_OFFLOAD_THRESH_MASK);
-	AT_READ_REG(hw, REG_DEVICE_CTRL, &dev_ctrl_data);
-	max_pay_load  = (dev_ctrl_data >> DEVICE_CTRL_MAX_RREQ_SZ_SHIFT) &
-			DEVICE_CTRL_MAX_RREQ_SZ_MASK;
+	max_pay_load = pcie_get_readrq(adapter->pdev) >> 8;
 	hw->dmar_block = min_t(u32, max_pay_load, hw->dmar_block);
-
+	/*
+	 * if BIOS had changed the dam-read-max-length to an invalid value,
+	 * restore it to default value
+	 */
+	if (hw->dmar_block < DEVICE_CTRL_MAXRRS_MIN) {
+		pcie_set_readrq(adapter->pdev, 128 << DEVICE_CTRL_MAXRRS_MIN);
+		hw->dmar_block = DEVICE_CTRL_MAXRRS_MIN;
+	}
 	txq_ctrl_data =
 		hw->nic_type == athr_l2c_b || hw->nic_type == athr_l2c_b2 ?
 		L2CB_TXQ_CFGV : L1C_TXQ_CFGV;

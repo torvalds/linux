@@ -54,11 +54,7 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define DEVICE_CAP_MAX_PAYLOAD_MASK     0x7
 #define DEVICE_CAP_MAX_PAYLOAD_SHIFT    0
 
-#define REG_DEVICE_CTRL			0x60
-#define DEVICE_CTRL_MAX_PAYLOAD_MASK    0x7
-#define DEVICE_CTRL_MAX_PAYLOAD_SHIFT   5
-#define DEVICE_CTRL_MAX_RREQ_SZ_MASK    0x7
-#define DEVICE_CTRL_MAX_RREQ_SZ_SHIFT   12
+#define DEVICE_CTRL_MAXRRS_MIN		2
 
 #define REG_LINK_CTRL			0x68
 #define LINK_CTRL_L0S_EN		0x01
