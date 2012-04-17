@@ -256,6 +256,11 @@ int ab8500_gpadc_convert(struct ab8500_gpadc *gpadc, u8 channel)
 	int voltage;
 
 	ad_value = ab8500_gpadc_read_raw(gpadc, channel);
+
+	/* On failure retry a second time */
+	if (ad_value < 0)
+		ad_value = ab8500_gpadc_read_raw(gpadc, channel);
+
 	if (ad_value < 0) {
 		dev_err(gpadc->dev, "GPADC raw value failed ch: %d\n", channel);
 		return ad_value;
