@@ -178,7 +178,7 @@ static inline void copy_de(struct hpfs_dirent *dst, struct hpfs_dirent *src)
 	dst->not_8x3 = n;
 }
 
-static inline unsigned tstbits(u32 *bmp, unsigned b, unsigned n)
+static inline unsigned tstbits(__le32 *bmp, unsigned b, unsigned n)
 {
 	int i;
 	if ((b >= 0x4000) || (b + n - 1 >= 0x4000)) return n;
@@ -275,8 +275,8 @@ void hpfs_evict_inode(struct inode *);
 
 /* map.c */
 
-unsigned *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
-unsigned *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
+__le32 *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
+__le32 *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
 unsigned char *hpfs_load_code_page(struct super_block *, secno);
 secno *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);
