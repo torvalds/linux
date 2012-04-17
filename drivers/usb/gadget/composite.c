@@ -798,7 +798,7 @@ done:
 static void collect_langs(struct usb_gadget_strings **sp, __le16 *buf)
 {
 	const struct usb_gadget_strings	*s;
-	u16				language;
+	__le16				language;
 	__le16				*tmp;
 
 	while (*sp) {
