@@ -5,8 +5,6 @@ FILES=(
 # arch
 arch/arm/mach-rk30/clock_data.c
 arch/arm/mach-rk30/ddr*.c
-
-arch/arm/plat-rk/vpu*.c
 )
 
 DIRS=(
@@ -15,6 +13,7 @@ DIRS=(
 EXCLUDES=(
 pack-kernel*
 
+arch/arm/plat-rk/vpu*.c
 arch/arm/mach-rk29/*.c
 arch/arm/mach-rk29/*.h
 arch/arm/mach-rk29/*.S

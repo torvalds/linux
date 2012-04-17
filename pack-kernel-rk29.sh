@@ -5,15 +5,7 @@ FILES=(
 # arch
 arch/arm/mach-rk29/clock.c
 arch/arm/mach-rk29/ddr.c
-arch/arm/mach-rk29/vpu*.c
 arch/arm/mach-rk29/verifyID.c
-
-arch/arm/plat-rk/vpu*.c
-
-#drivers/staging/rk29/ipp/rk29-ipp.c
-
-# exclude drivers/net/wireless/rkwifi/fw_path.c
-drivers/net/wireless/rkwifi/[abcdeghijklmnopqrstuvwxyz]*.c
 )
 
 DIRS=(
@@ -21,6 +13,9 @@ DIRS=(
 
 EXCLUDES=(
 pack-kernel*
+
+arch/arm/mach-rk29/vpu*.c
+arch/arm/plat-rk/vpu*.c
 
 arch/arm/mach-rk30/*.c
 arch/arm/mach-rk30/*.h
