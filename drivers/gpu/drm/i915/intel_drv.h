@@ -204,6 +204,25 @@ struct intel_plane {
 			     struct drm_intel_sprite_colorkey *key);
 };
 
+struct intel_watermark_params {
+	unsigned long fifo_size;
+	unsigned long max_wm;
+	unsigned long default_wm;
+	unsigned long guard_size;
+	unsigned long cacheline_size;
+};
+
+struct cxsr_latency {
+	int is_desktop;
+	int is_ddr3;
+	unsigned long fsb_freq;
+	unsigned long mem_freq;
+	unsigned long display_sr;
+	unsigned long display_hpll_disable;
+	unsigned long cursor_sr;
+	unsigned long cursor_hpll_disable;
+};
+
 #define to_intel_crtc(x) container_of(x, struct intel_crtc, base)
 #define to_intel_connector(x) container_of(x, struct intel_connector, base)
 #define to_intel_encoder(x) container_of(x, struct intel_encoder, base)
@@ -448,5 +467,26 @@ extern bool ironlake_fbc_enabled(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern void intel_update_fbc(struct drm_device *dev);
+
+/* Watermarks */
+extern void pineview_update_wm(struct drm_device *dev);
+extern void valleyview_update_wm(struct drm_device *dev);
+extern void g4x_update_wm(struct drm_device *dev);
+extern void i965_update_wm(struct drm_device *dev);
+extern void i9xx_update_wm(struct drm_device *dev);
+extern void i830_update_wm(struct drm_device *dev);
+extern void ironlake_update_wm(struct drm_device *dev);
+extern void sandybridge_update_wm(struct drm_device *dev);
+extern void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
+					 uint32_t sprite_width, int pixel_size);
+extern const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
+							 int is_ddr3,
+							 int fsb,
+							 int mem);
+extern void pineview_disable_cxsr(struct drm_device *dev);
+extern int i9xx_get_fifo_size(struct drm_device *dev, int plane);
+extern int i85x_get_fifo_size(struct drm_device *dev, int plane);
+extern int i845_get_fifo_size(struct drm_device *dev, int plane);
+extern int i830_get_fifo_size(struct drm_device *dev, int plane);
 
 #endif /* __INTEL_DRV_H__ */
