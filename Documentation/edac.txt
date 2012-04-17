@@ -232,115 +232,19 @@ EDAC control and attribute files.
 
 
 In 'mcX' directories are EDAC control and attribute files for
-this 'X' instance of the memory controllers:
+this 'X' instance of the memory controllers.
 
-
-Counter reset control file:
-
-	'reset_counters'
-
-	This write-only control file will zero all the statistical counters
-	for UE and CE errors.  Zeroing the counters will also reset the timer
-	indicating how long since the last counter zero.  This is useful
-	for computing errors/time.  Since the counters are always reset at
-	driver initialization time, no module/kernel parameter is available.
-
-	RUN TIME: echo "anything" >/sys/devices/system/edac/mc/mc0/counter_reset
-
-		This resets the counters on memory controller 0
-
-
-Seconds since last counter reset control file:
-
-	'seconds_since_reset'
-
-	This attribute file displays how many seconds have elapsed since the
-	last counter reset. This can be used with the error counters to
-	measure error rates.
-
-
-
-Memory Controller name attribute file:
-
-	'mc_name'
-
-	This attribute file displays the type of memory controller
-	that is being utilized.
-
-
-Total memory managed by this memory controller attribute file:
-
-	'size_mb'
-
-	This attribute file displays, in count of megabytes, of memory
-	that this instance of memory controller manages.
-
-
-Total Uncorrectable Errors count attribute file:
-
-	'ue_count'
-
-	This attribute file displays the total count of uncorrectable
-	errors that have occurred on this memory controller. If panic_on_ue
-	is set this counter will not have a chance to increment,
-	since EDAC will panic the system.
-
-
-Total UE count that had no information attribute fileY:
-
-	'ue_noinfo_count'
-
-	This attribute file displays the number of UEs that have occurred
-	with no information as to which DIMM slot is having errors.
-
-
-Total Correctable Errors count attribute file:
-
-	'ce_count'
-
-	This attribute file displays the total count of correctable
-	errors that have occurred on this memory controller. This
-	count is very important to examine. CEs provide early
-	indications that a DIMM is beginning to fail. This count
-	field should be monitored for non-zero values and report
-	such information to the system administrator.
-
-
-Total Correctable Errors count attribute file:
-
-	'ce_noinfo_count'
-
-	This attribute file displays the number of CEs that
-	have occurred wherewith no information as to which DIMM slot
-	is having errors. Memory is handicapped, but operational,
-	yet no information is available to indicate which slot
-	the failing memory is in. This count field should be also
-	be monitored for non-zero values.
-
-Device Symlink:
-
-	'device'
-
-	Symlink to the memory controller device.
-
-Sdram memory scrubbing rate:
-
-	'sdram_scrub_rate'
-
-	Read/Write attribute file that controls memory scrubbing. The scrubbing
-	rate is set by writing a minimum bandwidth in bytes/sec to the attribute
-	file. The rate will be translated to an internal value that gives at
-	least the specified rate.
-
-	Reading the file will return the actual scrubbing rate employed.
-
-	If configuration fails or memory scrubbing is not implemented, accessing
-	that attribute will fail.
-
+For a description of the sysfs API, please see:
+	Documentation/ABI/testing/sysfs/devices-edac
 
 
 ============================================================================
 'csrowX' DIRECTORIES
+
+When CONFIG_EDAC_LEGACY_SYSFS is enabled, the sysfs will contain the
+csrowX directories. As this API doesn't work properly for Rambus, FB-DIMMs
+and modern Intel Memory Controllers, this is being deprecated in favor
+of dimmX directories.
 
 In the 'csrowX' directories are EDAC control and attribute files for
 this 'X' instance of csrow:
