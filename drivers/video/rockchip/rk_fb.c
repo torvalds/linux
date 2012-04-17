@@ -29,6 +29,7 @@
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include<linux/rk_fb.h>
+#include "hdmi/rk_hdmi.h"
 
 
 #if 0
@@ -143,15 +144,29 @@ static int rk_fb_close(struct fb_info *info,int user)
 
 static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
+	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	struct fb_info * info2 = NULL; 
+	struct rk_lcdc_device_driver * dev_drv1  = NULL; 
     	struct layer_par *par = NULL;
+	struct layer_par *par2 = NULL;
     	int layer_id = 0;
 	u32 xoffset = var->xoffset;		// offset from virtual to visible 
 	u32 yoffset = var->yoffset;				
 	u32 xvir = var->xres_virtual;
 	u8 data_format = var->nonstd&0xff;
 	layer_id = get_fb_layer_id(fix);
+	#if defined(CONFIG_HDMI_RK30)
+		if(hdmi_get_hotplug())
+		{
+			if(inf->num_fb >= 2)
+			{
+				info2 = inf->fb[2];
+				dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
+			}
+		}
+	#endif
 	CHK_SUSPEND(dev_drv);
 	if(layer_id < 0)
 	{
@@ -160,6 +175,10 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	else
 	{
 		 par = dev_drv->layer_par[layer_id];
+		 if(dev_drv1)
+		 {
+		 	par2 = dev_drv1->layer_par[layer_id];
+		 }
 	}
 	switch (par->format)
     	{
@@ -188,9 +207,15 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 			printk("un supported format:0x%x\n",data_format);
             		return -EINVAL;
     	}
-	
+
+	#if defined(CONFIG_HDMI_RK30)
+		if(hdmi_get_hotplug())
+		{
+			par2->y_offset = par->y_offset;
+			dev_drv1->pan_display(dev_drv1,layer_id);
+		}
+	#endif
 	dev_drv->pan_display(dev_drv,layer_id);
-	
 	return 0;
 }
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
@@ -337,88 +362,106 @@ static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int rk_fb_set_par(struct fb_info *info)
 {
-    struct fb_var_screeninfo *var = &info->var;
-    struct fb_fix_screeninfo *fix = &info->fix;
-    struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
-    struct layer_par *par = NULL;
-    rk_screen *screen =dev_drv->screen;
-    int layer_id = 0;	
-    u32 cblen = 0,crlen = 0;
-    u16 xsize =0,ysize = 0;              //winx display window height/width --->LCDC_WINx_DSP_INFO
-    u32 xoffset = var->xoffset;			// offset from virtual to visible 
-    u32 yoffset = var->yoffset;			//resolution			
-    u16 xpos = (var->nonstd>>8) & 0xfff; //visiable pos in panel
-    u16 ypos = (var->nonstd>>20) & 0xfff;
-    u32 xvir = var->xres_virtual;
-    u32 yvir = var->yres_virtual;
-    u8 data_format = var->nonstd&0xff;
-    var->pixclock = dev_drv->pixclock;
-    CHK_SUSPEND(dev_drv);
-    layer_id = get_fb_layer_id(fix);
-    if(layer_id < 0)
-    {
-	return  -ENODEV;
-    }
-    else
-    {
-	par = dev_drv->layer_par[layer_id];
-    }
-    if((!strcmp(fix->id,"fb0"))||(!strcmp(fix->id,"fb2")))  //four ui
-    {
-	xsize = screen->x_res;
-        ysize = screen->y_res;
-    }
-    else if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
-    {
-        xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel ,for vide0
-        ysize = (var->grayscale>>20) & 0xfff;
-    }
-    
+	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
+    	struct fb_var_screeninfo *var = &info->var;
+    	struct fb_fix_screeninfo *fix = &info->fix;
+    	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+    	struct layer_par *par = NULL;
+   	rk_screen *screen =dev_drv->screen;
+	struct fb_info * info2 = NULL;
+	struct rk_lcdc_device_driver * dev_drv1  = NULL;
+	struct layer_par *par2 = NULL;
+    	int layer_id = 0;	
+    	u32 cblen = 0,crlen = 0;
+    	u16 xsize =0,ysize = 0;              //winx display window height/width --->LCDC_WINx_DSP_INFO
+    	u32 xoffset = var->xoffset;		// offset from virtual to visible 
+	u32 yoffset = var->yoffset;		//resolution			
+	u16 xpos = (var->nonstd>>8) & 0xfff; //visiable pos in panel
+	u16 ypos = (var->nonstd>>20) & 0xfff;
+	u32 xvir = var->xres_virtual;
+	u32 yvir = var->yres_virtual;
+	u8 data_format = var->nonstd&0xff;
+	var->pixclock = dev_drv->pixclock;
+	CHK_SUSPEND(dev_drv);
+	#if defined(CONFIG_HDMI_RK30)
+		if(hdmi_get_hotplug())
+		{
+			if(inf->num_fb >= 2)
+			{
+				info2 = inf->fb[2];
+				dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
+			}
+		}
+	#endif
+	layer_id = get_fb_layer_id(fix);
+	if(layer_id < 0)
+	{
+		return  -ENODEV;
+	}
+	else
+	{
+		par = dev_drv->layer_par[layer_id];
+		if(dev_drv1)
+		{
+			par2 = dev_drv1->layer_par[layer_id];
+		}
+	}
+	if((!strcmp(fix->id,"fb0"))||(!strcmp(fix->id,"fb2")))  //four ui
+	{
+		xsize = screen->x_res;
+		ysize = screen->y_res;
+	}
+	else if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
+	{
+		xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel ,for vide0
+		ysize = (var->grayscale>>20) & 0xfff;
+	}
+
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
 #if 1
-    switch (data_format)
-    {
-	case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
-	case HAL_PIXEL_FORMAT_RGBX_8888: 
-		par->format = ARGB888;
-		fix->line_length = 4 * xvir;
-		par->y_offset = (yoffset*xvir + xoffset)*4;
-		break;
-	case HAL_PIXEL_FORMAT_RGB_888 :
-		par->format = RGB888;
-		fix->line_length = 3 * xvir;
-		par->y_offset = (yoffset*xvir + xoffset)*3;
-		break;
-	case HAL_PIXEL_FORMAT_RGB_565:  //RGB565
-		par->format = RGB565;
-		fix->line_length = 2 * xvir;
-		par->y_offset = (yoffset*xvir + xoffset)*2;
-            	break;
-	case HAL_PIXEL_FORMAT_YCbCr_422_SP : // yuv422
-		par->format = YUV422;
-		fix->line_length = xvir;
-		cblen = crlen = (xvir*yvir)>>1;
-		par->y_offset = yoffset*xvir + xoffset;
-		par->c_offset = par->y_offset;
-            	break;
-	case HAL_PIXEL_FORMAT_YCrCb_NV12   : // YUV420---uvuvuv
-		par->format = YUV420;
-		fix->line_length = xvir;
-		cblen = crlen = (xvir*yvir)>>2;
-		par->y_offset = yoffset*xvir + xoffset;
-		par->c_offset = (yoffset>>1)*xvir + xoffset;
-            	break;
-	case HAL_PIXEL_FORMAT_YCrCb_444 : // yuv444
-		par->format = 5;
-		fix->line_length = xvir<<2;
-		par->y_offset = yoffset*xvir + xoffset;
-		par->c_offset = yoffset*2*xvir +(xoffset<<1);
-		cblen = crlen = (xvir*yvir);
-		break;
-	default:
-		printk("un supported format:0x%x\n",data_format);
-            return -EINVAL;
-    }
+	switch (data_format)
+	{
+		case HAL_PIXEL_FORMAT_RGBA_8888 :      // rgb
+		case HAL_PIXEL_FORMAT_RGBX_8888: 
+			par->format = ARGB888;
+			fix->line_length = 4 * xvir;
+			par->y_offset = (yoffset*xvir + xoffset)*4;
+			break;
+		case HAL_PIXEL_FORMAT_RGB_888 :
+			par->format = RGB888;
+			fix->line_length = 3 * xvir;
+			par->y_offset = (yoffset*xvir + xoffset)*3;
+			break;
+		case HAL_PIXEL_FORMAT_RGB_565:  //RGB565
+			par->format = RGB565;
+			fix->line_length = 2 * xvir;
+			par->y_offset = (yoffset*xvir + xoffset)*2;
+		    	break;
+		case HAL_PIXEL_FORMAT_YCbCr_422_SP : // yuv422
+			par->format = YUV422;
+			fix->line_length = xvir;
+			cblen = crlen = (xvir*yvir)>>1;
+			par->y_offset = yoffset*xvir + xoffset;
+			par->c_offset = par->y_offset;
+		    	break;
+		case HAL_PIXEL_FORMAT_YCrCb_NV12   : // YUV420---uvuvuv
+			par->format = YUV420;
+			fix->line_length = xvir;
+			cblen = crlen = (xvir*yvir)>>2;
+			par->y_offset = yoffset*xvir + xoffset;
+			par->c_offset = (yoffset>>1)*xvir + xoffset;
+		    	break;
+		case HAL_PIXEL_FORMAT_YCrCb_444 : // yuv444
+			par->format = 5;
+			fix->line_length = xvir<<2;
+			par->y_offset = yoffset*xvir + xoffset;
+			par->c_offset = yoffset*2*xvir +(xoffset<<1);
+			cblen = crlen = (xvir*yvir);
+			break;
+		default:
+			printk("un supported format:0x%x\n",data_format);
+		    return -EINVAL;
+	}
 #else
 	switch(var->bits_per_pixel)
 	{
@@ -431,23 +474,34 @@ static int rk_fb_set_par(struct fb_info *info)
 			par->format = RGB565;
 			fix->line_length = 2 * xvir;
 			par->y_offset = (yoffset*xvir + xoffset)*2;
-            		break;
+	    		break;
 			
 	}
 #endif
 
-    par->xpos = xpos;
-    par->ypos = ypos;
-    par->xsize = xsize;
-    par->ysize = ysize;
-    
-    par->smem_start =fix->smem_start;
-    par->cbr_start = fix->mmio_start;
-    par->xact = var->xres;              //winx active window height,is a part of vir
-    par->yact = var->yres;
-    par->xvir =  var->xres_virtual;		// virtual resolution	 stride --->LCDC_WINx_VIR
-    par->yvir =  var->yres_virtual;
-    dev_drv->set_par(dev_drv,layer_id);
+	par->xpos = xpos;
+	par->ypos = ypos;
+	par->xsize = xsize;
+	par->ysize = ysize;
+
+	par->smem_start =fix->smem_start;
+	par->cbr_start = fix->mmio_start;
+	par->xact = var->xres;              //winx active window height,is a part of vir
+	par->yact = var->yres;
+	par->xvir =  var->xres_virtual;		// virtual resolution	 stride --->LCDC_WINx_VIR
+	par->yvir =  var->yres_virtual;
+
+	#if defined(CONFIG_HDMI_RK30)
+		if(hdmi_get_hotplug())
+		{
+			par2->xact = par->xact;
+			par2->yact = par->yact;
+			par2->format = par->format;
+			dev_drv1->set_par(dev_drv1,layer_id);
+		}
+	#endif
+	dev_drv->set_par(dev_drv,layer_id);
+
     
 	return 0;
 }
@@ -545,6 +599,40 @@ void rk_direct_fb_show(struct fb_info * fbi)
 }
 EXPORT_SYMBOL(rk_direct_fb_show);
 
+
+void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
+{
+	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct fb_info *info = NULL;
+	struct rk_lcdc_device_driver * dev_drv = NULL;
+	struct fb_var_screeninfo *pmy_var = NULL;      //var for primary screen
+	struct fb_var_screeninfo *hdmi_var    = NULL;
+	struct fb_fix_screeninfo *pmy_fix = NULL;
+	struct fb_fix_screeninfo *hdmi_fix    = NULL;
+	int ret;
+	if(lcdc_id == 0)
+	{
+		info = inf->fb[0];
+	}
+	else
+	{
+		info = inf->fb[2] ;
+	}
+	pmy_var = &inf->fb[0]->var;
+	pmy_fix = &inf->fb[0]->fix;
+	hdmi_var = &info->var;
+	hdmi_fix = &info->fix;
+	hdmi_var->xres = pmy_var->xres;
+	hdmi_var->yres = pmy_var->yres;
+	hdmi_var->nonstd = pmy_var->nonstd;
+	hdmi_fix->smem_start = pmy_fix->smem_start;
+	dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	ret = dev_drv->load_screen(dev_drv,1);
+	ret = info->fbops->fb_open(info,1);
+	ret = info->fbops->fb_set_par(info);
+	
+
+}
 static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 {
 	struct resource *res;
@@ -655,6 +743,7 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 		return -EINVAL;	
 	}
 	sprintf(dev_drv->name, "lcdc%d",id);
+	dev_drv->id		= id;
 	dev_drv->open      	= def_drv->open;
 	dev_drv->init_lcdc 	= def_drv->init_lcdc;
 	dev_drv->ioctl 		= def_drv->ioctl;
@@ -753,13 +842,17 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         fb_inf->num_fb++;	
 	}
 #if !defined(CONFIG_FRAMEBUFFER_CONSOLE) && defined(CONFIG_LOGO)
-    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_open(fb_inf->fb[fb_inf->num_fb-2],1);
-    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_set_par(fb_inf->fb[fb_inf->num_fb-2]);
-    if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
-        /* Start display and show logo on boot */
-        fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
-        fb_show_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
-	fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
+
+    if(id == 0)
+    {
+	    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_open(fb_inf->fb[fb_inf->num_fb-2],1);
+	    fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_set_par(fb_inf->fb[fb_inf->num_fb-2]);
+	    if(fb_prepare_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR)) {
+	        /* Start display and show logo on boot */
+	        fb_set_cmap(&fb_inf->fb[fb_inf->num_fb-2]->cmap, fb_inf->fb[fb_inf->num_fb-2]);
+	        fb_show_logo(fb_inf->fb[fb_inf->num_fb-2], FB_ROTATE_UR);
+		fb_inf->fb[fb_inf->num_fb-2]->fbops->fb_pan_display(&(fb_inf->fb[fb_inf->num_fb-2]->var), fb_inf->fb[fb_inf->num_fb-2]);
+	    }
     }
 #endif
 	return 0;

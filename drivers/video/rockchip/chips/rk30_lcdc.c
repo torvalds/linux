@@ -347,8 +347,8 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 		   break;
 	}
 
-	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
-		__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
+	DBG("%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
 	spin_lock(&lcdc_dev->reg_lock);
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(par->format));		//(inf->video_mode==0)
 	LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
@@ -403,8 +403,8 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	
 	ScaleYrgbX = CalScale(xact, par->xsize);
 	ScaleYrgbY = CalScale(yact, par->ysize);
-	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
-		__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
+	DBG("%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
 
 	
 	spin_lock(&lcdc_dev->reg_lock);
@@ -522,7 +522,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		par = dev_drv->layer_par[1];
         	win1_display(lcdc_dev,par);
 	}
-	if(dev_drv->first_frame)  //this is the first frame of the system ,enable frame start interrupt
+	if((dev_drv->first_frame) && (dev_drv->id == 0))  //this is the first frame of the system ,enable frame start interrupt
 	{
 		dev_drv->first_frame = 0;
 		LcdMskReg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR |m_FRM_START_INT_EN ,
@@ -530,19 +530,22 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  // write any value to  REG_CFG_DONE let config become effective
 		 
 	}
-	
-	spin_lock_irqsave(&dev_drv->cpl_lock,flags);
-	init_completion(&dev_drv->frame_done);
-	spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-	timeout = wait_for_completion_interruptible_timeout(&dev_drv->frame_done,msecs_to_jiffies(25));
-	if(!timeout)
+
+	if(!dev_drv->id)  //only sync for lcdc0
 	{
-		printk(KERN_ERR "wait for new frame start time out!\n");
-		return -ETIMEDOUT;
-	}
-	else if(timeout < 0)
-	{
-		return timeout;
+		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
+		init_completion(&dev_drv->frame_done);
+		spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
+		timeout = wait_for_completion_interruptible_timeout(&dev_drv->frame_done,msecs_to_jiffies(25));
+		if(!timeout)
+		{
+			printk(KERN_ERR "wait for new frame start time out!\n");
+			return -ETIMEDOUT;
+		}
+		else if(timeout < 0)
+		{
+			return timeout;
+		}
 	}
 	return 0;
 }
