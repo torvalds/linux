@@ -610,7 +610,6 @@ typedef struct Stats
 //	unsigned long rxnopointer;
 	unsigned long rxok;
 	unsigned long rxframgment;
-	unsigned long rxcmdpkt[4];		//08/05/08 amy rx cmd element txfeedback/bcn report/cfg set/query
 	unsigned long rxurberr;
 	unsigned long rxstaterr;
 	unsigned long received_rate_histogram[4][32];	//0: Total, 1:OK, 2:CRC, 3:ICV, 2007 07 03 cosa

@@ -697,7 +697,6 @@ cmpk_message_handle_rx(
 	struct ieee80211_rx_stats *pstats)
 {
 //	u32			debug_level = DBG_LOUD;
-	struct r8192_priv *priv = ieee80211_priv(dev);
 	int			total_length;
 	u8			cmd_length, exe_cnt = 0;
 	u8			element_id;
@@ -778,9 +777,6 @@ cmpk_message_handle_rx(
 
 		// 2007/01/22 MH Add to display tx statistic.
 		//cmpk_DisplayTxStatistic(pAdapter);
-
-		/* 2007/03/09 MH Collect sidderent cmd element pkt num. */
-		priv->stats.rxcmdpkt[element_id]++;
 
 		total_length -= cmd_length;
 		pcmd_buff    += cmd_length;
