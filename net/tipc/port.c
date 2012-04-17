@@ -646,8 +646,6 @@ void tipc_port_reinit(void)
 	spin_lock_bh(&tipc_port_list_lock);
 	list_for_each_entry(p_ptr, &ports, port_list) {
 		msg = &p_ptr->phdr;
-		if (msg_orignode(msg) == tipc_own_addr)
-			break;
 		msg_set_prevnode(msg, tipc_own_addr);
 		msg_set_orignode(msg, tipc_own_addr);
 	}
