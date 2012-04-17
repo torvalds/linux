@@ -2280,11 +2280,6 @@ static int i830_write_fence_reg(struct drm_i915_gem_object *obj)
 	return 0;
 }
 
-static bool ring_passed_seqno(struct intel_ring_buffer *ring, u32 seqno)
-{
-	return i915_seqno_passed(ring->get_seqno(ring), seqno);
-}
-
 static int
 i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 {
@@ -2302,14 +2297,11 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 	}
 
 	if (obj->last_fenced_seqno) {
-		if (!ring_passed_seqno(obj->ring,
-				       obj->last_fenced_seqno)) {
-			ret = i915_wait_request(obj->ring,
-						obj->last_fenced_seqno,
-						true);
-			if (ret)
-				return ret;
-		}
+		ret = i915_wait_request(obj->ring,
+					obj->last_fenced_seqno,
+					true);
+		if (ret)
+			return ret;
 
 		obj->last_fenced_seqno = 0;
 	}
