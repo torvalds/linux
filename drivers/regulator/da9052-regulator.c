@@ -70,7 +70,6 @@ struct da9052_regulator_info {
 	int min_uV;
 	int max_uV;
 	unsigned char volt_shift;
-	unsigned char en_bit;
 	unsigned char activate_bit;
 };
 
@@ -87,42 +86,6 @@ static int verify_range(struct da9052_regulator_info *info,
 		return -EINVAL;
 
 	return 0;
-}
-
-static int da9052_regulator_enable(struct regulator_dev *rdev)
-{
-	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
-	int offset = rdev_get_id(rdev);
-
-	return da9052_reg_update(regulator->da9052,
-				 DA9052_BUCKCORE_REG + offset,
-				 1 << info->en_bit, 1 << info->en_bit);
-}
-
-static int da9052_regulator_disable(struct regulator_dev *rdev)
-{
-	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
-	int offset = rdev_get_id(rdev);
-
-	return da9052_reg_update(regulator->da9052,
-				 DA9052_BUCKCORE_REG + offset,
-				 1 << info->en_bit, 0);
-}
-
-static int da9052_regulator_is_enabled(struct regulator_dev *rdev)
-{
-	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
-	int offset = rdev_get_id(rdev);
-	int ret;
-
-	ret = da9052_reg_read(regulator->da9052, DA9052_BUCKCORE_REG + offset);
-	if (ret < 0)
-		return ret;
-
-	return ret & (1 << info->en_bit);
 }
 
 static int da9052_dcdc_get_current_limit(struct regulator_dev *rdev)
@@ -291,9 +254,9 @@ static struct regulator_ops da9052_dcdc_ops = {
 
 	.list_voltage = da9052_list_voltage,
 	.get_voltage_sel = da9052_get_regulator_voltage_sel,
-	.is_enabled = da9052_regulator_is_enabled,
-	.enable = da9052_regulator_enable,
-	.disable = da9052_regulator_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 };
 
 static struct regulator_ops da9052_ldo_ops = {
@@ -301,9 +264,9 @@ static struct regulator_ops da9052_ldo_ops = {
 
 	.list_voltage = da9052_list_voltage,
 	.get_voltage_sel = da9052_get_regulator_voltage_sel,
-	.is_enabled = da9052_regulator_is_enabled,
-	.enable = da9052_regulator_enable,
-	.disable = da9052_regulator_disable,
+	.is_enabled = regulator_is_enabled_regmap,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
 };
 
 #define DA9052_LDO(_id, step, min, max, sbits, ebits, abits) \
@@ -315,12 +278,13 @@ static struct regulator_ops da9052_ldo_ops = {
 		.id = DA9052_ID_##_id,\
 		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
+		.enable_reg = DA9052_BUCKCORE_REG + DA9052_ID_##_id, \
+		.enable_mask = 1 << (ebits),\
 	},\
 	.min_uV = (min) * 1000,\
 	.max_uV = (max) * 1000,\
 	.step_uV = (step) * 1000,\
 	.volt_shift = (sbits),\
-	.en_bit = (ebits),\
 	.activate_bit = (abits),\
 }
 
@@ -333,12 +297,13 @@ static struct regulator_ops da9052_ldo_ops = {
 		.id = DA9052_ID_##_id,\
 		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
+		.enable_reg = DA9052_BUCKCORE_REG + DA9052_ID_##_id, \
+		.enable_mask = 1 << (ebits),\
 	},\
 	.min_uV = (min) * 1000,\
 	.max_uV = (max) * 1000,\
 	.step_uV = (step) * 1000,\
 	.volt_shift = (sbits),\
-	.en_bit = (ebits),\
 	.activate_bit = (abits),\
 }
 
@@ -429,6 +394,7 @@ static int __devinit da9052_regulator_probe(struct platform_device *pdev)
 
 	config.dev = &pdev->dev;
 	config.driver_data = regulator;
+	config.regmap = da9052->regmap;
 	if (pdata && pdata->regulators) {
 		config.init_data = pdata->regulators[pdev->id];
 	} else {
