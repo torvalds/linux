@@ -353,7 +353,6 @@ struct rt_stats {
 	unsigned long rxrdu;
 	unsigned long rxok;
 	unsigned long rxframgment;
-	unsigned long rxcmdpkt[8];
 	unsigned long rxurberr;
 	unsigned long rxstaterr;
 	unsigned long rxdatacrcerr;
