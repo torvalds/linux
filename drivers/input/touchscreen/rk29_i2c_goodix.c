@@ -297,8 +297,13 @@ static void goodix_get_touch_info(struct rk_ts_data *ts,char *point_num,struct r
 	u8 index;
 	u8 temp =0;
 	point_data[0] = READ_COOR_ADDR;		//read coor address
-
 	
+	if(!ts||!info_buf)
+	{
+		printk("goodix ts or info_buf is null\n");
+		return;
+	}
+
 	ret=goodix_i2c_read_bytes(ts->client, point_data, sizeof(point_data)/sizeof(point_data[0]));
 	if(ret != 2)	
 	{
@@ -377,20 +382,19 @@ return:
 static void  rk_ts_work_func(struct work_struct *pwork)
 {	
 	int i =0;
-	//struct rk_touch_info *info_buf;
 	char point_num;
 	struct rk_ts_data *ts = container_of(to_delayed_work(pwork), struct rk_ts_data, ts_work);
+
 	if(!ts)
 	{
 		printk("container of rk_ts_data fail\n");
+		return;
 	}
-	
-//	info_buf= kzalloc(ts->max_touch_num*sizeof(struct rk_touch_info), GFP_KERNEL);
-//	if(!info_buf)
-	//{
-//		printk(KERN_ALERT "alloc for rk_touch_info fail\n");
-//		goto exit;
-	//}
+	if(!info_buf)
+	{
+		printk("info_buf fail\n");
+		return;
+	}
 
 	if(ts->get_touch_info)
 	{
@@ -794,7 +798,14 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 	ts->early_suspend.resume = rk_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
 #endif
-	
+
+	info_buf= kzalloc(ts->max_touch_num*sizeof(struct rk_touch_info), GFP_KERNEL);
+	if(!info_buf)
+	{
+		printk(KERN_ALERT "alloc for rk_touch_info fail\n");
+		goto err_input_register_device_failed;
+	}
+
 	ts->irq=gpio_to_irq(ts->irq_pin)	;		//If not defined in client
 	if (ts->irq)
 	{
@@ -815,13 +826,6 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 			gpio_free(ts->irq_pin);
 			goto err_input_register_device_failed;
 		}
-	}
-
-	info_buf= kzalloc(ts->max_touch_num*sizeof(struct rk_touch_info), GFP_KERNEL);
-	if(!info_buf)
-	{
-		printk(KERN_ALERT "alloc for rk_touch_info fail\n");
-		goto err_input_register_device_failed;
 	}
 	printk("Goodix TS probe successfully!\n");
 	return 0;
@@ -861,6 +865,8 @@ static int rk_ts_remove(struct i2c_client *client)
 	dev_notice(&client->dev,"The driver is removing...\n");
 	i2c_set_clientdata(client, NULL);
 	input_unregister_device(ts->input_dev);
+	if(info_buf)
+		kfree(info_buf);
 	kfree(ts);
 	return 0;
 }
