@@ -43,7 +43,9 @@ ALC680
 
 ALC882/883/885/888/889
 ======================
-  N/A
+  acer-aspire-4930g	Acer Aspire 4930G/5930G/6530G/6930G/7730G
+  acer-aspire-8930g	Acer Aspire 8330G/6935G
+  acer-aspire		Acer Aspire others
 
 ALC861/660
 ==========

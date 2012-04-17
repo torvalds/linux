@@ -210,6 +210,7 @@ enum {
 #define CMITC_UARTCLK   192000000 /* 192.0000 MHz */
 #define FRI2_64_UARTCLK  64000000 /*  64.0000 MHz */
 #define FRI2_48_UARTCLK  48000000 /*  48.0000 MHz */
+#define NTC1_UARTCLK     64000000 /*  64.0000 MHz */
 
 struct pch_uart_buffer {
 	unsigned char *buf;
@@ -383,6 +384,12 @@ static int pch_uart_get_uartclk(void)
 	cmp = dmi_get_system_info(DMI_PRODUCT_NAME);
 	if (cmp && strstr(cmp, "Fish River Island II"))
 		return FRI2_48_UARTCLK;
+
+	/* Kontron COMe-mTT10 (nanoETXexpress-TT) */
+	cmp = dmi_get_system_info(DMI_BOARD_NAME);
+	if (cmp && (strstr(cmp, "COMe-mTT") ||
+		    strstr(cmp, "nanoETXexpress-TT")))
+		return NTC1_UARTCLK;
 
 	return DEFAULT_UARTCLK;
 }
@@ -1651,6 +1658,7 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	}
 
 	pci_enable_msi(pdev);
+	pci_set_master(pdev);
 
 	iobase = pci_resource_start(pdev, 0);
 	mapbase = pci_resource_start(pdev, 1);
