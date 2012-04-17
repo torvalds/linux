@@ -141,8 +141,7 @@ static void atl1c_get_regs(struct net_device *netdev,
 
 	memset(p, 0, AT_REGS_LEN);
 
-	regs->version = 0;
-	AT_READ_REG(hw, REG_VPD_CAP, 		  p++);
+	regs->version = 1;
 	AT_READ_REG(hw, REG_PM_CTRL, 		  p++);
 	AT_READ_REG(hw, REG_MAC_HALF_DUPLX_CTRL,  p++);
 	AT_READ_REG(hw, REG_TWSI_CTRL, 		  p++);
@@ -167,9 +166,9 @@ static void atl1c_get_regs(struct net_device *netdev,
 	AT_READ_REG(hw, REG_WOL_CTRL, 		  p++);
 
 	atl1c_read_phy_reg(hw, MII_BMCR, &phy_data);
-	regs_buff[73] =	(u32) phy_data;
+	regs_buff[AT_REGS_LEN/sizeof(u32) - 2] = (u32) phy_data;
 	atl1c_read_phy_reg(hw, MII_BMSR, &phy_data);
-	regs_buff[74] = (u32) phy_data;
+	regs_buff[AT_REGS_LEN/sizeof(u32) - 1] = (u32) phy_data;
 }
 
 static int atl1c_get_eeprom_len(struct net_device *netdev)

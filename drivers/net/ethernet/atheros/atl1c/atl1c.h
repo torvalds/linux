@@ -100,7 +100,7 @@
 #define ATL1C_ASPM_L0s_ENABLE		0x0001
 #define ATL1C_ASPM_L1_ENABLE		0x0002
 
-#define AT_REGS_LEN	(75 * sizeof(u32))
+#define AT_REGS_LEN	(74 * sizeof(u32))
 #define AT_EEPROM_LEN 	512
 
 #define ATL1C_GET_DESC(R, i, type)	(&(((type *)((R)->desc))[i]))

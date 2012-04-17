@@ -59,17 +59,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define LINK_CTRL_L1_EN			0x02
 #define LINK_CTRL_EXT_SYNC		0x80
 
-#define REG_VPD_CAP			0x6C
-#define VPD_CAP_ID_MASK                 0xff
-#define VPD_CAP_ID_SHIFT                0
-#define VPD_CAP_NEXT_PTR_MASK           0xFF
-#define VPD_CAP_NEXT_PTR_SHIFT          8
-#define VPD_CAP_VPD_ADDR_MASK           0x7FFF
-#define VPD_CAP_VPD_ADDR_SHIFT          16
-#define VPD_CAP_VPD_FLAG                0x80000000
-
-#define REG_VPD_DATA                	0x70
-
 #define REG_PCIE_UC_SEVERITY		0x10C
 #define PCIE_UC_SERVRITY_TRN		0x00000001
 #define PCIE_UC_SERVRITY_DLP		0x00000010
