@@ -2432,19 +2432,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 			goto update;
 		}
 
-		if (reg->setup_seqno) {
-			if (!ring_passed_seqno(obj->last_fenced_ring,
-					       reg->setup_seqno)) {
-				ret = i915_wait_request(obj->last_fenced_ring,
-							reg->setup_seqno,
-							true);
-				if (ret)
-					return ret;
-			}
-
-			reg->setup_seqno = 0;
-		}
-
 		return 0;
 	}
 
@@ -2481,9 +2468,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 	obj->fence_reg = reg - dev_priv->fence_regs;
 	obj->last_fenced_ring = NULL;
-
-	reg->setup_seqno = 0;
-	obj->last_fenced_seqno = reg->setup_seqno;
 
 update:
 	obj->tiling_changed = false;
@@ -2543,7 +2527,6 @@ i915_gem_clear_fence_reg(struct drm_device *dev,
 
 	list_del_init(&reg->lru_list);
 	reg->obj = NULL;
-	reg->setup_seqno = 0;
 	reg->pin_count = 0;
 }
 

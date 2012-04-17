@@ -146,7 +146,6 @@ struct drm_i915_master_private {
 struct drm_i915_fence_reg {
 	struct list_head lru_list;
 	struct drm_i915_gem_object *obj;
-	uint32_t setup_seqno;
 	int pin_count;
 };
 
