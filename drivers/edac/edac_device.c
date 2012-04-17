@@ -56,7 +56,7 @@ static void edac_device_dump_device(struct edac_device_ctl_info *edac_dev)
  *
  *	The control structure is allocated in complete chunk
  *	from the OS. It is in turn sub allocated to the
- *	various objects that compose the struture
+ *	various objects that compose the structure
  *
  *	The structure has a 'nr_instance' array within itself.
  *	Each instance represents a major component
@@ -118,7 +118,7 @@ struct edac_device_ctl_info *edac_device_alloc_ctl_info(
 		/* Calc the 'end' offset past the attributes array */
 		pvt = edac_align_ptr(&dev_attrib[count], sz_private);
 	} else {
-		/* no attribute array specificed */
+		/* no attribute array specified */
 		pvt = edac_align_ptr(dev_attrib, sz_private);
 	}
 
@@ -367,7 +367,7 @@ static void del_edac_device_from_global_list(struct edac_device_ctl_info
  *	structure, that needs to be polled for possible error events.
  *
  *	This operation is to acquire the list mutex lock
- *	(thus preventing insertation or deletion)
+ *	(thus preventing insertion or deletion)
  *	and then call the device's poll function IFF this device is
  *	running polled and there is a poll function defined.
  */
@@ -394,7 +394,7 @@ static void edac_device_workq_function(struct work_struct *work_req)
 
 	/* Reschedule the workq for the next time period to start again
 	 * if the number of msec is for 1 sec, then adjust to the next
-	 * whole one second to save timers fireing all over the period
+	 * whole one second to save timers firing all over the period
 	 * between integral seconds
 	 */
 	if (edac_dev->poll_msec == 1000)
@@ -563,7 +563,7 @@ EXPORT_SYMBOL_GPL(edac_device_add_device);
  *	Remove sysfs entries for specified edac_device structure and
  *	then remove edac_device structure from global list
  *
- * @pdev:
+ * @dev:
  *	Pointer to 'struct device' representing edac_device
  *	structure to remove.
  *

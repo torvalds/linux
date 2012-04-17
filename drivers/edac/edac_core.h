@@ -107,13 +107,13 @@ extern int edac_debug_level;
  *
  * CPU caches (L1 and L2)
  * DMA engines
- * Core CPU swithces
+ * Core CPU switches
  * Fabric switch units
  * PCIe interface controllers
  * other EDAC/ECC type devices that can be monitored for
  * errors, etc.
  *
- * It allows for a 2 level set of hiearchry. For example:
+ * It allows for a 2 level set of hierarchy. For example:
  *
  * cache could be composed of L1, L2 and L3 levels of cache.
  * Each CPU core would have its own L1 cache, while sharing
@@ -460,7 +460,7 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
 /*
  * The no info errors are used when error overflows are reported.
  * There are a limited number of error logging registers that can
- * be exausted.  When all registers are exhausted and an additional
+ * be exhausted.  When all registers are exhausted and an additional
  * error occurs then an error overflow register records that an
  * error occurred and the type of error, but doesn't have any
  * further information.  The ce/ue versions make for cleaner
