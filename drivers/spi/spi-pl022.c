@@ -1823,9 +1823,12 @@ static int pl022_setup(struct spi_device *spi)
 	} else
 		chip->cs_control = chip_info->cs_control;
 
-	if (bits <= 3) {
-		/* PL022 doesn't support less than 4-bits */
+	/* Check bits per word with vendor specific range */
+	if ((bits <= 3) || (bits > pl022->vendor->max_bpw)) {
 		status = -ENOTSUPP;
+		dev_err(&spi->dev, "illegal data size for this controller!\n");
+		dev_err(&spi->dev, "This controller can only handle 4 <= n <= %d bit words\n",
+				pl022->vendor->max_bpw);
 		goto err_config_params;
 	} else if (bits <= 8) {
 		dev_dbg(&spi->dev, "4 <= n <=8 bits per word\n");
@@ -1838,20 +1841,10 @@ static int pl022_setup(struct spi_device *spi)
 		chip->read = READING_U16;
 		chip->write = WRITING_U16;
 	} else {
-		if (pl022->vendor->max_bpw >= 32) {
-			dev_dbg(&spi->dev, "17 <= n <= 32 bits per word\n");
-			chip->n_bytes = 4;
-			chip->read = READING_U32;
-			chip->write = WRITING_U32;
-		} else {
-			dev_err(&spi->dev,
-				"illegal data size for this controller!\n");
-			dev_err(&spi->dev,
-				"a standard pl022 can only handle "
-				"1 <= n <= 16 bit words\n");
-			status = -ENOTSUPP;
-			goto err_config_params;
-		}
+		dev_dbg(&spi->dev, "17 <= n <= 32 bits per word\n");
+		chip->n_bytes = 4;
+		chip->read = READING_U32;
+		chip->write = WRITING_U32;
 	}
 
 	/* Now Initialize all register settings required for this chip */
