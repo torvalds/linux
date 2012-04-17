@@ -1429,7 +1429,7 @@ static int __init dw_probe(struct platform_device *pdev)
 		err = PTR_ERR(dw->clk);
 		goto err_clk;
 	}
-	clk_enable(dw->clk);
+	clk_prepare_enable(dw->clk);
 
 	/* force dma off, just in case */
 	dw_dma_off(dw);
@@ -1510,7 +1510,7 @@ static int __init dw_probe(struct platform_device *pdev)
 	return 0;
 
 err_irq:
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 	clk_put(dw->clk);
 err_clk:
 	iounmap(dw->regs);
@@ -1540,7 +1540,7 @@ static int __exit dw_remove(struct platform_device *pdev)
 		channel_clear_bit(dw, CH_EN, dwc->mask);
 	}
 
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 	clk_put(dw->clk);
 
 	iounmap(dw->regs);
@@ -1559,7 +1559,7 @@ static void dw_shutdown(struct platform_device *pdev)
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	dw_dma_off(platform_get_drvdata(pdev));
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 }
 
 static int dw_suspend_noirq(struct device *dev)
@@ -1568,7 +1568,7 @@ static int dw_suspend_noirq(struct device *dev)
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
 	dw_dma_off(platform_get_drvdata(pdev));
-	clk_disable(dw->clk);
+	clk_disable_unprepare(dw->clk);
 
 	return 0;
 }
@@ -1578,7 +1578,7 @@ static int dw_resume_noirq(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_dma	*dw = platform_get_drvdata(pdev);
 
-	clk_enable(dw->clk);
+	clk_prepare_enable(dw->clk);
 	dma_writel(dw, CFG, DW_CFG_DMA_EN);
 	return 0;
 }
