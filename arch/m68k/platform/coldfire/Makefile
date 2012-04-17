@@ -26,10 +26,11 @@ obj-$(CONFIG_M528x)	+= m528x.o pit.o intc-2.o reset.o
 obj-$(CONFIG_M5307)	+= m5307.o timers.o intc.o reset.o
 obj-$(CONFIG_M532x)	+= m532x.o timers.o intc-simr.o reset.o
 obj-$(CONFIG_M5407)	+= m5407.o timers.o intc.o reset.o
-obj-$(CONFIG_M54xx)	+= sltimers.o intc-2.o
+obj-$(CONFIG_M54xx)	+= m54xx.o sltimers.o intc-2.o
 
 obj-$(CONFIG_NETtel)	+= nettel.o
 obj-$(CONFIG_CLEOPATRA)	+= nettel.o
+obj-$(CONFIG_FIREBEE)	+= firebee.o
 
 obj-y			+= pinmux.o gpio.o
 extra-y := head.o
