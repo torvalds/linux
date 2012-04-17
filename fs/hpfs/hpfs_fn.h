@@ -100,7 +100,7 @@ struct quad_buffer_head {
 static inline dnode_secno de_down_pointer (struct hpfs_dirent *de)
 {
   CHKCOND(de->down,("HPFS: de_down_pointer: !de->down\n"));
-  return le32_to_cpu(*(dnode_secno *) ((void *) de + le16_to_cpu(de->length) - 4));
+  return le32_to_cpu(*(__le32 *) ((void *) de + le16_to_cpu(de->length) - 4));
 }
 
 /* The first dir entry in a dnode */

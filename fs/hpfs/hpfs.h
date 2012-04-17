@@ -300,7 +300,7 @@ struct dnode {
 };
 
 struct hpfs_dirent {
-  u16 length;				/* offset to next dirent */
+  __le16 length;			/* offset to next dirent */
 
 #ifdef __LITTLE_ENDIAN
   u8 first: 1;				/* set on phony ^A^A (".") entry */
@@ -346,12 +346,12 @@ struct hpfs_dirent {
   u8 read_only: 1;			/* dos attrib */
 #endif
 
-  fnode_secno fnode;			/* fnode giving allocation info */
-  time32_t write_date;			/* mtime */
-  u32 file_size;			/* file length, bytes */
-  time32_t read_date;			/* atime */
-  time32_t creation_date;			/* ctime */
-  u32 ea_size;				/* total EA length, bytes */
+  __le32 fnode;				/* fnode giving allocation info */
+  __le32 write_date;			/* mtime */
+  __le32 file_size;			/* file length, bytes */
+  __le32 read_date;			/* atime */
+  __le32 creation_date;			/* ctime */
+  __le32 ea_size;			/* total EA length, bytes */
   u8 no_of_acls;			/* number of ACL's (low 3 bits) */
   u8 ix;				/* code page index (of filename), see
 					   struct code_page_data */
