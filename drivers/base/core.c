@@ -878,8 +878,8 @@ EXPORT_SYMBOL_GPL(dev_set_name);
  * to NULL prevents an entry from being created.  class->dev_kobj must
  * be set (or cleared) before any devices are registered to the class
  * otherwise device_create_sys_dev_entry() and
- * device_remove_sys_dev_entry() will disagree about the the presence
- * of the link.
+ * device_remove_sys_dev_entry() will disagree about the presence of
+ * the link.
  */
 static struct kobject *device_to_dev_kobj(struct device *dev)
 {
