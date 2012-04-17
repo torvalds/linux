@@ -212,6 +212,23 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 	udelay(100);
 #endif
+
+//discrete dcdc device
+#ifdef CONFIG_RK30_PWM_REGULATOR
+	dcdc = regulator_get(NULL, "vdd_core"); // vdd_log
+	regulator_set_voltage(dcdc, 1200000, 1200000);
+	regulator_enable(dcdc);
+	printk("%s set vdd_core=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+
+	dcdc = regulator_get(NULL, "vdd_cpu");	// vdd_arm
+	regulator_set_voltage(dcdc, 1200000, 1200000);
+	regulator_enable(dcdc);
+	printk("%s set vdd_cpu=%dmV end\n", __func__, regulator_get_voltage(dcdc));
+	regulator_put(dcdc);
+	udelay(100);
+#endif
 	printk("wm831x_post_init end");
 	return 0;
 }

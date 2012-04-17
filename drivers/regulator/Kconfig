@@ -270,6 +270,11 @@ config RK29_PWM_REGULATOR
 	help
 	  Say Y to enable support for the voltage regulators charge on the RK2918.
 
+config RK30_PWM_REGULATOR
+	tristate "rk30 pwm voltage regulator for discrete dcdc or ldo"
+	help
+	  Say Y to enable support for the voltage regulators control on the RK30 .
+
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
 	depends on MFD_88PM860X=y

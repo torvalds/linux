@@ -43,6 +43,7 @@
 #include <linux/mfd/wm8994/pdata.h>
 #include <linux/regulator/machine.h>
 #include "../../../drivers/headset_observe/rk_headset.h"
+#include <linux/regulator/rk29-pwm-regulator.h>
 
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
@@ -670,6 +671,88 @@ struct platform_device rk_device_headset = {
 };
 #endif
 
+#if CONFIG_RK30_PWM_REGULATOR
+static struct regulator_consumer_supply pwm_dcdc1_consumers[] = {
+	{
+		.supply = "vdd_core",
+	}
+};
+
+static struct regulator_consumer_supply pwm_dcdc2_consumers[] = {
+	{
+		.supply = "vdd_cpu",
+	}
+};
+
+struct regulator_init_data pwm_regulator_init_dcdc[2] =
+{
+	{
+		.constraints = {
+			.name = "PWM_DCDC1",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc1_consumers),
+		.consumer_supplies = pwm_dcdc1_consumers,
+	},
+	{
+		.constraints = {
+			.name = "PWM_DCDC2",
+			.min_uV = 600000,
+			.max_uV = 1800000,	//0.6-1.8V
+			.apply_uV = true,
+			.valid_ops_mask = REGULATOR_CHANGE_STATUS | REGULATOR_CHANGE_VOLTAGE,
+		},
+		.num_consumer_supplies = ARRAY_SIZE(pwm_dcdc2_consumers),
+		.consumer_supplies = pwm_dcdc2_consumers,
+	},
+};
+
+static struct pwm_platform_data pwm_regulator_info[2] = {
+	{
+		.pwm_id = 0,
+		.pwm_gpio = RK30_PIN0_PA3,
+		.pwm_iomux_name = GPIO0A3_PWM0_NAME,
+		.pwm_iomux_pwm = GPIO0A_PWM0,
+		.pwm_iomux_gpio = GPIO0A_GPIO0A3,
+		.pwm_voltage = 1100000,
+		.init_data	= &pwm_regulator_init_dcdc[0],
+	},
+	{
+		.pwm_id = 2,
+		.pwm_gpio = RK30_PIN0_PD6,
+		.pwm_iomux_name = GPIO0D6_PWM2_NAME,
+		.pwm_iomux_pwm = GPIO0D_PWM2,
+		.pwm_iomux_gpio = GPIO0D_GPIO0D6,
+		.pwm_voltage = 1100000,
+		.init_data	= &pwm_regulator_init_dcdc[1],
+	},
+
+};
+
+
+struct platform_device pwm_regulator_device[2] = {
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 0,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[0],
+		}
+	},
+	{
+		.name = "pwm-voltage-regulator",
+		.id = 1,
+		.dev		= {
+			.platform_data = &pwm_regulator_info[1],
+		}
+	},
+
+};
+
+
+#endif
 
 /***********************************************************
 *	rk30  backlight
@@ -1444,6 +1527,10 @@ struct platform_device rk29_device_tdsc8800 = {
 
 
 static struct platform_device *devices[] __initdata = {
+#ifdef CONFIG_RK30_PWM_REGULATOR
+		&pwm_regulator_device[0],
+		&pwm_regulator_device[1],
+#endif
 #ifdef CONFIG_BACKLIGHT_RK29_BL
 	&rk29_device_backlight,
 #endif
@@ -1479,8 +1566,9 @@ static struct platform_device *devices[] __initdata = {
     &rk_device_headset,
 #endif
 #ifdef CONFIG_TDSC8800
-	&rk29_device_tdsc8800
+	&rk29_device_tdsc8800,
 #endif
+
 };
 
 // i2c
