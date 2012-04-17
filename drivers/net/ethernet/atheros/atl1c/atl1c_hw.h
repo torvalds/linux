@@ -467,15 +467,31 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define TPD_RING_SIZE_MASK		0xFFFF
 
 /* TXQ Control Register */
-#define REG_TXQ_CTRL                	0x1590
-#define	TXQ_NUM_TPD_BURST_MASK     	0xF
-#define TXQ_NUM_TPD_BURST_SHIFT    	0
-#define TXQ_CTRL_IP_OPTION_EN		0x10
-#define TXQ_CTRL_EN                     0x20
-#define TXQ_CTRL_ENH_MODE               0x40
-#define TXQ_CTRL_LS_8023_EN		0x80
-#define TXQ_TXF_BURST_NUM_SHIFT    	16
-#define TXQ_TXF_BURST_NUM_MASK     	0xFFFF
+#define REG_TXQ_CTRL			0x1590
+#define TXQ_TXF_BURST_NUM_MASK          0xFFFFUL
+#define TXQ_TXF_BURST_NUM_SHIFT		16
+#define L1C_TXQ_TXF_BURST_PREF          0x200
+#define L2CB_TXQ_TXF_BURST_PREF         0x40
+#define TXQ_CTRL_PEDING_CLR             BIT(8)
+#define TXQ_CTRL_LS_8023_EN             BIT(7)
+#define TXQ_CTRL_ENH_MODE               BIT(6)
+#define TXQ_CTRL_EN                     BIT(5)
+#define TXQ_CTRL_IP_OPTION_EN           BIT(4)
+#define TXQ_NUM_TPD_BURST_MASK          0xFUL
+#define TXQ_NUM_TPD_BURST_SHIFT         0
+#define TXQ_NUM_TPD_BURST_DEF           5
+#define TXQ_CFGV			(\
+	FIELDX(TXQ_NUM_TPD_BURST, TXQ_NUM_TPD_BURST_DEF) |\
+	TXQ_CTRL_ENH_MODE |\
+	TXQ_CTRL_LS_8023_EN |\
+	TXQ_CTRL_IP_OPTION_EN)
+#define L1C_TXQ_CFGV			(\
+	TXQ_CFGV |\
+	FIELDX(TXQ_TXF_BURST_NUM, L1C_TXQ_TXF_BURST_PREF))
+#define L2CB_TXQ_CFGV			(\
+	TXQ_CFGV |\
+	FIELDX(TXQ_TXF_BURST_NUM, L2CB_TXQ_TXF_BURST_PREF))
+
 
 /* Jumbo packet Threshold for task offload */
 #define REG_TX_TSO_OFFLOAD_THRESH	0x1594 /* In 8-bytes */

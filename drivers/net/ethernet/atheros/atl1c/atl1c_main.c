@@ -1049,7 +1049,6 @@ static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 	u32 max_pay_load;
 	u16 tx_offload_thresh;
 	u32 txq_ctrl_data;
-	u32 max_pay_load_data;
 
 	tx_offload_thresh = MAX_TX_OFFLOAD_THRESH;
 	AT_WRITE_REG(hw, REG_TX_TSO_OFFLOAD_THRESH,
@@ -1059,15 +1058,9 @@ static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 			DEVICE_CTRL_MAX_RREQ_SZ_MASK;
 	hw->dmar_block = min_t(u32, max_pay_load, hw->dmar_block);
 
-	txq_ctrl_data = (hw->tpd_burst & TXQ_NUM_TPD_BURST_MASK) <<
-			TXQ_NUM_TPD_BURST_SHIFT;
-	if (hw->ctrl_flags & ATL1C_TXQ_MODE_ENHANCE)
-		txq_ctrl_data |= TXQ_CTRL_ENH_MODE;
-	max_pay_load_data = (atl1c_pay_load_size[hw->dmar_block] &
-			TXQ_TXF_BURST_NUM_MASK) << TXQ_TXF_BURST_NUM_SHIFT;
-	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l2c_b2)
-		max_pay_load_data >>= 1;
-	txq_ctrl_data |= max_pay_load_data;
+	txq_ctrl_data =
+		hw->nic_type == athr_l2c_b || hw->nic_type == athr_l2c_b2 ?
+		L2CB_TXQ_CFGV : L1C_TXQ_CFGV;
 
 	AT_WRITE_REG(hw, REG_TXQ_CTRL, txq_ctrl_data);
 }
