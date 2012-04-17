@@ -1126,6 +1126,7 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+static int __init vpu_service_proc_init(void);
 static int __init vpu_service_init(void)
 {
 	int ret;
@@ -1183,6 +1184,7 @@ static int __init vpu_service_init(void)
 	vpu_service_power_off();
 	pr_info("init success\n");
 
+	vpu_service_proc_init();
 	return 0;
 
 err_register:
@@ -1214,7 +1216,6 @@ static void __exit vpu_service_exit(void)
 
 module_init(vpu_service_init);
 module_exit(vpu_service_exit);
-MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_PROC_FS
 #include <linux/proc_fs.h>
@@ -1277,6 +1278,5 @@ static int __init vpu_service_proc_init(void)
 	return 0;
 
 }
-late_initcall(vpu_service_proc_init);
 #endif /* CONFIG_PROC_FS */
 

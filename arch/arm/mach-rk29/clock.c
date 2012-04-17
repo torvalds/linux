@@ -292,6 +292,7 @@ void cru_set_soft_reset(enum cru_soft_reset idx, bool on)
 
 	local_irq_restore(flags);
 }
+EXPORT_SYMBOL(cru_set_soft_reset);
 
 static struct clk xin24m = {
 	.name		= "xin24m",

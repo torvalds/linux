@@ -106,9 +106,9 @@ config WIFI_CONTROL_FUNC
           Enables Power/Reset/Carddetect function abstraction
 
 config RK29_VPU
-	bool "VPU (Video Processing Unit) service driver in kernel"
+	tristate "VPU (Video Processing Unit) service driver in kernel"
 	depends on ARCH_RK29 || ARCH_RK30
-	default y
+	default m
 
 config RK29_LAST_LOG
 	bool "Save the last kernel log on /proc/last_log"

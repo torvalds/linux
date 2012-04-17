@@ -1394,9 +1394,10 @@ static struct platform_driver vpu_mem_driver = {
 	.driver = { .name = "vpu_mem" }
 };
 
-
+static int __init vpu_mem_proc_init(void);
 static int __init vpu_mem_init(void)
 {
+	vpu_mem_proc_init();
 	return platform_driver_register(&vpu_mem_driver);
 }
 
@@ -1516,6 +1517,5 @@ static int __init vpu_mem_proc_init(void)
 	return 0;
 
 }
-late_initcall(vpu_mem_proc_init);
 #endif /* CONFIG_PROC_FS */
 
