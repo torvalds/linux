@@ -625,12 +625,10 @@ struct ib_mr *ocrdma_reg_user_mr(struct ib_pd *ibpd, u64 start, u64 len,
 	struct ocrdma_dev *dev;
 	struct ocrdma_mr *mr;
 	struct ocrdma_pd *pd;
-	struct pci_dev *pdev;
 	u32 num_pbes;
 
 	pd = get_ocrdma_pd(ibpd);
 	dev = pd->dev;
-	pdev = dev->nic_info.pdev;
 
 	if (acc & IB_ACCESS_REMOTE_WRITE && !(acc & IB_ACCESS_LOCAL_WRITE))
 		return ERR_PTR(-EINVAL);
@@ -1596,10 +1594,8 @@ int ocrdma_modify_srq(struct ib_srq *ibsrq,
 {
 	int status = 0;
 	struct ocrdma_srq *srq;
-	struct ocrdma_dev *dev;
 
 	srq = get_ocrdma_srq(ibsrq);
-	dev = srq->dev;
 	if (srq_attr_mask & IB_SRQ_MAX_WR)
 		status = -EINVAL;
 	else
@@ -1611,10 +1607,8 @@ int ocrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 {
 	int status;
 	struct ocrdma_srq *srq;
-	struct ocrdma_dev *dev;
 
 	srq = get_ocrdma_srq(ibsrq);
-	dev = srq->dev;
 	status = ocrdma_mbx_query_srq(srq, srq_attr);
 	return status;
 }

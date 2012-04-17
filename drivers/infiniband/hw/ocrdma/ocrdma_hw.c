@@ -2293,7 +2293,6 @@ int ocrdma_mbx_modify_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 {
 	int status = -ENOMEM;
 	struct ocrdma_modify_qp *cmd;
-	struct ocrdma_modify_qp_rsp *rsp;
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_MODIFY_QP, sizeof(*cmd));
 	if (!cmd)
@@ -2317,7 +2316,7 @@ int ocrdma_mbx_modify_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp,
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status)
 		goto mbx_err;
-	rsp = (struct ocrdma_modify_qp_rsp *)cmd;
+
 mbx_err:
 	kfree(cmd);
 	return status;
@@ -2327,7 +2326,6 @@ int ocrdma_mbx_destroy_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp)
 {
 	int status = -ENOMEM;
 	struct ocrdma_destroy_qp *cmd;
-	struct ocrdma_destroy_qp_rsp *rsp;
 	struct pci_dev *pdev = dev->nic_info.pdev;
 
 	cmd = ocrdma_init_emb_mqe(OCRDMA_CMD_DELETE_QP, sizeof(*cmd));
@@ -2337,7 +2335,7 @@ int ocrdma_mbx_destroy_qp(struct ocrdma_dev *dev, struct ocrdma_qp *qp)
 	status = ocrdma_mbx_cmd(dev, (struct ocrdma_mqe *)cmd);
 	if (status)
 		goto mbx_err;
-	rsp = (struct ocrdma_destroy_qp_rsp *)cmd;
+
 mbx_err:
 	kfree(cmd);
 	if (qp->sq.va)
