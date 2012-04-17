@@ -1204,12 +1204,6 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 	/* Found it - now remove it from the list of entries: */
 	*action_ptr = action->next;
 
-	/* Currently used only by UML, might disappear one day: */
-#ifdef CONFIG_IRQ_RELEASE_METHOD
-	if (desc->irq_data.chip->release)
-		desc->irq_data.chip->release(irq, dev_id);
-#endif
-
 	/* If this was the last handler, shut down the IRQ line: */
 	if (!desc->action)
 		irq_shutdown(desc);
