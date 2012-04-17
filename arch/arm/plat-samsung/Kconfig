@@ -50,6 +50,14 @@ config S3C_LOWLEVEL_UART_PORT
 	  this configuration should be between zero and two. The port
 	  must have been initialised by the boot-loader before use.
 
+# timer options
+
+config S5P_HRT
+	bool
+	select SAMSUNG_DEV_PWM
+	help
+	  Use the High Resolution timer support
+
 # clock options
 
 config SAMSUNG_CLKSRC

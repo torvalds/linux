@@ -13,6 +13,8 @@ obj-				:=
 
 obj-y				+= init.o cpu.o
 obj-$(CONFIG_ARCH_USES_GETTIMEOFFSET)   += time.o
+obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o
+
 obj-y				+= clock.o
 obj-y				+= pwm-clock.o
 

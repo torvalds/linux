@@ -10,10 +10,6 @@ obj-m				:=
 obj-n				:= dummy.o
 obj-				:=
 
-# Core files
-
-obj-$(CONFIG_S5P_HRT) 		+= s5p-time.o
-
 # devices
 
 obj-$(CONFIG_S5P_DEV_UART)	+= dev-uart.o

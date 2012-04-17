@@ -23,12 +23,6 @@ config PLAT_S5P
 	help
 	  Base platform code for Samsung's S5P series SoC.
 
-config S5P_HRT
-	bool
-	select SAMSUNG_DEV_PWM
-	help
-	  Use the High Resolution timer support
-
 config S5P_DEV_UART
 	def_bool y
 	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
