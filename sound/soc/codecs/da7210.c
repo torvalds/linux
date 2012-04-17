@@ -992,19 +992,15 @@ static int da7210_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 
 	/* Search pll div array for correct divisors */
 	for (cnt = 0; cnt < ARRAY_SIZE(da7210_pll_div); cnt++) {
-		/* check fref */
-		if (fref == da7210_pll_div[cnt].fref) {
-			/* check mode */
-			 if (da7210->master ==  da7210_pll_div[cnt].mode) {
-				/* check fout */
-				if (fout == da7210_pll_div[cnt].fout) {
-					/* all match, pick up divisors */
-					pll_div1 = da7210_pll_div[cnt].div1;
-					pll_div2 = da7210_pll_div[cnt].div2;
-					pll_div3 = da7210_pll_div[cnt].div3;
-					break;
-				}
-			}
+		/* check fref, mode  and fout */
+		if ((fref == da7210_pll_div[cnt].fref) &&
+		    (da7210->master ==  da7210_pll_div[cnt].mode) &&
+		    (fout == da7210_pll_div[cnt].fout)) {
+			/* all match, pick up divisors */
+			pll_div1 = da7210_pll_div[cnt].div1;
+			pll_div2 = da7210_pll_div[cnt].div2;
+			pll_div3 = da7210_pll_div[cnt].div3;
+			break;
 		}
 	}
 	if (cnt >= ARRAY_SIZE(da7210_pll_div))
