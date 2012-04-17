@@ -375,50 +375,36 @@ struct hpfs_dirent {
 
 struct bplus_leaf_node
 {
-  u32 file_secno;			/* first file sector in extent */
-  u32 length;				/* length, sectors */
-  secno disk_secno;			/* first corresponding disk sector */
+  __le32 file_secno;			/* first file sector in extent */
+  __le32 length;			/* length, sectors */
+  __le32 disk_secno;			/* first corresponding disk sector */
 };
 
 struct bplus_internal_node
 {
-  u32 file_secno;			/* subtree maps sectors < this  */
-  anode_secno down;			/* pointer to subtree */
+  __le32 file_secno;			/* subtree maps sectors < this  */
+  __le32 down;				/* pointer to subtree */
 };
 
+enum {
+	BP_hbff = 1,
+	BP_fnode_parent = 0x20,
+	BP_binary_search = 0x40,
+	BP_internal = 0x80
+};
 struct bplus_header
 {
-#ifdef __LITTLE_ENDIAN
-  u8 hbff: 1;			/* high bit of first free entry offset */
-  u8 flag1234: 4;
-  u8 fnode_parent: 1;			/* ? we're pointed to by an fnode,
+  u8 flags;				/* bit 0 - high bit of first free entry offset
+					   bit 5 - we're pointed to by an fnode,
 					   the data btree or some ea or the
-					   main ea bootage pointer ea_secno */
-					/* also can get set in fnodes, which
-					   may be a chkdsk glitch or may mean
-					   this bit is irrelevant in fnodes,
-					   or this interpretation is all wet */
-  u8 binary_search: 1;			/* suggest binary search (unused) */
-  u8 internal: 1;			/* 1 -> (internal) tree of anodes
-					   0 -> (leaf) list of extents */
-#else
-  u8 internal: 1;			/* 1 -> (internal) tree of anodes
-					   0 -> (leaf) list of extents */
-  u8 binary_search: 1;			/* suggest binary search (unused) */
-  u8 fnode_parent: 1;			/* ? we're pointed to by an fnode,
-					   the data btree or some ea or the
-					   main ea bootage pointer ea_secno */
-					/* also can get set in fnodes, which
-					   may be a chkdsk glitch or may mean
-					   this bit is irrelevant in fnodes,
-					   or this interpretation is all wet */
-  u8 flag1234: 4;
-  u8 hbff: 1;			/* high bit of first free entry offset */
-#endif
+					   main ea bootage pointer ea_secno
+					   bit 6 - suggest binary search (unused)
+					   bit 7 - 1 -> (internal) tree of anodes
+						   0 -> (leaf) list of extents */
   u8 fill[3];
   u8 n_free_nodes;			/* free nodes in following array */
   u8 n_used_nodes;			/* used nodes in following array */
-  u16 first_free;			/* offset from start of header to
+  __le16 first_free;			/* offset from start of header to
 					   first free node in array */
   union {
     struct bplus_internal_node internal[0]; /* (internal) 2-word entries giving
@@ -427,6 +413,16 @@ struct bplus_header
 					       sector runs */
   } u;
 };
+
+static inline bool bp_internal(struct bplus_header *bp)
+{
+	return bp->flags & BP_internal;
+}
+
+static inline bool bp_fnode_parent(struct bplus_header *bp)
+{
+	return bp->flags & BP_fnode_parent;
+}
 
 /* fnode: root of allocation b+ tree, and EA's */
 
