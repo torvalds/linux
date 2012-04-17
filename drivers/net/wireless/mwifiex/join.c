@@ -118,15 +118,15 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
 	*buffer += sizeof(tsf_tlv.header);
 
 	/* TSF at the time when beacon/probe_response was received */
-	tsf_val = cpu_to_le64(bss_desc->network_tsf);
+	tsf_val = cpu_to_le64(bss_desc->fw_tsf);
 	memcpy(*buffer, &tsf_val, sizeof(tsf_val));
 	*buffer += sizeof(tsf_val);
 
-	memcpy(&tsf_val, bss_desc->time_stamp, sizeof(tsf_val));
+	tsf_val = cpu_to_le64(bss_desc->timestamp);
 
 	dev_dbg(priv->adapter->dev,
 		"info: %s: TSF offset calc: %016llx - %016llx\n",
-		__func__, tsf_val, bss_desc->network_tsf);
+		__func__, bss_desc->timestamp, bss_desc->fw_tsf);
 
 	memcpy(*buffer, &tsf_val, sizeof(tsf_val));
 	*buffer += sizeof(tsf_val);

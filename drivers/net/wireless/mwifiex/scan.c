@@ -1603,14 +1603,16 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		const u8 *ie_buf;
 		size_t ie_len;
 		u16 channel = 0;
-		u64 network_tsf = 0;
+		u64 fw_tsf = 0;
 		u16 beacon_size = 0;
 		u32 curr_bcn_bytes;
 		u32 freq;
 		u16 beacon_period;
 		u16 cap_info_bitmap;
 		u8 *current_ptr;
+		u64 timestamp;
 		struct mwifiex_bcn_param *bcn_param;
+		struct mwifiex_bss_priv *bss_priv;
 
 		if (bytes_left >= sizeof(beacon_size)) {
 			/* Extract & convert beacon size from command buffer */
@@ -1654,6 +1656,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
 		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
 
+		timestamp = le64_to_cpu(bcn_param->timestamp);
 		beacon_period = le16_to_cpu(bcn_param->beacon_period);
 
 		cap_info_bitmap = le16_to_cpu(bcn_param->cap_info_bitmap);
@@ -1693,14 +1696,13 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		/*
 		 * If the TSF TLV was appended to the scan results, save this
-		 * entry's TSF value in the networkTSF field.The networkTSF is
-		 * the firmware's TSF value at the time the beacon or probe
-		 * response was received.
+		 * entry's TSF value in the fw_tsf field. It is the firmware's
+		 * TSF value at the time the beacon or probe response was
+		 * received.
 		 */
 		if (tsf_tlv)
-			memcpy(&network_tsf,
-			       &tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
-			       sizeof(network_tsf));
+			memcpy(&fw_tsf, &tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
+			       sizeof(fw_tsf));
 
 		if (channel) {
 			struct ieee80211_channel *chan;
@@ -1723,10 +1725,12 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 			if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 				bss = cfg80211_inform_bss(priv->wdev->wiphy,
-					      chan, bssid, network_tsf,
+					      chan, bssid, timestamp,
 					      cap_info_bitmap, beacon_period,
 					      ie_buf, ie_len, rssi, GFP_KERNEL);
-				*(u8 *)bss->priv = band;
+				bss_priv = (struct mwifiex_bss_priv *)bss->priv;
+				bss_priv->band = band;
+				bss_priv->fw_tsf = fw_tsf;
 				if (priv->media_connected &&
 				    !memcmp(bssid,
 					    priv->curr_bss_params.bss_descriptor

@@ -819,7 +819,7 @@ struct host_cmd_ds_txpwr_cfg {
 struct mwifiex_bcn_param {
 	u8 bssid[ETH_ALEN];
 	u8 rssi;
-	__le32 timestamp[2];
+	__le64 timestamp;
 	__le16 beacon_period;
 	__le16 cap_info_bitmap;
 } __packed;

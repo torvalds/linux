@@ -260,8 +260,8 @@ struct mwifiex_bssdescriptor {
 	 * BAND_A(0X04): 'a' band
 	 */
 	u16 bss_band;
-	u64 network_tsf;
-	u8 time_stamp[8];
+	u64 fw_tsf;
+	u64 timestamp;
 	union ieee_types_phy_param_set phy_param_set;
 	union ieee_types_ss_param_set ss_param_set;
 	u16 cap_info_bitmap;
@@ -520,6 +520,11 @@ struct cmd_ctrl_node {
 	struct sk_buff *skb;
 	u8 *condition;
 	u8 cmd_wait_q_woken;
+};
+
+struct mwifiex_bss_priv {
+	u8 band;
+	u64 fw_tsf;
 };
 
 struct mwifiex_if_ops {

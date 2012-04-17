@@ -1482,8 +1482,8 @@ int mwifiex_register_cfg80211(struct mwifiex_private *priv)
 	memcpy(wdev->wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
 	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 
-	/* Reserve space for bss band information */
-	wdev->wiphy->bss_priv_size = sizeof(u8);
+	/* Reserve space for mwifiex specific private data for BSS */
+	wdev->wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
 
 	wdev->wiphy->reg_notifier = mwifiex_reg_notifier;
 
