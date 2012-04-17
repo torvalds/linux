@@ -96,7 +96,7 @@ static int __devinit dw_i2c_probe(struct platform_device *pdev)
 		r = -ENODEV;
 		goto err_free_mem;
 	}
-	clk_enable(dev->clk);
+	clk_prepare_enable(dev->clk);
 
 	dev->functionality =
 		I2C_FUNC_I2C |
@@ -156,7 +156,7 @@ err_free_irq:
 err_iounmap:
 	iounmap(dev->base);
 err_unuse_clocks:
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
 err_free_mem:
@@ -178,7 +178,7 @@ static int __devexit dw_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
 
-	clk_disable(dev->clk);
+	clk_disable_unprepare(dev->clk);
 	clk_put(dev->clk);
 	dev->clk = NULL;
 
@@ -205,7 +205,7 @@ static int dw_i2c_suspend(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
-	clk_disable(i_dev->clk);
+	clk_disable_unprepare(i_dev->clk);
 
 	return 0;
 }
@@ -215,7 +215,7 @@ static int dw_i2c_resume(struct device *dev)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct dw_i2c_dev *i_dev = platform_get_drvdata(pdev);
 
-	clk_enable(i_dev->clk);
+	clk_prepare_enable(i_dev->clk);
 	i2c_dw_init(i_dev);
 
 	return 0;
