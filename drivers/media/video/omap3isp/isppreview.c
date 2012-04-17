@@ -608,12 +608,12 @@ preview_config_rgb_blending(struct isp_prev_device *prev, const void *rgb2rgb)
 }
 
 /*
- * Configures the RGB-YCbYCr conversion matrix
+ * Configures the color space conversion (RGB toYCbYCr) matrix
  * @prev_csc: Structure containing the RGB to YCbYCr matrix and the
  *            YCbCr offset.
  */
 static void
-preview_config_rgb_to_ycbcr(struct isp_prev_device *prev, const void *prev_csc)
+preview_config_csc(struct isp_prev_device *prev, const void *prev_csc)
 {
 	struct isp_device *isp = to_isp_device(prev);
 	const struct omap3isp_prev_csc *csc = prev_csc;
@@ -860,7 +860,7 @@ static const struct preview_update update_attrs[] = {
 		FIELD_SIZEOF(struct prev_params, rgb2rgb),
 		offsetof(struct omap3isp_prev_update_config, rgb2rgb),
 	}, /* OMAP3ISP_PREV_COLOR_CONV */ {
-		preview_config_rgb_to_ycbcr,
+		preview_config_csc,
 		NULL,
 		offsetof(struct prev_params, csc),
 		FIELD_SIZEOF(struct prev_params, csc),
