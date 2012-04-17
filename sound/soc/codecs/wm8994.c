@@ -1567,6 +1567,7 @@ SND_SOC_DAPM_MUX("AIF3ADC Mux", SND_SOC_NOPM, 0, 0, &wm8994_aif3adc_mux),
 };
 
 static const struct snd_soc_dapm_widget wm8958_dapm_widgets[] = {
+SND_SOC_DAPM_SUPPLY("AIF3", WM8994_POWER_MANAGEMENT_6, 5, 1, NULL, 0),
 SND_SOC_DAPM_MUX("Mono PCM Out Mux", SND_SOC_NOPM, 0, 0, &mono_pcm_out_mux),
 SND_SOC_DAPM_MUX("AIF2DACL Mux", SND_SOC_NOPM, 0, 0, &aif2dacl_src_mux),
 SND_SOC_DAPM_MUX("AIF2DACR Mux", SND_SOC_NOPM, 0, 0, &aif2dacr_src_mux),
@@ -1806,6 +1807,9 @@ static const struct snd_soc_dapm_route wm8958_intercon[] = {
 	{ "AIF2DACL Mux", "AIF3", "AIF3DACDAT" },
 	{ "AIF2DACR Mux", "AIF2", "AIF2DAC Mux" },
 	{ "AIF2DACR Mux", "AIF3", "AIF3DACDAT" },
+
+	{ "AIF3DACDAT", NULL, "AIF3" },
+	{ "AIF3ADCDAT", NULL, "AIF3" },
 
 	{ "Mono PCM Out Mux", "AIF2ADCL", "AIF2ADCL" },
 	{ "Mono PCM Out Mux", "AIF2ADCR", "AIF2ADCR" },
@@ -2677,10 +2681,6 @@ static int wm8994_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
 		reg = WM8994_AIF2_MASTER_SLAVE;
 		mask = WM8994_AIF2_TRI;
 		break;
-	case 3:
-		reg = WM8994_POWER_MANAGEMENT_6;
-		mask = WM8994_AIF3_TRI;
-		break;
 	default:
 		return -EINVAL;
 	}
@@ -2733,7 +2733,6 @@ static const struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 
 static const struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
 	.hw_params	= wm8994_aif3_hw_params,
-	.set_tristate	= wm8994_set_tristate,
 };
 
 static struct snd_soc_dai_driver wm8994_dai[] = {
