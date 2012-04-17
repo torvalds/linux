@@ -486,9 +486,6 @@ const char *hdmi_get_video_mode_name(unsigned char vic)
 int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 {
 	int rc = 0;
-	struct layer_par *par = NULL;
-	struct rk_lcdc_device_driver * dev_drv;
-	struct rk29fb_screen *screen; 
 
 	if(hdmi->vic == 0)
 		hdmi->vic = HDMI_VIDEO_DEFAULT_MODE;
@@ -498,18 +495,10 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 		return -1;
 	}
 
-	dev_drv = hdmi->lcdc;
-	screen = dev_drv->screen;
 	rc = hdmi_set_info(hdmi->lcdc->screen, vic);
 
-	if(rc == 0 &&  hdmi->lcdc->load_screen) {
-		
-		hdmi->lcdc->load_screen(hdmi->lcdc, 0);
-		par = dev_drv->layer_par[1];
-   		par->xsize = screen->x_res;
-    	par->ysize = screen->y_res;
-		hdmi->lcdc->set_par(hdmi->lcdc, 1);
-		hdmi->lcdc->pan_display(hdmi->lcdc, 1);
+	if(rc == 0) {		
+		rk_fb_switch_screen(hdmi->lcdc->screen, 1, HDMI_SOURCE_DEFAULT);
 	}
 	return rc;
 }
@@ -522,5 +511,8 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
  */
 int hdmi_get_hotplug(void)
 {
-	return hdmi->hotplug;
+	if(hdmi)
+		return hdmi->hotplug;
+	else
+		return HDMI_HPD_REMOVED;
 }
