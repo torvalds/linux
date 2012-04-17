@@ -257,16 +257,6 @@ static inline struct tipc_port *tipc_port_deref(u32 ref)
 	return (struct tipc_port *)tipc_ref_deref(ref);
 }
 
-static inline u32 tipc_peer_port(struct tipc_port *p_ptr)
-{
-	return msg_destport(&p_ptr->phdr);
-}
-
-static inline u32 tipc_peer_node(struct tipc_port *p_ptr)
-{
-	return msg_destnode(&p_ptr->phdr);
-}
-
 static inline int tipc_port_congested(struct tipc_port *p_ptr)
 {
 	return (p_ptr->sent - p_ptr->acked) >= (TIPC_FLOW_CONTROL_WIN * 2);
