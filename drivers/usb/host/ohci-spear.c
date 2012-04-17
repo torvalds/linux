@@ -25,12 +25,12 @@ struct spear_ohci {
 
 static void spear_start_ohci(struct spear_ohci *ohci)
 {
-	clk_enable(ohci->clk);
+	clk_prepare_enable(ohci->clk);
 }
 
 static void spear_stop_ohci(struct spear_ohci *ohci)
 {
-	clk_disable(ohci->clk);
+	clk_disable_unprepare(ohci->clk);
 }
 
 static int __devinit ohci_spear_start(struct usb_hcd *hcd)

@@ -26,12 +26,12 @@ struct spear_ehci {
 
 static void spear_start_ehci(struct spear_ehci *ehci)
 {
-	clk_enable(ehci->clk);
+	clk_prepare_enable(ehci->clk);
 }
 
 static void spear_stop_ehci(struct spear_ehci *ehci)
 {
-	clk_disable(ehci->clk);
+	clk_disable_unprepare(ehci->clk);
 }
 
 static int ehci_spear_setup(struct usb_hcd *hcd)
