@@ -44,8 +44,9 @@ static int anx7150_param_chg(struct anx7150_pdata *anx)
 {
 	int resolution_real;
 
-	hdmi_switch_fb(anx->hdmi, HDMI_ENABLE);
 	resolution_real = ANX7150_Get_Optimal_resolution(anx->hdmi->resolution);
+	anx->hdmi->resolution = resolution_real; 
+	hdmi_switch_fb(anx->hdmi, HDMI_ENABLE);
 	HDMI_Set_Video_Format(resolution_real);
 	HDMI_Set_Audio_Fs(anx->hdmi->audio_fs);
 	ANX7150_API_HDCP_ONorOFF(anx->hdmi->hdcp_on);
