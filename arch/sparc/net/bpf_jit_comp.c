@@ -11,20 +11,6 @@
 
 int bpf_jit_enable __read_mostly;
 
-/* assembly code in arch/sparc/net/bpf_jit_asm.S */
-extern u32 bpf_jit_load_word[];
-extern u32 bpf_jit_load_half[];
-extern u32 bpf_jit_load_byte[];
-extern u32 bpf_jit_load_byte_msh[];
-extern u32 bpf_jit_load_word_positive_offset[];
-extern u32 bpf_jit_load_half_positive_offset[];
-extern u32 bpf_jit_load_byte_positive_offset[];
-extern u32 bpf_jit_load_byte_msh_positive_offset[];
-extern u32 bpf_jit_load_word_negative_offset[];
-extern u32 bpf_jit_load_half_negative_offset[];
-extern u32 bpf_jit_load_byte_negative_offset[];
-extern u32 bpf_jit_load_byte_msh_negative_offset[];
-
 static inline bool is_simm13(unsigned int value)
 {
 	return value + 0x1000 < 0x2000;
@@ -65,22 +51,22 @@ static void bpf_flush_icache(void *start_, void *end_)
 #define F2(X, Y)	(OP(X) | OP2(Y))
 #define F3(X, Y)	(OP(X) | OP3(Y))
 
-#define CONDN		COND (0x0)
-#define CONDE		COND (0x1)
-#define CONDLE		COND (0x2)
-#define CONDL		COND (0x3)
-#define CONDLEU		COND (0x4)
-#define CONDCS		COND (0x5)
-#define CONDNEG		COND (0x6)
-#define CONDVC		COND (0x7)
-#define CONDA		COND (0x8)
-#define CONDNE		COND (0x9)
-#define CONDG		COND (0xa)
-#define CONDGE		COND (0xb)
-#define CONDGU		COND (0xc)
-#define CONDCC		COND (0xd)
-#define CONDPOS		COND (0xe)
-#define CONDVS		COND (0xf)
+#define CONDN		COND(0x0)
+#define CONDE		COND(0x1)
+#define CONDLE		COND(0x2)
+#define CONDL		COND(0x3)
+#define CONDLEU		COND(0x4)
+#define CONDCS		COND(0x5)
+#define CONDNEG		COND(0x6)
+#define CONDVC		COND(0x7)
+#define CONDA		COND(0x8)
+#define CONDNE		COND(0x9)
+#define CONDG		COND(0xa)
+#define CONDGE		COND(0xb)
+#define CONDGU		COND(0xc)
+#define CONDCC		COND(0xd)
+#define CONDPOS		COND(0xe)
+#define CONDVS		COND(0xf)
 
 #define CONDGEU		CONDCC
 #define CONDLU		CONDCS
@@ -172,7 +158,7 @@ do {	/* sethi %hi(K), REG */					\
 
 	/* Emit
 	 *
-	 * 	OP	r_A, r_X, r_A
+	 *	OP	r_A, r_X, r_A
 	 */
 #define emit_alu_X(OPCODE)					\
 do {								\
@@ -195,7 +181,7 @@ do {								\
 	 * is zero.
 	 */
 #define emit_alu_K(OPCODE, K)					\
-do {			   					\
+do {								\
 	if (K) {						\
 		unsigned int _insn = OPCODE;			\
 		_insn |= RS1(r_A) | RD(r_A);			\
@@ -204,7 +190,7 @@ do {			   					\
 		} else {					\
 			emit_set_const(K, r_TMP);		\
 			*prog++ = _insn | RS2(r_TMP);		\
-		}		  	  			\
+		}						\
 	}							\
 } while (0)
 
@@ -222,37 +208,37 @@ do {									\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
 	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(void *));	\
 	*prog++ = LDPTRI | RS1(BASE) | S13(_off) | RD(DEST);		\
-} while(0)
+} while (0)
 
 #define emit_load32(BASE, STRUCT, FIELD, DEST)				\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
 	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u32));	\
 	*prog++ = LD32I | RS1(BASE) | S13(_off) | RD(DEST);		\
-} while(0)
+} while (0)
 
 #define emit_load16(BASE, STRUCT, FIELD, DEST)				\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
 	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u16));	\
 	*prog++ = LD16I | RS1(BASE) | S13(_off) | RD(DEST);		\
-} while(0)
+} while (0)
 
 #define __emit_load8(BASE, STRUCT, FIELD, DEST)				\
 do {	unsigned int _off = offsetof(STRUCT, FIELD);			\
 	*prog++ = LD8I | RS1(BASE) | S13(_off) | RD(DEST);		\
-} while(0)
+} while (0)
 
 #define emit_load8(BASE, STRUCT, FIELD, DEST)				\
 do {	BUILD_BUG_ON(FIELD_SIZEOF(STRUCT, FIELD) != sizeof(u8));	\
 	__emit_load8(BASE, STRUCT, FIELD, DEST);			\
-} while(0)
+} while (0)
 
 #define emit_ldmem(OFF, DEST)					\
 do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(DEST);	\
-} while(0)
+} while (0)
 
 #define emit_stmem(OFF, SRC)					\
 do {	*prog++ = LD32I | RS1(FP) | S13(-(OFF)) | RD(SRC);	\
-} while(0)
+} while (0)
 
 #define cpu_off		offsetof(struct thread_info, cpu)
 
@@ -292,16 +278,16 @@ do {	void *_here = image + addrs[i] - 8;		\
 #define emit_branch(BR_OPC, DEST)			\
 do {	unsigned int _here = addrs[i] - 8;		\
 	*prog++ = BR_OPC | WDISP22((DEST) - _here);	\
-} while(0)
+} while (0)
 
 #define emit_branch_off(BR_OPC, OFF)			\
 do {	*prog++ = BR_OPC | WDISP22(OFF);		\
-} while(0)
+} while (0)
 
 #define emit_jump(DEST)		emit_branch(BA, DEST)
 
-#define emit_read_y(REG) 	*prog++ = RD_Y | RD(REG);
-#define emit_write_y(REG) 	*prog++ = WR_Y | IMMED | RS1(REG) | S13(0);
+#define emit_read_y(REG)	*prog++ = RD_Y | RD(REG)
+#define emit_write_y(REG)	*prog++ = WR_Y | IMMED | RS1(REG) | S13(0)
 
 #define emit_cmp(R1, R2) \
 	*prog++ = (SUBCC | RS1(R1) | RS2(R2) | RD(G0))
@@ -332,6 +318,35 @@ do {	*prog++ = BR_OPC | WDISP22(OFF);		\
 
 #define emit_release_stack(SZ) \
 	*prog++ = (ADD | IMMED | RS1(SP) | S13(SZ) | RD(SP))
+
+/* A note about branch offset calculations.  The addrs[] array,
+ * indexed by BPF instruction, records the address after all the
+ * sparc instructions emitted for that BPF instruction.
+ *
+ * The most common case is to emit a branch at the end of such
+ * a code sequence.  So this would be two instructions, the
+ * branch and it's delay slot.
+ *
+ * Therefore by default the branch emitters calculate the branch
+ * offset field as:
+ *
+ *	destination - (addrs[i] - 8)
+ *
+ * This "addrs[i] - 8" is the address of the branch itself or
+ * what "." would be in assembler notation.  The "8" part is
+ * how we take into consideration the branch and it's delay
+ * slot mentioned above.
+ *
+ * Sometimes we need to emit a branch earlier in the code
+ * sequence.  And in these situations we adjust "destination"
+ * to accomodate this difference.  For example, if we needed
+ * to emit a branch (and it's delay slot) right before the
+ * final instruction emitted for a BPF opcode, we'd use
+ * "destination + 4" instead of just plain "destination" above.
+ *
+ * This is why you see all of these funny emit_branch() and
+ * emit_jump() calls with adjusted offsets.
+ */
 
 void bpf_jit_compile(struct sk_filter *fp)
 {
@@ -493,6 +508,10 @@ void bpf_jit_compile(struct sk_filter *fp)
 				}
 				emit_write_y(G0);
 #ifdef CONFIG_SPARC32
+				/* The Sparc v8 architecture requires
+				 * three instructions between a %y
+				 * register write and the first use.
+				 */
 				emit_nop();
 				emit_nop();
 				emit_nop();

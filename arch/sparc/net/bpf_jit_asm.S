@@ -195,5 +195,11 @@ bpf_jit_load_byte_msh_negative_offset:
 	 sll	r_OFF, 2, r_X
 
 bpf_error:
+	/* Make the JIT program return zero.  The JIT epilogue
+	 * stores away the original %o7 into r_saved_O7.  The
+	 * normal leaf function return is to use "retl" which
+	 * would evalute to "jmpl %o7 + 8, %g0" but we want to
+	 * use the saved value thus the sequence you see here.
+	 */
 	jmpl	r_saved_O7 + 8, %g0
 	 clr	%o0

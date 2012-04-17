@@ -38,6 +38,21 @@
 #define r_TMP		G1
 #define r_TMP2		G2
 #define r_OFF		G3
+
+/* assembly code in arch/sparc/net/bpf_jit_asm.S */
+extern u32 bpf_jit_load_word[];
+extern u32 bpf_jit_load_half[];
+extern u32 bpf_jit_load_byte[];
+extern u32 bpf_jit_load_byte_msh[];
+extern u32 bpf_jit_load_word_positive_offset[];
+extern u32 bpf_jit_load_half_positive_offset[];
+extern u32 bpf_jit_load_byte_positive_offset[];
+extern u32 bpf_jit_load_byte_msh_positive_offset[];
+extern u32 bpf_jit_load_word_negative_offset[];
+extern u32 bpf_jit_load_half_negative_offset[];
+extern u32 bpf_jit_load_byte_negative_offset[];
+extern u32 bpf_jit_load_byte_msh_negative_offset[];
+
 #else
 #define r_SKB		%o0
 #define r_A		%o1
