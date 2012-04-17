@@ -2331,16 +2331,12 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret;
 
-	ret = dev_priv->display.update_plane(crtc, fb, x, y);
-	if (ret)
-		return ret;
-
-	intel_update_fbc(dev);
+	if (dev_priv->display.disable_fbc)
+		dev_priv->display.disable_fbc(dev);
 	intel_increase_pllclock(crtc);
 
-	return 0;
+	return dev_priv->display.update_plane(crtc, fb, x, y);
 }
 
 static int
@@ -2375,6 +2371,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *old_fb)
 {
 	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int ret;
@@ -2411,8 +2408,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 	if (old_fb)
 		intel_finish_fb(old_fb);
 
-	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
-					 LEAVE_ATOMIC_MODE_SET);
+	ret = dev_priv->display.update_plane(crtc, crtc->fb, x, y);
 	if (ret) {
 		intel_unpin_fb_obj(to_intel_framebuffer(crtc->fb)->obj);
 		mutex_unlock(&dev->struct_mutex);
@@ -2425,6 +2421,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		intel_unpin_fb_obj(to_intel_framebuffer(old_fb)->obj);
 	}
 
+	intel_update_fbc(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	if (!dev->primary->master)
