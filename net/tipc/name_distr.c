@@ -176,6 +176,39 @@ void tipc_named_withdraw(struct publication *publ)
 	named_cluster_distribute(buf);
 }
 
+/*
+ * named_distribute - prepare name info for bulk distribution to another node
+ */
+static void named_distribute(struct list_head *message_list, u32 node,
+			     struct publ_list *pls, u32 max_item_buf)
+{
+	struct publication *publ;
+	struct sk_buff *buf = NULL;
+	struct distr_item *item = NULL;
+	u32 left = 0;
+	u32 rest = pls->size * ITEM_SIZE;
+
+	list_for_each_entry(publ, &pls->list, local_list) {
+		if (!buf) {
+			left = (rest <= max_item_buf) ? rest : max_item_buf;
+			rest -= left;
+			buf = named_prepare_buf(PUBLICATION, left, node);
+			if (!buf) {
+				warn("Bulk publication failure\n");
+				return;
+			}
+			item = (struct distr_item *)msg_data(buf_msg(buf));
+		}
+		publ_to_item(item, publ);
+		item++;
+		left -= ITEM_SIZE;
+		if (!left) {
+			list_add_tail((struct list_head *)buf, message_list);
+			buf = NULL;
+		}
+	}
+}
+
 /**
  * tipc_named_node_up - tell specified node about all publications by this node
  */
@@ -184,13 +217,8 @@ void tipc_named_node_up(unsigned long nodearg)
 {
 	struct tipc_node *n_ptr;
 	struct tipc_link *l_ptr;
-	struct publication *publ;
-	struct distr_item *item = NULL;
-	struct sk_buff *buf = NULL;
 	struct list_head message_list;
 	u32 node = (u32)nodearg;
-	u32 left = 0;
-	u32 rest;
 	u32 max_item_buf = 0;
 
 	/* compute maximum amount of publication data to send per message */
@@ -214,28 +242,7 @@ void tipc_named_node_up(unsigned long nodearg)
 	INIT_LIST_HEAD(&message_list);
 
 	read_lock_bh(&tipc_nametbl_lock);
-	rest = publ_cluster.size * ITEM_SIZE;
-
-	list_for_each_entry(publ, &publ_cluster.list, local_list) {
-		if (!buf) {
-			left = (rest <= max_item_buf) ? rest : max_item_buf;
-			rest -= left;
-			buf = named_prepare_buf(PUBLICATION, left, node);
-			if (!buf) {
-				warn("Bulk publication distribution failure\n");
-				goto exit;
-			}
-			item = (struct distr_item *)msg_data(buf_msg(buf));
-		}
-		publ_to_item(item, publ);
-		item++;
-		left -= ITEM_SIZE;
-		if (!left) {
-			list_add_tail((struct list_head *)buf, &message_list);
-			buf = NULL;
-		}
-	}
-exit:
+	named_distribute(&message_list, node, &publ_cluster, max_item_buf);
 	read_unlock_bh(&tipc_nametbl_lock);
 
 	tipc_link_send_names(&message_list, (u32)node);
