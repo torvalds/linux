@@ -1255,6 +1255,13 @@ static void uart_set_termios(struct tty_struct *tty,
 		uart_set_mctrl(uport, mask);
 	}
 
+	/*
+	 * If the port is doing h/w assisted flow control, do nothing.
+	 * We assume that tty->hw_stopped has never been set.
+	 */
+	if (uport->flags & UPF_HARD_FLOW)
+		return;
+
 	/* Handle turning off CRTSCTS */
 	if ((old_termios->c_cflag & CRTSCTS) && !(cflag & CRTSCTS)) {
 		spin_lock_irqsave(&uport->lock, flags);
