@@ -69,6 +69,28 @@ static inline u32 port_peerport(struct tipc_port *p_ptr)
 	return msg_destport(&p_ptr->phdr);
 }
 
+/*
+ * tipc_port_peer_msg - verify message was sent by connected port's peer
+ *
+ * Handles cases where the node's network address has changed from
+ * the default of <0.0.0> to its configured setting.
+ */
+
+int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg)
+{
+	u32 peernode;
+	u32 orignode;
+
+	if (msg_origport(msg) != port_peerport(p_ptr))
+		return 0;
+
+	orignode = msg_orignode(msg);
+	peernode = port_peernode(p_ptr);
+	return (orignode == peernode) ||
+		(!orignode && (peernode == tipc_own_addr)) ||
+		(!peernode && (orignode == tipc_own_addr));
+}
+
 /**
  * tipc_multicast - send a multicast message to local and remote destinations
  */
@@ -526,25 +548,21 @@ void tipc_port_recv_proto_msg(struct sk_buff *buf)
 	struct tipc_msg *msg = buf_msg(buf);
 	struct tipc_port *p_ptr;
 	struct sk_buff *r_buf = NULL;
-	u32 orignode = msg_orignode(msg);
-	u32 origport = msg_origport(msg);
 	u32 destport = msg_destport(msg);
 	int wakeable;
 
 	/* Validate connection */
 
 	p_ptr = tipc_port_lock(destport);
-	if (!p_ptr || !p_ptr->connected ||
-	    (port_peernode(p_ptr) != orignode) ||
-	    (port_peerport(p_ptr) != origport)) {
+	if (!p_ptr || !p_ptr->connected || !tipc_port_peer_msg(p_ptr, msg)) {
 		r_buf = tipc_buf_acquire(BASIC_H_SIZE);
 		if (r_buf) {
 			msg = buf_msg(r_buf);
 			tipc_msg_init(msg, TIPC_HIGH_IMPORTANCE, TIPC_CONN_MSG,
-				      BASIC_H_SIZE, orignode);
+				      BASIC_H_SIZE, msg_orignode(msg));
 			msg_set_errcode(msg, TIPC_ERR_NO_PORT);
 			msg_set_origport(msg, destport);
-			msg_set_destport(msg, origport);
+			msg_set_destport(msg, msg_origport(msg));
 		}
 		if (p_ptr)
 			tipc_port_unlock(p_ptr);
@@ -681,6 +699,7 @@ static void port_dispatcher_sigh(void *dummy)
 		struct tipc_name_seq dseq;
 		void *usr_handle;
 		int connected;
+		int peer_invalid;
 		int published;
 		u32 message_type;
 
@@ -701,6 +720,7 @@ static void port_dispatcher_sigh(void *dummy)
 		up_ptr = p_ptr->user_port;
 		usr_handle = up_ptr->usr_handle;
 		connected = p_ptr->connected;
+		peer_invalid = connected && !tipc_port_peer_msg(p_ptr, msg);
 		published = p_ptr->published;
 
 		if (unlikely(msg_errcode(msg)))
@@ -710,8 +730,6 @@ static void port_dispatcher_sigh(void *dummy)
 
 		case TIPC_CONN_MSG:{
 				tipc_conn_msg_event cb = up_ptr->conn_msg_cb;
-				u32 peer_port = port_peerport(p_ptr);
-				u32 peer_node = port_peernode(p_ptr);
 				u32 dsz;
 
 				tipc_port_unlock(p_ptr);
@@ -720,8 +738,7 @@ static void port_dispatcher_sigh(void *dummy)
 				if (unlikely(!connected)) {
 					if (tipc_connect2port(dref, &orig))
 						goto reject;
-				} else if ((msg_origport(msg) != peer_port) ||
-					   (msg_orignode(msg) != peer_node))
+				} else if (peer_invalid)
 					goto reject;
 				dsz = msg_data_sz(msg);
 				if (unlikely(dsz &&
@@ -773,14 +790,9 @@ err:
 		case TIPC_CONN_MSG:{
 				tipc_conn_shutdown_event cb =
 					up_ptr->conn_err_cb;
-				u32 peer_port = port_peerport(p_ptr);
-				u32 peer_node = port_peernode(p_ptr);
 
 				tipc_port_unlock(p_ptr);
-				if (!cb || !connected)
-					break;
-				if ((msg_origport(msg) != peer_port) ||
-				    (msg_orignode(msg) != peer_node))
+				if (!cb || !connected || peer_invalid)
 					break;
 				tipc_disconnect(dref);
 				skb_pull(buf, msg_hdr_sz(msg));
@@ -1157,17 +1169,6 @@ int tipc_port_recv_msg(struct sk_buff *buf)
 	/* validate destination & pass to port, otherwise reject message */
 	p_ptr = tipc_port_lock(destport);
 	if (likely(p_ptr)) {
-		if (likely(p_ptr->connected)) {
-			if ((unlikely(msg_origport(msg) !=
-				      port_peerport(p_ptr))) ||
-			    (unlikely(msg_orignode(msg) !=
-				      port_peernode(p_ptr))) ||
-			    (unlikely(!msg_connected(msg)))) {
-				err = TIPC_ERR_NO_PORT;
-				tipc_port_unlock(p_ptr);
-				goto reject;
-			}
-		}
 		err = p_ptr->dispatcher(p_ptr, buf);
 		tipc_port_unlock(p_ptr);
 		if (likely(!err))
@@ -1175,7 +1176,7 @@ int tipc_port_recv_msg(struct sk_buff *buf)
 	} else {
 		err = TIPC_ERR_NO_PORT;
 	}
-reject:
+
 	return tipc_reject_msg(buf, err);
 }
 
