@@ -2361,7 +2361,7 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 	if (obj->last_fenced_seqno) {
 		ret = i915_wait_request(obj->ring,
 					obj->last_fenced_seqno,
-					true);
+					false);
 		if (ret)
 			return ret;
 
@@ -2449,63 +2449,47 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 {
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool enable = obj->tiling_mode != I915_TILING_NONE;
 	struct drm_i915_fence_reg *reg;
 	int ret;
 
-	if (obj->tiling_mode == I915_TILING_NONE)
-		return i915_gem_object_put_fence(obj);
+	/* Have we updated the tiling parameters upon the object and so
+	 * will need to serialise the write to the associated fence register?
+	 */
+	if (obj->tiling_changed) {
+		ret = i915_gem_object_flush_fence(obj);
+		if (ret)
+			return ret;
+	}
 
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		reg = &dev_priv->fence_regs[obj->fence_reg];
-		list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
+		if (!obj->tiling_changed) {
+			list_move_tail(&reg->lru_list,
+				       &dev_priv->mm.fence_list);
+			return 0;
+		}
+	} else if (enable) {
+		reg = i915_find_fence_reg(dev);
+		if (reg == NULL)
+			return -EDEADLK;
 
-		if (obj->tiling_changed) {
-			ret = i915_gem_object_flush_fence(obj);
+		if (reg->obj) {
+			struct drm_i915_gem_object *old = reg->obj;
+
+			ret = i915_gem_object_flush_fence(old);
 			if (ret)
 				return ret;
 
-			goto update;
+			i915_gem_object_fence_lost(old);
 		}
-
+	} else
 		return 0;
-	}
 
-	reg = i915_find_fence_reg(dev);
-	if (reg == NULL)
-		return -EDEADLK;
-
-	ret = i915_gem_object_flush_fence(obj);
-	if (ret)
-		return ret;
-
-	if (reg->obj) {
-		struct drm_i915_gem_object *old = reg->obj;
-
-		drm_gem_object_reference(&old->base);
-
-		if (old->tiling_mode)
-			i915_gem_release_mmap(old);
-
-		ret = i915_gem_object_flush_fence(old);
-		if (ret) {
-			drm_gem_object_unreference(&old->base);
-			return ret;
-		}
-
-		old->fence_reg = I915_FENCE_REG_NONE;
-		old->last_fenced_seqno = 0;
-
-		drm_gem_object_unreference(&old->base);
-	}
-
-	reg->obj = obj;
-	list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
-	obj->fence_reg = reg - dev_priv->fence_regs;
-
-update:
+	i915_gem_object_update_fence(obj, reg, enable);
 	obj->tiling_changed = false;
-	i915_gem_write_fence(dev, reg - dev_priv->fence_regs, obj);
+
 	return 0;
 }
 
