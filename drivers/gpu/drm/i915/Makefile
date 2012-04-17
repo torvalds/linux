@@ -23,6 +23,7 @@ i915-y := i915_drv.o i915_dma.o i915_irq.o \
 	  intel_sdvo.o \
 	  intel_modes.o \
 	  intel_panel.o \
+	  intel_pm.o \
 	  intel_i2c.o \
 	  intel_fb.o \
 	  intel_tv.o \

@@ -434,4 +434,19 @@ extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 
 extern u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg);
 
+/* Power-related functions, located in intel_pm.c */
+/* FBC */
+extern void i8xx_disable_fbc(struct drm_device *dev);
+extern void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
+extern bool i8xx_fbc_enabled(struct drm_device *dev);
+extern void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
+extern void g4x_disable_fbc(struct drm_device *dev);
+extern bool g4x_fbc_enabled(struct drm_device *dev);
+extern void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
+extern void ironlake_disable_fbc(struct drm_device *dev);
+extern bool ironlake_fbc_enabled(struct drm_device *dev);
+extern bool intel_fbc_enabled(struct drm_device *dev);
+extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
+extern void intel_update_fbc(struct drm_device *dev);
+
 #endif /* __INTEL_DRV_H__ */
