@@ -161,6 +161,10 @@
 			 * the clock is enabled.
 			 */
 		};
+		rtc@68 {
+			compatible = "dallas,ds1339";
+			reg = <0x68>;
+		};
 	};
 
 	spi@7000 {
