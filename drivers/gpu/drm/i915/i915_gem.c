@@ -42,8 +42,6 @@ static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *o
 static __must_check int i915_gem_object_bind_to_gtt(struct drm_i915_gem_object *obj,
 						    unsigned alignment,
 						    bool map_and_fenceable);
-static void i915_gem_clear_fence_reg(struct drm_device *dev,
-				     struct drm_i915_fence_reg *reg);
 static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
@@ -1655,19 +1653,18 @@ static void i915_gem_reset_fences(struct drm_device *dev)
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++) {
 		struct drm_i915_fence_reg *reg = &dev_priv->fence_regs[i];
-		struct drm_i915_gem_object *obj = reg->obj;
 
-		if (!obj)
-			continue;
+		i915_gem_write_fence(dev, i, NULL);
 
-		if (obj->tiling_mode)
-			i915_gem_release_mmap(obj);
+		if (reg->obj)
+			i915_gem_object_fence_lost(reg->obj);
 
-		reg->obj->fence_reg = I915_FENCE_REG_NONE;
-		reg->obj->fenced_gpu_access = false;
-		reg->obj->last_fenced_seqno = 0;
-		i915_gem_clear_fence_reg(dev, reg);
+		reg->pin_count = 0;
+		reg->obj = NULL;
+		INIT_LIST_HEAD(&reg->lru_list);
 	}
+
+	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 }
 
 void i915_gem_reset(struct drm_device *dev)
@@ -2510,45 +2507,6 @@ update:
 	obj->tiling_changed = false;
 	i915_gem_write_fence(dev, reg - dev_priv->fence_regs, obj);
 	return 0;
-}
-
-/**
- * i915_gem_clear_fence_reg - clear out fence register info
- * @obj: object to clear
- *
- * Zeroes out the fence register itself and clears out the associated
- * data structures in dev_priv and obj.
- */
-static void
-i915_gem_clear_fence_reg(struct drm_device *dev,
-			 struct drm_i915_fence_reg *reg)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t fence_reg = reg - dev_priv->fence_regs;
-
-	switch (INTEL_INFO(dev)->gen) {
-	case 7:
-	case 6:
-		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 + fence_reg*8, 0);
-		break;
-	case 5:
-	case 4:
-		I915_WRITE64(FENCE_REG_965_0 + fence_reg*8, 0);
-		break;
-	case 3:
-		if (fence_reg >= 8)
-			fence_reg = FENCE_REG_945_8 + (fence_reg - 8) * 4;
-		else
-	case 2:
-			fence_reg = FENCE_REG_830_0 + fence_reg * 4;
-
-		I915_WRITE(fence_reg, 0);
-		break;
-	}
-
-	list_del_init(&reg->lru_list);
-	reg->obj = NULL;
-	reg->pin_count = 0;
 }
 
 /**
@@ -3788,9 +3746,7 @@ i915_gem_load(struct drm_device *dev)
 		dev_priv->num_fence_regs = 8;
 
 	/* Initialize fence registers to zero */
-	for (i = 0; i < dev_priv->num_fence_regs; i++) {
-		i915_gem_clear_fence_reg(dev, &dev_priv->fence_regs[i]);
-	}
+	i915_gem_reset_fences(dev);
 
 	i915_gem_detect_bit_6_swizzle(dev);
 	init_waitqueue_head(&dev_priv->pending_flip_queue);
