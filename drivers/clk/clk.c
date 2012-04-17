@@ -790,7 +790,7 @@ static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 
 	if (!clk->ops->round_rate) {
 		top = clk_calc_new_rates(clk->parent, rate);
-		new_rate = clk->new_rate = clk->parent->new_rate;
+		new_rate = clk->parent->new_rate;
 
 		goto out;
 	}
