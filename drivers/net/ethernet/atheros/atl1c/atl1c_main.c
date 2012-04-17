@@ -1099,30 +1099,11 @@ static void atl1c_configure_dma(struct atl1c_adapter *adapter)
 	struct atl1c_hw *hw = &adapter->hw;
 	u32 dma_ctrl_data;
 
-	dma_ctrl_data = DMA_CTRL_DMAR_REQ_PRI;
-
-	switch (hw->dma_order) {
-	case atl1c_dma_ord_in:
-		dma_ctrl_data |= DMA_CTRL_DMAR_IN_ORDER;
-		break;
-	case atl1c_dma_ord_enh:
-		dma_ctrl_data |= DMA_CTRL_DMAR_ENH_ORDER;
-		break;
-	case atl1c_dma_ord_out:
-		dma_ctrl_data |= DMA_CTRL_DMAR_OUT_ORDER;
-		break;
-	default:
-		break;
-	}
-
-	dma_ctrl_data |= (((u32)hw->dmar_block) & DMA_CTRL_DMAR_BURST_LEN_MASK)
-		<< DMA_CTRL_DMAR_BURST_LEN_SHIFT;
-	dma_ctrl_data |= (((u32)hw->dmaw_block) & DMA_CTRL_DMAW_BURST_LEN_MASK)
-		<< DMA_CTRL_DMAW_BURST_LEN_SHIFT;
-	dma_ctrl_data |= (((u32)hw->dmar_dly_cnt) & DMA_CTRL_DMAR_DLY_CNT_MASK)
-		<< DMA_CTRL_DMAR_DLY_CNT_SHIFT;
-	dma_ctrl_data |= (((u32)hw->dmaw_dly_cnt) & DMA_CTRL_DMAW_DLY_CNT_MASK)
-		<< DMA_CTRL_DMAW_DLY_CNT_SHIFT;
+	dma_ctrl_data = FIELDX(DMA_CTRL_RORDER_MODE, DMA_CTRL_RORDER_MODE_OUT) |
+		DMA_CTRL_RREQ_PRI_DATA |
+		FIELDX(DMA_CTRL_RREQ_BLEN, hw->dmar_block) |
+		FIELDX(DMA_CTRL_WDLY_CNT, DMA_CTRL_WDLY_CNT_DEF) |
+		FIELDX(DMA_CTRL_RDLY_CNT, DMA_CTRL_RDLY_CNT_DEF);
 
 	AT_WRITE_REG(hw, REG_DMA_CTRL, dma_ctrl_data);
 }

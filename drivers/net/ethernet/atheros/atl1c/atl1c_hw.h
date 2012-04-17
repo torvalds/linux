@@ -25,6 +25,12 @@
 #include <linux/types.h>
 #include <linux/mii.h>
 
+#define FIELD_GETX(_x, _name)   ((_x) >> (_name##_SHIFT) & (_name##_MASK))
+#define FIELD_SETX(_x, _name, _v) \
+(((_x) & ~((_name##_MASK) << (_name##_SHIFT))) |\
+(((_v) & (_name##_MASK)) << (_name##_SHIFT)))
+#define FIELDX(_name, _v) (((_v) & (_name##_MASK)) << (_name##_SHIFT))
+
 struct atl1c_adapter;
 struct atl1c_hw;
 
@@ -528,25 +534,27 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define RXD_DMA_DOWN_TIMER_SHIFT	16
 
 /* DMA Engine Control Register */
-#define REG_DMA_CTRL                	0x15C0
-#define DMA_CTRL_DMAR_IN_ORDER          0x1
-#define DMA_CTRL_DMAR_ENH_ORDER         0x2
-#define DMA_CTRL_DMAR_OUT_ORDER         0x4
-#define DMA_CTRL_RCB_VALUE              0x8
-#define DMA_CTRL_DMAR_BURST_LEN_MASK    0x0007
-#define DMA_CTRL_DMAR_BURST_LEN_SHIFT   4
-#define DMA_CTRL_DMAW_BURST_LEN_MASK    0x0007
-#define DMA_CTRL_DMAW_BURST_LEN_SHIFT   7
-#define DMA_CTRL_DMAR_REQ_PRI           0x400
-#define DMA_CTRL_DMAR_DLY_CNT_MASK      0x001F
-#define DMA_CTRL_DMAR_DLY_CNT_SHIFT     11
-#define DMA_CTRL_DMAW_DLY_CNT_MASK      0x000F
-#define DMA_CTRL_DMAW_DLY_CNT_SHIFT     16
-#define DMA_CTRL_CMB_EN               	0x100000
-#define DMA_CTRL_SMB_EN			0x200000
-#define DMA_CTRL_CMB_NOW		0x400000
-#define MAC_CTRL_SMB_DIS		0x1000000
-#define DMA_CTRL_SMB_NOW		0x80000000
+#define REG_DMA_CTRL			0x15C0
+#define DMA_CTRL_SMB_NOW                BIT(31)
+#define DMA_CTRL_WPEND_CLR              BIT(30)
+#define DMA_CTRL_RPEND_CLR              BIT(29)
+#define DMA_CTRL_WDLY_CNT_MASK          0xFUL
+#define DMA_CTRL_WDLY_CNT_SHIFT         16
+#define DMA_CTRL_WDLY_CNT_DEF           4
+#define DMA_CTRL_RDLY_CNT_MASK          0x1FUL
+#define DMA_CTRL_RDLY_CNT_SHIFT         11
+#define DMA_CTRL_RDLY_CNT_DEF           15
+#define DMA_CTRL_RREQ_PRI_DATA          BIT(10)      /* 0:tpd, 1:data */
+#define DMA_CTRL_WREQ_BLEN_MASK         7UL
+#define DMA_CTRL_WREQ_BLEN_SHIFT        7
+#define DMA_CTRL_RREQ_BLEN_MASK         7UL
+#define DMA_CTRL_RREQ_BLEN_SHIFT        4
+#define L1C_CTRL_DMA_RCB_LEN128         BIT(3)   /* 0:64bytes,1:128bytes */
+#define DMA_CTRL_RORDER_MODE_MASK       7UL
+#define DMA_CTRL_RORDER_MODE_SHIFT      0
+#define DMA_CTRL_RORDER_MODE_OUT        4
+#define DMA_CTRL_RORDER_MODE_ENHANCE    2
+#define DMA_CTRL_RORDER_MODE_IN         1
 
 /* INT-triggle/SMB Control Register */
 #define REG_SMB_STAT_TIMER		0x15C4	/* 2us resolution */
