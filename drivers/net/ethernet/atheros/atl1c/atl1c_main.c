@@ -1137,8 +1137,7 @@ static int atl1c_stop_mac(struct atl1c_hw *hw)
 	u32 data;
 
 	AT_READ_REG(hw, REG_RXQ_CTRL, &data);
-	data &= ~(RXQ1_CTRL_EN | RXQ2_CTRL_EN |
-		  RXQ3_CTRL_EN | RXQ_CTRL_EN);
+	data &= ~RXQ_CTRL_EN;
 	AT_WRITE_REG(hw, REG_RXQ_CTRL, data);
 
 	AT_READ_REG(hw, REG_TXQ_CTRL, &data);
