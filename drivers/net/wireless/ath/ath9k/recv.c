@@ -907,7 +907,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band;
 	unsigned int i = 0;
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_softc __maybe_unused *sc = common->priv;
 
 	band = hw->conf.channel->band;
 	sband = hw->wiphy->bands[band];
