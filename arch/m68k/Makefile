@@ -115,7 +115,6 @@ core-$(CONFIG_M68000)		+= arch/m68k/platform/68328/
 core-$(CONFIG_M68EZ328)		+= arch/m68k/platform/68EZ328/
 core-$(CONFIG_M68VZ328)		+= arch/m68k/platform/68VZ328/
 core-$(CONFIG_COLDFIRE)		+= arch/m68k/platform/coldfire/
-core-$(CONFIG_M5307)		+= arch/m68k/platform/5307/
 core-$(CONFIG_M532x)		+= arch/m68k/platform/532x/
 core-$(CONFIG_M5407)		+= arch/m68k/platform/5407/
 core-$(CONFIG_M54xx)		+= arch/m68k/platform/54xx/
