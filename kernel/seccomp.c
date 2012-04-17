@@ -377,8 +377,7 @@ int __secure_computing(int this_syscall)
 	int mode = current->seccomp.mode;
 	int exit_sig = 0;
 	int *syscall;
-	u32 ret = SECCOMP_RET_KILL;
-	int data;
+	u32 ret;
 
 	switch (mode) {
 	case SECCOMP_MODE_STRICT:
@@ -392,12 +391,15 @@ int __secure_computing(int this_syscall)
 				return 0;
 		} while (*++syscall);
 		exit_sig = SIGKILL;
+		ret = SECCOMP_RET_KILL;
 		break;
 #ifdef CONFIG_SECCOMP_FILTER
-	case SECCOMP_MODE_FILTER:
+	case SECCOMP_MODE_FILTER: {
+		int data;
 		ret = seccomp_run_filters(this_syscall);
 		data = ret & SECCOMP_RET_DATA;
-		switch (ret & SECCOMP_RET_ACTION) {
+		ret &= SECCOMP_RET_ACTION;
+		switch (ret) {
 		case SECCOMP_RET_ERRNO:
 			/* Set the low-order 16-bits as a errno. */
 			syscall_set_return_value(current, task_pt_regs(current),
@@ -432,6 +434,7 @@ int __secure_computing(int this_syscall)
 		}
 		exit_sig = SIGSYS;
 		break;
+	}
 #endif
 	default:
 		BUG();
@@ -442,8 +445,10 @@ int __secure_computing(int this_syscall)
 #endif
 	audit_seccomp(this_syscall, exit_sig, ret);
 	do_exit(exit_sig);
+#ifdef CONFIG_SECCOMP_FILTER
 skip:
 	audit_seccomp(this_syscall, exit_sig, ret);
+#endif
 	return -1;
 }
 
