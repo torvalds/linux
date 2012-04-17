@@ -733,8 +733,6 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 
 	hw->ict = 50000;		/* 100ms */
 	hw->smb_timer = 200000;	  	/* 400ms */
-	hw->cmb_tpd = 4;
-	hw->cmb_tx_timer = 1;		/* 2 us  */
 	hw->rx_imt = 200;
 	hw->tx_imt = 1000;
 
@@ -943,8 +941,7 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		sizeof(struct atl1c_tpd_desc) * tpd_ring->count * 2 +
 		sizeof(struct atl1c_rx_free_desc) * rx_desc_count +
 		sizeof(struct atl1c_recv_ret_status) * rx_desc_count +
-		sizeof(struct atl1c_hw_stats) +
-		8 * 4 + 8 * 2;
+		8 * 4;
 
 	ring_header->desc = pci_alloc_consistent(pdev, ring_header->size,
 				&ring_header->dma);
@@ -977,8 +974,6 @@ static int atl1c_setup_ring_resources(struct atl1c_adapter *adapter)
 		rrd_ring->count;
 	offset += roundup(rrd_ring->size, 8);
 
-	adapter->smb.dma = ring_header->dma + offset;
-	adapter->smb.smb = (u8 *)ring_header->desc + offset;
 	return 0;
 
 err_nomem:
@@ -993,8 +988,6 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
 	struct atl1c_tpd_ring *tpd_ring = (struct atl1c_tpd_ring *)
 				adapter->tpd_ring;
-	struct atl1c_cmb *cmb = (struct atl1c_cmb *) &adapter->cmb;
-	struct atl1c_smb *smb = (struct atl1c_smb *) &adapter->smb;
 	u32 data;
 
 	/* TPD */
@@ -1029,14 +1022,6 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 	AT_WRITE_REG(hw, REG_RRD_RING_SIZE,
 			(rrd_ring->count & RRD_RING_SIZE_MASK));
 
-	/* CMB */
-	AT_WRITE_REG(hw, REG_CMB_BASE_ADDR_LO, cmb->dma & AT_DMA_LO_ADDR_MASK);
-
-	/* SMB */
-	AT_WRITE_REG(hw, REG_SMB_BASE_ADDR_HI,
-			(u32)((smb->dma & AT_DMA_HI_ADDR_MASK) >> 32));
-	AT_WRITE_REG(hw, REG_SMB_BASE_ADDR_LO,
-			(u32)(smb->dma & AT_DMA_LO_ADDR_MASK));
 	if (hw->nic_type == athr_l2c_b) {
 		AT_WRITE_REG(hw, REG_SRAM_RXF_LEN, 0x02a0L);
 		AT_WRITE_REG(hw, REG_SRAM_TXF_LEN, 0x0100L);
@@ -1115,12 +1100,6 @@ static void atl1c_configure_dma(struct atl1c_adapter *adapter)
 	u32 dma_ctrl_data;
 
 	dma_ctrl_data = DMA_CTRL_DMAR_REQ_PRI;
-	if (hw->ctrl_flags & ATL1C_CMB_ENABLE)
-		dma_ctrl_data |= DMA_CTRL_CMB_EN;
-	if (hw->ctrl_flags & ATL1C_SMB_ENABLE)
-		dma_ctrl_data |= DMA_CTRL_SMB_EN;
-	else
-		dma_ctrl_data |= MAC_CTRL_SMB_DIS;
 
 	switch (hw->dma_order) {
 	case atl1c_dma_ord_in:
@@ -1440,16 +1419,9 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	master_ctrl_data |= MASTER_CTRL_SA_TIMER_EN;
 	AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
 
-	if (hw->ctrl_flags & ATL1C_CMB_ENABLE) {
-		AT_WRITE_REG(hw, REG_CMB_TPD_THRESH,
-			hw->cmb_tpd & CMB_TPD_THRESH_MASK);
-		AT_WRITE_REG(hw, REG_CMB_TX_TIMER,
-			hw->cmb_tx_timer & CMB_TX_TIMER_MASK);
-	}
+	AT_WRITE_REG(hw, REG_SMB_STAT_TIMER,
+		hw->smb_timer & SMB_STAT_TIMER_MASK);
 
-	if (hw->ctrl_flags & ATL1C_SMB_ENABLE)
-		AT_WRITE_REG(hw, REG_SMB_STAT_TIMER,
-			hw->smb_timer & SMB_STAT_TIMER_MASK);
 	/* set MTU */
 	AT_WRITE_REG(hw, REG_MTU, hw->max_frame_size + ETH_HLEN +
 			VLAN_HLEN + ETH_FCS_LEN);

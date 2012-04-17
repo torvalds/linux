@@ -447,8 +447,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
  */
 #define REG_RX_BASE_ADDR_HI		0x1540
 #define REG_TX_BASE_ADDR_HI		0x1544
-#define REG_SMB_BASE_ADDR_HI		0x1548
-#define REG_SMB_BASE_ADDR_LO		0x154C
 #define REG_RFD0_HEAD_ADDR_LO		0x1550
 #define REG_RFD_RING_SIZE		0x1560
 #define RFD_RING_SIZE_MASK		0x0FFF
@@ -461,7 +459,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define REG_NTPD_HEAD_ADDR_LO		0x1580
 #define REG_TPD_RING_SIZE		0x1584
 #define TPD_RING_SIZE_MASK		0xFFFF
-#define REG_CMB_BASE_ADDR_LO		0x1588
 
 /* TXQ Control Register */
 #define REG_TXQ_CTRL                	0x1590
@@ -556,13 +553,10 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define MAC_CTRL_SMB_DIS		0x1000000
 #define DMA_CTRL_SMB_NOW		0x80000000
 
-/* CMB/SMB Control Register */
+/* INT-triggle/SMB Control Register */
 #define REG_SMB_STAT_TIMER		0x15C4	/* 2us resolution */
 #define SMB_STAT_TIMER_MASK		0xFFFFFF
-#define REG_CMB_TPD_THRESH		0x15C8
-#define CMB_TPD_THRESH_MASK		0xFFFF
-#define REG_CMB_TX_TIMER		0x15CC	/* 2us resolution */
-#define CMB_TX_TIMER_MASK		0xFFFF
+#define REG_TINT_TPD_THRESH             0x15C8 /* tpd th to trig intrrupt */
 
 /* Mail box */
 #define MB_RFDX_PROD_IDX_MASK		0xFFFF

@@ -426,10 +426,6 @@ struct atl1c_hw {
 #define ATL1C_FPGA_VERSION              0x8000
 	u16 link_cap_flags;
 #define ATL1C_LINK_CAP_1000M		0x0001
-	u16 cmb_tpd;
-	u16 cmb_rrd;
-	u16 cmb_rx_timer; /* 2us resolution */
-	u16 cmb_tx_timer;
 	u32 smb_timer;
 
 	u16 rrd_thresh; /* Threshold of number of RRD produced to trigger
@@ -449,8 +445,7 @@ struct atl1c_hw {
 
 /*
  * atl1c_ring_header represents a single, contiguous block of DMA space
- * mapped for the three descriptor rings (tpd, rfd, rrd) and the two
- * message blocks (cmb, smb) described below
+ * mapped for the three descriptor rings (tpd, rfd, rrd) described below
  */
 struct atl1c_ring_header {
 	void *desc;		/* virtual address */
@@ -524,16 +519,6 @@ struct atl1c_rrd_ring {
 	u16 next_to_clean;
 };
 
-struct atl1c_cmb {
-	void *cmb;
-	dma_addr_t dma;
-};
-
-struct atl1c_smb {
-	void *smb;
-	dma_addr_t dma;
-};
-
 /* board specific private data structure */
 struct atl1c_adapter {
 	struct net_device   *netdev;
@@ -571,8 +556,6 @@ struct atl1c_adapter {
 	struct atl1c_tpd_ring tpd_ring[AT_MAX_TRANSMIT_QUEUE];
 	struct atl1c_rfd_ring rfd_ring;
 	struct atl1c_rrd_ring rrd_ring;
-	struct atl1c_cmb cmb;
-	struct atl1c_smb smb;
 	u32 bd_number;     /* board number;*/
 };
 
