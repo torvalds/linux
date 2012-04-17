@@ -1008,7 +1008,7 @@ void ActUpdateChannelAccessSetting(struct net_device *dev,
 				u8		u1bAIFS;
 				u32		u4bAcParam;
 
-				/*  Retrive paramters to udpate. */
+				/*  Retrieve paramters to update. */
 				eACI = pAcParam->f.AciAifsn.f.ACI;
 				u1bAIFS = pAcParam->f.AciAifsn.f.AIFSN * ChnlAccessSetting->SlotTimeTimer + aSifsTime;
 				u4bAcParam = ((((u32)(pAcParam->f.TXOPLimit)) << AC_PARAM_TXOP_LIMIT_OFFSET)	|
@@ -1104,7 +1104,7 @@ void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
 		return;
 	}
 
-	/* 1. Assign wireless mode to swtich if necessary. */
+	/* 1. Assign wireless mode to switch if necessary. */
 	if (btWirelessMode == WIRELESS_MODE_AUTO) {
 		if ((btSupportedWirelessMode & WIRELESS_MODE_A)) {
 			btWirelessMode = WIRELESS_MODE_A;
@@ -1124,7 +1124,7 @@ void ActSetWirelessMode8185(struct net_device *dev, u8 btWirelessMode)
  	 * 2. Swtich band: RF or BB specific actions,
 	 * for example, refresh tables in omc8255, or change initial gain if necessary.
 	 * Nothing to do for Zebra to switch band.
-	 * Update current wireless mode if we swtich to specified band successfully. 
+	 * Update current wireless mode if we switch to specified band successfully. 
 	 */
 
 	ieee->mode = (WIRELESS_MODE)btWirelessMode;
@@ -1242,7 +1242,7 @@ bool MgntDisconnect(struct net_device *dev, u8 asRsn)
 			 */
 			MgntDisconnectAP(dev, asRsn);
 		}
-		/* Inidicate Disconnect, 2005.02.23, by rcnjko.	*/
+		/* Indicate Disconnect, 2005.02.23, by rcnjko.	*/
 	}
 	return true;
 }
@@ -1416,7 +1416,7 @@ void IPSEnter(struct net_device *dev)
 		 *	Do not enter IPS in the following conditions:
 		 *	(1) RF is already OFF or Sleep
 		 *	(2) bSwRfProcessing (indicates the IPS is still under going)
-		 *	(3) Connectted (only disconnected can trigger IPS)
+		 *	(3) Connected (only disconnected can trigger IPS)
 		 *	(4) IBSS (send Beacon)
 		 *	(5) AP mode (send Beacon)
 		 */
