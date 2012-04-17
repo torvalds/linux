@@ -1581,8 +1581,29 @@ static void sata_dwc_qc_prep(struct ata_queued_cmd *qc)
 
 static void sata_dwc_error_handler(struct ata_port *ap)
 {
-	ap->link.flags |= ATA_LFLAG_NO_HRST;
 	ata_sff_error_handler(ap);
+}
+
+int sata_dwc_hardreset(struct ata_link *link, unsigned int *class,
+			unsigned long deadline)
+{
+	struct sata_dwc_device *hsdev = HSDEV_FROM_AP(link->ap);
+	int ret;
+
+	ret = sata_sff_hardreset(link, class, deadline);
+
+	sata_dwc_enable_interrupts(hsdev);
+
+	/* Reconfigure the DMA control register */
+	out_le32(&hsdev->sata_dwc_regs->dmacr,
+		 SATA_DWC_DMACR_TXRXCH_CLEAR);
+
+	/* Reconfigure the DMA Burst Transaction Size register */
+	out_le32(&hsdev->sata_dwc_regs->dbtsr,
+		 SATA_DWC_DBTSR_MWR(AHB_DMA_BRST_DFLT) |
+		 SATA_DWC_DBTSR_MRD(AHB_DMA_BRST_DFLT));
+
+	return ret;
 }
 
 /*
@@ -1604,6 +1625,7 @@ static struct ata_port_operations sata_dwc_ops = {
 	.inherits		= &ata_sff_port_ops,
 
 	.error_handler		= sata_dwc_error_handler,
+	.hardreset		= sata_dwc_hardreset,
 
 	.qc_prep		= sata_dwc_qc_prep,
 	.qc_issue		= sata_dwc_qc_issue,
