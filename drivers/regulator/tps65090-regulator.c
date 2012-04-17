@@ -29,10 +29,6 @@
 
 struct tps65090_regulator {
 	int		id;
-	/* Regulator register address.*/
-	u8		reg_en_reg;
-	u8		en_bit;
-
 	/* used by regulator core */
 	struct regulator_desc	desc;
 
@@ -40,64 +36,14 @@ struct tps65090_regulator {
 	struct device		*dev;
 };
 
-static inline struct device *to_tps65090_dev(struct regulator_dev *rdev)
-{
-	return rdev_get_dev(rdev)->parent->parent;
-}
-
-static int tps65090_reg_is_enabled(struct regulator_dev *rdev)
-{
-	struct tps65090_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps65090_dev(rdev);
-	uint8_t control;
-	int ret;
-
-	ret = tps65090_read(parent, ri->reg_en_reg, &control);
-	if (ret < 0) {
-		dev_err(&rdev->dev, "Error in reading reg 0x%x\n",
-			ri->reg_en_reg);
-		return ret;
-	}
-	return (((control >> ri->en_bit) & 1) == 1);
-}
-
-static int tps65090_reg_enable(struct regulator_dev *rdev)
-{
-	struct tps65090_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps65090_dev(rdev);
-	int ret;
-
-	ret = tps65090_set_bits(parent, ri->reg_en_reg, ri->en_bit);
-	if (ret < 0)
-		dev_err(&rdev->dev, "Error in updating reg 0x%x\n",
-			ri->reg_en_reg);
-	return ret;
-}
-
-static int tps65090_reg_disable(struct regulator_dev *rdev)
-{
-	struct tps65090_regulator *ri = rdev_get_drvdata(rdev);
-	struct device *parent = to_tps65090_dev(rdev);
-	int ret;
-
-	ret = tps65090_clr_bits(parent, ri->reg_en_reg, ri->en_bit);
-	if (ret < 0)
-		dev_err(&rdev->dev, "Error in updating reg 0x%x\n",
-			ri->reg_en_reg);
-
-	return ret;
-}
-
 static struct regulator_ops tps65090_ops = {
-	.enable		= tps65090_reg_enable,
-	.disable	= tps65090_reg_disable,
-	.is_enabled	= tps65090_reg_is_enabled,
+	.enable = regulator_enable_regmap,
+	.disable = regulator_disable_regmap,
+	.is_enabled = regulator_is_enabled_regmap,
 };
 
 #define tps65090_REG(_id)				\
 {							\
-	.reg_en_reg	= (TPS65090_ID_##_id) + 12,	\
-	.en_bit		= 0,				\
 	.id		= TPS65090_ID_##_id,		\
 	.desc = {					\
 		.name = tps65090_rails(_id),		\
@@ -105,6 +51,8 @@ static struct regulator_ops tps65090_ops = {
 		.ops = &tps65090_ops,			\
 		.type = REGULATOR_VOLTAGE,		\
 		.owner = THIS_MODULE,			\
+		.enable_reg = (TPS65090_ID_##_id) + 12,	\
+		.enable_mask = BIT(0),			\
 	},						\
 }
 
@@ -136,6 +84,7 @@ static inline struct tps65090_regulator *find_regulator_info(int id)
 
 static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 {
+	struct tps65090 *tps65090_mfd = dev_get_drvdata(pdev->dev.parent);
 	struct tps65090_regulator *ri = NULL;
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
@@ -155,6 +104,7 @@ static int __devinit tps65090_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = &tps_pdata->regulator;
 	config.driver_data = ri;
+	config.regmap = tps65090_mfd->rmap;
 
 	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR(rdev)) {
