@@ -161,9 +161,13 @@ static int set_register_interruptible(struct ab8500 *ab8500, u8 bank,
 static int ab8500_set_register(struct device *dev, u8 bank,
 	u8 reg, u8 value)
 {
+	int ret;
 	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 
-	return set_register_interruptible(ab8500, bank, reg, value);
+	atomic_inc(&ab8500->transfer_ongoing);
+	ret = set_register_interruptible(ab8500, bank, reg, value);
+	atomic_dec(&ab8500->transfer_ongoing);
+	return ret;
 }
 
 static int get_register_interruptible(struct ab8500 *ab8500, u8 bank,
@@ -192,9 +196,13 @@ static int get_register_interruptible(struct ab8500 *ab8500, u8 bank,
 static int ab8500_get_register(struct device *dev, u8 bank,
 	u8 reg, u8 *value)
 {
+	int ret;
 	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 
-	return get_register_interruptible(ab8500, bank, reg, value);
+	atomic_inc(&ab8500->transfer_ongoing);
+	ret = get_register_interruptible(ab8500, bank, reg, value);
+	atomic_dec(&ab8500->transfer_ongoing);
+	return ret;
 }
 
 static int mask_and_set_register_interruptible(struct ab8500 *ab8500, u8 bank,
@@ -241,11 +249,14 @@ out:
 static int ab8500_mask_and_set_register(struct device *dev,
 	u8 bank, u8 reg, u8 bitmask, u8 bitvalues)
 {
+	int ret;
 	struct ab8500 *ab8500 = dev_get_drvdata(dev->parent);
 
-	return mask_and_set_register_interruptible(ab8500, bank, reg,
-		bitmask, bitvalues);
-
+	atomic_inc(&ab8500->transfer_ongoing);
+	ret= mask_and_set_register_interruptible(ab8500, bank, reg,
+						 bitmask, bitvalues);
+	atomic_dec(&ab8500->transfer_ongoing);
+	return ret;
 }
 
 static struct abx500_ops ab8500_ops = {
@@ -264,6 +275,7 @@ static void ab8500_irq_lock(struct irq_data *data)
 	struct ab8500 *ab8500 = irq_data_get_irq_chip_data(data);
 
 	mutex_lock(&ab8500->irq_lock);
+	atomic_inc(&ab8500->transfer_ongoing);
 }
 
 static void ab8500_irq_sync_unlock(struct irq_data *data)
@@ -292,7 +304,7 @@ static void ab8500_irq_sync_unlock(struct irq_data *data)
 		reg = AB8500_IT_MASK1_REG + ab8500->irq_reg_offset[i];
 		set_register_interruptible(ab8500, AB8500_INTERRUPT, reg, new);
 	}
-
+	atomic_dec(&ab8500->transfer_ongoing);
 	mutex_unlock(&ab8500->irq_lock);
 }
 
@@ -332,6 +344,8 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 
 	dev_vdbg(ab8500->dev, "interrupt\n");
 
+	atomic_inc(&ab8500->transfer_ongoing);
+
 	for (i = 0; i < ab8500->mask_size; i++) {
 		int regoffset = ab8500->irq_reg_offset[i];
 		int status;
@@ -355,9 +369,10 @@ static irqreturn_t ab8500_irq(int irq, void *dev)
 
 			handle_nested_irq(ab8500->irq_base + line);
 			value &= ~(1 << bit);
+
 		} while (value);
 	}
-
+	atomic_dec(&ab8500->transfer_ongoing);
 	return IRQ_HANDLED;
 }
 
@@ -409,6 +424,14 @@ static void ab8500_irq_remove(struct ab8500 *ab8500)
 		irq_set_chip_and_handler(irq, NULL, NULL);
 		irq_set_chip_data(irq, NULL);
 	}
+}
+
+int ab8500_suspend(struct ab8500 *ab8500)
+{
+	if (atomic_read(&ab8500->transfer_ongoing))
+		return -EINVAL;
+	else
+		return 0;
 }
 
 /* AB8500 GPIO Resources */
@@ -1059,6 +1082,7 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 
 	mutex_init(&ab8500->lock);
 	mutex_init(&ab8500->irq_lock);
+	atomic_set(&ab8500->transfer_ongoing, 0);
 
 	if (version != AB8500_VERSION_UNDEFINED)
 		ab8500->version = version;
