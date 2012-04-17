@@ -1077,7 +1077,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
     struct rk_camera_dev *pcdev = ici->priv;
     unsigned int cif_fs = 0,cif_crop = 0;
-    unsigned int cif_fmt_val = INPUT_MODE_YUV|YUV_INPUT_422|INPUT_420_ORDER_EVEN|OUTPUT_420_ORDER_EVEN;
+    unsigned int cif_fmt_val = read_cif_reg(pcdev->base,CIF_CIF_FOR) | INPUT_MODE_YUV|YUV_INPUT_422|INPUT_420_ORDER_EVEN|OUTPUT_420_ORDER_EVEN;
     switch (host_pixfmt)
     {
         case V4L2_PIX_FMT_NV16:
@@ -1128,7 +1128,7 @@ static void rk_camera_setup_format(struct soc_camera_device *icd, __u32 host_pix
 			cif_fmt_val = YUV_INPUT_ORDER_YUYV(cif_fmt_val);
             break;
     }
-    write_cif_reg(pcdev->base,CIF_CIF_FOR, read_cif_reg(pcdev->base,CIF_CIF_FOR) |cif_fmt_val);         /* ddl@rock-chips.com: VIP capture mode and capture format must be set before FS register set */
+    write_cif_reg(pcdev->base,CIF_CIF_FOR,cif_fmt_val);         /* ddl@rock-chips.com: VIP capture mode and capture format must be set before FS register set */
 
    // read_cif_reg(pcdev->base,CIF_CIF_INTSTAT);                     /* clear vip interrupte single  */
    write_cif_reg(pcdev->base,CIF_CIF_INTSTAT,0xFFFFFFFF); 
