@@ -1257,8 +1257,7 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 
 u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
 
-int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
-					   struct intel_ring_buffer *pipelined);
+int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
 
 static inline bool

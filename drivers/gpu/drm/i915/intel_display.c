@@ -2151,7 +2151,7 @@ intel_pin_and_fence_fb_obj(struct drm_device *dev,
 	 * framebuffer compression.  For simplicity, we always install
 	 * a fence as the cost is not that onerous.
 	 */
-	ret = i915_gem_object_get_fence(obj, pipelined);
+	ret = i915_gem_object_get_fence(obj);
 	if (ret)
 		goto err_unpin;
 
