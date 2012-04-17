@@ -29,6 +29,9 @@ struct mcf_gpio_chip {
 	const u8 *gpio_to_pinmux;
 };
 
+extern struct mcf_gpio_chip mcf_gpio_chips[];
+extern unsigned int mcf_gpio_chips_size;
+
 int mcf_gpio_direction_input(struct gpio_chip *, unsigned);
 int mcf_gpio_get_value(struct gpio_chip *, unsigned);
 int mcf_gpio_direction_output(struct gpio_chip *, unsigned, int);

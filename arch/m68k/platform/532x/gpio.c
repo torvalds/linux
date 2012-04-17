@@ -20,7 +20,7 @@
 #include <asm/mcfsim.h>
 #include <asm/mcfgpio.h>
 
-static struct mcf_gpio_chip mcf_gpio_chips[] = {
+struct mcf_gpio_chip mcf_gpio_chips[] = {
 	MCFGPS(PIRQ, 0, 8, MCFEPORT_EPDDR, MCFEPORT_EPDR, MCFEPORT_EPPDR),
 	MCFGPF(FECH, 8, 8),
 	MCFGPF(FECL, 16, 8),
@@ -40,12 +40,4 @@ static struct mcf_gpio_chip mcf_gpio_chips[] = {
 	MCFGPF(LCDCTLL, 128, 8),
 };
 
-static int __init mcf_gpio_init(void)
-{
-	unsigned i = 0;
-	while (i < ARRAY_SIZE(mcf_gpio_chips))
-		(void)gpiochip_add((struct gpio_chip *)&mcf_gpio_chips[i++]);
-	return 0;
-}
-
-core_initcall(mcf_gpio_init);
+unsigned int mcf_gpio_chips_size = ARRAY_SIZE(mcf_gpio_chips);

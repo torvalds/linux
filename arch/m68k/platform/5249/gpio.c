@@ -20,17 +20,9 @@
 #include <asm/mcfsim.h>
 #include <asm/mcfgpio.h>
 
-static struct mcf_gpio_chip mcf_gpio_chips[] = {
+struct mcf_gpio_chip mcf_gpio_chips[] = {
 	MCFGPS(GPIO0, 0, 32, MCFSIM2_GPIOENABLE, MCFSIM2_GPIOWRITE, MCFSIM2_GPIOREAD),
 	MCFGPS(GPIO1, 32, 32, MCFSIM2_GPIO1ENABLE, MCFSIM2_GPIO1WRITE, MCFSIM2_GPIO1READ),
 };
 
-static int __init mcf_gpio_init(void)
-{
-	unsigned i = 0;
-	while (i < ARRAY_SIZE(mcf_gpio_chips))
-		(void)gpiochip_add((struct gpio_chip *)&mcf_gpio_chips[i++]);
-	return 0;
-}
-
-core_initcall(mcf_gpio_init);
+unsigned int mcf_gpio_chips_size = ARRAY_SIZE(mcf_gpio_chips);
