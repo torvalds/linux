@@ -105,7 +105,7 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 	u16 x_res = screen->x_res, y_res = screen->y_res;
 
 	// set the rgb or mcu
-
+	spin_lock(&lcdc_dev->reg_lock);
 	if(screen->type==SCREEN_MCU)
 	{
     		LcdMskReg(lcdc_dev, MCU_CTRL, m_MCU_OUTPUT_SELECT,v_MCU_OUTPUT_SELECT(1));
@@ -224,6 +224,7 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
     	{
     		screen->init();
     	}
+	spin_unlock(&lcdc_dev->reg_lock);
 	printk("%s for lcdc%d ok!\n",__func__,lcdc_dev->id);
 	return 0;
 }
@@ -239,17 +240,23 @@ static int mcu_refresh(struct rk30_lcdc_device *lcdc_dev)
 //enable layer,open:1,enable;0 disable
 static int win0_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
+	
+	spin_lock(&lcdc_dev->reg_lock);
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(open));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
 	lcdc_dev->driver.layer_par[0]->state = open;
+	spin_unlock(&lcdc_dev->reg_lock);
 	printk(KERN_INFO "lcdc%d win0 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
 }
 static int win1_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
+	
+	spin_lock(&lcdc_dev->reg_lock);
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(open));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
 	lcdc_dev->driver.layer_par[1]->state = open;
+	spin_unlock(&lcdc_dev->reg_lock);
 	printk(KERN_INFO "lcdc%d win1 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
 }
@@ -342,6 +349,7 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 
 	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
 		__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
+	spin_lock(&lcdc_dev->reg_lock);
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(par->format));		//(inf->video_mode==0)
 	LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
 	LcdWrReg(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));
@@ -370,7 +378,8 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 			break;
 	}
 
-	//LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	spin_unlock(&lcdc_dev->reg_lock);
 
     return 0;
 
@@ -396,6 +405,9 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	ScaleYrgbY = CalScale(yact, par->ysize);
 	DBG("%s>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
 		__func__,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
+
+	
+	spin_lock(&lcdc_dev->reg_lock);
 	switch (par->format)
  	{
 		case YUV422:// yuv422
@@ -445,7 +457,8 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 			break;
     	}
 	
-	//LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+	spin_unlock(&lcdc_dev->reg_lock);
     return 0;
 }
 
@@ -721,7 +734,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
 	lcdc_dev->driver.dev=&pdev->dev;
 	lcdc_dev->driver.screen = screen;
-	
+	spin_lock_init(&lcdc_dev->reg_lock);
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
 	if(lcdc_dev->irq < 0)
 	{
