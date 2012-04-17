@@ -123,7 +123,9 @@ static int wl1271_cmd_wait_for_event_or_timeout(struct wl1271 *wl, u32 mask)
 	unsigned long timeout;
 	int ret = 0;
 
-	events_vector = kmalloc(sizeof(*events_vector), GFP_DMA);
+	events_vector = kmalloc(sizeof(*events_vector), GFP_KERNEL | GFP_DMA);
+	if (!events_vector)
+		return -ENOMEM;
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_EVENT_TIMEOUT);
 
