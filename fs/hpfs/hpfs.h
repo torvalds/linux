@@ -435,18 +435,18 @@ static inline bool bp_fnode_parent(struct bplus_header *bp)
 enum {FNODE_anode = cpu_to_le16(2), FNODE_dir = cpu_to_le16(256)};
 struct fnode
 {
-  u32 magic;				/* f7e4 0aae */
-  u32 zero1[2];				/* read history */
+  __le32 magic;				/* f7e4 0aae */
+  __le32 zero1[2];			/* read history */
   u8 len, name[15];			/* true length, truncated name */
-  fnode_secno up;			/* pointer to file's directory fnode */
-  secno acl_size_l;
-  secno acl_secno;
-  u16 acl_size_s;
+  __le32 up;				/* pointer to file's directory fnode */
+  __le32 acl_size_l;
+  __le32 acl_secno;
+  __le16 acl_size_s;
   u8 acl_anode;
   u8 zero2;				/* history bit count */
-  u32 ea_size_l;			/* length of disk-resident ea's */
-  secno ea_secno;			/* first sector of disk-resident ea's*/
-  u16 ea_size_s;			/* length of fnode-resident ea's */
+  __le32 ea_size_l;			/* length of disk-resident ea's */
+  __le32 ea_secno;			/* first sector of disk-resident ea's*/
+  __le16 ea_size_s;			/* length of fnode-resident ea's */
 
   __le16 flags;				/* bit 1 set -> ea_secno is an anode */
 					/* bit 8 set -> directory.  first & only extent
@@ -457,15 +457,15 @@ struct fnode
     struct bplus_internal_node internal[12];
   } u;
 
-  u32 file_size;			/* file length, bytes */
-  u32 n_needea;				/* number of EA's with NEEDEA set */
+  __le32 file_size;			/* file length, bytes */
+  __le32 n_needea;			/* number of EA's with NEEDEA set */
   u8 user_id[16];			/* unused */
-  u16 ea_offs;				/* offset from start of fnode
+  __le16 ea_offs;			/* offset from start of fnode
 					   to first fnode-resident ea */
   u8 dasd_limit_treshhold;
   u8 dasd_limit_delta;
-  u32 dasd_limit;
-  u32 dasd_usage;
+  __le32 dasd_limit;
+  __le32 dasd_usage;
   u8 ea[316];				/* zero or more EA's, packed together
 					   with no alignment padding.
 					   (Do not use this name, get here
