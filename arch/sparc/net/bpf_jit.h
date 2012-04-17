@@ -4,13 +4,14 @@
 /* Conventions:
  *  %g1 : temporary
  *  %g2 : Secondary temporary used by SKB data helper stubs.
+ *  %g3 : packet offset passed into SKB data helper stubs.
  *  %o0 : pointer to skb (first argument given to JIT function)
  *  %o1 : BPF A accumulator
  *  %o2 : BPF X accumulator
  *  %o3 : Holds saved %o7 so we can call helper functions without needing
  *        to allocate a register window.
- *  %o4 : skb->data
- *  %o5 : skb->len - skb->data_len
+ *  %o4 : skb->len - skb->data_len
+ *  %o5 : skb->data
  */
 
 #ifndef __ASSEMBLER__

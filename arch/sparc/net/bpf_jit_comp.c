@@ -378,7 +378,7 @@ void bpf_jit_compile(struct sk_filter *fp)
 				emit_clear(r_X);
 
 			/* If this filter needs to access skb data,
-			 * load %o4 and %o4 with:
+			 * load %o4 and %o5 with:
 			 *  %o4 = skb->len - skb->data_len
 			 *  %o5 = skb->data
 			 * And also back up %o7 into r_saved_O7 so we can

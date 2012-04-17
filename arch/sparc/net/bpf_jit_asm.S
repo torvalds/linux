@@ -30,7 +30,7 @@ bpf_jit_load_word_positive_offset:
 	bne	load_word_unaligned
 	 nop
 	retl
-	 ld	[r_SKB_DATA + r_OFF], r_A
+	 ld	[r_TMP], r_A
 load_word_unaligned:
 	ldub	[r_TMP + 0x0], r_OFF
 	ldub	[r_TMP + 0x1], r_TMP2
@@ -59,7 +59,7 @@ bpf_jit_load_half_positive_offset:
 	bne	load_half_unaligned
 	 nop
 	retl
-	 lduh	[r_SKB_DATA + r_OFF], r_A
+	 lduh	[r_TMP], r_A
 load_half_unaligned:
 	ldub	[r_TMP + 0x0], r_OFF
 	ldub	[r_TMP + 0x1], r_TMP2
