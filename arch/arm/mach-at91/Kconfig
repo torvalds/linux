@@ -91,6 +91,14 @@ config SOC_AT91SAM9X5
 	  This support covers AT91SAM9G15, AT91SAM9G25, AT91SAM9X25, AT91SAM9G35
 	  and AT91SAM9X35.
 
+config SOC_AT91SAM9N12
+	bool "AT91SAM9N12 family"
+	select SOC_AT91SAM9
+	select HAVE_AT91_DBGU0
+	select HAVE_FB_ATMEL
+	help
+	  Select this if you are using Atmel's AT91SAM9N12 SoC.
+
 choice
 	prompt "Atmel AT91 Processor Devices for non DT boards"
 
