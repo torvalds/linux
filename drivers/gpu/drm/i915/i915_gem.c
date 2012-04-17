@@ -1398,7 +1398,6 @@ i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 
 	if (obj->fenced_gpu_access) {
 		obj->last_fenced_seqno = seqno;
-		obj->last_fenced_ring = ring;
 
 		/* Bump MRU to take account of the delayed flush */
 		if (obj->fence_reg != I915_FENCE_REG_NONE) {
@@ -1445,7 +1444,6 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	BUG_ON(!list_empty(&obj->gpu_write_list));
 	BUG_ON(!obj->active);
 	obj->ring = NULL;
-	obj->last_fenced_ring = NULL;
 
 	i915_gem_object_move_off_active(obj);
 	obj->fenced_gpu_access = false;
@@ -1650,7 +1648,6 @@ static void i915_gem_reset_fences(struct drm_device *dev)
 		reg->obj->fence_reg = I915_FENCE_REG_NONE;
 		reg->obj->fenced_gpu_access = false;
 		reg->obj->last_fenced_seqno = 0;
-		reg->obj->last_fenced_ring = NULL;
 		i915_gem_clear_fence_reg(dev, reg);
 	}
 }
@@ -2295,7 +2292,7 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 
 	if (obj->fenced_gpu_access) {
 		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
-			ret = i915_gem_flush_ring(obj->last_fenced_ring,
+			ret = i915_gem_flush_ring(obj->ring,
 						  0, obj->base.write_domain);
 			if (ret)
 				return ret;
@@ -2304,10 +2301,10 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 		obj->fenced_gpu_access = false;
 	}
 
-	if (obj->last_fenced_seqno && NULL != obj->last_fenced_ring) {
-		if (!ring_passed_seqno(obj->last_fenced_ring,
+	if (obj->last_fenced_seqno) {
+		if (!ring_passed_seqno(obj->ring,
 				       obj->last_fenced_seqno)) {
-			ret = i915_wait_request(obj->last_fenced_ring,
+			ret = i915_wait_request(obj->ring,
 						obj->last_fenced_seqno,
 						true);
 			if (ret)
@@ -2315,7 +2312,6 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 		}
 
 		obj->last_fenced_seqno = 0;
-		obj->last_fenced_ring = NULL;
 	}
 
 	/* Ensure that all CPU reads are completed before installing a fence
@@ -2382,7 +2378,7 @@ i915_find_fence_reg(struct drm_device *dev)
 		if (first == NULL)
 			first = reg;
 
-		if (reg->obj->last_fenced_ring == NULL) {
+		if (reg->obj->last_fenced_seqno == 0) {
 			avail = reg;
 			break;
 		}
@@ -2458,7 +2454,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 		}
 
 		old->fence_reg = I915_FENCE_REG_NONE;
-		old->last_fenced_ring = NULL;
 		old->last_fenced_seqno = 0;
 
 		drm_gem_object_unreference(&old->base);
@@ -2467,7 +2462,6 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	reg->obj = obj;
 	list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 	obj->fence_reg = reg - dev_priv->fence_regs;
-	obj->last_fenced_ring = NULL;
 
 update:
 	obj->tiling_changed = false;

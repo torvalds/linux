@@ -930,13 +930,12 @@ struct drm_i915_gem_object {
 	 */
 	uint32_t gtt_offset;
 
-	/** Breadcrumb of last rendering to the buffer. */
-	uint32_t last_rendering_seqno;
 	struct intel_ring_buffer *ring;
 
+	/** Breadcrumb of last rendering to the buffer. */
+	uint32_t last_rendering_seqno;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
 	uint32_t last_fenced_seqno;
-	struct intel_ring_buffer *last_fenced_ring;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
