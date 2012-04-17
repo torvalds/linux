@@ -572,7 +572,7 @@ static int hpfs_fill_super(struct super_block *s, void *options, int silent)
 		mark_buffer_dirty(bh2);
 	}
 
-	if (spareblock->hotfixes_used || le32_to_cpu(spareblock->n_spares_used)) {
+	if (spareblock->hotfixes_used || spareblock->n_spares_used) {
 		if (errs >= 2) {
 			printk("HPFS: Hotfixes not supported here, try chkdsk\n");
 			mark_dirty(s, 0);

@@ -89,18 +89,18 @@ unsigned char *hpfs_load_code_page(struct super_block *s, secno cps)
 	return cp_table;
 }
 
-secno *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
+__le32 *hpfs_load_bitmap_directory(struct super_block *s, secno bmp)
 {
 	struct buffer_head *bh;
 	int n = (hpfs_sb(s)->sb_fs_size + 0x200000 - 1) >> 21;
 	int i;
-	secno *b;
+	__le32 *b;
 	if (!(b = kmalloc(n * 512, GFP_KERNEL))) {
 		printk("HPFS: can't allocate memory for bitmap directory\n");
 		return NULL;
 	}	
 	for (i=0;i<n;i++) {
-		secno *d = hpfs_map_sector(s, bmp+i, &bh, n - i - 1);
+		__le32 *d = hpfs_map_sector(s, bmp+i, &bh, n - i - 1);
 		if (!d) {
 			kfree(b);
 			return NULL;

@@ -82,7 +82,7 @@ struct hpfs_sb_info {
 	unsigned char *sb_cp_table;	/* code page tables: */
 					/* 	128 bytes uppercasing table & */
 					/*	128 bytes lowercasing table */
-	unsigned *sb_bmp_dir;		/* main bitmap directory */
+	__le32 *sb_bmp_dir;		/* main bitmap directory */
 	unsigned sb_c_bitmap;		/* current bitmap */
 	unsigned sb_max_fwd_alloc;	/* max forwad allocation */
 	int sb_timeshift;
@@ -278,7 +278,7 @@ void hpfs_evict_inode(struct inode *);
 __le32 *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
 __le32 *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
 unsigned char *hpfs_load_code_page(struct super_block *, secno);
-secno *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
+__le32 *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);
 struct anode *hpfs_map_anode(struct super_block *s, anode_secno, struct buffer_head **);
 struct dnode *hpfs_map_dnode(struct super_block *s, dnode_secno, struct quad_buffer_head *);

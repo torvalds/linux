@@ -51,11 +51,11 @@ struct hpfs_boot_block
   u8 n_rootdir_entries[2];
   u8 n_sectors_s[2];
   u8 media_byte;
-  u16 sectors_per_fat;
-  u16 sectors_per_track;
-  u16 heads_per_cyl;
-  u32 n_hidden_sectors;
-  u32 n_sectors_l;		/* size of partition */
+  __le16 sectors_per_fat;
+  __le16 sectors_per_track;
+  __le16 heads_per_cyl;
+  __le32 n_hidden_sectors;
+  __le32 n_sectors_l;		/* size of partition */
   u8 drive_number;
   u8 mbz;
   u8 sig_28h;			/* 28h */
@@ -63,7 +63,7 @@ struct hpfs_boot_block
   u8 vol_label[11];
   u8 sig_hpfs[8];		/* "HPFS    " */
   u8 pad[448];
-  u16 magic;			/* aa55 */
+  __le16 magic;			/* aa55 */
 };
 
 
@@ -75,28 +75,28 @@ struct hpfs_boot_block
 
 struct hpfs_super_block
 {
-  u32 magic;				/* f995 e849 */
-  u32 magic1;				/* fa53 e9c5, more magic? */
+  __le32 magic;				/* f995 e849 */
+  __le32 magic1;			/* fa53 e9c5, more magic? */
   u8 version;				/* version of a filesystem  usually 2 */
   u8 funcversion;			/* functional version - oldest version
   					   of filesystem that can understand
 					   this disk */
-  u16 zero;				/* 0 */
-  fnode_secno root;			/* fnode of root directory */
-  secno n_sectors;			/* size of filesystem */
-  u32 n_badblocks;			/* number of bad blocks */
-  secno bitmaps;			/* pointers to free space bit maps */
-  u32 zero1;				/* 0 */
-  secno badblocks;			/* bad block list */
-  u32 zero3;				/* 0 */
-  time32_t last_chkdsk;			/* date last checked, 0 if never */
-  time32_t last_optimize;		/* date last optimized, 0 if never */
-  secno n_dir_band;			/* number of sectors in dir band */
-  secno dir_band_start;			/* first sector in dir band */
-  secno dir_band_end;			/* last sector in dir band */
-  secno dir_band_bitmap;		/* free space map, 1 dnode per bit */
+  __le16 zero;				/* 0 */
+  __le32 root;				/* fnode of root directory */
+  __le32 n_sectors;			/* size of filesystem */
+  __le32 n_badblocks;			/* number of bad blocks */
+  __le32 bitmaps;			/* pointers to free space bit maps */
+  __le32 zero1;				/* 0 */
+  __le32 badblocks;			/* bad block list */
+  __le32 zero3;				/* 0 */
+  __le32 last_chkdsk;			/* date last checked, 0 if never */
+  __le32 last_optimize;			/* date last optimized, 0 if never */
+  __le32 n_dir_band;			/* number of sectors in dir band */
+  __le32 dir_band_start;			/* first sector in dir band */
+  __le32 dir_band_end;			/* last sector in dir band */
+  __le32 dir_band_bitmap;		/* free space map, 1 dnode per bit */
   u8 volume_name[32];			/* not used */
-  secno user_id_table;			/* 8 preallocated sectors - user id */
+  __le32 user_id_table;			/* 8 preallocated sectors - user id */
   u32 zero6[103];			/* 0 */
 };
 
@@ -109,8 +109,8 @@ struct hpfs_super_block
 
 struct hpfs_spare_block
 {
-  u32 magic;				/* f991 1849 */
-  u32 magic1;				/* fa52 29c5, more magic? */
+  __le32 magic;				/* f991 1849 */
+  __le32 magic1;				/* fa52 29c5, more magic? */
 
 #ifdef __LITTLE_ENDIAN
   u8 dirty: 1;				/* 0 clean, 1 "improperly stopped" */
@@ -153,21 +153,21 @@ struct hpfs_spare_block
   u8 mm_contlgulty;
   u8 unused;
 
-  secno hotfix_map;			/* info about remapped bad sectors */
-  u32 n_spares_used;			/* number of hotfixes */
-  u32 n_spares;				/* number of spares in hotfix map */
-  u32 n_dnode_spares_free;		/* spare dnodes unused */
-  u32 n_dnode_spares;			/* length of spare_dnodes[] list,
+  __le32 hotfix_map;			/* info about remapped bad sectors */
+  __le32 n_spares_used;			/* number of hotfixes */
+  __le32 n_spares;			/* number of spares in hotfix map */
+  __le32 n_dnode_spares_free;		/* spare dnodes unused */
+  __le32 n_dnode_spares;		/* length of spare_dnodes[] list,
 					   follows in this block*/
-  secno code_page_dir;			/* code page directory block */
-  u32 n_code_pages;			/* number of code pages */
-  u32 super_crc;			/* on HPFS386 and LAN Server this is
+  __le32 code_page_dir;			/* code page directory block */
+  __le32 n_code_pages;			/* number of code pages */
+  __le32 super_crc;			/* on HPFS386 and LAN Server this is
   					   checksum of superblock, on normal
 					   OS/2 unused */
-  u32 spare_crc;			/* on HPFS386 checksum of spareblock */
-  u32 zero1[15];			/* unused */
-  dnode_secno spare_dnodes[100];	/* emergency free dnode list */
-  u32 zero2[1];				/* room for more? */
+  __le32 spare_crc;			/* on HPFS386 checksum of spareblock */
+  __le32 zero1[15];			/* unused */
+  __le32 spare_dnodes[100];		/* emergency free dnode list */
+  __le32 zero2[1];			/* room for more? */
 };
 
 /* The bad block list is 4 sectors long.  The first word must be zero,
@@ -202,18 +202,18 @@ struct hpfs_spare_block
 
 struct code_page_directory
 {
-  u32 magic;				/* 4945 21f7 */
-  u32 n_code_pages;			/* number of pointers following */
-  u32 zero1[2];
+  __le32 magic;				/* 4945 21f7 */
+  __le32 n_code_pages;			/* number of pointers following */
+  __le32 zero1[2];
   struct {
-    u16 ix;				/* index */
-    u16 code_page_number;		/* code page number */
-    u32 bounds;				/* matches corresponding word
+    __le16 ix;				/* index */
+    __le16 code_page_number;		/* code page number */
+    __le32 bounds;			/* matches corresponding word
 					   in data block */
-    secno code_page_data;		/* sector number of a code_page_data
+    __le32 code_page_data;		/* sector number of a code_page_data
 					   containing c.p. array */
-    u16 index;				/* index in c.p. array in that sector*/
-    u16 unknown;			/* some unknown value; usually 0;
+    __le16 index;			/* index in c.p. array in that sector*/
+    __le16 unknown;			/* some unknown value; usually 0;
     					   2 in Japanese version */
   } array[31];				/* unknown length */
 };
@@ -224,19 +224,19 @@ struct code_page_directory
 
 struct code_page_data
 {
-  u32 magic;				/* 8945 21f7 */
-  u32 n_used;				/* # elements used in c_p_data[] */
-  u32 bounds[3];			/* looks a bit like
+  __le32 magic;				/* 8945 21f7 */
+  __le32 n_used;			/* # elements used in c_p_data[] */
+  __le32 bounds[3];			/* looks a bit like
 					     (beg1,end1), (beg2,end2)
 					   one byte each */
-  u16 offs[3];				/* offsets from start of sector
+  __le16 offs[3];			/* offsets from start of sector
 					   to start of c_p_data[ix] */
   struct {
-    u16 ix;				/* index */
-    u16 code_page_number;		/* code page number */
-    u16 unknown;			/* the same as in cp directory */
+    __le16 ix;				/* index */
+    __le16 code_page_number;		/* code page number */
+    __le16 unknown;			/* the same as in cp directory */
     u8 map[128];			/* upcase table for chars 80..ff */
-    u16 zero2;
+    __le16 zero2;
   } code_page[3];
   u8 incognita[78];
 };
