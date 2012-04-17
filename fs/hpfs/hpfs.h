@@ -278,8 +278,8 @@ struct code_page_data
 #define DNODE_MAGIC   0x77e40aae
 
 struct dnode {
-  u32 magic;				/* 77e4 0aae */
-  u32 first_free;			/* offset from start of dnode to
+  __le32 magic;				/* 77e4 0aae */
+  __le32 first_free;			/* offset from start of dnode to
 					   first free dir entry */
 #ifdef __LITTLE_ENDIAN
   u8 root_dnode: 1;			/* Is it root dnode? */
@@ -293,9 +293,9 @@ struct dnode {
   u8 root_dnode: 1;			/* Is it root dnode? */
 #endif
   u8 increment_me2[3];
-  secno up;				/* (root dnode) directory's fnode
+  __le32 up;				/* (root dnode) directory's fnode
 					   (nonroot) parent dnode */
-  dnode_secno self;			/* pointer to this dnode */
+  __le32 self;			/* pointer to this dnode */
   u8 dirent[2028];			/* one or more dirents */
 };
 
