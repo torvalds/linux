@@ -766,11 +766,6 @@ static int max8997_set_voltage_safeout(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int max8997_reg_enable_suspend(struct regulator_dev *rdev)
-{
-	return 0;
-}
-
 static int max8997_reg_disable_suspend(struct regulator_dev *rdev)
 {
 	struct max8997_data *max8997 = rdev_get_drvdata(rdev);
@@ -806,7 +801,6 @@ static struct regulator_ops max8997_ldo_ops = {
 	.get_voltage_sel	= max8997_get_voltage_sel,
 	.set_voltage		= max8997_set_voltage_ldobuck,
 	.set_voltage_time_sel	= max8997_set_voltage_ldobuck_time_sel,
-	.set_suspend_enable	= max8997_reg_enable_suspend,
 	.set_suspend_disable	= max8997_reg_disable_suspend,
 };
 
@@ -818,7 +812,6 @@ static struct regulator_ops max8997_buck_ops = {
 	.get_voltage_sel	= max8997_get_voltage_sel,
 	.set_voltage		= max8997_set_voltage_buck,
 	.set_voltage_time_sel	= max8997_set_voltage_ldobuck_time_sel,
-	.set_suspend_enable	= max8997_reg_enable_suspend,
 	.set_suspend_disable	= max8997_reg_disable_suspend,
 };
 
@@ -827,7 +820,6 @@ static struct regulator_ops max8997_fixedvolt_ops = {
 	.is_enabled		= max8997_reg_is_enabled,
 	.enable			= max8997_reg_enable,
 	.disable		= max8997_reg_disable,
-	.set_suspend_enable	= max8997_reg_enable_suspend,
 	.set_suspend_disable	= max8997_reg_disable_suspend,
 };
 
@@ -838,7 +830,6 @@ static struct regulator_ops max8997_safeout_ops = {
 	.disable		= max8997_reg_disable,
 	.get_voltage_sel	= max8997_get_voltage_sel,
 	.set_voltage		= max8997_set_voltage_safeout,
-	.set_suspend_enable	= max8997_reg_enable_suspend,
 	.set_suspend_disable	= max8997_reg_disable_suspend,
 };
 
