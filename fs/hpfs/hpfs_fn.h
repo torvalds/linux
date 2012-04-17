@@ -148,12 +148,12 @@ static inline struct extended_attribute *next_ea(struct extended_attribute *ea)
 
 static inline secno ea_sec(struct extended_attribute *ea)
 {
-	return le32_to_cpu(get_unaligned((secno *)((char *)ea + 9 + ea->namelen)));
+	return le32_to_cpu(get_unaligned((__le32 *)((char *)ea + 9 + ea->namelen)));
 }
 
 static inline secno ea_len(struct extended_attribute *ea)
 {
-	return le32_to_cpu(get_unaligned((secno *)((char *)ea + 5 + ea->namelen)));
+	return le32_to_cpu(get_unaligned((__le32 *)((char *)ea + 5 + ea->namelen)));
 }
 
 static inline char *ea_data(struct extended_attribute *ea)
