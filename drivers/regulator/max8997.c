@@ -278,9 +278,7 @@ static int max8997_reg_is_enabled(struct regulator_dev *rdev)
 	u8 val;
 
 	ret = max8997_get_enable_register(rdev, &reg, &mask, &pattern);
-	if (ret == -EINVAL)
-		return 1; /* "not controllable" */
-	else if (ret)
+	if (ret)
 		return ret;
 
 	ret = max8997_read_reg(i2c, reg, &val);
@@ -887,7 +885,6 @@ static struct regulator_ops max8997_charger_ops = {
 };
 
 static struct regulator_ops max8997_charger_fixedstate_ops = {
-	.is_enabled		= max8997_reg_is_enabled,
 	.get_current_limit	= max8997_get_current_limit,
 	.set_current_limit	= max8997_set_current_limit,
 };
