@@ -342,12 +342,12 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 	list_add(&publ->zone_list, &info->zone_list);
 	info->zone_list_size++;
 
-	if (in_own_cluster_exact(node)) {
+	if (in_own_cluster(node)) {
 		list_add(&publ->cluster_list, &info->cluster_list);
 		info->cluster_list_size++;
 	}
 
-	if (node == tipc_own_addr) {
+	if (in_own_node(node)) {
 		list_add(&publ->node_list, &info->node_list);
 		info->node_list_size++;
 	}
@@ -411,14 +411,14 @@ found:
 
 	/* Remove publication from cluster scope list, if present */
 
-	if (in_own_cluster_exact(node)) {
+	if (in_own_cluster(node)) {
 		list_del(&publ->cluster_list);
 		info->cluster_list_size--;
 	}
 
 	/* Remove publication from node scope list, if present */
 
-	if (node == tipc_own_addr) {
+	if (in_own_node(node)) {
 		list_del(&publ->node_list);
 		info->node_list_size--;
 	}
