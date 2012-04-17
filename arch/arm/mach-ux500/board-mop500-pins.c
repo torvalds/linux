@@ -14,6 +14,7 @@
 #include <mach/hardware.h>
 
 #include "pins-db8500.h"
+#include "pins.h"
 
 static pin_cfg_t mop500_pins_common[] = {
 	/* I2C */
