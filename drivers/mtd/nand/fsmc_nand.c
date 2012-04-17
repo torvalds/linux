@@ -994,9 +994,9 @@ static int __init fsmc_nand_probe(struct platform_device *pdev)
 		return PTR_ERR(host->clk);
 	}
 
-	ret = clk_enable(host->clk);
+	ret = clk_prepare_enable(host->clk);
 	if (ret)
-		goto err_clk_enable;
+		goto err_clk_prepare_enable;
 
 	/*
 	 * This device ID is actually a common AMBA ID as used on the
@@ -1176,8 +1176,8 @@ err_req_write_chnl:
 	if (host->mode == USE_DMA_ACCESS)
 		dma_release_channel(host->read_dma_chan);
 err_req_read_chnl:
-	clk_disable(host->clk);
-err_clk_enable:
+	clk_disable_unprepare(host->clk);
+err_clk_prepare_enable:
 	clk_put(host->clk);
 	return ret;
 }
@@ -1198,7 +1198,7 @@ static int fsmc_nand_remove(struct platform_device *pdev)
 			dma_release_channel(host->write_dma_chan);
 			dma_release_channel(host->read_dma_chan);
 		}
-		clk_disable(host->clk);
+		clk_disable_unprepare(host->clk);
 		clk_put(host->clk);
 	}
 
@@ -1210,7 +1210,7 @@ static int fsmc_nand_suspend(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
 	if (host)
-		clk_disable(host->clk);
+		clk_disable_unprepare(host->clk);
 	return 0;
 }
 
@@ -1218,7 +1218,7 @@ static int fsmc_nand_resume(struct device *dev)
 {
 	struct fsmc_nand_data *host = dev_get_drvdata(dev);
 	if (host) {
-		clk_enable(host->clk);
+		clk_prepare_enable(host->clk);
 		fsmc_nand_setup(host->regs_va, host->bank,
 				host->nand.options & NAND_BUSWIDTH_16,
 				host->dev_timings);
