@@ -160,6 +160,9 @@ void tipc_named_publish(struct publication *publ)
 	list_add_tail(&publ->local_list, &publ_lists[publ->scope]->list);
 	publ_lists[publ->scope]->size++;
 
+	if (publ->scope == TIPC_NODE_SCOPE)
+		return;
+
 	buf = named_prepare_buf(PUBLICATION, ITEM_SIZE, 0);
 	if (!buf) {
 		warn("Publication distribution failure\n");
@@ -182,6 +185,9 @@ void tipc_named_withdraw(struct publication *publ)
 
 	list_del(&publ->local_list);
 	publ_lists[publ->scope]->size--;
+
+	if (publ->scope == TIPC_NODE_SCOPE)
+		return;
 
 	buf = named_prepare_buf(WITHDRAWAL, ITEM_SIZE, 0);
 	if (!buf) {
@@ -349,11 +355,11 @@ void tipc_named_recv(struct sk_buff *buf)
 }
 
 /**
- * tipc_named_reinit - re-initialize local publication list
+ * tipc_named_reinit - re-initialize local publications
  *
  * This routine is called whenever TIPC networking is enabled.
- * All existing publications by this node that have "cluster" or "zone" scope
- * are updated to reflect the node's new network address.
+ * All name table entries published by this node are updated to reflect
+ * the node's new network address.
  */
 
 void tipc_named_reinit(void)
@@ -363,7 +369,7 @@ void tipc_named_reinit(void)
 
 	write_lock_bh(&tipc_nametbl_lock);
 
-	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_CLUSTER_SCOPE; scope++)
+	for (scope = TIPC_ZONE_SCOPE; scope <= TIPC_NODE_SCOPE; scope++)
 		list_for_each_entry(publ, &publ_lists[scope]->list, local_list)
 			publ->node = tipc_own_addr;
 

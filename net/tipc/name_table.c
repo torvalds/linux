@@ -698,7 +698,7 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	table.local_publ_count++;
 	publ = tipc_nametbl_insert_publ(type, lower, upper, scope,
 				   tipc_own_addr, port_ref, key);
-	if (publ && (scope != TIPC_NODE_SCOPE))
+	if (likely(publ))
 		tipc_named_publish(publ);
 	write_unlock_bh(&tipc_nametbl_lock);
 	return publ;
@@ -716,8 +716,7 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 	publ = tipc_nametbl_remove_publ(type, lower, tipc_own_addr, ref, key);
 	if (likely(publ)) {
 		table.local_publ_count--;
-		if (publ->scope != TIPC_NODE_SCOPE)
-			tipc_named_withdraw(publ);
+		tipc_named_withdraw(publ);
 		write_unlock_bh(&tipc_nametbl_lock);
 		list_del_init(&publ->pport_list);
 		kfree(publ);
