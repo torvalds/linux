@@ -744,6 +744,39 @@ static struct resource __devinitdata ab8500_usb_resources[] = {
 	},
 };
 
+static struct resource __devinitdata ab8505_iddet_resources[] = {
+	{
+		.name  = "KeyDeglitch",
+		.start = AB8505_INT_KEYDEGLITCH,
+		.end   = AB8505_INT_KEYDEGLITCH,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name  = "KP",
+		.start = AB8505_INT_KP,
+		.end   = AB8505_INT_KP,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name  = "IKP",
+		.start = AB8505_INT_IKP,
+		.end   = AB8505_INT_IKP,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name  = "IKR",
+		.start = AB8505_INT_IKR,
+		.end   = AB8505_INT_IKR,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name  = "KeyStuck",
+		.start = AB8505_INT_KEYSTUCK,
+		.end   = AB8505_INT_KEYSTUCK,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static struct resource __devinitdata ab8500_temp_resources[] = {
 	{
 		.name  = "AB8500_TEMP_WARM",
@@ -803,10 +836,6 @@ static struct mfd_cell __devinitdata abx500_common_devs[] = {
 		.resources = ab8500_av_acc_detect_resources,
 	},
 	{
-		.name = "ab8500-codec",
-	},
-
-	{
 		.name = "ab8500-poweron-key",
 		.num_resources = ARRAY_SIZE(ab8500_poweronkey_db_resources),
 		.resources = ab8500_poweronkey_db_resources,
@@ -845,6 +874,9 @@ static struct mfd_cell __devinitdata ab8500_devs[] = {
 		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
 		.resources = ab8500_usb_resources,
 	},
+	{
+		.name = "ab8500-codec",
+	},
 };
 
 static struct mfd_cell __devinitdata ab9540_devs[] = {
@@ -857,6 +889,18 @@ static struct mfd_cell __devinitdata ab9540_devs[] = {
 		.name = "ab9540-usb",
 		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
 		.resources = ab8500_usb_resources,
+	},
+	{
+		.name = "ab9540-codec",
+	},
+};
+
+/* Device list common to ab9540 and ab8505 */
+static struct mfd_cell __devinitdata ab9540_ab8505_devs[] = {
+	{
+		.name = "ab-iddet",
+		.num_resources = ARRAY_SIZE(ab8505_iddet_resources),
+		.resources = ab8505_iddet_resources,
 	},
 };
 
@@ -1125,8 +1169,14 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 			      ab8500->irq_base);
 	else
 		ret = mfd_add_devices(ab8500->dev, 0, ab8500_devs,
-			      ARRAY_SIZE(ab9540_devs), NULL,
+			      ARRAY_SIZE(ab8500_devs), NULL,
 			      ab8500->irq_base);
+
+	if (is_ab9540(ab8500) || is_ab8505(ab8500))
+		ret = mfd_add_devices(ab8500->dev, 0, ab9540_ab8505_devs,
+			      ARRAY_SIZE(ab9540_ab8505_devs), NULL,
+			      ab8500->irq_base);
+
 	if (ret)
 		goto out_freeirq;
 
