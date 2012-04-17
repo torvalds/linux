@@ -513,3 +513,14 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 	}
 	return rc;
 }
+
+/**
+ * hdmi_get_status: get hdmi hotplug status
+ * 
+ * NOTES:
+ * 
+ */
+int hdmi_get_hotplug(void)
+{
+	return hdmi->hotplug;
+}

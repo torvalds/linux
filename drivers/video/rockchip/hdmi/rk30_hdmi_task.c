@@ -48,7 +48,7 @@ int hdmi_sys_init(void)
 	hdmi->hotplug			= HDMI_HPD_REMOVED;
 	hdmi->state				= HDMI_SLEEP;
 	hdmi->enable			= HDMI_ENABLE;
-	hdmi->autoconfig		= HDMI_ENABLE;
+	hdmi->autoconfig		= HDMI_AUTO_CONFIGURE;
 	
 	hdmi->vic				= HDMI_VIDEO_DEFAULT_MODE;
 	hdmi->audio.channel 	= HDMI_AUDIO_DEFAULT_CHANNEL;

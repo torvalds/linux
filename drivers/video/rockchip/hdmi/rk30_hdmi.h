@@ -21,10 +21,17 @@ enum {
 	HDMI_SOURCE_LCDC1 = 1
 };
 
+/* default HDMI video source */
 #define HDMI_SOURCE_DEFAULT		HDMI_SOURCE_LCDC1
+
+/* If HDMI_ENABLE, system will auto configure output mode according to EDID 
+ * If HDMI_DISABLE, system will output mode according to macro HDMI_VIDEO_DEFAULT_MODE
+ */
+#define HDMI_AUTO_CONFIGURE			HDMI_ENABLE
 
 /* default HDMI output video mode */
 #define HDMI_VIDEO_DEFAULT_MODE			HDMI_1280x720p_60Hz//HDMI_1920x1080p_60Hz
+/* default HDMI output audio mode */
 #define HDMI_AUDIO_DEFAULT_CHANNEL		2
 #define HDMI_AUDIO_DEFAULT_RATE			HDMI_AUDIO_FS_44100
 #define HDMI_AUDIO_DEFAULT_WORD_LENGTH	HDMI_AUDIO_WORD_LENGTH_16bit

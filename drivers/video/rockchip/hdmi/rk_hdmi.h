@@ -195,4 +195,6 @@ extern const struct fb_videomode hdmi_mode[];
 #define hdmi_dbg(dev, format, arg...)	
 #endif
 
+extern int hdmi_get_hotplug(void);
+
 #endif
