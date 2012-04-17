@@ -467,48 +467,6 @@ static int tps65911_get_ctrl_register(int id)
 	}
 }
 
-static int tps65910_is_enabled(struct regulator_dev *dev)
-{
-	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
-	int reg, value, id = rdev_get_id(dev);
-
-	reg = pmic->get_ctrl_reg(id);
-	if (reg < 0)
-		return reg;
-
-	value = tps65910_reg_read(pmic, reg);
-	if (value < 0)
-		return value;
-
-	return value & TPS65910_SUPPLY_STATE_ENABLED;
-}
-
-static int tps65910_enable(struct regulator_dev *dev)
-{
-	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
-	struct tps65910 *mfd = pmic->mfd;
-	int reg, id = rdev_get_id(dev);
-
-	reg = pmic->get_ctrl_reg(id);
-	if (reg < 0)
-		return reg;
-
-	return tps65910_set_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
-}
-
-static int tps65910_disable(struct regulator_dev *dev)
-{
-	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
-	struct tps65910 *mfd = pmic->mfd;
-	int reg, id = rdev_get_id(dev);
-
-	reg = pmic->get_ctrl_reg(id);
-	if (reg < 0)
-		return reg;
-
-	return tps65910_clear_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
-}
-
 static int tps65910_enable_time(struct regulator_dev *dev)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
@@ -914,9 +872,9 @@ static int tps65910_set_voltage_dcdc_time_sel(struct regulator_dev *dev,
 
 /* Regulator ops (except VRTC) */
 static struct regulator_ops tps65910_ops_dcdc = {
-	.is_enabled		= tps65910_is_enabled,
-	.enable			= tps65910_enable,
-	.disable		= tps65910_disable,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
 	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
@@ -927,9 +885,9 @@ static struct regulator_ops tps65910_ops_dcdc = {
 };
 
 static struct regulator_ops tps65910_ops_vdd3 = {
-	.is_enabled		= tps65910_is_enabled,
-	.enable			= tps65910_enable,
-	.disable		= tps65910_disable,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
 	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
@@ -938,9 +896,9 @@ static struct regulator_ops tps65910_ops_vdd3 = {
 };
 
 static struct regulator_ops tps65910_ops = {
-	.is_enabled		= tps65910_is_enabled,
-	.enable			= tps65910_enable,
-	.disable		= tps65910_disable,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
 	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
@@ -950,9 +908,9 @@ static struct regulator_ops tps65910_ops = {
 };
 
 static struct regulator_ops tps65911_ops = {
-	.is_enabled		= tps65910_is_enabled,
-	.enable			= tps65910_enable,
-	.disable		= tps65910_disable,
+	.is_enabled		= regulator_is_enabled_regmap,
+	.enable			= regulator_enable_regmap,
+	.disable		= regulator_disable_regmap,
 	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
@@ -1205,10 +1163,13 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 
 		pmic->desc[i].type = REGULATOR_VOLTAGE;
 		pmic->desc[i].owner = THIS_MODULE;
+		pmic->desc[i].enable_reg = pmic->get_ctrl_reg(i);
+		pmic->desc[i].enable_mask = TPS65910_SUPPLY_STATE_ENABLED;
 
 		config.dev = tps65910->dev;
 		config.init_data = reg_data;
 		config.driver_data = pmic;
+		config.regmap = tps65910->regmap;
 
 		rdev = regulator_register(&pmic->desc[i], &config);
 		if (IS_ERR(rdev)) {
