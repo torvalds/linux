@@ -159,7 +159,7 @@ struct clk *clk_register_fixed_rate(struct device *dev, const char *name,
  * Clock which can gate its output.  Implements .enable & .disable
  *
  * Flags:
- * CLK_GATE_SET_DISABLE - by default this clock sets the bit at bit_idx to
+ * CLK_GATE_SET_TO_DISABLE - by default this clock sets the bit at bit_idx to
  * 	enable the clock.  Setting this flag does the opposite: setting the bit
  * 	disable the clock and clearing it enables the clock
  */
@@ -232,7 +232,7 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
  *
  * Flags:
  * CLK_MUX_INDEX_ONE - register index starts at 1, not 0
- * CLK_MUX_INDEX_BITWISE - register index is a single bit (power of two)
+ * CLK_MUX_INDEX_BIT - register index is a single bit (power of two)
  */
 struct clk_mux {
 	struct clk_hw	hw;
