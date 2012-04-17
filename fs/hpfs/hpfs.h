@@ -489,9 +489,9 @@ static inline bool fnode_is_dir(struct fnode *p)
 
 struct anode
 {
-  u32 magic;				/* 37e4 0aae */
-  anode_secno self;			/* pointer to this anode */
-  secno up;				/* parent anode or fnode */
+  __le32 magic;				/* 37e4 0aae */
+  __le32 self;				/* pointer to this anode */
+  __le32 up;				/* parent anode or fnode */
 
   struct bplus_header btree;		/* b+tree, 40 extents or 60 subtrees */
   union {
@@ -499,7 +499,7 @@ struct anode
     struct bplus_internal_node internal[60];
   } u;
 
-  u32 fill[3];				/* unused */
+  __le32 fill[3];			/* unused */
 };
 
 
