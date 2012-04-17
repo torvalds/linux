@@ -767,7 +767,7 @@ static int dmfe_stop(struct DEVICE *dev)
 
 	/* Reset & stop DM910X board */
 	dw32(DCR0, DM910X_RESET);
-	udelay(5);
+	udelay(100);
 	phy_write(ioaddr, db->phy_addr, 0, 0x8000, db->chip_id);
 
 	/* free interrupt */
@@ -1601,7 +1601,9 @@ static u16 read_srom_word(void __iomem *ioaddr, int offset)
 	int i;
 
 	dw32(DCR9, CR9_SROM_READ);
+	udelay(5);
 	dw32(DCR9, CR9_SROM_READ | CR9_SRCS);
+	udelay(5);
 
 	/* Send the Read Command 110b */
 	srom_clk_write(ioaddr, SROM_DATA_1);
@@ -1615,6 +1617,7 @@ static u16 read_srom_word(void __iomem *ioaddr, int offset)
 	}
 
 	dw32(DCR9, CR9_SROM_READ | CR9_SRCS);
+	udelay(5);
 
 	for (i = 16; i > 0; i--) {
 		dw32(DCR9, CR9_SROM_READ | CR9_SRCS | CR9_SRCLK);
@@ -1626,6 +1629,7 @@ static u16 read_srom_word(void __iomem *ioaddr, int offset)
 	}
 
 	dw32(DCR9, CR9_SROM_READ);
+	udelay(5);
 	return srom_data;
 }
 
