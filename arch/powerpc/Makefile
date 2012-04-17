@@ -77,18 +77,8 @@ CPP		= $(CC) -E $(KBUILD_CFLAGS)
 CHECKFLAGS	+= -m$(CONFIG_WORD_SIZE) -D__powerpc__ -D__powerpc$(CONFIG_WORD_SIZE)__
 
 ifeq ($(CONFIG_PPC64),y)
-GCC_BROKEN_VEC	:= $(call cc-ifversion, -lt, 0400, y)
-
 ifeq ($(CONFIG_POWER4_ONLY),y)
-ifeq ($(CONFIG_ALTIVEC),y)
-ifeq ($(GCC_BROKEN_VEC),y)
-	KBUILD_CFLAGS += $(call cc-option,-mcpu=970)
-else
 	KBUILD_CFLAGS += $(call cc-option,-mcpu=power4)
-endif
-else
-	KBUILD_CFLAGS += $(call cc-option,-mcpu=power4)
-endif
 else
 	KBUILD_CFLAGS += $(call cc-option,-mtune=power4)
 endif
