@@ -1176,7 +1176,7 @@ struct v4l2_querymenu {
 		__s64	value;
 	};
 	__u32		reserved;
-};
+} __attribute__ ((packed));
 
 /*  Control flags  */
 #define V4L2_CTRL_FLAG_DISABLED		0x0001
