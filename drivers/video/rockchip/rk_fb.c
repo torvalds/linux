@@ -794,7 +794,10 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     	}
     	lcdc_id = i;
 	init_lcdc_device_driver(dev_drv, def_drv,id);
-	set_lcd_info(dev_drv->screen, fb_inf->mach_info->lcd_info);
+	if(id == 0)   //default use lcdc0 as primary dispaly controller
+	{
+		set_lcd_info(dev_drv->screen, fb_inf->mach_info->lcd_info);
+	}
 	dev_drv->init_lcdc(dev_drv);
 	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
@@ -908,6 +911,9 @@ static void rkfb_early_suspend(struct early_suspend *h)
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
 		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,1);
+		if(inf->lcdc_dev_drv[i]->screen->standby)
+			inf->lcdc_dev_drv[i]->screen->standby(1);
+		
 		inf->lcdc_dev_drv[i]->suspend(inf->lcdc_dev_drv[i]);
 	}
 }
@@ -920,6 +926,9 @@ static void rkfb_early_resume(struct early_suspend *h)
    	inf->mach_info->io_enable();
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
+		if(inf->lcdc_dev_drv[i]->screen->standby)
+			inf->lcdc_dev_drv[i]->screen->standby(0);
+		
 		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
 		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,0);
 	}
