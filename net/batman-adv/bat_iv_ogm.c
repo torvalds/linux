@@ -1241,7 +1241,7 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 }
 
 static struct bat_algo_ops batman_iv __read_mostly = {
-	.name = "BATMAN IV",
+	.name = "BATMAN_IV",
 	.bat_iface_enable = bat_iv_ogm_iface_enable,
 	.bat_iface_disable = bat_iv_ogm_iface_disable,
 	.bat_iface_update_mac = bat_iv_ogm_iface_update_mac,

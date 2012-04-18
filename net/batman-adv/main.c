@@ -40,7 +40,7 @@
  * list traversals just rcu-locked */
 struct list_head hardif_list;
 static int (*recv_packet_handler[256])(struct sk_buff *, struct hard_iface *);
-char bat_routing_algo[20] = "BATMAN IV";
+char bat_routing_algo[20] = "BATMAN_IV";
 static struct hlist_head bat_algo_list;
 
 unsigned char broadcast_addr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
