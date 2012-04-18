@@ -339,6 +339,8 @@ extern bool intel_dpd_is_edp(struct drm_device *dev);
 extern void intel_edp_link_config(struct intel_encoder *, int *, int *);
 extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
+extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
+				      enum plane plane);
 
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
@@ -489,5 +491,19 @@ extern int i9xx_get_fifo_size(struct drm_device *dev, int plane);
 extern int i85x_get_fifo_size(struct drm_device *dev, int plane);
 extern int i845_get_fifo_size(struct drm_device *dev, int plane);
 extern int i830_get_fifo_size(struct drm_device *dev, int plane);
+
+/* Clock gating */
+extern void ironlake_init_clock_gating(struct drm_device *dev);
+extern void gen6_init_clock_gating(struct drm_device *dev);
+extern void ivybridge_init_clock_gating(struct drm_device *dev);
+extern void valleyview_init_clock_gating(struct drm_device *dev);
+extern void g4x_init_clock_gating(struct drm_device *dev);
+extern void crestline_init_clock_gating(struct drm_device *dev);
+extern void broadwater_init_clock_gating(struct drm_device *dev);
+extern void gen3_init_clock_gating(struct drm_device *dev);
+extern void i85x_init_clock_gating(struct drm_device *dev);
+extern void i830_init_clock_gating(struct drm_device *dev);
+extern void ibx_init_clock_gating(struct drm_device *dev);
+extern void cpt_init_clock_gating(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */
