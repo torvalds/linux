@@ -64,7 +64,7 @@ static int atl1c_stop_mac(struct atl1c_hw *hw);
 static void atl1c_enable_rx_ctrl(struct atl1c_hw *hw);
 static void atl1c_enable_tx_ctrl(struct atl1c_hw *hw);
 static void atl1c_disable_l0s_l1(struct atl1c_hw *hw);
-static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup);
+static void atl1c_set_aspm(struct atl1c_hw *hw, u16 link_speed);
 static void atl1c_setup_mac_ctrl(struct atl1c_adapter *adapter);
 static void atl1c_clean_rx_irq(struct atl1c_adapter *adapter,
 		   int *work_done, int work_to_do);
@@ -255,7 +255,7 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 		if (atl1c_stop_mac(hw) != 0)
 			if (netif_msg_hw(adapter))
 				dev_warn(&pdev->dev, "stop mac failed\n");
-		atl1c_set_aspm(hw, false);
+		atl1c_set_aspm(hw, SPEED_0);
 		netif_carrier_off(netdev);
 		netif_stop_queue(netdev);
 		atl1c_phy_reset(hw);
@@ -273,7 +273,7 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 		    adapter->link_duplex != duplex) {
 			adapter->link_speed  = speed;
 			adapter->link_duplex = duplex;
-			atl1c_set_aspm(hw, true);
+			atl1c_set_aspm(hw, speed);
 			atl1c_enable_tx_ctrl(hw);
 			atl1c_enable_rx_ctrl(hw);
 			atl1c_setup_mac_ctrl(adapter);
@@ -691,12 +691,8 @@ static int atl1c_setup_mac_funcs(struct atl1c_hw *hw)
 
 	hw->ctrl_flags = ATL1C_INTR_MODRT_ENABLE  |
 			 ATL1C_TXQ_MODE_ENHANCE;
-	if (link_ctrl_data & LINK_CTRL_L0S_EN)
-		hw->ctrl_flags |= ATL1C_ASPM_L0S_SUPPORT;
-	if (link_ctrl_data & LINK_CTRL_L1_EN)
-		hw->ctrl_flags |= ATL1C_ASPM_L1_SUPPORT;
-	if (link_ctrl_data & LINK_CTRL_EXT_SYNC)
-		hw->ctrl_flags |= ATL1C_LINK_EXT_SYNC;
+	hw->ctrl_flags |= ATL1C_ASPM_L0S_SUPPORT |
+			  ATL1C_ASPM_L1_SUPPORT;
 	hw->ctrl_flags |= ATL1C_ASPM_CTRL_MON;
 
 	if (hw->nic_type == athr_l1c ||
@@ -1203,112 +1199,83 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 
 static void atl1c_disable_l0s_l1(struct atl1c_hw *hw)
 {
-	u32 pm_ctrl_data;
+	u16 ctrl_flags = hw->ctrl_flags;
 
-	AT_READ_REG(hw, REG_PM_CTRL, &pm_ctrl_data);
-	pm_ctrl_data &= ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
-			PM_CTRL_L1_ENTRY_TIMER_SHIFT);
-	pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
-	pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
-	pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
-	pm_ctrl_data &= ~PM_CTRL_MAC_ASPM_CHK;
-	pm_ctrl_data &= ~PM_CTRL_SERDES_PD_EX_L1;
-
-	pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
-	pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
-	pm_ctrl_data |=	PM_CTRL_SERDES_L1_EN;
-	AT_WRITE_REG(hw, REG_PM_CTRL, pm_ctrl_data);
+	hw->ctrl_flags &= ~(ATL1C_ASPM_L0S_SUPPORT | ATL1C_ASPM_L1_SUPPORT);
+	atl1c_set_aspm(hw, SPEED_0);
+	hw->ctrl_flags = ctrl_flags;
 }
 
 /*
  * Set ASPM state.
  * Enable/disable L0s/L1 depend on link state.
  */
-static void atl1c_set_aspm(struct atl1c_hw *hw, bool linkup)
+static void atl1c_set_aspm(struct atl1c_hw *hw, u16 link_speed)
 {
 	u32 pm_ctrl_data;
-	u32 link_ctrl_data;
-	u32 link_l1_timer = 0xF;
+	u32 link_l1_timer;
 
 	AT_READ_REG(hw, REG_PM_CTRL, &pm_ctrl_data);
-	AT_READ_REG(hw, REG_LINK_CTRL, &link_ctrl_data);
-
-	pm_ctrl_data &= ~PM_CTRL_SERDES_PD_EX_L1;
-	pm_ctrl_data &=  ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
-			PM_CTRL_L1_ENTRY_TIMER_SHIFT);
-	pm_ctrl_data &= ~(PM_CTRL_LCKDET_TIMER_MASK <<
-			PM_CTRL_LCKDET_TIMER_SHIFT);
-	pm_ctrl_data |= AT_LCKDET_TIMER	<< PM_CTRL_LCKDET_TIMER_SHIFT;
-
-	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d ||
-		hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) {
-		link_ctrl_data &= ~LINK_CTRL_EXT_SYNC;
-		if (!(hw->ctrl_flags & ATL1C_APS_MODE_ENABLE)) {
-			if (hw->nic_type == athr_l2c_b && hw->revision_id == L2CB_V10)
-				link_ctrl_data |= LINK_CTRL_EXT_SYNC;
-		}
-
-		AT_WRITE_REG(hw, REG_LINK_CTRL, link_ctrl_data);
-
-		pm_ctrl_data |= PM_CTRL_RCVR_WT_TIMER;
-		pm_ctrl_data &= ~(PM_CTRL_PM_REQ_TIMER_MASK <<
-			PM_CTRL_PM_REQ_TIMER_SHIFT);
-		pm_ctrl_data |= AT_ASPM_L1_TIMER <<
-			PM_CTRL_PM_REQ_TIMER_SHIFT;
-		pm_ctrl_data &= ~PM_CTRL_SA_DLY_EN;
-		pm_ctrl_data &= ~PM_CTRL_HOTRST;
-		pm_ctrl_data |= 1 << PM_CTRL_L1_ENTRY_TIMER_SHIFT;
-		pm_ctrl_data |= PM_CTRL_SERDES_PD_EX_L1;
-	}
-	pm_ctrl_data |= PM_CTRL_MAC_ASPM_CHK;
-	if (linkup) {
-		pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
-		pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
-		if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
-			pm_ctrl_data |= PM_CTRL_ASPM_L1_EN;
-		if (hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT)
-			pm_ctrl_data |= PM_CTRL_ASPM_L0S_EN;
-
-		if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d ||
-			hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) {
-			if (hw->nic_type == athr_l2c_b)
-				if (!(hw->ctrl_flags & ATL1C_APS_MODE_ENABLE))
-					pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
-			pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
-			pm_ctrl_data &= ~PM_CTRL_SERDES_PLL_L1_EN;
-			pm_ctrl_data &= ~PM_CTRL_SERDES_BUDS_RX_L1_EN;
-			pm_ctrl_data |= PM_CTRL_CLK_SWH_L1;
-		if (hw->adapter->link_speed == SPEED_100 ||
-				hw->adapter->link_speed == SPEED_1000) {
-				pm_ctrl_data &=  ~(PM_CTRL_L1_ENTRY_TIMER_MASK <<
-					PM_CTRL_L1_ENTRY_TIMER_SHIFT);
-				if (hw->nic_type == athr_l2c_b)
-					link_l1_timer = 7;
-				else if (hw->nic_type == athr_l2c_b2 ||
-					hw->nic_type == athr_l1d_2)
-					link_l1_timer = 4;
-				pm_ctrl_data |= link_l1_timer <<
-					PM_CTRL_L1_ENTRY_TIMER_SHIFT;
-			}
-		} else {
-			pm_ctrl_data |= PM_CTRL_SERDES_L1_EN;
-			pm_ctrl_data |= PM_CTRL_SERDES_PLL_L1_EN;
-			pm_ctrl_data |= PM_CTRL_SERDES_BUDS_RX_L1_EN;
-			pm_ctrl_data &= ~PM_CTRL_CLK_SWH_L1;
-			pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
-			pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
-
-		}
+	pm_ctrl_data &= ~(PM_CTRL_ASPM_L1_EN |
+			  PM_CTRL_ASPM_L0S_EN |
+			  PM_CTRL_MAC_ASPM_CHK);
+	/* L1 timer */
+	if (hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) {
+		pm_ctrl_data &= ~PMCTRL_TXL1_AFTER_L0S;
+		link_l1_timer =
+			link_speed == SPEED_1000 || link_speed == SPEED_100 ?
+			L1D_PMCTRL_L1_ENTRY_TM_16US : 1;
+		pm_ctrl_data = FIELD_SETX(pm_ctrl_data,
+			L1D_PMCTRL_L1_ENTRY_TM, link_l1_timer);
 	} else {
-		pm_ctrl_data &= ~PM_CTRL_SERDES_L1_EN;
-		pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
-		pm_ctrl_data &= ~PM_CTRL_SERDES_PLL_L1_EN;
-		pm_ctrl_data |= PM_CTRL_CLK_SWH_L1;
+		link_l1_timer = hw->nic_type == athr_l2c_b ?
+			L2CB1_PM_CTRL_L1_ENTRY_TM : L1C_PM_CTRL_L1_ENTRY_TM;
+		if (link_speed != SPEED_1000 && link_speed != SPEED_100)
+			link_l1_timer = 1;
+		pm_ctrl_data = FIELD_SETX(pm_ctrl_data,
+			PM_CTRL_L1_ENTRY_TIMER, link_l1_timer);
+	}
 
-		if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
-			pm_ctrl_data |= PM_CTRL_ASPM_L1_EN;
-		else
-			pm_ctrl_data &= ~PM_CTRL_ASPM_L1_EN;
+	/* L0S/L1 enable */
+	if (hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT)
+		pm_ctrl_data |= PM_CTRL_ASPM_L0S_EN | PM_CTRL_MAC_ASPM_CHK;
+	if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
+		pm_ctrl_data |= PM_CTRL_ASPM_L1_EN | PM_CTRL_MAC_ASPM_CHK;
+
+	/* l2cb & l1d & l2cb2 & l1d2 */
+	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d ||
+	    hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) {
+		pm_ctrl_data = FIELD_SETX(pm_ctrl_data,
+			PM_CTRL_PM_REQ_TIMER, PM_CTRL_PM_REQ_TO_DEF);
+		pm_ctrl_data |= PM_CTRL_RCVR_WT_TIMER |
+				PM_CTRL_SERDES_PD_EX_L1 |
+				PM_CTRL_CLK_SWH_L1;
+		pm_ctrl_data &= ~(PM_CTRL_SERDES_L1_EN |
+				  PM_CTRL_SERDES_PLL_L1_EN |
+				  PM_CTRL_SERDES_BUFS_RX_L1_EN |
+				  PM_CTRL_SA_DLY_EN |
+				  PM_CTRL_HOTRST);
+		/* disable l0s if link down or l2cb */
+		if (link_speed == SPEED_0 || hw->nic_type == athr_l2c_b)
+			pm_ctrl_data &= ~PM_CTRL_ASPM_L0S_EN;
+	} else { /* l1c */
+		pm_ctrl_data =
+			FIELD_SETX(pm_ctrl_data, PM_CTRL_L1_ENTRY_TIMER, 0);
+		if (link_speed != SPEED_0) {
+			pm_ctrl_data |= PM_CTRL_SERDES_L1_EN |
+					PM_CTRL_SERDES_PLL_L1_EN |
+					PM_CTRL_SERDES_BUFS_RX_L1_EN;
+			pm_ctrl_data &= ~(PM_CTRL_SERDES_PD_EX_L1 |
+					  PM_CTRL_CLK_SWH_L1 |
+					  PM_CTRL_ASPM_L0S_EN |
+					  PM_CTRL_ASPM_L1_EN);
+		} else { /* link down */
+			pm_ctrl_data |= PM_CTRL_CLK_SWH_L1;
+			pm_ctrl_data &= ~(PM_CTRL_SERDES_L1_EN |
+					  PM_CTRL_SERDES_PLL_L1_EN |
+					  PM_CTRL_SERDES_BUFS_RX_L1_EN |
+					  PM_CTRL_ASPM_L0S_EN);
+		}
 	}
 	AT_WRITE_REG(hw, REG_PM_CTRL, pm_ctrl_data);
 
@@ -2235,6 +2202,8 @@ static void atl1c_down(struct atl1c_adapter *adapter)
 	napi_disable(&adapter->napi);
 	atl1c_irq_disable(adapter);
 	atl1c_free_irq(adapter);
+	/* disable ASPM if device inactive */
+	atl1c_disable_l0s_l1(&adapter->hw);
 	/* reset MAC to disable all RX/TX */
 	atl1c_reset_mac(&adapter->hw);
 	msleep(1);
