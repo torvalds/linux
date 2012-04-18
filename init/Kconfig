@@ -515,10 +515,25 @@ config RCU_BOOST_PRIO
 	depends on RCU_BOOST
 	default 1
 	help
-	  This option specifies the real-time priority to which preempted
-	  RCU readers are to be boosted.  If you are working with CPU-bound
-	  real-time applications, you should specify a priority higher then
-	  the highest-priority CPU-bound application.
+	  This option specifies the real-time priority to which long-term
+	  preempted RCU readers are to be boosted.  If you are working
+	  with a real-time application that has one or more CPU-bound
+	  threads running at a real-time priority level, you should set
+	  RCU_BOOST_PRIO to a priority higher then the highest-priority
+	  real-time CPU-bound thread.  The default RCU_BOOST_PRIO value
+	  of 1 is appropriate in the common case, which is real-time
+	  applications that do not have any CPU-bound threads.
+
+	  Some real-time applications might not have a single real-time
+	  thread that saturates a given CPU, but instead might have
+	  multiple real-time threads that, taken together, fully utilize
+	  that CPU.  In this case, you should set RCU_BOOST_PRIO to
+	  a priority higher than the lowest-priority thread that is
+	  conspiring to prevent the CPU from running any non-real-time
+	  tasks.  For example, if one thread at priority 10 and another
+	  thread at priority 5 are between themselves fully consuming
+	  the CPU time on a given CPU, then RCU_BOOST_PRIO should be
+	  set to priority 6 or higher.
 
 	  Specify the real-time priority, or take the default if unsure.
 
