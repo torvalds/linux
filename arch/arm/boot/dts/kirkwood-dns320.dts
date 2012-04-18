@@ -1,0 +1,29 @@
+/dts-v1/;
+
+/include/ "kirkwood.dtsi"
+
+/ {
+	model = "D-Link DNS-320 NAS (Rev A1)";
+	compatible = "dlink,dns-320-a1", "dlink,dns-320", "dlink,dns-kirkwood", "mrvl,kirkwood-88f6281", "mrvl,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200n8 earlyprintk";
+	};
+
+	ocp@f1000000 {
+		serial@12000 {
+			clock-frequency = <166666667>;
+			status = "okay";
+		};
+
+		serial@12100 {
+			clock-frequency = <166666667>;
+			status = "okay";
+		};
+	};
+};

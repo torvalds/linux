@@ -56,11 +56,16 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("globalscale,dreamplug"))
 		dreamplug_init();
 
+	if (of_machine_is_compatible("dlink,dns-kirkwood"))
+		dnskw_init();
+
 	of_platform_populate(NULL, kirkwood_dt_match_table, NULL, NULL);
 }
 
 static const char *kirkwood_dt_board_compat[] = {
 	"globalscale,dreamplug",
+	"dlink,dns-320",
+	"dlink,dns-325",
 	NULL
 };
 
