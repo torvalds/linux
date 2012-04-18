@@ -175,13 +175,13 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	if (len >= sizeof(struct icmp_packet_rr))
 		packet_len = sizeof(struct icmp_packet_rr);
 
-	skb = dev_alloc_skb(packet_len + sizeof(struct ethhdr));
+	skb = dev_alloc_skb(packet_len + ETH_HLEN);
 	if (!skb) {
 		len = -ENOMEM;
 		goto out;
 	}
 
-	skb_reserve(skb, sizeof(struct ethhdr));
+	skb_reserve(skb, ETH_HLEN);
 	icmp_packet = (struct icmp_packet_rr *)skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_packet, buff, packet_len)) {

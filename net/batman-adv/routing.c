@@ -254,7 +254,7 @@ int recv_bat_ogm_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
 	struct ethhdr *ethhdr;
 
 	/* drop packet if it has not necessary minimum size */
-	if (unlikely(!pskb_may_pull(skb, BATMAN_OGM_LEN)))
+	if (unlikely(!pskb_may_pull(skb, BATMAN_OGM_HLEN)))
 		return NET_RX_DROP;
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
@@ -313,7 +313,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 		goto out;
 
 	/* create a copy of the skb, if needed, to modify it. */
-	if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
+	if (skb_cow(skb, ETH_HLEN) < 0)
 		goto out;
 
 	icmp_packet = (struct icmp_packet_rr *)skb->data;
@@ -368,7 +368,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 		goto out;
 
 	/* create a copy of the skb, if needed, to modify it. */
-	if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
+	if (skb_cow(skb, ETH_HLEN) < 0)
 		goto out;
 
 	icmp_packet = (struct icmp_packet *)skb->data;
@@ -454,7 +454,7 @@ int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		goto out;
 
 	/* create a copy of the skb, if needed, to modify it. */
-	if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
+	if (skb_cow(skb, ETH_HLEN) < 0)
 		goto out;
 
 	icmp_packet = (struct icmp_packet_rr *)skb->data;
@@ -841,7 +841,7 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		goto out;
 
 	/* create a copy of the skb, if needed, to modify it. */
-	if (skb_cow(skb, sizeof(struct ethhdr)) < 0)
+	if (skb_cow(skb, ETH_HLEN) < 0)
 		goto out;
 
 	unicast_packet = (struct unicast_packet *)skb->data;

@@ -30,24 +30,44 @@
 #include "send.h"
 #include "bat_algo.h"
 
-static void bat_iv_ogm_init(struct hard_iface *hard_iface)
+static int bat_iv_ogm_iface_enable(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
+	uint32_t random_seqno;
+	int res = -1;
 
-	hard_iface->packet_len = BATMAN_OGM_LEN;
+	/* randomize initial seqno to avoid collision */
+	get_random_bytes(&random_seqno, sizeof(random_seqno));
+	atomic_set(&hard_iface->seqno, random_seqno);
+
+	hard_iface->packet_len = BATMAN_OGM_HLEN;
 	hard_iface->packet_buff = kmalloc(hard_iface->packet_len, GFP_ATOMIC);
 
+	if (!hard_iface->packet_buff)
+		goto out;
+
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
-	batman_ogm_packet->header.packet_type = BAT_OGM;
+	batman_ogm_packet->header.packet_type = BAT_IV_OGM;
 	batman_ogm_packet->header.version = COMPAT_VERSION;
 	batman_ogm_packet->header.ttl = 2;
 	batman_ogm_packet->flags = NO_FLAGS;
 	batman_ogm_packet->tq = TQ_MAX_VALUE;
 	batman_ogm_packet->tt_num_changes = 0;
 	batman_ogm_packet->ttvn = 0;
+
+	res = 0;
+
+out:
+	return res;
 }
 
-static void bat_iv_ogm_init_primary(struct hard_iface *hard_iface)
+static void bat_iv_ogm_iface_disable(struct hard_iface *hard_iface)
+{
+	kfree(hard_iface->packet_buff);
+	hard_iface->packet_buff = NULL;
+}
+
+static void bat_iv_ogm_primary_iface_set(struct hard_iface *hard_iface)
 {
 	struct batman_ogm_packet *batman_ogm_packet;
 
@@ -92,7 +112,7 @@ static uint8_t hop_penalty(uint8_t tq, const struct bat_priv *bat_priv)
 static int bat_iv_ogm_aggr_packet(int buff_pos, int packet_len,
 				  int tt_num_changes)
 {
-	int next_buff_pos = buff_pos + BATMAN_OGM_LEN + tt_len(tt_num_changes);
+	int next_buff_pos = buff_pos + BATMAN_OGM_HLEN + tt_len(tt_num_changes);
 
 	return (next_buff_pos <= packet_len) &&
 		(next_buff_pos <= MAX_AGGREGATION_BYTES);
@@ -132,7 +152,7 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 							    "Sending own" :
 							    "Forwarding"));
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"%s %spacket (originator %pM, seqno %d, TQ %d, TTL %d, IDF %s, ttvn %d) on interface %s [%pM]\n",
+			"%s %spacket (originator %pM, seqno %u, TQ %d, TTL %d, IDF %s, ttvn %d) on interface %s [%pM]\n",
 			fwd_str, (packet_num > 0 ? "aggregated " : ""),
 			batman_ogm_packet->orig,
 			ntohl(batman_ogm_packet->seqno),
@@ -142,7 +162,7 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 			batman_ogm_packet->ttvn, hard_iface->net_dev->name,
 			hard_iface->net_dev->dev_addr);
 
-		buff_pos += BATMAN_OGM_LEN +
+		buff_pos += BATMAN_OGM_HLEN +
 				tt_len(batman_ogm_packet->tt_num_changes);
 		packet_num++;
 		batman_ogm_packet = (struct batman_ogm_packet *)
@@ -191,7 +211,7 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 
 		/* FIXME: what about aggregated packets ? */
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"%s packet (originator %pM, seqno %d, TTL %d) on interface %s [%pM]\n",
+			"%s packet (originator %pM, seqno %u, TTL %d) on interface %s [%pM]\n",
 			(forw_packet->own ? "Sending own" : "Forwarding"),
 			batman_ogm_packet->orig,
 			ntohl(batman_ogm_packet->seqno),
@@ -335,10 +355,9 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	if ((atomic_read(&bat_priv->aggregated_ogms)) &&
 	    (packet_len < MAX_AGGREGATION_BYTES))
 		forw_packet_aggr->skb = dev_alloc_skb(MAX_AGGREGATION_BYTES +
-						      sizeof(struct ethhdr));
+						      ETH_HLEN);
 	else
-		forw_packet_aggr->skb = dev_alloc_skb(packet_len +
-						      sizeof(struct ethhdr));
+		forw_packet_aggr->skb = dev_alloc_skb(packet_len + ETH_HLEN);
 
 	if (!forw_packet_aggr->skb) {
 		if (!own_packet)
@@ -346,7 +365,7 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 		kfree(forw_packet_aggr);
 		goto out;
 	}
-	skb_reserve(forw_packet_aggr->skb, sizeof(struct ethhdr));
+	skb_reserve(forw_packet_aggr->skb, ETH_HLEN);
 
 	INIT_HLIST_NODE(&forw_packet_aggr->list);
 
@@ -520,7 +539,7 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 		batman_ogm_packet->flags &= ~DIRECTLINK;
 
 	bat_iv_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
-			     BATMAN_OGM_LEN + tt_len(tt_num_changes),
+			     BATMAN_OGM_HLEN + tt_len(tt_num_changes),
 			     if_incoming, 0, bat_iv_ogm_fwd_send_time());
 }
 
@@ -842,7 +861,8 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	seq_diff = batman_ogm_packet->seqno - orig_node->last_real_seqno;
 
 	/* signalize caller that the packet is to be dropped. */
-	if (window_protected(bat_priv, seq_diff,
+	if (!hlist_empty(&orig_node->neigh_list) &&
+	    window_protected(bat_priv, seq_diff,
 			     &orig_node->batman_seqno_reset))
 		goto out;
 
@@ -873,7 +893,7 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 
 	if (need_update) {
 		bat_dbg(DBG_BATMAN, bat_priv,
-			"updating last_seqno: old %d, new %d\n",
+			"updating last_seqno: old %u, new %u\n",
 			orig_node->last_real_seqno, batman_ogm_packet->seqno);
 		orig_node->last_real_seqno = batman_ogm_packet->seqno;
 	}
@@ -914,7 +934,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * packet in an aggregation.  Here we expect that the padding
 	 * is always zero (or not 0x01)
 	 */
-	if (batman_ogm_packet->header.packet_type != BAT_OGM)
+	if (batman_ogm_packet->header.packet_type != BAT_IV_OGM)
 		return;
 
 	/* could be changed by schedule_own_packet() */
@@ -926,7 +946,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 					   batman_ogm_packet->orig) ? 1 : 0);
 
 	bat_dbg(DBG_BATMAN, bat_priv,
-		"Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %d, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
+		"Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
 		ethhdr->h_source, if_incoming->net_dev->name,
 		if_incoming->net_dev->dev_addr, batman_ogm_packet->orig,
 		batman_ogm_packet->prev_sender, batman_ogm_packet->seqno,
@@ -1153,12 +1173,12 @@ static void bat_iv_ogm_receive(struct hard_iface *if_incoming,
 		batman_ogm_packet->seqno = ntohl(batman_ogm_packet->seqno);
 		batman_ogm_packet->tt_crc = ntohs(batman_ogm_packet->tt_crc);
 
-		tt_buff = packet_buff + buff_pos + BATMAN_OGM_LEN;
+		tt_buff = packet_buff + buff_pos + BATMAN_OGM_HLEN;
 
 		bat_iv_ogm_process(ethhdr, batman_ogm_packet,
 				   tt_buff, if_incoming);
 
-		buff_pos += BATMAN_OGM_LEN +
+		buff_pos += BATMAN_OGM_HLEN +
 				tt_len(batman_ogm_packet->tt_num_changes);
 
 		batman_ogm_packet = (struct batman_ogm_packet *)
@@ -1169,8 +1189,9 @@ static void bat_iv_ogm_receive(struct hard_iface *if_incoming,
 
 static struct bat_algo_ops batman_iv __read_mostly = {
 	.name = "BATMAN IV",
-	.bat_ogm_init = bat_iv_ogm_init,
-	.bat_ogm_init_primary = bat_iv_ogm_init_primary,
+	.bat_iface_enable = bat_iv_ogm_iface_enable,
+	.bat_iface_disable = bat_iv_ogm_iface_disable,
+	.bat_primary_iface_set = bat_iv_ogm_primary_iface_set,
 	.bat_ogm_update_mac = bat_iv_ogm_update_mac,
 	.bat_ogm_schedule = bat_iv_ogm_schedule,
 	.bat_ogm_emit = bat_iv_ogm_emit,

@@ -25,7 +25,7 @@
 #define ETH_P_BATMAN  0x4305	/* unofficial/not registered Ethertype */
 
 enum bat_packettype {
-	BAT_OGM		 = 0x01,
+	BAT_IV_OGM	 = 0x01,
 	BAT_ICMP	 = 0x02,
 	BAT_UNICAST	 = 0x03,
 	BAT_BCAST	 = 0x04,
@@ -38,7 +38,7 @@ enum bat_packettype {
 /* this file is included by batctl which needs these defines */
 #define COMPAT_VERSION 14
 
-enum batman_flags {
+enum batman_iv_flags {
 	PRIMARIES_FIRST_HOP = 1 << 4,
 	VIS_SERVER	    = 1 << 5,
 	DIRECTLINK	    = 1 << 6
@@ -126,7 +126,7 @@ struct batman_ogm_packet {
 	uint16_t tt_crc;
 } __packed;
 
-#define BATMAN_OGM_LEN sizeof(struct batman_ogm_packet)
+#define BATMAN_OGM_HLEN sizeof(struct batman_ogm_packet)
 
 struct icmp_packet {
 	struct batman_header header;

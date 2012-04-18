@@ -27,7 +27,7 @@
 #include "packet.h"
 #include "bitarray.h"
 
-#define BAT_HEADER_LEN (sizeof(struct ethhdr) + \
+#define BAT_HEADER_LEN (ETH_HLEN + \
 	((sizeof(struct unicast_packet) > sizeof(struct bcast_packet) ? \
 	 sizeof(struct unicast_packet) : \
 	 sizeof(struct bcast_packet))))
@@ -377,10 +377,12 @@ struct recvlist_node {
 struct bat_algo_ops {
 	struct hlist_node list;
 	char *name;
-	/* init OGM when hard-interface is enabled */
-	void (*bat_ogm_init)(struct hard_iface *hard_iface);
-	/* init primary OGM when primary interface is selected */
-	void (*bat_ogm_init_primary)(struct hard_iface *hard_iface);
+	/* init routing info when hard-interface is enabled */
+	int (*bat_iface_enable)(struct hard_iface *hard_iface);
+	/* de-init routing info when hard-interface is disabled */
+	void (*bat_iface_disable)(struct hard_iface *hard_iface);
+	/* called when primary interface is selected / changed */
+	void (*bat_primary_iface_set)(struct hard_iface *hard_iface);
 	/* init mac addresses of the OGM belonging to this hard-interface */
 	void (*bat_ogm_update_mac)(struct hard_iface *hard_iface);
 	/* prepare a new outgoing OGM for the send queue */

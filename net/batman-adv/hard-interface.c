@@ -146,7 +146,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 	if (!new_hard_iface)
 		goto out;
 
-	bat_priv->bat_algo_ops->bat_ogm_init_primary(new_hard_iface);
+	bat_priv->bat_algo_ops->bat_primary_iface_set(new_hard_iface);
 	primary_if_update_addr(bat_priv, curr_hard_iface);
 
 out:
@@ -304,22 +304,17 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	if (!softif_is_valid(soft_iface)) {
 		pr_err("Can't create batman mesh interface %s: already exists as regular interface\n",
 		       soft_iface->name);
-		dev_put(soft_iface);
 		ret = -EINVAL;
-		goto err;
+		goto err_dev;
 	}
 
 	hard_iface->soft_iface = soft_iface;
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
-	bat_priv->bat_algo_ops->bat_ogm_init(hard_iface);
-
-	if (!hard_iface->packet_buff) {
-		bat_err(hard_iface->soft_iface,
-			"Can't add interface packet (%s): out of memory\n",
-			hard_iface->net_dev->name);
+	ret = bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
+	if (ret < 0) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_dev;
 	}
 
 	hard_iface->if_num = bat_priv->num_ifaces;
@@ -332,7 +327,6 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	hard_iface->batman_adv_ptype.dev = hard_iface->net_dev;
 	dev_add_pack(&hard_iface->batman_adv_ptype);
 
-	atomic_set(&hard_iface->seqno, 1);
 	atomic_set(&hard_iface->frag_seqno, 1);
 	bat_info(hard_iface->soft_iface, "Adding interface: %s\n",
 		 hard_iface->net_dev->name);
@@ -364,6 +358,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 out:
 	return 0;
 
+err_dev:
+	dev_put(soft_iface);
 err:
 	hardif_free_ref(hard_iface);
 	return ret;
@@ -398,8 +394,7 @@ void hardif_disable_interface(struct hard_iface *hard_iface)
 			hardif_free_ref(new_if);
 	}
 
-	kfree(hard_iface->packet_buff);
-	hard_iface->packet_buff = NULL;
+	bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
 	hard_iface->if_status = IF_NOT_IN_USE;
 
 	/* delete all references to this hard_iface */
@@ -450,6 +445,13 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 
 	check_known_mac_addr(hard_iface->net_dev);
 	list_add_tail_rcu(&hard_iface->list, &hardif_list);
+
+	/**
+	 * This can't be called via a bat_priv callback because
+	 * we have no bat_priv yet.
+	 */
+	atomic_set(&hard_iface->seqno, 1);
+	hard_iface->packet_buff = NULL;
 
 	return hard_iface;
 
@@ -572,8 +574,7 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_free;
 
 	/* expect a valid ethernet header here. */
-	if (unlikely(skb->mac_len != sizeof(struct ethhdr) ||
-		     !skb_mac_header(skb)))
+	if (unlikely(skb->mac_len != ETH_HLEN || !skb_mac_header(skb)))
 		goto err_free;
 
 	if (!hard_iface->soft_iface)
@@ -602,7 +603,7 @@ static int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	switch (batman_ogm_packet->header.packet_type) {
 		/* batman originator packet */
-	case BAT_OGM:
+	case BAT_IV_OGM:
 		ret = recv_bat_ogm_packet(skb, hard_iface);
 		break;
 

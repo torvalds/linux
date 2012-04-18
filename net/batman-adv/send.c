@@ -51,7 +51,7 @@ int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
 	}
 
 	/* push to the ethernet header. */
-	if (my_skb_head_push(skb, sizeof(*ethhdr)) < 0)
+	if (my_skb_head_push(skb, ETH_HLEN) < 0)
 		goto send_skb_err;
 
 	skb_reset_mac_header(skb);
@@ -87,7 +87,7 @@ static void realloc_packet_buffer(struct hard_iface *hard_iface,
 	/* keep old buffer if kmalloc should fail */
 	if (new_buff) {
 		memcpy(new_buff, hard_iface->packet_buff,
-		       BATMAN_OGM_LEN);
+		       BATMAN_OGM_HLEN);
 
 		kfree(hard_iface->packet_buff);
 		hard_iface->packet_buff = new_buff;
@@ -101,13 +101,13 @@ static int prepare_packet_buffer(struct bat_priv *bat_priv,
 {
 	int new_len;
 
-	new_len = BATMAN_OGM_LEN +
+	new_len = BATMAN_OGM_HLEN +
 		  tt_len((uint8_t)atomic_read(&bat_priv->tt_local_changes));
 
 	/* if we have too many changes for one packet don't send any
 	 * and wait for the tt table request which will be fragmented */
 	if (new_len > hard_iface->soft_iface->mtu)
-		new_len = BATMAN_OGM_LEN;
+		new_len = BATMAN_OGM_HLEN;
 
 	realloc_packet_buffer(hard_iface, new_len);
 
@@ -117,14 +117,14 @@ static int prepare_packet_buffer(struct bat_priv *bat_priv,
 	atomic_set(&bat_priv->tt_ogm_append_cnt, TT_OGM_APPEND_MAX);
 
 	return tt_changes_fill_buffer(bat_priv,
-				      hard_iface->packet_buff + BATMAN_OGM_LEN,
-				      hard_iface->packet_len - BATMAN_OGM_LEN);
+				      hard_iface->packet_buff + BATMAN_OGM_HLEN,
+				      hard_iface->packet_len - BATMAN_OGM_HLEN);
 }
 
 static int reset_packet_buffer(struct bat_priv *bat_priv,
 				struct hard_iface *hard_iface)
 {
-	realloc_packet_buffer(hard_iface, BATMAN_OGM_LEN);
+	realloc_packet_buffer(hard_iface, BATMAN_OGM_HLEN);
 	return 0;
 }
 

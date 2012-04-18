@@ -292,7 +292,7 @@ void interface_rx(struct net_device *soft_iface,
 /*	skb->ip_summed = CHECKSUM_UNNECESSARY;*/
 
 	bat_priv->stats.rx_packets++;
-	bat_priv->stats.rx_bytes += skb->len + sizeof(struct ethhdr);
+	bat_priv->stats.rx_bytes += skb->len + ETH_HLEN;
 
 	soft_iface->last_rx = jiffies;
 
