@@ -1683,6 +1683,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	list_for_each_entry(qtd, &qh->qtd_list, qtd_list)
 		if (qtd->urb == urb) {
 			dequeue_urb_from_qtd(hcd, qh, qtd);
+			list_move(&qtd->qtd_list, &qh->qtd_list);
 			break;
 		}
 
