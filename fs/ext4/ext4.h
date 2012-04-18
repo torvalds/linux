@@ -2734,8 +2734,6 @@ extern void ext4_double_down_write_data_sem(struct inode *first,
 					    struct inode *second);
 extern void ext4_double_up_write_data_sem(struct inode *orig_inode,
 					  struct inode *donor_inode);
-void ext4_inode_double_lock(struct inode *inode1, struct inode *inode2);
-void ext4_inode_double_unlock(struct inode *inode1, struct inode *inode2);
 extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
 			     __u64 len, __u64 *moved_len);
