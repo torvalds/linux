@@ -72,6 +72,26 @@ static inline int wf_control_set_min(struct wf_control *ct)
 	return ct->ops->set_value(ct, vmin);
 }
 
+static inline int wf_control_set(struct wf_control *ct, s32 val)
+{
+	return ct->ops->set_value(ct, val);
+}
+
+static inline int wf_control_get(struct wf_control *ct, s32 *val)
+{
+	return ct->ops->get_value(ct, val);
+}
+
+static inline s32 wf_control_get_min(struct wf_control *ct)
+{
+	return ct->ops->get_min(ct);
+}
+
+static inline s32 wf_control_get_max(struct wf_control *ct)
+{
+	return ct->ops->get_max(ct);
+}
+
 /*
  * Sensor objects
  */
@@ -99,6 +119,11 @@ extern void wf_unregister_sensor(struct wf_sensor *sr);
 extern struct wf_sensor * wf_find_sensor(const char *name);
 extern int wf_get_sensor(struct wf_sensor *sr);
 extern void wf_put_sensor(struct wf_sensor *sr);
+
+static inline int wf_sensor_get(struct wf_sensor *sr, s32 *val)
+{
+	return sr->ops->get_value(sr, val);
+}
 
 /* For use by clients. Note that we are a bit racy here since
  * notifier_block doesn't have a module owner field. I may fix

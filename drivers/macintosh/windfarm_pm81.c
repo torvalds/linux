@@ -302,13 +302,13 @@ static void wf_smu_create_sys_fans(void)
 	pid_param.interval = WF_SMU_SYS_FANS_INTERVAL;
 	pid_param.history_len = WF_SMU_SYS_FANS_HISTORY_SIZE;
 	pid_param.itarget = param->itarget;
-	pid_param.min = fan_system->ops->get_min(fan_system);
-	pid_param.max = fan_system->ops->get_max(fan_system);
+	pid_param.min = wf_control_get_min(fan_system);
+	pid_param.max = wf_control_get_max(fan_system);
 	if (fan_hd) {
 		pid_param.min =
-			max(pid_param.min,fan_hd->ops->get_min(fan_hd));
+			max(pid_param.min, wf_control_get_min(fan_hd));
 		pid_param.max =
-			min(pid_param.max,fan_hd->ops->get_max(fan_hd));
+			min(pid_param.max, wf_control_get_max(fan_hd));
 	}
 	wf_pid_init(&wf_smu_sys_fans->pid, &pid_param);
 
@@ -337,7 +337,7 @@ static void wf_smu_sys_fans_tick(struct wf_smu_sys_fans_state *st)
 	}
 	st->ticks = WF_SMU_SYS_FANS_INTERVAL;
 
-	rc = sensor_hd_temp->ops->get_value(sensor_hd_temp, &temp);
+	rc = wf_sensor_get(sensor_hd_temp, &temp);
 	if (rc) {
 		printk(KERN_WARNING "windfarm: HD temp sensor error %d\n",
 		       rc);
@@ -373,7 +373,7 @@ static void wf_smu_sys_fans_tick(struct wf_smu_sys_fans_state *st)
 	st->hd_setpoint = new_setpoint;
  readjust:
 	if (fan_system && wf_smu_failure_state == 0) {
-		rc = fan_system->ops->set_value(fan_system, st->sys_setpoint);
+		rc = wf_control_set(fan_system, st->sys_setpoint);
 		if (rc) {
 			printk(KERN_WARNING "windfarm: Sys fan error %d\n",
 			       rc);
@@ -381,7 +381,7 @@ static void wf_smu_sys_fans_tick(struct wf_smu_sys_fans_state *st)
 		}
 	}
 	if (fan_hd && wf_smu_failure_state == 0) {
-		rc = fan_hd->ops->set_value(fan_hd, st->hd_setpoint);
+		rc = wf_control_set(fan_hd, st->hd_setpoint);
 		if (rc) {
 			printk(KERN_WARNING "windfarm: HD fan error %d\n",
 			       rc);
@@ -447,8 +447,8 @@ static void wf_smu_create_cpu_fans(void)
 	pid_param.ttarget = tmax - tdelta;
 	pid_param.pmaxadj = maxpow - powadj;
 
-	pid_param.min = fan_cpu_main->ops->get_min(fan_cpu_main);
-	pid_param.max = fan_cpu_main->ops->get_max(fan_cpu_main);
+	pid_param.min = wf_control_get_min(fan_cpu_main);
+	pid_param.max = wf_control_get_max(fan_cpu_main);
 
 	wf_cpu_pid_init(&wf_smu_cpu_fans->pid, &pid_param);
 
@@ -481,7 +481,7 @@ static void wf_smu_cpu_fans_tick(struct wf_smu_cpu_fans_state *st)
 	}
 	st->ticks = WF_SMU_CPU_FANS_INTERVAL;
 
-	rc = sensor_cpu_temp->ops->get_value(sensor_cpu_temp, &temp);
+	rc = wf_sensor_get(sensor_cpu_temp, &temp);
 	if (rc) {
 		printk(KERN_WARNING "windfarm: CPU temp sensor error %d\n",
 		       rc);
@@ -489,7 +489,7 @@ static void wf_smu_cpu_fans_tick(struct wf_smu_cpu_fans_state *st)
 		return;
 	}
 
-	rc = sensor_cpu_power->ops->get_value(sensor_cpu_power, &power);
+	rc = wf_sensor_get(sensor_cpu_power, &power);
 	if (rc) {
 		printk(KERN_WARNING "windfarm: CPU power sensor error %d\n",
 		       rc);
@@ -525,8 +525,7 @@ static void wf_smu_cpu_fans_tick(struct wf_smu_cpu_fans_state *st)
 	st->cpu_setpoint = new_setpoint;
  readjust:
 	if (fan_cpu_main && wf_smu_failure_state == 0) {
-		rc = fan_cpu_main->ops->set_value(fan_cpu_main,
-						  st->cpu_setpoint);
+		rc = wf_control_set(fan_cpu_main, st->cpu_setpoint);
 		if (rc) {
 			printk(KERN_WARNING "windfarm: CPU main fan"
 			       " error %d\n", rc);
