@@ -6367,23 +6367,6 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.update_plane = i9xx_update_plane;
 	}
 
-	if (I915_HAS_FBC(dev)) {
-		if (HAS_PCH_SPLIT(dev)) {
-			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
-			dev_priv->display.enable_fbc = ironlake_enable_fbc;
-			dev_priv->display.disable_fbc = ironlake_disable_fbc;
-		} else if (IS_GM45(dev)) {
-			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
-			dev_priv->display.enable_fbc = g4x_enable_fbc;
-			dev_priv->display.disable_fbc = g4x_disable_fbc;
-		} else if (IS_CRESTLINE(dev)) {
-			dev_priv->display.fbc_enabled = i8xx_fbc_enabled;
-			dev_priv->display.enable_fbc = i8xx_enable_fbc;
-			dev_priv->display.disable_fbc = i8xx_disable_fbc;
-		}
-		/* 855GM needs testing */
-	}
-
 	/* Returns the core display clock speed */
 	if (IS_VALLEYVIEW(dev))
 		dev_priv->display.get_display_clock_speed =
@@ -6410,130 +6393,24 @@ static void intel_init_display(struct drm_device *dev)
 		dev_priv->display.get_display_clock_speed =
 			i830_get_display_clock_speed;
 
-	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
-		dev_priv->display.force_wake_get = __gen6_gt_force_wake_get;
-		dev_priv->display.force_wake_put = __gen6_gt_force_wake_put;
-
-		/* IVB configs may use multi-threaded forcewake */
-		if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev)) {
-			u32	ecobus;
-
-			/* A small trick here - if the bios hasn't configured MT forcewake,
-			 * and if the device is in RC6, then force_wake_mt_get will not wake
-			 * the device and the ECOBUS read will return zero. Which will be
-			 * (correctly) interpreted by the test below as MT forcewake being
-			 * disabled.
-			 */
-			mutex_lock(&dev->struct_mutex);
-			__gen6_gt_force_wake_mt_get(dev_priv);
-			ecobus = I915_READ_NOTRACE(ECOBUS);
-			__gen6_gt_force_wake_mt_put(dev_priv);
-			mutex_unlock(&dev->struct_mutex);
-
-			if (ecobus & FORCEWAKE_MT_ENABLE) {
-				DRM_DEBUG_KMS("Using MT version of forcewake\n");
-				dev_priv->display.force_wake_get =
-					__gen6_gt_force_wake_mt_get;
-				dev_priv->display.force_wake_put =
-					__gen6_gt_force_wake_mt_put;
-			}
-		}
-
-		if (HAS_PCH_IBX(dev))
-			dev_priv->display.init_pch_clock_gating = ibx_init_clock_gating;
-		else if (HAS_PCH_CPT(dev))
-			dev_priv->display.init_pch_clock_gating = cpt_init_clock_gating;
-
 		if (IS_GEN5(dev)) {
-			if (I915_READ(MLTR_ILK) & ILK_SRLT_MASK)
-				dev_priv->display.update_wm = ironlake_update_wm;
-			else {
-				DRM_DEBUG_KMS("Failed to get proper latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
 			dev_priv->display.fdi_link_train = ironlake_fdi_link_train;
-			dev_priv->display.init_clock_gating = ironlake_init_clock_gating;
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else if (IS_GEN6(dev)) {
-			if (SNB_READ_WM0_LATENCY()) {
-				dev_priv->display.update_wm = sandybridge_update_wm;
-				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to read display plane latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
 			dev_priv->display.fdi_link_train = gen6_fdi_link_train;
-			dev_priv->display.init_clock_gating = gen6_init_clock_gating;
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else if (IS_IVYBRIDGE(dev)) {
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
-			if (SNB_READ_WM0_LATENCY()) {
-				dev_priv->display.update_wm = sandybridge_update_wm;
-				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
-			} else {
-				DRM_DEBUG_KMS("Failed to read display plane latency. "
-					      "Disable CxSR\n");
-				dev_priv->display.update_wm = NULL;
-			}
-			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
 			dev_priv->display.write_eld = ironlake_write_eld;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
-		dev_priv->display.update_wm = valleyview_update_wm;
-		dev_priv->display.init_clock_gating =
-			valleyview_init_clock_gating;
 		dev_priv->display.force_wake_get = vlv_force_wake_get;
 		dev_priv->display.force_wake_put = vlv_force_wake_put;
-	} else if (IS_PINEVIEW(dev)) {
-		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
-					    dev_priv->is_ddr3,
-					    dev_priv->fsb_freq,
-					    dev_priv->mem_freq)) {
-			DRM_INFO("failed to find known CxSR latency "
-				 "(found ddr%s fsb freq %d, mem freq %d), "
-				 "disabling CxSR\n",
-				 (dev_priv->is_ddr3 == 1) ? "3" : "2",
-				 dev_priv->fsb_freq, dev_priv->mem_freq);
-			/* Disable CxSR and never update its watermark again */
-			pineview_disable_cxsr(dev);
-			dev_priv->display.update_wm = NULL;
-		} else
-			dev_priv->display.update_wm = pineview_update_wm;
-		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
 	} else if (IS_G4X(dev)) {
 		dev_priv->display.write_eld = g4x_write_eld;
-		dev_priv->display.update_wm = g4x_update_wm;
-		dev_priv->display.init_clock_gating = g4x_init_clock_gating;
-	} else if (IS_GEN4(dev)) {
-		dev_priv->display.update_wm = i965_update_wm;
-		if (IS_CRESTLINE(dev))
-			dev_priv->display.init_clock_gating = crestline_init_clock_gating;
-		else if (IS_BROADWATER(dev))
-			dev_priv->display.init_clock_gating = broadwater_init_clock_gating;
-	} else if (IS_GEN3(dev)) {
-		dev_priv->display.update_wm = i9xx_update_wm;
-		dev_priv->display.get_fifo_size = i9xx_get_fifo_size;
-		dev_priv->display.init_clock_gating = gen3_init_clock_gating;
-	} else if (IS_I865G(dev)) {
-		dev_priv->display.update_wm = i830_update_wm;
-		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-		dev_priv->display.get_fifo_size = i830_get_fifo_size;
-	} else if (IS_I85X(dev)) {
-		dev_priv->display.update_wm = i9xx_update_wm;
-		dev_priv->display.get_fifo_size = i85x_get_fifo_size;
-		dev_priv->display.init_clock_gating = i85x_init_clock_gating;
-	} else {
-		dev_priv->display.update_wm = i830_update_wm;
-		dev_priv->display.init_clock_gating = i830_init_clock_gating;
-		if (IS_845G(dev))
-			dev_priv->display.get_fifo_size = i845_get_fifo_size;
-		else
-			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	}
 
 	/* Default just returns -ENODEV to indicate unsupported */
@@ -6722,6 +6599,8 @@ void intel_modeset_init(struct drm_device *dev)
 	dev->mode_config.funcs = (void *)&intel_mode_funcs;
 
 	intel_init_quirks(dev);
+
+	intel_init_pm(dev);
 
 	intel_init_display(dev);
 

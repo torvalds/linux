@@ -457,53 +457,10 @@ extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 extern u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg);
 
 /* Power-related functions, located in intel_pm.c */
+extern void intel_init_pm(struct drm_device *dev);
 /* FBC */
-extern void i8xx_disable_fbc(struct drm_device *dev);
-extern void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
-extern bool i8xx_fbc_enabled(struct drm_device *dev);
-extern void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
-extern void g4x_disable_fbc(struct drm_device *dev);
-extern bool g4x_fbc_enabled(struct drm_device *dev);
-extern void ironlake_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
-extern void ironlake_disable_fbc(struct drm_device *dev);
-extern bool ironlake_fbc_enabled(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern void intel_update_fbc(struct drm_device *dev);
-
-/* Watermarks */
-extern void pineview_update_wm(struct drm_device *dev);
-extern void valleyview_update_wm(struct drm_device *dev);
-extern void g4x_update_wm(struct drm_device *dev);
-extern void i965_update_wm(struct drm_device *dev);
-extern void i9xx_update_wm(struct drm_device *dev);
-extern void i830_update_wm(struct drm_device *dev);
-extern void ironlake_update_wm(struct drm_device *dev);
-extern void sandybridge_update_wm(struct drm_device *dev);
-extern void sandybridge_update_sprite_wm(struct drm_device *dev, int pipe,
-					 uint32_t sprite_width, int pixel_size);
-extern const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
-							 int is_ddr3,
-							 int fsb,
-							 int mem);
-extern void pineview_disable_cxsr(struct drm_device *dev);
-extern int i9xx_get_fifo_size(struct drm_device *dev, int plane);
-extern int i85x_get_fifo_size(struct drm_device *dev, int plane);
-extern int i845_get_fifo_size(struct drm_device *dev, int plane);
-extern int i830_get_fifo_size(struct drm_device *dev, int plane);
-
-/* Clock gating */
-extern void ironlake_init_clock_gating(struct drm_device *dev);
-extern void gen6_init_clock_gating(struct drm_device *dev);
-extern void ivybridge_init_clock_gating(struct drm_device *dev);
-extern void valleyview_init_clock_gating(struct drm_device *dev);
-extern void g4x_init_clock_gating(struct drm_device *dev);
-extern void crestline_init_clock_gating(struct drm_device *dev);
-extern void broadwater_init_clock_gating(struct drm_device *dev);
-extern void gen3_init_clock_gating(struct drm_device *dev);
-extern void i85x_init_clock_gating(struct drm_device *dev);
-extern void i830_init_clock_gating(struct drm_device *dev);
-extern void ibx_init_clock_gating(struct drm_device *dev);
-extern void cpt_init_clock_gating(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */
