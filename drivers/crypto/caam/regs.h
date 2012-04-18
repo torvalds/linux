@@ -1,7 +1,7 @@
 /*
  * CAAM hardware register-level view
  *
- * Copyright 2008-2011 Freescale Semiconductor, Inc.
+ * Copyright 008-2015 Freescale Semiconductor, Inc.
  */
 
 #ifndef REGS_H
@@ -74,30 +74,23 @@
 #endif
 #else
 #ifdef __LITTLE_ENDIAN
-#define wr_reg32(reg, data) __raw_writel(data, reg)
-#define rd_reg32(reg) __raw_readl(reg)
+#define wr_reg32(reg, data) writel(data, reg)
+#define rd_reg32(reg) readl(reg)
 #ifdef CONFIG_64BIT
-#define wr_reg64(reg, data) __raw_writeq(data, reg)
-#define rd_reg64(reg) __raw_readq(reg)
+#define wr_reg64(reg, data) writeq(data, reg)
+#define rd_reg64(reg) readq(reg)
 #endif
 #endif
+#endif
+
+#ifdef CONFIG_ARM
+/* These are common macros for Power, put here for ARMs */
+#define setbits32(_addr, _v) writel((readl(_addr) | (_v)), (_addr))
+#define clrbits32(_addr, _v) writel((readl(_addr) & ~(_v)), (_addr))
 #endif
 
 #ifndef CONFIG_64BIT
 #ifdef __BIG_ENDIAN
-static inline void wr_reg64(u64 __iomem *reg, u64 data)
-{
-	wr_reg32((u32 __iomem *)reg, (data & 0xffffffff00000000ull) >> 32);
-	wr_reg32((u32 __iomem *)reg + 1, data & 0x00000000ffffffffull);
-}
-
-static inline u64 rd_reg64(u64 __iomem *reg)
-{
-	return (((u64)rd_reg32((u32 __iomem *)reg)) << 32) |
-		((u64)rd_reg32((u32 __iomem *)reg + 1));
-}
-#else
-#ifdef __LITTLE_ENDIAN
 static inline void wr_reg64(u64 __iomem *reg, u64 data)
 {
 	wr_reg32((u32 __iomem *)reg + 1, (data & 0xffffffff00000000ull) >> 32);
@@ -108,6 +101,19 @@ static inline u64 rd_reg64(u64 __iomem *reg)
 {
 	return (((u64)rd_reg32((u32 __iomem *)reg + 1)) << 32) |
 		((u64)rd_reg32((u32 __iomem *)reg));
+}
+#else
+#ifdef __LITTLE_ENDIAN
+static inline void wr_reg64(u64 __iomem *reg, u64 data)
+{
+	wr_reg32((u32 __iomem *)reg, (data & 0xffffffff00000000ull) >> 32);
+	wr_reg32((u32 __iomem *)reg + 1, data & 0x00000000ffffffffull);
+}
+
+static inline u64 rd_reg64(u64 __iomem *reg)
+{
+	return (((u64)rd_reg32((u32 __iomem *)reg)) << 32) |
+		((u64)rd_reg32((u32 __iomem *)reg + 1));
 }
 #endif
 #endif
