@@ -148,18 +148,7 @@ static int tegra_ehci_hub_control(
 
 	spin_lock_irqsave(&ehci->lock, flags);
 
-	/*
-	 * In ehci_hub_control() for USB_PORT_FEAT_ENABLE clears the other bits
-	 * that are write on clear, by writing back the register read value, so
-	 * USB_PORT_FEAT_ENABLE is handled by masking the set on clear bits
-	 */
-	if (typeReq == ClearPortFeature && wValue == USB_PORT_FEAT_ENABLE) {
-		temp = ehci_readl(ehci, status_reg) & ~PORT_RWC_BITS;
-		ehci_writel(ehci, temp & ~PORT_PE, status_reg);
-		goto done;
-	}
-
-	else if (typeReq == GetPortStatus) {
+	if (typeReq == GetPortStatus) {
 		temp = ehci_readl(ehci, status_reg);
 		if (tegra->port_resuming && !(temp & PORT_SUSPEND)) {
 			/* Resume completed, re-enable disconnect detection */
