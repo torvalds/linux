@@ -103,7 +103,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define  INPUT_MODE_RAW 			(0x04<<2)
 #define  INPUT_MODE_JPEG 			(0x05<<2)
 #define  INPUT_MODE_MIPI			(0x06<<2)
-#define	YUV_INPUT_ORDER_UYVY(ori)	(ori & (~(0x01<<5)))
+#define	YUV_INPUT_ORDER_UYVY(ori)	(ori & (~(0x03<<5)))
 #define YUV_INPUT_ORDER_YVYU(ori)		((ori & (~(0x01<<6)))|(0x01<<5))
 #define YUV_INPUT_ORDER_VYUY(ori)		((ori & (~(0x01<<5))) | (0x1<<6))
 #define YUV_INPUT_ORDER_YUYV(ori)		(ori|(0x03<<5))
