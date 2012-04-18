@@ -382,8 +382,6 @@ struct atl1c_hw {
 	u16 phy_id2;
 
 	u32 intr_mask;
-	u8 dmaw_dly_cnt;
-	u8 dmar_dly_cnt;
 
 	u8 preamble_len;
 	u16 max_frame_size;
