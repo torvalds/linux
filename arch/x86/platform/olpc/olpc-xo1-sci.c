@@ -236,6 +236,18 @@ static irqreturn_t xo1_sci_intr(int irq, void *dev_id)
 		pm_wakeup_event(&power_button_idev->dev, 0);
 	}
 
+	if ((sts & (CS5536_RTC_FLAG | CS5536_WAK_FLAG)) ==
+			(CS5536_RTC_FLAG | CS5536_WAK_FLAG)) {
+		/* When the system is woken by the RTC alarm, report the
+		 * event on the rtc device. */
+		struct device *rtc = bus_find_device_by_name(
+			&platform_bus_type, NULL, "rtc_cmos");
+		if (rtc) {
+			pm_wakeup_event(rtc, 0);
+			put_device(rtc);
+		}
+	}
+
 	if (gpe & CS5536_GPIOM7_PME_FLAG) { /* EC GPIO */
 		cs5535_gpio_set(OLPC_GPIO_ECSCI, GPIO_NEGATIVE_EDGE_STS);
 		schedule_work(&sci_work);
@@ -326,9 +338,10 @@ static int __devinit setup_sci_interrupt(struct platform_device *pdev)
 		outb(lo, CS5536_PIC_INT_SEL2);
 	}
 
-	/* Enable SCI from power button, and clear pending interrupts */
+	/* Enable interesting SCI events, and clear pending interrupts */
 	sts = inl(acpi_base + CS5536_PM1_STS);
-	outl((CS5536_PM_PWRBTN << 16) | 0xffff, acpi_base + CS5536_PM1_STS);
+	outl(((CS5536_PM_PWRBTN | CS5536_PM_RTC) << 16) | 0xffff,
+	     acpi_base + CS5536_PM1_STS);
 
 	r = request_irq(sci_irq, xo1_sci_intr, 0, DRV_NAME, pdev);
 	if (r)
