@@ -25,6 +25,7 @@
  *
  */
 
+#include <linux/cpufreq.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
 
@@ -1977,5 +1978,517 @@ void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 	if (dev_priv->display.update_sprite_wm)
 		dev_priv->display.update_sprite_wm(dev, pipe, sprite_width,
 						   pixel_size);
+}
+
+static struct drm_i915_gem_object *
+intel_alloc_context_page(struct drm_device *dev)
+{
+	struct drm_i915_gem_object *ctx;
+	int ret;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	ctx = i915_gem_alloc_object(dev, 4096);
+	if (!ctx) {
+		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
+		return NULL;
+	}
+
+	ret = i915_gem_object_pin(ctx, 4096, true);
+	if (ret) {
+		DRM_ERROR("failed to pin power context: %d\n", ret);
+		goto err_unref;
+	}
+
+	ret = i915_gem_object_set_to_gtt_domain(ctx, 1);
+	if (ret) {
+		DRM_ERROR("failed to set-domain on power context: %d\n", ret);
+		goto err_unpin;
+	}
+
+	return ctx;
+
+err_unpin:
+	i915_gem_object_unpin(ctx);
+err_unref:
+	drm_gem_object_unreference(&ctx->base);
+	mutex_unlock(&dev->struct_mutex);
+	return NULL;
+}
+
+bool ironlake_set_drps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u16 rgvswctl;
+
+	rgvswctl = I915_READ16(MEMSWCTL);
+	if (rgvswctl & MEMCTL_CMD_STS) {
+		DRM_DEBUG("gpu busy, RCS change rejected\n");
+		return false; /* still busy with another command */
+	}
+
+	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
+		(val << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
+	I915_WRITE16(MEMSWCTL, rgvswctl);
+	POSTING_READ16(MEMSWCTL);
+
+	rgvswctl |= MEMCTL_CMD_STS;
+	I915_WRITE16(MEMSWCTL, rgvswctl);
+
+	return true;
+}
+
+void ironlake_enable_drps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 rgvmodectl = I915_READ(MEMMODECTL);
+	u8 fmax, fmin, fstart, vstart;
+
+	/* Enable temp reporting */
+	I915_WRITE16(PMMISC, I915_READ(PMMISC) | MCPPCE_EN);
+	I915_WRITE16(TSC1, I915_READ(TSC1) | TSE);
+
+	/* 100ms RC evaluation intervals */
+	I915_WRITE(RCUPEI, 100000);
+	I915_WRITE(RCDNEI, 100000);
+
+	/* Set max/min thresholds to 90ms and 80ms respectively */
+	I915_WRITE(RCBMAXAVG, 90000);
+	I915_WRITE(RCBMINAVG, 80000);
+
+	I915_WRITE(MEMIHYST, 1);
+
+	/* Set up min, max, and cur for interrupt handling */
+	fmax = (rgvmodectl & MEMMODE_FMAX_MASK) >> MEMMODE_FMAX_SHIFT;
+	fmin = (rgvmodectl & MEMMODE_FMIN_MASK);
+	fstart = (rgvmodectl & MEMMODE_FSTART_MASK) >>
+		MEMMODE_FSTART_SHIFT;
+
+	vstart = (I915_READ(PXVFREQ_BASE + (fstart * 4)) & PXVFREQ_PX_MASK) >>
+		PXVFREQ_PX_SHIFT;
+
+	dev_priv->fmax = fmax; /* IPS callback will increase this */
+	dev_priv->fstart = fstart;
+
+	dev_priv->max_delay = fstart;
+	dev_priv->min_delay = fmin;
+	dev_priv->cur_delay = fstart;
+
+	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n",
+			 fmax, fmin, fstart);
+
+	I915_WRITE(MEMINTREN, MEMINT_CX_SUPR_EN | MEMINT_EVAL_CHG_EN);
+
+	/*
+	 * Interrupts will be enabled in ironlake_irq_postinstall
+	 */
+
+	I915_WRITE(VIDSTART, vstart);
+	POSTING_READ(VIDSTART);
+
+	rgvmodectl |= MEMMODE_SWMODE_EN;
+	I915_WRITE(MEMMODECTL, rgvmodectl);
+
+	if (wait_for((I915_READ(MEMSWCTL) & MEMCTL_CMD_STS) == 0, 10))
+		DRM_ERROR("stuck trying to change perf mode\n");
+	msleep(1);
+
+	ironlake_set_drps(dev, fstart);
+
+	dev_priv->last_count1 = I915_READ(0x112e4) + I915_READ(0x112e8) +
+		I915_READ(0x112e0);
+	dev_priv->last_time1 = jiffies_to_msecs(jiffies);
+	dev_priv->last_count2 = I915_READ(0x112f4);
+	getrawmonotonic(&dev_priv->last_time2);
+}
+
+void ironlake_disable_drps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u16 rgvswctl = I915_READ16(MEMSWCTL);
+
+	/* Ack interrupts, disable EFC interrupt */
+	I915_WRITE(MEMINTREN, I915_READ(MEMINTREN) & ~MEMINT_EVAL_CHG_EN);
+	I915_WRITE(MEMINTRSTS, MEMINT_EVAL_CHG);
+	I915_WRITE(DEIER, I915_READ(DEIER) & ~DE_PCU_EVENT);
+	I915_WRITE(DEIIR, DE_PCU_EVENT);
+	I915_WRITE(DEIMR, I915_READ(DEIMR) | DE_PCU_EVENT);
+
+	/* Go back to the starting frequency */
+	ironlake_set_drps(dev, dev_priv->fstart);
+	msleep(1);
+	rgvswctl |= MEMCTL_CMD_STS;
+	I915_WRITE(MEMSWCTL, rgvswctl);
+	msleep(1);
+
+}
+
+void gen6_set_rps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 swreq;
+
+	swreq = (val & 0x3ff) << 25;
+	I915_WRITE(GEN6_RPNSWREQ, swreq);
+}
+
+void gen6_disable_rps(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	I915_WRITE(GEN6_RPNSWREQ, 1 << 31);
+	I915_WRITE(GEN6_PMINTRMSK, 0xffffffff);
+	I915_WRITE(GEN6_PMIER, 0);
+	/* Complete PM interrupt masking here doesn't race with the rps work
+	 * item again unmasking PM interrupts because that is using a different
+	 * register (PMIMR) to mask PM interrupts. The only risk is in leaving
+	 * stale bits in PMIIR and PMIMR which gen6_enable_rps will clean up. */
+
+	spin_lock_irq(&dev_priv->rps_lock);
+	dev_priv->pm_iir = 0;
+	spin_unlock_irq(&dev_priv->rps_lock);
+
+	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+}
+
+int intel_enable_rc6(const struct drm_device *dev)
+{
+	/*
+	 * Respect the kernel parameter if it is set
+	 */
+	if (i915_enable_rc6 >= 0)
+		return i915_enable_rc6;
+
+	/*
+	 * Disable RC6 on Ironlake
+	 */
+	if (INTEL_INFO(dev)->gen == 5)
+		return 0;
+
+	/* Sorry Haswell, no RC6 for you for now. */
+	if (IS_HASWELL(dev))
+		return 0;
+
+	/*
+	 * Disable rc6 on Sandybridge
+	 */
+	if (INTEL_INFO(dev)->gen == 6) {
+		DRM_DEBUG_DRIVER("Sandybridge: deep RC6 disabled\n");
+		return INTEL_RC6_ENABLE;
+	}
+	DRM_DEBUG_DRIVER("RC6 and deep RC6 enabled\n");
+	return (INTEL_RC6_ENABLE | INTEL_RC6p_ENABLE);
+}
+
+void gen6_enable_rps(struct drm_i915_private *dev_priv)
+{
+	u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);
+	u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
+	u32 pcu_mbox, rc6_mask = 0;
+	u32 gtfifodbg;
+	int cur_freq, min_freq, max_freq;
+	int rc6_mode;
+	int i;
+
+	/* Here begins a magic sequence of register writes to enable
+	 * auto-downclocking.
+	 *
+	 * Perhaps there might be some value in exposing these to
+	 * userspace...
+	 */
+	I915_WRITE(GEN6_RC_STATE, 0);
+	mutex_lock(&dev_priv->dev->struct_mutex);
+
+	/* Clear the DBG now so we don't confuse earlier errors */
+	if ((gtfifodbg = I915_READ(GTFIFODBG))) {
+		DRM_ERROR("GT fifo had a previous error %x\n", gtfifodbg);
+		I915_WRITE(GTFIFODBG, gtfifodbg);
+	}
+
+	gen6_gt_force_wake_get(dev_priv);
+
+	/* disable the counters and set deterministic thresholds */
+	I915_WRITE(GEN6_RC_CONTROL, 0);
+
+	I915_WRITE(GEN6_RC1_WAKE_RATE_LIMIT, 1000 << 16);
+	I915_WRITE(GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16 | 30);
+	I915_WRITE(GEN6_RC6pp_WAKE_RATE_LIMIT, 30);
+	I915_WRITE(GEN6_RC_EVALUATION_INTERVAL, 125000);
+	I915_WRITE(GEN6_RC_IDLE_HYSTERSIS, 25);
+
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		I915_WRITE(RING_MAX_IDLE(dev_priv->ring[i].mmio_base), 10);
+
+	I915_WRITE(GEN6_RC_SLEEP, 0);
+	I915_WRITE(GEN6_RC1e_THRESHOLD, 1000);
+	I915_WRITE(GEN6_RC6_THRESHOLD, 50000);
+	I915_WRITE(GEN6_RC6p_THRESHOLD, 100000);
+	I915_WRITE(GEN6_RC6pp_THRESHOLD, 64000); /* unused */
+
+	rc6_mode = intel_enable_rc6(dev_priv->dev);
+	if (rc6_mode & INTEL_RC6_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6_ENABLE;
+
+	if (rc6_mode & INTEL_RC6p_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6p_ENABLE;
+
+	if (rc6_mode & INTEL_RC6pp_ENABLE)
+		rc6_mask |= GEN6_RC_CTL_RC6pp_ENABLE;
+
+	DRM_INFO("Enabling RC6 states: RC6 %s, RC6p %s, RC6pp %s\n",
+			(rc6_mode & INTEL_RC6_ENABLE) ? "on" : "off",
+			(rc6_mode & INTEL_RC6p_ENABLE) ? "on" : "off",
+			(rc6_mode & INTEL_RC6pp_ENABLE) ? "on" : "off");
+
+	I915_WRITE(GEN6_RC_CONTROL,
+		   rc6_mask |
+		   GEN6_RC_CTL_EI_MODE(1) |
+		   GEN6_RC_CTL_HW_ENABLE);
+
+	I915_WRITE(GEN6_RPNSWREQ,
+		   GEN6_FREQUENCY(10) |
+		   GEN6_OFFSET(0) |
+		   GEN6_AGGRESSIVE_TURBO);
+	I915_WRITE(GEN6_RC_VIDEO_FREQ,
+		   GEN6_FREQUENCY(12));
+
+	I915_WRITE(GEN6_RP_DOWN_TIMEOUT, 1000000);
+	I915_WRITE(GEN6_RP_INTERRUPT_LIMITS,
+		   18 << 24 |
+		   6 << 16);
+	I915_WRITE(GEN6_RP_UP_THRESHOLD, 10000);
+	I915_WRITE(GEN6_RP_DOWN_THRESHOLD, 1000000);
+	I915_WRITE(GEN6_RP_UP_EI, 100000);
+	I915_WRITE(GEN6_RP_DOWN_EI, 5000000);
+	I915_WRITE(GEN6_RP_IDLE_HYSTERSIS, 10);
+	I915_WRITE(GEN6_RP_CONTROL,
+		   GEN6_RP_MEDIA_TURBO |
+		   GEN6_RP_MEDIA_HW_MODE |
+		   GEN6_RP_MEDIA_IS_GFX |
+		   GEN6_RP_ENABLE |
+		   GEN6_RP_UP_BUSY_AVG |
+		   GEN6_RP_DOWN_IDLE_CONT);
+
+	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
+		     500))
+		DRM_ERROR("timeout waiting for pcode mailbox to become idle\n");
+
+	I915_WRITE(GEN6_PCODE_DATA, 0);
+	I915_WRITE(GEN6_PCODE_MAILBOX,
+		   GEN6_PCODE_READY |
+		   GEN6_PCODE_WRITE_MIN_FREQ_TABLE);
+	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
+		     500))
+		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
+
+	min_freq = (rp_state_cap & 0xff0000) >> 16;
+	max_freq = rp_state_cap & 0xff;
+	cur_freq = (gt_perf_status & 0xff00) >> 8;
+
+	/* Check for overclock support */
+	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
+		     500))
+		DRM_ERROR("timeout waiting for pcode mailbox to become idle\n");
+	I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_READ_OC_PARAMS);
+	pcu_mbox = I915_READ(GEN6_PCODE_DATA);
+	if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) & GEN6_PCODE_READY) == 0,
+		     500))
+		DRM_ERROR("timeout waiting for pcode mailbox to finish\n");
+	if (pcu_mbox & (1<<31)) { /* OC supported */
+		max_freq = pcu_mbox & 0xff;
+		DRM_DEBUG_DRIVER("overclocking supported, adjusting frequency max to %dMHz\n", pcu_mbox * 50);
+	}
+
+	/* In units of 100MHz */
+	dev_priv->max_delay = max_freq;
+	dev_priv->min_delay = min_freq;
+	dev_priv->cur_delay = cur_freq;
+
+	/* requires MSI enabled */
+	I915_WRITE(GEN6_PMIER,
+		   GEN6_PM_MBOX_EVENT |
+		   GEN6_PM_THERMAL_EVENT |
+		   GEN6_PM_RP_DOWN_TIMEOUT |
+		   GEN6_PM_RP_UP_THRESHOLD |
+		   GEN6_PM_RP_DOWN_THRESHOLD |
+		   GEN6_PM_RP_UP_EI_EXPIRED |
+		   GEN6_PM_RP_DOWN_EI_EXPIRED);
+	spin_lock_irq(&dev_priv->rps_lock);
+	WARN_ON(dev_priv->pm_iir != 0);
+	I915_WRITE(GEN6_PMIMR, 0);
+	spin_unlock_irq(&dev_priv->rps_lock);
+	/* enable all PM interrupts */
+	I915_WRITE(GEN6_PMINTRMSK, 0);
+
+	gen6_gt_force_wake_put(dev_priv);
+	mutex_unlock(&dev_priv->dev->struct_mutex);
+}
+
+void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
+{
+	int min_freq = 15;
+	int gpu_freq, ia_freq, max_ia_freq;
+	int scaling_factor = 180;
+
+	max_ia_freq = cpufreq_quick_get_max(0);
+	/*
+	 * Default to measured freq if none found, PCU will ensure we don't go
+	 * over
+	 */
+	if (!max_ia_freq)
+		max_ia_freq = tsc_khz;
+
+	/* Convert from kHz to MHz */
+	max_ia_freq /= 1000;
+
+	mutex_lock(&dev_priv->dev->struct_mutex);
+
+	/*
+	 * For each potential GPU frequency, load a ring frequency we'd like
+	 * to use for memory access.  We do this by specifying the IA frequency
+	 * the PCU should use as a reference to determine the ring frequency.
+	 */
+	for (gpu_freq = dev_priv->max_delay; gpu_freq >= dev_priv->min_delay;
+	     gpu_freq--) {
+		int diff = dev_priv->max_delay - gpu_freq;
+
+		/*
+		 * For GPU frequencies less than 750MHz, just use the lowest
+		 * ring freq.
+		 */
+		if (gpu_freq < min_freq)
+			ia_freq = 800;
+		else
+			ia_freq = max_ia_freq - ((diff * scaling_factor) / 2);
+		ia_freq = DIV_ROUND_CLOSEST(ia_freq, 100);
+
+		I915_WRITE(GEN6_PCODE_DATA,
+			   (ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT) |
+			   gpu_freq);
+		I915_WRITE(GEN6_PCODE_MAILBOX, GEN6_PCODE_READY |
+			   GEN6_PCODE_WRITE_MIN_FREQ_TABLE);
+		if (wait_for((I915_READ(GEN6_PCODE_MAILBOX) &
+			      GEN6_PCODE_READY) == 0, 10)) {
+			DRM_ERROR("pcode write of freq table timed out\n");
+			continue;
+		}
+	}
+
+	mutex_unlock(&dev_priv->dev->struct_mutex);
+}
+
+static void ironlake_teardown_rc6(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->renderctx) {
+		i915_gem_object_unpin(dev_priv->renderctx);
+		drm_gem_object_unreference(&dev_priv->renderctx->base);
+		dev_priv->renderctx = NULL;
+	}
+
+	if (dev_priv->pwrctx) {
+		i915_gem_object_unpin(dev_priv->pwrctx);
+		drm_gem_object_unreference(&dev_priv->pwrctx->base);
+		dev_priv->pwrctx = NULL;
+	}
+}
+
+void ironlake_disable_rc6(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (I915_READ(PWRCTXA)) {
+		/* Wake the GPU, prevent RC6, then restore RSTDBYCTL */
+		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) | RCX_SW_EXIT);
+		wait_for(((I915_READ(RSTDBYCTL) & RSX_STATUS_MASK) == RSX_STATUS_ON),
+			 50);
+
+		I915_WRITE(PWRCTXA, 0);
+		POSTING_READ(PWRCTXA);
+
+		I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
+		POSTING_READ(RSTDBYCTL);
+	}
+
+	ironlake_teardown_rc6(dev);
+}
+
+static int ironlake_setup_rc6(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->renderctx == NULL)
+		dev_priv->renderctx = intel_alloc_context_page(dev);
+	if (!dev_priv->renderctx)
+		return -ENOMEM;
+
+	if (dev_priv->pwrctx == NULL)
+		dev_priv->pwrctx = intel_alloc_context_page(dev);
+	if (!dev_priv->pwrctx) {
+		ironlake_teardown_rc6(dev);
+		return -ENOMEM;
+	}
+
+	return 0;
+}
+
+void ironlake_enable_rc6(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	/* rc6 disabled by default due to repeated reports of hanging during
+	 * boot and resume.
+	 */
+	if (!intel_enable_rc6(dev))
+		return;
+
+	mutex_lock(&dev->struct_mutex);
+	ret = ironlake_setup_rc6(dev);
+	if (ret) {
+		mutex_unlock(&dev->struct_mutex);
+		return;
+	}
+
+	/*
+	 * GPU can automatically power down the render unit if given a page
+	 * to save state.
+	 */
+	ret = BEGIN_LP_RING(6);
+	if (ret) {
+		ironlake_teardown_rc6(dev);
+		mutex_unlock(&dev->struct_mutex);
+		return;
+	}
+
+	OUT_RING(MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
+	OUT_RING(MI_SET_CONTEXT);
+	OUT_RING(dev_priv->renderctx->gtt_offset |
+		 MI_MM_SPACE_GTT |
+		 MI_SAVE_EXT_STATE_EN |
+		 MI_RESTORE_EXT_STATE_EN |
+		 MI_RESTORE_INHIBIT);
+	OUT_RING(MI_SUSPEND_FLUSH);
+	OUT_RING(MI_NOOP);
+	OUT_RING(MI_FLUSH);
+	ADVANCE_LP_RING();
+
+	/*
+	 * Wait for the command parser to advance past MI_SET_CONTEXT. The HW
+	 * does an implicit flush, combined with MI_FLUSH above, it should be
+	 * safe to assume that renderctx is valid
+	 */
+	ret = intel_wait_ring_idle(LP_RING(dev_priv));
+	if (ret) {
+		DRM_ERROR("failed to enable ironlake power power savings\n");
+		ironlake_teardown_rc6(dev);
+		mutex_unlock(&dev->struct_mutex);
+		return;
+	}
+
+	I915_WRITE(PWRCTXA, dev_priv->pwrctx->gtt_offset | PWRCTX_EN);
+	I915_WRITE(RSTDBYCTL, I915_READ(RSTDBYCTL) & ~RCX_SW_EXIT);
+	mutex_unlock(&dev->struct_mutex);
 }
 

@@ -396,6 +396,7 @@ extern void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 extern void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 				    u16 *blue, int regno);
 extern void intel_enable_clock_gating(struct drm_device *dev);
+extern void ironlake_disable_rc6(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
 extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
