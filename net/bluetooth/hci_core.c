@@ -1738,24 +1738,28 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
 {
-	struct list_head *head = &hci_dev_list, *p;
+	struct list_head *head, *p;
 	int i, id, error;
 
 	if (!hdev->open || !hdev->close)
 		return -EINVAL;
 
+	write_lock(&hci_dev_list_lock);
+
 	/* Do not allow HCI_AMP devices to register at index 0,
 	 * so the index can be used as the AMP controller ID.
 	 */
 	id = (hdev->dev_type == HCI_BREDR) ? 0 : 1;
-
-	write_lock(&hci_dev_list_lock);
+	head = &hci_dev_list;
 
 	/* Find first available device id */
 	list_for_each(p, &hci_dev_list) {
-		if (list_entry(p, struct hci_dev, list)->id != id)
+		int nid = list_entry(p, struct hci_dev, list)->id;
+		if (nid > id)
 			break;
-		head = p; id++;
+		if (nid == id)
+			id++;
+		head = p;
 	}
 
 	sprintf(hdev->name, "hci%d", id);
@@ -1763,7 +1767,7 @@ int hci_register_dev(struct hci_dev *hdev)
 
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
-	list_add_tail(&hdev->list, head);
+	list_add(&hdev->list, head);
 
 	mutex_init(&hdev->lock);
 
