@@ -30,7 +30,6 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/gpio-regulator.h>
 #include <linux/gpio.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 
 struct gpio_regulator_data {

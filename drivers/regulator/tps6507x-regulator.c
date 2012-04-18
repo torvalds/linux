@@ -23,7 +23,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mfd/tps6507x.h>
 

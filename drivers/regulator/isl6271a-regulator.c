@@ -22,7 +22,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/i2c.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 
 #define	ISL6271A_VOLTAGE_MIN	850000
