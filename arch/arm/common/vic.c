@@ -427,19 +427,18 @@ int __init vic_of_init(struct device_node *node, struct device_node *parent)
 
 /*
  * Handle each interrupt in a single VIC.  Returns non-zero if we've
- * handled at least one interrupt.  This does a single read of the
- * status register and handles all interrupts in order from LSB first.
+ * handled at least one interrupt.  This reads the status register
+ * before handling each interrupt, which is necessary given that
+ * handle_IRQ may briefly re-enable interrupts for soft IRQ handling.
  */
 static int handle_one_vic(struct vic_device *vic, struct pt_regs *regs)
 {
 	u32 stat, irq;
 	int handled = 0;
 
-	stat = readl_relaxed(vic->base + VIC_IRQ_STATUS);
-	while (stat) {
+	while ((stat = readl_relaxed(vic->base + VIC_IRQ_STATUS))) {
 		irq = ffs(stat) - 1;
 		handle_IRQ(irq_find_mapping(vic->domain, irq), regs);
-		stat &= ~(1 << irq);
 		handled = 1;
 	}
 

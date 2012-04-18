@@ -253,6 +253,11 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 		if (out_mad->data[15] & 0x1)
 			props->active_speed = IB_SPEED_FDR10;
 	}
+
+	/* Avoid wrong speed value returned by FW if the IB link is down. */
+	if (props->state == IB_PORT_DOWN)
+		 props->active_speed = IB_SPEED_SDR;
+
 out:
 	kfree(in_mad);
 	kfree(out_mad);
