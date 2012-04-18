@@ -39,7 +39,7 @@
 
 static int dbg_thresd = 0;
 module_param(dbg_thresd, int, S_IRUGO|S_IWUSR);
-#define DBG(x...) do { if(unlikely(dbg_thresd)) printk(KERN_INFO x); } while (0)
+#define DBG(level,x...) do { if(unlikely(dbg_thresd > level)) printk(KERN_INFO x); } while (0)
 
 
 static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
@@ -120,7 +120,7 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
     		mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
     		mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
 
-    		DBG(">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
+    		DBG(1,">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
         		mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
 
 		// set horizontal & vertical out timing
@@ -289,7 +289,7 @@ static  int win0_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 	u32 uv_addr;
 	y_addr = par->smem_start + par->y_offset;
     	uv_addr = par->cbr_start + par->c_offset;
-	DBG(KERN_INFO "%s:y_addr:0x%x>>uv_addr:0x%x\n",__func__,y_addr,uv_addr);
+	DBG(2,KERN_INFO "%s:y_addr:0x%x>>uv_addr:0x%x\n",__func__,y_addr,uv_addr);
 	LcdWrReg(lcdc_dev, WIN0_YRGB_MST0, y_addr);
     	LcdWrReg(lcdc_dev, WIN0_CBR_MST0, uv_addr);
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  
@@ -303,7 +303,7 @@ static  int win1_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 	u32 uv_addr;
 	y_addr = par->smem_start + par->y_offset;
     	uv_addr = par->cbr_start + par->c_offset;
-	DBG(KERN_INFO "%s>>y_addr:0x%x>>uv_addr:0x%x\n",__func__,y_addr,uv_addr);
+	DBG(2,KERN_INFO "%s>>y_addr:0x%x>>uv_addr:0x%x\n",__func__,y_addr,uv_addr);
 	LcdWrReg(lcdc_dev, WIN1_YRGB_MST, y_addr);
     	LcdWrReg(lcdc_dev, WIN1_CBR_MST, uv_addr);
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
@@ -347,8 +347,8 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 		   break;
 	}
 
-	DBG("%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
-		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
+	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 	spin_lock(&lcdc_dev->reg_lock);
 	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(par->format));		//(inf->video_mode==0)
 	LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
@@ -403,8 +403,8 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	
 	ScaleYrgbX = CalScale(xact, par->xsize);
 	ScaleYrgbY = CalScale(yact, par->ysize);
-	DBG("%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>ypos:%d>>\n",
-		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,ypos);
+	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
+		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
 	
 	spin_lock(&lcdc_dev->reg_lock);
