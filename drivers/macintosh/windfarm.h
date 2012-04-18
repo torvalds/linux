@@ -35,12 +35,12 @@ struct wf_control_ops {
 };
 
 struct wf_control {
-	struct list_head	link;
-	struct wf_control_ops	*ops;
-	char			*name;
-	int			type;
-	struct kref		ref;
-	struct device_attribute	attr;
+	struct list_head		link;
+	const struct wf_control_ops	*ops;
+	const char			*name;
+	int				type;
+	struct kref			ref;
+	struct device_attribute		attr;
 };
 
 #define WF_CONTROL_TYPE_GENERIC		0
@@ -85,11 +85,12 @@ struct wf_sensor_ops {
 };
 
 struct wf_sensor {
-	struct list_head	link;
-	struct wf_sensor_ops	*ops;
-	char			*name;
-	struct kref		ref;
-	struct device_attribute	attr;
+	struct list_head		link;
+	const struct wf_sensor_ops	*ops;
+	const char			*name;
+	struct kref			ref;
+	struct device_attribute		attr;
+	void				*priv;
 };
 
 /* Same lifetime rules as controls */
