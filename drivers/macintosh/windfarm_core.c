@@ -164,13 +164,24 @@ static ssize_t wf_show_control(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
 	struct wf_control *ctrl = container_of(attr, struct wf_control, attr);
+	const char *typestr;
 	s32 val = 0;
 	int err;
 
 	err = ctrl->ops->get_value(ctrl, &val);
 	if (err < 0)
 		return err;
-	return sprintf(buf, "%d\n", val);
+	switch(ctrl->type) {
+	case WF_CONTROL_RPM_FAN:
+		typestr = " RPM";
+		break;
+	case WF_CONTROL_PWM_FAN:
+		typestr = " %";
+		break;
+	default:
+		typestr = "";
+	}
+	return sprintf(buf, "%d%s\n", val, typestr);
 }
 
 /* This is really only for debugging... */
