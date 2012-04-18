@@ -3923,11 +3923,6 @@ static void sensor_af_workqueue(struct work_struct *work)
     
     mutex_lock(&sensor->wq_lock);
     
-    if((sensor_work->cmd != WqCmd_af_init) && (sensor->info_priv.auto_focus != SENSOR_AF_MODE_AUTO)) {
-        SENSOR_TR("auto focus status is wrong ,do nothing !");
-        goto set_end;
-    }
-    
     switch (sensor_work->cmd) 
     {
         case WqCmd_af_init:
@@ -4023,6 +4018,14 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
         ret = -EINVAL;
         goto sensor_af_workqueue_set_end;
     }
+
+    if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) != SENSOR_AF_IS_OK) {
+        if (cmd != WqCmd_af_init) {
+            SENSOR_TR("%s %s cmd(%d) ingore,because af module isn't ready!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
+            ret = -1;
+            goto sensor_af_workqueue_set_end;
+        }
+    }    
     
     wk = kzalloc(sizeof(struct sensor_work), GFP_KERNEL);
     if (wk) {

@@ -79,7 +79,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 #define CONFIG_SENSOR_WRITE_REGS  1
-#define WRITE_REGS_NUM 100
+#define WRITE_REGS_NUM 3
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
@@ -467,6 +467,30 @@ static struct reginfo sensor_720p[]=
 	{0x3a0d,0x02},
 	{0x3a14,0x02},
 	{0x3a15,0xe4},
+
+    {0x3820, 0x41}, //ddl@rock-chips.com add start: qsxvga -> 720p isn't stream on 
+	{0x3821, 0x07},
+	{0x3814, 0x31},
+	{0x3815, 0x31},
+	
+	{0x3618, 0x00},
+	{0x3612, 0x29},
+	{0x3709, 0x52},
+	{0x370c, 0x03},
+	{0x3a02, 0x03},
+	{0x3a03, 0xd8},
+	{0x3a08 ,0x01},///
+	{0x3a09, 0x27},///
+	{0x3a0a, 0x00},///
+	{0x3a0b, 0xf6},///
+	{0x3a0e, 0x03},
+	{0x3a0d, 0x04},
+	{0x3a14, 0x03},
+	{0x3a15, 0xd8},
+	{0x4004, 0x02},
+	{0x3002, 0x1c},////
+	{0x4713, 0x03},//////ddl@rock-chips.com add end
+    
 	{0x3002,0x00},///
 	{0x4713,0x02},///
 	{0x4837,0x16},
@@ -1919,8 +1943,7 @@ sensor_af_init_end:
 static int sensor_af_downfirmware(struct i2c_client *client)
 {
 	struct sensor *sensor = to_sensor(client);
-	struct af_cmdinfo cmdinfo;
-	int ret=0, focus_pos = 0xfe;
+	int ret=0;
     struct soc_camera_device *icd = client->dev.platform_data;
     struct v4l2_mbus_framefmt mf;
 		
@@ -1940,34 +1963,13 @@ static int sensor_af_downfirmware(struct i2c_client *client)
         if (sensor_fmt_videochk(NULL, &mf) == true) {    /* ddl@rock-chips.com: focus mode fix const auto focus in video */
             ret = sensor_af_const(client);
         } else {
-		switch (sensor->info_priv.auto_focus)
-		{
-			/*case SENSOR_AF_MODE_INFINITY:
-			{
-				focus_pos = 0x00;
-			}
-			case SENSOR_AF_MODE_MACRO:
-			{
-				if (focus_pos != 0x00)
-					focus_pos = 0xff;
-
-				sensor_af_idlechk(client);
-				cmdinfo.cmd_tag = StepFocus_Spec_Tag;
-				cmdinfo.cmd_para[0] = focus_pos;
-				cmdinfo.validate_bit = 0x81;
-				//ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
-				break;
-			}*/
-			case SENSOR_AF_MODE_AUTO:
-			{
-				ret = sensor_af_single(client);
-				break;
-			}
-			/*case SENSOR_AF_MODE_CONTINUOUS:
-			{
-				ret = sensor_af_const(client);
-				break;
-			}*/
+    		switch (sensor->info_priv.auto_focus)
+    		{
+    			case SENSOR_AF_MODE_AUTO:
+    			{
+    				ret = sensor_af_single(client);
+    				break;
+    			}
     			case SENSOR_AF_MODE_CLOSE:
     			{
     				ret = 0;
@@ -1997,10 +1999,7 @@ static void sensor_af_workqueue(struct work_struct *work)
     SENSOR_DG("%s %s Enter, cmd:0x%x \n",SENSOR_NAME_STRING(), __FUNCTION__,sensor_work->cmd);
     
     mutex_lock(&sensor->wq_lock);
-    if((sensor_work->cmd != WqCmd_af_init) && (sensor->info_priv.auto_focus != SENSOR_AF_MODE_AUTO)) {
-        SENSOR_TR("auto focus status is wrong ,do nothing !");
-        goto set_end;
-    }
+    
     switch (sensor_work->cmd) 
     {
         case WqCmd_af_init:
@@ -2095,6 +2094,14 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
     if (sensor->sensor_wq == NULL) { 
         ret = -EINVAL;
         goto sensor_af_workqueue_set_end;
+    }
+
+    if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) != SENSOR_AF_IS_OK) {
+        if (cmd != WqCmd_af_init) {
+            SENSOR_TR("%s %s cmd(%d) ingore,because af module isn't ready!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
+            ret = -1;
+            goto sensor_af_workqueue_set_end;
+        }
     }
     
     wk = kzalloc(sizeof(struct sensor_work), GFP_KERNEL);
@@ -2847,7 +2854,7 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct sensor_datafmt *fmt;
-    int ret = 0;
+    int ret = 0,set_w,set_h;
    
 	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
 				   ARRAY_SIZE(sensor_colour_fmts));
@@ -2866,6 +2873,78 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     else if (mf->width < SENSOR_MIN_WIDTH)
         mf->width = SENSOR_MIN_WIDTH;
 
+    set_w = mf->width;
+    set_h = mf->height;
+
+	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END))
+	{
+        set_w = 176;
+        set_h = 144;
+	}
+	else if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 320;
+        set_h = 240;
+    }
+    else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END))
+    {
+        set_w = 352;
+        set_h = 288;
+    }
+    else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 640;
+        set_h = 480;
+    }
+    else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 800;
+        set_h = 600;
+    }
+	else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1024;
+        set_h = 768;
+    }
+	else if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1280;
+        set_h = 720;
+    }
+    else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1280;
+        set_h = 1024;
+    }
+    else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1600;
+        set_h = 1200;
+    }
+    else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1920;
+        set_h = 1080;
+    }
+	else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 2048;
+        set_h = 1536;
+    }
+	else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 2592;
+        set_h = 1944;
+    }
+    else
+    {
+        set_w = SENSOR_INIT_WIDTH;
+        set_h = SENSOR_INIT_HEIGHT;
+    }
+
+    mf->width = set_w;
+    mf->height = set_h;
+    
     mf->colorspace = fmt->colorspace;
     
     return ret;
