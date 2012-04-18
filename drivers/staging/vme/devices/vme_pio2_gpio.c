@@ -10,7 +10,6 @@
  * option) any later version.
  */
 
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
