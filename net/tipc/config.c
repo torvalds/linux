@@ -290,7 +290,7 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 
 	/* Check command authorization */
 
-	if (likely(orig_node == tipc_own_addr)) {
+	if (likely(in_own_node(orig_node))) {
 		/* command is permitted */
 	} else if (cmd >= 0x8000) {
 		rep_tlv_buf = tipc_cfg_reply_error_string(TIPC_CFG_NOT_SUPPORTED
