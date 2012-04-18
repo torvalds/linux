@@ -1715,6 +1715,13 @@ void igb_reset(struct igb_adapter *adapter)
 	if (hw->mac.ops.init_hw(hw))
 		dev_err(&pdev->dev, "Hardware Error\n");
 
+	/*
+	 * Flow control settings reset on hardware reset, so guarantee flow
+	 * control is off when forcing speed.
+	 */
+	if (!hw->mac.autoneg)
+		igb_force_mac_fc(hw);
+
 	igb_init_dmac(adapter, pba);
 	if (!netif_running(adapter->netdev))
 		igb_power_down_link(adapter);
