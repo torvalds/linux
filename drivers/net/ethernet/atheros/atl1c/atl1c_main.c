@@ -575,7 +575,7 @@ static int atl1c_mdio_read(struct net_device *netdev, int phy_id, int reg_num)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	u16 result;
 
-	atl1c_read_phy_reg(&adapter->hw, reg_num & MDIO_REG_ADDR_MASK, &result);
+	atl1c_read_phy_reg(&adapter->hw, reg_num, &result);
 	return result;
 }
 
@@ -584,7 +584,7 @@ static void atl1c_mdio_write(struct net_device *netdev, int phy_id,
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
-	atl1c_write_phy_reg(&adapter->hw, reg_num & MDIO_REG_ADDR_MASK, val);
+	atl1c_write_phy_reg(&adapter->hw, reg_num, val);
 }
 
 /*
