@@ -495,7 +495,7 @@ config VIDEO_VS6624
 
 config VIDEO_MT9M032
 	tristate "MT9M032 camera sensor support"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	select VIDEO_APTINA_PLL
 	---help---
 	  This driver supports MT9M032 camera sensors from Aptina, monochrome
