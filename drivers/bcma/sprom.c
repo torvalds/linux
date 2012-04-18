@@ -404,16 +404,19 @@ int bcma_sprom_get(struct bcma_bus *bus)
 		return -EOPNOTSUPP;
 
 	if (!bcma_sprom_ext_available(bus)) {
+		bool sprom_onchip;
+
 		/*
 		 * External SPROM takes precedence so check
 		 * on-chip OTP only when no external SPROM
 		 * is present.
 		 */
-		if (bcma_sprom_onchip_available(bus)) {
+		sprom_onchip = bcma_sprom_onchip_available(bus);
+		if (sprom_onchip) {
 			/* determine offset */
 			offset = bcma_sprom_onchip_offset(bus);
 		}
-		if (!offset) {
+		if (!offset || !sprom_onchip) {
 			/*
 			 * Maybe there is no SPROM on the device?
 			 * Now we ask the arch code if there is some sprom
