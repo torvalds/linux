@@ -28,7 +28,6 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 
 /* driver and module definitions */
