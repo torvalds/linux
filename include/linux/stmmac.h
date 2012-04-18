@@ -109,6 +109,7 @@ struct plat_stmmacenet_data {
 	int (*init)(struct platform_device *pdev);
 	void (*exit)(struct platform_device *pdev);
 	void *custom_cfg;
+	void *custom_data;
 	void *bsp_priv;
 };
 #endif
