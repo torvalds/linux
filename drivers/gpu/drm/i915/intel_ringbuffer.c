@@ -53,9 +53,35 @@ static inline int ring_space(struct intel_ring_buffer *ring)
 }
 
 static int
-render_ring_flush(struct intel_ring_buffer *ring,
-		  u32	invalidate_domains,
-		  u32	flush_domains)
+gen2_render_ring_flush(struct intel_ring_buffer *ring,
+		       u32	invalidate_domains,
+		       u32	flush_domains)
+{
+	u32 cmd;
+	int ret;
+
+	cmd = MI_FLUSH;
+	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+		cmd |= MI_NO_WRITE_FLUSH;
+
+	if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
+		cmd |= MI_READ_FLUSH;
+
+	ret = intel_ring_begin(ring, 2);
+	if (ret)
+		return ret;
+
+	intel_ring_emit(ring, cmd);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_advance(ring);
+
+	return 0;
+}
+
+static int
+gen4_render_ring_flush(struct intel_ring_buffer *ring,
+		       u32	invalidate_domains,
+		       u32	flush_domains)
 {
 	struct drm_device *dev = ring->dev;
 	u32 cmd;
@@ -90,17 +116,8 @@ render_ring_flush(struct intel_ring_buffer *ring,
 	 */
 
 	cmd = MI_FLUSH | MI_NO_WRITE_FLUSH;
-	if ((invalidate_domains|flush_domains) &
-	    I915_GEM_DOMAIN_RENDER)
+	if ((invalidate_domains|flush_domains) & I915_GEM_DOMAIN_RENDER)
 		cmd &= ~MI_NO_WRITE_FLUSH;
-	if (INTEL_INFO(dev)->gen < 4) {
-		/*
-		 * On the 965, the sampler cache always gets flushed
-		 * and this bit is reserved.
-		 */
-		if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
-			cmd |= MI_READ_FLUSH;
-	}
 	if (invalidate_domains & I915_GEM_DOMAIN_INSTRUCTION)
 		cmd |= MI_EXE_FLUSH;
 
@@ -1281,14 +1298,17 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		ring->signal_mbox[1] = GEN6_BRSYNC;
 	} else if (IS_GEN5(dev)) {
 		ring->add_request = pc_render_add_request;
-		ring->flush = render_ring_flush;
+		ring->flush = gen4_render_ring_flush;
 		ring->get_seqno = pc_render_get_seqno;
 		ring->irq_get = gen5_ring_get_irq;
 		ring->irq_put = gen5_ring_put_irq;
 		ring->irq_enable_mask = GT_USER_INTERRUPT | GT_PIPE_NOTIFY;
 	} else {
 		ring->add_request = i9xx_add_request;
-		ring->flush = render_ring_flush;
+		if (INTEL_INFO(dev)->gen < 4)
+			ring->flush = gen2_render_ring_flush;
+		else
+			ring->flush = gen4_render_ring_flush;
 		ring->get_seqno = ring_get_seqno;
 		ring->irq_get = i9xx_ring_get_irq;
 		ring->irq_put = i9xx_ring_put_irq;
@@ -1333,7 +1353,10 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	 * gem_init ioctl returns with -ENODEV). Hence we do not need to set up
 	 * the special gen5 functions. */
 	ring->add_request = i9xx_add_request;
-	ring->flush = render_ring_flush;
+	if (INTEL_INFO(dev)->gen < 4)
+		ring->flush = gen2_render_ring_flush;
+	else
+		ring->flush = gen4_render_ring_flush;
 	ring->get_seqno = ring_get_seqno;
 	ring->irq_get = i9xx_ring_get_irq;
 	ring->irq_put = i9xx_ring_put_irq;
