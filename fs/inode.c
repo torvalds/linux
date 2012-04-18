@@ -1489,8 +1489,7 @@ static int relatime_need_update(struct vfsmount *mnt, struct inode *inode,
 
 /**
  *	touch_atime	-	update the access time
- *	@mnt: mount the inode is accessed on
- *	@dentry: dentry accessed
+ *	@path: the &struct path to update
  *
  *	Update the accessed time on an inode and mark it for writeback.
  *	This function automatically handles read only file systems and media,
