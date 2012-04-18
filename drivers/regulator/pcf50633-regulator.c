@@ -32,23 +32,11 @@
 		.n_voltages = _n,				\
 		.type = REGULATOR_VOLTAGE,			\
 		.owner = THIS_MODULE,				\
+		.vsel_reg = PCF50633_REG_##_id##OUT,		\
+		.vsel_mask = 0xff,				\
 		.enable_reg = PCF50633_REG_##_id##OUT + 1,	\
 		.enable_mask = PCF50633_REGULATOR_ON,		\
 	}
-
-static const u8 pcf50633_regulator_registers[PCF50633_NUM_REGULATORS] = {
-	[PCF50633_REGULATOR_AUTO]	= PCF50633_REG_AUTOOUT,
-	[PCF50633_REGULATOR_DOWN1]	= PCF50633_REG_DOWN1OUT,
-	[PCF50633_REGULATOR_DOWN2]	= PCF50633_REG_DOWN2OUT,
-	[PCF50633_REGULATOR_MEMLDO]	= PCF50633_REG_MEMLDOOUT,
-	[PCF50633_REGULATOR_LDO1]	= PCF50633_REG_LDO1OUT,
-	[PCF50633_REGULATOR_LDO2]	= PCF50633_REG_LDO2OUT,
-	[PCF50633_REGULATOR_LDO3]	= PCF50633_REG_LDO3OUT,
-	[PCF50633_REGULATOR_LDO4]	= PCF50633_REG_LDO4OUT,
-	[PCF50633_REGULATOR_LDO5]	= PCF50633_REG_LDO5OUT,
-	[PCF50633_REGULATOR_LDO6]	= PCF50633_REG_LDO6OUT,
-	[PCF50633_REGULATOR_HCLDO]	= PCF50633_REG_HCLDOOUT,
-};
 
 /* Bits from voltage value */
 static u8 auto_voltage_bits(unsigned int millivolts)
@@ -128,7 +116,7 @@ static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
 
 	millivolts = min_uV / 1000;
 
-	regnr = pcf50633_regulator_registers[regulator_id];
+	regnr = rdev->desc->vsel_reg;
 
 	switch (regulator_id) {
 	case PCF50633_REGULATOR_AUTO:
@@ -157,23 +145,6 @@ static int pcf50633_regulator_set_voltage(struct regulator_dev *rdev,
 	*selector = volt_bits;
 
 	return pcf50633_reg_write(pcf, regnr, volt_bits);
-}
-
-static int pcf50633_regulator_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct pcf50633 *pcf;
-	int regulator_id;
-	u8 regnr;
-
-	pcf = rdev_get_drvdata(rdev);
-
-	regulator_id = rdev_get_id(rdev);
-	if (regulator_id >= PCF50633_NUM_REGULATORS)
-		return -EINVAL;
-
-	regnr = pcf50633_regulator_registers[regulator_id];
-
-	return pcf50633_reg_read(pcf, regnr);
 }
 
 static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
@@ -212,7 +183,7 @@ static int pcf50633_regulator_list_voltage(struct regulator_dev *rdev,
 
 static struct regulator_ops pcf50633_regulator_ops = {
 	.set_voltage = pcf50633_regulator_set_voltage,
-	.get_voltage_sel = pcf50633_regulator_get_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.list_voltage = pcf50633_regulator_list_voltage,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
