@@ -933,24 +933,10 @@ static int stmmac_open(struct net_device *dev)
 	struct stmmac_priv *priv = netdev_priv(dev);
 	int ret;
 
-	stmmac_clk_enable(priv);
-
-	stmmac_check_ether_addr(priv);
-
-	/* MDIO bus Registration */
-	ret = stmmac_mdio_register(dev);
-	if (ret < 0) {
-		pr_debug("%s: MDIO bus (id: %d) registration failed",
-			 __func__, priv->plat->bus_id);
-		goto open_clk_dis;
-	}
-
 #ifdef CONFIG_STMMAC_TIMER
 	priv->tm = kzalloc(sizeof(struct stmmac_timer *), GFP_KERNEL);
-	if (unlikely(priv->tm == NULL)) {
-		ret = -ENOMEM;
-		goto open_clk_dis;
-	}
+	if (unlikely(priv->tm == NULL))
+		return -ENOMEM;
 
 	priv->tm->freq = tmrate;
 
@@ -964,6 +950,10 @@ static int stmmac_open(struct net_device *dev)
 	} else
 		priv->tm->enable = 1;
 #endif
+	stmmac_clk_enable(priv);
+
+	stmmac_check_ether_addr(priv);
+
 	ret = stmmac_init_phy(dev);
 	if (unlikely(ret)) {
 		pr_err("%s: Cannot attach to PHY (error: %d)\n", __func__, ret);
@@ -1067,8 +1057,8 @@ open_error:
 	if (priv->phydev)
 		phy_disconnect(priv->phydev);
 
-open_clk_dis:
 	stmmac_clk_disable(priv);
+
 	return ret;
 }
 
@@ -1120,7 +1110,6 @@ static int stmmac_release(struct net_device *dev)
 #ifdef CONFIG_STMMAC_DEBUG_FS
 	stmmac_exit_fs();
 #endif
-	stmmac_mdio_unregister(dev);
 	stmmac_clk_disable(priv);
 
 	return 0;
@@ -1932,6 +1921,14 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	else
 		priv->clk_csr = priv->plat->clk_csr;
 
+	/* MDIO bus Registration */
+	ret = stmmac_mdio_register(ndev);
+	if (ret < 0) {
+		pr_debug("%s: MDIO bus (id: %d) registration failed",
+			 __func__, priv->plat->bus_id);
+		goto error;
+	}
+
 	return priv;
 
 error:
@@ -1959,6 +1956,7 @@ int stmmac_dvr_remove(struct net_device *ndev)
 	priv->hw->dma->stop_tx(priv->ioaddr);
 
 	stmmac_set_mac(priv->ioaddr, false);
+	stmmac_mdio_unregister(ndev);
 	netif_carrier_off(ndev);
 	unregister_netdev(ndev);
 	free_netdev(ndev);
