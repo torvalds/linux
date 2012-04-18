@@ -63,11 +63,6 @@ config S5P_DEV_I2C_HDMIPHY
 	help
 	  Compile in platform device definitions for I2C HDMIPHY controller
 
-config S5P_DEV_MFC
-	bool
-	help
-	  Compile in platform device definitions for MFC
-
 config S5P_DEV_ONENAND
 	bool
 	help
@@ -92,8 +87,3 @@ config S5P_DEV_USB_EHCI
 	bool
 	help
 	  Compile in platform device definition for USB EHCI
-
-config S5P_SETUP_MIPIPHY
-	bool
-	help
-	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices

@@ -309,12 +309,22 @@ config SAMSUNG_DEV_BACKLIGHT
 	help
 	  Compile in platform device definition LCD backlight with PWM Timer
 
+config S5P_DEV_MFC
+	bool
+	help
+	  Compile in setup memory (init) code for MFC
+
 config S3C24XX_PWM
 	bool "PWM device support"
 	select HAVE_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system
+
+config S5P_SETUP_MIPIPHY
+	bool
+	help
+	  Compile in common setup code for MIPI-CSIS and MIPI-DSIM devices
 
 # DMA
 
