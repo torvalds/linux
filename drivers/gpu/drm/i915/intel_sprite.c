@@ -110,14 +110,18 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	 * when scaling is disabled.
 	 */
 	if (crtc_w != src_w || crtc_h != src_h) {
-		dev_priv->sprite_scaling_enabled = true;
-		intel_update_watermarks(dev);
-		intel_wait_for_vblank(dev, pipe);
+		if (!dev_priv->sprite_scaling_enabled) {
+			dev_priv->sprite_scaling_enabled = true;
+			intel_update_watermarks(dev);
+			intel_wait_for_vblank(dev, pipe);
+		}
 		sprscale = SPRITE_SCALE_ENABLE | (src_w << 16) | src_h;
 	} else {
-		dev_priv->sprite_scaling_enabled = false;
-		/* potentially re-enable LP watermarks */
-		intel_update_watermarks(dev);
+		if (dev_priv->sprite_scaling_enabled) {
+			dev_priv->sprite_scaling_enabled = false;
+			/* potentially re-enable LP watermarks */
+			intel_update_watermarks(dev);
+		}
 	}
 
 	I915_WRITE(SPRSTRIDE(pipe), fb->pitches[0]);
@@ -151,6 +155,9 @@ ivb_disable_plane(struct drm_plane *plane)
 	/* Activate double buffered register update */
 	I915_MODIFY_DISPBASE(SPRSURF(pipe), 0);
 	POSTING_READ(SPRSURF(pipe));
+
+	dev_priv->sprite_scaling_enabled = false;
+	intel_update_watermarks(dev);
 }
 
 static int
