@@ -54,7 +54,7 @@ static int wm831x_i2c_read_device(struct wm831x *wm831x, unsigned short reg,
 
 	ret = i2c_transfer(adap, msgs, 2);
 
-	return (ret == 2)? count : ret;
+	return (ret == 2)? 0 : ret;
 #else
 	struct i2c_client *i2c = wm831x->control_data;
 	int ret;
@@ -176,6 +176,10 @@ static int wm831x_i2c_remove(struct i2c_client *i2c)
 static int wm831x_i2c_suspend(struct device *dev)
 {
 	struct wm831x *wm831x = dev_get_drvdata(dev);
+
+	spin_lock(&wm831x->flag_lock);
+	wm831x->flag_suspend = 1;
+	spin_unlock(&wm831x->flag_lock);
 
 	return wm831x_device_suspend(wm831x);
 }

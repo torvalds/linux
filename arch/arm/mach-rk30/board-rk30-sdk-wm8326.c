@@ -104,7 +104,7 @@ static int wm831x_pre_init(struct wm831x *parm)
 
 	//BATT_FET_ENA = 1
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, 0x9716);	// unlock security key
-	wm831x_set_bits(parm, WM831X_RESET_CONTROL, 0x1000, 0x1000);
+	wm831x_set_bits(parm, WM831X_RESET_CONTROL, 0x1003, 0x1001);
 	ret = wm831x_reg_read(parm, WM831X_RESET_CONTROL) & 0xffff & UNLOCK_SECURITY_KEY;	// enternal reset active in sleep
 //	printk("%s:WM831X_RESET_CONTROL=0x%x\n", __func__, ret);
 	wm831x_reg_write(parm, WM831X_RESET_CONTROL, ret);
