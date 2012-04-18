@@ -185,14 +185,14 @@ static inline void atl1c_irq_reset(struct atl1c_adapter *adapter)
  * atl1c_wait_until_idle - wait up to AT_HW_MAX_IDLE_DELAY reads
  * of the idle status register until the device is actually idle
  */
-static u32 atl1c_wait_until_idle(struct atl1c_hw *hw)
+static u32 atl1c_wait_until_idle(struct atl1c_hw *hw, u32 modu_ctrl)
 {
 	int timeout;
 	u32 data;
 
 	for (timeout = 0; timeout < AT_HW_MAX_IDLE_DELAY; timeout++) {
 		AT_READ_REG(hw, REG_IDLE_STATUS, &data);
-		if ((data & IDLE_STATUS_MASK) == 0)
+		if ((data & modu_ctrl) == 0)
 			return 0;
 		msleep(1);
 	}
@@ -1119,13 +1119,14 @@ static int atl1c_stop_mac(struct atl1c_hw *hw)
 	data &= ~TXQ_CTRL_EN;
 	AT_WRITE_REG(hw, REG_TXQ_CTRL, data);
 
-	atl1c_wait_until_idle(hw);
+	atl1c_wait_until_idle(hw, IDLE_STATUS_RXQ_BUSY | IDLE_STATUS_TXQ_BUSY);
 
 	AT_READ_REG(hw, REG_MAC_CTRL, &data);
 	data &= ~(MAC_CTRL_TX_EN | MAC_CTRL_RX_EN);
 	AT_WRITE_REG(hw, REG_MAC_CTRL, data);
 
-	return (int)atl1c_wait_until_idle(hw);
+	return (int)atl1c_wait_until_idle(hw,
+		IDLE_STATUS_TXMAC_BUSY | IDLE_STATUS_RXMAC_BUSY);
 }
 
 static void atl1c_enable_rx_ctrl(struct atl1c_hw *hw)
@@ -1176,7 +1177,7 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 	msleep(10);
 	/* Wait at least 10ms for All module to be Idle */
 
-	if (atl1c_wait_until_idle(hw)) {
+	if (atl1c_wait_until_idle(hw, IDLE_STATUS_MASK)) {
 		dev_err(&pdev->dev,
 			"MAC state machine can't be idle since"
 			" disabled for 10ms second\n");
