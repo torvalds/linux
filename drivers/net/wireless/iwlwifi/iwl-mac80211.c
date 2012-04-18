@@ -198,8 +198,8 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_IBSS_RSN;
 
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
-	    trans(priv)->ops->wowlan_suspend &&
-	    device_can_wakeup(trans(priv)->dev)) {
+	    priv->trans->ops->wowlan_suspend &&
+	    device_can_wakeup(priv->trans->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
 					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
@@ -237,7 +237,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->bands[IEEE80211_BAND_5GHZ];
 
-	hw->wiphy->hw_version = trans(priv)->hw_id;
+	hw->wiphy->hw_version = priv->trans->hw_id;
 
 	iwl_leds_init(priv);
 
@@ -356,7 +356,7 @@ void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	 * even if interface is down, trans->down will leave the RF
 	 * kill interrupt enabled
 	 */
-	iwl_trans_stop_hw(trans(priv));
+	iwl_trans_stop_hw(priv->trans);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
@@ -412,9 +412,9 @@ int iwlagn_mac_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto error;
 
-	device_set_wakeup_enable(trans(priv)->dev, true);
+	device_set_wakeup_enable(priv->trans->dev, true);
 
-	iwl_trans_wowlan_suspend(trans(priv));
+	iwl_trans_wowlan_suspend(priv->trans);
 
 	goto out;
 
@@ -441,19 +441,19 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(trans(priv));
+		spin_lock_irqsave(&priv->trans->reg_lock, flags);
+		ret = iwl_grab_nic_access_silent(priv->trans);
 		if (likely(ret == 0)) {
-			iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, base);
-			status = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(trans(priv));
+			iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, base);
+			status = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
+			iwl_release_nic_access(priv->trans);
 		}
-		spin_unlock_irqrestore(&trans(priv)->reg_lock, flags);
+		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
@@ -468,7 +468,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
-				      trans(priv), 0x800000,
+				      priv->trans, 0x800000,
 				      priv->wowlan_sram,
 				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);
 		}
@@ -480,7 +480,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	priv->wowlan = false;
 
-	device_set_wakeup_enable(trans(priv)->dev, false);
+	device_set_wakeup_enable(priv->trans->dev, false);
 
 	iwlagn_prepare_restart(priv);
 
@@ -654,7 +654,7 @@ int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!trans(priv)->ops->tx_agg_setup)
+		if (!priv->trans->ops->tx_agg_setup)
 			break;
 		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
 			break;
@@ -1006,7 +1006,7 @@ void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 		}
 	}
 	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(trans(priv));
+	iwl_trans_wait_tx_queue_empty(priv->trans);
 done:
 	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");

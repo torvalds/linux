@@ -760,6 +760,7 @@ struct iwl_priv {
 
 	/*data shared among all the driver's layers */
 	struct iwl_shared *shrd;
+	struct iwl_trans *trans;
 	const struct iwl_fw *fw;
 	const struct iwl_lib_ops *lib;
 	unsigned long status;

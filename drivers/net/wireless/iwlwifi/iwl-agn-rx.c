@@ -604,16 +604,16 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
 		     CT_CARD_DISABLED)) {
 
-		iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
+		iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		iwl_write_direct32(trans(priv), HBUS_TARG_MBX_C,
+		iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
-			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			iwl_write_direct32(trans(priv), HBUS_TARG_MBX_C,
+			iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
 		if (flags & CT_CARD_DISABLED)
@@ -636,7 +636,7 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
-		wake_up(&trans(priv)->wait_command_queue);
+		wake_up(&priv->trans->wait_command_queue);
 	return 0;
 }
 

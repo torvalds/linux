@@ -189,7 +189,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		goto done;
 	}
 	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(trans(priv));
+	iwl_trans_wait_tx_queue_empty(priv->trans);
 done:
 	ieee80211_wake_queues(priv->hw);
 	mutex_unlock(&priv->mutex);
@@ -1132,7 +1132,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	memcpy(&rxon, &ctx->active, sizeof(rxon));
 
 	priv->ucode_loaded = false;
-	iwl_trans_stop_device(trans(priv));
+	iwl_trans_stop_device(priv->trans);
 
 	priv->wowlan = true;
 
@@ -1260,7 +1260,7 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	return iwl_trans_send_cmd(trans(priv), cmd);
+	return iwl_trans_send_cmd(priv->trans, cmd);
 }
 
 int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,

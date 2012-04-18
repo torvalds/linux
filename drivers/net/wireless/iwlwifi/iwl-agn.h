@@ -472,7 +472,7 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 		set_bit(STATUS_POWER_PMI, &priv->status);
 	else
 		clear_bit(STATUS_POWER_PMI, &priv->status);
-	iwl_trans_set_pmi(trans(priv), state);
+	iwl_trans_set_pmi(priv->trans, state);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG

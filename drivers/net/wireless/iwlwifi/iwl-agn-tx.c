@@ -467,7 +467,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	else
 		txq_id = ctx->ac_to_queue[skb_get_queue_mapping(skb)];
 
-	if (iwl_trans_tx(trans(priv), skb, dev_cmd, txq_id))
+	if (iwl_trans_tx(priv->trans, skb, dev_cmd, txq_id))
 		goto drop_unlock_sta;
 
 	if (ieee80211_is_data_qos(fc) && !ieee80211_is_qos_nullfunc(fc) &&
@@ -581,7 +581,7 @@ turn_off:
 	spin_unlock_bh(&priv->sta_lock);
 
 	if (test_bit(txq_id, priv->agg_q_alloc)) {
-		iwl_trans_tx_agg_disable(trans(priv), txq_id);
+		iwl_trans_tx_agg_disable(priv->trans, txq_id);
 		iwlagn_dealloc_agg_txq(priv, txq_id);
 	}
 
@@ -665,7 +665,7 @@ int iwlagn_tx_agg_oper(struct iwl_priv *priv, struct ieee80211_vif *vif,
 
 	fifo = ctx->ac_to_fifo[tid_to_ac[tid]];
 
-	iwl_trans_tx_agg_setup(trans(priv), q, fifo,
+	iwl_trans_tx_agg_setup(priv->trans, q, fifo,
 			       sta_priv->sta_id, tid,
 			       buf_size, ssn);
 
@@ -732,7 +732,7 @@ static void iwlagn_check_ratid_empty(struct iwl_priv *priv, int sta_id, u8 tid)
 			IWL_DEBUG_TX_QUEUES(priv,
 				"Can continue DELBA flow ssn = next_recl ="
 				" %d", tid_data->next_reclaimed);
-			iwl_trans_tx_agg_disable(trans(priv),
+			iwl_trans_tx_agg_disable(priv->trans,
 						 tid_data->agg.txq_id);
 			iwlagn_dealloc_agg_txq(priv, tid_data->agg.txq_id);
 			tid_data->agg.state = IWL_AGG_OFF;
@@ -1092,7 +1092,7 @@ static int iwl_reclaim(struct iwl_priv *priv, int sta_id, int tid,
 		return 1;
 	}
 
-	iwl_trans_reclaim(trans(priv), txq_id, ssn, skbs);
+	iwl_trans_reclaim(priv->trans, txq_id, ssn, skbs);
 	return 0;
 }
 

@@ -348,14 +348,14 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 		ptr = base + (4 * sizeof(u32)) + (start_idx * 3 * sizeof(u32));
 
 	/* Make sure device is powered up for SRAM reads */
-	spin_lock_irqsave(&trans(priv)->reg_lock, reg_flags);
-	if (unlikely(!iwl_grab_nic_access(trans(priv)))) {
-		spin_unlock_irqrestore(&trans(priv)->reg_lock, reg_flags);
+	spin_lock_irqsave(&priv->trans->reg_lock, reg_flags);
+	if (unlikely(!iwl_grab_nic_access(priv->trans))) {
+		spin_unlock_irqrestore(&priv->trans->reg_lock, reg_flags);
 		return;
 	}
 
 	/* Set starting address; reads will auto-increment */
-	iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, ptr);
+	iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, ptr);
 
 	/*
 	 * Refuse to read more than would have fit into the log from
@@ -371,20 +371,20 @@ static void iwl_print_cont_event_trace(struct iwl_priv *priv, u32 base,
 	 * place event id # at far right for easier visual parsing.
 	 */
 	for (i = 0; i < num_events; i++) {
-		ev = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
-		time = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
+		ev = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
+		time = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
 		if (mode == 0) {
 			trace_iwlwifi_dev_ucode_cont_event(
-					trans(priv)->dev, 0, time, ev);
+					priv->trans->dev, 0, time, ev);
 		} else {
-			data = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
+			data = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
 			trace_iwlwifi_dev_ucode_cont_event(
-					trans(priv)->dev, time, data, ev);
+					priv->trans->dev, time, data, ev);
 		}
 	}
 	/* Allow device to power down */
-	iwl_release_nic_access(trans(priv));
-	spin_unlock_irqrestore(&trans(priv)->reg_lock, reg_flags);
+	iwl_release_nic_access(priv->trans);
+	spin_unlock_irqrestore(&priv->trans->reg_lock, reg_flags);
 }
 
 static void iwl_continuous_event_trace(struct iwl_priv *priv)
@@ -403,8 +403,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 
 	base = priv->device_pointers.log_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		iwl_read_targ_mem_words(trans(priv), base, &read, sizeof(read));
-
+		iwl_read_targ_mem_words(priv->trans, base, &read, sizeof(read));
 		capacity = read.capacity;
 		mode = read.mode;
 		num_wraps = read.wrap_counter;
@@ -444,7 +443,7 @@ static void iwl_continuous_event_trace(struct iwl_priv *priv)
 		else
 			priv->event_log.wraps_once_count++;
 
-		trace_iwlwifi_dev_ucode_wrap_event(trans(priv)->dev,
+		trace_iwlwifi_dev_ucode_wrap_event(priv->trans->dev,
 				num_wraps - priv->event_log.num_wraps,
 				next_entry, priv->event_log.next_entry);
 
@@ -670,7 +669,7 @@ void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 	struct iwl_ct_kill_throttling_config adv_cmd;
 	int ret = 0;
 
-	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 		    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 
 	priv->thermal_throttle.ct_kill_toggle = false;
@@ -949,7 +948,7 @@ void iwl_down(struct iwl_priv *priv)
 		ieee80211_stop_queues(priv->hw);
 
 	priv->ucode_loaded = false;
-	iwl_trans_stop_device(trans(priv));
+	iwl_trans_stop_device(priv->trans);
 
 	/* Clear out all status bits but a few that are stable across reset */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
@@ -1325,7 +1324,7 @@ static int iwl_init_geos(struct iwl_priv *priv)
 	     priv->hw_params.sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
 			"Please send your %s to maintainer.\n",
-			trans(priv)->hw_id_str);
+			priv->trans->hw_id_str);
 		priv->hw_params.sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
 	}
 
@@ -1441,32 +1440,32 @@ void iwl_set_hw_params(struct iwl_priv *priv)
 
 void iwl_debug_config(struct iwl_priv *priv)
 {
-	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEBUG "
+	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEBUG "
 #ifdef CONFIG_IWLWIFI_DEBUG
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
-	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEBUGFS "
+	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEBUGFS "
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
-	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TRACING "
+	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEVICE_TRACING "
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
 
-	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
+	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
 		"enabled\n");
 #else
 		"disabled\n");
 #endif
-	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_P2P "
+	dev_printk(KERN_INFO, priv->trans->dev, "CONFIG_IWLWIFI_P2P "
 #ifdef CONFIG_IWLWIFI_P2P
 		"enabled\n");
 #else
@@ -1509,6 +1508,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	op_mode->ops = &iwl_dvm_ops;
 	priv = IWL_OP_MODE_GET_DVM(op_mode);
 	priv->shrd = trans->shrd;
+	priv->trans = trans;
 	priv->fw = fw;
 
 	switch (cfg(priv)->device_family) {
@@ -1587,11 +1587,11 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	}
 
 	/* Configure transport layer */
-	iwl_trans_configure(trans(priv), &trans_cfg);
+	iwl_trans_configure(priv->trans, &trans_cfg);
 
 	/* At this point both hw and priv are allocated. */
 
-	SET_IEEE80211_DEV(priv->hw, trans(priv)->dev);
+	SET_IEEE80211_DEV(priv->hw, priv->trans->dev);
 
 	/* show what debugging capabilities we have */
 	iwl_debug_config(priv);
@@ -1615,25 +1615,25 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
-	spin_lock_init(&trans(priv)->reg_lock);
+	spin_lock_init(&priv->trans->reg_lock);
 	spin_lock_init(&priv->statistics.lock);
 
 	/***********************
 	 * 2. Read REV register
 	 ***********************/
 	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
-		cfg(priv)->name, trans(priv)->hw_rev);
+		cfg(priv)->name, priv->trans->hw_rev);
 
-	if (iwl_trans_start_hw(trans(priv)))
+	if (iwl_trans_start_hw(priv->trans))
 		goto out_free_traffic_mem;
 
 	/* Read the EEPROM */
-	if (iwl_eeprom_init(priv, trans(priv)->hw_rev)) {
+	if (iwl_eeprom_init(priv, priv->trans->hw_rev)) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_free_traffic_mem;
 	}
 	/* Reset chip to save power until we load uCode during "up". */
-	iwl_trans_stop_hw(trans(priv));
+	iwl_trans_stop_hw(priv->trans);
 
 	if (iwl_eeprom_check_version(priv))
 		goto out_free_eeprom;
@@ -1676,7 +1676,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		n_q_to_ac = ARRAY_SIZE(iwlagn_bss_queue_to_ac);
 
 		/* Configure transport layer again*/
-		iwl_trans_configure(trans(priv), &trans_cfg);
+		iwl_trans_configure(priv->trans, &trans_cfg);
 	}
 
 	/*******************
@@ -1768,7 +1768,7 @@ void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 
 	/*This will stop the queues, move the device to low power state */
 	priv->ucode_loaded = false;
-	iwl_trans_stop_device(trans(priv));
+	iwl_trans_stop_device(priv->trans);
 
 	iwl_eeprom_free(priv);
 
@@ -1860,7 +1860,7 @@ static const char *desc_lookup(u32 num)
 
 static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 {
-	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans *trans = priv->trans;
 	u32 base;
 	struct iwl_error_event_table table;
 
@@ -1950,7 +1950,7 @@ static int iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 	u32 ev, time, data; /* event log data */
 	unsigned long reg_flags;
 
-	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans *trans = priv->trans;
 
 	if (num_events == 0)
 		return pos;
@@ -2068,7 +2068,7 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	u32 logsize;
 	int pos = 0;
 	size_t bufsz = 0;
-	struct iwl_trans *trans = trans(priv);
+	struct iwl_trans *trans = priv->trans;
 
 	base = priv->device_pointers.log_event_table;
 	if (priv->cur_ucode == IWL_UCODE_INIT) {
@@ -2184,7 +2184,7 @@ static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
 	 * commands by clearing the ready bit */
 	clear_bit(STATUS_READY, &priv->status);
 
-	wake_up(&trans(priv)->wait_command_queue);
+	wake_up(&priv->trans->wait_command_queue);
 
 	if (!ondemand) {
 		/*

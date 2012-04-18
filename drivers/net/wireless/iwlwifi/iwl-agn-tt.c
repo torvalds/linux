@@ -179,19 +179,19 @@ static void iwl_tt_check_exit_ct_kill(unsigned long data)
 
 	if (tt->state == IWL_TI_CT_KILL) {
 		if (priv->thermal_throttle.ct_kill_toggle) {
-			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = false;
 		} else {
-			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
+			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
 				    CSR_UCODE_DRV_GP1_REG_BIT_CT_KILL_EXIT);
 			priv->thermal_throttle.ct_kill_toggle = true;
 		}
-		iwl_read32(trans(priv), CSR_UCODE_DRV_GP1);
-		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
-		if (likely(iwl_grab_nic_access(trans(priv))))
-			iwl_release_nic_access(trans(priv));
-		spin_unlock_irqrestore(&trans(priv)->reg_lock, flags);
+		iwl_read32(priv->trans, CSR_UCODE_DRV_GP1);
+		spin_lock_irqsave(&priv->trans->reg_lock, flags);
+		if (likely(iwl_grab_nic_access(priv->trans)))
+			iwl_release_nic_access(priv->trans);
+		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 
 		/* Reschedule the ct_kill timer to occur in
 		 * CT_KILL_EXIT_DURATION seconds to ensure we get a
