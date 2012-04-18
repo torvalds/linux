@@ -50,7 +50,6 @@ static int __devinit stmmac_probe_config_dt(struct platform_device *pdev,
 	 * once needed on other platforms.
 	 */
 	if (of_device_is_compatible(np, "st,spear600-gmac")) {
-		plat->dma_cfg->pbl = 8;
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}

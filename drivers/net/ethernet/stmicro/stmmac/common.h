@@ -147,6 +147,7 @@ struct stmmac_extra_stats {
 #define DMA_HW_FEAT_FLEXIPPSEN	0x04000000 /* Flexible PPS Output */
 #define DMA_HW_FEAT_SAVLANINS	0x08000000 /* Source Addr or VLAN Insertion */
 #define DMA_HW_FEAT_ACTPHYIF	0x70000000 /* Active/selected PHY interface */
+#define DEFAULT_DMA_PBL		8
 
 enum rx_frame_status { /* IPC status */
 	good_frame = 0,

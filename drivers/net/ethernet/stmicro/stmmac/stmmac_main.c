@@ -919,6 +919,24 @@ static void stmmac_check_ether_addr(struct stmmac_priv *priv)
 						   priv->dev->dev_addr);
 }
 
+static int stmmac_init_dma_engine(struct stmmac_priv *priv)
+{
+	int pbl = DEFAULT_DMA_PBL, fixed_burst = 0, burst_len = 0;
+
+	/* Some DMA parameters can be passed from the platform;
+	 * in case of these are not passed we keep a default
+	 * (good for all the chips) and init the DMA! */
+	if (priv->plat->dma_cfg) {
+		pbl = priv->plat->dma_cfg->pbl;
+		fixed_burst = priv->plat->dma_cfg->fixed_burst;
+		burst_len = priv->plat->dma_cfg->burst_len;
+	}
+
+	return priv->hw->dma->init(priv->ioaddr, pbl, fixed_burst,
+				   burst_len, priv->dma_tx_phy,
+				   priv->dma_rx_phy);
+}
+
 /**
  *  stmmac_open - open entry point of the driver
  *  @dev : pointer to the device structure.
@@ -967,10 +985,7 @@ static int stmmac_open(struct net_device *dev)
 	init_dma_desc_rings(dev);
 
 	/* DMA initialization and SW reset */
-	ret = priv->hw->dma->init(priv->ioaddr, priv->plat->dma_cfg->pbl,
-				  priv->plat->dma_cfg->fixed_burst,
-				  priv->plat->dma_cfg->burst_len,
-				  priv->dma_tx_phy, priv->dma_rx_phy);
+	ret = stmmac_init_dma_engine(priv);
 	if (ret < 0) {
 		pr_err("%s: DMA initialization failed\n", __func__);
 		goto open_error;
