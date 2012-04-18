@@ -1001,11 +1001,10 @@ static void fsi_dma_do_tasklet(unsigned long data)
 	sg_dma_address(&sg) = buf;
 	sg_dma_len(&sg) = len;
 
-	desc = chan->device->device_prep_slave_sg(chan, &sg, 1, dir,
-						  DMA_PREP_INTERRUPT |
-						  DMA_CTRL_ACK);
+	desc = dmaengine_prep_slave_sg(chan, &sg, 1, dir,
+				       DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!desc) {
-		dev_err(dai->dev, "device_prep_slave_sg() fail\n");
+		dev_err(dai->dev, "dmaengine_prep_slave_sg() fail\n");
 		return;
 	}
 
