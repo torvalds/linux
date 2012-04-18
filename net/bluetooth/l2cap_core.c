@@ -4813,7 +4813,8 @@ int l2cap_security_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 	BT_DBG("conn %p", conn);
 
 	if (hcon->type == LE_LINK) {
-		smp_distribute_keys(conn, 0);
+		if (!status && encrypt)
+			smp_distribute_keys(conn, 0);
 		cancel_delayed_work(&conn->security_timer);
 	}
 
