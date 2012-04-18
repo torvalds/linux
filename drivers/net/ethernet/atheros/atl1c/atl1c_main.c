@@ -108,6 +108,7 @@ static void atl1c_reset_pcie(struct atl1c_hw *hw, u32 flag)
 	u32 data;
 	u32 pci_cmd;
 	struct pci_dev *pdev = hw->adapter->pdev;
+	int pos;
 
 	AT_READ_REG(hw, PCI_COMMAND, &pci_cmd);
 	pci_cmd &= ~PCI_COMMAND_INTX_DISABLE;
@@ -124,10 +125,16 @@ static void atl1c_reset_pcie(struct atl1c_hw *hw, u32 flag)
 	/*
 	 * Mask some pcie error bits
 	 */
-	AT_READ_REG(hw, REG_PCIE_UC_SEVERITY, &data);
-	data &= ~PCIE_UC_SERVRITY_DLP;
-	data &= ~PCIE_UC_SERVRITY_FCP;
-	AT_WRITE_REG(hw, REG_PCIE_UC_SEVERITY, data);
+	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	pci_read_config_dword(pdev, pos + PCI_ERR_UNCOR_SEVER, &data);
+	data &= ~(PCI_ERR_UNC_DLP | PCI_ERR_UNC_FCP);
+	pci_write_config_dword(pdev, pos + PCI_ERR_UNCOR_SEVER, data);
+	/* clear error status */
+	pci_write_config_word(pdev, pci_pcie_cap(pdev) + PCI_EXP_DEVSTA,
+			PCI_EXP_DEVSTA_NFED |
+			PCI_EXP_DEVSTA_FED |
+			PCI_EXP_DEVSTA_CED |
+			PCI_EXP_DEVSTA_URD);
 
 	AT_READ_REG(hw, REG_LTSSM_ID_CTRL, &data);
 	data &= ~LTSSM_ID_EN_WRO;
