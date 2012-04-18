@@ -18,6 +18,21 @@
 
 const char 	*disassembler_style;
 
+static int call_ops__parse_target(const char *operands, u64 *target)
+{
+	*target = strtoull(operands, NULL, 16);
+	return 0;
+}
+
+static struct ins_ops call_ops = {
+	.parse_target = call_ops__parse_target,
+};
+
+bool ins__is_call(const struct ins *ins)
+{
+	return ins->ops == &call_ops;
+}
+
 static int jump_ops__parse_target(const char *operands, u64 *target)
 {
 	const char *s = strchr(operands, '+');
@@ -38,11 +53,12 @@ bool ins__is_jump(const struct ins *ins)
 	return ins->ops == &jump_ops;
 }
 
-
 /*
  * Must be sorted by name!
  */
 static struct ins instructions[] = {
+	{ .name = "call",  .ops  = &call_ops, },
+	{ .name = "callq", .ops  = &call_ops, },
 	{ .name = "ja",	   .ops  = &jump_ops, },
 	{ .name = "je",	   .ops  = &jump_ops, },
 	{ .name = "jmp",   .ops  = &jump_ops, },

@@ -17,6 +17,7 @@ struct ins {
 };
 
 bool ins__is_jump(const struct ins *ins);
+bool ins__is_call(const struct ins *ins);
 
 struct disasm_line {
 	struct list_head node;

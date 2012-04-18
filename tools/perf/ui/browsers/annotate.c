@@ -266,11 +266,10 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	struct symbol *target;
 	u64 ip;
 
-	if (strcmp(dl->name, "callq"))
+	if (!ins__is_call(dl->ins))
 		return false;
 
-	ip = strtoull(dl->operands, NULL, 16);
-	ip = ms->map->map_ip(ms->map, ip);
+	ip = ms->map->map_ip(ms->map, dl->target);
 	target = map__find_symbol(ms->map, ip, NULL);
 	if (target == NULL) {
 		ui_helpline__puts("The called function was not found.");
@@ -318,7 +317,7 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 	struct disasm_line *dl = browser->selection;
 	s64 idx;
 
-	if (!dl->ins || !ins__is_jump(dl->ins))
+	if (!ins__is_jump(dl->ins))
 		return false;
 
 	dl = annotate_browser__find_offset(browser, dl->target, &idx);
@@ -556,7 +555,8 @@ show_help:
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (self->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!(annotate_browser__jump(self) ||
+			else if (!self->selection->ins ||
+				 !(annotate_browser__jump(self) ||
 				   annotate_browser__callq(self, evidx, timer, arg, delay_secs)))
 				ui_helpline__puts("Actions are only available for the 'callq' and jump instructions.");
 			continue;
