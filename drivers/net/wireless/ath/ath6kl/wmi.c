@@ -2882,6 +2882,43 @@ int ath6kl_wmi_set_keepalive_cmd(struct wmi *wmi, u8 if_idx,
 	return ret;
 }
 
+int ath6kl_wmi_set_htcap_cmd(struct wmi *wmi, u8 if_idx,
+			     enum ieee80211_band band,
+			     struct ath6kl_htcap *htcap)
+{
+	struct sk_buff *skb;
+	struct wmi_set_htcap_cmd *cmd;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_set_htcap_cmd *) skb->data;
+
+	/*
+	 * NOTE: Band in firmware matches enum ieee80211_band, it is unlikely
+	 * this will be changed in firmware. If at all there is any change in
+	 * band value, the host needs to be fixed.
+	 */
+	cmd->band = band;
+	cmd->ht_enable = !!htcap->ht_enable;
+	cmd->ht20_sgi = !!(htcap->cap_info & IEEE80211_HT_CAP_SGI_20);
+	cmd->ht40_supported =
+		!!(htcap->cap_info & IEEE80211_HT_CAP_SUP_WIDTH_20_40);
+	cmd->ht40_sgi = !!(htcap->cap_info & IEEE80211_HT_CAP_SGI_40);
+	cmd->intolerant_40mhz =
+		!!(htcap->cap_info & IEEE80211_HT_CAP_40MHZ_INTOLERANT);
+	cmd->max_ampdu_len_exp = htcap->ampdu_factor;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI,
+		   "Set htcap: band:%d ht_enable:%d 40mhz:%d sgi_20mhz:%d sgi_40mhz:%d 40mhz_intolerant:%d ampdu_len_exp:%d\n",
+		   cmd->band, cmd->ht_enable, cmd->ht40_supported,
+		   cmd->ht20_sgi, cmd->ht40_sgi, cmd->intolerant_40mhz,
+		   cmd->max_ampdu_len_exp);
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_HT_CAP_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
 int ath6kl_wmi_test_cmd(struct wmi *wmi, void *buf, size_t len)
 {
 	struct sk_buff *skb;
@@ -3032,6 +3069,9 @@ int ath6kl_wmi_ap_set_mlme(struct wmi *wmip, u8 if_idx, u8 cmd, const u8 *mac,
 	cm->reason = cpu_to_le16(reason);
 	cm->cmd = cmd;
 
+	ath6kl_dbg(ATH6KL_DBG_WMI, "ap_set_mlme: cmd=%d reason=%d\n", cm->cmd,
+		   cm->reason);
+
 	return ath6kl_wmi_cmd_send(wmip, if_idx, skb, WMI_AP_SET_MLME_CMDID,
 				   NO_SYNC_WMIFLAG);
 }
@@ -3178,6 +3218,29 @@ int ath6kl_wmi_set_appie_cmd(struct wmi *wmi, u8 if_idx, u8 mgmt_frm_type,
 		memcpy(p->ie_info, ie, ie_len);
 
 	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_APPIE_CMDID,
+				   NO_SYNC_WMIFLAG);
+}
+
+int ath6kl_wmi_set_ie_cmd(struct wmi *wmi, u8 if_idx, u8 ie_id, u8 ie_field,
+			  const u8 *ie_info, u8 ie_len)
+{
+	struct sk_buff *skb;
+	struct wmi_set_ie_cmd *p;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*p) + ie_len);
+	if (!skb)
+		return -ENOMEM;
+
+	ath6kl_dbg(ATH6KL_DBG_WMI, "set_ie_cmd: ie_id=%u ie_ie_field=%u ie_len=%u\n",
+		   ie_id, ie_field, ie_len);
+	p = (struct wmi_set_ie_cmd *) skb->data;
+	p->ie_id = ie_id;
+	p->ie_field = ie_field;
+	p->ie_len = ie_len;
+	if (ie_info && ie_len > 0)
+		memcpy(p->ie_info, ie_info, ie_len);
+
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_SET_IE_CMDID,
 				   NO_SYNC_WMIFLAG);
 }
 
@@ -3390,6 +3453,23 @@ int ath6kl_wmi_cancel_remain_on_chnl_cmd(struct wmi *wmi, u8 if_idx)
 	ath6kl_dbg(ATH6KL_DBG_WMI, "cancel_remain_on_chnl_cmd\n");
 	return ath6kl_wmi_simple_cmd(wmi, if_idx,
 				     WMI_CANCEL_REMAIN_ON_CHNL_CMDID);
+}
+
+int ath6kl_wmi_set_inact_period(struct wmi *wmi, u8 if_idx, int inact_timeout)
+{
+	struct sk_buff *skb;
+	struct wmi_set_inact_period_cmd *cmd;
+
+	skb = ath6kl_wmi_get_new_buf(sizeof(*cmd));
+	if (!skb)
+		return -ENOMEM;
+
+	cmd = (struct wmi_set_inact_period_cmd *) skb->data;
+	cmd->inact_period = cpu_to_le32(inact_timeout);
+	cmd->num_null_func = 0;
+
+	return ath6kl_wmi_cmd_send(wmi, if_idx, skb, WMI_AP_CONN_INACT_CMDID,
+				   NO_SYNC_WMIFLAG);
 }
 
 static int ath6kl_wmi_control_rx_xtnd(struct wmi *wmi, struct sk_buff *skb)

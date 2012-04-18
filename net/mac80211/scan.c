@@ -29,20 +29,6 @@
 #define IEEE80211_CHANNEL_TIME (HZ / 33)
 #define IEEE80211_PASSIVE_CHANNEL_TIME (HZ / 8)
 
-struct ieee80211_bss *
-ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
-		     u8 *ssid, u8 ssid_len)
-{
-	struct cfg80211_bss *cbss;
-
-	cbss = cfg80211_get_bss(local->hw.wiphy,
-				ieee80211_get_channel(local->hw.wiphy, freq),
-				bssid, ssid, ssid_len, 0, 0);
-	if (!cbss)
-		return NULL;
-	return (void *)cbss->priv;
-}
-
 static void ieee80211_rx_bss_free(struct cfg80211_bss *cbss)
 {
 	struct ieee80211_bss *bss = (void *)cbss->priv;
@@ -387,6 +373,33 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	return 0;
 }
 
+static bool ieee80211_can_scan(struct ieee80211_local *local,
+			       struct ieee80211_sub_if_data *sdata)
+{
+	if (!list_empty(&local->work_list))
+		return false;
+
+	if (sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    sdata->u.mgd.flags & (IEEE80211_STA_BEACON_POLL |
+				  IEEE80211_STA_CONNECTION_POLL))
+		return false;
+
+	return true;
+}
+
+void ieee80211_run_deferred_scan(struct ieee80211_local *local)
+{
+	lockdep_assert_held(&local->mtx);
+
+	if (!local->scan_req || local->scanning)
+		return;
+
+	if (!ieee80211_can_scan(local, local->scan_sdata))
+		return;
+
+	ieee80211_queue_delayed_work(&local->hw, &local->scan_work,
+				     round_jiffies_relative(0));
+}
 
 static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_scan_request *req)
@@ -399,7 +412,7 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	if (local->scan_req)
 		return -EBUSY;
 
-	if (!list_empty(&local->work_list)) {
+	if (!ieee80211_can_scan(local, sdata)) {
 		/* wait for the work to finish/time out */
 		local->scan_req = req;
 		local->scan_sdata = sdata;

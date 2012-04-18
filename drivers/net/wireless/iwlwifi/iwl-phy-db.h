@@ -108,6 +108,12 @@ enum iwl_phy_db_section_type {
 	IWL_PHY_DB_MAX
 };
 
+/* for parsing of tx power channel group data that comes from the firmware*/
+struct iwl_phy_db_chg_txp {
+	__le32 space;
+	__le16 max_channel_idx;
+} __packed;
+
 struct iwl_phy_db *iwl_phy_db_init(struct iwl_shared *shrd);
 
 void iwl_phy_db_free(struct iwl_phy_db *phy_db);

@@ -2947,6 +2947,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
  */
 __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
+					enum ieee80211_band band,
 					size_t frame_len,
 					struct ieee80211_rate *rate);
 
@@ -3800,4 +3801,7 @@ int ieee80211_add_srates_ie(struct ieee80211_vif *vif,
 
 int ieee80211_add_ext_srates_ie(struct ieee80211_vif *vif,
 				struct sk_buff *skb, bool need_basic);
+
+int ieee80211_ave_rssi(struct ieee80211_vif *vif);
+
 #endif /* MAC80211_H */

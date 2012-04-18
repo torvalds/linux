@@ -1710,7 +1710,8 @@ struct cfg80211_ops {
 				  struct net_device *dev,
 				  u16 noack_map);
 
-	struct ieee80211_channel *(*get_channel)(struct wiphy *wiphy);
+	struct ieee80211_channel *(*get_channel)(struct wiphy *wiphy,
+					       enum nl80211_channel_type *type);
 };
 
 /*
@@ -1744,10 +1745,6 @@ struct cfg80211_ops {
  *	hints read the documenation for regulatory_hint_found_beacon()
  * @WIPHY_FLAG_NETNS_OK: if not set, do not allow changing the netns of this
  *	wiphy at all
- * @WIPHY_FLAG_ENFORCE_COMBINATIONS: Set this flag to enforce interface
- *	combinations for this device. This flag is used for backward
- *	compatibility only until all drivers advertise combinations and
- *	they will always be enforced.
  * @WIPHY_FLAG_PS_ON_BY_DEFAULT: if set to true, powersave will be enabled
  *	by default -- this flag will be set depending on the kernel's default
  *	on wiphy_new(), but can be changed by the driver if it has a good
@@ -1792,7 +1789,7 @@ enum wiphy_flags {
 	WIPHY_FLAG_IBSS_RSN			= BIT(8),
 	WIPHY_FLAG_MESH_AUTH			= BIT(10),
 	WIPHY_FLAG_SUPPORTS_SCHED_SCAN		= BIT(11),
-	WIPHY_FLAG_ENFORCE_COMBINATIONS		= BIT(12),
+	/* use hole at 12 */
 	WIPHY_FLAG_SUPPORTS_FW_ROAM		= BIT(13),
 	WIPHY_FLAG_AP_UAPSD			= BIT(14),
 	WIPHY_FLAG_SUPPORTS_TDLS		= BIT(15),

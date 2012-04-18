@@ -292,29 +292,28 @@ static void mwifiex_free_adapter(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function initializes the hardware and firmware.
+ * This function gets firmware and initializes it.
  *
  * The main initialization steps followed are -
  *      - Download the correct firmware to card
- *      - Allocate and initialize the adapter structure
- *      - Initialize the private structures
  *      - Issue the init commands to firmware
  */
-static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
+static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 {
-	int ret, err;
+	int ret;
+	char fmt[64];
+	struct mwifiex_private *priv;
+	struct mwifiex_adapter *adapter = context;
 	struct mwifiex_fw_image fw;
 
-	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
-
-	err = request_firmware(&adapter->firmware, adapter->fw_name,
-			       adapter->dev);
-	if (err < 0) {
-		dev_err(adapter->dev, "request_firmware() returned"
-				" error code %#x\n", err);
-		ret = -1;
+	if (!firmware) {
+		dev_err(adapter->dev,
+			"Failed to get firmware %s\n", adapter->fw_name);
 		goto done;
 	}
+
+	memset(&fw, 0, sizeof(struct mwifiex_fw_image));
+	adapter->firmware = firmware;
 	fw.fw_buf = (u8 *) adapter->firmware->data;
 	fw.fw_len = adapter->firmware->size;
 
@@ -335,17 +334,54 @@ static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
 	/* Wait for mwifiex_init to complete */
 	wait_event_interruptible(adapter->init_wait_q,
 				 adapter->init_wait_q_woken);
-	if (adapter->hw_status != MWIFIEX_HW_STATUS_READY) {
-		ret = -1;
+	if (adapter->hw_status != MWIFIEX_HW_STATUS_READY)
 		goto done;
-	}
-	ret = 0;
 
+	priv = adapter->priv[0];
+	if (mwifiex_register_cfg80211(priv) != 0) {
+		dev_err(adapter->dev, "cannot register with cfg80211\n");
+		goto err_init_fw;
+	}
+
+	rtnl_lock();
+	/* Create station interface by default */
+	if (!mwifiex_add_virtual_intf(priv->wdev->wiphy, "mlan%d",
+				      NL80211_IFTYPE_STATION, NULL, NULL)) {
+		dev_err(adapter->dev, "cannot create default STA interface\n");
+		goto err_add_intf;
+	}
+	rtnl_unlock();
+
+	mwifiex_drv_get_driver_version(adapter, fmt, sizeof(fmt) - 1);
+	dev_notice(adapter->dev, "driver_version = %s\n", fmt);
+	goto done;
+
+err_add_intf:
+	mwifiex_del_virtual_intf(priv->wdev->wiphy, priv->netdev);
+	rtnl_unlock();
+err_init_fw:
+	pr_debug("info: %s: unregister device\n", __func__);
+	adapter->if_ops.unregister_dev(adapter);
 done:
-	if (adapter->firmware)
-		release_firmware(adapter->firmware);
-	if (ret)
-		ret = -1;
+	release_firmware(adapter->firmware);
+	complete(&adapter->fw_load);
+	return;
+}
+
+/*
+ * This function initializes the hardware and gets firmware.
+ */
+static int mwifiex_init_hw_fw(struct mwifiex_adapter *adapter)
+{
+	int ret;
+
+	init_completion(&adapter->fw_load);
+	ret = request_firmware_nowait(THIS_MODULE, 1, adapter->fw_name,
+				      adapter->dev, GFP_KERNEL, adapter,
+				      mwifiex_fw_dpc);
+	if (ret < 0)
+		dev_err(adapter->dev,
+			"request_firmware_nowait() returned error %d\n", ret);
 	return ret;
 }
 
@@ -650,8 +686,6 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		 struct mwifiex_if_ops *if_ops, u8 iface_type)
 {
 	struct mwifiex_adapter *adapter;
-	char fmt[64];
-	struct mwifiex_private *priv;
 
 	if (down_interruptible(sem))
 		goto exit_sem_err;
@@ -692,37 +726,9 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 		goto err_init_fw;
 	}
 
-	priv = adapter->priv[0];
-
-	if (mwifiex_register_cfg80211(priv) != 0) {
-		dev_err(adapter->dev, "cannot register netdevice"
-			       " with cfg80211\n");
-			goto err_init_fw;
-	}
-
-	rtnl_lock();
-	/* Create station interface by default */
-	if (!mwifiex_add_virtual_intf(priv->wdev->wiphy, "mlan%d",
-				      NL80211_IFTYPE_STATION, NULL, NULL)) {
-		rtnl_unlock();
-		dev_err(adapter->dev, "cannot create default station"
-				" interface\n");
-		goto err_add_intf;
-	}
-
-	rtnl_unlock();
-
 	up(sem);
-
-	mwifiex_drv_get_driver_version(adapter, fmt, sizeof(fmt) - 1);
-	dev_notice(adapter->dev, "driver_version = %s\n", fmt);
-
 	return 0;
 
-err_add_intf:
-	rtnl_lock();
-	mwifiex_del_virtual_intf(priv->wdev->wiphy, priv->netdev);
-	rtnl_unlock();
 err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
 	adapter->if_ops.unregister_dev(adapter);

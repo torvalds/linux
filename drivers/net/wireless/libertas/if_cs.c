@@ -890,8 +890,8 @@ static int if_cs_probe(struct pcmcia_device *p_dev)
 		goto out2;
 	}
 
-	ret = lbs_get_firmware(&p_dev->dev, NULL, NULL, card->model,
-				&fw_table[0], &helper, &mainfw);
+	ret = lbs_get_firmware(&p_dev->dev, card->model, &fw_table[0],
+				&helper, &mainfw);
 	if (ret) {
 		pr_err("failed to find firmware (%d)\n", ret);
 		goto out2;
@@ -951,10 +951,8 @@ out2:
 out1:
 	pcmcia_disable_device(p_dev);
 out:
-	if (helper)
-		release_firmware(helper);
-	if (mainfw)
-		release_firmware(mainfw);
+	release_firmware(helper);
+	release_firmware(mainfw);
 
 	lbs_deb_leave_args(LBS_DEB_CS, "ret %d", ret);
 	return ret;

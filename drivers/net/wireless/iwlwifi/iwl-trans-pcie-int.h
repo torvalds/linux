@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
+#include <linux/timer.h>
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
@@ -43,8 +44,6 @@
 #include "iwl-io.h"
 #include "iwl-op-mode.h"
 
-struct iwl_tx_queue;
-struct iwl_queue;
 struct iwl_host_cmd;
 
 /*This file includes the declaration that are internal to the
@@ -140,10 +139,10 @@ struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
 
-	u32 flags;
-
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	DEFINE_DMA_UNMAP_LEN(len);
+
+	u32 flags;
 };
 
 /*
@@ -206,7 +205,8 @@ struct iwl_tx_queue {
 	struct iwl_cmd_meta *meta;
 	struct sk_buff **skbs;
 	spinlock_t lock;
-	unsigned long time_stamp;
+	struct timer_list stuck_timer;
+	struct iwl_trans_pcie *trans_pcie;
 	u8 need_update;
 	u8 active;
 };
@@ -227,6 +227,9 @@ struct iwl_tx_queue {
  * @ucode_write_waitq: wait queue for uCode load
  * @status - transport specific status flags
  * @cmd_queue - command queue number
+ * @rx_buf_size_8k: 8 kB RX buffer size
+ * @rx_page_order: page order for receive buffer size
+ * @wd_timeout: queue watchdog timeout (jiffies)
  */
 struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
@@ -266,10 +269,33 @@ struct iwl_trans_pcie {
 	u8 no_reclaim_cmds[MAX_NO_RECLAIM_CMDS];
 	u8 setup_q_to_fifo[IWL_MAX_HW_QUEUES];
 	u8 n_q_to_fifo;
+
+	bool rx_buf_size_8k;
+	u32 rx_page_order;
+
+	const char **command_names;
+
+	/* queue watchdog */
+	unsigned long wd_timeout;
 };
+
+/*****************************************************
+* DRIVER STATUS FUNCTIONS
+******************************************************/
+#define STATUS_HCMD_ACTIVE	0
+#define STATUS_DEVICE_ENABLED	1
+#define STATUS_TPOWER_PMI	2
+#define STATUS_INT_ENABLED	3
 
 #define IWL_TRANS_GET_PCIE_TRANS(_iwl_trans) \
 	((struct iwl_trans_pcie *) ((_iwl_trans)->trans_specific))
+
+static inline struct iwl_trans *
+iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
+{
+	return container_of((void *)trans_pcie, struct iwl_trans,
+			    trans_specific);
+}
 
 /*****************************************************
 * RX
@@ -390,6 +416,14 @@ static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 static inline u8 get_cmd_index(struct iwl_queue *q, u32 index)
 {
 	return index & (q->n_window - 1);
+}
+
+static inline const char *
+trans_pcie_get_cmd_string(struct iwl_trans_pcie *trans_pcie, u8 cmd)
+{
+	if (!trans_pcie->command_names || !trans_pcie->command_names[cmd])
+		return "UNKNOWN";
+	return trans_pcie->command_names[cmd];
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

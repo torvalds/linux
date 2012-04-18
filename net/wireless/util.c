@@ -946,13 +946,6 @@ int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 	if (rdev->wiphy.software_iftypes & BIT(iftype))
 		return 0;
 
-	/*
-	 * Drivers will gradually all set this flag, until all
-	 * have it we only enforce for those that set it.
-	 */
-	if (!(rdev->wiphy.flags & WIPHY_FLAG_ENFORCE_COMBINATIONS))
-		return 0;
-
 	memset(num, 0, sizeof(num));
 
 	num[iftype] = 1;
@@ -971,6 +964,9 @@ int cfg80211_can_change_interface(struct cfg80211_registered_device *rdev,
 		total++;
 	}
 	mutex_unlock(&rdev->devlist_mtx);
+
+	if (total == 1)
+		return 0;
 
 	for (i = 0; i < rdev->wiphy.n_iface_combinations; i++) {
 		const struct ieee80211_iface_combination *c;

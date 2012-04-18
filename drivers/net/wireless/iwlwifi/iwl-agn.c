@@ -180,7 +180,7 @@ int iwlagn_send_beacon_cmd(struct iwl_priv *priv)
 		rate = info->control.rates[0].idx;
 
 	priv->mgmt_tx_ant = iwl_toggle_tx_ant(priv, priv->mgmt_tx_ant,
-					      hw_params(priv).valid_tx_ant);
+					      priv->hw_params.valid_tx_ant);
 	rate_flags = iwl_ant_idx_to_flags(priv->mgmt_tx_ant);
 
 	/* In mac80211, rates for 5 GHz start at 0 */
@@ -287,6 +287,25 @@ static void iwl_bg_bt_full_concurrency(struct work_struct *work)
 	iwlagn_send_advance_bt_config(priv);
 out:
 	mutex_unlock(&priv->mutex);
+}
+
+int iwl_send_statistics_request(struct iwl_priv *priv, u8 flags, bool clear)
+{
+	struct iwl_statistics_cmd statistics_cmd = {
+		.configuration_flags =
+			clear ? IWL_STATS_CONF_CLEAR_STATS : 0,
+	};
+
+	if (flags & CMD_ASYNC)
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					CMD_ASYNC,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
+	else
+		return iwl_dvm_send_cmd_pdu(priv, REPLY_STATISTICS_CMD,
+					CMD_SYNC,
+					sizeof(struct iwl_statistics_cmd),
+					&statistics_cmd);
 }
 
 /**
@@ -578,7 +597,7 @@ static const u8 iwlagn_pan_queue_to_ac[] = {
 	IEEE80211_AC_VO,
 };
 
-static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
+void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 {
 	int i;
 
@@ -645,7 +664,7 @@ static void iwl_init_context(struct iwl_priv *priv, u32 ucode_flags)
 	BUILD_BUG_ON(NUM_IWL_RXON_CTX != 2);
 }
 
-static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
+void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 {
 	struct iwl_ct_kill_config cmd;
 	struct iwl_ct_kill_throttling_config adv_cmd;
@@ -658,9 +677,9 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 
 	if (cfg(priv)->base_params->support_ct_kill_exit) {
 		adv_cmd.critical_temperature_enter =
-			cpu_to_le32(hw_params(priv).ct_kill_threshold);
+			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 		adv_cmd.critical_temperature_exit =
-			cpu_to_le32(hw_params(priv).ct_kill_exit_threshold);
+			cpu_to_le32(priv->hw_params.ct_kill_exit_threshold);
 
 		ret = iwl_dvm_send_cmd_pdu(priv,
 				       REPLY_CT_KILL_CONFIG_CMD,
@@ -671,11 +690,11 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
 				"succeeded, critical temperature enter is %d,"
 				"exit is %d\n",
-				hw_params(priv).ct_kill_threshold,
-				hw_params(priv).ct_kill_exit_threshold);
+				priv->hw_params.ct_kill_threshold,
+				priv->hw_params.ct_kill_exit_threshold);
 	} else {
 		cmd.critical_temperature_R =
-			cpu_to_le32(hw_params(priv).ct_kill_threshold);
+			cpu_to_le32(priv->hw_params.ct_kill_threshold);
 
 		ret = iwl_dvm_send_cmd_pdu(priv,
 				       REPLY_CT_KILL_CONFIG_CMD,
@@ -686,7 +705,7 @@ static void iwl_rf_kill_ct_config(struct iwl_priv *priv)
 			IWL_DEBUG_INFO(priv, "REPLY_CT_KILL_CONFIG_CMD "
 				"succeeded, "
 				"critical temperature is %d\n",
-				hw_params(priv).ct_kill_threshold);
+				priv->hw_params.ct_kill_threshold);
 	}
 }
 
@@ -726,6 +745,29 @@ static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	}
 }
 
+void iwl_send_bt_config(struct iwl_priv *priv)
+{
+	struct iwl_bt_cmd bt_cmd = {
+		.lead_time = BT_LEAD_TIME_DEF,
+		.max_kill = BT_MAX_KILL_DEF,
+		.kill_ack_mask = 0,
+		.kill_cts_mask = 0,
+	};
+
+	if (!iwlagn_mod_params.bt_coex_active)
+		bt_cmd.flags = BT_COEX_DISABLE;
+	else
+		bt_cmd.flags = BT_COEX_ENABLE;
+
+	priv->bt_enable_flag = bt_cmd.flags;
+	IWL_DEBUG_INFO(priv, "BT coex %s\n",
+		(bt_cmd.flags == BT_COEX_DISABLE) ? "disable" : "active");
+
+	if (iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
+			     CMD_SYNC, sizeof(struct iwl_bt_cmd), &bt_cmd))
+		IWL_ERR(priv, "failed to send BT Coex Config\n");
+}
+
 /**
  * iwl_alive_start - called after REPLY_ALIVE notification received
  *                   from protocol/runtime uCode (initialization uCode's
@@ -740,9 +782,6 @@ int iwl_alive_start(struct iwl_priv *priv)
 
 	/* After the ALIVE response, we can send host commands to the uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
-
-	/* Enable watchdog to monitor the driver tx queues */
-	iwl_setup_watchdog(priv);
 
 	if (iwl_is_rfkill(priv))
 		return -ERFKILL;
@@ -793,10 +832,8 @@ int iwl_alive_start(struct iwl_priv *priv)
 
 	ieee80211_wake_queues(priv->hw);
 
-	priv->active_rate = IWL_RATES_MASK;
-
 	/* Configure Tx antenna selection based on H/W config */
-	iwlagn_send_tx_ant_config(priv, hw_params(priv).valid_tx_ant);
+	iwlagn_send_tx_ant_config(priv, priv->hw_params.valid_tx_ant);
 
 	if (iwl_is_associated_ctx(ctx) && !priv->wowlan) {
 		struct iwl_rxon_cmd *active_rxon =
@@ -886,10 +923,6 @@ void iwl_down(struct iwl_priv *priv)
 
 	exit_pending =
 		test_and_set_bit(STATUS_EXIT_PENDING, &priv->status);
-
-	/* Stop TX queues watchdog. We need to have STATUS_EXIT_PENDING bit set
-	 * to prevent rearm timer */
-	del_timer_sync(&priv->watchdog);
 
 	iwl_clear_ucode_stations(priv, NULL);
 	iwl_dealloc_bcast_stations(priv);
@@ -1067,7 +1100,7 @@ static void iwlagn_disable_roc_work(struct work_struct *work)
  *
  *****************************************************************************/
 
-static void iwl_setup_deferred_work(struct iwl_priv *priv)
+void iwl_setup_deferred_work(struct iwl_priv *priv)
 {
 	priv->workqueue = create_singlethread_workqueue(DRV_NAME);
 
@@ -1092,10 +1125,6 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	init_timer(&priv->ucode_trace);
 	priv->ucode_trace.data = (unsigned long)priv;
 	priv->ucode_trace.function = iwl_bg_ucode_trace;
-
-	init_timer(&priv->watchdog);
-	priv->watchdog.data = (unsigned long)priv;
-	priv->watchdog.function = iwl_bg_watchdog;
 }
 
 void iwl_cancel_deferred_work(struct iwl_priv *priv)
@@ -1143,8 +1172,8 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 			      enum ieee80211_band band)
 {
 	u16 max_bit_rate = 0;
-	u8 rx_chains_num = hw_params(priv).rx_chains_num;
-	u8 tx_chains_num = hw_params(priv).tx_chains_num;
+	u8 rx_chains_num = priv->hw_params.rx_chains_num;
+	u8 tx_chains_num = priv->hw_params.tx_chains_num;
 
 	ht_info->cap = 0;
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
@@ -1156,7 +1185,7 @@ static void iwl_init_ht_hw_capab(const struct iwl_priv *priv,
 		ht_info->cap |= IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
-	if (hw_params(priv).ht40_channel & BIT(band)) {
+	if (priv->hw_params.ht40_channel & BIT(band)) {
 		ht_info->cap |= IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		ht_info->cap |= IEEE80211_HT_CAP_SGI_40;
 		ht_info->mcs.rx_mask[4] = 0x01;
@@ -1228,7 +1257,7 @@ static int iwl_init_geos(struct iwl_priv *priv)
 	sband->bitrates = &rates[IWL_FIRST_OFDM_RATE];
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY - IWL_FIRST_OFDM_RATE;
 
-	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
 		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_5GHZ);
 
@@ -1238,7 +1267,7 @@ static int iwl_init_geos(struct iwl_priv *priv)
 	sband->bitrates = rates;
 	sband->n_bitrates = IWL_RATE_COUNT_LEGACY;
 
-	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
 		iwl_init_ht_hw_capab(priv, &sband->ht_cap,
 					 IEEE80211_BAND_2GHZ);
 
@@ -1293,11 +1322,11 @@ static int iwl_init_geos(struct iwl_priv *priv)
 	priv->tx_power_next = max_tx_power;
 
 	if ((priv->bands[IEEE80211_BAND_5GHZ].n_channels == 0) &&
-	     hw_params(priv).sku & EEPROM_SKU_CAP_BAND_52GHZ) {
+	     priv->hw_params.sku & EEPROM_SKU_CAP_BAND_52GHZ) {
 		IWL_INFO(priv, "Incorrectly detected BG card as ABG. "
 			"Please send your %s to maintainer.\n",
 			trans(priv)->hw_id_str);
-		hw_params(priv).sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
+		priv->hw_params.sku &= ~EEPROM_SKU_CAP_BAND_52GHZ;
 	}
 
 	IWL_INFO(priv, "Tunable channels: %d 802.11bg, %d 802.11a channels\n",
@@ -1319,7 +1348,7 @@ static void iwl_free_geos(struct iwl_priv *priv)
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
-static int iwl_init_drv(struct iwl_priv *priv)
+int iwl_init_drv(struct iwl_priv *priv)
 {
 	int ret;
 
@@ -1342,12 +1371,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->agg_tids_count = 0;
 
 	priv->ucode_owner = IWL_OWNERSHIP_DRIVER;
-
-	/* initialize force reset */
-	priv->force_reset[IWL_RF_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_RF_RESET;
-	priv->force_reset[IWL_FW_RESET].reset_duration =
-		IWL_DELAY_NEXT_FORCE_FW_RELOAD;
 
 	priv->rx_statistics_jiffies = jiffies;
 
@@ -1388,7 +1411,7 @@ err:
 	return ret;
 }
 
-static void iwl_uninit_drv(struct iwl_priv *priv)
+void iwl_uninit_drv(struct iwl_priv *priv)
 {
 	iwl_free_geos(priv);
 	iwl_free_channel_map(priv);
@@ -1401,35 +1424,22 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 #endif
 }
 
-/* Size of one Rx buffer in host DRAM */
-#define IWL_RX_BUF_SIZE_4K (4 * 1024)
-#define IWL_RX_BUF_SIZE_8K (8 * 1024)
-
-static void iwl_set_hw_params(struct iwl_priv *priv)
+void iwl_set_hw_params(struct iwl_priv *priv)
 {
 	if (cfg(priv)->ht_params)
-		hw_params(priv).use_rts_for_aggregation =
+		priv->hw_params.use_rts_for_aggregation =
 			cfg(priv)->ht_params->use_rts_for_aggregation;
 
-	if (iwlagn_mod_params.amsdu_size_8K)
-		hw_params(priv).rx_page_order =
-			get_order(IWL_RX_BUF_SIZE_8K);
-	else
-		hw_params(priv).rx_page_order =
-			get_order(IWL_RX_BUF_SIZE_4K);
-
 	if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_ALL)
-		hw_params(priv).sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
-
-	hw_params(priv).wd_timeout = cfg(priv)->base_params->wd_timeout;
+		priv->hw_params.sku &= ~EEPROM_SKU_CAP_11N_ENABLE;
 
 	/* Device-specific setup */
-	cfg(priv)->lib->set_hw_params(priv);
+	priv->lib->set_hw_params(priv);
 }
 
 
 
-static void iwl_debug_config(struct iwl_priv *priv)
+void iwl_debug_config(struct iwl_priv *priv)
 {
 	dev_printk(KERN_INFO, trans(priv)->dev, "CONFIG_IWLWIFI_DEBUG "
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -1501,6 +1511,42 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->shrd = trans->shrd;
 	priv->fw = fw;
 
+	switch (cfg(priv)->device_family) {
+	case IWL_DEVICE_FAMILY_1000:
+	case IWL_DEVICE_FAMILY_100:
+		priv->lib = &iwl1000_lib;
+		break;
+	case IWL_DEVICE_FAMILY_2000:
+	case IWL_DEVICE_FAMILY_105:
+		priv->lib = &iwl2000_lib;
+		break;
+	case IWL_DEVICE_FAMILY_2030:
+	case IWL_DEVICE_FAMILY_135:
+		priv->lib = &iwl2030_lib;
+		break;
+	case IWL_DEVICE_FAMILY_5000:
+		priv->lib = &iwl5000_lib;
+		break;
+	case IWL_DEVICE_FAMILY_5150:
+		priv->lib = &iwl5150_lib;
+		break;
+	case IWL_DEVICE_FAMILY_6000:
+	case IWL_DEVICE_FAMILY_6005:
+	case IWL_DEVICE_FAMILY_6000i:
+	case IWL_DEVICE_FAMILY_6050:
+	case IWL_DEVICE_FAMILY_6150:
+		priv->lib = &iwl6000_lib;
+		break;
+	case IWL_DEVICE_FAMILY_6030:
+		priv->lib = &iwl6030_lib;
+		break;
+	default:
+		break;
+	}
+
+	if (WARN_ON(!priv->lib))
+		goto out_free_traffic_mem;
+
 	/*
 	 * Populate the state variables that the transport layer needs
 	 * to know about.
@@ -1508,11 +1554,18 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	trans_cfg.op_mode = op_mode;
 	trans_cfg.no_reclaim_cmds = no_reclaim_cmds;
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
+	trans_cfg.rx_buf_size_8k = iwlagn_mod_params.amsdu_size_8K;
+	if (!iwlagn_mod_params.wd_disable)
+		trans_cfg.queue_watchdog_timeout =
+			cfg(priv)->base_params->wd_timeout;
+	else
+		trans_cfg.queue_watchdog_timeout = IWL_WATCHHDOG_DISABLED;
+	trans_cfg.command_names = iwl_dvm_cmd_strings;
 
 	ucode_flags = fw->ucode_capa.flags;
 
 #ifndef CONFIG_IWLWIFI_P2P
-	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
+	ucode_flags &= ~IWL_UCODE_TLV_FLAGS_P2P;
 #endif
 
 	if (ucode_flags & IWL_UCODE_TLV_FLAGS_PAN) {
@@ -1574,11 +1627,8 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	if (iwl_trans_start_hw(trans(priv)))
 		goto out_free_traffic_mem;
 
-	/*****************
-	 * 3. Read EEPROM
-	 *****************/
 	/* Read the EEPROM */
-	if (iwl_eeprom_init(trans(priv), trans(priv)->hw_rev)) {
+	if (iwl_eeprom_init(priv, trans(priv)->hw_rev)) {
 		IWL_ERR(priv, "Unable to init EEPROM\n");
 		goto out_free_traffic_mem;
 	}
@@ -1592,11 +1642,11 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 		goto out_free_eeprom;
 
 	/* extract MAC Address */
-	iwl_eeprom_get_mac(priv->shrd, priv->addresses[0].addr);
+	iwl_eeprom_get_mac(priv, priv->addresses[0].addr);
 	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->addresses[0].addr);
 	priv->hw->wiphy->addresses = priv->addresses;
 	priv->hw->wiphy->n_addresses = 1;
-	num_mac = iwl_eeprom_query16(priv->shrd, EEPROM_NUM_MAC_ADDRESS);
+	num_mac = iwl_eeprom_query16(priv, EEPROM_NUM_MAC_ADDRESS);
 	if (num_mac > 1) {
 		memcpy(priv->addresses[1].addr, priv->addresses[0].addr,
 		       ETH_ALEN);
@@ -1609,7 +1659,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	 ************************/
 	iwl_set_hw_params(priv);
 
-	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
+	if (!(priv->hw_params.sku & EEPROM_SKU_CAP_IPAN_ENABLE)) {
 		IWL_DEBUG_INFO(priv, "Your EEPROM disabled PAN");
 		ucode_flags &= ~IWL_UCODE_TLV_FLAGS_PAN;
 		/*
@@ -1694,7 +1744,7 @@ out_destroy_workqueue:
 	priv->workqueue = NULL;
 	iwl_uninit_drv(priv);
 out_free_eeprom:
-	iwl_eeprom_free(priv->shrd);
+	iwl_eeprom_free(priv);
 out_free_traffic_mem:
 	iwl_free_traffic_mem(priv);
 	ieee80211_free_hw(priv->hw);
@@ -1703,7 +1753,7 @@ out:
 	return op_mode;
 }
 
-static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
+void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
@@ -1720,7 +1770,7 @@ static void iwl_op_mode_dvm_stop(struct iwl_op_mode *op_mode)
 	priv->ucode_loaded = false;
 	iwl_trans_stop_device(trans(priv));
 
-	iwl_eeprom_free(priv->shrd);
+	iwl_eeprom_free(priv);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);
@@ -1838,7 +1888,7 @@ static void iwl_dump_nic_error_log(struct iwl_priv *priv)
 	if (ERROR_START_OFFSET <= table.valid * ERROR_ELEM_SIZE) {
 		IWL_ERR(trans, "Start IWL Error Log Dump:\n");
 		IWL_ERR(trans, "Status: 0x%08lX, count: %d\n",
-			priv->shrd->status, table.valid);
+			priv->status, table.valid);
 	}
 
 	trace_iwlwifi_dev_ucode_error(trans->dev, table.error_id, table.tsf_low,
@@ -2112,7 +2162,63 @@ int iwl_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 	return pos;
 }
 
-static void iwl_nic_error(struct iwl_op_mode *op_mode)
+static void iwlagn_fw_error(struct iwl_priv *priv, bool ondemand)
+{
+	unsigned int reload_msec;
+	unsigned long reload_jiffies;
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	if (iwl_have_debug_level(IWL_DL_FW_ERRORS))
+		iwl_print_rx_config_cmd(priv, IWL_RXON_CTX_BSS);
+#endif
+
+	/* uCode is no longer loaded. */
+	priv->ucode_loaded = false;
+
+	/* Set the FW error flag -- cleared on iwl_down */
+	set_bit(STATUS_FW_ERROR, &priv->status);
+
+	iwl_abort_notification_waits(&priv->notif_wait);
+
+	/* Keep the restart process from trying to send host
+	 * commands by clearing the ready bit */
+	clear_bit(STATUS_READY, &priv->status);
+
+	wake_up(&trans(priv)->wait_command_queue);
+
+	if (!ondemand) {
+		/*
+		 * If firmware keep reloading, then it indicate something
+		 * serious wrong and firmware having problem to recover
+		 * from it. Instead of keep trying which will fill the syslog
+		 * and hang the system, let's just stop it
+		 */
+		reload_jiffies = jiffies;
+		reload_msec = jiffies_to_msecs((long) reload_jiffies -
+					(long) priv->reload_jiffies);
+		priv->reload_jiffies = reload_jiffies;
+		if (reload_msec <= IWL_MIN_RELOAD_DURATION) {
+			priv->reload_count++;
+			if (priv->reload_count >= IWL_MAX_CONTINUE_RELOAD_CNT) {
+				IWL_ERR(priv, "BUG_ON, Stop restarting\n");
+				return;
+			}
+		} else
+			priv->reload_count = 0;
+	}
+
+	if (!test_bit(STATUS_EXIT_PENDING, &priv->status)) {
+		if (iwlagn_mod_params.restart_fw) {
+			IWL_DEBUG_FW_ERRORS(priv,
+				  "Restarting adapter due to uCode error.\n");
+			queue_work(priv->workqueue, &priv->restart);
+		} else
+			IWL_DEBUG_FW_ERRORS(priv,
+				  "Detected FW error, but not restarting\n");
+	}
+}
+
+void iwl_nic_error(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
@@ -2125,7 +2231,7 @@ static void iwl_nic_error(struct iwl_op_mode *op_mode)
 	iwlagn_fw_error(priv, false);
 }
 
-static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
+void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
@@ -2135,14 +2241,22 @@ static void iwl_cmd_queue_full(struct iwl_op_mode *op_mode)
 	}
 }
 
-static void iwl_nic_config(struct iwl_op_mode *op_mode)
+void iwl_nic_config(struct iwl_op_mode *op_mode)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 
-	cfg(priv)->lib->nic_config(priv);
+	priv->lib->nic_config(priv);
 }
 
-static void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
+static void iwl_wimax_active(struct iwl_op_mode *op_mode)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	clear_bit(STATUS_READY, &priv->status);
+	IWL_ERR(priv, "RF is used by WiMAX\n");
+}
+
+void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	int ac = priv->queue_to_ac[queue];
@@ -2161,7 +2275,7 @@ static void iwl_stop_sw_queue(struct iwl_op_mode *op_mode, int queue)
 	ieee80211_stop_queue(priv->hw, ac);
 }
 
-static void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
+void iwl_wake_sw_queue(struct iwl_op_mode *op_mode, int queue)
 {
 	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
 	int ac = priv->queue_to_ac[queue];
@@ -2201,6 +2315,27 @@ void iwlagn_lift_passive_no_rx(struct iwl_priv *priv)
 	priv->passive_no_rx = false;
 }
 
+void iwl_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info;
+
+	info = IEEE80211_SKB_CB(skb);
+	kmem_cache_free(iwl_tx_cmd_pool, (info->driver_data[1]));
+	dev_kfree_skb_any(skb);
+}
+
+void iwl_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
+{
+	struct iwl_priv *priv = IWL_OP_MODE_GET_DVM(op_mode);
+
+	if (state)
+		set_bit(STATUS_RF_KILL_HW, &priv->status);
+	else
+		clear_bit(STATUS_RF_KILL_HW, &priv->status);
+
+	wiphy_rfkill_set_hw_state(priv->hw->wiphy, state);
+}
+
 const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.start = iwl_op_mode_dvm_start,
 	.stop = iwl_op_mode_dvm_stop,
@@ -2212,6 +2347,7 @@ const struct iwl_op_mode_ops iwl_dvm_ops = {
 	.nic_error = iwl_nic_error,
 	.cmd_queue_full = iwl_cmd_queue_full,
 	.nic_config = iwl_nic_config,
+	.wimax_active = iwl_wimax_active,
 };
 
 /*****************************************************************************
@@ -2280,12 +2416,6 @@ MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
 module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
 
-module_param_named(ucode_alternative,
-		   iwlagn_mod_params.wanted_ucode_alternative,
-		   int, S_IRUGO);
-MODULE_PARM_DESC(ucode_alternative,
-		 "specify ucode alternative to use from ucode file");
-
 module_param_named(antenna_coupling, iwlagn_mod_params.ant_coupling,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(antenna_coupling,
@@ -2298,9 +2428,6 @@ MODULE_PARM_DESC(bt_ch_inhibition,
 
 module_param_named(plcp_check, iwlagn_mod_params.plcp_check, bool, S_IRUGO);
 MODULE_PARM_DESC(plcp_check, "Check plcp health (default: 1 [enabled])");
-
-module_param_named(ack_check, iwlagn_mod_params.ack_check, bool, S_IRUGO);
-MODULE_PARM_DESC(ack_check, "Check ack health (default: 0 [disabled])");
 
 module_param_named(wd_disable, iwlagn_mod_params.wd_disable, int, S_IRUGO);
 MODULE_PARM_DESC(wd_disable,
@@ -2345,13 +2472,3 @@ module_param_named(auto_agg, iwlagn_mod_params.auto_agg,
 		bool, S_IRUGO);
 MODULE_PARM_DESC(auto_agg,
 		 "enable agg w/o check traffic load (default: enable)");
-
-/*
- * For now, keep using power level 1 instead of automatically
- * adjusting ...
- */
-module_param_named(no_sleep_autoadjust, iwlagn_mod_params.no_sleep_autoadjust,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(no_sleep_autoadjust,
-		 "don't automatically adjust sleep level "
-		 "according to maximum network latency (default: true)");

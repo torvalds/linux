@@ -699,6 +699,7 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 		    ieee80211_is_probe_resp(mgmt->frame_control))
 			mgmt->u.beacon.timestamp = cpu_to_le64(
 				rx_status.mactime +
+				(data->tsf_offset - data2->tsf_offset) +
 				24 * 8 * 10 / txrate->bitrate);
 
 		memcpy(IEEE80211_SKB_RXCB(nskb), &rx_status, sizeof(rx_status));

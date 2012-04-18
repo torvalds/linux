@@ -24,6 +24,8 @@
 #include "rc.h"
 #include "ar9003_mac.h"
 #include "ar9003_mci.h"
+#include "debug.h"
+#include "ath9k.h"
 
 static bool ath9k_hw_set_reset_reg(struct ath_hw *ah, u32 type);
 
@@ -82,6 +84,53 @@ static void ath9k_hw_ani_cache_ini_regs(struct ath_hw *ah)
 /********************/
 /* Helper Functions */
 /********************/
+
+#ifdef CONFIG_ATH9K_DEBUGFS
+
+void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause)
+{
+	struct ath_softc *sc = common->priv;
+	if (sync_cause)
+		sc->debug.stats.istats.sync_cause_all++;
+	if (sync_cause & AR_INTR_SYNC_RTC_IRQ)
+		sc->debug.stats.istats.sync_rtc_irq++;
+	if (sync_cause & AR_INTR_SYNC_MAC_IRQ)
+		sc->debug.stats.istats.sync_mac_irq++;
+	if (sync_cause & AR_INTR_SYNC_EEPROM_ILLEGAL_ACCESS)
+		sc->debug.stats.istats.eeprom_illegal_access++;
+	if (sync_cause & AR_INTR_SYNC_APB_TIMEOUT)
+		sc->debug.stats.istats.apb_timeout++;
+	if (sync_cause & AR_INTR_SYNC_PCI_MODE_CONFLICT)
+		sc->debug.stats.istats.pci_mode_conflict++;
+	if (sync_cause & AR_INTR_SYNC_HOST1_FATAL)
+		sc->debug.stats.istats.host1_fatal++;
+	if (sync_cause & AR_INTR_SYNC_HOST1_PERR)
+		sc->debug.stats.istats.host1_perr++;
+	if (sync_cause & AR_INTR_SYNC_TRCV_FIFO_PERR)
+		sc->debug.stats.istats.trcv_fifo_perr++;
+	if (sync_cause & AR_INTR_SYNC_RADM_CPL_EP)
+		sc->debug.stats.istats.radm_cpl_ep++;
+	if (sync_cause & AR_INTR_SYNC_RADM_CPL_DLLP_ABORT)
+		sc->debug.stats.istats.radm_cpl_dllp_abort++;
+	if (sync_cause & AR_INTR_SYNC_RADM_CPL_TLP_ABORT)
+		sc->debug.stats.istats.radm_cpl_tlp_abort++;
+	if (sync_cause & AR_INTR_SYNC_RADM_CPL_ECRC_ERR)
+		sc->debug.stats.istats.radm_cpl_ecrc_err++;
+	if (sync_cause & AR_INTR_SYNC_RADM_CPL_TIMEOUT)
+		sc->debug.stats.istats.radm_cpl_timeout++;
+	if (sync_cause & AR_INTR_SYNC_LOCAL_TIMEOUT)
+		sc->debug.stats.istats.local_timeout++;
+	if (sync_cause & AR_INTR_SYNC_PM_ACCESS)
+		sc->debug.stats.istats.pm_access++;
+	if (sync_cause & AR_INTR_SYNC_MAC_AWAKE)
+		sc->debug.stats.istats.mac_awake++;
+	if (sync_cause & AR_INTR_SYNC_MAC_ASLEEP)
+		sc->debug.stats.istats.mac_asleep++;
+	if (sync_cause & AR_INTR_SYNC_MAC_SLEEP_ACCESS)
+		sc->debug.stats.istats.mac_sleep_access++;
+}
+#endif
+
 
 static void ath9k_hw_set_clockrate(struct ath_hw *ah)
 {
@@ -388,8 +437,8 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 {
 	int i;
 
-	ah->config.dma_beacon_response_time = 2;
-	ah->config.sw_beacon_response_time = 10;
+	ah->config.dma_beacon_response_time = 1;
+	ah->config.sw_beacon_response_time = 6;
 	ah->config.additional_swba_backoff = 0;
 	ah->config.ack_6mb = 0x0;
 	ah->config.cwm_ignore_extcca = 0;
@@ -445,7 +494,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 		AR_STA_ID1_MCAST_KSRCH;
 	if (AR_SREV_9100(ah))
 		ah->sta_id1_defaults |= AR_STA_ID1_AR9100_BA_FIX;
-	ah->enable_32kHz_clock = DONT_USE_32KHZ;
 	ah->slottime = ATH9K_SLOT_TIME_9;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;

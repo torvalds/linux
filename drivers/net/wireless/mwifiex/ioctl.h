@@ -96,7 +96,7 @@ struct mwifiex_bss_info {
 	u32 bss_mode;
 	struct cfg80211_ssid ssid;
 	u32 bss_chan;
-	u32 region_code;
+	u8 country_code[3];
 	u32 media_connected;
 	u32 max_power_level;
 	u32 min_power_level;
@@ -303,6 +303,7 @@ struct mwifiex_ds_misc_subsc_evt {
 
 #define MWIFIEX_MAX_VSIE_LEN       (256)
 #define MWIFIEX_MAX_VSIE_NUM       (8)
+#define MWIFIEX_VSIE_MASK_CLEAR    0x00
 #define MWIFIEX_VSIE_MASK_SCAN     0x01
 #define MWIFIEX_VSIE_MASK_ASSOC    0x02
 #define MWIFIEX_VSIE_MASK_ADHOC    0x04

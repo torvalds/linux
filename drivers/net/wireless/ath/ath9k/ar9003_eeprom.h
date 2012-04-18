@@ -42,7 +42,6 @@
 #define AR9300_EEPMISC_WOW           0x02
 #define AR9300_CUSTOMER_DATA_SIZE    20
 
-#define FBIN2FREQ(x, y) ((y) ? (2300 + x) : (4800 + 5 * x))
 #define AR9300_MAX_CHAINS            3
 #define AR9300_ANT_16S               25
 #define AR9300_FUTURE_MODAL_SZ       6

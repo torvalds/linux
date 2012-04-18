@@ -160,7 +160,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
 		     IEEE80211_HW_SCAN_WHILE_IDLE;
 
-	if (hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE)
+	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
 			     IEEE80211_HW_SUPPORTS_STATIC_SMPS;
 
@@ -333,7 +333,7 @@ static int iwlagn_mac_start(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void iwlagn_mac_stop(struct ieee80211_hw *hw)
+void iwlagn_mac_stop(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -361,9 +361,9 @@ static void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif,
-				      struct cfg80211_gtk_rekey_data *data)
+void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct cfg80211_gtk_rekey_data *data)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -389,8 +389,7 @@ static void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 
 #ifdef CONFIG_PM_SLEEP
 
-static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
-			      struct cfg80211_wowlan *wowlan)
+int iwlagn_mac_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
@@ -499,7 +498,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 #endif
 
-static void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
+void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -510,21 +509,21 @@ static void iwlagn_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		dev_kfree_skb_any(skb);
 }
 
-static void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
-				       struct ieee80211_vif *vif,
-				       struct ieee80211_key_conf *keyconf,
-				       struct ieee80211_sta *sta,
-				       u32 iv32, u16 *phase1key)
+void iwlagn_mac_update_tkip_key(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_key_conf *keyconf,
+				struct ieee80211_sta *sta,
+				u32 iv32, u16 *phase1key)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
 	iwl_update_tkip_key(priv, vif, keyconf, sta, iv32, phase1key);
 }
 
-static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-			      struct ieee80211_vif *vif,
-			      struct ieee80211_sta *sta,
-			      struct ieee80211_key_conf *key)
+int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		       struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
@@ -624,11 +623,11 @@ static int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
-static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
-				   struct ieee80211_vif *vif,
-				   enum ieee80211_ampdu_mlme_action action,
-				   struct ieee80211_sta *sta, u16 tid, u16 *ssn,
-				   u8 buf_size)
+int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    enum ieee80211_ampdu_mlme_action action,
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn,
+			    u8 buf_size)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	int ret = -EINVAL;
@@ -637,7 +636,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 	IWL_DEBUG_HT(priv, "A-MPDU action on addr %pM tid %d\n",
 		     sta->addr, tid);
 
-	if (!(hw_params(priv).sku & EEPROM_SKU_CAP_11N_ENABLE))
+	if (!(priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE))
 		return -EACCES;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -671,7 +670,7 @@ static int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 				     priv->agg_tids_count);
 		}
 		if (!priv->agg_tids_count &&
-		    hw_params(priv).use_rts_for_aggregation) {
+		    priv->hw_params.use_rts_for_aggregation) {
 			/*
 			 * switch off RTS/CTS if it was previously enabled
 			 */
@@ -750,11 +749,11 @@ static int iwlagn_mac_sta_remove(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
-				struct ieee80211_vif *vif,
-				struct ieee80211_sta *sta,
-				enum ieee80211_sta_state old_state,
-				enum ieee80211_sta_state new_state)
+int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta,
+			 enum ieee80211_sta_state old_state,
+			 enum ieee80211_sta_state new_state)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
@@ -833,8 +832,8 @@ static int iwlagn_mac_sta_state(struct ieee80211_hw *hw,
 	return ret;
 }
 
-static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
-				struct ieee80211_channel_switch *ch_switch)
+void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
+			       struct ieee80211_channel_switch *ch_switch)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	const struct iwl_channel_info *ch_info;
@@ -867,7 +866,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	if (!iwl_is_associated_ctx(ctx))
 		goto out;
 
-	if (!cfg(priv)->lib->set_channel_switch)
+	if (!priv->lib->set_channel_switch)
 		goto out;
 
 	ch = channel->hw_value;
@@ -903,7 +902,7 @@ static void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	 */
 	set_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
 	priv->switch_channel = cpu_to_le16(ch);
-	if (cfg(priv)->lib->set_channel_switch(priv, ch_switch)) {
+	if (priv->lib->set_channel_switch(priv, ch_switch)) {
 		clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status);
 		priv->switch_channel = 0;
 		ieee80211_chswitch_done(ctx->vif, false);
@@ -914,10 +913,25 @@ out:
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static void iwlagn_configure_filter(struct ieee80211_hw *hw,
-				    unsigned int changed_flags,
-				    unsigned int *total_flags,
-				    u64 multicast)
+void iwl_chswitch_done(struct iwl_priv *priv, bool is_success)
+{
+	/*
+	 * MULTI-FIXME
+	 * See iwlagn_mac_channel_switch.
+	 */
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	if (test_and_clear_bit(STATUS_CHANNEL_SWITCH_PENDING, &priv->status))
+		ieee80211_chswitch_done(ctx->vif, is_success);
+}
+
+void iwlagn_configure_filter(struct ieee80211_hw *hw,
+			     unsigned int changed_flags,
+			     unsigned int *total_flags,
+			     u64 multicast)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	__le32 filter_or = 0, filter_nand = 0;
@@ -964,7 +978,7 @@ static void iwlagn_configure_filter(struct ieee80211_hw *hw,
 			FIF_BCN_PRBRESP_PROMISC | FIF_CONTROL;
 }
 
-static void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
+void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -1091,7 +1105,7 @@ static int iwlagn_mac_remain_on_channel(struct ieee80211_hw *hw,
 	return err;
 }
 
-static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
+int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -1108,8 +1122,8 @@ static int iwlagn_mac_cancel_remain_on_channel(struct ieee80211_hw *hw)
 	return 0;
 }
 
-static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
-			   enum ieee80211_rssi_event rssi_event)
+void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
+			      enum ieee80211_rssi_event rssi_event)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -1133,8 +1147,8 @@ static void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
 
-static int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
-			   struct ieee80211_sta *sta, bool set)
+int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
+		       struct ieee80211_sta *sta, bool set)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -1143,9 +1157,9 @@ static int iwlagn_mac_set_tim(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif, u16 queue,
-		    const struct ieee80211_tx_queue_params *params)
+int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif, u16 queue,
+		       const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
@@ -1187,7 +1201,7 @@ static int iwlagn_mac_conf_tx(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int iwlagn_mac_tx_last_beacon(struct ieee80211_hw *hw)
+int iwlagn_mac_tx_last_beacon(struct ieee80211_hw *hw)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
@@ -1203,8 +1217,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	return iwlagn_commit_rxon(priv, ctx);
 }
 
-static int iwl_setup_interface(struct iwl_priv *priv,
-			       struct iwl_rxon_context *ctx)
+int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	struct ieee80211_vif *vif = ctx->vif;
 	int err;
@@ -1307,9 +1320,9 @@ static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
 	return err;
 }
 
-static void iwl_teardown_interface(struct iwl_priv *priv,
-				   struct ieee80211_vif *vif,
-				   bool mode_change)
+void iwl_teardown_interface(struct iwl_priv *priv,
+			    struct ieee80211_vif *vif,
+			    bool mode_change)
 {
 	struct iwl_rxon_context *ctx = iwl_rxon_ctx_from_vif(vif);
 
@@ -1450,9 +1463,9 @@ static int iwlagn_mac_change_interface(struct ieee80211_hw *hw,
 	return err;
 }
 
-static int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
-		    struct ieee80211_vif *vif,
-		    struct cfg80211_scan_request *req)
+int iwlagn_mac_hw_scan(struct ieee80211_hw *hw,
+		       struct ieee80211_vif *vif,
+		       struct cfg80211_scan_request *req)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	int ret;
@@ -1507,7 +1520,7 @@ static void iwl_sta_modify_ps_wake(struct iwl_priv *priv, int sta_id)
 	iwl_send_add_sta(priv, &cmd, CMD_ASYNC);
 }
 
-static void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
+void iwlagn_mac_sta_notify(struct ieee80211_hw *hw,
 			   struct ieee80211_vif *vif,
 			   enum sta_notify_cmd cmd,
 			   struct ieee80211_sta *sta)

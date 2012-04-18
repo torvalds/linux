@@ -673,12 +673,12 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	u16 rx_chain = 0;
 	enum ieee80211_band band;
 	u8 n_probes = 0;
-	u8 rx_ant = hw_params(priv).valid_rx_ant;
+	u8 rx_ant = priv->hw_params.valid_rx_ant;
 	u8 rate;
 	bool is_active = false;
 	int  chan_mod;
 	u8 active_chains;
-	u8 scan_tx_antennas = hw_params(priv).valid_tx_ant;
+	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
 	int ret;
 
 	lockdep_assert_held(&priv->mutex);
@@ -872,7 +872,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	/* MIMO is not used here, but value is required */
 	rx_chain |=
-		hw_params(priv).valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
+		priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
@@ -985,7 +985,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 void iwl_init_scan_params(struct iwl_priv *priv)
 {
-	u8 ant_idx = fls(hw_params(priv).valid_tx_ant) - 1;
+	u8 ant_idx = fls(priv->hw_params.valid_tx_ant) - 1;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_5GHZ])
 		priv->scan_tx_ant[IEEE80211_BAND_5GHZ] = ant_idx;
 	if (!priv->scan_tx_ant[IEEE80211_BAND_2GHZ])

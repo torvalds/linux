@@ -152,7 +152,6 @@ static int ar9003_hw_set_channel(struct ath_hw *ah, struct ath9k_channel *chan)
 	REG_WRITE(ah, AR_PHY_65NM_CH0_SYNTH7, reg32);
 
 	ah->curchan = chan;
-	ah->curchan_rad_index = -1;
 
 	return 0;
 }
@@ -209,11 +208,12 @@ static void ar9003_hw_spur_mitigate_mrc_cck(struct ath_hw *ah,
 			continue;
 		negative = 0;
 		if (AR_SREV_9485(ah) || AR_SREV_9340(ah) || AR_SREV_9330(ah))
-			cur_bb_spur = FBIN2FREQ(spur_fbin_ptr[i],
-					IS_CHAN_2GHZ(chan)) - synth_freq;
+			cur_bb_spur = ath9k_hw_fbin2freq(spur_fbin_ptr[i],
+							 IS_CHAN_2GHZ(chan));
 		else
-			cur_bb_spur = spur_freq[i] - synth_freq;
+			cur_bb_spur = spur_freq[i];
 
+		cur_bb_spur -= synth_freq;
 		if (cur_bb_spur < 0) {
 			negative = 1;
 			cur_bb_spur = -cur_bb_spur;
@@ -443,7 +443,8 @@ static void ar9003_hw_spur_mitigate_ofdm(struct ath_hw *ah,
 	ar9003_hw_spur_ofdm_clear(ah);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS && spurChansPtr[i]; i++) {
-		freq_offset = FBIN2FREQ(spurChansPtr[i], mode) - synth_freq;
+		freq_offset = ath9k_hw_fbin2freq(spurChansPtr[i], mode);
+		freq_offset -= synth_freq;
 		if (abs(freq_offset) < range) {
 			ar9003_hw_spur_ofdm_work(ah, chan, freq_offset);
 			break;
@@ -683,9 +684,6 @@ static int ar9003_hw_process_ini(struct ath_hw *ah,
 				modesIndex, regWrites);
 
 	REG_WRITE_ARRAY(&ah->iniAdditional, 1, regWrites);
-
-	if (AR_SREV_9462(ah))
-		ar9003_hw_prog_ini(ah, &ah->ini_BTCOEX_MAX_TXPWR, 1);
 
 	if (chan->channel == 2484)
 		ar9003_hw_prog_ini(ah, &ah->ini_japan2484, 1);

@@ -988,7 +988,7 @@ mwifiex_cmd_802_11_subsc_evt(struct mwifiex_private *priv,
 		rssi_tlv->abs_value = subsc_evt_cfg->bcn_h_rssi_cfg.abs_value;
 		rssi_tlv->evt_freq = subsc_evt_cfg->bcn_h_rssi_cfg.evt_freq;
 
-		dev_dbg(priv->adapter->dev, "Cfg Beacon Low Rssi event, "
+		dev_dbg(priv->adapter->dev, "Cfg Beacon High Rssi event, "
 			"RSSI:-%d dBm, Freq:%d\n",
 			subsc_evt_cfg->bcn_h_rssi_cfg.abs_value,
 			subsc_evt_cfg->bcn_h_rssi_cfg.evt_freq);

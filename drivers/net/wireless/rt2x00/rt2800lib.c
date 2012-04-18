@@ -290,10 +290,24 @@ int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 		msleep(10);
 	}
 
-	ERROR(rt2x00dev, "WPDMA TX/RX busy, aborting.\n");
+	ERROR(rt2x00dev, "WPDMA TX/RX busy [0x%08x].\n", reg);
 	return -EACCES;
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
+
+void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
+	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
+	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+}
+EXPORT_SYMBOL_GPL(rt2800_disable_wpdma);
 
 static bool rt2800_check_firmware_crc(const u8 *data, const size_t len)
 {
@@ -412,6 +426,8 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000002);
 	}
 
+	rt2800_disable_wpdma(rt2x00dev);
+
 	/*
 	 * Write firmware to the device.
 	 */
@@ -436,10 +452,7 @@ int rt2800_load_firmware(struct rt2x00_dev *rt2x00dev,
 	 * Disable DMA, will be reenabled later when enabling
 	 * the radio.
 	 */
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	/*
 	 * Initialize firmware.
@@ -2717,13 +2730,7 @@ static int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	unsigned int i;
 	int ret;
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_RX_DMA_BUSY, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	ret = rt2800_drv_init_registers(rt2x00dev);
 	if (ret)
@@ -3997,10 +4004,7 @@ void rt2800_disable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
 
-	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
-	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_RX_DMA, 0);
-	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
+	rt2800_disable_wpdma(rt2x00dev);
 
 	/* Wait for DMA, ignore error */
 	rt2800_wait_wpdma_ready(rt2x00dev);

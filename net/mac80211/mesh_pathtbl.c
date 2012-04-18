@@ -538,6 +538,8 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 
 	read_lock_bh(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
+	memset(new_mpath->rann_snd_addr, 0xff, ETH_ALEN);
+	new_mpath->is_root = false;
 	new_mpath->sdata = sdata;
 	new_mpath->flags = 0;
 	skb_queue_head_init(&new_mpath->frame_queue);

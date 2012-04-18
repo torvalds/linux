@@ -131,6 +131,8 @@ static int mwifiex_init_priv(struct mwifiex_private *priv)
 	priv->wmm_qosinfo = 0;
 	priv->curr_bcn_buf = NULL;
 	priv->curr_bcn_size = 0;
+	priv->wps_ie = NULL;
+	priv->wps_ie_len = 0;
 
 	priv->scan_block = false;
 

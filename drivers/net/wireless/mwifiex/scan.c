@@ -1048,10 +1048,8 @@ mwifiex_ret_802_11_scan_get_tlv_ptrs(struct mwifiex_adapter *adapter,
  * This function parses provided beacon buffer and updates
  * respective fields in bss descriptor structure.
  */
-int
-mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
-				struct mwifiex_bssdescriptor *bss_entry,
-				u8 *ie_buf, u32 ie_len)
+int mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
+				    struct mwifiex_bssdescriptor *bss_entry)
 {
 	int ret = 0;
 	u8 element_id;
@@ -1073,10 +1071,8 @@ mwifiex_update_bss_desc_with_ie(struct mwifiex_adapter *adapter,
 
 	found_data_rate_ie = false;
 	rate_size = 0;
-	current_ptr = ie_buf;
-	bytes_left = ie_len;
-	bss_entry->beacon_buf = ie_buf;
-	bss_entry->beacon_buf_size = ie_len;
+	current_ptr = bss_entry->beacon_buf;
+	bytes_left = bss_entry->beacon_buf_size;
 
 	/* Process variable IE */
 	while (bytes_left >= 2) {
@@ -1447,15 +1443,12 @@ int mwifiex_check_network_compatibility(struct mwifiex_private *priv,
 	return ret;
 }
 
-static int
-mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
-			       s32 rssi, const u8 *ie_buf, size_t ie_len,
-			       u16 beacon_period, u16 cap_info_bitmap, u8 band)
+static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
+					  struct cfg80211_bss *bss)
 {
 	struct mwifiex_bssdescriptor *bss_desc;
 	int ret;
 	unsigned long flags;
-	u8 *beacon_ie;
 
 	/* Allocate and fill new bss descriptor */
 	bss_desc = kzalloc(sizeof(struct mwifiex_bssdescriptor),
@@ -1465,16 +1458,7 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 		return -ENOMEM;
 	}
 
-	beacon_ie = kmemdup(ie_buf, ie_len, GFP_KERNEL);
-	if (!beacon_ie) {
-		kfree(bss_desc);
-		dev_err(priv->adapter->dev, " failed to alloc beacon_ie\n");
-		return -ENOMEM;
-	}
-
-	ret = mwifiex_fill_new_bss_desc(priv, bssid, rssi, beacon_ie,
-					ie_len, beacon_period,
-					cap_info_bitmap, band, bss_desc);
+	ret = mwifiex_fill_new_bss_desc(priv, bss, bss_desc);
 	if (ret)
 		goto done;
 
@@ -1514,7 +1498,6 @@ mwifiex_update_curr_bss_params(struct mwifiex_private *priv, u8 *bssid,
 
 done:
 	kfree(bss_desc);
-	kfree(beacon_ie);
 	return 0;
 }
 
@@ -1620,14 +1603,16 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		const u8 *ie_buf;
 		size_t ie_len;
 		u16 channel = 0;
-		u64 network_tsf = 0;
+		u64 fw_tsf = 0;
 		u16 beacon_size = 0;
 		u32 curr_bcn_bytes;
 		u32 freq;
 		u16 beacon_period;
 		u16 cap_info_bitmap;
 		u8 *current_ptr;
+		u64 timestamp;
 		struct mwifiex_bcn_param *bcn_param;
+		struct mwifiex_bss_priv *bss_priv;
 
 		if (bytes_left >= sizeof(beacon_size)) {
 			/* Extract & convert beacon size from command buffer */
@@ -1671,6 +1656,7 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 		rssi = (-rssi) * 100;		/* Convert dBm to mBm */
 		dev_dbg(adapter->dev, "info: InterpretIE: RSSI=%d\n", rssi);
 
+		timestamp = le64_to_cpu(bcn_param->timestamp);
 		beacon_period = le16_to_cpu(bcn_param->beacon_period);
 
 		cap_info_bitmap = le16_to_cpu(bcn_param->cap_info_bitmap);
@@ -1710,14 +1696,13 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 		/*
 		 * If the TSF TLV was appended to the scan results, save this
-		 * entry's TSF value in the networkTSF field.The networkTSF is
-		 * the firmware's TSF value at the time the beacon or probe
-		 * response was received.
+		 * entry's TSF value in the fw_tsf field. It is the firmware's
+		 * TSF value at the time the beacon or probe response was
+		 * received.
 		 */
 		if (tsf_tlv)
-			memcpy(&network_tsf,
-			       &tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
-			       sizeof(network_tsf));
+			memcpy(&fw_tsf, &tsf_tlv->tsf_data[idx * TSF_DATA_SIZE],
+			       sizeof(fw_tsf));
 
 		if (channel) {
 			struct ieee80211_channel *chan;
@@ -1740,21 +1725,19 @@ int mwifiex_ret_802_11_scan(struct mwifiex_private *priv,
 
 			if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
 				bss = cfg80211_inform_bss(priv->wdev->wiphy,
-					      chan, bssid, network_tsf,
+					      chan, bssid, timestamp,
 					      cap_info_bitmap, beacon_period,
 					      ie_buf, ie_len, rssi, GFP_KERNEL);
-				*(u8 *)bss->priv = band;
-				cfg80211_put_bss(bss);
-
+				bss_priv = (struct mwifiex_bss_priv *)bss->priv;
+				bss_priv->band = band;
+				bss_priv->fw_tsf = fw_tsf;
 				if (priv->media_connected &&
 				    !memcmp(bssid,
 					    priv->curr_bss_params.bss_descriptor
 					    .mac_address, ETH_ALEN))
-					mwifiex_update_curr_bss_params
-							(priv, bssid, rssi,
-							 ie_buf, ie_len,
-							 beacon_period,
-							 cap_info_bitmap, band);
+					mwifiex_update_curr_bss_params(priv,
+								       bss);
+				cfg80211_put_bss(bss);
 			}
 		} else {
 			dev_dbg(adapter->dev, "missing BSS channel IE\n");

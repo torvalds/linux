@@ -821,6 +821,7 @@ static int cfg80211_wext_giwfreq(struct net_device *dev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 	struct ieee80211_channel *chan;
+	enum nl80211_channel_type channel_type;
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -831,7 +832,7 @@ static int cfg80211_wext_giwfreq(struct net_device *dev,
 		if (!rdev->ops->get_channel)
 			return -EINVAL;
 
-		chan = rdev->ops->get_channel(wdev->wiphy);
+		chan = rdev->ops->get_channel(wdev->wiphy, &channel_type);
 		if (!chan)
 			return -EINVAL;
 		freq->m = chan->center_freq;

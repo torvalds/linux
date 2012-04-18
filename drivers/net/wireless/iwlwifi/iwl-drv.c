@@ -284,6 +284,7 @@ static int iwl_store_ucode_sec(struct iwl_firmware_pieces *pieces,
 
 	sec->offset = le32_to_cpu(sec_parse->offset);
 	sec->data = sec_parse->data;
+	sec->size = size - sizeof(sec_parse->offset);
 
 	++img->sec_counter;
 
@@ -414,9 +415,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	struct iwl_ucode_tlv *tlv;
 	size_t len = ucode_raw->size;
 	const u8 *data;
-	int wanted_alternative = iwlagn_mod_params.wanted_ucode_alternative;
-	int tmp;
-	u64 alternatives;
 	u32 tlv_len;
 	enum iwl_ucode_tlv_type tlv_type;
 	const u8 *tlv_data;
@@ -433,23 +431,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 			le32_to_cpu(ucode->magic));
 		return -EINVAL;
 	}
-
-	/*
-	 * Check which alternatives are present, and "downgrade"
-	 * when the chosen alternative is not present, warning
-	 * the user when that happens. Some files may not have
-	 * any alternatives, so don't warn in that case.
-	 */
-	alternatives = le64_to_cpu(ucode->alternatives);
-	tmp = wanted_alternative;
-	if (wanted_alternative > 63)
-		wanted_alternative = 63;
-	while (wanted_alternative && !(alternatives & BIT(wanted_alternative)))
-		wanted_alternative--;
-	if (wanted_alternative && wanted_alternative != tmp)
-		IWL_WARN(drv,
-			 "uCode alternative %d not available, choosing %d\n",
-			 tmp, wanted_alternative);
 
 	drv->fw.ucode_ver = le32_to_cpu(ucode->ver);
 	build = le32_to_cpu(ucode->build);
@@ -475,14 +456,11 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 	len -= sizeof(*ucode);
 
 	while (len >= sizeof(*tlv)) {
-		u16 tlv_alt;
-
 		len -= sizeof(*tlv);
 		tlv = (void *)data;
 
 		tlv_len = le32_to_cpu(tlv->length);
-		tlv_type = le16_to_cpu(tlv->type);
-		tlv_alt = le16_to_cpu(tlv->alternative);
+		tlv_type = le32_to_cpu(tlv->type);
 		tlv_data = tlv->data;
 
 		if (len < tlv_len) {
@@ -492,14 +470,6 @@ static int iwl_parse_tlv_firmware(struct iwl_drv *drv,
 		}
 		len -= ALIGN(tlv_len, 4);
 		data += sizeof(*tlv) + ALIGN(tlv_len, 4);
-
-		/*
-		 * Alternative 0 is always valid.
-		 *
-		 * Skip alternative TLVs that are not selected.
-		 */
-		if (tlv_alt != 0 && tlv_alt != wanted_alternative)
-			continue;
 
 		switch (tlv_type) {
 		case IWL_UCODE_TLV_INST:
@@ -836,42 +806,6 @@ static void iwl_ucode_callback(const struct firmware *ucode_raw, void *context)
 	}
 
 	IWL_INFO(drv, "loaded firmware version %s", drv->fw.fw_version);
-
-	/*
-	 * For any of the failures below (before allocating pci memory)
-	 * we will try to load a version with a smaller API -- maybe the
-	 * user just got a corrupted version of the latest API.
-	 */
-
-	IWL_DEBUG_INFO(drv, "f/w package hdr ucode version raw = 0x%x\n",
-		       drv->fw.ucode_ver);
-	IWL_DEBUG_INFO(drv, "f/w package hdr runtime inst size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_REGULAR,
-			     IWL_UCODE_SECTION_INST));
-	IWL_DEBUG_INFO(drv, "f/w package hdr runtime data size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_REGULAR,
-			     IWL_UCODE_SECTION_DATA));
-	IWL_DEBUG_INFO(drv, "f/w package hdr init inst size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_INST));
-	IWL_DEBUG_INFO(drv, "f/w package hdr init data size = %Zd\n",
-		get_sec_size(&pieces, IWL_UCODE_INIT, IWL_UCODE_SECTION_DATA));
-
-	/* Verify that uCode images will fit in card's SRAM */
-	if (get_sec_size(&pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_INST) >
-							cfg->max_inst_size) {
-		IWL_ERR(drv, "uCode instr len %Zd too large to fit in\n",
-			get_sec_size(&pieces, IWL_UCODE_REGULAR,
-				     IWL_UCODE_SECTION_INST));
-		goto try_again;
-	}
-
-	if (get_sec_size(&pieces, IWL_UCODE_REGULAR, IWL_UCODE_SECTION_DATA) >
-							cfg->max_data_size) {
-		IWL_ERR(drv, "uCode data len %Zd too large to fit in\n",
-			get_sec_size(&pieces, IWL_UCODE_REGULAR,
-				     IWL_UCODE_SECTION_DATA));
-		goto try_again;
-	}
 
 	/*
 	 * In mvm uCode there is no difference between data and instructions

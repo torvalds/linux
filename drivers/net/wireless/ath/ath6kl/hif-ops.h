@@ -150,4 +150,38 @@ static inline void ath6kl_hif_stop(struct ath6kl *ar)
 	ar->hif_ops->stop(ar);
 }
 
+static inline int ath6kl_hif_pipe_send(struct ath6kl *ar,
+				       u8 pipe, struct sk_buff *hdr_buf,
+				       struct sk_buff *buf)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif pipe send\n");
+
+	return ar->hif_ops->pipe_send(ar, pipe, hdr_buf, buf);
+}
+
+static inline void ath6kl_hif_pipe_get_default(struct ath6kl *ar,
+					       u8 *ul_pipe, u8 *dl_pipe)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif pipe get default\n");
+
+	ar->hif_ops->pipe_get_default(ar, ul_pipe, dl_pipe);
+}
+
+static inline int ath6kl_hif_pipe_map_service(struct ath6kl *ar,
+					      u16 service_id, u8 *ul_pipe,
+					      u8 *dl_pipe)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif pipe get default\n");
+
+	return ar->hif_ops->pipe_map_service(ar, service_id, ul_pipe, dl_pipe);
+}
+
+static inline u16 ath6kl_hif_pipe_get_free_queue_number(struct ath6kl *ar,
+							u8 pipe)
+{
+	ath6kl_dbg(ATH6KL_DBG_HIF, "hif pipe get free queue number\n");
+
+	return ar->hif_ops->pipe_get_free_queue_number(ar, pipe);
+}
+
 #endif

@@ -1170,7 +1170,7 @@ ath5k_check_ibss_tsf(struct ath5k_hw *ah, struct sk_buff *skb,
 
 	if (ieee80211_is_beacon(mgmt->frame_control) &&
 	    le16_to_cpu(mgmt->u.beacon.capab_info) & WLAN_CAPABILITY_IBSS &&
-	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) == 0) {
+	    compare_ether_addr(mgmt->bssid, common->curbssid) == 0) {
 		/*
 		 * Received an IBSS beacon with the same BSSID. Hardware *must*
 		 * have updated the local TSF. We have to work around various
@@ -1234,7 +1234,7 @@ ath5k_update_beacon_rssi(struct ath5k_hw *ah, struct sk_buff *skb, int rssi)
 
 	/* only beacons from our BSSID */
 	if (!ieee80211_is_beacon(mgmt->frame_control) ||
-	    memcmp(mgmt->bssid, common->curbssid, ETH_ALEN) != 0)
+	    compare_ether_addr(mgmt->bssid, common->curbssid) != 0)
 		return;
 
 	ewma_add(&ah->ah_beacon_rssi_avg, rssi);

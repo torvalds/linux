@@ -118,15 +118,15 @@ mwifiex_cmd_append_tsf_tlv(struct mwifiex_private *priv, u8 **buffer,
 	*buffer += sizeof(tsf_tlv.header);
 
 	/* TSF at the time when beacon/probe_response was received */
-	tsf_val = cpu_to_le64(bss_desc->network_tsf);
+	tsf_val = cpu_to_le64(bss_desc->fw_tsf);
 	memcpy(*buffer, &tsf_val, sizeof(tsf_val));
 	*buffer += sizeof(tsf_val);
 
-	memcpy(&tsf_val, bss_desc->time_stamp, sizeof(tsf_val));
+	tsf_val = cpu_to_le64(bss_desc->timestamp);
 
 	dev_dbg(priv->adapter->dev,
 		"info: %s: TSF offset calc: %016llx - %016llx\n",
-		__func__, tsf_val, bss_desc->network_tsf);
+		__func__, bss_desc->timestamp, bss_desc->fw_tsf);
 
 	memcpy(*buffer, &tsf_val, sizeof(tsf_val));
 	*buffer += sizeof(tsf_val);
@@ -222,6 +222,48 @@ mwifiex_setup_rates_from_bssdesc(struct mwifiex_private *priv,
 		min_t(size_t, strlen(out_rates), MWIFIEX_SUPPORTED_RATES);
 
 	return 0;
+}
+
+/*
+ * This function appends a WPS IE. It is called from the network join command
+ * preparation routine.
+ *
+ * If the IE buffer has been setup by the application, this routine appends
+ * the buffer as a WPS TLV type to the request.
+ */
+static int
+mwifiex_cmd_append_wps_ie(struct mwifiex_private *priv, u8 **buffer)
+{
+	int retLen = 0;
+	struct mwifiex_ie_types_header ie_header;
+
+	if (!buffer || !*buffer)
+		return 0;
+
+	/*
+	 * If there is a wps ie buffer setup, append it to the return
+	 * parameter buffer pointer.
+	 */
+	if (priv->wps_ie_len) {
+		dev_dbg(priv->adapter->dev, "cmd: append wps ie %d to %p\n",
+			priv->wps_ie_len, *buffer);
+
+		/* Wrap the generic IE buffer with a pass through TLV type */
+		ie_header.type = cpu_to_le16(TLV_TYPE_MGMT_IE);
+		ie_header.len = cpu_to_le16(priv->wps_ie_len);
+		memcpy(*buffer, &ie_header, sizeof(ie_header));
+		*buffer += sizeof(ie_header);
+		retLen += sizeof(ie_header);
+
+		memcpy(*buffer, priv->wps_ie, priv->wps_ie_len);
+		*buffer += priv->wps_ie_len;
+		retLen += priv->wps_ie_len;
+
+	}
+
+	kfree(priv->wps_ie);
+	priv->wps_ie_len = 0;
+	return retLen;
 }
 
 /*
@@ -480,6 +522,8 @@ int mwifiex_cmd_802_11_associate(struct mwifiex_private *priv,
 	if (priv->sec_info.wapi_enabled && priv->wapi_ie_len)
 		mwifiex_cmd_append_wapi_ie(priv, &pos);
 
+	if (priv->wps.session_enable && priv->wps_ie_len)
+		mwifiex_cmd_append_wps_ie(priv, &pos);
 
 	mwifiex_cmd_append_generic_ie(priv, &pos);
 

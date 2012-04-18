@@ -268,61 +268,6 @@ static void iwl_power_sleep_cam_cmd(struct iwl_priv *priv,
 	IWL_DEBUG_POWER(priv, "Sleep command for CAM\n");
 }
 
-static void iwl_power_fill_sleep_cmd(struct iwl_priv *priv,
-				     struct iwl_powertable_cmd *cmd,
-				     int dynps_ms, int wakeup_period)
-{
-	/*
-	 * These are the original power level 3 sleep successions. The
-	 * device may behave better with such succession and was also
-	 * only tested with that. Just like the original sleep commands,
-	 * also adjust the succession here to the wakeup_period below.
-	 * The ranges are the same as for the sleep commands, 0-2, 3-9
-	 * and >10, which is selected based on the DTIM interval for
-	 * the sleep index but here we use the wakeup period since that
-	 * is what we need to do for the latency requirements.
-	 */
-	static const u8 slp_succ_r0[IWL_POWER_VEC_SIZE] = { 2, 2, 2, 2, 2 };
-	static const u8 slp_succ_r1[IWL_POWER_VEC_SIZE] = { 2, 4, 6, 7, 9 };
-	static const u8 slp_succ_r2[IWL_POWER_VEC_SIZE] = { 2, 7, 9, 9, 0xFF };
-	const u8 *slp_succ = slp_succ_r0;
-	int i;
-
-	if (wakeup_period > IWL_DTIM_RANGE_0_MAX)
-		slp_succ = slp_succ_r1;
-	if (wakeup_period > IWL_DTIM_RANGE_1_MAX)
-		slp_succ = slp_succ_r2;
-
-	memset(cmd, 0, sizeof(*cmd));
-
-	cmd->flags = IWL_POWER_DRIVER_ALLOW_SLEEP_MSK |
-		     IWL_POWER_FAST_PD; /* no use seeing frames for others */
-
-	if (priv->power_data.bus_pm)
-		cmd->flags |= IWL_POWER_PCI_PM_MSK;
-
-	if (cfg(priv)->base_params->shadow_reg_enable)
-		cmd->flags |= IWL_POWER_SHADOW_REG_ENA;
-	else
-		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
-
-	if (iwl_advanced_bt_coexist(priv)) {
-		if (!cfg(priv)->bt_params->bt_sco_disable)
-			cmd->flags |= IWL_POWER_BT_SCO_ENA;
-		else
-			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
-	}
-
-	cmd->rx_data_timeout = cpu_to_le32(1000 * dynps_ms);
-	cmd->tx_data_timeout = cpu_to_le32(1000 * dynps_ms);
-
-	for (i = 0; i < IWL_POWER_VEC_SIZE; i++)
-		cmd->sleep_interval[i] =
-			cpu_to_le32(min_t(int, slp_succ[i], wakeup_period));
-
-	IWL_DEBUG_POWER(priv, "Automatic sleep command\n");
-}
-
 static int iwl_set_power(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd)
 {
 	IWL_DEBUG_POWER(priv, "Sending power/sleep command\n");
@@ -363,7 +308,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 		iwl_static_sleep_cmd(priv, cmd,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
-	else if (iwlagn_mod_params.no_sleep_autoadjust) {
+	else {
 		if (iwlagn_mod_params.power_level > IWL_POWER_INDEX_1 &&
 		    iwlagn_mod_params.power_level <= IWL_POWER_INDEX_5)
 			iwl_static_sleep_cmd(priv, cmd,
@@ -371,10 +316,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 		else
 			iwl_static_sleep_cmd(priv, cmd,
 				IWL_POWER_INDEX_1, dtimper);
-	} else
-		iwl_power_fill_sleep_cmd(priv, cmd,
-					 priv->hw->conf.dynamic_ps_timeout,
-					 priv->hw->conf.max_sleep_period);
+	}
 }
 
 int iwl_power_set_mode(struct iwl_priv *priv, struct iwl_powertable_cmd *cmd,
