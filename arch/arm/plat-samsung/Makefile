@@ -36,6 +36,7 @@ obj-y				+= platformdata.o
 
 obj-y				+= devs.o
 obj-y				+= dev-uart.o
+obj-$(CONFIG_S5P_DEV_UART)	+= s5p-dev-uart.o
 
 obj-$(CONFIG_SAMSUNG_DEV_BACKLIGHT)	+= dev-backlight.o
 

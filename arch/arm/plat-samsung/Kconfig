@@ -146,6 +146,12 @@ config S3C_GPIO_TRACK
 	  Internal configuration option to enable the s3c specific gpio
 	  chip tracking if the platform requires it.
 
+# uart options
+
+config S5P_DEV_UART
+	def_bool y
+	depends on (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
+
 # ADC driver
 
 config S3C_ADC
