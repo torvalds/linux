@@ -18,6 +18,53 @@
 
 const char 	*disassembler_style;
 
+static int jump_ops__parse_target(const char *operands, u64 *target)
+{
+	const char *s = strchr(operands, '+');
+
+	if (s++ == NULL)
+		return -1;
+
+	*target = strtoll(s, NULL, 16);
+	return 0;
+}
+
+static struct ins_ops jump_ops = {
+	.parse_target = jump_ops__parse_target,
+};
+
+bool ins__is_jump(const struct ins *ins)
+{
+	return ins->ops == &jump_ops;
+}
+
+
+/*
+ * Must be sorted by name!
+ */
+static struct ins instructions[] = {
+	{ .name = "ja",	   .ops  = &jump_ops, },
+	{ .name = "je",	   .ops  = &jump_ops, },
+	{ .name = "jmp",   .ops  = &jump_ops, },
+	{ .name = "jmpq",  .ops  = &jump_ops, },
+	{ .name = "jne",   .ops  = &jump_ops, },
+	{ .name = "js",	   .ops  = &jump_ops, },
+};
+
+static int ins__cmp(const void *name, const void *insp)
+{
+	const struct ins *ins = insp;
+
+	return strcmp(name, ins->name);
+}
+
+static struct ins *ins__find(const char *name)
+{
+	const int nmemb = ARRAY_SIZE(instructions);
+
+	return bsearch(name, instructions, nmemb, sizeof(struct ins), ins__cmp);
+}
+
 int symbol__annotate_init(struct map *map __used, struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
@@ -78,6 +125,20 @@ int symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	return 0;
 }
 
+static void disasm_line__init_ins(struct disasm_line *dl)
+{
+	dl->ins = ins__find(dl->name);
+
+	if (dl->ins == NULL)
+		return;
+
+	if (!dl->ins->ops)
+		return;
+
+	if (dl->ins->ops->parse_target)
+		dl->ins->ops->parse_target(dl->operands, &dl->target);
+}
+
 static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
@@ -117,6 +178,8 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privs
 				while (isspace(dl->operands[0]))
 					++dl->operands;
 			}
+
+			disasm_line__init_ins(dl);
 		}
 	}
 

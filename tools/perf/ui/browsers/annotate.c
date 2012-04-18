@@ -315,26 +315,13 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
-	const char *jumps[] = { "je", "jne", "ja", "jmpq", "js", "jmp", NULL };
 	struct disasm_line *dl = browser->selection;
-	s64 idx, offset;
-	char *s;
-	int i = 0;
+	s64 idx;
 
-	while (jumps[i] && strcmp(dl->name, jumps[i]))
-		++i;
-
-	if (jumps[i] == NULL)
+	if (!dl->ins || !ins__is_jump(dl->ins))
 		return false;
 
-	s = strchr(dl->operands, '+');
-	if (s++ == NULL) {
-		ui_helpline__puts("Invallid jump instruction.");
-		return true;
-	}
-
-	offset = strtoll(s, NULL, 16);
-	dl = annotate_browser__find_offset(browser, offset, &idx);
+	dl = annotate_browser__find_offset(browser, dl->target, &idx);
 	if (dl == NULL) {
 		ui_helpline__puts("Invallid jump offset");
 		return true;

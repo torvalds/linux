@@ -7,11 +7,24 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 
+struct ins_ops {
+	int (*parse_target)(const char *operands, u64 *target);
+};
+
+struct ins {
+	const char     *name;
+	struct ins_ops *ops;
+};
+
+bool ins__is_jump(const struct ins *ins);
+
 struct disasm_line {
 	struct list_head node;
 	s64		 offset;
+	u64		 target;
 	char		 *line;
 	char		 *name;
+	struct ins	 *ins;
 	char		 *operands;
 };
 
