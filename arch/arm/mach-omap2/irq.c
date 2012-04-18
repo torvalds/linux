@@ -25,6 +25,7 @@
 #include <mach/hardware.h>
 
 #include "iomap.h"
+#include "common.h"
 
 /* selected INTC register offsets */
 
@@ -334,7 +335,7 @@ void omap_intc_restore_context(void)
 void omap3_intc_suspend(void)
 {
 	/* A pending interrupt would prevent OMAP from entering suspend */
-	omap_ack_irq(0);
+	omap_ack_irq(NULL);
 }
 
 void omap3_intc_prepare_idle(void)

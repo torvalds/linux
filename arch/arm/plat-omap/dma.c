@@ -41,6 +41,15 @@
 
 #include <plat/tc.h>
 
+/*
+ * MAX_LOGICAL_DMA_CH_COUNT: the maximum number of logical DMA
+ * channels that an instance of the SDMA IP block can support.  Used
+ * to size arrays.  (The actual maximum on a particular SoC may be less
+ * than this -- for example, OMAP1 SDMA instances only support 17 logical
+ * DMA channels.)
+ */
+#define MAX_LOGICAL_DMA_CH_COUNT		32
+
 #undef DEBUG
 
 #ifndef CONFIG_ARCH_OMAP1
@@ -883,7 +892,7 @@ void omap_start_dma(int lch)
 
 	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
 		int next_lch, cur_lch;
-		char dma_chan_link_map[dma_lch_count];
+		char dma_chan_link_map[MAX_LOGICAL_DMA_CH_COUNT];
 
 		dma_chan_link_map[lch] = 1;
 		/* Set the link register of the first channel */
@@ -967,7 +976,7 @@ void omap_stop_dma(int lch)
 
 	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
 		int next_lch, cur_lch = lch;
-		char dma_chan_link_map[dma_lch_count];
+		char dma_chan_link_map[MAX_LOGICAL_DMA_CH_COUNT];
 
 		memset(dma_chan_link_map, 0, sizeof(dma_chan_link_map));
 		do {
