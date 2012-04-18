@@ -94,12 +94,10 @@ machine_check_pSeries_1:
 data_access_pSeries:
 	HMT_MEDIUM
 	SET_SCRATCH0(r13)
-#ifndef CONFIG_POWER4_ONLY
 BEGIN_FTR_SECTION
 	b	data_access_check_stab
 data_access_not_stab:
 END_MMU_FTR_SECTION_IFCLR(MMU_FTR_SLB)
-#endif
 	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, data_access_common, EXC_STD,
 				 KVMTEST, 0x300)
 
@@ -301,7 +299,6 @@ machine_check_fwnmi:
 				 EXC_STD, KVMTEST, 0x200)
 	KVM_HANDLER_SKIP(PACA_EXMC, EXC_STD, 0x200)
 
-#ifndef CONFIG_POWER4_ONLY
 	/* moved from 0x300 */
 data_access_check_stab:
 	GET_PACA(r13)
@@ -328,7 +325,6 @@ do_stab_bolted_pSeries:
 	GET_SCRATCH0(r10)
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	EXCEPTION_PROLOG_PSERIES_1(.do_stab_bolted, EXC_STD)
-#endif /* CONFIG_POWER4_ONLY */
 
 	KVM_HANDLER_SKIP(PACA_EXGEN, EXC_STD, 0x300)
 	KVM_HANDLER_SKIP(PACA_EXSLB, EXC_STD, 0x380)

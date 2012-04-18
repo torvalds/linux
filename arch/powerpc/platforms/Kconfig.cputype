@@ -86,15 +86,6 @@ config PPC_BOOK3E
 	def_bool y
 	depends on PPC_BOOK3E_64
 
-config POWER4_ONLY
-	bool "Optimize for POWER4"
-	depends on PPC64 && PPC_BOOK3S
-	default n
-	---help---
-	  Cause the compiler to optimize for POWER4/POWER5/PPC970 processors.
-	  The resulting binary will not work on POWER3 or RS64 processors
-	  when compiled with binutils 2.15 or later.
-
 config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
