@@ -3718,9 +3718,8 @@ struct read_write_emulator_ops {
 static int read_prepare(struct kvm_vcpu *vcpu, void *val, int bytes)
 {
 	if (vcpu->mmio_read_completed) {
-		memcpy(val, vcpu->mmio_data, bytes);
 		trace_kvm_mmio(KVM_TRACE_MMIO_READ, bytes,
-			       vcpu->mmio_phys_addr, *(u64 *)val);
+			       vcpu->mmio_fragments[0].gpa, *(u64 *)val);
 		vcpu->mmio_read_completed = 0;
 		return 1;
 	}
@@ -3756,8 +3755,9 @@ static int read_exit_mmio(struct kvm_vcpu *vcpu, gpa_t gpa,
 static int write_exit_mmio(struct kvm_vcpu *vcpu, gpa_t gpa,
 			   void *val, int bytes)
 {
-	memcpy(vcpu->mmio_data, val, bytes);
-	memcpy(vcpu->run->mmio.data, vcpu->mmio_data, 8);
+	struct kvm_mmio_fragment *frag = &vcpu->mmio_fragments[0];
+
+	memcpy(vcpu->run->mmio.data, frag->data, frag->len);
 	return X86EMUL_CONTINUE;
 }
 
@@ -3784,10 +3784,7 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
 	gpa_t gpa;
 	int handled, ret;
 	bool write = ops->write;
-
-	if (ops->read_write_prepare &&
-		  ops->read_write_prepare(vcpu, val, bytes))
-		return X86EMUL_CONTINUE;
+	struct kvm_mmio_fragment *frag;
 
 	ret = vcpu_mmio_gva_to_gpa(vcpu, addr, &gpa, exception, write);
 
@@ -3813,15 +3810,19 @@ mmio:
 	bytes -= handled;
 	val += handled;
 
-	vcpu->mmio_needed = 1;
-	vcpu->run->exit_reason = KVM_EXIT_MMIO;
-	vcpu->run->mmio.phys_addr = vcpu->mmio_phys_addr = gpa;
-	vcpu->mmio_size = bytes;
-	vcpu->run->mmio.len = min(vcpu->mmio_size, 8);
-	vcpu->run->mmio.is_write = vcpu->mmio_is_write = write;
-	vcpu->mmio_index = 0;
+	while (bytes) {
+		unsigned now = min(bytes, 8U);
 
-	return ops->read_write_exit_mmio(vcpu, gpa, val, bytes);
+		frag = &vcpu->mmio_fragments[vcpu->mmio_nr_fragments++];
+		frag->gpa = gpa;
+		frag->data = val;
+		frag->len = now;
+
+		gpa += now;
+		val += now;
+		bytes -= now;
+	}
+	return X86EMUL_CONTINUE;
 }
 
 int emulator_read_write(struct x86_emulate_ctxt *ctxt, unsigned long addr,
@@ -3830,10 +3831,18 @@ int emulator_read_write(struct x86_emulate_ctxt *ctxt, unsigned long addr,
 			struct read_write_emulator_ops *ops)
 {
 	struct kvm_vcpu *vcpu = emul_to_vcpu(ctxt);
+	gpa_t gpa;
+	int rc;
+
+	if (ops->read_write_prepare &&
+		  ops->read_write_prepare(vcpu, val, bytes))
+		return X86EMUL_CONTINUE;
+
+	vcpu->mmio_nr_fragments = 0;
 
 	/* Crossing a page boundary? */
 	if (((addr + bytes - 1) ^ addr) & PAGE_MASK) {
-		int rc, now;
+		int now;
 
 		now = -addr & ~PAGE_MASK;
 		rc = emulator_read_write_onepage(addr, val, now, exception,
@@ -3846,8 +3855,25 @@ int emulator_read_write(struct x86_emulate_ctxt *ctxt, unsigned long addr,
 		bytes -= now;
 	}
 
-	return emulator_read_write_onepage(addr, val, bytes, exception,
-					   vcpu, ops);
+	rc = emulator_read_write_onepage(addr, val, bytes, exception,
+					 vcpu, ops);
+	if (rc != X86EMUL_CONTINUE)
+		return rc;
+
+	if (!vcpu->mmio_nr_fragments)
+		return rc;
+
+	gpa = vcpu->mmio_fragments[0].gpa;
+
+	vcpu->mmio_needed = 1;
+	vcpu->mmio_cur_fragment = 0;
+
+	vcpu->run->mmio.len = vcpu->mmio_fragments[0].len;
+	vcpu->run->mmio.is_write = vcpu->mmio_is_write = ops->write;
+	vcpu->run->exit_reason = KVM_EXIT_MMIO;
+	vcpu->run->mmio.phys_addr = gpa;
+
+	return ops->read_write_exit_mmio(vcpu, gpa, val, bytes);
 }
 
 static int emulator_read_emulated(struct x86_emulate_ctxt *ctxt,
@@ -5446,33 +5472,55 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	return r;
 }
 
+/*
+ * Implements the following, as a state machine:
+ *
+ * read:
+ *   for each fragment
+ *     write gpa, len
+ *     exit
+ *     copy data
+ *   execute insn
+ *
+ * write:
+ *   for each fragment
+ *      write gpa, len
+ *      copy data
+ *      exit
+ */
 static int complete_mmio(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
+	struct kvm_mmio_fragment *frag;
 	int r;
 
 	if (!(vcpu->arch.pio.count || vcpu->mmio_needed))
 		return 1;
 
 	if (vcpu->mmio_needed) {
-		vcpu->mmio_needed = 0;
+		/* Complete previous fragment */
+		frag = &vcpu->mmio_fragments[vcpu->mmio_cur_fragment++];
 		if (!vcpu->mmio_is_write)
-			memcpy(vcpu->mmio_data + vcpu->mmio_index,
-			       run->mmio.data, 8);
-		vcpu->mmio_index += 8;
-		if (vcpu->mmio_index < vcpu->mmio_size) {
-			run->exit_reason = KVM_EXIT_MMIO;
-			run->mmio.phys_addr = vcpu->mmio_phys_addr + vcpu->mmio_index;
-			memcpy(run->mmio.data, vcpu->mmio_data + vcpu->mmio_index, 8);
-			run->mmio.len = min(vcpu->mmio_size - vcpu->mmio_index, 8);
-			run->mmio.is_write = vcpu->mmio_is_write;
-			vcpu->mmio_needed = 1;
-			return 0;
+			memcpy(frag->data, run->mmio.data, frag->len);
+		if (vcpu->mmio_cur_fragment == vcpu->mmio_nr_fragments) {
+			vcpu->mmio_needed = 0;
+			if (vcpu->mmio_is_write)
+				return 1;
+			vcpu->mmio_read_completed = 1;
+			goto done;
 		}
+		/* Initiate next fragment */
+		++frag;
+		run->exit_reason = KVM_EXIT_MMIO;
+		run->mmio.phys_addr = frag->gpa;
 		if (vcpu->mmio_is_write)
-			return 1;
-		vcpu->mmio_read_completed = 1;
+			memcpy(run->mmio.data, frag->data, frag->len);
+		run->mmio.len = frag->len;
+		run->mmio.is_write = vcpu->mmio_is_write;
+		return 0;
+
 	}
+done:
 	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 	r = emulate_instruction(vcpu, EMULTYPE_NO_DECODE);
 	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);

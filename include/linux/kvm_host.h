@@ -35,6 +35,20 @@
 #endif
 
 /*
+ * If we support unaligned MMIO, at most one fragment will be split into two:
+ */
+#ifdef KVM_UNALIGNED_MMIO
+#  define KVM_EXTRA_MMIO_FRAGMENTS 1
+#else
+#  define KVM_EXTRA_MMIO_FRAGMENTS 0
+#endif
+
+#define KVM_USER_MMIO_SIZE 8
+
+#define KVM_MAX_MMIO_FRAGMENTS \
+	(KVM_MMIO_SIZE / KVM_USER_MMIO_SIZE + KVM_EXTRA_MMIO_FRAGMENTS)
+
+/*
  * vcpu->requests bit members
  */
 #define KVM_REQ_TLB_FLUSH          0
@@ -117,6 +131,16 @@ enum {
 	EXITING_GUEST_MODE
 };
 
+/*
+ * Sometimes a large or cross-page mmio needs to be broken up into separate
+ * exits for userspace servicing.
+ */
+struct kvm_mmio_fragment {
+	gpa_t gpa;
+	void *data;
+	unsigned len;
+};
+
 struct kvm_vcpu {
 	struct kvm *kvm;
 #ifdef CONFIG_PREEMPT_NOTIFIERS
@@ -144,10 +168,9 @@ struct kvm_vcpu {
 	int mmio_needed;
 	int mmio_read_completed;
 	int mmio_is_write;
-	int mmio_size;
-	int mmio_index;
-	unsigned char mmio_data[KVM_MMIO_SIZE];
-	gpa_t mmio_phys_addr;
+	int mmio_cur_fragment;
+	int mmio_nr_fragments;
+	struct kvm_mmio_fragment mmio_fragments[KVM_MAX_MMIO_FRAGMENTS];
 #endif
 
 #ifdef CONFIG_KVM_ASYNC_PF

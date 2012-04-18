@@ -232,12 +232,12 @@ static int handle_mmio(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if ((p->addr & PAGE_MASK) == IOAPIC_DEFAULT_BASE_ADDRESS)
 		goto mmio;
 	vcpu->mmio_needed = 1;
-	vcpu->mmio_phys_addr = kvm_run->mmio.phys_addr = p->addr;
-	vcpu->mmio_size = kvm_run->mmio.len = p->size;
+	vcpu->mmio_fragments[0].gpa = kvm_run->mmio.phys_addr = p->addr;
+	vcpu->mmio_fragments[0].len = kvm_run->mmio.len = p->size;
 	vcpu->mmio_is_write = kvm_run->mmio.is_write = !p->dir;
 
 	if (vcpu->mmio_is_write)
-		memcpy(vcpu->mmio_data, &p->data, p->size);
+		memcpy(vcpu->arch.mmio_data, &p->data, p->size);
 	memcpy(kvm_run->mmio.data, &p->data, p->size);
 	kvm_run->exit_reason = KVM_EXIT_MMIO;
 	return 0;
@@ -719,7 +719,7 @@ static void kvm_set_mmio_data(struct kvm_vcpu *vcpu)
 	struct kvm_mmio_req *p = kvm_get_vcpu_ioreq(vcpu);
 
 	if (!vcpu->mmio_is_write)
-		memcpy(&p->data, vcpu->mmio_data, 8);
+		memcpy(&p->data, vcpu->arch.mmio_data, 8);
 	p->state = STATE_IORESP_READY;
 }
 
@@ -739,7 +739,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	}
 
 	if (vcpu->mmio_needed) {
-		memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
+		memcpy(vcpu->arch.mmio_data, kvm_run->mmio.data, 8);
 		kvm_set_mmio_data(vcpu);
 		vcpu->mmio_read_completed = 1;
 		vcpu->mmio_needed = 0;
