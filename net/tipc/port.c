@@ -1270,10 +1270,14 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 		if (likely(destnode == tipc_own_addr))
 			res = tipc_port_recv_sections(p_ptr, num_sect,
 						      msg_sect, total_len);
-		else
+		else if (tipc_own_addr)
 			res = tipc_link_send_sections_fast(p_ptr, msg_sect,
 							   num_sect, total_len,
 							   destnode);
+		else
+			res = tipc_port_reject_sections(p_ptr, msg, msg_sect,
+							num_sect, total_len,
+							TIPC_ERR_NO_NODE);
 		if (likely(res != -ELINKCONG)) {
 			if (res > 0)
 				p_ptr->sent++;
@@ -1314,9 +1318,12 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 	if (dest->node == tipc_own_addr)
 		res =  tipc_port_recv_sections(p_ptr, num_sect, msg_sect,
 					       total_len);
-	else
+	else if (tipc_own_addr)
 		res = tipc_link_send_sections_fast(p_ptr, msg_sect, num_sect,
 						   total_len, dest->node);
+	else
+		res = tipc_port_reject_sections(p_ptr, msg, msg_sect, num_sect,
+						total_len, TIPC_ERR_NO_NODE);
 	if (likely(res != -ELINKCONG)) {
 		if (res > 0)
 			p_ptr->sent++;
