@@ -381,14 +381,19 @@ int bat_algo_seq_print_text(struct seq_file *seq, void *offset)
 static int param_set_ra(const char *val, const struct kernel_param *kp)
 {
 	struct bat_algo_ops *bat_algo_ops;
+	char *algo_name = (char *)val;
+	size_t name_len = strlen(algo_name);
 
-	bat_algo_ops = bat_algo_get((char *)val);
+	if (algo_name[name_len - 1] == '\n')
+		algo_name[name_len - 1] = '\0';
+
+	bat_algo_ops = bat_algo_get(algo_name);
 	if (!bat_algo_ops) {
-		pr_err("Routing algorithm '%s' is not supported\n", val);
+		pr_err("Routing algorithm '%s' is not supported\n", algo_name);
 		return -EINVAL;
 	}
 
-	return param_set_copystring(val, kp);
+	return param_set_copystring(algo_name, kp);
 }
 
 static const struct kernel_param_ops param_ops_ra = {
