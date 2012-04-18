@@ -1667,8 +1667,10 @@ void __init u300_init_irq(void)
 
 	for (i = 0; i < U300_VIC_IRQS_END; i++)
 		set_bit(i, (unsigned long *) &mask[0]);
-	vic_init((void __iomem *) U300_INTCON0_VBASE, 0, mask[0], mask[0]);
-	vic_init((void __iomem *) U300_INTCON1_VBASE, 32, mask[1], mask[1]);
+	vic_init((void __iomem *) U300_INTCON0_VBASE, IRQ_U300_INTCON0_START,
+		 mask[0], mask[0]);
+	vic_init((void __iomem *) U300_INTCON1_VBASE, IRQ_U300_INTCON1_START,
+		 mask[1], mask[1]);
 }
 
 
