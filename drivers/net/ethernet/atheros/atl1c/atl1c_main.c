@@ -1179,7 +1179,7 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 	 * clearing, and should clear within a microsecond.
 	 */
 	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
-	master_ctrl_data |= MASTER_CTRL_OOB_DIS_OFF;
+	master_ctrl_data |= MASTER_CTRL_OOB_DIS;
 	AT_WRITE_REGW(hw, REG_MASTER_CTRL, ((master_ctrl_data | MASTER_CTRL_SOFT_RST)
 			& 0xFFFF));
 
