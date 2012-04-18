@@ -178,6 +178,19 @@ config GPIO_SCH
 	  The Intel Tunnel Creek processor has 5 GPIOs powered by the
 	  core power rail and 9 from suspend power supply.
 
+config GPIO_ICH
+	tristate "Intel ICH GPIO"
+	depends on PCI && X86
+	select MFD_CORE
+	select LPC_ICH
+	help
+	  Say yes here to support the GPIO functionality of a number of Intel
+	  ICH-based chipsets.  Currently supported devices: ICH6, ICH7, ICH8
+	  ICH9, ICH10, Series 5/3400 (eg Ibex Peak), Series 6/C200 (eg
+	  Cougar Point), NM10 (Tiger Point), and 3100 (Whitmore Lake).
+
+	  If unsure, say N.
+
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
 	depends on PCI
