@@ -28,11 +28,15 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 
-/* FBC, or Frame Buffer Compression, is a technique employed to compress the framebuffer contents in-memory, aiming at reducing the required bandwidth during in-memory transfers and, therefore, reduce the power packet.
+/* FBC, or Frame Buffer Compression, is a technique employed to compress the
+ * framebuffer contents in-memory, aiming at reducing the required bandwidth
+ * during in-memory transfers and, therefore, reduce the power packet.
  *
- * The benefits of FBC are mostly visible with solid backgrounds and variation-less patterns.
+ * The benefits of FBC are mostly visible with solid backgrounds and
+ * variation-less patterns.
  *
- * FBC-related functionality can be enabled by the means of the i915.i915_enable_fbc parameter
+ * FBC-related functionality can be enabled by the means of the
+ * i915.i915_enable_fbc parameter
  */
 
 void i8xx_disable_fbc(struct drm_device *dev)
