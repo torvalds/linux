@@ -1217,7 +1217,7 @@ int tipc_send(u32 ref, unsigned int num_sect, struct iovec const *msg_sect,
 	p_ptr->congested = 1;
 	if (!tipc_port_congested(p_ptr)) {
 		destnode = port_peernode(p_ptr);
-		if (likely(destnode != tipc_own_addr))
+		if (likely(!in_own_node(destnode)))
 			res = tipc_link_send_sections_fast(p_ptr, msg_sect, num_sect,
 							   total_len, destnode);
 		else
@@ -1267,7 +1267,7 @@ int tipc_send2name(u32 ref, struct tipc_name const *name, unsigned int domain,
 	msg_set_destport(msg, destport);
 
 	if (likely(destport || destnode)) {
-		if (likely(destnode == tipc_own_addr))
+		if (likely(in_own_node(destnode)))
 			res = tipc_port_recv_sections(p_ptr, num_sect,
 						      msg_sect, total_len);
 		else if (tipc_own_addr)
@@ -1315,7 +1315,7 @@ int tipc_send2port(u32 ref, struct tipc_portid const *dest,
 	msg_set_destport(msg, dest->ref);
 	msg_set_hdr_sz(msg, BASIC_H_SIZE);
 
-	if (dest->node == tipc_own_addr)
+	if (in_own_node(dest->node))
 		res =  tipc_port_recv_sections(p_ptr, num_sect, msg_sect,
 					       total_len);
 	else if (tipc_own_addr)
@@ -1362,7 +1362,7 @@ int tipc_send_buf2port(u32 ref, struct tipc_portid const *dest,
 	skb_push(buf, BASIC_H_SIZE);
 	skb_copy_to_linear_data(buf, msg, BASIC_H_SIZE);
 
-	if (dest->node == tipc_own_addr)
+	if (in_own_node(dest->node))
 		res = tipc_port_recv_msg(buf);
 	else
 		res = tipc_send_buf_fast(buf, dest->node);
