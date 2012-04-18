@@ -705,11 +705,51 @@ static int snd_soc_dapm_suspend_check(struct snd_soc_dapm_widget *widget)
 	}
 }
 
+/* add widget to list if it's not already in the list */
+static int dapm_list_add_widget(struct snd_soc_dapm_widget_list **list,
+	struct snd_soc_dapm_widget *w)
+{
+	struct snd_soc_dapm_widget_list *wlist;
+	int wlistsize, wlistentries, i;
+
+	if (*list == NULL)
+		return -EINVAL;
+
+	wlist = *list;
+
+	/* is this widget already in the list */
+	for (i = 0; i < wlist->num_widgets; i++) {
+		if (wlist->widgets[i] == w)
+			return 0;
+	}
+
+	/* allocate some new space */
+	wlistentries = wlist->num_widgets + 1;
+	wlistsize = sizeof(struct snd_soc_dapm_widget_list) +
+			wlistentries * sizeof(struct snd_soc_dapm_widget *);
+	*list = krealloc(wlist, wlistsize, GFP_KERNEL);
+	if (*list == NULL) {
+		dev_err(w->dapm->dev, "can't allocate widget list for %s\n",
+			w->name);
+		return -ENOMEM;
+	}
+	wlist = *list;
+
+	/* insert the widget */
+	dev_dbg(w->dapm->dev, "added %s in widget list pos %d\n",
+			w->name, wlist->num_widgets);
+
+	wlist->widgets[wlist->num_widgets] = w;
+	wlist->num_widgets++;
+	return 1;
+}
+
 /*
  * Recursively check for a completed path to an active or physically connected
  * output widget. Returns number of complete paths.
  */
-static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
+static int is_connected_output_ep(struct snd_soc_dapm_widget *widget,
+	struct snd_soc_dapm_widget_list **list)
 {
 	struct snd_soc_dapm_path *path;
 	int con = 0;
@@ -765,9 +805,23 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
 		if (path->walked)
 			continue;
 
+		trace_snd_soc_dapm_output_path(widget, path);
+
 		if (path->sink && path->connect) {
 			path->walked = 1;
-			con += is_connected_output_ep(path->sink);
+
+			/* do we need to add this widget to the list ? */
+			if (list) {
+				int err;
+				err = dapm_list_add_widget(list, path->sink);
+				if (err < 0) {
+					dev_err(widget->dapm->dev, "could not add widget %s\n",
+						widget->name);
+					return con;
+				}
+			}
+
+			con += is_connected_output_ep(path->sink, list);
 		}
 	}
 
@@ -780,7 +834,8 @@ static int is_connected_output_ep(struct snd_soc_dapm_widget *widget)
  * Recursively check for a completed path to an active or physically connected
  * input widget. Returns number of complete paths.
  */
-static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
+static int is_connected_input_ep(struct snd_soc_dapm_widget *widget,
+	struct snd_soc_dapm_widget_list **list)
 {
 	struct snd_soc_dapm_path *path;
 	int con = 0;
@@ -848,15 +903,62 @@ static int is_connected_input_ep(struct snd_soc_dapm_widget *widget)
 		if (path->walked)
 			continue;
 
+		trace_snd_soc_dapm_input_path(widget, path);
+
 		if (path->source && path->connect) {
 			path->walked = 1;
-			con += is_connected_input_ep(path->source);
+
+			/* do we need to add this widget to the list ? */
+			if (list) {
+				int err;
+				err = dapm_list_add_widget(list, path->sink);
+				if (err < 0) {
+					dev_err(widget->dapm->dev, "could not add widget %s\n",
+						widget->name);
+					return con;
+				}
+			}
+
+			con += is_connected_input_ep(path->source, list);
 		}
 	}
 
 	widget->inputs = con;
 
 	return con;
+}
+
+/**
+ * snd_soc_dapm_get_connected_widgets - query audio path and it's widgets.
+ * @dai: the soc DAI.
+ * @stream: stream direction.
+ * @list: list of active widgets for this stream.
+ *
+ * Queries DAPM graph as to whether an valid audio stream path exists for
+ * the initial stream specified by name. This takes into account
+ * current mixer and mux kcontrol settings. Creates list of valid widgets.
+ *
+ * Returns the number of valid paths or negative error.
+ */
+int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
+	struct snd_soc_dapm_widget_list **list)
+{
+	struct snd_soc_card *card = dai->card;
+	int paths;
+
+	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	dapm_reset(card);
+
+	if (stream == SNDRV_PCM_STREAM_PLAYBACK)
+		paths = is_connected_output_ep(dai->playback_widget, list);
+	else
+		paths = is_connected_input_ep(dai->playback_widget, list);
+
+	trace_snd_soc_dapm_connected(paths, stream);
+	dapm_clear_walk(&card->dapm);
+	mutex_unlock(&card->dapm_mutex);
+
+	return paths;
 }
 
 /*
@@ -915,9 +1017,9 @@ static int dapm_generic_check_power(struct snd_soc_dapm_widget *w)
 
 	DAPM_UPDATE_STAT(w, power_checks);
 
-	in = is_connected_input_ep(w);
+	in = is_connected_input_ep(w, NULL);
 	dapm_clear_walk(w->dapm);
-	out = is_connected_output_ep(w);
+	out = is_connected_output_ep(w, NULL);
 	dapm_clear_walk(w->dapm);
 	return out != 0 && in != 0;
 }
@@ -940,7 +1042,7 @@ static int dapm_adc_check_power(struct snd_soc_dapm_widget *w)
 	DAPM_UPDATE_STAT(w, power_checks);
 
 	if (w->active) {
-		in = is_connected_input_ep(w);
+		in = is_connected_input_ep(w, NULL);
 		dapm_clear_walk(w->dapm);
 		return in != 0;
 	} else {
@@ -956,7 +1058,7 @@ static int dapm_dac_check_power(struct snd_soc_dapm_widget *w)
 	DAPM_UPDATE_STAT(w, power_checks);
 
 	if (w->active) {
-		out = is_connected_output_ep(w);
+		out = is_connected_output_ep(w, NULL);
 		dapm_clear_walk(w->dapm);
 		return out != 0;
 	} else {
@@ -1558,9 +1660,9 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	in = is_connected_input_ep(w);
+	in = is_connected_input_ep(w, NULL);
 	dapm_clear_walk(w->dapm);
-	out = is_connected_output_ep(w);
+	out = is_connected_output_ep(w, NULL);
 	dapm_clear_walk(w->dapm);
 
 	ret = snprintf(buf, PAGE_SIZE, "%s: %s%s  in %d out %d",

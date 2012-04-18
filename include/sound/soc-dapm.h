@@ -321,6 +321,7 @@ struct snd_soc_dapm_pin;
 struct snd_soc_dapm_route;
 struct snd_soc_dapm_context;
 struct regulator;
+struct snd_soc_dapm_widget_list;
 
 int dapm_reg_event(struct snd_soc_dapm_widget *w,
 		   struct snd_kcontrol *kcontrol, int event);
@@ -402,6 +403,10 @@ void snd_soc_dapm_auto_nc_codec_pins(struct snd_soc_codec *codec);
 
 /* Mostly internal - should not normally be used */
 void dapm_mark_dirty(struct snd_soc_dapm_widget *w, const char *reason);
+
+/* dapm path query */
+int snd_soc_dapm_dai_get_connected_widgets(struct snd_soc_dai *dai, int stream,
+	struct snd_soc_dapm_widget_list **list);
 
 /* dapm widget types */
 enum snd_soc_dapm_type {
