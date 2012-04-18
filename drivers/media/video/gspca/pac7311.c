@@ -439,6 +439,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
 	reg_w(gspca_dev, 0x02, reg);
 
+	/* load registers to sensor (Bit 0, auto clear) */
+	reg_w(gspca_dev, 0x11, 0x01);
+
 	/* Page 1 register 8 must always be 0x08 except when not in
 	   640x480 mode and page 4 reg 2 <= 3 then it must be 9 */
 	reg_w(gspca_dev, 0xff, 0x01);
