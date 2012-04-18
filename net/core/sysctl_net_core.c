@@ -14,6 +14,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/slab.h>
+#include <linux/kmemleak.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
