@@ -16,6 +16,7 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 
 /*
  * GPIO unit register offsets.
@@ -294,6 +295,28 @@ void orion_gpio_set_blink(unsigned pin, int blink)
 	spin_unlock_irqrestore(&ochip->lock, flags);
 }
 EXPORT_SYMBOL(orion_gpio_set_blink);
+
+#define ORION_BLINK_HALF_PERIOD 100 /* ms */
+
+int orion_gpio_led_blink_set(unsigned gpio, int state,
+	unsigned long *delay_on, unsigned long *delay_off)
+{
+
+	if (delay_on && delay_off && !*delay_on && !*delay_off)
+		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
+
+	switch (state) {
+	case GPIO_LED_NO_BLINK_LOW:
+	case GPIO_LED_NO_BLINK_HIGH:
+		orion_gpio_set_blink(gpio, 0);
+		gpio_set_value(gpio, state);
+		break;
+	case GPIO_LED_BLINK:
+		orion_gpio_set_blink(gpio, 1);
+	}
+	return 0;
+}
+EXPORT_SYMBOL_GPL(orion_gpio_led_blink_set);
 
 
 /*****************************************************************************

@@ -253,27 +253,6 @@ error_fail:
  * GPIO LEDs (simple - doesn't use hardware blinking support)
  */
 
-#define ORION_BLINK_HALF_PERIOD 100 /* ms */
-
-static int dns323_gpio_blink_set(unsigned gpio, int state,
-	unsigned long *delay_on, unsigned long *delay_off)
-{
-
-	if (delay_on && delay_off && !*delay_on && !*delay_off)
-		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
-
-	switch(state) {
-	case GPIO_LED_NO_BLINK_LOW:
-	case GPIO_LED_NO_BLINK_HIGH:
-		orion_gpio_set_blink(gpio, 0);
-		gpio_set_value(gpio, state);
-		break;
-	case GPIO_LED_BLINK:
-		orion_gpio_set_blink(gpio, 1);
-	}
-	return 0;
-}
-
 static struct gpio_led dns323ab_leds[] = {
 	{
 		.name = "power:blue",
@@ -312,13 +291,13 @@ static struct gpio_led dns323c_leds[] = {
 static struct gpio_led_platform_data dns323ab_led_data = {
 	.num_leds	= ARRAY_SIZE(dns323ab_leds),
 	.leds		= dns323ab_leds,
-	.gpio_blink_set = dns323_gpio_blink_set,
+	.gpio_blink_set = orion_gpio_led_blink_set,
 };
 
 static struct gpio_led_platform_data dns323c_led_data = {
 	.num_leds	= ARRAY_SIZE(dns323c_leds),
 	.leds		= dns323c_leds,
-	.gpio_blink_set = dns323_gpio_blink_set,
+	.gpio_blink_set = orion_gpio_led_blink_set,
 };
 
 static struct platform_device dns323_gpio_leds = {
