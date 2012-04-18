@@ -50,6 +50,7 @@ struct at25_data {
 #define	AT25_SR_BP1	0x08
 #define	AT25_SR_WPEN	0x80		/* writeprotect enable */
 
+#define	AT25_INSTR_BIT3	0x08		/* Additional address bit in instr */
 
 #define EE_MAXADDRLEN	3		/* 24 bit addresses, up to 2 MBytes */
 
@@ -75,6 +76,7 @@ at25_ee_read(
 	ssize_t			status;
 	struct spi_transfer	t[2];
 	struct spi_message	m;
+	u8			instr;
 
 	if (unlikely(offset >= at25->bin.size))
 		return 0;
@@ -84,7 +86,12 @@ at25_ee_read(
 		return count;
 
 	cp = command;
-	*cp++ = AT25_READ;
+
+	instr = AT25_READ;
+	if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
+		if (offset >= (1U << (at25->addrlen * 8)))
+			instr |= AT25_INSTR_BIT3;
+	*cp++ = instr;
 
 	/* 8/16/24-bit address is written MSB first */
 	switch (at25->addrlen) {
@@ -167,14 +174,14 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 	/* For write, rollover is within the page ... so we write at
 	 * most one page, then manually roll over to the next page.
 	 */
-	bounce[0] = AT25_WRITE;
 	mutex_lock(&at25->lock);
 	do {
 		unsigned long	timeout, retries;
 		unsigned	segment;
 		unsigned	offset = (unsigned) off;
-		u8		*cp = bounce + 1;
+		u8		*cp = bounce;
 		int		sr;
+		u8		instr;
 
 		*cp = AT25_WREN;
 		status = spi_write(at25->spi, cp, 1);
@@ -183,6 +190,12 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 					(int) status);
 			break;
 		}
+
+		instr = AT25_WRITE;
+		if (at25->chip.flags & EE_INSTR_BIT3_IS_ADDR)
+			if (offset >= (1U << (at25->addrlen * 8)))
+				instr |= AT25_INSTR_BIT3;
+		*cp++ = instr;
 
 		/* 8/16/24-bit address is written MSB first */
 		switch (at25->addrlen) {

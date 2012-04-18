@@ -20,6 +20,16 @@ struct spi_eeprom {
 #define	EE_ADDR3	0x0004			/* 24 bit addrs */
 #define	EE_READONLY	0x0008			/* disallow writes */
 
+	/*
+	 * Certain EEPROMS have a size that is larger than the number of address
+	 * bytes would allow (e.g. like M95040 from ST that has 512 Byte size
+	 * but uses only one address byte (A0 to A7) for addressing.) For
+	 * the extra address bit (A8, A16 or A24) bit 3 of the instruction byte
+	 * is used. This instruction bit is normally defined as don't care for
+	 * other AT25 like chips.
+	 */
+#define EE_INSTR_BIT3_IS_ADDR	0x0010
+
 	/* for exporting this chip's data to other kernel code */
 	void (*setup)(struct memory_accessor *mem, void *context);
 	void *context;
