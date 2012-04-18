@@ -798,6 +798,13 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	{
 		set_lcd_info(dev_drv->screen, fb_inf->mach_info->lcd_info);
 	}
+	else if(id == 1)
+	{
+		memcpy(dev_drv->screen,fb_inf->lcdc_dev_drv[0]->screen,sizeof(rk_screen));
+		dev_drv->screen->init = NULL;
+    		dev_drv->screen->standby = NULL;
+	}
+		
 	dev_drv->init_lcdc(dev_drv);
 	dev_drv->load_screen(dev_drv,1);
 	/************fb set,one layer one fb ***********/
@@ -822,7 +829,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
         fbi->var.width = fb_inf->lcdc_dev_drv[lcdc_id]->screen->width;
         fbi->var.height = fb_inf->lcdc_dev_drv[lcdc_id]->screen->height;
-        fbi->var.pixclock =fb_inf->lcdc_dev_drv[lcdc_id]->pixclock;
+        fbi->var.pixclock = fb_inf->lcdc_dev_drv[lcdc_id]->pixclock;
         fbi->var.left_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->left_margin;
         fbi->var.right_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->right_margin;
         fbi->var.upper_margin = fb_inf->lcdc_dev_drv[lcdc_id]->screen->upper_margin;
