@@ -289,8 +289,8 @@ void orion_gpio_set_blink(unsigned pin, int blink)
 		return;
 
 	spin_lock_irqsave(&ochip->lock, flags);
-	__set_level(ochip, pin, 0);
-	__set_blinking(ochip, pin, blink);
+	__set_level(ochip, pin & 31, 0);
+	__set_blinking(ochip, pin & 31, blink);
 	spin_unlock_irqrestore(&ochip->lock, flags);
 }
 EXPORT_SYMBOL(orion_gpio_set_blink);
