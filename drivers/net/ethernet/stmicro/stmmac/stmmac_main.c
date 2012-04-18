@@ -168,6 +168,9 @@ static void stmmac_clk_csr_set(struct stmmac_priv *priv)
 #ifdef CONFIG_HAVE_CLK
 	u32 clk_rate;
 
+	if (IS_ERR(priv->stmmac_clk))
+		return;
+
 	clk_rate = clk_get_rate(priv->stmmac_clk);
 
 	/* Platform provided default clk_csr would be assumed valid
@@ -1923,7 +1926,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 	}
 
 	if (stmmac_clk_get(priv))
-		goto error;
+		pr_warning("%s: warning: cannot get CSR clock\n", __func__);
 
 	/* If a specific clk_csr value is passed from the platform
 	 * this means that the CSR Clock Range selection cannot be

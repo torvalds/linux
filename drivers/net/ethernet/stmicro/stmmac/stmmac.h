@@ -107,7 +107,7 @@ struct stmmac_priv *stmmac_dvr_probe(struct device *device,
 #ifdef CONFIG_HAVE_CLK
 static inline int stmmac_clk_enable(struct stmmac_priv *priv)
 {
-	if (priv->stmmac_clk)
+	if (!IS_ERR(priv->stmmac_clk))
 		return clk_enable(priv->stmmac_clk);
 
 	return 0;
@@ -115,17 +115,18 @@ static inline int stmmac_clk_enable(struct stmmac_priv *priv)
 
 static inline void stmmac_clk_disable(struct stmmac_priv *priv)
 {
-	if (priv->stmmac_clk)
-		clk_disable(priv->stmmac_clk);
+	if (IS_ERR(priv->stmmac_clk))
+		return;
+
+	clk_disable(priv->stmmac_clk);
 }
 static inline int stmmac_clk_get(struct stmmac_priv *priv)
 {
 	priv->stmmac_clk = clk_get(priv->device, NULL);
 
-	if (IS_ERR(priv->stmmac_clk)) {
-		pr_err("%s: ERROR clk_get failed\n", __func__);
+	if (IS_ERR(priv->stmmac_clk))
 		return PTR_ERR(priv->stmmac_clk);
-	}
+
 	return 0;
 }
 #else
