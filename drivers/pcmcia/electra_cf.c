@@ -216,8 +216,10 @@ static int electra_cf_probe(struct platform_device *ofdev)
 	cf->io_size = PAGE_ALIGN(resource_size(&io));
 
 	area = __get_vm_area(cf->io_size, 0, PHB_IO_BASE, PHB_IO_END);
-	if (area == NULL)
-		return -ENOMEM;
+	if (area == NULL) {
+		status = -ENOMEM;
+		goto fail1;
+	}
 
 	cf->io_virt = (void __iomem *)(area->addr);
 
@@ -320,7 +322,8 @@ fail1:
 		iounmap(cf->mem_base);
 	if (cf->gpio_base)
 		iounmap(cf->gpio_base);
-	device_init_wakeup(&ofdev->dev, 0);
+	if (area)
+		device_init_wakeup(&ofdev->dev, 0);
 	kfree(cf);
 	return status;
 
