@@ -735,7 +735,6 @@ static int handle_claim(struct bat_priv *bat_priv,
 
 /**
  * @bat_priv: the bat priv with all the soft interface information
- * @bat_priv: the bat priv with all the soft interface information
  * @hw_src: the Hardware source in the ARP Header
  * @hw_dst: the Hardware destination in the ARP Header
  * @ethhdr: pointer to the Ethernet header of the claim frame
