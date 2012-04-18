@@ -444,7 +444,7 @@ int tipc_reject_msg(struct sk_buff *buf, u32 err)
 	/* send returned message & dispose of rejected message */
 
 	src_node = msg_prevnode(msg);
-	if (src_node == tipc_own_addr)
+	if (in_own_node(src_node))
 		tipc_port_recv_msg(rbuf);
 	else
 		tipc_link_send(rbuf, src_node, msg_link_selector(rmsg));
