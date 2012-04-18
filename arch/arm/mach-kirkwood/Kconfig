@@ -58,6 +58,12 @@ config MACH_DREAMPLUG_DT
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell DreamPlug (Flattened Device Tree).
 
+config MACH_ICONNECT_DT
+	bool "Iomega Iconnect (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here to enable Iomega Iconnect support.
+
 config MACH_DLINK_KIRKWOOD_DT
 	bool "D-Link Kirkwood-based NAS (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT
