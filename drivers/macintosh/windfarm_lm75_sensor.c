@@ -116,6 +116,12 @@ static int wf_lm75_probe(struct i2c_client *client,
 		name = "optical-drive-temp";
 	else if (!strcmp(loc, "HD Temp"))
 		name = "hard-drive-temp";
+	else if (!strcmp(loc, "PCI SLOTS"))
+		name = "slots-temp";
+	else if (!strcmp(loc, "CPU A INLET"))
+		name = "cpu-inlet-temp-0";
+	else if (!strcmp(loc, "CPU B INLET"))
+		name = "cpu-inlet-temp-1";
 	else
 		return -ENXIO;
  	
@@ -170,11 +176,6 @@ static struct i2c_driver wf_lm75_driver = {
 
 static int __init wf_lm75_sensor_init(void)
 {
-	/* Don't register on old machines that use therm_pm72 for now */
-	if (of_machine_is_compatible("PowerMac7,2") ||
-	    of_machine_is_compatible("PowerMac7,3") ||
-	    of_machine_is_compatible("RackMac3,1"))
-		return -ENODEV;
 	return i2c_add_driver(&wf_lm75_driver);
 }
 

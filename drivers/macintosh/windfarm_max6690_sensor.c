@@ -74,7 +74,11 @@ static int wf_max6690_probe(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	if (!strcmp(loc, "BACKSIDE"))
+	/*
+	 * We only expose the external temperature register for
+	 * now as this is all we need for our control loops
+	 */
+	if (!strcmp(loc, "BACKSIDE") || !strcmp(loc, "SYS CTRLR AMBIENT"))
 		name = "backside-temp";
 	else if (!strcmp(loc, "NB Ambient"))
 		name = "north-bridge-temp";
@@ -128,11 +132,6 @@ static struct i2c_driver wf_max6690_driver = {
 
 static int __init wf_max6690_sensor_init(void)
 {
-	/* Don't register on old machines that use therm_pm72 for now */
-	if (of_machine_is_compatible("PowerMac7,2") ||
-	    of_machine_is_compatible("PowerMac7,3") ||
-	    of_machine_is_compatible("RackMac3,1"))
-		return -ENODEV;
 	return i2c_add_driver(&wf_max6690_driver);
 }
 
