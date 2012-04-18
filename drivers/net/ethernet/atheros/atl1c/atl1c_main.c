@@ -501,11 +501,16 @@ static int atl1c_set_features(struct net_device *netdev,
 static int atl1c_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
+	struct atl1c_hw *hw = &adapter->hw;
 	int old_mtu   = netdev->mtu;
 	int max_frame = new_mtu + ETH_HLEN + ETH_FCS_LEN + VLAN_HLEN;
 
-	if ((max_frame < ETH_ZLEN + ETH_FCS_LEN) ||
-			(max_frame > MAX_JUMBO_FRAME_SIZE)) {
+	/* Fast Ethernet controller doesn't support jumbo packet */
+	if (((hw->nic_type == athr_l2c ||
+	      hw->nic_type == athr_l2c_b ||
+	      hw->nic_type == athr_l2c_b2) && new_mtu > ETH_DATA_LEN) ||
+	      max_frame < ETH_ZLEN + ETH_FCS_LEN ||
+	      max_frame > MAX_JUMBO_FRAME_SIZE) {
 		if (netif_msg_link(adapter))
 			dev_warn(&adapter->pdev->dev, "invalid MTU setting\n");
 		return -EINVAL;
@@ -1049,7 +1054,7 @@ static void atl1c_configure_tx(struct atl1c_adapter *adapter)
 	u16 tx_offload_thresh;
 	u32 txq_ctrl_data;
 
-	tx_offload_thresh = MAX_TX_OFFLOAD_THRESH;
+	tx_offload_thresh = MAX_TSO_FRAME_SIZE;
 	AT_WRITE_REG(hw, REG_TX_TSO_OFFLOAD_THRESH,
 		(tx_offload_thresh >> 3) & TX_TSO_OFFLOAD_THRESH_MASK);
 	max_pay_load = pcie_get_readrq(adapter->pdev) >> 8;

@@ -500,6 +500,7 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 /* Jumbo packet Threshold for task offload */
 #define REG_TX_TSO_OFFLOAD_THRESH	0x1594 /* In 8-bytes */
 #define TX_TSO_OFFLOAD_THRESH_MASK	0x07FF
+#define MAX_TSO_FRAME_SIZE		(7*1024)
 
 #define	REG_TXF_WATER_MARK		0x1598 /* In 8-bytes */
 #define TXF_WATER_MARK_MASK		0x0FFF
