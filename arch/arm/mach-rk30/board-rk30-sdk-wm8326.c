@@ -125,6 +125,19 @@ static int wm831x_pre_init(struct wm831x *parm)
 
 	return 0;
 }
+static int wm831x_mask_interrupt(struct wm831x *Wm831x)
+{
+	/**************************clear interrupt********************/
+	wm831x_reg_write(Wm831x,WM831X_INTERRUPT_STATUS_1,0xffff);
+	wm831x_reg_write(Wm831x,WM831X_INTERRUPT_STATUS_2,0xffff);
+	wm831x_reg_write(Wm831x,WM831X_INTERRUPT_STATUS_3,0xffff);
+	wm831x_reg_write(Wm831x,WM831X_INTERRUPT_STATUS_4,0xffff);
+	wm831x_reg_write(Wm831x,WM831X_INTERRUPT_STATUS_5,0xffff);
+	
+	wm831x_reg_write(Wm831x,WM831X_SYSTEM_INTERRUPTS_MASK,0xbedc); //mask interrupt which not used
+	return 0;
+	/*****************************************************************/
+}
 
 int wm831x_post_init(struct wm831x *Wm831x)
 {
@@ -243,6 +256,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 	udelay(100);
 
+	wm831x_mask_interrupt(Wm831x);
 	printk("wm831x_post_init end");
 	return 0;
 }
