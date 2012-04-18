@@ -2354,9 +2354,14 @@ static int atl1c_suspend(struct device *dev)
 			mac_ctrl_data |= MAC_CTRL_DUPLX;
 
 		/* turn on magic packet wol */
-		if (wufc & AT_WUFC_MAG)
+		if (wufc & AT_WUFC_MAG) {
 			wol_ctrl_data |= WOL_MAGIC_EN | WOL_MAGIC_PME_EN;
-
+			if (hw->nic_type == athr_l2c_b &&
+			    hw->revision_id == L2CB_V11) {
+				wol_ctrl_data |=
+					WOL_PATTERN_EN | WOL_PATTERN_PME_EN;
+			}
+		}
 		if (wufc & AT_WUFC_LNKC) {
 			wol_ctrl_data |=  WOL_LINK_CHG_EN | WOL_LINK_CHG_PME_EN;
 			/* only link up can wake up */
