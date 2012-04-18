@@ -309,10 +309,75 @@ config SAMSUNG_DEV_BACKLIGHT
 	help
 	  Compile in platform device definition LCD backlight with PWM Timer
 
+config S5P_DEV_CSIS0
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 0
+
+config S5P_DEV_CSIS1
+	bool
+	help
+	  Compile in platform device definitions for MIPI-CSIS channel 1
+
+config S5P_DEV_FIMC0
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 0
+
+config S5P_DEV_FIMC1
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 1
+
+config S5P_DEV_FIMC2
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 2
+
+config S5P_DEV_FIMC3
+	bool
+	help
+	  Compile in platform device definitions for FIMC controller 3
+
+config S5P_DEV_FIMD0
+	bool
+	help
+	  Compile in platform device definitions for FIMD controller 0
+
+config S5P_DEV_G2D
+	bool
+	help
+	  Compile in platform device definitions for G2D device
+
+config S5P_DEV_I2C_HDMIPHY
+	bool
+	help
+	  Compile in platform device definitions for I2C HDMIPHY controller
+
+config S5P_DEV_JPEG
+	bool
+	help
+	  Compile in platform device definitions for JPEG codec
+
 config S5P_DEV_MFC
 	bool
 	help
 	  Compile in setup memory (init) code for MFC
+
+config S5P_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
+
+config S5P_DEV_TV
+	bool
+	help
+	  Compile in platform device definition for TV interface
+
+config S5P_DEV_USB_EHCI
+	bool
+	help
+	  Compile in platform device definition for USB EHCI
 
 config S3C24XX_PWM
 	bool "PWM device support"
