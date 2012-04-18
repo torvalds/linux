@@ -38,7 +38,6 @@
 #include <linux/atomic.h>
 #include <asm/cpu.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/vpe.h>
 #include <asm/rtlx.h>
 
@@ -473,7 +472,6 @@ static const struct file_operations rtlx_fops = {
 
 static struct irqaction rtlx_irq = {
 	.handler	= rtlx_interrupt,
-	.flags		= IRQF_DISABLED,
 	.name		= "RTLX",
 };
 

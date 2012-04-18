@@ -226,11 +226,11 @@ module_param(protocol, uint, 0444);
 MODULE_PARM_DESC(protocol, "IR protocol to use for the power-on command "
 		 "(0 = RC5, 1 = NEC, 2 = RC6A, default)");
 
-static int invert; /* default = 0 */
+static bool invert; /* default = 0 */
 module_param(invert, bool, 0444);
 MODULE_PARM_DESC(invert, "Invert the signal from the IR receiver");
 
-static int txandrx; /* default = 0 */
+static bool txandrx; /* default = 0 */
 module_param(txandrx, bool, 0444);
 MODULE_PARM_DESC(invert, "Allow simultaneous TX and RX");
 

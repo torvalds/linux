@@ -57,7 +57,6 @@
 #include <linux/types.h>
 #include <linux/inet_lro.h>
 #include <linux/slab.h>
-#include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.4";
@@ -136,6 +135,8 @@ static char mv643xx_eth_driver_version[] = "1.4";
 #define INT_MASK			0x0068
 #define INT_MASK_EXT			0x006c
 #define TX_FIFO_URGENT_THRESHOLD	0x0074
+#define RX_DISCARD_FRAME_CNT		0x0084
+#define RX_OVERRUN_FRAME_CNT		0x0088
 #define TXQ_FIX_PRIO_CONF_MOVED		0x00dc
 #define TX_BW_RATE_MOVED		0x00e0
 #define TX_BW_MTU_MOVED			0x00e8
@@ -334,6 +335,9 @@ struct mib_counters {
 	u32 bad_crc_event;
 	u32 collision;
 	u32 late_collision;
+	/* Non MIB hardware counters */
+	u32 rx_discard;
+	u32 rx_overrun;
 };
 
 struct lro_counters {
@@ -662,7 +666,7 @@ static int rxq_refill(struct rx_queue *rxq, int budget)
 
 		skb = __skb_dequeue(&mp->rx_recycle);
 		if (skb == NULL)
-			skb = dev_alloc_skb(mp->skb_size);
+			skb = netdev_alloc_skb(mp->dev, mp->skb_size);
 
 		if (skb == NULL) {
 			mp->oom = 1;
@@ -1225,6 +1229,10 @@ static void mib_counters_clear(struct mv643xx_eth_private *mp)
 
 	for (i = 0; i < 0x80; i += 4)
 		mib_read(mp, i);
+
+	/* Clear non MIB hw counters also */
+	rdlp(mp, RX_DISCARD_FRAME_CNT);
+	rdlp(mp, RX_OVERRUN_FRAME_CNT);
 }
 
 static void mib_counters_update(struct mv643xx_eth_private *mp)
@@ -1262,6 +1270,9 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->bad_crc_event += mib_read(mp, 0x74);
 	p->collision += mib_read(mp, 0x78);
 	p->late_collision += mib_read(mp, 0x7c);
+	/* Non MIB hardware counters */
+	p->rx_discard += rdlp(mp, RX_DISCARD_FRAME_CNT);
+	p->rx_overrun += rdlp(mp, RX_OVERRUN_FRAME_CNT);
 	spin_unlock_bh(&mp->mib_counters_lock);
 
 	mod_timer(&mp->mib_counters_timer, jiffies + 30 * HZ);
@@ -1413,6 +1424,8 @@ static const struct mv643xx_eth_stats mv643xx_eth_stats[] = {
 	MIBSTAT(bad_crc_event),
 	MIBSTAT(collision),
 	MIBSTAT(late_collision),
+	MIBSTAT(rx_discard),
+	MIBSTAT(rx_overrun),
 	LROSTAT(lro_aggregated),
 	LROSTAT(lro_flushed),
 	LROSTAT(lro_no_desc),
@@ -1818,7 +1831,7 @@ static int mv643xx_eth_set_mac_address(struct net_device *dev, void *addr)
 	struct sockaddr *sa = addr;
 
 	if (!is_valid_ether_addr(sa->sa_data))
-		return -EINVAL;
+		return -EADDRNOTAVAIL;
 
 	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
 
@@ -2613,7 +2626,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		msp->smi_bus->name = "mv643xx_eth smi";
 		msp->smi_bus->read = smi_bus_read;
 		msp->smi_bus->write = smi_bus_write,
-		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%d", pdev->id);
+		snprintf(msp->smi_bus->id, MII_BUS_ID_SIZE, "%s-%d",
+			pdev->name, pdev->id);
 		msp->smi_bus->parent = &pdev->dev;
 		msp->smi_bus->phy_mask = 0xffffffff;
 		if (mdiobus_register(msp->smi_bus) < 0)

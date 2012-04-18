@@ -1,7 +1,7 @@
 /*
  * super.c - NTFS kernel super block handling. Part of the Linux-NTFS project.
  *
- * Copyright (c) 2001-2011 Anton Altaparmakov and Tuxera Inc.
+ * Copyright (c) 2001-2012 Anton Altaparmakov and Tuxera Inc.
  * Copyright (c) 2001,2002 Richard Russon
  *
  * This program/include file is free software; you can redistribute it and/or
@@ -1239,7 +1239,6 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 {
 	MFT_REF mref;
 	struct inode *vi;
-	ntfs_inode *ni;
 	struct page *page;
 	u32 *kaddr, *kend;
 	ntfs_name *name = NULL;
@@ -1290,7 +1289,6 @@ static int check_windows_hibernation_status(ntfs_volume *vol)
 				"is not the system volume.", i_size_read(vi));
 		goto iput_out;
 	}
-	ni = NTFS_I(vi);
 	page = ntfs_map_page(vi->i_mapping, 0);
 	if (IS_ERR(page)) {
 		ntfs_error(vol->sb, "Failed to read from hiberfil.sys.");
@@ -2475,7 +2473,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		/*
 		 * Subtract the number of set bits. If this
 		 * is the last page and it is partial we don't really care as
@@ -2485,7 +2483,7 @@ static s64 get_nr_free_clusters(ntfs_volume *vol)
 		 */
 		nr_free -= bitmap_weight(kaddr,
 					PAGE_CACHE_SIZE * BITS_PER_BYTE);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		page_cache_release(page);
 	}
 	ntfs_debug("Finished reading $Bitmap, last index = 0x%lx.", index - 1);
@@ -2546,7 +2544,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 			nr_free -= PAGE_CACHE_SIZE * 8;
 			continue;
 		}
-		kaddr = kmap_atomic(page, KM_USER0);
+		kaddr = kmap_atomic(page);
 		/*
 		 * Subtract the number of set bits. If this
 		 * is the last page and it is partial we don't really care as
@@ -2556,7 +2554,7 @@ static unsigned long __get_nr_free_mft_records(ntfs_volume *vol,
 		 */
 		nr_free -= bitmap_weight(kaddr,
 					PAGE_CACHE_SIZE * BITS_PER_BYTE);
-		kunmap_atomic(kaddr, KM_USER0);
+		kunmap_atomic(kaddr);
 		page_cache_release(page);
 	}
 	ntfs_debug("Finished reading $MFT/$BITMAP, last index = 0x%lx.",
@@ -2910,9 +2908,10 @@ static int ntfs_fill_super(struct super_block *sb, void *opt, const int silent)
 		ntfs_error(sb, "Failed to load system files.");
 		goto unl_upcase_iput_tmp_ino_err_out_now;
 	}
-	if ((sb->s_root = d_alloc_root(vol->root_ino))) {
-		/* We grab a reference, simulating an ntfs_iget(). */
-		ihold(vol->root_ino);
+
+	/* We grab a reference, simulating an ntfs_iget(). */
+	ihold(vol->root_ino);
+	if ((sb->s_root = d_make_root(vol->root_ino))) {
 		ntfs_debug("Exiting, status successful.");
 		/* Release the default upcase if it has no users. */
 		mutex_lock(&ntfs_lock);
@@ -3160,6 +3159,8 @@ static int __init init_ntfs_fs(void)
 	}
 	printk(KERN_CRIT "NTFS: Failed to register NTFS filesystem driver!\n");
 
+	/* Unregister the ntfs sysctls. */
+	ntfs_sysctl(0);
 sysctl_err_out:
 	kmem_cache_destroy(ntfs_big_inode_cache);
 big_inode_err_out:
@@ -3198,7 +3199,7 @@ MODULE_DESCRIPTION("NTFS 1.2/3.x driver - Copyright (c) 2001-2011 Anton Altaparm
 MODULE_VERSION(NTFS_VERSION);
 MODULE_LICENSE("GPL");
 #ifdef DEBUG
-module_param(debug_msgs, bool, 0);
+module_param(debug_msgs, bint, 0);
 MODULE_PARM_DESC(debug_msgs, "Enable debug messages.");
 #endif
 

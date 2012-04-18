@@ -115,8 +115,6 @@ int get_callchain_buffers(void)
 	}
 
 	err = alloc_callchain_buffers();
-	if (err)
-		release_callchain_buffers();
 exit:
 	mutex_unlock(&callchain_mutex);
 

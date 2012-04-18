@@ -35,6 +35,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
+#include "soc.h"
+
 #define SNAPPERCL15_NAND_BASE	(EP93XX_CS7_PHYS_BASE + SZ_16M)
 
 #define SNAPPERCL15_NAND_WPN	(1 << 8)  /* Write protect (active low) */

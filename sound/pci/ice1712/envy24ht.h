@@ -66,6 +66,7 @@ enum {
 #define     VT1724_CFG_CLOCK384  0x40	/* 16.9344Mhz, 44.1kHz*384 */
 #define   VT1724_CFG_MPU401	0x20		/* MPU401 UARTs */
 #define   VT1724_CFG_ADC_MASK	0x0c	/* one, two or one and S/PDIF, stereo ADCs */
+#define   VT1724_CFG_ADC_NONE	0x0c	/* no ADCs */
 #define   VT1724_CFG_DAC_MASK	0x03	/* one, two, three, four stereo DACs */
 
 #define VT1724_REG_AC97_CFG		0x05	/* byte */

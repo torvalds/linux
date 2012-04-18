@@ -40,9 +40,8 @@
  *  We replace errornous fields by default TPS fields (the ones with value 0).
  */
 
-static uint16_t compute_tps(struct dvb_frontend_parameters *p)
+static uint16_t compute_tps(struct dtv_frontend_properties *op)
 {
-	struct dvb_ofdm_parameters *op = &p->u.ofdm;
 	uint16_t tps = 0;
 
 	switch (op->code_rate_HP) {
@@ -83,7 +82,7 @@ static uint16_t compute_tps(struct dvb_frontend_parameters *p)
 		/* tps |= (0 << 4) */;
 	}
 
-	switch (op->constellation) {
+	switch (op->modulation) {
 	case QAM_16:
 		tps |= (1 << 13);
 		break;
@@ -119,7 +118,7 @@ static uint16_t compute_tps(struct dvb_frontend_parameters *p)
 		/* tps |= (0 << 2) */;
 	}
 
-	switch (op->hierarchy_information) {
+	switch (op->hierarchy) {
 	case HIERARCHY_1:
 		tps |= (1 << 10);
 		break;
@@ -263,9 +262,9 @@ static int cinergyt2_fe_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe,
-				  struct dvb_frontend_parameters *fep)
+static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct cinergyt2_fe_state *state = fe->demodulator_priv;
 	struct dvbt_set_parameters_msg param;
 	char result[2];
@@ -274,8 +273,20 @@ static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe,
 	param.cmd = CINERGYT2_EP1_SET_TUNER_PARAMETERS;
 	param.tps = cpu_to_le16(compute_tps(fep));
 	param.freq = cpu_to_le32(fep->frequency / 1000);
-	param.bandwidth = 8 - fep->u.ofdm.bandwidth - BANDWIDTH_8_MHZ;
 	param.flags = 0;
+
+	switch (fep->bandwidth_hz) {
+	default:
+	case 8000000:
+		param.bandwidth = 8;
+		break;
+	case 7000000:
+		param.bandwidth = 7;
+		break;
+	case 6000000:
+		param.bandwidth = 6;
+		break;
+	}
 
 	err = dvb_usb_generic_rw(state->d,
 			(char *)&param, sizeof(param),
@@ -284,12 +295,6 @@ static int cinergyt2_fe_set_frontend(struct dvb_frontend *fe,
 		err("cinergyt2_fe_set_frontend() Failed! err=%d\n", err);
 
 	return (err < 0) ? err : 0;
-}
-
-static int cinergyt2_fe_get_frontend(struct dvb_frontend *fe,
-				  struct dvb_frontend_parameters *fep)
-{
-	return 0;
 }
 
 static void cinergyt2_fe_release(struct dvb_frontend *fe)
@@ -316,9 +321,9 @@ struct dvb_frontend *cinergyt2_fe_attach(struct dvb_usb_device *d)
 
 
 static struct dvb_frontend_ops cinergyt2_fe_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= DRIVER_NAME,
-		.type			= FE_OFDM,
 		.frequency_min		= 174000000,
 		.frequency_max		= 862000000,
 		.frequency_stepsize	= 166667,
@@ -341,7 +346,6 @@ static struct dvb_frontend_ops cinergyt2_fe_ops = {
 	.sleep			= cinergyt2_fe_sleep,
 
 	.set_frontend		= cinergyt2_fe_set_frontend,
-	.get_frontend		= cinergyt2_fe_get_frontend,
 	.get_tune_settings	= cinergyt2_fe_get_tune_settings,
 
 	.read_status		= cinergyt2_fe_read_status,

@@ -126,7 +126,7 @@
 #define SDMMC_CMD_RESP_EXP		BIT(6)
 #define SDMMC_CMD_INDX(n)		((n) & 0x1F)
 /* Status register defines */
-#define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FF)
+#define SDMMC_GET_FCNT(x)		(((x)>>17) & 0x1FFF)
 /* Internal DMAC interrupt defines */
 #define SDMMC_IDMAC_INT_AI		BIT(9)
 #define SDMMC_IDMAC_INT_NI		BIT(8)
@@ -173,6 +173,13 @@
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg))
 #define mci_writeq(dev, reg, value)			\
 	(*(volatile u64 __force *)((dev)->regs + SDMMC_##reg) = (value))
+#endif
+
+extern int dw_mci_probe(struct dw_mci *host);
+extern void dw_mci_remove(struct dw_mci *host);
+#ifdef CONFIG_PM
+extern int dw_mci_suspend(struct dw_mci *host);
+extern int dw_mci_resume(struct dw_mci *host);
 #endif
 
 #endif /* _DW_MMC_H_ */

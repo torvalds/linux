@@ -22,6 +22,7 @@
 #include <linux/input/sh_keysc.h>
 #include <linux/i2c.h>
 #include <linux/usb/r8a66597.h>
+#include <linux/videodev2.h>
 #include <media/rj54n1cb0c.h>
 #include <media/soc_camera.h>
 #include <media/sh_mobile_ceu.h>
@@ -122,9 +123,6 @@ static struct platform_device kfr2r09_sh_keysc_device = {
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_keysc_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_KEYSC,
-	},
 };
 
 static const struct fb_videomode kfr2r09_lcdc_modes[] = {
@@ -146,17 +144,15 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = SYS18,
 		.clock_divider = 6,
 		.flags = LCDC_FLAGS_DWPOL,
-		.lcd_cfg = kfr2r09_lcdc_modes,
-		.num_cfg = ARRAY_SIZE(kfr2r09_lcdc_modes),
-		.lcd_size_cfg = {
+		.lcd_modes = kfr2r09_lcdc_modes,
+		.num_modes = ARRAY_SIZE(kfr2r09_lcdc_modes),
+		.panel_cfg = {
 			.width = 35,
 			.height = 58,
-		},
-		.board_cfg = {
 			.setup_sys = kfr2r09_lcd_setup,
 			.start_transfer = kfr2r09_lcd_start,
 			.display_on = kfr2r09_lcd_on,
@@ -190,9 +186,6 @@ static struct platform_device kfr2r09_sh_lcdc_device = {
 	.resource	= kfr2r09_sh_lcdc_resources,
 	.dev	= {
 		.platform_data	= &kfr2r09_sh_lcdc_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -253,9 +246,6 @@ static struct platform_device kfr2r09_ceu_device = {
 	.resource	= kfr2r09_ceu_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU0,
 	},
 };
 
@@ -376,9 +366,6 @@ static struct platform_device kfr2r09_sh_sdhi0_device = {
 	.resource       = kfr2r09_sh_sdhi0_resources,
 	.dev = {
 		.platform_data	= &sh7724_sdhi0_data,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI0,
 	},
 };
 

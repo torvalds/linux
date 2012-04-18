@@ -114,6 +114,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 static struct snd_soc_card rx1950_asoc = {
 	.name = "rx1950",
+	.owner = THIS_MODULE,
 	.dai_link = rx1950_uda1380_dai,
 	.num_links = ARRAY_SIZE(rx1950_uda1380_dai),
 

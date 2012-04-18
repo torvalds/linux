@@ -45,8 +45,8 @@ transmission. The fontend types are given by fe_type_t type, defined as:</para>
   </row>
   <row>
      <entry id="FE_QAM"><constant>FE_QAM</constant></entry>
-     <entry>For DVB-C annex A/C standard</entry>
-     <entry><constant>SYS_DVBC_ANNEX_AC</constant></entry>
+     <entry>For DVB-C annex A standard</entry>
+     <entry><constant>SYS_DVBC_ANNEX_A</constant></entry>
   </row>
   <row>
      <entry id="FE_OFDM"><constant>FE_OFDM</constant></entry>
@@ -63,6 +63,10 @@ transmission. The fontend types are given by fe_type_t type, defined as:</para>
 <para>Newer formats like DVB-S2, ISDB-T, ISDB-S and DVB-T2 are not described at the above, as they're
 supported via the new <link linkend="FE_GET_SET_PROPERTY">FE_GET_PROPERTY/FE_GET_SET_PROPERTY</link> ioctl's, using the <link linkend="DTV-DELIVERY-SYSTEM">DTV_DELIVERY_SYSTEM</link> parameter.
 </para>
+
+<para>The usage of this field is deprecated, as it doesn't report all supported standards, and
+will provide an incomplete information for frontends that support multiple delivery systems.
+Please use <link linkend="DTV_ENUM_DELSYS">DTV_ENUM_DELSYS</link> instead.</para>
 </section>
 
 <section id="fe-caps-t">

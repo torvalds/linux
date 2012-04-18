@@ -762,18 +762,7 @@ static struct platform_driver nuc900fb_driver = {
 	},
 };
 
-int __devinit nuc900fb_init(void)
-{
-	return platform_driver_register(&nuc900fb_driver);
-}
-
-static void __exit nuc900fb_cleanup(void)
-{
-	platform_driver_unregister(&nuc900fb_driver);
-}
-
-module_init(nuc900fb_init);
-module_exit(nuc900fb_cleanup);
+module_platform_driver(nuc900fb_driver);
 
 MODULE_DESCRIPTION("Framebuffer driver for the NUC900");
 MODULE_LICENSE("GPL");

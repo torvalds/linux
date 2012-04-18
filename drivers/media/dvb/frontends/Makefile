@@ -2,8 +2,8 @@
 # Makefile for the kernel DVB frontend device drivers.
 #
 
-ccflags-y += -Idrivers/media/dvb/dvb-core/
-ccflags-y += -Idrivers/media/common/tuners/
+ccflags-y += -I$(srctree)/drivers/media/dvb/dvb-core/
+ccflags-y += -I$(srctree)/drivers/media/common/tuners/
 
 stb0899-objs = stb0899_drv.o stb0899_algo.o
 stv0900-objs = stv0900_core.o stv0900_sw.o
@@ -84,6 +84,7 @@ obj-$(CONFIG_DVB_STV090x) += stv090x.o
 obj-$(CONFIG_DVB_STV6110x) += stv6110x.o
 obj-$(CONFIG_DVB_ISL6423) += isl6423.o
 obj-$(CONFIG_DVB_EC100) += ec100.o
+obj-$(CONFIG_DVB_HD29L2) += hd29l2.o
 obj-$(CONFIG_DVB_DS3000) += ds3000.o
 obj-$(CONFIG_DVB_MB86A16) += mb86a16.o
 obj-$(CONFIG_DVB_MB86A20S) += mb86a20s.o
@@ -95,4 +96,6 @@ obj-$(CONFIG_DVB_TDA18271C2DD) += tda18271c2dd.o
 obj-$(CONFIG_DVB_IT913X_FE) += it913x-fe.o
 obj-$(CONFIG_DVB_A8293) += a8293.o
 obj-$(CONFIG_DVB_TDA10071) += tda10071.o
+obj-$(CONFIG_DVB_RTL2830) += rtl2830.o
+obj-$(CONFIG_DVB_M88RS2000) += m88rs2000.o
 

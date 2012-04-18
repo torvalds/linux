@@ -3,6 +3,7 @@
 
 #include <linux/list.h>
 #include <linux/backing-dev.h>
+#include <linux/idr.h>
 #include <linux/wait.h>
 #include <linux/nfs_xdr.h>
 #include <linux/sunrpc/xprt.h>
@@ -17,6 +18,7 @@ struct nfs4_sequence_res;
 struct nfs_server;
 struct nfs4_minor_version_ops;
 struct server_scope;
+struct nfs41_impl_id;
 
 /*
  * The nfs_client identifies our client state to the server.
@@ -85,6 +87,8 @@ struct nfs_client {
 #endif
 
 	struct server_scope	*server_scope;	/* from exchange_id */
+	struct nfs41_impl_id	*impl_id;	/* from exchange_id */
+	struct net		*net;
 };
 
 /*
@@ -144,15 +148,18 @@ struct nfs_server {
 	u32			acl_bitmask;	/* V4 bitmask representing the ACEs
 						   that are supported on this
 						   filesystem */
+	u32			fh_expire_type;	/* V4 bitmask representing file
+						   handle volatility type for
+						   this filesystem */
 	struct pnfs_layoutdriver_type  *pnfs_curr_ld; /* Active layout driver */
 	struct rpc_wait_queue	roc_rpcwaitq;
 	void			*pnfs_ld_data;	/* per mount point data */
 
 	/* the following fields are protected by nfs_client->cl_lock */
 	struct rb_root		state_owners;
-	struct rb_root		openowner_id;
-	struct rb_root		lockowner_id;
 #endif
+	struct ida		openowner_id;
+	struct ida		lockowner_id;
 	struct list_head	state_owners_lru;
 	struct list_head	layouts;
 	struct list_head	delegations;
@@ -188,21 +195,23 @@ struct nfs_server {
 
 
 /* maximum number of slots to use */
-#define NFS4_MAX_SLOT_TABLE RPC_MAX_SLOT_TABLE
+#define NFS4_DEF_SLOT_TABLE_SIZE (16U)
+#define NFS4_MAX_SLOT_TABLE (256U)
+#define NFS4_NO_SLOT ((u32)-1)
 
 #if defined(CONFIG_NFS_V4)
 
 /* Sessions */
-#define SLOT_TABLE_SZ (NFS4_MAX_SLOT_TABLE/(8*sizeof(long)))
+#define SLOT_TABLE_SZ DIV_ROUND_UP(NFS4_MAX_SLOT_TABLE, 8*sizeof(long))
 struct nfs4_slot_table {
 	struct nfs4_slot *slots;		/* seqid per slot */
 	unsigned long   used_slots[SLOT_TABLE_SZ]; /* used/unused bitmap */
 	spinlock_t	slot_tbl_lock;
 	struct rpc_wait_queue	slot_tbl_waitq;	/* allocators may wait here */
-	int		max_slots;		/* # slots in table */
-	int		highest_used_slotid;	/* sent to server on each SEQ.
+	u32		max_slots;		/* # slots in table */
+	u32		highest_used_slotid;	/* sent to server on each SEQ.
 						 * op for dynamic resizing */
-	int		target_max_slots;	/* Set by CB_RECALL_SLOT as
+	u32		target_max_slots;	/* Set by CB_RECALL_SLOT as
 						 * the new max_slots */
 	struct completion complete;
 };

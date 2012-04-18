@@ -66,7 +66,6 @@ typedef struct xfs_ifork {
 	struct xfs_btree_block	*if_broot;	/* file's incore btree root */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	unsigned char		if_flags;	/* per-fork flags */
-	unsigned char		if_ext_max;	/* max # of extent records */
 	union {
 		xfs_bmbt_rec_host_t *if_extents;/* linear map file exts */
 		xfs_ext_irec_t	*if_ext_irec;	/* irec map file exts */
@@ -206,12 +205,12 @@ typedef struct xfs_icdinode {
 	((w) == XFS_DATA_FORK ? \
 		((ip)->i_d.di_nextents = (n)) : \
 		((ip)->i_d.di_anextents = (n)))
-
+#define XFS_IFORK_MAXEXT(ip, w) \
+	(XFS_IFORK_SIZE(ip, w) / sizeof(xfs_bmbt_rec_t))
 
 
 #ifdef __KERNEL__
 
-struct bhv_desc;
 struct xfs_buf;
 struct xfs_bmap_free;
 struct xfs_bmbt_irec;
@@ -219,12 +218,6 @@ struct xfs_inode_log_item;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_dquot;
-
-typedef struct dm_attrs_s {
-	__uint32_t	da_dmevmask;	/* DMIG event mask */
-	__uint16_t	da_dmstate;	/* DMIG state info */
-	__uint16_t	da_pad;		/* DMIG extra padding */
-} dm_attrs_t;
 
 typedef struct xfs_inode {
 	/* Inode linking and identification information. */
@@ -244,26 +237,17 @@ typedef struct xfs_inode {
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_iolock;	/* inode IO lock */
-	struct completion	i_flush;	/* inode flush completion q */
 	atomic_t		i_pincount;	/* inode pin count */
-	wait_queue_head_t	i_ipin_wait;	/* inode pinning wait queue */
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
 	/* Miscellaneous state. */
-	unsigned short		i_flags;	/* see defined flags below */
-	unsigned char		i_update_core;	/* timestamps/size is dirty */
+	unsigned long		i_flags;	/* see defined flags below */
 	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
 
 	xfs_icdinode_t		i_d;		/* most of ondisk inode */
 
-	xfs_fsize_t		i_size;		/* in-memory size */
-	xfs_fsize_t		i_new_size;	/* size when write completes */
-
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 } xfs_inode_t;
-
-#define XFS_ISIZE(ip)	S_ISREG((ip)->i_d.di_mode) ? \
-				(ip)->i_size : (ip)->i_d.di_size;
 
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
@@ -275,6 +259,32 @@ static inline struct xfs_inode *XFS_I(struct inode *inode)
 static inline struct inode *VFS_I(struct xfs_inode *ip)
 {
 	return &ip->i_vnode;
+}
+
+/*
+ * For regular files we only update the on-disk filesize when actually
+ * writing data back to disk.  Until then only the copy in the VFS inode
+ * is uptodate.
+ */
+static inline xfs_fsize_t XFS_ISIZE(struct xfs_inode *ip)
+{
+	if (S_ISREG(ip->i_d.di_mode))
+		return i_size_read(VFS_I(ip));
+	return ip->i_d.di_size;
+}
+
+/*
+ * If this I/O goes past the on-disk inode size update it unless it would
+ * be past the current in-core inode size.
+ */
+static inline xfs_fsize_t
+xfs_new_eof(struct xfs_inode *ip, xfs_fsize_t new_size)
+{
+	xfs_fsize_t i_size = i_size_read(VFS_I(ip));
+
+	if (new_size > i_size)
+		new_size = i_size;
+	return new_size > ip->i_d.di_size ? new_size : 0;
 }
 
 /*
@@ -331,6 +341,19 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
 	return ret;
 }
 
+static inline int
+xfs_iflags_test_and_set(xfs_inode_t *ip, unsigned short flags)
+{
+	int ret;
+
+	spin_lock(&ip->i_flags_lock);
+	ret = ip->i_flags & flags;
+	if (!ret)
+		ip->i_flags |= flags;
+	spin_unlock(&ip->i_flags_lock);
+	return ret;
+}
+
 /*
  * Project quota id helpers (previously projid was 16bit only
  * and using two 16bit values to hold new 32bit projid was chosen
@@ -351,45 +374,58 @@ xfs_set_projid(struct xfs_inode *ip,
 }
 
 /*
- * Manage the i_flush queue embedded in the inode.  This completion
- * queue synchronizes processes attempting to flush the in-core
- * inode back to disk.
- */
-static inline void xfs_iflock(xfs_inode_t *ip)
-{
-	wait_for_completion(&ip->i_flush);
-}
-
-static inline int xfs_iflock_nowait(xfs_inode_t *ip)
-{
-	return try_wait_for_completion(&ip->i_flush);
-}
-
-static inline void xfs_ifunlock(xfs_inode_t *ip)
-{
-	complete(&ip->i_flush);
-}
-
-/*
  * In-core inode flags.
  */
-#define XFS_IRECLAIM		0x0001  /* started reclaiming this inode */
-#define XFS_ISTALE		0x0002	/* inode has been staled */
-#define XFS_IRECLAIMABLE	0x0004	/* inode can be reclaimed */
-#define XFS_INEW		0x0008	/* inode has just been allocated */
-#define XFS_IFILESTREAM		0x0010	/* inode is in a filestream directory */
-#define XFS_ITRUNCATED		0x0020	/* truncated down so flush-on-close */
-#define XFS_IDIRTY_RELEASE	0x0040	/* dirty release already seen */
+#define XFS_IRECLAIM		(1 << 0) /* started reclaiming this inode */
+#define XFS_ISTALE		(1 << 1) /* inode has been staled */
+#define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
+#define XFS_INEW		(1 << 3) /* inode has just been allocated */
+#define XFS_IFILESTREAM		(1 << 4) /* inode is in a filestream dir. */
+#define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
+#define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
+#define __XFS_IFLOCK_BIT	7	 /* inode is being flushed right now */
+#define XFS_IFLOCK		(1 << __XFS_IFLOCK_BIT)
+#define __XFS_IPINNED_BIT	8	 /* wakeup key for zero pin count */
+#define XFS_IPINNED		(1 << __XFS_IPINNED_BIT)
+#define XFS_IDONTCACHE		(1 << 9) /* don't cache the inode long term */
 
 /*
  * Per-lifetime flags need to be reset when re-using a reclaimable inode during
- * inode lookup. Thi prevents unintended behaviour on the new inode from
+ * inode lookup. This prevents unintended behaviour on the new inode from
  * ocurring.
  */
 #define XFS_IRECLAIM_RESET_FLAGS	\
 	(XFS_IRECLAIMABLE | XFS_IRECLAIM | \
 	 XFS_IDIRTY_RELEASE | XFS_ITRUNCATED | \
 	 XFS_IFILESTREAM);
+
+/*
+ * Synchronize processes attempting to flush the in-core inode back to disk.
+ */
+
+extern void __xfs_iflock(struct xfs_inode *ip);
+
+static inline int xfs_iflock_nowait(struct xfs_inode *ip)
+{
+	return !xfs_iflags_test_and_set(ip, XFS_IFLOCK);
+}
+
+static inline void xfs_iflock(struct xfs_inode *ip)
+{
+	if (!xfs_iflock_nowait(ip))
+		__xfs_iflock(ip);
+}
+
+static inline void xfs_ifunlock(struct xfs_inode *ip)
+{
+	xfs_iflags_clear(ip, XFS_IFLOCK);
+	wake_up_bit(&ip->i_flags, __XFS_IFLOCK_BIT);
+}
+
+static inline int xfs_isiflocked(struct xfs_inode *ip)
+{
+	return xfs_iflags_test(ip, XFS_IFLOCK);
+}
 
 /*
  * Flags for inode locking.
@@ -400,7 +436,6 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 #define	XFS_IOLOCK_SHARED	(1<<1)
 #define	XFS_ILOCK_EXCL		(1<<2)
 #define	XFS_ILOCK_SHARED	(1<<3)
-#define	XFS_IUNLOCK_NONOTIFY	(1<<4)
 
 #define XFS_LOCK_MASK		(XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED \
 				| XFS_ILOCK_EXCL | XFS_ILOCK_SHARED)
@@ -409,8 +444,7 @@ static inline void xfs_ifunlock(xfs_inode_t *ip)
 	{ XFS_IOLOCK_EXCL,	"IOLOCK_EXCL" }, \
 	{ XFS_IOLOCK_SHARED,	"IOLOCK_SHARED" }, \
 	{ XFS_ILOCK_EXCL,	"ILOCK_EXCL" }, \
-	{ XFS_ILOCK_SHARED,	"ILOCK_SHARED" }, \
-	{ XFS_IUNLOCK_NONOTIFY,	"IUNLOCK_NONOTIFY" }
+	{ XFS_ILOCK_SHARED,	"ILOCK_SHARED" }
 
 
 /*
@@ -491,8 +525,6 @@ int		xfs_ifree(struct xfs_trans *, xfs_inode_t *,
 			   struct xfs_bmap_free *);
 int		xfs_itruncate_extents(struct xfs_trans **, struct xfs_inode *,
 				      int, xfs_fsize_t);
-int		xfs_itruncate_data(struct xfs_trans **, struct xfs_inode *,
-				   xfs_fsize_t);
 int		xfs_iunlink(struct xfs_trans *, xfs_inode_t *);
 
 void		xfs_iext_realloc(xfs_inode_t *, int, int);
@@ -501,10 +533,6 @@ int		xfs_iflush(xfs_inode_t *, uint);
 void		xfs_promote_inode(struct xfs_inode *);
 void		xfs_lock_inodes(xfs_inode_t **, int, uint);
 void		xfs_lock_two_inodes(xfs_inode_t *, xfs_inode_t *, uint);
-
-void		xfs_synchronize_times(xfs_inode_t *);
-void		xfs_mark_inode_dirty(xfs_inode_t *);
-void		xfs_mark_inode_dirty_sync(xfs_inode_t *);
 
 #define IHOLD(ip) \
 do { \
@@ -526,6 +554,7 @@ do { \
  */
 #define XFS_IGET_CREATE		0x1
 #define XFS_IGET_UNTRUSTED	0x2
+#define XFS_IGET_DONTCACHE	0x4
 
 int		xfs_inotobp(struct xfs_mount *, struct xfs_trans *,
 			    xfs_ino_t, struct xfs_dinode **,

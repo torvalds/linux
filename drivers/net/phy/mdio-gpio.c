@@ -116,7 +116,7 @@ static struct mii_bus * __devinit mdio_gpio_bus_init(struct device *dev,
 		if (!new_bus->irq[i])
 			new_bus->irq[i] = PHY_POLL;
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%x", bus_id);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "gpio-%x", bus_id);
 
 	if (gpio_request(bitbang->mdc, "mdc"))
 		goto out_free_bus;
@@ -255,13 +255,13 @@ static inline int __init mdio_ofgpio_init(void)
 	return platform_driver_register(&mdio_ofgpio_driver);
 }
 
-static inline void __exit mdio_ofgpio_exit(void)
+static inline void mdio_ofgpio_exit(void)
 {
 	platform_driver_unregister(&mdio_ofgpio_driver);
 }
 #else
 static inline int __init mdio_ofgpio_init(void) { return 0; }
-static inline void __exit mdio_ofgpio_exit(void) { }
+static inline void mdio_ofgpio_exit(void) { }
 #endif /* CONFIG_OF_GPIO */
 
 static struct platform_driver mdio_gpio_driver = {

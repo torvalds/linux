@@ -28,9 +28,9 @@
 #define MAX_CMDLEN 240
 #define MIN_INTERVAL 15
 static char vmwdt_cmd[MAX_CMDLEN] = "IPL";
-static int vmwdt_conceal;
+static bool vmwdt_conceal;
 
-static int vmwdt_nowayout = WATCHDOG_NOWAYOUT;
+static bool vmwdt_nowayout = WATCHDOG_NOWAYOUT;
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arnd Bergmann <arndb@de.ibm.com>");

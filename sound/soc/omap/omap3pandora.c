@@ -208,7 +208,7 @@ static struct snd_soc_dai_link omap3pandora_dai[] = {
 	{
 		.name = "PCM1773",
 		.stream_name = "HiFi Out",
-		.cpu_dai_name = "omap-mcbsp-dai.1",
+		.cpu_dai_name = "omap-mcbsp.2",
 		.codec_dai_name = "twl4030-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "twl4030-codec",
@@ -219,7 +219,7 @@ static struct snd_soc_dai_link omap3pandora_dai[] = {
 	}, {
 		.name = "TWL4030",
 		.stream_name = "Line/Mic In",
-		.cpu_dai_name = "omap-mcbsp-dai.3",
+		.cpu_dai_name = "omap-mcbsp.4",
 		.codec_dai_name = "twl4030-hifi",
 		.platform_name = "omap-pcm-audio",
 		.codec_name = "twl4030-codec",
@@ -233,6 +233,7 @@ static struct snd_soc_dai_link omap3pandora_dai[] = {
 /* SoC card */
 static struct snd_soc_card snd_soc_card_omap3pandora = {
 	.name = "omap3pandora",
+	.owner = THIS_MODULE,
 	.dai_link = omap3pandora_dai,
 	.num_links = ARRAY_SIZE(omap3pandora_dai),
 };

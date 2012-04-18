@@ -22,7 +22,7 @@ static struct spk_synth *synths[MAXSYNTHS];
 struct spk_synth *synth;
 char pitch_buff[32] = "";
 static int module_status;
-int quiet_boot;
+bool quiet_boot;
 
 struct speakup_info_t speakup_info = {
 	.spinlock = __SPIN_LOCK_UNLOCKED(speakup_info.spinlock),
@@ -34,7 +34,7 @@ static int do_synth_init(struct spk_synth *in_synth);
 
 int serial_synth_probe(struct spk_synth *synth)
 {
-	struct serial_state *ser;
+	const struct old_serial_port *ser;
 	int failed = 0;
 
 	if ((synth->ser >= SPK_LO_TTY) && (synth->ser <= SPK_HI_TTY)) {

@@ -165,7 +165,6 @@ union intel_mid_dma_cfg_hi {
  * @dma_base: MMIO register space DMA engine base pointer
  * @ch_id: DMA channel id
  * @lock: channel spinlock
- * @completed: DMA cookie
  * @active_list: current active descriptors
  * @queue: current queued up descriptors
  * @free_list: current free descriptors
@@ -183,7 +182,6 @@ struct intel_mid_dma_chan {
 	void __iomem		*dma_base;
 	int			ch_id;
 	spinlock_t		lock;
-	dma_cookie_t		completed;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
@@ -262,7 +260,7 @@ struct intel_mid_dma_desc {
 	unsigned int			lli_length;
 	unsigned int			current_lli;
 	dma_addr_t			next;
-	enum dma_data_direction		dirn;
+	enum dma_transfer_direction		dirn;
 	enum dma_status			status;
 	enum dma_slave_buswidth		width; /*width of DMA txn*/
 	enum intel_mid_dma_mode		cfg_mode; /*mode configuration*/
@@ -296,6 +294,6 @@ static inline struct intel_mid_dma_slave *to_intel_mid_dma_slave
 }
 
 
-int dma_resume(struct pci_dev *pci);
+int dma_resume(struct device *dev);
 
 #endif /*__INTEL_MID_DMAC_REGS_H__*/

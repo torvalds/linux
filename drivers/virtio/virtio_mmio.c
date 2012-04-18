@@ -310,8 +310,8 @@ static struct virtqueue *vm_setup_vq(struct virtio_device *vdev, unsigned index,
 			vm_dev->base + VIRTIO_MMIO_QUEUE_PFN);
 
 	/* Create the vring */
-	vq = vring_new_virtqueue(info->num, VIRTIO_MMIO_VRING_ALIGN,
-				 vdev, info->queue, vm_notify, callback, name);
+	vq = vring_new_virtqueue(info->num, VIRTIO_MMIO_VRING_ALIGN, vdev,
+				 true, info->queue, vm_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
 		goto error_new_virtqueue;

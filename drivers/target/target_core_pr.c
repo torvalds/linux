@@ -33,14 +33,11 @@
 #include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tmr.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 #include <target/target_core_configfs.h>
 
-#include "target_core_hba.h"
+#include "target_core_internal.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -120,7 +117,7 @@ static struct t10_pr_registration *core_scsi3_locate_pr_reg(struct se_device *,
 					struct se_node_acl *, struct se_session *);
 static void core_scsi3_put_pr_reg(struct t10_pr_registration *);
 
-static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd, int *ret)
+static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd)
 {
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_subsystem_dev *su_dev = cmd->se_dev->se_sub_dev;
@@ -130,7 +127,7 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd, int *ret)
 	int conflict = 0;
 
 	if (!crh)
-		return false;
+		return -EINVAL;
 
 	pr_reg = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
 			se_sess);
@@ -158,16 +155,14 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd, int *ret)
 		 */
 		if (pr_reg->pr_res_holder) {
 			core_scsi3_put_pr_reg(pr_reg);
-			*ret = 0;
-			return false;
+			return 1;
 		}
 		if ((pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY) ||
 		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY) ||
 		    (pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_ALLREG) ||
 		    (pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_ALLREG)) {
 			core_scsi3_put_pr_reg(pr_reg);
-			*ret = 0;
-			return true;
+			return 1;
 		}
 		core_scsi3_put_pr_reg(pr_reg);
 		conflict = 1;
@@ -192,10 +187,10 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd, int *ret)
 			" while active SPC-3 registrations exist,"
 			" returning RESERVATION_CONFLICT\n");
 		cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
-		return true;
+		return -EBUSY;
 	}
 
-	return false;
+	return 0;
 }
 
 int target_scsi2_reservation_release(struct se_task *task)
@@ -204,12 +199,18 @@ int target_scsi2_reservation_release(struct se_task *task)
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
-	int ret = 0;
+	int ret = 0, rc;
 
 	if (!sess || !tpg)
 		goto out;
-	if (target_check_scsi2_reservation_conflict(cmd, &ret))
+	rc = target_check_scsi2_reservation_conflict(cmd);
+	if (rc == 1)
 		goto out;
+	else if (rc < 0) {
+		cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = 0;
 	spin_lock(&dev->dev_reservation_lock);
@@ -246,7 +247,7 @@ int target_scsi2_reservation_reserve(struct se_task *task)
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
-	int ret = 0;
+	int ret = 0, rc;
 
 	if ((cmd->t_task_cdb[1] & 0x01) &&
 	    (cmd->t_task_cdb[1] & 0x02)) {
@@ -262,8 +263,14 @@ int target_scsi2_reservation_reserve(struct se_task *task)
 	 */
 	if (!sess || !tpg)
 		goto out;
-	if (target_check_scsi2_reservation_conflict(cmd, &ret))
+	rc = target_check_scsi2_reservation_conflict(cmd);
+	if (rc == 1)
 		goto out;
+	else if (rc < 0) {
+		cmd->scsi_sense_reason = TCM_RESERVATION_CONFLICT;
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = 0;
 	spin_lock(&dev->dev_reservation_lock);
@@ -331,7 +338,7 @@ static int core_scsi3_pr_seq_non_holder(
 		return core_scsi2_reservation_seq_non_holder(cmd,
 					cdb, pr_reg_type);
 
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Determine if the registration should be ignored due to
 	 * non-matching ISIDs in core_scsi3_pr_reservation_check().
@@ -481,6 +488,7 @@ static int core_scsi3_pr_seq_non_holder(
 	case READ_MEDIA_SERIAL_NUMBER:
 	case REPORT_LUNS:
 	case REQUEST_SENSE:
+	case PERSISTENT_RESERVE_IN:
 		ret = 0; /*/ Allowed CDBs */
 		break;
 	default:
@@ -992,7 +1000,7 @@ int core_scsi3_check_aptpl_registration(
 {
 	struct se_subsystem_dev *su_dev = dev->se_sub_dev;
 	struct se_node_acl *nacl = lun_acl->se_lun_nacl;
-	struct se_dev_entry *deve = &nacl->device_list[lun_acl->mapped_lun];
+	struct se_dev_entry *deve = nacl->device_list[lun_acl->mapped_lun];
 
 	if (su_dev->t10_pr.res_type != SPC3_PERSISTENT_RESERVATIONS)
 		return 0;
@@ -1489,7 +1497,7 @@ static int core_scsi3_decode_spec_i_port(
 	struct se_dev_entry *dest_se_deve = NULL, *local_se_deve;
 	struct t10_pr_registration *dest_pr_reg, *local_pr_reg, *pr_reg_e;
 	struct t10_pr_registration *pr_reg_tmp, *pr_reg_tmp_safe;
-	struct list_head tid_dest_list;
+	LIST_HEAD(tid_dest_list);
 	struct pr_transport_id_holder *tidh_new, *tidh, *tidh_tmp;
 	struct target_core_fabric_ops *tmp_tf_ops;
 	unsigned char *buf;
@@ -1500,9 +1508,8 @@ static int core_scsi3_decode_spec_i_port(
 	u32 dest_rtpi = 0;
 
 	memset(dest_iport, 0, 64);
-	INIT_LIST_HEAD(&tid_dest_list);
 
-	local_se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	local_se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Allocate a struct pr_transport_id_holder and setup the
 	 * local_node_acl and local_se_deve pointers and add to
@@ -1537,7 +1544,7 @@ static int core_scsi3_decode_spec_i_port(
 	tidh_new->dest_local_nexus = 1;
 	list_add_tail(&tidh_new->dest_list, &tid_dest_list);
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	/*
 	 * For a PERSISTENT RESERVE OUT specify initiator ports payload,
 	 * first extract TransportID Parameter Data Length, and make sure
@@ -1788,7 +1795,7 @@ static int core_scsi3_decode_spec_i_port(
 
 	}
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	/*
 	 * Go ahead and create a registrations from tid_dest_list for the
@@ -1836,7 +1843,7 @@ static int core_scsi3_decode_spec_i_port(
 
 	return 0;
 out:
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	/*
 	 * For the failure case, release everything from tid_dest_list
 	 * including *dest_pr_reg and the configfs dependances..
@@ -2119,7 +2126,7 @@ static int core_scsi3_emulate_pro_register(
 		return -EINVAL;
 	}
 	se_tpg = se_sess->se_tpg;
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
+	se_deve = se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 
 	if (se_tpg->se_tpg_tfo->sess_get_initiator_sid) {
 		memset(&isid_buf[0], 0, PR_REG_ISID_LEN);
@@ -2419,9 +2426,7 @@ static int core_scsi3_pro_reserve(
 	u64 res_key)
 {
 	struct se_session *se_sess = cmd->se_sess;
-	struct se_dev_entry *se_deve;
 	struct se_lun *se_lun = cmd->se_lun;
-	struct se_portal_group *se_tpg;
 	struct t10_pr_registration *pr_reg, *pr_res_holder;
 	struct t10_reservation *pr_tmpl = &dev->se_sub_dev->t10_pr;
 	char i_buf[PR_REG_ISID_ID_LEN];
@@ -2434,8 +2439,6 @@ static int core_scsi3_pro_reserve(
 		cmd->scsi_sense_reason = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
 		return -EINVAL;
 	}
-	se_tpg = se_sess->se_tpg;
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Locate the existing *pr_reg via struct se_node_acl pointers
 	 */
@@ -2984,21 +2987,6 @@ static void core_scsi3_release_preempt_and_abort(
 	}
 }
 
-int core_scsi3_check_cdb_abort_and_preempt(
-	struct list_head *preempt_and_abort_list,
-	struct se_cmd *cmd)
-{
-	struct t10_pr_registration *pr_reg, *pr_reg_tmp;
-
-	list_for_each_entry_safe(pr_reg, pr_reg_tmp, preempt_and_abort_list,
-				pr_reg_abort_list) {
-		if (pr_reg->pr_res_key == cmd->pr_res_key)
-			return 0;
-	}
-
-	return 1;
-}
-
 static int core_scsi3_pro_preempt(
 	struct se_cmd *cmd,
 	int type,
@@ -3008,10 +2996,9 @@ static int core_scsi3_pro_preempt(
 	int abort)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_dev_entry *se_deve;
 	struct se_node_acl *pr_reg_nacl;
 	struct se_session *se_sess = cmd->se_sess;
-	struct list_head preempt_and_abort_list;
+	LIST_HEAD(preempt_and_abort_list);
 	struct t10_pr_registration *pr_reg, *pr_reg_tmp, *pr_reg_n, *pr_res_holder;
 	struct t10_reservation *pr_tmpl = &dev->se_sub_dev->t10_pr;
 	u32 pr_res_mapped_lun = 0;
@@ -3023,7 +3010,6 @@ static int core_scsi3_pro_preempt(
 		return -EINVAL;
 	}
 
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	pr_reg_n = core_scsi3_locate_pr_reg(cmd->se_dev, se_sess->se_node_acl,
 				se_sess);
 	if (!pr_reg_n) {
@@ -3044,7 +3030,6 @@ static int core_scsi3_pro_preempt(
 		cmd->scsi_sense_reason = TCM_INVALID_PARAMETER_LIST;
 		return -EINVAL;
 	}
-	INIT_LIST_HEAD(&preempt_and_abort_list);
 
 	spin_lock(&dev->dev_reservation_lock);
 	pr_res_holder = dev->dev_pr_res_holder;
@@ -3138,7 +3123,7 @@ static int core_scsi3_pro_preempt(
 			if (!calling_it_nexus)
 				core_scsi3_ua_allocate(pr_reg_nacl,
 					pr_res_mapped_lun, 0x2A,
-					ASCQ_2AH_RESERVATIONS_PREEMPTED);
+					ASCQ_2AH_REGISTRATIONS_PREEMPTED);
 		}
 		spin_unlock(&pr_tmpl->registration_lock);
 		/*
@@ -3251,7 +3236,7 @@ static int core_scsi3_pro_preempt(
 		 *    additional sense code set to REGISTRATIONS PREEMPTED;
 		 */
 		core_scsi3_ua_allocate(pr_reg_nacl, pr_res_mapped_lun, 0x2A,
-				ASCQ_2AH_RESERVATIONS_PREEMPTED);
+				ASCQ_2AH_REGISTRATIONS_PREEMPTED);
 	}
 	spin_unlock(&pr_tmpl->registration_lock);
 	/*
@@ -3360,7 +3345,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 {
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_device *dev = cmd->se_dev;
-	struct se_dev_entry *se_deve, *dest_se_deve = NULL;
+	struct se_dev_entry *dest_se_deve = NULL;
 	struct se_lun *se_lun = cmd->se_lun;
 	struct se_node_acl *pr_res_nacl, *pr_reg_nacl, *dest_node_acl = NULL;
 	struct se_port *se_port;
@@ -3385,7 +3370,6 @@ static int core_scsi3_emulate_pro_register_and_move(
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 	se_tpg = se_sess->se_tpg;
 	tf_ops = se_tpg->se_tpg_tfo;
-	se_deve = &se_sess->se_node_acl->device_list[cmd->orig_fe_lun];
 	/*
 	 * Follow logic from spc4r17 Section 5.7.8, Table 50 --
 	 *	Register behaviors for a REGISTER AND MOVE service action
@@ -3428,14 +3412,14 @@ static int core_scsi3_emulate_pro_register_and_move(
 	 * will be moved to for the TransportID containing SCSI initiator WWN
 	 * information.
 	 */
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	rtpi = (buf[18] & 0xff) << 8;
 	rtpi |= buf[19] & 0xff;
 	tid_len = (buf[20] & 0xff) << 24;
 	tid_len |= (buf[21] & 0xff) << 16;
 	tid_len |= (buf[22] & 0xff) << 8;
 	tid_len |= buf[23] & 0xff;
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
 	if ((tid_len + 24) != cmd->data_length) {
@@ -3487,7 +3471,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	proto_ident = (buf[24] & 0x0f);
 #if 0
 	pr_debug("SPC-3 PR REGISTER_AND_MOVE: Extracted Protocol Identifier:"
@@ -3521,7 +3505,7 @@ static int core_scsi3_emulate_pro_register_and_move(
 		goto out;
 	}
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
 	pr_debug("SPC-3 PR [%s] Extracted initiator %s identifier: %s"
@@ -3786,13 +3770,13 @@ after_iport_check:
 					" REGISTER_AND_MOVE\n");
 	}
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	core_scsi3_put_pr_reg(dest_pr_reg);
 	return 0;
 out:
 	if (buf)
-		transport_kunmap_first_data_page(cmd);
+		transport_kunmap_data_sg(cmd);
 	if (dest_se_deve)
 		core_scsi3_lunacl_undepend_item(dest_se_deve);
 	if (dest_node_acl)
@@ -3866,7 +3850,7 @@ int target_scsi3_emulate_pr_out(struct se_task *task)
 	scope = (cdb[2] & 0xf0);
 	type = (cdb[2] & 0x0f);
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	/*
 	 * From PERSISTENT_RESERVE_OUT parameter list (payload)
 	 */
@@ -3884,7 +3868,7 @@ int target_scsi3_emulate_pr_out(struct se_task *task)
 		aptpl = (buf[17] & 0x01);
 		unreg = (buf[17] & 0x02);
 	}
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 	buf = NULL;
 
 	/*
@@ -3984,7 +3968,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((su_dev->t10_pr.pr_generation >> 8) & 0xff);
@@ -4018,7 +4002,7 @@ static int core_scsi3_pri_read_keys(struct se_cmd *cmd)
 	buf[6] = ((add_len >> 8) & 0xff);
 	buf[7] = (add_len & 0xff);
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }
@@ -4044,7 +4028,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
 	buf[2] = ((su_dev->t10_pr.pr_generation >> 8) & 0xff);
@@ -4103,7 +4087,7 @@ static int core_scsi3_pri_read_reservation(struct se_cmd *cmd)
 
 err:
 	spin_unlock(&se_dev->dev_reservation_lock);
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }
@@ -4127,7 +4111,7 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = ((add_len << 8) & 0xff);
 	buf[1] = (add_len & 0xff);
@@ -4159,7 +4143,7 @@ static int core_scsi3_pri_report_capabilities(struct se_cmd *cmd)
 	buf[4] |= 0x02; /* PR_TYPE_WRITE_EXCLUSIVE */
 	buf[5] |= 0x01; /* PR_TYPE_EXCLUSIVE_ACCESS_ALLREG */
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }
@@ -4189,7 +4173,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 		return -EINVAL;
 	}
 
-	buf = transport_kmap_first_data_page(cmd);
+	buf = transport_kmap_data_sg(cmd);
 
 	buf[0] = ((su_dev->t10_pr.pr_generation >> 24) & 0xff);
 	buf[1] = ((su_dev->t10_pr.pr_generation >> 16) & 0xff);
@@ -4310,7 +4294,7 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	buf[6] = ((add_len >> 8) & 0xff);
 	buf[7] = (add_len & 0xff);
 
-	transport_kunmap_first_data_page(cmd);
+	transport_kunmap_data_sg(cmd);
 
 	return 0;
 }

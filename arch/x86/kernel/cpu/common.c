@@ -18,6 +18,7 @@
 #include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
+#include <asm/debugreg.h>
 #include <asm/sections.h>
 #include <linux/topology.h>
 #include <linux/cpumask.h>
@@ -28,6 +29,7 @@
 #include <asm/apic.h>
 #include <asm/desc.h>
 #include <asm/i387.h>
+#include <asm/fpu-internal.h>
 #include <asm/mtrr.h>
 #include <linux/numa.h>
 #include <asm/asm.h>
@@ -933,7 +935,7 @@ static const struct msr_range msr_range_array[] __cpuinitconst = {
 	{ 0xc0011000, 0xc001103b},
 };
 
-static void __cpuinit print_cpu_msr(void)
+static void __cpuinit __print_cpu_msr(void)
 {
 	unsigned index_min, index_max;
 	unsigned index;
@@ -997,13 +999,13 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "\n");
 
-#ifdef CONFIG_SMP
+	print_cpu_msr(c);
+}
+
+void __cpuinit print_cpu_msr(struct cpuinfo_x86 *c)
+{
 	if (c->cpu_index < show_msr)
-		print_cpu_msr();
-#else
-	if (show_msr)
-		print_cpu_msr();
-#endif
+		__print_cpu_msr();
 }
 
 static __init int setup_disablecpuid(char *arg)
@@ -1021,6 +1023,8 @@ __setup("clearcpuid=", setup_disablecpuid);
 
 #ifdef CONFIG_X86_64
 struct desc_ptr idt_descr = { NR_VECTORS * 16 - 1, (unsigned long) idt_table };
+struct desc_ptr nmi_idt_descr = { NR_VECTORS * 16 - 1,
+				    (unsigned long) nmi_idt_table };
 
 DEFINE_PER_CPU_FIRST(union irq_stack_union,
 		     irq_stack_union) __aligned(PAGE_SIZE);
@@ -1041,6 +1045,8 @@ DEFINE_PER_CPU(char *, irq_stack_ptr) =
 	init_per_cpu_var(irq_stack_union.irq_stack) + IRQ_STACK_SIZE - 64;
 
 DEFINE_PER_CPU(unsigned int, irq_count) = -1;
+
+DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 /*
  * Special IST stacks which the CPU switches to when it calls
@@ -1085,10 +1091,31 @@ unsigned long kernel_eflags;
  */
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
 
+static DEFINE_PER_CPU(unsigned long, debug_stack_addr);
+DEFINE_PER_CPU(int, debug_stack_usage);
+
+int is_debug_stack(unsigned long addr)
+{
+	return __get_cpu_var(debug_stack_usage) ||
+		(addr <= __get_cpu_var(debug_stack_addr) &&
+		 addr > (__get_cpu_var(debug_stack_addr) - DEBUG_STKSZ));
+}
+
+void debug_stack_set_zero(void)
+{
+	load_idt((const struct desc_ptr *)&nmi_idt_descr);
+}
+
+void debug_stack_reset(void)
+{
+	load_idt((const struct desc_ptr *)&idt_descr);
+}
+
 #else	/* CONFIG_X86_64 */
 
 DEFINE_PER_CPU(struct task_struct *, current_task) = &init_task;
 EXPORT_PER_CPU_SYMBOL(current_task);
+DEFINE_PER_CPU(struct task_struct *, fpu_owner_task);
 
 #ifdef CONFIG_CC_STACKPROTECTOR
 DEFINE_PER_CPU_ALIGNED(struct stack_canary, stack_canary);
@@ -1212,6 +1239,8 @@ void __cpuinit cpu_init(void)
 			estacks += exception_stack_sizes[v];
 			oist->ist[v] = t->x86_tss.ist[v] =
 					(unsigned long)estacks;
+			if (v == DEBUG_STACK-1)
+				per_cpu(debug_stack_addr, cpu) = (unsigned long)estacks;
 		}
 	}
 

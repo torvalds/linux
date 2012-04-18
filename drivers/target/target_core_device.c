@@ -42,13 +42,11 @@
 #include <scsi/scsi_device.h>
 
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_tpg.h>
-#include <target/target_core_transport.h>
-#include <target/target_core_fabric_ops.h>
+#include <target/target_core_backend.h>
+#include <target/target_core_fabric.h>
 
+#include "target_core_internal.h"
 #include "target_core_alua.h"
-#include "target_core_hba.h"
 #include "target_core_pr.h"
 #include "target_core_ua.h"
 
@@ -74,7 +72,7 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	}
 
 	spin_lock_irqsave(&se_sess->se_node_acl->device_list_lock, flags);
-	se_cmd->se_deve = &se_sess->se_node_acl->device_list[unpacked_lun];
+	se_cmd->se_deve = se_sess->se_node_acl->device_list[unpacked_lun];
 	if (se_cmd->se_deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
 		struct se_dev_entry *deve = se_cmd->se_deve;
 
@@ -161,13 +159,8 @@ int transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		dev->read_bytes += se_cmd->data_length;
 	spin_unlock_irqrestore(&dev->stats_lock, flags);
 
-	/*
-	 * Add the iscsi_cmd_t to the struct se_lun's cmd list.  This list is used
-	 * for tracking state of struct se_cmds during LUN shutdown events.
-	 */
 	spin_lock_irqsave(&se_lun->lun_cmd_lock, flags);
 	list_add_tail(&se_cmd->se_lun_node, &se_lun->lun_cmd_list);
-	atomic_set(&se_cmd->transport_lun_active, 1);
 	spin_unlock_irqrestore(&se_lun->lun_cmd_lock, flags);
 
 	return 0;
@@ -189,7 +182,7 @@ int transport_lookup_tmr_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 	}
 
 	spin_lock_irqsave(&se_sess->se_node_acl->device_list_lock, flags);
-	se_cmd->se_deve = &se_sess->se_node_acl->device_list[unpacked_lun];
+	se_cmd->se_deve = se_sess->se_node_acl->device_list[unpacked_lun];
 	deve = se_cmd->se_deve;
 
 	if (deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS) {
@@ -247,7 +240,7 @@ struct se_dev_entry *core_get_se_deve_from_rtpi(
 
 	spin_lock_irq(&nacl->device_list_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = &nacl->device_list[i];
+		deve = nacl->device_list[i];
 
 		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
 			continue;
@@ -293,7 +286,7 @@ int core_free_device_list_for_node(
 
 	spin_lock_irq(&nacl->device_list_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = &nacl->device_list[i];
+		deve = nacl->device_list[i];
 
 		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
 			continue;
@@ -313,7 +306,7 @@ int core_free_device_list_for_node(
 	}
 	spin_unlock_irq(&nacl->device_list_lock);
 
-	kfree(nacl->device_list);
+	array_free(nacl->device_list, TRANSPORT_MAX_LUNS_PER_TPG);
 	nacl->device_list = NULL;
 
 	return 0;
@@ -322,11 +315,12 @@ int core_free_device_list_for_node(
 void core_dec_lacl_count(struct se_node_acl *se_nacl, struct se_cmd *se_cmd)
 {
 	struct se_dev_entry *deve;
+	unsigned long flags;
 
-	spin_lock_irq(&se_nacl->device_list_lock);
-	deve = &se_nacl->device_list[se_cmd->orig_fe_lun];
+	spin_lock_irqsave(&se_nacl->device_list_lock, flags);
+	deve = se_nacl->device_list[se_cmd->orig_fe_lun];
 	deve->deve_cmds--;
-	spin_unlock_irq(&se_nacl->device_list_lock);
+	spin_unlock_irqrestore(&se_nacl->device_list_lock, flags);
 }
 
 void core_update_device_list_access(
@@ -337,7 +331,7 @@ void core_update_device_list_access(
 	struct se_dev_entry *deve;
 
 	spin_lock_irq(&nacl->device_list_lock);
-	deve = &nacl->device_list[mapped_lun];
+	deve = nacl->device_list[mapped_lun];
 	if (lun_access & TRANSPORT_LUNFLAGS_READ_WRITE) {
 		deve->lun_flags &= ~TRANSPORT_LUNFLAGS_READ_ONLY;
 		deve->lun_flags |= TRANSPORT_LUNFLAGS_READ_WRITE;
@@ -362,7 +356,7 @@ int core_update_device_list_for_node(
 	int enable)
 {
 	struct se_port *port = lun->lun_sep;
-	struct se_dev_entry *deve = &nacl->device_list[mapped_lun];
+	struct se_dev_entry *deve = nacl->device_list[mapped_lun];
 	int trans = 0;
 	/*
 	 * If the MappedLUN entry is being disabled, the entry in
@@ -476,7 +470,7 @@ void core_clear_lun_from_tpg(struct se_lun *lun, struct se_portal_group *tpg)
 
 		spin_lock_irq(&nacl->device_list_lock);
 		for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-			deve = &nacl->device_list[i];
+			deve = nacl->device_list[i];
 			if (lun != deve->se_lun)
 				continue;
 			spin_unlock_irq(&nacl->device_list_lock);
@@ -653,12 +647,13 @@ int target_report_luns(struct se_task *se_task)
 {
 	struct se_cmd *se_cmd = se_task->task_se_cmd;
 	struct se_dev_entry *deve;
-	struct se_lun *se_lun;
 	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned char *buf;
-	u32 cdb_offset = 0, lun_count = 0, offset = 8, i;
+	u32 lun_count = 0, offset = 8, i;
 
-	buf = transport_kmap_first_data_page(se_cmd);
+	buf = transport_kmap_data_sg(se_cmd);
+	if (!buf)
+		return -ENOMEM;
 
 	/*
 	 * If no struct se_session pointer is present, this struct se_cmd is
@@ -673,22 +668,20 @@ int target_report_luns(struct se_task *se_task)
 
 	spin_lock_irq(&se_sess->se_node_acl->device_list_lock);
 	for (i = 0; i < TRANSPORT_MAX_LUNS_PER_TPG; i++) {
-		deve = &se_sess->se_node_acl->device_list[i];
+		deve = se_sess->se_node_acl->device_list[i];
 		if (!(deve->lun_flags & TRANSPORT_LUNFLAGS_INITIATOR_ACCESS))
 			continue;
-		se_lun = deve->se_lun;
 		/*
 		 * We determine the correct LUN LIST LENGTH even once we
 		 * have reached the initial allocation length.
 		 * See SPC2-R20 7.19.
 		 */
 		lun_count++;
-		if ((cdb_offset + 8) >= se_cmd->data_length)
+		if ((offset + 8) > se_cmd->data_length)
 			continue;
 
 		int_to_scsilun(deve->mapped_lun, (struct scsi_lun *)&buf[offset]);
 		offset += 8;
-		cdb_offset += 8;
 	}
 	spin_unlock_irq(&se_sess->se_node_acl->device_list_lock);
 
@@ -696,12 +689,12 @@ int target_report_luns(struct se_task *se_task)
 	 * See SPC3 r07, page 159.
 	 */
 done:
-	transport_kunmap_first_data_page(se_cmd);
 	lun_count *= 8;
 	buf[0] = ((lun_count >> 24) & 0xff);
 	buf[1] = ((lun_count >> 16) & 0xff);
 	buf[2] = ((lun_count >> 8) & 0xff);
 	buf[3] = (lun_count & 0xff);
+	transport_kunmap_data_sg(se_cmd);
 
 	se_task->task_scsi_status = GOOD;
 	transport_complete_task(se_task, 1);
@@ -895,10 +888,15 @@ void se_dev_set_default_attribs(
 						limits->logical_block_size);
 	dev->se_sub_dev->se_dev_attrib.max_sectors = limits->max_sectors;
 	/*
-	 * Set optimal_sectors from max_sectors, which can be lowered via
-	 * configfs.
+	 * Set fabric_max_sectors, which is reported in block limits
+	 * VPD page (B0h).
 	 */
-	dev->se_sub_dev->se_dev_attrib.optimal_sectors = limits->max_sectors;
+	dev->se_sub_dev->se_dev_attrib.fabric_max_sectors = DA_FABRIC_MAX_SECTORS;
+	/*
+	 * Set optimal_sectors from fabric_max_sectors, which can be
+	 * lowered via configfs.
+	 */
+	dev->se_sub_dev->se_dev_attrib.optimal_sectors = DA_FABRIC_MAX_SECTORS;
 	/*
 	 * queue_depth is based on subsystem plugin dependent requirements.
 	 */
@@ -1134,8 +1132,6 @@ int se_dev_set_emulate_rest_reord(struct se_device *dev, int flag)
  */
 int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 {
-	u32 orig_queue_depth = dev->queue_depth;
-
 	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
 		pr_err("dev[%p]: Unable to change SE Device TCQ while"
 			" dev_export_obj: %d count exists\n", dev,
@@ -1169,11 +1165,6 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 	}
 
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev->queue_depth = queue_depth;
-	if (queue_depth > orig_queue_depth)
-		atomic_add(queue_depth - orig_queue_depth, &dev->depth_left);
-	else if (queue_depth < orig_queue_depth)
-		atomic_sub(orig_queue_depth - queue_depth, &dev->depth_left);
-
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
 	return 0;
@@ -1237,6 +1228,54 @@ int se_dev_set_max_sectors(struct se_device *dev, u32 max_sectors)
 	return 0;
 }
 
+int se_dev_set_fabric_max_sectors(struct se_device *dev, u32 fabric_max_sectors)
+{
+	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
+		pr_err("dev[%p]: Unable to change SE Device"
+			" fabric_max_sectors while dev_export_obj: %d count exists\n",
+			dev, atomic_read(&dev->dev_export_obj.obj_access_count));
+		return -EINVAL;
+	}
+	if (!fabric_max_sectors) {
+		pr_err("dev[%p]: Illegal ZERO value for"
+			" fabric_max_sectors\n", dev);
+		return -EINVAL;
+	}
+	if (fabric_max_sectors < DA_STATUS_MAX_SECTORS_MIN) {
+		pr_err("dev[%p]: Passed fabric_max_sectors: %u less than"
+			" DA_STATUS_MAX_SECTORS_MIN: %u\n", dev, fabric_max_sectors,
+				DA_STATUS_MAX_SECTORS_MIN);
+		return -EINVAL;
+	}
+	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
+		if (fabric_max_sectors > dev->se_sub_dev->se_dev_attrib.hw_max_sectors) {
+			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
+				" greater than TCM/SE_Device max_sectors:"
+				" %u\n", dev, fabric_max_sectors,
+				dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
+			 return -EINVAL;
+		}
+	} else {
+		if (fabric_max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
+			pr_err("dev[%p]: Passed fabric_max_sectors: %u"
+				" greater than DA_STATUS_MAX_SECTORS_MAX:"
+				" %u\n", dev, fabric_max_sectors,
+				DA_STATUS_MAX_SECTORS_MAX);
+			return -EINVAL;
+		}
+	}
+	/*
+	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
+	 */
+	fabric_max_sectors = se_dev_align_max_sectors(fabric_max_sectors,
+						      dev->se_sub_dev->se_dev_attrib.block_size);
+
+	dev->se_sub_dev->se_dev_attrib.fabric_max_sectors = fabric_max_sectors;
+	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
+			dev, fabric_max_sectors);
+	return 0;
+}
+
 int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 {
 	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
@@ -1250,10 +1289,10 @@ int se_dev_set_optimal_sectors(struct se_device *dev, u32 optimal_sectors)
 				" changed for TCM/pSCSI\n", dev);
 		return -EINVAL;
 	}
-	if (optimal_sectors > dev->se_sub_dev->se_dev_attrib.max_sectors) {
+	if (optimal_sectors > dev->se_sub_dev->se_dev_attrib.fabric_max_sectors) {
 		pr_err("dev[%p]: Passed optimal_sectors %u cannot be"
-			" greater than max_sectors: %u\n", dev,
-			optimal_sectors, dev->se_sub_dev->se_dev_attrib.max_sectors);
+			" greater than fabric_max_sectors: %u\n", dev,
+			optimal_sectors, dev->se_sub_dev->se_dev_attrib.fabric_max_sectors);
 		return -EINVAL;
 	}
 
@@ -1303,24 +1342,26 @@ struct se_lun *core_dev_add_lun(
 {
 	struct se_lun *lun_p;
 	u32 lun_access = 0;
+	int rc;
 
 	if (atomic_read(&dev->dev_access_obj.obj_access_count) != 0) {
 		pr_err("Unable to export struct se_device while dev_access_obj: %d\n",
 			atomic_read(&dev->dev_access_obj.obj_access_count));
-		return NULL;
+		return ERR_PTR(-EACCES);
 	}
 
 	lun_p = core_tpg_pre_addlun(tpg, lun);
-	if ((IS_ERR(lun_p)) || !lun_p)
-		return NULL;
+	if (IS_ERR(lun_p))
+		return lun_p;
 
 	if (dev->dev_flags & DF_READ_ONLY)
 		lun_access = TRANSPORT_LUNFLAGS_READ_ONLY;
 	else
 		lun_access = TRANSPORT_LUNFLAGS_READ_WRITE;
 
-	if (core_tpg_post_addlun(tpg, lun_p, lun_access, dev) < 0)
-		return NULL;
+	rc = core_tpg_post_addlun(tpg, lun_p, lun_access, dev);
+	if (rc < 0)
+		return ERR_PTR(rc);
 
 	pr_debug("%s_TPG[%u]_LUN[%u] - Activated %s Logical Unit from"
 		" CORE HBA: %u\n", tpg->se_tpg_tfo->get_fabric_name(),
@@ -1357,11 +1398,10 @@ int core_dev_del_lun(
 	u32 unpacked_lun)
 {
 	struct se_lun *lun;
-	int ret = 0;
 
-	lun = core_tpg_pre_dellun(tpg, unpacked_lun, &ret);
-	if (!lun)
-		return ret;
+	lun = core_tpg_pre_dellun(tpg, unpacked_lun);
+	if (IS_ERR(lun))
+		return PTR_ERR(lun);
 
 	core_tpg_post_dellun(tpg, lun);
 
@@ -1387,7 +1427,7 @@ struct se_lun *core_get_lun_from_tpg(struct se_portal_group *tpg, u32 unpacked_l
 		spin_unlock(&tpg->tpg_lun_lock);
 		return NULL;
 	}
-	lun = &tpg->tpg_lun_list[unpacked_lun];
+	lun = tpg->tpg_lun_list[unpacked_lun];
 
 	if (lun->lun_status != TRANSPORT_LUN_STATUS_FREE) {
 		pr_err("%s Logical Unit Number: %u is not free on"
@@ -1420,7 +1460,7 @@ static struct se_lun *core_dev_get_lun(struct se_portal_group *tpg, u32 unpacked
 		spin_unlock(&tpg->tpg_lun_lock);
 		return NULL;
 	}
-	lun = &tpg->tpg_lun_list[unpacked_lun];
+	lun = tpg->tpg_lun_list[unpacked_lun];
 
 	if (lun->lun_status != TRANSPORT_LUN_STATUS_ACTIVE) {
 		pr_err("%s Logical Unit Number: %u is not active on"

@@ -63,10 +63,20 @@ struct vpbe_output {
 	 * output basis. If per mode is needed, we may have to move this to
 	 * mode_info structure
 	 */
+	enum v4l2_mbus_pixelcode if_params;
 };
 
 /* encoder configuration info */
 struct encoder_config_info {
+	char module_name[32];
+	/* Is this an i2c device ? */
+	unsigned int is_i2c:1;
+	/* i2c subdevice board info */
+	struct i2c_board_info board_info;
+};
+
+/*amplifier configuration info */
+struct amp_config_info {
 	char module_name[32];
 	/* Is this an i2c device ? */
 	unsigned int is_i2c:1;
@@ -84,6 +94,8 @@ struct vpbe_config {
 	/* external encoder information goes here */
 	int num_ext_encoders;
 	struct encoder_config_info *ext_encoders;
+	/* amplifier information goes here */
+	struct amp_config_info *amp;
 	int num_outputs;
 	/* Order is venc outputs followed by LCD and then external encoders */
 	struct vpbe_output *outputs;
@@ -158,6 +170,8 @@ struct vpbe_device {
 	struct v4l2_subdev **encoders;
 	/* current encoder index */
 	int current_sd_index;
+	/* external amplifier v4l2 subdevice */
+	struct v4l2_subdev *amp;
 	struct mutex lock;
 	/* device initialized */
 	int initialized;
@@ -165,6 +179,8 @@ struct vpbe_device {
 	struct clk *dac_clk;
 	/* osd_device pointer */
 	struct osd_state *osd_device;
+	/* venc device pointer */
+	struct venc_platform_data *venc_device;
 	/*
 	 * fields below are accessed by users of vpbe_device. Not the
 	 * ones above

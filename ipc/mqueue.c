@@ -128,7 +128,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 	if (S_ISREG(mode)) {
 		struct mqueue_inode_info *info;
-		struct task_struct *p = current;
 		unsigned long mq_bytes, mq_msg_tblsz;
 
 		inode->i_fop = &mqueue_file_operations;
@@ -159,7 +158,7 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 
 		spin_lock(&mq_lock);
 		if (u->mq_bytes + mq_bytes < u->mq_bytes ||
-		    u->mq_bytes + mq_bytes > task_rlimit(p, RLIMIT_MSGQUEUE)) {
+		    u->mq_bytes + mq_bytes > rlimit(RLIMIT_MSGQUEUE)) {
 			spin_unlock(&mq_lock);
 			/* mqueue_evict_inode() releases info->messages */
 			ret = -EMFILE;
@@ -189,30 +188,20 @@ static int mqueue_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct inode *inode;
 	struct ipc_namespace *ns = data;
-	int error;
 
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = MQUEUE_MAGIC;
 	sb->s_op = &mqueue_super_ops;
 
-	inode = mqueue_get_inode(sb, ns, S_IFDIR | S_ISVTX | S_IRWXUGO,
-				NULL);
-	if (IS_ERR(inode)) {
-		error = PTR_ERR(inode);
-		goto out;
-	}
+	inode = mqueue_get_inode(sb, ns, S_IFDIR | S_ISVTX | S_IRWXUGO, NULL);
+	if (IS_ERR(inode))
+		return PTR_ERR(inode);
 
-	sb->s_root = d_alloc_root(inode);
-	if (!sb->s_root) {
-		iput(inode);
-		error = -ENOMEM;
-		goto out;
-	}
-	error = 0;
-
-out:
-	return error;
+	sb->s_root = d_make_root(inode);
+	if (!sb->s_root)
+		return -ENOMEM;
+	return 0;
 }
 
 static struct dentry *mqueue_mount(struct file_system_type *fs_type,

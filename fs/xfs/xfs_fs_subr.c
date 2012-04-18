@@ -90,7 +90,7 @@ xfs_wait_on_pages(
 
 	if (mapping_tagged(mapping, PAGECACHE_TAG_WRITEBACK)) {
 		return -filemap_fdatawait_range(mapping, first,
-					last == -1 ? ip->i_size - 1 : last);
+					last == -1 ? XFS_ISIZE(ip) - 1 : last);
 	}
 	return 0;
 }

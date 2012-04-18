@@ -223,25 +223,25 @@ enum SD_RESPONSE_TYPE {
 #define FUN(c) (0x000007 & (c->arg>>28))
 #define REG(c) (0x01FFFF & (c->arg>>9))
 
-static int limit_speed_to_24_MHz;
+static bool limit_speed_to_24_MHz;
 module_param(limit_speed_to_24_MHz, bool, 0644);
 MODULE_PARM_DESC(limit_speed_to_24_MHz, "Limit Max SDIO Clock Speed to 24 MHz");
 
-static int pad_input_to_usb_pkt;
+static bool pad_input_to_usb_pkt;
 module_param(pad_input_to_usb_pkt, bool, 0644);
 MODULE_PARM_DESC(pad_input_to_usb_pkt,
 		 "Pad USB data input transfers to whole USB Packet");
 
-static int disable_offload_processing;
+static bool disable_offload_processing;
 module_param(disable_offload_processing, bool, 0644);
 MODULE_PARM_DESC(disable_offload_processing, "Disable Offload Processing");
 
-static int force_1_bit_data_xfers;
+static bool force_1_bit_data_xfers;
 module_param(force_1_bit_data_xfers, bool, 0644);
 MODULE_PARM_DESC(force_1_bit_data_xfers,
 		 "Force SDIO Data Transfers to 1-bit Mode");
 
-static int force_polling_for_irqs;
+static bool force_polling_for_irqs;
 module_param(force_polling_for_irqs, bool, 0644);
 MODULE_PARM_DESC(force_polling_for_irqs, "Force Polling for SDIO interrupts");
 

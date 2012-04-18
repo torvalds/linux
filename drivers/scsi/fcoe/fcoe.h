@@ -40,9 +40,7 @@
 #define FCOE_MIN_XID		0x0000	/* the min xid supported by fcoe_sw */
 #define FCOE_MAX_XID		0x0FFF	/* the max xid supported by fcoe_sw */
 
-unsigned int fcoe_debug_logging;
-module_param_named(debug_logging, fcoe_debug_logging, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(debug_logging, "a bit mask of logging levels");
+extern unsigned int fcoe_debug_logging;
 
 #define FCOE_LOGGING	    0x01 /* General logging, not categorized */
 #define FCOE_NETDEV_LOGGING 0x02 /* Netdevice logging */
@@ -73,8 +71,6 @@ do {                                                            	\
  * @ctlr:	      The FCoE controller (for FIP)
  * @oem:	      The offload exchange manager for all local port
  *		      instances associated with this port
- * @kref:	      The kernel reference
- *
  * This structure is 1:1 with a net devive.
  */
 struct fcoe_interface {
@@ -85,7 +81,6 @@ struct fcoe_interface {
 	struct packet_type fip_packet_type;
 	struct fcoe_ctlr   ctlr;
 	struct fc_exch_mgr *oem;
-	struct kref	   kref;
 };
 
 #define fcoe_from_ctlr(fip) container_of(fip, struct fcoe_interface, ctlr)

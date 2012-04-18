@@ -214,22 +214,22 @@ exit:
 	return err;
 }
 
-static int mc44s803_set_params(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *params)
+static int mc44s803_set_params(struct dvb_frontend *fe)
 {
 	struct mc44s803_priv *priv = fe->tuner_priv;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	u32 r1, r2, n1, n2, lo1, lo2, freq, val;
 	int err;
 
-	priv->frequency = params->frequency;
+	priv->frequency = c->frequency;
 
 	r1 = MC44S803_OSC / 1000000;
 	r2 = MC44S803_OSC /  100000;
 
-	n1 = (params->frequency + MC44S803_IF1 + 500000) / 1000000;
+	n1 = (c->frequency + MC44S803_IF1 + 500000) / 1000000;
 	freq = MC44S803_OSC / r1 * n1;
 	lo1 = ((60 * n1) + (r1 / 2)) / r1;
-	freq = freq - params->frequency;
+	freq = freq - c->frequency;
 
 	n2 = (freq - MC44S803_IF2 + 50000) / 100000;
 	lo2 = ((60 * n2) + (r2 / 2)) / r2;

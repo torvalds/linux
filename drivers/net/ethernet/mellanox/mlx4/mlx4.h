@@ -363,6 +363,10 @@ struct mlx4_eqe {
 		struct {
 			__be32	slave_id;
 		} __packed flr_event;
+		struct {
+			__be16  current_temperature;
+			__be16  warning_threshold;
+		} __packed warming;
 	}			event;
 	u8			slave_id;
 	u8			reserved3[2];
@@ -388,9 +392,8 @@ struct mlx4_slave_eqe {
 };
 
 struct mlx4_slave_event_eq_info {
-	u32 eqn;
+	int eqn;
 	u16 token;
-	u64 event_type;
 };
 
 struct mlx4_profile {
@@ -400,7 +403,7 @@ struct mlx4_profile {
 	int			num_cq;
 	int			num_mcg;
 	int			num_mpt;
-	int			num_mtt;
+	unsigned		num_mtt;
 };
 
 struct mlx4_fw {
@@ -449,6 +452,8 @@ struct mlx4_steer_index {
 	struct list_head duplicates;
 };
 
+#define MLX4_EVENT_TYPES_NUM 64
+
 struct mlx4_slave_state {
 	u8 comm_toggle;
 	u8 last_cmd;
@@ -461,7 +466,8 @@ struct mlx4_slave_state {
 	struct mlx4_slave_eqe eq[MLX4_MFUNC_MAX_EQES];
 	struct list_head mcast_filters[MLX4_MAX_PORTS + 1];
 	struct mlx4_vlan_fltr *vlan_filter[MLX4_MAX_PORTS + 1];
-	struct mlx4_slave_event_eq_info event_eq;
+	/* event type to eq number lookup */
+	struct mlx4_slave_event_eq_info event_eq[MLX4_EVENT_TYPES_NUM];
 	u16 eq_pi;
 	u16 eq_ci;
 	spinlock_t lock;
@@ -680,6 +686,8 @@ struct mlx4_port_info {
 	char			dev_name[16];
 	struct device_attribute port_attr;
 	enum mlx4_port_type	tmp_type;
+	char			dev_mtu_name[16];
+	struct device_attribute port_mtu_attr;
 	struct mlx4_mac_table	mac_table;
 	struct radix_tree_root	mac_tree;
 	struct mlx4_vlan_table	vlan_table;
@@ -695,13 +703,12 @@ struct mlx4_sense {
 
 struct mlx4_msix_ctl {
 	u64		pool_bm;
-	spinlock_t	pool_lock;
+	struct mutex	pool_lock;
 };
 
 struct mlx4_steer {
 	struct list_head promisc_qps[MLX4_NUM_STEERS];
 	struct list_head steer_entries[MLX4_NUM_STEERS];
-	struct list_head high_prios;
 };
 
 struct mlx4_priv {
@@ -1023,7 +1030,6 @@ int mlx4_QUERY_PORT_wrapper(struct mlx4_dev *dev, int slave,
 			    struct mlx4_cmd_mailbox *outbox,
 			    struct mlx4_cmd_info *cmd);
 int mlx4_get_port_ib_caps(struct mlx4_dev *dev, u8 port, __be32 *caps);
-int mlx4_check_ext_port_caps(struct mlx4_dev *dev, u8 port);
 
 
 int mlx4_QP_ATTACH_wrapper(struct mlx4_dev *dev, int slave,

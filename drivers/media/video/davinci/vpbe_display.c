@@ -1746,15 +1746,16 @@ static __devinit int vpbe_display_probe(struct platform_device *pdev)
 	for (i = 0; i < VPBE_DISPLAY_MAX_DEVICES; i++) {
 		if (register_device(disp_dev->dev[i], disp_dev, pdev)) {
 			err = -ENODEV;
-			goto probe_out;
+			goto probe_out_irq;
 		}
 	}
 
 	printk(KERN_DEBUG "Successfully completed the probing of vpbe v4l2 device\n");
 	return 0;
 
-probe_out:
+probe_out_irq:
 	free_irq(res->start, disp_dev);
+probe_out:
 	for (k = 0; k < VPBE_DISPLAY_MAX_DEVICES; k++) {
 		/* Get the pointer to the layer object */
 		vpbe_display_layer = disp_dev->dev[k];
@@ -1816,43 +1817,7 @@ static struct platform_driver vpbe_display_driver = {
 	.remove = __devexit_p(vpbe_display_remove),
 };
 
-/*
- * vpbe_display_init()
- * This function registers device and driver to the kernel, requests irq
- * handler and allocates memory for layer objects
- */
-static __devinit int vpbe_display_init(void)
-{
-	int err;
-
-	printk(KERN_DEBUG "vpbe_display_init\n");
-
-	/* Register driver to the kernel */
-	err = platform_driver_register(&vpbe_display_driver);
-	if (0 != err)
-		return err;
-
-	printk(KERN_DEBUG "vpbe_display_init:"
-			"VPBE V4L2 Display Driver V1.0 loaded\n");
-	return 0;
-}
-
-/*
- * vpbe_display_cleanup()
- * This function un-registers device and driver to the kernel, frees requested
- * irq handler and de-allocates memory allocated for layer objects.
- */
-static void vpbe_display_cleanup(void)
-{
-	printk(KERN_DEBUG "vpbe_display_cleanup\n");
-
-	/* platform driver unregister */
-	platform_driver_unregister(&vpbe_display_driver);
-}
-
-/* Function for module initialization and cleanup */
-module_init(vpbe_display_init);
-module_exit(vpbe_display_cleanup);
+module_platform_driver(vpbe_display_driver);
 
 MODULE_DESCRIPTION("TI DM644x/DM355/DM365 VPBE Display controller");
 MODULE_LICENSE("GPL");

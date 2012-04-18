@@ -263,7 +263,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 	cam->ctrls = sd->ctrls;
 	sd->quality = QUALITY_DEF;
-	gspca_dev->nbalt = 9;		/* use the altsetting 08 */
 	return 0;
 }
 

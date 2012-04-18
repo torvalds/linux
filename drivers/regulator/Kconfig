@@ -74,13 +74,72 @@ config REGULATOR_GPIO
 	  and the platform has to provide a mapping of GPIO-states
 	  to target volts/amps.
 
-config REGULATOR_BQ24022
-	tristate "TI bq24022 Dual Input 1-Cell Li-Ion Charger IC"
+config REGULATOR_AD5398
+	tristate "Analog Devices AD5398/AD5821 regulators"
+	depends on I2C
 	help
-	  This driver controls a TI bq24022 Charger attached via
-	  GPIOs. The provided current regulator can enable/disable
-	  charging select between 100 mA and 500 mA charging current
-	  limit.
+	  This driver supports AD5398 and AD5821 current regulator chips.
+	  If building into module, its name is ad5398.ko.
+
+config REGULATOR_AAT2870
+	tristate "AnalogicTech AAT2870 Regulators"
+	depends on MFD_AAT2870_CORE
+	help
+	  If you have a AnalogicTech AAT2870 say Y to enable the
+	  regulator driver.
+
+config REGULATOR_DA903X
+	tristate "Dialog Semiconductor DA9030/DA9034 regulators"
+	depends on PMIC_DA903X
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  Dialog Semiconductor DA9030/DA9034 PMIC.
+
+config REGULATOR_DA9052
+	tristate "Dialog Semiconductor DA9052/DA9053 regulators"
+	depends on PMIC_DA9052
+	help
+	  This driver supports the voltage regulators of DA9052-BC and
+	  DA9053-AA/Bx PMIC.
+
+config REGULATOR_ANATOP
+	tristate "Freescale i.MX on-chip ANATOP LDO regulators"
+	depends on MFD_ANATOP
+	help
+	  Say y here to support Freescale i.MX on-chip ANATOP LDOs
+	  regulators. It is recommended that this option be
+	  enabled on i.MX6 platform.
+
+config REGULATOR_MC13XXX_CORE
+	tristate
+
+config REGULATOR_MC13783
+	tristate "Freescale MC13783 regulator driver"
+	depends on MFD_MC13783
+	select REGULATOR_MC13XXX_CORE
+	help
+	  Say y here to support the regulators found on the Freescale MC13783
+	  PMIC.
+
+config REGULATOR_MC13892
+	tristate "Freescale MC13892 regulator driver"
+	depends on MFD_MC13XXX
+	select REGULATOR_MC13XXX_CORE
+	help
+	  Say y here to support the regulators found on the Freescale MC13892
+	  PMIC.
+
+config REGULATOR_ISL6271A
+	tristate "Intersil ISL6271A Power regulator"
+	depends on I2C
+	help
+	  This driver supports ISL6271A voltage regulator chip.
+
+config REGULATOR_88PM8607
+	bool "Marvell 88PM8607 Power regulators"
+	depends on MFD_88PM860X=y
+	help
+	  This driver supports 88PM8607 voltage regulator chips.
 
 config REGULATOR_MAX1586
 	tristate "Maxim 1586/1587 voltage regulator"
@@ -136,6 +195,142 @@ config REGULATOR_MAX8998
 	  via I2C bus. The provided regulator is suitable for S3C6410
 	  and S5PC1XX chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_PCAP
+	tristate "Motorola PCAP2 regulator driver"
+	depends on EZX_PCAP
+	help
+	 This driver provides support for the voltage regulators of the
+	 PCAP2 PMIC.
+
+config REGULATOR_LP3971
+	tristate "National Semiconductors LP3971 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3971 PMIC
+
+config REGULATOR_LP3972
+	tristate "National Semiconductors LP3972 PMIC regulator driver"
+	depends on I2C
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on National Semiconductors LP3972 PMIC
+
+config REGULATOR_PCF50633
+	tristate "NXP PCF50633 regulator driver"
+        depends on MFD_PCF50633
+	help
+	 Say Y here to support the voltage regulators and convertors
+	 on PCF50633
+
+config REGULATOR_S5M8767
+	tristate "Samsung S5M8767A voltage regulator"
+	depends on MFD_S5M_CORE
+	help
+	 This driver supports a Samsung S5M8767A voltage output regulator
+	 via I2C bus. S5M8767A have 9 Bucks and 28 LDOs output and
+	 supports DVS mode with 8bits of output voltage control.
+
+config REGULATOR_AB3100
+	tristate "ST-Ericsson AB3100 Regulator functions"
+	depends on AB3100_CORE
+	default y if AB3100_CORE
+	help
+	 These regulators correspond to functionality in the
+	 AB3100 analog baseband dealing with power regulators
+	 for the system.
+
+config REGULATOR_AB8500
+	bool "ST-Ericsson AB8500 Power Regulators"
+	depends on AB8500_CORE
+	help
+	  This driver supports the regulators found on the ST-Ericsson mixed
+	  signal AB8500 PMIC
+
+config REGULATOR_DBX500_PRCMU
+	bool
+
+config REGULATOR_DB8500_PRCMU
+	bool "ST-Ericsson DB8500 Voltage Domain Regulators"
+	depends on MFD_DB8500_PRCMU
+	select REGULATOR_DBX500_PRCMU
+	help
+	  This driver supports the voltage domain regulators controlled by the
+	  DB8500 PRCMU
+
+config REGULATOR_TPS6105X
+	tristate "TI TPS6105X Power regulators"
+	depends on TPS6105X
+	default y if TPS6105X
+	help
+	  This driver supports TPS61050/TPS61052 voltage regulator chips.
+	  It is a single boost converter primarily for white LEDs and
+	  audio amplifiers.
+
+config REGULATOR_TPS62360
+	tristate "TI TPS62360 Power Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports TPS62360 voltage regulator chip. This
+	  regulator is meant for processor core supply. This chip is
+	  high-frequency synchronous step down dc-dc converter optimized
+	  for battery-powered portable applications.
+
+config REGULATOR_TPS65023
+	tristate "TI TPS65023 Power regulators"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This driver supports TPS65023 voltage regulator chips. TPS65023 provides
+	  three step-down converters and two general-purpose LDO voltage regulators.
+	  It supports TI's software based Class-2 SmartReflex implementation.
+
+config REGULATOR_TPS6507X
+	tristate "TI TPS6507X Power regulators"
+	depends on I2C
+	help
+	  This driver supports TPS6507X voltage regulator chips. TPS6507X provides
+	  three step-down converters and two general-purpose LDO voltage regulators.
+	  It supports TI's software based Class-2 SmartReflex implementation.
+
+config REGULATOR_TPS65217
+	tristate "TI TPS65217 Power regulators"
+	depends on MFD_TPS65217
+	help
+	  This driver supports TPS65217 voltage regulator chips. TPS65217
+	  provides three step-down converters and four general-purpose LDO
+	  voltage regulators. It supports software based voltage control
+	  for different voltage domains
+
+config REGULATOR_TPS6524X
+	tristate "TI TPS6524X Power regulators"
+	depends on SPI
+	help
+	  This driver supports TPS6524X voltage regulator chips. TPS6524X
+	  provides three step-down converters and two general-purpose LDO
+	  voltage regulators.  This device is interfaced using a customized
+	  serial interface currently supported on the sequencer serial
+	  port controller.
+
+config REGULATOR_TPS6586X
+	tristate "TI TPS6586X Power regulators"
+	depends on MFD_TPS6586X
+	help
+	  This driver supports TPS6586X voltage regulator chips.
+
+config REGULATOR_TPS65910
+	tristate "TI TPS65910/TPS65911 Power Regulators"
+	depends on MFD_TPS65910
+	help
+	  This driver supports TPS65910/TPS65911 voltage regulator chips.
+
+config REGULATOR_TPS65912
+	tristate "TI TPS65912 Power regulator"
+	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
+	help
+	    This driver supports TPS65912 voltage regulator chip.
+
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 PMIC"
 	depends on TWL4030_CORE
@@ -144,7 +339,7 @@ config REGULATOR_TWL4030
 	  this family of companion chips.
 
 config REGULATOR_WM831X
-	tristate "Wolfson Microelcronics WM831x PMIC regulators"
+	tristate "Wolfson Microelectronics WM831x PMIC regulators"
 	depends on MFD_WM831X
 	help
 	  Support the voltage and current regulators of the WM831x series
@@ -170,170 +365,6 @@ config REGULATOR_WM8994
 	help
 	  This driver provides support for the voltage regulators on the
 	  WM8994 CODEC.
-
-config REGULATOR_DA903X
-	tristate "Support regulators on Dialog Semiconductor DA9030/DA9034 PMIC"
-	depends on PMIC_DA903X
-	help
-	  Say y here to support the BUCKs and LDOs regulators found on
-	  Dialog Semiconductor DA9030/DA9034 PMIC.
-
-config REGULATOR_DA9052
-	tristate "Dialog DA9052/DA9053 regulators"
-	depends on PMIC_DA9052
-	help
-	  This driver supports the voltage regulators of DA9052-BC and
-	  DA9053-AA/Bx PMIC.
-
-config REGULATOR_PCF50633
-	tristate "PCF50633 regulator driver"
-        depends on MFD_PCF50633
-	help
-	 Say Y here to support the voltage regulators and convertors
-	 on PCF50633
-
-config REGULATOR_LP3971
-	tristate "National Semiconductors LP3971 PMIC regulator driver"
-	depends on I2C
-	help
-	 Say Y here to support the voltage regulators and convertors
-	 on National Semiconductors LP3971 PMIC
-
-config REGULATOR_LP3972
-	tristate "National Semiconductors LP3972 PMIC regulator driver"
-	depends on I2C
-	help
-	 Say Y here to support the voltage regulators and convertors
-	 on National Semiconductors LP3972 PMIC
-
-config REGULATOR_PCAP
-	tristate "PCAP2 regulator driver"
-	depends on EZX_PCAP
-	help
-	 This driver provides support for the voltage regulators of the
-	 PCAP2 PMIC.
-
-config REGULATOR_MC13XXX_CORE
-	tristate
-
-config REGULATOR_MC13783
-	tristate "Support regulators on Freescale MC13783 PMIC"
-	depends on MFD_MC13783
-	select REGULATOR_MC13XXX_CORE
-	help
-	  Say y here to support the regulators found on the Freescale MC13783
-	  PMIC.
-
-config REGULATOR_MC13892
-	tristate "Support regulators on Freescale MC13892 PMIC"
-	depends on MFD_MC13XXX
-	select REGULATOR_MC13XXX_CORE
-	help
-	  Say y here to support the regulators found on the Freescale MC13892
-	  PMIC.
-
-config REGULATOR_AB3100
-	tristate "ST-Ericsson AB3100 Regulator functions"
-	depends on AB3100_CORE
-	default y if AB3100_CORE
-	help
-	 These regulators correspond to functionality in the
-	 AB3100 analog baseband dealing with power regulators
-	 for the system.
-
-config REGULATOR_TPS6105X
-	tristate "TI TPS6105X Power regulators"
-	depends on TPS6105X
-	default y if TPS6105X
-	help
-	  This driver supports TPS61050/TPS61052 voltage regulator chips.
-	  It is a single boost converter primarily for white LEDs and
-	  audio amplifiers.
-
-config REGULATOR_TPS65023
-	tristate "TI TPS65023 Power regulators"
-	depends on I2C
-	select REGMAP_I2C
-	help
-	  This driver supports TPS65023 voltage regulator chips. TPS65023 provides
-	  three step-down converters and two general-purpose LDO voltage regulators.
-	  It supports TI's software based Class-2 SmartReflex implementation.
-
-config REGULATOR_TPS6507X
-	tristate "TI TPS6507X Power regulators"
-	depends on I2C
-	help
-	  This driver supports TPS6507X voltage regulator chips. TPS6507X provides
-	  three step-down converters and two general-purpose LDO voltage regulators.
-	  It supports TI's software based Class-2 SmartReflex implementation.
-
-config REGULATOR_TPS65912
-	tristate "TI TPS65912 Power regulator"
-	depends on (MFD_TPS65912_I2C || MFD_TPS65912_SPI)
-	help
-	    This driver supports TPS65912 voltage regulator chip.
-
-config REGULATOR_88PM8607
-	bool "Marvell 88PM8607 Power regulators"
-	depends on MFD_88PM860X=y
-	help
-	  This driver supports 88PM8607 voltage regulator chips.
-
-config REGULATOR_ISL6271A
-	tristate "Intersil ISL6271A Power regulator"
-	depends on I2C
-	help
-	  This driver supports ISL6271A voltage regulator chip.
-
-config REGULATOR_AD5398
-	tristate "Analog Devices AD5398/AD5821 regulators"
-	depends on I2C
-	help
-	  This driver supports AD5398 and AD5821 current regulator chips.
-	  If building into module, its name is ad5398.ko.
-
-config REGULATOR_AB8500
-	bool "ST-Ericsson AB8500 Power Regulators"
-	depends on AB8500_CORE
-	help
-	  This driver supports the regulators found on the ST-Ericsson mixed
-	  signal AB8500 PMIC
-
-config REGULATOR_DB8500_PRCMU
-	bool "ST-Ericsson DB8500 Voltage Domain Regulators"
-	depends on MFD_DB8500_PRCMU
-	help
-	  This driver supports the voltage domain regulators controlled by the
-	  DB8500 PRCMU
-
-config REGULATOR_TPS6586X
-	tristate "TI TPS6586X Power regulators"
-	depends on MFD_TPS6586X
-	help
-	  This driver supports TPS6586X voltage regulator chips.
-
-config REGULATOR_TPS6524X
-	tristate "TI TPS6524X Power regulators"
-	depends on SPI
-	help
-	  This driver supports TPS6524X voltage regulator chips. TPS6524X
-	  provides three step-down converters and two general-purpose LDO
-	  voltage regulators.  This device is interfaced using a customized
-	  serial interface currently supported on the sequencer serial
-	  port controller.
-
-config REGULATOR_TPS65910
-	tristate "TI TPS65910 Power Regulator"
-	depends on MFD_TPS65910
-	help
-	  This driver supports TPS65910 voltage regulator chips.
-
-config REGULATOR_AAT2870
-	tristate "AnalogicTech AAT2870 Regulators"
-	depends on MFD_AAT2870_CORE
-	help
-	  If you have a AnalogicTech AAT2870 say Y to enable the
-	  regulator driver.
 
 endif
 

@@ -33,9 +33,9 @@
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"00.00.06.12-rc1"
-#define MEGASAS_RELDATE				"Oct. 5, 2011"
-#define MEGASAS_EXT_VERSION			"Wed. Oct. 5 17:00:00 PDT 2011"
+#define MEGASAS_VERSION				"00.00.06.14-rc1"
+#define MEGASAS_RELDATE				"Jan. 6, 2012"
+#define MEGASAS_EXT_VERSION			"Fri. Jan. 6 17:00:00 PDT 2012"
 
 /*
  * Device IDs
@@ -773,7 +773,6 @@ struct megasas_ctrl_info {
 
 #define MFI_OB_INTR_STATUS_MASK			0x00000002
 #define MFI_POLL_TIMEOUT_SECS			60
-#define MEGASAS_COMPLETION_TIMER_INTERVAL      (HZ/10)
 
 #define MFI_REPLY_1078_MESSAGE_INTERRUPT	0x80000000
 #define MFI_REPLY_GEN2_MESSAGE_INTERRUPT	0x00000001
@@ -1353,7 +1352,6 @@ struct megasas_instance {
 	u32 mfiStatus;
 	u32 last_seq_num;
 
-	struct timer_list io_completion_timer;
 	struct list_head internal_reset_pending_q;
 
 	/* Ptr to hba specific information */

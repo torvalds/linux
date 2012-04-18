@@ -473,14 +473,14 @@ ath5k_hw_wisoc_reset(struct ath5k_hw *ah, u32 flags)
 	}
 
 	/* Put BB/MAC into reset */
-	regval = __raw_readl(reg);
-	__raw_writel(regval | val, reg);
-	regval = __raw_readl(reg);
+	regval = ioread32(reg);
+	iowrite32(regval | val, reg);
+	regval = ioread32(reg);
 	usleep_range(100, 150);
 
 	/* Bring BB/MAC out of reset */
-	__raw_writel(regval & ~val, reg);
-	regval = __raw_readl(reg);
+	iowrite32(regval & ~val, reg);
+	regval = ioread32(reg);
 
 	/*
 	 * Reset configuration register (for hw byte-swap). Note that this

@@ -1400,6 +1400,9 @@ int kdb_main_loop(kdb_reason_t reason, kdb_reason_t reason2, int error,
 	if (KDB_STATE(DOING_SS))
 		KDB_STATE_CLEAR(SSBPT);
 
+	/* Clean up any keyboard devices before leaving */
+	kdb_kbd_cleanup_state();
+
 	return result;
 }
 
@@ -1982,7 +1985,7 @@ static int kdb_lsmod(int argc, const char **argv)
 		kdb_printf("%-20s%8u  0x%p ", mod->name,
 			   mod->core_size, (void *)mod);
 #ifdef CONFIG_MODULE_UNLOAD
-		kdb_printf("%4d ", module_refcount(mod));
+		kdb_printf("%4ld ", module_refcount(mod));
 #endif
 		if (mod->state == MODULE_STATE_GOING)
 			kdb_printf(" (Unloading)");

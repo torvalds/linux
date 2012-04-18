@@ -95,7 +95,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	/* must disable */
 	sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 	sprctl |= SPRITE_ENABLE;
-	sprctl |= SPRITE_DEST_KEY;
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -225,16 +224,16 @@ snb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 
 	/* Mask out pixel format bits in case we change it */
 	dvscntr &= ~DVS_PIXFORMAT_MASK;
-	dvscntr &= ~DVS_RGB_ORDER_RGBX;
+	dvscntr &= ~DVS_RGB_ORDER_XBGR;
 	dvscntr &= ~DVS_YUV_BYTE_ORDER_MASK;
 
 	switch (fb->pixel_format) {
 	case DRM_FORMAT_XBGR8888:
-		dvscntr |= DVS_FORMAT_RGBX888;
+		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_XBGR;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_XRGB8888:
-		dvscntr |= DVS_FORMAT_RGBX888 | DVS_RGB_ORDER_RGBX;
+		dvscntr |= DVS_FORMAT_RGBX888;
 		pixel_size = 4;
 		break;
 	case DRM_FORMAT_YUYV:
@@ -411,6 +410,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 
 	old_obj = intel_plane->obj;
 
+	src_w = src_w >> 16;
+	src_h = src_h >> 16;
+
 	/* Pipe must be running... */
 	if (!(I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE))
 		return -EINVAL;
@@ -466,10 +468,8 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	mutex_lock(&dev->struct_mutex);
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj, NULL);
-	if (ret) {
-		DRM_ERROR("failed to pin object\n");
+	if (ret)
 		goto out_unlock;
-	}
 
 	intel_plane->obj = obj;
 
@@ -503,7 +503,7 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 			intel_wait_for_vblank(dev, to_intel_crtc(crtc)->pipe);
 			mutex_lock(&dev->struct_mutex);
 		}
-		i915_gem_object_unpin(old_obj);
+		intel_unpin_fb_obj(old_obj);
 	}
 
 out_unlock:
@@ -530,7 +530,7 @@ intel_disable_plane(struct drm_plane *plane)
 		goto out;
 
 	mutex_lock(&dev->struct_mutex);
-	i915_gem_object_unpin(intel_plane->obj);
+	intel_unpin_fb_obj(intel_plane->obj);
 	intel_plane->obj = NULL;
 	mutex_unlock(&dev->struct_mutex);
 out:
@@ -632,10 +632,8 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe)
 	unsigned long possible_crtcs;
 	int ret;
 
-	if (!(IS_GEN6(dev) || IS_GEN7(dev))) {
-		DRM_ERROR("new plane code only for SNB+\n");
+	if (!(IS_GEN6(dev) || IS_GEN7(dev)))
 		return -ENODEV;
-	}
 
 	intel_plane = kzalloc(sizeof(struct intel_plane), GFP_KERNEL);
 	if (!intel_plane)

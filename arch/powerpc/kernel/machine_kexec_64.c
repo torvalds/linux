@@ -307,9 +307,9 @@ static union thread_union kexec_stack __init_task_data =
 struct paca_struct kexec_paca;
 
 /* Our assembly helper, in kexec_stub.S */
-extern NORET_TYPE void kexec_sequence(void *newstack, unsigned long start,
-					void *image, void *control,
-					void (*clear_all)(void)) ATTRIB_NORET;
+extern void kexec_sequence(void *newstack, unsigned long start,
+			   void *image, void *control,
+			   void (*clear_all)(void)) __noreturn;
 
 /* too late to fail here */
 void default_machine_kexec(struct kimage *image)

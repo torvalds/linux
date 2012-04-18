@@ -2,13 +2,11 @@
 # arch/microblaze/boot/Makefile
 #
 
-MKIMAGE := $(srctree)/scripts/mkuboot.sh
-
 obj-y += linked_dtb.o
 
 targets := linux.bin linux.bin.gz simpleImage.%
 
-OBJCOPYFLAGS := -O binary
+OBJCOPYFLAGS := -R .note -R .comment -R .note.gnu.build-id -O binary
 
 # Ensure system.dtb exists
 $(obj)/linked_dtb.o: $(obj)/system.dtb
@@ -35,11 +33,9 @@ quiet_cmd_strip = STRIP   $@
 	cmd_strip = $(STRIP) -K microblaze_start -K _end -K __log_buf \
 				-K _fdt_start vmlinux -o $@
 
-quiet_cmd_uimage = UIMAGE  $@.ub
-	cmd_uimage = $(CONFIG_SHELL) $(MKIMAGE) -A microblaze -O linux -T kernel \
-		-C none -n 'Linux-$(KERNELRELEASE)' \
-		-a $(CONFIG_KERNEL_BASE_ADDR) -e $(CONFIG_KERNEL_BASE_ADDR) \
-		-d $@ $@.ub
+UIMAGE_IN = $@
+UIMAGE_OUT = $@.ub
+UIMAGE_LOADADDR = $(CONFIG_KERNEL_BASE_ADDR)
 
 $(obj)/simpleImage.%: vmlinux FORCE
 	$(call if_changed,cp,.unstrip)
@@ -53,6 +49,6 @@ $(obj)/simpleImage.%: vmlinux FORCE
 DTC_FLAGS := -p 1024
 
 $(obj)/%.dtb: $(src)/dts/%.dts FORCE
-	$(call cmd,dtc)
+	$(call if_changed_dep,dtc)
 
 clean-files += *.dtb simpleImage.*.unstrip linux.bin.ub

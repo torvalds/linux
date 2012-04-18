@@ -32,13 +32,11 @@
 #include <linux/console.h>
 #include <linux/vmalloc.h>
 #include <linux/swap.h>
-#include <linux/kmsg_dump.h>
 #include <linux/syscore_ops.h>
 
 #include <asm/page.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
-#include <asm/system.h>
 #include <asm/sections.h>
 
 /* Per cpu memory for storing cpu states in case of system crash. */
@@ -1094,8 +1092,6 @@ void crash_kexec(struct pt_regs *regs)
 		if (kexec_crash_image) {
 			struct pt_regs fixed_regs;
 
-			kmsg_dump(KMSG_DUMP_KEXEC);
-
 			crash_setup_regs(&fixed_regs, regs);
 			crash_save_vmcoreinfo();
 			machine_crash_shutdown(&fixed_regs);
@@ -1132,6 +1128,8 @@ int crash_shrink_memory(unsigned long new_size)
 {
 	int ret = 0;
 	unsigned long start, end;
+	unsigned long old_size;
+	struct resource *ram_res;
 
 	mutex_lock(&kexec_mutex);
 
@@ -1141,11 +1139,15 @@ int crash_shrink_memory(unsigned long new_size)
 	}
 	start = crashk_res.start;
 	end = crashk_res.end;
+	old_size = (end == 0) ? 0 : end - start + 1;
+	if (new_size >= old_size) {
+		ret = (new_size == old_size) ? 0 : -EINVAL;
+		goto unlock;
+	}
 
-	if (new_size >= end - start + 1) {
-		ret = -EINVAL;
-		if (new_size == end - start + 1)
-			ret = 0;
+	ram_res = kzalloc(sizeof(*ram_res), GFP_KERNEL);
+	if (!ram_res) {
+		ret = -ENOMEM;
 		goto unlock;
 	}
 
@@ -1157,7 +1159,15 @@ int crash_shrink_memory(unsigned long new_size)
 
 	if ((start == end) && (crashk_res.parent != NULL))
 		release_resource(&crashk_res);
+
+	ram_res->start = end;
+	ram_res->end = crashk_res.end;
+	ram_res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
+	ram_res->name = "System RAM";
+
 	crashk_res.end = end - 1;
+
+	insert_resource(&iomem_resource, ram_res);
 	crash_unmap_reserved_pages();
 
 unlock:
@@ -1348,6 +1358,10 @@ static int __init parse_crashkernel_simple(char 		*cmdline,
 
 	if (*cur == '@')
 		*crash_base = memparse(cur+1, &cur);
+	else if (*cur != ' ' && *cur != '\0') {
+		pr_warning("crashkernel: unrecognized char\n");
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1451,7 +1465,9 @@ static int __init crash_save_vmcoreinfo_init(void)
 
 	VMCOREINFO_SYMBOL(init_uts_ns);
 	VMCOREINFO_SYMBOL(node_online_map);
+#ifdef CONFIG_MMU
 	VMCOREINFO_SYMBOL(swapper_pg_dir);
+#endif
 	VMCOREINFO_SYMBOL(_stext);
 	VMCOREINFO_SYMBOL(vmlist);
 
@@ -1535,13 +1551,13 @@ int kernel_kexec(void)
 		if (error)
 			goto Resume_console;
 		/* At this point, dpm_suspend_start() has been called,
-		 * but *not* dpm_suspend_noirq(). We *must* call
-		 * dpm_suspend_noirq() now.  Otherwise, drivers for
+		 * but *not* dpm_suspend_end(). We *must* call
+		 * dpm_suspend_end() now.  Otherwise, drivers for
 		 * some devices (e.g. interrupt controllers) become
 		 * desynchronized with the actual state of the
 		 * hardware at resume time, and evil weirdness ensues.
 		 */
-		error = dpm_suspend_noirq(PMSG_FREEZE);
+		error = dpm_suspend_end(PMSG_FREEZE);
 		if (error)
 			goto Resume_devices;
 		error = disable_nonboot_cpus();
@@ -1568,7 +1584,7 @@ int kernel_kexec(void)
 		local_irq_enable();
  Enable_cpus:
 		enable_nonboot_cpus();
-		dpm_resume_noirq(PMSG_RESTORE);
+		dpm_resume_start(PMSG_RESTORE);
  Resume_devices:
 		dpm_resume_end(PMSG_RESTORE);
  Resume_console:

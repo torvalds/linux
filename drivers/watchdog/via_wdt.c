@@ -10,6 +10,9 @@
  * Caveat: PnP must be enabled in BIOS to allow full access to watchdog
  * control registers. If not, the watchdog must be configured in BIOS manually.
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>
@@ -55,8 +58,8 @@ module_param(timeout, int, 0);
 MODULE_PARM_DESC(timeout, "Watchdog timeout in seconds, between 1 and 1023 "
 	"(default = " __MODULE_STRING(WDT_TIMEOUT) ")");
 
-static int nowayout = WATCHDOG_NOWAYOUT;
-module_param(nowayout, int, 0);
+static bool nowayout = WATCHDOG_NOWAYOUT;
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started "
 	"(default = " __MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
@@ -98,7 +101,7 @@ static void wdt_timer_tick(unsigned long data)
 static int wdt_ping(struct watchdog_device *wdd)
 {
 	/* calculate when the next userspace timeout will be */
-	next_heartbeat = jiffies + timeout * HZ;
+	next_heartbeat = jiffies + wdd->timeout * HZ;
 	return 0;
 }
 
@@ -106,7 +109,7 @@ static int wdt_start(struct watchdog_device *wdd)
 {
 	unsigned int ctl = readl(wdt_mem);
 
-	writel(timeout, wdt_mem + VIA_WDT_COUNT);
+	writel(wdd->timeout, wdt_mem + VIA_WDT_COUNT);
 	writel(ctl | VIA_WDT_RUNNING | VIA_WDT_TRIGGER, wdt_mem);
 	wdt_ping(wdd);
 	mod_timer(&timer, jiffies + WDT_HEARTBEAT);
@@ -124,10 +127,8 @@ static int wdt_stop(struct watchdog_device *wdd)
 static int wdt_set_timeout(struct watchdog_device *wdd,
 			   unsigned int new_timeout)
 {
-	if (new_timeout < 1 || new_timeout > WDT_TIMEOUT_MAX)
-		return -EINVAL;
 	writel(new_timeout, wdt_mem + VIA_WDT_COUNT);
-	timeout = new_timeout;
+	wdd->timeout = new_timeout;
 	return 0;
 }
 
@@ -150,6 +151,8 @@ static const struct watchdog_ops wdt_ops = {
 static struct watchdog_device wdt_dev = {
 	.info =		&wdt_info,
 	.ops =		&wdt_ops,
+	.min_timeout =	1,
+	.max_timeout =	WDT_TIMEOUT_MAX,
 };
 
 static int __devinit wdt_probe(struct pci_dev *pdev,
@@ -233,7 +236,7 @@ static void __devexit wdt_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-DEFINE_PCI_DEVICE_TABLE(wdt_pci_table) = {
+static DEFINE_PCI_DEVICE_TABLE(wdt_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_CX700) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX800) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX855) },

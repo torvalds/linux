@@ -523,21 +523,7 @@ static struct platform_driver iop3xx_i2c_driver = {
 	},
 };
 
-static int __init 
-i2c_iop3xx_init (void)
-{
-	return platform_driver_register(&iop3xx_i2c_driver);
-}
-
-static void __exit 
-i2c_iop3xx_exit (void)
-{
-	platform_driver_unregister(&iop3xx_i2c_driver);
-	return;
-}
-
-module_init (i2c_iop3xx_init);
-module_exit (i2c_iop3xx_exit);
+module_platform_driver(iop3xx_i2c_driver);
 
 MODULE_AUTHOR("D-TACQ Solutions Ltd <www.d-tacq.com>");
 MODULE_DESCRIPTION("IOP3xx iic algorithm and driver");

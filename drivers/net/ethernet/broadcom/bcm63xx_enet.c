@@ -797,7 +797,7 @@ static int bcm_enet_open(struct net_device *dev)
 	if (priv->has_phy) {
 		/* connect to PHY */
 		snprintf(phy_id, sizeof(phy_id), PHY_ID_FMT,
-			 priv->mac_id ? "1" : "0", priv->phy_id);
+			 priv->mii_bus->id, priv->phy_id);
 
 		phydev = phy_connect(dev, phy_id, bcm_enet_adjust_phy_link, 0,
 				     PHY_INTERFACE_MODE_MII);
@@ -1727,7 +1727,7 @@ static int __devinit bcm_enet_probe(struct platform_device *pdev)
 		bus->priv = priv;
 		bus->read = bcm_enet_mdio_read_phylib;
 		bus->write = bcm_enet_mdio_write_phylib;
-		sprintf(bus->id, "%d", priv->mac_id);
+		sprintf(bus->id, "%s-%d", pdev->name, priv->mac_id);
 
 		/* only probe bus where we think the PHY is, because
 		 * the mdio read operation return 0 instead of 0xffff

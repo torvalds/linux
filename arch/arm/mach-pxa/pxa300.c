@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <mach/pxa300.h>
 
@@ -89,7 +90,6 @@ static DEFINE_PXA3_CKEN(gcu, PXA300_GCU, 0, 0);
 static struct clk_lookup common_clkregs[] = {
 	INIT_CLKREG(&clk_common_nand, "pxa3xx-nand", NULL),
 	INIT_CLKREG(&clk_gcu, "pxa3xx-gcu", NULL),
-	INIT_CLKREG(&clk_dummy, "sa1100-rtc", NULL),
 };
 
 static DEFINE_PXA3_CKEN(pxa310_mmc3, MMC3, 19500000, 0);

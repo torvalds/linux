@@ -183,7 +183,12 @@ applications must set the array to zero.</entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>ctrl_class</structfield></entry>
 	    <entry>The control class to which all controls belong, see
-<xref linkend="ctrl-class" />.</entry>
+<xref linkend="ctrl-class" />. Drivers that use a kernel framework for handling
+controls will also accept a value of 0 here, meaning that the controls can
+belong to any control class. Whether drivers support this can be tested by setting
+<structfield>ctrl_class</structfield> to 0 and calling <constant>VIDIOC_TRY_EXT_CTRLS</constant>
+with a <structfield>count</structfield> of 0. If that succeeds, then the driver
+supports this feature.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -194,10 +199,13 @@ also be zero.</entry>
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>error_idx</structfield></entry>
-	    <entry>Set by the driver in case of an error. It is the
-index of the control causing the error or equal to 'count' when the
-error is not associated with a particular control. Undefined when the
-ioctl returns 0 (success).</entry>
+	    <entry>Set by the driver in case of an error. If it is equal
+to <structfield>count</structfield>, then no actual changes were made to
+controls. In other words, the error was not associated with setting a particular
+control. If it is another value, then only the controls up to <structfield>error_idx-1</structfield>
+were modified and control <structfield>error_idx</structfield> is the one that
+caused the error. The <structfield>error_idx</structfield> value is undefined
+if the ioctl returned 0 (success).</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>
@@ -312,10 +320,3 @@ to store the payload and this error code is returned.</para>
   </refsect1>
 </refentry>
 
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

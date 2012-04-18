@@ -292,7 +292,7 @@ static int validate_ccdc_param(struct ccdc_config_params_raw *ccdcparam)
 	if ((ccdcparam->med_filt_thres < 0) ||
 	   (ccdcparam->med_filt_thres > CCDC_MED_FILT_THRESH)) {
 		dev_dbg(ccdc_cfg.dev,
-			"Invalid value of median filter thresold\n");
+			"Invalid value of median filter threshold\n");
 		return -EINVAL;
 	}
 
@@ -1069,15 +1069,4 @@ static struct platform_driver dm355_ccdc_driver = {
 	.probe = dm355_ccdc_probe,
 };
 
-static int __init dm355_ccdc_init(void)
-{
-	return platform_driver_register(&dm355_ccdc_driver);
-}
-
-static void __exit dm355_ccdc_exit(void)
-{
-	platform_driver_unregister(&dm355_ccdc_driver);
-}
-
-module_init(dm355_ccdc_init);
-module_exit(dm355_ccdc_exit);
+module_platform_driver(dm355_ccdc_driver);

@@ -33,6 +33,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
 
@@ -1012,6 +1013,28 @@ static int twl6040_pll_put_enum(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+int twl6040_get_dl1_gain(struct snd_soc_codec *codec)
+{
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+
+	if (snd_soc_dapm_get_pin_status(dapm, "EP"))
+		return -1; /* -1dB */
+
+	if (snd_soc_dapm_get_pin_status(dapm, "HSOR") ||
+		snd_soc_dapm_get_pin_status(dapm, "HSOL")) {
+
+		u8 val = snd_soc_read(codec, TWL6040_REG_HSLCTL);
+		if (val & TWL6040_HSDACMODE)
+			/* HSDACL in LP mode */
+			return -8; /* -8dB */
+		else
+			/* HSDACL in HP mode */
+			return -1; /* -1dB */
+	}
+	return 0; /* 0dB */
+}
+EXPORT_SYMBOL_GPL(twl6040_get_dl1_gain);
+
 int twl6040_get_clk_id(struct snd_soc_codec *codec)
 {
 	struct twl6040_data *priv = snd_soc_codec_get_drvdata(codec);
@@ -1028,6 +1051,19 @@ int twl6040_get_trim_value(struct snd_soc_codec *codec, enum twl6040_trim trim)
 	return twl6040_read_reg_cache(codec, TWL6040_REG_TRIM1 + trim);
 }
 EXPORT_SYMBOL_GPL(twl6040_get_trim_value);
+
+int twl6040_get_hs_step_size(struct snd_soc_codec *codec)
+{
+	struct twl6040 *twl6040 = codec->control_data;
+
+	if (twl6040_get_revid(twl6040) < TWL6040_REV_ES1_2)
+		/* For ES under ES_1.3 HS step is 2 mV */
+		return 2;
+	else
+		/* For ES_1.3 HS step is 1 mV */
+		return 1;
+}
+EXPORT_SYMBOL_GPL(twl6040_get_hs_step_size);
 
 static const struct snd_kcontrol_new twl6040_snd_controls[] = {
 	/* Capture gains */
@@ -1102,14 +1138,14 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 			TWL6040_REG_MICRCTL, 2, 0),
 
 	/* Microphone bias */
-	SND_SOC_DAPM_MICBIAS("Headset Mic Bias",
-			TWL6040_REG_AMICBCTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Main Mic Bias",
-			TWL6040_REG_AMICBCTL, 4, 0),
-	SND_SOC_DAPM_MICBIAS("Digital Mic1 Bias",
-			TWL6040_REG_DMICBCTL, 0, 0),
-	SND_SOC_DAPM_MICBIAS("Digital Mic2 Bias",
-			TWL6040_REG_DMICBCTL, 4, 0),
+	SND_SOC_DAPM_SUPPLY("Headset Mic Bias",
+			    TWL6040_REG_AMICBCTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Main Mic Bias",
+			    TWL6040_REG_AMICBCTL, 4, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Digital Mic1 Bias",
+			    TWL6040_REG_DMICBCTL, 0, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY("Digital Mic2 Bias",
+			    TWL6040_REG_DMICBCTL, 4, 0, NULL, 0),
 
 	/* DACs */
 	SND_SOC_DAPM_DAC("HSDAC Left", "Headset Playback", SND_SOC_NOPM, 0, 0),
@@ -1397,7 +1433,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static struct snd_soc_dai_ops twl6040_dai_ops = {
+static const struct snd_soc_dai_ops twl6040_dai_ops = {
 	.startup	= twl6040_startup,
 	.hw_params	= twl6040_hw_params,
 	.prepare	= twl6040_prepare,
@@ -1470,7 +1506,7 @@ static struct snd_soc_dai_driver twl6040_dai[] = {
 };
 
 #ifdef CONFIG_PM
-static int twl6040_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int twl6040_suspend(struct snd_soc_codec *codec)
 {
 	twl6040_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -1504,7 +1540,6 @@ static int twl6040_probe(struct snd_soc_codec *codec)
 
 	priv->codec = codec;
 	codec->control_data = dev_get_drvdata(codec->dev->parent);
-	codec->ignore_pmdown_time = 1;
 
 	if (pdata && pdata->hs_left_step && pdata->hs_right_step) {
 		priv->hs_left_step = pdata->hs_left_step;
@@ -1590,6 +1625,7 @@ static struct snd_soc_codec_driver soc_codec_dev_twl6040 = {
 	.reg_cache_size = ARRAY_SIZE(twl6040_reg),
 	.reg_word_size = sizeof(u8),
 	.reg_cache_default = twl6040_reg,
+	.ignore_pmdown_time = true,
 
 	.controls = twl6040_snd_controls,
 	.num_controls = ARRAY_SIZE(twl6040_snd_controls),
@@ -1620,17 +1656,7 @@ static struct platform_driver twl6040_codec_driver = {
 	.remove = __devexit_p(twl6040_codec_remove),
 };
 
-static int __init twl6040_codec_init(void)
-{
-	return platform_driver_register(&twl6040_codec_driver);
-}
-module_init(twl6040_codec_init);
-
-static void __exit twl6040_codec_exit(void)
-{
-	platform_driver_unregister(&twl6040_codec_driver);
-}
-module_exit(twl6040_codec_exit);
+module_platform_driver(twl6040_codec_driver);
 
 MODULE_DESCRIPTION("ASoC TWL6040 codec driver");
 MODULE_AUTHOR("Misael Lopez Cruz");

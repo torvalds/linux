@@ -514,7 +514,7 @@ static void fsl_ssi_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
-static struct snd_soc_dai_ops fsl_ssi_dai_ops = {
+static const struct snd_soc_dai_ops fsl_ssi_dai_ops = {
 	.startup	= fsl_ssi_startup,
 	.hw_params	= fsl_ssi_hw_params,
 	.shutdown	= fsl_ssi_shutdown,
@@ -716,12 +716,12 @@ static int __devinit fsl_ssi_probe(struct platform_device *pdev)
 	}
 
 	/* Trigger the machine driver's probe function.  The platform driver
-	 * name of the machine driver is taken from the /model property of the
+	 * name of the machine driver is taken from /compatible property of the
 	 * device tree.  We also pass the address of the CPU DAI driver
 	 * structure.
 	 */
-	sprop = of_get_property(of_find_node_by_path("/"), "model", NULL);
-	/* Sometimes the model name has a "fsl," prefix, so we strip that. */
+	sprop = of_get_property(of_find_node_by_path("/"), "compatible", NULL);
+	/* Sometimes the compatible name has a "fsl," prefix, so we strip it. */
 	p = strrchr(sprop, ',');
 	if (p)
 		sprop = p + 1;
@@ -793,20 +793,7 @@ static struct platform_driver fsl_ssi_driver = {
 	.remove = fsl_ssi_remove,
 };
 
-static int __init fsl_ssi_init(void)
-{
-	printk(KERN_INFO "Freescale Synchronous Serial Interface (SSI) ASoC Driver\n");
-
-	return platform_driver_register(&fsl_ssi_driver);
-}
-
-static void __exit fsl_ssi_exit(void)
-{
-	platform_driver_unregister(&fsl_ssi_driver);
-}
-
-module_init(fsl_ssi_init);
-module_exit(fsl_ssi_exit);
+module_platform_driver(fsl_ssi_driver);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Synchronous Serial Interface (SSI) ASoC Driver");

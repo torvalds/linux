@@ -49,8 +49,8 @@
 
 #define VERSION "0.3"
 
-static int txcrc = 1;
-static int hciextn = 1;
+static bool txcrc = 1;
+static bool hciextn = 1;
 
 #define BCSP_TXWINSIZE	4
 
@@ -692,7 +692,7 @@ static int bcsp_open(struct hci_uart *hu)
 
 	BT_DBG("hu %p", hu);
 
-	bcsp = kzalloc(sizeof(*bcsp), GFP_ATOMIC);
+	bcsp = kzalloc(sizeof(*bcsp), GFP_KERNEL);
 	if (!bcsp)
 		return -ENOMEM;
 

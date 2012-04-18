@@ -291,6 +291,7 @@ int ata_tport_add(struct device *parent,
 		goto tport_err;
 	}
 
+	device_enable_async_suspend(dev);
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 

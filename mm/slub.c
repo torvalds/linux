@@ -29,6 +29,7 @@
 #include <linux/math64.h>
 #include <linux/fault-inject.h>
 #include <linux/stacktrace.h>
+#include <linux/prefetch.h>
 
 #include <trace/events/kmem.h>
 
@@ -269,6 +270,11 @@ static inline void *get_freepointer(struct kmem_cache *s, void *object)
 	return *(void **)(object + s->offset);
 }
 
+static void prefetch_freepointer(const struct kmem_cache *s, void *object)
+{
+	prefetch(object + s->offset);
+}
+
 static inline void *get_freepointer_safe(struct kmem_cache *s, void *object)
 {
 	void *p;
@@ -366,7 +372,8 @@ static inline bool __cmpxchg_double_slab(struct kmem_cache *s, struct page *page
 		const char *n)
 {
 	VM_BUG_ON(!irqs_disabled());
-#ifdef CONFIG_CMPXCHG_DOUBLE
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
 	if (s->flags & __CMPXCHG_DOUBLE) {
 		if (cmpxchg_double(&page->freelist, &page->counters,
 			freelist_old, counters_old,
@@ -400,7 +407,8 @@ static inline bool cmpxchg_double_slab(struct kmem_cache *s, struct page *page,
 		void *freelist_new, unsigned long counters_new,
 		const char *n)
 {
-#ifdef CONFIG_CMPXCHG_DOUBLE
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
 	if (s->flags & __CMPXCHG_DOUBLE) {
 		if (cmpxchg_double(&page->freelist, &page->counters,
 			freelist_old, counters_old,
@@ -570,7 +578,7 @@ static void slab_bug(struct kmem_cache *s, char *fmt, ...)
 	va_end(args);
 	printk(KERN_ERR "========================================"
 			"=====================================\n");
-	printk(KERN_ERR "BUG %s: %s\n", s->name, buf);
+	printk(KERN_ERR "BUG %s (%s): %s\n", s->name, print_tainted(), buf);
 	printk(KERN_ERR "----------------------------------------"
 			"-------------------------------------\n\n");
 }
@@ -1558,6 +1566,7 @@ static void *get_partial_node(struct kmem_cache *s,
 		} else {
 			page->freelist = t;
 			available = put_cpu_partial(s, page, 0);
+			stat(s, CPU_PARTIAL_NODE);
 		}
 		if (kmem_cache_debug(s) || available > s->cpu_partial / 2)
 			break;
@@ -1579,6 +1588,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
 	struct zone *zone;
 	enum zone_type high_zoneidx = gfp_zone(flags);
 	void *object;
+	unsigned int cpuset_mems_cookie;
 
 	/*
 	 * The defrag ratio allows a configuration of the tradeoffs between
@@ -1602,23 +1612,32 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags,
 			get_cycles() % 1024 > s->remote_node_defrag_ratio)
 		return NULL;
 
-	get_mems_allowed();
-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
-	for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
-		struct kmem_cache_node *n;
+	do {
+		cpuset_mems_cookie = get_mems_allowed();
+		zonelist = node_zonelist(slab_node(current->mempolicy), flags);
+		for_each_zone_zonelist(zone, z, zonelist, high_zoneidx) {
+			struct kmem_cache_node *n;
 
-		n = get_node(s, zone_to_nid(zone));
+			n = get_node(s, zone_to_nid(zone));
 
-		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
-				n->nr_partial > s->min_partial) {
-			object = get_partial_node(s, n, c);
-			if (object) {
-				put_mems_allowed();
-				return object;
+			if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
+					n->nr_partial > s->min_partial) {
+				object = get_partial_node(s, n, c);
+				if (object) {
+					/*
+					 * Return the object even if
+					 * put_mems_allowed indicated that
+					 * the cpuset mems_allowed was
+					 * updated in parallel. It's a
+					 * harmless race between the alloc
+					 * and the cpuset update.
+					 */
+					put_mems_allowed(cpuset_mems_cookie);
+					return object;
+				}
 			}
 		}
-	}
-	put_mems_allowed();
+	} while (!put_mems_allowed(cpuset_mems_cookie));
 #endif
 	return NULL;
 }
@@ -1901,11 +1920,14 @@ static void unfreeze_partials(struct kmem_cache *s)
 			}
 
 			if (l != m) {
-				if (l == M_PARTIAL)
+				if (l == M_PARTIAL) {
 					remove_partial(n, page);
-				else
+					stat(s, FREE_REMOVE_PARTIAL);
+				} else {
 					add_partial(n, page,
 						DEACTIVATE_TO_TAIL);
+					stat(s, FREE_ADD_PARTIAL);
+				}
 
 				l = m;
 			}
@@ -1968,6 +1990,7 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 				local_irq_restore(flags);
 				pobjects = 0;
 				pages = 0;
+				stat(s, CPU_PARTIAL_DRAIN);
 			}
 		}
 
@@ -1979,7 +2002,6 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 		page->next = oldpage;
 
 	} while (this_cpu_cmpxchg(s->cpu_slab->partial, oldpage, page) != oldpage);
-	stat(s, CPU_PARTIAL_FREE);
 	return pobjects;
 }
 
@@ -2013,9 +2035,17 @@ static void flush_cpu_slab(void *d)
 	__flush_cpu_slab(s, smp_processor_id());
 }
 
+static bool has_cpu_slab(int cpu, void *info)
+{
+	struct kmem_cache *s = info;
+	struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
+
+	return !!(c->page);
+}
+
 static void flush_all(struct kmem_cache *s)
 {
-	on_each_cpu(flush_cpu_slab, s, 1);
+	on_each_cpu_cond(has_cpu_slab, flush_cpu_slab, s, 1, GFP_ATOMIC);
 }
 
 /*
@@ -2124,6 +2154,37 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
 }
 
 /*
+ * Check the page->freelist of a page and either transfer the freelist to the per cpu freelist
+ * or deactivate the page.
+ *
+ * The page is still frozen if the return value is not NULL.
+ *
+ * If this function returns NULL then the page has been unfrozen.
+ */
+static inline void *get_freelist(struct kmem_cache *s, struct page *page)
+{
+	struct page new;
+	unsigned long counters;
+	void *freelist;
+
+	do {
+		freelist = page->freelist;
+		counters = page->counters;
+		new.counters = counters;
+		VM_BUG_ON(!new.frozen);
+
+		new.inuse = page->objects;
+		new.frozen = freelist != NULL;
+
+	} while (!cmpxchg_double_slab(s, page,
+		freelist, counters,
+		NULL, new.counters,
+		"get_freelist"));
+
+	return freelist;
+}
+
+/*
  * Slow path. The lockless freelist is empty or we need to perform
  * debugging duties.
  *
@@ -2144,8 +2205,6 @@ static void *__slab_alloc(struct kmem_cache *s, gfp_t gfpflags, int node,
 {
 	void **object;
 	unsigned long flags;
-	struct page new;
-	unsigned long counters;
 
 	local_irq_save(flags);
 #ifdef CONFIG_PREEMPT
@@ -2166,31 +2225,14 @@ redo:
 		goto new_slab;
 	}
 
+	/* must check again c->freelist in case of cpu migration or IRQ */
+	object = c->freelist;
+	if (object)
+		goto load_freelist;
+
 	stat(s, ALLOC_SLOWPATH);
 
-	do {
-		object = c->page->freelist;
-		counters = c->page->counters;
-		new.counters = counters;
-		VM_BUG_ON(!new.frozen);
-
-		/*
-		 * If there is no object left then we use this loop to
-		 * deactivate the slab which is simple since no objects
-		 * are left in the slab and therefore we do not need to
-		 * put the page back onto the partial list.
-		 *
-		 * If there are objects left then we retrieve them
-		 * and use them to refill the per cpu queue.
-		 */
-
-		new.inuse = c->page->objects;
-		new.frozen = object != NULL;
-
-	} while (!__cmpxchg_double_slab(s, c->page,
-			object, counters,
-			NULL, new.counters,
-			"__slab_alloc"));
+	object = get_freelist(s, c->page);
 
 	if (!object) {
 		c->page = NULL;
@@ -2292,6 +2334,8 @@ redo:
 		object = __slab_alloc(s, gfpflags, node, addr, c);
 
 	else {
+		void *next_object = get_freepointer_safe(s, object);
+
 		/*
 		 * The cmpxchg will only match if there was no additional
 		 * operation and if we are on the right processor.
@@ -2307,11 +2351,12 @@ redo:
 		if (unlikely(!this_cpu_cmpxchg_double(
 				s->cpu_slab->freelist, s->cpu_slab->tid,
 				object, tid,
-				get_freepointer_safe(s, object), next_tid(tid)))) {
+				next_object, next_tid(tid)))) {
 
 			note_cmpxchg_failure("slab_alloc", s, tid);
 			goto redo;
 		}
+		prefetch_freepointer(s, next_object);
 		stat(s, ALLOC_FASTPATH);
 	}
 
@@ -2448,9 +2493,10 @@ static void __slab_free(struct kmem_cache *s, struct page *page,
 		 * If we just froze the page then put it onto the
 		 * per cpu partial list.
 		 */
-		if (new.frozen && !was_frozen)
+		if (new.frozen && !was_frozen) {
 			put_cpu_partial(s, page, 1);
-
+			stat(s, CPU_PARTIAL_FREE);
+		}
 		/*
 		 * The list lock was not taken therefore no list
 		 * activity can be necessary.
@@ -2999,7 +3045,8 @@ static int kmem_cache_open(struct kmem_cache *s,
 		}
 	}
 
-#ifdef CONFIG_CMPXCHG_DOUBLE
+#if defined(CONFIG_HAVE_CMPXCHG_DOUBLE) && \
+    defined(CONFIG_HAVE_ALIGNED_STRUCT_PAGE)
 	if (system_has_cmpxchg_double() && (s->flags & SLAB_DEBUG_FLAGS) == 0)
 		/* Enable fast mode */
 		s->flags |= __CMPXCHG_DOUBLE;
@@ -3028,7 +3075,9 @@ static int kmem_cache_open(struct kmem_cache *s,
 	 *    per node list when we run out of per cpu objects. We only fetch 50%
 	 *    to keep some capacity around for frees.
 	 */
-	if (s->size >= PAGE_SIZE)
+	if (kmem_cache_debug(s))
+		s->cpu_partial = 0;
+	else if (s->size >= PAGE_SIZE)
 		s->cpu_partial = 2;
 	else if (s->size >= 1024)
 		s->cpu_partial = 6;
@@ -3909,13 +3958,14 @@ struct kmem_cache *kmem_cache_create(const char *name, size_t size,
 		if (kmem_cache_open(s, n,
 				size, align, flags, ctor)) {
 			list_add(&s->list, &slab_caches);
+			up_write(&slub_lock);
 			if (sysfs_slab_add(s)) {
+				down_write(&slub_lock);
 				list_del(&s->list);
 				kfree(n);
 				kfree(s);
 				goto err;
 			}
-			up_write(&slub_lock);
 			return s;
 		}
 		kfree(n);
@@ -4637,6 +4687,8 @@ static ssize_t cpu_partial_store(struct kmem_cache *s, const char *buf,
 	err = strict_strtoul(buf, 10, &objects);
 	if (err)
 		return err;
+	if (objects && kmem_cache_debug(s))
+		return -EINVAL;
 
 	s->cpu_partial = objects;
 	flush_all(s);
@@ -5037,6 +5089,8 @@ STAT_ATTR(CMPXCHG_DOUBLE_CPU_FAIL, cmpxchg_double_cpu_fail);
 STAT_ATTR(CMPXCHG_DOUBLE_FAIL, cmpxchg_double_fail);
 STAT_ATTR(CPU_PARTIAL_ALLOC, cpu_partial_alloc);
 STAT_ATTR(CPU_PARTIAL_FREE, cpu_partial_free);
+STAT_ATTR(CPU_PARTIAL_NODE, cpu_partial_node);
+STAT_ATTR(CPU_PARTIAL_DRAIN, cpu_partial_drain);
 #endif
 
 static struct attribute *slab_attrs[] = {
@@ -5102,6 +5156,8 @@ static struct attribute *slab_attrs[] = {
 	&cmpxchg_double_cpu_fail_attr.attr,
 	&cpu_partial_alloc_attr.attr,
 	&cpu_partial_free_attr.attr,
+	&cpu_partial_node_attr.attr,
+	&cpu_partial_drain_attr.attr,
 #endif
 #ifdef CONFIG_FAILSLAB
 	&failslab_attr.attr,

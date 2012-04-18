@@ -2259,7 +2259,8 @@ static int sbmac_init(struct platform_device *pldev, long long base)
 	}
 
 	sc->mii_bus->name = sbmac_mdio_string;
-	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%x", idx);
+	snprintf(sc->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pldev->name, idx);
 	sc->mii_bus->priv = sc;
 	sc->mii_bus->read = sbmac_mii_read;
 	sc->mii_bus->write = sbmac_mii_write;
@@ -2622,8 +2623,6 @@ static int __devinit sbmac_probe(struct platform_device *pldev)
 	 */
 	dev = alloc_etherdev(sizeof(struct sbmac_softc));
 	if (!dev) {
-		printk(KERN_ERR "%s: unable to allocate etherdev\n",
-		       dev_name(&pldev->dev));
 		err = -ENOMEM;
 		goto out_unmap;
 	}

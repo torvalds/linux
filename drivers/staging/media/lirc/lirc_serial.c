@@ -66,7 +66,6 @@
 #include <linux/poll.h>
 #include <linux/platform_device.h>
 
-#include <asm/system.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/fcntl.h>
@@ -107,13 +106,13 @@ struct lirc_serial {
 static int type;
 static int io;
 static int irq;
-static int iommap;
+static bool iommap;
 static int ioshift;
-static int softcarrier = 1;
-static int share_irq;
-static int debug;
+static bool softcarrier = 1;
+static bool share_irq;
+static bool debug;
 static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
-static int txsense;	/* 0 = active high, 1 = active low */
+static bool txsense;	/* 0 = active high, 1 = active low */
 
 #define dprintk(fmt, args...)					\
 	do {							\
@@ -773,7 +772,7 @@ static int hardware_init_port(void)
 		/* we fail, there's nothing here */
 		printk(KERN_ERR LIRC_DRIVER_NAME ": port existence test "
 		       "failed, cannot continue\n");
-		return -EINVAL;
+		return -ENODEV;
 	}
 
 
@@ -836,25 +835,22 @@ static int hardware_init_port(void)
 	return 0;
 }
 
-static int init_port(void)
+static int __devinit lirc_serial_probe(struct platform_device *dev)
 {
 	int i, nlow, nhigh, result;
 
 	result = request_irq(irq, irq_handler,
 			     (share_irq ? IRQF_SHARED : 0),
 			     LIRC_DRIVER_NAME, (void *)&hardware);
-
-	switch (result) {
-	case -EBUSY:
-		printk(KERN_ERR LIRC_DRIVER_NAME ": IRQ %d busy\n", irq);
-		return -EBUSY;
-	case -EINVAL:
-		printk(KERN_ERR LIRC_DRIVER_NAME
-		       ": Bad irq number or handler\n");
-		return -EINVAL;
-	default:
-		break;
-	};
+	if (result < 0) {
+		if (result == -EBUSY)
+			printk(KERN_ERR LIRC_DRIVER_NAME ": IRQ %d busy\n",
+			       irq);
+		else if (result == -EINVAL)
+			printk(KERN_ERR LIRC_DRIVER_NAME
+			       ": Bad irq number or handler\n");
+		return result;
+	}
 
 	/* Reserve io region. */
 	/*
@@ -875,11 +871,13 @@ static int init_port(void)
 		       ": or compile the serial port driver as module and\n");
 		printk(KERN_WARNING LIRC_DRIVER_NAME
 		       ": make sure this module is loaded first\n");
-		return -EBUSY;
+		result = -EBUSY;
+		goto exit_free_irq;
 	}
 
-	if (hardware_init_port() < 0)
-		return -EINVAL;
+	result = hardware_init_port();
+	if (result < 0)
+		goto exit_release_region;
 
 	/* Initialize pulse/space widths */
 	init_timing_params(duty_cycle, freq);
@@ -910,6 +908,28 @@ static int init_port(void)
 		       "%s receiver\n", sense ? "low" : "high");
 
 	dprintk("Interrupt %d, port %04x obtained\n", irq, io);
+	return 0;
+
+exit_release_region:
+	if (iommap != 0)
+		release_mem_region(iommap, 8 << ioshift);
+	else
+		release_region(io, 8);
+exit_free_irq:
+	free_irq(irq, (void *)&hardware);
+
+	return result;
+}
+
+static int __devexit lirc_serial_remove(struct platform_device *dev)
+{
+	free_irq(irq, (void *)&hardware);
+
+	if (iommap != 0)
+		release_mem_region(iommap, 8 << ioshift);
+	else
+		release_region(io, 8);
+
 	return 0;
 }
 
@@ -955,7 +975,7 @@ static ssize_t lirc_write(struct file *file, const char *buf,
 	int *wbuf;
 
 	if (!(hardware[type].features & LIRC_CAN_SEND_PULSE))
-		return -EBADF;
+		return -EPERM;
 
 	count = n / sizeof(int);
 	if (n % sizeof(int) || count % 2 == 0)
@@ -1006,11 +1026,11 @@ static long lirc_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 			return result;
 		/* only LIRC_MODE_PULSE supported */
 		if (value != LIRC_MODE_PULSE)
-			return -ENOSYS;
+			return -EINVAL;
 		break;
 
 	case LIRC_GET_LENGTH:
-		return -ENOSYS;
+		return -ENOIOCTLCMD;
 		break;
 
 	case LIRC_SET_SEND_DUTY_CYCLE:
@@ -1076,16 +1096,6 @@ static struct lirc_driver driver = {
 
 static struct platform_device *lirc_serial_dev;
 
-static int __devinit lirc_serial_probe(struct platform_device *dev)
-{
-	return 0;
-}
-
-static int __devexit lirc_serial_remove(struct platform_device *dev)
-{
-	return 0;
-}
-
 static int lirc_serial_suspend(struct platform_device *dev,
 			       pm_message_t state)
 {
@@ -1111,11 +1121,11 @@ static void lirc_serial_exit(void);
 static int lirc_serial_resume(struct platform_device *dev)
 {
 	unsigned long flags;
+	int result;
 
-	if (hardware_init_port() < 0) {
-		lirc_serial_exit();
-		return -EINVAL;
-	}
+	result = hardware_init_port();
+	if (result < 0)
+		return result;
 
 	spin_lock_irqsave(&hardware[type].lock, flags);
 	/* Enable Interrupt */
@@ -1148,7 +1158,7 @@ static int __init lirc_serial_init(void)
 	/* Init read buffer. */
 	result = lirc_buffer_init(&rbuf, sizeof(int), RBUF_LEN);
 	if (result < 0)
-		return -ENOMEM;
+		return result;
 
 	result = platform_driver_register(&lirc_serial_driver);
 	if (result) {
@@ -1188,10 +1198,6 @@ static int __init lirc_serial_init_module(void)
 {
 	int result;
 
-	result = lirc_serial_init();
-	if (result)
-		return result;
-
 	switch (type) {
 	case LIRC_HOMEBREW:
 	case LIRC_IRDEO:
@@ -1211,8 +1217,7 @@ static int __init lirc_serial_init_module(void)
 		break;
 #endif
 	default:
-		result = -EINVAL;
-		goto exit_serial_exit;
+		return -EINVAL;
 	}
 	if (!softcarrier) {
 		switch (type) {
@@ -1228,37 +1233,26 @@ static int __init lirc_serial_init_module(void)
 		}
 	}
 
-	result = init_port();
-	if (result < 0)
-		goto exit_serial_exit;
+	result = lirc_serial_init();
+	if (result)
+		return result;
+
 	driver.features = hardware[type].features;
 	driver.dev = &lirc_serial_dev->dev;
 	driver.minor = lirc_register_driver(&driver);
 	if (driver.minor < 0) {
 		printk(KERN_ERR  LIRC_DRIVER_NAME
 		       ": register_chrdev failed!\n");
-		result = -EIO;
-		goto exit_release;
+		lirc_serial_exit();
+		return driver.minor;
 	}
 	return 0;
-exit_release:
-	release_region(io, 8);
-exit_serial_exit:
-	lirc_serial_exit();
-	return result;
 }
 
 static void __exit lirc_serial_exit_module(void)
 {
-	lirc_serial_exit();
-
-	free_irq(irq, (void *)&hardware);
-
-	if (iommap != 0)
-		release_mem_region(iommap, 8 << ioshift);
-	else
-		release_region(io, 8);
 	lirc_unregister_driver(driver.minor);
+	lirc_serial_exit();
 	dprintk("cleaned up module\n");
 }
 
@@ -1287,7 +1281,7 @@ MODULE_PARM_DESC(iommap, "physical base for memory mapped I/O"
 /*
  * some architectures (e.g. intel xscale) align the 8bit serial registers
  * on 32bit word boundaries.
- * See linux-kernel/serial/8250.c serial_in()/out()
+ * See linux-kernel/drivers/tty/serial/8250/8250.c serial_in()/out()
  */
 module_param(ioshift, int, S_IRUGO);
 MODULE_PARM_DESC(ioshift, "shift I/O register offset (0 = no shift)");

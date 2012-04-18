@@ -277,7 +277,7 @@ i2c_bit_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-const struct i2c_algorithm i2c_bit_algo = {
+const struct i2c_algorithm nouveau_i2c_bit_algo = {
 	.master_xfer = i2c_bit_xfer,
 	.functionality = i2c_bit_func
 };
@@ -315,8 +315,8 @@ nouveau_i2c_init(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nvbios *bios = &dev_priv->vbios;
 	struct nouveau_i2c_chan *port;
+	u8 version = 0x00, entries, recordlen;
 	u8 *i2c, *entry, legacy[2][4] = {};
-	u8 version, entries, recordlen;
 	int ret, i;
 
 	INIT_LIST_HEAD(&dev_priv->i2c_ports);
@@ -346,12 +346,12 @@ nouveau_i2c_init(struct drm_device *dev)
 		if (i2c[7]) legacy[1][1] = i2c[7];
 	}
 
-	if (i2c && version >= 0x30) {
+	if (version >= 0x30) {
 		entry     = i2c[1] + i2c;
 		entries   = i2c[2];
 		recordlen = i2c[3];
 	} else
-	if (i2c) {
+	if (version) {
 		entry     = i2c;
 		entries   = 16;
 		recordlen = 4;
@@ -384,12 +384,12 @@ nouveau_i2c_init(struct drm_device *dev)
 		case 0: /* NV04:NV50 */
 			port->drive = entry[0];
 			port->sense = entry[1];
-			port->adapter.algo = &i2c_bit_algo;
+			port->adapter.algo = &nouveau_i2c_bit_algo;
 			break;
 		case 4: /* NV4E */
 			port->drive = 0x600800 + entry[1];
 			port->sense = port->drive;
-			port->adapter.algo = &i2c_bit_algo;
+			port->adapter.algo = &nouveau_i2c_bit_algo;
 			break;
 		case 5: /* NV50- */
 			port->drive = entry[0] & 0x0f;
@@ -402,7 +402,7 @@ nouveau_i2c_init(struct drm_device *dev)
 				port->drive = 0x00d014 + (port->drive * 0x20);
 				port->sense = port->drive;
 			}
-			port->adapter.algo = &i2c_bit_algo;
+			port->adapter.algo = &nouveau_i2c_bit_algo;
 			break;
 		case 6: /* NV50- DP AUX */
 			port->drive = entry[0];

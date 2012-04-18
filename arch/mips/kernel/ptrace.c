@@ -34,7 +34,6 @@
 #include <asm/mipsmtregs.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/bootinfo.h>
 #include <asm/reg.h>
@@ -560,10 +559,9 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	}
 
 out:
-	if (unlikely(current->audit_context))
-		audit_syscall_entry(audit_arch(), regs->regs[2],
-				    regs->regs[4], regs->regs[5],
-				    regs->regs[6], regs->regs[7]);
+	audit_syscall_entry(audit_arch(), regs->regs[2],
+			    regs->regs[4], regs->regs[5],
+			    regs->regs[6], regs->regs[7]);
 }
 
 /*
@@ -572,9 +570,7 @@ out:
  */
 asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 {
-	if (unlikely(current->audit_context))
-		audit_syscall_exit(AUDITSC_RESULT(regs->regs[7]),
-		                   -regs->regs[2]);
+	audit_syscall_exit(regs);
 
 	if (!(current->ptrace & PT_PTRACED))
 		return;

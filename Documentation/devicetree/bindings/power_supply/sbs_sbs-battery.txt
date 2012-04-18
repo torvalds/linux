@@ -1,0 +1,23 @@
+SBS sbs-battery
+~~~~~~~~~~
+
+Required properties :
+ - compatible : "sbs,sbs-battery"
+
+Optional properties :
+ - sbs,i2c-retry-count : The number of times to retry i2c transactions on i2c
+   IO failure.
+ - sbs,poll-retry-count : The number of times to try looking for new status
+   after an external change notification.
+ - sbs,battery-detect-gpios : The gpio which signals battery detection and
+   a flag specifying its polarity.
+
+Example:
+
+	bq20z75@b {
+		compatible = "sbs,sbs-battery";
+		reg = < 0xb >;
+		sbs,i2c-retry-count = <2>;
+		sbs,poll-retry-count = <10>;
+		sbs,battery-detect-gpios = <&gpio-controller 122 1>;
+	}

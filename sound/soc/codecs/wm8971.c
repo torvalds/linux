@@ -19,7 +19,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -224,7 +223,7 @@ static const struct snd_soc_dapm_widget wm8971_dapm_widgets[] = {
 	SND_SOC_DAPM_DAC("Left DAC", "Left Playback", WM8971_PWR2, 8, 0),
 	SND_SOC_DAPM_PGA("Mono Out 1", WM8971_PWR2, 2, 0, NULL, 0),
 
-	SND_SOC_DAPM_MICBIAS("Mic Bias", WM8971_PWR1, 1, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", WM8971_PWR1, 1, 0, NULL, 0),
 	SND_SOC_DAPM_ADC("Right ADC", "Right Capture", WM8971_PWR1, 2, 0),
 	SND_SOC_DAPM_ADC("Left ADC", "Left Capture", WM8971_PWR1, 3, 0),
 
@@ -253,7 +252,7 @@ static const struct snd_soc_dapm_widget wm8971_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC"),
 };
 
-static const struct snd_soc_dapm_route audio_map[] = {
+static const struct snd_soc_dapm_route wm8971_dapm_routes[] = {
 	/* left mixer */
 	{"Left Mixer", "Playback Switch", "Left DAC"},
 	{"Left Mixer", "Left Bypass Switch", "Left Line Mux"},
@@ -329,17 +328,6 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Left ADC", NULL, "Left ADC Mux"},
 	{"Right ADC", NULL, "Right ADC Mux"},
 };
-
-static int wm8971_add_widgets(struct snd_soc_codec *codec)
-{
-	struct snd_soc_dapm_context *dapm = &codec->dapm;
-
-	snd_soc_dapm_new_controls(dapm, wm8971_dapm_widgets,
-				  ARRAY_SIZE(wm8971_dapm_widgets));
-	snd_soc_dapm_add_routes(dapm, audio_map, ARRAY_SIZE(audio_map));
-
-	return 0;
-}
 
 struct _coeff_div {
 	u32 mclk;
@@ -567,7 +555,7 @@ static int wm8971_set_bias_level(struct snd_soc_codec *codec,
 #define WM8971_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops wm8971_dai_ops = {
+static const struct snd_soc_dai_ops wm8971_dai_ops = {
 	.hw_params	= wm8971_pcm_hw_params,
 	.digital_mute	= wm8971_mute,
 	.set_fmt	= wm8971_set_dai_fmt,
@@ -600,7 +588,7 @@ static void wm8971_work(struct work_struct *work)
 	wm8971_set_bias_level(codec, codec->dapm.bias_level);
 }
 
-static int wm8971_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8971_suspend(struct snd_soc_codec *codec)
 {
 	wm8971_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -660,10 +648,6 @@ static int wm8971_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, WM8971_LINVOL, 0x0100, 0x0100);
 	snd_soc_update_bits(codec, WM8971_RINVOL, 0x0100, 0x0100);
 
-	snd_soc_add_controls(codec, wm8971_snd_controls,
-				ARRAY_SIZE(wm8971_snd_controls));
-	wm8971_add_widgets(codec);
-
 	return ret;
 }
 
@@ -687,16 +671,23 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8971 = {
 	.reg_cache_size = ARRAY_SIZE(wm8971_reg),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8971_reg,
+
+	.controls = wm8971_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8971_snd_controls),
+	.dapm_widgets = wm8971_dapm_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(wm8971_dapm_widgets),
+	.dapm_routes = wm8971_dapm_routes,
+	.num_dapm_routes = ARRAY_SIZE(wm8971_dapm_routes),
 };
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static __devinit int wm8971_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct wm8971_priv *wm8971;
 	int ret;
 
-	wm8971 = kzalloc(sizeof(struct wm8971_priv), GFP_KERNEL);
+	wm8971 = devm_kzalloc(&i2c->dev, sizeof(struct wm8971_priv),
+			      GFP_KERNEL);
 	if (wm8971 == NULL)
 		return -ENOMEM;
 
@@ -705,15 +696,13 @@ static __devinit int wm8971_i2c_probe(struct i2c_client *i2c,
 
 	ret = snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_wm8971, &wm8971_dai, 1);
-	if (ret < 0)
-		kfree(wm8971);
+
 	return ret;
 }
 
 static __devexit int wm8971_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
 	return 0;
 }
 
@@ -725,34 +714,29 @@ MODULE_DEVICE_TABLE(i2c, wm8971_i2c_id);
 
 static struct i2c_driver wm8971_i2c_driver = {
 	.driver = {
-		.name = "wm8971-codec",
+		.name = "wm8971",
 		.owner = THIS_MODULE,
 	},
 	.probe =    wm8971_i2c_probe,
 	.remove =   __devexit_p(wm8971_i2c_remove),
 	.id_table = wm8971_i2c_id,
 };
-#endif
 
 static int __init wm8971_modinit(void)
 {
 	int ret = 0;
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	ret = i2c_add_driver(&wm8971_i2c_driver);
 	if (ret != 0) {
 		printk(KERN_ERR "Failed to register WM8971 I2C driver: %d\n",
 		       ret);
 	}
-#endif
 	return ret;
 }
 module_init(wm8971_modinit);
 
 static void __exit wm8971_exit(void)
 {
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_del_driver(&wm8971_i2c_driver);
-#endif
 }
 module_exit(wm8971_exit);
 

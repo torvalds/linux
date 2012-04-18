@@ -21,32 +21,12 @@
 
 #include <scsi/scsi_device.h>
 #include <target/target_core_base.h>
-#include <target/target_core_device.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_device.h"
 #include "iscsi_target_tpg.h"
 #include "iscsi_target_util.h"
-
-int iscsit_get_lun_for_tmr(
-	struct iscsi_cmd *cmd,
-	u64 lun)
-{
-	u32 unpacked_lun = scsilun_to_int((struct scsi_lun *)&lun);
-
-	return transport_lookup_tmr_lun(&cmd->se_cmd, unpacked_lun);
-}
-
-int iscsit_get_lun_for_cmd(
-	struct iscsi_cmd *cmd,
-	unsigned char *cdb,
-	u64 lun)
-{
-	u32 unpacked_lun = scsilun_to_int((struct scsi_lun *)&lun);
-
-	return transport_lookup_cmd_lun(&cmd->se_cmd, unpacked_lun);
-}
 
 void iscsit_determine_maxcmdsn(struct iscsi_session *sess)
 {

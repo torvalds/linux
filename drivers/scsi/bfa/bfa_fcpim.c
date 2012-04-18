@@ -24,8 +24,6 @@ BFA_TRC_FILE(HAL, FCPIM);
  *  BFA ITNIM Related definitions
  */
 static void bfa_itnim_update_del_itn_stats(struct bfa_itnim_s *itnim);
-static bfa_boolean_t bfa_ioim_lm_proc_rpl_data(struct bfa_ioim_s *ioim);
-static bfa_boolean_t bfa_ioim_lm_proc_inq_data(struct bfa_ioim_s *ioim);
 static void bfa_ioim_lm_init(struct bfa_s *bfa);
 
 #define BFA_ITNIM_FROM_TAG(_fcpim, _tag)                                \
@@ -60,14 +58,6 @@ static void bfa_ioim_lm_init(struct bfa_s *bfa);
 	}								\
 } while (0)
 
-#define bfa_ioim_rp_wwn(__ioim)						\
-	(((struct bfa_fcs_rport_s *)					\
-	 (__ioim)->itnim->rport->rport_drv)->pwwn)
-
-#define bfa_ioim_lp_wwn(__ioim)						\
-	((BFA_LPS_FROM_TAG(BFA_LPS_MOD((__ioim)->bfa),			\
-	(__ioim)->itnim->rport->rport_info.lp_tag))->pwwn)		\
-
 #define bfa_itnim_sler_cb(__itnim) do {					\
 	if ((__itnim)->bfa->fcs)					\
 		bfa_cb_itnim_sler((__itnim)->ditn);      \
@@ -76,13 +66,6 @@ static void bfa_ioim_lm_init(struct bfa_s *bfa);
 		__bfa_cb_itnim_sler, (__itnim));      \
 	}								\
 } while (0)
-
-enum bfa_ioim_lm_status {
-	BFA_IOIM_LM_PRESENT = 1,
-	BFA_IOIM_LM_LUN_NOT_SUP = 2,
-	BFA_IOIM_LM_RPL_DATA_CHANGED = 3,
-	BFA_IOIM_LM_LUN_NOT_RDY = 4,
-};
 
 enum bfa_ioim_lm_ua_status {
 	BFA_IOIM_LM_UA_RESET = 0,
@@ -145,9 +128,6 @@ enum bfa_ioim_event {
 	BFA_IOIM_SM_TMDONE	= 16,	/*  IO cleanup from tskim */
 	BFA_IOIM_SM_HWFAIL	= 17,	/*  IOC h/w failure event */
 	BFA_IOIM_SM_IOTOV	= 18,	/*  ITN offline TOV */
-	BFA_IOIM_SM_LM_LUN_NOT_SUP = 19,/*  lunmask lun not supported */
-	BFA_IOIM_SM_LM_RPL_DC = 20,	/*  lunmask report-lun data changed */
-	BFA_IOIM_SM_LM_LUN_NOT_RDY = 21,/*  lunmask lun not ready */
 };
 
 
@@ -245,9 +225,6 @@ static void __bfa_cb_ioim_abort(void *cbarg, bfa_boolean_t complete);
 static void __bfa_cb_ioim_failed(void *cbarg, bfa_boolean_t complete);
 static void __bfa_cb_ioim_pathtov(void *cbarg, bfa_boolean_t complete);
 static bfa_boolean_t    bfa_ioim_is_abortable(struct bfa_ioim_s *ioim);
-static void __bfa_cb_ioim_lm_lun_not_sup(void *cbarg, bfa_boolean_t complete);
-static void __bfa_cb_ioim_lm_rpl_dc(void *cbarg, bfa_boolean_t complete);
-static void __bfa_cb_ioim_lm_lun_not_rdy(void *cbarg, bfa_boolean_t complete);
 
 /*
  * forward declaration of BFA IO state machine
@@ -445,12 +422,6 @@ bfa_fcpim_add_stats(struct bfa_itnim_iostats_s *lstats,
 	bfa_fcpim_add_iostats(lstats, rstats, output_reqs);
 	bfa_fcpim_add_iostats(lstats, rstats, rd_throughput);
 	bfa_fcpim_add_iostats(lstats, rstats, wr_throughput);
-	bfa_fcpim_add_iostats(lstats, rstats, lm_lun_across_sg);
-	bfa_fcpim_add_iostats(lstats, rstats, lm_lun_not_sup);
-	bfa_fcpim_add_iostats(lstats, rstats, lm_rpl_data_changed);
-	bfa_fcpim_add_iostats(lstats, rstats, lm_wire_residue_changed);
-	bfa_fcpim_add_iostats(lstats, rstats, lm_small_buf_addresidue);
-	bfa_fcpim_add_iostats(lstats, rstats, lm_lun_not_rdy);
 }
 
 bfa_status_t
@@ -1580,27 +1551,6 @@ bfa_ioim_sm_uninit(struct bfa_ioim_s *ioim, enum bfa_ioim_event event)
 			__bfa_cb_ioim_abort, ioim);
 		break;
 
-	case BFA_IOIM_SM_LM_LUN_NOT_SUP:
-		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
-		bfa_ioim_move_to_comp_q(ioim);
-		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
-			__bfa_cb_ioim_lm_lun_not_sup, ioim);
-		break;
-
-	case BFA_IOIM_SM_LM_RPL_DC:
-		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
-		bfa_ioim_move_to_comp_q(ioim);
-		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
-				__bfa_cb_ioim_lm_rpl_dc, ioim);
-		break;
-
-	case BFA_IOIM_SM_LM_LUN_NOT_RDY:
-		bfa_sm_set_state(ioim, bfa_ioim_sm_hcb);
-		bfa_ioim_move_to_comp_q(ioim);
-		bfa_cb_queue(ioim->bfa, &ioim->hcb_qe,
-			__bfa_cb_ioim_lm_lun_not_rdy, ioim);
-		break;
-
 	default:
 		bfa_sm_fault(ioim->bfa, event);
 	}
@@ -2160,243 +2110,6 @@ bfa_ioim_lm_init(struct bfa_s *bfa)
 	}
 }
 
-/*
- * Validate LUN for LUN masking
- */
-static enum bfa_ioim_lm_status
-bfa_ioim_lm_check(struct bfa_ioim_s *ioim, struct bfa_lps_s *lps,
-		struct bfa_rport_s *rp, struct scsi_lun lun)
-{
-	u8 i;
-	struct bfa_lun_mask_s *lun_list = bfa_get_lun_mask_list(ioim->bfa);
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)ioim->dio;
-	struct scsi_cdb_s *cdb = (struct scsi_cdb_s *)cmnd->cmnd;
-
-	if ((cdb->scsi_cdb[0] == REPORT_LUNS) &&
-	    (scsilun_to_int((struct scsi_lun *)&lun) == 0)) {
-		ioim->proc_rsp_data = bfa_ioim_lm_proc_rpl_data;
-		return BFA_IOIM_LM_PRESENT;
-	}
-
-	for (i = 0; i < MAX_LUN_MASK_CFG; i++) {
-
-		if (lun_list[i].state != BFA_IOIM_LUN_MASK_ACTIVE)
-			continue;
-
-		if ((scsilun_to_int((struct scsi_lun *)&lun_list[i].lun) ==
-		    scsilun_to_int((struct scsi_lun *)&lun))
-		    && (rp->rport_tag == lun_list[i].rp_tag)
-		    && ((u8)ioim->itnim->rport->rport_info.lp_tag ==
-						lun_list[i].lp_tag)) {
-			bfa_trc(ioim->bfa, lun_list[i].rp_tag);
-			bfa_trc(ioim->bfa, lun_list[i].lp_tag);
-			bfa_trc(ioim->bfa, scsilun_to_int(
-				(struct scsi_lun *)&lun_list[i].lun));
-
-			if ((lun_list[i].ua == BFA_IOIM_LM_UA_SET) &&
-			    ((cdb->scsi_cdb[0] != INQUIRY) ||
-			    (cdb->scsi_cdb[0] != REPORT_LUNS))) {
-				lun_list[i].ua = BFA_IOIM_LM_UA_RESET;
-				return BFA_IOIM_LM_RPL_DATA_CHANGED;
-			}
-
-			if (cdb->scsi_cdb[0] == REPORT_LUNS)
-				ioim->proc_rsp_data = bfa_ioim_lm_proc_rpl_data;
-
-			return BFA_IOIM_LM_PRESENT;
-		}
-	}
-
-	if ((cdb->scsi_cdb[0] == INQUIRY) &&
-	    (scsilun_to_int((struct scsi_lun *)&lun) == 0)) {
-		ioim->proc_rsp_data = bfa_ioim_lm_proc_inq_data;
-		return BFA_IOIM_LM_PRESENT;
-	}
-
-	if (cdb->scsi_cdb[0] == TEST_UNIT_READY)
-		return BFA_IOIM_LM_LUN_NOT_RDY;
-
-	return BFA_IOIM_LM_LUN_NOT_SUP;
-}
-
-static bfa_boolean_t
-bfa_ioim_lm_proc_rsp_data_dummy(struct bfa_ioim_s *ioim)
-{
-	return BFA_TRUE;
-}
-
-static void
-bfa_ioim_lm_fetch_lun(struct bfa_ioim_s *ioim, u8 *rl_data, int offset,
-		int buf_lun_cnt)
-{
-	struct bfa_lun_mask_s *lun_list = bfa_get_lun_mask_list(ioim->bfa);
-	struct scsi_lun *lun_data = (struct scsi_lun *)(rl_data + offset);
-	struct scsi_lun lun;
-	int i, j;
-
-	bfa_trc(ioim->bfa, buf_lun_cnt);
-	for (j = 0; j < buf_lun_cnt; j++) {
-		lun = *((struct scsi_lun *)(lun_data + j));
-		for (i = 0; i < MAX_LUN_MASK_CFG; i++) {
-			if (lun_list[i].state != BFA_IOIM_LUN_MASK_ACTIVE)
-				continue;
-			if ((lun_list[i].rp_wwn == bfa_ioim_rp_wwn(ioim)) &&
-			    (lun_list[i].lp_wwn == bfa_ioim_lp_wwn(ioim)) &&
-			    (scsilun_to_int((struct scsi_lun *)&lun_list[i].lun)
-				== scsilun_to_int((struct scsi_lun *)&lun))) {
-				lun_list[i].state = BFA_IOIM_LUN_MASK_FETCHED;
-				break;
-			}
-		} /* next lun in mask DB */
-	} /* next lun in buf */
-}
-
-static int
-bfa_ioim_lm_update_lun_sg(struct bfa_ioim_s *ioim, u32 *pgdlen,
-		struct scsi_report_luns_data_s *rl)
-{
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)ioim->dio;
-	struct scatterlist *sg = scsi_sglist(cmnd);
-	struct bfa_lun_mask_s *lun_list = bfa_get_lun_mask_list(ioim->bfa);
-	struct scsi_lun *prev_rl_data = NULL, *base_rl_data;
-	int i, j, sgeid, lun_fetched_cnt = 0, prev_sg_len = 0, base_count;
-	int lun_across_sg_bytes, bytes_from_next_buf;
-	u64	last_lun, temp_last_lun;
-
-	/* fetch luns from the first sg element */
-	bfa_ioim_lm_fetch_lun(ioim, (u8 *)(rl->lun), 0,
-			(sg_dma_len(sg) / sizeof(struct scsi_lun)) - 1);
-
-	/* fetch luns from multiple sg elements */
-	scsi_for_each_sg(cmnd, sg, scsi_sg_count(cmnd), sgeid) {
-		if (sgeid == 0) {
-			prev_sg_len = sg_dma_len(sg);
-			prev_rl_data = (struct scsi_lun *)
-					phys_to_virt(sg_dma_address(sg));
-			continue;
-		}
-
-		/* if the buf is having more data */
-		lun_across_sg_bytes = prev_sg_len % sizeof(struct scsi_lun);
-		if (lun_across_sg_bytes) {
-			bfa_trc(ioim->bfa, lun_across_sg_bytes);
-			bfa_stats(ioim->itnim, lm_lun_across_sg);
-			bytes_from_next_buf = sizeof(struct scsi_lun) -
-					      lun_across_sg_bytes;
-
-			/* from next buf take higher bytes */
-			temp_last_lun = *((u64 *)
-					  phys_to_virt(sg_dma_address(sg)));
-			last_lun |= temp_last_lun >>
-				    (lun_across_sg_bytes * BITS_PER_BYTE);
-
-			/* from prev buf take higher bytes */
-			temp_last_lun = *((u64 *)(prev_rl_data +
-					  (prev_sg_len - lun_across_sg_bytes)));
-			temp_last_lun >>= bytes_from_next_buf * BITS_PER_BYTE;
-			last_lun = last_lun | (temp_last_lun <<
-				   (bytes_from_next_buf * BITS_PER_BYTE));
-
-			bfa_ioim_lm_fetch_lun(ioim, (u8 *)&last_lun, 0, 1);
-		} else
-			bytes_from_next_buf = 0;
-
-		*pgdlen += sg_dma_len(sg);
-		prev_sg_len = sg_dma_len(sg);
-		prev_rl_data = (struct scsi_lun *)
-				phys_to_virt(sg_dma_address(sg));
-		bfa_ioim_lm_fetch_lun(ioim, (u8 *)prev_rl_data,
-				bytes_from_next_buf,
-				sg_dma_len(sg) / sizeof(struct scsi_lun));
-	}
-
-	/* update the report luns data - based on fetched luns */
-	sg = scsi_sglist(cmnd);
-	base_rl_data = (struct scsi_lun *)rl->lun;
-	base_count = (sg_dma_len(sg) / sizeof(struct scsi_lun)) - 1;
-	for (i = 0, j = 0; i < MAX_LUN_MASK_CFG; i++) {
-		if (lun_list[i].state == BFA_IOIM_LUN_MASK_FETCHED) {
-			base_rl_data[j] = lun_list[i].lun;
-			lun_list[i].state = BFA_IOIM_LUN_MASK_ACTIVE;
-			j++;
-			lun_fetched_cnt++;
-		}
-
-		if (j > base_count) {
-			j = 0;
-			sg = sg_next(sg);
-			base_rl_data = (struct scsi_lun *)
-					phys_to_virt(sg_dma_address(sg));
-			base_count = sg_dma_len(sg) / sizeof(struct scsi_lun);
-		}
-	}
-
-	bfa_trc(ioim->bfa, lun_fetched_cnt);
-	return lun_fetched_cnt;
-}
-
-static bfa_boolean_t
-bfa_ioim_lm_proc_inq_data(struct bfa_ioim_s *ioim)
-{
-	struct scsi_inquiry_data_s *inq;
-	struct scatterlist *sg = scsi_sglist((struct scsi_cmnd *)ioim->dio);
-
-	ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
-	inq = (struct scsi_inquiry_data_s *)phys_to_virt(sg_dma_address(sg));
-
-	bfa_trc(ioim->bfa, inq->device_type);
-	inq->peripheral_qual = SCSI_INQ_PQ_NOT_CON;
-	return 0;
-}
-
-static bfa_boolean_t
-bfa_ioim_lm_proc_rpl_data(struct bfa_ioim_s *ioim)
-{
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)ioim->dio;
-	struct scatterlist *sg = scsi_sglist(cmnd);
-	struct bfi_ioim_rsp_s *m;
-	struct scsi_report_luns_data_s *rl = NULL;
-	int lun_count = 0, lun_fetched_cnt = 0;
-	u32 residue, pgdlen = 0;
-
-	ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
-	if (bfa_get_lun_mask_status(ioim->bfa) != BFA_LUNMASK_ENABLED)
-		return BFA_TRUE;
-
-	m = (struct bfi_ioim_rsp_s *) &ioim->iosp->comp_rspmsg;
-	if (m->scsi_status == SCSI_STATUS_CHECK_CONDITION)
-		return BFA_TRUE;
-
-	pgdlen = sg_dma_len(sg);
-	bfa_trc(ioim->bfa, pgdlen);
-	rl = (struct scsi_report_luns_data_s *)phys_to_virt(sg_dma_address(sg));
-	lun_count = cpu_to_be32(rl->lun_list_length) / sizeof(struct scsi_lun);
-	lun_fetched_cnt = bfa_ioim_lm_update_lun_sg(ioim, &pgdlen, rl);
-
-	if (lun_count == lun_fetched_cnt)
-		return BFA_TRUE;
-
-	bfa_trc(ioim->bfa, lun_count);
-	bfa_trc(ioim->bfa, lun_fetched_cnt);
-	bfa_trc(ioim->bfa, be32_to_cpu(rl->lun_list_length));
-
-	if (be32_to_cpu(rl->lun_list_length) <= pgdlen)
-		rl->lun_list_length = be32_to_cpu(lun_fetched_cnt) *
-				      sizeof(struct scsi_lun);
-	else
-		bfa_stats(ioim->itnim, lm_small_buf_addresidue);
-
-	bfa_trc(ioim->bfa, be32_to_cpu(rl->lun_list_length));
-	bfa_trc(ioim->bfa, be32_to_cpu(m->residue));
-
-	residue = be32_to_cpu(m->residue);
-	residue += (lun_count - lun_fetched_cnt) * sizeof(struct scsi_lun);
-	bfa_stats(ioim->itnim, lm_wire_residue_changed);
-	m->residue = be32_to_cpu(residue);
-	bfa_trc(ioim->bfa, ioim->nsges);
-	return BFA_FALSE;
-}
-
 static void
 __bfa_cb_ioim_good_comp(void *cbarg, bfa_boolean_t complete)
 {
@@ -2452,83 +2165,6 @@ __bfa_cb_ioim_comp(void *cbarg, bfa_boolean_t complete)
 
 	bfa_cb_ioim_done(ioim->bfa->bfad, ioim->dio, m->io_status,
 			  m->scsi_status, sns_len, snsinfo, residue);
-}
-
-static void
-__bfa_cb_ioim_lm_lun_not_sup(void *cbarg, bfa_boolean_t complete)
-{
-	struct bfa_ioim_s *ioim = cbarg;
-	int sns_len = 0xD;
-	u32 residue = scsi_bufflen((struct scsi_cmnd *)ioim->dio);
-	struct scsi_sense_s *snsinfo;
-
-	if (!complete) {
-		bfa_sm_send_event(ioim, BFA_IOIM_SM_HCB);
-		return;
-	}
-
-	snsinfo = (struct scsi_sense_s *)BFA_SNSINFO_FROM_TAG(
-					ioim->fcpim->fcp, ioim->iotag);
-	snsinfo->rsp_code = SCSI_SENSE_CUR_ERR;
-	snsinfo->add_sense_length = 0xa;
-	snsinfo->asc = SCSI_ASC_LUN_NOT_SUPPORTED;
-	snsinfo->sense_key = ILLEGAL_REQUEST;
-	bfa_trc(ioim->bfa, residue);
-	bfa_cb_ioim_done(ioim->bfa->bfad, ioim->dio, BFI_IOIM_STS_OK,
-			SCSI_STATUS_CHECK_CONDITION, sns_len,
-			(u8 *)snsinfo, residue);
-}
-
-static void
-__bfa_cb_ioim_lm_rpl_dc(void *cbarg, bfa_boolean_t complete)
-{
-	struct bfa_ioim_s *ioim = cbarg;
-	int sns_len = 0xD;
-	u32 residue = scsi_bufflen((struct scsi_cmnd *)ioim->dio);
-	struct scsi_sense_s *snsinfo;
-
-	if (!complete) {
-		bfa_sm_send_event(ioim, BFA_IOIM_SM_HCB);
-		return;
-	}
-
-	snsinfo = (struct scsi_sense_s *)BFA_SNSINFO_FROM_TAG(ioim->fcpim->fcp,
-						       ioim->iotag);
-	snsinfo->rsp_code = SCSI_SENSE_CUR_ERR;
-	snsinfo->sense_key = SCSI_MP_IEC_UNIT_ATTN;
-	snsinfo->asc = SCSI_ASC_TOCC;
-	snsinfo->add_sense_length = 0x6;
-	snsinfo->ascq = SCSI_ASCQ_RL_DATA_CHANGED;
-	bfa_trc(ioim->bfa, residue);
-	bfa_cb_ioim_done(ioim->bfa->bfad, ioim->dio, BFI_IOIM_STS_OK,
-			SCSI_STATUS_CHECK_CONDITION, sns_len,
-			(u8 *)snsinfo, residue);
-}
-
-static void
-__bfa_cb_ioim_lm_lun_not_rdy(void *cbarg, bfa_boolean_t complete)
-{
-	struct bfa_ioim_s *ioim = cbarg;
-	int sns_len = 0xD;
-	u32 residue = scsi_bufflen((struct scsi_cmnd *)ioim->dio);
-	struct scsi_sense_s *snsinfo;
-
-	if (!complete) {
-		bfa_sm_send_event(ioim, BFA_IOIM_SM_HCB);
-		return;
-	}
-
-	snsinfo = (struct scsi_sense_s *)BFA_SNSINFO_FROM_TAG(
-					ioim->fcpim->fcp, ioim->iotag);
-	snsinfo->rsp_code = SCSI_SENSE_CUR_ERR;
-	snsinfo->add_sense_length = 0xa;
-	snsinfo->sense_key = NOT_READY;
-	snsinfo->asc = SCSI_ASC_LUN_NOT_READY;
-	snsinfo->ascq = SCSI_ASCQ_MAN_INTR_REQ;
-	bfa_trc(ioim->bfa, residue);
-	bfa_cb_ioim_done(ioim->bfa->bfad, ioim->dio, BFI_IOIM_STS_OK,
-			SCSI_STATUS_CHECK_CONDITION, sns_len,
-			(u8 *)snsinfo, residue);
 }
 
 void
@@ -2647,7 +2283,8 @@ bfa_fcpim_lunmask_add(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 	if (port) {
 		*pwwn = port->port_cfg.pwwn;
 		rp_fcs = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-		rp = rp_fcs->bfa_rport;
+		if (rp_fcs)
+			rp = rp_fcs->bfa_rport;
 	}
 
 	lunm_list = bfa_get_lun_mask_list(bfa);
@@ -2715,7 +2352,8 @@ bfa_fcpim_lunmask_delete(struct bfa_s *bfa, u16 vf_id, wwn_t *pwwn,
 		if (port) {
 			*pwwn = port->port_cfg.pwwn;
 			rp_fcs = bfa_fcs_lport_get_rport_by_pwwn(port, rpwwn);
-			rp = rp_fcs->bfa_rport;
+			if (rp_fcs)
+				rp = rp_fcs->bfa_rport;
 		}
 	}
 
@@ -2757,7 +2395,6 @@ __bfa_cb_ioim_failed(void *cbarg, bfa_boolean_t complete)
 		return;
 	}
 
-	ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
 	bfa_cb_ioim_done(ioim->bfa->bfad, ioim->dio, BFI_IOIM_STS_ABORTED,
 			  0, 0, NULL, 0);
 }
@@ -2773,7 +2410,6 @@ __bfa_cb_ioim_pathtov(void *cbarg, bfa_boolean_t complete)
 		return;
 	}
 
-	ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
 	bfa_cb_ioim_done(ioim->bfa->bfad, ioim->dio, BFI_IOIM_STS_PATHTOV,
 			  0, 0, NULL, 0);
 }
@@ -2788,7 +2424,6 @@ __bfa_cb_ioim_abort(void *cbarg, bfa_boolean_t complete)
 		return;
 	}
 
-	ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
 	bfa_cb_ioim_abort(ioim->bfa->bfad, ioim->dio);
 }
 
@@ -3132,7 +2767,6 @@ bfa_ioim_attach(struct bfa_fcpim_s *fcpim)
 		ioim->bfa     = fcpim->bfa;
 		ioim->fcpim   = fcpim;
 		ioim->iosp    = iosp;
-		ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
 		INIT_LIST_HEAD(&ioim->sgpg_q);
 		bfa_reqq_winit(&ioim->iosp->reqq_wait,
 				   bfa_ioim_qresume, ioim);
@@ -3170,7 +2804,6 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 			evt = BFA_IOIM_SM_DONE;
 		else
 			evt = BFA_IOIM_SM_COMP;
-		ioim->proc_rsp_data(ioim);
 		break;
 
 	case BFI_IOIM_STS_TIMEDOUT:
@@ -3206,7 +2839,6 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		if (rsp->abort_tag != ioim->abort_tag) {
 			bfa_trc(ioim->bfa, rsp->abort_tag);
 			bfa_trc(ioim->bfa, ioim->abort_tag);
-			ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
 			return;
 		}
 
@@ -3225,7 +2857,6 @@ bfa_ioim_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 		WARN_ON(1);
 	}
 
-	ioim->proc_rsp_data = bfa_ioim_lm_proc_rsp_data_dummy;
 	bfa_sm_send_event(ioim, evt);
 }
 
@@ -3244,15 +2875,7 @@ bfa_ioim_good_comp_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 
 	bfa_ioim_cb_profile_comp(fcpim, ioim);
 
-	if (bfa_get_lun_mask_status(bfa) != BFA_LUNMASK_ENABLED)  {
-		bfa_sm_send_event(ioim, BFA_IOIM_SM_COMP_GOOD);
-		return;
-	}
-
-	if (ioim->proc_rsp_data(ioim) == BFA_TRUE)
-		bfa_sm_send_event(ioim, BFA_IOIM_SM_COMP_GOOD);
-	else
-		bfa_sm_send_event(ioim, BFA_IOIM_SM_COMP);
+	bfa_sm_send_event(ioim, BFA_IOIM_SM_COMP_GOOD);
 }
 
 /*
@@ -3364,35 +2987,6 @@ bfa_ioim_free(struct bfa_ioim_s *ioim)
 void
 bfa_ioim_start(struct bfa_ioim_s *ioim)
 {
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)ioim->dio;
-	struct bfa_lps_s	*lps;
-	enum bfa_ioim_lm_status status;
-	struct scsi_lun scsilun;
-
-	if (bfa_get_lun_mask_status(ioim->bfa) == BFA_LUNMASK_ENABLED) {
-		lps = BFA_IOIM_TO_LPS(ioim);
-		int_to_scsilun(cmnd->device->lun, &scsilun);
-		status = bfa_ioim_lm_check(ioim, lps,
-				ioim->itnim->rport, scsilun);
-		if (status == BFA_IOIM_LM_LUN_NOT_RDY) {
-			bfa_sm_send_event(ioim, BFA_IOIM_SM_LM_LUN_NOT_RDY);
-			bfa_stats(ioim->itnim, lm_lun_not_rdy);
-			return;
-		}
-
-		if (status == BFA_IOIM_LM_LUN_NOT_SUP) {
-			bfa_sm_send_event(ioim, BFA_IOIM_SM_LM_LUN_NOT_SUP);
-			bfa_stats(ioim->itnim, lm_lun_not_sup);
-			return;
-		}
-
-		if (status == BFA_IOIM_LM_RPL_DATA_CHANGED) {
-			bfa_sm_send_event(ioim, BFA_IOIM_SM_LM_RPL_DC);
-			bfa_stats(ioim->itnim, lm_rpl_data_changed);
-			return;
-		}
-	}
-
 	bfa_ioim_cb_profile_start(ioim->fcpim, ioim);
 
 	/*

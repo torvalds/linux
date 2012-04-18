@@ -44,6 +44,7 @@
 #include <asm/msc01_ic.h>
 #include <asm/gic.h>
 #include <asm/gcmpregs.h>
+#include <asm/setup.h>
 
 int gcmp_present = -1;
 int gic_present;
@@ -322,13 +323,13 @@ static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
 
 static struct irqaction irq_resched = {
 	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_DISABLED|IRQF_PERCPU,
+	.flags		= IRQF_PERCPU,
 	.name		= "IPI_resched"
 };
 
 static struct irqaction irq_call = {
 	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_DISABLED|IRQF_PERCPU,
+	.flags		= IRQF_PERCPU,
 	.name		= "IPI_call"
 };
 #endif /* CONFIG_MIPS_MT_SMP */

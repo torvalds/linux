@@ -13,11 +13,22 @@
 	compatible = "calao,usb-a9g20", "atmel,at91sam9g20", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "mem=64M console=ttyS0,115200 mtdparts=atmel_nand:128k(at91bootstrap),256k(barebox)ro,128k(bareboxenv),128k(bareboxenv2),4M(kernel),120M(rootfs),-(data) root=/dev/mtdblock5 rw rootfstype=ubifs";
+		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
 	};
 
-	memory@20000000 {
+	memory {
 		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <12000000>;
+		};
 	};
 
 	ahb {
@@ -30,6 +41,90 @@
 				phy-mode = "rmii";
 				status = "okay";
 			};
+
+			usb1: gadget@fffa4000 {
+				atmel,vbus-gpio = <&pioC 5 0>;
+				status = "okay";
+			};
+		};
+
+		nand0: nand@40000000 {
+			nand-bus-width = <8>;
+			nand-ecc-mode = "soft";
+			nand-on-flash-bbt;
+			status = "okay";
+
+			at91bootstrap@0 {
+				label = "at91bootstrap";
+				reg = <0x0 0x20000>;
+			};
+
+			barebox@20000 {
+				label = "barebox";
+				reg = <0x20000 0x40000>;
+			};
+
+			bareboxenv@60000 {
+				label = "bareboxenv";
+				reg = <0x60000 0x20000>;
+			};
+
+			bareboxenv2@80000 {
+				label = "bareboxenv2";
+				reg = <0x80000 0x20000>;
+			};
+
+			kernel@a0000 {
+				label = "kernel";
+				reg = <0xa0000 0x400000>;
+			};
+
+			rootfs@4a0000 {
+				label = "rootfs";
+				reg = <0x4a0000 0x7800000>;
+			};
+
+			data@7ca0000 {
+				label = "data";
+				reg = <0x7ca0000 0x8360000>;
+			};
+		};
+
+		usb0: ohci@00500000 {
+			num-ports = <2>;
+			status = "okay";
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		user_led {
+			label = "user_led";
+			gpios = <&pioB 21 1>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		user_pb {
+			label = "user_pb";
+			gpios = <&pioB 10 1>;
+			linux,code = <28>;
+			gpio-key,wakeup;
+		};
+	};
+
+	i2c@0 {
+		status = "okay";
+
+		rv3029c2@56 {
+			compatible = "rv3029c2";
+			reg = <0x56>;
 		};
 	};
 };

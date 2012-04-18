@@ -21,13 +21,12 @@
 
 #include "cxd2820r_priv.h"
 
-int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+int cxd2820r_set_frontend_t(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
-	int ret, i;
-	u32 if_khz, if_ctl;
+	int ret, i, bw_i;
+	u32 if_freq, if_ctl;
 	u64 num;
 	u8 buf[3], bw_param;
 	u8 bw_params1[][5] = {
@@ -57,6 +56,23 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
 
 	dbg("%s: RF=%d BW=%d", __func__, c->frequency, c->bandwidth_hz);
 
+	switch (c->bandwidth_hz) {
+	case 6000000:
+		bw_i = 0;
+		bw_param = 2;
+		break;
+	case 7000000:
+		bw_i = 1;
+		bw_param = 1;
+		break;
+	case 8000000:
+		bw_i = 2;
+		bw_param = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	/* update GPIOs */
 	ret = cxd2820r_gpio(fe);
 	if (ret)
@@ -64,7 +80,7 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
 
 	/* program tuner */
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 
 	if (priv->delivery_system != SYS_DVBT) {
 		for (i = 0; i < ARRAY_SIZE(tab); i++) {
@@ -78,27 +94,17 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
 	priv->delivery_system = SYS_DVBT;
 	priv->ber_running = 0; /* tune stops BER counter */
 
-	switch (c->bandwidth_hz) {
-	case 6000000:
-		if_khz = priv->cfg.if_dvbt_6;
-		i = 0;
-		bw_param = 2;
-		break;
-	case 7000000:
-		if_khz = priv->cfg.if_dvbt_7;
-		i = 1;
-		bw_param = 1;
-		break;
-	case 8000000:
-		if_khz = priv->cfg.if_dvbt_8;
-		i = 2;
-		bw_param = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
+	/* program IF frequency */
+	if (fe->ops.tuner_ops.get_if_frequency) {
+		ret = fe->ops.tuner_ops.get_if_frequency(fe, &if_freq);
+		if (ret)
+			goto error;
+	} else
+		if_freq = 0;
 
-	num = if_khz;
+	dbg("%s: if_freq=%d", __func__, if_freq);
+
+	num = if_freq / 1000; /* Hz => kHz */
 	num *= 0x1000000;
 	if_ctl = cxd2820r_div_u64_round_closest(num, 41000);
 	buf[0] = ((if_ctl >> 16) & 0xff);
@@ -109,7 +115,7 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_regs(priv, 0x0009f, bw_params1[i], 5);
+	ret = cxd2820r_wr_regs(priv, 0x0009f, bw_params1[bw_i], 5);
 	if (ret)
 		goto error;
 
@@ -117,7 +123,7 @@ int cxd2820r_set_frontend_t(struct dvb_frontend *fe,
 	if (ret)
 		goto error;
 
-	ret = cxd2820r_wr_regs(priv, 0x000d9, bw_params2[i], 2);
+	ret = cxd2820r_wr_regs(priv, 0x000d9, bw_params2[bw_i], 2);
 	if (ret)
 		goto error;
 
@@ -135,8 +141,7 @@ error:
 	return ret;
 }
 
-int cxd2820r_get_frontend_t(struct dvb_frontend *fe,
-	struct dvb_frontend_parameters *p)
+int cxd2820r_get_frontend_t(struct dvb_frontend *fe)
 {
 	struct cxd2820r_priv *priv = fe->demodulator_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;

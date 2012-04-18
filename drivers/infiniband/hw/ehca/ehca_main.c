@@ -59,16 +59,16 @@ MODULE_AUTHOR("Christoph Raisch <raisch@de.ibm.com>");
 MODULE_DESCRIPTION("IBM eServer HCA InfiniBand Device Driver");
 MODULE_VERSION(HCAD_VERSION);
 
-static int ehca_open_aqp1     = 0;
+static bool ehca_open_aqp1    = 0;
 static int ehca_hw_level      = 0;
-static int ehca_poll_all_eqs  = 1;
+static bool ehca_poll_all_eqs = 1;
 
 int ehca_debug_level   = 0;
 int ehca_nr_ports      = -1;
-int ehca_use_hp_mr     = 0;
+bool ehca_use_hp_mr    = 0;
 int ehca_port_act_time = 30;
 int ehca_static_rate   = -1;
-int ehca_scaling_code  = 0;
+bool ehca_scaling_code = 0;
 int ehca_lock_hcalls   = -1;
 int ehca_max_cq        = -1;
 int ehca_max_qp        = -1;
@@ -82,7 +82,7 @@ module_param_named(port_act_time, ehca_port_act_time, int,  S_IRUGO);
 module_param_named(poll_all_eqs,  ehca_poll_all_eqs,  bool, S_IRUGO);
 module_param_named(static_rate,   ehca_static_rate,   int,  S_IRUGO);
 module_param_named(scaling_code,  ehca_scaling_code,  bool, S_IRUGO);
-module_param_named(lock_hcalls,   ehca_lock_hcalls,   bool, S_IRUGO);
+module_param_named(lock_hcalls,   ehca_lock_hcalls,   bint, S_IRUGO);
 module_param_named(number_of_cqs, ehca_max_cq,        int,  S_IRUGO);
 module_param_named(number_of_qps, ehca_max_qp,        int,  S_IRUGO);
 

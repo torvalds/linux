@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -242,7 +242,20 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 
 		if (!obj_desc) {
 
-			/* No attached object, we are done */
+			/* No attached object. Some types should always have an object */
+
+			switch (type) {
+			case ACPI_TYPE_INTEGER:
+			case ACPI_TYPE_PACKAGE:
+			case ACPI_TYPE_BUFFER:
+			case ACPI_TYPE_STRING:
+			case ACPI_TYPE_METHOD:
+				acpi_os_printf("<No attached object>");
+				break;
+
+			default:
+				break;
+			}
 
 			acpi_os_printf("\n");
 			return (AE_OK);

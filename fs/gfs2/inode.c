@@ -391,10 +391,6 @@ static int alloc_dinode(struct gfs2_inode *dip, u64 *no_addr, u64 *generation)
 	int error;
 	int dblocks = 1;
 
-	error = gfs2_rindex_update(sdp);
-	if (error)
-		fs_warn(sdp, "rindex update returns %d\n", error);
-
 	error = gfs2_inplace_reserve(dip, RES_DINODE);
 	if (error)
 		goto out;
@@ -599,9 +595,7 @@ static int link_dinode(struct gfs2_inode *dip, const struct qstr *name,
 	error = gfs2_meta_inode_buffer(ip, &dibh);
 	if (error)
 		goto fail_end_trans;
-	inc_nlink(&ip->i_inode);
-	if (S_ISDIR(ip->i_inode.i_mode))
-		inc_nlink(&ip->i_inode);
+	set_nlink(&ip->i_inode, S_ISDIR(ip->i_inode.i_mode) ? 2 : 1);
 	gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 	gfs2_dinode_out(ip, dibh->b_data);
 	brelse(dibh);
@@ -1037,14 +1031,21 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	struct buffer_head *bh;
 	struct gfs2_holder ghs[3];
 	struct gfs2_rgrpd *rgd;
-	int error = -EROFS;
+	int error;
+
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
+	error = -EROFS;
 
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl,  LM_ST_EXCLUSIVE, 0, ghs + 1);
 
-	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr);
+	rgd = gfs2_blk2rgrpd(sdp, ip->i_no_addr, 1);
 	if (!rgd)
 		goto out_inodes;
+
 	gfs2_holder_init(rgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + 2);
 
 
@@ -1229,6 +1230,10 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			return 0;
 	}
 
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
 	if (odip != ndip) {
 		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE,
 					   0, &r_gh);
@@ -1260,7 +1265,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 		 * this is the case of the target file already existing
 		 * so we unlink before doing the rename
 		 */
-		nrgd = gfs2_blk2rgrpd(sdp, nip->i_no_addr);
+		nrgd = gfs2_blk2rgrpd(sdp, nip->i_no_addr, 1);
 		if (nrgd)
 			gfs2_holder_init(nrgd->rd_gl, LM_ST_EXCLUSIVE, 0, ghs + num_gh++);
 	}
@@ -1350,7 +1355,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	error = alloc_required;
 	if (error < 0)
 		goto out_gunlock;
-	error = 0;
 
 	if (alloc_required) {
 		struct gfs2_qadata *qa = gfs2_qadata_get(ndip);

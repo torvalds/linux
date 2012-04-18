@@ -113,11 +113,14 @@ static void fixup_clock_comparator(unsigned long long delta)
 static int s390_next_ktime(ktime_t expires,
 			   struct clock_event_device *evt)
 {
+	struct timespec ts;
 	u64 nsecs;
 
-	nsecs = ktime_to_ns(ktime_sub(expires, ktime_get_monotonic_offset()));
+	ts.tv_sec = ts.tv_nsec = 0;
+	monotonic_to_bootbased(&ts);
+	nsecs = ktime_to_ns(ktime_add(timespec_to_ktime(ts), expires));
 	do_div(nsecs, 125);
-	S390_lowcore.clock_comparator = TOD_UNIX_EPOCH + (nsecs << 9);
+	S390_lowcore.clock_comparator = sched_clock_base_cc + (nsecs << 9);
 	set_clock_comparator(S390_lowcore.clock_comparator);
 	return 0;
 }
@@ -162,7 +165,7 @@ void init_cpu_timer(void)
 	__ctl_set_bit(0, 4);
 }
 
-static void clock_comparator_interrupt(unsigned int ext_int_code,
+static void clock_comparator_interrupt(struct ext_code ext_code,
 				       unsigned int param32,
 				       unsigned long param64)
 {
@@ -174,7 +177,7 @@ static void clock_comparator_interrupt(unsigned int ext_int_code,
 static void etr_timing_alert(struct etr_irq_parm *);
 static void stp_timing_alert(struct stp_irq_parm *);
 
-static void timing_alert_interrupt(unsigned int ext_int_code,
+static void timing_alert_interrupt(struct ext_code ext_code,
 				   unsigned int param32, unsigned long param64)
 {
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_TLA]++;

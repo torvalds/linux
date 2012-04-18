@@ -22,13 +22,12 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/random.h>
-#include <linux/mfd/ab5500/ab5500.h>
 #include <linux/mfd/abx500.h>
+#include <linux/mfd/abx500/ab5500.h>
 #include <linux/list.h>
 #include <linux/bitops.h>
 #include <linux/spinlock.h>
 #include <linux/mfd/core.h>
-#include <linux/version.h>
 #include <linux/mfd/db5500-prcmu.h>
 
 #include "ab5500-core.h"

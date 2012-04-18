@@ -134,11 +134,11 @@ void __init plat_time_init(void)
 	struct clk *clk;
 
 	if (insert_resource(&iomem_resource, &ltq_cgu_resource) < 0)
-		panic("Failed to insert cgu memory\n");
+		panic("Failed to insert cgu memory");
 
 	if (request_mem_region(ltq_cgu_resource.start,
 			resource_size(&ltq_cgu_resource), "cgu") < 0)
-		panic("Failed to request cgu memory\n");
+		panic("Failed to request cgu memory");
 
 	ltq_cgu_membase = ioremap_nocache(ltq_cgu_resource.start,
 				resource_size(&ltq_cgu_resource));

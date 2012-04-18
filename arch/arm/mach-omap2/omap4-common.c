@@ -20,15 +20,18 @@
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 
 #include <plat/irqs.h>
 #include <plat/sram.h>
+#include <plat/omap-secure.h>
 
 #include <mach/hardware.h>
 #include <mach/omap-wakeupgen.h>
 
 #include "common.h"
 #include "omap4-sar-layout.h"
+#include <linux/export.h>
 
 #ifdef CONFIG_CACHE_L2X0
 static void __iomem *l2cache_base;
@@ -42,6 +45,9 @@ static void __iomem *sar_ram_base;
 
 void __iomem *dram_sync, *sram_sync;
 
+static phys_addr_t paddr;
+static u32 size;
+
 void omap_bus_sync(void)
 {
 	if (dram_sync && sram_sync) {
@@ -50,24 +56,22 @@ void omap_bus_sync(void)
 		isb();
 	}
 }
+EXPORT_SYMBOL(omap_bus_sync);
 
-static int __init omap_barriers_init(void)
+/* Steal one page physical memory for barrier implementation */
+int __init omap_barrier_reserve_memblock(void)
 {
-	struct map_desc dram_io_desc[1];
-	phys_addr_t paddr;
-	u32 size;
-
-	if (!cpu_is_omap44xx())
-		return -ENODEV;
 
 	size = ALIGN(PAGE_SIZE, SZ_1M);
-	paddr = memblock_alloc(size, SZ_1M);
-	if (!paddr) {
-		pr_err("%s: failed to reserve 4 Kbytes\n", __func__);
-		return -ENOMEM;
-	}
-	memblock_free(paddr, size);
-	memblock_remove(paddr, size);
+	paddr = arm_memblock_steal(size, SZ_1M);
+
+	return 0;
+}
+
+void __init omap_barriers_init(void)
+{
+	struct map_desc dram_io_desc[1];
+
 	dram_io_desc[0].virtual = OMAP4_DRAM_BARRIER_VA;
 	dram_io_desc[0].pfn = __phys_to_pfn(paddr);
 	dram_io_desc[0].length = size;
@@ -79,9 +83,10 @@ static int __init omap_barriers_init(void)
 	pr_info("OMAP4: Map 0x%08llx to 0x%08lx for dram barrier\n",
 		(long long) paddr, dram_io_desc[0].virtual);
 
-	return 0;
 }
-core_initcall(omap_barriers_init);
+#else
+void __init omap_barriers_init(void)
+{}
 #endif
 
 void __init gic_init_irq(void)

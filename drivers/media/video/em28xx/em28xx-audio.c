@@ -193,7 +193,7 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 		urb->dev = dev->udev;
 		urb->context = dev;
-		urb->pipe = usb_rcvisocpipe(dev->udev, 0x83);
+		urb->pipe = usb_rcvisocpipe(dev->udev, EM28XX_EP_AUDIO);
 		urb->transfer_flags = URB_ISO_ASAP;
 		urb->transfer_buffer = dev->adev.transfer_buffer[i];
 		urb->interval = 1;

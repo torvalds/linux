@@ -1,18 +1,20 @@
 /*
+ * ST Microelectronics MFD: stmpe's driver
+ *
  * Copyright (C) ST-Ericsson SA 2010
  *
  * License Terms: GNU General Public License, version 2
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
+#include <linux/gpio.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
-#include <linux/i2c.h>
 #include <linux/mfd/core.h>
-#include <linux/mfd/stmpe.h>
 #include "stmpe.h"
 
 static int __stmpe_enable(struct stmpe *stmpe, unsigned int blocks)
@@ -29,10 +31,9 @@ static int __stmpe_reg_read(struct stmpe *stmpe, u8 reg)
 {
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(stmpe->i2c, reg);
+	ret = stmpe->ci->read_byte(stmpe, reg);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to read reg %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to read reg %#x: %d\n", reg, ret);
 
 	dev_vdbg(stmpe->dev, "rd: reg %#x => data %#x\n", reg, ret);
 
@@ -45,10 +46,9 @@ static int __stmpe_reg_write(struct stmpe *stmpe, u8 reg, u8 val)
 
 	dev_vdbg(stmpe->dev, "wr: reg %#x <= %#x\n", reg, val);
 
-	ret = i2c_smbus_write_byte_data(stmpe->i2c, reg, val);
+	ret = stmpe->ci->write_byte(stmpe, reg, val);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to write reg %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to write reg %#x: %d\n", reg, ret);
 
 	return ret;
 }
@@ -72,10 +72,9 @@ static int __stmpe_block_read(struct stmpe *stmpe, u8 reg, u8 length,
 {
 	int ret;
 
-	ret = i2c_smbus_read_i2c_block_data(stmpe->i2c, reg, length, values);
+	ret = stmpe->ci->read_block(stmpe, reg, length, values);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to read regs %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to read regs %#x: %d\n", reg, ret);
 
 	dev_vdbg(stmpe->dev, "rd: reg %#x (%d) => ret %#x\n", reg, length, ret);
 	stmpe_dump_bytes("stmpe rd: ", values, length);
@@ -91,11 +90,9 @@ static int __stmpe_block_write(struct stmpe *stmpe, u8 reg, u8 length,
 	dev_vdbg(stmpe->dev, "wr: regs %#x (%d)\n", reg, length);
 	stmpe_dump_bytes("stmpe wr: ", values, length);
 
-	ret = i2c_smbus_write_i2c_block_data(stmpe->i2c, reg, length,
-					     values);
+	ret = stmpe->ci->write_block(stmpe, reg, length, values);
 	if (ret < 0)
-		dev_err(stmpe->dev, "failed to write regs %#x: %d\n",
-			reg, ret);
+		dev_err(stmpe->dev, "failed to write regs %#x: %d\n", reg, ret);
 
 	return ret;
 }
@@ -245,12 +242,14 @@ int stmpe_set_altfunc(struct stmpe *stmpe, u32 pins, enum stmpe_block block)
 	u8 regaddr = stmpe->regs[STMPE_IDX_GPAFR_U_MSB];
 	int af_bits = variant->af_bits;
 	int numregs = DIV_ROUND_UP(stmpe->num_gpios * af_bits, 8);
-	int afperreg = 8 / af_bits;
 	int mask = (1 << af_bits) - 1;
 	u8 regs[numregs];
-	int af;
-	int ret;
+	int af, afperreg, ret;
 
+	if (!variant->get_altfunc)
+		return 0;
+
+	afperreg = 8 / af_bits;
 	mutex_lock(&stmpe->lock);
 
 	ret = __stmpe_enable(stmpe, STMPE_BLOCK_GPIO);
@@ -299,6 +298,11 @@ static struct mfd_cell stmpe_gpio_cell = {
 	.num_resources	= ARRAY_SIZE(stmpe_gpio_resources),
 };
 
+static struct mfd_cell stmpe_gpio_cell_noirq = {
+	.name		= "stmpe-gpio",
+	/* gpio cell resources consist of an irq only so no resources here */
+};
+
 /*
  * Keypad (1601, 2401, 2403)
  */
@@ -325,7 +329,69 @@ static struct mfd_cell stmpe_keypad_cell = {
 };
 
 /*
- * Touchscreen (STMPE811)
+ * STMPE801
+ */
+static const u8 stmpe801_regs[] = {
+	[STMPE_IDX_CHIP_ID]	= STMPE801_REG_CHIP_ID,
+	[STMPE_IDX_ICR_LSB]	= STMPE801_REG_SYS_CTRL,
+	[STMPE_IDX_GPMR_LSB]	= STMPE801_REG_GPIO_MP_STA,
+	[STMPE_IDX_GPSR_LSB]	= STMPE801_REG_GPIO_SET_PIN,
+	[STMPE_IDX_GPCR_LSB]	= STMPE801_REG_GPIO_SET_PIN,
+	[STMPE_IDX_GPDR_LSB]	= STMPE801_REG_GPIO_DIR,
+	[STMPE_IDX_IEGPIOR_LSB] = STMPE801_REG_GPIO_INT_EN,
+	[STMPE_IDX_ISGPIOR_MSB] = STMPE801_REG_GPIO_INT_STA,
+
+};
+
+static struct stmpe_variant_block stmpe801_blocks[] = {
+	{
+		.cell	= &stmpe_gpio_cell,
+		.irq	= 0,
+		.block	= STMPE_BLOCK_GPIO,
+	},
+};
+
+static struct stmpe_variant_block stmpe801_blocks_noirq[] = {
+	{
+		.cell	= &stmpe_gpio_cell_noirq,
+		.block	= STMPE_BLOCK_GPIO,
+	},
+};
+
+static int stmpe801_enable(struct stmpe *stmpe, unsigned int blocks,
+			   bool enable)
+{
+	if (blocks & STMPE_BLOCK_GPIO)
+		return 0;
+	else
+		return -EINVAL;
+}
+
+static struct stmpe_variant_info stmpe801 = {
+	.name		= "stmpe801",
+	.id_val		= STMPE801_ID,
+	.id_mask	= 0xffff,
+	.num_gpios	= 8,
+	.regs		= stmpe801_regs,
+	.blocks		= stmpe801_blocks,
+	.num_blocks	= ARRAY_SIZE(stmpe801_blocks),
+	.num_irqs	= STMPE801_NR_INTERNAL_IRQS,
+	.enable		= stmpe801_enable,
+};
+
+static struct stmpe_variant_info stmpe801_noirq = {
+	.name		= "stmpe801",
+	.id_val		= STMPE801_ID,
+	.id_mask	= 0xffff,
+	.num_gpios	= 8,
+	.regs		= stmpe801_regs,
+	.blocks		= stmpe801_blocks_noirq,
+	.num_blocks	= ARRAY_SIZE(stmpe801_blocks_noirq),
+	.enable		= stmpe801_enable,
+};
+
+/*
+ * Touchscreen (STMPE811 or STMPE610)
  */
 
 static struct resource stmpe_ts_resources[] = {
@@ -350,7 +416,7 @@ static struct mfd_cell stmpe_ts_cell = {
 };
 
 /*
- * STMPE811
+ * STMPE811 or STMPE610
  */
 
 static const u8 stmpe811_regs[] = {
@@ -412,6 +478,21 @@ static struct stmpe_variant_info stmpe811 = {
 	.id_val		= 0x0811,
 	.id_mask	= 0xffff,
 	.num_gpios	= 8,
+	.af_bits	= 1,
+	.regs		= stmpe811_regs,
+	.blocks		= stmpe811_blocks,
+	.num_blocks	= ARRAY_SIZE(stmpe811_blocks),
+	.num_irqs	= STMPE811_NR_INTERNAL_IRQS,
+	.enable		= stmpe811_enable,
+	.get_altfunc	= stmpe811_get_altfunc,
+};
+
+/* Similar to 811, except number of gpios */
+static struct stmpe_variant_info stmpe610 = {
+	.name		= "stmpe610",
+	.id_val		= 0x0811,
+	.id_mask	= 0xffff,
+	.num_gpios	= 6,
 	.af_bits	= 1,
 	.regs		= stmpe811_regs,
 	.blocks		= stmpe811_blocks,
@@ -654,11 +735,23 @@ static struct stmpe_variant_info stmpe2403 = {
 	.enable_autosleep	= stmpe1601_autosleep, /* same as stmpe1601 */
 };
 
-static struct stmpe_variant_info *stmpe_variant_info[] = {
+static struct stmpe_variant_info *stmpe_variant_info[STMPE_NBR_PARTS] = {
+	[STMPE610]	= &stmpe610,
+	[STMPE801]	= &stmpe801,
 	[STMPE811]	= &stmpe811,
 	[STMPE1601]	= &stmpe1601,
 	[STMPE2401]	= &stmpe2401,
 	[STMPE2403]	= &stmpe2403,
+};
+
+/*
+ * These devices can be connected in a 'no-irq' configuration - the irq pin
+ * is not used and the device cannot interrupt the CPU. Here we only list
+ * devices which support this configuration - the driver will fail probing
+ * for any devices not listed here which are configured in this way.
+ */
+static struct stmpe_variant_info *stmpe_noirq_variant_info[STMPE_NBR_PARTS] = {
+	[STMPE801]	= &stmpe801_noirq,
 };
 
 static irqreturn_t stmpe_irq(int irq, void *data)
@@ -670,6 +763,11 @@ static irqreturn_t stmpe_irq(int irq, void *data)
 	u8 isr[num];
 	int ret;
 	int i;
+
+	if (variant->id_val == STMPE801_ID) {
+		handle_nested_irq(stmpe->irq_base);
+		return IRQ_HANDLED;
+	}
 
 	ret = stmpe_block_read(stmpe, israddr, num, isr);
 	if (ret < 0)
@@ -757,14 +855,17 @@ static struct irq_chip stmpe_irq_chip = {
 
 static int __devinit stmpe_irq_init(struct stmpe *stmpe)
 {
+	struct irq_chip *chip = NULL;
 	int num_irqs = stmpe->variant->num_irqs;
 	int base = stmpe->irq_base;
 	int irq;
 
+	if (stmpe->variant->id_val != STMPE801_ID)
+		chip = &stmpe_irq_chip;
+
 	for (irq = base; irq < base + num_irqs; irq++) {
 		irq_set_chip_data(irq, stmpe);
-		irq_set_chip_and_handler(irq, &stmpe_irq_chip,
-					 handle_edge_irq);
+		irq_set_chip_and_handler(irq, chip, handle_edge_irq);
 		irq_set_nested_thread(irq, 1);
 #ifdef CONFIG_ARM
 		set_irq_flags(irq, IRQF_VALID);
@@ -796,7 +897,7 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 	unsigned int irq_trigger = stmpe->pdata->irq_trigger;
 	int autosleep_timeout = stmpe->pdata->autosleep_timeout;
 	struct stmpe_variant_info *variant = stmpe->variant;
-	u8 icr = STMPE_ICR_LSB_GIM;
+	u8 icr = 0;
 	unsigned int id;
 	u8 data[2];
 	int ret;
@@ -819,16 +920,34 @@ static int __devinit stmpe_chip_init(struct stmpe *stmpe)
 	if (ret)
 		return ret;
 
-	if (irq_trigger == IRQF_TRIGGER_FALLING ||
-	    irq_trigger == IRQF_TRIGGER_RISING)
-		icr |= STMPE_ICR_LSB_EDGE;
+	if (stmpe->irq >= 0) {
+		if (id == STMPE801_ID)
+			icr = STMPE801_REG_SYS_CTRL_INT_EN;
+		else
+			icr = STMPE_ICR_LSB_GIM;
 
-	if (irq_trigger == IRQF_TRIGGER_RISING ||
-	    irq_trigger == IRQF_TRIGGER_HIGH)
-		icr |= STMPE_ICR_LSB_HIGH;
+		/* STMPE801 doesn't support Edge interrupts */
+		if (id != STMPE801_ID) {
+			if (irq_trigger == IRQF_TRIGGER_FALLING ||
+					irq_trigger == IRQF_TRIGGER_RISING)
+				icr |= STMPE_ICR_LSB_EDGE;
+		}
 
-	if (stmpe->pdata->irq_invert_polarity)
-		icr ^= STMPE_ICR_LSB_HIGH;
+		if (irq_trigger == IRQF_TRIGGER_RISING ||
+				irq_trigger == IRQF_TRIGGER_HIGH) {
+			if (id == STMPE801_ID)
+				icr |= STMPE801_REG_SYS_CTRL_INT_HI;
+			else
+				icr |= STMPE_ICR_LSB_HIGH;
+		}
+
+		if (stmpe->pdata->irq_invert_polarity) {
+			if (id == STMPE801_ID)
+				icr ^= STMPE801_REG_SYS_CTRL_INT_HI;
+			else
+				icr ^= STMPE_ICR_LSB_HIGH;
+		}
+	}
 
 	if (stmpe->pdata->autosleep) {
 		ret = stmpe_autosleep(stmpe, autosleep_timeout);
@@ -873,32 +992,10 @@ static int __devinit stmpe_devices_init(struct stmpe *stmpe)
 	return ret;
 }
 
-#ifdef CONFIG_PM
-static int stmpe_suspend(struct device *dev)
+/* Called from client specific probe routines */
+int __devinit stmpe_probe(struct stmpe_client_info *ci, int partnum)
 {
-	struct i2c_client *i2c = to_i2c_client(dev);
-
-	if (device_may_wakeup(&i2c->dev))
-		enable_irq_wake(i2c->irq);
-
-	return 0;
-}
-
-static int stmpe_resume(struct device *dev)
-{
-	struct i2c_client *i2c = to_i2c_client(dev);
-
-	if (device_may_wakeup(&i2c->dev))
-		disable_irq_wake(i2c->irq);
-
-	return 0;
-}
-#endif
-
-static int __devinit stmpe_probe(struct i2c_client *i2c,
-				 const struct i2c_device_id *id)
-{
-	struct stmpe_platform_data *pdata = i2c->dev.platform_data;
+	struct stmpe_platform_data *pdata = dev_get_platdata(ci->dev);
 	struct stmpe *stmpe;
 	int ret;
 
@@ -912,33 +1009,65 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 	mutex_init(&stmpe->irq_lock);
 	mutex_init(&stmpe->lock);
 
-	stmpe->dev = &i2c->dev;
-	stmpe->i2c = i2c;
-
+	stmpe->dev = ci->dev;
+	stmpe->client = ci->client;
 	stmpe->pdata = pdata;
 	stmpe->irq_base = pdata->irq_base;
-
-	stmpe->partnum = id->driver_data;
-	stmpe->variant = stmpe_variant_info[stmpe->partnum];
+	stmpe->ci = ci;
+	stmpe->partnum = partnum;
+	stmpe->variant = stmpe_variant_info[partnum];
 	stmpe->regs = stmpe->variant->regs;
 	stmpe->num_gpios = stmpe->variant->num_gpios;
+	dev_set_drvdata(stmpe->dev, stmpe);
 
-	i2c_set_clientdata(i2c, stmpe);
+	if (ci->init)
+		ci->init(stmpe);
+
+	if (pdata->irq_over_gpio) {
+		ret = gpio_request_one(pdata->irq_gpio, GPIOF_DIR_IN, "stmpe");
+		if (ret) {
+			dev_err(stmpe->dev, "failed to request IRQ GPIO: %d\n",
+					ret);
+			goto out_free;
+		}
+
+		stmpe->irq = gpio_to_irq(pdata->irq_gpio);
+	} else {
+		stmpe->irq = ci->irq;
+	}
+
+	if (stmpe->irq < 0) {
+		/* use alternate variant info for no-irq mode, if supported */
+		dev_info(stmpe->dev,
+			"%s configured in no-irq mode by platform data\n",
+			stmpe->variant->name);
+		if (!stmpe_noirq_variant_info[stmpe->partnum]) {
+			dev_err(stmpe->dev,
+				"%s does not support no-irq mode!\n",
+				stmpe->variant->name);
+			ret = -ENODEV;
+			goto free_gpio;
+		}
+		stmpe->variant = stmpe_noirq_variant_info[stmpe->partnum];
+	}
 
 	ret = stmpe_chip_init(stmpe);
 	if (ret)
-		goto out_free;
+		goto free_gpio;
 
-	ret = stmpe_irq_init(stmpe);
-	if (ret)
-		goto out_free;
+	if (stmpe->irq >= 0) {
+		ret = stmpe_irq_init(stmpe);
+		if (ret)
+			goto free_gpio;
 
-	ret = request_threaded_irq(stmpe->i2c->irq, NULL, stmpe_irq,
-				   pdata->irq_trigger | IRQF_ONESHOT,
-				   "stmpe", stmpe);
-	if (ret) {
-		dev_err(stmpe->dev, "failed to request IRQ: %d\n", ret);
-		goto out_removeirq;
+		ret = request_threaded_irq(stmpe->irq, NULL, stmpe_irq,
+				pdata->irq_trigger | IRQF_ONESHOT,
+				"stmpe", stmpe);
+		if (ret) {
+			dev_err(stmpe->dev, "failed to request IRQ: %d\n",
+					ret);
+			goto out_removeirq;
+		}
 	}
 
 	ret = stmpe_devices_init(stmpe);
@@ -951,67 +1080,59 @@ static int __devinit stmpe_probe(struct i2c_client *i2c,
 
 out_removedevs:
 	mfd_remove_devices(stmpe->dev);
-	free_irq(stmpe->i2c->irq, stmpe);
+	if (stmpe->irq >= 0)
+		free_irq(stmpe->irq, stmpe);
 out_removeirq:
-	stmpe_irq_remove(stmpe);
+	if (stmpe->irq >= 0)
+		stmpe_irq_remove(stmpe);
+free_gpio:
+	if (pdata->irq_over_gpio)
+		gpio_free(pdata->irq_gpio);
 out_free:
 	kfree(stmpe);
 	return ret;
 }
 
-static int __devexit stmpe_remove(struct i2c_client *client)
+int stmpe_remove(struct stmpe *stmpe)
 {
-	struct stmpe *stmpe = i2c_get_clientdata(client);
-
 	mfd_remove_devices(stmpe->dev);
 
-	free_irq(stmpe->i2c->irq, stmpe);
-	stmpe_irq_remove(stmpe);
+	if (stmpe->irq >= 0) {
+		free_irq(stmpe->irq, stmpe);
+		stmpe_irq_remove(stmpe);
+	}
+
+	if (stmpe->pdata->irq_over_gpio)
+		gpio_free(stmpe->pdata->irq_gpio);
 
 	kfree(stmpe);
 
 	return 0;
 }
 
-static const struct i2c_device_id stmpe_id[] = {
-	{ "stmpe811", STMPE811 },
-	{ "stmpe1601", STMPE1601 },
-	{ "stmpe2401", STMPE2401 },
-	{ "stmpe2403", STMPE2403 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, stmpe_id);
-
 #ifdef CONFIG_PM
-static const struct dev_pm_ops stmpe_dev_pm_ops = {
+static int stmpe_suspend(struct device *dev)
+{
+	struct stmpe *stmpe = dev_get_drvdata(dev);
+
+	if (stmpe->irq >= 0 && device_may_wakeup(dev))
+		enable_irq_wake(stmpe->irq);
+
+	return 0;
+}
+
+static int stmpe_resume(struct device *dev)
+{
+	struct stmpe *stmpe = dev_get_drvdata(dev);
+
+	if (stmpe->irq >= 0 && device_may_wakeup(dev))
+		disable_irq_wake(stmpe->irq);
+
+	return 0;
+}
+
+const struct dev_pm_ops stmpe_dev_pm_ops = {
 	.suspend	= stmpe_suspend,
 	.resume		= stmpe_resume,
 };
 #endif
-
-static struct i2c_driver stmpe_driver = {
-	.driver.name	= "stmpe",
-	.driver.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
-	.driver.pm	= &stmpe_dev_pm_ops,
-#endif
-	.probe		= stmpe_probe,
-	.remove		= __devexit_p(stmpe_remove),
-	.id_table	= stmpe_id,
-};
-
-static int __init stmpe_init(void)
-{
-	return i2c_add_driver(&stmpe_driver);
-}
-subsys_initcall(stmpe_init);
-
-static void __exit stmpe_exit(void)
-{
-	i2c_del_driver(&stmpe_driver);
-}
-module_exit(stmpe_exit);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("STMPE MFD core driver");
-MODULE_AUTHOR("Rabin Vincent <rabin.vincent@stericsson.com>");

@@ -15,7 +15,6 @@
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1650,14 +1649,14 @@ static int max98088_set_bias_level(struct snd_soc_codec *codec,
 #define MAX98088_RATES SNDRV_PCM_RATE_8000_96000
 #define MAX98088_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops max98088_dai1_ops = {
+static const struct snd_soc_dai_ops max98088_dai1_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai1_set_fmt,
        .hw_params = max98088_dai1_hw_params,
        .digital_mute = max98088_dai1_digital_mute,
 };
 
-static struct snd_soc_dai_ops max98088_dai2_ops = {
+static const struct snd_soc_dai_ops max98088_dai2_ops = {
        .set_sysclk = max98088_dai_set_sysclk,
        .set_fmt = max98088_dai2_set_fmt,
        .hw_params = max98088_dai2_hw_params,
@@ -1909,7 +1908,7 @@ static void max98088_handle_eq_pdata(struct snd_soc_codec *codec)
        max98088->eq_enum.texts = max98088->eq_texts;
        max98088->eq_enum.max = max98088->eq_textcnt;
 
-       ret = snd_soc_add_controls(codec, controls, ARRAY_SIZE(controls));
+       ret = snd_soc_add_codec_controls(codec, controls, ARRAY_SIZE(controls));
        if (ret != 0)
                dev_err(codec->dev, "Failed to add EQ control: %d\n", ret);
 }
@@ -1947,7 +1946,7 @@ static void max98088_handle_pdata(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_PM
-static int max98088_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int max98088_suspend(struct snd_soc_codec *codec)
 {
        max98088_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -2031,7 +2030,7 @@ static int max98088_probe(struct snd_soc_codec *codec)
 
        max98088_handle_pdata(codec);
 
-       snd_soc_add_controls(codec, max98088_snd_controls,
+       snd_soc_add_codec_controls(codec, max98088_snd_controls,
                             ARRAY_SIZE(max98088_snd_controls));
 
 err_access:
@@ -2070,7 +2069,8 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
        struct max98088_priv *max98088;
        int ret;
 
-       max98088 = kzalloc(sizeof(struct max98088_priv), GFP_KERNEL);
+       max98088 = devm_kzalloc(&i2c->dev, sizeof(struct max98088_priv),
+			       GFP_KERNEL);
        if (max98088 == NULL)
                return -ENOMEM;
 
@@ -2081,15 +2081,12 @@ static int max98088_i2c_probe(struct i2c_client *i2c,
 
        ret = snd_soc_register_codec(&i2c->dev,
                        &soc_codec_dev_max98088, &max98088_dai[0], 2);
-       if (ret < 0)
-               kfree(max98088);
        return ret;
 }
 
 static int __devexit max98088_i2c_remove(struct i2c_client *client)
 {
        snd_soc_unregister_codec(&client->dev);
-       kfree(i2c_get_clientdata(client));
        return 0;
 }
 

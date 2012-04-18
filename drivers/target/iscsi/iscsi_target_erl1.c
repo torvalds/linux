@@ -21,7 +21,7 @@
 #include <linux/list.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_transport.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_seq_pdu_list.h"
@@ -416,7 +416,7 @@ static int iscsit_handle_recovery_datain(
 	struct iscsi_datain_req *dr;
 	struct se_cmd *se_cmd = &cmd->se_cmd;
 
-	if (!atomic_read(&se_cmd->t_transport_complete)) {
+	if (!(se_cmd->transport_state & CMD_T_COMPLETE)) {
 		pr_err("Ignoring ITT: 0x%08x Data SNACK\n",
 				cmd->init_task_tag);
 		return 0;
@@ -1238,7 +1238,7 @@ void iscsit_mod_dataout_timer(struct iscsi_cmd *cmd)
 {
 	struct iscsi_conn *conn = cmd->conn;
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	spin_lock_bh(&cmd->dataout_timeout_lock);
 	if (!(cmd->dataout_timer_flags & ISCSI_TF_RUNNING)) {
@@ -1261,7 +1261,7 @@ void iscsit_start_dataout_timer(
 	struct iscsi_conn *conn)
 {
 	struct iscsi_session *sess = conn->sess;
-	struct iscsi_node_attrib *na = na = iscsit_tpg_get_node_attrib(sess);
+	struct iscsi_node_attrib *na = iscsit_tpg_get_node_attrib(sess);
 
 	if (cmd->dataout_timer_flags & ISCSI_TF_RUNNING)
 		return;

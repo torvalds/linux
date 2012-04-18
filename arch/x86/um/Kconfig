@@ -6,14 +6,6 @@ menu "UML-specific options"
 
 menu "Host processor type and features"
 
-config CMPXCHG_LOCAL
-	bool
-	default n
-
-config CMPXCHG_DOUBLE
-	bool
-	default n
-
 source "arch/x86/Kconfig.cpu"
 
 endmenu
@@ -23,8 +15,8 @@ config UML_X86
 	select GENERIC_FIND_FIRST_BIT
 
 config 64BIT
-	bool
-	default SUBARCH = "x86_64"
+	bool "64-bit kernel" if SUBARCH = "x86"
+	default SUBARCH != "i386"
 
 config X86_32
 	def_bool !64BIT

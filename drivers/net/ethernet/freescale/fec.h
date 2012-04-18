@@ -47,6 +47,10 @@
 #define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
 #define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
+#define BM_MIIGSK_CFGR_MII		0x00
+#define BM_MIIGSK_CFGR_RMII		0x01
+#define BM_MIIGSK_CFGR_FRCONT_10M	0x40
+
 #else
 
 #define FEC_ECNTRL		0x000 /* Ethernet control reg */

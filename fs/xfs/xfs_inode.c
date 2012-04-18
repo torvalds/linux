@@ -299,11 +299,8 @@ xfs_iformat(
 {
 	xfs_attr_shortform_t	*atp;
 	int			size;
-	int			error;
+	int			error = 0;
 	xfs_fsize_t             di_size;
-	ip->i_df.if_ext_max =
-		XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
-	error = 0;
 
 	if (unlikely(be32_to_cpu(dip->di_nextents) +
 		     be16_to_cpu(dip->di_anextents) >
@@ -350,7 +347,6 @@ xfs_iformat(
 			return XFS_ERROR(EFSCORRUPTED);
 		}
 		ip->i_d.di_size = 0;
-		ip->i_size = 0;
 		ip->i_df.if_u2.if_rdev = xfs_dinode_get_rdev(dip);
 		break;
 
@@ -409,10 +405,10 @@ xfs_iformat(
 	}
 	if (!XFS_DFORK_Q(dip))
 		return 0;
+
 	ASSERT(ip->i_afp == NULL);
 	ip->i_afp = kmem_zone_zalloc(xfs_ifork_zone, KM_SLEEP | KM_NOFS);
-	ip->i_afp->if_ext_max =
-		XFS_IFORK_ASIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
+
 	switch (dip->di_aformat) {
 	case XFS_DINODE_FMT_LOCAL:
 		atp = (xfs_attr_shortform_t *)XFS_DFORK_APTR(dip);
@@ -604,10 +600,11 @@ xfs_iformat_btree(
 	 * or the number of extents is greater than the number of
 	 * blocks.
 	 */
-	if (unlikely(XFS_IFORK_NEXTENTS(ip, whichfork) <= ifp->if_ext_max
-	    || XFS_BMDR_SPACE_CALC(nrecs) >
-			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork)
-	    || XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks)) {
+	if (unlikely(XFS_IFORK_NEXTENTS(ip, whichfork) <=
+			XFS_IFORK_MAXEXT(ip, whichfork) ||
+		     XFS_BMDR_SPACE_CALC(nrecs) >
+			XFS_DFORK_SIZE(dip, ip->i_mount, whichfork) ||
+		     XFS_IFORK_NEXTENTS(ip, whichfork) > ip->i_d.di_nblocks)) {
 		xfs_warn(ip->i_mount, "corrupt inode %Lu (btree).",
 			(unsigned long long) ip->i_ino);
 		XFS_CORRUPTION_ERROR("xfs_iformat_btree", XFS_ERRLEVEL_LOW,
@@ -835,12 +832,6 @@ xfs_iread(
 		 * with the uninitialized part of it.
 		 */
 		ip->i_d.di_mode = 0;
-		/*
-		 * Initialize the per-fork minima and maxima for a new
-		 * inode here.  xfs_iformat will do it for old inodes.
-		 */
-		ip->i_df.if_ext_max =
-			XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	}
 
 	/*
@@ -861,7 +852,6 @@ xfs_iread(
 	}
 
 	ip->i_delayed_blks = 0;
-	ip->i_size = ip->i_d.di_size;
 
 	/*
 	 * Mark the buffer containing the inode as something to keep
@@ -1051,7 +1041,6 @@ xfs_ialloc(
 	}
 
 	ip->i_d.di_size = 0;
-	ip->i_size = 0;
 	ip->i_d.di_nextents = 0;
 	ASSERT(ip->i_d.di_nblocks == 0);
 
@@ -1166,52 +1155,6 @@ xfs_ialloc(
 }
 
 /*
- * Check to make sure that there are no blocks allocated to the
- * file beyond the size of the file.  We don't check this for
- * files with fixed size extents or real time extents, but we
- * at least do it for regular files.
- */
-#ifdef DEBUG
-STATIC void
-xfs_isize_check(
-	struct xfs_inode	*ip,
-	xfs_fsize_t		isize)
-{
-	struct xfs_mount	*mp = ip->i_mount;
-	xfs_fileoff_t		map_first;
-	int			nimaps;
-	xfs_bmbt_irec_t		imaps[2];
-	int			error;
-
-	if (!S_ISREG(ip->i_d.di_mode))
-		return;
-
-	if (XFS_IS_REALTIME_INODE(ip))
-		return;
-
-	if (ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE)
-		return;
-
-	nimaps = 2;
-	map_first = XFS_B_TO_FSB(mp, (xfs_ufsize_t)isize);
-	/*
-	 * The filesystem could be shutting down, so bmapi may return
-	 * an error.
-	 */
-	error = xfs_bmapi_read(ip, map_first,
-			 (XFS_B_TO_FSB(mp,
-			       (xfs_ufsize_t)XFS_MAXIOFFSET(mp)) - map_first),
-			 imaps, &nimaps, XFS_BMAPI_ENTIRE);
-	if (error)
-		return;
-	ASSERT(nimaps == 1);
-	ASSERT(imaps[0].br_startblock == HOLESTARTBLOCK);
-}
-#else	/* DEBUG */
-#define xfs_isize_check(ip, isize)
-#endif	/* DEBUG */
-
-/*
  * Free up the underlying blocks past new_size.  The new size must be smaller
  * than the current size.  This routine can be used both for the attribute and
  * data fork, and does not modify the inode size, which is left to the caller.
@@ -1252,11 +1195,13 @@ xfs_itruncate_extents(
 	int			done = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_IOLOCK_EXCL));
-	ASSERT(new_size <= ip->i_size);
+	ASSERT(new_size <= XFS_ISIZE(ip));
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(ip->i_itemp != NULL);
 	ASSERT(ip->i_itemp->ili_lock_flags == 0);
 	ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
+
+	trace_xfs_itruncate_extents_start(ip, new_size);
 
 	/*
 	 * Since it is possible for space to become allocated beyond
@@ -1325,6 +1270,14 @@ xfs_itruncate_extents(
 			goto out;
 	}
 
+	/*
+	 * Always re-log the inode so that our permanent transaction can keep
+	 * on rolling it forward in the log.
+	 */
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	trace_xfs_itruncate_extents_end(ip, new_size);
+
 out:
 	*tpp = tp;
 	return error;
@@ -1336,74 +1289,6 @@ out_bmap_cancel:
 	 */
 	xfs_bmap_cancel(&free_list);
 	goto out;
-}
-
-int
-xfs_itruncate_data(
-	struct xfs_trans	**tpp,
-	struct xfs_inode	*ip,
-	xfs_fsize_t		new_size)
-{
-	int			error;
-
-	trace_xfs_itruncate_data_start(ip, new_size);
-
-	/*
-	 * The first thing we do is set the size to new_size permanently on
-	 * disk.  This way we don't have to worry about anyone ever being able
-	 * to look at the data being freed even in the face of a crash.
-	 * What we're getting around here is the case where we free a block, it
-	 * is allocated to another file, it is written to, and then we crash.
-	 * If the new data gets written to the file but the log buffers
-	 * containing the free and reallocation don't, then we'd end up with
-	 * garbage in the blocks being freed.  As long as we make the new_size
-	 * permanent before actually freeing any blocks it doesn't matter if
-	 * they get written to.
-	 */
-	if (ip->i_d.di_nextents > 0) {
-		/*
-		 * If we are not changing the file size then do not update
-		 * the on-disk file size - we may be called from
-		 * xfs_inactive_free_eofblocks().  If we update the on-disk
-		 * file size and then the system crashes before the contents
-		 * of the file are flushed to disk then the files may be
-		 * full of holes (ie NULL files bug).
-		 */
-		if (ip->i_size != new_size) {
-			ip->i_d.di_size = new_size;
-			ip->i_size = new_size;
-			xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
-		}
-	}
-
-	error = xfs_itruncate_extents(tpp, ip, XFS_DATA_FORK, new_size);
-	if (error)
-		return error;
-
-	/*
-	 * If we are not changing the file size then do not update the on-disk
-	 * file size - we may be called from xfs_inactive_free_eofblocks().
-	 * If we update the on-disk file size and then the system crashes
-	 * before the contents of the file are flushed to disk then the files
-	 * may be full of holes (ie NULL files bug).
-	 */
-	xfs_isize_check(ip, new_size);
-	if (ip->i_size != new_size) {
-		ip->i_d.di_size = new_size;
-		ip->i_size = new_size;
-	}
-
-	ASSERT(new_size != 0 || ip->i_delayed_blks == 0);
-	ASSERT(new_size != 0 || ip->i_d.di_nextents == 0);
-
-	/*
-	 * Always re-log the inode so that our permanent transaction can keep
-	 * on rolling it forward in the log.
-	 */
-	xfs_trans_log_inode(*tpp, ip, XFS_ILOG_CORE);
-
-	trace_xfs_itruncate_data_end(ip, new_size);
-	return 0;
 }
 
 /*
@@ -1771,14 +1656,13 @@ retry:
 			iip = ip->i_itemp;
 			if (!iip || xfs_inode_clean(ip)) {
 				ASSERT(ip != free_ip);
-				ip->i_update_core = 0;
 				xfs_ifunlock(ip);
 				xfs_iunlock(ip, XFS_ILOCK_EXCL);
 				continue;
 			}
 
-			iip->ili_last_fields = iip->ili_format.ilf_fields;
-			iip->ili_format.ilf_fields = 0;
+			iip->ili_last_fields = iip->ili_fields;
+			iip->ili_fields = 0;
 			iip->ili_logged = 1;
 			xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
 						&iip->ili_item.li_lsn);
@@ -1824,8 +1708,7 @@ xfs_ifree(
 	ASSERT(ip->i_d.di_nlink == 0);
 	ASSERT(ip->i_d.di_nextents == 0);
 	ASSERT(ip->i_d.di_anextents == 0);
-	ASSERT((ip->i_d.di_size == 0 && ip->i_size == 0) ||
-	       (!S_ISREG(ip->i_d.di_mode)));
+	ASSERT(ip->i_d.di_size == 0 || !S_ISREG(ip->i_d.di_mode));
 	ASSERT(ip->i_d.di_nblocks == 0);
 
 	/*
@@ -1844,8 +1727,6 @@ xfs_ifree(
 	ip->i_d.di_flags = 0;
 	ip->i_d.di_dmevmask = 0;
 	ip->i_d.di_forkoff = 0;		/* mark the attr fork not in use */
-	ip->i_df.if_ext_max =
-		XFS_IFORK_DSIZE(ip) / (uint)sizeof(xfs_bmbt_rec_t);
 	ip->i_d.di_format = XFS_DINODE_FMT_EXTENTS;
 	ip->i_d.di_aformat = XFS_DINODE_FMT_EXTENTS;
 	/*
@@ -2151,7 +2032,7 @@ xfs_idestroy_fork(
  * once someone is waiting for it to be unpinned.
  */
 static void
-xfs_iunpin_nowait(
+xfs_iunpin(
 	struct xfs_inode	*ip)
 {
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
@@ -2163,14 +2044,29 @@ xfs_iunpin_nowait(
 
 }
 
+static void
+__xfs_iunpin_wait(
+	struct xfs_inode	*ip)
+{
+	wait_queue_head_t *wq = bit_waitqueue(&ip->i_flags, __XFS_IPINNED_BIT);
+	DEFINE_WAIT_BIT(wait, &ip->i_flags, __XFS_IPINNED_BIT);
+
+	xfs_iunpin(ip);
+
+	do {
+		prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		if (xfs_ipincount(ip))
+			io_schedule();
+	} while (xfs_ipincount(ip));
+	finish_wait(wq, &wait.wait);
+}
+
 void
 xfs_iunpin_wait(
 	struct xfs_inode	*ip)
 {
-	if (xfs_ipincount(ip)) {
-		xfs_iunpin_nowait(ip);
-		wait_event(ip->i_ipin_wait, (xfs_ipincount(ip) == 0));
-	}
+	if (xfs_ipincount(ip))
+		__xfs_iunpin_wait(ip);
 }
 
 /*
@@ -2280,7 +2176,7 @@ xfs_iflush_fork(
 	mp = ip->i_mount;
 	switch (XFS_IFORK_FORMAT(ip, whichfork)) {
 	case XFS_DINODE_FMT_LOCAL:
-		if ((iip->ili_format.ilf_fields & dataflag[whichfork]) &&
+		if ((iip->ili_fields & dataflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
 			ASSERT(ifp->if_u1.if_data != NULL);
 			ASSERT(ifp->if_bytes <= XFS_IFORK_SIZE(ip, whichfork));
@@ -2290,8 +2186,8 @@ xfs_iflush_fork(
 
 	case XFS_DINODE_FMT_EXTENTS:
 		ASSERT((ifp->if_flags & XFS_IFEXTENTS) ||
-		       !(iip->ili_format.ilf_fields & extflag[whichfork]));
-		if ((iip->ili_format.ilf_fields & extflag[whichfork]) &&
+		       !(iip->ili_fields & extflag[whichfork]));
+		if ((iip->ili_fields & extflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
 			ASSERT(xfs_iext_get_ext(ifp, 0));
 			ASSERT(XFS_IFORK_NEXTENTS(ip, whichfork) > 0);
@@ -2301,7 +2197,7 @@ xfs_iflush_fork(
 		break;
 
 	case XFS_DINODE_FMT_BTREE:
-		if ((iip->ili_format.ilf_fields & brootflag[whichfork]) &&
+		if ((iip->ili_fields & brootflag[whichfork]) &&
 		    (ifp->if_broot_bytes > 0)) {
 			ASSERT(ifp->if_broot != NULL);
 			ASSERT(ifp->if_broot_bytes <=
@@ -2314,14 +2210,14 @@ xfs_iflush_fork(
 		break;
 
 	case XFS_DINODE_FMT_DEV:
-		if (iip->ili_format.ilf_fields & XFS_ILOG_DEV) {
+		if (iip->ili_fields & XFS_ILOG_DEV) {
 			ASSERT(whichfork == XFS_DATA_FORK);
 			xfs_dinode_put_rdev(dip, ip->i_df.if_u2.if_rdev);
 		}
 		break;
 
 	case XFS_DINODE_FMT_UUID:
-		if (iip->ili_format.ilf_fields & XFS_ILOG_UUID) {
+		if (iip->ili_fields & XFS_ILOG_UUID) {
 			ASSERT(whichfork == XFS_DATA_FORK);
 			memcpy(XFS_DFORK_DPTR(dip),
 			       &ip->i_df.if_u2.if_uuid,
@@ -2510,9 +2406,9 @@ xfs_iflush(
 	XFS_STATS_INC(xs_iflush_count);
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
-	ASSERT(!completion_done(&ip->i_flush));
+	ASSERT(xfs_isiflocked(ip));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
-	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
+	       ip->i_d.di_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;
@@ -2529,7 +2425,7 @@ xfs_iflush(
 	 * out for us if they occur after the log force completes.
 	 */
 	if (!(flags & SYNC_WAIT) && xfs_ipincount(ip)) {
-		xfs_iunpin_nowait(ip);
+		xfs_iunpin(ip);
 		xfs_ifunlock(ip);
 		return EAGAIN;
 	}
@@ -2554,9 +2450,8 @@ xfs_iflush(
 	 * to disk, because the log record didn't make it to disk!
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		ip->i_update_core = 0;
 		if (iip)
-			iip->ili_format.ilf_fields = 0;
+			iip->ili_fields = 0;
 		xfs_ifunlock(ip);
 		return XFS_ERROR(EIO);
 	}
@@ -2626,35 +2521,15 @@ xfs_iflush_int(
 #endif
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
-	ASSERT(!completion_done(&ip->i_flush));
+	ASSERT(xfs_isiflocked(ip));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
-	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
+	       ip->i_d.di_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));
 
 	iip = ip->i_itemp;
 	mp = ip->i_mount;
 
 	/* set *dip = inode's place in the buffer */
 	dip = (xfs_dinode_t *)xfs_buf_offset(bp, ip->i_imap.im_boffset);
-
-	/*
-	 * Clear i_update_core before copying out the data.
-	 * This is for coordination with our timestamp updates
-	 * that don't hold the inode lock. They will always
-	 * update the timestamps BEFORE setting i_update_core,
-	 * so if we clear i_update_core after they set it we
-	 * are guaranteed to see their updates to the timestamps.
-	 * I believe that this depends on strongly ordered memory
-	 * semantics, but we have that.  We use the SYNCHRONIZE
-	 * macro to make sure that the compiler does not reorder
-	 * the i_update_core access below the data copy below.
-	 */
-	ip->i_update_core = 0;
-	SYNCHRONIZE();
-
-	/*
-	 * Make sure to get the latest timestamps from the Linux inode.
-	 */
-	xfs_synchronize_times(ip);
 
 	if (XFS_TEST_ERROR(dip->di_magic != cpu_to_be16(XFS_DINODE_MAGIC),
 			       mp, XFS_ERRTAG_IFLUSH_1, XFS_RANDOM_IFLUSH_1)) {
@@ -2766,36 +2641,33 @@ xfs_iflush_int(
 	xfs_inobp_check(mp, bp);
 
 	/*
-	 * We've recorded everything logged in the inode, so we'd
-	 * like to clear the ilf_fields bits so we don't log and
-	 * flush things unnecessarily.  However, we can't stop
-	 * logging all this information until the data we've copied
-	 * into the disk buffer is written to disk.  If we did we might
-	 * overwrite the copy of the inode in the log with all the
-	 * data after re-logging only part of it, and in the face of
-	 * a crash we wouldn't have all the data we need to recover.
+	 * We've recorded everything logged in the inode, so we'd like to clear
+	 * the ili_fields bits so we don't log and flush things unnecessarily.
+	 * However, we can't stop logging all this information until the data
+	 * we've copied into the disk buffer is written to disk.  If we did we
+	 * might overwrite the copy of the inode in the log with all the data
+	 * after re-logging only part of it, and in the face of a crash we
+	 * wouldn't have all the data we need to recover.
 	 *
-	 * What we do is move the bits to the ili_last_fields field.
-	 * When logging the inode, these bits are moved back to the
-	 * ilf_fields field.  In the xfs_iflush_done() routine we
-	 * clear ili_last_fields, since we know that the information
-	 * those bits represent is permanently on disk.  As long as
-	 * the flush completes before the inode is logged again, then
-	 * both ilf_fields and ili_last_fields will be cleared.
+	 * What we do is move the bits to the ili_last_fields field.  When
+	 * logging the inode, these bits are moved back to the ili_fields field.
+	 * In the xfs_iflush_done() routine we clear ili_last_fields, since we
+	 * know that the information those bits represent is permanently on
+	 * disk.  As long as the flush completes before the inode is logged
+	 * again, then both ili_fields and ili_last_fields will be cleared.
 	 *
-	 * We can play with the ilf_fields bits here, because the inode
-	 * lock must be held exclusively in order to set bits there
-	 * and the flush lock protects the ili_last_fields bits.
-	 * Set ili_logged so the flush done
-	 * routine can tell whether or not to look in the AIL.
-	 * Also, store the current LSN of the inode so that we can tell
-	 * whether the item has moved in the AIL from xfs_iflush_done().
-	 * In order to read the lsn we need the AIL lock, because
-	 * it is a 64 bit value that cannot be read atomically.
+	 * We can play with the ili_fields bits here, because the inode lock
+	 * must be held exclusively in order to set bits there and the flush
+	 * lock protects the ili_last_fields bits.  Set ili_logged so the flush
+	 * done routine can tell whether or not to look in the AIL.  Also, store
+	 * the current LSN of the inode so that we can tell whether the item has
+	 * moved in the AIL from xfs_iflush_done().  In order to read the lsn we
+	 * need the AIL lock, because it is a 64 bit value that cannot be read
+	 * atomically.
 	 */
-	if (iip != NULL && iip->ili_format.ilf_fields != 0) {
-		iip->ili_last_fields = iip->ili_format.ilf_fields;
-		iip->ili_format.ilf_fields = 0;
+	if (iip != NULL && iip->ili_fields != 0) {
+		iip->ili_last_fields = iip->ili_fields;
+		iip->ili_fields = 0;
 		iip->ili_logged = 1;
 
 		xfs_trans_ail_copy_lsn(mp->m_ail, &iip->ili_flush_lsn,
@@ -2814,8 +2686,7 @@ xfs_iflush_int(
 	} else {
 		/*
 		 * We're flushing an inode which is not in the AIL and has
-		 * not been logged but has i_update_core set.  For this
-		 * case we can use a B_DELWRI flush and immediately drop
+		 * not been logged.  For this case we can immediately drop
 		 * the inode flush lock because we can avoid the whole
 		 * AIL state thing.  It's OK to drop the flush lock now,
 		 * because we've already locked the buffer and to do anything

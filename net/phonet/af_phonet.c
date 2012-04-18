@@ -480,7 +480,7 @@ int __init_or_module phonet_proto_register(unsigned int protocol,
 	if (proto_tab[protocol])
 		err = -EBUSY;
 	else
-		RCU_INIT_POINTER(proto_tab[protocol], pp);
+		rcu_assign_pointer(proto_tab[protocol], pp);
 	mutex_unlock(&proto_tab_lock);
 
 	return err;

@@ -806,7 +806,7 @@ static void sht15_bh_read_data(struct work_struct *work_s)
 		 */
 		atomic_set(&data->interrupt_handled, 0);
 		enable_irq(gpio_to_irq(data->pdata->gpio_data));
-		/* If still not occurred or another handler has been scheduled */
+		/* If still not occurred or another handler was scheduled */
 		if (gpio_get_value(data->pdata->gpio_data)
 		    || atomic_read(&data->interrupt_handled))
 			return;
@@ -883,7 +883,7 @@ static int sht15_invalidate_voltage(struct notifier_block *nb,
 
 static int __devinit sht15_probe(struct platform_device *pdev)
 {
-	int ret = 0;
+	int ret;
 	struct sht15_data *data = kzalloc(sizeof(*data), GFP_KERNEL);
 	u8 status = 0;
 
@@ -901,6 +901,7 @@ static int __devinit sht15_probe(struct platform_device *pdev)
 	init_waitqueue_head(&data->wait_queue);
 
 	if (pdev->dev.platform_data == NULL) {
+		ret = -EINVAL;
 		dev_err(&pdev->dev, "no platform data supplied\n");
 		goto err_free_data;
 	}

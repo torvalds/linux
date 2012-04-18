@@ -123,7 +123,7 @@ static int psc_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int format)
 /**
  * psc_i2s_dai_template: template CPU Digital Audio Interface
  */
-static struct snd_soc_dai_ops psc_i2s_dai_ops = {
+static const struct snd_soc_dai_ops psc_i2s_dai_ops = {
 	.hw_params	= psc_i2s_hw_params,
 	.set_sysclk	= psc_i2s_set_sysclk,
 	.set_fmt	= psc_i2s_set_fmt,
@@ -222,21 +222,7 @@ static struct platform_driver psc_i2s_driver = {
 	},
 };
 
-/* ---------------------------------------------------------------------
- * Module setup and teardown; simply register the of_platform driver
- * for the PSC in I2S mode.
- */
-static int __init psc_i2s_init(void)
-{
-	return platform_driver_register(&psc_i2s_driver);
-}
-module_init(psc_i2s_init);
-
-static void __exit psc_i2s_exit(void)
-{
-	platform_driver_unregister(&psc_i2s_driver);
-}
-module_exit(psc_i2s_exit);
+module_platform_driver(psc_i2s_driver);
 
 MODULE_AUTHOR("Grant Likely <grant.likely@secretlab.ca>");
 MODULE_DESCRIPTION("Freescale MPC5200 PSC in I2S mode ASoC Driver");

@@ -1,6 +1,6 @@
 config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
-	depends on PCI && MAC80211
+	depends on PCI && MAC80211 && HAS_IOMEM
 	select FW_LOADER
 	select NEW_LEDS
 	select LEDS_CLASS
@@ -127,3 +127,12 @@ config IWLWIFI_P2P
          support when it is loaded.
 
          Say Y only if you want to experiment with P2P.
+
+config IWLWIFI_EXPERIMENTAL_MFP
+	bool "support MFP (802.11w) even if uCode doesn't advertise"
+	depends on IWLWIFI
+	help
+	  This option enables experimental MFP (802.11W) support
+	  even if the microcode doesn't advertise it.
+
+	  Say Y only if you want to experiment with MFP.

@@ -28,6 +28,7 @@
 #define CEPH_MOUNT_OPT_RBYTES          (1<<5) /* dir st_bytes = rbytes */
 #define CEPH_MOUNT_OPT_NOASYNCREADDIR  (1<<7) /* no dcache readdir */
 #define CEPH_MOUNT_OPT_INO32           (1<<8) /* 32 bit inos */
+#define CEPH_MOUNT_OPT_DCACHE          (1<<9) /* use dcache for readdir etc */
 
 #define CEPH_MOUNT_OPT_DEFAULT    (CEPH_MOUNT_OPT_RBYTES)
 
@@ -366,7 +367,7 @@ static inline u32 ceph_ino_to_ino32(__u64 vino)
 	u32 ino = vino & 0xffffffff;
 	ino ^= vino >> 32;
 	if (!ino)
-		ino = 1;
+		ino = 2;
 	return ino;
 }
 
@@ -732,6 +733,8 @@ extern ssize_t ceph_listxattr(struct dentry *, char *, size_t);
 extern int ceph_removexattr(struct dentry *, const char *);
 extern void __ceph_build_xattrs_blob(struct ceph_inode_info *ci);
 extern void __ceph_destroy_xattrs(struct ceph_inode_info *ci);
+extern void __init ceph_xattr_init(void);
+extern void ceph_xattr_exit(void);
 
 /* caps.c */
 extern const char *ceph_cap_string(int c);

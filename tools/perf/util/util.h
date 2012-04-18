@@ -40,7 +40,6 @@
 #define decimal_length(x)	((int)(sizeof(x) * 2.56 + 0.5) + 1)
 
 #define _ALL_SOURCE 1
-#define _GNU_SOURCE 1
 #define _BSD_SOURCE 1
 #define HAS_BOOL
 
@@ -200,6 +199,8 @@ static inline int has_extension(const char *filename, const char *ext)
 #undef isalpha
 #undef isprint
 #undef isalnum
+#undef islower
+#undef isupper
 #undef tolower
 #undef toupper
 
@@ -220,6 +221,8 @@ extern unsigned char sane_ctype[256];
 #define isalpha(x) sane_istest(x,GIT_ALPHA)
 #define isalnum(x) sane_istest(x,GIT_ALPHA | GIT_DIGIT)
 #define isprint(x) sane_istest(x,GIT_PRINT)
+#define islower(x) (sane_istest(x,GIT_ALPHA) && sane_istest(x,0x20))
+#define isupper(x) (sane_istest(x,GIT_ALPHA) && !sane_istest(x,0x20))
 #define tolower(x) sane_case((unsigned char)(x), 0x20)
 #define toupper(x) sane_case((unsigned char)(x), 0)
 
@@ -241,6 +244,12 @@ bool strlazymatch(const char *str, const char *pat);
 int strtailcmp(const char *s1, const char *s2);
 unsigned long convert_unit(unsigned long value, char *unit);
 int readn(int fd, void *buf, size_t size);
+
+struct perf_event_attr;
+
+void event_attr_init(struct perf_event_attr *attr);
+
+uid_t parse_target_uid(const char *str, const char *tid, const char *pid);
 
 #define _STR(x) #x
 #define STR(x) _STR(x)

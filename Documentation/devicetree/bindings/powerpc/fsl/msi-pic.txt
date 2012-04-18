@@ -6,8 +6,10 @@ Required properties:
   etc.) and the second is "fsl,mpic-msi" or "fsl,ipic-msi" depending on
   the parent type.
 
-- reg : should contain the address and the length of the shared message
-  interrupt register set.
+- reg : It may contain one or two regions. The first region should contain
+  the address and the length of the shared message interrupt register set.
+  The second region should contain the address of aliased MSIIR register for
+  platforms that have such an alias.
 
 - msi-available-ranges: use <start count> style section to define which
   msi interrupt can be used in the 256 msi interrupts. This property is

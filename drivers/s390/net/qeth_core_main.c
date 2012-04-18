@@ -26,6 +26,7 @@
 #include <asm/ebcdic.h>
 #include <asm/io.h>
 #include <asm/sysinfo.h>
+#include <asm/compat.h>
 
 #include "qeth_core.h"
 
@@ -50,6 +51,7 @@ static struct kmem_cache *qeth_qdio_outbuf_cache;
 static struct device *qeth_core_root_dev;
 static unsigned int known_devices[][6] = QETH_MODELLIST_ARRAY;
 static struct lock_class_key qdio_out_skb_queue_key;
+static struct mutex qeth_mod_mutex;
 
 static void qeth_send_control_data_cb(struct qeth_channel *,
 			struct qeth_cmd_buffer *);
@@ -677,6 +679,7 @@ void qeth_release_buffer(struct qeth_channel *channel,
 	iob->callback = qeth_send_control_data_cb;
 	iob->rc = 0;
 	spin_unlock_irqrestore(&channel->iob_lock, flags);
+	wake_up(&channel->wait_q);
 }
 EXPORT_SYMBOL_GPL(qeth_release_buffer);
 
@@ -2942,8 +2945,8 @@ static int qeth_query_ipassists_cb(struct qeth_card *card,
 		card->options.ipa6.enabled_funcs = cmd->hdr.ipa_enabled;
 	}
 	QETH_DBF_TEXT(SETUP, 2, "suppenbl");
-	QETH_DBF_TEXT_(SETUP, 2, "%x", cmd->hdr.ipa_supported);
-	QETH_DBF_TEXT_(SETUP, 2, "%x", cmd->hdr.ipa_enabled);
+	QETH_DBF_TEXT_(SETUP, 2, "%08x", (__u32)cmd->hdr.ipa_supported);
+	QETH_DBF_TEXT_(SETUP, 2, "%08x", (__u32)cmd->hdr.ipa_enabled);
 	return 0;
 }
 
@@ -4319,7 +4322,7 @@ static int qeth_snmp_command_cb(struct qeth_card *card,
 	/* check if there is enough room in userspace */
 	if ((qinfo->udata_len - qinfo->udata_offset) < data_len) {
 		QETH_CARD_TEXT_(card, 4, "scer3%i", -ENOMEM);
-		cmd->hdr.return_code = -ENOMEM;
+		cmd->hdr.return_code = IPA_RC_ENOMEM;
 		return 0;
 	}
 	QETH_CARD_TEXT_(card, 4, "snore%i",
@@ -4401,6 +4404,104 @@ int qeth_snmp_command(struct qeth_card *card, char __user *udata)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(qeth_snmp_command);
+
+static int qeth_setadpparms_query_oat_cb(struct qeth_card *card,
+		struct qeth_reply *reply, unsigned long data)
+{
+	struct qeth_ipa_cmd *cmd;
+	struct qeth_qoat_priv *priv;
+	char *resdata;
+	int resdatalen;
+
+	QETH_CARD_TEXT(card, 3, "qoatcb");
+
+	cmd = (struct qeth_ipa_cmd *)data;
+	priv = (struct qeth_qoat_priv *)reply->param;
+	resdatalen = cmd->data.setadapterparms.hdr.cmdlength;
+	resdata = (char *)data + 28;
+
+	if (resdatalen > (priv->buffer_len - priv->response_len)) {
+		cmd->hdr.return_code = IPA_RC_FFFF;
+		return 0;
+	}
+
+	memcpy((priv->buffer + priv->response_len), resdata,
+		resdatalen);
+	priv->response_len += resdatalen;
+
+	if (cmd->data.setadapterparms.hdr.seq_no <
+	    cmd->data.setadapterparms.hdr.used_total)
+		return 1;
+	return 0;
+}
+
+int qeth_query_oat_command(struct qeth_card *card, char __user *udata)
+{
+	int rc = 0;
+	struct qeth_cmd_buffer *iob;
+	struct qeth_ipa_cmd *cmd;
+	struct qeth_query_oat *oat_req;
+	struct qeth_query_oat_data oat_data;
+	struct qeth_qoat_priv priv;
+	void __user *tmp;
+
+	QETH_CARD_TEXT(card, 3, "qoatcmd");
+
+	if (!qeth_adp_supported(card, IPA_SETADP_QUERY_OAT)) {
+		rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	if (copy_from_user(&oat_data, udata,
+	    sizeof(struct qeth_query_oat_data))) {
+			rc = -EFAULT;
+			goto out;
+	}
+
+	priv.buffer_len = oat_data.buffer_len;
+	priv.response_len = 0;
+	priv.buffer =  kzalloc(oat_data.buffer_len, GFP_KERNEL);
+	if (!priv.buffer) {
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	iob = qeth_get_adapter_cmd(card, IPA_SETADP_QUERY_OAT,
+				   sizeof(struct qeth_ipacmd_setadpparms_hdr) +
+				   sizeof(struct qeth_query_oat));
+	cmd = (struct qeth_ipa_cmd *)(iob->data+IPA_PDU_HEADER_SIZE);
+	oat_req = &cmd->data.setadapterparms.data.query_oat;
+	oat_req->subcmd_code = oat_data.command;
+
+	rc = qeth_send_ipa_cmd(card, iob, qeth_setadpparms_query_oat_cb,
+			       &priv);
+	if (!rc) {
+		if (is_compat_task())
+			tmp = compat_ptr(oat_data.ptr);
+		else
+			tmp = (void __user *)(unsigned long)oat_data.ptr;
+
+		if (copy_to_user(tmp, priv.buffer,
+		    priv.response_len)) {
+			rc = -EFAULT;
+			goto out_free;
+		}
+
+		oat_data.response_len = priv.response_len;
+
+		if (copy_to_user(udata, &oat_data,
+		    sizeof(struct qeth_query_oat_data)))
+			rc = -EFAULT;
+	} else
+		if (rc == IPA_RC_FFFF)
+			rc = -EFAULT;
+
+out_free:
+	kfree(priv.buffer);
+out:
+	return rc;
+}
+EXPORT_SYMBOL_GPL(qeth_query_oat_command);
 
 static inline int qeth_get_qdio_q_format(struct qeth_card *card)
 {
@@ -4940,6 +5041,7 @@ int qeth_core_load_discipline(struct qeth_card *card,
 		enum qeth_discipline_id discipline)
 {
 	int rc = 0;
+	mutex_lock(&qeth_mod_mutex);
 	switch (discipline) {
 	case QETH_DISCIPLINE_LAYER3:
 		card->discipline.ccwgdriver = try_then_request_module(
@@ -4957,6 +5059,7 @@ int qeth_core_load_discipline(struct qeth_card *card,
 			"support discipline %d\n", discipline);
 		rc = -EINVAL;
 	}
+	mutex_unlock(&qeth_mod_mutex);
 	return rc;
 }
 
@@ -5440,6 +5543,7 @@ static int __init qeth_core_init(void)
 	pr_info("loading core functions\n");
 	INIT_LIST_HEAD(&qeth_core_card_list.list);
 	rwlock_init(&qeth_core_card_list.rwlock);
+	mutex_init(&qeth_mod_mutex);
 
 	rc = qeth_register_dbf_views();
 	if (rc)

@@ -234,8 +234,8 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 			goto clean_up;
 		}
 #if defined(CONFIG_MEDIA_CONTROLLER)
-		sd->entity.v4l.major = VIDEO_MAJOR;
-		sd->entity.v4l.minor = vdev->minor;
+		sd->entity.info.v4l.major = VIDEO_MAJOR;
+		sd->entity.info.v4l.minor = vdev->minor;
 #endif
 		sd->devnode = vdev;
 	}

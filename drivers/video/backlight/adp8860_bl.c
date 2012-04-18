@@ -146,7 +146,7 @@ static int adp8860_set_bits(struct i2c_client *client, int reg, uint8_t bit_mask
 
 	ret = adp8860_read(client, reg, &reg_val);
 
-	if (!ret && ((reg_val & bit_mask) == 0)) {
+	if (!ret && ((reg_val & bit_mask) != bit_mask)) {
 		reg_val |= bit_mask;
 		ret = adp8860_write(client, reg, reg_val);
 	}
@@ -819,17 +819,7 @@ static struct i2c_driver adp8860_driver = {
 	.id_table = adp8860_id,
 };
 
-static int __init adp8860_init(void)
-{
-	return i2c_add_driver(&adp8860_driver);
-}
-module_init(adp8860_init);
-
-static void __exit adp8860_exit(void)
-{
-	i2c_del_driver(&adp8860_driver);
-}
-module_exit(adp8860_exit);
+module_i2c_driver(adp8860_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");

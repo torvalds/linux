@@ -27,14 +27,22 @@
  * pipes/overlays/CRTCs are used.. if this is not provided, then instead the
  * first CONFIG_DRM_OMAP_NUM_CRTCS are used, and they are each connected to
  * one manager, with priority given to managers that are connected to
- * detected devices.  This should be a good default behavior for most cases,
- * but yet there still might be times when you wish to do something different.
+ * detected devices.  Remaining overlays are used as video planes.  This
+ * should be a good default behavior for most cases, but yet there still
+ * might be times when you wish to do something different.
  */
 struct omap_kms_platform_data {
+	/* overlays to use as CRTCs: */
 	int ovl_cnt;
 	const int *ovl_ids;
+
+	/* overlays to use as video planes: */
+	int pln_cnt;
+	const int *pln_ids;
+
 	int mgr_cnt;
 	const int *mgr_ids;
+
 	int dev_cnt;
 	const char **dev_names;
 };

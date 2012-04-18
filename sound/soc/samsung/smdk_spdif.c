@@ -160,6 +160,7 @@ static struct snd_soc_dai_link smdk_dai = {
 
 static struct snd_soc_card smdk = {
 	.name = "SMDK-S/PDIF",
+	.owner = THIS_MODULE,
 	.dai_link = &smdk_dai,
 	.num_links = 1,
 };

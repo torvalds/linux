@@ -1,9 +1,9 @@
 /// Find nested lock+irqsave functions that use the same flags variables
 ///
 // Confidence: High
-// Copyright: (C) 2010 Nicolas Palix, DIKU.  GPLv2.
-// Copyright: (C) 2010 Julia Lawall, DIKU.  GPLv2.
-// Copyright: (C) 2010 Gilles Muller, INRIA/LiP6.  GPLv2.
+// Copyright: (C) 2010-2012 Nicolas Palix.  GPLv2.
+// Copyright: (C) 2010-2012 Julia Lawall, INRIA/LIP6.  GPLv2.
+// Copyright: (C) 2010-2012 Gilles Muller, INRIA/LiP6.  GPLv2.
 // URL: http://coccinelle.lip6.fr/
 // Comments:
 // Options: -no_includes -include_headers
@@ -12,7 +12,7 @@ virtual context
 virtual org
 virtual report
 
-@r@
+@r exists@
 expression lock1,lock2,flags;
 position p1,p2;
 @@
@@ -39,7 +39,7 @@ read_lock_irqsave@p2(lock2,flags)
 write_lock_irqsave@p2(lock2,flags)
 )
 
-@d@
+@d exists@
 expression f <= r.flags;
 expression lock1,lock2,flags;
 position r.p1, r.p2;
@@ -76,5 +76,5 @@ p1 << r.p1;
 p2 << r.p2;
 @@
 
-msg="ERROR: nested lock+irqsave that reuses flags from %s." % (p1[0].line)
+msg="ERROR: nested lock+irqsave that reuses flags from line %s." % (p1[0].line)
 coccilib.report.print_report(p2[0], msg)

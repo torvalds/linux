@@ -27,11 +27,11 @@
 #include <asm/sal.h>
 #include <asm/mca.h>
 
-typedef NORET_TYPE void (*relocate_new_kernel_t)(
+typedef void (*relocate_new_kernel_t)(
 					unsigned long indirection_page,
 					unsigned long start_address,
 					struct ia64_boot_param *boot_param,
-					unsigned long pal_addr) ATTRIB_NORET;
+					unsigned long pal_addr) __noreturn;
 
 struct kimage *ia64_kimage;
 
@@ -157,7 +157,7 @@ void arch_crash_save_vmcoreinfo(void)
 #endif
 #ifdef CONFIG_PGTABLE_3
 	VMCOREINFO_CONFIG(PGTABLE_3);
-#elif  CONFIG_PGTABLE_4
+#elif defined(CONFIG_PGTABLE_4)
 	VMCOREINFO_CONFIG(PGTABLE_4);
 #endif
 }

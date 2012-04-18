@@ -1,5 +1,5 @@
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cryptohash.h>
 
 #define F1(x, y, z)	(z ^ (x & (y ^ z)))

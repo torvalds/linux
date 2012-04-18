@@ -351,10 +351,10 @@ int tpa6130a2_add_controls(struct snd_soc_codec *codec)
 	data = i2c_get_clientdata(tpa6130a2_client);
 
 	if (data->id == TPA6140A2)
-		return snd_soc_add_controls(codec, tpa6140a2_controls,
+		return snd_soc_add_codec_controls(codec, tpa6140a2_controls,
 						ARRAY_SIZE(tpa6140a2_controls));
 	else
-		return snd_soc_add_controls(codec, tpa6130a2_controls,
+		return snd_soc_add_codec_controls(codec, tpa6130a2_controls,
 						ARRAY_SIZE(tpa6130a2_controls));
 }
 EXPORT_SYMBOL_GPL(tpa6130a2_add_controls);
@@ -376,7 +376,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(dev, "Can not allocate memory\n");
 		return -ENOMEM;
@@ -450,7 +450,6 @@ err_regulator:
 	if (data->power_gpio >= 0)
 		gpio_free(data->power_gpio);
 err_gpio:
-	kfree(data);
 	tpa6130a2_client = NULL;
 
 	return ret;
@@ -466,8 +465,6 @@ static int __devexit tpa6130a2_remove(struct i2c_client *client)
 		gpio_free(data->power_gpio);
 
 	regulator_put(data->supply);
-
-	kfree(data);
 	tpa6130a2_client = NULL;
 
 	return 0;

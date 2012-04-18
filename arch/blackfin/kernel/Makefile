@@ -7,7 +7,7 @@ extra-y := init_task.o vmlinux.lds
 obj-y := \
 	entry.o process.o bfin_ksyms.o ptrace.o setup.o signal.o \
 	sys_bfin.o traps.o irqchip.o dma-mapping.o flat.o \
-	fixed_code.o reboot.o bfin_gpio.o bfin_dma_5xx.o \
+	fixed_code.o reboot.o bfin_gpio.o bfin_dma.o \
 	exception.o dumpstack.o
 
 ifeq ($(CONFIG_GENERIC_CLOCKEVENTS),y)

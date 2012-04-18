@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,11 +61,13 @@ static void acpi_rs_out_integer64(char *title, u64 value);
 
 static void acpi_rs_out_title(char *title);
 
-static void acpi_rs_dump_byte_list(u16 length, u8 * data);
+static void acpi_rs_dump_byte_list(u16 length, u8 *data);
 
-static void acpi_rs_dump_dword_list(u8 length, u32 * data);
+static void acpi_rs_dump_word_list(u16 length, u16 *data);
 
-static void acpi_rs_dump_short_byte_list(u8 length, u8 * data);
+static void acpi_rs_dump_dword_list(u8 length, u32 *data);
+
+static void acpi_rs_dump_short_byte_list(u8 length, u8 *data);
 
 static void
 acpi_rs_dump_resource_source(struct acpi_resource_source *resource_source);
@@ -309,6 +311,125 @@ struct acpi_rsdump_info acpi_rs_dump_generic_reg[6] = {
 	{ACPI_RSD_UINT64, ACPI_RSD_OFFSET(generic_reg.address), "Address", NULL}
 };
 
+struct acpi_rsdump_info acpi_rs_dump_gpio[16] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_gpio), "GPIO", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(gpio.revision_id), "RevisionId", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(gpio.connection_type),
+	 "ConnectionType", acpi_gbl_ct_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(gpio.producer_consumer),
+	 "ProducerConsumer", acpi_gbl_consume_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(gpio.pin_config), "PinConfig",
+	 acpi_gbl_ppc_decode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(gpio.sharable), "Sharable",
+	 acpi_gbl_shr_decode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(gpio.io_restriction),
+	 "IoRestriction", acpi_gbl_ior_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(gpio.triggering), "Triggering",
+	 acpi_gbl_he_decode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(gpio.polarity), "Polarity",
+	 acpi_gbl_ll_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(gpio.drive_strength), "DriveStrength",
+	 NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(gpio.debounce_timeout),
+	 "DebounceTimeout", NULL},
+	{ACPI_RSD_SOURCE, ACPI_RSD_OFFSET(gpio.resource_source),
+	 "ResourceSource", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(gpio.pin_table_length),
+	 "PinTableLength", NULL},
+	{ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET(gpio.pin_table), "PinTable", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(gpio.vendor_length), "VendorLength",
+	 NULL},
+	{ACPI_RSD_SHORTLISTX, ACPI_RSD_OFFSET(gpio.vendor_data), "VendorData",
+	 NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_fixed_dma[4] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_fixed_dma),
+	 "FixedDma", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(fixed_dma.request_lines),
+	 "RequestLines", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(fixed_dma.channels), "Channels",
+	 NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(fixed_dma.width), "TransferWidth",
+	 acpi_gbl_dts_decode},
+};
+
+#define ACPI_RS_DUMP_COMMON_SERIAL_BUS \
+	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.revision_id),    "RevisionId",               NULL}, \
+	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.type),           "Type",                     acpi_gbl_sbt_decode}, \
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.producer_consumer), "ProducerConsumer",      acpi_gbl_consume_decode}, \
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (common_serial_bus.slave_mode),     "SlaveMode",                acpi_gbl_sm_decode}, \
+	{ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (common_serial_bus.type_revision_id), "TypeRevisionId",         NULL}, \
+	{ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (common_serial_bus.type_data_length), "TypeDataLength",         NULL}, \
+	{ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (common_serial_bus.resource_source), "ResourceSource",          NULL}, \
+	{ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (common_serial_bus.vendor_length),  "VendorLength",             NULL}, \
+	{ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (common_serial_bus.vendor_data),   "VendorData",               NULL},
+
+struct acpi_rsdump_info acpi_rs_dump_common_serial_bus[10] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_common_serial_bus),
+	 "Common Serial Bus", NULL},
+	ACPI_RS_DUMP_COMMON_SERIAL_BUS
+};
+
+struct acpi_rsdump_info acpi_rs_dump_i2c_serial_bus[13] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_i2c_serial_bus),
+	 "I2C Serial Bus", NULL},
+	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_1BITFLAG,
+					ACPI_RSD_OFFSET(i2c_serial_bus.
+							access_mode),
+					"AccessMode", acpi_gbl_am_decode},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(i2c_serial_bus.connection_speed),
+	 "ConnectionSpeed", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(i2c_serial_bus.slave_address),
+	 "SlaveAddress", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_spi_serial_bus[17] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_spi_serial_bus),
+	 "Spi Serial Bus", NULL},
+	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_1BITFLAG,
+					ACPI_RSD_OFFSET(spi_serial_bus.
+							wire_mode), "WireMode",
+					acpi_gbl_wm_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(spi_serial_bus.device_polarity),
+	 "DevicePolarity", acpi_gbl_dp_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(spi_serial_bus.data_bit_length),
+	 "DataBitLength", NULL},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(spi_serial_bus.clock_phase),
+	 "ClockPhase", acpi_gbl_cph_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(spi_serial_bus.clock_polarity),
+	 "ClockPolarity", acpi_gbl_cpo_decode},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(spi_serial_bus.device_selection),
+	 "DeviceSelection", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(spi_serial_bus.connection_speed),
+	 "ConnectionSpeed", NULL},
+};
+
+struct acpi_rsdump_info acpi_rs_dump_uart_serial_bus[19] = {
+	{ACPI_RSD_TITLE, ACPI_RSD_TABLE_SIZE(acpi_rs_dump_uart_serial_bus),
+	 "Uart Serial Bus", NULL},
+	ACPI_RS_DUMP_COMMON_SERIAL_BUS {ACPI_RSD_2BITFLAG,
+					ACPI_RSD_OFFSET(uart_serial_bus.
+							flow_control),
+					"FlowControl", acpi_gbl_fc_decode},
+	{ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET(uart_serial_bus.stop_bits),
+	 "StopBits", acpi_gbl_sb_decode},
+	{ACPI_RSD_3BITFLAG, ACPI_RSD_OFFSET(uart_serial_bus.data_bits),
+	 "DataBits", acpi_gbl_bpb_decode},
+	{ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET(uart_serial_bus.endian), "Endian",
+	 acpi_gbl_ed_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(uart_serial_bus.parity), "Parity",
+	 acpi_gbl_pt_decode},
+	{ACPI_RSD_UINT8, ACPI_RSD_OFFSET(uart_serial_bus.lines_enabled),
+	 "LinesEnabled", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(uart_serial_bus.rx_fifo_size),
+	 "RxFifoSize", NULL},
+	{ACPI_RSD_UINT16, ACPI_RSD_OFFSET(uart_serial_bus.tx_fifo_size),
+	 "TxFifoSize", NULL},
+	{ACPI_RSD_UINT32, ACPI_RSD_OFFSET(uart_serial_bus.default_baud_rate),
+	 "ConnectionSpeed", NULL},
+};
+
 /*
  * Tables used for common address descriptor flag fields
  */
@@ -413,7 +534,14 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 			/* Data items, 8/16/32/64 bit */
 
 		case ACPI_RSD_UINT8:
-			acpi_rs_out_integer8(name, ACPI_GET8(target));
+			if (table->pointer) {
+				acpi_rs_out_string(name, ACPI_CAST_PTR(char,
+								       table->
+								       pointer
+								       [*target]));
+			} else {
+				acpi_rs_out_integer8(name, ACPI_GET8(target));
+			}
 			break;
 
 		case ACPI_RSD_UINT16:
@@ -444,6 +572,13 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 								       0x03]));
 			break;
 
+		case ACPI_RSD_3BITFLAG:
+			acpi_rs_out_string(name, ACPI_CAST_PTR(char,
+							       table->
+							       pointer[*target &
+								       0x07]));
+			break;
+
 		case ACPI_RSD_SHORTLIST:
 			/*
 			 * Short byte list (single line output) for DMA and IRQ resources
@@ -453,6 +588,20 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 				acpi_rs_out_title(name);
 				acpi_rs_dump_short_byte_list(*previous_target,
 							     target);
+			}
+			break;
+
+		case ACPI_RSD_SHORTLISTX:
+			/*
+			 * Short byte list (single line output) for GPIO vendor data
+			 * Note: The list length is obtained from the previous table entry
+			 */
+			if (previous_target) {
+				acpi_rs_out_title(name);
+				acpi_rs_dump_short_byte_list(*previous_target,
+							     *
+							     (ACPI_CAST_INDIRECT_PTR
+							      (u8, target)));
 			}
 			break;
 
@@ -477,6 +626,18 @@ acpi_rs_dump_descriptor(void *resource, struct acpi_rsdump_info *table)
 				acpi_rs_dump_dword_list(*previous_target,
 							ACPI_CAST_PTR(u32,
 								      target));
+			}
+			break;
+
+		case ACPI_RSD_WORDLIST:
+			/*
+			 * Word list for GPIO Pin Table
+			 * Note: The list length is obtained from the previous table entry
+			 */
+			if (previous_target) {
+				acpi_rs_dump_word_list(*previous_target,
+						       *(ACPI_CAST_INDIRECT_PTR
+							 (u16, target)));
 			}
 			break;
 
@@ -627,14 +788,20 @@ void acpi_rs_dump_resource_list(struct acpi_resource *resource_list)
 
 		/* Dump the resource descriptor */
 
-		acpi_rs_dump_descriptor(&resource_list->data,
-					acpi_gbl_dump_resource_dispatch[type]);
+		if (type == ACPI_RESOURCE_TYPE_SERIAL_BUS) {
+			acpi_rs_dump_descriptor(&resource_list->data,
+						acpi_gbl_dump_serial_bus_dispatch
+						[resource_list->data.
+						 common_serial_bus.type]);
+		} else {
+			acpi_rs_dump_descriptor(&resource_list->data,
+						acpi_gbl_dump_resource_dispatch
+						[type]);
+		}
 
 		/* Point to the next resource structure */
 
-		resource_list =
-		    ACPI_ADD_PTR(struct acpi_resource, resource_list,
-				 resource_list->length);
+		resource_list = ACPI_NEXT_RESOURCE(resource_list);
 
 		/* Exit when END_TAG descriptor is reached */
 
@@ -765,6 +932,15 @@ static void acpi_rs_dump_dword_list(u8 length, u32 * data)
 
 	for (i = 0; i < length; i++) {
 		acpi_os_printf("%25s%2.2X : %8.8X\n", "Dword", i, data[i]);
+	}
+}
+
+static void acpi_rs_dump_word_list(u16 length, u16 *data)
+{
+	u16 i;
+
+	for (i = 0; i < length; i++) {
+		acpi_os_printf("%25s%2.2X : %4.4X\n", "Word", i, data[i]);
 	}
 }
 

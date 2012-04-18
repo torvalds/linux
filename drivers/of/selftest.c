@@ -120,6 +120,34 @@ static void __init of_selftest_parse_phandle_with_args(void)
 	pr_info("end - %s\n", passed_all ? "PASS" : "FAIL");
 }
 
+static void __init of_selftest_property_match_string(void)
+{
+	struct device_node *np;
+	int rc;
+
+	pr_info("start\n");
+	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-a");
+	if (!np) {
+		pr_err("No testcase data in device tree\n");
+		return;
+	}
+
+	rc = of_property_match_string(np, "phandle-list-names", "first");
+	selftest(rc == 0, "first expected:0 got:%i\n", rc);
+	rc = of_property_match_string(np, "phandle-list-names", "second");
+	selftest(rc == 1, "second expected:0 got:%i\n", rc);
+	rc = of_property_match_string(np, "phandle-list-names", "third");
+	selftest(rc == 2, "third expected:0 got:%i\n", rc);
+	rc = of_property_match_string(np, "phandle-list-names", "fourth");
+	selftest(rc == -ENODATA, "unmatched string; rc=%i", rc);
+	rc = of_property_match_string(np, "missing-property", "blah");
+	selftest(rc == -EINVAL, "missing property; rc=%i", rc);
+	rc = of_property_match_string(np, "empty-property", "blah");
+	selftest(rc == -ENODATA, "empty property; rc=%i", rc);
+	rc = of_property_match_string(np, "unterminated-string", "blah");
+	selftest(rc == -EILSEQ, "unterminated string; rc=%i", rc);
+}
+
 static int __init of_selftest(void)
 {
 	struct device_node *np;
@@ -133,6 +161,7 @@ static int __init of_selftest(void)
 
 	pr_info("start of selftest - you will see error messages\n");
 	of_selftest_parse_phandle_with_args();
+	of_selftest_property_match_string();
 	pr_info("end of selftest - %s\n", selftest_passed ? "PASS" : "FAIL");
 	return 0;
 }

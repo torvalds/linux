@@ -92,7 +92,7 @@ static struct clock_event_device au1x_rtcmatch2_clockdev = {
 
 static struct irqaction au1x_rtcmatch2_irqaction = {
 	.handler	= au1x_rtcmatch2_irq,
-	.flags		= IRQF_DISABLED | IRQF_TIMER,
+	.flags		= IRQF_TIMER,
 	.name		= "timer",
 	.dev_id		= &au1x_rtcmatch2_clockdev,
 };
@@ -146,7 +146,7 @@ static int __init alchemy_time_init(unsigned int m2int)
 	cd->shift = 32;
 	cd->mult = div_sc(32768, NSEC_PER_SEC, cd->shift);
 	cd->max_delta_ns = clockevent_delta2ns(0xffffffff, cd);
-	cd->min_delta_ns = clockevent_delta2ns(8, cd);	/* ~0.25ms */
+	cd->min_delta_ns = clockevent_delta2ns(9, cd);	/* ~0.28ms */
 	clockevents_register_device(cd);
 	setup_irq(m2int, &au1x_rtcmatch2_irqaction);
 
@@ -178,6 +178,7 @@ static int alchemy_m2inttab[] __initdata = {
 	AU1100_RTC_MATCH2_INT,
 	AU1550_RTC_MATCH2_INT,
 	AU1200_RTC_MATCH2_INT,
+	AU1300_RTC_MATCH2_INT,
 };
 
 void __init plat_time_init(void)

@@ -182,7 +182,6 @@ static int i2c_dw_pci_resume(struct device *dev)
 	pci_restore_state(pdev);
 
 	i2c_dw_init(i2c);
-	i2c_dw_enable(i2c);
 	return 0;
 }
 
@@ -349,7 +348,7 @@ static void __devexit i2c_dw_pci_remove(struct pci_dev *pdev)
 /* work with hotplug and coldplug */
 MODULE_ALIAS("i2c_designware-pci");
 
-DEFINE_PCI_DEVICE_TABLE(i2_designware_pci_ids) = {
+static DEFINE_PCI_DEVICE_TABLE(i2_designware_pci_ids) = {
 	/* Moorestown */
 	{ PCI_VDEVICE(INTEL, 0x0802), moorestown_0 },
 	{ PCI_VDEVICE(INTEL, 0x0803), moorestown_1 },

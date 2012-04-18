@@ -100,29 +100,26 @@ int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
 	unsigned long offset, start, end;
 	unsigned long this_pfn, prev_pfn;
 	dma_addr_t pa = 0;
-	int ret = -EFAULT;
 
 	start = vaddr;
 	offset = start & ~PAGE_MASK;
 	end = start + size;
 
-	down_read(&mm->mmap_sem);
 	vma = find_vma(mm, start);
 
 	if (vma == NULL || vma->vm_end < end)
-		goto done;
+		return -EFAULT;
 
 	for (prev_pfn = 0; start < end; start += PAGE_SIZE) {
-		ret = follow_pfn(vma, start, &this_pfn);
+		int ret = follow_pfn(vma, start, &this_pfn);
 		if (ret)
-			goto done;
+			return ret;
 
 		if (prev_pfn == 0)
 			pa = this_pfn << PAGE_SHIFT;
-		else if (this_pfn != prev_pfn + 1) {
-			ret = -EFAULT;
-			goto done;
-		}
+		else if (this_pfn != prev_pfn + 1)
+			return -EFAULT;
+
 		prev_pfn = this_pfn;
 	}
 
@@ -130,16 +127,11 @@ int vb2_get_contig_userptr(unsigned long vaddr, unsigned long size,
 	 * Memory is contigous, lock vma and return to the caller
 	 */
 	*res_vma = vb2_get_vma(vma);
-	if (*res_vma == NULL) {
-		ret = -ENOMEM;
-		goto done;
-	}
-	*res_pa = pa + offset;
-	ret = 0;
+	if (*res_vma == NULL)
+		return -ENOMEM;
 
-done:
-	up_read(&mm->mmap_sem);
-	return ret;
+	*res_pa = pa + offset;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(vb2_get_contig_userptr);
 

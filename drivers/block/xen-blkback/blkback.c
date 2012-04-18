@@ -39,9 +39,6 @@
 #include <linux/list.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
-#include <linux/loop.h>
-#include <linux/falloc.h>
-#include <linux/fs.h>
 
 #include <xen/events.h>
 #include <xen/page.h>
@@ -324,6 +321,7 @@ struct seg_buf {
 static void xen_blkbk_unmap(struct pending_req *req)
 {
 	struct gnttab_unmap_grant_ref unmap[BLKIF_MAX_SEGMENTS_PER_REQUEST];
+	struct page *pages[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	unsigned int i, invcount = 0;
 	grant_handle_t handle;
 	int ret;
@@ -335,25 +333,12 @@ static void xen_blkbk_unmap(struct pending_req *req)
 		gnttab_set_unmap_op(&unmap[invcount], vaddr(req, i),
 				    GNTMAP_host_map, handle);
 		pending_handle(req, i) = BLKBACK_INVALID_HANDLE;
+		pages[invcount] = virt_to_page(vaddr(req, i));
 		invcount++;
 	}
 
-	ret = HYPERVISOR_grant_table_op(
-		GNTTABOP_unmap_grant_ref, unmap, invcount);
+	ret = gnttab_unmap_refs(unmap, pages, invcount, false);
 	BUG_ON(ret);
-	/*
-	 * Note, we use invcount, so nr->pages, so we can't index
-	 * using vaddr(req, i).
-	 */
-	for (i = 0; i < invcount; i++) {
-		ret = m2p_remove_override(
-			virt_to_page(unmap[i].host_addr), false);
-		if (ret) {
-			pr_alert(DRV_PFX "Failed to remove M2P override for %lx\n",
-				 (unsigned long)unmap[i].host_addr);
-			continue;
-		}
-	}
 }
 
 static int xen_blkbk_map(struct blkif_request *req,
@@ -362,7 +347,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 {
 	struct gnttab_map_grant_ref map[BLKIF_MAX_SEGMENTS_PER_REQUEST];
 	int i;
-	int nseg = req->nr_segments;
+	int nseg = req->u.rw.nr_segments;
 	int ret = 0;
 
 	/*
@@ -381,7 +366,7 @@ static int xen_blkbk_map(struct blkif_request *req,
 				  pending_req->blkif->domid);
 	}
 
-	ret = HYPERVISOR_grant_table_op(GNTTABOP_map_grant_ref, map, nseg);
+	ret = gnttab_map_refs(map, NULL, &blkbk->pending_page(pending_req, 0), nseg);
 	BUG_ON(ret);
 
 	/*
@@ -401,47 +386,30 @@ static int xen_blkbk_map(struct blkif_request *req,
 		if (ret)
 			continue;
 
-		ret = m2p_add_override(PFN_DOWN(map[i].dev_bus_addr),
-			blkbk->pending_page(pending_req, i), NULL);
-		if (ret) {
-			pr_alert(DRV_PFX "Failed to install M2P override for %lx (ret: %d)\n",
-				 (unsigned long)map[i].dev_bus_addr, ret);
-			/* We could switch over to GNTTABOP_copy */
-			continue;
-		}
-
 		seg[i].buf  = map[i].dev_bus_addr |
 			(req->u.rw.seg[i].first_sect << 9);
 	}
 	return ret;
 }
 
-static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
+static int dispatch_discard_io(struct xen_blkif *blkif,
+				struct blkif_request *req)
 {
 	int err = 0;
 	int status = BLKIF_RSP_OKAY;
 	struct block_device *bdev = blkif->vbd.bdev;
+	unsigned long secure;
 
-	if (blkif->blk_backend_type == BLKIF_BACKEND_PHY)
-		/* just forward the discard request */
-		err = blkdev_issue_discard(bdev,
-				req->u.discard.sector_number,
-				req->u.discard.nr_sectors,
-				GFP_KERNEL, 0);
-	else if (blkif->blk_backend_type == BLKIF_BACKEND_FILE) {
-		/* punch a hole in the backing file */
-		struct loop_device *lo = bdev->bd_disk->private_data;
-		struct file *file = lo->lo_backing_file;
+	blkif->st_ds_req++;
 
-		if (file->f_op->fallocate)
-			err = file->f_op->fallocate(file,
-				FALLOC_FL_KEEP_SIZE | FALLOC_FL_PUNCH_HOLE,
-				req->u.discard.sector_number << 9,
-				req->u.discard.nr_sectors << 9);
-		else
-			err = -EOPNOTSUPP;
-	} else
-		err = -EOPNOTSUPP;
+	xen_blkif_get(blkif);
+	secure = (blkif->vbd.discard_secure &&
+		 (req->u.discard.flag & BLKIF_DISCARD_SECURE)) ?
+		 BLKDEV_DISCARD_SECURE : 0;
+
+	err = blkdev_issue_discard(bdev, req->u.discard.sector_number,
+				   req->u.discard.nr_sectors,
+				   GFP_KERNEL, secure);
 
 	if (err == -EOPNOTSUPP) {
 		pr_debug(DRV_PFX "discard op failed, not supported\n");
@@ -449,7 +417,9 @@ static void xen_blk_discard(struct xen_blkif *blkif, struct blkif_request *req)
 	} else if (err)
 		status = BLKIF_RSP_ERROR;
 
-	make_response(blkif, req->id, req->operation, status);
+	make_response(blkif, req->u.discard.id, req->operation, status);
+	xen_blkif_put(blkif);
+	return err;
 }
 
 static void xen_blk_drain_io(struct xen_blkif *blkif)
@@ -573,8 +543,11 @@ __do_block_io_op(struct xen_blkif *blkif)
 
 		/* Apply all sanity checks to /private copy/ of request. */
 		barrier();
-
-		if (dispatch_rw_block_io(blkif, &req, pending_req))
+		if (unlikely(req.operation == BLKIF_OP_DISCARD)) {
+			free_req(pending_req);
+			if (dispatch_discard_io(blkif, &req))
+				break;
+		} else if (dispatch_rw_block_io(blkif, &req, pending_req))
 			break;
 
 		/* Yield point for this unbounded loop. */
@@ -633,10 +606,6 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		blkif->st_f_req++;
 		operation = WRITE_FLUSH;
 		break;
-	case BLKIF_OP_DISCARD:
-		blkif->st_ds_req++;
-		operation = REQ_DISCARD;
-		break;
 	default:
 		operation = 0; /* make gcc happy */
 		goto fail_response;
@@ -644,9 +613,9 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	}
 
 	/* Check that the number of segments is sane. */
-	nseg = req->nr_segments;
-	if (unlikely(nseg == 0 && operation != WRITE_FLUSH &&
-				operation != REQ_DISCARD) ||
+	nseg = req->u.rw.nr_segments;
+
+	if (unlikely(nseg == 0 && operation != WRITE_FLUSH) ||
 	    unlikely(nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST)) {
 		pr_debug(DRV_PFX "Bad number of segments in request (%d)\n",
 			 nseg);
@@ -654,12 +623,12 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 		goto fail_response;
 	}
 
-	preq.dev           = req->handle;
+	preq.dev           = req->u.rw.handle;
 	preq.sector_number = req->u.rw.sector_number;
 	preq.nr_sects      = 0;
 
 	pending_req->blkif     = blkif;
-	pending_req->id        = req->id;
+	pending_req->id        = req->u.rw.id;
 	pending_req->operation = req->operation;
 	pending_req->status    = BLKIF_RSP_OKAY;
 	pending_req->nr_pages  = nseg;
@@ -707,7 +676,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	 * the hypercall to unmap the grants - that is all done in
 	 * xen_blkbk_unmap.
 	 */
-	if (operation != REQ_DISCARD && xen_blkbk_map(req, pending_req, seg))
+	if (xen_blkbk_map(req, pending_req, seg))
 		goto fail_flush;
 
 	/*
@@ -739,23 +708,16 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 
 	/* This will be hit if the operation was a flush or discard. */
 	if (!bio) {
-		BUG_ON(operation != WRITE_FLUSH && operation != REQ_DISCARD);
+		BUG_ON(operation != WRITE_FLUSH);
 
-		if (operation == WRITE_FLUSH) {
-			bio = bio_alloc(GFP_KERNEL, 0);
-			if (unlikely(bio == NULL))
-				goto fail_put_bio;
+		bio = bio_alloc(GFP_KERNEL, 0);
+		if (unlikely(bio == NULL))
+			goto fail_put_bio;
 
-			biolist[nbio++] = bio;
-			bio->bi_bdev    = preq.bdev;
-			bio->bi_private = pending_req;
-			bio->bi_end_io  = end_block_io_op;
-		} else if (operation == REQ_DISCARD) {
-			xen_blk_discard(blkif, req);
-			xen_blkif_put(blkif);
-			free_req(pending_req);
-			return 0;
-		}
+		biolist[nbio++] = bio;
+		bio->bi_bdev    = preq.bdev;
+		bio->bi_private = pending_req;
+		bio->bi_end_io  = end_block_io_op;
 	}
 
 	/*
@@ -784,7 +746,7 @@ static int dispatch_rw_block_io(struct xen_blkif *blkif,
 	xen_blkbk_unmap(pending_req);
  fail_response:
 	/* Haven't submitted any bio's yet. */
-	make_response(blkif, req->id, req->operation, BLKIF_RSP_ERROR);
+	make_response(blkif, req->u.rw.id, req->operation, BLKIF_RSP_ERROR);
 	free_req(pending_req);
 	msleep(1); /* back off a bit */
 	return -EIO;
@@ -844,7 +806,7 @@ static int __init xen_blkif_init(void)
 	int i, mmap_pages;
 	int rc = 0;
 
-	if (!xen_pv_domain())
+	if (!xen_domain())
 		return -ENODEV;
 
 	blkbk = kzalloc(sizeof(struct xen_blkbk), GFP_KERNEL);

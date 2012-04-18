@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/dmaengine.h>
+#include <linux/types.h>
 
 #include <asm/dma.h>
 #include <asm/irq.h>
@@ -218,6 +219,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	unsigned int blksz = data->blksz;
 	unsigned int datasize = nob * blksz;
 	struct scatterlist *sg;
+	enum dma_transfer_direction slave_dirn;
 	int i, nents;
 
 	if (data->flags & MMC_DATA_STREAM)
@@ -240,18 +242,21 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 		}
 	}
 
-	if (data->flags & MMC_DATA_READ)
+	if (data->flags & MMC_DATA_READ) {
 		host->dma_dir = DMA_FROM_DEVICE;
-	else
+		slave_dirn = DMA_DEV_TO_MEM;
+	} else {
 		host->dma_dir = DMA_TO_DEVICE;
+		slave_dirn = DMA_MEM_TO_DEV;
+	}
 
 	nents = dma_map_sg(host->dma->device->dev, data->sg,
 				     data->sg_len,  host->dma_dir);
 	if (nents != data->sg_len)
 		return -EINVAL;
 
-	host->desc = host->dma->device->device_prep_slave_sg(host->dma,
-		data->sg, data->sg_len, host->dma_dir,
+	host->desc = dmaengine_prep_slave_sg(host->dma,
+		data->sg, data->sg_len, slave_dirn,
 		DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
 	if (!host->desc) {
@@ -263,6 +268,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 	wmb();
 
 	dmaengine_submit(host->desc);
+	dma_async_issue_pending(host->dma);
 
 	return 0;
 }
@@ -706,6 +712,7 @@ static int mxcmci_setup_dma(struct mmc_host *mmc)
 	config->src_addr_width = 4;
 	config->dst_maxburst = host->burstlen;
 	config->src_maxburst = host->burstlen;
+	config->device_fc = false;
 
 	return dmaengine_slave_config(host->dma, config);
 }
@@ -1047,18 +1054,7 @@ static struct platform_driver mxcmci_driver = {
 	}
 };
 
-static int __init mxcmci_init(void)
-{
-	return platform_driver_register(&mxcmci_driver);
-}
-
-static void __exit mxcmci_exit(void)
-{
-	platform_driver_unregister(&mxcmci_driver);
-}
-
-module_init(mxcmci_init);
-module_exit(mxcmci_exit);
+module_platform_driver(mxcmci_driver);
 
 MODULE_DESCRIPTION("i.MX Multimedia Card Interface Driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

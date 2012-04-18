@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/types.h>
 #include <linux/io.h>
 
 #include <sound/core.h>
@@ -133,7 +134,7 @@ static int atmel_abdac_prepare_dma(struct atmel_abdac *dac,
 	period_len = frames_to_bytes(runtime, runtime->period_size);
 
 	cdesc = dw_dma_cyclic_prep(chan, runtime->dma_addr, buffer_len,
-			period_len, DMA_TO_DEVICE);
+			period_len, DMA_MEM_TO_DEV);
 	if (IS_ERR(cdesc)) {
 		dev_dbg(&dac->pdev->dev, "could not prepare cyclic DMA\n");
 		return PTR_ERR(cdesc);
@@ -467,15 +468,24 @@ static int __devinit atmel_abdac_probe(struct platform_device *pdev)
 	snd_card_set_dev(card, &pdev->dev);
 
 	if (pdata->dws.dma_dev) {
-		struct dw_dma_slave *dws = &pdata->dws;
 		dma_cap_mask_t mask;
-
-		dws->tx_reg = regs->start + DAC_DATA;
 
 		dma_cap_zero(mask);
 		dma_cap_set(DMA_SLAVE, mask);
 
-		dac->dma.chan = dma_request_channel(mask, filter, dws);
+		dac->dma.chan = dma_request_channel(mask, filter, &pdata->dws);
+		if (dac->dma.chan) {
+			struct dma_slave_config dma_conf = {
+				.dst_addr = regs->start + DAC_DATA,
+				.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES,
+				.src_maxburst = 1,
+				.dst_maxburst = 1,
+				.direction = DMA_MEM_TO_DEV,
+				.device_fc = false,
+			};
+
+			dmaengine_slave_config(dac->dma.chan, &dma_conf);
+		}
 	}
 	if (!pdata->dws.dma_dev || !dac->dma.chan) {
 		dev_dbg(&pdev->dev, "DMA not available\n");

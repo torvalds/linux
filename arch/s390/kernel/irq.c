@@ -165,13 +165,6 @@ static inline int ext_hash(u16 code)
 	return (code + (code >> 9)) & 0xff;
 }
 
-static void ext_int_hash_update(struct rcu_head *head)
-{
-	struct ext_int_info *p = container_of(head, struct ext_int_info, rcu);
-
-	kfree(p);
-}
-
 int register_external_interrupt(u16 code, ext_int_handler_t handler)
 {
 	struct ext_int_info *p;
@@ -202,38 +195,34 @@ int unregister_external_interrupt(u16 code, ext_int_handler_t handler)
 	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
 		if (p->code == code && p->handler == handler) {
 			list_del_rcu(&p->entry);
-			call_rcu(&p->rcu, ext_int_hash_update);
+			kfree_rcu(p, rcu);
 		}
 	spin_unlock_irqrestore(&ext_int_hash_lock, flags);
 	return 0;
 }
 EXPORT_SYMBOL(unregister_external_interrupt);
 
-void __irq_entry do_extint(struct pt_regs *regs, unsigned int ext_int_code,
+void __irq_entry do_extint(struct pt_regs *regs, struct ext_code ext_code,
 			   unsigned int param32, unsigned long param64)
 {
 	struct pt_regs *old_regs;
-	unsigned short code;
 	struct ext_int_info *p;
 	int index;
 
-	code = (unsigned short) ext_int_code;
 	old_regs = set_irq_regs(regs);
-	s390_idle_check(regs, S390_lowcore.int_clock,
-			S390_lowcore.async_enter_timer);
 	irq_enter();
 	if (S390_lowcore.int_clock >= S390_lowcore.clock_comparator)
 		/* Serve timer interrupts first. */
 		clock_comparator_work();
 	kstat_cpu(smp_processor_id()).irqs[EXTERNAL_INTERRUPT]++;
-	if (code != 0x1004)
+	if (ext_code.code != 0x1004)
 		__get_cpu_var(s390_idle).nohz_delay = 1;
 
-	index = ext_hash(code);
+	index = ext_hash(ext_code.code);
 	rcu_read_lock();
 	list_for_each_entry_rcu(p, &ext_int_hash[index], entry)
-		if (likely(p->code == code))
-			p->handler(ext_int_code, param32, param64);
+		if (likely(p->code == ext_code.code))
+			p->handler(ext_code, param32, param64);
 	rcu_read_unlock();
 	irq_exit();
 	set_irq_regs(old_regs);
@@ -266,3 +255,26 @@ void service_subclass_irq_unregister(void)
 	spin_unlock(&sc_irq_lock);
 }
 EXPORT_SYMBOL(service_subclass_irq_unregister);
+
+static DEFINE_SPINLOCK(ma_subclass_lock);
+static int ma_subclass_refcount;
+
+void measurement_alert_subclass_register(void)
+{
+	spin_lock(&ma_subclass_lock);
+	if (!ma_subclass_refcount)
+		ctl_set_bit(0, 5);
+	ma_subclass_refcount++;
+	spin_unlock(&ma_subclass_lock);
+}
+EXPORT_SYMBOL(measurement_alert_subclass_register);
+
+void measurement_alert_subclass_unregister(void)
+{
+	spin_lock(&ma_subclass_lock);
+	ma_subclass_refcount--;
+	if (!ma_subclass_refcount)
+		ctl_clear_bit(0, 5);
+	spin_unlock(&ma_subclass_lock);
+}
+EXPORT_SYMBOL(measurement_alert_subclass_unregister);

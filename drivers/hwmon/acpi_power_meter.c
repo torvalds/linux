@@ -58,7 +58,7 @@ ACPI_MODULE_NAME(ACPI_POWER_METER_NAME);
 #define POWER_ALARM_NAME	"power1_alarm"
 
 static int cap_in_hardware;
-static int force_cap_on;
+static bool force_cap_on;
 
 static int can_cap_in_hardware(void)
 {
@@ -391,6 +391,7 @@ static ssize_t show_str(struct device *dev,
 		break;
 	default:
 		BUG();
+		val = "";
 	}
 
 	return sprintf(buf, "%s\n", val);
@@ -632,6 +633,7 @@ static int register_ro_attrs(struct acpi_power_meter_resource *resource,
 		sensors->dev_attr.show = ro->show;
 		sensors->index = ro->index;
 
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		res = device_create_file(dev, &sensors->dev_attr);
 		if (res) {
 			sensors->dev_attr.attr.name = NULL;
@@ -661,6 +663,7 @@ static int register_rw_attrs(struct acpi_power_meter_resource *resource,
 		sensors->dev_attr.store = rw->set;
 		sensors->index = rw->index;
 
+		sysfs_attr_init(&sensors->dev_attr.attr);
 		res = device_create_file(dev, &sensors->dev_attr);
 		if (res) {
 			sensors->dev_attr.attr.name = NULL;

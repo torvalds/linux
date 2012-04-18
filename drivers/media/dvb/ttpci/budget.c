@@ -200,19 +200,25 @@ static int budget_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_cmd_t m
 	return 0;
 }
 
-static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 	u8 pwr = 0;
 	u8 buf[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
-	u32 div = (params->frequency + 479500) / 125;
+	u32 div = (c->frequency + 479500) / 125;
 
-	if (params->frequency > 2000000) pwr = 3;
-	else if (params->frequency > 1800000) pwr = 2;
-	else if (params->frequency > 1600000) pwr = 1;
-	else if (params->frequency > 1200000) pwr = 0;
-	else if (params->frequency >= 1100000) pwr = 1;
+	if (c->frequency > 2000000)
+		pwr = 3;
+	else if (c->frequency > 1800000)
+		pwr = 2;
+	else if (c->frequency > 1600000)
+		pwr = 1;
+	else if (c->frequency > 1200000)
+		pwr = 0;
+	else if (c->frequency >= 1100000)
+		pwr = 1;
 	else pwr = 2;
 
 	buf[0] = (div >> 8) & 0x7f;
@@ -236,19 +242,20 @@ static struct ves1x93_config alps_bsrv2_config =
 	.invert_pwm = 0,
 };
 
-static int alps_tdbe2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_tdbe2_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 	u32 div;
 	u8 data[4];
 	struct i2c_msg msg = { .addr = 0x62, .flags = 0, .buf = data, .len = sizeof(data) };
 
-	div = (params->frequency + 35937500 + 31250) / 62500;
+	div = (c->frequency + 35937500 + 31250) / 62500;
 
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
 	data[2] = 0x85 | ((div >> 10) & 0x60);
-	data[3] = (params->frequency < 174000000 ? 0x88 : params->frequency < 470000000 ? 0x84 : 0x81);
+	data[3] = (c->frequency < 174000000 ? 0x88 : c->frequency < 470000000 ? 0x84 : 0x81);
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -263,8 +270,9 @@ static struct ves1820_config alps_tdbe2_config = {
 	.selagc = VES1820_SELAGC_SIGNAMPERR,
 };
 
-static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = fe->dvb->priv;
 	u8 *tuner_addr = fe->tuner_priv;
 	u32 div;
@@ -277,19 +285,27 @@ static int grundig_29504_401_tuner_set_params(struct dvb_frontend* fe, struct dv
 	else
 		msg.addr = 0x61;
 
-	div = (36125000 + params->frequency) / 166666;
+	div = (36125000 + c->frequency) / 166666;
 
 	cfg = 0x88;
 
-	if (params->frequency < 175000000) cpump = 2;
-	else if (params->frequency < 390000000) cpump = 1;
-	else if (params->frequency < 470000000) cpump = 2;
-	else if (params->frequency < 750000000) cpump = 1;
-	else cpump = 3;
+	if (c->frequency < 175000000)
+		cpump = 2;
+	else if (c->frequency < 390000000)
+		cpump = 1;
+	else if (c->frequency < 470000000)
+		cpump = 2;
+	else if (c->frequency < 750000000)
+		cpump = 1;
+	else
+		cpump = 3;
 
-	if (params->frequency < 175000000) band_select = 0x0e;
-	else if (params->frequency < 470000000) band_select = 0x05;
-	else band_select = 0x03;
+	if (c->frequency < 175000000)
+		band_select = 0x0e;
+	else if (c->frequency < 470000000)
+		band_select = 0x05;
+	else
+		band_select = 0x03;
 
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
@@ -312,14 +328,15 @@ static struct l64781_config grundig_29504_401_config_activy = {
 
 static u8 tuner_address_grundig_29504_401_activy = 0x60;
 
-static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 	u32 div;
 	u8 data[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
 
-	div = params->frequency / 125;
+	div = c->frequency / 125;
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
 	data[2] = 0x8e;
@@ -335,14 +352,15 @@ static struct tda8083_config grundig_29504_451_config = {
 	.demod_address = 0x68,
 };
 
-static int s5h1420_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int s5h1420_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget* budget = (struct budget*) fe->dvb->priv;
 	u32 div;
 	u8 data[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
 
-	div = params->frequency / 1000;
+	div = c->frequency / 1000;
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
 	data[2] = 0xc2;

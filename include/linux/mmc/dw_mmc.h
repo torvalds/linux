@@ -14,6 +14,8 @@
 #ifndef LINUX_MMC_DW_MMC_H
 #define LINUX_MMC_DW_MMC_H
 
+#include <linux/scatterlist.h>
+
 #define MAX_MCI_SLOTS	2
 
 enum dw_mci_state {
@@ -40,7 +42,7 @@ struct mmc_data;
  * @lock: Spinlock protecting the queue and associated data.
  * @regs: Pointer to MMIO registers.
  * @sg: Scatterlist entry currently being processed by PIO code, if any.
- * @pio_offset: Offset into the current scatterlist entry.
+ * @sg_miter: PIO mapping scatterlist iterator.
  * @cur_slot: The slot which is currently using the controller.
  * @mrq: The request currently being processed on @cur_slot,
  *	or NULL if the controller is idle.
@@ -74,7 +76,7 @@ struct mmc_data;
  * @num_slots: Number of slots available.
  * @verid: Denote Version ID.
  * @data_offset: Set the offset of DATA register according to VERID.
- * @pdev: Platform device associated with the MMC controller.
+ * @dev: Device associated with the MMC controller.
  * @pdata: Platform data associated with the MMC controller.
  * @slot: Slots sharing this MMC controller.
  * @fifo_depth: depth of FIFO.
@@ -85,6 +87,8 @@ struct mmc_data;
  * @push_data: Pointer to FIFO push function.
  * @pull_data: Pointer to FIFO pull function.
  * @quirks: Set of quirks that apply to specific versions of the IP.
+ * @irq_flags: The flags to be passed to request_irq.
+ * @irq: The irq value to be passed to request_irq.
  *
  * Locking
  * =======
@@ -115,7 +119,7 @@ struct dw_mci {
 	void __iomem		*regs;
 
 	struct scatterlist	*sg;
-	unsigned int		pio_offset;
+	struct sg_mapping_iter	sg_miter;
 
 	struct dw_mci_slot	*cur_slot;
 	struct mmc_request	*mrq;
@@ -151,7 +155,7 @@ struct dw_mci {
 	u32			fifoth_val;
 	u16			verid;
 	u16			data_offset;
-	struct platform_device	*pdev;
+	struct device		dev;
 	struct dw_mci_board	*pdata;
 	struct dw_mci_slot	*slot[MAX_MCI_SLOTS];
 
@@ -172,6 +176,8 @@ struct dw_mci {
 	u32			quirks;
 
 	struct regulator	*vmmc;	/* Power regulator */
+	unsigned long		irq_flags; /* IRQ flags */
+	unsigned int		irq;
 };
 
 /* DMA ops for Internal/External DMAC interface */
@@ -214,6 +220,7 @@ struct dw_mci_board {
 	unsigned int bus_hz; /* Bus speed */
 
 	unsigned int caps;	/* Capabilities */
+	unsigned int caps2;	/* More capabilities */
 	/*
 	 * Override fifo depth. If 0, autodetect it from the FIFOTH register,
 	 * but note that this may not be reliable after a bootloader has used

@@ -37,11 +37,11 @@
 #include "octeon-ethernet.h"
 #include "ethernet-util.h"
 
-#include "cvmx-helper.h"
+#include <asm/octeon/cvmx-helper.h>
 
 #include <asm/octeon/cvmx-ipd-defs.h>
 #include <asm/octeon/cvmx-npi-defs.h>
-#include "cvmx-gmxx-defs.h"
+#include <asm/octeon/cvmx-gmxx-defs.h>
 
 DEFINE_SPINLOCK(global_register_lock);
 

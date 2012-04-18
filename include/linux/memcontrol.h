@@ -32,13 +32,11 @@ enum mem_cgroup_page_stat_item {
 	MEMCG_NR_FILE_MAPPED, /* # of pages charged as file rss */
 };
 
-extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
-					struct list_head *dst,
-					unsigned long *scanned, int order,
-					isolate_mode_t mode,
-					struct zone *z,
-					struct mem_cgroup *mem_cont,
-					int active, int file);
+struct mem_cgroup_reclaim_cookie {
+	struct zone *zone;
+	int priority;
+	unsigned int generation;
+};
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR
 /*
@@ -56,20 +54,21 @@ extern int mem_cgroup_newpage_charge(struct page *page, struct mm_struct *mm,
 				gfp_t gfp_mask);
 /* for swap handling */
 extern int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
-		struct page *page, gfp_t mask, struct mem_cgroup **ptr);
+		struct page *page, gfp_t mask, struct mem_cgroup **memcgp);
 extern void mem_cgroup_commit_charge_swapin(struct page *page,
-					struct mem_cgroup *ptr);
-extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr);
+					struct mem_cgroup *memcg);
+extern void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *memcg);
 
 extern int mem_cgroup_cache_charge(struct page *page, struct mm_struct *mm,
 					gfp_t gfp_mask);
-extern void mem_cgroup_add_lru_list(struct page *page, enum lru_list lru);
-extern void mem_cgroup_del_lru_list(struct page *page, enum lru_list lru);
-extern void mem_cgroup_rotate_reclaimable_page(struct page *page);
-extern void mem_cgroup_rotate_lru_list(struct page *page, enum lru_list lru);
-extern void mem_cgroup_del_lru(struct page *page);
-extern void mem_cgroup_move_lists(struct page *page,
-				  enum lru_list from, enum lru_list to);
+
+struct lruvec *mem_cgroup_zone_lruvec(struct zone *, struct mem_cgroup *);
+struct lruvec *mem_cgroup_lru_add_list(struct zone *, struct page *,
+				       enum lru_list);
+void mem_cgroup_lru_del_list(struct page *, enum lru_list);
+void mem_cgroup_lru_del(struct page *);
+struct lruvec *mem_cgroup_lru_move_lists(struct zone *, struct page *,
+					 enum lru_list, enum lru_list);
 
 /* For coalescing uncharge for reducing memcg' overhead*/
 extern void mem_cgroup_uncharge_start(void);
@@ -78,7 +77,8 @@ extern void mem_cgroup_uncharge_end(void);
 extern void mem_cgroup_uncharge_page(struct page *page);
 extern void mem_cgroup_uncharge_cache_page(struct page *page);
 
-extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask);
+extern void mem_cgroup_out_of_memory(struct mem_cgroup *memcg, gfp_t gfp_mask,
+				     int order);
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *memcg);
 
 extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
@@ -102,9 +102,14 @@ extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *memcg);
 
 extern int
 mem_cgroup_prepare_migration(struct page *page,
-	struct page *newpage, struct mem_cgroup **ptr, gfp_t gfp_mask);
+	struct page *newpage, struct mem_cgroup **memcgp, gfp_t gfp_mask);
 extern void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 	struct page *oldpage, struct page *newpage, bool migration_ok);
+
+struct mem_cgroup *mem_cgroup_iter(struct mem_cgroup *,
+				   struct mem_cgroup *,
+				   struct mem_cgroup_reclaim_cookie *);
+void mem_cgroup_iter_break(struct mem_cgroup *, struct mem_cgroup *);
 
 /*
  * For memory reclaim.
@@ -122,6 +127,8 @@ struct zone_reclaim_stat*
 mem_cgroup_get_reclaim_stat_from_page(struct page *page);
 extern void mem_cgroup_print_oom_info(struct mem_cgroup *memcg,
 					struct task_struct *p);
+extern void mem_cgroup_replace_page_cache(struct page *oldpage,
+					struct page *newpage);
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
 extern int do_swap_account;
@@ -132,6 +139,34 @@ static inline bool mem_cgroup_disabled(void)
 	if (mem_cgroup_subsys.disabled)
 		return true;
 	return false;
+}
+
+void __mem_cgroup_begin_update_page_stat(struct page *page, bool *locked,
+					 unsigned long *flags);
+
+extern atomic_t memcg_moving;
+
+static inline void mem_cgroup_begin_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+	if (mem_cgroup_disabled())
+		return;
+	rcu_read_lock();
+	*locked = false;
+	if (atomic_read(&memcg_moving))
+		__mem_cgroup_begin_update_page_stat(page, locked, flags);
+}
+
+void __mem_cgroup_end_update_page_stat(struct page *page,
+				unsigned long *flags);
+static inline void mem_cgroup_end_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+	if (mem_cgroup_disabled())
+		return;
+	if (*locked)
+		__mem_cgroup_end_update_page_stat(page, flags);
+	rcu_read_unlock();
 }
 
 void mem_cgroup_update_page_stat(struct page *page,
@@ -157,7 +192,7 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg);
 
 void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx);
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-void mem_cgroup_split_huge_fixup(struct page *head, struct page *tail);
+void mem_cgroup_split_huge_fixup(struct page *head);
 #endif
 
 #ifdef CONFIG_DEBUG_VM
@@ -180,17 +215,17 @@ static inline int mem_cgroup_cache_charge(struct page *page,
 }
 
 static inline int mem_cgroup_try_charge_swapin(struct mm_struct *mm,
-		struct page *page, gfp_t gfp_mask, struct mem_cgroup **ptr)
+		struct page *page, gfp_t gfp_mask, struct mem_cgroup **memcgp)
 {
 	return 0;
 }
 
 static inline void mem_cgroup_commit_charge_swapin(struct page *page,
-					  struct mem_cgroup *ptr)
+					  struct mem_cgroup *memcg)
 {
 }
 
-static inline void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *ptr)
+static inline void mem_cgroup_cancel_charge_swapin(struct mem_cgroup *memcg)
 {
 }
 
@@ -210,33 +245,33 @@ static inline void mem_cgroup_uncharge_cache_page(struct page *page)
 {
 }
 
-static inline void mem_cgroup_add_lru_list(struct page *page, int lru)
+static inline struct lruvec *mem_cgroup_zone_lruvec(struct zone *zone,
+						    struct mem_cgroup *memcg)
+{
+	return &zone->lruvec;
+}
+
+static inline struct lruvec *mem_cgroup_lru_add_list(struct zone *zone,
+						     struct page *page,
+						     enum lru_list lru)
+{
+	return &zone->lruvec;
+}
+
+static inline void mem_cgroup_lru_del_list(struct page *page, enum lru_list lru)
 {
 }
 
-static inline void mem_cgroup_del_lru_list(struct page *page, int lru)
+static inline void mem_cgroup_lru_del(struct page *page)
 {
-	return ;
 }
 
-static inline void mem_cgroup_rotate_reclaimable_page(struct page *page)
+static inline struct lruvec *mem_cgroup_lru_move_lists(struct zone *zone,
+						       struct page *page,
+						       enum lru_list from,
+						       enum lru_list to)
 {
-	return ;
-}
-
-static inline void mem_cgroup_rotate_lru_list(struct page *page, int lru)
-{
-	return ;
-}
-
-static inline void mem_cgroup_del_lru(struct page *page)
-{
-	return ;
-}
-
-static inline void
-mem_cgroup_move_lists(struct page *page, enum lru_list from, enum lru_list to)
-{
+	return &zone->lruvec;
 }
 
 static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
@@ -269,7 +304,7 @@ static inline struct cgroup_subsys_state
 
 static inline int
 mem_cgroup_prepare_migration(struct page *page, struct page *newpage,
-	struct mem_cgroup **ptr, gfp_t gfp_mask)
+	struct mem_cgroup **memcgp, gfp_t gfp_mask)
 {
 	return 0;
 }
@@ -279,18 +314,16 @@ static inline void mem_cgroup_end_migration(struct mem_cgroup *memcg,
 {
 }
 
-static inline int mem_cgroup_get_reclaim_priority(struct mem_cgroup *memcg)
+static inline struct mem_cgroup *
+mem_cgroup_iter(struct mem_cgroup *root,
+		struct mem_cgroup *prev,
+		struct mem_cgroup_reclaim_cookie *reclaim)
 {
-	return 0;
+	return NULL;
 }
 
-static inline void mem_cgroup_note_reclaim_priority(struct mem_cgroup *memcg,
-						int priority)
-{
-}
-
-static inline void mem_cgroup_record_reclaim_priority(struct mem_cgroup *memcg,
-						int priority)
+static inline void mem_cgroup_iter_break(struct mem_cgroup *root,
+					 struct mem_cgroup *prev)
 {
 }
 
@@ -336,6 +369,16 @@ mem_cgroup_print_oom_info(struct mem_cgroup *memcg, struct task_struct *p)
 {
 }
 
+static inline void mem_cgroup_begin_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+}
+
+static inline void mem_cgroup_end_update_page_stat(struct page *page,
+					bool *locked, unsigned long *flags)
+{
+}
+
 static inline void mem_cgroup_inc_page_stat(struct page *page,
 					    enum mem_cgroup_page_stat_item idx)
 {
@@ -360,8 +403,7 @@ u64 mem_cgroup_get_limit(struct mem_cgroup *memcg)
 	return 0;
 }
 
-static inline void mem_cgroup_split_huge_fixup(struct page *head,
-						struct page *tail)
+static inline void mem_cgroup_split_huge_fixup(struct page *head)
 {
 }
 
@@ -369,7 +411,11 @@ static inline
 void mem_cgroup_count_vm_event(struct mm_struct *mm, enum vm_event_item idx)
 {
 }
-#endif /* CONFIG_CGROUP_MEM_CONT */
+static inline void mem_cgroup_replace_page_cache(struct page *oldpage,
+				struct page *newpage)
+{
+}
+#endif /* CONFIG_CGROUP_MEM_RES_CTLR */
 
 #if !defined(CONFIG_CGROUP_MEM_RES_CTLR) || !defined(CONFIG_DEBUG_VM)
 static inline bool

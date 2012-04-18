@@ -608,10 +608,10 @@ static ssize_t store_rps_map(struct netdev_rx_queue *queue,
 	spin_unlock(&rps_map_lock);
 
 	if (map)
-		jump_label_inc(&rps_needed);
+		static_key_slow_inc(&rps_needed);
 	if (old_map) {
 		kfree_rcu(old_map, rcu);
-		jump_label_dec(&rps_needed);
+		static_key_slow_dec(&rps_needed);
 	}
 	free_cpumask_var(mask);
 	return len;
@@ -929,7 +929,7 @@ static ssize_t bql_show_inflight(struct netdev_queue *queue,
 }
 
 static struct netdev_queue_attribute bql_inflight_attribute =
-	__ATTR(inflight, S_IRUGO | S_IWUSR, bql_show_inflight, NULL);
+	__ATTR(inflight, S_IRUGO, bql_show_inflight, NULL);
 
 #define BQL_ATTR(NAME, FIELD)						\
 static ssize_t bql_show_ ## NAME(struct netdev_queue *queue,		\
@@ -1177,9 +1177,9 @@ static ssize_t store_xps_map(struct netdev_queue *queue,
 			nonempty = 1;
 	}
 
-	if (nonempty)
-		RCU_INIT_POINTER(dev->xps_maps, new_dev_maps);
-	else {
+	if (nonempty) {
+		rcu_assign_pointer(dev->xps_maps, new_dev_maps);
+	} else {
 		kfree(new_dev_maps);
 		RCU_INIT_POINTER(dev->xps_maps, NULL);
 	}

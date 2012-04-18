@@ -43,6 +43,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
+#include <linux/bitmap.h>
 
 #include <xen/xen.h>
 #include <xen/xenbus.h>
@@ -81,6 +82,7 @@ static const struct block_device_operations xlvbd_block_fops;
  */
 struct blkfront_info
 {
+	spinlock_t io_lock;
 	struct mutex mutex;
 	struct xenbus_device *xbdev;
 	struct gendisk *gd;
@@ -98,13 +100,12 @@ struct blkfront_info
 	unsigned long shadow_free;
 	unsigned int feature_flush;
 	unsigned int flush_op;
-	unsigned int feature_discard;
+	unsigned int feature_discard:1;
+	unsigned int feature_secdiscard:1;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
 	int is_ready;
 };
-
-static DEFINE_SPINLOCK(blkif_io_lock);
 
 static unsigned int nr_minors;
 static unsigned long *minors;
@@ -135,15 +136,15 @@ static int get_id_from_freelist(struct blkfront_info *info)
 {
 	unsigned long free = info->shadow_free;
 	BUG_ON(free >= BLK_RING_SIZE);
-	info->shadow_free = info->shadow[free].req.id;
-	info->shadow[free].req.id = 0x0fffffee; /* debug */
+	info->shadow_free = info->shadow[free].req.u.rw.id;
+	info->shadow[free].req.u.rw.id = 0x0fffffee; /* debug */
 	return free;
 }
 
 static void add_id_to_freelist(struct blkfront_info *info,
 			       unsigned long id)
 {
-	info->shadow[id].req.id  = info->shadow_free;
+	info->shadow[id].req.u.rw.id  = info->shadow_free;
 	info->shadow[id].request = NULL;
 	info->shadow_free = id;
 }
@@ -156,7 +157,7 @@ static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 	if (end > nr_minors) {
 		unsigned long *bitmap, *old;
 
-		bitmap = kzalloc(BITS_TO_LONGS(end) * sizeof(*bitmap),
+		bitmap = kcalloc(BITS_TO_LONGS(end), sizeof(*bitmap),
 				 GFP_KERNEL);
 		if (bitmap == NULL)
 			return -ENOMEM;
@@ -176,8 +177,7 @@ static int xlbd_reserve_minors(unsigned int minor, unsigned int nr)
 
 	spin_lock(&minor_lock);
 	if (find_next_bit(minors, end, minor) >= end) {
-		for (; minor < end; ++minor)
-			__set_bit(minor, minors);
+		bitmap_set(minors, minor, nr);
 		rc = 0;
 	} else
 		rc = -EBUSY;
@@ -192,8 +192,7 @@ static void xlbd_release_minors(unsigned int minor, unsigned int nr)
 
 	BUG_ON(end > nr_minors);
 	spin_lock(&minor_lock);
-	for (; minor < end; ++minor)
-		__clear_bit(minor, minors);
+	bitmap_clear(minors,  minor, nr);
 	spin_unlock(&minor_lock);
 }
 
@@ -287,9 +286,9 @@ static int blkif_queue_request(struct request *req)
 	id = get_id_from_freelist(info);
 	info->shadow[id].request = req;
 
-	ring_req->id = id;
+	ring_req->u.rw.id = id;
 	ring_req->u.rw.sector_number = (blkif_sector_t)blk_rq_pos(req);
-	ring_req->handle = info->handle;
+	ring_req->u.rw.handle = info->handle;
 
 	ring_req->operation = rq_data_dir(req) ?
 		BLKIF_OP_WRITE : BLKIF_OP_READ;
@@ -305,16 +304,21 @@ static int blkif_queue_request(struct request *req)
 		ring_req->operation = info->flush_op;
 	}
 
-	if (unlikely(req->cmd_flags & REQ_DISCARD)) {
+	if (unlikely(req->cmd_flags & (REQ_DISCARD | REQ_SECURE))) {
 		/* id, sector_number and handle are set above. */
 		ring_req->operation = BLKIF_OP_DISCARD;
-		ring_req->nr_segments = 0;
 		ring_req->u.discard.nr_sectors = blk_rq_sectors(req);
+		if ((req->cmd_flags & REQ_SECURE) && info->feature_secdiscard)
+			ring_req->u.discard.flag = BLKIF_DISCARD_SECURE;
+		else
+			ring_req->u.discard.flag = 0;
 	} else {
-		ring_req->nr_segments = blk_rq_map_sg(req->q, req, info->sg);
-		BUG_ON(ring_req->nr_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
+		ring_req->u.rw.nr_segments = blk_rq_map_sg(req->q, req,
+							   info->sg);
+		BUG_ON(ring_req->u.rw.nr_segments >
+		       BLKIF_MAX_SEGMENTS_PER_REQUEST);
 
-		for_each_sg(info->sg, sg, ring_req->nr_segments, i) {
+		for_each_sg(info->sg, sg, ring_req->u.rw.nr_segments, i) {
 			buffer_mfn = pfn_to_mfn(page_to_pfn(sg_page(sg)));
 			fsect = sg->offset >> 9;
 			lsect = fsect + (sg->length >> 9) - 1;
@@ -413,7 +417,7 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 	struct request_queue *rq;
 	struct blkfront_info *info = gd->private_data;
 
-	rq = blk_init_queue(do_blkif_request, &blkif_io_lock);
+	rq = blk_init_queue(do_blkif_request, &info->io_lock);
 	if (rq == NULL)
 		return -1;
 
@@ -424,6 +428,8 @@ static int xlvbd_init_blk_queue(struct gendisk *gd, u16 sector_size)
 		blk_queue_max_discard_sectors(rq, get_capacity(gd));
 		rq->limits.discard_granularity = info->discard_granularity;
 		rq->limits.discard_alignment = info->discard_alignment;
+		if (info->feature_secdiscard)
+			queue_flag_set_unlocked(QUEUE_FLAG_SECDISCARD, rq);
 	}
 
 	/* Hard sector size and max sectors impersonate the equiv. hardware. */
@@ -628,14 +634,14 @@ static void xlvbd_release_gendisk(struct blkfront_info *info)
 	if (info->rq == NULL)
 		return;
 
-	spin_lock_irqsave(&blkif_io_lock, flags);
+	spin_lock_irqsave(&info->io_lock, flags);
 
 	/* No more blkif_request(). */
 	blk_stop_queue(info->rq);
 
 	/* No more gnttab callback work. */
 	gnttab_cancel_free_callback(&info->callback);
-	spin_unlock_irqrestore(&blkif_io_lock, flags);
+	spin_unlock_irqrestore(&info->io_lock, flags);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
 	flush_work_sync(&info->work);
@@ -667,16 +673,16 @@ static void blkif_restart_queue(struct work_struct *work)
 {
 	struct blkfront_info *info = container_of(work, struct blkfront_info, work);
 
-	spin_lock_irq(&blkif_io_lock);
+	spin_lock_irq(&info->io_lock);
 	if (info->connected == BLKIF_STATE_CONNECTED)
 		kick_pending_request_queues(info);
-	spin_unlock_irq(&blkif_io_lock);
+	spin_unlock_irq(&info->io_lock);
 }
 
 static void blkif_free(struct blkfront_info *info, int suspend)
 {
 	/* Prevent new requests being issued until we fix things up. */
-	spin_lock_irq(&blkif_io_lock);
+	spin_lock_irq(&info->io_lock);
 	info->connected = suspend ?
 		BLKIF_STATE_SUSPENDED : BLKIF_STATE_DISCONNECTED;
 	/* No more blkif_request(). */
@@ -684,7 +690,7 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 		blk_stop_queue(info->rq);
 	/* No more gnttab callback work. */
 	gnttab_cancel_free_callback(&info->callback);
-	spin_unlock_irq(&blkif_io_lock);
+	spin_unlock_irq(&info->io_lock);
 
 	/* Flush gnttab callback work. Must be done with no locks held. */
 	flush_work_sync(&info->work);
@@ -705,7 +711,9 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 static void blkif_completion(struct blk_shadow *s)
 {
 	int i;
-	for (i = 0; i < s->req.nr_segments; i++)
+	/* Do not let BLKIF_OP_DISCARD as nr_segment is in the same place
+	 * flag. */
+	for (i = 0; i < s->req.u.rw.nr_segments; i++)
 		gnttab_end_foreign_access(s->req.u.rw.seg[i].gref, 0, 0UL);
 }
 
@@ -718,10 +726,10 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 	struct blkfront_info *info = (struct blkfront_info *)dev_id;
 	int error;
 
-	spin_lock_irqsave(&blkif_io_lock, flags);
+	spin_lock_irqsave(&info->io_lock, flags);
 
 	if (unlikely(info->connected != BLKIF_STATE_CONNECTED)) {
-		spin_unlock_irqrestore(&blkif_io_lock, flags);
+		spin_unlock_irqrestore(&info->io_lock, flags);
 		return IRQ_HANDLED;
 	}
 
@@ -736,7 +744,8 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 		id   = bret->id;
 		req  = info->shadow[id].request;
 
-		blkif_completion(&info->shadow[id]);
+		if (bret->operation != BLKIF_OP_DISCARD)
+			blkif_completion(&info->shadow[id]);
 
 		add_id_to_freelist(info, id);
 
@@ -749,7 +758,9 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 					   info->gd->disk_name);
 				error = -EOPNOTSUPP;
 				info->feature_discard = 0;
+				info->feature_secdiscard = 0;
 				queue_flag_clear(QUEUE_FLAG_DISCARD, rq);
+				queue_flag_clear(QUEUE_FLAG_SECDISCARD, rq);
 			}
 			__blk_end_request_all(req, error);
 			break;
@@ -763,7 +774,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 				error = -EOPNOTSUPP;
 			}
 			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
-				     info->shadow[id].req.nr_segments == 0)) {
+				     info->shadow[id].req.u.rw.nr_segments == 0)) {
 				printk(KERN_WARNING "blkfront: %s: empty write %s op failed\n",
 				       info->flush_op == BLKIF_OP_WRITE_BARRIER ?
 				       "barrier" :  "flush disk cache",
@@ -803,7 +814,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 
 	kick_pending_request_queues(info);
 
-	spin_unlock_irqrestore(&blkif_io_lock, flags);
+	spin_unlock_irqrestore(&info->io_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -978,14 +989,15 @@ static int blkfront_probe(struct xenbus_device *dev,
 	}
 
 	mutex_init(&info->mutex);
+	spin_lock_init(&info->io_lock);
 	info->xbdev = dev;
 	info->vdevice = vdevice;
 	info->connected = BLKIF_STATE_DISCONNECTED;
 	INIT_WORK(&info->work, blkif_restart_queue);
 
 	for (i = 0; i < BLK_RING_SIZE; i++)
-		info->shadow[i].req.id = i+1;
-	info->shadow[BLK_RING_SIZE-1].req.id = 0x0fffffff;
+		info->shadow[i].req.u.rw.id = i+1;
+	info->shadow[BLK_RING_SIZE-1].req.u.rw.id = 0x0fffffff;
 
 	/* Front end dir is a number, which is used as the id. */
 	info->handle = simple_strtoul(strrchr(dev->nodename, '/')+1, NULL, 0);
@@ -1019,9 +1031,9 @@ static int blkif_recover(struct blkfront_info *info)
 	/* Stage 2: Set up free list. */
 	memset(&info->shadow, 0, sizeof(info->shadow));
 	for (i = 0; i < BLK_RING_SIZE; i++)
-		info->shadow[i].req.id = i+1;
+		info->shadow[i].req.u.rw.id = i+1;
 	info->shadow_free = info->ring.req_prod_pvt;
-	info->shadow[BLK_RING_SIZE-1].req.id = 0x0fffffff;
+	info->shadow[BLK_RING_SIZE-1].req.u.rw.id = 0x0fffffff;
 
 	/* Stage 3: Find pending requests and requeue them. */
 	for (i = 0; i < BLK_RING_SIZE; i++) {
@@ -1034,17 +1046,19 @@ static int blkif_recover(struct blkfront_info *info)
 		*req = copy[i].req;
 
 		/* We get a new request id, and must reset the shadow state. */
-		req->id = get_id_from_freelist(info);
-		memcpy(&info->shadow[req->id], &copy[i], sizeof(copy[i]));
+		req->u.rw.id = get_id_from_freelist(info);
+		memcpy(&info->shadow[req->u.rw.id], &copy[i], sizeof(copy[i]));
 
+		if (req->operation != BLKIF_OP_DISCARD) {
 		/* Rewrite any grant references invalidated by susp/resume. */
-		for (j = 0; j < req->nr_segments; j++)
-			gnttab_grant_foreign_access_ref(
-				req->u.rw.seg[j].gref,
-				info->xbdev->otherend_id,
-				pfn_to_mfn(info->shadow[req->id].frame[j]),
-				rq_data_dir(info->shadow[req->id].request));
-		info->shadow[req->id].req = *req;
+			for (j = 0; j < req->u.rw.nr_segments; j++)
+				gnttab_grant_foreign_access_ref(
+					req->u.rw.seg[j].gref,
+					info->xbdev->otherend_id,
+					pfn_to_mfn(info->shadow[req->u.rw.id].frame[j]),
+					rq_data_dir(info->shadow[req->u.rw.id].request));
+		}
+		info->shadow[req->u.rw.id].req = *req;
 
 		info->ring.req_prod_pvt++;
 	}
@@ -1053,7 +1067,7 @@ static int blkif_recover(struct blkfront_info *info)
 
 	xenbus_switch_state(info->xbdev, XenbusStateConnected);
 
-	spin_lock_irq(&blkif_io_lock);
+	spin_lock_irq(&info->io_lock);
 
 	/* Now safe for us to use the shared ring */
 	info->connected = BLKIF_STATE_CONNECTED;
@@ -1064,7 +1078,7 @@ static int blkif_recover(struct blkfront_info *info)
 	/* Kick any other new requests queued since we resumed */
 	kick_pending_request_queues(info);
 
-	spin_unlock_irq(&blkif_io_lock);
+	spin_unlock_irq(&info->io_lock);
 
 	return 0;
 }
@@ -1135,11 +1149,13 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 	char *type;
 	unsigned int discard_granularity;
 	unsigned int discard_alignment;
+	unsigned int discard_secure;
 
 	type = xenbus_read(XBT_NIL, info->xbdev->otherend, "type", NULL);
 	if (IS_ERR(type))
 		return;
 
+	info->feature_secdiscard = 0;
 	if (strncmp(type, "phy", 3) == 0) {
 		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
 			"discard-granularity", "%u", &discard_granularity,
@@ -1150,6 +1166,12 @@ static void blkfront_setup_discard(struct blkfront_info *info)
 			info->discard_granularity = discard_granularity;
 			info->discard_alignment = discard_alignment;
 		}
+		err = xenbus_gather(XBT_NIL, info->xbdev->otherend,
+			    "discard-secure", "%d", &discard_secure,
+			    NULL);
+		if (!err)
+			info->feature_secdiscard = discard_secure;
+
 	} else if (strncmp(type, "file", 4) == 0)
 		info->feature_discard = 1;
 
@@ -1254,10 +1276,10 @@ static void blkfront_connect(struct blkfront_info *info)
 	xenbus_switch_state(info->xbdev, XenbusStateConnected);
 
 	/* Kick pending requests. */
-	spin_lock_irq(&blkif_io_lock);
+	spin_lock_irq(&info->io_lock);
 	info->connected = BLKIF_STATE_CONNECTED;
 	kick_pending_request_queues(info);
-	spin_unlock_irq(&blkif_io_lock);
+	spin_unlock_irq(&info->io_lock);
 
 	add_disk(info->gd);
 
@@ -1387,7 +1409,6 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	mutex_lock(&blkfront_mutex);
 
 	bdev = bdget_disk(disk, 0);
-	bdput(bdev);
 
 	if (bdev->bd_openers)
 		goto out;
@@ -1418,6 +1439,7 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 	}
 
 out:
+	bdput(bdev);
 	mutex_unlock(&blkfront_mutex);
 	return 0;
 }

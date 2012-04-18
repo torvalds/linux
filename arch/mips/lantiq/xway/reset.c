@@ -69,17 +69,17 @@ static int __init mips_reboot_setup(void)
 {
 	/* insert and request the memory region */
 	if (insert_resource(&iomem_resource, &ltq_rcu_resource) < 0)
-		panic("Failed to insert rcu memory\n");
+		panic("Failed to insert rcu memory");
 
 	if (request_mem_region(ltq_rcu_resource.start,
 			resource_size(&ltq_rcu_resource), "rcu") < 0)
-		panic("Failed to request rcu memory\n");
+		panic("Failed to request rcu memory");
 
 	/* remap rcu register range */
 	ltq_rcu_membase = ioremap_nocache(ltq_rcu_resource.start,
 				resource_size(&ltq_rcu_resource));
 	if (!ltq_rcu_membase)
-		panic("Failed to remap rcu memory\n");
+		panic("Failed to remap rcu memory");
 
 	_machine_restart = ltq_machine_restart;
 	_machine_halt = ltq_machine_halt;

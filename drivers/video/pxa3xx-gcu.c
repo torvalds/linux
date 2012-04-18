@@ -747,20 +747,7 @@ static struct platform_driver pxa3xx_gcu_driver = {
 	},
 };
 
-static int __init
-pxa3xx_gcu_init(void)
-{
-	return platform_driver_register(&pxa3xx_gcu_driver);
-}
-
-static void __exit
-pxa3xx_gcu_exit(void)
-{
-	platform_driver_unregister(&pxa3xx_gcu_driver);
-}
-
-module_init(pxa3xx_gcu_init);
-module_exit(pxa3xx_gcu_exit);
+module_platform_driver(pxa3xx_gcu_driver);
 
 MODULE_DESCRIPTION("PXA3xx graphics controller unit driver");
 MODULE_LICENSE("GPL");

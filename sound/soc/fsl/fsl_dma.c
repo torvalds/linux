@@ -311,23 +311,23 @@ static int fsl_dma_new(struct snd_soc_pcm_runtime *rtd)
 	 * should allocate a DMA buffer only for the streams that are valid.
 	 */
 
-	if (pcm->streams[0].substream) {
+	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream) {
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
 			fsl_dma_hardware.buffer_bytes_max,
-			&pcm->streams[0].substream->dma_buffer);
+			&pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->dma_buffer);
 		if (ret) {
 			dev_err(card->dev, "can't alloc playback dma buffer\n");
 			return ret;
 		}
 	}
 
-	if (pcm->streams[1].substream) {
+	if (pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		ret = snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, card->dev,
 			fsl_dma_hardware.buffer_bytes_max,
-			&pcm->streams[1].substream->dma_buffer);
+			&pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream->dma_buffer);
 		if (ret) {
 			dev_err(card->dev, "can't alloc capture dma buffer\n");
-			snd_dma_free_pages(&pcm->streams[0].substream->dma_buffer);
+			snd_dma_free_pages(&pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream->dma_buffer);
 			return ret;
 		}
 	}
@@ -992,20 +992,7 @@ static struct platform_driver fsl_soc_dma_driver = {
 	.remove = __devexit_p(fsl_soc_dma_remove),
 };
 
-static int __init fsl_soc_dma_init(void)
-{
-	pr_info("Freescale Elo DMA ASoC PCM Driver\n");
-
-	return platform_driver_register(&fsl_soc_dma_driver);
-}
-
-static void __exit fsl_soc_dma_exit(void)
-{
-	platform_driver_unregister(&fsl_soc_dma_driver);
-}
-
-module_init(fsl_soc_dma_init);
-module_exit(fsl_soc_dma_exit);
+module_platform_driver(fsl_soc_dma_driver);
 
 MODULE_AUTHOR("Timur Tabi <timur@freescale.com>");
 MODULE_DESCRIPTION("Freescale Elo DMA ASoC PCM Driver");

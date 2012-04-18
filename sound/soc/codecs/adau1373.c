@@ -1244,8 +1244,6 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	codec->dapm.idle_bias_off = true;
-
 	if (pdata) {
 		if (pdata->num_drc > ARRAY_SIZE(pdata->drc_setting))
 			return -EINVAL;
@@ -1259,7 +1257,7 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 				pdata->drc_setting[i]);
 		}
 
-		snd_soc_add_controls(codec, adau1373_drc_controls,
+		snd_soc_add_codec_controls(codec, adau1373_drc_controls,
 			pdata->num_drc);
 
 		val = 0;
@@ -1284,7 +1282,7 @@ static int adau1373_probe(struct snd_soc_codec *codec)
 	}
 
 	if (!lineout_differential) {
-		snd_soc_add_controls(codec, adau1373_lineout2_controls,
+		snd_soc_add_codec_controls(codec, adau1373_lineout2_controls,
 			ARRAY_SIZE(adau1373_lineout2_controls));
 	}
 
@@ -1321,7 +1319,7 @@ static int adau1373_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int adau1373_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int adau1373_suspend(struct snd_soc_codec *codec)
 {
 	return adau1373_set_bias_level(codec, SND_SOC_BIAS_OFF);
 }
@@ -1340,6 +1338,7 @@ static struct snd_soc_codec_driver adau1373_codec_driver = {
 	.suspend =	adau1373_suspend,
 	.resume =	adau1373_resume,
 	.set_bias_level = adau1373_set_bias_level,
+	.idle_bias_off = true,
 	.reg_cache_size = ARRAY_SIZE(adau1373_default_regs),
 	.reg_cache_default = adau1373_default_regs,
 	.reg_word_size = sizeof(uint8_t),
@@ -1360,7 +1359,7 @@ static int __devinit adau1373_i2c_probe(struct i2c_client *client,
 	struct adau1373 *adau1373;
 	int ret;
 
-	adau1373 = kzalloc(sizeof(*adau1373), GFP_KERNEL);
+	adau1373 = devm_kzalloc(&client->dev, sizeof(*adau1373), GFP_KERNEL);
 	if (!adau1373)
 		return -ENOMEM;
 
@@ -1368,16 +1367,12 @@ static int __devinit adau1373_i2c_probe(struct i2c_client *client,
 
 	ret = snd_soc_register_codec(&client->dev, &adau1373_codec_driver,
 			adau1373_dai_driver, ARRAY_SIZE(adau1373_dai_driver));
-	if (ret < 0)
-		kfree(adau1373);
-
 	return ret;
 }
 
 static int __devexit adau1373_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
-	kfree(dev_get_drvdata(&client->dev));
 	return 0;
 }
 

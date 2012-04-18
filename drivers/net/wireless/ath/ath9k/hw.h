@@ -209,11 +209,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_5GHZ			= BIT(12),
 	ATH9K_HW_CAP_APM			= BIT(13),
 	ATH9K_HW_CAP_RTT			= BIT(14),
-#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	ATH9K_HW_CAP_MCI			= BIT(15),
-#else
-	ATH9K_HW_CAP_MCI			= 0,
-#endif
 	ATH9K_HW_CAP_DFS			= BIT(16),
 };
 
@@ -431,161 +427,6 @@ enum ath9k_rx_qtype {
 	ATH9K_RX_QUEUE_LP,
 	ATH9K_RX_QUEUE_MAX,
 };
-
-enum mci_message_header {		/* length of payload */
-	MCI_LNA_CTRL     = 0x10,        /* len = 0 */
-	MCI_CONT_NACK    = 0x20,        /* len = 0 */
-	MCI_CONT_INFO    = 0x30,        /* len = 4 */
-	MCI_CONT_RST     = 0x40,        /* len = 0 */
-	MCI_SCHD_INFO    = 0x50,        /* len = 16 */
-	MCI_CPU_INT      = 0x60,        /* len = 4 */
-	MCI_SYS_WAKING   = 0x70,        /* len = 0 */
-	MCI_GPM          = 0x80,        /* len = 16 */
-	MCI_LNA_INFO     = 0x90,        /* len = 1 */
-	MCI_LNA_STATE    = 0x94,
-	MCI_LNA_TAKE     = 0x98,
-	MCI_LNA_TRANS    = 0x9c,
-	MCI_SYS_SLEEPING = 0xa0,        /* len = 0 */
-	MCI_REQ_WAKE     = 0xc0,        /* len = 0 */
-	MCI_DEBUG_16     = 0xfe,        /* len = 2 */
-	MCI_REMOTE_RESET = 0xff         /* len = 16 */
-};
-
-enum ath_mci_gpm_coex_profile_type {
-	MCI_GPM_COEX_PROFILE_UNKNOWN,
-	MCI_GPM_COEX_PROFILE_RFCOMM,
-	MCI_GPM_COEX_PROFILE_A2DP,
-	MCI_GPM_COEX_PROFILE_HID,
-	MCI_GPM_COEX_PROFILE_BNEP,
-	MCI_GPM_COEX_PROFILE_VOICE,
-	MCI_GPM_COEX_PROFILE_MAX
-};
-
-/* MCI GPM/Coex opcode/type definitions */
-enum {
-	MCI_GPM_COEX_W_GPM_PAYLOAD      = 1,
-	MCI_GPM_COEX_B_GPM_TYPE         = 4,
-	MCI_GPM_COEX_B_GPM_OPCODE       = 5,
-	/* MCI_GPM_WLAN_CAL_REQ, MCI_GPM_WLAN_CAL_DONE */
-	MCI_GPM_WLAN_CAL_W_SEQUENCE     = 2,
-
-	/* MCI_GPM_COEX_VERSION_QUERY */
-	/* MCI_GPM_COEX_VERSION_RESPONSE */
-	MCI_GPM_COEX_B_MAJOR_VERSION    = 6,
-	MCI_GPM_COEX_B_MINOR_VERSION    = 7,
-	/* MCI_GPM_COEX_STATUS_QUERY */
-	MCI_GPM_COEX_B_BT_BITMAP        = 6,
-	MCI_GPM_COEX_B_WLAN_BITMAP      = 7,
-	/* MCI_GPM_COEX_HALT_BT_GPM */
-	MCI_GPM_COEX_B_HALT_STATE       = 6,
-	/* MCI_GPM_COEX_WLAN_CHANNELS */
-	MCI_GPM_COEX_B_CHANNEL_MAP      = 6,
-	/* MCI_GPM_COEX_BT_PROFILE_INFO */
-	MCI_GPM_COEX_B_PROFILE_TYPE     = 6,
-	MCI_GPM_COEX_B_PROFILE_LINKID   = 7,
-	MCI_GPM_COEX_B_PROFILE_STATE    = 8,
-	MCI_GPM_COEX_B_PROFILE_ROLE     = 9,
-	MCI_GPM_COEX_B_PROFILE_RATE     = 10,
-	MCI_GPM_COEX_B_PROFILE_VOTYPE   = 11,
-	MCI_GPM_COEX_H_PROFILE_T        = 12,
-	MCI_GPM_COEX_B_PROFILE_W        = 14,
-	MCI_GPM_COEX_B_PROFILE_A        = 15,
-	/* MCI_GPM_COEX_BT_STATUS_UPDATE */
-	MCI_GPM_COEX_B_STATUS_TYPE      = 6,
-	MCI_GPM_COEX_B_STATUS_LINKID    = 7,
-	MCI_GPM_COEX_B_STATUS_STATE     = 8,
-	/* MCI_GPM_COEX_BT_UPDATE_FLAGS */
-	MCI_GPM_COEX_W_BT_FLAGS         = 6,
-	MCI_GPM_COEX_B_BT_FLAGS_OP      = 10
-};
-
-enum mci_gpm_subtype {
-	MCI_GPM_BT_CAL_REQ      = 0,
-	MCI_GPM_BT_CAL_GRANT    = 1,
-	MCI_GPM_BT_CAL_DONE     = 2,
-	MCI_GPM_WLAN_CAL_REQ    = 3,
-	MCI_GPM_WLAN_CAL_GRANT  = 4,
-	MCI_GPM_WLAN_CAL_DONE   = 5,
-	MCI_GPM_COEX_AGENT      = 0x0c,
-	MCI_GPM_RSVD_PATTERN    = 0xfe,
-	MCI_GPM_RSVD_PATTERN32  = 0xfefefefe,
-	MCI_GPM_BT_DEBUG        = 0xff
-};
-
-enum mci_bt_state {
-	MCI_BT_SLEEP,
-	MCI_BT_AWAKE,
-	MCI_BT_CAL_START,
-	MCI_BT_CAL
-};
-
-/* Type of state query */
-enum mci_state_type {
-	MCI_STATE_ENABLE,
-	MCI_STATE_INIT_GPM_OFFSET,
-	MCI_STATE_NEXT_GPM_OFFSET,
-	MCI_STATE_LAST_GPM_OFFSET,
-	MCI_STATE_BT,
-	MCI_STATE_SET_BT_SLEEP,
-	MCI_STATE_SET_BT_AWAKE,
-	MCI_STATE_SET_BT_CAL_START,
-	MCI_STATE_SET_BT_CAL,
-	MCI_STATE_LAST_SCHD_MSG_OFFSET,
-	MCI_STATE_REMOTE_SLEEP,
-	MCI_STATE_CONT_RSSI_POWER,
-	MCI_STATE_CONT_PRIORITY,
-	MCI_STATE_CONT_TXRX,
-	MCI_STATE_RESET_REQ_WAKE,
-	MCI_STATE_SEND_WLAN_COEX_VERSION,
-	MCI_STATE_SET_BT_COEX_VERSION,
-	MCI_STATE_SEND_WLAN_CHANNELS,
-	MCI_STATE_SEND_VERSION_QUERY,
-	MCI_STATE_SEND_STATUS_QUERY,
-	MCI_STATE_NEED_FLUSH_BT_INFO,
-	MCI_STATE_SET_CONCUR_TX_PRI,
-	MCI_STATE_RECOVER_RX,
-	MCI_STATE_NEED_FTP_STOMP,
-	MCI_STATE_NEED_TUNING,
-	MCI_STATE_DEBUG,
-	MCI_STATE_MAX
-};
-
-enum mci_gpm_coex_opcode {
-	MCI_GPM_COEX_VERSION_QUERY,
-	MCI_GPM_COEX_VERSION_RESPONSE,
-	MCI_GPM_COEX_STATUS_QUERY,
-	MCI_GPM_COEX_HALT_BT_GPM,
-	MCI_GPM_COEX_WLAN_CHANNELS,
-	MCI_GPM_COEX_BT_PROFILE_INFO,
-	MCI_GPM_COEX_BT_STATUS_UPDATE,
-	MCI_GPM_COEX_BT_UPDATE_FLAGS
-};
-
-#define MCI_GPM_NOMORE  0
-#define MCI_GPM_MORE    1
-#define MCI_GPM_INVALID 0xffffffff
-
-#define MCI_GPM_RECYCLE(_p_gpm)	do {			  \
-	*(((u32 *)_p_gpm) + MCI_GPM_COEX_W_GPM_PAYLOAD) = \
-				MCI_GPM_RSVD_PATTERN32;   \
-} while (0)
-
-#define MCI_GPM_TYPE(_p_gpm)	\
-	(*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_TYPE) & 0xff)
-
-#define MCI_GPM_OPCODE(_p_gpm)	\
-	(*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_OPCODE) & 0xff)
-
-#define MCI_GPM_SET_CAL_TYPE(_p_gpm, _cal_type)	do {			   \
-	*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_TYPE) = (_cal_type) & 0xff;\
-} while (0)
-
-#define MCI_GPM_SET_TYPE_OPCODE(_p_gpm, _type, _opcode) do {		   \
-	*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_TYPE) = (_type) & 0xff;	   \
-	*(((u8 *)(_p_gpm)) + MCI_GPM_COEX_B_GPM_OPCODE) = (_opcode) & 0xff;\
-} while (0)
-
-#define MCI_GPM_IS_CAL_TYPE(_type) ((_type) <= MCI_GPM_WLAN_CAL_DONE)
 
 struct ath9k_beacon_state {
 	u32 bs_nexttbtt;
@@ -940,7 +781,6 @@ struct ath_hw {
 	u32 *analogBank6Data;
 	u32 *analogBank6TPCData;
 	u32 *analogBank7Data;
-	u32 *addac5416_21;
 	u32 *bank6Temp;
 
 	u8 txpower_limit;
@@ -957,8 +797,9 @@ struct ath_hw {
 	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
 
-	/* Bluetooth coexistance */
+#ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
+#endif
 
 	u32 intr_txqs;
 	u8 txchainmask;
@@ -986,19 +827,14 @@ struct ath_hw {
 	struct ar5416IniArray iniAddac;
 	struct ar5416IniArray iniPcieSerdes;
 	struct ar5416IniArray iniPcieSerdesLowPower;
-	struct ar5416IniArray iniModesAdditional;
-	struct ar5416IniArray iniModesAdditional_40M;
+	struct ar5416IniArray iniModesFastClock;
+	struct ar5416IniArray iniAdditional;
 	struct ar5416IniArray iniModesRxGain;
 	struct ar5416IniArray iniModesTxGain;
-	struct ar5416IniArray iniModes_9271_1_0_only;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
 	struct ar5416IniArray ini_japan2484;
-	struct ar5416IniArray iniCommon_normal_cck_fir_coeff_9271;
-	struct ar5416IniArray iniCommon_japan_2484_cck_fir_coeff_9271;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
-	struct ar5416IniArray iniModes_high_power_tx_gain_9271;
-	struct ar5416IniArray iniModes_normal_power_tx_gain_9271;
 	struct ar5416IniArray ini_radio_post_sys2ant;
 	struct ar5416IniArray ini_BTCOEX_MAX_TXPWR;
 
@@ -1083,7 +919,7 @@ const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 void ath9k_hw_deinit(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
-		   struct ath9k_hw_cal_data *caldata, bool bChannelChange);
+		   struct ath9k_hw_cal_data *caldata, bool fastcc);
 int ath9k_hw_fill_cap_info(struct ath_hw *ah);
 u32 ath9k_regd_get_ctl(struct ath_regulatory *reg, struct ath9k_channel *chan);
 
@@ -1093,7 +929,6 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio);
 void ath9k_hw_cfg_output(struct ath_hw *ah, u32 gpio,
 			 u32 ah_signal_type);
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
-u32 ath9k_hw_getdefantenna(struct ath_hw *ah);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
 
 /* General Operation */
@@ -1147,9 +982,6 @@ void ath_gen_timer_isr(struct ath_hw *hw);
 
 void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 
-/* HTC */
-void ath9k_hw_htc_resetinit(struct ath_hw *ah);
-
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
@@ -1159,7 +991,6 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan);
  * Code Specific to AR5008, AR9001 or AR9002,
  * we stuff these here to avoid callbacks for AR9003.
  */
-void ar9002_hw_cck_chan14_spread(struct ath_hw *ah);
 int ar9002_hw_rf_claim(struct ath_hw *ah);
 void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
 
@@ -1206,41 +1037,31 @@ void ath9k_ani_reset(struct ath_hw *ah, bool is_scanning);
 void ath9k_hw_proc_mib_event(struct ath_hw *ah);
 void ath9k_hw_ani_monitor(struct ath_hw *ah, struct ath9k_channel *chan);
 
-bool ar9003_mci_send_message(struct ath_hw *ah, u8 header, u32 flag,
-			     u32 *payload, u8 len, bool wait_done,
-			     bool check_bt);
-void ar9003_mci_mute_bt(struct ath_hw *ah);
-u32 ar9003_mci_state(struct ath_hw *ah, u32 state_type, u32 *p_data);
-void ar9003_mci_setup(struct ath_hw *ah, u32 gpm_addr, void *gpm_buf,
-		      u16 len, u32 sched_addr);
-void ar9003_mci_cleanup(struct ath_hw *ah);
-void ar9003_mci_send_coex_halt_bt_gpm(struct ath_hw *ah, bool halt,
-				      bool wait_done);
-u32 ar9003_mci_wait_for_gpm(struct ath_hw *ah, u8 gpm_type,
-			    u8 gpm_opcode, int time_out);
-void ar9003_mci_2g5g_changed(struct ath_hw *ah, bool is_2g);
-void ar9003_mci_disable_interrupt(struct ath_hw *ah);
-void ar9003_mci_enable_interrupt(struct ath_hw *ah);
-void ar9003_mci_2g5g_switch(struct ath_hw *ah, bool wait_done);
-void ar9003_mci_reset(struct ath_hw *ah, bool en_int, bool is_2g,
-		      bool is_full_sleep);
-bool ar9003_mci_check_int(struct ath_hw *ah, u32 ints);
-void ar9003_mci_remote_reset(struct ath_hw *ah, bool wait_done);
-void ar9003_mci_send_sys_waking(struct ath_hw *ah, bool wait_done);
-void ar9003_mci_send_lna_transfer(struct ath_hw *ah, bool wait_done);
-void ar9003_mci_sync_bt_state(struct ath_hw *ah);
-void ar9003_mci_get_interrupt(struct ath_hw *ah, u32 *raw_intr,
-			      u32 *rx_msg_intr);
-
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
+static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
+{
+	return ah->btcoex_hw.enabled;
+}
+void ath9k_hw_btcoex_enable(struct ath_hw *ah);
 static inline enum ath_btcoex_scheme
 ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
 {
 	return ah->btcoex_hw.scheme;
 }
 #else
-#define ath9k_hw_get_btcoex_scheme(...) ATH_BTCOEX_CFG_NONE
-#endif
+static inline bool ath9k_hw_btcoex_is_enabled(struct ath_hw *ah)
+{
+	return false;
+}
+static inline void ath9k_hw_btcoex_enable(struct ath_hw *ah)
+{
+}
+static inline enum ath_btcoex_scheme
+ath9k_hw_get_btcoex_scheme(struct ath_hw *ah)
+{
+	return ATH_BTCOEX_CFG_NONE;
+}
+#endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 
 #define ATH9K_CLOCK_RATE_CCK		22
 #define ATH9K_CLOCK_RATE_5GHZ_OFDM	40

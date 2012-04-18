@@ -86,7 +86,6 @@ static inline int at91mci_is_mci1rev2xx(void)
 {
 	return (   cpu_is_at91sam9260()
 		|| cpu_is_at91sam9263()
-		|| cpu_is_at91cap9()
 		|| cpu_is_at91sam9rl()
 		|| cpu_is_at91sam9g10()
 		|| cpu_is_at91sam9g20()
@@ -236,7 +235,7 @@ static inline void at91_mci_sg_to_dma(struct at91mci_host *host, struct mmc_data
 
 		sg = &data->sg[i];
 
-		sgbuffer = kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
+		sgbuffer = kmap_atomic(sg_page(sg)) + sg->offset;
 		amount = min(size, sg->length);
 		size -= amount;
 
@@ -252,7 +251,7 @@ static inline void at91_mci_sg_to_dma(struct at91mci_host *host, struct mmc_data
 			dmabuf = (unsigned *)tmpv;
 		}
 
-		kunmap_atomic(sgbuffer, KM_BIO_SRC_IRQ);
+		kunmap_atomic(sgbuffer);
 
 		if (size == 0)
 			break;
@@ -302,7 +301,7 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 
 		sg = &data->sg[i];
 
-		sgbuffer = kmap_atomic(sg_page(sg), KM_BIO_SRC_IRQ) + sg->offset;
+		sgbuffer = kmap_atomic(sg_page(sg)) + sg->offset;
 		amount = min(size, sg->length);
 		size -= amount;
 
@@ -318,7 +317,7 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 		}
 
 		flush_kernel_dcache_page(sg_page(sg));
-		kunmap_atomic(sgbuffer, KM_BIO_SRC_IRQ);
+		kunmap_atomic(sgbuffer);
 		data->bytes_xfered += amount;
 		if (size == 0)
 			break;

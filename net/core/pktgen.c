@@ -767,8 +767,8 @@ done:
 	return i;
 }
 
-static unsigned long num_arg(const char __user * user_buffer,
-			     unsigned long maxlen, unsigned long *num)
+static long num_arg(const char __user *user_buffer, unsigned long maxlen,
+				unsigned long *num)
 {
 	int i;
 	*num = 0;

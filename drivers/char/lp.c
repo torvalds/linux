@@ -135,7 +135,6 @@
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 
 /* if you have more than 8 printers, remember to increase LP_NO */
 #define LP_NO 8
@@ -706,16 +705,13 @@ static long lp_compat_ioctl(struct file *file, unsigned int cmd,
 {
 	unsigned int minor;
 	struct timeval par_timeout;
-	struct compat_timeval __user *tc;
 	int ret;
 
 	minor = iminor(file->f_path.dentry->d_inode);
 	mutex_lock(&lp_mutex);
 	switch (cmd) {
 	case LPSETTIMEOUT:
-		tc = compat_ptr(arg);
-		if (get_user(par_timeout.tv_sec, &tc->tv_sec) ||
-		    get_user(par_timeout.tv_usec, &tc->tv_usec)) {
+		if (compat_get_timeval(&par_timeout, compat_ptr(arg))) {
 			ret = -EFAULT;
 			break;
 		}
@@ -829,7 +825,7 @@ static struct console lpcons = {
 
 static int parport_nr[LP_NO] = { [0 ... LP_NO-1] = LP_PARPORT_UNSPEC };
 static char *parport[LP_NO];
-static int reset;
+static bool reset;
 
 module_param_array(parport, charp, NULL, 0);
 module_param(reset, bool, 0);

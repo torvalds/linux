@@ -100,11 +100,11 @@
 #define	MCFDMA_BASE1		(MCF_MBAR + 0x240)	/* Base address DMA 1 */
 
 #if defined(CONFIG_NETtel)
-#define	MCFUART_BASE1		0x180		/* Base address of UART1 */
-#define	MCFUART_BASE2		0x140		/* Base address of UART2 */
+#define	MCFUART_BASE0		(MCF_MBAR + 0x180)	/* Base address UART0 */
+#define	MCFUART_BASE1		(MCF_MBAR + 0x140)	/* Base address UART1 */
 #else
-#define	MCFUART_BASE1		0x140		/* Base address of UART1 */
-#define	MCFUART_BASE2		0x180		/* Base address of UART2 */
+#define	MCFUART_BASE0		(MCF_MBAR + 0x140)	/* Base address UART0 */
+#define	MCFUART_BASE1		(MCF_MBAR + 0x180)	/* Base address UART1 */
 #endif
 
 /*
@@ -112,6 +112,8 @@
  */
 #define	MCF_IRQ_TIMER		30		/* Timer0, Level 6 */
 #define	MCF_IRQ_PROFILER	31		/* Timer1, Level 7 */
+#define	MCF_IRQ_UART0		73		/* UART0 */
+#define	MCF_IRQ_UART1		74		/* UART1 */
 
 /*
  *	Generic GPIO

@@ -902,18 +902,7 @@ static struct platform_driver mxsfb_driver = {
 	},
 };
 
-static int __init mxsfb_init(void)
-{
-	return platform_driver_register(&mxsfb_driver);
-}
-
-static void __exit mxsfb_exit(void)
-{
-	platform_driver_unregister(&mxsfb_driver);
-}
-
-module_init(mxsfb_init);
-module_exit(mxsfb_exit);
+module_platform_driver(mxsfb_driver);
 
 MODULE_DESCRIPTION("Freescale mxs framebuffer driver");
 MODULE_AUTHOR("Sascha Hauer, Pengutronix");

@@ -69,12 +69,12 @@ MODULE_LICENSE("GPL");
 /* module parameters */
 static int opmode   = OPMODE_AUTO;
 int msp_debug;		 /* msp_debug output */
-int msp_once;		 /* no continuous stereo monitoring */
-int msp_amsound;	 /* hard-wire AM sound at 6.5 Hz (france),
+bool msp_once;		 /* no continuous stereo monitoring */
+bool msp_amsound;	 /* hard-wire AM sound at 6.5 Hz (france),
 			    the autoscan seems work well only with FM... */
 int msp_standard = 1;    /* Override auto detect of audio msp_standard,
 			    if needed. */
-int msp_dolby;
+bool msp_dolby;
 
 int msp_stereo_thresh = 0x190; /* a2 threshold for stereo/bilingual
 					(msp34xxg only) 0x00a0-0x03c0 */
@@ -881,18 +881,7 @@ static struct i2c_driver msp_driver = {
 	.id_table	= msp_id,
 };
 
-static __init int init_msp(void)
-{
-	return i2c_add_driver(&msp_driver);
-}
-
-static __exit void exit_msp(void)
-{
-	i2c_del_driver(&msp_driver);
-}
-
-module_init(init_msp);
-module_exit(exit_msp);
+module_i2c_driver(msp_driver);
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

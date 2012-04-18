@@ -30,7 +30,7 @@ struct mcck_struct {
 
 static DEFINE_PER_CPU(struct mcck_struct, cpu_mcck);
 
-static NORET_TYPE void s390_handle_damage(char *msg)
+static void s390_handle_damage(char *msg)
 {
 	smp_send_stop();
 	disabled_wait((unsigned long) __builtin_return_address(0));
@@ -254,8 +254,6 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	int umode;
 
 	nmi_enter();
-	s390_idle_check(regs, S390_lowcore.mcck_clock,
-			S390_lowcore.mcck_enter_timer);
 	kstat_cpu(smp_processor_id()).irqs[NMI_NMI]++;
 	mci = (struct mci *) &S390_lowcore.mcck_interruption_code;
 	mcck = &__get_cpu_var(cpu_mcck);

@@ -153,6 +153,79 @@ LEAF(alchemy_sleep_au1550)
 
 END(alchemy_sleep_au1550)
 
+/* sleepcode for Au1300 memory controller type */
+LEAF(alchemy_sleep_au1300)
+
+	SETUP_SLEEP
+
+	/* cache following instructions, as memory gets put to sleep */
+	la	t0, 2f
+	la	t1, 4f
+	subu	t2, t1, t0
+
+	.set	mips3
+
+1:	cache	0x14, 0(t0)
+	subu	t2, t2, 32
+	bgez	t2, 1b
+	 addu	t0, t0, 32
+
+	.set	mips0
+
+2:	lui	a0, 0xb400		/* mem_xxx */
+
+	/* disable all ports in mem_sdportcfga */
+	sw	zero, 0x868(a0)		/* mem_sdportcfga */
+	sync
+
+	/* disable ODT */
+	li	t0, 0x03010000
+	sw	t0, 0x08d8(a0)		/* mem_sdcmd0 */
+	sw	t0, 0x08dc(a0)		/* mem_sdcmd1 */
+	sync
+
+	/* precharge */
+	li	t0, 0x23000400
+	sw	t0, 0x08dc(a0)		/* mem_sdcmd1 */
+	sw	t0, 0x08d8(a0)		/* mem_sdcmd0 */
+	sync
+
+	/* auto refresh */
+	sw	zero, 0x08c8(a0)	/* mem_sdautoref */
+	sync
+
+	/* block access to the DDR */
+	lw	t0, 0x0848(a0)		/* mem_sdconfigb */
+	li	t1, (1 << 7 | 0x3F)
+	or	t0, t0, t1
+	sw	t0, 0x0848(a0)		/* mem_sdconfigb */
+	sync
+
+	/* issue the Self Refresh command */
+	li	t0, 0x10000000
+	sw	t0, 0x08dc(a0)		/* mem_sdcmd1 */
+	sw	t0, 0x08d8(a0)		/* mem_sdcmd0 */
+	sync
+
+	/* wait for sdram to enter self-refresh mode */
+	lui	t0, 0x0300
+3:	lw	t1, 0x0850(a0)		/* mem_sdstat */
+	and	t2, t1, t0
+	bne	t2, t0, 3b
+	 nop
+
+	/* disable SDRAM clocks */
+	li	t0, ~(3<<28)
+	lw	t1, 0x0840(a0)		/* mem_sdconfiga */
+	and	t1, t1, t0		/* clear CE[1:0] */
+	sw	t1, 0x0840(a0)		/* mem_sdconfiga */
+	sync
+
+	DO_SLEEP
+4:
+
+END(alchemy_sleep_au1300)
+
 
 	/* This is where we return upon wakeup.
 	 * Reload all of the registers and return.

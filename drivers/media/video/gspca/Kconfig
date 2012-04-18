@@ -77,6 +77,16 @@ config USB_GSPCA_JEILINJ
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_jeilinj.
 
+config USB_GSPCA_JL2005BCD
+	tristate "JL2005B/C/D USB V4L2 driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based the
+	  JL2005B, JL2005C, or JL2005D chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_jl2005bcd.
+
 config USB_GSPCA_KINECT
 	tristate "Kinect sensor device USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

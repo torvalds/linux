@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 OKI SEMICONDUCTOR CO., LTD.
+ * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -136,7 +136,8 @@
 /*
 Set the number of I2C instance max
 Intel EG20T PCH :		1ch
-OKI SEMICONDUCTOR ML7213 IOH :	2ch
+LAPIS Semiconductor ML7213 IOH :	2ch
+LAPIS Semiconductor ML7831 IOH :	1ch
 */
 #define PCH_I2C_MAX_DEV			2
 
@@ -180,15 +181,17 @@ static int pch_clk = 50000;	/* specifies I2C clock speed in KHz */
 static wait_queue_head_t pch_event;
 static DEFINE_MUTEX(pch_mutex);
 
-/* Definition for ML7213 by OKI SEMICONDUCTOR */
+/* Definition for ML7213 by LAPIS Semiconductor */
 #define PCI_VENDOR_ID_ROHM		0x10DB
 #define PCI_DEVICE_ID_ML7213_I2C	0x802D
 #define PCI_DEVICE_ID_ML7223_I2C	0x8010
+#define PCI_DEVICE_ID_ML7831_I2C	0x8817
 
-static struct pci_device_id __devinitdata pch_pcidev_id[] = {
+static DEFINE_PCI_DEVICE_TABLE(pch_pcidev_id) = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH_I2C),   1, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7213_I2C), 2, },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7223_I2C), 1, },
+	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ML7831_I2C), 1, },
 	{0,}
 };
 
@@ -243,7 +246,7 @@ static void pch_i2c_init(struct i2c_algo_pch_data *adap)
 	if (pch_clk > PCH_MAX_CLK)
 		pch_clk = 62500;
 
-	pch_i2cbc = (pch_clk + (pch_i2c_speed * 4)) / pch_i2c_speed * 8;
+	pch_i2cbc = (pch_clk + (pch_i2c_speed * 4)) / (pch_i2c_speed * 8);
 	/* Set transfer speed in I2CBC */
 	iowrite32(pch_i2cbc, p + PCH_I2CBC);
 
@@ -268,30 +271,36 @@ static inline bool ktime_lt(const ktime_t cmp1, const ktime_t cmp2)
 /**
  * pch_i2c_wait_for_bus_idle() - check the status of bus.
  * @adap:	Pointer to struct i2c_algo_pch_data.
- * @timeout:	waiting time counter (us).
+ * @timeout:	waiting time counter (ms).
  */
 static s32 pch_i2c_wait_for_bus_idle(struct i2c_algo_pch_data *adap,
 				     s32 timeout)
 {
 	void __iomem *p = adap->pch_base_address;
-	ktime_t ns_val;
+	int schedule = 0;
+	unsigned long end = jiffies + msecs_to_jiffies(timeout);
 
-	if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
-		return 0;
+	while (ioread32(p + PCH_I2CSR) & I2CMBB_BIT) {
+		if (time_after(jiffies, end)) {
+			pch_dbg(adap, "I2CSR = %x\n", ioread32(p + PCH_I2CSR));
+			pch_err(adap, "%s: Timeout Error.return%d\n",
+					__func__, -ETIME);
+			pch_i2c_init(adap);
 
-	/* MAX timeout value is timeout*1000*1000nsec */
-	ns_val = ktime_add_ns(ktime_get(), timeout*1000*1000);
-	do {
-		msleep(20);
-		if ((ioread32(p + PCH_I2CSR) & I2CMBB_BIT) == 0)
-			return 0;
-	} while (ktime_lt(ktime_get(), ns_val));
+			return -ETIME;
+		}
 
-	pch_dbg(adap, "I2CSR = %x\n", ioread32(p + PCH_I2CSR));
-	pch_err(adap, "%s: Timeout Error.return%d\n", __func__, -ETIME);
-	pch_i2c_init(adap);
+		if (!schedule)
+			/* Retry after some usecs */
+			udelay(5);
+		else
+			/* Wait a bit more without consuming CPU */
+			usleep_range(20, 1000);
 
-	return -ETIME;
+		schedule = 1;
+	}
+
+	return 0;
 }
 
 /**
@@ -775,8 +784,6 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 	struct i2c_msg *pmsg;
 	u32 i = 0;
 	u32 status;
-	u32 msglen;
-	u32 subaddrlen;
 	s32 ret;
 
 	struct i2c_algo_pch_data *adap = i2c_adap->algo_data;
@@ -801,12 +808,6 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 		status = pmsg->flags;
 		pch_dbg(adap,
 			"After invoking I2C_MODE_SEL :flag= 0x%x\n", status);
-		/* calculate sub address length and message length */
-		/* these are applicable only for buffer mode */
-		subaddrlen = pmsg->buf[0];
-		/* calculate actual message length excluding
-		 * the sub address fields */
-		msglen = (pmsg->len) - (subaddrlen + 1);
 
 		if ((status & (I2C_M_RD)) != false) {
 			ret = pch_i2c_readbytes(i2c_adap, pmsg, (i + 1 == num),
@@ -918,7 +919,9 @@ static int __devinit pch_i2c_probe(struct pci_dev *pdev,
 		pch_adap->dev.parent = &pdev->dev;
 
 		pch_i2c_init(&adap_info->pch_data[i]);
-		ret = i2c_add_adapter(pch_adap);
+
+		pch_adap->nr = i;
+		ret = i2c_add_numbered_adapter(pch_adap);
 		if (ret) {
 			pch_pci_err(pdev, "i2c_add_adapter[ch:%d] FAILED\n", i);
 			goto err_add_adapter;
@@ -1058,8 +1061,8 @@ static void __exit pch_pci_exit(void)
 }
 module_exit(pch_pci_exit);
 
-MODULE_DESCRIPTION("Intel EG20T PCH/OKI SEMICONDUCTOR ML7213 IOH I2C Driver");
+MODULE_DESCRIPTION("Intel EG20T PCH/LAPIS Semico ML7213/ML7223/ML7831 IOH I2C");
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Tomoya MORINAGA. <tomoya-linux@dsn.okisemi.com>");
+MODULE_AUTHOR("Tomoya MORINAGA. <tomoya-linux@dsn.lapis-semi.com>");
 module_param(pch_i2c_speed, int, (S_IRUSR | S_IWUSR));
 module_param(pch_clk, int, (S_IRUSR | S_IWUSR));

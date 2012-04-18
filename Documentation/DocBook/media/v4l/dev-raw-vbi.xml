@@ -337,11 +337,3 @@ an &EBUSY; if the required hardware resources are temporarily
 unavailable, for example the device is already in use by another
 process.</para>
   </section>
-
-  <!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
-  -->

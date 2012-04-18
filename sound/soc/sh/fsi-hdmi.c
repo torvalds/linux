@@ -39,6 +39,7 @@ static struct snd_soc_dai_link fsi_dai_link = {
 };
 
 static struct snd_soc_card fsi_soc_card  = {
+	.owner		= THIS_MODULE,
 	.dai_link	= &fsi_dai_link,
 	.num_links	= 1,
 };
@@ -110,18 +111,7 @@ static struct platform_driver fsi_hdmi = {
 	.id_table	= fsi_id_table,
 };
 
-static int __init fsi_hdmi_init(void)
-{
-	return platform_driver_register(&fsi_hdmi);
-}
-
-static void __exit fsi_hdmi_exit(void)
-{
-	platform_driver_unregister(&fsi_hdmi);
-}
-
-module_init(fsi_hdmi_init);
-module_exit(fsi_hdmi_exit);
+module_platform_driver(fsi_hdmi);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Generic SH4 FSI-HDMI sound card");

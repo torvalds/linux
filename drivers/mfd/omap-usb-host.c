@@ -170,7 +170,7 @@ struct usbhs_hcd_omap {
 /*-------------------------------------------------------------------------*/
 
 const char usbhs_driver_name[] = USBHS_DRIVER_NAME;
-static u64 usbhs_dmamask = ~(u32)0;
+static u64 usbhs_dmamask = DMA_BIT_MASK(32);
 
 /*-------------------------------------------------------------------------*/
 
@@ -223,7 +223,7 @@ static struct platform_device *omap_usbhs_alloc_child(const char *name,
 	}
 
 	child->dev.dma_mask		= &usbhs_dmamask;
-	child->dev.coherent_dma_mask	= 0xffffffff;
+	dma_set_coherent_mask(&child->dev, DMA_BIT_MASK(32));
 	child->dev.parent		= dev;
 
 	ret = platform_device_add(child);
@@ -503,19 +503,13 @@ static void omap_usbhs_init(struct device *dev)
 	spin_lock_irqsave(&omap->lock, flags);
 
 	if (pdata->ehci_data->phy_reset) {
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[0])) {
-			gpio_request(pdata->ehci_data->reset_gpio_port[0],
-						"USB1 PHY reset");
-			gpio_direction_output
-				(pdata->ehci_data->reset_gpio_port[0], 0);
-		}
+		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[0]))
+			gpio_request_one(pdata->ehci_data->reset_gpio_port[0],
+					 GPIOF_OUT_INIT_LOW, "USB1 PHY reset");
 
-		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1])) {
-			gpio_request(pdata->ehci_data->reset_gpio_port[1],
-						"USB2 PHY reset");
-			gpio_direction_output
-				(pdata->ehci_data->reset_gpio_port[1], 0);
-		}
+		if (gpio_is_valid(pdata->ehci_data->reset_gpio_port[1]))
+			gpio_request_one(pdata->ehci_data->reset_gpio_port[1],
+					 GPIOF_OUT_INIT_LOW, "USB2 PHY reset");
 
 		/* Hold the PHY in RESET for enough time till DIR is high */
 		udelay(10);
@@ -805,13 +799,12 @@ static int __devinit usbhs_omap_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, omap);
 
+	omap_usbhs_init(dev);
 	ret = omap_usbhs_alloc_children(pdev);
 	if (ret) {
 		dev_err(dev, "omap_usbhs_alloc_children failed\n");
 		goto err_alloc;
 	}
-
-	omap_usbhs_init(dev);
 
 	goto end_probe;
 

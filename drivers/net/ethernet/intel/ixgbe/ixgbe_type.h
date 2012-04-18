@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -161,19 +161,19 @@
 
 /* Receive DMA Registers */
 #define IXGBE_RDBAL(_i) (((_i) < 64) ? (0x01000 + ((_i) * 0x40)) : \
-                         (0x0D000 + ((_i - 64) * 0x40)))
+			 (0x0D000 + (((_i) - 64) * 0x40)))
 #define IXGBE_RDBAH(_i) (((_i) < 64) ? (0x01004 + ((_i) * 0x40)) : \
-                         (0x0D004 + ((_i - 64) * 0x40)))
+			 (0x0D004 + (((_i) - 64) * 0x40)))
 #define IXGBE_RDLEN(_i) (((_i) < 64) ? (0x01008 + ((_i) * 0x40)) : \
-                         (0x0D008 + ((_i - 64) * 0x40)))
+			 (0x0D008 + (((_i) - 64) * 0x40)))
 #define IXGBE_RDH(_i)   (((_i) < 64) ? (0x01010 + ((_i) * 0x40)) : \
-                         (0x0D010 + ((_i - 64) * 0x40)))
+			 (0x0D010 + (((_i) - 64) * 0x40)))
 #define IXGBE_RDT(_i)   (((_i) < 64) ? (0x01018 + ((_i) * 0x40)) : \
-                         (0x0D018 + ((_i - 64) * 0x40)))
+			 (0x0D018 + (((_i) - 64) * 0x40)))
 #define IXGBE_RXDCTL(_i) (((_i) < 64) ? (0x01028 + ((_i) * 0x40)) : \
-                          (0x0D028 + ((_i - 64) * 0x40)))
+			 (0x0D028 + (((_i) - 64) * 0x40)))
 #define IXGBE_RSCCTL(_i) (((_i) < 64) ? (0x0102C + ((_i) * 0x40)) : \
-                          (0x0D02C + ((_i - 64) * 0x40)))
+			 (0x0D02C + (((_i) - 64) * 0x40)))
 #define IXGBE_RSCDBU     0x03028
 #define IXGBE_RDDCC      0x02F20
 #define IXGBE_RXMEMWRAP  0x03190
@@ -186,7 +186,7 @@
  */
 #define IXGBE_SRRCTL(_i) (((_i) <= 15) ? (0x02100 + ((_i) * 4)) : \
                           (((_i) < 64) ? (0x01014 + ((_i) * 0x40)) : \
-                          (0x0D014 + ((_i - 64) * 0x40))))
+			  (0x0D014 + (((_i) - 64) * 0x40))))
 /*
  * Rx DCA Control Register:
  * 00-15 : 0x02200 + n*4
@@ -195,7 +195,7 @@
  */
 #define IXGBE_DCA_RXCTRL(_i)    (((_i) <= 15) ? (0x02200 + ((_i) * 4)) : \
                                  (((_i) < 64) ? (0x0100C + ((_i) * 0x40)) : \
-                                 (0x0D00C + ((_i - 64) * 0x40))))
+				 (0x0D00C + (((_i) - 64) * 0x40))))
 #define IXGBE_RDRXCTL           0x02F00
 #define IXGBE_RXPBSIZE(_i)      (0x03C00 + ((_i) * 4))
                                              /* 8 of these 0x03C00 - 0x03C1C */
@@ -344,9 +344,9 @@
 
 #define IXGBE_WUPL      0x05900
 #define IXGBE_WUPM      0x05A00 /* wake up pkt memory 0x5A00-0x5A7C */
-#define IXGBE_FHFT(_n)     (0x09000 + (_n * 0x100)) /* Flex host filter table */
-#define IXGBE_FHFT_EXT(_n) (0x09800 + (_n * 0x100)) /* Ext Flexible Host
-                                                     * Filter Table */
+#define IXGBE_FHFT(_n)	(0x09000 + ((_n) * 0x100)) /* Flex host filter table */
+#define IXGBE_FHFT_EXT(_n)	(0x09800 + ((_n) * 0x100)) /* Ext Flexible Host
+							    * Filter Table */
 
 #define IXGBE_FLEXIBLE_FILTER_COUNT_MAX         4
 #define IXGBE_EXT_FLEXIBLE_FILTER_COUNT_MAX     2
@@ -1021,14 +1021,16 @@
 #define IXGBE_DCA_RXCTRL_HEAD_DCA_EN (1 << 6) /* DCA Rx Desc header enable */
 #define IXGBE_DCA_RXCTRL_DATA_DCA_EN (1 << 7) /* DCA Rx Desc payload enable */
 #define IXGBE_DCA_RXCTRL_DESC_RRO_EN (1 << 9) /* DCA Rx rd Desc Relax Order */
-#define IXGBE_DCA_RXCTRL_DESC_WRO_EN (1 << 13) /* DCA Rx wr Desc Relax Order */
-#define IXGBE_DCA_RXCTRL_DESC_HSRO_EN (1 << 15) /* DCA Rx Split Header RO */
+#define IXGBE_DCA_RXCTRL_DATA_WRO_EN (1 << 13) /* Rx wr data Relax Order */
+#define IXGBE_DCA_RXCTRL_HEAD_WRO_EN (1 << 15) /* Rx wr header RO */
 
 #define IXGBE_DCA_TXCTRL_CPUID_MASK 0x0000001F /* Tx CPUID Mask */
 #define IXGBE_DCA_TXCTRL_CPUID_MASK_82599  0xFF000000 /* Tx CPUID Mask */
 #define IXGBE_DCA_TXCTRL_CPUID_SHIFT_82599 24 /* Tx CPUID Shift */
 #define IXGBE_DCA_TXCTRL_DESC_DCA_EN (1 << 5) /* DCA Tx Desc enable */
-#define IXGBE_DCA_TXCTRL_TX_WB_RO_EN (1 << 11) /* Tx Desc writeback RO bit */
+#define IXGBE_DCA_TXCTRL_DESC_RRO_EN (1 << 9) /* Tx rd Desc Relax Order */
+#define IXGBE_DCA_TXCTRL_DESC_WRO_EN (1 << 11) /* Tx Desc writeback RO bit */
+#define IXGBE_DCA_TXCTRL_DATA_RRO_EN (1 << 13) /* Tx rd data Relax Order */
 #define IXGBE_DCA_MAX_QUEUES_82598   16 /* DCA regs only on 16 queues */
 
 /* MSCA Bit Masks */
@@ -1485,7 +1487,7 @@ enum {
 #define IXGBE_LED_BLINK_BASE     0x00000080
 #define IXGBE_LED_MODE_MASK_BASE 0x0000000F
 #define IXGBE_LED_OFFSET(_base, _i) (_base << (8 * (_i)))
-#define IXGBE_LED_MODE_SHIFT(_i) (8*(_i))
+#define IXGBE_LED_MODE_SHIFT(_i) (8 * (_i))
 #define IXGBE_LED_IVRT(_i)       IXGBE_LED_OFFSET(IXGBE_LED_IVRT_BASE, _i)
 #define IXGBE_LED_BLINK(_i)      IXGBE_LED_OFFSET(IXGBE_LED_BLINK_BASE, _i)
 #define IXGBE_LED_MODE_MASK(_i)  IXGBE_LED_OFFSET(IXGBE_LED_MODE_MASK_BASE, _i)
@@ -2068,9 +2070,9 @@ enum {
 
 /* SR-IOV specific macros */
 #define IXGBE_MBVFICR_INDEX(vf_number)   (vf_number >> 4)
-#define IXGBE_MBVFICR(_i)                (0x00710 + (_i * 4))
-#define IXGBE_VFLRE(_i)                  (((_i & 1) ? 0x001C0 : 0x00600))
-#define IXGBE_VFLREC(_i)                 (0x00700 + (_i * 4))
+#define IXGBE_MBVFICR(_i)		(0x00710 + ((_i) * 4))
+#define IXGBE_VFLRE(_i)		((((_i) & 1) ? 0x001C0 : 0x00600))
+#define IXGBE_VFLREC(_i)		(0x00700 + ((_i) * 4))
 
 enum ixgbe_fdir_pballoc_type {
 	IXGBE_FDIR_PBALLOC_NONE = 0,
@@ -2726,6 +2728,8 @@ struct ixgbe_mac_operations {
 	s32 (*read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
 	s32 (*write_analog_reg8)(struct ixgbe_hw*, u32, u8);
 	s32 (*setup_sfp)(struct ixgbe_hw *);
+	s32 (*disable_rx_buff)(struct ixgbe_hw *);
+	s32 (*enable_rx_buff)(struct ixgbe_hw *);
 	s32 (*enable_rx_dma)(struct ixgbe_hw *, u32);
 	s32 (*acquire_swfw_sync)(struct ixgbe_hw *, u16);
 	void (*release_swfw_sync)(struct ixgbe_hw *, u16);
@@ -2892,6 +2896,7 @@ struct ixgbe_hw {
 	u8				revision_id;
 	bool				adapter_stopped;
 	bool				force_full_reset;
+	bool				allow_unsupported_sfp;
 };
 
 struct ixgbe_info {

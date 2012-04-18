@@ -41,6 +41,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 #include <mach/board-mx31moboard.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -506,7 +507,7 @@ static void mx31moboard_poweroff(void)
 	struct clk *clk = clk_get_sys("imx2-wdt.0", NULL);
 
 	if (!IS_ERR(clk))
-		clk_enable(clk);
+		clk_prepare_enable(clk);
 
 	mxc_iomux_mode(MX31_PIN_WATCHDOG_RST__WATCHDOG_RST);
 
@@ -528,6 +529,8 @@ static void __init mx31moboard_init(void)
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	gpio_led_register_device(-1, &mx31moboard_led_pdata);
+
+	imx31_add_imx2_wdt(NULL);
 
 	imx31_add_imx_uart0(&uart0_pdata);
 	imx31_add_imx_uart4(&uart4_pdata);
@@ -584,14 +587,12 @@ struct sys_timer mx31moboard_timer = {
 static void __init mx31moboard_reserve(void)
 {
 	/* reserve 4 MiB for mx3-camera */
-	mx3_camera_base = memblock_alloc(MX3_CAMERA_BUF_SIZE,
+	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
 			MX3_CAMERA_BUF_SIZE);
-	memblock_free(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
-	memblock_remove(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
 }
 
 MACHINE_START(MX31MOBOARD, "EPFL Mobots mx31moboard")
-	/* Maintainer: Valentin Longchamp, EPFL Mobots group */
+	/* Maintainer: Philippe Retornaz, EPFL Mobots group */
 	.atag_offset = 0x100,
 	.reserve = mx31moboard_reserve,
 	.map_io = mx31_map_io,

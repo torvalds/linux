@@ -15,6 +15,11 @@ if PHYLIB
 
 comment "MII PHY device drivers"
 
+config AMD_PHY
+	tristate "Drivers for the AMD PHYs"
+	---help---
+	  Currently supports the am79c874
+
 config MARVELL_PHY
 	tristate "Drivers for Marvell PHYs"
 	---help---

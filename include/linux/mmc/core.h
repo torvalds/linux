@@ -9,7 +9,7 @@
 #define LINUX_MMC_CORE_H
 
 #include <linux/interrupt.h>
-#include <linux/device.h>
+#include <linux/completion.h>
 
 struct request;
 struct mmc_data;
@@ -175,10 +175,11 @@ extern unsigned int mmc_align_data_size(struct mmc_card *, unsigned int);
 
 extern int __mmc_claim_host(struct mmc_host *host, atomic_t *abort);
 extern void mmc_release_host(struct mmc_host *host);
-extern void mmc_do_release_host(struct mmc_host *host);
 extern int mmc_try_claim_host(struct mmc_host *host);
 
 extern int mmc_flush_cache(struct mmc_card *);
+
+extern int mmc_detect_card_removed(struct mmc_host *host);
 
 /**
  *	mmc_claim_host - exclusively claim a host

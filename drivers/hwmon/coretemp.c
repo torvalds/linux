@@ -39,6 +39,7 @@
 #include <linux/moduleparam.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
+#include <asm/cpu_device_id.h>
 
 #define DRVNAME	"coretemp"
 
@@ -57,8 +58,8 @@ MODULE_PARM_DESC(tjmax, "TjMax value in degrees Celsius");
 #define TOTAL_ATTRS		(MAX_CORE_ATTRS + 1)
 #define MAX_CORE_DATA		(NUM_REAL_CORES + BASE_SYSFS_ATTR_NO)
 
-#define TO_PHYS_ID(cpu)		cpu_data(cpu).phys_proc_id
-#define TO_CORE_ID(cpu)		cpu_data(cpu).cpu_core_id
+#define TO_PHYS_ID(cpu)		(cpu_data(cpu).phys_proc_id)
+#define TO_CORE_ID(cpu)		(cpu_data(cpu).cpu_core_id)
 #define TO_ATTR_NO(cpu)		(TO_CORE_ID(cpu) + BASE_SYSFS_ATTR_NO)
 
 #ifdef CONFIG_SMP
@@ -190,7 +191,8 @@ static ssize_t show_temp(struct device *dev,
 	return tdata->valid ? sprintf(buf, "%d\n", tdata->temp) : -EAGAIN;
 }
 
-static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
+static int __cpuinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id,
+				  struct device *dev)
 {
 	/* The 100C is default for both mobile and non mobile CPUs */
 
@@ -284,7 +286,8 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	return tjmax;
 }
 
-static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
+static int __cpuinit get_tjmax(struct cpuinfo_x86 *c, u32 id,
+			       struct device *dev)
 {
 	int err;
 	u32 eax, edx;
@@ -323,7 +326,8 @@ static int get_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	return adjust_tjmax(c, id, dev);
 }
 
-static int create_name_attr(struct platform_data *pdata, struct device *dev)
+static int __devinit create_name_attr(struct platform_data *pdata,
+				      struct device *dev)
 {
 	sysfs_attr_init(&pdata->name_attr.attr);
 	pdata->name_attr.attr.name = "name";
@@ -332,8 +336,8 @@ static int create_name_attr(struct platform_data *pdata, struct device *dev)
 	return device_create_file(dev, &pdata->name_attr);
 }
 
-static int create_core_attrs(struct temp_data *tdata, struct device *dev,
-				int attr_no)
+static int __cpuinit create_core_attrs(struct temp_data *tdata,
+				       struct device *dev, int attr_no)
 {
 	int err, i;
 	static ssize_t (*const rd_ptr[TOTAL_ATTRS]) (struct device *dev,
@@ -383,7 +387,7 @@ static int __cpuinit chk_ucode_version(unsigned int cpu)
 	return 0;
 }
 
-static struct platform_device *coretemp_get_pdev(unsigned int cpu)
+static struct platform_device __cpuinit *coretemp_get_pdev(unsigned int cpu)
 {
 	u16 phys_proc_id = TO_PHYS_ID(cpu);
 	struct pdev_entry *p;
@@ -400,7 +404,8 @@ static struct platform_device *coretemp_get_pdev(unsigned int cpu)
 	return NULL;
 }
 
-static struct temp_data *init_temp_data(unsigned int cpu, int pkg_flag)
+static struct temp_data __cpuinit *init_temp_data(unsigned int cpu,
+						  int pkg_flag)
 {
 	struct temp_data *tdata;
 
@@ -418,7 +423,7 @@ static struct temp_data *init_temp_data(unsigned int cpu, int pkg_flag)
 	return tdata;
 }
 
-static int create_core_data(struct platform_device *pdev,
+static int __cpuinit create_core_data(struct platform_device *pdev,
 				unsigned int cpu, int pkg_flag)
 {
 	struct temp_data *tdata;
@@ -489,7 +494,7 @@ exit_free:
 	return err;
 }
 
-static void coretemp_add_core(unsigned int cpu, int pkg_flag)
+static void __cpuinit coretemp_add_core(unsigned int cpu, int pkg_flag)
 {
 	struct platform_device *pdev = coretemp_get_pdev(cpu);
 	int err;
@@ -618,7 +623,7 @@ exit:
 	return err;
 }
 
-static void coretemp_device_remove(unsigned int cpu)
+static void __cpuinit coretemp_device_remove(unsigned int cpu)
 {
 	struct pdev_entry *p, *n;
 	u16 phys_proc_id = TO_PHYS_ID(cpu);
@@ -634,7 +639,7 @@ static void coretemp_device_remove(unsigned int cpu)
 	mutex_unlock(&pdev_list_mutex);
 }
 
-static bool is_any_core_online(struct platform_data *pdata)
+static bool __cpuinit is_any_core_online(struct platform_data *pdata)
 {
 	int i;
 
@@ -755,13 +760,23 @@ static struct notifier_block coretemp_cpu_notifier __refdata = {
 	.notifier_call = coretemp_cpu_callback,
 };
 
+static const struct x86_cpu_id coretemp_ids[] = {
+	{ X86_VENDOR_INTEL, X86_FAMILY_ANY, X86_MODEL_ANY, X86_FEATURE_DTS },
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, coretemp_ids);
+
 static int __init coretemp_init(void)
 {
 	int i, err = -ENODEV;
 
-	/* quick check if we run Intel */
-	if (cpu_data(0).x86_vendor != X86_VENDOR_INTEL)
-		goto exit;
+	/*
+	 * CPUID.06H.EAX[0] indicates whether the CPU has thermal
+	 * sensors. We check this bit only, all the early CPUs
+	 * without thermal sensors will be filtered out.
+	 */
+	if (!x86_match_cpu(coretemp_ids))
+		return -ENODEV;
 
 	err = platform_driver_register(&coretemp_driver);
 	if (err)

@@ -306,7 +306,7 @@ static int create_vtbl(struct ubi_device *ubi, struct ubi_scan_info *si,
 		       int copy, void *vtbl)
 {
 	int err, tries = 0;
-	static struct ubi_vid_hdr *vid_hdr;
+	struct ubi_vid_hdr *vid_hdr;
 	struct ubi_scan_leb *new_seb;
 
 	ubi_msg("create volume table (copy #%d)", copy + 1);
@@ -322,7 +322,7 @@ retry:
 		goto out_free;
 	}
 
-	vid_hdr->vol_type = UBI_VID_DYNAMIC;
+	vid_hdr->vol_type = UBI_LAYOUT_VOLUME_TYPE;
 	vid_hdr->vol_id = cpu_to_be32(UBI_LAYOUT_VOLUME_ID);
 	vid_hdr->compat = UBI_LAYOUT_VOLUME_COMPAT;
 	vid_hdr->data_size = vid_hdr->used_ebs =
@@ -632,7 +632,7 @@ static int init_volumes(struct ubi_device *ubi, const struct ubi_scan_info *si,
 		return -ENOMEM;
 
 	vol->reserved_pebs = UBI_LAYOUT_VOLUME_EBS;
-	vol->alignment = 1;
+	vol->alignment = UBI_LAYOUT_VOLUME_ALIGN;
 	vol->vol_type = UBI_DYNAMIC_VOLUME;
 	vol->name_len = sizeof(UBI_LAYOUT_VOLUME_NAME) - 1;
 	memcpy(vol->name, UBI_LAYOUT_VOLUME_NAME, vol->name_len + 1);

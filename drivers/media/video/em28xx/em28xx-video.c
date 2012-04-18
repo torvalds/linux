@@ -760,17 +760,19 @@ buffer_prepare(struct videobuf_queue *vq, struct videobuf_buffer *vb,
 			goto fail;
 	}
 
-	if (!dev->isoc_ctl.num_bufs)
+	if (!dev->isoc_ctl.analog_bufs.num_bufs)
 		urb_init = 1;
 
 	if (urb_init) {
 		if (em28xx_vbi_supported(dev) == 1)
-			rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+			rc = em28xx_init_isoc(dev, EM28XX_ANALOG_MODE,
+					      EM28XX_NUM_PACKETS,
 					      EM28XX_NUM_BUFS,
 					      dev->max_pkt_size,
 					      em28xx_isoc_copy_vbi);
 		else
-			rc = em28xx_init_isoc(dev, EM28XX_NUM_PACKETS,
+			rc = em28xx_init_isoc(dev, EM28XX_ANALOG_MODE,
+					      EM28XX_NUM_PACKETS,
 					      EM28XX_NUM_BUFS,
 					      dev->max_pkt_size,
 					      em28xx_isoc_copy);
@@ -1070,6 +1072,10 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		/* the em2800 can only scale down to 50% */
 		height = height > (3 * maxh / 4) ? maxh : maxh / 2;
 		width = width > (3 * maxw / 4) ? maxw : maxw / 2;
+                /* MaxPacketSize for em2800 is too small to capture at full resolution
+                 * use half of maxw as the scaler can only scale to 50% */
+		if (width == maxw && height == maxh)
+			width /= 2;
 	} else {
 		/* width must even because of the YUYV format
 		   height must be even because of interlacing */
@@ -2263,7 +2269,7 @@ static int em28xx_v4l2_close(struct file *filp)
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_power, 0);
 
 		/* do this before setting alternate! */
-		em28xx_uninit_isoc(dev);
+		em28xx_uninit_isoc(dev, EM28XX_ANALOG_MODE);
 		em28xx_set_mode(dev, EM28XX_SUSPEND);
 
 		/* set alternate 0 */
@@ -2503,6 +2509,7 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 {
       u8 val;
 	int ret;
+	unsigned int maxw;
 
 	printk(KERN_INFO "%s: v4l2 driver version %s\n",
 		dev->name, EM28XX_VERSION);
@@ -2515,8 +2522,15 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 
 	/* Analog specific initialization */
 	dev->format = &format[0];
+
+	maxw = norm_maxw(dev);
+        /* MaxPacketSize for em2800 is too small to capture at full resolution
+         * use half of maxw as the scaler can only scale to 50% */
+        if (dev->board.is_em2800)
+            maxw /= 2;
+
 	em28xx_set_video_format(dev, format[0].fourcc,
-				norm_maxw(dev), norm_maxh(dev));
+				maxw, norm_maxh(dev));
 
 	video_mux(dev, dev->ctl_input);
 

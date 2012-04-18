@@ -112,7 +112,7 @@ static u32 ehca_encode_hwpage_size(u32 pgsize)
 
 static u64 ehca_get_max_hwpage_size(struct ehca_shca *shca)
 {
-	return 1UL << ilog2(shca->hca_cap_mr_pgsize);
+	return rounddown_pow_of_two(shca->hca_cap_mr_pgsize);
 }
 
 static struct ehca_mr *ehca_mr_new(void)

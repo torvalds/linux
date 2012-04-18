@@ -28,6 +28,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/wl12xx.h>
+#include <linux/platform_data/omap-abe-twl6040.h>
 
 #include <mach/hardware.h>
 #include <asm/hardware/gic.h>
@@ -51,8 +52,9 @@
 #define GPIO_HUB_NRESET		62
 #define GPIO_WIFI_PMENA		43
 #define GPIO_WIFI_IRQ		53
-#define HDMI_GPIO_HPD 60 /* Hot plug pin for HDMI */
+#define HDMI_GPIO_CT_CP_HPD 60 /* HPD mode enable/disable */
 #define HDMI_GPIO_LS_OE 41 /* Level shifter for HDMI */
+#define HDMI_GPIO_HPD  63 /* Hotplug detect */
 
 /* wl127x BT, FM, GPS connectivity chip */
 static int wl1271_gpios[] = {46, -1, -1};
@@ -90,9 +92,40 @@ static struct platform_device leds_gpio = {
 	},
 };
 
+static struct omap_abe_twl6040_data panda_abe_audio_data = {
+	/* Audio out */
+	.has_hs		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* HandsFree through expasion connector */
+	.has_hf		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* PandaBoard: FM TX, PandaBoardES: can be connected to audio out */
+	.has_aux	= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* PandaBoard: FM RX, PandaBoardES: audio in */
+	.has_afm	= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
+	/* No jack detection. */
+	.jack_detection	= 0,
+	/* MCLK input is 38.4MHz */
+	.mclk_freq	= 38400000,
+
+};
+
+static struct platform_device panda_abe_audio = {
+	.name		= "omap-abe-twl6040",
+	.id		= -1,
+	.dev = {
+		.platform_data = &panda_abe_audio_data,
+	},
+};
+
+static struct platform_device btwilink_device = {
+	.name	= "btwilink",
+	.id	= -1,
+};
+
 static struct platform_device *panda_devices[] __initdata = {
 	&leds_gpio,
 	&wl1271_device,
+	&panda_abe_audio,
+	&btwilink_device,
 };
 
 static const struct usbhs_omap_board_data usbhs_bdata __initconst = {
@@ -198,14 +231,13 @@ static struct platform_device omap_vwlan_device = {
 };
 
 struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
-	.irq = OMAP_GPIO_IRQ(GPIO_WIFI_IRQ),
 	/* PANDA ref clock is 38.4 MHz */
 	.board_ref_clock = 2,
 };
 
 static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 {
-	int ret = 0;
+	int irq = 0;
 	struct platform_device *pdev = container_of(dev,
 				struct platform_device, dev);
 	struct omap_mmc_platform_data *pdata = dev->platform_data;
@@ -216,14 +248,15 @@ static int omap4_twl6030_hsmmc_late_init(struct device *dev)
 	}
 	/* Setting MMC1 Card detect Irq */
 	if (pdev->id == 0) {
-		ret = twl6030_mmc_card_detect_config();
-		 if (ret)
+		irq = twl6030_mmc_card_detect_config();
+		if (irq < 0) {
 			dev_err(dev, "%s: Error card detect config(%d)\n",
-				__func__, ret);
-		 else
-			pdata->slots[0].card_detect = twl6030_mmc_card_detect;
+				__func__, irq);
+			return irq;
+		}
+		pdata->slots[0].card_detect = twl6030_mmc_card_detect;
 	}
-	return ret;
+	return 0;
 }
 
 static __init void omap4_twl6030_hsmmc_set_late_init(struct device *dev)
@@ -244,15 +277,32 @@ static int __init omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers)
 {
 	struct omap2_hsmmc_info *c;
 
-	omap2_hsmmc_init(controllers);
+	omap_hsmmc_init(controllers);
 	for (c = controllers; c->mmc; c++)
-		omap4_twl6030_hsmmc_set_late_init(c->dev);
+		omap4_twl6030_hsmmc_set_late_init(&c->pdev->dev);
 
 	return 0;
 }
 
+static struct twl4030_codec_data twl6040_codec = {
+	/* single-step ramp for headset and handsfree */
+	.hs_left_step	= 0x0f,
+	.hs_right_step	= 0x0f,
+	.hf_left_step	= 0x1d,
+	.hf_right_step	= 0x1d,
+};
+
+static struct twl4030_audio_data twl6040_audio = {
+	.codec		= &twl6040_codec,
+	.audpwron_gpio	= 127,
+	.naudint_irq	= OMAP44XX_IRQ_SYS_2N,
+	.irq_base	= TWL6040_CODEC_IRQ_BASE,
+};
+
 /* Panda board uses the common PMIC configuration */
-static struct twl4030_platform_data omap4_panda_twldata;
+static struct twl4030_platform_data omap4_panda_twldata = {
+	.audio		= &twl6040_audio,
+};
 
 /*
  * Display monitor features are burnt in their EEPROM as EDID data. The EEPROM
@@ -412,24 +462,10 @@ int __init omap4_panda_dvi_init(void)
 	return r;
 }
 
-
-static void omap4_panda_hdmi_mux_init(void)
-{
-	/* PAD0_HDMI_HPD_PAD1_HDMI_CEC */
-	omap_mux_init_signal("hdmi_hpd",
-			OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("hdmi_cec",
-			OMAP_PIN_INPUT_PULLUP);
-	/* PAD0_HDMI_DDC_SCL_PAD1_HDMI_DDC_SDA */
-	omap_mux_init_signal("hdmi_ddc_scl",
-			OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_signal("hdmi_ddc_sda",
-			OMAP_PIN_INPUT_PULLUP);
-}
-
 static struct gpio panda_hdmi_gpios[] = {
-	{ HDMI_GPIO_HPD,	GPIOF_OUT_INIT_HIGH, "hdmi_gpio_hpd"   },
+	{ HDMI_GPIO_CT_CP_HPD, GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ct_cp_hpd" },
 	{ HDMI_GPIO_LS_OE,	GPIOF_OUT_INIT_HIGH, "hdmi_gpio_ls_oe" },
+	{ HDMI_GPIO_HPD, GPIOF_DIR_IN, "hdmi_gpio_hpd" },
 };
 
 static int omap4_panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
@@ -446,9 +482,12 @@ static int omap4_panda_panel_enable_hdmi(struct omap_dss_device *dssdev)
 
 static void omap4_panda_panel_disable_hdmi(struct omap_dss_device *dssdev)
 {
-	gpio_free(HDMI_GPIO_LS_OE);
-	gpio_free(HDMI_GPIO_HPD);
+	gpio_free_array(panda_hdmi_gpios, ARRAY_SIZE(panda_hdmi_gpios));
 }
+
+static struct omap_dss_hdmi_data omap4_panda_hdmi_data = {
+	.hpd_gpio = HDMI_GPIO_HPD,
+};
 
 static struct omap_dss_device  omap4_panda_hdmi_device = {
 	.name = "hdmi",
@@ -457,6 +496,7 @@ static struct omap_dss_device  omap4_panda_hdmi_device = {
 	.platform_enable = omap4_panda_panel_enable_hdmi,
 	.platform_disable = omap4_panda_panel_disable_hdmi,
 	.channel = OMAP_DSS_CHANNEL_DIGIT,
+	.data = &omap4_panda_hdmi_data,
 };
 
 static struct omap_dss_device *omap4_panda_dss_devices[] = {
@@ -470,7 +510,7 @@ static struct omap_dss_board_info omap4_panda_dss_data = {
 	.default_device	= &omap4_panda_dvi_device,
 };
 
-void omap4_panda_display_init(void)
+void __init omap4_panda_display_init(void)
 {
 	int r;
 
@@ -478,21 +518,51 @@ void omap4_panda_display_init(void)
 	if (r)
 		pr_err("error initializing panda DVI\n");
 
-	omap4_panda_hdmi_mux_init();
 	omap_display_init(&omap4_panda_dss_data);
+
+	/*
+	 * OMAP4460SDP/Blaze and OMAP4430 ES2.3 SDP/Blaze boards and
+	 * later have external pull up on the HDMI I2C lines
+	 */
+	if (cpu_is_omap446x() || omap_rev() > OMAP4430_REV_ES2_2)
+		omap_hdmi_init(OMAP_HDMI_SDA_SCL_EXTERNAL_PULLUP);
+	else
+		omap_hdmi_init(0);
+
+	omap_mux_init_gpio(HDMI_GPIO_LS_OE, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(HDMI_GPIO_CT_CP_HPD, OMAP_PIN_OUTPUT);
+	omap_mux_init_gpio(HDMI_GPIO_HPD, OMAP_PIN_INPUT_PULLDOWN);
+}
+
+static void omap4_panda_init_rev(void)
+{
+	if (cpu_is_omap443x()) {
+		/* PandaBoard 4430 */
+		/* ASoC audio configuration */
+		panda_abe_audio_data.card_name = "PandaBoard";
+		panda_abe_audio_data.has_hsmic = 1;
+	} else {
+		/* PandaBoard ES */
+		/* ASoC audio configuration */
+		panda_abe_audio_data.card_name = "PandaBoardES";
+	}
 }
 
 static void __init omap4_panda_init(void)
 {
 	int package = OMAP_PACKAGE_CBS;
+	int ret;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0)
 		package = OMAP_PACKAGE_CBL;
 	omap4_mux_init(board_mux, NULL, package);
 
-	if (wl12xx_set_platform_data(&omap_panda_wlan_data))
-		pr_err("error setting wl12xx data\n");
+	omap_panda_wlan_data.irq = gpio_to_irq(GPIO_WIFI_IRQ);
+	ret = wl12xx_set_platform_data(&omap_panda_wlan_data);
+	if (ret)
+		pr_err("error setting wl12xx data: %d\n", ret);
 
+	omap4_panda_init_rev();
 	omap4_panda_i2c_init();
 	platform_add_devices(panda_devices, ARRAY_SIZE(panda_devices));
 	platform_device_register(&omap_vwlan_device);

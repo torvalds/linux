@@ -63,6 +63,8 @@ static int fimc_init_capture(struct fimc_dev *fimc)
 		fimc_hw_set_effect(ctx, false);
 		fimc_hw_set_output_path(ctx);
 		fimc_hw_set_out_dma(ctx);
+		if (fimc->variant->has_alpha)
+			fimc_hw_set_rgb_alpha(ctx);
 		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	}
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -154,6 +156,8 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 		fimc_hw_set_rotation(ctx);
 		fimc_prepare_dma_offset(ctx, &ctx->d_frame);
 		fimc_hw_set_out_dma(ctx);
+		if (fimc->variant->has_alpha)
+			fimc_hw_set_rgb_alpha(ctx);
 		clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	}
 	spin_unlock(&ctx->slock);
@@ -689,7 +693,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 			mf->code = 0;
 			continue;
 		}
-		if (mf->width != tfmt->width || mf->width != tfmt->width) {
+		if (mf->width != tfmt->width || mf->height != tfmt->height) {
 			u32 fcc = ffmt->fourcc;
 			tfmt->width  = mf->width;
 			tfmt->height = mf->height;
@@ -698,7 +702,8 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 					       NULL, &fcc, FIMC_SD_PAD_SOURCE);
 			if (ffmt && ffmt->mbus_code)
 				mf->code = ffmt->mbus_code;
-			if (mf->width != tfmt->width || mf->width != tfmt->width)
+			if (mf->width != tfmt->width ||
+			    mf->height != tfmt->height)
 				continue;
 			tfmt->code = mf->code;
 		}
@@ -706,7 +711,7 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 			ret = v4l2_subdev_call(csis, pad, set_fmt, NULL, &sfmt);
 
 		if (mf->code == tfmt->code &&
-		    mf->width == tfmt->width && mf->width == tfmt->width)
+		    mf->width == tfmt->width && mf->height == tfmt->height)
 			break;
 	}
 
@@ -812,6 +817,10 @@ static int fimc_capture_set_format(struct fimc_dev *fimc, struct v4l2_format *f)
 					  FIMC_SD_PAD_SOURCE);
 	if (!ff->fmt)
 		return -EINVAL;
+
+	/* Update RGB Alpha control state and value range */
+	fimc_alpha_ctrl_update(ctx);
+
 	/* Try to match format at the host and the sensor */
 	if (!fimc->vid_cap.user_subdev_api) {
 		mf->code   = ff->fmt->mbus_code;
@@ -1010,52 +1019,117 @@ static int fimc_cap_dqbuf(struct file *file, void *priv,
 	return vb2_dqbuf(&fimc->vid_cap.vbq, buf, file->f_flags & O_NONBLOCK);
 }
 
-static int fimc_cap_cropcap(struct file *file, void *fh,
-			    struct v4l2_cropcap *cr)
+static int fimc_cap_create_bufs(struct file *file, void *priv,
+				struct v4l2_create_buffers *create)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
 
-	if (cr->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-		return -EINVAL;
-
-	cr->bounds.left		= 0;
-	cr->bounds.top		= 0;
-	cr->bounds.width	= f->o_width;
-	cr->bounds.height	= f->o_height;
-	cr->defrect		= cr->bounds;
-
-	return 0;
+	return vb2_create_bufs(&fimc->vid_cap.vbq, create);
 }
 
-static int fimc_cap_g_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+static int fimc_cap_prepare_buf(struct file *file, void *priv,
+				struct v4l2_buffer *b)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct fimc_frame *f = &fimc->vid_cap.ctx->s_frame;
 
-	cr->c.left	= f->offs_h;
-	cr->c.top	= f->offs_v;
-	cr->c.width	= f->width;
-	cr->c.height	= f->height;
-
-	return 0;
+	return vb2_prepare_buf(&fimc->vid_cap.vbq, b);
 }
 
-static int fimc_cap_s_crop(struct file *file, void *fh, struct v4l2_crop *cr)
+static int fimc_cap_g_selection(struct file *file, void *fh,
+				struct v4l2_selection *s)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
-	struct fimc_frame *ff;
+	struct fimc_frame *f = &ctx->s_frame;
+
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		f = &ctx->d_frame;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = f->o_width;
+		s->r.height = f->o_height;
+		return 0;
+
+	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+		f = &ctx->d_frame;
+	case V4L2_SEL_TGT_CROP_ACTIVE:
+		s->r.left = f->offs_h;
+		s->r.top = f->offs_v;
+		s->r.width = f->width;
+		s->r.height = f->height;
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+/* Return 1 if rectangle a is enclosed in rectangle b, or 0 otherwise. */
+int enclosed_rectangle(struct v4l2_rect *a, struct v4l2_rect *b)
+{
+	if (a->left < b->left || a->top < b->top)
+		return 0;
+	if (a->left + a->width > b->left + b->width)
+		return 0;
+	if (a->top + a->height > b->top + b->height)
+		return 0;
+
+	return 1;
+}
+
+static int fimc_cap_s_selection(struct file *file, void *fh,
+				struct v4l2_selection *s)
+{
+	struct fimc_dev *fimc = video_drvdata(file);
+	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct v4l2_rect rect = s->r;
+	struct fimc_frame *f;
 	unsigned long flags;
+	unsigned int pad;
 
-	fimc_capture_try_crop(ctx, &cr->c, FIMC_SD_PAD_SINK);
-	ff = &ctx->s_frame;
+	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return -EINVAL;
 
+	switch (s->target) {
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_ACTIVE:
+		f = &ctx->d_frame;
+		pad = FIMC_SD_PAD_SOURCE;
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_ACTIVE:
+		f = &ctx->s_frame;
+		pad = FIMC_SD_PAD_SINK;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	fimc_capture_try_crop(ctx, &rect, pad);
+
+	if (s->flags & V4L2_SEL_FLAG_LE &&
+	    !enclosed_rectangle(&rect, &s->r))
+		return -ERANGE;
+
+	if (s->flags & V4L2_SEL_FLAG_GE &&
+	    !enclosed_rectangle(&s->r, &rect))
+		return -ERANGE;
+
+	s->r = rect;
 	spin_lock_irqsave(&fimc->slock, flags);
-	set_frame_crop(ff, cr->c.left, cr->c.top, cr->c.width, cr->c.height);
-	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
+	set_frame_crop(f, s->r.left, s->r.top, s->r.width,
+		       s->r.height);
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
+	set_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	return 0;
 }
 
@@ -1073,12 +1147,14 @@ static const struct v4l2_ioctl_ops fimc_capture_ioctl_ops = {
 	.vidioc_qbuf			= fimc_cap_qbuf,
 	.vidioc_dqbuf			= fimc_cap_dqbuf,
 
+	.vidioc_prepare_buf		= fimc_cap_prepare_buf,
+	.vidioc_create_bufs		= fimc_cap_create_bufs,
+
 	.vidioc_streamon		= fimc_cap_streamon,
 	.vidioc_streamoff		= fimc_cap_streamoff,
 
-	.vidioc_g_crop			= fimc_cap_g_crop,
-	.vidioc_s_crop			= fimc_cap_s_crop,
-	.vidioc_cropcap			= fimc_cap_cropcap,
+	.vidioc_g_selection		= fimc_cap_g_selection,
+	.vidioc_s_selection		= fimc_cap_s_selection,
 
 	.vidioc_enum_input		= fimc_cap_enum_input,
 	.vidioc_s_input			= fimc_cap_s_input,
@@ -1235,6 +1311,9 @@ static int fimc_subdev_set_fmt(struct v4l2_subdev *sd,
 		*mf = fmt->format;
 		return 0;
 	}
+	/* Update RGB Alpha control state and value range */
+	fimc_alpha_ctrl_update(ctx);
+
 	fimc_capture_mark_jpeg_xfer(ctx, fimc_fmt_is_jpeg(ffmt->color));
 
 	ff = fmt->pad == FIMC_SD_PAD_SINK ?

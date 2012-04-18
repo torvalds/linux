@@ -227,68 +227,49 @@ static struct snd_soc_dai_driver au1xi2s_dai_driver = {
 
 static int __devinit au1xi2s_drvprobe(struct platform_device *pdev)
 {
-	int ret;
 	struct resource *iores, *dmares;
 	struct au1xpsc_audio_data *ctx;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
 	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores) {
-		ret = -ENODEV;
-		goto out0;
-	}
+	if (!iores)
+		return -ENODEV;
 
-	ret = -EBUSY;
-	if (!request_mem_region(iores->start, resource_size(iores),
-				pdev->name))
-		goto out0;
+	if (!devm_request_mem_region(&pdev->dev, iores->start,
+				     resource_size(iores),
+				     pdev->name))
+		return -EBUSY;
 
-	ctx->mmio = ioremap_nocache(iores->start, resource_size(iores));
+	ctx->mmio = devm_ioremap_nocache(&pdev->dev, iores->start,
+					 resource_size(iores));
 	if (!ctx->mmio)
-		goto out1;
+		return -EBUSY;
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!dmares)
-		goto out2;
+		return -EBUSY;
 	ctx->dmaids[SNDRV_PCM_STREAM_PLAYBACK] = dmares->start;
 
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!dmares)
-		goto out2;
+		return -EBUSY;
 	ctx->dmaids[SNDRV_PCM_STREAM_CAPTURE] = dmares->start;
 
 	platform_set_drvdata(pdev, ctx);
 
-	ret = snd_soc_register_dai(&pdev->dev, &au1xi2s_dai_driver);
-	if (ret)
-		goto out2;
-
-	return 0;
-
-out2:
-	iounmap(ctx->mmio);
-out1:
-	release_mem_region(iores->start, resource_size(iores));
-out0:
-	kfree(ctx);
-	return ret;
+	return snd_soc_register_dai(&pdev->dev, &au1xi2s_dai_driver);
 }
 
 static int __devexit au1xi2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *ctx = platform_get_drvdata(pdev);
-	struct resource *r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	snd_soc_unregister_dai(&pdev->dev);
 
 	WR(ctx, I2S_ENABLE, EN_D);	/* clock off, disable */
-
-	iounmap(ctx->mmio);
-	release_mem_region(r->start, resource_size(r));
-	kfree(ctx);
 
 	return 0;
 }
@@ -331,18 +312,7 @@ static struct platform_driver au1xi2s_driver = {
 	.remove		= __devexit_p(au1xi2s_drvremove),
 };
 
-static int __init au1xi2s_load(void)
-{
-	return platform_driver_register(&au1xi2s_driver);
-}
-
-static void __exit au1xi2s_unload(void)
-{
-	platform_driver_unregister(&au1xi2s_driver);
-}
-
-module_init(au1xi2s_load);
-module_exit(au1xi2s_unload);
+module_platform_driver(au1xi2s_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Au1000/1500/1100 I2S ASoC driver");

@@ -52,38 +52,6 @@ static int qnx4_remount(struct super_block *sb, int *flags, char *data)
 	return 0;
 }
 
-static struct buffer_head *qnx4_getblk(struct inode *inode, int nr,
-				       int create)
-{
-	struct buffer_head *result = NULL;
-
-	if ( nr >= 0 )
-		nr = qnx4_block_map( inode, nr );
-	if (nr) {
-		result = sb_getblk(inode->i_sb, nr);
-		return result;
-	}
-	return NULL;
-}
-
-struct buffer_head *qnx4_bread(struct inode *inode, int block, int create)
-{
-	struct buffer_head *bh;
-
-	bh = qnx4_getblk(inode, block, create);
-	if (!bh || buffer_uptodate(bh)) {
-		return bh;
-	}
-	ll_rw_block(READ, 1, &bh);
-	wait_on_buffer(bh);
-	if (buffer_uptodate(bh)) {
-		return bh;
-	}
-	brelse(bh);
-
-	return NULL;
-}
-
 static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
 {
 	unsigned long phys;
@@ -98,23 +66,31 @@ static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_h
 	return 0;
 }
 
+static inline u32 try_extent(qnx4_xtnt_t *extent, u32 *offset)
+{
+	u32 size = le32_to_cpu(extent->xtnt_size);
+	if (*offset < size)
+		return le32_to_cpu(extent->xtnt_blk) + *offset - 1;
+	*offset -= size;
+	return 0;
+}
+
 unsigned long qnx4_block_map( struct inode *inode, long iblock )
 {
 	int ix;
-	long offset, i_xblk;
-	unsigned long block = 0;
+	long i_xblk;
 	struct buffer_head *bh = NULL;
 	struct qnx4_xblk *xblk = NULL;
 	struct qnx4_inode_entry *qnx4_inode = qnx4_raw_inode(inode);
 	u16 nxtnt = le16_to_cpu(qnx4_inode->di_num_xtnts);
+	u32 offset = iblock;
+	u32 block = try_extent(&qnx4_inode->di_first_xtnt, &offset);
 
-	if ( iblock < le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size) ) {
+	if (block) {
 		// iblock is in the first extent. This is easy.
-		block = le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_blk) + iblock - 1;
 	} else {
 		// iblock is beyond first extent. We have to follow the extent chain.
 		i_xblk = le32_to_cpu(qnx4_inode->di_xblk);
-		offset = iblock - le32_to_cpu(qnx4_inode->di_first_xtnt.xtnt_size);
 		ix = 0;
 		while ( --nxtnt > 0 ) {
 			if ( ix == 0 ) {
@@ -130,12 +106,11 @@ unsigned long qnx4_block_map( struct inode *inode, long iblock )
 					return -EIO;
 				}
 			}
-			if ( offset < le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_size) ) {
+			block = try_extent(&xblk->xblk_xtnts[ix], &offset);
+			if (block) {
 				// got it!
-				block = le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_blk) + offset - 1;
 				break;
 			}
-			offset -= le32_to_cpu(xblk->xblk_xtnts[ix].xtnt_size);
 			if ( ++ix >= xblk->xblk_num_xtnts ) {
 				i_xblk = le32_to_cpu(xblk->xblk_next_xblk);
 				ix = 0;
@@ -179,47 +154,33 @@ static const char *qnx4_checkroot(struct super_block *sb)
 	struct qnx4_inode_entry *rootdir;
 	int rd, rl;
 	int i, j;
-	int found = 0;
 
-	if (*(qnx4_sb(sb)->sb->RootDir.di_fname) != '/') {
+	if (*(qnx4_sb(sb)->sb->RootDir.di_fname) != '/')
 		return "no qnx4 filesystem (no root dir).";
-	} else {
-		QNX4DEBUG((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
-		rd = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_blk) - 1;
-		rl = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_size);
-		for (j = 0; j < rl; j++) {
-			bh = sb_bread(sb, rd + j);	/* root dir, first block */
-			if (bh == NULL) {
-				return "unable to read root entry.";
-			}
-			for (i = 0; i < QNX4_INODES_PER_BLOCK; i++) {
-				rootdir = (struct qnx4_inode_entry *) (bh->b_data + i * QNX4_DIR_ENTRY_SIZE);
-				if (rootdir->di_fname != NULL) {
-					QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
-					if (!strcmp(rootdir->di_fname,
-						    QNX4_BMNAME)) {
-						found = 1;
-						qnx4_sb(sb)->BitMap = kmemdup(rootdir,
-									      sizeof(struct qnx4_inode_entry),
-									      GFP_KERNEL);
-						if (!qnx4_sb(sb)->BitMap) {
-							brelse (bh);
-							return "not enough memory for bitmap inode";
-						}/* keep bitmap inode known */
-						break;
-					}
-				}
-			}
+	QNX4DEBUG((KERN_NOTICE "QNX4 filesystem found on dev %s.\n", sb->s_id));
+	rd = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_blk) - 1;
+	rl = le32_to_cpu(qnx4_sb(sb)->sb->RootDir.di_first_xtnt.xtnt_size);
+	for (j = 0; j < rl; j++) {
+		bh = sb_bread(sb, rd + j);	/* root dir, first block */
+		if (bh == NULL)
+			return "unable to read root entry.";
+		rootdir = (struct qnx4_inode_entry *) bh->b_data;
+		for (i = 0; i < QNX4_INODES_PER_BLOCK; i++, rootdir++) {
+			QNX4DEBUG((KERN_INFO "rootdir entry found : [%s]\n", rootdir->di_fname));
+			if (strcmp(rootdir->di_fname, QNX4_BMNAME) != 0)
+				continue;
+			qnx4_sb(sb)->BitMap = kmemdup(rootdir,
+						      sizeof(struct qnx4_inode_entry),
+						      GFP_KERNEL);
 			brelse(bh);
-			if (found != 0) {
-				break;
-			}
+			if (!qnx4_sb(sb)->BitMap)
+				return "not enough memory for bitmap inode";
+			/* keep bitmap inode known */
+			return NULL;
 		}
-		if (found == 0) {
-			return "bitmap file not found.";
-		}
+		brelse(bh);
 	}
-	return NULL;
+	return "bitmap file not found.";
 }
 
 static int qnx4_fill_super(struct super_block *s, void *data, int silent)
@@ -270,19 +231,19 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	if (IS_ERR(root)) {
 		printk(KERN_ERR "qnx4: get inode failed\n");
 		ret = PTR_ERR(root);
- 		goto out;
+ 		goto outb;
  	}
 
 	ret = -ENOMEM;
- 	s->s_root = d_alloc_root(root);
+ 	s->s_root = d_make_root(root);
  	if (s->s_root == NULL)
- 		goto outi;
+ 		goto outb;
 
 	brelse(bh);
 	return 0;
 
-      outi:
-	iput(root);
+      outb:
+	kfree(qs->BitMap);
       out:
 	brelse(bh);
       outnobh:
@@ -300,44 +261,17 @@ static void qnx4_put_super(struct super_block *sb)
 	return;
 }
 
-static int qnx4_writepage(struct page *page, struct writeback_control *wbc)
-{
-	return block_write_full_page(page,qnx4_get_block, wbc);
-}
-
 static int qnx4_readpage(struct file *file, struct page *page)
 {
 	return block_read_full_page(page,qnx4_get_block);
 }
 
-static int qnx4_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
-{
-	struct qnx4_inode_info *qnx4_inode = qnx4_i(mapping->host);
-	int ret;
-
-	*pagep = NULL;
-	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				qnx4_get_block,
-				&qnx4_inode->mmu_private);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
-}
 static sector_t qnx4_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,qnx4_get_block);
 }
 static const struct address_space_operations qnx4_aops = {
 	.readpage	= qnx4_readpage,
-	.writepage	= qnx4_writepage,
-	.write_begin	= qnx4_write_begin,
-	.write_end	= generic_write_end,
 	.bmap		= qnx4_bmap
 };
 

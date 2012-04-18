@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel(R) 82576 Virtual Function Linux driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -96,10 +96,6 @@
 #define E1000_ERR_CONFIG   3
 #define E1000_ERR_MAC_INIT 5
 #define E1000_ERR_MBX      15
-
-#ifndef ETH_ADDR_LEN
-#define ETH_ADDR_LEN                 6
-#endif
 
 /* SRRCTL bit definitions */
 #define E1000_SRRCTL_BSIZEPKT_SHIFT                     10 /* Shift _right_ */

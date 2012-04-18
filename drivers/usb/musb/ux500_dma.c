@@ -84,7 +84,7 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	struct musb_hw_ep *hw_ep = ux500_channel->hw_ep;
 	struct dma_chan *dma_chan = ux500_channel->dma_chan;
 	struct dma_async_tx_descriptor *dma_desc;
-	enum dma_data_direction direction;
+	enum dma_transfer_direction direction;
 	struct scatterlist sg;
 	struct dma_slave_config slave_conf;
 	enum dma_slave_buswidth addr_width;
@@ -104,7 +104,7 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	sg_dma_address(&sg) = dma_addr;
 	sg_dma_len(&sg) = len;
 
-	direction = ux500_channel->is_tx ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
+	direction = ux500_channel->is_tx ? DMA_MEM_TO_DEV : DMA_DEV_TO_MEM;
 	addr_width = (len & 0x3) ? DMA_SLAVE_BUSWIDTH_1_BYTE :
 					DMA_SLAVE_BUSWIDTH_4_BYTES;
 
@@ -115,12 +115,12 @@ static bool ux500_configure_channel(struct dma_channel *channel,
 	slave_conf.dst_addr = usb_fifo_addr;
 	slave_conf.dst_addr_width = addr_width;
 	slave_conf.dst_maxburst = 16;
+	slave_conf.device_fc = false;
 
 	dma_chan->device->device_control(dma_chan, DMA_SLAVE_CONFIG,
 					     (unsigned long) &slave_conf);
 
-	dma_desc = dma_chan->device->
-			device_prep_slave_sg(dma_chan, &sg, 1, direction,
+	dma_desc = dmaengine_prep_slave_sg(dma_chan, &sg, 1, direction,
 					     DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 	if (!dma_desc)
 		return false;

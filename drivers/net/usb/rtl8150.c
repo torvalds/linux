@@ -85,32 +85,6 @@
 #define INT_CRERR_CNT		0x06
 #define INT_COL_CNT		0x07
 
-/* Transmit status register errors */
-#define TSR_ECOL		(1<<5)
-#define TSR_LCOL		(1<<4)
-#define TSR_LOSS_CRS		(1<<3)
-#define TSR_JBR			(1<<2)
-#define TSR_ERRORS		(TSR_ECOL | TSR_LCOL | TSR_LOSS_CRS | TSR_JBR)
-/* Receive status register errors */
-#define RSR_CRC			(1<<2)
-#define RSR_FAE			(1<<1)
-#define RSR_ERRORS		(RSR_CRC | RSR_FAE)
-
-/* Media status register definitions */
-#define MSR_DUPLEX		(1<<4)
-#define MSR_SPEED		(1<<3)
-#define MSR_LINK		(1<<2)
-
-/* Interrupt pipe data */
-#define INT_TSR			0x00
-#define INT_RSR			0x01
-#define INT_MSR			0x02
-#define INT_WAKSR		0x03
-#define INT_TXOK_CNT		0x04
-#define INT_RXLOST_CNT		0x05
-#define INT_CRERR_CNT		0x06
-#define INT_COL_CNT		0x07
-
 
 #define	RTL8150_MTU		1540
 #define	RTL8150_TX_TIMEOUT	(HZ)
@@ -894,10 +868,8 @@ static int rtl8150_probe(struct usb_interface *intf,
 	struct net_device *netdev;
 
 	netdev = alloc_etherdev(sizeof(rtl8150_t));
-	if (!netdev) {
-		err("Out of memory");
+	if (!netdev)
 		return -ENOMEM;
-	}
 
 	dev = netdev_priv(netdev);
 

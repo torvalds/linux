@@ -266,7 +266,7 @@ fail:
 }
 
 static int lgdt3305_set_modulation(struct lgdt3305_state *state,
-				   struct dvb_frontend_parameters *param)
+				   struct dtv_frontend_properties *p)
 {
 	u8 opermode;
 	int ret;
@@ -279,7 +279,7 @@ static int lgdt3305_set_modulation(struct lgdt3305_state *state,
 
 	opermode &= ~0x03;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		opermode |= 0x03;
 		break;
@@ -298,11 +298,11 @@ fail:
 }
 
 static int lgdt3305_set_filter_extension(struct lgdt3305_state *state,
-					 struct dvb_frontend_parameters *param)
+					 struct dtv_frontend_properties *p)
 {
 	int val;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		val = 0;
 		break;
@@ -321,11 +321,11 @@ static int lgdt3305_set_filter_extension(struct lgdt3305_state *state,
 /* ------------------------------------------------------------------------ */
 
 static int lgdt3305_passband_digital_agc(struct lgdt3305_state *state,
-					 struct dvb_frontend_parameters *param)
+					 struct dtv_frontend_properties *p)
 {
 	u16 agc_ref;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		agc_ref = 0x32c4;
 		break;
@@ -348,11 +348,11 @@ static int lgdt3305_passband_digital_agc(struct lgdt3305_state *state,
 }
 
 static int lgdt3305_rfagc_loop(struct lgdt3305_state *state,
-			       struct dvb_frontend_parameters *param)
+			       struct dtv_frontend_properties *p)
 {
 	u16 ifbw, rfbw, agcdelay;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		agcdelay = 0x04c0;
 		rfbw     = 0x8000;
@@ -398,11 +398,11 @@ static int lgdt3305_rfagc_loop(struct lgdt3305_state *state,
 }
 
 static int lgdt3305_agc_setup(struct lgdt3305_state *state,
-			      struct dvb_frontend_parameters *param)
+			      struct dtv_frontend_properties *p)
 {
 	int lockdten, acqen;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		lockdten = 0;
 		acqen = 0;
@@ -432,15 +432,15 @@ static int lgdt3305_agc_setup(struct lgdt3305_state *state,
 		return -EINVAL;
 	}
 
-	return lgdt3305_rfagc_loop(state, param);
+	return lgdt3305_rfagc_loop(state, p);
 }
 
 static int lgdt3305_set_agc_power_ref(struct lgdt3305_state *state,
-				      struct dvb_frontend_parameters *param)
+				      struct dtv_frontend_properties *p)
 {
 	u16 usref = 0;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		if (state->cfg->usref_8vsb)
 			usref = state->cfg->usref_8vsb;
@@ -473,14 +473,14 @@ static int lgdt3305_set_agc_power_ref(struct lgdt3305_state *state,
 /* ------------------------------------------------------------------------ */
 
 static int lgdt3305_spectral_inversion(struct lgdt3305_state *state,
-				       struct dvb_frontend_parameters *param,
+				       struct dtv_frontend_properties *p,
 				       int inversion)
 {
 	int ret;
 
 	lg_dbg("(%d)\n", inversion);
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		ret = lgdt3305_write_reg(state, LGDT3305_CR_CTRL_7,
 					 inversion ? 0xf9 : 0x79);
@@ -497,13 +497,13 @@ static int lgdt3305_spectral_inversion(struct lgdt3305_state *state,
 }
 
 static int lgdt3305_set_if(struct lgdt3305_state *state,
-			   struct dvb_frontend_parameters *param)
+			   struct dtv_frontend_properties *p)
 {
 	u16 if_freq_khz;
 	u8 nco1, nco2, nco3, nco4;
 	u64 nco;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		if_freq_khz = state->cfg->vsb_if_khz;
 		break;
@@ -517,7 +517,7 @@ static int lgdt3305_set_if(struct lgdt3305_state *state,
 
 	nco = if_freq_khz / 10;
 
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		nco <<= 24;
 		do_div(nco, 625);
@@ -677,37 +677,37 @@ fail:
 	return ret;
 }
 
-static int lgdt3304_set_parameters(struct dvb_frontend *fe,
-				   struct dvb_frontend_parameters *param)
+static int lgdt3304_set_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt3305_state *state = fe->demodulator_priv;
 	int ret;
 
-	lg_dbg("(%d, %d)\n", param->frequency, param->u.vsb.modulation);
+	lg_dbg("(%d, %d)\n", p->frequency, p->modulation);
 
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe, param);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 		if (lg_fail(ret))
 			goto fail;
-		state->current_frequency = param->frequency;
+		state->current_frequency = p->frequency;
 	}
 
-	ret = lgdt3305_set_modulation(state, param);
+	ret = lgdt3305_set_modulation(state, p);
 	if (lg_fail(ret))
 		goto fail;
 
-	ret = lgdt3305_passband_digital_agc(state, param);
+	ret = lgdt3305_passband_digital_agc(state, p);
 	if (lg_fail(ret))
 		goto fail;
 
-	ret = lgdt3305_agc_setup(state, param);
+	ret = lgdt3305_agc_setup(state, p);
 	if (lg_fail(ret))
 		goto fail;
 
 	/* reg 0x030d is 3304-only... seen in vsb and qam usbsnoops... */
-	switch (param->u.vsb.modulation) {
+	switch (p->modulation) {
 	case VSB_8:
 		lgdt3305_write_reg(state, 0x030d, 0x00);
 		lgdt3305_write_reg(state, LGDT3305_CR_CTR_FREQ_1, 0x4f);
@@ -718,7 +718,7 @@ static int lgdt3304_set_parameters(struct dvb_frontend *fe,
 	case QAM_64:
 	case QAM_256:
 		lgdt3305_write_reg(state, 0x030d, 0x14);
-		ret = lgdt3305_set_if(state, param);
+		ret = lgdt3305_set_if(state, p);
 		if (lg_fail(ret))
 			goto fail;
 		break;
@@ -727,13 +727,13 @@ static int lgdt3304_set_parameters(struct dvb_frontend *fe,
 	}
 
 
-	ret = lgdt3305_spectral_inversion(state, param,
+	ret = lgdt3305_spectral_inversion(state, p,
 					  state->cfg->spectral_inversion
 					  ? 1 : 0);
 	if (lg_fail(ret))
 		goto fail;
 
-	state->current_modulation = param->u.vsb.modulation;
+	state->current_modulation = p->modulation;
 
 	ret = lgdt3305_mpeg_mode(state, state->cfg->mpeg_mode);
 	if (lg_fail(ret))
@@ -747,34 +747,34 @@ fail:
 	return ret;
 }
 
-static int lgdt3305_set_parameters(struct dvb_frontend *fe,
-				   struct dvb_frontend_parameters *param)
+static int lgdt3305_set_parameters(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt3305_state *state = fe->demodulator_priv;
 	int ret;
 
-	lg_dbg("(%d, %d)\n", param->frequency, param->u.vsb.modulation);
+	lg_dbg("(%d, %d)\n", p->frequency, p->modulation);
 
 	if (fe->ops.tuner_ops.set_params) {
-		ret = fe->ops.tuner_ops.set_params(fe, param);
+		ret = fe->ops.tuner_ops.set_params(fe);
 		if (fe->ops.i2c_gate_ctrl)
 			fe->ops.i2c_gate_ctrl(fe, 0);
 		if (lg_fail(ret))
 			goto fail;
-		state->current_frequency = param->frequency;
+		state->current_frequency = p->frequency;
 	}
 
-	ret = lgdt3305_set_modulation(state, param);
+	ret = lgdt3305_set_modulation(state, p);
 	if (lg_fail(ret))
 		goto fail;
 
-	ret = lgdt3305_passband_digital_agc(state, param);
+	ret = lgdt3305_passband_digital_agc(state, p);
 	if (lg_fail(ret))
 		goto fail;
-	ret = lgdt3305_set_agc_power_ref(state, param);
+	ret = lgdt3305_set_agc_power_ref(state, p);
 	if (lg_fail(ret))
 		goto fail;
-	ret = lgdt3305_agc_setup(state, param);
+	ret = lgdt3305_agc_setup(state, p);
 	if (lg_fail(ret))
 		goto fail;
 
@@ -786,20 +786,20 @@ static int lgdt3305_set_parameters(struct dvb_frontend *fe,
 	if (lg_fail(ret))
 		goto fail;
 
-	ret = lgdt3305_set_if(state, param);
+	ret = lgdt3305_set_if(state, p);
 	if (lg_fail(ret))
 		goto fail;
-	ret = lgdt3305_spectral_inversion(state, param,
+	ret = lgdt3305_spectral_inversion(state, p,
 					  state->cfg->spectral_inversion
 					  ? 1 : 0);
 	if (lg_fail(ret))
 		goto fail;
 
-	ret = lgdt3305_set_filter_extension(state, param);
+	ret = lgdt3305_set_filter_extension(state, p);
 	if (lg_fail(ret))
 		goto fail;
 
-	state->current_modulation = param->u.vsb.modulation;
+	state->current_modulation = p->modulation;
 
 	ret = lgdt3305_mpeg_mode(state, state->cfg->mpeg_mode);
 	if (lg_fail(ret))
@@ -813,15 +813,15 @@ fail:
 	return ret;
 }
 
-static int lgdt3305_get_frontend(struct dvb_frontend *fe,
-				 struct dvb_frontend_parameters *param)
+static int lgdt3305_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct lgdt3305_state *state = fe->demodulator_priv;
 
 	lg_dbg("\n");
 
-	param->u.vsb.modulation = state->current_modulation;
-	param->frequency = state->current_frequency;
+	p->modulation = state->current_modulation;
+	p->frequency = state->current_frequency;
 	return 0;
 }
 
@@ -1166,9 +1166,9 @@ fail:
 EXPORT_SYMBOL(lgdt3305_attach);
 
 static struct dvb_frontend_ops lgdt3304_ops = {
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3304 VSB/QAM Frontend",
-		.type               = FE_ATSC,
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,
@@ -1188,9 +1188,9 @@ static struct dvb_frontend_ops lgdt3304_ops = {
 };
 
 static struct dvb_frontend_ops lgdt3305_ops = {
+	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },
 	.info = {
 		.name = "LG Electronics LGDT3305 VSB/QAM Frontend",
-		.type               = FE_ATSC,
 		.frequency_min      = 54000000,
 		.frequency_max      = 858000000,
 		.frequency_stepsize = 62500,

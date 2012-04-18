@@ -48,7 +48,7 @@ static struct workqueue_struct *workqueue;
  * performance cost, and for other reasons may not always be desired.
  * So we allow it it to be disabled.
  */
-int use_spi_crc = 1;
+bool use_spi_crc = 1;
 module_param(use_spi_crc, bool, 0);
 
 /*
@@ -58,9 +58,9 @@ module_param(use_spi_crc, bool, 0);
  * overridden if necessary.
  */
 #ifdef CONFIG_MMC_UNSAFE_RESUME
-int mmc_assume_removable;
+bool mmc_assume_removable;
 #else
-int mmc_assume_removable = 1;
+bool mmc_assume_removable = 1;
 #endif
 EXPORT_SYMBOL(mmc_assume_removable);
 module_param_named(removable, mmc_assume_removable, bool, 0644);
@@ -140,7 +140,7 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 			cmd->retries = 0;
 	}
 
-	if (err && cmd->retries) {
+	if (err && cmd->retries && !mmc_card_removed(host->card)) {
 		/*
 		 * Request starter must handle retries - see
 		 * mmc_wait_for_req_done().
@@ -187,6 +187,12 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 	unsigned int i, sz;
 	struct scatterlist *sg;
 #endif
+
+	if (mrq->sbc) {
+		pr_debug("<%s: starting CMD%u arg %08x flags %08x>\n",
+			 mmc_hostname(host), mrq->sbc->opcode,
+			 mrq->sbc->arg, mrq->sbc->flags);
+	}
 
 	pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
 		 mmc_hostname(host), mrq->cmd->opcode,
@@ -243,11 +249,17 @@ static void mmc_wait_done(struct mmc_request *mrq)
 	complete(&mrq->completion);
 }
 
-static void __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
+static int __mmc_start_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 	init_completion(&mrq->completion);
 	mrq->done = mmc_wait_done;
+	if (mmc_card_removed(host->card)) {
+		mrq->cmd->error = -ENOMEDIUM;
+		complete(&mrq->completion);
+		return -ENOMEDIUM;
+	}
 	mmc_start_request(host, mrq);
+	return 0;
 }
 
 static void mmc_wait_for_req_done(struct mmc_host *host,
@@ -259,7 +271,8 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 		wait_for_completion(&mrq->completion);
 
 		cmd = mrq->cmd;
-		if (!cmd->error || !cmd->retries)
+		if (!cmd->error || !cmd->retries ||
+		    mmc_card_removed(host->card))
 			break;
 
 		pr_debug("%s: req failed (CMD%u): %d, retrying...\n",
@@ -284,8 +297,11 @@ static void mmc_wait_for_req_done(struct mmc_host *host,
 static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
 		 bool is_first_req)
 {
-	if (host->ops->pre_req)
+	if (host->ops->pre_req) {
+		mmc_host_clk_hold(host);
 		host->ops->pre_req(host, mrq, is_first_req);
+		mmc_host_clk_release(host);
+	}
 }
 
 /**
@@ -300,8 +316,11 @@ static void mmc_pre_req(struct mmc_host *host, struct mmc_request *mrq,
 static void mmc_post_req(struct mmc_host *host, struct mmc_request *mrq,
 			 int err)
 {
-	if (host->ops->post_req)
+	if (host->ops->post_req) {
+		mmc_host_clk_hold(host);
 		host->ops->post_req(host, mrq, err);
+		mmc_host_clk_release(host);
+	}
 }
 
 /**
@@ -324,6 +343,7 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 				    struct mmc_async_req *areq, int *error)
 {
 	int err = 0;
+	int start_err = 0;
 	struct mmc_async_req *data = host->areq;
 
 	/* Prepare a new request */
@@ -333,30 +353,23 @@ struct mmc_async_req *mmc_start_req(struct mmc_host *host,
 	if (host->areq) {
 		mmc_wait_for_req_done(host, host->areq->mrq);
 		err = host->areq->err_check(host->card, host->areq);
-		if (err) {
-			/* post process the completed failed request */
-			mmc_post_req(host, host->areq->mrq, 0);
-			if (areq)
-				/*
-				 * Cancel the new prepared request, because
-				 * it can't run until the failed
-				 * request has been properly handled.
-				 */
-				mmc_post_req(host, areq->mrq, -EINVAL);
-
-			host->areq = NULL;
-			goto out;
-		}
 	}
 
-	if (areq)
-		__mmc_start_req(host, areq->mrq);
+	if (!err && areq)
+		start_err = __mmc_start_req(host, areq->mrq);
 
 	if (host->areq)
 		mmc_post_req(host, host->areq->mrq, 0);
 
-	host->areq = areq;
- out:
+	 /* Cancel a prepared request if it was not started. */
+	if ((err || start_err) && areq)
+			mmc_post_req(host, areq->mrq, -EINVAL);
+
+	if (err)
+		host->areq = NULL;
+	else
+		host->areq = areq;
+
 	if (error)
 		*error = err;
 	return data;
@@ -514,10 +527,14 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 
 		if (data->flags & MMC_DATA_WRITE)
 			/*
-			 * The limit is really 250 ms, but that is
-			 * insufficient for some crappy cards.
+			 * The MMC spec "It is strongly recommended
+			 * for hosts to implement more than 500ms
+			 * timeout value even if the card indicates
+			 * the 250ms maximum busy length."  Even the
+			 * previous value of 300ms is known to be
+			 * insufficient for some cards.
 			 */
-			limit_us = 300000;
+			limit_us = 3000000;
 		else
 			limit_us = 100000;
 
@@ -587,101 +604,6 @@ unsigned int mmc_align_data_size(struct mmc_card *card, unsigned int sz)
 EXPORT_SYMBOL(mmc_align_data_size);
 
 /**
- *	mmc_host_enable - enable a host.
- *	@host: mmc host to enable
- *
- *	Hosts that support power saving can use the 'enable' and 'disable'
- *	methods to exit and enter power saving states. For more information
- *	see comments for struct mmc_host_ops.
- */
-int mmc_host_enable(struct mmc_host *host)
-{
-	if (!(host->caps & MMC_CAP_DISABLE))
-		return 0;
-
-	if (host->en_dis_recurs)
-		return 0;
-
-	if (host->nesting_cnt++)
-		return 0;
-
-	cancel_delayed_work_sync(&host->disable);
-
-	if (host->enabled)
-		return 0;
-
-	if (host->ops->enable) {
-		int err;
-
-		host->en_dis_recurs = 1;
-		err = host->ops->enable(host);
-		host->en_dis_recurs = 0;
-
-		if (err) {
-			pr_debug("%s: enable error %d\n",
-				 mmc_hostname(host), err);
-			return err;
-		}
-	}
-	host->enabled = 1;
-	return 0;
-}
-EXPORT_SYMBOL(mmc_host_enable);
-
-static int mmc_host_do_disable(struct mmc_host *host, int lazy)
-{
-	if (host->ops->disable) {
-		int err;
-
-		host->en_dis_recurs = 1;
-		err = host->ops->disable(host, lazy);
-		host->en_dis_recurs = 0;
-
-		if (err < 0) {
-			pr_debug("%s: disable error %d\n",
-				 mmc_hostname(host), err);
-			return err;
-		}
-		if (err > 0) {
-			unsigned long delay = msecs_to_jiffies(err);
-
-			mmc_schedule_delayed_work(&host->disable, delay);
-		}
-	}
-	host->enabled = 0;
-	return 0;
-}
-
-/**
- *	mmc_host_disable - disable a host.
- *	@host: mmc host to disable
- *
- *	Hosts that support power saving can use the 'enable' and 'disable'
- *	methods to exit and enter power saving states. For more information
- *	see comments for struct mmc_host_ops.
- */
-int mmc_host_disable(struct mmc_host *host)
-{
-	int err;
-
-	if (!(host->caps & MMC_CAP_DISABLE))
-		return 0;
-
-	if (host->en_dis_recurs)
-		return 0;
-
-	if (--host->nesting_cnt)
-		return 0;
-
-	if (!host->enabled)
-		return 0;
-
-	err = mmc_host_do_disable(host, 0);
-	return err;
-}
-EXPORT_SYMBOL(mmc_host_disable);
-
-/**
  *	__mmc_claim_host - exclusively claim a host
  *	@host: mmc host to claim
  *	@abort: whether or not the operation should be aborted
@@ -719,8 +641,8 @@ int __mmc_claim_host(struct mmc_host *host, atomic_t *abort)
 		wake_up(&host->wq);
 	spin_unlock_irqrestore(&host->lock, flags);
 	remove_wait_queue(&host->wq, &wait);
-	if (!stop)
-		mmc_host_enable(host);
+	if (host->ops->enable && !stop && host->claim_cnt == 1)
+		host->ops->enable(host);
 	return stop;
 }
 
@@ -745,20 +667,27 @@ int mmc_try_claim_host(struct mmc_host *host)
 		claimed_host = 1;
 	}
 	spin_unlock_irqrestore(&host->lock, flags);
+	if (host->ops->enable && claimed_host && host->claim_cnt == 1)
+		host->ops->enable(host);
 	return claimed_host;
 }
 EXPORT_SYMBOL(mmc_try_claim_host);
 
 /**
- *	mmc_do_release_host - release a claimed host
+ *	mmc_release_host - release a host
  *	@host: mmc host to release
  *
- *	If you successfully claimed a host, this function will
- *	release it again.
+ *	Release a MMC host, allowing others to claim the host
+ *	for their operations.
  */
-void mmc_do_release_host(struct mmc_host *host)
+void mmc_release_host(struct mmc_host *host)
 {
 	unsigned long flags;
+
+	WARN_ON(!host->claimed);
+
+	if (host->ops->disable && host->claim_cnt == 1)
+		host->ops->disable(host);
 
 	spin_lock_irqsave(&host->lock, flags);
 	if (--host->claim_cnt) {
@@ -771,67 +700,6 @@ void mmc_do_release_host(struct mmc_host *host)
 		wake_up(&host->wq);
 	}
 }
-EXPORT_SYMBOL(mmc_do_release_host);
-
-void mmc_host_deeper_disable(struct work_struct *work)
-{
-	struct mmc_host *host =
-		container_of(work, struct mmc_host, disable.work);
-
-	/* If the host is claimed then we do not want to disable it anymore */
-	if (!mmc_try_claim_host(host))
-		return;
-	mmc_host_do_disable(host, 1);
-	mmc_do_release_host(host);
-}
-
-/**
- *	mmc_host_lazy_disable - lazily disable a host.
- *	@host: mmc host to disable
- *
- *	Hosts that support power saving can use the 'enable' and 'disable'
- *	methods to exit and enter power saving states. For more information
- *	see comments for struct mmc_host_ops.
- */
-int mmc_host_lazy_disable(struct mmc_host *host)
-{
-	if (!(host->caps & MMC_CAP_DISABLE))
-		return 0;
-
-	if (host->en_dis_recurs)
-		return 0;
-
-	if (--host->nesting_cnt)
-		return 0;
-
-	if (!host->enabled)
-		return 0;
-
-	if (host->disable_delay) {
-		mmc_schedule_delayed_work(&host->disable,
-				msecs_to_jiffies(host->disable_delay));
-		return 0;
-	} else
-		return mmc_host_do_disable(host, 1);
-}
-EXPORT_SYMBOL(mmc_host_lazy_disable);
-
-/**
- *	mmc_release_host - release a host
- *	@host: mmc host to release
- *
- *	Release a MMC host, allowing others to claim the host
- *	for their operations.
- */
-void mmc_release_host(struct mmc_host *host)
-{
-	WARN_ON(!host->claimed);
-
-	mmc_host_lazy_disable(host);
-
-	mmc_do_release_host(host);
-}
-
 EXPORT_SYMBOL(mmc_release_host);
 
 /*
@@ -1115,6 +983,10 @@ int mmc_regulator_set_ocr(struct mmc_host *mmc,
 		 * might not allow this operation
 		 */
 		voltage = regulator_get_voltage(supply);
+
+		if (mmc->caps2 & MMC_CAP2_BROKEN_VOLTAGE)
+			min_uV = max_uV = voltage;
+
 		if (voltage < 0)
 			result = voltage;
 		else if (voltage < min_uV || voltage > max_uV)
@@ -1197,8 +1069,11 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage, bool cmd11
 
 	host->ios.signal_voltage = signal_voltage;
 
-	if (host->ops->start_signal_voltage_switch)
+	if (host->ops->start_signal_voltage_switch) {
+		mmc_host_clk_hold(host);
 		err = host->ops->start_signal_voltage_switch(host, &host->ios);
+		mmc_host_clk_release(host);
+	}
 
 	return err;
 }
@@ -1233,6 +1108,7 @@ static void mmc_poweroff_notify(struct mmc_host *host)
 	int err = 0;
 
 	card = host->card;
+	mmc_claim_host(host);
 
 	/*
 	 * Send power notify command only if card
@@ -1263,6 +1139,7 @@ static void mmc_poweroff_notify(struct mmc_host *host)
 		/* Set the card state to no notification after the poweroff */
 		card->poweroff_notify_state = MMC_NO_POWER_NOTIFICATION;
 	}
+	mmc_release_host(host);
 }
 
 /*
@@ -1321,12 +1198,28 @@ static void mmc_power_up(struct mmc_host *host)
 
 void mmc_power_off(struct mmc_host *host)
 {
+	int err = 0;
 	mmc_host_clk_hold(host);
 
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
 
-	mmc_poweroff_notify(host);
+	/*
+	 * For eMMC 4.5 device send AWAKE command before
+	 * POWER_OFF_NOTIFY command, because in sleep state
+	 * eMMC 4.5 devices respond to only RESET and AWAKE cmd
+	 */
+	if (host->card && mmc_card_is_sleep(host->card) &&
+	    host->bus_ops->resume) {
+		err = host->bus_ops->resume(host);
+
+		if (!err)
+			mmc_poweroff_notify(host);
+		else
+			pr_warning("%s: error %d during resume "
+				   "(continue with poweroff sequence)\n",
+				   mmc_hostname(host), err);
+	}
 
 	/*
 	 * Reset ocr mask to be the highest possible voltage supported for
@@ -1456,7 +1349,7 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 	WARN_ON(host->removed);
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
-
+	host->detect_change = 1;
 	mmc_schedule_delayed_work(&host->detect, delay);
 }
 
@@ -2027,6 +1920,9 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	 */
 	mmc_hw_reset_for_init(host);
 
+	/* Initialization should be done at 3.3 V I/O voltage. */
+	mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330, 0);
+
 	/*
 	 * sdio_reset sends CMD52 to reset card.  Since we do not know
 	 * if the card is being re-initialized, just send it.  CMD52
@@ -2049,6 +1945,61 @@ static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 	return -EIO;
 }
 
+int _mmc_detect_card_removed(struct mmc_host *host)
+{
+	int ret;
+
+	if ((host->caps & MMC_CAP_NONREMOVABLE) || !host->bus_ops->alive)
+		return 0;
+
+	if (!host->card || mmc_card_removed(host->card))
+		return 1;
+
+	ret = host->bus_ops->alive(host);
+	if (ret) {
+		mmc_card_set_removed(host->card);
+		pr_debug("%s: card remove detected\n", mmc_hostname(host));
+	}
+
+	return ret;
+}
+
+int mmc_detect_card_removed(struct mmc_host *host)
+{
+	struct mmc_card *card = host->card;
+	int ret;
+
+	WARN_ON(!host->claimed);
+
+	if (!card)
+		return 1;
+
+	ret = mmc_card_removed(card);
+	/*
+	 * The card will be considered unchanged unless we have been asked to
+	 * detect a change or host requires polling to provide card detection.
+	 */
+	if (!host->detect_change && !(host->caps & MMC_CAP_NEEDS_POLL) &&
+	    !(host->caps2 & MMC_CAP2_DETECT_ON_ERR))
+		return ret;
+
+	host->detect_change = 0;
+	if (!ret) {
+		ret = _mmc_detect_card_removed(host);
+		if (ret && (host->caps2 & MMC_CAP2_DETECT_ON_ERR)) {
+			/*
+			 * Schedule a detect work as soon as possible to let a
+			 * rescan handle the card removal.
+			 */
+			cancel_delayed_work(&host->detect);
+			mmc_detect_change(host, 0);
+		}
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(mmc_detect_card_removed);
+
 void mmc_rescan(struct work_struct *work)
 {
 	static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
@@ -2068,6 +2019,8 @@ void mmc_rescan(struct work_struct *work)
 	if (host->bus_ops && host->bus_ops->detect && !host->bus_dead
 	    && !(host->caps & MMC_CAP_NONREMOVABLE))
 		host->bus_ops->detect(host);
+
+	host->detect_change = 0;
 
 	/*
 	 * Let mmc_bus_put() free the bus/bus_ops if we've found that
@@ -2120,8 +2073,6 @@ void mmc_stop_host(struct mmc_host *host)
 	spin_unlock_irqrestore(&host->lock, flags);
 #endif
 
-	if (host->caps & MMC_CAP_DISABLE)
-		cancel_delayed_work(&host->disable);
 	cancel_delayed_work_sync(&host->detect);
 	mmc_flush_scheduled_work();
 
@@ -2130,6 +2081,7 @@ void mmc_stop_host(struct mmc_host *host)
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
+		/* Calling bus_ops->remove() with a claimed host can deadlock */
 		if (host->bus_ops->remove)
 			host->bus_ops->remove(host);
 
@@ -2201,6 +2153,9 @@ int mmc_card_awake(struct mmc_host *host)
 {
 	int err = -ENOSYS;
 
+	if (host->caps2 & MMC_CAP2_NO_SLEEP_CMD)
+		return 0;
+
 	mmc_bus_get(host);
 
 	if (host->bus_ops && !host->bus_dead && host->bus_ops->awake)
@@ -2215,6 +2170,9 @@ EXPORT_SYMBOL(mmc_card_awake);
 int mmc_card_sleep(struct mmc_host *host)
 {
 	int err = -ENOSYS;
+
+	if (host->caps2 & MMC_CAP2_NO_SLEEP_CMD)
+		return 0;
 
 	mmc_bus_get(host);
 
@@ -2270,6 +2228,7 @@ EXPORT_SYMBOL(mmc_flush_cache);
 int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 {
 	struct mmc_card *card = host->card;
+	unsigned int timeout;
 	int err = 0;
 
 	if (!(host->caps2 & MMC_CAP2_CACHE_CTRL) ||
@@ -2280,16 +2239,18 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 			(card->ext_csd.cache_size > 0)) {
 		enable = !!enable;
 
-		if (card->ext_csd.cache_ctrl ^ enable)
+		if (card->ext_csd.cache_ctrl ^ enable) {
+			timeout = enable ? card->ext_csd.generic_cmd6_time : 0;
 			err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-					EXT_CSD_CACHE_CTRL, enable, 0);
-		if (err)
-			pr_err("%s: cache %s error %d\n",
-					mmc_hostname(card->host),
-					enable ? "on" : "off",
-					err);
-		else
-			card->ext_csd.cache_ctrl = enable;
+					EXT_CSD_CACHE_CTRL, enable, timeout);
+			if (err)
+				pr_err("%s: cache %s error %d\n",
+						mmc_hostname(card->host),
+						enable ? "on" : "off",
+						err);
+			else
+				card->ext_csd.cache_ctrl = enable;
+		}
 	}
 
 	return err;
@@ -2306,11 +2267,15 @@ int mmc_suspend_host(struct mmc_host *host)
 {
 	int err = 0;
 
-	if (host->caps & MMC_CAP_DISABLE)
-		cancel_delayed_work(&host->disable);
 	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
-	err = mmc_cache_ctrl(host, 0);
+	if (mmc_try_claim_host(host)) {
+		err = mmc_cache_ctrl(host, 0);
+		mmc_release_host(host);
+	} else {
+		err = -EBUSY;
+	}
+
 	if (err)
 		goto out;
 
@@ -2325,20 +2290,16 @@ int mmc_suspend_host(struct mmc_host *host)
 		 */
 		if (mmc_try_claim_host(host)) {
 			if (host->bus_ops->suspend) {
-				/*
-				 * For eMMC 4.5 device send notify command
-				 * before sleep, because in sleep state eMMC 4.5
-				 * devices respond to only RESET and AWAKE cmd
-				 */
-				mmc_poweroff_notify(host);
 				err = host->bus_ops->suspend(host);
 			}
-			mmc_do_release_host(host);
+			mmc_release_host(host);
 
 			if (err == -ENOSYS || !host->bus_ops->resume) {
 				/*
 				 * We simply "remove" the card in this case.
-				 * It will be redetected on resume.
+				 * It will be redetected on resume.  (Calling
+				 * bus_ops->remove() with a claimed host can
+				 * deadlock.)
 				 */
 				if (host->bus_ops->remove)
 					host->bus_ops->remove(host);
@@ -2431,11 +2392,11 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 		if (!host->bus_ops || host->bus_ops->suspend)
 			break;
 
-		mmc_claim_host(host);
-
+		/* Calling bus_ops->remove() with a claimed host can deadlock */
 		if (host->bus_ops->remove)
 			host->bus_ops->remove(host);
 
+		mmc_claim_host(host);
 		mmc_detach_bus(host);
 		mmc_power_off(host);
 		mmc_release_host(host);

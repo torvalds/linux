@@ -19,7 +19,6 @@
 
 #include "hw.h"
 
-#define AR_PHY_CCA_FILTERWINDOW_LENGTH_INIT     3
 #define AR_PHY_CCA_FILTERWINDOW_LENGTH          5
 
 #define NUM_NF_READINGS       6

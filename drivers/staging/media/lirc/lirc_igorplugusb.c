@@ -62,9 +62,9 @@
 
 /* debugging support */
 #ifdef CONFIG_USB_DEBUG
-static int debug = 1;
+static bool debug = 1;
 #else
-static int debug;
+static bool debug;
 #endif
 
 #define dprintk(fmt, args...)					\

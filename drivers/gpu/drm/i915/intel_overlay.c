@@ -25,8 +25,6 @@
  *
  * Derived from Xorg ddx, xf86-video-intel, src/i830_video.c
  */
-
-#include <linux/seq_file.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
@@ -227,7 +225,8 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	}
 	overlay->last_flip_req = request->seqno;
 	overlay->flip_tail = tail;
-	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req);
+	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req,
+				true);
 	if (ret)
 		return ret;
 
@@ -263,7 +262,7 @@ i830_activate_pipe_a(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("Enabling pipe A in order to enable overlay\n");
 
 	mode = drm_mode_duplicate(dev, &vesa_640x480);
-	drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
+	drm_mode_set_crtcinfo(mode, 0);
 	if (!drm_crtc_helper_set_mode(&crtc->base, mode,
 				       crtc->base.x, crtc->base.y,
 				       crtc->base.fb))
@@ -448,7 +447,8 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 	if (overlay->last_flip_req == 0)
 		return 0;
 
-	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req);
+	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req,
+				true);
 	if (ret)
 		return ret;
 
@@ -935,10 +935,10 @@ static int check_overlay_dst(struct intel_overlay *overlay,
 {
 	struct drm_display_mode *mode = &overlay->crtc->base.mode;
 
-	if (rec->dst_x < mode->crtc_hdisplay &&
-	    rec->dst_x + rec->dst_width <= mode->crtc_hdisplay &&
-	    rec->dst_y < mode->crtc_vdisplay &&
-	    rec->dst_y + rec->dst_height <= mode->crtc_vdisplay)
+	if (rec->dst_x < mode->hdisplay &&
+	    rec->dst_x + rec->dst_width <= mode->hdisplay &&
+	    rec->dst_y < mode->vdisplay &&
+	    rec->dst_y + rec->dst_height <= mode->vdisplay)
 		return 0;
 	else
 		return -EINVAL;

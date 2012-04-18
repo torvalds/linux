@@ -22,6 +22,7 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt);
 static int svc_deferred_recv(struct svc_rqst *rqstp);
 static struct cache_deferred_req *svc_defer(struct cache_req *req);
 static void svc_age_temp_xprts(unsigned long closure);
+static void svc_delete_xprt(struct svc_xprt *xprt);
 
 /* apparently the "standard" is that clients close
  * idle connections after 5 minutes, servers after
@@ -147,8 +148,8 @@ EXPORT_SYMBOL_GPL(svc_xprt_put);
  * Called by transport drivers to initialize the transport independent
  * portion of the transport instance.
  */
-void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
-		   struct svc_serv *serv)
+void svc_xprt_init(struct net *net, struct svc_xprt_class *xcl,
+		   struct svc_xprt *xprt, struct svc_serv *serv)
 {
 	memset(xprt, 0, sizeof(*xprt));
 	xprt->xpt_class = xcl;
@@ -163,7 +164,7 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
 	spin_lock_init(&xprt->xpt_lock);
 	set_bit(XPT_BUSY, &xprt->xpt_flags);
 	rpc_init_wait_queue(&xprt->xpt_bc_pending, "xpt_bc_pending");
-	xprt->xpt_net = get_net(&init_net);
+	xprt->xpt_net = get_net(net);
 }
 EXPORT_SYMBOL_GPL(svc_xprt_init);
 
@@ -878,7 +879,7 @@ static void call_xpt_users(struct svc_xprt *xprt)
 /*
  * Remove a dead transport
  */
-void svc_delete_xprt(struct svc_xprt *xprt)
+static void svc_delete_xprt(struct svc_xprt *xprt)
 {
 	struct svc_serv	*serv = xprt->xpt_server;
 	struct svc_deferred_req *dr;
@@ -893,14 +894,7 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	spin_lock_bh(&serv->sv_lock);
 	if (!test_and_set_bit(XPT_DETACHED, &xprt->xpt_flags))
 		list_del_init(&xprt->xpt_list);
-	/*
-	 * The only time we're called while xpt_ready is still on a list
-	 * is while the list itself is about to be destroyed (in
-	 * svc_destroy).  BUT svc_xprt_enqueue could still be attempting
-	 * to add new entries to the sp_sockets list, so we can't leave
-	 * a freed xprt on it.
-	 */
-	list_del_init(&xprt->xpt_ready);
+	BUG_ON(!list_empty(&xprt->xpt_ready));
 	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
 		serv->sv_tmpcnt--;
 	spin_unlock_bh(&serv->sv_lock);
@@ -928,22 +922,65 @@ void svc_close_xprt(struct svc_xprt *xprt)
 }
 EXPORT_SYMBOL_GPL(svc_close_xprt);
 
-void svc_close_all(struct list_head *xprt_list)
+static void svc_close_list(struct list_head *xprt_list, struct net *net)
+{
+	struct svc_xprt *xprt;
+
+	list_for_each_entry(xprt, xprt_list, xpt_list) {
+		if (xprt->xpt_net != net)
+			continue;
+		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		set_bit(XPT_BUSY, &xprt->xpt_flags);
+	}
+}
+
+static void svc_clear_pools(struct svc_serv *serv, struct net *net)
+{
+	struct svc_pool *pool;
+	struct svc_xprt *xprt;
+	struct svc_xprt *tmp;
+	int i;
+
+	for (i = 0; i < serv->sv_nrpools; i++) {
+		pool = &serv->sv_pools[i];
+
+		spin_lock_bh(&pool->sp_lock);
+		list_for_each_entry_safe(xprt, tmp, &pool->sp_sockets, xpt_ready) {
+			if (xprt->xpt_net != net)
+				continue;
+			list_del_init(&xprt->xpt_ready);
+		}
+		spin_unlock_bh(&pool->sp_lock);
+	}
+}
+
+static void svc_clear_list(struct list_head *xprt_list, struct net *net)
 {
 	struct svc_xprt *xprt;
 	struct svc_xprt *tmp;
 
-	/*
-	 * The server is shutting down, and no more threads are running.
-	 * svc_xprt_enqueue() might still be running, but at worst it
-	 * will re-add the xprt to sp_sockets, which will soon get
-	 * freed.  So we don't bother with any more locking, and don't
-	 * leave the close to the (nonexistent) server threads:
-	 */
 	list_for_each_entry_safe(xprt, tmp, xprt_list, xpt_list) {
-		set_bit(XPT_CLOSE, &xprt->xpt_flags);
+		if (xprt->xpt_net != net)
+			continue;
 		svc_delete_xprt(xprt);
 	}
+	list_for_each_entry(xprt, xprt_list, xpt_list)
+		BUG_ON(xprt->xpt_net == net);
+}
+
+void svc_close_net(struct svc_serv *serv, struct net *net)
+{
+	svc_close_list(&serv->sv_tempsocks, net);
+	svc_close_list(&serv->sv_permsocks, net);
+
+	svc_clear_pools(serv, net);
+	/*
+	 * At this point the sp_sockets lists will stay empty, since
+	 * svc_enqueue will not add new entries without taking the
+	 * sp_lock and checking XPT_BUSY.
+	 */
+	svc_clear_list(&serv->sv_tempsocks, net);
+	svc_clear_list(&serv->sv_permsocks, net);
 }
 
 /*
@@ -1069,6 +1106,7 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
  * svc_find_xprt - find an RPC transport instance
  * @serv: pointer to svc_serv to search
  * @xcl_name: C string containing transport's class name
+ * @net: owner net pointer
  * @af: Address family of transport's local address
  * @port: transport's IP port number
  *
@@ -1081,7 +1119,8 @@ static struct svc_deferred_req *svc_deferred_dequeue(struct svc_xprt *xprt)
  * service's list that has a matching class name.
  */
 struct svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
-			       const sa_family_t af, const unsigned short port)
+			       struct net *net, const sa_family_t af,
+			       const unsigned short port)
 {
 	struct svc_xprt *xprt;
 	struct svc_xprt *found = NULL;
@@ -1092,6 +1131,8 @@ struct svc_xprt *svc_find_xprt(struct svc_serv *serv, const char *xcl_name,
 
 	spin_lock_bh(&serv->sv_lock);
 	list_for_each_entry(xprt, &serv->sv_permsocks, xpt_list) {
+		if (xprt->xpt_net != net)
+			continue;
 		if (strcmp(xprt->xpt_class->xcl_name, xcl_name))
 			continue;
 		if (af != AF_UNSPEC && af != xprt->xpt_local.ss_family)

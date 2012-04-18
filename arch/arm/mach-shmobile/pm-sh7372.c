@@ -21,7 +21,6 @@
 #include <linux/irq.h>
 #include <linux/bitrev.h>
 #include <linux/console.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/tlbflush.h>
 #include <asm/suspend.h>
@@ -276,7 +275,7 @@ static int sh7372_a3sp_suspend(void)
 	 * Serial consoles make use of SCIF hardware located in A3SP,
 	 * keep such power domain on if "no_console_suspend" is set.
 	 */
-	return console_suspend_enabled ? -EBUSY : 0;
+	return console_suspend_enabled ? 0 : -EBUSY;
 }
 
 struct sh7372_pm_domain sh7372_a3sp = {

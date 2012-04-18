@@ -32,6 +32,8 @@
 #include <linux/usb/ulpi.h>
 #include <linux/gfp.h>
 #include <linux/memblock.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <media/soc_camera.h>
 
@@ -39,6 +41,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
+#include <asm/memblock.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/iomux-mx3.h>
@@ -569,6 +572,11 @@ static int __init pcm037_otg_mode(char *options)
 }
 __setup("otg_mode=", pcm037_otg_mode);
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 /*
  * Board specific initialization.
  */
@@ -577,6 +585,8 @@ static void __init pcm037_init(void)
 	int ret;
 
 	imx31_soc_init();
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	mxc_iomux_set_gpr(MUX_PGP_UH2, 1);
 
@@ -680,10 +690,8 @@ struct sys_timer pcm037_timer = {
 static void __init pcm037_reserve(void)
 {
 	/* reserve 4 MiB for mx3-camera */
-	mx3_camera_base = memblock_alloc(MX3_CAMERA_BUF_SIZE,
+	mx3_camera_base = arm_memblock_steal(MX3_CAMERA_BUF_SIZE,
 			MX3_CAMERA_BUF_SIZE);
-	memblock_free(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
-	memblock_remove(mx3_camera_base, MX3_CAMERA_BUF_SIZE);
 }
 
 MACHINE_START(PCM037, "Phytec Phycore pcm037")

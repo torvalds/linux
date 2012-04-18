@@ -221,7 +221,7 @@ static int register_balloon(struct device *dev)
 {
 	int i, error;
 
-	error = bus_register(&balloon_subsys);
+	error = subsys_system_register(&balloon_subsys, NULL);
 	if (error)
 		return error;
 

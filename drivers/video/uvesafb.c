@@ -44,11 +44,11 @@ static struct fb_fix_screeninfo uvesafb_fix __devinitdata = {
 };
 
 static int mtrr		__devinitdata = 3; /* enable mtrr by default */
-static int blank	= 1;		   /* enable blanking by default */
+static bool blank	= 1;		   /* enable blanking by default */
 static int ypan		= 1; 		 /* 0: scroll, 1: ypan, 2: ywrap */
 static bool pmi_setpal	__devinitdata = true; /* use PMI for palette changes */
-static int nocrtc	__devinitdata; /* ignore CRTC settings */
-static int noedid	__devinitdata; /* don't try DDC transfers */
+static bool nocrtc	__devinitdata; /* ignore CRTC settings */
+static bool noedid	__devinitdata; /* don't try DDC transfers */
 static int vram_remap	__devinitdata; /* set amt. of memory to be used */
 static int vram_total	__devinitdata; /* set total amount of memory */
 static u16 maxclk	__devinitdata; /* maximum pixel clock */
@@ -121,7 +121,7 @@ static int uvesafb_helper_start(void)
 		NULL,
 	};
 
-	return call_usermodehelper(v86d_path, argv, envp, 1);
+	return call_usermodehelper(v86d_path, argv, envp, UMH_WAIT_PROC);
 }
 
 /*
@@ -362,7 +362,7 @@ static u8 *uvesafb_vbe_state_save(struct uvesafb_par *par)
 
 	state = kmalloc(par->vbe_state_size, GFP_KERNEL);
 	if (!state)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	task = uvesafb_prep();
 	if (!task) {
@@ -1172,9 +1172,17 @@ static int uvesafb_open(struct fb_info *info, int user)
 {
 	struct uvesafb_par *par = info->par;
 	int cnt = atomic_read(&par->ref_count);
+	u8 *buf = NULL;
 
-	if (!cnt && par->vbe_state_size)
-		par->vbe_state_orig = uvesafb_vbe_state_save(par);
+	if (!cnt && par->vbe_state_size) {
+		buf =  uvesafb_vbe_state_save(par);
+		if (IS_ERR(buf)) {
+			printk(KERN_WARNING "uvesafb: save hardware state"
+				"failed, error code is %ld!\n", PTR_ERR(buf));
+		} else {
+			par->vbe_state_orig = buf;
+		}
+	}
 
 	atomic_inc(&par->ref_count);
 	return 0;

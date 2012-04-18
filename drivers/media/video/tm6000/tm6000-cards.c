@@ -351,6 +351,7 @@ static struct tm6000_board tm6000_boards[] = {
 		.tuner_addr   = 0xc2 >> 1,
 		.demod_addr   = 0x1e >> 1,
 		.type         = TM6010,
+		.ir_codes = RC_MAP_HAUPPAUGE,
 		.caps = {
 			.has_tuner    = 1,
 			.has_dvb      = 1,
@@ -639,6 +640,7 @@ static struct usb_device_id tm6000_id_table[] = {
 	{ USB_DEVICE(0x6000, 0xdec3), .driver_info = TM6010_BOARD_BEHOLD_VOYAGER_LITE },
 	{ }
 };
+MODULE_DEVICE_TABLE(usb, tm6000_id_table);
 
 /* Control power led for show some activity */
 void tm6000_flash_led(struct tm6000_core *dev, u8 state)
@@ -941,6 +943,7 @@ static void tm6000_config_tuner(struct tm6000_core *dev)
 		case TM6010_BOARD_HAUPPAUGE_900H:
 		case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
 		case TM6010_BOARD_TWINHAN_TU501:
+			ctl.max_len = 80;
 			ctl.fname = "xc3028L-v36.fw";
 			break;
 		default:
@@ -1002,6 +1005,7 @@ static int fill_board_specific_data(struct tm6000_core *dev)
 	/* setup per-model quirks */
 	switch (dev->model) {
 	case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+	case TM6010_BOARD_HAUPPAUGE_900H:
 		dev->quirks |= TM6000_QUIRK_NO_USB_DELAY;
 		break;
 
@@ -1049,6 +1053,33 @@ static void use_alternative_detection_method(struct tm6000_core *dev)
 	printk(KERN_INFO "Device identified via eeprom as %s (type = %d)\n",
 	       tm6000_boards[model].name, model);
 }
+
+#if defined(CONFIG_MODULES) && defined(MODULE)
+static void request_module_async(struct work_struct *work)
+{
+	struct tm6000_core *dev = container_of(work, struct tm6000_core,
+					       request_module_wk);
+
+	request_module("tm6000-alsa");
+
+	if (dev->caps.has_dvb)
+		request_module("tm6000-dvb");
+}
+
+static void request_modules(struct tm6000_core *dev)
+{
+	INIT_WORK(&dev->request_module_wk, request_module_async);
+	schedule_work(&dev->request_module_wk);
+}
+
+static void flush_request_modules(struct tm6000_core *dev)
+{
+	flush_work_sync(&dev->request_module_wk);
+}
+#else
+#define request_modules(dev)
+#define flush_request_modules(dev)
+#endif /* CONFIG_MODULES */
 
 static int tm6000_init_dev(struct tm6000_core *dev)
 {
@@ -1111,6 +1142,8 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 	tm6000_init_extension(dev);
 
 	tm6000_ir_init(dev);
+
+	request_modules(dev);
 
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -1323,6 +1356,8 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 		return;
 
 	printk(KERN_INFO "tm6000: disconnecting %s\n", dev->name);
+
+	flush_request_modules(dev);
 
 	tm6000_ir_fini(dev);
 

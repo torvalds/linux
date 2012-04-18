@@ -1614,6 +1614,14 @@ static int snd_ymfpci_put_dup4ch(struct snd_kcontrol *kcontrol, struct snd_ctl_e
 	return change;
 }
 
+static struct snd_kcontrol_new snd_ymfpci_dup4ch __devinitdata = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.name = "4ch Duplication",
+	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE,
+	.info = snd_ymfpci_info_dup4ch,
+	.get = snd_ymfpci_get_dup4ch,
+	.put = snd_ymfpci_put_dup4ch,
+};
 
 static struct snd_kcontrol_new snd_ymfpci_controls[] __devinitdata = {
 {
@@ -1642,13 +1650,6 @@ YMFPCI_DOUBLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,VOLUME), 1, YDSXGR_SPDIFLOOPVOL),
 YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",PLAYBACK,SWITCH), 0, YDSXGR_SPDIFOUTCTRL, 0),
 YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("",CAPTURE,SWITCH), 0, YDSXGR_SPDIFINCTRL, 0),
 YMFPCI_SINGLE(SNDRV_CTL_NAME_IEC958("Loop",NONE,NONE), 0, YDSXGR_SPDIFINCTRL, 4),
-{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "4ch Duplication",
-	.info = snd_ymfpci_info_dup4ch,
-	.get = snd_ymfpci_get_dup4ch,
-	.put = snd_ymfpci_put_dup4ch,
-},
 };
 
 
@@ -1836,6 +1837,12 @@ int __devinit snd_ymfpci_mixer(struct snd_ymfpci *chip, int rear_switch)
 
 	for (idx = 0; idx < ARRAY_SIZE(snd_ymfpci_controls); idx++) {
 		if ((err = snd_ctl_add(chip->card, snd_ctl_new1(&snd_ymfpci_controls[idx], chip))) < 0)
+			return err;
+	}
+	if (chip->ac97->ext_id & AC97_EI_SDAC) {
+		kctl = snd_ctl_new1(&snd_ymfpci_dup4ch, chip);
+		err = snd_ctl_add(chip->card, kctl);
+		if (err < 0)
 			return err;
 	}
 
@@ -2310,6 +2317,10 @@ int snd_ymfpci_suspend(struct pci_dev *pci, pm_message_t state)
 	for (i = 0; i < YDSXGR_NUM_SAVED_REGS; i++)
 		chip->saved_regs[i] = snd_ymfpci_readl(chip, saved_regs_index[i]);
 	chip->saved_ydsxgr_mode = snd_ymfpci_readl(chip, YDSXGR_MODE);
+	pci_read_config_word(chip->pci, PCIR_DSXG_LEGACY,
+			     &chip->saved_dsxg_legacy);
+	pci_read_config_word(chip->pci, PCIR_DSXG_ELEGACY,
+			     &chip->saved_dsxg_elegacy);
 	snd_ymfpci_writel(chip, YDSXGR_NATIVEDACOUTVOL, 0);
 	snd_ymfpci_writel(chip, YDSXGR_BUF441OUTVOL, 0);
 	snd_ymfpci_disable_dsp(chip);
@@ -2343,6 +2354,11 @@ int snd_ymfpci_resume(struct pci_dev *pci)
 		snd_ymfpci_writel(chip, saved_regs_index[i], chip->saved_regs[i]);
 
 	snd_ac97_resume(chip->ac97);
+
+	pci_write_config_word(chip->pci, PCIR_DSXG_LEGACY,
+			      chip->saved_dsxg_legacy);
+	pci_write_config_word(chip->pci, PCIR_DSXG_ELEGACY,
+			      chip->saved_dsxg_elegacy);
 
 	/* start hw again */
 	if (chip->start_count > 0) {

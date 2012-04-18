@@ -29,7 +29,6 @@
 #include <linux/export.h>
 #include <linux/gfp.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -38,6 +37,7 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
+#include <asm/ctl_reg.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 
@@ -223,16 +223,38 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 #ifdef CONFIG_MEMORY_HOTPLUG
 int arch_add_memory(int nid, u64 start, u64 size)
 {
-	struct pglist_data *pgdat;
+	unsigned long zone_start_pfn, zone_end_pfn, nr_pages;
+	unsigned long start_pfn = PFN_DOWN(start);
+	unsigned long size_pages = PFN_DOWN(size);
 	struct zone *zone;
 	int rc;
 
-	pgdat = NODE_DATA(nid);
-	zone = pgdat->node_zones + ZONE_MOVABLE;
 	rc = vmem_add_mapping(start, size);
 	if (rc)
 		return rc;
-	rc = __add_pages(nid, zone, PFN_DOWN(start), PFN_DOWN(size));
+	for_each_zone(zone) {
+		if (zone_idx(zone) != ZONE_MOVABLE) {
+			/* Add range within existing zone limits */
+			zone_start_pfn = zone->zone_start_pfn;
+			zone_end_pfn = zone->zone_start_pfn +
+				       zone->spanned_pages;
+		} else {
+			/* Add remaining range to ZONE_MOVABLE */
+			zone_start_pfn = start_pfn;
+			zone_end_pfn = start_pfn + size_pages;
+		}
+		if (start_pfn < zone_start_pfn || start_pfn >= zone_end_pfn)
+			continue;
+		nr_pages = (start_pfn + size_pages > zone_end_pfn) ?
+			   zone_end_pfn - start_pfn : size_pages;
+		rc = __add_pages(nid, zone, start_pfn, nr_pages);
+		if (rc)
+			break;
+		start_pfn += nr_pages;
+		size_pages -= nr_pages;
+		if (!size_pages)
+			break;
+	}
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;

@@ -17,7 +17,7 @@
 
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/platform_device.h>
+#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <sound/pcm.h>
@@ -182,9 +182,14 @@
 
 /* AUX1_L bit fields */
 #define DA7210_AUX1_L_VOL		(0x3F << 0)
+#define DA7210_AUX1_L_EN		(1 << 7)
 
 /* AUX1_R bit fields */
 #define DA7210_AUX1_R_VOL		(0x3F << 0)
+#define DA7210_AUX1_R_EN		(1 << 7)
+
+/* AUX2 bit fields */
+#define DA7210_AUX2_EN			(1 << 3)
 
 /* Minimum INPGA and AUX1 volume to enable noise suppression */
 #define DA7210_INPGA_MIN_VOL_NS		0x0A  /* 10.5dB */
@@ -235,12 +240,22 @@ static const unsigned int mono_vol_tlv[] = {
 	0x3, 0x7, TLV_DB_SCALE_ITEM(-1800, 600, 0)
 };
 
+static const unsigned int aux1_vol_tlv[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0x0, 0x10, TLV_DB_SCALE_ITEM(TLV_DB_GAIN_MUTE, 0, 1),
+	/* -48dB to 21dB */
+	0x11, 0x3f, TLV_DB_SCALE_ITEM(-4800, 150, 0)
+};
+
 static const DECLARE_TLV_DB_SCALE(eq_gain_tlv, -1050, 150, 0);
 static const DECLARE_TLV_DB_SCALE(adc_eq_master_gain_tlv, -1800, 600, 1);
 static const DECLARE_TLV_DB_SCALE(dac_gain_tlv, -7725, 75, 0);
+static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, -600, 600, 0);
+static const DECLARE_TLV_DB_SCALE(aux2_vol_tlv, -600, 600, 0);
+static const DECLARE_TLV_DB_SCALE(inpga_gain_tlv, -450, 150, 0);
 
 /* ADC and DAC high pass filter f0 value */
-static const char const *da7210_hpf_cutoff_txt[] = {
+static const char * const da7210_hpf_cutoff_txt[] = {
 	"Fs/8192*pi", "Fs/4096*pi", "Fs/2048*pi", "Fs/1024*pi"
 };
 
@@ -251,7 +266,7 @@ static const struct soc_enum da7210_adc_hpf_cutoff =
 	SOC_ENUM_SINGLE(DA7210_ADC_HPF, 0, 4, da7210_hpf_cutoff_txt);
 
 /* ADC and DAC voice (8kHz) high pass cutoff value */
-static const char const *da7210_vf_cutoff_txt[] = {
+static const char * const da7210_vf_cutoff_txt[] = {
 	"2.5Hz", "25Hz", "50Hz", "100Hz", "150Hz", "200Hz", "300Hz", "400Hz"
 };
 
@@ -345,6 +360,17 @@ static const struct snd_kcontrol_new da7210_snd_controls[] = {
 	SOC_SINGLE_TLV("Mono Playback Volume", DA7210_OUT2, 0, 0x7, 0,
 		       mono_vol_tlv),
 
+	SOC_DOUBLE_R_TLV("Mic Capture Volume",
+			 DA7210_MIC_L, DA7210_MIC_R,
+			 0, 0x5, 0, mic_vol_tlv),
+	SOC_DOUBLE_R_TLV("Aux1 Capture Volume",
+			 DA7210_AUX1_L, DA7210_AUX1_R,
+			 0, 0x3f, 0, aux1_vol_tlv),
+	SOC_SINGLE_TLV("Aux2 Capture Volume", DA7210_AUX2, 0, 0x3, 0,
+		       aux2_vol_tlv),
+	SOC_DOUBLE_TLV("In PGA Capture Volume", DA7210_IN_GAIN, 0, 4, 0xF, 0,
+		       inpga_gain_tlv),
+
 	/* DAC Equalizer  controls */
 	SOC_SINGLE("DAC EQ Switch", DA7210_DAC_EQ5, 7, 1, 0),
 	SOC_SINGLE_TLV("DAC EQ1 Volume", DA7210_DAC_EQ1_2, 0, 0xf, 1,
@@ -422,26 +448,42 @@ static const struct snd_kcontrol_new da7210_snd_controls[] = {
 static const struct snd_kcontrol_new da7210_dapm_inmixl_controls[] = {
 	SOC_DAPM_SINGLE("Mic Left Switch", DA7210_INMIX_L, 0, 1, 0),
 	SOC_DAPM_SINGLE("Mic Right Switch", DA7210_INMIX_L, 1, 1, 0),
+	SOC_DAPM_SINGLE("Aux1 Left Switch", DA7210_INMIX_L, 2, 1, 0),
+	SOC_DAPM_SINGLE("Aux2 Switch", DA7210_INMIX_L, 3, 1, 0),
+	SOC_DAPM_SINGLE("Outmix Left Switch", DA7210_INMIX_L, 4, 1, 0),
 };
 
 /* In Mixer Right */
 static const struct snd_kcontrol_new da7210_dapm_inmixr_controls[] = {
 	SOC_DAPM_SINGLE("Mic Right Switch", DA7210_INMIX_R, 0, 1, 0),
 	SOC_DAPM_SINGLE("Mic Left Switch", DA7210_INMIX_R, 1, 1, 0),
+	SOC_DAPM_SINGLE("Aux1 Right Switch", DA7210_INMIX_R, 2, 1, 0),
+	SOC_DAPM_SINGLE("Aux2 Switch", DA7210_INMIX_R, 3, 1, 0),
+	SOC_DAPM_SINGLE("Outmix Right Switch", DA7210_INMIX_R, 4, 1, 0),
 };
 
 /* Out Mixer Left */
 static const struct snd_kcontrol_new da7210_dapm_outmixl_controls[] = {
+	SOC_DAPM_SINGLE("Aux1 Left Switch", DA7210_OUTMIX_L, 0, 1, 0),
+	SOC_DAPM_SINGLE("Aux2 Switch", DA7210_OUTMIX_L, 1, 1, 0),
+	SOC_DAPM_SINGLE("INPGA Left Switch", DA7210_OUTMIX_L, 2, 1, 0),
+	SOC_DAPM_SINGLE("INPGA Right Switch", DA7210_OUTMIX_L, 3, 1, 0),
 	SOC_DAPM_SINGLE("DAC Left Switch", DA7210_OUTMIX_L, 4, 1, 0),
 };
 
 /* Out Mixer Right */
 static const struct snd_kcontrol_new da7210_dapm_outmixr_controls[] = {
+	SOC_DAPM_SINGLE("Aux1 Right Switch", DA7210_OUTMIX_R, 0, 1, 0),
+	SOC_DAPM_SINGLE("Aux2 Switch", DA7210_OUTMIX_R, 1, 1, 0),
+	SOC_DAPM_SINGLE("INPGA Left Switch", DA7210_OUTMIX_R, 2, 1, 0),
+	SOC_DAPM_SINGLE("INPGA Right Switch", DA7210_OUTMIX_R, 3, 1, 0),
 	SOC_DAPM_SINGLE("DAC Right Switch", DA7210_OUTMIX_R, 4, 1, 0),
 };
 
 /* Mono Mixer */
 static const struct snd_kcontrol_new da7210_dapm_monomix_controls[] = {
+	SOC_DAPM_SINGLE("INPGA Right Switch", DA7210_OUT2, 3, 1, 0),
+	SOC_DAPM_SINGLE("INPGA Left Switch", DA7210_OUT2, 4, 1, 0),
 	SOC_DAPM_SINGLE("Outmix Right Switch", DA7210_OUT2, 5, 1, 0),
 	SOC_DAPM_SINGLE("Outmix Left Switch", DA7210_OUT2, 6, 1, 0),
 };
@@ -452,13 +494,22 @@ static const struct snd_soc_dapm_widget da7210_dapm_widgets[] = {
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("MICL"),
 	SND_SOC_DAPM_INPUT("MICR"),
+	SND_SOC_DAPM_INPUT("AUX1L"),
+	SND_SOC_DAPM_INPUT("AUX1R"),
+	SND_SOC_DAPM_INPUT("AUX2"),
 
 	/* Input PGAs */
 	SND_SOC_DAPM_PGA("Mic Left", DA7210_STARTUP3, 0, 1, NULL, 0),
 	SND_SOC_DAPM_PGA("Mic Right", DA7210_STARTUP3, 1, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("Aux1 Left", DA7210_STARTUP3, 2, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("Aux1 Right", DA7210_STARTUP3, 3, 1, NULL, 0),
+	SND_SOC_DAPM_PGA("Aux2 Mono", DA7210_STARTUP3, 4, 1, NULL, 0),
 
 	SND_SOC_DAPM_PGA("INPGA Left", DA7210_INMIX_L, 7, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("INPGA Right", DA7210_INMIX_R, 7, 0, NULL, 0),
+
+	/* MICBIAS */
+	SND_SOC_DAPM_SUPPLY("Mic Bias", DA7210_MIC_L, 6, 0, NULL, 0),
 
 	/* Input Mixers */
 	SND_SOC_DAPM_MIXER("In Mixer Left", SND_SOC_NOPM, 0, 0,
@@ -515,12 +566,21 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 	/* Input path */
 	{"Mic Left", NULL, "MICL"},
 	{"Mic Right", NULL, "MICR"},
+	{"Aux1 Left", NULL, "AUX1L"},
+	{"Aux1 Right", NULL, "AUX1R"},
+	{"Aux2 Mono", NULL, "AUX2"},
 
 	{"In Mixer Left", "Mic Left Switch", "Mic Left"},
 	{"In Mixer Left", "Mic Right Switch", "Mic Right"},
+	{"In Mixer Left", "Aux1 Left Switch", "Aux1 Left"},
+	{"In Mixer Left", "Aux2 Switch", "Aux2 Mono"},
+	{"In Mixer Left", "Outmix Left Switch", "Out Mixer Left"},
 
 	{"In Mixer Right", "Mic Right Switch", "Mic Right"},
 	{"In Mixer Right", "Mic Left Switch", "Mic Left"},
+	{"In Mixer Right", "Aux1 Right Switch", "Aux1 Right"},
+	{"In Mixer Right", "Aux2 Switch", "Aux2 Mono"},
+	{"In Mixer Right", "Outmix Right Switch", "Out Mixer Right"},
 
 	{"INPGA Left", NULL, "In Mixer Left"},
 	{"ADC Left", NULL, "INPGA Left"},
@@ -529,9 +589,20 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 	{"ADC Right", NULL, "INPGA Right"},
 
 	/* Output path */
+	{"Out Mixer Left", "Aux1 Left Switch", "Aux1 Left"},
+	{"Out Mixer Left", "Aux2 Switch", "Aux2 Mono"},
+	{"Out Mixer Left", "INPGA Left Switch", "INPGA Left"},
+	{"Out Mixer Left", "INPGA Right Switch", "INPGA Right"},
 	{"Out Mixer Left", "DAC Left Switch", "DAC Left"},
+
+	{"Out Mixer Right", "Aux1 Right Switch", "Aux1 Right"},
+	{"Out Mixer Right", "Aux2 Switch", "Aux2 Mono"},
+	{"Out Mixer Right", "INPGA Right Switch", "INPGA Right"},
+	{"Out Mixer Right", "INPGA Left Switch", "INPGA Left"},
 	{"Out Mixer Right", "DAC Right Switch", "DAC Right"},
 
+	{"Mono Mixer", "INPGA Right Switch", "INPGA Right"},
+	{"Mono Mixer", "INPGA Left Switch", "INPGA Left"},
 	{"Mono Mixer", "Outmix Right Switch", "Out Mixer Right"},
 	{"Mono Mixer", "Outmix Left Switch", "Out Mixer Left"},
 
@@ -556,41 +627,82 @@ static const struct snd_soc_dapm_route da7210_audio_map[] = {
 
 /* Codec private data */
 struct da7210_priv {
-	enum snd_soc_control_type control_type;
+	struct regmap *regmap;
 };
 
-/*
- * Register cache
- */
-static const u8 da7210_reg[] = {
-	0x00, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R0  - R7  */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08,	/* R8  - RF  */
-	0x00, 0x00, 0x00, 0x00, 0x08, 0x10, 0x10, 0x54,	/* R10 - R17 */
-	0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R18 - R1F */
-	0x00, 0x00, 0x00, 0x02, 0x00, 0x76, 0x00, 0x00,	/* R20 - R27 */
-	0x04, 0x00, 0x00, 0x30, 0x2A, 0x00, 0x40, 0x00,	/* R28 - R2F */
-	0x40, 0x00, 0x40, 0x00, 0x40, 0x00, 0x40, 0x00,	/* R30 - R37 */
-	0x40, 0x00, 0x40, 0x00, 0x40, 0x00, 0x00, 0x00,	/* R38 - R3F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R40 - R4F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R48 - R4F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R50 - R57 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R58 - R5F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R60 - R67 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R68 - R6F */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R70 - R77 */
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x54, 0x54, 0x00,	/* R78 - R7F */
-	0x00, 0x00, 0x2C, 0x00, 0x00, 0x00, 0x00, 0x00,	/* R80 - R87 */
-	0x00,						/* R88       */
+static struct reg_default da7210_reg_defaults[] = {
+	{ 0x01, 0x11 },
+	{ 0x03, 0x00 },
+	{ 0x04, 0x00 },
+	{ 0x05, 0x00 },
+	{ 0x06, 0x00 },
+	{ 0x07, 0x00 },
+	{ 0x08, 0x00 },
+	{ 0x09, 0x00 },
+	{ 0x0a, 0x00 },
+	{ 0x0b, 0x00 },
+	{ 0x0c, 0x00 },
+	{ 0x0d, 0x00 },
+	{ 0x0e, 0x00 },
+	{ 0x0f, 0x08 },
+	{ 0x10, 0x00 },
+	{ 0x11, 0x00 },
+	{ 0x12, 0x00 },
+	{ 0x13, 0x00 },
+	{ 0x14, 0x08 },
+	{ 0x15, 0x10 },
+	{ 0x16, 0x10 },
+	{ 0x17, 0x54 },
+	{ 0x18, 0x40 },
+	{ 0x19, 0x00 },
+	{ 0x1a, 0x00 },
+	{ 0x1b, 0x00 },
+	{ 0x1c, 0x00 },
+	{ 0x1d, 0x00 },
+	{ 0x1e, 0x00 },
+	{ 0x1f, 0x00 },
+	{ 0x20, 0x00 },
+	{ 0x21, 0x00 },
+	{ 0x22, 0x00 },
+	{ 0x23, 0x02 },
+	{ 0x24, 0x00 },
+	{ 0x25, 0x76 },
+	{ 0x26, 0x00 },
+	{ 0x27, 0x00 },
+	{ 0x28, 0x04 },
+	{ 0x29, 0x00 },
+	{ 0x2a, 0x00 },
+	{ 0x2b, 0x30 },
+	{ 0x2c, 0x2A },
+	{ 0x83, 0x00 },
+	{ 0x84, 0x00 },
+	{ 0x85, 0x00 },
+	{ 0x86, 0x00 },
+	{ 0x87, 0x00 },
+	{ 0x88, 0x00 },
 };
 
-static int da7210_volatile_register(struct snd_soc_codec *codec,
+static bool da7210_readable_register(struct device *dev, unsigned int reg)
+{
+	switch (reg) {
+	case DA7210_A_HID_UNLOCK:
+	case DA7210_A_TEST_UNLOCK:
+	case DA7210_A_PLL1:
+	case DA7210_A_CP_MODE:
+		return false;
+	default:
+		return true;
+	}
+}
+
+static bool da7210_volatile_register(struct device *dev,
 				    unsigned int reg)
 {
 	switch (reg) {
 	case DA7210_STATUS:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -761,7 +873,7 @@ static int da7210_mute(struct snd_soc_dai *dai, int mute)
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 /* DAI operations */
-static struct snd_soc_dai_ops da7210_dai_ops = {
+static const struct snd_soc_dai_ops da7210_dai_ops = {
 	.hw_params	= da7210_hw_params,
 	.set_fmt	= da7210_set_dai_fmt,
 	.digital_mute	= da7210_mute,
@@ -796,7 +908,8 @@ static int da7210_probe(struct snd_soc_codec *codec)
 
 	dev_info(codec->dev, "DA7210 Audio Codec %s\n", DA7210_VERSION);
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, da7210->control_type);
+	codec->control_data = da7210->regmap;
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -888,6 +1001,12 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	snd_soc_write(codec, DA7210_OUT2, DA7210_OUT2_EN |
 		     DA7210_OUT2_OUTMIX_L | DA7210_OUT2_OUTMIX_R);
 
+	/* Enable Aux1 */
+	snd_soc_write(codec, DA7210_AUX1_L, DA7210_AUX1_L_EN);
+	snd_soc_write(codec, DA7210_AUX1_R, DA7210_AUX1_R_EN);
+	/* Enable Aux2 */
+	snd_soc_write(codec, DA7210_AUX2, DA7210_AUX2_EN);
+
 	/* Diable PLL and bypass it */
 	snd_soc_write(codec, DA7210_PLL, DA7210_PLL_FS_48000);
 
@@ -907,12 +1026,14 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_EN, DA7210_PLL_EN);
 
 	/* As suggested by Dialog */
-	snd_soc_write(codec, DA7210_A_HID_UNLOCK,	0x8B); /* unlock */
-	snd_soc_write(codec, DA7210_A_TEST_UNLOCK,	0xB4);
-	snd_soc_write(codec, DA7210_A_PLL1,		0x01);
-	snd_soc_write(codec, DA7210_A_CP_MODE,		0x7C);
-	snd_soc_write(codec, DA7210_A_HID_UNLOCK,	0x00); /* re-lock */
-	snd_soc_write(codec, DA7210_A_TEST_UNLOCK,	0x00);
+	/* unlock */
+	regmap_write(da7210->regmap, DA7210_A_HID_UNLOCK,	0x8B);
+	regmap_write(da7210->regmap, DA7210_A_TEST_UNLOCK,	0xB4);
+	regmap_write(da7210->regmap, DA7210_A_PLL1,		0x01);
+	regmap_write(da7210->regmap, DA7210_A_CP_MODE,		0x7C);
+	/* re-lock */
+	regmap_write(da7210->regmap, DA7210_A_HID_UNLOCK,	0x00);
+	regmap_write(da7210->regmap, DA7210_A_TEST_UNLOCK,	0x00);
 
 	/* Activate all enabled subsystem */
 	snd_soc_write(codec, DA7210_STARTUP1, DA7210_SC_MST_EN);
@@ -924,10 +1045,6 @@ static int da7210_probe(struct snd_soc_codec *codec)
 
 static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.probe			= da7210_probe,
-	.reg_cache_size		= ARRAY_SIZE(da7210_reg),
-	.reg_word_size		= sizeof(u8),
-	.reg_cache_default	= da7210_reg,
-	.volatile_register	= da7210_volatile_register,
 
 	.controls		= da7210_snd_controls,
 	.num_controls		= ARRAY_SIZE(da7210_snd_controls),
@@ -938,6 +1055,17 @@ static struct snd_soc_codec_driver soc_codec_dev_da7210 = {
 	.num_dapm_routes	= ARRAY_SIZE(da7210_audio_map),
 };
 
+static struct regmap_config da7210_regmap = {
+	.reg_bits = 8,
+	.val_bits = 8,
+
+	.reg_defaults = da7210_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(da7210_reg_defaults),
+	.volatile_reg = da7210_volatile_register,
+	.readable_reg = da7210_readable_register,
+	.cache_type = REGCACHE_RBTREE,
+};
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 			   	      const struct i2c_device_id *id)
@@ -945,25 +1073,40 @@ static int __devinit da7210_i2c_probe(struct i2c_client *i2c,
 	struct da7210_priv *da7210;
 	int ret;
 
-	da7210 = kzalloc(sizeof(struct da7210_priv), GFP_KERNEL);
+	da7210 = devm_kzalloc(&i2c->dev, sizeof(struct da7210_priv),
+			      GFP_KERNEL);
 	if (!da7210)
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, da7210);
-	da7210->control_type = SND_SOC_I2C;
+
+	da7210->regmap = regmap_init_i2c(i2c, &da7210_regmap);
+	if (IS_ERR(da7210->regmap)) {
+		ret = PTR_ERR(da7210->regmap);
+		dev_err(&i2c->dev, "regmap_init() failed: %d\n", ret);
+		return ret;
+	}
 
 	ret =  snd_soc_register_codec(&i2c->dev,
 			&soc_codec_dev_da7210, &da7210_dai, 1);
-	if (ret < 0)
-		kfree(da7210);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
+		goto err_regmap;
+	}
+	return ret;
+
+err_regmap:
+	regmap_exit(da7210->regmap);
 
 	return ret;
 }
 
 static int __devexit da7210_i2c_remove(struct i2c_client *client)
 {
+	struct da7210_priv *da7210 = i2c_get_clientdata(client);
+
 	snd_soc_unregister_codec(&client->dev);
-	kfree(i2c_get_clientdata(client));
+	regmap_exit(da7210->regmap);
 	return 0;
 }
 

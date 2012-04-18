@@ -204,11 +204,10 @@ static void __devinit pnv_ioda_offset_bus(struct pci_bus *bus,
 	pr_devel("  -> OBR %s [%x] +%016llx\n",
 		 bus->self ? pci_name(bus->self) : "root", flags, offset);
 
-	for (i = 0; i < 2; i++) {
-		r = bus->resource[i];
+	pci_bus_for_each_resource(bus, r, i) {
 		if (r && (r->flags & flags)) {
-			bus->resource[i]->start += offset;
-			bus->resource[i]->end += offset;
+			r->start += offset;
+			r->end += offset;
 		}
 	}
 	list_for_each_entry(dev, &bus->devices, bus_list)
@@ -288,12 +287,17 @@ static void __devinit pnv_ioda_calc_bus(struct pci_bus *bus, unsigned int flags,
 	 * assignment algorithm is going to be uber-trivial for now, we
 	 * can try to be smarter later at filling out holes.
 	 */
-	start = bus->self ? 0 : bus->resource[bres]->start;
-
-	/* Don't hand out IO 0 */
-	if ((flags & IORESOURCE_IO) && !bus->self)
-		start += 0x1000;
-
+	if (bus->self) {
+		/* No offset for downstream bridges */
+		start = 0;
+	} else {
+		/* Offset from the root */
+		if (flags & IORESOURCE_IO)
+			/* Don't hand out IO 0 */
+			start = hose->io_resource.start + 0x1000;
+		else
+			start = hose->mem_resources[0].start;
+	}
 	while(!list_empty(&head)) {
 		w = list_first_entry(&head, struct resource_wrap, link);
 		list_del(&w->link);
@@ -321,13 +325,20 @@ static void __devinit pnv_ioda_calc_bus(struct pci_bus *bus, unsigned int flags,
  empty:
 	/* Only setup P2P's, not the PHB itself */
 	if (bus->self) {
-		WARN_ON(bus->resource[bres] == NULL);
-		bus->resource[bres]->start = 0;
-		bus->resource[bres]->flags = (*size) ? flags : 0;
-		bus->resource[bres]->end = (*size) ? (*size - 1) : 0;
+		struct resource *res = bus->resource[bres];
 
-		/* Clear prefetch bus resources for now */
-		bus->resource[2]->flags = 0;
+		if (WARN_ON(res == NULL))
+			return;
+
+		/*
+		 * FIXME: We should probably export and call
+		 * pci_bridge_check_ranges() to properly re-initialize
+		 * the PCI portion of the flags here, and to detect
+		 * what the bridge actually supports.
+		 */
+		res->start = 0;
+		res->flags = (*size) ? flags : 0;
+		res->end = (*size) ? (*size - 1) : 0;
 	}
 
 	pr_devel("<- CBR %s [%x] *size=%016llx *align=%016llx\n",
@@ -1288,15 +1299,14 @@ void __init pnv_pci_init_ioda1_phb(struct device_node *np)
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);
 
-	/* We set both probe_only and PCI_REASSIGN_ALL_RSRC. This is an
+	/* We set both PCI_PROBE_ONLY and PCI_REASSIGN_ALL_RSRC. This is an
 	 * odd combination which essentially means that we skip all resource
 	 * fixups and assignments in the generic code, and do it all
 	 * ourselves here
 	 */
-	pci_probe_only = 1;
 	ppc_md.pcibios_fixup_phb = pnv_pci_ioda_fixup_phb;
 	ppc_md.pcibios_enable_device_hook = pnv_pci_enable_device_hook;
-	pci_add_flags(PCI_REASSIGN_ALL_RSRC);
+	pci_add_flags(PCI_PROBE_ONLY | PCI_REASSIGN_ALL_RSRC);
 
 	/* Reset IODA tables to a clean state */
 	rc = opal_pci_reset(phb_id, OPAL_PCI_IODA_TABLE_RESET, OPAL_ASSERT_RESET);

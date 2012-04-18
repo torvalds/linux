@@ -151,7 +151,11 @@ int aac_msi;
 int aac_commit = -1;
 int startup_timeout = 180;
 int aif_timeout = 120;
+int aac_sync_mode;  /* Only Sync. transfer - disabled */
 
+module_param(aac_sync_mode, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(aac_sync_mode, "Force sync. transfer mode"
+	" 0=off, 1=on");
 module_param(nondasd, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(nondasd, "Control scanning of hba for nondasd devices."
 	" 0=off, 1=on");

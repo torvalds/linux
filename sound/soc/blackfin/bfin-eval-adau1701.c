@@ -37,19 +37,8 @@ static int bfin_eval_adau1701_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S |
-			SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret)
-		return ret;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, ADAU1701_CLK_SRC_OSC, 12288000,
 			SND_SOC_CLOCK_IN);
@@ -61,6 +50,9 @@ static struct snd_soc_ops bfin_eval_adau1701_ops = {
 	.hw_params = bfin_eval_adau1701_hw_params,
 };
 
+#define BFIN_EVAL_ADAU1701_DAI_FMT (SND_SOC_DAIFMT_I2S | \
+				SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM)
+
 static struct snd_soc_dai_link bfin_eval_adau1701_dai[] = {
 	{
 		.name = "adau1701",
@@ -70,6 +62,7 @@ static struct snd_soc_dai_link bfin_eval_adau1701_dai[] = {
 		.platform_name = "bfin-i2s-pcm-audio",
 		.codec_name = "adau1701.0-0034",
 		.ops = &bfin_eval_adau1701_ops,
+		.dai_fmt = BFIN_EVAL_ADAU1701_DAI_FMT,
 	},
 	{
 		.name = "adau1701",
@@ -79,11 +72,13 @@ static struct snd_soc_dai_link bfin_eval_adau1701_dai[] = {
 		.platform_name = "bfin-i2s-pcm-audio",
 		.codec_name = "adau1701.0-0034",
 		.ops = &bfin_eval_adau1701_ops,
+		.dai_fmt = BFIN_EVAL_ADAU1701_DAI_FMT,
 	},
 };
 
 static struct snd_soc_card bfin_eval_adau1701 = {
 	.name = "bfin-eval-adau1701",
+	.owner = THIS_MODULE,
 	.dai_link = &bfin_eval_adau1701_dai[CONFIG_SND_BF5XX_SPORT_NUM],
 	.num_links = 1,
 
@@ -121,17 +116,7 @@ static struct platform_driver bfin_eval_adau1701_driver = {
 	.remove = __devexit_p(bfin_eval_adau1701_remove),
 };
 
-static int __init bfin_eval_adau1701_init(void)
-{
-	return platform_driver_register(&bfin_eval_adau1701_driver);
-}
-module_init(bfin_eval_adau1701_init);
-
-static void __exit bfin_eval_adau1701_exit(void)
-{
-	platform_driver_unregister(&bfin_eval_adau1701_driver);
-}
-module_exit(bfin_eval_adau1701_exit);
+module_platform_driver(bfin_eval_adau1701_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("ALSA SoC bfin ADAU1701 driver");

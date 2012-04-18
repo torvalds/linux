@@ -19,6 +19,7 @@
    51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, USA.  */
 
 #include <linux/kernel.h>
+#include <linux/bug.h>
 #include "spu.h"
 
 /* This file holds the Spu opcode table */

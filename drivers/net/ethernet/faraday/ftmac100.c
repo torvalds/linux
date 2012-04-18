@@ -25,6 +25,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/mii.h>
 #include <linux/module.h>
@@ -1132,7 +1133,7 @@ static int ftmac100_probe(struct platform_device *pdev)
 	netdev_info(netdev, "irq %d, mapped at %p\n", priv->irq, priv->base);
 
 	if (!is_valid_ether_addr(netdev->dev_addr)) {
-		random_ether_addr(netdev->dev_addr);
+		eth_hw_addr_random(netdev);
 		netdev_info(netdev, "generated random MAC address %pM\n",
 			    netdev->dev_addr);
 	}

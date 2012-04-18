@@ -8,8 +8,8 @@
 
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/libceph.h>
+#include <linux/ceph/debugfs.h>
 #include <linux/ceph/decode.h>
-
 #include <linux/ceph/auth.h>
 
 /*
@@ -340,8 +340,19 @@ static void ceph_monc_handle_map(struct ceph_mon_client *monc,
 	client->monc.monmap = monmap;
 	kfree(old);
 
+	if (!client->have_fsid) {
+		client->have_fsid = true;
+		mutex_unlock(&monc->mutex);
+		/*
+		 * do debugfs initialization without mutex to avoid
+		 * creating a locking dependency
+		 */
+		ceph_debugfs_client_init(client);
+		goto out_unlocked;
+	}
 out:
 	mutex_unlock(&monc->mutex);
+out_unlocked:
 	wake_up_all(&client->auth_wq);
 }
 

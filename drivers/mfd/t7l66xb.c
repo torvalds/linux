@@ -442,21 +442,7 @@ static struct platform_driver t7l66xb_platform_driver = {
 
 /*--------------------------------------------------------------------------*/
 
-static int __init t7l66xb_init(void)
-{
-	int retval = 0;
-
-	retval = platform_driver_register(&t7l66xb_platform_driver);
-	return retval;
-}
-
-static void __exit t7l66xb_exit(void)
-{
-	platform_driver_unregister(&t7l66xb_platform_driver);
-}
-
-module_init(t7l66xb_init);
-module_exit(t7l66xb_exit);
+module_platform_driver(t7l66xb_platform_driver);
 
 MODULE_DESCRIPTION("Toshiba T7L66XB core driver");
 MODULE_LICENSE("GPL v2");

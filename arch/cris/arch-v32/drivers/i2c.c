@@ -36,7 +36,6 @@
 
 #include <asm/etraxi2c.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/delay.h>
 

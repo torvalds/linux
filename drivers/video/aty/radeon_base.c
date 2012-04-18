@@ -263,19 +263,19 @@ static reg_val common_regs[] = {
         
 static char *mode_option;
 static char *monitor_layout;
-static int noaccel = 0;
+static bool noaccel = 0;
 static int default_dynclk = -2;
-static int nomodeset = 0;
-static int ignore_edid = 0;
-static int mirror = 0;
+static bool nomodeset = 0;
+static bool ignore_edid = 0;
+static bool mirror = 0;
 static int panel_yres = 0;
-static int force_dfp = 0;
-static int force_measure_pll = 0;
+static bool force_dfp = 0;
+static bool force_measure_pll = 0;
 #ifdef CONFIG_MTRR
-static int nomtrr = 0;
+static bool nomtrr = 0;
 #endif
-static int force_sleep;
-static int ignore_devlist;
+static bool force_sleep;
+static bool ignore_devlist;
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight = 1;
 #else

@@ -198,7 +198,7 @@ static struct virtqueue *kvm_find_vq(struct virtio_device *vdev,
 		goto out;
 
 	vq = vring_new_virtqueue(config->num, KVM_S390_VIRTIO_RING_ALIGN,
-				 vdev, (void *) config->address,
+				 vdev, true, (void *) config->address,
 				 kvm_notify, callback, name);
 	if (!vq) {
 		err = -ENOMEM;
@@ -380,15 +380,13 @@ static void hotplug_devices(struct work_struct *dummy)
 /*
  * we emulate the request_irq behaviour on top of s390 extints
  */
-static void kvm_extint_handler(unsigned int ext_int_code,
+static void kvm_extint_handler(struct ext_code ext_code,
 			       unsigned int param32, unsigned long param64)
 {
 	struct virtqueue *vq;
-	u16 subcode;
 	u32 param;
 
-	subcode = ext_int_code >> 16;
-	if ((subcode & 0xff00) != VIRTIO_SUBCODE_64)
+	if ((ext_code.subcode & 0xff00) != VIRTIO_SUBCODE_64)
 		return;
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_VRT]++;
 

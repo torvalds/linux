@@ -27,6 +27,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
+#include <asm/system_misc.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -501,8 +502,8 @@ static struct resource nuc900_ac97_resource[] = {
 
 };
 
-struct platform_device nuc900_device_audio = {
-	.name		= "nuc900-audio",
+struct platform_device nuc900_device_ac97 = {
+	.name		= "nuc900-ac97",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(nuc900_ac97_resource),
 	.resource	= nuc900_ac97_resource,
@@ -523,13 +524,14 @@ static struct platform_device *nuc900_public_dev[] __initdata = {
 	&nuc900_device_emc,
 	&nuc900_device_spi,
 	&nuc900_device_wdt,
-	&nuc900_device_audio,
+	&nuc900_device_ac97,
 };
 
 /* Provide adding specific CPU platform devices API */
 
 void __init nuc900_board_init(struct platform_device **device, int size)
 {
+	disable_hlt();
 	platform_add_devices(device, size);
 	platform_add_devices(nuc900_public_dev, ARRAY_SIZE(nuc900_public_dev));
 	spi_register_board_info(nuc900_spi_board_info,

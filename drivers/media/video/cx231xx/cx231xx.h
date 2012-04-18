@@ -377,7 +377,6 @@ struct cx231xx_board {
 enum cx231xx_dev_state {
 	DEV_INITIALIZED = 0x01,
 	DEV_DISCONNECTED = 0x02,
-	DEV_MISCONFIGURED = 0x04,
 };
 
 enum AFE_MODE {
@@ -621,6 +620,7 @@ struct cx231xx {
 
 	/* For I2C IR support */
 	struct IR_i2c_init_data    init_data;
+	struct i2c_client          *ir_i2c_client;
 
 	unsigned int stream_on:1;	/* Locks streams */
 	unsigned int vbi_stream_on:1;	/* Locks streams for VBI */

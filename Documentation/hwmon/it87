@@ -26,6 +26,10 @@ Supported chips:
     Prefix: 'it8721'
     Addresses scanned: from Super I/O config space (8 I/O ports)
     Datasheet: Not publicly available
+  * IT8728F
+    Prefix: 'it8728'
+    Addresses scanned: from Super I/O config space (8 I/O ports)
+    Datasheet: Not publicly available
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
@@ -71,7 +75,7 @@ Description
 -----------
 
 This driver implements support for the IT8705F, IT8712F, IT8716F,
-IT8718F, IT8720F, IT8721F, IT8726F, IT8758E and SiS950 chips.
+IT8718F, IT8720F, IT8721F, IT8726F, IT8728F, IT8758E and SiS950 chips.
 
 These chips are 'Super I/O chips', supporting floppy disks, infrared ports,
 joysticks and other miscellaneous stuff. For hardware monitoring, they
@@ -105,6 +109,9 @@ The IT8726F is just bit enhanced IT8716F with additional hardware
 for AMD power sequencing. Therefore the chip will appear as IT8716F
 to userspace applications.
 
+The IT8728F is considered compatible with the IT8721F, until a datasheet
+becomes available (hopefully.)
+
 Temperatures are measured in degrees Celsius. An alarm is triggered once
 when the Overtemperature Shutdown limit is crossed.
 
@@ -121,8 +128,8 @@ alarm is triggered if the voltage has crossed a programmable minimum or
 maximum limit. Note that minimum in this case always means 'closest to
 zero'; this is important for negative voltage measurements. All voltage
 inputs can measure voltages between 0 and 4.08 volts, with a resolution of
-0.016 volt (except IT8721F/IT8758E: 0.012 volt.) The battery voltage in8 does
-not have limit registers.
+0.016 volt (except IT8721F/IT8758E and IT8728F: 0.012 volt.) The battery
+voltage in8 does not have limit registers.
 
 On the IT8721F/IT8758E, some voltage inputs are internal and scaled inside
 the chip (in7, in8 and optionally in3). The driver handles this transparently

@@ -405,17 +405,7 @@ static struct spi_driver at25_driver = {
 	.remove		= __devexit_p(at25_remove),
 };
 
-static int __init at25_init(void)
-{
-	return spi_register_driver(&at25_driver);
-}
-module_init(at25_init);
-
-static void __exit at25_exit(void)
-{
-	spi_unregister_driver(&at25_driver);
-}
-module_exit(at25_exit);
+module_spi_driver(at25_driver);
 
 MODULE_DESCRIPTION("Driver for most SPI EEPROMs");
 MODULE_AUTHOR("David Brownell");

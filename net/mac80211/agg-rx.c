@@ -49,6 +49,8 @@ static void ieee80211_free_tid_rx(struct rcu_head *h)
 		container_of(h, struct tid_ampdu_rx, rcu_head);
 	int i;
 
+	del_timer_sync(&tid_rx->reorder_timer);
+
 	for (i = 0; i < tid_rx->buf_size; i++)
 		dev_kfree_skb(tid_rx->reorder_buf[i]);
 	kfree(tid_rx->reorder_buf);
@@ -91,7 +93,6 @@ void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				     tid, WLAN_BACK_RECIPIENT, reason);
 
 	del_timer_sync(&tid_rx->session_timer);
-	del_timer_sync(&tid_rx->reorder_timer);
 
 	call_rcu(&tid_rx->rcu_head, ieee80211_free_tid_rx);
 }
@@ -332,7 +333,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	status = WLAN_STATUS_SUCCESS;
 
 	/* activate it for RX */
-	RCU_INIT_POINTER(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
+	rcu_assign_pointer(sta->ampdu_mlme.tid_rx[tid], tid_agg_rx);
 
 	if (timeout)
 		mod_timer(&tid_agg_rx->session_timer, TU_TO_EXP_TIME(timeout));

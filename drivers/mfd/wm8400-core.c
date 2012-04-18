@@ -271,8 +271,7 @@ static int wm8400_init(struct wm8400 *wm8400,
 		return -EIO;
 	}
 	if (i != reg_data[WM8400_RESET_ID].default_val) {
-		dev_err(wm8400->dev, "Device is not a WM8400, ID is %x\n",
-			reg);
+		dev_err(wm8400->dev, "Device is not a WM8400, ID is %x\n", i);
 		return -ENODEV;
 	}
 
@@ -344,16 +343,16 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 	struct wm8400 *wm8400;
 	int ret;
 
-	wm8400 = kzalloc(sizeof(struct wm8400), GFP_KERNEL);
+	wm8400 = devm_kzalloc(&i2c->dev, sizeof(struct wm8400), GFP_KERNEL);
 	if (wm8400 == NULL) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	wm8400->regmap = regmap_init_i2c(i2c, &wm8400_regmap_config);
+	wm8400->regmap = devm_regmap_init_i2c(i2c, &wm8400_regmap_config);
 	if (IS_ERR(wm8400->regmap)) {
 		ret = PTR_ERR(wm8400->regmap);
-		goto struct_err;
+		goto err;
 	}
 
 	wm8400->dev = &i2c->dev;
@@ -361,14 +360,10 @@ static int wm8400_i2c_probe(struct i2c_client *i2c,
 
 	ret = wm8400_init(wm8400, i2c->dev.platform_data);
 	if (ret != 0)
-		goto map_err;
+		goto err;
 
 	return 0;
 
-map_err:
-	regmap_exit(wm8400->regmap);
-struct_err:
-	kfree(wm8400);
 err:
 	return ret;
 }
@@ -378,8 +373,6 @@ static int wm8400_i2c_remove(struct i2c_client *i2c)
 	struct wm8400 *wm8400 = i2c_get_clientdata(i2c);
 
 	wm8400_release(wm8400);
-	regmap_exit(wm8400->regmap);
-	kfree(wm8400);
 
 	return 0;
 }

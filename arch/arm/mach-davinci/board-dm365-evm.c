@@ -32,7 +32,6 @@
 #include <asm/mach/arch.h>
 
 #include <mach/mux.h>
-#include <mach/dm365.h>
 #include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
@@ -41,6 +40,8 @@
 #include <mach/keyscan.h>
 
 #include <media/tvp514x.h>
+
+#include "davinci.h"
 
 static inline int have_imager(void)
 {
@@ -54,7 +55,7 @@ static inline int have_tvp7002(void)
 	return 0;
 }
 
-#define DM365_EVM_PHY_ID		"0:01"
+#define DM365_EVM_PHY_ID		"davinci_mdio-0:01"
 /*
  * A MAX-II CPLD is used for various board control functions.
  */

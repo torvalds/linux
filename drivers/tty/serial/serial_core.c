@@ -2230,7 +2230,6 @@ int uart_register_driver(struct uart_driver *drv)
 
 	drv->tty_driver = normal;
 
-	normal->owner		= drv->owner;
 	normal->driver_name	= drv->driver_name;
 	normal->name		= drv->dev_name;
 	normal->major		= drv->major;
@@ -2348,11 +2347,11 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 	 */
 	tty_dev = tty_register_device(drv->tty_driver, uport->line, uport->dev);
 	if (likely(!IS_ERR(tty_dev))) {
-		device_init_wakeup(tty_dev, 1);
-		device_set_wakeup_enable(tty_dev, 0);
-	} else
+		device_set_wakeup_capable(tty_dev, 1);
+	} else {
 		printk(KERN_ERR "Cannot register tty device on line %d\n",
 		       uport->line);
+	}
 
 	/*
 	 * Ensure UPF_DEAD is not set.

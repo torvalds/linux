@@ -481,11 +481,13 @@ EXPORT_SYMBOL(slab_buffer_size);
 #endif
 
 /*
- * Do not go above this order unless 0 objects fit into the slab.
+ * Do not go above this order unless 0 objects fit into the slab or
+ * overridden on the command line.
  */
-#define	BREAK_GFP_ORDER_HI	1
-#define	BREAK_GFP_ORDER_LO	0
-static int slab_break_gfp_order = BREAK_GFP_ORDER_LO;
+#define	SLAB_MAX_ORDER_HI	1
+#define	SLAB_MAX_ORDER_LO	0
+static int slab_max_order = SLAB_MAX_ORDER_LO;
+static bool slab_max_order_set __initdata;
 
 /*
  * Functions for storing/retrieving the cachep and or slab from the page
@@ -853,6 +855,17 @@ static int __init noaliencache_setup(char *s)
 	return 1;
 }
 __setup("noaliencache", noaliencache_setup);
+
+static int __init slab_max_order_setup(char *str)
+{
+	get_option(&str, &slab_max_order);
+	slab_max_order = slab_max_order < 0 ? 0 :
+				min(slab_max_order, MAX_ORDER - 1);
+	slab_max_order_set = true;
+
+	return 1;
+}
+__setup("slab_max_order=", slab_max_order_setup);
 
 #ifdef CONFIG_NUMA
 /*
@@ -1502,10 +1515,11 @@ void __init kmem_cache_init(void)
 
 	/*
 	 * Fragmentation resistance on low memory - only use bigger
-	 * page orders on machines with more than 32MB of memory.
+	 * page orders on machines with more than 32MB of memory if
+	 * not overridden on the command line.
 	 */
-	if (totalram_pages > (32 << 20) >> PAGE_SHIFT)
-		slab_break_gfp_order = BREAK_GFP_ORDER_HI;
+	if (!slab_max_order_set && totalram_pages > (32 << 20) >> PAGE_SHIFT)
+		slab_max_order = SLAB_MAX_ORDER_HI;
 
 	/* Bootstrap is tricky, because several objects are allocated
 	 * from caches that do not exist yet:
@@ -1717,6 +1731,52 @@ static int __init cpucache_init(void)
 }
 __initcall(cpucache_init);
 
+static noinline void
+slab_out_of_memory(struct kmem_cache *cachep, gfp_t gfpflags, int nodeid)
+{
+	struct kmem_list3 *l3;
+	struct slab *slabp;
+	unsigned long flags;
+	int node;
+
+	printk(KERN_WARNING
+		"SLAB: Unable to allocate memory on node %d (gfp=0x%x)\n",
+		nodeid, gfpflags);
+	printk(KERN_WARNING "  cache: %s, object size: %d, order: %d\n",
+		cachep->name, cachep->buffer_size, cachep->gfporder);
+
+	for_each_online_node(node) {
+		unsigned long active_objs = 0, num_objs = 0, free_objects = 0;
+		unsigned long active_slabs = 0, num_slabs = 0;
+
+		l3 = cachep->nodelists[node];
+		if (!l3)
+			continue;
+
+		spin_lock_irqsave(&l3->list_lock, flags);
+		list_for_each_entry(slabp, &l3->slabs_full, list) {
+			active_objs += cachep->num;
+			active_slabs++;
+		}
+		list_for_each_entry(slabp, &l3->slabs_partial, list) {
+			active_objs += slabp->inuse;
+			active_slabs++;
+		}
+		list_for_each_entry(slabp, &l3->slabs_free, list)
+			num_slabs++;
+
+		free_objects += l3->free_objects;
+		spin_unlock_irqrestore(&l3->list_lock, flags);
+
+		num_slabs += active_slabs;
+		num_objs = num_slabs * cachep->num;
+		printk(KERN_WARNING
+			"  node %d: slabs: %ld/%ld, objs: %ld/%ld, free: %ld\n",
+			node, active_slabs, num_slabs, active_objs, num_objs,
+			free_objects);
+	}
+}
+
 /*
  * Interface to system's page allocator. No need to hold the cache-lock.
  *
@@ -1743,8 +1803,11 @@ static void *kmem_getpages(struct kmem_cache *cachep, gfp_t flags, int nodeid)
 		flags |= __GFP_RECLAIMABLE;
 
 	page = alloc_pages_exact_node(nodeid, flags | __GFP_NOTRACK, cachep->gfporder);
-	if (!page)
+	if (!page) {
+		if (!(flags & __GFP_NOWARN) && printk_ratelimit())
+			slab_out_of_memory(cachep, flags, nodeid);
 		return NULL;
+	}
 
 	nr_pages = (1 << cachep->gfporder);
 	if (cachep->flags & SLAB_RECLAIM_ACCOUNT)
@@ -1932,8 +1995,8 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
 			/* Print header */
 			if (lines == 0) {
 				printk(KERN_ERR
-					"Slab corruption: %s start=%p, len=%d\n",
-					cachep->name, realobj, size);
+					"Slab corruption (%s): %s start=%p, len=%d\n",
+					print_tainted(), cachep->name, realobj, size);
 				print_objinfo(cachep, objp, 0);
 			}
 			/* Hexdump the affected line */
@@ -2117,7 +2180,7 @@ static size_t calculate_slab_order(struct kmem_cache *cachep,
 		 * Large number of objects is good, but very large slabs are
 		 * currently bad for the gfp()s.
 		 */
-		if (gfporder >= slab_break_gfp_order)
+		if (gfporder >= slab_max_order)
 			break;
 
 		/*
@@ -3042,8 +3105,9 @@ static void check_slabp(struct kmem_cache *cachep, struct slab *slabp)
 	if (entries != cachep->num - slabp->inuse) {
 bad:
 		printk(KERN_ERR "slab: Internal list corruption detected in "
-				"cache '%s'(%d), slabp %p(%d). Hexdump:\n",
-			cachep->name, cachep->num, slabp, slabp->inuse);
+			"cache '%s'(%d), slabp %p(%d). Tainted(%s). Hexdump:\n",
+			cachep->name, cachep->num, slabp, slabp->inuse,
+			print_tainted());
 		print_hex_dump(KERN_ERR, "", DUMP_PREFIX_OFFSET, 16, 1, slabp,
 			sizeof(*slabp) + cachep->num * sizeof(kmem_bufctl_t),
 			1);
@@ -3269,12 +3333,10 @@ static void *alternate_node_alloc(struct kmem_cache *cachep, gfp_t flags)
 	if (in_interrupt() || (flags & __GFP_THISNODE))
 		return NULL;
 	nid_alloc = nid_here = numa_mem_id();
-	get_mems_allowed();
 	if (cpuset_do_slab_mem_spread() && (cachep->flags & SLAB_MEM_SPREAD))
 		nid_alloc = cpuset_slab_spread_node();
 	else if (current->mempolicy)
 		nid_alloc = slab_node(current->mempolicy);
-	put_mems_allowed();
 	if (nid_alloc != nid_here)
 		return ____cache_alloc_node(cachep, flags, nid_alloc);
 	return NULL;
@@ -3297,13 +3359,16 @@ static void *fallback_alloc(struct kmem_cache *cache, gfp_t flags)
 	enum zone_type high_zoneidx = gfp_zone(flags);
 	void *obj = NULL;
 	int nid;
+	unsigned int cpuset_mems_cookie;
 
 	if (flags & __GFP_THISNODE)
 		return NULL;
 
-	get_mems_allowed();
-	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
 	local_flags = flags & (GFP_CONSTRAINT_MASK|GFP_RECLAIM_MASK);
+
+retry_cpuset:
+	cpuset_mems_cookie = get_mems_allowed();
+	zonelist = node_zonelist(slab_node(current->mempolicy), flags);
 
 retry:
 	/*
@@ -3357,7 +3422,9 @@ retry:
 			}
 		}
 	}
-	put_mems_allowed();
+
+	if (unlikely(!put_mems_allowed(cpuset_mems_cookie) && !obj))
+		goto retry_cpuset;
 	return obj;
 }
 
@@ -3678,13 +3745,12 @@ static inline void __cache_free(struct kmem_cache *cachep, void *objp,
 
 	if (likely(ac->avail < ac->limit)) {
 		STATS_INC_FREEHIT(cachep);
-		ac->entry[ac->avail++] = objp;
-		return;
 	} else {
 		STATS_INC_FREEMISS(cachep);
 		cache_flusharray(cachep, ac);
-		ac->entry[ac->avail++] = objp;
 	}
+
+	ac->entry[ac->avail++] = objp;
 }
 
 /**

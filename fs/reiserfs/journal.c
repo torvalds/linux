@@ -37,7 +37,7 @@
 #include <linux/time.h>
 #include <linux/semaphore.h>
 #include <linux/vmalloc.h>
-#include <linux/reiserfs_fs.h>
+#include "reiserfs.h"
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/fcntl.h>
@@ -51,7 +51,6 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 
 /* gets a struct reiserfs_journal_list * from a list head */
 #define JOURNAL_LIST_ENTRY(h) (list_entry((h), struct reiserfs_journal_list, \

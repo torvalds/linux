@@ -12,6 +12,9 @@ config SND_HWDEP
 config SND_RAWMIDI
 	tristate
 
+config SND_COMPRESS_OFFLOAD
+	tristate
+
 # To be effective this also requires INPUT - users should say:
 #    select SND_JACK if INPUT=y || INPUT=SND
 # to avoid having to force INPUT on.
@@ -204,6 +207,9 @@ config SND_PCM_XRUN_DEBUG
 	  the process or driver which causes the scheduling gaps.
 
 config SND_VMASTER
+	bool
+
+config SND_KCTL_JACK
 	bool
 
 config SND_DMA_SGBUF

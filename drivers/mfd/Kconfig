@@ -12,6 +12,7 @@ config MFD_CORE
 config MFD_88PM860X
 	bool "Support Marvell 88PM8606/88PM8607"
 	depends on I2C=y && GENERIC_HARDIRQS
+	select REGMAP_I2C
 	select MFD_CORE
 	help
 	  This supports for Marvell 88PM8606/88PM8607 Power Management IC.
@@ -142,6 +143,21 @@ config TPS6507X
 	  This driver can also be built as a module.  If so, the module
 	  will be called tps6507x.
 
+config MFD_TPS65217
+	tristate "TPS65217 Power Management / White LED chips"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the TPS65217 series of
+	  Power Management / White LED chips.
+	  These include voltage regulators, lithium ion/polymer battery
+	  charger, wled and other features that are often used in portable
+	  devices.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tps65217.
+
 config MFD_TPS6586X
 	bool "TPS6586x Power Management chips"
 	depends on I2C=y && GPIOLIB && GENERIC_HARDIRQS
@@ -161,6 +177,7 @@ config MFD_TPS65910
 	depends on I2C=y && GPIOLIB
 	select MFD_CORE
 	select GPIO_TPS65910
+	select REGMAP_I2C
 	help
 	  if you say yes here you get support for the TPS65910 series of
 	  Power Management chips.
@@ -170,7 +187,7 @@ config MFD_TPS65912
 	depends on GPIOLIB
 
 config MFD_TPS65912_I2C
-	bool "TPS95612 Power Management chip with I2C"
+	bool "TPS65912 Power Management chip with I2C"
 	select MFD_CORE
 	select MFD_TPS65912
 	depends on I2C=y && GPIOLIB
@@ -200,6 +217,7 @@ config MENELAUS
 config TWL4030_CORE
 	bool "Texas Instruments TWL4030/TWL5030/TWL6030/TPS659x0 Support"
 	depends on I2C=y && GENERIC_HARDIRQS
+	select IRQ_DOMAIN
 	help
 	  Say yes here if you have TWL4030 / TWL6030 family chip on your board.
 	  This core driver provides register access and IRQ handling
@@ -257,7 +275,7 @@ config TWL6040_CORE
 
 config MFD_STMPE
 	bool "Support STMicroelectronics STMPE"
-	depends on I2C=y && GENERIC_HARDIRQS
+	depends on (I2C=y || SPI_MASTER=y) && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
 	  Support for the STMPE family of I/O Expanders from
@@ -277,6 +295,23 @@ config MFD_STMPE
 		GPIO: stmpe-gpio
 		Keypad: stmpe-keypad
 		Touchscreen: stmpe-ts
+
+menu "STMPE Interface Drivers"
+depends on MFD_STMPE
+
+config STMPE_I2C
+	bool "STMPE I2C Inteface"
+	depends on I2C=y
+	default y
+	help
+	  This is used to enable I2C interface of STMPE
+
+config STMPE_SPI
+	bool "STMPE SPI Inteface"
+	depends on SPI_MASTER
+	help
+	  This is used to enable SPI interface of STMPE
+endmenu
 
 config MFD_TC3589X
 	bool "Support Toshiba TC35892 and variants"
@@ -311,7 +346,7 @@ config MFD_TC6387XB
 
 config MFD_TC6393XB
 	bool "Support Toshiba TC6393XB"
-	depends on GPIOLIB && ARM
+	depends on GPIOLIB && ARM && HAVE_CLK
 	select MFD_CORE
 	select MFD_TMIO
 	help
@@ -381,7 +416,7 @@ config MFD_MAX8997
 	depends on I2C=y && GENERIC_HARDIRQS
 	select MFD_CORE
 	help
-	  Say yes here to support for Maxim Semiconductor MAX8998/8966.
+	  Say yes here to support for Maxim Semiconductor MAX8997/8966.
 	  This is a Power Management IC with RTC, Flash, Fuel Gauge, Haptic,
 	  MUIC controls on chip.
 	  This driver provides common support for accessing the device;
@@ -398,6 +433,17 @@ config MFD_MAX8998
 	  This driver provies common support for accessing the device,
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_S5M_CORE
+	bool "SAMSUNG S5M Series Support"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	 Support for the Samsung Electronics S5M MFD series.
+	 This driver provies common support for accessing the device,
+	 additional drivers must be enabled in order to use the functionality
+	 of the device
 
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
@@ -505,6 +551,7 @@ config MFD_WM8994
 	bool "Support Wolfson Microelectronics WM8994"
 	select MFD_CORE
 	select REGMAP_I2C
+	select REGMAP_IRQ
 	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  The WM8994 is a highly integrated hi-fi CODEC designed for
@@ -781,6 +828,18 @@ config MFD_PM8XXX_IRQ
 config TPS65911_COMPARATOR
 	tristate
 
+config MFD_TPS65090
+	bool "TPS65090 Power Management chips"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the TPS65090 series of
+	  Power Management chips.
+	  This driver provides common support for accessing the device,
+	  additional drivers must be enabled in order to use the
+	  functionality of the device.
+
 config MFD_AAT2870_CORE
 	bool "Support for the AnalogicTech AAT2870"
 	select MFD_CORE
@@ -800,6 +859,28 @@ config MFD_INTEL_MSIC
 	  Passage) chip. This chip embeds audio, battery, GPIO, etc.
 	  devices used in Intel Medfield platforms.
 
+config MFD_RC5T583
+	bool "Ricoh RC5T583 Power Management system device"
+	depends on I2C=y && GENERIC_HARDIRQS
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Select this option to get support for the RICOH583 Power
+	  Management system device.
+	  This driver provides common support for accessing the device
+	  through i2c interface. The device supports multiple sub-devices
+	  like GPIO, interrupts, RTC, LDO and DCDC regulators, onkey.
+	  Additional drivers must be enabled in order to use the
+	  different functionality of the device.
+
+config MFD_ANATOP
+	bool "Support for Freescale i.MX on-chip ANATOP controller"
+	depends on SOC_IMX6Q
+	help
+	  Select this option to enable Freescale i.MX on-chip ANATOP
+	  MFD controller. This controller embeds regulator and
+	  thermal devices for Freescale i.MX platforms.
+
 endmenu
 endif
 
@@ -817,8 +898,9 @@ config MCP_SA11X0
 
 # Chip drivers
 config MCP_UCB1200
-	tristate "Support for UCB1200 / UCB1300"
-	depends on MCP
+	bool "Support for UCB1200 / UCB1300"
+	depends on MCP_SA11X0
+	select MCP
 
 config MCP_UCB1200_TS
 	tristate "Touchscreen interface support"

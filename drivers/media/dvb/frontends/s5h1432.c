@@ -178,9 +178,9 @@ static int s5h1432_set_IF(struct dvb_frontend *fe, u32 ifFreqHz)
 }
 
 /* Talk to the demod, set the FEC, GUARD, QAM settings etc */
-static int s5h1432_set_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p)
+static int s5h1432_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	u32 dvb_bandwidth = 8;
 	struct s5h1432_state *state = fe->demodulator_priv;
 
@@ -188,26 +188,26 @@ static int s5h1432_set_frontend(struct dvb_frontend *fe,
 		/*current_frequency = p->frequency; */
 		/*state->current_frequency = p->frequency; */
 	} else {
-		fe->ops.tuner_ops.set_params(fe, p);
+		fe->ops.tuner_ops.set_params(fe);
 		msleep(300);
 		s5h1432_set_channel_bandwidth(fe, dvb_bandwidth);
-		switch (p->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+		switch (p->bandwidth_hz) {
+		case 6000000:
 			dvb_bandwidth = 6;
 			s5h1432_set_IF(fe, IF_FREQ_4_MHZ);
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			dvb_bandwidth = 7;
 			s5h1432_set_IF(fe, IF_FREQ_4_MHZ);
 			break;
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			dvb_bandwidth = 8;
 			s5h1432_set_IF(fe, IF_FREQ_4_MHZ);
 			break;
 		default:
 			return 0;
 		}
-		/*fe->ops.tuner_ops.set_params(fe, p); */
+		/*fe->ops.tuner_ops.set_params(fe); */
 /*Soft Reset chip*/
 		msleep(30);
 		s5h1432_writereg(state, S5H1432_I2C_TOP_ADDR, 0x09, 0x1a);
@@ -215,23 +215,23 @@ static int s5h1432_set_frontend(struct dvb_frontend *fe,
 		s5h1432_writereg(state, S5H1432_I2C_TOP_ADDR, 0x09, 0x1b);
 
 		s5h1432_set_channel_bandwidth(fe, dvb_bandwidth);
-		switch (p->u.ofdm.bandwidth) {
-		case BANDWIDTH_6_MHZ:
+		switch (p->bandwidth_hz) {
+		case 6000000:
 			dvb_bandwidth = 6;
 			s5h1432_set_IF(fe, IF_FREQ_4_MHZ);
 			break;
-		case BANDWIDTH_7_MHZ:
+		case 7000000:
 			dvb_bandwidth = 7;
 			s5h1432_set_IF(fe, IF_FREQ_4_MHZ);
 			break;
-		case BANDWIDTH_8_MHZ:
+		case 8000000:
 			dvb_bandwidth = 8;
 			s5h1432_set_IF(fe, IF_FREQ_4_MHZ);
 			break;
 		default:
 			return 0;
 		}
-		/*fe->ops.tuner_ops.set_params(fe,p); */
+		/*fe->ops.tuner_ops.set_params(fe); */
 		/*Soft Reset chip*/
 		msleep(30);
 		s5h1432_writereg(state, S5H1432_I2C_TOP_ADDR, 0x09, 0x1a);
@@ -329,12 +329,6 @@ static int s5h1432_read_ber(struct dvb_frontend *fe, u32 *ber)
 	return 0;
 }
 
-static int s5h1432_get_frontend(struct dvb_frontend *fe,
-				struct dvb_frontend_parameters *p)
-{
-	return 0;
-}
-
 static int s5h1432_get_tune_settings(struct dvb_frontend *fe,
 				     struct dvb_frontend_tune_settings *tune)
 {
@@ -381,10 +375,9 @@ error:
 EXPORT_SYMBOL(s5h1432_attach);
 
 static struct dvb_frontend_ops s5h1432_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "Samsung s5h1432 DVB-T Frontend",
-		 .type = FE_OFDM,
 		 .frequency_min = 177000000,
 		 .frequency_max = 858000000,
 		 .frequency_stepsize = 166666,
@@ -397,7 +390,6 @@ static struct dvb_frontend_ops s5h1432_ops = {
 	.init = s5h1432_init,
 	.sleep = s5h1432_sleep,
 	.set_frontend = s5h1432_set_frontend,
-	.get_frontend = s5h1432_get_frontend,
 	.get_tune_settings = s5h1432_get_tune_settings,
 	.read_status = s5h1432_read_status,
 	.read_ber = s5h1432_read_ber,

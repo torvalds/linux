@@ -24,6 +24,7 @@
  *    Eric Anholt <eric@anholt.net>
  *
  */
+#include <linux/dmi.h>
 #include <drm/drm_dp_helper.h>
 #include "drmP.h"
 #include "drm.h"
@@ -572,7 +573,7 @@ parse_device_mapping(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("no child dev is parsed from VBT\n");
 		return;
 	}
-	dev_priv->child_dev = kzalloc(sizeof(*p_child) * count, GFP_KERNEL);
+	dev_priv->child_dev = kcalloc(count, sizeof(*p_child), GFP_KERNEL);
 	if (!dev_priv->child_dev) {
 		DRM_DEBUG_KMS("No memory space for child device\n");
 		return;
@@ -621,6 +622,26 @@ init_vbt_defaults(struct drm_i915_private *dev_priv)
 	dev_priv->edp.bpp = 18;
 }
 
+static int __init intel_no_opregion_vbt_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG_KMS("Falling back to manually reading VBT from "
+		      "VBIOS ROM for %s\n",
+		      id->ident);
+	return 1;
+}
+
+static const struct dmi_system_id intel_no_opregion_vbt[] = {
+	{
+		.callback = intel_no_opregion_vbt_callback,
+		.ident = "ThinkCentre A57",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "97027RG"),
+		},
+	},
+	{ }
+};
+
 /**
  * intel_parse_bios - find VBT and initialize settings from the BIOS
  * @dev: DRM device
@@ -641,7 +662,7 @@ intel_parse_bios(struct drm_device *dev)
 	init_vbt_defaults(dev_priv);
 
 	/* XXX Should this validation be moved to intel_opregion.c? */
-	if (dev_priv->opregion.vbt) {
+	if (!dmi_check_system(intel_no_opregion_vbt) && dev_priv->opregion.vbt) {
 		struct vbt_header *vbt = dev_priv->opregion.vbt;
 		if (memcmp(vbt->signature, "$VBT", 4) == 0) {
 			DRM_DEBUG_KMS("Using VBT from OpRegion: %20s\n",
@@ -669,7 +690,7 @@ intel_parse_bios(struct drm_device *dev)
 		}
 
 		if (!vbt) {
-			DRM_ERROR("VBT signature missing\n");
+			DRM_DEBUG_DRIVER("VBT signature missing\n");
 			pci_unmap_rom(pdev, bios);
 			return -1;
 		}

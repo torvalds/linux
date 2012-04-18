@@ -1,0 +1,139 @@
+/*
+ * Copyright 2011 ST-Ericsson AB
+ *
+ * The code contained herein is licensed under the GNU General Public
+ * License. You may obtain a copy of the GNU General Public License
+ * Version 2 or later at the following locations:
+ *
+ * http://www.opensource.org/licenses/gpl-license.html
+ * http://www.gnu.org/copyleft/gpl.html
+ */
+
+/dts-v1/;
+/include/ "db8500.dtsi"
+
+/ {
+	model = "Calao Systems Snowball platform with device tree";
+	compatible = "calaosystems,snowball-a9500";
+
+	memory {
+		reg = <0x00000000 0x20000000>;
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <2>;
+			label = "userpb";
+			gpios = <&gpio1 0>;
+		};
+		button@2 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <3>;
+			label = "userpb";
+			gpios = <&gpio4 23>;
+		};
+		button@3 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <4>;
+			label = "userpb";
+			gpios = <&gpio4 23>;
+		};
+		button@4 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <5>;
+			label = "userpb";
+			gpios = <&gpio5 1>;
+		};
+		button@5 {
+			debounce_interval = <50>;
+			wakeup = <1>;
+			linux,code = <6>;
+			label = "userpb";
+			gpios = <&gpio5 2>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		used-led {
+			label = "user_led";
+			gpios = <&gpio4 14>;
+		};
+	};
+
+	soc-u9500 {
+
+		external-bus@50000000 {
+			compatible = "simple-bus";
+			reg = <0x50000000 0x10000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			ethernet@50000000 {
+				compatible = "smsc,9111";
+				reg = <0x50000000 0x10000>;
+				interrupts = <12>;
+				interrupt-parent = <&gpio4>;
+			};
+		};
+
+		sdi@80126000 {
+			status = "enabled";
+			cd-gpios = <&gpio6 26>;
+		};
+
+		sdi@80114000 {
+			status = "enabled";
+		};
+
+		uart@80120000 {
+			status = "okay";
+		};
+
+		uart@80121000 {
+			status = "okay";
+		};
+
+		uart@80007000 {
+			status = "okay";
+		};
+
+		i2c@80004000 {
+			tc3589x@42 {
+				//compatible = "tc3589x";
+				reg = <0x42>;
+				interrupts = <25>;
+				interrupt-parent = <&gpio6>;
+			};
+			tps61052@33 {
+				//compatible = "tps61052";
+				reg = <0x33>;
+			};
+		};
+
+		i2c@80128000 {
+			lp5521@0x33 {
+				// compatible = "lp5521";
+				reg = <0x33>;
+			};
+			lp5521@0x34 {
+				// compatible = "lp5521";
+				reg = <0x34>;
+			};
+			bh1780@0x29 {
+				// compatible = "rohm,bh1780gli";
+				reg = <0x33>;
+			};
+		};
+	};
+};

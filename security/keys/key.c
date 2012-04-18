@@ -671,6 +671,26 @@ found_kernel_type:
 	return ktype;
 }
 
+void key_set_timeout(struct key *key, unsigned timeout)
+{
+	struct timespec now;
+	time_t expiry = 0;
+
+	/* make the changes with the locks held to prevent races */
+	down_write(&key->sem);
+
+	if (timeout > 0) {
+		now = current_kernel_time();
+		expiry = now.tv_sec + timeout;
+	}
+
+	key->expiry = expiry;
+	key_schedule_gc(key->expiry + key_gc_delay);
+
+	up_write(&key->sem);
+}
+EXPORT_SYMBOL_GPL(key_set_timeout);
+
 /*
  * Unlock a key type locked by key_type_lookup().
  */
@@ -999,6 +1019,7 @@ void __init key_init(void)
 	list_add_tail(&key_type_keyring.link, &key_types_list);
 	list_add_tail(&key_type_dead.link, &key_types_list);
 	list_add_tail(&key_type_user.link, &key_types_list);
+	list_add_tail(&key_type_logon.link, &key_types_list);
 
 	/* record the root user tracking */
 	rb_link_node(&root_key_user.node,

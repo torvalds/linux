@@ -235,16 +235,25 @@ struct v4l2_fract {
 	__u32   denominator;
 };
 
-/*
- *	D R I V E R   C A P A B I L I T I E S
- */
+/**
+  * struct v4l2_capability - Describes V4L2 device caps returned by VIDIOC_QUERYCAP
+  *
+  * @driver:	   name of the driver module (e.g. "bttv")
+  * @card:	   name of the card (e.g. "Hauppauge WinTV")
+  * @bus_info:	   name of the bus (e.g. "PCI:" + pci_name(pci_dev) )
+  * @version:	   KERNEL_VERSION
+  * @capabilities: capabilities of the physical device as a whole
+  * @device_caps:  capabilities accessed via this particular device (node)
+  * @reserved:	   reserved fields for future extensions
+  */
 struct v4l2_capability {
-	__u8	driver[16];	/* i.e. "bttv" */
-	__u8	card[32];	/* i.e. "Hauppauge WinTV" */
-	__u8	bus_info[32];	/* "PCI:" + pci_name(pci_dev) */
-	__u32   version;        /* should use KERNEL_VERSION() */
-	__u32	capabilities;	/* Device capabilities */
-	__u32	reserved[4];
+	__u8	driver[16];
+	__u8	card[32];
+	__u8	bus_info[32];
+	__u32   version;
+	__u32	capabilities;
+	__u32	device_caps;
+	__u32	reserved[3];
 };
 
 /* Values for 'capabilities' field */
@@ -273,6 +282,8 @@ struct v4l2_capability {
 #define V4L2_CAP_READWRITE              0x01000000  /* read/write systemcalls */
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
 #define V4L2_CAP_STREAMING              0x04000000  /* streaming I/O ioctls */
+
+#define V4L2_CAP_DEVICE_CAPS            0x80000000  /* sets device capabilities field */
 
 /*
  *	V I D E O   I M A G E   F O R M A T
@@ -343,6 +354,8 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_NV21    v4l2_fourcc('N', 'V', '2', '1') /* 12  Y/CrCb 4:2:0  */
 #define V4L2_PIX_FMT_NV16    v4l2_fourcc('N', 'V', '1', '6') /* 16  Y/CbCr 4:2:2  */
 #define V4L2_PIX_FMT_NV61    v4l2_fourcc('N', 'V', '6', '1') /* 16  Y/CrCb 4:2:2  */
+#define V4L2_PIX_FMT_NV24    v4l2_fourcc('N', 'V', '2', '4') /* 24  Y/CbCr 4:4:4  */
+#define V4L2_PIX_FMT_NV42    v4l2_fourcc('N', 'V', '4', '2') /* 24  Y/CrCb 4:4:4  */
 
 /* two non contiguous planes - one Y, one Cr + Cb interleaved  */
 #define V4L2_PIX_FMT_NV12M   v4l2_fourcc('N', 'M', '1', '2') /* 12  Y/CbCr 4:2:0  */
@@ -401,6 +414,7 @@ struct v4l2_pix_format {
 #define V4L2_PIX_FMT_SPCA561  v4l2_fourcc('S', '5', '6', '1') /* compressed GBRG bayer */
 #define V4L2_PIX_FMT_PAC207   v4l2_fourcc('P', '2', '0', '7') /* compressed BGGR bayer */
 #define V4L2_PIX_FMT_MR97310A v4l2_fourcc('M', '3', '1', '0') /* compressed BGGR bayer */
+#define V4L2_PIX_FMT_JL2005BCD v4l2_fourcc('J', 'L', '2', '0') /* compressed RGGB bayer */
 #define V4L2_PIX_FMT_SN9C2028 v4l2_fourcc('S', 'O', 'N', 'X') /* compressed GBRG bayer */
 #define V4L2_PIX_FMT_SQ905C   v4l2_fourcc('9', '0', '5', 'C') /* compressed RGGB bayer */
 #define V4L2_PIX_FMT_PJPG     v4l2_fourcc('P', 'J', 'P', 'G') /* Pixart 73xx JPEG */
@@ -742,6 +756,48 @@ struct v4l2_crop {
 	struct v4l2_rect        c;
 };
 
+/* Hints for adjustments of selection rectangle */
+#define V4L2_SEL_FLAG_GE	0x00000001
+#define V4L2_SEL_FLAG_LE	0x00000002
+
+/* Selection targets */
+
+/* Current cropping area */
+#define V4L2_SEL_TGT_CROP_ACTIVE	0x0000
+/* Default cropping area */
+#define V4L2_SEL_TGT_CROP_DEFAULT	0x0001
+/* Cropping bounds */
+#define V4L2_SEL_TGT_CROP_BOUNDS	0x0002
+/* Current composing area */
+#define V4L2_SEL_TGT_COMPOSE_ACTIVE	0x0100
+/* Default composing area */
+#define V4L2_SEL_TGT_COMPOSE_DEFAULT	0x0101
+/* Composing bounds */
+#define V4L2_SEL_TGT_COMPOSE_BOUNDS	0x0102
+/* Current composing area plus all padding pixels */
+#define V4L2_SEL_TGT_COMPOSE_PADDED	0x0103
+
+/**
+ * struct v4l2_selection - selection info
+ * @type:	buffer type (do not use *_MPLANE types)
+ * @target:	selection target, used to choose one of possible rectangles
+ * @flags:	constraints flags
+ * @r:		coordinates of selection window
+ * @reserved:	for future use, rounds structure size to 64 bytes, set to zero
+ *
+ * Hardware may use multiple helper windows to process a video stream.
+ * The structure is used to exchange this selection areas between
+ * an application and a driver.
+ */
+struct v4l2_selection {
+	__u32			type;
+	__u32			target;
+	__u32                   flags;
+	struct v4l2_rect        r;
+	__u32                   reserved[9];
+};
+
+
 /*
  *      A N A L O G   V I D E O   S T A N D A R D
  */
@@ -1080,6 +1136,7 @@ struct v4l2_ext_controls {
 #define V4L2_CTRL_CLASS_CAMERA 0x009a0000	/* Camera class controls */
 #define V4L2_CTRL_CLASS_FM_TX 0x009b0000	/* FM Modulator control class */
 #define V4L2_CTRL_CLASS_FLASH 0x009c0000	/* Camera flash controls */
+#define V4L2_CTRL_CLASS_JPEG 0x009d0000		/* JPEG-compression controls */
 
 #define V4L2_CTRL_ID_MASK      	  (0x0fffffff)
 #define V4L2_CTRL_ID2CLASS(id)    ((id) & 0x0fff0000UL)
@@ -1131,6 +1188,7 @@ struct v4l2_querymenu {
 #define V4L2_CTRL_FLAG_NEXT_CTRL	0x80000000
 
 /*  User-class control IDs defined by V4L2 */
+#define V4L2_CID_MAX_CTRLS		1024
 #define V4L2_CID_BASE			(V4L2_CTRL_CLASS_USER | 0x900)
 #define V4L2_CID_USER_BASE 		V4L2_CID_BASE
 /*  IDs reserved for driver specific controls */
@@ -1204,10 +1262,10 @@ enum v4l2_colorfx {
 #define V4L2_CID_MIN_BUFFERS_FOR_CAPTURE	(V4L2_CID_BASE+39)
 #define V4L2_CID_MIN_BUFFERS_FOR_OUTPUT		(V4L2_CID_BASE+40)
 
-/* last CID + 1 */
-#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+41)
+#define V4L2_CID_ALPHA_COMPONENT		(V4L2_CID_BASE+41)
 
-/* Minimum number of buffer neede by the device */
+/* last CID + 1 */
+#define V4L2_CID_LASTP1                         (V4L2_CID_BASE+42)
 
 /*  MPEG-class control IDs defined by V4L2 */
 #define V4L2_CID_MPEG_BASE 			(V4L2_CTRL_CLASS_MPEG | 0x900)
@@ -1350,6 +1408,16 @@ enum v4l2_mpeg_audio_ac3_bitrate {
 	V4L2_MPEG_AUDIO_AC3_BITRATE_576K = 17,
 	V4L2_MPEG_AUDIO_AC3_BITRATE_640K = 18,
 };
+#define V4L2_CID_MPEG_AUDIO_DEC_PLAYBACK	(V4L2_CID_MPEG_BASE+112)
+enum v4l2_mpeg_audio_dec_playback {
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_AUTO	    = 0,
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_STEREO	    = 1,
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_LEFT	    = 2,
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_RIGHT	    = 3,
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_MONO	    = 4,
+	V4L2_MPEG_AUDIO_DEC_PLAYBACK_SWAPPED_STEREO = 5,
+};
+#define V4L2_CID_MPEG_AUDIO_DEC_MULTILINGUAL_PLAYBACK (V4L2_CID_MPEG_BASE+113)
 
 /*  MPEG video controls specific to multiplexed streams */
 #define V4L2_CID_MPEG_VIDEO_ENCODING 		(V4L2_CID_MPEG_BASE+200)
@@ -1400,6 +1468,9 @@ enum v4l2_mpeg_video_multi_slice_mode {
 	V4L2_MPEG_VIDEO_MULTI_SICE_MODE_MAX_BYTES	= 2,
 };
 #define V4L2_CID_MPEG_VIDEO_VBV_SIZE			(V4L2_CID_MPEG_BASE+222)
+#define V4L2_CID_MPEG_VIDEO_DEC_PTS			(V4L2_CID_MPEG_BASE+223)
+#define V4L2_CID_MPEG_VIDEO_DEC_FRAME			(V4L2_CID_MPEG_BASE+224)
+
 #define V4L2_CID_MPEG_VIDEO_H263_I_FRAME_QP		(V4L2_CID_MPEG_BASE+300)
 #define V4L2_CID_MPEG_VIDEO_H263_P_FRAME_QP		(V4L2_CID_MPEG_BASE+301)
 #define V4L2_CID_MPEG_VIDEO_H263_B_FRAME_QP		(V4L2_CID_MPEG_BASE+302)
@@ -1682,9 +1753,34 @@ enum v4l2_flash_strobe_source {
 #define V4L2_FLASH_FAULT_TIMEOUT		(1 << 1)
 #define V4L2_FLASH_FAULT_OVER_TEMPERATURE	(1 << 2)
 #define V4L2_FLASH_FAULT_SHORT_CIRCUIT		(1 << 3)
+#define V4L2_FLASH_FAULT_OVER_CURRENT		(1 << 4)
+#define V4L2_FLASH_FAULT_INDICATOR		(1 << 5)
 
 #define V4L2_CID_FLASH_CHARGE			(V4L2_CID_FLASH_CLASS_BASE + 11)
 #define V4L2_CID_FLASH_READY			(V4L2_CID_FLASH_CLASS_BASE + 12)
+
+/*  JPEG-class control IDs defined by V4L2 */
+#define V4L2_CID_JPEG_CLASS_BASE		(V4L2_CTRL_CLASS_JPEG | 0x900)
+#define V4L2_CID_JPEG_CLASS			(V4L2_CTRL_CLASS_JPEG | 1)
+
+#define	V4L2_CID_JPEG_CHROMA_SUBSAMPLING	(V4L2_CID_JPEG_CLASS_BASE + 1)
+enum v4l2_jpeg_chroma_subsampling {
+	V4L2_JPEG_CHROMA_SUBSAMPLING_444	= 0,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_422	= 1,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_420	= 2,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_411	= 3,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_410	= 4,
+	V4L2_JPEG_CHROMA_SUBSAMPLING_GRAY	= 5,
+};
+#define	V4L2_CID_JPEG_RESTART_INTERVAL		(V4L2_CID_JPEG_CLASS_BASE + 2)
+#define	V4L2_CID_JPEG_COMPRESSION_QUALITY	(V4L2_CID_JPEG_CLASS_BASE + 3)
+
+#define	V4L2_CID_JPEG_ACTIVE_MARKER		(V4L2_CID_JPEG_CLASS_BASE + 4)
+#define	V4L2_JPEG_ACTIVE_MARKER_APP0		(1 << 0)
+#define	V4L2_JPEG_ACTIVE_MARKER_APP1		(1 << 1)
+#define	V4L2_JPEG_ACTIVE_MARKER_COM		(1 << 16)
+#define	V4L2_JPEG_ACTIVE_MARKER_DQT		(1 << 17)
+#define	V4L2_JPEG_ACTIVE_MARKER_DHT		(1 << 18)
 
 /*
  *	T U N I N G
@@ -1849,6 +1945,54 @@ struct v4l2_encoder_cmd {
 	};
 };
 
+/* Decoder commands */
+#define V4L2_DEC_CMD_START       (0)
+#define V4L2_DEC_CMD_STOP        (1)
+#define V4L2_DEC_CMD_PAUSE       (2)
+#define V4L2_DEC_CMD_RESUME      (3)
+
+/* Flags for V4L2_DEC_CMD_START */
+#define V4L2_DEC_CMD_START_MUTE_AUDIO	(1 << 0)
+
+/* Flags for V4L2_DEC_CMD_PAUSE */
+#define V4L2_DEC_CMD_PAUSE_TO_BLACK	(1 << 0)
+
+/* Flags for V4L2_DEC_CMD_STOP */
+#define V4L2_DEC_CMD_STOP_TO_BLACK	(1 << 0)
+#define V4L2_DEC_CMD_STOP_IMMEDIATELY	(1 << 1)
+
+/* Play format requirements (returned by the driver): */
+
+/* The decoder has no special format requirements */
+#define V4L2_DEC_START_FMT_NONE		(0)
+/* The decoder requires full GOPs */
+#define V4L2_DEC_START_FMT_GOP		(1)
+
+/* The structure must be zeroed before use by the application
+   This ensures it can be extended safely in the future. */
+struct v4l2_decoder_cmd {
+	__u32 cmd;
+	__u32 flags;
+	union {
+		struct {
+			__u64 pts;
+		} stop;
+
+		struct {
+			/* 0 or 1000 specifies normal speed,
+			   1 specifies forward single stepping,
+			   -1 specifies backward single stepping,
+			   >1: playback at speed/1000 of the normal speed,
+			   <-1: reverse playback at (-speed/1000) of the normal speed. */
+			__s32 speed;
+			__u32 format;
+		} start;
+
+		struct {
+			__u32 data[16];
+		} raw;
+	};
+};
 #endif
 
 
@@ -2254,6 +2398,15 @@ struct v4l2_create_buffers {
    versions */
 #define VIDIOC_CREATE_BUFS	_IOWR('V', 92, struct v4l2_create_buffers)
 #define VIDIOC_PREPARE_BUF	_IOWR('V', 93, struct v4l2_buffer)
+
+/* Experimental selection API */
+#define VIDIOC_G_SELECTION	_IOWR('V', 94, struct v4l2_selection)
+#define VIDIOC_S_SELECTION	_IOWR('V', 95, struct v4l2_selection)
+
+/* Experimental, these two ioctls may change over the next couple of kernel
+   versions. */
+#define VIDIOC_DECODER_CMD	_IOWR('V', 96, struct v4l2_decoder_cmd)
+#define VIDIOC_TRY_DECODER_CMD	_IOWR('V', 97, struct v4l2_decoder_cmd)
 
 /* Reminder: when adding new ioctls please add support for them to
    drivers/media/video/v4l2-compat-ioctl32.c as well! */

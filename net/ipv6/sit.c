@@ -182,7 +182,7 @@ static void ipip6_tunnel_unlink(struct sit_net *sitn, struct ip_tunnel *t)
 	     (iter = rtnl_dereference(*tp)) != NULL;
 	     tp = &iter->next) {
 		if (t == iter) {
-			RCU_INIT_POINTER(*tp, t->next);
+			rcu_assign_pointer(*tp, t->next);
 			break;
 		}
 	}
@@ -192,8 +192,8 @@ static void ipip6_tunnel_link(struct sit_net *sitn, struct ip_tunnel *t)
 {
 	struct ip_tunnel __rcu **tp = ipip6_bucket(sitn, t);
 
-	RCU_INIT_POINTER(t->next, rtnl_dereference(*tp));
-	RCU_INIT_POINTER(*tp, t);
+	rcu_assign_pointer(t->next, rtnl_dereference(*tp));
+	rcu_assign_pointer(*tp, t);
 }
 
 static void ipip6_tunnel_clone_6rd(struct net_device *dev, struct sit_net *sitn)
@@ -393,7 +393,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	p->addr = a->addr;
 	p->flags = a->flags;
 	t->prl_count++;
-	RCU_INIT_POINTER(t->prl, p);
+	rcu_assign_pointer(t->prl, p);
 out:
 	return err;
 }
@@ -680,9 +680,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 	/* ISATAP (RFC4214) - must come before 6to4 */
 	if (dev->priv_flags & IFF_ISATAP) {
 		struct neighbour *neigh = NULL;
+		bool do_tx_error = false;
 
 		if (skb_dst(skb))
-			neigh = dst_get_neighbour_noref(skb_dst(skb));
+			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -697,6 +698,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 		     ipv6_addr_is_isatap(addr6))
 			dst = addr6->s6_addr32[3];
 		else
+			do_tx_error = true;
+
+		neigh_release(neigh);
+		if (do_tx_error)
 			goto tx_error;
 	}
 
@@ -705,9 +710,10 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 
 	if (!dst) {
 		struct neighbour *neigh = NULL;
+		bool do_tx_error = false;
 
 		if (skb_dst(skb))
-			neigh = dst_get_neighbour_noref(skb_dst(skb));
+			neigh = dst_neigh_lookup(skb_dst(skb), &iph6->daddr);
 
 		if (neigh == NULL) {
 			if (net_ratelimit())
@@ -723,10 +729,14 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			addr_type = ipv6_addr_type(addr6);
 		}
 
-		if ((addr_type & IPV6_ADDR_COMPATv4) == 0)
-			goto tx_error_icmp;
+		if ((addr_type & IPV6_ADDR_COMPATv4) != 0)
+			dst = addr6->s6_addr32[3];
+		else
+			do_tx_error = true;
 
-		dst = addr6->s6_addr32[3];
+		neigh_release(neigh);
+		if (do_tx_error)
+			goto tx_error;
 	}
 
 	rt = ip_route_output_ports(dev_net(dev), &fl4, NULL,
@@ -1177,7 +1187,7 @@ static int __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 	if (!dev->tstats)
 		return -ENOMEM;
 	dev_hold(dev);
-	RCU_INIT_POINTER(sitn->tunnels_wc[0], tunnel);
+	rcu_assign_pointer(sitn->tunnels_wc[0], tunnel);
 	return 0;
 }
 

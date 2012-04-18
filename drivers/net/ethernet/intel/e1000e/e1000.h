@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel PRO/1000 Linux driver
-  Copyright(c) 1999 - 2011 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -161,6 +161,12 @@ struct e1000_info;
 /* Time to wait before putting the device into D3 if there's no link (in ms). */
 #define LINK_TIMEOUT		100
 
+/*
+ * Count for polling __E1000_RESET condition every 10-20msec.
+ * Experimentation has shown the reset can take approximately 210msec.
+ */
+#define E1000_CHECK_RESET_COUNT		25
+
 #define DEFAULT_RDTR			0
 #define DEFAULT_RADV			8
 #define BURST_RDTR			0x20
@@ -234,6 +240,7 @@ struct e1000_buffer {
 };
 
 struct e1000_ring {
+	struct e1000_adapter *adapter;	/* back pointer to adapter */
 	void *desc;			/* pointer to ring memory  */
 	dma_addr_t dma;			/* phys address of ring    */
 	unsigned int size;		/* length of ring in bytes */
@@ -242,8 +249,8 @@ struct e1000_ring {
 	u16 next_to_use;
 	u16 next_to_clean;
 
-	u16 head;
-	u16 tail;
+	void __iomem *head;
+	void __iomem *tail;
 
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
@@ -251,7 +258,7 @@ struct e1000_ring {
 	char name[IFNAMSIZ + 5];
 	u32 ims_val;
 	u32 itr_val;
-	u16 itr_register;
+	void __iomem *itr_register;
 	int set_itr;
 
 	struct sk_buff *rx_skb_top;
@@ -334,11 +341,10 @@ struct e1000_adapter {
 	/*
 	 * Rx
 	 */
-	bool (*clean_rx) (struct e1000_adapter *adapter,
-			  int *work_done, int work_to_do)
-						____cacheline_aligned_in_smp;
-	void (*alloc_rx_buf) (struct e1000_adapter *adapter,
-			      int cleaned_count, gfp_t gfp);
+	bool (*clean_rx) (struct e1000_ring *ring, int *work_done,
+			  int work_to_do) ____cacheline_aligned_in_smp;
+	void (*alloc_rx_buf) (struct e1000_ring *ring, int cleaned_count,
+			      gfp_t gfp);
 	struct e1000_ring *rx_ring;
 
 	u32 rx_int_delay;
@@ -398,6 +404,9 @@ struct e1000_adapter {
 
 	bool idle_check;
 	int phy_hang_count;
+
+	u16 tx_ring_count;
+	u16 rx_ring_count;
 };
 
 struct e1000_info {
@@ -417,7 +426,7 @@ struct e1000_info {
 #define FLAG_HAS_FLASH                    (1 << 1)
 #define FLAG_HAS_HW_VLAN_FILTER           (1 << 2)
 #define FLAG_HAS_WOL                      (1 << 3)
-#define FLAG_HAS_ERT                      (1 << 4)
+/* reserved bit4 */
 #define FLAG_HAS_CTRLEXT_ON_LOAD          (1 << 5)
 #define FLAG_HAS_SWSM_ON_LOAD             (1 << 6)
 #define FLAG_HAS_JUMBO_FRAMES             (1 << 7)
@@ -427,7 +436,7 @@ struct e1000_info {
 #define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)
 #define FLAG_IS_QUAD_PORT_A               (1 << 12)
 #define FLAG_IS_QUAD_PORT                 (1 << 13)
-#define FLAG_TIPG_MEDIUM_FOR_80003ESLAN   (1 << 14)
+/* reserved bit14 */
 #define FLAG_APME_IN_WUC                  (1 << 15)
 #define FLAG_APME_IN_CTRL3                (1 << 16)
 #define FLAG_APME_CHECK_PORT_B            (1 << 17)
@@ -458,6 +467,7 @@ struct e1000_info {
 #define FLAG2_CHECK_PHY_HANG              (1 << 9)
 #define FLAG2_NO_DISABLE_RX               (1 << 10)
 #define FLAG2_PCIM2PCI_ARBITER_WA         (1 << 11)
+#define FLAG2_DFLT_CRC_STRIPPING          (1 << 12)
 
 #define E1000_RX_DESC_PS(R, i)	    \
 	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))
@@ -492,10 +502,10 @@ extern void e1000e_down(struct e1000_adapter *adapter);
 extern void e1000e_reinit_locked(struct e1000_adapter *adapter);
 extern void e1000e_reset(struct e1000_adapter *adapter);
 extern void e1000e_power_up_phy(struct e1000_adapter *adapter);
-extern int e1000e_setup_rx_resources(struct e1000_adapter *adapter);
-extern int e1000e_setup_tx_resources(struct e1000_adapter *adapter);
-extern void e1000e_free_rx_resources(struct e1000_adapter *adapter);
-extern void e1000e_free_tx_resources(struct e1000_adapter *adapter);
+extern int e1000e_setup_rx_resources(struct e1000_ring *ring);
+extern int e1000e_setup_tx_resources(struct e1000_ring *ring);
+extern void e1000e_free_rx_resources(struct e1000_ring *ring);
+extern void e1000e_free_tx_resources(struct e1000_ring *ring);
 extern struct rtnl_link_stats64 *e1000e_get_stats64(struct net_device *netdev,
                                                     struct rtnl_link_stats64
                                                     *stats);
@@ -555,12 +565,12 @@ extern s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u
 extern s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw, u16 *speed, u16 *duplex);
 extern s32 e1000e_disable_pcie_master(struct e1000_hw *hw);
 extern s32 e1000e_get_auto_rd_done(struct e1000_hw *hw);
-extern s32 e1000e_id_led_init(struct e1000_hw *hw);
+extern s32 e1000e_id_led_init_generic(struct e1000_hw *hw);
 extern void e1000e_clear_hw_cntrs_base(struct e1000_hw *hw);
 extern s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw);
 extern s32 e1000e_copper_link_setup_igp(struct e1000_hw *hw);
-extern s32 e1000e_setup_link(struct e1000_hw *hw);
+extern s32 e1000e_setup_link_generic(struct e1000_hw *hw);
 extern void e1000_clear_vfta_generic(struct e1000_hw *hw);
 extern void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 extern void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
@@ -571,7 +581,7 @@ extern s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 extern void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop);
 extern s32 e1000e_get_hw_semaphore(struct e1000_hw *hw);
 extern s32 e1000e_valid_led_default(struct e1000_hw *hw, u16 *data);
-extern void e1000e_config_collision_dist(struct e1000_hw *hw);
+extern void e1000e_config_collision_dist_generic(struct e1000_hw *hw);
 extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
 extern s32 e1000e_blink_led_generic(struct e1000_hw *hw);
@@ -658,11 +668,6 @@ static inline s32 e1000_phy_hw_reset(struct e1000_hw *hw)
 	return hw->phy.ops.reset(hw);
 }
 
-static inline s32 e1000_check_reset_block(struct e1000_hw *hw)
-{
-	return hw->phy.ops.check_reset_block(hw);
-}
-
 static inline s32 e1e_rphy(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	return hw->phy.ops.read_reg(hw, offset, data);
@@ -685,7 +690,7 @@ extern s32 e1000e_poll_eerd_eewr_done(struct e1000_hw *hw, int ee_reg);
 extern s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 *data);
 extern s32 e1000e_validate_nvm_checksum_generic(struct e1000_hw *hw);
 extern void e1000e_release_nvm(struct e1000_hw *hw);
-extern void e1000e_reload_nvm(struct e1000_hw *hw);
+extern void e1000e_reload_nvm_generic(struct e1000_hw *hw);
 extern s32 e1000_read_mac_addr_generic(struct e1000_hw *hw);
 
 static inline s32 e1000e_read_mac_addr(struct e1000_hw *hw)
@@ -719,11 +724,6 @@ static inline s32 e1000_write_nvm(struct e1000_hw *hw, u16 offset, u16 words, u1
 static inline s32 e1000_get_phy_info(struct e1000_hw *hw)
 {
 	return hw->phy.ops.get_info(hw);
-}
-
-static inline s32 e1000e_check_mng_mode(struct e1000_hw *hw)
-{
-	return hw->mac.ops.check_mng_mode(hw);
 }
 
 extern bool e1000e_check_mng_mode_generic(struct e1000_hw *hw);

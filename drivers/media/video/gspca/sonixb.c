@@ -1079,19 +1079,22 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	}
 	cam->npkt = 36;			/* 36 packets per ISOC message */
 
-	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO) {
-		sd->ctrls[EXPOSURE].min = COARSE_EXPOSURE_MIN;
-		sd->ctrls[EXPOSURE].max = COARSE_EXPOSURE_MAX;
-		sd->ctrls[EXPOSURE].def = COARSE_EXPOSURE_DEF;
-	}
-
 	return 0;
 }
 
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	const __u8 stop = 0x09; /* Disable stream turn of LED */
+
+	if (sensor_data[sd->sensor].flags & F_COARSE_EXPO) {
+		sd->ctrls[EXPOSURE].min = COARSE_EXPOSURE_MIN;
+		sd->ctrls[EXPOSURE].max = COARSE_EXPOSURE_MAX;
+		sd->ctrls[EXPOSURE].def = COARSE_EXPOSURE_DEF;
+		if (sd->ctrls[EXPOSURE].val > COARSE_EXPOSURE_MAX)
+			sd->ctrls[EXPOSURE].val = COARSE_EXPOSURE_DEF;
+	}
 
 	reg_w(gspca_dev, 0x01, &stop, 1);
 

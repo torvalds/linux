@@ -24,11 +24,11 @@
 #include <linux/node.h>
 #include <asm/sparsemem.h>
 #include <asm/prom.h>
-#include <asm/system.h>
 #include <asm/smp.h>
 #include <asm/firmware.h>
 #include <asm/paca.h>
 #include <asm/hvcall.h>
+#include <asm/setup.h>
 
 static int numa_enabled = 1;
 
@@ -58,7 +58,7 @@ static int distance_lookup_table[MAX_NUMNODES][MAX_DISTANCE_REF_POINTS];
  * Allocate node_to_cpumask_map based on number of available nodes
  * Requires node_possible_map to be valid.
  *
- * Note: node_to_cpumask() is not valid until after this is done.
+ * Note: cpumask_of_node() is not valid until after this is done.
  */
 static void __init setup_node_to_cpumask_map(void)
 {

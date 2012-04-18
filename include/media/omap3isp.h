@@ -58,7 +58,7 @@ enum {
  *		ISP_LANE_SHIFT_4 - CAMEXT[13:4] -> CAM[9:0]
  *		ISP_LANE_SHIFT_6 - CAMEXT[13:6] -> CAM[7:0]
  * @clk_pol: Pixel clock polarity
- *		0 - Non Inverted, 1 - Inverted
+ *		0 - Sample on rising edge, 1 - Sample on falling edge
  * @hs_pol: Horizontal synchronization polarity
  *		0 - Active high, 1 - Active low
  * @vs_pol: Vertical synchronization polarity

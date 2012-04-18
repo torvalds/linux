@@ -111,6 +111,8 @@ static struct kernel_param_ops param_ops_axis = {
 	.get = param_get_int,
 };
 
+#define param_check_axis(name, p) param_check_int(name, p)
+
 module_param_array_named(axes, lis3_dev.ac.as_array, axis, NULL, 0644);
 MODULE_PARM_DESC(axes, "Axis-mapping for x,y,z directions");
 

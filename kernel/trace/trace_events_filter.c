@@ -81,6 +81,7 @@ enum {
 	FILT_ERR_TOO_MANY_PREDS,
 	FILT_ERR_MISSING_FIELD,
 	FILT_ERR_INVALID_FILTER,
+	FILT_ERR_IP_FIELD_ONLY,
 };
 
 static char *err_text[] = {
@@ -96,6 +97,7 @@ static char *err_text[] = {
 	"Too many terms in predicate expression",
 	"Missing field name and/or value",
 	"Meaningless filter expression",
+	"Only 'ip' field is supported for function trace",
 };
 
 struct opstack_op {
@@ -685,7 +687,7 @@ find_event_field(struct ftrace_event_call *call, char *name)
 
 static int __alloc_pred_stack(struct pred_stack *stack, int n_preds)
 {
-	stack->preds = kzalloc(sizeof(*stack->preds)*(n_preds + 1), GFP_KERNEL);
+	stack->preds = kcalloc(n_preds + 1, sizeof(*stack->preds), GFP_KERNEL);
 	if (!stack->preds)
 		return -ENOMEM;
 	stack->index = n_preds;
@@ -826,8 +828,7 @@ static int __alloc_preds(struct event_filter *filter, int n_preds)
 	if (filter->preds)
 		__free_preds(filter);
 
-	filter->preds =
-		kzalloc(sizeof(*filter->preds) * n_preds, GFP_KERNEL);
+	filter->preds = kcalloc(n_preds, sizeof(*filter->preds), GFP_KERNEL);
 
 	if (!filter->preds)
 		return -ENOMEM;
@@ -898,6 +899,11 @@ int filter_assign_type(const char *type)
 		return FILTER_STATIC_STRING;
 
 	return FILTER_OTHER;
+}
+
+static bool is_function_field(struct ftrace_event_field *field)
+{
+	return field->filter_type == FILTER_TRACE_FN;
 }
 
 static bool is_string_field(struct ftrace_event_field *field)
@@ -987,6 +993,11 @@ static int init_pred(struct filter_parse_state *ps,
 			fn = filter_pred_strloc;
 		else
 			fn = filter_pred_pchar;
+	} else if (is_function_field(field)) {
+		if (strcmp(field->name, "ip")) {
+			parse_error(ps, FILT_ERR_IP_FIELD_ONLY, 0);
+			return -EINVAL;
+		}
 	} else {
 		if (field->is_signed)
 			ret = strict_strtoll(pred->regex.pattern, 0, &val);
@@ -1334,10 +1345,7 @@ static struct filter_pred *create_pred(struct filter_parse_state *ps,
 
 	strcpy(pred.regex.pattern, operand2);
 	pred.regex.len = strlen(pred.regex.pattern);
-
-#ifdef CONFIG_FTRACE_STARTUP_TEST
 	pred.field = field;
-#endif
 	return init_pred(ps, field, &pred) ? NULL : &pred;
 }
 
@@ -1486,7 +1494,7 @@ static int fold_pred(struct filter_pred *preds, struct filter_pred *root)
 	children = count_leafs(preds, &preds[root->left]);
 	children += count_leafs(preds, &preds[root->right]);
 
-	root->ops = kzalloc(sizeof(*root->ops) * children, GFP_KERNEL);
+	root->ops = kcalloc(children, sizeof(*root->ops), GFP_KERNEL);
 	if (!root->ops)
 		return -ENOMEM;
 
@@ -1738,11 +1746,121 @@ static int replace_system_preds(struct event_subsystem *system,
 	return -ENOMEM;
 }
 
+static int create_filter_start(char *filter_str, bool set_str,
+			       struct filter_parse_state **psp,
+			       struct event_filter **filterp)
+{
+	struct event_filter *filter;
+	struct filter_parse_state *ps = NULL;
+	int err = 0;
+
+	WARN_ON_ONCE(*psp || *filterp);
+
+	/* allocate everything, and if any fails, free all and fail */
+	filter = __alloc_filter();
+	if (filter && set_str)
+		err = replace_filter_string(filter, filter_str);
+
+	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
+
+	if (!filter || !ps || err) {
+		kfree(ps);
+		__free_filter(filter);
+		return -ENOMEM;
+	}
+
+	/* we're committed to creating a new filter */
+	*filterp = filter;
+	*psp = ps;
+
+	parse_init(ps, filter_ops, filter_str);
+	err = filter_parse(ps);
+	if (err && set_str)
+		append_filter_err(ps, filter);
+	return err;
+}
+
+static void create_filter_finish(struct filter_parse_state *ps)
+{
+	if (ps) {
+		filter_opstack_clear(ps);
+		postfix_clear(ps);
+		kfree(ps);
+	}
+}
+
+/**
+ * create_filter - create a filter for a ftrace_event_call
+ * @call: ftrace_event_call to create a filter for
+ * @filter_str: filter string
+ * @set_str: remember @filter_str and enable detailed error in filter
+ * @filterp: out param for created filter (always updated on return)
+ *
+ * Creates a filter for @call with @filter_str.  If @set_str is %true,
+ * @filter_str is copied and recorded in the new filter.
+ *
+ * On success, returns 0 and *@filterp points to the new filter.  On
+ * failure, returns -errno and *@filterp may point to %NULL or to a new
+ * filter.  In the latter case, the returned filter contains error
+ * information if @set_str is %true and the caller is responsible for
+ * freeing it.
+ */
+static int create_filter(struct ftrace_event_call *call,
+			 char *filter_str, bool set_str,
+			 struct event_filter **filterp)
+{
+	struct event_filter *filter = NULL;
+	struct filter_parse_state *ps = NULL;
+	int err;
+
+	err = create_filter_start(filter_str, set_str, &ps, &filter);
+	if (!err) {
+		err = replace_preds(call, filter, ps, filter_str, false);
+		if (err && set_str)
+			append_filter_err(ps, filter);
+	}
+	create_filter_finish(ps);
+
+	*filterp = filter;
+	return err;
+}
+
+/**
+ * create_system_filter - create a filter for an event_subsystem
+ * @system: event_subsystem to create a filter for
+ * @filter_str: filter string
+ * @filterp: out param for created filter (always updated on return)
+ *
+ * Identical to create_filter() except that it creates a subsystem filter
+ * and always remembers @filter_str.
+ */
+static int create_system_filter(struct event_subsystem *system,
+				char *filter_str, struct event_filter **filterp)
+{
+	struct event_filter *filter = NULL;
+	struct filter_parse_state *ps = NULL;
+	int err;
+
+	err = create_filter_start(filter_str, true, &ps, &filter);
+	if (!err) {
+		err = replace_system_preds(system, ps, filter_str);
+		if (!err) {
+			/* System filters just show a default message */
+			kfree(filter->filter_string);
+			filter->filter_string = NULL;
+		} else {
+			append_filter_err(ps, filter);
+		}
+	}
+	create_filter_finish(ps);
+
+	*filterp = filter;
+	return err;
+}
+
 int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 {
-	struct filter_parse_state *ps;
 	struct event_filter *filter;
-	struct event_filter *tmp;
 	int err = 0;
 
 	mutex_lock(&event_mutex);
@@ -1759,49 +1877,30 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 		goto out_unlock;
 	}
 
-	err = -ENOMEM;
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
-	if (!ps)
-		goto out_unlock;
+	err = create_filter(call, filter_string, true, &filter);
 
-	filter = __alloc_filter();
-	if (!filter) {
-		kfree(ps);
-		goto out_unlock;
-	}
-
-	replace_filter_string(filter, filter_string);
-
-	parse_init(ps, filter_ops, filter_string);
-	err = filter_parse(ps);
-	if (err) {
-		append_filter_err(ps, filter);
-		goto out;
-	}
-
-	err = replace_preds(call, filter, ps, filter_string, false);
-	if (err) {
-		filter_disable(call);
-		append_filter_err(ps, filter);
-	} else
-		call->flags |= TRACE_EVENT_FL_FILTERED;
-out:
 	/*
 	 * Always swap the call filter with the new filter
 	 * even if there was an error. If there was an error
 	 * in the filter, we disable the filter and show the error
 	 * string
 	 */
-	tmp = call->filter;
-	rcu_assign_pointer(call->filter, filter);
-	if (tmp) {
-		/* Make sure the call is done with the filter */
-		synchronize_sched();
-		__free_filter(tmp);
+	if (filter) {
+		struct event_filter *tmp = call->filter;
+
+		if (!err)
+			call->flags |= TRACE_EVENT_FL_FILTERED;
+		else
+			filter_disable(call);
+
+		rcu_assign_pointer(call->filter, filter);
+
+		if (tmp) {
+			/* Make sure the call is done with the filter */
+			synchronize_sched();
+			__free_filter(tmp);
+		}
 	}
-	filter_opstack_clear(ps);
-	postfix_clear(ps);
-	kfree(ps);
 out_unlock:
 	mutex_unlock(&event_mutex);
 
@@ -1811,7 +1910,6 @@ out_unlock:
 int apply_subsystem_event_filter(struct event_subsystem *system,
 				 char *filter_string)
 {
-	struct filter_parse_state *ps;
 	struct event_filter *filter;
 	int err = 0;
 
@@ -1835,48 +1933,19 @@ int apply_subsystem_event_filter(struct event_subsystem *system,
 		goto out_unlock;
 	}
 
-	err = -ENOMEM;
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
-	if (!ps)
-		goto out_unlock;
-
-	filter = __alloc_filter();
-	if (!filter)
-		goto out;
-
-	/* System filters just show a default message */
-	kfree(filter->filter_string);
-	filter->filter_string = NULL;
-
-	/*
-	 * No event actually uses the system filter
-	 * we can free it without synchronize_sched().
-	 */
-	__free_filter(system->filter);
-	system->filter = filter;
-
-	parse_init(ps, filter_ops, filter_string);
-	err = filter_parse(ps);
-	if (err)
-		goto err_filter;
-
-	err = replace_system_preds(system, ps, filter_string);
-	if (err)
-		goto err_filter;
-
-out:
-	filter_opstack_clear(ps);
-	postfix_clear(ps);
-	kfree(ps);
+	err = create_system_filter(system, filter_string, &filter);
+	if (filter) {
+		/*
+		 * No event actually uses the system filter
+		 * we can free it without synchronize_sched().
+		 */
+		__free_filter(system->filter);
+		system->filter = filter;
+	}
 out_unlock:
 	mutex_unlock(&event_mutex);
 
 	return err;
-
-err_filter:
-	replace_filter_string(filter, filter_string);
-	append_filter_err(ps, system->filter);
-	goto out;
 }
 
 #ifdef CONFIG_PERF_EVENTS
@@ -1889,12 +1958,153 @@ void ftrace_profile_free_filter(struct perf_event *event)
 	__free_filter(filter);
 }
 
+struct function_filter_data {
+	struct ftrace_ops *ops;
+	int first_filter;
+	int first_notrace;
+};
+
+#ifdef CONFIG_FUNCTION_TRACER
+static char **
+ftrace_function_filter_re(char *buf, int len, int *count)
+{
+	char *str, *sep, **re;
+
+	str = kstrndup(buf, len, GFP_KERNEL);
+	if (!str)
+		return NULL;
+
+	/*
+	 * The argv_split function takes white space
+	 * as a separator, so convert ',' into spaces.
+	 */
+	while ((sep = strchr(str, ',')))
+		*sep = ' ';
+
+	re = argv_split(GFP_KERNEL, str, count);
+	kfree(str);
+	return re;
+}
+
+static int ftrace_function_set_regexp(struct ftrace_ops *ops, int filter,
+				      int reset, char *re, int len)
+{
+	int ret;
+
+	if (filter)
+		ret = ftrace_set_filter(ops, re, len, reset);
+	else
+		ret = ftrace_set_notrace(ops, re, len, reset);
+
+	return ret;
+}
+
+static int __ftrace_function_set_filter(int filter, char *buf, int len,
+					struct function_filter_data *data)
+{
+	int i, re_cnt, ret;
+	int *reset;
+	char **re;
+
+	reset = filter ? &data->first_filter : &data->first_notrace;
+
+	/*
+	 * The 'ip' field could have multiple filters set, separated
+	 * either by space or comma. We first cut the filter and apply
+	 * all pieces separatelly.
+	 */
+	re = ftrace_function_filter_re(buf, len, &re_cnt);
+	if (!re)
+		return -EINVAL;
+
+	for (i = 0; i < re_cnt; i++) {
+		ret = ftrace_function_set_regexp(data->ops, filter, *reset,
+						 re[i], strlen(re[i]));
+		if (ret)
+			break;
+
+		if (*reset)
+			*reset = 0;
+	}
+
+	argv_free(re);
+	return ret;
+}
+
+static int ftrace_function_check_pred(struct filter_pred *pred, int leaf)
+{
+	struct ftrace_event_field *field = pred->field;
+
+	if (leaf) {
+		/*
+		 * Check the leaf predicate for function trace, verify:
+		 *  - only '==' and '!=' is used
+		 *  - the 'ip' field is used
+		 */
+		if ((pred->op != OP_EQ) && (pred->op != OP_NE))
+			return -EINVAL;
+
+		if (strcmp(field->name, "ip"))
+			return -EINVAL;
+	} else {
+		/*
+		 * Check the non leaf predicate for function trace, verify:
+		 *  - only '||' is used
+		*/
+		if (pred->op != OP_OR)
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ftrace_function_set_filter_cb(enum move_type move,
+					 struct filter_pred *pred,
+					 int *err, void *data)
+{
+	/* Checking the node is valid for function trace. */
+	if ((move != MOVE_DOWN) ||
+	    (pred->left != FILTER_PRED_INVALID)) {
+		*err = ftrace_function_check_pred(pred, 0);
+	} else {
+		*err = ftrace_function_check_pred(pred, 1);
+		if (*err)
+			return WALK_PRED_ABORT;
+
+		*err = __ftrace_function_set_filter(pred->op == OP_EQ,
+						    pred->regex.pattern,
+						    pred->regex.len,
+						    data);
+	}
+
+	return (*err) ? WALK_PRED_ABORT : WALK_PRED_DEFAULT;
+}
+
+static int ftrace_function_set_filter(struct perf_event *event,
+				      struct event_filter *filter)
+{
+	struct function_filter_data data = {
+		.first_filter  = 1,
+		.first_notrace = 1,
+		.ops           = &event->ftrace_ops,
+	};
+
+	return walk_pred_tree(filter->preds, filter->root,
+			      ftrace_function_set_filter_cb, &data);
+}
+#else
+static int ftrace_function_set_filter(struct perf_event *event,
+				      struct event_filter *filter)
+{
+	return -ENODEV;
+}
+#endif /* CONFIG_FUNCTION_TRACER */
+
 int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 			      char *filter_str)
 {
 	int err;
 	struct event_filter *filter;
-	struct filter_parse_state *ps;
 	struct ftrace_event_call *call;
 
 	mutex_lock(&event_mutex);
@@ -1909,33 +2119,17 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 	if (event->filter)
 		goto out_unlock;
 
-	filter = __alloc_filter();
-	if (!filter) {
-		err = PTR_ERR(filter);
-		goto out_unlock;
-	}
-
-	err = -ENOMEM;
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
-	if (!ps)
+	err = create_filter(call, filter_str, false, &filter);
+	if (err)
 		goto free_filter;
 
-	parse_init(ps, filter_ops, filter_str);
-	err = filter_parse(ps);
-	if (err)
-		goto free_ps;
-
-	err = replace_preds(call, filter, ps, filter_str, false);
-	if (!err)
+	if (ftrace_event_is_function(call))
+		err = ftrace_function_set_filter(event, filter);
+	else
 		event->filter = filter;
 
-free_ps:
-	filter_opstack_clear(ps);
-	postfix_clear(ps);
-	kfree(ps);
-
 free_filter:
-	if (err)
+	if (err || ftrace_event_is_function(call))
 		__free_filter(filter);
 
 out_unlock:
@@ -1953,43 +2147,6 @@ out_unlock:
 
 #define CREATE_TRACE_POINTS
 #include "trace_events_filter_test.h"
-
-static int test_get_filter(char *filter_str, struct ftrace_event_call *call,
-			   struct event_filter **pfilter)
-{
-	struct event_filter *filter;
-	struct filter_parse_state *ps;
-	int err = -ENOMEM;
-
-	filter = __alloc_filter();
-	if (!filter)
-		goto out;
-
-	ps = kzalloc(sizeof(*ps), GFP_KERNEL);
-	if (!ps)
-		goto free_filter;
-
-	parse_init(ps, filter_ops, filter_str);
-	err = filter_parse(ps);
-	if (err)
-		goto free_ps;
-
-	err = replace_preds(call, filter, ps, filter_str, false);
-	if (!err)
-		*pfilter = filter;
-
- free_ps:
-	filter_opstack_clear(ps);
-	postfix_clear(ps);
-	kfree(ps);
-
- free_filter:
-	if (err)
-		__free_filter(filter);
-
- out:
-	return err;
-}
 
 #define DATA_REC(m, va, vb, vc, vd, ve, vf, vg, vh, nvisit) \
 { \
@@ -2109,12 +2266,13 @@ static __init int ftrace_test_event_filter(void)
 		struct test_filter_data_t *d = &test_filter_data[i];
 		int err;
 
-		err = test_get_filter(d->filter, &event_ftrace_test_filter,
-				      &filter);
+		err = create_filter(&event_ftrace_test_filter, d->filter,
+				    false, &filter);
 		if (err) {
 			printk(KERN_INFO
 			       "Failed to get filter for '%s', err %d\n",
 			       d->filter, err);
+			__free_filter(filter);
 			break;
 		}
 

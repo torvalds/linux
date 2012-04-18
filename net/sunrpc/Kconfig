@@ -39,3 +39,16 @@ config RPCSEC_GSS_KRB5
 	  Kerberos support should be installed.
 
 	  If unsure, say Y.
+
+config SUNRPC_DEBUG
+	bool "RPC: Enable dprintk debugging"
+	depends on SUNRPC && SYSCTL
+	help
+	  This option enables a sysctl-based debugging interface
+	  that is be used by the 'rpcdebug' utility to turn on or off
+	  logging of different aspects of the kernel RPC activity.
+
+	  Disabling this option will make your kernel slightly smaller,
+	  but makes troubleshooting NFS issues significantly harder.
+
+	  If unsure, say Y.

@@ -594,21 +594,21 @@ static int __init init_v9fs(void)
 	int err;
 	pr_info("Installing v9fs 9p2000 file system support\n");
 	/* TODO: Setup list of registered trasnport modules */
-	err = register_filesystem(&v9fs_fs_type);
-	if (err < 0) {
-		pr_err("Failed to register filesystem\n");
-		return err;
-	}
 
 	err = v9fs_cache_register();
 	if (err < 0) {
 		pr_err("Failed to register v9fs for caching\n");
-		goto out_fs_unreg;
+		return err;
 	}
 
 	err = v9fs_sysfs_init();
 	if (err < 0) {
 		pr_err("Failed to register with sysfs\n");
+		goto out_cache;
+	}
+	err = register_filesystem(&v9fs_fs_type);
+	if (err < 0) {
+		pr_err("Failed to register filesystem\n");
 		goto out_sysfs_cleanup;
 	}
 
@@ -617,8 +617,8 @@ static int __init init_v9fs(void)
 out_sysfs_cleanup:
 	v9fs_sysfs_cleanup();
 
-out_fs_unreg:
-	unregister_filesystem(&v9fs_fs_type);
+out_cache:
+	v9fs_cache_unregister();
 
 	return err;
 }

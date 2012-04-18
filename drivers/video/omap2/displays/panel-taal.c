@@ -198,12 +198,6 @@ struct taal_data {
 	bool te_enabled;
 
 	atomic_t do_update;
-	struct {
-		u16 x;
-		u16 y;
-		u16 w;
-		u16 h;
-	} update_region;
 	int channel;
 
 	struct delayed_work te_timeout_work;
@@ -1025,13 +1019,11 @@ static int taal_probe(struct omap_dss_device *dssdev)
 	if (panel_data->use_ext_te) {
 		int gpio = panel_data->ext_te_gpio;
 
-		r = gpio_request(gpio, "taal irq");
+		r = gpio_request_one(gpio, GPIOF_IN, "taal irq");
 		if (r) {
 			dev_err(&dssdev->dev, "GPIO request failed\n");
 			goto err_gpio;
 		}
-
-		gpio_direction_input(gpio);
 
 		r = request_irq(gpio_to_irq(gpio), taal_te_isr,
 				IRQF_TRIGGER_RISING,
@@ -1188,6 +1180,10 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 	if (r)
 		goto err;
 
+	r = dsi_enable_video_output(dssdev, td->channel);
+	if (r)
+		goto err;
+
 	td->enabled = 1;
 
 	if (!td->intro_printed) {
@@ -1216,6 +1212,8 @@ static void taal_power_off(struct omap_dss_device *dssdev)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
+
+	dsi_disable_video_output(dssdev, td->channel);
 
 	r = taal_dcs_write_0(td, MIPI_DCS_SET_DISPLAY_OFF);
 	if (!r)
@@ -1394,12 +1392,8 @@ static irqreturn_t taal_te_isr(int irq, void *data)
 	if (old) {
 		cancel_delayed_work(&td->te_timeout_work);
 
-		r = omap_dsi_update(dssdev, td->channel,
-				td->update_region.x,
-				td->update_region.y,
-				td->update_region.w,
-				td->update_region.h,
-				taal_framedone_cb, dssdev);
+		r = omap_dsi_update(dssdev, td->channel, taal_framedone_cb,
+				dssdev);
 		if (r)
 			goto err;
 	}
@@ -1444,26 +1438,20 @@ static int taal_update(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h, true);
-	if (r)
-		goto err;
-
-	r = taal_set_update_window(td, x, y, w, h);
+	/* XXX no need to send this every frame, but dsi break if not done */
+	r = taal_set_update_window(td, 0, 0,
+			td->panel_config->timings.x_res,
+			td->panel_config->timings.y_res);
 	if (r)
 		goto err;
 
 	if (td->te_enabled && panel_data->use_ext_te) {
-		td->update_region.x = x;
-		td->update_region.y = y;
-		td->update_region.w = w;
-		td->update_region.h = h;
-		barrier();
 		schedule_delayed_work(&td->te_timeout_work,
 				msecs_to_jiffies(250));
 		atomic_set(&td->do_update, 1);
 	} else {
-		r = omap_dsi_update(dssdev, td->channel, x, y, w, h,
-				taal_framedone_cb, dssdev);
+		r = omap_dsi_update(dssdev, td->channel, taal_framedone_cb,
+				dssdev);
 		if (r)
 			goto err;
 	}

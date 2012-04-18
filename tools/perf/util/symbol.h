@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include "map.h"
+#include "../perf.h"
 #include <linux/list.h>
 #include <linux/rbtree.h>
 #include <stdio.h>
@@ -70,6 +71,7 @@ struct symbol_conf {
 	unsigned short	priv_size;
 	unsigned short	nr_events;
 	bool		try_vmlinux_path,
+			show_kernel_path,
 			use_modules,
 			sort_by_name,
 			show_nr_samples,
@@ -95,7 +97,11 @@ struct symbol_conf {
 			*col_width_list_str;
        struct strlist	*dso_list,
 			*comm_list,
-			*sym_list;
+			*sym_list,
+			*dso_from_list,
+			*dso_to_list,
+			*sym_from_list,
+			*sym_to_list;
 	const char	*symfs;
 };
 
@@ -117,6 +123,19 @@ struct map_symbol {
 	struct symbol *sym;
 	bool	      unfolded;
 	bool	      has_children;
+};
+
+struct addr_map_symbol {
+	struct map    *map;
+	struct symbol *sym;
+	u64	      addr;
+	u64	      al_addr;
+};
+
+struct branch_info {
+	struct addr_map_symbol from;
+	struct addr_map_symbol to;
+	struct branch_flags flags;
 };
 
 struct addr_location {
@@ -241,6 +260,9 @@ void machines__destroy_guest_kernel_maps(struct rb_root *machines);
 
 int symbol__init(void);
 void symbol__exit(void);
+size_t symbol__fprintf_symname_offs(const struct symbol *sym,
+				    const struct addr_location *al, FILE *fp);
+size_t symbol__fprintf_symname(const struct symbol *sym, FILE *fp);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
 
 size_t machine__fprintf_vmlinux_path(struct machine *machine, FILE *fp);

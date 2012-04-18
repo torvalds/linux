@@ -87,8 +87,9 @@ static int ttusbdecfe_dvbt_read_status(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int ttusbdecfe_dvbt_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int ttusbdecfe_dvbt_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
 	u8 b[] = { 0x00, 0x00, 0x00, 0x03,
 		   0x00, 0x00, 0x00, 0x00,
@@ -113,8 +114,9 @@ static int ttusbdecfe_dvbt_get_tune_settings(struct dvb_frontend* fe,
 		return 0;
 }
 
-static int ttusbdecfe_dvbs_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
+static int ttusbdecfe_dvbs_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct ttusbdecfe_state* state = (struct ttusbdecfe_state*) fe->demodulator_priv;
 
 	u8 b[] = { 0x00, 0x00, 0x00, 0x01,
@@ -135,7 +137,7 @@ static int ttusbdecfe_dvbs_set_frontend(struct dvb_frontend* fe, struct dvb_fron
 	freq = htonl(p->frequency +
 	       (state->hi_band ? LOF_HI : LOF_LO));
 	memcpy(&b[4], &freq, sizeof(u32));
-	sym_rate = htonl(p->u.qam.symbol_rate);
+	sym_rate = htonl(p->symbol_rate);
 	memcpy(&b[12], &sym_rate, sizeof(u32));
 	band = htonl(state->hi_band ? LOF_HI : LOF_LO);
 	memcpy(&b[24], &band, sizeof(u32));
@@ -241,10 +243,9 @@ struct dvb_frontend* ttusbdecfe_dvbs_attach(const struct ttusbdecfe_config* conf
 }
 
 static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
-
+	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "TechnoTrend/Hauppauge DEC2000-t Frontend",
-		.type			= FE_OFDM,
 		.frequency_min		= 51000000,
 		.frequency_max		= 858000000,
 		.frequency_stepsize	= 62500,
@@ -265,10 +266,9 @@ static struct dvb_frontend_ops ttusbdecfe_dvbt_ops = {
 };
 
 static struct dvb_frontend_ops ttusbdecfe_dvbs_ops = {
-
+	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "TechnoTrend/Hauppauge DEC3000-s Frontend",
-		.type			= FE_QPSK,
 		.frequency_min		= 950000,
 		.frequency_max		= 2150000,
 		.frequency_stepsize	= 125,

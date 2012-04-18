@@ -33,7 +33,7 @@
 #define ULI_X86_64_ENU_SCR_REG		0x54
 
 static struct resource *aperture_resource;
-static int __initdata agp_try_unsupported = 1;
+static bool __initdata agp_try_unsupported = 1;
 static int agp_bridges_found;
 
 static void amd64_tlbflush(struct agp_memory *temp)

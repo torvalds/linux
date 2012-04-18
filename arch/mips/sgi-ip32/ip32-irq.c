@@ -22,7 +22,6 @@
 #include <asm/irq_cpu.h>
 #include <asm/mipsregs.h>
 #include <asm/signal.h>
-#include <asm/system.h>
 #include <asm/time.h>
 #include <asm/ip32/crime.h>
 #include <asm/ip32/mace.h>
@@ -113,13 +112,11 @@ extern irqreturn_t crime_cpuerr_intr(int irq, void *dev_id);
 
 static struct irqaction memerr_irq = {
 	.handler = crime_memerr_intr,
-	.flags = IRQF_DISABLED,
 	.name = "CRIME memory error",
 };
 
 static struct irqaction cpuerr_irq = {
 	.handler = crime_cpuerr_intr,
-	.flags = IRQF_DISABLED,
 	.name = "CRIME CPU error",
 };
 

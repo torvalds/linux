@@ -332,6 +332,11 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 	chip->ecc.mode		= NAND_ECC_HW_OOB_FIRST;
 	chip->ecc.size		= 512;
 	chip->ecc.bytes		= 9;
+	chip->ecc.strength	= 2;
+	/*
+	 * FIXME: ecc_strength value of 2 bits per 512 bytes of data is a
+	 * conservative guess, given 9 ecc bytes and reed-solomon alg.
+	 */
 
 	if (pdata)
 		chip->ecc.layout = pdata->ecc_layout;
@@ -367,9 +372,9 @@ static int __devinit jz_nand_probe(struct platform_device *pdev)
 		goto err_gpio_free;
 	}
 
-	ret = mtd_device_parse_register(mtd, NULL, 0,
-			pdata ? pdata->partitions : NULL,
-			pdata ? pdata->num_partitions : 0);
+	ret = mtd_device_parse_register(mtd, NULL, NULL,
+					pdata ? pdata->partitions : NULL,
+					pdata ? pdata->num_partitions : 0);
 
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to add mtd device\n");

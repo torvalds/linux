@@ -16,7 +16,6 @@
 #include <asm/ptrace.h>
 #include <asm/pstate.h>
 #include <asm/processor.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <linux/smp.h>
 #include <linux/bitops.h>
@@ -24,6 +23,7 @@
 #include <linux/ratelimit.h>
 #include <linux/bitops.h>
 #include <asm/fpumacro.h>
+#include <asm/cacheflush.h>
 
 enum direction {
 	load,    /* ld, ldd, ldh, ldsh */

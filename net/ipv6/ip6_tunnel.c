@@ -218,8 +218,8 @@ ip6_tnl_link(struct ip6_tnl_net *ip6n, struct ip6_tnl *t)
 {
 	struct ip6_tnl __rcu **tp = ip6_tnl_bucket(ip6n, &t->parms);
 
-	RCU_INIT_POINTER(t->next , rtnl_dereference(*tp));
-	RCU_INIT_POINTER(*tp, t);
+	rcu_assign_pointer(t->next , rtnl_dereference(*tp));
+	rcu_assign_pointer(*tp, t);
 }
 
 /**
@@ -237,7 +237,7 @@ ip6_tnl_unlink(struct ip6_tnl_net *ip6n, struct ip6_tnl *t)
 	     (iter = rtnl_dereference(*tp)) != NULL;
 	     tp = &iter->next) {
 		if (t == iter) {
-			RCU_INIT_POINTER(*tp, t->next);
+			rcu_assign_pointer(*tp, t->next);
 			break;
 		}
 	}
@@ -1450,7 +1450,7 @@ static int __net_init ip6_fb_tnl_dev_init(struct net_device *dev)
 
 	t->parms.proto = IPPROTO_IPV6;
 	dev_hold(dev);
-	RCU_INIT_POINTER(ip6n->tnls_wc[0], t);
+	rcu_assign_pointer(ip6n->tnls_wc[0], t);
 	return 0;
 }
 

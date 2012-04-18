@@ -226,7 +226,7 @@ static int bf5xx_tdm_resume(struct snd_soc_dai *dai)
 #define bf5xx_tdm_resume       NULL
 #endif
 
-static struct snd_soc_dai_ops bf5xx_tdm_dai_ops = {
+static const struct snd_soc_dai_ops bf5xx_tdm_dai_ops = {
 	.hw_params      = bf5xx_tdm_hw_params,
 	.set_fmt        = bf5xx_tdm_set_dai_fmt,
 	.shutdown       = bf5xx_tdm_shutdown,
@@ -314,17 +314,7 @@ static struct platform_driver bfin_tdm_driver = {
 	},
 };
 
-static int __init bfin_tdm_init(void)
-{
-	return platform_driver_register(&bfin_tdm_driver);
-}
-module_init(bfin_tdm_init);
-
-static void __exit bfin_tdm_exit(void)
-{
-	platform_driver_unregister(&bfin_tdm_driver);
-}
-module_exit(bfin_tdm_exit);
+module_platform_driver(bfin_tdm_driver);
 
 /* Module information */
 MODULE_AUTHOR("Barry Song");

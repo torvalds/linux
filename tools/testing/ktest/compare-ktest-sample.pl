@@ -2,7 +2,9 @@
 
 open (IN,"ktest.pl");
 while (<IN>) {
+    # hashes are now used
     if (/\$opt\{"?([A-Z].*?)(\[.*\])?"?\}/ ||
+	/^\s*"?([A-Z].*?)"?\s*=>\s*/ ||
 	/set_test_option\("(.*?)"/) {
 	$opt{$1} = 1;
     }
@@ -11,7 +13,7 @@ close IN;
 
 open (IN, "sample.conf");
 while (<IN>) {
-    if (/^\s*#?\s*(\S+)\s*=/) {
+    if (/^\s*#?\s*([A-Z]\S*)\s*=/) {
 	$samp{$1} = 1;
     }
 }

@@ -127,6 +127,27 @@ struct tc_multiq_qopt {
 	__u16	max_bands;		/* Maximum number of queues */
 };
 
+/* PLUG section */
+
+#define TCQ_PLUG_BUFFER                0
+#define TCQ_PLUG_RELEASE_ONE           1
+#define TCQ_PLUG_RELEASE_INDEFINITE    2
+#define TCQ_PLUG_LIMIT                 3
+
+struct tc_plug_qopt {
+	/* TCQ_PLUG_BUFFER: Inset a plug into the queue and
+	 *  buffer any incoming packets
+	 * TCQ_PLUG_RELEASE_ONE: Dequeue packets from queue head
+	 *   to beginning of the next plug.
+	 * TCQ_PLUG_RELEASE_INDEFINITE: Dequeue all packets from queue.
+	 *   Stop buffering packets until the next TCQ_PLUG_BUFFER
+	 *   command is received (just act as a pass-thru queue).
+	 * TCQ_PLUG_LIMIT: Increase/decrease queue size
+	 */
+	int             action;
+	__u32           limit;
+};
+
 /* TBF section */
 
 struct tc_tbf_qopt {
@@ -162,10 +183,30 @@ struct tc_sfq_qopt {
 	unsigned	flows;		/* Maximal number of flows  */
 };
 
+struct tc_sfqred_stats {
+	__u32           prob_drop;      /* Early drops, below max threshold */
+	__u32           forced_drop;	/* Early drops, after max threshold */
+	__u32           prob_mark;      /* Marked packets, below max threshold */
+	__u32           forced_mark;    /* Marked packets, after max threshold */
+	__u32           prob_mark_head; /* Marked packets, below max threshold */
+	__u32           forced_mark_head;/* Marked packets, after max threshold */
+};
+
 struct tc_sfq_qopt_v1 {
 	struct tc_sfq_qopt v0;
 	unsigned int	depth;		/* max number of packets per flow */
 	unsigned int	headdrop;
+/* SFQRED parameters */
+	__u32		limit;		/* HARD maximal flow queue length (bytes) */
+	__u32		qth_min;	/* Min average length threshold (bytes) */
+	__u32		qth_max;	/* Max average length threshold (bytes) */
+	unsigned char   Wlog;		/* log(W)		*/
+	unsigned char   Plog;		/* log(P_max/(qth_max-qth_min))	*/
+	unsigned char   Scell_log;	/* cell size for idle damping */
+	unsigned char	flags;
+	__u32		max_P;		/* probability, high resolution */
+/* SFQRED stats */
+	struct tc_sfqred_stats stats;
 };
 
 

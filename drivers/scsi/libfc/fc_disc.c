@@ -61,7 +61,7 @@ static void fc_disc_restart(struct fc_disc *);
  * Locking Note: This function expects that the lport mutex is locked before
  * calling it.
  */
-void fc_disc_stop_rports(struct fc_disc *disc)
+static void fc_disc_stop_rports(struct fc_disc *disc)
 {
 	struct fc_lport *lport;
 	struct fc_rport_priv *rdata;
@@ -337,6 +337,13 @@ static void fc_disc_error(struct fc_disc *disc, struct fc_frame *fp)
 			schedule_delayed_work(&disc->disc_work, delay);
 		} else
 			fc_disc_done(disc, DISC_EV_FAILED);
+	} else if (PTR_ERR(fp) == -FC_EX_CLOSED) {
+		/*
+		 * if discovery fails due to lport reset, clear
+		 * pending flag so that subsequent discovery can
+		 * continue
+		 */
+		disc->pending = 0;
 	}
 }
 
@@ -682,7 +689,7 @@ static int fc_disc_single(struct fc_lport *lport, struct fc_disc_port *dp)
  * fc_disc_stop() - Stop discovery for a given lport
  * @lport: The local port that discovery should stop on
  */
-void fc_disc_stop(struct fc_lport *lport)
+static void fc_disc_stop(struct fc_lport *lport)
 {
 	struct fc_disc *disc = &lport->disc;
 
@@ -698,7 +705,7 @@ void fc_disc_stop(struct fc_lport *lport)
  * This function will block until discovery has been
  * completely stopped and all rports have been deleted.
  */
-void fc_disc_stop_final(struct fc_lport *lport)
+static void fc_disc_stop_final(struct fc_lport *lport)
 {
 	fc_disc_stop(lport);
 	lport->tt.rport_flush_queue();

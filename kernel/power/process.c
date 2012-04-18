@@ -16,6 +16,7 @@
 #include <linux/freezer.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/kmod.h>
 
 /* 
  * Timeout for stopping processes
@@ -53,11 +54,9 @@ static int try_to_freeze_tasks(bool user_only)
 			 * It is "frozen enough".  If the task does wake
 			 * up, it will immediately call try_to_freeze.
 			 *
-			 * Because freeze_task() goes through p's
-			 * scheduler lock after setting TIF_FREEZE, it's
-			 * guaranteed that either we see TASK_RUNNING or
-			 * try_to_stop() after schedule() in ptrace/signal
-			 * stop sees TIF_FREEZE.
+			 * Because freeze_task() goes through p's scheduler lock, it's
+			 * guaranteed that TASK_STOPPED/TRACED -> TASK_RUNNING
+			 * transition can't race with task state testing here.
 			 */
 			if (!task_is_stopped_or_traced(p) &&
 			    !freezer_should_skip(p))
@@ -98,13 +97,15 @@ static int try_to_freeze_tasks(bool user_only)
 		       elapsed_csecs / 100, elapsed_csecs % 100,
 		       todo - wq_busy, wq_busy);
 
-		read_lock(&tasklist_lock);
-		do_each_thread(g, p) {
-			if (!wakeup && !freezer_should_skip(p) &&
-			    p != current && freezing(p) && !frozen(p))
-				sched_show_task(p);
-		} while_each_thread(g, p);
-		read_unlock(&tasklist_lock);
+		if (!wakeup) {
+			read_lock(&tasklist_lock);
+			do_each_thread(g, p) {
+				if (p != current && !freezer_should_skip(p)
+				    && freezing(p) && !frozen(p))
+					sched_show_task(p);
+			} while_each_thread(g, p);
+			read_unlock(&tasklist_lock);
+		}
 	} else {
 		printk("(elapsed %d.%02d seconds) ", elapsed_csecs / 100,
 			elapsed_csecs % 100);
@@ -122,6 +123,10 @@ int freeze_processes(void)
 {
 	int error;
 
+	error = __usermodehelper_disable(UMH_FREEZING);
+	if (error)
+		return error;
+
 	if (!pm_freezing)
 		atomic_inc(&system_freezing_cnt);
 
@@ -130,6 +135,7 @@ int freeze_processes(void)
 	error = try_to_freeze_tasks(true);
 	if (!error) {
 		printk("done.");
+		__usermodehelper_set_disable_depth(UMH_DISABLED);
 		oom_killer_disable();
 	}
 	printk("\n");
@@ -143,7 +149,10 @@ int freeze_processes(void)
 /**
  * freeze_kernel_threads - Make freezable kernel threads go to the refrigerator.
  *
- * On success, returns 0.  On failure, -errno and system is fully thawed.
+ * On success, returns 0.  On failure, -errno and only the kernel threads are
+ * thawed, so as to give a chance to the caller to do additional cleanups
+ * (if any) before thawing the userspace tasks. So, it is the responsibility
+ * of the caller to thaw the userspace tasks, when the time is right.
  */
 int freeze_kernel_threads(void)
 {
@@ -159,7 +168,7 @@ int freeze_kernel_threads(void)
 	BUG_ON(in_atomic());
 
 	if (error)
-		thaw_processes();
+		thaw_kernel_threads();
 	return error;
 }
 
@@ -184,7 +193,28 @@ void thaw_processes(void)
 	} while_each_thread(g, p);
 	read_unlock(&tasklist_lock);
 
+	usermodehelper_enable();
+
 	schedule();
 	printk("done.\n");
 }
 
+void thaw_kernel_threads(void)
+{
+	struct task_struct *g, *p;
+
+	pm_nosig_freezing = false;
+	printk("Restarting kernel threads ... ");
+
+	thaw_workqueues();
+
+	read_lock(&tasklist_lock);
+	do_each_thread(g, p) {
+		if (p->flags & (PF_KTHREAD | PF_WQ_WORKER))
+			__thaw_task(p);
+	} while_each_thread(g, p);
+	read_unlock(&tasklist_lock);
+
+	schedule();
+	printk("done.\n");
+}

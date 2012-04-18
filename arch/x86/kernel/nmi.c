@@ -405,9 +405,108 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 		unknown_nmi_error(reason, regs);
 }
 
+/*
+ * NMIs can hit breakpoints which will cause it to lose its
+ * NMI context with the CPU when the breakpoint does an iret.
+ */
+#ifdef CONFIG_X86_32
+/*
+ * For i386, NMIs use the same stack as the kernel, and we can
+ * add a workaround to the iret problem in C. Simply have 3 states
+ * the NMI can be in.
+ *
+ *  1) not running
+ *  2) executing
+ *  3) latched
+ *
+ * When no NMI is in progress, it is in the "not running" state.
+ * When an NMI comes in, it goes into the "executing" state.
+ * Normally, if another NMI is triggered, it does not interrupt
+ * the running NMI and the HW will simply latch it so that when
+ * the first NMI finishes, it will restart the second NMI.
+ * (Note, the latch is binary, thus multiple NMIs triggering,
+ *  when one is running, are ignored. Only one NMI is restarted.)
+ *
+ * If an NMI hits a breakpoint that executes an iret, another
+ * NMI can preempt it. We do not want to allow this new NMI
+ * to run, but we want to execute it when the first one finishes.
+ * We set the state to "latched", and the first NMI will perform
+ * an cmpxchg on the state, and if it doesn't successfully
+ * reset the state to "not running" it will restart the next
+ * NMI.
+ */
+enum nmi_states {
+	NMI_NOT_RUNNING,
+	NMI_EXECUTING,
+	NMI_LATCHED,
+};
+static DEFINE_PER_CPU(enum nmi_states, nmi_state);
+
+#define nmi_nesting_preprocess(regs)					\
+	do {								\
+		if (__get_cpu_var(nmi_state) != NMI_NOT_RUNNING) {	\
+			__get_cpu_var(nmi_state) = NMI_LATCHED;		\
+			return;						\
+		}							\
+	nmi_restart:							\
+		__get_cpu_var(nmi_state) = NMI_EXECUTING;		\
+	} while (0)
+
+#define nmi_nesting_postprocess()					\
+	do {								\
+		if (cmpxchg(&__get_cpu_var(nmi_state),			\
+		    NMI_EXECUTING, NMI_NOT_RUNNING) != NMI_EXECUTING)	\
+			goto nmi_restart;				\
+	} while (0)
+#else /* x86_64 */
+/*
+ * In x86_64 things are a bit more difficult. This has the same problem
+ * where an NMI hitting a breakpoint that calls iret will remove the
+ * NMI context, allowing a nested NMI to enter. What makes this more
+ * difficult is that both NMIs and breakpoints have their own stack.
+ * When a new NMI or breakpoint is executed, the stack is set to a fixed
+ * point. If an NMI is nested, it will have its stack set at that same
+ * fixed address that the first NMI had, and will start corrupting the
+ * stack. This is handled in entry_64.S, but the same problem exists with
+ * the breakpoint stack.
+ *
+ * If a breakpoint is being processed, and the debug stack is being used,
+ * if an NMI comes in and also hits a breakpoint, the stack pointer
+ * will be set to the same fixed address as the breakpoint that was
+ * interrupted, causing that stack to be corrupted. To handle this case,
+ * check if the stack that was interrupted is the debug stack, and if
+ * so, change the IDT so that new breakpoints will use the current stack
+ * and not switch to the fixed address. On return of the NMI, switch back
+ * to the original IDT.
+ */
+static DEFINE_PER_CPU(int, update_debug_stack);
+
+static inline void nmi_nesting_preprocess(struct pt_regs *regs)
+{
+	/*
+	 * If we interrupted a breakpoint, it is possible that
+	 * the nmi handler will have breakpoints too. We need to
+	 * change the IDT such that breakpoints that happen here
+	 * continue to use the NMI stack.
+	 */
+	if (unlikely(is_debug_stack(regs->sp))) {
+		debug_stack_set_zero();
+		__get_cpu_var(update_debug_stack) = 1;
+	}
+}
+
+static inline void nmi_nesting_postprocess(void)
+{
+	if (unlikely(__get_cpu_var(update_debug_stack)))
+		debug_stack_reset();
+}
+#endif
+
 dotraplinkage notrace __kprobes void
 do_nmi(struct pt_regs *regs, long error_code)
 {
+	nmi_nesting_preprocess(regs);
+
 	nmi_enter();
 
 	inc_irq_stat(__nmi_count);
@@ -416,6 +515,9 @@ do_nmi(struct pt_regs *regs, long error_code)
 		default_do_nmi(regs);
 
 	nmi_exit();
+
+	/* On i386, may loop back to preprocess */
+	nmi_nesting_postprocess();
 }
 
 void stop_nmi(void)

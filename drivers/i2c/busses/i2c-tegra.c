@@ -457,7 +457,6 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 	int ret;
 
 	tegra_i2c_flush_fifos(i2c_dev);
-	i2c_writel(i2c_dev, 0xFF, I2C_INT_STATUS);
 
 	if (msg->len == 0)
 		return -EINVAL;
@@ -755,7 +754,7 @@ MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
 
 static struct platform_driver tegra_i2c_driver = {
 	.probe   = tegra_i2c_probe,
-	.remove  = tegra_i2c_remove,
+	.remove  = __devexit_p(tegra_i2c_remove),
 #ifdef CONFIG_PM
 	.suspend = tegra_i2c_suspend,
 	.resume  = tegra_i2c_resume,

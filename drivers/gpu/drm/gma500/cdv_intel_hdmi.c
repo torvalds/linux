@@ -34,6 +34,7 @@
 #include "psb_intel_drv.h"
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
+#include "cdv_device.h"
 #include <linux/pm_runtime.h>
 
 /* hdmi control bits */
@@ -241,6 +242,7 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
+	struct drm_psb_private *dev_priv = connector->dev->dev_private;
 
 	if (mode->clock > 165000)
 		return MODE_CLOCK_HIGH;
@@ -255,14 +257,11 @@ static int cdv_hdmi_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 		return MODE_NO_INTERLACE;
 
-	/*
-	 * FIXME: for now we limit the size to 1680x1050 on CDV, otherwise it
-	 * will go beyond the stolen memory size allocated to the framebuffer
-	 */
-	if (mode->hdisplay > 1680)
-		return MODE_PANEL;
-	if (mode->vdisplay > 1050)
-		return MODE_PANEL;
+	/* We assume worst case scenario of 32 bpp here, since we don't know */
+	if ((ALIGN(mode->hdisplay * 4, 64) * mode->vdisplay) >
+	    dev_priv->vram_stolen_size)
+		return MODE_MEM;
+
 	return MODE_OK;
 }
 

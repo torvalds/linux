@@ -249,9 +249,6 @@ static const char *eq5_cutoff_text[] = {
 static const SOC_ENUM_SINGLE_DECL(eq5_cutoff, WM8983_EQ5_HIGH_SHELF, 5,
 				  eq5_cutoff_text);
 
-static const char *speaker_mode_text[] = { "Class A/B", "Class D" };
-static const SOC_ENUM_SINGLE_DECL(speaker_mode, 0x17, 8, speaker_mode_text);
-
 static const char *depth_3d_text[] = {
 	"Off",
 	"6.67%",
@@ -369,8 +366,6 @@ static const struct snd_kcontrol_new wm8983_snd_controls[] = {
 	SOC_SINGLE_TLV("EQ5 Volume", WM8983_EQ5_HIGH_SHELF, 0, 24, 1, eq_tlv),
 
 	SOC_ENUM("3D Depth", depth_3d),
-
-	SOC_ENUM("Speaker Mode", speaker_mode)
 };
 
 static const struct snd_kcontrol_new left_out_mixer[] = {
@@ -481,7 +476,8 @@ static const struct snd_soc_dapm_widget wm8983_dapm_widgets[] = {
 	SND_SOC_DAPM_PGA("OUT4 Out", WM8983_POWER_MANAGEMENT_3,
 			 8, 0, NULL, 0),
 
-	SND_SOC_DAPM_MICBIAS("Mic Bias", WM8983_POWER_MANAGEMENT_1, 4, 0),
+	SND_SOC_DAPM_SUPPLY("Mic Bias", WM8983_POWER_MANAGEMENT_1, 4, 0,
+			    NULL, 0),
 
 	SND_SOC_DAPM_INPUT("LIN"),
 	SND_SOC_DAPM_INPUT("LIP"),
@@ -973,7 +969,7 @@ static int wm8983_set_bias_level(struct snd_soc_codec *codec,
 }
 
 #ifdef CONFIG_PM
-static int wm8983_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8983_suspend(struct snd_soc_codec *codec)
 {
 	wm8983_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	return 0;
@@ -1034,7 +1030,7 @@ static int wm8983_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_dai_ops wm8983_dai_ops = {
+static const struct snd_soc_dai_ops wm8983_dai_ops = {
 	.digital_mute = wm8983_dac_mute,
 	.hw_params = wm8983_hw_params,
 	.set_fmt = wm8983_set_fmt,

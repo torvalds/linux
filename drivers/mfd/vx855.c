@@ -118,7 +118,7 @@ static void __devexit vx855_remove(struct pci_dev *pdev)
 	pci_disable_device(pdev);
 }
 
-static struct pci_device_id vx855_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(vx855_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_VX855) },
 	{ 0, }
 };

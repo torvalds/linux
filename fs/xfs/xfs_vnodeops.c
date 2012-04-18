@@ -131,7 +131,8 @@ xfs_readlink(
 			 __func__, (unsigned long long) ip->i_ino,
 			 (long long) pathlen);
 		ASSERT(0);
-		return XFS_ERROR(EFSCORRUPTED);
+		error = XFS_ERROR(EFSCORRUPTED);
+		goto out;
 	}
 
 
@@ -175,7 +176,7 @@ xfs_free_eofblocks(
 	 * Figure out if there are any blocks beyond the end
 	 * of the file.  If not, then there is nothing to do.
 	 */
-	end_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)ip->i_size));
+	end_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_ISIZE(ip));
 	last_fsb = XFS_B_TO_FSB(mp, (xfs_ufsize_t)XFS_MAXIOFFSET(mp));
 	if (last_fsb <= end_fsb)
 		return 0;
@@ -226,7 +227,14 @@ xfs_free_eofblocks(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, 0);
 
-		error = xfs_itruncate_data(&tp, ip, ip->i_size);
+		/*
+		 * Do not update the on-disk file size.  If we update the
+		 * on-disk file size and then the system crashes before the
+		 * contents of the file are flushed to disk then the files
+		 * may be full of holes (ie NULL files bug).
+		 */
+		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK,
+					      XFS_ISIZE(ip));
 		if (error) {
 			/*
 			 * If we get an error at this point we simply don't
@@ -540,8 +548,8 @@ xfs_release(
 		return 0;
 
 	if ((S_ISREG(ip->i_d.di_mode) &&
-	     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
-	       ip->i_delayed_blks > 0)) &&
+	     (VFS_I(ip)->i_size > 0 ||
+	      (VN_CACHED(VFS_I(ip)) > 0 || ip->i_delayed_blks > 0)) &&
 	     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 	    (!(ip->i_d.di_flags & (XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)))) {
 
@@ -618,7 +626,7 @@ xfs_inactive(
 	 * only one with a reference to the inode.
 	 */
 	truncate = ((ip->i_d.di_nlink == 0) &&
-	    ((ip->i_d.di_size != 0) || (ip->i_size != 0) ||
+	    ((ip->i_d.di_size != 0) || XFS_ISIZE(ip) != 0 ||
 	     (ip->i_d.di_nextents > 0) || (ip->i_delayed_blks > 0)) &&
 	    S_ISREG(ip->i_d.di_mode));
 
@@ -632,12 +640,12 @@ xfs_inactive(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((S_ISREG(ip->i_d.di_mode) &&
-                     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
-                       ip->i_delayed_blks > 0)) &&
-		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
-		     (!(ip->i_d.di_flags &
+		    (VFS_I(ip)->i_size > 0 ||
+		     (VN_CACHED(VFS_I(ip)) > 0 || ip->i_delayed_blks > 0)) &&
+		    (ip->i_df.if_flags & XFS_IFEXTENTS) &&
+		    (!(ip->i_d.di_flags &
 				(XFS_DIFLAG_PREALLOC | XFS_DIFLAG_APPEND)) ||
-		      (ip->i_delayed_blks != 0)))) {
+		     ip->i_delayed_blks != 0))) {
 			error = xfs_free_eofblocks(mp, ip, 0);
 			if (error)
 				return VN_INACTIVE_CACHE;
@@ -670,13 +678,18 @@ xfs_inactive(
 		xfs_ilock(ip, XFS_ILOCK_EXCL);
 		xfs_trans_ijoin(tp, ip, 0);
 
-		error = xfs_itruncate_data(&tp, ip, 0);
+		ip->i_d.di_size = 0;
+		xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, 0);
 		if (error) {
 			xfs_trans_cancel(tp,
 				XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 			xfs_iunlock(ip, XFS_IOLOCK_EXCL | XFS_ILOCK_EXCL);
 			return VN_INACTIVE_CACHE;
 		}
+
+		ASSERT(ip->i_d.di_nextents == 0);
 	} else if (S_ISLNK(ip->i_d.di_mode)) {
 
 		/*
@@ -903,14 +916,6 @@ xfs_create(
 
 	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
 	unlock_dp_on_error = B_TRUE;
-
-	/*
-	 * Check for directory link count overflow.
-	 */
-	if (is_dir && dp->i_d.di_nlink >= XFS_MAXLINK) {
-		error = XFS_ERROR(EMLINK);
-		goto out_trans_cancel;
-	}
 
 	xfs_bmap_init(&free_list, &first_block);
 
@@ -1414,14 +1419,6 @@ xfs_link(
 
 	xfs_trans_ijoin(tp, sip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, tdp, XFS_ILOCK_EXCL);
-
-	/*
-	 * If the source has too many links, we can't make any more to it.
-	 */
-	if (sip->i_d.di_nlink >= XFS_MAXLINK) {
-		error = XFS_ERROR(EMLINK);
-		goto error_return;
-	}
 
 	/*
 	 * If we are using project inheritance, we only allow hard link
@@ -1961,11 +1958,11 @@ xfs_zero_remaining_bytes(
 	 * since nothing can read beyond eof.  The space will
 	 * be zeroed when the file is extended anyway.
 	 */
-	if (startoff >= ip->i_size)
+	if (startoff >= XFS_ISIZE(ip))
 		return 0;
 
-	if (endoff > ip->i_size)
-		endoff = ip->i_size;
+	if (endoff > XFS_ISIZE(ip))
+		endoff = XFS_ISIZE(ip);
 
 	bp = xfs_buf_get_uncached(XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp,
@@ -2260,7 +2257,7 @@ xfs_change_file_space(
 		bf->l_start += offset;
 		break;
 	case 2: /*SEEK_END*/
-		bf->l_start += ip->i_size;
+		bf->l_start += XFS_ISIZE(ip);
 		break;
 	default:
 		return XFS_ERROR(EINVAL);
@@ -2277,7 +2274,7 @@ xfs_change_file_space(
 	bf->l_whence = 0;
 
 	startoffset = bf->l_start;
-	fsize = ip->i_size;
+	fsize = XFS_ISIZE(ip);
 
 	/*
 	 * XFS_IOC_RESVSP and XFS_IOC_UNRESVSP will reserve or unreserve

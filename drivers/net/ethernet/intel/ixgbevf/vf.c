@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 82599 Virtual Function driver
-  Copyright(c) 1999 - 2010 Intel Corporation.
+  Copyright(c) 1999 - 2012 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -26,6 +26,7 @@
 *******************************************************************************/
 
 #include "vf.h"
+#include "ixgbevf.h"
 
 /**
  *  ixgbevf_start_hw_vf - Prepare hardware for Tx/Rx
@@ -282,6 +283,17 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 	return ret_val;
 }
 
+static void ixgbevf_write_msg_read_ack(struct ixgbe_hw *hw,
+					u32 *msg, u16 size)
+{
+	struct ixgbe_mbx_info *mbx = &hw->mbx;
+	u32 retmsg[IXGBE_VFMAILBOX_SIZE];
+	s32 retval = mbx->ops.write_posted(hw, msg, size);
+
+	if (!retval)
+		mbx->ops.read_posted(hw, retmsg, size);
+}
+
 /**
  *  ixgbevf_update_mc_addr_list_vf - Update Multicast addresses
  *  @hw: pointer to the HW structure
@@ -293,7 +305,6 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 					  struct net_device *netdev)
 {
 	struct netdev_hw_addr *ha;
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
 	u16 *vector_list = (u16 *)&msgbuf[1];
 	u32 cnt, i;
@@ -320,7 +331,7 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 		vector_list[i++] = ixgbevf_mta_vector(hw, ha->addr);
 	}
 
-	mbx->ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
+	ixgbevf_write_msg_read_ack(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
 
 	return 0;
 }
@@ -335,7 +346,6 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
 static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 			       bool vlan_on)
 {
-	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[2];
 
 	msgbuf[0] = IXGBE_VF_SET_VLAN;
@@ -343,7 +353,9 @@ static s32 ixgbevf_set_vfta_vf(struct ixgbe_hw *hw, u32 vlan, u32 vind,
 	/* Setting the 8 bit field MSG INFO to TRUE indicates "add" */
 	msgbuf[0] |= vlan_on << IXGBE_VT_MSGINFO_SHIFT;
 
-	return mbx->ops.write_posted(hw, msgbuf, 2);
+	ixgbevf_write_msg_read_ack(hw, msgbuf, 2);
+
+	return 0;
 }
 
 /**
@@ -401,7 +413,7 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	return 0;
 }
 
-static struct ixgbe_mac_operations ixgbevf_mac_ops = {
+static const struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.init_hw             = ixgbevf_init_hw_vf,
 	.reset_hw            = ixgbevf_reset_hw_vf,
 	.start_hw            = ixgbevf_start_hw_vf,
@@ -415,12 +427,12 @@ static struct ixgbe_mac_operations ixgbevf_mac_ops = {
 	.set_vfta            = ixgbevf_set_vfta_vf,
 };
 
-struct ixgbevf_info ixgbevf_82599_vf_info = {
+const struct ixgbevf_info ixgbevf_82599_vf_info = {
 	.mac = ixgbe_mac_82599_vf,
 	.mac_ops = &ixgbevf_mac_ops,
 };
 
-struct ixgbevf_info ixgbevf_X540_vf_info = {
+const struct ixgbevf_info ixgbevf_X540_vf_info = {
 	.mac = ixgbe_mac_X540_vf,
 	.mac_ops = &ixgbevf_mac_ops,
 };

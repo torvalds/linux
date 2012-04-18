@@ -33,7 +33,7 @@
 
 /* This files gather functions specifics to: r520,rv530,rv560,rv570,r580 */
 
-static int r520_mc_wait_for_idle(struct radeon_device *rdev)
+int r520_mc_wait_for_idle(struct radeon_device *rdev)
 {
 	unsigned i;
 	uint32_t tmp;
@@ -207,7 +207,7 @@ static int r520_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r100_ib_test(rdev);
+	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
 	if (r) {
 		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
 		rdev->accel_working = false;
@@ -218,6 +218,8 @@ static int r520_startup(struct radeon_device *rdev)
 
 int r520_resume(struct radeon_device *rdev)
 {
+	int r;
+
 	/* Make sur GART are not working */
 	if (rdev->flags & RADEON_IS_PCIE)
 		rv370_pcie_gart_disable(rdev);
@@ -237,7 +239,11 @@ int r520_resume(struct radeon_device *rdev)
 	radeon_surface_init(rdev);
 
 	rdev->accel_working = true;
-	return r520_startup(rdev);
+	r = r520_startup(rdev);
+	if (r) {
+		rdev->accel_working = false;
+	}
+	return r;
 }
 
 int r520_init(struct radeon_device *rdev)

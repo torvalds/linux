@@ -318,6 +318,16 @@ standard.</para><!-- FIXME what if PAL+NTSC and Bi but not SAP? --></entry>
 	<entry>RDS capture is supported. This capability is only valid for
 radio tuners.</entry>
 	  </row>
+	  <row>
+	<entry><constant>V4L2_TUNER_CAP_RDS_BLOCK_IO</constant></entry>
+	<entry>0x0100</entry>
+	<entry>The RDS data is passed as unparsed RDS blocks.</entry>
+	  </row>
+	  <row>
+	<entry><constant>V4L2_TUNER_CAP_RDS_CONTROLS</constant></entry>
+	<entry>0x0200</entry>
+	<entry>The RDS data is parsed by the hardware and set via controls.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>
@@ -525,11 +535,3 @@ out of bounds.</para>
     </variablelist>
   </refsect1>
 </refentry>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
--->

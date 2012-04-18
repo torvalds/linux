@@ -36,7 +36,7 @@ MODULE_LICENSE("GPL");
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
-static int enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE;	/* Enable this card */
+static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE;	/* Enable this card */
 static unsigned long port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static unsigned long mpu_port[SNDRV_CARDS] = SNDRV_DEFAULT_PORT;
 static int irq[SNDRV_CARDS] = SNDRV_DEFAULT_IRQ;

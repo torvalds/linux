@@ -487,7 +487,7 @@ static int soc_camera_set_fmt(struct soc_camera_device *icd,
 		icd->user_width, icd->user_height);
 
 	/* set physical bus parameters */
-	return ici->ops->set_bus_param(icd, pix->pixelformat);
+	return ici->ops->set_bus_param(icd);
 }
 
 static int soc_camera_open(struct file *file)
@@ -526,10 +526,6 @@ static int soc_camera_open(struct file *file)
 			},
 		};
 
-		ret = soc_camera_power_on(icd, icl);
-		if (ret < 0)
-			goto epower;
-
 		/* The camera could have been already on, try to reset */
 		if (icl->reset)
 			icl->reset(icd->pdev);
@@ -539,6 +535,10 @@ static int soc_camera_open(struct file *file)
 			dev_err(icd->pdev, "Couldn't activate the camera: %d\n", ret);
 			goto eiciadd;
 		}
+
+		ret = soc_camera_power_on(icd, icl);
+		if (ret < 0)
+			goto epower;
 
 		pm_runtime_enable(&icd->vdev->dev);
 		ret = pm_runtime_resume(&icd->vdev->dev);
@@ -578,10 +578,10 @@ einitvb:
 esfmt:
 	pm_runtime_disable(&icd->vdev->dev);
 eresume:
-	ici->ops->remove(icd);
-eiciadd:
 	soc_camera_power_off(icd, icl);
 epower:
+	ici->ops->remove(icd);
+eiciadd:
 	icd->use_count--;
 	module_put(ici->ops->owner);
 
@@ -600,9 +600,9 @@ static int soc_camera_close(struct file *file)
 		pm_runtime_suspend(&icd->vdev->dev);
 		pm_runtime_disable(&icd->vdev->dev);
 
-		ici->ops->remove(icd);
 		if (ici->ops->init_videobuf2)
 			vb2_queue_release(&icd->vb2_vidq);
+		ici->ops->remove(icd);
 
 		soc_camera_power_off(icd, icl);
 	}
@@ -1050,6 +1050,14 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	if (ret < 0)
 		goto ereg;
 
+	/* The camera could have been already on, try to reset */
+	if (icl->reset)
+		icl->reset(icd->pdev);
+
+	ret = ici->ops->add(icd);
+	if (ret < 0)
+		goto eadd;
+
 	/*
 	 * This will not yet call v4l2_subdev_core_ops::s_power(1), because the
 	 * subdevice has not been initialised yet. We'll have to call it once
@@ -1059,14 +1067,6 @@ static int soc_camera_probe(struct soc_camera_device *icd)
 	ret = soc_camera_power_on(icd, icl);
 	if (ret < 0)
 		goto epower;
-
-	/* The camera could have been already on, try to reset */
-	if (icl->reset)
-		icl->reset(icd->pdev);
-
-	ret = ici->ops->add(icd);
-	if (ret < 0)
-		goto eadd;
 
 	/* Must have icd->vdev before registering the device */
 	ret = video_dev_create(icd);
@@ -1165,10 +1165,10 @@ eadddev:
 	video_device_release(icd->vdev);
 	icd->vdev = NULL;
 evdc:
-	ici->ops->remove(icd);
-eadd:
 	soc_camera_power_off(icd, icl);
 epower:
+	ici->ops->remove(icd);
+eadd:
 	regulator_bulk_free(icl->num_regulators, icl->regulators);
 ereg:
 	v4l2_ctrl_handler_free(&icd->ctrl_handler);

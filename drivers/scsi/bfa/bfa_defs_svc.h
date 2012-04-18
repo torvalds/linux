@@ -52,7 +52,7 @@ struct bfa_iocfc_fwcfg_s {
 	u16		num_uf_bufs;	/*  unsolicited recv buffers	*/
 	u8		num_cqs;
 	u8		fw_tick_res;	/*  FW clock resolution in ms */
-	u8		rsvd[2];
+	u8		rsvd[6];
 };
 #pragma pack()
 
@@ -673,12 +673,7 @@ struct bfa_itnim_iostats_s {
 	u32	tm_iocdowns;		/*  TM cleaned-up due to IOC down   */
 	u32	tm_cleanups;		/*  TM cleanup requests	*/
 	u32	tm_cleanup_comps;	/*  TM cleanup completions	*/
-	u32	lm_lun_across_sg;	/*  LM lun is across sg data buf */
-	u32	lm_lun_not_sup;		/*  LM lun not supported */
-	u32	lm_rpl_data_changed;	/*  LM report-lun data changed */
-	u32	lm_wire_residue_changed; /* LM report-lun rsp residue changed */
-	u32	lm_small_buf_addresidue; /* LM buf smaller than reported cnt */
-	u32	lm_lun_not_rdy;		/* LM lun not ready */
+	u32	rsvd[6];
 };
 
 /* Modify char* port_stt[] in bfal_port.c if a new state was added */

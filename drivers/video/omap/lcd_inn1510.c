@@ -98,7 +98,7 @@ static int innovator1510_panel_resume(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver innovator1510_panel_driver = {
+static struct platform_driver innovator1510_panel_driver = {
 	.probe		= innovator1510_panel_probe,
 	.remove		= innovator1510_panel_remove,
 	.suspend	= innovator1510_panel_suspend,
@@ -109,16 +109,4 @@ struct platform_driver innovator1510_panel_driver = {
 	},
 };
 
-static int __init innovator1510_panel_drv_init(void)
-{
-	return platform_driver_register(&innovator1510_panel_driver);
-}
-
-static void __exit innovator1510_panel_drv_cleanup(void)
-{
-	platform_driver_unregister(&innovator1510_panel_driver);
-}
-
-module_init(innovator1510_panel_drv_init);
-module_exit(innovator1510_panel_drv_cleanup);
-
+module_platform_driver(innovator1510_panel_driver);

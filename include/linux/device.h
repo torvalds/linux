@@ -238,8 +238,6 @@ struct device_driver {
 extern int __must_check driver_register(struct device_driver *drv);
 extern void driver_unregister(struct device_driver *drv);
 
-extern struct device_driver *get_driver(struct device_driver *drv);
-extern void put_driver(struct device_driver *drv);
 extern struct device_driver *driver_find(const char *name,
 					 struct bus_type *bus);
 extern int driver_probe_done(void);
@@ -264,10 +262,6 @@ extern int __must_check driver_create_file(struct device_driver *driver,
 extern void driver_remove_file(struct device_driver *driver,
 			       const struct driver_attribute *attr);
 
-extern int __must_check driver_add_kobj(struct device_driver *drv,
-					struct kobject *kobj,
-					const char *fmt, ...);
-
 extern int __must_check driver_for_each_device(struct device_driver *drv,
 					       struct device *start,
 					       void *data,
@@ -279,11 +273,11 @@ struct device *driver_find_device(struct device_driver *drv,
 
 /**
  * struct subsys_interface - interfaces to device functions
- * @name        name of the device function
- * @subsystem   subsytem of the devices to attach to
- * @node        the list of functions registered at the subsystem
- * @add         device hookup to device function handler
- * @remove      device hookup to device function handler
+ * @name:       name of the device function
+ * @subsys:     subsytem of the devices to attach to
+ * @node:       the list of functions registered at the subsystem
+ * @add_dev:    device hookup to device function handler
+ * @remove_dev: device hookup to device function handler
  *
  * Simple interfaces attached to a subsystem. Multiple interfaces can
  * attach to a subsystem and its devices. Unlike drivers, they do not
@@ -612,6 +606,7 @@ struct device_dma_parameters {
  * @archdata:	For arch-specific additions.
  * @of_node:	Associated device tree node.
  * @devt:	For creating the sysfs "dev".
+ * @id:		device instance
  * @devres_lock: Spinlock to protect the resource of the device.
  * @devres_head: The resources list of the device.
  * @knode_class: The node used to add the device to the class list.
@@ -945,14 +940,14 @@ int _dev_info(const struct device *dev, const char *fmt, ...)
 
 #define dev_info(dev, fmt, arg...) _dev_info(dev, fmt, ##arg)
 
-#if defined(DEBUG)
-#define dev_dbg(dev, format, arg...)		\
-	dev_printk(KERN_DEBUG, dev, format, ##arg)
-#elif defined(CONFIG_DYNAMIC_DEBUG)
+#if defined(CONFIG_DYNAMIC_DEBUG)
 #define dev_dbg(dev, format, ...)		     \
 do {						     \
 	dynamic_dev_dbg(dev, format, ##__VA_ARGS__); \
 } while (0)
+#elif defined(DEBUG)
+#define dev_dbg(dev, format, arg...)		\
+	dev_printk(KERN_DEBUG, dev, format, ##arg)
 #else
 #define dev_dbg(dev, format, arg...)				\
 ({								\
@@ -1003,18 +998,23 @@ extern long sysfs_deprecated;
  * Each module may only use this macro once, and calling it replaces
  * module_init() and module_exit().
  *
+ * @__driver: driver name
+ * @__register: register function for this driver type
+ * @__unregister: unregister function for this driver type
+ * @...: Additional arguments to be passed to __register and __unregister.
+ *
  * Use this macro to construct bus specific macros for registering
  * drivers, and do not use it on its own.
  */
-#define module_driver(__driver, __register, __unregister) \
+#define module_driver(__driver, __register, __unregister, ...) \
 static int __init __driver##_init(void) \
 { \
-	return __register(&(__driver)); \
+	return __register(&(__driver) , ##__VA_ARGS__); \
 } \
 module_init(__driver##_init); \
 static void __exit __driver##_exit(void) \
 { \
-	__unregister(&(__driver)); \
+	__unregister(&(__driver) , ##__VA_ARGS__); \
 } \
 module_exit(__driver##_exit);
 

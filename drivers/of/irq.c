@@ -341,9 +341,18 @@ int of_irq_to_resource(struct device_node *dev, int index, struct resource *r)
 	/* Only dereference the resource if both the
 	 * resource and the irq are valid. */
 	if (r && irq) {
+		const char *name = NULL;
+
+		/*
+		 * Get optional "interrupts-names" property to add a name
+		 * to the resource.
+		 */
+		of_property_read_string_index(dev, "interrupt-names", index,
+					      &name);
+
 		r->start = r->end = irq;
 		r->flags = IORESOURCE_IRQ;
-		r->name = dev->full_name;
+		r->name = name ? name : dev->full_name;
 	}
 
 	return irq;

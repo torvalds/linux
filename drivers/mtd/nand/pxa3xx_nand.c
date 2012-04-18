@@ -185,7 +185,7 @@ struct pxa3xx_nand_info {
 	uint32_t		ndcb2;
 };
 
-static int use_dma = 1;
+static bool use_dma = 1;
 module_param(use_dma, bool, 0444);
 MODULE_PARM_DESC(use_dma, "enable DMA for data transferring to/from NAND HW");
 
@@ -1002,6 +1002,7 @@ static int pxa3xx_nand_scan(struct mtd_info *mtd)
 KEEP_CONFIG:
 	chip->ecc.mode = NAND_ECC_HW;
 	chip->ecc.size = host->page_size;
+	chip->ecc.strength = 1;
 
 	chip->options = NAND_NO_AUTOINCR;
 	chip->options |= NAND_NO_READRDY;
@@ -1228,8 +1229,9 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 			continue;
 		}
 
-		ret = mtd_device_parse_register(info->host[cs]->mtd, NULL, 0,
-				pdata->parts[cs], pdata->nr_parts[cs]);
+		ret = mtd_device_parse_register(info->host[cs]->mtd, NULL,
+						NULL, pdata->parts[cs],
+						pdata->nr_parts[cs]);
 		if (!ret)
 			probe_success = 1;
 	}

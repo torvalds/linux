@@ -11,11 +11,6 @@
 /* #undef	DEBUG */
 /* #undef	VERBOSE_DEBUG */
 
-#if defined(CONFIG_USB_LANGWELL_OTG)
-#define	OTG_TRANSCEIVER
-#endif
-
-
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -37,7 +32,6 @@
 #include <linux/pm.h>
 #include <linux/io.h>
 #include <linux/irq.h>
-#include <asm/system.h>
 #include <asm/unaligned.h>
 
 #include "langwell_udc.h"
@@ -406,16 +400,7 @@ static void done(struct langwell_ep *ep, struct langwell_request *req,
 		dma_pool_free(dev->dtd_pool, curr_dtd, curr_dtd->dtd_dma);
 	}
 
-	if (req->mapped) {
-		dma_unmap_single(&dev->pdev->dev,
-			req->req.dma, req->req.length,
-			is_in(ep) ? PCI_DMA_TODEVICE : PCI_DMA_FROMDEVICE);
-		req->req.dma = DMA_ADDR_INVALID;
-		req->mapped = 0;
-	} else
-		dma_sync_single_for_cpu(&dev->pdev->dev, req->req.dma,
-				req->req.length,
-				is_in(ep) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+	usb_gadget_unmap_request(&dev->gadget, &req->req, is_in(ep));
 
 	if (status != -ESHUTDOWN)
 		dev_dbg(&dev->pdev->dev,
@@ -492,6 +477,7 @@ static int langwell_ep_disable(struct usb_ep *_ep)
 	nuke(ep, -ESHUTDOWN);
 
 	ep->desc = NULL;
+	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -754,7 +740,8 @@ static int langwell_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	struct langwell_ep	*ep;
 	struct langwell_udc	*dev;
 	unsigned long		flags;
-	int			is_iso = 0, zlflag = 0;
+	int			is_iso = 0;
+	int			ret;
 
 	/* always require a cpu-view buffer */
 	req = container_of(_req, struct langwell_request, req);
@@ -781,33 +768,10 @@ static int langwell_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (unlikely(!dev->driver || dev->gadget.speed == USB_SPEED_UNKNOWN))
 		return -ESHUTDOWN;
 
-	/* set up dma mapping in case the caller didn't */
-	if (_req->dma == DMA_ADDR_INVALID) {
-		/* WORKAROUND: WARN_ON(size == 0) */
-		if (_req->length == 0) {
-			dev_vdbg(&dev->pdev->dev, "req->length: 0->1\n");
-			zlflag = 1;
-			_req->length++;
-		}
-
-		_req->dma = dma_map_single(&dev->pdev->dev,
-				_req->buf, _req->length,
-				is_in(ep) ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		if (zlflag && (_req->length == 1)) {
-			dev_vdbg(&dev->pdev->dev, "req->length: 1->0\n");
-			zlflag = 0;
-			_req->length = 0;
-		}
-
-		req->mapped = 1;
-		dev_vdbg(&dev->pdev->dev, "req->mapped = 1\n");
-	} else {
-		dma_sync_single_for_device(&dev->pdev->dev,
-				_req->dma, _req->length,
-				is_in(ep) ?  DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		req->mapped = 0;
-		dev_vdbg(&dev->pdev->dev, "req->mapped = 0\n");
-	}
+	/* set up dma mapping */
+	ret = usb_gadget_map_request(&dev->gadget, &req->req, is_in(ep));
+	if (ret)
+		return ret;
 
 	dev_dbg(&dev->pdev->dev,
 			"%s queue req %p, len %u, buf %p, dma 0x%08x\n",
@@ -1266,9 +1230,9 @@ static int langwell_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	dev_vdbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
 	if (dev->transceiver) {
-		dev_vdbg(&dev->pdev->dev, "otg_set_power\n");
+		dev_vdbg(&dev->pdev->dev, "usb_phy_set_power\n");
 		dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
-		return otg_set_power(dev->transceiver, mA);
+		return usb_phy_set_power(dev->transceiver, mA);
 	}
 
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
@@ -1522,8 +1486,7 @@ static void langwell_udc_stop(struct langwell_udc *dev)
 
 
 /* stop all USB activities */
-static void stop_activity(struct langwell_udc *dev,
-		struct usb_gadget_driver *driver)
+static void stop_activity(struct langwell_udc *dev)
 {
 	struct langwell_ep	*ep;
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
@@ -1535,9 +1498,9 @@ static void stop_activity(struct langwell_udc *dev,
 	}
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
+	if (dev->driver) {
 		spin_unlock(&dev->lock);
-		driver->disconnect(&dev->gadget);
+		dev->driver->disconnect(&dev->gadget);
 		spin_lock(&dev->lock);
 	}
 
@@ -1912,7 +1875,7 @@ static int langwell_stop(struct usb_gadget *g,
 
 	/* unbind OTG transceiver */
 	if (dev->transceiver)
-		(void)otg_set_peripheral(dev->transceiver, 0);
+		(void)otg_set_peripheral(dev->transceiver->otg, 0);
 
 	/* disable interrupt and set controller to stop state */
 	langwell_udc_stop(dev);
@@ -1925,11 +1888,10 @@ static int langwell_stop(struct usb_gadget *g,
 
 	/* stop all usb activities */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;
-	stop_activity(dev, driver);
-	spin_unlock_irqrestore(&dev->lock, flags);
-
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
+	stop_activity(dev);
+	spin_unlock_irqrestore(&dev->lock, flags);
 
 	device_remove_file(&dev->pdev->dev, &dev_attr_function);
 
@@ -2315,13 +2277,9 @@ static void handle_setup_packet(struct langwell_udc *dev,
 
 			if (!gadget_is_otg(&dev->gadget))
 				break;
-			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE) {
+			else if (setup->bRequest == USB_DEVICE_B_HNP_ENABLE)
 				dev->gadget.b_hnp_enable = 1;
-#ifdef	OTG_TRANSCEIVER
-				if (!dev->lotg->otg.default_a)
-					dev->lotg->hsm.b_hnp_enable = 1;
-#endif
-			} else if (setup->bRequest == USB_DEVICE_A_HNP_SUPPORT)
+			else if (setup->bRequest == USB_DEVICE_A_HNP_SUPPORT)
 				dev->gadget.a_hnp_support = 1;
 			else if (setup->bRequest ==
 					USB_DEVICE_A_ALT_HNP_SUPPORT)
@@ -2733,7 +2691,7 @@ static void handle_usb_reset(struct langwell_udc *dev)
 		dev->bus_reset = 1;
 
 		/* reset all the queues, stop all USB activities */
-		stop_activity(dev, dev->driver);
+		stop_activity(dev);
 		dev->usb_state = USB_STATE_DEFAULT;
 	} else {
 		dev_vdbg(&dev->pdev->dev, "device controller reset\n");
@@ -2741,7 +2699,7 @@ static void handle_usb_reset(struct langwell_udc *dev)
 		langwell_udc_reset(dev);
 
 		/* reset all the queues, stop all USB activities */
-		stop_activity(dev, dev->driver);
+		stop_activity(dev);
 
 		/* reset ep0 dQH and endptctrl */
 		ep0_reset(dev);
@@ -2751,12 +2709,6 @@ static void handle_usb_reset(struct langwell_udc *dev)
 
 		dev->usb_state = USB_STATE_ATTACHED;
 	}
-
-#ifdef	OTG_TRANSCEIVER
-	/* refer to USB OTG 6.6.2.3 b_hnp_en is cleared */
-	if (!dev->lotg->otg.default_a)
-		dev->lotg->hsm.b_hnp_enable = 0;
-#endif
 
 	dev_vdbg(&dev->pdev->dev, "<--- %s()\n", __func__);
 }
@@ -2769,29 +2721,6 @@ static void handle_bus_suspend(struct langwell_udc *dev)
 
 	dev->resume_state = dev->usb_state;
 	dev->usb_state = USB_STATE_SUSPENDED;
-
-#ifdef	OTG_TRANSCEIVER
-	if (dev->lotg->otg.default_a) {
-		if (dev->lotg->hsm.b_bus_suspend_vld == 1) {
-			dev->lotg->hsm.b_bus_suspend = 1;
-			/* notify transceiver the state changes */
-			if (spin_trylock(&dev->lotg->wq_lock)) {
-				langwell_update_transceiver();
-				spin_unlock(&dev->lotg->wq_lock);
-			}
-		}
-		dev->lotg->hsm.b_bus_suspend_vld++;
-	} else {
-		if (!dev->lotg->hsm.a_bus_suspend) {
-			dev->lotg->hsm.a_bus_suspend = 1;
-			/* notify transceiver the state changes */
-			if (spin_trylock(&dev->lotg->wq_lock)) {
-				langwell_update_transceiver();
-				spin_unlock(&dev->lotg->wq_lock);
-			}
-		}
-	}
-#endif
 
 	/* report suspend to the driver */
 	if (dev->driver) {
@@ -2822,11 +2751,6 @@ static void handle_bus_resume(struct langwell_udc *dev)
 	/* exit PHY low power suspend */
 	if (dev->pdev->device != 0x0829)
 		langwell_phy_low_power(dev, 0);
-
-#ifdef	OTG_TRANSCEIVER
-	if (dev->lotg->otg.default_a == 0)
-		dev->lotg->hsm.a_bus_suspend = 0;
-#endif
 
 	/* report resume to the driver */
 	if (dev->driver) {
@@ -3020,7 +2944,6 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	dev->done = &done;
 
-#ifndef	OTG_TRANSCEIVER
 	/* free dTD dma_pool and dQH */
 	if (dev->dtd_pool)
 		dma_pool_destroy(dev->dtd_pool);
@@ -3032,7 +2955,6 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 	/* release SRAM caching */
 	if (dev->has_sram && dev->got_sram)
 		sram_deinit(dev);
-#endif
 
 	if (dev->status_req) {
 		kfree(dev->status_req->req.buf);
@@ -3045,7 +2967,6 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 	if (dev->got_irq)
 		free_irq(pdev->irq, dev);
 
-#ifndef	OTG_TRANSCEIVER
 	if (dev->cap_regs)
 		iounmap(dev->cap_regs);
 
@@ -3055,13 +2976,6 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 
 	if (dev->enabled)
 		pci_disable_device(pdev);
-#else
-	if (dev->transceiver) {
-		otg_put_transceiver(dev->transceiver);
-		dev->transceiver = NULL;
-		dev->lotg = NULL;
-	}
-#endif
 
 	dev->cap_regs = NULL;
 
@@ -3072,9 +2986,7 @@ static void langwell_udc_remove(struct pci_dev *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_langwell_udc);
 	device_remove_file(&pdev->dev, &dev_attr_remote_wakeup);
 
-#ifndef	OTG_TRANSCEIVER
 	pci_set_drvdata(pdev, NULL);
-#endif
 
 	/* free dev, wait for the release() finished */
 	wait_for_completion(&done);
@@ -3089,9 +3001,7 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
 	struct langwell_udc	*dev;
-#ifndef	OTG_TRANSCEIVER
 	unsigned long		resource, len;
-#endif
 	void			__iomem *base = NULL;
 	size_t			size;
 	int			retval;
@@ -3109,16 +3019,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	dev->pdev = pdev;
 	dev_dbg(&dev->pdev->dev, "---> %s()\n", __func__);
 
-#ifdef	OTG_TRANSCEIVER
-	/* PCI device is already enabled by otg_transceiver driver */
-	dev->enabled = 1;
-
-	/* mem region and register base */
-	dev->region = 1;
-	dev->transceiver = otg_get_transceiver();
-	dev->lotg = otg_to_langwell(dev->transceiver);
-	base = dev->lotg->regs;
-#else
 	pci_set_drvdata(pdev, dev);
 
 	/* now all the pci goodies ... */
@@ -3139,7 +3039,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	dev->region = 1;
 
 	base = ioremap_nocache(resource, len);
-#endif
 	if (base == NULL) {
 		dev_err(&dev->pdev->dev, "can't map memory\n");
 		retval = -EFAULT;
@@ -3163,7 +3062,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	dev->got_sram = 0;
 	dev_vdbg(&dev->pdev->dev, "dev->has_sram: %d\n", dev->has_sram);
 
-#ifndef	OTG_TRANSCEIVER
 	/* enable SRAM caching if detected */
 	if (dev->has_sram && !dev->got_sram)
 		sram_init(dev);
@@ -3182,7 +3080,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 		goto error;
 	}
 	dev->got_irq = 1;
-#endif
 
 	/* set stopped bit */
 	dev->stopped = 1;
@@ -3257,10 +3154,8 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	dev->remote_wakeup = 0;
 	dev->dev_status = 1 << USB_DEVICE_SELF_POWERED;
 
-#ifndef	OTG_TRANSCEIVER
 	/* reset device controller */
 	langwell_udc_reset(dev);
-#endif
 
 	/* initialize gadget structure */
 	dev->gadget.ops = &langwell_ops;	/* usb_gadget_ops */
@@ -3268,9 +3163,6 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&dev->gadget.ep_list);	/* ep_list */
 	dev->gadget.speed = USB_SPEED_UNKNOWN;	/* speed */
 	dev->gadget.max_speed = USB_SPEED_HIGH;	/* support dual speed */
-#ifdef	OTG_TRANSCEIVER
-	dev->gadget.is_otg = 1;			/* support otg mode */
-#endif
 
 	/* the "gadget" abstracts/virtualizes the controller */
 	dev_set_name(&dev->gadget.dev, "gadget");
@@ -3282,10 +3174,8 @@ static int langwell_udc_probe(struct pci_dev *pdev,
 	/* controller endpoints reinit */
 	eps_reinit(dev);
 
-#ifndef	OTG_TRANSCEIVER
 	/* reset ep0 dQH and endptctrl */
 	ep0_reset(dev);
-#endif
 
 	/* create dTD dma_pool resource */
 	dev->dtd_pool = dma_pool_create("langwell_dtd",
@@ -3367,7 +3257,7 @@ static int langwell_udc_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	spin_lock_irq(&dev->lock);
 	/* stop all usb activities */
-	stop_activity(dev, dev->driver);
+	stop_activity(dev);
 	spin_unlock_irq(&dev->lock);
 
 	/* free dTD dma_pool and dQH */
@@ -3525,22 +3415,14 @@ static struct pci_driver langwell_pci_driver = {
 
 static int __init init(void)
 {
-#ifdef	OTG_TRANSCEIVER
-	return langwell_register_peripheral(&langwell_pci_driver);
-#else
 	return pci_register_driver(&langwell_pci_driver);
-#endif
 }
 module_init(init);
 
 
 static void __exit cleanup(void)
 {
-#ifdef	OTG_TRANSCEIVER
-	return langwell_unregister_peripheral(&langwell_pci_driver);
-#else
 	pci_unregister_driver(&langwell_pci_driver);
-#endif
 }
 module_exit(cleanup);
 

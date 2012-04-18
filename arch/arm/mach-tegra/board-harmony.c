@@ -90,18 +90,17 @@ static struct wm8903_platform_data harmony_wm8903_pdata = {
 	.micdet_delay = 100,
 	.gpio_base = HARMONY_GPIO_WM8903(0),
 	.gpio_cfg = {
-		WM8903_GPIO_NO_CONFIG,
-		WM8903_GPIO_NO_CONFIG,
 		0,
-		WM8903_GPIO_NO_CONFIG,
-		WM8903_GPIO_NO_CONFIG,
+		0,
+		WM8903_GPIO_CONFIG_ZERO,
+		0,
+		0,
 	},
 };
 
 static struct i2c_board_info __initdata wm8903_board_info = {
 	I2C_BOARD_INFO("wm8903", 0x1a),
 	.platform_data = &harmony_wm8903_pdata,
-	.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_CDC_IRQ),
 };
 
 static void __init harmony_i2c_init(void)
@@ -111,6 +110,7 @@ static void __init harmony_i2c_init(void)
 	platform_device_register(&tegra_i2c_device3);
 	platform_device_register(&tegra_i2c_device4);
 
+	wm8903_board_info.irq = gpio_to_irq(TEGRA_GPIO_CDC_IRQ);
 	i2c_register_board_info(0, &wm8903_board_info, 1);
 }
 

@@ -50,65 +50,15 @@
 #include <linux/fiemap.h>
 #include <linux/slab.h>
 
-/*
- * Bring the timestamps in the XFS inode uptodate.
- *
- * Used before writing the inode to disk.
- */
-void
-xfs_synchronize_times(
-	xfs_inode_t	*ip)
+static int
+xfs_initxattrs(
+	struct inode		*inode,
+	const struct xattr	*xattr_array,
+	void			*fs_info)
 {
-	struct inode	*inode = VFS_I(ip);
-
-	ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
-	ip->i_d.di_atime.t_nsec = (__int32_t)inode->i_atime.tv_nsec;
-	ip->i_d.di_ctime.t_sec = (__int32_t)inode->i_ctime.tv_sec;
-	ip->i_d.di_ctime.t_nsec = (__int32_t)inode->i_ctime.tv_nsec;
-	ip->i_d.di_mtime.t_sec = (__int32_t)inode->i_mtime.tv_sec;
-	ip->i_d.di_mtime.t_nsec = (__int32_t)inode->i_mtime.tv_nsec;
-}
-
-/*
- * If the linux inode is valid, mark it dirty, else mark the dirty state
- * in the XFS inode to make sure we pick it up when reclaiming the inode.
- */
-void
-xfs_mark_inode_dirty_sync(
-	xfs_inode_t	*ip)
-{
-	struct inode	*inode = VFS_I(ip);
-
-	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
-		mark_inode_dirty_sync(inode);
-	else {
-		barrier();
-		ip->i_update_core = 1;
-	}
-}
-
-void
-xfs_mark_inode_dirty(
-	xfs_inode_t	*ip)
-{
-	struct inode	*inode = VFS_I(ip);
-
-	if (!(inode->i_state & (I_WILL_FREE|I_FREEING)))
-		mark_inode_dirty(inode);
-	else {
-		barrier();
-		ip->i_update_core = 1;
-	}
-
-}
-
-
-int xfs_initxattrs(struct inode *inode, const struct xattr *xattr_array,
-		   void *fs_info)
-{
-	const struct xattr *xattr;
-	struct xfs_inode *ip = XFS_I(inode);
-	int error = 0;
+	const struct xattr	*xattr;
+	struct xfs_inode	*ip = XFS_I(inode);
+	int			error = 0;
 
 	for (xattr = xattr_array; xattr->name != NULL; xattr++) {
 		error = xfs_attr_set(ip, xattr->name, xattr->value,
@@ -678,19 +628,16 @@ xfs_setattr_nonsize(
 		inode->i_atime = iattr->ia_atime;
 		ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
 		ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 	if (mask & ATTR_CTIME) {
 		inode->i_ctime = iattr->ia_ctime;
 		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
 		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 	if (mask & ATTR_MTIME) {
 		inode->i_mtime = iattr->ia_mtime;
 		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
 		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
@@ -750,6 +697,7 @@ xfs_setattr_size(
 	struct xfs_mount	*mp = ip->i_mount;
 	struct inode		*inode = VFS_I(ip);
 	int			mask = iattr->ia_valid;
+	xfs_off_t		oldsize, newsize;
 	struct xfs_trans	*tp;
 	int			error;
 	uint			lock_flags;
@@ -777,11 +725,13 @@ xfs_setattr_size(
 		lock_flags |= XFS_IOLOCK_EXCL;
 	xfs_ilock(ip, lock_flags);
 
+	oldsize = inode->i_size;
+	newsize = iattr->ia_size;
+
 	/*
 	 * Short circuit the truncate case for zero length files.
 	 */
-	if (iattr->ia_size == 0 &&
-	    ip->i_size == 0 && ip->i_d.di_nextents == 0) {
+	if (newsize == 0 && oldsize == 0 && ip->i_d.di_nextents == 0) {
 		if (!(mask & (ATTR_CTIME|ATTR_MTIME)))
 			goto out_unlock;
 
@@ -807,14 +757,14 @@ xfs_setattr_size(
 	 * the inode to the transaction, because the inode cannot be unlocked
 	 * once it is a part of the transaction.
 	 */
-	if (iattr->ia_size > ip->i_size) {
+	if (newsize > oldsize) {
 		/*
 		 * Do the first part of growing a file: zero any data in the
 		 * last block that is beyond the old EOF.  We need to do this
 		 * before the inode is joined to the transaction to modify
 		 * i_size.
 		 */
-		error = xfs_zero_eof(ip, iattr->ia_size, ip->i_size);
+		error = xfs_zero_eof(ip, newsize, oldsize);
 		if (error)
 			goto out_unlock;
 	}
@@ -833,8 +783,8 @@ xfs_setattr_size(
 	 * here and prevents waiting for other data not within the range we
 	 * care about here.
 	 */
-	if (ip->i_size != ip->i_d.di_size && iattr->ia_size > ip->i_d.di_size) {
-		error = xfs_flush_pages(ip, ip->i_d.di_size, iattr->ia_size, 0,
+	if (oldsize != ip->i_d.di_size && newsize > ip->i_d.di_size) {
+		error = xfs_flush_pages(ip, ip->i_d.di_size, newsize, 0,
 					FI_NONE);
 		if (error)
 			goto out_unlock;
@@ -845,8 +795,7 @@ xfs_setattr_size(
 	 */
 	inode_dio_wait(inode);
 
-	error = -block_truncate_page(inode->i_mapping, iattr->ia_size,
-				     xfs_get_blocks);
+	error = -block_truncate_page(inode->i_mapping, newsize, xfs_get_blocks);
 	if (error)
 		goto out_unlock;
 
@@ -857,7 +806,7 @@ xfs_setattr_size(
 	if (error)
 		goto out_trans_cancel;
 
-	truncate_setsize(inode, iattr->ia_size);
+	truncate_setsize(inode, newsize);
 
 	commit_flags = XFS_TRANS_RELEASE_LOG_RES;
 	lock_flags |= XFS_ILOCK_EXCL;
@@ -876,19 +825,29 @@ xfs_setattr_size(
 	 * these flags set.  For all other operations the VFS set these flags
 	 * explicitly if it wants a timestamp update.
 	 */
-	if (iattr->ia_size != ip->i_size &&
-	    (!(mask & (ATTR_CTIME | ATTR_MTIME)))) {
+	if (newsize != oldsize && (!(mask & (ATTR_CTIME | ATTR_MTIME)))) {
 		iattr->ia_ctime = iattr->ia_mtime =
 			current_fs_time(inode->i_sb);
 		mask |= ATTR_CTIME | ATTR_MTIME;
 	}
 
-	if (iattr->ia_size > ip->i_size) {
-		ip->i_d.di_size = iattr->ia_size;
-		ip->i_size = iattr->ia_size;
-	} else if (iattr->ia_size <= ip->i_size ||
-		   (iattr->ia_size == 0 && ip->i_d.di_nextents)) {
-		error = xfs_itruncate_data(&tp, ip, iattr->ia_size);
+	/*
+	 * The first thing we do is set the size to new_size permanently on
+	 * disk.  This way we don't have to worry about anyone ever being able
+	 * to look at the data being freed even in the face of a crash.
+	 * What we're getting around here is the case where we free a block, it
+	 * is allocated to another file, it is written to, and then we crash.
+	 * If the new data gets written to the file but the log buffers
+	 * containing the free and reallocation don't, then we'd end up with
+	 * garbage in the blocks being freed.  As long as we make the new size
+	 * permanent before actually freeing any blocks it doesn't matter if
+	 * they get written to.
+	 */
+	ip->i_d.di_size = newsize;
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+
+	if (newsize <= oldsize) {
+		error = xfs_itruncate_extents(&tp, ip, XFS_DATA_FORK, newsize);
 		if (error)
 			goto out_trans_abort;
 
@@ -906,13 +865,11 @@ xfs_setattr_size(
 		inode->i_ctime = iattr->ia_ctime;
 		ip->i_d.di_ctime.t_sec = iattr->ia_ctime.tv_sec;
 		ip->i_d.di_ctime.t_nsec = iattr->ia_ctime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 	if (mask & ATTR_MTIME) {
 		inode->i_mtime = iattr->ia_mtime;
 		ip->i_d.di_mtime.t_sec = iattr->ia_mtime.tv_sec;
 		ip->i_d.di_mtime.t_nsec = iattr->ia_mtime.tv_nsec;
-		ip->i_update_core = 1;
 	}
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);

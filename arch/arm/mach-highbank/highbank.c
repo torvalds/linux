@@ -25,8 +25,9 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <asm/unified.h>
+#include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
+#include <asm/smp_twd.h>
 #include <asm/hardware/arm_timer.h>
 #include <asm/hardware/timer-sp.h>
 #include <asm/hardware/gic.h>
@@ -34,7 +35,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <mach/irqs.h>
 
 #include "core.h"
 #include "sysregs.h"
@@ -73,10 +73,8 @@ static void __init highbank_map_io(void)
 
 void highbank_set_cpu_jump(int cpu, void *jump_addr)
 {
-#ifdef CONFIG_SMP
 	cpu = cpu_logical_map(cpu);
-#endif
-	writel(BSYM(virt_to_phys(jump_addr)), HB_JUMP_TABLE_VIRT(cpu));
+	writel(virt_to_phys(jump_addr), HB_JUMP_TABLE_VIRT(cpu));
 	__cpuc_flush_dcache_area(HB_JUMP_TABLE_VIRT(cpu), 16);
 	outer_clean_range(HB_JUMP_TABLE_PHYS(cpu),
 			  HB_JUMP_TABLE_PHYS(cpu) + 15);
@@ -111,8 +109,10 @@ static void __init highbank_timer_init(void)
 
 	highbank_clocks_init();
 
-	sp804_clocksource_init(timer_base + 0x20, "timer1");
+	sp804_clocksource_and_sched_clock_init(timer_base + 0x20, "timer1");
 	sp804_clockevents_init(timer_base, irq, "timer0");
+
+	twd_local_timer_of_register();
 }
 
 static struct sys_timer highbank_timer = {

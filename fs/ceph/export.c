@@ -56,9 +56,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 		return -EINVAL;
 
 	spin_lock(&dentry->d_lock);
-	parent = dget(dentry->d_parent);
-	spin_unlock(&dentry->d_lock);
-
+	parent = dentry->d_parent;
 	if (*max_len >= connected_handle_length) {
 		dout("encode_fh %p connectable\n", dentry);
 		cfh->ino = ceph_ino(dentry->d_inode);
@@ -81,7 +79,7 @@ static int ceph_encode_fh(struct dentry *dentry, u32 *rawfh, int *max_len,
 		*max_len = handle_length;
 		type = 255;
 	}
-	dput(parent);
+	spin_unlock(&dentry->d_lock);
 	return type;
 }
 

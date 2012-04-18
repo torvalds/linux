@@ -33,7 +33,7 @@ struct i2c_device {
 
 /* lock */
 #define DIB_LOCK struct mutex
-#define DibAcquireLock(lock) do { if (mutex_lock_interruptible(lock) < 0) dprintk("could not get the lock"); } while (0)
+#define DibAcquireLock(lock) mutex_lock_interruptible(lock)
 #define DibReleaseLock(lock) mutex_unlock(lock)
 #define DibInitLock(lock) mutex_init(lock)
 #define DibFreeLock(lock)
@@ -446,7 +446,10 @@ static int dib9000_risc_mem_read(struct dib9000_state *state, u8 cmd, u8 * b, u1
 	if (!state->platform.risc.fw_is_running)
 		return -EIO;
 
-	DibAcquireLock(&state->platform.risc.mem_lock);
+	if (DibAcquireLock(&state->platform.risc.mem_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	dib9000_risc_mem_setup(state, cmd | 0x80);
 	dib9000_risc_mem_read_chunks(state, b, len);
 	DibReleaseLock(&state->platform.risc.mem_lock);
@@ -459,7 +462,10 @@ static int dib9000_risc_mem_write(struct dib9000_state *state, u8 cmd, const u8 
 	if (!state->platform.risc.fw_is_running)
 		return -EIO;
 
-	DibAcquireLock(&state->platform.risc.mem_lock);
+	if (DibAcquireLock(&state->platform.risc.mem_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	dib9000_risc_mem_setup(state, cmd);
 	dib9000_risc_mem_write_chunks(state, b, m->size);
 	DibReleaseLock(&state->platform.risc.mem_lock);
@@ -531,7 +537,10 @@ static int dib9000_mbx_send_attr(struct dib9000_state *state, u8 id, u16 * data,
 	if (!state->platform.risc.fw_is_running)
 		return -EINVAL;
 
-	DibAcquireLock(&state->platform.risc.mbx_if_lock);
+	if (DibAcquireLock(&state->platform.risc.mbx_if_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	tmp = MAX_MAILBOX_TRY;
 	do {
 		size = dib9000_read_word_attr(state, 1043, attr) & 0xff;
@@ -593,7 +602,10 @@ static u8 dib9000_mbx_read(struct dib9000_state *state, u16 * data, u8 risc_id, 
 	if (!state->platform.risc.fw_is_running)
 		return 0;
 
-	DibAcquireLock(&state->platform.risc.mbx_if_lock);
+	if (DibAcquireLock(&state->platform.risc.mbx_if_lock) < 0) {
+		dprintk("could not get the lock");
+		return 0;
+	}
 	if (risc_id == 1)
 		mc_base = 16;
 	else
@@ -701,7 +713,10 @@ static int dib9000_mbx_process(struct dib9000_state *state, u16 attr)
 	if (!state->platform.risc.fw_is_running)
 		return -1;
 
-	DibAcquireLock(&state->platform.risc.mbx_lock);
+	if (DibAcquireLock(&state->platform.risc.mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		return -1;
+	}
 
 	if (dib9000_mbx_count(state, 1, attr))	/* 1=RiscB */
 		ret = dib9000_mbx_fetch_to_cache(state, attr);
@@ -1136,7 +1151,7 @@ static int dib9000_fw_init(struct dib9000_state *state)
 	return 0;
 }
 
-static void dib9000_fw_set_channel_head(struct dib9000_state *state, struct dvb_frontend_parameters *ch)
+static void dib9000_fw_set_channel_head(struct dib9000_state *state)
 {
 	u8 b[9];
 	u32 freq = state->fe[0]->dtv_property_cache.frequency / 1000;
@@ -1157,7 +1172,7 @@ static void dib9000_fw_set_channel_head(struct dib9000_state *state, struct dvb_
 	dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_HEAD, b);
 }
 
-static int dib9000_fw_get_channel(struct dvb_frontend *fe, struct dvb_frontend_parameters *channel)
+static int dib9000_fw_get_channel(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	struct dibDVBTChannel {
@@ -1178,7 +1193,10 @@ static int dib9000_fw_get_channel(struct dvb_frontend *fe, struct dvb_frontend_p
 	struct dibDVBTChannel *ch;
 	int ret = 0;
 
-	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
+	if (DibAcquireLock(&state->platform.risc.mem_mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
 		ret = -EIO;
 		goto error;
@@ -1309,7 +1327,7 @@ error:
 	return ret;
 }
 
-static int dib9000_fw_set_channel_union(struct dvb_frontend *fe, struct dvb_frontend_parameters *channel)
+static int dib9000_fw_set_channel_union(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	struct dibDVBTChannel {
@@ -1454,7 +1472,7 @@ static int dib9000_fw_set_channel_union(struct dvb_frontend *fe, struct dvb_fron
 	return 0;
 }
 
-static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_parameters *ch)
+static int dib9000_fw_tune(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	int ret = 10, search = state->channel_status.status == CHANNEL_STATUS_PARAMETERS_UNKNOWN;
@@ -1462,7 +1480,7 @@ static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_paramete
 
 	switch (state->tune_state) {
 	case CT_DEMOD_START:
-		dib9000_fw_set_channel_head(state, ch);
+		dib9000_fw_set_channel_head(state);
 
 		/* write the channel context - a channel is initialized to 0, so it is OK */
 		dib9000_risc_mem_write(state, FE_MM_W_CHANNEL_CONTEXT, (u8 *) fe_info);
@@ -1471,7 +1489,7 @@ static int dib9000_fw_tune(struct dvb_frontend *fe, struct dvb_frontend_paramete
 		if (search)
 			dib9000_mbx_send(state, OUT_MSG_FE_CHANNEL_SEARCH, NULL, 0);
 		else {
-			dib9000_fw_set_channel_union(fe, ch);
+			dib9000_fw_set_channel_union(fe);
 			dib9000_mbx_send(state, OUT_MSG_FE_CHANNEL_TUNE, NULL, 0);
 		}
 		state->tune_state = CT_DEMOD_STEP_1;
@@ -1660,7 +1678,10 @@ static int dib9000_fw_component_bus_xfer(struct i2c_adapter *i2c_adap, struct i2
 		p[12] = 0;
 	}
 
-	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
+	if (DibAcquireLock(&state->platform.risc.mem_mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		return 0;
+	}
 
 	dib9000_risc_mem_write(state, FE_MM_W_COMPONENT_ACCESS, p);
 
@@ -1768,7 +1789,10 @@ int dib9000_fw_pid_filter_ctrl(struct dvb_frontend *fe, u8 onoff)
 		return 0;
 	}
 
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 
 	val = dib9000_read_word(state, 294 + 1) & 0xffef;
 	val |= (onoff & 0x1) << 4;
@@ -1800,7 +1824,10 @@ int dib9000_fw_pid_filter(struct dvb_frontend *fe, u8 id, u16 pid, u8 onoff)
 		return 0;
 	}
 
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	dprintk("Index %x, PID %d, OnOff %d", id, pid, onoff);
 	ret = dib9000_write_word(state, 300 + 1 + id,
 			onoff ? (1 << 13) | pid : 0);
@@ -1848,7 +1875,10 @@ static int dib9000_sleep(struct dvb_frontend *fe)
 	u8 index_frontend;
 	int ret = 0;
 
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		ret = state->fe[index_frontend]->ops.sleep(state->fe[index_frontend]);
 		if (ret < 0)
@@ -1867,15 +1897,19 @@ static int dib9000_fe_get_tune_settings(struct dvb_frontend *fe, struct dvb_fron
 	return 0;
 }
 
-static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int dib9000_get_frontend(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	u8 index_frontend, sub_index_frontend;
 	fe_status_t stat;
 	int ret = 0;
 
-	if (state->get_frontend_internal == 0)
-		DibAcquireLock(&state->demod_lock);
+	if (state->get_frontend_internal == 0) {
+		if (DibAcquireLock(&state->demod_lock) < 0) {
+			dprintk("could not get the lock");
+			return -EINTR;
+		}
+	}
 
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_status(state->fe[index_frontend], &stat);
@@ -1883,7 +1917,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 			dprintk("TPS lock on the slave%i", index_frontend);
 
 			/* synchronize the cache with the other frontends */
-			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend], fep);
+			state->fe[index_frontend]->ops.get_frontend(state->fe[index_frontend]);
 			for (sub_index_frontend = 0; (sub_index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[sub_index_frontend] != NULL);
 			     sub_index_frontend++) {
 				if (sub_index_frontend != index_frontend) {
@@ -1911,7 +1945,7 @@ static int dib9000_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	/* get the channel from master chip */
-	ret = dib9000_fw_get_channel(fe, fep);
+	ret = dib9000_fw_get_channel(fe);
 	if (ret != 0)
 		goto return_value;
 
@@ -1958,7 +1992,7 @@ static int dib9000_set_channel_status(struct dvb_frontend *fe, struct dvb_fronte
 	return 0;
 }
 
-static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int dib9000_set_frontend(struct dvb_frontend *fe)
 {
 	struct dib9000_state *state = fe->demodulator_priv;
 	int sleep_time, sleep_time_slave;
@@ -1978,13 +2012,18 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	}
 
 	state->pid_ctrl_index = -1; /* postpone the pid filtering cmd */
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return 0;
+	}
 
 	fe->dtv_property_cache.delivery_system = SYS_DVBT;
 
 	/* set the master status */
-	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
-	    fep->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO || fep->u.ofdm.constellation == QAM_AUTO || fep->u.ofdm.code_rate_HP == FEC_AUTO) {
+	if (state->fe[0]->dtv_property_cache.transmission_mode == TRANSMISSION_MODE_AUTO ||
+	    state->fe[0]->dtv_property_cache.guard_interval == GUARD_INTERVAL_AUTO ||
+	    state->fe[0]->dtv_property_cache.modulation == QAM_AUTO ||
+	    state->fe[0]->dtv_property_cache.code_rate_HP == FEC_AUTO) {
 		/* no channel specified, autosearch the channel */
 		state->channel_status.status = CHANNEL_STATUS_PARAMETERS_UNKNOWN;
 	} else
@@ -2008,9 +2047,9 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 	exit_condition = 0;	/* 0: tune pending; 1: tune failed; 2:tune success */
 	index_frontend_success = 0;
 	do {
-		sleep_time = dib9000_fw_tune(state->fe[0], NULL);
+		sleep_time = dib9000_fw_tune(state->fe[0]);
 		for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
-			sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend], NULL);
+			sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend]);
 			if (sleep_time == FE_CALLBACK_TIME_NEVER)
 				sleep_time = sleep_time_slave;
 			else if ((sleep_time_slave != FE_CALLBACK_TIME_NEVER) && (sleep_time_slave > sleep_time))
@@ -2052,7 +2091,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 
 	/* synchronize all the channel cache */
 	state->get_frontend_internal = 1;
-	dib9000_get_frontend(state->fe[0], fep);
+	dib9000_get_frontend(state->fe[0]);
 	state->get_frontend_internal = 0;
 
 	/* retune the other frontends with the found channel */
@@ -2068,7 +2107,7 @@ static int dib9000_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_par
 		sleep_time = FE_CALLBACK_TIME_NEVER;
 		for (index_frontend = 0; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 			if (index_frontend != index_frontend_success) {
-				sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend], NULL);
+				sleep_time_slave = dib9000_fw_tune(state->fe[index_frontend]);
 				if (sleep_time == FE_CALLBACK_TIME_NEVER)
 					sleep_time = sleep_time_slave;
 				else if ((sleep_time_slave != FE_CALLBACK_TIME_NEVER) && (sleep_time_slave > sleep_time))
@@ -2136,7 +2175,10 @@ static int dib9000_read_status(struct dvb_frontend *fe, fe_status_t * stat)
 	u8 index_frontend;
 	u16 lock = 0, lock_slave = 0;
 
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		lock_slave |= dib9000_read_lock(state->fe[index_frontend]);
 
@@ -2166,8 +2208,15 @@ static int dib9000_read_ber(struct dvb_frontend *fe, u32 * ber)
 	u16 *c;
 	int ret = 0;
 
-	DibAcquireLock(&state->demod_lock);
-	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
+	if (DibAcquireLock(&state->platform.risc.mem_mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		ret = -EINTR;
+		goto error;
+	}
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
 		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 		ret = -EIO;
@@ -2194,7 +2243,10 @@ static int dib9000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 	u16 val;
 	int ret = 0;
 
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	*strength = 0;
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++) {
 		state->fe[index_frontend]->ops.read_signal_strength(state->fe[index_frontend], &val);
@@ -2204,8 +2256,13 @@ static int dib9000_read_signal_strength(struct dvb_frontend *fe, u16 * strength)
 			*strength += val;
 	}
 
-	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
+	if (DibAcquireLock(&state->platform.risc.mem_mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		ret = -EINTR;
+		goto error;
+	}
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
+		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 		ret = -EIO;
 		goto error;
 	}
@@ -2230,9 +2287,14 @@ static u32 dib9000_get_snr(struct dvb_frontend *fe)
 	u32 n, s, exp;
 	u16 val;
 
-	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
-	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0)
-		return -EIO;
+	if (DibAcquireLock(&state->platform.risc.mem_mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		return 0;
+	}
+	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
+		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
+		return 0;
+	}
 	dib9000_risc_mem_read(state, FE_MM_R_FE_MONITOR, (u8 *) c, 16 * 2);
 	DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 
@@ -2264,7 +2326,10 @@ static int dib9000_read_snr(struct dvb_frontend *fe, u16 * snr)
 	u8 index_frontend;
 	u32 snr_master;
 
-	DibAcquireLock(&state->demod_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
 	snr_master = dib9000_get_snr(fe);
 	for (index_frontend = 1; (index_frontend < MAX_NUMBER_OF_FRONTENDS) && (state->fe[index_frontend] != NULL); index_frontend++)
 		snr_master += dib9000_get_snr(state->fe[index_frontend]);
@@ -2286,9 +2351,17 @@ static int dib9000_read_unc_blocks(struct dvb_frontend *fe, u32 * unc)
 	u16 *c = (u16 *)state->i2c_read_buffer;
 	int ret = 0;
 
-	DibAcquireLock(&state->demod_lock);
-	DibAcquireLock(&state->platform.risc.mem_mbx_lock);
+	if (DibAcquireLock(&state->demod_lock) < 0) {
+		dprintk("could not get the lock");
+		return -EINTR;
+	}
+	if (DibAcquireLock(&state->platform.risc.mem_mbx_lock) < 0) {
+		dprintk("could not get the lock");
+		ret = -EINTR;
+		goto error;
+	}
 	if (dib9000_fw_memmbx_sync(state, FE_SYNC_CHANNEL) < 0) {
+		DibReleaseLock(&state->platform.risc.mem_mbx_lock);
 		ret = -EIO;
 		goto error;
 	}
@@ -2495,9 +2568,9 @@ error:
 EXPORT_SYMBOL(dib9000_attach);
 
 static struct dvb_frontend_ops dib9000_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",
-		 .type = FE_OFDM,
 		 .frequency_min = 44250000,
 		 .frequency_max = 867250000,
 		 .frequency_stepsize = 62500,

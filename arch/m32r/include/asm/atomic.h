@@ -11,7 +11,8 @@
 
 #include <linux/types.h>
 #include <asm/assembler.h>
-#include <asm/system.h>
+#include <asm/cmpxchg.h>
+#include <asm/dcache_clear.h>
 
 /*
  * Atomic operations that C can't guarantee us.  Useful for

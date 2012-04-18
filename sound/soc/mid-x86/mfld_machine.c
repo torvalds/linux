@@ -235,7 +235,7 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	snd_soc_dapm_enable_pin(dapm, "Headphones");
 	snd_soc_dapm_enable_pin(dapm, "Mic");
 
-	ret_val = snd_soc_add_controls(codec, mfld_snd_controls,
+	ret_val = snd_soc_add_codec_controls(codec, mfld_snd_controls,
 				ARRAY_SIZE(mfld_snd_controls));
 	if (ret_val) {
 		pr_err("soc_add_controls failed %d", ret_val);
@@ -281,7 +281,7 @@ static int mfld_init(struct snd_soc_pcm_runtime *runtime)
 	return ret_val;
 }
 
-struct snd_soc_dai_link mfld_msic_dailink[] = {
+static struct snd_soc_dai_link mfld_msic_dailink[] = {
 	{
 		.name = "Medfield Headset",
 		.stream_name = "Headset",
@@ -323,6 +323,7 @@ struct snd_soc_dai_link mfld_msic_dailink[] = {
 /* SoC card */
 static struct snd_soc_card snd_soc_card_mfld = {
 	.name = "medfield_audio",
+	.owner = THIS_MODULE,
 	.dai_link = mfld_msic_dailink,
 	.num_links = ARRAY_SIZE(mfld_msic_dailink),
 };
@@ -428,19 +429,7 @@ static struct platform_driver snd_mfld_mc_driver = {
 	.remove = __devexit_p(snd_mfld_mc_remove),
 };
 
-static int __init snd_mfld_driver_init(void)
-{
-	pr_debug("snd_mfld_driver_init called\n");
-	return platform_driver_register(&snd_mfld_mc_driver);
-}
-module_init(snd_mfld_driver_init);
-
-static void __exit snd_mfld_driver_exit(void)
-{
-	pr_debug("snd_mfld_driver_exit called\n");
-	platform_driver_unregister(&snd_mfld_mc_driver);
-}
-module_exit(snd_mfld_driver_exit);
+module_platform_driver(snd_mfld_mc_driver);
 
 MODULE_DESCRIPTION("ASoC Intel(R) MID Machine driver");
 MODULE_AUTHOR("Vinod Koul <vinod.koul@intel.com>");

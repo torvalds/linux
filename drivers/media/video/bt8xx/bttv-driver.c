@@ -2035,11 +2035,7 @@ static int bttv_log_status(struct file *file, void *f)
 	struct bttv_fh *fh  = f;
 	struct bttv *btv = fh->btv;
 
-	pr_info("%d: ========  START STATUS CARD #%d  ========\n",
-		btv->c.nr, btv->c.nr);
 	bttv_call_all(btv, core, log_status);
-	pr_info("%d: ========  END STATUS CARD   #%d  ========\n",
-		btv->c.nr, btv->c.nr);
 	return 0;
 }
 
@@ -4572,6 +4568,7 @@ static struct pci_device_id bttv_pci_tbl[] = {
 	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT849), 0},
 	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT878), 0},
 	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_BT879), 0},
+	{PCI_VDEVICE(BROOKTREE, PCI_DEVICE_ID_FUSION879), 0},
 	{0,}
 };
 

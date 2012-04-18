@@ -71,9 +71,7 @@ void cpu_idle(void)
 	while (1) {
 		while (!need_resched())
 			barrier();
-		preempt_enable_no_resched();
-		schedule();
-		preempt_disable();
+		schedule_preempt_disabled();
 		check_pgt_cache();
 	}
 }
@@ -192,7 +190,6 @@ void flush_thread(void)
 	/* Only needs to handle fpu stuff or perf monitors.
 	** REVISIT: several arches implement a "lazy fpu state".
 	*/
-	set_fs(USER_DS);
 }
 
 void release_thread(struct task_struct *dead_task)

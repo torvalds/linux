@@ -2,6 +2,8 @@
 	- this file (nfs-related documentation).
 Exporting
 	- explanation of how to make filesystems exportable.
+fault_injection.txt
+	- information for using fault injection on the server
 knfsd-stats.txt
 	- statistics which the NFS server makes available to user space.
 nfs.txt

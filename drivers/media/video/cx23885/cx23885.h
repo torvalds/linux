@@ -87,6 +87,8 @@
 #define CX23885_BOARD_NETUP_DUAL_DVB_T_C_CI_RF 30
 #define CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H_XC4000 31
 #define CX23885_BOARD_MPX885                   32
+#define CX23885_BOARD_MYGICA_X8507             33
+#define CX23885_BOARD_TERRATEC_CINERGY_T_PCIE_DUAL 34
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002
@@ -226,6 +228,8 @@ struct cx23885_board {
 	u32			clk_freq;
 	struct cx23885_input    input[MAX_CX23885_INPUT];
 	int			ci_type; /* for NetUP */
+	/* Force bottom field first during DMA (888 workaround) */
+	u32                     force_bff;
 };
 
 struct cx23885_subid {
@@ -310,6 +314,9 @@ struct cx23885_tsport {
 	u32                        num_frontends;
 	void                (*gate_ctrl)(struct cx23885_tsport *port, int open);
 	void                       *port_priv;
+
+	/* Workaround for a temp dvb_frontend that the tuner can attached to */
+	struct dvb_frontend analog_fe;
 };
 
 struct cx23885_kernel_ir {
@@ -574,6 +581,13 @@ extern void cx23885_video_unregister(struct cx23885_dev *dev);
 extern int cx23885_video_irq(struct cx23885_dev *dev, u32 status);
 extern void cx23885_video_wakeup(struct cx23885_dev *dev,
 	struct cx23885_dmaqueue *q, u32 count);
+int cx23885_enum_input(struct cx23885_dev *dev, struct v4l2_input *i);
+int cx23885_set_input(struct file *file, void *priv, unsigned int i);
+int cx23885_get_input(struct file *file, void *priv, unsigned int *i);
+int cx23885_set_frequency(struct file *file, void *priv, struct v4l2_frequency *f);
+int cx23885_set_control(struct cx23885_dev *dev, struct v4l2_control *ctl);
+int cx23885_get_control(struct cx23885_dev *dev, struct v4l2_control *ctl);
+int cx23885_set_tvnorm(struct cx23885_dev *dev, v4l2_std_id norm);
 
 /* ----------------------------------------------------------- */
 /* cx23885-vbi.c                                               */

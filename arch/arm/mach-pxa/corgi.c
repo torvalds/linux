@@ -40,7 +40,6 @@
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/system.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -436,6 +435,14 @@ static struct platform_device corgiled_device = {
 };
 
 /*
+ * Corgi Audio
+ */
+static struct platform_device corgi_audio_device = {
+	.name	= "corgi-audio",
+	.id	= -1,
+};
+
+/*
  * MMC/SD Device
  *
  * The card detect interrupt isn't debounced so we delay it by 250ms
@@ -641,6 +648,7 @@ static struct platform_device *devices[] __initdata = {
 	&corgifb_device,
 	&corgikbd_device,
 	&corgiled_device,
+	&corgi_audio_device,
 	&sharpsl_nand_device,
 	&sharpsl_rom_device,
 };
@@ -721,6 +729,7 @@ static void __init fixup_corgi(struct tag *tags, char **cmdline,
 MACHINE_START(CORGI, "SHARP Corgi")
 	.fixup		= fixup_corgi,
 	.map_io		= pxa25x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= corgi_init,
@@ -733,6 +742,7 @@ MACHINE_END
 MACHINE_START(SHEPHERD, "SHARP Shepherd")
 	.fixup		= fixup_corgi,
 	.map_io		= pxa25x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= corgi_init,
@@ -745,6 +755,7 @@ MACHINE_END
 MACHINE_START(HUSKY, "SHARP Husky")
 	.fixup		= fixup_corgi,
 	.map_io		= pxa25x_map_io,
+	.nr_irqs	= PXA_NR_IRQS,
 	.init_irq	= pxa25x_init_irq,
 	.handle_irq	= pxa25x_handle_irq,
 	.init_machine	= corgi_init,

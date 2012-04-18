@@ -38,7 +38,6 @@
 #include <asm/tsc.h>
 #include <asm/processor.h>
 #include <asm/percpu.h>
-#include <asm/system.h>
 #include <asm/desc.h>
 #include <linux/random.h>
 

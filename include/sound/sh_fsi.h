@@ -72,10 +72,28 @@
 #define SH_FSI_BPFMD_32		(5 << 4)
 #define SH_FSI_BPFMD_16		(6 << 4)
 
+struct sh_fsi_port_info {
+	unsigned long flags;
+	int tx_id;
+	int rx_id;
+	int (*set_rate)(struct device *dev, int rate, int enable);
+};
+
 struct sh_fsi_platform_info {
-	unsigned long porta_flags;
-	unsigned long portb_flags;
-	int (*set_rate)(struct device *dev, int is_porta, int rate, int enable);
+	struct sh_fsi_port_info port_a;
+	struct sh_fsi_port_info port_b;
+};
+
+/*
+ * for fsi-ak4642
+ */
+struct fsi_ak4642_info {
+	const char *name;
+	const char *card;
+	const char *cpu_dai;
+	const char *codec;
+	const char *platform;
+	int id;
 };
 
 #endif /* __SOUND_FSI_H */

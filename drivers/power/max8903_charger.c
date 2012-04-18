@@ -374,19 +374,9 @@ static struct platform_driver max8903_driver = {
 	},
 };
 
-static int __init max8903_init(void)
-{
-	return platform_driver_register(&max8903_driver);
-}
-module_init(max8903_init);
-
-static void __exit max8903_exit(void)
-{
-	platform_driver_unregister(&max8903_driver);
-}
-module_exit(max8903_exit);
+module_platform_driver(max8903_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("MAX8903 Charger Driver");
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
-MODULE_ALIAS("max8903-charger");
+MODULE_ALIAS("platform:max8903-charger");

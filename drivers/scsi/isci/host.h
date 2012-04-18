@@ -187,6 +187,7 @@ struct isci_host {
 	int id; /* unique within a given pci device */
 	struct isci_phy phys[SCI_MAX_PHYS];
 	struct isci_port ports[SCI_MAX_PORTS + 1]; /* includes dummy port */
+	struct asd_sas_port sas_ports[SCI_MAX_PORTS];
 	struct sas_ha_struct sas_ha;
 
 	spinlock_t state_lock;
@@ -393,24 +394,6 @@ static inline int sci_remote_device_node_count(struct isci_remote_device *idev)
 #define sci_controller_clear_invalid_phy(controller, phy) \
 	((controller)->invalid_phy_mask &= ~(1 << (phy)->phy_index))
 
-static inline struct device *sciphy_to_dev(struct isci_phy *iphy)
-{
-
-	if (!iphy || !iphy->isci_port || !iphy->isci_port->isci_host)
-		return NULL;
-
-	return &iphy->isci_port->isci_host->pdev->dev;
-}
-
-static inline struct device *sciport_to_dev(struct isci_port *iport)
-{
-
-	if (!iport || !iport->isci_host)
-		return NULL;
-
-	return &iport->isci_host->pdev->dev;
-}
-
 static inline struct device *scirdev_to_dev(struct isci_remote_device *idev)
 {
 	if (!idev || !idev->isci_port || !idev->isci_port->isci_host)
@@ -435,10 +418,35 @@ static inline bool is_b0(struct pci_dev *pdev)
 
 static inline bool is_c0(struct pci_dev *pdev)
 {
-	if (pdev->revision >= 5)
+	if (pdev->revision == 5)
 		return true;
 	return false;
 }
+
+static inline bool is_c1(struct pci_dev *pdev)
+{
+	if (pdev->revision >= 6)
+		return true;
+	return false;
+}
+
+enum cable_selections {
+	short_cable     = 0,
+	long_cable      = 1,
+	medium_cable    = 2,
+	undefined_cable = 3
+};
+
+#define CABLE_OVERRIDE_DISABLED (0x10000)
+
+static inline int is_cable_select_overridden(void)
+{
+	return cable_selection_override < CABLE_OVERRIDE_DISABLED;
+}
+
+enum cable_selections decode_cable_selection(struct isci_host *ihost, int phy);
+void validate_cable_selections(struct isci_host *ihost);
+char *lookup_cable_names(enum cable_selections);
 
 /* set hw control for 'activity', even though active enclosures seem to drive
  * the activity led on their own.  Skip setting FSENG control on 'status' due

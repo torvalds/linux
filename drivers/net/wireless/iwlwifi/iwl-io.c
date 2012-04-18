@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2011 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
  *
  * Portions of this file are derived from the ipw3945 project.
  *
@@ -34,41 +34,41 @@
 
 #define IWL_POLL_INTERVAL 10	/* microseconds */
 
-static inline void __iwl_set_bit(struct iwl_bus *bus, u32 reg, u32 mask)
+static inline void __iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
 {
-	iwl_write32(bus, reg, iwl_read32(bus, reg) | mask);
+	iwl_write32(trans, reg, iwl_read32(trans, reg) | mask);
 }
 
-static inline void __iwl_clear_bit(struct iwl_bus *bus, u32 reg, u32 mask)
+static inline void __iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
 {
-	iwl_write32(bus, reg, iwl_read32(bus, reg) & ~mask);
+	iwl_write32(trans, reg, iwl_read32(trans, reg) & ~mask);
 }
 
-void iwl_set_bit(struct iwl_bus *bus, u32 reg, u32 mask)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	__iwl_set_bit(bus, reg, mask);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
-}
-
-void iwl_clear_bit(struct iwl_bus *bus, u32 reg, u32 mask)
+void iwl_set_bit(struct iwl_trans *trans, u32 reg, u32 mask)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	__iwl_clear_bit(bus, reg, mask);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	__iwl_set_bit(trans, reg, mask);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-int iwl_poll_bit(struct iwl_bus *bus, u32 addr,
+void iwl_clear_bit(struct iwl_trans *trans, u32 reg, u32 mask)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	__iwl_clear_bit(trans, reg, mask);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
+}
+
+int iwl_poll_bit(struct iwl_trans *trans, u32 addr,
 		 u32 bits, u32 mask, int timeout)
 {
 	int t = 0;
 
 	do {
-		if ((iwl_read32(bus, addr) & mask) == (bits & mask))
+		if ((iwl_read32(trans, addr) & mask) == (bits & mask))
 			return t;
 		udelay(IWL_POLL_INTERVAL);
 		t += IWL_POLL_INTERVAL;
@@ -77,14 +77,15 @@ int iwl_poll_bit(struct iwl_bus *bus, u32 addr,
 	return -ETIMEDOUT;
 }
 
-int iwl_grab_nic_access_silent(struct iwl_bus *bus)
+int iwl_grab_nic_access_silent(struct iwl_trans *trans)
 {
 	int ret;
 
-	lockdep_assert_held(&bus->reg_lock);
+	lockdep_assert_held(&trans->reg_lock);
 
 	/* this bit wakes up the NIC */
-	__iwl_set_bit(bus, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	__iwl_set_bit(trans, CSR_GP_CNTRL,
+		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/*
 	 * These bits say the device is running, and should keep running for
@@ -105,70 +106,78 @@ int iwl_grab_nic_access_silent(struct iwl_bus *bus)
 	 * 5000 series and later (including 1000 series) have non-volatile SRAM,
 	 * and do not save/restore SRAM when power cycling.
 	 */
-	ret = iwl_poll_bit(bus, CSR_GP_CNTRL,
+	ret = iwl_poll_bit(trans, CSR_GP_CNTRL,
 			   CSR_GP_CNTRL_REG_VAL_MAC_ACCESS_EN,
 			   (CSR_GP_CNTRL_REG_FLAG_MAC_CLOCK_READY |
 			    CSR_GP_CNTRL_REG_FLAG_GOING_TO_SLEEP), 15000);
 	if (ret < 0) {
-		iwl_write32(bus, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
+		iwl_write32(trans, CSR_RESET, CSR_RESET_REG_FLAG_FORCE_NMI);
 		return -EIO;
 	}
 
 	return 0;
 }
 
-int iwl_grab_nic_access(struct iwl_bus *bus)
+bool iwl_grab_nic_access(struct iwl_trans *trans)
 {
-	int ret = iwl_grab_nic_access_silent(bus);
-	if (ret) {
-		u32 val = iwl_read32(bus, CSR_GP_CNTRL);
-		IWL_ERR(bus,
-			"MAC is in deep sleep!. CSR_GP_CNTRL = 0x%08X\n", val);
+	int ret = iwl_grab_nic_access_silent(trans);
+	if (unlikely(ret)) {
+		u32 val = iwl_read32(trans, CSR_GP_CNTRL);
+		WARN_ONCE(1, "Timeout waiting for hardware access "
+			     "(CSR_GP_CNTRL 0x%08x)\n", val);
+		return false;
 	}
 
-	return ret;
+	return true;
 }
 
-void iwl_release_nic_access(struct iwl_bus *bus)
+void iwl_release_nic_access(struct iwl_trans *trans)
 {
-	lockdep_assert_held(&bus->reg_lock);
-	__iwl_clear_bit(bus, CSR_GP_CNTRL,
+	lockdep_assert_held(&trans->reg_lock);
+	__iwl_clear_bit(trans, CSR_GP_CNTRL,
 			CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	/*
+	 * Above we read the CSR_GP_CNTRL register, which will flush
+	 * any previous writes, but we need the write that clears the
+	 * MAC_ACCESS_REQ bit to be performed before any other writes
+	 * scheduled on different CPUs (after we drop reg_lock).
+	 */
+	mmiowb();
 }
 
-u32 iwl_read_direct32(struct iwl_bus *bus, u32 reg)
+u32 iwl_read_direct32(struct iwl_trans *trans, u32 reg)
 {
 	u32 value;
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	iwl_grab_nic_access(bus);
-	value = iwl_read32(bus, reg);
-	iwl_release_nic_access(bus);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	iwl_grab_nic_access(trans);
+	value = iwl_read32(trans, reg);
+	iwl_release_nic_access(trans);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 
 	return value;
 }
 
-void iwl_write_direct32(struct iwl_bus *bus, u32 reg, u32 value)
+void iwl_write_direct32(struct iwl_trans *trans, u32 reg, u32 value)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	if (!iwl_grab_nic_access(bus)) {
-		iwl_write32(bus, reg, value);
-		iwl_release_nic_access(bus);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		iwl_write32(trans, reg, value);
+		iwl_release_nic_access(trans);
 	}
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-int iwl_poll_direct_bit(struct iwl_bus *bus, u32 addr, u32 mask,
+int iwl_poll_direct_bit(struct iwl_trans *trans, u32 addr, u32 mask,
 			int timeout)
 {
 	int t = 0;
 
 	do {
-		if ((iwl_read_direct32(bus, addr) & mask) == mask)
+		if ((iwl_read_direct32(trans, addr) & mask) == mask)
 			return t;
 		udelay(IWL_POLL_INTERVAL);
 		t += IWL_POLL_INTERVAL;
@@ -177,135 +186,132 @@ int iwl_poll_direct_bit(struct iwl_bus *bus, u32 addr, u32 mask,
 	return -ETIMEDOUT;
 }
 
-static inline u32 __iwl_read_prph(struct iwl_bus *bus, u32 reg)
+static inline u32 __iwl_read_prph(struct iwl_trans *trans, u32 reg)
 {
-	iwl_write32(bus, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
-	rmb();
-	return iwl_read32(bus, HBUS_TARG_PRPH_RDAT);
+	iwl_write32(trans, HBUS_TARG_PRPH_RADDR, reg | (3 << 24));
+	return iwl_read32(trans, HBUS_TARG_PRPH_RDAT);
 }
 
-static inline void __iwl_write_prph(struct iwl_bus *bus, u32 addr, u32 val)
+static inline void __iwl_write_prph(struct iwl_trans *trans, u32 addr, u32 val)
 {
-	iwl_write32(bus, HBUS_TARG_PRPH_WADDR,
+	iwl_write32(trans, HBUS_TARG_PRPH_WADDR,
 		    ((addr & 0x0000FFFF) | (3 << 24)));
-	wmb();
-	iwl_write32(bus, HBUS_TARG_PRPH_WDAT, val);
+	iwl_write32(trans, HBUS_TARG_PRPH_WDAT, val);
 }
 
-u32 iwl_read_prph(struct iwl_bus *bus, u32 reg)
+u32 iwl_read_prph(struct iwl_trans *trans, u32 reg)
 {
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	iwl_grab_nic_access(bus);
-	val = __iwl_read_prph(bus, reg);
-	iwl_release_nic_access(bus);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	iwl_grab_nic_access(trans);
+	val = __iwl_read_prph(trans, reg);
+	iwl_release_nic_access(trans);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 	return val;
 }
 
-void iwl_write_prph(struct iwl_bus *bus, u32 addr, u32 val)
+void iwl_write_prph(struct iwl_trans *trans, u32 addr, u32 val)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	if (!iwl_grab_nic_access(bus)) {
-		__iwl_write_prph(bus, addr, val);
-		iwl_release_nic_access(bus);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		__iwl_write_prph(trans, addr, val);
+		iwl_release_nic_access(trans);
 	}
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-void iwl_set_bits_prph(struct iwl_bus *bus, u32 reg, u32 mask)
+void iwl_set_bits_prph(struct iwl_trans *trans, u32 reg, u32 mask)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	iwl_grab_nic_access(bus);
-	__iwl_write_prph(bus, reg, __iwl_read_prph(bus, reg) | mask);
-	iwl_release_nic_access(bus);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		__iwl_write_prph(trans, reg,
+				 __iwl_read_prph(trans, reg) | mask);
+		iwl_release_nic_access(trans);
+	}
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-void iwl_set_bits_mask_prph(struct iwl_bus *bus, u32 reg,
+void iwl_set_bits_mask_prph(struct iwl_trans *trans, u32 reg,
 			    u32 bits, u32 mask)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	iwl_grab_nic_access(bus);
-	__iwl_write_prph(bus, reg,
-			 (__iwl_read_prph(bus, reg) & mask) | bits);
-	iwl_release_nic_access(bus);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		__iwl_write_prph(trans, reg,
+				 (__iwl_read_prph(trans, reg) & mask) | bits);
+		iwl_release_nic_access(trans);
+	}
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-void iwl_clear_bits_prph(struct iwl_bus *bus, u32 reg, u32 mask)
+void iwl_clear_bits_prph(struct iwl_trans *trans, u32 reg, u32 mask)
 {
 	unsigned long flags;
 	u32 val;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	iwl_grab_nic_access(bus);
-	val = __iwl_read_prph(bus, reg);
-	__iwl_write_prph(bus, reg, (val & ~mask));
-	iwl_release_nic_access(bus);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		val = __iwl_read_prph(trans, reg);
+		__iwl_write_prph(trans, reg, (val & ~mask));
+		iwl_release_nic_access(trans);
+	}
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-void _iwl_read_targ_mem_words(struct iwl_bus *bus, u32 addr,
+void _iwl_read_targ_mem_words(struct iwl_trans *trans, u32 addr,
 			      void *buf, int words)
 {
 	unsigned long flags;
 	int offs;
 	u32 *vals = buf;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	iwl_grab_nic_access(bus);
-
-	iwl_write32(bus, HBUS_TARG_MEM_RADDR, addr);
-	rmb();
-
-	for (offs = 0; offs < words; offs++)
-		vals[offs] = iwl_read32(bus, HBUS_TARG_MEM_RDAT);
-
-	iwl_release_nic_access(bus);
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		iwl_write32(trans, HBUS_TARG_MEM_RADDR, addr);
+		for (offs = 0; offs < words; offs++)
+			vals[offs] = iwl_read32(trans, HBUS_TARG_MEM_RDAT);
+		iwl_release_nic_access(trans);
+	}
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 }
 
-u32 iwl_read_targ_mem(struct iwl_bus *bus, u32 addr)
+u32 iwl_read_targ_mem(struct iwl_trans *trans, u32 addr)
 {
 	u32 value;
 
-	_iwl_read_targ_mem_words(bus, addr, &value, 1);
+	_iwl_read_targ_mem_words(trans, addr, &value, 1);
 
 	return value;
 }
 
-int _iwl_write_targ_mem_words(struct iwl_bus *bus, u32 addr,
+int _iwl_write_targ_mem_words(struct iwl_trans *trans, u32 addr,
 				void *buf, int words)
 {
 	unsigned long flags;
 	int offs, result = 0;
 	u32 *vals = buf;
 
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	if (!iwl_grab_nic_access(bus)) {
-		iwl_write32(bus, HBUS_TARG_MEM_WADDR, addr);
-		wmb();
-
+	spin_lock_irqsave(&trans->reg_lock, flags);
+	if (likely(iwl_grab_nic_access(trans))) {
+		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
 		for (offs = 0; offs < words; offs++)
-			iwl_write32(bus, HBUS_TARG_MEM_WDAT, vals[offs]);
-		iwl_release_nic_access(bus);
+			iwl_write32(trans, HBUS_TARG_MEM_WDAT, vals[offs]);
+		iwl_release_nic_access(trans);
 	} else
 		result = -EBUSY;
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	spin_unlock_irqrestore(&trans->reg_lock, flags);
 
 	return result;
 }
 
-int iwl_write_targ_mem(struct iwl_bus *bus, u32 addr, u32 val)
+int iwl_write_targ_mem(struct iwl_trans *trans, u32 addr, u32 val)
 {
-	return _iwl_write_targ_mem_words(bus, addr, &val, 1);
+	return _iwl_write_targ_mem_words(trans, addr, &val, 1);
 }

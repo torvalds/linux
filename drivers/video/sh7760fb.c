@@ -585,18 +585,7 @@ static struct platform_driver sh7760_lcdc_driver = {
 	.remove = __devexit_p(sh7760fb_remove),
 };
 
-static int __init sh7760fb_init(void)
-{
-	return platform_driver_register(&sh7760_lcdc_driver);
-}
-
-static void __exit sh7760fb_exit(void)
-{
-	platform_driver_unregister(&sh7760_lcdc_driver);
-}
-
-module_init(sh7760fb_init);
-module_exit(sh7760fb_exit);
+module_platform_driver(sh7760_lcdc_driver);
 
 MODULE_AUTHOR("Nobuhiro Iwamatsu, Manuel Lauss");
 MODULE_DESCRIPTION("FBdev for SH7760/63 integrated LCD Controller");

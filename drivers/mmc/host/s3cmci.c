@@ -1606,7 +1606,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 	host->mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!host->mem) {
 		dev_err(&pdev->dev,
-			"failed to get io memory region resouce.\n");
+			"failed to get io memory region resource.\n");
 
 		ret = -ENOENT;
 		goto probe_free_gpio;
@@ -1630,7 +1630,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev)
 
 	host->irq = platform_get_irq(pdev, 0);
 	if (host->irq == 0) {
-		dev_err(&pdev->dev, "failed to get interrupt resouce.\n");
+		dev_err(&pdev->dev, "failed to get interrupt resource.\n");
 		ret = -EINVAL;
 		goto probe_iounmap;
 	}
@@ -1914,18 +1914,7 @@ static struct platform_driver s3cmci_driver = {
 	.shutdown	= s3cmci_shutdown,
 };
 
-static int __init s3cmci_init(void)
-{
-	return platform_driver_register(&s3cmci_driver);
-}
-
-static void __exit s3cmci_exit(void)
-{
-	platform_driver_unregister(&s3cmci_driver);
-}
-
-module_init(s3cmci_init);
-module_exit(s3cmci_exit);
+module_platform_driver(s3cmci_driver);
 
 MODULE_DESCRIPTION("Samsung S3C MMC/SD Card Interface driver");
 MODULE_LICENSE("GPL v2");

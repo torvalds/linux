@@ -77,10 +77,11 @@ long ext2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		flags = flags & EXT2_FL_USER_MODIFIABLE;
 		flags |= oldflags & ~EXT2_FL_USER_MODIFIABLE;
 		ei->i_flags = flags;
-		mutex_unlock(&inode->i_mutex);
 
 		ext2_set_inode_flags(inode);
 		inode->i_ctime = CURRENT_TIME_SEC;
+		mutex_unlock(&inode->i_mutex);
+
 		mark_inode_dirty(inode);
 setflags_out:
 		mnt_drop_write_file(filp);
@@ -88,20 +89,29 @@ setflags_out:
 	}
 	case EXT2_IOC_GETVERSION:
 		return put_user(inode->i_generation, (int __user *) arg);
-	case EXT2_IOC_SETVERSION:
+	case EXT2_IOC_SETVERSION: {
+		__u32 generation;
+
 		if (!inode_owner_or_capable(inode))
 			return -EPERM;
 		ret = mnt_want_write_file(filp);
 		if (ret)
 			return ret;
-		if (get_user(inode->i_generation, (int __user *) arg)) {
+		if (get_user(generation, (int __user *) arg)) {
 			ret = -EFAULT;
-		} else {
-			inode->i_ctime = CURRENT_TIME_SEC;
-			mark_inode_dirty(inode);
+			goto setversion_out;
 		}
+
+		mutex_lock(&inode->i_mutex);
+		inode->i_ctime = CURRENT_TIME_SEC;
+		inode->i_generation = generation;
+		mutex_unlock(&inode->i_mutex);
+
+		mark_inode_dirty(inode);
+setversion_out:
 		mnt_drop_write_file(filp);
 		return ret;
+	}
 	case EXT2_IOC_GETRSVSZ:
 		if (test_opt(inode->i_sb, RESERVATION)
 			&& S_ISREG(inode->i_mode)

@@ -38,6 +38,7 @@
 #include <media/videobuf-dvb.h>
 #endif
 #include "tuner-xc2028.h"
+#include "xc5000.h"
 #include "em28xx-reg.h"
 
 /* Boards supported by driver */
@@ -121,6 +122,12 @@
 #define EM28174_BOARD_PCTV_290E                   78
 #define EM2884_BOARD_TERRATEC_H5		  79
 #define EM28174_BOARD_PCTV_460E                   80
+#define EM2884_BOARD_HAUPPAUGE_WINTV_HVR_930C	  81
+#define EM2884_BOARD_CINERGY_HTC_STICK		  82
+#define EM2860_BOARD_HT_VIDBOX_NW03 		  83
+#define EM2874_BOARD_MAXMEDIA_UB425_TC            84
+#define EM2884_BOARD_PCTV_510E                    85
+#define EM2884_BOARD_PCTV_520E                    86
 
 /* Limits minimum and default number of buffers */
 #define EM28XX_MIN_BUF 4
@@ -147,12 +154,14 @@
 
 /* number of buffers for isoc transfers */
 #define EM28XX_NUM_BUFS 5
+#define EM28XX_DVB_NUM_BUFS 5
 
 /* number of packets for each buffer
    windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
 #define EM28XX_NUM_PACKETS 64
+#define EM28XX_DVB_MAX_PACKETS 64
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -193,9 +202,12 @@ enum em28xx_mode {
 
 struct em28xx;
 
-struct em28xx_usb_isoc_ctl {
+struct em28xx_usb_isoc_bufs {
 		/* max packet size of isoc transaction */
 	int				max_pkt_size;
+
+		/* number of packets in each buffer */
+	int				num_packets;
 
 		/* number of allocated urbs */
 	int				num_bufs;
@@ -205,6 +217,14 @@ struct em28xx_usb_isoc_ctl {
 
 		/* transfer buffers for isoc transfer */
 	char				**transfer_buffer;
+};
+
+struct em28xx_usb_isoc_ctl {
+		/* isoc transfer buffers for analog mode */
+	struct em28xx_usb_isoc_bufs	analog_bufs;
+
+		/* isoc transfer buffers for digital mode */
+	struct em28xx_usb_isoc_bufs	digital_bufs;
 
 		/* Last buffer command and region */
 	u8				cmd;
@@ -594,9 +614,8 @@ struct em28xx {
 	int max_pkt_size;	/* max packet size of isoc transaction */
 	int num_alt;		/* Number of alternative settings */
 	unsigned int *alt_max_pkt_size;	/* array of wMaxPacketSize */
-	struct urb *urb[EM28XX_NUM_BUFS];	/* urb for isoc transfers */
-	char *transfer_buffer[EM28XX_NUM_BUFS];	/* transfer buffers for isoc
-						   transfer */
+	int dvb_alt;				/* alternate for DVB */
+	unsigned int dvb_max_pkt_size;		/* wMaxPacketSize for DVB */
 	char urb_buf[URB_MAX_CTRL_SIZE];	/* urb control msg buffer */
 
 	/* helper funcs that call usb_control_msg */
@@ -670,10 +689,12 @@ int em28xx_vbi_supported(struct em28xx *dev);
 int em28xx_set_outfmt(struct em28xx *dev);
 int em28xx_resolution_set(struct em28xx *dev);
 int em28xx_set_alternate(struct em28xx *dev);
-int em28xx_init_isoc(struct em28xx *dev, int max_packets,
-		     int num_bufs, int max_pkt_size,
+int em28xx_alloc_isoc(struct em28xx *dev, enum em28xx_mode mode,
+		      int max_packets, int num_bufs, int max_pkt_size);
+int em28xx_init_isoc(struct em28xx *dev, enum em28xx_mode mode,
+		     int max_packets, int num_bufs, int max_pkt_size,
 		     int (*isoc_copy) (struct em28xx *dev, struct urb *urb));
-void em28xx_uninit_isoc(struct em28xx *dev);
+void em28xx_uninit_isoc(struct em28xx *dev, enum em28xx_mode mode);
 int em28xx_isoc_dvb_max_packetsize(struct em28xx *dev);
 int em28xx_set_mode(struct em28xx *dev, enum em28xx_mode set_mode);
 int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
@@ -825,7 +846,7 @@ static inline unsigned int norm_maxw(struct em28xx *dev)
 	if (dev->board.is_webcam)
 		return dev->sensor_xres;
 
-	if (dev->board.max_range_640_480 || dev->board.is_em2800)
+	if (dev->board.max_range_640_480)
 		return 640;
 
 	return 720;

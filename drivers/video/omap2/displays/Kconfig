@@ -12,7 +12,7 @@ config PANEL_GENERIC_DPI
 
 config PANEL_DVI
 	tristate "DVI output"
-	depends on OMAP2_DSS_DPI
+	depends on OMAP2_DSS_DPI && I2C
 	help
 	  Driver for external monitors, connected via DVI. The driver uses i2c
 	  to read EDID information from the monitor.
@@ -41,7 +41,7 @@ config PANEL_NEC_NL8048HL11_01B
 
 config PANEL_PICODLP
 	tristate "TI PICO DLP mini-projector"
-	depends on OMAP2_DSS && I2C
+	depends on OMAP2_DSS_DPI && I2C
 	help
 		A mini-projector used in TI's SDP4430 and EVM boards
 		For more info please visit http://www.dlp.com/projector/

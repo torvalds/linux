@@ -677,18 +677,19 @@ static int fill_inode(struct inode *inode,
 	case S_IFLNK:
 		inode->i_op = &ceph_symlink_iops;
 		if (!ci->i_symlink) {
-			int symlen = iinfo->symlink_len;
+			u32 symlen = iinfo->symlink_len;
 			char *sym;
 
-			BUG_ON(symlen != inode->i_size);
 			spin_unlock(&ci->i_ceph_lock);
 
+			err = -EINVAL;
+			if (WARN_ON(symlen != inode->i_size))
+				goto out;
+
 			err = -ENOMEM;
-			sym = kmalloc(symlen+1, GFP_NOFS);
+			sym = kstrndup(iinfo->symlink, symlen, GFP_NOFS);
 			if (!sym)
 				goto out;
-			memcpy(sym, iinfo->symlink, symlen);
-			sym[symlen] = 0;
 
 			spin_lock(&ci->i_ceph_lock);
 			if (!ci->i_symlink)
@@ -850,11 +851,12 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 {
 	struct dentry *dir = dn->d_parent;
 	struct inode *inode = dir->d_inode;
-	struct ceph_inode_info *ci = ceph_inode(inode);
+	struct ceph_inode_info *ci;
 	struct ceph_dentry_info *di;
 
 	BUG_ON(!inode);
 
+	ci = ceph_inode(inode);
 	di = ceph_dentry(dn);
 
 	spin_lock(&ci->i_ceph_lock);

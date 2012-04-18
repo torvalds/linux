@@ -60,7 +60,7 @@ static struct snd_soc_ops overo_ops = {
 static struct snd_soc_dai_link overo_dai = {
 	.name = "TWL4030",
 	.stream_name = "TWL4030",
-	.cpu_dai_name = "omap-mcbsp-dai.1",
+	.cpu_dai_name = "omap-mcbsp.2",
 	.codec_dai_name = "twl4030-hifi",
 	.platform_name = "omap-pcm-audio",
 	.codec_name = "twl4030-codec",
@@ -72,6 +72,7 @@ static struct snd_soc_dai_link overo_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_card_overo = {
 	.name = "overo",
+	.owner = THIS_MODULE,
 	.dai_link = &overo_dai,
 	.num_links = 1,
 };

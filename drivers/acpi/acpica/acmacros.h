@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -515,6 +515,12 @@
 #define return_PTR(s)                   return(s)
 
 #endif				/* ACPI_DEBUG_OUTPUT */
+
+#if (!ACPI_REDUCED_HARDWARE)
+#define ACPI_HW_OPTIONAL_FUNCTION(addr)     addr
+#else
+#define ACPI_HW_OPTIONAL_FUNCTION(addr)     NULL
+#endif
 
 /*
  * Some code only gets executed when the debugger is built in.

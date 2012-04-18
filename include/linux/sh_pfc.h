@@ -45,16 +45,24 @@ struct pinmux_cfg_reg {
 	unsigned long reg, reg_width, field_width;
 	unsigned long *cnt;
 	pinmux_enum_t *enum_ids;
+	unsigned long *var_field_width;
 };
 
 #define PINMUX_CFG_REG(name, r, r_width, f_width) \
 	.reg = r, .reg_width = r_width, .field_width = f_width,		\
 	.cnt = (unsigned long [r_width / f_width]) {}, \
-	.enum_ids = (pinmux_enum_t [(r_width / f_width) * (1 << f_width)]) \
+	.enum_ids = (pinmux_enum_t [(r_width / f_width) * (1 << f_width)])
+
+#define PINMUX_CFG_REG_VAR(name, r, r_width, var_fw0, var_fwn...) \
+	.reg = r, .reg_width = r_width,	\
+	.cnt = (unsigned long [r_width]) {}, \
+	.var_field_width = (unsigned long [r_width]) { var_fw0, var_fwn, 0 }, \
+	.enum_ids = (pinmux_enum_t [])
 
 struct pinmux_data_reg {
 	unsigned long reg, reg_width, reg_shadow;
 	pinmux_enum_t *enum_ids;
+	void __iomem *mapped_reg;
 };
 
 #define PINMUX_DATA_REG(name, r, r_width) \
@@ -73,6 +81,12 @@ struct pinmux_range {
 	pinmux_enum_t begin;
 	pinmux_enum_t end;
 	pinmux_enum_t force;
+};
+
+struct pfc_window {
+	phys_addr_t phys;
+	void __iomem *virt;
+	unsigned long size;
 };
 
 struct pinmux_info {
@@ -97,6 +111,12 @@ struct pinmux_info {
 
 	struct pinmux_irq *gpio_irq;
 	unsigned int gpio_irq_size;
+
+	struct resource *resource;
+	unsigned int num_resources;
+	struct pfc_window *window;
+
+	unsigned long unlock_reg;
 
 	struct gpio_chip chip;
 };

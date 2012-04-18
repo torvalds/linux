@@ -30,10 +30,15 @@ struct ethtool_cmd {
 				 * access it */
 	__u8	duplex;		/* Duplex, half or full */
 	__u8	port;		/* Which connector port */
-	__u8	phy_address;
+	__u8	phy_address;	/* MDIO PHY address (PRTAD for clause 45).
+				 * May be read-only or read-write
+				 * depending on the driver.
+				 */
 	__u8	transceiver;	/* Which transceiver to use */
 	__u8	autoneg;	/* Enable or disable autonegotiation */
-	__u8	mdio_support;
+	__u8	mdio_support;	/* MDIO protocols supported.  Read-only.
+				 * Not set by all drivers.
+				 */
 	__u32	maxtxpkt;	/* Tx pkts before generating tx int */
 	__u32	maxrxpkt;	/* Rx pkts before generating rx int */
 	__u16	speed_hi;       /* The forced speed (upper
@@ -58,6 +63,20 @@ static inline __u32 ethtool_cmd_speed(const struct ethtool_cmd *ep)
 {
 	return (ep->speed_hi << 16) | ep->speed;
 }
+
+/* Device supports clause 22 register access to PHY or peripherals
+ * using the interface defined in <linux/mii.h>.  This should not be
+ * set if there are known to be no such peripherals present or if
+ * the driver only emulates clause 22 registers for compatibility.
+ */
+#define ETH_MDIO_SUPPORTS_C22	1
+
+/* Device supports clause 45 register access to PHY or peripherals
+ * using the interface defined in <linux/mii.h> and <linux/mdio.h>.
+ * This should not be set if there are known to be no such peripherals
+ * present.
+ */
+#define ETH_MDIO_SUPPORTS_C45	2
 
 #define ETHTOOL_FWVERS_LEN	32
 #define ETHTOOL_BUSINFO_LEN	32
@@ -877,8 +896,7 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
- * hold the RTNL, except that for @get_drvinfo the caller may or may
- * not hold the RTNL.
+ * hold the RTNL lock.
  *
  * See the structures used by these operations for further documentation.
  *

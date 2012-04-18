@@ -77,7 +77,7 @@ xfs_inode_alloc(
 
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
-	ASSERT(completion_done(&ip->i_flush));
+	ASSERT(!xfs_isiflocked(ip));
 	ASSERT(ip->i_ino == 0);
 
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
@@ -91,11 +91,8 @@ xfs_inode_alloc(
 	ip->i_afp = NULL;
 	memset(&ip->i_df, 0, sizeof(xfs_ifork_t));
 	ip->i_flags = 0;
-	ip->i_update_core = 0;
 	ip->i_delayed_blks = 0;
 	memset(&ip->i_d, 0, sizeof(xfs_icdinode_t));
-	ip->i_size = 0;
-	ip->i_new_size = 0;
 
 	return ip;
 }
@@ -150,7 +147,7 @@ xfs_inode_free(
 	/* asserts to verify all state is correct here */
 	ASSERT(atomic_read(&ip->i_pincount) == 0);
 	ASSERT(!spin_is_locked(&ip->i_flags_lock));
-	ASSERT(completion_done(&ip->i_flush));
+	ASSERT(!xfs_isiflocked(ip));
 
 	/*
 	 * Because we use RCU freeing we need to ensure the inode always
@@ -292,7 +289,7 @@ xfs_iget_cache_hit(
 	if (lock_flags != 0)
 		xfs_ilock(ip, lock_flags);
 
-	xfs_iflags_clear(ip, XFS_ISTALE);
+	xfs_iflags_clear(ip, XFS_ISTALE | XFS_IDONTCACHE);
 	XFS_STATS_INC(xs_ig_found);
 
 	return 0;
@@ -317,6 +314,7 @@ xfs_iget_cache_miss(
 	struct xfs_inode	*ip;
 	int			error;
 	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ino);
+	int			iflags;
 
 	ip = xfs_inode_alloc(mp, ino);
 	if (!ip)
@@ -352,9 +350,23 @@ xfs_iget_cache_miss(
 			BUG();
 	}
 
-	spin_lock(&pag->pag_ici_lock);
+	/*
+	 * These values must be set before inserting the inode into the radix
+	 * tree as the moment it is inserted a concurrent lookup (allowed by the
+	 * RCU locking mechanism) can find it and that lookup must see that this
+	 * is an inode currently under construction (i.e. that XFS_INEW is set).
+	 * The ip->i_flags_lock that protects the XFS_INEW flag forms the
+	 * memory barrier that ensures this detection works correctly at lookup
+	 * time.
+	 */
+	iflags = XFS_INEW;
+	if (flags & XFS_IGET_DONTCACHE)
+		iflags |= XFS_IDONTCACHE;
+	ip->i_udquot = ip->i_gdquot = NULL;
+	xfs_iflags_set(ip, iflags);
 
 	/* insert the new inode */
+	spin_lock(&pag->pag_ici_lock);
 	error = radix_tree_insert(&pag->pag_ici_root, agino, ip);
 	if (unlikely(error)) {
 		WARN_ON(error != -EEXIST);
@@ -362,11 +374,6 @@ xfs_iget_cache_miss(
 		error = EAGAIN;
 		goto out_preload_end;
 	}
-
-	/* These values _must_ be set before releasing the radix tree lock! */
-	ip->i_udquot = ip->i_gdquot = NULL;
-	xfs_iflags_set(ip, XFS_INEW);
-
 	spin_unlock(&pag->pag_ici_lock);
 	radix_tree_preload_end();
 
@@ -420,6 +427,15 @@ xfs_iget(
 	xfs_perag_t	*pag;
 	xfs_agino_t	agino;
 
+	/*
+	 * xfs_reclaim_inode() uses the ILOCK to ensure an inode
+	 * doesn't get freed while it's being referenced during a
+	 * radix tree traversal here.  It assumes this function
+	 * aqcuires only the ILOCK (and therefore it has no need to
+	 * involve the IOLOCK in this synchronization).
+	 */
+	ASSERT((lock_flags & (XFS_IOLOCK_EXCL | XFS_IOLOCK_SHARED)) == 0);
+
 	/* reject inode numbers outside existing AGs */
 	if (!ino || XFS_INO_TO_AGNO(mp, ino) >= mp->m_sb.sb_agcount)
 		return EINVAL;
@@ -450,8 +466,6 @@ again:
 
 	*ipp = ip;
 
-	ASSERT(ip->i_df.if_ext_max ==
-	       XFS_IFORK_DSIZE(ip) / sizeof(xfs_bmbt_rec_t));
 	/*
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
@@ -646,8 +660,7 @@ xfs_iunlock(
 	       (XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL));
 	ASSERT((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) !=
 	       (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL));
-	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_IUNLOCK_NONOTIFY |
-			XFS_LOCK_DEP_MASK)) == 0);
+	ASSERT((lock_flags & ~(XFS_LOCK_MASK | XFS_LOCK_DEP_MASK)) == 0);
 	ASSERT(lock_flags != 0);
 
 	if (lock_flags & XFS_IOLOCK_EXCL)
@@ -660,16 +673,6 @@ xfs_iunlock(
 	else if (lock_flags & XFS_ILOCK_SHARED)
 		mrunlock_shared(&ip->i_lock);
 
-	if ((lock_flags & (XFS_ILOCK_SHARED | XFS_ILOCK_EXCL)) &&
-	    !(lock_flags & XFS_IUNLOCK_NONOTIFY) && ip->i_itemp) {
-		/*
-		 * Let the AIL know that this item has been unlocked in case
-		 * it is in the AIL and anyone is waiting on it.  Don't do
-		 * this if the caller has asked us not to.
-		 */
-		xfs_trans_unlocked_item(ip->i_itemp->ili_item.li_ailp,
-					(xfs_log_item_t*)(ip->i_itemp));
-	}
 	trace_xfs_iunlock(ip, lock_flags, _RET_IP_);
 }
 
@@ -715,3 +718,19 @@ xfs_isilocked(
 	return 0;
 }
 #endif
+
+void
+__xfs_iflock(
+	struct xfs_inode	*ip)
+{
+	wait_queue_head_t *wq = bit_waitqueue(&ip->i_flags, __XFS_IFLOCK_BIT);
+	DEFINE_WAIT_BIT(wait, &ip->i_flags, __XFS_IFLOCK_BIT);
+
+	do {
+		prepare_to_wait_exclusive(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
+		if (xfs_isiflocked(ip))
+			io_schedule();
+	} while (!xfs_iflock_nowait(ip));
+
+	finish_wait(wq, &wait.wait);
+}

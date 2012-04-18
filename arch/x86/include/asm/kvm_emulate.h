@@ -176,6 +176,7 @@ struct x86_emulate_ops {
 	void (*set_idt)(struct x86_emulate_ctxt *ctxt, struct desc_ptr *dt);
 	ulong (*get_cr)(struct x86_emulate_ctxt *ctxt, int cr);
 	int (*set_cr)(struct x86_emulate_ctxt *ctxt, int cr, ulong val);
+	void (*set_rflags)(struct x86_emulate_ctxt *ctxt, ulong val);
 	int (*cpl)(struct x86_emulate_ctxt *ctxt);
 	int (*get_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong *dest);
 	int (*set_dr)(struct x86_emulate_ctxt *ctxt, int dr, ulong value);
@@ -190,6 +191,9 @@ struct x86_emulate_ops {
 	int (*intercept)(struct x86_emulate_ctxt *ctxt,
 			 struct x86_instruction_info *info,
 			 enum x86_intercept_stage stage);
+
+	bool (*get_cpuid)(struct x86_emulate_ctxt *ctxt,
+			 u32 *eax, u32 *ebx, u32 *ecx, u32 *edx);
 };
 
 typedef u32 __attribute__((vector_size(16))) sse128_t;
@@ -298,6 +302,19 @@ struct x86_emulate_ctxt {
 #define X86EMUL_MODE_PROT     (X86EMUL_MODE_PROT16|X86EMUL_MODE_PROT32| \
 			       X86EMUL_MODE_PROT64)
 
+/* CPUID vendors */
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ebx 0x68747541
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_ecx 0x444d4163
+#define X86EMUL_CPUID_VENDOR_AuthenticAMD_edx 0x69746e65
+
+#define X86EMUL_CPUID_VENDOR_AMDisbetterI_ebx 0x69444d41
+#define X86EMUL_CPUID_VENDOR_AMDisbetterI_ecx 0x21726574
+#define X86EMUL_CPUID_VENDOR_AMDisbetterI_edx 0x74656273
+
+#define X86EMUL_CPUID_VENDOR_GenuineIntel_ebx 0x756e6547
+#define X86EMUL_CPUID_VENDOR_GenuineIntel_ecx 0x6c65746e
+#define X86EMUL_CPUID_VENDOR_GenuineIntel_edx 0x49656e69
+
 enum x86_intercept_stage {
 	X86_ICTP_NONE = 0,   /* Allow zero-init to not match anything */
 	X86_ICPT_PRE_EXCEPT,
@@ -372,7 +389,7 @@ bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt);
 #define EMULATION_INTERCEPTED 2
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
 int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
-			 u16 tss_selector, int reason,
+			 u16 tss_selector, int idt_index, int reason,
 			 bool has_error_code, u32 error_code);
 int emulate_int_real(struct x86_emulate_ctxt *ctxt, int irq);
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

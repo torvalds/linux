@@ -803,25 +803,13 @@ static int acx565akm_spi_remove(struct spi_device *spi)
 static struct spi_driver acx565akm_spi_driver = {
 	.driver = {
 		.name	= "acx565akm",
-		.bus	= &spi_bus_type,
 		.owner	= THIS_MODULE,
 	},
 	.probe	= acx565akm_spi_probe,
 	.remove	= __devexit_p(acx565akm_spi_remove),
 };
 
-static int __init acx565akm_init(void)
-{
-	return spi_register_driver(&acx565akm_spi_driver);
-}
-
-static void __exit acx565akm_exit(void)
-{
-	spi_unregister_driver(&acx565akm_spi_driver);
-}
-
-module_init(acx565akm_init);
-module_exit(acx565akm_exit);
+module_spi_driver(acx565akm_spi_driver);
 
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("acx565akm LCD Driver");

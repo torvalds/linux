@@ -109,14 +109,13 @@ static struct mt9m001 *to_mt9m001(const struct i2c_client *client)
 
 static int reg_read(struct i2c_client *client, const u8 reg)
 {
-	s32 data = i2c_smbus_read_word_data(client, reg);
-	return data < 0 ? data : swab16(data);
+	return i2c_smbus_read_word_swapped(client, reg);
 }
 
 static int reg_write(struct i2c_client *client, const u8 reg,
 		     const u16 data)
 {
-	return i2c_smbus_write_word_data(client, reg, swab16(data));
+	return i2c_smbus_write_word_swapped(client, reg, data);
 }
 
 static int reg_set(struct i2c_client *client, const u8 reg,
@@ -731,18 +730,7 @@ static struct i2c_driver mt9m001_i2c_driver = {
 	.id_table	= mt9m001_id,
 };
 
-static int __init mt9m001_mod_init(void)
-{
-	return i2c_add_driver(&mt9m001_i2c_driver);
-}
-
-static void __exit mt9m001_mod_exit(void)
-{
-	i2c_del_driver(&mt9m001_i2c_driver);
-}
-
-module_init(mt9m001_mod_init);
-module_exit(mt9m001_mod_exit);
+module_i2c_driver(mt9m001_i2c_driver);
 
 MODULE_DESCRIPTION("Micron MT9M001 Camera driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");

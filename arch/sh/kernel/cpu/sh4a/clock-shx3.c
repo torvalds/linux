@@ -32,7 +32,7 @@ static unsigned long pll_recalc(struct clk *clk)
 	return clk->parent->rate * 72;
 }
 
-static struct clk_ops pll_clk_ops = {
+static struct sh_clk_ops pll_clk_ops = {
 	.recalc		= pll_recalc,
 };
 

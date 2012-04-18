@@ -889,6 +889,11 @@ static struct platform_device wm9712_device = {
 	.id	= -1,
 };
 
+static struct platform_device tosa_audio_device = {
+	.name	= "tosa-audio",
+	.id	= -1,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&tosascoop_device,
 	&tosascoop_jc_device,
@@ -901,6 +906,7 @@ static struct platform_device *devices[] __initdata = {
 	&sharpsl_rom_device,
 	&wm9712_device,
 	&tosa_gpio_vbus,
+	&tosa_audio_device,
 };
 
 static void tosa_poweroff(void)

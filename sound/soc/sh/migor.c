@@ -164,6 +164,7 @@ static struct snd_soc_dai_link migor_dai = {
 /* migor audio machine driver */
 static struct snd_soc_card snd_soc_migor = {
 	.name = "Migo-R",
+	.owner = THIS_MODULE,
 	.dai_link = &migor_dai,
 	.num_links = 1,
 };

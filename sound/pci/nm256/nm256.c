@@ -57,12 +57,12 @@ static int index = SNDRV_DEFAULT_IDX1;	/* Index */
 static char *id = SNDRV_DEFAULT_STR1;	/* ID for this card */
 static int playback_bufsize = 16;
 static int capture_bufsize = 16;
-static int force_ac97;			/* disabled as default */
+static bool force_ac97;			/* disabled as default */
 static int buffer_top;			/* not specified */
-static int use_cache;			/* disabled */
-static int vaio_hack;			/* disabled */
-static int reset_workaround;
-static int reset_workaround_2;
+static bool use_cache;			/* disabled */
+static bool vaio_hack;			/* disabled */
+static bool reset_workaround;
+static bool reset_workaround_2;
 
 module_param(index, int, 0444);
 MODULE_PARM_DESC(index, "Index value for " CARD_NAME " soundcard.");
@@ -86,7 +86,7 @@ module_param(reset_workaround_2, bool, 0444);
 MODULE_PARM_DESC(reset_workaround_2, "Enable extended AC97 RESET workaround for some other laptops.");
 
 /* just for backward compatibility */
-static int enable;
+static bool enable;
 module_param(enable, bool, 0444);
 
 

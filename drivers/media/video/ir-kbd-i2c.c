@@ -244,7 +244,7 @@ static int get_key_avermedia_cardbus(struct IR_i2c *ir,
 
 /* ----------------------------------------------------------------------- */
 
-static void ir_key_poll(struct IR_i2c *ir)
+static int ir_key_poll(struct IR_i2c *ir)
 {
 	static u32 ir_key, ir_raw;
 	int rc;
@@ -253,20 +253,28 @@ static void ir_key_poll(struct IR_i2c *ir)
 	rc = ir->get_key(ir, &ir_key, &ir_raw);
 	if (rc < 0) {
 		dprintk(2,"error\n");
-		return;
+		return rc;
 	}
 
 	if (rc) {
 		dprintk(1, "%s: keycode = 0x%04x\n", __func__, ir_key);
 		rc_keydown(ir->rc, ir_key, 0);
 	}
+	return 0;
 }
 
 static void ir_work(struct work_struct *work)
 {
+	int rc;
 	struct IR_i2c *ir = container_of(work, struct IR_i2c, work.work);
 
-	ir_key_poll(ir);
+	rc = ir_key_poll(ir);
+	if (rc == -ENODEV) {
+		rc_unregister_device(ir->rc);
+		ir->rc = NULL;
+		return;
+	}
+
 	schedule_delayed_work(&ir->work, msecs_to_jiffies(ir->polling_interval));
 }
 
@@ -446,7 +454,8 @@ static int ir_remove(struct i2c_client *client)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* unregister device */
-	rc_unregister_device(ir->rc);
+	if (ir->rc)
+		rc_unregister_device(ir->rc);
 
 	/* free memory */
 	kfree(ir);
@@ -462,7 +471,7 @@ static const struct i2c_device_id ir_kbd_id[] = {
 	{ }
 };
 
-static struct i2c_driver driver = {
+static struct i2c_driver ir_kbd_driver = {
 	.driver = {
 		.name   = "ir-kbd-i2c",
 	},
@@ -471,29 +480,10 @@ static struct i2c_driver driver = {
 	.id_table       = ir_kbd_id,
 };
 
+module_i2c_driver(ir_kbd_driver);
+
 /* ----------------------------------------------------------------------- */
 
 MODULE_AUTHOR("Gerd Knorr, Michal Kochanowicz, Christoph Bartelmus, Ulrich Mueller");
 MODULE_DESCRIPTION("input driver for i2c IR remote controls");
 MODULE_LICENSE("GPL");
-
-static int __init ir_init(void)
-{
-	return i2c_add_driver(&driver);
-}
-
-static void __exit ir_fini(void)
-{
-	i2c_del_driver(&driver);
-}
-
-module_init(ir_init);
-module_exit(ir_fini);
-
-/*
- * Overrides for Emacs so that we follow Linus's tabbing style.
- * ---------------------------------------------------------------------------
- * Local variables:
- * c-basic-offset: 8
- * End:
- */

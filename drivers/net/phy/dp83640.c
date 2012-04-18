@@ -1159,7 +1159,7 @@ static void rx_timestamp_work(struct work_struct *work)
 			}
 		}
 		spin_unlock_irqrestore(&dp83640->rx_lock, flags);
-		netif_rx(skb);
+		netif_rx_ni(skb);
 	}
 
 	/* Clear out expired time stamps. */
@@ -1243,7 +1243,7 @@ static void __exit dp83640_exit(void)
 }
 
 MODULE_DESCRIPTION("National Semiconductor DP83640 PHY driver");
-MODULE_AUTHOR("Richard Cochran <richard.cochran@omicron.at>");
+MODULE_AUTHOR("Richard Cochran <richardcochran@gmail.at>");
 MODULE_LICENSE("GPL");
 
 module_init(dp83640_init);

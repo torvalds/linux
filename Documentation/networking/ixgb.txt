@@ -274,9 +274,9 @@ Additional Configurations
   -------------------------------------------------
   Configuring a network driver to load properly when the system is started is
   distribution dependent. Typically, the configuration process involves adding
-  an alias line to /etc/modprobe.conf as well as editing other system startup
-  scripts and/or configuration files.  Many popular Linux distributions ship
-  with tools to make these changes for you.  To learn the proper way to
+  an alias line to files in /etc/modprobe.d/ as well as editing other system
+  startup scripts and/or configuration files.  Many popular Linux distributions
+  ship with tools to make these changes for you.  To learn the proper way to
   configure a network device for your system, refer to your distribution
   documentation.  If during this process you are asked for the driver or module
   name, the name for the Linux Base Driver for the Intel 10GbE Family of

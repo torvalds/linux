@@ -513,7 +513,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 	 * transaction, and then put it under external control
 	 */
 	memset(&config, 0, sizeof(config));
-	config.direction = DMA_TO_DEVICE;
+	config.direction = DMA_MEM_TO_DEV;
 	config.dst_addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 	config.dst_maxburst = fpga_fifo_size(priv->regs) / 2 / 4;
 	ret = chan->device->device_control(chan, DMA_SLAVE_CONFIG,

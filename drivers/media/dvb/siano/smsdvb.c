@@ -49,9 +49,6 @@ struct smsdvb_client_t {
 
 	struct completion       tune_done;
 
-	/* todo: save freq/band instead whole struct */
-	struct dvb_frontend_parameters fe_params;
-
 	struct SMSHOSTLIB_STATISTICS_DVB_S sms_stat_dvb;
 	int event_fe_state;
 	int event_unc_state;
@@ -591,8 +588,7 @@ static int smsdvb_get_tune_settings(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
-				    struct dvb_frontend_parameters *p)
+static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct smsdvb_client_t *client =
@@ -658,8 +654,7 @@ static int smsdvb_dvbt_set_frontend(struct dvb_frontend *fe,
 					   &client->tune_done);
 }
 
-static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
-				     struct dvb_frontend_parameters *p)
+static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe)
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct smsdvb_client_t *client =
@@ -723,8 +718,7 @@ static int smsdvb_isdbt_set_frontend(struct dvb_frontend *fe,
 					   &client->tune_done);
 }
 
-static int smsdvb_set_frontend(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *fep)
+static int smsdvb_set_frontend(struct dvb_frontend *fe)
 {
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
@@ -733,26 +727,138 @@ static int smsdvb_set_frontend(struct dvb_frontend *fe,
 	switch (smscore_get_device_mode(coredev)) {
 	case DEVICE_MODE_DVBT:
 	case DEVICE_MODE_DVBT_BDA:
-		return smsdvb_dvbt_set_frontend(fe, fep);
+		return smsdvb_dvbt_set_frontend(fe);
 	case DEVICE_MODE_ISDBT:
 	case DEVICE_MODE_ISDBT_BDA:
-		return smsdvb_isdbt_set_frontend(fe, fep);
+		return smsdvb_isdbt_set_frontend(fe);
 	default:
 		return -EINVAL;
 	}
 }
 
-static int smsdvb_get_frontend(struct dvb_frontend *fe,
-			       struct dvb_frontend_parameters *fep)
+static int smsdvb_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct smsdvb_client_t *client =
 		container_of(fe, struct smsdvb_client_t, frontend);
+	struct smscore_device_t *coredev = client->coredev;
+	struct TRANSMISSION_STATISTICS_S *td =
+		&client->sms_stat_dvb.TransmissionData;
 
-	sms_debug("");
+	switch (smscore_get_device_mode(coredev)) {
+	case DEVICE_MODE_DVBT:
+	case DEVICE_MODE_DVBT_BDA:
+		fep->frequency = td->Frequency;
 
-	/* todo: */
-	memcpy(fep, &client->fe_params,
-	       sizeof(struct dvb_frontend_parameters));
+		switch (td->Bandwidth) {
+		case 6:
+			fep->bandwidth_hz = 6000000;
+			break;
+		case 7:
+			fep->bandwidth_hz = 7000000;
+			break;
+		case 8:
+			fep->bandwidth_hz = 8000000;
+			break;
+		}
+
+		switch (td->TransmissionMode) {
+		case 2:
+			fep->transmission_mode = TRANSMISSION_MODE_2K;
+			break;
+		case 8:
+			fep->transmission_mode = TRANSMISSION_MODE_8K;
+		}
+
+		switch (td->GuardInterval) {
+		case 0:
+			fep->guard_interval = GUARD_INTERVAL_1_32;
+			break;
+		case 1:
+			fep->guard_interval = GUARD_INTERVAL_1_16;
+			break;
+		case 2:
+			fep->guard_interval = GUARD_INTERVAL_1_8;
+			break;
+		case 3:
+			fep->guard_interval = GUARD_INTERVAL_1_4;
+			break;
+		}
+
+		switch (td->CodeRate) {
+		case 0:
+			fep->code_rate_HP = FEC_1_2;
+			break;
+		case 1:
+			fep->code_rate_HP = FEC_2_3;
+			break;
+		case 2:
+			fep->code_rate_HP = FEC_3_4;
+			break;
+		case 3:
+			fep->code_rate_HP = FEC_5_6;
+			break;
+		case 4:
+			fep->code_rate_HP = FEC_7_8;
+			break;
+		}
+
+		switch (td->LPCodeRate) {
+		case 0:
+			fep->code_rate_LP = FEC_1_2;
+			break;
+		case 1:
+			fep->code_rate_LP = FEC_2_3;
+			break;
+		case 2:
+			fep->code_rate_LP = FEC_3_4;
+			break;
+		case 3:
+			fep->code_rate_LP = FEC_5_6;
+			break;
+		case 4:
+			fep->code_rate_LP = FEC_7_8;
+			break;
+		}
+
+		switch (td->Constellation) {
+		case 0:
+			fep->modulation = QPSK;
+			break;
+		case 1:
+			fep->modulation = QAM_16;
+			break;
+		case 2:
+			fep->modulation = QAM_64;
+			break;
+		}
+
+		switch (td->Hierarchy) {
+		case 0:
+			fep->hierarchy = HIERARCHY_NONE;
+			break;
+		case 1:
+			fep->hierarchy = HIERARCHY_1;
+			break;
+		case 2:
+			fep->hierarchy = HIERARCHY_2;
+			break;
+		case 3:
+			fep->hierarchy = HIERARCHY_4;
+			break;
+		}
+
+		fep->inversion = INVERSION_AUTO;
+		break;
+	case DEVICE_MODE_ISDBT:
+	case DEVICE_MODE_ISDBT_BDA:
+		fep->frequency = td->Frequency;
+		fep->bandwidth_hz = 6000000;
+		/* todo: retrive the other parameters */
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -789,7 +895,6 @@ static void smsdvb_release(struct dvb_frontend *fe)
 static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
 		.name			= "Siano Mobile Digital MDTV Receiver",
-		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
 		.frequency_stepsize	= 250000,
@@ -872,6 +977,17 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	/* init and register frontend */
 	memcpy(&client->frontend.ops, &smsdvb_fe_ops,
 	       sizeof(struct dvb_frontend_ops));
+
+	switch (smscore_get_device_mode(coredev)) {
+	case DEVICE_MODE_DVBT:
+	case DEVICE_MODE_DVBT_BDA:
+		client->frontend.ops.delsys[0] = SYS_DVBT;
+		break;
+	case DEVICE_MODE_ISDBT:
+	case DEVICE_MODE_ISDBT_BDA:
+		client->frontend.ops.delsys[0] = SYS_ISDBT;
+		break;
+	}
 
 	rc = dvb_register_frontend(&client->adapter, &client->frontend);
 	if (rc < 0) {

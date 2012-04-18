@@ -63,8 +63,8 @@
 
 /*** Global Variables ***/
 
-static int debug;
-static int check_pselecd;
+static bool debug;
+static bool check_pselecd;
 
 unsigned int irq = LIRC_IRQ;
 unsigned int io = LIRC_PORT;
@@ -752,4 +752,4 @@ module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Enable debugging messages");
 
 module_param(check_pselecd, bool, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(debug, "Check for printer (default: 0)");
+MODULE_PARM_DESC(check_pselecd, "Check for printer (default: 0)");

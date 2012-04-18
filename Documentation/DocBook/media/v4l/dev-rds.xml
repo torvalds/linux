@@ -29,10 +29,10 @@ returned by the &VIDIOC-QUERYCAP; ioctl.  Any tuner that supports RDS
 will set the <constant>V4L2_TUNER_CAP_RDS</constant> flag in
 the <structfield>capability</structfield> field of &v4l2-tuner;.  If
 the driver only passes RDS blocks without interpreting the data
-the <constant>V4L2_TUNER_SUB_RDS_BLOCK_IO</constant> flag has to be
+the <constant>V4L2_TUNER_CAP_RDS_BLOCK_IO</constant> flag has to be
 set, see <link linkend="reading-rds-data">Reading RDS data</link>.
 For future use the
-flag <constant>V4L2_TUNER_SUB_RDS_CONTROLS</constant> has also been
+flag <constant>V4L2_TUNER_CAP_RDS_CONTROLS</constant> has also been
 defined. However, a driver for a radio tuner with this capability does
 not yet exist, so if you are planning to write such a driver you
 should discuss this on the linux-media mailing list: &v4l-ml;.</para>
@@ -52,9 +52,9 @@ field of &v4l2-modulator;.
 In order to enable the RDS transmission one must set the <constant>V4L2_TUNER_SUB_RDS</constant>
 bit in the <structfield>txsubchans</structfield> field of &v4l2-modulator;.
 If the driver only passes RDS blocks without interpreting the data
-the <constant>V4L2_TUNER_SUB_RDS_BLOCK_IO</constant> flag has to be set. If the
+the <constant>V4L2_TUNER_CAP_RDS_BLOCK_IO</constant> flag has to be set. If the
 tuner is capable of handling RDS entities like program identification codes and radio
-text, the flag <constant>V4L2_TUNER_SUB_RDS_CONTROLS</constant> should be set,
+text, the flag <constant>V4L2_TUNER_CAP_RDS_CONTROLS</constant> should be set,
 see <link linkend="writing-rds-data">Writing RDS data</link> and
 <link linkend="fm-tx-controls">FM Transmitter Control Reference</link>.</para>
   </section>
@@ -194,11 +194,3 @@ as follows:</para>
       </tgroup>
     </table>
   </section>
-
-<!--
-Local Variables:
-mode: sgml
-sgml-parent-document: "v4l2.sgml"
-indent-tabs-mode: nil
-End:
- -->

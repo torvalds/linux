@@ -218,9 +218,10 @@ dt3155_start_acq(struct dt3155_priv *pd)
  *	driver-specific callbacks (vb2_ops)
  */
 static int
-dt3155_queue_setup(struct vb2_queue *q, unsigned int *num_buffers,
-			unsigned int *num_planes, unsigned long sizes[],
-						void *alloc_ctxs[])
+dt3155_queue_setup(struct vb2_queue *q, const struct v4l2_format *fmt,
+		unsigned int *num_buffers, unsigned int *num_planes,
+		unsigned int sizes[], void *alloc_ctxs[])
+
 {
 	struct dt3155_priv *pd = vb2_get_drv_priv(q);
 	void *ret;
@@ -258,12 +259,6 @@ static int
 dt3155_buf_prepare(struct vb2_buffer *vb)
 {
 	vb2_set_plane_payload(vb, 0, img_width * img_height);
-	return 0;
-}
-
-static int
-dt3155_start_streaming(struct vb2_queue *q)
-{
 	return 0;
 }
 
@@ -308,7 +303,6 @@ const struct vb2_ops q_ops = {
 	.wait_prepare = dt3155_wait_prepare,
 	.wait_finish = dt3155_wait_finish,
 	.buf_prepare = dt3155_buf_prepare,
-	.start_streaming = dt3155_start_streaming,
 	.stop_streaming = dt3155_stop_streaming,
 	.buf_queue = dt3155_buf_queue,
 };
@@ -914,9 +908,10 @@ dt3155_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (err)
 		goto err_req_region;
 	pd->regs = pci_iomap(pdev, 0, pci_resource_len(pd->pdev, 0));
-	if (!pd->regs)
+	if (!pd->regs) {
 		err = -ENOMEM;
 		goto err_pci_iomap;
+	}
 	err = dt3155_init_board(pdev);
 	if (err)
 		goto err_init_board;

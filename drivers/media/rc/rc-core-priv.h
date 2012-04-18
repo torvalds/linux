@@ -35,7 +35,7 @@ struct ir_raw_event_ctrl {
 	struct list_head		list;		/* to keep track of raw clients */
 	struct task_struct		*thread;
 	spinlock_t			lock;
-	struct kfifo			kfifo;		/* fifo for the pulse/space durations */
+	struct kfifo_rec_ptr_1		kfifo;		/* fifo for the pulse/space durations */
 	ktime_t				last_event;	/* when last event occurred */
 	enum raw_event_type		last_type;	/* last event type */
 	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
@@ -84,6 +84,11 @@ struct ir_raw_event_ctrl {
 		unsigned count;
 		unsigned wanted_bits;
 	} rc5_sz;
+	struct sanyo_dec {
+		int state;
+		unsigned count;
+		u64 bits;
+	} sanyo;
 	struct mce_kbd_dec {
 		struct input_dev *idev;
 		struct timer_list rx_timeout;
@@ -191,6 +196,13 @@ static inline void load_jvc_decode(void) { }
 #define load_sony_decode()	request_module("ir-sony-decoder")
 #else
 static inline void load_sony_decode(void) { }
+#endif
+
+/* from ir-sanyo-decoder.c */
+#ifdef CONFIG_IR_SANYO_DECODER_MODULE
+#define load_sanyo_decode()	request_module("ir-sanyo-decoder")
+#else
+static inline void load_sanyo_decode(void) { }
 #endif
 
 /* from ir-mce_kbd-decoder.c */

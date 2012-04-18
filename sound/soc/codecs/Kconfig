@@ -26,8 +26,10 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4642 if I2C
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_ALC5623 if I2C
+	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS42L51 if I2C
+	select SND_SOC_CS42L73 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_CS4271 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_CX20442
@@ -38,6 +40,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_MAX98088 if I2C
 	select SND_SOC_MAX98095 if I2C
 	select SND_SOC_MAX9850 if I2C
+	select SND_SOC_MAX9768 if I2C
 	select SND_SOC_MAX9877 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_RT5631 if I2C
@@ -60,6 +63,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WL1273 if MFD_WL1273_CORE
 	select SND_SOC_WM1250_EV1 if I2C
 	select SND_SOC_WM2000 if I2C
+	select SND_SOC_WM2200 if I2C
 	select SND_SOC_WM5100 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
@@ -139,7 +143,7 @@ config SND_SOC_AD73311
 	tristate
 
 config SND_SOC_ADAU1701
-	select SIGMA
+	select SND_SOC_SIGMADSP
 	tristate
 
 config SND_SOC_ADAU1373
@@ -168,11 +172,16 @@ config SND_SOC_AK4671
 
 config SND_SOC_ALC5623
        tristate
+config SND_SOC_ALC5632
+	tristate
 
 config SND_SOC_CQ0093VC
 	tristate
 
 config SND_SOC_CS42L51
+	tristate
+
+config SND_SOC_CS42L73
 	tristate
 
 # Cirrus Logic CS4270 Codec
@@ -227,6 +236,10 @@ config SND_SOC_RT5631
 config SND_SOC_SGTL5000
 	tristate
 
+config SND_SOC_SIGMADSP
+	tristate
+	select CRC32
+
 config SND_SOC_SN95031
 	tristate
 
@@ -276,6 +289,12 @@ config SND_SOC_WL1273
 	tristate
 
 config SND_SOC_WM1250_EV1
+	tristate
+
+config SND_SOC_WM2000
+	tristate
+
+config SND_SOC_WM2200
 	tristate
 
 config SND_SOC_WM5100
@@ -395,6 +414,9 @@ config SND_SOC_WM8996
 config SND_SOC_WM9081
 	tristate
 
+config SND_SOC_WM9090
+	tristate
+
 config SND_SOC_WM9705
 	tristate
 
@@ -408,14 +430,11 @@ config SND_SOC_WM9713
 config SND_SOC_LM4857
 	tristate
 
+config SND_SOC_MAX9768
+	tristate
+
 config SND_SOC_MAX9877
 	tristate
 
 config SND_SOC_TPA6130A2
-	tristate
-
-config SND_SOC_WM2000
-	tristate
-
-config SND_SOC_WM9090
 	tristate

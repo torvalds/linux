@@ -57,6 +57,10 @@ struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
  * @page: Page that is locked before this call is made
  *
  * Returns zero on success; non-zero otherwise
+ *
+ * This is where we encrypt the data and pass the encrypted data to
+ * the lower filesystem.  In OpenPGP-compatible mode, we operate on
+ * entire underlying packets.
  */
 static int ecryptfs_writepage(struct page *page, struct writeback_control *wbc)
 {
@@ -146,7 +150,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 			/* This is a header extent */
 			char *page_virt;
 
-			page_virt = kmap_atomic(page, KM_USER0);
+			page_virt = kmap_atomic(page);
 			memset(page_virt, 0, PAGE_CACHE_SIZE);
 			/* TODO: Support more than one header extent */
 			if (view_extent_num == 0) {
@@ -159,7 +163,7 @@ ecryptfs_copy_up_encrypted_with_header(struct page *page,
 							       crypt_stat,
 							       &written);
 			}
-			kunmap_atomic(page_virt, KM_USER0);
+			kunmap_atomic(page_virt);
 			flush_dcache_page(page);
 			if (rc) {
 				printk(KERN_ERR "%s: Error reading xattr "
@@ -481,10 +485,6 @@ int ecryptfs_write_inode_size_to_metadata(struct inode *ecryptfs_inode)
  * @copied: The amount of data copied
  * @page: The eCryptfs page
  * @fsdata: The fsdata (unused)
- *
- * This is where we encrypt the data and pass the encrypted data to
- * the lower filesystem.  In OpenPGP-compatible mode, we operate on
- * entire underlying packets.
  */
 static int ecryptfs_write_end(struct file *file,
 			struct address_space *mapping,

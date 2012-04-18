@@ -1,5 +1,5 @@
 /*
- * drivers/net/gianfar.c
+ * drivers/net/ethernet/freescale/gianfar.c
  *
  * Gianfar Ethernet Driver
  * This driver is designed for the non-CPM ethernet controllers
@@ -104,10 +104,7 @@
 #include "fsl_pq_mdio.h"
 
 #define TX_TIMEOUT      (1*HZ)
-#undef BRIEF_GFAR_ERRORS
-#undef VERBOSE_GFAR_ERRORS
 
-const char gfar_driver_name[] = "Gianfar Ethernet";
 const char gfar_driver_version[] = "1.3";
 
 static int gfar_enet_open(struct net_device *dev);
@@ -971,7 +968,6 @@ static int gfar_probe(struct platform_device *ofdev)
 	struct gfar_private *priv = NULL;
 	struct gfar __iomem *regs = NULL;
 	int err = 0, i, grp_idx = 0;
-	int len_devname;
 	u32 rstat = 0, tstat = 0, rqueue = 0, tqueue = 0;
 	u32 isrg = 0;
 	u32 __iomem *baddr;
@@ -1172,40 +1168,16 @@ static int gfar_probe(struct platform_device *ofdev)
 		priv->device_flags & FSL_GIANFAR_DEV_HAS_MAGIC_PACKET);
 
 	/* fill out IRQ number and name fields */
-	len_devname = strlen(dev->name);
 	for (i = 0; i < priv->num_grps; i++) {
-		strncpy(&priv->gfargrp[i].int_name_tx[0], dev->name,
-				len_devname);
 		if (priv->device_flags & FSL_GIANFAR_DEV_HAS_MULTI_INTR) {
-			strncpy(&priv->gfargrp[i].int_name_tx[len_devname],
-				"_g", sizeof("_g"));
-			priv->gfargrp[i].int_name_tx[
-				strlen(priv->gfargrp[i].int_name_tx)] = i+48;
-			strncpy(&priv->gfargrp[i].int_name_tx[strlen(
-				priv->gfargrp[i].int_name_tx)],
-				"_tx", sizeof("_tx") + 1);
-
-			strncpy(&priv->gfargrp[i].int_name_rx[0], dev->name,
-					len_devname);
-			strncpy(&priv->gfargrp[i].int_name_rx[len_devname],
-					"_g", sizeof("_g"));
-			priv->gfargrp[i].int_name_rx[
-				strlen(priv->gfargrp[i].int_name_rx)] = i+48;
-			strncpy(&priv->gfargrp[i].int_name_rx[strlen(
-				priv->gfargrp[i].int_name_rx)],
-				"_rx", sizeof("_rx") + 1);
-
-			strncpy(&priv->gfargrp[i].int_name_er[0], dev->name,
-					len_devname);
-			strncpy(&priv->gfargrp[i].int_name_er[len_devname],
-				"_g", sizeof("_g"));
-			priv->gfargrp[i].int_name_er[strlen(
-					priv->gfargrp[i].int_name_er)] = i+48;
-			strncpy(&priv->gfargrp[i].int_name_er[strlen(\
-				priv->gfargrp[i].int_name_er)],
-				"_er", sizeof("_er") + 1);
+			sprintf(priv->gfargrp[i].int_name_tx, "%s%s%c%s",
+				dev->name, "_g", '0' + i, "_tx");
+			sprintf(priv->gfargrp[i].int_name_rx, "%s%s%c%s",
+				dev->name, "_g", '0' + i, "_rx");
+			sprintf(priv->gfargrp[i].int_name_er, "%s%s%c%s",
+				dev->name, "_g", '0' + i, "_er");
 		} else
-			priv->gfargrp[i].int_name_tx[len_devname] = '\0';
+			strcpy(priv->gfargrp[i].int_name_tx, dev->name);
 	}
 
 	/* Initialize the filer table */
@@ -1755,9 +1727,12 @@ static void free_skb_resources(struct gfar_private *priv)
 
 	/* Go through all the buffer descriptors and free their data buffers */
 	for (i = 0; i < priv->num_tx_queues; i++) {
+		struct netdev_queue *txq;
 		tx_queue = priv->tx_queue[i];
+		txq = netdev_get_tx_queue(tx_queue->dev, tx_queue->qindex);
 		if(tx_queue->tx_skbuff)
 			free_skb_tx_queue(tx_queue);
+		netdev_tx_reset_queue(txq);
 	}
 
 	for (i = 0; i < priv->num_rx_queues; i++) {
@@ -1984,7 +1959,8 @@ static inline struct txfcb *gfar_add_fcb(struct sk_buff *skb)
 	return fcb;
 }
 
-static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
+static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb,
+		int fcb_length)
 {
 	u8 flags = 0;
 
@@ -2006,7 +1982,7 @@ static inline void gfar_tx_checksum(struct sk_buff *skb, struct txfcb *fcb)
 	 * frame (skb->data) and the start of the IP hdr.
 	 * l4os is the distance between the start of the
 	 * l3 hdr and the l4 hdr */
-	fcb->l3os = (u16)(skb_network_offset(skb) - GMAC_FCB_LEN);
+	fcb->l3os = (u16)(skb_network_offset(skb) - fcb_length);
 	fcb->l4os = skb_network_header_len(skb);
 
 	fcb->flags = flags;
@@ -2046,7 +2022,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int i, rq = 0, do_tstamp = 0;
 	u32 bufaddr;
 	unsigned long flags;
-	unsigned int nr_frags, nr_txbds, length;
+	unsigned int nr_frags, nr_txbds, length, fcb_length = GMAC_FCB_LEN;
 
 	/*
 	 * TOE=1 frames larger than 2500 bytes may see excess delays
@@ -2070,22 +2046,28 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	/* check if time stamp should be generated */
 	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP &&
-		     priv->hwts_tx_en))
+			priv->hwts_tx_en)) {
 		do_tstamp = 1;
+		fcb_length = GMAC_FCB_LEN + GMAC_TXPAL_LEN;
+	}
 
 	/* make space for additional header when fcb is needed */
 	if (((skb->ip_summed == CHECKSUM_PARTIAL) ||
 			vlan_tx_tag_present(skb) ||
 			unlikely(do_tstamp)) &&
-			(skb_headroom(skb) < GMAC_FCB_LEN)) {
+			(skb_headroom(skb) < fcb_length)) {
 		struct sk_buff *skb_new;
 
-		skb_new = skb_realloc_headroom(skb, GMAC_FCB_LEN);
+		skb_new = skb_realloc_headroom(skb, fcb_length);
 		if (!skb_new) {
 			dev->stats.tx_errors++;
 			kfree_skb(skb);
 			return NETDEV_TX_OK;
 		}
+
+		/* Steal sock reference for processing TX time stamps */
+		swap(skb_new->sk, skb->sk);
+		swap(skb_new->destructor, skb->destructor);
 		kfree_skb(skb);
 		skb = skb_new;
 	}
@@ -2154,6 +2136,12 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		lstatus = txbdp_start->lstatus;
 	}
 
+	/* Add TxPAL between FCB and frame if required */
+	if (unlikely(do_tstamp)) {
+		skb_push(skb, GMAC_TXPAL_LEN);
+		memset(skb->data, 0, GMAC_TXPAL_LEN);
+	}
+
 	/* Set up checksumming */
 	if (CHECKSUM_PARTIAL == skb->ip_summed) {
 		fcb = gfar_add_fcb(skb);
@@ -2164,7 +2152,7 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_checksum_help(skb);
 		} else {
 			lstatus |= BD_LFLAG(TXBD_TOE);
-			gfar_tx_checksum(skb, fcb);
+			gfar_tx_checksum(skb, fcb, fcb_length);
 		}
 	}
 
@@ -2196,13 +2184,15 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * the full frame length.
 	 */
 	if (unlikely(do_tstamp)) {
-		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + GMAC_FCB_LEN;
+		txbdp_tstamp->bufPtr = txbdp_start->bufPtr + fcb_length;
 		txbdp_tstamp->lstatus |= BD_LFLAG(TXBD_READY) |
-				(skb_headlen(skb) - GMAC_FCB_LEN);
+				(skb_headlen(skb) - fcb_length);
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | GMAC_FCB_LEN;
 	} else {
 		lstatus |= BD_LFLAG(TXBD_CRC | TXBD_READY) | skb_headlen(skb);
 	}
+
+	netdev_tx_sent_queue(txq, skb->len);
 
 	/*
 	 * We can work in parallel with gfar_clean_tx_ring(), except
@@ -2447,6 +2437,7 @@ static void gfar_align_skb(struct sk_buff *skb)
 static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 {
 	struct net_device *dev = tx_queue->dev;
+	struct netdev_queue *txq;
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar_priv_rx_q *rx_queue = NULL;
 	struct txbd8 *bdp, *next = NULL;
@@ -2458,10 +2449,13 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	int frags = 0, nr_txbds = 0;
 	int i;
 	int howmany = 0;
+	int tqi = tx_queue->qindex;
+	unsigned int bytes_sent = 0;
 	u32 lstatus;
 	size_t buflen;
 
-	rx_queue = priv->rx_queue[tx_queue->qindex];
+	rx_queue = priv->rx_queue[tqi];
+	txq = netdev_get_tx_queue(dev, tqi);
 	bdp = tx_queue->dirty_tx;
 	skb_dirtytx = tx_queue->skb_dirtytx;
 
@@ -2490,7 +2484,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 
 		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_IN_PROGRESS)) {
 			next = next_txbd(bdp, base, tx_ring_size);
-			buflen = next->length + GMAC_FCB_LEN;
+			buflen = next->length + GMAC_FCB_LEN + GMAC_TXPAL_LEN;
 		} else
 			buflen = bdp->length;
 
@@ -2502,6 +2496,7 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			u64 *ns = (u64*) (((u32)skb->data + 0x10) & ~0x7);
 			memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 			shhwtstamps.hwtstamp = ns_to_ktime(*ns);
+			skb_pull(skb, GMAC_FCB_LEN + GMAC_TXPAL_LEN);
 			skb_tstamp_tx(skb, &shhwtstamps);
 			bdp->lstatus &= BD_LFLAG(TXBD_WRAP);
 			bdp = next;
@@ -2518,6 +2513,8 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 			bdp->lstatus &= BD_LFLAG(TXBD_WRAP);
 			bdp = next_txbd(bdp, base, tx_ring_size);
 		}
+
+		bytes_sent += skb->len;
 
 		/*
 		 * If there's room in the queue (limit it to rx_buffer_size)
@@ -2543,12 +2540,14 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	}
 
 	/* If we freed a buffer, we can restart transmission, if necessary */
-	if (__netif_subqueue_stopped(dev, tx_queue->qindex) && tx_queue->num_txbdfree)
-		netif_wake_subqueue(dev, tx_queue->qindex);
+	if (netif_tx_queue_stopped(txq) && tx_queue->num_txbdfree)
+		netif_wake_subqueue(dev, tqi);
 
 	/* Update dirty indicators */
 	tx_queue->skb_dirtytx = skb_dirtytx;
 	tx_queue->dirty_tx = bdp;
+
+	netdev_tx_completed_queue(txq, howmany, bytes_sent);
 
 	return howmany;
 }

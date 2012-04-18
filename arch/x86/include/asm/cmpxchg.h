@@ -43,7 +43,7 @@ extern void __add_wrong_size(void)
 		switch (sizeof(*(ptr))) {				\
 		case __X86_CASE_B:					\
 			asm volatile (lock #op "b %b0, %1\n"		\
-				      : "+r" (__ret), "+m" (*(ptr))	\
+				      : "+q" (__ret), "+m" (*(ptr))	\
 				      : : "memory", "cc");		\
 			break;						\
 		case __X86_CASE_W:					\
@@ -145,13 +145,13 @@ extern void __add_wrong_size(void)
 
 #ifdef __HAVE_ARCH_CMPXCHG
 #define cmpxchg(ptr, old, new)						\
-	__cmpxchg((ptr), (old), (new), sizeof(*ptr))
+	__cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
 #define sync_cmpxchg(ptr, old, new)					\
-	__sync_cmpxchg((ptr), (old), (new), sizeof(*ptr))
+	__sync_cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
 #define cmpxchg_local(ptr, old, new)					\
-	__cmpxchg_local((ptr), (old), (new), sizeof(*ptr))
+	__cmpxchg_local(ptr, old, new, sizeof(*(ptr)))
 #endif
 
 /*
@@ -173,7 +173,7 @@ extern void __add_wrong_size(void)
 		switch (sizeof(*(ptr))) {				\
 		case __X86_CASE_B:					\
 			asm volatile (lock "addb %b1, %0\n"		\
-				      : "+m" (*(ptr)) : "ri" (inc)	\
+				      : "+m" (*(ptr)) : "qi" (inc)	\
 				      : "memory", "cc");		\
 			break;						\
 		case __X86_CASE_W:					\

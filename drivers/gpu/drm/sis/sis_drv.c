@@ -40,7 +40,8 @@ static struct pci_device_id pciidlist[] = {
 static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 {
 	drm_sis_private_t *dev_priv;
-	int ret;
+
+	pci_set_master(dev->pdev);
 
 	dev_priv = kzalloc(sizeof(drm_sis_private_t), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -50,7 +51,7 @@ static int sis_driver_load(struct drm_device *dev, unsigned long chipset)
 	dev_priv->chipset = chipset;
 	idr_init(&dev->object_name_idr);
 
-	return ret;
+	return 0;
 }
 
 static int sis_driver_unload(struct drm_device *dev)

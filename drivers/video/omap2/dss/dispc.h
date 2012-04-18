@@ -97,6 +97,17 @@
 #define DISPC_OVL_PRELOAD(n)		(DISPC_OVL_BASE(n) + \
 					DISPC_PRELOAD_OFFSET(n))
 
+/* DISPC up/downsampling FIR filter coefficient structure */
+struct dispc_coef {
+	s8 hc4_vc22;
+	s8 hc3_vc2;
+	u8 hc2_vc1;
+	s8 hc1_vc0;
+	s8 hc0_vc00;
+};
+
+const struct dispc_coef *dispc_ovl_get_scale_coef(int inc, int five_taps);
+
 /* DISPC manager/channel specific registers */
 static inline u16 DISPC_DEFAULT_COLOR(enum omap_channel channel)
 {

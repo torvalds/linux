@@ -1,27 +1,27 @@
 /*
-	ads7828.c - lm_sensors driver for ads7828 12-bit 8-channel ADC
-	(C) 2007 EADS Astrium
-
-	This driver is based on the lm75 and other lm_sensors/hwmon drivers
-
-	Written by Steve Hardy <shardy@redhat.com>
-
-	Datasheet available at: http://focus.ti.com/lit/ds/symlink/ads7828.pdf
-
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
-*/
+ * ads7828.c - lm_sensors driver for ads7828 12-bit 8-channel ADC
+ * (C) 2007 EADS Astrium
+ *
+ * This driver is based on the lm75 and other lm_sensors/hwmon drivers
+ *
+ * Written by Steve Hardy <shardy@redhat.com>
+ *
+ * Datasheet available at: http://focus.ti.com/lit/ds/symlink/ads7828.pdf
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ */
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -48,8 +48,8 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 	I2C_CLIENT_END };
 
 /* Module parameters */
-static int se_input = 1; /* Default is SE, 0 == diff */
-static int int_vref = 1; /* Default is internal ref ON */
+static bool se_input = 1; /* Default is SE, 0 == diff */
+static bool int_vref = 1; /* Default is internal ref ON */
 static int vref_mv = ADS7828_INT_VREF_MV; /* set if vref != 2.5V */
 module_param(se_input, bool, S_IRUGO);
 module_param(int_vref, bool, S_IRUGO);
@@ -188,12 +188,13 @@ static int ads7828_detect(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA))
 		return -ENODEV;
 
-	/* Now, we do the remaining detection. There is no identification
-	dedicated register so attempt to sanity check using knowledge of
-	the chip
-	- Read from the 8 channel addresses
-	- Check the top 4 bits of each result are not set (12 data bits)
-	*/
+	/*
+	 * Now, we do the remaining detection. There is no identification
+	 * dedicated register so attempt to sanity check using knowledge of
+	 * the chip
+	 * - Read from the 8 channel addresses
+	 * - Check the top 4 bits of each result are not set (12 data bits)
+	 */
 	for (ch = 0; ch < ADS7828_NCH; ch++) {
 		u16 in_data;
 		u8 cmd = channel_cmd_byte(ch);

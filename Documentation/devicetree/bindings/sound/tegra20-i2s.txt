@@ -1,0 +1,17 @@
+NVIDIA Tegra 20 I2S controller
+
+Required properties:
+- compatible : "nvidia,tegra20-i2s"
+- reg : Should contain I2S registers location and length
+- interrupts : Should contain I2S interrupt
+- nvidia,dma-request-selector : The Tegra DMA controller's phandle and
+  request selector for this I2S controller
+
+Example:
+
+i2s@70002800 {
+	compatible = "nvidia,tegra20-i2s";
+	reg = <0x70002800 0x200>;
+	interrupts = < 45 >;
+	nvidia,dma-request-selector = < &apbdma 2 >;
+};

@@ -10,6 +10,9 @@
  * published by the Free Software Foundation.
 */
 
+#ifndef __PLAT_DMA_H
+#define __PLAT_DMA_H
+
 #include <linux/dma-mapping.h>
 
 enum s3c2410_dma_buffresult {
@@ -122,5 +125,6 @@ extern int s3c2410_dma_getposition(enum dma_ch channel,
 extern int s3c2410_dma_set_opfn(enum dma_ch, s3c2410_dma_opfn_t rtn);
 extern int s3c2410_dma_set_buffdone_fn(enum dma_ch, s3c2410_dma_cbfn_t rtn);
 
-
 #include <plat/dma-ops.h>
+
+#endif

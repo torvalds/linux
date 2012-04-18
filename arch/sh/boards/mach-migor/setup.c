@@ -21,9 +21,11 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
+#include <linux/videodev2.h>
 #include <video/sh_mobile_lcdc.h>
 #include <media/sh_mobile_ceu.h>
 #include <media/ov772x.h>
+#include <media/soc_camera.h>
 #include <media/tw9910.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
@@ -98,9 +100,6 @@ static struct platform_device sh_keysc_device = {
 	.resource       = sh_keysc_resources,
 	.dev	= {
 		.platform_data	= &sh_keysc_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_KEYSC,
 	},
 };
 
@@ -244,12 +243,12 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 	.clock_source = LCDC_CLK_BUS,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = RGB16,
 		.clock_divider = 2,
-		.lcd_cfg = migor_lcd_modes,
-		.num_cfg = ARRAY_SIZE(migor_lcd_modes),
-		.lcd_size_cfg = { /* 7.0 inch */
+		.lcd_modes = migor_lcd_modes,
+		.num_modes = ARRAY_SIZE(migor_lcd_modes),
+		.panel_cfg = { /* 7.0 inch */
 			.width = 152,
 			.height = 91,
 		},
@@ -258,16 +257,14 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 	.clock_source = LCDC_CLK_PERIPHERAL,
 	.ch[0] = {
 		.chan = LCDC_CHAN_MAINLCD,
-		.bpp = 16,
+		.fourcc = V4L2_PIX_FMT_RGB565,
 		.interface_type = SYS16A,
 		.clock_divider = 10,
-		.lcd_cfg = migor_lcd_modes,
-		.num_cfg = ARRAY_SIZE(migor_lcd_modes),
-		.lcd_size_cfg = { /* 2.4 inch */
-			.width = 49,
+		.lcd_modes = migor_lcd_modes,
+		.num_modes = ARRAY_SIZE(migor_lcd_modes),
+		.panel_cfg = {
+			.width = 49,	/* 2.4 inch */
 			.height = 37,
-		},
-		.board_cfg = {
 			.setup_sys = migor_lcd_qvga_setup,
 		},
 		.sys_bus_cfg = {
@@ -299,9 +296,6 @@ static struct platform_device migor_lcdc_device = {
 	.resource	= migor_lcdc_resources,
 	.dev	= {
 		.platform_data	= &sh_mobile_lcdc_info,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_LCDC,
 	},
 };
 
@@ -390,9 +384,6 @@ static struct platform_device migor_ceu_device = {
 	.dev	= {
 		.platform_data	= &sh_mobile_ceu_info,
 	},
-	.archdata = {
-		.hwblk_id = HWBLK_CEU,
-	},
 };
 
 static struct resource sdhi_cn9_resources[] = {
@@ -420,9 +411,6 @@ static struct platform_device sdhi_cn9_device = {
 	.resource	= sdhi_cn9_resources,
 	.dev = {
 		.platform_data	= &sh7724_sdhi_data,
-	},
-	.archdata = {
-		.hwblk_id = HWBLK_SDHI,
 	},
 };
 

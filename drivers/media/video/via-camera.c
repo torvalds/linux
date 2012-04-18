@@ -34,13 +34,13 @@ MODULE_AUTHOR("Jonathan Corbet <corbet@lwn.net>");
 MODULE_DESCRIPTION("VIA framebuffer-based camera controller driver");
 MODULE_LICENSE("GPL");
 
-static int flip_image;
+static bool flip_image;
 module_param(flip_image, bool, 0444);
 MODULE_PARM_DESC(flip_image,
 		"If set, the sensor will be instructed to flip the image "
 		"vertically.");
 
-static int override_serial;
+static bool override_serial;
 module_param(override_serial, bool, 0444);
 MODULE_PARM_DESC(override_serial,
 		"The camera driver will normally refuse to load if "
@@ -156,14 +156,10 @@ static struct via_format {
 		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
 		.bpp		= 2,
 	},
-	{
-		.desc		= "RGB 565",
-		.pixelformat	= V4L2_PIX_FMT_RGB565,
-		.mbus_code	= V4L2_MBUS_FMT_RGB565_2X8_LE,
-		.bpp		= 2,
-	},
 	/* RGB444 and Bayer should be doable, but have never been
-	   tested with this driver. */
+	   tested with this driver. RGB565 seems to work at the default
+	   resolution, but results in color corruption when being scaled by
+	   viacam_set_scaled(), and is disabled as a result. */
 };
 #define N_VIA_FMTS ARRAY_SIZE(via_formats)
 
@@ -1504,14 +1500,4 @@ static struct platform_driver viacam_driver = {
 	.remove = viacam_remove,
 };
 
-static int viacam_init(void)
-{
-	return platform_driver_register(&viacam_driver);
-}
-module_init(viacam_init);
-
-static void viacam_exit(void)
-{
-	platform_driver_unregister(&viacam_driver);
-}
-module_exit(viacam_exit);
+module_platform_driver(viacam_driver);

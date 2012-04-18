@@ -67,4 +67,6 @@ void common(void) {
 	OFFSET(BP_hardware_subarch, boot_params, hdr.hardware_subarch);
 	OFFSET(BP_version, boot_params, hdr.version);
 	OFFSET(BP_kernel_alignment, boot_params, hdr.kernel_alignment);
+	OFFSET(BP_pref_address, boot_params, hdr.pref_address);
+	OFFSET(BP_code32_start, boot_params, hdr.code32_start);
 }

@@ -55,6 +55,7 @@
 #include <asm/paravirt.h>
 #include <asm/ftrace.h>
 #include <asm/percpu.h>
+#include <linux/err.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
@@ -319,7 +320,7 @@ ENDPROC(native_usergs_sysret64)
 	movq %rsp, %rsi
 
 	leaq -RBP(%rsp),%rdi	/* arg1 for handler */
-	testl $3, CS(%rdi)
+	testl $3, CS-RBP(%rsi)
 	je 1f
 	SWAPGS
 	/*
@@ -329,11 +330,10 @@ ENDPROC(native_usergs_sysret64)
 	 * moving irq_enter into assembly, which would be too much work)
 	 */
 1:	incl PER_CPU_VAR(irq_count)
-	jne 2f
-	mov PER_CPU_VAR(irq_stack_ptr),%rsp
+	cmovzq PER_CPU_VAR(irq_stack_ptr),%rsp
 	CFI_DEF_CFA_REGISTER	rsi
 
-2:	/* Store previous stack value */
+	/* Store previous stack value */
 	pushq %rsi
 	CFI_ESCAPE	0x0f /* DW_CFA_def_cfa_expression */, 6, \
 			0x77 /* DW_OP_breg7 */, 0, \
@@ -481,7 +481,12 @@ GLOBAL(system_call_after_swapgs)
 	testl $_TIF_WORK_SYSCALL_ENTRY,TI_flags+THREAD_INFO(%rsp,RIP-ARGOFFSET)
 	jnz tracesys
 system_call_fastpath:
+#if __SYSCALL_MASK == ~0
 	cmpq $__NR_syscall_max,%rax
+#else
+	andl $__SYSCALL_MASK,%eax
+	cmpl $__NR_syscall_max,%eax
+#endif
 	ja badsys
 	movq %r10,%rcx
 	call *sys_call_table(,%rax,8)  # XXX:	 rip relative
@@ -548,7 +553,7 @@ badsys:
 #ifdef CONFIG_AUDITSYSCALL
 	/*
 	 * Fast path for syscall audit without full syscall trace.
-	 * We just call audit_syscall_entry() directly, and then
+	 * We just call __audit_syscall_entry() directly, and then
 	 * jump back to the normal fast path.
 	 */
 auditsys:
@@ -558,22 +563,21 @@ auditsys:
 	movq %rdi,%rdx			/* 3rd arg: 1st syscall arg */
 	movq %rax,%rsi			/* 2nd arg: syscall number */
 	movl $AUDIT_ARCH_X86_64,%edi	/* 1st arg: audit arch */
-	call audit_syscall_entry
+	call __audit_syscall_entry
 	LOAD_ARGS 0		/* reload call-clobbered registers */
 	jmp system_call_fastpath
 
 	/*
-	 * Return fast path for syscall audit.  Call audit_syscall_exit()
+	 * Return fast path for syscall audit.  Call __audit_syscall_exit()
 	 * directly and then jump back to the fast path with TIF_SYSCALL_AUDIT
 	 * masked off.
 	 */
 sysret_audit:
 	movq RAX-ARGOFFSET(%rsp),%rsi	/* second arg, syscall return value */
-	cmpq $0,%rsi		/* is it < 0? */
-	setl %al		/* 1 if so, 0 if not */
+	cmpq $-MAX_ERRNO,%rsi	/* is it < -MAX_ERRNO? */
+	setbe %al		/* 1 if so, 0 if not */
 	movzbl %al,%edi		/* zero-extend that into %edi */
-	inc %edi /* first arg, 0->1(AUDITSC_SUCCESS), 1->2(AUDITSC_FAILURE) */
-	call audit_syscall_exit
+	call __audit_syscall_exit
 	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
 	jmp sysret_check
 #endif	/* CONFIG_AUDITSYSCALL */
@@ -596,7 +600,12 @@ tracesys:
 	 */
 	LOAD_ARGS ARGOFFSET, 1
 	RESTORE_REST
+#if __SYSCALL_MASK == ~0
 	cmpq $__NR_syscall_max,%rax
+#else
+	andl $__SYSCALL_MASK,%eax
+	cmpl $__NR_syscall_max,%eax
+#endif
 	ja   int_ret_from_sys_call	/* RAX(%rsp) set to -ENOSYS above */
 	movq %r10,%rcx	/* fixup for C */
 	call *sys_call_table(,%rax,8)
@@ -736,6 +745,40 @@ ENTRY(stub_rt_sigreturn)
 	CFI_ENDPROC
 END(stub_rt_sigreturn)
 
+#ifdef CONFIG_X86_X32_ABI
+	PTREGSCALL stub_x32_sigaltstack, sys32_sigaltstack, %rdx
+
+ENTRY(stub_x32_rt_sigreturn)
+	CFI_STARTPROC
+	addq $8, %rsp
+	PARTIAL_FRAME 0
+	SAVE_REST
+	movq %rsp,%rdi
+	FIXUP_TOP_OF_STACK %r11
+	call sys32_x32_rt_sigreturn
+	movq %rax,RAX(%rsp) # fixme, this could be done at the higher layer
+	RESTORE_REST
+	jmp int_ret_from_sys_call
+	CFI_ENDPROC
+END(stub_x32_rt_sigreturn)
+
+ENTRY(stub_x32_execve)
+	CFI_STARTPROC
+	addq $8, %rsp
+	PARTIAL_FRAME 0
+	SAVE_REST
+	FIXUP_TOP_OF_STACK %r11
+	movq %rsp, %rcx
+	call sys32_execve
+	RESTORE_TOP_OF_STACK %r11
+	movq %rax,RAX(%rsp)
+	RESTORE_REST
+	jmp int_ret_from_sys_call
+	CFI_ENDPROC
+END(stub_x32_execve)
+
+#endif
+
 /*
  * Build the entry stubs and pointer table with some assembler magic.
  * We pack 7 stubs into a single 32-byte chunk, which will fit in a
@@ -813,7 +856,7 @@ ret_from_intr:
 
 	/* Restore saved previous stack */
 	popq %rsi
-	CFI_DEF_CFA_REGISTER	rsi
+	CFI_DEF_CFA rsi,SS+8-RBP	/* reg/off reset after def_cfa_expr */
 	leaq ARGOFFSET-RBP(%rsi), %rsp
 	CFI_DEF_CFA_REGISTER	rsp
 	CFI_ADJUST_CFA_OFFSET	RBP-ARGOFFSET
@@ -1480,60 +1523,225 @@ ENTRY(error_exit)
 	CFI_ENDPROC
 END(error_exit)
 
+/*
+ * Test if a given stack is an NMI stack or not.
+ */
+	.macro test_in_nmi reg stack nmi_ret normal_ret
+	cmpq %\reg, \stack
+	ja \normal_ret
+	subq $EXCEPTION_STKSZ, %\reg
+	cmpq %\reg, \stack
+	jb \normal_ret
+	jmp \nmi_ret
+	.endm
 
 	/* runs on exception stack */
 ENTRY(nmi)
 	INTR_FRAME
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
-	pushq_cfi $-1
+	/*
+	 * We allow breakpoints in NMIs. If a breakpoint occurs, then
+	 * the iretq it performs will take us out of NMI context.
+	 * This means that we can have nested NMIs where the next
+	 * NMI is using the top of the stack of the previous NMI. We
+	 * can't let it execute because the nested NMI will corrupt the
+	 * stack of the previous NMI. NMI handlers are not re-entrant
+	 * anyway.
+	 *
+	 * To handle this case we do the following:
+	 *  Check the a special location on the stack that contains
+	 *  a variable that is set when NMIs are executing.
+	 *  The interrupted task's stack is also checked to see if it
+	 *  is an NMI stack.
+	 *  If the variable is not set and the stack is not the NMI
+	 *  stack then:
+	 *    o Set the special variable on the stack
+	 *    o Copy the interrupt frame into a "saved" location on the stack
+	 *    o Copy the interrupt frame into a "copy" location on the stack
+	 *    o Continue processing the NMI
+	 *  If the variable is set or the previous stack is the NMI stack:
+	 *    o Modify the "copy" location to jump to the repeate_nmi
+	 *    o return back to the first NMI
+	 *
+	 * Now on exit of the first NMI, we first clear the stack variable
+	 * The NMI stack will tell any nested NMIs at that point that it is
+	 * nested. Then we pop the stack normally with iret, and if there was
+	 * a nested NMI that updated the copy interrupt stack frame, a
+	 * jump will be made to the repeat_nmi code that will handle the second
+	 * NMI.
+	 */
+
+	/* Use %rdx as out temp variable throughout */
+	pushq_cfi %rdx
+	CFI_REL_OFFSET rdx, 0
+
+	/*
+	 * If %cs was not the kernel segment, then the NMI triggered in user
+	 * space, which means it is definitely not nested.
+	 */
+	cmpl $__KERNEL_CS, 16(%rsp)
+	jne first_nmi
+
+	/*
+	 * Check the special variable on the stack to see if NMIs are
+	 * executing.
+	 */
+	cmpl $1, -8(%rsp)
+	je nested_nmi
+
+	/*
+	 * Now test if the previous stack was an NMI stack.
+	 * We need the double check. We check the NMI stack to satisfy the
+	 * race when the first NMI clears the variable before returning.
+	 * We check the variable because the first NMI could be in a
+	 * breakpoint routine using a breakpoint stack.
+	 */
+	lea 6*8(%rsp), %rdx
+	test_in_nmi rdx, 4*8(%rsp), nested_nmi, first_nmi
+	CFI_REMEMBER_STATE
+
+nested_nmi:
+	/*
+	 * Do nothing if we interrupted the fixup in repeat_nmi.
+	 * It's about to repeat the NMI handler, so we are fine
+	 * with ignoring this one.
+	 */
+	movq $repeat_nmi, %rdx
+	cmpq 8(%rsp), %rdx
+	ja 1f
+	movq $end_repeat_nmi, %rdx
+	cmpq 8(%rsp), %rdx
+	ja nested_nmi_out
+
+1:
+	/* Set up the interrupted NMIs stack to jump to repeat_nmi */
+	leaq -6*8(%rsp), %rdx
+	movq %rdx, %rsp
+	CFI_ADJUST_CFA_OFFSET 6*8
+	pushq_cfi $__KERNEL_DS
+	pushq_cfi %rdx
+	pushfq_cfi
+	pushq_cfi $__KERNEL_CS
+	pushq_cfi $repeat_nmi
+
+	/* Put stack back */
+	addq $(11*8), %rsp
+	CFI_ADJUST_CFA_OFFSET -11*8
+
+nested_nmi_out:
+	popq_cfi %rdx
+	CFI_RESTORE rdx
+
+	/* No need to check faults here */
+	INTERRUPT_RETURN
+
+	CFI_RESTORE_STATE
+first_nmi:
+	/*
+	 * Because nested NMIs will use the pushed location that we
+	 * stored in rdx, we must keep that space available.
+	 * Here's what our stack frame will look like:
+	 * +-------------------------+
+	 * | original SS             |
+	 * | original Return RSP     |
+	 * | original RFLAGS         |
+	 * | original CS             |
+	 * | original RIP            |
+	 * +-------------------------+
+	 * | temp storage for rdx    |
+	 * +-------------------------+
+	 * | NMI executing variable  |
+	 * +-------------------------+
+	 * | Saved SS                |
+	 * | Saved Return RSP        |
+	 * | Saved RFLAGS            |
+	 * | Saved CS                |
+	 * | Saved RIP               |
+	 * +-------------------------+
+	 * | copied SS               |
+	 * | copied Return RSP       |
+	 * | copied RFLAGS           |
+	 * | copied CS               |
+	 * | copied RIP              |
+	 * +-------------------------+
+	 * | pt_regs                 |
+	 * +-------------------------+
+	 *
+	 * The saved stack frame is used to fix up the copied stack frame
+	 * that a nested NMI may change to make the interrupted NMI iret jump
+	 * to the repeat_nmi. The original stack frame and the temp storage
+	 * is also used by nested NMIs and can not be trusted on exit.
+	 */
+	/* Do not pop rdx, nested NMIs will corrupt that part of the stack */
+	movq (%rsp), %rdx
+	CFI_RESTORE rdx
+
+	/* Set the NMI executing variable on the stack. */
+	pushq_cfi $1
+
+	/* Copy the stack frame to the Saved frame */
+	.rept 5
+	pushq_cfi 6*8(%rsp)
+	.endr
+	CFI_DEF_CFA_OFFSET SS+8-RIP
+
+	/* Everything up to here is safe from nested NMIs */
+
+	/*
+	 * If there was a nested NMI, the first NMI's iret will return
+	 * here. But NMIs are still enabled and we can take another
+	 * nested NMI. The nested NMI checks the interrupted RIP to see
+	 * if it is between repeat_nmi and end_repeat_nmi, and if so
+	 * it will just return, as we are about to repeat an NMI anyway.
+	 * This makes it safe to copy to the stack frame that a nested
+	 * NMI will update.
+	 */
+repeat_nmi:
+	/*
+	 * Update the stack variable to say we are still in NMI (the update
+	 * is benign for the non-repeat case, where 1 was pushed just above
+	 * to this very stack slot).
+	 */
+	movq $1, 5*8(%rsp)
+
+	/* Make another copy, this one may be modified by nested NMIs */
+	.rept 5
+	pushq_cfi 4*8(%rsp)
+	.endr
+	CFI_DEF_CFA_OFFSET SS+8-RIP
+end_repeat_nmi:
+
+	/*
+	 * Everything below this point can be preempted by a nested
+	 * NMI if the first NMI took an exception and reset our iret stack
+	 * so that we repeat another NMI.
+	 */
+	pushq_cfi $-1		/* ORIG_RAX: no syscall to restart */
 	subq $ORIG_RAX-R15, %rsp
 	CFI_ADJUST_CFA_OFFSET ORIG_RAX-R15
+	/*
+	 * Use save_paranoid to handle SWAPGS, but no need to use paranoid_exit
+	 * as we should not be calling schedule in NMI context.
+	 * Even with normal interrupts enabled. An NMI should not be
+	 * setting NEED_RESCHED or anything that normal interrupts and
+	 * exceptions might do.
+	 */
 	call save_paranoid
 	DEFAULT_FRAME 0
 	/* paranoidentry do_nmi, 0; without TRACE_IRQS_OFF */
 	movq %rsp,%rdi
 	movq $-1,%rsi
 	call do_nmi
-#ifdef CONFIG_TRACE_IRQFLAGS
-	/* paranoidexit; without TRACE_IRQS_OFF */
-	/* ebx:	no swapgs flag */
-	DISABLE_INTERRUPTS(CLBR_NONE)
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz nmi_restore
-	testl $3,CS(%rsp)
-	jnz nmi_userspace
 nmi_swapgs:
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
 	RESTORE_ALL 8
+	/* Clear the NMI executing stack variable */
+	movq $0, 10*8(%rsp)
 	jmp irq_return
-nmi_userspace:
-	GET_THREAD_INFO(%rcx)
-	movl TI_flags(%rcx),%ebx
-	andl $_TIF_WORK_MASK,%ebx
-	jz nmi_swapgs
-	movq %rsp,%rdi			/* &pt_regs */
-	call sync_regs
-	movq %rax,%rsp			/* switch stack for scheduling */
-	testl $_TIF_NEED_RESCHED,%ebx
-	jnz nmi_schedule
-	movl %ebx,%edx			/* arg3: thread flags */
-	ENABLE_INTERRUPTS(CLBR_NONE)
-	xorl %esi,%esi 			/* arg2: oldset */
-	movq %rsp,%rdi 			/* arg1: &pt_regs */
-	call do_notify_resume
-	DISABLE_INTERRUPTS(CLBR_NONE)
-	jmp nmi_userspace
-nmi_schedule:
-	ENABLE_INTERRUPTS(CLBR_ANY)
-	call schedule
-	DISABLE_INTERRUPTS(CLBR_ANY)
-	jmp nmi_userspace
 	CFI_ENDPROC
-#else
-	jmp paranoid_exit
-	CFI_ENDPROC
-#endif
 END(nmi)
 
 ENTRY(ignore_sysret)

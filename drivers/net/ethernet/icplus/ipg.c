@@ -744,9 +744,6 @@ static int ipg_get_rxbuff(struct net_device *dev, int entry)
 		return -ENOMEM;
 	}
 
-	/* Associate the receive buffer with the IPG NIC. */
-	skb->dev = dev;
-
 	/* Save the address of the sk_buff structure. */
 	sp->rx_buff[entry] = skb;
 
@@ -2233,7 +2230,6 @@ static int __devinit ipg_probe(struct pci_dev *pdev,
 	 */
 	dev = alloc_etherdev(sizeof(struct ipg_nic_private));
 	if (!dev) {
-		pr_err("%s: alloc_etherdev failed\n", pci_name(pdev));
 		rc = -ENOMEM;
 		goto err_disable_0;
 	}

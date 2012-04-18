@@ -21,7 +21,7 @@
 #include <linux/ctype.h>
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
-#include <target/target_core_tpg.h>
+#include <target/target_core_fabric.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_parameters.h"
@@ -90,7 +90,7 @@ int extract_param(
 		return -1;
 
 	if (len > max_length) {
-		pr_err("Length of input: %d exeeds max_length:"
+		pr_err("Length of input: %d exceeds max_length:"
 			" %d\n", len, max_length);
 		return -1;
 	}
@@ -173,13 +173,11 @@ static int iscsi_target_check_login_request(
 	struct iscsi_conn *conn,
 	struct iscsi_login *login)
 {
-	int req_csg, req_nsg, rsp_csg, rsp_nsg;
+	int req_csg, req_nsg;
 	u32 payload_length;
 	struct iscsi_login_req *login_req;
-	struct iscsi_login_rsp *login_rsp;
 
 	login_req = (struct iscsi_login_req *) login->req;
-	login_rsp = (struct iscsi_login_rsp *) login->rsp;
 	payload_length = ntoh24(login_req->dlength);
 
 	switch (login_req->opcode & ISCSI_OPCODE_MASK) {
@@ -203,9 +201,7 @@ static int iscsi_target_check_login_request(
 	}
 
 	req_csg = (login_req->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK) >> 2;
-	rsp_csg = (login_rsp->flags & ISCSI_FLAG_LOGIN_CURRENT_STAGE_MASK) >> 2;
 	req_nsg = (login_req->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE_MASK);
-	rsp_nsg = (login_rsp->flags & ISCSI_FLAG_LOGIN_NEXT_STAGE_MASK);
 
 	if (req_csg != login->current_stage) {
 		pr_err("Initiator unexpectedly changed login stage"
@@ -732,7 +728,7 @@ static void iscsi_initiatorname_tolower(
 	u32 iqn_size = strlen(param_buf), i;
 
 	for (i = 0; i < iqn_size; i++) {
-		c = (char *)&param_buf[i];
+		c = &param_buf[i];
 		if (!isupper(*c))
 			continue;
 
@@ -753,12 +749,10 @@ static int iscsi_target_locate_portal(
 	struct iscsi_session *sess = conn->sess;
 	struct iscsi_tiqn *tiqn;
 	struct iscsi_login_req *login_req;
-	struct iscsi_targ_login_rsp *login_rsp;
 	u32 payload_length;
 	int sessiontype = 0, ret = 0;
 
 	login_req = (struct iscsi_login_req *) login->req;
-	login_rsp = (struct iscsi_targ_login_rsp *) login->rsp;
 	payload_length = ntoh24(login_req->dlength);
 
 	login->first_request	= 1;

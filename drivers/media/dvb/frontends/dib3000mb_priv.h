@@ -98,7 +98,7 @@ struct dib3000_state {
 	int timing_offset;
 	int timing_offset_comp_done;
 
-	fe_bandwidth_t last_tuned_bw;
+	u32 last_tuned_bw;
 	u32 last_tuned_freq;
 };
 

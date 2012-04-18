@@ -18,6 +18,8 @@
 #include <linux/string.h>
 #include <linux/kdev_t.h>
 #include <linux/notifier.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/genhd.h>
 #include <linux/kallsyms.h>
 #include <linux/mutex.h>
@@ -266,6 +268,9 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 
 	if (dev->driver)
 		add_uevent_var(env, "DRIVER=%s", dev->driver->name);
+
+	/* Add common DT information about the device */
+	of_device_uevent(dev, env);
 
 	/* have the bus specific function add its stuff */
 	if (dev->bus && dev->bus->uevent) {
@@ -632,6 +637,11 @@ static void klist_children_put(struct klist_node *n)
  * may be used for reference counting of @dev after calling this
  * function.
  *
+ * All fields in @dev must be initialized by the caller to 0, except
+ * for those explicitly set to some other value.  The simplest
+ * approach is to use kzalloc() to allocate the structure containing
+ * @dev.
+ *
  * NOTE: Use put_device() to give up your reference instead of freeing
  * @dev directly once you have called this function.
  */
@@ -916,6 +926,7 @@ int device_private_init(struct device *dev)
 	dev->p->device = dev;
 	klist_init(&dev->p->klist_children, klist_children_get,
 		   klist_children_put);
+	INIT_LIST_HEAD(&dev->p->deferred_probe);
 	return 0;
 }
 
@@ -929,6 +940,13 @@ int device_private_init(struct device *dev)
  * This adds @dev to the kobject hierarchy via kobject_add(), adds it
  * to the global and sibling lists for the device, then
  * adds it to the other relevant subsystems of the driver model.
+ *
+ * Do not call this routine or device_register() more than once for
+ * any device structure.  The driver model core is not designed to work
+ * with devices that get unregistered and then spring back to life.
+ * (Among other things, it's very hard to guarantee that all references
+ * to the previous incarnation of @dev have been dropped.)  Allocate
+ * and register a fresh new struct device instead.
  *
  * NOTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use put_device() to give up your
@@ -1022,7 +1040,7 @@ int device_add(struct device *dev)
 	device_pm_add(dev);
 
 	/* Notify clients of device addition.  This call must come
-	 * after dpm_sysf_add() and before kobject_uevent().
+	 * after dpm_sysfs_add() and before kobject_uevent().
 	 */
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
@@ -1089,6 +1107,9 @@ name_error:
  * I.e. you should only call the two helpers separately if
  * have a clearly defined need to use and refcount the device
  * before it is added to the hierarchy.
+ *
+ * For more information, see the kerneldoc for device_initialize()
+ * and device_add().
  *
  * NOTE: _Never_ directly free @dev after calling this function, even
  * if it returned an error! Always use put_device() to give up the
@@ -1173,6 +1194,7 @@ void device_del(struct device *dev)
 	device_remove_file(dev, &uevent_attr);
 	device_remove_attrs(dev);
 	bus_remove_device(dev);
+	driver_deferred_probe_del(dev);
 
 	/*
 	 * Some platform devices are driven without driver attached

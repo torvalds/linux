@@ -219,6 +219,13 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		ha->mailbox_timeout_count++;
 		mbx_sts[0] = (-1);
 		set_bit(DPC_RESET_HA, &ha->dpc_flags);
+		if (is_qla8022(ha)) {
+			ql4_printk(KERN_INFO, ha,
+				   "disabling pause transmit on port 0 & 1.\n");
+			qla4_8xxx_wr_32(ha, QLA82XX_CRB_NIU + 0x98,
+					CRB_NIU_XG_PAUSE_CTL_P0 |
+					CRB_NIU_XG_PAUSE_CTL_P1);
+		}
 		goto mbox_exit;
 	}
 
@@ -615,7 +622,7 @@ int qla4xxx_get_firmware_status(struct scsi_qla_host * ha)
 		return QLA_ERROR;
 	}
 
-	ql4_printk(KERN_INFO, ha, "%ld firmare IOCBs available (%d).\n",
+	ql4_printk(KERN_INFO, ha, "%ld firmware IOCBs available (%d).\n",
 	    ha->host_no, mbox_sts[2]);
 
 	return QLA_SUCCESS;
@@ -654,6 +661,8 @@ int qla4xxx_get_fwddb_entry(struct scsi_qla_host *ha,
 	}
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
+	if (fw_ddb_entry)
+		memset(fw_ddb_entry, 0, sizeof(struct dev_db_entry));
 
 	mbox_cmd[0] = MBOX_CMD_GET_DATABASE_ENTRY;
 	mbox_cmd[1] = (uint32_t) fw_ddb_index;
@@ -1417,8 +1426,8 @@ exit_set_chap:
  * match is found. If a match is not found then add the entry in FLASH and
  * return the index at which entry is written in the FLASH.
  **/
-static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
-			    char *password, int bidi, uint16_t *chap_index)
+int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
+			   char *password, int bidi, uint16_t *chap_index)
 {
 	int i, rval;
 	int free_index = -1;
@@ -1434,6 +1443,11 @@ static int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 
 	if (!ha->chap_list) {
 		ql4_printk(KERN_ERR, ha, "Do not have CHAP table cache\n");
+		return QLA_ERROR;
+	}
+
+	if (!username || !password) {
+		ql4_printk(KERN_ERR, ha, "Do not have username and psw\n");
 		return QLA_ERROR;
 	}
 
@@ -1593,7 +1607,7 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 	char *ip;
 	uint16_t iscsi_opts = 0;
 	uint32_t options = 0;
-	uint16_t idx;
+	uint16_t idx, *ptid;
 
 	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
 					  &fw_ddb_entry_dma, GFP_KERNEL);
@@ -1618,6 +1632,14 @@ int qla4xxx_set_param_ddbentry(struct scsi_qla_host *ha,
 		rval = -EINVAL;
 		goto exit_set_param;
 	}
+
+	ptid = (uint16_t *)&fw_ddb_entry->isid[1];
+	*ptid = cpu_to_le16((uint16_t)ddb_entry->sess->target_id);
+
+	DEBUG2(ql4_printk(KERN_INFO, ha, "ISID [%02x%02x%02x%02x%02x%02x]\n",
+			  fw_ddb_entry->isid[5], fw_ddb_entry->isid[4],
+			  fw_ddb_entry->isid[3], fw_ddb_entry->isid[2],
+			  fw_ddb_entry->isid[1], fw_ddb_entry->isid[0]));
 
 	iscsi_opts = le16_to_cpu(fw_ddb_entry->iscsi_options);
 	memset(fw_ddb_entry->iscsi_alias, 0, sizeof(fw_ddb_entry->iscsi_alias));

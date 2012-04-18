@@ -228,7 +228,7 @@ static int ad1980_soc_probe(struct snd_soc_codec *codec)
 	ext_status = ac97_read(codec, AC97_EXTENDED_STATUS);
 	ac97_write(codec, AC97_EXTENDED_STATUS, ext_status&~0x3800);
 
-	snd_soc_add_controls(codec, ad1980_snd_ac97_controls,
+	snd_soc_add_codec_controls(codec, ad1980_snd_ac97_controls,
 				ARRAY_SIZE(ad1980_snd_ac97_controls));
 
 	return 0;
@@ -277,17 +277,7 @@ static struct platform_driver ad1980_codec_driver = {
 	.remove = __devexit_p(ad1980_remove),
 };
 
-static int __init ad1980_init(void)
-{
-	return platform_driver_register(&ad1980_codec_driver);
-}
-module_init(ad1980_init);
-
-static void __exit ad1980_exit(void)
-{
-	platform_driver_unregister(&ad1980_codec_driver);
-}
-module_exit(ad1980_exit);
+module_platform_driver(ad1980_codec_driver);
 
 MODULE_DESCRIPTION("ASoC ad1980 driver (Obsolete)");
 MODULE_AUTHOR("Roy Huang, Cliff Cai");

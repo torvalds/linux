@@ -921,12 +921,12 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 		/* "Safe default" - 13MHz */
 		recalculate_fifo_timeout(pcdev, 13000000);
 
-	clk_enable(pcdev->clk);
+	clk_prepare_enable(pcdev->clk);
 }
 
 static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 {
-	clk_disable(pcdev->clk);
+	clk_disable_unprepare(pcdev->clk);
 }
 
 static irqreturn_t pxa_camera_irq(int irq, void *data)
@@ -1133,12 +1133,13 @@ static void pxa_camera_setup_cicr(struct soc_camera_device *icd,
 	__raw_writel(cicr0, pcdev->base + CICR0);
 }
 
-static int pxa_camera_set_bus_param(struct soc_camera_device *icd, __u32 pixfmt)
+static int pxa_camera_set_bus_param(struct soc_camera_device *icd)
 {
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct pxa_camera_dev *pcdev = ici->priv;
 	struct v4l2_mbus_config cfg = {.type = V4L2_MBUS_PARALLEL,};
+	u32 pixfmt = icd->current_fmt->host_fmt->fourcc;
 	unsigned long bus_flags, common_flags;
 	int ret;
 	struct pxa_cam *cam = icd->host_priv;
@@ -1851,19 +1852,7 @@ static struct platform_driver pxa_camera_driver = {
 	.remove		= __devexit_p(pxa_camera_remove),
 };
 
-
-static int __init pxa_camera_init(void)
-{
-	return platform_driver_register(&pxa_camera_driver);
-}
-
-static void __exit pxa_camera_exit(void)
-{
-	platform_driver_unregister(&pxa_camera_driver);
-}
-
-module_init(pxa_camera_init);
-module_exit(pxa_camera_exit);
+module_platform_driver(pxa_camera_driver);
 
 MODULE_DESCRIPTION("PXA27x SoC Camera Host driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <kernel@pengutronix.de>");

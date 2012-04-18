@@ -95,7 +95,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 static struct snd_soc_dai_link am3517evm_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
-	.cpu_dai_name ="omap-mcbsp-dai.0",
+	.cpu_dai_name = "omap-mcbsp.1",
 	.codec_dai_name = "tlv320aic23-hifi",
 	.platform_name = "omap-pcm-audio",
 	.codec_name = "tlv320aic23-codec.2-001a",
@@ -107,6 +107,7 @@ static struct snd_soc_dai_link am3517evm_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_am3517evm = {
 	.name = "am3517evm",
+	.owner = THIS_MODULE,
 	.dai_link = &am3517evm_dai,
 	.num_links = 1,
 

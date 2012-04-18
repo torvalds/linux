@@ -404,6 +404,13 @@ config DVB_EC100
 	help
 	  Say Y when you want to support this frontend.
 
+config DVB_HD29L2
+	tristate "HDIC HD29L2"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
 config DVB_STV0367
 	tristate "ST STV0367 based"
 	depends on DVB_CORE && I2C
@@ -413,6 +420,13 @@ config DVB_STV0367
 
 config DVB_CXD2820R
 	tristate "Sony CXD2820R"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
+
+config DVB_RTL2830
+	tristate "Realtek RTL2830 DVB-T"
 	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
 	help
@@ -689,6 +703,14 @@ config DVB_IT913X_FE
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A DVB-T tuner module.
+	  Say Y when you want to support this frontend.
+
+config DVB_M88RS2000
+	tristate "M88RS2000 DVB-S demodulator and tuner"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S tuner module.
 	  Say Y when you want to support this frontend.
 
 comment "Tools to develop new frontends"

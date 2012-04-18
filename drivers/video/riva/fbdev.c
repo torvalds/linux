@@ -207,9 +207,9 @@ MODULE_DEVICE_TABLE(pci, rivafb_pci_tbl);
 /* command line data, set in rivafb_setup() */
 static int flatpanel __devinitdata = -1; /* Autodetect later */
 static int forceCRTC __devinitdata = -1;
-static int noaccel   __devinitdata = 0;
+static bool noaccel  __devinitdata = 0;
 #ifdef CONFIG_MTRR
-static int nomtrr __devinitdata = 0;
+static bool nomtrr __devinitdata = 0;
 #endif
 #ifdef CONFIG_PMAC_BACKLIGHT
 static int backlight __devinitdata = 1;
@@ -218,7 +218,7 @@ static int backlight __devinitdata = 0;
 #endif
 
 static char *mode_option __devinitdata = NULL;
-static int  strictmode       = 0;
+static bool strictmode       = 0;
 
 static struct fb_fix_screeninfo __devinitdata rivafb_fix = {
 	.type		= FB_TYPE_PACKED_PIXELS,
@@ -1816,6 +1816,8 @@ static void __devinit riva_update_default_var(struct fb_var_screeninfo *var,
 			     specs->modedb, specs->modedb_len,
 			     NULL, 8);
 	} else if (specs->modedb != NULL) {
+		/* get first mode in database as fallback */
+		modedb = specs->modedb[0];
 		/* get preferred timing */
 		if (info->monspecs.misc & FB_MISC_1ST_DETAIL) {
 			int i;
@@ -1826,9 +1828,6 @@ static void __devinit riva_update_default_var(struct fb_var_screeninfo *var,
 					break;
 				}
 			}
-		} else {
-			/* otherwise, get first mode in database */
-			modedb = specs->modedb[0];
 		}
 		var->bits_per_pixel = 8;
 		riva_update_var(var, &modedb);

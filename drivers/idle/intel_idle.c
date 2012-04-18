@@ -62,6 +62,7 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/module.h>
+#include <asm/cpu_device_id.h>
 #include <asm/mwait.h>
 #include <asm/msr.h>
 
@@ -81,17 +82,22 @@ static unsigned int mwait_substates;
 /* Reliable LAPIC Timer States, bit 1 for C1 etc.  */
 static unsigned int lapic_timer_reliable_states = (1 << 1);	 /* Default to only C1 */
 
+struct idle_cpu {
+	struct cpuidle_state *state_table;
+
+	/*
+	 * Hardware C-state auto-demotion may not always be optimal.
+	 * Indicate which enable bits to clear here.
+	 */
+	unsigned long auto_demotion_disable_flags;
+};
+
+static const struct idle_cpu *icpu;
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 static int intel_idle(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv, int index);
 
 static struct cpuidle_state *cpuidle_state_table;
-
-/*
- * Hardware C-state auto-demotion may not always be optimal.
- * Indicate which enable bits to clear here.
- */
-static unsigned long long auto_demotion_disable_flags;
 
 /*
  * Set this flag for states where the HW flushes the TLB for us
@@ -197,7 +203,7 @@ static struct cpuidle_state atom_cstates[MWAIT_MAX_NUM_CSTATES] = {
 		.enter = &intel_idle },
 };
 
-static int get_driver_data(int cstate)
+static long get_driver_data(int cstate)
 {
 	int driver_data;
 	switch (cstate) {
@@ -232,6 +238,7 @@ static int get_driver_data(int cstate)
  * @drv: cpuidle driver
  * @index: index of cpuidle state
  *
+ * Must be called under local_irq_disable().
  */
 static int intel_idle(struct cpuidle_device *dev,
 		struct cpuidle_driver *drv, int index)
@@ -246,8 +253,6 @@ static int intel_idle(struct cpuidle_device *dev,
 	int cpu = smp_processor_id();
 
 	cstate = (((eax) >> MWAIT_SUBSTATE_SIZE) & MWAIT_CSTATE_MASK) + 1;
-
-	local_irq_disable();
 
 	/*
 	 * leave_mm() to avoid costly and often unnecessary wakeups
@@ -320,9 +325,46 @@ static void auto_demotion_disable(void *dummy)
 	unsigned long long msr_bits;
 
 	rdmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr_bits);
-	msr_bits &= ~auto_demotion_disable_flags;
+	msr_bits &= ~(icpu->auto_demotion_disable_flags);
 	wrmsrl(MSR_NHM_SNB_PKG_CST_CFG_CTL, msr_bits);
 }
+
+static const struct idle_cpu idle_cpu_nehalem = {
+	.state_table = nehalem_cstates,
+	.auto_demotion_disable_flags = NHM_C1_AUTO_DEMOTE | NHM_C3_AUTO_DEMOTE,
+};
+
+static const struct idle_cpu idle_cpu_atom = {
+	.state_table = atom_cstates,
+};
+
+static const struct idle_cpu idle_cpu_lincroft = {
+	.state_table = atom_cstates,
+	.auto_demotion_disable_flags = ATM_LNC_C6_AUTO_DEMOTE,
+};
+
+static const struct idle_cpu idle_cpu_snb = {
+	.state_table = snb_cstates,
+};
+
+#define ICPU(model, cpu) \
+	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (unsigned long)&cpu }
+
+static const struct x86_cpu_id intel_idle_ids[] = {
+	ICPU(0x1a, idle_cpu_nehalem),
+	ICPU(0x1e, idle_cpu_nehalem),
+	ICPU(0x1f, idle_cpu_nehalem),
+	ICPU(0x25, idle_cpu_nehalem),
+	ICPU(0x2c, idle_cpu_nehalem),
+	ICPU(0x2e, idle_cpu_nehalem),
+	ICPU(0x1c, idle_cpu_atom),
+	ICPU(0x26, idle_cpu_lincroft),
+	ICPU(0x2f, idle_cpu_nehalem),
+	ICPU(0x2a, idle_cpu_snb),
+	ICPU(0x2d, idle_cpu_snb),
+	{}
+};
+MODULE_DEVICE_TABLE(x86cpu, intel_idle_ids);
 
 /*
  * intel_idle_probe()
@@ -330,17 +372,21 @@ static void auto_demotion_disable(void *dummy)
 static int intel_idle_probe(void)
 {
 	unsigned int eax, ebx, ecx;
+	const struct x86_cpu_id *id;
 
 	if (max_cstate == 0) {
 		pr_debug(PREFIX "disabled\n");
 		return -EPERM;
 	}
 
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_INTEL)
+	id = x86_match_cpu(intel_idle_ids);
+	if (!id) {
+		if (boot_cpu_data.x86_vendor == X86_VENDOR_INTEL &&
+		    boot_cpu_data.x86 == 6)
+			pr_debug(PREFIX "does not run on family %d model %d\n",
+				boot_cpu_data.x86, boot_cpu_data.x86_model);
 		return -ENODEV;
-
-	if (!boot_cpu_has(X86_FEATURE_MWAIT))
-		return -ENODEV;
+	}
 
 	if (boot_cpu_data.cpuid_level < CPUID_MWAIT_LEAF)
 		return -ENODEV;
@@ -348,53 +394,19 @@ static int intel_idle_probe(void)
 	cpuid(CPUID_MWAIT_LEAF, &eax, &ebx, &ecx, &mwait_substates);
 
 	if (!(ecx & CPUID5_ECX_EXTENSIONS_SUPPORTED) ||
-		!(ecx & CPUID5_ECX_INTERRUPT_BREAK))
+	    !(ecx & CPUID5_ECX_INTERRUPT_BREAK) ||
+	    !mwait_substates)
 			return -ENODEV;
 
 	pr_debug(PREFIX "MWAIT substates: 0x%x\n", mwait_substates);
 
-
-	if (boot_cpu_data.x86 != 6)	/* family 6 */
-		return -ENODEV;
-
-	switch (boot_cpu_data.x86_model) {
-
-	case 0x1A:	/* Core i7, Xeon 5500 series */
-	case 0x1E:	/* Core i7 and i5 Processor - Lynnfield Jasper Forest */
-	case 0x1F:	/* Core i7 and i5 Processor - Nehalem */
-	case 0x2E:	/* Nehalem-EX Xeon */
-	case 0x2F:	/* Westmere-EX Xeon */
-	case 0x25:	/* Westmere */
-	case 0x2C:	/* Westmere */
-		cpuidle_state_table = nehalem_cstates;
-		auto_demotion_disable_flags =
-			(NHM_C1_AUTO_DEMOTE | NHM_C3_AUTO_DEMOTE);
-		break;
-
-	case 0x1C:	/* 28 - Atom Processor */
-		cpuidle_state_table = atom_cstates;
-		break;
-
-	case 0x26:	/* 38 - Lincroft Atom Processor */
-		cpuidle_state_table = atom_cstates;
-		auto_demotion_disable_flags = ATM_LNC_C6_AUTO_DEMOTE;
-		break;
-
-	case 0x2A:	/* SNB */
-	case 0x2D:	/* SNB Xeon */
-		cpuidle_state_table = snb_cstates;
-		break;
-
-	default:
-		pr_debug(PREFIX "does not run on family %d model %d\n",
-			boot_cpu_data.x86, boot_cpu_data.x86_model);
-		return -ENODEV;
-	}
+	icpu = (const struct idle_cpu *)id->driver_data;
+	cpuidle_state_table = icpu->state_table;
 
 	if (boot_cpu_has(X86_FEATURE_ARAT))	/* Always Reliable APIC Timer */
 		lapic_timer_reliable_states = LAPIC_TIMER_ALWAYS_RELIABLE;
 	else {
-		smp_call_function(__setup_broadcast_timer, (void *)true, 1);
+		on_each_cpu(__setup_broadcast_timer, (void *)true, 1);
 		register_cpu_notifier(&setup_broadcast_notifier);
 	}
 
@@ -470,72 +482,68 @@ static int intel_idle_cpuidle_driver_init(void)
 		drv->state_count += 1;
 	}
 
-	if (auto_demotion_disable_flags)
-		smp_call_function(auto_demotion_disable, NULL, 1);
+	if (icpu->auto_demotion_disable_flags)
+		on_each_cpu(auto_demotion_disable, NULL, 1);
 
 	return 0;
 }
 
 
 /*
- * intel_idle_cpuidle_devices_init()
+ * intel_idle_cpu_init()
  * allocate, initialize, register cpuidle_devices
+ * @cpu: cpu/core to initialize
  */
-static int intel_idle_cpuidle_devices_init(void)
+int intel_idle_cpu_init(int cpu)
 {
-	int i, cstate;
+	int cstate;
 	struct cpuidle_device *dev;
 
-	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
-	if (intel_idle_cpuidle_devices == NULL)
-		return -ENOMEM;
+	dev = per_cpu_ptr(intel_idle_cpuidle_devices, cpu);
 
-	for_each_online_cpu(i) {
-		dev = per_cpu_ptr(intel_idle_cpuidle_devices, i);
+	dev->state_count = 1;
 
-		dev->state_count = 1;
+	for (cstate = 1; cstate < MWAIT_MAX_NUM_CSTATES; ++cstate) {
+		int num_substates;
 
-		for (cstate = 1; cstate < MWAIT_MAX_NUM_CSTATES; ++cstate) {
-			int num_substates;
-
-			if (cstate > max_cstate) {
-				printk(PREFIX "max_cstate %d reached\n",
-					max_cstate);
-				break;
-			}
-
-			/* does the state exist in CPUID.MWAIT? */
-			num_substates = (mwait_substates >> ((cstate) * 4))
-						& MWAIT_SUBSTATE_MASK;
-			if (num_substates == 0)
-				continue;
-			/* is the state not enabled? */
-			if (cpuidle_state_table[cstate].enter == NULL) {
-				continue;
-			}
-
-			dev->states_usage[dev->state_count].driver_data =
-				(void *)get_driver_data(cstate);
-
-			dev->state_count += 1;
+		if (cstate > max_cstate) {
+			printk(PREFIX "max_cstate %d reached\n", max_cstate);
+			break;
 		}
 
-		dev->cpu = i;
-		if (cpuidle_register_device(dev)) {
-			pr_debug(PREFIX "cpuidle_register_device %d failed!\n",
-				 i);
-			intel_idle_cpuidle_devices_uninit();
-			return -EIO;
-		}
+		/* does the state exist in CPUID.MWAIT? */
+		num_substates = (mwait_substates >> ((cstate) * 4))
+			& MWAIT_SUBSTATE_MASK;
+		if (num_substates == 0)
+			continue;
+		/* is the state not enabled? */
+		if (cpuidle_state_table[cstate].enter == NULL)
+			continue;
+
+		dev->states_usage[dev->state_count].driver_data =
+			(void *)get_driver_data(cstate);
+
+		dev->state_count += 1;
 	}
+
+	dev->cpu = cpu;
+
+	if (cpuidle_register_device(dev)) {
+		pr_debug(PREFIX "cpuidle_register_device %d failed!\n", cpu);
+		intel_idle_cpuidle_devices_uninit();
+		return -EIO;
+	}
+
+	if (icpu->auto_demotion_disable_flags)
+		smp_call_function_single(cpu, auto_demotion_disable, NULL, 1);
 
 	return 0;
 }
-
+EXPORT_SYMBOL_GPL(intel_idle_cpu_init);
 
 static int __init intel_idle_init(void)
 {
-	int retval;
+	int retval, i;
 
 	/* Do not load intel_idle at all for now if idle= is passed */
 	if (boot_option_idle_override != IDLE_NO_OVERRIDE)
@@ -553,10 +561,16 @@ static int __init intel_idle_init(void)
 		return retval;
 	}
 
-	retval = intel_idle_cpuidle_devices_init();
-	if (retval) {
-		cpuidle_unregister_driver(&intel_idle_driver);
-		return retval;
+	intel_idle_cpuidle_devices = alloc_percpu(struct cpuidle_device);
+	if (intel_idle_cpuidle_devices == NULL)
+		return -ENOMEM;
+
+	for_each_online_cpu(i) {
+		retval = intel_idle_cpu_init(i);
+		if (retval) {
+			cpuidle_unregister_driver(&intel_idle_driver);
+			return retval;
+		}
 	}
 
 	return 0;
@@ -568,7 +582,7 @@ static void __exit intel_idle_exit(void)
 	cpuidle_unregister_driver(&intel_idle_driver);
 
 	if (lapic_timer_reliable_states != LAPIC_TIMER_ALWAYS_RELIABLE) {
-		smp_call_function(__setup_broadcast_timer, (void *)false, 1);
+		on_each_cpu(__setup_broadcast_timer, (void *)false, 1);
 		unregister_cpu_notifier(&setup_broadcast_notifier);
 	}
 

@@ -22,6 +22,7 @@
 
 #include <linux/delay.h>
 #include <linux/types.h>
+#include <linux/bug.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/flashchip.h>
 #include <linux/mtd/map.h>

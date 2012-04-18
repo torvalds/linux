@@ -81,7 +81,7 @@ module_param(buflen, uint, 0);
  * work better with hosts where config changes are problematic or
  * controllers (like original superh) that only support one config.
  */
-static int loopdefault = 0;
+static bool loopdefault = 0;
 module_param(loopdefault, bool, S_IRUGO|S_IWUSR);
 
 /*-------------------------------------------------------------------------*/

@@ -95,7 +95,7 @@
 #define OT_EC_BL_CONTROL_ON_DATA	0x1A
 
 
-static int force;
+static bool force;
 module_param(force, bool, 0);
 MODULE_PARM_DESC(force, "Force driver load, ignore DMI data");
 
@@ -313,6 +313,7 @@ static struct dmi_system_id __initdata oaktrail_dmi_table[] = {
 	},
 	{ }
 };
+MODULE_DEVICE_TABLE(dmi, oaktrail_dmi_table);
 
 static int __init oaktrail_init(void)
 {
@@ -394,4 +395,3 @@ MODULE_AUTHOR("Yin Kangkai (kangkai.yin@intel.com)");
 MODULE_DESCRIPTION("Intel Oaktrail Platform ACPI Extras");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("dmi:*:svnIntelCorporation:pnOakTrailplatform:*");

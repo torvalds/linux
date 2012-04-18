@@ -183,15 +183,12 @@ struct nfs4_acl {
 
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
 
-struct nfs41_stateid {
+struct nfs_stateid4 {
 	__be32 seqid;
 	char other[NFS4_STATEID_OTHER_SIZE];
 } __attribute__ ((packed));
 
-typedef union {
-	char data[NFS4_STATEID_SIZE];
-	struct nfs41_stateid stateid;
-} nfs4_stateid;
+typedef struct nfs_stateid4 nfs4_stateid;
 
 enum nfs_opnum4 {
 	OP_ACCESS = 3,
@@ -441,7 +438,20 @@ enum limit_by4 {
 enum open_delegation_type4 {
 	NFS4_OPEN_DELEGATE_NONE = 0,
 	NFS4_OPEN_DELEGATE_READ = 1,
-	NFS4_OPEN_DELEGATE_WRITE = 2
+	NFS4_OPEN_DELEGATE_WRITE = 2,
+	NFS4_OPEN_DELEGATE_NONE_EXT = 3, /* 4.1 */
+};
+
+enum why_no_delegation4 { /* new to v4.1 */
+	WND4_NOT_WANTED = 0,
+	WND4_CONTENTION = 1,
+	WND4_RESOURCE = 2,
+	WND4_NOT_SUPP_FTYPE = 3,
+	WND4_WRITE_DELEG_NOT_SUPP_FTYPE = 4,
+	WND4_NOT_SUPP_UPGRADE = 5,
+	WND4_NOT_SUPP_DOWNGRADE = 6,
+	WND4_CANCELLED = 7,
+	WND4_IS_DIR = 8,
 };
 
 enum lock_type4 {

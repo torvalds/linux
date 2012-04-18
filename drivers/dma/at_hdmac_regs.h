@@ -207,8 +207,8 @@ enum atc_status {
  * @save_cfg: configuration register that is saved on suspend/resume cycle
  * @save_dscr: for cyclic operations, preserve next descriptor address in
  *             the cyclic list on suspend/resume cycle
+ * @dma_sconfig: configuration for slave transfers, passed via DMA_SLAVE_CONFIG
  * @lock: serializes enqueue/dequeue operations to descriptors lists
- * @completed_cookie: identifier for the most recently completed operation
  * @active_list: list of descriptors dmaengine is being running on
  * @queue: list of descriptors ready to be submitted to engine
  * @free_list: list of descriptors usable by the channel
@@ -223,11 +223,11 @@ struct at_dma_chan {
 	struct tasklet_struct	tasklet;
 	u32			save_cfg;
 	u32			save_dscr;
+	struct dma_slave_config dma_sconfig;
 
 	spinlock_t		lock;
 
 	/* these other elements are all protected by lock */
-	dma_cookie_t		completed_cookie;
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
@@ -245,12 +245,43 @@ static inline struct at_dma_chan *to_at_dma_chan(struct dma_chan *dchan)
 	return container_of(dchan, struct at_dma_chan, chan_common);
 }
 
+/*
+ * Fix sconfig's burst size according to at_hdmac. We need to convert them as:
+ * 1 -> 0, 4 -> 1, 8 -> 2, 16 -> 3, 32 -> 4, 64 -> 5, 128 -> 6, 256 -> 7.
+ *
+ * This can be done by finding most significant bit set.
+ */
+static inline void convert_burst(u32 *maxburst)
+{
+	if (*maxburst > 1)
+		*maxburst = fls(*maxburst) - 2;
+	else
+		*maxburst = 0;
+}
+
+/*
+ * Fix sconfig's bus width according to at_hdmac.
+ * 1 byte -> 0, 2 bytes -> 1, 4 bytes -> 2.
+ */
+static inline u8 convert_buswidth(enum dma_slave_buswidth addr_width)
+{
+	switch (addr_width) {
+	case DMA_SLAVE_BUSWIDTH_2_BYTES:
+		return 1;
+	case DMA_SLAVE_BUSWIDTH_4_BYTES:
+		return 2;
+	default:
+		/* For 1 byte width or fallback */
+		return 0;
+	}
+}
 
 /*--  Controller  ------------------------------------------------------*/
 
 /**
  * struct at_dma - internal representation of an Atmel HDMA Controller
  * @chan_common: common dmaengine dma_device object members
+ * @atdma_devtype: identifier of DMA controller compatibility
  * @ch_regs: memory mapped register base
  * @clk: dma controller clock
  * @save_imr: interrupt mask register that is saved on suspend/resume cycle
@@ -326,28 +357,27 @@ static void atc_dump_lli(struct at_dma_chan *atchan, struct at_lli *lli)
 }
 
 
-static void atc_setup_irq(struct at_dma_chan *atchan, int on)
+static void atc_setup_irq(struct at_dma *atdma, int chan_id, int on)
 {
-	struct at_dma	*atdma = to_at_dma(atchan->chan_common.device);
-	u32		ebci;
+	u32 ebci;
 
 	/* enable interrupts on buffer transfer completion & error */
-	ebci =    AT_DMA_BTC(atchan->chan_common.chan_id)
-		| AT_DMA_ERR(atchan->chan_common.chan_id);
+	ebci =    AT_DMA_BTC(chan_id)
+		| AT_DMA_ERR(chan_id);
 	if (on)
 		dma_writel(atdma, EBCIER, ebci);
 	else
 		dma_writel(atdma, EBCIDR, ebci);
 }
 
-static inline void atc_enable_irq(struct at_dma_chan *atchan)
+static void atc_enable_chan_irq(struct at_dma *atdma, int chan_id)
 {
-	atc_setup_irq(atchan, 1);
+	atc_setup_irq(atdma, chan_id, 1);
 }
 
-static inline void atc_disable_irq(struct at_dma_chan *atchan)
+static void atc_disable_chan_irq(struct at_dma *atdma, int chan_id)
 {
-	atc_setup_irq(atchan, 0);
+	atc_setup_irq(atdma, chan_id, 0);
 }
 
 

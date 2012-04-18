@@ -70,6 +70,8 @@ struct dib7000p_state {
 	u8 i2c_write_buffer[4];
 	u8 i2c_read_buffer[2];
 	struct mutex i2c_buffer_lock;
+
+	u8 input_mode_mpeg;
 };
 
 enum dib7000p_power_mode {
@@ -78,8 +80,11 @@ enum dib7000p_power_mode {
 	DIB7000P_POWER_INTERFACE_ONLY,
 };
 
+/* dib7090 specific fonctions */
 static int dib7090_set_output_mode(struct dvb_frontend *fe, int mode);
 static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff);
+static void dib7090_setDibTxMux(struct dib7000p_state *state, int mode);
+static void dib7090_setHostBusMux(struct dib7000p_state *state, int mode);
 
 static u16 dib7000p_read_word(struct dib7000p_state *state, u16 reg)
 {
@@ -276,16 +281,22 @@ static int dib7000p_set_power_mode(struct dib7000p_state *state, enum dib7000p_p
 	dib7000p_write_word(state, 774, reg_774);
 	dib7000p_write_word(state, 775, reg_775);
 	dib7000p_write_word(state, 776, reg_776);
-	dib7000p_write_word(state, 899, reg_899);
 	dib7000p_write_word(state, 1280, reg_1280);
+	if (state->version != SOC7090)
+		dib7000p_write_word(state, 899, reg_899);
 
 	return 0;
 }
 
 static void dib7000p_set_adc_state(struct dib7000p_state *state, enum dibx000_adc_states no)
 {
-	u16 reg_908 = dib7000p_read_word(state, 908), reg_909 = dib7000p_read_word(state, 909);
+	u16 reg_908 = 0, reg_909 = 0;
 	u16 reg;
+
+	if (state->version != SOC7090) {
+		reg_908 = dib7000p_read_word(state, 908);
+		reg_909 = dib7000p_read_word(state, 909);
+	}
 
 	switch (no) {
 	case DIBX000_SLOW_ADC_ON:
@@ -342,8 +353,10 @@ static void dib7000p_set_adc_state(struct dib7000p_state *state, enum dibx000_ad
 	reg_909 |= (state->cfg.disable_sample_and_hold & 1) << 4;
 	reg_908 |= (state->cfg.enable_current_mirror & 1) << 7;
 
-	dib7000p_write_word(state, 908, reg_908);
-	dib7000p_write_word(state, 909, reg_909);
+	if (state->version != SOC7090) {
+		dib7000p_write_word(state, 908, reg_908);
+		dib7000p_write_word(state, 909, reg_909);
+	}
 }
 
 static int dib7000p_set_bandwidth(struct dib7000p_state *state, u32 bw)
@@ -397,6 +410,24 @@ int dib7000p_set_wbd_ref(struct dvb_frontend *demod, u16 value)
 	return dib7000p_write_word(state, 105, (dib7000p_read_word(state, 105) & 0xf000) | value);
 }
 EXPORT_SYMBOL(dib7000p_set_wbd_ref);
+
+int dib7000p_get_agc_values(struct dvb_frontend *fe,
+		u16 *agc_global, u16 *agc1, u16 *agc2, u16 *wbd)
+{
+	struct dib7000p_state *state = fe->demodulator_priv;
+
+	if (agc_global != NULL)
+		*agc_global = dib7000p_read_word(state, 394);
+	if (agc1 != NULL)
+		*agc1 = dib7000p_read_word(state, 392);
+	if (agc2 != NULL)
+		*agc2 = dib7000p_read_word(state, 393);
+	if (wbd != NULL)
+		*wbd = dib7000p_read_word(state, 397);
+
+	return 0;
+}
+EXPORT_SYMBOL(dib7000p_get_agc_values);
 
 static void dib7000p_reset_pll(struct dib7000p_state *state)
 {
@@ -519,7 +550,7 @@ static u16 dib7000p_defaults[] = {
 	// auto search configuration
 	3, 2,
 	0x0004,
-	0x1000,
+	(1<<3)|(1<<11)|(1<<12)|(1<<13),
 	0x0814,			/* Equal Lock */
 
 	12, 6,
@@ -595,13 +626,6 @@ static u16 dib7000p_defaults[] = {
 	1, 235,
 	0x0062,
 
-	2, 901,
-	0x0006,
-	(3 << 10) | (1 << 6),
-
-	1, 905,
-	0x2c8e,
-
 	0,
 };
 
@@ -618,14 +642,17 @@ static int dib7000p_demod_reset(struct dib7000p_state *state)
 	dib7000p_write_word(state, 770, 0xffff);
 	dib7000p_write_word(state, 771, 0xffff);
 	dib7000p_write_word(state, 772, 0x001f);
-	dib7000p_write_word(state, 898, 0x0003);
 	dib7000p_write_word(state, 1280, 0x001f - ((1 << 4) | (1 << 3)));
 
 	dib7000p_write_word(state, 770, 0);
 	dib7000p_write_word(state, 771, 0);
 	dib7000p_write_word(state, 772, 0);
-	dib7000p_write_word(state, 898, 0);
 	dib7000p_write_word(state, 1280, 0);
+
+	if (state->version != SOC7090) {
+		dib7000p_write_word(state,  898, 0x0003);
+		dib7000p_write_word(state,  898, 0);
+	}
 
 	/* default */
 	dib7000p_reset_pll(state);
@@ -640,7 +667,7 @@ static int dib7000p_demod_reset(struct dib7000p_state *state)
 		dib7000p_write_word(state, 42, (1<<5) | 3); /* P_iqc_thsat_ipc = 1 ; P_iqc_win2 = 3 */
 		dib7000p_write_word(state, 43, 0x2d4); /*-300 fag P_iqc_dect_min = -280 */
 		dib7000p_write_word(state, 44, 300); /* 300 fag P_iqc_dect_min = +280 */
-		dib7000p_write_word(state, 273, (1<<6) | 30);
+		dib7000p_write_word(state, 273, (0<<6) | 30);
 	}
 	if (dib7000p_set_output_mode(state, OUTMODE_HIGH_Z) != 0)
 		dprintk("OUTPUT_MODE could not be reset.");
@@ -655,7 +682,7 @@ static int dib7000p_demod_reset(struct dib7000p_state *state)
 	dib7000p_set_bandwidth(state, 8000);
 
 	if (state->version == SOC7090) {
-		dib7000p_write_word(state, 36, 0x5755);/* P_iqc_impnc_on =1 & P_iqc_corr_inh = 1 for impulsive noise */
+		dib7000p_write_word(state, 36, 0x0755);/* P_iqc_impnc_on =1 & P_iqc_corr_inh = 1 for impulsive noise */
 	} else {
 		if (state->cfg.tuner_is_baseband)
 			dib7000p_write_word(state, 36, 0x0755);
@@ -664,6 +691,11 @@ static int dib7000p_demod_reset(struct dib7000p_state *state)
 	}
 
 	dib7000p_write_tab(state, dib7000p_defaults);
+	if (state->version != SOC7090) {
+		dib7000p_write_word(state, 901, 0x0006);
+		dib7000p_write_word(state, 902, (3 << 10) | (1 << 6));
+		dib7000p_write_word(state, 905, 0x2c8e);
+	}
 
 	dib7000p_set_power_mode(state, DIB7000P_POWER_INTERFACE_ONLY);
 
@@ -780,8 +812,9 @@ static void dib7000p_set_dds(struct dib7000p_state *state, s32 offset_khz)
 	}
 }
 
-static int dib7000p_agc_startup(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
+static int dib7000p_agc_startup(struct dvb_frontend *demod)
 {
+	struct dtv_frontend_properties *ch = &demod->dtv_property_cache;
 	struct dib7000p_state *state = demod->demodulator_priv;
 	int ret = -1;
 	u8 *agc_state = &state->agc_state;
@@ -904,15 +937,16 @@ u32 dib7000p_ctrl_timf(struct dvb_frontend *fe, u8 op, u32 timf)
 }
 EXPORT_SYMBOL(dib7000p_ctrl_timf);
 
-static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_frontend_parameters *ch, u8 seq)
+static void dib7000p_set_channel(struct dib7000p_state *state,
+				 struct dtv_frontend_properties *ch, u8 seq)
 {
 	u16 value, est[4];
 
-	dib7000p_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth));
+	dib7000p_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->bandwidth_hz));
 
 	/* nfft, guard, qam, alpha */
 	value = 0;
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 	case TRANSMISSION_MODE_2K:
 		value |= (0 << 7);
 		break;
@@ -924,7 +958,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 		value |= (1 << 7);
 		break;
 	}
-	switch (ch->u.ofdm.guard_interval) {
+	switch (ch->guard_interval) {
 	case GUARD_INTERVAL_1_32:
 		value |= (0 << 5);
 		break;
@@ -939,7 +973,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 		value |= (2 << 5);
 		break;
 	}
-	switch (ch->u.ofdm.constellation) {
+	switch (ch->modulation) {
 	case QPSK:
 		value |= (0 << 3);
 		break;
@@ -970,11 +1004,11 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 	value = 0;
 	if (1 != 0)
 		value |= (1 << 6);
-	if (ch->u.ofdm.hierarchy_information == 1)
+	if (ch->hierarchy == 1)
 		value |= (1 << 4);
 	if (1 == 1)
 		value |= 1;
-	switch ((ch->u.ofdm.hierarchy_information == 0 || 1 == 1) ? ch->u.ofdm.code_rate_HP : ch->u.ofdm.code_rate_LP) {
+	switch ((ch->hierarchy == 0 || 1 == 1) ? ch->code_rate_HP : ch->code_rate_LP) {
 	case FEC_2_3:
 		value |= (2 << 1);
 		break;
@@ -1001,7 +1035,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 	dib7000p_write_word(state, 33, 0x0005);
 
 	/* P_dvsy_sync_wait */
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 	case TRANSMISSION_MODE_8K:
 		value = 256;
 		break;
@@ -1013,7 +1047,7 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 		value = 64;
 		break;
 	}
-	switch (ch->u.ofdm.guard_interval) {
+	switch (ch->guard_interval) {
 	case GUARD_INTERVAL_1_16:
 		value *= 2;
 		break;
@@ -1034,11 +1068,11 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 		state->div_sync_wait = (value * 3) / 2 + state->cfg.diversity_delay;
 
 	/* deactive the possibility of diversity reception if extended interleaver */
-	state->div_force_off = !1 && ch->u.ofdm.transmission_mode != TRANSMISSION_MODE_8K;
+	state->div_force_off = !1 && ch->transmission_mode != TRANSMISSION_MODE_8K;
 	dib7000p_set_diversity_in(&state->demod, state->div_state);
 
 	/* channel estimation fine configuration */
-	switch (ch->u.ofdm.constellation) {
+	switch (ch->modulation) {
 	case QAM_64:
 		est[0] = 0x0148;	/* P_adp_regul_cnt 0.04 */
 		est[1] = 0xfff0;	/* P_adp_noise_cnt -0.002 */
@@ -1062,27 +1096,31 @@ static void dib7000p_set_channel(struct dib7000p_state *state, struct dvb_fronte
 		dib7000p_write_word(state, 187 + value, est[value]);
 }
 
-static int dib7000p_autosearch_start(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
+static int dib7000p_autosearch_start(struct dvb_frontend *demod)
 {
+	struct dtv_frontend_properties *ch = &demod->dtv_property_cache;
 	struct dib7000p_state *state = demod->demodulator_priv;
-	struct dvb_frontend_parameters schan;
+	struct dtv_frontend_properties schan;
 	u32 value, factor;
 	u32 internal = dib7000p_get_internal_freq(state);
 
 	schan = *ch;
-	schan.u.ofdm.constellation = QAM_64;
-	schan.u.ofdm.guard_interval = GUARD_INTERVAL_1_32;
-	schan.u.ofdm.transmission_mode = TRANSMISSION_MODE_8K;
-	schan.u.ofdm.code_rate_HP = FEC_2_3;
-	schan.u.ofdm.code_rate_LP = FEC_3_4;
-	schan.u.ofdm.hierarchy_information = 0;
+	schan.modulation = QAM_64;
+	schan.guard_interval = GUARD_INTERVAL_1_32;
+	schan.transmission_mode = TRANSMISSION_MODE_8K;
+	schan.code_rate_HP = FEC_2_3;
+	schan.code_rate_LP = FEC_3_4;
+	schan.hierarchy = 0;
 
 	dib7000p_set_channel(state, &schan, 7);
 
-	factor = BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth);
-	if (factor >= 5000)
-		factor = 1;
-	else
+	factor = BANDWIDTH_TO_KHZ(ch->bandwidth_hz);
+	if (factor >= 5000) {
+		if (state->version == SOC7090)
+			factor = 2;
+		else
+			factor = 1;
+	} else
 		factor = 6;
 
 	value = 30 * internal * factor;
@@ -1205,8 +1243,9 @@ static void dib7000p_spur_protect(struct dib7000p_state *state, u32 rf_khz, u32 
 	dib7000p_write_word(state, 143, 0);
 }
 
-static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_parameters *ch)
+static int dib7000p_tune(struct dvb_frontend *demod)
 {
+	struct dtv_frontend_properties *ch = &demod->dtv_property_cache;
 	struct dib7000p_state *state = demod->demodulator_priv;
 	u16 tmp = 0;
 
@@ -1239,7 +1278,7 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 
 	/* P_timf_alpha, P_corm_alpha=6, P_corm_thres=0x80 */
 	tmp = (6 << 8) | 0x80;
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 	case TRANSMISSION_MODE_2K:
 		tmp |= (2 << 12);
 		break;
@@ -1255,7 +1294,7 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 
 	/* P_ctrl_freeze_pha_shift=0, P_ctrl_pha_off_max */
 	tmp = (0 << 4);
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 	case TRANSMISSION_MODE_2K:
 		tmp |= 0x6;
 		break;
@@ -1271,7 +1310,7 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 
 	/* P_ctrl_sfreq_inh=0, P_ctrl_sfreq_step */
 	tmp = (0 << 4);
-	switch (ch->u.ofdm.transmission_mode) {
+	switch (ch->transmission_mode) {
 	case TRANSMISSION_MODE_2K:
 		tmp |= 0x6;
 		break;
@@ -1303,9 +1342,9 @@ static int dib7000p_tune(struct dvb_frontend *demod, struct dvb_frontend_paramet
 	}
 
 	if (state->cfg.spur_protect)
-		dib7000p_spur_protect(state, ch->frequency / 1000, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth));
+		dib7000p_spur_protect(state, ch->frequency / 1000, BANDWIDTH_TO_KHZ(ch->bandwidth_hz));
 
-	dib7000p_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->u.ofdm.bandwidth));
+	dib7000p_set_bandwidth(state, BANDWIDTH_TO_KHZ(ch->bandwidth_hz));
 	return 0;
 }
 
@@ -1323,7 +1362,7 @@ static int dib7000p_sleep(struct dvb_frontend *demod)
 {
 	struct dib7000p_state *state = demod->demodulator_priv;
 	if (state->version == SOC7090)
-		return dib7090_set_output_mode(demod, OUTMODE_HIGH_Z) | dib7000p_set_power_mode(state, DIB7000P_POWER_INTERFACE_ONLY);
+		return dib7000p_set_power_mode(state, DIB7000P_POWER_INTERFACE_ONLY);
 	return dib7000p_set_output_mode(state, OUTMODE_HIGH_Z) | dib7000p_set_power_mode(state, DIB7000P_POWER_INTERFACE_ONLY);
 }
 
@@ -1345,93 +1384,94 @@ static int dib7000p_identify(struct dib7000p_state *st)
 	return 0;
 }
 
-static int dib7000p_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int dib7000p_get_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib7000p_state *state = fe->demodulator_priv;
 	u16 tps = dib7000p_read_word(state, 463);
 
 	fep->inversion = INVERSION_AUTO;
 
-	fep->u.ofdm.bandwidth = BANDWIDTH_TO_INDEX(state->current_bandwidth);
+	fep->bandwidth_hz = BANDWIDTH_TO_HZ(state->current_bandwidth);
 
 	switch ((tps >> 8) & 0x3) {
 	case 0:
-		fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_2K;
+		fep->transmission_mode = TRANSMISSION_MODE_2K;
 		break;
 	case 1:
-		fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_8K;
+		fep->transmission_mode = TRANSMISSION_MODE_8K;
 		break;
-	/* case 2: fep->u.ofdm.transmission_mode = TRANSMISSION_MODE_4K; break; */
+	/* case 2: fep->transmission_mode = TRANSMISSION_MODE_4K; break; */
 	}
 
 	switch (tps & 0x3) {
 	case 0:
-		fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_32;
+		fep->guard_interval = GUARD_INTERVAL_1_32;
 		break;
 	case 1:
-		fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_16;
+		fep->guard_interval = GUARD_INTERVAL_1_16;
 		break;
 	case 2:
-		fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_8;
+		fep->guard_interval = GUARD_INTERVAL_1_8;
 		break;
 	case 3:
-		fep->u.ofdm.guard_interval = GUARD_INTERVAL_1_4;
+		fep->guard_interval = GUARD_INTERVAL_1_4;
 		break;
 	}
 
 	switch ((tps >> 14) & 0x3) {
 	case 0:
-		fep->u.ofdm.constellation = QPSK;
+		fep->modulation = QPSK;
 		break;
 	case 1:
-		fep->u.ofdm.constellation = QAM_16;
+		fep->modulation = QAM_16;
 		break;
 	case 2:
 	default:
-		fep->u.ofdm.constellation = QAM_64;
+		fep->modulation = QAM_64;
 		break;
 	}
 
 	/* as long as the frontend_param structure is fixed for hierarchical transmission I refuse to use it */
 	/* (tps >> 13) & 0x1 == hrch is used, (tps >> 10) & 0x7 == alpha */
 
-	fep->u.ofdm.hierarchy_information = HIERARCHY_NONE;
+	fep->hierarchy = HIERARCHY_NONE;
 	switch ((tps >> 5) & 0x7) {
 	case 1:
-		fep->u.ofdm.code_rate_HP = FEC_1_2;
+		fep->code_rate_HP = FEC_1_2;
 		break;
 	case 2:
-		fep->u.ofdm.code_rate_HP = FEC_2_3;
+		fep->code_rate_HP = FEC_2_3;
 		break;
 	case 3:
-		fep->u.ofdm.code_rate_HP = FEC_3_4;
+		fep->code_rate_HP = FEC_3_4;
 		break;
 	case 5:
-		fep->u.ofdm.code_rate_HP = FEC_5_6;
+		fep->code_rate_HP = FEC_5_6;
 		break;
 	case 7:
 	default:
-		fep->u.ofdm.code_rate_HP = FEC_7_8;
+		fep->code_rate_HP = FEC_7_8;
 		break;
 
 	}
 
 	switch ((tps >> 2) & 0x7) {
 	case 1:
-		fep->u.ofdm.code_rate_LP = FEC_1_2;
+		fep->code_rate_LP = FEC_1_2;
 		break;
 	case 2:
-		fep->u.ofdm.code_rate_LP = FEC_2_3;
+		fep->code_rate_LP = FEC_2_3;
 		break;
 	case 3:
-		fep->u.ofdm.code_rate_LP = FEC_3_4;
+		fep->code_rate_LP = FEC_3_4;
 		break;
 	case 5:
-		fep->u.ofdm.code_rate_LP = FEC_5_6;
+		fep->code_rate_LP = FEC_5_6;
 		break;
 	case 7:
 	default:
-		fep->u.ofdm.code_rate_LP = FEC_7_8;
+		fep->code_rate_LP = FEC_7_8;
 		break;
 	}
 
@@ -1440,36 +1480,36 @@ static int dib7000p_get_frontend(struct dvb_frontend *fe, struct dvb_frontend_pa
 	return 0;
 }
 
-static int dib7000p_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_parameters *fep)
+static int dib7000p_set_frontend(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *fep = &fe->dtv_property_cache;
 	struct dib7000p_state *state = fe->demodulator_priv;
 	int time, ret;
 
-	if (state->version == SOC7090) {
+	if (state->version == SOC7090)
 		dib7090_set_diversity_in(fe, 0);
-		dib7090_set_output_mode(fe, OUTMODE_HIGH_Z);
-	} else
+	else
 		dib7000p_set_output_mode(state, OUTMODE_HIGH_Z);
 
 	/* maybe the parameter has been changed */
 	state->sfn_workaround_active = buggy_sfn_workaround;
 
 	if (fe->ops.tuner_ops.set_params)
-		fe->ops.tuner_ops.set_params(fe, fep);
+		fe->ops.tuner_ops.set_params(fe);
 
 	/* start up the AGC */
 	state->agc_state = 0;
 	do {
-		time = dib7000p_agc_startup(fe, fep);
+		time = dib7000p_agc_startup(fe);
 		if (time != -1)
 			msleep(time);
 	} while (time != -1);
 
-	if (fep->u.ofdm.transmission_mode == TRANSMISSION_MODE_AUTO ||
-		fep->u.ofdm.guard_interval == GUARD_INTERVAL_AUTO || fep->u.ofdm.constellation == QAM_AUTO || fep->u.ofdm.code_rate_HP == FEC_AUTO) {
+	if (fep->transmission_mode == TRANSMISSION_MODE_AUTO ||
+		fep->guard_interval == GUARD_INTERVAL_AUTO || fep->modulation == QAM_AUTO || fep->code_rate_HP == FEC_AUTO) {
 		int i = 800, found;
 
-		dib7000p_autosearch_start(fe, fep);
+		dib7000p_autosearch_start(fe);
 		do {
 			msleep(1);
 			found = dib7000p_autosearch_is_irq(fe);
@@ -1479,15 +1519,19 @@ static int dib7000p_set_frontend(struct dvb_frontend *fe, struct dvb_frontend_pa
 		if (found == 0 || found == 1)
 			return 0;
 
-		dib7000p_get_frontend(fe, fep);
+		dib7000p_get_frontend(fe);
 	}
 
-	ret = dib7000p_tune(fe, fep);
+	ret = dib7000p_tune(fe);
 
 	/* make this a config parameter */
-	if (state->version == SOC7090)
+	if (state->version == SOC7090) {
 		dib7090_set_output_mode(fe, state->cfg.output_mode);
-	else
+		if (state->cfg.enMpegOutput == 0) {
+			dib7090_setDibTxMux(state, MPEG_ON_DIBTX);
+			dib7090_setHostBusMux(state, DIBTX_ON_HOSTBUS);
+		}
+	} else
 		dib7000p_set_output_mode(state, state->cfg.output_mode);
 
 	return ret;
@@ -1831,7 +1875,8 @@ static int w7090p_tuner_rw_serpar(struct i2c_adapter *i2c_adap, struct i2c_msg m
 	return num;
 }
 
-int dib7090p_rw_on_apb(struct i2c_adapter *i2c_adap, struct i2c_msg msg[], int num, u16 apb_address)
+static int dib7090p_rw_on_apb(struct i2c_adapter *i2c_adap,
+		struct i2c_msg msg[], int num, u16 apb_address)
 {
 	struct dib7000p_state *state = i2c_get_adapdata(i2c_adap);
 	u16 word;
@@ -1933,10 +1978,10 @@ static int dib7090_tuner_xfer(struct i2c_adapter *i2c_adap, struct i2c_msg msg[]
 		apb_address = 915;
 		break;
 	case 0x27:
-		apb_address = 916;
+		apb_address = 917;
 		break;
 	case 0x28:
-		apb_address = 917;
+		apb_address = 916;
 		break;
 	case 0x1d:
 		i = ((dib7000p_read_word(state, 72) >> 12) & 0x3);
@@ -2031,12 +2076,7 @@ static u32 dib7090_calcSyncFreq(u32 P_Kin, u32 P_Kout, u32 insertExtSynchro, u32
 
 static int dib7090_cfg_DibTx(struct dib7000p_state *state, u32 P_Kin, u32 P_Kout, u32 insertExtSynchro, u32 synchroMode, u32 syncWord, u32 syncSize)
 {
-	u8 index_buf;
-	u16 rx_copy_buf[22];
-
 	dprintk("Configure DibStream Tx");
-	for (index_buf = 0; index_buf < 22; index_buf++)
-		rx_copy_buf[index_buf] = dib7000p_read_word(state, 1536+index_buf);
 
 	dib7000p_write_word(state, 1615, 1);
 	dib7000p_write_word(state, 1603, P_Kin);
@@ -2047,9 +2087,6 @@ static int dib7090_cfg_DibTx(struct dib7000p_state *state, u32 P_Kin, u32 P_Kout
 	dib7000p_write_word(state, 1610, syncWord & 0xffff);
 	dib7000p_write_word(state, 1612, syncSize);
 	dib7000p_write_word(state, 1615, 0);
-
-	for (index_buf = 0; index_buf < 22; index_buf++)
-		dib7000p_write_word(state, 1536+index_buf, rx_copy_buf[index_buf]);
 
 	return 0;
 }
@@ -2077,109 +2114,121 @@ static int dib7090_cfg_DibRx(struct dib7000p_state *state, u32 P_Kin, u32 P_Kout
 	return 0;
 }
 
-static int dib7090_enDivOnHostBus(struct dib7000p_state *state)
+static void dib7090_enMpegMux(struct dib7000p_state *state, int onoff)
 {
-	u16 reg;
+	u16 reg_1287 = dib7000p_read_word(state, 1287);
 
-	dprintk("Enable Diversity on host bus");
-	reg = (1 << 8) | (1 << 5);
-	dib7000p_write_word(state, 1288, reg);
+	switch (onoff) {
+	case 1:
+			reg_1287 &= ~(1<<7);
+			break;
+	case 0:
+			reg_1287 |= (1<<7);
+			break;
+	}
 
-	return dib7090_cfg_DibTx(state, 5, 5, 0, 0, 0, 0);
+	dib7000p_write_word(state, 1287, reg_1287);
 }
 
-static int dib7090_enAdcOnHostBus(struct dib7000p_state *state)
+static void dib7090_configMpegMux(struct dib7000p_state *state,
+		u16 pulseWidth, u16 enSerialMode, u16 enSerialClkDiv2)
 {
-	u16 reg;
-
-	dprintk("Enable ADC on host bus");
-	reg = (1 << 7) | (1 << 5);
-	dib7000p_write_word(state, 1288, reg);
-
-	return dib7090_cfg_DibTx(state, 20, 5, 10, 0, 0, 0);
-}
-
-static int dib7090_enMpegOnHostBus(struct dib7000p_state *state)
-{
-	u16 reg;
-
-	dprintk("Enable Mpeg on host bus");
-	reg = (1 << 9) | (1 << 5);
-	dib7000p_write_word(state, 1288, reg);
-
-	return dib7090_cfg_DibTx(state, 8, 5, 0, 0, 0, 0);
-}
-
-static int dib7090_enMpegInput(struct dib7000p_state *state)
-{
-	dprintk("Enable Mpeg input");
-	return dib7090_cfg_DibRx(state, 8, 5, 0, 0, 0, 8, 0);	/*outputRate = 8 */
-}
-
-static int dib7090_enMpegMux(struct dib7000p_state *state, u16 pulseWidth, u16 enSerialMode, u16 enSerialClkDiv2)
-{
-	u16 reg = (1 << 7) | ((pulseWidth & 0x1f) << 2) | ((enSerialMode & 0x1) << 1) | (enSerialClkDiv2 & 0x1);
-
 	dprintk("Enable Mpeg mux");
-	dib7000p_write_word(state, 1287, reg);
 
-	reg &= ~(1 << 7);
-	dib7000p_write_word(state, 1287, reg);
+	dib7090_enMpegMux(state, 0);
 
-	reg = (1 << 4);
-	dib7000p_write_word(state, 1288, reg);
+	/* If the input mode is MPEG do not divide the serial clock */
+	if ((enSerialMode == 1) && (state->input_mode_mpeg == 1))
+		enSerialClkDiv2 = 0;
 
-	return 0;
+	dib7000p_write_word(state, 1287, ((pulseWidth & 0x1f) << 2)
+			| ((enSerialMode & 0x1) << 1)
+			| (enSerialClkDiv2 & 0x1));
+
+	dib7090_enMpegMux(state, 1);
 }
 
-static int dib7090_disableMpegMux(struct dib7000p_state *state)
+static void dib7090_setDibTxMux(struct dib7000p_state *state, int mode)
 {
-	u16 reg;
-
-	dprintk("Disable Mpeg mux");
-	dib7000p_write_word(state, 1288, 0);
-
-	reg = dib7000p_read_word(state, 1287);
-	reg &= ~(1 << 7);
-	dib7000p_write_word(state, 1287, reg);
-
-	return 0;
-}
-
-static int dib7090_set_input_mode(struct dvb_frontend *fe, int mode)
-{
-	struct dib7000p_state *state = fe->demodulator_priv;
+	u16 reg_1288 = dib7000p_read_word(state, 1288) & ~(0x7 << 7);
 
 	switch (mode) {
-	case INPUT_MODE_DIVERSITY:
-			dprintk("Enable diversity INPUT");
-			dib7090_cfg_DibRx(state, 5, 5, 0, 0, 0, 0, 0);
+	case MPEG_ON_DIBTX:
+			dprintk("SET MPEG ON DIBSTREAM TX");
+			dib7090_cfg_DibTx(state, 8, 5, 0, 0, 0, 0);
+			reg_1288 |= (1<<9);
 			break;
-	case INPUT_MODE_MPEG:
-			dprintk("Enable Mpeg INPUT");
-			dib7090_cfg_DibRx(state, 8, 5, 0, 0, 0, 8, 0); /*outputRate = 8 */
+	case DIV_ON_DIBTX:
+			dprintk("SET DIV_OUT ON DIBSTREAM TX");
+			dib7090_cfg_DibTx(state, 5, 5, 0, 0, 0, 0);
+			reg_1288 |= (1<<8);
 			break;
-	case INPUT_MODE_OFF:
+	case ADC_ON_DIBTX:
+			dprintk("SET ADC_OUT ON DIBSTREAM TX");
+			dib7090_cfg_DibTx(state, 20, 5, 10, 0, 0, 0);
+			reg_1288 |= (1<<7);
+			break;
 	default:
-			dprintk("Disable INPUT");
-			dib7090_cfg_DibRx(state, 0, 0, 0, 0, 0, 0, 0);
 			break;
 	}
-	return 0;
+	dib7000p_write_word(state, 1288, reg_1288);
 }
 
-static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff)
+static void dib7090_setHostBusMux(struct dib7000p_state *state, int mode)
 {
+	u16 reg_1288 = dib7000p_read_word(state, 1288) & ~(0x7 << 4);
+
+	switch (mode) {
+	case DEMOUT_ON_HOSTBUS:
+			dprintk("SET DEM OUT OLD INTERF ON HOST BUS");
+			dib7090_enMpegMux(state, 0);
+			reg_1288 |= (1<<6);
+			break;
+	case DIBTX_ON_HOSTBUS:
+			dprintk("SET DIBSTREAM TX ON HOST BUS");
+			dib7090_enMpegMux(state, 0);
+			reg_1288 |= (1<<5);
+			break;
+	case MPEG_ON_HOSTBUS:
+			dprintk("SET MPEG MUX ON HOST BUS");
+			reg_1288 |= (1<<4);
+			break;
+	default:
+			break;
+	}
+	dib7000p_write_word(state, 1288, reg_1288);
+}
+
+int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff)
+{
+	struct dib7000p_state *state = fe->demodulator_priv;
+	u16 reg_1287;
+
 	switch (onoff) {
-	case 0:		/* only use the internal way - not the diversity input */
-		dib7090_set_input_mode(fe, INPUT_MODE_MPEG);
-		break;
-	case 1:		/* both ways */
-	case 2:		/* only the diversity input */
-		dib7090_set_input_mode(fe, INPUT_MODE_DIVERSITY);
-		break;
+	case 0: /* only use the internal way - not the diversity input */
+			dprintk("%s mode OFF : by default Enable Mpeg INPUT", __func__);
+			dib7090_cfg_DibRx(state, 8, 5, 0, 0, 0, 8, 0);
+
+			/* Do not divide the serial clock of MPEG MUX */
+			/* in SERIAL MODE in case input mode MPEG is used */
+			reg_1287 = dib7000p_read_word(state, 1287);
+			/* enSerialClkDiv2 == 1 ? */
+			if ((reg_1287 & 0x1) == 1) {
+				/* force enSerialClkDiv2 = 0 */
+				reg_1287 &= ~0x1;
+				dib7000p_write_word(state, 1287, reg_1287);
+			}
+			state->input_mode_mpeg = 1;
+			break;
+	case 1: /* both ways */
+	case 2: /* only the diversity input */
+			dprintk("%s ON : Enable diversity INPUT", __func__);
+			dib7090_cfg_DibRx(state, 5, 5, 0, 0, 0, 0, 0);
+			state->input_mode_mpeg = 0;
+			break;
 	}
 
+	dib7000p_set_diversity_in(&state->demod, onoff);
 	return 0;
 }
 
@@ -2204,69 +2253,63 @@ static int dib7090_set_output_mode(struct dvb_frontend *fe, int mode)
 
 	case OUTMODE_MPEG2_SERIAL:
 		if (prefer_mpeg_mux_use) {
-			dprintk("Sip 7090P setting output mode TS_SERIAL using Mpeg Mux");
-			dib7090_enMpegOnHostBus(state);
-			dib7090_enMpegInput(state);
-			if (state->cfg.enMpegOutput == 1)
-				dib7090_enMpegMux(state, 3, 1, 1);
-
-		} else {	/* Use Smooth block */
-			dprintk("Sip 7090P setting output mode TS_SERIAL using Smooth bloc");
-			dib7090_disableMpegMux(state);
-			dib7000p_write_word(state, 1288, (1 << 6));
-			outreg |= (2 << 6) | (0 << 1);
+			dprintk("setting output mode TS_SERIAL using Mpeg Mux");
+			dib7090_configMpegMux(state, 3, 1, 1);
+			dib7090_setHostBusMux(state, MPEG_ON_HOSTBUS);
+		} else {/* Use Smooth block */
+			dprintk("setting output mode TS_SERIAL using Smooth bloc");
+			dib7090_setHostBusMux(state, DEMOUT_ON_HOSTBUS);
+			outreg |= (2<<6) | (0 << 1);
 		}
 		break;
 
 	case OUTMODE_MPEG2_PAR_GATED_CLK:
 		if (prefer_mpeg_mux_use) {
-			dprintk("Sip 7090P setting output mode TS_PARALLEL_GATED using Mpeg Mux");
-			dib7090_enMpegOnHostBus(state);
-			dib7090_enMpegInput(state);
-			if (state->cfg.enMpegOutput == 1)
-				dib7090_enMpegMux(state, 2, 0, 0);
-		} else {	/* Use Smooth block */
-			dprintk("Sip 7090P setting output mode TS_PARALLEL_GATED using Smooth block");
-			dib7090_disableMpegMux(state);
-			dib7000p_write_word(state, 1288, (1 << 6));
-			outreg |= (0 << 6);
+			dprintk("setting output mode TS_PARALLEL_GATED using Mpeg Mux");
+			dib7090_configMpegMux(state, 2, 0, 0);
+			dib7090_setHostBusMux(state, MPEG_ON_HOSTBUS);
+		} else { /* Use Smooth block */
+			dprintk("setting output mode TS_PARALLEL_GATED using Smooth block");
+			dib7090_setHostBusMux(state, DEMOUT_ON_HOSTBUS);
+			outreg |= (0<<6);
 		}
 		break;
 
 	case OUTMODE_MPEG2_PAR_CONT_CLK:	/* Using Smooth block only */
-		dprintk("Sip 7090P setting output mode TS_PARALLEL_CONT using Smooth block");
-		dib7090_disableMpegMux(state);
-		dib7000p_write_word(state, 1288, (1 << 6));
-		outreg |= (1 << 6);
+		dprintk("setting output mode TS_PARALLEL_CONT using Smooth block");
+		dib7090_setHostBusMux(state, DEMOUT_ON_HOSTBUS);
+		outreg |= (1<<6);
 		break;
 
 	case OUTMODE_MPEG2_FIFO:	/* Using Smooth block because not supported by new Mpeg Mux bloc */
-		dprintk("Sip 7090P setting output mode TS_FIFO using Smooth block");
-		dib7090_disableMpegMux(state);
-		dib7000p_write_word(state, 1288, (1 << 6));
-		outreg |= (5 << 6);
+		dprintk("setting output mode TS_FIFO using Smooth block");
+		dib7090_setHostBusMux(state, DEMOUT_ON_HOSTBUS);
+		outreg |= (5<<6);
 		smo_mode |= (3 << 1);
 		fifo_threshold = 512;
 		break;
 
 	case OUTMODE_DIVERSITY:
-		dprintk("Sip 7090P setting output mode MODE_DIVERSITY");
-		dib7090_disableMpegMux(state);
-		dib7090_enDivOnHostBus(state);
+		dprintk("setting output mode MODE_DIVERSITY");
+		dib7090_setDibTxMux(state, DIV_ON_DIBTX);
+		dib7090_setHostBusMux(state, DIBTX_ON_HOSTBUS);
 		break;
 
 	case OUTMODE_ANALOG_ADC:
-		dprintk("Sip 7090P setting output mode MODE_ANALOG_ADC");
-		dib7090_enAdcOnHostBus(state);
+		dprintk("setting output mode MODE_ANALOG_ADC");
+		dib7090_setDibTxMux(state, ADC_ON_DIBTX);
+		dib7090_setHostBusMux(state, DIBTX_ON_HOSTBUS);
 		break;
 	}
+	if (mode != OUTMODE_HIGH_Z)
+		outreg |= (1 << 10);
 
 	if (state->cfg.output_mpeg2_in_188_bytes)
 		smo_mode |= (1 << 5);
 
 	ret |= dib7000p_write_word(state, 235, smo_mode);
 	ret |= dib7000p_write_word(state, 236, fifo_threshold);	/* synchronous fread */
-	ret |= dib7000p_write_word(state, 1286, outreg | (1 << 10));	/* allways set Dout active = 1 !!! */
+	ret |= dib7000p_write_word(state, 1286, outreg);
 
 	return ret;
 }
@@ -2295,13 +2338,6 @@ int dib7090_tuner_sleep(struct dvb_frontend *fe, int onoff)
 	return 0;
 }
 EXPORT_SYMBOL(dib7090_tuner_sleep);
-
-int dib7090_agc_restart(struct dvb_frontend *fe, u8 restart)
-{
-	dprintk("AGC restart callback: %d", restart);
-	return 0;
-}
-EXPORT_SYMBOL(dib7090_agc_restart);
 
 int dib7090_get_adc_power(struct dvb_frontend *fe)
 {
@@ -2391,9 +2427,9 @@ error:
 EXPORT_SYMBOL(dib7000p_attach);
 
 static struct dvb_frontend_ops dib7000p_ops = {
+	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 7000PC",
-		 .type = FE_OFDM,
 		 .frequency_min = 44250000,
 		 .frequency_max = 867250000,
 		 .frequency_stepsize = 62500,

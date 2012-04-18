@@ -147,7 +147,7 @@ static int __devinit sis5595_setup(struct pci_dev *SIS5595_dev)
 	u16 a;
 	u8 val;
 	int *i;
-	int retval = -ENODEV;
+	int retval;
 
 	/* Look for imposters */
 	for (i = blacklist; *i != 0; i++) {
@@ -223,7 +223,7 @@ static int __devinit sis5595_setup(struct pci_dev *SIS5595_dev)
 
 error:
 	release_region(sis5595_base + SMB_INDEX, 2);
-	return retval;
+	return -ENODEV;
 }
 
 static int sis5595_transaction(struct i2c_adapter *adap)
@@ -369,7 +369,7 @@ static struct i2c_adapter sis5595_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static const struct pci_device_id sis5595_ids[] __devinitconst = {
+static DEFINE_PCI_DEVICE_TABLE(sis5595_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, PCI_DEVICE_ID_SI_503) }, 
 	{ 0, }
 };

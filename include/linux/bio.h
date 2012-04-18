@@ -23,6 +23,7 @@
 #include <linux/highmem.h>
 #include <linux/mempool.h>
 #include <linux/ioprio.h>
+#include <linux/bug.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -101,10 +102,10 @@ static inline int bio_has_allocated_vec(struct bio *bio)
  * I/O completely on that queue (see ide-dma for example)
  */
 #define __bio_kmap_atomic(bio, idx, kmtype)				\
-	(kmap_atomic(bio_iovec_idx((bio), (idx))->bv_page, kmtype) +	\
+	(kmap_atomic(bio_iovec_idx((bio), (idx))->bv_page) +	\
 		bio_iovec_idx((bio), (idx))->bv_offset)
 
-#define __bio_kunmap_atomic(addr, kmtype) kunmap_atomic(addr, kmtype)
+#define __bio_kunmap_atomic(addr, kmtype) kunmap_atomic(addr)
 
 /*
  * merge helpers etc
@@ -317,7 +318,7 @@ static inline char *bvec_kmap_irq(struct bio_vec *bvec, unsigned long *flags)
 	 * balancing is a lot nicer this way
 	 */
 	local_irq_save(*flags);
-	addr = (unsigned long) kmap_atomic(bvec->bv_page, KM_BIO_SRC_IRQ);
+	addr = (unsigned long) kmap_atomic(bvec->bv_page);
 
 	BUG_ON(addr & ~PAGE_MASK);
 
@@ -328,7 +329,7 @@ static inline void bvec_kunmap_irq(char *buffer, unsigned long *flags)
 {
 	unsigned long ptr = (unsigned long) buffer & PAGE_MASK;
 
-	kunmap_atomic((void *) ptr, KM_BIO_SRC_IRQ);
+	kunmap_atomic((void *) ptr);
 	local_irq_restore(*flags);
 }
 
@@ -515,24 +516,64 @@ extern void bio_integrity_init(void);
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
 
-#define bio_integrity(a)		(0)
-#define bioset_integrity_create(a, b)	(0)
-#define bio_integrity_prep(a)		(0)
-#define bio_integrity_enabled(a)	(0)
+static inline int bio_integrity(struct bio *bio)
+{
+	return 0;
+}
+
+static inline int bio_integrity_enabled(struct bio *bio)
+{
+	return 0;
+}
+
+static inline int bioset_integrity_create(struct bio_set *bs, int pool_size)
+{
+	return 0;
+}
+
+static inline void bioset_integrity_free (struct bio_set *bs)
+{
+	return;
+}
+
+static inline int bio_integrity_prep(struct bio *bio)
+{
+	return 0;
+}
+
+static inline void bio_integrity_free(struct bio *bio, struct bio_set *bs)
+{
+	return;
+}
+
 static inline int bio_integrity_clone(struct bio *bio, struct bio *bio_src,
 				      gfp_t gfp_mask, struct bio_set *bs)
 {
 	return 0;
 }
-#define bioset_integrity_free(a)	do { } while (0)
-#define bio_integrity_free(a, b)	do { } while (0)
-#define bio_integrity_endio(a, b)	do { } while (0)
-#define bio_integrity_advance(a, b)	do { } while (0)
-#define bio_integrity_trim(a, b, c)	do { } while (0)
-#define bio_integrity_split(a, b, c)	do { } while (0)
-#define bio_integrity_set_tag(a, b, c)	do { } while (0)
-#define bio_integrity_get_tag(a, b, c)	do { } while (0)
-#define bio_integrity_init(a)		do { } while (0)
+
+static inline void bio_integrity_split(struct bio *bio, struct bio_pair *bp,
+				       int sectors)
+{
+	return;
+}
+
+static inline void bio_integrity_advance(struct bio *bio,
+					 unsigned int bytes_done)
+{
+	return;
+}
+
+static inline void bio_integrity_trim(struct bio *bio, unsigned int offset,
+				      unsigned int sectors)
+{
+	return;
+}
+
+static inline void bio_integrity_init(void)
+{
+	return;
+}
 
 #endif /* CONFIG_BLK_DEV_INTEGRITY */
 

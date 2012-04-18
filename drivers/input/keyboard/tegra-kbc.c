@@ -48,6 +48,7 @@
 #define KBC_FIFO_TH_CNT_SHIFT(cnt)	(cnt << 14)
 #define KBC_DEBOUNCE_CNT_SHIFT(cnt)	(cnt << 4)
 #define KBC_CONTROL_FIFO_CNT_INT_EN	(1 << 3)
+#define KBC_CONTROL_KEYPRESS_INT_EN	(1 << 1)
 #define KBC_CONTROL_KBC_EN		(1 << 0)
 
 /* KBC Interrupt Register */
@@ -356,6 +357,18 @@ static void tegra_kbc_set_fifo_interrupt(struct tegra_kbc *kbc, bool enable)
 	writel(val, kbc->mmio + KBC_CONTROL_0);
 }
 
+static void tegra_kbc_set_keypress_interrupt(struct tegra_kbc *kbc, bool enable)
+{
+	u32 val;
+
+	val = readl(kbc->mmio + KBC_CONTROL_0);
+	if (enable)
+		val |= KBC_CONTROL_KEYPRESS_INT_EN;
+	else
+		val &= ~KBC_CONTROL_KEYPRESS_INT_EN;
+	writel(val, kbc->mmio + KBC_CONTROL_0);
+}
+
 static void tegra_kbc_keypress_timer(unsigned long data)
 {
 	struct tegra_kbc *kbc = (struct tegra_kbc *)data;
@@ -455,10 +468,18 @@ static void tegra_kbc_config_pins(struct tegra_kbc *kbc)
 		row_cfg &= ~r_mask;
 		col_cfg &= ~c_mask;
 
-		if (pdata->pin_cfg[i].is_row)
+		switch (pdata->pin_cfg[i].type) {
+		case PIN_CFG_ROW:
 			row_cfg |= ((pdata->pin_cfg[i].num << 1) | 1) << r_shft;
-		else
+			break;
+
+		case PIN_CFG_COL:
 			col_cfg |= ((pdata->pin_cfg[i].num << 1) | 1) << c_shft;
+			break;
+
+		case PIN_CFG_IGNORE:
+			break;
+		}
 
 		writel(row_cfg, kbc->mmio + r_offs);
 		writel(col_cfg, kbc->mmio + c_offs);
@@ -563,7 +584,8 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 	for (i = 0; i < KBC_MAX_GPIO; i++) {
 		const struct tegra_kbc_pin_cfg *pin_cfg = &pdata->pin_cfg[i];
 
-		if (pin_cfg->is_row) {
+		switch (pin_cfg->type) {
+		case PIN_CFG_ROW:
 			if (pin_cfg->num >= KBC_MAX_ROW) {
 				dev_err(dev,
 					"pin_cfg[%d]: invalid row number %d\n",
@@ -571,13 +593,25 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 				return false;
 			}
 			(*num_rows)++;
-		} else {
+			break;
+
+		case PIN_CFG_COL:
 			if (pin_cfg->num >= KBC_MAX_COL) {
 				dev_err(dev,
 					"pin_cfg[%d]: invalid column number %d\n",
 					i, pin_cfg->num);
 				return false;
 			}
+			break;
+
+		case PIN_CFG_IGNORE:
+			break;
+
+		default:
+			dev_err(dev,
+				"pin_cfg[%d]: invalid entry type %d\n",
+				pin_cfg->type, pin_cfg->num);
+			return false;
 		}
 	}
 
@@ -590,6 +624,8 @@ tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
 {
 	struct tegra_kbc_platform_data *pdata;
 	struct device_node *np = pdev->dev.of_node;
+	u32 prop;
+	int i;
 
 	if (!np)
 		return NULL;
@@ -598,16 +634,16 @@ tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
 	if (!pdata)
 		return NULL;
 
-	if (!of_property_read_u32(np, "debounce-delay", &prop))
+	if (!of_property_read_u32(np, "nvidia,debounce-delay-ms", &prop))
 		pdata->debounce_cnt = prop;
 
-	if (!of_property_read_u32(np, "repeat-delay", &prop))
+	if (!of_property_read_u32(np, "nvidia,repeat-delay-ms", &prop))
 		pdata->repeat_cnt = prop;
 
-	if (of_find_property(np, "needs-ghost-filter", NULL))
+	if (of_find_property(np, "nvidia,needs-ghost-filter", NULL))
 		pdata->use_ghost_filter = true;
 
-	if (of_find_property(np, "wakeup-source", NULL))
+	if (of_find_property(np, "nvidia,wakeup-source", NULL))
 		pdata->wakeup = true;
 
 	/*
@@ -616,13 +652,17 @@ tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
 	 */
 	for (i = 0; i < KBC_MAX_ROW; i++) {
 		pdata->pin_cfg[i].num = i;
-		pdata->pin_cfg[i].is_row = true;
+		pdata->pin_cfg[i].type = PIN_CFG_ROW;
 	}
 
 	for (i = 0; i < KBC_MAX_COL; i++) {
 		pdata->pin_cfg[KBC_MAX_ROW + i].num = i;
-		pdata->pin_cfg[KBC_MAX_ROW + i].is_row = false;
+		pdata->pin_cfg[KBC_MAX_ROW + i].type = PIN_CFG_COL;
 	}
+
+	pdata->keymap_data = matrix_keyboard_of_fill_keymap(np, "linux,keymap");
+
+	/* FIXME: Add handling of linux,fn-keymap here */
 
 	return pdata;
 }
@@ -759,6 +799,9 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, kbc);
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 
+	if (!pdev->dev.platform_data)
+		matrix_keyboard_of_free_keymap(pdata->keymap_data);
+
 	return 0;
 
 err_free_irq:
@@ -773,8 +816,10 @@ err_free_mem:
 	input_free_device(input_dev);
 	kfree(kbc);
 err_free_pdata:
-	if (!pdev->dev.platform_data)
+	if (!pdev->dev.platform_data) {
+		matrix_keyboard_of_free_keymap(pdata->keymap_data);
 		kfree(pdata);
+	}
 
 	return err;
 }
@@ -831,6 +876,8 @@ static int tegra_kbc_suspend(struct device *dev)
 		msleep(30);
 
 		kbc->keypress_caused_wake = false;
+		/* Enable keypress interrupt before going into suspend. */
+		tegra_kbc_set_keypress_interrupt(kbc, true);
 		enable_irq(kbc->irq);
 		enable_irq_wake(kbc->irq);
 	} else {
@@ -852,6 +899,8 @@ static int tegra_kbc_resume(struct device *dev)
 	if (device_may_wakeup(&pdev->dev)) {
 		disable_irq_wake(kbc->irq);
 		tegra_kbc_setup_wakekeys(kbc, false);
+		/* We will use fifo interrupts for key detection. */
+		tegra_kbc_set_keypress_interrupt(kbc, false);
 
 		/* Restore the resident time of continuous polling mode. */
 		writel(kbc->cp_to_wkup_dly, kbc->mmio + KBC_TO_CNT_0);

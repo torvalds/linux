@@ -80,7 +80,7 @@
 
 /*
   Set untranslated protocol code features
-  */
+*/
 #define DIVA_XDI_UM_CMD_SET_PROTOCOL_FEATURES	11
 
 typedef struct _diva_xdi_um_cfg_cmd_data_set_features {

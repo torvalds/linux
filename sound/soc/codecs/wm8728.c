@@ -196,7 +196,7 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 #define WM8728_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 	SNDRV_PCM_FMTBIT_S24_LE)
 
-static struct snd_soc_dai_ops wm8728_dai_ops = {
+static const struct snd_soc_dai_ops wm8728_dai_ops = {
 	.hw_params	= wm8728_hw_params,
 	.digital_mute	= wm8728_mute,
 	.set_fmt	= wm8728_set_dai_fmt,
@@ -214,7 +214,7 @@ static struct snd_soc_dai_driver wm8728_dai = {
 	.ops = &wm8728_dai_ops,
 };
 
-static int wm8728_suspend(struct snd_soc_codec *codec, pm_message_t state)
+static int wm8728_suspend(struct snd_soc_codec *codec)
 {
 	wm8728_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
@@ -243,9 +243,6 @@ static int wm8728_probe(struct snd_soc_codec *codec)
 	/* power on device */
 	wm8728_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	snd_soc_add_controls(codec, wm8728_snd_controls,
-				ARRAY_SIZE(wm8728_snd_controls));
-
 	return ret;
 }
 
@@ -264,6 +261,8 @@ static struct snd_soc_codec_driver soc_codec_dev_wm8728 = {
 	.reg_cache_size = ARRAY_SIZE(wm8728_reg_defaults),
 	.reg_word_size = sizeof(u16),
 	.reg_cache_default = wm8728_reg_defaults,
+	.controls = wm8728_snd_controls,
+	.num_controls = ARRAY_SIZE(wm8728_snd_controls),
 	.dapm_widgets = wm8728_dapm_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(wm8728_dapm_widgets),
 	.dapm_routes = wm8728_intercon,

@@ -457,7 +457,6 @@ static const uuid_le VMBUS_SERVICE_ID = {
 	},
 };
 
-#define MAX_NUM_CPUS	32
 
 
 struct hv_input_signal_event_buffer {
@@ -483,8 +482,8 @@ struct hv_context {
 	/* 8-bytes aligned of the buffer above */
 	struct hv_input_signal_event *signal_event_param;
 
-	void *synic_message_page[MAX_NUM_CPUS];
-	void *synic_event_page[MAX_NUM_CPUS];
+	void *synic_message_page[NR_CPUS];
+	void *synic_event_page[NR_CPUS];
 };
 
 extern struct hv_context hv_context;

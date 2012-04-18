@@ -261,19 +261,25 @@ static int budget_patch_diseqc_send_burst(struct dvb_frontend* fe, fe_sec_mini_c
 	return 0;
 }
 
-static int alps_bsrv2_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;
 	u8 pwr = 0;
 	u8 buf[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
-	u32 div = (params->frequency + 479500) / 125;
+	u32 div = (p->frequency + 479500) / 125;
 
-	if (params->frequency > 2000000) pwr = 3;
-	else if (params->frequency > 1800000) pwr = 2;
-	else if (params->frequency > 1600000) pwr = 1;
-	else if (params->frequency > 1200000) pwr = 0;
-	else if (params->frequency >= 1100000) pwr = 1;
+	if (p->frequency > 2000000)
+		pwr = 3;
+	else if (p->frequency > 1800000)
+		pwr = 2;
+	else if (p->frequency > 1600000)
+		pwr = 1;
+	else if (p->frequency > 1200000)
+		pwr = 0;
+	else if (p->frequency >= 1100000)
+		pwr = 1;
 	else pwr = 2;
 
 	buf[0] = (div >> 8) & 0x7f;
@@ -297,14 +303,15 @@ static struct ves1x93_config alps_bsrv2_config = {
 	.invert_pwm = 0,
 };
 
-static int grundig_29504_451_tuner_set_params(struct dvb_frontend* fe, struct dvb_frontend_parameters* params)
+static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_patch* budget = (struct budget_patch*) fe->dvb->priv;
 	u32 div;
 	u8 data[4];
 	struct i2c_msg msg = { .addr = 0x61, .flags = 0, .buf = data, .len = sizeof(data) };
 
-	div = params->frequency / 125;
+	div = p->frequency / 125;
 	data[0] = (div >> 8) & 0x7f;
 	data[1] = div & 0xff;
 	data[2] = 0x8e;

@@ -476,6 +476,7 @@ fec_restart(struct net_device *ndev, int duplex)
 	} else {
 #ifdef FEC_MIIGSK_ENR
 		if (id_entry->driver_data & FEC_QUIRK_USE_GASKET) {
+			u32 cfgr;
 			/* disable the gasket and wait */
 			writel(0, fep->hwp + FEC_MIIGSK_ENR);
 			while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
@@ -486,9 +487,11 @@ fec_restart(struct net_device *ndev, int duplex)
 			 *   RMII, 50 MHz, no loopback, no echo
 			 *   MII, 25 MHz, no loopback, no echo
 			 */
-			writel((fep->phy_interface == PHY_INTERFACE_MODE_RMII) ?
-					1 : 0, fep->hwp + FEC_MIIGSK_CFGR);
-
+			cfgr = (fep->phy_interface == PHY_INTERFACE_MODE_RMII)
+				? BM_MIIGSK_CFGR_RMII : BM_MIIGSK_CFGR_MII;
+			if (fep->phy_dev && fep->phy_dev->speed == SPEED_10)
+				cfgr |= BM_MIIGSK_CFGR_FRCONT_10M;
+			writel(cfgr, fep->hwp + FEC_MIIGSK_CFGR);
 
 			/* re-enable the gasket */
 			writel(2, fep->hwp + FEC_MIIGSK_ENR);
@@ -708,7 +711,7 @@ fec_enet_rx(struct net_device *ndev)
 		 * include that when passing upstream as it messes up
 		 * bridging applications.
 		 */
-		skb = dev_alloc_skb(pkt_len - 4 + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(ndev, pkt_len - 4 + NET_IP_ALIGN);
 
 		if (unlikely(!skb)) {
 			printk("%s: Memory squeeze, dropping packet.\n",
@@ -983,11 +986,11 @@ static int fec_enet_mii_probe(struct net_device *ndev)
 		printk(KERN_INFO
 			"%s: no PHY, assuming direct connection to switch\n",
 			ndev->name);
-		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE);
+		strncpy(mdio_bus_id, "fixed-0", MII_BUS_ID_SIZE);
 		phy_id = 0;
 	}
 
-	snprintf(phy_name, MII_BUS_ID_SIZE, PHY_ID_FMT, mdio_bus_id, phy_id);
+	snprintf(phy_name, sizeof(phy_name), PHY_ID_FMT, mdio_bus_id, phy_id);
 	phy_dev = phy_connect(ndev, phy_name, &fec_enet_adjust_link, 0,
 			      fep->phy_interface);
 	if (IS_ERR(phy_dev)) {
@@ -1077,7 +1080,8 @@ static int fec_enet_mii_init(struct platform_device *pdev)
 	fep->mii_bus->read = fec_enet_mdio_read;
 	fep->mii_bus->write = fec_enet_mdio_write;
 	fep->mii_bus->reset = fec_enet_mdio_reset;
-	snprintf(fep->mii_bus->id, MII_BUS_ID_SIZE, "%x", fep->dev_id + 1);
+	snprintf(fep->mii_bus->id, MII_BUS_ID_SIZE, "%s-%x",
+		pdev->name, fep->dev_id + 1);
 	fep->mii_bus->priv = fep;
 	fep->mii_bus->parent = &pdev->dev;
 
@@ -1206,7 +1210,7 @@ static int fec_enet_alloc_buffers(struct net_device *ndev)
 
 	bdp = fep->rx_bd_base;
 	for (i = 0; i < RX_RING_SIZE; i++) {
-		skb = dev_alloc_skb(FEC_ENET_RX_FRSIZE);
+		skb = netdev_alloc_skb(ndev, FEC_ENET_RX_FRSIZE);
 		if (!skb) {
 			fec_enet_free_buffers(ndev);
 			return -ENOMEM;
@@ -1735,21 +1739,6 @@ static struct platform_driver fec_driver = {
 	.remove	= __devexit_p(fec_drv_remove),
 };
 
-static int __init
-fec_enet_module_init(void)
-{
-	printk(KERN_INFO "FEC Ethernet Driver\n");
-
-	return platform_driver_register(&fec_driver);
-}
-
-static void __exit
-fec_enet_cleanup(void)
-{
-	platform_driver_unregister(&fec_driver);
-}
-
-module_exit(fec_enet_cleanup);
-module_init(fec_enet_module_init);
+module_platform_driver(fec_driver);
 
 MODULE_LICENSE("GPL");

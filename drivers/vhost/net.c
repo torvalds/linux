@@ -588,7 +588,7 @@ static int vhost_net_release(struct inode *inode, struct file *f)
 
 	vhost_net_stop(n, &tx_sock, &rx_sock);
 	vhost_net_flush(n);
-	vhost_dev_cleanup(&n->dev);
+	vhost_dev_cleanup(&n->dev, false);
 	if (tx_sock)
 		fput(tx_sock->file);
 	if (rx_sock)
@@ -856,9 +856,9 @@ static const struct file_operations vhost_net_fops = {
 };
 
 static struct miscdevice vhost_net_misc = {
-	MISC_DYNAMIC_MINOR,
-	"vhost-net",
-	&vhost_net_fops,
+	.minor = VHOST_NET_MINOR,
+	.name = "vhost-net",
+	.fops = &vhost_net_fops,
 };
 
 static int vhost_net_init(void)
@@ -879,3 +879,5 @@ MODULE_VERSION("0.0.1");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Michael S. Tsirkin");
 MODULE_DESCRIPTION("Host kernel accelerator for virtio net");
+MODULE_ALIAS_MISCDEV(VHOST_NET_MINOR);
+MODULE_ALIAS("devname:vhost-net");

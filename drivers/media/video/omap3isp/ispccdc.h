@@ -150,7 +150,6 @@ struct ispccdc_lsc {
  * @input: Active input
  * @output: Active outputs
  * @video_out: Output video node
- * @error: A hardware error occurred during capture
  * @alaw: A-law compression enabled (1) or disabled (0)
  * @lpf: Low pass filter enabled (1) or disabled (0)
  * @obclamp: Optical-black clamp enabled (1) or disabled (0)
@@ -178,7 +177,6 @@ struct isp_ccdc_device {
 	enum ccdc_input_entity input;
 	unsigned int output;
 	struct isp_video video_out;
-	unsigned int error;
 
 	unsigned int alaw:1,
 		     lpf:1,

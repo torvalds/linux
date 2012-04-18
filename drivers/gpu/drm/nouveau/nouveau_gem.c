@@ -380,6 +380,25 @@ retry:
 }
 
 static int
+validate_sync(struct nouveau_channel *chan, struct nouveau_bo *nvbo)
+{
+	struct nouveau_fence *fence = NULL;
+	int ret = 0;
+
+	spin_lock(&nvbo->bo.bdev->fence_lock);
+	if (nvbo->bo.sync_obj)
+		fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+	spin_unlock(&nvbo->bo.bdev->fence_lock);
+
+	if (fence) {
+		ret = nouveau_fence_sync(fence, chan);
+		nouveau_fence_unref(&fence);
+	}
+
+	return ret;
+}
+
+static int
 validate_list(struct nouveau_channel *chan, struct list_head *list,
 	      struct drm_nouveau_gem_pushbuf_bo *pbbo, uint64_t user_pbbo_ptr)
 {
@@ -393,7 +412,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 	list_for_each_entry(nvbo, list, entry) {
 		struct drm_nouveau_gem_pushbuf_bo *b = &pbbo[nvbo->pbbo_index];
 
-		ret = nouveau_fence_sync(nvbo->bo.sync_obj, chan);
+		ret = validate_sync(chan, nvbo);
 		if (unlikely(ret)) {
 			NV_ERROR(dev, "fail pre-validate sync\n");
 			return ret;
@@ -407,16 +426,14 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 			return ret;
 		}
 
-		nvbo->channel = (b->read_domains & (1 << 31)) ? NULL : chan;
 		ret = nouveau_bo_validate(nvbo, true, false, false);
-		nvbo->channel = NULL;
 		if (unlikely(ret)) {
 			if (ret != -ERESTARTSYS)
 				NV_ERROR(dev, "fail ttm_validate\n");
 			return ret;
 		}
 
-		ret = nouveau_fence_sync(nvbo->bo.sync_obj, chan);
+		ret = validate_sync(chan, nvbo);
 		if (unlikely(ret)) {
 			NV_ERROR(dev, "fail post-validate sync\n");
 			return ret;
@@ -659,19 +676,13 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 		return PTR_ERR(bo);
 	}
 
-	/* Mark push buffers as being used on PFIFO, the validation code
-	 * will then make sure that if the pushbuf bo moves, that they
-	 * happen on the kernel channel, which will in turn cause a sync
-	 * to happen before we try and submit the push buffer.
-	 */
+	/* Ensure all push buffers are on validate list */
 	for (i = 0; i < req->nr_push; i++) {
 		if (push[i].bo_index >= req->nr_buffers) {
 			NV_ERROR(dev, "push %d buffer not in list\n", i);
 			ret = -EINVAL;
 			goto out_prevalid;
 		}
-
-		bo[push[i].bo_index].read_domains |= (1 << 31);
 	}
 
 	/* Validate buffer list */

@@ -247,9 +247,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
 	gspca_dev->cam.no_urb_create = 1;
-	/* The highest alt setting has an isoc packetsize of 0, so we
-	   don't want to use it */
-	gspca_dev->nbalt--;
 
 	sd->brightness  = BRIGHTNESS_DEFAULT;
 	sd->contrast    = CONTRAST_DEFAULT;
