@@ -87,20 +87,37 @@ static void atl1c_pcie_patch(struct atl1c_hw *hw)
 	mst_data &= ~MASTER_CTRL_CLK_SEL_DIS;
 	AT_WRITE_REG(hw, REG_MASTER_CTRL, mst_data);
 
-	AT_READ_REG(hw, REG_PCIE_PHYMISC, &data);
-	data |= PCIE_PHYMISC_FORCE_RCV_DET;
-	AT_WRITE_REG(hw, REG_PCIE_PHYMISC, data);
-
+	/* WoL/PCIE related settings */
+	if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c) {
+		AT_READ_REG(hw, REG_PCIE_PHYMISC, &data);
+		data |= PCIE_PHYMISC_FORCE_RCV_DET;
+		AT_WRITE_REG(hw, REG_PCIE_PHYMISC, data);
+	} else { /* new dev set bit5 of MASTER */
+		if (!(mst_data & MASTER_CTRL_WAKEN_25M))
+			AT_WRITE_REG(hw, REG_MASTER_CTRL,
+				mst_data | MASTER_CTRL_WAKEN_25M);
+	}
+	/* aspm/PCIE setting only for l2cb 1.0 */
 	if (hw->nic_type == athr_l2c_b && hw->revision_id == L2CB_V10) {
 		AT_READ_REG(hw, REG_PCIE_PHYMISC2, &data);
-
-		data &= ~(PCIE_PHYMISC2_SERDES_CDR_MASK <<
-			PCIE_PHYMISC2_SERDES_CDR_SHIFT);
-		data |= 3 << PCIE_PHYMISC2_SERDES_CDR_SHIFT;
-		data &= ~(PCIE_PHYMISC2_SERDES_TH_MASK <<
-			PCIE_PHYMISC2_SERDES_TH_SHIFT);
-		data |= 3 << PCIE_PHYMISC2_SERDES_TH_SHIFT;
+		data = FIELD_SETX(data, PCIE_PHYMISC2_CDR_BW,
+			L2CB1_PCIE_PHYMISC2_CDR_BW);
+		data = FIELD_SETX(data, PCIE_PHYMISC2_L0S_TH,
+			L2CB1_PCIE_PHYMISC2_L0S_TH);
 		AT_WRITE_REG(hw, REG_PCIE_PHYMISC2, data);
+		/* extend L1 sync timer */
+		AT_READ_REG(hw, REG_LINK_CTRL, &data);
+		data |= LINK_CTRL_EXT_SYNC;
+		AT_WRITE_REG(hw, REG_LINK_CTRL, data);
+	}
+	/* l2cb 1.x & l1d 1.x */
+	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d) {
+		AT_READ_REG(hw, REG_PM_CTRL, &data);
+		data |= PM_CTRL_L0S_BUFSRX_EN;
+		AT_WRITE_REG(hw, REG_PM_CTRL, data);
+		/* clear vendor msg */
+		AT_READ_REG(hw, REG_DMA_DBG, &data);
+		AT_WRITE_REG(hw, REG_DMA_DBG, data & ~DMA_DBG_VENDOR_MSG);
 	}
 }
 
@@ -1181,8 +1198,8 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 	 */
 	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
 	master_ctrl_data |= MASTER_CTRL_OOB_DIS;
-	AT_WRITE_REGW(hw, REG_MASTER_CTRL, ((master_ctrl_data | MASTER_CTRL_SOFT_RST)
-			& 0xFFFF));
+	AT_WRITE_REG(hw, REG_MASTER_CTRL,
+		master_ctrl_data | MASTER_CTRL_SOFT_RST);
 
 	AT_WRITE_FLUSH(hw);
 	msleep(10);
@@ -1194,6 +1211,8 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 			" disabled for 10ms second\n");
 		return -1;
 	}
+	AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
+
 	return 0;
 }
 
@@ -1338,6 +1357,10 @@ static int atl1c_configure(struct atl1c_adapter *adapter)
 	u32 intr_modrt_data;
 	u32 data;
 
+	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
+	master_ctrl_data &= ~(MASTER_CTRL_TX_ITIMER_EN |
+			      MASTER_CTRL_RX_ITIMER_EN |
+			      MASTER_CTRL_INT_RDCLR);
 	/* clear interrupt status */
 	AT_WRITE_REG(hw, REG_ISR, 0xFFFFFFFF);
 	/*  Clear any WOL status */
