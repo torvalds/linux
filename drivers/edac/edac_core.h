@@ -447,8 +447,12 @@ static inline void pci_write_bits32(struct pci_dev *pdev, int offset,
 
 #endif				/* CONFIG_PCI */
 
-extern struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
-					  unsigned nr_chans, int edac_index);
+struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
+				   unsigned nr_chans, int edac_index);
+struct mem_ctl_info *new_edac_mc_alloc(unsigned edac_index,
+				   unsigned n_layers,
+				   struct edac_mc_layer *layers,
+				   unsigned sz_pvt);
 extern int edac_mc_add_mc(struct mem_ctl_info *mci);
 extern void edac_mc_free(struct mem_ctl_info *mci);
 extern struct mem_ctl_info *edac_mc_find(int idx);
@@ -467,24 +471,78 @@ extern int edac_mc_find_csrow_by_page(struct mem_ctl_info *mci,
  * reporting logic and function interface - reduces conditional
  * statement clutter and extra function arguments.
  */
-extern void edac_mc_handle_ce(struct mem_ctl_info *mci,
-			      unsigned long page_frame_number,
-			      unsigned long offset_in_page,
-			      unsigned long syndrome, int row, int channel,
-			      const char *msg);
-extern void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
-				      const char *msg);
-extern void edac_mc_handle_ue(struct mem_ctl_info *mci,
-			      unsigned long page_frame_number,
-			      unsigned long offset_in_page, int row,
-			      const char *msg);
-extern void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
-				      const char *msg);
-extern void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci, unsigned int csrow,
-				  unsigned int channel0, unsigned int channel1,
-				  char *msg);
-extern void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci, unsigned int csrow,
-				  unsigned int channel, char *msg);
+
+void edac_mc_handle_error(const enum hw_event_mc_err_type type,
+			  struct mem_ctl_info *mci,
+			  const unsigned long page_frame_number,
+			  const unsigned long offset_in_page,
+			  const unsigned long syndrome,
+			  const int layer0,
+			  const int layer1,
+			  const int layer2,
+			  const char *msg,
+			  const char *other_detail,
+			  const void *mcelog);
+
+static inline void edac_mc_handle_ce(struct mem_ctl_info *mci,
+				     unsigned long page_frame_number,
+				     unsigned long offset_in_page,
+				     unsigned long syndrome, int row, int channel,
+				     const char *msg)
+{
+	 edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			      page_frame_number, offset_in_page, syndrome,
+			      row, channel, -1, msg, NULL, NULL);
+}
+
+static inline void edac_mc_handle_ce_no_info(struct mem_ctl_info *mci,
+					     const char *msg)
+{
+	 edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			      0, 0, 0, -1, -1, -1, msg, NULL, NULL);
+}
+
+static inline void edac_mc_handle_ue(struct mem_ctl_info *mci,
+				     unsigned long page_frame_number,
+				     unsigned long offset_in_page, int row,
+				     const char *msg)
+{
+	 edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			      page_frame_number, offset_in_page, 0,
+			      row, -1, -1, msg, NULL, NULL);
+}
+
+static inline void edac_mc_handle_ue_no_info(struct mem_ctl_info *mci,
+					     const char *msg)
+{
+	 edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			      0, 0, 0, -1, -1, -1, msg, NULL, NULL);
+}
+
+static inline void edac_mc_handle_fbd_ue(struct mem_ctl_info *mci,
+					 unsigned int csrow,
+					 unsigned int channel0,
+					 unsigned int channel1,
+					 char *msg)
+{
+	/*
+	 *FIXME: The error can also be at channel1 (e. g. at the second
+	 *	  channel of the same branch). The fix is to push
+	 *	  edac_mc_handle_error() call into each driver
+	 */
+	 edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
+			      0, 0, 0,
+			      csrow, channel0, -1, msg, NULL, NULL);
+}
+
+static inline void edac_mc_handle_fbd_ce(struct mem_ctl_info *mci,
+					 unsigned int csrow,
+					 unsigned int channel, char *msg)
+{
+	 edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
+			      0, 0, 0,
+			      csrow, channel, -1, msg, NULL, NULL);
+}
 
 /*
  * edac_device APIs
@@ -496,6 +554,7 @@ extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
 extern int edac_device_alloc_index(void);
+extern const char *edac_layer_name[];
 
 /*
  * edac_pci APIs

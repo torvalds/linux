@@ -416,18 +416,20 @@ struct edac_mc_layer {
 /* FIXME: add the proper per-location error counts */
 struct dimm_info {
 	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
-	unsigned memory_controller;
-	unsigned csrow;
-	unsigned csrow_channel;
+
+	/* Memory location data */
+	unsigned location[EDAC_MAX_LAYERS];
+
+	struct mem_ctl_info *mci;	/* the parent */
 
 	u32 grain;		/* granularity of reported error in bytes */
 	enum dev_type dtype;	/* memory device type */
 	enum mem_type mtype;	/* memory dimm type */
 	enum edac_type edac_mode;	/* EDAC mode for this dimm */
 
-	u32 nr_pages;			/* number of pages in csrow */
+	u32 nr_pages;			/* number of pages on this dimm */
 
-	u32 ce_count;		/* Correctable Errors for this dimm */
+	unsigned csrow, cschannel;	/* Points to the old API data */
 };
 
 /**
@@ -447,9 +449,10 @@ struct dimm_info {
  */
 struct rank_info {
 	int chan_idx;
-	u32 ce_count;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
+
+	u32 ce_count;		/* Correctable Errors for this csrow */
 };
 
 struct csrow_info {
@@ -545,13 +548,18 @@ struct mem_ctl_info {
 	unsigned long (*ctl_page_to_phys) (struct mem_ctl_info * mci,
 					   unsigned long page);
 	int mc_idx;
-	int nr_csrows;
 	struct csrow_info *csrows;
+	unsigned nr_csrows, num_cschannel;
+
+	/* Memory Controller hierarchy */
+	unsigned n_layers;
+	struct edac_mc_layer *layers;
+	bool mem_is_per_rank;
 
 	/*
 	 * DIMM info. Will eventually remove the entire csrows_info some day
 	 */
-	unsigned nr_dimms;
+	unsigned tot_dimms;
 	struct dimm_info *dimms;
 
 	/*
@@ -566,11 +574,15 @@ struct mem_ctl_info {
 	const char *dev_name;
 	char proc_name[MC_PROC_NAME_MAX_LEN + 1];
 	void *pvt_info;
-	u32 ue_noinfo_count;	/* Uncorrectable Errors w/o info */
-	u32 ce_noinfo_count;	/* Correctable Errors w/o info */
-	u32 ue_count;		/* Total Uncorrectable Errors for this MC */
-	u32 ce_count;		/* Total Correctable Errors for this MC */
 	unsigned long start_time;	/* mci load start time (in jiffies) */
+
+	/*
+	 * drivers shouldn't access those fields directly, as the core
+	 * already handles that.
+	 */
+	u32 ce_noinfo_count, ue_noinfo_count;
+	u32 ue_count, ce_count;
+	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
 
 	struct completion complete;
 
@@ -584,7 +596,7 @@ struct mem_ctl_info {
 	 * by the low level driver.
 	 *
 	 * Set by the low level driver to provide attributes at the
-	 * controller level, same level as 'ue_count' and 'ce_count' above.
+	 * controller level.
 	 * An array of structures, NULL terminated
 	 *
 	 * If attributes are desired, then set to array of attributes
