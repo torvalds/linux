@@ -1,27 +1,21 @@
 # kbuild trick to avoid linker error. Can be omitted if a module is built.
 obj- := dummy.o
 
-hostprogs-$(CONFIG_SECCOMP) := bpf-fancy dropper
-bpf-fancy-objs := bpf-fancy.o bpf-helper.o
+hostprogs-$(CONFIG_SECCOMP_FILTER) := bpf-fancy dropper bpf-direct
 
 HOSTCFLAGS_bpf-fancy.o += -I$(objtree)/usr/include
 HOSTCFLAGS_bpf-fancy.o += -idirafter $(objtree)/include
 HOSTCFLAGS_bpf-helper.o += -I$(objtree)/usr/include
 HOSTCFLAGS_bpf-helper.o += -idirafter $(objtree)/include
+bpf-fancy-objs := bpf-fancy.o bpf-helper.o
 
 HOSTCFLAGS_dropper.o += -I$(objtree)/usr/include
 HOSTCFLAGS_dropper.o += -idirafter $(objtree)/include
 dropper-objs := dropper.o
 
-# bpf-direct.c is x86-only.
-ifeq ($(SRCARCH),x86)
-# List of programs to build
-hostprogs-$(CONFIG_SECCOMP) += bpf-direct
-bpf-direct-objs := bpf-direct.o
-endif
-
 HOSTCFLAGS_bpf-direct.o += -I$(objtree)/usr/include
 HOSTCFLAGS_bpf-direct.o += -idirafter $(objtree)/include
+bpf-direct-objs := bpf-direct.o
 
 # Try to match the kernel target.
 ifeq ($(CONFIG_64BIT),)
