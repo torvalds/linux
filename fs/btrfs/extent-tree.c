@@ -3578,7 +3578,7 @@ again:
 	space_info->chunk_alloc = 0;
 	spin_unlock(&space_info->lock);
 out:
-	mutex_unlock(&extent_root->fs_info->chunk_mutex);
+	mutex_unlock(&fs_info->chunk_mutex);
 	return ret;
 }
 
