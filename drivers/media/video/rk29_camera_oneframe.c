@@ -154,8 +154,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *v0.x.9 : camera io code is compatible for rk29xx and rk30xx
 *v0.x.a : fix error when calculate crop left-top point coordinate;
 *         note: this version provided as patch camera_patch_v1.1
+*v0.x.b : fix sensor autofocus thread may in running when reinit sensor if sensor haven't stream on in first init;
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0x0a)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xb)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -1699,6 +1700,7 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 
 	control = to_soc_camera_control(rk29_camdev_info_ptr->icd);
 	sd = dev_get_drvdata(control);
+    v4l2_subdev_call(sd, video, s_stream, 0);  /* ddl@rock-chips.com: Avoid sensor autofocus thread is running */
 	ret = v4l2_subdev_call(sd,core, init, 1);
 
 	mf.width = rk29_camdev_info_ptr->icd->user_width;
@@ -1707,7 +1709,7 @@ static void rk29_camera_reinit_work(struct work_struct *work)
 	mf.code = xlate->code;
 
 	ret |= v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
-
+    v4l2_subdev_call(sd, video, s_stream, 1);
 	write_vip_reg(RK29_VIP_CTRL, (read_vip_reg(RK29_VIP_CTRL)|ENABLE_CAPTURE));
 
 	RK29CAMERA_TR("Camera host haven't recevie data from sensor,Reinit sensor now! ret:0x%x\n",ret);
