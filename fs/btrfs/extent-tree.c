@@ -3771,13 +3771,10 @@ again:
 		 */
 		if (current->journal_info)
 			return -EAGAIN;
-		ret = wait_event_interruptible(space_info->wait,
-					       !space_info->flush);
-		/* Must have been interrupted, return */
-		if (ret) {
-			printk(KERN_DEBUG "btrfs: %s returning -EINTR\n", __func__);
+		ret = wait_event_killable(space_info->wait, !space_info->flush);
+		/* Must have been killed, return */
+		if (ret)
 			return -EINTR;
-		}
 
 		spin_lock(&space_info->lock);
 	}
