@@ -419,6 +419,7 @@ EXPORT_SYMBOL(snd_ctl_make_virtual_master);
  * snd_ctl_add_vmaster_hook - Add a hook to a vmaster control
  * @kcontrol: vmaster kctl element
  * @hook: the hook function
+ * @private_data: the private_data pointer to be saved
  *
  * Adds the given hook to the vmaster control element so that it's called
  * at each time when the value is changed.
