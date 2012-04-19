@@ -58,6 +58,6 @@ void unix_sysctl_unregister(struct net *net)
 	struct ctl_table *table;
 
 	table = net->unx.ctl->ctl_table_arg;
-	unregister_sysctl_table(net->unx.ctl);
+	unregister_net_sysctl_table(net->unx.ctl);
 	kfree(table);
 }

@@ -106,11 +106,11 @@ static struct ctl_path phonet_ctl_path[] = {
 
 int __init phonet_sysctl_init(void)
 {
-	phonet_table_hrd = register_sysctl_paths(phonet_ctl_path, phonet_table);
+	phonet_table_hrd = register_net_sysctl_table(&init_net, phonet_ctl_path, phonet_table);
 	return phonet_table_hrd == NULL ? -ENOMEM : 0;
 }
 
 void phonet_sysctl_exit(void)
 {
-	unregister_sysctl_table(phonet_table_hrd);
+	unregister_net_sysctl_table(phonet_table_hrd);
 }

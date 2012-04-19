@@ -102,7 +102,7 @@ static struct ctl_path rds_sysctl_path[] = {
 void rds_sysctl_exit(void)
 {
 	if (rds_sysctl_reg_table)
-		unregister_sysctl_table(rds_sysctl_reg_table);
+		unregister_net_sysctl_table(rds_sysctl_reg_table);
 }
 
 int rds_sysctl_init(void)
@@ -110,7 +110,7 @@ int rds_sysctl_init(void)
 	rds_sysctl_reconnect_min = msecs_to_jiffies(1);
 	rds_sysctl_reconnect_min_jiffies = rds_sysctl_reconnect_min;
 
-	rds_sysctl_reg_table = register_sysctl_paths(rds_sysctl_path, rds_sysctl_rds_table);
+	rds_sysctl_reg_table = register_net_sysctl_table(&init_net, rds_sysctl_path, rds_sysctl_rds_table);
 	if (!rds_sysctl_reg_table)
 		return -ENOMEM;
 	return 0;

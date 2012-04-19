@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
+#include <net/net_namespace.h>
 #include <net/llc.h>
 
 #ifndef CONFIG_SYSCTL
@@ -89,7 +90,7 @@ static struct ctl_table_header *llc_table_header;
 
 int __init llc_sysctl_init(void)
 {
-	llc_table_header = register_sysctl_paths(llc_path, llc_table);
+	llc_table_header = register_net_sysctl_table(&init_net, llc_path, llc_table);
 
 	return llc_table_header ? 0 : -ENOMEM;
 }
@@ -97,7 +98,7 @@ int __init llc_sysctl_init(void)
 void llc_sysctl_exit(void)
 {
 	if (llc_table_header) {
-		unregister_sysctl_table(llc_table_header);
+		unregister_net_sysctl_table(llc_table_header);
 		llc_table_header = NULL;
 	}
 }

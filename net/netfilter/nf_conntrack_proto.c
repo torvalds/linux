@@ -40,7 +40,7 @@ nf_ct_register_sysctl(struct ctl_table_header **header, struct ctl_path *path,
 		      struct ctl_table *table, unsigned int *users)
 {
 	if (*header == NULL) {
-		*header = register_sysctl_paths(path, table);
+		*header = register_net_sysctl_table(&init_net, path, table);
 		if (*header == NULL)
 			return -ENOMEM;
 	}
@@ -56,7 +56,7 @@ nf_ct_unregister_sysctl(struct ctl_table_header **header,
 	if (users != NULL && --*users > 0)
 		return;
 
-	unregister_sysctl_table(*header);
+	unregister_net_sysctl_table(*header);
 	*header = NULL;
 }
 #endif

@@ -479,7 +479,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 
 	if (net_eq(net, &init_net)) {
 		nf_ct_netfilter_header =
-		       register_sysctl_paths(nf_ct_path, nf_ct_netfilter_table);
+		       register_net_sysctl_table(&init_net, nf_ct_path, nf_ct_netfilter_table);
 		if (!nf_ct_netfilter_header)
 			goto out;
 	}
@@ -505,7 +505,7 @@ out_unregister_netfilter:
 	kfree(table);
 out_kmemdup:
 	if (net_eq(net, &init_net))
-		unregister_sysctl_table(nf_ct_netfilter_header);
+		unregister_net_sysctl_table(nf_ct_netfilter_header);
 out:
 	printk(KERN_ERR "nf_conntrack: can't register to sysctl.\n");
 	return -ENOMEM;
@@ -516,7 +516,7 @@ static void nf_conntrack_standalone_fini_sysctl(struct net *net)
 	struct ctl_table *table;
 
 	if (net_eq(net, &init_net))
-		unregister_sysctl_table(nf_ct_netfilter_header);
+		unregister_net_sysctl_table(nf_ct_netfilter_header);
 	table = net->ct.sysctl_header->ctl_table_arg;
 	unregister_net_sysctl_table(net->ct.sysctl_header);
 	kfree(table);

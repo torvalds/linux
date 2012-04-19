@@ -857,12 +857,12 @@ static __init int sysctl_ipv4_init(void)
 	if (!i->procname)
 		return -EINVAL;
 
-	hdr = register_sysctl_paths(net_ipv4_ctl_path, ipv4_table);
+	hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path, ipv4_table);
 	if (hdr == NULL)
 		return -ENOMEM;
 
 	if (register_pernet_subsys(&ipv4_sysctl_ops)) {
-		unregister_sysctl_table(hdr);
+		unregister_net_sysctl_table(hdr);
 		return -ENOMEM;
 	}
 

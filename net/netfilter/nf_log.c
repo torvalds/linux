@@ -283,7 +283,7 @@ static __init int netfilter_log_sysctl_init(void)
 		nf_log_sysctl_table[i].extra1 = (void *)(unsigned long) i;
 	}
 
-	nf_log_dir_header = register_sysctl_paths(nf_log_sysctl_path,
+	nf_log_dir_header = register_net_sysctl_table(&init_net, nf_log_sysctl_path,
 				       nf_log_sysctl_table);
 	if (!nf_log_dir_header)
 		return -ENOMEM;

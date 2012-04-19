@@ -236,7 +236,7 @@ static void dn_dev_sysctl_register(struct net_device *dev, struct dn_dev_parms *
 
 	t->dn_dev_vars[0].extra1 = (void *)dev;
 
-	t->sysctl_header = register_sysctl_paths(dn_ctl_path, t->dn_dev_vars);
+	t->sysctl_header = register_net_sysctl_table(&init_net, dn_ctl_path, t->dn_dev_vars);
 	if (t->sysctl_header == NULL)
 		kfree(t);
 	else
@@ -248,7 +248,7 @@ static void dn_dev_sysctl_unregister(struct dn_dev_parms *parms)
 	if (parms->sysctl) {
 		struct dn_dev_sysctl_table *t = parms->sysctl;
 		parms->sysctl = NULL;
-		unregister_sysctl_table(t->sysctl_header);
+		unregister_net_sysctl_table(t->sysctl_header);
 		kfree(t);
 	}
 }

@@ -196,13 +196,13 @@ void ax25_register_sysctl(void)
 	}
 	spin_unlock_bh(&ax25_dev_lock);
 
-	ax25_table_header = register_sysctl_paths(ax25_path, ax25_table);
+	ax25_table_header = register_net_sysctl_table(&init_net, ax25_path, ax25_table);
 }
 
 void ax25_unregister_sysctl(void)
 {
 	ctl_table *p;
-	unregister_sysctl_table(ax25_table_header);
+	unregister_net_sysctl_table(ax25_table_header);
 
 	for (p = ax25_table; p->procname; p++)
 		kfree(p->child);

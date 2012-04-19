@@ -586,7 +586,7 @@ static int __init ip_queue_init(void)
 #endif
 	register_netdevice_notifier(&ipq_dev_notifier);
 #ifdef CONFIG_SYSCTL
-	ipq_sysctl_header = register_sysctl_paths(net_ipv4_ctl_path, ipq_table);
+	ipq_sysctl_header = register_net_sysctl_table(&init_net, net_ipv4_ctl_path, ipq_table);
 #endif
 	status = nf_register_queue_handler(NFPROTO_IPV4, &nfqh);
 	if (status < 0) {
@@ -597,7 +597,7 @@ static int __init ip_queue_init(void)
 
 cleanup_sysctl:
 #ifdef CONFIG_SYSCTL
-	unregister_sysctl_table(ipq_sysctl_header);
+	unregister_net_sysctl_table(ipq_sysctl_header);
 #endif
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
@@ -618,7 +618,7 @@ static void __exit ip_queue_fini(void)
 	ipq_flush(NULL, 0);
 
 #ifdef CONFIG_SYSCTL
-	unregister_sysctl_table(ipq_sysctl_header);
+	unregister_net_sysctl_table(ipq_sysctl_header);
 #endif
 	unregister_netdevice_notifier(&ipq_dev_notifier);
 	proc_net_remove(&init_net, IPQ_PROC_FS_NAME);
