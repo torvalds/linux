@@ -728,6 +728,10 @@ static void ar9003_hw_set_rfmode(struct ath_hw *ah,
 	if (IS_CHAN_HALF_RATE(chan))
 		rfMode |= AR_PHY_MODE_HALF;
 
+	if (rfMode & (AR_PHY_MODE_QUARTER | AR_PHY_MODE_HALF))
+		REG_RMW_FIELD(ah, AR_PHY_FRAME_CTL,
+			      AR_PHY_FRAME_CTL_CF_OVERLAP_WINDOW, 3);
+
 	REG_WRITE(ah, AR_PHY_MODE, rfMode);
 }
 
