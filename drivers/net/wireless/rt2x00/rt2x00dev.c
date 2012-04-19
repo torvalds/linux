@@ -588,7 +588,7 @@ static int rt2x00lib_rxdone_read_signal(struct rt2x00_dev *rt2x00dev,
 	return 0;
 }
 
-void rt2x00lib_rxdone(struct queue_entry *entry)
+void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct rxdone_entry_desc rxdesc;
@@ -608,7 +608,7 @@ void rt2x00lib_rxdone(struct queue_entry *entry)
 	 * Allocate a new sk_buffer. If no new buffer available, drop the
 	 * received frame and reuse the existing buffer.
 	 */
-	skb = rt2x00queue_alloc_rxskb(entry);
+	skb = rt2x00queue_alloc_rxskb(entry, gfp);
 	if (!skb)
 		goto submit_entry;
 
