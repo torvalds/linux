@@ -98,7 +98,7 @@
 #define EEPROM_BASE			0x0000
 #define EEPROM_SIZE			0x0110
 #define BBP_BASE			0x0000
-#define BBP_SIZE			0x0080
+#define BBP_SIZE			0x00ff
 #define RF_BASE				0x0004
 #define RF_SIZE				0x0010
 
