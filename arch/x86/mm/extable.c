@@ -35,3 +35,20 @@ int fixup_exception(struct pt_regs *regs)
 
 	return 0;
 }
+
+/* Restricted version used during very early boot */
+int __init early_fixup_exception(unsigned long *ip)
+{
+	const struct exception_table_entry *fixup;
+
+	fixup = search_exception_tables(*ip);
+	if (fixup) {
+		if (fixup->fixup < 16)
+			return 0; /* Not supported during early boot */
+
+		*ip = fixup->fixup;
+		return 1;
+	}
+
+	return 0;
+}
