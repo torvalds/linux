@@ -10,6 +10,7 @@
  */
 
 #include "bcma_private.h"
+#include <linux/pci.h>
 #include <linux/export.h>
 #include <linux/bcma/bcma.h>
 #include <asm/paccess.h>

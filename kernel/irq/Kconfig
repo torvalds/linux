@@ -62,7 +62,7 @@ config IRQ_DOMAIN_DEBUG
 	help
 	  This option will show the mapping relationship between hardware irq
 	  numbers and Linux irq numbers. The mapping is exposed via debugfs
-	  in the file "virq_mapping".
+	  in the file "irq_domain_mapping".
 
 	  If you don't know what this means you don't need it.
 

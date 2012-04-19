@@ -1572,13 +1572,11 @@ static irqreturn_t serial8250_interrupt(int irq, void *dev_id)
 	do {
 		struct uart_8250_port *up;
 		struct uart_port *port;
-		bool skip;
 
 		up = list_entry(l, struct uart_8250_port, list);
 		port = &up->port;
-		skip = pass_counter && up->port.flags & UPF_IIR_ONCE;
 
-		if (!skip && port->handle_irq(port)) {
+		if (port->handle_irq(port)) {
 			handled = 1;
 			end = NULL;
 		} else if (end == NULL)
@@ -2037,10 +2035,12 @@ static int serial8250_startup(struct uart_port *port)
 		spin_unlock_irqrestore(&port->lock, flags);
 
 		/*
-		 * If the interrupt is not reasserted, setup a timer to
-		 * kick the UART on a regular basis.
+		 * If the interrupt is not reasserted, or we otherwise
+		 * don't trust the iir, setup a timer to kick the UART
+		 * on a regular basis.
 		 */
-		if (!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) {
+		if ((!(iir1 & UART_IIR_NO_INT) && (iir & UART_IIR_NO_INT)) ||
+		    up->port.flags & UPF_BUG_THRE) {
 			up->bugs |= UART_BUG_THRE;
 			pr_debug("ttyS%d - using backup timer\n",
 				 serial_index(port));

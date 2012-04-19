@@ -584,8 +584,8 @@ static bool tcp_in_window(const struct nf_conn *ct,
 			 * Let's try to use the data from the packet.
 			 */
 			sender->td_end = end;
-			win <<= sender->td_scale;
-			sender->td_maxwin = (win == 0 ? 1 : win);
+			swin = win << sender->td_scale;
+			sender->td_maxwin = (swin == 0 ? 1 : swin);
 			sender->td_maxend = end + sender->td_maxwin;
 			/*
 			 * We haven't seen traffic in the other direction yet

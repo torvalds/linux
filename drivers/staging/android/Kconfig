@@ -27,13 +27,14 @@ config ANDROID_LOGGER
 
 config ANDROID_PERSISTENT_RAM
 	bool
+	depends on HAVE_MEMBLOCK
 	select REED_SOLOMON
 	select REED_SOLOMON_ENC8
 	select REED_SOLOMON_DEC8
 
 config ANDROID_RAM_CONSOLE
 	bool "Android RAM buffer console"
-	depends on !S390 && !UML
+	depends on !S390 && !UML && HAVE_MEMBLOCK
 	select ANDROID_PERSISTENT_RAM
 	default n
 
