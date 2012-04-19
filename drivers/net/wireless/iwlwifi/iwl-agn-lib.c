@@ -541,9 +541,10 @@ static void iwlagn_print_uartmsg(struct iwl_priv *priv,
 			BT_UART_MSG_FRAME7CONNECTABLE_POS);
 }
 
-static void iwlagn_set_kill_msk(struct iwl_priv *priv,
+static bool iwlagn_set_kill_msk(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
+	bool need_update = false;
 	u8 kill_msk;
 	static const __le32 bt_kill_ack_msg[2] = {
 		IWLAGN_BT_KILL_ACK_MASK_DEFAULT,
@@ -560,10 +561,39 @@ static void iwlagn_set_kill_msk(struct iwl_priv *priv,
 		priv->kill_ack_mask = bt_kill_ack_msg[kill_msk];
 		priv->bt_valid |= IWLAGN_BT_VALID_KILL_CTS_MASK;
 		priv->kill_cts_mask = bt_kill_cts_msg[kill_msk];
-
-		/* schedule to send runtime bt_config */
-		queue_work(priv->workqueue, &priv->bt_runtime_config);
+		need_update = true;
 	}
+	return need_update;
+}
+
+static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
+				struct iwl_bt_uart_msg *uart_msg)
+{
+	bool need_update = false;
+
+	if (!priv->reduced_txpower &&
+	    !iwl_is_associated(priv, IWL_RXON_CTX_PAN) &&
+	    (uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
+	    BT_UART_MSG_FRAME3OBEX_MSK)) &&
+	    !(uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
+	    BT_UART_MSG_FRAME3SNIFF_MSK | BT_UART_MSG_FRAME3A2DP_MSK))) {
+		/* enabling reduced tx power */
+		priv->reduced_txpower = true;
+		priv->bt_valid |= IWLAGN_BT_VALID_REDUCED_TX_PWR;
+		need_update = true;
+	} else if (priv->reduced_txpower &&
+		   (iwl_is_associated(priv, IWL_RXON_CTX_PAN) ||
+		   (uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
+		   BT_UART_MSG_FRAME3SNIFF_MSK | BT_UART_MSG_FRAME3A2DP_MSK)) ||
+		   !(uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
+		   BT_UART_MSG_FRAME3OBEX_MSK)))) {
+		/* disable reduced tx power */
+		priv->reduced_txpower = false;
+		priv->bt_valid &= ~IWLAGN_BT_VALID_REDUCED_TX_PWR;
+		need_update = true;
+	}
+
+	return need_update;
 }
 
 int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
@@ -611,7 +641,11 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 		}
 	}
 
-	iwlagn_set_kill_msk(priv, uart_msg);
+	/* schedule to send runtime bt_config */
+	if (iwlagn_set_kill_msk(priv, uart_msg) ||
+	    iwlagn_fill_txpower_mode(priv, uart_msg))
+		queue_work(priv->workqueue, &priv->bt_runtime_config);
+
 
 	/* FIXME: based on notification, adjust the prio_boost */
 
