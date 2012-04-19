@@ -121,7 +121,7 @@ static ssize_t set_min_uV(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -147,7 +147,7 @@ static ssize_t set_max_uV(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -173,7 +173,7 @@ static ssize_t set_min_uA(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
@@ -199,7 +199,7 @@ static ssize_t set_max_uA(struct device *dev, struct device_attribute *attr,
 	struct virtual_consumer_data *data = dev_get_drvdata(dev);
 	long val;
 
-	if (strict_strtol(buf, 10, &val) != 0)
+	if (kstrtol(buf, 10, &val) != 0)
 		return count;
 
 	mutex_lock(&data->lock);
