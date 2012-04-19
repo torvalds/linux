@@ -263,11 +263,6 @@ static void pch_i2c_init(struct i2c_algo_pch_data *adap)
 	init_waitqueue_head(&pch_event);
 }
 
-static inline bool ktime_lt(const ktime_t cmp1, const ktime_t cmp2)
-{
-	return cmp1.tv64 < cmp2.tv64;
-}
-
 /**
  * pch_i2c_wait_for_bus_idle() - check the status of bus.
  * @adap:	Pointer to struct i2c_algo_pch_data.
