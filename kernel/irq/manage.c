@@ -1031,6 +1031,27 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		 * all existing action->thread_mask bits.
 		 */
 		new->thread_mask = 1 << ffz(thread_mask);
+
+	} else if (new->handler == irq_default_primary_handler) {
+		/*
+		 * The interrupt was requested with handler = NULL, so
+		 * we use the default primary handler for it. But it
+		 * does not have the oneshot flag set. In combination
+		 * with level interrupts this is deadly, because the
+		 * default primary handler just wakes the thread, then
+		 * the irq lines is reenabled, but the device still
+		 * has the level irq asserted. Rinse and repeat....
+		 *
+		 * While this works for edge type interrupts, we play
+		 * it safe and reject unconditionally because we can't
+		 * say for sure which type this interrupt really
+		 * has. The type flags are unreliable as the
+		 * underlying chip implementation can override them.
+		 */
+		pr_err("genirq: Threaded irq requested with handler=NULL and !ONESHOT for irq %d\n",
+		       irq);
+		ret = -EINVAL;
+		goto out_mask;
 	}
 
 	if (!shared) {
