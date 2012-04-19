@@ -617,7 +617,7 @@ static int econet_create(struct net *net, struct socket *sock, int protocol,
 	if (sk == NULL)
 		goto out;
 
-	sk->sk_reuse = 1;
+	sk->sk_reuse = SK_CAN_REUSE;
 	sock->ops = &econet_ops;
 	sock_init_data(sock, sk);
 
@@ -1012,7 +1012,7 @@ static int __init aun_udp_initialise(void)
 		return error;
 	}
 
-	udpsock->sk->sk_reuse = 1;
+	udpsock->sk->sk_reuse = SK_CAN_REUSE;
 	udpsock->sk->sk_allocation = GFP_ATOMIC; /* we're going to call it
 						    from interrupts */
 

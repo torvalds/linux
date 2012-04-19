@@ -1368,7 +1368,7 @@ static struct socket *make_receive_sock(struct net *net)
 	 */
 	sk_change_net(sock->sk, net);
 	/* it is equivalent to the REUSEADDR option in user-space */
-	sock->sk->sk_reuse = 1;
+	sock->sk->sk_reuse = SK_CAN_REUSE;
 
 	result = sock->ops->bind(sock, (struct sockaddr *) &mcast_addr,
 			sizeof(struct sockaddr));

@@ -376,6 +376,17 @@ struct sock {
 	void                    (*sk_destruct)(struct sock *sk);
 };
 
+/*
+ * SK_CAN_REUSE and SK_NO_REUSE on a socket mean that the socket is OK
+ * or not whether his port will be reused by someone else. SK_FORCE_REUSE
+ * on a socket means that the socket will reuse everybody else's port
+ * without looking at the other's sk_reuse value.
+ */
+
+#define SK_NO_REUSE	0
+#define SK_CAN_REUSE	1
+#define SK_FORCE_REUSE	2
+
 static inline int sk_peek_offset(struct sock *sk, int flags)
 {
 	if ((flags & MSG_PEEK) && (sk->sk_peek_off >= 0))
