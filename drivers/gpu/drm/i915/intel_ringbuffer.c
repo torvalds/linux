@@ -61,7 +61,7 @@ gen2_render_ring_flush(struct intel_ring_buffer *ring,
 	int ret;
 
 	cmd = MI_FLUSH;
-	if ((flush_domains & I915_GEM_DOMAIN_RENDER) == 0)
+	if (((invalidate_domains|flush_domains) & I915_GEM_DOMAIN_RENDER) == 0)
 		cmd |= MI_NO_WRITE_FLUSH;
 
 	if (invalidate_domains & I915_GEM_DOMAIN_SAMPLER)
