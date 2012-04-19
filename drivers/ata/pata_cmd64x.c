@@ -525,21 +525,10 @@ static struct pci_driver cmd64x_pci_driver = {
 #endif
 };
 
-static int __init cmd64x_init(void)
-{
-	return pci_register_driver(&cmd64x_pci_driver);
-}
-
-static void __exit cmd64x_exit(void)
-{
-	pci_unregister_driver(&cmd64x_pci_driver);
-}
+module_pci_driver(cmd64x_pci_driver);
 
 MODULE_AUTHOR("Alan Cox");
 MODULE_DESCRIPTION("low-level driver for CMD64x series PATA controllers");
 MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(pci, cmd64x);
 MODULE_VERSION(DRV_VERSION);
-
-module_init(cmd64x_init);
-module_exit(cmd64x_exit);
