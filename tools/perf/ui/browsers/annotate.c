@@ -82,11 +82,11 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		ui_browser__set_color(self, HE_COLORSET_CODE);
 
 	if (!*dl->line)
-		slsmg_write_nstring(" ", width - 18);
+		slsmg_write_nstring(" ", width - 10);
 	else if (dl->offset == -1)
-		slsmg_write_nstring(dl->line, width - 18);
+		slsmg_write_nstring(dl->line, width - 10);
 	else {
-		char bf[256], *line = dl->line;
+		char bf[256];
 		u64 addr = dl->offset;
 		int printed, color = -1;
 
@@ -114,12 +114,12 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf),
 						!ab->use_offset ? dl->operands : NULL,
 						dl->target);
-			line = bf;
-			slsmg_write_nstring(" ", 7);
-			printed += 7;
-		}
+			slsmg_write_nstring(" ", 2);
+			printed += 2;
+		} else
+			scnprintf(bf, sizeof(bf), "  %-6.6s %s", dl->name, dl->operands);
 
-		slsmg_write_nstring(line, width - 18 - printed);
+		slsmg_write_nstring(bf, width - 10 - printed);
 	}
 
 	if (current_entry)
@@ -653,6 +653,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.priv	 = &ms,
 			.use_navkeypressed = true,
 		},
+		.use_offset = true,
 	};
 	int ret = -1;
 
