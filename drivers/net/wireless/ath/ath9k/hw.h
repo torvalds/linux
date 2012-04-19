@@ -923,6 +923,8 @@ void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val);
 void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
 
 /* General Operation */
+void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
+			  int hw_delay);
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
 void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt);

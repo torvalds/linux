@@ -191,6 +191,22 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
 }
 EXPORT_SYMBOL(ath9k_hw_wait);
 
+void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
+			  int hw_delay)
+{
+	if (IS_CHAN_B(chan))
+		hw_delay = (4 * hw_delay) / 22;
+	else
+		hw_delay /= 10;
+
+	if (IS_CHAN_HALF_RATE(chan))
+		hw_delay *= 2;
+	else if (IS_CHAN_QUARTER_RATE(chan))
+		hw_delay *= 4;
+
+	udelay(hw_delay + BASE_ACTIVATE_DELAY);
+}
+
 void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt)
 {

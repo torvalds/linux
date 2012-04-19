@@ -526,22 +526,10 @@ static void ar9003_hw_init_bb(struct ath_hw *ah,
 	 * Value is in 100ns increments.
 	 */
 	synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_B(chan))
-		synthDelay = (4 * synthDelay) / 22;
-	else
-		synthDelay /= 10;
 
 	/* Activate the PHY (includes baseband activate + synthesizer on) */
 	REG_WRITE(ah, AR_PHY_ACTIVE, AR_PHY_ACTIVE_EN);
-
-	/*
-	 * There is an issue if the AP starts the calibration before
-	 * the base band timeout completes.  This could result in the
-	 * rx_clear false triggering.  As a workaround we add delay an
-	 * extra BASE_ACTIVATE_DELAY usecs to ensure this condition
-	 * does not happen.
-	 */
-	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+	ath9k_hw_synth_delay(ah, chan, synthDelay);
 }
 
 static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
@@ -801,12 +789,8 @@ static bool ar9003_hw_rfbus_req(struct ath_hw *ah)
 static void ar9003_hw_rfbus_done(struct ath_hw *ah)
 {
 	u32 synthDelay = REG_READ(ah, AR_PHY_RX_DELAY) & AR_PHY_RX_DELAY_DELAY;
-	if (IS_CHAN_B(ah->curchan))
-		synthDelay = (4 * synthDelay) / 22;
-	else
-		synthDelay /= 10;
 
-	udelay(synthDelay + BASE_ACTIVATE_DELAY);
+	ath9k_hw_synth_delay(ah, ah->curchan, synthDelay);
 
 	REG_WRITE(ah, AR_PHY_RFBUS_REQ, 0);
 }
