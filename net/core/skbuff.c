@@ -1274,7 +1274,7 @@ drop_pages:
 				return -ENOMEM;
 
 			nfrag->next = frag->next;
-			kfree_skb(frag);
+			consume_skb(frag);
 			frag = nfrag;
 			*fragp = frag;
 		}
