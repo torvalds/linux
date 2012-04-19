@@ -101,7 +101,7 @@ int symbol__annotate_init(struct map *map __used, struct symbol *sym)
 int symbol__alloc_hist(struct symbol *sym)
 {
 	struct annotation *notes = symbol__annotation(sym);
-	const size_t size = sym->end - sym->start + 1;
+	const size_t size = symbol__size(sym);
 	size_t sizeof_sym_hist = (sizeof(struct sym_hist) + size * sizeof(u64));
 
 	notes->src = zalloc(sizeof(*notes->src) + symbol_conf.nr_events * sizeof_sym_hist);
@@ -609,7 +609,7 @@ static void symbol__annotate_hits(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
-	u64 len = sym->end - sym->start, offset;
+	u64 len = symbol__size(sym), offset;
 
 	for (offset = 0; offset < len; ++offset)
 		if (h->addr[offset] != 0)
@@ -636,7 +636,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
 	else
 		d_filename = basename(filename);
 
-	len = sym->end - sym->start;
+	len = symbol__size(sym);
 
 	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
 	printf("------------------------------------------------\n");
@@ -696,7 +696,7 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
-	int len = sym->end - sym->start, offset;
+	int len = symbol__size(sym), offset;
 
 	h->sum = 0;
 	for (offset = 0; offset < len; ++offset) {
@@ -755,7 +755,7 @@ int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
 	if (symbol__annotate(sym, map, 0) < 0)
 		return -1;
 
-	len = sym->end - sym->start;
+	len = symbol__size(sym);
 
 	if (print_lines) {
 		symbol__get_source_line(sym, map, evidx, &source_line,
