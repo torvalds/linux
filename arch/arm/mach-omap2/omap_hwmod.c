@@ -884,24 +884,22 @@ static int __init _find_mpu_port_index(struct omap_hwmod *oh)
 }
 
 /**
- * _find_mpu_rt_base - find hwmod register target base addr accessible by MPU
+ * _find_mpu_rt_addr_space - return MPU register target address space for @oh
  * @oh: struct omap_hwmod *
  *
- * Return the virtual address of the base of the register target of
- * device @oh, or NULL on error.
+ * Returns a pointer to the struct omap_hwmod_addr_space record representing
+ * the register target MPU address space; or returns NULL upon error.
  */
-static void __iomem * __init _find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
+static struct omap_hwmod_addr_space * __init _find_mpu_rt_addr_space(struct omap_hwmod *oh)
 {
 	struct omap_hwmod_ocp_if *os;
 	struct omap_hwmod_addr_space *mem;
-	int i = 0, found = 0;
-	void __iomem *va_start;
+	int found = 0, i = 0;
 
-	if (!oh || oh->slaves_cnt == 0)
+	if (!oh || oh->_int_flags & _HWMOD_NO_MPU_PORT || oh->slaves_cnt == 0)
 		return NULL;
 
-	os = oh->slaves[index];
-
+	os = oh->slaves[oh->_mpu_port_index];
 	if (!os->addr)
 		return NULL;
 
@@ -911,20 +909,7 @@ static void __iomem * __init _find_mpu_rt_base(struct omap_hwmod *oh, u8 index)
 			found = 1;
 	} while (!found && mem->pa_start != mem->pa_end);
 
-	if (found) {
-		va_start = ioremap(mem->pa_start, mem->pa_end - mem->pa_start);
-		if (!va_start) {
-			pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
-			return NULL;
-		}
-		pr_debug("omap_hwmod: %s: MPU register target at va %p\n",
-			 oh->name, va_start);
-	} else {
-		pr_debug("omap_hwmod: %s: no MPU register target found\n",
-			 oh->name);
-	}
-
-	return (found) ? va_start : NULL;
+	return (found) ? mem : NULL;
 }
 
 /**
@@ -1813,10 +1798,32 @@ static int _shutdown(struct omap_hwmod *oh)
  */
 static void __init _init_mpu_rt_base(struct omap_hwmod *oh, void *data)
 {
+	struct omap_hwmod_addr_space *mem;
+	void __iomem *va_start;
+
+	if (!oh)
+		return;
+
 	if (oh->_int_flags & _HWMOD_NO_MPU_PORT)
 		return;
 
-	oh->_mpu_rt_va = _find_mpu_rt_base(oh, oh->_mpu_port_index);
+	mem = _find_mpu_rt_addr_space(oh);
+	if (!mem) {
+		pr_debug("omap_hwmod: %s: no MPU register target found\n",
+			 oh->name);
+		return;
+	}
+
+	va_start = ioremap(mem->pa_start, mem->pa_end - mem->pa_start);
+	if (!va_start) {
+		pr_err("omap_hwmod: %s: Could not ioremap\n", oh->name);
+		return;
+	}
+
+	pr_debug("omap_hwmod: %s: MPU register target at va %p\n",
+		 oh->name, va_start);
+
+	oh->_mpu_rt_va = va_start;
 }
 
 /**
