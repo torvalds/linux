@@ -268,20 +268,22 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
  *
  * @sdata: local meshif
  * @addr: peer's address
- * @rates: station's supported rates
  * @elems: IEs from beacon or mesh peering frame
  *
  * call under RCU
  */
 static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
-				       u8 *addr, u32 rates,
+				       u8 *addr,
 				       struct ieee802_11_elems *elems)
 {
 	struct ieee80211_local *local = sdata->local;
+	enum ieee80211_band band = local->oper_channel->band;
 	struct ieee80211_supported_band *sband;
+	u32 rates, basic_rates = 0;
 	struct sta_info *sta;
 
-	sband = local->hw.wiphy->bands[local->oper_channel->band];
+	sband = local->hw.wiphy->bands[band];
+	rates = ieee80211_sta_get_rates(local, elems, band, &basic_rates);
 
 	sta = sta_info_get(sdata, addr);
 	if (!sta) {
@@ -292,7 +294,7 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 
 	spin_lock_bh(&sta->lock);
 	sta->last_rx = jiffies;
-	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
+	sta->sta.supp_rates[band] = rates;
 	if (elems->ht_cap_elem)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
@@ -306,8 +308,8 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 	return sta;
 }
 
-void mesh_neighbour_update(u8 *hw_addr, u32 rates,
-			   struct ieee80211_sub_if_data *sdata,
+void mesh_neighbour_update(struct ieee80211_sub_if_data *sdata,
+			   u8 *hw_addr,
 			   struct ieee802_11_elems *elems)
 {
 	struct sta_info *sta;
@@ -322,7 +324,7 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates,
 	}
 
 	rcu_read_lock();
-	sta = mesh_peer_init(sdata, hw_addr, rates, elems);
+	sta = mesh_peer_init(sdata, hw_addr, elems);
 	if (!sta)
 		goto out;
 
@@ -479,7 +481,6 @@ void mesh_plink_block(struct sta_info *sta)
 void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_mgmt *mgmt,
 			 size_t len, struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee802_11_elems elems;
 	struct sta_info *sta;
 	enum plink_event event;
@@ -488,7 +489,6 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	bool deactivated, matches_local = true;
 	u8 ie_len;
 	u8 *baseaddr;
-	u32 rates, basic_rates = 0;
 	__le16 plid, llid, reason;
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
 	static const char *mplstates[] = {
@@ -583,11 +583,8 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 
 	/* Now we will figure out the appropriate event... */
 	event = PLINK_UNDEFINED;
-	rates = ieee80211_sta_get_rates(local, &elems,
-					rx_status->band, &basic_rates);
-
 	if (ftype != WLAN_SP_MESH_PEERING_CLOSE &&
-	    (!mesh_matches_local(&elems, sdata, basic_rates))) {
+	    !mesh_matches_local(sdata, &elems)) {
 		matches_local = false;
 		switch (ftype) {
 		case WLAN_SP_MESH_PEERING_OPEN:
@@ -660,7 +657,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 
 	if (event == OPN_ACPT) {
 		/* allocate sta entry if necessary and update info */
-		sta = mesh_peer_init(sdata, mgmt->sa, rates, &elems);
+		sta = mesh_peer_init(sdata, mgmt->sa, &elems);
 		if (!sta) {
 			mpl_dbg("Mesh plink: failed to init peer!\n");
 			rcu_read_unlock();
