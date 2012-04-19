@@ -3542,8 +3542,11 @@ gro_result_t napi_skb_finish(gro_result_t ret, struct sk_buff *skb)
 		break;
 
 	case GRO_DROP:
-	case GRO_MERGED_FREE:
 		kfree_skb(skb);
+		break;
+
+	case GRO_MERGED_FREE:
+		consume_skb(skb);
 		break;
 
 	case GRO_HELD:
