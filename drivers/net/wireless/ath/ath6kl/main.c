@@ -548,7 +548,8 @@ void ath6kl_disconnect(struct ath6kl_vif *vif)
 
 /* WMI Event handlers */
 
-void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
+void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver,
+			enum wmi_phy_cap cap)
 {
 	struct ath6kl *ar = devt;
 
@@ -558,6 +559,7 @@ void ath6kl_ready_event(void *devt, u8 *datap, u32 sw_ver, u32 abi_ver)
 
 	ar->version.wlan_ver = sw_ver;
 	ar->version.abi_ver = abi_ver;
+	ar->hw.cap = cap;
 
 	snprintf(ar->wiphy->fw_version,
 		 sizeof(ar->wiphy->fw_version),
