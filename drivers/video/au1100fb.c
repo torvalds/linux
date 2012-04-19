@@ -499,7 +499,8 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	au1100fb_fix.mmio_start = regs_res->start;
 	au1100fb_fix.mmio_len = resource_size(regs_res);
 
-	if (!devm_request_mem_region(au1100fb_fix.mmio_start,
+	if (!devm_request_mem_region(&dev->dev,
+				     au1100fb_fix.mmio_start,
 				     au1100fb_fix.mmio_len,
 				     DRIVER_NAME)) {
 		print_err("fail to lock memory region at 0x%08lx",
@@ -516,7 +517,7 @@ static int __devinit au1100fb_drv_probe(struct platform_device *dev)
 	fbdev->fb_len = fbdev->panel->xres * fbdev->panel->yres *
 		  	(fbdev->panel->bpp >> 3) * AU1100FB_NBR_VIDEO_BUFFERS;
 
-	fbdev->fb_mem = dmam_alloc_coherent(&dev->dev, &dev->dev,
+	fbdev->fb_mem = dmam_alloc_coherent(&dev->dev,
 					    PAGE_ALIGN(fbdev->fb_len),
 					    &fbdev->fb_phys, GFP_KERNEL);
 	if (!fbdev->fb_mem) {

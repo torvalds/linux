@@ -546,9 +546,9 @@ void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 			   PCI_DMA_TODEVICE, flags, 0);
 }
 
-unsigned long ioat_get_current_completion(struct ioat_chan_common *chan)
+dma_addr_t ioat_get_current_completion(struct ioat_chan_common *chan)
 {
-	unsigned long phys_complete;
+	dma_addr_t phys_complete;
 	u64 completion;
 
 	completion = *chan->completion;
@@ -569,7 +569,7 @@ unsigned long ioat_get_current_completion(struct ioat_chan_common *chan)
 }
 
 bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
-			   unsigned long *phys_complete)
+			   dma_addr_t *phys_complete)
 {
 	*phys_complete = ioat_get_current_completion(chan);
 	if (*phys_complete == chan->last_completion)
@@ -580,14 +580,14 @@ bool ioat_cleanup_preamble(struct ioat_chan_common *chan,
 	return true;
 }
 
-static void __cleanup(struct ioat_dma_chan *ioat, unsigned long phys_complete)
+static void __cleanup(struct ioat_dma_chan *ioat, dma_addr_t phys_complete)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	struct list_head *_desc, *n;
 	struct dma_async_tx_descriptor *tx;
 
-	dev_dbg(to_dev(chan), "%s: phys_complete: %lx\n",
-		 __func__, phys_complete);
+	dev_dbg(to_dev(chan), "%s: phys_complete: %llx\n",
+		 __func__, (unsigned long long) phys_complete);
 	list_for_each_safe(_desc, n, &ioat->used_desc) {
 		struct ioat_desc_sw *desc;
 
@@ -652,7 +652,7 @@ static void __cleanup(struct ioat_dma_chan *ioat, unsigned long phys_complete)
 static void ioat1_cleanup(struct ioat_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	unsigned long phys_complete;
+	dma_addr_t phys_complete;
 
 	prefetch(chan->completion);
 
@@ -698,7 +698,7 @@ static void ioat1_timer_event(unsigned long data)
 		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
 		spin_unlock_bh(&ioat->desc_lock);
 	} else if (test_bit(IOAT_COMPLETION_PENDING, &chan->state)) {
-		unsigned long phys_complete;
+		dma_addr_t phys_complete;
 
 		spin_lock_bh(&ioat->desc_lock);
 		/* if we haven't made progress and we have already

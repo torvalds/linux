@@ -109,6 +109,8 @@ enum {
 
 	/* Options which could be blank */
 	Opt_blank_pass,
+	Opt_blank_user,
+	Opt_blank_ip,
 
 	Opt_err
 };
@@ -183,11 +185,15 @@ static const match_table_t cifs_mount_option_tokens = {
 	{ Opt_wsize, "wsize=%s" },
 	{ Opt_actimeo, "actimeo=%s" },
 
+	{ Opt_blank_user, "user=" },
+	{ Opt_blank_user, "username=" },
 	{ Opt_user, "user=%s" },
 	{ Opt_user, "username=%s" },
 	{ Opt_blank_pass, "pass=" },
 	{ Opt_pass, "pass=%s" },
 	{ Opt_pass, "password=%s" },
+	{ Opt_blank_ip, "ip=" },
+	{ Opt_blank_ip, "addr=" },
 	{ Opt_ip, "ip=%s" },
 	{ Opt_ip, "addr=%s" },
 	{ Opt_unc, "unc=%s" },
@@ -1117,7 +1123,7 @@ static int get_option_ul(substring_t args[], unsigned long *option)
 	string = match_strdup(args);
 	if (string == NULL)
 		return -ENOMEM;
-	rc = kstrtoul(string, 10, option);
+	rc = kstrtoul(string, 0, option);
 	kfree(string);
 
 	return rc;
@@ -1534,15 +1540,17 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 
 		/* String Arguments */
 
+		case Opt_blank_user:
+			/* null user, ie. anonymous authentication */
+			vol->nullauth = 1;
+			vol->username = NULL;
+			break;
 		case Opt_user:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				/* null user, ie. anonymous authentication */
-				vol->nullauth = 1;
-			} else if (strnlen(string, MAX_USERNAME_SIZE) >
+			if (strnlen(string, MAX_USERNAME_SIZE) >
 							MAX_USERNAME_SIZE) {
 				printk(KERN_WARNING "CIFS: username too long\n");
 				goto cifs_parse_mount_err;
@@ -1611,14 +1619,15 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			}
 			vol->password[j] = '\0';
 			break;
+		case Opt_blank_ip:
+			vol->UNCip = NULL;
+			break;
 		case Opt_ip:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				vol->UNCip = NULL;
-			} else if (strnlen(string, INET6_ADDRSTRLEN) >
+			if (strnlen(string, INET6_ADDRSTRLEN) >
 						INET6_ADDRSTRLEN) {
 				printk(KERN_WARNING "CIFS: ip address "
 						    "too long\n");
@@ -1635,12 +1644,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: invalid path to "
-						    "network resource\n");
-				goto cifs_parse_mount_err;
-			}
 
 			temp_len = strnlen(string, 300);
 			if (temp_len  == 300) {
@@ -1670,11 +1673,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: invalid domain"
-						    " name\n");
-				goto cifs_parse_mount_err;
-			} else if (strnlen(string, 256) == 256) {
+			if (strnlen(string, 256) == 256) {
 				printk(KERN_WARNING "CIFS: domain name too"
 						    " long\n");
 				goto cifs_parse_mount_err;
@@ -1693,11 +1692,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: srcaddr value not"
-						    " specified\n");
-				goto cifs_parse_mount_err;
-			} else if (!cifs_convert_address(
+			if (!cifs_convert_address(
 					(struct sockaddr *)&vol->srcaddr,
 					string, strlen(string))) {
 				printk(KERN_WARNING "CIFS:  Could not parse"
@@ -1710,11 +1705,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: Invalid path"
-						    " prefix\n");
-				goto cifs_parse_mount_err;
-			}
 			temp_len = strnlen(string, 1024);
 			if (string[0] != '/')
 				temp_len++; /* missing leading slash */
@@ -1742,11 +1732,7 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: Invalid iocharset"
-						    " specified\n");
-				goto cifs_parse_mount_err;
-			} else if (strnlen(string, 1024) >= 65) {
+			if (strnlen(string, 1024) >= 65) {
 				printk(KERN_WARNING "CIFS: iocharset name "
 						    "too long.\n");
 				goto cifs_parse_mount_err;
@@ -1771,11 +1757,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: No socket option"
-						    " specified\n");
-				goto cifs_parse_mount_err;
-			}
 			if (strnicmp(string, "TCP_NODELAY", 11) == 0)
 				vol->sockopt_tcp_nodelay = 1;
 			break;
@@ -1783,12 +1764,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: Invalid (empty)"
-						    " netbiosname\n");
-				break;
-			}
 
 			memset(vol->source_rfc1001_name, 0x20,
 				RFC1001_NAME_LEN);
@@ -1817,11 +1792,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: Empty server"
-					" netbiosname specified\n");
-				break;
-			}
 			/* last byte, type, is 0x20 for servr type */
 			memset(vol->target_rfc1001_name, 0x20,
 				RFC1001_NAME_LEN_WITH_NULL);
@@ -1848,12 +1818,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			if (string == NULL)
 				goto out_nomem;
 
-			if (!*string) {
-				cERROR(1, "no protocol version specified"
-					  " after vers= mount option");
-				goto cifs_parse_mount_err;
-			}
-
 			if (strnicmp(string, "cifs", 4) == 0 ||
 			    strnicmp(string, "1", 1) == 0) {
 				/* This is the default */
@@ -1867,12 +1831,6 @@ cifs_parse_mount_options(const char *mountdata, const char *devname,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-
-			if (!*string) {
-				printk(KERN_WARNING "CIFS: no security flavor"
-						    " specified\n");
-				break;
-			}
 
 			if (cifs_parse_security_flavors(string, vol) != 0)
 				goto cifs_parse_mount_err;

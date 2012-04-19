@@ -132,6 +132,35 @@ static struct us_unusual_dev for_dynamic_ids =
 #undef COMPLIANT_DEV
 #undef USUAL_DEV
 
+#ifdef CONFIG_LOCKDEP
+
+static struct lock_class_key us_interface_key[USB_MAXINTERFACES];
+
+static void us_set_lock_class(struct mutex *mutex,
+		struct usb_interface *intf)
+{
+	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_host_config *config = udev->actconfig;
+	int i;
+
+	for (i = 0; i < config->desc.bNumInterfaces; i++) {
+		if (config->interface[i] == intf)
+			break;
+	}
+
+	BUG_ON(i == config->desc.bNumInterfaces);
+
+	lockdep_set_class(mutex, &us_interface_key[i]);
+}
+
+#else
+
+static void us_set_lock_class(struct mutex *mutex,
+		struct usb_interface *intf)
+{
+}
+
+#endif
 
 #ifdef CONFIG_PM	/* Minimal support for suspend and resume */
 
@@ -895,6 +924,7 @@ int usb_stor_probe1(struct us_data **pus,
 	*pus = us = host_to_us(host);
 	memset(us, 0, sizeof(struct us_data));
 	mutex_init(&(us->dev_mutex));
+	us_set_lock_class(&us->dev_mutex, intf);
 	init_completion(&us->cmnd_ready);
 	init_completion(&(us->notify));
 	init_waitqueue_head(&us->delay_wait);

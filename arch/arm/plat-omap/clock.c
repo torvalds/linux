@@ -398,32 +398,6 @@ struct clk dummy_ck = {
 	.ops	= &clkops_null,
 };
 
-#ifdef CONFIG_CPU_FREQ
-void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
-{
-	unsigned long flags;
-
-	if (!arch_clock || !arch_clock->clk_init_cpufreq_table)
-		return;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	arch_clock->clk_init_cpufreq_table(table);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-}
-
-void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
-{
-	unsigned long flags;
-
-	if (!arch_clock || !arch_clock->clk_exit_cpufreq_table)
-		return;
-
-	spin_lock_irqsave(&clockfw_lock, flags);
-	arch_clock->clk_exit_cpufreq_table(table);
-	spin_unlock_irqrestore(&clockfw_lock, flags);
-}
-#endif
-
 /*
  *
  */

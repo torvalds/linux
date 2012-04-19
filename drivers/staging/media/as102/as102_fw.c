@@ -165,7 +165,7 @@ error:
 int as102_fw_upload(struct as10x_bus_adapter_t *bus_adap)
 {
 	int errno = -EFAULT;
-	const struct firmware *firmware;
+	const struct firmware *firmware = NULL;
 	unsigned char *cmd_buf = NULL;
 	char *fw1, *fw2;
 	struct usb_device *dev = bus_adap->usb_dev;

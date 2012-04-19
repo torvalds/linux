@@ -3232,6 +3232,7 @@ static void srpt_add_one(struct ib_device *device)
 	srq_attr.attr.max_wr = sdev->srq_size;
 	srq_attr.attr.max_sge = 1;
 	srq_attr.attr.srq_limit = 0;
+	srq_attr.srq_type = IB_SRQT_BASIC;
 
 	sdev->srq = ib_create_srq(sdev->pd, &srq_attr);
 	if (IS_ERR(sdev->srq))

@@ -61,21 +61,14 @@ long probe_kernel_write(void *dst, const void *src, size_t size)
 	return copied < 0 ? -EFAULT : 0;
 }
 
-/*
- * Copy memory in real mode (kernel to kernel)
- */
-int memcpy_real(void *dest, void *src, size_t count)
+static int __memcpy_real(void *dest, void *src, size_t count)
 {
 	register unsigned long _dest asm("2") = (unsigned long) dest;
 	register unsigned long _len1 asm("3") = (unsigned long) count;
 	register unsigned long _src  asm("4") = (unsigned long) src;
 	register unsigned long _len2 asm("5") = (unsigned long) count;
-	unsigned long flags;
 	int rc = -EFAULT;
 
-	if (!count)
-		return 0;
-	flags = __arch_local_irq_stnsm(0xf8UL);
 	asm volatile (
 		"0:	mvcle	%1,%2,0x0\n"
 		"1:	jo	0b\n"
@@ -86,7 +79,23 @@ int memcpy_real(void *dest, void *src, size_t count)
 		  "+d" (_len2), "=m" (*((long *) dest))
 		: "m" (*((long *) src))
 		: "cc", "memory");
-	arch_local_irq_restore(flags);
+	return rc;
+}
+
+/*
+ * Copy memory in real mode (kernel to kernel)
+ */
+int memcpy_real(void *dest, void *src, size_t count)
+{
+	unsigned long flags;
+	int rc;
+
+	if (!count)
+		return 0;
+	local_irq_save(flags);
+	__arch_local_irq_stnsm(0xfbUL);
+	rc = __memcpy_real(dest, src, count);
+	local_irq_restore(flags);
 	return rc;
 }
 

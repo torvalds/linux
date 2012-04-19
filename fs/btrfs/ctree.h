@@ -2166,7 +2166,7 @@ BTRFS_SETGET_STACK_FUNCS(root_last_snapshot, struct btrfs_root_item,
 
 static inline bool btrfs_root_readonly(struct btrfs_root *root)
 {
-	return root->root_item.flags & BTRFS_ROOT_SUBVOL_RDONLY;
+	return (root->root_item.flags & cpu_to_le64(BTRFS_ROOT_SUBVOL_RDONLY)) != 0;
 }
 
 /* struct btrfs_root_backup */

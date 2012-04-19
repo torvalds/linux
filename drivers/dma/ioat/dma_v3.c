@@ -257,7 +257,7 @@ static bool desc_has_ext(struct ioat_ring_ent *desc)
  * The difference from the dma_v2.c __cleanup() is that this routine
  * handles extended descriptors and dma-unmapping raid operations.
  */
-static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
+static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	struct ioat_ring_ent *desc;
@@ -314,7 +314,7 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	unsigned long phys_complete;
+	dma_addr_t phys_complete;
 
 	spin_lock_bh(&chan->cleanup_lock);
 	if (ioat_cleanup_preamble(chan, &phys_complete))
@@ -333,7 +333,7 @@ static void ioat3_cleanup_event(unsigned long data)
 static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	unsigned long phys_complete;
+	dma_addr_t phys_complete;
 
 	ioat2_quiesce(chan, 0);
 	if (ioat_cleanup_preamble(chan, &phys_complete))
@@ -348,7 +348,7 @@ static void ioat3_timer_event(unsigned long data)
 	struct ioat_chan_common *chan = &ioat->base;
 
 	if (test_bit(IOAT_COMPLETION_PENDING, &chan->state)) {
-		unsigned long phys_complete;
+		dma_addr_t phys_complete;
 		u64 status;
 
 		status = ioat_chansts(chan);
@@ -1149,6 +1149,44 @@ static int ioat3_reset_hw(struct ioat_chan_common *chan)
 	return ioat2_reset_sync(chan, msecs_to_jiffies(200));
 }
 
+static bool is_jf_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF0:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF1:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF2:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF3:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF4:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF5:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF6:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF7:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF8:
+	case PCI_DEVICE_ID_INTEL_IOAT_JSF9:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static bool is_snb_ioat(struct pci_dev *pdev)
+{
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB0:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB1:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB2:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB3:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB4:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB5:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB6:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB7:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB8:
+	case PCI_DEVICE_ID_INTEL_IOAT_SNB9:
+		return true;
+	default:
+		return false;
+	}
+}
+
 int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 {
 	struct pci_dev *pdev = device->pdev;
@@ -1168,6 +1206,9 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_issue_pending = ioat2_issue_pending;
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
+
+	if (is_jf_ioat(pdev) || is_snb_ioat(pdev))
+		dma->copy_align = 6;
 
 	dma_cap_set(DMA_INTERRUPT, dma->cap_mask);
 	dma->device_prep_dma_interrupt = ioat3_prep_interrupt_lock;

@@ -534,7 +534,16 @@ Who:	Kees Cook <keescook@chromium.org>
 
 ----------------------------
 
+What:	setitimer accepts user NULL pointer (value)
+When:	3.6
+Why:	setitimer is not returning -EFAULT if user pointer is NULL. This
+	violates the spec.
+Who:	Sasikantha Babu <sasikanth.v19@gmail.com>
+
+----------------------------
+
 What:	KVM debugfs statistics
 When:	2013
 Why:	KVM tracepoints provide mostly equivalent information in a much more
         flexible fashion.
+
