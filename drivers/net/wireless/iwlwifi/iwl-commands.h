@@ -3634,6 +3634,9 @@ enum iwl_bt_coex_profile_traffic_load {
 		(0x3<<BT_UART_MSG_2_FRAME7RESERVED_POS)
 
 
+#define BT_ENABLE_REDUCED_TXPOWER_THRESHOLD	(-62)
+#define BT_DISABLE_REDUCED_TXPOWER_THRESHOLD	(-65)
+
 struct iwl_bt_uart_msg {
 	u8 header;
 	u8 frame1;
