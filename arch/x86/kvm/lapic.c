@@ -1088,6 +1088,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu)
 	apic_update_ppr(apic);
 
 	vcpu->arch.apic_arb_prio = 0;
+	vcpu->arch.apic_attention = 0;
 
 	apic_debug(KERN_INFO "%s: vcpu=%p, id=%d, base_msr="
 		   "0x%016" PRIx64 ", base_address=0x%0lx.\n", __func__,
@@ -1287,7 +1288,7 @@ void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu)
 	u32 data;
 	void *vapic;
 
-	if (!irqchip_in_kernel(vcpu->kvm) || !vcpu->arch.apic->vapic_addr)
+	if (!test_bit(KVM_APIC_CHECK_VAPIC, &vcpu->arch.apic_attention))
 		return;
 
 	vapic = kmap_atomic(vcpu->arch.apic->vapic_page);
@@ -1304,7 +1305,7 @@ void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu)
 	struct kvm_lapic *apic;
 	void *vapic;
 
-	if (!irqchip_in_kernel(vcpu->kvm) || !vcpu->arch.apic->vapic_addr)
+	if (!test_bit(KVM_APIC_CHECK_VAPIC, &vcpu->arch.apic_attention))
 		return;
 
 	apic = vcpu->arch.apic;
@@ -1324,10 +1325,11 @@ void kvm_lapic_sync_to_vapic(struct kvm_vcpu *vcpu)
 
 void kvm_lapic_set_vapic_addr(struct kvm_vcpu *vcpu, gpa_t vapic_addr)
 {
-	if (!irqchip_in_kernel(vcpu->kvm))
-		return;
-
 	vcpu->arch.apic->vapic_addr = vapic_addr;
+	if (vapic_addr)
+		__set_bit(KVM_APIC_CHECK_VAPIC, &vcpu->arch.apic_attention);
+	else
+		__clear_bit(KVM_APIC_CHECK_VAPIC, &vcpu->arch.apic_attention);
 }
 
 int kvm_x2apic_msr_write(struct kvm_vcpu *vcpu, u32 msr, u64 data)

@@ -172,6 +172,9 @@ enum {
 #define DR7_FIXED_1	0x00000400
 #define DR7_VOLATILE	0xffff23ff
 
+/* apic attention bits */
+#define KVM_APIC_CHECK_VAPIC	0
+
 /*
  * We don't want allocation failures within the mmu code, so we preallocate
  * enough memory for a single page fault in a cache.
@@ -337,6 +340,7 @@ struct kvm_vcpu_arch {
 	u64 efer;
 	u64 apic_base;
 	struct kvm_lapic *apic;    /* kernel irqchip context */
+	unsigned long apic_attention;
 	int32_t apic_arb_prio;
 	int mp_state;
 	int sipi_vector;
