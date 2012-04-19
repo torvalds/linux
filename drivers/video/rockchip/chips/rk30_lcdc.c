@@ -218,13 +218,13 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
         	}
         	
 	}
-  
-   
+
+  	spin_unlock(&lcdc_dev->reg_lock);
     	if(screen->init)
     	{
     		screen->init();
     	}
-	spin_unlock(&lcdc_dev->reg_lock);
+	
 	printk("%s for lcdc%d ok!\n",__func__,lcdc_dev->id);
 	return 0;
 }
