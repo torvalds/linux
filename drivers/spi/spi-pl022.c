@@ -1681,25 +1681,36 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 		while (scr <= SCR_MAX) {
 			tmp = spi_rate(rate, cpsdvsr, scr);
 
-			if (tmp > freq)
+			if (tmp > freq) {
+				/* we need lower freq */
 				scr++;
+				continue;
+			}
+
 			/*
-			 * If found exact value, update and break.
-			 * If found more closer value, update and continue.
+			 * If found exact value, mark found and break.
+			 * If found more closer value, update and break.
 			 */
-			else if ((tmp == freq) || (tmp > best_freq)) {
+			if (tmp > best_freq) {
 				best_freq = tmp;
 				best_cpsdvsr = cpsdvsr;
 				best_scr = scr;
 
 				if (tmp == freq)
-					break;
+					found = 1;
 			}
-			scr++;
+			/*
+			 * increased scr will give lower rates, which are not
+			 * required
+			 */
+			break;
 		}
 		cpsdvsr += 2;
 		scr = SCR_MIN;
 	}
+
+	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate \n",
+			freq);
 
 	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
 	clk_freq->scr = (u8) (best_scr & 0xFF);
