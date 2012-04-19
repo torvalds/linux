@@ -5325,6 +5325,14 @@ discard:
 	return 0;
 }
 
+void tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int hdrlen)
+{
+	__skb_pull(skb, hdrlen);
+	__skb_queue_tail(&sk->sk_receive_queue, skb);
+	skb_set_owner_r(skb, sk);
+	tcp_sk(sk)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+}
+
 /*
  *	TCP receive function for the ESTABLISHED state.
  *
@@ -5490,10 +5498,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPHPHITS);
 
 				/* Bulk data transfer: receiver */
-				__skb_pull(skb, tcp_header_len);
-				__skb_queue_tail(&sk->sk_receive_queue, skb);
-				skb_set_owner_r(skb, sk);
-				tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+				tcp_queue_rcv(sk, skb, tcp_header_len);
 			}
 
 			tcp_event_data_recv(sk, skb);
@@ -5558,6 +5563,44 @@ discard:
 	return 0;
 }
 EXPORT_SYMBOL(tcp_rcv_established);
+
+void tcp_finish_connect(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	struct inet_connection_sock *icsk = inet_csk(sk);
+
+	tcp_set_state(sk, TCP_ESTABLISHED);
+
+	if (skb != NULL)
+		security_inet_conn_established(sk, skb);
+
+	/* Make sure socket is routed, for correct metrics.  */
+	icsk->icsk_af_ops->rebuild_header(sk);
+
+	tcp_init_metrics(sk);
+
+	tcp_init_congestion_control(sk);
+
+	/* Prevent spurious tcp_cwnd_restart() on first data
+	 * packet.
+	 */
+	tp->lsndtime = tcp_time_stamp;
+
+	tcp_init_buffer_space(sk);
+
+	if (sock_flag(sk, SOCK_KEEPOPEN))
+		inet_csk_reset_keepalive_timer(sk, keepalive_time_when(tp));
+
+	if (!tp->rx_opt.snd_wscale)
+		__tcp_fast_path_on(tp, tp->snd_wnd);
+	else
+		tp->pred_flags = 0;
+
+	if (!sock_flag(sk, SOCK_DEAD)) {
+		sk->sk_state_change(sk);
+		sk_wake_async(sk, SOCK_WAKE_IO, POLL_OUT);
+	}
+}
 
 static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 					 const struct tcphdr *th, unsigned int len)
@@ -5691,36 +5734,8 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		}
 
 		smp_mb();
-		tcp_set_state(sk, TCP_ESTABLISHED);
 
-		security_inet_conn_established(sk, skb);
-
-		/* Make sure socket is routed, for correct metrics.  */
-		icsk->icsk_af_ops->rebuild_header(sk);
-
-		tcp_init_metrics(sk);
-
-		tcp_init_congestion_control(sk);
-
-		/* Prevent spurious tcp_cwnd_restart() on first data
-		 * packet.
-		 */
-		tp->lsndtime = tcp_time_stamp;
-
-		tcp_init_buffer_space(sk);
-
-		if (sock_flag(sk, SOCK_KEEPOPEN))
-			inet_csk_reset_keepalive_timer(sk, keepalive_time_when(tp));
-
-		if (!tp->rx_opt.snd_wscale)
-			__tcp_fast_path_on(tp, tp->snd_wnd);
-		else
-			tp->pred_flags = 0;
-
-		if (!sock_flag(sk, SOCK_DEAD)) {
-			sk->sk_state_change(sk);
-			sk_wake_async(sk, SOCK_WAKE_IO, POLL_OUT);
-		}
+		tcp_finish_connect(sk, skb);
 
 		if (sk->sk_write_pending ||
 		    icsk->icsk_accept_queue.rskq_defer_accept ||

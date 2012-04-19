@@ -919,7 +919,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	int iovlen, flags, err, copied;
-	int mss_now, size_goal;
+	int mss_now = 0, size_goal;
 	bool sg;
 	long timeo;
 

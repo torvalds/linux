@@ -435,6 +435,9 @@ extern struct sk_buff * tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 					struct request_values *rvp);
 extern int tcp_disconnect(struct sock *sk, int flags);
 
+void tcp_connect_init(struct sock *sk);
+void tcp_finish_connect(struct sock *sk, struct sk_buff *skb);
+void tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int hdrlen);
 
 /* From syncookies.c */
 extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
