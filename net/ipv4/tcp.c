@@ -2659,6 +2659,8 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		val = tp->mss_cache;
 		if (!val && ((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_LISTEN)))
 			val = tp->rx_opt.user_mss;
+		if (tp->repair)
+			val = tp->rx_opt.mss_clamp;
 		break;
 	case TCP_NODELAY:
 		val = !!(tp->nonagle&TCP_NAGLE_OFF);
