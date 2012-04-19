@@ -171,6 +171,7 @@ static struct omap_hwmod omap3xxx_l3_main_hwmod = {
 };
 
 static struct omap_hwmod omap3xxx_l4_wkup_hwmod;
+static struct omap_hwmod omap3xxx_l4_sec_hwmod;
 static struct omap_hwmod omap3xxx_uart1_hwmod;
 static struct omap_hwmod omap3xxx_uart2_hwmod;
 static struct omap_hwmod omap3xxx_uart3_hwmod;
@@ -532,6 +533,13 @@ static struct omap_hwmod omap3xxx_l4_per_hwmod = {
 	.flags		= HWMOD_NO_IDLEST,
 };
 
+/* L4_WKUP -> L4_SEC interface */
+static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__l4_sec = {
+	.master = &omap3xxx_l4_wkup_hwmod,
+	.slave	= &omap3xxx_l4_sec_hwmod,
+	.user	= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* Slave interfaces on the L4_WKUP interconnect */
 static struct omap_hwmod_ocp_if *omap3xxx_l4_wkup_slaves[] = {
 	&omap3xxx_l4_core__l4_wkup,
@@ -543,6 +551,20 @@ static struct omap_hwmod omap3xxx_l4_wkup_hwmod = {
 	.class		= &l4_hwmod_class,
 	.slaves		= omap3xxx_l4_wkup_slaves,
 	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l4_wkup_slaves),
+	.flags		= HWMOD_NO_IDLEST,
+};
+
+/* Slave interfaces on the L4_SEC interconnect */
+static struct omap_hwmod_ocp_if *omap3xxx_l4_sec_slaves[] = {
+	&omap3xxx_l4_wkup__l4_sec,
+};
+
+/* L4 SEC */
+static struct omap_hwmod omap3xxx_l4_sec_hwmod = {
+	.name		= "l4_sec",
+	.class		= &l4_hwmod_class,
+	.slaves		= omap3xxx_l4_sec_slaves,
+	.slaves_cnt	= ARRAY_SIZE(omap3xxx_l4_sec_slaves),
 	.flags		= HWMOD_NO_IDLEST,
 };
 
@@ -1141,8 +1163,8 @@ static struct omap_hwmod_addr_space omap3xxx_timer12_addrs[] = {
 };
 
 /* l4_core -> timer12 */
-static struct omap_hwmod_ocp_if omap3xxx_l4_core__timer12 = {
-	.master		= &omap3xxx_l4_core_hwmod,
+static struct omap_hwmod_ocp_if omap3xxx_l4_sec__timer12 = {
+	.master		= &omap3xxx_l4_sec_hwmod,
 	.slave		= &omap3xxx_timer12_hwmod,
 	.clk		= "gpt12_ick",
 	.addr		= omap3xxx_timer12_addrs,
@@ -1151,7 +1173,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__timer12 = {
 
 /* timer12 slave port */
 static struct omap_hwmod_ocp_if *omap3xxx_timer12_slaves[] = {
-	&omap3xxx_l4_core__timer12,
+	&omap3xxx_l4_sec__timer12,
 };
 
 /* timer12 hwmod */
