@@ -286,7 +286,7 @@ static void bcma_hcd_shutdown(struct bcma_device *dev)
 
 #ifdef CONFIG_PM
 
-static int bcma_hcd_suspend(struct bcma_device *dev, pm_message_t state)
+static int bcma_hcd_suspend(struct bcma_device *dev)
 {
 	bcma_core_disable(dev, 0);
 
