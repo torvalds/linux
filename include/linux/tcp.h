@@ -109,6 +109,7 @@ enum {
 #define TCP_REPAIR		19	/* TCP sock is under repair right now */
 #define TCP_REPAIR_QUEUE	20
 #define TCP_QUEUE_SEQ		21
+#define TCP_REPAIR_OPTIONS	22
 
 enum {
 	TCP_NO_QUEUE,

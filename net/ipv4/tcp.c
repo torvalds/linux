@@ -2218,6 +2218,68 @@ static inline int tcp_can_repair_sock(struct sock *sk)
 		((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_ESTABLISHED));
 }
 
+static int tcp_repair_options_est(struct tcp_sock *tp, char __user *optbuf, unsigned int len)
+{
+	/*
+	 * Options are stored in CODE:VALUE form where CODE is 8bit and VALUE
+	 * fits the respective TCPOLEN_ size
+	 */
+
+	while (len > 0) {
+		u8 opcode;
+
+		if (get_user(opcode, optbuf))
+			return -EFAULT;
+
+		optbuf++;
+		len--;
+
+		switch (opcode) {
+		case TCPOPT_MSS: {
+			u16 in_mss;
+
+			if (len < sizeof(in_mss))
+				return -ENODATA;
+			if (get_user(in_mss, optbuf))
+				return -EFAULT;
+
+			tp->rx_opt.mss_clamp = in_mss;
+
+			optbuf += sizeof(in_mss);
+			len -= sizeof(in_mss);
+			break;
+		}
+		case TCPOPT_WINDOW: {
+			u8 wscale;
+
+			if (len < sizeof(wscale))
+				return -ENODATA;
+			if (get_user(wscale, optbuf))
+				return -EFAULT;
+
+			if (wscale > 14)
+				return -EFBIG;
+
+			tp->rx_opt.snd_wscale = wscale;
+
+			optbuf += sizeof(wscale);
+			len -= sizeof(wscale);
+			break;
+		}
+		case TCPOPT_SACK_PERM:
+			tp->rx_opt.sack_ok |= TCP_SACK_SEEN;
+			if (sysctl_tcp_fack)
+				tcp_enable_fack(tp);
+			break;
+		case TCPOPT_TIMESTAMP:
+			tp->rx_opt.tstamp_ok = 1;
+			break;
+		}
+	}
+
+	return 0;
+}
+
 /*
  *	Socket option code for TCP.
  */
@@ -2424,6 +2486,15 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 			tp->rcv_nxt = val;
 		else
 			err = -EINVAL;
+		break;
+
+	case TCP_REPAIR_OPTIONS:
+		if (!tp->repair)
+			err = -EINVAL;
+		else if (sk->sk_state == TCP_ESTABLISHED)
+			err = tcp_repair_options_est(tp, optval, optlen);
+		else
+			err = -EPERM;
 		break;
 
 	case TCP_CORK:
