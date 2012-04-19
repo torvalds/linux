@@ -43,10 +43,10 @@ struct bt_ctrl
 #endif
 };
 
-//#define BT_GPIO_POWER           RK30_PIN3_PC7
-//#define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO3C7_SDMMC1WRITEPRT_NAME, GPIO3C_GPIO3C7);
-#define BT_GPIO_POWER          	RK30_PIN3_PD1
-#define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_NAME, GPIO3D_GPIO3D1);
+#define BT_GPIO_POWER           RK30_PIN4_PD5
+#define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO4D5_SMCDATA13_TRACEDATA13_NAME, GPIO4D_GPIO4D5);
+#define BT_GPIO_RESET          	RK30_PIN3_PD1
+#define IOMUX_BT_GPIO_RESET     rk29_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_NAME, GPIO3D_GPIO3D1);
 
 #ifdef CONFIG_BT_HCIBCM4325
 #define BT_GPIO_WAKE_UP         RK30_PIN3_PC6
@@ -59,9 +59,9 @@ struct bt_ctrl
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
 #endif
 
-static const char bt_name[] = "bcm4330";
-//extern int rk29sdk_bt_power_state;
-//extern int rk29sdk_wifi_power_state;
+static const char bt_name[] = "bcm4329";
+extern int rk29sdk_bt_power_state;
+extern int rk29sdk_wifi_power_state;
 
 struct bt_ctrl gBtCtrl;
     
@@ -141,14 +141,14 @@ static int bcm4329_set_block(void *data, bool blocked)
     	DBG("%s---blocked :%d\n", __FUNCTION__, blocked);
 
         IOMUX_BT_GPIO_POWER;
-//        IOMUX_BT_GPIO_RESET;
+        IOMUX_BT_GPIO_RESET;
 
     	if (false == blocked) {
        		gpio_set_value(BT_GPIO_POWER, GPIO_HIGH);  /* bt power on */
             
-//            gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
-//            mdelay(20);
-//    		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
+              gpio_set_value(BT_GPIO_RESET, GPIO_LOW);
+              mdelay(20);
+    		gpio_set_value(BT_GPIO_RESET, GPIO_HIGH);  /* bt reset deactive*/
     		mdelay(20);
         
 #if BT_WAKE_HOST_SUPPORT     
@@ -160,19 +160,19 @@ static int bcm4329_set_block(void *data, bool blocked)
 #if BT_WAKE_HOST_SUPPORT     
             btWakeupHostUnlock();
 #endif
-//    		if (!rk29sdk_wifi_power_state) {
+    		if (!rk29sdk_wifi_power_state) {
     			gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power off */
         		mdelay(20);	
         		pr_info("bt shut off power\n");
-//    		}else {
-//    			pr_info("bt shouldn't shut off power, wifi is using it!\n");
-//    		}
+    		}else {
+    			pr_info("bt shouldn't shut off power, wifi is using it!\n");
+    		}
 
-//    		gpio_set_value(BT_GPIO_RESET, GPIO_LOW);  /* bt reset active*/
-//    		mdelay(20);
+    		gpio_set_value(BT_GPIO_RESET, GPIO_LOW);  /* bt reset active*/
+    		mdelay(20);
     	}
 
-//    	rk29sdk_bt_power_state = !blocked;
+    	rk29sdk_bt_power_state = !blocked;
     	return 0;
 }
 
@@ -213,7 +213,7 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	}
 	
 	gpio_request(BT_GPIO_POWER, NULL);
-//	gpio_request(BT_GPIO_RESET, NULL);
+	gpio_request(BT_GPIO_RESET, NULL);
 #ifdef CONFIG_BT_HCIBCM4325
 	gpio_request(BT_GPIO_WAKE_UP, NULL);
 #endif
