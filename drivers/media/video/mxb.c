@@ -688,7 +688,7 @@ static long vidioc_default(struct file *file, void *fh, bool valid_prio,
 /*
 		DEB2(pr_err("does not handle this ioctl\n"));
 */
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 	return 0;
 }

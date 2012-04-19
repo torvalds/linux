@@ -1827,7 +1827,7 @@ static long ivtv_default(struct file *file, void *fh, bool valid_prio,
 		return ivtv_decoder_ioctls(file, cmd, (void *)arg);
 
 	default:
-		return -EINVAL;
+		return -ENOTTY;
 	}
 	return 0;
 }
