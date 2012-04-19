@@ -694,11 +694,10 @@ static inline unsigned Gi_Gate_Interrupt_Enable_Bit(unsigned counter_index)
 {
 	unsigned bit;
 
-	if (counter_index % 2) {
+	if (counter_index % 2)
 		bit = G1_Gate_Interrupt_Enable_Bit;
-	} else {
+	else
 		bit = G0_Gate_Interrupt_Enable_Bit;
-	}
 	return bit;
 }
 
