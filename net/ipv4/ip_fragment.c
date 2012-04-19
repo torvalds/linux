@@ -569,7 +569,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 		skb_morph(head, qp->q.fragments);
 		head->next = qp->q.fragments->next;
 
-		kfree_skb(qp->q.fragments);
+		consume_skb(qp->q.fragments);
 		qp->q.fragments = head;
 	}
 
