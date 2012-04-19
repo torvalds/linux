@@ -7,8 +7,12 @@
 #include <linux/list.h>
 #include <linux/rbtree.h>
 
+struct ins;
+
 struct ins_ops {
 	int (*parse_target)(const char *operands, u64 *target);
+	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
+			 const char *operands, u64 target);
 };
 
 struct ins {

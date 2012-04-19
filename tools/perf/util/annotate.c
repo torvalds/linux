@@ -44,8 +44,18 @@ static int jump_ops__parse_target(const char *operands, u64 *target)
 	return 0;
 }
 
+static int jump_ops__scnprintf(struct ins *ins, char *bf, size_t size,
+			       const char *operands, u64 target)
+{
+	if (operands)
+		return scnprintf(bf, size, "%-6.6s %s", ins->name, operands);
+
+	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, target);
+}
+
 static struct ins_ops jump_ops = {
 	.parse_target = jump_ops__parse_target,
+	.scnprintf = jump_ops__scnprintf,
 };
 
 bool ins__is_jump(const struct ins *ins)

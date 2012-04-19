@@ -83,7 +83,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	else if (dl->offset == -1)
 		slsmg_write_nstring(dl->line, width - 18);
 	else {
-		char bf[64];
+		char bf[256], *line = dl->line;
 		u64 addr = dl->offset;
 		int printed, color = -1;
 
@@ -96,7 +96,16 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(bf, printed);
 		if (change_color)
 			ui_browser__set_color(self, color);
-		slsmg_write_nstring(dl->line, width - 18 - printed);
+		if (dl->ins && dl->ins->ops->scnprintf) {
+			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf),
+						!ab->use_offset ? dl->operands : NULL,
+						dl->target);
+			line = bf;
+			slsmg_write_nstring(" ", 7);
+			printed += 7;
+		}
+
+		slsmg_write_nstring(line, width - 18 - printed);
 	}
 
 	if (current_entry)
