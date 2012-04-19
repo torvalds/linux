@@ -71,8 +71,10 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(" ", 9);
 	}
 
-	SLsmg_write_char(':');
-	slsmg_write_nstring(" ", 8);
+	SLsmg_set_char_set(1);
+	SLsmg_write_char(SLSMG_VLINE_CHAR);
+	SLsmg_set_char_set(0);
+	SLsmg_write_char(' ');
 
 	/* The scroll bar isn't being used */
 	if (!self->navkeypressed)
