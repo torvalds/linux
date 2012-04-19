@@ -481,7 +481,6 @@ static void usb_dsbr100_disconnect(struct usb_interface *intf)
 {
 	struct dsbr100_device *radio = usb_get_intfdata(intf);
 
-	v4l2_device_get(&radio->v4l2_dev);
 	mutex_lock(&radio->v4l2_lock);
 	usb_set_intfdata(intf, NULL);
 	video_unregister_device(&radio->videodev);

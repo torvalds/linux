@@ -182,11 +182,11 @@ static int __devinit drv_probe(struct pci_dev *pdev,
 }
 
 If you have multiple device nodes then it can be difficult to know when it is
-safe to unregister v4l2_device. For this purpose v4l2_device has refcounting
-support. The refcount is increased whenever video_register_device is called and
-it is decreased whenever that device node is released. When the refcount reaches
-zero, then the v4l2_device release() callback is called. You can do your final
-cleanup there.
+safe to unregister v4l2_device for hotpluggable devices. For this purpose
+v4l2_device has refcounting support. The refcount is increased whenever
+video_register_device is called and it is decreased whenever that device node
+is released. When the refcount reaches zero, then the v4l2_device release()
+callback is called. You can do your final cleanup there.
 
 If other device nodes (e.g. ALSA) are created, then you can increase and
 decrease the refcount manually as well by calling:
@@ -196,6 +196,10 @@ void v4l2_device_get(struct v4l2_device *v4l2_dev);
 or:
 
 int v4l2_device_put(struct v4l2_device *v4l2_dev);
+
+Since the initial refcount is 1 you also need to call v4l2_device_put in the
+disconnect() callback (for USB devices) or in the remove() callback (for e.g.
+PCI devices), otherwise the refcount will never reach 0.
 
 struct v4l2_subdev
 ------------------
