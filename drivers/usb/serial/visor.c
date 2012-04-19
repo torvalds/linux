@@ -53,8 +53,6 @@ static int palm_os_4_probe(struct usb_serial *serial,
 
 /* Parameters that may be passed into the module. */
 static bool debug;
-static __u16 vendor;
-static __u16 product;
 
 static struct usb_device_id id_table [] = {
 	{ USB_DEVICE(HANDSPRING_VENDOR_ID, HANDSPRING_VISOR_ID),
@@ -115,14 +113,12 @@ static struct usb_device_id id_table [] = {
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
 	{ USB_DEVICE(FOSSIL_VENDOR_ID, FOSSIL_ABACUS_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ },					/* optional parameter entry */
 	{ }					/* Terminating entry */
 };
 
 static struct usb_device_id clie_id_5_table [] = {
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_CLIE_UX50_ID),
 		.driver_info = (kernel_ulong_t)&palm_os_4_probe },
-	{ },					/* optional parameter entry */
 	{ }					/* Terminating entry */
 };
 
@@ -162,7 +158,6 @@ static struct usb_device_id id_table_combined [] = {
 	{ USB_DEVICE(ACEECA_VENDOR_ID, ACEECA_MEZ1000_ID) },
 	{ USB_DEVICE(KYOCERA_VENDOR_ID, KYOCERA_7135_ID) },
 	{ USB_DEVICE(FOSSIL_VENDOR_ID, FOSSIL_ABACUS_ID) },
-	{ },					/* optional parameter entry */
 	{ }					/* Terminating entry */
 };
 
@@ -648,59 +643,7 @@ static int clie_5_attach(struct usb_serial *serial)
 	return 0;
 }
 
-static int __init visor_init(void)
-{
-	int i, retval;
-	/* Only if parameters were passed to us */
-	if (vendor > 0 && product > 0) {
-		struct usb_device_id usb_dev_temp[] = {
-			{
-				USB_DEVICE(vendor, product),
-				.driver_info =
-					(kernel_ulong_t) &palm_os_4_probe
-			}
-		};
-
-		/* Find the last entry in id_table */
-		for (i = 0;; i++) {
-			if (id_table[i].idVendor == 0) {
-				id_table[i] = usb_dev_temp[0];
-				break;
-			}
-		}
-		/* Find the last entry in id_table_combined */
-		for (i = 0;; i++) {
-			if (id_table_combined[i].idVendor == 0) {
-				id_table_combined[i] = usb_dev_temp[0];
-				break;
-			}
-		}
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": Untested USB device specified at time of module insertion\n");
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": Warning: This is not guaranteed to work\n");
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": Using a newer kernel is preferred to this method\n");
-		printk(KERN_INFO KBUILD_MODNAME
-		       ": Adding Palm OS protocol 4.x support for unknown device: 0x%x/0x%x\n",
-			vendor, product);
-	}
-
-	retval = usb_serial_register_drivers(&visor_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-	return retval;
-}
-
-
-static void __exit visor_exit (void)
-{
-	usb_serial_deregister_drivers(&visor_driver, serial_drivers);
-}
-
-
-module_init(visor_init);
-module_exit(visor_exit);
+module_usb_serial_driver(visor_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -708,9 +651,3 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-
-module_param(vendor, ushort, 0);
-MODULE_PARM_DESC(vendor, "User specified vendor ID");
-module_param(product, ushort, 0);
-MODULE_PARM_DESC(product, "User specified product ID");
-
