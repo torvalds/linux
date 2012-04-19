@@ -49,11 +49,10 @@ static unsigned int suspend_freq = 816 * 1000;
 #define NUM_CPUS	2
 static struct workqueue_struct *freq_wq;
 static struct clk *cpu_clk;
-static struct clk *gpu_clk;
-static struct clk *ddr_clk;
-static DEFINE_PER_CPU(unsigned int, target_rate);
-static DEFINE_MUTEX(cpufreq_mutex);
+//static struct clk *gpu_clk;
+//static struct clk *ddr_clk;
 //static DEFINE_PER_CPU(unsigned int, target_rate);
+static DEFINE_MUTEX(cpufreq_mutex);
 
 static int cpufreq_scale_rate_for_dvfs(struct clk * clk,unsigned long rate,dvfs_set_rate_callback set_rate);
 
@@ -98,7 +97,7 @@ unsigned int get_detect_temp_dly(int temp)
 	//FREQ_PRINTK_DBG("cpu_thermal delay(%d)\n",dly);
 	return dly;
 } 
-int rk30_tsadc_get_temp(unsigned int chn);
+extern int rk30_tsadc_get_temp(unsigned int chn);
 
 #define get_cpu_thermal() rk30_tsadc_get_temp(0)
 static void rk30_cpufreq_temp_limit_work_func(struct work_struct *work)
@@ -201,16 +200,6 @@ static int rk30_verify_speed(struct cpufreq_policy *policy)
 	return cpufreq_frequency_table_verify(policy, freq_table);
 }
 
-static unsigned long _clk_loops_rate_ref;
-static void calc_lpj_ref_get(int kmz)
-{
-	clk_set_rate(cpu_clk,kmz*1000);
-	calibrate_delay();
-	_clk_loops_rate_ref=clk_get_rate(cpu_clk);
-	FREQ_PRINTK_DBG("****loops_per_jiffy=%lu,rate=%lu\n",loops_per_jiffy,_clk_loops_rate_ref);
-}
-
-
 static int rk30_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu == 0) {
@@ -256,16 +245,8 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 	 * interface to handle this scenario. Additional is_smp() check
 	 * is to keep SMP_ON_UP build working.
 	 */
-	#if 0
-	policy->shared_type = CPUFREQ_SHARED_TYPE_ALL;
-	cpumask_copy(policy->related_cpus, cpu_possible_mask);
-	#else
 	if (is_smp()) 
-	{
-		//policy->shared_type = CPUFREQ_SHARED_TYPE_ANY;
 		cpumask_setall(policy->cpus);
-	}
-	#endif
 
 	return 0;
 }
@@ -279,7 +260,7 @@ static int rk30_cpu_exit(struct cpufreq_policy *policy)
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
 	cpufreq_unregister_notifier(&notifier_policy_block, CPUFREQ_POLICY_NOTIFIER);
 	if (freq_wq)
-	cancel_delayed_work(&rk30_cpufreq_temp_limit_work);
+		cancel_delayed_work(&rk30_cpufreq_temp_limit_work);
 #endif
 	if (freq_wq) {
 		flush_workqueue(freq_wq);
@@ -295,14 +276,6 @@ static struct freq_attr *rk30_cpufreq_attr[] = {
 };
 
 /**************************target freq******************************/
-int rk30_board_update_cpufreq_table(struct cpufreq_frequency_table *table)
-{
-	mutex_lock(&cpufreq_mutex);
-
-	freq_table = table;
-	mutex_unlock(&cpufreq_mutex);
-	return 0;
-}
 static unsigned int cpufreq_scale_limt(unsigned int target_freq,struct cpufreq_policy *policy)
 {
 	/*
