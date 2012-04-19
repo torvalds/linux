@@ -768,13 +768,6 @@ static struct ctl_table ipv4_net_table[] = {
 	{ }
 };
 
-struct ctl_path net_ipv4_ctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipv4", },
-	{ },
-};
-EXPORT_SYMBOL_GPL(net_ipv4_ctl_path);
-
 static __net_init int ipv4_sysctl_init_net(struct net *net)
 {
 	struct ctl_table *table;

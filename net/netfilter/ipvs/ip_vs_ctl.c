@@ -1846,13 +1846,6 @@ static struct ctl_table vs_vars[] = {
 	{ }
 };
 
-const struct ctl_path net_vs_ctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipv4", },
-	{ .procname = "vs", },
-	{ }
-};
-EXPORT_SYMBOL_GPL(net_vs_ctl_path);
 #endif
 
 #ifdef CONFIG_PROC_FS

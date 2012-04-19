@@ -38,13 +38,6 @@ static ctl_table ipv6_rotable[] = {
 	{ }
 };
 
-struct ctl_path net_ipv6_ctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipv6", },
-	{ },
-};
-EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
-
 static int __net_init ipv6_sysctl_net_init(struct net *net)
 {
 	struct ctl_table *ipv6_table;

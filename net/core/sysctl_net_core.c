@@ -203,12 +203,6 @@ static struct ctl_table netns_core_table[] = {
 	{ }
 };
 
-__net_initdata struct ctl_path net_core_path[] = {
-	{ .procname = "net", },
-	{ .procname = "core", },
-	{ },
-};
-
 static __net_init int sysctl_core_net_init(struct net *net)
 {
 	struct ctl_table *tbl;

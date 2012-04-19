@@ -10,7 +10,6 @@
 
 #include <asm/types.h>                  /* for __uXX types */
 
-#include <linux/sysctl.h>               /* for ctl_path */
 #include <linux/list.h>                 /* for struct list_head */
 #include <linux/spinlock.h>             /* for struct rwlock_t */
 #include <linux/atomic.h>                 /* for struct atomic_t */
@@ -1184,7 +1183,6 @@ extern void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg);
  *      IPVS control data and functions (from ip_vs_ctl.c)
  */
 extern struct ip_vs_stats ip_vs_stats;
-extern const struct ctl_path net_vs_ctl_path[];
 extern int sysctl_ip_vs_sync_ver;
 
 extern void ip_vs_sync_switch_mode(struct net *net, int mode);
