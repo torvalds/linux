@@ -949,16 +949,15 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	max8997 = kzalloc(sizeof(struct max8997_data), GFP_KERNEL);
+	max8997 = devm_kzalloc(&pdev->dev, sizeof(struct max8997_data),
+			       GFP_KERNEL);
 	if (!max8997)
 		return -ENOMEM;
 
 	size = sizeof(struct regulator_dev *) * pdata->num_regulators;
-	max8997->rdev = kzalloc(size, GFP_KERNEL);
-	if (!max8997->rdev) {
-		kfree(max8997);
+	max8997->rdev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!max8997->rdev)
 		return -ENOMEM;
-	}
 
 	rdev = max8997->rdev;
 	max8997->dev = &pdev->dev;
@@ -982,7 +981,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 					pdata->buck1_voltage[i] / 1000 +
 					buck1245_voltage_map_desc.step);
 		if (ret < 0)
-			goto err_alloc;
+			goto err_out;
 
 		max8997->buck2_vol[i] = ret =
 			max8997_get_voltage_proper_val(
@@ -991,7 +990,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 					pdata->buck2_voltage[i] / 1000 +
 					buck1245_voltage_map_desc.step);
 		if (ret < 0)
-			goto err_alloc;
+			goto err_out;
 
 		max8997->buck5_vol[i] = ret =
 			max8997_get_voltage_proper_val(
@@ -1000,7 +999,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 					pdata->buck5_voltage[i] / 1000 +
 					buck1245_voltage_map_desc.step);
 		if (ret < 0)
-			goto err_alloc;
+			goto err_out;
 
 		if (max_buck1 < max8997->buck1_vol[i])
 			max_buck1 = max8997->buck1_vol[i];
@@ -1033,7 +1032,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 				!gpio_is_valid(pdata->buck125_gpios[2])) {
 			dev_err(&pdev->dev, "GPIO NOT VALID\n");
 			ret = -EINVAL;
-			goto err_alloc;
+			goto err_out;
 		}
 
 		ret = gpio_request(pdata->buck125_gpios[0],
@@ -1042,7 +1041,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 			dev_warn(&pdev->dev, "Duplicated gpio request"
 					" on SET1\n");
 		else if (ret)
-			goto err_alloc;
+			goto err_out;
 		else
 			gpio1set = true;
 
@@ -1054,7 +1053,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 		else if (ret) {
 			if (gpio1set)
 				gpio_free(pdata->buck125_gpios[0]);
-			goto err_alloc;
+			goto err_out;
 		} else
 			gpio2set = true;
 
@@ -1068,7 +1067,7 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 				gpio_free(pdata->buck125_gpios[0]);
 			if (gpio2set)
 				gpio_free(pdata->buck125_gpios[1]);
-			goto err_alloc;
+			goto err_out;
 		}
 
 		gpio_direction_output(pdata->buck125_gpios[0],
@@ -1137,13 +1136,9 @@ static __devinit int max8997_pmic_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	for (i = 0; i < max8997->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-err_alloc:
-	kfree(max8997->rdev);
-	kfree(max8997);
-
+	while (--i >= 0)
+		regulator_unregister(rdev[i]);
+err_out:
 	return ret;
 }
 
@@ -1154,12 +1149,7 @@ static int __devexit max8997_pmic_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < max8997->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-
-	kfree(max8997->rdev);
-	kfree(max8997);
-
+		regulator_unregister(rdev[i]);
 	return 0;
 }
 
