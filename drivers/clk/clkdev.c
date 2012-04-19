@@ -35,7 +35,12 @@ static DEFINE_MUTEX(clocks_mutex);
 static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 {
 	struct clk_lookup *p, *cl = NULL;
-	int match, best = 0;
+	int match, best_found = 0, best_possible = 0;
+
+	if (dev_id)
+		best_possible += 2;
+	if (con_id)
+		best_possible += 1;
 
 	list_for_each_entry(p, &clocks, node) {
 		match = 0;
@@ -50,10 +55,10 @@ static struct clk_lookup *clk_find(const char *dev_id, const char *con_id)
 			match += 1;
 		}
 
-		if (match > best) {
+		if (match > best_found) {
 			cl = p;
-			if (match != 3)
-				best = match;
+			if (match != best_possible)
+				best_found = match;
 			else
 				break;
 		}
