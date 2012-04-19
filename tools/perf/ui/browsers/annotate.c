@@ -31,6 +31,7 @@ struct annotate_browser {
 	bool		    hide_src_code;
 	bool		    use_offset;
 	bool		    searching_backwards;
+	u8		    offset_width;
 	char		    search_bf[128];
 };
 
@@ -92,10 +93,17 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		if (!ab->use_offset)
 			addr += ab->start;
 
-		if (bdl->jump_target || !ab->use_offset)
-			printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
-		else
-			printed = scnprintf(bf, sizeof(bf), "    ");
+		if (!ab->use_offset) {
+			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ":", addr);
+		} else {
+			if (bdl->jump_target) {
+				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ":",
+						    ab->offset_width, addr);
+			} else {
+				printed = scnprintf(bf, sizeof(bf), "%*s ",
+						    ab->offset_width, " ");
+			}
+		}
 
 		if (change_color)
 			color = ui_browser__set_color(self, HE_COLORSET_ADDR);
@@ -687,6 +695,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	annotate_browser__mark_jump_targets(&browser, size);
 
+	browser.offset_width = hex_width(size);
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */

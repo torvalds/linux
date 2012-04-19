@@ -148,3 +148,13 @@ int readn(int fd, void *buf, size_t n)
 
 	return buf - buf_start;
 }
+
+size_t hex_width(u64 v)
+{
+	size_t n = 1;
+
+	while ((v >>= 4))
+		++n;
+
+	return n;
+}
