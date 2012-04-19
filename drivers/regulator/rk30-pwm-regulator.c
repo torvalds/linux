@@ -38,7 +38,7 @@ REVISION 0.01
 #include <mach/board.h>
 
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -132,7 +132,6 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 
 static int pwm_regulator_list_voltage(struct regulator_dev *dev,unsigned int index)
 {
-	DBG("Enter %s, index =%d\n",__FUNCTION__,index);
 	if (index < sizeof(pwm_voltage_map)/sizeof(int))
 		return pwm_voltage_map[index];
 	else
