@@ -95,13 +95,6 @@ out:
 	return ret;
 }
 
-struct ctl_table_header *register_net_sysctl_table(struct net *net,
-	const struct ctl_path *path, struct ctl_table *table)
-{
-	return __register_sysctl_paths(&net->sysctls, path, table);
-}
-EXPORT_SYMBOL_GPL(register_net_sysctl_table);
-
 struct ctl_table_header *register_net_sysctl(struct net *net,
 	const char *path, struct ctl_table *table)
 {
