@@ -1877,9 +1877,16 @@ struct iwl_bt_cmd {
 
 #define IWLAGN_BT3_T7_DEFAULT		1
 
+enum iwl_bt_kill_idx {
+	IWL_BT_KILL_DEFAULT = 0,
+	IWL_BT_KILL_OVERRIDE = 1,
+	IWL_BT_KILL_REDUCE = 2,
+};
+
 #define IWLAGN_BT_KILL_ACK_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 #define IWLAGN_BT_KILL_CTS_MASK_DEFAULT	cpu_to_le32(0xffff0000)
 #define IWLAGN_BT_KILL_ACK_CTS_MASK_SCO	cpu_to_le32(0xffffffff)
+#define IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE	cpu_to_le32(0)
 
 #define IWLAGN_BT3_PRIO_SAMPLE_DEFAULT	2
 

@@ -546,16 +546,19 @@ static bool iwlagn_set_kill_msk(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
 	bool need_update = false;
-	u8 kill_msk;
-	static const __le32 bt_kill_ack_msg[2] = {
+	u8 kill_msk = IWL_BT_KILL_REDUCE;
+	static const __le32 bt_kill_ack_msg[3] = {
 		IWLAGN_BT_KILL_ACK_MASK_DEFAULT,
-		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO };
-	static const __le32 bt_kill_cts_msg[2] = {
+		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO,
+		IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE};
+	static const __le32 bt_kill_cts_msg[3] = {
 		IWLAGN_BT_KILL_CTS_MASK_DEFAULT,
-		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO };
+		IWLAGN_BT_KILL_ACK_CTS_MASK_SCO,
+		IWLAGN_BT_KILL_ACK_CTS_MASK_REDUCE};
 
-	kill_msk = (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3)
-		? 1 : 0;
+	if (!priv->reduced_txpower)
+		kill_msk = (BT_UART_MSG_FRAME3SCOESCO_MSK & uart_msg->frame3)
+			? IWL_BT_KILL_OVERRIDE : IWL_BT_KILL_DEFAULT;
 	if (priv->kill_ack_mask != bt_kill_ack_msg[kill_msk] ||
 	    priv->kill_cts_mask != bt_kill_cts_msg[kill_msk]) {
 		priv->bt_valid |= IWLAGN_BT_VALID_KILL_ACK_MASK;
@@ -643,8 +646,9 @@ int iwlagn_bt_coex_profile_notif(struct iwl_priv *priv,
 	}
 
 	/* schedule to send runtime bt_config */
-	if (iwlagn_set_kill_msk(priv, uart_msg) ||
-	    iwlagn_fill_txpower_mode(priv, uart_msg))
+	/* check reduce power before change ack/cts kill mask */
+	if (iwlagn_fill_txpower_mode(priv, uart_msg) ||
+	    iwlagn_set_kill_msk(priv, uart_msg))
 		queue_work(priv->workqueue, &priv->bt_runtime_config);
 
 
