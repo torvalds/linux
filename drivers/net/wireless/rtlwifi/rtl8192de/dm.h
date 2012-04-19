@@ -151,8 +151,6 @@ enum dm_dig_connect {
 	DIG_CONNECT_MAX
 };
 
-extern struct dig_t de_digtable;
-
 void rtl92d_dm_init(struct ieee80211_hw *hw);
 void rtl92d_dm_watchdog(struct ieee80211_hw *hw);
 void rtl92d_dm_init_edca_turbo(struct ieee80211_hw *hw);

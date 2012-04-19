@@ -3064,6 +3064,7 @@ u8 rtl92d_phy_sw_chnl(struct ieee80211_hw *hw)
 static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct dig_t *de_digtable = &rtlpriv->dm_digtable;
 	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 
 	RT_TRACE(rtlpriv, COMP_CMD, DBG_TRACE,
@@ -3071,13 +3072,13 @@ static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 		 rtlphy->current_io_type, rtlphy->set_io_inprogress);
 	switch (rtlphy->current_io_type) {
 	case IO_CMD_RESUME_DM_BY_SCAN:
-		de_digtable.cur_igvalue = rtlphy->initgain_backup.xaagccore1;
+		de_digtable->cur_igvalue = rtlphy->initgain_backup.xaagccore1;
 		rtl92d_dm_write_dig(hw);
 		rtl92d_phy_set_txpower_level(hw, rtlphy->current_channel);
 		break;
 	case IO_CMD_PAUSE_DM_BY_SCAN:
-		rtlphy->initgain_backup.xaagccore1 = de_digtable.cur_igvalue;
-		de_digtable.cur_igvalue = 0x37;
+		rtlphy->initgain_backup.xaagccore1 = de_digtable->cur_igvalue;
+		de_digtable->cur_igvalue = 0x37;
 		rtl92d_dm_write_dig(hw);
 		break;
 	default:
