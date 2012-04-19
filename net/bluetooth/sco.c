@@ -273,17 +273,20 @@ drop:
 }
 
 /* -------- Socket interface ---------- */
-static struct sock *__sco_get_sock_by_addr(bdaddr_t *ba)
+static struct sock *__sco_get_sock_listen_by_addr(bdaddr_t *ba)
 {
-	struct sock *sk;
 	struct hlist_node *node;
+	struct sock *sk;
 
-	sk_for_each(sk, node, &sco_sk_list.head)
+	sk_for_each(sk, node, &sco_sk_list.head) {
+		if (sk->sk_state != BT_LISTEN)
+			continue;
+
 		if (!bacmp(&bt_sk(sk)->src, ba))
-			goto found;
-	sk = NULL;
-found:
-	return sk;
+			return sk;
+	}
+
+	return NULL;
 }
 
 /* Find socket listening on source bdaddr.
@@ -529,6 +532,7 @@ done:
 static int sco_sock_listen(struct socket *sock, int backlog)
 {
 	struct sock *sk = sock->sk;
+	bdaddr_t *src = &bt_sk(sk)->src;
 	int err = 0;
 
 	BT_DBG("sk %p backlog %d", sk, backlog);
@@ -545,9 +549,20 @@ static int sco_sock_listen(struct socket *sock, int backlog)
 		goto done;
 	}
 
+	write_lock(&sco_sk_list.lock);
+
+	if (__sco_get_sock_listen_by_addr(src)) {
+		err = -EADDRINUSE;
+		goto unlock;
+	}
+
 	sk->sk_max_ack_backlog = backlog;
 	sk->sk_ack_backlog = 0;
+
 	sk->sk_state = BT_LISTEN;
+
+unlock:
+	write_unlock(&sco_sk_list.lock);
 
 done:
 	release_sock(sk);
