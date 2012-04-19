@@ -1903,6 +1903,8 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_REDUCED_TX_PWR | \
 					IWLAGN_BT_VALID_3W_LUT)
 
+#define IWLAGN_BT_DECISION_LUT_SIZE	12
+
 struct iwl_basic_bt_cmd {
 	u8 flags;
 	u8 ledtime; /* unused */
@@ -1913,7 +1915,7 @@ struct iwl_basic_bt_cmd {
 	u8 bt3_prio_sample_time;
 	u8 bt3_timer_t2_value;
 	__le16 bt4_reaction_time; /* unused */
-	__le32 bt3_lookup_table[12];
+	__le32 bt3_lookup_table[IWLAGN_BT_DECISION_LUT_SIZE];
 	__le16 bt4_decision_time; /* unused */
 	__le16 valid;
 };
