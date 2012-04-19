@@ -602,69 +602,6 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_ringbuffer_data(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ring = &dev_priv->ring[(uintptr_t)node->info_ent->data];
-	if (!ring->obj) {
-		seq_printf(m, "No ringbuffer setup\n");
-	} else {
-		const u8 __iomem *virt = ring->virtual_start;
-		uint32_t off;
-
-		for (off = 0; off < ring->size; off += 4) {
-			uint32_t *ptr = (uint32_t *)(virt + off);
-			seq_printf(m, "%08x :  %08x\n", off, *ptr);
-		}
-	}
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
-static int i915_ringbuffer_info(struct seq_file *m, void *data)
-{
-	struct drm_info_node *node = (struct drm_info_node *) m->private;
-	struct drm_device *dev = node->minor->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-	int ret;
-
-	ring = &dev_priv->ring[(uintptr_t)node->info_ent->data];
-	if (ring->size == 0)
-		return 0;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	seq_printf(m, "Ring %s:\n", ring->name);
-	seq_printf(m, "  Head :    %08x\n", I915_READ_HEAD(ring) & HEAD_ADDR);
-	seq_printf(m, "  Tail :    %08x\n", I915_READ_TAIL(ring) & TAIL_ADDR);
-	seq_printf(m, "  Size :    %08x\n", ring->size);
-	seq_printf(m, "  Active :  %08x\n", intel_ring_get_active_head(ring));
-	seq_printf(m, "  NOPID :   %08x\n", I915_READ_NOPID(ring));
-	if (IS_GEN6(dev) || IS_GEN7(dev)) {
-		seq_printf(m, "  Sync 0 :   %08x\n", I915_READ_SYNC_0(ring));
-		seq_printf(m, "  Sync 1 :   %08x\n", I915_READ_SYNC_1(ring));
-	}
-	seq_printf(m, "  Control : %08x\n", I915_READ_CTL(ring));
-	seq_printf(m, "  Start :   %08x\n", I915_READ_START(ring));
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static const char *ring_str(int ring)
 {
 	switch (ring) {
@@ -1910,12 +1847,6 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_hws", i915_hws_info, 0, (void *)RCS},
 	{"i915_gem_hws_blt", i915_hws_info, 0, (void *)BCS},
 	{"i915_gem_hws_bsd", i915_hws_info, 0, (void *)VCS},
-	{"i915_ringbuffer_data", i915_ringbuffer_data, 0, (void *)RCS},
-	{"i915_ringbuffer_info", i915_ringbuffer_info, 0, (void *)RCS},
-	{"i915_bsd_ringbuffer_data", i915_ringbuffer_data, 0, (void *)VCS},
-	{"i915_bsd_ringbuffer_info", i915_ringbuffer_info, 0, (void *)VCS},
-	{"i915_blt_ringbuffer_data", i915_ringbuffer_data, 0, (void *)BCS},
-	{"i915_blt_ringbuffer_info", i915_ringbuffer_info, 0, (void *)BCS},
 	{"i915_error_state", i915_error_state, 0},
 	{"i915_rstdby_delays", i915_rstdby_delays, 0},
 	{"i915_cur_delayinfo", i915_cur_delayinfo, 0},
