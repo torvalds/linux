@@ -4,7 +4,6 @@
 
 menuconfig G_SENSOR_DEVICE
 	bool "g_sensor device support"
-	default n	
 	help
 	  Enable this to be able to choose the drivers for controlling the
 	  g_sensor on some platforms, for example on PDAs.
@@ -13,24 +12,19 @@ if G_SENSOR_DEVICE
 
 config GS_MMA7660
   bool "gs_mma7660"
-	depends on G_SENSOR_DEVICE
-	default y
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_MMA8452
   bool "gs_mma8452"
-	depends on G_SENSOR_DEVICE
-	default y
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_KXTF9
   bool "gs_kxtf9"
-	depends on G_SENSOR_DEVICE && SYSFS && I2C_RK29
-	default n
+	depends on SYSFS && I2C_RK29
 	help	 
 		If you say yes here you get support for the Kionix KXTF9 digital tri-axis
 		accelerometer.
@@ -39,24 +33,18 @@ config GS_KXTF9
 
 config GS_LIS3DH
   bool "gs_lis3dh"
-	depends on G_SENSOR_DEVICE
-	default n
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 	  
 config GS_L3G4200D
   bool "gs_l3g4200d"
-	depends on G_SENSOR_DEVICE
-	default n
 	help	 
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
 config GS_BMA023
   bool "gs_bma023"
-  depends on G_SENSOR_DEVICE
-  default n
   help
     To have support for your specific gsesnor you will have to
     select the proper drivers which depend on this option.
