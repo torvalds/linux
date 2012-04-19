@@ -872,7 +872,7 @@ static void __devexit pch_i2c_remove(struct pci_dev *pdev)
 		pci_iounmap(pdev, adap_info->pch_data[0].pch_base_address);
 
 	for (i = 0; i < adap_info->ch_num; i++)
-		adap_info->pch_data[i].pch_base_address = 0;
+		adap_info->pch_data[i].pch_base_address = NULL;
 
 	pci_set_drvdata(pdev, NULL);
 
