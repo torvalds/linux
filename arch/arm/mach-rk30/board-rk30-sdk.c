@@ -1117,6 +1117,25 @@ static struct platform_device rk29sdk_rfkill = {
         .id = -1,
 };
 
+#ifdef CONFIG_BATTERY_RK30_ADC
+static struct rk30_adc_battery_platform_data rk30_adc_battery_platdata = {
+        .dc_det_pin      = RK30_PIN6_PA5,
+        .batt_low_pin    = RK30_PIN6_PA0,
+        .charge_set_pin  = INVALID_GPIO,
+        .charge_ok_pin   = RK30_PIN6_PA6,
+        .dc_det_level    = GPIO_LOW,
+        .charge_ok_level = GPIO_HIGH,
+};
+
+static struct platform_device rk30_device_adc_battery = {
+        .name   = "rk30-battery",
+        .id     = -1,
+        .dev = {
+                .platform_data = &rk30_adc_battery_platdata,
+        },
+};
+#endif
+
 /**************************************************************************************************
  * the end of setting for SDMMC devices
 **************************************************************************************************/
@@ -1148,6 +1167,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK29_SUPPORT_MODEM
     &rk30_device_modem,
+#endif
+#ifdef CONFIG_BATTERY_RK30_ADC
+ 	&rk30_device_adc_battery,
 #endif
 };
 

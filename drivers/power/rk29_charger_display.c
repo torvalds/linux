@@ -94,7 +94,7 @@ static int  __init start_charge_logo_display(void)
 		val_status.intval = POWER_SUPPLY_STATUS_CHARGING;
 
 	// low power   and  discharging
-
+#if 0
 	if((val_capacity.intval < pwr_on_thrsd )&&(val_status.intval != POWER_SUPPLY_STATUS_CHARGING))
 	{
 		printk("low power\n");
@@ -102,8 +102,9 @@ static int  __init start_charge_logo_display(void)
 		while(1);
 		return 0;
 	}
+#endif
 
-/*
+
 	//low power and charging
 	if((val_capacity.intval < pwr_on_thrsd )&&(val_status.intval == POWER_SUPPLY_STATUS_CHARGING))
 	{
@@ -117,7 +118,7 @@ static int  __init start_charge_logo_display(void)
 			//printk("charging ... \n");
 		}
 	}
-*/
+
 
 
 	if(val_status.intval == POWER_SUPPLY_STATUS_CHARGING)
