@@ -66,6 +66,7 @@
 #include <linux/module.h>
 
 #include "iwl-drv.h"
+#include "iwl-debug.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
 #include "iwl-agn-hw.h"
@@ -892,10 +893,9 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 	int ret;
 
 	drv = kzalloc(sizeof(*drv), GFP_KERNEL);
-	if (!drv) {
-		dev_printk(KERN_ERR, trans->dev, "Couldn't allocate iwl_drv");
+	if (!drv)
 		return NULL;
-	}
+
 	drv->trans = trans;
 	drv->dev = trans->dev;
 	drv->cfg = cfg;
@@ -905,7 +905,7 @@ struct iwl_drv *iwl_drv_start(struct iwl_trans *trans,
 	ret = iwl_request_firmware(drv, true);
 
 	if (ret) {
-		dev_printk(KERN_ERR, trans->dev, "Couldn't request the fw");
+		IWL_ERR(trans, "Couldn't request the fw\n");
 		kfree(drv);
 		drv = NULL;
 	}
