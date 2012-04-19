@@ -2059,6 +2059,10 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 	u8 index = 0;
 	__be32 ips[MAX_IP_ADDRS];
 
+	/* The FW currently can't support multi-vif WoW properly. */
+	if (ar->num_vif > 1)
+		return -EIO;
+
 	vif = ath6kl_vif_first(ar);
 	if (!vif)
 		return -EIO;
@@ -3136,6 +3140,10 @@ static int ath6kl_cfg80211_sscan_start(struct wiphy *wiphy,
 
 	if (vif->sme_state != SME_DISCONNECTED)
 		return -EBUSY;
+
+	/* The FW currently can't support multi-vif WoW properly. */
+	if (ar->num_vif > 1)
+		return -EIO;
 
 	ath6kl_cfg80211_scan_complete_event(vif, true);
 
