@@ -22,7 +22,7 @@
 #include <plat/rk_camera.h>
 #include "ov5640.h"
 
-static int debug = 1;
+static int debug;
 module_param(debug, int, S_IRUGO|S_IWUSR);
 
 #define dprintk(level, fmt, arg...) do {			\
@@ -79,7 +79,7 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define CONFIG_SENSOR_I2C_RDWRCHK   0
 
 #define CONFIG_SENSOR_WRITE_REGS  1
-#define WRITE_REGS_NUM 100
+#define WRITE_REGS_NUM 3
 
 #define SENSOR_BUS_PARAM  (SOCAM_MASTER | SOCAM_PCLK_SAMPLE_RISING |\
                           SOCAM_HSYNC_ACTIVE_HIGH | SOCAM_VSYNC_ACTIVE_LOW |\
@@ -467,6 +467,30 @@ static struct reginfo sensor_720p[]=
 	{0x3a0d,0x02},
 	{0x3a14,0x02},
 	{0x3a15,0xe4},
+
+    {0x3820, 0x41}, //ddl@rock-chips.com add start: qsxvga -> 720p isn't stream on 
+	{0x3821, 0x07},
+	{0x3814, 0x31},
+	{0x3815, 0x31},
+	
+	{0x3618, 0x00},
+	{0x3612, 0x29},
+	{0x3709, 0x52},
+	{0x370c, 0x03},
+	{0x3a02, 0x03},
+	{0x3a03, 0xd8},
+	{0x3a08 ,0x01},///
+	{0x3a09, 0x27},///
+	{0x3a0a, 0x00},///
+	{0x3a0b, 0xf6},///
+	{0x3a0e, 0x03},
+	{0x3a0d, 0x04},
+	{0x3a14, 0x03},
+	{0x3a15, 0xd8},
+	{0x4004, 0x02},
+	{0x3002, 0x1c},////
+	{0x4713, 0x03},//////ddl@rock-chips.com add end
+    
 	{0x3002,0x00},///
 	{0x4713,0x02},///
 	{0x4837,0x16},
@@ -1961,8 +1985,7 @@ sensor_af_init_end:
 static int sensor_af_downfirmware(struct i2c_client *client)
 {
 	struct sensor *sensor = to_sensor(client);
-	struct af_cmdinfo cmdinfo;
-	int ret=0, focus_pos = 0xfe;
+	int ret=0;
     struct soc_camera_device *icd = client->dev.platform_data;
     struct v4l2_mbus_framefmt mf;
 		
@@ -1982,34 +2005,13 @@ static int sensor_af_downfirmware(struct i2c_client *client)
         if (sensor_fmt_videochk(NULL, &mf) == true) {    /* ddl@rock-chips.com: focus mode fix const auto focus in video */
             ret = sensor_af_const(client);
         } else {
-		switch (sensor->info_priv.auto_focus)
-		{
-			/*case SENSOR_AF_MODE_INFINITY:
-			{
-				focus_pos = 0x00;
-			}
-			case SENSOR_AF_MODE_MACRO:
-			{
-				if (focus_pos != 0x00)
-					focus_pos = 0xff;
-
-				sensor_af_idlechk(client);
-				cmdinfo.cmd_tag = StepFocus_Spec_Tag;
-				cmdinfo.cmd_para[0] = focus_pos;
-				cmdinfo.validate_bit = 0x81;
-				//ret = sensor_af_cmdset(client, StepMode_Cmd, &cmdinfo);
-				break;
-			}*/
-			case SENSOR_AF_MODE_AUTO:
-			{
-				ret = sensor_af_single(client);
-				break;
-			}
-			/*case SENSOR_AF_MODE_CONTINUOUS:
-			{
-				ret = sensor_af_const(client);
-				break;
-			}*/
+    		switch (sensor->info_priv.auto_focus)
+    		{
+    			case SENSOR_AF_MODE_AUTO:
+    			{
+    				ret = sensor_af_single(client);
+    				break;
+    			}
     			case SENSOR_AF_MODE_CLOSE:
     			{
     				ret = 0;
@@ -2039,6 +2041,7 @@ static void sensor_af_workqueue(struct work_struct *work)
     SENSOR_DG("%s %s Enter, cmd:0x%x \n",SENSOR_NAME_STRING(), __FUNCTION__,sensor_work->cmd);
     
     mutex_lock(&sensor->wq_lock);
+    
     switch (sensor_work->cmd) 
     {
         case WqCmd_af_init:
@@ -2113,7 +2116,7 @@ static void sensor_af_workqueue(struct work_struct *work)
             SENSOR_TR("Unknow command(%d) in %s af workqueue!",sensor_work->cmd,SENSOR_NAME_STRING());
             break;
     } 
-
+set_end:
     if (sensor_work->wait == false) {
         kfree((void*)sensor_work);
     } else {
@@ -2133,6 +2136,14 @@ static int sensor_af_workqueue_set(struct soc_camera_device *icd, enum sensor_wq
     if (sensor->sensor_wq == NULL) { 
         ret = -EINVAL;
         goto sensor_af_workqueue_set_end;
+    }
+
+    if ((sensor->info_priv.funmodule_state & SENSOR_AF_IS_OK) != SENSOR_AF_IS_OK) {
+        if (cmd != WqCmd_af_init) {
+            SENSOR_TR("%s %s cmd(%d) ingore,because af module isn't ready!",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
+            ret = -1;
+            goto sensor_af_workqueue_set_end;
+        }
     }
     
     wk = kzalloc(sizeof(struct sensor_work), GFP_KERNEL);
@@ -2205,8 +2216,8 @@ static int sensor_parameter_record(struct i2c_client *client)
 	sensor_read(client,0x380f, &tp_l);
 	sensor->parameter.preview_maxlines += tp_l;
 
-	sensor->parameter.capture_framerate = 300;
-	sensor->parameter.preview_framerate = 2500;
+	sensor->parameter.capture_framerate = 375;
+	sensor->parameter.preview_framerate = 1500;
 
 	sensor_read(client,0x3400,&sensor->parameter.awb[0]);		//record awb value
 	sensor_read(client,0x3401,&sensor->parameter.awb[1]);
@@ -2281,7 +2292,7 @@ static int sensor_ae_transfer(struct i2c_client *client)
 		iCapture_Gain = iCapture_Gain << 1;
 	}
 	
-	//ulCapture_Exposure_Gain =(u32) (11 * ulCapture_Exposure * iCapture_Gain/5);   //0ld value 2.5, œâŸö¹ýÁÁ
+	//ulCapture_Exposure_Gain =(u32) (11 * ulCapture_Exposure * iCapture_Gain/5);   //0ld value 2.5, ½â¾ö¹ýÁÁ
 	ulCapture_Exposure_Gain =(u32) (ulCapture_Exposure * iCapture_Gain);
 	
 	if(ulCapture_Exposure_Gain < Capture_MaxLines*16) {
@@ -2344,7 +2355,7 @@ static int sensor_ae_transfer(struct i2c_client *client)
 	// SendToFile("ExposureLow = 0x%x\r\n", ExposureLow);
 	// SendToFile("ExposureMid = 0x%x\r\n", ExposureMid);
 	// SendToFile("ExposureHigh = 0x%x\r\n", ExposureHigh);
-	//ŒÓ³€ÑÓÊ±£¬±ÜÃâ°µŽŠÅÄÕÕÊ±µÄÃ÷°µ·ÖœçÎÊÌâ
+	//¼Ó³¤ÑÓÊ±£¬±ÜÃâ°µ´¦ÅÄÕÕÊ±µÄÃ÷°µ·Ö½çÎÊÌâ
 	//camera_timed_wait(200);
 	//linzhk camera_timed_wait(500);
 
@@ -2885,7 +2896,7 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct sensor *sensor = to_sensor(client);
     const struct sensor_datafmt *fmt;
-    int ret = 0;
+    int ret = 0,set_w,set_h;
    
 	fmt = sensor_find_datafmt(mf->code, sensor_colour_fmts,
 				   ARRAY_SIZE(sensor_colour_fmts));
@@ -2904,6 +2915,78 @@ static int sensor_try_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     else if (mf->width < SENSOR_MIN_WIDTH)
         mf->width = SENSOR_MIN_WIDTH;
 
+    set_w = mf->width;
+    set_h = mf->height;
+
+	if (((set_w <= 176) && (set_h <= 144)) && (sensor_qcif[0].reg!=SEQUENCE_END))
+	{
+        set_w = 176;
+        set_h = 144;
+	}
+	else if (((set_w <= 320) && (set_h <= 240)) && (sensor_qvga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 320;
+        set_h = 240;
+    }
+    else if (((set_w <= 352) && (set_h<= 288)) && (sensor_cif[0].reg!=SEQUENCE_END))
+    {
+        set_w = 352;
+        set_h = 288;
+    }
+    else if (((set_w <= 640) && (set_h <= 480)) && (sensor_vga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 640;
+        set_h = 480;
+    }
+    else if (((set_w <= 800) && (set_h <= 600)) && (sensor_svga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 800;
+        set_h = 600;
+    }
+	else if (((set_w <= 1024) && (set_h <= 768)) && (sensor_xga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1024;
+        set_h = 768;
+    }
+	else if (((set_w <= 1280) && (set_h <= 720)) && (sensor_720p[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1280;
+        set_h = 720;
+    }
+    else if (((set_w <= 1280) && (set_h <= 1024)) && (sensor_sxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1280;
+        set_h = 1024;
+    }
+    else if (((set_w <= 1600) && (set_h <= 1200)) && (sensor_uxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1600;
+        set_h = 1200;
+    }
+    else if (((set_w <= 1920) && (set_h <= 1080)) && (sensor_1080p[0].reg!=SEQUENCE_END))
+    {
+        set_w = 1920;
+        set_h = 1080;
+    }
+	else if (((set_w <= 2048) && (set_h <= 1536)) && (sensor_qxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 2048;
+        set_h = 1536;
+    }
+	else if (((set_w <= 2592) && (set_h <= 1944)) && (sensor_qsxga[0].reg!=SEQUENCE_END))
+    {
+        set_w = 2592;
+        set_h = 1944;
+    }
+    else
+    {
+        set_w = SENSOR_INIT_WIDTH;
+        set_h = SENSOR_INIT_HEIGHT;
+    }
+
+    mf->width = set_w;
+    mf->height = set_h;
+    
     mf->colorspace = fmt->colorspace;
     
     return ret;
@@ -3743,7 +3826,7 @@ static int sensor_s_stream(struct v4l2_subdev *sd, int enable)
 		}
 		#endif
 	} else if (enable == 0) {
-		sensor->info_priv.enable = 0;
+	    sensor->info_priv.enable = 0;
 		#if CONFIG_SENSOR_Focus	
         flush_workqueue(sensor->sensor_wq);
 		#endif
@@ -3816,7 +3899,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
     struct sensor *sensor = to_sensor(client);
-    int ret = 0;
+    int ret = 0,i;
 
 	SENSOR_DG("\n%s..%s..cmd:%x \n",SENSOR_NAME_STRING(),__FUNCTION__,cmd);
 	switch (cmd)
@@ -3828,14 +3911,19 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		}
 		case RK29_CAM_SUBDEV_IOREQUEST:
 		{
-			sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
+            sensor->sensor_io_request = (struct rk29camera_platform_data*)arg;           
             if (sensor->sensor_io_request != NULL) { 
-                if (sensor->sensor_io_request->gpio_res[0].dev_name && 
-                    (strcmp(sensor->sensor_io_request->gpio_res[0].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[0];
-                } else if (sensor->sensor_io_request->gpio_res[1].dev_name && 
-                    (strcmp(sensor->sensor_io_request->gpio_res[1].dev_name, dev_name(icd->pdev)) == 0)) {
-                    sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[1];
+                sensor->sensor_gpio_res = NULL;
+                for (i=0; i<RK29_CAM_SUPPORT_NUMS;i++) {
+                    if (sensor->sensor_io_request->gpio_res[i].dev_name && 
+                        (strcmp(sensor->sensor_io_request->gpio_res[i].dev_name, dev_name(icd->pdev)) == 0)) {
+                        sensor->sensor_gpio_res = (struct rk29camera_gpio_res*)&sensor->sensor_io_request->gpio_res[i];
+                    }
+                }
+                if (sensor->sensor_gpio_res == NULL) {
+                    SENSOR_TR("%s %s obtain gpio resource failed when RK29_CAM_SUBDEV_IOREQUEST \n",SENSOR_NAME_STRING(),__FUNCTION__);
+                    ret = -EINVAL;
+                    goto sensor_ioctl_end;
                 }
             } else {
                 SENSOR_TR("%s %s RK29_CAM_SUBDEV_IOREQUEST fail\n",SENSOR_NAME_STRING(),__FUNCTION__);
@@ -3848,7 +3936,6 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
         	if (sensor->sensor_gpio_res) {
                 printk("flash io:%d\n",sensor->sensor_gpio_res->gpio_flash);
                 if (sensor->sensor_gpio_res->gpio_flash == INVALID_GPIO) {
-		    int i;
                     for (i = 0; i < icd->ops->num_controls; i++) {
                 		if (V4L2_CID_FLASH == icd->ops->controls[i].id) {
                 			memset((char*)&icd->ops->controls[i],0x00,sizeof(struct v4l2_queryctrl));                			
