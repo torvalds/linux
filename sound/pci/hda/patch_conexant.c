@@ -3972,9 +3972,14 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	int i;
 
 	mute_outputs(codec, spec->multiout.num_dacs, spec->multiout.dac_nids);
-	for (i = 0; i < cfg->hp_outs; i++)
+	for (i = 0; i < cfg->hp_outs; i++) {
+		unsigned int val = PIN_OUT;
+		if (snd_hda_query_pin_caps(codec, cfg->hp_pins[i]) &
+		    AC_PINCAP_HP_DRV)
+			val |= AC_PINCTL_HP_EN;
 		snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, val);
+	}
 	mute_outputs(codec, cfg->hp_outs, cfg->hp_pins);
 	mute_outputs(codec, cfg->line_outs, cfg->line_out_pins);
 	mute_outputs(codec, cfg->speaker_outs, cfg->speaker_pins);
@@ -4431,6 +4436,7 @@ static void apply_pincfg(struct hda_codec *codec, const struct cxt_pincfg *cfg)
 
 enum {
 	CXT_PINCFG_LENOVO_X200,
+	CXT_PINCFG_LENOVO_TP410,
 	CXT_FIXUP_STEREO_DMIC,
 };
 
@@ -4455,6 +4461,7 @@ static void apply_fixup(struct hda_codec *codec,
 	}
 }
 
+/* ThinkPad X200 & co with cxt5051 */
 static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
 	{ 0x17, 0x21a11000 }, /* dock-mic */
@@ -4463,13 +4470,31 @@ static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
 	{}
 };
 
+/* ThinkPad 410/420/510/520, X201 & co with cxt5066 */
+static const struct cxt_pincfg cxt_pincfg_lenovo_tp410[] = {
+	{ 0x19, 0x042110ff }, /* HP (seq# overridden) */
+	{ 0x1a, 0x21a190f0 }, /* dock-mic */
+	{ 0x1c, 0x212140ff }, /* dock-HP */
+	{}
+};
+
 static const struct cxt_pincfg *cxt_pincfg_tbl[] = {
 	[CXT_PINCFG_LENOVO_X200] = cxt_pincfg_lenovo_x200,
+	[CXT_PINCFG_LENOVO_TP410] = cxt_pincfg_lenovo_tp410,
 	[CXT_FIXUP_STEREO_DMIC] = NULL,
 };
 
-static const struct snd_pci_quirk cxt_fixups[] = {
+static const struct snd_pci_quirk cxt5051_fixups[] = {
 	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo X200", CXT_PINCFG_LENOVO_X200),
+	{}
+};
+
+static const struct snd_pci_quirk cxt5066_fixups[] = {
+	SND_PCI_QUIRK(0x17aa, 0x20f2, "Lenovo T400", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo T410", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x215f, "Lenovo T510", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21ce, "Lenovo T420", CXT_PINCFG_LENOVO_TP410),
+	SND_PCI_QUIRK(0x17aa, 0x21cf, "Lenovo T520", CXT_PINCFG_LENOVO_TP410),
 	SND_PCI_QUIRK(0x17aa, 0x3975, "Lenovo U300s", CXT_FIXUP_STEREO_DMIC),
 	{}
 };
@@ -4510,12 +4535,12 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
 		codec->pin_amp_workaround = 1;
+		apply_fixup(codec, cxt5051_fixups, cxt_pincfg_tbl);
 		break;
 	default:
 		codec->pin_amp_workaround = 1;
+		apply_fixup(codec, cxt5066_fixups, cxt_pincfg_tbl);
 	}
-
-	apply_fixup(codec, cxt_fixups, cxt_pincfg_tbl);
 
 	/* Show mute-led control only on HP laptops
 	 * This is a sort of white-list: on HP laptops, EAPD corresponds
