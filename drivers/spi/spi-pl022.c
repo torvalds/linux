@@ -1667,9 +1667,15 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 	/* cpsdvsr = 254 & scr = 255 */
 	min_tclk = spi_rate(rate, CPSDVR_MAX, SCR_MAX);
 
-	if (!((freq <= max_tclk) && (freq >= min_tclk))) {
+	if (freq > max_tclk)
+		dev_warn(&pl022->adev->dev,
+			"Max speed that can be programmed is %d Hz, you requested %d\n",
+			max_tclk, freq);
+
+	if (freq < min_tclk) {
 		dev_err(&pl022->adev->dev,
-			"controller data is incorrect: out of range frequency");
+			"Requested frequency: %d Hz is less than minimum possible %d Hz\n",
+			freq, min_tclk);
 		return -EINVAL;
 	}
 
