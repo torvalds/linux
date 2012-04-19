@@ -103,6 +103,7 @@ enum iwl_power_level {
  * @ant_coupling: antenna coupling in dB, default = 0
  * @bt_ch_announce: BT channel inhibition, default = enable
  * @auto_agg: enable agg. without check, default = true
+ * @disable_5ghz: disable 5GHz capability, default = false
  */
 struct iwl_mod_params {
 	int sw_crypto;
@@ -119,6 +120,7 @@ struct iwl_mod_params {
 	int ant_coupling;
 	bool bt_ch_announce;
 	bool auto_agg;
+	bool disable_5ghz;
 };
 
 #endif /* #__iwl_shared_h__ */

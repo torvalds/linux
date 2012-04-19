@@ -1012,3 +1012,7 @@ module_param_named(auto_agg, iwlwifi_mod_params.auto_agg,
 		bool, S_IRUGO);
 MODULE_PARM_DESC(auto_agg,
 		 "enable agg w/o check traffic load (default: enable)");
+
+module_param_named(5ghz_disable, iwlwifi_mod_params.disable_5ghz,
+		bool, S_IRUGO);
+MODULE_PARM_DESC(5ghz_disable, "disable 5GHz band (default: 0 [enabled])");
