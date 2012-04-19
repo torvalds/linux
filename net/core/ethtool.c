@@ -1335,6 +1335,47 @@ static int ethtool_get_ts_info(struct net_device *dev, void __user *useraddr)
 	return err;
 }
 
+static int ethtool_get_module_info(struct net_device *dev,
+				   void __user *useraddr)
+{
+	int ret;
+	struct ethtool_modinfo modinfo;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!ops->get_module_info)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&modinfo, useraddr, sizeof(modinfo)))
+		return -EFAULT;
+
+	ret = ops->get_module_info(dev, &modinfo);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(useraddr, &modinfo, sizeof(modinfo)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int ethtool_get_module_eeprom(struct net_device *dev,
+				     void __user *useraddr)
+{
+	int ret;
+	struct ethtool_modinfo modinfo;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!ops->get_module_info || !ops->get_module_eeprom)
+		return -EOPNOTSUPP;
+
+	ret = ops->get_module_info(dev, &modinfo);
+	if (ret)
+		return ret;
+
+	return ethtool_get_any_eeprom(dev, useraddr, ops->get_module_eeprom,
+				      modinfo.eeprom_len);
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -1558,6 +1599,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GET_TS_INFO:
 		rc = ethtool_get_ts_info(dev, useraddr);
+		break;
+	case ETHTOOL_GMODULEINFO:
+		rc = ethtool_get_module_info(dev, useraddr);
+		break;
+	case ETHTOOL_GMODULEEEPROM:
+		rc = ethtool_get_module_eeprom(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
