@@ -121,7 +121,6 @@ struct thread_struct {
 	   NULL for a kernel thread. */
 	struct pt_regs *uregs;
 
-	unsigned long trap_no, error_code;
 	unsigned long address;
 	/* Hardware debugging registers may come here */
 
@@ -138,8 +137,6 @@ struct thread_struct {
 	.pc		= 0,			\
         .kregs		= &fake_swapper_regs,	\
 	.uregs	        = NULL,			\
-	.trap_no	= 0,			\
-	.error_code	= 0,			\
 	.address	= 0,			\
 	.flags		= 0,			\
 }

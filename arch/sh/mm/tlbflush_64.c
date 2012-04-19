@@ -213,7 +213,6 @@ bad_area:
 			panic("INIT had user mode bad_area\n");
 		}
 		tsk->thread.address = address;
-		tsk->thread.error_code = writeaccess;
 		info.si_signo = SIGSEGV;
 		info.si_errno = 0;
 		info.si_addr = (void *) address;
@@ -263,8 +262,6 @@ do_sigbus:
 	 * or user mode.
 	 */
 	tsk->thread.address = address;
-	tsk->thread.error_code = writeaccess;
-	tsk->thread.trap_no = 14;
 	force_sig(SIGBUS, tsk);
 
 	/* Kernel mode? Handle exceptions or die */
