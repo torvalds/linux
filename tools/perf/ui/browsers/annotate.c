@@ -11,11 +11,20 @@
 #include <pthread.h>
 #include <newt.h>
 
+struct browser_disasm_line {
+	struct rb_node	rb_node;
+	double		percent;
+	u32		idx;
+	int		idx_asm;
+	bool		jump_target;
+};
+
 struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
 	struct disasm_line	  *selection;
+	struct disasm_line  **offsets;
 	u64		    start;
 	int		    nr_asm_entries;
 	int		    nr_entries;
@@ -23,13 +32,6 @@ struct annotate_browser {
 	bool		    use_offset;
 	bool		    searching_backwards;
 	char		    search_bf[128];
-};
-
-struct browser_disasm_line {
-	struct rb_node	rb_node;
-	double		percent;
-	u32		idx;
-	int		idx_asm;
 };
 
 static inline struct browser_disasm_line *disasm_line__browser(struct disasm_line *dl)
@@ -53,6 +55,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 {
 	struct annotate_browser *ab = container_of(self, struct annotate_browser, b);
 	struct disasm_line *dl = list_entry(entry, struct disasm_line, node);
+	struct browser_disasm_line *bdl = disasm_line__browser(dl);
 	bool current_entry = ui_browser__is_current_entry(self, row);
 	bool change_color = (!ab->hide_src_code &&
 			     (!current_entry || (self->use_navkeypressed &&
@@ -60,7 +63,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	int width = self->width;
 
 	if (dl->offset != -1) {
-		struct browser_disasm_line *bdl = disasm_line__browser(dl);
 		ui_browser__set_percent_color(self, bdl->percent, current_entry);
 		slsmg_printf(" %7.2f ", bdl->percent);
 	} else {
@@ -90,7 +92,11 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		if (!ab->use_offset)
 			addr += ab->start;
 
-		printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
+		if (bdl->jump_target || !ab->use_offset)
+			printed = scnprintf(bf, sizeof(bf), " %" PRIx64 ":", addr);
+		else
+			printed = scnprintf(bf, sizeof(bf), "    ");
+
 		if (change_color)
 			color = ui_browser__set_color(self, HE_COLORSET_ADDR);
 		slsmg_write_nstring(bf, printed);
@@ -593,12 +599,39 @@ int hist_entry__tui_annotate(struct hist_entry *he, int evidx,
 				    timer, arg, delay_secs);
 }
 
+static void annotate_browser__mark_jump_targets(struct annotate_browser *browser,
+						size_t size)
+{
+	u64 offset;
+
+	for (offset = 0; offset < size; ++offset) {
+		struct disasm_line *dl = browser->offsets[offset], *dlt;
+		struct browser_disasm_line *bdlt;
+
+		if (!dl || !dl->ins || !ins__is_jump(dl->ins))
+			continue;
+
+		if (dl->target >= size) {
+			ui__error("jump to after symbol!\n"
+				  "size: %zx, jump target: %" PRIx64,
+				  size, dl->target);
+			continue;
+		}
+
+		dlt = browser->offsets[dl->target];
+		bdlt = disasm_line__browser(dlt);
+		bdlt->jump_target = true;
+	}
+		
+}
+
 int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			 void(*timer)(void *arg), void *arg,
 			 int delay_secs)
 {
 	struct disasm_line *pos, *n;
 	struct annotation *notes;
+	const size_t size = symbol__size(sym);
 	struct map_symbol ms = {
 		.map = map,
 		.sym = sym,
@@ -613,7 +646,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.use_navkeypressed = true,
 		},
 	};
-	int ret;
+	int ret = -1;
 
 	if (sym == NULL)
 		return -1;
@@ -621,9 +654,15 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	if (map->dso->annotate_warned)
 		return -1;
 
+	browser.offsets = zalloc(size * sizeof(struct disasm_line *));
+	if (browser.offsets == NULL) {
+		ui__error("Not enough memory!");
+		return -1;
+	}
+
 	if (symbol__annotate(sym, map, sizeof(struct browser_disasm_line)) < 0) {
 		ui__error("%s", ui_helpline__last_msg);
-		return -1;
+		goto out_free_offsets;
 	}
 
 	ui_helpline__push("Press <- or ESC to exit");
@@ -639,11 +678,14 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			browser.b.width = line_len;
 		bpos = disasm_line__browser(pos);
 		bpos->idx = browser.nr_entries++;
-		if (pos->offset != -1)
+		if (pos->offset != -1) {
 			bpos->idx_asm = browser.nr_asm_entries++;
-		else
+			browser.offsets[pos->offset] = pos;
+		} else
 			bpos->idx_asm = -1;
 	}
+
+	annotate_browser__mark_jump_targets(&browser, size);
 
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
@@ -653,5 +695,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 		list_del(&pos->node);
 		disasm_line__free(pos);
 	}
+
+out_free_offsets:
+	free(browser.offsets);
 	return ret;
 }
