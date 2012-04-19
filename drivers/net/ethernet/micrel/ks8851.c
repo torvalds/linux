@@ -1525,7 +1525,7 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 
 
 err_netdev:
-	free_irq(ndev->irq, ndev);
+	free_irq(ndev->irq, ks);
 
 err_id:
 err_irq:
