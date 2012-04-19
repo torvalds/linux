@@ -13,6 +13,7 @@ Required properties:
                                   4 = active high level-sensitive.
                                   8 = active low level-sensitive.
 - gpio-controller       : Marks the device node as a GPIO controller.
+- interrupt-controller  : Marks the device node as an interrupt controller.
 - gpio-bank             : Specifies which bank a controller owns.
 - st,supports-sleepmode : Specifies whether controller can sleep or not
 
@@ -24,6 +25,7 @@ Example:
                         interrupts = <0 120 0x4>;
                         #gpio-cells = <2>;
                         gpio-controller;
+                        interrupt-controller;
                         supports-sleepmode;
                         gpio-bank = <1>;
                 };
