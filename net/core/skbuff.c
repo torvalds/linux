@@ -1565,6 +1565,9 @@ new_page:
 	} else {
 		unsigned int mlen;
 
+		/* If we are the only user of the page, we can reset offset */
+		if (page_count(p) == 1)
+			sk->sk_sndmsg_off = 0;
 		off = sk->sk_sndmsg_off;
 		mlen = PAGE_SIZE - off;
 		if (mlen < 64 && mlen < *len) {
