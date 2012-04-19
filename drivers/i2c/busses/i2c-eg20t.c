@@ -699,7 +699,7 @@ static s32 pch_i2c_xfer(struct i2c_adapter *i2c_adap,
 
 	ret = mutex_lock_interruptible(&pch_mutex);
 	if (ret)
-		return -ERESTARTSYS;
+		return ret;
 
 	if (adap->p_adapter_info->pch_i2c_suspended) {
 		mutex_unlock(&pch_mutex);
