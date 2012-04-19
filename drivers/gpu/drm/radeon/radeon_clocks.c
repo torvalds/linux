@@ -633,7 +633,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				tmp &= ~(R300_SCLK_FORCE_VAP);
 				tmp |= RADEON_SCLK_FORCE_CP;
 				WREG32_PLL(RADEON_SCLK_CNTL, tmp);
-				udelay(15000);
+				mdelay(15);
 
 				tmp = RREG32_PLL(R300_SCLK_CNTL2);
 				tmp &= ~(R300_SCLK_FORCE_TCL |
@@ -651,12 +651,12 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 			tmp |= (RADEON_ENGIN_DYNCLK_MODE |
 				(0x01 << RADEON_ACTIVE_HILO_LAT_SHIFT));
 			WREG32_PLL(RADEON_CLK_PWRMGT_CNTL, tmp);
-			udelay(15000);
+			mdelay(15);
 
 			tmp = RREG32_PLL(RADEON_CLK_PIN_CNTL);
 			tmp |= RADEON_SCLK_DYN_START_CNTL;
 			WREG32_PLL(RADEON_CLK_PIN_CNTL, tmp);
-			udelay(15000);
+			mdelay(15);
 
 			/* When DRI is enabled, setting DYN_STOP_LAT to zero can cause some R200
 			   to lockup randomly, leave them as set by BIOS.
@@ -696,7 +696,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 					tmp |= RADEON_SCLK_MORE_FORCEON;
 				}
 				WREG32_PLL(RADEON_SCLK_MORE_CNTL, tmp);
-				udelay(15000);
+				mdelay(15);
 			}
 
 			/* RV200::A11 A12, RV250::A11 A12 */
@@ -709,7 +709,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				tmp |= RADEON_TCL_BYPASS_DISABLE;
 				WREG32_PLL(RADEON_PLL_PWRMGT_CNTL, tmp);
 			}
-			udelay(15000);
+			mdelay(15);
 
 			/*enable dynamic mode for display clocks (PIXCLK and PIX2CLK) */
 			tmp = RREG32_PLL(RADEON_PIXCLKS_CNTL);
@@ -722,14 +722,14 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				RADEON_PIXCLK_TMDS_ALWAYS_ONb);
 
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
-			udelay(15000);
+			mdelay(15);
 
 			tmp = RREG32_PLL(RADEON_VCLK_ECP_CNTL);
 			tmp |= (RADEON_PIXCLK_ALWAYS_ONb |
 				RADEON_PIXCLK_DAC_ALWAYS_ONb);
 
 			WREG32_PLL(RADEON_VCLK_ECP_CNTL, tmp);
-			udelay(15000);
+			mdelay(15);
 		}
 	} else {
 		/* Turn everything OFF (ForceON to everything) */
@@ -861,7 +861,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 			}
 			WREG32_PLL(RADEON_SCLK_CNTL, tmp);
 
-			udelay(16000);
+			mdelay(16);
 
 			if ((rdev->family == CHIP_R300) ||
 			    (rdev->family == CHIP_R350)) {
@@ -870,7 +870,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 					R300_SCLK_FORCE_GA |
 					R300_SCLK_FORCE_CBA);
 				WREG32_PLL(R300_SCLK_CNTL2, tmp);
-				udelay(16000);
+				mdelay(16);
 			}
 
 			if (rdev->flags & RADEON_IS_IGP) {
@@ -878,7 +878,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				tmp &= ~(RADEON_FORCEON_MCLKA |
 					 RADEON_FORCEON_YCLKA);
 				WREG32_PLL(RADEON_MCLK_CNTL, tmp);
-				udelay(16000);
+				mdelay(16);
 			}
 
 			if ((rdev->family == CHIP_RV200) ||
@@ -887,7 +887,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				tmp = RREG32_PLL(RADEON_SCLK_MORE_CNTL);
 				tmp |= RADEON_SCLK_MORE_FORCEON;
 				WREG32_PLL(RADEON_SCLK_MORE_CNTL, tmp);
-				udelay(16000);
+				mdelay(16);
 			}
 
 			tmp = RREG32_PLL(RADEON_PIXCLKS_CNTL);
@@ -900,7 +900,7 @@ void radeon_legacy_set_clock_gating(struct radeon_device *rdev, int enable)
 				 RADEON_PIXCLK_TMDS_ALWAYS_ONb);
 
 			WREG32_PLL(RADEON_PIXCLKS_CNTL, tmp);
-			udelay(16000);
+			mdelay(16);
 
 			tmp = RREG32_PLL(RADEON_VCLK_ECP_CNTL);
 			tmp &= ~(RADEON_PIXCLK_ALWAYS_ONb |

@@ -114,7 +114,7 @@ members are defined:
 struct file_system_type {
 	const char *name;
 	int fs_flags;
-        struct dentry (*mount) (struct file_system_type *, int,
+        struct dentry *(*mount) (struct file_system_type *, int,
                        const char *, void *);
         void (*kill_sb) (struct super_block *);
         struct module *owner;

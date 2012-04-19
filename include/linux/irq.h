@@ -263,6 +263,11 @@ static inline void irqd_clr_chained_irq_inprogress(struct irq_data *d)
 	d->state_use_accessors &= ~IRQD_IRQ_INPROGRESS;
 }
 
+static inline irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
+{
+	return d->hwirq;
+}
+
 /**
  * struct irq_chip - hardware interrupt chip descriptor
  *

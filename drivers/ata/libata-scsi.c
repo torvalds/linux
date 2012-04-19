@@ -3843,7 +3843,7 @@ int ata_sas_async_port_init(struct ata_port *ap)
 	int rc = ap->ops->port_start(ap);
 
 	if (!rc) {
-		ap->print_id = ata_print_id++;
+		ap->print_id = atomic_inc_return(&ata_print_id);
 		__ata_port_probe(ap);
 	}
 
@@ -3867,7 +3867,7 @@ int ata_sas_port_init(struct ata_port *ap)
 	int rc = ap->ops->port_start(ap);
 
 	if (!rc) {
-		ap->print_id = ata_print_id++;
+		ap->print_id = atomic_inc_return(&ata_print_id);
 		rc = ata_port_probe(ap);
 	}
 

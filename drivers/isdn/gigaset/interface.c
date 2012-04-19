@@ -176,7 +176,7 @@ static void if_close(struct tty_struct *tty, struct file *filp)
 	struct cardstate *cs = tty->driver_data;
 
 	if (!cs) { /* happens if we didn't find cs in open */
-		printk(KERN_DEBUG "%s: no cardstate\n", __func__);
+		gig_dbg(DEBUG_IF, "%s: no cardstate", __func__);
 		return;
 	}
 

@@ -967,16 +967,59 @@ pci_save_state(struct pci_dev *dev)
 	return 0;
 }
 
+static void pci_restore_config_dword(struct pci_dev *pdev, int offset,
+				     u32 saved_val, int retry)
+{
+	u32 val;
+
+	pci_read_config_dword(pdev, offset, &val);
+	if (val == saved_val)
+		return;
+
+	for (;;) {
+		dev_dbg(&pdev->dev, "restoring config space at offset "
+			"%#x (was %#x, writing %#x)\n", offset, val, saved_val);
+		pci_write_config_dword(pdev, offset, saved_val);
+		if (retry-- <= 0)
+			return;
+
+		pci_read_config_dword(pdev, offset, &val);
+		if (val == saved_val)
+			return;
+
+		mdelay(1);
+	}
+}
+
+static void pci_restore_config_space_range(struct pci_dev *pdev,
+					   int start, int end, int retry)
+{
+	int index;
+
+	for (index = end; index >= start; index--)
+		pci_restore_config_dword(pdev, 4 * index,
+					 pdev->saved_config_space[index],
+					 retry);
+}
+
+static void pci_restore_config_space(struct pci_dev *pdev)
+{
+	if (pdev->hdr_type == PCI_HEADER_TYPE_NORMAL) {
+		pci_restore_config_space_range(pdev, 10, 15, 0);
+		/* Restore BARs before the command register. */
+		pci_restore_config_space_range(pdev, 4, 9, 10);
+		pci_restore_config_space_range(pdev, 0, 3, 0);
+	} else {
+		pci_restore_config_space_range(pdev, 0, 15, 0);
+	}
+}
+
 /** 
  * pci_restore_state - Restore the saved state of a PCI device
  * @dev: - PCI device that we're dealing with
  */
 void pci_restore_state(struct pci_dev *dev)
 {
-	int i;
-	u32 val;
-	int tries;
-
 	if (!dev->state_saved)
 		return;
 
@@ -984,24 +1027,8 @@ void pci_restore_state(struct pci_dev *dev)
 	pci_restore_pcie_state(dev);
 	pci_restore_ats_state(dev);
 
-	/*
-	 * The Base Address register should be programmed before the command
-	 * register(s)
-	 */
-	for (i = 15; i >= 0; i--) {
-		pci_read_config_dword(dev, i * 4, &val);
-		tries = 10;		
-		while (tries && val != dev->saved_config_space[i]) {
-			dev_dbg(&dev->dev, "restoring config "
-				"space at offset %#x (was %#x, writing %#x)\n",
-				i, val, (int)dev->saved_config_space[i]);
-			pci_write_config_dword(dev,i * 4,
-				dev->saved_config_space[i]);
-			pci_read_config_dword(dev, i * 4, &val);
-			mdelay(10);
-			tries--;
-		}
-	}
+	pci_restore_config_space(dev);
+
 	pci_restore_pcix_state(dev);
 	pci_restore_msi_state(dev);
 	pci_restore_iov_state(dev);
