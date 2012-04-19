@@ -2477,6 +2477,24 @@ static int ath6kl_set_htcap(struct ath6kl_vif *vif, enum ieee80211_band band,
 					band, htcap);
 }
 
+static int ath6kl_restore_htcap(struct ath6kl_vif *vif)
+{
+	struct wiphy *wiphy = vif->ar->wiphy;
+	int band, ret = 0;
+
+	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+		if (!wiphy->bands[band])
+			continue;
+
+		ret = ath6kl_set_htcap(vif, band,
+				wiphy->bands[band]->ht_cap.ht_supported);
+		if (ret)
+			return ret;
+	}
+
+	return ret;
+}
+
 static bool ath6kl_is_p2p_ie(const u8 *pos)
 {
 	return pos[0] == WLAN_EID_VENDOR_SPECIFIC && pos[1] >= 4 &&
@@ -2838,13 +2856,7 @@ static int ath6kl_stop_ap(struct wiphy *wiphy, struct net_device *dev)
 	clear_bit(CONNECTED, &vif->flags);
 
 	/* Restore ht setting in firmware */
-	if (ath6kl_set_htcap(vif, IEEE80211_BAND_2GHZ, true))
-		return -EIO;
-
-	if (ath6kl_set_htcap(vif, IEEE80211_BAND_5GHZ, true))
-		return -EIO;
-
-	return 0;
+	return ath6kl_restore_htcap(vif);
 }
 
 static const u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
