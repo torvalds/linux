@@ -1245,7 +1245,6 @@ static void ath9k_reclaim_beacon(struct ath_softc *sc,
 	ath9k_set_beaconing_status(sc, false);
 	ath_beacon_return(sc, avp);
 	ath9k_set_beaconing_status(sc, true);
-	sc->sc_flags &= ~SC_OP_BEACONS;
 }
 
 static void ath9k_vif_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
@@ -1376,17 +1375,9 @@ static void ath9k_do_vif_add_setup(struct ieee80211_hw *hw,
 	ath9k_calculate_summary_state(hw, vif);
 
 	if (ath9k_uses_beacons(vif->type)) {
-		int error;
-		/* This may fail because upper levels do not have beacons
-		 * properly configured yet.  That's OK, we assume it
-		 * will be properly configured and then we will be notified
-		 * in the info_changed method and set up beacons properly
-		 * there.
-		 */
+		/* Reserve a beacon slot for the vif */
 		ath9k_set_beaconing_status(sc, false);
-		error = ath_beacon_alloc(sc, vif);
-		if (!error)
-			ath_beacon_config(sc, vif);
+		ath_beacon_alloc(sc, vif);
 		ath9k_set_beaconing_status(sc, true);
 	}
 }
@@ -1986,7 +1977,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_vif *avp = (void *)vif->drv_priv;
 	int slottime;
-	int error;
 
 	ath9k_ps_wakeup(sc);
 	mutex_lock(&sc->mutex);
@@ -2019,13 +2009,25 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 		}
 	}
 
-	/* Enable transmission of beacons (AP, IBSS, MESH) */
-	if ((changed & BSS_CHANGED_BEACON) ||
-	    ((changed & BSS_CHANGED_BEACON_ENABLED) && bss_conf->enable_beacon)) {
+	/*
+	 * In case of AP mode, the HW TSF has to be reset
+	 * when the beacon interval changes.
+	 */
+	if ((changed & BSS_CHANGED_BEACON_INT) &&
+	    (vif->type == NL80211_IFTYPE_AP))
+		sc->sc_flags |= SC_OP_TSF_RESET;
+
+	/* Configure beaconing (AP, IBSS, MESH) */
+	if (ath9k_uses_beacons(vif->type) &&
+	    ((changed & BSS_CHANGED_BEACON) ||
+	     (changed & BSS_CHANGED_BEACON_ENABLED) ||
+	     (changed & BSS_CHANGED_BEACON_INT))) {
 		ath9k_set_beaconing_status(sc, false);
-		error = ath_beacon_alloc(sc, vif);
-		if (!error)
-			ath_beacon_config(sc, vif);
+		if (bss_conf->enable_beacon)
+			ath_beacon_alloc(sc, vif);
+		else
+			avp->is_bslot_active = false;
+		ath_beacon_config(sc, vif);
 		ath9k_set_beaconing_status(sc, true);
 	}
 
@@ -2046,30 +2048,6 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			ah->slottime = slottime;
 			ath9k_hw_init_global_settings(ah);
 		}
-	}
-
-	/* Disable transmission of beacons */
-	if ((changed & BSS_CHANGED_BEACON_ENABLED) &&
-	    !bss_conf->enable_beacon) {
-		ath9k_set_beaconing_status(sc, false);
-		avp->is_bslot_active = false;
-		ath9k_set_beaconing_status(sc, true);
-	}
-
-	if (changed & BSS_CHANGED_BEACON_INT) {
-		/*
-		 * In case of AP mode, the HW TSF has to be reset
-		 * when the beacon interval changes.
-		 */
-		if (vif->type == NL80211_IFTYPE_AP) {
-			sc->sc_flags |= SC_OP_TSF_RESET;
-			ath9k_set_beaconing_status(sc, false);
-			error = ath_beacon_alloc(sc, vif);
-			if (!error)
-				ath_beacon_config(sc, vif);
-			ath9k_set_beaconing_status(sc, true);
-		} else
-			ath_beacon_config(sc, vif);
 	}
 
 	mutex_unlock(&sc->mutex);
