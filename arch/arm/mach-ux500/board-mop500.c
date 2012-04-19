@@ -646,7 +646,6 @@ static void __init mop500_init_machine(void)
 static void __init snowball_init_machine(void)
 {
 	struct device *parent = NULL;
-	int i2c0_devs;
 	int i;
 
 	parent = u8500_init_devices();
@@ -663,11 +662,6 @@ static void __init snowball_init_machine(void)
 	snowball_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);
-
-	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
-	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
-	i2c_register_board_info(2, mop500_i2c2_devices,
-				ARRAY_SIZE(mop500_i2c2_devices));
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
@@ -767,7 +761,6 @@ static void __init u8500_init_machine(void)
 	int i;
 
 	parent = u8500_init_devices();
-	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
@@ -785,6 +778,12 @@ static void __init u8500_init_machine(void)
 				ARRAY_SIZE(mop500_platform_devs));
 
 		mop500_sdi_init(parent);
+
+		i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
+		i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
+		i2c_register_board_info(2, mop500_i2c2_devices,
+					ARRAY_SIZE(mop500_i2c2_devices));
+
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
 		snowball_pins_init();
 		platform_add_devices(snowball_platform_devs,
@@ -798,18 +797,20 @@ static void __init u8500_init_machine(void)
 		 * instead.
 		 */
 		mop500_gpio_keys[0].gpio = HREFV60_PROX_SENSE_GPIO;
-		i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
 		hrefv60_pins_init();
 		platform_add_devices(mop500_platform_devs,
 				ARRAY_SIZE(mop500_platform_devs));
 
 		hrefv60_sdi_init(parent);
+
+		i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
+		i2c0_devs -= NUM_PRE_V60_I2C0_DEVICES;
+
+		i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
+		i2c_register_board_info(2, mop500_i2c2_devices,
+					ARRAY_SIZE(mop500_i2c2_devices));
 	}
 	mop500_i2c_init(parent);
-
-	i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
-	i2c_register_board_info(2, mop500_i2c2_devices,
-				ARRAY_SIZE(mop500_i2c2_devices));
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
