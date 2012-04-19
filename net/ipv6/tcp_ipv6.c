@@ -1353,7 +1353,7 @@ static struct sock * tcp_v6_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	newnp->pktoptions = NULL;
 	if (treq->pktopts != NULL) {
 		newnp->pktoptions = skb_clone(treq->pktopts, GFP_ATOMIC);
-		kfree_skb(treq->pktopts);
+		consume_skb(treq->pktopts);
 		treq->pktopts = NULL;
 		if (newnp->pktoptions)
 			skb_set_owner_r(newnp->pktoptions, newsk);
