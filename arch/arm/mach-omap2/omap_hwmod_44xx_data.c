@@ -1089,6 +1089,7 @@ static struct omap_hwmod_ocp_if omap44xx_dsp__iva = {
 	.master		= &omap44xx_dsp_hwmod,
 	.slave		= &omap44xx_iva_hwmod,
 	.clk		= "dpll_iva_m5x2_ck",
+	.user		= OCP_USER_DSP,
 };
 
 /* dsp master ports */
