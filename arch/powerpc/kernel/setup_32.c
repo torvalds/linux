@@ -150,6 +150,9 @@ notrace void __init machine_init(u64 dt_ptr)
 }
 
 #ifdef CONFIG_BOOKE_WDT
+extern u32 booke_wdt_enabled;
+extern u32 booke_wdt_period;
+
 /* Checks wdt=x and wdt_period=xx command-line option */
 notrace int __init early_parse_wdt(char *p)
 {
