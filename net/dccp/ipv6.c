@@ -580,7 +580,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	newnp->pktoptions = NULL;
 	if (ireq6->pktopts != NULL) {
 		newnp->pktoptions = skb_clone(ireq6->pktopts, GFP_ATOMIC);
-		kfree_skb(ireq6->pktopts);
+		consume_skb(ireq6->pktopts);
 		ireq6->pktopts = NULL;
 		if (newnp->pktoptions)
 			skb_set_owner_r(newnp->pktoptions, newsk);
