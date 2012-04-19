@@ -174,6 +174,7 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct blkcg_gq *blkg;
+	int ret;
 
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(q->queue_lock);
@@ -186,24 +187,22 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	if (!css_tryget(&blkcg->css))
 		return ERR_PTR(-EINVAL);
 
-	/*
-	 * Allocate and initialize.
-	 */
+	/* allocate */
+	ret = -ENOMEM;
 	blkg = blkg_alloc(blkcg, q);
-
-	/* did alloc fail? */
-	if (unlikely(!blkg)) {
-		blkg = ERR_PTR(-ENOMEM);
-		goto out;
-	}
+	if (unlikely(!blkg))
+		goto err_put;
 
 	/* insert */
 	spin_lock(&blkcg->lock);
 	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
 	list_add(&blkg->q_node, &q->blkg_list);
 	spin_unlock(&blkcg->lock);
-out:
 	return blkg;
+
+err_put:
+	css_put(&blkcg->css);
+	return ERR_PTR(ret);
 }
 
 struct blkcg_gq *blkg_lookup_create(struct blkcg *blkcg,
