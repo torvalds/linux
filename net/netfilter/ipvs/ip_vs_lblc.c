@@ -563,8 +563,7 @@ static int __net_init __ip_vs_lblc_init(struct net *net)
 	ipvs->lblc_ctl_table[0].data = &ipvs->sysctl_lblc_expiration;
 
 	ipvs->lblc_ctl_header =
-		register_net_sysctl_table(net, net_vs_ctl_path,
-					  ipvs->lblc_ctl_table);
+		register_net_sysctl(net, "net/ipv4/vs", ipvs->lblc_ctl_table);
 	if (!ipvs->lblc_ctl_header) {
 		if (!net_eq(net, &init_net))
 			kfree(ipvs->lblc_ctl_table);

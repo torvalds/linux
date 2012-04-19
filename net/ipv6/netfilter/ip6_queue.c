@@ -588,7 +588,7 @@ static int __init ip6_queue_init(void)
 #endif
 	register_netdevice_notifier(&ipq_dev_notifier);
 #ifdef CONFIG_SYSCTL
-	ipq_sysctl_header = register_net_sysctl_table(&init_net, net_ipv6_ctl_path, ipq_table);
+	ipq_sysctl_header = register_net_sysctl(&init_net, "net/ipv6", ipq_table);
 #endif
 	status = nf_register_queue_handler(NFPROTO_IPV6, &nfqh);
 	if (status < 0) {

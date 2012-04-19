@@ -626,8 +626,8 @@ int nf_ct_frag6_init(void)
 	inet_frags_init(&nf_frags);
 
 #ifdef CONFIG_SYSCTL
-	nf_ct_frag6_sysctl_header = register_net_sysctl_table(&init_net, nf_net_netfilter_sysctl_path,
-							  nf_ct_frag6_sysctl_table);
+	nf_ct_frag6_sysctl_header = register_net_sysctl(&init_net, "net/netfilter",
+							nf_ct_frag6_sysctl_table);
 	if (!nf_ct_frag6_sysctl_header) {
 		inet_frags_fini(&nf_frags);
 		return -ENOMEM;

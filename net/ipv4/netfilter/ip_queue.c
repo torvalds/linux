@@ -586,7 +586,7 @@ static int __init ip_queue_init(void)
 #endif
 	register_netdevice_notifier(&ipq_dev_notifier);
 #ifdef CONFIG_SYSCTL
-	ipq_sysctl_header = register_net_sysctl_table(&init_net, net_ipv4_ctl_path, ipq_table);
+	ipq_sysctl_header = register_net_sysctl(&init_net, "net/ipv4", ipq_table);
 #endif
 	status = nf_register_queue_handler(NFPROTO_IPV4, &nfqh);
 	if (status < 0) {

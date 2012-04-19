@@ -815,8 +815,7 @@ static __net_init int ipv4_sysctl_init_net(struct net *net)
 
 	tcp_init_mem(net);
 
-	net->ipv4.ipv4_hdr = register_net_sysctl_table(net,
-			net_ipv4_ctl_path, table);
+	net->ipv4.ipv4_hdr = register_net_sysctl(net, "net/ipv4", table);
 	if (net->ipv4.ipv4_hdr == NULL)
 		goto err_reg;
 
@@ -857,7 +856,7 @@ static __init int sysctl_ipv4_init(void)
 	if (!i->procname)
 		return -EINVAL;
 
-	hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path, ipv4_table);
+	hdr = register_net_sysctl(&init_net, "net/ipv4", ipv4_table);
 	if (hdr == NULL)
 		return -ENOMEM;
 

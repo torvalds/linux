@@ -106,13 +106,6 @@ static ctl_table rds_ib_sysctl_table[] = {
 	{ }
 };
 
-static struct ctl_path rds_ib_sysctl_path[] = {
-	{ .procname = "net", },
-	{ .procname = "rds", },
-	{ .procname = "ib", },
-	{ }
-};
-
 void rds_ib_sysctl_exit(void)
 {
 	if (rds_ib_sysctl_hdr)
@@ -121,7 +114,7 @@ void rds_ib_sysctl_exit(void)
 
 int rds_ib_sysctl_init(void)
 {
-	rds_ib_sysctl_hdr = register_net_sysctl_table(&init_net, rds_ib_sysctl_path, rds_ib_sysctl_table);
+	rds_ib_sysctl_hdr = register_net_sysctl(&init_net, "net/rds/ib", rds_ib_sysctl_table);
 	if (!rds_ib_sysctl_hdr)
 		return -ENOMEM;
 	return 0;

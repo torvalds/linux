@@ -3354,13 +3354,6 @@ static struct ctl_table ipv4_route_flush_table[] = {
 	{ },
 };
 
-static __net_initdata struct ctl_path ipv4_route_path[] = {
-	{ .procname = "net", },
-	{ .procname = "ipv4", },
-	{ .procname = "route", },
-	{ },
-};
-
 static __net_init int sysctl_route_net_init(struct net *net)
 {
 	struct ctl_table *tbl;
@@ -3373,8 +3366,7 @@ static __net_init int sysctl_route_net_init(struct net *net)
 	}
 	tbl[0].extra1 = net;
 
-	net->ipv4.route_hdr =
-		register_net_sysctl_table(net, ipv4_route_path, tbl);
+	net->ipv4.route_hdr = register_net_sysctl(net, "net/ipv4/route", tbl);
 	if (net->ipv4.route_hdr == NULL)
 		goto err_reg;
 	return 0;

@@ -66,12 +66,6 @@ static ctl_table ucma_ctl_table[] = {
 	{ }
 };
 
-static struct ctl_path ucma_ctl_path[] = {
-	{ .procname = "net" },
-	{ .procname = "rdma_ucm" },
-	{ }
-};
-
 struct ucma_file {
 	struct mutex		mut;
 	struct file		*filp;
@@ -1392,7 +1386,7 @@ static int __init ucma_init(void)
 		goto err1;
 	}
 
-	ucma_ctl_table_hdr = register_net_sysctl_table(&init_net, ucma_ctl_path, ucma_ctl_table);
+	ucma_ctl_table_hdr = register_net_sysctl(&init_net, "net/rdma_ucm", ucma_ctl_table);
 	if (!ucma_ctl_table_hdr) {
 		printk(KERN_ERR "rdma_ucm: couldn't register sysctl paths\n");
 		ret = -ENOMEM;

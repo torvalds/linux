@@ -468,18 +468,13 @@ static ctl_table nf_ct_netfilter_table[] = {
 	{ }
 };
 
-static struct ctl_path nf_ct_path[] = {
-	{ .procname = "net", },
-	{ }
-};
-
 static int nf_conntrack_standalone_init_sysctl(struct net *net)
 {
 	struct ctl_table *table;
 
 	if (net_eq(net, &init_net)) {
 		nf_ct_netfilter_header =
-		       register_net_sysctl_table(&init_net, nf_ct_path, nf_ct_netfilter_table);
+		       register_net_sysctl(&init_net, "net", nf_ct_netfilter_table);
 		if (!nf_ct_netfilter_header)
 			goto out;
 	}
@@ -494,8 +489,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 	table[3].data = &net->ct.sysctl_checksum;
 	table[4].data = &net->ct.sysctl_log_invalid;
 
-	net->ct.sysctl_header = register_net_sysctl_table(net,
-					nf_net_netfilter_sysctl_path, table);
+	net->ct.sysctl_header = register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.sysctl_header)
 		goto out_unregister_netfilter;
 

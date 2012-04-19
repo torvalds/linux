@@ -199,8 +199,7 @@ static int nf_conntrack_event_init_sysctl(struct net *net)
 	table[1].data = &net->ct.sysctl_events_retry_timeout;
 
 	net->ct.event_sysctl_header =
-		register_net_sysctl_table(net,
-					  nf_net_netfilter_sysctl_path, table);
+		register_net_sysctl(net, "net/netfilter", table);
 	if (!net->ct.event_sysctl_header) {
 		printk(KERN_ERR "nf_ct_event: can't register to sysctl.\n");
 		goto out_register;

@@ -275,18 +275,12 @@ static ctl_table sctp_table[] = {
 	{ /* sentinel */ }
 };
 
-static struct ctl_path sctp_path[] = {
-	{ .procname = "net", },
-	{ .procname = "sctp", },
-	{ }
-};
-
 static struct ctl_table_header * sctp_sysctl_header;
 
 /* Sysctl registration.  */
 void sctp_sysctl_register(void)
 {
-	sctp_sysctl_header = register_net_sysctl_table(&init_net, sctp_path, sctp_table);
+	sctp_sysctl_header = register_net_sysctl(&init_net, "net/sctp", sctp_table);
 }
 
 /* Sysctl deregistration.  */

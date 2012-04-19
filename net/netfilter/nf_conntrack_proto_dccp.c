@@ -910,8 +910,8 @@ static __net_init int dccp_net_init(struct net *net)
 	dn->sysctl_table[6].data = &dn->dccp_timeout[CT_DCCP_TIMEWAIT];
 	dn->sysctl_table[7].data = &dn->dccp_loose;
 
-	dn->sysctl_header = register_net_sysctl_table(net,
-			nf_net_netfilter_sysctl_path, dn->sysctl_table);
+	dn->sysctl_header = register_net_sysctl(net, "net/netfilter",
+						dn->sysctl_table);
 	if (!dn->sysctl_header) {
 		kfree(dn->sysctl_table);
 		return -ENOMEM;

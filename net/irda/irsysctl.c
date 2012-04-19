@@ -235,12 +235,6 @@ static ctl_table irda_table[] = {
 	{ }
 };
 
-static struct ctl_path irda_path[] = {
-	{ .procname = "net", },
-	{ .procname = "irda", },
-	{ }
-};
-
 static struct ctl_table_header *irda_table_header;
 
 /*
@@ -251,7 +245,7 @@ static struct ctl_table_header *irda_table_header;
  */
 int __init irda_sysctl_register(void)
 {
-	irda_table_header = register_net_sysctl_table(&init_net, irda_path, irda_table);
+	irda_table_header = register_net_sysctl(&init_net, "net/irda", irda_table);
 	if (!irda_table_header)
 		return -ENOMEM;
 

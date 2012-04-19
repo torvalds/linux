@@ -146,15 +146,9 @@ static ctl_table nr_table[] = {
 	{ }
 };
 
-static struct ctl_path nr_path[] = {
-	{ .procname = "net", },
-	{ .procname = "netrom", },
-	{ }
-};
-
 void __init nr_register_sysctl(void)
 {
-	nr_table_header = register_net_sysctl_table(&init_net, nr_path, nr_table);
+	nr_table_header = register_net_sysctl(&init_net, "net/netrom", nr_table);
 }
 
 void nr_unregister_sysctl(void)

@@ -298,8 +298,8 @@ void __init xfrm4_init(int rt_max_size)
 	xfrm4_state_init();
 	xfrm4_policy_init();
 #ifdef CONFIG_SYSCTL
-	sysctl_hdr = register_net_sysctl_table(&init_net, net_ipv4_ctl_path,
-						xfrm4_policy_table);
+	sysctl_hdr = register_net_sysctl(&init_net, "net/ipv4",
+					 xfrm4_policy_table);
 #endif
 }
 
