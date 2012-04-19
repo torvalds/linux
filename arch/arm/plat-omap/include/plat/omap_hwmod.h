@@ -214,6 +214,7 @@ struct omap_hwmod_addr_space {
 #define OCP_USER_MPU			(1 << 0)
 #define OCP_USER_SDMA			(1 << 1)
 #define OCP_USER_DSP			(1 << 2)
+#define OCP_USER_IVA			(1 << 3)
 
 /* omap_hwmod_ocp_if.flags bits */
 #define OCPIF_SWSUP_IDLE		(1 << 0)
