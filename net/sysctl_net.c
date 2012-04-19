@@ -89,7 +89,7 @@ static struct pernet_operations sysctl_pernet_ops = {
 };
 
 static struct ctl_table_header *net_header;
-static __init int net_sysctl_init(void)
+__init int net_sysctl_init(void)
 {
 	static struct ctl_table empty[1];
 	int ret = -ENOMEM;
@@ -109,7 +109,6 @@ static __init int net_sysctl_init(void)
 out:
 	return ret;
 }
-subsys_initcall(net_sysctl_init);
 
 struct ctl_table_header *register_net_sysctl_table(struct net *net,
 	const struct ctl_path *path, struct ctl_table *table)

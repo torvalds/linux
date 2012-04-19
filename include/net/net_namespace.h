@@ -283,6 +283,11 @@ struct ctl_path;
 struct ctl_table;
 struct ctl_table_header;
 
+#ifdef CONFIG_SYSCTL
+extern int net_sysctl_init(void);
+#else
+static inline int net_sysctl_init(void) { return 0; }
+#endif
 extern struct ctl_table_header *register_net_sysctl_table(struct net *net,
 	const struct ctl_path *path, struct ctl_table *table);
 extern struct ctl_table_header *register_net_sysctl_rotable(
