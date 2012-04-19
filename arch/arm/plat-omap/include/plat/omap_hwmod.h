@@ -219,6 +219,10 @@ struct omap_hwmod_addr_space {
 #define OCPIF_SWSUP_IDLE		(1 << 0)
 #define OCPIF_CAN_BURST			(1 << 1)
 
+/* omap_hwmod_ocp_if._int_flags possibilities */
+#define _OCPIF_INT_FLAGS_REGISTERED	(1 << 0)
+
+
 /**
  * struct omap_hwmod_ocp_if - OCP interface data
  * @master: struct omap_hwmod that initiates OCP transactions on this link
@@ -230,6 +234,7 @@ struct omap_hwmod_addr_space {
  * @width: OCP data width
  * @user: initiators using this interface (see OCP_USER_* macros above)
  * @flags: OCP interface flags (see OCPIF_* macros above)
+ * @_int_flags: internal flags (see _OCPIF_INT_FLAGS* macros above)
  *
  * It may also be useful to add a tag_cnt field for OCP2.x devices.
  *
@@ -248,6 +253,7 @@ struct omap_hwmod_ocp_if {
 	u8				width;
 	u8				user;
 	u8				flags;
+	u8				_int_flags;
 };
 
 
@@ -477,6 +483,16 @@ struct omap_hwmod_class {
 };
 
 /**
+ * struct omap_hwmod_link - internal structure linking hwmods with ocp_ifs
+ * @ocp_if: OCP interface structure record pointer
+ * @node: list_head pointing to next struct omap_hwmod_link in a list
+ */
+struct omap_hwmod_link {
+	struct omap_hwmod_ocp_if	*ocp_if;
+	struct list_head		node;
+};
+
+/**
  * struct omap_hwmod - integration data for OMAP hardware "modules" (IP blocks)
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
@@ -494,6 +510,7 @@ struct omap_hwmod_class {
  * @_sysc_cache: internal-use hwmod flags
  * @_mpu_rt_va: cached register target start address (internal use)
  * @_mpu_port_index: cached MPU register target slave ID (internal use)
+ * @_mpu_port: cached MPU register target slave (internal use)
  * @opt_clks_cnt: number of @opt_clks
  * @master_cnt: number of @master entries
  * @slaves_cnt: number of @slave entries
@@ -512,6 +529,8 @@ struct omap_hwmod_class {
  *
  * Parameter names beginning with an underscore are managed internally by
  * the omap_hwmod code and should not be set during initialization.
+ *
+ * @masters and @slaves are now deprecated.
  */
 struct omap_hwmod {
 	const char			*name;
@@ -532,11 +551,14 @@ struct omap_hwmod {
 	struct clockdomain		*clkdm;
 	struct omap_hwmod_ocp_if	**masters; /* connect to *_IA */
 	struct omap_hwmod_ocp_if	**slaves;  /* connect to *_TA */
+	struct list_head		master_ports; /* connect to *_IA */
+	struct list_head		slave_ports; /* connect to *_TA */
 	void				*dev_attr;
 	u32				_sysc_cache;
 	void __iomem			*_mpu_rt_va;
 	spinlock_t			_lock;
 	struct list_head		node;
+	struct omap_hwmod_ocp_if	*_mpu_port;
 	u16				flags;
 	u8				_mpu_port_index;
 	u8				response_lat;
@@ -621,5 +643,7 @@ extern int omap2420_hwmod_init(void);
 extern int omap2430_hwmod_init(void);
 extern int omap3xxx_hwmod_init(void);
 extern int omap44xx_hwmod_init(void);
+
+extern int __init omap_hwmod_register_links(struct omap_hwmod_ocp_if **ois);
 
 #endif
