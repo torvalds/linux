@@ -2,7 +2,7 @@
  * omap_hwmod implementation for OMAP2/3/4
  *
  * Copyright (C) 2009-2011 Nokia Corporation
- * Copyright (C) 2011 Texas Instruments, Inc.
+ * Copyright (C) 2011-2012 Texas Instruments, Inc.
  *
  * Paul Walmsley, Benoît Cousson, Kevin Hilman
  *
@@ -1382,9 +1382,9 @@ static int _read_hardreset(struct omap_hwmod *oh, const char *name)
  * @oh: struct omap_hwmod *
  *
  * Resets an omap_hwmod @oh via the OCP_SYSCONFIG bit.  hwmod must be
- * enabled for this to work.  Returns -EINVAL if the hwmod cannot be
- * reset this way or if the hwmod is in the wrong state, -ETIMEDOUT if
- * the module did not reset in time, or 0 upon success.
+ * enabled for this to work.  Returns -ENOENT if the hwmod cannot be
+ * reset this way, -EINVAL if the hwmod is in the wrong state,
+ * -ETIMEDOUT if the module did not reset in time, or 0 upon success.
  *
  * In OMAP3 a specific SYSSTATUS register is used to get the reset status.
  * Starting in OMAP4, some IPs do not have SYSSTATUS registers and instead
@@ -1401,7 +1401,7 @@ static int _ocp_softreset(struct omap_hwmod *oh)
 
 	if (!oh->class->sysc ||
 	    !(oh->class->sysc->sysc_flags & SYSC_HAS_SOFTRESET))
-		return -EINVAL;
+		return -ENOENT;
 
 	/* clocks must be on for this operation */
 	if (oh->_state != _HWMOD_STATE_ENABLED) {
@@ -1462,37 +1462,60 @@ dis_opt_clks:
  * _reset - reset an omap_hwmod
  * @oh: struct omap_hwmod *
  *
- * Resets an omap_hwmod @oh.  The default software reset mechanism for
- * most OMAP IP blocks is triggered via the OCP_SYSCONFIG.SOFTRESET
- * bit.  However, some hwmods cannot be reset via this method: some
- * are not targets and therefore have no OCP header registers to
- * access; others (like the IVA) have idiosyncratic reset sequences.
- * So for these relatively rare cases, custom reset code can be
- * supplied in the struct omap_hwmod_class .reset function pointer.
- * Passes along the return value from either _reset() or the custom
- * reset function - these must return -EINVAL if the hwmod cannot be
- * reset this way or if the hwmod is in the wrong state, -ETIMEDOUT if
- * the module did not reset in time, or 0 upon success.
+ * Resets an omap_hwmod @oh.  If the module has a custom reset
+ * function pointer defined, then call it to reset the IP block, and
+ * pass along its return value to the caller.  Otherwise, if the IP
+ * block has an OCP_SYSCONFIG register with a SOFTRESET bitfield
+ * associated with it, call a function to reset the IP block via that
+ * method, and pass along the return value to the caller.  Finally, if
+ * the IP block has some hardreset lines associated with it, assert
+ * all of those, but do _not_ deassert them. (This is because driver
+ * authors have expressed an apparent requirement to control the
+ * deassertion of the hardreset lines themselves.)
+ *
+ * The default software reset mechanism for most OMAP IP blocks is
+ * triggered via the OCP_SYSCONFIG.SOFTRESET bit.  However, some
+ * hwmods cannot be reset via this method.  Some are not targets and
+ * therefore have no OCP header registers to access.  Others (like the
+ * IVA) have idiosyncratic reset sequences.  So for these relatively
+ * rare cases, custom reset code can be supplied in the struct
+ * omap_hwmod_class .reset function pointer.  Passes along the return
+ * value from either _ocp_softreset() or the custom reset function -
+ * these must return -EINVAL if the hwmod cannot be reset this way or
+ * if the hwmod is in the wrong state, -ETIMEDOUT if the module did
+ * not reset in time, or 0 upon success.
  */
 static int _reset(struct omap_hwmod *oh)
 {
-	int ret;
+	int i, r;
 
 	pr_debug("omap_hwmod: %s: resetting\n", oh->name);
 
-	/*
-	 * XXX We're not resetting modules with hardreset lines
-	 * automatically here.  Should we do this also, or just expect
-	 * those modules to define custom reset functions?
-	 */
-	ret = (oh->class->reset) ? oh->class->reset(oh) : _ocp_softreset(oh);
+	if (oh->class->reset) {
+		r = oh->class->reset(oh);
+	} else {
+		if (oh->rst_lines_cnt > 0) {
+			for (i = 0; i < oh->rst_lines_cnt; i++)
+				_assert_hardreset(oh, oh->rst_lines[i].name);
+			return 0;
+		} else {
+			r = _ocp_softreset(oh);
+			if (r == -ENOENT)
+				r = 0;
+		}
+	}
 
+	/*
+	 * OCP_SYSCONFIG bits need to be reprogrammed after a
+	 * softreset.  The _enable() function should be split to avoid
+	 * the rewrite of the OCP_SYSCONFIG register.
+	 */
 	if (oh->class->sysc) {
 		_update_sysc_cache(oh);
 		_enable_sysc(oh);
 	}
 
-	return ret;
+	return r;
 }
 
 /**
