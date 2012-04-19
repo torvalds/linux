@@ -1916,7 +1916,8 @@ struct iwl_basic_bt_cmd {
 	u8 bt3_timer_t2_value;
 	__le16 bt4_reaction_time; /* unused */
 	__le32 bt3_lookup_table[IWLAGN_BT_DECISION_LUT_SIZE];
-	__le16 bt4_decision_time; /* unused */
+	u8 reduce_txpower;
+	u8 reserved;
 	__le16 valid;
 };
 

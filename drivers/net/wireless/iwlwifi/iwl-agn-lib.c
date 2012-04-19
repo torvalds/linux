@@ -256,6 +256,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 
 	basic.kill_ack_mask = priv->kill_ack_mask;
 	basic.kill_cts_mask = priv->kill_cts_mask;
+	basic.reduce_txpower = priv->reduced_txpower;
 	basic.valid = priv->bt_valid;
 
 	/*
