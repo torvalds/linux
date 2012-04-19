@@ -263,6 +263,28 @@ static struct omap_hwmod omap44xx_mpu_private_hwmod = {
 };
 
 /*
+ * 'ocp_wp_noc' class
+ * instance(s): ocp_wp_noc
+ */
+static struct omap_hwmod_class omap44xx_ocp_wp_noc_hwmod_class = {
+	.name	= "ocp_wp_noc",
+};
+
+/* ocp_wp_noc */
+static struct omap_hwmod omap44xx_ocp_wp_noc_hwmod = {
+	.name		= "ocp_wp_noc",
+	.class		= &omap44xx_ocp_wp_noc_hwmod_class,
+	.clkdm_name	= "l3_instr_clkdm",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = OMAP4_CM_L3INSTR_OCP_WP1_CLKCTRL_OFFSET,
+			.context_offs = OMAP4_RM_L3INSTR_OCP_WP1_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_HWCTRL,
+		},
+	},
+};
+
+/*
  * Modules omap_hwmod structures
  *
  * The following IPs are excluded for the moment because:
@@ -281,7 +303,6 @@ static struct omap_hwmod omap44xx_mpu_private_hwmod = {
  *  efuse_ctrl_std
  *  mpu_c0
  *  mpu_c1
- *  ocp_wp_noc
  *  prcm_mpu
  *  prm
  *  scrm
@@ -3535,6 +3556,14 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_3__l3_instr = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* ocp_wp_noc -> l3_instr */
+static struct omap_hwmod_ocp_if omap44xx_ocp_wp_noc__l3_instr = {
+	.master		= &omap44xx_ocp_wp_noc_hwmod,
+	.slave		= &omap44xx_l3_instr_hwmod,
+	.clk		= "l3_div_ck",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* dsp -> l3_main_1 */
 static struct omap_hwmod_ocp_if omap44xx_dsp__l3_main_1 = {
 	.master		= &omap44xx_dsp_hwmod,
@@ -3810,6 +3839,24 @@ static struct omap_hwmod_ocp_if omap44xx_mpu__mpu_private = {
 	.master		= &omap44xx_mpu_hwmod,
 	.slave		= &omap44xx_mpu_private_hwmod,
 	.clk		= "l3_div_ck",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_addr_space omap44xx_ocp_wp_noc_addrs[] = {
+	{
+		.pa_start	= 0x4a102000,
+		.pa_end		= 0x4a10207f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l4_cfg -> ocp_wp_noc */
+static struct omap_hwmod_ocp_if omap44xx_l4_cfg__ocp_wp_noc = {
+	.master		= &omap44xx_l4_cfg_hwmod,
+	.slave		= &omap44xx_ocp_wp_noc_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap44xx_ocp_wp_noc_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -5625,6 +5672,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__emif_fw,
 	&omap44xx_iva__l3_instr,
 	&omap44xx_l3_main_3__l3_instr,
+	&omap44xx_ocp_wp_noc__l3_instr,
 	&omap44xx_dsp__l3_main_1,
 	&omap44xx_dss__l3_main_1,
 	&omap44xx_l3_main_2__l3_main_1,
@@ -5656,6 +5704,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l3_main_2__l4_per,
 	&omap44xx_l4_cfg__l4_wkup,
 	&omap44xx_mpu__mpu_private,
+	&omap44xx_l4_cfg__ocp_wp_noc,
 	&omap44xx_l4_abe__aess,
 	&omap44xx_l4_abe__aess_dma,
 	&omap44xx_l3_main_2__c2c,
