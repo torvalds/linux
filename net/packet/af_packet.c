@@ -1654,7 +1654,7 @@ static int packet_rcv(struct sk_buff *skb, struct net_device *dev,
 			skb->data = skb_head;
 			skb->len = skb_len;
 		}
-		kfree_skb(skb);
+		consume_skb(skb);
 		skb = nskb;
 	}
 
