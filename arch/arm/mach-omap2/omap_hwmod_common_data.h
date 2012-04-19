@@ -54,6 +54,38 @@ extern struct omap_hwmod_addr_space omap2_mcbsp1_addrs[];
 /* Common IP block data across OMAP2xxx */
 extern struct omap_hwmod_irq_info omap2xxx_timer12_mpu_irqs[];
 extern struct omap_hwmod_dma_info omap2xxx_dss_sdma_chs[];
+extern struct omap_gpio_dev_attr omap2xxx_gpio_dev_attr;
+extern struct omap_hwmod omap2xxx_l3_main_hwmod;
+extern struct omap_hwmod omap2xxx_l4_core_hwmod;
+extern struct omap_hwmod omap2xxx_l4_wkup_hwmod;
+extern struct omap_hwmod omap2xxx_mpu_hwmod;
+extern struct omap_hwmod omap2xxx_iva_hwmod;
+extern struct omap_hwmod omap2xxx_timer1_hwmod;
+extern struct omap_hwmod omap2xxx_timer2_hwmod;
+extern struct omap_hwmod omap2xxx_timer3_hwmod;
+extern struct omap_hwmod omap2xxx_timer4_hwmod;
+extern struct omap_hwmod omap2xxx_timer5_hwmod;
+extern struct omap_hwmod omap2xxx_timer6_hwmod;
+extern struct omap_hwmod omap2xxx_timer7_hwmod;
+extern struct omap_hwmod omap2xxx_timer8_hwmod;
+extern struct omap_hwmod omap2xxx_timer9_hwmod;
+extern struct omap_hwmod omap2xxx_timer10_hwmod;
+extern struct omap_hwmod omap2xxx_timer11_hwmod;
+extern struct omap_hwmod omap2xxx_timer12_hwmod;
+extern struct omap_hwmod omap2xxx_wd_timer2_hwmod;
+extern struct omap_hwmod omap2xxx_uart1_hwmod;
+extern struct omap_hwmod omap2xxx_uart2_hwmod;
+extern struct omap_hwmod omap2xxx_uart3_hwmod;
+extern struct omap_hwmod omap2xxx_dss_core_hwmod;
+extern struct omap_hwmod omap2xxx_dss_dispc_hwmod;
+extern struct omap_hwmod omap2xxx_dss_rfbi_hwmod;
+extern struct omap_hwmod omap2xxx_dss_venc_hwmod;
+extern struct omap_hwmod omap2xxx_gpio1_hwmod;
+extern struct omap_hwmod omap2xxx_gpio2_hwmod;
+extern struct omap_hwmod omap2xxx_gpio3_hwmod;
+extern struct omap_hwmod omap2xxx_gpio4_hwmod;
+extern struct omap_hwmod omap2xxx_mcspi1_hwmod;
+extern struct omap_hwmod omap2xxx_mcspi2_hwmod;
 
 /* Common IP block data */
 extern struct omap_hwmod_dma_info omap2_uart1_sdma_reqs[];
