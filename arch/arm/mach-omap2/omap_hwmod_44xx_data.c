@@ -5439,10 +5439,10 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_mpu_private_hwmod,
 
 	/* aess class */
-/*	&omap44xx_aess_hwmod, */
+	&omap44xx_aess_hwmod,
 
 	/* counter class */
-/*	&omap44xx_counter_32k_hwmod, */
+	&omap44xx_counter_32k_hwmod,
 
 	/* dma class */
 	&omap44xx_dma_system_hwmod,
@@ -5471,7 +5471,7 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_gpio6_hwmod,
 
 	/* hsi class */
-/*	&omap44xx_hsi_hwmod, */
+	&omap44xx_hsi_hwmod,
 
 	/* i2c class */
 	&omap44xx_i2c1_hwmod,
@@ -5483,7 +5483,7 @@ static __initdata struct omap_hwmod *omap44xx_hwmods[] = {
 	&omap44xx_ipu_hwmod,
 
 	/* iss class */
-/*	&omap44xx_iss_hwmod, */
+	&omap44xx_iss_hwmod,
 
 	/* iva class */
 	&omap44xx_iva_hwmod,
