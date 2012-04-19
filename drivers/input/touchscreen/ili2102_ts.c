@@ -817,6 +817,8 @@ static int ili2102_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	msg[0].flags = 0;
 	msg[0].len = 1;
 	msg[0].buf = buf;
+	msg[0].scl_rate =400*1000;
+	msg[0].udelay = 200;
 
 	ret = i2c_transfer(client->adapter, msg, 1);
 	if (ret < 0) {

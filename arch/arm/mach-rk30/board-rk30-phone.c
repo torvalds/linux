@@ -898,7 +898,7 @@ static struct mma8452_platform_data mma8452_info = {
 	.swap_xy = 0,
 	.swap_xyz = 1,
 	.init_platform_hw = mma8452_init_platform_hw,
-	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
+	.orientation = {0, -1, 0, 0, 0, -1, -1, 0, 0},
 };
 #endif
 #if defined (CONFIG_COMPASS_AK8975)
@@ -907,9 +907,9 @@ static struct akm8975_platform_data akm8975_info =
 	.m_layout = 
 	{
 		{
+			{0, 1, 0},
 			{-1, 0, 0},
-			{0, 0, 1},
-			{0, -1, 0},
+			{0, 0, -1},
 		},
 
 		{
@@ -1397,7 +1397,7 @@ struct rk29_sdmmc_platform_data default_sdmmc0_data = {
 #else
 	.use_dma = 0,
 #endif
-	.detect_irq = RK30_PIN3_PB6,	// INVALID_GPIO
+	.detect_irq = INVALID_GPIO,	// INVALID_GPIO
 	.enable_sd_wakeup = 0,
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
@@ -1577,7 +1577,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #if defined (CONFIG_GS_MMA8452)
 	{
 		.type	        = "gs_mma8452",
-		.addr	        = 0x1d,
+		.addr	        = 0x1c,
 		.flags	        = 0,
 		.irq	        = MMA8452_INT_PIN,
 		.platform_data = &mma8452_info,
@@ -1615,7 +1615,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.type    		= "mma845x",
 		.addr           = 0x1c,
 		.flags			= 0,	
-		.irq 			= RK30_PIN4_PC3,
+		.irq 			= RK30_PIN4_PC0,
 		.platform_data = &inv_mpu_mma845x_data,
 	},
 #endif
