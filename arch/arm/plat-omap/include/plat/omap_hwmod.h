@@ -504,12 +504,9 @@ struct omap_hwmod_link {
  * @_clk: pointer to the main struct clk (filled in at runtime)
  * @opt_clks: other device clocks that drivers can request (0..*)
  * @voltdm: pointer to voltage domain (filled in at runtime)
- * @masters: ptr to array of OCP ifs that this hwmod can initiate on
- * @slaves: ptr to array of OCP ifs that this hwmod can respond on
  * @dev_attr: arbitrary device attributes that can be passed to the driver
  * @_sysc_cache: internal-use hwmod flags
  * @_mpu_rt_va: cached register target start address (internal use)
- * @_mpu_port_index: cached MPU register target slave ID (internal use)
  * @_mpu_port: cached MPU register target slave (internal use)
  * @opt_clks_cnt: number of @opt_clks
  * @master_cnt: number of @master entries
@@ -549,8 +546,6 @@ struct omap_hwmod {
 	struct omap_hwmod_opt_clk	*opt_clks;
 	char				*clkdm_name;
 	struct clockdomain		*clkdm;
-	struct omap_hwmod_ocp_if	**masters; /* connect to *_IA */
-	struct omap_hwmod_ocp_if	**slaves;  /* connect to *_TA */
 	struct list_head		master_ports; /* connect to *_IA */
 	struct list_head		slave_ports; /* connect to *_TA */
 	void				*dev_attr;
@@ -560,7 +555,6 @@ struct omap_hwmod {
 	struct list_head		node;
 	struct omap_hwmod_ocp_if	*_mpu_port;
 	u16				flags;
-	u8				_mpu_port_index;
 	u8				response_lat;
 	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
@@ -572,7 +566,6 @@ struct omap_hwmod {
 	u8				_postsetup_state;
 };
 
-int omap_hwmod_register(struct omap_hwmod **ohs);
 struct omap_hwmod *omap_hwmod_lookup(const char *name);
 int omap_hwmod_for_each(int (*fn)(struct omap_hwmod *oh, void *data),
 			void *data);
