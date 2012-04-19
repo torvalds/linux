@@ -290,8 +290,6 @@ static inline int net_sysctl_init(void) { return 0; }
 #endif
 extern struct ctl_table_header *register_net_sysctl_table(struct net *net,
 	const struct ctl_path *path, struct ctl_table *table);
-extern struct ctl_table_header *register_net_sysctl_rotable(
-	const struct ctl_path *path, struct ctl_table *table);
 extern struct ctl_table_header *register_net_sysctl(struct net *net,
 	const char *path, struct ctl_table *table);
 extern void unregister_net_sysctl_table(struct ctl_table_header *header);

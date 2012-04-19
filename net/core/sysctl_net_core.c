@@ -258,7 +258,7 @@ static __init int sysctl_core_init(void)
 	static struct ctl_table empty[1];
 
 	kmemleak_not_leak(register_sysctl_paths(net_core_path, empty));
-	register_net_sysctl_rotable(net_core_path, net_core_table);
+	register_net_sysctl(&init_net, "net/core", net_core_table);
 	return register_pernet_subsys(&sysctl_core_ops);
 }
 

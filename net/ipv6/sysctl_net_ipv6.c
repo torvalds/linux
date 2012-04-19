@@ -140,7 +140,7 @@ int ipv6_sysctl_register(void)
 {
 	int err = -ENOMEM;
 
-	ip6_header = register_net_sysctl_rotable(net_ipv6_ctl_path, ipv6_rotable);
+	ip6_header = register_net_sysctl(&init_net, "net/ipv6", ipv6_rotable);
 	if (ip6_header == NULL)
 		goto out;
 

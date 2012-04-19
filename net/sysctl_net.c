@@ -59,19 +59,6 @@ static struct ctl_table_root net_sysctl_root = {
 	.permissions = net_ctl_permissions,
 };
 
-static int net_ctl_ro_header_perms(struct ctl_table_root *root,
-		struct nsproxy *namespaces, struct ctl_table *table)
-{
-	if (net_eq(namespaces->net_ns, &init_net))
-		return table->mode;
-	else
-		return table->mode & ~0222;
-}
-
-static struct ctl_table_root net_sysctl_ro_root = {
-	.permissions = net_ctl_ro_header_perms,
-};
-
 static int __net_init sysctl_net_init(struct net *net)
 {
 	setup_sysctl_set(&net->sysctls, &net_sysctl_root, is_seen);
@@ -103,8 +90,6 @@ __init int net_sysctl_init(void)
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
 	if (ret)
 		goto out;
-	setup_sysctl_set(&net_sysctl_ro_root.default_set, &net_sysctl_ro_root, NULL);
-	register_sysctl_root(&net_sysctl_ro_root);
 	register_sysctl_root(&net_sysctl_root);
 out:
 	return ret;
@@ -116,14 +101,6 @@ struct ctl_table_header *register_net_sysctl_table(struct net *net,
 	return __register_sysctl_paths(&net->sysctls, path, table);
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_table);
-
-struct ctl_table_header *register_net_sysctl_rotable(const
-		struct ctl_path *path, struct ctl_table *table)
-{
-	return __register_sysctl_paths(&net_sysctl_ro_root.default_set,
-					path, table);
-}
-EXPORT_SYMBOL_GPL(register_net_sysctl_rotable);
 
 struct ctl_table_header *register_net_sysctl(struct net *net,
 	const char *path, struct ctl_table *table)
