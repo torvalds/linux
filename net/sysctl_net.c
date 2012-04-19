@@ -88,9 +88,18 @@ static struct pernet_operations sysctl_pernet_ops = {
 	.exit = sysctl_net_exit,
 };
 
+static struct ctl_table_header *net_header;
 static __init int net_sysctl_init(void)
 {
-	int ret;
+	static struct ctl_table empty[1];
+	int ret = -ENOMEM;
+	/* Avoid limitations in the sysctl implementation by
+	 * registering "/proc/sys/net" as an empty directory not in a
+	 * network namespace.
+	 */
+	net_header = register_sysctl("net", empty);
+	if (!net_header)
+		goto out;
 	ret = register_pernet_subsys(&sysctl_pernet_ops);
 	if (ret)
 		goto out;
