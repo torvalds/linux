@@ -1891,7 +1891,7 @@ struct iwl_bt_cmd {
 #define IWLAGN_BT_VALID_3W_TIMERS	cpu_to_le16(BIT(3))
 #define IWLAGN_BT_VALID_KILL_ACK_MASK	cpu_to_le16(BIT(4))
 #define IWLAGN_BT_VALID_KILL_CTS_MASK	cpu_to_le16(BIT(5))
-#define IWLAGN_BT_VALID_BT4_TIMES	cpu_to_le16(BIT(6))
+#define IWLAGN_BT_VALID_REDUCED_TX_PWR	cpu_to_le16(BIT(6))
 #define IWLAGN_BT_VALID_3W_LUT		cpu_to_le16(BIT(7))
 
 #define IWLAGN_BT_ALL_VALID_MSK		(IWLAGN_BT_VALID_ENABLE_FLAGS | \
@@ -1900,7 +1900,7 @@ struct iwl_bt_cmd {
 					IWLAGN_BT_VALID_3W_TIMERS | \
 					IWLAGN_BT_VALID_KILL_ACK_MASK | \
 					IWLAGN_BT_VALID_KILL_CTS_MASK | \
-					IWLAGN_BT_VALID_BT4_TIMES | \
+					IWLAGN_BT_VALID_REDUCED_TX_PWR | \
 					IWLAGN_BT_VALID_3W_LUT)
 
 struct iwl_basic_bt_cmd {
