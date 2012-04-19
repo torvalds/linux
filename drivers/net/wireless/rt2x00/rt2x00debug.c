@@ -624,22 +624,21 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
 	data += sprintf(data, "revision:\t%04x\n", intf->rt2x00dev->chip.rev);
 	data += sprintf(data, "\n");
 	data += sprintf(data, "register\tbase\twords\twordsize\n");
-	data += sprintf(data, "csr\t%d\t%d\t%d\n",
-			debug->csr.word_base,
-			debug->csr.word_count,
-			debug->csr.word_size);
-	data += sprintf(data, "eeprom\t%d\t%d\t%d\n",
-			debug->eeprom.word_base,
-			debug->eeprom.word_count,
-			debug->eeprom.word_size);
-	data += sprintf(data, "bbp\t%d\t%d\t%d\n",
-			debug->bbp.word_base,
-			debug->bbp.word_count,
-			debug->bbp.word_size);
-	data += sprintf(data, "rf\t%d\t%d\t%d\n",
-			debug->rf.word_base,
-			debug->rf.word_count,
-			debug->rf.word_size);
+#define RT2X00DEBUGFS_SPRINTF_REGISTER(__name)			\
+{								\
+	if(debug->__name.read)					\
+		data += sprintf(data, __stringify(__name)	\
+				"\t%d\t%d\t%d\n",		\
+				debug->__name.word_base,	\
+				debug->__name.word_count,	\
+				debug->__name.word_size);	\
+}
+	RT2X00DEBUGFS_SPRINTF_REGISTER(csr);
+	RT2X00DEBUGFS_SPRINTF_REGISTER(eeprom);
+	RT2X00DEBUGFS_SPRINTF_REGISTER(bbp);
+	RT2X00DEBUGFS_SPRINTF_REGISTER(rf);
+#undef RT2X00DEBUGFS_SPRINTF_REGISTER
+
 	blob->size = strlen(blob->data);
 
 	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);
@@ -694,25 +693,27 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	if (IS_ERR(intf->register_folder) || !intf->register_folder)
 		goto exit;
 
-#define RT2X00DEBUGFS_CREATE_REGISTER_ENTRY(__intf, __name)	\
-({								\
-	(__intf)->__name##_off_entry =				\
-	    debugfs_create_u32(__stringify(__name) "_offset",	\
-			       S_IRUSR | S_IWUSR,		\
-			       (__intf)->register_folder,	\
-			       &(__intf)->offset_##__name);	\
-	if (IS_ERR((__intf)->__name##_off_entry)		\
-			|| !(__intf)->__name##_off_entry)	\
-		goto exit;					\
-								\
-	(__intf)->__name##_val_entry =				\
-	    debugfs_create_file(__stringify(__name) "_value",	\
-				S_IRUSR | S_IWUSR,		\
-				(__intf)->register_folder,	\
-				(__intf), &rt2x00debug_fop_##__name);\
-	if (IS_ERR((__intf)->__name##_val_entry)		\
-			|| !(__intf)->__name##_val_entry)	\
-		goto exit;					\
+#define RT2X00DEBUGFS_CREATE_REGISTER_ENTRY(__intf, __name)			\
+({										\
+	if(debug->__name.read) {						\
+		(__intf)->__name##_off_entry =					\
+		debugfs_create_u32(__stringify(__name) "_offset",		\
+				       S_IRUSR | S_IWUSR,			\
+				       (__intf)->register_folder,		\
+				       &(__intf)->offset_##__name);		\
+		if (IS_ERR((__intf)->__name##_off_entry)			\
+				|| !(__intf)->__name##_off_entry)		\
+			goto exit;						\
+										\
+		(__intf)->__name##_val_entry =					\
+		debugfs_create_file(__stringify(__name) "_value",		\
+					S_IRUSR | S_IWUSR,			\
+					(__intf)->register_folder,		\
+					(__intf), &rt2x00debug_fop_##__name);	\
+		if (IS_ERR((__intf)->__name##_val_entry)			\
+				|| !(__intf)->__name##_val_entry)		\
+			goto exit;						\
+	}									\
 })
 
 	RT2X00DEBUGFS_CREATE_REGISTER_ENTRY(intf, csr);
