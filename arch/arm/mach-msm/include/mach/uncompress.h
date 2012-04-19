@@ -16,6 +16,7 @@
 #ifndef __ASM_ARCH_MSM_UNCOMPRESS_H
 #define __ASM_ARCH_MSM_UNCOMPRESS_H
 
+#include <asm/barrier.h>
 #include <asm/processor.h>
 #include <mach/msm_iomap.h>
 

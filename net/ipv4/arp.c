@@ -113,7 +113,6 @@
 #include <net/ax25.h>
 #include <net/netrom.h>
 
-#include <asm/system.h>
 #include <linux/uaccess.h>
 
 #include <linux/netfilter_arp.h>

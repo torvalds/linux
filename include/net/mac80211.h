@@ -13,10 +13,10 @@
 #ifndef MAC80211_H
 #define MAC80211_H
 
+#include <linux/bug.h>
 #include <linux/kernel.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/device.h>
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
 #include <asm/unaligned.h>
@@ -86,6 +86,8 @@
  * All work performed on the mac80211 workqueue must not acquire the RTNL lock.
  *
  */
+
+struct device;
 
 /**
  * enum ieee80211_max_queues - maximum number of queues
@@ -1325,7 +1327,7 @@ static inline struct ieee80211_rate *
 ieee80211_get_tx_rate(const struct ieee80211_hw *hw,
 		      const struct ieee80211_tx_info *c)
 {
-	if (WARN_ON(c->control.rates[0].idx < 0))
+	if (WARN_ON_ONCE(c->control.rates[0].idx < 0))
 		return NULL;
 	return &hw->wiphy->bands[c->band]->bitrates[c->control.rates[0].idx];
 }

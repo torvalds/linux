@@ -825,9 +825,13 @@ static void __devinit quirk_usb_handoff_xhci(struct pci_dev *pdev)
 		}
 	}
 
-	/* Disable any BIOS SMIs */
-	writel(XHCI_LEGACY_DISABLE_SMI,
-			base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
+	val = readl(base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
+	/* Mask off (turn off) any enabled SMIs */
+	val &= XHCI_LEGACY_DISABLE_SMI;
+	/* Mask all SMI events bits, RW1C */
+	val |= XHCI_LEGACY_SMI_EVENTS;
+	/* Disable any BIOS SMIs and clear all SMI events*/
+	writel(val, base + ext_cap_offset + XHCI_LEGACY_CONTROL_OFFSET);
 
 	if (usb_is_intel_switchable_xhci(pdev))
 		usb_enable_xhci_ports(pdev);
@@ -893,4 +897,5 @@ static void __devinit quirk_usb_early_handoff(struct pci_dev *pdev)
 		quirk_usb_handoff_xhci(pdev);
 	pci_disable_device(pdev);
 }
-DECLARE_PCI_FIXUP_FINAL(PCI_ANY_ID, PCI_ANY_ID, quirk_usb_early_handoff);
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
+			PCI_CLASS_SERIAL_USB, 8, quirk_usb_early_handoff);

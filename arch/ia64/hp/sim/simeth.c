@@ -20,7 +20,6 @@
 #include <linux/skbuff.h>
 #include <linux/notifier.h>
 #include <linux/bitops.h>
-#include <asm/system.h>
 #include <asm/irq.h>
 #include <asm/hpsim.h>
 

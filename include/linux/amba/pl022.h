@@ -25,7 +25,7 @@
 #ifndef _SSP_PL022_H
 #define _SSP_PL022_H
 
-#include <linux/device.h>
+#include <linux/types.h>
 
 /**
  * whether SSP is in loopback mode or not

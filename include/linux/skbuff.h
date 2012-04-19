@@ -18,6 +18,7 @@
 #include <linux/kmemcheck.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
+#include <linux/bug.h>
 #include <linux/cache.h>
 
 #include <linux/atomic.h>
@@ -480,6 +481,7 @@ struct sk_buff {
 	union {
 		__u32		mark;
 		__u32		dropcount;
+		__u32		avail_size;
 	};
 
 	sk_buff_data_t		transport_header;
@@ -500,7 +502,6 @@ struct sk_buff {
  */
 #include <linux/slab.h>
 
-#include <asm/system.h>
 
 /*
  * skb might have a dst pointer attached, refcounted or not.
@@ -1244,7 +1245,7 @@ static inline void skb_fill_page_desc(struct sk_buff *skb, int i,
 }
 
 extern void skb_add_rx_frag(struct sk_buff *skb, int i, struct page *page,
-			    int off, int size);
+			    int off, int size, unsigned int truesize);
 
 #define SKB_PAGE_ASSERT(skb) 	BUG_ON(skb_shinfo(skb)->nr_frags)
 #define SKB_FRAG_ASSERT(skb) 	BUG_ON(skb_has_frag_list(skb))
@@ -1363,6 +1364,18 @@ static inline unsigned int skb_headroom(const struct sk_buff *skb)
 static inline int skb_tailroom(const struct sk_buff *skb)
 {
 	return skb_is_nonlinear(skb) ? 0 : skb->end - skb->tail;
+}
+
+/**
+ *	skb_availroom - bytes at buffer end
+ *	@skb: buffer to check
+ *
+ *	Return the number of bytes of free space at the tail of an sk_buff
+ *	allocated by sk_stream_alloc()
+ */
+static inline int skb_availroom(const struct sk_buff *skb)
+{
+	return skb_is_nonlinear(skb) ? 0 : skb->avail_size - skb->len;
 }
 
 /**

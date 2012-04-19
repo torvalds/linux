@@ -499,6 +499,7 @@ config RT_MUTEX_TESTER
 config DEBUG_SPINLOCK
 	bool "Spinlock and rw-lock debugging: basic checks"
 	depends on DEBUG_KERNEL
+	select UNINLINE_SPIN_UNLOCK
 	help
 	  Say Y here and build SMP to catch missing spinlock initialization
 	  and certain other kinds of spinlock errors commonly made.  This is
@@ -1140,14 +1141,6 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
-
-config SYSCTL_SYSCALL_CHECK
-	bool "Sysctl checks"
-	depends on SYSCTL
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use. This enables checks that help
-	  you to keep things correct.
 
 source mm/Kconfig.debug
 source kernel/trace/Kconfig

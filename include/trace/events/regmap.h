@@ -4,10 +4,10 @@
 #if !defined(_TRACE_REGMAP_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_REGMAP_H
 
-#include <linux/device.h>
 #include <linux/ktime.h>
 #include <linux/tracepoint.h>
 
+struct device;
 struct regmap;
 
 /*

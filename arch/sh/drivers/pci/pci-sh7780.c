@@ -21,6 +21,13 @@
 #include <asm/mmu.h>
 #include <asm/sizes.h>
 
+#if defined(CONFIG_CPU_BIG_ENDIAN)
+# define PCICR_ENDIANNESS SH4_PCICR_BSWP
+#else
+# define PCICR_ENDIANNESS 0
+#endif
+
+
 static struct resource sh7785_pci_resources[] = {
 	{
 		.name	= "PCI IO",
@@ -254,7 +261,7 @@ static int __init sh7780_pci_init(void)
 	__raw_writel(PCIECR_ENBL, PCIECR);
 
 	/* Reset */
-	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_PRST,
+	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_PRST | PCICR_ENDIANNESS,
 		     chan->reg_base + SH4_PCICR);
 
 	/*
@@ -290,7 +297,8 @@ static int __init sh7780_pci_init(void)
 	 * Now throw it in to register initialization mode and
 	 * start the real work.
 	 */
-	__raw_writel(SH4_PCICR_PREFIX, chan->reg_base + SH4_PCICR);
+	__raw_writel(SH4_PCICR_PREFIX | PCICR_ENDIANNESS,
+		     chan->reg_base + SH4_PCICR);
 
 	memphys = __pa(memory_start);
 	memsize = roundup_pow_of_two(memory_end - memory_start);
@@ -380,7 +388,8 @@ static int __init sh7780_pci_init(void)
 	 * Initialization mode complete, release the control register and
 	 * enable round robin mode to stop device overruns/starvation.
 	 */
-	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO,
+	__raw_writel(SH4_PCICR_PREFIX | SH4_PCICR_CFIN | SH4_PCICR_FTO |
+		     PCICR_ENDIANNESS,
 		     chan->reg_base + SH4_PCICR);
 
 	ret = register_pci_controller(chan);

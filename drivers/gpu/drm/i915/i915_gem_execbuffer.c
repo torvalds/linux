@@ -498,8 +498,8 @@ pin_and_fence_object(struct drm_i915_gem_object *obj,
 				if (ret)
 					goto err_unpin;
 			}
+			obj->pending_fenced_gpu_access = true;
 		}
-		obj->pending_fenced_gpu_access = need_fence;
 	}
 
 	entry->offset = obj->gtt_offset;

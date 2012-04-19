@@ -230,6 +230,10 @@ atombios_dvo_setup(struct drm_encoder *encoder, int action)
 	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
 		return;
 
+	/* some R4xx chips have the wrong frev */
+	if (rdev->family <= CHIP_RV410)
+		frev = 1;
+
 	switch (frev) {
 	case 1:
 		switch (crev) {
@@ -541,7 +545,7 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action, int panel_mo
 		dp_clock = dig_connector->dp_clock;
 		dp_lane_count = dig_connector->dp_lane_count;
 		hpd_id = radeon_connector->hpd.hpd;
-		bpc = connector->display_info.bpc;
+		/* bpc = connector->display_info.bpc; */
 	}
 
 	/* no dig encoder assigned */
@@ -1159,7 +1163,7 @@ atombios_external_encoder_setup(struct drm_encoder *encoder,
 		dp_lane_count = dig_connector->dp_lane_count;
 		connector_object_id =
 			(radeon_connector->connector_object_id & OBJECT_ID_MASK) >> OBJECT_ID_SHIFT;
-		bpc = connector->display_info.bpc;
+		/* bpc = connector->display_info.bpc; */
 	}
 
 	memset(&args, 0, sizeof(args));

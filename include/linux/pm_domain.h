@@ -10,6 +10,8 @@
 #define _LINUX_PM_DOMAIN_H
 
 #include <linux/device.h>
+#include <linux/mutex.h>
+#include <linux/pm.h>
 #include <linux/err.h>
 #include <linux/of.h>
 

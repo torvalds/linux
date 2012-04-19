@@ -891,6 +891,7 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	chip->ecc.mode = NAND_ECC_HW_SYNDROME;
 	chip->ecc.size = R852_DMA_LEN;
 	chip->ecc.bytes = SM_OOB_SIZE;
+	chip->ecc.strength = 2;
 	chip->ecc.hwctl = r852_ecc_hwctl;
 	chip->ecc.calculate = r852_ecc_calculate;
 	chip->ecc.correct = r852_ecc_correct;

@@ -18,6 +18,7 @@
 #include <asm/archrandom.h>
 #include <asm/hypervisor.h>
 #include <asm/processor.h>
+#include <asm/debugreg.h>
 #include <asm/sections.h>
 #include <linux/topology.h>
 #include <linux/cpumask.h>
@@ -998,7 +999,7 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 	else
 		printk(KERN_CONT "\n");
 
-	__print_cpu_msr();
+	print_cpu_msr(c);
 }
 
 void __cpuinit print_cpu_msr(struct cpuinfo_x86 *c)

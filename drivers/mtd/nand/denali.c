@@ -1590,6 +1590,7 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 			ECC_15BITS * (denali->mtd.writesize /
 			ECC_SECTOR_SIZE)))) {
 		/* if MLC OOB size is large enough, use 15bit ECC*/
+		denali->nand.ecc.strength = 15;
 		denali->nand.ecc.layout = &nand_15bit_oob;
 		denali->nand.ecc.bytes = ECC_15BITS;
 		iowrite32(15, denali->flash_reg + ECC_CORRECTION);
@@ -1600,12 +1601,14 @@ static int denali_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 				" contain 8bit ECC correction codes");
 		goto failed_req_irq;
 	} else {
+		denali->nand.ecc.strength = 8;
 		denali->nand.ecc.layout = &nand_8bit_oob;
 		denali->nand.ecc.bytes = ECC_8BITS;
 		iowrite32(8, denali->flash_reg + ECC_CORRECTION);
 	}
 
 	denali->nand.ecc.bytes *= denali->devnum;
+	denali->nand.ecc.strength *= denali->devnum;
 	denali->nand.ecc.layout->eccbytes *=
 		denali->mtd.writesize / ECC_SECTOR_SIZE;
 	denali->nand.ecc.layout->oobfree[0].offset =

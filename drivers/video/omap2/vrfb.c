@@ -27,7 +27,6 @@
 #include <linux/bitops.h>
 #include <linux/mutex.h>
 
-#include <mach/io.h>
 #include <plat/vrfb.h>
 #include <plat/sdrc.h>
 

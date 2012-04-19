@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/personality.h> /* for STICKY_TIMEOUTS */
@@ -348,7 +348,7 @@ static int max_select_fd(unsigned long n, fd_set_bits *fds)
 	set = ~(~0UL << (n & (__NFDBITS-1)));
 	n /= __NFDBITS;
 	fdt = files_fdtable(current->files);
-	open_fds = fdt->open_fds->fds_bits+n;
+	open_fds = fdt->open_fds + n;
 	max = 0;
 	if (set) {
 		set &= BITS(fds, n);

@@ -13,7 +13,7 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/aio_abi.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/syscalls.h>
 #include <linux/backing-dev.h>
 #include <linux/uio.h>
@@ -305,15 +305,18 @@ out_freectx:
 	return ERR_PTR(err);
 }
 
-/* aio_cancel_all
+/* kill_ctx
  *	Cancels all outstanding aio requests on an aio context.  Used 
  *	when the processes owning a context have all exited to encourage 
  *	the rapid destruction of the kioctx.
  */
-static void aio_cancel_all(struct kioctx *ctx)
+static void kill_ctx(struct kioctx *ctx)
 {
 	int (*cancel)(struct kiocb *, struct io_event *);
+	struct task_struct *tsk = current;
+	DECLARE_WAITQUEUE(wait, tsk);
 	struct io_event res;
+
 	spin_lock_irq(&ctx->ctx_lock);
 	ctx->dead = 1;
 	while (!list_empty(&ctx->active_reqs)) {
@@ -329,15 +332,7 @@ static void aio_cancel_all(struct kioctx *ctx)
 			spin_lock_irq(&ctx->ctx_lock);
 		}
 	}
-	spin_unlock_irq(&ctx->ctx_lock);
-}
 
-static void wait_for_all_aios(struct kioctx *ctx)
-{
-	struct task_struct *tsk = current;
-	DECLARE_WAITQUEUE(wait, tsk);
-
-	spin_lock_irq(&ctx->ctx_lock);
 	if (!ctx->reqs_active)
 		goto out;
 
@@ -387,9 +382,7 @@ void exit_aio(struct mm_struct *mm)
 		ctx = hlist_entry(mm->ioctx_list.first, struct kioctx, list);
 		hlist_del_rcu(&ctx->list);
 
-		aio_cancel_all(ctx);
-
-		wait_for_all_aios(ctx);
+		kill_ctx(ctx);
 
 		if (1 != atomic_read(&ctx->users))
 			printk(KERN_DEBUG
@@ -1269,8 +1262,7 @@ static void io_destroy(struct kioctx *ioctx)
 	if (likely(!was_dead))
 		put_ioctx(ioctx);	/* twice for the list */
 
-	aio_cancel_all(ioctx);
-	wait_for_all_aios(ioctx);
+	kill_ctx(ioctx);
 
 	/*
 	 * Wake up any waiters.  The setting of ctx->dead must be seen
@@ -1278,7 +1270,6 @@ static void io_destroy(struct kioctx *ioctx)
 	 * locking done by the above calls to ensure this consistency.
 	 */
 	wake_up_all(&ioctx->wait);
-	put_ioctx(ioctx);	/* once for the lookup */
 }
 
 /* sys_io_setup:
@@ -1315,11 +1306,9 @@ SYSCALL_DEFINE2(io_setup, unsigned, nr_events, aio_context_t __user *, ctxp)
 	ret = PTR_ERR(ioctx);
 	if (!IS_ERR(ioctx)) {
 		ret = put_user(ioctx->user_id, ctxp);
-		if (!ret) {
-			put_ioctx(ioctx);
-			return 0;
-		}
-		io_destroy(ioctx);
+		if (ret)
+			io_destroy(ioctx);
+		put_ioctx(ioctx);
 	}
 
 out:
@@ -1337,6 +1326,7 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	struct kioctx *ioctx = lookup_ioctx(ctx);
 	if (likely(NULL != ioctx)) {
 		io_destroy(ioctx);
+		put_ioctx(ioctx);
 		return 0;
 	}
 	pr_debug("EINVAL: io_destroy: invalid context id\n");

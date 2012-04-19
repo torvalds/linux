@@ -19,6 +19,10 @@
 #include <asm/siginfo.h>
 #include <asm/signal.h>
 
+#ifndef COMPAT_USE_64BIT_TIME
+#define COMPAT_USE_64BIT_TIME 0
+#endif
+
 #define compat_jiffies_to_clock_t(x)	\
 		(((unsigned long)(x) * COMPAT_USER_HZ) / HZ)
 
@@ -83,10 +87,26 @@ typedef struct {
 	compat_sigset_word	sig[_COMPAT_NSIG_WORDS];
 } compat_sigset_t;
 
+/*
+ * These functions operate strictly on struct compat_time*
+ */
 extern int get_compat_timespec(struct timespec *,
 			       const struct compat_timespec __user *);
 extern int put_compat_timespec(const struct timespec *,
 			       struct compat_timespec __user *);
+extern int get_compat_timeval(struct timeval *,
+			      const struct compat_timeval __user *);
+extern int put_compat_timeval(const struct timeval *,
+			      struct compat_timeval __user *);
+/*
+ * These functions operate on 32- or 64-bit specs depending on
+ * COMPAT_USE_64BIT_TIME, hence the void user pointer arguments and the
+ * naming as compat_get/put_ rather than get/put_compat_.
+ */
+extern int compat_get_timespec(struct timespec *, const void __user *);
+extern int compat_put_timespec(const struct timespec *, void __user *);
+extern int compat_get_timeval(struct timeval *, const void __user *);
+extern int compat_put_timeval(const struct timeval *, void __user *);
 
 struct compat_iovec {
 	compat_uptr_t	iov_base;
@@ -224,6 +244,7 @@ struct compat_sysinfo;
 struct compat_sysctl_args;
 struct compat_kexec_segment;
 struct compat_mq_attr;
+struct compat_msgbuf;
 
 extern void compat_exit_robust_list(struct task_struct *curr);
 
@@ -234,13 +255,22 @@ asmlinkage long
 compat_sys_get_robust_list(int pid, compat_uptr_t __user *head_ptr,
 			   compat_size_t __user *len_ptr);
 
+#ifdef CONFIG_ARCH_WANT_OLD_COMPAT_IPC
 long compat_sys_semctl(int first, int second, int third, void __user *uptr);
 long compat_sys_msgsnd(int first, int second, int third, void __user *uptr);
 long compat_sys_msgrcv(int first, int second, int msgtyp, int third,
 		int version, void __user *uptr);
-long compat_sys_msgctl(int first, int second, void __user *uptr);
 long compat_sys_shmat(int first, int second, compat_uptr_t third, int version,
 		void __user *uptr);
+#else
+long compat_sys_semctl(int semid, int semnum, int cmd, int arg);
+long compat_sys_msgsnd(int msqid, struct compat_msgbuf __user *msgp,
+		size_t msgsz, int msgflg);
+long compat_sys_msgrcv(int msqid, struct compat_msgbuf __user *msgp,
+		size_t msgsz, long msgtyp, int msgflg);
+long compat_sys_shmat(int shmid, compat_uptr_t shmaddr, int shmflg);
+#endif
+long compat_sys_msgctl(int first, int second, void __user *uptr);
 long compat_sys_shmctl(int first, int second, void __user *uptr);
 long compat_sys_semtimedop(int semid, struct sembuf __user *tsems,
 		unsigned nsems, const struct compat_timespec __user *timeout);

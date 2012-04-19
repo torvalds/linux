@@ -76,8 +76,6 @@ enum da9052_chip_id {
 struct da9052_pdata;
 
 struct da9052 {
-	struct mutex io_lock;
-
 	struct device *dev;
 	struct regmap *regmap;
 

@@ -27,6 +27,7 @@
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/lowcore.h>
+#include <asm/switch_to.h>
 #include "compat_linux.h"
 #include "compat_ptrace.h"
 #include "entry.h"

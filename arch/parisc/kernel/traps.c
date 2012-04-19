@@ -27,7 +27,6 @@
 #include <linux/bug.h>
 
 #include <asm/assembly.h>
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>

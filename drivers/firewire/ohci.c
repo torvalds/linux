@@ -46,7 +46,6 @@
 
 #include <asm/byteorder.h>
 #include <asm/page.h>
-#include <asm/system.h>
 
 #ifdef CONFIG_PPC_PMAC
 #include <asm/pmac_feature.h>

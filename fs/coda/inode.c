@@ -21,7 +21,6 @@
 #include <linux/vfs.h>
 #include <linux/slab.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 
 #include <linux/fs.h>

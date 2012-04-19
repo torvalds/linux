@@ -13,6 +13,8 @@
  * warranty of any kind, whether express or implied.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/types.h>
@@ -25,7 +27,7 @@
 #include <linux/uaccess.h>
 #include <mach/hardware.h>
 
-static int nowayout = WATCHDOG_NOWAYOUT;
+static bool nowayout = WATCHDOG_NOWAYOUT;
 static int heartbeat = 60;	/* (secs) Default is 1 minute */
 static unsigned long wdt_status;
 static unsigned long boot_status;
@@ -147,8 +149,7 @@ static int ixp4xx_wdt_release(struct inode *inode, struct file *file)
 	if (test_bit(WDT_OK_TO_CLOSE, &wdt_status))
 		wdt_disable();
 	else
-		printk(KERN_CRIT "WATCHDOG: Device closed unexpectedly - "
-					"timer will not stop\n");
+		pr_crit("Device closed unexpectedly - timer will not stop\n");
 	clear_bit(WDT_IN_USE, &wdt_status);
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 
@@ -176,8 +177,7 @@ static int __init ixp4xx_wdt_init(void)
 	int ret;
 
 	if (!(read_cpuid_id() & 0xf) && !cpu_is_ixp46x()) {
-		printk(KERN_ERR "IXP4XXX Watchdog: Rev. A0 IXP42x CPU detected"
-			" - watchdog disabled\n");
+		pr_err("Rev. A0 IXP42x CPU detected - watchdog disabled\n");
 
 		return -ENODEV;
 	}
@@ -185,8 +185,7 @@ static int __init ixp4xx_wdt_init(void)
 			WDIOF_CARDRESET : 0;
 	ret = misc_register(&ixp4xx_wdt_miscdev);
 	if (ret == 0)
-		printk(KERN_INFO "IXP4xx Watchdog Timer: heartbeat %d sec\n",
-			heartbeat);
+		pr_info("timer heartbeat %d sec\n", heartbeat);
 	return ret;
 }
 
@@ -205,7 +204,7 @@ MODULE_DESCRIPTION("IXP4xx Network Processor Watchdog");
 module_param(heartbeat, int, 0);
 MODULE_PARM_DESC(heartbeat, "Watchdog heartbeat in seconds (default 60s)");
 
-module_param(nowayout, int, 0);
+module_param(nowayout, bool, 0);
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started");
 
 MODULE_LICENSE("GPL");

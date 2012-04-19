@@ -241,9 +241,8 @@ command you are interested in.
 
 *  I have more questions, who can I ask?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-And I'll answer any questions about the registration system you got, also
-responding as soon as possible.
- -Crutcher
+Just ask them on the linux-kernel mailing list:
+	linux-kernel@vger.kernel.org
 
 *  Credits
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

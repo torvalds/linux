@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <asm/traps.h>
 #include <asm/mach/arch.h>
 
 #include "mm.h"
@@ -39,6 +40,7 @@ void __init sanity_check_meminfo(void)
  */
 void __init paging_init(struct machine_desc *mdesc)
 {
+	early_trap_init((void *)CONFIG_VECTORS_BASE);
 	bootmem_init();
 }
 
@@ -86,13 +88,17 @@ void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
 }
 EXPORT_SYMBOL(__arm_ioremap);
 
+void __iomem * (*arch_ioremap_caller)(unsigned long, size_t, unsigned int, void *);
+
 void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
 				   unsigned int mtype, void *caller)
 {
 	return __arm_ioremap(phys_addr, size, mtype);
 }
 
-void __iounmap(volatile void __iomem *addr)
+void (*arch_iounmap)(volatile void __iomem *);
+
+void __arm_iounmap(volatile void __iomem *addr)
 {
 }
-EXPORT_SYMBOL(__iounmap);
+EXPORT_SYMBOL(__arm_iounmap);

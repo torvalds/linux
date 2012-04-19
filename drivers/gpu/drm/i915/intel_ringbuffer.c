@@ -626,7 +626,7 @@ gen6_ring_get_seqno(struct intel_ring_buffer *ring)
 	/* Workaround to force correct ordering between irq and seqno writes on
 	 * ivb (and maybe also on snb) by reading from a CS register (like
 	 * ACTHD) before reading the status page. */
-	if (IS_GEN7(dev))
+	if (IS_GEN6(dev) || IS_GEN7(dev))
 		intel_ring_get_active_head(ring);
 	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
 }
@@ -1038,7 +1038,7 @@ int intel_init_ring_buffer(struct drm_device *dev,
 	 * of the buffer.
 	 */
 	ring->effective_size = ring->size;
-	if (IS_I830(ring->dev))
+	if (IS_I830(ring->dev) || IS_845G(ring->dev))
 		ring->effective_size -= 128;
 
 	return 0;

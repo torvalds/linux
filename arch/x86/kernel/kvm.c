@@ -38,6 +38,7 @@
 #include <asm/traps.h>
 #include <asm/desc.h>
 #include <asm/tlbflush.h>
+#include <asm/idle.h>
 
 static int kvmapf = 1;
 
@@ -253,7 +254,10 @@ do_async_page_fault(struct pt_regs *regs, unsigned long error_code)
 		kvm_async_pf_task_wait((u32)read_cr2());
 		break;
 	case KVM_PV_REASON_PAGE_READY:
+		rcu_irq_enter();
+		exit_idle();
 		kvm_async_pf_task_wake((u32)read_cr2());
+		rcu_irq_exit();
 		break;
 	}
 }

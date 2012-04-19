@@ -41,14 +41,16 @@
 
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
-#include <asm/system.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/time.h>
+#include <asm/runlatch.h>
 #include <asm/syscalls.h>
+#include <asm/switch_to.h>
+#include <asm/debug.h>
 #ifdef CONFIG_PPC64
 #include <asm/firmware.h>
 #endif
@@ -1233,7 +1235,7 @@ void __ppc64_runlatch_on(void)
 	ctrl |= CTRL_RUNLATCH;
 	mtspr(SPRN_CTRLT, ctrl);
 
-	ti->local_flags |= TLF_RUNLATCH;
+	ti->local_flags |= _TLF_RUNLATCH;
 }
 
 /* Called with hard IRQs off */
@@ -1242,7 +1244,7 @@ void __ppc64_runlatch_off(void)
 	struct thread_info *ti = current_thread_info();
 	unsigned long ctrl;
 
-	ti->local_flags &= ~TLF_RUNLATCH;
+	ti->local_flags &= ~_TLF_RUNLATCH;
 
 	ctrl = mfspr(SPRN_CTRLF);
 	ctrl &= ~CTRL_RUNLATCH;

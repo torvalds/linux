@@ -290,6 +290,7 @@ static int pci_frontend_enable_msix(struct pci_dev *dev,
 		} else {
 			printk(KERN_DEBUG "enable msix get value %x\n",
 				op.value);
+			err = op.value;
 		}
 	} else {
 		dev_err(&dev->dev, "enable msix get err %x\n", err);
@@ -544,7 +545,7 @@ static void free_root_bus_devs(struct pci_bus *bus)
 		dev = container_of(bus->devices.next, struct pci_dev,
 				   bus_list);
 		dev_dbg(&dev->dev, "removing device\n");
-		pci_remove_bus_device(dev);
+		pci_stop_and_remove_bus_device(dev);
 	}
 }
 
@@ -1044,7 +1045,7 @@ static int pcifront_detach_devices(struct pcifront_device *pdev)
 				domain, bus, slot, func);
 			continue;
 		}
-		pci_remove_bus_device(pci_dev);
+		pci_stop_and_remove_bus_device(pci_dev);
 		pci_dev_put(pci_dev);
 
 		dev_dbg(&pdev->xdev->dev,

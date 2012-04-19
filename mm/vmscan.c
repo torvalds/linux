@@ -2107,12 +2107,7 @@ restart:
 		 * with multiple processes reclaiming pages, the total
 		 * freeing target can get unreasonably large.
 		 */
-		if (nr_reclaimed >= nr_to_reclaim)
-			nr_to_reclaim = 0;
-		else
-			nr_to_reclaim -= nr_reclaimed;
-
-		if (!nr_to_reclaim && priority < DEF_PRIORITY)
+		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
 			break;
 	}
 	blk_finish_plug(&plug);
@@ -2946,7 +2941,8 @@ out:
 				continue;
 
 			/* Would compaction fail due to lack of free memory? */
-			if (compaction_suitable(zone, order) == COMPACT_SKIPPED)
+			if (COMPACTION_BUILD &&
+			    compaction_suitable(zone, order) == COMPACT_SKIPPED)
 				goto loop_again;
 
 			/* Confirm the zone is balanced for order-0 */

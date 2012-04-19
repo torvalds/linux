@@ -48,7 +48,7 @@
 
 #define _COMPONENT          ACPI_EVENTS
 ACPI_MODULE_NAME("evgpeinit")
-
+#if (!ACPI_REDUCED_HARDWARE)	/* Entire module */
 /*
  * Note: History of _PRW support in ACPICA
  *
@@ -440,3 +440,5 @@ acpi_ev_match_gpe_method(acpi_handle obj_handle,
 			  name, gpe_number));
 	return_ACPI_STATUS(AE_OK);
 }
+
+#endif				/* !ACPI_REDUCED_HARDWARE */

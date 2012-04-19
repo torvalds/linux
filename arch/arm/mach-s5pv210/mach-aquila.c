@@ -484,8 +484,8 @@ static struct wm8994_pdata wm8994_platform_data = {
 	.gpio_defaults[8] = 0x0100,
 	.gpio_defaults[9] = 0x0100,
 	.gpio_defaults[10] = 0x0100,
-	.ldo[0]	= { S5PV210_MP03(6), NULL, &wm8994_ldo1_data },	/* XM0FRNB_2 */
-	.ldo[1]	= { 0, NULL, &wm8994_ldo2_data },
+	.ldo[0]	= { S5PV210_MP03(6), &wm8994_ldo1_data },	/* XM0FRNB_2 */
+	.ldo[1]	= { 0, &wm8994_ldo2_data },
 };
 
 /* GPIO I2C PMIC */
@@ -616,6 +616,7 @@ static struct platform_device *aquila_devices[] __initdata = {
 	&s5p_device_fimc0,
 	&s5p_device_fimc1,
 	&s5p_device_fimc2,
+	&s5p_device_fimc_md,
 	&s5pv210_device_iis0,
 	&wm8994_fixed_voltage0,
 	&wm8994_fixed_voltage1,

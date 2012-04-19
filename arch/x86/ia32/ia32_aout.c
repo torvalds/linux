@@ -26,7 +26,6 @@
 #include <linux/init.h>
 #include <linux/jiffies.h>
 
-#include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>

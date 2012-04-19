@@ -1086,8 +1086,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			no_x2apic_optout
 				BIOS x2APIC opt-out request will be ignored
 
-	inttest=	[IA-64]
-
 	iomem=		Disable strict checking of access to MMIO memory
 		strict	regions from userspace.
 		relaxed
@@ -1701,6 +1699,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			The default is to send the implementation identification
 			information.
 
+	nfsd.nfs4_disable_idmapping=
+			[NFSv4] When set to the default of '1', the NFSv4
+			server will return only numeric uids and gids to
+			clients using auth_sys, and will accept numeric uids
+			and gids from such clients.  This is intended to ease
+			migration from NFSv2/v3.
 
 	objlayoutdriver.osd_login_prog=
 			[NFS] [OBJLAYOUT] sets the pathname to the program which
@@ -1870,6 +1874,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	nonmi_ipi	[X86] Disable using NMI IPIs during panic/reboot to
 			shutdown the other cpus.  Instead use the REBOOT_VECTOR
 			irq.
+
+	nomodule	Disable module load
 
 	nopat		[X86] Disable PAT (page attribute table extension of
 			pagetables) support.
@@ -2147,14 +2153,24 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 				the default.
 				off: Turn ECRC off
 				on: Turn ECRC on.
-		realloc		reallocate PCI resources if allocations done by BIOS
-				are erroneous.
+		realloc=	Enable/disable reallocating PCI bridge resources
+				if allocations done by BIOS are too small to
+				accommodate resources required by all child
+				devices.
+				off: Turn realloc off
+				on: Turn realloc on
+		realloc		same as realloc=on
+		noari		do not use PCIe ARI.
 
 	pcie_aspm=	[PCIE] Forcibly enable or disable PCIe Active State Power
 			Management.
 		off	Disable ASPM.
 		force	Enable ASPM even on devices that claim not to support it.
 			WARNING: Forcing ASPM on may cause system lockups.
+
+	pcie_hp=	[PCIE] PCI Express Hotplug driver options:
+		nomsi	Do not use MSI for PCI Express Native Hotplug (this
+			makes all PCIe ports use INTx for hotplug services).
 
 	pcie_ports=	[PCIE] PCIe ports handling:
 		auto	Ask the BIOS whether or not to use native PCIe services

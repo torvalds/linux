@@ -43,6 +43,7 @@
 #include <linux/errno.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/bug.h>
 
 #include <plat/clock.h>
 

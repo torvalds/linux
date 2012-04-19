@@ -12,6 +12,7 @@
 
 #include <linux/slab.h>
 #include <linux/export.h>
+#include <linux/device.h>
 #include <trace/events/regmap.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>
@@ -345,6 +346,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(regcache_sync_region);
 
 /**
  * regcache_cache_only: Put a register map into cache only mode

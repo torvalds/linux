@@ -13,6 +13,7 @@
 #include <asm/io.h>
 #include <asm/pal.h>
 #include <asm/sal.h>
+#include <asm/setup.h>
 
 #include "ssc.h"
 

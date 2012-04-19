@@ -25,12 +25,12 @@
 #include <linux/compat.h>
 #include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
-#include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
 #include <asm/sections.h>
 #include <asm/vdso.h>
+#include <asm/facility.h>
 
 #if defined(CONFIG_32BIT) || defined(CONFIG_COMPAT)
 extern char vdso32_start, vdso32_end;
@@ -241,17 +241,11 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * on the "data" page of the vDSO or you'll stop getting kernel
 	 * updates and your nice userland gettimeofday will be totally dead.
 	 * It's fine to use that for setting breakpoints in the vDSO code
-	 * pages though
-	 *
-	 * Make sure the vDSO gets into every core dump.
-	 * Dumping its contents makes post-mortem fully interpretable later
-	 * without matching up the same kernel and hardware config to see
-	 * what PC values meant.
+	 * pages though.
 	 */
 	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
 				     VM_READ|VM_EXEC|
-				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC|
-				     VM_ALWAYSDUMP,
+				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
 				     vdso_pagelist);
 	if (rc)
 		current->mm->context.vdso_base = 0;

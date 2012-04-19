@@ -18,4 +18,5 @@
 #define HW_DIGCTL_CTRL			0x0
 #define  BP_DIGCTL_CTRL_SAIF_CLKMUX	10
 #define  BM_DIGCTL_CTRL_SAIF_CLKMUX	(0x3 << 10)
+#define HW_DIGCTL_CHIPID		0x310
 #endif
