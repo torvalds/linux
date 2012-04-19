@@ -8,6 +8,7 @@
 #include <linux/clk.h>
 #include <mach/iomux.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_ARCH_RK30
 #define RK610_RESET_PIN   RK30_PIN0_PC6
@@ -26,9 +27,9 @@
 
 static struct i2c_client *rk610_control_client = NULL;
 #ifdef CONFIG_RK610_LCD
-extern int rk610_lcd_init(struct i2c_client *client);
+extern int rk610_lcd_init(struct rk610_core_info *rk610_core_info);
 #else
-int rk610_lcd_init(struct i2c_client *client){}
+int rk610_lcd_init(struct rk610_core_info *rk610_core_info){}
 #endif
 int rk610_control_send_byte(const char reg, const char data)
 {
@@ -203,14 +204,22 @@ static struct device_attribute rk610_attrs[] = {
 	__ATTR(reg_ctl, 0777,rk610_show_reg_attrs,rk610_store_reg_attrs),
 };
 #endif
+
 static int rk610_control_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
     int ret;
     struct clk *iis_clk;
-	
+	struct rk610_core_info *core_info = NULL; 
 	DBG("[%s] start\n", __FUNCTION__);
-	
+	core_info = kmalloc(sizeof(struct rk610_core_info), GFP_KERNEL);
+    if(!core_info)
+    {
+        dev_err(&client->dev, ">> rk610 core inf kmalloc fail!");
+        return -ENOMEM;
+    }
+    memset(core_info, 0, sizeof(struct rk610_core_info));
+    
 		iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
 		if (IS_ERR(iis_clk)) {
 			printk("failed to get i2s clk\n");
@@ -237,13 +246,13 @@ static int rk610_control_probe(struct i2c_client *client,
 	    else {
 	    	DBG("rk610_control_probe request gpio ok\n");
 	    	gpio_direction_output(RK610_RESET_PIN, GPIO_HIGH);
-	    	msleep(100);
 		    gpio_direction_output(RK610_RESET_PIN, GPIO_LOW);
 			msleep(100);
 		    gpio_set_value(RK610_RESET_PIN, GPIO_HIGH);
 		}
 	}
-	rk610_lcd_init(client);
+    core_info->client = client;
+	rk610_lcd_init(core_info);
 	#ifdef RK610_DEBUG
 	device_create_file(&(client->dev), &rk610_attrs[0]);
     #endif

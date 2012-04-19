@@ -37,7 +37,10 @@ static int rk610_hdmi_precent(struct hdmi *hdmi)
 
 static int rk610_hdmi_param_chg(struct rk610_hdmi_inf *rk610_hdmi)
 {
+    int resolution_real;
     RK610_DBG(&rk610_hdmi->client->dev,"%s \n",__FUNCTION__);
+    resolution_real = Rk610_Get_Optimal_resolution(rk610_hdmi->hdmi->resolution);
+    rk610_hdmi->hdmi->resolution = resolution_real;
 	hdmi_switch_fb(rk610_hdmi->hdmi, rk610_hdmi->hdmi->display_on);
 	Rk610_hdmi_Set_Video(rk610_hdmi->hdmi->resolution);
     Rk610_hdmi_Set_Audio(rk610_hdmi->hdmi->audio_fs);
@@ -294,6 +297,6 @@ static void __exit rk610_hdmi_module_exit(void)
     i2c_del_driver(&rk610_hdmi_i2c_driver);
 }
 
-late_initcall(rk610_hdmi_module_init);
+module_init(rk610_hdmi_module_init);
 //module_init(rk610_hdmi_module_init);
 module_exit(rk610_hdmi_module_exit);

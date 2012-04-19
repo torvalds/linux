@@ -11,7 +11,13 @@ void rk29_backlight_set(bool on)
 	*/
 }
 #endif
+#ifdef CONFIG_FB_RK29 && CONFIG_HDMI_DUAL_DISP
+extern void rk29_lcd_set(bool on);
+#else
+void rk29_lcd_set(bool on){}
+#endif
 void hdmi_set_backlight(int on)
 {
 	rk29_backlight_set(on);
+	rk29_lcd_set(on);
 }

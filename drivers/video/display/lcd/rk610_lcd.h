@@ -1,8 +1,11 @@
 #ifndef _RK610_LCD_H
 #define _RK610_LCD_H
+#include <linux/mfd/rk610_core.h>
 #include "../screen/screen.h"
+#include <linux/earlysuspend.h>
 #define ENABLE      1
 #define DISABLE     0
+
 /*      LVDS config         */
 /*                  LVDS 外部连线接法                       */
 /*          LVDS_8BIT_1    LVDS_8BIT_2     LVDS_8BIT_3     LVDS_6BIT
@@ -58,6 +61,14 @@ Y   TX11    G7              G1              GND             GND
 //LCD1 output source
 #define LCD1_FROM_LCD0  0
 #define LCD1_FROM_SCL   1
+
+//SCALER config
+#define NOBYPASS    0
+#define BYPASS      1
+
+//SCALER PLL config
+#define S_PLL_PWR_ON    0
+#define S_PLL_PWR_DOWN  1
 
 /*      clock config        */
 #define S_PLL_FROM_DIV      0
@@ -151,22 +162,12 @@ Y   TX11    G7              G1              GND             GND
 #define SCL_V_BORD_END_LSB(x)              ((x)&0xff)      //dsp_vbord_end[7:0]
 //SCL_CON25
 #define SCL_V_BORD_END_MSB(x)        (((x)>>8)&0xf)      //dsp_vbord_end[11:8]
-#if 0
-/****************LCD STRUCT********/
-#define PLL_CLKOD(i)	((i) & 0x03)
-#define PLL_NO_1	PLL_CLKOD(0)
-#define PLL_NO_2	PLL_CLKOD(1)
-#define PLL_NO_4	PLL_CLKOD(2)
-#define PLL_NO_8	PLL_CLKOD(3)
-#define SCALE_PLL(_parent_rate , _rate, _m, _n, _od) \
-{ \
-	.parent_rate	= _parent_rate, \
-	.rate           = _rate,          \
-	.m	            = _m,            \
-	.n	            = _n,            \
-	.od             = _od,         \
-}
-#endif
+
+enum {
+    LCD_OUT_SCL,
+    LCD_OUT_BYPASS,
+    LCD_OUT_DISABLE,
+};
 struct rk610_pll_info{
     u32 parent_rate;
     u32 rate;
@@ -191,11 +192,23 @@ struct scl_hv_info{
     int scl_h ;
     int scl_v;
     };
-struct rk610_lcd_info{
-    int enable;
-    struct scl_hv_info scl;
-    struct lcd_mode_inf *lcd_mode;
+
+struct scl_info{
+    bool pll_pwr;
+    bool scl_pwr;
+    struct scl_hv_info scl_hv;
 };
-extern int rk610_lcd_init(struct i2c_client *client);
+struct rk610_lcd_info{
+    int disp_mode;
+    
+    struct rk29fb_screen *screen;
+    struct scl_info scl_inf;
+    struct i2c_client *client;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	struct early_suspend		early_suspend;
+#endif
+};
+extern int rk610_lcd_init(struct rk610_core_info *rk610_core_info);
 extern int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable );
 #endif

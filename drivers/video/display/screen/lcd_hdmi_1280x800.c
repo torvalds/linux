@@ -125,13 +125,18 @@
 
 #define S5_H_ST			476
 #define S5_V_ST			48
+
+#define S_DCLK_POL       0
+
 /* Other */
 #define DCLK_POL		0
 #define SWAP_RB			0 
-
 #ifdef  CONFIG_HDMI_DUAL_DISP
 static int set_scaler_info(struct rk29fb_screen *screen, u8 hdmi_resolution)
 {
+    screen->s_clk_inv = S_DCLK_POL;
+    screen->s_den_inv = 0;
+    screen->s_hv_sync_inv = 0;
     switch(hdmi_resolution){
     case HDMI_1920x1080p_60Hz:
                 /* Scaler Timing    */
@@ -235,7 +240,8 @@ void set_lcd_info(struct rk29fb_screen *screen,  struct rk29lcd_info *lcd_info )
     /* screen type & face */
     screen->type = OUT_TYPE;
     screen->face = OUT_FACE;
-
+    screen->hw_format = OUT_FORMAT;
+    
     /* Screen size */
     screen->x_res = H_VD;
     screen->y_res = V_VD;

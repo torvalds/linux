@@ -236,18 +236,7 @@ struct rk29fb_inf {
 #endif
 
 };
-#ifdef CONFIG_BACKLIGHT_RK29_BL
-/* drivers/video/backlight/rk29_backlight.c */
-extern void rk29_backlight_set(bool on);
-#else
-void rk29_backlight_set(bool on)
-{
-	/* please add backlight switching-related code here or on your backlight driver
-	   parameter: on=1 ==> open spk 
-	   			  on=0 ==> close spk
-	*/
-}
-#endif
+
 typedef enum _TRSP_MODE
 {
     TRSP_CLOSE = 0,
@@ -345,7 +334,15 @@ static int rk29fb_notify(struct rk29fb_inf *inf, unsigned long event)
 {
 	return blocking_notifier_call_chain(&rk29fb_notifier_list, event, inf->cur_screen);
 }
+void rk29_lcd_set(bool on)
+{
+    struct rk29fb_info *mach_info = g_pdev->dev.platform_data;
+    if(on == 1 &&mach_info->io_enable)
+        mach_info->io_enable();       //open lcd out
+    else if(mach_info->io_disable)
+        mach_info->io_disable();  //close lcd out
 
+}
 int mcu_do_refresh(struct rk29fb_inf *inf)
 {
     if(inf->mcu_stopflush)  return 0;
@@ -3089,10 +3086,13 @@ static void rk29fb_early_suspend(struct early_suspend *h)
 #ifdef CONFIG_CLOSE_WIN1_DYNAMIC   
      cancel_delayed_work_sync(&rk29_win1_check_work);
 #endif  
-
+#ifdef CONFIG_HDMI_DUAL_DISP
+    if(mach_info->io_disable)  // close lcd pwr when output screen is lcd
+       mach_info->io_disable();  //close lcd out 
+#else
     if((inf->cur_screen != &inf->panel2_info) && mach_info->io_disable)  // close lcd pwr when output screen is lcd
        mach_info->io_disable();  //close lcd out 
-
+#endif
 	if(inf->cur_screen->standby)
 	{
 		fbprintk(">>>>>> power down the screen! \n");
@@ -3177,10 +3177,13 @@ static void rk29fb_early_resume(struct early_suspend *h)
     usleep_range(10*1000, 10*1000);
     memcpy((u8*)inf->preg, (u8*)&inf->regbak, 0xa4);  //resume reg
     usleep_range(40*1000, 40*1000);
-    
+    #ifdef CONFIG_HDMI_DUAL_DISP
+    if(mach_info->io_enable)  // open lcd pwr when output screen is lcd
+       mach_info->io_enable();  //close lcd out 
+    #else
     if((inf->cur_screen != &inf->panel2_info) && mach_info->io_enable)  // open lcd pwr when output screen is lcd
        mach_info->io_enable();  //close lcd out 
-       	
+    #endif
 }
 
 static struct suspend_info suspend_info = {

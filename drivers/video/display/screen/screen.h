@@ -117,6 +117,9 @@ typedef struct rk29fb_screen {
 	u16 s_vsync_len; 
 	u16 s_hsync_st;
 	u16 s_vsync_st;
+	bool s_den_inv;
+	bool s_hv_sync_inv;
+	bool s_clk_inv;
 #endif
 	u8 hdmi_resolution;
     /* mcu need */

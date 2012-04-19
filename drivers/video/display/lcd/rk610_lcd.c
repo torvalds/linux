@@ -8,7 +8,7 @@
 #include "rk610_lcd.h"
 #include <linux/mfd/rk610_core.h>
 #include "../../rk29_fb.h"
-static struct i2c_client *rk610_g_lcd_client=NULL;
+static struct rk610_lcd_info *g_lcd_inf = NULL;
 //static int rk610_scaler_read_p0_reg(struct i2c_client *client, char reg, char *val)
 //{
 	//return i2c_master_reg8_recv(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
@@ -22,6 +22,9 @@ static void rk610_scaler_pll_enable(struct i2c_client *client)
 {
     char c;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+
+    g_lcd_inf->scl_inf.pll_pwr = ENABLE;
+    
     c = S_PLL_PWR(0)|S_PLL_RESET(0)|S_PLL_BYPASS(0);
 	rk610_scaler_write_p0_reg(client, S_PLL_CON2, &c);
 }
@@ -29,39 +32,77 @@ static void rk610_scaler_pll_disable(struct i2c_client *client)
 {
     char c;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+    
+    g_lcd_inf->scl_inf.pll_pwr = DISABLE;
+
     c = S_PLL_PWR(1) |S_PLL_RESET(0) |S_PLL_BYPASS(1);
 	rk610_scaler_write_p0_reg(client, S_PLL_CON2, &c);
 }
 static void rk610_scaler_enable(struct i2c_client *client)
 {
     char c;
+    bool den_inv = 0,hv_sync_inv = 0,clk_inv = 0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
-    
-    c= SCL_BYPASS(0) |SCL_DEN_INV(0) |SCL_H_V_SYNC_INV(0) |SCL_OUT_CLK_INV(0) |SCL_ENABLE(ENABLE);  
+    g_lcd_inf->scl_inf.scl_pwr = ENABLE;
+    #ifdef CONFIG_HDMI_DUAL_DISP
+    if(g_lcd_inf->screen !=NULL){
+        den_inv = g_lcd_inf->screen->s_den_inv;
+        hv_sync_inv = g_lcd_inf->screen->s_hv_sync_inv;
+        clk_inv = g_lcd_inf->screen->s_clk_inv;
+    }
+    #endif
+    c= SCL_BYPASS(0) |SCL_DEN_INV(den_inv) |SCL_H_V_SYNC_INV(hv_sync_inv) |SCL_OUT_CLK_INV(clk_inv) |SCL_ENABLE(ENABLE);  
 	rk610_scaler_write_p0_reg(client, SCL_CON0, &c);
 }
 static void rk610_scaler_disable(struct i2c_client *client)
 {
     char c;
+    bool den_inv = 0,hv_sync_inv = 0,clk_inv = 0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     
-    c= SCL_BYPASS(1) |SCL_DEN_INV(0) |SCL_H_V_SYNC_INV(0) |SCL_OUT_CLK_INV(0) |SCL_ENABLE(DISABLE); 
+    g_lcd_inf->scl_inf.scl_pwr = DISABLE;
+    #ifdef CONFIG_HDMI_DUAL_DISP
+    if(g_lcd_inf->screen !=NULL){
+        den_inv = g_lcd_inf->screen->s_den_inv;
+        hv_sync_inv = g_lcd_inf->screen->s_hv_sync_inv;
+        clk_inv = g_lcd_inf->screen->s_clk_inv;
+    }
+    #endif
+    c= SCL_BYPASS(1) |SCL_DEN_INV(den_inv) |SCL_H_V_SYNC_INV(hv_sync_inv) |SCL_OUT_CLK_INV(clk_inv) |SCL_ENABLE(DISABLE); 
     rk610_scaler_write_p0_reg(client, SCL_CON0, &c);
 }
-static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *screen,bool enable)
+
+static int rk610_output_config(struct i2c_client *client,struct rk29fb_screen *screen,int mode)
 {
     char c=0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
      if(SCREEN_LVDS == screen->type){
-        c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(1) |LVDS_PLL_PWR_PIN(0) \
-            |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) |LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL) \
-            |LVDS_OUTPUT_FORMAT(screen->hw_format) | LVDS_BIASE_PWR(1); 
-	    rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
-        c = LVDS_OUT_ENABLE(0x0) |LVDS_TX_PWR_ENABLE(0x0); 
-	    rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
+        if(mode == LCD_OUT_SCL || mode == LCD_OUT_BYPASS){
+            c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(1) |LVDS_PLL_PWR_PIN(0) \
+                |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) |LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL) \
+                |LVDS_OUTPUT_FORMAT(screen->hw_format) | LVDS_BIASE_PWR(1); 
+	        rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
+            c = LVDS_OUT_ENABLE(0x0) |LVDS_TX_PWR_ENABLE(0x0); 
+	        rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
+	    }
+	    else{
+	        c = LVDS_OUT_CLK_PIN(0) |LVDS_OUT_CLK_PWR_PIN(0) |LVDS_PLL_PWR_PIN(1) \
+                |LVDS_LANE_IN_FORMAT(DATA_D0_MSB) |LVDS_INPUT_SOURCE(FROM_LCD0_OR_SCL) \
+                |LVDS_OUTPUT_FORMAT(screen->hw_format) | LVDS_BIASE_PWR(0); 
+	        rk610_scaler_write_p0_reg(client, LVDS_CON0, &c);
+            c = LVDS_OUT_ENABLE(0xf) |LVDS_TX_PWR_ENABLE(0xf); 
+	        rk610_scaler_write_p0_reg(client, LVDS_CON1, &c);
+             
+	    }
 	}else if(SCREEN_RGB == screen->type){
-        c = LCD1_OUT_ENABLE(LCD1_AS_OUT) | LCD1_OUT_SRC(enable?LCD1_FROM_SCL : LCD1_FROM_LCD0);
-	    rk610_scaler_write_p0_reg(client, LCD1_CON, &c);
+	    if(mode == LCD_OUT_SCL || mode == LCD_OUT_BYPASS){
+            c = LCD1_OUT_ENABLE(LCD1_AS_OUT) | LCD1_OUT_SRC((mode == LCD_OUT_SCL)?LCD1_FROM_SCL : LCD1_FROM_LCD0);
+	        rk610_scaler_write_p0_reg(client, LCD1_CON, &c);
+	    }
+	    else {
+            c = LCD1_OUT_ENABLE(LCD1_AS_IN);
+	        rk610_scaler_write_p0_reg(client, LCD1_CON, &c);
+	    }
 	}
 	return 0;
 }
@@ -265,37 +306,109 @@ static int rk610_lcd_scaler_bypass(struct i2c_client *client,bool enable)//enabl
 {
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     
+    rk610_scaler_disable(client);       
     rk610_scaler_pll_disable(client);
-    rk610_scaler_disable(client);
-   
+    
     return 0;
 }
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void rk610_lcd_early_suspend(struct early_suspend *h)
+{
+    struct i2c_client *client = g_lcd_inf->client;
+    char c;
+    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+    if(g_lcd_inf->screen != NULL){
+        rk610_output_config(client,g_lcd_inf->screen,LCD_OUT_DISABLE);
+    }
+
+    if(ENABLE == g_lcd_inf->scl_inf.scl_pwr){
+        c= SCL_BYPASS(1) |SCL_DEN_INV(0) |SCL_H_V_SYNC_INV(0) |SCL_OUT_CLK_INV(0) |SCL_ENABLE(DISABLE); 
+        rk610_scaler_write_p0_reg(client, SCL_CON0, &c);
+    }
+    if(ENABLE == g_lcd_inf->scl_inf.pll_pwr ){
+        c = S_PLL_PWR(1) |S_PLL_RESET(0) |S_PLL_BYPASS(1);
+	    rk610_scaler_write_p0_reg(client, S_PLL_CON2, &c);
+    }
+}
+
+static void rk610_lcd_early_resume(struct early_suspend *h)
+{
+    struct i2c_client *client = g_lcd_inf->client;
+    char c;
+    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+
+    if(g_lcd_inf->screen != NULL){
+        rk610_output_config(client,g_lcd_inf->screen,g_lcd_inf->disp_mode);
+    }
+    if(ENABLE == g_lcd_inf->scl_inf.scl_pwr){
+        c= SCL_BYPASS(0) |SCL_DEN_INV(0) |SCL_H_V_SYNC_INV(0) |SCL_OUT_CLK_INV(0) |SCL_ENABLE(ENABLE);  
+	    rk610_scaler_write_p0_reg(client, SCL_CON0, &c);
+    }
+    if(ENABLE == g_lcd_inf->scl_inf.pll_pwr ){
+        c = S_PLL_PWR(1) |S_PLL_RESET(0) |S_PLL_BYPASS(1);
+	    rk610_scaler_write_p0_reg(client, S_PLL_CON2, &c);
+    }
+}
+#endif
 int rk610_lcd_scaler_set_param(struct rk29fb_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
     int ret=0;
-    struct i2c_client *client = rk610_g_lcd_client;
-    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+    struct i2c_client *client = g_lcd_inf->client;
     if(client == NULL){
-    RK610_ERR(&client->dev,"%s client == NULL FAIL\n",__FUNCTION__);
-    return -1;
+        printk("%s client == NULL FAIL\n",__FUNCTION__);
+        return -1;
     }
+    if(screen == NULL){
+        printk("%s screen == NULL FAIL\n",__FUNCTION__);
+        return -1;
+    }
+    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+    
+    g_lcd_inf->screen = screen;
     
 #ifdef CONFIG_HDMI_DUAL_DISP
     if(enable == 1){
-        rk610_output_config(client,screen,1);
+        g_lcd_inf->disp_mode = LCD_OUT_SCL;
+        rk610_output_config(client,screen,LCD_OUT_SCL);
         ret = rk610_scaler_chg(client,screen);
 	}
 	else 
 #endif
 	{
-	    rk610_output_config(client,screen,0);
+	    g_lcd_inf->disp_mode = LCD_OUT_BYPASS;
+	    rk610_output_config(client,screen,LCD_OUT_BYPASS);
 	    ret = rk610_lcd_scaler_bypass(client,enable);
 	}
 	return ret;
 }
-int rk610_lcd_init(struct i2c_client *client)
+int rk610_lcd_init(struct rk610_core_info *rk610_core_info)
 {
-    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
-    rk610_g_lcd_client = client;
+    if(rk610_core_info->client == NULL){
+        printk("%s client == NULL FAIL\n",__FUNCTION__);
+        return -1;
+    }
+    RK610_DBG(&rk610_core_info->client->dev,"%s \n",__FUNCTION__);
+
+    g_lcd_inf = kmalloc(sizeof(struct rk610_lcd_info), GFP_KERNEL);
+    if(!g_lcd_inf)
+    {
+        dev_err(&rk610_core_info->client->dev, ">> rk610 inf kmalloc fail!");
+        return -ENOMEM;
+    }
+    memset(g_lcd_inf, 0, sizeof(struct rk610_lcd_info));
+
+    g_lcd_inf->client= rk610_core_info->client;
+    
+    rk610_core_info->lcd_pdata = (void *)g_lcd_inf;
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	g_lcd_inf->early_suspend.suspend = rk610_lcd_early_suspend;
+	g_lcd_inf->early_suspend.resume = rk610_lcd_early_resume;
+	g_lcd_inf->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
+	register_early_suspend(&g_lcd_inf->early_suspend);
+#endif
+    g_lcd_inf->scl_inf.pll_pwr = DISABLE;
+    g_lcd_inf->scl_inf.scl_pwr = DISABLE;
+    g_lcd_inf->disp_mode = LCD_OUT_BYPASS;
     return 0;
 }

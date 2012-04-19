@@ -5,7 +5,13 @@
 static struct rk610_hdmi_hw_inf g_hw_inf;
 static EDID_INF g_edid;
 static byte edid_buf[EDID_BLOCK_SIZE];
+static struct edid_result Rk610_edid_result;
+byte DoEdidRead (struct i2c_client *client);
 static int RK610_hdmi_soft_reset(struct i2c_client *client);
+static int Rk610_hdmi_Display_switch(struct i2c_client *client);
+static void Rk610_hdmi_plug(struct i2c_client *client);
+static void Rk610_hdmi_unplug(struct i2c_client *client);
+
 static int Rk610_hdmi_i2c_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
 	return i2c_master_reg8_recv(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
@@ -20,35 +26,29 @@ static int Rk610_hdmi_pwr_mode(struct i2c_client *client, int mode)
     char c;
     int ret=0;
     switch(mode){
-    case NORMAL:
-		c=0x82;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);
-	    c=0x00;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
-        c=0x00;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe7, &c);
+     case NORMAL:
         c=0x00;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe4, &c);
+	    c=0x00;
+	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe7, &c);
         c=0x8e;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe1, &c);
+	    c=0x00;
+	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
+		c=0x82;
+	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);   
 	    break;
 	case LOWER_PWR:
-        c=0x02;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);
-	    c=0x1c;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
-	    break;
-	case SHUTDOWN:
 		c=0x02;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);
 	    c=0x1c;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
+	    c=0x8c;
+	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe1, &c);
         c=0x04;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe7, &c);
 	    c=0x03;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe4, &c);
-        c=0x8c;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe1, &c);
 	    break;
 	default:
 	    RK610_ERR(&client->dev,"unkown rk610 hdmi pwr mode %d\n",mode);
@@ -61,15 +61,26 @@ int Rk610_hdmi_suspend(struct i2c_client *client)
 {
     int ret = 0;
 	RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
-	ret = Rk610_hdmi_pwr_mode(client,SHUTDOWN);
+	g_hw_inf.suspend_flag = 1;
+	g_hw_inf.hpd = 0;
+	Rk610_hdmi_unplug(client);
 	return ret;
 }
 int Rk610_hdmi_resume(struct i2c_client *client)
 {
 	int ret = 0;
+	char c = 0;
 	RK610_DBG(&client->dev, "%s \n",__FUNCTION__);
-	ret = Rk610_hdmi_pwr_mode(client,NORMAL);
-	RK610_hdmi_soft_reset(client);
+	Rk610_hdmi_i2c_read_p0_reg(client, 0xc8, &c);
+	if(c & RK610_HPD_PLUG ){
+        Rk610_hdmi_plug(client);
+		g_hw_inf.hpd=1;
+	}
+	else{
+        Rk610_hdmi_unplug(client);
+		g_hw_inf.hpd=0;
+	}
+	g_hw_inf.suspend_flag = 0;
 	return ret;
 }
 #endif
@@ -127,7 +138,7 @@ static int RK610_read_edid_block(struct i2c_client *client,u8 block, u8 * buf)
 	c=0xc6;
 	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xc0, &c);
 	//wait edid interrupt
-    msleep(100);
+    msleep(10);
 	RK610_DBG(&client->dev,"Interrupt generated\n");
 	c=0x00;
 	ret =Rk610_hdmi_i2c_read_p0_reg(client, 0xc1, &c);
@@ -135,7 +146,6 @@ static int RK610_read_edid_block(struct i2c_client *client,u8 block, u8 * buf)
 	//clear EDID interrupt reg
 	c=0x04;
 	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xc1, &c);
-	msleep(100);
 	for(i=0; i <EDID_BLOCK_SIZE;i++){
 	    c = 0;	    
 		Rk610_hdmi_i2c_read_p0_reg(client, 0x50, &c);
@@ -704,6 +714,117 @@ static byte ParseEDID (struct i2c_client *client,byte *pEdid, byte *numExt)
 	}
 	return EDID_OK;
 }
+
+int Rk610_Parse_resolution(void)
+{
+    int i,vic;
+    memset(&Rk610_edid_result,0,sizeof(struct edid_result));
+    for(i=0;i < MAX_V_DESCRIPTORS;i++){
+        vic = g_edid.VideoDescriptor[i]&0x7f;
+        if(vic == HDMI_VIC_1080p_50Hz)
+            Rk610_edid_result.supported_1080p_50Hz = 1;
+        else if(vic == HDMI_VIC_1080p_60Hz)
+            Rk610_edid_result.supported_1080p_60Hz = 1; 
+        else if(vic == HDMI_VIC_720p_50Hz)
+            Rk610_edid_result.supported_720p_50Hz = 1; 
+        else if(vic == HDMI_VIC_720p_60Hz)
+            Rk610_edid_result.supported_720p_60Hz = 1; 
+        else if(vic == HDMI_VIC_576p_50Hz)
+            Rk610_edid_result.supported_576p_50Hz = 1; 
+        else if(vic == HDMI_VIC_480p_60Hz)
+            Rk610_edid_result.supported_720x480p_60Hz = 1; 
+    }
+    #ifdef  RK610_DEBUG
+    printk("rk610_hdmi:1080p_50Hz %s\n",Rk610_edid_result.supported_1080p_50Hz?"support":"not support");
+    printk("rk610_hdmi:1080p_60Hz %s\n",Rk610_edid_result.supported_1080p_60Hz?"support":"not support");
+    printk("rk610_hdmi:720p_50Hz %s\n",Rk610_edid_result.supported_720p_50Hz?"support":"not support");
+    printk("rk610_hdmi:720p_60Hz %s\n",Rk610_edid_result.supported_720p_60Hz?"support":"not support");
+    printk("rk610_hdmi:576p_50Hz %s\n",Rk610_edid_result.supported_576p_50Hz?"support":"not support");
+    printk("rk610_hdmi:720x480p_60Hz %s\n",Rk610_edid_result.supported_720x480p_60Hz?"support":"not support");
+    #endif
+    return 0;
+}
+
+int Rk610_Get_Optimal_resolution(int resolution_set)
+{
+	int resolution_real;
+	int find_resolution = 0;
+	
+    Rk610_Parse_resolution();
+	switch(resolution_set){
+	case HDMI_1280x720p_50Hz:
+		if(Rk610_edid_result.supported_720p_50Hz){
+			resolution_real = HDMI_1280x720p_50Hz;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_1280x720p_60Hz:
+		if(Rk610_edid_result.supported_720p_60Hz){
+			resolution_real = HDMI_1280x720p_60Hz;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x576p_50Hz_4x3:
+		if(Rk610_edid_result.supported_576p_50Hz){
+			resolution_real = HDMI_720x576p_50Hz_4x3;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x576p_50Hz_16x9:
+		if(Rk610_edid_result.supported_576p_50Hz){
+			resolution_real = HDMI_720x576p_50Hz_16x9;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x480p_60Hz_4x3:
+		if(Rk610_edid_result.supported_720x480p_60Hz){
+			resolution_real = HDMI_720x480p_60Hz_4x3;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_720x480p_60Hz_16x9:
+		if(Rk610_edid_result.supported_720x480p_60Hz){
+			resolution_real = HDMI_720x480p_60Hz_16x9;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_1920x1080p_50Hz:
+		if(Rk610_edid_result.supported_1080p_50Hz){
+			resolution_real = HDMI_1920x1080p_50Hz;
+			find_resolution = 1;
+		}
+		break;
+	case HDMI_1920x1080p_60Hz:
+		if(Rk610_edid_result.supported_1080p_60Hz){
+			resolution_real = HDMI_1920x1080p_60Hz;
+			find_resolution = 1;
+		}
+		break;
+	default:
+		break;
+	}
+
+	if(find_resolution == 0){
+
+		if(Rk610_edid_result.supported_720p_50Hz)
+			resolution_real = HDMI_1280x720p_50Hz;
+		else if(Rk610_edid_result.supported_720p_60Hz)
+			resolution_real = HDMI_1280x720p_60Hz;
+		else if(Rk610_edid_result.supported_1080p_50Hz)
+			resolution_real = HDMI_1920x1080p_50Hz;
+		else if(Rk610_edid_result.supported_1080p_60Hz)
+			resolution_real = HDMI_1920x1080p_60Hz;
+		else if(Rk610_edid_result.supported_576p_50Hz)
+			resolution_real = HDMI_720x576p_50Hz_4x3;
+		else if(Rk610_edid_result.supported_720x480p_60Hz)
+			resolution_real = HDMI_720x480p_60Hz_4x3;
+		else
+			resolution_real = HDMI_1280x720p_60Hz;
+	}
+
+	return resolution_real;
+}
+
 byte DoEdidRead (struct i2c_client *client)
 {
     u8 NumOfExtensions=0;
@@ -718,37 +839,43 @@ byte DoEdidRead (struct i2c_client *client)
         memset(edid_buf,0,EDID_BLOCK_SIZE);
 		RK610_read_edid_block(client,EDID_BLOCK0, edid_buf);		// read first 128 bytes of EDID ROM
         RK610_DBG(&client->dev,"/************first block*******/\n");
+        #ifdef  RK610_DEBUG
 	    for (j=0; j<EDID_BLOCK_SIZE; j++)
 	        {
-	        if(j%16==0)
-	        printk("\n%x :",j);
-	        printk("%2.2x ", edid_buf[j]);
+	            if(j%16==0)
+	                printk("\n%x :",j);
+	                printk("%2.2x ", edid_buf[j]);
 	        }
+	    #endif
         Result = ParseEDID(client,edid_buf, &NumOfExtensions);
         if(Result!=EDID_OK){
             if(Result==EDID_NO_861_EXTENSIONS){
                 g_edid.HDMI_Sink = FALSE;
             }
-            else{
-                g_edid.HDMI_Sink = TRUE;
+            else {
+                g_edid.HDMI_Sink = FALSE;
+                return FALSE;
             }
         }
 	    else{
+	    	NumOfExtensions = edid_buf[NUM_OF_EXTEN_ADDR];
+	        for(i=1;i<=NumOfExtensions;i++){
+	        RK610_DBG(&client->dev,"\n/************block %d*******/\n",i);
+	        memset(edid_buf,0,EDID_BLOCK_SIZE);
+            RK610_read_edid_block(client,i, edid_buf); 
+            Parse861ShortDescriptors(client,edid_buf);
+        #ifdef  RK610_DEBUG
+            for (j=0; j<EDID_BLOCK_SIZE; j++){
+	            if(j%16==0)
+	            printk("\n%x :",j);
+	            printk("%2.2X ", edid_buf[j]);
+	            }
+	    #endif
+	        }
+
             g_edid.HDMI_Sink = TRUE;
 	    }
-	    NumOfExtensions = edid_buf[NUM_OF_EXTEN_ADDR];
-	    for(i=1;i<=NumOfExtensions;i++){
-	    RK610_DBG(&client->dev,"\n/************block %d*******/\n",i);
-	    memset(edid_buf,0,EDID_BLOCK_SIZE);
-           RK610_read_edid_block(client,i, edid_buf); 
-           Parse861ShortDescriptors(client,edid_buf);
-           for (j=0; j<EDID_BLOCK_SIZE; j++)
-	        {
-	        if(j%16==0)
-	        printk("\n%x :",j);
-	        printk("%2.2X ", edid_buf[j]);
-	        }
-	    }
+
 #if 0
 		Result = ParseEDID(edid_buf, &NumOfExtensions);
 			if (Result != EDID_OK)
@@ -803,6 +930,7 @@ byte DoEdidRead (struct i2c_client *client)
 	}
 	return TRUE;
 }
+
 static int Rk610_hdmi_Display_switch(struct i2c_client *client)
 {
     char c;
@@ -884,23 +1012,23 @@ static int Rk610_hdmi_Config_Video(struct i2c_client *client, u8 video_format)
     switch(video_format){
 		case HDMI_720x480p_60Hz_4x3:
 		case HDMI_720x480p_60Hz_16x9:
-			vic = 0x02;
+			vic = HDMI_VIC_480p_60Hz;
 			break;
         case HDMI_720x576p_50Hz_4x3:
         case HDMI_720x576p_50Hz_16x9:
-            vic = 0x11;
+            vic = HDMI_VIC_576p_50Hz;
             break;
 		case HDMI_1280x720p_50Hz:
-		    vic = 0x13;
+		    vic = HDMI_VIC_720p_50Hz;
 			break;
 		case HDMI_1280x720p_60Hz:
-			vic = 0x04;
+			vic = HDMI_VIC_720p_60Hz;
 			break;
 		case HDMI_1920x1080p_50Hz:
-		    vic = 0x1f;
+		    vic = HDMI_VIC_1080p_50Hz;
 			break;
 		case HDMI_1920x1080p_60Hz:
-			vic = 0x10;
+			vic = HDMI_VIC_1080p_60Hz;
 			break;
 		default:
 			vic = 0x04;
@@ -971,49 +1099,62 @@ static int RK610_hdmi_PLL_mode(struct i2c_client *client)
     char c;
     int ret=0;
     c=0x10;
-	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe8, &c);
+	ret = Rk610_hdmi_i2c_write_p0_reg(client, 0xe8, &c);
 	c=0x2c;
-	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe6, &c);
+	ret = Rk610_hdmi_i2c_write_p0_reg(client, 0xe6, &c);
 	c=0x00;
-	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
+	ret = Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
 	return 0;
+}
+static void Rk610_hdmi_plug(struct i2c_client *client)
+{
+    RK610_DBG(&client->dev,">>> hdmi plug \n");
+	DoEdidRead(client);
+	Rk610_hdmi_Display_switch(client);
+	Rk610_hdmi_pwr_mode(client,LOWER_PWR);
+	Rk610_hdmi_pwr_mode(client,NORMAL);
+}
+static void Rk610_hdmi_unplug(struct i2c_client *client)
+{
+    RK610_DBG(&client->dev,">>> hdmi unplug \n");
+	g_edid.edidDataValid = FALSE;
+	Rk610_hdmi_pwr_mode(client,LOWER_PWR); 
 }
 void Rk610_hdmi_event_work(struct i2c_client *client, bool *hpd)
 {
 	char c=0;
 	int ret=0;
+    if(g_hw_inf.suspend_flag == 1){
+        *hpd = 0;
+        return ;
+    }
 
 	c=0x00;
 	ret =Rk610_hdmi_i2c_read_p0_reg(client, 0xc1, &c);
 	if(c & RK610_HPD_EVENT){
 		RK610_DBG(&client->dev,">>>HPD EVENT\n");
 		/**********clear hpd event******/
-		c=RK610_HPD_EVENT;
+		c = RK610_HPD_EVENT;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xc1, &c);
-		c=0x00;
 	    ret =Rk610_hdmi_i2c_read_p0_reg(client, 0xc8, &c);
 		if(c & RK610_HPD_PLUG ){
-			RK610_DBG(&client->dev,">>> hdmi plug \n");
-			DoEdidRead(client);
-			Rk610_hdmi_Display_switch(client);
-			Rk610_hdmi_pwr_mode(client,NORMAL);
-			*hpd=1;
+            Rk610_hdmi_plug(client);
+			g_hw_inf.hpd=1;
 		}
 		else{
-			RK610_DBG(&client->dev,">>> hdmi unplug \n");
-			g_edid.edidDataValid = FALSE;
-			Rk610_hdmi_pwr_mode(client,LOWER_PWR);
-			*hpd=0;
+            Rk610_hdmi_unplug(client);
+			g_hw_inf.hpd=0;
 		}
 
 	}
 	if(c & RK610_EDID_EVENT){
 			/**********clear hpd event******/
-		c=RK610_EDID_EVENT;
+		c = RK610_EDID_EVENT;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xc1, &c);
 		RK610_DBG(&client->dev,">>>EDID EVENT\n");
 		/*************clear edid event*********/
 	}
+	*hpd = g_hw_inf.hpd;
 }
 int Rk610_hdmi_Config_Done(struct i2c_client *client)
 {
@@ -1077,10 +1218,13 @@ static void Rk610_hdmi_Variable_Initial(void)
     g_hw_inf.audio_fs = HDMI_I2S_DEFAULT_Fs;
     g_hw_inf.video_format = HDMI_DEFAULT_RESOLUTION;
     g_hw_inf.config_param = AUDIO_CHANGE | VIDEO_CHANGE;
+    g_hw_inf.hpd = 0;
+    g_hw_inf.suspend_flag = 0;
 
 }
 int Rk610_hdmi_init(struct i2c_client *client)
 {
+    char c;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     Rk610_hdmi_Variable_Initial();
     RK610_hdmi_soft_reset(client);
@@ -1090,5 +1234,13 @@ int Rk610_hdmi_init(struct i2c_client *client)
 	Rk610_hdmi_Set_Audio(g_hw_inf.audio_fs);
     Rk610_hdmi_Config_Done(client);
     
+    Rk610_hdmi_i2c_read_p0_reg(client, 0xc8, &c);
+    if(c & RK610_HPD_PLUG ){
+        Rk610_hdmi_plug(client);
+	    g_hw_inf.hpd=1;
+	}else{
+        Rk610_hdmi_unplug(client);
+	    g_hw_inf.hpd=0;
+	}
 	return 0;
 }

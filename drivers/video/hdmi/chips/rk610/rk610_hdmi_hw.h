@@ -143,12 +143,57 @@ enum{
 #define INTER_PROGRESSIVE(x)    (x)<<1  //0: progressive 1:interlace
 #define VIDEO_SET_ENABLE(x)     (x)<<0  //0:disable 1: enable
 
+/*          0xe1        */  
+//Main-driver strength :0000~1111: the strength from low to high
+#define M_DRIVER_STR(x)         (((x)&0xf)<<4)
+//Pre-driver strength  :00~11: the strength from low to high
+#define P_DRIVER_STR(x)         (((x)&3)<<2)
+//TX driver enable  1: enable   0: disable
+#define TX_DRIVER_EN(x)         (((x)&1)<<1)
+/*          0xe2        */ 
+//Pre-emphasis strength 00~11: the strength from 0 to high
+#define P_EMPHASIS_STR(x)       (((x)&3)<<4)
+//Power down TMDS driver      1: power down. 0: not
+#define PWR_DOWN_TMDS(x)        (((x)&1)<<0)
+/*          0xe3        */ 
+//PLL out enable.   Just for test. need set to 1¡¯b0
+#define PLL_OUT_EN(x)           (((x)&1)<<7)
+/*          0xe4        */
+// Band-Gap power down  11: power down  00: not
+#define BAND_PWR(x)             (((x)&3)<<0)
+/*          0xe5        */ 
+//PLL disable   1: disable  0: enable
+#define PLL_PWR(x)              (((x)&1)<<4)
+//  PLL reset   1: reset    0: not
+#define PLL_RST(x)              (((x)&1)<<3)
+//PHY TMDS channels reset   1: reset    0: not
+#define TMDS_RST(x)             (((x)&1)<<2)
+/*          0xe7        */ 
+// PLL LDO power down   1: power down   0: not
+#define PLL_LDO_PWR(x)      (((x)&1)<<2) 
+
+
 /**********CONFIG CHANGE ************/
 #define VIDEO_CHANGE            1<<0
 #define AUDIO_CHANGE            1<<1
 
 #define byte    u8
 
+#define HDMI_VIC_1080p_50Hz	    0x1f
+#define HDMI_VIC_1080p_60Hz 	0x10
+#define HDMI_VIC_720p_50Hz 	    0x13
+#define HDMI_VIC_720p_60Hz		0x04
+#define HDMI_VIC_576p_50Hz	    0x11
+#define HDMI_VIC_480p_60Hz  	0x02
+
+struct edid_result{
+    bool supported_720p_50Hz;
+	bool supported_720p_60Hz;
+	bool supported_576p_50Hz;
+	bool supported_720x480p_60Hz;
+	bool supported_1080p_50Hz;
+	bool supported_1080p_60Hz;
+};
 typedef struct edid_info
 {												// for storing EDID parsed data
 	byte edidDataValid;
@@ -186,7 +231,6 @@ enum EDID_ErrorCodes
 enum PWR_MODE{
     NORMAL,
     LOWER_PWR,
-    SHUTDOWN,
 };
 struct rk610_hdmi_hw_inf{
     struct i2c_client *client;
@@ -194,6 +238,8 @@ struct rk610_hdmi_hw_inf{
     u8 video_format;
     u8 audio_fs;
     u8 config_param;
+    bool suspend_flag;
+    bool hpd;
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -203,6 +249,7 @@ extern int Rk610_hdmi_resume(struct i2c_client *client);
 extern int Rk610_hdmi_Set_Video(u8 video_format);
 extern int Rk610_hdmi_Set_Audio(u8 audio_fs);
 extern int Rk610_hdmi_Config_Done(struct i2c_client *client);
+extern int Rk610_Get_Optimal_resolution(int resolution_set);
 extern void Rk610_hdmi_event_work(struct i2c_client *client, bool *hpd);
 extern int Rk610_hdmi_init(struct i2c_client *client);
 #endif

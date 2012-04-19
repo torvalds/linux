@@ -136,6 +136,10 @@ enum {
 #define CODEC_CON       0x2e
 #define I2C_CON         0x2f
 
+struct rk610_core_info{
+    struct i2c_client *client;
+    void *lcd_pdata;
+};
 
 extern int rk610_control_send_byte(const char reg, const char data);
 
