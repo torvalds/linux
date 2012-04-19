@@ -338,8 +338,6 @@ config SH_APSH4AD0A
 	help
 	  Select AP-SH4AD-0A if configuring for an ALPHAPROJECT AP-SH4AD-0A.
 
-endmenu
-
 source "arch/sh/boards/mach-r2d/Kconfig"
 source "arch/sh/boards/mach-highlander/Kconfig"
 source "arch/sh/boards/mach-sdk7780/Kconfig"
@@ -359,3 +357,5 @@ config SH_MAGIC_PANEL_R2_VERSION
 endmenu
 
 endif
+
+endmenu
