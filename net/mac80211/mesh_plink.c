@@ -295,7 +295,8 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 	spin_lock_bh(&sta->lock);
 	sta->last_rx = jiffies;
 	sta->sta.supp_rates[band] = rates;
-	if (elems->ht_cap_elem)
+	if (elems->ht_cap_elem &&
+	    sdata->local->_oper_channel_type != NL80211_CHAN_NO_HT)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
 						  &sta->sta.ht_cap);
