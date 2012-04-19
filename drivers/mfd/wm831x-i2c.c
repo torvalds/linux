@@ -207,8 +207,8 @@ static int wm831x_i2c_resume(struct device *dev)
 void wm831x_i2c_shutdown(struct i2c_client *i2c)
 {
 	struct wm831x *wm831x = i2c_get_clientdata(i2c);
-	printk("%s\n", __FUNCTION__);
-	wm831x_device_shutdown(wm831x);
+//	printk("%s\n", __FUNCTION__);
+//	wm831x_device_shutdown(wm831x);
 }
 
 static const struct i2c_device_id wm831x_i2c_id[] = {
