@@ -11,3 +11,4 @@ obj-y += dts/
 obj-$(CONFIG_EARLY_PRINTK) += early_printk.o
 
 obj-$(CONFIG_SOC_TYPE_XWAY) += xway/
+obj-$(CONFIG_SOC_FALCON) += falcon/

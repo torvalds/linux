@@ -16,6 +16,10 @@ config SOC_XWAY
 	bool "XWAY"
 	select SOC_TYPE_XWAY
 	select HW_HAS_PCI
+
+config SOC_FALCON
+	bool "FALCON"
+
 endchoice
 
 choice
