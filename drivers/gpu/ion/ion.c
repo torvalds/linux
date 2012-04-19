@@ -207,10 +207,8 @@ static void ion_handle_destroy(struct kref *kref)
 	   if (handle->map_cnt) unmap
 	 */
 	ion_buffer_put(handle->buffer);
-	mutex_lock(&handle->client->lock);
 	if (!RB_EMPTY_NODE(&handle->node))
 		rb_erase(&handle->node, &handle->client->handles);
-	mutex_unlock(&handle->client->lock);
 	kfree(handle);
 }
 
@@ -345,13 +343,13 @@ void ion_free(struct ion_client *client, struct ion_handle *handle)
 
 	mutex_lock(&client->lock);
 	valid_handle = ion_handle_validate(client, handle);
-	mutex_unlock(&client->lock);
-
 	if (!valid_handle) {
+	        mutex_unlock(&client->lock);
 		WARN("%s: invalid handle passed to free.\n", __func__);
 		return;
 	}
 	ion_handle_put(handle);
+	mutex_unlock(&client->lock);
 }
 
 static void ion_client_get(struct ion_client *client);
@@ -407,7 +405,9 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 		return -ENODEV;
 	}
 	mutex_unlock(&client->lock);
+	mutex_lock(&buffer->lock);
 	ret = buffer->heap->ops->phys(buffer->heap, buffer, addr, len);
+	mutex_unlock(&buffer->lock);
 	return ret;
 }
 
@@ -821,19 +821,23 @@ static void ion_vma_close(struct vm_area_struct *vma)
 		 atomic_read(&client->ref.refcount),
 		 atomic_read(&handle->ref.refcount),
 		 atomic_read(&buffer->ref.refcount));
+	mutex_lock(&client->lock);
 	ion_handle_put(handle);
+	mutex_unlock(&client->lock);
 	ion_client_put(client);
 	pr_debug("%s: %d client_cnt %d handle_cnt %d alloc_cnt %d\n",
 		 __func__, __LINE__,
 		 atomic_read(&client->ref.refcount),
 		 atomic_read(&handle->ref.refcount),
 		 atomic_read(&buffer->ref.refcount));
+	mutex_lock(&buffer->lock);
 	list_for_each_entry(map, &buffer->map_addr, list)
 		if(map->vaddr == vma->vm_start){
 			list_del(&map->list);
                         kfree(map);
 			break;
 		}
+	mutex_unlock(&buffer->lock);
 }
 
 static struct vm_operations_struct ion_vm_ops = {
@@ -903,7 +907,9 @@ static int ion_share_mmap(struct file *file, struct vm_area_struct *vma)
 		goto err1;
 	map->vaddr = vma->vm_start;
 	map->size = buffer->size;
+	mutex_lock(&buffer->lock);
 	list_add_tail(&map->list, &buffer->map_addr);
+	mutex_unlock(&buffer->lock);
 	pr_debug("%s: %d client_cnt %d handle_cnt %d alloc_cnt %d\n",
 		 __func__, __LINE__,
 		 atomic_read(&client->ref.refcount),
@@ -914,7 +920,9 @@ static int ion_share_mmap(struct file *file, struct vm_area_struct *vma)
 
 err1:
 	/* drop the reference to the handle */
+	mutex_lock(&client->lock);
 	ion_handle_put(handle);
+	mutex_unlock(&client->lock);
 err:
 	/* drop the reference to the client */
 	ion_client_put(client);
@@ -946,9 +954,11 @@ static long ion_share_ioctl(struct file *filp, unsigned int cmd, unsigned long a
 				sizeof(struct ion_pmem_region)))
 			return -EFAULT;
                 if(!(region.offset & 0xf0000000)) {
+			mutex_lock(&buffer->lock);
                         list_for_each_entry(map, &buffer->map_addr, list) {
 		                dmac_flush_range((void *)map->vaddr, (void *)(map->vaddr + map->size));
                         }
+			mutex_unlock(&buffer->lock);
                 }else {
 		        dmac_flush_range((void *)region.offset, (void *)(region.offset + region.len));
                 }
@@ -1009,7 +1019,7 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 					     data.flags);
 		if (IS_ERR_OR_NULL(data.handle)) {
 			pr_err("%s: alloc 0x%x bytes failed\n", __func__, data.len);
-            return -ENOMEM;
+                        return -ENOMEM;
 		} 
 		if (copy_to_user((void __user *)arg, &data, sizeof(data)))
 			return -EFAULT;
@@ -1040,8 +1050,8 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 		mutex_lock(&client->lock);
 		if (!ion_handle_validate(client, data.handle)) {
-			pr_err("%s: invalid handle passed to share ioctl.\n",
-			       __func__);
+			pr_err("%s: invalid handle(%p) passed to share ioctl\n",
+			       __func__, data.handle);
 			mutex_unlock(&client->lock);
 			return -EINVAL;
 		}
@@ -1109,7 +1119,9 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		if(ion_handle_validate(client, data.handle)){
 			buffer = data.handle->buffer;
 			if(buffer->heap->ops->cache_op){
+				mutex_lock(&buffer->lock);
 				buffer->heap->ops->cache_op(buffer->heap, buffer, data.virt, data.type);
+				mutex_unlock(&buffer->lock);
 				err = 0;
 			}
 		}
