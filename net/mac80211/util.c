@@ -1684,7 +1684,9 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 		break;
 	}
-	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
+	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+	    channel_type != NL80211_CHAN_NO_HT &&
+	    channel_type != NL80211_CHAN_HT20)
 		ht_oper->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 
 	/*
