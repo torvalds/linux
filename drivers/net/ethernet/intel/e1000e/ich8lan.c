@@ -116,6 +116,7 @@
 
 #define E1000_ICH_RAR_ENTRIES		7
 #define E1000_PCH2_RAR_ENTRIES		5 /* RAR[0], SHRA[0-3] */
+#define E1000_PCH_LPT_RAR_ENTRIES	12 /* RAR[0], SHRA[0-10] */
 
 #define PHY_PAGE_SHIFT 5
 #define PHY_REG(page, reg) (((page) << PHY_PAGE_SHIFT) | \
@@ -131,11 +132,18 @@
 
 #define SW_FLAG_TIMEOUT    1000 /* SW Semaphore flag timeout in milliseconds */
 
+/* SMBus Control Phy Register */
+#define CV_SMB_CTRL		PHY_REG(769, 23)
+#define CV_SMB_CTRL_FORCE_SMBUS	0x0001
+
 /* SMBus Address Phy Register */
 #define HV_SMB_ADDR            PHY_REG(768, 26)
 #define HV_SMB_ADDR_MASK       0x007F
 #define HV_SMB_ADDR_PEC_EN     0x0200
 #define HV_SMB_ADDR_VALID      0x0080
+#define HV_SMB_ADDR_FREQ_MASK           0x1100
+#define HV_SMB_ADDR_FREQ_LOW_SHIFT      8
+#define HV_SMB_ADDR_FREQ_HIGH_SHIFT     12
 
 /* PHY Power Management Control */
 #define HV_PM_CTRL		PHY_REG(770, 17)
@@ -152,11 +160,26 @@
 #define I82579_LPI_UPDATE_TIMER 0x4805	/* in 40ns units + 40 ns base value */
 #define I82579_MSE_THRESHOLD    0x084F	/* Mean Square Error Threshold */
 #define I82579_MSE_LINK_DOWN    0x2411	/* MSE count before dropping link */
+#define I217_EEE_ADVERTISEMENT  0x8001	/* IEEE MMD Register 7.60 */
+#define I217_EEE_LP_ABILITY     0x8002	/* IEEE MMD Register 7.61 */
+#define I217_EEE_100_SUPPORTED  (1 << 1)	/* 100BaseTx EEE supported */
+
+/* Intel Rapid Start Technology Support */
+#define I217_PROXY_CTRL                 PHY_REG(BM_WUC_PAGE, 70)
+#define I217_PROXY_CTRL_AUTO_DISABLE    0x0080
+#define I217_SxCTRL                     PHY_REG(BM_PORT_CTRL_PAGE, 28)
+#define I217_SxCTRL_MASK                0x1000
+#define I217_CGFREG                     PHY_REG(772, 29)
+#define I217_CGFREG_MASK                0x0002
+#define I217_MEMPWR                     PHY_REG(772, 26)
+#define I217_MEMPWR_MASK                0x0010
 
 /* Strapping Option Register - RO */
 #define E1000_STRAP                     0x0000C
 #define E1000_STRAP_SMBUS_ADDRESS_MASK  0x00FE0000
 #define E1000_STRAP_SMBUS_ADDRESS_SHIFT 17
+#define E1000_STRAP_SMT_FREQ_MASK       0x00003000
+#define E1000_STRAP_SMT_FREQ_SHIFT      12
 
 /* OEM Bits Phy Register */
 #define HV_OEM_BITS            PHY_REG(768, 25)
@@ -261,6 +284,7 @@ static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw);
 static bool e1000_check_mng_mode_pchlan(struct e1000_hw *hw);
 static void e1000_rar_set_pch2lan(struct e1000_hw *hw, u8 *addr, u32 index);
+static void e1000_rar_set_pch_lpt(struct e1000_hw *hw, u8 *addr, u32 index);
 static s32 e1000_k1_workaround_lv(struct e1000_hw *hw);
 static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate);
 
@@ -332,6 +356,7 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 {
 	u32 mac_reg, fwsm = er32(FWSM);
 	s32 ret_val;
+	u16 phy_reg;
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val) {
@@ -345,16 +370,42 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 	 * LANPHYPC Value bit to force the interconnect to PCIe mode.
 	 */
 	switch (hw->mac.type) {
+	case e1000_pch_lpt:
+		if (e1000_phy_is_accessible_pchlan(hw))
+			break;
+
+		/*
+		 * Before toggling LANPHYPC, see if PHY is accessible by
+		 * forcing MAC to SMBus mode first.
+		 */
+		mac_reg = er32(CTRL_EXT);
+		mac_reg |= E1000_CTRL_EXT_FORCE_SMBUS;
+		ew32(CTRL_EXT, mac_reg);
+
+		/* fall-through */
 	case e1000_pch2lan:
 		/*
 		 * Gate automatic PHY configuration by hardware on
 		 * non-managed 82579
 		 */
-		if (!(fwsm & E1000_ICH_FWSM_FW_VALID))
+		if ((hw->mac.type == e1000_pch2lan) &&
+		    !(fwsm & E1000_ICH_FWSM_FW_VALID))
 			e1000_gate_hw_phy_config_ich8lan(hw, true);
 
-		if (e1000_phy_is_accessible_pchlan(hw))
+		if (e1000_phy_is_accessible_pchlan(hw)) {
+			if (hw->mac.type == e1000_pch_lpt) {
+				/* Unforce SMBus mode in PHY */
+				e1e_rphy_locked(hw, CV_SMB_CTRL, &phy_reg);
+				phy_reg &= ~CV_SMB_CTRL_FORCE_SMBUS;
+				e1e_wphy_locked(hw, CV_SMB_CTRL, phy_reg);
+
+				/* Unforce SMBus mode in MAC */
+				mac_reg = er32(CTRL_EXT);
+				mac_reg &= ~E1000_CTRL_EXT_FORCE_SMBUS;
+				ew32(CTRL_EXT, mac_reg);
+			}
 			break;
+		}
 
 		/* fall-through */
 	case e1000_pchlan:
@@ -385,7 +436,15 @@ static s32 e1000_init_phy_workarounds_pchlan(struct e1000_hw *hw)
 		mac_reg &= ~E1000_CTRL_LANPHYPC_OVERRIDE;
 		ew32(CTRL, mac_reg);
 		e1e_flush();
-		msleep(50);
+		if (hw->mac.type < e1000_pch_lpt) {
+			msleep(50);
+		} else {
+			u16 count = 20;
+			do {
+				usleep_range(5000, 10000);
+			} while (!(er32(CTRL_EXT) &
+				   E1000_CTRL_EXT_LPCD) && count--);
+		}
 		break;
 	default:
 		break;
@@ -454,6 +513,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 				break;
 			/* fall-through */
 		case e1000_pch2lan:
+		case e1000_pch_lpt:
 			/*
 			 * In case the PHY needs to be in mdio slow mode,
 			 * set slow mode and try to get the PHY id again.
@@ -471,6 +531,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	switch (phy->type) {
 	case e1000_phy_82577:
 	case e1000_phy_82579:
+	case e1000_phy_i217:
 		phy->ops.check_polarity = e1000_check_polarity_82577;
 		phy->ops.force_speed_duplex =
 		    e1000_phy_force_speed_duplex_82577;
@@ -655,7 +716,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
 
-	/* LED operations */
+	/* LED and other operations */
 	switch (mac->type) {
 	case e1000_ich8lan:
 	case e1000_ich9lan:
@@ -678,6 +739,7 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_PCH2_RAR_ENTRIES;
 		mac->ops.rar_set = e1000_rar_set_pch2lan;
 		/* fall-through */
+	case e1000_pch_lpt:
 	case e1000_pchlan:
 		/* check management mode */
 		mac->ops.check_mng_mode = e1000_check_mng_mode_pchlan;
@@ -695,12 +757,20 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
 		break;
 	}
 
+	if (mac->type == e1000_pch_lpt) {
+		mac->rar_entry_count = E1000_PCH_LPT_RAR_ENTRIES;
+		mac->ops.rar_set = e1000_rar_set_pch_lpt;
+	}
+
 	/* Enable PCS Lock-loss workaround for ICH8 */
 	if (mac->type == e1000_ich8lan)
 		e1000e_set_kmrn_lock_loss_workaround_ich8lan(hw, true);
 
-	/* Gate automatic PHY configuration by hardware on managed 82579 */
-	if ((mac->type == e1000_pch2lan) &&
+	/*
+	 * Gate automatic PHY configuration by hardware on managed
+	 * 82579 and i217
+	 */
+	if ((mac->type == e1000_pch2lan || mac->type == e1000_pch_lpt) &&
 	    (er32(FWSM) & E1000_ICH_FWSM_FW_VALID))
 		e1000_gate_hw_phy_config_ich8lan(hw, true);
 
@@ -716,22 +786,50 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_hw *hw)
  **/
 static s32 e1000_set_eee_pchlan(struct e1000_hw *hw)
 {
+	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 	s32 ret_val = 0;
 	u16 phy_reg;
 
-	if (hw->phy.type != e1000_phy_82579)
+	if ((hw->phy.type != e1000_phy_82579) &&
+	    (hw->phy.type != e1000_phy_i217))
 		return 0;
 
 	ret_val = e1e_rphy(hw, I82579_LPI_CTRL, &phy_reg);
 	if (ret_val)
 		return ret_val;
 
-	if (hw->dev_spec.ich8lan.eee_disable)
+	if (dev_spec->eee_disable)
 		phy_reg &= ~I82579_LPI_CTRL_ENABLE_MASK;
 	else
 		phy_reg |= I82579_LPI_CTRL_ENABLE_MASK;
 
-	return e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
+	ret_val = e1e_wphy(hw, I82579_LPI_CTRL, phy_reg);
+	if (ret_val)
+		return ret_val;
+
+	if ((hw->phy.type == e1000_phy_i217) && !dev_spec->eee_disable) {
+		/* Save off link partner's EEE ability */
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			return ret_val;
+		ret_val = e1e_wphy_locked(hw, I82579_EMI_ADDR,
+					  I217_EEE_LP_ABILITY);
+		if (ret_val)
+			goto release;
+		e1e_rphy_locked(hw, I82579_EMI_DATA, &dev_spec->eee_lp_ability);
+
+		/*
+		 * EEE is not supported in 100Half, so ignore partner's EEE
+		 * in 100 ability if full-duplex is not advertised.
+		 */
+		e1e_rphy_locked(hw, PHY_LP_ABILITY, &phy_reg);
+		if (!(phy_reg & NWAY_LPAR_100TX_FD_CAPS))
+			dev_spec->eee_lp_ability &= ~I217_EEE_100_SUPPORTED;
+release:
+		hw->phy.ops.release(hw);
+	}
+
+	return 0;
 }
 
 /**
@@ -772,6 +870,9 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 		if (ret_val)
 			return ret_val;
 	}
+
+	/* Clear link partner's EEE ability */
+	hw->dev_spec.ich8lan.eee_lp_ability = 0;
 
 	if (!link)
 		return 0; /* No link detected */
@@ -868,6 +969,7 @@ static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
 		break;
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		rc = e1000_init_phy_params_pchlan(hw);
 		break;
 	default:
@@ -1117,6 +1219,81 @@ out:
 }
 
 /**
+ *  e1000_rar_set_pch_lpt - Set receive address registers
+ *  @hw: pointer to the HW structure
+ *  @addr: pointer to the receive address
+ *  @index: receive address array register
+ *
+ *  Sets the receive address register array at index to the address passed
+ *  in by addr. For LPT, RAR[0] is the base address register that is to
+ *  contain the MAC address. SHRA[0-10] are the shared receive address
+ *  registers that are shared between the Host and manageability engine (ME).
+ **/
+static void e1000_rar_set_pch_lpt(struct e1000_hw *hw, u8 *addr, u32 index)
+{
+	u32 rar_low, rar_high;
+	u32 wlock_mac;
+
+	/*
+	 * HW expects these in little endian so we reverse the byte order
+	 * from network order (big endian) to little endian
+	 */
+	rar_low = ((u32)addr[0] | ((u32)addr[1] << 8) |
+		   ((u32)addr[2] << 16) | ((u32)addr[3] << 24));
+
+	rar_high = ((u32)addr[4] | ((u32)addr[5] << 8));
+
+	/* If MAC address zero, no need to set the AV bit */
+	if (rar_low || rar_high)
+		rar_high |= E1000_RAH_AV;
+
+	if (index == 0) {
+		ew32(RAL(index), rar_low);
+		e1e_flush();
+		ew32(RAH(index), rar_high);
+		e1e_flush();
+		return;
+	}
+
+	/*
+	 * The manageability engine (ME) can lock certain SHRAR registers that
+	 * it is using - those registers are unavailable for use.
+	 */
+	if (index < hw->mac.rar_entry_count) {
+		wlock_mac = er32(FWSM) & E1000_FWSM_WLOCK_MAC_MASK;
+		wlock_mac >>= E1000_FWSM_WLOCK_MAC_SHIFT;
+
+		/* Check if all SHRAR registers are locked */
+		if (wlock_mac == 1)
+			goto out;
+
+		if ((wlock_mac == 0) || (index <= wlock_mac)) {
+			s32 ret_val;
+
+			ret_val = e1000_acquire_swflag_ich8lan(hw);
+
+			if (ret_val)
+				goto out;
+
+			ew32(SHRAL_PCH_LPT(index - 1), rar_low);
+			e1e_flush();
+			ew32(SHRAH_PCH_LPT(index - 1), rar_high);
+			e1e_flush();
+
+			e1000_release_swflag_ich8lan(hw);
+
+			/* verify the register updates */
+			if ((er32(SHRAL_PCH_LPT(index - 1)) == rar_low) &&
+			    (er32(SHRAH_PCH_LPT(index - 1)) == rar_high))
+				return;
+		}
+	}
+
+out:
+	e_dbg("Failed to write receive address at index %d\n", index);
+}
+
+/**
  *  e1000_check_reset_block_ich8lan - Check if PHY reset is blocked
  *  @hw: pointer to the HW structure
  *
@@ -1144,6 +1321,8 @@ static s32 e1000_write_smbus_addr(struct e1000_hw *hw)
 {
 	u16 phy_data;
 	u32 strap = er32(STRAP);
+	u32 freq = (strap & E1000_STRAP_SMT_FREQ_MASK) >>
+	    E1000_STRAP_SMT_FREQ_SHIFT;
 	s32 ret_val = 0;
 
 	strap &= E1000_STRAP_SMBUS_ADDRESS_MASK;
@@ -1155,6 +1334,19 @@ static s32 e1000_write_smbus_addr(struct e1000_hw *hw)
 	phy_data &= ~HV_SMB_ADDR_MASK;
 	phy_data |= (strap >> E1000_STRAP_SMBUS_ADDRESS_SHIFT);
 	phy_data |= HV_SMB_ADDR_PEC_EN | HV_SMB_ADDR_VALID;
+
+	if (hw->phy.type == e1000_phy_i217) {
+		/* Restore SMBus frequency */
+		if (freq--) {
+			phy_data &= ~HV_SMB_ADDR_FREQ_MASK;
+			phy_data |= (freq & (1 << 0)) <<
+			    HV_SMB_ADDR_FREQ_LOW_SHIFT;
+			phy_data |= (freq & (1 << 1)) <<
+			    (HV_SMB_ADDR_FREQ_HIGH_SHIFT - 1);
+		} else {
+			e_dbg("Unsupported SMB frequency in PHY\n");
+		}
+	}
 
 	return e1000_write_phy_reg_hv_locked(hw, HV_SMB_ADDR, phy_data);
 }
@@ -1193,6 +1385,7 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 		/* Fall-thru */
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		sw_cfg_mask = E1000_FEXTNVM_SW_CONFIG_ICH8M;
 		break;
 	default:
@@ -1212,10 +1405,9 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	 * extended configuration before SW configuration
 	 */
 	data = er32(EXTCNF_CTRL);
-	if (!(hw->mac.type == e1000_pch2lan)) {
-		if (data & E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE)
-			goto release;
-	}
+	if ((hw->mac.type < e1000_pch2lan) &&
+	    (data & E1000_EXTCNF_CTRL_LCD_WRITE_ENABLE))
+		goto release;
 
 	cnf_size = er32(EXTCNF_SIZE);
 	cnf_size &= E1000_EXTCNF_SIZE_EXT_PCIE_LENGTH_MASK;
@@ -1226,9 +1418,9 @@ static s32 e1000_sw_lcd_config_ich8lan(struct e1000_hw *hw)
 	cnf_base_addr = data & E1000_EXTCNF_CTRL_EXT_CNF_POINTER_MASK;
 	cnf_base_addr >>= E1000_EXTCNF_CTRL_EXT_CNF_POINTER_SHIFT;
 
-	if ((!(data & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE) &&
-	    (hw->mac.type == e1000_pchlan)) ||
-	     (hw->mac.type == e1000_pch2lan)) {
+	if (((hw->mac.type == e1000_pchlan) &&
+	     !(data & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE)) ||
+	    (hw->mac.type > e1000_pchlan)) {
 		/*
 		 * HW configures the SMBus address and LEDs when the
 		 * OEM and LCD Write Enable bits are set in the NVM.
@@ -1425,14 +1617,14 @@ static s32 e1000_oem_bits_config_ich8lan(struct e1000_hw *hw, bool d0_state)
 	u32 mac_reg;
 	u16 oem_reg;
 
-	if ((hw->mac.type != e1000_pch2lan) && (hw->mac.type != e1000_pchlan))
+	if (hw->mac.type < e1000_pchlan)
 		return ret_val;
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		return ret_val;
 
-	if (!(hw->mac.type == e1000_pch2lan)) {
+	if (hw->mac.type == e1000_pchlan) {
 		mac_reg = er32(EXTCNF_CTRL);
 		if (mac_reg & E1000_EXTCNF_CTRL_OEM_WRITE_ENABLE)
 			goto release;
@@ -1629,7 +1821,7 @@ s32 e1000_lv_jumbo_workaround_ich8lan(struct e1000_hw *hw, bool enable)
 	u32 mac_reg;
 	u16 i;
 
-	if (hw->mac.type != e1000_pch2lan)
+	if (hw->mac.type < e1000_pch2lan)
 		return 0;
 
 	/* disable Rx path while enabling/disabling workaround */
@@ -1886,7 +2078,7 @@ static void e1000_gate_hw_phy_config_ich8lan(struct e1000_hw *hw, bool gate)
 {
 	u32 extcnf_ctrl;
 
-	if (hw->mac.type != e1000_pch2lan)
+	if (hw->mac.type < e1000_pch2lan)
 		return;
 
 	extcnf_ctrl = er32(EXTCNF_CTRL);
@@ -3525,6 +3717,7 @@ static s32 e1000_setup_link_ich8lan(struct e1000_hw *hw)
 	ew32(FCTTV, hw->fc.pause_time);
 	if ((hw->phy.type == e1000_phy_82578) ||
 	    (hw->phy.type == e1000_phy_82579) ||
+	    (hw->phy.type == e1000_phy_i217) ||
 	    (hw->phy.type == e1000_phy_82577)) {
 		ew32(FCRTV_PCH, hw->fc.refresh_time);
 
@@ -3588,6 +3781,7 @@ static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw)
 		break;
 	case e1000_phy_82577:
 	case e1000_phy_82579:
+	case e1000_phy_i217:
 		ret_val = e1000_copper_link_setup_82577(hw);
 		if (ret_val)
 			return ret_val;
@@ -3834,14 +4028,88 @@ void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
  *  the LPLU setting in the NVM or custom setting.  For PCH and newer parts,
  *  the OEM bits PHY register (LED, GbE disable and LPLU configurations) also
  *  needs to be written.
+ *  Parts that support (and are linked to a partner which support) EEE in
+ *  100Mbps should disable LPLU since 100Mbps w/ EEE requires less power
+ *  than 10Mbps w/o EEE.
  **/
 void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
 {
+	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 	u32 phy_ctrl;
 	s32 ret_val;
 
 	phy_ctrl = er32(PHY_CTRL);
 	phy_ctrl |= E1000_PHY_CTRL_GBE_DISABLE;
+	if (hw->phy.type == e1000_phy_i217) {
+		u16 phy_reg;
+
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val)
+			goto out;
+
+		if (!dev_spec->eee_disable) {
+			u16 eee_advert;
+
+			ret_val = e1e_wphy_locked(hw, I82579_EMI_ADDR,
+						  I217_EEE_ADVERTISEMENT);
+			if (ret_val)
+				goto release;
+			e1e_rphy_locked(hw, I82579_EMI_DATA, &eee_advert);
+
+			/*
+			 * Disable LPLU if both link partners support 100BaseT
+			 * EEE and 100Full is advertised on both ends of the
+			 * link.
+			 */
+			if ((eee_advert & I217_EEE_100_SUPPORTED) &&
+			    (dev_spec->eee_lp_ability &
+			     I217_EEE_100_SUPPORTED) &&
+			    (hw->phy.autoneg_advertised & ADVERTISE_100_FULL))
+				phy_ctrl &= ~(E1000_PHY_CTRL_D0A_LPLU |
+					      E1000_PHY_CTRL_NOND0A_LPLU);
+		}
+
+		/*
+		 * For i217 Intel Rapid Start Technology support,
+		 * when the system is going into Sx and no manageability engine
+		 * is present, the driver must configure proxy to reset only on
+		 * power good.  LPI (Low Power Idle) state must also reset only
+		 * on power good, as well as the MTA (Multicast table array).
+		 * The SMBus release must also be disabled on LCD reset.
+		 */
+		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+
+			/* Enable proxy to reset only on power good. */
+			e1e_rphy_locked(hw, I217_PROXY_CTRL, &phy_reg);
+			phy_reg |= I217_PROXY_CTRL_AUTO_DISABLE;
+			e1e_wphy_locked(hw, I217_PROXY_CTRL, phy_reg);
+
+			/*
+			 * Set bit enable LPI (EEE) to reset only on
+			 * power good.
+			 */
+			e1e_rphy_locked(hw, I217_SxCTRL, &phy_reg);
+			phy_reg |= I217_SxCTRL_MASK;
+			e1e_wphy_locked(hw, I217_SxCTRL, phy_reg);
+
+			/* Disable the SMB release on LCD reset. */
+			e1e_rphy_locked(hw, I217_MEMPWR, &phy_reg);
+			phy_reg &= ~I217_MEMPWR;
+			e1e_wphy_locked(hw, I217_MEMPWR, phy_reg);
+		}
+
+		/*
+		 * Enable MTA to reset for Intel Rapid Start Technology
+		 * Support
+		 */
+		e1e_rphy_locked(hw, I217_CGFREG, &phy_reg);
+		phy_reg |= I217_CGFREG_MASK;
+		e1e_wphy_locked(hw, I217_CGFREG, phy_reg);
+
+release:
+		hw->phy.ops.release(hw);
+	}
+out:
 	ew32(PHY_CTRL, phy_ctrl);
 
 	if (hw->mac.type == e1000_ich8lan)
@@ -3870,6 +4138,7 @@ void e1000_suspend_workarounds_ich8lan(struct e1000_hw *hw)
  *  on which PHY resets are not blocked, if the PHY registers cannot be
  *  accessed properly by the s/w toggle the LANPHYPC value to power cycle
  *  the PHY.
+ *  On i217, setup Intel Rapid Start Technology.
  **/
 void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 {
@@ -3882,6 +4151,47 @@ void e1000_resume_workarounds_pchlan(struct e1000_hw *hw)
 	if (ret_val) {
 		e_dbg("Failed to init PHY flow ret_val=%d\n", ret_val);
 		return;
+	}
+
+	/*
+	 * For i217 Intel Rapid Start Technology support when the system
+	 * is transitioning from Sx and no manageability engine is present
+	 * configure SMBus to restore on reset, disable proxy, and enable
+	 * the reset on MTA (Multicast table array).
+	 */
+	if (hw->phy.type == e1000_phy_i217) {
+		u16 phy_reg;
+
+		ret_val = hw->phy.ops.acquire(hw);
+		if (ret_val) {
+			e_dbg("Failed to setup iRST\n");
+			return;
+		}
+
+		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
+			/*
+			 * Restore clear on SMB if no manageability engine
+			 * is present
+			 */
+			ret_val = e1e_rphy_locked(hw, I217_MEMPWR, &phy_reg);
+			if (ret_val)
+				goto release;
+			phy_reg |= I217_MEMPWR_MASK;
+			e1e_wphy_locked(hw, I217_MEMPWR, phy_reg);
+
+			/* Disable Proxy */
+			e1e_wphy_locked(hw, I217_PROXY_CTRL, 0);
+		}
+		/* Enable reset on MTA */
+		ret_val = e1e_rphy_locked(hw, I217_CGFREG, &phy_reg);
+		if (ret_val)
+			goto release;
+		phy_reg &= ~I217_CGFREG_MASK;
+		e1e_wphy_locked(hw, I217_CGFREG, phy_reg);
+release:
+		if (ret_val)
+			e_dbg("Error %d in resume workarounds\n", ret_val);
+		hw->phy.ops.release(hw);
 	}
 }
 
@@ -4123,6 +4433,7 @@ static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 	/* Clear PHY statistics registers */
 	if ((hw->phy.type == e1000_phy_82578) ||
 	    (hw->phy.type == e1000_phy_82579) ||
+	    (hw->phy.type == e1000_phy_i217) ||
 	    (hw->phy.type == e1000_phy_82577)) {
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
@@ -4266,6 +4577,25 @@ const struct e1000_info e1000_pch_info = {
 
 const struct e1000_info e1000_pch2_info = {
 	.mac			= e1000_pch2lan,
+	.flags			= FLAG_IS_ICH
+				  | FLAG_HAS_WOL
+				  | FLAG_HAS_CTRLEXT_ON_LOAD
+				  | FLAG_HAS_AMT
+				  | FLAG_HAS_FLASH
+				  | FLAG_HAS_JUMBO_FRAMES
+				  | FLAG_APME_IN_WUC,
+	.flags2			= FLAG2_HAS_PHY_STATS
+				  | FLAG2_HAS_EEE,
+	.pba			= 26,
+	.max_hw_frame_size	= DEFAULT_JUMBO,
+	.get_variants		= e1000_get_variants_ich8lan,
+	.mac_ops		= &ich8_mac_ops,
+	.phy_ops		= &ich8_phy_ops,
+	.nvm_ops		= &ich8_nvm_ops,
+};
+
+const struct e1000_info e1000_pch_lpt_info = {
+	.mac			= e1000_pch_lpt,
 	.flags			= FLAG_IS_ICH
 				  | FLAG_HAS_WOL
 				  | FLAG_HAS_CTRLEXT_ON_LOAD

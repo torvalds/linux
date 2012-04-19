@@ -200,6 +200,10 @@ enum e1e_registers {
 #define E1000_RA        (E1000_RAL(0))
 	E1000_RAH_BASE = 0x05404, /* Receive Address High - RW */
 #define E1000_RAH(_n)   (E1000_RAH_BASE + ((_n) * 8))
+	E1000_SHRAL_PCH_LPT_BASE = 0x05408,
+#define E1000_SHRAL_PCH_LPT(_n)   (E1000_SHRAL_PCH_LPT_BASE + ((_n) * 8))
+	E1000_SHRAH_PCH_LTP_BASE = 0x0540C,
+#define E1000_SHRAH_PCH_LPT(_n)   (E1000_SHRAH_PCH_LTP_BASE + ((_n) * 8))
 	E1000_SHRAL_BASE = 0x05438, /* Shared Receive Address Low - RW */
 #define E1000_SHRAL(_n)   (E1000_SHRAL_BASE + ((_n) * 8))
 	E1000_SHRAH_BASE = 0x0543C, /* Shared Receive Address High - RW */
@@ -406,6 +410,8 @@ enum e1e_registers {
 #define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
 #define E1000_DEV_ID_PCH2_LV_LM			0x1502
 #define E1000_DEV_ID_PCH2_LV_V			0x1503
+#define E1000_DEV_ID_PCH_LPT_I217_LM		0x153A
+#define E1000_DEV_ID_PCH_LPT_I217_V		0x153B
 
 #define E1000_REVISION_4 4
 
@@ -426,6 +432,7 @@ enum e1000_mac_type {
 	e1000_ich10lan,
 	e1000_pchlan,
 	e1000_pch2lan,
+	e1000_pch_lpt,
 };
 
 enum e1000_media_type {
@@ -463,6 +470,7 @@ enum e1000_phy_type {
 	e1000_phy_82578,
 	e1000_phy_82577,
 	e1000_phy_82579,
+	e1000_phy_i217,
 };
 
 enum e1000_bus_width {
@@ -971,6 +979,7 @@ struct e1000_dev_spec_ich8lan {
 	struct e1000_shadow_ram shadow_ram[E1000_ICH8_SHADOW_RAM_WORDS];
 	bool nvm_k1_enabled;
 	bool eee_disable;
+	u16 eee_lp_ability;
 };
 
 struct e1000_hw {

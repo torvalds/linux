@@ -773,6 +773,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	u32 i;
 	u32 toggle;
 	u32 mask;
+	u32 wlock_mac = 0;
 
 	/*
 	 * The status register is Read Only, so a write should fail.
@@ -838,19 +839,31 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_ich10lan:
 	case e1000_pchlan:
 	case e1000_pch2lan:
+	case e1000_pch_lpt:
 		mask |= (1 << 18);
 		break;
 	default:
 		break;
 	}
-	for (i = 0; i < mac->rar_entry_count; i++)
+
+	if (mac->type == e1000_pch_lpt)
+		wlock_mac = (er32(FWSM) & E1000_FWSM_WLOCK_MAC_MASK) >>
+		    E1000_FWSM_WLOCK_MAC_SHIFT;
+
+	for (i = 0; i < mac->rar_entry_count; i++) {
+		/* Cannot test write-protected SHRAL[n] registers */
+		if ((wlock_mac == 1) || (wlock_mac && (i > wlock_mac)))
+			continue;
+
 		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1),
-		                       mask, 0xFFFFFFFF);
+				       mask, 0xFFFFFFFF);
+	}
 
 	for (i = 0; i < mac->mta_reg_count; i++)
 		REG_PATTERN_TEST_ARRAY(E1000_MTA, i, 0xFFFFFFFF, 0xFFFFFFFF);
 
 	*data = 0;
+
 	return 0;
 }
 
