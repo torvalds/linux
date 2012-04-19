@@ -272,6 +272,8 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 
 static int rk30_cpu_exit(struct cpufreq_policy *policy)
 {
+	if (policy->cpu != 0)
+		return 0;
 	cpufreq_frequency_table_cpuinfo(policy, freq_table);
 	clk_put(cpu_clk);
 #ifdef CONFIG_RK30_CPU_FREQ_LIMIT_BY_TEMP
