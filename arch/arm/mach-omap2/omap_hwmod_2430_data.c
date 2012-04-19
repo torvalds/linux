@@ -45,9 +45,18 @@
  */
 
 /* IVA2 (IVA2) */
+static struct omap_hwmod_rst_info omap2430_iva_resets[] = {
+	{ .name = "logic", .rst_shift = 0 },
+	{ .name = "mmu", .rst_shift = 1 },
+};
+
 static struct omap_hwmod omap2430_iva_hwmod = {
 	.name		= "iva",
 	.class		= &iva_hwmod_class,
+	.clkdm_name	= "dsp_clkdm",
+	.rst_lines	= omap2430_iva_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(omap2430_iva_resets),
+	.main_clk	= "dsp_fck",
 };
 
 /* I2C common */
@@ -599,7 +608,7 @@ static struct omap_hwmod_ocp_if omap2430_l4_core__mcspi3 = {
 static struct omap_hwmod_ocp_if omap2430_l3__iva = {
 	.master		= &omap2xxx_l3_main_hwmod,
 	.slave		= &omap2430_iva_hwmod,
-	.clk		= "dsp_fck",
+	.clk		= "core_l3_ck",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
