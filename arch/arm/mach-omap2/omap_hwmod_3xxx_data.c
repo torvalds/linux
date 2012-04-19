@@ -2348,7 +2348,7 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__l4_sec = {
 static struct omap_hwmod_ocp_if omap3xxx_l3__iva = {
 	.master		= &omap3xxx_l3_main_hwmod,
 	.slave		= &omap3xxx_iva_hwmod,
-	.clk		= "iva2_ck",
+	.clk		= "core_l3_ick",
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
