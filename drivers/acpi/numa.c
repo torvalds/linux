@@ -45,6 +45,8 @@ static int pxm_to_node_map[MAX_PXM_DOMAINS]
 static int node_to_pxm_map[MAX_NUMNODES]
 			= { [0 ... MAX_NUMNODES - 1] = PXM_INVAL };
 
+unsigned char acpi_srat_revision __initdata;
+
 int pxm_to_node(int pxm)
 {
 	if (pxm < 0)
@@ -255,8 +257,12 @@ acpi_parse_memory_affinity(struct acpi_subtable_header * header,
 
 static int __init acpi_parse_srat(struct acpi_table_header *table)
 {
+	struct acpi_table_srat *srat;
 	if (!table)
 		return -EINVAL;
+
+	srat = (struct acpi_table_srat *)table;
+	acpi_srat_revision = srat->header.revision;
 
 	/* Real work done in acpi_table_parse_srat below. */
 

@@ -362,13 +362,13 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
+	if (unlikely(!inuse)) {
+		pr_err("%s: not initialized\n", DRIVER_NAME);
+		return -EPERM;
+	}
 	sid = twl_map[mod_no].sid;
 	twl = &twl_modules[sid];
 
-	if (unlikely(!inuse)) {
-		pr_err("%s: client %d is not initialized\n", DRIVER_NAME, sid);
-		return -EPERM;
-	}
 	mutex_lock(&twl->xfer_lock);
 	/*
 	 * [MSG1]: fill the register address data
@@ -419,13 +419,13 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 		pr_err("%s: invalid module number %d\n", DRIVER_NAME, mod_no);
 		return -EPERM;
 	}
+	if (unlikely(!inuse)) {
+		pr_err("%s: not initialized\n", DRIVER_NAME);
+		return -EPERM;
+	}
 	sid = twl_map[mod_no].sid;
 	twl = &twl_modules[sid];
 
-	if (unlikely(!inuse)) {
-		pr_err("%s: client %d is not initialized\n", DRIVER_NAME, sid);
-		return -EPERM;
-	}
 	mutex_lock(&twl->xfer_lock);
 	/* [MSG1] fill the register address data */
 	msg = &twl->xfer_msg[0];

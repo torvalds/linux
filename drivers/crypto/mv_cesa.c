@@ -342,11 +342,13 @@ static void mv_process_hash_current(int first_block)
 		else
 			op.config |= CFG_MID_FRAG;
 
-		writel(req_ctx->state[0], cpg->reg + DIGEST_INITIAL_VAL_A);
-		writel(req_ctx->state[1], cpg->reg + DIGEST_INITIAL_VAL_B);
-		writel(req_ctx->state[2], cpg->reg + DIGEST_INITIAL_VAL_C);
-		writel(req_ctx->state[3], cpg->reg + DIGEST_INITIAL_VAL_D);
-		writel(req_ctx->state[4], cpg->reg + DIGEST_INITIAL_VAL_E);
+		if (first_block) {
+			writel(req_ctx->state[0], cpg->reg + DIGEST_INITIAL_VAL_A);
+			writel(req_ctx->state[1], cpg->reg + DIGEST_INITIAL_VAL_B);
+			writel(req_ctx->state[2], cpg->reg + DIGEST_INITIAL_VAL_C);
+			writel(req_ctx->state[3], cpg->reg + DIGEST_INITIAL_VAL_D);
+			writel(req_ctx->state[4], cpg->reg + DIGEST_INITIAL_VAL_E);
+		}
 	}
 
 	memcpy(cpg->sram + SRAM_CONFIG, &op, sizeof(struct sec_accel_config));
@@ -711,6 +713,7 @@ static int mv_hash_final(struct ahash_request *req)
 {
 	struct mv_req_hash_ctx *ctx = ahash_request_ctx(req);
 
+	ahash_request_set_crypt(req, NULL, req->result, 0);
 	mv_update_hash_req_ctx(ctx, 1, 0);
 	return mv_handle_req(&req->base);
 }

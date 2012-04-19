@@ -284,12 +284,13 @@ static int hdpvr_start_streaming(struct hdpvr_device *dev)
 
 		hdpvr_config_call(dev, CTRL_START_STREAMING_VALUE, 0x00);
 
+		dev->status = STATUS_STREAMING;
+
 		INIT_WORK(&dev->worker, hdpvr_transmit_buffers);
 		queue_work(dev->workqueue, &dev->worker);
 
 		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 			 "streaming started\n");
-		dev->status = STATUS_STREAMING;
 
 		return 0;
 	}

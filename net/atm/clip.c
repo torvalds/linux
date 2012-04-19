@@ -364,33 +364,37 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 				   struct net_device *dev)
 {
 	struct clip_priv *clip_priv = PRIV(dev);
+	struct dst_entry *dst = skb_dst(skb);
 	struct atmarp_entry *entry;
+	struct neighbour *n;
 	struct atm_vcc *vcc;
 	int old;
 	unsigned long flags;
 
 	pr_debug("(skb %p)\n", skb);
-	if (!skb_dst(skb)) {
+	if (!dst) {
 		pr_err("skb_dst(skb) == NULL\n");
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	if (!skb_dst(skb)->neighbour) {
+	n = dst_get_neighbour(dst);
+	if (!n) {
 #if 0
-		skb_dst(skb)->neighbour = clip_find_neighbour(skb_dst(skb), 1);
-		if (!skb_dst(skb)->neighbour) {
+		n = clip_find_neighbour(skb_dst(skb), 1);
+		if (!n) {
 			dev_kfree_skb(skb);	/* lost that one */
 			dev->stats.tx_dropped++;
 			return 0;
 		}
+		dst_set_neighbour(dst, n);
 #endif
 		pr_err("NO NEIGHBOUR !\n");
 		dev_kfree_skb(skb);
 		dev->stats.tx_dropped++;
 		return NETDEV_TX_OK;
 	}
-	entry = NEIGH2ENTRY(skb_dst(skb)->neighbour);
+	entry = NEIGH2ENTRY(n);
 	if (!entry->vccs) {
 		if (time_after(jiffies, entry->expires)) {
 			/* should be resolved */
@@ -407,7 +411,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 	}
 	pr_debug("neigh %p, vccs %p\n", entry, entry->vccs);
 	ATM_SKB(skb)->vcc = vcc = entry->vccs->vcc;
-	pr_debug("using neighbour %p, vcc %p\n", skb_dst(skb)->neighbour, vcc);
+	pr_debug("using neighbour %p, vcc %p\n", n, vcc);
 	if (entry->vccs->encap) {
 		void *here;
 

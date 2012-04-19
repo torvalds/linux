@@ -2745,20 +2745,6 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 	/* disable must be done via function #0 */
 	if (PCI_FUNC(dev->devfn))
 		return;
-
-	pci_read_config_byte(dev, 0xCB, &disable);
-
-	if (disable & 0x02)
-		return;
-
-	pci_read_config_byte(dev, 0xCA, &write_enable);
-	pci_write_config_byte(dev, 0xCA, 0x57);
-	pci_write_config_byte(dev, 0xCB, disable | 0x02);
-	pci_write_config_byte(dev, 0xCA, write_enable);
-
-	dev_notice(&dev->dev, "proprietary Ricoh MMC controller disabled (via firewire function)\n");
-	dev_notice(&dev->dev, "MMC cards are now supported by standard SDHCI controller\n");
-
 	/*
 	 * RICOH 0xe823 SD/MMC card reader fails to recognize
 	 * certain types of SD/MMC cards. Lowering the SD base
@@ -2781,6 +2767,20 @@ static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
 
 		dev_notice(&dev->dev, "MMC controller base frequency changed to 50Mhz.\n");
 	}
+
+	pci_read_config_byte(dev, 0xCB, &disable);
+
+	if (disable & 0x02)
+		return;
+
+	pci_read_config_byte(dev, 0xCA, &write_enable);
+	pci_write_config_byte(dev, 0xCA, 0x57);
+	pci_write_config_byte(dev, 0xCB, disable | 0x02);
+	pci_write_config_byte(dev, 0xCA, write_enable);
+
+	dev_notice(&dev->dev, "proprietary Ricoh MMC controller disabled (via firewire function)\n");
+	dev_notice(&dev->dev, "MMC cards are now supported by standard SDHCI controller\n");
+
 }
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
 DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);

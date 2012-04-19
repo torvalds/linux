@@ -339,7 +339,7 @@ static inline void palmtc_mkp_init(void) {}
 /******************************************************************************
  * UDC
  ******************************************************************************/
-#if defined(CONFIG_USB_GADGET_PXA25X)||defined(CONFIG_USB_GADGET_PXA25X_MODULE)
+#if defined(CONFIG_USB_PXA25X)||defined(CONFIG_USB_PXA25X_MODULE)
 static struct gpio_vbus_mach_info palmtc_udc_info = {
 	.gpio_vbus		= GPIO_NR_PALMTC_USB_DETECT_N,
 	.gpio_vbus_inverted	= 1,

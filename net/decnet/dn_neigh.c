@@ -208,7 +208,7 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct dn_route *rt = (struct dn_route *)dst;
-	struct neighbour *neigh = dst->neighbour;
+	struct neighbour *neigh = dst_get_neighbour(dst);
 	struct net_device *dev = neigh->dev;
 	char mac_addr[ETH_ALEN];
 
@@ -227,7 +227,7 @@ static int dn_neigh_output_packet(struct sk_buff *skb)
 static int dn_long_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
+	struct neighbour *neigh = dst_get_neighbour(dst);
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_long_packet) + 3;
 	unsigned char *data;
@@ -274,7 +274,7 @@ static int dn_long_output(struct sk_buff *skb)
 static int dn_short_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
+	struct neighbour *neigh = dst_get_neighbour(dst);
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_short_packet) + 2;
 	struct dn_short_packet *sp;
@@ -318,7 +318,7 @@ static int dn_short_output(struct sk_buff *skb)
 static int dn_phase3_output(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
-	struct neighbour *neigh = dst->neighbour;
+	struct neighbour *neigh = dst_get_neighbour(dst);
 	struct net_device *dev = neigh->dev;
 	int headroom = dev->hard_header_len + sizeof(struct dn_short_packet) + 2;
 	struct dn_short_packet *sp;

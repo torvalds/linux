@@ -370,8 +370,8 @@ void prep_compound_page(struct page *page, unsigned long order)
 	__SetPageHead(page);
 	for (i = 1; i < nr_pages; i++) {
 		struct page *p = page + i;
-
 		__SetPageTail(p);
+		set_page_count(p, 0);
 		p->first_page = page;
 	}
 }
@@ -3411,9 +3411,15 @@ static void setup_zone_migrate_reserve(struct zone *zone)
 	unsigned long block_migratetype;
 	int reserve;
 
-	/* Get the start pfn, end pfn and the number of blocks to reserve */
+	/*
+	 * Get the start pfn, end pfn and the number of blocks to reserve
+	 * We have to be careful to be aligned to pageblock_nr_pages to
+	 * make sure that we always check pfn_valid for the first page in
+	 * the block.
+	 */
 	start_pfn = zone->zone_start_pfn;
 	end_pfn = start_pfn + zone->spanned_pages;
+	start_pfn = roundup(start_pfn, pageblock_nr_pages);
 	reserve = roundup(min_wmark_pages(zone), pageblock_nr_pages) >>
 							pageblock_order;
 
@@ -5582,6 +5588,17 @@ __count_immobile_pages(struct zone *zone, struct page *page, int count)
 bool is_pageblock_removable_nolock(struct page *page)
 {
 	struct zone *zone = page_zone(page);
+	unsigned long pfn = page_to_pfn(page);
+
+	/*
+	 * We have to be careful here because we are iterating over memory
+	 * sections which are not zone aware so we might end up outside of
+	 * the zone but still within the section.
+	 */
+	if (!zone || zone->zone_start_pfn > pfn ||
+			zone->zone_start_pfn + zone->spanned_pages <= pfn)
+		return false;
+
 	return __count_immobile_pages(zone, page, 0);
 }
 

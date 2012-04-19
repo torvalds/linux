@@ -355,7 +355,14 @@ static void send_data(struct asus_oled_dev *odev)
 
 static int append_values(struct asus_oled_dev *odev, uint8_t val, size_t count)
 {
-	while (count-- > 0 && val) {
+	odev->last_val = val;
+
+	if (val == 0) {
+		odev->buf_offs += count;
+		return 0;
+	}
+
+	while (count-- > 0) {
 		size_t x = odev->buf_offs % odev->width;
 		size_t y = odev->buf_offs / odev->width;
 		size_t i;
@@ -406,7 +413,6 @@ static int append_values(struct asus_oled_dev *odev, uint8_t val, size_t count)
 			;
 		}
 
-		odev->last_val = val;
 		odev->buf_offs++;
 	}
 
@@ -805,10 +811,9 @@ error:
 
 static void __exit asus_oled_exit(void)
 {
+	usb_deregister(&oled_driver);
 	class_remove_file(oled_class, &class_attr_version.attr);
 	class_destroy(oled_class);
-
-	usb_deregister(&oled_driver);
 }
 
 module_init(asus_oled_init);

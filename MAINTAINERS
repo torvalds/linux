@@ -1221,7 +1221,7 @@ F:	Documentation/aoe/
 F:	drivers/block/aoe/
 
 ATHEROS ATH GENERIC UTILITIES
-M:	"Luis R. Rodriguez" <lrodriguez@atheros.com>
+M:	"Luis R. Rodriguez" <mcgrof@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/net/wireless/ath/*
@@ -1229,7 +1229,7 @@ F:	drivers/net/wireless/ath/*
 ATHEROS ATH5K WIRELESS DRIVER
 M:	Jiri Slaby <jirislaby@gmail.com>
 M:	Nick Kossifidis <mickflemm@gmail.com>
-M:	"Luis R. Rodriguez" <lrodriguez@atheros.com>
+M:	"Luis R. Rodriguez" <mcgrof@qca.qualcomm.com>
 M:	Bob Copeland <me@bobcopeland.com>
 L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
@@ -1238,10 +1238,10 @@ S:	Maintained
 F:	drivers/net/wireless/ath/ath5k/
 
 ATHEROS ATH9K WIRELESS DRIVER
-M:	"Luis R. Rodriguez" <lrodriguez@atheros.com>
-M:	Jouni Malinen <jmalinen@atheros.com>
-M:	Vasanthakumar Thiagarajan <vasanth@atheros.com>
-M:	Senthil Balasubramanian <senthilkumar@atheros.com>
+M:	"Luis R. Rodriguez" <mcgrof@qca.qualcomm.com>
+M:	Jouni Malinen <jouni@qca.qualcomm.com>
+M:	Vasanthakumar Thiagarajan <vthiagar@qca.qualcomm.com>
+M:	Senthil Balasubramanian <senthilb@qca.qualcomm.com>
 L:	linux-wireless@vger.kernel.org
 L:	ath9k-devel@lists.ath9k.org
 W:	http://wireless.kernel.org/en/users/Drivers/ath9k
@@ -1269,7 +1269,7 @@ F:	drivers/input/misc/ati_remote2.c
 ATLX ETHERNET DRIVERS
 M:	Jay Cliburn <jcliburn@gmail.com>
 M:	Chris Snook <chris.snook@gmail.com>
-M:	Jie Yang <jie.yang@atheros.com>
+M:	Jie Yang <yangjie@qca.qualcomm.com>
 L:	netdev@vger.kernel.org
 W:	http://sourceforge.net/projects/atl1
 W:	http://atl1.sourceforge.net
@@ -6039,7 +6039,7 @@ F:	arch/alpha/kernel/srm_env.c
 
 STABLE BRANCH
 M:	Greg Kroah-Hartman <greg@kroah.com>
-L:	stable@kernel.org
+L:	stable@vger.kernel.org
 S:	Maintained
 
 STAGING SUBSYSTEM

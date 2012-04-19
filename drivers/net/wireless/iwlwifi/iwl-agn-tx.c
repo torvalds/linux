@@ -385,7 +385,10 @@ static void iwlagn_tx_cmd_build_basic(struct iwl_priv *priv,
 		tx_cmd->tid_tspec = qc[0] & 0xf;
 		tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	} else {
-		tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
+		if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ)
+			tx_flags |= TX_CMD_FLG_SEQ_CTL_MSK;
+		else
+			tx_flags &= ~TX_CMD_FLG_SEQ_CTL_MSK;
 	}
 
 	priv->cfg->ops->utils->tx_cmd_protection(priv, info, fc, &tx_flags);
@@ -775,10 +778,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx_cmd, sizeof(*tx_cmd));
 	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx_cmd->hdr, hdr_len);
 
-	/* Set up entry for this TFD in Tx byte-count array */
-	if (info->flags & IEEE80211_TX_CTL_AMPDU)
-		iwlagn_txq_update_byte_cnt_tbl(priv, txq,
-					       le16_to_cpu(tx_cmd->len));
+	iwlagn_txq_update_byte_cnt_tbl(priv, txq, le16_to_cpu(tx_cmd->len));
 
 	pci_dma_sync_single_for_device(priv->pci_dev, txcmd_phys,
 				       firstlen, PCI_DMA_BIDIRECTIONAL);

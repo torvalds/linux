@@ -2767,10 +2767,10 @@ void cifs_setup_cifs_sb(struct smb_vol *pvolume_info,
 
 /*
  * When the server doesn't allow large posix writes, only allow a wsize of
- * 128k minus the size of the WRITE_AND_X header. That allows for a write up
+ * 2^17-1 minus the size of the WRITE_AND_X header. That allows for a write up
  * to the maximum size described by RFC1002.
  */
-#define CIFS_MAX_RFC1002_WSIZE (128 * 1024 - sizeof(WRITE_REQ) + 4)
+#define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
 
 /*
  * The default wsize is 1M. find_get_pages seems to return a maximum of 256
@@ -3004,7 +3004,7 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
-	int rc = 0;
+	int rc;
 	int xid;
 	struct cifs_ses *pSesInfo;
 	struct cifs_tcon *tcon;
@@ -3033,6 +3033,7 @@ try_mount_again:
 		FreeXid(xid);
 	}
 #endif
+	rc = 0;
 	tcon = NULL;
 	pSesInfo = NULL;
 	srvTcp = NULL;

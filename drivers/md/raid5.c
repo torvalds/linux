@@ -3078,7 +3078,7 @@ static void handle_stripe5(struct stripe_head *sh)
 			/* Not in-sync */;
 		else if (test_bit(In_sync, &rdev->flags))
 			set_bit(R5_Insync, &dev->flags);
-		else {
+		else if (!test_bit(Faulty, &rdev->flags)) {
 			/* could be in-sync depending on recovery/reshape status */
 			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
 				set_bit(R5_Insync, &dev->flags);
@@ -3120,12 +3120,16 @@ static void handle_stripe5(struct stripe_head *sh)
 	/* check if the array has lost two devices and, if so, some requests might
 	 * need to be failed
 	 */
-	if (s.failed > 1 && s.to_read+s.to_write+s.written)
-		handle_failed_stripe(conf, sh, &s, disks, &return_bi);
-	if (s.failed > 1 && s.syncing) {
-		md_done_sync(conf->mddev, STRIPE_SECTORS,0);
-		clear_bit(STRIPE_SYNCING, &sh->state);
-		s.syncing = 0;
+	if (s.failed > 1) {
+		sh->check_state = 0;
+		sh->reconstruct_state = 0;
+		if (s.to_read+s.to_write+s.written)
+			handle_failed_stripe(conf, sh, &s, disks, &return_bi);
+		if (s.syncing) {
+			md_done_sync(conf->mddev, STRIPE_SECTORS,0);
+			clear_bit(STRIPE_SYNCING, &sh->state);
+			s.syncing = 0;
+		}
 	}
 
 	/* might be able to return some write requests if the parity block
@@ -3369,7 +3373,7 @@ static void handle_stripe6(struct stripe_head *sh)
 			/* Not in-sync */;
 		else if (test_bit(In_sync, &rdev->flags))
 			set_bit(R5_Insync, &dev->flags);
-		else {
+		else if (!test_bit(Faulty, &rdev->flags)) {
 			/* in sync if before recovery_offset */
 			if (sh->sector + STRIPE_SECTORS <= rdev->recovery_offset)
 				set_bit(R5_Insync, &dev->flags);
@@ -3412,12 +3416,16 @@ static void handle_stripe6(struct stripe_head *sh)
 	/* check if the array has lost >2 devices and, if so, some requests
 	 * might need to be failed
 	 */
-	if (s.failed > 2 && s.to_read+s.to_write+s.written)
-		handle_failed_stripe(conf, sh, &s, disks, &return_bi);
-	if (s.failed > 2 && s.syncing) {
-		md_done_sync(conf->mddev, STRIPE_SECTORS,0);
-		clear_bit(STRIPE_SYNCING, &sh->state);
-		s.syncing = 0;
+	if (s.failed > 2) {
+		sh->check_state = 0;
+		sh->reconstruct_state = 0;
+		if (s.to_read+s.to_write+s.written)
+			handle_failed_stripe(conf, sh, &s, disks, &return_bi);
+		if (s.syncing) {
+			md_done_sync(conf->mddev, STRIPE_SECTORS,0);
+			clear_bit(STRIPE_SYNCING, &sh->state);
+			s.syncing = 0;
+		}
 	}
 
 	/*

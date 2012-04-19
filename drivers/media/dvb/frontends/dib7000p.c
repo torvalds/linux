@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/mutex.h>
 
 #include "dvb_math.h"
 #include "dvb_frontend.h"
@@ -68,6 +69,7 @@ struct dib7000p_state {
 	struct i2c_msg msg[2];
 	u8 i2c_write_buffer[4];
 	u8 i2c_read_buffer[2];
+	struct mutex i2c_buffer_lock;
 };
 
 enum dib7000p_power_mode {
@@ -81,6 +83,13 @@ static int dib7090_set_diversity_in(struct dvb_frontend *fe, int onoff);
 
 static u16 dib7000p_read_word(struct dib7000p_state *state, u16 reg)
 {
+	u16 ret;
+
+	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
+		dprintk("could not acquire lock");
+		return 0;
+	}
+
 	state->i2c_write_buffer[0] = reg >> 8;
 	state->i2c_write_buffer[1] = reg & 0xff;
 
@@ -97,11 +106,20 @@ static u16 dib7000p_read_word(struct dib7000p_state *state, u16 reg)
 	if (i2c_transfer(state->i2c_adap, state->msg, 2) != 2)
 		dprintk("i2c read error on %d", reg);
 
-	return (state->i2c_read_buffer[0] << 8) | state->i2c_read_buffer[1];
+	ret = (state->i2c_read_buffer[0] << 8) | state->i2c_read_buffer[1];
+	mutex_unlock(&state->i2c_buffer_lock);
+	return ret;
 }
 
 static int dib7000p_write_word(struct dib7000p_state *state, u16 reg, u16 val)
 {
+	int ret;
+
+	if (mutex_lock_interruptible(&state->i2c_buffer_lock) < 0) {
+		dprintk("could not acquire lock");
+		return -EINVAL;
+	}
+
 	state->i2c_write_buffer[0] = (reg >> 8) & 0xff;
 	state->i2c_write_buffer[1] = reg & 0xff;
 	state->i2c_write_buffer[2] = (val >> 8) & 0xff;
@@ -113,7 +131,10 @@ static int dib7000p_write_word(struct dib7000p_state *state, u16 reg, u16 val)
 	state->msg[0].buf = state->i2c_write_buffer;
 	state->msg[0].len = 4;
 
-	return i2c_transfer(state->i2c_adap, state->msg, 1) != 1 ? -EREMOTEIO : 0;
+	ret = (i2c_transfer(state->i2c_adap, state->msg, 1) != 1 ?
+			-EREMOTEIO : 0);
+	mutex_unlock(&state->i2c_buffer_lock);
+	return ret;
 }
 
 static void dib7000p_write_tab(struct dib7000p_state *state, u16 * buf)
@@ -1646,6 +1667,7 @@ int dib7000p_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defau
 		return -ENOMEM;
 
 	dpst->i2c_adap = i2c;
+	mutex_init(&dpst->i2c_buffer_lock);
 
 	for (k = no_of_demods - 1; k >= 0; k--) {
 		dpst->cfg = cfg[k];
@@ -2324,6 +2346,7 @@ struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, 
 	demod = &st->demod;
 	demod->demodulator_priv = st;
 	memcpy(&st->demod.ops, &dib7000p_ops, sizeof(struct dvb_frontend_ops));
+	mutex_init(&st->i2c_buffer_lock);
 
 	dib7000p_write_word(st, 1287, 0x0003);	/* sram lead in, rdy */
 
@@ -2333,8 +2356,9 @@ struct dvb_frontend *dib7000p_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, 
 	st->version = dib7000p_read_word(st, 897);
 
 	/* FIXME: make sure the dev.parent field is initialized, or else
-		request_firmware() will hit an OOPS (this should be moved somewhere
-		more common) */
+	   request_firmware() will hit an OOPS (this should be moved somewhere
+	   more common) */
+	st->i2c_master.gated_tuner_i2c_adap.dev.parent = i2c_adap->dev.parent;
 
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000P, st->i2c_adap, st->i2c_addr);
 

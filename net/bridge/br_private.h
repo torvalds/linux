@@ -294,6 +294,7 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 
 /* br_device.c */
 extern void br_dev_setup(struct net_device *dev);
+extern void br_dev_delete(struct net_device *dev, struct list_head *list);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
 #ifdef CONFIG_NET_POLL_CONTROLLER

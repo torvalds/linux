@@ -50,14 +50,13 @@
 #ifdef CONFIG_SMP
 #define TO_PHYS_ID(cpu)		cpu_data(cpu).phys_proc_id
 #define TO_CORE_ID(cpu)		cpu_data(cpu).cpu_core_id
-#define TO_ATTR_NO(cpu)		(TO_CORE_ID(cpu) + BASE_SYSFS_ATTR_NO)
 #define for_each_sibling(i, cpu)	for_each_cpu(i, cpu_sibling_mask(cpu))
 #else
 #define TO_PHYS_ID(cpu)		(cpu)
 #define TO_CORE_ID(cpu)		(cpu)
-#define TO_ATTR_NO(cpu)		(cpu)
 #define for_each_sibling(i, cpu)	for (i = 0; false; )
 #endif
+#define TO_ATTR_NO(cpu)		(TO_CORE_ID(cpu) + BASE_SYSFS_ATTR_NO)
 
 /*
  * Per-Core Temperature Data
@@ -540,6 +539,8 @@ static void coretemp_add_core(unsigned int cpu, int pkg_flag)
 		return;
 
 	pdata = platform_get_drvdata(pdev);
+	if (!pdata)
+		return;
 
 	err = create_core_data(pdata, pdev, cpu, pkg_flag);
 	if (err)
@@ -746,6 +747,8 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 		return;
 
 	pdata = platform_get_drvdata(pdev);
+	if (!pdata)
+		return;
 
 	indx = TO_ATTR_NO(cpu);
 

@@ -33,6 +33,7 @@ struct dibx000_i2c_master {
 	struct i2c_msg msg[34];
 	u8 i2c_write_buffer[8];
 	u8 i2c_read_buffer[2];
+	struct mutex i2c_buffer_lock;
 };
 
 extern int dibx000_init_i2c_master(struct dibx000_i2c_master *mst,

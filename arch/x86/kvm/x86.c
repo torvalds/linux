@@ -4407,6 +4407,28 @@ static int emulator_intercept(struct x86_emulate_ctxt *ctxt,
 	return kvm_x86_ops->check_intercept(emul_to_vcpu(ctxt), info, stage);
 }
 
+static bool emulator_get_cpuid(struct x86_emulate_ctxt *ctxt,
+			       u32 *eax, u32 *ebx, u32 *ecx, u32 *edx)
+{
+	struct kvm_cpuid_entry2 *cpuid = NULL;
+
+	if (eax && ecx)
+		cpuid = kvm_find_cpuid_entry(emul_to_vcpu(ctxt),
+					    *eax, *ecx);
+
+	if (cpuid) {
+		*eax = cpuid->eax;
+		*ecx = cpuid->ecx;
+		if (ebx)
+			*ebx = cpuid->ebx;
+		if (edx)
+			*edx = cpuid->edx;
+		return true;
+	}
+
+	return false;
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
 	.write_std           = kvm_write_guest_virt_system,
@@ -4437,6 +4459,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.get_fpu             = emulator_get_fpu,
 	.put_fpu             = emulator_put_fpu,
 	.intercept           = emulator_intercept,
+	.get_cpuid           = emulator_get_cpuid,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)

@@ -1500,6 +1500,8 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	struct sk_buff *skb = *pskb;
 	struct slave *slave;
 	struct bonding *bond;
+	void (*recv_probe)(struct sk_buff *, struct bonding *,
+				struct slave *);
 
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (unlikely(!skb))
@@ -1513,11 +1515,12 @@ static rx_handler_result_t bond_handle_frame(struct sk_buff **pskb)
 	if (bond->params.arp_interval)
 		slave->dev->last_rx = jiffies;
 
-	if (bond->recv_probe) {
+	recv_probe = ACCESS_ONCE(bond->recv_probe);
+	if (recv_probe) {
 		struct sk_buff *nskb = skb_clone(skb, GFP_ATOMIC);
 
 		if (likely(nskb)) {
-			bond->recv_probe(nskb, bond, slave);
+			recv_probe(nskb, bond, slave);
 			dev_kfree_skb(nskb);
 		}
 	}
@@ -1902,7 +1905,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				 "but new slave device does not support netpoll.\n",
 				 bond_dev->name);
 			res = -EBUSY;
-			goto err_close;
+			goto err_detach;
 		}
 	}
 #endif
@@ -1911,7 +1914,7 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	res = bond_create_slave_symlinks(bond_dev, slave_dev);
 	if (res)
-		goto err_close;
+		goto err_detach;
 
 	res = netdev_rx_handler_register(slave_dev, bond_handle_frame,
 					 new_slave);
@@ -1931,6 +1934,11 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 /* Undo stages on error */
 err_dest_symlinks:
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
+
+err_detach:
+	write_lock_bh(&bond->lock);
+	bond_detach_slave(bond, new_slave);
+	write_unlock_bh(&bond->lock);
 
 err_close:
 	dev_close(slave_dev);

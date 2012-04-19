@@ -2114,11 +2114,6 @@ static int cdrom_read_cdda_old(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 	if (!nr)
 		return -ENOMEM;
 
-	if (!access_ok(VERIFY_WRITE, ubuf, nframes * CD_FRAMESIZE_RAW)) {
-		ret = -EFAULT;
-		goto out;
-	}
-
 	cgc.data_direction = CGC_DATA_READ;
 	while (nframes > 0) {
 		if (nr > nframes)
@@ -2127,7 +2122,7 @@ static int cdrom_read_cdda_old(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		ret = cdrom_read_block(cdi, &cgc, lba, nr, 1, CD_FRAMESIZE_RAW);
 		if (ret)
 			break;
-		if (__copy_to_user(ubuf, cgc.buffer, CD_FRAMESIZE_RAW * nr)) {
+		if (copy_to_user(ubuf, cgc.buffer, CD_FRAMESIZE_RAW * nr)) {
 			ret = -EFAULT;
 			break;
 		}
@@ -2135,7 +2130,6 @@ static int cdrom_read_cdda_old(struct cdrom_device_info *cdi, __u8 __user *ubuf,
 		nframes -= nr;
 		lba += nr;
 	}
-out:
 	kfree(cgc.buffer);
 	return ret;
 }
@@ -2741,12 +2735,11 @@ int cdrom_ioctl(struct cdrom_device_info *cdi, struct block_device *bdev,
 {
 	void __user *argp = (void __user *)arg;
 	int ret;
-	struct gendisk *disk = bdev->bd_disk;
 
 	/*
 	 * Try the generic SCSI command ioctl's first.
 	 */
-	ret = scsi_cmd_ioctl(disk->queue, disk, mode, cmd, argp);
+	ret = scsi_cmd_blk_ioctl(bdev, mode, cmd, argp);
 	if (ret != -ENOTTY)
 		return ret;
 

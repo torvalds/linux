@@ -1496,7 +1496,9 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 			     void __user *buffer,
 			     size_t *lenp, loff_t *ppos)
 {
+	int old_value = *(int *)ctl->data;
 	int ret = proc_dointvec(ctl, write, buffer, lenp, ppos);
+	int new_value = *(int *)ctl->data;
 
 	if (write) {
 		struct ipv4_devconf *cnf = ctl->extra1;
@@ -1507,6 +1509,9 @@ static int devinet_conf_proc(ctl_table *ctl, int write,
 
 		if (cnf == net->ipv4.devconf_dflt)
 			devinet_copy_dflt_conf(net, i);
+		if (i == IPV4_DEVCONF_ACCEPT_LOCAL - 1)
+			if ((new_value == 0) && (old_value != 0))
+				rt_cache_flush(net, 0);
 	}
 
 	return ret;

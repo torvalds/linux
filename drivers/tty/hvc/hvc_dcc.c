@@ -46,6 +46,7 @@ static inline char __dcc_getchar(void)
 
 	asm volatile("mrc p14, 0, %0, c0, c5, 0	@ read comms data reg"
 		: "=r" (__c));
+	isb();
 
 	return __c;
 }
@@ -55,6 +56,7 @@ static inline void __dcc_putchar(char c)
 	asm volatile("mcr p14, 0, %0, c0, c5, 0	@ write a char"
 		: /* no output register */
 		: "r" (c));
+	isb();
 }
 
 static int hvc_dcc_put_chars(uint32_t vt, const char *buf, int count)

@@ -641,6 +641,7 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 		set_pmd_at(mm, haddr, pmd, entry);
 		prepare_pmd_huge_pte(pgtable, mm);
 		add_mm_counter(mm, MM_ANONPAGES, HPAGE_PMD_NR);
+		mm->nr_ptes++;
 		spin_unlock(&mm->page_table_lock);
 	}
 
@@ -759,6 +760,7 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	pmd = pmd_mkold(pmd_wrprotect(pmd));
 	set_pmd_at(dst_mm, addr, dst_pmd, pmd);
 	prepare_pmd_huge_pte(pgtable, dst_mm);
+	dst_mm->nr_ptes++;
 
 	ret = 0;
 out_unlock:
@@ -857,7 +859,6 @@ static int do_huge_pmd_wp_page_fallback(struct mm_struct *mm,
 	}
 	kfree(pages);
 
-	mm->nr_ptes++;
 	smp_wmb(); /* make pte visible before pmd */
 	pmd_populate(mm, pmd, pgtable);
 	page_remove_rmap(page);
@@ -989,7 +990,7 @@ struct page *follow_trans_huge_pmd(struct mm_struct *mm,
 	page += (addr & ~HPAGE_PMD_MASK) >> PAGE_SHIFT;
 	VM_BUG_ON(!PageCompound(page));
 	if (flags & FOLL_GET)
-		get_page(page);
+		get_page_foll(page);
 
 out:
 	return page;
@@ -1016,6 +1017,7 @@ int zap_huge_pmd(struct mmu_gather *tlb, struct vm_area_struct *vma,
 			VM_BUG_ON(page_mapcount(page) < 0);
 			add_mm_counter(tlb->mm, MM_ANONPAGES, -HPAGE_PMD_NR);
 			VM_BUG_ON(!PageHead(page));
+			tlb->mm->nr_ptes--;
 			spin_unlock(&tlb->mm->page_table_lock);
 			tlb_remove_page(tlb, page);
 			pte_free(tlb->mm, pgtable);
@@ -1156,6 +1158,7 @@ static void __split_huge_page_refcount(struct page *page)
 	unsigned long head_index = page->index;
 	struct zone *zone = page_zone(page);
 	int zonestat;
+	int tail_count = 0;
 
 	/* prevent PageLRU to go away from under us, and freeze lru stats */
 	spin_lock_irq(&zone->lru_lock);
@@ -1164,11 +1167,27 @@ static void __split_huge_page_refcount(struct page *page)
 	for (i = 1; i < HPAGE_PMD_NR; i++) {
 		struct page *page_tail = page + i;
 
-		/* tail_page->_count cannot change */
-		atomic_sub(atomic_read(&page_tail->_count), &page->_count);
-		BUG_ON(page_count(page) <= 0);
-		atomic_add(page_mapcount(page) + 1, &page_tail->_count);
-		BUG_ON(atomic_read(&page_tail->_count) <= 0);
+		/* tail_page->_mapcount cannot change */
+		BUG_ON(page_mapcount(page_tail) < 0);
+		tail_count += page_mapcount(page_tail);
+		/* check for overflow */
+		BUG_ON(tail_count < 0);
+		BUG_ON(atomic_read(&page_tail->_count) != 0);
+		/*
+		 * tail_page->_count is zero and not changing from
+		 * under us. But get_page_unless_zero() may be running
+		 * from under us on the tail_page. If we used
+		 * atomic_set() below instead of atomic_add(), we
+		 * would then run atomic_set() concurrently with
+		 * get_page_unless_zero(), and atomic_set() is
+		 * implemented in C not using locked ops. spin_unlock
+		 * on x86 sometime uses locked ops because of PPro
+		 * errata 66, 92, so unless somebody can guarantee
+		 * atomic_set() here would be safe on all archs (and
+		 * not only on x86), it's safer to use atomic_add().
+		 */
+		atomic_add(page_mapcount(page) + page_mapcount(page_tail) + 1,
+			   &page_tail->_count);
 
 		/* after clearing PageTail the gup refcount can be released */
 		smp_mb();
@@ -1186,10 +1205,7 @@ static void __split_huge_page_refcount(struct page *page)
 				      (1L << PG_uptodate)));
 		page_tail->flags |= (1L << PG_dirty);
 
-		/*
-		 * 1) clear PageTail before overwriting first_page
-		 * 2) clear PageTail before clearing PageHead for VM_BUG_ON
-		 */
+		/* clear PageTail before overwriting first_page */
 		smp_wmb();
 
 		/*
@@ -1206,7 +1222,6 @@ static void __split_huge_page_refcount(struct page *page)
 		 * status is achieved setting a reserved bit in the
 		 * pmd, not by clearing the present bit.
 		*/
-		BUG_ON(page_mapcount(page_tail));
 		page_tail->_mapcount = page->_mapcount;
 
 		BUG_ON(page_tail->mapping);
@@ -1223,6 +1238,8 @@ static void __split_huge_page_refcount(struct page *page)
 
 		lru_add_page_tail(zone, page, page_tail);
 	}
+	atomic_sub(tail_count, &page->_count);
+	BUG_ON(atomic_read(&page->_count) <= 0);
 
 	__dec_zone_page_state(page, NR_ANON_TRANSPARENT_HUGEPAGES);
 	__mod_zone_page_state(zone, NR_ANON_PAGES, HPAGE_PMD_NR);
@@ -1295,7 +1312,6 @@ static int __split_huge_page_map(struct page *page,
 			pte_unmap(pte);
 		}
 
-		mm->nr_ptes++;
 		smp_wmb(); /* make pte visible before pmd */
 		/*
 		 * Up to this point the pmd is present and huge and
@@ -1910,7 +1926,6 @@ static void collapse_huge_page(struct mm_struct *mm,
 	set_pmd_at(mm, address, pmd, _pmd);
 	update_mmu_cache(vma, address, entry);
 	prepare_pmd_huge_pte(pgtable, mm);
-	mm->nr_ptes--;
 	spin_unlock(&mm->page_table_lock);
 
 #ifndef CONFIG_NUMA
@@ -2005,7 +2020,7 @@ static void collect_mm_slot(struct mm_slot *mm_slot)
 {
 	struct mm_struct *mm = mm_slot->mm;
 
-	VM_BUG_ON(!spin_is_locked(&khugepaged_mm_lock));
+	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
 
 	if (khugepaged_test_exit(mm)) {
 		/* free mm_slot */
@@ -2033,7 +2048,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
 	int progress = 0;
 
 	VM_BUG_ON(!pages);
-	VM_BUG_ON(!spin_is_locked(&khugepaged_mm_lock));
+	VM_BUG_ON(NR_CPUS != 1 && !spin_is_locked(&khugepaged_mm_lock));
 
 	if (khugepaged_scan.mm_slot)
 		mm_slot = khugepaged_scan.mm_slot;

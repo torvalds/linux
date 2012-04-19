@@ -181,7 +181,7 @@ static enum hrtimer_restart alarmtimer_fired(struct hrtimer *timer)
 		struct alarm *alarm;
 		ktime_t expired = next->expires;
 
-		if (expired.tv64 >= now.tv64)
+		if (expired.tv64 > now.tv64)
 			break;
 
 		alarm = container_of(next, struct alarm, node);

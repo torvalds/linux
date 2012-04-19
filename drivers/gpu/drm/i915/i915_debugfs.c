@@ -865,7 +865,7 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 			   MEMSTAT_VID_SHIFT);
 		seq_printf(m, "Current P-state: %d\n",
 			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if (IS_GEN6(dev)) {
+	} else if (IS_GEN6(dev) || IS_GEN7(dev)) {
 		u32 gt_perf_status = I915_READ(GEN6_GT_PERF_STATUS);
 		u32 rp_state_limits = I915_READ(GEN6_RP_STATE_LIMITS);
 		u32 rp_state_cap = I915_READ(GEN6_RP_STATE_CAP);

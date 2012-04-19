@@ -985,7 +985,7 @@ static int init_act_open(struct cxgbi_sock *csk)
 		csk->saddr.sin_addr.s_addr = chba->ipv4addr;
 
 	csk->rss_qid = 0;
-	csk->l2t = t3_l2t_get(t3dev, dst->neighbour, ndev);
+	csk->l2t = t3_l2t_get(t3dev, dst_get_neighbour(dst), ndev);
 	if (!csk->l2t) {
 		pr_err("NO l2t available.\n");
 		return -EINVAL;

@@ -314,17 +314,29 @@ again:
 #endif
 
 	lock_page(page_head);
+
+	/*
+	 * If page_head->mapping is NULL, then it cannot be a PageAnon
+	 * page; but it might be the ZERO_PAGE or in the gate area or
+	 * in a special mapping (all cases which we are happy to fail);
+	 * or it may have been a good file page when get_user_pages_fast
+	 * found it, but truncated or holepunched or subjected to
+	 * invalidate_complete_page2 before we got the page lock (also
+	 * cases which we are happy to fail).  And we hold a reference,
+	 * so refcount care in invalidate_complete_page's remove_mapping
+	 * prevents drop_caches from setting mapping to NULL beneath us.
+	 *
+	 * The case we do have to guard against is when memory pressure made
+	 * shmem_writepage move it from filecache to swapcache beneath us:
+	 * an unlikely race, but we do need to retry for page_head->mapping.
+	 */
 	if (!page_head->mapping) {
+		int shmem_swizzled = PageSwapCache(page_head);
 		unlock_page(page_head);
 		put_page(page_head);
-		/*
-		* ZERO_PAGE pages don't have a mapping. Avoid a busy loop
-		* trying to find one. RW mapping would have COW'd (and thus
-		* have a mapping) so this page is RO and won't ever change.
-		*/
-		if ((page_head == ZERO_PAGE(address)))
-			return -EFAULT;
-		goto again;
+		if (shmem_swizzled)
+			goto again;
+		return -EFAULT;
 	}
 
 	/*
@@ -2629,6 +2641,16 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 	}
 
 	switch (cmd) {
+	case FUTEX_LOCK_PI:
+	case FUTEX_UNLOCK_PI:
+	case FUTEX_TRYLOCK_PI:
+	case FUTEX_WAIT_REQUEUE_PI:
+	case FUTEX_CMP_REQUEUE_PI:
+		if (!futex_cmpxchg_enabled)
+			return -ENOSYS;
+	}
+
+	switch (cmd) {
 	case FUTEX_WAIT:
 		val3 = FUTEX_BITSET_MATCH_ANY;
 	case FUTEX_WAIT_BITSET:
@@ -2649,16 +2671,13 @@ long do_futex(u32 __user *uaddr, int op, u32 val, ktime_t *timeout,
 		ret = futex_wake_op(uaddr, flags, uaddr2, val, val2, val3);
 		break;
 	case FUTEX_LOCK_PI:
-		if (futex_cmpxchg_enabled)
-			ret = futex_lock_pi(uaddr, flags, val, timeout, 0);
+		ret = futex_lock_pi(uaddr, flags, val, timeout, 0);
 		break;
 	case FUTEX_UNLOCK_PI:
-		if (futex_cmpxchg_enabled)
-			ret = futex_unlock_pi(uaddr, flags);
+		ret = futex_unlock_pi(uaddr, flags);
 		break;
 	case FUTEX_TRYLOCK_PI:
-		if (futex_cmpxchg_enabled)
-			ret = futex_lock_pi(uaddr, flags, 0, timeout, 1);
+		ret = futex_lock_pi(uaddr, flags, 0, timeout, 1);
 		break;
 	case FUTEX_WAIT_REQUEUE_PI:
 		val3 = FUTEX_BITSET_MATCH_ANY;

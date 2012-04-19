@@ -428,6 +428,14 @@ filelayout_check_layout(struct pnfs_layout_hdr *lo,
 
 	dprintk("--> %s\n", __func__);
 
+	/* FIXME: remove this check when layout segment support is added */
+	if (lgr->range.offset != 0 ||
+	    lgr->range.length != NFS4_MAX_UINT64) {
+		dprintk("%s Only whole file layouts supported. Use MDS i/o\n",
+			__func__);
+		goto out;
+	}
+
 	if (fl->pattern_offset > lgr->range.offset) {
 		dprintk("%s pattern_offset %lld too large\n",
 				__func__, fl->pattern_offset);

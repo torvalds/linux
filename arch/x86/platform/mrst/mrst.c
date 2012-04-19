@@ -678,36 +678,40 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 	pentry = (struct sfi_device_table_entry *)sb->pentry;
 
 	for (i = 0; i < num; i++, pentry++) {
-		if (pentry->irq != (u8)0xff) { /* native RTE case */
+		int irq = pentry->irq;
+
+		if (irq != (u8)0xff) { /* native RTE case */
 			/* these SPI2 devices are not exposed to system as PCI
 			 * devices, but they have separate RTE entry in IOAPIC
 			 * so we have to enable them one by one here
 			 */
-			ioapic = mp_find_ioapic(pentry->irq);
+			ioapic = mp_find_ioapic(irq);
 			irq_attr.ioapic = ioapic;
-			irq_attr.ioapic_pin = pentry->irq;
+			irq_attr.ioapic_pin = irq;
 			irq_attr.trigger = 1;
 			irq_attr.polarity = 1;
-			io_apic_set_pci_routing(NULL, pentry->irq, &irq_attr);
-		}
+			io_apic_set_pci_routing(NULL, irq, &irq_attr);
+		} else
+			irq = 0; /* No irq */
+
 		switch (pentry->type) {
 		case SFI_DEV_TYPE_IPC:
 			/* ID as IRQ is a hack that will go away */
-			pdev = platform_device_alloc(pentry->name, pentry->irq);
+			pdev = platform_device_alloc(pentry->name, irq);
 			if (pdev == NULL) {
 				pr_err("out of memory for SFI platform device '%s'.\n",
 							pentry->name);
 				continue;
 			}
-			install_irq_resource(pdev, pentry->irq);
+			install_irq_resource(pdev, irq);
 			pr_debug("info[%2d]: IPC bus, name = %16.16s, "
-				"irq = 0x%2x\n", i, pentry->name, pentry->irq);
+				"irq = 0x%2x\n", i, pentry->name, irq);
 			sfi_handle_ipc_dev(pdev);
 			break;
 		case SFI_DEV_TYPE_SPI:
 			memset(&spi_info, 0, sizeof(spi_info));
 			strncpy(spi_info.modalias, pentry->name, SFI_NAME_LEN);
-			spi_info.irq = pentry->irq;
+			spi_info.irq = irq;
 			spi_info.bus_num = pentry->host_num;
 			spi_info.chip_select = pentry->addr;
 			spi_info.max_speed_hz = pentry->max_freq;
@@ -724,7 +728,7 @@ static int __init sfi_parse_devs(struct sfi_table_header *table)
 			memset(&i2c_info, 0, sizeof(i2c_info));
 			bus = pentry->host_num;
 			strncpy(i2c_info.type, pentry->name, SFI_NAME_LEN);
-			i2c_info.irq = pentry->irq;
+			i2c_info.irq = irq;
 			i2c_info.addr = pentry->addr;
 			pr_debug("info[%2d]: I2C bus = %d, name = %16.16s, "
 				"irq = 0x%2x, addr = 0x%x\n", i, bus,
