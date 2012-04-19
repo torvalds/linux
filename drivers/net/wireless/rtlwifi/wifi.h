@@ -1688,6 +1688,10 @@ struct rtl_priv {
 	   interface or hardware */
 	unsigned long status;
 
+	/* tables for dm */
+	struct dig_t dm_digtable;
+	struct ps_t dm_pstable;
+
 	/* data buffer pointer for USB reads */
 	__le32 *usb_data;
 	int usb_data_index;
