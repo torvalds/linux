@@ -462,7 +462,6 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 {
 	struct sockaddr_sco *sa = (struct sockaddr_sco *) addr;
 	struct sock *sk = sock->sk;
-	bdaddr_t *src = &sa->sco_bdaddr;
 	int err = 0;
 
 	BT_DBG("sk %p %s", sk, batostr(&sa->sco_bdaddr));
@@ -477,17 +476,14 @@ static int sco_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_le
 		goto done;
 	}
 
-	write_lock(&sco_sk_list.lock);
-
-	if (bacmp(src, BDADDR_ANY) && __sco_get_sock_by_addr(src)) {
-		err = -EADDRINUSE;
-	} else {
-		/* Save source address */
-		bacpy(&bt_sk(sk)->src, &sa->sco_bdaddr);
-		sk->sk_state = BT_BOUND;
+	if (sk->sk_type != SOCK_SEQPACKET) {
+		err = -EINVAL;
+		goto done;
 	}
 
-	write_unlock(&sco_sk_list.lock);
+	bacpy(&bt_sk(sk)->src, &sa->sco_bdaddr);
+
+	sk->sk_state = BT_BOUND;
 
 done:
 	release_sock(sk);
