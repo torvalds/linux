@@ -23,8 +23,9 @@
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
 #include <asm/paravirt.h>
+#define GET_CR2_INTO(reg) GET_CR2_INTO_RAX ; movq %rax, reg
 #else
-#define GET_CR2_INTO_RCX movq %cr2, %rcx
+#define GET_CR2_INTO(reg) movq %cr2, reg
 #endif
 
 /* we are not able to switch in one step to the final KERNEL ADDRESS SPACE
@@ -286,8 +287,7 @@ ENTRY(early_idt_handler)
 	cmpl $2,early_recursion_flag(%rip)
 	jz  1f
 	incl early_recursion_flag(%rip)
-	GET_CR2_INTO_RCX
-	movq %rcx,%r9
+	GET_CR2_INTO(%r9)
 	xorl %r8d,%r8d		# zero for error code
 	movl %esi,%ecx		# get vector number
 	# Test %ecx against mask of vectors that push error code.
