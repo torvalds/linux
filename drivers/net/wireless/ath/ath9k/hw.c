@@ -1687,6 +1687,10 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (chan->channel == ah->curchan->channel)
 		goto fail;
 
+	if ((ah->curchan->channelFlags | chan->channelFlags) &
+	    (CHANNEL_HALF | CHANNEL_QUARTER))
+		goto fail;
+
 	if ((chan->channelFlags & CHANNEL_ALL) !=
 	    (ah->curchan->channelFlags & CHANNEL_ALL))
 		goto fail;
