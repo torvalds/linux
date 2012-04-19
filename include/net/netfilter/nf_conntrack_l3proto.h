@@ -65,7 +65,7 @@ struct nf_conntrack_l3proto {
 
 #ifdef CONFIG_SYSCTL
 	struct ctl_table_header	*ctl_table_header;
-	struct ctl_path		*ctl_table_path;
+	const char		*ctl_table_path;
 	struct ctl_table	*ctl_table;
 #endif /* CONFIG_SYSCTL */
 
