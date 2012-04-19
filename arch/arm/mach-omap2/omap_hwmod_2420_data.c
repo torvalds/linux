@@ -1375,7 +1375,7 @@ static struct omap2_mcspi_dev_attr omap_mcspi1_dev_attr = {
 };
 
 static struct omap_hwmod omap2420_mcspi1_hwmod = {
-	.name		= "mcspi1_hwmod",
+	.name		= "mcspi1",
 	.mpu_irqs	= omap2_mcspi1_mpu_irqs,
 	.sdma_reqs	= omap2_mcspi1_sdma_reqs,
 	.main_clk	= "mcspi1_fck",
@@ -1404,7 +1404,7 @@ static struct omap2_mcspi_dev_attr omap_mcspi2_dev_attr = {
 };
 
 static struct omap_hwmod omap2420_mcspi2_hwmod = {
-	.name		= "mcspi2_hwmod",
+	.name		= "mcspi2",
 	.mpu_irqs	= omap2_mcspi2_mpu_irqs,
 	.sdma_reqs	= omap2_mcspi2_sdma_reqs,
 	.main_clk	= "mcspi2_fck",
