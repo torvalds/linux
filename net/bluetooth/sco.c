@@ -93,12 +93,12 @@ static void sco_sock_clear_timer(struct sock *sk)
 }
 
 /* ---- SCO connections ---- */
-static struct sco_conn *sco_conn_add(struct hci_conn *hcon, __u8 status)
+static struct sco_conn *sco_conn_add(struct hci_conn *hcon)
 {
 	struct hci_dev *hdev = hcon->hdev;
 	struct sco_conn *conn = hcon->sco_data;
 
-	if (conn || status)
+	if (conn)
 		return conn;
 
 	conn = kzalloc(sizeof(struct sco_conn), GFP_ATOMIC);
@@ -199,7 +199,7 @@ static int sco_connect(struct sock *sk)
 		goto done;
 	}
 
-	conn = sco_conn_add(hcon, 0);
+	conn = sco_conn_add(hcon);
 	if (!conn) {
 		hci_conn_put(hcon);
 		err = -ENOMEM;
@@ -924,7 +924,7 @@ int sco_connect_cfm(struct hci_conn *hcon, __u8 status)
 	if (!status) {
 		struct sco_conn *conn;
 
-		conn = sco_conn_add(hcon, status);
+		conn = sco_conn_add(hcon);
 		if (conn)
 			sco_conn_ready(conn);
 	} else
