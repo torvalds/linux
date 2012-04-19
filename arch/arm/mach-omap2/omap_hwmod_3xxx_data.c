@@ -99,9 +99,19 @@ static struct omap_hwmod omap3xxx_mpu_hwmod = {
 };
 
 /* IVA2 (IVA2) */
+static struct omap_hwmod_rst_info omap3xxx_iva_resets[] = {
+	{ .name = "logic", .rst_shift = 0 },
+	{ .name = "seq0", .rst_shift = 1 },
+	{ .name = "seq1", .rst_shift = 2 },
+};
+
 static struct omap_hwmod omap3xxx_iva_hwmod = {
 	.name		= "iva",
 	.class		= &iva_hwmod_class,
+	.clkdm_name	= "iva2_clkdm",
+	.rst_lines	= omap3xxx_iva_resets,
+	.rst_lines_cnt	= ARRAY_SIZE(omap3xxx_iva_resets),
+	.main_clk	= "iva2_ck",
 };
 
 /* timer class */
