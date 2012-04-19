@@ -142,11 +142,21 @@ static struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg,
 				      struct request_queue *q)
 {
 	struct blkcg_gq *blkg;
-	struct hlist_node *n;
 
-	hlist_for_each_entry_rcu(blkg, n, &blkcg->blkg_list, blkcg_node)
-		if (blkg->q == q)
-			return blkg;
+	blkg = rcu_dereference(blkcg->blkg_hint);
+	if (blkg && blkg->q == q)
+		return blkg;
+
+	/*
+	 * Hint didn't match.  Look up from the radix tree.  Note that we
+	 * may not be holding queue_lock and thus are not sure whether
+	 * @blkg from blkg_tree has already been removed or not, so we
+	 * can't update hint to the lookup result.  Leave it to the caller.
+	 */
+	blkg = radix_tree_lookup(&blkcg->blkg_tree, q->id);
+	if (blkg && blkg->q == q)
+		return blkg;
+
 	return NULL;
 }
 
@@ -179,9 +189,12 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 	lockdep_assert_held(q->queue_lock);
 
+	/* lookup and update hint on success, see __blkg_lookup() for details */
 	blkg = __blkg_lookup(blkcg, q);
-	if (blkg)
+	if (blkg) {
+		rcu_assign_pointer(blkcg->blkg_hint, blkg);
 		return blkg;
+	}
 
 	/* blkg holds a reference to blkcg */
 	if (!css_tryget(&blkcg->css))
@@ -194,12 +207,24 @@ static struct blkcg_gq *__blkg_lookup_create(struct blkcg *blkcg,
 		goto err_put;
 
 	/* insert */
-	spin_lock(&blkcg->lock);
-	hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
-	list_add(&blkg->q_node, &q->blkg_list);
-	spin_unlock(&blkcg->lock);
-	return blkg;
+	ret = radix_tree_preload(GFP_ATOMIC);
+	if (ret)
+		goto err_free;
 
+	spin_lock(&blkcg->lock);
+	ret = radix_tree_insert(&blkcg->blkg_tree, q->id, blkg);
+	if (likely(!ret)) {
+		hlist_add_head_rcu(&blkg->blkcg_node, &blkcg->blkg_list);
+		list_add(&blkg->q_node, &q->blkg_list);
+	}
+	spin_unlock(&blkcg->lock);
+
+	radix_tree_preload_end();
+
+	if (!ret)
+		return blkg;
+err_free:
+	blkg_free(blkg);
 err_put:
 	css_put(&blkcg->css);
 	return ERR_PTR(ret);
@@ -229,8 +254,18 @@ static void blkg_destroy(struct blkcg_gq *blkg)
 	/* Something wrong if we are trying to remove same group twice */
 	WARN_ON_ONCE(list_empty(&blkg->q_node));
 	WARN_ON_ONCE(hlist_unhashed(&blkg->blkcg_node));
+
+	radix_tree_delete(&blkcg->blkg_tree, blkg->q->id);
 	list_del_init(&blkg->q_node);
 	hlist_del_init_rcu(&blkg->blkcg_node);
+
+	/*
+	 * Both setting lookup hint to and clearing it from @blkg are done
+	 * under queue_lock.  If it's not pointing to @blkg now, it never
+	 * will.  Hint assignment itself can race safely.
+	 */
+	if (rcu_dereference_raw(blkcg->blkg_hint) == blkg)
+		rcu_assign_pointer(blkcg->blkg_hint, NULL);
 
 	/*
 	 * Put the reference taken at the time of creation so that when all
@@ -593,6 +628,7 @@ static struct cgroup_subsys_state *blkcg_create(struct cgroup *cgroup)
 	blkcg->id = atomic64_inc_return(&id_seq); /* root is 0, start from 1 */
 done:
 	spin_lock_init(&blkcg->lock);
+	INIT_RADIX_TREE(&blkcg->blkg_tree, GFP_ATOMIC);
 	INIT_HLIST_HEAD(&blkcg->blkg_list);
 
 	return &blkcg->css;

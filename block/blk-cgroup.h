@@ -16,6 +16,7 @@
 #include <linux/cgroup.h>
 #include <linux/u64_stats_sync.h>
 #include <linux/seq_file.h>
+#include <linux/radix-tree.h>
 
 /* Max limits for throttle policy */
 #define THROTL_IOPS_MAX		UINT_MAX
@@ -37,9 +38,14 @@ enum blkg_rwstat_type {
 	BLKG_RWSTAT_TOTAL = BLKG_RWSTAT_NR,
 };
 
+struct blkcg_gq;
+
 struct blkcg {
 	struct cgroup_subsys_state	css;
 	spinlock_t			lock;
+
+	struct radix_tree_root		blkg_tree;
+	struct blkcg_gq			*blkg_hint;
 	struct hlist_head		blkg_list;
 
 	/* for policies to test whether associated blkcg has changed */
