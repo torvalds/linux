@@ -604,18 +604,14 @@ static struct mpic *mpic_find(unsigned int irq)
 }
 
 /* Determine if the linux irq is an IPI */
-static unsigned int mpic_is_ipi(struct mpic *mpic, unsigned int irq)
+static unsigned int mpic_is_ipi(struct mpic *mpic, unsigned int src)
 {
-	unsigned int src = virq_to_hw(irq);
-
 	return (src >= mpic->ipi_vecs[0] && src <= mpic->ipi_vecs[3]);
 }
 
 /* Determine if the linux irq is a timer */
-static unsigned int mpic_is_tm(struct mpic *mpic, unsigned int irq)
+static unsigned int mpic_is_tm(struct mpic *mpic, unsigned int src)
 {
-	unsigned int src = virq_to_hw(irq);
-
 	return (src >= mpic->timer_vecs[0] && src <= mpic->timer_vecs[7]);
 }
 
@@ -1555,12 +1551,12 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 		return;
 
 	raw_spin_lock_irqsave(&mpic_lock, flags);
-	if (mpic_is_ipi(mpic, irq)) {
+	if (mpic_is_ipi(mpic, src)) {
 		reg = mpic_ipi_read(src - mpic->ipi_vecs[0]) &
 			~MPIC_VECPRI_PRIORITY_MASK;
 		mpic_ipi_write(src - mpic->ipi_vecs[0],
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
-	} else if (mpic_is_tm(mpic, irq)) {
+	} else if (mpic_is_tm(mpic, src)) {
 		reg = mpic_tm_read(src - mpic->timer_vecs[0]) &
 			~MPIC_VECPRI_PRIORITY_MASK;
 		mpic_tm_write(src - mpic->timer_vecs[0],
