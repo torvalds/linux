@@ -643,10 +643,8 @@ void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
 		log_write_header(sdp, 0);
 	} else if (sdp->sd_log_tail != current_tail(sdp) && !sdp->sd_log_idle){
-		gfs2_log_lock(sdp);
 		atomic_dec(&sdp->sd_log_blks_free); /* Adjust for unreserved buffer */
 		trace_gfs2_log_blocks(sdp, -1);
-		gfs2_log_unlock(sdp);
 		log_write_header(sdp, 0);
 	}
 	lops_after_commit(sdp, ai);
@@ -797,11 +795,9 @@ int gfs2_logd(void *data)
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
 	DEFINE_WAIT(wait);
-	unsigned preflush;
 
 	while (!kthread_should_stop()) {
 
-		preflush = atomic_read(&sdp->sd_log_pinned);
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
 			gfs2_ail1_empty(sdp);
 			gfs2_log_flush(sdp, NULL);

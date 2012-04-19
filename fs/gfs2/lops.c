@@ -375,7 +375,7 @@ void gfs2_log_write_page(struct gfs2_sbd *sdp, struct page *page)
 static struct page *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type,
 				      u32 ld_length, u32 ld_data1)
 {
-	void *page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
+	struct page *page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
 	struct gfs2_log_descriptor *ld = page_address(page);
 	clear_page(ld);
 	ld->ld_header.mh_magic = cpu_to_be32(GFS2_MAGIC);
