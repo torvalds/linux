@@ -4003,9 +4003,14 @@ static void cx_auto_init_output(struct hda_codec *codec)
 	int i;
 
 	mute_outputs(codec, spec->multiout.num_dacs, spec->multiout.dac_nids);
-	for (i = 0; i < cfg->hp_outs; i++)
+	for (i = 0; i < cfg->hp_outs; i++) {
+		unsigned int val = PIN_OUT;
+		if (snd_hda_query_pin_caps(codec, cfg->hp_pins[i]) &
+		    AC_PINCAP_HP_DRV)
+			val |= AC_PINCTL_HP_EN;
 		snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+				    AC_VERB_SET_PIN_WIDGET_CONTROL, val);
+	}
 	mute_outputs(codec, cfg->hp_outs, cfg->hp_pins);
 	mute_outputs(codec, cfg->line_outs, cfg->line_out_pins);
 	mute_outputs(codec, cfg->speaker_outs, cfg->speaker_pins);
