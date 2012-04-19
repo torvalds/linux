@@ -117,6 +117,13 @@ struct ctl_table_header *register_net_sysctl_rotable(const
 }
 EXPORT_SYMBOL_GPL(register_net_sysctl_rotable);
 
+struct ctl_table_header *register_net_sysctl(struct net *net,
+	const char *path, struct ctl_table *table)
+{
+	return __register_sysctl_table(&net->sysctls, path, table);
+}
+EXPORT_SYMBOL_GPL(register_net_sysctl);
+
 void unregister_net_sysctl_table(struct ctl_table_header *header)
 {
 	unregister_sysctl_table(header);
