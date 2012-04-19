@@ -232,7 +232,7 @@ static int pm8607_set_voltage_sel(struct regulator_dev *rdev, unsigned selector)
 	val = (uint8_t)(selector << info->vol_shift);
 	mask = (rdev->desc->n_voltages - 1)  << info->vol_shift;
 
-	ret = pm860x_set_bits(info->i2c, info->vol_reg, mask, selector);
+	ret = pm860x_set_bits(info->i2c, info->vol_reg, mask, val);
 	if (ret)
 		return ret;
 	switch (info->desc.id) {
