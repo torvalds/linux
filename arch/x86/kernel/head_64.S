@@ -295,7 +295,7 @@ ENTRY(early_idt_handler)
 	ja 0f
 	movl $1,%eax
 	salq %cl,%rax
-	testl $0x27d00,%eax
+	testl $EXCEPTION_ERRCODE_MASK,%eax
 	je 0f
 	popq %r8		# get error code
 0:	movq 0(%rsp),%rcx	# get ip
