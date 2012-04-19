@@ -71,8 +71,10 @@ static struct omap_hwmod omap34xx_mcspi1;
 static struct omap_hwmod omap34xx_mcspi2;
 static struct omap_hwmod omap34xx_mcspi3;
 static struct omap_hwmod omap34xx_mcspi4;
-static struct omap_hwmod omap3xxx_mmc1_hwmod;
-static struct omap_hwmod omap3xxx_mmc2_hwmod;
+static struct omap_hwmod omap3xxx_pre_es3_mmc1_hwmod;
+static struct omap_hwmod omap3xxx_es3plus_mmc1_hwmod;
+static struct omap_hwmod omap3xxx_pre_es3_mmc2_hwmod;
+static struct omap_hwmod omap3xxx_es3plus_mmc2_hwmod;
 static struct omap_hwmod omap3xxx_mmc3_hwmod;
 static struct omap_hwmod am35xx_usbhsotg_hwmod;
 
@@ -193,9 +195,18 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__l4_wkup = {
 };
 
 /* L4 CORE -> MMC1 interface */
-static struct omap_hwmod_ocp_if omap3xxx_l4_core__mmc1 = {
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__pre_es3_mmc1 = {
 	.master		= &omap3xxx_l4_core_hwmod,
-	.slave		= &omap3xxx_mmc1_hwmod,
+	.slave		= &omap3xxx_pre_es3_mmc1_hwmod,
+	.clk		= "mmchs1_ick",
+	.addr		= omap2430_mmc1_addr_space,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.flags		= OMAP_FIREWALL_L4
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__es3plus_mmc1 = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_es3plus_mmc1_hwmod,
 	.clk		= "mmchs1_ick",
 	.addr		= omap2430_mmc1_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
@@ -203,9 +214,18 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__mmc1 = {
 };
 
 /* L4 CORE -> MMC2 interface */
-static struct omap_hwmod_ocp_if omap3xxx_l4_core__mmc2 = {
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__pre_es3_mmc2 = {
 	.master		= &omap3xxx_l4_core_hwmod,
-	.slave		= &omap3xxx_mmc2_hwmod,
+	.slave		= &omap3xxx_pre_es3_mmc2_hwmod,
+	.clk		= "mmchs2_ick",
+	.addr		= omap2430_mmc2_addr_space,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.flags		= OMAP_FIREWALL_L4
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__es3plus_mmc2 = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_es3plus_mmc2_hwmod,
 	.clk		= "mmchs2_ick",
 	.addr		= omap2430_mmc2_addr_space,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
@@ -3163,7 +3183,8 @@ static struct omap_hwmod_opt_clk omap34xx_mmc1_opt_clks[] = {
 };
 
 static struct omap_hwmod_ocp_if *omap3xxx_mmc1_slaves[] = {
-	&omap3xxx_l4_core__mmc1,
+	&omap3xxx_l4_core__pre_es3_mmc1,
+	&omap3xxx_l4_core__es3plus_mmc1,
 };
 
 static struct omap_mmc_dev_attr mmc1_dev_attr = {
@@ -3238,7 +3259,8 @@ static struct omap_hwmod_opt_clk omap34xx_mmc2_opt_clks[] = {
 };
 
 static struct omap_hwmod_ocp_if *omap3xxx_mmc2_slaves[] = {
-	&omap3xxx_l4_core__mmc2,
+	&omap3xxx_l4_core__pre_es3_mmc2,
+	&omap3xxx_l4_core__es3plus_mmc2,
 };
 
 /* See 35xx errata 2.1.1.128 in SPRZ278F */
