@@ -134,6 +134,12 @@ static struct omap_hwmod_ocp_if *omap3xxx_l3_main_slaves[] = {
 };
 
 /* DSS -> l3 */
+static struct omap_hwmod_ocp_if omap3430es1_dss__l3 = {
+	.master		= &omap3430es1_dss_core_hwmod,
+	.slave		= &omap3xxx_l3_main_hwmod,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if omap3xxx_dss__l3 = {
 	.master		= &omap3xxx_dss_core_hwmod,
 	.slave		= &omap3xxx_l3_main_hwmod,
@@ -1411,6 +1417,7 @@ static struct omap_hwmod_dma_info omap3xxx_dss_sdma_chs[] = {
 /* dss master ports */
 static struct omap_hwmod_ocp_if *omap3xxx_dss_masters[] = {
 	&omap3xxx_dss__l3,
+	&omap3430es1_dss__l3,
 };
 
 /* l4_core -> dss */
