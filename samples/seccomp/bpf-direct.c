@@ -8,6 +8,11 @@
  * and can serve as a starting point for developing
  * applications using prctl(PR_SET_SECCOMP, 2, ...).
  */
+#if defined(__i386__) || defined(__x86_64__)
+#define SUPPORTED_ARCH 1
+#endif
+
+#if defined(SUPPORTED_ARCH)
 #define __USE_GNU 1
 #define _GNU_SOURCE 1
 
@@ -43,8 +48,6 @@
 #define REG_ARG3	REG_R10
 #define REG_ARG4	REG_R8
 #define REG_ARG5	REG_R9
-#else
-#error Unsupported platform
 #endif
 
 #ifndef PR_SET_NO_NEW_PRIVS
@@ -174,3 +177,14 @@ int main(int argc, char **argv)
 		payload("Error message going to STDERR\n"));
 	return 0;
 }
+#else	/* SUPPORTED_ARCH */
+/*
+ * This sample is x86-only.  Since kernel samples are compiled with the
+ * host toolchain, a non-x86 host will result in using only the main()
+ * below.
+ */
+int main(void)
+{
+	return 1;
+}
+#endif	/* SUPPORTED_ARCH */
