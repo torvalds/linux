@@ -84,38 +84,11 @@ static s32 ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw)
  *
  *  Called at init time to set up flow control.
  **/
-static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
+static s32 ixgbe_setup_fc(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
 	u32 reg = 0, reg_bp = 0;
 	u16 reg_cu = 0;
-
-#ifdef CONFIG_DCB
-	if (hw->fc.requested_mode == ixgbe_fc_pfc) {
-		hw->fc.current_mode = hw->fc.requested_mode;
-		goto out;
-	}
-
-#endif /* CONFIG_DCB */
-	/* Validate the packetbuf configuration */
-	if (packetbuf_num < 0 || packetbuf_num > 7) {
-		hw_dbg(hw, "Invalid packet buffer number [%d], expected range is 0-7\n",
-		       packetbuf_num);
-		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
-		goto out;
-	}
-
-	/*
-	 * Validate the water mark configuration.  Zero water marks are invalid
-	 * because it causes the controller to just blast out fc packets.
-	 */
-	if (!hw->fc.low_water ||
-	    !hw->fc.high_water[packetbuf_num] ||
-	    !hw->fc.pause_time) {
-		hw_dbg(hw, "Invalid water mark configuration\n");
-		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
-		goto out;
-	}
 
 	/*
 	 * Validate the requested mode.  Strict IEEE mode does not allow
@@ -139,21 +112,18 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * HW will be able to do fc autoneg once the cable is plugged in.  If
 	 * we link at 10G, the 1G advertisement is harmless and vice versa.
 	 */
-
 	switch (hw->phy.media_type) {
 	case ixgbe_media_type_fiber:
 	case ixgbe_media_type_backplane:
 		reg = IXGBE_READ_REG(hw, IXGBE_PCS1GANA);
 		reg_bp = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 		break;
-
 	case ixgbe_media_type_copper:
 		hw->phy.ops.read_reg(hw, MDIO_AN_ADVERTISE,
 					MDIO_MMD_AN, &reg_cu);
 		break;
-
 	default:
-		;
+		break;
 	}
 
 	/*
@@ -164,9 +134,6 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * 2: Tx flow control is enabled (we can send pause frames but
 	 *    we do not support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
-#ifdef CONFIG_DCB
-	 * 4: Priority Flow Control is enabled.
-#endif
 	 * other: Invalid.
 	 */
 	switch (hw->fc.requested_mode) {
@@ -179,51 +146,40 @@ static s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 		else if (hw->phy.media_type == ixgbe_media_type_copper)
 			reg_cu &= ~(IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE);
 		break;
+	case ixgbe_fc_tx_pause:
+		/*
+		 * Tx Flow control is enabled, and Rx Flow control is
+		 * disabled by software override.
+		 */
+		reg |= IXGBE_PCS1GANA_ASM_PAUSE;
+		reg &= ~IXGBE_PCS1GANA_SYM_PAUSE;
+		if (hw->phy.media_type == ixgbe_media_type_backplane) {
+			reg_bp |= IXGBE_AUTOC_ASM_PAUSE;
+			reg_bp &= ~IXGBE_AUTOC_SYM_PAUSE;
+		} else if (hw->phy.media_type == ixgbe_media_type_copper) {
+			reg_cu |= IXGBE_TAF_ASM_PAUSE;
+			reg_cu &= ~IXGBE_TAF_SYM_PAUSE;
+		}
+		break;
 	case ixgbe_fc_rx_pause:
 		/*
 		 * Rx Flow control is enabled and Tx Flow control is
 		 * disabled by software override. Since there really
 		 * isn't a way to advertise that we are capable of RX
 		 * Pause ONLY, we will advertise that we support both
-		 * symmetric and asymmetric Rx PAUSE.  Later, we will
+		 * symmetric and asymmetric Rx PAUSE, as such we fall
+		 * through to the fc_full statement.  Later, we will
 		 * disable the adapter's ability to send PAUSE frames.
 		 */
-		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
-		if (hw->phy.media_type == ixgbe_media_type_backplane)
-			reg_bp |= (IXGBE_AUTOC_SYM_PAUSE |
-				   IXGBE_AUTOC_ASM_PAUSE);
-		else if (hw->phy.media_type == ixgbe_media_type_copper)
-			reg_cu |= (IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE);
-		break;
-	case ixgbe_fc_tx_pause:
-		/*
-		 * Tx Flow control is enabled, and Rx Flow control is
-		 * disabled by software override.
-		 */
-		reg |= (IXGBE_PCS1GANA_ASM_PAUSE);
-		reg &= ~(IXGBE_PCS1GANA_SYM_PAUSE);
-		if (hw->phy.media_type == ixgbe_media_type_backplane) {
-			reg_bp |= (IXGBE_AUTOC_ASM_PAUSE);
-			reg_bp &= ~(IXGBE_AUTOC_SYM_PAUSE);
-		} else if (hw->phy.media_type == ixgbe_media_type_copper) {
-			reg_cu |= (IXGBE_TAF_ASM_PAUSE);
-			reg_cu &= ~(IXGBE_TAF_SYM_PAUSE);
-		}
-		break;
 	case ixgbe_fc_full:
 		/* Flow control (both Rx and Tx) is enabled by SW override. */
-		reg |= (IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE);
+		reg |= IXGBE_PCS1GANA_SYM_PAUSE | IXGBE_PCS1GANA_ASM_PAUSE;
 		if (hw->phy.media_type == ixgbe_media_type_backplane)
-			reg_bp |= (IXGBE_AUTOC_SYM_PAUSE |
-				   IXGBE_AUTOC_ASM_PAUSE);
+			reg_bp |= IXGBE_AUTOC_SYM_PAUSE |
+				  IXGBE_AUTOC_ASM_PAUSE;
 		else if (hw->phy.media_type == ixgbe_media_type_copper)
-			reg_cu |= (IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE);
+			reg_cu |= IXGBE_TAF_SYM_PAUSE | IXGBE_TAF_ASM_PAUSE;
 		break;
-#ifdef CONFIG_DCB
-	case ixgbe_fc_pfc:
-		goto out;
-		break;
-#endif /* CONFIG_DCB */
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
 		ret_val = IXGBE_ERR_CONFIG;
@@ -298,7 +254,7 @@ s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw)
 	IXGBE_WRITE_FLUSH(hw);
 
 	/* Setup flow control */
-	ixgbe_setup_fc(hw, 0);
+	ixgbe_setup_fc(hw);
 
 	/* Clear adapter stopped flag */
 	hw->adapter_stopped = false;
@@ -2126,28 +2082,36 @@ s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw)
 /**
  *  ixgbe_fc_enable_generic - Enable flow control
  *  @hw: pointer to hardware structure
- *  @packetbuf_num: packet buffer number (0-7)
  *
  *  Enable flow control according to the current settings.
  **/
-s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
+s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
 	u32 mflcn_reg, fccfg_reg;
 	u32 reg;
 	u32 fcrtl, fcrth;
+	int i;
 
-#ifdef CONFIG_DCB
-	if (hw->fc.requested_mode == ixgbe_fc_pfc)
+	/*
+	 * Validate the water mark configuration for packet buffer 0.  Zero
+	 * water marks indicate that the packet buffer was not configured
+	 * and the watermarks for packet buffer 0 should always be configured.
+	 */
+	if (!hw->fc.low_water ||
+	    !hw->fc.high_water[0] ||
+	    !hw->fc.pause_time) {
+		hw_dbg(hw, "Invalid water mark configuration\n");
+		ret_val = IXGBE_ERR_INVALID_LINK_SETTINGS;
 		goto out;
+	}
 
-#endif /* CONFIG_DCB */
 	/* Negotiate the fc mode to use */
 	ixgbe_fc_autoneg(hw);
 
 	/* Disable any previous flow control settings */
 	mflcn_reg = IXGBE_READ_REG(hw, IXGBE_MFLCN);
-	mflcn_reg &= ~(IXGBE_MFLCN_RFCE | IXGBE_MFLCN_RPFCE);
+	mflcn_reg &= ~(IXGBE_MFLCN_RPFCE_MASK | IXGBE_MFLCN_RFCE);
 
 	fccfg_reg = IXGBE_READ_REG(hw, IXGBE_FCCFG);
 	fccfg_reg &= ~(IXGBE_FCCFG_TFCE_802_3X | IXGBE_FCCFG_TFCE_PRIORITY);
@@ -2160,9 +2124,6 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	 * 2: Tx flow control is enabled (we can send pause frames but
 	 *    we do not support receiving pause frames).
 	 * 3: Both Rx and Tx flow control (symmetric) are enabled.
-#ifdef CONFIG_DCB
-	 * 4: Priority Flow Control is enabled.
-#endif
 	 * other: Invalid.
 	 */
 	switch (hw->fc.current_mode) {
@@ -2195,11 +2156,6 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 		mflcn_reg |= IXGBE_MFLCN_RFCE;
 		fccfg_reg |= IXGBE_FCCFG_TFCE_802_3X;
 		break;
-#ifdef CONFIG_DCB
-	case ixgbe_fc_pfc:
-		goto out;
-		break;
-#endif /* CONFIG_DCB */
 	default:
 		hw_dbg(hw, "Flow control param set incorrectly\n");
 		ret_val = IXGBE_ERR_CONFIG;
@@ -2212,34 +2168,34 @@ s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw, s32 packetbuf_num)
 	IXGBE_WRITE_REG(hw, IXGBE_MFLCN, mflcn_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_FCCFG, fccfg_reg);
 
-	fcrtl = hw->fc.low_water << 10;
+	fcrtl = (hw->fc.low_water << 10) | IXGBE_FCRTL_XONE;
 
-	if (hw->fc.current_mode & ixgbe_fc_tx_pause) {
-		fcrth = hw->fc.high_water[packetbuf_num] << 10;
-		fcrth |= IXGBE_FCRTH_FCEN;
-		if (hw->fc.send_xon)
-			fcrtl |= IXGBE_FCRTL_XONE;
-	} else {
-		/*
-		 * If Tx flow control is disabled, set our high water mark
-		 * to Rx FIFO size minus 32 in order prevent Tx switch
-		 * loopback from stalling on DMA.
-		 */
-		fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(packetbuf_num)) - 32;
+	/* Set up and enable Rx high/low water mark thresholds, enable XON. */
+	for (i = 0; i < MAX_TRAFFIC_CLASS; i++) {
+		if ((hw->fc.current_mode & ixgbe_fc_tx_pause) &&
+		    hw->fc.high_water[i]) {
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), fcrtl);
+			fcrth = (hw->fc.high_water[i] << 10) | IXGBE_FCRTH_FCEN;
+		} else {
+			IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(i), 0);
+			/*
+			 * In order to prevent Tx hangs when the internal Tx
+			 * switch is enabled we must set the high water mark
+			 * to the maximum FCRTH value.  This allows the Tx
+			 * switch to function even under heavy Rx workloads.
+			 */
+			fcrth = IXGBE_READ_REG(hw, IXGBE_RXPBSIZE(i)) - 32;
+		}
+
+		IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(i), fcrth);
 	}
 
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTH_82599(packetbuf_num), fcrth);
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTL_82599(packetbuf_num), fcrtl);
-
 	/* Configure pause time (2 TCs per register) */
-	reg = IXGBE_READ_REG(hw, IXGBE_FCTTV(packetbuf_num / 2));
-	if ((packetbuf_num & 1) == 0)
-		reg = (reg & 0xFFFF0000) | hw->fc.pause_time;
-	else
-		reg = (reg & 0x0000FFFF) | (hw->fc.pause_time << 16);
-	IXGBE_WRITE_REG(hw, IXGBE_FCTTV(packetbuf_num / 2), reg);
+	reg = hw->fc.pause_time * 0x00010001;
+	for (i = 0; i < (MAX_TRAFFIC_CLASS / 2); i++)
+		IXGBE_WRITE_REG(hw, IXGBE_FCTTV(i), reg);
 
-	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, (hw->fc.pause_time >> 1));
+	IXGBE_WRITE_REG(hw, IXGBE_FCRTV, hw->fc.pause_time / 2);
 
 out:
 	return ret_val;
