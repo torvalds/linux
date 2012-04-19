@@ -292,13 +292,7 @@ static struct omap_hwmod omap44xx_ocp_wp_noc_hwmod = {
  * - They still need to be validated with the driver
  *   properly adapted to omap_hwmod / omap_device
  *
- *  debugss
- *  efuse_ctrl_cust
- *  efuse_ctrl_std
- *  mpu_c0
- *  mpu_c1
- *  usb_phy_cm
- *  usim
+ * usim
  */
 
 /*
@@ -476,6 +470,29 @@ static struct omap_hwmod omap44xx_ctrl_module_pad_wkup_hwmod = {
 	.name		= "ctrl_module_pad_wkup",
 	.class		= &omap44xx_ctrl_module_hwmod_class,
 	.clkdm_name	= "l4_wkup_clkdm",
+};
+
+/*
+ * 'debugss' class
+ * debug and emulation sub system
+ */
+
+static struct omap_hwmod_class omap44xx_debugss_hwmod_class = {
+	.name	= "debugss",
+};
+
+/* debugss */
+static struct omap_hwmod omap44xx_debugss_hwmod = {
+	.name		= "debugss",
+	.class		= &omap44xx_debugss_hwmod_class,
+	.clkdm_name	= "emu_sys_clkdm",
+	.main_clk	= "trace_clk_div_ck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = OMAP4_CM_EMU_DEBUGSS_CLKCTRL_OFFSET,
+			.context_offs = OMAP4_RM_EMU_DEBUGSS_CONTEXT_OFFSET,
+		},
+	},
 };
 
 /*
@@ -3750,6 +3767,14 @@ static struct omap_hwmod_ocp_if omap44xx_c2c_target_fw__l3_main_2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* debugss -> l3_main_2 */
+static struct omap_hwmod_ocp_if omap44xx_debugss__l3_main_2 = {
+	.master		= &omap44xx_debugss_hwmod,
+	.slave		= &omap44xx_l3_main_2_hwmod,
+	.clk		= "dbgclk_mux_ck",
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 /* dma_system -> l3_main_2 */
 static struct omap_hwmod_ocp_if omap44xx_dma_system__l3_main_2 = {
 	.master		= &omap44xx_dma_system_hwmod,
@@ -4103,6 +4128,24 @@ static struct omap_hwmod_ocp_if omap44xx_l4_wkup__ctrl_module_pad_wkup = {
 	.slave		= &omap44xx_ctrl_module_pad_wkup_hwmod,
 	.clk		= "l4_wkup_clk_mux_ck",
 	.addr		= omap44xx_ctrl_module_pad_wkup_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
+static struct omap_hwmod_addr_space omap44xx_debugss_addrs[] = {
+	{
+		.pa_start	= 0x54160000,
+		.pa_end		= 0x54167fff,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l3_instr -> debugss */
+static struct omap_hwmod_ocp_if omap44xx_l3_instr__debugss = {
+	.master		= &omap44xx_l3_instr_hwmod,
+	.slave		= &omap44xx_debugss_hwmod,
+	.clk		= "l3_div_ck",
+	.addr		= omap44xx_debugss_addrs,
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
@@ -5955,6 +5998,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_mmc2__l3_main_1,
 	&omap44xx_mpu__l3_main_1,
 	&omap44xx_c2c_target_fw__l3_main_2,
+	&omap44xx_debugss__l3_main_2,
 	&omap44xx_dma_system__l3_main_2,
 	&omap44xx_fdif__l3_main_2,
 	&omap44xx_gpu__l3_main_2,
@@ -5987,6 +6031,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_cfg__ctrl_module_pad_core,
 	&omap44xx_l4_wkup__ctrl_module_wkup,
 	&omap44xx_l4_wkup__ctrl_module_pad_wkup,
+	&omap44xx_l3_instr__debugss,
 	&omap44xx_l4_cfg__dma_system,
 	&omap44xx_l4_abe__dmic,
 	&omap44xx_l4_abe__dmic_dma,
