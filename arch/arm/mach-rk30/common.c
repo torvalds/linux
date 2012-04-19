@@ -93,7 +93,7 @@ static int boot_mode;
 static void __init rk30_boot_mode_init(void)
 {
 	u32 boot_flag = readl_relaxed(RK30_PMU_BASE + PMU_SYS_REG0);
-	u32 boot_mode = readl_relaxed(RK30_PMU_BASE + PMU_SYS_REG1);
+	boot_mode = readl_relaxed(RK30_PMU_BASE + PMU_SYS_REG1);
 
 	if (boot_flag == (SYS_KERNRL_REBOOT_FLAG | BOOT_RECOVER)) {
 		boot_mode = BOOT_MODE_RECOVERY;
