@@ -265,7 +265,6 @@ static struct omap_hwmod omap44xx_mpu_private_hwmod = {
  *  emif2
  *  gpmc
  *  gpu
- *  hdq1w
  *  mcasp
  *  mpu_c0
  *  mpu_c1
@@ -1064,6 +1063,47 @@ static struct omap_hwmod omap44xx_gpio6_hwmod = {
 	.opt_clks	= gpio6_opt_clks,
 	.opt_clks_cnt	= ARRAY_SIZE(gpio6_opt_clks),
 	.dev_attr	= &gpio_dev_attr,
+};
+
+/*
+ * 'hdq1w' class
+ * hdq / 1-wire serial interface controller
+ */
+
+static struct omap_hwmod_class_sysconfig omap44xx_hdq1w_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0014,
+	.syss_offs	= 0x0018,
+	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SOFTRESET |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap44xx_hdq1w_hwmod_class = {
+	.name	= "hdq1w",
+	.sysc	= &omap44xx_hdq1w_sysc,
+};
+
+/* hdq1w */
+static struct omap_hwmod_irq_info omap44xx_hdq1w_irqs[] = {
+	{ .irq = 58 + OMAP44XX_IRQ_GIC_START },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod omap44xx_hdq1w_hwmod = {
+	.name		= "hdq1w",
+	.class		= &omap44xx_hdq1w_hwmod_class,
+	.clkdm_name	= "l4_per_clkdm",
+	.flags		= HWMOD_INIT_NO_RESET, /* XXX temporary */
+	.mpu_irqs	= omap44xx_hdq1w_irqs,
+	.main_clk	= "hdq1w_fck",
+	.prcm = {
+		.omap4 = {
+			.clkctrl_offs = OMAP4_CM_L4PER_HDQ1W_CLKCTRL_OFFSET,
+			.context_offs = OMAP4_RM_L4PER_HDQ1W_CONTEXT_OFFSET,
+			.modulemode   = MODULEMODE_SWCTRL,
+		},
+	},
 };
 
 /*
@@ -3713,6 +3753,24 @@ static struct omap_hwmod_ocp_if omap44xx_l4_per__gpio6 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+static struct omap_hwmod_addr_space omap44xx_hdq1w_addrs[] = {
+	{
+		.pa_start	= 0x480b2000,
+		.pa_end		= 0x480b201f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+/* l4_per -> hdq1w */
+static struct omap_hwmod_ocp_if omap44xx_l4_per__hdq1w = {
+	.master		= &omap44xx_l4_per_hwmod,
+	.slave		= &omap44xx_hdq1w_hwmod,
+	.clk		= "l4_div_ck",
+	.addr		= omap44xx_hdq1w_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_addr_space omap44xx_hsi_addrs[] = {
 	{
 		.pa_start	= 0x4a058000,
@@ -4811,6 +4869,7 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_per__gpio4,
 	&omap44xx_l4_per__gpio5,
 	&omap44xx_l4_per__gpio6,
+	&omap44xx_l4_per__hdq1w,
 	&omap44xx_l4_cfg__hsi,
 	&omap44xx_l4_per__i2c1,
 	&omap44xx_l4_per__i2c2,
