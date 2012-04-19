@@ -1450,6 +1450,7 @@ static void _rtl92s_phy_set_fwcmd_io(struct ieee80211_hw *hw)
 bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct dig_t *digtable = &rtlpriv->dm_digtable;
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	u32	fw_param = FW_CMD_IO_PARA_QUERY(rtlpriv);
@@ -1588,16 +1589,16 @@ bool rtl92s_phy_set_fw_cmd(struct ieee80211_hw *hw, enum fwcmd_iotype fw_cmdio)
 				      FW_SS_CTL);
 
 			if (rtlpriv->dm.dm_flag & HAL_DM_DIG_DISABLE ||
-				!digtable.dig_enable_flag)
+				!digtable->dig_enable_flag)
 				fw_cmdmap &= ~FW_DIG_ENABLE_CTL;
 
 			if ((rtlpriv->dm.dm_flag & HAL_DM_HIPWR_DISABLE) ||
 			    rtlpriv->dm.dynamic_txpower_enable)
 				fw_cmdmap &= ~FW_HIGH_PWR_ENABLE_CTL;
 
-			if ((digtable.dig_ext_port_stage ==
+			if ((digtable->dig_ext_port_stage ==
 			    DIG_EXT_PORT_STAGE_0) ||
-			    (digtable.dig_ext_port_stage ==
+			    (digtable->dig_ext_port_stage ==
 			    DIG_EXT_PORT_STAGE_1))
 				fw_cmdmap &= ~FW_DIG_ENABLE_CTL;
 

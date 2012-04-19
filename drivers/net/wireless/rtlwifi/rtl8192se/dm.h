@@ -112,8 +112,6 @@ enum dm_ratr_sta {
 #define	DM_DIG_BACKOFF_MAX		12
 #define	DM_DIG_BACKOFF_MIN		-4
 
-extern struct dig_t digtable;
-
 void rtl92s_dm_watchdog(struct ieee80211_hw *hw);
 void rtl92s_dm_init(struct ieee80211_hw *hw);
 void rtl92s_dm_init_edca_turbo(struct ieee80211_hw *hw);
