@@ -42,6 +42,7 @@
 /* clock gates that we can en/disable */
 #define PMU_USB0_P	BIT(0)
 #define PMU_PCI		BIT(4)
+#define PMU_DMA		BIT(5)
 #define PMU_USB0	BIT(6)
 #define PMU_ASC0	BIT(7)
 #define PMU_EPHY	BIT(7)	/* ase */
@@ -49,7 +50,9 @@
 #define PMU_DFE		BIT(9)
 #define PMU_EBU		BIT(10)
 #define PMU_STP		BIT(11)
+#define PMU_GPT		BIT(12)
 #define PMU_AHBS	BIT(13) /* vr9 */
+#define PMU_FPI		BIT(14)
 #define PMU_AHBM	BIT(15)
 #define PMU_ASC1	BIT(17)
 #define PMU_PPE_QSB	BIT(18)
@@ -60,6 +63,7 @@
 #define PMU_PPE_DPLUS	BIT(24)
 #define PMU_USB1_P	BIT(26)
 #define PMU_USB1	BIT(27)
+#define PMU_SWITCH	BIT(28)
 #define PMU_PPE_TOP	BIT(29)
 #define PMU_GPHY	BIT(30)
 #define PMU_PCIE_CLK	BIT(31)

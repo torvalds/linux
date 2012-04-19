@@ -27,9 +27,6 @@
 	ltq_w32_mask(x, y, ltq_ebu_membase + (z))
 extern __iomem void *ltq_ebu_membase;
 
-extern unsigned int ltq_get_cpu_ver(void);
-extern unsigned int ltq_get_soc_type(void);
-
 /* spinlock all ebu i/o */
 extern spinlock_t ebu_lock;
 
@@ -54,7 +51,5 @@ extern int ltq_reset_cause(void);
 #define IOPORT_RESOURCE_END	0xffffffff
 #define IOMEM_RESOURCE_START	0x10000000
 #define IOMEM_RESOURCE_END	0xffffffff
-#define LTQ_FLASH_START		0x10000000
-#define LTQ_FLASH_MAX		0x04000000
 
 #endif

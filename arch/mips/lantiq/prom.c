@@ -27,12 +27,6 @@ EXPORT_SYMBOL_GPL(ebu_lock);
  */
 static struct ltq_soc_info soc_info;
 
-unsigned int ltq_get_soc_type(void)
-{
-	return soc_info.type;
-}
-EXPORT_SYMBOL(ltq_get_soc_type);
-
 const char *get_system_type(void)
 {
 	return soc_info.sys_type;
