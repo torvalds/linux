@@ -138,6 +138,14 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_unique);
 
+static int tcp_repair_connect(struct sock *sk)
+{
+	tcp_connect_init(sk);
+	tcp_finish_connect(sk, NULL);
+
+	return 0;
+}
+
 /* This will initiate an outgoing connection. */
 int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 {
@@ -196,7 +204,8 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		/* Reset inherited state */
 		tp->rx_opt.ts_recent	   = 0;
 		tp->rx_opt.ts_recent_stamp = 0;
-		tp->write_seq		   = 0;
+		if (likely(!tp->repair))
+			tp->write_seq	   = 0;
 	}
 
 	if (tcp_death_row.sysctl_tw_recycle &&
@@ -247,7 +256,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 	sk->sk_gso_type = SKB_GSO_TCPV4;
 	sk_setup_caps(sk, &rt->dst);
 
-	if (!tp->write_seq)
+	if (!tp->write_seq && likely(!tp->repair))
 		tp->write_seq = secure_tcp_sequence_number(inet->inet_saddr,
 							   inet->inet_daddr,
 							   inet->inet_sport,
@@ -255,7 +264,11 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	inet->inet_id = tp->write_seq ^ jiffies;
 
-	err = tcp_connect(sk);
+	if (likely(!tp->repair))
+		err = tcp_connect(sk);
+	else
+		err = tcp_repair_connect(sk);
+
 	rt = NULL;
 	if (err)
 		goto failure;

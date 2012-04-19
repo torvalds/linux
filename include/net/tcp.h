@@ -612,6 +612,8 @@ static inline u32 tcp_receive_window(const struct tcp_sock *tp)
  */
 extern u32 __tcp_select_window(struct sock *sk);
 
+void tcp_send_window_probe(struct sock *sk);
+
 /* TCP timestamps are only 32-bits, this causes a slight
  * complication on 64-bit systems since we store a snapshot
  * of jiffies in the buffer control blocks below.  We decided

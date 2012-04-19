@@ -2617,9 +2617,11 @@ void tcp_connect_init(struct sock *sk)
 	tp->snd_sml = tp->write_seq;
 	tp->snd_up = tp->write_seq;
 	tp->snd_nxt = tp->write_seq;
-	tp->rcv_nxt = 0;
-	tp->rcv_wup = 0;
-	tp->copied_seq = 0;
+
+	if (likely(!tp->repair))
+		tp->rcv_nxt = 0;
+	tp->rcv_wup = tp->rcv_nxt;
+	tp->copied_seq = tp->rcv_nxt;
 
 	inet_csk(sk)->icsk_rto = TCP_TIMEOUT_INIT;
 	inet_csk(sk)->icsk_retransmits = 0;
@@ -2788,6 +2790,14 @@ static int tcp_xmit_probe_skb(struct sock *sk, int urgent)
 	tcp_init_nondata_skb(skb, tp->snd_una - !urgent, TCPHDR_ACK);
 	TCP_SKB_CB(skb)->when = tcp_time_stamp;
 	return tcp_transmit_skb(sk, skb, 0, GFP_ATOMIC);
+}
+
+void tcp_send_window_probe(struct sock *sk)
+{
+	if (sk->sk_state == TCP_ESTABLISHED) {
+		tcp_sk(sk)->snd_wl1 = tcp_sk(sk)->rcv_nxt - 1;
+		tcp_xmit_probe_skb(sk, 0);
+	}
 }
 
 /* Initiate keepalive or window probe from timer. */

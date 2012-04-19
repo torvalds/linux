@@ -1935,7 +1935,9 @@ void tcp_close(struct sock *sk, long timeout)
 	 * advertise a zero window, then kill -9 the FTP client, wheee...
 	 * Note: timeout is always zero in such a case.
 	 */
-	if (data_was_unread) {
+	if (unlikely(tcp_sk(sk)->repair)) {
+		sk->sk_prot->disconnect(sk, 0);
+	} else if (data_was_unread) {
 		/* Unread data was tossed, zap the connection. */
 		NET_INC_STATS_USER(sock_net(sk), LINUX_MIB_TCPABORTONCLOSE);
 		tcp_set_state(sk, TCP_CLOSE);
@@ -2074,6 +2076,8 @@ int tcp_disconnect(struct sock *sk, int flags)
 	/* ABORT function of RFC793 */
 	if (old_state == TCP_LISTEN) {
 		inet_csk_listen_stop(sk);
+	} else if (unlikely(tp->repair)) {
+		sk->sk_err = ECONNABORTED;
 	} else if (tcp_need_reset(old_state) ||
 		   (tp->snd_nxt != tp->write_seq &&
 		    (1 << old_state) & (TCPF_CLOSING | TCPF_LAST_ACK))) {
@@ -2124,6 +2128,12 @@ int tcp_disconnect(struct sock *sk, int flags)
 	return err;
 }
 EXPORT_SYMBOL(tcp_disconnect);
+
+static inline int tcp_can_repair_sock(struct sock *sk)
+{
+	return capable(CAP_NET_ADMIN) &&
+		((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_ESTABLISHED));
+}
 
 /*
  *	Socket option code for TCP.
@@ -2295,6 +2305,42 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 			err = -EINVAL;
 		else
 			tp->thin_dupack = val;
+		break;
+
+	case TCP_REPAIR:
+		if (!tcp_can_repair_sock(sk))
+			err = -EPERM;
+		else if (val == 1) {
+			tp->repair = 1;
+			sk->sk_reuse = SK_FORCE_REUSE;
+			tp->repair_queue = TCP_NO_QUEUE;
+		} else if (val == 0) {
+			tp->repair = 0;
+			sk->sk_reuse = SK_NO_REUSE;
+			tcp_send_window_probe(sk);
+		} else
+			err = -EINVAL;
+
+		break;
+
+	case TCP_REPAIR_QUEUE:
+		if (!tp->repair)
+			err = -EPERM;
+		else if (val < TCP_QUEUES_NR)
+			tp->repair_queue = val;
+		else
+			err = -EINVAL;
+		break;
+
+	case TCP_QUEUE_SEQ:
+		if (sk->sk_state != TCP_CLOSE)
+			err = -EPERM;
+		else if (tp->repair_queue == TCP_SEND_QUEUE)
+			tp->write_seq = val;
+		else if (tp->repair_queue == TCP_RECV_QUEUE)
+			tp->rcv_nxt = val;
+		else
+			err = -EINVAL;
 		break;
 
 	case TCP_CORK:
@@ -2630,6 +2676,26 @@ static int do_tcp_getsockopt(struct sock *sk, int level,
 		break;
 	case TCP_THIN_DUPACK:
 		val = tp->thin_dupack;
+		break;
+
+	case TCP_REPAIR:
+		val = tp->repair;
+		break;
+
+	case TCP_REPAIR_QUEUE:
+		if (tp->repair)
+			val = tp->repair_queue;
+		else
+			return -EINVAL;
+		break;
+
+	case TCP_QUEUE_SEQ:
+		if (tp->repair_queue == TCP_SEND_QUEUE)
+			val = tp->write_seq;
+		else if (tp->repair_queue == TCP_RECV_QUEUE)
+			val = tp->rcv_nxt;
+		else
+			return -EINVAL;
 		break;
 
 	case TCP_USER_TIMEOUT:
