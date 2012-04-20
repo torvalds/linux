@@ -11,6 +11,7 @@ struct ins;
 
 struct ins_operands {
 	char	*raw;
+	char	*target_name;
 	u64	target;
 };
 

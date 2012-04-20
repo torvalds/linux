@@ -20,12 +20,50 @@ const char 	*disassembler_style;
 
 static int call__parse(struct ins_operands *ops)
 {
-	ops->target = strtoull(ops->raw, NULL, 16);
+	char *endptr, *tok, *name;
+
+	ops->target = strtoull(ops->raw, &endptr, 16);
+
+	name = strchr(endptr, '<');
+	if (name == NULL)
+		goto indirect_call;
+
+	name++;
+
+	tok = strchr(name, '>');
+	if (tok == NULL)
+		return -1;
+
+	*tok = '\0';
+	ops->target_name = strdup(name);
+	*tok = '>';
+
+	return ops->target_name == NULL ? -1 : 0;
+
+indirect_call:
+	tok = strchr(endptr, '*');
+	if (tok == NULL)
+		return -1;
+
+	ops->target = strtoull(tok + 1, NULL, 16);
 	return 0;
 }
 
+static int call__scnprintf(struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops, bool addrs)
+{
+	if (addrs)
+		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
+
+	if (ops->target_name)
+		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target_name);
+
+	return scnprintf(bf, size, "%-6.6s *%" PRIx64, ins->name, ops->target);
+}
+
 static struct ins_ops call_ops = {
-	.parse = call__parse,
+	.parse	   = call__parse,
+	.scnprintf = call__scnprintf,
 };
 
 bool ins__is_call(const struct ins *ins)
@@ -251,6 +289,7 @@ void disasm_line__free(struct disasm_line *dl)
 {
 	free(dl->line);
 	free(dl->name);
+	free(dl->ops.target_name);
 	free(dl);
 }
 
