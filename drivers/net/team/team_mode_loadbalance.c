@@ -142,22 +142,10 @@ static void lb_exit(struct team *team)
 				ARRAY_SIZE(lb_options));
 }
 
-static int lb_port_enter(struct team *team, struct team_port *port)
-{
-	return team_port_set_team_mac(port);
-}
-
-static void lb_port_change_mac(struct team *team, struct team_port *port)
-{
-	team_port_set_team_mac(port);
-}
-
 static const struct team_mode_ops lb_mode_ops = {
 	.init			= lb_init,
 	.exit			= lb_exit,
 	.transmit		= lb_transmit,
-	.port_enter		= lb_port_enter,
-	.port_change_mac	= lb_port_change_mac,
 };
 
 static struct team_mode lb_mode = {
