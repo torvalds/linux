@@ -319,10 +319,16 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		bytes = min(rsize,count);
 
 		result = -ENOMEM;
-		rhdr = nfs_readhdr_alloc(nfs_page_array_len(pgbase, bytes));
+		rhdr = nfs_readhdr_alloc();
 		if (unlikely(!rhdr))
 			break;
-		data = &rhdr->rpc_data;
+		data = nfs_readdata_alloc(&rhdr->header, nfs_page_array_len(pgbase, bytes));
+		if (!data) {
+			nfs_readhdr_free(&rhdr->header);
+			break;
+		}
+		data->header = &rhdr->header;
+		atomic_inc(&data->header->refcnt);
 		pages = &data->pages;
 
 		down_read(&current->mm->mmap_sem);

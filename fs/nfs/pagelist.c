@@ -39,6 +39,30 @@ bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
 	return p->pagevec != NULL;
 }
 
+void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
+		       struct nfs_pgio_header *hdr,
+		       void (*release)(struct nfs_pgio_header *hdr))
+{
+	hdr->req = nfs_list_entry(desc->pg_list.next);
+	hdr->inode = desc->pg_inode;
+	hdr->cred = hdr->req->wb_context->cred;
+	hdr->io_start = req_offset(hdr->req);
+	hdr->good_bytes = desc->pg_count;
+	hdr->release = release;
+}
+
+void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
+{
+	spin_lock(&hdr->lock);
+	if (pos < hdr->io_start + hdr->good_bytes) {
+		set_bit(NFS_IOHDR_ERROR, &hdr->flags);
+		clear_bit(NFS_IOHDR_EOF, &hdr->flags);
+		hdr->good_bytes = pos - hdr->io_start;
+		hdr->error = error;
+	}
+	spin_unlock(&hdr->lock);
+}
+
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {

@@ -1187,14 +1187,30 @@ struct nfs_read_data {
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 };
 
+/* used as flag bits in nfs_pgio_header */
+enum {
+	NFS_IOHDR_ERROR = 0,
+	NFS_IOHDR_EOF,
+	NFS_IOHDR_REDO,
+};
+
 struct nfs_pgio_header {
 	struct inode		*inode;
 	struct rpc_cred		*cred;
 	struct list_head	pages;
+	struct list_head	rpc_list;
+	atomic_t		refcnt;
 	struct nfs_page		*req;
 	struct pnfs_layout_segment *lseg;
+	loff_t			io_start;
 	const struct rpc_call_ops *mds_ops;
+	void (*release) (struct nfs_pgio_header *hdr);
+	spinlock_t		lock;
+	/* fields protected by lock */
 	int			pnfs_error;
+	int			error;		/* merge with pnfs_error */
+	unsigned long		good_bytes;	/* boundary of good data */
+	unsigned long		flags;
 };
 
 struct nfs_read_header {

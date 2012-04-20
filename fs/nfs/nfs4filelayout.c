@@ -227,7 +227,6 @@ static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = data;
 
-	put_lseg(rdata->header->lseg);
 	rdata->header->mds_ops->rpc_release(data);
 }
 

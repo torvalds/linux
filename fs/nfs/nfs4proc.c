@@ -3391,8 +3391,6 @@ void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data)
 	struct inode *inode = hdr->inode;
 
 	dprintk("%s Reset task for i/o through\n", __func__);
-	put_lseg(hdr->lseg);
-	hdr->lseg = NULL;
 	data->ds_clp = NULL;
 	/* offsets will differ in the dense stripe case */
 	data->args.offset = data->mds_offset;
