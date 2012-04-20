@@ -599,10 +599,15 @@ show_help:
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (self->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!self->selection->ins ||
-				 !(annotate_browser__jump(self) ||
-				   annotate_browser__callq(self, evidx, timer, arg, delay_secs)))
-				ui_helpline__puts("Actions are only available for the 'callq' and jump instructions.");
+			else if (!self->selection->ins) {
+				if (strcmp(self->selection->name, "retq"))
+					goto show_sup_ins;
+				goto out;
+			} else if (!(annotate_browser__jump(self) ||
+				     annotate_browser__callq(self, evidx, timer, arg, delay_secs))) {
+show_sup_ins:
+				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
+			}
 			continue;
 		case K_LEFT:
 		case K_ESC:
