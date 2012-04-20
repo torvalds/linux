@@ -191,7 +191,7 @@ filelayout_set_layoutcommit(struct nfs_write_data *wdata)
  */
 static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+	struct nfs_read_data *rdata = data;
 
 	rdata->read_done_cb = filelayout_read_done_cb;
 
@@ -205,7 +205,7 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
 {
-	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+	struct nfs_read_data *rdata = data;
 
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
 
@@ -215,14 +215,14 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 
 static void filelayout_read_count_stats(struct rpc_task *task, void *data)
 {
-	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+	struct nfs_read_data *rdata = data;
 
 	rpc_count_iostats(task, NFS_SERVER(rdata->inode)->client->cl_metrics);
 }
 
 static void filelayout_read_release(void *data)
 {
-	struct nfs_read_data *rdata = (struct nfs_read_data *)data;
+	struct nfs_read_data *rdata = data;
 
 	put_lseg(rdata->lseg);
 	rdata->mds_ops->rpc_release(data);
@@ -282,7 +282,7 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 
 static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+	struct nfs_write_data *wdata = data;
 
 	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
 				&wdata->args.seq_args, &wdata->res.seq_res,
@@ -294,7 +294,7 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+	struct nfs_write_data *wdata = data;
 
 	/* Note this may cause RPC to be resent */
 	wdata->mds_ops->rpc_call_done(task, data);
@@ -302,14 +302,14 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 
 static void filelayout_write_count_stats(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+	struct nfs_write_data *wdata = data;
 
 	rpc_count_iostats(task, NFS_SERVER(wdata->inode)->client->cl_metrics);
 }
 
 static void filelayout_write_release(void *data)
 {
-	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+	struct nfs_write_data *wdata = data;
 
 	put_lseg(wdata->lseg);
 	wdata->mds_ops->rpc_release(data);
