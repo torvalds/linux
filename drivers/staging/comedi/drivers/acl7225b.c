@@ -36,7 +36,6 @@ static const struct boardtype boardtypes[] = {
 	{"p16r16dio", P16R16DIO_SIZE,},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
 #define this_board ((const struct boardtype *)dev->board_ptr)
 
 static struct comedi_driver driver_acl7225b = {
@@ -45,7 +44,7 @@ static struct comedi_driver driver_acl7225b = {
 	.attach = acl7225b_attach,
 	.detach = acl7225b_detach,
 	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.offset = sizeof(struct boardtype),
 };
 

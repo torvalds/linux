@@ -321,7 +321,6 @@ static const struct daq200_boardtype boardtypes[] = {
 	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct daq200_boardtype))
 #define this_board ((const struct daq200_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
@@ -761,7 +760,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 		devpriv->pci_dev = card;
 		id = ((u32) card->
 		      subsystem_device << 16) | card->subsystem_vendor;
-		for (i = 0; i < n_boardtypes; i++) {
+		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
 			if (boardtypes[i].id == id) {
 				dev_dbg(dev->hw_dev, "%s\n",
 					boardtypes[i].name);

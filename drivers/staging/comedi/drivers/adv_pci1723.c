@@ -171,8 +171,6 @@ static int pci1723_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it);
 static int pci1723_detach(struct comedi_device *dev);
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pci1723_board))
-
 static struct comedi_driver driver_pci1723 = {
 	.driver_name = "adv_pci1723",
 	.module = THIS_MODULE,

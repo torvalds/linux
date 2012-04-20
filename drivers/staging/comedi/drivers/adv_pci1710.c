@@ -264,14 +264,12 @@ static const struct boardtype boardtypes[] = {
 	{.name = DRV_NAME},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-
 static struct comedi_driver driver_pci1710 = {
 	.driver_name = DRV_NAME,
 	.module = THIS_MODULE,
 	.attach = pci1710_attach,
 	.detach = pci1710_detach,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.board_name = &boardtypes[0].name,
 	.offset = sizeof(struct boardtype),
 };
@@ -1398,13 +1396,13 @@ static int pci1710_attach(struct comedi_device *dev,
 	while (NULL != (pcidev = pci_get_device(PCI_VENDOR_ID_ADVANTECH,
 						PCI_ANY_ID, pcidev))) {
 		if (strcmp(this_board->name, DRV_NAME) == 0) {
-			for (i = 0; i < n_boardtypes; ++i) {
+			for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 				if (pcidev->device == boardtypes[i].device_id) {
 					board_index = i;
 					break;
 				}
 			}
-			if (i == n_boardtypes)
+			if (i == ARRAY_SIZE(boardtypes))
 				continue;
 		} else {
 			if (pcidev->device != boardtypes[board_index].device_id)

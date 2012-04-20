@@ -155,7 +155,6 @@ static const struct pcl711_board boardtypes[] = {
 	{"acl8112dg", 0, 1, 1, 9, 16, 2, 15, &range_acl8112dg_ai},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl711_board))
 #define this_board ((const struct pcl711_board *)dev->board_ptr)
 
 static int pcl711_attach(struct comedi_device *dev,
@@ -167,7 +166,7 @@ static struct comedi_driver driver_pcl711 = {
 	.attach = pcl711_attach,
 	.detach = pcl711_detach,
 	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.offset = sizeof(struct pcl711_board),
 };
 

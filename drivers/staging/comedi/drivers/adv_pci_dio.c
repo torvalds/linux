@@ -406,8 +406,6 @@ static const struct dio_boardtype boardtypes[] = {
 	 IO_16b}
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct dio_boardtype))
-
 static struct comedi_driver driver_pci_dio = {
 	.driver_name = "adv_pci_dio",
 	.module = THIS_MODULE,
@@ -1134,7 +1132,7 @@ static int pci_dio_attach(struct comedi_device *dev,
 
 	for_each_pci_dev(pcidev) {
 		/*  loop through cards supported by this driver */
-		for (i = 0; i < n_boardtypes; ++i) {
+		for (i = 0; i < ARRAY_SIZE(boardtypes); ++i) {
 			if (boardtypes[i].vendor_id != pcidev->vendor)
 				continue;
 			if (boardtypes[i].device_id != pcidev->device)

@@ -149,7 +149,6 @@ static const struct pcl726_board boardtypes[] = {
 	 &rangelist_728[0],},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl726_board))
 #define this_board ((const struct pcl726_board *)dev->board_ptr)
 
 static struct comedi_driver driver_pcl726 = {
@@ -158,7 +157,7 @@ static struct comedi_driver driver_pcl726 = {
 	.attach = pcl726_attach,
 	.detach = pcl726_detach,
 	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.offset = sizeof(struct pcl726_board),
 };
 

@@ -173,14 +173,12 @@ static const struct boardtype boardtypes[] = {
 	 &range_analog},	/*  Rangelist for D/A */
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-
 static struct comedi_driver driver_icp_multi = {
 	.driver_name = "icp_multi",
 	.module = THIS_MODULE,
 	.attach = icp_multi_attach,
 	.detach = icp_multi_detach,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.board_name = &boardtypes[0].name,
 	.offset = sizeof(struct boardtype),
 };

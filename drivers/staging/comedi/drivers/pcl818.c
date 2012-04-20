@@ -302,15 +302,13 @@ static const struct pcl818_board boardtypes[] = {
 	 0x0a, 0xfff, 0xfff, 0, 1 /* XXX ? */ },
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct pcl818_board))
-
 static struct comedi_driver driver_pcl818 = {
 	.driver_name = "pcl818",
 	.module = THIS_MODULE,
 	.attach = pcl818_attach,
 	.detach = pcl818_detach,
 	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.offset = sizeof(struct pcl818_board),
 };
 

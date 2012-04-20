@@ -277,14 +277,12 @@ static const struct boardtype boardtypes[] = {
 	 10000, 40, 512},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct boardtype))
-
 static struct comedi_driver driver_pci9118 = {
 	.driver_name = "adl_pci9118",
 	.module = THIS_MODULE,
 	.attach = pci9118_attach,
 	.detach = pci9118_detach,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.board_name = &boardtypes[0].name,
 	.offset = sizeof(struct boardtype),
 };
