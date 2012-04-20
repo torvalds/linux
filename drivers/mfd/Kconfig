@@ -785,7 +785,8 @@ config LPC_ICH
 	help
 	  The LPC bridge function of the Intel ICH provides support for
 	  many functional units. This driver provides needed support for
-	  other drivers to control these functions, currently GPIO.
+	  other drivers to control these functions, currently GPIO and
+	  watchdog.
 
 config MFD_RDC321X
 	tristate "Support for RDC-R321x southbridge"

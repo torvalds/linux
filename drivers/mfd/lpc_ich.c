@@ -65,13 +65,41 @@
 #define ACPIBASE		0x40
 #define ACPIBASE_GPE_OFF	0x28
 #define ACPIBASE_GPE_END	0x2f
+#define ACPIBASE_SMI_OFF	0x30
+#define ACPIBASE_SMI_END	0x33
+#define ACPIBASE_TCO_OFF	0x60
+#define ACPIBASE_TCO_END	0x7f
 #define ACPICTRL		0x44
+
+#define ACPIBASE_GCS_OFF	0x3410
+#define ACPIBASE_GCS_END	0x3414
 
 #define GPIOBASE		0x48
 #define GPIOCTRL		0x4C
 
+#define RCBABASE		0xf0
+
+#define wdt_io_res(i) wdt_res(0, i)
+#define wdt_mem_res(i) wdt_res(ICH_RES_MEM_OFF, i)
+#define wdt_res(b, i) (&wdt_ich_res[(b) + (i)])
+
 static int lpc_ich_acpi_save = -1;
 static int lpc_ich_gpio_save = -1;
+
+static struct resource wdt_ich_res[] = {
+	/* ACPI - TCO */
+	{
+		.flags = IORESOURCE_IO,
+	},
+	/* ACPI - SMI */
+	{
+		.flags = IORESOURCE_IO,
+	},
+	/* GCS */
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
 
 static struct resource gpio_ich_res[] = {
 	/* GPIO */
@@ -85,10 +113,17 @@ static struct resource gpio_ich_res[] = {
 };
 
 enum lpc_cells {
-	LPC_GPIO = 0,
+	LPC_WDT = 0,
+	LPC_GPIO,
 };
 
 static struct mfd_cell lpc_ich_cells[] = {
+	[LPC_WDT] = {
+		.name = "iTCO_wdt",
+		.num_resources = ARRAY_SIZE(wdt_ich_res),
+		.resources = wdt_ich_res,
+		.ignore_resource_conflicts = true,
+	},
 	[LPC_GPIO] = {
 		.name = "gpio_ich",
 		.num_resources = ARRAY_SIZE(gpio_ich_res),
@@ -162,218 +197,276 @@ enum lpc_chipsets {
 struct lpc_ich_info lpc_chipset_info[] __devinitdata = {
 	[LPC_ICH] = {
 		.name = "ICH",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH0] = {
 		.name = "ICH0",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH2] = {
 		.name = "ICH2",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH2M] = {
 		.name = "ICH2-M",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH3] = {
 		.name = "ICH3-S",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH3M] = {
 		.name = "ICH3-M",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH4] = {
 		.name = "ICH4",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH4M] = {
 		.name = "ICH4-M",
+		.iTCO_version = 1,
 	},
 	[LPC_CICH] = {
 		.name = "C-ICH",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH5] = {
 		.name = "ICH5 or ICH5R",
+		.iTCO_version = 1,
 	},
 	[LPC_6300ESB] = {
 		.name = "6300ESB",
+		.iTCO_version = 1,
 	},
 	[LPC_ICH6] = {
 		.name = "ICH6 or ICH6R",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V6_GPIO,
 	},
 	[LPC_ICH6M] = {
 		.name = "ICH6-M",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V6_GPIO,
 	},
 	[LPC_ICH6W] = {
 		.name = "ICH6W or ICH6RW",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V6_GPIO,
 	},
 	[LPC_631XESB] = {
 		.name = "631xESB/632xESB",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V6_GPIO,
 	},
 	[LPC_ICH7] = {
 		.name = "ICH7 or ICH7R",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH7DH] = {
 		.name = "ICH7DH",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH7M] = {
 		.name = "ICH7-M or ICH7-U",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH7MDH] = {
 		.name = "ICH7-M DH",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_NM10] = {
 		.name = "NM10",
+		.iTCO_version = 2,
 	},
 	[LPC_ICH8] = {
 		.name = "ICH8 or ICH8R",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH8DH] = {
 		.name = "ICH8DH",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH8DO] = {
 		.name = "ICH8DO",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH8M] = {
 		.name = "ICH8M",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH8ME] = {
 		.name = "ICH8M-E",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V7_GPIO,
 	},
 	[LPC_ICH9] = {
 		.name = "ICH9",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V9_GPIO,
 	},
 	[LPC_ICH9R] = {
 		.name = "ICH9R",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V9_GPIO,
 	},
 	[LPC_ICH9DH] = {
 		.name = "ICH9DH",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V9_GPIO,
 	},
 	[LPC_ICH9DO] = {
 		.name = "ICH9DO",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V9_GPIO,
 	},
 	[LPC_ICH9M] = {
 		.name = "ICH9M",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V9_GPIO,
 	},
 	[LPC_ICH9ME] = {
 		.name = "ICH9M-E",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V9_GPIO,
 	},
 	[LPC_ICH10] = {
 		.name = "ICH10",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V10CONS_GPIO,
 	},
 	[LPC_ICH10R] = {
 		.name = "ICH10R",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V10CONS_GPIO,
 	},
 	[LPC_ICH10D] = {
 		.name = "ICH10D",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V10CORP_GPIO,
 	},
 	[LPC_ICH10DO] = {
 		.name = "ICH10DO",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V10CORP_GPIO,
 	},
 	[LPC_PCH] = {
 		.name = "PCH Desktop Full Featured",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_PCHM] = {
 		.name = "PCH Mobile Full Featured",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_P55] = {
 		.name = "P55",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_PM55] = {
 		.name = "PM55",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_H55] = {
 		.name = "H55",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_QM57] = {
 		.name = "QM57",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_H57] = {
 		.name = "H57",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_HM55] = {
 		.name = "HM55",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_Q57] = {
 		.name = "Q57",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_HM57] = {
 		.name = "HM57",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_PCHMSFF] = {
 		.name = "PCH Mobile SFF Full Featured",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_QS57] = {
 		.name = "QS57",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_3400] = {
 		.name = "3400",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_3420] = {
 		.name = "3420",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_3450] = {
 		.name = "3450",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_EP80579] = {
 		.name = "EP80579",
+		.iTCO_version = 2,
 	},
 	[LPC_CPT] = {
 		.name = "Cougar Point",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_CPTD] = {
 		.name = "Cougar Point Desktop",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_CPTM] = {
 		.name = "Cougar Point Mobile",
+		.iTCO_version = 2,
 		.gpio_version = ICH_V5_GPIO,
 	},
 	[LPC_PBG] = {
 		.name = "Patsburg",
+		.iTCO_version = 2,
 	},
 	[LPC_DH89XXCC] = {
 		.name = "DH89xxCC",
+		.iTCO_version = 2,
 	},
 	[LPC_PPT] = {
 		.name = "Panther Point",
+		.iTCO_version = 2,
 	},
 	[LPC_LPT] = {
 		.name = "Lynx Point",
+		.iTCO_version = 2,
 	},
 };
 
@@ -666,11 +759,87 @@ gpio_done:
 	return ret;
 }
 
+static int __devinit lpc_ich_init_wdt(struct pci_dev *dev,
+				const struct pci_device_id *id)
+{
+	u32 base_addr_cfg;
+	u32 base_addr;
+	int ret;
+	bool acpi_conflict = false;
+	struct resource *res;
+
+	/* Setup power management base register */
+	pci_read_config_dword(dev, ACPIBASE, &base_addr_cfg);
+	base_addr = base_addr_cfg & 0x0000ff80;
+	if (!base_addr) {
+		dev_err(&dev->dev, "I/O space for ACPI uninitialized\n");
+		ret = -ENODEV;
+		goto wdt_done;
+	}
+
+	res = wdt_io_res(ICH_RES_IO_TCO);
+	res->start = base_addr + ACPIBASE_TCO_OFF;
+	res->end = base_addr + ACPIBASE_TCO_END;
+	ret = acpi_check_resource_conflict(res);
+	if (ret) {
+		acpi_conflict = true;
+		goto wdt_done;
+	}
+
+	res = wdt_io_res(ICH_RES_IO_SMI);
+	res->start = base_addr + ACPIBASE_SMI_OFF;
+	res->end = base_addr + ACPIBASE_SMI_END;
+	ret = acpi_check_resource_conflict(res);
+	if (ret) {
+		acpi_conflict = true;
+		goto wdt_done;
+	}
+	lpc_ich_enable_acpi_space(dev);
+
+	/*
+	 * Get the Memory-Mapped GCS register. To get access to it
+	 * we have to read RCBA from PCI Config space 0xf0 and use
+	 * it as base. GCS = RCBA + ICH6_GCS(0x3410).
+	 */
+	if (lpc_chipset_info[id->driver_data].iTCO_version == 2) {
+		pci_read_config_dword(dev, RCBABASE, &base_addr_cfg);
+		base_addr = base_addr_cfg & 0xffffc000;
+		if (!(base_addr_cfg & 1)) {
+			pr_err("RCBA is disabled by hardware/BIOS, "
+					"device disabled\n");
+			ret = -ENODEV;
+			goto wdt_done;
+		}
+		res = wdt_mem_res(ICH_RES_MEM_GCS);
+		res->start = base_addr + ACPIBASE_GCS_OFF;
+		res->end = base_addr + ACPIBASE_GCS_END;
+		ret = acpi_check_resource_conflict(res);
+		if (ret) {
+			acpi_conflict = true;
+			goto wdt_done;
+		}
+	}
+
+	lpc_ich_finalize_cell(&lpc_ich_cells[LPC_WDT], id);
+	ret = mfd_add_devices(&dev->dev, -1, &lpc_ich_cells[LPC_WDT],
+				1, NULL, 0);
+
+wdt_done:
+	if (acpi_conflict)
+		pr_warn("Resource conflict(s) found affecting %s\n",
+				lpc_ich_cells[LPC_WDT].name);
+	return ret;
+}
+
 static int __devinit lpc_ich_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	int ret;
 	bool cell_added = false;
+
+	ret = lpc_ich_init_wdt(dev, id);
+	if (!ret)
+		cell_added = true;
 
 	ret = lpc_ich_init_gpio(dev, id);
 	if (!ret)
