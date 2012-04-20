@@ -465,8 +465,8 @@ static void xen_smp_send_reschedule(int cpu)
 	xen_send_IPI_one(cpu, XEN_RESCHEDULE_VECTOR);
 }
 
-static void xen_send_IPI_mask(const struct cpumask *mask,
-			      enum ipi_vector vector)
+static void __xen_send_IPI_mask(const struct cpumask *mask,
+			      int vector)
 {
 	unsigned cpu;
 
@@ -478,7 +478,7 @@ static void xen_smp_send_call_function_ipi(const struct cpumask *mask)
 {
 	int cpu;
 
-	xen_send_IPI_mask(mask, XEN_CALL_FUNCTION_VECTOR);
+	__xen_send_IPI_mask(mask, XEN_CALL_FUNCTION_VECTOR);
 
 	/* Make sure other vcpus get a chance to run if they need to. */
 	for_each_cpu(cpu, mask) {
@@ -491,8 +491,81 @@ static void xen_smp_send_call_function_ipi(const struct cpumask *mask)
 
 static void xen_smp_send_call_function_single_ipi(int cpu)
 {
-	xen_send_IPI_mask(cpumask_of(cpu),
+	__xen_send_IPI_mask(cpumask_of(cpu),
 			  XEN_CALL_FUNCTION_SINGLE_VECTOR);
+}
+
+static inline int xen_map_vector(int vector)
+{
+	int xen_vector;
+
+	switch (vector) {
+	case RESCHEDULE_VECTOR:
+		xen_vector = XEN_RESCHEDULE_VECTOR;
+		break;
+	case CALL_FUNCTION_VECTOR:
+		xen_vector = XEN_CALL_FUNCTION_VECTOR;
+		break;
+	case CALL_FUNCTION_SINGLE_VECTOR:
+		xen_vector = XEN_CALL_FUNCTION_SINGLE_VECTOR;
+		break;
+	default:
+		xen_vector = -1;
+		printk(KERN_ERR "xen: vector 0x%x is not implemented\n",
+			vector);
+	}
+
+	return xen_vector;
+}
+
+void xen_send_IPI_mask(const struct cpumask *mask,
+			      int vector)
+{
+	int xen_vector = xen_map_vector(vector);
+
+	if (xen_vector >= 0)
+		__xen_send_IPI_mask(mask, xen_vector);
+}
+
+void xen_send_IPI_all(int vector)
+{
+	int xen_vector = xen_map_vector(vector);
+
+	if (xen_vector >= 0)
+		__xen_send_IPI_mask(cpu_online_mask, xen_vector);
+}
+
+void xen_send_IPI_self(int vector)
+{
+	int xen_vector = xen_map_vector(vector);
+
+	if (xen_vector >= 0)
+		xen_send_IPI_one(smp_processor_id(), xen_vector);
+}
+
+void xen_send_IPI_mask_allbutself(const struct cpumask *mask,
+				int vector)
+{
+	unsigned cpu;
+	unsigned int this_cpu = smp_processor_id();
+
+	if (!(num_online_cpus() > 1))
+		return;
+
+	for_each_cpu_and(cpu, mask, cpu_online_mask) {
+		if (this_cpu == cpu)
+			continue;
+
+		xen_smp_send_call_function_single_ipi(cpu);
+	}
+}
+
+void xen_send_IPI_allbutself(int vector)
+{
+	int xen_vector = xen_map_vector(vector);
+
+	if (xen_vector >= 0)
+		xen_send_IPI_mask_allbutself(cpu_online_mask, xen_vector);
 }
 
 static irqreturn_t xen_call_function_interrupt(int irq, void *dev_id)
