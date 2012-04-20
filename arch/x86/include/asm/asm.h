@@ -42,17 +42,17 @@
 
 /* Exception table entry */
 #ifdef __ASSEMBLY__
-# define _ASM_EXTABLE(from,to)	    \
-	__ASM_EX_SEC ;		    \
-	_ASM_ALIGN ;		    \
-	_ASM_PTR from , to ;	    \
-	.previous
+# define _ASM_EXTABLE(from,to)			\
+	.pushsection "__ex_table","a" ;		\
+	_ASM_ALIGN ;				\
+	_ASM_PTR from , to ;			\
+	.popsection
 #else
-# define _ASM_EXTABLE(from,to) \
-	__ASM_EX_SEC	\
-	_ASM_ALIGN "\n" \
-	_ASM_PTR #from "," #to "\n" \
-	" .previous\n"
+# define _ASM_EXTABLE(from,to)			\
+	" .pushsection \"__ex_table\",\"a\"\n"	\
+	_ASM_ALIGN "\n" 			\
+	_ASM_PTR #from "," #to "\n" 		\
+	" .popsection\n"
 #endif
 
 #endif /* _ASM_X86_ASM_H */
