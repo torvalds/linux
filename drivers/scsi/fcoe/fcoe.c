@@ -472,6 +472,7 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	/* Release the self-reference taken during fcoe_interface_create() */
 	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(fip);
+	scsi_host_put(fcoe->ctlr.lp->host);
 	kfree(fcoe);
 	dev_put(netdev);
 	module_put(THIS_MODULE);
@@ -976,8 +977,12 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	/* Free memory used by statistical counters */
 	fc_lport_free_stats(lport);
 
-	/* Release the Scsi_Host */
-	scsi_host_put(lport->host);
+	/*
+	 * Release the Scsi_Host for vport but hold on to
+	 * master lport until it fcoe interface fully cleaned-up.
+	 */
+	if (lport->vport)
+		scsi_host_put(lport->host);
 }
 
 /**
