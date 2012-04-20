@@ -544,7 +544,7 @@ static void do_sysrq(struct fiq_debugger_state *state, char rq)
 	handle_sysrq(rq);
 	end_syslog_dump(state);
 }
-static void fiq_io(struct fiq_debugger_state *state);
+
 /* This function CANNOT be called in FIQ context */
 static void debug_irq_exec(struct fiq_debugger_state *state, char *cmd)
 {
@@ -588,8 +588,6 @@ static char cmd_buf[][16] = {
 		{"cpu"},
 		{"ps"},
 		{"sysrq"},
-		{"help"},
-		{"io"},
 };
 
 static void debug_help(struct fiq_debugger_state *state)
@@ -607,8 +605,7 @@ static void debug_help(struct fiq_debugger_state *state)
 				" nosleep       Disable sleep while in FIQ\n"
 				" console       Switch terminal to console\n"
 				" cpu           Current CPU\n"
-				" cpu <number>  Switch to CPU<number>\n"
-			    " io            Raw memory i/o utility\n");
+				" cpu <number>  Switch to CPU<number>\n");
 	debug_printf(state,	" ps            Process list\n"
 				" sysrq         sysrq options\n"
 				" sysrq <param> Execute sysrq with <param>\n");
@@ -642,104 +639,6 @@ static void switch_cpu(struct fiq_debugger_state *state, int cpu)
 #endif
 	state->current_cpu = cpu;
 }
-
-
-static void memread_memory(struct fiq_debugger_state *state, unsigned long phys_addr,
-								unsigned char *addr, int len, int iosize)
-{
-	int i;
-
-	while (len > 0) {
-		debug_printf(state, "%08lx: ", phys_addr);
-		i = 0;
-		while (i < 16 && len > 0) {
-			switch(iosize) {
-			case 1:
-				debug_printf(state, " %02x", readb(addr));
-				break;
-			case 2:
-				debug_printf(state, " %04x", readw(addr));
-				break;
-			case 4:
-				debug_printf(state, " %08lx", readl(addr));
-				break;
-			}
-			i += iosize;
-			addr += iosize;
-			len -= iosize;
-		}
-		phys_addr += 16;
-		debug_printf(state, "\n");
-	}
-}
-
-
-static void write_memory(unsigned long phys_addr, unsigned char *addr,
-								int len, int iosize, unsigned long value)
-{
-	switch(iosize) {
-	case 1:
-		while (len > 0) {
-			writeb(value, addr);
-			len -= iosize;
-			addr += iosize;
-		}
-		break;
-	case 2:
-		while (len > 0) {
-			writew(value, addr);
-			len -= iosize;
-			addr += iosize;
-		}
-		break;
-	case 4:
-		while (len > 0) {
-			writel(value, addr);
-			len -= iosize;
-			addr += iosize;
-		}
-		break;
-	}
-}
-
-static void fiq_io(struct fiq_debugger_state *state)
-{
-	int mem_read = 1;  //1 mean read, 0 mean write
-	int len = 0, iosize = 4;
-	int value = 0;
-	void __iomem * addr;
-	unsigned long phys_addr;
-	char *s;
-
-	if (strstr(state->debug_buf, "-h")) {
-		debug_printf(state, "io [-w/-r] [-l size] phys_addr [var] \n"
-							"io -w -l 0x04 0x20064004 0x05 \n");
-		return;
-	}
-
-	if (strstr(state->debug_buf, "-w")) {
-		mem_read = 0;
-	}
-
-	s = strstr(state->debug_buf, "-l");
-	if (s) {
-		s = skip_spaces(s+2);
-		s += sscanf(s, "0x%x 0x%lx", &len, &phys_addr);
-	}
-
-	addr = ioremap_nocache(phys_addr, len);
-
-	if (mem_read == 0) {
-		s = skip_spaces(s+1);
-		sscanf(s, "0x%x", &value);
-		write_memory(phys_addr, addr, len, iosize, value);
-	} else {
-		memread_memory(state, phys_addr, addr, len, iosize);
-	}
-
-	iounmap(addr);
-}
-
 
 static bool debug_fiq_exec(struct fiq_debugger_state *state,
 			const char *cmd, unsigned *regs, void *svc_sp)
@@ -783,8 +682,6 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 		else
 			debug_printf(state, "invalid cpu\n");
 		debug_printf(state, "cpu %d\n", state->current_cpu);
-	} else if (!strncmp(cmd, "io ", 3)) {
-		fiq_io(state);
 	} else {
 		if (state->debug_busy) {
 			debug_printf(state,
@@ -794,6 +691,7 @@ static bool debug_fiq_exec(struct fiq_debugger_state *state,
 			strcpy(state->debug_cmd, cmd);
 			state->debug_busy = 1;
 		}
+
 		return true;
 	}
 	if (!state->console_enable)
