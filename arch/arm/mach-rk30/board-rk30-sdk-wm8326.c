@@ -120,6 +120,7 @@ static int wm831x_pre_init(struct wm831x *parm)
 	wm831x_set_bits(parm,WM831X_STATUS_LED_2 ,0xc300,0xc000);//set led2 off(in manual mode)
 
 	wm831x_set_bits(parm,WM831X_LDO5_SLEEP_CONTROL ,0xe000,0x2000);// set ldo5 is disable in sleep mode 
+	wm831x_set_bits(parm,WM831X_LDO1_SLEEP_CONTROL ,0xe000,0x2000);// set ldo1 is disable in sleep mode 
 	
 	wm831x_reg_write(parm, WM831X_SECURITY_KEY, LOCK_SECURITY_KEY);	// lock security key
 
@@ -170,7 +171,7 @@ int wm831x_post_init(struct wm831x *Wm831x)
 
 	dcdc = regulator_get(NULL, "dcdc4");	// vcc_io
 	regulator_set_voltage(dcdc, 3000000, 3000000);
-	regulator_set_suspend_voltage(dcdc, 3000000);
+	regulator_set_suspend_voltage(dcdc, 2800000);
 	regulator_enable(dcdc);
 //	printk("%s set dcdc4 vcc_io=%dmV end\n", __func__, regulator_get_voltage(dcdc));
 	regulator_put(dcdc);
@@ -232,9 +233,9 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	regulator_put(ldo);
 	udelay(100);
 
-	ldo = regulator_get(NULL, "ldo10");	//vcca_wl
-	regulator_set_voltage(ldo, 3300000, 3300000);
-	regulator_set_suspend_voltage(ldo, 3300000);
+	ldo = regulator_get(NULL, "ldo10");	//flash io
+	regulator_set_voltage(ldo, 1800000, 1800000);
+	regulator_set_suspend_voltage(ldo, 1800000);
 	regulator_enable(ldo);
 //	printk("%s set ldo10 vcca_wl=%dmV end\n", __func__, regulator_get_voltage(ldo));
 	regulator_put(ldo);
