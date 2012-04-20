@@ -199,10 +199,10 @@ static void pch_tx_timestamp(
 	u32 cnt, val;
 
 	shtx = skb_shinfo(skb);
-	if (unlikely(shtx->tx_flags & SKBTX_HW_TSTAMP && adapter->hwts_tx_en))
-		shtx->tx_flags |= SKBTX_IN_PROGRESS;
-	else
+	if (likely(!(shtx->tx_flags & SKBTX_HW_TSTAMP && adapter->hwts_tx_en)))
 		return;
+
+	shtx->tx_flags |= SKBTX_IN_PROGRESS;
 
 	/* Get ieee1588's dev information */
 	pdev = adapter->ptp_pdev;
