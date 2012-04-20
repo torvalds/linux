@@ -70,7 +70,7 @@ struct rk_pwm_dcdc {
 #endif
 
 const static int pwm_voltage_map[] = {
-	950000, 975000, 1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000, 1350000, 1375000, 1420000
+	850000,875000,900000,925000,950000, 975000, 1000000, 1025000, 1050000, 1075000, 1100000, 1125000, 1150000, 1175000, 1200000, 1225000, 1250000, 1275000, 1300000, 1325000
 };
 
 static struct clk *pwm_clk[2];
@@ -93,7 +93,7 @@ static int pwm_set_rate(struct pwm_platform_data *pdata,int nHz,u32 rate)
 	clkrate = clk_get_rate(pwm_clk[1]);
 	
 	DBG("%s:id=%d,rate=%d,clkrate=%d\n",__func__,id,rate,clkrate);
-	
+
 	if(rate == 0)
 	{
 		// iomux pwm to gpio
@@ -202,7 +202,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 	dcdc->pdata->pwm_voltage = vol;
 
 	// VDD12 = 1.42 - 0.56*D , 其中D为PWM占空比, 
-	pwm_value = (1420000-vol)/5600;  // pwm_value %
+	pwm_value = (1325000-vol)/5800;  // pwm_value %
 
 
 	if (pwm_set_rate(dcdc->pdata,1000*1000,pwm_value)!=0)
@@ -216,7 +216,7 @@ static int pwm_regulator_set_voltage(struct regulator_dev *dev,
 	*selector = i;
 #endif
 
-	DBG("%s:  set successful,pwm_value=%d\n",__FUNCTION__,pwm_value);
+	DBG("%s:ok,vol=%d,pwm_value=%d\n",__FUNCTION__,vol,pwm_value);
 
 	return 0;
 
