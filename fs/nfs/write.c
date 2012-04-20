@@ -1059,7 +1059,6 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 		nbytes -= len;
 		offset += len;
 	} while (nbytes != 0);
-	atomic_set(&req->wb_complete, requests);
 	desc->pg_rpc_callops = &nfs_write_common_ops;
 	return ret;
 
