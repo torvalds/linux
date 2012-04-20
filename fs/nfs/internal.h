@@ -210,6 +210,7 @@ extern void nfs_destroy_writepagecache(void);
 
 extern int __init nfs_init_directcache(void);
 extern void nfs_destroy_directcache(void);
+extern bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount);
 
 /* nfs2xdr.c */
 extern int nfs_stat_to_errno(enum nfs_stat);

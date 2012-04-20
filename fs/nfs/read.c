@@ -46,16 +46,10 @@ struct nfs_read_header *nfs_readhdr_alloc(unsigned int pagecount)
 
 		INIT_LIST_HEAD(&hdr->pages);
 		INIT_LIST_HEAD(&data->list);
-		data->npages = pagecount;
 		data->header = hdr;
-		if (pagecount <= ARRAY_SIZE(data->page_array))
-			data->pagevec = data->page_array;
-		else {
-			data->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_KERNEL);
-			if (!data->pagevec) {
-				kmem_cache_free(nfs_rdata_cachep, p);
-				p = NULL;
-			}
+		if (!nfs_pgarray_set(&data->pages, pagecount)) {
+			kmem_cache_free(nfs_rdata_cachep, p);
+			p = NULL;
 		}
 	}
 	return p;
@@ -71,8 +65,8 @@ void nfs_readhdr_free(struct nfs_pgio_header *hdr)
 void nfs_readdata_release(struct nfs_read_data *rdata)
 {
 	put_nfs_open_context(rdata->args.context);
-	if (rdata->pagevec != rdata->page_array)
-		kfree(rdata->pagevec);
+	if (rdata->pages.pagevec != rdata->pages.page_array)
+		kfree(rdata->pages.pagevec);
 	nfs_readhdr_free(rdata->header);
 }
 
@@ -232,7 +226,7 @@ static void nfs_read_rpcsetup(struct nfs_page *req, struct nfs_read_data *data,
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
 	data->args.pgbase = req->wb_pgbase + offset;
-	data->args.pages  = data->pagevec;
+	data->args.pages  = data->pages.pagevec;
 	data->args.count  = count;
 	data->args.context = get_nfs_open_context(req->wb_context);
 	data->args.lock_context = req->wb_lock_context;
@@ -318,7 +312,7 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc, struct list_head
 		if (!rhdr)
 			goto out_bad;
 		data = &rhdr->rpc_data;
-		data->pagevec[0] = page;
+		data->pages.pagevec[0] = page;
 		nfs_read_rpcsetup(req, data, len, offset);
 		list_add(&data->list, res);
 		requests++;
@@ -356,7 +350,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc, struct list_head *
 	}
 
 	data = &rhdr->rpc_data;
-	pages = data->pagevec;
+	pages = data->pages.pagevec;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);

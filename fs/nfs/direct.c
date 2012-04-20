@@ -252,11 +252,11 @@ static void nfs_direct_read_release(void *calldata)
 	} else {
 		dreq->count += data->res.count;
 		spin_unlock(&dreq->lock);
-		nfs_direct_dirty_pages(data->pagevec,
+		nfs_direct_dirty_pages(data->pages.pagevec,
 				data->args.pgbase,
 				data->res.count);
 	}
-	nfs_direct_release_pages(data->pagevec, data->npages);
+	nfs_direct_release_pages(data->pages.pagevec, data->pages.npages);
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
@@ -273,8 +273,8 @@ static void nfs_direct_readhdr_release(struct nfs_read_header *rhdr)
 {
 	struct nfs_read_data *data = &rhdr->rpc_data;
 
-	if (data->pagevec != data->page_array)
-		kfree(data->pagevec);
+	if (data->pages.pagevec != data->pages.page_array)
+		kfree(data->pages.pagevec);
 	nfs_readhdr_free(&rhdr->header);
 }
 
@@ -312,6 +312,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 	do {
 		struct nfs_read_header *rhdr;
 		struct nfs_read_data *data;
+		struct nfs_page_array *pages;
 		size_t bytes;
 
 		pgbase = user_addr & ~PAGE_MASK;
@@ -322,24 +323,25 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		if (unlikely(!rhdr))
 			break;
 		data = &rhdr->rpc_data;
+		pages = &data->pages;
 
 		down_read(&current->mm->mmap_sem);
 		result = get_user_pages(current, current->mm, user_addr,
-					data->npages, 1, 0, data->pagevec, NULL);
+					pages->npages, 1, 0, pages->pagevec, NULL);
 		up_read(&current->mm->mmap_sem);
 		if (result < 0) {
 			nfs_direct_readhdr_release(rhdr);
 			break;
 		}
-		if ((unsigned)result < data->npages) {
+		if ((unsigned)result < pages->npages) {
 			bytes = result * PAGE_SIZE;
 			if (bytes <= pgbase) {
-				nfs_direct_release_pages(data->pagevec, result);
+				nfs_direct_release_pages(pages->pagevec, result);
 				nfs_direct_readhdr_release(rhdr);
 				break;
 			}
 			bytes -= pgbase;
-			data->npages = result;
+			pages->npages = result;
 		}
 
 		get_dreq(dreq);
@@ -352,7 +354,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		data->args.lock_context = dreq->l_ctx;
 		data->args.offset = pos;
 		data->args.pgbase = pgbase;
-		data->args.pages = data->pagevec;
+		data->args.pages = pages->pagevec;
 		data->args.count = bytes;
 		data->res.fattr = &data->fattr;
 		data->res.eof = 0;
@@ -462,8 +464,8 @@ static void nfs_direct_writehdr_release(struct nfs_write_header *whdr)
 {
 	struct nfs_write_data *data = &whdr->rpc_data;
 
-	if (data->pagevec != data->page_array)
-		kfree(data->pagevec);
+	if (data->pages.pagevec != data->pages.page_array)
+		kfree(data->pages.pagevec);
 	nfs_writehdr_free(&whdr->header);
 }
 
@@ -472,8 +474,10 @@ static void nfs_direct_free_writedata(struct nfs_direct_req *dreq)
 	while (!list_empty(&dreq->rewrite_list)) {
 		struct nfs_pgio_header *hdr = list_entry(dreq->rewrite_list.next, struct nfs_pgio_header, pages);
 		struct nfs_write_header *whdr = container_of(hdr, struct nfs_write_header, header);
+		struct nfs_page_array *p = &whdr->rpc_data.pages;
+
 		list_del(&hdr->pages);
-		nfs_direct_release_pages(whdr->rpc_data.pagevec, whdr->rpc_data.npages);
+		nfs_direct_release_pages(p->pagevec, p->npages);
 		nfs_direct_writehdr_release(whdr);
 	}
 }
@@ -751,6 +755,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 	do {
 		struct nfs_write_header *whdr;
 		struct nfs_write_data *data;
+		struct nfs_page_array *pages;
 		size_t bytes;
 
 		pgbase = user_addr & ~PAGE_MASK;
@@ -762,24 +767,25 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 			break;
 
 		data = &whdr->rpc_data;
+		pages = &data->pages;
 
 		down_read(&current->mm->mmap_sem);
 		result = get_user_pages(current, current->mm, user_addr,
-					data->npages, 0, 0, data->pagevec, NULL);
+					pages->npages, 0, 0, pages->pagevec, NULL);
 		up_read(&current->mm->mmap_sem);
 		if (result < 0) {
 			nfs_direct_writehdr_release(whdr);
 			break;
 		}
-		if ((unsigned)result < data->npages) {
+		if ((unsigned)result < pages->npages) {
 			bytes = result * PAGE_SIZE;
 			if (bytes <= pgbase) {
-				nfs_direct_release_pages(data->pagevec, result);
+				nfs_direct_release_pages(pages->pagevec, result);
 				nfs_direct_writehdr_release(whdr);
 				break;
 			}
 			bytes -= pgbase;
-			data->npages = result;
+			pages->npages = result;
 		}
 
 		get_dreq(dreq);
@@ -794,7 +800,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		data->args.lock_context = dreq->l_ctx;
 		data->args.offset = pos;
 		data->args.pgbase = pgbase;
-		data->args.pages = data->pagevec;
+		data->args.pages = pages->pagevec;
 		data->args.count = bytes;
 		data->args.stable = sync;
 		data->res.fattr = &data->fattr;

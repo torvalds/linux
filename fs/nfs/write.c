@@ -80,16 +80,10 @@ struct nfs_write_header *nfs_writehdr_alloc(unsigned int pagecount)
 		memset(p, 0, sizeof(*p));
 		INIT_LIST_HEAD(&hdr->pages);
 		INIT_LIST_HEAD(&data->list);
-		data->npages = pagecount;
 		data->header = hdr;
-		if (pagecount <= ARRAY_SIZE(data->page_array))
-			data->pagevec = data->page_array;
-		else {
-			data->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-			if (!data->pagevec) {
-				mempool_free(p, nfs_wdata_mempool);
-				p = NULL;
-			}
+		if (!nfs_pgarray_set(&data->pages, pagecount)) {
+			mempool_free(p, nfs_wdata_mempool);
+			p = NULL;
 		}
 	}
 	return p;
@@ -104,8 +98,8 @@ void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 void nfs_writedata_release(struct nfs_write_data *wdata)
 {
 	put_nfs_open_context(wdata->args.context);
-	if (wdata->pagevec != wdata->page_array)
-		kfree(wdata->pagevec);
+	if (wdata->pages.pagevec != wdata->pages.page_array)
+		kfree(wdata->pages.pagevec);
 	nfs_writehdr_free(wdata->header);
 }
 
@@ -916,7 +910,7 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 	/* pnfs_set_layoutcommit needs this */
 	data->mds_offset = data->args.offset;
 	data->args.pgbase = req->wb_pgbase + offset;
-	data->args.pages  = data->pagevec;
+	data->args.pages  = data->pages.pagevec;
 	data->args.count  = count;
 	data->args.context = get_nfs_open_context(req->wb_context);
 	data->args.lock_context = req->wb_lock_context;
@@ -1011,7 +1005,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc, struct list_head 
 		if (!whdr)
 			goto out_bad;
 		data = &whdr->rpc_data;
-		data->pagevec[0] = page;
+		data->pages.pagevec[0] = page;
 		nfs_write_rpcsetup(req, data, len, offset, desc->pg_ioflags);
 		list_add(&data->list, res);
 		requests++;
@@ -1061,7 +1055,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc, struct list_head *r
 		goto out;
 	}
 	data = &whdr->rpc_data;
-	pages = data->pagevec;
+	pages = data->pages.pagevec;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);

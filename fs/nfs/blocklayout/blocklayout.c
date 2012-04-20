@@ -242,7 +242,7 @@ bl_read_pagelist(struct nfs_read_data *rdata)
 	int pg_index = rdata->args.pgbase >> PAGE_CACHE_SHIFT;
 
 	dprintk("%s enter nr_pages %u offset %lld count %u\n", __func__,
-	       rdata->npages, f_offset, (unsigned int)rdata->args.count);
+	       rdata->pages.npages, f_offset, (unsigned int)rdata->args.count);
 
 	par = alloc_parallel(rdata);
 	if (!par)
@@ -252,7 +252,7 @@ bl_read_pagelist(struct nfs_read_data *rdata)
 
 	isect = (sector_t) (f_offset >> SECTOR_SHIFT);
 	/* Code assumes extents are page-aligned */
-	for (i = pg_index; i < rdata->npages; i++) {
+	for (i = pg_index; i < rdata->pages.npages; i++) {
 		if (!extent_length) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
@@ -285,7 +285,8 @@ bl_read_pagelist(struct nfs_read_data *rdata)
 			struct pnfs_block_extent *be_read;
 
 			be_read = (hole && cow_read) ? cow_read : be;
-			bio = bl_add_page_to_bio(bio, rdata->npages - i, READ,
+			bio = bl_add_page_to_bio(bio, rdata->pages.npages - i,
+						 READ,
 						 isect, pages[i], be_read,
 						 bl_end_io_read, par);
 			if (IS_ERR(bio)) {
@@ -654,7 +655,7 @@ next_page:
 
 	/* Middle pages */
 	pg_index = wdata->args.pgbase >> PAGE_CACHE_SHIFT;
-	for (i = pg_index; i < wdata->npages; i++) {
+	for (i = pg_index; i < wdata->pages.npages; i++) {
 		if (!extent_length) {
 			/* We've used up the previous extent */
 			bl_put_extent(be);
@@ -688,7 +689,7 @@ next_page:
 				goto out;
 			}
 		}
-		bio = bl_add_page_to_bio(bio, wdata->npages - i, WRITE,
+		bio = bl_add_page_to_bio(bio, wdata->pages.npages - i, WRITE,
 					 isect, pages[i], be,
 					 bl_end_io_write, par);
 		if (IS_ERR(bio)) {

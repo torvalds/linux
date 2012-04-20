@@ -26,6 +26,19 @@
 
 static struct kmem_cache *nfs_page_cachep;
 
+bool nfs_pgarray_set(struct nfs_page_array *p, unsigned int pagecount)
+{
+	p->npages = pagecount;
+	if (pagecount <= ARRAY_SIZE(p->page_array))
+		p->pagevec = p->page_array;
+	else {
+		p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_KERNEL);
+		if (!p->pagevec)
+			p->npages = 0;
+	}
+	return p->pagevec != NULL;
+}
+
 static inline struct nfs_page *
 nfs_page_alloc(void)
 {

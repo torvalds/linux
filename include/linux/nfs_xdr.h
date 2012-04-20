@@ -1167,19 +1167,23 @@ struct nfs_page;
 
 #define NFS_PAGEVEC_SIZE	(8U)
 
+struct nfs_page_array {
+	struct page		**pagevec;
+	unsigned int		npages;		/* Max length of pagevec */
+	struct page		*page_array[NFS_PAGEVEC_SIZE];
+};
+
 struct nfs_read_data {
 	struct nfs_pgio_header	*header;
 	struct list_head	list;
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;	/* fattr storage */
-	struct page		**pagevec;
-	unsigned int		npages;	/* Max length of pagevec */
 	struct nfs_readargs args;
 	struct nfs_readres  res;
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
 	__u64			mds_offset;
-	struct page		*page_array[NFS_PAGEVEC_SIZE];
+	struct nfs_page_array	pages;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 };
 
@@ -1206,14 +1210,12 @@ struct nfs_write_data {
 	struct rpc_task		task;
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;
-	struct page		**pagevec;
-	unsigned int		npages;		/* Max length of pagevec */
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
 	unsigned long		timestamp;	/* For lease renewal */
 	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 	__u64			mds_offset;	/* Filelayout dense stripe */
-	struct page		*page_array[NFS_PAGEVEC_SIZE];
+	struct nfs_page_array	pages;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 };
 
