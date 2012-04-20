@@ -325,7 +325,6 @@ int cpufreq_scale_rate_for_dvfs(struct clk * clk,unsigned long rate,dvfs_set_rat
 	}
 #endif
 
-	freqs.old=freqs.new;
 	freqs.new=rk30_getspeed(0);
 	/* notifiers */
 	for_each_online_cpu(freqs.cpu)
