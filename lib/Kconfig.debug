@@ -452,7 +452,8 @@ config SLUB_STATS
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && EXPERIMENTAL && \
-		(X86 || ARM || PPC || MIPS || S390 || SPARC64 || SUPERH || MICROBLAZE || TILE)
+		(X86 || ARM || PPC || MIPS || S390 || SPARC64 || SUPERH || \
+		 MICROBLAZE || TILE || ARM64)
 
 	select DEBUG_FS
 	select STACKTRACE if STACKTRACE_SUPPORT
@@ -739,7 +740,8 @@ config DEBUG_BUGVERBOSE
 	bool "Verbose BUG() reporting (adds 70K)" if DEBUG_KERNEL && EXPERT
 	depends on BUG
 	depends on ARM || AVR32 || M32R || M68K || SPARC32 || SPARC64 || \
-		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300 || TILE
+		   FRV || SUPERH || GENERIC_BUG || BLACKFIN || MN10300 || \
+		   TILE || ARM64
 	default y
 	help
 	  Say Y here to make BUG() panics output the file name and line number
