@@ -1908,7 +1908,7 @@ static int __sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
 	    __attribute__ ((aligned(sizeof(__kernel_size_t))));
 	/* 20 is size of ipv6_pktinfo */
 	unsigned char *ctl_buf = ctl;
-	int err, ctl_len, iov_size, total_len;
+	int err, ctl_len, total_len;
 
 	err = -EFAULT;
 	if (MSG_CMSG_COMPAT & flags) {
@@ -1917,16 +1917,13 @@ static int __sys_sendmsg(struct socket *sock, struct msghdr __user *msg,
 	} else if (copy_from_user(msg_sys, msg, sizeof(struct msghdr)))
 		return -EFAULT;
 
-	/* do not move before msg_sys is valid */
-	err = -EMSGSIZE;
-	if (msg_sys->msg_iovlen > UIO_MAXIOV)
-		goto out;
-
-	/* Check whether to allocate the iovec area */
-	err = -ENOMEM;
-	iov_size = msg_sys->msg_iovlen * sizeof(struct iovec);
 	if (msg_sys->msg_iovlen > UIO_FASTIOV) {
-		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
+		err = -EMSGSIZE;
+		if (msg_sys->msg_iovlen > UIO_MAXIOV)
+			goto out;
+		err = -ENOMEM;
+		iov = kmalloc(msg_sys->msg_iovlen * sizeof(struct iovec),
+			      GFP_KERNEL);
 		if (!iov)
 			goto out;
 	}
@@ -2005,7 +2002,7 @@ out_freectl:
 		sock_kfree_s(sock->sk, ctl_buf, ctl_len);
 out_freeiov:
 	if (iov != iovstack)
-		sock_kfree_s(sock->sk, iov, iov_size);
+		kfree(iov);
 out:
 	return err;
 }
@@ -2103,7 +2100,7 @@ static int __sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
 	struct iovec iovstack[UIO_FASTIOV];
 	struct iovec *iov = iovstack;
 	unsigned long cmsg_ptr;
-	int err, iov_size, total_len, len;
+	int err, total_len, len;
 
 	/* kernel mode address */
 	struct sockaddr_storage addr;
@@ -2118,15 +2115,13 @@ static int __sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
 	} else if (copy_from_user(msg_sys, msg, sizeof(struct msghdr)))
 		return -EFAULT;
 
-	err = -EMSGSIZE;
-	if (msg_sys->msg_iovlen > UIO_MAXIOV)
-		goto out;
-
-	/* Check whether to allocate the iovec area */
-	err = -ENOMEM;
-	iov_size = msg_sys->msg_iovlen * sizeof(struct iovec);
 	if (msg_sys->msg_iovlen > UIO_FASTIOV) {
-		iov = sock_kmalloc(sock->sk, iov_size, GFP_KERNEL);
+		err = -EMSGSIZE;
+		if (msg_sys->msg_iovlen > UIO_MAXIOV)
+			goto out;
+		err = -ENOMEM;
+		iov = kmalloc(msg_sys->msg_iovlen * sizeof(struct iovec),
+			      GFP_KERNEL);
 		if (!iov)
 			goto out;
 	}
@@ -2180,7 +2175,7 @@ static int __sys_recvmsg(struct socket *sock, struct msghdr __user *msg,
 
 out_freeiov:
 	if (iov != iovstack)
-		sock_kfree_s(sock->sk, iov, iov_size);
+		kfree(iov);
 out:
 	return err;
 }
