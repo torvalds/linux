@@ -1,0 +1,26 @@
+What:		/sys/class/extcon/.../
+Date:		December 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		Provide a place in sysfs for the extcon objects.
+		This allows accessing extcon specific variables.
+		The name of extcon object denoted as ... is the name given
+		with extcon_dev_register.
+
+What:		/sys/class/extcon/.../name
+Date:		December 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/extcon/.../name shows the name of the extcon
+		object. If the extcon object has an optional callback
+		"show_name" defined, the callback will provide the name with
+		this sysfs node.
+
+What:		/sys/class/extcon/.../state
+Date:		December 2011
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Description:
+		The /sys/class/extcon/.../state shows the cable attach/detach
+		information of the corresponding extcon object. If the extcon
+		objecct has an optional callback "show_state" defined, the
+		callback will provide the name with this sysfs node.
