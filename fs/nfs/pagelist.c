@@ -280,11 +280,11 @@ static bool nfs_can_coalesce_requests(struct nfs_page *prev,
 		return false;
 	if (req->wb_context->state != prev->wb_context->state)
 		return false;
-	if (req->wb_index != (prev->wb_index + 1))
-		return false;
 	if (req->wb_pgbase != 0)
 		return false;
 	if (prev->wb_pgbase + prev->wb_bytes != PAGE_CACHE_SIZE)
+		return false;
+	if (req_offset(req) != req_offset(prev) + prev->wb_bytes)
 		return false;
 	return pgio->pg_ops->pg_test(pgio, prev, req);
 }

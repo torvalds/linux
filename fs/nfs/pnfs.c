@@ -1082,6 +1082,10 @@ pnfs_generic_pg_init_read(struct nfs_pageio_descriptor *pgio, struct nfs_page *r
 {
 	BUG_ON(pgio->pg_lseg != NULL);
 
+	if (req->wb_offset != req->wb_pgbase) {
+		nfs_pageio_reset_read_mds(pgio);
+		return;
+	}
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   req_offset(req),
@@ -1100,6 +1104,10 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *
 {
 	BUG_ON(pgio->pg_lseg != NULL);
 
+	if (req->wb_offset != req->wb_pgbase) {
+		nfs_pageio_reset_write_mds(pgio);
+		return;
+	}
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   req_offset(req),

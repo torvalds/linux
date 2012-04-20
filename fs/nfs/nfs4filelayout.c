@@ -796,6 +796,16 @@ filelayout_pg_init_read(struct nfs_pageio_descriptor *pgio,
 {
 	BUG_ON(pgio->pg_lseg != NULL);
 
+	if (req->wb_offset != req->wb_pgbase) {
+		/*
+		 * Handling unaligned pages is difficult, because have to
+		 * somehow split a req in two in certain cases in the
+		 * pg.test code.  Avoid this by just not using pnfs
+		 * in this case.
+		 */
+		nfs_pageio_reset_read_mds(pgio);
+		return;
+	}
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   0,
@@ -815,6 +825,8 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 
 	BUG_ON(pgio->pg_lseg != NULL);
 
+	if (req->wb_offset != req->wb_pgbase)
+		goto out_mds;
 	pgio->pg_lseg = pnfs_update_layout(pgio->pg_inode,
 					   req->wb_context,
 					   0,
