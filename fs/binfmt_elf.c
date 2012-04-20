@@ -82,9 +82,7 @@ static int set_brk(unsigned long start, unsigned long end)
 	end = ELF_PAGEALIGN(end);
 	if (end > start) {
 		unsigned long addr;
-		down_write(&current->mm->mmap_sem);
-		addr = do_brk(start, end - start);
-		up_write(&current->mm->mmap_sem);
+		addr = vm_brk(start, end - start);
 		if (BAD_ADDR(addr))
 			return addr;
 	}
@@ -514,9 +512,7 @@ static unsigned long load_elf_interp(struct elfhdr *interp_elf_ex,
 		elf_bss = ELF_PAGESTART(elf_bss + ELF_MIN_ALIGN - 1);
 
 		/* Map the last of the bss segment */
-		down_write(&current->mm->mmap_sem);
-		error = do_brk(elf_bss, last_bss - elf_bss);
-		up_write(&current->mm->mmap_sem);
+		error = vm_brk(elf_bss, last_bss - elf_bss);
 		if (BAD_ADDR(error))
 			goto out_close;
 	}
@@ -1072,11 +1068,8 @@ static int load_elf_library(struct file *file)
 	len = ELF_PAGESTART(eppnt->p_filesz + eppnt->p_vaddr +
 			    ELF_MIN_ALIGN - 1);
 	bss = eppnt->p_memsz + eppnt->p_vaddr;
-	if (bss > len) {
-		down_write(&current->mm->mmap_sem);
-		do_brk(len, bss - len);
-		up_write(&current->mm->mmap_sem);
-	}
+	if (bss > len)
+		vm_brk(len, bss - len);
 	error = 0;
 
 out_free_ph:

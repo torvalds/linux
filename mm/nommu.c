@@ -1744,7 +1744,7 @@ void exit_mmap(struct mm_struct *mm)
 	kleave("");
 }
 
-unsigned long do_brk(unsigned long addr, unsigned long len)
+unsigned long vm_brk(unsigned long addr, unsigned long len)
 {
 	return -ENOMEM;
 }
