@@ -24,6 +24,7 @@ dtb-$(CONFIG_MACH_AT91SAM_DT) += usb_a9263.dtb
 # sam9g20
 dtb-$(CONFIG_MACH_AT91SAM_DT) += at91sam9g20ek.dtb
 dtb-$(CONFIG_MACH_AT91SAM_DT) += at91sam9g20ek_2mmc.dtb
+dtb-$(CONFIG_MACH_AT91SAM_DT) += kizbox.dtb
 dtb-$(CONFIG_MACH_AT91SAM_DT) += tny_a9g20.dtb
 dtb-$(CONFIG_MACH_AT91SAM_DT) += usb_a9g20.dtb
 # sam9g45
