@@ -433,6 +433,7 @@ static struct notifier_block rk30_cpufreq_reboot_notifier = {
 };
 
 static struct cpufreq_driver rk30_cpufreq_driver = {
+	.flags		= CPUFREQ_CONST_LOOPS,
 	.verify		= rk30_verify_speed,
 	.target		= rk30_target,
 	.get		= rk30_getspeed,
