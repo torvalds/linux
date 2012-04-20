@@ -904,6 +904,23 @@ static int team_mode_option_set(struct team *team, struct team_gsetter_ctx *ctx)
 	return team_change_mode(team, ctx->data.str_val);
 }
 
+static int team_port_en_option_get(struct team *team,
+				   struct team_gsetter_ctx *ctx)
+{
+	ctx->data.bool_val = team_port_enabled(ctx->port);
+	return 0;
+}
+
+static int team_port_en_option_set(struct team *team,
+				   struct team_gsetter_ctx *ctx)
+{
+	if (ctx->data.bool_val)
+		team_port_enable(team, ctx->port);
+	else
+		team_port_disable(team, ctx->port);
+	return 0;
+}
+
 static int team_user_linkup_option_get(struct team *team,
 				       struct team_gsetter_ctx *ctx)
 {
@@ -944,6 +961,13 @@ static const struct team_option team_options[] = {
 		.type = TEAM_OPTION_TYPE_STRING,
 		.getter = team_mode_option_get,
 		.setter = team_mode_option_set,
+	},
+	{
+		.name = "enabled",
+		.type = TEAM_OPTION_TYPE_BOOL,
+		.per_port = true,
+		.getter = team_port_en_option_get,
+		.setter = team_port_en_option_set,
 	},
 	{
 		.name = "user_linkup",
