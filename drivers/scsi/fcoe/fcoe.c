@@ -2294,10 +2294,9 @@ static void fcoe_percpu_clean(struct fc_lport *lport)
 			continue;
 
 		skb = dev_alloc_skb(0);
-		if (!skb) {
-			spin_unlock_bh(&pp->fcoe_rx_list.lock);
+		if (!skb)
 			continue;
-		}
+
 		skb->destructor = fcoe_percpu_flush_done;
 
 		spin_lock_bh(&pp->fcoe_rx_list.lock);
