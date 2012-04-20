@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/of.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -1592,12 +1593,21 @@ static const struct dev_pm_ops dw_dev_pm_ops = {
 	.poweroff_noirq = dw_suspend_noirq,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id dw_dma_id_table[] = {
+	{ .compatible = "snps,dma-spear1340" },
+	{}
+};
+MODULE_DEVICE_TABLE(of, dw_dma_id_table);
+#endif
+
 static struct platform_driver dw_driver = {
 	.remove		= __exit_p(dw_remove),
 	.shutdown	= dw_shutdown,
 	.driver = {
 		.name	= "dw_dmac",
 		.pm	= &dw_dev_pm_ops,
+		.of_match_table = of_match_ptr(dw_dma_id_table),
 	},
 };
 
