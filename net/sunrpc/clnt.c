@@ -184,8 +184,6 @@ static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
 
 	switch (event) {
 	case RPC_PIPEFS_MOUNT:
-		if (clnt->cl_program->pipe_dir_name == NULL)
-			break;
 		dentry = rpc_setup_pipedir_sb(sb, clnt,
 					      clnt->cl_program->pipe_dir_name);
 		BUG_ON(dentry == NULL);
@@ -215,6 +213,8 @@ static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 
 	spin_lock(&sn->rpc_client_lock);
 	list_for_each_entry(clnt, &sn->all_clients, cl_clients) {
+		if (clnt->cl_program->pipe_dir_name == NULL)
+			break;
 		if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
 		    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
 			continue;
