@@ -411,19 +411,17 @@ out:
 }
 
 /**
- * fcoe_interface_cleanup() - Clean up a FCoE interface
+ * fcoe_interface_remove() - remove FCoE interface from netdev
  * @fcoe: The FCoE interface to be cleaned up
  *
  * Caller must be holding the RTNL mutex
  */
-static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
+static void fcoe_interface_remove(struct fcoe_interface *fcoe)
 {
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = &fcoe->ctlr;
 	u8 flogi_maddr[ETH_ALEN];
 	const struct net_device_ops *ops;
-
-	rtnl_lock();
 
 	/*
 	 * Don't listen for Ethernet packets anymore.
@@ -453,7 +451,22 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 			FCOE_NETDEV_DBG(netdev, "Failed to disable FCoE"
 					" specific feature for LLD.\n");
 	}
+	fcoe->removed = 1;
+}
 
+
+/**
+ * fcoe_interface_cleanup() - Clean up a FCoE interface
+ * @fcoe: The FCoE interface to be cleaned up
+ */
+static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
+{
+	struct net_device *netdev = fcoe->netdev;
+	struct fcoe_ctlr *fip = &fcoe->ctlr;
+
+	rtnl_lock();
+	if (!fcoe->removed)
+		fcoe_interface_remove(fcoe);
 	rtnl_unlock();
 
 	/* Release the self-reference taken during fcoe_interface_create() */
@@ -941,6 +954,10 @@ static void fcoe_if_destroy(struct fc_lport *lport)
 	rtnl_lock();
 	if (!is_zero_ether_addr(port->data_src_addr))
 		dev_uc_del(netdev, port->data_src_addr);
+	if (lport->vport)
+		synchronize_net();
+	else
+		fcoe_interface_remove(fcoe);
 	rtnl_unlock();
 
 	/* Free queued packets for the per-CPU receive threads */
