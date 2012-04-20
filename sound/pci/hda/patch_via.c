@@ -532,8 +532,7 @@ static void init_output_pin(struct hda_codec *codec, hda_nid_t pin,
 {
 	if (!pin)
 		return;
-	snd_hda_codec_write(codec, pin, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pin_type);
+	snd_hda_set_pin_ctl(codec, pin, pin_type);
 	if (snd_hda_query_pin_caps(codec, pin) & AC_PINCAP_EAPD)
 		snd_hda_codec_write(codec, pin, 0,
 				    AC_VERB_SET_EAPD_BTLENABLE, 0x02);
@@ -666,8 +665,7 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 			ctl = PIN_VREF50;
 		else
 			ctl = PIN_IN;
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, ctl);
+		snd_hda_set_pin_ctl(codec, nid, ctl);
 	}
 
 	/* init input-src */
@@ -1006,9 +1004,7 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 					  AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
 		parm &= ~(AC_PINCTL_IN_EN | AC_PINCTL_OUT_EN);
 		parm |= out_in;
-		snd_hda_codec_write(codec, nid, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    parm);
+		snd_hda_set_pin_ctl(codec, nid, parm);
 		if (out_in == AC_PINCTL_OUT_EN) {
 			mute_aa_path(codec, 1);
 			notify_aa_path_ctls(codec);
@@ -1647,8 +1643,7 @@ static void toggle_output_mutes(struct hda_codec *codec, int num_pins,
 			parm &= ~AC_PINCTL_OUT_EN;
 		else
 			parm |= AC_PINCTL_OUT_EN;
-		snd_hda_codec_write(codec, pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, parm);
+		snd_hda_set_pin_ctl(codec, pins[i], parm);
 	}
 }
 
@@ -1709,8 +1704,7 @@ static void via_gpio_control(struct hda_codec *codec)
 
 	if (gpio_data == 0x02) {
 		/* unmute line out */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
+		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0],
 				    PIN_OUT);
 		if (vol_counter & 0x20) {
 			/* decrease volume */
@@ -1728,9 +1722,7 @@ static void via_gpio_control(struct hda_codec *codec)
 		}
 	} else if (!(gpio_data & 0x02)) {
 		/* mute line out */
-		snd_hda_codec_write(codec, spec->autocfg.line_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    0);
+		snd_hda_set_pin_ctl(codec, spec->autocfg.line_out_pins[0], 0);
 	}
 }
 
@@ -2757,8 +2749,7 @@ static void via_auto_init_dig_in(struct hda_codec *codec)
 	struct via_spec *spec = codec->spec;
 	if (!spec->dig_in_nid)
 		return;
-	snd_hda_codec_write(codec, spec->autocfg.dig_in_pin, 0,
-			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
+	snd_hda_set_pin_ctl(codec, spec->autocfg.dig_in_pin, PIN_IN);
 }
 
 /* initialize the unsolicited events */

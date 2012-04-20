@@ -1602,17 +1602,13 @@ static void cxt5051_update_speaker(struct hda_codec *codec)
 	unsigned int pinctl;
 	/* headphone pin */
 	pinctl = (spec->hp_present && spec->cur_eapd) ? PIN_HP : 0;
-	snd_hda_codec_write(codec, 0x16, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pinctl);
+	snd_hda_set_pin_ctl(codec, 0x16, pinctl);
 	/* speaker pin */
 	pinctl = (!spec->hp_present && spec->cur_eapd) ? PIN_OUT : 0;
-	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    pinctl);
+	snd_hda_set_pin_ctl(codec, 0x1a, pinctl);
 	/* on ideapad there is an additional speaker (subwoofer) to mute */
 	if (spec->ideapad)
-		snd_hda_codec_write(codec, 0x1b, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    pinctl);
+		snd_hda_set_pin_ctl(codec, 0x1b, pinctl);
 }
 
 /* turn on/off EAPD (+ mute HP) as a master switch */
@@ -1997,8 +1993,7 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 
 	/* Port A (HP) */
 	pinctl = (hp_port_a_present(spec) && spec->cur_eapd) ? PIN_HP : 0;
-	snd_hda_codec_write(codec, 0x19, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			pinctl);
+	snd_hda_set_pin_ctl(codec, 0x19, pinctl);
 
 	/* Port D (HP/LO) */
 	pinctl = spec->cur_eapd ? spec->port_d_mode : 0;
@@ -2011,13 +2006,11 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 		if (!hp_port_d_present(spec))
 			pinctl = 0;
 	}
-	snd_hda_codec_write(codec, 0x1c, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			pinctl);
+	snd_hda_set_pin_ctl(codec, 0x1c, pinctl);
 
 	/* CLASS_D AMP */
 	pinctl = (!spec->hp_present && spec->cur_eapd) ? PIN_OUT : 0;
-	snd_hda_codec_write(codec, 0x1f, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
-			pinctl);
+	snd_hda_set_pin_ctl(codec, 0x1f, pinctl);
 }
 
 /* turn on/off EAPD (+ mute HP) as a master switch */
@@ -2048,8 +2041,7 @@ static int cxt5066_set_olpc_dc_bias(struct hda_codec *codec)
 	/* Even though port F is the DC input, the bias is controlled on port B.
 	 * we also leave that port as an active input (but unselected) in DC mode
 	 * just in case that is necessary to make the bias setting take effect. */
-	return snd_hda_codec_write_cache(codec, 0x1a, 0,
-		AC_VERB_SET_PIN_WIDGET_CONTROL,
+	return snd_hda_set_pin_ctl_cache(codec, 0x1a,
 		cxt5066_olpc_dc_bias.items[spec->dc_input_bias].index);
 }
 
@@ -2082,14 +2074,14 @@ static void cxt5066_olpc_select_mic(struct hda_codec *codec)
 	}
 
 	/* disable DC (port F) */
-	snd_hda_codec_write(codec, 0x1e, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
+	snd_hda_set_pin_ctl(codec, 0x1e, 0);
 
 	/* external mic, port B */
-	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+	snd_hda_set_pin_ctl(codec, 0x1a,
 		spec->ext_mic_present ? CXT5066_OLPC_EXT_MIC_BIAS : 0);
 
 	/* internal mic, port C */
-	snd_hda_codec_write(codec, 0x1b, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+	snd_hda_set_pin_ctl(codec, 0x1b,
 		spec->ext_mic_present ? 0 : PIN_VREF80);
 }
 
@@ -3358,9 +3350,7 @@ static void do_automute(struct hda_codec *codec, int num_pins,
 	struct conexant_spec *spec = codec->spec;
 	int i;
 	for (i = 0; i < num_pins; i++)
-		snd_hda_codec_write(codec, pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL,
-				    on ? PIN_OUT : 0);
+		snd_hda_set_pin_ctl(codec, pins[i], on ? PIN_OUT : 0);
 	if (spec->pin_eapd_ctrls)
 		cx_auto_turn_eapd(codec, num_pins, pins, on);
 }
@@ -3977,8 +3967,7 @@ static void cx_auto_init_output(struct hda_codec *codec)
 		if (snd_hda_query_pin_caps(codec, cfg->hp_pins[i]) &
 		    AC_PINCAP_HP_DRV)
 			val |= AC_PINCTL_HP_EN;
-		snd_hda_codec_write(codec, cfg->hp_pins[i], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, val);
+		snd_hda_set_pin_ctl(codec, cfg->hp_pins[i], val);
 	}
 	mute_outputs(codec, cfg->hp_outs, cfg->hp_pins);
 	mute_outputs(codec, cfg->line_outs, cfg->line_out_pins);
@@ -4036,8 +4025,7 @@ static void cx_auto_init_input(struct hda_codec *codec)
 			type = PIN_VREF80;
 		else
 			type = PIN_IN;
-		snd_hda_codec_write(codec, cfg->inputs[i].pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, type);
+		snd_hda_set_pin_ctl(codec, cfg->inputs[i].pin, type);
 	}
 
 	if (spec->auto_mic) {
@@ -4064,11 +4052,9 @@ static void cx_auto_init_digital(struct hda_codec *codec)
 	struct auto_pin_cfg *cfg = &spec->autocfg;
 
 	if (spec->multiout.dig_out_nid)
-		snd_hda_codec_write(codec, cfg->dig_out_pins[0], 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT);
+		snd_hda_set_pin_ctl(codec, cfg->dig_out_pins[0], PIN_OUT);
 	if (spec->dig_in_nid)
-		snd_hda_codec_write(codec, cfg->dig_in_pin, 0,
-				    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN);
+		snd_hda_set_pin_ctl(codec, cfg->dig_in_pin, PIN_IN);
 }
 
 static int cx_auto_init(struct hda_codec *codec)

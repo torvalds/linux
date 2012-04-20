@@ -1742,9 +1742,7 @@ static int ad1981_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 	if (! ad198x_eapd_put(kcontrol, ucontrol))
 		return 0;
 	/* change speaker pin appropriately */
-	snd_hda_codec_write(codec, 0x05, 0,
-			    AC_VERB_SET_PIN_WIDGET_CONTROL,
-			    spec->cur_eapd ? PIN_OUT : 0);
+	snd_hda_set_pin_ctl(codec, 0x05, spec->cur_eapd ? PIN_OUT : 0);
 	/* toggle HP mute appropriately */
 	snd_hda_codec_amp_stereo(codec, 0x06, HDA_OUTPUT, 0,
 				 HDA_AMP_MUTE,
@@ -3103,7 +3101,7 @@ static void ad1988_auto_set_output_and_unmute(struct hda_codec *codec,
 					      int dac_idx)
 {
 	/* set as output */
-	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL, pin_type);
+	snd_hda_set_pin_ctl(codec, nid, pin_type);
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
 	switch (nid) {
 	case 0x11: /* port-A - DAC 03 */
@@ -3165,7 +3163,7 @@ static void ad1988_auto_init_analog_input(struct hda_codec *codec)
 			snd_hda_codec_write(codec, 0x34, 0, AC_VERB_SET_CONNECT_SEL, 0x0);
 			break;
 		}
-		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+		snd_hda_set_pin_ctl(codec, nid,
 				    type == AUTO_PIN_MIC ? PIN_VREF80 : PIN_IN);
 		if (nid != AD1988_PIN_CD_NID)
 			snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_AMP_GAIN_MUTE,

@@ -4795,6 +4795,32 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_multi_out_analog_cleanup);
 
+int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
+			 unsigned int val, bool cached)
+{
+	if (val) {
+		unsigned int cap = snd_hda_query_pin_caps(codec, pin);
+		if (val & AC_PINCTL_OUT_EN) {
+			if (!(cap & AC_PINCAP_OUT))
+				val &= ~(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN);
+			else if ((val & AC_PINCTL_HP_EN) &&
+				 !(cap & AC_PINCAP_HP_DRV))
+				val &= ~AC_PINCTL_HP_EN;
+		}
+		if (val & AC_PINCTL_IN_EN) {
+			if (!(cap & AC_PINCAP_IN))
+				val &= ~(AC_PINCTL_IN_EN | AC_PINCTL_VREFEN);
+		}
+	}
+	if (cached)
+		return snd_hda_codec_update_cache(codec, pin, 0,
+				AC_VERB_SET_PIN_WIDGET_CONTROL, val);
+	else
+		return snd_hda_codec_write(codec, pin, 0,
+					   AC_VERB_SET_PIN_WIDGET_CONTROL, val);
+}
+EXPORT_SYMBOL_HDA(_snd_hda_set_pin_ctl);
+
 /*
  * Helper for automatic pin configuration
  */

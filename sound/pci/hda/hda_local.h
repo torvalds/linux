@@ -502,6 +502,44 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 #define PIN_HP			(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN)
 #define PIN_HP_AMP		(AC_PINCTL_HP_EN)
 
+int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
+			 unsigned int val, bool cached);
+
+/**
+ * _snd_hda_set_pin_ctl - Set a pin-control value safely
+ * @codec: the codec instance
+ * @pin: the pin NID to set the control
+ * @val: the pin-control value (AC_PINCTL_* bits)
+ *
+ * This function sets the pin-control value to the given pin, but
+ * filters out the invalid pin-control bits when the pin has no such
+ * capabilities.  For example, when PIN_HP is passed but the pin has no
+ * HP-drive capability, the HP bit is omitted.
+ *
+ * The function doesn't check the input VREF capability bits, though.
+ * Also, this function is only for analog pins, not for HDMI pins.
+ */
+static inline int
+snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin, unsigned int val)
+{
+	return _snd_hda_set_pin_ctl(codec, pin, val, false);
+}
+
+/**
+ * snd_hda_set_pin_ctl_cache - Set a pin-control value safely
+ * @codec: the codec instance
+ * @pin: the pin NID to set the control
+ * @val: the pin-control value (AC_PINCTL_* bits)
+ *
+ * Just like snd_hda_set_pin_ctl() but write to cache as well.
+ */
+static inline int
+snd_hda_set_pin_ctl_cache(struct hda_codec *codec, hda_nid_t pin,
+			  unsigned int val)
+{
+	return _snd_hda_set_pin_ctl(codec, pin, val, true);
+}
+
 /*
  * get widget capabilities
  */
