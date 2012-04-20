@@ -601,9 +601,22 @@ static bool batadv_dat_send_data(struct batadv_priv *bat_priv,
 		send_status = batadv_send_skb_packet(tmp_skb,
 						     neigh_node->if_incoming,
 						     neigh_node->addr);
-		if (send_status == NET_XMIT_SUCCESS)
+		if (send_status == NET_XMIT_SUCCESS) {
+			/* count the sent packet */
+			switch (packet_subtype) {
+			case BATADV_P_DAT_DHT_GET:
+				batadv_inc_counter(bat_priv,
+						   BATADV_CNT_DAT_GET_TX);
+				break;
+			case BATADV_P_DAT_DHT_PUT:
+				batadv_inc_counter(bat_priv,
+						   BATADV_CNT_DAT_PUT_TX);
+				break;
+			}
+
 			/* packet sent to a candidate: return true */
 			ret = true;
+		}
 free_neigh:
 		batadv_neigh_node_free_ref(neigh_node);
 free_orig:
@@ -909,8 +922,10 @@ bool batadv_dat_snoop_incoming_arp_request(struct batadv_priv *bat_priv,
 	else
 		err = batadv_unicast_send_skb(bat_priv, skb_new);
 
-	if (!err)
+	if (!err) {
+		batadv_inc_counter(bat_priv, BATADV_CNT_DAT_CACHED_REPLY_TX);
 		ret = true;
+	}
 out:
 	if (dat_entry)
 		batadv_dat_entry_free_ref(dat_entry);

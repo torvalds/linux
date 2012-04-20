@@ -74,6 +74,28 @@ int batadv_dat_init(struct batadv_priv *bat_priv);
 void batadv_dat_free(struct batadv_priv *bat_priv);
 int batadv_dat_cache_seq_print_text(struct seq_file *seq, void *offset);
 
+/**
+ * batadv_dat_inc_counter - increment the correct DAT packet counter
+ * @bat_priv: the bat priv with all the soft interface information
+ * @subtype: the 4addr subtype of the packet to be counted
+ *
+ * Updates the ethtool statistics for the received packet if it is a DAT subtype
+ */
+static inline void batadv_dat_inc_counter(struct batadv_priv *bat_priv,
+					  uint8_t subtype)
+{
+	switch (subtype) {
+	case BATADV_P_DAT_DHT_GET:
+		batadv_inc_counter(bat_priv,
+				   BATADV_CNT_DAT_GET_RX);
+		break;
+	case BATADV_P_DAT_DHT_PUT:
+		batadv_inc_counter(bat_priv,
+				   BATADV_CNT_DAT_PUT_RX);
+		break;
+	}
+}
+
 #else
 
 static inline bool
@@ -132,6 +154,11 @@ static inline int batadv_dat_init(struct batadv_priv *bat_priv)
 }
 
 static inline void batadv_dat_free(struct batadv_priv *bat_priv)
+{
+}
+
+static inline void batadv_dat_inc_counter(struct batadv_priv *bat_priv,
+					  uint8_t subtype)
 {
 }
 
