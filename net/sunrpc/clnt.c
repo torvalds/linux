@@ -218,7 +218,8 @@ static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 		if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
 		    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
 			continue;
-		atomic_inc(&clnt->cl_count);
+		if (atomic_inc_not_zero(&clnt->cl_count) == 0)
+			continue;
 		spin_unlock(&sn->rpc_client_lock);
 		return clnt;
 	}
