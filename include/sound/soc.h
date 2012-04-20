@@ -219,6 +219,10 @@
 		{.regbase = xregbase, .regcount = xregcount, .nbits = xnbits, \
 		.invert = xinvert, .min = xmin, .max = xmax} }
 
+#define SOC_SINGLE_STROBE(xname, xreg, xshift, xinvert) \
+	SOC_SINGLE_EXT(xname, xreg, xshift, 1, xinvert, \
+		snd_soc_get_strobe, snd_soc_put_strobe)
+
 /*
  * Simplified versions of above macros, declaring a struct and calculating
  * ARRAY_SIZE internally
@@ -460,6 +464,10 @@ int snd_soc_info_xr_sx(struct snd_kcontrol *kcontrol,
 int snd_soc_get_xr_sx(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_xr_sx(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_get_strobe(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_put_strobe(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 
 /**
