@@ -6883,6 +6883,14 @@ F:	Documentation/cdrom/
 F:	drivers/cdrom/cdrom.c
 F:	include/linux/cdrom.h
 
+UNIVERSAL FLASH STORAGE HOST CONTROLLER DRIVER
+M:	Vinayak Holikatti <vinholikatti@gmail.com>
+M:	Santosh Y <santoshsy@gmail.com>
+L:	linux-scsi@vger.kernel.org
+S:	Supported
+F:	Documentation/scsi/ufs.txt
+F:	drivers/scsi/ufs/
+
 UNSORTED BLOCK IMAGES (UBI)
 M:	Artem Bityutskiy <dedekind1@gmail.com>
 W:	http://www.linux-mtd.infradead.org/
