@@ -39,8 +39,6 @@
 #define DRV_VER		"0.1.2"
 
 struct bcm63xx_spi {
-	spinlock_t		lock;
-	int			stopping;
 	struct completion	done;
 
 	void __iomem		*regs;
@@ -160,9 +158,6 @@ static int bcm63xx_spi_setup(struct spi_device *spi)
 	int ret;
 
 	bs = spi_master_get_devdata(spi->master);
-
-	if (bs->stopping)
-		return -ESHUTDOWN;
 
 	if (!spi->bits_per_word)
 		spi->bits_per_word = 8;
@@ -410,10 +405,8 @@ static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
 	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
 	bs->speed_hz = pdata->speed_hz;
-	bs->stopping = 0;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
 	bs->rx_io = (const u8 *)(bs->regs + bcm63xx_spireg(SPI_RX_DATA));
-	spin_lock_init(&bs->lock);
 
 	/* Initialize hardware */
 	clk_enable(bs->clk);
@@ -447,18 +440,16 @@ static int __devexit bcm63xx_spi_remove(struct platform_device *pdev)
 	struct spi_master *master = platform_get_drvdata(pdev);
 	struct bcm63xx_spi *bs = spi_master_get_devdata(master);
 
+	spi_unregister_master(master);
+
 	/* reset spi block */
 	bcm_spi_writeb(bs, 0, SPI_INT_MASK);
-	spin_lock(&bs->lock);
-	bs->stopping = 1;
 
 	/* HW shutdown */
 	clk_disable(bs->clk);
 	clk_put(bs->clk);
 
-	spin_unlock(&bs->lock);
 	platform_set_drvdata(pdev, 0);
-	spi_unregister_master(master);
 
 	return 0;
 }
