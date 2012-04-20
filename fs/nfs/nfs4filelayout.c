@@ -347,12 +347,8 @@ static void filelayout_commit_count_stats(struct rpc_task *task, void *data)
 static void filelayout_commit_release(void *calldata)
 {
 	struct nfs_commit_data *data = calldata;
-	struct nfs_commit_info cinfo;
 
-	nfs_commit_release_pages(data);
-	nfs_init_cinfo(&cinfo, data->inode, data->dreq);
-	if (atomic_dec_and_test(&cinfo.mds->rpcs_out))
-		nfs_commit_clear_lock(NFS_I(data->inode));
+	data->completion_ops->completion(data);
 	put_lseg(data->lseg);
 	nfs_commitdata_release(data);
 }
@@ -1108,7 +1104,7 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	nreq += alloc_ds_commits(cinfo, &list);
 
 	if (nreq == 0) {
-		nfs_commit_clear_lock(NFS_I(inode));
+		cinfo->completion_ops->error_cleanup(NFS_I(inode));
 		goto out;
 	}
 
@@ -1117,14 +1113,14 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 	list_for_each_entry_safe(data, tmp, &list, pages) {
 		list_del_init(&data->pages);
 		if (!data->lseg) {
-			nfs_init_commit(data, mds_pages, NULL);
+			nfs_init_commit(data, mds_pages, NULL, cinfo);
 			nfs_initiate_commit(NFS_CLIENT(inode), data,
 					    data->mds_ops, how);
 		} else {
 			struct pnfs_commit_bucket *buckets;
 
 			buckets = cinfo->ds->buckets;
-			nfs_init_commit(data, &buckets[data->ds_commit_index].committing, data->lseg);
+			nfs_init_commit(data, &buckets[data->ds_commit_index].committing, data->lseg, cinfo);
 			filelayout_initiate_commit(data, how);
 		}
 	}

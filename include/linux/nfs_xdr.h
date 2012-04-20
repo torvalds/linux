@@ -1263,10 +1263,18 @@ struct nfs_mds_commit_info {
 	struct list_head	list;
 };
 
+struct nfs_commit_data;
+struct nfs_inode;
+struct nfs_commit_completion_ops {
+	void (*error_cleanup) (struct nfs_inode *nfsi);
+	void (*completion) (struct nfs_commit_data *data);
+};
+
 struct nfs_commit_info {
 	spinlock_t			*lock;
 	struct nfs_mds_commit_info	*mds;
 	struct pnfs_ds_commit_info	*ds;
+	const struct nfs_commit_completion_ops *completion_ops;
 };
 
 struct nfs_commit_data {
@@ -1285,6 +1293,7 @@ struct nfs_commit_data {
 	struct nfs_client	*ds_clp;	/* pNFS data server */
 	int			ds_commit_index;
 	const struct rpc_call_ops *mds_ops;
+	const struct nfs_commit_completion_ops *completion_ops;
 	int (*commit_done_cb) (struct rpc_task *task, struct nfs_commit_data *data);
 };
 

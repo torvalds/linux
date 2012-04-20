@@ -344,13 +344,12 @@ extern int nfs_initiate_commit(struct rpc_clnt *clnt,
 			       int how);
 extern void nfs_init_commit(struct nfs_commit_data *data,
 			    struct list_head *head,
-			    struct pnfs_layout_segment *lseg);
+			    struct pnfs_layout_segment *lseg,
+			    struct nfs_commit_info *cinfo);
 void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg,
 		      struct nfs_commit_info *cinfo);
-void nfs_commit_clear_lock(struct nfs_inode *nfsi);
 void nfs_commitdata_release(struct nfs_commit_data *data);
-void nfs_commit_release_pages(struct nfs_commit_data *data);
 void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
 				 struct nfs_commit_info *cinfo);
 void nfs_request_remove_commit_list(struct nfs_page *req,
