@@ -179,8 +179,8 @@ struct intel_crtc {
 	bool cursor_visible;
 	unsigned int bpp;
 
-	bool no_pll; /* tertiary pipe for IVB */
-	bool use_pll_a;
+	/* We can share PLLs across outputs if the timings match */
+	struct intel_pch_pll *pch_pll;
 };
 
 struct intel_plane {

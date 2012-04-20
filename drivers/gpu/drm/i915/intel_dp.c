@@ -2445,6 +2445,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	}
 
 	intel_encoder->crtc_mask = (1 << 0) | (1 << 1) | (1 << 2);
+
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 
