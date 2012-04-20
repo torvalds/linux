@@ -1824,6 +1824,7 @@ int ath6kl_debug_init_fs(struct ath6kl *ar)
 void ath6kl_debug_cleanup(struct ath6kl *ar)
 {
 	skb_queue_purge(&ar->debug.fwlog_queue);
+	complete(&ar->debug.fwlog_completion);
 	kfree(ar->debug.roam_tbl);
 }
 
