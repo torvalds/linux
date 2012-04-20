@@ -401,7 +401,7 @@ static int gem_rxmac_reset(struct gem *gp)
 		return 1;
 	}
 
-	udelay(5000);
+	mdelay(5);
 
 	/* Execute RX reset command. */
 	writel(gp->swrst_base | GREG_SWRST_RXRST,
