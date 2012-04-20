@@ -98,7 +98,7 @@ config 3C359
 
 config TMS380TR
 	tristate "Generic TMS380 Token Ring ISA/PCI adapter support"
-	depends on PCI || ISA && ISA_DMA_API || MCA
+	depends on PCI || ISA || MCA
 	select FW_LOADER
 	---help---
 	  This driver provides generic support for token ring adapters
@@ -137,7 +137,7 @@ config TMSPCI
 
 config SKISA
 	tristate "SysKonnect TR4/16 ISA support"
-	depends on TMS380TR && ISA
+	depends on TMS380TR && ISA && ISA_DMA_API
 	help
 	  This tms380 module supports SysKonnect TR4/16 ISA cards.
 
@@ -149,7 +149,7 @@ config SKISA
 
 config PROTEON
 	tristate "Proteon ISA support"
-	depends on TMS380TR && ISA
+	depends on TMS380TR && ISA && ISA_DMA_API
 	help
 	  This tms380 module supports Proteon ISA cards.
 

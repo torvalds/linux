@@ -254,7 +254,7 @@ int tms380tr_open(struct net_device *dev)
 
 	/* Reset the hardware here. Don't forget to set the station address. */
 
-#ifdef CONFIG_ISA
+#if defined(CONFIG_ISA) && defined(CONFIG_ISA_DMA_API)
 	if(dev->dma > 0) 
 	{
 		unsigned long flags=claim_dma_lock();
@@ -1125,8 +1125,8 @@ int tms380tr_close(struct net_device *dev)
     
 	del_timer(&tp->timer);
 	tms380tr_disable_interrupts(dev);
-   
-#ifdef CONFIG_ISA
+
+#if defined(CONFIG_ISA) && defined(CONFIG_ISA_DMA_API)
 	if(dev->dma > 0) 
 	{
 		unsigned long flags=claim_dma_lock();
