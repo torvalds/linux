@@ -42,6 +42,8 @@
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/uaccess.h>	/* For copy_to_user/put_user/... */
 
+#include "watchdog_dev.h"
+
 /* make sure we only register one /dev/watchdog device */
 static unsigned long watchdog_dev_busy;
 /* the watchdog device behind /dev/watchdog */
