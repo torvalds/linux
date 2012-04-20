@@ -172,8 +172,8 @@ static void nv50_graph_construct_xfer2(struct nouveau_grctx *ctx);
 
 /* Main function: construct the ctxprog skeleton, call the other functions. */
 
-int
-nv50_grctx_init(struct nouveau_grctx *ctx)
+static int
+nv50_grctx_generate(struct nouveau_grctx *ctx)
 {
 	struct drm_nouveau_private *dev_priv = ctx->dev->dev_private;
 
@@ -275,6 +275,33 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 	ctx->ctxvals_pos += 0x400; /* padding... no idea why you need it */
 
 	return 0;
+}
+
+void
+nv50_grctx_fill(struct drm_device *dev, struct nouveau_gpuobj *mem)
+{
+	nv50_grctx_generate(&(struct nouveau_grctx) {
+			     .dev = dev,
+			     .mode = NOUVEAU_GRCTX_VALS,
+			     .data = mem,
+			   });
+}
+
+int
+nv50_grctx_init(struct drm_device *dev, u32 *data, u32 max, u32 *len, u32 *cnt)
+{
+	struct nouveau_grctx ctx = {
+		.dev = dev,
+		.mode = NOUVEAU_GRCTX_PROG,
+		.data = data,
+		.ctxprog_max = max
+	};
+	int ret;
+
+	ret = nv50_grctx_generate(&ctx);
+	*cnt = ctx.ctxvals_pos * 4;
+	*len = ctx.ctxprog_len;
+	return ret;
 }
 
 /*

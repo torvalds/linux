@@ -1286,13 +1286,15 @@ extern int  nv20_graph_create(struct drm_device *);
 
 /* nv40_graph.c */
 extern int  nv40_graph_create(struct drm_device *);
-extern void nv40_grctx_init(struct nouveau_grctx *);
+extern void nv40_grctx_init(struct drm_device *, u32 *size);
+extern void nv40_grctx_fill(struct drm_device *, struct nouveau_gpuobj *);
 
 /* nv50_graph.c */
 extern int  nv50_graph_create(struct drm_device *);
-extern int  nv50_grctx_init(struct nouveau_grctx *);
 extern struct nouveau_enum nv50_data_error_names[];
 extern int  nv50_graph_isr_chid(struct drm_device *dev, u64 inst);
+extern int  nv50_grctx_init(struct drm_device *, u32 *, u32, u32 *, u32 *);
+extern void nv50_grctx_fill(struct drm_device *, struct nouveau_gpuobj *);
 
 /* nvc0_graph.c */
 extern int  nvc0_graph_create(struct drm_device *);

@@ -28,7 +28,6 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
-#include "nouveau_grctx.h"
 #include "nouveau_dma.h"
 #include "nouveau_vm.h"
 #include "nv50_evo.h"
@@ -229,7 +228,6 @@ nv50_graph_context_new(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *ramin = chan->ramin;
 	struct nouveau_gpuobj *grctx = NULL;
 	struct nv50_graph_engine *pgraph = nv_engine(dev, engine);
-	struct nouveau_grctx ctx = {};
 	int hdr, ret;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
@@ -248,11 +246,7 @@ nv50_graph_context_new(struct nouveau_channel *chan, int engine)
 	nv_wo32(ramin, hdr + 0x10, 0);
 	nv_wo32(ramin, hdr + 0x14, 0x00010000);
 
-	ctx.dev = chan->dev;
-	ctx.mode = NOUVEAU_GRCTX_VALS;
-	ctx.data = grctx;
-	nv50_grctx_init(&ctx);
-
+	nv50_grctx_fill(dev, grctx);
 	nv_wo32(grctx, 0x00000, chan->ramin->vinst >> 12);
 
 	dev_priv->engine.instmem.flush(dev);
@@ -996,27 +990,20 @@ nv50_graph_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nv50_graph_engine *pgraph;
-	struct nouveau_grctx ctx = {};
 	int ret;
 
 	pgraph = kzalloc(sizeof(*pgraph),GFP_KERNEL);
 	if (!pgraph)
 		return -ENOMEM;
 
-	ctx.dev = dev;
-	ctx.mode = NOUVEAU_GRCTX_PROG;
-	ctx.data = pgraph->ctxprog;
-	ctx.ctxprog_max = ARRAY_SIZE(pgraph->ctxprog);
-
-	ret = nv50_grctx_init(&ctx);
+	ret = nv50_grctx_init(dev, pgraph->ctxprog, ARRAY_SIZE(pgraph->ctxprog),
+				  &pgraph->ctxprog_size,
+				  &pgraph->grctx_size);
 	if (ret) {
 		NV_ERROR(dev, "PGRAPH: ctxprog build failed\n");
 		kfree(pgraph);
 		return 0;
 	}
-
-	pgraph->grctx_size = ctx.ctxvals_pos * 4;
-	pgraph->ctxprog_size = ctx.ctxprog_len;
 
 	pgraph->base.destroy = nv50_graph_destroy;
 	pgraph->base.init = nv50_graph_init;

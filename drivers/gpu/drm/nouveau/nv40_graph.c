@@ -27,7 +27,6 @@
 #include "drmP.h"
 #include "drm.h"
 #include "nouveau_drv.h"
-#include "nouveau_grctx.h"
 #include "nouveau_ramht.h"
 
 struct nv40_graph_engine {
@@ -42,7 +41,6 @@ nv40_graph_context_new(struct nouveau_channel *chan, int engine)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_gpuobj *grctx = NULL;
-	struct nouveau_grctx ctx = {};
 	unsigned long flags;
 	int ret;
 
@@ -52,11 +50,7 @@ nv40_graph_context_new(struct nouveau_channel *chan, int engine)
 		return ret;
 
 	/* Initialise default context values */
-	ctx.dev = chan->dev;
-	ctx.mode = NOUVEAU_GRCTX_VALS;
-	ctx.data = grctx;
-	nv40_grctx_init(&ctx);
-
+	nv40_grctx_fill(dev, grctx);
 	nv_wo32(grctx, 0, grctx->vinst);
 
 	/* init grctx pointer in ramfc, and on PFIFO if channel is
@@ -184,8 +178,7 @@ nv40_graph_init(struct drm_device *dev, int engine)
 	struct nv40_graph_engine *pgraph = nv_engine(dev, engine);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
-	struct nouveau_grctx ctx = {};
-	uint32_t vramsz, *cp;
+	uint32_t vramsz;
 	int i, j;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
@@ -193,22 +186,8 @@ nv40_graph_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) |
 			 NV_PMC_ENABLE_PGRAPH);
 
-	cp = kmalloc(sizeof(*cp) * 256, GFP_KERNEL);
-	if (!cp)
-		return -ENOMEM;
-
-	ctx.dev = dev;
-	ctx.mode = NOUVEAU_GRCTX_PROG;
-	ctx.data = cp;
-	ctx.ctxprog_max = 256;
-	nv40_grctx_init(&ctx);
-	pgraph->grctx_size = ctx.ctxvals_pos * 4;
-
-	nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
-	for (i = 0; i < ctx.ctxprog_len; i++)
-		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
-
-	kfree(cp);
+	/* generate and upload context program */
+	nv40_grctx_init(dev, &pgraph->grctx_size);
 
 	/* No context present currently */
 	nv_wr32(dev, NV40_PGRAPH_CTXCTL_CUR, 0x00000000);
