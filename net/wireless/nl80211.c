@@ -5577,6 +5577,9 @@ static int nl80211_set_tx_bitrate_mask(struct sk_buff *skb,
 				sband,
 				nla_data(tb[NL80211_TXRATE_LEGACY]),
 				nla_len(tb[NL80211_TXRATE_LEGACY]));
+			if ((mask.control[band].legacy == 0) &&
+			    nla_len(tb[NL80211_TXRATE_LEGACY]))
+				return -EINVAL;
 		}
 		if (tb[NL80211_TXRATE_MCS]) {
 			if (!ht_rateset_to_mask(
