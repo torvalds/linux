@@ -2107,20 +2107,23 @@ int do_munmap(struct mm_struct *mm, unsigned long start, size_t len)
 
 	return 0;
 }
-
 EXPORT_SYMBOL(do_munmap);
+
+int vm_munmap(struct mm_struct *mm, unsigned long start, size_t len)
+{
+	int ret;
+
+	down_write(&mm->mmap_sem);
+	ret = do_munmap(mm, start, len);
+	up_write(&mm->mmap_sem);
+	return ret;
+}
+EXPORT_SYMBOL(vm_munmap);
 
 SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
 {
-	int ret;
-	struct mm_struct *mm = current->mm;
-
 	profile_munmap(addr);
-
-	down_write(&mm->mmap_sem);
-	ret = do_munmap(mm, addr, len);
-	up_write(&mm->mmap_sem);
-	return ret;
+	return vm_munmap(current->mm, addr, len);
 }
 
 static inline void verify_mm_writelocked(struct mm_struct *mm)

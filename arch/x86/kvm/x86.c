@@ -6366,10 +6366,8 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	if (!user_alloc && !old.user_alloc && old.rmap && !npages) {
 		int ret;
 
-		down_write(&current->mm->mmap_sem);
-		ret = do_munmap(current->mm, old.userspace_addr,
+		ret = vm_munmap(current->mm, old.userspace_addr,
 				old.npages * PAGE_SIZE);
-		up_write(&current->mm->mmap_sem);
 		if (ret < 0)
 			printk(KERN_WARNING
 			       "kvm_vm_ioctl_set_memory_region: "

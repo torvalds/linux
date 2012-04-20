@@ -605,9 +605,9 @@ pfm_unprotect_ctx_ctxsw(pfm_context_t *x, unsigned long f)
 }
 
 static inline unsigned int
-pfm_do_munmap(struct mm_struct *mm, unsigned long addr, size_t len, int acct)
+pfm_vm_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
 {
-	return do_munmap(mm, addr, len);
+	return vm_munmap(mm, addr, len);
 }
 
 static inline unsigned long 
@@ -1473,13 +1473,8 @@ pfm_remove_smpl_mapping(struct task_struct *task, void *vaddr, unsigned long siz
 	/*
 	 * does the actual unmapping
 	 */
-	down_write(&task->mm->mmap_sem);
+	r = pfm_vm_munmap(task->mm, (unsigned long)vaddr, size);
 
-	DPRINT(("down_write done smpl_vaddr=%p size=%lu\n", vaddr, size));
-
-	r = pfm_do_munmap(task->mm, (unsigned long)vaddr, size, 0);
-
-	up_write(&task->mm->mmap_sem);
 	if (r !=0) {
 		printk(KERN_ERR "perfmon: [%d] unable to unmap sampling buffer @%p size=%lu\n", task_pid_nr(task), vaddr, size);
 	}

@@ -1417,6 +1417,7 @@ extern int do_munmap(struct mm_struct *, unsigned long, size_t);
 
 /* These take the mm semaphore themselves */
 extern unsigned long vm_brk(unsigned long, unsigned long);
+extern int vm_munmap(struct mm_struct *, unsigned long, size_t);
 
 /* truncate.c */
 extern void truncate_inode_pages(struct address_space *, loff_t);
