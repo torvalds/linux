@@ -28,10 +28,10 @@ struct team;
 
 struct team_port {
 	struct net_device *dev;
-	struct hlist_node hlist; /* node in hash list */
+	struct hlist_node hlist; /* node in enabled ports hash list */
 	struct list_head list; /* node in ordinary list */
 	struct team *team;
-	int index;
+	int index; /* index of enabled port. If disabled, it's set to -1 */
 
 	bool linkup; /* either state.linkup or user.linkup */
 
@@ -125,11 +125,12 @@ struct team {
 	struct mutex lock; /* used for overall locking, e.g. port lists write */
 
 	/*
-	 * port lists with port count
+	 * List of enabled ports and their count
 	 */
-	int port_count;
-	struct hlist_head port_hlist[TEAM_PORT_HASHENTRIES];
-	struct list_head port_list;
+	int en_port_count;
+	struct hlist_head en_port_hlist[TEAM_PORT_HASHENTRIES];
+
+	struct list_head port_list; /* list of all ports */
 
 	struct list_head option_list;
 	struct list_head option_inst_list; /* list of option instances */
@@ -142,7 +143,7 @@ struct team {
 static inline struct hlist_head *team_port_index_hash(struct team *team,
 						      int port_index)
 {
-	return &team->port_hlist[port_index & (TEAM_PORT_HASHENTRIES - 1)];
+	return &team->en_port_hlist[port_index & (TEAM_PORT_HASHENTRIES - 1)];
 }
 
 static inline struct team_port *team_get_port_by_index(struct team *team,

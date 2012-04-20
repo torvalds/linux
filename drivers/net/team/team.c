@@ -559,6 +559,8 @@ static int team_change_mode(struct team *team, const char *kind)
  * Rx path frame handler
  ************************/
 
+static bool team_port_enabled(struct team_port *port);
+
 /* note: already called with rcu_read_lock */
 static rx_handler_result_t team_handle_frame(struct sk_buff **pskb)
 {
@@ -575,8 +577,12 @@ static rx_handler_result_t team_handle_frame(struct sk_buff **pskb)
 
 	port = team_port_get_rcu(skb->dev);
 	team = port->team;
-
-	res = team->ops.receive(team, port, skb);
+	if (!team_port_enabled(port)) {
+		/* allow exact match delivery for disabled ports */
+		res = RX_HANDLER_EXACT;
+	} else {
+		res = team->ops.receive(team, port, skb);
+	}
 	if (res == RX_HANDLER_ANOTHER) {
 		struct team_pcpu_stats *pcpu_stats;
 
@@ -612,17 +618,25 @@ static bool team_port_find(const struct team *team,
 	return false;
 }
 
-/*
- * Add/delete port to the team port list. Write guarded by rtnl_lock.
- * Takes care of correct port->index setup (might be racy).
- */
-static void team_port_list_add_port(struct team *team,
-				    struct team_port *port)
+static bool team_port_enabled(struct team_port *port)
 {
-	port->index = team->port_count++;
+	return port->index != -1;
+}
+
+/*
+ * Enable/disable port by adding to enabled port hashlist and setting
+ * port->index (Might be racy so reader could see incorrect ifindex when
+ * processing a flying packet, but that is not a problem). Write guarded
+ * by team->lock.
+ */
+static void team_port_enable(struct team *team,
+			     struct team_port *port)
+{
+	if (team_port_enabled(port))
+		return;
+	port->index = team->en_port_count++;
 	hlist_add_head_rcu(&port->hlist,
 			   team_port_index_hash(team, port->index));
-	list_add_tail_rcu(&port->list, &team->port_list);
 }
 
 static void __reconstruct_port_hlist(struct team *team, int rm_index)
@@ -630,7 +644,7 @@ static void __reconstruct_port_hlist(struct team *team, int rm_index)
 	int i;
 	struct team_port *port;
 
-	for (i = rm_index + 1; i < team->port_count; i++) {
+	for (i = rm_index + 1; i < team->en_port_count; i++) {
 		port = team_get_port_by_index(team, i);
 		hlist_del_rcu(&port->hlist);
 		port->index--;
@@ -639,15 +653,17 @@ static void __reconstruct_port_hlist(struct team *team, int rm_index)
 	}
 }
 
-static void team_port_list_del_port(struct team *team,
-				   struct team_port *port)
+static void team_port_disable(struct team *team,
+			      struct team_port *port)
 {
 	int rm_index = port->index;
 
+	if (!team_port_enabled(port))
+		return;
 	hlist_del_rcu(&port->hlist);
-	list_del_rcu(&port->list);
 	__reconstruct_port_hlist(team, rm_index);
-	team->port_count--;
+	team->en_port_count--;
+	port->index = -1;
 }
 
 #define TEAM_VLAN_FEATURES (NETIF_F_ALL_CSUM | NETIF_F_SG | \
@@ -800,7 +816,9 @@ static int team_port_add(struct team *team, struct net_device *port_dev)
 		goto err_option_port_add;
 	}
 
-	team_port_list_add_port(team, port);
+	port->index = -1;
+	team_port_enable(team, port);
+	list_add_tail_rcu(&port->list, &team->port_list);
 	team_adjust_ops(team);
 	__team_compute_features(team);
 	__team_port_change_check(port, !!netif_carrier_ok(port_dev));
@@ -849,7 +867,8 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 
 	port->removed = true;
 	__team_port_change_check(port, false);
-	team_port_list_del_port(team, port);
+	team_port_disable(team, port);
+	list_del_rcu(&port->list);
 	team_adjust_ops(team);
 	team_option_port_del(team, port);
 	netdev_rx_handler_unregister(port_dev);
@@ -956,7 +975,7 @@ static int team_init(struct net_device *dev)
 		return -ENOMEM;
 
 	for (i = 0; i < TEAM_PORT_HASHENTRIES; i++)
-		INIT_HLIST_HEAD(&team->port_hlist[i]);
+		INIT_HLIST_HEAD(&team->en_port_hlist[i]);
 	INIT_LIST_HEAD(&team->port_list);
 
 	team_adjust_ops(team);

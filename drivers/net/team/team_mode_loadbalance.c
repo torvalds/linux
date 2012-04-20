@@ -38,7 +38,7 @@ static bool lb_transmit(struct team *team, struct sk_buff *skb)
 	if (unlikely(!fp))
 		goto drop;
 	hash = SK_RUN_FILTER(fp, skb);
-	port_index = hash % team->port_count;
+	port_index = hash % team->en_port_count;
 	port = team_get_port_by_index_rcu(team, port_index);
 	if (unlikely(!port))
 		goto drop;
