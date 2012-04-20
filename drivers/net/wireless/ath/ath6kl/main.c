@@ -1145,7 +1145,7 @@ static int ath6kl_set_features(struct net_device *dev,
 static void ath6kl_set_multicast_list(struct net_device *ndev)
 {
 	struct ath6kl_vif *vif = netdev_priv(ndev);
-	bool mc_all_on = false, mc_all_off = false;
+	bool mc_all_on = false;
 	int mc_count = netdev_mc_count(ndev);
 	struct netdev_hw_addr *ha;
 	bool found;
@@ -1157,24 +1157,41 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 	    !test_bit(WLAN_ENABLED, &vif->flags))
 		return;
 
+	/* Enable multicast-all filter. */
 	mc_all_on = !!(ndev->flags & IFF_PROMISC) ||
 		    !!(ndev->flags & IFF_ALLMULTI) ||
 		    !!(mc_count > ATH6K_MAX_MC_FILTERS_PER_LIST);
 
-	mc_all_off = !(ndev->flags & IFF_MULTICAST) || mc_count == 0;
+	if (mc_all_on)
+		set_bit(NETDEV_MCAST_ALL_ON, &vif->flags);
+	else
+		clear_bit(NETDEV_MCAST_ALL_ON, &vif->flags);
 
-	if (mc_all_on || mc_all_off) {
-		/* Enable/disable all multicast */
-		ath6kl_dbg(ATH6KL_DBG_TRC, "%s multicast filter\n",
-			   mc_all_on ? "enabling" : "disabling");
-		ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi, vif->fw_vif_idx,
+	mc_all_on = mc_all_on || (vif->ar->state == ATH6KL_STATE_ON);
+
+	if (!(ndev->flags & IFF_MULTICAST)) {
+		mc_all_on = false;
+		set_bit(NETDEV_MCAST_ALL_OFF, &vif->flags);
+	} else {
+		clear_bit(NETDEV_MCAST_ALL_OFF, &vif->flags);
+	}
+
+	/* Enable/disable "multicast-all" filter*/
+	ath6kl_dbg(ATH6KL_DBG_TRC, "%s multicast-all filter\n",
+		   mc_all_on ? "enabling" : "disabling");
+
+	ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi, vif->fw_vif_idx,
 						  mc_all_on);
-		if (ret)
-			ath6kl_warn("Failed to %s multicast receive\n",
-				    mc_all_on ? "enable" : "disable");
+	if (ret) {
+		ath6kl_warn("Failed to %s multicast-all receive\n",
+			    mc_all_on ? "enable" : "disable");
 		return;
 	}
 
+	if (test_bit(NETDEV_MCAST_ALL_ON, &vif->flags))
+		return;
+
+	/* Keep the driver and firmware mcast list in sync. */
 	list_for_each_entry_safe(mc_filter, tmp, &vif->mc_filter, list) {
 		found = false;
 		netdev_for_each_mc_addr(ha, ndev) {

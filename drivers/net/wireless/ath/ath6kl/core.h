@@ -510,6 +510,8 @@ enum ath6kl_vif_state {
 	WLAN_ENABLED,
 	STATS_UPDATE_PEND,
 	HOST_SLEEP_MODE_CMD_PROCESSED,
+	NETDEV_MCAST_ALL_ON,
+	NETDEV_MCAST_ALL_OFF,
 };
 
 struct ath6kl_vif {
