@@ -1307,7 +1307,8 @@ static int __init line6_init(void)
 	retval = usb_register(&line6_driver);
 
 	if (retval) {
-		err("usb_register failed. Error number %d", retval);
+		printk(KERN_ERR KBUILD_MODNAME
+		       ": usb_register failed. Error number %d\n", retval);
 		return retval;
 	}
 
@@ -1315,7 +1316,7 @@ static int __init line6_init(void)
 					GFP_KERNEL);
 
 	if (line6_request_version == NULL) {
-		err("Out of memory");
+		printk(KERN_ERR KBUILD_MODNAME ":Out of memory\n");
 		return -ENOMEM;
 	}
 
