@@ -95,10 +95,9 @@ bad_get_user:
 	CFI_ENDPROC
 END(bad_get_user)
 
-.section __ex_table,"a"
-	_ASM_PTR 1b,bad_get_user
-	_ASM_PTR 2b,bad_get_user
-	_ASM_PTR 3b,bad_get_user
+	_ASM_EXTABLE(1b,bad_get_user)
+	_ASM_EXTABLE(2b,bad_get_user)
+	_ASM_EXTABLE(3b,bad_get_user)
 #ifdef CONFIG_X86_64
-	_ASM_PTR 4b,bad_get_user
+	_ASM_EXTABLE(4b,bad_get_user)
 #endif
