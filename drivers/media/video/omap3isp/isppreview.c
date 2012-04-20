@@ -1929,55 +1929,89 @@ static int preview_enum_frame_size(struct v4l2_subdev *sd,
 }
 
 /*
- * preview_get_crop - Retrieve the crop rectangle on a pad
+ * preview_get_selection - Retrieve a selection rectangle on a pad
  * @sd: ISP preview V4L2 subdevice
  * @fh: V4L2 subdev file handle
- * @crop: crop rectangle
+ * @sel: Selection rectangle
+ *
+ * The only supported rectangles are the crop rectangles on the sink pad.
  *
  * Return 0 on success or a negative error code otherwise.
  */
-static int preview_get_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
-{
-	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
-
-	/* Cropping is only supported on the sink pad. */
-	if (crop->pad != PREV_PAD_SINK)
-		return -EINVAL;
-
-	crop->rect = *__preview_get_crop(prev, fh, crop->which);
-	return 0;
-}
-
-/*
- * preview_set_crop - Retrieve the crop rectangle on a pad
- * @sd: ISP preview V4L2 subdevice
- * @fh: V4L2 subdev file handle
- * @crop: crop rectangle
- *
- * Return 0 on success or a negative error code otherwise.
- */
-static int preview_set_crop(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
-			    struct v4l2_subdev_crop *crop)
+static int preview_get_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
 {
 	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
-	/* Cropping is only supported on the sink pad. */
-	if (crop->pad != PREV_PAD_SINK)
+	if (sel->pad != PREV_PAD_SINK)
+		return -EINVAL;
+
+	switch (sel->target) {
+	case V4L2_SUBDEV_SEL_TGT_CROP_BOUNDS:
+		sel->r.left = 0;
+		sel->r.top = 0;
+		sel->r.width = INT_MAX;
+		sel->r.height = INT_MAX;
+
+		format = __preview_get_format(prev, fh, PREV_PAD_SINK,
+					      sel->which);
+		preview_try_crop(prev, format, &sel->r);
+		break;
+
+	case V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL:
+		sel->r = *__preview_get_crop(prev, fh, sel->which);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+/*
+ * preview_set_selection - Set a selection rectangle on a pad
+ * @sd: ISP preview V4L2 subdevice
+ * @fh: V4L2 subdev file handle
+ * @sel: Selection rectangle
+ *
+ * The only supported rectangle is the actual crop rectangle on the sink pad.
+ *
+ * Return 0 on success or a negative error code otherwise.
+ */
+static int preview_set_selection(struct v4l2_subdev *sd,
+				 struct v4l2_subdev_fh *fh,
+				 struct v4l2_subdev_selection *sel)
+{
+	struct isp_prev_device *prev = v4l2_get_subdevdata(sd);
+	struct v4l2_mbus_framefmt *format;
+
+	if (sel->target != V4L2_SUBDEV_SEL_TGT_CROP_ACTUAL ||
+	    sel->pad != PREV_PAD_SINK)
 		return -EINVAL;
 
 	/* The crop rectangle can't be changed while streaming. */
 	if (prev->state != ISP_PIPELINE_STREAM_STOPPED)
 		return -EBUSY;
 
-	format = __preview_get_format(prev, fh, PREV_PAD_SINK, crop->which);
-	preview_try_crop(prev, format, &crop->rect);
-	*__preview_get_crop(prev, fh, crop->which) = crop->rect;
+	/* Modifying the crop rectangle always changes the format on the source
+	 * pad. If the KEEP_CONFIG flag is set, just return the current crop
+	 * rectangle.
+	 */
+	if (sel->flags & V4L2_SUBDEV_SEL_FLAG_KEEP_CONFIG) {
+		sel->r = *__preview_get_crop(prev, fh, sel->which);
+		return 0;
+	}
+
+	format = __preview_get_format(prev, fh, PREV_PAD_SINK, sel->which);
+	preview_try_crop(prev, format, &sel->r);
+	*__preview_get_crop(prev, fh, sel->which) = sel->r;
 
 	/* Update the source format. */
-	format = __preview_get_format(prev, fh, PREV_PAD_SOURCE, crop->which);
-	preview_try_format(prev, fh, PREV_PAD_SOURCE, format, crop->which);
+	format = __preview_get_format(prev, fh, PREV_PAD_SOURCE, sel->which);
+	preview_try_format(prev, fh, PREV_PAD_SOURCE, format, sel->which);
 
 	return 0;
 }
@@ -2086,8 +2120,8 @@ static const struct v4l2_subdev_pad_ops preview_v4l2_pad_ops = {
 	.enum_frame_size = preview_enum_frame_size,
 	.get_fmt = preview_get_format,
 	.set_fmt = preview_set_format,
-	.get_crop = preview_get_crop,
-	.set_crop = preview_set_crop,
+	.get_selection = preview_get_selection,
+	.set_selection = preview_set_selection,
 };
 
 /* subdev operations */
