@@ -210,7 +210,6 @@ pch_tx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 
 	/*
 	 * This really stinks, but we have to poll for the Tx time stamp.
-	 * Usually, the time stamp is ready after 4 to 6 microseconds.
 	 */
 	for (cnt = 0; cnt < 100; cnt++) {
 		val = pch_ch_event_read(pdev);
