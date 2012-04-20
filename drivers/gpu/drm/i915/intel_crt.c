@@ -430,8 +430,8 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 {
 	struct drm_device *dev = connector->dev;
 	struct intel_crt *crt = intel_attached_crt(connector);
-	struct drm_crtc *crtc;
 	enum drm_connector_status status;
+	struct intel_load_detect_pipe tmp;
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		if (intel_crt_detect_hotplug(connector)) {
@@ -450,23 +450,16 @@ intel_crt_detect(struct drm_connector *connector, bool force)
 		return connector->status;
 
 	/* for pre-945g platforms use load detect */
-	crtc = crt->base.base.crtc;
-	if (crtc && crtc->enabled) {
-		status = intel_crt_load_detect(crt);
-	} else {
-		struct intel_load_detect_pipe tmp;
-
-		if (intel_get_load_detect_pipe(&crt->base, connector, NULL,
-					       &tmp)) {
-			if (intel_crt_detect_ddc(connector))
-				status = connector_status_connected;
-			else
-				status = intel_crt_load_detect(crt);
-			intel_release_load_detect_pipe(&crt->base, connector,
-						       &tmp);
-		} else
-			status = connector_status_unknown;
-	}
+	if (intel_get_load_detect_pipe(&crt->base, connector, NULL,
+				       &tmp)) {
+		if (intel_crt_detect_ddc(connector))
+			status = connector_status_connected;
+		else
+			status = intel_crt_load_detect(crt);
+		intel_release_load_detect_pipe(&crt->base, connector,
+					       &tmp);
+	} else
+		status = connector_status_unknown;
 
 	return status;
 }
