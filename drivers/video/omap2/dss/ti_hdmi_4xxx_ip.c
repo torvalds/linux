@@ -1247,13 +1247,24 @@ int hdmi_config_audio_acr(struct hdmi_ip_data *ip_data,
 	return 0;
 }
 
-void ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data, bool enable)
+int ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data)
 {
 	REG_FLD_MOD(hdmi_av_base(ip_data),
-				HDMI_CORE_AV_AUD_MODE, enable, 0, 0);
+		    HDMI_CORE_AV_AUD_MODE, true, 0, 0);
 	REG_FLD_MOD(hdmi_wp_base(ip_data),
-				HDMI_WP_AUDIO_CTRL, enable, 31, 31);
+		    HDMI_WP_AUDIO_CTRL, true, 31, 31);
 	REG_FLD_MOD(hdmi_wp_base(ip_data),
-				HDMI_WP_AUDIO_CTRL, enable, 30, 30);
+		    HDMI_WP_AUDIO_CTRL, true, 30, 30);
+	return 0;
+}
+
+void ti_hdmi_4xxx_wp_audio_disable(struct hdmi_ip_data *ip_data)
+{
+	REG_FLD_MOD(hdmi_av_base(ip_data),
+		    HDMI_CORE_AV_AUD_MODE, false, 0, 0);
+	REG_FLD_MOD(hdmi_wp_base(ip_data),
+		    HDMI_WP_AUDIO_CTRL, false, 31, 31);
+	REG_FLD_MOD(hdmi_wp_base(ip_data),
+		    HDMI_WP_AUDIO_CTRL, false, 30, 30);
 }
 #endif
