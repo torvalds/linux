@@ -40,16 +40,28 @@
 
 /* Exception table entry */
 #ifdef __ASSEMBLY__
-# define _ASM_EXTABLE(from,to)			\
-	.pushsection "__ex_table","a" ;		\
-	_ASM_ALIGN ;				\
-	_ASM_PTR from , to ;			\
+# define _ASM_EXTABLE(from,to)					\
+	.pushsection "__ex_table","a" ;				\
+	_ASM_ALIGN ;						\
+	_ASM_PTR from , to ;					\
+	.popsection
+
+# define _ASM_EXTABLE_EX(from,to)				\
+	.pushsection "__ex_table","a" ;				\
+	_ASM_ALIGN ;						\
+	_ASM_PTR from , (to) - (from) ;				\
 	.popsection
 #else
-# define _ASM_EXTABLE(from,to)			\
-	" .pushsection \"__ex_table\",\"a\"\n"	\
-	_ASM_ALIGN "\n" 			\
-	_ASM_PTR #from "," #to "\n" 		\
+# define _ASM_EXTABLE(from,to)					\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	_ASM_ALIGN "\n" 					\
+	_ASM_PTR #from "," #to "\n" 				\
+	" .popsection\n"
+
+# define _ASM_EXTABLE_EX(from,to)				\
+	" .pushsection \"__ex_table\",\"a\"\n"			\
+	_ASM_ALIGN "\n" 					\
+	_ASM_PTR #from ",(" #to ")-(" #from ")\n" 		\
 	" .popsection\n"
 #endif
 

@@ -202,8 +202,8 @@ extern int __get_user_bad(void);
 	asm volatile("1:	movl %%eax,0(%1)\n"			\
 		     "2:	movl %%edx,4(%1)\n"			\
 		     "3:\n"						\
-		     _ASM_EXTABLE(1b, 2b - 1b)				\
-		     _ASM_EXTABLE(2b, 3b - 2b)				\
+		     _ASM_EXTABLE_EX(1b, 2b)				\
+		     _ASM_EXTABLE_EX(2b, 3b)				\
 		     : : "A" (x), "r" (addr))
 
 #define __put_user_x8(x, ptr, __ret_pu)				\
@@ -408,7 +408,7 @@ do {									\
 #define __get_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %1,%"rtype"0\n"		\
 		     "2:\n"						\
-		     _ASM_EXTABLE(1b, 2b - 1b)				\
+		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : ltype(x) : "m" (__m(addr)))
 
 #define __put_user_nocheck(x, ptr, size)			\
@@ -450,7 +450,7 @@ struct __large_struct { unsigned long buf[100]; };
 #define __put_user_asm_ex(x, addr, itype, rtype, ltype)			\
 	asm volatile("1:	mov"itype" %"rtype"0,%1\n"		\
 		     "2:\n"						\
-		     _ASM_EXTABLE(1b, 2b - 1b)				\
+		     _ASM_EXTABLE_EX(1b, 2b)				\
 		     : : ltype(x), "m" (__m(addr)))
 
 /*
