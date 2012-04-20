@@ -383,23 +383,15 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 static void
 nv50_crtc_destroy(struct drm_crtc *crtc)
 {
-	struct drm_device *dev;
-	struct nouveau_crtc *nv_crtc;
+	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
-	if (!crtc)
-		return;
-
-	dev = crtc->dev;
-	nv_crtc = nouveau_crtc(crtc);
-
-	NV_DEBUG_KMS(dev, "\n");
-
-	drm_crtc_cleanup(&nv_crtc->base);
+	NV_DEBUG_KMS(crtc->dev, "\n");
 
 	nouveau_bo_unmap(nv_crtc->lut.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
+	drm_crtc_cleanup(&nv_crtc->base);
 	kfree(nv_crtc);
 }
 
@@ -755,18 +747,22 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	if (!nv_crtc)
 		return -ENOMEM;
 
+	nv_crtc->index = index;
+	nv_crtc->set_dither = nv50_crtc_set_dither;
+	nv_crtc->set_scale = nv50_crtc_set_scale;
+	nv_crtc->set_color_vibrance = nv50_crtc_set_color_vibrance;
 	nv_crtc->color_vibrance = 50;
 	nv_crtc->vibrant_hue = 0;
-
-	/* Default CLUT parameters, will be activated on the hw upon
-	 * first mode set.
-	 */
+	nv_crtc->lut.depth = 0;
 	for (i = 0; i < 256; i++) {
 		nv_crtc->lut.r[i] = i << 8;
 		nv_crtc->lut.g[i] = i << 8;
 		nv_crtc->lut.b[i] = i << 8;
 	}
-	nv_crtc->lut.depth = 0;
+
+	drm_crtc_init(dev, &nv_crtc->base, &nv50_crtc_funcs);
+	drm_crtc_helper_add(&nv_crtc->base, &nv50_crtc_helper_funcs);
+	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
 	ret = nouveau_bo_new(dev, 4096, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, &nv_crtc->lut.nvbo);
@@ -778,21 +774,9 @@ nv50_crtc_create(struct drm_device *dev, int index)
 			nouveau_bo_ref(NULL, &nv_crtc->lut.nvbo);
 	}
 
-	if (ret) {
-		kfree(nv_crtc);
-		return ret;
-	}
+	if (ret)
+		goto out;
 
-	nv_crtc->index = index;
-
-	/* set function pointers */
-	nv_crtc->set_dither = nv50_crtc_set_dither;
-	nv_crtc->set_scale = nv50_crtc_set_scale;
-	nv_crtc->set_color_vibrance = nv50_crtc_set_color_vibrance;
-
-	drm_crtc_init(dev, &nv_crtc->base, &nv50_crtc_funcs);
-	drm_crtc_helper_add(&nv_crtc->base, &nv50_crtc_helper_funcs);
-	drm_mode_crtc_set_gamma_size(&nv_crtc->base, 256);
 
 	ret = nouveau_bo_new(dev, 64*64*4, 0x100, TTM_PL_FLAG_VRAM,
 			     0, 0x0000, NULL, &nv_crtc->cursor.nvbo);
@@ -804,6 +788,12 @@ nv50_crtc_create(struct drm_device *dev, int index)
 			nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	}
 
+	if (ret)
+		goto out;
+
 	nv50_cursor_init(nv_crtc);
-	return 0;
+out:
+	if (ret)
+		nv50_crtc_destroy(&nv_crtc->base);
+	return ret;
 }

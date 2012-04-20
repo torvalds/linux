@@ -358,8 +358,11 @@ nv50_display_create(struct drm_device *dev)
 	dev_priv->engine.display.priv = priv;
 
 	/* Create CRTC objects */
-	for (i = 0; i < 2; i++)
-		nv50_crtc_create(dev, i);
+	for (i = 0; i < 2; i++) {
+		ret = nv50_crtc_create(dev, i);
+		if (ret)
+			return ret;
+	}
 
 	/* We setup the encoders from the BIOS table */
 	for (i = 0 ; i < dcb->entries; i++) {
