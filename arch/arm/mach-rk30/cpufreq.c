@@ -304,13 +304,13 @@ int cpufreq_scale_rate_for_dvfs(struct clk * clk,unsigned long rate,dvfs_set_rat
 	unsigned int i;
 	int ret=-EINVAL;
 	struct cpufreq_freqs freqs;
-
-	freqs.cpu = 0;
-	freqs.old = rk30_getspeed(0);
-	freqs.new = rate/1000;
-
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-
+	
+	freqs.new=rate/1000;
+	freqs.old=rk30_getspeed(0);
+	
+	get_online_cpus();
+	for_each_online_cpu(freqs.cpu)
+		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
 	FREQ_PRINTK_DBG("cpufreq_scale_rate_for_dvfs(%lu)\n",rate);
 	ret = set_rate(clk,rate);
 
@@ -325,10 +325,12 @@ int cpufreq_scale_rate_for_dvfs(struct clk * clk,unsigned long rate,dvfs_set_rat
 	}
 #endif
 
-	freqs.new = rk30_getspeed(0);
-
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-
+	freqs.old=freqs.new;
+	freqs.new=rk30_getspeed(0);
+	/* notifiers */
+	for_each_online_cpu(freqs.cpu)
+		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	put_online_cpus();
 	return ret;
 
 }
