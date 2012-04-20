@@ -54,8 +54,6 @@
 #define RGA_TEST_FLUSH_TIME 0
 #define RGA_INFO_BUS_ERROR 0
 
-
-
 #define PRE_SCALE_BUF_SIZE  2048*1024*4
 
 #define RGA_POWER_OFF_DELAY	4*HZ /* 4s */
@@ -217,20 +215,24 @@ static void rga_power_on(void)
 	if (rga_service.enable)
 		return;
 
-    spin_lock_bh(&rga_service.lock);
+    spin_lock_bh(&rga_service.lock_power);
 	clk_enable(aclk_rga);
 	clk_enable(hclk_rga);
 	rga_service.enable = true;
-    spin_unlock_bh(&rga_service.lock);
+    spin_unlock_bh(&rga_service.lock_power);
 }
 
 
 static void rga_power_off(void)
 {
     int total_running;
-        
+
+    spin_lock_bh(&rga_service.lock_power);    
 	if(!rga_service.enable)
+	{
+        spin_unlock_bh(&rga_service.lock_power);
 		return;
+	}
 
     rga_service.enable = false;
 
@@ -246,6 +248,7 @@ static void rga_power_off(void)
     
 	clk_disable(aclk_rga);
 	clk_disable(hclk_rga);
+    spin_unlock_bh(&rga_service.lock_power);
 	
 }
 
@@ -329,13 +332,13 @@ static int rga_check_param(const struct rga_req *req)
 
 	//check src_vir_w
 	if(unlikely(req->src.vir_w < req->src.act_w)){
-		ERR("invalid src_vir_w\n");
+		ERR("invalid src_vir_w act_w = %d, vir_w = %d\n", req->src.act_w, req->src.vir_w);
 		return	-EINVAL;
 	}
 
 	//check dst_vir_w
 	if(unlikely(req->dst.vir_w < req->dst.act_w)){
-		ERR("invalid dst_vir_w\n");
+		ERR("invalid dst_vir_w act_h = %d, vir_h = %d\n", req->dst.act_w, req->dst.vir_w);
 		return	-EINVAL;
 	}
 	    	
@@ -862,7 +865,7 @@ static int rga_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	session->pid	= current->pid;
+	session->pid = current->pid;
 	INIT_LIST_HEAD(&session->waiting);
 	INIT_LIST_HEAD(&session->running);
 	INIT_LIST_HEAD(&session->list_session);
@@ -1012,6 +1015,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&rga_service.done);
 	INIT_LIST_HEAD(&rga_service.session);
 	spin_lock_init(&rga_service.lock);
+    spin_lock_init(&rga_service.lock_power);
     atomic_set(&rga_service.total_running, 0);
     atomic_set(&rga_service.src_format_swt, 0);
     rga_service.last_prc_src_format = 1; /* default is yuv first*/
@@ -1143,7 +1147,6 @@ void rga_test_0(void);
 void rga_test_1(void);
 
 
-
 static int __init rga_init(void)
 {
 	int ret;
@@ -1248,13 +1251,13 @@ void rga_test_0(void)
     fb = rk_get_fb(0);
 
     memset(&req, 0, sizeof(struct rga_req));
-    src = src_buf;
+    src = Y4200_320_240_swap0;
     dst = dst_buf;
 
-    memset(src_buf, 0x80, 1920*1080*4);
+    //memset(src_buf, 0x80, 1920*1080*4);
 
-    dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
-    outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
+    //dmac_flush_range(&src_buf[0], &src_buf[1920*1080]);
+    //outer_flush_range(virt_to_phys(&src_buf[0]),virt_to_phys(&src_buf[1024*1024]));
         
     #if 0
     memset(src_buf, 0x80, 800*480*4);
@@ -1264,26 +1267,26 @@ void rga_test_0(void)
     outer_flush_range(virt_to_phys(&dst_buf[0]),virt_to_phys(&dst_buf[800*480]));
     #endif
    
-    req.src.act_w = 1920;
-    req.src.act_h = 1080;
+    req.src.act_w = 320;
+    req.src.act_h = 240;
 
-    req.src.vir_w = 1920;
-    req.src.vir_h = 1080;
-    req.src.yrgb_addr = (uint32_t)virt_to_phys(src_buf);
-    req.src.uv_addr = req.src.yrgb_addr + 1920;
-    //req.src.v_addr = (uint32_t)V4200_320_240_swap0;
-    req.src.format = RK_FORMAT_RGB_565;
+    req.src.vir_w = 320;
+    req.src.vir_h = 240;
+    req.src.yrgb_addr = (uint32_t)src;
+    req.src.uv_addr = (uint32_t)UV4200_320_240_swap0;
+    req.src.v_addr = (uint32_t)V4200_320_240_swap0;
+    req.src.format = RK_FORMAT_YCbCr_420_SP;
 
-    req.dst.act_w = 1024;
-    req.dst.act_h = 768;
+    req.dst.act_w = 1280;
+    req.dst.act_h = 800;
 
     req.dst.vir_w = 1280;
     req.dst.vir_h = 800;
     req.dst.x_offset = 0;
     req.dst.y_offset = 0;
-    req.dst.yrgb_addr = (uint32_t)virt_to_phys(dst);
+    req.dst.yrgb_addr = (uint32_t)dst;
 
-    req.dst.format = RK_FORMAT_RGB_565;
+    //req.dst.format = RK_FORMAT_RGB_565;
 
     req.clip.xmin = 0;
     req.clip.xmax = 1279;
@@ -1294,16 +1297,16 @@ void rga_test_0(void)
     //req.fg_color = 0x80ffffff;
             
     req.rotate_mode = 1;
-    req.scale_mode = 1;
+    req.scale_mode = 2;
 
-    req.alpha_rop_flag = 0;
-    req.alpha_rop_mode = 0x1;
+    //req.alpha_rop_flag = 0;
+    //req.alpha_rop_mode = 0x1;
 
     req.sina = 0;
     req.cosa = 65536;
 
-    req.mmu_info.mmu_flag = 0x0;
-    req.mmu_info.mmu_en = 0;
+    req.mmu_info.mmu_flag = 0x21;
+    req.mmu_info.mmu_en = 1;
 
     rga_blit_sync(&session, &req);
 
