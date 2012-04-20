@@ -1131,7 +1131,7 @@ static struct usb_driver p54u_driver = {
 	.name	= "p54usb",
 	.id_table = p54u_table,
 	.probe = p54u_probe,
-	.disconnect = p54u_disconnect,
+	.disconnect = __devexit_p(p54u_disconnect),
 	.pre_reset = p54u_pre_reset,
 	.post_reset = p54u_post_reset,
 #ifdef CONFIG_PM
