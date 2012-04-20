@@ -4827,14 +4827,14 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 {
 	if (val) {
 		unsigned int cap = snd_hda_query_pin_caps(codec, pin);
-		if (val & AC_PINCTL_OUT_EN) {
+		if (cap && (val & AC_PINCTL_OUT_EN)) {
 			if (!(cap & AC_PINCAP_OUT))
 				val &= ~(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN);
 			else if ((val & AC_PINCTL_HP_EN) &&
 				 !(cap & AC_PINCAP_HP_DRV))
 				val &= ~AC_PINCTL_HP_EN;
 		}
-		if (val & AC_PINCTL_IN_EN) {
+		if (cap && (val & AC_PINCTL_IN_EN)) {
 			if (!(cap & AC_PINCAP_IN))
 				val &= ~(AC_PINCTL_IN_EN | AC_PINCTL_VREFEN);
 		}
