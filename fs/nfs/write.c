@@ -472,9 +472,13 @@ nfs_request_add_commit_list(struct nfs_page *req, struct list_head *dst,
 	nfs_list_add_request(req, dst);
 	cinfo->mds->ncommit++;
 	spin_unlock(cinfo->lock);
-	inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-	inc_bdi_stat(req->wb_page->mapping->backing_dev_info, BDI_RECLAIMABLE);
-	__mark_inode_dirty(req->wb_context->dentry->d_inode, I_DIRTY_DATASYNC);
+	if (!cinfo->dreq) {
+		inc_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+		inc_bdi_stat(req->wb_page->mapping->backing_dev_info,
+			     BDI_RECLAIMABLE);
+		__mark_inode_dirty(req->wb_context->dentry->d_inode,
+				   I_DIRTY_DATASYNC);
+	}
 }
 EXPORT_SYMBOL_GPL(nfs_request_add_commit_list);
 
@@ -1455,9 +1459,11 @@ void nfs_retry_commit(struct list_head *page_list,
 		req = nfs_list_entry(page_list->next);
 		nfs_list_remove_request(req);
 		nfs_mark_request_commit(req, lseg, cinfo);
-		dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
-		dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
-			     BDI_RECLAIMABLE);
+		if (!cinfo->dreq) {
+			dec_zone_page_state(req->wb_page, NR_UNSTABLE_NFS);
+			dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
+				     BDI_RECLAIMABLE);
+		}
 		nfs_unlock_request(req);
 	}
 }
