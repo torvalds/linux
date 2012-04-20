@@ -32,6 +32,7 @@ struct i2c_pnx_algo_data {
 	struct i2c_adapter	adapter;
 	phys_addr_t		base;
 	int			irq;
+	u32			timeout;
 };
 
 #endif /* __I2C_PNX_H__ */
