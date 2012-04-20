@@ -168,8 +168,10 @@ extern int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp);
 void get_layout_hdr(struct pnfs_layout_hdr *lo);
 void put_lseg(struct pnfs_layout_segment *lseg);
 
-bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *);
-bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *, int);
+bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *, struct inode *,
+			   const struct nfs_pgio_completion_ops *);
+bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *, struct inode *,
+			    int, const struct nfs_pgio_completion_ops *);
 
 void set_pnfs_layoutdriver(struct nfs_server *, const struct nfs_fh *, u32);
 void unset_pnfs_layoutdriver(struct nfs_server *);

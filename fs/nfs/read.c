@@ -31,6 +31,7 @@
 
 static const struct nfs_pageio_ops nfs_pageio_read_ops;
 static const struct rpc_call_ops nfs_read_common_ops;
+static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
 
 static struct kmem_cache *nfs_rdata_cachep;
 
@@ -95,7 +96,7 @@ void nfs_readdata_release(struct nfs_read_data *rdata)
 	else
 		rdata->header = NULL;
 	if (atomic_dec_and_test(&hdr->refcnt))
-		nfs_read_completion(hdr);
+		hdr->completion_ops->completion(hdr);
 }
 
 static
@@ -108,9 +109,10 @@ int nfs_return_empty_page(struct page *page)
 }
 
 void nfs_pageio_init_read_mds(struct nfs_pageio_descriptor *pgio,
-		struct inode *inode)
+			      struct inode *inode,
+			      const struct nfs_pgio_completion_ops *compl_ops)
 {
-	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops,
+	nfs_pageio_init(pgio, inode, &nfs_pageio_read_ops, compl_ops,
 			NFS_SERVER(inode)->rsize, 0);
 }
 
@@ -122,10 +124,11 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
 
 static void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-		struct inode *inode)
+				struct inode *inode,
+				const struct nfs_pgio_completion_ops *compl_ops)
 {
-	if (!pnfs_pageio_init_read(pgio, inode))
-		nfs_pageio_init_read_mds(pgio, inode);
+	if (!pnfs_pageio_init_read(pgio, inode, compl_ops))
+		nfs_pageio_init_read_mds(pgio, inode, compl_ops);
 }
 
 int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
@@ -146,7 +149,7 @@ int nfs_readpage_async(struct nfs_open_context *ctx, struct inode *inode,
 	if (len < PAGE_CACHE_SIZE)
 		zero_user_segment(page, len, PAGE_CACHE_SIZE);
 
-	nfs_pageio_init_read(&pgio, inode);
+	nfs_pageio_init_read(&pgio, inode, &nfs_async_read_completion_ops);
 	nfs_pageio_add_request(&pgio, new);
 	nfs_pageio_complete(&pgio);
 	return 0;
@@ -170,7 +173,7 @@ static void nfs_readpage_release(struct nfs_page *req)
 }
 
 /* Note io was page aligned */
-void nfs_read_completion(struct nfs_pgio_header *hdr)
+static void nfs_read_completion(struct nfs_pgio_header *hdr)
 {
 	unsigned long bytes = 0;
 
@@ -300,7 +303,7 @@ nfs_do_multiple_reads(struct list_head *head,
 	return ret;
 }
 
-void
+static void
 nfs_async_read_error(struct list_head *head)
 {
 	struct nfs_page	*req;
@@ -311,6 +314,11 @@ nfs_async_read_error(struct list_head *head)
 		nfs_readpage_release(req);
 	}
 }
+
+static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
+	.error_cleanup = nfs_async_read_error,
+	.completion = nfs_read_completion,
+};
 
 /*
  * Generate multiple requests to fill a single page.
@@ -362,7 +370,7 @@ out_bad:
 		list_del(&data->list);
 		nfs_readdata_release(data);
 	}
-	nfs_async_read_error(&hdr->pages);
+	desc->pg_completion_ops->error_cleanup(&hdr->pages);
 	return -ENOMEM;
 }
 
@@ -378,7 +386,7 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 	data = nfs_readdata_alloc(hdr, nfs_page_array_len(desc->pg_base,
 							  desc->pg_count));
 	if (!data) {
-		nfs_async_read_error(head);
+		desc->pg_completion_ops->error_cleanup(head);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -414,7 +422,7 @@ static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 
 	rhdr = nfs_readhdr_alloc();
 	if (!rhdr) {
-		nfs_async_read_error(&desc->pg_list);
+		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		return -ENOMEM;
 	}
 	hdr = &rhdr->header;
@@ -427,7 +435,7 @@ static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	else
 		set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	if (atomic_dec_and_test(&hdr->refcnt))
-		nfs_read_completion(hdr);
+		hdr->completion_ops->completion(hdr);
 	return ret;
 }
 
@@ -652,7 +660,7 @@ int nfs_readpages(struct file *filp, struct address_space *mapping,
 	if (ret == 0)
 		goto read_complete; /* all pages were read */
 
-	nfs_pageio_init_read(&pgio, inode);
+	nfs_pageio_init_read(&pgio, inode, &nfs_async_read_completion_ops);
 
 	ret = read_cache_pages(mapping, pages, readpage_async_filler, &desc);
 

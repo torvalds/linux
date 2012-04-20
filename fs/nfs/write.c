@@ -40,10 +40,12 @@
  * Local function declarations
  */
 static void nfs_pageio_init_write(struct nfs_pageio_descriptor *desc,
-				  struct inode *inode, int ioflags);
+			struct inode *inode, int ioflags,
+			const struct nfs_pgio_completion_ops *compl_ops);
 static void nfs_redirty_request(struct nfs_page *req);
 static const struct rpc_call_ops nfs_write_common_ops;
 static const struct rpc_call_ops nfs_commit_ops;
+static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops;
 
 static struct kmem_cache *nfs_wdata_cachep;
 static mempool_t *nfs_wdata_mempool;
@@ -128,7 +130,7 @@ void nfs_writedata_release(struct nfs_write_data *wdata)
 	else
 		wdata->header = NULL;
 	if (atomic_dec_and_test(&hdr->refcnt))
-		nfs_write_completion(hdr);
+		hdr->completion_ops->completion(hdr);
 }
 
 static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
@@ -337,7 +339,8 @@ static int nfs_writepage_locked(struct page *page, struct writeback_control *wbc
 	struct nfs_pageio_descriptor pgio;
 	int err;
 
-	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc));
+	nfs_pageio_init_write(&pgio, page->mapping->host, wb_priority(wbc),
+			      &nfs_async_write_completion_ops);
 	err = nfs_do_writepage(page, wbc, &pgio);
 	nfs_pageio_complete(&pgio);
 	if (err < 0)
@@ -380,7 +383,8 @@ int nfs_writepages(struct address_space *mapping, struct writeback_control *wbc)
 
 	nfs_inc_stats(inode, NFSIOS_VFSWRITEPAGES);
 
-	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc));
+	nfs_pageio_init_write(&pgio, inode, wb_priority(wbc),
+			      &nfs_async_write_completion_ops);
 	err = write_cache_pages(mapping, wbc, nfs_writepages_callback, &pgio);
 	nfs_pageio_complete(&pgio);
 
@@ -558,7 +562,7 @@ int nfs_write_need_commit(struct nfs_write_data *data)
 
 #endif
 
-void nfs_write_completion(struct nfs_pgio_header *hdr)
+static void nfs_write_completion(struct nfs_pgio_header *hdr)
 {
 	unsigned long bytes = 0;
 
@@ -1000,7 +1004,7 @@ static void nfs_redirty_request(struct nfs_page *req)
 	nfs_end_page_writeback(page);
 }
 
-void nfs_async_write_error(struct list_head *head)
+static void nfs_async_write_error(struct list_head *head)
 {
 	struct nfs_page	*req;
 
@@ -1010,6 +1014,11 @@ void nfs_async_write_error(struct list_head *head)
 		nfs_redirty_request(req);
 	}
 }
+
+static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops = {
+	.error_cleanup = nfs_async_write_error,
+	.completion = nfs_write_completion,
+};
 
 /*
  * Generate multiple small requests to write out a single
@@ -1060,7 +1069,7 @@ out_bad:
 		list_del(&data->list);
 		nfs_writedata_release(data);
 	}
-	nfs_async_write_error(&hdr->pages);
+	desc->pg_completion_ops->error_cleanup(&hdr->pages);
 	return -ENOMEM;
 }
 
@@ -1084,7 +1093,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc,
 	data = nfs_writedata_alloc(hdr, nfs_page_array_len(desc->pg_base,
 							   desc->pg_count));
 	if (!data) {
-		nfs_async_write_error(head);
+		desc->pg_completion_ops->error_cleanup(head);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -1125,7 +1134,7 @@ static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 
 	whdr = nfs_writehdr_alloc();
 	if (!whdr) {
-		nfs_async_write_error(&desc->pg_list);
+		desc->pg_completion_ops->error_cleanup(&hdr->pages);
 		return -ENOMEM;
 	}
 	hdr = &whdr->header;
@@ -1139,7 +1148,7 @@ static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	else
 		set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	if (atomic_dec_and_test(&hdr->refcnt))
-		nfs_write_completion(hdr);
+		hdr->completion_ops->completion(hdr);
 	return ret;
 }
 
@@ -1149,9 +1158,10 @@ static const struct nfs_pageio_ops nfs_pageio_write_ops = {
 };
 
 void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
-				  struct inode *inode, int ioflags)
+			       struct inode *inode, int ioflags,
+			       const struct nfs_pgio_completion_ops *compl_ops)
 {
-	nfs_pageio_init(pgio, inode, &nfs_pageio_write_ops,
+	nfs_pageio_init(pgio, inode, &nfs_pageio_write_ops, compl_ops,
 				NFS_SERVER(inode)->wsize, ioflags);
 }
 
@@ -1163,10 +1173,11 @@ void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
 static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
-				  struct inode *inode, int ioflags)
+				struct inode *inode, int ioflags,
+				const struct nfs_pgio_completion_ops *compl_ops)
 {
-	if (!pnfs_pageio_init_write(pgio, inode, ioflags))
-		nfs_pageio_init_write_mds(pgio, inode, ioflags);
+	if (!pnfs_pageio_init_write(pgio, inode, ioflags, compl_ops))
+		nfs_pageio_init_write_mds(pgio, inode, ioflags, compl_ops);
 }
 
 void nfs_write_prepare(struct rpc_task *task, void *calldata)

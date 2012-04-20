@@ -1113,26 +1113,31 @@ pnfs_generic_pg_init_write(struct nfs_pageio_descriptor *pgio, struct nfs_page *
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_init_write);
 
 bool
-pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
+pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
+		      const struct nfs_pgio_completion_ops *compl_ops)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
 
 	if (ld == NULL)
 		return false;
-	nfs_pageio_init(pgio, inode, ld->pg_read_ops, server->rsize, 0);
+	nfs_pageio_init(pgio, inode, ld->pg_read_ops, compl_ops,
+			server->rsize, 0);
 	return true;
 }
 
 bool
-pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags)
+pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode,
+		       int ioflags,
+		       const struct nfs_pgio_completion_ops *compl_ops)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct pnfs_layoutdriver_type *ld = server->pnfs_curr_ld;
 
 	if (ld == NULL)
 		return false;
-	nfs_pageio_init(pgio, inode, ld->pg_write_ops, server->wsize, ioflags);
+	nfs_pageio_init(pgio, inode, ld->pg_write_ops, compl_ops,
+			server->wsize, ioflags);
 	return true;
 }
 
@@ -1162,13 +1167,15 @@ pnfs_generic_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_test);
 
-static int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head)
+static int pnfs_write_done_resend_to_mds(struct inode *inode,
+				struct list_head *head,
+				const struct nfs_pgio_completion_ops *compl_ops)
 {
 	struct nfs_pageio_descriptor pgio;
 	LIST_HEAD(failed);
 
 	/* Resend all requests through the MDS */
-	nfs_pageio_init_write_mds(&pgio, inode, FLUSH_STABLE);
+	nfs_pageio_init_write_mds(&pgio, inode, FLUSH_STABLE, compl_ops);
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 
@@ -1201,7 +1208,8 @@ static void pnfs_ld_handle_write_error(struct nfs_write_data *data)
 	}
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags))
 		data->task.tk_status = pnfs_write_done_resend_to_mds(hdr->inode,
-								&hdr->pages);
+							&hdr->pages,
+							hdr->completion_ops);
 }
 
 /*
@@ -1292,7 +1300,7 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 
 	whdr = nfs_writehdr_alloc();
 	if (!whdr) {
-		nfs_async_write_error(&desc->pg_list);
+		desc->pg_completion_ops->error_cleanup(&hdr->pages);
 		put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 		return -ENOMEM;
@@ -1309,18 +1317,20 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 	} else
 		pnfs_do_multiple_writes(desc, &hdr->rpc_list, desc->pg_ioflags);
 	if (atomic_dec_and_test(&hdr->refcnt))
-		nfs_write_completion(hdr);
+		hdr->completion_ops->completion(hdr);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_writepages);
 
-static int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head)
+static int pnfs_read_done_resend_to_mds(struct inode *inode,
+				struct list_head *head,
+				const struct nfs_pgio_completion_ops *compl_ops)
 {
 	struct nfs_pageio_descriptor pgio;
 	LIST_HEAD(failed);
 
 	/* Resend all requests through the MDS */
-	nfs_pageio_init_read_mds(&pgio, inode);
+	nfs_pageio_init_read_mds(&pgio, inode, compl_ops);
 	while (!list_empty(head)) {
 		struct nfs_page *req = nfs_list_entry(head->next);
 
@@ -1349,7 +1359,8 @@ static void pnfs_ld_handle_read_error(struct nfs_read_data *data)
 	}
 	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags))
 		data->task.tk_status = pnfs_read_done_resend_to_mds(hdr->inode,
-								&hdr->pages);
+							&hdr->pages,
+							hdr->completion_ops);
 }
 
 /*
@@ -1443,7 +1454,7 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 
 	rhdr = nfs_readhdr_alloc();
 	if (!rhdr) {
-		nfs_async_read_error(&desc->pg_list);
+		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		ret = -ENOMEM;
 		put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
@@ -1461,7 +1472,7 @@ pnfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	} else
 		pnfs_do_multiple_reads(desc, &hdr->rpc_list);
 	if (atomic_dec_and_test(&hdr->refcnt))
-		nfs_read_completion(hdr);
+		hdr->completion_ops->completion(hdr);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_pg_readpages);

@@ -49,6 +49,7 @@ void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 	hdr->io_start = req_offset(hdr->req);
 	hdr->good_bytes = desc->pg_count;
 	hdr->release = release;
+	hdr->completion_ops = desc->pg_completion_ops;
 }
 
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos)
@@ -240,6 +241,7 @@ EXPORT_SYMBOL_GPL(nfs_generic_pg_test);
 void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 		     struct inode *inode,
 		     const struct nfs_pageio_ops *pg_ops,
+		     const struct nfs_pgio_completion_ops *compl_ops,
 		     size_t bsize,
 		     int io_flags)
 {
@@ -252,6 +254,7 @@ void nfs_pageio_init(struct nfs_pageio_descriptor *desc,
 	desc->pg_recoalesce = 0;
 	desc->pg_inode = inode;
 	desc->pg_ops = pg_ops;
+	desc->pg_completion_ops = compl_ops;
 	desc->pg_ioflags = io_flags;
 	desc->pg_error = 0;
 	desc->pg_lseg = NULL;
