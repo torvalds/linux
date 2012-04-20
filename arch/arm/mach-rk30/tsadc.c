@@ -106,6 +106,7 @@ static void tsadc_writel(u32 val, u32 offset)
 	writel_relaxed(val, g_dev->regs + offset);
 }
 
+static DEFINE_MUTEX(tsadc_mutex);
 static void rk30_tsadc_get(unsigned int chn, int *temp, int *code)
 {
 	*temp = 0;
@@ -113,6 +114,8 @@ static void rk30_tsadc_get(unsigned int chn, int *temp, int *code)
 
 	if (!g_dev || chn > 1)
 		return;
+
+	mutex_lock(&tsadc_mutex);
 
 	clk_enable(g_dev->pclk);
 	clk_enable(g_dev->clk);
@@ -135,6 +138,8 @@ static void rk30_tsadc_get(unsigned int chn, int *temp, int *code)
 
 	clk_disable(g_dev->clk);
 	clk_disable(g_dev->pclk);
+
+	mutex_unlock(&tsadc_mutex);
 }
 
 int rk30_tsadc_get_temp(unsigned int chn)
