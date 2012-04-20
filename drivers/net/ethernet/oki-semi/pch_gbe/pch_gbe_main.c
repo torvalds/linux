@@ -103,9 +103,9 @@ const char pch_driver_version[] = DRV_VERSION;
 /* Macros for ieee1588 */
 /* 0x40 Time Synchronization Channel Control Register Bits */
 #define MASTER_MODE   (1<<0)
-#define SLAVE_MODE    (0<<0)
+#define SLAVE_MODE    (0)
 #define V2_MODE       (1<<31)
-#define CAP_MODE0     (0<<16)
+#define CAP_MODE0     (0)
 #define CAP_MODE2     (1<<17)
 
 /* 0x44 Time Synchronization Channel Event Register Bits */
@@ -151,8 +151,8 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 		seqid  == *id);
 }
 
-static void pch_rx_timestamp(
-			struct pch_gbe_adapter *adapter, struct sk_buff *skb)
+static void
+pch_rx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 {
 	struct skb_shared_hwtstamps *shhwtstamps;
 	struct pci_dev *pdev;
@@ -189,8 +189,8 @@ out:
 	pch_ch_event_write(pdev, RX_SNAPSHOT_LOCKED);
 }
 
-static void pch_tx_timestamp(
-			struct pch_gbe_adapter *adapter, struct sk_buff *skb)
+static void
+pch_tx_timestamp(struct pch_gbe_adapter *adapter, struct sk_buff *skb)
 {
 	struct skb_shared_hwtstamps shhwtstamps;
 	struct pci_dev *pdev;
@@ -263,15 +263,15 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		adapter->hwts_rx_en = 0;
-		pch_ch_control_write(pdev, (SLAVE_MODE | CAP_MODE0));
+		pch_ch_control_write(pdev, SLAVE_MODE | CAP_MODE0);
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		adapter->hwts_rx_en = 1;
-		pch_ch_control_write(pdev, (MASTER_MODE | CAP_MODE0));
+		pch_ch_control_write(pdev, MASTER_MODE | CAP_MODE0);
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 		adapter->hwts_rx_en = 1;
-		pch_ch_control_write(pdev, (V2_MODE | CAP_MODE2));
+		pch_ch_control_write(pdev, V2_MODE | CAP_MODE2);
 		break;
 	default:
 		return -ERANGE;
