@@ -809,16 +809,20 @@ struct page *m2p_find_override(unsigned long mfn)
 {
 	unsigned long flags;
 	struct list_head *bucket = &m2p_overrides[mfn_hash(mfn)];
-	struct page *p, *t, *ret;
+	struct page *p, *ret;
 
 	ret = NULL;
 
-	list_for_each_entry_safe(p, t, bucket, lru) {
+	spin_lock_irqsave(&m2p_override_lock, flags);
+
+	list_for_each_entry(p, bucket, lru) {
 		if (page_private(p) == mfn) {
 			ret = p;
 			break;
 		}
 	}
+
+	spin_unlock_irqrestore(&m2p_override_lock, flags);
 
 	return ret;
 }
