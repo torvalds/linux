@@ -836,8 +836,8 @@ static int flush_task_priority(int how)
 	return RPC_PRIORITY_NORMAL;
 }
 
-int nfs_initiate_write(struct nfs_write_data *data,
-		       struct rpc_clnt *clnt,
+int nfs_initiate_write(struct rpc_clnt *clnt,
+		       struct nfs_write_data *data,
 		       const struct rpc_call_ops *call_ops,
 		       int how)
 {
@@ -937,7 +937,7 @@ static int nfs_do_write(struct nfs_write_data *data,
 {
 	struct inode *inode = data->args.context->dentry->d_inode;
 
-	return nfs_initiate_write(data, NFS_CLIENT(inode), call_ops, how);
+	return nfs_initiate_write(NFS_CLIENT(inode), data, call_ops, how);
 }
 
 static int nfs_do_multiple_writes(struct list_head *head,

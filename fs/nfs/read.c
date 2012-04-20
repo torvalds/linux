@@ -169,7 +169,8 @@ static void nfs_readpage_release(struct nfs_page *req)
 	nfs_release_request(req);
 }
 
-int nfs_initiate_read(struct nfs_read_data *data, struct rpc_clnt *clnt,
+int nfs_initiate_read(struct rpc_clnt *clnt,
+		      struct nfs_read_data *data,
 		      const struct rpc_call_ops *call_ops)
 {
 	struct inode *inode = data->inode;
@@ -240,7 +241,7 @@ static int nfs_do_read(struct nfs_read_data *data,
 {
 	struct inode *inode = data->args.context->dentry->d_inode;
 
-	return nfs_initiate_read(data, NFS_CLIENT(inode), call_ops);
+	return nfs_initiate_read(NFS_CLIENT(inode), data, call_ops);
 }
 
 static int
