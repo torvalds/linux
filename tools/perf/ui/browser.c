@@ -593,6 +593,13 @@ unsigned int ui_browser__argv_refresh(struct ui_browser *browser)
 	return row;
 }
 
+void ui_browser__write_graph(struct ui_browser *browser __used, int graph)
+{
+	SLsmg_set_char_set(1);
+	SLsmg_write_char(graph);
+	SLsmg_set_char_set(0);
+}
+
 void ui_browser__init(void)
 {
 	int i = 0;
