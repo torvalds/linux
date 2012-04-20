@@ -776,8 +776,8 @@ filelayout_pg_test(struct nfs_pageio_descriptor *pgio, struct nfs_page *prev,
 	    !nfs_generic_pg_test(pgio, prev, req))
 		return false;
 
-	p_stripe = (u64)prev->wb_index << PAGE_CACHE_SHIFT;
-	r_stripe = (u64)req->wb_index << PAGE_CACHE_SHIFT;
+	p_stripe = (u64)req_offset(prev);
+	r_stripe = (u64)req_offset(req);
 	stripe_unit = FILELAYOUT_LSEG(pgio->pg_lseg)->stripe_unit;
 
 	do_div(p_stripe, stripe_unit);
@@ -896,8 +896,7 @@ filelayout_choose_commit_list(struct nfs_page *req,
 	 * to store the value calculated in filelayout_write_pagelist
 	 * and just use that here.
 	 */
-	j = nfs4_fl_calc_j_index(lseg,
-				 (loff_t)req->wb_index << PAGE_CACHE_SHIFT);
+	j = nfs4_fl_calc_j_index(lseg, req_offset(req));
 	i = select_bucket_index(fl, j);
 	buckets = FILELAYOUT_FROM_HDR(lseg->pls_layout)->commit_info.buckets;
 	list = &buckets[i].written;
