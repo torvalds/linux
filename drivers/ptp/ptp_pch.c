@@ -261,6 +261,7 @@ u64 pch_rx_snap_read(struct pci_dev *pdev)
 
 	ns = ((u64) hi) << 32;
 	ns |= lo;
+	ns <<= TICKS_NS_SHIFT;
 
 	return ns;
 }
@@ -277,6 +278,7 @@ u64 pch_tx_snap_read(struct pci_dev *pdev)
 
 	ns = ((u64) hi) << 32;
 	ns |= lo;
+	ns <<= TICKS_NS_SHIFT;
 
 	return ns;
 }
