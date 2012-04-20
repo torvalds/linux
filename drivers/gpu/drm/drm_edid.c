@@ -779,6 +779,8 @@ drm_mode_std(struct drm_connector *connector, struct edid *edid,
 		 * secondary GTF curve.  Please don't do that.
 		 */
 		mode = drm_gtf_mode(dev, hsize, vsize, vrefresh_rate, 0, 0);
+		if (!mode)
+			return NULL;
 		if (drm_mode_hsync(mode) > drm_gtf2_hbreak(edid)) {
 			drm_mode_destroy(dev, mode);
 			mode = drm_gtf_mode_complex(dev, hsize, vsize,
@@ -1048,6 +1050,8 @@ drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 	for (i = 0; i < num_extra_modes; i++) {
 		const struct minimode *m = &extra_modes[i];
 		newmode = drm_gtf_mode(dev, m->w, m->h, m->r, 0, 0);
+		if (!newmode)
+			return modes;
 
 		if (!mode_in_range(newmode, edid, timing)) {
 			drm_mode_destroy(dev, newmode);
@@ -1073,6 +1077,8 @@ drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 	for (i = 0; i < num_extra_modes; i++) {
 		const struct minimode *m = &extra_modes[i];
 		newmode = drm_cvt_mode(dev, m->w, m->h, m->r, rb, 0, 0);
+		if (!newmode)
+			return modes;
 
 		if (!mode_in_range(newmode, edid, timing)) {
 			drm_mode_destroy(dev, newmode);
