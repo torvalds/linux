@@ -404,6 +404,7 @@ static int __devinit bcm63xx_spi_probe(struct platform_device *pdev)
 	master->prepare_transfer_hardware = bcm63xx_spi_prepare_transfer;
 	master->unprepare_transfer_hardware = bcm63xx_spi_unprepare_transfer;
 	master->transfer_one_message = bcm63xx_spi_transfer_one;
+	master->mode_bits = MODEBITS;
 	bs->speed_hz = pdata->speed_hz;
 	bs->tx_io = (u8 *)(bs->regs + bcm63xx_spireg(SPI_MSG_DATA));
 	bs->rx_io = (const u8 *)(bs->regs + bcm63xx_spireg(SPI_RX_DATA));
