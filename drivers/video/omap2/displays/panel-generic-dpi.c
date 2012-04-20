@@ -423,6 +423,69 @@ static struct panel_config generic_dpi_panels[] = {
 		.config			= OMAP_DSS_LCD_TFT,
 		.name			= "edt_et0500g0dh6",
 	},
+
+	/* Prime-View PD050VL1 */
+	{
+		{
+			.x_res		= 640,
+			.y_res		= 480,
+
+			.pixel_clock	= 25000,
+
+			.hsw		= 96,
+			.hfp		= 18,
+			.hbp		= 46,
+
+			.vsw		= 2,
+			.vfp		= 10,
+			.vbp		= 33,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.name			= "primeview_pd050vl1",
+	},
+
+	/* Prime-View PM070WL4 */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 480,
+
+			.pixel_clock	= 32000,
+
+			.hsw		= 128,
+			.hfp		= 42,
+			.hbp		= 86,
+
+			.vsw		= 2,
+			.vfp		= 10,
+			.vbp		= 33,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.name			= "primeview_pm070wl4",
+	},
+
+	/* Prime-View PD104SLF */
+	{
+		{
+			.x_res		= 800,
+			.y_res		= 600,
+
+			.pixel_clock	= 40000,
+
+			.hsw		= 128,
+			.hfp		= 42,
+			.hbp		= 86,
+
+			.vsw		= 4,
+			.vfp		= 1,
+			.vbp		= 23,
+		},
+		.config			= OMAP_DSS_LCD_TFT | OMAP_DSS_LCD_IVS |
+					  OMAP_DSS_LCD_IHS | OMAP_DSS_LCD_IPC,
+		.name			= "primeview_pd104slf",
+	},
 };
 
 struct panel_drv_data {
