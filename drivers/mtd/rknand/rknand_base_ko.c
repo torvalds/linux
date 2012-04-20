@@ -23,7 +23,6 @@
 //#include "api_flash.h"
 #include "rknand_base.h"
 #include <linux/clk.h>
-#include <linux/cpufreq.h>
 
 #define DRIVER_NAME	"rk29xxnand"
 
@@ -328,35 +327,6 @@ static int rknand_nand_timing_cfg(void)
 	return 0;
 }
 
-#ifdef CONFIG_CPU_FREQ
-static int rknand_cpufreq_transition(struct notifier_block *nb, unsigned long val, void *data)
-{
-    if(val == CPUFREQ_POSTCHANGE)
-        rknand_nand_timing_cfg();
-	return 0;
-}
-
-static inline int rknand_cpufreq_register(void)
-{
-	nandc_freq_transition.notifier_call = rknand_cpufreq_transition;
-	return cpufreq_register_notifier(&nandc_freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
-}
-
-static inline void rknand_cpufreq_deregister(void)
-{
-	cpufreq_unregister_notifier(&nandc_freq_transition, CPUFREQ_TRANSITION_NOTIFIER);
-}
-#else
-static inline int rknand_cpufreq_register(void)
-{
-	return 0;
-}
-
-static inline void rknand_cpufreq_deregister(void)
-{
-}
-#endif
-
 static int rknand_info_init(struct rknand_info *nand_info)
 {
 	struct mtd_info	   *mtd = &rknand_mtd;
@@ -463,7 +433,6 @@ int add_rknand_device(struct rknand_info * prknand_Info)
 
 	nandc_clk = clk_get(NULL, "nandc");
 	clk_enable(nandc_clk);
-    rknand_cpufreq_register();
     rknand_nand_timing_cfg();
 
     return 0;
