@@ -168,7 +168,7 @@ static int toneport_send_cmd(struct usb_device *usbdev, int cmd1, int cmd2)
 			      cmd1, cmd2, NULL, 0, LINE6_TIMEOUT * HZ);
 
 	if (ret < 0) {
-		err("send failed (error %d)\n", ret);
+		dev_err(&usbdev->dev, "send failed (error %d)\n", ret);
 		return ret;
 	}
 
