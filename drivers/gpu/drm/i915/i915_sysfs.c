@@ -39,8 +39,8 @@ static u32 calc_residency(struct drm_device *dev, const u32 reg)
 	if (!intel_enable_rc6(dev))
 		return 0;
 
-	raw_time = I915_READ(reg) * 128ULL + 500;
-	return do_div(raw_time, 100000);
+	raw_time = I915_READ(reg) * 128ULL;
+	return DIV_ROUND_UP_ULL(raw_time, 100000);
 }
 
 static ssize_t
