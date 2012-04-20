@@ -134,10 +134,8 @@ static int pch_ptp_match(struct sk_buff *skb, u16 uid_hi, u32 uid_lo, u16 seqid)
 	u16 *hi, *id;
 	u32 lo;
 
-	if ((sk_run_filter(skb, ptp_filter) != PTP_CLASS_V2_IPV4) &&
-		(sk_run_filter(skb, ptp_filter) != PTP_CLASS_V1_IPV4)) {
+	if (sk_run_filter(skb, ptp_filter) == PTP_CLASS_NONE)
 		return 0;
-	}
 
 	offset = ETH_HLEN + IPV4_HLEN(data) + UDP_HLEN;
 
