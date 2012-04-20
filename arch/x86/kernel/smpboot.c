@@ -818,7 +818,7 @@ do_rest:
 	return boot_error;
 }
 
-int __cpuinit native_cpu_up(unsigned int cpu)
+int __cpuinit native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int apicid = apic->cpu_present_to_apicid(cpu);
 	unsigned long flags;

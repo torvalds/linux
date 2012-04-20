@@ -331,7 +331,7 @@ cpu_initialize_context(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
-static int __cpuinit xen_cpu_up(unsigned int cpu)
+static int __cpuinit xen_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	struct task_struct *idle = idle_task(cpu);
 	int rc;
@@ -547,10 +547,10 @@ static void __init xen_hvm_smp_prepare_cpus(unsigned int max_cpus)
 	xen_init_lock_cpu(0);
 }
 
-static int __cpuinit xen_hvm_cpu_up(unsigned int cpu)
+static int __cpuinit xen_hvm_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc;
-	rc = native_cpu_up(cpu);
+	rc = native_cpu_up(cpu, tidle);
 	WARN_ON (xen_smp_intr_init(cpu));
 	return rc;
 }
