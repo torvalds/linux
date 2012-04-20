@@ -69,19 +69,24 @@ void nfs_commit_free(struct nfs_commit_data *p)
 }
 EXPORT_SYMBOL_GPL(nfs_commit_free);
 
-struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
+struct nfs_write_header *nfs_writehdr_alloc(unsigned int pagecount)
 {
-	struct nfs_write_data *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
+	struct nfs_write_header *p = mempool_alloc(nfs_wdata_mempool, GFP_NOFS);
 
 	if (p) {
+		struct nfs_pgio_header *hdr = &p->header;
+		struct nfs_write_data *data = &p->rpc_data;
+
 		memset(p, 0, sizeof(*p));
-		INIT_LIST_HEAD(&p->pages);
-		p->npages = pagecount;
-		if (pagecount <= ARRAY_SIZE(p->page_array))
-			p->pagevec = p->page_array;
+		INIT_LIST_HEAD(&hdr->pages);
+		INIT_LIST_HEAD(&data->list);
+		data->npages = pagecount;
+		data->header = hdr;
+		if (pagecount <= ARRAY_SIZE(data->page_array))
+			data->pagevec = data->page_array;
 		else {
-			p->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
-			if (!p->pagevec) {
+			data->pagevec = kcalloc(pagecount, sizeof(struct page *), GFP_NOFS);
+			if (!data->pagevec) {
 				mempool_free(p, nfs_wdata_mempool);
 				p = NULL;
 			}
@@ -90,17 +95,18 @@ struct nfs_write_data *nfs_writedata_alloc(unsigned int pagecount)
 	return p;
 }
 
-void nfs_writedata_free(struct nfs_write_data *p)
+void nfs_writehdr_free(struct nfs_pgio_header *hdr)
 {
-	if (p && (p->pagevec != &p->page_array[0]))
-		kfree(p->pagevec);
-	mempool_free(p, nfs_wdata_mempool);
+	struct nfs_write_header *whdr = container_of(hdr, struct nfs_write_header, header);
+	mempool_free(whdr, nfs_wdata_mempool);
 }
 
 void nfs_writedata_release(struct nfs_write_data *wdata)
 {
 	put_nfs_open_context(wdata->args.context);
-	nfs_writedata_free(wdata);
+	if (wdata->pagevec != wdata->page_array)
+		kfree(wdata->pagevec);
+	nfs_writehdr_free(wdata->header);
 }
 
 static void nfs_context_set_write_error(struct nfs_open_context *ctx, int error)
@@ -507,9 +513,8 @@ static inline
 int nfs_write_need_commit(struct nfs_write_data *data)
 {
 	if (data->verf.committed == NFS_DATA_SYNC)
-		return data->lseg == NULL;
-	else
-		return data->verf.committed != NFS_FILE_SYNC;
+		return data->header->lseg == NULL;
+	return data->verf.committed != NFS_FILE_SYNC;
 }
 
 static inline
@@ -517,7 +522,7 @@ int nfs_reschedule_unstable_write(struct nfs_page *req,
 				  struct nfs_write_data *data)
 {
 	if (test_and_clear_bit(PG_NEED_COMMIT, &req->wb_flags)) {
-		nfs_mark_request_commit(req, data->lseg);
+		nfs_mark_request_commit(req, data->header->lseg);
 		return 1;
 	}
 	if (test_and_clear_bit(PG_NEED_RESCHED, &req->wb_flags)) {
@@ -841,13 +846,13 @@ int nfs_initiate_write(struct rpc_clnt *clnt,
 		       const struct rpc_call_ops *call_ops,
 		       int how)
 {
-	struct inode *inode = data->inode;
+	struct inode *inode = data->header->inode;
 	int priority = flush_task_priority(how);
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
 		.rpc_resp = &data->res,
-		.rpc_cred = data->cred,
+		.rpc_cred = data->header->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = clnt,
@@ -896,14 +901,15 @@ static void nfs_write_rpcsetup(struct nfs_page *req,
 		unsigned int count, unsigned int offset,
 		int how)
 {
+	struct nfs_pgio_header *hdr = data->header;
 	struct inode *inode = req->wb_context->dentry->d_inode;
 
 	/* Set up the RPC argument and reply structs
 	 * NB: take care not to mess about with data->commit et al. */
 
-	data->req = req;
-	data->inode = inode = req->wb_context->dentry->d_inode;
-	data->cred = req->wb_context->cred;
+	hdr->req = req;
+	hdr->inode = inode = req->wb_context->dentry->d_inode;
+	hdr->cred = req->wb_context->cred;
 
 	data->args.fh     = NFS_FH(inode);
 	data->args.offset = req_offset(req) + offset;
@@ -935,7 +941,7 @@ static int nfs_do_write(struct nfs_write_data *data,
 		const struct rpc_call_ops *call_ops,
 		int how)
 {
-	struct inode *inode = data->args.context->dentry->d_inode;
+	struct inode *inode = data->header->inode;
 
 	return nfs_initiate_write(NFS_CLIENT(inode), data, call_ops, how);
 }
@@ -981,6 +987,7 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc, struct list_head 
 {
 	struct nfs_page *req = nfs_list_entry(desc->pg_list.next);
 	struct page *page = req->wb_page;
+	struct nfs_write_header *whdr;
 	struct nfs_write_data *data;
 	size_t wsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
@@ -1000,9 +1007,10 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc, struct list_head 
 	do {
 		size_t len = min(nbytes, wsize);
 
-		data = nfs_writedata_alloc(1);
-		if (!data)
+		whdr = nfs_writehdr_alloc(1);
+		if (!whdr)
 			goto out_bad;
+		data = &whdr->rpc_data;
 		data->pagevec[0] = page;
 		nfs_write_rpcsetup(req, data, len, offset, desc->pg_ioflags);
 		list_add(&data->list, res);
@@ -1036,13 +1044,14 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc, struct list_head *r
 {
 	struct nfs_page		*req;
 	struct page		**pages;
+	struct nfs_write_header	*whdr;
 	struct nfs_write_data	*data;
 	struct list_head *head = &desc->pg_list;
 	int ret = 0;
 
-	data = nfs_writedata_alloc(nfs_page_array_len(desc->pg_base,
-						      desc->pg_count));
-	if (!data) {
+	whdr = nfs_writehdr_alloc(nfs_page_array_len(desc->pg_base,
+						     desc->pg_count));
+	if (!whdr) {
 		while (!list_empty(head)) {
 			req = nfs_list_entry(head->next);
 			nfs_list_remove_request(req);
@@ -1051,14 +1060,15 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc, struct list_head *r
 		ret = -ENOMEM;
 		goto out;
 	}
+	data = &whdr->rpc_data;
 	pages = data->pagevec;
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_list_add_request(req, &data->pages);
+		nfs_list_add_request(req, &whdr->header.pages);
 		*pages++ = req->wb_page;
 	}
-	req = nfs_list_entry(data->pages.next);
+	req = nfs_list_entry(whdr->header.pages.next);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || NFS_I(desc->pg_inode)->ncommit))
@@ -1126,10 +1136,11 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 
 	dprintk("NFS: %5u write(%s/%lld %d@%lld)",
 		task->tk_pid,
-		data->req->wb_context->dentry->d_inode->i_sb->s_id,
+		data->header->inode->i_sb->s_id,
 		(long long)
-		  NFS_FILEID(data->req->wb_context->dentry->d_inode),
-		data->req->wb_bytes, (long long)req_offset(data->req));
+		  NFS_FILEID(data->header->inode),
+		data->header->req->wb_bytes,
+		(long long)req_offset(data->header->req));
 
 	nfs_writeback_done(task, data);
 }
@@ -1137,7 +1148,7 @@ static void nfs_writeback_done_partial(struct rpc_task *task, void *calldata)
 static void nfs_writeback_release_partial(void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
-	struct nfs_page		*req = data->req;
+	struct nfs_page		*req = data->header->req;
 	struct page		*page = req->wb_page;
 	int status = data->task.tk_status;
 
@@ -1169,13 +1180,13 @@ static void nfs_writeback_release_partial(void *calldata)
 out:
 	if (atomic_dec_and_test(&req->wb_complete))
 		nfs_writepage_release(req, data);
-	nfs_writedata_release(calldata);
+	nfs_writedata_release(data);
 }
 
 void nfs_write_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs_write_data *data = calldata;
-	NFS_PROTO(data->inode)->write_rpc_prepare(task, data);
+	NFS_PROTO(data->header->inode)->write_rpc_prepare(task, data);
 }
 
 void nfs_commit_prepare(struct rpc_task *task, void *calldata)
@@ -1208,11 +1219,12 @@ static void nfs_writeback_done_full(struct rpc_task *task, void *calldata)
 static void nfs_writeback_release_full(void *calldata)
 {
 	struct nfs_write_data	*data = calldata;
+	struct nfs_pgio_header *hdr = data->header;
 	int status = data->task.tk_status;
 
 	/* Update attributes as result of writeback. */
-	while (!list_empty(&data->pages)) {
-		struct nfs_page *req = nfs_list_entry(data->pages.next);
+	while (!list_empty(&hdr->pages)) {
+		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
 		struct page *page = req->wb_page;
 
 		nfs_list_remove_request(req);
@@ -1233,7 +1245,7 @@ static void nfs_writeback_release_full(void *calldata)
 
 		if (nfs_write_need_commit(data)) {
 			memcpy(&req->wb_verf, &data->verf, sizeof(req->wb_verf));
-			nfs_mark_request_commit(req, data->lseg);
+			nfs_mark_request_commit(req, hdr->lseg);
 			dprintk(" marked for commit\n");
 			goto next;
 		}
@@ -1244,7 +1256,7 @@ remove_request:
 		nfs_unlock_request(req);
 		nfs_end_page_writeback(page);
 	}
-	nfs_writedata_release(calldata);
+	nfs_writedata_release(data);
 }
 
 static const struct rpc_call_ops nfs_write_full_ops = {
@@ -1261,6 +1273,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 {
 	struct nfs_writeargs	*argp = &data->args;
 	struct nfs_writeres	*resp = &data->res;
+	struct inode		*inode = data->header->inode;
 	int status;
 
 	dprintk("NFS: %5u nfs_writeback_done (status %d)\n",
@@ -1273,10 +1286,10 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 	 * another writer had changed the file, but some applications
 	 * depend on tighter cache coherency when writing.
 	 */
-	status = NFS_PROTO(data->inode)->write_done(task, data);
+	status = NFS_PROTO(inode)->write_done(task, data);
 	if (status != 0)
 		return;
-	nfs_add_stats(data->inode, NFSIOS_SERVERWRITTENBYTES, resp->count);
+	nfs_add_stats(inode, NFSIOS_SERVERWRITTENBYTES, resp->count);
 
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 	if (resp->verf->committed < argp->stable && task->tk_status >= 0) {
@@ -1294,7 +1307,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		if (time_before(complain, jiffies)) {
 			dprintk("NFS:       faulty NFS server %s:"
 				" (committed = %d) != (stable = %d)\n",
-				NFS_SERVER(data->inode)->nfs_client->cl_hostname,
+				NFS_SERVER(inode)->nfs_client->cl_hostname,
 				resp->verf->committed, argp->stable);
 			complain = jiffies + 300 * HZ;
 		}
@@ -1304,7 +1317,7 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 	if (task->tk_status >= 0 && resp->count < argp->count) {
 		static unsigned long    complain;
 
-		nfs_inc_stats(data->inode, NFSIOS_SHORTWRITE);
+		nfs_inc_stats(inode, NFSIOS_SHORTWRITE);
 
 		/* Has the server at least made some progress? */
 		if (resp->count != 0) {
@@ -1333,7 +1346,6 @@ void nfs_writeback_done(struct rpc_task *task, struct nfs_write_data *data)
 		/* Can't do anything about it except throw an error. */
 		task->tk_status = -EIO;
 	}
-	return;
 }
 
 
@@ -1745,7 +1757,7 @@ int nfs_migrate_page(struct address_space *mapping, struct page *newpage,
 int __init nfs_init_writepagecache(void)
 {
 	nfs_wdata_cachep = kmem_cache_create("nfs_write_data",
-					     sizeof(struct nfs_write_data),
+					     sizeof(struct nfs_write_header),
 					     0, SLAB_HWCACHE_ALIGN,
 					     NULL);
 	if (nfs_wdata_cachep == NULL)

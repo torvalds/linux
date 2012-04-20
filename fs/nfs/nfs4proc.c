@@ -3336,12 +3336,12 @@ static int nfs4_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 void __nfs4_read_done_cb(struct nfs_read_data *data)
 {
-	nfs_invalidate_atime(data->inode);
+	nfs_invalidate_atime(data->header->inode);
 }
 
 static int nfs4_read_done_cb(struct rpc_task *task, struct nfs_read_data *data)
 {
-	struct nfs_server *server = NFS_SERVER(data->inode);
+	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
 	if (nfs4_async_handle_error(task, server, data->args.context->state) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
@@ -3376,7 +3376,7 @@ static void nfs4_proc_read_setup(struct nfs_read_data *data, struct rpc_message 
 
 static void nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_data *data)
 {
-	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
+	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
 				&data->args.seq_args,
 				&data->res.seq_res,
 				task))
@@ -3387,22 +3387,25 @@ static void nfs4_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_da
 /* Reset the the nfs_read_data to send the read to the MDS. */
 void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data)
 {
+	struct nfs_pgio_header *hdr = data->header;
+	struct inode *inode = hdr->inode;
+
 	dprintk("%s Reset task for i/o through\n", __func__);
-	put_lseg(data->lseg);
-	data->lseg = NULL;
+	put_lseg(hdr->lseg);
+	hdr->lseg = NULL;
+	data->ds_clp = NULL;
 	/* offsets will differ in the dense stripe case */
 	data->args.offset = data->mds_offset;
-	data->ds_clp = NULL;
-	data->args.fh     = NFS_FH(data->inode);
+	data->args.fh     = NFS_FH(inode);
 	data->read_done_cb = nfs4_read_done_cb;
-	task->tk_ops = data->mds_ops;
-	rpc_task_reset_client(task, NFS_CLIENT(data->inode));
+	task->tk_ops = hdr->mds_ops;
+	rpc_task_reset_client(task, NFS_CLIENT(inode));
 }
 EXPORT_SYMBOL_GPL(nfs4_reset_read);
 
 static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data)
 {
-	struct inode *inode = data->inode;
+	struct inode *inode = data->header->inode;
 	
 	if (nfs4_async_handle_error(task, NFS_SERVER(inode), data->args.context->state) == -EAGAIN) {
 		rpc_restart_call_prepare(task);
@@ -3426,25 +3429,28 @@ static int nfs4_write_done(struct rpc_task *task, struct nfs_write_data *data)
 /* Reset the the nfs_write_data to send the write to the MDS. */
 void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data)
 {
+	struct nfs_pgio_header *hdr = data->header;
+	struct inode *inode = hdr->inode;
+
 	dprintk("%s Reset task for i/o through\n", __func__);
-	put_lseg(data->lseg);
-	data->lseg          = NULL;
-	data->ds_clp        = NULL;
+	put_lseg(hdr->lseg);
+	hdr->lseg        = NULL;
+	data->ds_clp     = NULL;
 	data->write_done_cb = nfs4_write_done_cb;
-	data->args.fh       = NFS_FH(data->inode);
+	data->args.fh       = NFS_FH(inode);
 	data->args.bitmask  = data->res.server->cache_consistency_bitmask;
 	data->args.offset   = data->mds_offset;
 	data->res.fattr     = &data->fattr;
-	task->tk_ops        = data->mds_ops;
-	rpc_task_reset_client(task, NFS_CLIENT(data->inode));
+	task->tk_ops        = hdr->mds_ops;
+	rpc_task_reset_client(task, NFS_CLIENT(inode));
 }
 EXPORT_SYMBOL_GPL(nfs4_reset_write);
 
 static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
-	struct nfs_server *server = NFS_SERVER(data->inode);
+	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
-	if (data->lseg) {
+	if (data->header->lseg) {
 		data->args.bitmask = NULL;
 		data->res.fattr = NULL;
 	} else
@@ -3460,7 +3466,7 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 
 static void nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_data *data)
 {
-	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
+	if (nfs4_setup_sequence(NFS_SERVER(data->header->inode),
 				&data->args.seq_args,
 				&data->res.seq_res,
 				task))

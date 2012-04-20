@@ -811,11 +811,13 @@ nfs3_proc_pathconf(struct nfs_server *server, struct nfs_fh *fhandle,
 
 static int nfs3_read_done(struct rpc_task *task, struct nfs_read_data *data)
 {
-	if (nfs3_async_handle_jukebox(task, data->inode))
+	struct inode *inode = data->header->inode;
+
+	if (nfs3_async_handle_jukebox(task, inode))
 		return -EAGAIN;
 
-	nfs_invalidate_atime(data->inode);
-	nfs_refresh_inode(data->inode, &data->fattr);
+	nfs_invalidate_atime(inode);
+	nfs_refresh_inode(inode, &data->fattr);
 	return 0;
 }
 
@@ -831,10 +833,12 @@ static void nfs3_proc_read_rpc_prepare(struct rpc_task *task, struct nfs_read_da
 
 static int nfs3_write_done(struct rpc_task *task, struct nfs_write_data *data)
 {
-	if (nfs3_async_handle_jukebox(task, data->inode))
+	struct inode *inode = data->header->inode;
+
+	if (nfs3_async_handle_jukebox(task, inode))
 		return -EAGAIN;
 	if (task->tk_status >= 0)
-		nfs_post_op_update_inode_force_wcc(data->inode, data->res.fattr);
+		nfs_post_op_update_inode_force_wcc(inode, data->res.fattr);
 	return 0;
 }
 

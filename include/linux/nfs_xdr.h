@@ -1168,52 +1168,58 @@ struct nfs_page;
 #define NFS_PAGEVEC_SIZE	(8U)
 
 struct nfs_read_data {
+	struct nfs_pgio_header	*header;
+	struct list_head	list;
 	struct rpc_task		task;
-	struct inode		*inode;
-	struct rpc_cred		*cred;
 	struct nfs_fattr	fattr;	/* fattr storage */
-	struct list_head	pages;	/* Coalesced read requests */
-	struct list_head	list;	/* lists of struct nfs_read_data */
-	struct nfs_page		*req;	/* multi ops per nfs_page */
 	struct page		**pagevec;
 	unsigned int		npages;	/* Max length of pagevec */
 	struct nfs_readargs args;
 	struct nfs_readres  res;
 	unsigned long		timestamp;	/* For lease renewal */
-	struct pnfs_layout_segment *lseg;
-	struct nfs_client	*ds_clp;	/* pNFS data server */
-	const struct rpc_call_ops *mds_ops;
 	int (*read_done_cb) (struct rpc_task *task, struct nfs_read_data *data);
 	__u64			mds_offset;
-	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
+	struct nfs_client	*ds_clp;	/* pNFS data server */
+};
+
+struct nfs_pgio_header {
+	struct inode		*inode;
+	struct rpc_cred		*cred;
+	struct list_head	pages;
+	struct nfs_page		*req;
+	struct pnfs_layout_segment *lseg;
+	const struct rpc_call_ops *mds_ops;
+	int			pnfs_error;
+};
+
+struct nfs_read_header {
+	struct nfs_pgio_header	header;
+	struct nfs_read_data	rpc_data;
 };
 
 struct nfs_direct_req;
 
 struct nfs_write_data {
+	struct nfs_pgio_header	*header;
+	struct list_head	list;
 	struct rpc_task		task;
-	struct inode		*inode;
-	struct rpc_cred		*cred;
 	struct nfs_fattr	fattr;
 	struct nfs_writeverf	verf;
-	struct list_head	pages;		/* Coalesced requests we wish to flush */
-	struct list_head	list;		/* lists of struct nfs_write_data */
-	struct nfs_page		*req;		/* multi ops per nfs_page */
 	struct page		**pagevec;
 	unsigned int		npages;		/* Max length of pagevec */
 	struct nfs_writeargs	args;		/* argument struct */
 	struct nfs_writeres	res;		/* result struct */
-	struct pnfs_layout_segment *lseg;
-	struct nfs_client	*ds_clp;	/* pNFS data server */
-	const struct rpc_call_ops *mds_ops;
-	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
-#ifdef CONFIG_NFS_V4
 	unsigned long		timestamp;	/* For lease renewal */
-#endif
+	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 	__u64			mds_offset;	/* Filelayout dense stripe */
-	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
+	struct nfs_client	*ds_clp;	/* pNFS data server */
+};
+
+struct nfs_write_header {
+	struct nfs_pgio_header	header;
+	struct nfs_write_data	rpc_data;
 };
 
 struct nfs_commit_data {

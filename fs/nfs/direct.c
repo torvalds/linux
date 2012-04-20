@@ -242,7 +242,7 @@ static void nfs_direct_read_release(void *calldata)
 {
 
 	struct nfs_read_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	struct nfs_direct_req *dreq = (struct nfs_direct_req *)data->header->req;
 	int status = data->task.tk_status;
 
 	spin_lock(&dreq->lock);
@@ -268,6 +268,15 @@ static const struct rpc_call_ops nfs_read_direct_ops = {
 	.rpc_call_done = nfs_direct_read_result,
 	.rpc_release = nfs_direct_read_release,
 };
+
+static void nfs_direct_readhdr_release(struct nfs_read_header *rhdr)
+{
+	struct nfs_read_data *data = &rhdr->rpc_data;
+
+	if (data->pagevec != data->page_array)
+		kfree(data->pagevec);
+	nfs_readhdr_free(&rhdr->header);
+}
 
 /*
  * For each rsize'd chunk of the user's buffer, dispatch an NFS READ
@@ -301,6 +310,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 	ssize_t started = 0;
 
 	do {
+		struct nfs_read_header *rhdr;
 		struct nfs_read_data *data;
 		size_t bytes;
 
@@ -308,23 +318,24 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		bytes = min(rsize,count);
 
 		result = -ENOMEM;
-		data = nfs_readdata_alloc(nfs_page_array_len(pgbase, bytes));
-		if (unlikely(!data))
+		rhdr = nfs_readhdr_alloc(nfs_page_array_len(pgbase, bytes));
+		if (unlikely(!rhdr))
 			break;
+		data = &rhdr->rpc_data;
 
 		down_read(&current->mm->mmap_sem);
 		result = get_user_pages(current, current->mm, user_addr,
 					data->npages, 1, 0, data->pagevec, NULL);
 		up_read(&current->mm->mmap_sem);
 		if (result < 0) {
-			nfs_readdata_free(data);
+			nfs_direct_readhdr_release(rhdr);
 			break;
 		}
 		if ((unsigned)result < data->npages) {
 			bytes = result * PAGE_SIZE;
 			if (bytes <= pgbase) {
 				nfs_direct_release_pages(data->pagevec, result);
-				nfs_readdata_free(data);
+				nfs_direct_readhdr_release(rhdr);
 				break;
 			}
 			bytes -= pgbase;
@@ -333,9 +344,9 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 
 		get_dreq(dreq);
 
-		data->req = (struct nfs_page *) dreq;
-		data->inode = inode;
-		data->cred = msg.rpc_cred;
+		rhdr->header.req = (struct nfs_page *) dreq;
+		rhdr->header.inode = inode;
+		rhdr->header.cred = msg.rpc_cred;
 		data->args.fh = NFS_FH(inode);
 		data->args.context = get_nfs_open_context(ctx);
 		data->args.lock_context = dreq->l_ctx;
@@ -447,13 +458,23 @@ out:
 	return result;
 }
 
+static void nfs_direct_writehdr_release(struct nfs_write_header *whdr)
+{
+	struct nfs_write_data *data = &whdr->rpc_data;
+
+	if (data->pagevec != data->page_array)
+		kfree(data->pagevec);
+	nfs_writehdr_free(&whdr->header);
+}
+
 static void nfs_direct_free_writedata(struct nfs_direct_req *dreq)
 {
 	while (!list_empty(&dreq->rewrite_list)) {
-		struct nfs_write_data *data = list_entry(dreq->rewrite_list.next, struct nfs_write_data, pages);
-		list_del(&data->pages);
-		nfs_direct_release_pages(data->pagevec, data->npages);
-		nfs_writedata_free(data);
+		struct nfs_pgio_header *hdr = list_entry(dreq->rewrite_list.next, struct nfs_pgio_header, pages);
+		struct nfs_write_header *whdr = container_of(hdr, struct nfs_write_header, header);
+		list_del(&hdr->pages);
+		nfs_direct_release_pages(whdr->rpc_data.pagevec, whdr->rpc_data.npages);
+		nfs_direct_writehdr_release(whdr);
 	}
 }
 
@@ -463,6 +484,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	struct inode *inode = dreq->inode;
 	struct list_head *p;
 	struct nfs_write_data *data;
+	struct nfs_pgio_header *hdr;
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_cred = dreq->ctx->cred,
@@ -479,7 +501,8 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	get_dreq(dreq);
 
 	list_for_each(p, &dreq->rewrite_list) {
-		data = list_entry(p, struct nfs_write_data, pages);
+		hdr = list_entry(p, struct nfs_pgio_header, pages);
+		data = &(container_of(hdr, struct nfs_write_header, header))->rpc_data;
 
 		get_dreq(dreq);
 
@@ -652,7 +675,8 @@ static void nfs_direct_write_result(struct rpc_task *task, void *calldata)
 static void nfs_direct_write_release(void *calldata)
 {
 	struct nfs_write_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	struct nfs_pgio_header *hdr = data->header;
+	struct nfs_direct_req *dreq = (struct nfs_direct_req *) hdr->req;
 	int status = data->task.tk_status;
 
 	spin_lock(&dreq->lock);
@@ -684,7 +708,7 @@ out_unlock:
 	spin_unlock(&dreq->lock);
 
 	if (put_dreq(dreq))
-		nfs_direct_write_complete(dreq, data->inode);
+		nfs_direct_write_complete(dreq, hdr->inode);
 }
 
 static const struct rpc_call_ops nfs_write_direct_ops = {
@@ -725,6 +749,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 	ssize_t started = 0;
 
 	do {
+		struct nfs_write_header *whdr;
 		struct nfs_write_data *data;
 		size_t bytes;
 
@@ -732,23 +757,25 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		bytes = min(wsize,count);
 
 		result = -ENOMEM;
-		data = nfs_writedata_alloc(nfs_page_array_len(pgbase, bytes));
-		if (unlikely(!data))
+		whdr = nfs_writehdr_alloc(nfs_page_array_len(pgbase, bytes));
+		if (unlikely(!whdr))
 			break;
+
+		data = &whdr->rpc_data;
 
 		down_read(&current->mm->mmap_sem);
 		result = get_user_pages(current, current->mm, user_addr,
 					data->npages, 0, 0, data->pagevec, NULL);
 		up_read(&current->mm->mmap_sem);
 		if (result < 0) {
-			nfs_writedata_free(data);
+			nfs_direct_writehdr_release(whdr);
 			break;
 		}
 		if ((unsigned)result < data->npages) {
 			bytes = result * PAGE_SIZE;
 			if (bytes <= pgbase) {
 				nfs_direct_release_pages(data->pagevec, result);
-				nfs_writedata_free(data);
+				nfs_direct_writehdr_release(whdr);
 				break;
 			}
 			bytes -= pgbase;
@@ -757,11 +784,11 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 
 		get_dreq(dreq);
 
-		list_move_tail(&data->pages, &dreq->rewrite_list);
+		list_move_tail(&whdr->header.pages, &dreq->rewrite_list);
 
-		data->req = (struct nfs_page *) dreq;
-		data->inode = inode;
-		data->cred = msg.rpc_cred;
+		whdr->header.req = (struct nfs_page *) dreq;
+		whdr->header.inode = inode;
+		whdr->header.cred = msg.rpc_cred;
 		data->args.fh = NFS_FH(inode);
 		data->args.context = ctx;
 		data->args.lock_context = dreq->l_ctx;

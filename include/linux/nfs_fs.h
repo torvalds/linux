@@ -569,12 +569,6 @@ nfs_have_writebacks(struct inode *inode)
 }
 
 /*
- * Allocate nfs_write_data structures
- */
-extern struct nfs_write_data *nfs_writedata_alloc(unsigned int npages);
-extern void nfs_writedata_free(struct nfs_write_data *);
-
-/*
  * linux/fs/nfs/read.c
  */
 extern int  nfs_readpage(struct file *, struct page *);
@@ -583,12 +577,6 @@ extern int  nfs_readpages(struct file *, struct address_space *,
 extern int  nfs_readpage_result(struct rpc_task *, struct nfs_read_data *);
 extern int  nfs_readpage_async(struct nfs_open_context *, struct inode *,
 			       struct page *);
-
-/*
- * Allocate nfs_read_data structures
- */
-extern struct nfs_read_data *nfs_readdata_alloc(unsigned int npages);
-extern void nfs_readdata_free(struct nfs_read_data *);
 
 /*
  * linux/fs/nfs3proc.c

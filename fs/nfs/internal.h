@@ -296,6 +296,8 @@ extern int nfs4_get_rootfh(struct nfs_server *server, struct nfs_fh *mntfh);
 
 struct nfs_pageio_descriptor;
 /* read.c */
+extern struct nfs_read_header *nfs_readhdr_alloc(unsigned int npages);
+extern void nfs_readhdr_free(struct nfs_pgio_header *hdr);
 extern int nfs_initiate_read(struct rpc_clnt *clnt,
 			     struct nfs_read_data *data,
 			     const struct rpc_call_ops *call_ops);
@@ -309,6 +311,8 @@ extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_readdata_release(struct nfs_read_data *rdata);
 
 /* write.c */
+extern struct nfs_write_header *nfs_writehdr_alloc(unsigned int npages);
+extern void nfs_writehdr_free(struct nfs_pgio_header *hdr);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 		struct list_head *head);
 extern void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,

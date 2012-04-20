@@ -148,6 +148,7 @@ wait_on_recovery:
 static int filelayout_read_done_cb(struct rpc_task *task,
 				struct nfs_read_data *data)
 {
+	struct nfs_pgio_header *hdr = data->header;
 	int reset = 0;
 
 	dprintk("%s DS read\n", __func__);
@@ -157,7 +158,7 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			pnfs_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(hdr->lseg);
 			nfs4_reset_read(task, data);
 		}
 		rpc_restart_call_prepare(task);
@@ -175,13 +176,15 @@ static int filelayout_read_done_cb(struct rpc_task *task,
 static void
 filelayout_set_layoutcommit(struct nfs_write_data *wdata)
 {
-	if (FILELAYOUT_LSEG(wdata->lseg)->commit_through_mds ||
+	struct nfs_pgio_header *hdr = wdata->header;
+
+	if (FILELAYOUT_LSEG(hdr->lseg)->commit_through_mds ||
 	    wdata->res.verf->committed == NFS_FILE_SYNC)
 		return;
 
 	pnfs_set_layoutcommit(wdata);
-	dprintk("%s ionde %lu pls_end_pos %lu\n", __func__, wdata->inode->i_ino,
-		(unsigned long) NFS_I(wdata->inode)->layout->plh_lwb);
+	dprintk("%s ionde %lu pls_end_pos %lu\n", __func__, hdr->inode->i_ino,
+		(unsigned long) NFS_I(hdr->inode)->layout->plh_lwb);
 }
 
 /*
@@ -210,27 +213,28 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
 
 	/* Note this may cause RPC to be resent */
-	rdata->mds_ops->rpc_call_done(task, data);
+	rdata->header->mds_ops->rpc_call_done(task, data);
 }
 
 static void filelayout_read_count_stats(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = data;
 
-	rpc_count_iostats(task, NFS_SERVER(rdata->inode)->client->cl_metrics);
+	rpc_count_iostats(task, NFS_SERVER(rdata->header->inode)->client->cl_metrics);
 }
 
 static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = data;
 
-	put_lseg(rdata->lseg);
-	rdata->mds_ops->rpc_release(data);
+	put_lseg(rdata->header->lseg);
+	rdata->header->mds_ops->rpc_release(data);
 }
 
 static int filelayout_write_done_cb(struct rpc_task *task,
 				struct nfs_write_data *data)
 {
+	struct nfs_pgio_header *hdr = data->header;
 	int reset = 0;
 
 	if (filelayout_async_handle_error(task, data->args.context->state,
@@ -238,7 +242,7 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
 		if (reset) {
-			pnfs_set_lo_fail(data->lseg);
+			pnfs_set_lo_fail(hdr->lseg);
 			nfs4_reset_write(task, data);
 		}
 		rpc_restart_call_prepare(task);
@@ -297,22 +301,22 @@ static void filelayout_write_call_done(struct rpc_task *task, void *data)
 	struct nfs_write_data *wdata = data;
 
 	/* Note this may cause RPC to be resent */
-	wdata->mds_ops->rpc_call_done(task, data);
+	wdata->header->mds_ops->rpc_call_done(task, data);
 }
 
 static void filelayout_write_count_stats(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
 
-	rpc_count_iostats(task, NFS_SERVER(wdata->inode)->client->cl_metrics);
+	rpc_count_iostats(task, NFS_SERVER(wdata->header->inode)->client->cl_metrics);
 }
 
 static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
-	put_lseg(wdata->lseg);
-	wdata->mds_ops->rpc_release(data);
+	put_lseg(wdata->header->lseg);
+	wdata->header->mds_ops->rpc_release(data);
 }
 
 static void filelayout_commit_prepare(struct rpc_task *task, void *data)
@@ -377,7 +381,8 @@ static const struct rpc_call_ops filelayout_commit_call_ops = {
 static enum pnfs_try_status
 filelayout_read_pagelist(struct nfs_read_data *data)
 {
-	struct pnfs_layout_segment *lseg = data->lseg;
+	struct nfs_pgio_header *hdr = data->header;
+	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
 	loff_t offset = data->args.offset;
 	u32 j, idx;
@@ -385,7 +390,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	int status;
 
 	dprintk("--> %s ino %lu pgbase %u req %Zu@%llu\n",
-		__func__, data->inode->i_ino,
+		__func__, hdr->inode->i_ino,
 		data->args.pgbase, (size_t)data->args.count, offset);
 
 	if (test_bit(NFS_DEVICEID_INVALID, &FILELAYOUT_DEVID_NODE(lseg)->flags))
@@ -423,7 +428,8 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 static enum pnfs_try_status
 filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 {
-	struct pnfs_layout_segment *lseg = data->lseg;
+	struct nfs_pgio_header *hdr = data->header;
+	struct pnfs_layout_segment *lseg = hdr->lseg;
 	struct nfs4_pnfs_ds *ds;
 	loff_t offset = data->args.offset;
 	u32 j, idx;
@@ -445,7 +451,7 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 		return PNFS_NOT_ATTEMPTED;
 	}
 	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s\n", __func__,
-		data->inode->i_ino, sync, (size_t) data->args.count, offset,
+		hdr->inode->i_ino, sync, (size_t) data->args.count, offset,
 		ds->ds_remotestr);
 
 	data->write_done_cb = filelayout_write_done_cb;
