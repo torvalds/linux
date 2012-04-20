@@ -1336,9 +1336,6 @@ static int
 isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 {
 	struct isp1301	*isp = container_of(otg->phy, struct isp1301, phy);
-#ifndef	CONFIG_USB_OTG
-	u32 l;
-#endif
 
 	if (!otg || isp != the_transceiver)
 		return -ENODEV;
@@ -1365,10 +1362,14 @@ isp1301_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 	otg->gadget = gadget;
 	// FIXME update its refcount
 
-	l = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
-	l &= ~(OTG_XCEIV_OUTPUTS|OTG_CTRL_BITS);
-	l |= OTG_ID;
-	omap_writel(l, OTG_CTRL);
+	{
+		u32 l;
+
+		l = omap_readl(OTG_CTRL) & OTG_CTRL_MASK;
+		l &= ~(OTG_XCEIV_OUTPUTS|OTG_CTRL_BITS);
+		l |= OTG_ID;
+		omap_writel(l, OTG_CTRL);
+	}
 
 	power_up(isp);
 	isp->phy.state = OTG_STATE_B_IDLE;
