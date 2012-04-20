@@ -169,7 +169,6 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 			       struct tm6000_buffer   **buf)
 {
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	char *outp;
 
 	if (list_empty(&dma_q->active)) {
 		dprintk(dev, V4L2_DEBUG_QUEUE, "No active queue to serve\n");
@@ -179,11 +178,6 @@ static inline void get_next_buf(struct tm6000_dmaqueue *dma_q,
 
 	*buf = list_entry(dma_q->active.next,
 			struct tm6000_buffer, vb.queue);
-
-	/* Cleans up buffer - Useful for testing for frame/URB loss */
-	outp = videobuf_to_vmalloc(&(*buf)->vb);
-
-	return;
 }
 
 /*
@@ -211,7 +205,7 @@ static int copy_streams(u8 *data, unsigned long len,
 {
 	struct tm6000_dmaqueue  *dma_q = urb->context;
 	struct tm6000_core *dev = container_of(dma_q, struct tm6000_core, vidq);
-	u8 *ptr = data, *endp = data+len, c;
+	u8 *ptr = data, *endp = data+len;
 	unsigned long header = 0;
 	int rc = 0;
 	unsigned int cmd, cpysize, pktsize, size, field, block, line, pos = 0;
@@ -264,7 +258,6 @@ static int copy_streams(u8 *data, unsigned long len,
 			}
 
 			/* split the header fields */
-			c = (header >> 24) & 0xff;
 			size = ((header & 0x7e) << 1);
 			if (size > 0)
 				size -= 4;

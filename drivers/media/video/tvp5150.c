@@ -830,18 +830,11 @@ static int tvp5150_mbus_fmt(struct v4l2_subdev *sd,
 			    struct v4l2_mbus_framefmt *f)
 {
 	struct tvp5150 *decoder = to_tvp5150(sd);
-	v4l2_std_id std;
 
 	if (f == NULL)
 		return -EINVAL;
 
 	tvp5150_reset(sd, 0);
-
-	/* Calculate height and width based on current standard */
-	if (decoder->norm == V4L2_STD_ALL)
-		std = tvp5150_read_std(sd);
-	else
-		std = decoder->norm;
 
 	f->width = decoder->rect.width;
 	f->height = decoder->rect.height;

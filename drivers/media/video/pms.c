@@ -916,7 +916,6 @@ static const struct v4l2_ioctl_ops pms_ioctl_ops = {
 
 static int init_mediavision(struct pms *dev)
 {
-	int id;
 	int idec, decst;
 	int i;
 	static const unsigned char i2c_defs[] = {
@@ -948,7 +947,6 @@ static int init_mediavision(struct pms *dev)
 	outb(dev->io >> 4, 0x9a01);	/* Set IO port */
 
 
-	id = mvv_read(dev, 3);
 	decst = pms_i2c_stat(dev, 0x43);
 
 	if (decst != -1)

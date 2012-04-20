@@ -634,13 +634,11 @@ static void s2255_fillbuff(struct s2255_channel *channel,
 	const char *tmpbuf;
 	char *vbuf = videobuf_to_vmalloc(&buf->vb);
 	unsigned long last_frame;
-	struct s2255_framei *frm;
 
 	if (!vbuf)
 		return;
 	last_frame = channel->last_frame;
 	if (last_frame != -1) {
-		frm = &channel->buffer.frame[last_frame];
 		tmpbuf =
 		    (const char *)channel->buffer.frame[last_frame].lpvbits;
 		switch (buf->fmt->fourcc) {
@@ -987,7 +985,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	struct videobuf_queue *q = &fh->vb_vidq;
 	struct s2255_mode mode;
 	int ret;
-	int norm;
 
 	ret = vidioc_try_fmt_vid_cap(file, fh, f);
 
@@ -1018,7 +1015,6 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	channel->height = f->fmt.pix.height;
 	fh->vb_vidq.field = f->fmt.pix.field;
 	fh->type = f->type;
-	norm = norm_minw(&channel->vdev);
 	if (channel->width > norm_minw(&channel->vdev)) {
 		if (channel->height > norm_minh(&channel->vdev)) {
 			if (channel->cap_parm.capturemode &

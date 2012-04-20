@@ -670,7 +670,6 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 						struct v4l2_dv_preset *qpreset)
 {
 	const struct tvp7002_preset_definition *presets = tvp7002_presets;
-	struct tvp7002 *device;
 	u8 progressive;
 	u32 lpfr;
 	u32 cpln;
@@ -683,8 +682,6 @@ static int tvp7002_query_dv_preset(struct v4l2_subdev *sd,
 
 	/* Return invalid preset if no active input is detected */
 	qpreset->preset = V4L2_DV_INVALID;
-
-	device = to_tvp7002(sd);
 
 	/* Read standards from device registers */
 	tvp7002_read_err(sd, TVP7002_L_FRAME_STAT_LSBS, &lpf_lsb, &error);

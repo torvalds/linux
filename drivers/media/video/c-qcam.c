@@ -378,7 +378,7 @@ get_fragment:
 static long qc_capture(struct qcam *qcam, char __user *buf, unsigned long len)
 {
 	struct v4l2_device *v4l2_dev = &qcam->v4l2_dev;
-	unsigned lines, pixelsperline, bitsperxfer;
+	unsigned lines, pixelsperline;
 	unsigned int is_bi_dir = qcam->bidirectional;
 	size_t wantlen, outptr = 0;
 	char tmpbuf[BUFSZ];
@@ -404,7 +404,6 @@ static long qc_capture(struct qcam *qcam, char __user *buf, unsigned long len)
 
 	lines = qcam->height;
 	pixelsperline = qcam->width;
-	bitsperxfer = (is_bi_dir) ? 24 : 8;
 
 	if (is_bi_dir) {
 		/* Turn the port around */
