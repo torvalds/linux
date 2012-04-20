@@ -51,8 +51,8 @@ struct nfs_read_header *nfs_readhdr_alloc()
 	return rhdr;
 }
 
-struct nfs_read_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
-					 unsigned int pagecount)
+static struct nfs_read_data *nfs_readdata_alloc(struct nfs_pgio_header *hdr,
+						unsigned int pagecount)
 {
 	struct nfs_read_data *data, *prealloc;
 
@@ -123,9 +123,9 @@ void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio)
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_read_mds);
 
-static void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
-				struct inode *inode,
-				const struct nfs_pgio_completion_ops *compl_ops)
+void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
+			  struct inode *inode,
+			  const struct nfs_pgio_completion_ops *compl_ops)
 {
 	if (!pnfs_pageio_init_read(pgio, inode, compl_ops))
 		nfs_pageio_init_read_mds(pgio, inode, compl_ops);
