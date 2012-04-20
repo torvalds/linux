@@ -127,11 +127,20 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 
 			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf), &dl->ops,
 						!ab->use_offset);
-			printed += 2;
-		} else
-			scnprintf(bf, sizeof(bf), "  %-6.6s %s", dl->name, dl->ops.raw);
+		} else {
+			if (strcmp(dl->name, "retq")) {
+				slsmg_write_nstring(" ", 2);
+			} else {
+				SLsmg_set_char_set(1);
+				SLsmg_write_char(SLSMG_LARROW_CHAR);
+				SLsmg_set_char_set(0);
+				SLsmg_write_char(' ');
+			}
 
-		slsmg_write_nstring(bf, width - 10 - printed);
+			scnprintf(bf, sizeof(bf), "%-6.6s %s", dl->name, dl->ops.raw);
+		}
+
+		slsmg_write_nstring(bf, width - 12 - printed);
 	}
 
 	if (current_entry)
