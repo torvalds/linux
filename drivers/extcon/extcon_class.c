@@ -72,6 +72,39 @@ static struct class_compat *switch_class;
 static LIST_HEAD(extcon_dev_list);
 static DEFINE_MUTEX(extcon_dev_list_lock);
 
+/**
+ * check_mutually_exclusive - Check if new_state violates mutually_exclusive
+ *			    condition.
+ * @edev:	the extcon device
+ * @new_state:	new cable attach status for @edev
+ *
+ * Returns 0 if nothing violates. Returns the index + 1 for the first
+ * violated condition.
+ */
+static int check_mutually_exclusive(struct extcon_dev *edev, u32 new_state)
+{
+	int i = 0;
+
+	if (!edev->mutually_exclusive)
+		return 0;
+
+	for (i = 0; edev->mutually_exclusive[i]; i++) {
+		int count = 0, j;
+		u32 correspondants = new_state & edev->mutually_exclusive[i];
+		u32 exp = 1;
+
+		for (j = 0; j < 32; j++) {
+			if (exp & correspondants)
+				count++;
+			if (count > 1)
+				return i + 1;
+			exp <<= 1;
+		}
+	}
+
+	return 0;
+}
+
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -100,7 +133,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-void extcon_set_state(struct extcon_dev *edev, u32 state);
+int extcon_set_state(struct extcon_dev *edev, u32 state);
 static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 			   const char *buf, size_t count)
 {
@@ -112,7 +145,7 @@ static ssize_t state_store(struct device *dev, struct device_attribute *attr,
 	if (ret == 0)
 		ret = -EINVAL;
 	else
-		extcon_set_state(edev, state);
+		ret = extcon_set_state(edev, state);
 
 	if (ret < 0)
 		return ret;
@@ -191,7 +224,7 @@ static ssize_t cable_state_store(struct device *dev,
  * Note that the notifier provides which bits are changed in the state
  * variable with the val parameter (second) to the callback.
  */
-void extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
+int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 {
 	char name_buf[120];
 	char state_buf[120];
@@ -205,6 +238,12 @@ void extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 
 	if (edev->state != ((edev->state & ~mask) | (state & mask))) {
 		u32 old_state = edev->state;
+
+		if (check_mutually_exclusive(edev, (edev->state & ~mask) |
+						   (state & mask))) {
+			spin_unlock_irqrestore(&edev->lock, flags);
+			return -EPERM;
+		}
 
 		edev->state &= ~mask;
 		edev->state |= state & mask;
@@ -247,6 +286,8 @@ void extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state)
 		/* No changes */
 		spin_unlock_irqrestore(&edev->lock, flags);
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(extcon_update_state);
 
@@ -258,9 +299,9 @@ EXPORT_SYMBOL_GPL(extcon_update_state);
  * Note that notifier provides which bits are changed in the state
  * variable with the val parameter (second) to the callback.
  */
-void extcon_set_state(struct extcon_dev *edev, u32 state)
+int extcon_set_state(struct extcon_dev *edev, u32 state)
 {
-	extcon_update_state(edev, 0xffffffff, state);
+	return extcon_update_state(edev, 0xffffffff, state);
 }
 EXPORT_SYMBOL_GPL(extcon_set_state);
 
@@ -334,8 +375,7 @@ int extcon_set_cable_state_(struct extcon_dev *edev,
 		return -EINVAL;
 
 	state = cable_state ? (1 << index) : 0;
-	extcon_update_state(edev, 1 << index, state);
-	return 0;
+	return extcon_update_state(edev, 1 << index, state);
 }
 EXPORT_SYMBOL_GPL(extcon_set_cable_state_);
 
@@ -511,6 +551,14 @@ static void extcon_cleanup(struct extcon_dev *edev, bool skip)
 	if (!skip && get_device(edev->dev)) {
 		int index;
 
+		if (edev->mutually_exclusive && edev->max_supported) {
+			for (index = 0; edev->mutually_exclusive[index];
+			     index++)
+				kfree(edev->d_attrs_muex[index].attr.name);
+			kfree(edev->d_attrs_muex);
+			kfree(edev->attrs_muex);
+		}
+
 		for (index = 0; index < edev->max_supported; index++)
 			kfree(edev->cables[index].attr_g.name);
 
@@ -533,6 +581,7 @@ static void extcon_dev_release(struct device *dev)
 	extcon_cleanup(edev, true);
 }
 
+static const char *muex_name = "mutually_exclusive";
 static void dummy_sysfs_dev_release(struct device *dev)
 {
 }
@@ -625,10 +674,58 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 		}
 	}
 
+	if (edev->max_supported && edev->mutually_exclusive) {
+		char buf[80];
+		char *name;
+
+		/* Count the size of mutually_exclusive array */
+		for (index = 0; edev->mutually_exclusive[index]; index++)
+			;
+
+		edev->attrs_muex = kzalloc(sizeof(struct attribute *) *
+					   (index + 1), GFP_KERNEL);
+		if (!edev->attrs_muex) {
+			ret = -ENOMEM;
+			goto err_muex;
+		}
+
+		edev->d_attrs_muex = kzalloc(sizeof(struct device_attribute) *
+					     index, GFP_KERNEL);
+		if (!edev->d_attrs_muex) {
+			ret = -ENOMEM;
+			kfree(edev->attrs_muex);
+			goto err_muex;
+		}
+
+		for (index = 0; edev->mutually_exclusive[index]; index++) {
+			sprintf(buf, "0x%x", edev->mutually_exclusive[index]);
+			name = kzalloc(sizeof(char) * (strlen(buf) + 1),
+				       GFP_KERNEL);
+			if (!name) {
+				for (index--; index >= 0; index--) {
+					kfree(edev->d_attrs_muex[index].attr.
+					      name);
+				}
+				kfree(edev->d_attrs_muex);
+				kfree(edev->attrs_muex);
+				ret = -ENOMEM;
+				goto err_muex;
+			}
+			strcpy(name, buf);
+			edev->d_attrs_muex[index].attr.name = name;
+			edev->d_attrs_muex[index].attr.mode = 0000;
+			edev->attrs_muex[index] = &edev->d_attrs_muex[index]
+							.attr;
+		}
+		edev->attr_g_muex.name = muex_name;
+		edev->attr_g_muex.attrs = edev->attrs_muex;
+
+	}
+
 	if (edev->max_supported) {
 		edev->extcon_dev_type.groups =
 			kzalloc(sizeof(struct attribute_group *) *
-				(edev->max_supported + 1), GFP_KERNEL);
+				(edev->max_supported + 2), GFP_KERNEL);
 		if (!edev->extcon_dev_type.groups) {
 			ret = -ENOMEM;
 			goto err_alloc_groups;
@@ -640,6 +737,9 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 		for (index = 0; index < edev->max_supported; index++)
 			edev->extcon_dev_type.groups[index] =
 				&edev->cables[index].attr_g;
+		if (edev->mutually_exclusive)
+			edev->extcon_dev_type.groups[index] =
+				&edev->attr_g_muex;
 
 		edev->dev->type = &edev->extcon_dev_type;
 	}
@@ -672,6 +772,13 @@ err_dev:
 	if (edev->max_supported)
 		kfree(edev->extcon_dev_type.groups);
 err_alloc_groups:
+	if (edev->max_supported && edev->mutually_exclusive) {
+		for (index = 0; edev->mutually_exclusive[index]; index++)
+			kfree(edev->d_attrs_muex[index].attr.name);
+		kfree(edev->d_attrs_muex);
+		kfree(edev->attrs_muex);
+	}
+err_muex:
 	for (index = 0; index < edev->max_supported; index++)
 		kfree(edev->cables[index].attr_g.name);
 err_alloc_cables:

@@ -78,6 +78,14 @@ struct extcon_cable;
  * @supported_cable	Array of supported cable name ending with NULL.
  *			If supported_cable is NULL, cable name related APIs
  *			are disabled.
+ * @mutually_exclusive	Array of mutually exclusive set of cables that cannot
+ *			be attached simultaneously. The array should be
+ *			ending with NULL or be NULL (no mutually exclusive
+ *			cables). For example, if it is { 0x7, 0x30, 0}, then,
+ *			{0, 1}, {0, 1, 2}, {0, 2}, {1, 2}, or {4, 5} cannot
+ *			be attached simulataneously. {0x7, 0} is equivalent to
+ *			{0x3, 0x6, 0x5, 0}. If it is {0xFFFFFFFF, 0}, there
+ *			can be no simultaneous connections.
  * @print_name	An optional callback to override the method to print the
  *		name of the extcon device.
  * @print_state	An optional callback to override the method to print the
@@ -103,6 +111,7 @@ struct extcon_dev {
 	/* --- Optional user initializing data --- */
 	const char	*name;
 	const char **supported_cable;
+	const u32	*mutually_exclusive;
 
 	/* --- Optional callbacks to override class functions --- */
 	ssize_t	(*print_name)(struct extcon_dev *edev, char *buf);
@@ -119,6 +128,10 @@ struct extcon_dev {
 	/* /sys/class/extcon/.../cable.n/... */
 	struct device_type extcon_dev_type;
 	struct extcon_cable *cables;
+	/* /sys/class/extcon/.../mutually_exclusive/... */
+	struct attribute_group attr_g_muex;
+	struct attribute **attrs_muex;
+	struct device_attribute *d_attrs_muex;
 };
 
 /**
@@ -179,8 +192,8 @@ static inline u32 extcon_get_state(struct extcon_dev *edev)
 	return edev->state;
 }
 
-extern void extcon_set_state(struct extcon_dev *edev, u32 state);
-extern void extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state);
+extern int extcon_set_state(struct extcon_dev *edev, u32 state);
+extern int extcon_update_state(struct extcon_dev *edev, u32 mask, u32 state);
 
 /*
  * get/set_cable_state access each bit of the 32b encoded state value.
@@ -235,11 +248,16 @@ static inline u32 extcon_get_state(struct extcon_dev *edev)
 	return 0;
 }
 
-static inline void extcon_set_state(struct extcon_dev *edev, u32 state) { }
+static inline int extcon_set_state(struct extcon_dev *edev, u32 state)
+{
+	return 0;
+}
 
-static inline void extcon_update_state(struct extcon_dev *edev, u32 mask,
+static inline int extcon_update_state(struct extcon_dev *edev, u32 mask,
 				       u32 state)
-{ }
+{
+	return 0;
+}
 
 static inline int extcon_find_cable_index(struct extcon_dev *edev,
 					  const char *cable_name)
