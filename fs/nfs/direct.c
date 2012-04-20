@@ -82,7 +82,7 @@ struct nfs_direct_req {
 
 	/* commit state */
 	struct list_head	rewrite_list;	/* saved nfs_write_data structs */
-	struct nfs_write_data *	commit_data;	/* special write_data for commits */
+	struct nfs_commit_data *commit_data;	/* special write_data for commits */
 	int			flags;
 #define NFS_ODIRECT_DO_COMMIT		(1)	/* an unstable reply was received */
 #define NFS_ODIRECT_RESCHED_WRITES	(2)	/* write verification failed */
@@ -524,7 +524,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 
 static void nfs_direct_commit_result(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data *data = calldata;
+	struct nfs_commit_data *data = calldata;
 
 	/* Call the NFS version-specific code */
 	NFS_PROTO(data->inode)->commit_done(task, data);
@@ -532,8 +532,8 @@ static void nfs_direct_commit_result(struct rpc_task *task, void *calldata)
 
 static void nfs_direct_commit_release(void *calldata)
 {
-	struct nfs_write_data *data = calldata;
-	struct nfs_direct_req *dreq = (struct nfs_direct_req *) data->req;
+	struct nfs_commit_data *data = calldata;
+	struct nfs_direct_req *dreq = data->dreq;
 	int status = data->task.tk_status;
 
 	if (status < 0) {
@@ -551,14 +551,14 @@ static void nfs_direct_commit_release(void *calldata)
 }
 
 static const struct rpc_call_ops nfs_commit_direct_ops = {
-	.rpc_call_prepare = nfs_write_prepare,
+	.rpc_call_prepare = nfs_commit_prepare,
 	.rpc_call_done = nfs_direct_commit_result,
 	.rpc_release = nfs_direct_commit_release,
 };
 
 static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 {
-	struct nfs_write_data *data = dreq->commit_data;
+	struct nfs_commit_data *data = dreq->commit_data;
 	struct rpc_task *task;
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
@@ -581,9 +581,6 @@ static void nfs_direct_commit_schedule(struct nfs_direct_req *dreq)
 	data->args.fh = NFS_FH(data->inode);
 	data->args.offset = 0;
 	data->args.count = 0;
-	data->args.context = dreq->ctx;
-	data->args.lock_context = dreq->l_ctx;
-	data->res.count = 0;
 	data->res.fattr = &data->fattr;
 	data->res.verf = &data->verf;
 	nfs_fattr_init(&data->fattr);
@@ -625,7 +622,7 @@ static void nfs_alloc_commit_data(struct nfs_direct_req *dreq)
 {
 	dreq->commit_data = nfs_commitdata_alloc();
 	if (dreq->commit_data != NULL)
-		dreq->commit_data->req = (struct nfs_page *) dreq;
+		dreq->commit_data->dreq = dreq;
 }
 #else
 static inline void nfs_alloc_commit_data(struct nfs_direct_req *dreq)

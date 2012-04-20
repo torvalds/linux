@@ -48,11 +48,12 @@ static const struct rpc_call_ops nfs_commit_ops;
 
 static struct kmem_cache *nfs_wdata_cachep;
 static mempool_t *nfs_wdata_mempool;
+static struct kmem_cache *nfs_cdata_cachep;
 static mempool_t *nfs_commit_mempool;
 
-struct nfs_write_data *nfs_commitdata_alloc(void)
+struct nfs_commit_data *nfs_commitdata_alloc(void)
 {
-	struct nfs_write_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
+	struct nfs_commit_data *p = mempool_alloc(nfs_commit_mempool, GFP_NOFS);
 
 	if (p) {
 		memset(p, 0, sizeof(*p));
@@ -62,10 +63,8 @@ struct nfs_write_data *nfs_commitdata_alloc(void)
 }
 EXPORT_SYMBOL_GPL(nfs_commitdata_alloc);
 
-void nfs_commit_free(struct nfs_write_data *p)
+void nfs_commit_free(struct nfs_commit_data *p)
 {
-	if (p && (p->pagevec != &p->page_array[0]))
-		kfree(p->pagevec);
 	mempool_free(p, nfs_commit_mempool);
 }
 EXPORT_SYMBOL_GPL(nfs_commit_free);
@@ -1179,6 +1178,13 @@ void nfs_write_prepare(struct rpc_task *task, void *calldata)
 	NFS_PROTO(data->inode)->write_rpc_prepare(task, data);
 }
 
+void nfs_commit_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs_commit_data *data = calldata;
+
+	NFS_PROTO(data->inode)->commit_rpc_prepare(task, data);
+}
+
 static const struct rpc_call_ops nfs_write_partial_ops = {
 	.rpc_call_prepare = nfs_write_prepare,
 	.rpc_call_done = nfs_writeback_done_partial,
@@ -1355,16 +1361,14 @@ void nfs_commit_clear_lock(struct nfs_inode *nfsi)
 }
 EXPORT_SYMBOL_GPL(nfs_commit_clear_lock);
 
-void nfs_commitdata_release(void *data)
+void nfs_commitdata_release(struct nfs_commit_data *data)
 {
-	struct nfs_write_data *wdata = data;
-
-	put_nfs_open_context(wdata->args.context);
-	nfs_commit_free(wdata);
+	put_nfs_open_context(data->context);
+	nfs_commit_free(data);
 }
 EXPORT_SYMBOL_GPL(nfs_commitdata_release);
 
-int nfs_initiate_commit(struct nfs_write_data *data, struct rpc_clnt *clnt,
+int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 			const struct rpc_call_ops *call_ops,
 			int how)
 {
@@ -1403,7 +1407,7 @@ EXPORT_SYMBOL_GPL(nfs_initiate_commit);
 /*
  * Set up the argument/result storage required for the RPC call.
  */
-void nfs_init_commit(struct nfs_write_data *data,
+void nfs_init_commit(struct nfs_commit_data *data,
 			    struct list_head *head,
 			    struct pnfs_layout_segment *lseg)
 {
@@ -1424,8 +1428,7 @@ void nfs_init_commit(struct nfs_write_data *data,
 	/* Note: we always request a commit of the entire inode */
 	data->args.offset = 0;
 	data->args.count  = 0;
-	data->args.context = get_nfs_open_context(first->wb_context);
-	data->res.count   = 0;
+	data->context     = get_nfs_open_context(first->wb_context);
 	data->res.fattr   = &data->fattr;
 	data->res.verf    = &data->verf;
 	nfs_fattr_init(&data->fattr);
@@ -1455,7 +1458,7 @@ EXPORT_SYMBOL_GPL(nfs_retry_commit);
 static int
 nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 {
-	struct nfs_write_data	*data;
+	struct nfs_commit_data	*data;
 
 	data = nfs_commitdata_alloc();
 
@@ -1464,7 +1467,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 
 	/* Set up the argument struct */
 	nfs_init_commit(data, head, NULL);
-	return nfs_initiate_commit(data, NFS_CLIENT(inode), data->mds_ops, how);
+	return nfs_initiate_commit(NFS_CLIENT(inode), data, data->mds_ops, how);
  out_bad:
 	nfs_retry_commit(head, NULL);
 	nfs_commit_clear_lock(NFS_I(inode));
@@ -1476,7 +1479,7 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how)
  */
 static void nfs_commit_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs_write_data	*data = calldata;
+	struct nfs_commit_data	*data = calldata;
 
         dprintk("NFS: %5u nfs_commit_done (status %d)\n",
                                 task->tk_pid, task->tk_status);
@@ -1485,7 +1488,7 @@ static void nfs_commit_done(struct rpc_task *task, void *calldata)
 	NFS_PROTO(data->inode)->commit_done(task, data);
 }
 
-void nfs_commit_release_pages(struct nfs_write_data *data)
+void nfs_commit_release_pages(struct nfs_commit_data *data)
 {
 	struct nfs_page	*req;
 	int status = data->task.tk_status;
@@ -1526,7 +1529,7 @@ EXPORT_SYMBOL_GPL(nfs_commit_release_pages);
 
 static void nfs_commit_release(void *calldata)
 {
-	struct nfs_write_data *data = calldata;
+	struct nfs_commit_data *data = calldata;
 
 	nfs_commit_release_pages(data);
 	nfs_commit_clear_lock(NFS_I(data->inode));
@@ -1534,7 +1537,7 @@ static void nfs_commit_release(void *calldata)
 }
 
 static const struct rpc_call_ops nfs_commit_ops = {
-	.rpc_call_prepare = nfs_write_prepare,
+	.rpc_call_prepare = nfs_commit_prepare,
 	.rpc_call_done = nfs_commit_done,
 	.rpc_release = nfs_commit_release,
 };
@@ -1751,6 +1754,13 @@ int __init nfs_init_writepagecache(void)
 	nfs_wdata_mempool = mempool_create_slab_pool(MIN_POOL_WRITE,
 						     nfs_wdata_cachep);
 	if (nfs_wdata_mempool == NULL)
+		return -ENOMEM;
+
+	nfs_cdata_cachep = kmem_cache_create("nfs_commit_data",
+					     sizeof(struct nfs_commit_data),
+					     0, SLAB_HWCACHE_ALIGN,
+					     NULL);
+	if (nfs_cdata_cachep == NULL)
 		return -ENOMEM;
 
 	nfs_commit_mempool = mempool_create_slab_pool(MIN_POOL_COMMIT,

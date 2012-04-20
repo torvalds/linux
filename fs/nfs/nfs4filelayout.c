@@ -250,7 +250,7 @@ static int filelayout_write_done_cb(struct rpc_task *task,
 }
 
 /* Fake up some data that will cause nfs_commit_release to retry the writes. */
-static void prepare_to_resend_writes(struct nfs_write_data *data)
+static void prepare_to_resend_writes(struct nfs_commit_data *data)
 {
 	struct nfs_page *first = nfs_list_entry(data->pages.next);
 
@@ -261,11 +261,11 @@ static void prepare_to_resend_writes(struct nfs_write_data *data)
 }
 
 static int filelayout_commit_done_cb(struct rpc_task *task,
-				     struct nfs_write_data *data)
+				     struct nfs_commit_data *data)
 {
 	int reset = 0;
 
-	if (filelayout_async_handle_error(task, data->args.context->state,
+	if (filelayout_async_handle_error(task, data->context->state,
 					  data->ds_clp, &reset) == -EAGAIN) {
 		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
 			__func__, data->ds_clp, data->ds_clp->cl_session);
@@ -315,15 +315,42 @@ static void filelayout_write_release(void *data)
 	wdata->mds_ops->rpc_release(data);
 }
 
-static void filelayout_commit_release(void *data)
+static void filelayout_commit_prepare(struct rpc_task *task, void *data)
 {
-	struct nfs_write_data *wdata = (struct nfs_write_data *)data;
+	struct nfs_commit_data *wdata = data;
 
-	nfs_commit_release_pages(wdata);
-	if (atomic_dec_and_test(&NFS_I(wdata->inode)->commits_outstanding))
-		nfs_commit_clear_lock(NFS_I(wdata->inode));
-	put_lseg(wdata->lseg);
-	nfs_commitdata_release(wdata);
+	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
+				&wdata->args.seq_args, &wdata->res.seq_res,
+				task))
+		return;
+
+	rpc_call_start(task);
+}
+
+static void filelayout_write_commit_done(struct rpc_task *task, void *data)
+{
+	struct nfs_commit_data *wdata = data;
+
+	/* Note this may cause RPC to be resent */
+	wdata->mds_ops->rpc_call_done(task, data);
+}
+
+static void filelayout_commit_count_stats(struct rpc_task *task, void *data)
+{
+	struct nfs_commit_data *cdata = data;
+
+	rpc_count_iostats(task, NFS_SERVER(cdata->inode)->client->cl_metrics);
+}
+
+static void filelayout_commit_release(void *calldata)
+{
+	struct nfs_commit_data *data = calldata;
+
+	nfs_commit_release_pages(data);
+	if (atomic_dec_and_test(&NFS_I(data->inode)->commits_outstanding))
+		nfs_commit_clear_lock(NFS_I(data->inode));
+	put_lseg(data->lseg);
+	nfs_commitdata_release(data);
 }
 
 static const struct rpc_call_ops filelayout_read_call_ops = {
@@ -341,9 +368,9 @@ static const struct rpc_call_ops filelayout_write_call_ops = {
 };
 
 static const struct rpc_call_ops filelayout_commit_call_ops = {
-	.rpc_call_prepare = filelayout_write_prepare,
-	.rpc_call_done = filelayout_write_call_done,
-	.rpc_count_stats = filelayout_write_count_stats,
+	.rpc_call_prepare = filelayout_commit_prepare,
+	.rpc_call_done = filelayout_write_commit_done,
+	.rpc_count_stats = filelayout_commit_count_stats,
 	.rpc_release = filelayout_commit_release,
 };
 
@@ -922,7 +949,7 @@ select_ds_fh_from_commit(struct pnfs_layout_segment *lseg, u32 i)
 	return flseg->fh_array[i];
 }
 
-static int filelayout_initiate_commit(struct nfs_write_data *data, int how)
+static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 {
 	struct pnfs_layout_segment *lseg = data->lseg;
 	struct nfs4_pnfs_ds *ds;
@@ -941,12 +968,12 @@ static int filelayout_initiate_commit(struct nfs_write_data *data, int how)
 		return -EAGAIN;
 	}
 	dprintk("%s ino %lu, how %d\n", __func__, data->inode->i_ino, how);
-	data->write_done_cb = filelayout_commit_done_cb;
+	data->commit_done_cb = filelayout_commit_done_cb;
 	data->ds_clp = ds->ds_clp;
 	fh = select_ds_fh_from_commit(lseg, data->ds_commit_index);
 	if (fh)
 		data->args.fh = fh;
-	return nfs_initiate_commit(data, ds->ds_clp->cl_rpcclient,
+	return nfs_initiate_commit(ds->ds_clp->cl_rpcclient, data,
 				   &filelayout_commit_call_ops, how);
 }
 
@@ -1008,7 +1035,7 @@ alloc_ds_commits(struct inode *inode, struct list_head *list)
 {
 	struct nfs4_fl_commit_info *fl_cinfo;
 	struct nfs4_fl_commit_bucket *bucket;
-	struct nfs_write_data *data;
+	struct nfs_commit_data *data;
 	int i, j;
 	unsigned int nreq = 0;
 
@@ -1044,7 +1071,7 @@ static int
 filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			   int how)
 {
-	struct nfs_write_data	*data, *tmp;
+	struct nfs_commit_data *data, *tmp;
 	LIST_HEAD(list);
 	unsigned int nreq = 0;
 
@@ -1071,7 +1098,7 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		list_del_init(&data->pages);
 		if (!data->lseg) {
 			nfs_init_commit(data, mds_pages, NULL);
-			nfs_initiate_commit(data, NFS_CLIENT(inode),
+			nfs_initiate_commit(NFS_CLIENT(inode), data,
 					    data->mds_ops, how);
 		} else {
 			struct nfs4_fl_commit_info *fl_cinfo;

@@ -314,24 +314,25 @@ extern void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
 				  struct inode *inode, int ioflags);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_writedata_release(struct nfs_write_data *wdata);
-extern void nfs_commit_free(struct nfs_write_data *p);
+extern void nfs_commit_free(struct nfs_commit_data *p);
 extern int nfs_initiate_write(struct nfs_write_data *data,
 			      struct rpc_clnt *clnt,
 			      const struct rpc_call_ops *call_ops,
 			      int how);
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
-extern int nfs_initiate_commit(struct nfs_write_data *data,
-			       struct rpc_clnt *clnt,
+extern void nfs_commit_prepare(struct rpc_task *task, void *calldata);
+extern int nfs_initiate_commit(struct rpc_clnt *clnt,
+			       struct nfs_commit_data *data,
 			       const struct rpc_call_ops *call_ops,
 			       int how);
-extern void nfs_init_commit(struct nfs_write_data *data,
+extern void nfs_init_commit(struct nfs_commit_data *data,
 			    struct list_head *head,
 			    struct pnfs_layout_segment *lseg);
 void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg);
 void nfs_commit_clear_lock(struct nfs_inode *nfsi);
-void nfs_commitdata_release(void *data);
-void nfs_commit_release_pages(struct nfs_write_data *data);
+void nfs_commitdata_release(struct nfs_commit_data *data);
+void nfs_commit_release_pages(struct nfs_commit_data *data);
 void nfs_request_add_commit_list(struct nfs_page *req, struct list_head *head);
 void nfs_request_remove_commit_list(struct nfs_page *req);
 

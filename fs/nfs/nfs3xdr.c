@@ -1287,7 +1287,7 @@ static void nfs3_xdr_enc_readdirplus3args(struct rpc_rqst *req,
  *	};
  */
 static void encode_commit3args(struct xdr_stream *xdr,
-			       const struct nfs_writeargs *args)
+			       const struct nfs_commitargs *args)
 {
 	__be32 *p;
 
@@ -1300,7 +1300,7 @@ static void encode_commit3args(struct xdr_stream *xdr,
 
 static void nfs3_xdr_enc_commit3args(struct rpc_rqst *req,
 				     struct xdr_stream *xdr,
-				     const struct nfs_writeargs *args)
+				     const struct nfs_commitargs *args)
 {
 	encode_commit3args(xdr, args);
 }
@@ -2319,7 +2319,7 @@ out_status:
  */
 static int nfs3_xdr_dec_commit3res(struct rpc_rqst *req,
 				   struct xdr_stream *xdr,
-				   struct nfs_writeres *result)
+				   struct nfs_commitres *result)
 {
 	enum nfs_stat status;
 	int error;

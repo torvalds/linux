@@ -848,7 +848,12 @@ static void nfs3_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_
 	rpc_call_start(task);
 }
 
-static int nfs3_commit_done(struct rpc_task *task, struct nfs_write_data *data)
+static void nfs3_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
+{
+	rpc_call_start(task);
+}
+
+static int nfs3_commit_done(struct rpc_task *task, struct nfs_commit_data *data)
 {
 	if (nfs3_async_handle_jukebox(task, data->inode))
 		return -EAGAIN;
@@ -856,7 +861,7 @@ static int nfs3_commit_done(struct rpc_task *task, struct nfs_write_data *data)
 	return 0;
 }
 
-static void nfs3_proc_commit_setup(struct nfs_write_data *data, struct rpc_message *msg)
+static void nfs3_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
 {
 	msg->rpc_proc = &nfs3_procedures[NFS3PROC_COMMIT];
 }
@@ -907,6 +912,7 @@ const struct nfs_rpc_ops nfs_v3_clientops = {
 	.write_rpc_prepare = nfs3_proc_write_rpc_prepare,
 	.write_done	= nfs3_write_done,
 	.commit_setup	= nfs3_proc_commit_setup,
+	.commit_rpc_prepare = nfs3_proc_commit_rpc_prepare,
 	.commit_done	= nfs3_commit_done,
 	.lock		= nfs3_proc_lock,
 	.clear_acl_cache = nfs3_forget_cached_acls,

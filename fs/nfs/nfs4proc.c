@@ -3468,7 +3468,17 @@ static void nfs4_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_
 	rpc_call_start(task);
 }
 
-static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_write_data *data)
+static void nfs4_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
+{
+	if (nfs4_setup_sequence(NFS_SERVER(data->inode),
+				&data->args.seq_args,
+				&data->res.seq_res,
+				task))
+		return;
+	rpc_call_start(task);
+}
+
+static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_commit_data *data)
 {
 	struct inode *inode = data->inode;
 
@@ -3480,14 +3490,14 @@ static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_write_data *dat
 	return 0;
 }
 
-static int nfs4_commit_done(struct rpc_task *task, struct nfs_write_data *data)
+static int nfs4_commit_done(struct rpc_task *task, struct nfs_commit_data *data)
 {
 	if (!nfs4_sequence_done(task, &data->res.seq_res))
 		return -EAGAIN;
-	return data->write_done_cb(task, data);
+	return data->commit_done_cb(task, data);
 }
 
-static void nfs4_proc_commit_setup(struct nfs_write_data *data, struct rpc_message *msg)
+static void nfs4_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
 {
 	struct nfs_server *server = NFS_SERVER(data->inode);
 
@@ -3496,8 +3506,8 @@ static void nfs4_proc_commit_setup(struct nfs_write_data *data, struct rpc_messa
 		data->res.fattr = NULL;
 	} else
 		data->args.bitmask = server->cache_consistency_bitmask;
-	if (!data->write_done_cb)
-		data->write_done_cb = nfs4_commit_done_cb;
+	if (data->commit_done_cb == NULL)
+		data->commit_done_cb = nfs4_commit_done_cb;
 	data->res.server = server;
 	msg->rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_COMMIT];
 	nfs41_init_sequence(&data->args.seq_args, &data->res.seq_res, 1);
@@ -6591,6 +6601,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.write_rpc_prepare = nfs4_proc_write_rpc_prepare,
 	.write_done	= nfs4_write_done,
 	.commit_setup	= nfs4_proc_commit_setup,
+	.commit_rpc_prepare = nfs4_proc_commit_rpc_prepare,
 	.commit_done	= nfs4_commit_done,
 	.lock		= nfs4_proc_lock,
 	.clear_acl_cache = nfs4_zap_acl_attr,

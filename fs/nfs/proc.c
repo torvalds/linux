@@ -688,8 +688,13 @@ static void nfs_proc_write_rpc_prepare(struct rpc_task *task, struct nfs_write_d
 	rpc_call_start(task);
 }
 
+static void nfs_proc_commit_rpc_prepare(struct rpc_task *task, struct nfs_commit_data *data)
+{
+	BUG();
+}
+
 static void
-nfs_proc_commit_setup(struct nfs_write_data *data, struct rpc_message *msg)
+nfs_proc_commit_setup(struct nfs_commit_data *data, struct rpc_message *msg)
 {
 	BUG();
 }
@@ -764,6 +769,7 @@ const struct nfs_rpc_ops nfs_v2_clientops = {
 	.write_rpc_prepare = nfs_proc_write_rpc_prepare,
 	.write_done	= nfs_write_done,
 	.commit_setup	= nfs_proc_commit_setup,
+	.commit_rpc_prepare = nfs_proc_commit_rpc_prepare,
 	.lock		= nfs_proc_lock,
 	.lock_check_bounds = nfs_lock_check_bounds,
 	.close_context	= nfs_close_context,

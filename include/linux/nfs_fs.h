@@ -552,8 +552,8 @@ extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
 #if defined(CONFIG_NFS_V3) || defined(CONFIG_NFS_V4)
 extern int  nfs_commit_inode(struct inode *, int);
-extern struct nfs_write_data *nfs_commitdata_alloc(void);
-extern void nfs_commit_free(struct nfs_write_data *wdata);
+extern struct nfs_commit_data *nfs_commitdata_alloc(void);
+extern void nfs_commit_free(struct nfs_commit_data *data);
 #else
 static inline int
 nfs_commit_inode(struct inode *inode, int how)

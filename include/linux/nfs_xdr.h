@@ -519,6 +519,24 @@ struct nfs_writeres {
 };
 
 /*
+ * Arguments to the commit call.
+ */
+struct nfs_commitargs {
+	struct nfs_fh		*fh;
+	__u64			offset;
+	__u32			count;
+	const u32		*bitmask;
+	struct nfs4_sequence_args	seq_args;
+};
+
+struct nfs_commitres {
+	struct nfs_fattr	*fattr;
+	struct nfs_writeverf	*verf;
+	const struct nfs_server *server;
+	struct nfs4_sequence_res	seq_res;
+};
+
+/*
  * Common arguments to the unlink call
  */
 struct nfs_removeargs {
@@ -1171,6 +1189,8 @@ struct nfs_read_data {
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
 };
 
+struct nfs_direct_req;
+
 struct nfs_write_data {
 	struct rpc_task		task;
 	struct inode		*inode;
@@ -1186,7 +1206,6 @@ struct nfs_write_data {
 	struct nfs_writeres	res;		/* result struct */
 	struct pnfs_layout_segment *lseg;
 	struct nfs_client	*ds_clp;	/* pNFS data server */
-	int			ds_commit_index;
 	const struct rpc_call_ops *mds_ops;
 	int (*write_done_cb) (struct rpc_task *task, struct nfs_write_data *data);
 #ifdef CONFIG_NFS_V4
@@ -1195,6 +1214,25 @@ struct nfs_write_data {
 	__u64			mds_offset;	/* Filelayout dense stripe */
 	int			pnfs_error;
 	struct page		*page_array[NFS_PAGEVEC_SIZE];
+};
+
+struct nfs_commit_data {
+	struct rpc_task		task;
+	struct inode		*inode;
+	struct rpc_cred		*cred;
+	struct nfs_fattr	fattr;
+	struct nfs_writeverf	verf;
+	struct list_head	pages;		/* Coalesced requests we wish to flush */
+	struct list_head	list;		/* lists of struct nfs_write_data */
+	struct nfs_direct_req	*dreq;		/* O_DIRECT request */
+	struct nfs_commitargs	args;		/* argument struct */
+	struct nfs_commitres	res;		/* result struct */
+	struct nfs_open_context *context;
+	struct pnfs_layout_segment *lseg;
+	struct nfs_client	*ds_clp;	/* pNFS data server */
+	int			ds_commit_index;
+	const struct rpc_call_ops *mds_ops;
+	int (*commit_done_cb) (struct rpc_task *task, struct nfs_commit_data *data);
 };
 
 struct nfs_unlinkdata {
@@ -1277,8 +1315,9 @@ struct nfs_rpc_ops {
 	void	(*write_setup)  (struct nfs_write_data *, struct rpc_message *);
 	void	(*write_rpc_prepare)(struct rpc_task *, struct nfs_write_data *);
 	int	(*write_done)  (struct rpc_task *, struct nfs_write_data *);
-	void	(*commit_setup) (struct nfs_write_data *, struct rpc_message *);
-	int	(*commit_done) (struct rpc_task *, struct nfs_write_data *);
+	void	(*commit_setup) (struct nfs_commit_data *, struct rpc_message *);
+	void	(*commit_rpc_prepare)(struct rpc_task *, struct nfs_commit_data *);
+	int	(*commit_done) (struct rpc_task *, struct nfs_commit_data *);
 	int	(*lock)(struct file *, int, struct file_lock *);
 	int	(*lock_check_bounds)(const struct file_lock *);
 	void	(*clear_acl_cache)(struct inode *);
