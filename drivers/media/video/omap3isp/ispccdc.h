@@ -147,6 +147,7 @@ struct ispccdc_lsc {
  * @subdev: V4L2 subdevice
  * @pads: Sink and source media entity pads
  * @formats: Active video formats
+ * @crop: Active crop rectangle on the OF source pad
  * @input: Active input
  * @output: Active outputs
  * @video_out: Output video node
@@ -173,6 +174,7 @@ struct isp_ccdc_device {
 	struct v4l2_subdev subdev;
 	struct media_pad pads[CCDC_PADS_NUM];
 	struct v4l2_mbus_framefmt formats[CCDC_PADS_NUM];
+	struct v4l2_rect crop;
 
 	enum ccdc_input_entity input;
 	unsigned int output;
