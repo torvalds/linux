@@ -27,7 +27,7 @@ static void __init rk30_cpu_axi_init(void)
 	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7008);
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7088);
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7108);
-	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7188);
+	writel_relaxed(0xa, RK30_CPU_AXI_BUS_BASE + 0x7188);
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7208);
 	writel_relaxed(0x0, RK30_CPU_AXI_BUS_BASE + 0x7288);
 	writel_relaxed(0x3f, RK30_CPU_AXI_BUS_BASE + 0x0014);
