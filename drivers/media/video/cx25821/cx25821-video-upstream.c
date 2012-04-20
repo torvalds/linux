@@ -637,7 +637,7 @@ int cx25821_video_upstream_irq(struct cx25821_dev *dev, int chan_num,
 static irqreturn_t cx25821_upstream_irq(int irq, void *dev_id)
 {
 	struct cx25821_dev *dev = dev_id;
-	u32 msk_stat, vid_status;
+	u32 vid_status;
 	int handled = 0;
 	int channel_num = 0;
 	struct sram_channel *sram_ch;
@@ -649,7 +649,6 @@ static irqreturn_t cx25821_upstream_irq(int irq, void *dev_id)
 
 	sram_ch = dev->channels[channel_num].sram_channels;
 
-	msk_stat = cx_read(sram_ch->int_mstat);
 	vid_status = cx_read(sram_ch->int_stat);
 
 	/* Only deal with our interrupt */
