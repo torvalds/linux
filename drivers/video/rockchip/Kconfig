@@ -27,5 +27,11 @@ config LCDC1_RK30
         help
            Support rk30 lcdc1 if you say y here
 
+config DUAL_DISP_IN_KERNEL
+	bool "implement dual display in kernel"
+	depends on FB_ROCKCHIP
+	default n
+	help
+	  select y will implement dual screen display in kernel
 source "drivers/video/rockchip/hdmi/Kconfig"
 source "drivers/video/rockchip/rga/Kconfig"

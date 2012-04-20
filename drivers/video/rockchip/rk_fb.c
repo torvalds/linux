@@ -29,6 +29,7 @@
 #include <asm/div64.h>
 #include <asm/uaccess.h>
 #include<linux/rk_fb.h>
+#include <plat/ipp.h>
 #include "hdmi/rk_hdmi.h"
 
 
@@ -40,7 +41,7 @@
 
 #if 1
 #define CHK_SUSPEND(drv)	\
-	if(atomic_dec_and_test(&drv->in_suspend))	{	\
+	if(atomic_read(&drv->in_suspend))	{	\
 		printk(">>>>>> fb is in suspend! return! \n");	\
 		return -EPERM;	\
 	}
@@ -141,6 +142,34 @@ static int rk_fb_close(struct fb_info *info,int user)
 	
     	return 0;
 }
+static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,int offset)
+{
+	struct rk29_ipp_req ipp_req;
+    	u32 dstoffset = 0;
+	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
+	ipp_req.src0.YrgbMst = src_info->fix.smem_start + offset;
+	ipp_req.src0.w = src_info->var.xres;
+	ipp_req.src0.h = src_info->var.yres;
+
+	ipp_req.dst0.YrgbMst = dst_info->fix.smem_start + offset;
+	ipp_req.dst0.w = src_info->var.xres;
+	ipp_req.dst0.h = src_info->var.yres;
+
+	ipp_req.src_vir_w = src_info->var.xres_virtual;
+	ipp_req.dst_vir_w = src_info->var.xres_virtual;
+	ipp_req.timeout = 100;
+	ipp_req.flag = IPP_ROT_0;
+	ipp_blit_sync(&ipp_req);
+	
+}
+static void hdmi_post_work(struct work_struct *work)
+{
+	
+	struct rk_fb_inf *inf = container_of(to_delayed_work(work), struct rk_fb_inf, delay_work);
+	struct rk_lcdc_device_driver * dev_drv = inf->lcdc_dev_drv[1];
+	dev_drv->pan_display(dev_drv,1);
+	
+}
 
 static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
@@ -156,18 +185,8 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	u32 yoffset = var->yoffset;				
 	u32 xvir = var->xres_virtual;
 	u8 data_format = var->nonstd&0xff;
-	layer_id = get_fb_layer_id(fix);
-	#if defined(CONFIG_HDMI_RK30)
-		if(hdmi_get_hotplug())
-		{
-			if(inf->num_fb >= 2)
-			{
-				info2 = inf->fb[2];
-				dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
-			}
-		}
-	#endif
 	CHK_SUSPEND(dev_drv);
+	layer_id = get_fb_layer_id(fix);
 	if(layer_id < 0)
 	{
 		return  -ENODEV;
@@ -175,10 +194,6 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	else
 	{
 		 par = dev_drv->layer_par[layer_id];
-		 if(dev_drv1)
-		 {
-		 	par2 = dev_drv1->layer_par[layer_id];
-		 }
 	}
 	switch (par->format)
     	{
@@ -209,11 +224,23 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
     	}
 
 	#if defined(CONFIG_HDMI_RK30)
-		if(hdmi_get_hotplug())
-		{
-			par2->y_offset = par->y_offset;
-			dev_drv1->pan_display(dev_drv1,layer_id);
-		}
+		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+			if(hdmi_get_hotplug())
+			{
+				if(inf->num_fb >= 2)
+				{
+					info2 = inf->fb[2];
+					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
+					par2 = dev_drv1->layer_par[layer_id];
+					par2->y_offset = par->y_offset;
+					//memcpy(info2->screen_base+par2->y_offset,info->screen_base+par->y_offset,
+					//	var->xres*var->yres*var->bits_per_pixel>>3);
+					fb_copy_by_ipp(info2,info,par->y_offset);
+					dev_drv1->pan_display(dev_drv1,layer_id);
+					//queue_delayed_work(inf->workqueue, &inf->delay_work,0);
+				}
+			}
+		#endif
 	#endif
 	dev_drv->pan_display(dev_drv,layer_id);
 	return 0;
@@ -284,8 +311,7 @@ static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	CHK_SUSPEND(dev_drv);
- 
-	 if( 0==var->xres_virtual || 0==var->yres_virtual ||
+	if( 0==var->xres_virtual || 0==var->yres_virtual ||
 		 0==var->xres || 0==var->yres || var->xres<16 ||
 		 ((16!=var->bits_per_pixel)&&(32!=var->bits_per_pixel)) )
 	 {
@@ -384,14 +410,16 @@ static int rk_fb_set_par(struct fb_info *info)
 	var->pixclock = dev_drv->pixclock;
 	CHK_SUSPEND(dev_drv);
 	#if defined(CONFIG_HDMI_RK30)
-		if(hdmi_get_hotplug())
-		{
-			if(inf->num_fb >= 2)
+		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+			if(hdmi_get_hotplug())
 			{
-				info2 = inf->fb[2];
-				dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
+				if(inf->num_fb >= 2)
+				{
+					info2 = inf->fb[2];
+					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
+				}
 			}
-		}
+		#endif 
 	#endif
 	layer_id = get_fb_layer_id(fix);
 	if(layer_id < 0)
@@ -492,13 +520,15 @@ static int rk_fb_set_par(struct fb_info *info)
 	par->yvir =  var->yres_virtual;
 
 	#if defined(CONFIG_HDMI_RK30)
-		if(hdmi_get_hotplug())
-		{
-			par2->xact = par->xact;
-			par2->yact = par->yact;
-			par2->format = par->format;
-			dev_drv1->set_par(dev_drv1,layer_id);
-		}
+		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+			if(hdmi_get_hotplug())
+			{
+				par2->xact = par->xact;
+				par2->yact = par->yact;
+				par2->format = par->format;
+				dev_drv1->set_par(dev_drv1,layer_id);
+			}
+		#endif
 	#endif
 	dev_drv->set_par(dev_drv,layer_id);
 
@@ -604,6 +634,7 @@ void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 {
 	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
 	struct fb_info *info = NULL;
+	struct fb_info *pmy_info = NULL;
 	struct rk_lcdc_device_driver * dev_drv = NULL;
 	struct fb_var_screeninfo *pmy_var = NULL;      //var for primary screen
 	struct fb_var_screeninfo *hdmi_var    = NULL;
@@ -625,12 +656,15 @@ void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	hdmi_var->xres = pmy_var->xres;
 	hdmi_var->yres = pmy_var->yres;
 	hdmi_var->nonstd = pmy_var->nonstd;
-	hdmi_fix->smem_start = pmy_fix->smem_start;
+	//hdmi_fix->smem_start = pmy_fix->smem_start;
 	dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_open(info,1);
 	ret = info->fbops->fb_set_par(info);
-	
+	#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+		pmy_info = inf->fb[0];
+		pmy_info->fbops->fb_pan_display(pmy_var,pmy_info);
+	#endif 
 
 }
 static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
@@ -969,6 +1003,13 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
 	fb_inf->mach_info = mach_info;
 	if(mach_info->io_init)
 		mach_info->io_init(NULL);
+#if defined(CONFIG_HDMI_RK30)
+		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)		
+			fb_inf->workqueue = create_singlethread_workqueue("hdmi_post");
+			INIT_DELAYED_WORK(&(fb_inf->delay_work), hdmi_post_work);
+		#endif
+#endif
+
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	suspend_info.inf = fb_inf;
 	register_early_suspend(&suspend_info.early_suspend);

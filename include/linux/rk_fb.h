@@ -215,14 +215,16 @@ struct rk_lcdc_device_driver{
 };
 
 struct rk_fb_inf {
-    struct rk29fb_info * mach_info;     //lcd io control info
-    struct fb_info *fb[RK_MAX_FB_SUPPORT];
-    int num_fb;
-    
-    struct rk_lcdc_device_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
-    int num_lcdc;
+	struct rk29fb_info * mach_info;     //lcd io control info
+	struct fb_info *fb[RK_MAX_FB_SUPPORT];
+	int num_fb;
 
-    int video_mode;  //when play video set it to 1
+	struct rk_lcdc_device_driver *lcdc_dev_drv[RK30_MAX_LCDC_SUPPORT];
+	int num_lcdc;
+
+	int video_mode;  //when play video set it to 1
+	struct workqueue_struct *workqueue;
+	struct delayed_work delay_work;
 };
 extern int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	struct rk_lcdc_device_driver *def_drv,int id);

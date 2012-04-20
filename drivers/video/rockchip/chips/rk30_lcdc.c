@@ -289,7 +289,7 @@ static  int win0_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 	u32 uv_addr;
 	y_addr = par->smem_start + par->y_offset;
     	uv_addr = par->cbr_start + par->c_offset;
-	DBG(2,KERN_INFO "%s:y_addr:0x%x>>uv_addr:0x%x\n",__func__,y_addr,uv_addr);
+	DBG(2,KERN_INFO "lcdc%d>>%s:y_addr:0x%x>>uv_addr:0x%x\n",lcdc_dev->id,__func__,y_addr,uv_addr);
 	LcdWrReg(lcdc_dev, WIN0_YRGB_MST0, y_addr);
     	LcdWrReg(lcdc_dev, WIN0_CBR_MST0, uv_addr);
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  
@@ -303,7 +303,7 @@ static  int win1_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 	u32 uv_addr;
 	y_addr = par->smem_start + par->y_offset;
     	uv_addr = par->cbr_start + par->c_offset;
-	DBG(2,KERN_INFO "%s>>y_addr:0x%x>>uv_addr:0x%x\n",__func__,y_addr,uv_addr);
+	DBG(2,KERN_INFO "lcdc%d>>%s>>y_addr:0x%x>>uv_addr:0x%x\n",lcdc_dev->id,__func__,y_addr,uv_addr);
 	LcdWrReg(lcdc_dev, WIN1_YRGB_MST, y_addr);
     	LcdWrReg(lcdc_dev, WIN1_CBR_MST, uv_addr);
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
@@ -522,7 +522,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		par = dev_drv->layer_par[1];
         	win1_display(lcdc_dev,par);
 	}
-	if((dev_drv->first_frame) && (dev_drv->id == 0))  //this is the first frame of the system ,enable frame start interrupt
+	if((dev_drv->first_frame))  //this is the first frame of the system ,enable frame start interrupt
 	{
 		dev_drv->first_frame = 0;
 		LcdMskReg(lcdc_dev,INT_STATUS,m_FRM_START_INT_CLEAR |m_FRM_START_INT_EN ,
@@ -531,22 +531,20 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 		 
 	}
 
-	if(!dev_drv->id)  //only sync for lcdc0
+	spin_lock_irqsave(&dev_drv->cpl_lock,flags);
+	init_completion(&dev_drv->frame_done);
+	spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
+	timeout = wait_for_completion_interruptible_timeout(&dev_drv->frame_done,msecs_to_jiffies(25));
+	if(!timeout)
 	{
-		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
-		init_completion(&dev_drv->frame_done);
-		spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-		timeout = wait_for_completion_interruptible_timeout(&dev_drv->frame_done,msecs_to_jiffies(25));
-		if(!timeout)
-		{
-			printk(KERN_ERR "wait for new frame start time out!\n");
-			return -ETIMEDOUT;
-		}
-		else if(timeout < 0)
-		{
-			return timeout;
-		}
+		printk(KERN_ERR "wait for new frame start time out!\n");
+		return -ETIMEDOUT;
 	}
+	else if(timeout < 0)
+	{
+		return timeout;
+	}
+	
 	return 0;
 }
 
@@ -609,7 +607,6 @@ int rk30_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
     	return 0;
 }
-
 static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = (struct rk30_lcdc_device *)dev_id;
