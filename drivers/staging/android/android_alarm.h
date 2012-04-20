@@ -37,6 +37,7 @@ enum android_alarm_type {
 
 #include <linux/ktime.h>
 #include <linux/rbtree.h>
+#include <linux/hrtimer.h>
 
 /*
  * The alarm interface is similar to the hrtimer interface but adds support
@@ -71,7 +72,11 @@ void android_alarm_start_range(struct android_alarm *alarm, ktime_t start,
 								ktime_t end);
 int android_alarm_try_to_cancel(struct android_alarm *alarm);
 int android_alarm_cancel(struct android_alarm *alarm);
-ktime_t alarm_get_elapsed_realtime(void);
+
+static inline ktime_t alarm_get_elapsed_realtime(void)
+{
+	return ktime_get_boottime();
+}
 
 /* set rtc while preserving elapsed realtime */
 int android_alarm_set_rtc(const struct timespec ts);
