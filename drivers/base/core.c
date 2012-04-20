@@ -65,7 +65,7 @@ static inline int device_is_not_partition(struct device *dev)
  * @dev: struct device to get the name of
  *
  * Will return the device's driver's name if it is bound to a device.  If
- * the device is not bound to a device, it will return the name of the bus
+ * the device is not bound to a driver, it will return the name of the bus
  * it is attached to.  If it is not attached to a bus either, an empty
  * string will be returned.
  */
