@@ -506,6 +506,7 @@ static void nfs_init_cinfo_from_inode(struct nfs_commit_info *cinfo,
 	cinfo->lock = &inode->i_lock;
 	cinfo->mds = &NFS_I(inode)->commit_info;
 	cinfo->ds = pnfs_get_ds_info(inode);
+	cinfo->dreq = NULL;
 	cinfo->completion_ops = &nfs_commit_completion_ops;
 }
 
@@ -1431,6 +1432,7 @@ void nfs_init_commit(struct nfs_commit_data *data,
 	data->lseg	  = lseg; /* reference transferred */
 	data->mds_ops     = &nfs_commit_ops;
 	data->completion_ops = cinfo->completion_ops;
+	data->dreq	  = cinfo->dreq;
 
 	data->args.fh     = NFS_FH(data->inode);
 	/* Note: we always request a commit of the entire inode */

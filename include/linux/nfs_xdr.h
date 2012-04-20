@@ -1274,6 +1274,7 @@ struct nfs_commit_info {
 	spinlock_t			*lock;
 	struct nfs_mds_commit_info	*mds;
 	struct pnfs_ds_commit_info	*ds;
+	struct nfs_direct_req		*dreq;	/* O_DIRECT request */
 	const struct nfs_commit_completion_ops *completion_ops;
 };
 
