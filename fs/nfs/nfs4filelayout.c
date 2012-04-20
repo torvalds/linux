@@ -996,12 +996,9 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 }
 
 static int
-filelayout_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
-			       struct nfs_commit_info *cinfo,
-			       int max)
+transfer_commit_list(struct list_head *src, struct list_head *dst,
+		     struct nfs_commit_info *cinfo, int max)
 {
-	struct list_head *src = &bucket->written;
-	struct list_head *dst = &bucket->committing;
 	struct nfs_page *req, *tmp;
 	int ret = 0;
 
@@ -1014,9 +1011,22 @@ filelayout_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 		clear_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 		nfs_list_add_request(req, dst);
 		ret++;
-		if (ret == max)
+		if ((ret == max) && !cinfo->dreq)
 			break;
 	}
+	return ret;
+}
+
+static int
+filelayout_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
+			       struct nfs_commit_info *cinfo,
+			       int max)
+{
+	struct list_head *src = &bucket->written;
+	struct list_head *dst = &bucket->committing;
+	int ret;
+
+	ret = transfer_commit_list(src, dst, cinfo, max);
 	if (ret) {
 		cinfo->ds->nwritten -= ret;
 		cinfo->ds->ncommitting += ret;
@@ -1044,6 +1054,27 @@ static int filelayout_scan_commit_lists(struct nfs_commit_info *cinfo,
 		rv += cnt;
 	}
 	return rv;
+}
+
+/* Pull everything off the committing lists and dump into @dst */
+static void filelayout_recover_commit_reqs(struct list_head *dst,
+					   struct nfs_commit_info *cinfo)
+{
+	struct pnfs_commit_bucket *b;
+	int i;
+
+	/* NOTE cinfo->lock is NOT held, relying on fact that this is
+	 * only called on single thread per dreq.
+	 * Can't take the lock because need to do put_lseg
+	 */
+	for (i = 0, b = cinfo->ds->buckets; i < cinfo->ds->nbuckets; i++, b++) {
+		if (transfer_commit_list(&b->written, dst, cinfo, 0)) {
+			BUG_ON(!list_empty(&b->written));
+			put_lseg(b->wlseg);
+			b->wlseg = NULL;
+		}
+	}
+	cinfo->ds->nwritten = 0;
 }
 
 static unsigned int
@@ -1170,6 +1201,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.mark_request_commit	= filelayout_mark_request_commit,
 	.clear_request_commit	= filelayout_clear_request_commit,
 	.scan_commit_lists	= filelayout_scan_commit_lists,
+	.recover_commit_reqs	= filelayout_recover_commit_reqs,
 	.commit_pagelist	= filelayout_commit_pagelist,
 	.read_pagelist		= filelayout_read_pagelist,
 	.write_pagelist		= filelayout_write_pagelist,

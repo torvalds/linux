@@ -320,10 +320,11 @@ extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_readdata_release(struct nfs_read_data *rdata);
 
 /* write.c */
+extern void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
+			struct inode *inode, int ioflags,
+			const struct nfs_pgio_completion_ops *compl_ops);
 extern struct nfs_write_header *nfs_writehdr_alloc(void);
 extern void nfs_writehdr_free(struct nfs_pgio_header *hdr);
-extern struct nfs_write_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
-						  unsigned int pagecount);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
 			     struct nfs_pgio_header *hdr);
 extern void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
@@ -346,6 +347,15 @@ extern void nfs_init_commit(struct nfs_commit_data *data,
 			    struct list_head *head,
 			    struct pnfs_layout_segment *lseg,
 			    struct nfs_commit_info *cinfo);
+int nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
+			 struct nfs_commit_info *cinfo, int max);
+int nfs_scan_commit(struct inode *inode, struct list_head *dst,
+		    struct nfs_commit_info *cinfo);
+void nfs_mark_request_commit(struct nfs_page *req,
+			     struct pnfs_layout_segment *lseg,
+			     struct nfs_commit_info *cinfo);
+int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
+			    int how, struct nfs_commit_info *cinfo);
 void nfs_retry_commit(struct list_head *page_list,
 		      struct pnfs_layout_segment *lseg,
 		      struct nfs_commit_info *cinfo);
@@ -364,6 +374,10 @@ extern int nfs_migrate_page(struct address_space *,
 #else
 #define nfs_migrate_page NULL
 #endif
+
+/* direct.c */
+void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
+			      struct nfs_direct_req *dreq);
 
 /* nfs4proc.c */
 extern void __nfs4_read_done_cb(struct nfs_read_data *);

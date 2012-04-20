@@ -102,6 +102,8 @@ struct pnfs_layoutdriver_type {
 				      struct nfs_commit_info *cinfo);
 	int (*scan_commit_lists) (struct nfs_commit_info *cinfo,
 				  int max);
+	void (*recover_commit_reqs) (struct list_head *list,
+				     struct nfs_commit_info *cinfo);
 	int (*commit_pagelist)(struct inode *inode,
 			       struct list_head *mds_pages,
 			       int how,
@@ -323,6 +325,15 @@ pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
 		return NFS_SERVER(inode)->pnfs_curr_ld->scan_commit_lists(cinfo, max);
 }
 
+static inline void
+pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
+			 struct nfs_commit_info *cinfo)
+{
+	if (cinfo->ds == NULL || cinfo->ds->nwritten == 0)
+		return;
+	NFS_SERVER(inode)->pnfs_curr_ld->recover_commit_reqs(list, cinfo);
+}
+
 /* Should the pNFS client commit and return the layout upon a setattr */
 static inline bool
 pnfs_ld_layoutret_on_setattr(struct inode *inode)
@@ -454,6 +465,12 @@ pnfs_scan_commit_lists(struct inode *inode, struct nfs_commit_info *cinfo,
 		       int max)
 {
 	return 0;
+}
+
+static inline void
+pnfs_recover_commit_reqs(struct inode *inode, struct list_head *list,
+			 struct nfs_commit_info *cinfo)
+{
 }
 
 static inline int pnfs_layoutcommit_inode(struct inode *inode, bool sync)

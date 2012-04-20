@@ -39,9 +39,6 @@
 /*
  * Local function declarations
  */
-static void nfs_pageio_init_write(struct nfs_pageio_descriptor *desc,
-			struct inode *inode, int ioflags,
-			const struct nfs_pgio_completion_ops *compl_ops);
 static void nfs_redirty_request(struct nfs_page *req);
 static const struct rpc_call_ops nfs_write_common_ops;
 static const struct rpc_call_ops nfs_commit_ops;
@@ -87,8 +84,8 @@ struct nfs_write_header *nfs_writehdr_alloc(void)
 	return p;
 }
 
-struct nfs_write_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
-					   unsigned int pagecount)
+static struct nfs_write_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
+						  unsigned int pagecount)
 {
 	struct nfs_write_data *data, *prealloc;
 
@@ -518,14 +515,17 @@ void nfs_init_cinfo(struct nfs_commit_info *cinfo,
 		    struct inode *inode,
 		    struct nfs_direct_req *dreq)
 {
-	nfs_init_cinfo_from_inode(cinfo, inode);
+	if (dreq)
+		nfs_init_cinfo_from_dreq(cinfo, dreq);
+	else
+		nfs_init_cinfo_from_inode(cinfo, inode);
 }
 EXPORT_SYMBOL_GPL(nfs_init_cinfo);
 
 /*
  * Add a request to the inode's commit list.
  */
-static void
+void
 nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 			struct nfs_commit_info *cinfo)
 {
@@ -567,7 +567,7 @@ int nfs_write_need_commit(struct nfs_write_data *data)
 }
 
 #else
-static void
+void
 nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 			struct nfs_commit_info *cinfo)
 {
@@ -632,7 +632,7 @@ nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 }
 
 /* cinfo->lock held by caller */
-static int
+int
 nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 		     struct nfs_commit_info *cinfo, int max)
 {
@@ -647,7 +647,7 @@ nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 		nfs_request_remove_commit_list(req, cinfo);
 		nfs_list_add_request(req, dst);
 		ret++;
-		if (ret == max)
+		if ((ret == max) && !cinfo->dreq)
 			break;
 	}
 	return ret;
@@ -662,7 +662,7 @@ nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
  * Moves requests from the inode's 'commit' request list.
  * The requests are *not* checked to ensure that they form a contiguous set.
  */
-static int
+int
 nfs_scan_commit(struct inode *inode, struct list_head *dst,
 		struct nfs_commit_info *cinfo)
 {
@@ -686,8 +686,8 @@ static unsigned long nfs_reqs_to_commit(struct nfs_commit_info *cinfo)
 	return 0;
 }
 
-static inline int nfs_scan_commit(struct inode *inode, struct list_head *dst,
-				  struct nfs_commit_info *cinfo)
+int nfs_scan_commit(struct inode *inode, struct list_head *dst,
+		    struct nfs_commit_info *cinfo)
 {
 	return 0;
 }
@@ -1202,9 +1202,9 @@ void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio)
 }
 EXPORT_SYMBOL_GPL(nfs_pageio_reset_write_mds);
 
-static void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
-				struct inode *inode, int ioflags,
-				const struct nfs_pgio_completion_ops *compl_ops)
+void nfs_pageio_init_write(struct nfs_pageio_descriptor *pgio,
+			   struct inode *inode, int ioflags,
+			   const struct nfs_pgio_completion_ops *compl_ops)
 {
 	if (!pnfs_pageio_init_write(pgio, inode, ioflags, compl_ops))
 		nfs_pageio_init_write_mds(pgio, inode, ioflags, compl_ops);
@@ -1568,8 +1568,8 @@ static const struct nfs_commit_completion_ops nfs_commit_completion_ops = {
 	.error_cleanup = nfs_commit_clear_lock,
 };
 
-static int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
-				   int how, struct nfs_commit_info *cinfo)
+int nfs_generic_commit_list(struct inode *inode, struct list_head *head,
+			    int how, struct nfs_commit_info *cinfo)
 {
 	int status;
 
