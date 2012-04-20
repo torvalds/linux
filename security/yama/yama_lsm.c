@@ -319,7 +319,6 @@ static int yama_dointvec_minmax(struct ctl_table *table, int write,
 }
 
 static int zero;
-static int one = 1;
 static int max_scope = YAMA_SCOPE_NO_ATTACH;
 
 struct ctl_path yama_sysctl_path[] = {
