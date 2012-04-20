@@ -60,6 +60,7 @@ config PCMCIA_AXNET
 config AX88796
 	tristate "ASIX AX88796 NE2000 clone support"
 	depends on (ARM || MIPS || SUPERH)
+	select CRC32
 	select PHYLIB
 	select MDIO_BITBANG
 	---help---
