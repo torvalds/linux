@@ -74,18 +74,6 @@ struct nfs4_file_layout_dsaddr {
 	struct nfs4_pnfs_ds		*ds_list[1];
 };
 
-struct nfs4_fl_commit_bucket {
-	struct list_head written;
-	struct list_head committing;
-	struct pnfs_layout_segment *wlseg;
-	struct pnfs_layout_segment *clseg;
-};
-
-struct nfs4_fl_commit_info {
-	int nbuckets;
-	struct nfs4_fl_commit_bucket *buckets;
-};
-
 struct nfs4_filelayout_segment {
 	struct pnfs_layout_segment generic_hdr;
 	u32 stripe_type;
@@ -100,7 +88,7 @@ struct nfs4_filelayout_segment {
 
 struct nfs4_filelayout {
 	struct pnfs_layout_hdr generic_hdr;
-	struct nfs4_fl_commit_info commit_info;
+	struct pnfs_ds_commit_info commit_info;
 };
 
 static inline struct nfs4_filelayout *

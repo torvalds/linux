@@ -1079,6 +1079,21 @@ struct nfstime4 {
 };
 
 #ifdef CONFIG_NFS_V4_1
+
+struct pnfs_commit_bucket {
+	struct list_head written;
+	struct list_head committing;
+	struct pnfs_layout_segment *wlseg;
+	struct pnfs_layout_segment *clseg;
+};
+
+struct pnfs_ds_commit_info {
+	int nwritten;
+	int ncommitting;
+	int nbuckets;
+	struct pnfs_commit_bucket *buckets;
+};
+
 #define NFS4_EXCHANGE_ID_LEN	(48)
 struct nfs41_exchange_id_args {
 	struct nfs_client		*client;
@@ -1240,6 +1255,18 @@ struct nfs_write_data {
 struct nfs_write_header {
 	struct nfs_pgio_header	header;
 	struct nfs_write_data	rpc_data;
+};
+
+struct nfs_mds_commit_info {
+	atomic_t rpcs_out;
+	unsigned long		ncommit;
+	struct list_head	list;
+};
+
+struct nfs_commit_info {
+	spinlock_t			*lock;
+	struct nfs_mds_commit_info	*mds;
+	struct pnfs_ds_commit_info	*ds;
 };
 
 struct nfs_commit_data {

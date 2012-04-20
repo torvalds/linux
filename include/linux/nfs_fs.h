@@ -179,8 +179,7 @@ struct nfs_inode {
 	__be32			cookieverf[2];
 
 	unsigned long		npages;
-	unsigned long		ncommit;
-	struct list_head	commit_list;
+	struct nfs_mds_commit_info commit_info;
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
@@ -201,7 +200,6 @@ struct nfs_inode {
 
 	/* pNFS layout information */
 	struct pnfs_layout_hdr *layout;
-	atomic_t		commits_outstanding;
 #endif /* CONFIG_NFS_V4*/
 #ifdef CONFIG_NFS_FSCACHE
 	struct fscache_cookie	*fscache;
@@ -230,7 +228,6 @@ struct nfs_inode {
 #define NFS_INO_FSCACHE		(5)		/* inode can be cached by FS-Cache */
 #define NFS_INO_FSCACHE_LOCK	(6)		/* FS-Cache cookie management lock */
 #define NFS_INO_COMMIT		(7)		/* inode is committing unstable writes */
-#define NFS_INO_PNFS_COMMIT	(8)		/* use pnfs code for commit */
 #define NFS_INO_LAYOUTCOMMIT	(9)		/* layoutcommit required */
 #define NFS_INO_LAYOUTCOMMITTING (10)		/* layoutcommit inflight */
 

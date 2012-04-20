@@ -347,9 +347,11 @@ static void filelayout_commit_count_stats(struct rpc_task *task, void *data)
 static void filelayout_commit_release(void *calldata)
 {
 	struct nfs_commit_data *data = calldata;
+	struct nfs_commit_info cinfo;
 
 	nfs_commit_release_pages(data);
-	if (atomic_dec_and_test(&NFS_I(data->inode)->commits_outstanding))
+	nfs_init_cinfo(&cinfo, data->inode, data->dreq);
+	if (atomic_dec_and_test(&cinfo.mds->rpcs_out))
 		nfs_commit_clear_lock(NFS_I(data->inode));
 	put_lseg(data->lseg);
 	nfs_commitdata_release(data);
@@ -695,17 +697,16 @@ filelayout_free_lseg(struct pnfs_layout_segment *lseg)
 
 static int
 filelayout_alloc_commit_info(struct pnfs_layout_segment *lseg,
+			     struct nfs_commit_info *cinfo,
 			     gfp_t gfp_flags)
 {
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
-	struct nfs4_filelayout *flo = FILELAYOUT_FROM_HDR(lseg->pls_layout);
-
-	struct nfs4_fl_commit_bucket *buckets;
+	struct pnfs_commit_bucket *buckets;
 	int size;
 
 	if (fl->commit_through_mds)
 		return 0;
-	if (flo->commit_info.nbuckets != 0) {
+	if (cinfo->ds->nbuckets != 0) {
 		/* This assumes there is only one IOMODE_RW lseg.  What
 		 * we really want to do is have a layout_hdr level
 		 * dictionary of <multipath_list4, fh> keys, each
@@ -718,25 +719,25 @@ filelayout_alloc_commit_info(struct pnfs_layout_segment *lseg,
 	size = (fl->stripe_type == STRIPE_SPARSE) ?
 		fl->dsaddr->ds_num : fl->dsaddr->stripe_count;
 
-	buckets = kcalloc(size, sizeof(struct nfs4_fl_commit_bucket),
+	buckets = kcalloc(size, sizeof(struct pnfs_commit_bucket),
 			  gfp_flags);
 	if (!buckets)
 		return -ENOMEM;
 	else {
 		int i;
 
-		spin_lock(&lseg->pls_layout->plh_inode->i_lock);
-		if (flo->commit_info.nbuckets != 0)
+		spin_lock(cinfo->lock);
+		if (cinfo->ds->nbuckets != 0)
 			kfree(buckets);
 		else {
-			flo->commit_info.buckets = buckets;
-			flo->commit_info.nbuckets = size;
+			cinfo->ds->buckets = buckets;
+			cinfo->ds->nbuckets = size;
 			for (i = 0; i < size; i++) {
 				INIT_LIST_HEAD(&buckets[i].written);
 				INIT_LIST_HEAD(&buckets[i].committing);
 			}
 		}
-		spin_unlock(&lseg->pls_layout->plh_inode->i_lock);
+		spin_unlock(cinfo->lock);
 		return 0;
 	}
 }
@@ -821,6 +822,7 @@ static void
 filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 			 struct nfs_page *req)
 {
+	struct nfs_commit_info cinfo;
 	int status;
 
 	BUG_ON(pgio->pg_lseg != NULL);
@@ -836,7 +838,8 @@ filelayout_pg_init_write(struct nfs_pageio_descriptor *pgio,
 	/* If no lseg, fall back to write through mds */
 	if (pgio->pg_lseg == NULL)
 		goto out_mds;
-	status = filelayout_alloc_commit_info(pgio->pg_lseg, GFP_NOFS);
+	nfs_init_cinfo(&cinfo, pgio->pg_inode, pgio->pg_dreq);
+	status = filelayout_alloc_commit_info(pgio->pg_lseg, &cinfo, GFP_NOFS);
 	if (status < 0) {
 		put_lseg(pgio->pg_lseg);
 		pgio->pg_lseg = NULL;
@@ -871,40 +874,42 @@ static u32 select_bucket_index(struct nfs4_filelayout_segment *fl, u32 j)
  * If this will make the bucket empty, it will need to put the lseg reference.
  */
 static void
-filelayout_clear_request_commit(struct nfs_page *req)
+filelayout_clear_request_commit(struct nfs_page *req,
+				struct nfs_commit_info *cinfo)
 {
 	struct pnfs_layout_segment *freeme = NULL;
-	struct inode *inode = req->wb_context->dentry->d_inode;
 
-	spin_lock(&inode->i_lock);
+	spin_lock(cinfo->lock);
 	if (!test_and_clear_bit(PG_COMMIT_TO_DS, &req->wb_flags))
 		goto out;
+	cinfo->ds->nwritten--;
 	if (list_is_singular(&req->wb_list)) {
-		struct nfs4_fl_commit_bucket *bucket;
+		struct pnfs_commit_bucket *bucket;
 
 		bucket = list_first_entry(&req->wb_list,
-					  struct nfs4_fl_commit_bucket,
+					  struct pnfs_commit_bucket,
 					  written);
 		freeme = bucket->wlseg;
 		bucket->wlseg = NULL;
 	}
 out:
-	nfs_request_remove_commit_list(req);
-	spin_unlock(&inode->i_lock);
+	nfs_request_remove_commit_list(req, cinfo);
+	spin_unlock(cinfo->lock);
 	put_lseg(freeme);
 }
 
 static struct list_head *
 filelayout_choose_commit_list(struct nfs_page *req,
-			      struct pnfs_layout_segment *lseg)
+			      struct pnfs_layout_segment *lseg,
+			      struct nfs_commit_info *cinfo)
 {
 	struct nfs4_filelayout_segment *fl = FILELAYOUT_LSEG(lseg);
 	u32 i, j;
 	struct list_head *list;
-	struct nfs4_fl_commit_bucket *buckets;
+	struct pnfs_commit_bucket *buckets;
 
 	if (fl->commit_through_mds)
-		return &NFS_I(req->wb_context->dentry->d_inode)->commit_list;
+		return &cinfo->mds->list;
 
 	/* Note that we are calling nfs4_fl_calc_j_index on each page
 	 * that ends up being committed to a data server.  An attractive
@@ -914,7 +919,7 @@ filelayout_choose_commit_list(struct nfs_page *req,
 	 */
 	j = nfs4_fl_calc_j_index(lseg, req_offset(req));
 	i = select_bucket_index(fl, j);
-	buckets = FILELAYOUT_FROM_HDR(lseg->pls_layout)->commit_info.buckets;
+	buckets = cinfo->ds->buckets;
 	list = &buckets[i].written;
 	if (list_empty(list)) {
 		/* Non-empty buckets hold a reference on the lseg.  That ref
@@ -926,17 +931,19 @@ filelayout_choose_commit_list(struct nfs_page *req,
 		buckets[i].wlseg = get_lseg(lseg);
 	}
 	set_bit(PG_COMMIT_TO_DS, &req->wb_flags);
+	cinfo->ds->nwritten++;
 	return list;
 }
 
 static void
 filelayout_mark_request_commit(struct nfs_page *req,
-		struct pnfs_layout_segment *lseg)
+			       struct pnfs_layout_segment *lseg,
+			       struct nfs_commit_info *cinfo)
 {
 	struct list_head *list;
 
-	list = filelayout_choose_commit_list(req, lseg);
-	nfs_request_add_commit_list(req, list);
+	list = filelayout_choose_commit_list(req, lseg, cinfo);
+	nfs_request_add_commit_list(req, list, cinfo);
 }
 
 static u32 calc_ds_index_from_commit(struct pnfs_layout_segment *lseg, u32 i)
@@ -993,8 +1000,9 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 }
 
 static int
-filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max,
-		spinlock_t *lock)
+filelayout_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
+			       struct nfs_commit_info *cinfo,
+			       int max)
 {
 	struct list_head *src = &bucket->written;
 	struct list_head *dst = &bucket->committing;
@@ -1004,9 +1012,9 @@ filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max,
 	list_for_each_entry_safe(req, tmp, src, wb_list) {
 		if (!nfs_lock_request(req))
 			continue;
-		if (cond_resched_lock(lock))
+		if (cond_resched_lock(cinfo->lock))
 			list_safe_reset_next(req, tmp, wb_list);
-		nfs_request_remove_commit_list(req);
+		nfs_request_remove_commit_list(req, cinfo);
 		clear_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 		nfs_list_add_request(req, dst);
 		ret++;
@@ -1014,6 +1022,8 @@ filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max,
 			break;
 	}
 	if (ret) {
+		cinfo->ds->nwritten -= ret;
+		cinfo->ds->ncommitting += ret;
 		bucket->clseg = bucket->wlseg;
 		if (list_empty(src))
 			bucket->wlseg = NULL;
@@ -1024,37 +1034,32 @@ filelayout_scan_ds_commit_list(struct nfs4_fl_commit_bucket *bucket, int max,
 }
 
 /* Move reqs from written to committing lists, returning count of number moved.
- * Note called with i_lock held.
+ * Note called with cinfo->lock held.
  */
-static int filelayout_scan_commit_lists(struct inode *inode, int max,
-		spinlock_t *lock)
+static int filelayout_scan_commit_lists(struct nfs_commit_info *cinfo,
+					int max)
 {
-	struct nfs4_fl_commit_info *fl_cinfo;
 	int i, rv = 0, cnt;
 
-	fl_cinfo = &FILELAYOUT_FROM_HDR(NFS_I(inode)->layout)->commit_info;
-	if (fl_cinfo->nbuckets == 0)
-		goto out_done;
-	for (i = 0; i < fl_cinfo->nbuckets && max != 0; i++) {
-		cnt = filelayout_scan_ds_commit_list(&fl_cinfo->buckets[i],
-				max, lock);
+	for (i = 0; i < cinfo->ds->nbuckets && max != 0; i++) {
+		cnt = filelayout_scan_ds_commit_list(&cinfo->ds->buckets[i],
+						     cinfo, max);
 		max -= cnt;
 		rv += cnt;
 	}
-out_done:
 	return rv;
 }
 
 static unsigned int
-alloc_ds_commits(struct inode *inode, struct list_head *list)
+alloc_ds_commits(struct nfs_commit_info *cinfo, struct list_head *list)
 {
-	struct nfs4_fl_commit_info *fl_cinfo;
-	struct nfs4_fl_commit_bucket *bucket;
+	struct pnfs_ds_commit_info *fl_cinfo;
+	struct pnfs_commit_bucket *bucket;
 	struct nfs_commit_data *data;
 	int i, j;
 	unsigned int nreq = 0;
 
-	fl_cinfo = &FILELAYOUT_FROM_HDR(NFS_I(inode)->layout)->commit_info;
+	fl_cinfo = cinfo->ds;
 	bucket = fl_cinfo->buckets;
 	for (i = 0; i < fl_cinfo->nbuckets; i++, bucket++) {
 		if (list_empty(&bucket->committing))
@@ -1073,7 +1078,7 @@ alloc_ds_commits(struct inode *inode, struct list_head *list)
 	for (j = i; j < fl_cinfo->nbuckets; j++, bucket++) {
 		if (list_empty(&bucket->committing))
 			continue;
-		nfs_retry_commit(&bucket->committing, bucket->clseg);
+		nfs_retry_commit(&bucket->committing, bucket->clseg, cinfo);
 		put_lseg(bucket->clseg);
 		bucket->clseg = NULL;
 	}
@@ -1084,7 +1089,7 @@ alloc_ds_commits(struct inode *inode, struct list_head *list)
 /* This follows nfs_commit_list pretty closely */
 static int
 filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
-			   int how)
+			   int how, struct nfs_commit_info *cinfo)
 {
 	struct nfs_commit_data *data, *tmp;
 	LIST_HEAD(list);
@@ -1097,17 +1102,17 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			list_add(&data->pages, &list);
 			nreq++;
 		} else
-			nfs_retry_commit(mds_pages, NULL);
+			nfs_retry_commit(mds_pages, NULL, cinfo);
 	}
 
-	nreq += alloc_ds_commits(inode, &list);
+	nreq += alloc_ds_commits(cinfo, &list);
 
 	if (nreq == 0) {
 		nfs_commit_clear_lock(NFS_I(inode));
 		goto out;
 	}
 
-	atomic_add(nreq, &NFS_I(inode)->commits_outstanding);
+	atomic_add(nreq, &cinfo->mds->rpcs_out);
 
 	list_for_each_entry_safe(data, tmp, &list, pages) {
 		list_del_init(&data->pages);
@@ -1116,14 +1121,15 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 			nfs_initiate_commit(NFS_CLIENT(inode), data,
 					    data->mds_ops, how);
 		} else {
-			struct nfs4_fl_commit_info *fl_cinfo;
+			struct pnfs_commit_bucket *buckets;
 
-			fl_cinfo = &FILELAYOUT_FROM_HDR(data->lseg->pls_layout)->commit_info;
-			nfs_init_commit(data, &fl_cinfo->buckets[data->ds_commit_index].committing, data->lseg);
+			buckets = cinfo->ds->buckets;
+			nfs_init_commit(data, &buckets[data->ds_commit_index].committing, data->lseg);
 			filelayout_initiate_commit(data, how);
 		}
 	}
 out:
+	cinfo->ds->ncommitting = 0;
 	return PNFS_ATTEMPTED;
 }
 
@@ -1148,6 +1154,12 @@ filelayout_free_layout_hdr(struct pnfs_layout_hdr *lo)
 	kfree(FILELAYOUT_FROM_HDR(lo));
 }
 
+static struct pnfs_ds_commit_info *
+filelayout_get_ds_info(struct inode *inode)
+{
+	return &FILELAYOUT_FROM_HDR(NFS_I(inode)->layout)->commit_info;
+}
+
 static struct pnfs_layoutdriver_type filelayout_type = {
 	.id			= LAYOUT_NFSV4_1_FILES,
 	.name			= "LAYOUT_NFSV4_1_FILES",
@@ -1158,6 +1170,7 @@ static struct pnfs_layoutdriver_type filelayout_type = {
 	.free_lseg		= filelayout_free_lseg,
 	.pg_read_ops		= &filelayout_pg_read_ops,
 	.pg_write_ops		= &filelayout_pg_write_ops,
+	.get_ds_info		= &filelayout_get_ds_info,
 	.mark_request_commit	= filelayout_mark_request_commit,
 	.clear_request_commit	= filelayout_clear_request_commit,
 	.scan_commit_lists	= filelayout_scan_commit_lists,
