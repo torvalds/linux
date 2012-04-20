@@ -487,16 +487,18 @@ static void rbd_coll_release(struct kref *kref)
  */
 static int rbd_header_from_disk(struct rbd_image_header *header,
 				 struct rbd_image_header_ondisk *ondisk,
-				 int allocated_snaps,
+				 u32 allocated_snaps,
 				 gfp_t gfp_flags)
 {
-	int i;
-	u32 snap_count;
+	u32 i, snap_count;
 
 	if (memcmp(ondisk, RBD_HEADER_TEXT, sizeof(RBD_HEADER_TEXT)))
 		return -ENXIO;
 
 	snap_count = le32_to_cpu(ondisk->snap_count);
+	if (snap_count > (UINT_MAX - sizeof(struct ceph_snap_context))
+			 / sizeof (*ondisk))
+		return -EINVAL;
 	header->snapc = kmalloc(sizeof(struct ceph_snap_context) +
 				snap_count * sizeof (*ondisk),
 				gfp_flags);
@@ -1591,7 +1593,7 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
 {
 	ssize_t rc;
 	struct rbd_image_header_ondisk *dh;
-	int snap_count = 0;
+	u32 snap_count = 0;
 	u64 ver;
 	size_t len;
 
