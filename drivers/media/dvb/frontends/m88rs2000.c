@@ -654,7 +654,6 @@ static int m88rs2000_set_tuner(struct dvb_frontend *fe, u16 *offset)
 static int m88rs2000_set_fec(struct m88rs2000_state *state,
 		fe_code_rate_t fec)
 {
-	int ret;
 	u16 fec_set;
 	switch (fec) {
 	/* This is not confirmed kept for reference */
@@ -677,7 +676,7 @@ static int m88rs2000_set_fec(struct m88rs2000_state *state,
 	default:
 		fec_set = 0x08;
 	}
-	ret = m88rs2000_demod_write(state, 0x76, fec_set);
+	m88rs2000_demod_write(state, 0x76, fec_set);
 
 	return 0;
 }

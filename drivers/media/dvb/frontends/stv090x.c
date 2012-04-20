@@ -2842,7 +2842,6 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 {
 	struct dvb_frontend *fe = &state->frontend;
 
-	enum stv090x_rolloff rolloff;
 	enum stv090x_modcod modcod;
 
 	s32 srate, pilots, aclc, f_1, f_0, i = 0, blind_tune = 0;
@@ -2966,7 +2965,6 @@ static int stv090x_optimize_track(struct stv090x_state *state)
 	f_1 = STV090x_READ_DEMOD(state, CFR2);
 	f_0 = STV090x_READ_DEMOD(state, CFR1);
 	reg = STV090x_READ_DEMOD(state, TMGOBS);
-	rolloff = STV090x_GETFIELD_Px(reg, ROLLOFF_STATUS_FIELD);
 
 	if (state->algo == STV090x_BLIND_SEARCH) {
 		STV090x_WRITE_DEMOD(state, SFRSTEP, 0x00);

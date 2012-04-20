@@ -708,7 +708,6 @@ static u8 dib9000_mbx_count(struct dib9000_state *state, u8 risc_id, u16 attr)
 static int dib9000_mbx_process(struct dib9000_state *state, u16 attr)
 {
 	int ret = 0;
-	u16 tmp;
 
 	if (!state->platform.risc.fw_is_running)
 		return -1;
@@ -721,7 +720,7 @@ static int dib9000_mbx_process(struct dib9000_state *state, u16 attr)
 	if (dib9000_mbx_count(state, 1, attr))	/* 1=RiscB */
 		ret = dib9000_mbx_fetch_to_cache(state, attr);
 
-	tmp = dib9000_read_word_attr(state, 1229, attr);	/* Clear the IRQ */
+	dib9000_read_word_attr(state, 1229, attr);	/* Clear the IRQ */
 /*      if (tmp) */
 /*              dprintk( "cleared IRQ: %x", tmp); */
 	DibReleaseLock(&state->platform.risc.mbx_lock);
