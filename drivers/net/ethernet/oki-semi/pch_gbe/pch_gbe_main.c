@@ -111,6 +111,9 @@ const char pch_driver_version[] = DRV_VERSION;
 /* 0x44 Time Synchronization Channel Event Register Bits */
 #define TX_SNAPSHOT_LOCKED (1<<0)
 #define RX_SNAPSHOT_LOCKED (1<<1)
+
+#define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
+#define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
 #endif
 
 static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
@@ -236,6 +239,7 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 	struct hwtstamp_config cfg;
 	struct pch_gbe_adapter *adapter = netdev_priv(netdev);
 	struct pci_dev *pdev;
+	u8 station[20];
 
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
@@ -269,9 +273,17 @@ static int hwtstamp_ioctl(struct net_device *netdev, struct ifreq *ifr, int cmd)
 		adapter->hwts_rx_en = 1;
 		pch_ch_control_write(pdev, MASTER_MODE | CAP_MODE0);
 		break;
-	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 		adapter->hwts_rx_en = 1;
 		pch_ch_control_write(pdev, V2_MODE | CAP_MODE2);
+		strcpy(station, PTP_L4_MULTICAST_SA);
+		pch_set_station_address(station, pdev);
+		break;
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+		adapter->hwts_rx_en = 1;
+		pch_ch_control_write(pdev, V2_MODE | CAP_MODE2);
+		strcpy(station, PTP_L2_MULTICAST_SA);
+		pch_set_station_address(station, pdev);
 		break;
 	default:
 		return -ERANGE;
