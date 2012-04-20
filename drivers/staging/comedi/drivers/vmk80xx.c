@@ -1020,11 +1020,11 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 	if (n)
 		return n;
 
-	down(&dev->limit_sem);
-
 	insn_cmd = data[0];
 	if (insn_cmd != INSN_CONFIG_RESET && insn_cmd != GPCT_RESET)
 		return -EINVAL;
+
+	down(&dev->limit_sem);
 
 	chan = CR_CHAN(insn->chanspec);
 
