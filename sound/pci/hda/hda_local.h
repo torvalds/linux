@@ -502,6 +502,7 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 #define PIN_HP			(AC_PINCTL_OUT_EN | AC_PINCTL_HP_EN)
 #define PIN_HP_AMP		(AC_PINCTL_HP_EN)
 
+unsigned int snd_hda_get_default_vref(struct hda_codec *codec, hda_nid_t pin);
 int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 			 unsigned int val, bool cached);
 
@@ -517,6 +518,7 @@ int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
  * HP-drive capability, the HP bit is omitted.
  *
  * The function doesn't check the input VREF capability bits, though.
+ * Use snd_hda_get_default_vref() to guess the right value.
  * Also, this function is only for analog pins, not for HDMI pins.
  */
 static inline int

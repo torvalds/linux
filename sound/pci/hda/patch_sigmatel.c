@@ -2503,22 +2503,6 @@ static int stac92xx_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
-static unsigned int stac92xx_get_default_vref(struct hda_codec *codec,
-					hda_nid_t nid)
-{
-	unsigned int pincap = snd_hda_query_pin_caps(codec, nid);
-	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
-	if (pincap & AC_PINCAP_VREF_100)
-		return AC_PINCTL_VREF_100;
-	if (pincap & AC_PINCAP_VREF_80)
-		return AC_PINCTL_VREF_80;
-	if (pincap & AC_PINCAP_VREF_50)
-		return AC_PINCTL_VREF_50;
-	if (pincap & AC_PINCAP_VREF_GRD)
-		return AC_PINCTL_VREF_GRD;
-	return 0;
-}
-
 static void stac92xx_auto_set_pinctl(struct hda_codec *codec, hda_nid_t nid, int pin_type)
 
 {
@@ -2591,7 +2575,7 @@ static int stac92xx_dc_bias_get(struct snd_kcontrol *kcontrol,
 	hda_nid_t nid = kcontrol->private_value;
 	unsigned int vref = stac92xx_vref_get(codec, nid);
 
-	if (vref == stac92xx_get_default_vref(codec, nid))
+	if (vref == snd_hda_get_default_vref(codec, nid))
 		ucontrol->value.enumerated.item[0] = 0;
 	else if (vref == AC_PINCTL_VREF_GRD)
 		ucontrol->value.enumerated.item[0] = 1;
@@ -2610,7 +2594,7 @@ static int stac92xx_dc_bias_put(struct snd_kcontrol *kcontrol,
 	hda_nid_t nid = kcontrol->private_value;
 
 	if (ucontrol->value.enumerated.item[0] == 0)
-		new_vref = stac92xx_get_default_vref(codec, nid);
+		new_vref = snd_hda_get_default_vref(codec, nid);
 	else if (ucontrol->value.enumerated.item[0] == 1)
 		new_vref = AC_PINCTL_VREF_GRD;
 	else if (ucontrol->value.enumerated.item[0] == 2)
@@ -2676,7 +2660,7 @@ static int stac92xx_io_switch_put(struct snd_kcontrol *kcontrol, struct snd_ctl_
 	else {
 		unsigned int pinctl = AC_PINCTL_IN_EN;
 		if (io_idx) /* set VREF for mic */
-			pinctl |= stac92xx_get_default_vref(codec, nid);
+			pinctl |= snd_hda_get_default_vref(codec, nid);
 		stac92xx_auto_set_pinctl(codec, nid, pinctl);
 	}
 
@@ -2844,7 +2828,7 @@ static inline int stac92xx_add_jack_mode_control(struct hda_codec *codec,
 	char name[22];
 
 	if (snd_hda_get_input_pin_attr(def_conf) != INPUT_PIN_ATTR_INT) {
-		if (stac92xx_get_default_vref(codec, nid) == AC_PINCTL_VREF_GRD
+		if (snd_hda_get_default_vref(codec, nid) == AC_PINCTL_VREF_GRD
 			&& nid == spec->line_switch)
 			control = STAC_CTL_WIDGET_IO_SWITCH;
 		else if (snd_hda_query_pin_caps(codec, nid)
@@ -4351,7 +4335,7 @@ static int stac92xx_init(struct hda_codec *codec)
 		unsigned int pinctl, conf;
 		if (type == AUTO_PIN_MIC) {
 			/* for mic pins, force to initialize */
-			pinctl = stac92xx_get_default_vref(codec, nid);
+			pinctl = snd_hda_get_default_vref(codec, nid);
 			pinctl |= AC_PINCTL_IN_EN;
 			stac92xx_auto_set_pinctl(codec, nid, pinctl);
 		} else {

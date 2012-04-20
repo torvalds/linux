@@ -4795,6 +4795,33 @@ int snd_hda_multi_out_analog_cleanup(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_multi_out_analog_cleanup);
 
+/**
+ * snd_hda_get_default_vref - Get the default (mic) VREF pin bits
+ *
+ * Guess the suitable VREF pin bits to be set as the pin-control value.
+ * Note: the function doesn't set the AC_PINCTL_IN_EN bit.
+ */
+unsigned int snd_hda_get_default_vref(struct hda_codec *codec, hda_nid_t pin)
+{
+	unsigned int pincap;
+	unsigned int oldval;
+	oldval = snd_hda_codec_read(codec, pin, 0,
+				    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
+	pincap = snd_hda_query_pin_caps(codec, pin);
+	pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
+	/* Exception: if the default pin setup is vref50, we give it priority */
+	if ((pincap & AC_PINCAP_VREF_80) && oldval != PIN_VREF50)
+		return AC_PINCTL_VREF_80;
+	else if (pincap & AC_PINCAP_VREF_50)
+		return AC_PINCTL_VREF_50;
+	else if (pincap & AC_PINCAP_VREF_100)
+		return AC_PINCTL_VREF_100;
+	else if (pincap & AC_PINCAP_VREF_GRD)
+		return AC_PINCTL_VREF_GRD;
+	return AC_PINCTL_VREF_HIZ;
+}
+EXPORT_SYMBOL_HDA(snd_hda_get_default_vref);
+
 int _snd_hda_set_pin_ctl(struct hda_codec *codec, hda_nid_t pin,
 			 unsigned int val, bool cached)
 {

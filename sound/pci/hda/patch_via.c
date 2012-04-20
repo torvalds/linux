@@ -661,10 +661,11 @@ static void via_auto_init_analog_input(struct hda_codec *codec)
 		hda_nid_t nid = cfg->inputs[i].pin;
 		if (spec->smart51_enabled && is_smart51_pins(codec, nid))
 			ctl = PIN_OUT;
-		else if (cfg->inputs[i].type == AUTO_PIN_MIC)
-			ctl = PIN_VREF50;
-		else
+		else {
 			ctl = PIN_IN;
+			if (cfg->inputs[i].type == AUTO_PIN_MIC)
+				ctl |= snd_hda_get_default_vref(codec, nid);
+		}
 		snd_hda_set_pin_ctl(codec, nid, ctl);
 	}
 

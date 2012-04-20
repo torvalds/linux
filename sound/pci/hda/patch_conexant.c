@@ -4020,12 +4020,11 @@ static void cx_auto_init_input(struct hda_codec *codec)
 	}
 
 	for (i = 0; i < cfg->num_inputs; i++) {
-		unsigned int type;
+		hda_nid_t pin = cfg->inputs[i].pin;
+		unsigned int type = PIN_IN;
 		if (cfg->inputs[i].type == AUTO_PIN_MIC)
-			type = PIN_VREF80;
-		else
-			type = PIN_IN;
-		snd_hda_set_pin_ctl(codec, cfg->inputs[i].pin, type);
+			type |= snd_hda_get_default_vref(codec, pin);
+		snd_hda_set_pin_ctl(codec, pin, type);
 	}
 
 	if (spec->auto_mic) {

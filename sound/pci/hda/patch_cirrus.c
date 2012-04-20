@@ -1057,12 +1057,8 @@ static void init_input(struct hda_codec *codec)
 			continue;
 		/* set appropriate pin control and mute first */
 		ctl = PIN_IN;
-		if (cfg->inputs[i].type == AUTO_PIN_MIC) {
-			unsigned int caps = snd_hda_query_pin_caps(codec, pin);
-			caps >>= AC_PINCAP_VREF_SHIFT;
-			if (caps & AC_PINCAP_VREF_80)
-				ctl = PIN_VREF80;
-		}
+		if (cfg->inputs[i].type == AUTO_PIN_MIC)
+			ctl |= snd_hda_get_default_vref(codec, pin);
 		snd_hda_set_pin_ctl(codec, pin, ctl);
 		snd_hda_codec_write(codec, spec->adc_nid[i], 0,
 				    AC_VERB_SET_AMP_GAIN_MUTE,

@@ -325,7 +325,7 @@ static int alc_mux_select(struct hda_codec *codec, unsigned int adc_idx,
 		 * first is the real internal mic and the second is HP jack.
 		 */
 		if (spec->cur_mux[adc_idx])
-			val = PIN_VREF80;
+			val = snd_hda_get_default_vref(codec, pin) | PIN_IN;
 		else
 			val = PIN_HP;
 		snd_hda_set_pin_ctl(codec, pin, val);
@@ -379,24 +379,8 @@ static void alc_set_input_pin(struct hda_codec *codec, hda_nid_t nid,
 			      int auto_pin_type)
 {
 	unsigned int val = PIN_IN;
-
-	if (auto_pin_type == AUTO_PIN_MIC) {
-		unsigned int pincap;
-		unsigned int oldval;
-		oldval = snd_hda_codec_read(codec, nid, 0,
-					    AC_VERB_GET_PIN_WIDGET_CONTROL, 0);
-		pincap = snd_hda_query_pin_caps(codec, nid);
-		pincap = (pincap & AC_PINCAP_VREF) >> AC_PINCAP_VREF_SHIFT;
-		/* if the default pin setup is vref50, we give it priority */
-		if ((pincap & AC_PINCAP_VREF_80) && oldval != PIN_VREF50)
-			val = PIN_VREF80;
-		else if (pincap & AC_PINCAP_VREF_50)
-			val = PIN_VREF50;
-		else if (pincap & AC_PINCAP_VREF_100)
-			val = PIN_VREF100;
-		else if (pincap & AC_PINCAP_VREF_GRD)
-			val = PIN_VREFGRD;
-	}
+	if (auto_pin_type == AUTO_PIN_MIC)
+		val |= snd_hda_get_default_vref(codec, nid);
 	snd_hda_set_pin_ctl(codec, nid, val);
 }
 
