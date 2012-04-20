@@ -319,10 +319,14 @@ extern void nfs_pageio_reset_read_mds(struct nfs_pageio_descriptor *pgio);
 extern void nfs_readdata_release(struct nfs_read_data *rdata);
 
 /* write.c */
-extern struct nfs_write_header *nfs_writehdr_alloc(unsigned int npages);
+extern void nfs_async_write_error(struct list_head *head);
+extern struct nfs_write_header *nfs_writehdr_alloc(void);
 extern void nfs_writehdr_free(struct nfs_pgio_header *hdr);
+extern struct nfs_write_data *nfs_writedata_alloc(struct nfs_pgio_header *hdr,
+						  unsigned int pagecount);
+extern void nfs_write_completion(struct nfs_pgio_header *hdr);
 extern int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
-		struct list_head *head);
+			     struct nfs_pgio_header *hdr);
 extern void nfs_pageio_init_write_mds(struct nfs_pageio_descriptor *pgio,
 				  struct inode *inode, int ioflags);
 extern void nfs_pageio_reset_write_mds(struct nfs_pageio_descriptor *pgio);

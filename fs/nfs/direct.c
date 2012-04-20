@@ -768,11 +768,17 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_direct_req *dreq,
 		bytes = min(wsize,count);
 
 		result = -ENOMEM;
-		whdr = nfs_writehdr_alloc(nfs_page_array_len(pgbase, bytes));
+		whdr = nfs_writehdr_alloc();
 		if (unlikely(!whdr))
 			break;
 
-		data = &whdr->rpc_data;
+		data = nfs_writedata_alloc(&whdr->header, nfs_page_array_len(pgbase, bytes));
+		if (!data) {
+			nfs_writehdr_free(&whdr->header);
+			break;
+		}
+		data->header = &whdr->header;
+		atomic_inc(&data->header->refcnt);
 		pages = &data->pages;
 
 		down_read(&current->mm->mmap_sem);

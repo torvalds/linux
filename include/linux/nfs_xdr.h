@@ -1192,6 +1192,8 @@ enum {
 	NFS_IOHDR_ERROR = 0,
 	NFS_IOHDR_EOF,
 	NFS_IOHDR_REDO,
+	NFS_IOHDR_NEED_COMMIT,
+	NFS_IOHDR_NEED_RESCHED,
 };
 
 struct nfs_pgio_header {

@@ -3431,8 +3431,6 @@ void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data)
 	struct inode *inode = hdr->inode;
 
 	dprintk("%s Reset task for i/o through\n", __func__);
-	put_lseg(hdr->lseg);
-	hdr->lseg        = NULL;
 	data->ds_clp     = NULL;
 	data->write_done_cb = nfs4_write_done_cb;
 	data->args.fh       = NFS_FH(inode);
@@ -3448,7 +3446,7 @@ static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_messag
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
-	if (data->header->lseg) {
+	if (data->ds_clp) {
 		data->args.bitmask = NULL;
 		data->res.fattr = NULL;
 	} else
