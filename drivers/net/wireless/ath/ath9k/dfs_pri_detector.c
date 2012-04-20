@@ -17,8 +17,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
+#include "ath9k.h"
 #include "dfs_pattern_detector.h"
 #include "dfs_pri_detector.h"
+#include "dfs_debug.h"
 
 /**
  * struct pri_sequence - sequence of pulses matching one PRI
@@ -101,6 +103,7 @@ static void pool_register_ref(void)
 {
 	spin_lock_bh(&pool_lock);
 	singleton_pool_references++;
+	DFS_POOL_STAT_INC(pool_reference);
 	spin_unlock_bh(&pool_lock);
 }
 
@@ -108,6 +111,7 @@ static void pool_deregister_ref(void)
 {
 	spin_lock_bh(&pool_lock);
 	singleton_pool_references--;
+	DFS_POOL_STAT_DEC(pool_reference);
 	if (singleton_pool_references == 0) {
 		/* free singleton pools with no references left */
 		struct pri_sequence *ps, *ps0;
@@ -115,10 +119,12 @@ static void pool_deregister_ref(void)
 
 		list_for_each_entry_safe(p, p0, &pulse_pool, head) {
 			list_del(&p->head);
+			DFS_POOL_STAT_DEC(pulse_allocated);
 			kfree(p);
 		}
 		list_for_each_entry_safe(ps, ps0, &pseq_pool, head) {
 			list_del(&ps->head);
+			DFS_POOL_STAT_DEC(pseq_allocated);
 			kfree(ps);
 		}
 	}
@@ -129,6 +135,7 @@ static void pool_put_pulse_elem(struct pulse_elem *pe)
 {
 	spin_lock_bh(&pool_lock);
 	list_add(&pe->head, &pulse_pool);
+	DFS_POOL_STAT_DEC(pulse_used);
 	spin_unlock_bh(&pool_lock);
 }
 
@@ -136,6 +143,7 @@ static void pool_put_pseq_elem(struct pri_sequence *pse)
 {
 	spin_lock_bh(&pool_lock);
 	list_add(&pse->head, &pseq_pool);
+	DFS_POOL_STAT_DEC(pseq_used);
 	spin_unlock_bh(&pool_lock);
 }
 
@@ -146,6 +154,7 @@ static struct pri_sequence *pool_get_pseq_elem(void)
 	if (!list_empty(&pseq_pool)) {
 		pse = list_first_entry(&pseq_pool, struct pri_sequence, head);
 		list_del(&pse->head);
+		DFS_POOL_STAT_INC(pseq_used);
 	}
 	spin_unlock_bh(&pool_lock);
 	return pse;
@@ -158,6 +167,7 @@ static struct pulse_elem *pool_get_pulse_elem(void)
 	if (!list_empty(&pulse_pool)) {
 		pe = list_first_entry(&pulse_pool, struct pulse_elem, head);
 		list_del(&pe->head);
+		DFS_POOL_STAT_INC(pulse_used);
 	}
 	spin_unlock_bh(&pool_lock);
 	return pe;
@@ -210,9 +220,11 @@ static bool pulse_queue_enqueue(struct pri_detector *pde, u64 ts)
 	if (p == NULL) {
 		p = kmalloc(sizeof(*p), GFP_KERNEL);
 		if (p == NULL) {
-			pr_err("failed to allocate pulse_elem\n");
+			DFS_POOL_STAT_INC(pulse_alloc_error);
 			return false;
 		}
+		DFS_POOL_STAT_INC(pulse_allocated);
+		DFS_POOL_STAT_INC(pulse_used);
 	}
 	INIT_LIST_HEAD(&p->head);
 	p->ts = ts;
@@ -288,8 +300,12 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 		new_ps = pool_get_pseq_elem();
 		if (new_ps == NULL) {
 			new_ps = kmalloc(sizeof(*new_ps), GFP_KERNEL);
-			if (new_ps == NULL)
+			if (new_ps == NULL) {
+				DFS_POOL_STAT_INC(pseq_alloc_error);
 				return false;
+			}
+			DFS_POOL_STAT_INC(pseq_allocated);
+			DFS_POOL_STAT_INC(pseq_used);
 		}
 		memcpy(new_ps, &ps, sizeof(ps));
 		INIT_LIST_HEAD(&new_ps->head);
