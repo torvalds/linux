@@ -600,6 +600,8 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	switch (tt_query->flags & TT_QUERY_TYPE_MASK) {
 	case TT_REQUEST:
+		batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_RX);
+
 		/* If we cannot provide an answer the tt_request is
 		 * forwarded */
 		if (!send_tt_response(bat_priv, tt_query)) {
@@ -612,6 +614,8 @@ int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 		}
 		break;
 	case TT_RESPONSE:
+		batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_RX);
+
 		if (is_my_mac(tt_query->dst)) {
 			/* packet needs to be linearized to access the TT
 			 * changes */
@@ -664,6 +668,8 @@ int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	/* packet with broadcast sender address */
 	if (is_broadcast_ether_addr(ethhdr->h_source))
 		goto out;
+
+	batadv_inc_counter(bat_priv, BAT_CNT_TT_ROAM_ADV_RX);
 
 	roam_adv_packet = (struct roam_adv_packet *)skb->data;
 
@@ -871,6 +877,11 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 
 	/* decrement ttl */
 	unicast_packet->header.ttl--;
+
+	/* Update stats counter */
+	batadv_inc_counter(bat_priv, BAT_CNT_FORWARD);
+	batadv_add_counter(bat_priv, BAT_CNT_FORWARD_BYTES,
+			   skb->len + ETH_HLEN);
 
 	/* route it */
 	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);

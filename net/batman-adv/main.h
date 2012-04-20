@@ -138,6 +138,7 @@ enum dbg_level {
 #include <linux/kthread.h>	/* kernel threads */
 #include <linux/pkt_sched.h>	/* schedule types */
 #include <linux/workqueue.h>	/* workqueue */
+#include <linux/percpu.h>
 #include <linux/slab.h>
 #include <net/sock.h>		/* struct sock */
 #include <linux/jiffies.h>
@@ -241,5 +242,31 @@ static inline bool has_timed_out(unsigned long timestamp, unsigned int timeout)
 			  (void) (&_d1 == &_d2); \
 			  _dummy > smallest_signed_int(_dummy); })
 #define seq_after(x, y) seq_before(y, x)
+
+/* Stop preemption on local cpu while incrementing the counter */
+static inline void batadv_add_counter(struct bat_priv *bat_priv, size_t idx,
+				      size_t count)
+{
+	int cpu = get_cpu();
+	per_cpu_ptr(bat_priv->bat_counters, cpu)[idx] += count;
+	put_cpu();
+}
+
+#define batadv_inc_counter(b, i) batadv_add_counter(b, i, 1)
+
+/* Sum and return the cpu-local counters for index 'idx' */
+static inline uint64_t batadv_sum_counter(struct bat_priv *bat_priv, size_t idx)
+{
+	uint64_t *counters;
+	int cpu;
+	int sum = 0;
+
+	for_each_possible_cpu(cpu) {
+		counters = per_cpu_ptr(bat_priv->bat_counters, cpu);
+		sum += counters[idx];
+	}
+
+	return sum;
+}
 
 #endif /* _NET_BATMAN_ADV_MAIN_H_ */

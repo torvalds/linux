@@ -153,6 +153,8 @@ void mesh_free(struct net_device *soft_iface)
 
 	bla_free(bat_priv);
 
+	free_percpu(bat_priv->bat_counters);
+
 	atomic_set(&bat_priv->mesh_state, MESH_INACTIVE);
 }
 
