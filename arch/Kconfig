@@ -145,6 +145,9 @@ config HAVE_DMA_ATTRS
 config USE_GENERIC_SMP_HELPERS
 	bool
 
+config GENERIC_SMP_IDLE_THREAD
+       bool
+
 config HAVE_REGS_AND_STACK_ACCESS_API
 	bool
 	help
