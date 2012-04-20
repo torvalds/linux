@@ -1781,9 +1781,6 @@ perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 		if (bytes != sizeof(frame))
 			break;
 
-		if (fp < compat_ptr(regs->sp))
-			break;
-
 		perf_callchain_store(entry, frame.return_address);
 		fp = compat_ptr(frame.next_frame);
 	}
@@ -1825,9 +1822,6 @@ perf_callchain_user(struct perf_callchain_entry *entry, struct pt_regs *regs)
 
 		bytes = copy_from_user_nmi(&frame, fp, sizeof(frame));
 		if (bytes != sizeof(frame))
-			break;
-
-		if ((unsigned long)fp < regs->sp)
 			break;
 
 		perf_callchain_store(entry, frame.return_address);
