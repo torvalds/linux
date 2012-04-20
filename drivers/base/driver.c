@@ -49,13 +49,11 @@ int driver_for_each_device(struct device_driver *drv, struct device *start,
 	if (!drv)
 		return -EINVAL;
 
-	error = klist_iter_init_node(&drv->p->klist_devices, &i,
-				     start ? &start->p->knode_driver : NULL);
-	if (!error) {
-		while ((dev = next_device(&i)) && !error)
-			error = fn(dev, data);
-		klist_iter_exit(&i);
-	}
+	klist_iter_init_node(&drv->p->klist_devices, &i,
+			     start ? &start->p->knode_driver : NULL);
+	while ((dev = next_device(&i)) && !error)
+		error = fn(dev, data);
+	klist_iter_exit(&i);
 	return error;
 }
 EXPORT_SYMBOL_GPL(driver_for_each_device);
@@ -85,10 +83,8 @@ struct device *driver_find_device(struct device_driver *drv,
 	if (!drv)
 		return NULL;
 
-	if (klist_iter_init_node(&drv->p->klist_devices, &i,
-				 (start ? &start->p->knode_driver : NULL)) < 0)
-		return NULL;
-
+	klist_iter_init_node(&drv->p->klist_devices, &i,
+			     (start ? &start->p->knode_driver : NULL));
 	while ((dev = next_device(&i)))
 		if (match(dev, data) && get_device(dev))
 			break;

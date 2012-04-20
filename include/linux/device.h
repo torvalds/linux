@@ -128,7 +128,7 @@ struct subsys_dev_iter {
 	struct klist_iter		ki;
 	const struct device_type	*type;
 };
-int subsys_dev_iter_init(struct subsys_dev_iter *iter,
+void subsys_dev_iter_init(struct subsys_dev_iter *iter,
 			 struct bus_type *subsys,
 			 struct device *start,
 			 const struct device_type *type);
@@ -380,10 +380,10 @@ int class_compat_create_link(struct class_compat *cls, struct device *dev,
 void class_compat_remove_link(struct class_compat *cls, struct device *dev,
 			      struct device *device_link);
 
-extern int class_dev_iter_init(struct class_dev_iter *iter,
-			       struct class *class,
-			       struct device *start,
-			       const struct device_type *type);
+extern void class_dev_iter_init(struct class_dev_iter *iter,
+				struct class *class,
+				struct device *start,
+				const struct device_type *type);
 extern struct device *class_dev_iter_next(struct class_dev_iter *iter);
 extern void class_dev_iter_exit(struct class_dev_iter *iter);
 
