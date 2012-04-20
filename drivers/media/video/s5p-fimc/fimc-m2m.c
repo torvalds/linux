@@ -776,7 +776,7 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 	   This driver needs auditing so that this flag can be removed. */
 	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 
-	snprintf(vfd->name, sizeof(vfd->name), "%s.m2m", dev_name(&pdev->dev));
+	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.m2m", fimc->id);
 	video_set_drvdata(vfd, fimc);
 
 	fimc->m2m.vfd = vfd;
@@ -788,9 +788,20 @@ int fimc_register_m2m_device(struct fimc_dev *fimc,
 	}
 
 	ret = media_entity_init(&vfd->entity, 0, NULL, 0);
-	if (!ret)
-		return 0;
+	if (ret)
+		goto err_me;
 
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
+	if (ret)
+		goto err_vd;
+
+	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
+		  vfd->name, video_device_node_name(vfd));
+	return 0;
+
+err_vd:
+	media_entity_cleanup(&vfd->entity);
+err_me:
 	v4l2_m2m_release(fimc->m2m.m2m_dev);
 err_init:
 	video_device_release(fimc->m2m.vfd);

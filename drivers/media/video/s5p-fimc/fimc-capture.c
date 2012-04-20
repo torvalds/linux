@@ -993,7 +993,7 @@ static int fimc_pipeline_validate(struct fimc_dev *fimc)
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			break;
 		/* Don't call FIMC subdev operation to avoid nested locking */
-		if (sd == fimc->vid_cap.subdev) {
+		if (sd == &fimc->vid_cap.subdev) {
 			struct fimc_frame *ff = &vid_cap->ctx->s_frame;
 			sink_fmt.format.width = ff->f_width;
 			sink_fmt.format.height = ff->f_height;
@@ -1489,53 +1489,6 @@ static struct v4l2_subdev_ops fimc_subdev_ops = {
 	.pad = &fimc_subdev_pad_ops,
 };
 
-static int fimc_create_capture_subdev(struct fimc_dev *fimc,
-				      struct v4l2_device *v4l2_dev)
-{
-	struct v4l2_subdev *sd;
-	int ret;
-
-	sd = kzalloc(sizeof(*sd), GFP_KERNEL);
-	if (!sd)
-		return -ENOMEM;
-
-	v4l2_subdev_init(sd, &fimc_subdev_ops);
-	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
-	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->pdev->id);
-
-	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
-	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
-	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
-				fimc->vid_cap.sd_pads, 0);
-	if (ret)
-		goto me_err;
-	ret = v4l2_device_register_subdev(v4l2_dev, sd);
-	if (ret)
-		goto sd_err;
-
-	fimc->vid_cap.subdev = sd;
-	v4l2_set_subdevdata(sd, fimc);
-	sd->entity.ops = &fimc_sd_media_ops;
-	return 0;
-sd_err:
-	media_entity_cleanup(&sd->entity);
-me_err:
-	kfree(sd);
-	return ret;
-}
-
-static void fimc_destroy_capture_subdev(struct fimc_dev *fimc)
-{
-	struct v4l2_subdev *sd = fimc->vid_cap.subdev;
-
-	if (!sd)
-		return;
-	media_entity_cleanup(&sd->entity);
-	v4l2_device_unregister_subdev(sd);
-	kfree(sd);
-	fimc->vid_cap.subdev = NULL;
-}
-
 /* Set default format at the sensor and host interface */
 static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 {
@@ -1554,7 +1507,7 @@ static int fimc_capture_set_default_format(struct fimc_dev *fimc)
 }
 
 /* fimc->lock must be already initialized */
-int fimc_register_capture_device(struct fimc_dev *fimc,
+static int fimc_register_capture_device(struct fimc_dev *fimc,
 				 struct v4l2_device *v4l2_dev)
 {
 	struct video_device *vfd;
@@ -1572,7 +1525,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 	ctx->out_path	 = FIMC_DMA;
 	ctx->state	 = FIMC_CTX_CAP;
 	ctx->s_frame.fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
-	ctx->d_frame.fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
+	ctx->d_frame.fmt = ctx->s_frame.fmt;
 
 	vfd = video_device_alloc();
 	if (!vfd) {
@@ -1580,8 +1533,7 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 		goto err_vd_alloc;
 	}
 
-	snprintf(vfd->name, sizeof(vfd->name), "%s.capture",
-		 dev_name(&fimc->pdev->dev));
+	snprintf(vfd->name, sizeof(vfd->name), "fimc.%d.capture", fimc->id);
 
 	vfd->fops	= &fimc_capture_fops;
 	vfd->ioctl_ops	= &fimc_capture_ioctl_ops;
@@ -1616,18 +1568,22 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 
 	vb2_queue_init(q);
 
-	fimc->vid_cap.vd_pad.flags = MEDIA_PAD_FL_SINK;
-	ret = media_entity_init(&vfd->entity, 1, &fimc->vid_cap.vd_pad, 0);
+	vid_cap->vd_pad.flags = MEDIA_PAD_FL_SINK;
+	ret = media_entity_init(&vfd->entity, 1, &vid_cap->vd_pad, 0);
 	if (ret)
 		goto err_ent;
-	ret = fimc_create_capture_subdev(fimc, v4l2_dev);
+
+	ret = video_register_device(vfd, VFL_TYPE_GRABBER, -1);
 	if (ret)
-		goto err_sd_reg;
+		goto err_vd;
+
+	v4l2_info(v4l2_dev, "Registered %s as /dev/%s\n",
+		  vfd->name, video_device_node_name(vfd));
 
 	vfd->ctrl_handler = &ctx->ctrl_handler;
 	return 0;
 
-err_sd_reg:
+err_vd:
 	media_entity_cleanup(&vfd->entity);
 err_ent:
 	video_device_release(vfd);
@@ -1636,17 +1592,73 @@ err_vd_alloc:
 	return ret;
 }
 
-void fimc_unregister_capture_device(struct fimc_dev *fimc)
+static int fimc_capture_subdev_registered(struct v4l2_subdev *sd)
 {
-	struct video_device *vfd = fimc->vid_cap.vfd;
+	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
+	int ret;
 
-	if (vfd) {
-		media_entity_cleanup(&vfd->entity);
-		/* Can also be called if video device was
-		   not registered */
-		video_unregister_device(vfd);
+	ret = fimc_register_m2m_device(fimc, sd->v4l2_dev);
+	if (ret)
+		return ret;
+
+	ret = fimc_register_capture_device(fimc, sd->v4l2_dev);
+	if (ret)
+		fimc_unregister_m2m_device(fimc);
+
+	return ret;
+}
+
+static void fimc_capture_subdev_unregistered(struct v4l2_subdev *sd)
+{
+	struct fimc_dev *fimc = v4l2_get_subdevdata(sd);
+
+	if (fimc == NULL)
+		return;
+
+	fimc_unregister_m2m_device(fimc);
+
+	if (fimc->vid_cap.vfd) {
+		media_entity_cleanup(&fimc->vid_cap.vfd->entity);
+		video_unregister_device(fimc->vid_cap.vfd);
+		fimc->vid_cap.vfd = NULL;
 	}
-	fimc_destroy_capture_subdev(fimc);
+
 	kfree(fimc->vid_cap.ctx);
 	fimc->vid_cap.ctx = NULL;
+}
+
+static const struct v4l2_subdev_internal_ops fimc_capture_sd_internal_ops = {
+	.registered = fimc_capture_subdev_registered,
+	.unregistered = fimc_capture_subdev_unregistered,
+};
+
+int fimc_initialize_capture_subdev(struct fimc_dev *fimc)
+{
+	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+	int ret;
+
+	v4l2_subdev_init(sd, &fimc_subdev_ops);
+	sd->flags = V4L2_SUBDEV_FL_HAS_DEVNODE;
+	snprintf(sd->name, sizeof(sd->name), "FIMC.%d", fimc->pdev->id);
+
+	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SINK].flags = MEDIA_PAD_FL_SINK;
+	fimc->vid_cap.sd_pads[FIMC_SD_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
+	ret = media_entity_init(&sd->entity, FIMC_SD_PADS_NUM,
+				fimc->vid_cap.sd_pads, 0);
+	if (ret)
+		return ret;
+
+	sd->entity.ops = &fimc_sd_media_ops;
+	sd->internal_ops = &fimc_capture_sd_internal_ops;
+	v4l2_set_subdevdata(sd, fimc);
+	return 0;
+}
+
+void fimc_unregister_capture_subdev(struct fimc_dev *fimc)
+{
+	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
+
+	v4l2_device_unregister_subdev(sd);
+	media_entity_cleanup(&sd->entity);
+	v4l2_set_subdevdata(sd, NULL);
 }

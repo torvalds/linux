@@ -304,8 +304,9 @@ static int fimc_md_register_sensor_entities(struct fimc_md *fmd)
 static int fimc_register_callback(struct device *dev, void *p)
 {
 	struct fimc_dev *fimc = dev_get_drvdata(dev);
+	struct v4l2_subdev *sd = &fimc->vid_cap.subdev;
 	struct fimc_md *fmd = p;
-	int ret;
+	int ret = 0;
 
 	if (!fimc || !fimc->pdev)
 		return 0;
@@ -313,12 +314,14 @@ static int fimc_register_callback(struct device *dev, void *p)
 		return 0;
 
 	fmd->fimc[fimc->pdev->id] = fimc;
-	ret = fimc_register_m2m_device(fimc, &fmd->v4l2_dev);
-	if (ret)
-		return ret;
-	ret = fimc_register_capture_device(fimc, &fmd->v4l2_dev);
-	if (!ret)
-		fimc->vid_cap.user_subdev_api = fmd->user_subdev_api;
+	sd->grp_id = FIMC_GROUP_ID;
+
+	ret = v4l2_device_register_subdev(&fmd->v4l2_dev, sd);
+	if (ret) {
+		v4l2_err(&fmd->v4l2_dev, "Failed to register FIMC.%d (%d)\n",
+			 fimc->id, ret);
+	}
+
 	return ret;
 }
 
@@ -401,8 +404,7 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 	for (i = 0; i < FIMC_MAX_DEVS; i++) {
 		if (fmd->fimc[i] == NULL)
 			continue;
-		fimc_unregister_m2m_device(fmd->fimc[i]);
-		fimc_unregister_capture_device(fmd->fimc[i]);
+		v4l2_device_unregister_subdev(&fmd->fimc[i]->vid_cap.subdev);
 		fmd->fimc[i] = NULL;
 	}
 	for (i = 0; i < CSIS_MAX_ENTITIES; i++) {
@@ -418,35 +420,6 @@ static void fimc_md_unregister_entities(struct fimc_md *fmd)
 		fimc_md_unregister_sensor(fmd->sensor[i].subdev);
 		fmd->sensor[i].subdev = NULL;
 	}
-}
-
-static int fimc_md_register_video_nodes(struct fimc_md *fmd)
-{
-	struct video_device *vdev;
-	int i, ret = 0;
-
-	for (i = 0; i < FIMC_MAX_DEVS && !ret; i++) {
-		if (!fmd->fimc[i])
-			continue;
-
-		vdev = fmd->fimc[i]->m2m.vfd;
-		if (vdev) {
-			ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
-			if (ret)
-				break;
-			v4l2_info(&fmd->v4l2_dev, "Registered %s as /dev/%s\n",
-				  vdev->name, video_device_node_name(vdev));
-		}
-
-		vdev = fmd->fimc[i]->vid_cap.vfd;
-		if (vdev == NULL)
-			continue;
-		ret = video_register_device(vdev, VFL_TYPE_GRABBER, -1);
-		v4l2_info(&fmd->v4l2_dev, "Registered %s as /dev/%s\n",
-			  vdev->name, video_device_node_name(vdev));
-	}
-
-	return ret;
 }
 
 /**
@@ -479,7 +452,7 @@ static int __fimc_md_create_fimc_links(struct fimc_md *fmd,
 			continue;
 
 		flags = (i == fimc_id) ? MEDIA_LNK_FL_ENABLED : 0;
-		sink = &fmd->fimc[i]->vid_cap.subdev->entity;
+		sink = &fmd->fimc[i]->vid_cap.subdev.entity;
 		ret = media_entity_create_link(source, pad, sink,
 					      FIMC_SD_PAD_SINK, flags);
 		if (ret)
@@ -588,7 +561,7 @@ static int fimc_md_create_links(struct fimc_md *fmd)
 	for (i = 0; i < FIMC_MAX_DEVS; i++) {
 		if (!fmd->fimc[i])
 			continue;
-		source = &fmd->fimc[i]->vid_cap.subdev->entity;
+		source = &fmd->fimc[i]->vid_cap.subdev.entity;
 		sink = &fmd->fimc[i]->vid_cap.vfd->entity;
 		ret = media_entity_create_link(source, FIMC_SD_PAD_SOURCE,
 					      sink, 0, flags);
@@ -817,42 +790,48 @@ static int fimc_md_probe(struct platform_device *pdev)
 	ret = media_device_register(&fmd->media_dev);
 	if (ret < 0) {
 		v4l2_err(v4l2_dev, "Failed to register media device: %d\n", ret);
-		goto err2;
+		goto err_md;
 	}
 	ret = fimc_md_get_clocks(fmd);
 	if (ret)
-		goto err3;
+		goto err_clk;
 
 	fmd->user_subdev_api = false;
+
+	/* Protect the media graph while we're registering entities */
+	mutex_lock(&fmd->media_dev.graph_mutex);
+
 	ret = fimc_md_register_platform_entities(fmd);
 	if (ret)
-		goto err3;
+		goto err_unlock;
 
 	if (pdev->dev.platform_data) {
 		ret = fimc_md_register_sensor_entities(fmd);
 		if (ret)
-			goto err3;
+			goto err_unlock;
 	}
 	ret = fimc_md_create_links(fmd);
 	if (ret)
-		goto err3;
+		goto err_unlock;
 	ret = v4l2_device_register_subdev_nodes(&fmd->v4l2_dev);
 	if (ret)
-		goto err3;
-	ret = fimc_md_register_video_nodes(fmd);
-	if (ret)
-		goto err3;
+		goto err_unlock;
 
 	ret = device_create_file(&pdev->dev, &dev_attr_subdev_conf_mode);
-	if (!ret) {
-		platform_set_drvdata(pdev, fmd);
-		return 0;
-	}
-err3:
+	if (ret)
+		goto err_unlock;
+
+	platform_set_drvdata(pdev, fmd);
+	mutex_unlock(&fmd->media_dev.graph_mutex);
+	return 0;
+
+err_unlock:
+	mutex_unlock(&fmd->media_dev.graph_mutex);
+err_clk:
 	media_device_unregister(&fmd->media_dev);
 	fimc_md_put_clocks(fmd);
 	fimc_md_unregister_entities(fmd);
-err2:
+err_md:
 	v4l2_device_unregister(&fmd->v4l2_dev);
 	return ret;
 }

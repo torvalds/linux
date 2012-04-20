@@ -842,8 +842,6 @@ static int fimc_probe(struct platform_device *pdev)
 	clk_set_rate(fimc->clock[CLK_BUS], drv_data->lclk_frequency);
 	clk_enable(fimc->clock[CLK_BUS]);
 
-	platform_set_drvdata(pdev, fimc);
-
 	ret = devm_request_irq(&pdev->dev, res->start, fimc_irq_handler,
 			       0, pdev->name, fimc);
 	if (ret) {
@@ -851,10 +849,15 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
+	ret = fimc_initialize_capture_subdev(fimc);
+	if (ret)
+		goto err_clk;
+
+	platform_set_drvdata(pdev, fimc);
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0)
-		goto err_clk;
+		goto err_sd;
 	/* Initialize contiguous memory allocator */
 	fimc->alloc_ctx = vb2_dma_contig_init_ctx(&pdev->dev);
 	if (IS_ERR(fimc->alloc_ctx)) {
@@ -866,9 +869,10 @@ static int fimc_probe(struct platform_device *pdev)
 
 	pm_runtime_put(&pdev->dev);
 	return 0;
-
 err_pm:
 	pm_runtime_put(&pdev->dev);
+err_sd:
+	fimc_unregister_capture_subdev(fimc);
 err_clk:
 	fimc_clk_put(fimc);
 	return ret;
@@ -953,6 +957,7 @@ static int __devexit fimc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 
+	fimc_unregister_capture_subdev(fimc);
 	vb2_dma_contig_cleanup_ctx(fimc->alloc_ctx);
 
 	clk_disable(fimc->clock[CLK_BUS]);

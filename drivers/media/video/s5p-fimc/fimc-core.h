@@ -331,7 +331,7 @@ struct fimc_vid_cap {
 	struct fimc_ctx			*ctx;
 	struct vb2_alloc_ctx		*alloc_ctx;
 	struct video_device		*vfd;
-	struct v4l2_subdev		*subdev;
+	struct v4l2_subdev		subdev;
 	struct media_pad		vd_pad;
 	struct v4l2_mbus_framefmt	mf;
 	struct media_pad		sd_pads[FIMC_SD_PADS_NUM];
@@ -737,9 +737,8 @@ void fimc_m2m_job_finish(struct fimc_ctx *ctx, int vb_state);
 
 /* -----------------------------------------------------*/
 /* fimc-capture.c					*/
-int fimc_register_capture_device(struct fimc_dev *fimc,
-				 struct v4l2_device *v4l2_dev);
-void fimc_unregister_capture_device(struct fimc_dev *fimc);
+int fimc_initialize_capture_subdev(struct fimc_dev *fimc);
+void fimc_unregister_capture_subdev(struct fimc_dev *fimc);
 int fimc_capture_ctrls_create(struct fimc_dev *fimc);
 void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 			void *arg);
