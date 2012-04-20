@@ -23,6 +23,7 @@
 #ifndef __LINUX_EXTCON_H__
 #define __LINUX_EXTCON_H__
 
+#include <linux/notifier.h>
 /**
  * struct extcon_dev - An extcon device represents one external connector.
  * @name	The name of this extcon device. Parent device name is used
@@ -34,6 +35,9 @@
  * @dev		Device of this extcon. Do not provide at register-time.
  * @state	Attach/detach state of this extcon. Do not provide at
  *		register-time
+ * @nh	Notifier for the state change events from this extcon
+ * @entry	To support list of extcon devices so that uses can search
+ *		for extcon devices based on the extcon name.
  *
  * In most cases, users only need to provide "User initializing data" of
  * this struct when registering an extcon. In some exceptional cases,
@@ -51,11 +55,19 @@ struct extcon_dev {
 	/* --- Internal data. Please do not set. --- */
 	struct device	*dev;
 	u32		state;
+	struct raw_notifier_head nh;
+	struct list_head entry;
 };
 
 #if IS_ENABLED(CONFIG_EXTCON)
+
+/*
+ * Following APIs are for notifiers or configurations.
+ * Notifiers are the external port and connection devices.
+ */
 extern int extcon_dev_register(struct extcon_dev *edev, struct device *dev);
 extern void extcon_dev_unregister(struct extcon_dev *edev);
+extern struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name);
 
 static inline u32 extcon_get_state(struct extcon_dev *edev)
 {
@@ -63,6 +75,15 @@ static inline u32 extcon_get_state(struct extcon_dev *edev)
 }
 
 extern void extcon_set_state(struct extcon_dev *edev, u32 state);
+
+/*
+ * Following APIs are to monitor every action of a notifier.
+ * Registerer gets notified for every external port of a connection device.
+ */
+extern int extcon_register_notifier(struct extcon_dev *edev,
+				    struct notifier_block *nb);
+extern int extcon_unregister_notifier(struct extcon_dev *edev,
+				      struct notifier_block *nb);
 #else /* CONFIG_EXTCON */
 static inline int extcon_dev_register(struct extcon_dev *edev,
 				      struct device *dev)
@@ -78,5 +99,22 @@ static inline u32 extcon_get_state(struct extcon_dev *edev)
 }
 
 static inline void extcon_set_state(struct extcon_dev *edev, u32 state) { }
+static inline struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
+{
+	return NULL;
+}
+
+static inline int extcon_register_notifier(struct extcon_dev *edev,
+					   struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline int extcon_unregister_notifier(struct extcon_dev *edev,
+					     struct notifier_block *nb)
+{
+	return 0;
+}
+
 #endif /* CONFIG_EXTCON */
 #endif /* __LINUX_EXTCON_H__ */

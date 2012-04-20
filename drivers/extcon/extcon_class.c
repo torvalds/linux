@@ -36,6 +36,9 @@ struct class *extcon_class;
 static struct class_compat *switch_class;
 #endif /* CONFIG_ANDROID && !defined(CONFIG_ANDROID_SWITCH) */
 
+static LIST_HEAD(extcon_dev_list);
+static DEFINE_MUTEX(extcon_dev_list_lock);
+
 static ssize_t state_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -75,6 +78,9 @@ static ssize_t name_show(struct device *dev, struct device_attribute *attr,
  * the name of extcon device (envp[0]) and the state output (envp[1]).
  * Tizen uses this format for extcon device to get events from ports.
  * Android uses this format as well.
+ *
+ * Note that notifier provides the which bits are changes in the state
+ * variable with "val" to the callback.
  */
 void extcon_set_state(struct extcon_dev *edev, u32 state)
 {
@@ -84,9 +90,13 @@ void extcon_set_state(struct extcon_dev *edev, u32 state)
 	char *envp[3];
 	int env_offset = 0;
 	int length;
+	u32 old_state = edev->state;
 
 	if (edev->state != state) {
 		edev->state = state;
+
+		raw_notifier_call_chain(&edev->nh, old_state ^ edev->state,
+					edev);
 
 		prop_buf = (char *)get_zeroed_page(GFP_KERNEL);
 		if (prop_buf) {
@@ -117,6 +127,51 @@ void extcon_set_state(struct extcon_dev *edev, u32 state)
 }
 EXPORT_SYMBOL_GPL(extcon_set_state);
 
+/**
+ * extcon_get_extcon_dev() - Get the extcon device instance from the name
+ * @extcon_name:	The extcon name provided with extcon_dev_register()
+ */
+struct extcon_dev *extcon_get_extcon_dev(const char *extcon_name)
+{
+	struct extcon_dev *sd;
+
+	mutex_lock(&extcon_dev_list_lock);
+	list_for_each_entry(sd, &extcon_dev_list, entry) {
+		if (!strcmp(sd->name, extcon_name))
+			goto out;
+	}
+	sd = NULL;
+out:
+	mutex_unlock(&extcon_dev_list_lock);
+	return sd;
+}
+EXPORT_SYMBOL_GPL(extcon_get_extcon_dev);
+
+/**
+ * extcon_register_notifier() - Register a notifee to get notified by
+ *			      any attach status changes from the extcon.
+ * @edev:	the extcon device.
+ * @nb:		a notifier block to be registered.
+ */
+int extcon_register_notifier(struct extcon_dev *edev,
+			struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&edev->nh, nb);
+}
+EXPORT_SYMBOL_GPL(extcon_register_notifier);
+
+/**
+ * extcon_unregister_notifier() - Unregister a notifee from the extcon device.
+ * @edev:	the extcon device.
+ * @nb:		a registered notifier block to be unregistered.
+ */
+int extcon_unregister_notifier(struct extcon_dev *edev,
+			struct notifier_block *nb)
+{
+	return raw_notifier_chain_unregister(&edev->nh, nb);
+}
+EXPORT_SYMBOL_GPL(extcon_unregister_notifier);
+
 static struct device_attribute extcon_attrs[] = {
 	__ATTR_RO(state),
 	__ATTR_RO(name),
@@ -142,6 +197,10 @@ static int create_extcon_class(void)
 
 static void extcon_cleanup(struct extcon_dev *edev, bool skip)
 {
+	mutex_lock(&extcon_dev_list_lock);
+	list_del(&edev->entry);
+	mutex_unlock(&extcon_dev_list_lock);
+
 	if (!skip && get_device(edev->dev)) {
 		device_unregister(edev->dev);
 		put_device(edev->dev);
@@ -194,8 +253,15 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 					       dev);
 #endif /* CONFIG_ANDROID && !defined(CONFIG_ANDROID_SWITCH) */
 
+	RAW_INIT_NOTIFIER_HEAD(&edev->nh);
+
 	dev_set_drvdata(edev->dev, edev);
 	edev->state = 0;
+
+	mutex_lock(&extcon_dev_list_lock);
+	list_add(&edev->entry, &extcon_dev_list);
+	mutex_unlock(&extcon_dev_list_lock);
+
 	return 0;
 
 err_dev:
