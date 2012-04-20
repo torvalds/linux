@@ -323,10 +323,25 @@ static int rga_check_param(const struct rga_req *req)
     	}
     }
 
+    if(!((req->render_mode == color_fill_mode) || (req->render_mode == line_point_drawing_mode)))
+    {
+    	if (unlikely((req->src.vir_w <= 0) || (req->src.vir_w > 8191) || (req->src.vir_h <= 0) || (req->src.vir_h > 8191))) 
+        {
+    		ERR("invalid source resolution vir_w = %d, vir_h = %d\n", req->src.vir_w, req->src.vir_h);
+    		return  -EINVAL;
+    	}
+    }
+
 	//check dst width and height
 	if (unlikely((req->dst.act_w <= 0) || (req->dst.act_w > 2048) || (req->dst.act_h <= 0) || (req->dst.act_h > 2048))) 
     {
 		ERR("invalid destination resolution act_w = %d, act_h = %d\n", req->dst.act_w, req->dst.act_h);
+		return	-EINVAL;
+	}
+
+    if (unlikely((req->dst.vir_w <= 0) || (req->dst.vir_w > 2048) || (req->dst.vir_h <= 0) || (req->dst.vir_h > 2048))) 
+    {
+		ERR("invalid destination resolution vir_w = %d, vir_h = %d\n", req->dst.vir_w, req->dst.vir_h);
 		return	-EINVAL;
 	}
 
