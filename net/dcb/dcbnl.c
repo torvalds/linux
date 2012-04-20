@@ -704,6 +704,7 @@ static int dcbnl_setapp(struct net_device *netdev, struct nlattr **tb,
 
 	ret = dcbnl_reply(err, RTM_SETDCB, DCB_CMD_SAPP, DCB_ATTR_APP,
 			  pid, seq, flags);
+	dcbnl_cee_notify(netdev, RTM_SETDCB, DCB_CMD_SAPP, seq, 0);
 out:
 	return ret;
 }
@@ -936,6 +937,7 @@ static int dcbnl_setall(struct net_device *netdev, struct nlattr **tb,
 
 	ret = dcbnl_reply(netdev->dcbnl_ops->setall(netdev), RTM_SETDCB,
 	                  DCB_CMD_SET_ALL, DCB_ATTR_SET_ALL, pid, seq, flags);
+	dcbnl_cee_notify(netdev, RTM_SETDCB, DCB_CMD_SET_ALL, seq, 0);
 
 	return ret;
 }
