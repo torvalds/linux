@@ -393,6 +393,7 @@ nfs4_remove_state_owner_locked(struct nfs4_state_owner *sp)
 static void
 nfs4_init_seqid_counter(struct nfs_seqid_counter *sc)
 {
+	sc->create_time = ktime_get();
 	sc->flags = 0;
 	sc->counter = 0;
 	spin_lock_init(&sc->lock);

@@ -838,7 +838,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct dentry *dentry,
 	p->o_arg.open_flags = flags;
 	p->o_arg.fmode = fmode & (FMODE_READ|FMODE_WRITE);
 	p->o_arg.clientid = server->nfs_client->cl_clientid;
-	p->o_arg.id = sp->so_seqid.owner_id;
+	p->o_arg.id.create_time = ktime_to_ns(sp->so_seqid.create_time);
+	p->o_arg.id.uniquifier = sp->so_seqid.owner_id;
 	p->o_arg.name = &dentry->d_name;
 	p->o_arg.server = server;
 	p->o_arg.bitmask = server->attr_bitmask;
@@ -1466,8 +1467,7 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 			goto unlock_no_action;
 		rcu_read_unlock();
 	}
-	/* Update sequence id. */
-	data->o_arg.id = sp->so_seqid.owner_id;
+	/* Update client id. */
 	data->o_arg.clientid = sp->so_server->nfs_client->cl_clientid;
 	if (data->o_arg.claim == NFS4_OPEN_CLAIM_PREVIOUS) {
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
