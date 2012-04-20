@@ -195,7 +195,7 @@ static void mesh_sync_offset_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 		spin_unlock_bh(&ifmsh->sync_offset_lock);
 
 	} else {
-		sta->t_offset_setpoint = sta->t_offset;
+		sta->t_offset_setpoint = sta->t_offset - TOFFSET_SET_MARGIN;
 		set_sta_flag(sta, WLAN_STA_TOFFSET_KNOWN);
 		msync_dbg("STA %pM : offset was invalid, "
 			  " sta->t_offset=%lld",
