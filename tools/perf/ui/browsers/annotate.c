@@ -690,7 +690,15 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 		bpos->idx = browser.nr_entries++;
 		if (pos->offset != -1) {
 			bpos->idx_asm = browser.nr_asm_entries++;
-			browser.offsets[pos->offset] = pos;
+			/*
+			 * FIXME: short term bandaid to cope with assembly
+			 * routines that comes with labels in the same column
+			 * as the address in objdump, sigh.
+			 *
+			 * E.g. copy_user_generic_unrolled
+ 			 */
+			if (pos->offset < (s64)size)
+				browser.offsets[pos->offset] = pos;
 		} else
 			bpos->idx_asm = -1;
 	}
