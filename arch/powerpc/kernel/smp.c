@@ -482,7 +482,7 @@ static int __cpuinit create_idle(unsigned int cpu)
 	return 0;
 }
 
-int __cpuinit __cpu_up(unsigned int cpu)
+int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int rc, c;
 
