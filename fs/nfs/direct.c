@@ -260,7 +260,7 @@ static void nfs_direct_read_release(void *calldata)
 
 	if (put_dreq(dreq))
 		nfs_direct_complete(dreq);
-	nfs_readdata_free(data);
+	nfs_readdata_release(data);
 }
 
 static const struct rpc_call_ops nfs_read_direct_ops = {
@@ -337,7 +337,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_direct_req *dreq,
 		data->inode = inode;
 		data->cred = msg.rpc_cred;
 		data->args.fh = NFS_FH(inode);
-		data->args.context = ctx;
+		data->args.context = get_nfs_open_context(ctx);
 		data->args.lock_context = dreq->l_ctx;
 		data->args.offset = pos;
 		data->args.pgbase = pgbase;
