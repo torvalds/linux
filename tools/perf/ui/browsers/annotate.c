@@ -113,9 +113,20 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		if (change_color)
 			ui_browser__set_color(self, color);
 		if (dl->ins && dl->ins->ops->scnprintf) {
+			if (ins__is_jump(dl->ins)) {
+				bool fwd = dl->ops.target > (u64)dl->offset;
+
+				SLsmg_set_char_set(1);
+				SLsmg_write_char(fwd ? SLSMG_DARROW_CHAR :
+						       SLSMG_UARROW_CHAR);
+				SLsmg_set_char_set(0);
+				SLsmg_write_char(' ');
+			} else {
+				slsmg_write_nstring(" ", 2);
+			}
+
 			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf), &dl->ops,
 						!ab->use_offset);
-			slsmg_write_nstring(" ", 2);
 			printed += 2;
 		} else
 			scnprintf(bf, sizeof(bf), "  %-6.6s %s", dl->name, dl->ops.raw);
