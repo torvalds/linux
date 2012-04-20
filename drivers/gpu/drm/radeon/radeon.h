@@ -1806,6 +1806,8 @@ void r100_io_wreg(struct radeon_device *rdev, u32 reg, u32 v);
 #define WREG32_PCIE(reg, v) rv370_pcie_wreg(rdev, (reg), (v))
 #define RREG32_PCIE_PORT(reg) rdev->pciep_rreg(rdev, (reg))
 #define WREG32_PCIE_PORT(reg, v) rdev->pciep_wreg(rdev, (reg), (v))
+#define RREG32_SMC(reg) tn_smc_rreg(rdev, (reg))
+#define WREG32_SMC(reg, v) tn_smc_wreg(rdev, (reg), (v))
 #define WREG32_P(reg, val, mask)				\
 	do {							\
 		uint32_t tmp_ = RREG32(reg);			\
@@ -1842,6 +1844,21 @@ static inline void rv370_pcie_wreg(struct radeon_device *rdev, uint32_t reg, uin
 {
 	WREG32(RADEON_PCIE_INDEX, ((reg) & rdev->pcie_reg_mask));
 	WREG32(RADEON_PCIE_DATA, (v));
+}
+
+static inline u32 tn_smc_rreg(struct radeon_device *rdev, u32 reg)
+{
+	u32 r;
+
+	WREG32(TN_SMC_IND_INDEX_0, (reg));
+	r = RREG32(TN_SMC_IND_DATA_0);
+	return r;
+}
+
+static inline void tn_smc_wreg(struct radeon_device *rdev, u32 reg, u32 v)
+{
+	WREG32(TN_SMC_IND_INDEX_0, (reg));
+	WREG32(TN_SMC_IND_DATA_0, (v));
 }
 
 void r100_pll_errata_after_index(struct radeon_device *rdev);

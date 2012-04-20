@@ -24,6 +24,10 @@
 #ifndef __EVERGREEN_REG_H__
 #define __EVERGREEN_REG_H__
 
+/* trinity */
+#define TN_SMC_IND_INDEX_0                              0x200
+#define TN_SMC_IND_DATA_0                               0x204
+
 /* evergreen */
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS               0x310
 #define EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH          0x324
