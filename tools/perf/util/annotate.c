@@ -18,14 +18,14 @@
 
 const char 	*disassembler_style;
 
-static int call_ops__parse_target(const char *operands, u64 *target)
+static int call__parse(struct ins_operands *ops)
 {
-	*target = strtoull(operands, NULL, 16);
+	ops->target = strtoull(ops->raw, NULL, 16);
 	return 0;
 }
 
 static struct ins_ops call_ops = {
-	.parse_target = call_ops__parse_target,
+	.parse = call__parse,
 };
 
 bool ins__is_call(const struct ins *ins)
@@ -33,29 +33,29 @@ bool ins__is_call(const struct ins *ins)
 	return ins->ops == &call_ops;
 }
 
-static int jump_ops__parse_target(const char *operands, u64 *target)
+static int jump__parse(struct ins_operands *ops)
 {
-	const char *s = strchr(operands, '+');
+	const char *s = strchr(ops->raw, '+');
 
 	if (s++ == NULL)
 		return -1;
 
-	*target = strtoll(s, NULL, 16);
+	ops->target = strtoll(s, NULL, 16);
 	return 0;
 }
 
-static int jump_ops__scnprintf(struct ins *ins, char *bf, size_t size,
-			       const char *operands, u64 target)
+static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops, bool addrs)
 {
-	if (operands)
-		return scnprintf(bf, size, "%-6.6s %s", ins->name, operands);
+	if (addrs)
+		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
 
-	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, target);
+	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target);
 }
 
 static struct ins_ops jump_ops = {
-	.parse_target = jump_ops__parse_target,
-	.scnprintf = jump_ops__scnprintf,
+	.parse	   = jump__parse,
+	.scnprintf = jump__scnprintf,
 };
 
 bool ins__is_jump(const struct ins *ins)
@@ -190,8 +190,8 @@ static void disasm_line__init_ins(struct disasm_line *dl)
 	if (!dl->ins->ops)
 		return;
 
-	if (dl->ins->ops->parse_target)
-		dl->ins->ops->parse_target(dl->operands, &dl->target);
+	if (dl->ins->ops->parse)
+		dl->ins->ops->parse(&dl->ops);
 }
 
 static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
@@ -213,25 +213,25 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privs
 			if (name[0] == '\0')
 				goto out_delete;
 
-			dl->operands = name + 1;
+			dl->ops.raw = name + 1;
 
-			while (dl->operands[0] != '\0' &&
-			       !isspace(dl->operands[0]))
-				++dl->operands;
+			while (dl->ops.raw[0] != '\0' &&
+			       !isspace(dl->ops.raw[0]))
+				++dl->ops.raw;
 
-			tmp = dl->operands[0];
-			dl->operands[0] = '\0';
+			tmp = dl->ops.raw[0];
+			dl->ops.raw[0] = '\0';
 			dl->name = strdup(name);
 
 			if (dl->name == NULL)
 				goto out_free_line;
 
-			dl->operands[0] = tmp;
+			dl->ops.raw[0] = tmp;
 
-			if (dl->operands[0] != '\0') {
-				dl->operands++;
-				while (isspace(dl->operands[0]))
-					++dl->operands;
+			if (dl->ops.raw[0] != '\0') {
+				dl->ops.raw++;
+				while (isspace(dl->ops.raw[0]))
+					++dl->ops.raw;
 			}
 
 			disasm_line__init_ins(dl);
@@ -753,9 +753,9 @@ static size_t disasm_line__fprintf(struct disasm_line *dl, FILE *fp)
 
 	printed = fprintf(fp, "%#" PRIx64 " %s", dl->offset, dl->name);
 
-	if (dl->operands[0] != '\0') {
+	if (dl->ops.raw[0] != '\0') {
 		printed += fprintf(fp, "%.*s %s\n", 6 - (int)printed, " ",
-				   dl->operands);
+				   dl->ops.raw);
 	}
 
 	return printed + fprintf(fp, "\n");

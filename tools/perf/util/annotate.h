@@ -9,10 +9,15 @@
 
 struct ins;
 
+struct ins_operands {
+	char	*raw;
+	u64	target;
+};
+
 struct ins_ops {
-	int (*parse_target)(const char *operands, u64 *target);
+	int (*parse)(struct ins_operands *ops);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
-			 const char *operands, u64 target);
+			 struct ins_operands *ops, bool addrs);
 };
 
 struct ins {
@@ -24,13 +29,12 @@ bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
 
 struct disasm_line {
-	struct list_head node;
-	s64		 offset;
-	u64		 target;
-	char		 *line;
-	char		 *name;
-	struct ins	 *ins;
-	char		 *operands;
+	struct list_head    node;
+	s64		    offset;
+	char		    *line;
+	char		    *name;
+	struct ins	    *ins;
+	struct ins_operands ops;
 };
 
 void disasm_line__free(struct disasm_line *dl);

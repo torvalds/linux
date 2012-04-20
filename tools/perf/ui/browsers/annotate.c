@@ -113,13 +113,12 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		if (change_color)
 			ui_browser__set_color(self, color);
 		if (dl->ins && dl->ins->ops->scnprintf) {
-			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf),
-						!ab->use_offset ? dl->operands : NULL,
-						dl->target);
+			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf), &dl->ops,
+						!ab->use_offset);
 			slsmg_write_nstring(" ", 2);
 			printed += 2;
 		} else
-			scnprintf(bf, sizeof(bf), "  %-6.6s %s", dl->name, dl->operands);
+			scnprintf(bf, sizeof(bf), "  %-6.6s %s", dl->name, dl->ops.raw);
 
 		slsmg_write_nstring(bf, width - 10 - printed);
 	}
@@ -294,7 +293,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	if (!ins__is_call(dl->ins))
 		return false;
 
-	ip = ms->map->map_ip(ms->map, dl->target);
+	ip = ms->map->map_ip(ms->map, dl->ops.target);
 	target = map__find_symbol(ms->map, ip, NULL);
 	if (target == NULL) {
 		ui_helpline__puts("The called function was not found.");
@@ -345,7 +344,7 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 	if (!ins__is_jump(dl->ins))
 		return false;
 
-	dl = annotate_browser__find_offset(browser, dl->target, &idx);
+	dl = annotate_browser__find_offset(browser, dl->ops.target, &idx);
 	if (dl == NULL) {
 		ui_helpline__puts("Invallid jump offset");
 		return true;
@@ -621,14 +620,14 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		if (!dl || !dl->ins || !ins__is_jump(dl->ins))
 			continue;
 
-		if (dl->target >= size) {
+		if (dl->ops.target >= size) {
 			ui__error("jump to after symbol!\n"
 				  "size: %zx, jump target: %" PRIx64,
-				  size, dl->target);
+				  size, dl->ops.target);
 			continue;
 		}
 
-		dlt = browser->offsets[dl->target];
+		dlt = browser->offsets[dl->ops.target];
 		bdlt = disasm_line__browser(dlt);
 		bdlt->jump_target = true;
 	}
