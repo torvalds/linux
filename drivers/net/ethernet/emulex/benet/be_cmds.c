@@ -126,7 +126,7 @@ static void be_async_link_state_process(struct be_adapter *adapter,
 		struct be_async_event_link_state *evt)
 {
 	/* When link status changes, link speed must be re-queried from FW */
-	adapter->link_speed = -1;
+	adapter->phy.link_speed = -1;
 
 	/* For the initial link status do not rely on the ASYNC event as
 	 * it may not be received in some cases.
@@ -153,7 +153,7 @@ static void be_async_grp5_qos_speed_process(struct be_adapter *adapter,
 {
 	if (evt->physical_port == adapter->port_num) {
 		/* qos_link_speed is in units of 10 Mbps */
-		adapter->link_speed = evt->qos_link_speed * 10;
+		adapter->phy.link_speed = evt->qos_link_speed * 10;
 	}
 }
 
@@ -2136,8 +2136,7 @@ err:
 	return status;
 }
 
-int be_cmd_get_phy_info(struct be_adapter *adapter,
-				struct be_phy_info *phy_info)
+int be_cmd_get_phy_info(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_phy_info *req;
@@ -2170,9 +2169,15 @@ int be_cmd_get_phy_info(struct be_adapter *adapter,
 	if (!status) {
 		struct be_phy_info *resp_phy_info =
 				cmd.va + sizeof(struct be_cmd_req_hdr);
-		phy_info->phy_type = le16_to_cpu(resp_phy_info->phy_type);
-		phy_info->interface_type =
+		adapter->phy.phy_type = le16_to_cpu(resp_phy_info->phy_type);
+		adapter->phy.interface_type =
 			le16_to_cpu(resp_phy_info->interface_type);
+		adapter->phy.auto_speeds_supported =
+			le16_to_cpu(resp_phy_info->auto_speeds_supported);
+		adapter->phy.fixed_speeds_supported =
+			le16_to_cpu(resp_phy_info->fixed_speeds_supported);
+		adapter->phy.misc_params =
+			le32_to_cpu(resp_phy_info->misc_params);
 	}
 	pci_free_consistent(adapter->pdev, cmd.size,
 				cmd.va, cmd.dma);

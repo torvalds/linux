@@ -2571,11 +2571,12 @@ err:
 static void be_setup_init(struct be_adapter *adapter)
 {
 	adapter->vlan_prio_bmap = 0xff;
-	adapter->link_speed = -1;
+	adapter->phy.link_speed = -1;
 	adapter->if_handle = -1;
 	adapter->be3_native = false;
 	adapter->promiscuous = false;
 	adapter->eq_next_idx = 0;
+	adapter->phy.forced_port_speed = -1;
 }
 
 static int be_add_mac_from_list(struct be_adapter *adapter, u8 *mac)
@@ -2707,6 +2708,10 @@ static int be_setup(struct be_adapter *adapter)
 			goto err;
 	}
 
+	be_cmd_get_phy_info(adapter);
+	if (be_pause_supported(adapter))
+		adapter->phy.fc_autoneg = 1;
+
 	schedule_delayed_work(&adapter->work, msecs_to_jiffies(1000));
 	adapter->flags |= BE_FLAGS_WORKER_SCHEDULED;
 
@@ -2760,17 +2765,8 @@ static bool be_flash_redboot(struct be_adapter *adapter,
 
 static bool phy_flashing_required(struct be_adapter *adapter)
 {
-	int status = 0;
-	struct be_phy_info phy_info;
-
-	status = be_cmd_get_phy_info(adapter, &phy_info);
-	if (status)
-		return false;
-	if ((phy_info.phy_type == TN_8022) &&
-		(phy_info.interface_type == PHY_TYPE_BASET_10GB)) {
-		return true;
-	}
-	return false;
+	return (adapter->phy.phy_type == TN_8022 &&
+		adapter->phy.interface_type == PHY_TYPE_BASET_10GB);
 }
 
 static int be_flash_data(struct be_adapter *adapter,

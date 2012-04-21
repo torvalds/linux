@@ -313,6 +313,23 @@ struct be_vf_cfg {
 #define BE_UC_PMAC_COUNT		30
 #define BE_VF_UC_PMAC_COUNT		2
 
+struct phy_info {
+	u8 transceiver;
+	u8 autoneg;
+	u8 fc_autoneg;
+	u8 port_type;
+	u16 phy_type;
+	u16 interface_type;
+	u32 misc_params;
+	u16 auto_speeds_supported;
+	u16 fixed_speeds_supported;
+	int link_speed;
+	int forced_port_speed;
+	u32 dac_cable_len;
+	u32 advertising;
+	u32 supported;
+};
+
 struct be_adapter {
 	struct pci_dev *pdev;
 	struct net_device *netdev;
@@ -377,10 +394,6 @@ struct be_adapter {
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
 	bool stats_cmd_sent;
-	int link_speed;
-	u8 port_type;
-	u8 transceiver;
-	u8 autoneg;
 	u8 generation;		/* BladeEngine ASIC generation */
 	u32 flash_status;
 	struct completion flash_compl;
@@ -392,6 +405,7 @@ struct be_adapter {
 	u32 sli_family;
 	u8 hba_port_num;
 	u16 pvid;
+	struct phy_info phy;
 	u8 wol_cap;
 	bool wol;
 	u32 max_pmac_cnt;	/* Max secondary UC MACs programmable */
@@ -583,4 +597,5 @@ extern void be_link_status_update(struct be_adapter *adapter, u8 link_status);
 extern void be_parse_stats(struct be_adapter *adapter);
 extern int be_load_fw(struct be_adapter *adapter, u8 *func);
 extern bool be_is_wol_supported(struct be_adapter *adapter);
+extern bool be_pause_supported(struct be_adapter *adapter);
 #endif				/* BE_H */

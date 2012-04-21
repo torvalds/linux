@@ -1309,8 +1309,35 @@ enum {
 	PHY_TYPE_KX4_10GB,
 	PHY_TYPE_BASET_10GB,
 	PHY_TYPE_BASET_1GB,
+	PHY_TYPE_BASEX_1GB,
+	PHY_TYPE_SGMII,
 	PHY_TYPE_DISABLED = 255
 };
+
+#define BE_SUPPORTED_SPEED_NONE		0
+#define BE_SUPPORTED_SPEED_10MBPS	1
+#define BE_SUPPORTED_SPEED_100MBPS	2
+#define BE_SUPPORTED_SPEED_1GBPS	4
+#define BE_SUPPORTED_SPEED_10GBPS	8
+
+#define BE_AN_EN			0x2
+#define BE_PAUSE_SYM_EN			0x80
+
+/* MAC speed valid values */
+#define SPEED_DEFAULT  0x0
+#define SPEED_FORCED_10GB  0x1
+#define SPEED_FORCED_1GB  0x2
+#define SPEED_AUTONEG_10GB  0x3
+#define SPEED_AUTONEG_1GB  0x4
+#define SPEED_AUTONEG_100MB  0x5
+#define SPEED_AUTONEG_10GB_1GB 0x6
+#define SPEED_AUTONEG_10GB_1GB_100MB 0x7
+#define SPEED_AUTONEG_1GB_100MB  0x8
+#define SPEED_AUTONEG_10MB  0x9
+#define SPEED_AUTONEG_1GB_100MB_10MB 0xa
+#define SPEED_AUTONEG_100MB_10MB 0xb
+#define SPEED_FORCED_100MB  0xc
+#define SPEED_FORCED_10MB  0xd
 
 struct be_cmd_req_get_phy_info {
 	struct be_cmd_req_hdr hdr;
@@ -1321,7 +1348,11 @@ struct be_phy_info {
 	u16 phy_type;
 	u16 interface_type;
 	u32 misc_params;
-	u32 future_use[4];
+	u16 ext_phy_details;
+	u16 rsvd;
+	u16 auto_speeds_supported;
+	u16 fixed_speeds_supported;
+	u32 future_use[2];
 };
 
 struct be_cmd_resp_get_phy_info {
@@ -1655,8 +1686,7 @@ extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
 				struct be_dma_mem *nonemb_cmd);
 extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
 				u8 loopback_type, u8 enable);
-extern int be_cmd_get_phy_info(struct be_adapter *adapter,
-				struct be_phy_info *phy_info);
+extern int be_cmd_get_phy_info(struct be_adapter *adapter);
 extern int be_cmd_set_qos(struct be_adapter *adapter, u32 bps, u32 domain);
 extern void be_detect_dump_ue(struct be_adapter *adapter);
 extern int be_cmd_get_die_temperature(struct be_adapter *adapter);

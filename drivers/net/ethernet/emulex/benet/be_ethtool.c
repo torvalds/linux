@@ -433,102 +433,193 @@ static int be_get_sset_count(struct net_device *netdev, int stringset)
 	}
 }
 
+static u32 be_get_port_type(u32 phy_type, u32 dac_cable_len)
+{
+	u32 port;
+
+	switch (phy_type) {
+	case PHY_TYPE_BASET_1GB:
+	case PHY_TYPE_BASEX_1GB:
+	case PHY_TYPE_SGMII:
+		port = PORT_TP;
+		break;
+	case PHY_TYPE_SFP_PLUS_10GB:
+		port = dac_cable_len ? PORT_DA : PORT_FIBRE;
+		break;
+	case PHY_TYPE_XFP_10GB:
+	case PHY_TYPE_SFP_1GB:
+		port = PORT_FIBRE;
+		break;
+	case PHY_TYPE_BASET_10GB:
+		port = PORT_TP;
+		break;
+	default:
+		port = PORT_OTHER;
+	}
+
+	return port;
+}
+
+static u32 convert_to_et_setting(u32 if_type, u32 if_speeds)
+{
+	u32 val = 0;
+
+	switch (if_type) {
+	case PHY_TYPE_BASET_1GB:
+	case PHY_TYPE_BASEX_1GB:
+	case PHY_TYPE_SGMII:
+		val |= SUPPORTED_TP;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_100MBPS)
+			val |= SUPPORTED_100baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_10MBPS)
+			val |= SUPPORTED_10baseT_Full;
+		break;
+	case PHY_TYPE_KX4_10GB:
+		val |= SUPPORTED_Backplane;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseKX_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseKX4_Full;
+		break;
+	case PHY_TYPE_KR_10GB:
+		val |= SUPPORTED_Backplane |
+				SUPPORTED_10000baseKR_Full;
+		break;
+	case PHY_TYPE_SFP_PLUS_10GB:
+	case PHY_TYPE_XFP_10GB:
+	case PHY_TYPE_SFP_1GB:
+		val |= SUPPORTED_FIBRE;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseT_Full;
+		break;
+	case PHY_TYPE_BASET_10GB:
+		val |= SUPPORTED_TP;
+		if (if_speeds & BE_SUPPORTED_SPEED_10GBPS)
+			val |= SUPPORTED_10000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_1GBPS)
+			val |= SUPPORTED_1000baseT_Full;
+		if (if_speeds & BE_SUPPORTED_SPEED_100MBPS)
+			val |= SUPPORTED_100baseT_Full;
+		break;
+	default:
+		val |= SUPPORTED_TP;
+	}
+
+	return val;
+}
+
+static int convert_to_et_speed(u32 be_speed)
+{
+	int et_speed = SPEED_10000;
+
+	switch (be_speed) {
+	case PHY_LINK_SPEED_10MBPS:
+		et_speed = SPEED_10;
+		break;
+	case PHY_LINK_SPEED_100MBPS:
+		et_speed = SPEED_100;
+		break;
+	case PHY_LINK_SPEED_1GBPS:
+		et_speed = SPEED_1000;
+		break;
+	case PHY_LINK_SPEED_10GBPS:
+		et_speed = SPEED_10000;
+		break;
+	}
+
+	return et_speed;
+}
+
+bool be_pause_supported(struct be_adapter *adapter)
+{
+	return (adapter->phy.interface_type == PHY_TYPE_SFP_PLUS_10GB ||
+		adapter->phy.interface_type == PHY_TYPE_XFP_10GB) ?
+		false : true;
+}
+
 static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	struct be_phy_info phy_info;
-	u8 mac_speed = 0;
+	u8 port_speed = 0;
 	u16 link_speed = 0;
 	u8 link_status;
+	u32 et_speed = 0;
 	int status;
 
-	if ((adapter->link_speed < 0) || (!(netdev->flags & IFF_UP))) {
-		status = be_cmd_link_status_query(adapter, &mac_speed,
-						  &link_speed, &link_status, 0);
-		if (!status)
-			be_link_status_update(adapter, link_status);
-
-		/* link_speed is in units of 10 Mbps */
-		if (link_speed) {
-			ethtool_cmd_speed_set(ecmd, link_speed*10);
+	if (adapter->phy.link_speed < 0 || !(netdev->flags & IFF_UP)) {
+		if (adapter->phy.forced_port_speed < 0) {
+			status = be_cmd_link_status_query(adapter, &port_speed,
+						&link_speed, &link_status, 0);
+			if (!status)
+				be_link_status_update(adapter, link_status);
+			if (link_speed)
+				et_speed = link_speed;
+			else
+				et_speed = convert_to_et_speed(port_speed);
 		} else {
-			switch (mac_speed) {
-			case PHY_LINK_SPEED_10MBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_10);
-				break;
-			case PHY_LINK_SPEED_100MBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_100);
-				break;
-			case PHY_LINK_SPEED_1GBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_1000);
-				break;
-			case PHY_LINK_SPEED_10GBPS:
-				ethtool_cmd_speed_set(ecmd, SPEED_10000);
-				break;
-			case PHY_LINK_SPEED_ZERO:
-				ethtool_cmd_speed_set(ecmd, 0);
-				break;
-			}
+			et_speed = adapter->phy.forced_port_speed;
 		}
 
-		status = be_cmd_get_phy_info(adapter, &phy_info);
-		if (!status) {
-			switch (phy_info.interface_type) {
-			case PHY_TYPE_XFP_10GB:
-			case PHY_TYPE_SFP_1GB:
-			case PHY_TYPE_SFP_PLUS_10GB:
-				ecmd->port = PORT_FIBRE;
-				break;
-			default:
-				ecmd->port = PORT_TP;
-				break;
-			}
+		ethtool_cmd_speed_set(ecmd, et_speed);
 
-			switch (phy_info.interface_type) {
-			case PHY_TYPE_KR_10GB:
-			case PHY_TYPE_KX4_10GB:
-				ecmd->autoneg = AUTONEG_ENABLE;
+		status = be_cmd_get_phy_info(adapter);
+		if (status)
+			return status;
+
+		ecmd->supported =
+			convert_to_et_setting(adapter->phy.interface_type,
+					adapter->phy.auto_speeds_supported |
+					adapter->phy.fixed_speeds_supported);
+		ecmd->advertising =
+			convert_to_et_setting(adapter->phy.interface_type,
+					adapter->phy.auto_speeds_supported);
+
+		ecmd->port = be_get_port_type(adapter->phy.interface_type,
+					      adapter->phy.dac_cable_len);
+
+		if (adapter->phy.auto_speeds_supported) {
+			ecmd->supported |= SUPPORTED_Autoneg;
+			ecmd->autoneg = AUTONEG_ENABLE;
+			ecmd->advertising |= ADVERTISED_Autoneg;
+		}
+
+		if (be_pause_supported(adapter)) {
+			ecmd->supported |= SUPPORTED_Pause;
+			ecmd->advertising |= ADVERTISED_Pause;
+		}
+
+		switch (adapter->phy.interface_type) {
+		case PHY_TYPE_KR_10GB:
+		case PHY_TYPE_KX4_10GB:
 			ecmd->transceiver = XCVR_INTERNAL;
-				break;
-			default:
-				ecmd->autoneg = AUTONEG_DISABLE;
-				ecmd->transceiver = XCVR_EXTERNAL;
-				break;
-			}
+			break;
+		default:
+			ecmd->transceiver = XCVR_EXTERNAL;
+			break;
 		}
 
 		/* Save for future use */
-		adapter->link_speed = ethtool_cmd_speed(ecmd);
-		adapter->port_type = ecmd->port;
-		adapter->transceiver = ecmd->transceiver;
-		adapter->autoneg = ecmd->autoneg;
+		adapter->phy.link_speed = ethtool_cmd_speed(ecmd);
+		adapter->phy.port_type = ecmd->port;
+		adapter->phy.transceiver = ecmd->transceiver;
+		adapter->phy.autoneg = ecmd->autoneg;
+		adapter->phy.advertising = ecmd->advertising;
+		adapter->phy.supported = ecmd->supported;
 	} else {
-		ethtool_cmd_speed_set(ecmd, adapter->link_speed);
-		ecmd->port = adapter->port_type;
-		ecmd->transceiver = adapter->transceiver;
-		ecmd->autoneg = adapter->autoneg;
+		ethtool_cmd_speed_set(ecmd, adapter->phy.link_speed);
+		ecmd->port = adapter->phy.port_type;
+		ecmd->transceiver = adapter->phy.transceiver;
+		ecmd->autoneg = adapter->phy.autoneg;
+		ecmd->advertising = adapter->phy.advertising;
+		ecmd->supported = adapter->phy.supported;
 	}
 
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->phy_address = adapter->port_num;
-	switch (ecmd->port) {
-	case PORT_FIBRE:
-		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
-		break;
-	case PORT_TP:
-		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
-		break;
-	case PORT_AUI:
-		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
-		break;
-	}
-
-	if (ecmd->autoneg) {
-		ecmd->supported |= SUPPORTED_1000baseT_Full;
-		ecmd->supported |= SUPPORTED_Autoneg;
-		ecmd->advertising |= (ADVERTISED_10000baseT_Full |
-				ADVERTISED_1000baseT_Full);
-	}
 
 	return 0;
 }
@@ -548,7 +639,7 @@ be_get_pauseparam(struct net_device *netdev, struct ethtool_pauseparam *ecmd)
 	struct be_adapter *adapter = netdev_priv(netdev);
 
 	be_cmd_get_flow_control(adapter, &ecmd->tx_pause, &ecmd->rx_pause);
-	ecmd->autoneg = 0;
+	ecmd->autoneg = adapter->phy.fc_autoneg;
 }
 
 static int
