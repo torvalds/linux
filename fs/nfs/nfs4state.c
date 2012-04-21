@@ -521,6 +521,14 @@ out:
 /**
  * nfs4_put_state_owner - Release a nfs4_state_owner
  * @sp: state owner data to release
+ *
+ * Note that we keep released state owners on an LRU
+ * list.
+ * This caches valid state owners so that they can be
+ * reused, to avoid the OPEN_CONFIRM on minor version 0.
+ * It also pins the uniquifier of dropped state owners for
+ * a while, to ensure that those state owner names are
+ * never reused.
  */
 void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 {
@@ -530,15 +538,9 @@ void nfs4_put_state_owner(struct nfs4_state_owner *sp)
 	if (!atomic_dec_and_lock(&sp->so_count, &clp->cl_lock))
 		return;
 
-	if (!RB_EMPTY_NODE(&sp->so_server_node)) {
-		sp->so_expires = jiffies;
-		list_add_tail(&sp->so_lru, &server->state_owners_lru);
-		spin_unlock(&clp->cl_lock);
-	} else {
-		nfs4_remove_state_owner_locked(sp);
-		spin_unlock(&clp->cl_lock);
-		nfs4_free_state_owner(sp);
-	}
+	sp->so_expires = jiffies;
+	list_add_tail(&sp->so_lru, &server->state_owners_lru);
+	spin_unlock(&clp->cl_lock);
 }
 
 /**
