@@ -28,25 +28,17 @@
 static int ad7298_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7298_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-	size_t d_size;
 	int i, m;
 	unsigned short command;
-	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
-				       indio_dev->masklength);
-	d_size = scan_count * (AD7298_STORAGE_BITS / 8);
+	int scan_count, ret;
 
-	if (ring->scan_timestamp) {
-		d_size += sizeof(s64);
+	ret = iio_sw_buffer_preenable(indio_dev);
+	if (ret < 0)
+		return ret;
 
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
-
-	if (ring->access->set_bytes_per_datum)
-		ring->access->set_bytes_per_datum(ring, d_size);
-
-	st->d_size = d_size;
+	/* Now compute overall size */
+	scan_count = bitmap_weight(indio_dev->active_scan_mask,
+				   indio_dev->masklength);
 
 	command = AD7298_WRITE | st->ext_ref;
 
@@ -102,7 +94,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 
 	if (ring->scan_timestamp) {
 		time_ns = iio_get_time_ns();
-		memcpy((u8 *)buf + st->d_size - sizeof(s64),
+		memcpy((u8 *)buf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 	}
 
