@@ -18,6 +18,8 @@
 #include <linux/ioport.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/of_irq.h>
+#include <linux/of_address.h>
 #include <linux/time.h>
 #include <linux/irq.h>
 #include <asm/mach/time.h>
@@ -197,19 +199,32 @@ static void __init spear_clockevent_init(int irq)
 	setup_irq(irq, &spear_timer_irq);
 }
 
-void __init spear_setup_timer(resource_size_t base, int irq)
-{
-	int ret;
+const static struct of_device_id timer_of_match[] __initconst = {
+	{ .compatible = "st,spear-timer", },
+	{ },
+};
 
-	if (!request_mem_region(base, SZ_1K, "gpt0")) {
-		pr_err("%s:cannot get IO addr\n", __func__);
+void __init spear_setup_of_timer(void)
+{
+	struct device_node *np;
+	int irq, ret;
+
+	np = of_find_matching_node(NULL, timer_of_match);
+	if (!np) {
+		pr_err("%s: No timer passed via DT\n", __func__);
 		return;
 	}
 
-	gpt_base = ioremap(base, SZ_1K);
+	irq = irq_of_parse_and_map(np, 0);
+	if (!irq) {
+		pr_err("%s: No irq passed for timer via DT\n", __func__);
+		return;
+	}
+
+	gpt_base = of_iomap(np, 0);
 	if (!gpt_base) {
-		pr_err("%s:ioremap failed for gpt\n", __func__);
-		goto err_mem;
+		pr_err("%s: of iomap failed\n", __func__);
+		return;
 	}
 
 	gpt_clk = clk_get_sys("gpt0", NULL);
@@ -233,6 +248,4 @@ err_clk:
 	clk_put(gpt_clk);
 err_iomap:
 	iounmap(gpt_base);
-err_mem:
-	release_mem_region(base, SZ_1K);
 }

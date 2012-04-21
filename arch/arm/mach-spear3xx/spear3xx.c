@@ -534,7 +534,7 @@ static void __init spear3xx_timer_init(void)
 	clk_put(gpt_clk);
 	clk_put(pclk);
 
-	spear_setup_timer(SPEAR3XX_CPU_TMR_BASE, SPEAR3XX_IRQ_CPU_GPT1_1);
+	spear_setup_of_timer();
 }
 
 struct sys_timer spear3xx_timer = {

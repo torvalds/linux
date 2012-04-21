@@ -16,7 +16,7 @@
 
 #include <linux/init.h>
 
-void __init spear_setup_timer(resource_size_t base, int irq);
+void __init spear_setup_of_timer(void);
 void spear_restart(char, const char *);
 void __init spear6xx_clk_init(void);
 

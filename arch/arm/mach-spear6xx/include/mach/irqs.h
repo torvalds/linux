@@ -16,9 +16,6 @@
 
 /* IRQ definitions */
 /* VIC 1 */
-/* FIXME: probe this from DT */
-#define IRQ_CPU_GPT1_1				16
-
 #define IRQ_VIC_END				64
 
 /* GPIO pins virtual irqs */

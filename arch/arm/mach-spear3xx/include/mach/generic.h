@@ -28,7 +28,7 @@ extern struct pl022_ssp_controller pl022_plat_data;
 extern struct pl08x_platform_data pl080_plat_data;
 
 /* Add spear3xx family function declarations here */
-void __init spear_setup_timer(resource_size_t base, int irq);
+void __init spear_setup_of_timer(void);
 void __init spear3xx_map_io(void);
 void __init spear3xx_dt_init_irq(void);
 
