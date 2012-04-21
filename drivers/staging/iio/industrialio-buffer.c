@@ -124,13 +124,15 @@ static ssize_t iio_scan_el_store(struct device *dev,
 				 const char *buf,
 				 size_t len)
 {
-	int ret = 0;
+	int ret;
 	bool state;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_buffer *buffer = indio_dev->buffer;
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
-	state = !(buf[0] == '0');
+	ret = strtobool(buf, &state);
+	if (ret < 0)
+		return ret;
 	mutex_lock(&indio_dev->mlock);
 	if (iio_buffer_enabled(indio_dev)) {
 		ret = -EBUSY;
@@ -169,11 +171,14 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 				    const char *buf,
 				    size_t len)
 {
-	int ret = 0;
+	int ret;
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	bool state;
 
-	state = !(buf[0] == '0');
+	ret = strtobool(buf, &state);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&indio_dev->mlock);
 	if (iio_buffer_enabled(indio_dev)) {
 		ret = -EBUSY;
