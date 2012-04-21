@@ -96,6 +96,7 @@ u32 clock_lut_it9135[] = {
 #define CMD_MEM_WR                  0x01
 #define CMD_I2C_RD                  0x02
 #define CMD_I2C_WR                  0x03
+#define CMD_IR_GET                  0x18
 #define CMD_FW_DL                   0x21
 #define CMD_FW_QUERYINFO            0x22
 #define CMD_FW_BOOT                 0x23

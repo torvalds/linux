@@ -313,6 +313,37 @@ static struct i2c_algorithm af9035_i2c_algo = {
 	.functionality = af9035_i2c_functionality,
 };
 
+#define AF9035_POLL 250
+static int af9035_rc_query(struct dvb_usb_device *d)
+{
+	unsigned int key;
+	unsigned char b[4];
+	int ret;
+	struct usb_req req = { CMD_IR_GET, 0, 0, NULL, 4, b };
+
+	ret = af9035_ctrl_msg(d->udev, &req);
+	if (ret < 0)
+		goto err;
+
+	if ((b[2] + b[3]) == 0xff) {
+		if ((b[0] + b[1]) == 0xff) {
+			/* NEC */
+			key = b[0] << 8 | b[2];
+		} else {
+			/* ext. NEC */
+			key = b[0] << 16 | b[1] << 8 | b[2];
+		}
+	} else {
+		key = b[0] << 24 | b[1] << 16 | b[2] << 8 | b[3];
+	}
+
+	rc_keydown(d->rc_dev, key, 0);
+
+err:
+	/* ignore errors */
+	return 0;
+}
+
 static int af9035_init(struct dvb_usb_device *d)
 {
 	int ret, i;
@@ -626,6 +657,32 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 
 	for (i = 0; i < af9035_properties[0].num_adapters; i++)
 		af9035_af9033_config[i].clock = clock_lut[tmp];
+
+	ret = af9035_rd_reg(d, EEPROM_IR_MODE, &tmp);
+	if (ret < 0)
+		goto err;
+	pr_debug("%s: ir_mode=%02x\n", __func__, tmp);
+
+	/* don't activate rc if in HID mode or if not available */
+	if (tmp == 5) {
+		ret = af9035_rd_reg(d, EEPROM_IR_TYPE, &tmp);
+		if (ret < 0)
+			goto err;
+		pr_debug("%s: ir_type=%02x\n", __func__, tmp);
+
+		switch (tmp) {
+		case 0: /* NEC */
+		default:
+			d->props.rc.core.protocol = RC_TYPE_NEC;
+			d->props.rc.core.allowed_protos = RC_TYPE_NEC;
+			break;
+		case 1: /* RC6 */
+			d->props.rc.core.protocol = RC_TYPE_RC6;
+			d->props.rc.core.allowed_protos = RC_TYPE_RC6;
+			break;
+		}
+		d->props.rc.core.rc_query = af9035_rc_query;
+	}
 
 	return 0;
 
@@ -1003,6 +1060,14 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 
 		.i2c_algo = &af9035_i2c_algo,
 
+		.rc.core = {
+			.protocol       = RC_TYPE_UNKNOWN,
+			.module_name    = "af9035",
+			.rc_query       = NULL,
+			.rc_interval    = AF9035_POLL,
+			.allowed_protos = RC_TYPE_UNKNOWN,
+			.rc_codes       = RC_MAP_EMPTY,
+		},
 		.num_device_descs = 5,
 		.devices = {
 			{
