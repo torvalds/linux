@@ -29,22 +29,11 @@
 static int ad7887_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ad7887_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
+	int ret;
 
-	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
-				   indio_dev->masklength) *
-		st->chip_info->channel[0].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		st->d_size += sizeof(s64);
-
-		if (st->d_size % sizeof(s64))
-			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, st->d_size);
+	ret = iio_sw_buffer_preenable(indio_dev);
+	if (ret < 0)
+		return ret;
 
 	/* We know this is a single long so can 'cheat' */
 	switch (*indio_dev->active_scan_mask) {
@@ -92,7 +81,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 					   indio_dev->masklength) *
 		st->chip_info->channel[0].scan_type.storagebits / 8;
 
-	buf = kzalloc(st->d_size, GFP_KERNEL);
+	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
@@ -104,7 +93,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 
 	memcpy(buf, st->data, bytes);
 	if (ring->scan_timestamp)
-		memcpy(buf + st->d_size - sizeof(s64),
+		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
 		       &time_ns, sizeof(time_ns));
 
 	indio_dev->buffer->access->store_to(indio_dev->buffer, buf, time_ns);
