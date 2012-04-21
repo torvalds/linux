@@ -81,9 +81,8 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 
 	time_ns = iio_get_time_ns();
 
-	if (ring->scan_timestamp)
-		*((s64 *)(buf + ring->access->get_bytes_per_datum(ring) -
-			  sizeof(s64))) = time_ns;
+	if (indio_dev->scan_timestamp)
+		*((s64 *)(buf + indio_dev->scan_bytes - sizeof(s64))) = time_ns;
 
 	ring->access->store_to(indio_dev->buffer, buf, time_ns);
 done:

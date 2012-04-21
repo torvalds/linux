@@ -92,7 +92,7 @@ static irqreturn_t ad7298_trigger_handler(int irq, void *p)
 	if (b_sent)
 		return b_sent;
 
-	if (ring->scan_timestamp) {
+	if (indio_dev->scan_timestamp) {
 		time_ns = iio_get_time_ns();
 		memcpy((u8 *)buf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));

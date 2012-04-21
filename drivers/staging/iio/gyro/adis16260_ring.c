@@ -80,7 +80,7 @@ static irqreturn_t adis16260_trigger_handler(int irq, void *p)
 			data[i] = be16_to_cpup((__be16 *)&(st->rx[i*2]));
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		*((s64 *)(data + ((i + 3)/4)*4)) = pf->timestamp;
 
 	ring->access->store_to(ring, (u8 *)data, pf->timestamp);

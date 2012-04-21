@@ -72,7 +72,6 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct ad7887_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
 	s64 time_ns;
 	__u8 *buf;
 	int b_sent;
@@ -92,7 +91,7 @@ static irqreturn_t ad7887_trigger_handler(int irq, void *p)
 	time_ns = iio_get_time_ns();
 
 	memcpy(buf, st->data, bytes);
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		memcpy(buf + indio_dev->scan_bytes - sizeof(s64),
 		       &time_ns, sizeof(time_ns));
 

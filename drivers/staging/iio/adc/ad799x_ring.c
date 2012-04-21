@@ -95,7 +95,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 
 	time_ns = iio_get_time_ns();
 
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		memcpy(rxbuf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 

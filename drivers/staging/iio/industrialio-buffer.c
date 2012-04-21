@@ -185,6 +185,7 @@ static ssize_t iio_scan_el_ts_store(struct device *dev,
 		goto error_ret;
 	}
 	indio_dev->buffer->scan_timestamp = state;
+	indio_dev->scan_timestamp = state;
 error_ret:
 	mutex_unlock(&indio_dev->mlock);
 
