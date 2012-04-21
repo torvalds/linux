@@ -32,9 +32,7 @@
  **/
 static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 {
-	struct iio_buffer *ring = indio_dev->buffer;
 	struct ad799x_state *st = iio_priv(indio_dev);
-
 	/*
 	 * Need to figure out the current mode based upon the requested
 	 * scan mask in iio_dev
@@ -43,21 +41,7 @@ static int ad799x_ring_preenable(struct iio_dev *indio_dev)
 	if (st->id == ad7997 || st->id == ad7998)
 		ad7997_8_set_scan_mode(st, *indio_dev->active_scan_mask);
 
-	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
-				   indio_dev->masklength) * 2;
-
-	if (ring->scan_timestamp) {
-		st->d_size += sizeof(s64);
-
-		if (st->d_size % sizeof(s64))
-			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, st->d_size);
-
-	return 0;
+	return iio_sw_buffer_preenable(indio_dev);
 }
 
 /**
@@ -78,7 +62,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	int b_sent;
 	u8 cmd;
 
-	rxbuf = kmalloc(st->d_size, GFP_KERNEL);
+	rxbuf = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (rxbuf == NULL)
 		goto out;
 
@@ -112,7 +96,7 @@ static irqreturn_t ad799x_trigger_handler(int irq, void *p)
 	time_ns = iio_get_time_ns();
 
 	if (ring->scan_timestamp)
-		memcpy(rxbuf + st->d_size - sizeof(s64),
+		memcpy(rxbuf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
 	ring->access->store_to(indio_dev->buffer, rxbuf, time_ns);
