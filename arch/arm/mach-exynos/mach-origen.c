@@ -596,6 +596,8 @@ static struct s3c_fb_pd_win origen_fb_win0 = {
 	},
 	.max_bpp		= 32,
 	.default_bpp		= 24,
+	.virtual_x		= 1024,
+	.virtual_y		= 2 * 600,
 };
 
 static struct s3c_fb_platdata origen_lcd_pdata __initdata = {
