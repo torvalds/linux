@@ -1,7 +1,8 @@
 /*
- *  Force feedback support for Logitech Speed Force Wireless
+ *  Force feedback support for Logitech Gaming Wheels
  *
- *  http://wiibrew.org/wiki/Logitech_USB_steering_wheel
+ *  Including G27, G25, DFP, DFGT, FFEX, Momo, Momo2 &
+ *  Speed Force Wireless (WiiWheel)
  *
  *  Copyright (c) 2010 Simon Wood <simon@mungewell.org>
  */
@@ -590,7 +591,7 @@ err:
 #endif
 
 out:
-	hid_info(hid, "Force feedback for Logitech Speed Force Wireless by Simon Wood <simon@mungewell.org>\n");
+	hid_info(hid, "Force feedback support for Logitech Gaming Wheels\n");
 	return 0;
 }
 
