@@ -224,7 +224,7 @@ static void matrix_keypad_stop(struct input_dev *dev)
 	disable_row_irqs(keypad);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
@@ -293,10 +293,10 @@ static int matrix_keypad_resume(struct device *dev)
 
 	return 0;
 }
-
-static const SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
-				matrix_keypad_suspend, matrix_keypad_resume);
 #endif
+
+static SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
+			 matrix_keypad_suspend, matrix_keypad_resume);
 
 static int __devinit init_matrix_gpio(struct platform_device *pdev,
 					struct matrix_keypad *keypad)
@@ -491,9 +491,7 @@ static struct platform_driver matrix_keypad_driver = {
 	.driver		= {
 		.name	= "matrix-keypad",
 		.owner	= THIS_MODULE,
-#ifdef CONFIG_PM
 		.pm	= &matrix_keypad_pm_ops,
-#endif
 	},
 };
 module_platform_driver(matrix_keypad_driver);
