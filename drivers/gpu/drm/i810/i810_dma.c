@@ -129,6 +129,7 @@ static int i810_map_buffer(struct drm_buf *buf, struct drm_file *file_priv)
 	if (buf_priv->currently_mapped == I810_BUF_MAPPED)
 		return -EINVAL;
 
+	/* This is all entirely broken */
 	down_write(&current->mm->mmap_sem);
 	old_fops = file_priv->filp->f_op;
 	file_priv->filp->f_op = &i810_buffer_fops;

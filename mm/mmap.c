@@ -953,7 +953,7 @@ static inline unsigned long round_hint_to_min(unsigned long hint)
  * The caller must hold down_write(&current->mm->mmap_sem).
  */
 
-unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
+static unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 			unsigned long len, unsigned long prot,
 			unsigned long flags, unsigned long pgoff)
 {
@@ -1089,7 +1089,32 @@ unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
 
 	return mmap_region(file, addr, len, flags, vm_flags, pgoff);
 }
-EXPORT_SYMBOL(do_mmap_pgoff);
+
+unsigned long do_mmap(struct file *file, unsigned long addr,
+	unsigned long len, unsigned long prot,
+	unsigned long flag, unsigned long offset)
+{
+	if (unlikely(offset + PAGE_ALIGN(len) < offset))
+		return -EINVAL;
+	if (unlikely(offset & ~PAGE_MASK))
+		return -EINVAL;
+	return do_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
+}
+EXPORT_SYMBOL(do_mmap);
+
+unsigned long vm_mmap(struct file *file, unsigned long addr,
+	unsigned long len, unsigned long prot,
+	unsigned long flag, unsigned long offset)
+{
+	unsigned long ret;
+	struct mm_struct *mm = current->mm;
+
+	down_write(&mm->mmap_sem);
+	ret = do_mmap(file, addr, len, prot, flag, offset);
+	up_write(&mm->mmap_sem);
+	return ret;
+}
+EXPORT_SYMBOL(vm_mmap);
 
 SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,

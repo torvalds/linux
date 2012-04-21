@@ -6336,13 +6336,11 @@ int kvm_arch_prepare_memory_region(struct kvm *kvm,
 		if (npages && !old.rmap) {
 			unsigned long userspace_addr;
 
-			down_write(&current->mm->mmap_sem);
-			userspace_addr = do_mmap(NULL, 0,
+			userspace_addr = vm_mmap(NULL, 0,
 						 npages * PAGE_SIZE,
 						 PROT_READ | PROT_WRITE,
 						 map_flags,
 						 0);
-			up_write(&current->mm->mmap_sem);
 
 			if (IS_ERR((void *)userspace_addr))
 				return PTR_ERR((void *)userspace_addr);
