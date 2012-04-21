@@ -435,13 +435,17 @@ nfs4_alloc_state_owner(struct nfs_server *server,
 static void
 nfs4_drop_state_owner(struct nfs4_state_owner *sp)
 {
-	if (!RB_EMPTY_NODE(&sp->so_server_node)) {
+	struct rb_node *rb_node = &sp->so_server_node;
+
+	if (!RB_EMPTY_NODE(rb_node)) {
 		struct nfs_server *server = sp->so_server;
 		struct nfs_client *clp = server->nfs_client;
 
 		spin_lock(&clp->cl_lock);
-		rb_erase(&sp->so_server_node, &server->state_owners);
-		RB_CLEAR_NODE(&sp->so_server_node);
+		if (!RB_EMPTY_NODE(rb_node)) {
+			rb_erase(rb_node, &server->state_owners);
+			RB_CLEAR_NODE(rb_node);
+		}
 		spin_unlock(&clp->cl_lock);
 	}
 }
