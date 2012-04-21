@@ -43,13 +43,6 @@ struct snd_urb_ctx {
 	struct list_head ready_list;
 };
 
-struct snd_urb_ops {
-	int (*prepare)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-	int (*retire)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-	int (*prepare_sync)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-	int (*retire_sync)(struct snd_usb_substream *subs, struct snd_pcm_runtime *runtime, struct urb *u);
-};
-
 struct snd_usb_endpoint {
 	struct snd_usb_audio *chip;
 
@@ -125,11 +118,6 @@ struct snd_usb_substream {
 	unsigned long active_mask;	/* bitmask of active urbs */
 	unsigned long unlink_mask;	/* bitmask of unlinked urbs */
 
-	unsigned int nurbs;			/* # urbs */
-	struct snd_urb_ctx dataurb[MAX_URBS];	/* data urb table */
-	struct snd_urb_ctx syncurb[SYNC_URBS];	/* sync urb table */
-	char *syncbuf;				/* sync buffer for all sync URBs */
-	dma_addr_t sync_dma;			/* DMA address of syncbuf */
 	/* data and sync endpoints for this stream */
 	struct snd_usb_endpoint *data_endpoint;
 	struct snd_usb_endpoint *sync_endpoint;
@@ -141,7 +129,6 @@ struct snd_usb_substream {
 	struct snd_pcm_hw_constraint_list rate_list;	/* limited rates */
 	spinlock_t lock;
 
-	struct snd_urb_ops ops;		/* callbacks (must be filled at init) */
 	int last_frame_number;          /* stored frame number */
 	int last_delay;                 /* stored delay */
 };

@@ -25,6 +25,7 @@
 #include "usbaudio.h"
 #include "helper.h"
 #include "card.h"
+#include "endpoint.h"
 #include "proc.h"
 
 /* convert our full speed USB rate into sampling rate in Hz */
@@ -137,14 +138,9 @@ static void proc_dump_ep_status(struct snd_usb_substream *subs,
 static void proc_dump_substream_status(struct snd_usb_substream *subs, struct snd_info_buffer *buffer)
 {
 	if (subs->running) {
-		unsigned int i;
 		snd_iprintf(buffer, "  Status: Running\n");
 		snd_iprintf(buffer, "    Interface = %d\n", subs->interface);
 		snd_iprintf(buffer, "    Altset = %d\n", subs->altset_idx);
-		snd_iprintf(buffer, "    URBs = %d [ ", subs->nurbs);
-		for (i = 0; i < subs->nurbs; i++)
-			snd_iprintf(buffer, "%d ", subs->dataurb[i].packets);
-		snd_iprintf(buffer, "]\n");
 		proc_dump_ep_status(subs, subs->data_endpoint, buffer);
 		proc_dump_ep_status(subs, subs->sync_endpoint, buffer);
 	} else {
