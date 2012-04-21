@@ -508,29 +508,41 @@ static const unsigned long *iio_scan_mask_match(const unsigned long *av_masks,
 	return NULL;
 }
 
-int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
+static int iio_compute_scan_bytes(struct iio_dev *indio_dev, const long *mask,
+				  bool timestamp)
 {
-	struct iio_buffer *buffer = indio_dev->buffer;
 	const struct iio_chan_spec *ch;
 	unsigned bytes = 0;
 	int length, i;
+
+	/* How much space will the demuxed element take? */
+	for_each_set_bit(i, mask,
+			 indio_dev->masklength) {
+		ch = iio_find_channel_from_si(indio_dev, i);
+		length = ch->scan_type.storagebits / 8;
+		bytes = ALIGN(bytes, length);
+		bytes += length;
+	}
+	if (timestamp) {
+		ch = iio_find_channel_from_si(indio_dev,
+					      indio_dev
+					      ->buffer->scan_index_timestamp);
+		length = ch->scan_type.storagebits / 8;
+		bytes = ALIGN(bytes, length);
+		bytes += length;
+	}
+	return bytes;
+}
+
+int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
+{
+	struct iio_buffer *buffer = indio_dev->buffer;
+	unsigned bytes;
 	dev_dbg(&indio_dev->dev, "%s\n", __func__);
 
 	/* How much space will the demuxed element take? */
-	for_each_set_bit(i, buffer->scan_mask,
-			 indio_dev->masklength) {
-		ch = iio_find_channel_from_si(indio_dev, i);
-		length = ch->scan_type.storagebits/8;
-		bytes = ALIGN(bytes, length);
-		bytes += length;
-	}
-	if (buffer->scan_timestamp) {
-		ch = iio_find_channel_from_si(indio_dev,
-					      buffer->scan_index_timestamp);
-		length = ch->scan_type.storagebits/8;
-		bytes = ALIGN(bytes, length);
-		bytes += length;
-	}
+	bytes = iio_compute_scan_bytes(indio_dev, buffer->scan_mask,
+				       buffer->scan_timestamp);
 	buffer->access->set_bytes_per_datum(buffer, bytes);
 
 	/* What scan mask do we actually have ?*/
