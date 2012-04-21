@@ -1383,7 +1383,7 @@ static int fimc_subdev_set_crop(struct v4l2_subdev *sd,
 	fimc_capture_try_crop(ctx, r, crop->pad);
 
 	if (crop->which == V4L2_SUBDEV_FORMAT_TRY) {
-		mutex_lock(&fimc->lock);
+		mutex_unlock(&fimc->lock);
 		*v4l2_subdev_get_try_crop(fh, crop->pad) = *r;
 		return 0;
 	}
