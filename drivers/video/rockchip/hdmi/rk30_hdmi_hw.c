@@ -324,7 +324,16 @@ static void rk30_hdmi_config_aai(void)
 int rk30_hdmi_config_audio(struct hdmi_audio *audio)
 {
 	int value, rate, N;
-	char word_length;
+	char word_length, channel;
+	
+	if(audio->channel < 3)
+		channel = I2S_CHANNEL_1_2;
+	else if(audio->channel < 5)
+		channel = I2S_CHANNEL_3_4;
+	else if(audio->channel < 7)
+		channel = I2S_CHANNEL_5_6;
+	else
+		channel = I2S_CHANNEL_7_8;
 	
 	switch(audio->rate)
 	{
@@ -378,7 +387,7 @@ int rk30_hdmi_config_audio(struct hdmi_audio *audio)
 	//set_audio_if I2S
 	HDMIWrReg(AUDIO_CTRL1, 0x00); //internal CTS, disable down sample, i2s input, disable MCLK
 	HDMIWrReg(AUDIO_CTRL2, 0x40); 
-	HDMIWrReg(I2S_AUDIO_CTRL, v_I2S_MODE(I2S_MODE_STANDARD) | v_I2S_CHANNEL( audio->channel - ((audio->channel%2)? 0 : 1) ) );	
+	HDMIWrReg(I2S_AUDIO_CTRL, v_I2S_MODE(I2S_MODE_STANDARD) | v_I2S_CHANNEL(channel) );	
 	HDMIWrReg(I2S_INPUT_SWAP, 0x00); //no swap
 	HDMIMskReg(value, AV_CTRL1, m_AUDIO_SAMPLE_RATE, v_AUDIO_SAMPLE_RATE(rate))	
 	HDMIWrReg(SRC_NUM_AUDIO_LEN, word_length);
