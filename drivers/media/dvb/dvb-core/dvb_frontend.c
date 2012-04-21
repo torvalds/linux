@@ -1446,6 +1446,28 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 				__func__);
 			return -EINVAL;
 		}
+		/*
+		 * Get a delivery system that is compatible with DVBv3
+		 * NOTE: in order for this to work with softwares like Kaffeine that
+		 *	uses a DVBv5 call for DVB-S2 and a DVBv3 call to go back to
+		 *	DVB-S, drivers that support both should put the SYS_DVBS entry
+		 *	before the SYS_DVBS2, otherwise it won't switch back to DVB-S.
+		 *	The real fix is that userspace applications should not use DVBv3
+		 *	and not trust on calling FE_SET_FRONTEND to switch the delivery
+		 *	system.
+		 */
+		ncaps = 0;
+		while (fe->ops.delsys[ncaps] && ncaps < MAX_DELSYS) {
+			if (fe->ops.delsys[ncaps] == desired_system) {
+				delsys = desired_system;
+				break;
+			}
+			ncaps++;
+		}
+		if (delsys == SYS_UNDEFINED) {
+			dprintk("%s() Couldn't find a delivery system that matches %d\n",
+				__func__, desired_system);
+		}
 	} else {
 		/*
 		 * This is a DVBv5 call. So, it likely knows the supported
@@ -1494,8 +1516,9 @@ static int set_delivery_system(struct dvb_frontend *fe, u32 desired_system)
 				__func__);
 			return -EINVAL;
 		}
-		c->delivery_system = delsys;
 	}
+
+	c->delivery_system = delsys;
 
 	/*
 	 * The DVBv3 or DVBv5 call is requesting a different system. So,

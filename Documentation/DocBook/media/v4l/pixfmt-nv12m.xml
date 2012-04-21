@@ -1,6 +1,6 @@
     <refentry id="V4L2-PIX-FMT-NV12M">
       <refmeta>
-	<refentrytitle>V4L2_PIX_FMT_NV12M ('NV12M')</refentrytitle>
+	<refentrytitle>V4L2_PIX_FMT_NV12M ('NM12')</refentrytitle>
 	&manvol;
       </refmeta>
       <refnamediv>
