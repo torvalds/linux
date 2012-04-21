@@ -274,7 +274,8 @@ static int synaptics_set_advanced_gesture_mode(struct psmouse *psmouse)
 	static unsigned char param = 0xc8;
 	struct synaptics_data *priv = psmouse->private;
 
-	if (!SYN_CAP_ADV_GESTURE(priv->ext_cap_0c))
+	if (!(SYN_CAP_ADV_GESTURE(priv->ext_cap_0c) ||
+	      SYN_CAP_IMAGE_SENSOR(priv->ext_cap_0c)))
 		return 0;
 
 	if (psmouse_sliced_command(psmouse, SYN_QUE_MODEL))
