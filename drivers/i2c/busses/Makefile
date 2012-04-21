@@ -3,7 +3,7 @@
 #
 obj-$(CONFIG_I2C_RK29)		+= i2c-rk29.o
 obj-$(CONFIG_I2C_DEV_RK29)	+= i2c-dev-rk29.o
-obj-$(CONFIG_I2C_RK30)		+= i2c-rk30.o i2c-rk29-adapter.o i2c-rk30-adapter.o i2c-rk30-test.o
+obj-$(CONFIG_I2C_RK30)		+= i2c-rk30.o i2c-rk29-adapter.o i2c-rk30-adapter.o
 
 # ACPI drivers
 obj-$(CONFIG_I2C_SCMI)		+= i2c-scmi.o

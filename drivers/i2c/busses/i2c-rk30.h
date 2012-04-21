@@ -1,6 +1,8 @@
 #ifndef __RK30_I2C_H__
 #define __RK30_I2C_H__
 
+#include <linux/uaccess.h>
+#include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/wakelock.h>
@@ -16,7 +18,8 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/io.h>
-
+#include <linux/mutex.h>
+#include <linux/miscdevice.h>
 #include <mach/board.h>
 #include <mach/iomux.h>
 #include <asm/irq.h>
@@ -31,7 +34,7 @@
 #define i2c_writel                 writel_relaxed
 #define i2c_readl                  readl_relaxed
 
-#define I2C_WAIT_TIMEOUT            200  //100ms
+#define I2C_WAIT_TIMEOUT            200  //200ms
 
 #define rk30_set_bit(p, v, b)        (((p) & ~(1 << (b))) | ((v) << (b)))
 #define rk30_get_bit(p, b)           (((p) & (1 << (b))) >> (b))
@@ -53,13 +56,20 @@ enum rk30_i2c_state {
 	STATE_STOP
 };
 struct rk30_i2c {
-	spinlock_t		    lock;
+	spinlock_t		lock;
 	wait_queue_head_t	wait;
+        struct mutex            m_lock;
 	unsigned int		suspended:1;
 
 	struct i2c_msg		*msg;
-	unsigned int		msg_num;
-	unsigned int		msg_idx;
+        union {
+	        unsigned int		msg_num;
+	        unsigned int		is_busy;
+        };
+        union {
+	        unsigned int		msg_idx;
+	        unsigned int		error;
+        };
 	unsigned int		msg_ptr;
 
 	unsigned int		tx_setup;
