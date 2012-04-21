@@ -299,11 +299,11 @@ static int matrix_keypad_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(matrix_keypad_pm_ops,
 			 matrix_keypad_suspend, matrix_keypad_resume);
 
-static int __devinit init_matrix_gpio(struct platform_device *pdev,
-					struct matrix_keypad *keypad)
+static int __devinit matrix_keypad_init_gpio(struct platform_device *pdev,
+					     struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	int i, err = -EINVAL;
+	int i, err;
 
 	/* initialized strobe lines as outputs, activated */
 	for (i = 0; i < pdata->num_col_gpios; i++) {
@@ -349,8 +349,7 @@ static int __devinit init_matrix_gpio(struct platform_device *pdev,
 					"matrix-keypad", keypad);
 			if (err) {
 				dev_err(&pdev->dev,
-					"Unable to acquire interrupt "
-					"for GPIO line %i\n",
+					"Unable to acquire interrupt for GPIO line %i\n",
 					pdata->row_gpios[i]);
 				goto err_free_irqs;
 			}
@@ -374,6 +373,25 @@ err_free_cols:
 		gpio_free(pdata->col_gpios[i]);
 
 	return err;
+}
+
+static void matrix_keypad_free_gpio(struct matrix_keypad *keypad)
+{
+	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
+	int i;
+
+	if (pdata->clustered_irq > 0) {
+		free_irq(pdata->clustered_irq, keypad);
+	} else {
+		for (i = 0; i < pdata->num_row_gpios; i++)
+			free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
+	}
+
+	for (i = 0; i < pdata->num_row_gpios; i++)
+		gpio_free(pdata->row_gpios[i]);
+
+	for (i = 0; i < pdata->num_col_gpios; i++)
+		gpio_free(pdata->col_gpios[i]);
 }
 
 static int __devinit matrix_keypad_probe(struct platform_device *pdev)
@@ -435,19 +453,21 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);
 
-	err = init_matrix_gpio(pdev, keypad);
+	err = matrix_keypad_init_gpio(pdev, keypad);
 	if (err)
 		goto err_free_mem;
 
 	err = input_register_device(keypad->input_dev);
 	if (err)
-		goto err_free_mem;
+		goto err_free_gpio;
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 	platform_set_drvdata(pdev, keypad);
 
 	return 0;
 
+err_free_gpio:
+	matrix_keypad_free_gpio(keypad);
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(keypad);
@@ -457,27 +477,14 @@ err_free_mem:
 static int __devexit matrix_keypad_remove(struct platform_device *pdev)
 {
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	int i;
 
 	device_init_wakeup(&pdev->dev, 0);
 
-	if (pdata->clustered_irq > 0) {
-		free_irq(pdata->clustered_irq, keypad);
-	} else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
-	}
-
-	for (i = 0; i < pdata->num_row_gpios; i++)
-		gpio_free(pdata->row_gpios[i]);
-
-	for (i = 0; i < pdata->num_col_gpios; i++)
-		gpio_free(pdata->col_gpios[i]);
-
+	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);
-	platform_set_drvdata(pdev, NULL);
 	kfree(keypad);
+
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
