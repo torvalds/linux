@@ -524,3 +524,13 @@ Files:	arch/arm/mach-at91/at91cap9.c
 Why:	The code is not actively maintained and platforms are now hard to find.
 Who:	Nicolas Ferre <nicolas.ferre@atmel.com>
 	Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
+
+----------------------------
+
+What:	V4L2_CID_HCENTER, V4L2_CID_VCENTER V4L2 controls
+When:	3.7
+Why:	The V4L2_CID_VCENTER, V4L2_CID_HCENTER controls have been deprecated
+	for about 4 years and they are not used by any mainline driver.
+	There are newer controls (V4L2_CID_PAN*, V4L2_CID_TILT*) that provide
+	similar	functionality.
+Who:	Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
