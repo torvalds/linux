@@ -1399,16 +1399,15 @@ static void __init rk30_reserve(void)
 }
 
 static struct cpufreq_frequency_table cpu_dvfs_table[] = {
-	//{.frequency	= 126*1000, .index	= 980*1000},
-	{.frequency	= 252*1000, .index	= 980*1000},
-	{.frequency	= 504*1000, .index	= 980*1000},
-	{.frequency = 816*1000, .index	= 1000*1000},
-	{.frequency = 1008*1000,.index	= 1050*1000},
-	{.frequency = 1200*1000,.index	= 1150*1000},
-	{.frequency = 1416*1000,.index	= 1280*1000},
-	{.frequency = 1512*1000,.index	= 1320*1000},
-	//{.frequency = 1560*1000,.index	= 1350*1000},
-	//{.frequency = 1608*1000,.index	= 1350*1000},
+	{.frequency    	= 252*1000, .index    = 1000*1000},
+	{.frequency    	= 504*1000, .index    = 1000*1000},
+	{.frequency     = 816*1000, .index    = 1000*1000},//logic 1.025V
+	{.frequency     = 1008*1000,.index    = 1025*1000},
+	{.frequency     = 1200*1000,.index    = 1100*1000},
+	{.frequency     = 1272*1000,.index    = 1150*1000},//logic 1.050V
+	{.frequency     = 1416*1000,.index    = 1225*1000},//logic 1.100V
+	{.frequency     = 1512*1000,.index    = 1300*1000},//logic 1.125V
+	{.frequency     = 1608*1000,.index    = 1350*1000},//logic 1.175V
 	{.frequency	= CPUFREQ_TABLE_END},
 };
 
