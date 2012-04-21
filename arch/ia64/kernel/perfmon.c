@@ -604,12 +604,6 @@ pfm_unprotect_ctx_ctxsw(pfm_context_t *x, unsigned long f)
 	spin_unlock(&(x)->ctx_lock);
 }
 
-static inline unsigned int
-pfm_vm_munmap(struct mm_struct *mm, unsigned long addr, size_t len)
-{
-	return vm_munmap(mm, addr, len);
-}
-
 static inline unsigned long 
 pfm_get_unmapped_area(struct file *file, unsigned long addr, unsigned long len, unsigned long pgoff, unsigned long flags, unsigned long exec)
 {
@@ -1458,8 +1452,9 @@ pfm_unreserve_session(pfm_context_t *ctx, int is_syswide, unsigned int cpu)
  * a PROTECT_CTX() section.
  */
 static int
-pfm_remove_smpl_mapping(struct task_struct *task, void *vaddr, unsigned long size)
+pfm_remove_smpl_mapping(void *vaddr, unsigned long size)
 {
+	struct task_struct *task = current;
 	int r;
 
 	/* sanity checks */
@@ -1473,7 +1468,7 @@ pfm_remove_smpl_mapping(struct task_struct *task, void *vaddr, unsigned long siz
 	/*
 	 * does the actual unmapping
 	 */
-	r = pfm_vm_munmap(task->mm, (unsigned long)vaddr, size);
+	r = vm_munmap(current->mm, (unsigned long)vaddr, size);
 
 	if (r !=0) {
 		printk(KERN_ERR "perfmon: [%d] unable to unmap sampling buffer @%p size=%lu\n", task_pid_nr(task), vaddr, size);
@@ -1940,7 +1935,7 @@ pfm_flush(struct file *filp, fl_owner_t id)
 	 * because some VM function reenables interrupts.
 	 *
 	 */
-	if (smpl_buf_vaddr) pfm_remove_smpl_mapping(current, smpl_buf_vaddr, smpl_buf_size);
+	if (smpl_buf_vaddr) pfm_remove_smpl_mapping(smpl_buf_vaddr, smpl_buf_size);
 
 	return 0;
 }
