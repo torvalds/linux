@@ -27,7 +27,6 @@
 struct matrix_keypad {
 	const struct matrix_keypad_platform_data *pdata;
 	struct input_dev *input_dev;
-	unsigned short *keycodes;
 	unsigned int row_shift;
 
 	DECLARE_BITMAP(disabled_gpios, MATRIX_MAX_ROWS);
@@ -38,6 +37,8 @@ struct matrix_keypad {
 	bool scan_pending;
 	bool stopped;
 	bool gpio_all_disabled;
+
+	unsigned short keycodes[];
 };
 
 /*
@@ -381,8 +382,8 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	const struct matrix_keymap_data *keymap_data;
 	struct matrix_keypad *keypad;
 	struct input_dev *input_dev;
-	unsigned short *keycodes;
 	unsigned int row_shift;
+	size_t keymap_size;
 	int err;
 
 	pdata = pdev->dev.platform_data;
@@ -398,20 +399,18 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	}
 
 	row_shift = get_count_order(pdata->num_col_gpios);
-
-	keypad = kzalloc(sizeof(struct matrix_keypad), GFP_KERNEL);
-	keycodes = kzalloc((pdata->num_row_gpios << row_shift) *
-				sizeof(*keycodes),
-			   GFP_KERNEL);
+	keymap_size = (pdata->num_row_gpios << row_shift) *
+			sizeof(keypad->keycodes[0]);
+	keypad = kzalloc(sizeof(struct matrix_keypad) + keymap_size,
+			 GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!keypad || !keycodes || !input_dev) {
+	if (!keypad || !input_dev) {
 		err = -ENOMEM;
 		goto err_free_mem;
 	}
 
 	keypad->input_dev = input_dev;
 	keypad->pdata = pdata;
-	keypad->keycodes = keycodes;
 	keypad->row_shift = row_shift;
 	keypad->stopped = true;
 	INIT_DELAYED_WORK(&keypad->work, matrix_keypad_scan);
@@ -426,8 +425,8 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	input_dev->open		= matrix_keypad_start;
 	input_dev->close	= matrix_keypad_stop;
 
-	input_dev->keycode	= keycodes;
-	input_dev->keycodesize	= sizeof(*keycodes);
+	input_dev->keycode	= keypad->keycodes;
+	input_dev->keycodesize	= sizeof(keypad->keycodes[0]);
 	input_dev->keycodemax	= pdata->num_row_gpios << row_shift;
 
 	matrix_keypad_build_keymap(keymap_data, row_shift,
@@ -451,7 +450,6 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 
 err_free_mem:
 	input_free_device(input_dev);
-	kfree(keycodes);
 	kfree(keypad);
 	return err;
 }
@@ -479,7 +477,6 @@ static int __devexit matrix_keypad_remove(struct platform_device *pdev)
 
 	input_unregister_device(keypad->input_dev);
 	platform_set_drvdata(pdev, NULL);
-	kfree(keypad->keycodes);
 	kfree(keypad);
 
 	return 0;
