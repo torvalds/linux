@@ -562,7 +562,7 @@ static const struct cxsr_latency cxsr_latency_table[] = {
 	{0, 1, 400, 800, 6042, 36042, 6584, 36584},    /* DDR3-800 SC */
 };
 
-const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
+static const struct cxsr_latency *intel_get_cxsr_latency(int is_desktop,
 							 int is_ddr3,
 							 int fsb,
 							 int mem)
