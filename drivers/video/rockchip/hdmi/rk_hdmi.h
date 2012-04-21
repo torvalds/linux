@@ -196,5 +196,5 @@ extern const struct fb_videomode hdmi_mode[];
 #endif
 
 extern int hdmi_get_hotplug(void);
-
+extern int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic);
 #endif
