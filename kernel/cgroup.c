@@ -60,6 +60,7 @@
 #include <linux/eventfd.h>
 #include <linux/poll.h>
 #include <linux/flex_array.h> /* used in cgroup_attach_proc */
+#include <linux/kthread.h>
 
 #include <linux/atomic.h>
 
@@ -2225,6 +2226,18 @@ retry_find_task:
 
 	if (threadgroup)
 		tsk = tsk->group_leader;
+
+	/*
+	 * Workqueue threads may acquire PF_THREAD_BOUND and become
+	 * trapped in a cpuset, or RT worker may be born in a cgroup
+	 * with no rt_runtime allocated.  Just say no.
+	 */
+	if (tsk == kthreadd_task || (tsk->flags & PF_THREAD_BOUND)) {
+		ret = -EINVAL;
+		rcu_read_unlock();
+		goto out_unlock_cgroup;
+	}
+
 	get_task_struct(tsk);
 	rcu_read_unlock();
 
