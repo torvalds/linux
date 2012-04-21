@@ -348,7 +348,6 @@ u32 omap3_configure_core_dpll(u32 m2, u32 unlock_dll, u32 f, u32 inc,
 			sdrc_actim_ctrl_b_1, sdrc_mr_1);
 }
 
-#ifdef CONFIG_PM
 void omap3_sram_restore_context(void)
 {
 	omap_sram_ceil = omap_sram_base + omap_sram_size;
@@ -358,17 +357,18 @@ void omap3_sram_restore_context(void)
 			       omap3_sram_configure_core_dpll_sz);
 	omap_push_sram_idle();
 }
-#endif /* CONFIG_PM */
-
-#endif /* CONFIG_ARCH_OMAP3 */
 
 static inline int omap34xx_sram_init(void)
 {
-#if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
 	omap3_sram_restore_context();
-#endif
 	return 0;
 }
+#else
+static inline int omap34xx_sram_init(void)
+{
+	return 0;
+}
+#endif /* CONFIG_ARCH_OMAP3 */
 
 static inline int am33xx_sram_init(void)
 {
