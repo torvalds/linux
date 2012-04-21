@@ -149,6 +149,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			}
 		}
 		break;
+
 	case WLAN_CMD_BSS_JOIN:
 		if (copy_from_user(&sJoinCmd, pReq->data, sizeof(SCmdBSSJoin))) {
 			result = -EFAULT;
@@ -311,7 +312,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 				pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
 				pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
 				RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
-				pList->sBSSIDList[ii].uRSSI = (unsigned int) ldBm;
+				pList->sBSSIDList[ii].uRSSI = (unsigned int)ldBm;
 				/* pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI; */
 				memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);
 				pItemSSID = (PWLAN_IE_SSID)pBSS->abySSID;
@@ -354,6 +355,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq)
 			break;
 		}
 		break;
+
 	case WLAN_CMD_STOP_MAC:
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WLAN_CMD_STOP_MAC\n");
 		/* Todo xxxxxx */
