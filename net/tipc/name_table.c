@@ -347,7 +347,7 @@ static struct publication *tipc_nameseq_insert_publ(struct name_seq *nseq,
 		info->cluster_list_size++;
 	}
 
-	if (node == tipc_own_addr) {
+	if (in_own_node(node)) {
 		list_add(&publ->node_list, &info->node_list);
 		info->node_list_size++;
 	}
@@ -418,7 +418,7 @@ found:
 
 	/* Remove publication from node scope list, if present */
 
-	if (node == tipc_own_addr) {
+	if (in_own_node(node)) {
 		list_del(&publ->node_list);
 		info->node_list_size--;
 	}
@@ -604,7 +604,7 @@ u32 tipc_nametbl_translate(u32 type, u32 instance, u32 *destnode)
 		publ = list_first_entry(&info->node_list, struct publication,
 					node_list);
 		list_move_tail(&publ->node_list, &info->node_list);
-	} else if (in_own_cluster(*destnode)) {
+	} else if (in_own_cluster_exact(*destnode)) {
 		if (list_empty(&info->cluster_list))
 			goto no_match;
 		publ = list_first_entry(&info->cluster_list, struct publication,
@@ -695,11 +695,12 @@ struct publication *tipc_nametbl_publish(u32 type, u32 lower, u32 upper,
 	}
 
 	write_lock_bh(&tipc_nametbl_lock);
-	table.local_publ_count++;
 	publ = tipc_nametbl_insert_publ(type, lower, upper, scope,
 				   tipc_own_addr, port_ref, key);
-	if (publ && (scope != TIPC_NODE_SCOPE))
+	if (likely(publ)) {
+		table.local_publ_count++;
 		tipc_named_publish(publ);
+	}
 	write_unlock_bh(&tipc_nametbl_lock);
 	return publ;
 }
@@ -716,8 +717,7 @@ int tipc_nametbl_withdraw(u32 type, u32 lower, u32 ref, u32 key)
 	publ = tipc_nametbl_remove_publ(type, lower, tipc_own_addr, ref, key);
 	if (likely(publ)) {
 		table.local_publ_count--;
-		if (publ->scope != TIPC_NODE_SCOPE)
-			tipc_named_withdraw(publ);
+		tipc_named_withdraw(publ);
 		write_unlock_bh(&tipc_nametbl_lock);
 		list_del_init(&publ->pport_list);
 		kfree(publ);

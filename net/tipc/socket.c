@@ -1236,7 +1236,8 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		if (msg_mcast(msg))
 			return TIPC_ERR_NO_PORT;
 		if (sock->state == SS_CONNECTED) {
-			if (!msg_connected(msg))
+			if (!msg_connected(msg) ||
+			    !tipc_port_peer_msg(tipc_sk_port(sk), msg))
 				return TIPC_ERR_NO_PORT;
 		} else if (sock->state == SS_CONNECTING) {
 			if (!msg_connected(msg) && (msg_errcode(msg) == 0))

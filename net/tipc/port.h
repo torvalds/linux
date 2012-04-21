@@ -201,6 +201,7 @@ int tipc_shutdown(u32 ref);
  * The following routines require that the port be locked on entry
  */
 int tipc_disconnect_port(struct tipc_port *tp_ptr);
+int tipc_port_peer_msg(struct tipc_port *p_ptr, struct tipc_msg *msg);
 
 /*
  * TIPC messaging routines
@@ -255,16 +256,6 @@ static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 static inline struct tipc_port *tipc_port_deref(u32 ref)
 {
 	return (struct tipc_port *)tipc_ref_deref(ref);
-}
-
-static inline u32 tipc_peer_port(struct tipc_port *p_ptr)
-{
-	return msg_destport(&p_ptr->phdr);
-}
-
-static inline u32 tipc_peer_node(struct tipc_port *p_ptr)
-{
-	return msg_destnode(&p_ptr->phdr);
 }
 
 static inline int tipc_port_congested(struct tipc_port *p_ptr)
