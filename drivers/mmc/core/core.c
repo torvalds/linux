@@ -1409,7 +1409,10 @@ static unsigned int mmc_mmc_erase_timeout(struct mmc_card *card,
 {
 	unsigned int erase_timeout;
 
-	if (card->ext_csd.erase_group_def & 1) {
+	if (arg == MMC_DISCARD_ARG ||
+	    (arg == MMC_TRIM_ARG && card->ext_csd.rev >= 6)) {
+		erase_timeout = card->ext_csd.trim_timeout;
+	} else if (card->ext_csd.erase_group_def & 1) {
 		/* High Capacity Erase Group Size uses HC timeouts */
 		if (arg == MMC_TRIM_ARG)
 			erase_timeout = card->ext_csd.trim_timeout;
@@ -1681,8 +1684,6 @@ int mmc_can_trim(struct mmc_card *card)
 {
 	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN)
 		return 1;
-	if (mmc_can_discard(card))
-		return 1;
 	return 0;
 }
 EXPORT_SYMBOL(mmc_can_trim);
@@ -1701,6 +1702,8 @@ EXPORT_SYMBOL(mmc_can_discard);
 
 int mmc_can_sanitize(struct mmc_card *card)
 {
+	if (!mmc_can_trim(card) && !mmc_can_erase(card))
+		return 0;
 	if (card->ext_csd.sec_feature_support & EXT_CSD_SEC_SANITIZE)
 		return 1;
 	return 0;
@@ -2235,6 +2238,7 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 			mmc_card_is_removable(host))
 		return err;
 
+	mmc_claim_host(host);
 	if (card && mmc_card_mmc(card) &&
 			(card->ext_csd.cache_size > 0)) {
 		enable = !!enable;
@@ -2252,6 +2256,7 @@ int mmc_cache_ctrl(struct mmc_host *host, u8 enable)
 				card->ext_csd.cache_ctrl = enable;
 		}
 	}
+	mmc_release_host(host);
 
 	return err;
 }
@@ -2269,49 +2274,32 @@ int mmc_suspend_host(struct mmc_host *host)
 
 	cancel_delayed_work(&host->detect);
 	mmc_flush_scheduled_work();
-	if (mmc_try_claim_host(host)) {
-		err = mmc_cache_ctrl(host, 0);
-		mmc_release_host(host);
-	} else {
-		err = -EBUSY;
-	}
 
+	err = mmc_cache_ctrl(host, 0);
 	if (err)
 		goto out;
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
 
-		/*
-		 * A long response time is not acceptable for device drivers
-		 * when doing suspend. Prevent mmc_claim_host in the suspend
-		 * sequence, to potentially wait "forever" by trying to
-		 * pre-claim the host.
-		 */
-		if (mmc_try_claim_host(host)) {
-			if (host->bus_ops->suspend) {
-				err = host->bus_ops->suspend(host);
-			}
-			mmc_release_host(host);
+		if (host->bus_ops->suspend)
+			err = host->bus_ops->suspend(host);
 
-			if (err == -ENOSYS || !host->bus_ops->resume) {
-				/*
-				 * We simply "remove" the card in this case.
-				 * It will be redetected on resume.  (Calling
-				 * bus_ops->remove() with a claimed host can
-				 * deadlock.)
-				 */
-				if (host->bus_ops->remove)
-					host->bus_ops->remove(host);
-				mmc_claim_host(host);
-				mmc_detach_bus(host);
-				mmc_power_off(host);
-				mmc_release_host(host);
-				host->pm_flags = 0;
-				err = 0;
-			}
-		} else {
-			err = -EBUSY;
+		if (err == -ENOSYS || !host->bus_ops->resume) {
+			/*
+			 * We simply "remove" the card in this case.
+			 * It will be redetected on resume.  (Calling
+			 * bus_ops->remove() with a claimed host can
+			 * deadlock.)
+			 */
+			if (host->bus_ops->remove)
+				host->bus_ops->remove(host);
+			mmc_claim_host(host);
+			mmc_detach_bus(host);
+			mmc_power_off(host);
+			mmc_release_host(host);
+			host->pm_flags = 0;
+			err = 0;
 		}
 	}
 	mmc_bus_put(host);

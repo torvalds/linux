@@ -249,7 +249,7 @@ static int omap_hsmmc_set_power(struct device *dev, int slot, int power_on,
 	 * the pbias cell programming support is still missing when
 	 * booting with Device tree
 	 */
-	if (of_have_populated_dt() && !vdd)
+	if (dev->of_node && !vdd)
 		return 0;
 
 	if (mmc_slot(host).before_set_reg)
@@ -1549,7 +1549,7 @@ static void omap_hsmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			 * can't be allowed when booting with device
 			 * tree.
 			 */
-			(!of_have_populated_dt())) {
+			!host->dev->of_node) {
 				/*
 				 * The mmc_select_voltage fn of the core does
 				 * not seem to set the power_mode to
@@ -1741,7 +1741,7 @@ static const struct of_device_id omap_mmc_of_match[] = {
 		.data = &omap4_reg_offset,
 	},
 	{},
-}
+};
 MODULE_DEVICE_TABLE(of, omap_mmc_of_match);
 
 static struct omap_mmc_platform_data *of_get_hsmmc_pdata(struct device *dev)
