@@ -2509,6 +2509,9 @@ bool flush_work(struct work_struct *work)
 {
 	struct wq_barrier barr;
 
+	lock_map_acquire(&work->lockdep_map);
+	lock_map_release(&work->lockdep_map);
+
 	if (start_flush_work(work, &barr, true)) {
 		wait_for_completion(&barr.done);
 		destroy_work_on_stack(&barr.work);
