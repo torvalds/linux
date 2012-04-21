@@ -119,12 +119,12 @@ static irqreturn_t adis16400_trigger_handler(int irq, void *p)
 	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0, j, ret = 0;
 	s16 *data;
-	size_t datasize = ring->access->get_bytes_per_datum(ring);
+
 	/* Asumption that long is enough for maximum channels */
 	unsigned long mask = *indio_dev->active_scan_mask;
 	int scan_count = bitmap_weight(indio_dev->active_scan_mask,
 				       indio_dev->masklength);
-	data = kmalloc(datasize , GFP_KERNEL);
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
 		return -ENOMEM;

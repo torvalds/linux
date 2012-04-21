@@ -51,8 +51,7 @@ static void ad7606_poll_bh_to_ring(struct work_struct *work_s)
 	__u8 *buf;
 	int ret;
 
-	buf = kzalloc(ring->access->get_bytes_per_datum(ring),
-		      GFP_KERNEL);
+	buf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (buf == NULL)
 		return;
 

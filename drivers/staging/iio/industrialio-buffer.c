@@ -536,13 +536,13 @@ static int iio_compute_scan_bytes(struct iio_dev *indio_dev, const long *mask,
 int iio_sw_buffer_preenable(struct iio_dev *indio_dev)
 {
 	struct iio_buffer *buffer = indio_dev->buffer;
-	unsigned bytes;
 	dev_dbg(&indio_dev->dev, "%s\n", __func__);
 
 	/* How much space will the demuxed element take? */
-	bytes = iio_compute_scan_bytes(indio_dev, buffer->scan_mask,
+	indio_dev->scan_bytes =
+		iio_compute_scan_bytes(indio_dev, buffer->scan_mask,
 				       buffer->scan_timestamp);
-	buffer->access->set_bytes_per_datum(buffer, bytes);
+	buffer->access->set_bytes_per_datum(buffer, indio_dev->scan_bytes);
 
 	/* What scan mask do we actually have ?*/
 	if (indio_dev->available_scan_masks)

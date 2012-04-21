@@ -66,9 +66,8 @@ static irqreturn_t adis16260_trigger_handler(int irq, void *p)
 	struct iio_buffer *ring = indio_dev->buffer;
 	int i = 0;
 	s16 *data;
-	size_t datasize = ring->access->get_bytes_per_datum(ring);
 
-	data = kmalloc(datasize , GFP_KERNEL);
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(&st->us->dev, "memory alloc failed in ring bh");
 		return -ENOMEM;

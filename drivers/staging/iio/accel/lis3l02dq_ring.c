@@ -137,9 +137,9 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct iio_buffer *buffer = indio_dev->buffer;
 	int len = 0;
-	size_t datasize = buffer->access->get_bytes_per_datum(buffer);
-	char *data = kmalloc(datasize, GFP_KERNEL);
+	char *data;
 
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL) {
 		dev_err(indio_dev->dev.parent,
 			"memory alloc failed in buffer bh");
