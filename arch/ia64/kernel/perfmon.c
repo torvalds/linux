@@ -1468,7 +1468,7 @@ pfm_remove_smpl_mapping(void *vaddr, unsigned long size)
 	/*
 	 * does the actual unmapping
 	 */
-	r = vm_munmap(current->mm, (unsigned long)vaddr, size);
+	r = vm_munmap((unsigned long)vaddr, size);
 
 	if (r !=0) {
 		printk(KERN_ERR "perfmon: [%d] unable to unmap sampling buffer @%p size=%lu\n", task_pid_nr(task), vaddr, size);

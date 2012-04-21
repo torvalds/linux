@@ -6364,7 +6364,7 @@ void kvm_arch_commit_memory_region(struct kvm *kvm,
 	if (!user_alloc && !old.user_alloc && old.rmap && !npages) {
 		int ret;
 
-		ret = vm_munmap(current->mm, old.userspace_addr,
+		ret = vm_munmap(old.userspace_addr,
 				old.npages * PAGE_SIZE);
 		if (ret < 0)
 			printk(KERN_WARNING

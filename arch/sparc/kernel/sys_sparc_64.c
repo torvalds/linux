@@ -569,7 +569,7 @@ SYSCALL_DEFINE2(64_munmap, unsigned long, addr, size_t, len)
 	if (invalid_64bit_range(addr, len))
 		return -EINVAL;
 
-	return vm_munmap(current->mm, addr, len);
+	return vm_munmap(addr, len);
 }
 
 extern unsigned long do_mremap(unsigned long addr,
