@@ -56,7 +56,6 @@ struct iio_buffer_access_funcs {
  * @scan_el_attrs:	[DRIVER] control of scan elements if that scan mode
  *			control method is used
  * @scan_mask:		[INTERN] bitmask used in masking scan mode elements
- * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @scan_timestamp:	[INTERN] does the scan mode include a timestamp
  * @access:		[DRIVER] buffer access functions associated with the
  *			implementation.
@@ -74,7 +73,6 @@ struct iio_buffer {
 	struct attribute_group			*scan_el_attrs;
 	long					*scan_mask;
 	bool					scan_timestamp;
-	unsigned				scan_index_timestamp;
 	const struct iio_buffer_access_funcs	*access;
 	struct list_head			scan_el_dev_attr_list;
 	struct attribute_group			scan_el_group;

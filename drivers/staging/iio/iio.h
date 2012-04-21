@@ -305,6 +305,7 @@ struct iio_buffer_setup_ops {
  * @masklength:		[INTERN] the length of the mask established from
  *			channels
  * @active_scan_mask:	[INTERN] union of all scan masks requested by buffers
+ * @scan_index_timestamp:[INTERN] cache of the index to the timestamp
  * @trig:		[INTERN] current device trigger (buffer modes)
  * @pollfunc:		[DRIVER] function run on trigger being received
  * @channels:		[DRIVER] channel specification structure table
@@ -339,6 +340,7 @@ struct iio_dev {
 	const unsigned long		*available_scan_masks;
 	unsigned			masklength;
 	const unsigned long		*active_scan_mask;
+	unsigned			scan_index_timestamp;
 	struct iio_trigger		*trig;
 	struct iio_poll_func		*pollfunc;
 
