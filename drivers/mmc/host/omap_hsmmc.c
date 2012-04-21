@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/of_device.h>
+#include <linux/omap-dma.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/core.h>
 #include <linux/mmc/mmc.h>
@@ -1765,8 +1766,6 @@ static inline struct omap_mmc_platform_data
 	return NULL;
 }
 #endif
-
-extern bool omap_dma_filter_fn(struct dma_chan *chan, void *param);
 
 static int __devinit omap_hsmmc_probe(struct platform_device *pdev)
 {
