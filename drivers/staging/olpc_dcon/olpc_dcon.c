@@ -71,8 +71,8 @@ static int dcon_hw_init(struct dcon_priv *dcon, int is_init)
 
 	ver = dcon_read(dcon, DCON_REG_ID);
 	if ((ver >> 8) != 0xDC) {
-		printk(KERN_ERR "olpc-dcon:  DCON ID not 0xDCxx: 0x%04x "
-				"instead.\n", ver);
+		printk(KERN_ERR "olpc-dcon:  DCON ID not 0xDCxx: 0x%04x instead.\n",
+			ver);
 		rc = -ENXIO;
 		goto err;
 	}
@@ -136,8 +136,8 @@ power_up:
 		x = 1;
 		x = olpc_ec_cmd(0x26, (unsigned char *) &x, 1, NULL, 0);
 		if (x) {
-			printk(KERN_WARNING "olpc-dcon:  unable to force dcon "
-					"to power up: %d!\n", x);
+			printk(KERN_WARNING "olpc-dcon:  unable to force dcon to power up: %d!\n",
+				x);
 			return x;
 		}
 		msleep(10); /* we'll be conservative */
@@ -150,8 +150,7 @@ power_up:
 		x = dcon_read(dcon, DCON_REG_ID);
 	}
 	if (x < 0) {
-		printk(KERN_ERR "olpc-dcon:  unable to stabilize dcon's "
-				"smbus, reasserting power and praying.\n");
+		printk(KERN_ERR "olpc-dcon:  unable to stabilize dcon's smbus, reasserting power and praying.\n");
 		BUG_ON(olpc_board_at_least(olpc_board(0xc2)));
 		x = 0;
 		olpc_ec_cmd(0x26, (unsigned char *) &x, 1, NULL, 0);
@@ -222,8 +221,8 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
 		x = 0;
 		x = olpc_ec_cmd(0x26, (unsigned char *) &x, 1, NULL, 0);
 		if (x)
-			printk(KERN_WARNING "olpc-dcon:  unable to force dcon "
-					"to power down: %d!\n", x);
+			printk(KERN_WARNING "olpc-dcon:  unable to force dcon to power down: %d!\n",
+				x);
 		else
 			dcon->asleep = sleep;
 	} else {
@@ -232,8 +231,8 @@ static void dcon_sleep(struct dcon_priv *dcon, bool sleep)
 			dcon->disp_mode |= MODE_BL_ENABLE;
 		x = dcon_bus_stabilize(dcon, 1);
 		if (x)
-			printk(KERN_WARNING "olpc-dcon:  unable to reinit dcon"
-					" hardware: %d!\n", x);
+			printk(KERN_WARNING "olpc-dcon:  unable to reinit dcon hardware: %d!\n",
+				x);
 		else
 			dcon->asleep = sleep;
 
