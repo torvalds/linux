@@ -20,36 +20,6 @@
 
 #include "ad7476.h"
 
-/**
- * ad7476_ring_preenable() setup the parameters of the ring before enabling
- *
- * The complex nature of the setting of the number of bytes per datum is due
- * to this driver currently ensuring that the timestamp is stored at an 8
- * byte boundary.
- **/
-static int ad7476_ring_preenable(struct iio_dev *indio_dev)
-{
-	struct ad7476_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-
-	st->d_size = bitmap_weight(indio_dev->active_scan_mask,
-				   indio_dev->masklength) *
-		st->chip_info->channel[0].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		st->d_size += sizeof(s64);
-
-		if (st->d_size % sizeof(s64))
-			st->d_size += sizeof(s64) - (st->d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, st->d_size);
-
-	return 0;
-}
-
 static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 {
 	struct iio_poll_func *pf = p;
@@ -59,7 +29,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	__u8 *rxbuf;
 	int b_sent;
 
-	rxbuf = kzalloc(st->d_size, GFP_KERNEL);
+	rxbuf = kzalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (rxbuf == NULL)
 		return -ENOMEM;
 
@@ -71,7 +41,7 @@ static irqreturn_t ad7476_trigger_handler(int irq, void  *p)
 	time_ns = iio_get_time_ns();
 
 	if (indio_dev->buffer->scan_timestamp)
-		memcpy(rxbuf + st->d_size - sizeof(s64),
+		memcpy(rxbuf + indio_dev->scan_bytes - sizeof(s64),
 			&time_ns, sizeof(time_ns));
 
 	indio_dev->buffer->access->store_to(indio_dev->buffer, rxbuf, time_ns);
@@ -83,7 +53,7 @@ done:
 }
 
 static const struct iio_buffer_setup_ops ad7476_ring_setup_ops = {
-	.preenable = &ad7476_ring_preenable,
+	.preenable = &iio_sw_buffer_preenable,
 	.postenable = &iio_triggered_buffer_postenable,
 	.predisable = &iio_triggered_buffer_predisable,
 };
