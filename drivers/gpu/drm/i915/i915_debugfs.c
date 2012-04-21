@@ -1290,17 +1290,25 @@ static int i915_opregion(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
+	void *data = kmalloc(OPREGION_SIZE, GFP_KERNEL);
 	int ret;
+
+	if (data == NULL)
+		return -ENOMEM;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
-		return ret;
+		goto out;
 
-	if (opregion->header)
-		seq_write(m, opregion->header, OPREGION_SIZE);
+	if (opregion->header) {
+		memcpy_fromio(data, opregion->header, OPREGION_SIZE);
+		seq_write(m, data, OPREGION_SIZE);
+	}
 
 	mutex_unlock(&dev->struct_mutex);
 
+out:
+	kfree(data);
 	return 0;
 }
 
