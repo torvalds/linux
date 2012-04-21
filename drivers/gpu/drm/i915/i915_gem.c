@@ -66,7 +66,7 @@ static inline void i915_gem_object_fence_lost(struct drm_i915_gem_object *obj)
 	/* As we do not have an associated fence register, we will force
 	 * a tiling change if we ever need to acquire one.
 	 */
-	obj->tiling_changed = false;
+	obj->fence_dirty = false;
 	obj->fence_reg = I915_FENCE_REG_NONE;
 }
 
@@ -2459,7 +2459,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	/* Have we updated the tiling parameters upon the object and so
 	 * will need to serialise the write to the associated fence register?
 	 */
-	if (obj->tiling_changed) {
+	if (obj->fence_dirty) {
 		ret = i915_gem_object_flush_fence(obj);
 		if (ret)
 			return ret;
@@ -2468,7 +2468,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 	/* Just update our place in the LRU if our fence is getting reused. */
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		reg = &dev_priv->fence_regs[obj->fence_reg];
-		if (!obj->tiling_changed) {
+		if (!obj->fence_dirty) {
 			list_move_tail(&reg->lru_list,
 				       &dev_priv->mm.fence_list);
 			return 0;
@@ -2491,7 +2491,7 @@ i915_gem_object_get_fence(struct drm_i915_gem_object *obj)
 		return 0;
 
 	i915_gem_object_update_fence(obj, reg, enable);
-	obj->tiling_changed = false;
+	obj->fence_dirty = false;
 
 	return 0;
 }

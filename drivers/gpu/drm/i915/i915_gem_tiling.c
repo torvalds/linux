@@ -355,6 +355,11 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		 * no longer meets the alignment restrictions for its new
 		 * tiling mode. Otherwise we can just leave it alone, but
 		 * need to ensure that any fence register is cleared.
+		 *
+		 * After updating the tiling parameters, we then flag whether
+		 * we need to update an associated fence register. Note this
+		 * has to also include the unfenced register the GPU uses
+		 * whilst executing a fenced command for an untiled object.
 		 */
 		i915_gem_release_mmap(obj);
 
@@ -374,7 +379,10 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		}
 
 		if (ret == 0) {
-			obj->tiling_changed = true;
+			obj->fence_dirty =
+				obj->fenced_gpu_access ||
+				obj->fence_reg != I915_FENCE_REG_NONE;
+
 			obj->tiling_mode = args->tiling_mode;
 			obj->stride = args->stride;
 		}
