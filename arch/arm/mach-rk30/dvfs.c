@@ -26,6 +26,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
+#define JUMP_RATE 816000000
+#define LOGIC_VOLT_SCALING
 #define DVFS_DBG(fmt, args...) {while(0);}	//pr_debug(fmt, ##args)
 #define DVFS_ERR(fmt, args...) pr_err(fmt, ##args)
 #define DVFS_LOG(fmt, args...) pr_debug(fmt, ##args)//while(0)
@@ -378,7 +380,43 @@ static int rk_regist_clk(struct clk_node *dvfs_clk)
 #define get_volt_up_delay(new_volt, old_volt)	\
 	((new_volt) > (old_volt) ? (((new_volt) - (old_volt)) >> 10) : 0)
 
+#ifdef LOGIC_VOLT_SCALING
+#define DVFS_LOGIC_VOLT_H	1175000
+#define DVFS_LOGIC_VOLT_L 	1025000
+static int dvfs_up_volt_logic(void)
+{
+	struct regulator *vdd_core;
+	int ret = 0;
+	DVFS_DBG("second jump > 816M\n");
+	vdd_core = dvfs_regulator_get(NULL, "vdd_core");
+	ret = dvfs_regulator_set_voltage(vdd_core, DVFS_LOGIC_VOLT_H, DVFS_LOGIC_VOLT_H);
+	udelay(200);
+	DVFS_DBG("DVFS > 816M\n");
+	if (ret != 0) {
+		DVFS_ERR("%s err, ret = %d\n", __func__, ret);
+		return -1;
+	}
+	dvfs_regulator_put(vdd_core);
+	return ret;
+}
 
+static int dvfs_down_volt_logic(void)
+{
+	struct regulator *vdd_core;
+	int ret = 0;
+	DVFS_DBG("first jump %d\n", JUMP_RATE);
+	vdd_core = dvfs_regulator_get(NULL, "vdd_core");
+	ret = dvfs_regulator_set_voltage(vdd_core, DVFS_LOGIC_VOLT_L, DVFS_LOGIC_VOLT_L);
+	//udelay(200);
+	DVFS_DBG("DVFS <= 816M\n");
+	if (ret != 0) {
+		DVFS_ERR("%s err, ret = %d\n", __func__, ret);
+		return -1;
+	}
+	dvfs_regulator_put(vdd_core);
+	return ret;
+}
+#endif
 static int flag_core_set_volt_err = 0;
 int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 {
@@ -513,7 +551,8 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	struct cpufreq_frequency_table clk_fv;
 	int ret = 0;
 	int flag_set_volt_correct = 0;
-	unsigned long temp_hz;
+	unsigned long temp_hz, pre_rate_hz;
+
 
 	if (!clk) {
 		DVFS_ERR("%s is not clk\n", __func__);
@@ -530,6 +569,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	temp_hz = clk_round_rate_nolock(clk, rate_hz);
 	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu)\n", dvfs_clk->name, rate_hz, temp_hz);
 
+	pre_rate_hz = clk_get_rate(clk);
 	/* find the clk corresponding voltage */
 	if (0 != dvfs_clk_get_ref_volt(dvfs_clk, temp_hz / 1000, &clk_fv)) {
 		DVFS_ERR("dvfs(%s) rate %luhz is larger,not support\n", dvfs_clk->name, rate_hz);
@@ -557,7 +597,15 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 		dvfs_clk->vd->cur_volt = flag_set_volt_correct;
 		volt_old = dvfs_clk->vd->cur_volt;
 	}
-
+#ifdef LOGIC_VOLT_SCALING
+	if (temp_hz > JUMP_RATE && pre_rate_hz <= JUMP_RATE) {
+		ret = dvfs_up_volt_logic();
+		if (ret != 0) {
+			DVFS_ERR("%s up logic volt error %d", __func__, ret);
+			return -1;
+		}
+	}
+#endif
 	/* if up the voltage */
 	if (volt_old < volt_new) {
 		if (dvfs_clk->vd->regulator) {
@@ -616,6 +664,15 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 		DVFS_LOG("dvfs %s set volt ok dn\n", dvfs_clk->name);
 
 	}
+#ifdef LOGIC_VOLT_SCALING
+	if (temp_hz <= JUMP_RATE && pre_rate_hz > JUMP_RATE) {
+		ret = dvfs_down_volt_logic();
+		if (ret != 0) {
+			DVFS_ERR("%s down logic volt error %d", __func__, ret);
+			return -1;
+		}
+	}
+#endif
 	return ret;
 }
 
