@@ -3,83 +3,25 @@
  *
  * SPEAr3XX machines common source file
  *
- * Copyright (C) 2009 ST Microelectronics
- * Viresh Kumar<viresh.kumar@st.com>
+ * Copyright (C) 2009-2012 ST Microelectronics
+ * Viresh Kumar <viresh.kumar@st.com>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2. This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/types.h>
-#include <linux/amba/pl061.h>
-#include <linux/ptrace.h>
+#define pr_fmt(fmt) "SPEAr3xx: " fmt
+
+#include <linux/amba/pl022.h>
+#include <linux/amba/pl08x.h>
+#include <linux/of_irq.h>
 #include <linux/io.h>
+#include <asm/hardware/pl080.h>
 #include <asm/hardware/vic.h>
-#include <asm/irq.h>
-#include <asm/mach/arch.h>
+#include <plat/pl080.h>
 #include <mach/generic.h>
-#include <mach/hardware.h>
-
-/* Add spear3xx machines common devices here */
-/* gpio device registration */
-static struct pl061_platform_data gpio_plat_data = {
-	.gpio_base	= 0,
-	.irq_base	= SPEAR3XX_GPIO_INT_BASE,
-};
-
-AMBA_APB_DEVICE(spear3xx_gpio, "gpio", 0, SPEAR3XX_ICM3_GPIO_BASE,
-	{SPEAR3XX_IRQ_BASIC_GPIO}, &gpio_plat_data);
-
-/* uart device registration */
-AMBA_APB_DEVICE(spear3xx_uart, "uart", 0, SPEAR3XX_ICM1_UART_BASE,
-	{SPEAR3XX_IRQ_UART}, NULL);
-
-/* Do spear3xx familiy common initialization part here */
-void __init spear3xx_init(void)
-{
-	/* nothing to do for now */
-}
-
-/* This will initialize vic */
-void __init spear3xx_init_irq(void)
-{
-	vic_init((void __iomem *)VA_SPEAR3XX_ML1_VIC_BASE, 0, ~0, 0);
-}
-
-/* Following will create static virtual/physical mappings */
-struct map_desc spear3xx_io_desc[] __initdata = {
-	{
-		.virtual	= VA_SPEAR3XX_ICM1_UART_BASE,
-		.pfn		= __phys_to_pfn(SPEAR3XX_ICM1_UART_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= VA_SPEAR3XX_ML1_VIC_BASE,
-		.pfn		= __phys_to_pfn(SPEAR3XX_ML1_VIC_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= VA_SPEAR3XX_ICM3_SYS_CTRL_BASE,
-		.pfn		= __phys_to_pfn(SPEAR3XX_ICM3_SYS_CTRL_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	}, {
-		.virtual	= VA_SPEAR3XX_ICM3_MISC_REG_BASE,
-		.pfn		= __phys_to_pfn(SPEAR3XX_ICM3_MISC_REG_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE
-	},
-};
-
-/* This will create static memory mapping for selected devices */
-void __init spear3xx_map_io(void)
-{
-	iotable_init(spear3xx_io_desc, ARRAY_SIZE(spear3xx_io_desc));
-
-	/* This will initialize clock framework */
-	spear3xx_clk_init();
-}
+#include <mach/spear.h>
 
 /* pad multiplexing support */
 /* devices */
@@ -506,6 +448,68 @@ struct pmx_dev spear3xx_pmx_plgpio_45_46_49_50 = {
 };
 #endif /* CONFIG_MACH_SPEAR310 || CONFIG_MACH_SPEAR320 */
 
+/* ssp device registration */
+struct pl022_ssp_controller pl022_plat_data = {
+	.bus_id = 0,
+	.enable_dma = 1,
+	.dma_filter = pl08x_filter_id,
+	.dma_tx_param = "ssp0_tx",
+	.dma_rx_param = "ssp0_rx",
+	/*
+	 * This is number of spi devices that can be connected to spi. There are
+	 * two type of chipselects on which slave devices can work. One is chip
+	 * select provided by spi masters other is controlled through external
+	 * gpio's. We can't use chipselect provided from spi master (because as
+	 * soon as FIFO becomes empty, CS is disabled and transfer ends). So
+	 * this number now depends on number of gpios available for spi. each
+	 * slave on each master requires a separate gpio pin.
+	 */
+	.num_chipselect = 2,
+};
+
+/* dmac device registration */
+struct pl08x_platform_data pl080_plat_data = {
+	.memcpy_channel = {
+		.bus_id = "memcpy",
+		.cctl = (PL080_BSIZE_16 << PL080_CONTROL_SB_SIZE_SHIFT | \
+			PL080_BSIZE_16 << PL080_CONTROL_DB_SIZE_SHIFT | \
+			PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT | \
+			PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT | \
+			PL080_CONTROL_PROT_BUFF | PL080_CONTROL_PROT_CACHE | \
+			PL080_CONTROL_PROT_SYS),
+	},
+	.lli_buses = PL08X_AHB1,
+	.mem_buses = PL08X_AHB1,
+	.get_signal = pl080_get_signal,
+	.put_signal = pl080_put_signal,
+};
+
+/*
+ * Following will create 16MB static virtual/physical mappings
+ * PHYSICAL		VIRTUAL
+ * 0xD0000000		0xFD000000
+ * 0xFC000000		0xFC000000
+ */
+struct map_desc spear3xx_io_desc[] __initdata = {
+	{
+		.virtual	= VA_SPEAR3XX_ICM1_2_BASE,
+		.pfn		= __phys_to_pfn(SPEAR3XX_ICM1_2_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	}, {
+		.virtual	= VA_SPEAR3XX_ICM3_SMI_CTRL_BASE,
+		.pfn		= __phys_to_pfn(SPEAR3XX_ICM3_SMI_CTRL_BASE),
+		.length		= SZ_16M,
+		.type		= MT_DEVICE
+	},
+};
+
+/* This will create static memory mapping for selected devices */
+void __init spear3xx_map_io(void)
+{
+	iotable_init(spear3xx_io_desc, ARRAY_SIZE(spear3xx_io_desc));
+}
+
 static void __init spear3xx_timer_init(void)
 {
 	char pclk_name[] = "pll3_48m_clk";
@@ -530,9 +534,19 @@ static void __init spear3xx_timer_init(void)
 	clk_put(gpt_clk);
 	clk_put(pclk);
 
-	spear_setup_timer();
+	spear_setup_timer(SPEAR3XX_CPU_TMR_BASE, SPEAR3XX_IRQ_CPU_GPT1_1);
 }
 
 struct sys_timer spear3xx_timer = {
 	.init = spear3xx_timer_init,
 };
+
+static const struct of_device_id vic_of_match[] __initconst = {
+	{ .compatible = "arm,pl190-vic", .data = vic_of_init, },
+	{ /* Sentinel */ }
+};
+
+void __init spear3xx_dt_init_irq(void)
+{
+	of_irq_init(vic_of_match);
+}

@@ -906,8 +906,8 @@ int hpet_alloc(struct hpet_data *hdp)
 		hpetp->hp_which, hdp->hd_phys_address,
 		hpetp->hp_ntimer > 1 ? "s" : "");
 	for (i = 0; i < hpetp->hp_ntimer; i++)
-		printk("%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
-	printk("\n");
+		printk(KERN_CONT "%s %d", i > 0 ? "," : "", hdp->hd_irq[i]);
+	printk(KERN_CONT "\n");
 
 	temp = hpetp->hp_tick_freq;
 	remainder = do_div(temp, 1000000);

@@ -2245,6 +2245,33 @@ intel_pipe_set_base_atomic(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 }
 
 static int
+intel_finish_fb(struct drm_framebuffer *old_fb)
+{
+	struct drm_i915_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	bool was_interruptible = dev_priv->mm.interruptible;
+	int ret;
+
+	wait_event(dev_priv->pending_flip_queue,
+		   atomic_read(&dev_priv->mm.wedged) ||
+		   atomic_read(&obj->pending_flip) == 0);
+
+	/* Big Hammer, we also need to ensure that any pending
+	 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
+	 * current scanout is retired before unpinning the old
+	 * framebuffer.
+	 *
+	 * This should only fail upon a hung GPU, in which case we
+	 * can safely continue.
+	 */
+	dev_priv->mm.interruptible = false;
+	ret = i915_gem_object_finish_gpu(obj);
+	dev_priv->mm.interruptible = was_interruptible;
+
+	return ret;
+}
+
+static int
 intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		    struct drm_framebuffer *old_fb)
 {
@@ -2282,25 +2309,8 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	if (old_fb) {
-		struct drm_i915_private *dev_priv = dev->dev_private;
-		struct drm_i915_gem_object *obj = to_intel_framebuffer(old_fb)->obj;
-
-		wait_event(dev_priv->pending_flip_queue,
-			   atomic_read(&dev_priv->mm.wedged) ||
-			   atomic_read(&obj->pending_flip) == 0);
-
-		/* Big Hammer, we also need to ensure that any pending
-		 * MI_WAIT_FOR_EVENT inside a user batch buffer on the
-		 * current scanout is retired before unpinning the old
-		 * framebuffer.
-		 *
-		 * This should only fail upon a hung GPU, in which case we
-		 * can safely continue.
-		 */
-		ret = i915_gem_object_finish_gpu(obj);
-		(void) ret;
-	}
+	if (old_fb)
+		intel_finish_fb(old_fb);
 
 	ret = intel_pipe_set_base_atomic(crtc, crtc->fb, x, y,
 					 LEAVE_ATOMIC_MODE_SET);
@@ -3370,6 +3380,23 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 	struct drm_device *dev = crtc->dev;
+
+	/* Flush any pending WAITs before we disable the pipe. Note that
+	 * we need to drop the struct_mutex in order to acquire it again
+	 * during the lowlevel dpms routines around a couple of the
+	 * operations. It does not look trivial nor desirable to move
+	 * that locking higher. So instead we leave a window for the
+	 * submission of further commands on the fb before we can actually
+	 * disable it. This race with userspace exists anyway, and we can
+	 * only rely on the pipe being disabled by userspace after it
+	 * receives the hotplug notification and has flushed any pending
+	 * batches.
+	 */
+	if (crtc->fb) {
+		mutex_lock(&dev->struct_mutex);
+		intel_finish_fb(crtc->fb);
+		mutex_unlock(&dev->struct_mutex);
+	}
 
 	crtc_funcs->dpms(crtc, DRM_MODE_DPMS_OFF);
 	assert_plane_disabled(dev->dev_private, to_intel_crtc(crtc)->plane);
@@ -8528,6 +8555,10 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM3_LP_ILK, 0);
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
+
+	I915_WRITE(GEN6_UCGCTL1,
+		   I915_READ(GEN6_UCGCTL1) |
+		   GEN6_BLBUNIT_CLOCK_GATE_DISABLE);
 
 	/* According to the BSpec vol1g, bit 12 (RCPBUNIT) clock
 	 * gating disable must be set.  Failure to set it results in

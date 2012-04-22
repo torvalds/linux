@@ -196,6 +196,8 @@ void __cpuinit online_secondary(void)
 	/* This must be done before setting cpu_online_mask */
 	wmb();
 
+	notify_cpu_starting(smp_processor_id());
+
 	/*
 	 * We need to hold call_lock, so there is no inconsistency
 	 * between the time smp_call_function() determines number of

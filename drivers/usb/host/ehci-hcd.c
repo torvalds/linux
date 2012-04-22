@@ -347,6 +347,8 @@ static int ehci_reset (struct ehci_hcd *ehci)
 	if (ehci->debug)
 		dbgp_external_startup();
 
+	ehci->port_c_suspend = ehci->suspended_ports =
+			ehci->resuming_ports = 0;
 	return retval;
 }
 
@@ -939,6 +941,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			 * like usb_port_resume() does.
 			 */
 			ehci->reset_done[i] = jiffies + msecs_to_jiffies(25);
+			set_bit(i, &ehci->resuming_ports);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
 			mod_timer(&hcd->rh_timer, ehci->reset_done[i]);
 		}
