@@ -4123,7 +4123,7 @@ static int flush_pending_x87_faults(struct x86_emulate_ctxt *ctxt)
 		     "jmp 2b \n\t"
 		     ".popsection \n\t"
 		     _ASM_EXTABLE(1b, 3b)
-		     : [fault]"+rm"(fault));
+		     : [fault]"+qm"(fault));
 	ctxt->ops->put_fpu(ctxt);
 
 	if (unlikely(fault))
