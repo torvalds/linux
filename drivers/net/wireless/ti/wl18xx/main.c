@@ -588,6 +588,17 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 	int ret = 0;
 
 	switch (wl->chip.id) {
+	case CHIP_ID_185x_PG20:
+		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG20)",
+				 wl->chip.id);
+		wl->sr_fw_name = WL18XX_FW_NAME;
+		/* wl18xx uses the same firmware for PLT */
+		wl->plt_fw_name = WL18XX_FW_NAME;
+		wl->quirks |= WLCORE_QUIRK_NO_ELP |
+			      WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
+			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN;
+
+		break;
 	case CHIP_ID_185x_PG10:
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG10)",
 			     wl->chip.id);
@@ -602,7 +613,6 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		/* PG 1.0 has some problems with MCS_13, so disable it */
 		wl->ht_cap[IEEE80211_BAND_2GHZ].mcs.rx_mask[1] &= ~BIT(5);
 
-		/* TODO: need to blocksize alignment for RX/TX separately? */
 		break;
 	default:
 		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);

@@ -140,6 +140,7 @@
 #define WL18XX_FW_STATUS_ADDR		0x50F8
 
 #define CHIP_ID_185x_PG10              (0x06030101)
+#define CHIP_ID_185x_PG20              (0x06030111)
 
 /*
  * Host Command Interrupt. Setting this bit masks
