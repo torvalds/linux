@@ -544,8 +544,8 @@ int setup_signal_stack_si(unsigned long stack_top, int sig,
 			       set->sig[0]);
 	err |= __put_user(&frame->fpstate, &frame->uc.uc_mcontext.fpstate);
 	if (sizeof(*set) == 16) {
-		__put_user(set->sig[0], &frame->uc.uc_sigmask.sig[0]);
-		__put_user(set->sig[1], &frame->uc.uc_sigmask.sig[1]);
+		err |= __put_user(set->sig[0], &frame->uc.uc_sigmask.sig[0]);
+		err |= __put_user(set->sig[1], &frame->uc.uc_sigmask.sig[1]);
 	}
 	else
 		err |= __copy_to_user(&frame->uc.uc_sigmask, set,
