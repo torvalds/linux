@@ -34,11 +34,12 @@ static struct neigh_node *bat_iv_ogm_neigh_new(struct hard_iface *hard_iface,
 					       const uint8_t *neigh_addr,
 					       struct orig_node *orig_node,
 					       struct orig_node *orig_neigh,
-					       uint32_t seqno)
+					       __be32 seqno)
 {
 	struct neigh_node *neigh_node;
 
-	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr, seqno);
+	neigh_node = batadv_neigh_node_new(hard_iface, neigh_addr,
+					   ntohl(seqno));
 	if (!neigh_node)
 		goto out;
 
@@ -546,7 +547,6 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 		"Forwarding packet: tq: %i, ttl: %i\n",
 		batman_ogm_packet->tq, batman_ogm_packet->header.ttl);
 
-	batman_ogm_packet->seqno = htonl(batman_ogm_packet->seqno);
 	batman_ogm_packet->tt_crc = htons(batman_ogm_packet->tt_crc);
 
 	/* switch of primaries first hop flag when forwarding */
@@ -871,13 +871,14 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	int32_t seq_diff;
 	int need_update = 0;
 	int set_mark, ret = -1;
+	uint32_t seqno = ntohl(batman_ogm_packet->seqno);
 
 	orig_node = get_orig_node(bat_priv, batman_ogm_packet->orig);
 	if (!orig_node)
 		return 0;
 
 	spin_lock_bh(&orig_node->ogm_cnt_lock);
-	seq_diff = batman_ogm_packet->seqno - orig_node->last_real_seqno;
+	seq_diff = seqno - orig_node->last_real_seqno;
 
 	/* signalize caller that the packet is to be dropped. */
 	if (!hlist_empty(&orig_node->neigh_list) &&
@@ -891,7 +892,7 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 
 		is_duplicate |= bat_test_bit(tmp_neigh_node->real_bits,
 					     orig_node->last_real_seqno,
-					     batman_ogm_packet->seqno);
+					     seqno);
 
 		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming))
@@ -913,8 +914,8 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	if (need_update) {
 		bat_dbg(DBG_BATMAN, bat_priv,
 			"updating last_seqno: old %u, new %u\n",
-			orig_node->last_real_seqno, batman_ogm_packet->seqno);
-		orig_node->last_real_seqno = batman_ogm_packet->seqno;
+			orig_node->last_real_seqno, seqno);
+		orig_node->last_real_seqno = seqno;
 	}
 
 	ret = is_duplicate;
@@ -970,7 +971,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		"Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
 		ethhdr->h_source, if_incoming->net_dev->name,
 		if_incoming->net_dev->dev_addr, batman_ogm_packet->orig,
-		batman_ogm_packet->prev_sender, batman_ogm_packet->seqno,
+		batman_ogm_packet->prev_sender, ntohl(batman_ogm_packet->seqno),
 		batman_ogm_packet->ttvn, batman_ogm_packet->tt_crc,
 		batman_ogm_packet->tt_num_changes, batman_ogm_packet->tq,
 		batman_ogm_packet->header.ttl,
@@ -1042,7 +1043,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 			word = &(orig_neigh_node->bcast_own[offset]);
 			bat_set_bit(word,
 				    if_incoming_seqno -
-						batman_ogm_packet->seqno - 2);
+					ntohl(batman_ogm_packet->seqno) - 2);
 			orig_neigh_node->bcast_own_sum[if_incoming->if_num] =
 				bitmap_weight(word, TQ_LOCAL_WINDOW_SIZE);
 			spin_unlock_bh(&orig_neigh_node->ogm_cnt_lock);
@@ -1135,7 +1136,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * seqno and similar ttl as the non-duplicate */
 	if (is_bidirectional &&
 	    (!is_duplicate ||
-	     ((orig_node->last_real_seqno == batman_ogm_packet->seqno) &&
+	     ((orig_node->last_real_seqno == ntohl(batman_ogm_packet->seqno)) &&
 	      (orig_node->last_ttl - 3 <= batman_ogm_packet->header.ttl))))
 		bat_iv_ogm_orig_update(bat_priv, orig_node, ethhdr,
 				       batman_ogm_packet, if_incoming,
@@ -1220,7 +1221,6 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 	do {
 		/* network to host order for our 32bit seqno and the
 		   orig_interval */
-		batman_ogm_packet->seqno = ntohl(batman_ogm_packet->seqno);
 		batman_ogm_packet->tt_crc = ntohs(batman_ogm_packet->tt_crc);
 
 		tt_buff = packet_buff + buff_pos + BATMAN_OGM_HLEN;
