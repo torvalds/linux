@@ -4540,7 +4540,8 @@ static void qeth_determine_capabilities(struct qeth_card *card)
 		goto out_offline;
 	}
 	qeth_configure_unitaddr(card, prcd);
-	qeth_configure_blkt_default(card, prcd);
+	if (ddev_offline)
+		qeth_configure_blkt_default(card, prcd);
 	kfree(prcd);
 
 	rc = qdio_get_ssqd_desc(ddev, &card->ssqd);
