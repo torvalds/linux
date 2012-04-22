@@ -1581,9 +1581,18 @@ new_page:
 	memcpy(page_address(p) + off, page_address(page) + *offset, *len);
 	sk->sk_sndmsg_off += *len;
 	*offset = off;
-	get_page(p);
 
 	return p;
+}
+
+static bool spd_can_coalesce(const struct splice_pipe_desc *spd,
+			     struct page *page,
+			     unsigned int offset)
+{
+	return	spd->nr_pages &&
+		spd->pages[spd->nr_pages - 1] == page &&
+		(spd->partial[spd->nr_pages - 1].offset +
+		 spd->partial[spd->nr_pages - 1].len == offset);
 }
 
 /*
@@ -1595,16 +1604,19 @@ static inline int spd_fill_page(struct splice_pipe_desc *spd,
 				struct sk_buff *skb, int linear,
 				struct sock *sk)
 {
-	if (unlikely(spd->nr_pages == pipe->buffers))
+	if (unlikely(spd->nr_pages == MAX_SKB_FRAGS))
 		return 1;
 
 	if (linear) {
 		page = linear_to_page(page, len, &offset, skb, sk);
 		if (!page)
 			return 1;
-	} else
-		get_page(page);
-
+	}
+	if (spd_can_coalesce(spd, page, offset)) {
+		spd->partial[spd->nr_pages - 1].len += *len;
+		return 0;
+	}
+	get_page(page);
 	spd->pages[spd->nr_pages] = page;
 	spd->partial[spd->nr_pages].len = *len;
 	spd->partial[spd->nr_pages].offset = offset;
@@ -1710,8 +1722,8 @@ int skb_splice_bits(struct sk_buff *skb, unsigned int offset,
 		    struct pipe_inode_info *pipe, unsigned int tlen,
 		    unsigned int flags)
 {
-	struct partial_page partial[PIPE_DEF_BUFFERS];
-	struct page *pages[PIPE_DEF_BUFFERS];
+	struct partial_page partial[MAX_SKB_FRAGS];
+	struct page *pages[MAX_SKB_FRAGS];
 	struct splice_pipe_desc spd = {
 		.pages = pages,
 		.partial = partial,
@@ -1722,9 +1734,6 @@ int skb_splice_bits(struct sk_buff *skb, unsigned int offset,
 	struct sk_buff *frag_iter;
 	struct sock *sk = skb->sk;
 	int ret = 0;
-
-	if (splice_grow_spd(pipe, &spd))
-		return -ENOMEM;
 
 	/*
 	 * __skb_splice_bits() only fails if the output has no room left,
@@ -1761,7 +1770,6 @@ done:
 		lock_sock(sk);
 	}
 
-	splice_shrink_spd(pipe, &spd);
 	return ret;
 }
 
