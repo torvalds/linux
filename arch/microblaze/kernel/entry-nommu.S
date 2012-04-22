@@ -569,10 +569,6 @@ sys_rt_sigreturn_wrapper:
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
 
-sys_rt_sigsuspend_wrapper:
-	brid	sys_rt_sigsuspend
-	addk	r7, r1, r0
-
 	/* Interrupt vector table */
 	.section	.init.ivt, "ax"
 	.org 0x0
