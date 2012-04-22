@@ -206,7 +206,7 @@ struct tt_query_packet {
 	 * if TT_REQUEST: crc associated with the
 	 *		  ttvn
 	 * if TT_RESPONSE: table_size */
-	uint16_t tt_data;
+	__be16   tt_data;
 } __packed;
 
 struct roam_adv_packet {

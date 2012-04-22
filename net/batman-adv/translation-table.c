@@ -1418,7 +1418,7 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 
 	/* I don't have the requested data */
 	if (orig_ttvn != req_ttvn ||
-	    tt_request->tt_data != req_dst_orig_node->tt_crc)
+	    tt_request->tt_data != htons(req_dst_orig_node->tt_crc))
 		goto out;
 
 	/* If the full table has been explicitly requested */
@@ -1678,7 +1678,7 @@ static void tt_fill_gtable(struct bat_priv *bat_priv,
 
 	_tt_update_changes(bat_priv, orig_node,
 			   (struct tt_change *)(tt_response + 1),
-			   tt_response->tt_data, tt_response->ttvn);
+			   ntohs(tt_response->tt_data), tt_response->ttvn);
 
 	spin_lock_bh(&orig_node->tt_buff_lock);
 	kfree(orig_node->tt_buff);
@@ -1733,7 +1733,8 @@ void handle_tt_response(struct bat_priv *bat_priv,
 
 	bat_dbg(DBG_TT, bat_priv,
 		"Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
-		tt_response->src, tt_response->ttvn, tt_response->tt_data,
+		tt_response->src, tt_response->ttvn,
+		ntohs(tt_response->tt_data),
 		(tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* we should have never asked a backbone gw */
@@ -1747,7 +1748,8 @@ void handle_tt_response(struct bat_priv *bat_priv,
 	if (tt_response->flags & TT_FULL_TABLE)
 		tt_fill_gtable(bat_priv, tt_response);
 	else
-		tt_update_changes(bat_priv, orig_node, tt_response->tt_data,
+		tt_update_changes(bat_priv, orig_node,
+				  ntohs(tt_response->tt_data),
 				  tt_response->ttvn,
 				  (struct tt_change *)(tt_response + 1));
 
