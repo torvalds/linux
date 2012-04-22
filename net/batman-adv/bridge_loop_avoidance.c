@@ -258,7 +258,7 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 	struct net_device *soft_iface;
 	uint8_t *hw_src;
 	struct bla_claim_dst local_claim_dest;
-	uint32_t zeroip = 0;
+	__be32 zeroip = 0;
 
 	primary_if = primary_if_get_selected(bat_priv);
 	if (!primary_if)
@@ -506,7 +506,7 @@ static void bla_send_announce(struct bat_priv *bat_priv,
 			      struct backbone_gw *backbone_gw)
 {
 	uint8_t mac[ETH_ALEN];
-	uint16_t crc;
+	__be16 crc;
 
 	memcpy(mac, announce_mac, 4);
 	crc = htons(backbone_gw->crc);
@@ -627,7 +627,7 @@ static int handle_announce(struct bat_priv *bat_priv,
 
 	/* handle as ANNOUNCE frame */
 	backbone_gw->lasttime = jiffies;
-	crc = ntohs(*((uint16_t *)(&an_addr[4])));
+	crc = ntohs(*((__be16 *)(&an_addr[4])));
 
 	bat_dbg(DBG_BLA, bat_priv,
 		"handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %04x\n",
