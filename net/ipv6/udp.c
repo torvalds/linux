@@ -611,14 +611,14 @@ static void flush_stack(struct sock **stack, unsigned int count,
 
 		sk = stack[i];
 		if (skb1) {
-			if (sk_rcvqueues_full(sk, skb1)) {
+			if (sk_rcvqueues_full(sk, skb1, sk->sk_rcvbuf)) {
 				kfree_skb(skb1);
 				goto drop;
 			}
 			bh_lock_sock(sk);
 			if (!sock_owned_by_user(sk))
 				udpv6_queue_rcv_skb(sk, skb1);
-			else if (sk_add_backlog(sk, skb1)) {
+			else if (sk_add_backlog(sk, skb1, sk->sk_rcvbuf)) {
 				kfree_skb(skb1);
 				bh_unlock_sock(sk);
 				goto drop;
@@ -790,14 +790,14 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 
 	/* deliver */
 
-	if (sk_rcvqueues_full(sk, skb)) {
+	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf)) {
 		sock_put(sk);
 		goto discard;
 	}
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
-	else if (sk_add_backlog(sk, skb)) {
+	else if (sk_add_backlog(sk, skb, sk->sk_rcvbuf)) {
 		atomic_inc(&sk->sk_drops);
 		bh_unlock_sock(sk);
 		sock_put(sk);
