@@ -197,7 +197,7 @@ static int fintek_hw_detect(struct fintek_dev *fintek)
 	/*
 	 * Newer reviews of this chipset uses port 8 instead of 5
 	 */
-	if ((chip != 0x0408) || (chip != 0x0804))
+	if ((chip != 0x0408) && (chip != 0x0804))
 		fintek->logical_dev_cir = LOGICAL_DEV_CIR_REV2;
 	else
 		fintek->logical_dev_cir = LOGICAL_DEV_CIR_REV1;
