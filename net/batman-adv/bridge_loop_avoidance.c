@@ -510,7 +510,7 @@ static void bla_send_announce(struct bat_priv *bat_priv,
 
 	memcpy(mac, announce_mac, 4);
 	crc = htons(backbone_gw->crc);
-	memcpy(&mac[4], (uint8_t *)&crc, 2);
+	memcpy(&mac[4], &crc, 2);
 
 	bla_send_claim(bat_priv, mac, backbone_gw->vid, CLAIM_TYPE_ANNOUNCE);
 
