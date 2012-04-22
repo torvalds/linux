@@ -29,9 +29,6 @@ static int handle_signal(struct pt_regs *regs, unsigned long signr,
 	unsigned long sp;
 	int err;
 
-	/* Always make any pending restarted system calls return -EINTR */
-	current_thread_info()->restart_block.fn = do_no_restart_syscall;
-
 	/* Did we come from a system call? */
 	if (PT_REGS_SYSCALL_NR(regs) >= 0) {
 		/* If so, check system call restarting.. */
