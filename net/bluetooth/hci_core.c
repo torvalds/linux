@@ -1713,20 +1713,16 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 struct hci_dev *hci_alloc_dev(void)
 {
 	struct hci_dev *hdev;
-	int i;
 
 	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
 	if (!hdev)
 		return NULL;
 
-	hdev->flags = 0;
-	hdev->dev_flags = 0;
 	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
 	hdev->esco_type = (ESCO_HV1);
 	hdev->link_mode = (HCI_LM_ACCEPT);
 	hdev->io_capability = 0x03; /* No Input No Output */
 
-	hdev->idle_timeout = 0;
 	hdev->sniff_max_interval = 800;
 	hdev->sniff_min_interval = 80;
 
@@ -1760,12 +1756,6 @@ struct hci_dev *hci_alloc_dev(void)
 	init_waitqueue_head(&hdev->req_wait_q);
 
 	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
-
-	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
-	atomic_set(&hdev->promisc, 0);
-
-	for (i = 0; i < NUM_REASSEMBLY; i++)
-		hdev->reassembly[i] = NULL;
 
 	hci_init_sysfs(hdev);
 	discovery_init(hdev);
