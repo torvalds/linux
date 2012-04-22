@@ -78,18 +78,14 @@ static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
-int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+static int ____smiapp_read(struct smiapp_sensor *sensor, u16 reg,
+			   u16 len, u32 *val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
 	unsigned char data[4];
-	unsigned int len = (u8)(reg >> 16);
 	u16 offset = reg;
 	int r;
-
-	if (len != SMIA_REG_8BIT && len != SMIA_REG_16BIT
-	    && len != SMIA_REG_32BIT)
-		return -EINVAL;
 
 	msg.addr = client->addr;
 	msg.flags = 0;
@@ -132,15 +128,74 @@ int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 		BUG();
 	}
 
-	if (reg & SMIA_REG_FLAG_FLOAT)
-		*val = float_to_u32_mul_1000000(client, *val);
-
 	return 0;
 
 err:
 	dev_err(&client->dev, "read from offset 0x%x error %d\n", offset, r);
 
 	return r;
+}
+
+/* Read a register using 8-bit access only. */
+static int ____smiapp_read_8only(struct smiapp_sensor *sensor, u16 reg,
+				 u16 len, u32 *val)
+{
+	unsigned int i;
+	int rval;
+
+	*val = 0;
+
+	for (i = 0; i < len; i++) {
+		u32 val8;
+
+		rval = ____smiapp_read(sensor, reg + i, 1, &val8);
+		if (rval < 0)
+			return rval;
+		*val |= val8 << ((len - i - 1) << 3);
+	}
+
+	return 0;
+}
+
+/*
+ * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
+ * Returns zero if successful, or non-zero otherwise.
+ */
+static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
+			 bool only8)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	unsigned int len = (u8)(reg >> 16);
+	int rval;
+
+	if (len != SMIA_REG_8BIT && len != SMIA_REG_16BIT
+	    && len != SMIA_REG_32BIT)
+		return -EINVAL;
+
+	if (len == SMIA_REG_8BIT && !only8)
+		rval = ____smiapp_read(sensor, (u16)reg, len, val);
+	else
+		rval = ____smiapp_read_8only(sensor, (u16)reg, len, val);
+	if (rval < 0)
+		return rval;
+
+	if (reg & SMIA_REG_FLAG_FLOAT)
+		*val = float_to_u32_mul_1000000(client, *val);
+
+	return 0;
+}
+
+int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+{
+	return __smiapp_read(
+		sensor, reg, val,
+		smiapp_needs_quirk(sensor,
+				   SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY));
+}
+
+int smiapp_read_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val)
+{
+	return __smiapp_read(sensor, reg, val, true);
 }
 
 /*

@@ -43,6 +43,7 @@ struct smia_reg {
 struct smiapp_sensor;
 
 int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val);
+int smiapp_read_8only(struct smiapp_sensor *sensor, u32 reg, u32 *val);
 int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val);
 
 #endif

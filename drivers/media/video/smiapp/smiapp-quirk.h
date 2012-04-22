@@ -46,6 +46,7 @@ struct smiapp_quirk {
 
 /* op pix clock is for all lanes in total normally */
 #define SMIAPP_QUIRK_FLAG_OP_PIX_CLOCK_PER_LANE			(1 << 0)
+#define SMIAPP_QUIRK_FLAG_8BIT_READ_ONLY			(1 << 1)
 
 struct smiapp_reg_8 {
 	u16 reg;
