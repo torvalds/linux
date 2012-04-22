@@ -31,8 +31,6 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
-
 extern struct task_struct *coproc_owners[];
 
 struct rt_sigframe
@@ -429,37 +427,6 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-
-asmlinkage long xtensa_rt_sigsuspend(sigset_t __user *unewset, 
-    				     size_t sigsetsize,
-    				     long a2, long a3, long a4, long a5, 
-				     struct pt_regs *regs)
-{
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-	saveset = current->blocked;
-	set_current_blocked(&newset);
-
-	regs->areg[2] = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset))
-			return -EINTR;
-	}
-}
-
 asmlinkage long xtensa_sigaltstack(const stack_t __user *uss, 
 				   stack_t __user *uoss,
     				   long a2, long a3, long a4, long a5,
@@ -479,19 +446,22 @@ asmlinkage long xtensa_sigaltstack(const stack_t __user *uss,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset)
+void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
+	sigset_t oldset;
 
 	if (!user_mode(regs))
-		return 0;
+		return;
 
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	task_pt_regs(current)->icountlevel = 0;
@@ -535,13 +505,14 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 		/* Set up the stack frame */
 		ret = setup_frame(signr, &ka, &info, oldset, regs);
 		if (ret)
-			return ret;
+			return;
 
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		block_sigmask(&ka, signr);
 		if (current->ptrace & PT_SINGLESTEP)
 			task_pt_regs(current)->icountlevel = 1;
 
-		return 1;
+		return;
 	}
 
 no_signal:
@@ -561,8 +532,13 @@ no_signal:
 			break;
 		}
 	}
+
+	/* If there's no signal to deliver, we just restore the saved mask.  */
+	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
+		set_current_blocked(&current->saved_sigmask);
+
 	if (current->ptrace & PT_SINGLESTEP)
 		task_pt_regs(current)->icountlevel = 1;
-	return 0;
+	return;
 }
 

@@ -418,7 +418,6 @@ common_exception_return:
 
 	movi	a4, do_signal	# int do_signal(struct pt_regs*, sigset_t*)
 	mov	a6, a1
-	movi	a7, 0
 	callx4	a4
 	j	1b
 
