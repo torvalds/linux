@@ -104,27 +104,27 @@ static inline int netlink_is_kernel(struct sock *sk)
 }
 
 struct nl_pid_hash {
-	struct hlist_head *table;
-	unsigned long rehash_time;
+	struct hlist_head	*table;
+	unsigned long		rehash_time;
 
-	unsigned int mask;
-	unsigned int shift;
+	unsigned int		mask;
+	unsigned int		shift;
 
-	unsigned int entries;
-	unsigned int max_shift;
+	unsigned int		entries;
+	unsigned int		max_shift;
 
-	u32 rnd;
+	u32			rnd;
 };
 
 struct netlink_table {
-	struct nl_pid_hash hash;
-	struct hlist_head mc_list;
-	struct listeners __rcu *listeners;
-	unsigned int nl_nonroot;
-	unsigned int groups;
-	struct mutex *cb_mutex;
-	struct module *module;
-	int registered;
+	struct nl_pid_hash	hash;
+	struct hlist_head	mc_list;
+	struct listeners __rcu	*listeners;
+	unsigned int		nl_nonroot;
+	unsigned int		groups;
+	struct mutex		*cb_mutex;
+	struct module		*module;
+	int			registered;
 };
 
 static struct netlink_table *nl_table;
@@ -132,7 +132,6 @@ static struct netlink_table *nl_table;
 static DECLARE_WAIT_QUEUE_HEAD(nl_table_wait);
 
 static int netlink_dump(struct sock *sk);
-static void netlink_destroy_callback(struct netlink_callback *cb);
 
 static DEFINE_RWLOCK(nl_table_lock);
 static atomic_t nl_table_users = ATOMIC_INIT(0);
@@ -147,6 +146,12 @@ static inline u32 netlink_group_mask(u32 group)
 static inline struct hlist_head *nl_pid_hashfn(struct nl_pid_hash *hash, u32 pid)
 {
 	return &hash->table[jhash_1word(pid, hash->rnd) & hash->mask];
+}
+
+static void netlink_destroy_callback(struct netlink_callback *cb)
+{
+	kfree_skb(cb->skb);
+	kfree(cb);
 }
 
 static void netlink_sock_destruct(struct sock *sk)
@@ -414,9 +419,9 @@ static int __netlink_create(struct net *net, struct socket *sock,
 	sock_init_data(sock, sk);
 
 	nlk = nlk_sk(sk);
-	if (cb_mutex)
+	if (cb_mutex) {
 		nlk->cb_mutex = cb_mutex;
-	else {
+	} else {
 		nlk->cb_mutex = &nlk->cb_def_mutex;
 		mutex_init(nlk->cb_mutex);
 	}
@@ -522,8 +527,9 @@ static int netlink_release(struct socket *sock)
 			nl_table[sk->sk_protocol].module = NULL;
 			nl_table[sk->sk_protocol].registered = 0;
 		}
-	} else if (nlk->subscriptions)
+	} else if (nlk->subscriptions) {
 		netlink_update_listeners(sk);
+	}
 	netlink_table_ungrab();
 
 	kfree(nlk->groups);
@@ -1086,8 +1092,8 @@ int netlink_broadcast_filtered(struct sock *ssk, struct sk_buff *skb, u32 pid,
 	if (info.delivery_failure) {
 		kfree_skb(info.skb2);
 		return -ENOBUFS;
-	} else
-		consume_skb(info.skb2);
+	}
+	consume_skb(info.skb2);
 
 	if (info.delivered) {
 		if (info.congested && (allocation & __GFP_WAIT))
@@ -1240,8 +1246,9 @@ static int netlink_setsockopt(struct socket *sock, int level, int optname,
 			nlk->flags |= NETLINK_RECV_NO_ENOBUFS;
 			clear_bit(0, &nlk->state);
 			wake_up_interruptible(&nlk->wait);
-		} else
+		} else {
 			nlk->flags &= ~NETLINK_RECV_NO_ENOBUFS;
+		}
 		err = 0;
 		break;
 	default:
@@ -1645,12 +1652,6 @@ void netlink_set_nonroot(int protocol, unsigned int flags)
 }
 EXPORT_SYMBOL(netlink_set_nonroot);
 
-static void netlink_destroy_callback(struct netlink_callback *cb)
-{
-	kfree_skb(cb->skb);
-	kfree(cb);
-}
-
 struct nlmsghdr *
 __nlmsg_put(struct sk_buff *skb, u32 pid, u32 seq, int type, int len, int flags)
 {
@@ -1996,11 +1997,11 @@ static void netlink_seq_stop(struct seq_file *seq, void *v)
 
 static int netlink_seq_show(struct seq_file *seq, void *v)
 {
-	if (v == SEQ_START_TOKEN)
+	if (v == SEQ_START_TOKEN) {
 		seq_puts(seq,
 			 "sk       Eth Pid    Groups   "
 			 "Rmem     Wmem     Dump     Locks     Drops     Inode\n");
-	else {
+	} else {
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
