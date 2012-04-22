@@ -2197,51 +2197,56 @@ static int smiapp_identify_module(struct v4l2_subdev *subdev)
 	minfo->name = SMIAPP_NAME;
 
 	/* Module info */
-	rval = smiapp_read(sensor, SMIAPP_REG_U8_MANUFACTURER_ID,
-			   &minfo->manufacturer_id);
+	rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_MANUFACTURER_ID,
+				 &minfo->manufacturer_id);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U16_MODEL_ID,
-				   &minfo->model_id);
+		rval = smiapp_read_8only(sensor, SMIAPP_REG_U16_MODEL_ID,
+					 &minfo->model_id);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_REVISION_NUMBER_MAJOR,
-				   &minfo->revision_number_major);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_REVISION_NUMBER_MAJOR,
+					 &minfo->revision_number_major);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_REVISION_NUMBER_MINOR,
-				   &minfo->revision_number_minor);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_REVISION_NUMBER_MINOR,
+					 &minfo->revision_number_minor);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_MODULE_DATE_YEAR,
-				   &minfo->module_year);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_MODULE_DATE_YEAR,
+					 &minfo->module_year);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_MODULE_DATE_MONTH,
-				   &minfo->module_month);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_MODULE_DATE_MONTH,
+					 &minfo->module_month);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_MODULE_DATE_DAY,
-				   &minfo->module_day);
+		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_MODULE_DATE_DAY,
+					 &minfo->module_day);
 
 	/* Sensor info */
 	if (!rval)
-		rval = smiapp_read(sensor,
-				   SMIAPP_REG_U8_SENSOR_MANUFACTURER_ID,
-				   &minfo->sensor_manufacturer_id);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_SENSOR_MANUFACTURER_ID,
+					 &minfo->sensor_manufacturer_id);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U16_SENSOR_MODEL_ID,
-				   &minfo->sensor_model_id);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U16_SENSOR_MODEL_ID,
+					 &minfo->sensor_model_id);
 	if (!rval)
-		rval = smiapp_read(sensor,
-				   SMIAPP_REG_U8_SENSOR_REVISION_NUMBER,
-				   &minfo->sensor_revision_number);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_SENSOR_REVISION_NUMBER,
+					 &minfo->sensor_revision_number);
 	if (!rval)
-		rval = smiapp_read(sensor,
-				   SMIAPP_REG_U8_SENSOR_FIRMWARE_VERSION,
-				   &minfo->sensor_firmware_version);
+		rval = smiapp_read_8only(sensor,
+					 SMIAPP_REG_U8_SENSOR_FIRMWARE_VERSION,
+					 &minfo->sensor_firmware_version);
 
 	/* SMIA */
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_SMIA_VERSION,
-				   &minfo->smia_version);
+		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_SMIA_VERSION,
+					 &minfo->smia_version);
 	if (!rval)
-		rval = smiapp_read(sensor, SMIAPP_REG_U8_SMIAPP_VERSION,
-				   &minfo->smiapp_version);
+		rval = smiapp_read_8only(sensor, SMIAPP_REG_U8_SMIAPP_VERSION,
+					 &minfo->smiapp_version);
 
 	if (rval) {
 		dev_err(&client->dev, "sensor detection failed\n");
