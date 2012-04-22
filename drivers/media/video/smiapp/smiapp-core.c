@@ -26,6 +26,7 @@
  *
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
@@ -1111,8 +1112,11 @@ static int smiapp_power_on(struct smiapp_sensor *sensor)
 	}
 	usleep_range(1000, 1000);
 
-	rval = sensor->platform_data->set_xclk(&sensor->src->sd,
-					sensor->platform_data->ext_clk);
+	if (sensor->platform_data->set_xclk)
+		rval = sensor->platform_data->set_xclk(
+			&sensor->src->sd, sensor->platform_data->ext_clk);
+	else
+		rval = clk_enable(sensor->ext_clk);
 	if (rval < 0) {
 		dev_dbg(&client->dev, "failed to set xclk\n");
 		goto out_xclk_fail;
@@ -1231,7 +1235,10 @@ static int smiapp_power_on(struct smiapp_sensor *sensor)
 out_cci_addr_fail:
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
 		gpio_set_value(sensor->platform_data->xshutdown, 0);
-	sensor->platform_data->set_xclk(&sensor->src->sd, 0);
+	if (sensor->platform_data->set_xclk)
+		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
+	else
+		clk_disable(sensor->ext_clk);
 
 out_xclk_fail:
 	regulator_disable(sensor->vana);
@@ -1256,7 +1263,10 @@ static void smiapp_power_off(struct smiapp_sensor *sensor)
 
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
 		gpio_set_value(sensor->platform_data->xshutdown, 0);
-	sensor->platform_data->set_xclk(&sensor->src->sd, 0);
+	if (sensor->platform_data->set_xclk)
+		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
+	else
+		clk_disable(sensor->ext_clk);
 	usleep_range(5000, 5000);
 	regulator_disable(sensor->vana);
 	sensor->streaming = 0;
@@ -2327,6 +2337,28 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 		return -ENODEV;
 	}
 
+	if (!sensor->platform_data->set_xclk) {
+		sensor->ext_clk = clk_get(&client->dev,
+					  sensor->platform_data->ext_clk_name);
+		if (IS_ERR(sensor->ext_clk)) {
+			dev_err(&client->dev, "could not get clock %s\n",
+				sensor->platform_data->ext_clk_name);
+			rval = -ENODEV;
+			goto out_clk_get;
+		}
+
+		rval = clk_set_rate(sensor->ext_clk,
+				    sensor->platform_data->ext_clk);
+		if (rval < 0) {
+			dev_err(&client->dev,
+				"unable to set clock %s freq to %u\n",
+				sensor->platform_data->ext_clk_name,
+				sensor->platform_data->ext_clk);
+			rval = -ENODEV;
+			goto out_clk_set_rate;
+		}
+	}
+
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN) {
 		if (gpio_request_one(sensor->platform_data->xshutdown, 0,
 				     "SMIA++ xshutdown") != 0) {
@@ -2334,7 +2366,7 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 				"unable to acquire reset gpio %d\n",
 				sensor->platform_data->xshutdown);
 			rval = -ENODEV;
-			goto out_gpio_request;
+			goto out_clk_set_rate;
 		}
 	}
 
@@ -2589,7 +2621,11 @@ out_smiapp_power_on:
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
 		gpio_free(sensor->platform_data->xshutdown);
 
-out_gpio_request:
+out_clk_set_rate:
+	clk_put(sensor->ext_clk);
+	sensor->ext_clk = NULL;
+
+out_clk_get:
 	regulator_put(sensor->vana);
 	sensor->vana = NULL;
 	return rval;
@@ -2778,7 +2814,10 @@ static int __exit smiapp_remove(struct i2c_client *client)
 	if (sensor->power_count) {
 		if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
 			gpio_set_value(sensor->platform_data->xshutdown, 0);
-		sensor->platform_data->set_xclk(&sensor->src->sd, 0);
+		if (sensor->platform_data->set_xclk)
+			sensor->platform_data->set_xclk(&sensor->src->sd, 0);
+		else
+			clk_disable(sensor->ext_clk);
 		sensor->power_count = 0;
 	}
 
@@ -2794,6 +2833,8 @@ static int __exit smiapp_remove(struct i2c_client *client)
 	smiapp_free_controls(sensor);
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
 		gpio_free(sensor->platform_data->xshutdown);
+	if (sensor->ext_clk)
+		clk_put(sensor->ext_clk);
 	if (sensor->vana)
 		regulator_put(sensor->vana);
 
