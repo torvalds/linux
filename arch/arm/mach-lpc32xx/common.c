@@ -27,7 +27,6 @@
 
 #include <asm/mach/map.h>
 
-#include <mach/i2c.h>
 #include <mach/hardware.h>
 #include <mach/platform.h>
 #include "common.h"
@@ -53,46 +52,64 @@ struct platform_device lpc32xx_watchdog_device = {
 /*
  * I2C busses
  */
-static struct i2c_pnx_data i2c0_data = {
-	.name = I2C_CHIP_NAME "1",
-	.base = LPC32XX_I2C1_BASE,
-	.irq = IRQ_LPC32XX_I2C_1,
+static struct resource i2c0_resources[] = {
+	[0] = {
+		.start = LPC32XX_I2C1_BASE,
+		.end = LPC32XX_I2C1_BASE + 0x100 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LPC32XX_I2C_1,
+		.end = IRQ_LPC32XX_I2C_1,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
-static struct i2c_pnx_data i2c1_data = {
-	.name = I2C_CHIP_NAME "2",
-	.base = LPC32XX_I2C2_BASE,
-	.irq = IRQ_LPC32XX_I2C_2,
+static struct resource i2c1_resources[] = {
+	[0] = {
+		.start = LPC32XX_I2C2_BASE,
+		.end = LPC32XX_I2C2_BASE + 0x100 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LPC32XX_I2C_2,
+		.end = IRQ_LPC32XX_I2C_2,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
-static struct i2c_pnx_data i2c2_data = {
-	.name = "USB-I2C",
-	.base = LPC32XX_OTG_I2C_BASE,
-	.irq = IRQ_LPC32XX_USB_I2C,
+static struct resource i2c2_resources[] = {
+	[0] = {
+		.start = LPC32XX_OTG_I2C_BASE,
+		.end = LPC32XX_OTG_I2C_BASE + 0x100 - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LPC32XX_USB_I2C,
+		.end = IRQ_LPC32XX_USB_I2C,
+		.flags = IORESOURCE_IRQ,
+	},
 };
 
 struct platform_device lpc32xx_i2c0_device = {
-	.name = "pnx-i2c",
+	.name = "pnx-i2c.0",
 	.id = 0,
-	.dev = {
-		.platform_data = &i2c0_data,
-	},
+	.num_resources = ARRAY_SIZE(i2c0_resources),
+	.resource = i2c0_resources,
 };
 
 struct platform_device lpc32xx_i2c1_device = {
-	.name = "pnx-i2c",
+	.name = "pnx-i2c.1",
 	.id = 1,
-	.dev = {
-		.platform_data = &i2c1_data,
-	},
+	.num_resources = ARRAY_SIZE(i2c1_resources),
+	.resource = i2c1_resources,
 };
 
 struct platform_device lpc32xx_i2c2_device = {
-	.name = "pnx-i2c",
+	.name = "pnx-i2c.2",
 	.id = 2,
-	.dev = {
-		.platform_data = &i2c2_data,
-	},
+	.num_resources = ARRAY_SIZE(i2c2_resources),
+	.resource = i2c2_resources,
 };
 
 /* TSC (Touch Screen Controller) */
