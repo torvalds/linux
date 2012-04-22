@@ -2839,7 +2839,7 @@ void r600_rlc_stop(struct radeon_device *rdev)
 		/* r7xx asics need to soft reset RLC before halting */
 		WREG32(SRBM_SOFT_RESET, SOFT_RESET_RLC);
 		RREG32(SRBM_SOFT_RESET);
-		udelay(15000);
+		mdelay(15);
 		WREG32(SRBM_SOFT_RESET, 0);
 		RREG32(SRBM_SOFT_RESET);
 	}

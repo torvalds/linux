@@ -61,7 +61,7 @@ XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 		}
 		temp = xgifb_reg_get(pVBInfo->P3c4, 0x3B);
 		/* SR3B[7][3]MAA15 MAA11 (Power on Trapping) */
-		if ((temp & 0x88) == 0x80)
+		if (((temp & 0x88) == 0x80) || ((temp & 0x88) == 0x08))
 			data = 0; /* DDR */
 		else
 			data = 1; /* DDRII */

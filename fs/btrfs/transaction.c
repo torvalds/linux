@@ -480,6 +480,7 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
 	int count = 0;
+	int err = 0;
 
 	if (--trans->use_count) {
 		trans->block_rsv = trans->orig_rsv;
@@ -532,18 +533,18 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
-	memset(trans, 0, sizeof(*trans));
-	kmem_cache_free(btrfs_trans_handle_cachep, trans);
 
 	if (throttle)
 		btrfs_run_delayed_iputs(root);
 
 	if (trans->aborted ||
 	    root->fs_info->fs_state & BTRFS_SUPER_FLAG_ERROR) {
-		return -EIO;
+		err = -EIO;
 	}
 
-	return 0;
+	memset(trans, 0, sizeof(*trans));
+	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+	return err;
 }
 
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,

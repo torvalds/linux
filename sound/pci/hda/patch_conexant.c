@@ -141,7 +141,6 @@ struct conexant_spec {
 	unsigned int hp_laptop:1;
 	unsigned int asus:1;
 	unsigned int pin_eapd_ctrls:1;
-	unsigned int single_adc_amp:1;
 
 	unsigned int adc_switching:1;
 
@@ -687,27 +686,26 @@ static const struct hda_channel_mode cxt5045_modes[1] = {
 static const struct hda_input_mux cxt5045_capture_source = {
 	.num_items = 2,
 	.items = {
-		{ "IntMic", 0x1 },
-		{ "ExtMic", 0x2 },
+		{ "Internal Mic", 0x1 },
+		{ "Mic",          0x2 },
 	}
 };
 
 static const struct hda_input_mux cxt5045_capture_source_benq = {
-	.num_items = 5,
+	.num_items = 4,
 	.items = {
-		{ "IntMic", 0x1 },
-		{ "ExtMic", 0x2 },
-		{ "LineIn", 0x3 },
-		{ "CD",     0x4 },
-		{ "Mixer",  0x0 },
+		{ "Internal Mic", 0x1 },
+		{ "Mic",          0x2 },
+		{ "Line",         0x3 },
+		{ "Mixer",        0x0 },
 	}
 };
 
 static const struct hda_input_mux cxt5045_capture_source_hp530 = {
 	.num_items = 2,
 	.items = {
-		{ "ExtMic", 0x1 },
-		{ "IntMic", 0x2 },
+		{ "Mic",          0x1 },
+		{ "Internal Mic", 0x2 },
 	}
 };
 
@@ -798,10 +796,8 @@ static void cxt5045_hp_unsol_event(struct hda_codec *codec,
 }
 
 static const struct snd_kcontrol_new cxt5045_mixers[] = {
-	HDA_CODEC_VOLUME("Internal Mic Capture Volume", 0x1a, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Capture Switch", 0x1a, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Capture Volume", 0x1a, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Capture Switch", 0x1a, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x1a, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x1a, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x17, 0x1, HDA_INPUT),
@@ -822,27 +818,15 @@ static const struct snd_kcontrol_new cxt5045_mixers[] = {
 };
 
 static const struct snd_kcontrol_new cxt5045_benq_mixers[] = {
-	HDA_CODEC_VOLUME("CD Capture Volume", 0x1a, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Capture Switch", 0x1a, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x17, 0x4, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x17, 0x4, HDA_INPUT),
-
-	HDA_CODEC_VOLUME("Line In Capture Volume", 0x1a, 0x03, HDA_INPUT),
-	HDA_CODEC_MUTE("Line In Capture Switch", 0x1a, 0x03, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line In Playback Volume", 0x17, 0x3, HDA_INPUT),
-	HDA_CODEC_MUTE("Line In Playback Switch", 0x17, 0x3, HDA_INPUT),
-
-	HDA_CODEC_VOLUME("Mixer Capture Volume", 0x1a, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mixer Capture Switch", 0x1a, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x17, 0x3, HDA_INPUT),
 
 	{}
 };
 
 static const struct snd_kcontrol_new cxt5045_mixers_hp530[] = {
-	HDA_CODEC_VOLUME("Internal Mic Capture Volume", 0x1a, 0x02, HDA_INPUT),
-	HDA_CODEC_MUTE("Internal Mic Capture Switch", 0x1a, 0x02, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Capture Volume", 0x1a, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Capture Switch", 0x1a, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x1a, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x1a, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("PCM Playback Volume", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("PCM Playback Switch", 0x17, 0x0, HDA_INPUT),
 	HDA_CODEC_VOLUME("Internal Mic Playback Volume", 0x17, 0x2, HDA_INPUT),
@@ -946,10 +930,10 @@ static const struct snd_kcontrol_new cxt5045_test_mixer[] = {
 	/* Output controls */
 	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x10, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Speaker Playback Switch", 0x10, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Node 11 Playback Volume", 0x11, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Node 11 Playback Switch", 0x11, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Node 12 Playback Volume", 0x12, 0x0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Node 12 Playback Switch", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("HP-OUT Playback Volume", 0x11, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("HP-OUT Playback Switch", 0x11, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("LINE1 Playback Volume", 0x12, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("LINE1 Playback Switch", 0x12, 0x0, HDA_OUTPUT),
 	
 	/* Modes for retasking pin widgets */
 	CXT_PIN_MODE("HP-OUT pin mode", 0x11, CXT_PIN_DIR_INOUT),
@@ -960,16 +944,16 @@ static const struct snd_kcontrol_new cxt5045_test_mixer[] = {
 
 	/* Loopback mixer controls */
 
-	HDA_CODEC_VOLUME("Mixer-1 Volume", 0x17, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Mixer-1 Switch", 0x17, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mixer-2 Volume", 0x17, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Mixer-2 Switch", 0x17, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mixer-3 Volume", 0x17, 0x2, HDA_INPUT),
-	HDA_CODEC_MUTE("Mixer-3 Switch", 0x17, 0x2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mixer-4 Volume", 0x17, 0x3, HDA_INPUT),
-	HDA_CODEC_MUTE("Mixer-4 Switch", 0x17, 0x3, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mixer-5 Volume", 0x17, 0x4, HDA_INPUT),
-	HDA_CODEC_MUTE("Mixer-5 Switch", 0x17, 0x4, HDA_INPUT),
+	HDA_CODEC_VOLUME("PCM Volume", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("PCM Switch", 0x17, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("MIC1 pin Volume", 0x17, 0x1, HDA_INPUT),
+	HDA_CODEC_MUTE("MIC1 pin Switch", 0x17, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("LINE1 pin Volume", 0x17, 0x2, HDA_INPUT),
+	HDA_CODEC_MUTE("LINE1 pin Switch", 0x17, 0x2, HDA_INPUT),
+	HDA_CODEC_VOLUME("HP-OUT pin Volume", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_MUTE("HP-OUT pin Switch", 0x17, 0x3, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD pin Volume", 0x17, 0x4, HDA_INPUT),
+	HDA_CODEC_MUTE("CD pin Switch", 0x17, 0x4, HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Input Source",
@@ -978,16 +962,8 @@ static const struct snd_kcontrol_new cxt5045_test_mixer[] = {
 		.put = conexant_mux_enum_put,
 	},
 	/* Audio input controls */
-	HDA_CODEC_VOLUME("Input-1 Volume", 0x1a, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE("Input-1 Switch", 0x1a, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME("Input-2 Volume", 0x1a, 0x1, HDA_INPUT),
-	HDA_CODEC_MUTE("Input-2 Switch", 0x1a, 0x1, HDA_INPUT),
-	HDA_CODEC_VOLUME("Input-3 Volume", 0x1a, 0x2, HDA_INPUT),
-	HDA_CODEC_MUTE("Input-3 Switch", 0x1a, 0x2, HDA_INPUT),
-	HDA_CODEC_VOLUME("Input-4 Volume", 0x1a, 0x3, HDA_INPUT),
-	HDA_CODEC_MUTE("Input-4 Switch", 0x1a, 0x3, HDA_INPUT),
-	HDA_CODEC_VOLUME("Input-5 Volume", 0x1a, 0x4, HDA_INPUT),
-	HDA_CODEC_MUTE("Input-5 Switch", 0x1a, 0x4, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x1a, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x1a, 0x0, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -1009,10 +985,6 @@ static const struct hda_verb cxt5045_test_init_verbs[] = {
 	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x18, AC_VERB_SET_DIGI_CONVERT_1, 0},
 
-	/* Start with output sum widgets muted and their output gains at min */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
-
 	/* Unmute retasking pin widget output buffers since the default
 	 * state appears to be output.  As the pin mode is changed by the
 	 * user the pin mode control will take care of enabling the pin's
@@ -1027,11 +999,11 @@ static const struct hda_verb cxt5045_test_init_verbs[] = {
 	/* Set ADC connection select to match default mixer setting (mic1
 	 * pin)
 	 */
-	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{0x17, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{0x17, AC_VERB_SET_CONNECT_SEL, 0x01},
 
 	/* Mute all inputs to mixer widget (even unconnected ones) */
-	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* Mixer pin */
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)}, /* Mixer */
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)}, /* Mic1 pin */
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)}, /* Line pin */
 	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)}, /* HP pin */
@@ -1110,7 +1082,7 @@ static int patch_cxt5045(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	codec->pin_amp_workaround = 1;
+	codec->single_adc_amp = 1;
 
 	spec->multiout.max_channels = 2;
 	spec->multiout.num_dacs = ARRAY_SIZE(cxt5045_dac_nids);
@@ -4220,7 +4192,7 @@ static int cx_auto_add_capture_volume(struct hda_codec *codec, hda_nid_t nid,
 		int idx = get_input_connection(codec, adc_nid, nid);
 		if (idx < 0)
 			continue;
-		if (spec->single_adc_amp)
+		if (codec->single_adc_amp)
 			idx = 0;
 		return cx_auto_add_volume_idx(codec, label, pfx,
 					      cidx, adc_nid, HDA_INPUT, idx);
@@ -4275,7 +4247,7 @@ static int cx_auto_build_input_controls(struct hda_codec *codec)
 		if (cidx < 0)
 			continue;
 		input_conn[i] = spec->imux_info[i].adc;
-		if (!spec->single_adc_amp)
+		if (!codec->single_adc_amp)
 			input_conn[i] |= cidx << 8;
 		if (i > 0 && input_conn[i] != input_conn[0])
 			multi_connection = 1;
@@ -4466,15 +4438,17 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	if (!spec)
 		return -ENOMEM;
 	codec->spec = spec;
-	codec->pin_amp_workaround = 1;
 
 	switch (codec->vendor_id) {
 	case 0x14f15045:
-		spec->single_adc_amp = 1;
+		codec->single_adc_amp = 1;
 		break;
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
+		codec->pin_amp_workaround = 1;
 		break;
+	default:
+		codec->pin_amp_workaround = 1;
 	}
 
 	apply_pin_fixup(codec, cxt_fixups, cxt_pincfg_tbl);

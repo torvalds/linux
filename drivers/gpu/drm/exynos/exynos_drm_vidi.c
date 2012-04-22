@@ -199,7 +199,7 @@ static void vidi_dpms(struct device *subdrv_dev, int mode)
 static void vidi_apply(struct device *subdrv_dev)
 {
 	struct vidi_context *ctx = get_vidi_context(subdrv_dev);
-	struct exynos_drm_manager *mgr = &ctx->subdrv.manager;
+	struct exynos_drm_manager *mgr = ctx->subdrv.manager;
 	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
 	struct exynos_drm_overlay_ops *ovl_ops = mgr->overlay_ops;
 	struct vidi_win_data *win_data;
@@ -374,6 +374,13 @@ static struct exynos_drm_overlay_ops vidi_overlay_ops = {
 	.disable = vidi_win_disable,
 };
 
+static struct exynos_drm_manager vidi_manager = {
+	.pipe		= -1,
+	.ops		= &vidi_manager_ops,
+	.overlay_ops	= &vidi_overlay_ops,
+	.display_ops	= &vidi_display_ops,
+};
+
 static void vidi_finish_pageflip(struct drm_device *drm_dev, int crtc)
 {
 	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
@@ -425,7 +432,7 @@ static void vidi_fake_vblank_handler(struct work_struct *work)
 	struct vidi_context *ctx = container_of(work, struct vidi_context,
 					work);
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct exynos_drm_manager *manager = &subdrv->manager;
+	struct exynos_drm_manager *manager = subdrv->manager;
 
 	if (manager->pipe < 0)
 		return;
@@ -471,7 +478,7 @@ static void vidi_subdrv_remove(struct drm_device *drm_dev)
 static int vidi_power_on(struct vidi_context *ctx, bool enable)
 {
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct device *dev = subdrv->manager.dev;
+	struct device *dev = subdrv->dev;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -611,13 +618,10 @@ static int __devinit vidi_probe(struct platform_device *pdev)
 	ctx->raw_edid = (struct edid *)fake_edid_info;
 
 	subdrv = &ctx->subdrv;
+	subdrv->dev = dev;
+	subdrv->manager = &vidi_manager;
 	subdrv->probe = vidi_subdrv_probe;
 	subdrv->remove = vidi_subdrv_remove;
-	subdrv->manager.pipe = -1;
-	subdrv->manager.ops = &vidi_manager_ops;
-	subdrv->manager.overlay_ops = &vidi_overlay_ops;
-	subdrv->manager.display_ops = &vidi_display_ops;
-	subdrv->manager.dev = dev;
 
 	mutex_init(&ctx->lock);
 

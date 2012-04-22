@@ -1763,13 +1763,13 @@ static int ivtv_decoder_ioctls(struct file *filp, unsigned int cmd, void *arg)
 		IVTV_DEBUG_IOCTL("AUDIO_CHANNEL_SELECT\n");
 		if (iarg > AUDIO_STEREO_SWAPPED)
 			return -EINVAL;
-		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_playback, iarg);
+		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_playback, iarg + 1);
 
 	case AUDIO_BILINGUAL_CHANNEL_SELECT:
 		IVTV_DEBUG_IOCTL("AUDIO_BILINGUAL_CHANNEL_SELECT\n");
 		if (iarg > AUDIO_STEREO_SWAPPED)
 			return -EINVAL;
-		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_multilingual_playback, iarg);
+		return v4l2_ctrl_s_ctrl(itv->ctrl_audio_multilingual_playback, iarg + 1);
 
 	default:
 		return -EINVAL;

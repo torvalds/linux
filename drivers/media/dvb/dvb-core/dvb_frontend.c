@@ -143,10 +143,12 @@ struct dvb_frontend_private {
 static void dvb_frontend_wakeup(struct dvb_frontend *fe);
 static int dtv_get_frontend(struct dvb_frontend *fe,
 			    struct dvb_frontend_parameters *p_out);
+static int dtv_property_legacy_params_sync(struct dvb_frontend *fe,
+					   struct dvb_frontend_parameters *p);
 
 static bool has_get_frontend(struct dvb_frontend *fe)
 {
-	return fe->ops.get_frontend;
+	return fe->ops.get_frontend != NULL;
 }
 
 /*
@@ -697,6 +699,7 @@ restart:
 					fepriv->algo_status |= DVBFE_ALGO_SEARCH_AGAIN;
 					fepriv->delay = HZ / 2;
 				}
+				dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
 				fe->ops.read_status(fe, &s);
 				if (s != fepriv->status) {
 					dvb_frontend_add_event(fe, s); /* update event list */
@@ -1831,6 +1834,13 @@ static int dtv_set_frontend(struct dvb_frontend *fe)
 
 	if (dvb_frontend_check_parameters(fe) < 0)
 		return -EINVAL;
+
+	/*
+	 * Initialize output parameters to match the values given by
+	 * the user. FE_SET_FRONTEND triggers an initial frontend event
+	 * with status = 0, which copies output parameters to userspace.
+	 */
+	dtv_property_legacy_params_sync(fe, &fepriv->parameters_out);
 
 	/*
 	 * Be sure that the bandwidth will be filled for all

@@ -106,16 +106,14 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 	}
 
 	if (mtd->type == MTD_ABSENT) {
-		put_mtd_device(mtd);
 		ret = -ENODEV;
-		goto out;
+		goto out1;
 	}
 
 	mtd_ino = iget_locked(mnt->mnt_sb, devnum);
 	if (!mtd_ino) {
-		put_mtd_device(mtd);
 		ret = -ENOMEM;
-		goto out;
+		goto out1;
 	}
 	if (mtd_ino->i_state & I_NEW) {
 		mtd_ino->i_private = mtd;
@@ -127,23 +125,25 @@ static int mtdchar_open(struct inode *inode, struct file *file)
 
 	/* You can't open it RW if it's not a writeable device */
 	if ((file->f_mode & FMODE_WRITE) && !(mtd->flags & MTD_WRITEABLE)) {
-		iput(mtd_ino);
-		put_mtd_device(mtd);
 		ret = -EACCES;
-		goto out;
+		goto out2;
 	}
 
 	mfi = kzalloc(sizeof(*mfi), GFP_KERNEL);
 	if (!mfi) {
-		iput(mtd_ino);
-		put_mtd_device(mtd);
 		ret = -ENOMEM;
-		goto out;
+		goto out2;
 	}
 	mfi->ino = mtd_ino;
 	mfi->mtd = mtd;
 	file->private_data = mfi;
+	mutex_unlock(&mtd_mutex);
+	return 0;
 
+out2:
+	iput(mtd_ino);
+out1:
+	put_mtd_device(mtd);
 out:
 	mutex_unlock(&mtd_mutex);
 	simple_release_fs(&mnt, &count);

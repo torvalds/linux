@@ -2553,7 +2553,7 @@ static void r100_pll_errata_after_data(struct radeon_device *rdev)
 	 * or the chip could hang on a subsequent access
 	 */
 	if (rdev->pll_errata & CHIP_ERRATA_PLL_DELAY) {
-		udelay(5000);
+		mdelay(5);
 	}
 
 	/* This function is required to workaround a hardware bug in some (all?)
