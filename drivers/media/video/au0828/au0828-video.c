@@ -1881,7 +1881,7 @@ int au0828_analog_register(struct au0828_dev *dev,
 	int retval = -ENOMEM;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
-	int i;
+	int i, ret;
 
 	dprintk(1, "au0828_analog_register called!\n");
 
@@ -1951,8 +1951,8 @@ int au0828_analog_register(struct au0828_dev *dev,
 	dev->vbi_dev = video_device_alloc();
 	if (NULL == dev->vbi_dev) {
 		dprintk(1, "Can't allocate vbi_device.\n");
-		kfree(dev->vdev);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err_vdev;
 	}
 
 	/* Fill the video capture device struct */
@@ -1971,8 +1971,8 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval != 0) {
 		dprintk(1, "unable to register video device (error = %d).\n",
 			retval);
-		video_device_release(dev->vdev);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_vbi_dev;
 	}
 
 	/* Register the vbi device */
@@ -1981,13 +1981,18 @@ int au0828_analog_register(struct au0828_dev *dev,
 	if (retval != 0) {
 		dprintk(1, "unable to register vbi device (error = %d).\n",
 			retval);
-		video_device_release(dev->vbi_dev);
-		video_device_release(dev->vdev);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto err_vbi_dev;
 	}
 
 	dprintk(1, "%s completed!\n", __func__);
 
 	return 0;
+
+err_vbi_dev:
+	video_device_release(dev->vbi_dev);
+err_vdev:
+	video_device_release(dev->vdev);
+	return ret;
 }
 
