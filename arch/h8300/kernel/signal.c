@@ -49,56 +49,15 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
-
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
-asmlinkage int do_sigsuspend(struct pt_regs *regs)
-{
-	old_sigset_t mask = regs->er3;
-	sigset_t saveset, blocked;
-
-	saveset = current->blocked;
-
-	mask &= _BLOCKABLE;
-	siginitset(&blocked, mask);
-	set_current_blocked(&blocked);
-
-	regs->er0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset))
-			return -EINTR;
-	}
-}
-
 asmlinkage int
-do_rt_sigsuspend(struct pt_regs *regs)
+sys_sigsuspend(int unused1, int unused2, old_sigset_t mask)
 {
-	sigset_t *unewset = (sigset_t *)regs->er1;
-	size_t sigsetsize = (size_t)regs->er2;
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	saveset = current->blocked;
-	set_current_blocked(&newset);
-
-	regs->er0 = -EINTR;
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset))
-			return -EINTR;
-	}
+	sigset_t blocked;
+	siginitset(&blocked, mask);
+	return sigsuspend(&blocked);
 }
 
 asmlinkage int 
@@ -482,8 +441,10 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	else
 		ret = setup_frame(sig, ka, oldset, regs);
 
-	if (!ret)
+	if (!ret) {
 		block_sigmask(ka, sig);
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+	}
 }
 
 /*
@@ -491,11 +452,12 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset)
+statis void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
+	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -504,21 +466,23 @@ asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	 * if so.
 	 */
 	if ((regs->ccr & 0x10))
-		return 1;
+		return;
 
 	if (try_to_freeze())
 		goto no_signal;
 
 	current->thread.esp0 = (unsigned long) regs;
 
-	if (!oldset)
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else
 		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		handle_signal(signr, &info, &ka, oldset, regs);
-		return 1;
+		return;
 	}
  no_signal:
 	/* Did we come from a system call? */
@@ -535,13 +499,16 @@ asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset)
 			regs->pc -= 2;
 		}
 	}
-	return 0;
+
+	/* If there's no signal to deliver, we just restore the saved mask.  */
+	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
+		set_current_blocked(&current->saved_sigmask);
 }
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, u32 thread_info_flags)
 {
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
-		do_signal(regs, NULL);
+	if (thread_info_flags & _TIF_SIGPENDING)
+		do_signal(regs);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
 		clear_thread_flag(TIF_NOTIFY_RESUME);
