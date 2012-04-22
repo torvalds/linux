@@ -81,7 +81,7 @@ struct detailed_mode_closure {
 #define LEVEL_CVT	3
 
 static struct edid_quirk {
-	char *vendor;
+	char vendor[4];
 	int product_id;
 	u32 quirks;
 } edid_quirk_list[] = {
