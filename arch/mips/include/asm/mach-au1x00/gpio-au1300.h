@@ -11,6 +11,9 @@
 #include <asm/io.h>
 #include <asm/mach-au1x00/au1000.h>
 
+struct gpio;
+struct gpio_chip;
+
 /* with the current GPIC design, up to 128 GPIOs are possible.
  * The only implementation so far is in the Au1300, which has 75 externally
  * available GPIOs.
@@ -203,7 +206,22 @@ static inline int gpio_request(unsigned int gpio, const char *label)
 	return 0;
 }
 
-static inline void gpio_free(unsigned int gpio)
+static inline int gpio_request_one(unsigned gpio,
+					unsigned long flags, const char *label)
+{
+	return 0;
+}
+
+static inline int gpio_request_array(struct gpio *array, size_t num)
+{
+	return 0;
+}
+
+static inline void gpio_free(unsigned gpio)
+{
+}
+
+static inline void gpio_free_array(struct gpio *array, size_t num)
 {
 }
 

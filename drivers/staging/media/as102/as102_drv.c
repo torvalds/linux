@@ -27,7 +27,7 @@
 #include <linux/uaccess.h>
 #include <linux/usb.h>
 
-/* header file for Usb device driver*/
+/* header file for usb device driver*/
 #include "as102_drv.h"
 #include "as102_fw.h"
 #include "dvbdev.h"

@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/system.h>
 #include <asm/io.h>
 #include <mach-se/mach/se.h>
 #include <asm/machvec.h>

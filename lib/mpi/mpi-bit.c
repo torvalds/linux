@@ -177,8 +177,8 @@ int mpi_rshift(MPI x, MPI a, unsigned n)
  */
 int mpi_lshift_limbs(MPI a, unsigned int count)
 {
-	mpi_ptr_t ap = a->d;
-	int n = a->nlimbs;
+	const int n = a->nlimbs;
+	mpi_ptr_t ap;
 	int i;
 
 	if (!count || !n)
@@ -187,6 +187,7 @@ int mpi_lshift_limbs(MPI a, unsigned int count)
 	if (RESIZE_IF_NEEDED(a, n + count) < 0)
 		return -ENOMEM;
 
+	ap = a->d;
 	for (i = n - 1; i >= 0; i--)
 		ap[i + count] = ap[i];
 	for (i = 0; i < count; i++)

@@ -101,8 +101,8 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 		goto out_no_driver;
 	if (!(server->nfs_client->cl_exchange_flags &
 		 (EXCHGID4_FLAG_USE_NON_PNFS | EXCHGID4_FLAG_USE_PNFS_MDS))) {
-		printk(KERN_ERR "%s: id %u cl_exchange_flags 0x%x\n", __func__,
-		       id, server->nfs_client->cl_exchange_flags);
+		printk(KERN_ERR "NFS: %s: id %u cl_exchange_flags 0x%x\n",
+			__func__, id, server->nfs_client->cl_exchange_flags);
 		goto out_no_driver;
 	}
 	ld_type = find_pnfs_driver(id);
@@ -122,8 +122,8 @@ set_pnfs_layoutdriver(struct nfs_server *server, const struct nfs_fh *mntfh,
 	server->pnfs_curr_ld = ld_type;
 	if (ld_type->set_layoutdriver
 	    && ld_type->set_layoutdriver(server, mntfh)) {
-		printk(KERN_ERR "%s: Error initializing pNFS layout driver %u.\n",
-				__func__, id);
+		printk(KERN_ERR "NFS: %s: Error initializing pNFS layout "
+			"driver %u.\n", __func__, id);
 		module_put(ld_type->owner);
 		goto out_no_driver;
 	}
@@ -143,11 +143,11 @@ pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *ld_type)
 	struct pnfs_layoutdriver_type *tmp;
 
 	if (ld_type->id == 0) {
-		printk(KERN_ERR "%s id 0 is reserved\n", __func__);
+		printk(KERN_ERR "NFS: %s id 0 is reserved\n", __func__);
 		return status;
 	}
 	if (!ld_type->alloc_lseg || !ld_type->free_lseg) {
-		printk(KERN_ERR "%s Layout driver must provide "
+		printk(KERN_ERR "NFS: %s Layout driver must provide "
 		       "alloc_lseg and free_lseg.\n", __func__);
 		return status;
 	}
@@ -160,7 +160,7 @@ pnfs_register_layoutdriver(struct pnfs_layoutdriver_type *ld_type)
 		dprintk("%s Registering id:%u name:%s\n", __func__, ld_type->id,
 			ld_type->name);
 	} else {
-		printk(KERN_ERR "%s Module with id %d already loaded!\n",
+		printk(KERN_ERR "NFS: %s Module with id %d already loaded!\n",
 			__func__, ld_type->id);
 	}
 	spin_unlock(&pnfs_spinlock);
@@ -496,12 +496,12 @@ pnfs_set_layout_stateid(struct pnfs_layout_hdr *lo, const nfs4_stateid *new,
 {
 	u32 oldseq, newseq;
 
-	oldseq = be32_to_cpu(lo->plh_stateid.stateid.seqid);
-	newseq = be32_to_cpu(new->stateid.seqid);
+	oldseq = be32_to_cpu(lo->plh_stateid.seqid);
+	newseq = be32_to_cpu(new->seqid);
 	if ((int)(newseq - oldseq) > 0) {
-		memcpy(&lo->plh_stateid, &new->stateid, sizeof(new->stateid));
+		nfs4_stateid_copy(&lo->plh_stateid, new);
 		if (update_barrier) {
-			u32 new_barrier = be32_to_cpu(new->stateid.seqid);
+			u32 new_barrier = be32_to_cpu(new->seqid);
 
 			if ((int)(new_barrier - lo->plh_barrier))
 				lo->plh_barrier = new_barrier;
@@ -525,7 +525,7 @@ pnfs_layoutgets_blocked(struct pnfs_layout_hdr *lo, nfs4_stateid *stateid,
 			int lget)
 {
 	if ((stateid) &&
-	    (int)(lo->plh_barrier - be32_to_cpu(stateid->stateid.seqid)) >= 0)
+	    (int)(lo->plh_barrier - be32_to_cpu(stateid->seqid)) >= 0)
 		return true;
 	return lo->plh_block_lgets ||
 		test_bit(NFS_LAYOUT_DESTROYED, &lo->plh_flags) ||
@@ -549,11 +549,10 @@ pnfs_choose_layoutget_stateid(nfs4_stateid *dst, struct pnfs_layout_hdr *lo,
 
 		do {
 			seq = read_seqbegin(&open_state->seqlock);
-			memcpy(dst->data, open_state->stateid.data,
-			       sizeof(open_state->stateid.data));
+			nfs4_stateid_copy(dst, &open_state->stateid);
 		} while (read_seqretry(&open_state->seqlock, seq));
 	} else
-		memcpy(dst->data, lo->plh_stateid.data, sizeof(lo->plh_stateid.data));
+		nfs4_stateid_copy(dst, &lo->plh_stateid);
 	spin_unlock(&lo->plh_inode->i_lock);
 	dprintk("<-- %s\n", __func__);
 	return status;
@@ -590,7 +589,7 @@ send_layoutget(struct pnfs_layout_hdr *lo,
 	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
 	max_pages = max_resp_sz >> PAGE_SHIFT;
 
-	pages = kzalloc(max_pages * sizeof(struct page *), gfp_flags);
+	pages = kcalloc(max_pages, sizeof(struct page *), gfp_flags);
 	if (!pages)
 		goto out_err_free;
 
@@ -760,7 +759,7 @@ bool pnfs_roc_drain(struct inode *ino, u32 *barrier)
 		}
 	if (!found) {
 		struct pnfs_layout_hdr *lo = nfsi->layout;
-		u32 current_seqid = be32_to_cpu(lo->plh_stateid.stateid.seqid);
+		u32 current_seqid = be32_to_cpu(lo->plh_stateid.seqid);
 
 		/* Since close does not return a layout stateid for use as
 		 * a barrier, we choose the worst-case barrier.
@@ -966,8 +965,7 @@ pnfs_update_layout(struct inode *ino,
 	}
 
 	/* Do we even need to bother with this? */
-	if (test_bit(NFS4CLNT_LAYOUTRECALL, &clp->cl_state) ||
-	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
+	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		dprintk("%s matches recall, use MDS\n", __func__);
 		goto out_unlock;
 	}
@@ -1032,7 +1030,6 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	struct nfs4_layoutget_res *res = &lgp->res;
 	struct pnfs_layout_segment *lseg;
 	struct inode *ino = lo->plh_inode;
-	struct nfs_client *clp = NFS_SERVER(ino)->nfs_client;
 	int status = 0;
 
 	/* Inject layout blob into I/O device driver */
@@ -1048,8 +1045,7 @@ pnfs_layout_process(struct nfs4_layoutget *lgp)
 	}
 
 	spin_lock(&ino->i_lock);
-	if (test_bit(NFS4CLNT_LAYOUTRECALL, &clp->cl_state) ||
-	    test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
+	if (test_bit(NFS_LAYOUT_BULK_RECALL, &lo->plh_flags)) {
 		dprintk("%s forget reply due to recall\n", __func__);
 		goto out_forget_reply;
 	}
@@ -1214,6 +1210,7 @@ void pnfs_ld_write_done(struct nfs_write_data *data)
 		}
 		data->task.tk_status = pnfs_write_done_resend_to_mds(data->inode, &data->pages);
 	}
+	put_lseg(data->lseg);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_write_done);
@@ -1227,6 +1224,7 @@ pnfs_write_through_mds(struct nfs_pageio_descriptor *desc,
 		nfs_list_add_request(data->req, &desc->pg_list);
 	nfs_pageio_reset_write_mds(desc);
 	desc->pg_recoalesce = 1;
+	put_lseg(data->lseg);
 	nfs_writedata_release(data);
 }
 
@@ -1327,6 +1325,7 @@ void pnfs_ld_read_done(struct nfs_read_data *data)
 		data->mds_ops->rpc_call_done(&data->task, data);
 	} else
 		pnfs_ld_handle_read_error(data);
+	put_lseg(data->lseg);
 	data->mds_ops->rpc_release(data);
 }
 EXPORT_SYMBOL_GPL(pnfs_ld_read_done);
@@ -1530,8 +1529,7 @@ pnfs_layoutcommit_inode(struct inode *inode, bool sync)
 	end_pos = nfsi->layout->plh_lwb;
 	nfsi->layout->plh_lwb = 0;
 
-	memcpy(&data->args.stateid.data, nfsi->layout->plh_stateid.data,
-		sizeof(nfsi->layout->plh_stateid.data));
+	nfs4_stateid_copy(&data->args.stateid, &nfsi->layout->plh_stateid);
 	spin_unlock(&inode->i_lock);
 
 	data->args.inode = inode;

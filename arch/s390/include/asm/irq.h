@@ -34,11 +34,18 @@ enum interruption_class {
 	NR_IRQS,
 };
 
-typedef void (*ext_int_handler_t)(unsigned int, unsigned int, unsigned long);
+struct ext_code {
+	unsigned short subcode;
+	unsigned short code;
+};
+
+typedef void (*ext_int_handler_t)(struct ext_code, unsigned int, unsigned long);
 
 int register_external_interrupt(u16 code, ext_int_handler_t handler);
 int unregister_external_interrupt(u16 code, ext_int_handler_t handler);
 void service_subclass_irq_register(void);
 void service_subclass_irq_unregister(void);
+void measurement_alert_subclass_register(void);
+void measurement_alert_subclass_unregister(void);
 
 #endif /* _ASM_IRQ_H */

@@ -385,6 +385,71 @@ static void qla4xxx_passthru_status_entry(struct scsi_qla_host *ha,
 	queue_work(ha->task_wq, &task_data->task_work);
 }
 
+static struct mrb *qla4xxx_del_mrb_from_active_array(struct scsi_qla_host *ha,
+						     uint32_t index)
+{
+	struct mrb *mrb = NULL;
+
+	/* validate handle and remove from active array */
+	if (index >= MAX_MRB)
+		return mrb;
+
+	mrb = ha->active_mrb_array[index];
+	ha->active_mrb_array[index] = NULL;
+	if (!mrb)
+		return mrb;
+
+	/* update counters */
+	ha->req_q_count += mrb->iocb_cnt;
+	ha->iocb_cnt -= mrb->iocb_cnt;
+
+	return mrb;
+}
+
+static void qla4xxx_mbox_status_entry(struct scsi_qla_host *ha,
+				      struct mbox_status_iocb *mbox_sts_entry)
+{
+	struct mrb *mrb;
+	uint32_t status;
+	uint32_t data_size;
+
+	mrb = qla4xxx_del_mrb_from_active_array(ha,
+					le32_to_cpu(mbox_sts_entry->handle));
+
+	if (mrb == NULL) {
+		ql4_printk(KERN_WARNING, ha, "%s: mrb[%d] is null\n", __func__,
+			   mbox_sts_entry->handle);
+		return;
+	}
+
+	switch (mrb->mbox_cmd) {
+	case MBOX_CMD_PING:
+		DEBUG2(ql4_printk(KERN_INFO, ha, "%s: mbox_cmd = 0x%x, "
+				  "mbox_sts[0] = 0x%x, mbox_sts[6] = 0x%x\n",
+				  __func__, mrb->mbox_cmd,
+				  mbox_sts_entry->out_mbox[0],
+				  mbox_sts_entry->out_mbox[6]));
+
+		if (mbox_sts_entry->out_mbox[0] == MBOX_STS_COMMAND_COMPLETE)
+			status = ISCSI_PING_SUCCESS;
+		else
+			status = mbox_sts_entry->out_mbox[6];
+
+		data_size = sizeof(mbox_sts_entry->out_mbox);
+
+		qla4xxx_post_ping_evt_work(ha, status, mrb->pid, data_size,
+					(uint8_t *) mbox_sts_entry->out_mbox);
+		break;
+
+	default:
+		DEBUG2(ql4_printk(KERN_WARNING, ha, "%s: invalid mbox_cmd = "
+				  "0x%x\n", __func__, mrb->mbox_cmd));
+	}
+
+	kfree(mrb);
+	return;
+}
+
 /**
  * qla4xxx_process_response_queue - process response queue completions
  * @ha: Pointer to host adapter structure.
@@ -459,6 +524,13 @@ void qla4xxx_process_response_queue(struct scsi_qla_host *ha)
 			/* Just throw away the continuation entries */
 			DEBUG2(printk("scsi%ld: %s: Continuation entry - "
 				      "ignoring\n", ha->host_no, __func__));
+			break;
+
+		case ET_MBOX_STATUS:
+			DEBUG2(ql4_printk(KERN_INFO, ha,
+					  "%s: mbox status IOCB\n", __func__));
+			qla4xxx_mbox_status_entry(ha,
+					(struct mbox_status_iocb *)sts_entry);
 			break;
 
 		default:
@@ -576,6 +648,9 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
 
 			ql4_printk(KERN_INFO, ha, "%s: LINK UP\n", __func__);
+			qla4xxx_post_aen_work(ha, ISCSI_EVENT_LINKUP,
+					      sizeof(mbox_sts),
+					      (uint8_t *) mbox_sts);
 			break;
 
 		case MBOX_ASTS_LINK_DOWN:
@@ -584,6 +659,9 @@ static void qla4xxx_isr_decode_mailbox(struct scsi_qla_host * ha,
 				set_bit(DPC_LINK_CHANGED, &ha->dpc_flags);
 
 			ql4_printk(KERN_INFO, ha, "%s: LINK DOWN\n", __func__);
+			qla4xxx_post_aen_work(ha, ISCSI_EVENT_LINKDOWN,
+					      sizeof(mbox_sts),
+					      (uint8_t *) mbox_sts);
 			break;
 
 		case MBOX_ASTS_HEARTBEAT:

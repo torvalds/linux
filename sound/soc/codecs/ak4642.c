@@ -140,7 +140,7 @@
  * min : 0xFE : -115.0 dB
  * mute: 0xFF
  */
-static const DECLARE_TLV_DB_SCALE(out_tlv, -11500, 50, 1);
+static const DECLARE_TLV_DB_SCALE(out_tlv, -11550, 50, 1);
 
 static const struct snd_kcontrol_new ak4642_snd_controls[] = {
 
@@ -477,7 +477,7 @@ static int ak4642_probe(struct snd_soc_codec *codec)
 		return ret;
 	}
 
-	snd_soc_add_controls(codec, ak4642_snd_controls,
+	snd_soc_add_codec_controls(codec, ak4642_snd_controls,
 			     ARRAY_SIZE(ak4642_snd_controls));
 
 	ak4642_set_bias_level(codec, SND_SOC_BIAS_STANDBY);

@@ -94,8 +94,8 @@ Additional Configurations
 
   Configuring a network driver to load properly when the system is started is
   distribution dependent. Typically, the configuration process involves adding
-  an alias line to /etc/modules.conf or /etc/modprobe.conf as well as editing
-  other system startup scripts and/or configuration files.  Many popular Linux
+  an alias line to /etc/modprobe.d/*.conf as well as editing other system
+  startup scripts and/or configuration files.  Many popular Linux
   distributions ship with tools to make these changes for you. To learn the
   proper way to configure a network device for your system, refer to your
   distribution documentation.  If during this process you are asked for the
@@ -103,7 +103,7 @@ Additional Configurations
   PRO/100 Family of Adapters is e100.
 
   As an example, if you install the e100 driver for two PRO/100 adapters
-  (eth0 and eth1), add the following to modules.conf or modprobe.conf:
+  (eth0 and eth1), add the following to a configuraton file in /etc/modprobe.d/
 
        alias eth0 e100
        alias eth1 e100

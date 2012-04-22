@@ -99,6 +99,7 @@ enum {
 	STAC_DELL_VOSTRO_3500,
 	STAC_92HD83XXX_HP_cNB11_INTQUAD,
 	STAC_HP_DV7_4000,
+	STAC_HP_ZEPHYR,
 	STAC_92HD83XXX_MODELS
 };
 
@@ -309,6 +310,8 @@ struct sigmatel_spec {
 	unsigned long auto_capvols[MAX_ADCS_NUM];
 	unsigned auto_dmic_cnt;
 	hda_nid_t auto_dmic_nids[MAX_DMICS_NUM];
+
+	struct hda_vmaster_mute_hook vmaster_mute;
 };
 
 static const hda_nid_t stac9200_adc_nids[1] = {
@@ -662,7 +665,6 @@ static int stac92xx_smux_enum_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 static int stac_vrefout_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
 {
@@ -686,7 +688,6 @@ static int stac_vrefout_set(struct hda_codec *codec,
 
 	return 1;
 }
-#endif
 
 static unsigned int stac92xx_vref_set(struct hda_codec *codec,
 					hda_nid_t nid, unsigned int new_vref)
@@ -894,6 +895,13 @@ static const struct hda_verb stac92hd83xxx_core_init[] = {
 	{}
 };
 
+static const struct hda_verb stac92hd83xxx_hp_zephyr_init[] = {
+	{ 0x22, 0x785, 0x43 },
+	{ 0x22, 0x782, 0xe0 },
+	{ 0x22, 0x795, 0x00 },
+	{}
+};
+
 static const struct hda_verb stac92hd71bxx_core_init[] = {
 	/* set master volume and direct control */
 	{ 0x28, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xff},
@@ -999,8 +1007,8 @@ static const struct hda_verb stac9205_core_init[] = {
 	}
 
 static const struct snd_kcontrol_new stac9200_mixer[] = {
-	HDA_CODEC_VOLUME_MIN_MUTE("Master Playback Volume", 0xb, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0xb, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MIN_MUTE("PCM Playback Volume", 0xb, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0xb, 0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x0a, 0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x0a, 0, HDA_OUTPUT),
 	{ } /* end */
@@ -1027,8 +1035,8 @@ static const struct snd_kcontrol_new stac92hd71bxx_loopback[] = {
 };
 
 static const struct snd_kcontrol_new stac925x_mixer[] = {
-	HDA_CODEC_VOLUME_MIN_MUTE("Master Playback Volume", 0xe, 0, HDA_OUTPUT),
-	HDA_CODEC_MUTE("Master Playback Switch", 0x0e, 0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MIN_MUTE("PCM Playback Volume", 0xe, 0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("PCM Playback Switch", 0x0e, 0, HDA_OUTPUT),
 	{ } /* end */
 };
 
@@ -1060,34 +1068,25 @@ static struct snd_kcontrol_new stac_smux_mixer = {
 	.put = stac92xx_smux_enum_put,
 };
 
-static const char * const slave_vols[] = {
-	"Front Playback Volume",
-	"Surround Playback Volume",
-	"Center Playback Volume",
-	"LFE Playback Volume",
-	"Side Playback Volume",
-	"Headphone Playback Volume",
-	"Speaker Playback Volume",
+static const char * const slave_pfxs[] = {
+	"Front", "Surround", "Center", "LFE", "Side",
+	"Headphone", "Speaker", "IEC958",
 	NULL
 };
 
-static const char * const slave_sws[] = {
-	"Front Playback Switch",
-	"Surround Playback Switch",
-	"Center Playback Switch",
-	"LFE Playback Switch",
-	"Side Playback Switch",
-	"Headphone Playback Switch",
-	"Speaker Playback Switch",
-	"IEC958 Playback Switch",
-	NULL
-};
+static void stac92xx_update_led_status(struct hda_codec *codec, int enabled);
+
+static void stac92xx_vmaster_hook(void *private_data, int val)
+{
+	stac92xx_update_led_status(private_data, val);
+}
 
 static void stac92xx_free_kctls(struct hda_codec *codec);
 
 static int stac92xx_build_controls(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
+	unsigned int vmaster_tlv[4];
 	int err;
 	int i;
 
@@ -1144,22 +1143,28 @@ static int stac92xx_build_controls(struct hda_codec *codec)
 	}
 
 	/* if we have no master control, let's create it */
-	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Volume")) {
-		unsigned int vmaster_tlv[4];
-		snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
-					HDA_OUTPUT, vmaster_tlv);
-		/* correct volume offset */
-		vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
-		/* minimum value is actually mute */
-		vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
-		err = snd_hda_add_vmaster(codec, "Master Playback Volume",
-					  vmaster_tlv, slave_vols);
-		if (err < 0)
-			return err;
-	}
-	if (!snd_hda_find_mixer_ctl(codec, "Master Playback Switch")) {
-		err = snd_hda_add_vmaster(codec, "Master Playback Switch",
-					  NULL, slave_sws);
+	snd_hda_set_vmaster_tlv(codec, spec->multiout.dac_nids[0],
+				HDA_OUTPUT, vmaster_tlv);
+	/* correct volume offset */
+	vmaster_tlv[2] += vmaster_tlv[3] * spec->volume_offset;
+	/* minimum value is actually mute */
+	vmaster_tlv[3] |= TLV_DB_SCALE_MUTE;
+	err = snd_hda_add_vmaster(codec, "Master Playback Volume",
+				  vmaster_tlv, slave_pfxs,
+				  "Playback Volume");
+	if (err < 0)
+		return err;
+
+	err = __snd_hda_add_vmaster(codec, "Master Playback Switch",
+				    NULL, slave_pfxs,
+				    "Playback Switch", true,
+				    &spec->vmaster_mute.sw_kctl);
+	if (err < 0)
+		return err;
+
+	if (spec->gpio_led) {
+		spec->vmaster_mute.hook = stac92xx_vmaster_hook;
+		err = snd_hda_add_vmaster_hook(codec, &spec->vmaster_mute, true);
 		if (err < 0)
 			return err;
 	}
@@ -1636,6 +1641,12 @@ static const unsigned int hp_dv7_4000_pin_configs[10] = {
 	0x40f000f0, 0x40f000f0,
 };
 
+static const unsigned int hp_zephyr_pin_configs[10] = {
+	0x01813050, 0x0421201f, 0x04a1205e, 0x96130310,
+	0x96130310, 0x0101401f, 0x1111611f, 0xd5a30130,
+	0, 0,
+};
+
 static const unsigned int hp_cNB11_intquad_pin_configs[10] = {
 	0x40f000f0, 0x0221101f, 0x02a11020, 0x92170110,
 	0x40f000f0, 0x92170110, 0x40f000f0, 0xd5a30130,
@@ -1649,6 +1660,7 @@ static const unsigned int *stac92hd83xxx_brd_tbl[STAC_92HD83XXX_MODELS] = {
 	[STAC_DELL_VOSTRO_3500] = dell_vostro_3500_pin_configs,
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = hp_cNB11_intquad_pin_configs,
 	[STAC_HP_DV7_4000] = hp_dv7_4000_pin_configs,
+	[STAC_HP_ZEPHYR] = hp_zephyr_pin_configs,
 };
 
 static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
@@ -1659,6 +1671,7 @@ static const char * const stac92hd83xxx_models[STAC_92HD83XXX_MODELS] = {
 	[STAC_DELL_VOSTRO_3500] = "dell-vostro-3500",
 	[STAC_92HD83XXX_HP_cNB11_INTQUAD] = "hp_cNB11_intquad",
 	[STAC_HP_DV7_4000] = "hp-dv7-4000",
+	[STAC_HP_ZEPHYR] = "hp-zephyr",
 };
 
 static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
@@ -1711,6 +1724,14 @@ static const struct snd_pci_quirk stac92hd83xxx_cfg_tbl[] = {
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3593,
 			  "HP", STAC_92HD83XXX_HP_cNB11_INTQUAD),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3561,
+			  "HP", STAC_HP_ZEPHYR),
+	{} /* terminator */
+};
+
+static const struct snd_pci_quirk stac92hd83xxx_codec_id_cfg_tbl[] = {
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3561,
+			  "HP", STAC_HP_ZEPHYR),
 	{} /* terminator */
 };
 
@@ -4410,8 +4431,7 @@ static int stac92xx_init(struct hda_codec *codec)
 	snd_hda_jack_report_sync(codec);
 
 	/* sync mute LED */
-	if (spec->gpio_led)
-		hda_call_check_power_status(codec, 0x01);
+	snd_hda_sync_vmaster_hook(&spec->vmaster_mute);
 	if (spec->dac_list)
 		stac92xx_power_down(codec);
 	return 0;
@@ -4989,7 +5009,6 @@ static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
 	return 0;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 static int stac92xx_pre_resume(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
@@ -5024,82 +5043,39 @@ static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 			afg_power_state);
 	snd_hda_codec_set_power_to_all(codec, fg, power_state, true);
 }
+#else
+#define stac92xx_suspend	NULL
+#define stac92xx_resume		NULL
+#define stac92xx_pre_resume	NULL
+#define stac92xx_set_power_state NULL
+#endif /* CONFIG_PM */
 
-/*
- * For this feature CONFIG_SND_HDA_POWER_SAVE is needed
- * as mute LED state is updated in check_power_status hook
- */
-static int stac92xx_update_led_status(struct hda_codec *codec)
+/* update mute-LED accoring to the master switch */
+static void stac92xx_update_led_status(struct hda_codec *codec, int enabled)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int i, num_ext_dacs, muted = 1;
-	unsigned int muted_lvl, notmtd_lvl;
-	hda_nid_t nid;
+	int muted = !enabled;
 
 	if (!spec->gpio_led)
-		return 0;
+		return;
 
-	for (i = 0; i < spec->multiout.num_dacs; i++) {
-		nid = spec->multiout.dac_nids[i];
-		if (!(snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
-		      HDA_AMP_MUTE)) {
-			muted = 0; /* something heard */
-			break;
-		}
-	}
-	if (muted && spec->multiout.hp_nid)
-		if (!(snd_hda_codec_amp_read(codec,
-				spec->multiout.hp_nid, 0, HDA_OUTPUT, 0) &
-					HDA_AMP_MUTE)) {
-			muted = 0; /* HP is not muted */
-		}
-	num_ext_dacs = ARRAY_SIZE(spec->multiout.extra_out_nid);
-	for (i = 0; muted && i < num_ext_dacs; i++) {
-		nid = spec->multiout.extra_out_nid[i];
-		if (nid == 0)
-			break;
-		if (!(snd_hda_codec_amp_read(codec, nid, 0, HDA_OUTPUT, 0) &
-		      HDA_AMP_MUTE)) {
-			muted = 0; /* extra output is not muted */
-		}
-	}
-	/*polarity defines *not* muted state level*/
+	/* LED state is inverted on these systems */
+	if (spec->gpio_led_polarity)
+		muted = !muted;
+
 	if (!spec->vref_mute_led_nid) {
 		if (muted)
-			spec->gpio_data &= ~spec->gpio_led; /* orange */
+			spec->gpio_data |= spec->gpio_led;
 		else
-			spec->gpio_data |= spec->gpio_led; /* white */
-
-		if (!spec->gpio_led_polarity) {
-			/* LED state is inverted on these systems */
-			spec->gpio_data ^= spec->gpio_led;
-		}
+			spec->gpio_data &= ~spec->gpio_led;
 		stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data);
 	} else {
-		notmtd_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_50 : AC_PINCTL_VREF_GRD;
-		muted_lvl = spec->gpio_led_polarity ?
-				AC_PINCTL_VREF_GRD : AC_PINCTL_VREF_50;
-		spec->vref_led = muted ? muted_lvl : notmtd_lvl;
+		spec->vref_led = muted ? AC_PINCTL_VREF_50 : AC_PINCTL_VREF_GRD;
 		stac_vrefout_set(codec,	spec->vref_mute_led_nid,
 				 spec->vref_led);
 	}
-	return 0;
 }
-
-/*
- * use power check for controlling mute led of HP notebooks
- */
-static int stac92xx_check_power_status(struct hda_codec *codec,
-					      hda_nid_t nid)
-{
-	stac92xx_update_led_status(codec);
-
-	return 0;
-}
-#endif /* CONFIG_SND_HDA_POWER_SAVE */
-#endif /* CONFIG_PM */
 
 static const struct hda_codec_ops stac92xx_patch_ops = {
 	.build_controls = stac92xx_build_controls,
@@ -5580,6 +5556,12 @@ static int patch_stac92hd83xxx(struct hda_codec *codec)
 							STAC_92HD83XXX_MODELS,
 							stac92hd83xxx_models,
 							stac92hd83xxx_cfg_tbl);
+	/* check codec subsystem id if not found */
+	if (spec->board_config < 0)
+		spec->board_config =
+			snd_hda_check_board_codec_sid_config(codec,
+				STAC_92HD83XXX_MODELS, stac92hd83xxx_models,
+				stac92hd83xxx_codec_id_cfg_tbl);
 again:
 	if (spec->board_config < 0)
 		snd_printdd(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
@@ -5590,12 +5572,17 @@ again:
 
 	codec->patch_ops = stac92xx_patch_ops;
 
+	switch (spec->board_config) {
+	case STAC_HP_ZEPHYR:
+		spec->init = stac92hd83xxx_hp_zephyr_init;
+		break;
+	}
+
 	if (find_mute_led_cfg(codec, -1/*no default cfg*/))
 		snd_printd("mute LED gpio %d polarity %d\n",
 				spec->gpio_led,
 				spec->gpio_led_polarity);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
 		if (!spec->vref_mute_led_nid) {
 			spec->gpio_mask |= spec->gpio_led;
@@ -5605,11 +5592,10 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
+#ifdef CONFIG_PM
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
-		codec->patch_ops.check_power_status =
-			stac92xx_check_power_status;
+#endif
 	}
-#endif	
 
 	err = stac92xx_parse_auto_config(codec);
 	if (!err) {
@@ -5906,7 +5892,6 @@ again:
 				spec->gpio_led,
 				spec->gpio_led_polarity);
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (spec->gpio_led) {
 		if (!spec->vref_mute_led_nid) {
 			spec->gpio_mask |= spec->gpio_led;
@@ -5916,11 +5901,10 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
+#ifdef CONFIG_PM
 		codec->patch_ops.pre_resume = stac92xx_pre_resume;
-		codec->patch_ops.check_power_status =
-			stac92xx_check_power_status;
+#endif
 	}
-#endif	
 
 	spec->multiout.dac_nids = spec->dac_nids;
 

@@ -667,7 +667,7 @@ static void __maybe_unused _dump_mask(struct ps3_private *pd,
 static void dump_bmp(struct ps3_private* pd) {};
 #endif /* defined(DEBUG) */
 
-static int ps3_host_map(struct irq_host *h, unsigned int virq,
+static int ps3_host_map(struct irq_domain *h, unsigned int virq,
 	irq_hw_number_t hwirq)
 {
 	DBG("%s:%d: hwirq %lu, virq %u\n", __func__, __LINE__, hwirq,
@@ -678,13 +678,13 @@ static int ps3_host_map(struct irq_host *h, unsigned int virq,
 	return 0;
 }
 
-static int ps3_host_match(struct irq_host *h, struct device_node *np)
+static int ps3_host_match(struct irq_domain *h, struct device_node *np)
 {
 	/* Match all */
 	return 1;
 }
 
-static struct irq_host_ops ps3_host_ops = {
+static const struct irq_domain_ops ps3_host_ops = {
 	.map = ps3_host_map,
 	.match = ps3_host_match,
 };
@@ -751,12 +751,10 @@ void __init ps3_init_IRQ(void)
 {
 	int result;
 	unsigned cpu;
-	struct irq_host *host;
+	struct irq_domain *host;
 
-	host = irq_alloc_host(NULL, IRQ_HOST_MAP_NOMAP, 0, &ps3_host_ops,
-		PS3_INVALID_OUTLET);
+	host = irq_domain_add_nomap(NULL, PS3_PLUG_MAX + 1, &ps3_host_ops, NULL);
 	irq_set_default_host(host);
-	irq_set_virq_count(PS3_PLUG_MAX + 1);
 
 	for_each_possible_cpu(cpu) {
 		struct ps3_private *pd = &per_cpu(ps3_private, cpu);

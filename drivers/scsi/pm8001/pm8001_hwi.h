@@ -625,7 +625,7 @@ struct set_nvm_data_req {
 	__le32	tag;
 	__le32	len_ir_vpdd;
 	__le32	vpd_offset;
-	u32	reserved[8];
+	__le32	reserved[8];
 	__le32	resp_addr_lo;
 	__le32	resp_addr_hi;
 	__le32	resp_len;

@@ -375,18 +375,7 @@ static struct spi_driver ad5764_driver = {
 	.remove = __devexit_p(ad5764_remove),
 	.id_table = ad5764_ids,
 };
-
-static int __init ad5764_spi_init(void)
-{
-	return spi_register_driver(&ad5764_driver);
-}
-module_init(ad5764_spi_init);
-
-static void __exit ad5764_spi_exit(void)
-{
-	spi_unregister_driver(&ad5764_driver);
-}
-module_exit(ad5764_spi_exit);
+module_spi_driver(ad5764_driver);
 
 MODULE_AUTHOR("Lars-Peter Clausen <lars@metafoo.de>");
 MODULE_DESCRIPTION("Analog Devices AD5744/AD5744R/AD5764/AD5764R DAC");

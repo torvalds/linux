@@ -1515,12 +1515,8 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 static int cy_open(struct tty_struct *tty, struct file *filp)
 {
 	struct cyclades_port *info;
-	unsigned int i, line;
+	unsigned int i, line = tty->index;
 	int retval;
-
-	line = tty->index;
-	if (tty->index < 0 || NR_PORTS <= line)
-		return -ENODEV;
 
 	for (i = 0; i < NR_CARDS; i++)
 		if (line < cy_card[i].first_line + cy_card[i].nports &&
@@ -2413,7 +2409,7 @@ static int get_lsr_info(struct cyclades_port *info, unsigned int __user *value)
 		/* Not supported yet */
 		return -EINVAL;
 	}
-	return put_user(result, (unsigned long __user *)value);
+	return put_user(result, value);
 }
 
 static int cy_tiocmget(struct tty_struct *tty)
@@ -4090,7 +4086,6 @@ static int __init cy_init(void)
 
 	/* Initialize the tty_driver structure */
 
-	cy_serial_driver->owner = THIS_MODULE;
 	cy_serial_driver->driver_name = "cyclades";
 	cy_serial_driver->name = "ttyC";
 	cy_serial_driver->major = CYCLADES_MAJOR;

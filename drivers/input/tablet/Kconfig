@@ -78,6 +78,8 @@ config TABLET_USB_WACOM
 	depends on USB_ARCH_HAS_HCD
 	select POWER_SUPPLY
 	select USB
+	select NEW_LEDS
+	select LEDS_CLASS
 	help
 	  Say Y here if you want to use the USB version of the Wacom Intuos
 	  or Graphire tablet.  Make sure to say Y to "Mouse support"

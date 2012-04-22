@@ -392,17 +392,7 @@ static struct spi_driver eeprom_93xx46_driver = {
 	.remove		= __devexit_p(eeprom_93xx46_remove),
 };
 
-static int __init eeprom_93xx46_init(void)
-{
-	return spi_register_driver(&eeprom_93xx46_driver);
-}
-module_init(eeprom_93xx46_init);
-
-static void __exit eeprom_93xx46_exit(void)
-{
-	spi_unregister_driver(&eeprom_93xx46_driver);
-}
-module_exit(eeprom_93xx46_exit);
+module_spi_driver(eeprom_93xx46_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Driver for 93xx46 EEPROMs");

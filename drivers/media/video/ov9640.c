@@ -738,18 +738,7 @@ static struct i2c_driver ov9640_i2c_driver = {
 	.id_table = ov9640_id,
 };
 
-static int __init ov9640_module_init(void)
-{
-	return i2c_add_driver(&ov9640_i2c_driver);
-}
-
-static void __exit ov9640_module_exit(void)
-{
-	i2c_del_driver(&ov9640_i2c_driver);
-}
-
-module_init(ov9640_module_init);
-module_exit(ov9640_module_exit);
+module_i2c_driver(ov9640_i2c_driver);
 
 MODULE_DESCRIPTION("SoC Camera driver for OmniVision OV96xx");
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");

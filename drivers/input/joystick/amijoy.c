@@ -35,7 +35,6 @@
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
 
-#include <asm/system.h>
 #include <asm/amigahw.h>
 #include <asm/amigaints.h>
 

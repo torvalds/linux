@@ -160,6 +160,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	unsigned long long tmpll;
 	struct dm_arg_set as;
 	const char *devname;
+	char dummy;
 
 	as.argc = argc;
 	as.argv = argv;
@@ -178,7 +179,7 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 
 	devname = dm_shift_arg(&as);
 
-	if (sscanf(dm_shift_arg(&as), "%llu", &tmpll) != 1) {
+	if (sscanf(dm_shift_arg(&as), "%llu%c", &tmpll, &dummy) != 1) {
 		ti->error = "Invalid device sector";
 		goto bad;
 	}
@@ -323,7 +324,7 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 	 * Corrupt successful READs while in down state.
 	 * If flags were specified, only corrupt those that match.
 	 */
-	if (!error && bio_submitted_while_down &&
+	if (fc->corrupt_bio_byte && !error && bio_submitted_while_down &&
 	    (bio_data_dir(bio) == READ) && (fc->corrupt_bio_rw == READ) &&
 	    all_corrupt_bio_flags_match(bio, fc))
 		corrupt_bio_data(bio, fc);

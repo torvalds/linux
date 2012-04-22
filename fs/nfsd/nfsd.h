@@ -364,11 +364,16 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 	NFSD_WRITEABLE_ATTRS_WORD2
 
 extern int nfsd4_is_junction(struct dentry *dentry);
-#else
+extern int register_cld_notifier(void);
+extern void unregister_cld_notifier(void);
+#else /* CONFIG_NFSD_V4 */
 static inline int nfsd4_is_junction(struct dentry *dentry)
 {
 	return 0;
 }
+
+#define register_cld_notifier() 0
+#define unregister_cld_notifier() do { } while(0)
 
 #endif /* CONFIG_NFSD_V4 */
 

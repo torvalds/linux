@@ -61,7 +61,7 @@
 static struct uart_port siu_uart_ports[SIU_PORTS_MAX] = {
 	[0 ... SIU_PORTS_MAX-1] = {
 		.lock	= __SPIN_LOCK_UNLOCKED(siu_uart_ports->lock),
-		.irq	= -1,
+		.irq	= 0,
 	},
 };
 
@@ -171,7 +171,7 @@ static inline unsigned int siu_check_type(struct uart_port *port)
 {
 	if (port->line == 0)
 		return PORT_VR41XX_SIU;
-	if (port->line == 1 && port->irq != -1)
+	if (port->line == 1 && port->irq)
 		return PORT_VR41XX_DSIU;
 
 	return PORT_UNKNOWN;

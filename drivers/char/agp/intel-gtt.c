@@ -76,7 +76,6 @@ static struct _intel_private {
 	struct resource ifp_resource;
 	int resource_valid;
 	struct page *scratch_page;
-	dma_addr_t scratch_page_dma;
 } intel_private;
 
 #define INTEL_GTT_GEN	intel_private.driver->gen
@@ -306,9 +305,9 @@ static int intel_gtt_setup_scratch_page(void)
 		if (pci_dma_mapping_error(intel_private.pcidev, dma_addr))
 			return -EINVAL;
 
-		intel_private.scratch_page_dma = dma_addr;
+		intel_private.base.scratch_page_dma = dma_addr;
 	} else
-		intel_private.scratch_page_dma = page_to_phys(page);
+		intel_private.base.scratch_page_dma = page_to_phys(page);
 
 	intel_private.scratch_page = page;
 
@@ -631,7 +630,7 @@ static unsigned int intel_gtt_mappable_entries(void)
 static void intel_gtt_teardown_scratch_page(void)
 {
 	set_pages_wb(intel_private.scratch_page, 1);
-	pci_unmap_page(intel_private.pcidev, intel_private.scratch_page_dma,
+	pci_unmap_page(intel_private.pcidev, intel_private.base.scratch_page_dma,
 		       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
 	put_page(intel_private.scratch_page);
 	__free_page(intel_private.scratch_page);
@@ -681,6 +680,7 @@ static int intel_gtt_init(void)
 		iounmap(intel_private.registers);
 		return -ENOMEM;
 	}
+	intel_private.base.gtt = intel_private.gtt;
 
 	global_cache_flush();   /* FIXME: ? */
 
@@ -975,7 +975,7 @@ void intel_gtt_clear_range(unsigned int first_entry, unsigned int num_entries)
 	unsigned int i;
 
 	for (i = first_entry; i < (first_entry + num_entries); i++) {
-		intel_private.driver->write_entry(intel_private.scratch_page_dma,
+		intel_private.driver->write_entry(intel_private.base.scratch_page_dma,
 						  i, 0);
 	}
 	readl(intel_private.gtt+i-1);
@@ -1190,7 +1190,6 @@ static inline int needs_idle_maps(void)
 {
 #ifdef CONFIG_INTEL_IOMMU
 	const unsigned short gpu_devid = intel_private.pcidev->device;
-	extern int intel_iommu_gfx_mapped;
 
 	/* Query intel_iommu to see if we need the workaround. Presumably that
 	 * was loaded first.
@@ -1458,6 +1457,8 @@ static const struct intel_gtt_driver_description {
 	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT2_IG,
 	    "Ivybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT2_IG,
 	    "Ivybridge", &sandybridge_gtt_driver },
 	{ 0, NULL, NULL }
 };

@@ -230,11 +230,13 @@ int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 
 	if (ret) {
 		trans->block_rsv = rsv;
-		WARN_ON(1);
+		btrfs_abort_transaction(trans, root, ret);
 		return ret;
 	}
 
 	ret = btrfs_update_inode(trans, root, inode);
+	if (ret)
+		btrfs_abort_transaction(trans, root, ret);
 	trans->block_rsv = rsv;
 
 	return ret;
@@ -746,13 +748,6 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	u64 used = btrfs_block_group_used(&block_group->item);
 
 	/*
-	 * If we're unmounting then just return, since this does a search on the
-	 * normal root and not the commit root and we could deadlock.
-	 */
-	if (btrfs_fs_closing(fs_info))
-		return 0;
-
-	/*
 	 * If this block group has been marked to be cleared for one reason or
 	 * another then we can't trust the on disk cache, so just return.
 	 */
@@ -766,6 +761,8 @@ int load_free_space_cache(struct btrfs_fs_info *fs_info,
 	path = btrfs_alloc_path();
 	if (!path)
 		return 0;
+	path->search_commit_root = 1;
+	path->skip_locking = 1;
 
 	inode = lookup_free_space_inode(root, block_group, path);
 	if (IS_ERR(inode)) {
@@ -869,7 +866,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 	io_ctl_prepare_pages(&io_ctl, inode, 0);
 
 	lock_extent_bits(&BTRFS_I(inode)->io_tree, 0, i_size_read(inode) - 1,
-			 0, &cached_state, GFP_NOFS);
+			 0, &cached_state);
 
 	node = rb_first(&ctl->free_space_offset);
 	if (!node && cluster) {
@@ -1068,7 +1065,7 @@ int btrfs_write_out_cache(struct btrfs_root *root,
 		spin_unlock(&block_group->lock);
 		ret = 0;
 #ifdef DEBUG
-		printk(KERN_ERR "btrfs: failed to write free space cace "
+		printk(KERN_ERR "btrfs: failed to write free space cache "
 		       "for block group %llu\n", block_group->key.objectid);
 #endif
 	}
@@ -1948,14 +1945,14 @@ again:
 		 */
 		ret = btrfs_add_free_space(block_group, old_start,
 					   offset - old_start);
-		WARN_ON(ret);
+		WARN_ON(ret); /* -ENOMEM */
 		goto out;
 	}
 
 	ret = remove_from_bitmap(ctl, info, &offset, &bytes);
 	if (ret == -EAGAIN)
 		goto again;
-	BUG_ON(ret);
+	BUG_ON(ret); /* logic error */
 out_lock:
 	spin_unlock(&ctl->tree_lock);
 out:
@@ -2346,7 +2343,7 @@ again:
 	rb_erase(&entry->offset_index, &ctl->free_space_offset);
 	ret = tree_insert_offset(&cluster->root, entry->offset,
 				 &entry->offset_index, 1);
-	BUG_ON(ret);
+	BUG_ON(ret); /* -EEXIST; Logic error */
 
 	trace_btrfs_setup_cluster(block_group, cluster,
 				  total_found * block_group->sectorsize, 1);
@@ -2439,7 +2436,7 @@ setup_cluster_no_bitmap(struct btrfs_block_group_cache *block_group,
 		ret = tree_insert_offset(&cluster->root, entry->offset,
 					 &entry->offset_index, 0);
 		total_size += entry->bytes;
-		BUG_ON(ret);
+		BUG_ON(ret); /* -EEXIST; Logic error */
 	} while (node && entry != last);
 
 	cluster->max_size = max_extent;
@@ -2830,6 +2827,7 @@ u64 btrfs_find_ino_for_alloc(struct btrfs_root *fs_root)
 		int ret;
 
 		ret = search_bitmap(ctl, entry, &offset, &count);
+		/* Logic error; Should be empty if it can't find anything */
 		BUG_ON(ret);
 
 		ino = offset;

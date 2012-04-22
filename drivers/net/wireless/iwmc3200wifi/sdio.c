@@ -264,13 +264,6 @@ static int if_sdio_send_chunk(struct iwm_priv *iwm, u8 *buf, int count)
 	return ret;
 }
 
-/* debugfs hooks */
-static int iwm_debugfs_sdio_open(struct inode *inode, struct file *filp)
-{
-	filp->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t iwm_debugfs_sdio_read(struct file *filp, char __user *buffer,
 				     size_t count, loff_t *ppos)
 {
@@ -363,7 +356,7 @@ err:
 
 static const struct file_operations iwm_debugfs_sdio_fops = {
 	.owner =	THIS_MODULE,
-	.open =		iwm_debugfs_sdio_open,
+	.open =		simple_open,
 	.read =		iwm_debugfs_sdio_read,
 	.llseek =	default_llseek,
 };

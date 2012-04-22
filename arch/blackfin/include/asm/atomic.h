@@ -7,6 +7,8 @@
 #ifndef __ARCH_BLACKFIN_ATOMIC__
 #define __ARCH_BLACKFIN_ATOMIC__
 
+#include <asm/cmpxchg.h>
+
 #ifdef CONFIG_SMP
 
 #include <linux/linkage.h>

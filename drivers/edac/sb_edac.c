@@ -20,6 +20,7 @@
 #include <linux/mmzone.h>
 #include <linux/smp.h>
 #include <linux/bitmap.h>
+#include <linux/math64.h>
 #include <asm/processor.h>
 #include <asm/mce.h>
 
@@ -367,7 +368,7 @@ static const struct pci_id_table pci_dev_descr_sbridge_table[] = {
 /*
  *	pci_device_id	table for which devices we are looking for
  */
-static const struct pci_device_id sbridge_pci_tbl[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sbridge_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA)},
 	{0,}			/* 0 terminated list. */
 };
@@ -670,6 +671,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	u32 reg;
 	u64 limit, prv = 0;
 	u64 tmp_mb;
+	u32 mb, kb;
 	u32 rir_way;
 
 	/*
@@ -682,8 +684,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	pvt->tolm = GET_TOLM(reg);
 	tmp_mb = (1 + pvt->tolm) >> 20;
 
-	debugf0("TOLM: %Lu.%03Lu GB (0x%016Lx)\n",
-		tmp_mb / 1000, tmp_mb % 1000, (u64)pvt->tolm);
+	mb = div_u64_rem(tmp_mb, 1000, &kb);
+	debugf0("TOLM: %u.%03u GB (0x%016Lx)\n",
+		mb, kb, (u64)pvt->tolm);
 
 	/* Address range is already 45:25 */
 	pci_read_config_dword(pvt->pci_sad1, TOHM,
@@ -691,8 +694,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	pvt->tohm = GET_TOHM(reg);
 	tmp_mb = (1 + pvt->tohm) >> 20;
 
-	debugf0("TOHM: %Lu.%03Lu GB (0x%016Lx)",
-		tmp_mb / 1000, tmp_mb % 1000, (u64)pvt->tohm);
+	mb = div_u64_rem(tmp_mb, 1000, &kb);
+	debugf0("TOHM: %u.%03u GB (0x%016Lx)",
+		mb, kb, (u64)pvt->tohm);
 
 	/*
 	 * Step 2) Get SAD range and SAD Interleave list
@@ -714,10 +718,11 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			break;
 
 		tmp_mb = (limit + 1) >> 20;
-		debugf0("SAD#%d %s up to %Lu.%03Lu GB (0x%016Lx) %s reg=0x%08x\n",
+		mb = div_u64_rem(tmp_mb, 1000, &kb);
+		debugf0("SAD#%d %s up to %u.%03u GB (0x%016Lx) %s reg=0x%08x\n",
 			n_sads,
 			get_dram_attr(reg),
-			tmp_mb / 1000, tmp_mb % 1000,
+			mb, kb,
 			((u64)tmp_mb) << 20L,
 			INTERLEAVE_MODE(reg) ? "Interleave: 8:6" : "Interleave: [8:6]XOR[18:16]",
 			reg);
@@ -747,8 +752,9 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			break;
 		tmp_mb = (limit + 1) >> 20;
 
-		debugf0("TAD#%d: up to %Lu.%03Lu GB (0x%016Lx), socket interleave %d, memory interleave %d, TGT: %d, %d, %d, %d, reg=0x%08x\n",
-			n_tads, tmp_mb / 1000, tmp_mb % 1000,
+		mb = div_u64_rem(tmp_mb, 1000, &kb);
+		debugf0("TAD#%d: up to %u.%03u GB (0x%016Lx), socket interleave %d, memory interleave %d, TGT: %d, %d, %d, %d, reg=0x%08x\n",
+			n_tads, mb, kb,
 			((u64)tmp_mb) << 20L,
 			(u32)TAD_SOCK(reg),
 			(u32)TAD_CH(reg),
@@ -757,7 +763,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 			(u32)TAD_TGT2(reg),
 			(u32)TAD_TGT3(reg),
 			reg);
-		prv = tmp_mb;
+		prv = limit;
 	}
 
 	/*
@@ -771,9 +777,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 					      tad_ch_nilv_offset[j],
 					      &reg);
 			tmp_mb = TAD_OFFSET(reg) >> 20;
-			debugf0("TAD CH#%d, offset #%d: %Lu.%03Lu GB (0x%016Lx), reg=0x%08x\n",
+			mb = div_u64_rem(tmp_mb, 1000, &kb);
+			debugf0("TAD CH#%d, offset #%d: %u.%03u GB (0x%016Lx), reg=0x%08x\n",
 				i, j,
-				tmp_mb / 1000, tmp_mb % 1000,
+				mb, kb,
 				((u64)tmp_mb) << 20L,
 				reg);
 		}
@@ -795,9 +802,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 
 			tmp_mb = RIR_LIMIT(reg) >> 20;
 			rir_way = 1 << RIR_WAY(reg);
-			debugf0("CH#%d RIR#%d, limit: %Lu.%03Lu GB (0x%016Lx), way: %d, reg=0x%08x\n",
+			mb = div_u64_rem(tmp_mb, 1000, &kb);
+			debugf0("CH#%d RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d, reg=0x%08x\n",
 				i, j,
-				tmp_mb / 1000, tmp_mb % 1000,
+				mb, kb,
 				((u64)tmp_mb) << 20L,
 				rir_way,
 				reg);
@@ -808,9 +816,10 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 						      &reg);
 				tmp_mb = RIR_OFFSET(reg) << 6;
 
-				debugf0("CH#%d RIR#%d INTL#%d, offset %Lu.%03Lu GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
+				mb = div_u64_rem(tmp_mb, 1000, &kb);
+				debugf0("CH#%d RIR#%d INTL#%d, offset %u.%03u GB (0x%016Lx), tgt: %d, reg=0x%08x\n",
 					i, j, k,
-					tmp_mb / 1000, tmp_mb % 1000,
+					mb, kb,
 					((u64)tmp_mb) << 20L,
 					(u32)RIR_RNK_TGT(reg),
 					reg);
@@ -848,6 +857,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	u8			ch_way,sck_way;
 	u32			tad_offset;
 	u32			rir_way;
+	u32			mb, kb;
 	u64			ch_addr, offset, limit, prv = 0;
 
 
@@ -858,7 +868,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	 * range (e. g. VGA addresses). It is unlikely, however, that the
 	 * memory controller would generate an error on that range.
 	 */
-	if ((addr > (u64) pvt->tolm) && (addr < (1L << 32))) {
+	if ((addr > (u64) pvt->tolm) && (addr < (1LL << 32))) {
 		sprintf(msg, "Error at TOLM area, on addr 0x%08Lx", addr);
 		edac_mc_handle_ce_no_info(mci, msg);
 		return -EINVAL;
@@ -913,7 +923,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		addr,
 		limit,
 		sad_way + 7,
-		INTERLEAVE_MODE(reg) ? "" : "XOR[18:16]");
+		interleave_mode ? "" : "XOR[18:16]");
 	if (interleave_mode)
 		idx = ((addr >> 6) ^ (addr >> 16)) & 7;
 	else
@@ -1053,7 +1063,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 	ch_addr = addr & 0x7f;
 	/* Remove socket wayness and remove 6 bits */
 	addr >>= 6;
-	addr /= sck_xch;
+	addr = div_u64(addr, sck_xch);
 #if 0
 	/* Divide by channel way */
 	addr = addr / ch_way;
@@ -1073,10 +1083,10 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 			continue;
 
 		limit = RIR_LIMIT(reg);
-
-		debugf0("RIR#%d, limit: %Lu.%03Lu GB (0x%016Lx), way: %d\n",
+		mb = div_u64_rem(limit >> 20, 1000, &kb);
+		debugf0("RIR#%d, limit: %u.%03u GB (0x%016Lx), way: %d\n",
 			n_rir,
-			(limit >> 20) / 1000, (limit >> 20) % 1000,
+			mb, kb,
 			limit,
 			1 << RIR_WAY(reg));
 		if  (ch_addr <= limit)

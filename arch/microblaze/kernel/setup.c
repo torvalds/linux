@@ -30,7 +30,6 @@
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
 
-#include <asm/system.h>
 #include <asm/prom.h>
 #include <asm/pgtable.h>
 
@@ -51,8 +50,6 @@ void __init setup_arch(char **cmdline_p)
 
 	unflatten_device_tree();
 
-	/* NOTE I think that this function is not necessary to call */
-	/* irq_early_init(); */
 	setup_cpuinfo();
 
 	microblaze_cache_init();
@@ -97,8 +94,11 @@ inline unsigned get_romfs_len(unsigned *addr)
 }
 #endif	/* CONFIG_MTD_UCLINUX_EBSS */
 
+unsigned long kernel_tlb;
+
 void __init machine_early_init(const char *cmdline, unsigned int ram,
-		unsigned int fdt, unsigned int msr)
+		unsigned int fdt, unsigned int msr, unsigned int tlb0,
+		unsigned int tlb1)
 {
 	unsigned long *src, *dst;
 	unsigned int offset = 0;
@@ -144,6 +144,12 @@ void __init machine_early_init(const char *cmdline, unsigned int ram,
 #ifdef CONFIG_EARLY_PRINTK
 	setup_early_printk(NULL);
 #endif
+
+	/* setup kernel_tlb after BSS cleaning
+	 * Maybe worth to move to asm code */
+	kernel_tlb = tlb0 + tlb1;
+	/* printk("TLB1 0x%08x, TLB0 0x%08x, tlb 0x%x\n", tlb0,
+							tlb1, kernel_tlb); */
 
 	printk("Ramdisk addr 0x%08x, ", ram);
 	if (fdt)
@@ -199,6 +205,21 @@ static int microblaze_debugfs_init(void)
 	return of_debugfs_root == NULL;
 }
 arch_initcall(microblaze_debugfs_init);
+
+# ifdef CONFIG_MMU
+static int __init debugfs_tlb(void)
+{
+	struct dentry *d;
+
+	if (!of_debugfs_root)
+		return -ENODEV;
+
+	d = debugfs_create_u32("tlb_skip", S_IRUGO, of_debugfs_root, &tlb_skip);
+	if (!d)
+		return -ENOMEM;
+}
+device_initcall(debugfs_tlb);
+# endif
 #endif
 
 static int dflt_bus_notify(struct notifier_block *nb,

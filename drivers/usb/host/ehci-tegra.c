@@ -35,7 +35,7 @@ struct tegra_ehci_hcd {
 	struct tegra_usb_phy *phy;
 	struct clk *clk;
 	struct clk *emc_clk;
-	struct otg_transceiver *transceiver;
+	struct usb_phy *transceiver;
 	int host_resumed;
 	int bus_suspended;
 	int port_resuming;
@@ -224,6 +224,7 @@ static int tegra_ehci_hub_control(
 		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		/* start resume signalling */
 		ehci_writel(ehci, temp | PORT_RESUME, status_reg);
+		set_bit(wIndex-1, &ehci->resuming_ports);
 
 		spin_unlock_irqrestore(&ehci->lock, flags);
 		msleep(20);
@@ -236,6 +237,7 @@ static int tegra_ehci_hub_control(
 			pr_err("%s: timeout waiting for SUSPEND\n", __func__);
 
 		ehci->reset_done[wIndex-1] = 0;
+		clear_bit(wIndex-1, &ehci->resuming_ports);
 
 		tegra->port_resuming = 1;
 		goto done;
@@ -729,13 +731,12 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto fail;
 	}
-	set_irq_flags(irq, IRQF_VALID);
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
-		tegra->transceiver = otg_get_transceiver();
+		tegra->transceiver = usb_get_transceiver();
 		if (tegra->transceiver)
-			otg_set_host(tegra->transceiver, &hcd->self);
+			otg_set_host(tegra->transceiver->otg, &hcd->self);
 	}
 #endif
 
@@ -750,8 +751,8 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 fail:
 #ifdef CONFIG_USB_OTG_UTILS
 	if (tegra->transceiver) {
-		otg_set_host(tegra->transceiver, NULL);
-		otg_put_transceiver(tegra->transceiver);
+		otg_set_host(tegra->transceiver->otg, NULL);
+		usb_put_transceiver(tegra->transceiver);
 	}
 #endif
 	tegra_usb_phy_close(tegra->phy);
@@ -808,8 +809,8 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (tegra->transceiver) {
-		otg_set_host(tegra->transceiver, NULL);
-		otg_put_transceiver(tegra->transceiver);
+		otg_set_host(tegra->transceiver->otg, NULL);
+		usb_put_transceiver(tegra->transceiver);
 	}
 #endif
 

@@ -32,6 +32,7 @@
 #include "psb_intel_drv.h"
 #include "psb_intel_reg.h"
 #include "power.h"
+#include "cdv_device.h"
 #include <linux/pm_runtime.h>
 
 

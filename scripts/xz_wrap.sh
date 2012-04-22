@@ -12,8 +12,8 @@
 BCJ=
 LZMA2OPTS=
 
-case $ARCH in
-	x86|x86_64)     BCJ=--x86 ;;
+case $SRCARCH in
+	x86)            BCJ=--x86 ;;
 	powerpc)        BCJ=--powerpc ;;
 	ia64)           BCJ=--ia64; LZMA2OPTS=pb=4 ;;
 	arm)            BCJ=--arm ;;

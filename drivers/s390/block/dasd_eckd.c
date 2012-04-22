@@ -1564,6 +1564,12 @@ static void dasd_eckd_do_validate_server(struct work_struct *work)
 static void dasd_eckd_kick_validate_server(struct dasd_device *device)
 {
 	dasd_get_device(device);
+	/* exit if device not online or in offline processing */
+	if (test_bit(DASD_FLAG_OFFLINE, &device->flags) ||
+	   device->state < DASD_STATE_ONLINE) {
+		dasd_put_device(device);
+		return;
+	}
 	/* queue call to do_validate_server to the kernel event daemon. */
 	schedule_work(&device->kick_validate);
 }
@@ -1993,6 +1999,7 @@ static int dasd_eckd_ready_to_online(struct dasd_device *device)
 static int dasd_eckd_online_to_ready(struct dasd_device *device)
 {
 	cancel_work_sync(&device->reload_device);
+	cancel_work_sync(&device->kick_validate);
 	return dasd_alias_remove_device(device);
 };
 
@@ -2263,6 +2270,7 @@ static void dasd_eckd_check_for_device_change(struct dasd_device *device,
 		 * and only if not suspended
 		 */
 		if (!device->block && private->lcu &&
+		    device->state == DASD_STATE_ONLINE &&
 		    !test_bit(DASD_FLAG_OFFLINE, &device->flags) &&
 		    !test_bit(DASD_FLAG_SUSPENDED, &device->flags)) {
 			/*
@@ -2836,6 +2844,7 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	sector_t recid, trkid;
 	unsigned int offs;
 	unsigned int count, count_to_trk_end;
+	int ret;
 
 	basedev = block->base;
 	if (rq_data_dir(req) == READ) {
@@ -2876,8 +2885,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 
 	itcw = itcw_init(cqr->data, itcw_size, itcw_op, 0, ctidaw, 0);
 	if (IS_ERR(itcw)) {
-		dasd_sfree_request(cqr, startdev);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto out_error;
 	}
 	cqr->cpaddr = itcw_get_tcw(itcw);
 	if (prepare_itcw(itcw, first_trk, last_trk,
@@ -2889,8 +2898,8 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 		/* Clock not in sync and XRC is enabled.
 		 * Try again later.
 		 */
-		dasd_sfree_request(cqr, startdev);
-		return ERR_PTR(-EAGAIN);
+		ret = -EAGAIN;
+		goto out_error;
 	}
 	len_to_track_end = 0;
 	/*
@@ -2929,8 +2938,10 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 					tidaw_flags = 0;
 				last_tidaw = itcw_add_tidaw(itcw, tidaw_flags,
 							    dst, part_len);
-				if (IS_ERR(last_tidaw))
-					return ERR_PTR(-EINVAL);
+				if (IS_ERR(last_tidaw)) {
+					ret = -EINVAL;
+					goto out_error;
+				}
 				dst += part_len;
 			}
 		}
@@ -2939,8 +2950,10 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 			dst = page_address(bv->bv_page) + bv->bv_offset;
 			last_tidaw = itcw_add_tidaw(itcw, 0x00,
 						    dst, bv->bv_len);
-			if (IS_ERR(last_tidaw))
-				return ERR_PTR(-EINVAL);
+			if (IS_ERR(last_tidaw)) {
+				ret = -EINVAL;
+				goto out_error;
+			}
 		}
 	}
 	last_tidaw->flags |= TIDAW_FLAGS_LAST;
@@ -2960,6 +2973,9 @@ static struct dasd_ccw_req *dasd_eckd_build_cp_tpm_track(
 	cqr->buildclk = get_clock();
 	cqr->status = DASD_CQR_FILLED;
 	return cqr;
+out_error:
+	dasd_sfree_request(cqr, startdev);
+	return ERR_PTR(ret);
 }
 
 static struct dasd_ccw_req *dasd_eckd_build_cp(struct dasd_device *startdev,

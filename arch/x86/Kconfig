@@ -69,7 +69,6 @@ config X86
 	select HAVE_ARCH_JUMP_LABEL
 	select HAVE_TEXT_POKE_SMP
 	select HAVE_GENERIC_HARDIRQS
-	select HAVE_SPARSE_IRQ
 	select SPARSE_IRQ
 	select GENERIC_FIND_FIRST_BIT
 	select GENERIC_IRQ_PROBE
@@ -82,6 +81,7 @@ config X86
 	select CLKEVT_I8253
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_IOMAP
+	select DCACHE_WORD_ACCESS if !DEBUG_PAGEALLOC
 
 config INSTRUCTION_DECODER
 	def_bool (KPROBES || PERF_EVENTS)
@@ -177,6 +177,9 @@ config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
 config ARCH_HAS_CACHE_LINE_SIZE
+	def_bool y
+
+config ARCH_HAS_CPU_AUTOPROBE
 	def_bool y
 
 config HAVE_SETUP_PER_CPU_AREA
@@ -398,6 +401,7 @@ config X86_INTEL_CE
 	select X86_REBOOTFIXUPS
 	select OF
 	select OF_EARLY_FLATTREE
+	select IRQ_DOMAIN
 	---help---
 	  Select for the Intel CE media processor (CE4100) SOC.
 	  This option compiles in support for the CE4100 SOC for settop
@@ -417,27 +421,6 @@ if X86_WANT_INTEL_MID
 config X86_INTEL_MID
 	bool
 
-config X86_MRST
-       bool "Moorestown MID platform"
-	depends on PCI
-	depends on PCI_GOANY
-	depends on X86_IO_APIC
-	select X86_INTEL_MID
-	select SFI
-	select DW_APB_TIMER
-	select APB_TIMER
-	select I2C
-	select SPI
-	select INTEL_SCU_IPC
-	select X86_PLATFORM_DEVICES
-	---help---
-	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
-	  Internet Device(MID) platform. Moorestown consists of two chips:
-	  Lincroft (CPU core, graphics, and memory controller) and Langwell IOH.
-	  Unlike standard x86 PCs, Moorestown does not have many legacy devices
-	  nor standard legacy replacement devices/features. e.g. Moorestown does
-	  not contain i8259, i8254, HPET, legacy BIOS, most of the io ports.
-
 config X86_MDFLD
        bool "Medfield MID platform"
 	depends on PCI
@@ -451,6 +434,7 @@ config X86_MDFLD
 	select SPI
 	select INTEL_SCU_IPC
 	select X86_PLATFORM_DEVICES
+	select MFD_INTEL_MSIC
 	---help---
 	  Medfield is Intel's Low Power Intel Architecture (LPIA) based Moblin
 	  Internet Device(MID) platform. 
@@ -2076,6 +2060,7 @@ config OLPC
 	select GPIOLIB
 	select OF
 	select OF_PROMTREE
+	select IRQ_DOMAIN
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.
@@ -2133,6 +2118,19 @@ config ALIX
 
 	  Note: You have to set alix.force=1 for boards with Award BIOS.
 
+config NET5501
+	bool "Soekris Engineering net5501 System Support (LEDS, GPIO, etc)"
+	select GPIOLIB
+	---help---
+	  This option enables system support for the Soekris Engineering net5501.
+
+config GEOS
+	bool "Traverse Technologies GEOS System Support (LEDS, GPIO, etc)"
+	select GPIOLIB
+	depends on DMI
+	---help---
+	  This option enables system support for the Traverse Technologies GEOS.
+
 endif # X86_32
 
 config AMD_NB
@@ -2165,9 +2163,9 @@ config IA32_EMULATION
 	depends on X86_64
 	select COMPAT_BINFMT_ELF
 	---help---
-	  Include code to run 32-bit programs under a 64-bit kernel. You should
-	  likely turn this on, unless you're 100% sure that you don't have any
-	  32-bit programs left.
+	  Include code to run legacy 32-bit programs under a
+	  64-bit kernel. You should likely turn this on, unless you're
+	  100% sure that you don't have any 32-bit programs left.
 
 config IA32_AOUT
 	tristate "IA32 a.out support"
@@ -2175,9 +2173,23 @@ config IA32_AOUT
 	---help---
 	  Support old a.out binaries in the 32bit emulation.
 
+config X86_X32
+	bool "x32 ABI for 64-bit mode (EXPERIMENTAL)"
+	depends on X86_64 && IA32_EMULATION && EXPERIMENTAL
+	---help---
+	  Include code to run binaries for the x32 native 32-bit ABI
+	  for 64-bit processors.  An x32 process gets access to the
+	  full 64-bit register file and wide data path while leaving
+	  pointers at 32 bits for smaller memory footprint.
+
+	  You will need a recent binutils (2.22 or later) with
+	  elf32_x86_64 support enabled to compile a kernel with this
+	  option set.
+
 config COMPAT
 	def_bool y
-	depends on IA32_EMULATION
+	depends on IA32_EMULATION || X86_X32
+	select ARCH_WANT_OLD_COMPAT_IPC
 
 config COMPAT_FOR_U64_ALIGNMENT
 	def_bool COMPAT

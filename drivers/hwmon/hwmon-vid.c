@@ -40,7 +40,7 @@
  * available at http://developer.intel.com/.
  *
  * AMD Athlon 64 and AMD Opteron Processors, AMD Publication 26094,
- * http://support.amd.com/us/Processor_TechDocs/26094.PDF 
+ * http://support.amd.com/us/Processor_TechDocs/26094.PDF
  * Table 74. VID Code Voltages
  * This corresponds to an arbitrary VRM code of 24 in the functions below.
  * These CPU models (K8 revision <= E) have 5 VID pins. See also:
@@ -83,27 +83,27 @@ int vid_from_reg(int val, u8 vrm)
 {
 	int vid;
 
-	switch(vrm) {
+	switch (vrm) {
 
-	case 100:               /* VRD 10.0 */
+	case 100:		/* VRD 10.0 */
 		/* compute in uV, round to mV */
 		val &= 0x3f;
-		if((val & 0x1f) == 0x1f)
+		if ((val & 0x1f) == 0x1f)
 			return 0;
-		if((val & 0x1f) <= 0x09 || val == 0x0a)
+		if ((val & 0x1f) <= 0x09 || val == 0x0a)
 			vid = 1087500 - (val & 0x1f) * 25000;
 		else
 			vid = 1862500 - (val & 0x1f) * 25000;
-		if(val & 0x20)
+		if (val & 0x20)
 			vid -= 12500;
-		return((vid + 500) / 1000);
+		return (vid + 500) / 1000;
 
 	case 110:		/* Intel Conroe */
 				/* compute in uV, round to mV */
 		val &= 0xff;
 		if (val < 0x02 || val > 0xb2)
 			return 0;
-		return((1600000 - (val - 2) * 6250 + 500) / 1000);
+		return (1600000 - (val - 2) * 6250 + 500) / 1000;
 
 	case 24:		/* Athlon64 & Opteron */
 		val &= 0x1f;
@@ -118,38 +118,38 @@ int vid_from_reg(int val, u8 vrm)
 	case 91:		/* VRM 9.1 */
 	case 90:		/* VRM 9.0 */
 		val &= 0x1f;
-		return(val == 0x1f ? 0 :
-		                       1850 - val * 25);
+		return val == 0x1f ? 0 :
+				     1850 - val * 25;
 
 	case 85:		/* VRM 8.5 */
 		val &= 0x1f;
-		return((val & 0x10  ? 25 : 0) +
+		return (val & 0x10  ? 25 : 0) +
 		       ((val & 0x0f) > 0x04 ? 2050 : 1250) -
-		       ((val & 0x0f) * 50));
+		       ((val & 0x0f) * 50);
 
 	case 84:		/* VRM 8.4 */
 		val &= 0x0f;
 				/* fall through */
 	case 82:		/* VRM 8.2 */
 		val &= 0x1f;
-		return(val == 0x1f ? 0 :
+		return val == 0x1f ? 0 :
 		       val & 0x10  ? 5100 - (val) * 100 :
-		                     2050 - (val) * 50);
+				     2050 - (val) * 50;
 	case 17:		/* Intel IMVP-II */
 		val &= 0x1f;
-		return(val & 0x10 ? 975 - (val & 0xF) * 25 :
-				    1750 - val * 50);
+		return val & 0x10 ? 975 - (val & 0xF) * 25 :
+				    1750 - val * 50;
 	case 13:
 	case 131:
 		val &= 0x3f;
 		/* Exception for Eden ULV 500 MHz */
 		if (vrm == 131 && val == 0x3f)
 			val++;
-		return(1708 - val * 16);
+		return 1708 - val * 16;
 	case 14:		/* Intel Core */
 				/* compute in uV, round to mV */
 		val &= 0x7f;
-		return(val > 0x77 ? 0 : (1500000 - (val * 12500) + 500) / 1000);
+		return val > 0x77 ? 0 : (1500000 - (val * 12500) + 500) / 1000;
 	default:		/* report 0 for unknown */
 		if (vrm)
 			pr_warn("Requested unsupported VRM version (%u)\n",
@@ -157,7 +157,7 @@ int vid_from_reg(int val, u8 vrm)
 		return 0;
 	}
 }
-
+EXPORT_SYMBOL(vid_from_reg);
 
 /*
  * After this point is the code to automatically determine which
@@ -166,9 +166,10 @@ int vid_from_reg(int val, u8 vrm)
 
 struct vrm_model {
 	u8 vendor;
-	u8 eff_family;
-	u8 eff_model;
-	u8 eff_stepping;
+	u8 family;
+	u8 model_from;
+	u8 model_to;
+	u8 stepping_to;
 	u8 vrm_type;
 };
 
@@ -177,42 +178,52 @@ struct vrm_model {
 #ifdef CONFIG_X86
 
 /*
- * The stepping parameter is highest acceptable stepping for current line.
+ * The stepping_to parameter is highest acceptable stepping for current line.
  * The model match must be exact for 4-bit values. For model values 0x10
  * and above (extended model), all models below the parameter will match.
  */
 
 static struct vrm_model vrm_models[] = {
-	{X86_VENDOR_AMD, 0x6, ANY, ANY, 90},		/* Athlon Duron etc */
-	{X86_VENDOR_AMD, 0xF, 0x3F, ANY, 24},		/* Athlon 64, Opteron */
-	/* In theory, all NPT family 0Fh processors have 6 VID pins and should
-	   thus use vrm 25, however in practice not all mainboards route the
-	   6th VID pin because it is never needed. So we use the 5 VID pin
-	   variant (vrm 24) for the models which exist today. */
-	{X86_VENDOR_AMD, 0xF, 0x7F, ANY, 24},		/* NPT family 0Fh */
-	{X86_VENDOR_AMD, 0xF, ANY, ANY, 25},		/* future fam. 0Fh */
-	{X86_VENDOR_AMD, 0x10, ANY, ANY, 25},		/* NPT family 10h */
+	{X86_VENDOR_AMD, 0x6, 0x0, ANY, ANY, 90},	/* Athlon Duron etc */
+	{X86_VENDOR_AMD, 0xF, 0x0, 0x3F, ANY, 24},	/* Athlon 64, Opteron */
+	/*
+	 * In theory, all NPT family 0Fh processors have 6 VID pins and should
+	 * thus use vrm 25, however in practice not all mainboards route the
+	 * 6th VID pin because it is never needed. So we use the 5 VID pin
+	 * variant (vrm 24) for the models which exist today.
+	 */
+	{X86_VENDOR_AMD, 0xF, 0x40, 0x7F, ANY, 24},	/* NPT family 0Fh */
+	{X86_VENDOR_AMD, 0xF, 0x80, ANY, ANY, 25},	/* future fam. 0Fh */
+	{X86_VENDOR_AMD, 0x10, 0x0, ANY, ANY, 25},	/* NPT family 10h */
 
-	{X86_VENDOR_INTEL, 0x6, 0x9, ANY, 13},		/* Pentium M (130 nm) */
-	{X86_VENDOR_INTEL, 0x6, 0xB, ANY, 85},		/* Tualatin */
-	{X86_VENDOR_INTEL, 0x6, 0xD, ANY, 13},		/* Pentium M (90 nm) */
-	{X86_VENDOR_INTEL, 0x6, 0xE, ANY, 14},		/* Intel Core (65 nm) */
-	{X86_VENDOR_INTEL, 0x6, 0xF, ANY, 110},		/* Intel Conroe */
-	{X86_VENDOR_INTEL, 0x6, ANY, ANY, 82},		/* any P6 */
-	{X86_VENDOR_INTEL, 0xF, 0x0, ANY, 90},		/* P4 */
-	{X86_VENDOR_INTEL, 0xF, 0x1, ANY, 90},		/* P4 Willamette */
-	{X86_VENDOR_INTEL, 0xF, 0x2, ANY, 90},		/* P4 Northwood */
-	{X86_VENDOR_INTEL, 0xF, ANY, ANY, 100},		/* Prescott and above assume VRD 10 */
+	{X86_VENDOR_INTEL, 0x6, 0x0, 0x6, ANY, 82},	/* Pentium Pro,
+							 * Pentium II, Xeon,
+							 * Mobile Pentium,
+							 * Celeron */
+	{X86_VENDOR_INTEL, 0x6, 0x7, 0x7, ANY, 84},	/* Pentium III, Xeon */
+	{X86_VENDOR_INTEL, 0x6, 0x8, 0x8, ANY, 82},	/* Pentium III, Xeon */
+	{X86_VENDOR_INTEL, 0x6, 0x9, 0x9, ANY, 13},	/* Pentium M (130 nm) */
+	{X86_VENDOR_INTEL, 0x6, 0xA, 0xA, ANY, 82},	/* Pentium III Xeon */
+	{X86_VENDOR_INTEL, 0x6, 0xB, 0xB, ANY, 85},	/* Tualatin */
+	{X86_VENDOR_INTEL, 0x6, 0xD, 0xD, ANY, 13},	/* Pentium M (90 nm) */
+	{X86_VENDOR_INTEL, 0x6, 0xE, 0xE, ANY, 14},	/* Intel Core (65 nm) */
+	{X86_VENDOR_INTEL, 0x6, 0xF, ANY, ANY, 110},	/* Intel Conroe and
+							 * later */
+	{X86_VENDOR_INTEL, 0xF, 0x0, 0x0, ANY, 90},	/* P4 */
+	{X86_VENDOR_INTEL, 0xF, 0x1, 0x1, ANY, 90},	/* P4 Willamette */
+	{X86_VENDOR_INTEL, 0xF, 0x2, 0x2, ANY, 90},	/* P4 Northwood */
+	{X86_VENDOR_INTEL, 0xF, 0x3, ANY, ANY, 100},	/* Prescott and above
+							 * assume VRD 10 */
 
-	{X86_VENDOR_CENTAUR, 0x6, 0x7, ANY, 85},	/* Eden ESP/Ezra */
-	{X86_VENDOR_CENTAUR, 0x6, 0x8, 0x7, 85},	/* Ezra T */
-	{X86_VENDOR_CENTAUR, 0x6, 0x9, 0x7, 85},	/* Nehemiah */
-	{X86_VENDOR_CENTAUR, 0x6, 0x9, ANY, 17},	/* C3-M, Eden-N */
-	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0x7, 0},		/* No information */
-	{X86_VENDOR_CENTAUR, 0x6, 0xA, ANY, 13},	/* C7-M, C7, Eden (Esther) */
-	{X86_VENDOR_CENTAUR, 0x6, 0xD, ANY, 134},	/* C7-D, C7-M, C7, Eden (Esther) */
-
-	{X86_VENDOR_UNKNOWN, ANY, ANY, ANY, 0}		/* stop here */
+	{X86_VENDOR_CENTAUR, 0x6, 0x7, 0x7, ANY, 85},	/* Eden ESP/Ezra */
+	{X86_VENDOR_CENTAUR, 0x6, 0x8, 0x8, 0x7, 85},	/* Ezra T */
+	{X86_VENDOR_CENTAUR, 0x6, 0x9, 0x9, 0x7, 85},	/* Nehemiah */
+	{X86_VENDOR_CENTAUR, 0x6, 0x9, 0x9, ANY, 17},	/* C3-M, Eden-N */
+	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0xA, 0x7, 0},	/* No information */
+	{X86_VENDOR_CENTAUR, 0x6, 0xA, 0xA, ANY, 13},	/* C7-M, C7,
+							 * Eden (Esther) */
+	{X86_VENDOR_CENTAUR, 0x6, 0xD, 0xD, ANY, 134},	/* C7-D, C7-M, C7,
+							 * Eden (Esther) */
 };
 
 /*
@@ -248,20 +259,17 @@ static u8 get_via_model_d_vrm(void)
 	}
 }
 
-static u8 find_vrm(u8 eff_family, u8 eff_model, u8 eff_stepping, u8 vendor)
+static u8 find_vrm(u8 family, u8 model, u8 stepping, u8 vendor)
 {
-	int i = 0;
+	int i;
 
-	while (vrm_models[i].vendor!=X86_VENDOR_UNKNOWN) {
-		if (vrm_models[i].vendor==vendor)
-			if ((vrm_models[i].eff_family==eff_family)
-			 && ((vrm_models[i].eff_model==eff_model) ||
-			     (vrm_models[i].eff_model >= 0x10 &&
-			      eff_model <= vrm_models[i].eff_model) ||
-			     (vrm_models[i].eff_model==ANY)) &&
-			     (eff_stepping <= vrm_models[i].eff_stepping))
-				return vrm_models[i].vrm_type;
-		i++;
+	for (i = 0; i < ARRAY_SIZE(vrm_models); i++) {
+		if (vendor == vrm_models[i].vendor &&
+		    family == vrm_models[i].family &&
+		    model >= vrm_models[i].model_from &&
+		    model <= vrm_models[i].model_to &&
+		    stepping <= vrm_models[i].stepping_to)
+			return vrm_models[i].vrm_type;
 	}
 
 	return 0;
@@ -270,21 +278,12 @@ static u8 find_vrm(u8 eff_family, u8 eff_model, u8 eff_stepping, u8 vendor)
 u8 vid_which_vrm(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
-	u32 eax;
-	u8 eff_family, eff_model, eff_stepping, vrm_ret;
+	u8 vrm_ret;
 
 	if (c->x86 < 6)		/* Any CPU with family lower than 6 */
-		return 0;	/* doesn't have VID and/or CPUID */
+		return 0;	/* doesn't have VID */
 
-	eax = cpuid_eax(1);
-	eff_family = ((eax & 0x00000F00)>>8);
-	eff_model  = ((eax & 0x000000F0)>>4);
-	eff_stepping = eax & 0xF;
-	if (eff_family == 0xF) {	/* use extended model & family */
-		eff_family += ((eax & 0x00F00000)>>20);
-		eff_model += ((eax & 0x000F0000)>>16)<<4;
-	}
-	vrm_ret = find_vrm(eff_family, eff_model, eff_stepping, c->x86_vendor);
+	vrm_ret = find_vrm(c->x86, c->x86_model, c->x86_mask, c->x86_vendor);
 	if (vrm_ret == 134)
 		vrm_ret = get_via_model_d_vrm();
 	if (vrm_ret == 0)
@@ -300,8 +299,6 @@ u8 vid_which_vrm(void)
 	return 0;
 }
 #endif
-
-EXPORT_SYMBOL(vid_from_reg);
 EXPORT_SYMBOL(vid_which_vrm);
 
 MODULE_AUTHOR("Rudolf Marek <r.marek@assembler.cz>");

@@ -66,7 +66,7 @@ recognized.
 If you want to have the module autoloaded on access to /dev/osst, you may
 add something like
 alias char-major-206 osst
-to your /etc/modprobe.conf (before 2.6: modules.conf).
+to a file under /etc/modprobe.d/ directory.
 
 You may find it convenient to create a symbolic link 
 ln -s nosst0 /dev/tape

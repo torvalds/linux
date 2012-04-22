@@ -82,7 +82,6 @@ static struct usb_driver cyberjack_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
 };
 
 static struct usb_serial_driver cyberjack_device = {
@@ -91,7 +90,6 @@ static struct usb_serial_driver cyberjack_device = {
 		.name =		"cyberjack",
 	},
 	.description =		"Reiner SCT Cyberjack USB card reader",
-	.usb_driver = 		&cyberjack_driver,
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		cyberjack_startup,
@@ -104,6 +102,10 @@ static struct usb_serial_driver cyberjack_device = {
 	.read_int_callback =	cyberjack_read_int_callback,
 	.read_bulk_callback =	cyberjack_read_bulk_callback,
 	.write_bulk_callback =	cyberjack_write_bulk_callback,
+};
+
+static struct usb_serial_driver * const serial_drivers[] = {
+	&cyberjack_device, NULL
 };
 
 struct cyberjack_private {
@@ -473,35 +475,7 @@ exit:
 	usb_serial_port_softint(port);
 }
 
-static int __init cyberjack_init(void)
-{
-	int retval;
-	retval  = usb_serial_register(&cyberjack_device);
-	if (retval)
-		goto failed_usb_serial_register;
-	retval = usb_register(&cyberjack_driver);
-	if (retval)
-		goto failed_usb_register;
-
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION " "
-	       DRIVER_AUTHOR "\n");
-	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
-
-	return 0;
-failed_usb_register:
-	usb_serial_deregister(&cyberjack_device);
-failed_usb_serial_register:
-	return retval;
-}
-
-static void __exit cyberjack_exit(void)
-{
-	usb_deregister(&cyberjack_driver);
-	usb_serial_deregister(&cyberjack_device);
-}
-
-module_init(cyberjack_init);
-module_exit(cyberjack_exit);
+module_usb_serial_driver(cyberjack_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

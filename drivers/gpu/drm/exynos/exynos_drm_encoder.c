@@ -111,9 +111,19 @@ exynos_drm_encoder_mode_fixup(struct drm_encoder *encoder,
 			       struct drm_display_mode *mode,
 			       struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = encoder->dev;
+	struct drm_connector *connector;
+	struct exynos_drm_manager *manager = exynos_drm_get_manager(encoder);
+	struct exynos_drm_manager_ops *manager_ops = manager->ops;
+
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	/* drm framework doesn't check NULL. */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (connector->encoder == encoder)
+			if (manager_ops && manager_ops->mode_fixup)
+				manager_ops->mode_fixup(manager->dev, connector,
+							mode, adjusted_mode);
+	}
 
 	return true;
 }
@@ -132,12 +142,11 @@ static void exynos_drm_encoder_mode_set(struct drm_encoder *encoder,
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	mode = adjusted_mode;
-
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		if (connector->encoder == encoder) {
 			if (manager_ops && manager_ops->mode_set)
-				manager_ops->mode_set(manager->dev, mode);
+				manager_ops->mode_set(manager->dev,
+							adjusted_mode);
 
 			if (overlay_ops && overlay_ops->mode_set)
 				overlay_ops->mode_set(manager->dev, overlay);
@@ -209,6 +218,7 @@ static unsigned int exynos_drm_encoder_clones(struct drm_encoder *encoder)
 		switch (display_ops->type) {
 		case EXYNOS_DISPLAY_TYPE_LCD:
 		case EXYNOS_DISPLAY_TYPE_HDMI:
+		case EXYNOS_DISPLAY_TYPE_VIDI:
 			clone_mask |= (1 << (cnt++));
 			break;
 		default:
@@ -433,9 +443,3 @@ void exynos_drm_encoder_crtc_disable(struct drm_encoder *encoder, void *data)
 	if (overlay_ops && overlay_ops->disable)
 		overlay_ops->disable(manager->dev, zpos);
 }
-
-MODULE_AUTHOR("Inki Dae <inki.dae@samsung.com>");
-MODULE_AUTHOR("Joonyoung Shim <jy0922.shim@samsung.com>");
-MODULE_AUTHOR("Seung-Woo Kim <sw0312.kim@samsung.com>");
-MODULE_DESCRIPTION("Samsung SoC DRM Encoder Driver");
-MODULE_LICENSE("GPL");

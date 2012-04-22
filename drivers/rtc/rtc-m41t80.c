@@ -900,20 +900,9 @@ static struct i2c_driver m41t80_driver = {
 	.id_table = m41t80_id,
 };
 
-static int __init m41t80_rtc_init(void)
-{
-	return i2c_add_driver(&m41t80_driver);
-}
-
-static void __exit m41t80_rtc_exit(void)
-{
-	i2c_del_driver(&m41t80_driver);
-}
+module_i2c_driver(m41t80_driver);
 
 MODULE_AUTHOR("Alexander Bigga <ab@mycable.de>");
 MODULE_DESCRIPTION("ST Microelectronics M41T80 series RTC I2C Client Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
-
-module_init(m41t80_rtc_init);
-module_exit(m41t80_rtc_exit);

@@ -35,9 +35,10 @@ config OF_EARLY_FLATTREE
 config OF_PROMTREE
 	bool
 
+# Hardly any platforms need this.  It is safe to select, but only do so if you
+# need it.
 config OF_DYNAMIC
-	def_bool y
-	depends on PPC_OF
+	bool
 
 config OF_ADDRESS
 	def_bool y
@@ -89,5 +90,9 @@ config OF_PCI_IRQ
 	depends on OF_PCI && OF_IRQ
 	help
 	  OpenFirmware PCI IRQ routing helpers
+
+config OF_MTD
+	depends on MTD
+	def_bool y
 
 endmenu # OF

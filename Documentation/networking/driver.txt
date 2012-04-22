@@ -2,16 +2,16 @@ Document about softnet driver issues
 
 Transmit path guidelines:
 
-1) The hard_start_xmit method must never return '1' under any
-   normal circumstances.  It is considered a hard error unless
+1) The ndo_start_xmit method must not return NETDEV_TX_BUSY under
+   any normal circumstances.  It is considered a hard error unless
    there is no way your device can tell ahead of time when it's
    transmit function will become busy.
 
    Instead it must maintain the queue properly.  For example,
    for a driver implementing scatter-gather this means:
 
-	static int drv_hard_start_xmit(struct sk_buff *skb,
-		   		       struct net_device *dev)
+	static netdev_tx_t drv_hard_start_xmit(struct sk_buff *skb,
+					       struct net_device *dev)
 	{
 		struct drv *dp = netdev_priv(dev);
 
@@ -23,7 +23,7 @@ Transmit path guidelines:
 			unlock_tx(dp);
 			printk(KERN_ERR PFX "%s: BUG! Tx Ring full when queue awake!\n",
 			       dev->name);
-			return 1;
+			return NETDEV_TX_BUSY;
 		}
 
 		... queue packet to card ...
@@ -35,6 +35,7 @@ Transmit path guidelines:
 		...
 		unlock_tx(dp);
 		...
+		return NETDEV_TX_OK;
 	}
 
    And then at the end of your TX reclamation event handling:
@@ -58,15 +59,12 @@ Transmit path guidelines:
             TX_BUFFS_AVAIL(dp) > 0)
 		netif_wake_queue(dp->dev);
 
-2) Do not forget to update netdev->trans_start to jiffies after
-   each new tx packet is given to the hardware.
-
-3) A hard_start_xmit method must not modify the shared parts of a
+2) An ndo_start_xmit method must not modify the shared parts of a
    cloned SKB.
 
-4) Do not forget that once you return 0 from your hard_start_xmit
-   method, it is your driver's responsibility to free up the SKB
-   and in some finite amount of time.
+3) Do not forget that once you return NETDEV_TX_OK from your
+   ndo_start_xmit method, it is your driver's responsibility to free
+   up the SKB and in some finite amount of time.
 
    For example, this means that it is not allowed for your TX
    mitigation scheme to let TX packets "hang out" in the TX
@@ -74,8 +72,9 @@ Transmit path guidelines:
    This error can deadlock sockets waiting for send buffer room
    to be freed up.
 
-   If you return 1 from the hard_start_xmit method, you must not keep
-   any reference to that SKB and you must not attempt to free it up.
+   If you return NETDEV_TX_BUSY from the ndo_start_xmit method, you
+   must not keep any reference to that SKB and you must not attempt
+   to free it up.
 
 Probing guidelines:
 
@@ -85,10 +84,10 @@ Probing guidelines:
 
 Close/stop guidelines:
 
-1) After the dev->stop routine has been called, the hardware must
+1) After the ndo_stop routine has been called, the hardware must
    not receive or transmit any data.  All in flight packets must
    be aborted. If necessary, poll or wait for completion of 
    any reset commands.
 
-2) The dev->stop routine will be called by unregister_netdevice
+2) The ndo_stop routine will be called by unregister_netdevice
    if device is still UP.

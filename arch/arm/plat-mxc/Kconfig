@@ -88,12 +88,6 @@ config IMX_HAVE_IOMUX_V1
 config ARCH_MXC_IOMUX_V3
 	bool
 
-config ARCH_MXC_AUDMUX_V1
-	bool
-
-config ARCH_MXC_AUDMUX_V2
-	bool
-
 config IRAM_ALLOC
 	bool
 	select GENERIC_ALLOCATOR

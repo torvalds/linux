@@ -16,6 +16,12 @@ struct pcmcia_device;
 struct ssb_bus;
 struct ssb_driver;
 
+struct ssb_sprom_core_pwr_info {
+	u8 itssi_2g, itssi_5g;
+	u8 maxpwr_2g, maxpwr_5gl, maxpwr_5g, maxpwr_5gh;
+	u16 pa_2g[4], pa_5gl[4], pa_5g[4], pa_5gh[4];
+};
+
 struct ssb_sprom {
 	u8 revision;
 	u8 il0mac[6];		/* MAC address for 802.11b/g */
@@ -26,9 +32,12 @@ struct ssb_sprom {
 	u8 et0mdcport;		/* MDIO for enet0 */
 	u8 et1mdcport;		/* MDIO for enet1 */
 	u16 board_rev;		/* Board revision number from SPROM. */
+	u16 board_num;		/* Board number from SPROM. */
+	u16 board_type;		/* Board type from SPROM. */
 	u8 country_code;	/* Country Code */
-	u16 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
-	u16 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */
+	char alpha2[2];		/* Country Code as two chars like EU or US */
+	u8 leddc_on_time;	/* LED Powersave Duty Cycle On Count */
+	u8 leddc_off_time;	/* LED Powersave Duty Cycle Off Count */
 	u8 ant_available_a;	/* 2GHz antenna available bits (up to 4) */
 	u8 ant_available_bg;	/* 5GHz antenna available bits (up to 4) */
 	u16 pa0b0;
@@ -47,10 +56,10 @@ struct ssb_sprom {
 	u8 gpio1;		/* GPIO pin 1 */
 	u8 gpio2;		/* GPIO pin 2 */
 	u8 gpio3;		/* GPIO pin 3 */
-	u16 maxpwr_bg;		/* 2.4GHz Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_al;		/* 5.2GHz Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_a;		/* 5.3GHz Amplifier Max Power (in dBm Q5.2) */
-	u16 maxpwr_ah;		/* 5.8GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_bg;		/* 2.4GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_al;		/* 5.2GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_a;		/* 5.3GHz Amplifier Max Power (in dBm Q5.2) */
+	u8 maxpwr_ah;		/* 5.8GHz Amplifier Max Power (in dBm Q5.2) */
 	u8 itssi_a;		/* Idle TSSI Target for A-PHY */
 	u8 itssi_bg;		/* Idle TSSI Target for B/G-PHY */
 	u8 tri2g;		/* 2.4GHz TX isolation */
@@ -61,8 +70,8 @@ struct ssb_sprom {
 	u8 txpid5gl[4];		/* 4.9 - 5.1GHz TX power index */
 	u8 txpid5g[4];		/* 5.1 - 5.5GHz TX power index */
 	u8 txpid5gh[4];		/* 5.5 - ...GHz TX power index */
-	u8 rxpo2g;		/* 2GHz RX power offset */
-	u8 rxpo5g;		/* 5GHz RX power offset */
+	s8 rxpo2g;		/* 2GHz RX power offset */
+	s8 rxpo5g;		/* 5GHz RX power offset */
 	u8 rssisav2g;		/* 2GHz RSSI params */
 	u8 rssismc2g;
 	u8 rssismf2g;
@@ -82,16 +91,13 @@ struct ssb_sprom {
 	u16 boardflags2_hi;	/* Board flags (bits 48-63) */
 	/* TODO store board flags in a single u64 */
 
+	struct ssb_sprom_core_pwr_info core_pwr_info[4];
+
 	/* Antenna gain values for up to 4 antennas
 	 * on each band. Values in dBm/4 (Q5.2). Negative gain means the
 	 * loss in the connectors is bigger than the gain. */
 	struct {
-		struct {
-			s8 a0, a1, a2, a3;
-		} ghz24;	/* 2.4GHz band */
-		struct {
-			s8 a0, a1, a2, a3;
-		} ghz5;		/* 5GHz band */
+		s8 a0, a1, a2, a3;
 	} antenna_gain;
 
 	struct {
@@ -103,7 +109,79 @@ struct ssb_sprom {
 		} ghz5;
 	} fem;
 
-	/* TODO - add any parameters needed from rev 2, 3, 4, 5 or 8 SPROMs */
+	u16 mcs2gpo[8];
+	u16 mcs5gpo[8];
+	u16 mcs5glpo[8];
+	u16 mcs5ghpo[8];
+	u8 opo;
+
+	u8 rxgainerr2ga[3];
+	u8 rxgainerr5gla[3];
+	u8 rxgainerr5gma[3];
+	u8 rxgainerr5gha[3];
+	u8 rxgainerr5gua[3];
+
+	u8 noiselvl2ga[3];
+	u8 noiselvl5gla[3];
+	u8 noiselvl5gma[3];
+	u8 noiselvl5gha[3];
+	u8 noiselvl5gua[3];
+
+	u8 regrev;
+	u8 txchain;
+	u8 rxchain;
+	u8 antswitch;
+	u16 cddpo;
+	u16 stbcpo;
+	u16 bw40po;
+	u16 bwduppo;
+
+	u8 tempthresh;
+	u8 tempoffset;
+	u16 rawtempsense;
+	u8 measpower;
+	u8 tempsense_slope;
+	u8 tempcorrx;
+	u8 tempsense_option;
+	u8 freqoffset_corr;
+	u8 iqcal_swp_dis;
+	u8 hw_iqcal_en;
+	u8 elna2g;
+	u8 elna5g;
+	u8 phycal_tempdelta;
+	u8 temps_period;
+	u8 temps_hysteresis;
+	u8 measpower1;
+	u8 measpower2;
+	u8 pcieingress_war;
+
+	/* power per rate from sromrev 9 */
+	u16 cckbw202gpo;
+	u16 cckbw20ul2gpo;
+	u32 legofdmbw202gpo;
+	u32 legofdmbw20ul2gpo;
+	u32 legofdmbw205glpo;
+	u32 legofdmbw20ul5glpo;
+	u32 legofdmbw205gmpo;
+	u32 legofdmbw20ul5gmpo;
+	u32 legofdmbw205ghpo;
+	u32 legofdmbw20ul5ghpo;
+	u32 mcsbw202gpo;
+	u32 mcsbw20ul2gpo;
+	u32 mcsbw402gpo;
+	u32 mcsbw205glpo;
+	u32 mcsbw20ul5glpo;
+	u32 mcsbw405glpo;
+	u32 mcsbw205gmpo;
+	u32 mcsbw20ul5gmpo;
+	u32 mcsbw405gmpo;
+	u32 mcsbw205ghpo;
+	u32 mcsbw20ul5ghpo;
+	u32 mcsbw405ghpo;
+	u16 mcs32po;
+	u16 legofdm40duppo;
+	u8 sar2g;
+	u8 sar5g;
 };
 
 /* Information about the PCB the circuitry is soldered on. */

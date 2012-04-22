@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/atomic.h>
 #include <linux/netlink.h>
 #include <linux/rculist.h>
 #include <linux/slab.h>
@@ -17,7 +18,6 @@
 #include <linux/errno.h>
 #include <net/netlink.h>
 #include <net/sock.h>
-#include <asm/atomic.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter/nfnetlink.h>
@@ -171,8 +171,10 @@ nfnl_acct_get(struct sock *nfnl, struct sk_buff *skb,
 	char *acct_name;
 
 	if (nlh->nlmsg_flags & NLM_F_DUMP) {
-		return netlink_dump_start(nfnl, skb, nlh, nfnl_acct_dump,
-					  NULL, 0);
+		struct netlink_dump_control c = {
+			.dump = nfnl_acct_dump,
+		};
+		return netlink_dump_start(nfnl, skb, nlh, &c);
 	}
 
 	if (!tb[NFACCT_NAME])

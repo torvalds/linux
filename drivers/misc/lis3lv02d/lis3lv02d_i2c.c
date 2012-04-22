@@ -256,19 +256,8 @@ static struct i2c_driver lis3lv02d_i2c_driver = {
 	.id_table = lis3lv02d_id,
 };
 
-static int __init lis3lv02d_init(void)
-{
-	return i2c_add_driver(&lis3lv02d_i2c_driver);
-}
-
-static void __exit lis3lv02d_exit(void)
-{
-	i2c_del_driver(&lis3lv02d_i2c_driver);
-}
+module_i2c_driver(lis3lv02d_i2c_driver);
 
 MODULE_AUTHOR("Nokia Corporation");
 MODULE_DESCRIPTION("lis3lv02d I2C interface");
 MODULE_LICENSE("GPL");
-
-module_init(lis3lv02d_init);
-module_exit(lis3lv02d_exit);

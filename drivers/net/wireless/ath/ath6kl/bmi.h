@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2004-2011 Atheros Communications Inc.
+ * Copyright (c) 2011 Qualcomm Atheros, Inc.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -221,6 +222,29 @@ struct ath6kl_bmi_target_info {
 	__le32 version;      /* target version id */
 	__le32 type;         /* target type */
 } __packed;
+
+#define ath6kl_bmi_write_hi32(ar, item, val)				\
+	({								\
+		u32 addr;						\
+		__le32 v;						\
+									\
+		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
+		v = cpu_to_le32(val);					\
+		ath6kl_bmi_write(ar, addr, (u8 *) &v, sizeof(v));	\
+	})
+
+#define ath6kl_bmi_read_hi32(ar, item, val)				\
+	({								\
+		u32 addr, *check_type = val;				\
+		__le32 tmp;						\
+		int ret;						\
+									\
+		(void) (check_type == val);				\
+		addr = ath6kl_get_hi_item_addr(ar, HI_ITEM(item));	\
+		ret = ath6kl_bmi_read(ar, addr, (u8 *) &tmp, 4);	\
+		*val = le32_to_cpu(tmp);				\
+		ret;							\
+	})
 
 int ath6kl_bmi_init(struct ath6kl *ar);
 void ath6kl_bmi_cleanup(struct ath6kl *ar);

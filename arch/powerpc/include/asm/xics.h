@@ -86,7 +86,7 @@ struct ics {
 extern unsigned int xics_default_server;
 extern unsigned int xics_default_distrib_server;
 extern unsigned int xics_interrupt_server_size;
-extern struct irq_host *xics_host;
+extern struct irq_domain *xics_host;
 
 struct xics_cppr {
 	unsigned char stack[MAX_NUM_PRIORITIES];

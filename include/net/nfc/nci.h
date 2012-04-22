@@ -116,6 +116,11 @@
 #define NCI_DISC_MAP_MODE_POLL					0x01
 #define NCI_DISC_MAP_MODE_LISTEN				0x02
 
+/* NCI Discover Notification Type */
+#define NCI_DISCOVER_NTF_TYPE_LAST				0x00
+#define NCI_DISCOVER_NTF_TYPE_LAST_NFCC				0x01
+#define NCI_DISCOVER_NTF_TYPE_MORE				0x02
+
 /* NCI Deactivation Type */
 #define NCI_DEACTIVATE_TYPE_IDLE_MODE				0x00
 #define NCI_DEACTIVATE_TYPE_SLEEP_MODE				0x01
@@ -207,6 +212,13 @@ struct nci_rf_disc_cmd {
 	struct disc_config		disc_configs[NCI_MAX_NUM_RF_CONFIGS];
 } __packed;
 
+#define NCI_OP_RF_DISCOVER_SELECT_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x04)
+struct nci_rf_discover_select_cmd {
+	__u8	rf_discovery_id;
+	__u8	rf_protocol;
+	__u8	rf_interface;
+} __packed;
+
 #define NCI_OP_RF_DEACTIVATE_CMD	nci_opcode_pack(NCI_GID_RF_MGMT, 0x06)
 struct nci_rf_deactivate_cmd {
 	__u8	type;
@@ -244,6 +256,8 @@ struct nci_core_init_rsp_2 {
 
 #define NCI_OP_RF_DISCOVER_RSP		nci_opcode_pack(NCI_GID_RF_MGMT, 0x03)
 
+#define NCI_OP_RF_DISCOVER_SELECT_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x04)
+
 #define NCI_OP_RF_DEACTIVATE_RSP	nci_opcode_pack(NCI_GID_RF_MGMT, 0x06)
 
 /* --------------------------- */
@@ -260,13 +274,15 @@ struct nci_core_conn_credit_ntf {
 	struct conn_credit_entry	conn_entries[NCI_MAX_NUM_CONN];
 } __packed;
 
+#define NCI_OP_CORE_GENERIC_ERROR_NTF	nci_opcode_pack(NCI_GID_CORE, 0x07)
+
 #define NCI_OP_CORE_INTF_ERROR_NTF	nci_opcode_pack(NCI_GID_CORE, 0x08)
 struct nci_core_intf_error_ntf {
 	__u8	status;
 	__u8	conn_id;
 } __packed;
 
-#define NCI_OP_RF_INTF_ACTIVATED_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)
+#define NCI_OP_RF_DISCOVER_NTF		nci_opcode_pack(NCI_GID_RF_MGMT, 0x03)
 struct rf_tech_specific_params_nfca_poll {
 	__u16	sens_res;
 	__u8	nfcid1_len;	/* 0, 4, 7, or 10 Bytes */
@@ -275,9 +291,41 @@ struct rf_tech_specific_params_nfca_poll {
 	__u8	sel_res;
 } __packed;
 
+struct rf_tech_specific_params_nfcb_poll {
+	__u8	sensb_res_len;
+	__u8	sensb_res[12];	/* 11 or 12 Bytes */
+} __packed;
+
+struct rf_tech_specific_params_nfcf_poll {
+	__u8	bit_rate;
+	__u8	sensf_res_len;
+	__u8	sensf_res[18];	/* 16 or 18 Bytes */
+} __packed;
+
+struct nci_rf_discover_ntf {
+	__u8	rf_discovery_id;
+	__u8	rf_protocol;
+	__u8	rf_tech_and_mode;
+	__u8	rf_tech_specific_params_len;
+
+	union {
+		struct rf_tech_specific_params_nfca_poll nfca_poll;
+		struct rf_tech_specific_params_nfcb_poll nfcb_poll;
+		struct rf_tech_specific_params_nfcf_poll nfcf_poll;
+	} rf_tech_specific_params;
+
+	__u8	ntf_type;
+} __packed;
+
+#define NCI_OP_RF_INTF_ACTIVATED_NTF	nci_opcode_pack(NCI_GID_RF_MGMT, 0x05)
 struct activation_params_nfca_poll_iso_dep {
 	__u8	rats_res_len;
 	__u8	rats_res[20];
+};
+
+struct activation_params_nfcb_poll_iso_dep {
+	__u8	attrib_res_len;
+	__u8	attrib_res[50];
 };
 
 struct nci_rf_intf_activated_ntf {
@@ -291,6 +339,8 @@ struct nci_rf_intf_activated_ntf {
 
 	union {
 		struct rf_tech_specific_params_nfca_poll nfca_poll;
+		struct rf_tech_specific_params_nfcb_poll nfcb_poll;
+		struct rf_tech_specific_params_nfcf_poll nfcf_poll;
 	} rf_tech_specific_params;
 
 	__u8	data_exch_rf_tech_and_mode;
@@ -300,6 +350,7 @@ struct nci_rf_intf_activated_ntf {
 
 	union {
 		struct activation_params_nfca_poll_iso_dep nfca_poll_iso_dep;
+		struct activation_params_nfcb_poll_iso_dep nfcb_poll_iso_dep;
 	} activation_params;
 
 } __packed;

@@ -66,8 +66,8 @@
 		"	li %0,%3\n"			\
 		"	b 2b\n"				\
 		".section __ex_table,\"a\"\n"		\
-		"	.align 2\n"			\
-		"	.long 1b,3b\n"			\
+			PPC_LONG_ALIGN "\n"		\
+			PPC_LONG "1b,3b\n"		\
 		".text"					\
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))

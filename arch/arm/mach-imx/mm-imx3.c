@@ -21,6 +21,7 @@
 #include <linux/err.h>
 
 #include <asm/pgtable.h>
+#include <asm/system_misc.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
 
@@ -34,35 +35,35 @@ static void imx3_idle(void)
 {
 	unsigned long reg = 0;
 
-	if (!need_resched())
-		__asm__ __volatile__(
-			/* disable I and D cache */
-			"mrc p15, 0, %0, c1, c0, 0\n"
-			"bic %0, %0, #0x00001000\n"
-			"bic %0, %0, #0x00000004\n"
-			"mcr p15, 0, %0, c1, c0, 0\n"
-			/* invalidate I cache */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c5, 0\n"
-			/* clear and invalidate D cache */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c14, 0\n"
-			/* WFI */
-			"mov %0, #0\n"
-			"mcr p15, 0, %0, c7, c0, 4\n"
-			"nop\n" "nop\n" "nop\n" "nop\n"
-			"nop\n" "nop\n" "nop\n"
-			/* enable I and D cache */
-			"mrc p15, 0, %0, c1, c0, 0\n"
-			"orr %0, %0, #0x00001000\n"
-			"orr %0, %0, #0x00000004\n"
-			"mcr p15, 0, %0, c1, c0, 0\n"
-			: "=r" (reg));
-	local_irq_enable();
+	mx3_cpu_lp_set(MX3_WAIT);
+
+	__asm__ __volatile__(
+		/* disable I and D cache */
+		"mrc p15, 0, %0, c1, c0, 0\n"
+		"bic %0, %0, #0x00001000\n"
+		"bic %0, %0, #0x00000004\n"
+		"mcr p15, 0, %0, c1, c0, 0\n"
+		/* invalidate I cache */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c5, 0\n"
+		/* clear and invalidate D cache */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c14, 0\n"
+		/* WFI */
+		"mov %0, #0\n"
+		"mcr p15, 0, %0, c7, c0, 4\n"
+		"nop\n" "nop\n" "nop\n" "nop\n"
+		"nop\n" "nop\n" "nop\n"
+		/* enable I and D cache */
+		"mrc p15, 0, %0, c1, c0, 0\n"
+		"orr %0, %0, #0x00001000\n"
+		"orr %0, %0, #0x00000004\n"
+		"mcr p15, 0, %0, c1, c0, 0\n"
+		: "=r" (reg));
 }
 
-static void __iomem *imx3_ioremap(unsigned long phys_addr, size_t size,
-				  unsigned int mtype)
+static void __iomem *imx3_ioremap_caller(unsigned long phys_addr, size_t size,
+					 unsigned int mtype, void *caller)
 {
 	if (mtype == MT_DEVICE) {
 		/*
@@ -75,10 +76,10 @@ static void __iomem *imx3_ioremap(unsigned long phys_addr, size_t size,
 			mtype = MT_DEVICE_NONSHARED;
 	}
 
-	return __arm_ioremap(phys_addr, size, mtype);
+	return __arm_ioremap_caller(phys_addr, size, mtype, caller);
 }
 
-void imx3_init_l2x0(void)
+void __init imx3_init_l2x0(void)
 {
 	void __iomem *l2x0_base;
 	void __iomem *clkctl_base;
@@ -134,8 +135,8 @@ void __init imx31_init_early(void)
 {
 	mxc_set_cpu_type(MXC_CPU_MX31);
 	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
-	pm_idle = imx3_idle;
-	imx_ioremap = imx3_ioremap;
+	arch_ioremap_caller = imx3_ioremap_caller;
+	arm_pm_idle = imx3_idle;
 }
 
 void __init mx31_init_irq(void)
@@ -158,6 +159,10 @@ static struct sdma_platform_data imx31_sdma_pdata __initdata = {
 	.script_addrs = &imx31_to2_sdma_script,
 };
 
+static const struct resource imx31_audmux_res[] __initconst = {
+	DEFINE_RES_MEM(MX31_AUDMUX_BASE_ADDR, SZ_16K),
+};
+
 void __init imx31_soc_init(void)
 {
 	int to_version = mx31_revision() >> 4;
@@ -175,6 +180,12 @@ void __init imx31_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx31-sdma", MX31_SDMA_BASE_ADDR, MX31_INT_SDMA, &imx31_sdma_pdata);
+
+	imx_set_aips(MX31_IO_ADDRESS(MX31_AIPS1_BASE_ADDR));
+	imx_set_aips(MX31_IO_ADDRESS(MX31_AIPS2_BASE_ADDR));
+
+	platform_device_register_simple("imx31-audmux", 0, imx31_audmux_res,
+					ARRAY_SIZE(imx31_audmux_res));
 }
 #endif /* ifdef CONFIG_SOC_IMX31 */
 
@@ -197,8 +208,8 @@ void __init imx35_init_early(void)
 	mxc_set_cpu_type(MXC_CPU_MX35);
 	mxc_iomux_v3_init(MX35_IO_ADDRESS(MX35_IOMUXC_BASE_ADDR));
 	mxc_arch_reset_init(MX35_IO_ADDRESS(MX35_WDOG_BASE_ADDR));
-	pm_idle = imx3_idle;
-	imx_ioremap = imx3_ioremap;
+	arm_pm_idle = imx3_idle;
+	arch_ioremap_caller = imx3_ioremap_caller;
 }
 
 void __init mx35_init_irq(void)
@@ -241,6 +252,10 @@ static struct sdma_platform_data imx35_sdma_pdata __initdata = {
 	.script_addrs = &imx35_to2_sdma_script,
 };
 
+static const struct resource imx35_audmux_res[] __initconst = {
+	DEFINE_RES_MEM(MX35_AUDMUX_BASE_ADDR, SZ_16K),
+};
+
 void __init imx35_soc_init(void)
 {
 	int to_version = mx35_revision() >> 4;
@@ -259,5 +274,13 @@ void __init imx35_soc_init(void)
 	}
 
 	imx_add_imx_sdma("imx35-sdma", MX35_SDMA_BASE_ADDR, MX35_INT_SDMA, &imx35_sdma_pdata);
+
+	/* Setup AIPS registers */
+	imx_set_aips(MX35_IO_ADDRESS(MX35_AIPS1_BASE_ADDR));
+	imx_set_aips(MX35_IO_ADDRESS(MX35_AIPS2_BASE_ADDR));
+
+	/* i.mx35 has the i.mx31 type audmux */
+	platform_device_register_simple("imx31-audmux", 0, imx35_audmux_res,
+					ARRAY_SIZE(imx35_audmux_res));
 }
 #endif /* ifdef CONFIG_SOC_IMX35 */

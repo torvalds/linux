@@ -244,14 +244,24 @@ static inline int gpio_set_debounce(unsigned gpio, unsigned debounce)
 	return -EINVAL;
 }
 
-static inline int gpio_get_value(unsigned gpio)
+static inline int __gpio_get_value(unsigned gpio)
 {
 	return bfin_gpio_get_value(gpio);
 }
 
-static inline void gpio_set_value(unsigned gpio, int value)
+static inline void __gpio_set_value(unsigned gpio, int value)
 {
 	return bfin_gpio_set_value(gpio, value);
+}
+
+static inline int gpio_get_value(unsigned gpio)
+{
+	return __gpio_get_value(gpio);
+}
+
+static inline void gpio_set_value(unsigned gpio, int value)
+{
+	return __gpio_set_value(gpio, value);
 }
 
 static inline int gpio_to_irq(unsigned gpio)

@@ -86,7 +86,7 @@
 #define	RATE_NOT_USED				0x07
 
 /*
- * Device Configutration
+ * Device Configuration
  */
 #define	CONF_NORMAL				0x00
 #define	CONF_POSITIVE_BIAS			0x01
@@ -142,7 +142,7 @@ static s32 hmc5843_configure(struct i2c_client *client,
 					(operating_mode & 0x03));
 }
 
-/* Return the measurement value from the  specified channel */
+/* Return the measurement value from the specified channel */
 static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 				    int address,
 				    int *val)
@@ -169,7 +169,7 @@ static int hmc5843_read_measurement(struct iio_dev *indio_dev,
 /*
  * From the datasheet
  * 0 - Continuous-Conversion Mode: In continuous-conversion mode, the
- * device continuously performs conversions an places the result in the
+ * device continuously performs conversions and places the result in the
  * data register.
  *
  * 1 - Single-Conversion Mode : device performs a single measurement,
@@ -521,7 +521,9 @@ static int hmc5843_detect(struct i2c_client *client,
 /* Called when we have found a new HMC5843. */
 static void hmc5843_init_client(struct i2c_client *client)
 {
-	struct hmc5843_data *data = i2c_get_clientdata(client);
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	struct hmc5843_data *data = iio_priv(indio_dev);
+
 	hmc5843_set_meas_conf(client, data->meas_conf);
 	hmc5843_set_rate(client, data->rate);
 	hmc5843_configure(client, data->operating_mode);
@@ -588,18 +590,25 @@ static int hmc5843_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int hmc5843_suspend(struct i2c_client *client, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int hmc5843_suspend(struct device *dev)
 {
-	hmc5843_configure(client, MODE_SLEEP);
+	hmc5843_configure(to_i2c_client(dev), MODE_SLEEP);
 	return 0;
 }
 
-static int hmc5843_resume(struct i2c_client *client)
+static int hmc5843_resume(struct device *dev)
 {
-	struct hmc5843_data *data = i2c_get_clientdata(client);
-	hmc5843_configure(client, data->operating_mode);
+	struct hmc5843_data *data = i2c_get_clientdata(to_i2c_client(dev));
+	hmc5843_configure(to_i2c_client(dev), data->operating_mode);
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(hmc5843_pm_ops, hmc5843_suspend, hmc5843_resume);
+#define HMC5843_PM_OPS (&hmc5843_pm_ops)
+#else
+#define HMC5843_PM_OPS NULL
+#endif
 
 static const struct i2c_device_id hmc5843_id[] = {
 	{ "hmc5843", 0 },
@@ -610,14 +619,13 @@ MODULE_DEVICE_TABLE(i2c, hmc5843_id);
 static struct i2c_driver hmc5843_driver = {
 	.driver = {
 		.name	= "hmc5843",
+		.pm	= HMC5843_PM_OPS,
 	},
 	.id_table	= hmc5843_id,
 	.probe		= hmc5843_probe,
 	.remove		= hmc5843_remove,
 	.detect		= hmc5843_detect,
 	.address_list	= normal_i2c,
-	.suspend	= hmc5843_suspend,
-	.resume		= hmc5843_resume,
 };
 module_i2c_driver(hmc5843_driver);
 

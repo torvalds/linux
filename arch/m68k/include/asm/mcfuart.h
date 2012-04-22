@@ -41,7 +41,10 @@ struct mcf_platform_uart {
 #define	MCFUART_UTF		0x28		/* Transmitter FIFO (r/w) */
 #define	MCFUART_URF		0x2c		/* Receiver FIFO (r/w) */
 #define	MCFUART_UFPD		0x30		/* Frac Prec. Divider (r/w) */
-#else
+#endif
+#if defined(CONFIG_M5206) || defined(CONFIG_M5206e) || \
+        defined(CONFIG_M5249) || defined(CONFIG_M5307) || \
+        defined(CONFIG_M5407)
 #define	MCFUART_UIVR		0x30		/* Interrupt Vector (r/w) */
 #endif
 #define	MCFUART_UIPR		0x34		/* Input Port (r) */

@@ -663,10 +663,6 @@ void bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg);
 void bfa_cb_lps_cvl_event(void *bfad, void *uarg);
 
 /* FAA specific APIs */
-bfa_status_t bfa_faa_enable(struct bfa_s *bfa,
-			bfa_cb_iocfc_t cbfn, void *cbarg);
-bfa_status_t bfa_faa_disable(struct bfa_s *bfa,
-			bfa_cb_iocfc_t cbfn, void *cbarg);
 bfa_status_t bfa_faa_query(struct bfa_s *bfa, struct bfa_faa_attr_s *attr,
 			bfa_cb_iocfc_t cbfn, void *cbarg);
 
