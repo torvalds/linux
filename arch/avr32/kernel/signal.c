@@ -77,6 +77,9 @@ asmlinkage int sys_rt_sigreturn(struct pt_regs *regs)
 	struct rt_sigframe __user *frame;
 	sigset_t set;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	frame = (struct rt_sigframe __user *)regs->sp;
 	pr_debug("SIG return: frame = %p\n", frame);
 
