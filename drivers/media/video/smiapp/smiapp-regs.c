@@ -25,6 +25,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 
+#include "smiapp.h"
 #include "smiapp-regs.h"
 
 static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
@@ -77,8 +78,9 @@ static uint32_t float_to_u32_mul_1000000(struct i2c_client *client,
  * Read a 8/16/32-bit i2c register.  The value is returned in 'val'.
  * Returns zero if successful, or non-zero otherwise.
  */
-int smiapp_read(struct i2c_client *client, u32 reg, u32 *val)
+int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
 	unsigned char data[4];
 	unsigned int len = (u8)(reg >> 16);
@@ -145,8 +147,9 @@ err:
  * Write to a 8/16-bit register.
  * Returns zero if successful, or non-zero otherwise.
  */
-int smiapp_write(struct i2c_client *client, u32 reg, u32 val)
+int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	struct i2c_msg msg;
 	unsigned char data[6];
 	unsigned int retries;

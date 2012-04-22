@@ -40,7 +40,9 @@ struct smia_reg {
 	u32 val;			/* 8/16/32-bit value */
 };
 
-int smiapp_read(struct i2c_client *client, u32 reg, u32 *val);
-int smiapp_write(struct i2c_client *client, u32 reg, u32 val);
+struct smiapp_sensor;
+
+int smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val);
+int smiapp_write(struct smiapp_sensor *sensor, u32 reg, u32 val);
 
 #endif

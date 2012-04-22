@@ -28,9 +28,7 @@
 
 static int smiapp_write_8(struct smiapp_sensor *sensor, u16 reg, u8 val)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-
-	return smiapp_write(client, (SMIA_REG_8BIT << 16) | reg, val);
+	return smiapp_write(sensor, (SMIA_REG_8BIT << 16) | reg, val);
 }
 
 static int smiapp_write_8s(struct smiapp_sensor *sensor,
