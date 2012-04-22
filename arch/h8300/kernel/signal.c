@@ -304,7 +304,7 @@ get_sigframe(struct k_sigaction *ka, struct pt_regs *regs, size_t frame_size)
 	return (void *)((usp - frame_size) & -8UL);
 }
 
-static void setup_frame (int sig, struct k_sigaction *ka,
+static int setup_frame (int sig, struct k_sigaction *ka,
 			 sigset_t *set, struct pt_regs *regs)
 {
 	struct sigframe *frame;
@@ -365,13 +365,14 @@ static void setup_frame (int sig, struct k_sigaction *ka,
 	regs->er1 = (unsigned long)&(frame->sc);
 	regs->er5 = current->mm->start_data;	/* GOT base */
 
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
-static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
+static int setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 			    sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe *frame;
@@ -440,10 +441,11 @@ static void setup_rt_frame (int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->er2 = (unsigned long)&frame->uc;
 	regs->er5 = current->mm->start_data;	/* GOT base */
 
-	return;
+	return 0;
 
 give_sigsegv:
 	force_sigsegv(sig, current);
+	return -EFAULT;
 }
 
 /*
@@ -453,6 +455,7 @@ static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	      sigset_t *oldset,	struct pt_regs * regs)
 {
+	int ret;
 	/* are we from a system call? */
 	if (regs->orig_er0 >= 0) {
 		switch (regs->er0) {
@@ -475,11 +478,12 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 
 	/* set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
-		setup_rt_frame(sig, ka, info, oldset, regs);
+		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	else
-		setup_frame(sig, ka, oldset, regs);
+		ret = setup_frame(sig, ka, oldset, regs);
 
-	block_sigmask(ka, sig);
+	if (!ret)
+		block_sigmask(ka, sig);
 }
 
 /*
