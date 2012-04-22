@@ -53,9 +53,7 @@ struct fdpic_func_descriptor {
  * Atomically swap in the new signal mask, and wait for a signal.
  */
 asmlinkage int
-sys_sigsuspend(old_sigset_t mask,
-	       unsigned long r5, unsigned long r6, unsigned long r7,
-	       struct pt_regs __regs)
+sys_sigsuspend(old_sigset_t mask)
 {
 	sigset_t blocked;
 	siginitset(&blocked, mask);
