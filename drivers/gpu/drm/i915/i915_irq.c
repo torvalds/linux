@@ -2446,6 +2446,152 @@ static void i915_driver_irq_uninstall(struct drm_device * dev)
 	I915_WRITE(IIR, I915_READ(IIR));
 }
 
+static void i8xx_irq_preinstall(struct drm_device * dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int pipe;
+
+	atomic_set(&dev_priv->irq_received, 0);
+
+	for_each_pipe(pipe)
+		I915_WRITE(PIPESTAT(pipe), 0);
+	I915_WRITE16(IMR, 0xffff);
+	I915_WRITE16(IER, 0x0);
+	POSTING_READ16(IER);
+}
+
+static int i8xx_irq_postinstall(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+
+	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
+
+	dev_priv->pipestat[0] = 0;
+	dev_priv->pipestat[1] = 0;
+
+	I915_WRITE16(EMR,
+		     ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
+
+	/* Unmask the interrupts that we always want on. */
+	dev_priv->irq_mask =
+		~(I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		  I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+		  I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |
+		  I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+	I915_WRITE16(IMR, dev_priv->irq_mask);
+
+	I915_WRITE16(IER,
+		     I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		     I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		     I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT |
+		     I915_USER_INTERRUPT);
+	POSTING_READ16(IER);
+
+	return 0;
+}
+
+static irqreturn_t i8xx_irq_handler(DRM_IRQ_ARGS)
+{
+	struct drm_device *dev = (struct drm_device *) arg;
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_master_private *master_priv;
+	u16 iir, new_iir;
+	u32 pipe_stats[2];
+	unsigned long irqflags;
+	int irq_received;
+	int pipe;
+	u16 flip_mask =
+		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+
+	atomic_inc(&dev_priv->irq_received);
+
+	iir = I915_READ16(IIR);
+	if (iir == 0)
+		return IRQ_NONE;
+
+	while (iir & ~flip_mask) {
+		/* Can't rely on pipestat interrupt bit in iir as it might
+		 * have been cleared after the pipestat interrupt was received.
+		 * It doesn't set the bit in iir again, but it still produces
+		 * interrupts (for non-MSI).
+		 */
+		spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
+		if (iir & I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
+			i915_handle_error(dev, false);
+
+		for_each_pipe(pipe) {
+			int reg = PIPESTAT(pipe);
+			pipe_stats[pipe] = I915_READ(reg);
+
+			/*
+			 * Clear the PIPE*STAT regs before the IIR
+			 */
+			if (pipe_stats[pipe] & 0x8000ffff) {
+				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
+					DRM_DEBUG_DRIVER("pipe %c underrun\n",
+							 pipe_name(pipe));
+				I915_WRITE(reg, pipe_stats[pipe]);
+				irq_received = 1;
+			}
+		}
+		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
+
+		I915_WRITE16(IIR, iir & ~flip_mask);
+		new_iir = I915_READ16(IIR); /* Flush posted writes */
+
+		if (dev->primary->master) {
+			master_priv = dev->primary->master->driver_priv;
+			if (master_priv->sarea_priv)
+				master_priv->sarea_priv->last_dispatch =
+					READ_BREADCRUMB(dev_priv);
+		}
+
+		if (iir & I915_USER_INTERRUPT)
+			notify_ring(dev, &dev_priv->ring[RCS]);
+
+		if (pipe_stats[0] & PIPE_VBLANK_INTERRUPT_STATUS &&
+		    drm_handle_vblank(dev, 0)) {
+			if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
+				intel_prepare_page_flip(dev, 0);
+				intel_finish_page_flip(dev, 0);
+				flip_mask &= ~I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT;
+			}
+		}
+
+		if (pipe_stats[1] & PIPE_VBLANK_INTERRUPT_STATUS &&
+		    drm_handle_vblank(dev, 1)) {
+			if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
+				intel_prepare_page_flip(dev, 1);
+				intel_finish_page_flip(dev, 1);
+				flip_mask &= ~I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+			}
+		}
+
+		iir = new_iir;
+	}
+
+	return IRQ_HANDLED;
+}
+
+static void i8xx_irq_uninstall(struct drm_device * dev)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	int pipe;
+
+	dev_priv->vblank_pipe = 0;
+
+	for_each_pipe(pipe) {
+		/* Clear enable bits; then clear status bits */
+		I915_WRITE(PIPESTAT(pipe), 0);
+		I915_WRITE(PIPESTAT(pipe), I915_READ(PIPESTAT(pipe)));
+	}
+	I915_WRITE16(IMR, 0xffff);
+	I915_WRITE16(IER, 0x0);
+	I915_WRITE16(IIR, I915_READ16(IIR));
+}
+
 void intel_irq_init(struct drm_device *dev)
 {
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
@@ -2485,10 +2631,17 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->enable_vblank = ironlake_enable_vblank;
 		dev->driver->disable_vblank = ironlake_disable_vblank;
 	} else {
-		dev->driver->irq_preinstall = i915_driver_irq_preinstall;
-		dev->driver->irq_postinstall = i915_driver_irq_postinstall;
-		dev->driver->irq_uninstall = i915_driver_irq_uninstall;
-		dev->driver->irq_handler = i915_driver_irq_handler;
+		if (INTEL_INFO(dev)->gen == 2) {
+			dev->driver->irq_preinstall = i8xx_irq_preinstall;
+			dev->driver->irq_postinstall = i8xx_irq_postinstall;
+			dev->driver->irq_handler = i8xx_irq_handler;
+			dev->driver->irq_uninstall = i8xx_irq_uninstall;
+		} else {
+			dev->driver->irq_preinstall = i915_driver_irq_preinstall;
+			dev->driver->irq_postinstall = i915_driver_irq_postinstall;
+			dev->driver->irq_uninstall = i915_driver_irq_uninstall;
+			dev->driver->irq_handler = i915_driver_irq_handler;
+		}
 		dev->driver->enable_vblank = i915_enable_vblank;
 		dev->driver->disable_vblank = i915_disable_vblank;
 	}

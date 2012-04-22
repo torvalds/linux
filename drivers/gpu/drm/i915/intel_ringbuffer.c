@@ -678,6 +678,41 @@ i9xx_ring_put_irq(struct intel_ring_buffer *ring)
 	spin_unlock(&ring->irq_lock);
 }
 
+static bool
+i8xx_ring_get_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	if (!dev->irq_enabled)
+		return false;
+
+	spin_lock(&ring->irq_lock);
+	if (ring->irq_refcount++ == 0) {
+		dev_priv->irq_mask &= ~ring->irq_enable_mask;
+		I915_WRITE16(IMR, dev_priv->irq_mask);
+		POSTING_READ16(IMR);
+	}
+	spin_unlock(&ring->irq_lock);
+
+	return true;
+}
+
+static void
+i8xx_ring_put_irq(struct intel_ring_buffer *ring)
+{
+	struct drm_device *dev = ring->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	spin_lock(&ring->irq_lock);
+	if (--ring->irq_refcount == 0) {
+		dev_priv->irq_mask |= ring->irq_enable_mask;
+		I915_WRITE16(IMR, dev_priv->irq_mask);
+		POSTING_READ16(IMR);
+	}
+	spin_unlock(&ring->irq_lock);
+}
+
 void intel_ring_setup_status_page(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
@@ -1310,8 +1345,13 @@ int intel_init_render_ring_buffer(struct drm_device *dev)
 		else
 			ring->flush = gen4_render_ring_flush;
 		ring->get_seqno = ring_get_seqno;
-		ring->irq_get = i9xx_ring_get_irq;
-		ring->irq_put = i9xx_ring_put_irq;
+		if (IS_GEN2(dev)) {
+			ring->irq_get = i8xx_ring_get_irq;
+			ring->irq_put = i8xx_ring_put_irq;
+		} else {
+			ring->irq_get = i9xx_ring_get_irq;
+			ring->irq_put = i9xx_ring_put_irq;
+		}
 		ring->irq_enable_mask = I915_USER_INTERRUPT;
 	}
 	ring->write_tail = ring_write_tail;
@@ -1358,8 +1398,13 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	else
 		ring->flush = gen4_render_ring_flush;
 	ring->get_seqno = ring_get_seqno;
-	ring->irq_get = i9xx_ring_get_irq;
-	ring->irq_put = i9xx_ring_put_irq;
+	if (IS_GEN2(dev)) {
+		ring->irq_get = i8xx_ring_get_irq;
+		ring->irq_put = i8xx_ring_put_irq;
+	} else {
+		ring->irq_get = i9xx_ring_get_irq;
+		ring->irq_put = i9xx_ring_put_irq;
+	}
 	ring->irq_enable_mask = I915_USER_INTERRUPT;
 	ring->write_tail = ring_write_tail;
 	if (INTEL_INFO(dev)->gen >= 4)
