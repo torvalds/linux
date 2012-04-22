@@ -152,6 +152,9 @@ score_rt_sigreturn(struct pt_regs *regs)
 	stack_t st;
 	int sig;
 
+	/* Always make any pending restarted system calls return -EINTR */
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
+
 	frame = (struct rt_sigframe __user *) regs->regs[0];
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
