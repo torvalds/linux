@@ -34,9 +34,6 @@
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 asmlinkage void ret_from_sys_call(void);
-static void do_signal(struct pt_regs *, struct switch_stack *,
-		      unsigned long, unsigned long);
-
 
 /*
  * The OSF/1 sigprocmask calling sequence is different from the
@@ -367,11 +364,11 @@ setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	oldsp = rdusp();
 	frame = get_sigframe(ka, oldsp, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err |= setup_sigcontext(&frame->sc, regs, sw, set->sig[0], oldsp);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
@@ -387,7 +384,7 @@ setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 
 	/* Check that everything was written properly.  */
 	if (err)
-		goto give_sigsegv;
+		return err;
 
 	/* "Return" to the handler */
 	regs->r26 = r26;
@@ -401,12 +398,7 @@ setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	printk("SIG deliver (%s:%d): sp=%p pc=%p ra=%p\n",
 		current->comm, current->pid, frame, regs->pc, regs->r26);
 #endif
-
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 static int
@@ -419,7 +411,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	oldsp = rdusp();
 	frame = get_sigframe(ka, oldsp, sizeof(*frame));
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err |= copy_siginfo_to_user(&frame->info, info);
 
@@ -434,7 +426,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 				set->sig[0], oldsp);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up to return from userspace.  If provided, use a stub
 	   already in userspace.  */
@@ -450,7 +442,7 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	}
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* "Return" to the handler */
 	regs->r26 = r26;
@@ -466,31 +458,37 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 #endif
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 
 /*
  * OK, we're invoking a handler.
  */
-static inline int
+static inline void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs * regs, struct switch_stack *sw)
+	      struct pt_regs * regs, struct switch_stack *sw)
 {
+	sigset_t *oldset = &current->blocked;
 	int ret;
+
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
 		ret = setup_rt_frame(sig, ka, info, oldset, regs, sw);
 	else
 		ret = setup_frame(sig, ka, oldset, regs, sw);
 
-	if (ret == 0)
-		block_sigmask(ka, sig);
-
-	return ret;
+	if (ret) {
+		force_sigsegv(sig, current);
+		return;
+	}
+	block_sigmask(ka, sig);
+	/* A signal was successfully delivered, and the
+	   saved sigmask was stored on the signal frame,
+	   and will be restored by sigreturn.  So we can
+	   simply clear the restore sigmask flag.  */
+	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 static inline void
@@ -538,12 +536,6 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 	int signr;
 	unsigned long single_stepping = ptrace_cancel_bpt(current);
 	struct k_sigaction ka;
-	sigset_t *oldset;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	/* This lets the debugger run, ... */
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
@@ -555,14 +547,7 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 		/* Whee!  Actually deliver the signal.  */
 		if (r0)
 			syscall_restart(r0, r19, regs, &ka);
-		if (handle_signal(signr, &ka, &info, oldset, regs, sw) == 0) {
-			/* A signal was successfully delivered, and the
-			   saved sigmask was stored on the signal frame,
-			   and will be restored by sigreturn.  So we can
-			   simply clear the restore sigmask flag.  */
-			if (test_thread_flag(TIF_RESTORE_SIGMASK))
-				clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
+		handle_signal(signr, &ka, &info, regs, sw);
 		if (single_stepping) 
 			ptrace_set_bpt(current); /* re-set bpt */
 		return;
@@ -587,10 +572,8 @@ do_signal(struct pt_regs * regs, struct switch_stack * sw,
 	}
 
 	/* If there's no signal to deliver, we just restore the saved mask.  */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
+	if (test_and_clear_thread_flag(TIF_RESTORE_SIGMASK))
+		set_current_blocked(&current->saved_sigmask);
 
 	if (single_stepping)
 		ptrace_set_bpt(current);	/* re-set breakpoint */
@@ -601,7 +584,7 @@ do_notify_resume(struct pt_regs *regs, struct switch_stack *sw,
 		 unsigned long thread_info_flags,
 		 unsigned long r0, unsigned long r19)
 {
-	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+	if (thread_info_flags & _TIF_SIGPENDING)
 		do_signal(regs, sw, r0, r19);
 
 	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
