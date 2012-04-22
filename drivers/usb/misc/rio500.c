@@ -171,7 +171,9 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 			if (result == -ETIMEDOUT)
 				retries--;
 			else if (result < 0) {
-				err("Error executing ioctrl. code = %d", result);
+				dev_err(&rio->rio_dev->dev,
+					"Error executing ioctrl. code = %d\n",
+					result);
 				retries = 0;
 			} else {
 				dbg("Executed ioctl. Result = %d (data=%02x)",
@@ -238,7 +240,9 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 			if (result == -ETIMEDOUT)
 				retries--;
 			else if (result < 0) {
-				err("Error executing ioctrl. code = %d", result);
+				dev_err(&rio->rio_dev->dev,
+					"Error executing ioctrl. code = %d\n",
+					result);
 				retries = 0;
 			} else {
 				dbg("Executed ioctl. Result = %d", result);
@@ -332,7 +336,8 @@ write_rio(struct file *file, const char __user *buffer,
 				break;
 		};
 		if (result) {
-			err("Write Whoops - %x", result);
+			dev_err(&rio->rio_dev->dev, "Write Whoops - %x\n",
+				result);
 			errn = -EIO;
 			goto error;
 		}
@@ -401,7 +406,8 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 		} else if (result == -ETIMEDOUT || result == 15) {	/* FIXME: 15 ??? */
 			if (!maxretry--) {
 				mutex_unlock(&(rio->lock));
-				err("read_rio: maxretry timeout");
+				dev_err(&rio->rio_dev->dev,
+					"read_rio: maxretry timeout\n");
 				return -ETIME;
 			}
 			prepare_to_wait(&rio->wait_q, &wait, TASK_INTERRUPTIBLE);
@@ -410,8 +416,9 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 			continue;
 		} else if (result != -EREMOTEIO) {
 			mutex_unlock(&(rio->lock));
-			err("Read Whoops - result:%u partial:%u this_read:%u",
-			     result, partial, this_read);
+			dev_err(&rio->rio_dev->dev,
+				"Read Whoops - result:%u partial:%u this_read:%u\n",
+				result, partial, this_read);
 			return -EIO;
 		} else {
 			mutex_unlock(&(rio->lock));
@@ -459,21 +466,24 @@ static int probe_rio(struct usb_interface *intf,
 
 	retval = usb_register_dev(intf, &usb_rio_class);
 	if (retval) {
-		err("Not able to get a minor for this device.");
+		dev_err(&dev->dev,
+			"Not able to get a minor for this device.\n");
 		return -ENOMEM;
 	}
 
 	rio->rio_dev = dev;
 
 	if (!(rio->obuf = kmalloc(OBUF_SIZE, GFP_KERNEL))) {
-		err("probe_rio: Not enough memory for the output buffer");
+		dev_err(&dev->dev,
+			"probe_rio: Not enough memory for the output buffer\n");
 		usb_deregister_dev(intf, &usb_rio_class);
 		return -ENOMEM;
 	}
 	dbg("probe_rio: obuf address:%p", rio->obuf);
 
 	if (!(rio->ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL))) {
-		err("probe_rio: Not enough memory for the input buffer");
+		dev_err(&dev->dev,
+			"probe_rio: Not enough memory for the input buffer\n");
 		usb_deregister_dev(intf, &usb_rio_class);
 		kfree(rio->obuf);
 		return -ENOMEM;

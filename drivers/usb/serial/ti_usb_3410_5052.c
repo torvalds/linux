@@ -394,7 +394,9 @@ static int ti_startup(struct usb_serial *serial)
 
 	/* if we have only 1 configuration, download firmware */
 	if (dev->descriptor.bNumConfigurations == 1) {
-		if ((status = ti_download_firmware(tdev)) != 0)
+		status = ti_download_firmware(tdev);
+
+		if (status != 0)
 			goto free_tdev;
 
 		/* 3410 must be reset, 5052 resets itself */
@@ -1683,7 +1685,9 @@ static int ti_download_firmware(struct ti_device *tdev)
 	/* try ID specific firmware first, then try generic firmware */
 	sprintf(buf, "ti_usb-v%04x-p%04x.fw", dev->descriptor.idVendor,
 	    dev->descriptor.idProduct);
-	if ((status = request_firmware(&fw_p, buf, &dev->dev)) != 0) {
+	status = request_firmware(&fw_p, buf, &dev->dev);
+
+	if (status != 0) {
 		buf[0] = '\0';
 		if (dev->descriptor.idVendor == MTS_VENDOR_ID) {
 			switch (dev->descriptor.idProduct) {

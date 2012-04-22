@@ -118,7 +118,8 @@ static void async_complete(struct urb *urb)
 	priv = rq->priv;
 	pp = priv->pp;
 	if (status) {
-		err("async_complete: urb error %d", status);
+		dev_err(&urb->dev->dev, "async_complete: urb error %d\n",
+			status);
 	} else if (rq->dr.bRequest == 3) {
 		memcpy(priv->reg, rq->reg, sizeof(priv->reg));
 #if 0
@@ -151,7 +152,7 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 		return NULL;
 	rq = kmalloc(sizeof(struct uss720_async_request), mem_flags);
 	if (!rq) {
-		err("submit_async_request out of memory");
+		dev_err(&usbdev->dev, "submit_async_request out of memory\n");
 		return NULL;
 	}
 	kref_init(&rq->ref_count);
@@ -162,7 +163,7 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 	rq->urb = usb_alloc_urb(0, mem_flags);
 	if (!rq->urb) {
 		kref_put(&rq->ref_count, destroy_async);
-		err("submit_async_request out of memory");
+		dev_err(&usbdev->dev, "submit_async_request out of memory\n");
 		return NULL;
 	}
 	rq->dr.bRequestType = requesttype;
@@ -182,7 +183,7 @@ static struct uss720_async_request *submit_async_request(struct parport_uss720_p
 	if (!ret)
 		return rq;
 	destroy_async(&rq->ref_count);
-	err("submit_async_request submit_urb failed with %d", ret);
+	dev_err(&usbdev->dev, "submit_async_request submit_urb failed with %d\n", ret);
 	return NULL;
 }
 
@@ -217,7 +218,8 @@ static int get_1284_register(struct parport *pp, unsigned char reg, unsigned cha
 	priv = pp->private_data;
 	rq = submit_async_request(priv, 3, 0xc0, ((unsigned int)reg) << 8, 0, mem_flags);
 	if (!rq) {
-		err("get_1284_register(%u) failed", (unsigned int)reg);
+		dev_err(&priv->usbdev->dev, "get_1284_register(%u) failed",
+			(unsigned int)reg);
 		return -EIO;
 	}
 	if (!val) {
@@ -248,7 +250,8 @@ static int set_1284_register(struct parport *pp, unsigned char reg, unsigned cha
 	priv = pp->private_data;
 	rq = submit_async_request(priv, 4, 0x40, (((unsigned int)reg) << 8) | val, 0, mem_flags);
 	if (!rq) {
-		err("set_1284_register(%u,%u) failed", (unsigned int)reg, (unsigned int)val);
+		dev_err(&priv->usbdev->dev, "set_1284_register(%u,%u) failed",
+			(unsigned int)reg, (unsigned int)val);
 		return -EIO;
 	}
 	kref_put(&rq->ref_count, destroy_async);

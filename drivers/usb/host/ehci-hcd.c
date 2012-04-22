@@ -417,9 +417,6 @@ static void ehci_iaa_watchdog(unsigned long param)
 		 * CMD_IAAD when it sets STS_IAA.)
 		 */
 		cmd = ehci_readl(ehci, &ehci->regs->command);
-		if (cmd & CMD_IAAD)
-			ehci_writel(ehci, cmd & ~CMD_IAAD,
-					&ehci->regs->command);
 
 		/* If IAA is set here it either legitimately triggered
 		 * before we cleared IAAD above (but _way_ late, so we'll
@@ -894,11 +891,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* complete the unlinking of some qh [4.15.2.3] */
 	if (status & STS_IAA) {
 		/* guard against (alleged) silicon errata */
-		if (cmd & CMD_IAAD) {
-			ehci_writel(ehci, cmd & ~CMD_IAAD,
-					&ehci->regs->command);
+		if (cmd & CMD_IAAD)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
-		}
 		if (ehci->reclaim) {
 			COUNT(ehci->stats.reclaim);
 			end_unlink_async(ehci);
@@ -1376,6 +1370,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_MACH_LOONGSON1
 #include "ehci-ls1x.c"
 #define PLATFORM_DRIVER		ehci_ls1x_driver
+#endif
+
+#ifdef CONFIG_MIPS_SEAD3
+#include "ehci-sead3.c"
+#define	PLATFORM_DRIVER		ehci_hcd_sead3_driver
 #endif
 
 #ifdef CONFIG_USB_EHCI_HCD_PLATFORM

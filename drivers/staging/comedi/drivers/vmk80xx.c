@@ -295,7 +295,9 @@ resubmit:
 		if (!usb_submit_urb(urb, GFP_KERNEL))
 			goto exit;
 
-		err("comedi#: vmk80xx: %s - submit urb failed\n", __func__);
+		dev_err(&urb->dev->dev,
+			"comedi#: vmk80xx: %s - submit urb failed\n",
+			__func__);
 
 		usb_unanchor_urb(urb);
 	}

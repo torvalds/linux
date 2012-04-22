@@ -366,14 +366,14 @@ static int idmouse_probe(struct usb_interface *interface,
 			kmalloc(IMGSIZE + dev->bulk_in_size, GFP_KERNEL);
 
 		if (!dev->bulk_in_buffer) {
-			err("Unable to allocate input buffer.");
+			dev_err(&interface->dev, "Unable to allocate input buffer.\n");
 			idmouse_delete(dev);
 			return -ENOMEM;
 		}
 	}
 
 	if (!(dev->bulk_in_endpointAddr)) {
-		err("Unable to find bulk-in endpoint.");
+		dev_err(&interface->dev, "Unable to find bulk-in endpoint.\n");
 		idmouse_delete(dev);
 		return -ENODEV;
 	}
@@ -385,7 +385,7 @@ static int idmouse_probe(struct usb_interface *interface,
 	result = usb_register_dev(interface, &idmouse_class);
 	if (result) {
 		/* something prevented us from registering this device */
-		err("Unble to allocate minor number.");
+		dev_err(&interface->dev, "Unble to allocate minor number.\n");
 		usb_set_intfdata(interface, NULL);
 		idmouse_delete(dev);
 		return result;

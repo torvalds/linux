@@ -33,7 +33,6 @@
 #define DRIVER_AUTHOR "Ganesh Varadarajan <ganesh@veritas.com>"
 #define DRIVER_DESC "USB PocketPC PDA driver"
 
-static __u16 product, vendor;
 static bool debug;
 static int connect_retries = KP_RETRIES;
 static int initial_wait;
@@ -45,8 +44,6 @@ static int  ipaq_calc_num_ports(struct usb_serial *serial);
 static int  ipaq_startup(struct usb_serial *serial);
 
 static struct usb_device_id ipaq_id_table [] = {
-	/* The first entry is a placeholder for the insmod-specified device */
-	{ USB_DEVICE(0x049F, 0x0003) },
 	{ USB_DEVICE(0x0104, 0x00BE) }, /* Socket USB Sync */
 	{ USB_DEVICE(0x03F0, 0x1016) }, /* HP USB Sync */
 	{ USB_DEVICE(0x03F0, 0x1116) }, /* HP USB Sync 1611 */
@@ -623,30 +620,7 @@ static int ipaq_startup(struct usb_serial *serial)
 	return usb_reset_configuration(serial->dev);
 }
 
-static int __init ipaq_init(void)
-{
-	int retval;
-
-	if (vendor) {
-		ipaq_id_table[0].idVendor = vendor;
-		ipaq_id_table[0].idProduct = product;
-	}
-
-	retval = usb_serial_register_drivers(&ipaq_driver, serial_drivers);
-	if (retval == 0)
-		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
-			       DRIVER_DESC "\n");
-	return retval;
-}
-
-static void __exit ipaq_exit(void)
-{
-	usb_serial_deregister_drivers(&ipaq_driver, serial_drivers);
-}
-
-
-module_init(ipaq_init);
-module_exit(ipaq_exit);
+module_usb_serial_driver(ipaq_driver, serial_drivers);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
@@ -654,12 +628,6 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug enabled or not");
-
-module_param(vendor, ushort, 0);
-MODULE_PARM_DESC(vendor, "User specified USB idVendor");
-
-module_param(product, ushort, 0);
-MODULE_PARM_DESC(product, "User specified USB idProduct");
 
 module_param(connect_retries, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(connect_retries,
