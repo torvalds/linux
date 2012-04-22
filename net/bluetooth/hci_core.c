@@ -1092,32 +1092,6 @@ static const struct rfkill_ops hci_rfkill_ops = {
 	.set_block = hci_rfkill_set_block,
 };
 
-/* Alloc HCI device */
-struct hci_dev *hci_alloc_dev(void)
-{
-	struct hci_dev *hdev;
-
-	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
-	if (!hdev)
-		return NULL;
-
-	hci_init_sysfs(hdev);
-	skb_queue_head_init(&hdev->driver_init);
-
-	return hdev;
-}
-EXPORT_SYMBOL(hci_alloc_dev);
-
-/* Free HCI device */
-void hci_free_dev(struct hci_dev *hdev)
-{
-	skb_queue_purge(&hdev->driver_init);
-
-	/* will free via device release */
-	put_device(&hdev->dev);
-}
-EXPORT_SYMBOL(hci_free_dev);
-
 static void hci_power_on(struct work_struct *work)
 {
 	struct hci_dev *hdev = container_of(work, struct hci_dev, power_on);
@@ -1734,6 +1708,32 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 
 	return 0;
 }
+
+/* Alloc HCI device */
+struct hci_dev *hci_alloc_dev(void)
+{
+	struct hci_dev *hdev;
+
+	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
+	if (!hdev)
+		return NULL;
+
+	hci_init_sysfs(hdev);
+	skb_queue_head_init(&hdev->driver_init);
+
+	return hdev;
+}
+EXPORT_SYMBOL(hci_alloc_dev);
+
+/* Free HCI device */
+void hci_free_dev(struct hci_dev *hdev)
+{
+	skb_queue_purge(&hdev->driver_init);
+
+	/* will free via device release */
+	put_device(&hdev->dev);
+}
+EXPORT_SYMBOL(hci_free_dev);
 
 /* Register HCI device */
 int hci_register_dev(struct hci_dev *hdev)
