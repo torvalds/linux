@@ -109,6 +109,7 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 		sigframe_size = PARISC_RT_SIGFRAME_SIZE32;
 #endif
 
+	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
 	/* Unwind the user stack to get the rt_sigframe structure. */
 	frame = (struct rt_sigframe __user *)
@@ -466,8 +467,6 @@ syscall_restart(struct pt_regs *regs, struct k_sigaction *ka)
 	/* Check the return code */
 	switch (regs->gr[28]) {
 	case -ERESTART_RESTARTBLOCK:
-		current_thread_info()->restart_block.fn =
-			do_no_restart_syscall;
 	case -ERESTARTNOHAND:
 		DBG(1,"ERESTARTNOHAND: returning -EINTR\n");
 		regs->gr[28] = -EINTR;
