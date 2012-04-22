@@ -1713,13 +1713,63 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 struct hci_dev *hci_alloc_dev(void)
 {
 	struct hci_dev *hdev;
+	int i;
 
 	hdev = kzalloc(sizeof(struct hci_dev), GFP_KERNEL);
 	if (!hdev)
 		return NULL;
 
-	hci_init_sysfs(hdev);
+	hdev->flags = 0;
+	hdev->dev_flags = 0;
+	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
+	hdev->esco_type = (ESCO_HV1);
+	hdev->link_mode = (HCI_LM_ACCEPT);
+	hdev->io_capability = 0x03; /* No Input No Output */
+
+	hdev->idle_timeout = 0;
+	hdev->sniff_max_interval = 800;
+	hdev->sniff_min_interval = 80;
+
+	mutex_init(&hdev->lock);
+	mutex_init(&hdev->req_lock);
+
+	INIT_LIST_HEAD(&hdev->mgmt_pending);
+	INIT_LIST_HEAD(&hdev->blacklist);
+	INIT_LIST_HEAD(&hdev->uuids);
+	INIT_LIST_HEAD(&hdev->link_keys);
+	INIT_LIST_HEAD(&hdev->long_term_keys);
+	INIT_LIST_HEAD(&hdev->remote_oob_data);
+	INIT_LIST_HEAD(&hdev->adv_entries);
+
+	INIT_WORK(&hdev->rx_work, hci_rx_work);
+	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
+	INIT_WORK(&hdev->tx_work, hci_tx_work);
+	INIT_WORK(&hdev->power_on, hci_power_on);
+	INIT_WORK(&hdev->le_scan, le_scan_work);
+
+	INIT_DELAYED_WORK(&hdev->adv_work, hci_clear_adv_cache);
+	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
+	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
+	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
+
 	skb_queue_head_init(&hdev->driver_init);
+	skb_queue_head_init(&hdev->rx_q);
+	skb_queue_head_init(&hdev->cmd_q);
+	skb_queue_head_init(&hdev->raw_q);
+
+	init_waitqueue_head(&hdev->req_wait_q);
+
+	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
+
+	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
+	atomic_set(&hdev->promisc, 0);
+
+	for (i = 0; i < NUM_REASSEMBLY; i++)
+		hdev->reassembly[i] = NULL;
+
+	hci_init_sysfs(hdev);
+	discovery_init(hdev);
+	hci_conn_hash_init(hdev);
 
 	return hdev;
 }
@@ -1739,7 +1789,7 @@ EXPORT_SYMBOL(hci_free_dev);
 int hci_register_dev(struct hci_dev *hdev)
 {
 	struct list_head *head, *p;
-	int i, id, error;
+	int id, error;
 
 	if (!hdev->open || !hdev->close)
 		return -EINVAL;
@@ -1768,67 +1818,6 @@ int hci_register_dev(struct hci_dev *hdev)
 	BT_DBG("%p name %s bus %d", hdev, hdev->name, hdev->bus);
 
 	list_add(&hdev->list, head);
-
-	mutex_init(&hdev->lock);
-
-	hdev->flags = 0;
-	hdev->dev_flags = 0;
-	hdev->pkt_type  = (HCI_DM1 | HCI_DH1 | HCI_HV1);
-	hdev->esco_type = (ESCO_HV1);
-	hdev->link_mode = (HCI_LM_ACCEPT);
-	hdev->io_capability = 0x03; /* No Input No Output */
-
-	hdev->idle_timeout = 0;
-	hdev->sniff_max_interval = 800;
-	hdev->sniff_min_interval = 80;
-
-	INIT_WORK(&hdev->rx_work, hci_rx_work);
-	INIT_WORK(&hdev->cmd_work, hci_cmd_work);
-	INIT_WORK(&hdev->tx_work, hci_tx_work);
-
-
-	skb_queue_head_init(&hdev->rx_q);
-	skb_queue_head_init(&hdev->cmd_q);
-	skb_queue_head_init(&hdev->raw_q);
-
-	setup_timer(&hdev->cmd_timer, hci_cmd_timer, (unsigned long) hdev);
-
-	for (i = 0; i < NUM_REASSEMBLY; i++)
-		hdev->reassembly[i] = NULL;
-
-	init_waitqueue_head(&hdev->req_wait_q);
-	mutex_init(&hdev->req_lock);
-
-	discovery_init(hdev);
-
-	hci_conn_hash_init(hdev);
-
-	INIT_LIST_HEAD(&hdev->mgmt_pending);
-
-	INIT_LIST_HEAD(&hdev->blacklist);
-
-	INIT_LIST_HEAD(&hdev->uuids);
-
-	INIT_LIST_HEAD(&hdev->link_keys);
-	INIT_LIST_HEAD(&hdev->long_term_keys);
-
-	INIT_LIST_HEAD(&hdev->remote_oob_data);
-
-	INIT_LIST_HEAD(&hdev->adv_entries);
-
-	INIT_DELAYED_WORK(&hdev->adv_work, hci_clear_adv_cache);
-	INIT_WORK(&hdev->power_on, hci_power_on);
-	INIT_DELAYED_WORK(&hdev->power_off, hci_power_off);
-
-	INIT_DELAYED_WORK(&hdev->discov_off, hci_discov_off);
-
-	memset(&hdev->stat, 0, sizeof(struct hci_dev_stats));
-
-	atomic_set(&hdev->promisc, 0);
-
-	INIT_WORK(&hdev->le_scan, le_scan_work);
-
-	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 
 	write_unlock(&hci_dev_list_lock);
 
