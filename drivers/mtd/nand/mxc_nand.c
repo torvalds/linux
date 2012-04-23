@@ -152,6 +152,7 @@ struct mxc_nand_devtype_data {
 	int (*check_int)(struct mxc_nand_host *);
 	void (*irq_control)(struct mxc_nand_host *, int);
 	u32 (*get_ecc_status)(struct mxc_nand_host *);
+	struct nand_ecclayout *ecclayout_512, *ecclayout_2k, *ecclayout_4k;
 };
 
 struct mxc_nand_host {
@@ -1113,6 +1114,9 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.check_int = check_int_v1_v2,
 	.irq_control = irq_control_v1_v2,
 	.get_ecc_status = get_ecc_status_v1,
+	.ecclayout_512 = &nandv1_hw_eccoob_smallpage,
+	.ecclayout_2k = &nandv1_hw_eccoob_largepage,
+	.ecclayout_4k = &nandv1_hw_eccoob_smallpage, /* XXX: needs fix */
 };
 
 /* v21: i.MX25, i.MX35 */
@@ -1126,6 +1130,9 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.check_int = check_int_v1_v2,
 	.irq_control = irq_control_v1_v2,
 	.get_ecc_status = get_ecc_status_v2,
+	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
+	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
+	.ecclayout_4k = &nandv2_hw_eccoob_4k,
 };
 
 /* v3: i.MX51, i.MX53 */
@@ -1139,6 +1146,9 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.check_int = check_int_v3,
 	.irq_control = irq_control_v3,
 	.get_ecc_status = get_ecc_status_v3,
+	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
+	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
+	.ecclayout_4k = &nandv2_hw_eccoob_smallpage, /* XXX: needs fix */
 };
 
 static int __init mxcnd_probe(struct platform_device *pdev)
@@ -1149,7 +1159,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	struct mxc_nand_host *host;
 	struct resource *res;
 	int err = 0;
-	struct nand_ecclayout *oob_smallpage, *oob_largepage;
 
 	/* Allocate memory for MTD device structure and private data */
 	host = kzalloc(sizeof(struct mxc_nand_host) + NAND_MAX_PAGESIZE +
@@ -1211,8 +1220,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		host->regs = host->base + 0xe00;
 		host->spare0 = host->base + 0x800;
 		host->spare_len = 16;
-		oob_smallpage = &nandv1_hw_eccoob_smallpage;
-		oob_largepage = &nandv1_hw_eccoob_largepage;
 		this->ecc.bytes = 3;
 		host->eccsize = 1;
 	} else if (nfc_is_v21()) {
@@ -1220,8 +1227,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		host->regs = host->base + 0x1e00;
 		host->spare0 = host->base + 0x1000;
 		host->spare_len = 64;
-		oob_smallpage = &nandv2_hw_eccoob_smallpage;
-		oob_largepage = &nandv2_hw_eccoob_largepage;
 		this->ecc.bytes = 9;
 	} else if (nfc_is_v3_2()) {
 		host->devtype_data = &imx51_nand_devtype_data;
@@ -1238,13 +1243,11 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		host->regs_axi = host->base + 0x1e00;
 		host->spare0 = host->base + 0x1000;
 		host->spare_len = 64;
-		oob_smallpage = &nandv2_hw_eccoob_smallpage;
-		oob_largepage = &nandv2_hw_eccoob_largepage;
 	} else
 		BUG();
 
 	this->ecc.size = 512;
-	this->ecc.layout = oob_smallpage;
+	this->ecc.layout = host->devtype_data->ecclayout_512;
 
 	if (pdata->hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
@@ -1304,9 +1307,9 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	host->devtype_data->preset(mtd);
 
 	if (mtd->writesize == 2048)
-		this->ecc.layout = oob_largepage;
-	if (nfc_is_v21() && mtd->writesize == 4096)
-		this->ecc.layout = &nandv2_hw_eccoob_4k;
+		this->ecc.layout = host->devtype_data->ecclayout_2k;
+	else if (mtd->writesize == 4096)
+		this->ecc.layout = host->devtype_data->ecclayout_4k;
 
 	/* second phase scan */
 	if (nand_scan_tail(mtd)) {
