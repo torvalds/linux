@@ -241,45 +241,6 @@ xfs_sync_inode_data(
 	return error;
 }
 
-STATIC int
-xfs_sync_inode_attr(
-	struct xfs_inode	*ip,
-	struct xfs_perag	*pag,
-	int			flags)
-{
-	int			error = 0;
-
-	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	if (xfs_inode_clean(ip))
-		goto out_unlock;
-	if (!xfs_iflock_nowait(ip)) {
-		if (!(flags & SYNC_WAIT))
-			goto out_unlock;
-		xfs_iflock(ip);
-	}
-
-	if (xfs_inode_clean(ip)) {
-		xfs_ifunlock(ip);
-		goto out_unlock;
-	}
-
-	error = xfs_iflush(ip, flags);
-
-	/*
-	 * We don't want to try again on non-blocking flushes that can't run
-	 * again immediately. If an inode really must be written, then that's
-	 * what the SYNC_WAIT flag is for.
-	 */
-	if (error == EAGAIN) {
-		ASSERT(!(flags & SYNC_WAIT));
-		error = 0;
-	}
-
- out_unlock:
-	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	return error;
-}
-
 /*
  * Write out pagecache data for the whole filesystem.
  */
@@ -298,19 +259,6 @@ xfs_sync_data(
 
 	xfs_log_force(mp, (flags & SYNC_WAIT) ? XFS_LOG_SYNC : 0);
 	return 0;
-}
-
-/*
- * Write out inode metadata (attributes) for the whole filesystem.
- */
-STATIC int
-xfs_sync_attr(
-	struct xfs_mount	*mp,
-	int			flags)
-{
-	ASSERT((flags & ~SYNC_WAIT) == 0);
-
-	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags);
 }
 
 STATIC int
@@ -350,7 +298,7 @@ xfs_sync_fsdata(
  * First stage of freeze - no writers will make progress now we are here,
  * so we flush delwri and delalloc buffers here, then wait for all I/O to
  * complete.  Data is frozen at that point. Metadata is not frozen,
- * transactions can still occur here so don't bother flushing the buftarg
+ * transactions can still occur here so don't bother emptying the AIL
  * because it'll just get dirty again.
  */
 int
@@ -379,33 +327,6 @@ xfs_quiesce_data(
 	return error ? error : error2;
 }
 
-STATIC void
-xfs_quiesce_fs(
-	struct xfs_mount	*mp)
-{
-	int	count = 0, pincount;
-
-	xfs_reclaim_inodes(mp, 0);
-	xfs_flush_buftarg(mp->m_ddev_targp, 0);
-
-	/*
-	 * This loop must run at least twice.  The first instance of the loop
-	 * will flush most meta data but that will generate more meta data
-	 * (typically directory updates).  Which then must be flushed and
-	 * logged before we can write the unmount record. We also so sync
-	 * reclaim of inodes to catch any that the above delwri flush skipped.
-	 */
-	do {
-		xfs_reclaim_inodes(mp, SYNC_WAIT);
-		xfs_sync_attr(mp, SYNC_WAIT);
-		pincount = xfs_flush_buftarg(mp->m_ddev_targp, 1);
-		if (!pincount) {
-			delay(50);
-			count++;
-		}
-	} while (count < 2);
-}
-
 /*
  * Second stage of a quiesce. The data is already synced, now we have to take
  * care of the metadata. New transactions are already blocked, so we need to
@@ -421,8 +342,12 @@ xfs_quiesce_attr(
 	while (atomic_read(&mp->m_active_trans) > 0)
 		delay(100);
 
-	/* flush inodes and push all remaining buffers out to disk */
-	xfs_quiesce_fs(mp);
+	/* reclaim inodes to do any IO before the freeze completes */
+	xfs_reclaim_inodes(mp, 0);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
+
+	/* flush all pending changes from the AIL */
+	xfs_ail_push_all_sync(mp->m_ail);
 
 	/*
 	 * Just warn here till VFS can correctly support
@@ -436,7 +361,12 @@ xfs_quiesce_attr(
 		xfs_warn(mp, "xfs_attr_quiesce: failed to log sb changes. "
 				"Frozen image may not be consistent.");
 	xfs_log_unmount_write(mp);
-	xfs_unmountfs_writesb(mp);
+
+	/*
+	 * At this point we might have modified the superblock again and thus
+	 * added an item to the AIL, thus flush it again.
+	 */
+	xfs_ail_push_all_sync(mp->m_ail);
 }
 
 static void

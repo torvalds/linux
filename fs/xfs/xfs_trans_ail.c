@@ -383,9 +383,8 @@ xfsaild_push(
 		spin_lock(&ailp->xa_lock);
 	}
 
-	target = ailp->xa_target;
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, ailp->xa_last_pushed_lsn);
-	if (!lip || XFS_FORCED_SHUTDOWN(mp)) {
+	if (!lip) {
 		/*
 		 * AIL is empty or our push has reached the end.
 		 */
@@ -408,6 +407,7 @@ xfsaild_push(
 	 * lots of contention on the AIL lists.
 	 */
 	lsn = lip->li_lsn;
+	target = ailp->xa_target;
 	while ((XFS_LSN_CMP(lip->li_lsn, target) <= 0)) {
 		int	lock_result;
 		/*
@@ -466,11 +466,6 @@ xfsaild_push(
 		}
 
 		spin_lock(&ailp->xa_lock);
-		/* should we bother continuing? */
-		if (XFS_FORCED_SHUTDOWN(mp))
-			break;
-		ASSERT(mp->m_log);
-
 		count++;
 
 		/*
@@ -611,6 +606,30 @@ xfs_ail_push_all(
 }
 
 /*
+ * Push out all items in the AIL immediately and wait until the AIL is empty.
+ */
+void
+xfs_ail_push_all_sync(
+	struct xfs_ail  *ailp)
+{
+	struct xfs_log_item	*lip;
+	DEFINE_WAIT(wait);
+
+	spin_lock(&ailp->xa_lock);
+	while ((lip = xfs_ail_max(ailp)) != NULL) {
+		prepare_to_wait(&ailp->xa_empty, &wait, TASK_UNINTERRUPTIBLE);
+		ailp->xa_target = lip->li_lsn;
+		wake_up_process(ailp->xa_task);
+		spin_unlock(&ailp->xa_lock);
+		schedule();
+		spin_lock(&ailp->xa_lock);
+	}
+	spin_unlock(&ailp->xa_lock);
+
+	finish_wait(&ailp->xa_empty, &wait);
+}
+
+/*
  * xfs_trans_ail_update - bulk AIL insertion operation.
  *
  * @xfs_trans_ail_update takes an array of log items that all need to be
@@ -737,6 +756,8 @@ xfs_trans_ail_delete_bulk(
 	if (mlip_changed) {
 		if (!XFS_FORCED_SHUTDOWN(ailp->xa_mount))
 			xlog_assign_tail_lsn_locked(ailp->xa_mount);
+		if (list_empty(&ailp->xa_ail))
+			wake_up_all(&ailp->xa_empty);
 		spin_unlock(&ailp->xa_lock);
 
 		xfs_log_space_wake(ailp->xa_mount);
@@ -773,6 +794,7 @@ xfs_trans_ail_init(
 	INIT_LIST_HEAD(&ailp->xa_ail);
 	INIT_LIST_HEAD(&ailp->xa_cursors);
 	spin_lock_init(&ailp->xa_lock);
+	init_waitqueue_head(&ailp->xa_empty);
 
 	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
 			ailp->xa_mount->m_fsname);

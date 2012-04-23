@@ -22,6 +22,7 @@
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
+#include "xfs_trans_priv.h"
 #include "xfs_sb.h"
 #include "xfs_ag.h"
 #include "xfs_dir2.h"
@@ -1475,15 +1476,15 @@ xfs_unmountfs(
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
 	/*
-	 * Do a delwri reclaim pass first so that as many dirty inodes are
-	 * queued up for IO as possible. Then flush the buffers before making
-	 * a synchronous path to catch all the remaining inodes are reclaimed.
-	 * This makes the reclaim process as quick as possible by avoiding
-	 * synchronous writeout and blocking on inodes already in the delwri
-	 * state as much as possible.
+	 * Flush all pending changes from the AIL.
 	 */
-	xfs_reclaim_inodes(mp, 0);
-	xfs_flush_buftarg(mp->m_ddev_targp, 1);
+	xfs_ail_push_all_sync(mp->m_ail);
+
+	/*
+	 * And reclaim all inodes.  At this point there should be no dirty
+	 * inode, and none should be pinned or locked, but use synchronous
+	 * reclaim just to be sure.
+	 */
 	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	xfs_qm_unmount(mp);
@@ -1519,15 +1520,12 @@ xfs_unmountfs(
 	if (error)
 		xfs_warn(mp, "Unable to update superblock counters. "
 				"Freespace may not be correct on next mount.");
-	xfs_unmountfs_writesb(mp);
 
 	/*
-	 * Make sure all buffers have been flushed and completed before
-	 * unmounting the log.
+	 * At this point we might have modified the superblock again and thus
+	 * added an item to the AIL, thus flush it again.
 	 */
-	error = xfs_flush_buftarg(mp->m_ddev_targp, 1);
-	if (error)
-		xfs_warn(mp, "%d busy buffers during unmount.", error);
+	xfs_ail_push_all_sync(mp->m_ail);
 	xfs_wait_buftarg(mp->m_ddev_targp);
 
 	xfs_log_unmount_write(mp);
@@ -1585,36 +1583,6 @@ xfs_log_sbcount(xfs_mount_t *mp)
 	xfs_mod_sb(tp, XFS_SB_IFREE | XFS_SB_ICOUNT | XFS_SB_FDBLOCKS);
 	xfs_trans_set_sync(tp);
 	error = xfs_trans_commit(tp, 0);
-	return error;
-}
-
-int
-xfs_unmountfs_writesb(xfs_mount_t *mp)
-{
-	xfs_buf_t	*sbp;
-	int		error = 0;
-
-	/*
-	 * skip superblock write if fs is read-only, or
-	 * if we are doing a forced umount.
-	 */
-	if (!((mp->m_flags & XFS_MOUNT_RDONLY) ||
-		XFS_FORCED_SHUTDOWN(mp))) {
-
-		sbp = xfs_getsb(mp, 0);
-
-		XFS_BUF_UNDONE(sbp);
-		XFS_BUF_UNREAD(sbp);
-		xfs_buf_delwri_dequeue(sbp);
-		XFS_BUF_WRITE(sbp);
-		XFS_BUF_UNASYNC(sbp);
-		ASSERT(sbp->b_target == mp->m_ddev_targp);
-		xfsbdstrat(mp, sbp);
-		error = xfs_buf_iowait(sbp);
-		if (error)
-			xfs_buf_ioerror_alert(sbp, __func__);
-		xfs_buf_relse(sbp);
-	}
 	return error;
 }
 
