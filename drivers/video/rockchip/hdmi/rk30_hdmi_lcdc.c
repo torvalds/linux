@@ -66,9 +66,12 @@ int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
 {
     int i;
     
-    if(screen == NULL || vic == 0)
+    if(screen == NULL)
     	return -1;
     
+    if(vic == 0)
+    	vic = HDMI_VIDEO_DEFAULT_MODE;
+    	
     for(i = 0; i < ARRAY_SIZE(hdmi_mode); i++)
     {
     	if(hdmi_mode[i].flag == vic)
@@ -495,7 +498,7 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 		return -1;
 	}
 
-	rc = hdmi_set_info(hdmi->lcdc->screen, vic);
+	rc = hdmi_set_info(hdmi->lcdc->screen, hdmi->vic);
 
 	if(rc == 0) {		
 		rk_fb_switch_screen(hdmi->lcdc->screen, 1, HDMI_SOURCE_DEFAULT);
