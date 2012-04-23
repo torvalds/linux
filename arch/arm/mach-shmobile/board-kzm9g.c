@@ -258,8 +258,10 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_LCDDISP,	NULL);
 	gpio_request(GPIO_FN_LCDDCK,	NULL);
 
-	gpio_request(GPIO_PORT222,	NULL);
+	gpio_request(GPIO_PORT222,	NULL); /* LCDCDON */
+	gpio_request(GPIO_PORT226,	NULL); /* SC */
 	gpio_direction_output(GPIO_PORT222, 1);
+	gpio_direction_output(GPIO_PORT226, 1);
 
 	/* Touchscreen */
 	gpio_request(GPIO_PORT223, NULL); /* IRQ8 */
