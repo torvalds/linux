@@ -50,7 +50,6 @@ xfs-y				+= xfs_aops.o \
 				   xfs_sync.o \
 				   xfs_xattr.o \
 				   xfs_rename.o \
-				   xfs_rw.o \
 				   xfs_utils.o \
 				   xfs_vnodeops.o \
 				   kmem.o \

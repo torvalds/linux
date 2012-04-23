@@ -688,3 +688,63 @@ xfs_fs_goingdown(
 
 	return 0;
 }
+
+/*
+ * Force a shutdown of the filesystem instantly while keeping the filesystem
+ * consistent. We don't do an unmount here; just shutdown the shop, make sure
+ * that absolutely nothing persistent happens to this filesystem after this
+ * point.
+ */
+void
+xfs_do_force_shutdown(
+	xfs_mount_t	*mp,
+	int		flags,
+	char		*fname,
+	int		lnnum)
+{
+	int		logerror;
+
+	logerror = flags & SHUTDOWN_LOG_IO_ERROR;
+
+	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
+		xfs_notice(mp,
+	"%s(0x%x) called from line %d of file %s.  Return address = 0x%p",
+			__func__, flags, lnnum, fname, __return_address);
+	}
+	/*
+	 * No need to duplicate efforts.
+	 */
+	if (XFS_FORCED_SHUTDOWN(mp) && !logerror)
+		return;
+
+	/*
+	 * This flags XFS_MOUNT_FS_SHUTDOWN, makes sure that we don't
+	 * queue up anybody new on the log reservations, and wakes up
+	 * everybody who's sleeping on log reservations to tell them
+	 * the bad news.
+	 */
+	if (xfs_log_force_umount(mp, logerror))
+		return;
+
+	if (flags & SHUTDOWN_CORRUPT_INCORE) {
+		xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_CORRUPT,
+    "Corruption of in-memory data detected.  Shutting down filesystem");
+		if (XFS_ERRLEVEL_HIGH <= xfs_error_level)
+			xfs_stack_trace();
+	} else if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
+		if (logerror) {
+			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_LOGERROR,
+		"Log I/O Error Detected.  Shutting down filesystem");
+		} else if (flags & SHUTDOWN_DEVICE_REQ) {
+			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
+		"All device paths lost.  Shutting down filesystem");
+		} else if (!(flags & SHUTDOWN_REMOTE_REQ)) {
+			xfs_alert_tag(mp, XFS_PTAG_SHUTDOWN_IOERROR,
+		"I/O Error Detected. Shutting down filesystem");
+		}
+	}
+	if (!(flags & SHUTDOWN_FORCE_UMOUNT)) {
+		xfs_alert(mp,
+	"Please umount the filesystem and rectify the problem(s)");
+	}
+}
