@@ -284,11 +284,20 @@ struct ctl_table_header;
 
 #ifdef CONFIG_SYSCTL
 extern int net_sysctl_init(void);
-#else
-static inline int net_sysctl_init(void) { return 0; }
-#endif
 extern struct ctl_table_header *register_net_sysctl(struct net *net,
 	const char *path, struct ctl_table *table);
 extern void unregister_net_sysctl_table(struct ctl_table_header *header);
+#else
+static inline int net_sysctl_init(void) { return 0; }
+static inline struct ctl_table_header *register_net_sysctl(struct net *net,
+	const char *path, struct ctl_table *table)
+{
+	return NULL;
+}
+static inline void unregister_net_sysctl_table(struct ctl_table_header *header)
+{
+}
+#endif
+
 
 #endif /* __NET_NET_NAMESPACE_H */
