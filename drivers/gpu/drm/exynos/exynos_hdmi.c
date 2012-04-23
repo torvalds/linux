@@ -2367,11 +2367,43 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int hdmi_suspend(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
+	struct hdmi_context *hdata = ctx->ctx;
+
+	disable_irq(hdata->internal_irq);
+	disable_irq(hdata->external_irq);
+
+	hdata->hpd = false;
+	if (ctx->drm_dev)
+		drm_helper_hpd_irq_event(ctx->drm_dev);
+
+	hdmi_poweroff(hdata);
+
+	return 0;
+}
+
+static int hdmi_resume(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *ctx = get_hdmi_context(dev);
+	struct hdmi_context *hdata = ctx->ctx;
+
+	enable_irq(hdata->external_irq);
+	enable_irq(hdata->internal_irq);
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(hdmi_pm_ops, hdmi_suspend, hdmi_resume);
+
 struct platform_driver hdmi_driver = {
 	.probe		= hdmi_probe,
 	.remove		= __devexit_p(hdmi_remove),
 	.driver		= {
 		.name	= "exynos4-hdmi",
 		.owner	= THIS_MODULE,
+		.pm	= &hdmi_pm_ops,
 	},
 };

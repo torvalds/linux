@@ -1104,10 +1104,25 @@ static int mixer_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int mixer_suspend(struct device *dev)
+{
+	struct exynos_drm_hdmi_context *drm_hdmi_ctx = get_mixer_context(dev);
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
+
+	mixer_poweroff(ctx);
+
+	return 0;
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(mixer_pm_ops, mixer_suspend, NULL);
+
 struct platform_driver mixer_driver = {
 	.driver = {
 		.name = "s5p-mixer",
 		.owner = THIS_MODULE,
+		.pm = &mixer_pm_ops,
 	},
 	.probe = mixer_probe,
 	.remove = __devexit_p(mixer_remove),
