@@ -1315,25 +1315,6 @@ static int __init line6_init(void)
 */
 static void __exit line6_exit(void)
 {
-	int i;
-	struct usb_line6 *line6;
-	struct snd_line6_pcm *line6pcm;
-
-	/* stop all PCM channels */
-	for (i = LINE6_MAX_DEVICES; i--;) {
-		line6 = line6_devices[i];
-
-		if (line6 == NULL)
-			continue;
-
-		line6pcm = line6->line6pcm;
-
-		if (line6pcm == NULL)
-			continue;
-
-		line6_pcm_release(line6pcm, ~0);
-	}
-
 	usb_deregister(&line6_driver);
 }
 
