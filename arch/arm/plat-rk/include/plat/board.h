@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/rk_screen.h>
 
 struct spi_cs_gpio {
 	const char *name;
@@ -39,14 +40,7 @@ struct rk29_io_t {
     int (*io_init)(void);
 };
 
-struct rk29lcd_info {
-	u32 lcd_id;
-	u32 txd_pin;
-	u32 clk_pin;
-	u32 cs_pin;
-	int (*io_init)(void);
-	int (*io_deinit)(void);
-};
+
 
 struct rk29_fb_setting_info {
 	u8 data_num;
@@ -59,12 +53,14 @@ struct rk29_fb_setting_info {
 
 struct rk29fb_info {
 	u32 fb_id;
+	enum rk_disp_prop prop;		//display device property,like PRMRY,EXTEND
 	u32 mcu_fmk_pin;
 	struct rk29lcd_info *lcd_info;
 	int (*io_init)(struct rk29_fb_setting_info *fb_setting);
 	int (*io_deinit)(void);
 	int (*io_enable)(void);
 	int (*io_disable)(void);
+	void (*set_screen_info)(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info );
 };
 
 struct rk29_sdmmc_platform_data {

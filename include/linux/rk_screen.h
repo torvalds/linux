@@ -1,6 +1,5 @@
 #ifndef _SCREEN_H
 #define _SCREEN_H
-#include <mach/board.h>
 
 #ifdef CONFIG_HDMI_DUAL_DISP
 /* Scaler PLL CONFIG */
@@ -76,6 +75,19 @@ typedef enum _MCU_STATUS {
 
 } MCU_STATUS;
 
+enum rk_disp_prop{       //display device property
+    PRMRY = 0,                     //primary display device ,like LCD screen
+    EXTEND,                        //extend display device ,like hdmi ,tv out
+};
+
+struct rk29lcd_info {
+	u32 lcd_id;
+	u32 txd_pin;
+	u32 clk_pin;
+	u32 cs_pin;
+	int (*io_init)(void);
+	int (*io_deinit)(void);
+};
 
 
 /* Screen description */

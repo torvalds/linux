@@ -41,6 +41,10 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <linux/mpu.h>
+#include <linux/fb.h>
+#if defined(CONFIG_HDMI_RK30)
+	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
+#endif
 
 #include <linux/regulator/fixed.h>
 #include <linux/mfd/wm8994/pdata.h>
@@ -1169,14 +1173,27 @@ static int rk_fb_io_enable(void)
 }
 
 
-static struct rk29fb_info rk_fb_info = {
+#if defined(CONFIG_LCDC0_RK30)
+struct rk29fb_info lcdc0_screen_info = {
 	.fb_id   = FB_ID,
+	.prop	   = PRMRY,
     	.mcu_fmk_pin = FB_MCU_FMK_PIN,
     	.lcd_info = &rk29_lcd_info,
 	.io_init   = rk_fb_io_init,
 	.io_disable = rk_fb_io_disable,
 	.io_enable = rk_fb_io_enable,
+	.set_screen_info = set_lcd_info,
 };
+#endif
+#if defined(CONFIG_LCDC1_RK30)
+struct rk29fb_info lcdc1_screen_info = {
+	#if defined(CONFIG_HDMI_RK30)
+	.prop	   = EXTEND,
+	.lcd_info  = NULL,
+	.set_screen_info = hdmi_set_info,
+	#endif
+};
+#endif
 
 static struct resource resource_fb[] = {
 	[0] = {
@@ -1204,9 +1221,6 @@ static struct platform_device device_fb = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(resource_fb),
 	.resource	= resource_fb,
-	.dev            = {
-		.platform_data  = &rk_fb_info,
-	}
 };
 #endif
 

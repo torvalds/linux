@@ -683,6 +683,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 {
 	struct rk30_lcdc_device *lcdc_dev=NULL;
 	rk_screen *screen;
+	struct rk29fb_info *screen_ctr_info;
 	struct resource *res = NULL;
 	struct resource *mem;
 	int ret = 0;
@@ -696,6 +697,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
     	}
 	platform_set_drvdata(pdev, lcdc_dev);
 	lcdc_dev->id = pdev->id;
+	screen_ctr_info = (struct rk29fb_info * )pdev->dev.platform_data;
 	screen =  kzalloc(sizeof(rk_screen), GFP_KERNEL);
 	if(!screen)
 	{
@@ -736,6 +738,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	printk("lcdc%d:reg_phy_base = 0x%08x,reg_vir_base:0x%p\n",pdev->id,lcdc_dev->reg_phy_base, lcdc_dev->preg);
 	lcdc_dev->driver.dev=&pdev->dev;
 	lcdc_dev->driver.screen = screen;
+	lcdc_dev->driver.screen_ctr_info = screen_ctr_info;
 	spin_lock_init(&lcdc_dev->reg_lock);
 	lcdc_dev->irq = platform_get_irq(pdev, 0);
 	if(lcdc_dev->irq < 0)
@@ -753,7 +756,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	ret = rk_fb_register(&(lcdc_dev->driver),&lcdc_driver,lcdc_dev->id);
 	if(ret < 0)
 	{
-		printk(KERN_ERR "registe fb for lcdc0 failed!\n");
+		printk(KERN_ERR "register fb for lcdc%d failed!\n",lcdc_dev->id);
 		goto err4;
 	}
 	printk("rk30 lcdc%d probe ok!\n",lcdc_dev->id);
@@ -761,7 +764,7 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 	return 0;
 
 err4:
-	free_irq(lcdc_dev->irq, pdev);
+	free_irq(lcdc_dev->irq,lcdc_dev);
 err3:	
 	iounmap(lcdc_dev->reg_vir_base);
 err2:

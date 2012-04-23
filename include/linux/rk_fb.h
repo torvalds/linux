@@ -21,7 +21,6 @@
 #include<linux/spinlock.h>
 #include<asm/atomic.h>
 #include <mach/board.h>
-#include<linux/rk_screen.h>
 
 
 #define RK30_MAX_LCDC_SUPPORT	4
@@ -200,6 +199,7 @@ struct rk_lcdc_device_driver{
 
 	atomic_t in_suspend;		        //when enter suspend write or read lcdc register are forbidden
 
+	struct rk29fb_info *screen_ctr_info;
 	int (*open)(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open);
 	int (*init_lcdc)(struct rk_lcdc_device_driver *dev_drv);
 	int (*ioctl)(struct rk_lcdc_device_driver *dev_drv, unsigned int cmd,unsigned long arg,int layer_id);

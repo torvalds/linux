@@ -748,6 +748,7 @@ static struct platform_device device_nand = {
 #endif
 
 #ifdef CONFIG_LCDC0_RK30
+extern struct rk29fb_info lcdc0_screen_info;
 static struct resource resource_lcdc0[] = {
 	[0] = {
 		.name  = "lcdc0 reg",
@@ -769,9 +770,13 @@ static struct platform_device device_lcdc0 = {
 	.id		  = 0,
 	.num_resources	  = ARRAY_SIZE(resource_lcdc0),
 	.resource	  = resource_lcdc0,
+	.dev 		= {
+		.platform_data = &lcdc0_screen_info,
+	},
 };
 #endif
 #ifdef CONFIG_LCDC1_RK30
+extern struct rk29fb_info lcdc1_screen_info;
 static struct resource resource_lcdc1[] = {
 	[0] = {
 		.name  = "lcdc1 reg",
@@ -792,6 +797,9 @@ static struct platform_device device_lcdc1 = {
 	.id		  = 1,
 	.num_resources	  = ARRAY_SIZE(resource_lcdc1),
 	.resource	  = resource_lcdc1,
+	.dev 		= {
+		.platform_data = &lcdc1_screen_info,
+	},
 };
 #endif
 

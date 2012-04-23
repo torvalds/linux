@@ -649,13 +649,18 @@ void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	{
 		info = inf->fb[2] ;
 	}
-	pmy_var = &inf->fb[0]->var;
-	pmy_fix = &inf->fb[0]->fix;
+	
 	hdmi_var = &info->var;
 	hdmi_fix = &info->fix;
-	hdmi_var->xres = pmy_var->xres;
-	hdmi_var->yres = pmy_var->yres;
-	hdmi_var->nonstd = pmy_var->nonstd;
+	#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
+		pmy_var = &inf->fb[0]->var;
+		pmy_fix = &inf->fb[0]->fix;
+		hdmi_var->xres = pmy_var->xres;
+		hdmi_var->yres = pmy_var->yres;
+		hdmi_var->xres_virtual = pmy_var->xres_virtual;
+		hdmi_var->yres_virtual = pmy_var->yres_virtual;
+		hdmi_var->nonstd = pmy_var->nonstd;
+	#endif
 	//hdmi_fix->smem_start = pmy_fix->smem_start;
 	dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	ret = dev_drv->load_screen(dev_drv,1);
@@ -828,15 +833,17 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
     	}
     	lcdc_id = i;
 	init_lcdc_device_driver(dev_drv, def_drv,id);
-	if(id == 0)   //default use lcdc0 as primary dispaly controller
+	if(dev_drv->screen_ctr_info->set_screen_info)
 	{
-		set_lcd_info(dev_drv->screen, fb_inf->mach_info->lcd_info);
+		dev_drv->screen_ctr_info->set_screen_info(dev_drv->screen,
+			dev_drv->screen_ctr_info->lcd_info);
+		if(dev_drv->screen_ctr_info->io_init)
+			dev_drv->screen_ctr_info->io_init(NULL);
 	}
-	else if(id == 1)
+	else
 	{
-		memcpy(dev_drv->screen,fb_inf->lcdc_dev_drv[0]->screen,sizeof(rk_screen));
-		dev_drv->screen->init = NULL;
-    		dev_drv->screen->standby = NULL;
+		printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
+		return -ENODEV;
 	}
 		
 	dev_drv->init_lcdc(dev_drv);
@@ -948,10 +955,11 @@ static void rkfb_early_suspend(struct early_suspend *h)
 						early_suspend);
 	struct rk_fb_inf *inf = info->inf;
 	int i;
-	inf->mach_info->io_disable();
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
 		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,1);
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
+			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
 		if(inf->lcdc_dev_drv[i]->screen->standby)
 			inf->lcdc_dev_drv[i]->screen->standby(1);
 		
@@ -964,9 +972,10 @@ static void rkfb_early_resume(struct early_suspend *h)
 						early_suspend);
 	struct rk_fb_inf *inf = info->inf;
 	int i;
-   	inf->mach_info->io_enable();
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
+		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable)
+			inf->lcdc_dev_drv[i]->screen_ctr_info->io_enable();
 		if(inf->lcdc_dev_drv[i]->screen->standby)
 			inf->lcdc_dev_drv[i]->screen->standby(0);
 		
@@ -999,10 +1008,6 @@ static int __devinit rk_fb_probe (struct platform_device *pdev)
         	ret = -ENOMEM;
     	}
 	platform_set_drvdata(pdev,fb_inf);
-	mach_info =  pdev->dev.platform_data;
-	fb_inf->mach_info = mach_info;
-	if(mach_info->io_init)
-		mach_info->io_init(NULL);
 #if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)		
 			fb_inf->workqueue = create_singlethread_workqueue("hdmi_post");

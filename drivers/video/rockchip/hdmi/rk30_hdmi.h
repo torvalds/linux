@@ -11,7 +11,8 @@
 #include <linux/earlysuspend.h>
 #endif
 
-#include "../../display/screen/screen.h"
+//#include "../../display/screen/screen.h"
+#include<linux/rk_screen.h>
 #include <linux/rk_fb.h>
 #include "rk_hdmi.h"
 

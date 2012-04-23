@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <asm/div64.h>
-#include "../display/screen/screen.h"
+#include <linux/rk_screen.h>
 #include <linux/rk_fb.h>
 
 
