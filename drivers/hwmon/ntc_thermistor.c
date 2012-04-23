@@ -382,9 +382,9 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 	}
 
 	data->hwmon_dev = hwmon_device_register(data->dev);
-	if (IS_ERR_OR_NULL(data->hwmon_dev)) {
+	if (IS_ERR(data->hwmon_dev)) {
 		dev_err(data->dev, "unable to register as hwmon device.\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(data->hwmon_dev);
 		goto err_after_sysfs;
 	}
 
