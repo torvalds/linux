@@ -1800,14 +1800,7 @@ static int hid_bus_match(struct device *dev, struct device_driver *drv)
 		!strncmp(hdrv->name, "hid-multitouch", 14))
 		return 1;
 
-	if (!hid_match_device(hdev, hdrv))
-		return 0;
-
-	/* generic wants all that don't have specialized driver */
-	if (!strncmp(hdrv->name, "generic-", 8) && !hid_ignore_special_drivers)
-		return !hid_match_id(hdev, hid_have_special_driver);
-
-	return 1;
+	return hid_match_device(hdev, hdrv) != NULL;
 }
 
 static int hid_device_probe(struct device *dev)

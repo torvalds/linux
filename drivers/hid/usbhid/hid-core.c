@@ -1505,7 +1505,7 @@ static struct usb_driver hid_driver = {
 };
 
 static const struct hid_device_id hid_usb_table[] = {
-	{ HID_USB_DEVICE(HID_ANY_ID, HID_ANY_ID) },
+	{ HID_DEVICE(BUS_USB, HID_GROUP_GENERIC, HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };
 

@@ -1196,7 +1196,7 @@ int hidp_get_conninfo(struct hidp_conninfo *ci)
 }
 
 static const struct hid_device_id hidp_table[] = {
-	{ HID_BLUETOOTH_DEVICE(HID_ANY_ID, HID_ANY_ID) },
+	{ HID_DEVICE(BUS_BLUETOOTH, HID_GROUP_GENERIC, HID_ANY_ID, HID_ANY_ID) },
 	{ }
 };
 
