@@ -2397,7 +2397,6 @@ xfs_iflush(
 	xfs_inode_t		*ip,
 	uint			flags)
 {
-	xfs_inode_log_item_t	*iip;
 	xfs_buf_t		*bp;
 	xfs_dinode_t		*dip;
 	xfs_mount_t		*mp;
@@ -2410,7 +2409,6 @@ xfs_iflush(
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_d.di_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));
 
-	iip = ip->i_itemp;
 	mp = ip->i_mount;
 
 	/*
@@ -2447,13 +2445,14 @@ xfs_iflush(
 	/*
 	 * This may have been unpinned because the filesystem is shutting
 	 * down forcibly. If that's the case we must not write this inode
-	 * to disk, because the log record didn't make it to disk!
+	 * to disk, because the log record didn't make it to disk.
+	 *
+	 * We also have to remove the log item from the AIL in this case,
+	 * as we wait for an empty AIL as part of the unmount process.
 	 */
 	if (XFS_FORCED_SHUTDOWN(mp)) {
-		if (iip)
-			iip->ili_fields = 0;
-		xfs_ifunlock(ip);
-		return XFS_ERROR(EIO);
+		error = XFS_ERROR(EIO);
+		goto abort_out;
 	}
 
 	/*
@@ -2500,11 +2499,13 @@ corrupt_out:
 	xfs_buf_relse(bp);
 	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 cluster_corrupt_out:
+	error = XFS_ERROR(EFSCORRUPTED);
+abort_out:
 	/*
 	 * Unlocks the flush lock
 	 */
 	xfs_iflush_abort(ip);
-	return XFS_ERROR(EFSCORRUPTED);
+	return error;
 }
 
 

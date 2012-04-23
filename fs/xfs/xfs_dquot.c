@@ -915,8 +915,7 @@ xfs_qm_dqflush(
 
 		spin_lock(&mp->m_ail->xa_lock);
 		if (lip->li_flags & XFS_LI_IN_AIL)
-			xfs_trans_ail_delete(mp->m_ail, lip,
-					     SHUTDOWN_CORRUPT_INCORE);
+			xfs_trans_ail_delete(mp->m_ail, lip);
 		else
 			spin_unlock(&mp->m_ail->xa_lock);
 
