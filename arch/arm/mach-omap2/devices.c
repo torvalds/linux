@@ -616,7 +616,11 @@ static inline void omap242x_mmc_mux(struct omap_mmc_platform_data
 
 void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 {
-	char *name = "mmci-omap";
+	struct platform_device *pdev;
+	struct omap_hwmod *oh;
+	int id = 0;
+	char *oh_name = "msdi1";
+	char *dev_name = "mmci-omap";
 
 	if (!mmc_data[0]) {
 		pr_err("%s fails: Incomplete platform data\n", __func__);
@@ -624,8 +628,17 @@ void __init omap242x_init_mmc(struct omap_mmc_platform_data **mmc_data)
 	}
 
 	omap242x_mmc_mux(mmc_data[0]);
-	omap_mmc_add(name, 0, OMAP2_MMC1_BASE, OMAP2420_MMC_SIZE,
-					INT_24XX_MMC_IRQ, mmc_data[0]);
+
+	oh = omap_hwmod_lookup(oh_name);
+	if (!oh) {
+		pr_err("Could not look up %s\n", oh_name);
+		return;
+	}
+	pdev = omap_device_build(dev_name, id, oh, mmc_data[0],
+				 sizeof(struct omap_mmc_platform_data), NULL, 0, 0);
+	if (IS_ERR(pdev))
+		WARN(1, "Can'd build omap_device for %s:%s.\n",
+					dev_name, oh->name);
 }
 
 #endif
