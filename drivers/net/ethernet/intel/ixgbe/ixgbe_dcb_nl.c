@@ -662,6 +662,13 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 			return -ENOMEM;
 	}
 
+	if (pfc->pfc_en) {
+		adapter->last_lfc_mode = adapter->hw.fc.current_mode;
+		adapter->hw.fc.current_mode = ixgbe_fc_pfc;
+	} else {
+		adapter->hw.fc.current_mode = adapter->last_lfc_mode;
+	}
+
 	prio_tc = adapter->ixgbe_ieee_ets->prio_tc;
 	memcpy(adapter->ixgbe_ieee_pfc, pfc, sizeof(*adapter->ixgbe_ieee_pfc));
 	return ixgbe_dcb_hw_pfc_config(&adapter->hw, pfc->pfc_en, prio_tc);
