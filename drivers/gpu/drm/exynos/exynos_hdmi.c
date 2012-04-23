@@ -2293,10 +2293,10 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	hdata->hdmiphy_port = hdmi_hdmiphy;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		DRM_ERROR("get interrupt resource failed.\n");
-		ret = -ENXIO;
+	hdata->irq = platform_get_irq_byname(pdev, "internal_irq");
+	if (hdata->irq < 0) {
+		DRM_ERROR("failed to get platform irq\n");
+		ret = hdata->irq;
 		goto err_hdmiphy;
 	}
 
@@ -2311,13 +2311,12 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	INIT_WORK(&hdata->hotplug_work, hdmi_hotplug_func);
 
 	/* register hpd interrupt */
-	ret = request_irq(res->start, hdmi_irq_handler, 0, "drm_hdmi",
+	ret = request_irq(hdata->irq, hdmi_irq_handler, 0, "drm_hdmi",
 				drm_hdmi_ctx);
 	if (ret) {
 		DRM_ERROR("request interrupt failed.\n");
 		goto err_workqueue;
 	}
-	hdata->irq = res->start;
 
 	/* register specific callbacks to common hdmi. */
 	exynos_hdmi_ops_register(&hdmi_ops);
