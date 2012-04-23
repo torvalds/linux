@@ -92,56 +92,6 @@ xfs_do_force_shutdown(
 }
 
 /*
- * This isn't an absolute requirement, but it is
- * just a good idea to call xfs_read_buf instead of
- * directly doing a read_buf call. For one, we shouldn't
- * be doing this disk read if we are in SHUTDOWN state anyway,
- * so this stops that from happening. Secondly, this does all
- * the error checking stuff and the brelse if appropriate for
- * the caller, so the code can be a little leaner.
- */
-
-int
-xfs_read_buf(
-	struct xfs_mount *mp,
-	xfs_buftarg_t	 *target,
-	xfs_daddr_t	 blkno,
-	int              len,
-	uint             flags,
-	xfs_buf_t	 **bpp)
-{
-	xfs_buf_t	 *bp;
-	int		 error;
-
-	if (!flags)
-		flags = XBF_MAPPED;
-
-	bp = xfs_buf_read(target, blkno, len, flags);
-	if (!bp)
-		return XFS_ERROR(EIO);
-	error = bp->b_error;
-	if (!error && !XFS_FORCED_SHUTDOWN(mp)) {
-		*bpp = bp;
-	} else {
-		*bpp = NULL;
-		if (error) {
-			xfs_buf_ioerror_alert(bp, __func__);
-		} else {
-			error = XFS_ERROR(EIO);
-		}
-		if (bp) {
-			XFS_BUF_UNDONE(bp);
-			xfs_buf_stale(bp);
-			/*
-			 * brelse clears B_ERROR and b_error
-			 */
-			xfs_buf_relse(bp);
-		}
-	}
-	return (error);
-}
-
-/*
  * helper function to extract extent size hint from inode
  */
 xfs_extlen_t

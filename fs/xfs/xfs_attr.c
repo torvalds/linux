@@ -1987,8 +1987,8 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 			       (map[i].br_startblock != HOLESTARTBLOCK));
 			dblkno = XFS_FSB_TO_DADDR(mp, map[i].br_startblock);
 			blkcnt = XFS_FSB_TO_BB(mp, map[i].br_blockcount);
-			error = xfs_read_buf(mp, mp->m_ddev_targp, dblkno,
-					     blkcnt, XBF_DONT_BLOCK, &bp);
+			error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp,
+						   dblkno, blkcnt, 0, &bp);
 			if (error)
 				return(error);
 

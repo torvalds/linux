@@ -274,6 +274,8 @@ xfs_trans_read_buf(
 	xfs_buf_log_item_t	*bip;
 	int			error;
 
+	*bpp = NULL;
+
 	if (flags == 0)
 		flags = XBF_MAPPED;
 
@@ -289,6 +291,8 @@ xfs_trans_read_buf(
 		if (bp->b_error) {
 			error = bp->b_error;
 			xfs_buf_ioerror_alert(bp, __func__);
+			XFS_BUF_UNDONE(bp);
+			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);
 			return error;
 		}

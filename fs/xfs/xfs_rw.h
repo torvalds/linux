@@ -39,9 +39,6 @@ xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 /*
  * Prototypes for functions in xfs_rw.c.
  */
-extern int xfs_read_buf(struct xfs_mount *mp, xfs_buftarg_t *btp,
-			xfs_daddr_t blkno, int len, uint flags,
-			struct xfs_buf **bpp);
 extern xfs_extlen_t xfs_get_extsz_hint(struct xfs_inode *ip);
 
 #endif /* __XFS_RW_H__ */

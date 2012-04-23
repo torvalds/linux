@@ -2539,14 +2539,11 @@ xlog_recover_dquot_pass2(
 		return XFS_ERROR(EIO);
 	ASSERT(dq_f->qlf_len == 1);
 
-	error = xfs_read_buf(mp, mp->m_ddev_targp,
-			     dq_f->qlf_blkno,
-			     XFS_FSB_TO_BB(mp, dq_f->qlf_len),
-			     0, &bp);
-	if (error) {
-		xfs_buf_ioerror_alert(bp, "xlog_recover_do..(read#3)");
+	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dq_f->qlf_blkno,
+				   XFS_FSB_TO_BB(mp, dq_f->qlf_len), 0, &bp);
+	if (error)
 		return error;
-	}
+
 	ASSERT(bp);
 	ddq = (xfs_disk_dquot_t *)xfs_buf_offset(bp, dq_f->qlf_boffset);
 
