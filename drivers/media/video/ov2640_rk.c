@@ -46,11 +46,11 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_INIT_WINSEQADR sensor_vga
 #define SENSOR_INIT_PIXFMT V4L2_MBUS_FMT_YUYV8_2X8
 
-#define CONFIG_SENSOR_WhiteBalance	0
-#define CONFIG_SENSOR_Brightness	1
+#define CONFIG_SENSOR_WhiteBalance	1
+#define CONFIG_SENSOR_Brightness	0
 #define CONFIG_SENSOR_Contrast      0
-#define CONFIG_SENSOR_Saturation    1
-#define CONFIG_SENSOR_Effect        1
+#define CONFIG_SENSOR_Saturation    0
+#define CONFIG_SENSOR_Effect        0
 #define CONFIG_SENSOR_Scene         0
 #define CONFIG_SENSOR_DigitalZoom   0
 #define CONFIG_SENSOR_Focus         0
@@ -80,6 +80,10 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 #define SENSOR_NAME_STRING(a) STR(CONS(SENSOR_NAME, a))
 #define SENSOR_NAME_VARFUN(a) CONS(SENSOR_NAME, a)
 
+#define SENSOR_AF_IS_ERR    (0x00<<0)
+#define SENSOR_AF_IS_OK		(0x01<<0)
+#define SENSOR_INIT_IS_ERR   (0x00<<28)
+#define SENSOR_INIT_IS_OK    (0x01<<28)
 struct reginfo
 {
     u8 reg;
@@ -97,16 +101,16 @@ static struct reginfo sensor_init_data[] =
     {0x2e,0xdf},
     {0xff,0x01},
 
-    {0x03,0x4f},
+    {0x03,0x4f},// 0x8f peak
     {0x0f,0x4b},
 
 
     {0x3c,0x32},
     {0x11,0x00},
     {0x09,0x02},
-    {0x04,0xF8},//b7,b6 directs
+    {0x04,0x28},//b7,b6 directs
     {0x13,0xe5},
-    {0x14,0x48},
+    {0x14,0x28}, //0x48 peak
     {0x2c,0x0c},
     {0x33,0x78},
     {0x3a,0x33},
@@ -128,14 +132,17 @@ static struct reginfo sensor_init_data[] =
     {0x4c,0x00},
     {0x4a,0x81},
     {0x21,0x99},
-    
+    //aec
     //{0x24,0x58},
     //{0x25,0x50},
     //{0x26,0x92},
     
-    {0x24, 0x70},
-    {0x25, 0x60},
-    {0x26, 0xa4},    
+    //{0x24, 0x70},
+    //{0x25, 0x60},
+    //{0x26, 0xa4},    
+    {0x24, 0x48},
+    {0x25, 0x38},
+    {0x26, 0x82},//82 
     
     {0x5c,0x00},
     {0x63,0x00},
@@ -173,15 +180,53 @@ static struct reginfo sensor_init_data[] =
     {0xd3,0x82},
     {0xc8,0x08},
     {0xc9,0x80},
+ //
+    //{0xff,0x00}, //added by peak on 20120409
     {0x7c,0x00},
-    {0x7d,0x00},//0x00//0x07
+    {0x7d,0x02},//0x00 peak//0x07,确保在别的文件里没被覆盖
     {0x7c,0x03},
-    {0x7d,0x48},//0x48//0x40
-    {0x7d,0x48},//0x48//0x40
-    {0x7c,0x08},
+    {0x7d,0x28},//0x48//0x40 这个值已经很小了,除非你在别的文件里又写了
+    {0x7d,0x28},//0x48 peak//0x40 这个值已经很小了,除非你在别的文件里又写了
+
+   // removed by peak on 20120409
+
+   {0x7c,0x08},  
     {0x7d,0x20},
     {0x7d,0x10},//0x10
     {0x7d,0x0e},//0x0e
+
+//contrast added by peak on 20120409
+	   // {0x7c,0x00},
+		//{0x7d,0x04},//0x48//0x40
+		//{0x7c,0x07},//0x48 peak//0x40
+		//{0x7d,0x20},
+		//{0x7d,0x28},
+		//{0x7d,0x0c},//0x10
+		//{0x7d,0x06},//0x0e
+
+    //{0xff, 0x01},// added by peak on 20120409
+
+	{0x90,0x00},
+	   {0x91,0x0e},
+	   {0x91,0x1a},//e3
+	   {0x91,0x31},
+	   {0x91,0x5a},
+	   {0x91,0x69},
+	   {0x91,0x75},
+	   {0x91,0x7e},
+	   {0x91,0x88},
+	   {0x91,0x8f},
+	   {0x91,0x96},
+	   {0x91,0xa3},
+	   {0x91,0xaf},
+	   {0x91,0xc4},
+	{0x91,0xd7},
+	{0x91,0xe8},
+	{0x91,0x20},
+
+
+
+
 
     {0x92,0x00},
     {0x93,0x06},
@@ -197,6 +242,7 @@ static struct reginfo sensor_init_data[] =
     {0x93,0x00},
     {0x93,0x00},
     {0x93,0x00},
+
     {0x96,0x00},
     {0x97,0x08},
     {0x97,0x19},
@@ -258,11 +304,13 @@ static struct reginfo sensor_init_data[] =
 #endif
 #if 1
     {0xff, 0x01},
-    {0x5d, 0x00},
-    {0x5e, 0x3c},
-    {0x5f, 0x28},
-    {0x60, 0x55},
-
+    {0x5d, 0x55},//0x00
+    //{0x5e, 0x7d},//0x3c
+    //{0x5f, 0x7d},//0x28
+    //{0x60, 0x55},//0x55
+	{0x5e, 0x55},//0x3c
+    {0x5f, 0x55},//0x28
+    {0x60, 0x55},//0x55
 
     {0xff, 0x00},
     {0xc3, 0xef},
@@ -292,15 +340,16 @@ static struct reginfo sensor_init_data[] =
 #if 1
     {0xff,0x00},
     {0x92,0x00},
-    {0x93,0x06},
-    {0x93,0xc1},//e
-    {0x93,0x02},
-    {0x93,0x02},
+    {0x93,0x06}, //0x06 peak
+    {0x93,0xe3},//e
+    {0x93,0x05},
+    {0x93,0x03},
     {0x93,0x00},
     {0x93,0x04},
 #endif
 
-    {0x03, 0x0f},
+    //{0x03, 0x0f},
+    
     {0xe0, 0x04},
     {0xc0, 0xc8},
     {0xc1, 0x96},
@@ -318,6 +367,26 @@ static struct reginfo sensor_init_data[] =
     {0xd3, 0x04},
     {0xe0, 0x00},
 
+/*vga*/
+/*800*600
+  {0xff, 0x00},
+	  {0xe0, 0x04},
+	  {0xc0, 0xc8},
+	  {0xc1, 0x96},
+	  {0x86, 0x3d},
+	  {0x50, 0x89},
+	  {0x51, 0x90},
+	  {0x52, 0x2c},
+	  {0x53, 0x00},
+	  {0x54, 0x00},
+	  {0x55, 0x88},
+	  {0x57, 0x00},
+	  {0x5a, 0xc8},
+	  {0x5b, 0x96},
+	  {0x5c, 0x00},
+	  {0xd3, 0x02},
+	  {0xe0, 0x00},
+*/
   {0x0, 0x0}   //end flag
 
 };
@@ -523,63 +592,57 @@ static  struct reginfo sensor_ClrFmt_UYVY[]=
 #if CONFIG_SENSOR_WhiteBalance
 static  struct reginfo sensor_WhiteB_Auto[]=
 {
-    {0x3406, 0x00},  //AWB auto, bit[1]:0,auto
-    {0x0000, 0x00}
+
+    {0xff, 0x00},  //AWB auto, bit[1]:0,auto
+    {0xc7, 0x00},
+    {0x00, 0x00}
 };
 /* Cloudy Colour Temperature : 6500K - 8000K  */
 static  struct reginfo sensor_WhiteB_Cloudy[]=
 {
-    {0x3406, 0x01},
-    {0x3400, 0x07},
-    {0x3401, 0x08},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x05},
-    {0x3405, 0x00},
-    {0x0000, 0x00}
+    {0xff, 0x00},
+    {0xc7, 0x40},
+    {0xcc, 0x65},
+    {0xcd, 0x41},
+    {0xce, 0x4f},
+    {0x00, 0x00}
 };
 /* ClearDay Colour Temperature : 5000K - 6500K  */
 static  struct reginfo sensor_WhiteB_ClearDay[]=
 {
     //Sunny
-    {0x3406, 0x01},
-    {0x3400, 0x07},
-    {0x3401, 0x02},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x05},
-    {0x3405, 0x15},
-    {0x0000, 0x00}
+    
+    {0xff, 0x00},
+    {0xc7, 0x40},
+    {0xcc, 0x5e},
+    {0xcd, 0x41},
+    {0xce, 0x54},
+    {0x00, 0x00}
 };
 /* Office Colour Temperature : 3500K - 5000K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp1[]=
 {
     //Office
-    {0x3406, 0x01},
-    {0x3400, 0x06},
-    {0x3401, 0x2a},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x07},
-    {0x3405, 0x24},
-    {0x0000, 0x00}
-
+    {0xff, 0x00},
+    {0xc7, 0x40},
+    {0xcc, 0x52},
+    {0xcd, 0x41},
+    {0xce, 0x66},
+    {0x00, 0x00}
 };
 /* Home Colour Temperature : 2500K - 3500K  */
 static  struct reginfo sensor_WhiteB_TungstenLamp2[]=
 {
     //Home
-    {0x3406, 0x01},
-    {0x3400, 0x04},
-    {0x3401, 0x58},
-    {0x3402, 0x04},
-    {0x3403, 0x00},
-    {0x3404, 0x07},
-    {0x3405, 0x24},
-    {0x0000, 0x00}
+    {0xff, 0x00},
+    {0xc7, 0x40},
+    {0xcc, 0x42},
+    {0xcd, 0x3f},
+    {0xce, 0x71},
+    {0x00, 0x00}
 };
-static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_WhiteB_TungstenLamp1,sensor_WhiteB_TungstenLamp2,
-    sensor_WhiteB_ClearDay, sensor_WhiteB_Cloudy,NULL,
+static struct reginfo *sensor_WhiteBalanceSeqe[] = {sensor_WhiteB_Auto, sensor_WhiteB_ClearDay,sensor_WhiteB_Cloudy,sensor_WhiteB_TungstenLamp1,sensor_WhiteB_TungstenLamp2,
+    NULL,
 };
 #endif
 
@@ -1014,12 +1077,15 @@ static struct reginfo *sensor_FlipSeqe[] = {sensor_FlipOff, sensor_FlipOn,NULL,}
 #if CONFIG_SENSOR_Scene
 static  struct reginfo sensor_SceneAuto[] =
 {
-    {0x3a00, 0x78},
-    {0x0000, 0x00}
+/*
+    {0xff, 0x00},
+    {0xc7, 0x00},
+    {0x00, 0x00}*/
 };
 
 static  struct reginfo sensor_SceneNight[] =
 {
+	/*
     {0x3003, 0x80},
 	{0x3004, 0x20},
 	{0x3005, 0x18},
@@ -1030,6 +1096,14 @@ static  struct reginfo sensor_SceneNight[] =
 	{0x3a14 ,0x07},
 	{0x3a15 ,0x38},
     {0x0000, 0x00}
+    */
+    /*
+        {0xff, 0x01},
+        {0x11, 0x00},
+        {0x0f, 0x4b},
+        {0x03, 0xcf},
+		{0x00, 0x00}
+*/
 };
 static struct reginfo *sensor_SceneSeqe[] = {sensor_SceneAuto, sensor_SceneNight,NULL,};
 
@@ -1316,7 +1390,7 @@ typedef struct sensor_info_priv_s
     unsigned char flip;                                          /* VFLIP */
     unsigned int winseqe_cur_addr;
     struct sensor_datafmt fmt;
-
+    unsigned int funmodule_state;
 } sensor_info_priv_t;
 
 struct sensor
@@ -1675,9 +1749,10 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     #endif
 
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
-
+    sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
     return 0;
 sensor_INIT_ERR:
+    sensor->info_priv.funmodule_state &= ~SENSOR_INIT_IS_OK;
 	sensor_task_lock(client,0);
 	sensor_deactivate(client);
     return ret;
@@ -1687,6 +1762,7 @@ static int sensor_deactivate(struct i2c_client *client)
 {
 	struct soc_camera_device *icd = client->dev.platform_data;
 
+    struct sensor *sensor = to_sensor(client);
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
 
 	/* ddl@rock-chips.com : all sensor output pin must change to input for other sensor */
@@ -1697,10 +1773,12 @@ static int sensor_deactivate(struct i2c_client *client)
 	sensor_task_lock(client, 0);
 #endif
 	sensor_ioctrl(icd, Sensor_PowerDown, 1);
+    msleep(100); 
 	/* ddl@rock-chips.com : sensor config init width , because next open sensor quickly(soc_camera_open -> Try to configure with default parameters) */
 	icd->user_width = SENSOR_INIT_WIDTH;
     icd->user_height = SENSOR_INIT_HEIGHT;
-	msleep(100);
+    sensor->info_priv.funmodule_state &= ~SENSOR_INIT_IS_OK;
+	
 	return 0;
 }
 
@@ -2301,29 +2379,29 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
     digitalzoom_cur = sensor->info_priv.digitalzoom;
     digitalzoom_total = qctrl_info->maximum;
 
-    if ((*value > 0) && (digitalzoom_cur >= digitalzoom_total))
+    if ((value > 0) && (digitalzoom_cur >= digitalzoom_total))
     {
         SENSOR_TR("%s digitalzoom is maximum - %x\n", SENSOR_NAME_STRING(), digitalzoom_cur);
         return -EINVAL;
     }
 
-    if  ((*value < 0) && (digitalzoom_cur <= qctrl_info->minimum))
+    if  ((value < 0) && (digitalzoom_cur <= qctrl_info->minimum))
     {
         SENSOR_TR("%s digitalzoom is minimum - %x\n", SENSOR_NAME_STRING(), digitalzoom_cur);
         return -EINVAL;
     }
 
-    if ((*value > 0) && ((digitalzoom_cur + *value) > digitalzoom_total))
+    if ((value > 0) && ((digitalzoom_cur + value) > digitalzoom_total))
     {
-        *value = digitalzoom_total - digitalzoom_cur;
+        value = digitalzoom_total - digitalzoom_cur;
     }
 
-    if ((*value < 0) && ((digitalzoom_cur + *value) < 0))
+    if ((value < 0) && ((digitalzoom_cur + value) < 0))
     {
-        *value = 0 - digitalzoom_cur;
+        value = 0 - digitalzoom_cur;
     }
 
-    digitalzoom_cur += *value;
+    digitalzoom_cur += value;
 
     if (sensor_ZoomSeqe[digitalzoom_cur] != NULL)
     {
@@ -2332,7 +2410,7 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
             SENSOR_TR("%s..%s WriteReg Fail.. \n",SENSOR_NAME_STRING(), __FUNCTION__);
             return -EINVAL;
         }
-        SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, *value);
+        SENSOR_DG("%s..%s : %x\n",SENSOR_NAME_STRING(),__FUNCTION__, value);
         return 0;
     }
 
