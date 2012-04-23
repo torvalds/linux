@@ -18,6 +18,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/of_serial.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -47,6 +48,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		/* Memory and IRQ filled in before registration */
 		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
 		.type		= PORT_TEGRA,
+		.handle_break	= tegra_serial_handle_break,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,

@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
+#include <linux/of_serial.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/pda_power.h>
@@ -52,6 +53,7 @@ static struct plat_serial8250_port debug_uart_platform_data[] = {
 		.irq		= INT_UARTD,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_FIXED_TYPE,
 		.type		= PORT_TEGRA,
+		.handle_break	= tegra_serial_handle_break,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
 		.uartclk	= 216000000,
