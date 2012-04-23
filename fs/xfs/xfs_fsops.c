@@ -38,7 +38,6 @@
 #include "xfs_itable.h"
 #include "xfs_trans_space.h"
 #include "xfs_rtalloc.h"
-#include "xfs_rw.h"
 #include "xfs_filestream.h"
 #include "xfs_trace.h"
 

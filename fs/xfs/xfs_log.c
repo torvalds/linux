@@ -34,7 +34,6 @@
 #include "xfs_trans_priv.h"
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
-#include "xfs_rw.h"
 #include "xfs_trace.h"
 
 kmem_zone_t	*xfs_log_ticket_zone;

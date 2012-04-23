@@ -32,7 +32,6 @@
 #include "xfs_buf_item.h"
 #include "xfs_trans_priv.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 #include "xfs_trace.h"
 
 /*

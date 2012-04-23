@@ -28,7 +28,6 @@
 #include "xfs_dinode.h"
 #include "xfs_inode.h"
 #include "xfs_error.h"
-#include "xfs_rw.h"
 
 /*
  * Force a shutdown of the filesystem instantly while keeping
@@ -88,18 +87,4 @@ xfs_do_force_shutdown(
 		xfs_alert(mp,
 	"Please umount the filesystem and rectify the problem(s)");
 	}
-}
-
-/*
- * helper function to extract extent size hint from inode
- */
-xfs_extlen_t
-xfs_get_extsz_hint(
-	struct xfs_inode	*ip)
-{
-	if ((ip->i_d.di_flags & XFS_DIFLAG_EXTSIZE) && ip->i_d.di_extsize)
-		return ip->i_d.di_extsize;
-	if (XFS_IS_REALTIME_INODE(ip))
-		return ip->i_mount->m_sb.sb_rextsize;
-	return 0;
 }

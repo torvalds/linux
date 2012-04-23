@@ -41,7 +41,6 @@
 #include "xfs_rtalloc.h"
 #include "xfs_error.h"
 #include "xfs_attr_leaf.h"
-#include "xfs_rw.h"
 #include "xfs_quota.h"
 #include "xfs_trans_space.h"
 #include "xfs_buf_item.h"
