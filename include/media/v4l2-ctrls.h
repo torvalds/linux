@@ -25,6 +25,7 @@
 #include <linux/videodev2.h>
 
 /* forward references */
+struct file;
 struct v4l2_ctrl_handler;
 struct v4l2_ctrl_helper;
 struct v4l2_ctrl;
@@ -498,7 +499,6 @@ extern const struct v4l2_subscribed_event_ops v4l2_ctrl_sub_ev_ops;
 void v4l2_ctrl_replace(struct v4l2_event *old, const struct v4l2_event *new);
 void v4l2_ctrl_merge(const struct v4l2_event *old, struct v4l2_event *new);
 
-struct file;
 /* Can be used as a vidioc_log_status function that just dumps all controls
    associated with the filehandle. */
 int v4l2_ctrl_log_status(struct file *file, void *fh);
