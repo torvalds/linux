@@ -1175,7 +1175,7 @@ __xfs_get_blocks(
 	    (!nimaps ||
 	     (imap.br_startblock == HOLESTARTBLOCK ||
 	      imap.br_startblock == DELAYSTARTBLOCK))) {
-		if (direct) {
+		if (direct || xfs_get_extsz_hint(ip)) {
 			/*
 			 * Drop the ilock in preparation for starting the block
 			 * allocation transaction.  It will be retaken
