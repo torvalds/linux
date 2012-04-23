@@ -349,7 +349,6 @@ union db_prod {
 #define SGE_PAGE_SIZE		PAGE_SIZE
 #define SGE_PAGE_SHIFT		PAGE_SHIFT
 #define SGE_PAGE_ALIGN(addr)	PAGE_ALIGN((typeof(PAGE_SIZE))(addr))
-#define SGE_PAGES		(SGE_PAGE_SIZE * PAGES_PER_SGE)
 
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES	2
@@ -1240,7 +1239,6 @@ struct bnx2x {
 #define ETH_MAX_JUMBO_PACKET_SIZE	9600
 /* TCP with Timestamp Option (32) + IPv6 (40) */
 #define ETH_MAX_TPA_HEADER_SIZE		72
-#define ETH_MIN_TPA_HEADER_SIZE		40
 
 	/* Max supported alignment is 256 (8 shift) */
 #define BNX2X_RX_ALIGN_SHIFT		min(8, L1_CACHE_SHIFT)
@@ -1361,8 +1359,6 @@ struct bnx2x {
 #define IS_MF_AFEX(bp)		(bp->mf_mode == MULTI_FUNCTION_AFEX)
 
 	u8			wol;
-
-	bool			gro_check;
 
 	int			rx_ring_size;
 

@@ -328,16 +328,6 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 		u16 gro_size = le16_to_cpu(cqe->pkt_len_or_gro_seg_len);
 		tpa_info->full_page =
 			SGE_PAGE_SIZE * PAGES_PER_SGE / gro_size * gro_size;
-		/*
-		 * FW 7.2.16 BUG workaround:
-		 * if SGE size is (exactly) multiple gro_size
-		 * fw will place one less frag on SGE.
-		 * the calculation is done only for potentially
-		 * dangerous MTUs.
-		 */
-		if (unlikely(bp->gro_check))
-			if (!(SGE_PAGE_SIZE * PAGES_PER_SGE % gro_size))
-				tpa_info->full_page -= gro_size;
 		tpa_info->gro_size = gro_size;
 	}
 
@@ -3524,8 +3514,6 @@ int bnx2x_change_mtu(struct net_device *dev, int new_mtu)
 	 * only updated as part of load
 	 */
 	dev->mtu = new_mtu;
-
-	bp->gro_check = bnx2x_need_gro_check(new_mtu);
 
 	return bnx2x_reload_if_running(dev);
 }

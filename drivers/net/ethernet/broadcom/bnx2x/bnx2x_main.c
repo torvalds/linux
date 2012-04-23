@@ -10714,8 +10714,6 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 	if (CHIP_IS_E3B0(bp))
 		bp->max_cos = BNX2X_MULTI_TX_COS_E3B0;
 
-	bp->gro_check = bnx2x_need_gro_check(bp->dev->mtu);
-
 	return rc;
 }
 
