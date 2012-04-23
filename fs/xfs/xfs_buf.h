@@ -150,26 +150,30 @@ typedef struct xfs_buf {
 
 
 /* Finding and Reading Buffers */
-extern xfs_buf_t *_xfs_buf_find(xfs_buftarg_t *, xfs_off_t, size_t,
-				xfs_buf_flags_t, xfs_buf_t *);
+struct xfs_buf *_xfs_buf_find(struct xfs_buftarg *target, xfs_daddr_t blkno,
+				size_t numblks, xfs_buf_flags_t flags,
+				struct xfs_buf *new_bp);
 #define xfs_incore(buftarg,blkno,len,lockit) \
 	_xfs_buf_find(buftarg, blkno ,len, lockit, NULL)
 
-extern xfs_buf_t *xfs_buf_get(xfs_buftarg_t *, xfs_off_t, size_t,
-				xfs_buf_flags_t);
-extern xfs_buf_t *xfs_buf_read(xfs_buftarg_t *, xfs_off_t, size_t,
-				xfs_buf_flags_t);
+struct xfs_buf *xfs_buf_get(struct xfs_buftarg *target, xfs_daddr_t blkno,
+				size_t numblks, xfs_buf_flags_t flags);
+struct xfs_buf *xfs_buf_read(struct xfs_buftarg *target, xfs_daddr_t blkno,
+				size_t numblks, xfs_buf_flags_t flags);
+void xfs_buf_readahead(struct xfs_buftarg *target, xfs_daddr_t blkno,
+				size_t numblks);
 
-struct xfs_buf *xfs_buf_alloc(struct xfs_buftarg *, xfs_off_t, size_t,
-			      xfs_buf_flags_t);
-extern void xfs_buf_set_empty(struct xfs_buf *bp, size_t len);
-extern xfs_buf_t *xfs_buf_get_uncached(struct xfs_buftarg *, size_t, int);
-extern int xfs_buf_associate_memory(xfs_buf_t *, void *, size_t);
-extern void xfs_buf_hold(xfs_buf_t *);
-extern void xfs_buf_readahead(xfs_buftarg_t *, xfs_off_t, size_t);
-struct xfs_buf *xfs_buf_read_uncached(struct xfs_mount *mp,
-				struct xfs_buftarg *target,
-				xfs_daddr_t daddr, size_t length, int flags);
+struct xfs_buf *xfs_buf_get_empty(struct xfs_buftarg *target, size_t numblks);
+struct xfs_buf *xfs_buf_alloc(struct xfs_buftarg *target, xfs_daddr_t blkno,
+				size_t numblks, xfs_buf_flags_t flags);
+void xfs_buf_set_empty(struct xfs_buf *bp, size_t numblks);
+int xfs_buf_associate_memory(struct xfs_buf *bp, void *mem, size_t length);
+
+struct xfs_buf *xfs_buf_get_uncached(struct xfs_buftarg *target, size_t numblks,
+				int flags);
+struct xfs_buf *xfs_buf_read_uncached(struct xfs_buftarg *target,
+				xfs_daddr_t daddr, size_t numblks, int flags);
+void xfs_buf_hold(struct xfs_buf *bp);
 
 /* Releasing Buffers */
 extern void xfs_buf_free(xfs_buf_t *);

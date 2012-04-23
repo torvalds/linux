@@ -172,8 +172,8 @@ xfs_buf_stale(
 struct xfs_buf *
 xfs_buf_alloc(
 	struct xfs_buftarg	*target,
-	xfs_off_t		range_base,
-	size_t			range_length,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
 	xfs_buf_flags_t		flags)
 {
 	struct xfs_buf		*bp;
@@ -196,14 +196,21 @@ xfs_buf_alloc(
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
 	XB_SET_OWNER(bp);
 	bp->b_target = target;
-	bp->b_file_offset = range_base;
+	bp->b_file_offset = blkno << BBSHIFT;
 	/*
 	 * Set buffer_length and count_desired to the same value initially.
 	 * I/O routines should use count_desired, which will be the same in
 	 * most cases but may be reset (e.g. XFS recovery).
 	 */
-	bp->b_buffer_length = bp->b_count_desired = range_length;
+	bp->b_buffer_length = bp->b_count_desired = numblks << BBSHIFT;
 	bp->b_flags = flags;
+
+	/*
+	 * We do not set the block number here in the buffer because we have not
+	 * finished initialising the buffer. We insert the buffer into the cache
+	 * in this state, so this ensures that we are unable to do IO on a
+	 * buffer that hasn't been fully initialised.
+	 */
 	bp->b_bn = XFS_BUF_DADDR_NULL;
 	atomic_set(&bp->b_pin_count, 0);
 	init_waitqueue_head(&bp->b_waiters);
@@ -426,29 +433,29 @@ _xfs_buf_map_pages(
  */
 xfs_buf_t *
 _xfs_buf_find(
-	xfs_buftarg_t		*btp,	/* block device target		*/
-	xfs_off_t		ioff,	/* starting offset of range	*/
-	size_t			isize,	/* length of range		*/
+	struct xfs_buftarg	*btp,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
 	xfs_buf_flags_t		flags,
 	xfs_buf_t		*new_bp)
 {
-	xfs_off_t		range_base;
-	size_t			range_length;
+	xfs_off_t		offset;
+	size_t			numbytes;
 	struct xfs_perag	*pag;
 	struct rb_node		**rbp;
 	struct rb_node		*parent;
 	xfs_buf_t		*bp;
 
-	range_base = (ioff << BBSHIFT);
-	range_length = (isize << BBSHIFT);
+	offset = BBTOB(blkno);
+	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
-	ASSERT(!(range_length < (1 << btp->bt_sshift)));
-	ASSERT(!(range_base & (xfs_off_t)btp->bt_smask));
+	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
+	ASSERT(!(offset & (xfs_off_t)btp->bt_smask));
 
 	/* get tree root */
 	pag = xfs_perag_get(btp->bt_mount,
-				xfs_daddr_to_agno(btp->bt_mount, ioff));
+				xfs_daddr_to_agno(btp->bt_mount, blkno));
 
 	/* walk tree */
 	spin_lock(&pag->pag_buf_lock);
@@ -459,9 +466,9 @@ _xfs_buf_find(
 		parent = *rbp;
 		bp = rb_entry(parent, struct xfs_buf, b_rbnode);
 
-		if (range_base < bp->b_file_offset)
+		if (offset < bp->b_file_offset)
 			rbp = &(*rbp)->rb_left;
-		else if (range_base > bp->b_file_offset)
+		else if (offset > bp->b_file_offset)
 			rbp = &(*rbp)->rb_right;
 		else {
 			/*
@@ -472,7 +479,7 @@ _xfs_buf_find(
 			 * reallocating a busy extent. Skip this buffer and
 			 * continue searching to the right for an exact match.
 			 */
-			if (bp->b_buffer_length != range_length) {
+			if (bp->b_buffer_length != numbytes) {
 				ASSERT(bp->b_flags & XBF_STALE);
 				rbp = &(*rbp)->rb_right;
 				continue;
@@ -532,21 +539,20 @@ found:
  */
 struct xfs_buf *
 xfs_buf_get(
-	xfs_buftarg_t		*target,/* target for buffer		*/
-	xfs_off_t		ioff,	/* starting offset of range	*/
-	size_t			isize,	/* length of range		*/
+	xfs_buftarg_t		*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
 	xfs_buf_flags_t		flags)
 {
 	struct xfs_buf		*bp;
 	struct xfs_buf		*new_bp;
 	int			error = 0;
 
-	bp = _xfs_buf_find(target, ioff, isize, flags, NULL);
+	bp = _xfs_buf_find(target, blkno, numblks, flags, NULL);
 	if (likely(bp))
 		goto found;
 
-	new_bp = xfs_buf_alloc(target, ioff << BBSHIFT, isize << BBSHIFT,
-			       flags);
+	new_bp = xfs_buf_alloc(target, blkno, numblks, flags);
 	if (unlikely(!new_bp))
 		return NULL;
 
@@ -556,7 +562,7 @@ xfs_buf_get(
 		return NULL;
 	}
 
-	bp = _xfs_buf_find(target, ioff, isize, flags, new_bp);
+	bp = _xfs_buf_find(target, blkno, numblks, flags, new_bp);
 	if (!bp) {
 		xfs_buf_free(new_bp);
 		return NULL;
@@ -569,7 +575,7 @@ xfs_buf_get(
 	 * Now we have a workable buffer, fill in the block number so
 	 * that we can do IO on it.
 	 */
-	bp->b_bn = ioff;
+	bp->b_bn = blkno;
 	bp->b_count_desired = bp->b_buffer_length;
 
 found:
@@ -613,15 +619,15 @@ _xfs_buf_read(
 xfs_buf_t *
 xfs_buf_read(
 	xfs_buftarg_t		*target,
-	xfs_off_t		ioff,
-	size_t			isize,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
 	xfs_buf_flags_t		flags)
 {
 	xfs_buf_t		*bp;
 
 	flags |= XBF_READ;
 
-	bp = xfs_buf_get(target, ioff, isize, flags);
+	bp = xfs_buf_get(target, blkno, numblks, flags);
 	if (bp) {
 		trace_xfs_buf_read(bp, flags, _RET_IP_);
 
@@ -656,13 +662,13 @@ xfs_buf_read(
 void
 xfs_buf_readahead(
 	xfs_buftarg_t		*target,
-	xfs_off_t		ioff,
-	size_t			isize)
+	xfs_daddr_t		blkno,
+	size_t			numblks)
 {
 	if (bdi_read_congested(target->bt_bdi))
 		return;
 
-	xfs_buf_read(target, ioff, isize,
+	xfs_buf_read(target, blkno, numblks,
 		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD|XBF_DONT_BLOCK);
 }
 
@@ -672,16 +678,15 @@ xfs_buf_readahead(
  */
 struct xfs_buf *
 xfs_buf_read_uncached(
-	struct xfs_mount	*mp,
 	struct xfs_buftarg	*target,
 	xfs_daddr_t		daddr,
-	size_t			length,
+	size_t			numblks,
 	int			flags)
 {
 	xfs_buf_t		*bp;
 	int			error;
 
-	bp = xfs_buf_get_uncached(target, length, flags);
+	bp = xfs_buf_get_uncached(target, numblks, flags);
 	if (!bp)
 		return NULL;
 
@@ -689,7 +694,7 @@ xfs_buf_read_uncached(
 	XFS_BUF_SET_ADDR(bp, daddr);
 	XFS_BUF_READ(bp);
 
-	xfsbdstrat(mp, bp);
+	xfsbdstrat(target->bt_mount, bp);
 	error = xfs_buf_iowait(bp);
 	if (error) {
 		xfs_buf_relse(bp);
@@ -705,7 +710,7 @@ xfs_buf_read_uncached(
 void
 xfs_buf_set_empty(
 	struct xfs_buf		*bp,
-	size_t			len)
+	size_t			numblks)
 {
 	if (bp->b_pages)
 		_xfs_buf_free_pages(bp);
@@ -714,7 +719,7 @@ xfs_buf_set_empty(
 	bp->b_page_count = 0;
 	bp->b_addr = NULL;
 	bp->b_file_offset = 0;
-	bp->b_buffer_length = bp->b_count_desired = len;
+	bp->b_buffer_length = bp->b_count_desired = numblks << BBSHIFT;
 	bp->b_bn = XFS_BUF_DADDR_NULL;
 	bp->b_flags &= ~XBF_MAPPED;
 }
@@ -776,17 +781,18 @@ xfs_buf_associate_memory(
 xfs_buf_t *
 xfs_buf_get_uncached(
 	struct xfs_buftarg	*target,
-	size_t			len,
+	size_t			numblks,
 	int			flags)
 {
-	unsigned long		page_count = PAGE_ALIGN(len) >> PAGE_SHIFT;
+	unsigned long		page_count;
 	int			error, i;
 	xfs_buf_t		*bp;
 
-	bp = xfs_buf_alloc(target, 0, len, 0);
+	bp = xfs_buf_alloc(target, 0, numblks, 0);
 	if (unlikely(bp == NULL))
 		goto fail;
 
+	page_count = PAGE_ALIGN(numblks << BBSHIFT) >> PAGE_SHIFT;
 	error = _xfs_buf_get_pages(bp, page_count, 0);
 	if (error)
 		goto fail_free_buf;

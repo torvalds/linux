@@ -147,9 +147,9 @@ xfs_growfs_data_private(
 	if ((error = xfs_sb_validate_fsb_count(&mp->m_sb, nb)))
 		return error;
 	dpct = pct - mp->m_sb.sb_imax_pct;
-	bp = xfs_buf_read_uncached(mp, mp->m_ddev_targp,
+	bp = xfs_buf_read_uncached(mp->m_ddev_targp,
 				XFS_FSB_TO_BB(mp, nb) - XFS_FSS_TO_BB(mp, 1),
-				BBTOB(XFS_FSS_TO_BB(mp, 1)), 0);
+				XFS_FSS_TO_BB(mp, 1), 0);
 	if (!bp)
 		return EIO;
 	xfs_buf_relse(bp);
