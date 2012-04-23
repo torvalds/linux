@@ -233,7 +233,6 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	/* stop schedules, clean any completed work */
 	if (ehci->rh_state == EHCI_RH_RUNNING)
 		ehci_quiesce (ehci);
-	ehci->command = ehci_readl(ehci, &ehci->regs->command);
 	ehci_work(ehci);
 
 	/* Unlike other USB host controller types, EHCI doesn't have
@@ -374,6 +373,7 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci_writel(ehci, (u32) ehci->async->qh_dma, &ehci->regs->async_next);
 
 	/* restore CMD_RUN, framelist size, and irq threshold */
+	ehci->command |= CMD_RUN;
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 	ehci->rh_state = EHCI_RH_RUNNING;
 
