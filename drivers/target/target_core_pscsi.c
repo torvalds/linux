@@ -1070,7 +1070,8 @@ static int pscsi_do_task(struct se_task *task)
 	struct bio *hbio;
 	int ret;
 
-	target_get_task_cdb(task, pt->pscsi_cdb);
+	memcpy(pt->pscsi_cdb, cmd->t_task_cdb,
+		scsi_command_size(cmd->t_task_cdb));
 
 	if (task->task_se_cmd->se_cmd_flags & SCF_SCSI_NON_DATA_CDB) {
 		req = blk_get_request(pdv->pdv_sd->request_queue,

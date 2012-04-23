@@ -51,8 +51,6 @@ struct se_device *transport_add_device_to_core_hba(struct se_hba *,
 void	transport_complete_sync_cache(struct se_cmd *, int);
 void	transport_complete_task(struct se_task *, int);
 
-void	target_get_task_cdb(struct se_task *, unsigned char *);
-
 void	transport_set_vpd_proto_id(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_assoc(struct t10_vpd *, unsigned char *);
 int	transport_set_vpd_ident_type(struct t10_vpd *, unsigned char *);
