@@ -43,7 +43,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
 
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 
 #include "clock.h"
 

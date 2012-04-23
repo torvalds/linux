@@ -17,7 +17,7 @@
 /* ---- Include Files ---------------------------------------------------- */
 #include <mach/reg_umi.h>
 #include <mach/reg_nand.h>
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 
 /* ---- Constants and Types ---------------------------------------------- */
 #if (CFG_GLOBAL_CHIP_FAMILY == CFG_GLOBAL_CHIP_FAMILY_BCMRING)

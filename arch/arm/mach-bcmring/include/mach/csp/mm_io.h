@@ -30,7 +30,7 @@
 #include <mach/csp/mm_addr.h>
 
 #if !defined(CSP_SIMULATION)
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 #endif
 
 /* ---- Public Constants and Types --------------------------------------- */

@@ -38,7 +38,7 @@
 #include <mach/csp/chipcHw_def.h>
 #include <mach/csp/chipcHw_inline.h>
 
-#include <cfg_global.h>
+#include <mach/cfg_global.h>
 
 #include "core.h"
 
