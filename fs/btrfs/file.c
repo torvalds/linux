@@ -1497,14 +1497,15 @@ int btrfs_sync_file(struct file *file, loff_t start, loff_t end, int datasync)
 
 	trace_btrfs_sync_file(file, datasync);
 
-	ret = filemap_write_and_wait_range(inode->i_mapping, start, end);
-	if (ret)
-		return ret;
 	mutex_lock(&inode->i_mutex);
 
-	/* we wait first, since the writeback may change the inode */
+	/*
+	 * we wait first, since the writeback may change the inode, also wait
+	 * ordered range does a filemape_write_and_wait_range which is why we
+	 * don't do it above like other file systems.
+	 */
 	root->log_batch++;
-	btrfs_wait_ordered_range(inode, 0, (u64)-1);
+	btrfs_wait_ordered_range(inode, start, end);
 	root->log_batch++;
 
 	/*
