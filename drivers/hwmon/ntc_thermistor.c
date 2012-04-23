@@ -322,14 +322,14 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 
 	/* Either one of the two is required. */
 	if (!pdata->read_uV && !pdata->read_ohm) {
-		dev_err(&pdev->dev, "Both read_uV and read_ohm missing."
-				"Need either one of the two.\n");
+		dev_err(&pdev->dev,
+			"Both read_uV and read_ohm missing. Need either one of the two.\n");
 		return -EINVAL;
 	}
 
 	if (pdata->read_uV && pdata->read_ohm) {
-		dev_warn(&pdev->dev, "Only one of read_uV and read_ohm "
-				"is needed; ignoring read_uV.\n");
+		dev_warn(&pdev->dev,
+			 "Only one of read_uV and read_ohm is needed; ignoring read_uV.\n");
 		pdata->read_uV = NULL;
 	}
 
@@ -340,8 +340,8 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 				 NTC_CONNECTED_POSITIVE) ||
 				(pdata->connect != NTC_CONNECTED_POSITIVE &&
 				 pdata->connect != NTC_CONNECTED_GROUND))) {
-		dev_err(&pdev->dev, "Required data to use read_uV not "
-				"supplied.\n");
+		dev_err(&pdev->dev,
+			"Required data to use read_uV not supplied.\n");
 		return -EINVAL;
 	}
 
