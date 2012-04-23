@@ -44,8 +44,10 @@
 #include <plat/regs-iic.h>
 #include <plat/iic.h>
 
-/* i2c controller state */
+/* Treat S3C2410 as baseline hardware, anything else is supported via quirks */
+#define QUIRK_S3C2440		(1 << 0)
 
+/* i2c controller state */
 enum s3c24xx_i2c_state {
 	STATE_IDLE,
 	STATE_START,
@@ -54,14 +56,10 @@ enum s3c24xx_i2c_state {
 	STATE_STOP
 };
 
-enum s3c24xx_i2c_type {
-	TYPE_S3C2410,
-	TYPE_S3C2440,
-};
-
 struct s3c24xx_i2c {
 	spinlock_t		lock;
 	wait_queue_head_t	wait;
+	unsigned int            quirks;
 	unsigned int		suspended:1;
 
 	struct i2c_msg		*msg;
@@ -88,26 +86,40 @@ struct s3c24xx_i2c {
 #endif
 };
 
-/* default platform data removed, dev should always carry data. */
-
-/* s3c24xx_i2c_is2440()
- *
- * return true is this is an s3c2440
-*/
-
-static inline int s3c24xx_i2c_is2440(struct s3c24xx_i2c *i2c)
-{
-	struct platform_device *pdev = to_platform_device(i2c->dev);
-	enum s3c24xx_i2c_type type;
+static struct platform_device_id s3c24xx_driver_ids[] = {
+	{
+		.name		= "s3c2410-i2c",
+		.driver_data	= 0,
+	}, {
+		.name		= "s3c2440-i2c",
+		.driver_data	= QUIRK_S3C2440,
+	}, { },
+};
+MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
 
 #ifdef CONFIG_OF
-	if (i2c->dev->of_node)
-		return of_device_is_compatible(i2c->dev->of_node,
-				"samsung,s3c2440-i2c");
+static const struct of_device_id s3c24xx_i2c_match[] = {
+	{ .compatible = "samsung,s3c2410-i2c", .data = (void *)0 },
+	{ .compatible = "samsung,s3c2440-i2c", .data = (void *)QUIRK_S3C2440 },
+	{},
+};
+MODULE_DEVICE_TABLE(of, s3c24xx_i2c_match);
 #endif
 
-	type = platform_get_device_id(pdev)->driver_data;
-	return type == TYPE_S3C2440;
+/* s3c24xx_get_device_quirks
+ *
+ * Get controller type either from device tree or platform device variant.
+*/
+
+static inline unsigned int s3c24xx_get_device_quirks(struct platform_device *pdev)
+{
+	if (pdev->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(&s3c24xx_i2c_match, pdev->dev.of_node);
+		return (unsigned int)match->data;
+	}
+
+	return platform_get_device_id(pdev)->driver_data;
 }
 
 /* s3c24xx_i2c_master_complete
@@ -676,7 +688,7 @@ static int s3c24xx_i2c_clockrate(struct s3c24xx_i2c *i2c, unsigned int *got)
 
 	writel(iiccon, i2c->regs + S3C2410_IICCON);
 
-	if (s3c24xx_i2c_is2440(i2c)) {
+	if (i2c->quirks & QUIRK_S3C2440) {
 		unsigned long sda_delay;
 
 		if (pdata->sda_delay) {
@@ -906,6 +918,7 @@ static int s3c24xx_i2c_probe(struct platform_device *pdev)
 		goto err_noclk;
 	}
 
+	i2c->quirks = s3c24xx_get_device_quirks(pdev);
 	if (pdata)
 		memcpy(i2c->pdata, pdata, sizeof(*pdata));
 	else
@@ -1109,26 +1122,6 @@ static const struct dev_pm_ops s3c24xx_i2c_dev_pm_ops = {
 #endif
 
 /* device driver for platform bus bits */
-
-static struct platform_device_id s3c24xx_driver_ids[] = {
-	{
-		.name		= "s3c2410-i2c",
-		.driver_data	= TYPE_S3C2410,
-	}, {
-		.name		= "s3c2440-i2c",
-		.driver_data	= TYPE_S3C2440,
-	}, { },
-};
-MODULE_DEVICE_TABLE(platform, s3c24xx_driver_ids);
-
-#ifdef CONFIG_OF
-static const struct of_device_id s3c24xx_i2c_match[] = {
-	{ .compatible = "samsung,s3c2410-i2c" },
-	{ .compatible = "samsung,s3c2440-i2c" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, s3c24xx_i2c_match);
-#endif
 
 static struct platform_driver s3c24xx_i2c_driver = {
 	.probe		= s3c24xx_i2c_probe,
