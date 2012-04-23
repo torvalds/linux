@@ -98,7 +98,7 @@ static int adc_request_add(struct adc_host *adc, struct adc_client *client)
                 if(req->client->index == client->index)
                         return 0;
         }
-        req = kzalloc(sizeof(struct adc_request), GFP_KERNEL);
+        req = kzalloc(sizeof(struct adc_request), GFP_ATOMIC);
 
         if(!req)
                 return -ENOMEM;
@@ -129,7 +129,7 @@ void adc_core_irq_handle(struct adc_host *adc)
 
 int adc_host_read(struct adc_client *client, enum read_type type)
 {
-        int tmo;
+        int tmo, ret = 0;
 	unsigned long flags;
         struct adc_host *adc = NULL;
 
@@ -144,7 +144,12 @@ int adc_host_read(struct adc_client *client, enum read_type type)
 	}
 
 	spin_lock_irqsave(&adc->lock, flags);
-        adc_request_add(adc, client);
+        ret = adc_request_add(adc, client);
+        if(ret < 0){
+                spin_unlock_irqrestore(&adc->lock, flags);
+                dev_err(adc->dev, "No memory for req\n");
+                return ret;
+        }
         client->is_finished = 0;
 	spin_unlock_irqrestore(&adc->lock, flags);
 
