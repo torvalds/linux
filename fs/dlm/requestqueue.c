@@ -19,6 +19,7 @@
 
 struct rq_entry {
 	struct list_head list;
+	uint32_t recover_seq;
 	int nodeid;
 	struct dlm_message request;
 };
@@ -41,6 +42,7 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 		return;
 	}
 
+	e->recover_seq = ls->ls_recover_seq & 0xFFFFFFFF;
 	e->nodeid = nodeid;
 	memcpy(&e->request, ms, ms->m_header.h_length);
 
@@ -76,7 +78,7 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 		e = list_entry(ls->ls_requestqueue.next, struct rq_entry, list);
 		mutex_unlock(&ls->ls_requestqueue_mutex);
 
-		dlm_receive_message_saved(ls, &e->request);
+		dlm_receive_message_saved(ls, &e->request, e->recover_seq);
 
 		mutex_lock(&ls->ls_requestqueue_mutex);
 		list_del(&e->list);
