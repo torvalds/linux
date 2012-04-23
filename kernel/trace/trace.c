@@ -4474,6 +4474,9 @@ static void tracing_init_debugfs_percpu(long cpu)
 	struct dentry *d_cpu;
 	char cpu_dir[30]; /* 30 characters should be more than enough */
 
+	if (!d_percpu)
+		return;
+
 	snprintf(cpu_dir, 30, "cpu%ld", cpu);
 	d_cpu = debugfs_create_dir(cpu_dir, d_percpu);
 	if (!d_cpu) {
