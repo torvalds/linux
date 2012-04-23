@@ -535,14 +535,23 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 		wlcore_hw_tx_immediate_compl(wl);
 
 		intr = le32_to_cpu(wl->fw_status_1->intr);
-		intr &= WL1271_INTR_MASK;
+		intr &= WLCORE_ALL_INTR_MASK;
 		if (!intr) {
 			done = true;
 			continue;
 		}
 
 		if (unlikely(intr & WL1271_ACX_INTR_WATCHDOG)) {
-			wl1271_error("watchdog interrupt received! "
+			wl1271_error("HW watchdog interrupt received! starting recovery.");
+			wl->watchdog_recovery = true;
+			wl12xx_queue_recovery_work(wl);
+
+			/* restarting the chip. ignore any other interrupt. */
+			goto out;
+		}
+
+		if (unlikely(intr & WL1271_ACX_SW_INTR_WATCHDOG)) {
+			wl1271_error("SW watchdog interrupt received! "
 				     "starting recovery.");
 			wl->watchdog_recovery = true;
 			wl12xx_queue_recovery_work(wl);

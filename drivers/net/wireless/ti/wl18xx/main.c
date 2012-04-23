@@ -776,11 +776,21 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 
 static void wl18xx_enable_interrupts(struct wl1271 *wl)
 {
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_ALL_EVENTS_VECTOR);
+	u32 event_mask, intr_mask;
+
+	if (wl->chip.id == CHIP_ID_185x_PG10) {
+		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG1;
+		intr_mask = WL18XX_INTR_MASK_PG1;
+	} else {
+		event_mask = WL18XX_ACX_EVENTS_VECTOR_PG2;
+		intr_mask = WL18XX_INTR_MASK_PG2;
+	}
+
+	wlcore_write_reg(wl, REG_INTERRUPT_MASK, event_mask);
 
 	wlcore_enable_interrupts(wl);
 	wlcore_write_reg(wl, REG_INTERRUPT_MASK,
-			 WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
+			 WL1271_ACX_INTR_ALL & ~intr_mask);
 }
 
 static int wl18xx_boot(struct wl1271 *wl)

@@ -51,21 +51,18 @@
 #define WL1271_ACX_INTR_TRACE_A            BIT(7)
 /* Trace message on MBOX #B */
 #define WL1271_ACX_INTR_TRACE_B            BIT(8)
+/* SW FW Initiated interrupt Watchdog timer expiration */
+#define WL1271_ACX_SW_INTR_WATCHDOG        BIT(9)
 
-#define WL1271_ACX_INTR_ALL		   0xFFFFFFFF
-#define WL1271_ACX_ALL_EVENTS_VECTOR       (WL1271_ACX_INTR_WATCHDOG      | \
-					    WL1271_ACX_INTR_INIT_COMPLETE | \
-					    WL1271_ACX_INTR_EVENT_A       | \
-					    WL1271_ACX_INTR_EVENT_B       | \
-					    WL1271_ACX_INTR_CMD_COMPLETE  | \
-					    WL1271_ACX_INTR_HW_AVAILABLE  | \
-					    WL1271_ACX_INTR_DATA)
+#define WL1271_ACX_INTR_ALL             0xFFFFFFFF
 
-#define WL1271_INTR_MASK                   (WL1271_ACX_INTR_WATCHDOG     | \
-					    WL1271_ACX_INTR_EVENT_A      | \
-					    WL1271_ACX_INTR_EVENT_B      | \
-					    WL1271_ACX_INTR_HW_AVAILABLE | \
-					    WL1271_ACX_INTR_DATA)
+/* all possible interrupts - only appropriate ones will be masked in */
+#define WLCORE_ALL_INTR_MASK		(WL1271_ACX_INTR_WATCHDOG     | \
+					WL1271_ACX_INTR_EVENT_A       | \
+					WL1271_ACX_INTR_EVENT_B       | \
+					WL1271_ACX_INTR_HW_AVAILABLE  | \
+					WL1271_ACX_INTR_DATA          | \
+					WL1271_ACX_SW_INTR_WATCHDOG)
 
 /* Target's information element */
 struct acx_header {

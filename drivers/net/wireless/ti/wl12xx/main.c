@@ -1034,11 +1034,11 @@ static void wl12xx_pre_upload(struct wl1271 *wl)
 
 static void wl12xx_enable_interrupts(struct wl1271 *wl)
 {
-	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL1271_ACX_ALL_EVENTS_VECTOR);
+	wlcore_write_reg(wl, REG_INTERRUPT_MASK, WL12XX_ACX_ALL_EVENTS_VECTOR);
 
 	wlcore_enable_interrupts(wl);
 	wlcore_write_reg(wl, REG_INTERRUPT_MASK,
-			 WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
+			 WL1271_ACX_INTR_ALL & ~(WL12XX_INTR_MASK));
 
 	wl1271_write32(wl, WL12XX_HI_CFG, HI_CFG_DEF_VAL);
 }
