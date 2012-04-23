@@ -60,17 +60,10 @@
 
 /* Data structures. */
 
-static struct lock_class_key rcu_node_class[NUM_RCU_LVLS];
+static struct lock_class_key rcu_node_class[RCU_NUM_LVLS];
 
 #define RCU_STATE_INITIALIZER(structname) { \
 	.level = { &structname##_state.node[0] }, \
-	.levelcnt = { \
-		NUM_RCU_LVL_0,  /* root of hierarchy. */ \
-		NUM_RCU_LVL_1, \
-		NUM_RCU_LVL_2, \
-		NUM_RCU_LVL_3, \
-		NUM_RCU_LVL_4, /* == MAX_RCU_LVLS */ \
-	}, \
 	.fqs_state = RCU_GP_IDLE, \
 	.gpnum = -300, \
 	.completed = -300, \
@@ -90,6 +83,19 @@ struct rcu_state rcu_bh_state = RCU_STATE_INITIALIZER(rcu_bh);
 DEFINE_PER_CPU(struct rcu_data, rcu_bh_data);
 
 static struct rcu_state *rcu_state;
+
+/* Increase (but not decrease) the CONFIG_RCU_FANOUT_LEAF at boot time. */
+static int rcu_fanout_leaf = CONFIG_RCU_FANOUT_LEAF;
+module_param(rcu_fanout_leaf, int, 0);
+int rcu_num_lvls __read_mostly = RCU_NUM_LVLS;
+static int num_rcu_lvl[] = {  /* Number of rcu_nodes at specified level. */
+	NUM_RCU_LVL_0,
+	NUM_RCU_LVL_1,
+	NUM_RCU_LVL_2,
+	NUM_RCU_LVL_3,
+	NUM_RCU_LVL_4,
+};
+int rcu_num_nodes __read_mostly = NUM_RCU_NODES; /* Total # rcu_nodes in use. */
 
 /*
  * The rcu_scheduler_active variable transitions from zero to one just
@@ -2574,9 +2580,9 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 {
 	int i;
 
-	for (i = NUM_RCU_LVLS - 1; i > 0; i--)
+	for (i = rcu_num_lvls - 1; i > 0; i--)
 		rsp->levelspread[i] = CONFIG_RCU_FANOUT;
-	rsp->levelspread[0] = CONFIG_RCU_FANOUT_LEAF;
+	rsp->levelspread[0] = rcu_fanout_leaf;
 }
 #else /* #ifdef CONFIG_RCU_FANOUT_EXACT */
 static void __init rcu_init_levelspread(struct rcu_state *rsp)
@@ -2586,7 +2592,7 @@ static void __init rcu_init_levelspread(struct rcu_state *rsp)
 	int i;
 
 	cprv = NR_CPUS;
-	for (i = NUM_RCU_LVLS - 1; i >= 0; i--) {
+	for (i = rcu_num_lvls - 1; i >= 0; i--) {
 		ccur = rsp->levelcnt[i];
 		rsp->levelspread[i] = (cprv + ccur - 1) / ccur;
 		cprv = ccur;
@@ -2613,13 +2619,15 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 
 	/* Initialize the level-tracking arrays. */
 
-	for (i = 1; i < NUM_RCU_LVLS; i++)
+	for (i = 0; i < rcu_num_lvls; i++)
+		rsp->levelcnt[i] = num_rcu_lvl[i];
+	for (i = 1; i < rcu_num_lvls; i++)
 		rsp->level[i] = rsp->level[i - 1] + rsp->levelcnt[i - 1];
 	rcu_init_levelspread(rsp);
 
 	/* Initialize the elements themselves, starting from the leaves. */
 
-	for (i = NUM_RCU_LVLS - 1; i >= 0; i--) {
+	for (i = rcu_num_lvls - 1; i >= 0; i--) {
 		cpustride *= rsp->levelspread[i];
 		rnp = rsp->level[i];
 		for (j = 0; j < rsp->levelcnt[i]; j++, rnp++) {
@@ -2649,7 +2657,7 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 	}
 
 	rsp->rda = rda;
-	rnp = rsp->level[NUM_RCU_LVLS - 1];
+	rnp = rsp->level[rcu_num_lvls - 1];
 	for_each_possible_cpu(i) {
 		while (i > rnp->grphi)
 			rnp++;
@@ -2658,11 +2666,72 @@ static void __init rcu_init_one(struct rcu_state *rsp,
 	}
 }
 
+/*
+ * Compute the rcu_node tree geometry from kernel parameters.  This cannot
+ * replace the definitions in rcutree.h because those are needed to size
+ * the ->node array in the rcu_state structure.
+ */
+static void __init rcu_init_geometry(void)
+{
+	int i;
+	int j;
+	int n = NR_CPUS;
+	int rcu_capacity[MAX_RCU_LVLS + 1];
+
+	/* If the compile-time values are accurate, just leave. */
+	if (rcu_fanout_leaf == CONFIG_RCU_FANOUT_LEAF)
+		return;
+
+	/*
+	 * Compute number of nodes that can be handled an rcu_node tree
+	 * with the given number of levels.  Setting rcu_capacity[0] makes
+	 * some of the arithmetic easier.
+	 */
+	rcu_capacity[0] = 1;
+	rcu_capacity[1] = rcu_fanout_leaf;
+	for (i = 2; i <= MAX_RCU_LVLS; i++)
+		rcu_capacity[i] = rcu_capacity[i - 1] * CONFIG_RCU_FANOUT;
+
+	/*
+	 * The boot-time rcu_fanout_leaf parameter is only permitted
+	 * to increase the leaf-level fanout, not decrease it.  Of course,
+	 * the leaf-level fanout cannot exceed the number of bits in
+	 * the rcu_node masks.  Finally, the tree must be able to accommodate
+	 * the configured number of CPUs.  Complain and fall back to the
+	 * compile-time values if these limits are exceeded.
+	 */
+	if (rcu_fanout_leaf < CONFIG_RCU_FANOUT_LEAF ||
+	    rcu_fanout_leaf > sizeof(unsigned long) * 8 ||
+	    n > rcu_capacity[MAX_RCU_LVLS]) {
+		WARN_ON(1);
+		return;
+	}
+
+	/* Calculate the number of rcu_nodes at each level of the tree. */
+	for (i = 1; i <= MAX_RCU_LVLS; i++)
+		if (n <= rcu_capacity[i]) {
+			for (j = 0; j <= i; j++)
+				num_rcu_lvl[j] =
+					DIV_ROUND_UP(n, rcu_capacity[i - j]);
+			rcu_num_lvls = i;
+			for (j = i + 1; j <= MAX_RCU_LVLS; j++)
+				num_rcu_lvl[j] = 0;
+			break;
+		}
+
+	/* Calculate the total number of rcu_node structures. */
+	rcu_num_nodes = 0;
+	for (i = 0; i <= MAX_RCU_LVLS; i++)
+		rcu_num_nodes += num_rcu_lvl[i];
+	rcu_num_nodes -= n;
+}
+
 void __init rcu_init(void)
 {
 	int cpu;
 
 	rcu_bootup_announce();
+	rcu_init_geometry();
 	rcu_init_one(&rcu_sched_state, &rcu_sched_data);
 	rcu_init_one(&rcu_bh_state, &rcu_bh_data);
 	__rcu_init_preempt();
