@@ -396,7 +396,7 @@ static irqreturn_t bfin_spi_pio_irq_handler(int irq, void *dev_id)
 		/* last read */
 		if (drv_data->rx) {
 			dev_dbg(&drv_data->pdev->dev, "last read\n");
-			if (n_bytes % 2) {
+			if (!(n_bytes % 2)) {
 				u16 *buf = (u16 *)drv_data->rx;
 				for (loop = 0; loop < n_bytes / 2; loop++)
 					*buf++ = bfin_read(&drv_data->regs->rdbr);
@@ -424,7 +424,7 @@ static irqreturn_t bfin_spi_pio_irq_handler(int irq, void *dev_id)
 	if (drv_data->rx && drv_data->tx) {
 		/* duplex */
 		dev_dbg(&drv_data->pdev->dev, "duplex: write_TDBR\n");
-		if (n_bytes % 2) {
+		if (!(n_bytes % 2)) {
 			u16 *buf = (u16 *)drv_data->rx;
 			u16 *buf2 = (u16 *)drv_data->tx;
 			for (loop = 0; loop < n_bytes / 2; loop++) {
@@ -442,7 +442,7 @@ static irqreturn_t bfin_spi_pio_irq_handler(int irq, void *dev_id)
 	} else if (drv_data->rx) {
 		/* read */
 		dev_dbg(&drv_data->pdev->dev, "read: write_TDBR\n");
-		if (n_bytes % 2) {
+		if (!(n_bytes % 2)) {
 			u16 *buf = (u16 *)drv_data->rx;
 			for (loop = 0; loop < n_bytes / 2; loop++) {
 				*buf++ = bfin_read(&drv_data->regs->rdbr);
@@ -458,7 +458,7 @@ static irqreturn_t bfin_spi_pio_irq_handler(int irq, void *dev_id)
 	} else if (drv_data->tx) {
 		/* write */
 		dev_dbg(&drv_data->pdev->dev, "write: write_TDBR\n");
-		if (n_bytes % 2) {
+		if (!(n_bytes % 2)) {
 			u16 *buf = (u16 *)drv_data->tx;
 			for (loop = 0; loop < n_bytes / 2; loop++) {
 				bfin_read(&drv_data->regs->rdbr);
