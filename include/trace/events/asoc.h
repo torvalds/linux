@@ -263,7 +263,7 @@ TRACE_EVENT(snd_soc_dapm_output_path,
 		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
 		__assign_str(psname, path->sink->name);
 		__entry->path_connect = path->connect;
-		__entry->path_sink = (int)path->sink;
+		__entry->path_sink = (long)path->sink;
 	),
 
 	TP_printk("%c%s -> %s -> %s\n",
@@ -292,7 +292,7 @@ TRACE_EVENT(snd_soc_dapm_input_path,
 		__assign_str(pname, path->name ? path->name : DAPM_DIRECT);
 		__assign_str(psname, path->source->name);
 		__entry->path_connect = path->connect;
-		__entry->path_source = (int)path->source;
+		__entry->path_source = (long)path->source;
 	),
 
 	TP_printk("%c%s <- %s <- %s\n",
