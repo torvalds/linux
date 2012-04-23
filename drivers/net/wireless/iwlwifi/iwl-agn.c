@@ -1588,7 +1588,6 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* these spin locks will be used in apm_ops.init and EEPROM access
 	 * we should init now
 	 */
-	spin_lock_init(&priv->trans->reg_lock);
 	spin_lock_init(&priv->statistics.lock);
 
 	/***********************
