@@ -19,7 +19,6 @@
 #include "xfs_fs.h"
 #include "xfs_types.h"
 #include "xfs_acl.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"

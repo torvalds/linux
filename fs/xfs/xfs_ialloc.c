@@ -609,6 +609,13 @@ xfs_ialloc_get_rec(
 /*
  * Visible inode allocation functions.
  */
+/*
+ * Find a free (set) bit in the inode bitmask.
+ */
+static inline int xfs_ialloc_find_free(xfs_inofree_t *fp)
+{
+	return xfs_lowbit64(*fp);
+}
 
 /*
  * Allocate an inode on disk.

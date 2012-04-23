@@ -17,7 +17,6 @@
  */
 
 #include "xfs.h"
-#include "xfs_bit.h"
 #include "xfs_log.h"
 #include "xfs_inum.h"
 #include "xfs_trans.h"
