@@ -64,7 +64,8 @@ __xfs_efi_release(
 	if (!test_and_clear_bit(XFS_EFI_COMMITTED, &efip->efi_flags)) {
 		spin_lock(&ailp->xa_lock);
 		/* xfs_trans_ail_delete() drops the AIL lock. */
-		xfs_trans_ail_delete(ailp, &efip->efi_item);
+		xfs_trans_ail_delete(ailp, &efip->efi_item,
+				     SHUTDOWN_LOG_IO_ERROR);
 		xfs_efi_item_free(efip);
 	}
 }

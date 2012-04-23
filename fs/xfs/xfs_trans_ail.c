@@ -707,7 +707,8 @@ void
 xfs_trans_ail_delete_bulk(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	**log_items,
-	int			nr_items) __releases(ailp->xa_lock)
+	int			nr_items,
+	int			shutdown_type) __releases(ailp->xa_lock)
 {
 	xfs_log_item_t		*mlip;
 	int			mlip_changed = 0;
@@ -725,7 +726,7 @@ xfs_trans_ail_delete_bulk(
 				xfs_alert_tag(mp, XFS_PTAG_AILDELETE,
 		"%s: attempting to delete a log item that is not in the AIL",
 						__func__);
-				xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+				xfs_force_shutdown(mp, shutdown_type);
 			}
 			return;
 		}
