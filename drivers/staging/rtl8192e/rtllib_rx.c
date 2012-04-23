@@ -496,7 +496,7 @@ void rtllib_indicate_packets(struct rtllib_device *ieee, struct rtllib_rxb **prx
 				memcpy(skb_push(sub_skb, ETH_ALEN), prxb->dst, ETH_ALEN);
 			}
 
-			/* Indicat the packets to upper layer */
+			/* Indicate the packets to upper layer */
 			if (sub_skb) {
 				stats->rx_packets++;
 				stats->rx_bytes += sub_skb->len;
@@ -1233,7 +1233,7 @@ static void rtllib_rx_indicate_pkt_legacy(struct rtllib_device *ieee,
 			if (is_multicast_ether_addr(dst))
 				ieee->stats.multicast++;
 
-			/* Indicat the packets to upper layer */
+			/* Indicate the packets to upper layer */
 			memset(sub_skb->cb, 0, sizeof(sub_skb->cb));
 			sub_skb->protocol = eth_type_trans(sub_skb, dev);
 			sub_skb->dev = dev;

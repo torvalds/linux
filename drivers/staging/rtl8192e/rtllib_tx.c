@@ -59,7 +59,7 @@
 802.11 Data Frame
 
 
-802.11 frame_contorl for data frames - 2 bytes
+802.11 frame_control for data frames - 2 bytes
      ,-----------------------------------------------------------------------------------------.
 bits | 0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  a  |  b  |  c  |  d  |  e   |
      |----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|------|
@@ -576,7 +576,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 
 	spin_lock_irqsave(&ieee->lock, flags);
 
-	/* If there is no driver handler to take the TXB, dont' bother
+	/* If there is no driver handler to take the TXB, don't bother
 	 * creating it... */
 	if ((!ieee->hard_start_xmit && !(ieee->softmac_features &
 	   IEEE_SOFTMAC_TX_QUEUE)) ||
@@ -738,7 +738,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 		   (CFG_RTLLIB_COMPUTE_FCS | CFG_RTLLIB_RESERVE_FCS))
 			bytes_per_frag -= RTLLIB_FCS_LEN;
 
-		/* Each fragment may need to have room for encryptiong
+		/* Each fragment may need to have room for encrypting
 		 * pre/postfix */
 		if (encrypt) {
 			bytes_per_frag -= crypt->ops->extra_mpdu_prefix_len +

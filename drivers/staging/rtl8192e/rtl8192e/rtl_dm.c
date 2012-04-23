@@ -493,7 +493,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 
 				if (priv->bResetInProgress) {
 					RT_TRACE(COMP_POWER_TRACKING,
-						 "we are in slient reset progress, so return\n");
+						 "we are in silent reset progress, so return\n");
 					write_nic_byte(dev, Pw_Track_Flag, 0);
 					write_nic_byte(dev, FW_Busy_Flag, 0);
 					return;

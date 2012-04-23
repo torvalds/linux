@@ -1025,7 +1025,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 			break;
 		}
 		RT_TRACE(COMP_DBG, "===>%s():RF is in progress, need to wait "
-			 "until rf chang is done.\n", __func__);
+			 "until rf change is done.\n", __func__);
 		mdelay(1);
 		RFInProgressTimeOut++;
 		spin_lock_irqsave(&priv->rf_ps_lock, flags);
