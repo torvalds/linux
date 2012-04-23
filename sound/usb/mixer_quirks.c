@@ -42,6 +42,85 @@
 
 extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
 
+/* private_free callback */
+static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
+{
+	kfree(kctl->private_data);
+	kctl->private_data = NULL;
+}
+
+/* This function allows for the creation of standard UAC controls.
+ * See the quirks for M-Audio FTUs or Ebox-44.
+ * If you don't want to set a TLV callback pass NULL.
+ *
+ * Since there doesn't seem to be a devices that needs a multichannel
+ * version, we keep it mono for simplicity.
+ */
+static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
+				unsigned int unitid,
+				unsigned int control,
+				unsigned int cmask,
+				int val_type,
+				const char *name,
+				snd_kcontrol_tlv_rw_t *tlv_callback)
+{
+	int err;
+	struct usb_mixer_elem_info *cval;
+	struct snd_kcontrol *kctl;
+
+	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
+	if (!cval)
+		return -ENOMEM;
+
+	cval->id = unitid;
+	cval->mixer = mixer;
+	cval->val_type = val_type;
+	cval->channels = 1;
+	cval->control = control;
+	cval->cmask = cmask;
+
+	/* FIXME: Do we need this?
+	 * The following values are for compatibility with
+	 * Ebox-44 mixer.
+	 * But the corresponding ebox-44 function says:
+	 *    "Volume controls will override these values"
+	 *
+	 * These values don't have any effect at all for
+	 * M-Audio FTUs.
+	 * So I think, we can safely omit the range settings here.
+	 */
+	cval->min = 0;
+	cval->max = 1;
+	cval->res = 0;
+	cval->dBmin = 0;
+	cval->dBmax = 0;
+
+	/* Create control */
+	kctl = snd_ctl_new1(snd_usb_feature_unit_ctl, cval);
+	if (!kctl) {
+		kfree(cval);
+		return -ENOMEM;
+	}
+
+	/* Set name */
+	snprintf(kctl->id.name, sizeof(kctl->id.name), name);
+	kctl->private_free = usb_mixer_elem_free;
+
+	/* set TLV */
+	if (tlv_callback) {
+		kctl->tlv.c = tlv_callback;
+		kctl->vd[0].access |=
+			SNDRV_CTL_ELEM_ACCESS_TLV_READ |
+			SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+	}
+	/* Add control to mixer */
+	err = snd_usb_mixer_add_control(mixer, kctl);
+	if (err < 0)
+		return err;
+
+	return 0;
+}
+
 /*
  * Sound Blaster remote control configuration
  *
@@ -496,59 +575,37 @@ static int snd_nativeinstruments_create_mixer(struct usb_mixer_interface *mixer,
 
 /* M-Audio FastTrack Ultra quirks */
 
-/* private_free callback */
-static void usb_mixer_elem_free(struct snd_kcontrol *kctl)
-{
-	kfree(kctl->private_data);
-	kctl->private_data = NULL;
-}
-
-static int snd_maudio_ftu_create_ctl(struct usb_mixer_interface *mixer,
-				     int in, int out, const char *name)
-{
-	struct usb_mixer_elem_info *cval;
-	struct snd_kcontrol *kctl;
-
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
-	if (!cval)
-		return -ENOMEM;
-
-	cval->id = 5;
-	cval->mixer = mixer;
-	cval->val_type = USB_MIXER_S16;
-	cval->channels = 1;
-	cval->control = out + 1;
-	cval->cmask = 1 << in;
-
-	kctl = snd_ctl_new1(snd_usb_feature_unit_ctl, cval);
-	if (!kctl) {
-		kfree(cval);
-		return -ENOMEM;
-	}
-
-	snprintf(kctl->id.name, sizeof(kctl->id.name), name);
-	kctl->private_free = usb_mixer_elem_free;
-	return snd_usb_mixer_add_control(mixer, kctl);
-}
-
-static int snd_maudio_ftu_create_mixer(struct usb_mixer_interface *mixer)
+/* Create a volume control for FTU devices*/
+static int snd_maudio_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 {
 	char name[64];
+	unsigned int control, cmask;
 	int in, out, err;
 
+	const unsigned int id = 5;
+	const int val_type = USB_MIXER_S16;
+
 	for (out = 0; out < 8; out++) {
+		control = out + 1;
 		for (in = 0; in < 8; in++) {
+			cmask = 1 << in;
 			snprintf(name, sizeof(name),
-				 "AIn%d - Out%d Capture Volume", in  + 1, out + 1);
-			err = snd_maudio_ftu_create_ctl(mixer, in, out, name);
+				"AIn%d - Out%d Capture Volume",
+				in  + 1, out + 1);
+			err = snd_create_std_mono_ctl(mixer, id, control,
+							cmask, val_type, name,
+							NULL);
 			if (err < 0)
 				return err;
 		}
-
 		for (in = 8; in < 16; in++) {
+			cmask = 1 << in;
 			snprintf(name, sizeof(name),
-				 "DIn%d - Out%d Playback Volume", in - 7, out + 1);
-			err = snd_maudio_ftu_create_ctl(mixer, in, out, name);
+				"DIn%d - Out%d Playback Volume",
+				in - 7, out + 1);
+			err = snd_create_std_mono_ctl(mixer, id, control,
+							cmask, val_type, name,
+							NULL);
 			if (err < 0)
 				return err;
 		}
@@ -557,43 +614,17 @@ static int snd_maudio_ftu_create_mixer(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
-static int snd_ebox44_create_ctl(struct usb_mixer_interface *mixer,
-				int unitid, int control, int cmask,
-				int val_type, const char *name)
+static int snd_maudio_ftu_create_mixer(struct usb_mixer_interface *mixer)
 {
-	struct usb_mixer_elem_info *cval;
-	struct snd_kcontrol *kctl;
+	int err;
 
-	cval = kzalloc(sizeof(*cval), GFP_KERNEL);
-	if (!cval)
-		return -ENOMEM;
+	err = snd_maudio_ftu_create_volume_ctls(mixer);
+	if (err < 0)
+		return err;
 
-	cval->id = unitid;
-	cval->mixer = mixer;
-
-	cval->val_type = val_type;
-	cval->channels = 1;
-	cval->control = control;
-	cval->cmask = cmask;
-
-	/* Volume controls will override these values */
-	cval->min = 0;
-	cval->max = 1;
-	cval->res = 0;
-
-	cval->dBmin = 0;
-	cval->dBmax = 0;
-
-	kctl = snd_ctl_new1(snd_usb_feature_unit_ctl, cval);
-	if (!kctl) {
-		kfree(cval);
-		return -ENOMEM;
-	}
-
-	snprintf(kctl->id.name, sizeof(kctl->id.name), name);
-	kctl->private_free = usb_mixer_elem_free;
-	return snd_usb_mixer_add_control(mixer, kctl);
+	return 0;
 }
+
 
 /*
  * Create mixer for Electrix Ebox-44
@@ -605,17 +636,26 @@ static int snd_ebox44_create_ctl(struct usb_mixer_interface *mixer,
 
 static int snd_ebox44_create_mixer(struct usb_mixer_interface *mixer)
 {
-	snd_ebox44_create_ctl(mixer, 4, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Headphone Playback Switch");
-	snd_ebox44_create_ctl(mixer, 4, 2, 0x1, USB_MIXER_S16, "Headphone A Mix Playback Volume");
-	snd_ebox44_create_ctl(mixer, 4, 2, 0x2, USB_MIXER_S16, "Headphone B Mix Playback Volume");
+	snd_create_std_mono_ctl(mixer, 4, 1, 0x0, USB_MIXER_INV_BOOLEAN,
+				"Headphone Playback Switch", NULL);
+	snd_create_std_mono_ctl(mixer, 4, 2, 0x1, USB_MIXER_S16,
+				"Headphone A Mix Playback Volume", NULL);
+	snd_create_std_mono_ctl(mixer, 4, 2, 0x2, USB_MIXER_S16,
+				"Headphone B Mix Playback Volume", NULL);
 
-	snd_ebox44_create_ctl(mixer, 7, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Output Playback Switch");
-	snd_ebox44_create_ctl(mixer, 7, 2, 0x1, USB_MIXER_S16, "Output A Playback Volume");
-	snd_ebox44_create_ctl(mixer, 7, 2, 0x2, USB_MIXER_S16, "Output B Playback Volume");
+	snd_create_std_mono_ctl(mixer, 7, 1, 0x0, USB_MIXER_INV_BOOLEAN,
+				"Output Playback Switch", NULL);
+	snd_create_std_mono_ctl(mixer, 7, 2, 0x1, USB_MIXER_S16,
+				"Output A Playback Volume", NULL);
+	snd_create_std_mono_ctl(mixer, 7, 2, 0x2, USB_MIXER_S16,
+				"Output B Playback Volume", NULL);
 
-	snd_ebox44_create_ctl(mixer, 10, 1, 0x0, USB_MIXER_INV_BOOLEAN, "Input Capture Switch");
-	snd_ebox44_create_ctl(mixer, 10, 2, 0x1, USB_MIXER_S16, "Input A Capture Volume");
-	snd_ebox44_create_ctl(mixer, 10, 2, 0x2, USB_MIXER_S16, "Input B Capture Volume");
+	snd_create_std_mono_ctl(mixer, 10, 1, 0x0, USB_MIXER_INV_BOOLEAN,
+				"Input Capture Switch", NULL);
+	snd_create_std_mono_ctl(mixer, 10, 2, 0x1, USB_MIXER_S16,
+				"Input A Capture Volume", NULL);
+	snd_create_std_mono_ctl(mixer, 10, 2, 0x2, USB_MIXER_S16,
+				"Input B Capture Volume", NULL);
 
 	return 0;
 }
