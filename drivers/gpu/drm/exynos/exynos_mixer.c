@@ -886,7 +886,7 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = arg;
 	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
-	u32 val, val_base;
+	u32 val, base, shadow;
 
 	spin_lock(&res->reg_slock);
 
@@ -897,12 +897,14 @@ static irqreturn_t mixer_irq_handler(int irq, void *arg)
 	if (val & MXR_INT_STATUS_VSYNC) {
 		/* interlace scan need to check shadow register */
 		if (ctx->interlace) {
-			val_base = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(0));
-			if (ctx->win_data[0].dma_addr != val_base)
+			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(0));
+			shadow = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(0));
+			if (base != shadow)
 				goto out;
 
-			val_base = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(1));
-			if (ctx->win_data[1].dma_addr != val_base)
+			base = mixer_reg_read(res, MXR_GRAPHIC_BASE(1));
+			shadow = mixer_reg_read(res, MXR_GRAPHIC_BASE_S(1));
+			if (base != shadow)
 				goto out;
 		}
 
