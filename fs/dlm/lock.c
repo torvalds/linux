@@ -479,6 +479,9 @@ static int _search_rsb(struct dlm_ls *ls, char *name, int len, int b,
 		kref_get(&r->res_ref);
 		goto out;
 	}
+	if (error == -ENOTBLK)
+		goto out;
+
 	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, flags, &r);
 	if (error)
 		goto out;
