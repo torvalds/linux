@@ -57,12 +57,9 @@ struct hdmi_resources {
 struct hdmi_context {
 	struct device			*dev;
 	struct drm_device		*drm_dev;
-	struct fb_videomode		*default_timing;
-	unsigned int			is_v13:1;
-	unsigned int			default_win;
-	unsigned int			default_bpp;
 	bool				hpd_handle;
 	bool				enabled;
+	bool				is_v13;
 
 	struct resource			*regs_res;
 	void __iomem			*regs;
@@ -78,6 +75,9 @@ struct hdmi_context {
 
 	struct hdmi_resources		res;
 	void				*parent_ctx;
+
+	void				(*cfg_hpd)(bool external);
+	int				(*get_hpd)(void);
 };
 
 /* HDMI Version 1.3 */
@@ -2243,9 +2243,8 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, drm_hdmi_ctx);
 
 	hdata->is_v13 = pdata->is_v13;
-	hdata->default_win = pdata->default_win;
-	hdata->default_timing = &pdata->timing;
-	hdata->default_bpp = pdata->bpp;
+	hdata->cfg_hpd = pdata->cfg_hpd;
+	hdata->get_hpd = pdata->get_hpd;
 	hdata->dev = dev;
 
 	ret = hdmi_resources_init(hdata);

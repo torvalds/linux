@@ -197,16 +197,14 @@ struct exynos_drm_common_hdmi_pd {
 /**
  * Platform Specific Structure for DRM based HDMI core.
  *
- * @timing: default video mode for initializing
- * @default_win: default window layer number to be used for UI.
- * @bpp: default bit per pixel.
  * @is_v13: set if hdmi version 13 is.
+ * @cfg_hpd: function pointer to configure hdmi hotplug detection pin
+ * @get_hpd: function pointer to get value of hdmi hotplug detection pin
  */
 struct exynos_drm_hdmi_pdata {
-	struct fb_videomode		timing;
-	unsigned int			default_win;
-	unsigned int			bpp;
-	unsigned int			is_v13:1;
+	bool is_v13;
+	void (*cfg_hpd)(bool external);
+	int (*get_hpd)(void);
 };
 
 #endif	/* __KERNEL__ */
