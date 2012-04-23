@@ -536,13 +536,13 @@ static int iblock_do_task(struct se_task *task)
 	 * struct se_task SCSI blocksize into Linux/Block 512 units for BIO.
 	 */
 	if (dev->se_sub_dev->se_dev_attrib.block_size == 4096)
-		block_lba = (task->task_lba << 3);
+		block_lba = (cmd->t_task_lba << 3);
 	else if (dev->se_sub_dev->se_dev_attrib.block_size == 2048)
-		block_lba = (task->task_lba << 2);
+		block_lba = (cmd->t_task_lba << 2);
 	else if (dev->se_sub_dev->se_dev_attrib.block_size == 1024)
-		block_lba = (task->task_lba << 1);
+		block_lba = (cmd->t_task_lba << 1);
 	else if (dev->se_sub_dev->se_dev_attrib.block_size == 512)
-		block_lba = task->task_lba;
+		block_lba = cmd->t_task_lba;
 	else {
 		pr_err("Unsupported SCSI -> BLOCK LBA conversion:"
 				" %u\n", dev->se_sub_dev->se_dev_attrib.block_size);
@@ -646,7 +646,7 @@ static void iblock_bio_done(struct bio *bio, int err)
 		return;
 
 	pr_debug("done[%p] bio: %p task_lba: %llu bio_lba: %llu err=%d\n",
-		 task, bio, task->task_lba,
+		 task, bio, task->task_se_cmd->t_task_lba,
 		 (unsigned long long)bio->bi_sector, err);
 
 	transport_complete_task(task, !atomic_read(&ibr->ib_bio_err_cnt));

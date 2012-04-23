@@ -273,7 +273,7 @@ static int fd_do_readv(struct se_task *task)
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (task->task_lba *
+	loff_t pos = (task->task_se_cmd->t_task_lba *
 		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret = 0, i;
 
@@ -326,7 +326,7 @@ static int fd_do_writev(struct se_task *task)
 	struct scatterlist *sg = task->task_sg;
 	struct iovec *iov;
 	mm_segment_t old_fs;
-	loff_t pos = (task->task_lba *
+	loff_t pos = (task->task_se_cmd->t_task_lba *
 		      se_dev->se_sub_dev->se_dev_attrib.block_size);
 	int ret, i = 0;
 
@@ -402,12 +402,13 @@ static void fd_emulate_write_fua(struct se_cmd *cmd, struct se_task *task)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
-	loff_t start = task->task_lba * dev->se_sub_dev->se_dev_attrib.block_size;
+	loff_t start = task->task_se_cmd->t_task_lba *
+		dev->se_sub_dev->se_dev_attrib.block_size;
 	loff_t end = start + task->task_size;
 	int ret;
 
 	pr_debug("FILEIO: FUA WRITE LBA: %llu, bytes: %u\n",
-			task->task_lba, task->task_size);
+			task->task_se_cmd->t_task_lba, task->task_size);
 
 	ret = vfs_fsync_range(fd_dev->fd_file, start, end, 1);
 	if (ret != 0)

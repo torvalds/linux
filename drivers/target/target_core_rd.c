@@ -303,7 +303,8 @@ static int rd_do_task(struct se_task *task)
 	u32 src_len;
 	u64 tmp;
 
-	tmp = task->task_lba * se_dev->se_sub_dev->se_dev_attrib.block_size;
+	tmp = task->task_se_cmd->t_task_lba *
+		se_dev->se_sub_dev->se_dev_attrib.block_size;
 	rd_offset = do_div(tmp, PAGE_SIZE);
 	rd_page = tmp;
 	rd_size = task->task_size;
@@ -318,7 +319,8 @@ static int rd_do_task(struct se_task *task)
 			dev->rd_dev_id,
 			task->task_data_direction == DMA_FROM_DEVICE ?
 				"Read" : "Write",
-			task->task_lba, rd_size, rd_page, rd_offset);
+			task->task_se_cmd->t_task_lba,
+			rd_size, rd_page, rd_offset);
 
 	src_len = PAGE_SIZE - rd_offset;
 	sg_miter_start(&m, task->task_sg, task->task_sg_nents,

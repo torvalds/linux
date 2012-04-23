@@ -486,7 +486,6 @@ struct se_queue_obj {
 };
 
 struct se_task {
-	unsigned long long	task_lba;
 	u32			task_sectors;
 	u32			task_size;
 	struct se_cmd		*task_se_cmd;
