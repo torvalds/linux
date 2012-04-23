@@ -38,6 +38,7 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/ratelimit.h>
 #include <asm/uaccess.h>
 
 #include <linux/dlm.h>
@@ -72,6 +73,13 @@ do { \
 	if (dlm_config.ci_log_debug) \
 		printk(KERN_DEBUG "dlm: %s: " fmt "\n", \
 		       (ls)->ls_name , ##args); \
+} while (0)
+
+#define log_limit(ls, fmt, args...) \
+do { \
+	if (dlm_config.ci_log_debug) \
+		printk_ratelimited(KERN_DEBUG "dlm: %s: " fmt "\n", \
+			(ls)->ls_name , ##args); \
 } while (0)
 
 #define DLM_ASSERT(x, do) \
