@@ -2223,6 +2223,14 @@ enum ieee80211_rate_control_changed {
  *	The @tids parameter is a bitmap and tells the driver which TIDs the
  *	frames will be on; it will at most have two bits set.
  *	This callback must be atomic.
+ *
+ * @get_et_sset_count:  Ethtool API to get string-set count.
+ *
+ * @get_et_stats:  Ethtool API to get a set of u64 stats.
+ *
+ * @get_et_strings:  Ethtool API to get a set of strings to describe stats
+ *	and perhaps other supported types of ethtool data-sets.
+ *
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -2353,6 +2361,15 @@ struct ieee80211_ops {
 					u16 tids, int num_frames,
 					enum ieee80211_frame_release_type reason,
 					bool more_data);
+
+	int	(*get_et_sset_count)(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif, int sset);
+	void	(*get_et_stats)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ethtool_stats *stats, u64 *data);
+	void	(*get_et_strings)(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  u32 sset, u8 *data);
 };
 
 /**

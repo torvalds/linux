@@ -463,10 +463,17 @@ static int ieee80211_get_et_sset_count(struct wiphy *wiphy,
 				       struct net_device *dev,
 				       int sset)
 {
-	if (sset == ETH_SS_STATS)
-		return STA_STATS_LEN;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int rv = 0;
 
-	return -EOPNOTSUPP;
+	if (sset == ETH_SS_STATS)
+		rv += STA_STATS_LEN;
+
+	rv += drv_get_et_sset_count(sdata, sset);
+
+	if (rv == 0)
+		return -EOPNOTSUPP;
+	return rv;
 }
 
 static void ieee80211_get_et_stats(struct wiphy *wiphy,
@@ -527,16 +534,22 @@ static void ieee80211_get_et_stats(struct wiphy *wiphy,
 	}
 
 	rcu_read_unlock();
+
+	drv_get_et_stats(sdata, stats, &(data[STA_STATS_LEN]));
 }
 
 static void ieee80211_get_et_strings(struct wiphy *wiphy,
 				     struct net_device *dev,
 				     u32 sset, u8 *data)
 {
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int sz_sta_stats = 0;
+
 	if (sset == ETH_SS_STATS) {
-		int sz_sta_stats = sizeof(ieee80211_gstrings_sta_stats);
+		sz_sta_stats = sizeof(ieee80211_gstrings_sta_stats);
 		memcpy(data, *ieee80211_gstrings_sta_stats, sz_sta_stats);
 	}
+	drv_get_et_strings(sdata, sset, &(data[sz_sta_stats]));
 }
 
 static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
