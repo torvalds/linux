@@ -27,7 +27,6 @@
 #include <linux/etherdevice.h>
 #include "iwl-dev.h"
 #include "iwl-agn.h"
-#include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
 

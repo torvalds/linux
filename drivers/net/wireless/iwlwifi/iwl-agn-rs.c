@@ -36,7 +36,6 @@
 #include <linux/workqueue.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-op-mode.h"
 

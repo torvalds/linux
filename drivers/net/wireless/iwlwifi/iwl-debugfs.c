@@ -37,7 +37,6 @@
 
 #include "iwl-dev.h"
 #include "iwl-debug.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"
 
@@ -110,85 +109,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
-
-static ssize_t iwl_dbgfs_tx_statistics_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-
-	int cnt;
-	ssize_t ret;
-	const size_t bufsz = 100 +
-		sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
-	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_mgmt_string(cnt),
-				 priv->tx_stats.mgmt[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Control\n");
-	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_ctrl_string(cnt),
-				 priv->tx_stats.ctrl[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
-	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
-			 priv->tx_stats.data_cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
-			 priv->tx_stats.data_bytes);
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-	int cnt;
-	ssize_t ret;
-	const size_t bufsz = 100 +
-		sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
-	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_mgmt_string(cnt),
-				 priv->rx_stats.mgmt[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Control:\n");
-	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_ctrl_string(cnt),
-				 priv->rx_stats.ctrl[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
-	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
-			 priv->rx_stats.data_cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
-			 priv->rx_stats.data_bytes);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
 
 static ssize_t iwl_dbgfs_sram_read(struct file *file,
 					char __user *user_buf,
@@ -2405,8 +2325,6 @@ static ssize_t iwl_dbgfs_calib_disabled_write(struct file *file,
 	return count;
 }
 
-DEBUGFS_READ_FILE_OPS(rx_statistics);
-DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
@@ -2468,8 +2386,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(temperature, dir_data, S_IRUSR);
 
-	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_statistics, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);

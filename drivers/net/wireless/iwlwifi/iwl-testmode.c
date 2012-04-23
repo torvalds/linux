@@ -71,7 +71,6 @@
 #include <net/netlink.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"

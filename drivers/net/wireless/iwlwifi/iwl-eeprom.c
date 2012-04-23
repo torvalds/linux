@@ -69,7 +69,6 @@
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-debug.h"
 #include "iwl-agn.h"
 #include "iwl-eeprom.h"

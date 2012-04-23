@@ -34,7 +34,6 @@
 #include <linux/ieee80211.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
@@ -398,8 +397,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	iwlagn_tx_cmd_build_basic(priv, skb, tx_cmd, info, hdr, sta_id);
 
 	iwlagn_tx_cmd_build_rate(priv, tx_cmd, info, fc);
-
-	iwl_update_stats(priv, true, fc, len);
 
 	memset(&info->status, 0, sizeof(info->status));
 

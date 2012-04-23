@@ -36,7 +36,6 @@
 #include <asm/unaligned.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-io.h"
 #include "iwl-trans.h"

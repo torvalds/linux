@@ -27,7 +27,6 @@
 /*
  * DVM device-specific data & functions
  */
-#include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-dev.h"
 #include "iwl-commands.h"
