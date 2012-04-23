@@ -12,6 +12,9 @@ static void hdmi_sys_show_state(int state)
 {
 	switch(state)
 	{
+		case HDMI_SLEEP:
+			dev_printk(KERN_INFO, hdmi->dev, "HDMI_SLEEP\n");
+			break;
 		case HDMI_INITIAL:
 			dev_printk(KERN_INFO, hdmi->dev, "HDMI_INITIAL\n");
 			break;
@@ -37,7 +40,7 @@ static void hdmi_sys_show_state(int state)
 			dev_printk(KERN_INFO, hdmi->dev, "PLAY_BACK\n");
 			break;
 		default:
-			dev_printk(KERN_INFO, hdmi->dev, "Unkown State\n");
+			dev_printk(KERN_INFO, hdmi->dev, "Unkown State %d\n", state);
 			break;
 	}
 }
@@ -49,6 +52,7 @@ int hdmi_sys_init(void)
 	hdmi->state				= HDMI_SLEEP;
 	hdmi->enable			= HDMI_ENABLE;
 	hdmi->autoconfig		= HDMI_AUTO_CONFIGURE;
+	hdmi->display			= HDMI_DISABLE;
 	
 	hdmi->vic				= HDMI_VIDEO_DEFAULT_MODE;
 	hdmi->audio.channel 	= HDMI_AUDIO_DEFAULT_CHANNEL;
@@ -62,7 +66,6 @@ int hdmi_sys_init(void)
 
 void hdmi_sys_remove(void)
 {
-	rk30_hdmi_removed();
 	fb_destroy_modelist(&hdmi->edid.modelist);
 	if(hdmi->edid.audio)
 		kfree(hdmi->edid.audio);
@@ -74,8 +77,17 @@ void hdmi_sys_remove(void)
 	}
 	memset(&hdmi->edid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
+	hdmi->display	= HDMI_DISABLE;
+}
+
+static void hdmi_sys_sleep(void)
+{
+	if(hdmi->enable)
+		disable_irq(hdmi->irq);
 	hdmi->state = HDMI_SLEEP;
-	hdmi->hotplug = HDMI_HPD_REMOVED;
+	rk30_hdmi_removed();
+	if(hdmi->enable)
+		enable_irq(hdmi->irq);
 }
 
 static int hdmi_process_command(void)
@@ -94,6 +106,9 @@ static int hdmi_process_command(void)
 				{
 					if(hdmi->hotplug)
 						hdmi_sys_remove();
+					hdmi->state = HDMI_SLEEP;
+					hdmi->hotplug = HDMI_HPD_REMOVED;
+					rk30_hdmi_removed();
 					state = HDMI_SLEEP;
 				}
 				if(hdmi->wait == 1) {
@@ -145,22 +160,35 @@ void hdmi_work(struct work_struct *work)
 	hotplug = rk30_hdmi_detect_hotplug();
 	hdmi_dbg(hdmi->dev, "[%s] hotplug %02x curvalue %d\n", __FUNCTION__, hotplug, hdmi->hotplug);
 	
-	if(hotplug == HDMI_HPD_REMOVED) {
-			hdmi_sys_remove();
-		if(hotplug != hdmi->hotplug) {
+	if(hotplug != hdmi->hotplug)
+	{
+		if(hotplug  == HDMI_HPD_ACTIVED){
 			hdmi->hotplug  = hotplug;
+			hdmi->state = READ_PARSE_EDID;
+		}
+		else if(hdmi->hotplug == HDMI_HPD_ACTIVED) {
+			hdmi_sys_remove();
+			hdmi->hotplug = hotplug;
+			if(hotplug == HDMI_HPD_REMOVED)
+				hdmi_sys_sleep();
+			else {
+				hdmi->state = WAIT_HOTPLUG;
+				rk30_hdmi_removed();
+			}
+			if(hdmi->wait == 1) {
+				complete(&hdmi->complete);
+				hdmi->wait = 0;	
+			}
 			kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
-		}
-		if(hdmi->wait == 1) {	
-			complete(&hdmi->complete);
-			hdmi->wait = 0;						
-		}
 			return;
-		}			
-	else if(hotplug != hdmi->hotplug) {	
-		hdmi->hotplug  = hotplug;
-		hdmi->state = READ_PARSE_EDID;
+		}
+		else if(hotplug == HDMI_HPD_REMOVED) {
+			hdmi->state = HDMI_SLEEP;
+			rk30_hdmi_removed();
+		}
 	}
+	else if(hotplug == HDMI_HPD_REMOVED)
+		hdmi_sys_sleep();
 	
 	do {
 		state_last = hdmi->state;
@@ -200,7 +228,10 @@ void hdmi_work(struct work_struct *work)
 					hdmi->state = PLAY_BACK;
 				break;
 			case PLAY_BACK:
-				rk30_hdmi_control_output(1);
+				if(hdmi->display != HDMI_ENABLE) {
+					rk30_hdmi_control_output(HDMI_ENABLE);
+					hdmi->display = HDMI_ENABLE;
+				}
 				if(hdmi->wait == 1) {	
 					complete(&hdmi->complete);
 					hdmi->wait = 0;						
@@ -222,7 +253,12 @@ void hdmi_work(struct work_struct *work)
 	
 	if(trytimes == HDMI_MAX_TRY_TIMES)
 	{
-		if(hdmi->hotplug)
+		if(hdmi->hotplug) {
 			hdmi_sys_remove();
+			hdmi->hotplug = HDMI_HPD_REMOVED;
+			hdmi_sys_sleep();
+
+		}
 	}
+	hdmi_dbg(hdmi->dev, "[%s] done\n", __FUNCTION__);
 }

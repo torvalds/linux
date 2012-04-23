@@ -29,7 +29,7 @@ extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void hdmi_early_suspend(struct early_suspend *h)
 {
-	hdmi_dbg(hdmi->dev, "hdmi enter early suspend\n");
+	hdmi_dbg(hdmi->dev, "hdmi enter early suspend pwr %d state %d\n", hdmi->pwr_mode, hdmi->state);
 	disable_irq(hdmi->irq);
 	hdmi->enable = 0;
 	hdmi->command = HDMI_CONFIG_ENABLE;
@@ -71,7 +71,7 @@ static inline void hdmi_io_remap(void)
 	value = (HDMI_SOURCE_DEFAULT << 14) | (1 << 30);
 	writel(value, GRF_SOC_CON0 + RK30_GRF_BASE);
 	
-	// internal hclk = hdmi_hclk/32
+	// internal hclk = hdmi_hclk/20
 	HDMIWrReg(0x800, 19);
 }
 

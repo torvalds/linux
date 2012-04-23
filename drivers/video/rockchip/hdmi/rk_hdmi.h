@@ -148,7 +148,8 @@ enum hdmi_change {
 // HDMI Hotplug status
 enum {
 	HDMI_HPD_REMOVED = 0,
-	HDMI_HPD_INSERT
+	HDMI_HPD_INSERT,
+	HDMI_HPD_ACTIVED
 };
 
 /* HDMI STATUS */
