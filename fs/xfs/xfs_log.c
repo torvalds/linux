@@ -916,24 +916,39 @@ xfs_log_need_covered(xfs_mount_t *mp)
  * We may be holding the log iclog lock upon entering this routine.
  */
 xfs_lsn_t
-xlog_assign_tail_lsn(
+xlog_assign_tail_lsn_locked(
 	struct xfs_mount	*mp)
 {
-	xfs_lsn_t		tail_lsn;
 	struct log		*log = mp->m_log;
+	struct xfs_log_item	*lip;
+	xfs_lsn_t		tail_lsn;
+
+	assert_spin_locked(&mp->m_ail->xa_lock);
 
 	/*
 	 * To make sure we always have a valid LSN for the log tail we keep
 	 * track of the last LSN which was committed in log->l_last_sync_lsn,
-	 * and use that when the AIL was empty and xfs_ail_min_lsn returns 0.
-	 *
-	 * If the AIL has been emptied we also need to wake any process
-	 * waiting for this condition.
+	 * and use that when the AIL was empty.
 	 */
-	tail_lsn = xfs_ail_min_lsn(mp->m_ail);
-	if (!tail_lsn)
+	lip = xfs_ail_min(mp->m_ail);
+	if (lip)
+		tail_lsn = lip->li_lsn;
+	else
 		tail_lsn = atomic64_read(&log->l_last_sync_lsn);
 	atomic64_set(&log->l_tail_lsn, tail_lsn);
+	return tail_lsn;
+}
+
+xfs_lsn_t
+xlog_assign_tail_lsn(
+	struct xfs_mount	*mp)
+{
+	xfs_lsn_t		tail_lsn;
+
+	spin_lock(&mp->m_ail->xa_lock);
+	tail_lsn = xlog_assign_tail_lsn_locked(mp);
+	spin_unlock(&mp->m_ail->xa_lock);
+
 	return tail_lsn;
 }
 

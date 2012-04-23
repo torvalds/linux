@@ -79,7 +79,7 @@ xfs_ail_check(
  * Return a pointer to the first item in the AIL.  If the AIL is empty, then
  * return NULL.
  */
-static xfs_log_item_t *
+xfs_log_item_t *
 xfs_ail_min(
 	struct xfs_ail  *ailp)
 {
@@ -667,11 +667,15 @@ xfs_trans_ail_update_bulk(
 
 	if (!list_empty(&tmp))
 		xfs_ail_splice(ailp, cur, &tmp, lsn);
-	spin_unlock(&ailp->xa_lock);
 
-	if (mlip_changed && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
-		xlog_assign_tail_lsn(ailp->xa_mount);
+	if (mlip_changed) {
+		if (!XFS_FORCED_SHUTDOWN(ailp->xa_mount))
+			xlog_assign_tail_lsn_locked(ailp->xa_mount);
+		spin_unlock(&ailp->xa_lock);
+
 		xfs_log_space_wake(ailp->xa_mount);
+	} else {
+		spin_unlock(&ailp->xa_lock);
 	}
 }
 
@@ -729,11 +733,15 @@ xfs_trans_ail_delete_bulk(
 		if (mlip == lip)
 			mlip_changed = 1;
 	}
-	spin_unlock(&ailp->xa_lock);
 
-	if (mlip_changed && !XFS_FORCED_SHUTDOWN(ailp->xa_mount)) {
-		xlog_assign_tail_lsn(ailp->xa_mount);
+	if (mlip_changed) {
+		if (!XFS_FORCED_SHUTDOWN(ailp->xa_mount))
+			xlog_assign_tail_lsn_locked(ailp->xa_mount);
+		spin_unlock(&ailp->xa_lock);
+
 		xfs_log_space_wake(ailp->xa_mount);
+	} else {
+		spin_unlock(&ailp->xa_lock);
 	}
 }
 
