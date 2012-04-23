@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb/ehci_pdriver.h>
 #include <linux/usb/ohci_pdriver.h>
 
