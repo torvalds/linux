@@ -1714,11 +1714,11 @@ static int check_horiz_timing_omap3(enum omap_channel channel, u16 pos_x,
 	return 0;
 }
 
-static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
-		u16 height, u16 out_width, u16 out_height,
+static unsigned long calc_core_clk_five_taps(enum omap_channel channel,
+		u16 width, u16 height, u16 out_width, u16 out_height,
 		enum omap_color_mode color_mode)
 {
-	u32 fclk = 0;
+	u32 core_clk = 0;
 	u64 tmp, pclk = dispc_mgr_pclk_rate(channel);
 
 	if (height <= out_height && width <= out_width)
@@ -1730,7 +1730,7 @@ static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 
 		tmp = pclk * height * out_width;
 		do_div(tmp, 2 * out_height * ppl);
-		fclk = tmp;
+		core_clk = tmp;
 
 		if (height > 2 * out_height) {
 			if (ppl == out_width)
@@ -1738,23 +1738,23 @@ static unsigned long calc_fclk_five_taps(enum omap_channel channel, u16 width,
 
 			tmp = pclk * (height - 2 * out_height) * out_width;
 			do_div(tmp, 2 * out_height * (ppl - out_width));
-			fclk = max(fclk, (u32) tmp);
+			core_clk = max_t(u32, core_clk, tmp);
 		}
 	}
 
 	if (width > out_width) {
 		tmp = pclk * width;
 		do_div(tmp, out_width);
-		fclk = max(fclk, (u32) tmp);
+		core_clk = max_t(u32, core_clk, tmp);
 
 		if (color_mode == OMAP_DSS_COLOR_RGB24U)
-			fclk <<= 1;
+			core_clk <<= 1;
 	}
 
-	return fclk;
+	return core_clk;
 }
 
-static unsigned long calc_fclk(enum omap_channel channel, u16 width,
+static unsigned long calc_core_clk(enum omap_channel channel, u16 width,
 		u16 height, u16 out_width, u16 out_height)
 {
 	unsigned int hf, vf;
@@ -1805,7 +1805,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 	const int maxsinglelinewidth =
 				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
 	const int max_decim_limit = 16;
-	unsigned long fclk = 0;
+	unsigned long core_clk = 0;
 	int decim_x, decim_y, error, min_factor;
 	u16 in_width, in_height, in_width_max = 0;
 
@@ -1845,10 +1845,10 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		do {
 			in_height = DIV_ROUND_UP(height, decim_y);
 			in_width = DIV_ROUND_UP(width, decim_x);
-			fclk = calc_fclk(channel, in_width, in_height,
+			core_clk = calc_core_clk(channel, in_width, in_height,
 					out_width, out_height);
-			error = (in_width > maxsinglelinewidth || !fclk ||
-				fclk > dispc_fclk_rate());
+			error = (in_width > maxsinglelinewidth || !core_clk ||
+				core_clk > dispc_core_clk_rate());
 			if (error) {
 				if (decim_x == decim_y) {
 					decim_x = min_factor;
@@ -1871,8 +1871,8 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 		do {
 			in_height = DIV_ROUND_UP(height, decim_y);
 			in_width = DIV_ROUND_UP(width, decim_x);
-			fclk = calc_fclk_five_taps(channel, in_width, in_height,
-				out_width, out_height, color_mode);
+			core_clk = calc_core_clk_five_taps(channel, in_width,
+				in_height, out_width, out_height, color_mode);
 
 			error = check_horiz_timing_omap3(channel, pos_x,
 				in_width, in_height, out_width, out_height);
@@ -1882,11 +1882,11 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 					in_height < out_height * 2)
 					*five_taps = false;
 			if (!*five_taps)
-				fclk = calc_fclk(channel, in_width, in_height,
-					out_width, out_height);
+				core_clk = calc_core_clk(channel, in_width,
+					in_height, out_width, out_height);
 			error = (error || in_width > maxsinglelinewidth * 2 ||
 				(in_width > maxsinglelinewidth && *five_taps) ||
-				!fclk || fclk > dispc_fclk_rate());
+				!core_clk || core_clk > dispc_core_clk_rate());
 			if (error) {
 				if (decim_x == decim_y) {
 					decim_x = min_factor;
@@ -1919,7 +1919,7 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 	} else {
 		int decim_x_min = decim_x;
 		in_height = DIV_ROUND_UP(height, decim_y);
-		in_width_max = dispc_fclk_rate() /
+		in_width_max = dispc_core_clk_rate() /
 				DIV_ROUND_UP(dispc_mgr_pclk_rate(channel),
 						out_width);
 		decim_x = DIV_ROUND_UP(width, in_width_max);
@@ -1938,18 +1938,18 @@ static int dispc_ovl_calc_scaling(enum omap_plane plane,
 			return -EINVAL;
 		}
 
-		fclk = calc_fclk(channel, in_width, in_height, out_width,
-				out_height);
+		core_clk = calc_core_clk(channel, in_width, in_height,
+				out_width, out_height);
 	}
 
-	DSSDBG("required fclk rate = %lu Hz\n", fclk);
-	DSSDBG("current fclk rate = %lu Hz\n", dispc_fclk_rate());
+	DSSDBG("required core clk rate = %lu Hz\n", core_clk);
+	DSSDBG("current core clk rate = %lu Hz\n", dispc_core_clk_rate());
 
-	if (!fclk || fclk > dispc_fclk_rate()) {
+	if (!core_clk || core_clk > dispc_core_clk_rate()) {
 		DSSERR("failed to set up scaling, "
-			"required fclk rate = %lu Hz, "
-			"current fclk rate = %lu Hz\n",
-			fclk, dispc_fclk_rate());
+			"required core clk rate = %lu Hz, "
+			"current core clk rate = %lu Hz\n",
+			core_clk, dispc_core_clk_rate());
 		return -EINVAL;
 	}
 
@@ -2655,6 +2655,19 @@ unsigned long dispc_mgr_pclk_rate(enum omap_channel channel)
 			BUG();
 		}
 	}
+}
+
+unsigned long dispc_core_clk_rate(void)
+{
+	int lcd;
+	unsigned long fclk = dispc_fclk_rate();
+
+	if (dss_has_feature(FEAT_CORE_CLK_DIV))
+		lcd = REG_GET(DISPC_DIVISOR, 23, 16);
+	else
+		lcd = REG_GET(DISPC_DIVISORo(OMAP_DSS_CHANNEL_LCD), 23, 16);
+
+	return fclk / lcd;
 }
 
 void dispc_dump_clocks(struct seq_file *s)
