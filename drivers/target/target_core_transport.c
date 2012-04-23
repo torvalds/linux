@@ -3694,21 +3694,6 @@ out:
 	return -ENOMEM;
 }
 
-/* Reduce sectors if they are too long for the device */
-static inline sector_t transport_limit_task_sectors(
-	struct se_device *dev,
-	unsigned long long lba,
-	sector_t sectors)
-{
-	sectors = min_t(sector_t, sectors, dev->se_sub_dev->se_dev_attrib.max_sectors);
-
-	if (dev->transport->get_device_type(dev) == TYPE_DISK)
-		if ((lba + sectors) > transport_dev_end_lba(dev))
-			sectors = ((transport_dev_end_lba(dev) - lba) + 1);
-
-	return sectors;
-}
-
 /*
  * Break up cmd into chunks transport can handle
  */
