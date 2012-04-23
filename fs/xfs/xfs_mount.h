@@ -214,6 +214,7 @@ typedef struct xfs_mount {
 
 	struct workqueue_struct	*m_data_workqueue;
 	struct workqueue_struct	*m_unwritten_workqueue;
+	struct workqueue_struct	*m_cil_workqueue;
 } xfs_mount_t;
 
 /*
