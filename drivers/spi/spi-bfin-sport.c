@@ -252,19 +252,15 @@ static void
 bfin_sport_spi_restore_state(struct bfin_sport_spi_master_data *drv_data)
 {
 	struct bfin_sport_spi_slave_data *chip = drv_data->cur_chip;
-	unsigned int bits = (drv_data->ops == &bfin_sport_transfer_ops_u8 ? 7 : 15);
 
 	bfin_sport_spi_disable(drv_data);
 	dev_dbg(drv_data->dev, "restoring spi ctl state\n");
 
 	bfin_write(&drv_data->regs->tcr1, chip->ctl_reg);
-	bfin_write(&drv_data->regs->tcr2, bits);
 	bfin_write(&drv_data->regs->tclkdiv, chip->baud);
-	bfin_write(&drv_data->regs->tfsdiv, bits);
 	SSYNC();
 
 	bfin_write(&drv_data->regs->rcr1, chip->ctl_reg & ~(ITCLK | ITFS));
-	bfin_write(&drv_data->regs->rcr2, bits);
 	SSYNC();
 
 	bfin_sport_spi_cs_active(chip);
@@ -425,6 +421,9 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 		drv_data->ops = &bfin_sport_transfer_ops_u8;
 	else
 		drv_data->ops = &bfin_sport_transfer_ops_u16;
+	bfin_write(&drv_data->regs->tcr2, bits_per_word - 1);
+	bfin_write(&drv_data->regs->tfsdiv, bits_per_word - 1);
+	bfin_write(&drv_data->regs->rcr2, bits_per_word - 1);
 
 	drv_data->state = RUNNING_STATE;
 
