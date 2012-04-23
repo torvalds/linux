@@ -575,8 +575,8 @@ static int snd_nativeinstruments_create_mixer(struct usb_mixer_interface *mixer,
 
 /* M-Audio FastTrack Ultra quirks */
 
-/* Create a volume control for FTU devices*/
-static int snd_maudio_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
+/* Create volume controls for FTU devices*/
+static int snd_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 {
 	char name[64];
 	unsigned int control, cmask;
@@ -614,11 +614,11 @@ static int snd_maudio_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 	return 0;
 }
 
-static int snd_maudio_ftu_create_mixer(struct usb_mixer_interface *mixer)
+static int snd_ftu_create_mixer(struct usb_mixer_interface *mixer)
 {
 	int err;
 
-	err = snd_maudio_ftu_create_volume_ctls(mixer);
+	err = snd_ftu_create_volume_ctls(mixer);
 	if (err < 0)
 		return err;
 
@@ -703,7 +703,7 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 
 	case USB_ID(0x0763, 0x2080): /* M-Audio Fast Track Ultra */
 	case USB_ID(0x0763, 0x2081): /* M-Audio Fast Track Ultra 8R */
-		err = snd_maudio_ftu_create_mixer(mixer);
+		err = snd_ftu_create_mixer(mixer);
 		break;
 
 	case USB_ID(0x0b05, 0x1739):
