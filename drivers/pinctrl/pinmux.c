@@ -329,10 +329,10 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 		return -EINVAL;
 	}
 
-	setting->data.mux.func =
-		pinmux_func_name_to_selector(pctldev, map->data.mux.function);
-	if (setting->data.mux.func < 0)
-		return setting->data.mux.func;
+	ret = pinmux_func_name_to_selector(pctldev, map->data.mux.function);
+	if (ret < 0)
+		return ret;
+	setting->data.mux.func = ret;
 
 	ret = pmxops->get_function_groups(pctldev, setting->data.mux.func,
 					  &groups, &num_groups);
@@ -356,9 +356,10 @@ int pinmux_map_to_setting(struct pinctrl_map const *map,
 		group = groups[0];
 	}
 
-	setting->data.mux.group = pinctrl_get_group_selector(pctldev, group);
-	if (setting->data.mux.group < 0)
-		return setting->data.mux.group;
+	ret = pinctrl_get_group_selector(pctldev, group);
+	if (ret < 0)
+		return ret;
+	setting->data.mux.group = ret;
 
 	ret = pctlops->get_group_pins(pctldev, setting->data.mux.group, &pins,
 				      &num_pins);
