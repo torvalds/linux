@@ -4460,23 +4460,23 @@ static inline int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
  * to reduce overall memory use and queue lengths, if cost is small.
  * Packets in ofo or receive queues can stay a long time.
  * Better try to coalesce them right now to avoid future collapses.
- * Returns > 0 value if caller should free @from instead of queueing it
+ * Returns true if caller should free @from instead of queueing it
  */
-static int tcp_try_coalesce(struct sock *sk,
-			    struct sk_buff *to,
-			    struct sk_buff *from)
+static bool tcp_try_coalesce(struct sock *sk,
+			     struct sk_buff *to,
+			     struct sk_buff *from)
 {
 	int len = from->len;
 
 	if (tcp_hdr(from)->fin)
-		return 0;
+		return false;
 	if (len <= skb_tailroom(to)) {
 		BUG_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
 merge:
 		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOALESCE);
 		TCP_SKB_CB(to)->end_seq = TCP_SKB_CB(from)->end_seq;
 		TCP_SKB_CB(to)->ack_seq = TCP_SKB_CB(from)->ack_seq;
-		return 1;
+		return true;
 	}
 	if (skb_headlen(from) == 0 &&
 	    !skb_has_frag_list(to) &&
@@ -4499,7 +4499,7 @@ merge:
 		to->data_len += len;
 		goto merge;
 	}
-	return 0;
+	return false;
 }
 
 static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
@@ -4540,7 +4540,7 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 	end_seq = TCP_SKB_CB(skb)->end_seq;
 
 	if (seq == TCP_SKB_CB(skb1)->end_seq) {
-		if (tcp_try_coalesce(sk, skb1, skb) <= 0) {
+		if (!tcp_try_coalesce(sk, skb1, skb)) {
 			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 		} else {
 			__kfree_skb(skb);
@@ -4672,7 +4672,7 @@ queue_and_out:
 				goto drop;
 
 			tail = skb_peek_tail(&sk->sk_receive_queue);
-			eaten = tail ? tcp_try_coalesce(sk, tail, skb) : -1;
+			eaten = (tail && tcp_try_coalesce(sk, tail, skb)) ? 1 : 0;
 			if (eaten <= 0) {
 				skb_set_owner_r(skb, sk);
 				__skb_queue_tail(&sk->sk_receive_queue, skb);
