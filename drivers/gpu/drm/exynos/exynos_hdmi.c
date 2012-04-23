@@ -64,8 +64,6 @@ struct hdmi_context {
 	struct resource			*regs_res;
 	void __iomem			*regs;
 	unsigned int			irq;
-	struct workqueue_struct		*wq;
-	struct work_struct		hotplug_work;
 
 	struct i2c_client		*ddc_port;
 	struct i2c_client		*hdmiphy_port;
@@ -2003,20 +2001,7 @@ static struct exynos_hdmi_ops hdmi_ops = {
 	.disable	= hdmi_disable,
 };
 
-/*
- * Handle hotplug events outside the interrupt handler proper.
- */
-static void hdmi_hotplug_func(struct work_struct *work)
-{
-	struct hdmi_context *hdata =
-		container_of(work, struct hdmi_context, hotplug_work);
-	struct exynos_drm_hdmi_context *ctx =
-		(struct exynos_drm_hdmi_context *)hdata->parent_ctx;
-
-	drm_helper_hpd_irq_event(ctx->drm_dev);
-}
-
-static irqreturn_t hdmi_irq_handler(int irq, void *arg)
+static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 {
 	struct exynos_drm_hdmi_context *ctx = arg;
 	struct hdmi_context *hdata = ctx->ctx;
@@ -2036,7 +2021,7 @@ static irqreturn_t hdmi_irq_handler(int irq, void *arg)
 	}
 
 	if (ctx->drm_dev && hdata->hpd_handle)
-		queue_work(hdata->wq, &hdata->hotplug_work);
+		drm_helper_hpd_irq_event(ctx->drm_dev);
 
 	return IRQ_HANDLED;
 }
@@ -2300,22 +2285,12 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 		goto err_hdmiphy;
 	}
 
-	/* create workqueue and hotplug work */
-	hdata->wq = alloc_workqueue("exynos-drm-hdmi",
-			WQ_UNBOUND | WQ_NON_REENTRANT, 1);
-	if (hdata->wq == NULL) {
-		DRM_ERROR("Failed to create workqueue.\n");
-		ret = -ENOMEM;
-		goto err_hdmiphy;
-	}
-	INIT_WORK(&hdata->hotplug_work, hdmi_hotplug_func);
-
 	/* register hpd interrupt */
-	ret = request_irq(hdata->irq, hdmi_irq_handler, 0, "drm_hdmi",
-				drm_hdmi_ctx);
+	ret = request_threaded_irq(hdata->irq, NULL, hdmi_irq_thread,
+			IRQF_ONESHOT, "drm_hdmi", drm_hdmi_ctx);
 	if (ret) {
 		DRM_ERROR("request interrupt failed.\n");
-		goto err_workqueue;
+		goto err_hdmiphy;
 	}
 
 	/* register specific callbacks to common hdmi. */
@@ -2325,8 +2300,6 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_workqueue:
-	destroy_workqueue(hdata->wq);
 err_hdmiphy:
 	i2c_del_driver(&hdmiphy_driver);
 err_ddc:
@@ -2355,9 +2328,6 @@ static int __devexit hdmi_remove(struct platform_device *pdev)
 
 	disable_irq(hdata->irq);
 	free_irq(hdata->irq, hdata);
-
-	cancel_work_sync(&hdata->hotplug_work);
-	destroy_workqueue(hdata->wq);
 
 	hdmi_resources_cleanup(hdata);
 
