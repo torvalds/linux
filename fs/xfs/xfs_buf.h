@@ -32,11 +32,6 @@
 
 #define XFS_BUF_DADDR_NULL	((xfs_daddr_t) (-1LL))
 
-#define xfs_buf_ctob(pp)	((pp) * PAGE_CACHE_SIZE)
-#define xfs_buf_btoc(dd)	(((dd) + PAGE_CACHE_SIZE-1) >> PAGE_CACHE_SHIFT)
-#define xfs_buf_btoct(dd)	((dd) >> PAGE_CACHE_SHIFT)
-#define xfs_buf_poff(aa)	((aa) & ~PAGE_CACHE_MASK)
-
 typedef enum {
 	XBRW_READ = 1,			/* transfer into target memory */
 	XBRW_WRITE = 2,			/* transfer from target memory */

@@ -306,7 +306,7 @@ xfs_buf_allocate_memory(
 	size_t			nbytes, offset;
 	gfp_t			gfp_mask = xb_to_gfp(flags);
 	unsigned short		page_count, i;
-	xfs_off_t		end;
+	xfs_off_t		start, end;
 	int			error;
 
 	/*
@@ -314,15 +314,15 @@ xfs_buf_allocate_memory(
 	 * the memory from the heap - there's no need for the complexity of
 	 * page arrays to keep allocation down to order 0.
 	 */
-	if (bp->b_length < BTOBB(PAGE_SIZE)) {
-		bp->b_addr = kmem_alloc(BBTOB(bp->b_length), xb_to_km(flags));
+	size = BBTOB(bp->b_length);
+	if (size < PAGE_SIZE) {
+		bp->b_addr = kmem_alloc(size, xb_to_km(flags));
 		if (!bp->b_addr) {
 			/* low memory - use alloc_page loop instead */
 			goto use_alloc_page;
 		}
 
-		if (((unsigned long)(bp->b_addr + BBTOB(bp->b_length) - 1) &
-								PAGE_MASK) !=
+		if (((unsigned long)(bp->b_addr + size - 1) & PAGE_MASK) !=
 		    ((unsigned long)bp->b_addr & PAGE_MASK)) {
 			/* b_addr spans two pages - use alloc_page instead */
 			kmem_free(bp->b_addr);
@@ -338,14 +338,14 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	end = BBTOB(bp->b_bn + bp->b_length);
-	page_count = xfs_buf_btoc(end) - xfs_buf_btoct(BBTOB(bp->b_bn));
+	start = BBTOB(bp->b_bn) >> PAGE_SHIFT;
+	end = (BBTOB(bp->b_bn + bp->b_length) + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	page_count = end - start;
 	error = _xfs_buf_get_pages(bp, page_count, flags);
 	if (unlikely(error))
 		return error;
 
 	offset = bp->b_offset;
-	size = BBTOB(bp->b_length);
 	bp->b_flags |= _XBF_PAGES;
 
 	for (i = 0; i < bp->b_page_count; i++) {
@@ -1320,27 +1320,30 @@ xfs_buf_iomove(
 	void			*data,	/* data address			*/
 	xfs_buf_rw_t		mode)	/* read/write/zero flag		*/
 {
-	size_t			bend, cpoff, csize;
-	struct page		*page;
+	size_t			bend;
 
 	bend = boff + bsize;
 	while (boff < bend) {
-		page = bp->b_pages[xfs_buf_btoct(boff + bp->b_offset)];
-		cpoff = xfs_buf_poff(boff + bp->b_offset);
-		csize = min_t(size_t,
-			      PAGE_SIZE - cpoff, BBTOB(bp->b_io_length) - boff);
+		struct page	*page;
+		int		page_index, page_offset, csize;
 
-		ASSERT(((csize + cpoff) <= PAGE_SIZE));
+		page_index = (boff + bp->b_offset) >> PAGE_SHIFT;
+		page_offset = (boff + bp->b_offset) & ~PAGE_MASK;
+		page = bp->b_pages[page_index];
+		csize = min_t(size_t, PAGE_SIZE - page_offset,
+				      BBTOB(bp->b_io_length) - boff);
+
+		ASSERT((csize + page_offset) <= PAGE_SIZE);
 
 		switch (mode) {
 		case XBRW_ZERO:
-			memset(page_address(page) + cpoff, 0, csize);
+			memset(page_address(page) + page_offset, 0, csize);
 			break;
 		case XBRW_READ:
-			memcpy(data, page_address(page) + cpoff, csize);
+			memcpy(data, page_address(page) + page_offset, csize);
 			break;
 		case XBRW_WRITE:
-			memcpy(page_address(page) + cpoff, data, csize);
+			memcpy(page_address(page) + page_offset, data, csize);
 		}
 
 		boff += csize;
