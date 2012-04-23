@@ -99,7 +99,7 @@ struct detailed_data_monitor_range {
 			__le16 m;
 			u8 k;
 			u8 j; /* need to divide by 2 */
-		} gtf2;
+		} __attribute__((packed)) gtf2;
 		struct {
 			u8 version;
 			u8 data1; /* high 6 bits: extra clock resolution */
@@ -108,7 +108,7 @@ struct detailed_data_monitor_range {
 			u8 flags; /* preferred aspect and blanking support */
 			u8 supported_scalings;
 			u8 preferred_refresh;
-		} cvt;
+		} __attribute__((packed)) cvt;
 	} formula;
 } __attribute__((packed));
 
