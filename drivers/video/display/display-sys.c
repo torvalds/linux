@@ -154,7 +154,8 @@ static struct device_attribute display_attrs[] = {
 	__ATTR(enable, 0664, display_show_enable, display_store_enable),
 	__ATTR(connect, S_IRUGO, display_show_connect, NULL),
 	__ATTR(modes, S_IRUGO, display_show_modes, NULL),
-	__ATTR(mode, 0664, display_show_mode, display_store_mode)
+	__ATTR(mode, 0664, display_show_mode, display_store_mode),
+	__ATTR_NULL
 };
 
 static int display_suspend(struct device *dev, pm_message_t state)
