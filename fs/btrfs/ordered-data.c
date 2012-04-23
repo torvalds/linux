@@ -621,19 +621,11 @@ void btrfs_wait_ordered_range(struct inode *inode, u64 start, u64 len)
 		if (orig_end > INT_LIMIT(loff_t))
 			orig_end = INT_LIMIT(loff_t);
 	}
-again:
+
 	/* start IO across the range first to instantiate any delalloc
 	 * extents
 	 */
-	filemap_fdatawrite_range(inode->i_mapping, start, orig_end);
-
-	/* The compression code will leave pages locked but return from
-	 * writepage without setting the page writeback.  Starting again
-	 * with WB_SYNC_ALL will end up waiting for the IO to actually start.
-	 */
-	filemap_fdatawrite_range(inode->i_mapping, start, orig_end);
-
-	filemap_fdatawait_range(inode->i_mapping, start, orig_end);
+	filemap_write_and_wait_range(inode->i_mapping, start, orig_end);
 
 	end = orig_end;
 	found = 0;
@@ -656,11 +648,6 @@ again:
 		if (end == 0 || end == start)
 			break;
 		end--;
-	}
-	if (found || test_range_bit(&BTRFS_I(inode)->io_tree, start, orig_end,
-			   EXTENT_DELALLOC, 0, NULL)) {
-		schedule_timeout(1);
-		goto again;
 	}
 }
 
