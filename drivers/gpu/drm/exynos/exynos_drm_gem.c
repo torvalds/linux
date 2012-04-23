@@ -149,22 +149,12 @@ static int exynos_drm_gem_map_pages(struct drm_gem_object *obj,
 	unsigned long pfn;
 
 	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
-		unsigned long usize = buf->size;
-
 		if (!buf->pages)
 			return -EINTR;
 
-		while (usize > 0) {
-			pfn = page_to_pfn(buf->pages[page_offset++]);
-			vm_insert_mixed(vma, f_vaddr, pfn);
-			f_vaddr += PAGE_SIZE;
-			usize -= PAGE_SIZE;
-		}
-
-		return 0;
-	}
-
-	pfn = (buf->dma_addr >> PAGE_SHIFT) + page_offset;
+		pfn = page_to_pfn(buf->pages[page_offset++]);
+	} else
+		pfn = (buf->dma_addr >> PAGE_SHIFT) + page_offset;
 
 	return vm_insert_mixed(vma, f_vaddr, pfn);
 }
