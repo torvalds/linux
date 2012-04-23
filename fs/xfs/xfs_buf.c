@@ -552,18 +552,20 @@ xfs_buf_get(
 	if (unlikely(!new_bp))
 		return NULL;
 
-	bp = _xfs_buf_find(target, ioff, isize, flags, new_bp);
-	if (!bp) {
+	error = xfs_buf_allocate_memory(new_bp, flags);
+	if (error) {
 		kmem_zone_free(xfs_buf_zone, new_bp);
 		return NULL;
 	}
 
-	if (bp == new_bp) {
-		error = xfs_buf_allocate_memory(bp, flags);
-		if (error)
-			goto no_buffer;
-	} else
-		kmem_zone_free(xfs_buf_zone, new_bp);
+	bp = _xfs_buf_find(target, ioff, isize, flags, new_bp);
+	if (!bp) {
+		xfs_buf_free(new_bp);
+		return NULL;
+	}
+
+	if (bp != new_bp)
+		xfs_buf_free(new_bp);
 
 	/*
 	 * Now we have a workable buffer, fill in the block number so
