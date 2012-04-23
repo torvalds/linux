@@ -125,7 +125,7 @@ enum {
 	MODE_MF                        = 0x00000100,
 	MODE_MF_SD                     = 0x00000200,
 	MODE_MF_SI                     = 0x00000400,
-	MODE_MF_NIV                    = 0x00000800,
+	MODE_MF_AFEX                   = 0x00000800,
 	MODE_E3_A0                     = 0x00001000,
 	MODE_E3_B0                     = 0x00002000,
 	MODE_COS3                      = 0x00004000,

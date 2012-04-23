@@ -6800,6 +6800,10 @@ int bnx2x_link_update(struct link_params *params, struct link_vars *vars)
 	else
 		rc = bnx2x_update_link_down(params, vars);
 
+	/* Update MCP link status was changed */
+	if (params->feature_config_flags & FEATURE_CONFIG_BC_SUPPORTS_AFEX)
+		bnx2x_fw_command(bp, DRV_MSG_CODE_LINK_STATUS_CHANGED, 0);
+
 	return rc;
 }
 

@@ -1063,6 +1063,13 @@ struct bnx2x_slowpath {
 		struct flow_control_configuration pfc_config;
 	} func_rdata;
 
+	/* afex ramrod can not be a part of func_rdata union because these
+	 * events might arrive in parallel to other events from func_rdata.
+	 * Therefore, if they would have been defined in the same union,
+	 * data can get corrupted.
+	 */
+	struct afex_vif_list_ramrod_data func_afex_rdata;
+
 	/* used by dmae command executer */
 	struct dmae_command		dmae[MAX_DMAE_C];
 
@@ -1179,6 +1186,7 @@ struct bnx2x_fw_stats_data {
 enum {
 	BNX2X_SP_RTNL_SETUP_TC,
 	BNX2X_SP_RTNL_TX_TIMEOUT,
+	BNX2X_SP_RTNL_AFEX_F_UPDATE,
 	BNX2X_SP_RTNL_FAN_FAILURE,
 };
 
@@ -1343,13 +1351,14 @@ struct bnx2x {
 	struct cmng_init	cmng;
 
 	u32			mf_config[E1HVN_MAX];
-	u32			mf2_config[E2_FUNC_MAX];
+	u32			mf_ext_config;
 	u32			path_has_ovlan; /* E3 */
 	u16			mf_ov;
 	u8			mf_mode;
 #define IS_MF(bp)		(bp->mf_mode != 0)
 #define IS_MF_SI(bp)		(bp->mf_mode == MULTI_FUNCTION_SI)
 #define IS_MF_SD(bp)		(bp->mf_mode == MULTI_FUNCTION_SD)
+#define IS_MF_AFEX(bp)		(bp->mf_mode == MULTI_FUNCTION_AFEX)
 
 	u8			wol;
 
@@ -1592,6 +1601,9 @@ struct bnx2x {
 	struct dcbx_features			dcbx_remote_feat;
 	u32					dcbx_remote_flags;
 #endif
+	/* AFEX: store default vlan used */
+	int					afex_def_vlan_tag;
+	enum mf_cfg_afex_vlan_mode		afex_vlan_mode;
 	u32					pending_max;
 
 	/* multiple tx classes of service */
@@ -2148,9 +2160,16 @@ void bnx2x_notify_link_changed(struct bnx2x *bp);
 #define IS_MF_ISCSI_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp))
 #define IS_MF_FCOE_SD(bp) (IS_MF_SD(bp) && BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp))
 
+#define BNX2X_MF_EXT_PROTOCOL_FCOE(bp)  ((bp)->mf_ext_config & \
+					 MACP_FUNC_CFG_FLAGS_FCOE_OFFLOAD)
+
+#define IS_MF_FCOE_AFEX(bp) (IS_MF_AFEX(bp) && BNX2X_MF_EXT_PROTOCOL_FCOE(bp))
 #define IS_MF_STORAGE_SD(bp) (IS_MF_SD(bp) && \
 				(BNX2X_IS_MF_SD_PROTOCOL_ISCSI(bp) || \
 				 BNX2X_IS_MF_SD_PROTOCOL_FCOE(bp)))
+#else
+#define IS_MF_FCOE_AFEX(bp)	false
 #endif
+
 
 #endif /* bnx2x.h */
