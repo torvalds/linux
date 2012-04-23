@@ -319,7 +319,7 @@ int tt_changes_fill_buffer(struct bat_priv *bat_priv,
 	}
 	spin_unlock_bh(&bat_priv->tt_buff_lock);
 
-	return tot_changes;
+	return count;
 }
 
 int tt_local_seq_print_text(struct seq_file *seq, void *offset)
