@@ -43,13 +43,6 @@ Configuration Options:
 
 #define PCI_DEVICE_ID_PCI7432 0x7432
 
-static DEFINE_PCI_DEVICE_TABLE(adl_pci7432_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432) },
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, adl_pci7432_pci_table);
-
 struct adl_pci7432_private {
 	int data;
 	struct pci_dev *pci_dev;
@@ -57,29 +50,44 @@ struct adl_pci7432_private {
 
 #define devpriv ((struct adl_pci7432_private *)dev->private)
 
-static int adl_pci7432_attach(struct comedi_device *dev,
-			      struct comedi_devconfig *it);
-static int adl_pci7432_detach(struct comedi_device *dev);
-static struct comedi_driver driver_adl_pci7432 = {
-	.driver_name = "adl_pci7432",
-	.module = THIS_MODULE,
-	.attach = adl_pci7432_attach,
-	.detach = adl_pci7432_detach,
-};
+static int adl_pci7432_do_insn_bits(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
+{
+	printk(KERN_DEBUG "comedi: pci7432_do_insn_bits called\n");
+	printk(KERN_DEBUG "comedi: data0: %8x data1: %8x\n", data[0], data[1]);
 
-/* Digital IO */
+	if (insn->n != 2)
+		return -EINVAL;
+
+	if (data[0]) {
+		s->state &= ~data[0];
+		s->state |= (data[0] & data[1]);
+
+		printk(KERN_DEBUG "comedi: out: %8x on iobase %4lx\n", s->state,
+		       dev->iobase + PCI7432_DO);
+		outl(s->state & 0xffffffff, dev->iobase + PCI7432_DO);
+	}
+	return 2;
+}
 
 static int adl_pci7432_di_insn_bits(struct comedi_device *dev,
 				    struct comedi_subdevice *s,
 				    struct comedi_insn *insn,
-				    unsigned int *data);
+				    unsigned int *data)
+{
+	printk(KERN_DEBUG "comedi: pci7432_di_insn_bits called\n");
+	printk(KERN_DEBUG "comedi: data0: %8x data1: %8x\n", data[0], data[1]);
 
-static int adl_pci7432_do_insn_bits(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data);
+	if (insn->n != 2)
+		return -EINVAL;
 
-/*            */
+	data[1] = inl(dev->iobase + PCI7432_DI) & 0xffffffff;
+	printk(KERN_DEBUG "comedi: data1 %8x\n", data[1]);
+
+	return 2;
+}
 
 static int adl_pci7432_attach(struct comedi_device *dev,
 			      struct comedi_devconfig *it)
@@ -166,44 +174,12 @@ static int adl_pci7432_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static int adl_pci7432_do_insn_bits(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	printk(KERN_DEBUG "comedi: pci7432_do_insn_bits called\n");
-	printk(KERN_DEBUG "comedi: data0: %8x data1: %8x\n", data[0], data[1]);
-
-	if (insn->n != 2)
-		return -EINVAL;
-
-	if (data[0]) {
-		s->state &= ~data[0];
-		s->state |= (data[0] & data[1]);
-
-		printk(KERN_DEBUG "comedi: out: %8x on iobase %4lx\n", s->state,
-		       dev->iobase + PCI7432_DO);
-		outl(s->state & 0xffffffff, dev->iobase + PCI7432_DO);
-	}
-	return 2;
-}
-
-static int adl_pci7432_di_insn_bits(struct comedi_device *dev,
-				    struct comedi_subdevice *s,
-				    struct comedi_insn *insn,
-				    unsigned int *data)
-{
-	printk(KERN_DEBUG "comedi: pci7432_di_insn_bits called\n");
-	printk(KERN_DEBUG "comedi: data0: %8x data1: %8x\n", data[0], data[1]);
-
-	if (insn->n != 2)
-		return -EINVAL;
-
-	data[1] = inl(dev->iobase + PCI7432_DI) & 0xffffffff;
-	printk(KERN_DEBUG "comedi: data1 %8x\n", data[1]);
-
-	return 2;
-}
+static struct comedi_driver driver_adl_pci7432 = {
+	.driver_name	= "adl_pci7432",
+	.module		= THIS_MODULE,
+	.attach		= adl_pci7432_attach,
+	.detach		= adl_pci7432_detach,
+};
 
 static int __devinit driver_adl_pci7432_pci_probe(struct pci_dev *dev,
 						  const struct pci_device_id
@@ -217,10 +193,16 @@ static void __devexit driver_adl_pci7432_pci_remove(struct pci_dev *dev)
 	comedi_pci_auto_unconfig(dev);
 }
 
+static DEFINE_PCI_DEVICE_TABLE(adl_pci7432_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432) },
+	{0}
+};
+MODULE_DEVICE_TABLE(pci, adl_pci7432_pci_table);
+
 static struct pci_driver driver_adl_pci7432_pci_driver = {
-	.id_table = adl_pci7432_pci_table,
-	.probe = &driver_adl_pci7432_pci_probe,
-	.remove = __devexit_p(&driver_adl_pci7432_pci_remove)
+	.id_table	= adl_pci7432_pci_table,
+	.probe		= driver_adl_pci7432_pci_probe,
+	.remove		= __devexit_p(driver_adl_pci7432_pci_remove)
 };
 
 static int __init driver_adl_pci7432_init_module(void)
@@ -235,14 +217,13 @@ static int __init driver_adl_pci7432_init_module(void)
 	    (char *)driver_adl_pci7432.driver_name;
 	return pci_register_driver(&driver_adl_pci7432_pci_driver);
 }
+module_init(driver_adl_pci7432_init_module);
 
 static void __exit driver_adl_pci7432_cleanup_module(void)
 {
 	pci_unregister_driver(&driver_adl_pci7432_pci_driver);
 	comedi_driver_unregister(&driver_adl_pci7432);
 }
-
-module_init(driver_adl_pci7432_init_module);
 module_exit(driver_adl_pci7432_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
