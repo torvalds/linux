@@ -148,8 +148,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
 	if (tp == NULL)
-		return xfs_buf_get(target_dev, blkno, len,
-				   flags | XBF_DONT_BLOCK);
+		return xfs_buf_get(target_dev, blkno, len, flags);
 
 	/*
 	 * If we find the buffer in the cache with this transaction
@@ -174,15 +173,7 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 		return (bp);
 	}
 
-	/*
-	 * We always specify the XBF_DONT_BLOCK flag within a transaction
-	 * so that get_buf does not try to push out a delayed write buffer
-	 * which might cause another transaction to take place (if the
-	 * buffer was delayed alloc).  Such recursive transactions can
-	 * easily deadlock with our current transaction as well as cause
-	 * us to run out of stack space.
-	 */
-	bp = xfs_buf_get(target_dev, blkno, len, flags | XBF_DONT_BLOCK);
+	bp = xfs_buf_get(target_dev, blkno, len, flags);
 	if (bp == NULL) {
 		return NULL;
 	}
@@ -283,7 +274,7 @@ xfs_trans_read_buf(
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
 	if (tp == NULL) {
-		bp = xfs_buf_read(target, blkno, len, flags | XBF_DONT_BLOCK);
+		bp = xfs_buf_read(target, blkno, len, flags);
 		if (!bp)
 			return (flags & XBF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
@@ -367,15 +358,7 @@ xfs_trans_read_buf(
 		return 0;
 	}
 
-	/*
-	 * We always specify the XBF_DONT_BLOCK flag within a transaction
-	 * so that get_buf does not try to push out a delayed write buffer
-	 * which might cause another transaction to take place (if the
-	 * buffer was delayed alloc).  Such recursive transactions can
-	 * easily deadlock with our current transaction as well as cause
-	 * us to run out of stack space.
-	 */
-	bp = xfs_buf_read(target, blkno, len, flags | XBF_DONT_BLOCK);
+	bp = xfs_buf_read(target, blkno, len, flags);
 	if (bp == NULL) {
 		*bpp = NULL;
 		return (flags & XBF_TRYLOCK) ?

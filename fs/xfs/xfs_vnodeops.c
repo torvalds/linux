@@ -82,7 +82,7 @@ xfs_readlink_bmap(
 		byte_cnt = XFS_FSB_TO_B(mp, mval[n].br_blockcount);
 
 		bp = xfs_buf_read(mp->m_ddev_targp, d, BTOBB(byte_cnt),
-				  XBF_MAPPED | XBF_DONT_BLOCK);
+				  XBF_MAPPED);
 		if (!bp)
 			return XFS_ERROR(ENOMEM);
 		error = bp->b_error;
@@ -1966,7 +1966,7 @@ xfs_zero_remaining_bytes(
 
 	bp = xfs_buf_get_uncached(XFS_IS_REALTIME_INODE(ip) ?
 					mp->m_rtdev_targp : mp->m_ddev_targp,
-				BTOBB(mp->m_sb.sb_blocksize), XBF_DONT_BLOCK);
+				  BTOBB(mp->m_sb.sb_blocksize), 0);
 	if (!bp)
 		return XFS_ERROR(ENOMEM);
 

@@ -56,11 +56,7 @@ static struct workqueue_struct *xfslogd_workqueue;
 #endif
 
 #define xb_to_gfp(flags) \
-	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : \
-	  ((flags) & XBF_DONT_BLOCK) ? GFP_NOFS : GFP_KERNEL) | __GFP_NOWARN)
-
-#define xb_to_km(flags) \
-	 (((flags) & XBF_DONT_BLOCK) ? KM_NOFS : KM_SLEEP)
+	((((flags) & XBF_READ_AHEAD) ? __GFP_NORETRY : GFP_NOFS) | __GFP_NOWARN)
 
 
 static inline int
@@ -178,14 +174,14 @@ xfs_buf_alloc(
 {
 	struct xfs_buf		*bp;
 
-	bp = kmem_zone_zalloc(xfs_buf_zone, xb_to_km(flags));
+	bp = kmem_zone_zalloc(xfs_buf_zone, KM_NOFS);
 	if (unlikely(!bp))
 		return NULL;
 
 	/*
 	 * We don't want certain flags to appear in b_flags.
 	 */
-	flags &= ~(XBF_MAPPED|XBF_DONT_BLOCK|XBF_READ_AHEAD);
+	flags &= ~(XBF_MAPPED|XBF_READ_AHEAD);
 
 	atomic_set(&bp->b_hold, 1);
 	atomic_set(&bp->b_lru_ref, 1);
@@ -239,7 +235,7 @@ _xfs_buf_get_pages(
 			bp->b_pages = bp->b_page_array;
 		} else {
 			bp->b_pages = kmem_alloc(sizeof(struct page *) *
-					page_count, xb_to_km(flags));
+						 page_count, KM_NOFS);
 			if (bp->b_pages == NULL)
 				return -ENOMEM;
 		}
@@ -316,7 +312,7 @@ xfs_buf_allocate_memory(
 	 */
 	size = BBTOB(bp->b_length);
 	if (size < PAGE_SIZE) {
-		bp->b_addr = kmem_alloc(size, xb_to_km(flags));
+		bp->b_addr = kmem_alloc(size, KM_NOFS);
 		if (!bp->b_addr) {
 			/* low memory - use alloc_page loop instead */
 			goto use_alloc_page;
@@ -659,7 +655,7 @@ xfs_buf_readahead(
 		return;
 
 	xfs_buf_read(target, blkno, numblks,
-		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD|XBF_DONT_BLOCK);
+		     XBF_TRYLOCK|XBF_ASYNC|XBF_READ_AHEAD);
 }
 
 /*
@@ -750,7 +746,7 @@ xfs_buf_associate_memory(
 	bp->b_pages = NULL;
 	bp->b_addr = mem;
 
-	rval = _xfs_buf_get_pages(bp, page_count, XBF_DONT_BLOCK);
+	rval = _xfs_buf_get_pages(bp, page_count, 0);
 	if (rval)
 		return rval;
 

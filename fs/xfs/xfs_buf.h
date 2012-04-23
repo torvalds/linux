@@ -53,7 +53,6 @@ typedef enum {
 
 /* flags used only as arguments to access routines */
 #define XBF_TRYLOCK	(1 << 16)/* lock requested, but do not wait */
-#define XBF_DONT_BLOCK	(1 << 17)/* do not block in current thread */
 
 /* flags used only internally */
 #define _XBF_PAGES	(1 << 20)/* backed by refcounted pages */
@@ -74,7 +73,6 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_FUA,		"FUA" }, \
 	{ XBF_FLUSH,		"FLUSH" }, \
 	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* should never be set */\
-	{ XBF_DONT_BLOCK,	"DONT_BLOCK" },	/* ditto */\
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }

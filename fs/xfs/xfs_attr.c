@@ -2114,8 +2114,7 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 		dblkno = XFS_FSB_TO_DADDR(mp, map.br_startblock),
 		blkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
 
-		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, blkcnt,
-				 XBF_DONT_BLOCK);
+		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, blkcnt, 0);
 		if (!bp)
 			return ENOMEM;
 
