@@ -373,7 +373,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
     {               
         /* cal src buf mmu info */                     
         SrcMemSize = rga_buf_size_cal(req->src.yrgb_addr, req->src.uv_addr, req->src.v_addr,
-                                        req->src.format, req->src.vir_w, req->src.vir_h,
+                                        req->src.format, req->src.vir_w, req->src.act_h + req->src.y_offset,
                                         &SrcStart);
         if(SrcMemSize == 0) {
             return -EINVAL;                
@@ -381,7 +381,7 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
       
         /* cal dst buf mmu info */    
         DstMemSize = rga_buf_size_cal(req->dst.yrgb_addr, req->dst.uv_addr, req->dst.v_addr,
-                                        req->dst.format, req->dst.vir_w, req->dst.vir_h,
+                                        req->dst.format, req->dst.vir_w, req->dst.act_h + req->dst.y_offset,
                                         &DstStart);        
         if(DstMemSize == 0) {
             return -EINVAL; 
@@ -464,6 +464,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
                 MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
             }                   
         }
+
+        MMU_Base[AllSize] = MMU_Base[AllSize - 1];
 
         /* zsq 
          * change the buf address in req struct     
@@ -710,7 +712,8 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
                 MMU_p[i] = (uint32_t)virt_to_phys((uint32_t *)((DstStart + i) << PAGE_SHIFT));
             }
         }
-        
+
+        MMU_Base[AllSize] = MMU_Base[AllSize - 1];        
                             
         /* zsq 
          * change the buf address in req struct 
@@ -923,6 +926,8 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
             }
         }
 
+        MMU_Base[AllSize] = MMU_Base[AllSize - 1];
+
         /* zsq 
          * change the buf address in req struct
          * for the reason of lie to MMU 
@@ -1076,6 +1081,8 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
                 break;
             }        
         }
+
+        MMU_Base[AllSize] = MMU_Base[AllSize - 1];
 
         /* zsq 
          * change the buf address in req struct

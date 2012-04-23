@@ -355,6 +355,8 @@ struct rga_reg {
     uint32_t  cmd_reg[RGA_REG_CMD_LEN];
     uint32_t *MMU_base;
     atomic_t int_enable;
+    
+    struct rga_req req;
 };
 
 
