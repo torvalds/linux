@@ -588,9 +588,8 @@ err:
 			}
 		}
 	}
-#endif
-
 out:
+#endif
 	hid_info(hid, "Force feedback support for Logitech Gaming Wheels\n");
 	return 0;
 }
