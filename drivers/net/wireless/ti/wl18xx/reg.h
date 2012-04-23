@@ -236,6 +236,12 @@ struct wl18xx_mac_and_phy_params {
 	u8 clock_valid_on_wake_up;
 	u8 secondary_clock_setting_time;
 	u8 board_type;
+	/* enable point saturation */
+	u8 psat;
+	/* low/medium/high Tx power in dBm */
+	s8 low_power_val;
+	s8 med_power_val;
+	s8 high_power_val;
 	u8 padding[1];
 } __packed;
 

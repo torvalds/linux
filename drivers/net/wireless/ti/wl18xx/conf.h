@@ -44,6 +44,10 @@ struct wl18xx_conf_phy {
 	u8 clock_valid_on_wake_up;
 	u8 secondary_clock_setting_time;
 	u8 pwr_limit_reference_11_abg;
+	u8 psat;
+	s8 low_power_val;
+	s8 med_power_val;
+	s8 high_power_val;
 };
 
 struct wl18xx_priv_conf {

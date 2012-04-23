@@ -511,6 +511,10 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.enable_tx_low_pwr_on_siso_rdl	= 0x00,
 		.rx_profile			= 0x00,
 		.pwr_limit_reference_11_abg	= 0xc8,
+		.psat				= 0,
+		.low_power_val			= 0x00,
+		.med_power_val			= 0x0a,
+		.high_power_val			= 0x1e,
 	},
 };
 
@@ -713,6 +717,7 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 	struct wl18xx_priv *priv = wl->priv;
 	struct wl18xx_conf_phy *phy = &priv->conf.phy;
 	struct wl18xx_mac_and_phy_params params;
+	size_t len;
 
 	memset(&params, 0, sizeof(params));
 
@@ -752,9 +757,21 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 
 	params.board_type = priv->board_type;
 
+	/* for PG2 only */
+	params.psat = phy->psat;
+	params.low_power_val = phy->low_power_val;
+	params.med_power_val = phy->med_power_val;
+	params.high_power_val = phy->high_power_val;
+
+	/* the parameters struct is smaller for PG1 */
+	if (wl->chip.id == CHIP_ID_185x_PG10)
+		len = offsetof(struct wl18xx_mac_and_phy_params, psat) + 1;
+	else
+		len = sizeof(params);
+
 	wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
 	wl1271_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&params,
-		     sizeof(params), false);
+		     len, false);
 }
 
 static void wl18xx_enable_interrupts(struct wl1271 *wl)
