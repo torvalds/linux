@@ -178,9 +178,10 @@ xfs_buf_alloc(
 		return NULL;
 
 	/*
-	 * We don't want certain flags to appear in b_flags.
+	 * We don't want certain flags to appear in b_flags unless they are
+	 * specifically set by later operations on the buffer.
 	 */
-	flags &= ~(XBF_MAPPED|XBF_READ_AHEAD);
+	flags &= ~(XBF_MAPPED | XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
 
 	atomic_set(&bp->b_hold, 1);
 	atomic_set(&bp->b_lru_ref, 1);
