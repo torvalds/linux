@@ -83,6 +83,7 @@ static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
 
 static int rk30_lcdc_deinit(struct rk30_lcdc_device *lcdc_dev)
 {
+	LcdSetBit(lcdc_dev,SYS_CTRL0,m_LCDC_STANDBY);
 	clk_disable(lcdc_dev->aclk);
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
@@ -794,10 +795,10 @@ static void rk30_lcdc_shutdown(struct platform_device *pdev)
 	struct rk30_lcdc_device *lcdc_dev = platform_get_drvdata(pdev);
 	rk_fb_unregister(&(lcdc_dev->driver));
 	rk30_lcdc_deinit(lcdc_dev);
-	iounmap(lcdc_dev->reg_vir_base);
+	/*iounmap(lcdc_dev->reg_vir_base);
 	release_mem_region(lcdc_dev->reg_phy_base,lcdc_dev->len);
 	kfree(lcdc_dev->screen);
-	kfree(lcdc_dev);
+	kfree(lcdc_dev);*/
 }
 
 

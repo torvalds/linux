@@ -1045,7 +1045,7 @@ static struct platform_driver rk_fb_driver = {
 		.name	= "rk-fb",
 		.owner	= THIS_MODULE,
 	},
-	.shutdown   = rk_fb_shutdown,
+	//.shutdown   = rk_fb_shutdown,
 };
 
 static int __init rk_fb_init(void)
