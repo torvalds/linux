@@ -751,7 +751,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pci_device;
 		break;
 	case I915_PARAM_HAS_GEM:
-		value = dev_priv->has_gem;
+		value = 1;
 		break;
 	case I915_PARAM_NUM_FENCES_AVAIL:
 		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
@@ -764,7 +764,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_EXECBUF2:
 		/* depends on GEM */
-		value = dev_priv->has_gem;
+		value = 1;
 		break;
 	case I915_PARAM_HAS_BSD:
 		value = HAS_BSD(dev);
@@ -1868,9 +1868,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		ret = -ENOMEM;
 		goto out_mtrrfree;
 	}
-
-	/* enable GEM by default */
-	dev_priv->has_gem = 1;
 
 	intel_irq_init(dev);
 
