@@ -770,6 +770,26 @@ static void volume_control_quirks(struct usb_mixer_elem_info *cval,
 				  struct snd_kcontrol *kctl)
 {
 	switch (cval->mixer->chip->usb_id) {
+	case USB_ID(0x0763, 0x2081): /* M-Audio Fast Track Ultra 8R */
+	case USB_ID(0x0763, 0x2080): /* M-Audio Fast Track Ultra */
+		if (strcmp(kctl->id.name, "Effect Duration") == 0) {
+			snd_printk(KERN_INFO
+				"usb-audio: set quirk for FTU Effect Duration\n");
+			cval->min = 0x0000;
+			cval->max = 0x7f00;
+			cval->res = 0x0100;
+			break;
+		}
+		if (strcmp(kctl->id.name, "Effect Volume") == 0 ||
+		    strcmp(kctl->id.name, "Effect Feedback Volume") == 0) {
+			snd_printk(KERN_INFO
+				"usb-audio: set quirks for FTU Effect Feedback/Volume\n");
+			cval->min = 0x00;
+			cval->max = 0x7f;
+			break;
+		}
+		break;
+
 	case USB_ID(0x0471, 0x0101):
 	case USB_ID(0x0471, 0x0104):
 	case USB_ID(0x0471, 0x0105):
