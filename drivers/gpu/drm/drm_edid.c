@@ -1039,6 +1039,19 @@ drm_dmt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 	return modes;
 }
 
+/* fix up 1366x768 mode from 1368x768;
+ * GFT/CVT can't express 1366 width which isn't dividable by 8
+ */
+static void fixup_mode_1366x768(struct drm_display_mode *mode)
+{
+	if (mode->hdisplay == 1368 && mode->vdisplay == 768) {
+		mode->hdisplay = 1366;
+		mode->hsync_start--;
+		mode->hsync_end--;
+		drm_mode_set_name(mode);
+	}
+}
+
 static int
 drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 			struct detailed_timing *timing)
@@ -1053,6 +1066,7 @@ drm_gtf_modes_for_range(struct drm_connector *connector, struct edid *edid,
 		if (!newmode)
 			return modes;
 
+		fixup_mode_1366x768(newmode);
 		if (!mode_in_range(newmode, edid, timing)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
@@ -1080,6 +1094,7 @@ drm_cvt_modes_for_range(struct drm_connector *connector, struct edid *edid,
 		if (!newmode)
 			return modes;
 
+		fixup_mode_1366x768(newmode);
 		if (!mode_in_range(newmode, edid, timing)) {
 			drm_mode_destroy(dev, newmode);
 			continue;
