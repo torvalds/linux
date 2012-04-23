@@ -460,6 +460,12 @@ xfs_buf_item_unpin(
 			ASSERT(bp->b_fspriv == NULL);
 		}
 		xfs_buf_relse(bp);
+	} else if (freed && remove) {
+		xfs_buf_lock(bp);
+		xfs_buf_ioerror(bp, EIO);
+		XFS_BUF_UNDONE(bp);
+		xfs_buf_stale(bp);
+		xfs_buf_ioend(bp, 0);
 	}
 }
 
@@ -604,9 +610,7 @@ xfs_buf_item_committed(
 }
 
 /*
- * The buffer is locked, but is not a delayed write buffer. This happens
- * if we race with IO completion and hence we don't want to try to write it
- * again. Just release the buffer.
+ * The buffer is locked, but is not a delayed write buffer.
  */
 STATIC void
 xfs_buf_item_push(
@@ -620,6 +624,7 @@ xfs_buf_item_push(
 
 	trace_xfs_buf_item_push(bip);
 
+	xfs_buf_delwri_queue(bp);
 	xfs_buf_relse(bp);
 }
 

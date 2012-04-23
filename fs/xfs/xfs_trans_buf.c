@@ -626,8 +626,6 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 	bp->b_iodone = xfs_buf_iodone_callbacks;
 	bip->bli_item.li_cb = xfs_buf_iodone;
 
-	xfs_buf_delwri_queue(bp);
-
 	trace_xfs_trans_log_buf(bip);
 
 	/*
