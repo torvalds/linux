@@ -83,6 +83,7 @@
 #define REV_RT3090E			0x0211
 #define REV_RT3390E			0x0211
 #define REV_RT5390F			0x0502
+#define REV_RT5390R			0x1502
 
 /*
  * Signal information.
