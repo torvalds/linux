@@ -416,11 +416,12 @@ bfin_sport_spi_pump_transfers(unsigned long data)
 	drv_data->cs_change = transfer->cs_change;
 
 	/* Bits per word setup */
-	bits_per_word = transfer->bits_per_word ? : message->spi->bits_per_word;
-	if (bits_per_word == 8)
-		drv_data->ops = &bfin_sport_transfer_ops_u8;
-	else
+	bits_per_word = transfer->bits_per_word ? :
+		message->spi->bits_per_word ? : 8;
+	if (bits_per_word % 16 == 0)
 		drv_data->ops = &bfin_sport_transfer_ops_u16;
+	else
+		drv_data->ops = &bfin_sport_transfer_ops_u8;
 	bfin_write(&drv_data->regs->tcr2, bits_per_word - 1);
 	bfin_write(&drv_data->regs->tfsdiv, bits_per_word - 1);
 	bfin_write(&drv_data->regs->rcr2, bits_per_word - 1);
@@ -597,11 +598,12 @@ bfin_sport_spi_setup(struct spi_device *spi)
 			}
 			chip->cs_chg_udelay = chip_info->cs_chg_udelay;
 			chip->idle_tx_val = chip_info->idle_tx_val;
-			spi->bits_per_word = chip_info->bits_per_word;
 		}
 	}
 
-	if (spi->bits_per_word != 8 && spi->bits_per_word != 16) {
+	if (spi->bits_per_word % 8) {
+		dev_err(&spi->dev, "%d bits_per_word is not supported\n",
+				spi->bits_per_word);
 		ret = -EINVAL;
 		goto error;
 	}
