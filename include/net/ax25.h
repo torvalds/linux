@@ -444,8 +444,8 @@ extern void ax25_uid_free(void);
 extern int ax25_register_dev_sysctl(ax25_dev *ax25_dev);
 extern void ax25_unregister_dev_sysctl(ax25_dev *ax25_dev);
 #else
-static inline int ax25_register_dev_sysctl(ax25_dev *ax25_dev) { return 0 };
-static inline void ax25_unregister_dev_sysctl(ax25_dev *ax25_dev) {};
+static inline int ax25_register_dev_sysctl(ax25_dev *ax25_dev) { return 0; }
+static inline void ax25_unregister_dev_sysctl(ax25_dev *ax25_dev) {}
 #endif /* CONFIG_SYSCTL */
 
 #endif
