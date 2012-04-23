@@ -60,6 +60,18 @@ source "drivers/hid/usbhid/Kconfig"
 menu "Special HID drivers"
 	depends on HID
 
+config HID_GENERIC
+	tristate "Generic HID driver"
+	depends on HID
+	default y
+	---help---
+	Support for generic HID devices.
+
+	To compile this driver as a module, choose M here: the module
+	will be called hid-generic.
+
+	If unsure, say Y.
+
 config HID_A4TECH
 	tristate "A4 tech mice" if EXPERT
 	depends on USB_HID
