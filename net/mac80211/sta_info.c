@@ -1418,14 +1418,14 @@ int sta_info_move_state(struct sta_info *sta,
 			set_bit(WLAN_STA_ASSOC, &sta->_flags);
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {
 			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-				atomic_dec(&sta->sdata->u.ap.num_sta_authorized);
+				atomic_dec(&sta->sdata->u.ap.num_mcast_sta);
 			clear_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 		}
 		break;
 	case IEEE80211_STA_AUTHORIZED:
 		if (sta->sta_state == IEEE80211_STA_ASSOC) {
 			if (sta->sdata->vif.type == NL80211_IFTYPE_AP)
-				atomic_inc(&sta->sdata->u.ap.num_sta_authorized);
+				atomic_inc(&sta->sdata->u.ap.num_mcast_sta);
 			set_bit(WLAN_STA_AUTHORIZED, &sta->_flags);
 		}
 		break;

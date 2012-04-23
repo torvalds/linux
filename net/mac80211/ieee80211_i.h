@@ -282,7 +282,7 @@ struct ieee80211_if_ap {
 	u8 tim[sizeof(unsigned long) * BITS_TO_LONGS(IEEE80211_MAX_AID + 1)];
 	struct sk_buff_head ps_bc_buf;
 	atomic_t num_sta_ps; /* number of stations in PS mode */
-	atomic_t num_sta_authorized; /* number of authorized stations */
+	atomic_t num_mcast_sta; /* number of stations receiving multicast */
 	int dtim_count;
 	bool dtim_bc_mc;
 };
