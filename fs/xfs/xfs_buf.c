@@ -65,11 +65,11 @@ xfs_buf_is_vmapped(
 	/*
 	 * Return true if the buffer is vmapped.
 	 *
-	 * The XBF_MAPPED flag is set if the buffer should be mapped, but the
-	 * code is clever enough to know it doesn't have to map a single page,
-	 * so the check has to be both for XBF_MAPPED and bp->b_page_count > 1.
+	 * b_addr is null if the buffer is not mapped, but the code is clever
+	 * enough to know it doesn't have to map a single page, so the check has
+	 * to be both for b_addr and bp->b_page_count > 1.
 	 */
-	return (bp->b_flags & XBF_MAPPED) && bp->b_page_count > 1;
+	return bp->b_addr && bp->b_page_count > 1;
 }
 
 static inline int
@@ -181,7 +181,7 @@ xfs_buf_alloc(
 	 * We don't want certain flags to appear in b_flags unless they are
 	 * specifically set by later operations on the buffer.
 	 */
-	flags &= ~(XBF_MAPPED | XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
+	flags &= ~(XBF_UNMAPPED | XBF_TRYLOCK | XBF_ASYNC | XBF_READ_AHEAD);
 
 	atomic_set(&bp->b_hold, 1);
 	atomic_set(&bp->b_lru_ref, 1);
@@ -329,7 +329,7 @@ xfs_buf_allocate_memory(
 		bp->b_pages = bp->b_page_array;
 		bp->b_pages[0] = virt_to_page(bp->b_addr);
 		bp->b_page_count = 1;
-		bp->b_flags |= XBF_MAPPED | _XBF_KMEM;
+		bp->b_flags |= _XBF_KMEM;
 		return 0;
 	}
 
@@ -399,8 +399,9 @@ _xfs_buf_map_pages(
 	if (bp->b_page_count == 1) {
 		/* A single page buffer is always mappable */
 		bp->b_addr = page_address(bp->b_pages[0]) + bp->b_offset;
-		bp->b_flags |= XBF_MAPPED;
-	} else if (flags & XBF_MAPPED) {
+	} else if (flags & XBF_UNMAPPED) {
+		bp->b_addr = NULL;
+	} else {
 		int retried = 0;
 
 		do {
@@ -414,7 +415,6 @@ _xfs_buf_map_pages(
 		if (!bp->b_addr)
 			return -ENOMEM;
 		bp->b_addr += bp->b_offset;
-		bp->b_flags |= XBF_MAPPED;
 	}
 
 	return 0;
@@ -520,7 +520,7 @@ found:
 	 */
 	if (bp->b_flags & XBF_STALE) {
 		ASSERT((bp->b_flags & _XBF_DELWRI_Q) == 0);
-		bp->b_flags &= XBF_MAPPED | _XBF_KMEM | _XBF_PAGES;
+		bp->b_flags &= _XBF_KMEM | _XBF_PAGES;
 	}
 
 	trace_xfs_buf_find(bp, flags, _RET_IP_);
@@ -575,7 +575,7 @@ xfs_buf_get(
 	bp->b_io_length = bp->b_length;
 
 found:
-	if (!(bp->b_flags & XBF_MAPPED)) {
+	if (!bp->b_addr) {
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
 			xfs_warn(target->bt_mount,
@@ -707,7 +707,6 @@ xfs_buf_set_empty(
 	bp->b_length = numblks;
 	bp->b_io_length = numblks;
 	bp->b_bn = XFS_BUF_DADDR_NULL;
-	bp->b_flags &= ~XBF_MAPPED;
 }
 
 static inline struct page *
@@ -759,7 +758,6 @@ xfs_buf_associate_memory(
 
 	bp->b_io_length = BTOBB(len);
 	bp->b_length = BTOBB(buflen);
-	bp->b_flags |= XBF_MAPPED;
 
 	return 0;
 }
@@ -790,7 +788,7 @@ xfs_buf_get_uncached(
 	}
 	bp->b_flags |= _XBF_PAGES;
 
-	error = _xfs_buf_map_pages(bp, XBF_MAPPED);
+	error = _xfs_buf_map_pages(bp, 0);
 	if (unlikely(error)) {
 		xfs_warn(target->bt_mount,
 			"%s: failed to map pages\n", __func__);
@@ -1287,7 +1285,7 @@ xfs_buf_offset(
 {
 	struct page		*page;
 
-	if (bp->b_flags & XBF_MAPPED)
+	if (bp->b_addr)
 		return bp->b_addr + offset;
 
 	offset += bp->b_offset;

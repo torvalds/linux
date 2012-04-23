@@ -2131,8 +2131,8 @@ xlog_recover_buffer_pass2(
 	trace_xfs_log_recover_buf_recover(log, buf_f);
 
 	buf_flags = 0;
-	if (!(buf_f->blf_flags & XFS_BLF_INODE_BUF))
-		buf_flags |= XBF_MAPPED;
+	if (buf_f->blf_flags & XFS_BLF_INODE_BUF)
+		buf_flags |= XBF_UNMAPPED;
 
 	bp = xfs_buf_read(mp->m_ddev_targp, buf_f->blf_blkno, buf_f->blf_len,
 			  buf_flags);

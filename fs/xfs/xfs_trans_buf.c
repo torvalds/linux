@@ -138,9 +138,6 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	xfs_buf_t		*bp;
 	xfs_buf_log_item_t	*bip;
 
-	if (flags == 0)
-		flags = XBF_MAPPED;
-
 	/*
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
@@ -263,9 +260,6 @@ xfs_trans_read_buf(
 	int			error;
 
 	*bpp = NULL;
-
-	if (flags == 0)
-		flags = XBF_MAPPED;
 
 	/*
 	 * Default to a normal get_buf() call if the tp is NULL.

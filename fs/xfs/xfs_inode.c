@@ -150,6 +150,7 @@ xfs_imap_to_bp(
 	int		ni;
 	xfs_buf_t	*bp;
 
+	buf_flags |= XBF_UNMAPPED;
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp, imap->im_blkno,
 				   (int)imap->im_len, buf_flags, &bp);
 	if (error) {
