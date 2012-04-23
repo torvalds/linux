@@ -148,6 +148,7 @@ static struct usb_driver gigaset_usb_driver = {
 	.reset_resume =	gigaset_post_reset,
 	.pre_reset =	gigaset_pre_reset,
 	.post_reset =	gigaset_post_reset,
+	.disable_hub_initiated_lpm = 1,
 };
 
 /* get message text for usb_submit_urb return code

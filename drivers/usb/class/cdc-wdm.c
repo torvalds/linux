@@ -1034,6 +1034,7 @@ static struct usb_driver wdm_driver = {
 	.post_reset =	wdm_post_reset,
 	.id_table =	wdm_ids,
 	.supports_autosuspend = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(wdm_driver);

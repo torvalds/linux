@@ -372,6 +372,7 @@ static struct usb_driver rtl8192cu_driver = {
 #ifdef CONFIG_AUTOSUSPEND
 	.supports_autosuspend = 1,
 #endif
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rtl8192cu_driver);

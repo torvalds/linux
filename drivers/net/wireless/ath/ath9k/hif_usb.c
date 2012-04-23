@@ -1356,6 +1356,7 @@ static struct usb_driver ath9k_hif_usb_driver = {
 #endif
 	.id_table = ath9k_hif_usb_ids,
 	.soft_unbind = 1,
+	.disable_hub_initiated_lpm = 1,
 };
 
 int ath9k_hif_usb_init(void)

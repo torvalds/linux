@@ -1980,6 +1980,7 @@ static struct usb_driver rt2500usb_driver = {
 	.disconnect	= rt2x00usb_disconnect,
 	.suspend	= rt2x00usb_suspend,
 	.resume		= rt2x00usb_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(rt2500usb_driver);

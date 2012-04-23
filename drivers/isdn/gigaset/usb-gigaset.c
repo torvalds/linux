@@ -124,6 +124,7 @@ static struct usb_driver gigaset_usb_driver = {
 	.reset_resume =	gigaset_resume,
 	.pre_reset =	gigaset_pre_reset,
 	.post_reset =	gigaset_resume,
+	.disable_hub_initiated_lpm = 1,
 };
 
 struct usb_cardstate {

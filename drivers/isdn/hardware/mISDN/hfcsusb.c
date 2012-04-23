@@ -2151,6 +2151,7 @@ static struct usb_driver hfcsusb_drv = {
 	.id_table = hfcsusb_idtab,
 	.probe = hfcsusb_probe,
 	.disconnect = hfcsusb_disconnect,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(hfcsusb_drv);

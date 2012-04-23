@@ -405,6 +405,7 @@ static struct usb_driver ath6kl_usb_driver = {
 	.probe = ath6kl_usb_probe,
 	.disconnect = ath6kl_usb_remove,
 	.id_table = ath6kl_usb_ids,
+	.disable_hub_initiated_lpm = 1,
 };
 
 static int ath6kl_usb_init(void)

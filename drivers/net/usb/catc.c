@@ -952,6 +952,7 @@ static struct usb_driver catc_driver = {
 	.probe =	catc_probe,
 	.disconnect =	catc_disconnect,
 	.id_table =	catc_id_table,
+	.disable_hub_initiated_lpm = 1,
 };
 
 module_usb_driver(catc_driver);
