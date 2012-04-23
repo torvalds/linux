@@ -32,6 +32,8 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/completion.h>
+#include <linux/of_device.h>
+#include <linux/of_mtd.h>
 
 #include <asm/mach/flash.h>
 #include <mach/mxc_nand.h>
@@ -199,6 +201,7 @@ struct mxc_nand_host {
 	unsigned int		buf_start;
 
 	const struct mxc_nand_devtype_data *devtype_data;
+	struct mxc_nand_platform_data pdata;
 };
 
 /* OOB placement block for use with hardware ecc generation */
@@ -268,7 +271,7 @@ static struct nand_ecclayout nandv2_hw_eccoob_4k = {
 	}
 };
 
-static const char *part_probes[] = { "RedBoot", "cmdlinepart", NULL };
+static const char *part_probes[] = { "RedBoot", "cmdlinepart", "ofpart", NULL };
 
 static int check_int_v3(struct mxc_nand_host *host)
 {
@@ -1236,11 +1239,85 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.eccsize = 0,
 };
 
+#ifdef CONFIG_OF_MTD
+static const struct of_device_id mxcnd_dt_ids[] = {
+	{
+		.compatible = "fsl,imx21-nand",
+		.data = &imx21_nand_devtype_data,
+	}, {
+		.compatible = "fsl,imx27-nand",
+		.data = &imx27_nand_devtype_data,
+	}, {
+		.compatible = "fsl,imx25-nand",
+		.data = &imx25_nand_devtype_data,
+	}, {
+		.compatible = "fsl,imx51-nand",
+		.data = &imx51_nand_devtype_data,
+	},
+	{ /* sentinel */ }
+};
+
+static int __init mxcnd_probe_dt(struct mxc_nand_host *host)
+{
+	struct device_node *np = host->dev->of_node;
+	struct mxc_nand_platform_data *pdata = &host->pdata;
+	const struct of_device_id *of_id =
+		of_match_device(mxcnd_dt_ids, host->dev);
+	int buswidth;
+
+	if (!np)
+		return 1;
+
+	if (of_get_nand_ecc_mode(np) >= 0)
+		pdata->hw_ecc = 1;
+
+	pdata->flash_bbt = of_get_nand_on_flash_bbt(np);
+
+	buswidth = of_get_nand_bus_width(np);
+	if (buswidth < 0)
+		return buswidth;
+
+	pdata->width = buswidth / 8;
+
+	host->devtype_data = of_id->data;
+
+	return 0;
+}
+#else
+static int __init mxcnd_probe_dt(struct mxc_nand_host *host)
+{
+	return 1;
+}
+#endif
+
+static int __init mxcnd_probe_pdata(struct mxc_nand_host *host)
+{
+	struct mxc_nand_platform_data *pdata = host->dev->platform_data;
+
+	if (!pdata)
+		return -ENODEV;
+
+	host->pdata = *pdata;
+
+	if (nfc_is_v1()) {
+		if (cpu_is_mx21())
+			host->devtype_data = &imx21_nand_devtype_data;
+		else
+			host->devtype_data = &imx27_nand_devtype_data;
+	} else if (nfc_is_v21()) {
+		host->devtype_data = &imx25_nand_devtype_data;
+	} else if (nfc_is_v3_2()) {
+		host->devtype_data = &imx51_nand_devtype_data;
+	} else
+		BUG();
+
+	return 0;
+}
+
 static int __init mxcnd_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct mtd_info *mtd;
-	struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
 	struct mxc_nand_host *host;
 	struct resource *res;
 	int err = 0;
@@ -1297,17 +1374,11 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 
 	host->main_area0 = host->base;
 
-	if (nfc_is_v1()) {
-		if (cpu_is_mx21())
-			host->devtype_data = &imx21_nand_devtype_data;
-		else
-			host->devtype_data = &imx27_nand_devtype_data;
-	} else if (nfc_is_v21()) {
-		host->devtype_data = &imx25_nand_devtype_data;
-	} else if (nfc_is_v3_2()) {
-		host->devtype_data = &imx51_nand_devtype_data;
-	} else
-		BUG();
+	err = mxcnd_probe_dt(host);
+	if (err > 0)
+		err = mxcnd_probe_pdata(host);
+	if (err < 0)
+		goto eirq;
 
 	if (host->devtype_data->regs_offset)
 		host->regs = host->base + host->devtype_data->regs_offset;
@@ -1335,7 +1406,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pdata->hw_ecc) {
+	if (host->pdata.hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
 		this->ecc.hwctl = mxc_nand_enable_hwecc;
 		this->ecc.correct = host->devtype_data->correct_data;
@@ -1344,11 +1415,11 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		this->ecc.mode = NAND_ECC_SOFT;
 	}
 
-	/* NAND bus width determines access funtions used by upper layer */
-	if (pdata->width == 2)
+	/* NAND bus width determines access functions used by upper layer */
+	if (host->pdata.width == 2)
 		this->options |= NAND_BUSWIDTH_16;
 
-	if (pdata->flash_bbt) {
+	if (host->pdata.flash_bbt) {
 		this->bbt_td = &bbt_main_descr;
 		this->bbt_md = &bbt_mirror_descr;
 		/* update flash based bbt */
@@ -1408,8 +1479,12 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	}
 
 	/* Register the partitions */
-	mtd_device_parse_register(mtd, part_probes, NULL, pdata->parts,
-				  pdata->nr_parts);
+	mtd_device_parse_register(mtd, part_probes,
+			&(struct mtd_part_parser_data){
+				.of_node = pdev->dev.of_node,
+			},
+			host->pdata.parts,
+			host->pdata.nr_parts);
 
 	platform_set_drvdata(pdev, host);
 
@@ -1451,6 +1526,7 @@ static struct platform_driver mxcnd_driver = {
 	.driver = {
 		   .name = DRIVER_NAME,
 		   .owner = THIS_MODULE,
+		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
 	.remove = __devexit_p(mxcnd_remove),
 };
