@@ -66,6 +66,22 @@ static int check_gem_flags(unsigned int flags)
 	return 0;
 }
 
+static void update_vm_cache_attr(struct exynos_drm_gem_obj *obj,
+					struct vm_area_struct *vma)
+{
+	DRM_DEBUG_KMS("flags = 0x%x\n", obj->flags);
+
+	/* non-cachable as default. */
+	if (obj->flags & EXYNOS_BO_CACHABLE)
+		vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
+	else if (obj->flags & EXYNOS_BO_WC)
+		vma->vm_page_prot =
+			pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
+	else
+		vma->vm_page_prot =
+			pgprot_noncached(vm_get_page_prot(vma->vm_flags));
+}
+
 static unsigned long roundup_gem_size(unsigned long size, unsigned int flags)
 {
 	if (!IS_NONCONTIG_BUFFER(flags)) {
@@ -262,24 +278,24 @@ static int exynos_drm_gem_handle_create(struct drm_gem_object *obj,
 void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 {
 	struct drm_gem_object *obj;
+	struct exynos_drm_gem_buf *buf;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (!exynos_gem_obj)
-		return;
-
 	obj = &exynos_gem_obj->base;
+	buf = exynos_gem_obj->buffer;
 
 	DRM_DEBUG_KMS("handle count = %d\n", atomic_read(&obj->handle_count));
 
-	if ((exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) &&
-			exynos_gem_obj->buffer->pages)
+	if (!buf->pages)
+		return;
+
+	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG)
 		exynos_drm_gem_put_pages(obj);
 	else
-		exynos_drm_free_buf(obj->dev, exynos_gem_obj->flags,
-					exynos_gem_obj->buffer);
+		exynos_drm_free_buf(obj->dev, exynos_gem_obj->flags, buf);
 
-	exynos_drm_fini_buf(obj->dev, exynos_gem_obj->buffer);
+	exynos_drm_fini_buf(obj->dev, buf);
 	exynos_gem_obj->buffer = NULL;
 
 	if (obj->map_list.map)
@@ -493,8 +509,7 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 
 	vma->vm_flags |= (VM_IO | VM_RESERVED);
 
-	/* in case of direct mapping, always having non-cachable attribute */
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+	update_vm_cache_attr(exynos_gem_obj, vma);
 
 	vm_size = usize = vma->vm_end - vma->vm_start;
 
@@ -724,6 +739,8 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_gem_object *obj;
 	int ret;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -735,8 +752,20 @@ int exynos_drm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 		return ret;
 	}
 
+	obj = vma->vm_private_data;
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	ret = check_gem_flags(exynos_gem_obj->flags);
+	if (ret) {
+		drm_gem_vm_close(vma);
+		drm_gem_free_mmap_offset(obj);
+		return ret;
+	}
+
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_flags |= VM_MIXEDMAP;
+
+	update_vm_cache_attr(exynos_gem_obj, vma);
 
 	return ret;
 }

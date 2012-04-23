@@ -95,9 +95,18 @@ struct drm_exynos_plane_set_zpos {
 
 /* memory type definitions. */
 enum e_drm_exynos_gem_mem_type {
+	/* Physically Continuous memory and used as default. */
+	EXYNOS_BO_CONTIG	= 0 << 0,
 	/* Physically Non-Continuous memory. */
 	EXYNOS_BO_NONCONTIG	= 1 << 0,
-	EXYNOS_BO_MASK		= EXYNOS_BO_NONCONTIG
+	/* non-cachable mapping and used as default. */
+	EXYNOS_BO_NONCACHABLE	= 0 << 1,
+	/* cachable mapping. */
+	EXYNOS_BO_CACHABLE	= 1 << 1,
+	/* write-combine mapping. */
+	EXYNOS_BO_WC		= 1 << 2,
+	EXYNOS_BO_MASK		= EXYNOS_BO_NONCONTIG | EXYNOS_BO_CACHABLE |
+					EXYNOS_BO_WC
 };
 
 #define DRM_EXYNOS_GEM_CREATE		0x00
