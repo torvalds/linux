@@ -198,12 +198,12 @@ xfs_buf_alloc(
 	bp->b_target = target;
 
 	/*
-	 * Set length and count_desired to the same value initially.
-	 * I/O routines should use count_desired, which will be the same in
+	 * Set length and io_length to the same value initially.
+	 * I/O routines should use io_length, which will be the same in
 	 * most cases but may be reset (e.g. XFS recovery).
 	 */
 	bp->b_length = numblks;
-	bp->b_count_desired = numblks << BBSHIFT;
+	bp->b_io_length = numblks;
 	bp->b_flags = flags;
 
 	/*
@@ -302,7 +302,7 @@ xfs_buf_allocate_memory(
 	xfs_buf_t		*bp,
 	uint			flags)
 {
-	size_t			size = bp->b_count_desired;
+	size_t			size;
 	size_t			nbytes, offset;
 	gfp_t			gfp_mask = xb_to_gfp(flags);
 	unsigned short		page_count, i;
@@ -345,6 +345,7 @@ use_alloc_page:
 		return error;
 
 	offset = bp->b_offset;
+	size = BBTOB(bp->b_length);
 	bp->b_flags |= _XBF_PAGES;
 
 	for (i = 0; i < bp->b_page_count; i++) {
@@ -575,7 +576,7 @@ xfs_buf_get(
 	 * that we can do IO on it.
 	 */
 	bp->b_bn = blkno;
-	bp->b_count_desired = BBTOB(bp->b_length);
+	bp->b_io_length = bp->b_length;
 
 found:
 	if (!(bp->b_flags & XBF_MAPPED)) {
@@ -718,7 +719,7 @@ xfs_buf_set_empty(
 	bp->b_page_count = 0;
 	bp->b_addr = NULL;
 	bp->b_length = numblks;
-	bp->b_count_desired = numblks << BBSHIFT;
+	bp->b_io_length = numblks;
 	bp->b_bn = XFS_BUF_DADDR_NULL;
 	bp->b_flags &= ~XBF_MAPPED;
 }
@@ -770,7 +771,7 @@ xfs_buf_associate_memory(
 		pageaddr += PAGE_SIZE;
 	}
 
-	bp->b_count_desired = len;
+	bp->b_io_length = BTOBB(len);
 	bp->b_length = BTOBB(buflen);
 	bp->b_flags |= XBF_MAPPED;
 
@@ -1012,9 +1013,8 @@ xfs_buf_ioerror_alert(
 	const char		*func)
 {
 	xfs_alert(bp->b_target->bt_mount,
-"metadata I/O error: block 0x%llx (\"%s\") error %d buf count %zd",
-		(__uint64_t)XFS_BUF_ADDR(bp), func,
-		bp->b_error, XFS_BUF_COUNT(bp));
+"metadata I/O error: block 0x%llx (\"%s\") error %d numblks %d",
+		(__uint64_t)XFS_BUF_ADDR(bp), func, bp->b_error, bp->b_length);
 }
 
 int
@@ -1186,7 +1186,7 @@ _xfs_buf_ioapply(
 	int			rw, map_i, total_nr_pages, nr_pages;
 	struct bio		*bio;
 	int			offset = bp->b_offset;
-	int			size = bp->b_count_desired;
+	int			size = BBTOB(bp->b_io_length);
 	sector_t		sector = bp->b_bn;
 
 	total_nr_pages = bp->b_page_count;
@@ -1234,7 +1234,7 @@ next_chunk:
 			break;
 
 		offset = 0;
-		sector += nbytes >> BBSHIFT;
+		sector += BTOBB(nbytes);
 		size -= nbytes;
 		total_nr_pages--;
 	}
@@ -1328,7 +1328,7 @@ xfs_buf_iomove(
 		page = bp->b_pages[xfs_buf_btoct(boff + bp->b_offset)];
 		cpoff = xfs_buf_poff(boff + bp->b_offset);
 		csize = min_t(size_t,
-			      PAGE_SIZE-cpoff, bp->b_count_desired-boff);
+			      PAGE_SIZE - cpoff, BBTOB(bp->b_io_length) - boff);
 
 		ASSERT(((csize + cpoff) <= PAGE_SIZE));
 

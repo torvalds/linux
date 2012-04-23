@@ -56,7 +56,7 @@ xfs_trans_buf_item_match(
 		if (blip->bli_item.li_type == XFS_LI_BUF &&
 		    blip->bli_buf->b_target == target &&
 		    XFS_BUF_ADDR(blip->bli_buf) == blkno &&
-		    XFS_BUF_COUNT(blip->bli_buf) == len)
+		    BBTOB(blip->bli_buf->b_length) == len)
 			return blip->bli_buf;
 	}
 
@@ -585,7 +585,7 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 
 	ASSERT(bp->b_transp == tp);
 	ASSERT(bip != NULL);
-	ASSERT((first <= last) && (last < XFS_BUF_COUNT(bp)));
+	ASSERT(first <= last && last < BBTOB(bp->b_length));
 	ASSERT(bp->b_iodone == NULL ||
 	       bp->b_iodone == xfs_buf_iodone_callbacks);
 

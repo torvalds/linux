@@ -123,11 +123,11 @@ xfs_buf_item_log_check(
 	ASSERT(bip->bli_logged != NULL);
 
 	bp = bip->bli_buf;
-	ASSERT(XFS_BUF_COUNT(bp) > 0);
+	ASSERT(bp->b_length > 0);
 	ASSERT(bp->b_addr != NULL);
 	orig = bip->bli_orig;
 	buffer = bp->b_addr;
-	for (x = 0; x < XFS_BUF_COUNT(bp); x++) {
+	for (x = 0; x < BBTOB(bp->b_length); x++) {
 		if (orig[x] != buffer[x] && !btst(bip->bli_logged, x)) {
 			xfs_emerg(bp->b_mount,
 				"%s: bip %x buffer %x orig %x index %d",
@@ -657,7 +657,8 @@ xfs_buf_item_init(
 	 * truncate any pieces.  map_size is the size of the
 	 * bitmap needed to describe the chunks of the buffer.
 	 */
-	chunks = (int)((XFS_BUF_COUNT(bp) + (XFS_BLF_CHUNK - 1)) >> XFS_BLF_SHIFT);
+	chunks = (int)((BBTOB(bp->b_length) + (XFS_BLF_CHUNK - 1)) >>
+								XFS_BLF_SHIFT);
 	map_size = (int)((chunks + NBWORD) >> BIT_TO_WORD_SHIFT);
 
 	bip = (xfs_buf_log_item_t*)kmem_zone_zalloc(xfs_buf_item_zone,
@@ -667,7 +668,7 @@ xfs_buf_item_init(
 	xfs_buf_hold(bp);
 	bip->bli_format.blf_type = XFS_LI_BUF;
 	bip->bli_format.blf_blkno = (__int64_t)XFS_BUF_ADDR(bp);
-	bip->bli_format.blf_len = (ushort)BTOBB(XFS_BUF_COUNT(bp));
+	bip->bli_format.blf_len = (ushort)bp->b_length;
 	bip->bli_format.blf_map_size = map_size;
 
 #ifdef XFS_TRANS_DEBUG
@@ -679,9 +680,9 @@ xfs_buf_item_init(
 	 * the buffer to indicate which bytes the callers have asked
 	 * to have logged.
 	 */
-	bip->bli_orig = (char *)kmem_alloc(XFS_BUF_COUNT(bp), KM_SLEEP);
-	memcpy(bip->bli_orig, bp->b_addr, XFS_BUF_COUNT(bp));
-	bip->bli_logged = (char *)kmem_zalloc(XFS_BUF_COUNT(bp) / NBBY, KM_SLEEP);
+	bip->bli_orig = kmem_alloc(BBTOB(bp->b_length), KM_SLEEP);
+	memcpy(bip->bli_orig, bp->b_addr, BBTOB(bp->b_length));
+	bip->bli_logged = kmem_zalloc(BBTOB(bp->b_length) / NBBY, KM_SLEEP);
 #endif
 
 	/*
