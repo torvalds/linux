@@ -67,8 +67,6 @@ int mlx4_en_create_tx_ring(struct mlx4_en_priv *priv,
 
 	inline_thold = min(inline_thold, MAX_INLINE);
 
-	spin_lock_init(&ring->comp_lock);
-
 	tmp = size * sizeof(struct mlx4_en_tx_info);
 	ring->tx_info = vmalloc(tmp);
 	if (!ring->tx_info)
@@ -377,40 +375,11 @@ void mlx4_en_tx_irq(struct mlx4_cq *mcq)
 {
 	struct mlx4_en_cq *cq = container_of(mcq, struct mlx4_en_cq, mcq);
 	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
-	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
 
-	if (!spin_trylock(&ring->comp_lock))
-		return;
 	mlx4_en_process_tx_cq(cq->dev, cq);
-	mod_timer(&cq->timer, jiffies + 1);
-	spin_unlock(&ring->comp_lock);
+	mlx4_en_arm_cq(priv, cq);
 }
 
-
-void mlx4_en_poll_tx_cq(unsigned long data)
-{
-	struct mlx4_en_cq *cq = (struct mlx4_en_cq *) data;
-	struct mlx4_en_priv *priv = netdev_priv(cq->dev);
-	struct mlx4_en_tx_ring *ring = &priv->tx_ring[cq->ring];
-	u32 inflight;
-
-	INC_PERF_COUNTER(priv->pstats.tx_poll);
-
-	if (!spin_trylock_irq(&ring->comp_lock)) {
-		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
-		return;
-	}
-	mlx4_en_process_tx_cq(cq->dev, cq);
-	inflight = (u32) (ring->prod - ring->cons - ring->last_nr_txbb);
-
-	/* If there are still packets in flight and the timer has not already
-	 * been scheduled by the Tx routine then schedule it here to guarantee
-	 * completion processing of these packets */
-	if (inflight && priv->port_up)
-		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
-
-	spin_unlock_irq(&ring->comp_lock);
-}
 
 static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 						      struct mlx4_en_tx_ring *ring,
@@ -438,25 +407,6 @@ static struct mlx4_en_tx_desc *mlx4_en_bounce_to_desc(struct mlx4_en_priv *priv,
 
 	/* Return real descriptor location */
 	return ring->buf + index * TXBB_SIZE;
-}
-
-static inline void mlx4_en_xmit_poll(struct mlx4_en_priv *priv, int tx_ind)
-{
-	struct mlx4_en_cq *cq = &priv->tx_cq[tx_ind];
-	struct mlx4_en_tx_ring *ring = &priv->tx_ring[tx_ind];
-	unsigned long flags;
-
-	/* If we don't have a pending timer, set one up to catch our recent
-	   post in case the interface becomes idle */
-	if (!timer_pending(&cq->timer))
-		mod_timer(&cq->timer, jiffies + MLX4_EN_TX_POLL_TIMEOUT);
-
-	/* Poll the CQ every mlx4_en_TX_MODER_POLL packets */
-	if ((++ring->poll_cnt & (MLX4_EN_TX_POLL_MODER - 1)) == 0)
-		if (spin_trylock_irqsave(&ring->comp_lock, flags)) {
-			mlx4_en_process_tx_cq(priv->dev, cq);
-			spin_unlock_irqrestore(&ring->comp_lock, flags);
-		}
 }
 
 static int is_inline(struct sk_buff *skb, void **pfrag)
@@ -590,7 +540,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_en_tx_ring *ring;
-	struct mlx4_en_cq *cq;
 	struct mlx4_en_tx_desc *tx_desc;
 	struct mlx4_wqe_data_seg *data;
 	struct skb_frag_struct *frag;
@@ -638,9 +587,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		ring->blocked = 1;
 		priv->port_stats.queue_stopped++;
 
-		/* Use interrupts to find out when queue opened */
-		cq = &priv->tx_cq[tx_ind];
-		mlx4_en_arm_cq(priv, cq);
 		return NETDEV_TX_BUSY;
 	}
 
@@ -787,9 +733,6 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		wmb();
 		iowrite32be(ring->doorbell_qpn, ring->bf.uar->map + MLX4_SEND_DOORBELL);
 	}
-
-	/* Poll CQ here */
-	mlx4_en_xmit_poll(priv, tx_ind);
 
 	return NETDEV_TX_OK;
 

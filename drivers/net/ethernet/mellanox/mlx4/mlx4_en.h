@@ -122,7 +122,7 @@ enum {
 #define MLX4_EN_RX_COAL_TARGET	44
 #define MLX4_EN_RX_COAL_TIME	0x10
 
-#define MLX4_EN_TX_COAL_PKTS	5
+#define MLX4_EN_TX_COAL_PKTS	16
 #define MLX4_EN_TX_COAL_TIME	0x80
 
 #define MLX4_EN_RX_RATE_LOW		400000
@@ -255,7 +255,6 @@ struct mlx4_en_tx_ring {
 	unsigned long bytes;
 	unsigned long packets;
 	unsigned long tx_csum;
-	spinlock_t comp_lock;
 	struct mlx4_bf bf;
 	bool bf_enabled;
 };
@@ -308,8 +307,6 @@ struct mlx4_en_cq {
 	spinlock_t              lock;
 	struct net_device      *dev;
 	struct napi_struct	napi;
-	/* Per-core Tx cq processing support */
-	struct timer_list timer;
 	int size;
 	int buf_size;
 	unsigned vector;
@@ -530,7 +527,6 @@ void mlx4_en_deactivate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 int mlx4_en_set_cq_moder(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 int mlx4_en_arm_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq);
 
-void mlx4_en_poll_tx_cq(unsigned long data);
 void mlx4_en_tx_irq(struct mlx4_cq *mcq);
 u16 mlx4_en_select_queue(struct net_device *dev, struct sk_buff *skb);
 netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev);
