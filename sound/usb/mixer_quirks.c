@@ -594,7 +594,7 @@ static int snd_maudio_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 				in  + 1, out + 1);
 			err = snd_create_std_mono_ctl(mixer, id, control,
 							cmask, val_type, name,
-							NULL);
+							&snd_usb_mixer_vol_tlv);
 			if (err < 0)
 				return err;
 		}
@@ -605,7 +605,7 @@ static int snd_maudio_ftu_create_volume_ctls(struct usb_mixer_interface *mixer)
 				in - 7, out + 1);
 			err = snd_create_std_mono_ctl(mixer, id, control,
 							cmask, val_type, name,
-							NULL);
+							&snd_usb_mixer_vol_tlv);
 			if (err < 0)
 				return err;
 		}
