@@ -196,7 +196,7 @@ xfs_buf_alloc(
 	sema_init(&bp->b_sema, 0); /* held, no waiters */
 	XB_SET_OWNER(bp);
 	bp->b_target = target;
-	bp->b_file_offset = blkno << BBSHIFT;
+
 	/*
 	 * Set buffer_length and count_desired to the same value initially.
 	 * I/O routines should use count_desired, which will be the same in
@@ -337,8 +337,8 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	end = bp->b_file_offset + bp->b_buffer_length;
-	page_count = xfs_buf_btoc(end) - xfs_buf_btoct(bp->b_file_offset);
+	end = BBTOB(bp->b_bn) + bp->b_buffer_length;
+	page_count = xfs_buf_btoc(end) - xfs_buf_btoct(BBTOB(bp->b_bn));
 	error = _xfs_buf_get_pages(bp, page_count, flags);
 	if (unlikely(error))
 		return error;
@@ -439,19 +439,17 @@ _xfs_buf_find(
 	xfs_buf_flags_t		flags,
 	xfs_buf_t		*new_bp)
 {
-	xfs_off_t		offset;
 	size_t			numbytes;
 	struct xfs_perag	*pag;
 	struct rb_node		**rbp;
 	struct rb_node		*parent;
 	xfs_buf_t		*bp;
 
-	offset = BBTOB(blkno);
 	numbytes = BBTOB(numblks);
 
 	/* Check for IOs smaller than the sector size / not sector aligned */
 	ASSERT(!(numbytes < (1 << btp->bt_sshift)));
-	ASSERT(!(offset & (xfs_off_t)btp->bt_smask));
+	ASSERT(!(BBTOB(blkno) & (xfs_off_t)btp->bt_smask));
 
 	/* get tree root */
 	pag = xfs_perag_get(btp->bt_mount,
@@ -466,13 +464,13 @@ _xfs_buf_find(
 		parent = *rbp;
 		bp = rb_entry(parent, struct xfs_buf, b_rbnode);
 
-		if (offset < bp->b_file_offset)
+		if (blkno < bp->b_bn)
 			rbp = &(*rbp)->rb_left;
-		else if (offset > bp->b_file_offset)
+		else if (blkno > bp->b_bn)
 			rbp = &(*rbp)->rb_right;
 		else {
 			/*
-			 * found a block offset match. If the range doesn't
+			 * found a block number match. If the range doesn't
 			 * match, the only way this is allowed is if the buffer
 			 * in the cache is stale and the transaction that made
 			 * it stale has not yet committed. i.e. we are
@@ -718,7 +716,6 @@ xfs_buf_set_empty(
 	bp->b_pages = NULL;
 	bp->b_page_count = 0;
 	bp->b_addr = NULL;
-	bp->b_file_offset = 0;
 	bp->b_buffer_length = bp->b_count_desired = numblks << BBSHIFT;
 	bp->b_bn = XFS_BUF_DADDR_NULL;
 	bp->b_flags &= ~XBF_MAPPED;
