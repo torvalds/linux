@@ -1297,12 +1297,9 @@ static struct usb_driver line6_driver = {
 */
 static int __init line6_init(void)
 {
-	int i, retval;
+	int retval;
 
 	printk(KERN_INFO "%s driver version %s\n", DRIVER_NAME, DRIVER_VERSION);
-
-	for (i = LINE6_MAX_DEVICES; i--;)
-		line6_devices[i] = NULL;
 
 	retval = usb_register(&line6_driver);
 
