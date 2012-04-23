@@ -787,7 +787,8 @@ static void receive_file_work(struct work_struct *data)
 			if (read_req->actual < read_req->length) {
 				/* short packet is used to signal EOF for sizes > 4 gig */
 				DBG(cdev, "got short packet\n");
-				count = 0;
+				if (count == 0xFFFFFFFF)
+					count = 0;
 			}
 
 			write_req = read_req;
