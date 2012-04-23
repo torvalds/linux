@@ -96,7 +96,7 @@ out:
 	return roundup(size, PAGE_SIZE);
 }
 
-static struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
+struct page **exynos_gem_get_pages(struct drm_gem_object *obj,
 						gfp_t gfpmask)
 {
 	struct inode *inode;
@@ -196,6 +196,7 @@ static int exynos_drm_gem_get_pages(struct drm_gem_object *obj)
 	}
 
 	npages = obj->size >> PAGE_SHIFT;
+	buf->page_size = PAGE_SIZE;
 
 	buf->sgt = kzalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!buf->sgt) {
@@ -308,7 +309,7 @@ void exynos_drm_gem_destroy(struct exynos_drm_gem_obj *exynos_gem_obj)
 	exynos_gem_obj = NULL;
 }
 
-static struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
+struct exynos_drm_gem_obj *exynos_drm_gem_init(struct drm_device *dev,
 						      unsigned long size)
 {
 	struct exynos_drm_gem_obj *exynos_gem_obj;
@@ -612,7 +613,16 @@ int exynos_drm_gem_init_object(struct drm_gem_object *obj)
 
 void exynos_drm_gem_free_object(struct drm_gem_object *obj)
 {
+	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct exynos_drm_gem_buf *buf;
+
 	DRM_DEBUG_KMS("%s\n", __FILE__);
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+	buf = exynos_gem_obj->buffer;
+
+	if (obj->import_attach)
+		drm_prime_gem_destroy(obj, buf->sgt);
 
 	exynos_drm_gem_destroy(to_exynos_gem_obj(obj));
 }

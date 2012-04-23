@@ -39,6 +39,7 @@
 #include "exynos_drm_gem.h"
 #include "exynos_drm_plane.h"
 #include "exynos_drm_vidi.h"
+#include "exynos_drm_dmabuf.h"
 
 #define DRIVER_NAME	"exynos"
 #define DRIVER_DESC	"Samsung SoC DRM"
@@ -149,6 +150,8 @@ static int exynos_drm_open(struct drm_device *dev, struct drm_file *file)
 {
 	DRM_DEBUG_DRIVER("%s\n", __FILE__);
 
+	drm_prime_init_file_private(&file->prime);
+
 	return exynos_drm_subdrv_open(dev, file);
 }
 
@@ -170,6 +173,7 @@ static void exynos_drm_preclose(struct drm_device *dev,
 			e->base.destroy(&e->base);
 		}
 	}
+	drm_prime_destroy_file_private(&file->prime);
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
 	exynos_drm_subdrv_close(dev, file);
@@ -225,7 +229,7 @@ static const struct file_operations exynos_drm_driver_fops = {
 
 static struct drm_driver exynos_drm_driver = {
 	.driver_features	= DRIVER_HAVE_IRQ | DRIVER_BUS_PLATFORM |
-				  DRIVER_MODESET | DRIVER_GEM,
+				  DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME,
 	.load			= exynos_drm_load,
 	.unload			= exynos_drm_unload,
 	.open			= exynos_drm_open,
@@ -241,6 +245,10 @@ static struct drm_driver exynos_drm_driver = {
 	.dumb_create		= exynos_drm_gem_dumb_create,
 	.dumb_map_offset	= exynos_drm_gem_dumb_map_offset,
 	.dumb_destroy		= exynos_drm_gem_dumb_destroy,
+	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
+	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
+	.gem_prime_export	= exynos_dmabuf_prime_export,
+	.gem_prime_import	= exynos_dmabuf_prime_import,
 	.ioctls			= exynos_ioctls,
 	.fops			= &exynos_drm_driver_fops,
 	.name	= DRIVER_NAME,
