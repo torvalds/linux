@@ -514,6 +514,8 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 		if (!buffer->pages)
 			return -EINVAL;
 
+		vma->vm_flags |= VM_MIXEDMAP;
+
 		do {
 			ret = vm_insert_page(vma, uaddr, buffer->pages[i++]);
 			if (ret) {
