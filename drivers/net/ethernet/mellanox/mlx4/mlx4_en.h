@@ -200,6 +200,7 @@ enum cq_type {
 struct mlx4_en_tx_info {
 	struct sk_buff *skb;
 	u32 nr_txbb;
+	u32 nr_bytes;
 	u8 linear;
 	u8 data_offset;
 	u8 inl;
@@ -257,6 +258,7 @@ struct mlx4_en_tx_ring {
 	unsigned long tx_csum;
 	struct mlx4_bf bf;
 	bool bf_enabled;
+	struct netdev_queue *tx_queue;
 };
 
 struct mlx4_en_rx_desc {

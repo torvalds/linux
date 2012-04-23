@@ -315,6 +315,8 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	int size = cq->size;
 	u32 size_mask = ring->size_mask;
 	struct mlx4_cqe *buf = cq->buf;
+	u32 packets = 0;
+	u32 bytes = 0;
 
 	if (!priv->port_up)
 		return;
@@ -343,6 +345,8 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 					priv, ring, ring_index,
 					!!((ring->cons + txbbs_skipped) &
 							ring->size));
+			packets++;
+			bytes += ring->tx_info[ring_index].nr_bytes;
 		} while (ring_index != new_index);
 
 		++cons_index;
@@ -359,13 +363,14 @@ static void mlx4_en_process_tx_cq(struct net_device *dev, struct mlx4_en_cq *cq)
 	mlx4_cq_set_ci(mcq);
 	wmb();
 	ring->cons += txbbs_skipped;
+	netdev_tx_completed_queue(ring->tx_queue, packets, bytes);
 
 	/* Wakeup Tx queue if this ring stopped it */
 	if (unlikely(ring->blocked)) {
 		if ((u32) (ring->prod - ring->cons) <=
 		     ring->size - HEADROOM - MAX_DESC_TXBBS) {
 			ring->blocked = 0;
-			netif_tx_wake_queue(netdev_get_tx_queue(dev, cq->ring));
+			netif_tx_wake_queue(ring->tx_queue);
 			priv->port_stats.wake_queue++;
 		}
 	}
@@ -583,7 +588,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (unlikely(((int)(ring->prod - ring->cons)) >
 		     ring->size - HEADROOM - MAX_DESC_TXBBS)) {
 		/* every full Tx ring stops queue */
-		netif_tx_stop_queue(netdev_get_tx_queue(dev, tx_ind));
+		netif_tx_stop_queue(ring->tx_queue);
 		ring->blocked = 1;
 		priv->port_stats.queue_stopped++;
 
@@ -649,7 +654,7 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 		priv->port_stats.tso_packets++;
 		i = ((skb->len - lso_header_size) / skb_shinfo(skb)->gso_size) +
 			!!((skb->len - lso_header_size) % skb_shinfo(skb)->gso_size);
-		ring->bytes += skb->len + (i - 1) * lso_header_size;
+		tx_info->nr_bytes = skb->len + (i - 1) * lso_header_size;
 		ring->packets += i;
 	} else {
 		/* Normal (Non LSO) packet */
@@ -657,10 +662,12 @@ netdev_tx_t mlx4_en_xmit(struct sk_buff *skb, struct net_device *dev)
 			((ring->prod & ring->size) ?
 			 cpu_to_be32(MLX4_EN_BIT_DESC_OWN) : 0);
 		data = &tx_desc->data;
-		ring->bytes += max(skb->len, (unsigned int) ETH_ZLEN);
+		tx_info->nr_bytes = max_t(unsigned int, skb->len, ETH_ZLEN);
 		ring->packets++;
 
 	}
+	ring->bytes += tx_info->nr_bytes;
+	netdev_tx_sent_queue(ring->tx_queue, tx_info->nr_bytes);
 	AVG_PERF_COUNTER(priv->pstats.tx_pktsz_avg, skb->len);
 
 
