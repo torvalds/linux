@@ -2131,7 +2131,7 @@ xlog_recover_buffer_pass2(
 
 	trace_xfs_log_recover_buf_recover(log, buf_f);
 
-	buf_flags = XBF_LOCK;
+	buf_flags = 0;
 	if (!(buf_f->blf_flags & XFS_BLF_INODE_BUF))
 		buf_flags |= XBF_MAPPED;
 
@@ -2229,8 +2229,7 @@ xlog_recover_inode_pass2(
 	}
 	trace_xfs_log_recover_inode_recover(log, in_f);
 
-	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len,
-			  XBF_LOCK);
+	bp = xfs_buf_read(mp->m_ddev_targp, in_f->ilf_blkno, in_f->ilf_len, 0);
 	if (!bp) {
 		error = ENOMEM;
 		goto error;
@@ -3103,7 +3102,7 @@ xlog_recover_process_one_iunlink(
 	/*
 	 * Get the on disk inode to find the next inode in the bucket.
 	 */
-	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, XBF_LOCK);
+	error = xfs_itobp(mp, NULL, ip, &dip, &ibp, 0);
 	if (error)
 		goto fail_iput;
 

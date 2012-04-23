@@ -185,7 +185,7 @@ xfs_buf_alloc(
 	/*
 	 * We don't want certain flags to appear in b_flags.
 	 */
-	flags &= ~(XBF_LOCK|XBF_MAPPED|XBF_DONT_BLOCK|XBF_READ_AHEAD);
+	flags &= ~(XBF_MAPPED|XBF_DONT_BLOCK|XBF_READ_AHEAD);
 
 	atomic_set(&bp->b_hold, 1);
 	atomic_set(&bp->b_lru_ref, 1);
@@ -584,19 +584,14 @@ found:
 		if (unlikely(error)) {
 			xfs_warn(target->bt_mount,
 				"%s: failed to map pages\n", __func__);
-			goto no_buffer;
+			xfs_buf_relse(bp);
+			return NULL;
 		}
 	}
 
 	XFS_STATS_INC(xb_get);
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	return bp;
-
-no_buffer:
-	if (flags & (XBF_LOCK | XBF_TRYLOCK))
-		xfs_buf_unlock(bp);
-	xfs_buf_rele(bp);
-	return NULL;
 }
 
 STATIC int
@@ -639,7 +634,8 @@ xfs_buf_read(
 			 * Read ahead call which is already satisfied,
 			 * drop the buffer
 			 */
-			goto no_buffer;
+			xfs_buf_relse(bp);
+			return NULL;
 		} else {
 			/* We do not want read in the flags */
 			bp->b_flags &= ~XBF_READ;
@@ -647,12 +643,6 @@ xfs_buf_read(
 	}
 
 	return bp;
-
- no_buffer:
-	if (flags & (XBF_LOCK | XBF_TRYLOCK))
-		xfs_buf_unlock(bp);
-	xfs_buf_rele(bp);
-	return NULL;
 }
 
 /*

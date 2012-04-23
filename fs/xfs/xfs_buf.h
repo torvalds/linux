@@ -52,7 +52,6 @@ typedef enum {
 #define XBF_FLUSH	(1 << 12)/* flush the disk cache before a write */
 
 /* flags used only as arguments to access routines */
-#define XBF_LOCK	(1 << 15)/* lock requested */
 #define XBF_TRYLOCK	(1 << 16)/* lock requested, but do not wait */
 #define XBF_DONT_BLOCK	(1 << 17)/* do not block in current thread */
 
@@ -74,8 +73,7 @@ typedef unsigned int xfs_buf_flags_t;
 	{ XBF_SYNCIO,		"SYNCIO" }, \
 	{ XBF_FUA,		"FUA" }, \
 	{ XBF_FLUSH,		"FLUSH" }, \
-	{ XBF_LOCK,		"LOCK" },  	/* should never be set */\
-	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* ditto */\
+	{ XBF_TRYLOCK,		"TRYLOCK" }, 	/* should never be set */\
 	{ XBF_DONT_BLOCK,	"DONT_BLOCK" },	/* ditto */\
 	{ _XBF_PAGES,		"PAGES" }, \
 	{ _XBF_KMEM,		"KMEM" }, \

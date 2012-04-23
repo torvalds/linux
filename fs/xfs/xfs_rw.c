@@ -114,7 +114,7 @@ xfs_read_buf(
 	int		 error;
 
 	if (!flags)
-		flags = XBF_LOCK | XBF_MAPPED;
+		flags = XBF_MAPPED;
 
 	bp = xfs_buf_read(target, blkno, len, flags);
 	if (!bp)
