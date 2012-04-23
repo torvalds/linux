@@ -490,16 +490,68 @@ unsigned long venc_get_pixel_clock(void)
 	return 13500000;
 }
 
+static ssize_t display_output_type_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+	const char *ret;
+
+	switch (dssdev->phy.venc.type) {
+	case OMAP_DSS_VENC_TYPE_COMPOSITE:
+		ret = "composite";
+		break;
+	case OMAP_DSS_VENC_TYPE_SVIDEO:
+		ret = "svideo";
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%s\n", ret);
+}
+
+static ssize_t display_output_type_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t size)
+{
+	struct omap_dss_device *dssdev = to_dss_device(dev);
+	enum omap_dss_venc_type new_type;
+
+	if (sysfs_streq("composite", buf))
+		new_type = OMAP_DSS_VENC_TYPE_COMPOSITE;
+	else if (sysfs_streq("svideo", buf))
+		new_type = OMAP_DSS_VENC_TYPE_SVIDEO;
+	else
+		return -EINVAL;
+
+	mutex_lock(&venc.venc_lock);
+
+	if (dssdev->phy.venc.type != new_type) {
+		dssdev->phy.venc.type = new_type;
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE) {
+			venc_power_off(dssdev);
+			venc_power_on(dssdev);
+		}
+	}
+
+	mutex_unlock(&venc.venc_lock);
+
+	return size;
+}
+
+static DEVICE_ATTR(output_type, S_IRUGO | S_IWUSR,
+		display_output_type_show, display_output_type_store);
+
 /* driver */
 static int venc_panel_probe(struct omap_dss_device *dssdev)
 {
 	dssdev->panel.timings = omap_dss_pal_timings;
 
-	return 0;
+	return device_create_file(&dssdev->dev, &dev_attr_output_type);
 }
 
 static void venc_panel_remove(struct omap_dss_device *dssdev)
 {
+	device_remove_file(&dssdev->dev, &dev_attr_output_type);
 }
 
 static int venc_panel_enable(struct omap_dss_device *dssdev)

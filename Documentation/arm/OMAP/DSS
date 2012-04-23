@@ -156,6 +156,7 @@ timings		Display timings (pixclock,xres/hfp/hbp/hsw,yres/vfp/vbp/vsw)
 		"pal" and "ntsc"
 panel_name
 tear_elim	Tearing elimination 0=off, 1=on
+output_type	Output type (video encoder only): "composite" or "svideo"
 
 There are also some debugfs files at <debugfs>/omapdss/ which show information
 about clocks and registers.
