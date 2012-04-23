@@ -53,12 +53,12 @@ struct flat_binder_object {
 
 	/* 8 bytes of data. */
 	union {
-		void		*binder;	/* local object */
+		void __user	*binder;	/* local object */
 		signed long	handle;		/* remote object */
 	};
 
 	/* extra data associated with local object */
-	void			*cookie;
+	void __user		*cookie;
 };
 
 /*
@@ -139,9 +139,9 @@ struct binder_transaction_data {
 	union {
 		struct {
 			/* transaction data */
-			const void	*buffer;
+			const void __user	*buffer;
 			/* offsets from buffer to flat_binder_object structs */
-			const void	*offsets;
+			const void __user	*offsets;
 		} ptr;
 		uint8_t	buf[8];
 	} data;
