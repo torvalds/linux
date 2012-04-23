@@ -3723,8 +3723,6 @@ transport_allocate_data_tasks(struct se_cmd *cmd,
 	task->task_sg = cmd_sg;
 	task->task_sg_nents = sgl_nents;
 
-	task->task_sectors = sectors;
-
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	list_add_tail(&task->t_list, &cmd->t_task_list);
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
