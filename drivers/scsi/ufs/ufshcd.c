@@ -1032,11 +1032,11 @@ static int ufshcd_initialize_hba(struct ufs_hba *hba)
 		return -EIO;
 
 	/* Configure UTRL and UTMRL base address registers */
-	writel(hba->utrdl_dma_addr,
-	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_L));
 	writel(lower_32_bits(hba->utrdl_dma_addr),
+	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_L));
+	writel(upper_32_bits(hba->utrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TRANSFER_REQ_LIST_BASE_H));
-	writel(hba->utmrdl_dma_addr,
+	writel(lower_32_bits(hba->utmrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TASK_REQ_LIST_BASE_L));
 	writel(upper_32_bits(hba->utmrdl_dma_addr),
 	       (hba->mmio_base + REG_UTP_TASK_REQ_LIST_BASE_H));
