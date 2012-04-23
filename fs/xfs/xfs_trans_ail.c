@@ -750,20 +750,6 @@ xfs_trans_ail_delete_bulk(
 	}
 }
 
-/*
- * The active item list (AIL) is a doubly linked list of log
- * items sorted by ascending lsn.  The base of the list is
- * a forw/back pointer pair embedded in the xfs mount structure.
- * The base is initialized with both pointers pointing to the
- * base.  This case always needs to be distinguished, because
- * the base has no lsn to look at.  We almost always insert
- * at the end of the list, so on inserts we search from the
- * end of the list to find where the new item belongs.
- */
-
-/*
- * Initialize the doubly linked list to point only to itself.
- */
 int
 xfs_trans_ail_init(
 	xfs_mount_t	*mp)
