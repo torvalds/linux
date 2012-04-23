@@ -307,7 +307,7 @@ static int rd_do_task(struct se_task *task)
 		se_dev->se_sub_dev->se_dev_attrib.block_size;
 	rd_offset = do_div(tmp, PAGE_SIZE);
 	rd_page = tmp;
-	rd_size = task->task_size;
+	rd_size = task->task_se_cmd->data_length;
 
 	table = rd_get_sg_table(dev, rd_page);
 	if (!table)

@@ -487,7 +487,6 @@ struct se_queue_obj {
 
 struct se_task {
 	u32			task_sectors;
-	u32			task_size;
 	struct se_cmd		*task_se_cmd;
 	struct scatterlist	*task_sg;
 	u32			task_sg_nents;

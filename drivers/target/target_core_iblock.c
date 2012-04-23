@@ -478,7 +478,8 @@ iblock_get_bio(struct se_task *task, sector_t lba, u32 sg_num)
 
 	pr_debug("Allocated bio: %p task_sg_nents: %u using ibd_bio_set:"
 		" %p\n", bio, task->task_sg_nents, ib_dev->ibd_bio_set);
-	pr_debug("Allocated bio: %p task_size: %u\n", bio, task->task_size);
+	pr_debug("Allocated bio: %p task_size: %u\n", bio,
+		task->task_se_cmd->data_length);
 
 	bio->bi_bdev = ib_dev->ibd_bd;
 	bio->bi_private = task;

@@ -3722,7 +3722,6 @@ transport_allocate_data_tasks(struct se_cmd *cmd,
 
 	task->task_sg = cmd_sg;
 	task->task_sg_nents = sgl_nents;
-	task->task_size = cmd->data_length;
 
 	task->task_sectors = sectors;
 
@@ -3749,7 +3748,6 @@ transport_allocate_control_task(struct se_cmd *cmd)
 		return -ENOMEM;
 
 	task->task_sg = cmd->t_data_sg;
-	task->task_size = cmd->data_length;
 	task->task_sg_nents = cmd->t_data_nents;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);

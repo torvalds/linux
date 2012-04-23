@@ -300,10 +300,10 @@ static int fd_do_readv(struct se_task *task)
 	 * block_device.
 	 */
 	if (S_ISBLK(fd->f_dentry->d_inode->i_mode)) {
-		if (ret < 0 || ret != task->task_size) {
+		if (ret < 0 || ret != task->task_se_cmd->data_length) {
 			pr_err("vfs_readv() returned %d,"
 				" expecting %d for S_ISBLK\n", ret,
-				(int)task->task_size);
+				(int)task->task_se_cmd->data_length);
 			return (ret < 0 ? ret : -EINVAL);
 		}
 	} else {
@@ -348,7 +348,7 @@ static int fd_do_writev(struct se_task *task)
 
 	kfree(iov);
 
-	if (ret < 0 || ret != task->task_size) {
+	if (ret < 0 || ret != task->task_se_cmd->data_length) {
 		pr_err("vfs_writev() returned %d\n", ret);
 		return (ret < 0 ? ret : -EINVAL);
 	}
@@ -404,11 +404,12 @@ static void fd_emulate_write_fua(struct se_cmd *cmd, struct se_task *task)
 	struct fd_dev *fd_dev = dev->dev_ptr;
 	loff_t start = task->task_se_cmd->t_task_lba *
 		dev->se_sub_dev->se_dev_attrib.block_size;
-	loff_t end = start + task->task_size;
+	loff_t end = start + task->task_se_cmd->data_length;
 	int ret;
 
 	pr_debug("FILEIO: FUA WRITE LBA: %llu, bytes: %u\n",
-			task->task_se_cmd->t_task_lba, task->task_size);
+			task->task_se_cmd->t_task_lba,
+			task->task_se_cmd->data_length);
 
 	ret = vfs_fsync_range(fd_dev->fd_file, start, end, 1);
 	if (ret != 0)

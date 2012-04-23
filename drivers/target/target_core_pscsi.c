@@ -967,8 +967,8 @@ static int pscsi_map_sg(struct se_task *task, struct scatterlist *task_sg,
 	struct bio *bio = NULL, *tbio = NULL;
 	struct page *page;
 	struct scatterlist *sg;
-	u32 data_len = task->task_size, i, len, bytes, off;
-	int nr_pages = (task->task_size + task_sg[0].offset +
+	u32 data_len = cmd->data_length, i, len, bytes, off;
+	int nr_pages = (cmd->data_length + task_sg[0].offset +
 			PAGE_SIZE - 1) >> PAGE_SHIFT;
 	int nr_vecs = 0, rc;
 	int rw = (task->task_data_direction == DMA_TO_DEVICE);
@@ -1085,7 +1085,7 @@ static int pscsi_do_task(struct se_task *task)
 			return -ENODEV;
 		}
 	} else {
-		BUG_ON(!task->task_size);
+		BUG_ON(!cmd->data_length);
 
 		/*
 		 * Setup the main struct request for the task->task_sg[] payload
