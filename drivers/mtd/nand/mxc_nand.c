@@ -153,6 +153,7 @@ struct mxc_nand_devtype_data {
 	void (*irq_control)(struct mxc_nand_host *, int);
 	u32 (*get_ecc_status)(struct mxc_nand_host *);
 	struct nand_ecclayout *ecclayout_512, *ecclayout_2k, *ecclayout_4k;
+	void (*select_chip)(struct mtd_info *mtd, int chip);
 };
 
 struct mxc_nand_host {
@@ -721,7 +722,28 @@ static int mxc_nand_verify_buf(struct mtd_info *mtd,
 
 /* This function is used by upper layer for select and
  * deselect of the NAND chip */
-static void mxc_nand_select_chip(struct mtd_info *mtd, int chip)
+static void mxc_nand_select_chip_v1_v3(struct mtd_info *mtd, int chip)
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct mxc_nand_host *host = nand_chip->priv;
+
+	if (chip == -1) {
+		/* Disable the NFC clock */
+		if (host->clk_act) {
+			clk_disable(host->clk);
+			host->clk_act = 0;
+		}
+		return;
+	}
+
+	if (!host->clk_act) {
+		/* Enable the NFC clock */
+		clk_enable(host->clk);
+		host->clk_act = 1;
+	}
+}
+
+static void mxc_nand_select_chip_v2(struct mtd_info *mtd, int chip)
 {
 	struct nand_chip *nand_chip = mtd->priv;
 	struct mxc_nand_host *host = nand_chip->priv;
@@ -741,10 +763,8 @@ static void mxc_nand_select_chip(struct mtd_info *mtd, int chip)
 		host->clk_act = 1;
 	}
 
-	if (nfc_is_v21()) {
-		host->active_cs = chip;
-		writew(host->active_cs << 4, NFC_V1_V2_BUF_ADDR);
-	}
+	host->active_cs = chip;
+	writew(host->active_cs << 4, NFC_V1_V2_BUF_ADDR);
 }
 
 /*
@@ -1117,6 +1137,7 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.ecclayout_512 = &nandv1_hw_eccoob_smallpage,
 	.ecclayout_2k = &nandv1_hw_eccoob_largepage,
 	.ecclayout_4k = &nandv1_hw_eccoob_smallpage, /* XXX: needs fix */
+	.select_chip = mxc_nand_select_chip_v1_v3,
 };
 
 /* v21: i.MX25, i.MX35 */
@@ -1133,6 +1154,7 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
 	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
 	.ecclayout_4k = &nandv2_hw_eccoob_4k,
+	.select_chip = mxc_nand_select_chip_v2,
 };
 
 /* v3: i.MX51, i.MX53 */
@@ -1149,6 +1171,7 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.ecclayout_512 = &nandv2_hw_eccoob_smallpage,
 	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
 	.ecclayout_4k = &nandv2_hw_eccoob_smallpage, /* XXX: needs fix */
+	.select_chip = mxc_nand_select_chip_v1_v3,
 };
 
 static int __init mxcnd_probe(struct platform_device *pdev)
@@ -1183,7 +1206,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	this->priv = host;
 	this->dev_ready = mxc_nand_dev_ready;
 	this->cmdfunc = mxc_nand_command;
-	this->select_chip = mxc_nand_select_chip;
 	this->read_byte = mxc_nand_read_byte;
 	this->read_word = mxc_nand_read_word;
 	this->write_buf = mxc_nand_write_buf;
@@ -1246,6 +1268,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	} else
 		BUG();
 
+	this->select_chip = host->devtype_data->select_chip;
 	this->ecc.size = 512;
 	this->ecc.layout = host->devtype_data->ecclayout_512;
 
