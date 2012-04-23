@@ -71,6 +71,7 @@ struct xfs_ail {
 	spinlock_t		xa_lock;
 	xfs_lsn_t		xa_last_pushed_lsn;
 	int			xa_log_flush;
+	struct list_head	xa_buf_list;
 	wait_queue_head_t	xa_empty;
 };
 

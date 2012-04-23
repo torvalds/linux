@@ -313,16 +313,9 @@ xfs_quiesce_data(
 	/* write superblock and hoover up shutdown errors */
 	error = xfs_sync_fsdata(mp);
 
-	/* make sure all delwri buffers are written out */
-	xfs_flush_buftarg(mp->m_ddev_targp, 1);
-
 	/* mark the log as covered if needed */
 	if (xfs_log_need_covered(mp))
 		error2 = xfs_fs_log_dummy(mp);
-
-	/* flush data-only devices */
-	if (mp->m_rtdev_targp)
-		xfs_flush_buftarg(mp->m_rtdev_targp, 1);
 
 	return error ? error : error2;
 }
@@ -684,17 +677,6 @@ restart:
 	if (!xfs_iflock_nowait(ip)) {
 		if (!(sync_mode & SYNC_WAIT))
 			goto out;
-
-		/*
-		 * If we only have a single dirty inode in a cluster there is
-		 * a fair chance that the AIL push may have pushed it into
-		 * the buffer, but xfsbufd won't touch it until 30 seconds
-		 * from now, and thus we will lock up here.
-		 *
-		 * Promote the inode buffer to the front of the delwri list
-		 * and wake up xfsbufd now.
-		 */
-		xfs_promote_inode(ip);
 		xfs_iflock(ip);
 	}
 

@@ -42,7 +42,6 @@
 #include "xfs_trace.h"
 
 static kmem_zone_t *xfs_buf_zone;
-STATIC int xfsbufd(void *);
 
 static struct workqueue_struct *xfslogd_workqueue;
 
@@ -144,8 +143,17 @@ void
 xfs_buf_stale(
 	struct xfs_buf	*bp)
 {
+	ASSERT(xfs_buf_islocked(bp));
+
 	bp->b_flags |= XBF_STALE;
-	xfs_buf_delwri_dequeue(bp);
+
+	/*
+	 * Clear the delwri status so that a delwri queue walker will not
+	 * flush this buffer to disk now that it is stale. The delwri queue has
+	 * a reference to the buffer, so this is safe to do.
+	 */
+	bp->b_flags &= ~_XBF_DELWRI_Q;
+
 	atomic_set(&(bp)->b_lru_ref, 0);
 	if (!list_empty(&bp->b_lru)) {
 		struct xfs_buftarg *btp = bp->b_target;
@@ -592,10 +600,10 @@ _xfs_buf_read(
 {
 	int			status;
 
-	ASSERT(!(flags & (XBF_DELWRI|XBF_WRITE)));
+	ASSERT(!(flags & XBF_WRITE));
 	ASSERT(bp->b_bn != XFS_BUF_DADDR_NULL);
 
-	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_DELWRI | XBF_READ_AHEAD);
+	bp->b_flags &= ~(XBF_WRITE | XBF_ASYNC | XBF_READ_AHEAD);
 	bp->b_flags |= flags & (XBF_READ | XBF_ASYNC | XBF_READ_AHEAD);
 
 	status = xfs_buf_iorequest(bp);
@@ -855,7 +863,7 @@ xfs_buf_rele(
 			spin_unlock(&pag->pag_buf_lock);
 		} else {
 			xfs_buf_lru_del(bp);
-			ASSERT(!(bp->b_flags & (XBF_DELWRI|_XBF_DELWRI_Q)));
+			ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 			rb_erase(&bp->b_rbnode, &pag->pag_buf_tree);
 			spin_unlock(&pag->pag_buf_lock);
 			xfs_perag_put(pag);
@@ -915,13 +923,6 @@ xfs_buf_lock(
 	trace_xfs_buf_lock_done(bp, _RET_IP_);
 }
 
-/*
- *	Releases the lock on the buffer object.
- *	If the buffer is marked delwri but is not queued, do so before we
- *	unlock the buffer as we need to set flags correctly.  We also need to
- *	take a reference for the delwri queue because the unlocker is going to
- *	drop their's and they don't know we just queued it.
- */
 void
 xfs_buf_unlock(
 	struct xfs_buf		*bp)
@@ -1019,10 +1020,11 @@ xfs_bwrite(
 {
 	int			error;
 
-	bp->b_flags |= XBF_WRITE;
-	bp->b_flags &= ~(XBF_ASYNC | XBF_READ);
+	ASSERT(xfs_buf_islocked(bp));
 
-	xfs_buf_delwri_dequeue(bp);
+	bp->b_flags |= XBF_WRITE;
+	bp->b_flags &= ~(XBF_ASYNC | XBF_READ | _XBF_DELWRI_Q);
+
 	xfs_bdstrat_cb(bp);
 
 	error = xfs_buf_iowait(bp);
@@ -1254,7 +1256,7 @@ xfs_buf_iorequest(
 {
 	trace_xfs_buf_iorequest(bp, _RET_IP_);
 
-	ASSERT(!(bp->b_flags & XBF_DELWRI));
+	ASSERT(!(bp->b_flags & _XBF_DELWRI_Q));
 
 	if (bp->b_flags & XBF_WRITE)
 		xfs_buf_wait_unpin(bp);
@@ -1435,11 +1437,9 @@ xfs_free_buftarg(
 {
 	unregister_shrinker(&btp->bt_shrinker);
 
-	xfs_flush_buftarg(btp, 1);
 	if (mp->m_flags & XFS_MOUNT_BARRIER)
 		xfs_blkdev_issue_flush(btp);
 
-	kthread_stop(btp->bt_task);
 	kmem_free(btp);
 }
 
@@ -1491,20 +1491,6 @@ xfs_setsize_buftarg(
 	return xfs_setsize_buftarg_flags(btp, blocksize, sectorsize, 1);
 }
 
-STATIC int
-xfs_alloc_delwri_queue(
-	xfs_buftarg_t		*btp,
-	const char		*fsname)
-{
-	INIT_LIST_HEAD(&btp->bt_delwri_queue);
-	spin_lock_init(&btp->bt_delwri_lock);
-	btp->bt_flags = 0;
-	btp->bt_task = kthread_run(xfsbufd, btp, "xfsbufd/%s", fsname);
-	if (IS_ERR(btp->bt_task))
-		return PTR_ERR(btp->bt_task);
-	return 0;
-}
-
 xfs_buftarg_t *
 xfs_alloc_buftarg(
 	struct xfs_mount	*mp,
@@ -1527,8 +1513,6 @@ xfs_alloc_buftarg(
 	spin_lock_init(&btp->bt_lru_lock);
 	if (xfs_setsize_buftarg_early(btp, bdev))
 		goto error;
-	if (xfs_alloc_delwri_queue(btp, fsname))
-		goto error;
 	btp->bt_shrinker.shrink = xfs_buftarg_shrink;
 	btp->bt_shrinker.seeks = DEFAULT_SEEKS;
 	register_shrinker(&btp->bt_shrinker);
@@ -1539,125 +1523,52 @@ error:
 	return NULL;
 }
 
-
 /*
- *	Delayed write buffer handling
+ * Add a buffer to the delayed write list.
+ *
+ * This queues a buffer for writeout if it hasn't already been.  Note that
+ * neither this routine nor the buffer list submission functions perform
+ * any internal synchronization.  It is expected that the lists are thread-local
+ * to the callers.
+ *
+ * Returns true if we queued up the buffer, or false if it already had
+ * been on the buffer list.
  */
-void
+bool
 xfs_buf_delwri_queue(
-	xfs_buf_t		*bp)
+	struct xfs_buf		*bp,
+	struct list_head	*list)
 {
-	struct xfs_buftarg	*btp = bp->b_target;
+	ASSERT(xfs_buf_islocked(bp));
+	ASSERT(!(bp->b_flags & XBF_READ));
+
+	/*
+	 * If the buffer is already marked delwri it already is queued up
+	 * by someone else for imediate writeout.  Just ignore it in that
+	 * case.
+	 */
+	if (bp->b_flags & _XBF_DELWRI_Q) {
+		trace_xfs_buf_delwri_queued(bp, _RET_IP_);
+		return false;
+	}
 
 	trace_xfs_buf_delwri_queue(bp, _RET_IP_);
 
-	ASSERT(!(bp->b_flags & XBF_READ));
-
-	spin_lock(&btp->bt_delwri_lock);
-	if (!list_empty(&bp->b_list)) {
-		/* if already in the queue, move it to the tail */
-		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-		list_move_tail(&bp->b_list, &btp->bt_delwri_queue);
-	} else {
-		/* start xfsbufd as it is about to have something to do */
-		if (list_empty(&btp->bt_delwri_queue))
-			wake_up_process(bp->b_target->bt_task);
-
-		atomic_inc(&bp->b_hold);
-		bp->b_flags |= XBF_DELWRI | _XBF_DELWRI_Q | XBF_ASYNC;
-		list_add_tail(&bp->b_list, &btp->bt_delwri_queue);
-	}
-	bp->b_queuetime = jiffies;
-	spin_unlock(&btp->bt_delwri_lock);
-}
-
-void
-xfs_buf_delwri_dequeue(
-	xfs_buf_t		*bp)
-{
-	int			dequeued = 0;
-
-	spin_lock(&bp->b_target->bt_delwri_lock);
-	if ((bp->b_flags & XBF_DELWRI) && !list_empty(&bp->b_list)) {
-		ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-		list_del_init(&bp->b_list);
-		dequeued = 1;
-	}
-	bp->b_flags &= ~(XBF_DELWRI|_XBF_DELWRI_Q);
-	spin_unlock(&bp->b_target->bt_delwri_lock);
-
-	if (dequeued)
-		xfs_buf_rele(bp);
-
-	trace_xfs_buf_delwri_dequeue(bp, _RET_IP_);
-}
-
-/*
- * If a delwri buffer needs to be pushed before it has aged out, then promote
- * it to the head of the delwri queue so that it will be flushed on the next
- * xfsbufd run. We do this by resetting the queuetime of the buffer to be older
- * than the age currently needed to flush the buffer. Hence the next time the
- * xfsbufd sees it is guaranteed to be considered old enough to flush.
- */
-void
-xfs_buf_delwri_promote(
-	struct xfs_buf	*bp)
-{
-	struct xfs_buftarg *btp = bp->b_target;
-	long		age = xfs_buf_age_centisecs * msecs_to_jiffies(10) + 1;
-
-	ASSERT(bp->b_flags & XBF_DELWRI);
-	ASSERT(bp->b_flags & _XBF_DELWRI_Q);
-
 	/*
-	 * Check the buffer age before locking the delayed write queue as we
-	 * don't need to promote buffers that are already past the flush age.
+	 * If a buffer gets written out synchronously or marked stale while it
+	 * is on a delwri list we lazily remove it. To do this, the other party
+	 * clears the  _XBF_DELWRI_Q flag but otherwise leaves the buffer alone.
+	 * It remains referenced and on the list.  In a rare corner case it
+	 * might get readded to a delwri list after the synchronous writeout, in
+	 * which case we need just need to re-add the flag here.
 	 */
-	if (bp->b_queuetime < jiffies - age)
-		return;
-	bp->b_queuetime = jiffies - age;
-	spin_lock(&btp->bt_delwri_lock);
-	list_move(&bp->b_list, &btp->bt_delwri_queue);
-	spin_unlock(&btp->bt_delwri_lock);
-}
-
-/*
- * Move as many buffers as specified to the supplied list
- * idicating if we skipped any buffers to prevent deadlocks.
- */
-STATIC int
-xfs_buf_delwri_split(
-	xfs_buftarg_t	*target,
-	struct list_head *list,
-	unsigned long	age)
-{
-	xfs_buf_t	*bp, *n;
-	int		skipped = 0;
-	int		force;
-
-	force = test_and_clear_bit(XBT_FORCE_FLUSH, &target->bt_flags);
-	INIT_LIST_HEAD(list);
-	spin_lock(&target->bt_delwri_lock);
-	list_for_each_entry_safe(bp, n, &target->bt_delwri_queue, b_list) {
-		ASSERT(bp->b_flags & XBF_DELWRI);
-
-		if (!xfs_buf_ispinned(bp) && xfs_buf_trylock(bp)) {
-			if (!force &&
-			    time_before(jiffies, bp->b_queuetime + age)) {
-				xfs_buf_unlock(bp);
-				break;
-			}
-
-			bp->b_flags &= ~(XBF_DELWRI | _XBF_DELWRI_Q);
-			bp->b_flags |= XBF_WRITE;
-			list_move_tail(&bp->b_list, list);
-			trace_xfs_buf_delwri_split(bp, _RET_IP_);
-		} else
-			skipped++;
+	bp->b_flags |= _XBF_DELWRI_Q;
+	if (list_empty(&bp->b_list)) {
+		atomic_inc(&bp->b_hold);
+		list_add_tail(&bp->b_list, list);
 	}
 
-	spin_unlock(&target->bt_delwri_lock);
-	return skipped;
+	return true;
 }
 
 /*
@@ -1683,99 +1594,109 @@ xfs_buf_cmp(
 	return 0;
 }
 
-STATIC int
-xfsbufd(
-	void		*data)
+static int
+__xfs_buf_delwri_submit(
+	struct list_head	*buffer_list,
+	struct list_head	*io_list,
+	bool			wait)
 {
-	xfs_buftarg_t   *target = (xfs_buftarg_t *)data;
+	struct blk_plug		plug;
+	struct xfs_buf		*bp, *n;
+	int			pinned = 0;
 
-	current->flags |= PF_MEMALLOC;
-
-	set_freezable();
-
-	do {
-		long	age = xfs_buf_age_centisecs * msecs_to_jiffies(10);
-		long	tout = xfs_buf_timer_centisecs * msecs_to_jiffies(10);
-		struct list_head tmp;
-		struct blk_plug plug;
-
-		if (unlikely(freezing(current)))
-			try_to_freeze();
-
-		/* sleep for a long time if there is nothing to do. */
-		if (list_empty(&target->bt_delwri_queue))
-			tout = MAX_SCHEDULE_TIMEOUT;
-		schedule_timeout_interruptible(tout);
-
-		xfs_buf_delwri_split(target, &tmp, age);
-		list_sort(NULL, &tmp, xfs_buf_cmp);
-
-		blk_start_plug(&plug);
-		while (!list_empty(&tmp)) {
-			struct xfs_buf *bp;
-			bp = list_first_entry(&tmp, struct xfs_buf, b_list);
-			list_del_init(&bp->b_list);
-			xfs_bdstrat_cb(bp);
+	list_for_each_entry_safe(bp, n, buffer_list, b_list) {
+		if (!wait) {
+			if (xfs_buf_ispinned(bp)) {
+				pinned++;
+				continue;
+			}
+			if (!xfs_buf_trylock(bp))
+				continue;
+		} else {
+			xfs_buf_lock(bp);
 		}
-		blk_finish_plug(&plug);
-	} while (!kthread_should_stop());
 
-	return 0;
-}
+		/*
+		 * Someone else might have written the buffer synchronously or
+		 * marked it stale in the meantime.  In that case only the
+		 * _XBF_DELWRI_Q flag got cleared, and we have to drop the
+		 * reference and remove it from the list here.
+		 */
+		if (!(bp->b_flags & _XBF_DELWRI_Q)) {
+			list_del_init(&bp->b_list);
+			xfs_buf_relse(bp);
+			continue;
+		}
 
-/*
- *	Go through all incore buffers, and release buffers if they belong to
- *	the given device. This is used in filesystem error handling to
- *	preserve the consistency of its metadata.
- */
-int
-xfs_flush_buftarg(
-	xfs_buftarg_t	*target,
-	int		wait)
-{
-	xfs_buf_t	*bp;
-	int		pincount = 0;
-	LIST_HEAD(tmp_list);
-	LIST_HEAD(wait_list);
-	struct blk_plug plug;
+		list_move_tail(&bp->b_list, io_list);
+		trace_xfs_buf_delwri_split(bp, _RET_IP_);
+	}
 
-	flush_workqueue(xfslogd_workqueue);
-
-	set_bit(XBT_FORCE_FLUSH, &target->bt_flags);
-	pincount = xfs_buf_delwri_split(target, &tmp_list, 0);
-
-	/*
-	 * Dropped the delayed write list lock, now walk the temporary list.
-	 * All I/O is issued async and then if we need to wait for completion
-	 * we do that after issuing all the IO.
-	 */
-	list_sort(NULL, &tmp_list, xfs_buf_cmp);
+	list_sort(NULL, io_list, xfs_buf_cmp);
 
 	blk_start_plug(&plug);
-	while (!list_empty(&tmp_list)) {
-		bp = list_first_entry(&tmp_list, struct xfs_buf, b_list);
-		ASSERT(target == bp->b_target);
-		list_del_init(&bp->b_list);
-		if (wait) {
-			bp->b_flags &= ~XBF_ASYNC;
-			list_add(&bp->b_list, &wait_list);
+	list_for_each_entry_safe(bp, n, io_list, b_list) {
+		bp->b_flags &= ~(_XBF_DELWRI_Q | XBF_ASYNC);
+		bp->b_flags |= XBF_WRITE;
+
+		if (!wait) {
+			bp->b_flags |= XBF_ASYNC;
+			list_del_init(&bp->b_list);
 		}
 		xfs_bdstrat_cb(bp);
 	}
 	blk_finish_plug(&plug);
 
-	if (wait) {
-		/* Wait for IO to complete. */
-		while (!list_empty(&wait_list)) {
-			bp = list_first_entry(&wait_list, struct xfs_buf, b_list);
+	return pinned;
+}
 
-			list_del_init(&bp->b_list);
-			xfs_buf_iowait(bp);
-			xfs_buf_relse(bp);
-		}
+/*
+ * Write out a buffer list asynchronously.
+ *
+ * This will take the @buffer_list, write all non-locked and non-pinned buffers
+ * out and not wait for I/O completion on any of the buffers.  This interface
+ * is only safely useable for callers that can track I/O completion by higher
+ * level means, e.g. AIL pushing as the @buffer_list is consumed in this
+ * function.
+ */
+int
+xfs_buf_delwri_submit_nowait(
+	struct list_head	*buffer_list)
+{
+	LIST_HEAD		(io_list);
+	return __xfs_buf_delwri_submit(buffer_list, &io_list, false);
+}
+
+/*
+ * Write out a buffer list synchronously.
+ *
+ * This will take the @buffer_list, write all buffers out and wait for I/O
+ * completion on all of the buffers. @buffer_list is consumed by the function,
+ * so callers must have some other way of tracking buffers if they require such
+ * functionality.
+ */
+int
+xfs_buf_delwri_submit(
+	struct list_head	*buffer_list)
+{
+	LIST_HEAD		(io_list);
+	int			error = 0, error2;
+	struct xfs_buf		*bp;
+
+	__xfs_buf_delwri_submit(buffer_list, &io_list, true);
+
+	/* Wait for IO to complete. */
+	while (!list_empty(&io_list)) {
+		bp = list_first_entry(&io_list, struct xfs_buf, b_list);
+
+		list_del_init(&bp->b_list);
+		error2 = xfs_buf_iowait(bp);
+		xfs_buf_relse(bp);
+		if (!error)
+			error = error2;
 	}
 
-	return pincount;
+	return error;
 }
 
 int __init

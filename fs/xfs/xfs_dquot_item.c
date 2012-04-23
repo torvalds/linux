@@ -108,46 +108,6 @@ xfs_qm_dquot_logitem_unpin(
 		wake_up(&dqp->q_pinwait);
 }
 
-/*
- * Given the logitem, this writes the corresponding dquot entry to disk
- * asynchronously. This is called with the dquot entry securely locked;
- * we simply get xfs_qm_dqflush() to do the work, and unlock the dquot
- * at the end.
- */
-STATIC void
-xfs_qm_dquot_logitem_push(
-	struct xfs_log_item	*lip)
-{
-	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
-	struct xfs_buf		*bp = NULL;
-	int			error;
-
-	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	ASSERT(!completion_done(&dqp->q_flush));
-	ASSERT(atomic_read(&dqp->q_pincount) == 0);
-
-	/*
-	 * Since we were able to lock the dquot's flush lock and
-	 * we found it on the AIL, the dquot must be dirty.  This
-	 * is because the dquot is removed from the AIL while still
-	 * holding the flush lock in xfs_dqflush_done().  Thus, if
-	 * we found it in the AIL and were able to obtain the flush
-	 * lock without sleeping, then there must not have been
-	 * anyone in the process of flushing the dquot.
-	 */
-	error = xfs_qm_dqflush(dqp, &bp);
-	if (error) {
-		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
-			__func__, error, dqp);
-		goto out_unlock;
-	}
-
-	xfs_buf_delwri_queue(bp);
-	xfs_buf_relse(bp);
-out_unlock:
-	xfs_dqunlock(dqp);
-}
-
 STATIC xfs_lsn_t
 xfs_qm_dquot_logitem_committed(
 	struct xfs_log_item	*lip,
@@ -179,67 +139,15 @@ xfs_qm_dqunpin_wait(
 	wait_event(dqp->q_pinwait, (atomic_read(&dqp->q_pincount) == 0));
 }
 
-/*
- * This is called when IOP_TRYLOCK returns XFS_ITEM_PUSHBUF to indicate that
- * the dquot is locked by us, but the flush lock isn't. So, here we are
- * going to see if the relevant dquot buffer is incore, waiting on DELWRI.
- * If so, we want to push it out to help us take this item off the AIL as soon
- * as possible.
- *
- * We must not be holding the AIL lock at this point. Calling incore() to
- * search the buffer cache can be a time consuming thing, and AIL lock is a
- * spinlock.
- */
-STATIC bool
-xfs_qm_dquot_logitem_pushbuf(
-	struct xfs_log_item	*lip)
-{
-	struct xfs_dq_logitem	*qlip = DQUOT_ITEM(lip);
-	struct xfs_dquot	*dqp = qlip->qli_dquot;
-	struct xfs_buf		*bp;
-	bool			ret = true;
-
-	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-
-	/*
-	 * If flushlock isn't locked anymore, chances are that the
-	 * inode flush completed and the inode was taken off the AIL.
-	 * So, just get out.
-	 */
-	if (completion_done(&dqp->q_flush) ||
-	    !(lip->li_flags & XFS_LI_IN_AIL)) {
-		xfs_dqunlock(dqp);
-		return true;
-	}
-
-	bp = xfs_incore(dqp->q_mount->m_ddev_targp, qlip->qli_format.qlf_blkno,
-			dqp->q_mount->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
-	xfs_dqunlock(dqp);
-	if (!bp)
-		return true;
-	if (XFS_BUF_ISDELAYWRITE(bp))
-		xfs_buf_delwri_promote(bp);
-	if (xfs_buf_ispinned(bp))
-		ret = false;
-	xfs_buf_relse(bp);
-	return ret;
-}
-
-/*
- * This is called to attempt to lock the dquot associated with this
- * dquot log item.  Don't sleep on the dquot lock or the flush lock.
- * If the flush lock is already held, indicating that the dquot has
- * been or is in the process of being flushed, then see if we can
- * find the dquot's buffer in the buffer cache without sleeping.  If
- * we can and it is marked delayed write, then we want to send it out.
- * We delay doing so until the push routine, though, to avoid sleeping
- * in any device strategy routines.
- */
 STATIC uint
-xfs_qm_dquot_logitem_trylock(
-	struct xfs_log_item	*lip)
+xfs_qm_dquot_logitem_push(
+	struct xfs_log_item	*lip,
+	struct list_head	*buffer_list)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
+	struct xfs_buf		*bp = NULL;
+	uint			rval = XFS_ITEM_SUCCESS;
+	int			error;
 
 	if (atomic_read(&dqp->q_pincount) > 0)
 		return XFS_ITEM_PINNED;
@@ -252,20 +160,36 @@ xfs_qm_dquot_logitem_trylock(
 	 * taking the quota lock.
 	 */
 	if (atomic_read(&dqp->q_pincount) > 0) {
-		xfs_dqunlock(dqp);
-		return XFS_ITEM_PINNED;
+		rval = XFS_ITEM_PINNED;
+		goto out_unlock;
 	}
 
+	/*
+	 * Someone else is already flushing the dquot.  Nothing we can do
+	 * here but wait for the flush to finish and remove the item from
+	 * the AIL.
+	 */
 	if (!xfs_dqflock_nowait(dqp)) {
-		/*
-		 * dquot has already been flushed to the backing buffer,
-		 * leave it locked, pushbuf routine will unlock it.
-		 */
-		return XFS_ITEM_PUSHBUF;
+		rval = XFS_ITEM_FLUSHING;
+		goto out_unlock;
 	}
 
-	ASSERT(lip->li_flags & XFS_LI_IN_AIL);
-	return XFS_ITEM_SUCCESS;
+	spin_unlock(&lip->li_ailp->xa_lock);
+
+	error = xfs_qm_dqflush(dqp, &bp);
+	if (error) {
+		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
+			__func__, error, dqp);
+	} else {
+		if (!xfs_buf_delwri_queue(bp, buffer_list))
+			rval = XFS_ITEM_FLUSHING;
+		xfs_buf_relse(bp);
+	}
+
+	spin_lock(&lip->li_ailp->xa_lock);
+out_unlock:
+	xfs_dqunlock(dqp);
+	return rval;
 }
 
 /*
@@ -316,11 +240,9 @@ static const struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_format	= xfs_qm_dquot_logitem_format,
 	.iop_pin	= xfs_qm_dquot_logitem_pin,
 	.iop_unpin	= xfs_qm_dquot_logitem_unpin,
-	.iop_trylock	= xfs_qm_dquot_logitem_trylock,
 	.iop_unlock	= xfs_qm_dquot_logitem_unlock,
 	.iop_committed	= xfs_qm_dquot_logitem_committed,
 	.iop_push	= xfs_qm_dquot_logitem_push,
-	.iop_pushbuf	= xfs_qm_dquot_logitem_pushbuf,
 	.iop_committing = xfs_qm_dquot_logitem_committing
 };
 
@@ -415,11 +337,13 @@ xfs_qm_qoff_logitem_unpin(
 }
 
 /*
- * Quotaoff items have no locking, so just return success.
+ * There isn't much you can do to push a quotaoff item.  It is simply
+ * stuck waiting for the log to be flushed to disk.
  */
 STATIC uint
-xfs_qm_qoff_logitem_trylock(
-	struct xfs_log_item	*lip)
+xfs_qm_qoff_logitem_push(
+	struct xfs_log_item	*lip,
+	struct list_head	*buffer_list)
 {
 	return XFS_ITEM_LOCKED;
 }
@@ -445,17 +369,6 @@ xfs_qm_qoff_logitem_committed(
 {
 	return lsn;
 }
-
-/*
- * There isn't much you can do to push on an quotaoff item.  It is simply
- * stuck waiting for the log to be flushed to disk.
- */
-STATIC void
-xfs_qm_qoff_logitem_push(
-	struct xfs_log_item	*lip)
-{
-}
-
 
 STATIC xfs_lsn_t
 xfs_qm_qoffend_logitem_committed(
@@ -504,7 +417,6 @@ static const struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_pin	= xfs_qm_qoff_logitem_pin,
 	.iop_unpin	= xfs_qm_qoff_logitem_unpin,
-	.iop_trylock	= xfs_qm_qoff_logitem_trylock,
 	.iop_unlock	= xfs_qm_qoff_logitem_unlock,
 	.iop_committed	= xfs_qm_qoffend_logitem_committed,
 	.iop_push	= xfs_qm_qoff_logitem_push,
@@ -519,7 +431,6 @@ static const struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_format	= xfs_qm_qoff_logitem_format,
 	.iop_pin	= xfs_qm_qoff_logitem_pin,
 	.iop_unpin	= xfs_qm_qoff_logitem_unpin,
-	.iop_trylock	= xfs_qm_qoff_logitem_trylock,
 	.iop_unlock	= xfs_qm_qoff_logitem_unlock,
 	.iop_committed	= xfs_qm_qoff_logitem_committed,
 	.iop_push	= xfs_qm_qoff_logitem_push,

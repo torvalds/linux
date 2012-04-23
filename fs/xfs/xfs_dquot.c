@@ -1005,39 +1005,6 @@ xfs_dqlock2(
 	}
 }
 
-/*
- * Give the buffer a little push if it is incore and
- * wait on the flush lock.
- */
-void
-xfs_dqflock_pushbuf_wait(
-	xfs_dquot_t	*dqp)
-{
-	xfs_mount_t	*mp = dqp->q_mount;
-	xfs_buf_t	*bp;
-
-	/*
-	 * Check to see if the dquot has been flushed delayed
-	 * write.  If so, grab its buffer and send it
-	 * out immediately.  We'll be able to acquire
-	 * the flush lock when the I/O completes.
-	 */
-	bp = xfs_incore(mp->m_ddev_targp, dqp->q_blkno,
-			mp->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
-	if (!bp)
-		goto out_lock;
-
-	if (XFS_BUF_ISDELAYWRITE(bp)) {
-		if (xfs_buf_ispinned(bp))
-			xfs_log_force(mp, 0);
-		xfs_buf_delwri_promote(bp);
-		wake_up_process(bp->b_target->bt_task);
-	}
-	xfs_buf_relse(bp);
-out_lock:
-	xfs_dqflock(dqp);
-}
-
 int __init
 xfs_qm_init(void)
 {

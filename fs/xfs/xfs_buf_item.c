@@ -418,7 +418,6 @@ xfs_buf_item_unpin(
 	if (freed && stale) {
 		ASSERT(bip->bli_flags & XFS_BLI_STALE);
 		ASSERT(xfs_buf_islocked(bp));
-		ASSERT(!(XFS_BUF_ISDELAYWRITE(bp)));
 		ASSERT(XFS_BUF_ISSTALE(bp));
 		ASSERT(bip->bli_format.blf_flags & XFS_BLF_CANCEL);
 
@@ -469,34 +468,28 @@ xfs_buf_item_unpin(
 	}
 }
 
-/*
- * This is called to attempt to lock the buffer associated with this
- * buf log item.  Don't sleep on the buffer lock.  If we can't get
- * the lock right away, return 0.  If we can get the lock, take a
- * reference to the buffer. If this is a delayed write buffer that
- * needs AIL help to be written back, invoke the pushbuf routine
- * rather than the normal success path.
- */
 STATIC uint
-xfs_buf_item_trylock(
-	struct xfs_log_item	*lip)
+xfs_buf_item_push(
+	struct xfs_log_item	*lip,
+	struct list_head	*buffer_list)
 {
 	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
 	struct xfs_buf		*bp = bip->bli_buf;
+	uint			rval = XFS_ITEM_SUCCESS;
 
 	if (xfs_buf_ispinned(bp))
 		return XFS_ITEM_PINNED;
 	if (!xfs_buf_trylock(bp))
 		return XFS_ITEM_LOCKED;
 
-	/* take a reference to the buffer.  */
-	xfs_buf_hold(bp);
-
 	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	trace_xfs_buf_item_trylock(bip);
-	if (XFS_BUF_ISDELAYWRITE(bp))
-		return XFS_ITEM_PUSHBUF;
-	return XFS_ITEM_SUCCESS;
+
+	trace_xfs_buf_item_push(bip);
+
+	if (!xfs_buf_delwri_queue(bp, buffer_list))
+		rval = XFS_ITEM_FLUSHING;
+	xfs_buf_unlock(bp);
+	return rval;
 }
 
 /*
@@ -609,48 +602,6 @@ xfs_buf_item_committed(
 	return lsn;
 }
 
-/*
- * The buffer is locked, but is not a delayed write buffer.
- */
-STATIC void
-xfs_buf_item_push(
-	struct xfs_log_item	*lip)
-{
-	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
-	struct xfs_buf		*bp = bip->bli_buf;
-
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(!XFS_BUF_ISDELAYWRITE(bp));
-
-	trace_xfs_buf_item_push(bip);
-
-	xfs_buf_delwri_queue(bp);
-	xfs_buf_relse(bp);
-}
-
-/*
- * The buffer is locked and is a delayed write buffer. Promote the buffer
- * in the delayed write queue as the caller knows that they must invoke
- * the xfsbufd to get this buffer written. We have to unlock the buffer
- * to allow the xfsbufd to write it, too.
- */
-STATIC bool
-xfs_buf_item_pushbuf(
-	struct xfs_log_item	*lip)
-{
-	struct xfs_buf_log_item	*bip = BUF_ITEM(lip);
-	struct xfs_buf		*bp = bip->bli_buf;
-
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(XFS_BUF_ISDELAYWRITE(bp));
-
-	trace_xfs_buf_item_pushbuf(bip);
-
-	xfs_buf_delwri_promote(bp);
-	xfs_buf_relse(bp);
-	return true;
-}
-
 STATIC void
 xfs_buf_item_committing(
 	struct xfs_log_item	*lip,
@@ -666,11 +617,9 @@ static const struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_format	= xfs_buf_item_format,
 	.iop_pin	= xfs_buf_item_pin,
 	.iop_unpin	= xfs_buf_item_unpin,
-	.iop_trylock	= xfs_buf_item_trylock,
 	.iop_unlock	= xfs_buf_item_unlock,
 	.iop_committed	= xfs_buf_item_committed,
 	.iop_push	= xfs_buf_item_push,
-	.iop_pushbuf	= xfs_buf_item_pushbuf,
 	.iop_committing = xfs_buf_item_committing
 };
 
@@ -989,20 +938,27 @@ xfs_buf_iodone_callbacks(
 	 * If the write was asynchronous then no one will be looking for the
 	 * error.  Clear the error state and write the buffer out again.
 	 *
-	 * During sync or umount we'll write all pending buffers again
-	 * synchronous, which will catch these errors if they keep hanging
-	 * around.
+	 * XXX: This helps against transient write errors, but we need to find
+	 * a way to shut the filesystem down if the writes keep failing.
+	 *
+	 * In practice we'll shut the filesystem down soon as non-transient
+	 * erorrs tend to affect the whole device and a failing log write
+	 * will make us give up.  But we really ought to do better here.
 	 */
 	if (XFS_BUF_ISASYNC(bp)) {
+		ASSERT(bp->b_iodone != NULL);
+
+		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
+
 		xfs_buf_ioerror(bp, 0); /* errno of 0 unsets the flag */
 
 		if (!XFS_BUF_ISSTALE(bp)) {
-			xfs_buf_delwri_queue(bp);
-			XFS_BUF_DONE(bp);
+			bp->b_flags |= XBF_WRITE | XBF_ASYNC | XBF_DONE;
+			xfs_bdstrat_cb(bp);
+		} else {
+			xfs_buf_relse(bp);
 		}
-		ASSERT(bp->b_iodone != NULL);
-		trace_xfs_buf_item_iodone_async(bp, _RET_IP_);
-		xfs_buf_relse(bp);
+
 		return;
 	}
 
