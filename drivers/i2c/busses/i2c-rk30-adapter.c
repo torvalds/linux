@@ -479,11 +479,11 @@ static int rk30_i2c_doxfer(struct rk30_i2c *i2c,
 	spin_unlock_irqrestore(&i2c->lock, flags);
 
 	if (timeout == 0){
+                dev_err(i2c->dev, "addr[0x%02x] wait event timeout, state: %d, is_busy: %d, error: %d\n", 
+                                msgs[0].addr, i2c->state, i2c->is_busy, i2c->error);  
                 i2c->state = STATE_IDLE;
                 if(i2c->error < 0) i2c->error = -ETIMEDOUT;
                 rk30_i2c_send_stop(i2c);
-                dev_err(i2c->dev, "addr[0x%02x] wait event timeout, state: %d, is_busy: %d, error: %d\n", 
-                                msgs[0].addr, i2c->state, i2c->is_busy, i2c->error);  
 
         }
 	rk30_i2c_disable_irq(i2c);
