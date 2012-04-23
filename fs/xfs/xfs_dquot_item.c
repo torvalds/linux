@@ -119,10 +119,12 @@ xfs_qm_dquot_logitem_push(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_dquot	*dqp = DQUOT_ITEM(lip)->qli_dquot;
+	struct xfs_buf		*bp = NULL;
 	int			error;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
 	ASSERT(!completion_done(&dqp->q_flush));
+	ASSERT(atomic_read(&dqp->q_pincount) == 0);
 
 	/*
 	 * Since we were able to lock the dquot's flush lock and
@@ -133,10 +135,16 @@ xfs_qm_dquot_logitem_push(
 	 * lock without sleeping, then there must not have been
 	 * anyone in the process of flushing the dquot.
 	 */
-	error = xfs_qm_dqflush(dqp, SYNC_TRYLOCK);
-	if (error)
+	error = xfs_qm_dqflush(dqp, &bp);
+	if (error) {
 		xfs_warn(dqp->q_mount, "%s: push error %d on dqp %p",
 			__func__, error, dqp);
+		goto out_unlock;
+	}
+
+	xfs_buf_delwri_queue(bp);
+	xfs_buf_relse(bp);
+out_unlock:
 	xfs_dqunlock(dqp);
 }
 
@@ -238,6 +246,15 @@ xfs_qm_dquot_logitem_trylock(
 
 	if (!xfs_dqlock_nowait(dqp))
 		return XFS_ITEM_LOCKED;
+
+	/*
+	 * Re-check the pincount now that we stabilized the value by
+	 * taking the quota lock.
+	 */
+	if (atomic_read(&dqp->q_pincount) > 0) {
+		xfs_dqunlock(dqp);
+		return XFS_ITEM_PINNED;
+	}
 
 	if (!xfs_dqflock_nowait(dqp)) {
 		/*

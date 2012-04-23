@@ -175,16 +175,21 @@ xfs_qm_dqpurge(
 	 * we're unmounting, we do care, so we flush it and wait.
 	 */
 	if (XFS_DQ_IS_DIRTY(dqp)) {
-		int	error;
+		struct xfs_buf	*bp = NULL;
+		int		error;
 
 		/*
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
-		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
-		if (error)
+		error = xfs_qm_dqflush(dqp, &bp);
+		if (error) {
 			xfs_warn(mp, "%s: dquot %p flush failed",
 				__func__, dqp);
+		} else {
+			error = xfs_bwrite(bp);
+			xfs_buf_relse(bp);
+		}
 		xfs_dqflock(dqp);
 	}
 
@@ -1200,6 +1205,7 @@ STATIC int
 xfs_qm_flush_one(
 	struct xfs_dquot	*dqp)
 {
+	struct xfs_buf		*bp = NULL;
 	int			error = 0;
 
 	xfs_dqlock(dqp);
@@ -1211,8 +1217,12 @@ xfs_qm_flush_one(
 	if (!xfs_dqflock_nowait(dqp))
 		xfs_dqflock_pushbuf_wait(dqp);
 
-	error = xfs_qm_dqflush(dqp, 0);
+	error = xfs_qm_dqflush(dqp, &bp);
+	if (error)
+		goto out_unlock;
 
+	xfs_buf_delwri_queue(bp);
+	xfs_buf_relse(bp);
 out_unlock:
 	xfs_dqunlock(dqp);
 	return error;
@@ -1479,18 +1489,23 @@ xfs_qm_dqreclaim_one(
 	 * dirty dquots.
 	 */
 	if (XFS_DQ_IS_DIRTY(dqp)) {
+		struct xfs_buf	*bp = NULL;
+
 		trace_xfs_dqreclaim_dirty(dqp);
 
 		/*
 		 * We flush it delayed write, so don't bother releasing the
 		 * freelist lock.
 		 */
-		error = xfs_qm_dqflush(dqp, 0);
+		error = xfs_qm_dqflush(dqp, &bp);
 		if (error) {
 			xfs_warn(mp, "%s: dquot %p flush failed",
 				 __func__, dqp);
+			goto out_busy;
 		}
 
+		xfs_buf_delwri_queue(bp);
+		xfs_buf_relse(bp);
 		/*
 		 * Give the dquot another try on the freelist, as the
 		 * flushing will take some time.

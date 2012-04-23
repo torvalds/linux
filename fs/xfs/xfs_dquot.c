@@ -878,8 +878,8 @@ xfs_qm_dqflush_done(
  */
 int
 xfs_qm_dqflush(
-	xfs_dquot_t		*dqp,
-	uint			flags)
+	struct xfs_dquot	*dqp,
+	struct xfs_buf		**bpp)
 {
 	struct xfs_mount	*mp = dqp->q_mount;
 	struct xfs_buf		*bp;
@@ -891,14 +891,8 @@ xfs_qm_dqflush(
 
 	trace_xfs_dqflush(dqp);
 
-	/*
-	 * If not dirty, or it's pinned and we are not supposed to block, nada.
-	 */
-	if (!XFS_DQ_IS_DIRTY(dqp) ||
-	    ((flags & SYNC_TRYLOCK) && atomic_read(&dqp->q_pincount) > 0)) {
-		xfs_dqfunlock(dqp);
-		return 0;
-	}
+	*bpp = NULL;
+
 	xfs_qm_dqunpin_wait(dqp);
 
 	/*
@@ -918,9 +912,8 @@ xfs_qm_dqflush(
 			xfs_trans_ail_delete(mp->m_ail, lip);
 		else
 			spin_unlock(&mp->m_ail->xa_lock);
-
-		xfs_dqfunlock(dqp);
-		return XFS_ERROR(EIO);
+		error = XFS_ERROR(EIO);
+		goto out_unlock;
 	}
 
 	/*
@@ -928,11 +921,8 @@ xfs_qm_dqflush(
 	 */
 	error = xfs_trans_read_buf(mp, NULL, mp->m_ddev_targp, dqp->q_blkno,
 				   mp->m_quotainfo->qi_dqchunklen, 0, &bp);
-	if (error) {
-		ASSERT(error != ENOENT);
-		xfs_dqfunlock(dqp);
-		return error;
-	}
+	if (error)
+		goto out_unlock;
 
 	/*
 	 * Calculate the location of the dquot inside the buffer.
@@ -978,20 +968,13 @@ xfs_qm_dqflush(
 		xfs_log_force(mp, 0);
 	}
 
-	if (flags & SYNC_WAIT)
-		error = xfs_bwrite(bp);
-	else
-		xfs_buf_delwri_queue(bp);
-
-	xfs_buf_relse(bp);
-
 	trace_xfs_dqflush_done(dqp);
+	*bpp = bp;
+	return 0;
 
-	/*
-	 * dqp is still locked, but caller is free to unlock it now.
-	 */
-	return error;
-
+out_unlock:
+	xfs_dqfunlock(dqp);
+	return XFS_ERROR(EIO);
 }
 
 /*
