@@ -169,13 +169,14 @@ void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callba
 struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk) 
 {
 	struct clk_node *info = clk_get_dvfs_info(clk);
-
+	struct cpufreq_frequency_table *table;
 	if (!info || !info->dvfs_table) {
 		return NULL;
 	}
 	mutex_lock(&mutex);
-	return info->dvfs_table;
+	table = info->dvfs_table;
 	mutex_unlock(&mutex);
+	return table;
 }
 
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table)
