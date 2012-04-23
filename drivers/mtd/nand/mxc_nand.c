@@ -154,6 +154,8 @@ struct mxc_nand_devtype_data {
 	u32 (*get_ecc_status)(struct mxc_nand_host *);
 	struct nand_ecclayout *ecclayout_512, *ecclayout_2k, *ecclayout_4k;
 	void (*select_chip)(struct mtd_info *mtd, int chip);
+	int (*correct_data)(struct mtd_info *mtd, u_char *dat,
+			u_char *read_ecc, u_char *calc_ecc);
 };
 
 struct mxc_nand_host {
@@ -1138,6 +1140,7 @@ static const struct mxc_nand_devtype_data imx21_nand_devtype_data = {
 	.ecclayout_2k = &nandv1_hw_eccoob_largepage,
 	.ecclayout_4k = &nandv1_hw_eccoob_smallpage, /* XXX: needs fix */
 	.select_chip = mxc_nand_select_chip_v1_v3,
+	.correct_data = mxc_nand_correct_data_v1,
 };
 
 /* v21: i.MX25, i.MX35 */
@@ -1155,6 +1158,7 @@ static const struct mxc_nand_devtype_data imx25_nand_devtype_data = {
 	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
 	.ecclayout_4k = &nandv2_hw_eccoob_4k,
 	.select_chip = mxc_nand_select_chip_v2,
+	.correct_data = mxc_nand_correct_data_v2_v3,
 };
 
 /* v3: i.MX51, i.MX53 */
@@ -1172,6 +1176,7 @@ static const struct mxc_nand_devtype_data imx51_nand_devtype_data = {
 	.ecclayout_2k = &nandv2_hw_eccoob_largepage,
 	.ecclayout_4k = &nandv2_hw_eccoob_smallpage, /* XXX: needs fix */
 	.select_chip = mxc_nand_select_chip_v1_v3,
+	.correct_data = mxc_nand_correct_data_v2_v3,
 };
 
 static int __init mxcnd_probe(struct platform_device *pdev)
@@ -1275,10 +1280,7 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	if (pdata->hw_ecc) {
 		this->ecc.calculate = mxc_nand_calculate_ecc;
 		this->ecc.hwctl = mxc_nand_enable_hwecc;
-		if (nfc_is_v1())
-			this->ecc.correct = mxc_nand_correct_data_v1;
-		else
-			this->ecc.correct = mxc_nand_correct_data_v2_v3;
+		this->ecc.correct = host->devtype_data->correct_data;
 		this->ecc.mode = NAND_ECC_HW;
 	} else {
 		this->ecc.mode = NAND_ECC_SOFT;
