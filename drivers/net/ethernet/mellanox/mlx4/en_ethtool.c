@@ -359,8 +359,8 @@ static int mlx4_en_get_coalesce(struct net_device *dev,
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
 
-	coal->tx_coalesce_usecs = 0;
-	coal->tx_max_coalesced_frames = 0;
+	coal->tx_coalesce_usecs = priv->tx_usecs;
+	coal->tx_max_coalesced_frames = priv->tx_frames;
 	coal->rx_coalesce_usecs = priv->rx_usecs;
 	coal->rx_max_coalesced_frames = priv->rx_frames;
 
@@ -387,6 +387,21 @@ static int mlx4_en_set_coalesce(struct net_device *dev,
 			  MLX4_EN_AUTO_CONF) ?
 				MLX4_EN_RX_COAL_TIME :
 				coal->rx_coalesce_usecs;
+
+	/* Setting TX coalescing parameters */
+	if (coal->tx_coalesce_usecs != priv->tx_usecs ||
+	    coal->tx_max_coalesced_frames != priv->tx_frames) {
+		priv->tx_usecs = coal->tx_coalesce_usecs;
+		priv->tx_frames = coal->tx_max_coalesced_frames;
+		for (i = 0; i < priv->tx_ring_num; i++) {
+			priv->tx_cq[i].moder_cnt = priv->tx_frames;
+			priv->tx_cq[i].moder_time = priv->tx_usecs;
+			if (mlx4_en_set_cq_moder(priv, &priv->tx_cq[i])) {
+				en_warn(priv, "Failed changing moderation "
+					      "for TX cq %d\n", i);
+			}
+		}
+	}
 
 	/* Set adaptive coalescing params */
 	priv->pkt_rate_low = coal->pkt_rate_low;

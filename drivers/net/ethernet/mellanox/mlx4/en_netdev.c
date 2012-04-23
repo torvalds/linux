@@ -429,6 +429,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 	 */
 	priv->rx_frames = MLX4_EN_RX_COAL_TARGET;
 	priv->rx_usecs = MLX4_EN_RX_COAL_TIME;
+	priv->tx_frames = MLX4_EN_TX_COAL_PKTS;
+	priv->tx_usecs = MLX4_EN_TX_COAL_TIME;
 	en_dbg(INTR, priv, "Default coalesing params for mtu:%d - "
 			   "rx_frames:%d rx_usecs:%d\n",
 		 priv->dev->mtu, priv->rx_frames, priv->rx_usecs);
@@ -445,8 +447,8 @@ static void mlx4_en_set_default_moderation(struct mlx4_en_priv *priv)
 
 	for (i = 0; i < priv->tx_ring_num; i++) {
 		cq = &priv->tx_cq[i];
-		cq->moder_cnt = MLX4_EN_TX_COAL_PKTS;
-		cq->moder_time = MLX4_EN_TX_COAL_TIME;
+		cq->moder_cnt = priv->tx_frames;
+		cq->moder_time = priv->tx_usecs;
 	}
 
 	/* Reset auto-moderation params */
