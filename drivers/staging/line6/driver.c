@@ -1300,26 +1300,7 @@ static struct usb_driver line6_driver = {
 	.id_table = line6_id_table,
 };
 
-/*
-	Module initialization.
-*/
-static int __init line6_init(void)
-{
-	printk(KERN_INFO "%s driver version %s\n", DRIVER_NAME, DRIVER_VERSION);
-
-	return usb_register(&line6_driver);
-}
-
-/*
-	Module cleanup.
-*/
-static void __exit line6_exit(void)
-{
-	usb_deregister(&line6_driver);
-}
-
-module_init(line6_init);
-module_exit(line6_exit);
+module_usb_driver(line6_driver);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
