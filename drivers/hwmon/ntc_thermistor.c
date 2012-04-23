@@ -349,7 +349,7 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	data = kzalloc(sizeof(struct ntc_data), GFP_KERNEL);
+	data = devm_kzalloc(&pdev->dev, sizeof(struct ntc_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
@@ -370,8 +370,7 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Unknown device type: %lu(%s)\n",
 				pdev->id_entry->driver_data,
 				pdev->id_entry->name);
-		ret = -EINVAL;
-		goto err;
+		return -EINVAL;
 	}
 
 	platform_set_drvdata(pdev, data);
@@ -379,7 +378,7 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 	ret = sysfs_create_group(&data->dev->kobj, &ntc_attr_group);
 	if (ret) {
 		dev_err(data->dev, "unable to create sysfs files\n");
-		goto err;
+		return ret;
 	}
 
 	data->hwmon_dev = hwmon_device_register(data->dev);
@@ -395,8 +394,6 @@ static int __devinit ntc_thermistor_probe(struct platform_device *pdev)
 	return 0;
 err_after_sysfs:
 	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
-err:
-	kfree(data);
 	return ret;
 }
 
@@ -407,8 +404,6 @@ static int __devexit ntc_thermistor_remove(struct platform_device *pdev)
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
 	platform_set_drvdata(pdev, NULL);
-
-	kfree(data);
 
 	return 0;
 }
