@@ -506,6 +506,15 @@ xfs_inode_item_trylock(
 	if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
 		return XFS_ITEM_LOCKED;
 
+	/*
+	 * Re-check the pincount now that we stabilized the value by
+	 * taking the ilock.
+	 */
+	if (xfs_ipincount(ip) > 0) {
+		xfs_iunlock(ip, XFS_ILOCK_SHARED);
+		return XFS_ITEM_PINNED;
+	}
+
 	if (!xfs_iflock_nowait(ip)) {
 		/*
 		 * inode has already been flushed to the backing buffer,
@@ -666,6 +675,8 @@ xfs_inode_item_push(
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
+	struct xfs_buf		*bp = NULL;
+	int			error;
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_SHARED));
 	ASSERT(xfs_isiflocked(ip));
@@ -689,7 +700,11 @@ xfs_inode_item_push(
 	 * will pull the inode from the AIL, mark it clean and unlock the flush
 	 * lock.
 	 */
-	(void) xfs_iflush(ip, SYNC_TRYLOCK);
+	error = xfs_iflush(ip, &bp);
+	if (!error) {
+		xfs_buf_delwri_queue(bp);
+		xfs_buf_relse(bp);
+	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 }
 

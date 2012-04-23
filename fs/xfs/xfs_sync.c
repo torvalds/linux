@@ -648,10 +648,6 @@ xfs_reclaim_inode_grab(
  * (*) dgc: I don't think the clean, pinned state is possible but it gets
  * handled anyway given the order of checks implemented.
  *
- * As can be seen from the table, the return value of xfs_iflush() is not
- * sufficient to correctly decide the reclaim action here. The checks in
- * xfs_iflush() might look like duplicates, but they are not.
- *
  * Also, because we get the flush lock first, we know that any inode that has
  * been flushed delwri has had the flush completed by the time we check that
  * the inode is clean.
@@ -679,7 +675,8 @@ xfs_reclaim_inode(
 	struct xfs_perag	*pag,
 	int			sync_mode)
 {
-	int	error;
+	struct xfs_buf		*bp = NULL;
+	int			error;
 
 restart:
 	error = 0;
@@ -728,29 +725,33 @@ restart:
 	/*
 	 * Now we have an inode that needs flushing.
 	 *
-	 * We do a nonblocking flush here even if we are doing a SYNC_WAIT
-	 * reclaim as we can deadlock with inode cluster removal.
+	 * Note that xfs_iflush will never block on the inode buffer lock, as
 	 * xfs_ifree_cluster() can lock the inode buffer before it locks the
-	 * ip->i_lock, and we are doing the exact opposite here. As a result,
-	 * doing a blocking xfs_itobp() to get the cluster buffer will result
+	 * ip->i_lock, and we are doing the exact opposite here.  As a result,
+	 * doing a blocking xfs_itobp() to get the cluster buffer would result
 	 * in an ABBA deadlock with xfs_ifree_cluster().
 	 *
 	 * As xfs_ifree_cluser() must gather all inodes that are active in the
 	 * cache to mark them stale, if we hit this case we don't actually want
 	 * to do IO here - we want the inode marked stale so we can simply
-	 * reclaim it. Hence if we get an EAGAIN error on a SYNC_WAIT flush,
-	 * just unlock the inode, back off and try again. Hopefully the next
-	 * pass through will see the stale flag set on the inode.
+	 * reclaim it.  Hence if we get an EAGAIN error here,  just unlock the
+	 * inode, back off and try again.  Hopefully the next pass through will
+	 * see the stale flag set on the inode.
 	 */
-	error = xfs_iflush(ip, SYNC_TRYLOCK | sync_mode);
+	error = xfs_iflush(ip, &bp);
 	if (error == EAGAIN) {
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		/* backoff longer than in xfs_ifree_cluster */
 		delay(2);
 		goto restart;
 	}
-	xfs_iflock(ip);
 
+	if (!error) {
+		error = xfs_bwrite(bp);
+		xfs_buf_relse(bp);
+	}
+
+	xfs_iflock(ip);
 reclaim:
 	xfs_ifunlock(ip);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);

@@ -2384,22 +2384,22 @@ cluster_corrupt_out:
 }
 
 /*
- * xfs_iflush() will write a modified inode's changes out to the
- * inode's on disk home.  The caller must have the inode lock held
- * in at least shared mode and the inode flush completion must be
- * active as well.  The inode lock will still be held upon return from
- * the call and the caller is free to unlock it.
- * The inode flush will be completed when the inode reaches the disk.
- * The flags indicate how the inode's buffer should be written out.
+ * Flush dirty inode metadata into the backing buffer.
+ *
+ * The caller must have the inode lock and the inode flush lock held.  The
+ * inode lock will still be held upon return to the caller, and the inode
+ * flush lock will be released after the inode has reached the disk.
+ *
+ * The caller must write out the buffer returned in *bpp and release it.
  */
 int
 xfs_iflush(
-	xfs_inode_t		*ip,
-	uint			flags)
+	struct xfs_inode	*ip,
+	struct xfs_buf		**bpp)
 {
-	xfs_buf_t		*bp;
-	xfs_dinode_t		*dip;
-	xfs_mount_t		*mp;
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_buf		*bp;
+	struct xfs_dinode	*dip;
 	int			error;
 
 	XFS_STATS_INC(xs_iflush_count);
@@ -2409,24 +2409,8 @@ xfs_iflush(
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_d.di_nextents > XFS_IFORK_MAXEXT(ip, XFS_DATA_FORK));
 
-	mp = ip->i_mount;
+	*bpp = NULL;
 
-	/*
-	 * We can't flush the inode until it is unpinned, so wait for it if we
-	 * are allowed to block.  We know no one new can pin it, because we are
-	 * holding the inode lock shared and you need to hold it exclusively to
-	 * pin the inode.
-	 *
-	 * If we are not allowed to block, force the log out asynchronously so
-	 * that when we come back the inode will be unpinned. If other inodes
-	 * in the same cluster are dirty, they will probably write the inode
-	 * out for us if they occur after the log force completes.
-	 */
-	if (!(flags & SYNC_WAIT) && xfs_ipincount(ip)) {
-		xfs_iunpin(ip);
-		xfs_ifunlock(ip);
-		return EAGAIN;
-	}
 	xfs_iunpin_wait(ip);
 
 	/*
@@ -2458,8 +2442,7 @@ xfs_iflush(
 	/*
 	 * Get the buffer containing the on-disk inode.
 	 */
-	error = xfs_itobp(mp, NULL, ip, &dip, &bp,
-				(flags & SYNC_TRYLOCK) ? XBF_TRYLOCK : XBF_LOCK);
+	error = xfs_itobp(mp, NULL, ip, &dip, &bp, XBF_TRYLOCK);
 	if (error || !bp) {
 		xfs_ifunlock(ip);
 		return error;
@@ -2487,13 +2470,8 @@ xfs_iflush(
 	if (error)
 		goto cluster_corrupt_out;
 
-	if (flags & SYNC_WAIT)
-		error = xfs_bwrite(bp);
-	else
-		xfs_buf_delwri_queue(bp);
-
-	xfs_buf_relse(bp);
-	return error;
+	*bpp = bp;
+	return 0;
 
 corrupt_out:
 	xfs_buf_relse(bp);
