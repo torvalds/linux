@@ -127,7 +127,7 @@ static int rk_fb_open(struct fb_info *info,int user)
 
 static int rk_fb_close(struct fb_info *info,int user)
 {
-	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
+	/*struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     	int layer_id;
     	CHK_SUSPEND(dev_drv);
     	layer_id = get_fb_layer_id(&info->fix);
@@ -138,7 +138,7 @@ static int rk_fb_close(struct fb_info *info,int user)
 	else
 	{
     		dev_drv->open(dev_drv,layer_id,0);
-	}
+	}*/
 	
     	return 0;
 }
