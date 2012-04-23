@@ -256,6 +256,14 @@
 			micdet-delay = <100>;
 			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
 		};
+
+		/* ALS and proximity sensor */
+		isl29018@44 {
+			compatible = "isil,isl29018";
+			reg = <0x44>;
+			interrupt-parent = <&gpio>;
+			interrupts = <202 0x04>; /*gpio PZ2 */
+		};
 	};
 
 	i2c@7000c400 {
