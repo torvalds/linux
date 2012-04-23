@@ -658,6 +658,58 @@ static u8 *fetch_item(__u8 *start, __u8 *end, struct hid_item *item)
 	return NULL;
 }
 
+static void hid_scan_usage(struct hid_device *hid, u32 usage)
+{
+}
+
+/*
+ * Scan a report descriptor before the device is added to the bus.
+ * Sets device groups and other properties that determine what driver
+ * to load.
+ */
+static int hid_scan_report(struct hid_device *hid)
+{
+	unsigned int page = 0, delim = 0;
+	__u8 *start = hid->dev_rdesc;
+	__u8 *end = start + hid->dev_rsize;
+	unsigned int u, u_min = 0, u_max = 0;
+	struct hid_item item;
+
+	hid->group = HID_GROUP_GENERIC;
+	while ((start = fetch_item(start, end, &item)) != NULL) {
+		if (item.format != HID_ITEM_FORMAT_SHORT)
+			return -EINVAL;
+		if (item.type == HID_ITEM_TYPE_GLOBAL) {
+			if (item.tag == HID_GLOBAL_ITEM_TAG_USAGE_PAGE)
+				page = item_udata(&item) << 16;
+		} else if (item.type == HID_ITEM_TYPE_LOCAL) {
+			if (delim > 1)
+				break;
+			u = item_udata(&item);
+			if (item.size <= 2)
+				u += page;
+			switch (item.tag) {
+			case HID_LOCAL_ITEM_TAG_DELIMITER:
+				delim += !!u;
+				break;
+			case HID_LOCAL_ITEM_TAG_USAGE:
+				hid_scan_usage(hid, u);
+				break;
+			case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
+				u_min = u;
+				break;
+			case HID_LOCAL_ITEM_TAG_USAGE_MAXIMUM:
+				u_max = u;
+				for (u = u_min; u <= u_max; u++)
+					hid_scan_usage(hid, u);
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
 /**
  * hid_parse_report - parse device report
  *
@@ -2170,6 +2222,16 @@ int hid_add_device(struct hid_device *hdev)
 		return ret;
 	if (!hdev->dev_rdesc)
 		return -ENODEV;
+
+	/*
+	 * Scan generic devices for group information
+	 */
+	if (hid_ignore_special_drivers ||
+	    !hid_match_id(hdev, hid_have_special_driver)) {
+		ret = hid_scan_report(hdev);
+		if (ret)
+			hid_warn(hdev, "bad device descriptor (%d)\n", ret);
+	}
 
 	/* XXX hack, any other cleaner solution after the driver core
 	 * is converted to allow more than 20 bytes as the device name? */

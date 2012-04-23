@@ -325,6 +325,11 @@ struct hid_item {
 #define HID_QUIRK_NO_INPUT_SYNC			0x80000000
 
 /*
+ * HID device groups
+ */
+#define HID_GROUP_GENERIC			0x0001
+
+/*
  * This is the global environment of the parser. This information is
  * persistent for main-items. The global environment can be saved and
  * restored with PUSH/POP statements.
