@@ -2671,8 +2671,6 @@ void ixgbe_configure_tx_ring(struct ixgbe_adapter *adapter,
 	/* enable queue */
 	IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(reg_idx), txdctl);
 
-	netdev_tx_reset_queue(txring_txq(ring));
-
 	/* TXDCTL.EN will return 0 on 82598 if link is down, so skip it */
 	if (hw->mac.type == ixgbe_mac_82598EB &&
 	    !(IXGBE_READ_REG(hw, IXGBE_LINKS) & IXGBE_LINKS_UP))
@@ -4166,6 +4164,8 @@ static void ixgbe_clean_tx_ring(struct ixgbe_ring *tx_ring)
 		tx_buffer_info = &tx_ring->tx_buffer_info[i];
 		ixgbe_unmap_and_free_tx_resource(tx_ring, tx_buffer_info);
 	}
+
+	netdev_tx_reset_queue(txring_txq(tx_ring));
 
 	size = sizeof(struct ixgbe_tx_buffer) * tx_ring->count;
 	memset(tx_ring->tx_buffer_info, 0, size);
