@@ -59,12 +59,12 @@ static struct sk_buff *port_build_peer_abort_msg(struct tipc_port *, u32 err);
 static void port_timeout(unsigned long ref);
 
 
-static inline u32 port_peernode(struct tipc_port *p_ptr)
+static u32 port_peernode(struct tipc_port *p_ptr)
 {
 	return msg_destnode(&p_ptr->phdr);
 }
 
-static inline u32 port_peerport(struct tipc_port *p_ptr)
+static u32 port_peerport(struct tipc_port *p_ptr)
 {
 	return msg_destport(&p_ptr->phdr);
 }
