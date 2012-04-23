@@ -712,7 +712,6 @@ int exynos_drm_gem_dumb_destroy(struct drm_file *file_priv,
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
-	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 	struct drm_device *dev = obj->dev;
 	unsigned long f_vaddr;
 	pgoff_t page_offset;
@@ -724,21 +723,10 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	mutex_lock(&dev->struct_mutex);
 
-	/*
-	 * allocate all pages as desired size if user wants to allocate
-	 * physically non-continuous memory.
-	 */
-	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
-		ret = exynos_drm_gem_get_pages(obj);
-		if (ret < 0)
-			goto err;
-	}
-
 	ret = exynos_drm_gem_map_pages(obj, vma, f_vaddr, page_offset);
 	if (ret < 0)
 		DRM_ERROR("failed to map pages.\n");
 
-err:
 	mutex_unlock(&dev->struct_mutex);
 
 	return convert_to_vm_err_msg(ret);
