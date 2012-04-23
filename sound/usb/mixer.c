@@ -486,7 +486,7 @@ static int set_cur_mix_value(struct usb_mixer_elem_info *cval, int channel,
 /*
  * TLV callback for mixer volume controls
  */
-static int mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
+int snd_usb_mixer_vol_tlv(struct snd_kcontrol *kcontrol, int op_flag,
 			 unsigned int size, unsigned int __user *_tlv)
 {
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
@@ -1158,7 +1158,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 		if (control == UAC_FU_VOLUME) {
 			check_mapped_dB(map, cval);
 			if (cval->dBmin < cval->dBmax || !cval->initialized) {
-				kctl->tlv.c = mixer_vol_tlv;
+				kctl->tlv.c = snd_usb_mixer_vol_tlv;
 				kctl->vd[0].access |= 
 					SNDRV_CTL_ELEM_ACCESS_TLV_READ |
 					SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
