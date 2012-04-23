@@ -1026,7 +1026,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 		chip->cs_chg_udelay = chip_info->cs_chg_udelay;
 		chip->idle_tx_val = chip_info->idle_tx_val;
 		chip->pio_interrupt = chip_info->pio_interrupt;
-		spi->bits_per_word = chip_info->bits_per_word;
 	} else {
 		/* force a default base state */
 		chip->ctl_reg &= bfin_ctl_reg;
