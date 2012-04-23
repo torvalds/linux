@@ -132,6 +132,7 @@ struct usb_device_id {
 #define USB_DEVICE_ID_MATCH_INT_PROTOCOL	0x0200
 
 #define HID_ANY_ID				(~0)
+#define HID_BUS_ANY				0xffff
 #define HID_GROUP_ANY				0x0000
 
 struct hid_device_id {
