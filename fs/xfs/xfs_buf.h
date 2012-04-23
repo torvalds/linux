@@ -117,7 +117,7 @@ typedef struct xfs_buf {
 	 */
 	struct rb_node		b_rbnode;	/* rbtree node */
 	xfs_daddr_t		b_bn;		/* block number for I/O */
-	size_t			b_buffer_length;/* size of buffer in bytes */
+	int			b_length;	/* size of buffer in BBs */
 	atomic_t		b_hold;		/* reference count */
 	atomic_t		b_lru_ref;	/* lru reclaim ref count */
 	xfs_buf_flags_t		b_flags;	/* status flags */
@@ -246,8 +246,6 @@ void xfs_buf_stale(struct xfs_buf *bp);
 #define XFS_BUF_SET_ADDR(bp, bno)	((bp)->b_bn = (xfs_daddr_t)(bno))
 #define XFS_BUF_COUNT(bp)		((bp)->b_count_desired)
 #define XFS_BUF_SET_COUNT(bp, cnt)	((bp)->b_count_desired = (cnt))
-#define XFS_BUF_SIZE(bp)		((bp)->b_buffer_length)
-#define XFS_BUF_SET_SIZE(bp, cnt)	((bp)->b_buffer_length = (cnt))
 
 static inline void xfs_buf_set_ref(struct xfs_buf *bp, int lru_ref)
 {

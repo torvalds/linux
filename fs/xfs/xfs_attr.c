@@ -1993,8 +1993,7 @@ xfs_attr_rmtval_get(xfs_da_args_t *args)
 			if (error)
 				return(error);
 
-			tmp = (valuelen < XFS_BUF_SIZE(bp))
-				? valuelen : XFS_BUF_SIZE(bp);
+			tmp = min_t(int, valuelen, BBTOB(bp->b_length));
 			xfs_buf_iomove(bp, 0, tmp, dst, XBRW_READ);
 			xfs_buf_relse(bp);
 			dst += tmp;
@@ -2097,6 +2096,8 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 	lblkno = args->rmtblkno;
 	valuelen = args->valuelen;
 	while (valuelen > 0) {
+		int buflen;
+
 		/*
 		 * Try to remember where we decided to put the value.
 		 */
@@ -2118,11 +2119,13 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 				 XBF_LOCK | XBF_DONT_BLOCK);
 		if (!bp)
 			return ENOMEM;
-		tmp = (valuelen < XFS_BUF_SIZE(bp)) ? valuelen :
-							XFS_BUF_SIZE(bp);
+
+		buflen = BBTOB(bp->b_length);
+		tmp = min_t(int, valuelen, buflen);
 		xfs_buf_iomove(bp, 0, tmp, src, XBRW_WRITE);
-		if (tmp < XFS_BUF_SIZE(bp))
-			xfs_buf_zero(bp, tmp, XFS_BUF_SIZE(bp) - tmp);
+		if (tmp < buflen)
+			xfs_buf_zero(bp, tmp, buflen - tmp);
+
 		error = xfs_bwrite(bp);	/* GROT: NOTE: synchronous write */
 		xfs_buf_relse(bp);
 		if (error)

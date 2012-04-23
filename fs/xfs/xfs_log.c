@@ -1197,9 +1197,6 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	spin_lock_init(&log->l_icloglock);
 	init_waitqueue_head(&log->l_flush_wait);
 
-	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
-	ASSERT((XFS_BUF_SIZE(bp) & BBMASK) == 0);
-
 	iclogp = &log->l_iclog;
 	/*
 	 * The amount of memory to allocate for the iclog structure is
@@ -1239,7 +1236,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 		head->h_fmt = cpu_to_be32(XLOG_FMT);
 		memcpy(&head->h_fs_uuid, &mp->m_sb.sb_uuid, sizeof(uuid_t));
 
-		iclog->ic_size = XFS_BUF_SIZE(bp) - log->l_iclog_hsize;
+		iclog->ic_size = BBTOB(bp->b_length) - log->l_iclog_hsize;
 		iclog->ic_state = XLOG_STATE_ACTIVE;
 		iclog->ic_log = log;
 		atomic_set(&iclog->ic_refcnt, 0);

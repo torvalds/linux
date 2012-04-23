@@ -198,11 +198,12 @@ xfs_buf_alloc(
 	bp->b_target = target;
 
 	/*
-	 * Set buffer_length and count_desired to the same value initially.
+	 * Set length and count_desired to the same value initially.
 	 * I/O routines should use count_desired, which will be the same in
 	 * most cases but may be reset (e.g. XFS recovery).
 	 */
-	bp->b_buffer_length = bp->b_count_desired = numblks << BBSHIFT;
+	bp->b_length = numblks;
+	bp->b_count_desired = numblks << BBSHIFT;
 	bp->b_flags = flags;
 
 	/*
@@ -313,14 +314,14 @@ xfs_buf_allocate_memory(
 	 * the memory from the heap - there's no need for the complexity of
 	 * page arrays to keep allocation down to order 0.
 	 */
-	if (bp->b_buffer_length < PAGE_SIZE) {
-		bp->b_addr = kmem_alloc(bp->b_buffer_length, xb_to_km(flags));
+	if (bp->b_length < BTOBB(PAGE_SIZE)) {
+		bp->b_addr = kmem_alloc(BBTOB(bp->b_length), xb_to_km(flags));
 		if (!bp->b_addr) {
 			/* low memory - use alloc_page loop instead */
 			goto use_alloc_page;
 		}
 
-		if (((unsigned long)(bp->b_addr + bp->b_buffer_length - 1) &
+		if (((unsigned long)(bp->b_addr + BBTOB(bp->b_length) - 1) &
 								PAGE_MASK) !=
 		    ((unsigned long)bp->b_addr & PAGE_MASK)) {
 			/* b_addr spans two pages - use alloc_page instead */
@@ -337,7 +338,7 @@ xfs_buf_allocate_memory(
 	}
 
 use_alloc_page:
-	end = BBTOB(bp->b_bn) + bp->b_buffer_length;
+	end = BBTOB(bp->b_bn + bp->b_length);
 	page_count = xfs_buf_btoc(end) - xfs_buf_btoct(BBTOB(bp->b_bn));
 	error = _xfs_buf_get_pages(bp, page_count, flags);
 	if (unlikely(error))
@@ -477,7 +478,7 @@ _xfs_buf_find(
 			 * reallocating a busy extent. Skip this buffer and
 			 * continue searching to the right for an exact match.
 			 */
-			if (bp->b_buffer_length != numbytes) {
+			if (bp->b_length != numblks) {
 				ASSERT(bp->b_flags & XBF_STALE);
 				rbp = &(*rbp)->rb_right;
 				continue;
@@ -574,7 +575,7 @@ xfs_buf_get(
 	 * that we can do IO on it.
 	 */
 	bp->b_bn = blkno;
-	bp->b_count_desired = bp->b_buffer_length;
+	bp->b_count_desired = BBTOB(bp->b_length);
 
 found:
 	if (!(bp->b_flags & XBF_MAPPED)) {
@@ -716,7 +717,8 @@ xfs_buf_set_empty(
 	bp->b_pages = NULL;
 	bp->b_page_count = 0;
 	bp->b_addr = NULL;
-	bp->b_buffer_length = bp->b_count_desired = numblks << BBSHIFT;
+	bp->b_length = numblks;
+	bp->b_count_desired = numblks << BBSHIFT;
 	bp->b_bn = XFS_BUF_DADDR_NULL;
 	bp->b_flags &= ~XBF_MAPPED;
 }
@@ -769,7 +771,7 @@ xfs_buf_associate_memory(
 	}
 
 	bp->b_count_desired = len;
-	bp->b_buffer_length = buflen;
+	bp->b_length = BTOBB(buflen);
 	bp->b_flags |= XBF_MAPPED;
 
 	return 0;
