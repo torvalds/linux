@@ -24,6 +24,8 @@
 #include <linux/i2c.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/sh_mmcif.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
+#include <linux/mfd/tmio.h>
 #include <linux/platform_device.h>
 #include <linux/smsc911x.h>
 #include <linux/usb/r8a66597.h>
@@ -183,6 +185,47 @@ static struct platform_device mmc_device = {
 	.resource	= sh_mmcif_resources,
 };
 
+/* SDHI */
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED,
+	.tmio_ocr_mask	= MMC_VDD_27_28 | MMC_VDD_28_29,
+};
+
+static struct resource sdhi0_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start	= 0xee100000,
+		.end	= 0xee1000ff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.name	= SH_MOBILE_SDHI_IRQ_CARD_DETECT,
+		.start	= gic_spi(83),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.name	= SH_MOBILE_SDHI_IRQ_SDCARD,
+		.start	= gic_spi(84),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.name	= SH_MOBILE_SDHI_IRQ_SDIO,
+		.start	= gic_spi(85),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi0_device = {
+	.name		= "sh_mobile_sdhi",
+	.num_resources	= ARRAY_SIZE(sdhi0_resources),
+	.resource	= sdhi0_resources,
+	.dev	= {
+		.platform_data	= &sdhi0_info,
+	},
+};
+
+/* I2C */
 static struct i2c_board_info i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("st1232-ts", 0x55),
@@ -195,6 +238,7 @@ static struct platform_device *kzm_devices[] __initdata = {
 	&usb_host_device,
 	&lcdc_device,
 	&mmc_device,
+	&sdhi0_device,
 };
 
 /*
@@ -315,6 +359,19 @@ static void __init kzm_init(void)
 	gpio_request(GPIO_FN_MMCD0_5_PU,	NULL);
 	gpio_request(GPIO_FN_MMCD0_6_PU,	NULL);
 	gpio_request(GPIO_FN_MMCD0_7_PU,	NULL);
+
+	/* enable SD */
+	gpio_request(GPIO_FN_SDHIWP0,		NULL);
+	gpio_request(GPIO_FN_SDHICD0,		NULL);
+	gpio_request(GPIO_FN_SDHICMD0,		NULL);
+	gpio_request(GPIO_FN_SDHICLK0,		NULL);
+	gpio_request(GPIO_FN_SDHID0_3,		NULL);
+	gpio_request(GPIO_FN_SDHID0_2,		NULL);
+	gpio_request(GPIO_FN_SDHID0_1,		NULL);
+	gpio_request(GPIO_FN_SDHID0_0,		NULL);
+	gpio_request(GPIO_FN_SDHI0_VCCQ_MC0_ON,	NULL);
+	gpio_request(GPIO_PORT15, NULL);
+	gpio_direction_output(GPIO_PORT15, 1); /* power */
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */
