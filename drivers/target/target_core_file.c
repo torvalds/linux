@@ -356,9 +356,8 @@ static int fd_do_writev(struct se_task *task)
 	return 1;
 }
 
-static void fd_emulate_sync_cache(struct se_task *task)
+static void fd_emulate_sync_cache(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct fd_dev *fd_dev = dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);

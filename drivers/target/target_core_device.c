@@ -643,9 +643,8 @@ void core_dev_unexport(
 	lun->lun_se_dev = NULL;
 }
 
-int target_report_luns(struct se_task *se_task)
+int target_report_luns(struct se_cmd *se_cmd)
 {
-	struct se_cmd *se_cmd = se_task->task_se_cmd;
 	struct se_dev_entry *deve;
 	struct se_session *se_sess = se_cmd->se_sess;
 	unsigned char *buf;
@@ -696,8 +695,7 @@ done:
 	buf[3] = (lun_count & 0xff);
 	transport_kunmap_data_sg(se_cmd);
 
-	se_task->task_scsi_status = GOOD;
-	transport_complete_task(se_task, 1);
+	target_complete_cmd(se_cmd, GOOD);
 	return 0;
 }
 

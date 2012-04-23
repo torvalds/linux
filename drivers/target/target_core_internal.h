@@ -5,15 +5,15 @@
 extern struct t10_alua_lu_gp *default_lu_gp;
 
 /* target_core_cdb.c */
-int	target_emulate_inquiry(struct se_task *task);
-int	target_emulate_readcapacity(struct se_task *task);
-int	target_emulate_readcapacity_16(struct se_task *task);
-int	target_emulate_modesense(struct se_task *task);
-int	target_emulate_request_sense(struct se_task *task);
-int	target_emulate_unmap(struct se_task *task);
-int	target_emulate_write_same(struct se_task *task);
-int	target_emulate_synchronize_cache(struct se_task *task);
-int	target_emulate_noop(struct se_task *task);
+int	target_emulate_inquiry(struct se_cmd *cmd);
+int	target_emulate_readcapacity(struct se_cmd *cmd);
+int	target_emulate_readcapacity_16(struct se_cmd *cmd);
+int	target_emulate_modesense(struct se_cmd *cmd);
+int	target_emulate_request_sense(struct se_cmd *cmd);
+int	target_emulate_unmap(struct se_cmd *cmd);
+int	target_emulate_write_same(struct se_cmd *cmd);
+int	target_emulate_synchronize_cache(struct se_cmd *cmd);
+int	target_emulate_noop(struct se_cmd *cmd);
 
 /* target_core_device.c */
 struct se_dev_entry *core_get_se_deve_from_rtpi(struct se_node_acl *, u16);
@@ -28,7 +28,7 @@ int	core_dev_export(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
 void	core_dev_unexport(struct se_device *, struct se_portal_group *,
 		struct se_lun *);
-int	target_report_luns(struct se_task *);
+int	target_report_luns(struct se_cmd *);
 void	se_release_device_for_hba(struct se_device *);
 void	se_release_vpd_for_dev(struct se_device *);
 int	se_free_virtual_device(struct se_device *, struct se_hba *);

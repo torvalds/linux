@@ -601,9 +601,8 @@ target_emulate_evpd_00(struct se_cmd *cmd, unsigned char *buf)
 	return 0;
 }
 
-int target_emulate_inquiry(struct se_task *task)
+int target_emulate_inquiry(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_portal_group *tpg = cmd->se_lun->lun_sep->sep_tpg;
 	unsigned char *buf, *map_buf;
@@ -667,16 +666,13 @@ out:
 	}
 	transport_kunmap_data_sg(cmd);
 
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
-int target_emulate_readcapacity(struct se_task *task)
+int target_emulate_readcapacity(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf;
 	unsigned long long blocks_long = dev->transport->get_blocks(dev);
@@ -700,14 +696,12 @@ int target_emulate_readcapacity(struct se_task *task)
 
 	transport_kunmap_data_sg(cmd);
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
-int target_emulate_readcapacity_16(struct se_task *task)
+int target_emulate_readcapacity_16(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf;
 	unsigned long long blocks = dev->transport->get_blocks(dev);
@@ -735,8 +729,7 @@ int target_emulate_readcapacity_16(struct se_task *task)
 
 	transport_kunmap_data_sg(cmd);
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
@@ -875,9 +868,8 @@ target_modesense_dpofua(unsigned char *buf, int type)
 	}
 }
 
-int target_emulate_modesense(struct se_task *task)
+int target_emulate_modesense(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	char *cdb = cmd->t_task_cdb;
 	unsigned char *rbuf;
@@ -950,14 +942,12 @@ int target_emulate_modesense(struct se_task *task)
 	memcpy(rbuf, buf, offset);
 	transport_kunmap_data_sg(cmd);
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
-int target_emulate_request_sense(struct se_task *task)
+int target_emulate_request_sense(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	unsigned char *cdb = cmd->t_task_cdb;
 	unsigned char *buf;
 	u8 ua_asc = 0, ua_ascq = 0;
@@ -1011,8 +1001,7 @@ int target_emulate_request_sense(struct se_task *task)
 
 end:
 	transport_kunmap_data_sg(cmd);
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
@@ -1020,9 +1009,8 @@ end:
  * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
  * Note this is not used for TCM/pSCSI passthrough
  */
-int target_emulate_unmap(struct se_task *task)
+int target_emulate_unmap(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	unsigned char *buf, *ptr = NULL;
 	unsigned char *cdb = &cmd->t_task_cdb[0];
@@ -1069,10 +1057,8 @@ int target_emulate_unmap(struct se_task *task)
 
 err:
 	transport_kunmap_data_sg(cmd);
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
@@ -1080,9 +1066,8 @@ err:
  * Used for TCM/IBLOCK and TCM/FILEIO for block/blk-lib.c level discard support.
  * Note this is not used for TCM/pSCSI passthrough
  */
-int target_emulate_write_same(struct se_task *task)
+int target_emulate_write_same(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	sector_t range;
 	sector_t lba = cmd->t_task_lba;
@@ -1121,30 +1106,25 @@ int target_emulate_write_same(struct se_task *task)
 		return ret;
 	}
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }
 
-int target_emulate_synchronize_cache(struct se_task *task)
+int target_emulate_synchronize_cache(struct se_cmd *cmd)
 {
-	struct se_device *dev = task->task_se_cmd->se_dev;
-	struct se_cmd *cmd = task->task_se_cmd;
-
-	if (!dev->transport->do_sync_cache) {
+	if (!cmd->se_dev->transport->do_sync_cache) {
 		pr_err("SYNCHRONIZE_CACHE emulation not supported"
-			" for: %s\n", dev->transport->name);
+			" for: %s\n", cmd->se_dev->transport->name);
 		cmd->scsi_sense_reason = TCM_UNSUPPORTED_SCSI_OPCODE;
 		return -ENOSYS;
 	}
 
-	dev->transport->do_sync_cache(task);
+	cmd->se_dev->transport->do_sync_cache(cmd);
 	return 0;
 }
 
-int target_emulate_noop(struct se_task *task)
+int target_emulate_noop(struct se_cmd *cmd)
 {
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, GOOD);
 	return 0;
 }

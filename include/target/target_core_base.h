@@ -563,7 +563,7 @@ struct se_cmd {
 	struct completion	cmd_wait_comp;
 	struct kref		cmd_kref;
 	struct target_core_fabric_ops *se_tfo;
-	int (*execute_task)(struct se_task *);
+	int (*execute_cmd)(struct se_cmd *);
 	void (*transport_complete_callback)(struct se_cmd *);
 
 	unsigned char		*t_task_cdb;

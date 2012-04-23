@@ -772,6 +772,16 @@ void transport_complete_task(struct se_task *task, int success)
 }
 EXPORT_SYMBOL(transport_complete_task);
 
+void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
+{
+	struct se_task *task = list_entry(cmd->t_task_list.next,
+				struct se_task, t_list);
+
+	task->task_scsi_status = scsi_status;
+	transport_complete_task(task, scsi_status == GOOD);
+}
+EXPORT_SYMBOL(target_complete_cmd);
+
 /*
  * Called by transport_add_tasks_from_cmd() once a struct se_cmd's
  * struct se_task list are ready to be added to the active execution list
@@ -2233,8 +2243,8 @@ check_depth:
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-	if (cmd->execute_task)
-		error = cmd->execute_task(task);
+	if (cmd->execute_cmd)
+		error = cmd->execute_cmd(cmd);
 	else
 		error = dev->transport->do_task(task);
 	if (error != 0) {
@@ -2804,7 +2814,7 @@ static int transport_generic_cmd_sequencer(
 			if (target_check_write_same_discard(&cdb[10], dev) < 0)
 				goto out_unsupported_cdb;
 			if (!passthrough)
-				cmd->execute_task = target_emulate_write_same;
+				cmd->execute_cmd = target_emulate_write_same;
 			break;
 		default:
 			pr_err("VARIABLE_LENGTH_CMD service action"
@@ -2820,7 +2830,7 @@ static int transport_generic_cmd_sequencer(
 			 */
 			if (cdb[1] == MI_REPORT_TARGET_PGS &&
 			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
-				cmd->execute_task =
+				cmd->execute_cmd =
 					target_emulate_report_target_port_groups;
 			}
 			size = (cdb[6] << 24) | (cdb[7] << 16) |
@@ -2843,13 +2853,13 @@ static int transport_generic_cmd_sequencer(
 		size = cdb[4];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_modesense;
+			cmd->execute_cmd = target_emulate_modesense;
 		break;
 	case MODE_SENSE_10:
 		size = (cdb[7] << 8) + cdb[8];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_modesense;
+			cmd->execute_cmd = target_emulate_modesense;
 		break;
 	case GPCMD_READ_BUFFER_CAPACITY:
 	case GPCMD_SEND_OPC:
@@ -2871,13 +2881,13 @@ static int transport_generic_cmd_sequencer(
 		break;
 	case PERSISTENT_RESERVE_IN:
 		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
-			cmd->execute_task = target_scsi3_emulate_pr_in;
+			cmd->execute_cmd = target_scsi3_emulate_pr_in;
 		size = (cdb[7] << 8) + cdb[8];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
 	case PERSISTENT_RESERVE_OUT:
 		if (su_dev->t10_pr.res_type == SPC3_PERSISTENT_RESERVATIONS)
-			cmd->execute_task = target_scsi3_emulate_pr_out;
+			cmd->execute_cmd = target_scsi3_emulate_pr_out;
 		size = (cdb[7] << 8) + cdb[8];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		break;
@@ -2898,7 +2908,7 @@ static int transport_generic_cmd_sequencer(
 			 */
 			if (cdb[1] == MO_SET_TARGET_PGS &&
 			    su_dev->t10_alua.alua_type == SPC3_ALUA_EMULATED) {
-				cmd->execute_task =
+				cmd->execute_cmd =
 					target_emulate_set_target_port_groups;
 			}
 
@@ -2920,7 +2930,7 @@ static int transport_generic_cmd_sequencer(
 			cmd->sam_task_attr = MSG_HEAD_TAG;
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_inquiry;
+			cmd->execute_cmd = target_emulate_inquiry;
 		break;
 	case READ_BUFFER:
 		size = (cdb[6] << 16) + (cdb[7] << 8) + cdb[8];
@@ -2930,7 +2940,7 @@ static int transport_generic_cmd_sequencer(
 		size = READ_CAP_LEN;
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_readcapacity;
+			cmd->execute_cmd = target_emulate_readcapacity;
 		break;
 	case READ_MEDIA_SERIAL_NUMBER:
 	case SECURITY_PROTOCOL_IN:
@@ -2942,7 +2952,7 @@ static int transport_generic_cmd_sequencer(
 		switch (cmd->t_task_cdb[1] & 0x1f) {
 		case SAI_READ_CAPACITY_16:
 			if (!passthrough)
-				cmd->execute_task =
+				cmd->execute_cmd =
 					target_emulate_readcapacity_16;
 			break;
 		default:
@@ -2985,7 +2995,7 @@ static int transport_generic_cmd_sequencer(
 		size = cdb[4];
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_request_sense;
+			cmd->execute_cmd = target_emulate_request_sense;
 		break;
 	case READ_ELEMENT_STATUS:
 		size = 65536 * cdb[7] + 256 * cdb[8] + cdb[9];
@@ -3014,7 +3024,7 @@ static int transport_generic_cmd_sequencer(
 		 * emulation disabled.
 		 */
 		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
-			cmd->execute_task = target_scsi2_reservation_reserve;
+			cmd->execute_cmd = target_scsi2_reservation_reserve;
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case RELEASE:
@@ -3029,7 +3039,7 @@ static int transport_generic_cmd_sequencer(
 			size = cmd->data_length;
 
 		if (su_dev->t10_pr.res_type != SPC_PASSTHROUGH)
-			cmd->execute_task = target_scsi2_reservation_release;
+			cmd->execute_cmd = target_scsi2_reservation_release;
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case SYNCHRONIZE_CACHE:
@@ -3061,13 +3071,13 @@ static int transport_generic_cmd_sequencer(
 			if (transport_cmd_get_valid_sectors(cmd) < 0)
 				goto out_invalid_cdb_field;
 		}
-		cmd->execute_task = target_emulate_synchronize_cache;
+		cmd->execute_cmd = target_emulate_synchronize_cache;
 		break;
 	case UNMAP:
 		size = get_unaligned_be16(&cdb[7]);
 		cmd->se_cmd_flags |= SCF_SCSI_CONTROL_SG_IO_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_unmap;
+			cmd->execute_cmd = target_emulate_unmap;
 		break;
 	case WRITE_SAME_16:
 		sectors = transport_get_sectors_16(cdb, cmd, &sector_ret);
@@ -3087,7 +3097,7 @@ static int transport_generic_cmd_sequencer(
 		if (target_check_write_same_discard(&cdb[1], dev) < 0)
 			goto out_unsupported_cdb;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_write_same;
+			cmd->execute_cmd = target_emulate_write_same;
 		break;
 	case WRITE_SAME:
 		sectors = transport_get_sectors_10(cdb, cmd, &sector_ret);
@@ -3110,7 +3120,7 @@ static int transport_generic_cmd_sequencer(
 		if (target_check_write_same_discard(&cdb[1], dev) < 0)
 			goto out_unsupported_cdb;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_write_same;
+			cmd->execute_cmd = target_emulate_write_same;
 		break;
 	case ALLOW_MEDIUM_REMOVAL:
 	case ERASE:
@@ -3123,7 +3133,7 @@ static int transport_generic_cmd_sequencer(
 	case WRITE_FILEMARKS:
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		if (!passthrough)
-			cmd->execute_task = target_emulate_noop;
+			cmd->execute_cmd = target_emulate_noop;
 		break;
 	case GPCMD_CLOSE_TRACK:
 	case INITIALIZE_ELEMENT_STATUS:
@@ -3133,7 +3143,7 @@ static int transport_generic_cmd_sequencer(
 		cmd->se_cmd_flags |= SCF_SCSI_NON_DATA_CDB;
 		break;
 	case REPORT_LUNS:
-		cmd->execute_task = target_report_luns;
+		cmd->execute_cmd = target_report_luns;
 		size = (cdb[6] << 24) | (cdb[7] << 16) | (cdb[8] << 8) | cdb[9];
 		/*
 		 * Do implict HEAD_OF_QUEUE processing for REPORT_LUNS
@@ -3201,7 +3211,7 @@ static int transport_generic_cmd_sequencer(
 	}
 
 	/* reject any command that we don't have a handler for */
-	if (!(passthrough || cmd->execute_task ||
+	if (!(passthrough || cmd->execute_cmd ||
 	     (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)))
 		goto out_unsupported_cdb;
 

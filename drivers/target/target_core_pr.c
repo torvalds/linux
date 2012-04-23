@@ -193,9 +193,8 @@ static int target_check_scsi2_reservation_conflict(struct se_cmd *cmd)
 	return 0;
 }
 
-int target_scsi2_reservation_release(struct se_task *task)
+int target_scsi2_reservation_release(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
@@ -234,16 +233,13 @@ int target_scsi2_reservation_release(struct se_task *task)
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
 out:
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
-int target_scsi2_reservation_reserve(struct se_task *task)
+int target_scsi2_reservation_reserve(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
 	struct se_session *sess = cmd->se_sess;
 	struct se_portal_group *tpg = sess->se_tpg;
@@ -304,10 +300,8 @@ int target_scsi2_reservation_reserve(struct se_task *task)
 out_unlock:
 	spin_unlock(&dev->dev_reservation_lock);
 out:
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
@@ -3798,9 +3792,8 @@ static unsigned long long core_scsi3_extract_reservation_key(unsigned char *cdb)
 /*
  * See spc4r17 section 6.14 Table 170
  */
-int target_scsi3_emulate_pr_out(struct se_task *task)
+int target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	unsigned char *cdb = &cmd->t_task_cdb[0];
 	unsigned char *buf;
 	u64 res_key, sa_res_key;
@@ -3940,10 +3933,8 @@ int target_scsi3_emulate_pr_out(struct se_task *task)
 	}
 
 out:
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 
@@ -4298,9 +4289,8 @@ static int core_scsi3_pri_read_full_status(struct se_cmd *cmd)
 	return 0;
 }
 
-int target_scsi3_emulate_pr_in(struct se_task *task)
+int target_scsi3_emulate_pr_in(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	int ret;
 
 	/*
@@ -4341,10 +4331,8 @@ int target_scsi3_emulate_pr_in(struct se_task *task)
 		break;
 	}
 
-	if (!ret) {
-		task->task_scsi_status = GOOD;
-		transport_complete_task(task, 1);
-	}
+	if (!ret)
+		target_complete_cmd(cmd, GOOD);
 	return ret;
 }
 

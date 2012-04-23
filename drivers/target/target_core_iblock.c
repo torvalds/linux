@@ -304,9 +304,8 @@ static void iblock_end_io_flush(struct bio *bio, int err)
  * Implement SYCHRONIZE CACHE.  Note that we can't handle lba ranges and must
  * always flush the whole cache.
  */
-static void iblock_emulate_sync_cache(struct se_task *task)
+static void iblock_emulate_sync_cache(struct se_cmd *cmd)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct iblock_dev *ib_dev = cmd->se_dev->dev_ptr;
 	int immed = (cmd->t_task_cdb[1] & 0x2);
 	struct bio *bio;
