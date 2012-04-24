@@ -1547,9 +1547,9 @@ static void sock_spd_release(struct splice_pipe_desc *spd, unsigned int i)
 	put_page(spd->pages[i]);
 }
 
-static inline struct page *linear_to_page(struct page *page, unsigned int *len,
-					  unsigned int *offset,
-					  struct sk_buff *skb, struct sock *sk)
+static struct page *linear_to_page(struct page *page, unsigned int *len,
+				   unsigned int *offset,
+				   struct sk_buff *skb, struct sock *sk)
 {
 	struct page *p = sk->sk_sndmsg_page;
 	unsigned int off;
@@ -1598,23 +1598,23 @@ static bool spd_can_coalesce(const struct splice_pipe_desc *spd,
 /*
  * Fill page/offset/length into spd, if it can hold more pages.
  */
-static inline int spd_fill_page(struct splice_pipe_desc *spd,
-				struct pipe_inode_info *pipe, struct page *page,
-				unsigned int *len, unsigned int offset,
-				struct sk_buff *skb, int linear,
-				struct sock *sk)
+static bool spd_fill_page(struct splice_pipe_desc *spd,
+			  struct pipe_inode_info *pipe, struct page *page,
+			  unsigned int *len, unsigned int offset,
+			  struct sk_buff *skb, int linear,
+			  struct sock *sk)
 {
 	if (unlikely(spd->nr_pages == MAX_SKB_FRAGS))
-		return 1;
+		return true;
 
 	if (linear) {
 		page = linear_to_page(page, len, &offset, skb, sk);
 		if (!page)
-			return 1;
+			return true;
 	}
 	if (spd_can_coalesce(spd, page, offset)) {
 		spd->partial[spd->nr_pages - 1].len += *len;
-		return 0;
+		return false;
 	}
 	get_page(page);
 	spd->pages[spd->nr_pages] = page;
@@ -1622,7 +1622,7 @@ static inline int spd_fill_page(struct splice_pipe_desc *spd,
 	spd->partial[spd->nr_pages].offset = offset;
 	spd->nr_pages++;
 
-	return 0;
+	return false;
 }
 
 static inline void __segment_seek(struct page **page, unsigned int *poff,
@@ -1639,20 +1639,20 @@ static inline void __segment_seek(struct page **page, unsigned int *poff,
 	*plen -= off;
 }
 
-static inline int __splice_segment(struct page *page, unsigned int poff,
-				   unsigned int plen, unsigned int *off,
-				   unsigned int *len, struct sk_buff *skb,
-				   struct splice_pipe_desc *spd, int linear,
-				   struct sock *sk,
-				   struct pipe_inode_info *pipe)
+static bool __splice_segment(struct page *page, unsigned int poff,
+			     unsigned int plen, unsigned int *off,
+			     unsigned int *len, struct sk_buff *skb,
+			     struct splice_pipe_desc *spd, int linear,
+			     struct sock *sk,
+			     struct pipe_inode_info *pipe)
 {
 	if (!*len)
-		return 1;
+		return true;
 
 	/* skip this segment if already processed */
 	if (*off >= plen) {
 		*off -= plen;
-		return 0;
+		return false;
 	}
 
 	/* ignore any bits we already processed */
@@ -1668,23 +1668,23 @@ static inline int __splice_segment(struct page *page, unsigned int poff,
 		flen = min_t(unsigned int, flen, PAGE_SIZE - poff);
 
 		if (spd_fill_page(spd, pipe, page, &flen, poff, skb, linear, sk))
-			return 1;
+			return true;
 
 		__segment_seek(&page, &poff, &plen, flen);
 		*len -= flen;
 
 	} while (*len && plen);
 
-	return 0;
+	return false;
 }
 
 /*
- * Map linear and fragment data from the skb to spd. It reports failure if the
+ * Map linear and fragment data from the skb to spd. It reports true if the
  * pipe is full or if we already spliced the requested length.
  */
-static int __skb_splice_bits(struct sk_buff *skb, struct pipe_inode_info *pipe,
-			     unsigned int *offset, unsigned int *len,
-			     struct splice_pipe_desc *spd, struct sock *sk)
+static bool __skb_splice_bits(struct sk_buff *skb, struct pipe_inode_info *pipe,
+			      unsigned int *offset, unsigned int *len,
+			      struct splice_pipe_desc *spd, struct sock *sk)
 {
 	int seg;
 
@@ -1695,7 +1695,7 @@ static int __skb_splice_bits(struct sk_buff *skb, struct pipe_inode_info *pipe,
 			     (unsigned long) skb->data & (PAGE_SIZE - 1),
 			     skb_headlen(skb),
 			     offset, len, skb, spd, 1, sk, pipe))
-		return 1;
+		return true;
 
 	/*
 	 * then map the fragments
@@ -1706,10 +1706,10 @@ static int __skb_splice_bits(struct sk_buff *skb, struct pipe_inode_info *pipe,
 		if (__splice_segment(skb_frag_page(f),
 				     f->page_offset, skb_frag_size(f),
 				     offset, len, skb, spd, 0, sk, pipe))
-			return 1;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 /*
