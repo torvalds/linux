@@ -32,9 +32,13 @@ config HID
 	  If unsure, say Y.
 
 config HID_BATTERY_STRENGTH
-	bool
+	bool "Battery level reporting for HID devices"
 	depends on HID && POWER_SUPPLY && HID = POWER_SUPPLY
 	default n
+	---help---
+	This option adds support of reporting battery strength (for HID devices
+	that support this feature) through power_supply class so that userspace
+	tools, such as upower, can display it.
 
 config HIDRAW
 	bool "/dev/hidraw raw HID device support"
