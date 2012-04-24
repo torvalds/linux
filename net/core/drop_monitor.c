@@ -150,6 +150,7 @@ static void trace_drop_common(struct sk_buff *skb, void *location)
 	for (i = 0; i < msg->entries; i++) {
 		if (!memcmp(&location, msg->points[i].pc, sizeof(void *))) {
 			msg->points[i].count++;
+			atomic_inc(&data->dm_hit_count);
 			goto out;
 		}
 	}
