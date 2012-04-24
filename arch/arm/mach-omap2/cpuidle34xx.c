@@ -67,7 +67,6 @@ static struct cpuidle_params cpuidle_params_table[] = {
 struct omap3_idle_statedata {
 	u32 mpu_state;
 	u32 core_state;
-	u8 valid;
 };
 struct omap3_idle_statedata omap3_idle_data[OMAP3_NUM_STATES];
 
@@ -191,8 +190,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 	}
 
 	/* Check if current state is valid */
-	if ((cx->valid) &&
-	    (cx->mpu_state >= mpu_deepest_state) &&
+	if ((cx->mpu_state >= mpu_deepest_state) &&
 	    (cx->core_state >= core_deepest_state)) {
 		return index;
 	} else {
@@ -216,8 +214,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 		idx--;
 		for (; idx >= 0; idx--) {
 			cx = cpuidle_get_statedata(&dev->states_usage[idx]);
-			if ((cx->valid) &&
-			    (cx->mpu_state >= mpu_deepest_state) &&
+			if ((cx->mpu_state >= mpu_deepest_state) &&
 			    (cx->core_state >= core_deepest_state)) {
 				next_index = idx;
 				break;
@@ -371,7 +368,6 @@ static inline struct omap3_idle_statedata *_fill_cstate_usage(
 	struct omap3_idle_statedata *cx = &omap3_idle_data[idx];
 	struct cpuidle_state_usage *state_usage = &dev->states_usage[idx];
 
-	cx->valid		= cpuidle_params_table[idx].valid;
 	cpuidle_set_statedata(state_usage, cx);
 
 	return cx;
@@ -386,7 +382,6 @@ static inline struct omap3_idle_statedata *_fill_cstate_usage(
 int __init omap3_idle_init(void)
 {
 	struct cpuidle_device *dev;
-	struct cpuidle_driver *drv = &omap3_idle_driver;
 	struct omap3_idle_statedata *cx;
 
 	mpu_pd = pwrdm_lookup("mpu_pwrdm");
@@ -399,7 +394,6 @@ int __init omap3_idle_init(void)
 
 	/* C1 . MPU WFI + Core active */
 	cx = _fill_cstate_usage(dev, 0);
-	cx->valid = 1;	/* C1 is always valid */
 	cx->mpu_state = PWRDM_POWER_ON;
 	cx->core_state = PWRDM_POWER_ON;
 
@@ -433,7 +427,6 @@ int __init omap3_idle_init(void)
 	cx->mpu_state = PWRDM_POWER_OFF;
 	cx->core_state = PWRDM_POWER_OFF;
 
-	drv->state_count = OMAP3_NUM_STATES;
 	cpuidle_register_driver(&omap3_idle_driver);
 
 	if (cpuidle_register_device(dev)) {
