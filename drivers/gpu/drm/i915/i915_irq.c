@@ -39,24 +39,6 @@
 
 #define MAX_NOPID ((u32)~0)
 
-/**
- * Interrupts that are always left unmasked.
- *
- * Since pipe events are edge-triggered from the PIPESTAT register to IIR,
- * we leave them always unmasked in IMR and then control enabling them through
- * PIPESTAT alone.
- */
-#define I915_INTERRUPT_ENABLE_FIX			\
-	(I915_ASLE_INTERRUPT |				\
-	 I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |		\
-	 I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |		\
-	 I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |	\
-	 I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |	\
-	 I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
-
-/** Interrupts that we mask and unmask at runtime. */
-#define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT | I915_BSD_USER_INTERRUPT)
-
 #define I915_PIPE_VBLANK_STATUS	(PIPE_START_VBLANK_INTERRUPT_STATUS |\
 				 PIPE_VBLANK_INTERRUPT_STATUS)
 
@@ -2581,13 +2563,24 @@ static void i965_irq_preinstall(struct drm_device * dev)
 static int i965_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
+	u32 enable_mask;
 	u32 error_mask;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
 	/* Unmask the interrupts that we always want on. */
-	dev_priv->irq_mask = ~I915_INTERRUPT_ENABLE_FIX;
+	dev_priv->irq_mask = ~(I915_ASLE_INTERRUPT |
+			       I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+			       I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+			       I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+			       I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |
+			       I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+
+	enable_mask = ~dev_priv->irq_mask;
+	enable_mask |= I915_USER_INTERRUPT;
+
+	if (IS_G4X(dev))
+		enable_mask |= I915_BSD_USER_INTERRUPT;
 
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
