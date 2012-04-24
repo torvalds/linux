@@ -69,7 +69,6 @@ struct da9052_regulator_info {
 	int step_uV;
 	int min_uV;
 	int max_uV;
-	unsigned char volt_shift;
 	unsigned char activate_bit;
 };
 
@@ -208,9 +207,8 @@ static int da9052_regulator_set_voltage(struct regulator_dev *rdev,
 	if (ret < 0)
 		return ret;
 
-	ret = da9052_reg_update(regulator->da9052,
-				 DA9052_BUCKCORE_REG + id,
-				 (1 << info->volt_shift) - 1, *selector);
+	ret = da9052_reg_update(regulator->da9052, rdev->desc->vsel_reg,
+				rdev->desc->vsel_mask, *selector);
 	if (ret < 0)
 		return ret;
 
@@ -231,29 +229,13 @@ static int da9052_regulator_set_voltage(struct regulator_dev *rdev,
 	return ret;
 }
 
-static int da9052_get_regulator_voltage_sel(struct regulator_dev *rdev)
-{
-	struct da9052_regulator *regulator = rdev_get_drvdata(rdev);
-	struct da9052_regulator_info *info = regulator->info;
-	int offset = rdev_get_id(rdev);
-	int ret;
-
-	ret = da9052_reg_read(regulator->da9052, DA9052_BUCKCORE_REG + offset);
-	if (ret < 0)
-		return ret;
-
-	ret &= ((1 << info->volt_shift) - 1);
-
-	return ret;
-}
-
 static struct regulator_ops da9052_dcdc_ops = {
 	.set_voltage = da9052_regulator_set_voltage,
 	.get_current_limit = da9052_dcdc_get_current_limit,
 	.set_current_limit = da9052_dcdc_set_current_limit,
 
 	.list_voltage = da9052_list_voltage,
-	.get_voltage_sel = da9052_get_regulator_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -263,7 +245,7 @@ static struct regulator_ops da9052_ldo_ops = {
 	.set_voltage = da9052_regulator_set_voltage,
 
 	.list_voltage = da9052_list_voltage,
-	.get_voltage_sel = da9052_get_regulator_voltage_sel,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -278,13 +260,14 @@ static struct regulator_ops da9052_ldo_ops = {
 		.id = DA9052_ID_##_id,\
 		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
+		.vsel_reg = DA9052_BUCKCORE_REG + DA9052_ID_##_id, \
+		.vsel_mask = (1 << (sbits)) - 1,\
 		.enable_reg = DA9052_BUCKCORE_REG + DA9052_ID_##_id, \
 		.enable_mask = 1 << (ebits),\
 	},\
 	.min_uV = (min) * 1000,\
 	.max_uV = (max) * 1000,\
 	.step_uV = (step) * 1000,\
-	.volt_shift = (sbits),\
 	.activate_bit = (abits),\
 }
 
@@ -297,13 +280,14 @@ static struct regulator_ops da9052_ldo_ops = {
 		.id = DA9052_ID_##_id,\
 		.n_voltages = (max - min) / step + 1, \
 		.owner = THIS_MODULE,\
+		.vsel_reg = DA9052_BUCKCORE_REG + DA9052_ID_##_id, \
+		.vsel_mask = (1 << (sbits)) - 1,\
 		.enable_reg = DA9052_BUCKCORE_REG + DA9052_ID_##_id, \
 		.enable_mask = 1 << (ebits),\
 	},\
 	.min_uV = (min) * 1000,\
 	.max_uV = (max) * 1000,\
 	.step_uV = (step) * 1000,\
-	.volt_shift = (sbits),\
 	.activate_bit = (abits),\
 }
 
