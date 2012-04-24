@@ -60,6 +60,7 @@ struct hdmi_context {
 	bool				hpd;
 	bool				powered;
 	bool				is_v13;
+	bool				dvi_mode;
 	struct mutex			hdmi_mutex;
 
 	struct resource			*regs_res;
@@ -1211,10 +1212,12 @@ static int hdmi_get_edid(void *ctx, struct drm_connector *connector,
 
 	raw_edid = drm_get_edid(connector, hdata->ddc_port->adapter);
 	if (raw_edid) {
+		hdata->dvi_mode = !drm_detect_hdmi_monitor(raw_edid);
 		memcpy(edid, raw_edid, min((1 + raw_edid->extensions)
 					* EDID_LENGTH, len));
-		DRM_DEBUG_KMS("width[%d] x height[%d]\n",
-				raw_edid->width_cm, raw_edid->height_cm);
+		DRM_DEBUG_KMS("%s : width[%d] x height[%d]\n",
+			(hdata->dvi_mode ? "dvi monitor" : "hdmi monitor"),
+			raw_edid->width_cm, raw_edid->height_cm);
 	} else {
 		return -ENODEV;
 	}
@@ -1437,10 +1440,7 @@ static void hdmi_audio_init(struct hdmi_context *hdata)
 
 static void hdmi_audio_control(struct hdmi_context *hdata, bool onoff)
 {
-	u32 mod;
-
-	mod = hdmi_reg_read(hdata, HDMI_MODE_SEL);
-	if (mod & HDMI_DVI_MODE_EN)
+	if (hdata->dvi_mode)
 		return;
 
 	hdmi_reg_writeb(hdata, HDMI_AUI_CON, onoff ? 2 : 0);
@@ -1478,6 +1478,14 @@ static void hdmi_conf_init(struct hdmi_context *hdata)
 		HDMI_MODE_HDMI_EN, HDMI_MODE_MASK);
 	/* disable bluescreen */
 	hdmi_reg_writemask(hdata, HDMI_CON_0, 0, HDMI_BLUE_SCR_EN);
+
+	if (hdata->dvi_mode) {
+		/* choose DVI mode */
+		hdmi_reg_writemask(hdata, HDMI_MODE_SEL,
+				HDMI_MODE_DVI_EN, HDMI_MODE_MASK);
+		hdmi_reg_writeb(hdata, HDMI_CON_2,
+				HDMI_VID_PREAMBLE_DIS | HDMI_GUARD_BAND_DIS);
+	}
 
 	if (hdata->is_v13) {
 		/* choose bluescreen (fecal) color */
