@@ -1018,7 +1018,7 @@ static struct clk ddr_pll_clk = {
 	.name		= "ddr_pll",
 	.parent		= &xin24m,
 	.recalc		= plls_clk_recalc,
-	//.set_rate	= ddr_pll_clk_set_rate,
+	.set_rate	= ddr_pll_clk_set_rate,
 	.pll=&dpll_data,
 };
 
