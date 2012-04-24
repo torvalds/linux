@@ -207,7 +207,7 @@ struct omap_smartreflex_dev_attr {
 	const char      *sensor_voltdm_name;
 };
 
-#ifdef CONFIG_OMAP_SMARTREFLEX
+#ifdef CONFIG_POWER_AVS_OMAP
 /*
  * The smart reflex driver supports CLASS1 CLASS2 and CLASS3 SR.
  * The smartreflex class driver should pass the class type.
