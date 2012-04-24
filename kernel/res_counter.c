@@ -35,7 +35,7 @@ int res_counter_charge_locked(struct res_counter *counter, unsigned long val,
 	}
 
 	counter->usage += val;
-	if (!force && counter->usage > counter->max_usage)
+	if (counter->usage > counter->max_usage)
 		counter->max_usage = counter->usage;
 	return ret;
 }
