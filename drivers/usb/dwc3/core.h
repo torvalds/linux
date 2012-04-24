@@ -575,6 +575,10 @@ struct dwc3_request {
  * @setup_packet_pending: true when there's a Setup Packet in FIFO. Workaround
  * @needs_fifo_resize: not all users might want fifo resizing, flag it
  * @resize_fifos: tells us it's ok to reconfigure our TxFIFO sizes.
+ * @u2sel: parameter from Set SEL request.
+ * @u2pel: parameter from Set SEL request.
+ * @u1sel: parameter from Set SEL request.
+ * @u1pel: parameter from Set SEL request.
  * @ep0_next_event: hold the next expected event
  * @ep0state: state of endpoint zero
  * @link_state: link state
@@ -641,7 +645,13 @@ struct dwc3 {
 	enum dwc3_link_state	link_state;
 	enum dwc3_device_state	dev_state;
 
+	u16			u2sel;
+	u16			u2pel;
+	u8			u1sel;
+	u8			u1pel;
+
 	u8			speed;
+
 	void			*mem;
 
 	struct dwc3_hwparams	hwparams;
