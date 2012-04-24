@@ -477,14 +477,6 @@ struct se_queue_obj {
 	wait_queue_head_t	thread_wq;
 };
 
-struct se_task {
-	struct se_cmd		*task_se_cmd;
-	struct scatterlist	*task_sg;
-	u32			task_sg_nents;
-	u8			task_scsi_status;
-	enum dma_data_direction	task_data_direction;
-};
-
 struct se_tmr_req {
 	/* Task Management function to be performed */
 	u8			function;
@@ -592,7 +584,8 @@ struct se_cmd {
 	/* old task stop completion, consider merging with some of the above */
 	struct completion	task_stop_comp;
 
-	struct se_task		*t_task;
+	/* backend private data */
+	void			*priv;
 };
 
 struct se_ua {

@@ -266,12 +266,6 @@ static void rd_free_device(void *p)
 	kfree(rd_dev);
 }
 
-static struct se_task *
-rd_alloc_task(unsigned char *cdb)
-{
-	return kzalloc(sizeof(struct se_task), GFP_KERNEL);
-}
-
 static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 {
 	u32 i;
@@ -290,9 +284,10 @@ static struct rd_dev_sg_table *rd_get_sg_table(struct rd_dev *rd_dev, u32 page)
 	return NULL;
 }
 
-static int rd_do_task(struct se_task *task)
+static int rd_execute_cmd(struct se_cmd *cmd, struct scatterlist *sgl,
+		u32 sgl_nents, enum dma_data_direction data_direction)
 {
-	struct se_device *se_dev = task->task_se_cmd->se_dev;
+	struct se_device *se_dev = cmd->se_dev;
 	struct rd_dev *dev = se_dev->dev_ptr;
 	struct rd_dev_sg_table *table;
 	struct scatterlist *rd_sg;
@@ -303,11 +298,10 @@ static int rd_do_task(struct se_task *task)
 	u32 src_len;
 	u64 tmp;
 
-	tmp = task->task_se_cmd->t_task_lba *
-		se_dev->se_sub_dev->se_dev_attrib.block_size;
+	tmp = cmd->t_task_lba * se_dev->se_sub_dev->se_dev_attrib.block_size;
 	rd_offset = do_div(tmp, PAGE_SIZE);
 	rd_page = tmp;
-	rd_size = task->task_se_cmd->data_length;
+	rd_size = cmd->data_length;
 
 	table = rd_get_sg_table(dev, rd_page);
 	if (!table)
@@ -317,14 +311,12 @@ static int rd_do_task(struct se_task *task)
 
 	pr_debug("RD[%u]: %s LBA: %llu, Size: %u Page: %u, Offset: %u\n",
 			dev->rd_dev_id,
-			task->task_data_direction == DMA_FROM_DEVICE ?
-				"Read" : "Write",
-			task->task_se_cmd->t_task_lba,
-			rd_size, rd_page, rd_offset);
+			data_direction == DMA_FROM_DEVICE ? "Read" : "Write",
+			cmd->t_task_lba, rd_size, rd_page, rd_offset);
 
 	src_len = PAGE_SIZE - rd_offset;
-	sg_miter_start(&m, task->task_sg, task->task_sg_nents,
-			task->task_data_direction == DMA_FROM_DEVICE ?
+	sg_miter_start(&m, sgl, sgl_nents,
+			data_direction == DMA_FROM_DEVICE ?
 				SG_MITER_TO_SG : SG_MITER_FROM_SG);
 	while (rd_size) {
 		u32 len;
@@ -336,7 +328,7 @@ static int rd_do_task(struct se_task *task)
 
 		rd_addr = sg_virt(rd_sg) + rd_offset;
 
-		if (task->task_data_direction == DMA_FROM_DEVICE)
+		if (data_direction == DMA_FROM_DEVICE)
 			memcpy(m.addr, rd_addr, len);
 		else
 			memcpy(rd_addr, m.addr, len);
@@ -371,14 +363,8 @@ static int rd_do_task(struct se_task *task)
 	}
 	sg_miter_stop(&m);
 
-	task->task_scsi_status = GOOD;
-	transport_complete_task(task, 1);
+	target_complete_cmd(cmd, SAM_STAT_GOOD);
 	return 0;
-}
-
-static void rd_free_task(struct se_task *task)
-{
-	kfree(task);
 }
 
 enum {
@@ -482,9 +468,7 @@ static struct se_subsystem_api rd_mcp_template = {
 	.allocate_virtdevice	= rd_allocate_virtdevice,
 	.create_virtdevice	= rd_create_virtdevice,
 	.free_device		= rd_free_device,
-	.alloc_task		= rd_alloc_task,
-	.do_task		= rd_do_task,
-	.free_task		= rd_free_task,
+	.execute_cmd		= rd_execute_cmd,
 	.check_configfs_dev_params = rd_check_configfs_dev_params,
 	.set_configfs_dev_params = rd_set_configfs_dev_params,
 	.show_configfs_dev_params = rd_show_configfs_dev_params,

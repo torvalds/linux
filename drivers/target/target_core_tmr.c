@@ -374,13 +374,11 @@ static void core_tmr_drain_cmd_list(
 	struct se_queue_obj *qobj = &dev->dev_queue_obj;
 	struct se_cmd *cmd, *tcmd;
 	unsigned long flags;
+
 	/*
-	 * Release all commands remaining in the struct se_device cmd queue.
+	 * Release all commands remaining in the per-device command queue.
 	 *
-	 * This follows the same logic as above for the struct se_device
-	 * struct se_task state list, where commands are returned with
-	 * TASK_ABORTED status, if there is an outstanding $FABRIC_MOD
-	 * reference, otherwise the struct se_cmd is released.
+	 * This follows the same logic as above for the state list.
 	 */
 	spin_lock_irqsave(&qobj->cmd_queue_lock, flags);
 	list_for_each_entry_safe(cmd, tcmd, &qobj->qobj_list, se_queue_node) {

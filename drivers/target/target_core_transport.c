@@ -72,7 +72,6 @@ static int __transport_execute_tasks(struct se_device *dev, struct se_cmd *);
 static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
-static void transport_free_dev_tasks(struct se_cmd *cmd);
 static int transport_generic_get_mem(struct se_cmd *cmd);
 static void transport_put_cmd(struct se_cmd *cmd);
 static void transport_remove_cmd_from_queue(struct se_cmd *cmd);
@@ -662,28 +661,6 @@ static void transport_remove_cmd_from_queue(struct se_cmd *cmd)
 	spin_unlock_irqrestore(&qobj->cmd_queue_lock, flags);
 }
 
-/*
- * Completion function used by TCM subsystem plugins (such as FILEIO)
- * for queueing up response from struct se_subsystem_api->do_task()
- */
-void transport_complete_sync_cache(struct se_cmd *cmd, int good)
-{
-	struct se_task *task = cmd->t_task;
-
-	if (good) {
-		cmd->scsi_status = SAM_STAT_GOOD;
-		task->task_scsi_status = GOOD;
-	} else {
-		task->task_scsi_status = SAM_STAT_CHECK_CONDITION;
-		task->task_se_cmd->scsi_sense_reason =
-				TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	}
-
-	transport_complete_task(task, good);
-}
-EXPORT_SYMBOL(transport_complete_sync_cache);
-
 static void target_complete_failure_work(struct work_struct *work)
 {
 	struct se_cmd *cmd = container_of(work, struct se_cmd, work);
@@ -691,35 +668,28 @@ static void target_complete_failure_work(struct work_struct *work)
 	transport_generic_request_failure(cmd);
 }
 
-/*	transport_complete_task():
- *
- *	Called from interrupt and non interrupt context depending
- *	on the transport plugin.
- */
-void transport_complete_task(struct se_task *task, int success)
+void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	struct se_device *dev = cmd->se_dev;
+	int success = scsi_status == GOOD;
 	unsigned long flags;
+
+	cmd->scsi_status = scsi_status;
+
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	cmd->transport_state &= ~CMD_T_BUSY;
 
-	/*
-	 * See if any sense data exists, if so set the TASK_SENSE flag.
-	 * Also check for any other post completion work that needs to be
-	 * done by the plugins.
-	 */
 	if (dev && dev->transport->transport_complete) {
-		if (dev->transport->transport_complete(task) != 0) {
+		if (dev->transport->transport_complete(cmd,
+				cmd->t_data_sg) != 0) {
 			cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
 			success = 1;
 		}
 	}
 
 	/*
-	 * See if we are waiting for outstanding struct se_task
-	 * to complete for an exception condition
+	 * See if we are waiting to complete for an exception condition.
 	 */
 	if (cmd->transport_state & CMD_T_REQUEST_STOP) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -730,15 +700,11 @@ void transport_complete_task(struct se_task *task, int success)
 	if (!success)
 		cmd->transport_state |= CMD_T_FAILED;
 
-	/*
-	 * Decrement the outstanding t_task_cdbs_left count.  The last
-	 * struct se_task from struct se_cmd will complete itself into the
-	 * device queue depending upon int success.
-	 */
 	if (!atomic_dec_and_test(&cmd->t_task_cdbs_left)) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 		return;
 	}
+
 	/*
 	 * Check for case where an explict ABORT_TASK has been received
 	 * and transport_wait_for_tasks() will be waiting for completion..
@@ -760,15 +726,6 @@ void transport_complete_task(struct se_task *task, int success)
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	queue_work(target_completion_wq, &cmd->work);
-}
-EXPORT_SYMBOL(transport_complete_task);
-
-void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
-{
-	struct se_task *task = cmd->t_task;
-
-	task->task_scsi_status = scsi_status;
-	transport_complete_task(task, scsi_status == GOOD);
 }
 EXPORT_SYMBOL(target_complete_cmd);
 
@@ -2076,8 +2033,10 @@ check_depth:
 
 	if (cmd->execute_cmd)
 		error = cmd->execute_cmd(cmd);
-	else
-		error = dev->transport->do_task(cmd->t_task);
+	else {
+		error = dev->transport->execute_cmd(cmd, cmd->t_data_sg,
+				cmd->t_data_nents, cmd->data_direction);
+	}
 
 	if (error != 0) {
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
@@ -2312,7 +2271,6 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 {
 	unsigned char *buffer = cmd->sense_buffer, *sense_buffer = NULL;
 	struct se_device *dev = cmd->se_dev;
-	struct se_task *task = NULL;
 	unsigned long flags;
 	u32 offset = 0;
 
@@ -2327,9 +2285,6 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 		return 0;
 	}
 
-	if (!cmd->t_task)
-		goto out;
-
 	if (!(cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE))
 		goto out;
 
@@ -2338,19 +2293,19 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 		goto out;
 	}
 
-	sense_buffer = dev->transport->get_sense_buffer(task);
+	sense_buffer = dev->transport->get_sense_buffer(cmd);
 	if (!sense_buffer) {
-		pr_err("ITT[0x%08x]_TASK[%p]: Unable to locate"
+		pr_err("ITT 0x%08x cmd %p: Unable to locate"
 			" sense buffer for task with sense\n",
-			cmd->se_tfo->get_task_tag(cmd), task);
+			cmd->se_tfo->get_task_tag(cmd), cmd);
 		goto out;
 	}
+
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 	offset = cmd->se_tfo->set_fabric_sense_len(cmd, TRANSPORT_SENSE_BUFFER);
 
 	memcpy(&buffer[offset], sense_buffer, TRANSPORT_SENSE_BUFFER);
-	cmd->scsi_status = task->task_scsi_status;
 
 	/* Automatically padded */
 	cmd->scsi_sense_length = TRANSPORT_SENSE_BUFFER + offset;
@@ -3199,10 +3154,6 @@ static void target_complete_ok_work(struct work_struct *work)
 		if (transport_get_sense_data(cmd) < 0)
 			reason = TCM_NON_EXISTENT_LUN;
 
-		/*
-		 * Only set when an struct se_task->task_scsi_status returned
-		 * a non GOOD status.
-		 */
 		if (cmd->scsi_status) {
 			ret = transport_send_check_condition_and_sense(
 					cmd, reason, 1);
@@ -3277,15 +3228,6 @@ queue_full:
 	transport_handle_queue_full(cmd, cmd->se_dev);
 }
 
-static void transport_free_dev_tasks(struct se_cmd *cmd)
-{
-	struct se_task *task;
-
-	task = cmd->t_task;
-	if (task && !(cmd->transport_state & CMD_T_BUSY))
-		cmd->se_dev->transport->free_task(task);
-}
-
 static inline void transport_free_sgl(struct scatterlist *sgl, int nents)
 {
 	struct scatterlist *sg;
@@ -3346,7 +3288,6 @@ static void transport_release_cmd(struct se_cmd *cmd)
 static void transport_put_cmd(struct se_cmd *cmd)
 {
 	unsigned long flags;
-	int free_tasks = 0;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if (atomic_read(&cmd->t_fe_count)) {
@@ -3362,12 +3303,8 @@ static void transport_put_cmd(struct se_cmd *cmd)
 	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
 		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
 		target_remove_from_state_list(cmd);
-		free_tasks = 1;
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	if (free_tasks != 0)
-		transport_free_dev_tasks(cmd);
 
 	transport_free_pages(cmd);
 	transport_release_cmd(cmd);
@@ -3526,7 +3463,6 @@ out:
 int transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_task *task;
 	int ret = 0;
 
 	/*
@@ -3572,19 +3508,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 			attr->max_sectors);
 	}
 
-	task = dev->transport->alloc_task(cmd->t_task_cdb);
-	if (!task) {
-		pr_err("Unable to allocate struct se_task\n");
-		goto out_fail;
-	}
-
-	task->task_se_cmd = cmd;
-	task->task_data_direction = cmd->data_direction;
-	task->task_sg = cmd->t_data_sg;
-	task->task_sg_nents = cmd->t_data_nents;
-
-	cmd->t_task = task;
-
 	atomic_inc(&cmd->t_fe_count);
 	atomic_inc(&cmd->t_se_count);
 
@@ -3592,19 +3515,17 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	atomic_set(&cmd->t_task_cdbs_ex_left, 1);
 
 	/*
-	 * For WRITEs, let the fabric know its buffer is ready..
-	 * This WRITE struct se_cmd (and all of its associated struct se_task's)
-	 * will be added to the struct se_device execution queue after its WRITE
-	 * data has arrived. (ie: It gets handled by the transport processing
-	 * thread a second time)
+	 * For WRITEs, let the fabric know its buffer is ready.
+	 *
+	 * The command will be added to the execution queue after its write
+	 * data has arrived.
 	 */
 	if (cmd->data_direction == DMA_TO_DEVICE) {
 		target_add_to_state_list(cmd);
 		return transport_generic_write_pending(cmd);
 	}
 	/*
-	 * Everything else but a WRITE, add the struct se_cmd's struct se_task's
-	 * to the execution queue.
+	 * Everything else but a WRITE, add the command to the execution queue.
 	 */
 	transport_execute_tasks(cmd);
 	return 0;
@@ -3690,8 +3611,6 @@ void transport_generic_free_cmd(struct se_cmd *cmd, int wait_for_tasks)
 
 		if (cmd->se_lun)
 			transport_lun_remove_cmd(cmd);
-
-		transport_free_dev_tasks(cmd);
 
 		transport_put_cmd(cmd);
 	}
@@ -3832,7 +3751,6 @@ EXPORT_SYMBOL(target_wait_for_sess_cmds);
  */
 static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 {
-	struct se_task *task = cmd->t_task;
 	unsigned long flags;
 	int ret = 0;
 
@@ -3944,7 +3862,6 @@ static void __transport_clear_lun_from_sessions(struct se_lun *lun)
 		target_remove_from_state_list(cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, cmd_flags);
 
-		transport_free_dev_tasks(cmd);
 		/*
 		 * The Storage engine stopped this struct se_cmd before it was
 		 * send to the fabric frontend for delivery back to the
