@@ -1294,6 +1294,7 @@ int __must_check i915_gem_object_set_domain(struct drm_i915_gem_object *obj,
 					    uint32_t read_domains,
 					    uint32_t write_domain);
 int __must_check i915_gem_object_finish_gpu(struct drm_i915_gem_object *obj);
+int __must_check i915_gem_init(struct drm_device *dev);
 int __must_check i915_gem_init_hw(struct drm_device *dev);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_init_ppgtt(struct drm_device *dev);

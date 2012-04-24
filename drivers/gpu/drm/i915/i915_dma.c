@@ -1062,70 +1062,6 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
-static bool
-intel_enable_ppgtt(struct drm_device *dev)
-{
-	if (i915_enable_ppgtt >= 0)
-		return i915_enable_ppgtt;
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Disable ppgtt on SNB if VT-d is on. */
-	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
-		return false;
-#endif
-
-	return true;
-}
-
-static int i915_load_gem_init(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long gtt_size, mappable_size;
-	int ret;
-
-	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
-	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-
-	mutex_lock(&dev->struct_mutex);
-	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
-		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
-		 * aperture accordingly when using aliasing ppgtt. */
-		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
-
-		i915_gem_init_global_gtt(dev, 0, mappable_size, gtt_size);
-
-		ret = i915_gem_init_aliasing_ppgtt(dev);
-		if (ret) {
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
-	} else {
-		/* Let GEM Manage all of the aperture.
-		 *
-		 * However, leave one page at the end still bound to the scratch
-		 * page.  There are a number of places where the hardware
-		 * apparently prefetches past the end of the object, and we've
-		 * seen multiple hangs with the GPU head pointer stuck in a
-		 * batchbuffer bound at the last page of the aperture.  One page
-		 * should be enough to keep any prefetching inside of the
-		 * aperture.
-		 */
-		i915_gem_init_global_gtt(dev, 0, mappable_size,
-					 gtt_size);
-	}
-
-	ret = i915_gem_init_hw(dev);
-	mutex_unlock(&dev->struct_mutex);
-	if (ret) {
-		i915_gem_cleanup_aliasing_ppgtt(dev);
-		return ret;
-	}
-
-	/* Allow hardware batchbuffers unless told otherwise. */
-	dev_priv->allow_batchbuffer = 1;
-	return 0;
-}
-
 static int i915_load_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1168,7 +1104,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 
 	intel_modeset_init(dev);
 
-	ret = i915_load_gem_init(dev);
+	ret = i915_gem_init(dev);
 	if (ret)
 		goto cleanup_gem_stolen;
 
