@@ -25,7 +25,7 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/stdint.h>
+#include <linux/types.h>
 
 /* ---- Public Constants and Types --------------------------------------- */
 

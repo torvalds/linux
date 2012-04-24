@@ -27,8 +27,8 @@
 #define _INTCHW_REG_H
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/stdint.h>
-#include <csp/reg.h>
+#include <linux/types.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/mm_io.h>
 
 /* ---- Public Constants and Types --------------------------------------- */

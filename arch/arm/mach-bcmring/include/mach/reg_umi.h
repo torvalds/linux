@@ -30,7 +30,7 @@
 #define __ASM_ARCH_REG_UMI_H
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/reg.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/mm_io.h>
 
 /* ---- Constants and Types ---------------------------------------------- */

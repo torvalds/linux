@@ -23,7 +23,7 @@
 #ifndef _TMRHW_H
 #define _TMRHW_H
 
-#include <csp/stdint.h>
+#include <linux/types.h>
 
 typedef uint32_t tmrHw_ID_t;	/* Timer ID */
 typedef uint32_t tmrHw_COUNT_t;	/* Timer count */

@@ -13,11 +13,11 @@
 *****************************************************************************/
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/stdint.h>
+#include <linux/types.h>
 #include <mach/csp/chipcHw_def.h>
 #include <mach/csp/chipcHw_inline.h>
-#include <csp/intcHw.h>
-#include <csp/cache.h>
+#include <mach/csp/intcHw_reg.h>
+#include <asm/cacheflush.h>
 
 /* ---- Private Constants and Types --------------------------------------- */
 /* ---- Private Variables ------------------------------------------------- */
@@ -60,7 +60,7 @@ void chipcHw_reset(uint32_t mask)
 			i++;
 		} while (((uint32_t *) MM_IO_BASE_ARAM)[i - 1] != 0xe1a0f00f);	/* 0xe1a0f00f == asm ("mov r15, r15"); */
 
-		CSP_CACHE_FLUSH_ALL;
+		flush_cache_all();
 
 		/* run the function from ARAM */
 		runFunc();

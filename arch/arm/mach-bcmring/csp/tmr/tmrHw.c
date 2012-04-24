@@ -26,10 +26,10 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/errno.h>
-#include <csp/stdint.h>
+#include <linux/errno.h>
+#include <linux/types.h>
 
-#include <csp/tmrHw.h>
+#include <mach/csp/tmrHw.h>
 #include <mach/csp/tmrHw_reg.h>
 
 #define tmrHw_ASSERT(a)                     if (!(a)) *(char *)0 = 0

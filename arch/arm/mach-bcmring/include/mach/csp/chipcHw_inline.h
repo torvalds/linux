@@ -17,8 +17,8 @@
 
 /* ---- Include Files ----------------------------------------------------- */
 
-#include <csp/errno.h>
-#include <csp/reg.h>
+#include <linux/errno.h>
+#include <mach/csp/reg.h>
 #include <mach/csp/chipcHw_reg.h>
 #include <mach/csp/chipcHw_def.h>
 

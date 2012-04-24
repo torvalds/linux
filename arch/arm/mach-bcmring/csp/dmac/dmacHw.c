@@ -25,11 +25,11 @@
 /****************************************************************************/
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/stdint.h>
-#include <csp/string.h>
+#include <linux/types.h>
+#include <linux/string.h>
 #include <stddef.h>
 
-#include <csp/dmacHw.h>
+#include <mach/csp/dmacHw.h>
 #include <mach/csp/dmacHw_reg.h>
 #include <mach/csp/dmacHw_priv.h>
 #include <mach/csp/chipcHw_inline.h>

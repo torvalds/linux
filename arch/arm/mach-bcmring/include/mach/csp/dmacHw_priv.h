@@ -24,7 +24,7 @@
 #ifndef _DMACHW_PRIV_H
 #define _DMACHW_PRIV_H
 
-#include <csp/stdint.h>
+#include <linux/types.h>
 
 /* Data type for DMA Link List Item */
 typedef struct {

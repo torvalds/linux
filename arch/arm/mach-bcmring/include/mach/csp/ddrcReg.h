@@ -30,8 +30,8 @@ extern "C" {
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/reg.h>
-#include <csp/stdint.h>
+#include <mach/csp/reg.h>
+#include <linux/types.h>
 
 #include <mach/csp/mm_io.h>
 

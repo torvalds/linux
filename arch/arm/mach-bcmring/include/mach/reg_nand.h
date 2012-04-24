@@ -30,7 +30,7 @@
 #define __ASM_ARCH_REG_NAND_H
 
 /* ---- Include Files ---------------------------------------------------- */
-#include <csp/reg.h>
+#include <mach/csp/reg.h>
 #include <mach/reg_umi.h>
 
 /* ---- Constants and Types ---------------------------------------------- */

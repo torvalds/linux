@@ -26,15 +26,15 @@
 
 /* ---- Include Files ---------------------------------------------------- */
 
-#include <csp/errno.h>
-#include <csp/stdint.h>
-#include <csp/module.h>
+#include <linux/errno.h>
+#include <linux/types.h>
+#include <linux/export.h>
 
 #include <mach/csp/chipcHw_def.h>
 #include <mach/csp/chipcHw_inline.h>
 
-#include <csp/reg.h>
-#include <csp/delay.h>
+#include <mach/csp/reg.h>
+#include <linux/delay.h>
 /* ---- Private Constants and Types --------------------------------------- */
 
 /*

@@ -24,7 +24,7 @@
 #ifndef _DMACHW_REG_H
 #define _DMACHW_REG_H
 
-#include <csp/stdint.h>
+#include <linux/types.h>
 #include <mach/csp/mm_io.h>
 
 /* Data type for 64 bit little endian register */
