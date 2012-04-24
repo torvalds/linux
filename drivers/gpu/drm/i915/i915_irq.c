@@ -2683,23 +2683,17 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 	struct drm_i915_master_private *master_priv;
 	u32 iir, new_iir;
 	u32 pipe_stats[I915_MAX_PIPES];
-	u32 vblank_status;
-	int vblank = 0;
 	unsigned long irqflags;
 	int irq_received;
 	int ret = IRQ_NONE, pipe;
-	bool blc_event = false;
 
 	atomic_inc(&dev_priv->irq_received);
 
 	iir = I915_READ(IIR);
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS;
-	else
-		vblank_status = PIPE_VBLANK_INTERRUPT_STATUS;
-
 	for (;;) {
+		bool blc_event = false;
+
 		irq_received = iir != 0;
 
 		/* Can't rely on pipestat interrupt bit in iir as it might
@@ -2751,13 +2745,6 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 		I915_WRITE(IIR, iir);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
 
-		if (dev->primary->master) {
-			master_priv = dev->primary->master->driver_priv;
-			if (master_priv->sarea_priv)
-				master_priv->sarea_priv->last_dispatch =
-					READ_BREADCRUMB(dev_priv);
-		}
-
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
 		if (iir & I915_BSD_USER_INTERRUPT)
@@ -2770,9 +2757,8 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 			intel_prepare_page_flip(dev, 1);
 
 		for_each_pipe(pipe) {
-			if (pipe_stats[pipe] & vblank_status &&
+			if (pipe_stats[pipe] & PIPE_START_VBLANK_INTERRUPT_STATUS &&
 			    drm_handle_vblank(dev, pipe)) {
-				vblank++;
 				i915_pageflip_stall_check(dev, pipe);
 				intel_finish_page_flip(dev, pipe);
 			}
@@ -2801,6 +2787,13 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 		 * stray interrupts.
 		 */
 		iir = new_iir;
+	}
+
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
 	}
 
 	return ret;
