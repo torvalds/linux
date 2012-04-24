@@ -1818,12 +1818,14 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 			     u32 home_dwell_time, u32 force_scan_interval,
 			     s8 num_chan, u16 *ch_list, u32 no_cck, u32 *rates)
 {
+	struct ieee80211_supported_band *sband;
 	struct sk_buff *skb;
 	struct wmi_begin_scan_cmd *sc;
-	s8 size;
+	s8 size, *supp_rates;
 	int i, band, ret;
 	struct ath6kl *ar = wmi->parent_dev;
 	int num_rates;
+	u32 ratemask;
 
 	size = sizeof(struct wmi_begin_scan_cmd);
 
@@ -1850,10 +1852,13 @@ int ath6kl_wmi_beginscan_cmd(struct wmi *wmi, u8 if_idx,
 	sc->num_ch = num_chan;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-		struct ieee80211_supported_band *sband =
-		    ar->wiphy->bands[band];
-		u32 ratemask = rates[band];
-		u8 *supp_rates = sc->supp_rates[band].rates;
+		sband = ar->wiphy->bands[band];
+
+		if (!sband)
+			continue;
+
+		ratemask = rates[band];
+		supp_rates = sc->supp_rates[band].rates;
 		num_rates = 0;
 
 		for (i = 0; i < sband->n_bitrates; i++) {
