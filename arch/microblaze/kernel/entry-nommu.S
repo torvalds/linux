@@ -135,7 +135,6 @@ ret_from_intr:
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqid	r11, no_intr_resched
 	addk	r5, r1, r0
-	addk	r7, r0, r0
 	bralid	r15, do_notify_resume
 	addk	r6, r0, r0
 
@@ -485,9 +484,8 @@ work_pending:
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqi	r11, no_work_pending
 	addk	r5, r1, r0
-	addik	r7, r0, 1
 	bralid	r15, do_notify_resume
-	addk	r6, r0, r0
+	addik	r6, r0, 1
 	bri	no_work_pending
 
 ENTRY(ret_to_user)

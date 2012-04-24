@@ -339,13 +339,14 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
+static void do_signal(struct pt_regs *regs, int in_syscall)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
+	sigset_t *oldset;
 #ifdef DEBUG_SIG
-	printk(KERN_INFO "do signal: %p %p %d\n", regs, oldset, in_syscall);
+	printk(KERN_INFO "do signal: %p %d\n", regs, in_syscall);
 	printk(KERN_INFO "do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
 			regs->r12, current_thread_info()->flags);
 #endif
@@ -370,7 +371,7 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 			current_thread_info()->status &=
 			    ~TS_RESTORE_SIGMASK;
 		}
-		return 1;
+		return;
 	}
 
 	if (in_syscall)
@@ -384,12 +385,9 @@ static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 		current_thread_info()->status &= ~TS_RESTORE_SIGMASK;
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
-
-	/* Did we come from a system call? */
-	return 0;
 }
 
-void do_notify_resume(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
+void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
 	/*
 	 * We want the common case to go fast, which
@@ -401,7 +399,7 @@ void do_notify_resume(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 		return;
 
 	if (test_thread_flag(TIF_SIGPENDING))
-		do_signal(regs, oldset, in_syscall);
+		do_signal(regs, in_syscall);
 
 	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
 		tracehook_notify_resume(regs);
