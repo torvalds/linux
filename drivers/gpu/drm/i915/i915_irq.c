@@ -37,17 +37,6 @@
 #include "i915_trace.h"
 #include "intel_drv.h"
 
-#define MAX_NOPID ((u32)~0)
-
-#define I915_PIPE_VBLANK_STATUS	(PIPE_START_VBLANK_INTERRUPT_STATUS |\
-				 PIPE_VBLANK_INTERRUPT_STATUS)
-
-#define I915_PIPE_VBLANK_ENABLE	(PIPE_START_VBLANK_INTERRUPT_ENABLE |\
-				 PIPE_VBLANK_INTERRUPT_ENABLE)
-
-#define DRM_I915_VBLANK_PIPE_ALL	(DRM_I915_VBLANK_PIPE_A | \
-					 DRM_I915_VBLANK_PIPE_B)
-
 /* For display hotplug interrupt */
 static void
 ironlake_enable_display_irq(drm_i915_private_t *dev_priv, u32 mask)
