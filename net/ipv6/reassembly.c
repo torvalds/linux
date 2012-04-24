@@ -433,7 +433,7 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *prev,
 		skb_morph(head, fq->q.fragments);
 		head->next = fq->q.fragments->next;
 
-		kfree_skb(fq->q.fragments);
+		consume_skb(fq->q.fragments);
 		fq->q.fragments = head;
 	}
 

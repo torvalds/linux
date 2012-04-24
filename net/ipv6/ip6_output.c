@@ -210,7 +210,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi6 *fl6,
 				kfree_skb(skb);
 				return -ENOBUFS;
 			}
-			kfree_skb(skb);
+			consume_skb(skb);
 			skb = skb2;
 			skb_set_owner_w(skb, sk);
 		}
@@ -889,7 +889,7 @@ slow_path:
 	}
 	IP6_INC_STATS(net, ip6_dst_idev(skb_dst(skb)),
 		      IPSTATS_MIB_FRAGOKS);
-	kfree_skb(skb);
+	consume_skb(skb);
 	return err;
 
 fail:
