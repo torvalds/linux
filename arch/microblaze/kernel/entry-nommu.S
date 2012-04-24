@@ -132,11 +132,11 @@ ret_from_intr:
 	beqi	r11, 1f
 	bralid	r15, schedule
 	nop
-1:	andi	r11, r19, _TIF_SIGPENDING
+1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqid	r11, no_intr_resched
 	addk	r5, r1, r0
 	addk	r7, r0, r0
-	bralid	r15, do_signal
+	bralid	r15, do_notify_resume
 	addk	r6, r0, r0
 
 no_intr_resched:
@@ -292,8 +292,8 @@ ENTRY(_user_exception)
 
 /*
  * Debug traps are like a system call, but entered via brki r14, 0x60
- * All we need to do is send the SIGTRAP signal to current, ptrace and do_signal
- * will handle the rest
+ * All we need to do is send the SIGTRAP signal to current, ptrace and
+ * do_notify_resume will handle the rest
  */
 ENTRY(_debug_exception)
 	swi	r1, r0, PER_CPU(ENTRY_SP)	/* save the current sp */
@@ -482,11 +482,11 @@ work_pending:
 	beqi	r11, 1f
 	bralid	r15, schedule
 	nop
-1:	andi	r11, r19, _TIF_SIGPENDING
+1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqi	r11, no_work_pending
 	addk	r5, r1, r0
 	addik	r7, r0, 1
-	bralid	r15, do_signal
+	bralid	r15, do_notify_resume
 	addk	r6, r0, r0
 	bri	no_work_pending
 

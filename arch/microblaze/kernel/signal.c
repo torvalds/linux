@@ -31,6 +31,7 @@
 #include <linux/personality.h>
 #include <linux/percpu.h>
 #include <linux/linkage.h>
+#include <linux/tracehook.h>
 #include <asm/entry.h>
 #include <asm/ucontext.h>
 #include <linux/uaccess.h>
@@ -41,8 +42,6 @@
 #include <asm/syscalls.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_sycall);
 
 asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
@@ -340,7 +339,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
+static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 {
 	siginfo_t info;
 	int signr;
@@ -350,14 +349,6 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 	printk(KERN_INFO "do signal2: %lx %lx %ld [%lx]\n", regs->pc, regs->r1,
 			regs->r12, current_thread_info()->flags);
 #endif
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (kernel_mode(regs))
-		return 1;
 
 	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
 		oldset = &current->saved_sigmask;
@@ -396,4 +387,25 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
 
 	/* Did we come from a system call? */
 	return 0;
+}
+
+void do_notify_resume(struct pt_regs *regs, sigset_t *oldset, int in_syscall)
+{
+	/*
+	 * We want the common case to go fast, which
+	 * is why we may in certain cases get here from
+	 * kernel mode. Just return without doing anything
+	 * if so.
+	 */
+	if (kernel_mode(regs))
+		return;
+
+	if (test_thread_flag(TIF_SIGPENDING))
+		do_signal(regs, oldset, in_syscall);
+
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
 }
