@@ -60,8 +60,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_shared_h__
-#define __iwl_shared_h__
+#ifndef __iwl_modparams_h__
+#define __iwl_modparams_h__
 
 #include <linux/types.h>
 #include <linux/spinlock.h>
@@ -123,4 +123,4 @@ struct iwl_mod_params {
 	bool disable_5ghz;
 };
 
-#endif /* #__iwl_shared_h__ */
+#endif /* #__iwl_modparams_h__ */
