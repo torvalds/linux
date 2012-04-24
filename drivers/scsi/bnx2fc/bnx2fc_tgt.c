@@ -185,6 +185,16 @@ void bnx2fc_flush_active_ios(struct bnx2fc_rport *tgt)
 		BUG_ON(rc);
 	}
 
+	list_for_each_safe(list, tmp, &tgt->active_tm_queue) {
+		i++;
+		io_req = (struct bnx2fc_cmd *)list;
+		list_del_init(&io_req->link);
+		io_req->on_tmf_queue = 0;
+		BNX2FC_IO_DBG(io_req, "tm_queue cleanup\n");
+		if (io_req->wait_for_comp)
+			complete(&io_req->tm_done);
+	}
+
 	list_for_each_safe(list, tmp, &tgt->els_queue) {
 		i++;
 		io_req = (struct bnx2fc_cmd *)list;

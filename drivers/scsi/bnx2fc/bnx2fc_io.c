@@ -810,8 +810,22 @@ retry_tmf:
 	spin_lock_bh(&tgt->tgt_lock);
 
 	io_req->wait_for_comp = 0;
-	if (!(test_bit(BNX2FC_FLAG_TM_COMPL, &io_req->req_flags)))
+	if (!(test_bit(BNX2FC_FLAG_TM_COMPL, &io_req->req_flags))) {
 		set_bit(BNX2FC_FLAG_TM_TIMEOUT, &io_req->req_flags);
+		if (io_req->on_tmf_queue) {
+			list_del_init(&io_req->link);
+			io_req->on_tmf_queue = 0;
+		}
+		io_req->wait_for_comp = 1;
+		bnx2fc_initiate_cleanup(io_req);
+		spin_unlock_bh(&tgt->tgt_lock);
+		rc = wait_for_completion_timeout(&io_req->tm_done,
+						 BNX2FC_FW_TIMEOUT);
+		spin_lock_bh(&tgt->tgt_lock);
+		io_req->wait_for_comp = 0;
+		if (!rc)
+			kref_put(&io_req->refcount, bnx2fc_cmd_release);
+	}
 
 	spin_unlock_bh(&tgt->tgt_lock);
 
