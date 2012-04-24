@@ -52,6 +52,7 @@
 
 /* Global constants */
 #define DWC3_ENDPOINTS_NUM	32
+#define DWC3_XHCI_RESOURCES_NUM	2
 
 #define DWC3_EVENT_BUFFERS_SIZE	PAGE_SIZE
 #define DWC3_EVENT_TYPE_MASK	0xfe
@@ -74,6 +75,16 @@
 #define DWC3_GEVNTCOUNT_MASK	0xfffc
 #define DWC3_GSNPSID_MASK	0xffff0000
 #define DWC3_GSNPSREV_MASK	0xffff
+
+/* DWC3 registers memory space boundries */
+#define DWC3_XHCI_REGS_START		0x0
+#define DWC3_XHCI_REGS_END		0x7fff
+#define DWC3_GLOBALS_REGS_START		0xc100
+#define DWC3_GLOBALS_REGS_END		0xc6ff
+#define DWC3_DEVICE_REGS_START		0xc700
+#define DWC3_DEVICE_REGS_END		0xcbff
+#define DWC3_OTG_REGS_START		0xcc00
+#define DWC3_OTG_REGS_END		0xccff
 
 /* Global Registers */
 #define DWC3_GSBUSCFG0		0xc100
@@ -583,7 +594,7 @@ struct dwc3 {
 	struct device		*dev;
 
 	struct platform_device	*xhci;
-	struct resource		*res;
+	struct resource		xhci_resources[DWC3_XHCI_RESOURCES_NUM];
 
 	struct dwc3_event_buffer **ev_buffs;
 	struct dwc3_ep		*eps[DWC3_ENDPOINTS_NUM];
@@ -593,8 +604,6 @@ struct dwc3 {
 
 	void __iomem		*regs;
 	size_t			regs_size;
-
-	int			irq;
 
 	u32			num_event_buffers;
 	u32			u1u2;
