@@ -491,10 +491,10 @@ static const struct attribute_group smsc47m1_group = {
 	.attrs = smsc47m1_attributes,
 };
 
-static int __init smsc47m1_find(unsigned short *addr,
-				struct smsc47m1_sio_data *sio_data)
+static int __init smsc47m1_find(struct smsc47m1_sio_data *sio_data)
 {
 	u8 val;
+	unsigned short addr;
 
 	superio_enter();
 	val = force_id ? force_id : superio_inb(SUPERIO_REG_DEVID);
@@ -546,9 +546,9 @@ static int __init smsc47m1_find(unsigned short *addr,
 	}
 
 	superio_select();
-	*addr = (superio_inb(SUPERIO_REG_BASE) << 8)
+	addr = (superio_inb(SUPERIO_REG_BASE) << 8)
 	      |  superio_inb(SUPERIO_REG_BASE + 1);
-	if (*addr == 0) {
+	if (addr == 0) {
 		pr_info("Device address not set, will not use\n");
 		superio_exit();
 		return -ENODEV;
@@ -565,7 +565,7 @@ static int __init smsc47m1_find(unsigned short *addr,
 	}
 
 	superio_exit();
-	return 0;
+	return addr;
 }
 
 /* Restore device to its initial state */
@@ -938,13 +938,15 @@ static int __init sm_smsc47m1_init(void)
 	unsigned short address;
 	struct smsc47m1_sio_data sio_data;
 
-	if (smsc47m1_find(&address, &sio_data))
-		return -ENODEV;
+	err = smsc47m1_find(&sio_data);
+	if (err < 0)
+		return err;
+	address = err;
 
 	/* Sets global pdev as a side effect */
 	err = smsc47m1_device_add(address, &sio_data);
 	if (err)
-		goto exit;
+		return err;
 
 	err = platform_driver_probe(&smsc47m1_driver, smsc47m1_probe);
 	if (err)
@@ -955,7 +957,6 @@ static int __init sm_smsc47m1_init(void)
 exit_device:
 	platform_device_unregister(pdev);
 	smsc47m1_restore(&sio_data);
-exit:
 	return err;
 }
 

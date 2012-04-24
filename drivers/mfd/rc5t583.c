@@ -80,44 +80,6 @@ static struct mfd_cell rc5t583_subdevs[] = {
 	{.name = "rc5t583-key",      }
 };
 
-int rc5t583_write(struct device *dev, uint8_t reg, uint8_t val)
-{
-	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
-	return regmap_write(rc5t583->regmap, reg, val);
-}
-
-int rc5t583_read(struct device *dev, uint8_t reg, uint8_t *val)
-{
-	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
-	unsigned int ival;
-	int ret;
-	ret = regmap_read(rc5t583->regmap, reg, &ival);
-	if (!ret)
-		*val = (uint8_t)ival;
-	return ret;
-}
-
-int rc5t583_set_bits(struct device *dev, unsigned int reg,
-			unsigned int bit_mask)
-{
-	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
-	return regmap_update_bits(rc5t583->regmap, reg, bit_mask, bit_mask);
-}
-
-int rc5t583_clear_bits(struct device *dev, unsigned int reg,
-			unsigned int bit_mask)
-{
-	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
-	return regmap_update_bits(rc5t583->regmap, reg, bit_mask, 0);
-}
-
-int rc5t583_update(struct device *dev, unsigned int reg,
-		unsigned int val, unsigned int mask)
-{
-	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
-	return regmap_update_bits(rc5t583->regmap, reg, mask, val);
-}
-
 static int __rc5t583_set_ext_pwrreq1_control(struct device *dev,
 	int id, int ext_pwr, int slots)
 {
@@ -197,6 +159,7 @@ int rc5t583_ext_power_req_config(struct device *dev, int ds_id,
 			ds_id, ext_pwr_req);
 	return 0;
 }
+EXPORT_SYMBOL(rc5t583_ext_power_req_config);
 
 static int rc5t583_clear_ext_power_req(struct rc5t583 *rc5t583,
 	struct rc5t583_platform_data *pdata)

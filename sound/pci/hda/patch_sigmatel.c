@@ -5063,12 +5063,11 @@ static void stac92xx_update_led_status(struct hda_codec *codec, int enabled)
 	if (spec->gpio_led_polarity)
 		muted = !muted;
 
-	/*polarity defines *not* muted state level*/
 	if (!spec->vref_mute_led_nid) {
 		if (muted)
-			spec->gpio_data &= ~spec->gpio_led; /* orange */
+			spec->gpio_data |= spec->gpio_led;
 		else
-			spec->gpio_data |= spec->gpio_led; /* white */
+			spec->gpio_data &= ~spec->gpio_led;
 		stac_gpio_set(codec, spec->gpio_mask,
 				spec->gpio_dir, spec->gpio_data);
 	} else {

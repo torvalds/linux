@@ -103,7 +103,7 @@ static void
 ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 				 struct sk_buff *skb,
 				 struct ieee80211_rate *rate,
-				 int rtap_len)
+				 int rtap_len, bool has_fcs)
 {
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_radiotap_header *rthdr;
@@ -134,7 +134,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	}
 
 	/* IEEE80211_RADIOTAP_FLAGS */
-	if (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS)
+	if (has_fcs && (local->hw.flags & IEEE80211_HW_RX_INCLUDES_FCS))
 		*pos |= IEEE80211_RADIOTAP_F_FCS;
 	if (status->flag & (RX_FLAG_FAILED_FCS_CRC | RX_FLAG_FAILED_PLCP_CRC))
 		*pos |= IEEE80211_RADIOTAP_F_BADFCS;
@@ -294,7 +294,8 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 	}
 
 	/* prepend radiotap information */
-	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom,
+					 true);
 
 	skb_reset_mac_header(skb);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -2567,7 +2568,8 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx,
 		goto out_free_skb;
 
 	/* prepend radiotap information */
-	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom);
+	ieee80211_add_rx_radiotap_header(local, skb, rate, needed_headroom,
+					 false);
 
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;

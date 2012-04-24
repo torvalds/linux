@@ -629,7 +629,8 @@ static int virq_debug_show(struct seq_file *m, void *private)
 	int i;
 
 	seq_printf(m, "%-5s  %-7s  %-15s  %-*s  %s\n", "irq", "hwirq",
-		      "chip name", 2 * sizeof(void *) + 2, "chip data", "domain name");
+		      "chip name", (int)(2 * sizeof(void *) + 2), "chip data",
+		      "domain name");
 
 	for (i = 1; i < nr_irqs; i++) {
 		desc = irq_to_desc(i);

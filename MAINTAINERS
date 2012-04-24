@@ -2322,9 +2322,9 @@ S:	Supported
 F:	drivers/acpi/dock.c
 
 DOCUMENTATION
-M:	Randy Dunlap <rdunlap@xenotime.net>
+M:	Rob Landley <rob@landley.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt http://xenotime.net/kernel-doc-patches/current/
+T:	TBD
 S:	Maintained
 F:	Documentation/
 
@@ -3587,6 +3587,7 @@ S:	Supported
 F:	drivers/net/wireless/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
+M:	Johannes Berg <johannes.berg@intel.com>
 M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
@@ -6466,6 +6467,7 @@ S:	Odd Fixes
 F:	drivers/staging/olpc_dcon/
 
 STAGING - OZMO DEVICES USB OVER WIFI DRIVER
+M:	Rupesh Gujare <rgujare@ozmodevices.com>
 M:	Chris Kelly <ckelly@ozmodevices.com>
 S:	Maintained
 F:	drivers/staging/ozwpan/

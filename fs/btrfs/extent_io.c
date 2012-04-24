@@ -1937,7 +1937,7 @@ int repair_eb_io_failure(struct btrfs_root *root, struct extent_buffer *eb,
 	struct btrfs_mapping_tree *map_tree = &root->fs_info->mapping_tree;
 	u64 start = eb->start;
 	unsigned long i, num_pages = num_extent_pages(eb->start, eb->len);
-	int ret;
+	int ret = 0;
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = extent_buffer_page(eb, i);
@@ -2180,6 +2180,10 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 	}
 
 	bio = bio_alloc(GFP_NOFS, 1);
+	if (!bio) {
+		free_io_failure(inode, failrec, 0);
+		return -EIO;
+	}
 	bio->bi_private = state;
 	bio->bi_end_io = failed_bio->bi_end_io;
 	bio->bi_sector = failrec->logical >> 9;

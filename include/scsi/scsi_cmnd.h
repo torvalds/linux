@@ -134,6 +134,9 @@ struct scsi_cmnd {
 
 static inline struct scsi_driver *scsi_cmd_to_driver(struct scsi_cmnd *cmd)
 {
+	if (!cmd->request->rq_disk)
+		return NULL;
+
 	return *(struct scsi_driver **)cmd->request->rq_disk->private_data;
 }
 

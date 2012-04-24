@@ -684,6 +684,9 @@ BOOL KeybSetDefaultKey(
         return (FALSE);
     }
 
+    if (uKeyLength > MAX_KEY_LEN)
+	    return false;
+
     pTable->KeyTable[MAX_KEY_TABLE-1].bInUse = TRUE;
     for (ii = 0; ii < ETH_ALEN; ii++)
         pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID[ii] = 0xFF;
