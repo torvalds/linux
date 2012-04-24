@@ -38,6 +38,7 @@
 #include <linux/vmalloc.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/hardirq.h>
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
@@ -827,6 +828,7 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 		    struct page **pages, unsigned int count)
 {
 	int i, ret;
+	bool lazy = false;
 	pte_t *pte;
 	unsigned long mfn;
 
@@ -836,6 +838,11 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return ret;
+
+	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
+	}
 
 	for (i = 0; i < count; i++) {
 		/* Do not add to override if the map failed. */
@@ -855,6 +862,9 @@ int gnttab_map_refs(struct gnttab_map_grant_ref *map_ops,
 			return ret;
 	}
 
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(gnttab_map_refs);
@@ -863,6 +873,7 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 		      struct page **pages, unsigned int count, bool clear_pte)
 {
 	int i, ret;
+	bool lazy = false;
 
 	ret = HYPERVISOR_grant_table_op(GNTTABOP_unmap_grant_ref, unmap_ops, count);
 	if (ret)
@@ -871,11 +882,19 @@ int gnttab_unmap_refs(struct gnttab_unmap_grant_ref *unmap_ops,
 	if (xen_feature(XENFEAT_auto_translated_physmap))
 		return ret;
 
+	if (!in_interrupt() && paravirt_get_lazy_mode() == PARAVIRT_LAZY_NONE) {
+		arch_enter_lazy_mmu_mode();
+		lazy = true;
+	}
+
 	for (i = 0; i < count; i++) {
 		ret = m2p_remove_override(pages[i], clear_pte);
 		if (ret)
 			return ret;
 	}
+
+	if (lazy)
+		arch_leave_lazy_mmu_mode();
 
 	return ret;
 }
