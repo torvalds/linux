@@ -20,6 +20,7 @@
 
 #include <linux/crush/crush.h>
 #include <linux/crush/hash.h>
+#include <linux/crush/mapper.h>
 
 /*
  * Implement the core CRUSH mapping algorithm.
