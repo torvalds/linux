@@ -1109,10 +1109,6 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_client;
 
-	/* IIR "flip pending" bit means done if this bit is set */
-	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
-		dev_priv->flip_pending_is_done = true;
-
 	/* Initialise stolen first so that we may reserve preallocated
 	 * objects for the BIOS to KMS transition.
 	 */

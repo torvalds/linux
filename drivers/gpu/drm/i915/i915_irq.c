@@ -541,17 +541,13 @@ static irqreturn_t valleyview_irq_handler(DRM_IRQ_ARGS)
 		if (iir & I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT) {
 			drm_handle_vblank(dev, 0);
 			vblank++;
-			if (!dev_priv->flip_pending_is_done) {
-				intel_finish_page_flip(dev, 0);
-			}
+			intel_finish_page_flip(dev, 0);
 		}
 
 		if (iir & I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT) {
 			drm_handle_vblank(dev, 1);
 			vblank++;
-			if (!dev_priv->flip_pending_is_done) {
-				intel_finish_page_flip(dev, 0);
-			}
+			intel_finish_page_flip(dev, 0);
 		}
 
 		if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
@@ -1494,13 +1490,13 @@ static irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 0);
-			if (dev_priv->flip_pending_is_done)
+			if (dev_priv->gen3_flip_pending_is_done)
 				intel_finish_page_flip_plane(dev, 0);
 		}
 
 		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
 			intel_prepare_page_flip(dev, 1);
-			if (dev_priv->flip_pending_is_done)
+			if (dev_priv->gen3_flip_pending_is_done)
 				intel_finish_page_flip_plane(dev, 1);
 		}
 
@@ -1508,7 +1504,7 @@ static irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			if (pipe_stats[pipe] & vblank_status &&
 			    drm_handle_vblank(dev, pipe)) {
 				vblank++;
-				if (!dev_priv->flip_pending_is_done) {
+				if (!dev_priv->gen3_flip_pending_is_done) {
 					i915_pageflip_stall_check(dev, pipe);
 					intel_finish_page_flip(dev, pipe);
 				}
@@ -2603,6 +2599,10 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->hotplug_work, i915_hotplug_work_func);
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
+
+	/* IIR "flip pending" bit means done if this bit is set */
+	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
+		dev_priv->gen3_flip_pending_is_done = true;
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
