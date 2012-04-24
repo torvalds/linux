@@ -18,6 +18,7 @@
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
+#include <linux/tracehook.h>
 #include <asm/current.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
@@ -114,8 +115,13 @@ void interrupt_end(void)
 {
 	if (need_resched())
 		schedule();
-	if (test_tsk_thread_flag(current, TIF_SIGPENDING))
+	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal();
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
+		tracehook_notify_resume(&current->thread.regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
 }
 
 void exit_thread(void)
