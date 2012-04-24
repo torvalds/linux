@@ -132,7 +132,7 @@ int i915_mutex_lock_interruptible(struct drm_device *dev)
 static inline bool
 i915_gem_object_is_inactive(struct drm_i915_gem_object *obj)
 {
-	return !obj->active && obj->pin_count == 0;
+	return !obj->active;
 }
 
 int
@@ -171,8 +171,9 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 
 	pinned = 0;
 	mutex_lock(&dev->struct_mutex);
-	list_for_each_entry(obj, &dev_priv->mm.pinned_list, mm_list)
-		pinned += obj->gtt_space->size;
+	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list)
+		if (obj->pin_count)
+			pinned += obj->gtt_space->size;
 	mutex_unlock(&dev->struct_mutex);
 
 	args->aper_size = dev_priv->mm.gtt_total;
@@ -1455,10 +1456,7 @@ i915_gem_object_move_to_inactive(struct drm_i915_gem_object *obj)
 	struct drm_device *dev = obj->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (obj->pin_count != 0)
-		list_move_tail(&obj->mm_list, &dev_priv->mm.pinned_list);
-	else
-		list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
+	list_move_tail(&obj->mm_list, &dev_priv->mm.inactive_list);
 
 	BUG_ON(!list_empty(&obj->gpu_write_list));
 	BUG_ON(!obj->active);
@@ -3063,12 +3061,9 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 		    uint32_t alignment,
 		    bool map_and_fenceable)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	BUG_ON(obj->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
-	WARN_ON(i915_verify_lists(dev));
 
 	if (obj->gtt_space != NULL) {
 		if ((alignment && obj->gtt_offset & (alignment - 1)) ||
@@ -3096,34 +3091,20 @@ i915_gem_object_pin(struct drm_i915_gem_object *obj,
 	if (!obj->has_global_gtt_mapping && map_and_fenceable)
 		i915_gem_gtt_bind_object(obj, obj->cache_level);
 
-	if (obj->pin_count++ == 0) {
-		if (!obj->active)
-			list_move_tail(&obj->mm_list,
-				       &dev_priv->mm.pinned_list);
-	}
+	obj->pin_count++;
 	obj->pin_mappable |= map_and_fenceable;
 
-	WARN_ON(i915_verify_lists(dev));
 	return 0;
 }
 
 void
 i915_gem_object_unpin(struct drm_i915_gem_object *obj)
 {
-	struct drm_device *dev = obj->base.dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	WARN_ON(i915_verify_lists(dev));
 	BUG_ON(obj->pin_count == 0);
 	BUG_ON(obj->gtt_space == NULL);
 
-	if (--obj->pin_count == 0) {
-		if (!obj->active)
-			list_move_tail(&obj->mm_list,
-				       &dev_priv->mm.inactive_list);
+	if (--obj->pin_count == 0)
 		obj->pin_mappable = false;
-	}
-	WARN_ON(i915_verify_lists(dev));
 }
 
 int
@@ -3426,12 +3407,10 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_device *dev = obj->base.dev;
 
-	while (obj->pin_count > 0)
-		i915_gem_object_unpin(obj);
-
 	if (obj->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
 
+	obj->pin_count = 0;
 	i915_gem_free_object_tail(obj);
 }
 
@@ -3699,7 +3678,6 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.active_list);
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
-	INIT_LIST_HEAD(&dev_priv->mm.pinned_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.gtt_list);

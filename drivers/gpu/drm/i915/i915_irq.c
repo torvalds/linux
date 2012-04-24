@@ -918,37 +918,56 @@ i915_error_state_free(struct drm_device *dev,
 	kfree(error->overlay);
 	kfree(error);
 }
+static void capture_bo(struct drm_i915_error_buffer *err,
+		       struct drm_i915_gem_object *obj)
+{
+	err->size = obj->base.size;
+	err->name = obj->base.name;
+	err->seqno = obj->last_rendering_seqno;
+	err->gtt_offset = obj->gtt_offset;
+	err->read_domains = obj->base.read_domains;
+	err->write_domain = obj->base.write_domain;
+	err->fence_reg = obj->fence_reg;
+	err->pinned = 0;
+	if (obj->pin_count > 0)
+		err->pinned = 1;
+	if (obj->user_pin_count > 0)
+		err->pinned = -1;
+	err->tiling = obj->tiling_mode;
+	err->dirty = obj->dirty;
+	err->purgeable = obj->madv != I915_MADV_WILLNEED;
+	err->ring = obj->ring ? obj->ring->id : -1;
+	err->cache_level = obj->cache_level;
+}
 
-static u32 capture_bo_list(struct drm_i915_error_buffer *err,
-			   int count,
-			   struct list_head *head)
+static u32 capture_active_bo(struct drm_i915_error_buffer *err,
+			     int count, struct list_head *head)
 {
 	struct drm_i915_gem_object *obj;
 	int i = 0;
 
 	list_for_each_entry(obj, head, mm_list) {
-		err->size = obj->base.size;
-		err->name = obj->base.name;
-		err->seqno = obj->last_rendering_seqno;
-		err->gtt_offset = obj->gtt_offset;
-		err->read_domains = obj->base.read_domains;
-		err->write_domain = obj->base.write_domain;
-		err->fence_reg = obj->fence_reg;
-		err->pinned = 0;
-		if (obj->pin_count > 0)
-			err->pinned = 1;
-		if (obj->user_pin_count > 0)
-			err->pinned = -1;
-		err->tiling = obj->tiling_mode;
-		err->dirty = obj->dirty;
-		err->purgeable = obj->madv != I915_MADV_WILLNEED;
-		err->ring = obj->ring ? obj->ring->id : -1;
-		err->cache_level = obj->cache_level;
-
+		capture_bo(err++, obj);
 		if (++i == count)
 			break;
+	}
 
-		err++;
+	return i;
+}
+
+static u32 capture_pinned_bo(struct drm_i915_error_buffer *err,
+			     int count, struct list_head *head)
+{
+	struct drm_i915_gem_object *obj;
+	int i = 0;
+
+	list_for_each_entry(obj, head, gtt_list) {
+		if (obj->pin_count == 0)
+			continue;
+
+		capture_bo(err++, obj);
+		if (++i == count)
+			break;
 	}
 
 	return i;
@@ -1155,8 +1174,9 @@ static void i915_capture_error_state(struct drm_device *dev)
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list)
 		i++;
 	error->active_bo_count = i;
-	list_for_each_entry(obj, &dev_priv->mm.pinned_list, mm_list)
-		i++;
+	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list)
+		if (obj->pin_count)
+			i++;
 	error->pinned_bo_count = i - error->active_bo_count;
 
 	error->active_bo = NULL;
@@ -1171,15 +1191,15 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	if (error->active_bo)
 		error->active_bo_count =
-			capture_bo_list(error->active_bo,
-					error->active_bo_count,
-					&dev_priv->mm.active_list);
+			capture_active_bo(error->active_bo,
+					  error->active_bo_count,
+					  &dev_priv->mm.active_list);
 
 	if (error->pinned_bo)
 		error->pinned_bo_count =
-			capture_bo_list(error->pinned_bo,
-					error->pinned_bo_count,
-					&dev_priv->mm.pinned_list);
+			capture_pinned_bo(error->pinned_bo,
+					  error->pinned_bo_count,
+					  &dev_priv->mm.gtt_list);
 
 	do_gettimeofday(&error->time);
 

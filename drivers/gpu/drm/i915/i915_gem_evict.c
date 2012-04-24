@@ -35,6 +35,9 @@
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
+	if (obj->pin_count)
+		return false;
+
 	list_add(&obj->exec_list, unwind);
 	return drm_mm_scan_add_block(obj->gtt_space);
 }
@@ -90,7 +93,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	/* Now merge in the soon-to-be-expired objects... */
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		/* Does the object require an outstanding flush? */
-		if (obj->base.write_domain || obj->pin_count)
+		if (obj->base.write_domain)
 			continue;
 
 		if (mark_free(obj, &unwind_list))
@@ -99,14 +102,11 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 
 	/* Finally add anything with a pending flush (in order of retirement) */
 	list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
-		if (obj->pin_count)
-			continue;
-
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (!obj->base.write_domain || obj->pin_count)
+		if (!obj->base.write_domain)
 			continue;
 
 		if (mark_free(obj, &unwind_list))

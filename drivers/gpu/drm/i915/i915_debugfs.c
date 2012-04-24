@@ -178,10 +178,6 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		seq_printf(m, "Inactive:\n");
 		head = &dev_priv->mm.inactive_list;
 		break;
-	case PINNED_LIST:
-		seq_printf(m, "Pinned:\n");
-		head = &dev_priv->mm.pinned_list;
-		break;
 	case FLUSHING_LIST:
 		seq_printf(m, "Flushing:\n");
 		head = &dev_priv->mm.flushing_list;
@@ -252,11 +248,6 @@ static int i915_gem_object_info(struct seq_file *m, void* data)
 		   count, mappable_count, size, mappable_size);
 
 	size = count = mappable_size = mappable_count = 0;
-	count_objects(&dev_priv->mm.pinned_list, mm_list);
-	seq_printf(m, "  %u [%u] pinned objects, %zu [%zu] bytes\n",
-		   count, mappable_count, size, mappable_size);
-
-	size = count = mappable_size = mappable_count = 0;
 	count_objects(&dev_priv->mm.inactive_list, mm_list);
 	seq_printf(m, "  %u [%u] inactive objects, %zu [%zu] bytes\n",
 		   count, mappable_count, size, mappable_size);
@@ -294,6 +285,7 @@ static int i915_gem_gtt_info(struct seq_file *m, void* data)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
+	uintptr_t list = (uintptr_t) node->info_ent->data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	size_t total_obj_size, total_gtt_size;
@@ -305,6 +297,9 @@ static int i915_gem_gtt_info(struct seq_file *m, void* data)
 
 	total_obj_size = total_gtt_size = count = 0;
 	list_for_each_entry(obj, &dev_priv->mm.gtt_list, gtt_list) {
+		if (list == PINNED_LIST && obj->pin_count == 0)
+			continue;
+
 		seq_printf(m, "   ");
 		describe_obj(m, obj);
 		seq_printf(m, "\n");
@@ -320,7 +315,6 @@ static int i915_gem_gtt_info(struct seq_file *m, void* data)
 
 	return 0;
 }
-
 
 static int i915_gem_pageflip_info(struct seq_file *m, void *data)
 {
@@ -1842,10 +1836,10 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_capabilities", i915_capabilities, 0},
 	{"i915_gem_objects", i915_gem_object_info, 0},
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
+	{"i915_gem_pinned", i915_gem_gtt_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_active", i915_gem_object_list_info, 0, (void *) ACTIVE_LIST},
 	{"i915_gem_flushing", i915_gem_object_list_info, 0, (void *) FLUSHING_LIST},
 	{"i915_gem_inactive", i915_gem_object_list_info, 0, (void *) INACTIVE_LIST},
-	{"i915_gem_pinned", i915_gem_object_list_info, 0, (void *) PINNED_LIST},
 	{"i915_gem_deferred_free", i915_gem_object_list_info, 0, (void *) DEFERRED_FREE_LIST},
 	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
