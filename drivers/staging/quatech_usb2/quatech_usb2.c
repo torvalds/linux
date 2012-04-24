@@ -541,7 +541,7 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dbg("port->write_urb == NULL, allocating one");
 		port->write_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!port->write_urb) {
-			err("Allocating write URB failed");
+			dev_err(&port->dev, "Allocating write URB failed\n");
 			return -ENOMEM;
 		}
 		/* buffer same size as port0 */
@@ -549,7 +549,7 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		port->bulk_out_buffer = kmalloc(port->bulk_out_size,
 						GFP_KERNEL);
 		if (!port->bulk_out_buffer) {
-			err("Couldn't allocate bulk_out_buffer");
+			dev_err(&port->dev, "Couldn't allocate bulk_out_buffer\n");
 			return -ENOMEM;
 		}
 	}
