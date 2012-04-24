@@ -2878,6 +2878,9 @@ static void gen3_init_clock_gating(struct drm_device *dev)
 	dstate |= DSTATE_PLL_D3_OFF | DSTATE_GFX_CLOCK_GATING |
 		DSTATE_DOT_CLOCK_GATING;
 	I915_WRITE(D_STATE, dstate);
+
+	if (IS_PINEVIEW(dev))
+		I915_WRITE(ECOSKPD, _MASKED_BIT_ENABLE(ECO_GATING_CX_ONLY));
 }
 
 static void i85x_init_clock_gating(struct drm_device *dev)
