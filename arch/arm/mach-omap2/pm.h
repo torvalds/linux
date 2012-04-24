@@ -50,15 +50,6 @@ struct cpuidle_params {
 	u8 valid;		/* validates the C-state */
 };
 
-#if defined(CONFIG_PM) && defined(CONFIG_CPU_IDLE)
-extern void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params);
-#else
-static
-inline void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
-{
-}
-#endif
-
 extern int omap3_pm_get_suspend_state(struct powerdomain *pwrdm);
 extern int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state);
 

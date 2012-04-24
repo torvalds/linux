@@ -298,23 +298,6 @@ select_state:
 
 DEFINE_PER_CPU(struct cpuidle_device, omap3_idle_dev);
 
-void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
-{
-	int i;
-
-	if (!cpuidle_board_params)
-		return;
-
-	for (i = 0; i < OMAP3_NUM_STATES; i++) {
-		cpuidle_params_table[i].valid =	cpuidle_board_params[i].valid;
-		cpuidle_params_table[i].exit_latency =
-			cpuidle_board_params[i].exit_latency;
-		cpuidle_params_table[i].target_residency =
-			cpuidle_board_params[i].target_residency;
-	}
-	return;
-}
-
 struct cpuidle_driver omap3_idle_driver = {
 	.name = 	"omap3_idle",
 	.owner = 	THIS_MODULE,
