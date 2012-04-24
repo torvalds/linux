@@ -1810,6 +1810,14 @@ Valid flags are:
 
 #define KVM_PIT_SPEAKER_DUMMY     1 /* emulate speaker port stub */
 
+PIT timer interrupts may use a per-VM kernel thread for injection. If it
+exists, this thread will have a name of the following pattern:
+
+kvm-pit/<owner-process-pid>
+
+When running a guest with elevated priorities, the scheduling parameters of
+this thread may have to be adjusted accordingly.
+
 This IOCTL replaces the obsolete KVM_CREATE_PIT.
 
 
