@@ -171,7 +171,13 @@
 			reg = <0x80157000 0x1000>;
 			interrupts = <46 47>;
 			#address-cells = <1>;
-			#size-cells = <0>;
+			#size-cells = <1>;
+			ranges;
+
+				prcmu-timer-4@80157450 {
+				compatible = "stericsson,db8500-prcmu-timer-4";
+				reg = <0x80157450 0xC>;
+			};
 
 			ab8500@5 {
 				compatible = "stericsson,ab8500";
