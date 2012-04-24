@@ -434,6 +434,10 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_printf(s, ",noperm");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_STRICT_IO)
 		seq_printf(s, ",strictcache");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPUID)
+		seq_printf(s, ",backupuid=%u", cifs_sb->mnt_backupuid);
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_BACKUPGID)
+		seq_printf(s, ",backupgid=%u", cifs_sb->mnt_backupgid);
 
 	seq_printf(s, ",rsize=%d", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%d", cifs_sb->wsize);
