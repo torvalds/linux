@@ -2776,6 +2776,10 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	}
 
 	gen7_setup_fixed_func_scheduler(dev_priv);
+
+	/* WaDisable4x2SubspanOptimization */
+	I915_WRITE(CACHE_MODE_1,
+		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 }
 
 static void valleyview_init_clock_gating(struct drm_device *dev)
