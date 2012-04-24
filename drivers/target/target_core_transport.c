@@ -1474,29 +1474,6 @@ static inline void transport_generic_prepare_cdb(
 	}
 }
 
-static struct se_task *
-transport_generic_get_task(struct se_cmd *cmd,
-		enum dma_data_direction data_direction)
-{
-	struct se_task *task;
-	struct se_device *dev = cmd->se_dev;
-
-	task = dev->transport->alloc_task(cmd->t_task_cdb);
-	if (!task) {
-		pr_err("Unable to allocate struct se_task\n");
-		return NULL;
-	}
-
-	INIT_LIST_HEAD(&task->t_list);
-	INIT_LIST_HEAD(&task->t_execute_list);
-	INIT_LIST_HEAD(&task->t_state_list);
-	init_completion(&task->task_stop_comp);
-	task->task_se_cmd = cmd;
-	task->task_data_direction = data_direction;
-
-	return task;
-}
-
 static int transport_generic_cmd_sequencer(struct se_cmd *, unsigned char *);
 
 /*
@@ -3705,68 +3682,6 @@ out:
 }
 
 /*
- * Break up cmd into chunks transport can handle
- */
-static int
-transport_allocate_data_tasks(struct se_cmd *cmd,
-	enum dma_data_direction data_direction,
-	struct scatterlist *cmd_sg, unsigned int sgl_nents)
-{
-	struct se_device *dev = cmd->se_dev;
-	struct se_dev_attrib *attr = &dev->se_sub_dev->se_dev_attrib;
-	sector_t sectors;
-	struct se_task *task;
-	unsigned long flags;
-
-	if (transport_cmd_get_valid_sectors(cmd) < 0)
-		return -EINVAL;
-
-	sectors = DIV_ROUND_UP(cmd->data_length, attr->block_size);
-
-	BUG_ON(cmd->data_length % attr->block_size);
-	BUG_ON(sectors > attr->max_sectors);
-
-	task = transport_generic_get_task(cmd, data_direction);
-	if (!task)
-		return -ENOMEM;
-
-	task->task_sg = cmd_sg;
-	task->task_sg_nents = sgl_nents;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_add_tail(&task->t_list, &cmd->t_task_list);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	return 1;
-}
-
-static int
-transport_allocate_control_task(struct se_cmd *cmd)
-{
-	struct se_task *task;
-	unsigned long flags;
-
-	/* Workaround for handling zero-length control CDBs */
-	if ((cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) &&
-	    !cmd->data_length)
-		return 0;
-
-	task = transport_generic_get_task(cmd, cmd->data_direction);
-	if (!task)
-		return -ENOMEM;
-
-	task->task_sg = cmd->t_data_sg;
-	task->task_sg_nents = cmd->t_data_nents;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_add_tail(&task->t_list, &cmd->t_task_list);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	/* Success! Return number of tasks allocated */
-	return 1;
-}
-
-/*
  * Allocate any required resources to execute the command.  For writes we
  * might not have the payload yet, so notify the fabric via a call to
  * ->write_pending instead. Otherwise place it on the execution queue.
@@ -3774,8 +3689,8 @@ transport_allocate_control_task(struct se_cmd *cmd)
 int transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	int task_cdbs, task_cdbs_bidi = 0;
-	int set_counts = 1;
+	struct se_task *task;
+	unsigned long flags;
 	int ret = 0;
 
 	/*
@@ -3790,35 +3705,9 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 			goto out_fail;
 	}
 
-	/*
-	 * For BIDI command set up the read tasks first.
-	 */
-	if (cmd->t_bidi_data_sg &&
-	    dev->transport->transport_type != TRANSPORT_PLUGIN_PHBA_PDEV) {
-		BUG_ON(!(cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB));
-
-		task_cdbs_bidi = transport_allocate_data_tasks(cmd,
-				DMA_FROM_DEVICE, cmd->t_bidi_data_sg,
-				cmd->t_bidi_data_nents);
-		if (task_cdbs_bidi <= 0)
-			goto out_fail;
-
-		atomic_inc(&cmd->t_fe_count);
-		atomic_inc(&cmd->t_se_count);
-		set_counts = 0;
-	}
-
-	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
-		task_cdbs = transport_allocate_data_tasks(cmd,
-					cmd->data_direction, cmd->t_data_sg,
-					cmd->t_data_nents);
-	} else {
-		task_cdbs = transport_allocate_control_task(cmd);
-	}
-
-	if (task_cdbs < 0)
-		goto out_fail;
-	else if (!task_cdbs && (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB)) {
+	/* Workaround for handling zero-length control CDBs */
+	if ((cmd->se_cmd_flags & SCF_SCSI_CONTROL_SG_IO_CDB) &&
+	    !cmd->data_length) {
 		spin_lock_irq(&cmd->t_state_lock);
 		cmd->t_state = TRANSPORT_COMPLETE;
 		cmd->transport_state |= CMD_T_ACTIVE;
@@ -3836,12 +3725,40 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		return 0;
 	}
 
-	if (set_counts) {
-		atomic_inc(&cmd->t_fe_count);
-		atomic_inc(&cmd->t_se_count);
+	if (cmd->se_cmd_flags & SCF_SCSI_DATA_SG_IO_CDB) {
+		struct se_dev_attrib *attr = &dev->se_sub_dev->se_dev_attrib;
+
+		if (transport_cmd_get_valid_sectors(cmd) < 0)
+			return -EINVAL;
+
+		BUG_ON(cmd->data_length % attr->block_size);
+		BUG_ON(DIV_ROUND_UP(cmd->data_length, attr->block_size) >
+			attr->max_sectors);
 	}
 
-	cmd->t_task_list_num = (task_cdbs + task_cdbs_bidi);
+	task = dev->transport->alloc_task(cmd->t_task_cdb);
+	if (!task) {
+		pr_err("Unable to allocate struct se_task\n");
+		goto out_fail;
+	}
+
+	INIT_LIST_HEAD(&task->t_list);
+	INIT_LIST_HEAD(&task->t_execute_list);
+	INIT_LIST_HEAD(&task->t_state_list);
+	init_completion(&task->task_stop_comp);
+	task->task_se_cmd = cmd;
+	task->task_data_direction = cmd->data_direction;
+	task->task_sg = cmd->t_data_sg;
+	task->task_sg_nents = cmd->t_data_nents;
+
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	list_add_tail(&task->t_list, &cmd->t_task_list);
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+	atomic_inc(&cmd->t_fe_count);
+	atomic_inc(&cmd->t_se_count);
+
+	cmd->t_task_list_num = 1;
 	atomic_set(&cmd->t_task_cdbs_left, cmd->t_task_list_num);
 	atomic_set(&cmd->t_task_cdbs_ex_left, cmd->t_task_list_num);
 
