@@ -243,6 +243,8 @@ What:		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibbias
 What:		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibbias
+What:		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibbias
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -258,6 +260,8 @@ What		/sys/bus/iio/devices/iio:deviceX/in_accel_z_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_anglvel_x_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_anglvel_y_calibscale
 What		/sys/bus/iio/devices/iio:deviceX/in_anglvel_z_calibscale
+what		/sys/bus/iio/devices/iio:deviceX/in_illuminance0_calibscale
+what		/sys/bus/iio/devices/iio:deviceX/in_proximity0_calibscale
 KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -457,6 +461,10 @@ What:		/sys/.../events/in_voltageY_raw_thresh_rising_value
 What:		/sys/.../events/in_voltageY_raw_thresh_falling_value
 What:		/sys/.../events/in_tempY_raw_thresh_rising_value
 What:		/sys/.../events/in_tempY_raw_thresh_falling_value
+What:		/sys/.../events/in_illuminance0_thresh_falling_value
+what:		/sys/.../events/in_illuminance0_thresh_rising_value
+what:		/sys/.../events/in_proximity0_thresh_falling_value
+what:		/sys/.../events/in_proximity0_thresh_rising_value
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
@@ -556,6 +564,8 @@ What:		/sys/.../events/in_tempY_thresh_falling_period
 What:		/sys/.../events/in_tempY_roc_rising_period
 What:		/sys/.../events/in_tempY_roc_falling_period
 What:		/sys/.../events/in_accel_x&y&z_mag_falling_period
+What:		/sys/.../events/in_intensity0_thresh_period
+What:		/sys/.../events/in_proximity0_thresh_period
 KernelVersion:	2.6.37
 Contact:	linux-iio@vger.kernel.org
 Description:
