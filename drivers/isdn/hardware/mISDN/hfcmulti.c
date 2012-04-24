@@ -1619,10 +1619,16 @@ hfcmulti_leds(struct hfc_multi *hc)
 		 * 2 red steady:   TE mode deactivate
 		 * left green:     L1 active
 		 * left red:       frame sync, but no L1
-		 * right green:    L2 active
+		 * todo right green:    L2 active
 		 */
-		if (hc->chan[hc->dslot].sync != 2) { /* no frame sync */
-			if (hc->chan[hc->dslot].dch->dev.D.protocol
+		dch = hc->chan[hc->dslot].dch;
+		if (test_bit(FLG_ACTIVE, &dch->Flags)) {
+			led[0] = 0;
+			led[1] = 0;
+			led[2] = 0;
+			led[3] = 1;
+		} else {
+			if (dch->dev.D.protocol
 			    != ISDN_P_NT_E1) {
 				led[0] = 1;
 				led[1] = 1;
@@ -1635,12 +1641,6 @@ hfcmulti_leds(struct hfc_multi *hc)
 			}
 			led[2] = 0;
 			led[3] = 0;
-		} else { /* with frame sync */
-			/* TODO make it work */
-			led[0] = 0;
-			led[1] = 0;
-			led[2] = 0;
-			led[3] = 1;
 		}
 		leds = (led[0] | (led[1]<<2) | (led[2]<<1) | (led[3]<<3))^0xF;
 		/* leds are inverted */
@@ -4062,14 +4062,9 @@ open_dchannel(struct hfc_multi *hc, struct dchannel *dch,
 		hfcmulti_initmode(dch);
 		spin_unlock_irqrestore(&hc->lock, flags);
 	}
-
-	if (((rq->protocol == ISDN_P_NT_S0) && (dch->state == 3)) ||
-	    ((rq->protocol == ISDN_P_TE_S0) && (dch->state == 7)) ||
-	    ((rq->protocol == ISDN_P_NT_E1) && (dch->state == 1)) ||
-	    ((rq->protocol == ISDN_P_TE_E1) && (dch->state == 1))) {
+	if (test_bit(FLG_ACTIVE, &dch->Flags))
 		_queue_data(&dch->dev.D, PH_ACTIVATE_IND, MISDN_ID_ANY,
 			    0, NULL, GFP_KERNEL);
-	}
 	rq->ch = &dch->dev.D;
 	if (!try_module_get(THIS_MODULE))
 		printk(KERN_WARNING "%s:cannot get module\n", __func__);
