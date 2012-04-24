@@ -46,7 +46,6 @@ static int i915_gem_phys_pwrite(struct drm_device *dev,
 				struct drm_i915_gem_object *obj,
 				struct drm_i915_gem_pwrite *args,
 				struct drm_file *file);
-static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj);
 
 static void i915_gem_write_fence(struct drm_device *dev, int reg,
 				 struct drm_i915_gem_object *obj);
@@ -1782,20 +1781,6 @@ i915_gem_retire_requests(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int i;
 
-	if (!list_empty(&dev_priv->mm.deferred_free_list)) {
-	    struct drm_i915_gem_object *obj, *next;
-
-	    /* We must be careful that during unbind() we do not
-	     * accidentally infinitely recurse into retire requests.
-	     * Currently:
-	     *   retire -> free -> unbind -> wait -> retire_ring
-	     */
-	    list_for_each_entry_safe(obj, next,
-				     &dev_priv->mm.deferred_free_list,
-				     mm_list)
-		    i915_gem_free_object_tail(obj);
-	}
-
 	for (i = 0; i < I915_NUM_RINGS; i++)
 		i915_gem_retire_requests_ring(&dev_priv->ring[i]);
 }
@@ -2067,7 +2052,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 	}
 
 	ret = i915_gem_object_finish_gpu(obj);
-	if (ret == -ERESTARTSYS)
+	if (ret)
 		return ret;
 	/* Continue on if we fail due to EIO, the GPU is hung so we
 	 * should be safe and we need to cleanup or else we might
@@ -2094,7 +2079,7 @@ i915_gem_object_unbind(struct drm_i915_gem_object *obj)
 
 	/* release the fence reg _after_ flushing */
 	ret = i915_gem_object_put_fence(obj);
-	if (ret == -ERESTARTSYS)
+	if (ret)
 		return ret;
 
 	trace_i915_gem_object_unbind(obj);
@@ -3377,20 +3362,28 @@ int i915_gem_init_object(struct drm_gem_object *obj)
 	return 0;
 }
 
-static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj)
+void i915_gem_free_object(struct drm_gem_object *gem_obj)
 {
+	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_device *dev = obj->base.dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
-
-	ret = i915_gem_object_unbind(obj);
-	if (ret == -ERESTARTSYS) {
-		list_move(&obj->mm_list,
-			  &dev_priv->mm.deferred_free_list);
-		return;
-	}
 
 	trace_i915_gem_object_destroy(obj);
+
+	if (obj->phys_obj)
+		i915_gem_detach_phys_object(dev, obj);
+
+	obj->pin_count = 0;
+	if (WARN_ON(i915_gem_object_unbind(obj) == -ERESTARTSYS)) {
+		bool was_interruptible;
+
+		was_interruptible = dev_priv->mm.interruptible;
+		dev_priv->mm.interruptible = false;
+
+		WARN_ON(i915_gem_object_unbind(obj));
+
+		dev_priv->mm.interruptible = was_interruptible;
+	}
 
 	if (obj->base.map_list.map)
 		drm_gem_free_mmap_offset(&obj->base);
@@ -3400,18 +3393,6 @@ static void i915_gem_free_object_tail(struct drm_i915_gem_object *obj)
 
 	kfree(obj->bit_17);
 	kfree(obj);
-}
-
-void i915_gem_free_object(struct drm_gem_object *gem_obj)
-{
-	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
-	struct drm_device *dev = obj->base.dev;
-
-	if (obj->phys_obj)
-		i915_gem_detach_phys_object(dev, obj);
-
-	obj->pin_count = 0;
-	i915_gem_free_object_tail(obj);
 }
 
 int
@@ -3679,7 +3660,6 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.flushing_list);
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
-	INIT_LIST_HEAD(&dev_priv->mm.deferred_free_list);
 	INIT_LIST_HEAD(&dev_priv->mm.gtt_list);
 	for (i = 0; i < I915_NUM_RINGS; i++)
 		init_ring_lists(&dev_priv->ring[i]);
