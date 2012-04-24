@@ -155,8 +155,9 @@ module_param(debug, int, S_IRUGO|S_IWUSR|S_IWGRP);
 *v0.x.a : fix error when calculate crop left-top point coordinate;
 *         note: this version provided as patch camera_patch_v1.1
 *v0.x.b : fix sensor autofocus thread may in running when reinit sensor if sensor haven't stream on in first init;
+*v0.x.c : fix work queue havn't been finished after close device;
 */
-#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xb)
+#define RK29_CAM_VERSION_CODE KERNEL_VERSION(0, 1, 0xc)
 
 /* limit to rk29 hardware capabilities */
 #define RK29_CAM_BUS_PARAM   (SOCAM_MASTER |\
@@ -709,9 +710,14 @@ static void rk29_videobuf_release(struct videobuf_queue *vq,
             break;
     }
 #endif	
+    if(vb->i == 0){
+        flush_workqueue(pcdev->camera_wq);
+    }
+
 	if (vb == pcdev->active) {
 		RK29CAMERA_DG("%s Wait for this video buf(0x%x) write finished!\n ",__FUNCTION__,(unsigned int)vb);
-		interruptible_sleep_on_timeout(&vb->done, 100);
+		interruptible_sleep_on_timeout(&vb->done, msecs_to_jiffies(500));
+        flush_workqueue(pcdev->camera_wq);
 		RK29CAMERA_DG("%s This video buf(0x%x) write finished, release now!!\n",__FUNCTION__,(unsigned int)vb);
 	}
     rk29_videobuf_free(vq, buf);
