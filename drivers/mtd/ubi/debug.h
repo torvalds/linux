@@ -21,6 +21,8 @@
 #ifndef __UBI_DEBUG_H__
 #define __UBI_DEBUG_H__
 
+void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
+
 #ifdef CONFIG_MTD_UBI_DEBUG
 #include <linux/random.h>
 
@@ -63,7 +65,6 @@ void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
 void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb, int type);
 void ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req);
-void ubi_dbg_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_all_ff(struct ubi_device *ubi, int pnum, int offset, int len);
 int ubi_dbg_check_write(struct ubi_device *ubi, const void *buf, int pnum,
 			int offset, int len);
@@ -205,8 +206,6 @@ static inline void ubi_dbg_dump_seb(const struct ubi_scan_leb *seb,
 				    int type)                        { return; }
 static inline void
 ubi_dbg_dump_mkvol_req(const struct ubi_mkvol_req *req)              { return; }
-static inline void ubi_dbg_dump_flash(struct ubi_device *ubi,
-				      int pnum, int offset, int len) { return; }
 static inline void
 ubi_dbg_print_hex_dump(const char *l, const char *ps, int pt, int r,
 		       int g, const void *b, size_t len, bool a)     { return; }

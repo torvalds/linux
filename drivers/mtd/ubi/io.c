@@ -294,7 +294,7 @@ int ubi_io_write(struct ubi_device *ubi, const void *buf, int pnum, int offset,
 		ubi_err("error %d while writing %d bytes to PEB %d:%d, written "
 			"%zd bytes", err, len, pnum, offset, written);
 		dump_stack();
-		ubi_dbg_dump_flash(ubi, pnum, offset, len);
+		ubi_dump_flash(ubi, pnum, offset, len);
 	} else
 		ubi_assert(written == len);
 
@@ -563,7 +563,7 @@ static int nor_erase_prepare(struct ubi_device *ubi, int pnum)
 	 */
 	ubi_err("cannot invalidate PEB %d, write returned %d read returned %d",
 		pnum, err, err1);
-	ubi_dbg_dump_flash(ubi, pnum, 0, ubi->peb_size);
+	ubi_dump_flash(ubi, pnum, 0, ubi->peb_size);
 	return -EIO;
 }
 
