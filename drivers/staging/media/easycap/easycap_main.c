@@ -3578,7 +3578,8 @@ static int easycap_usb_probe(struct usb_interface *intf,
 
 		if (0 != (video_register_device(&(peasycap->video_device),
 							VFL_TYPE_GRABBER, -1))) {
-			err("Not able to register with videodev");
+			dev_err(&intf->dev,
+				"Not able to register with videodev\n");
 			videodev_release(&(peasycap->video_device));
 			return -ENODEV;
 		}
@@ -3822,7 +3823,8 @@ static int easycap_usb_probe(struct usb_interface *intf,
 
 		rc = easycap_alsa_probe(peasycap);
 		if (rc) {
-			err("easycap_alsa_probe() rc = %i\n", rc);
+			dev_err(&intf->dev, "easycap_alsa_probe() rc = %i\n",
+				rc);
 			return -ENODEV;
 		}
 
