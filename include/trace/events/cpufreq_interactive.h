@@ -93,6 +93,19 @@ TRACE_EVENT(cpufreq_interactive_boost,
 	    ),
 	    TP_printk("freq=%lu", __entry->freq)
 );
+
+TRACE_EVENT(cpufreq_interactive_unboost,
+	    TP_PROTO(unsigned long freq),
+	    TP_ARGS(freq),
+	    TP_STRUCT__entry(
+		    __field(unsigned long, freq)
+	    ),
+	    TP_fast_assign(
+		    __entry->freq = freq;
+	    ),
+	    TP_printk("freq=%lu", __entry->freq)
+);
+
 #endif /* _TRACE_CPUFREQ_INTERACTIVE_H */
 
 /* This part must be outside protection */
