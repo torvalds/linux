@@ -205,18 +205,19 @@ struct hfc_multi {
 
 	u_int		slots;	/* number of PCM slots */
 	u_int		leds;	/* type of leds */
-	u_int		ledcount; /* used to animate leds */
 	u_long		ledstate; /* save last state of leds */
 	int		opticalsupport; /* has the e1 board */
 					/* an optical Interface */
 	int		dslot;	/* channel # of d-channel (E1) default 16 */
+	u_int		activity_tx; /* if there is data TX / RX */
+	u_int		activity_rx; /* bitmask according to port number */
+				     /* (will be cleared after */
+				     /* showing led-states) */
+	u_int		flash[8]; /* counter for flashing 8 leds on activity */
 
 	u_long		wdcount;	/* every 500 ms we need to */
 					/* send the watchdog a signal */
 	u_char		wdbyte; /* watchdog toggle byte */
-	u_int		activity[8];	/* if there is any action on this */
-					/* port (will be cleared after */
-					/* showing led-states) */
 	int		e1_state; /* keep track of last state */
 	int		e1_getclock; /* if sync is retrieved from interface */
 	int		syncronized; /* keep track of existing sync interface */
