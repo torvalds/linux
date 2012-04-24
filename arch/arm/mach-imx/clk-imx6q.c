@@ -420,6 +420,9 @@ int __init mx6q_clocks_init(void)
 	clk_register_clkdev(clk[dummy], NULL, "20bc000.wdog");
 	clk_register_clkdev(clk[dummy], NULL, "20c0000.wdog");
 	clk_register_clkdev(clk[ssi1_ipg], NULL, "2028000.ssi");
+	clk_register_clkdev(clk[cko1_sel], "cko1_sel", NULL);
+	clk_register_clkdev(clk[ahb], "ahb", NULL);
+	clk_register_clkdev(clk[cko1], "cko1", NULL);
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++) {
 		c = clk_get_sys(clks_init_on[i], NULL);

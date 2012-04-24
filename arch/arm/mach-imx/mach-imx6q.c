@@ -10,6 +10,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <linux/clk.h>
+#include <linux/clkdev.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -77,11 +79,37 @@ static int ksz9021rn_phy_fixup(struct phy_device *phydev)
 	return 0;
 }
 
+static void __init imx6q_sabrelite_cko1_setup(void)
+{
+	struct clk *cko1_sel, *ahb, *cko1;
+	unsigned long rate;
+
+	cko1_sel = clk_get_sys(NULL, "cko1_sel");
+	ahb = clk_get_sys(NULL, "ahb");
+	cko1 = clk_get_sys(NULL, "cko1");
+	if (IS_ERR(cko1_sel) || IS_ERR(ahb) || IS_ERR(cko1)) {
+		pr_err("cko1 setup failed!\n");
+		goto put_clk;
+	}
+	clk_set_parent(cko1_sel, ahb);
+	rate = clk_round_rate(cko1, 16000000);
+	clk_set_rate(cko1, rate);
+	clk_register_clkdev(cko1, NULL, "0-000a");
+put_clk:
+	if (!IS_ERR(cko1_sel))
+		clk_put(cko1_sel);
+	if (!IS_ERR(ahb))
+		clk_put(ahb);
+	if (!IS_ERR(cko1))
+		clk_put(cko1);
+}
+
 static void __init imx6q_sabrelite_init(void)
 {
 	if (IS_ENABLED(CONFIG_PHYLIB))
 		phy_register_fixup_for_uid(PHY_ID_KSZ9021, MICREL_PHY_ID_MASK,
 				ksz9021rn_phy_fixup);
+	imx6q_sabrelite_cko1_setup();
 }
 
 static void __init imx6q_init_machine(void)
