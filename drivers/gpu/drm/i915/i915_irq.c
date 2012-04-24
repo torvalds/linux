@@ -2527,9 +2527,6 @@ static void i915_irq_uninstall(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int pipe;
 
-	if (!dev_priv)
-		return;
-
 	dev_priv->vblank_pipe = 0;
 
 	if (I915_HAS_HOTPLUG(dev)) {
@@ -2538,14 +2535,14 @@ static void i915_irq_uninstall(struct drm_device * dev)
 	}
 
 	I915_WRITE16(HWSTAM, 0xffff);
-	for_each_pipe(pipe)
+	for_each_pipe(pipe) {
+		/* Clear enable bits; then clear status bits */
 		I915_WRITE(PIPESTAT(pipe), 0);
+		I915_WRITE(PIPESTAT(pipe), I915_READ(PIPESTAT(pipe)));
+	}
 	I915_WRITE(IMR, 0xffffffff);
 	I915_WRITE(IER, 0x0);
 
-	for_each_pipe(pipe)
-		I915_WRITE(PIPESTAT(pipe),
-			   I915_READ(PIPESTAT(pipe)) & 0x8000ffff);
 	I915_WRITE(IIR, I915_READ(IIR));
 }
 
