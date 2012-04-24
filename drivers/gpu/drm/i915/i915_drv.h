@@ -1370,10 +1370,7 @@ void i915_gem_init_global_gtt(struct drm_device *dev,
 /* i915_gem_evict.c */
 int __must_check i915_gem_evict_something(struct drm_device *dev, int min_size,
 					  unsigned alignment, bool mappable);
-int __must_check i915_gem_evict_everything(struct drm_device *dev,
-					   bool purgeable_only);
-int __must_check i915_gem_evict_inactive(struct drm_device *dev,
-					 bool purgeable_only);
+int i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
