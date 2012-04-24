@@ -1328,7 +1328,7 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 		}
 		if (dsp->conf && dsp->conf->software && dsp->conf->hardware)
 			tx_data_only = 1;
-		if (dsp->conf->software && dsp->echo.hardware)
+		if (dsp->echo.software && dsp->echo.hardware)
 			tx_data_only = 1;
 	}
 
