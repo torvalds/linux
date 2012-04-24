@@ -44,9 +44,36 @@ struct omap3_idle_statedata {
 	u32 core_state;
 };
 
-#define OMAP3_NUM_STATES 7
-
-struct omap3_idle_statedata omap3_idle_data[OMAP3_NUM_STATES];
+struct omap3_idle_statedata omap3_idle_data[] = {
+	{
+		.mpu_state = PWRDM_POWER_ON,
+		.core_state = PWRDM_POWER_ON,
+	},
+	{
+		.mpu_state = PWRDM_POWER_ON,
+		.core_state = PWRDM_POWER_ON,
+	},
+	{
+		.mpu_state = PWRDM_POWER_RET,
+		.core_state = PWRDM_POWER_ON,
+	},
+	{
+		.mpu_state = PWRDM_POWER_OFF,
+		.core_state = PWRDM_POWER_ON,
+	},
+	{
+		.mpu_state = PWRDM_POWER_RET,
+		.core_state = PWRDM_POWER_RET,
+	},
+	{
+		.mpu_state = PWRDM_POWER_OFF,
+		.core_state = PWRDM_POWER_RET,
+	},
+	{
+		.mpu_state = PWRDM_POWER_OFF,
+		.core_state = PWRDM_POWER_OFF,
+	},
+};
 
 struct powerdomain *mpu_pd, *core_pd, *per_pd, *cam_pd;
 
@@ -172,7 +199,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 	    (cx->core_state >= core_deepest_state)) {
 		return index;
 	} else {
-		int idx = OMAP3_NUM_STATES - 1;
+		int idx = ARRAY_SIZE(omap3_idle_data) - 1;
 
 		/* Reach the current state starting at highest C-state */
 		for (; idx >= 0; idx--) {
@@ -334,7 +361,7 @@ struct cpuidle_driver omap3_idle_driver = {
 			.desc		  = "MPU OFF + CORE OFF",
 		},
 	},
-	.state_count = OMAP3_NUM_STATES,
+	.state_count = ARRAY_SIZE(omap3_idle_data),
 	.safe_state_index = 0,
 };
 
