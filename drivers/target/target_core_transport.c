@@ -453,9 +453,10 @@ static void transport_all_task_dev_remove_state(struct se_cmd *cmd)
 	if (!dev)
 		return;
 
-	list_for_each_entry(task, &cmd->t_task_list, t_list) {
+	task = cmd->t_task;
+	if (task) {
 		if (task->task_flags & TF_ACTIVE)
-			continue;
+			return;
 
 		spin_lock_irqsave(&dev->execute_task_lock, flags);
 		if (task->t_state_active) {
@@ -675,8 +676,7 @@ static void transport_remove_cmd_from_queue(struct se_cmd *cmd)
  */
 void transport_complete_sync_cache(struct se_cmd *cmd, int good)
 {
-	struct se_task *task = list_entry(cmd->t_task_list.next,
-				struct se_task, t_list);
+	struct se_task *task = cmd->t_task;
 
 	if (good) {
 		cmd->scsi_status = SAM_STAT_GOOD;
@@ -774,8 +774,7 @@ EXPORT_SYMBOL(transport_complete_task);
 
 void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 {
-	struct se_task *task = list_entry(cmd->t_task_list.next,
-				struct se_task, t_list);
+	struct se_task *task = cmd->t_task;
 
 	task->task_scsi_status = scsi_status;
 	transport_complete_task(task, scsi_status == GOOD);
@@ -791,7 +790,6 @@ EXPORT_SYMBOL(target_complete_cmd);
  */
 static inline int transport_add_task_check_sam_attr(
 	struct se_task *task,
-	struct se_task *task_prev,
 	struct se_device *dev)
 {
 	/*
@@ -805,14 +803,10 @@ static inline int transport_add_task_check_sam_attr(
 	/*
 	 * HEAD_OF_QUEUE attribute for received CDB, which means
 	 * the first task that is associated with a struct se_cmd goes to
-	 * head of the struct se_device->execute_task_list, and task_prev
-	 * after that for each subsequent task
+	 * head of the struct se_device->execute_task_list.
 	 */
 	if (task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG) {
-		list_add(&task->t_execute_list,
-				(task_prev != NULL) ?
-				&task_prev->t_execute_list :
-				&dev->execute_task_list);
+		list_add(&task->t_execute_list, &dev->execute_task_list);
 
 		pr_debug("Set HEAD_OF_QUEUE for task CDB: 0x%02x"
 				" in execution queue\n",
@@ -834,12 +828,11 @@ static inline int transport_add_task_check_sam_attr(
  */
 static void __transport_add_task_to_execute_queue(
 	struct se_task *task,
-	struct se_task *task_prev,
 	struct se_device *dev)
 {
 	int head_of_queue;
 
-	head_of_queue = transport_add_task_check_sam_attr(task, task_prev, dev);
+	head_of_queue = transport_add_task_check_sam_attr(task, dev);
 	atomic_inc(&dev->execute_tasks);
 
 	if (task->t_state_active)
@@ -850,9 +843,7 @@ static void __transport_add_task_to_execute_queue(
 	 * will always return head_of_queue == 0 here
 	 */
 	if (head_of_queue)
-		list_add(&task->t_state_list, (task_prev) ?
-				&task_prev->t_state_list :
-				&dev->state_task_list);
+		list_add(&task->t_state_list, &dev->state_task_list);
 	else
 		list_add_tail(&task->t_state_list, &dev->state_task_list);
 
@@ -870,7 +861,11 @@ static void transport_add_tasks_to_state_queue(struct se_cmd *cmd)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_for_each_entry(task, &cmd->t_task_list, t_list) {
+	task = cmd->t_task;
+	if (task) {
+		if (task->task_flags & TF_ACTIVE)
+			goto out;
+
 		spin_lock(&dev->execute_task_lock);
 		if (!task->t_state_active) {
 			list_add_tail(&task->t_state_list,
@@ -883,24 +878,17 @@ static void transport_add_tasks_to_state_queue(struct se_cmd *cmd)
 		}
 		spin_unlock(&dev->execute_task_lock);
 	}
+out:
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 }
 
 static void __transport_add_tasks_from_cmd(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
-	struct se_task *task, *task_prev = NULL;
+	struct se_task *task;
 
-	list_for_each_entry(task, &cmd->t_task_list, t_list) {
-		if (!list_empty(&task->t_execute_list))
-			continue;
-		/*
-		 * __transport_add_task_to_execute_queue() handles the
-		 * SAM Task Attribute emulation if enabled
-		 */
-		__transport_add_task_to_execute_queue(task, task_prev, dev);
-		task_prev = task;
-	}
+	task = cmd->t_task;
+	if (task && list_empty(&task->t_execute_list))
+		__transport_add_task_to_execute_queue(task, cmd->se_dev);
 }
 
 static void transport_add_tasks_from_cmd(struct se_cmd *cmd)
@@ -1494,7 +1482,6 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 	INIT_LIST_HEAD(&cmd->se_queue_node);
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
-	INIT_LIST_HEAD(&cmd->t_task_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);
 	init_completion(&cmd->transport_lun_stop_comp);
 	init_completion(&cmd->t_transport_stop_comp);
@@ -1895,7 +1882,7 @@ bool target_stop_task(struct se_task *task, unsigned long *flags)
 
 static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 {
-	struct se_task *task, *task_tmp;
+	struct se_task *task;
 	unsigned long flags;
 	int ret = 0;
 
@@ -1906,8 +1893,8 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 	 * No tasks remain in the execution queue
 	 */
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_for_each_entry_safe(task, task_tmp,
-				&cmd->t_task_list, t_list) {
+	task = cmd->t_task;
+	if (task) {
 		pr_debug("Processing task %p\n", task);
 		/*
 		 * If the struct se_task has not been sent and is not active,
@@ -1921,7 +1908,7 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 
 			pr_debug("Task %p removed from execute queue\n", task);
 			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			continue;
+			goto out;
 		}
 
 		if (!target_stop_task(task, &flags)) {
@@ -1929,8 +1916,8 @@ static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
 			ret++;
 		}
 	}
+out:
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
 	return ret;
 }
 
@@ -1947,12 +1934,10 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	pr_debug("-----[ i_state: %d t_state: %d scsi_sense_reason: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
 		cmd->t_state, cmd->scsi_sense_reason);
-	pr_debug("-----[ t_tasks: %d t_task_cdbs_left: %d"
-		" t_task_cdbs_sent: %d t_task_cdbs_ex_left: %d --"
+	pr_debug("-----[ t_task_cdbs_left: %d"
+		" t_task_cdbs_ex_left: %d --"
 		" CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
-		cmd->t_task_list_num,
 		atomic_read(&cmd->t_task_cdbs_left),
-		atomic_read(&cmd->t_task_cdbs_sent),
 		atomic_read(&cmd->t_task_cdbs_ex_left),
 		(cmd->transport_state & CMD_T_ACTIVE) != 0,
 		(cmd->transport_state & CMD_T_STOP) != 0,
@@ -2212,11 +2197,7 @@ check_depth:
 	cmd = task->task_se_cmd;
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	task->task_flags |= (TF_ACTIVE | TF_SENT);
-	atomic_inc(&cmd->t_task_cdbs_sent);
-
-	if (atomic_read(&cmd->t_task_cdbs_sent) ==
-	    cmd->t_task_list_num)
-		cmd->transport_state |= CMD_T_SENT;
+	cmd->transport_state |= CMD_T_SENT;
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -2458,7 +2439,7 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 {
 	unsigned char *buffer = cmd->sense_buffer, *sense_buffer = NULL;
 	struct se_device *dev = cmd->se_dev;
-	struct se_task *task = NULL, *task_tmp;
+	struct se_task *task = NULL;
 	unsigned long flags;
 	u32 offset = 0;
 
@@ -2473,15 +2454,15 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 		return 0;
 	}
 
-	list_for_each_entry_safe(task, task_tmp,
-				&cmd->t_task_list, t_list) {
+	task = cmd->t_task;
+	if (task) {
 		if (!(task->task_flags & TF_HAS_SENSE))
-			continue;
+			goto out;
 
 		if (!dev->transport->get_sense_buffer) {
 			pr_err("dev->transport->get_sense_buffer"
 					" is NULL\n");
-			continue;
+			goto out;
 		}
 
 		sense_buffer = dev->transport->get_sense_buffer(task);
@@ -2489,7 +2470,7 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 			pr_err("ITT[0x%08x]_TASK[%p]: Unable to locate"
 				" sense buffer for task with sense\n",
 				cmd->se_tfo->get_task_tag(cmd), task);
-			continue;
+			goto out;
 		}
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -2509,8 +2490,8 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 				cmd->scsi_status);
 		return 0;
 	}
+out:
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
 	return -1;
 }
 
@@ -3429,24 +3410,11 @@ queue_full:
 
 static void transport_free_dev_tasks(struct se_cmd *cmd)
 {
-	struct se_task *task, *task_tmp;
-	unsigned long flags;
-	LIST_HEAD(dispose_list);
+	struct se_task *task;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_for_each_entry_safe(task, task_tmp,
-				&cmd->t_task_list, t_list) {
-		if (!(task->task_flags & TF_ACTIVE))
-			list_move_tail(&task->t_list, &dispose_list);
-	}
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-	while (!list_empty(&dispose_list)) {
-		task = list_first_entry(&dispose_list, struct se_task, t_list);
-
-		list_del(&task->t_list);
+	task = cmd->t_task;
+	if (task && !(task->task_flags & TF_ACTIVE))
 		cmd->se_dev->transport->free_task(task);
-	}
 }
 
 static inline void transport_free_sgl(struct scatterlist *sgl, int nents)
@@ -3690,7 +3658,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_task *task;
-	unsigned long flags;
 	int ret = 0;
 
 	/*
@@ -3742,7 +3709,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		goto out_fail;
 	}
 
-	INIT_LIST_HEAD(&task->t_list);
 	INIT_LIST_HEAD(&task->t_execute_list);
 	INIT_LIST_HEAD(&task->t_state_list);
 	init_completion(&task->task_stop_comp);
@@ -3751,16 +3717,13 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	task->task_sg = cmd->t_data_sg;
 	task->task_sg_nents = cmd->t_data_nents;
 
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	list_add_tail(&task->t_list, &cmd->t_task_list);
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+	cmd->t_task = task;
 
 	atomic_inc(&cmd->t_fe_count);
 	atomic_inc(&cmd->t_se_count);
 
-	cmd->t_task_list_num = 1;
-	atomic_set(&cmd->t_task_cdbs_left, cmd->t_task_list_num);
-	atomic_set(&cmd->t_task_cdbs_ex_left, cmd->t_task_list_num);
+	atomic_set(&cmd->t_task_cdbs_left, 1);
+	atomic_set(&cmd->t_task_cdbs_ex_left, 1);
 
 	/*
 	 * For WRITEs, let the fabric know its buffer is ready..
@@ -4026,8 +3989,8 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 
 	ret = transport_stop_tasks_for_cmd(cmd);
 
-	pr_debug("ConfigFS: cmd: %p t_tasks: %d stop tasks ret:"
-			" %d\n", cmd, cmd->t_task_list_num, ret);
+	pr_debug("ConfigFS: cmd: %p stop tasks ret:"
+			" %d\n", cmd, ret);
 	if (!ret) {
 		pr_debug("ConfigFS: ITT[0x%08x] - stopping cmd....\n",
 				cmd->se_tfo->get_task_tag(cmd));

@@ -492,7 +492,6 @@ struct se_task {
 	u16			task_flags;
 	u8			task_scsi_status;
 	enum dma_data_direction	task_data_direction;
-	struct list_head	t_list;
 	struct list_head	t_execute_list;
 	struct list_head	t_state_list;
 	bool			t_state_active;
@@ -573,7 +572,6 @@ struct se_cmd {
 	atomic_t		t_se_count;
 	atomic_t		t_task_cdbs_left;
 	atomic_t		t_task_cdbs_ex_left;
-	atomic_t		t_task_cdbs_sent;
 	unsigned int		transport_state;
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)
@@ -598,10 +596,7 @@ struct se_cmd {
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
 
-	/* Used for BIDI READ */
-	struct list_head	t_task_list;
-	u32			t_task_list_num;
-
+	struct se_task		*t_task;
 };
 
 struct se_ua {
