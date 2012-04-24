@@ -31,9 +31,24 @@ struct omap4_idle_statedata {
 	u32 mpu_state;
 };
 
-#define OMAP4_NUM_STATES 3
+static struct omap4_idle_statedata omap4_idle_data[] = {
+	{
+		.cpu_state = PWRDM_POWER_ON,
+		.mpu_state = PWRDM_POWER_ON,
+		.mpu_logic_state = PWRDM_POWER_RET,
+	},
+	{
+		.cpu_state = PWRDM_POWER_OFF,
+		.mpu_state = PWRDM_POWER_RET,
+		.mpu_logic_state = PWRDM_POWER_RET,
+	},
+	{
+		.cpu_state = PWRDM_POWER_OFF,
+		.mpu_state = PWRDM_POWER_RET,
+		.mpu_logic_state = PWRDM_POWER_OFF,
+	},
+};
 
-static struct omap4_idle_statedata omap4_idle_data[OMAP4_NUM_STATES];
 static struct powerdomain *mpu_pd, *cpu0_pd, *cpu1_pd;
 
 /**
@@ -152,7 +167,7 @@ struct cpuidle_driver omap4_idle_driver = {
 			.desc = "MPUSS OSWR",
 		},
 	},
-	.state_count = OMAP4_NUM_STATES,
+	.state_count = ARRAY_SIZE(omap4_idle_data),
 	.safe_state_index = 0,
 };
 
