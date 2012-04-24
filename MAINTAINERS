@@ -6835,10 +6835,11 @@ F:	include/linux/shmem_fs.h
 F:	mm/shmem.c
 
 TPM DEVICE DRIVER
-M:	Debora Velarde <debora@linux.vnet.ibm.com>
-M:	Rajiv Andrade <srajiv@linux.vnet.ibm.com>
+M:	Kent Yoder <key@linux.vnet.ibm.com>
+M:	Rajiv Andrade <mail@srajiv.net>
 W:	http://tpmdd.sourceforge.net
-M:	Marcel Selhorst <m.selhorst@sirrix.com>
+M:	Marcel Selhorst <tpmdd@selhorst.net>
+M:	Sirrix AG <tpmdd@sirrix.com>
 W:	http://www.sirrix.com
 L:	tpmdd-devel@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained

@@ -4,8 +4,8 @@
  * SLD 9630 TT 1.1 and SLB 9635 TT 1.2 Trusted Platform Module
  * Specifications at www.trustedcomputinggroup.org
  *
- * Copyright (C) 2005, Marcel Selhorst <m.selhorst@sirrix.com>
- * Sirrix AG - security technologies, http://www.sirrix.com and
+ * Copyright (C) 2005, Marcel Selhorst <tpmdd@selhorst.net>
+ * Sirrix AG - security technologies <tpmdd@sirrix.com> and
  * Applied Data Security Group, Ruhr-University Bochum, Germany
  * Project-Homepage: http://www.trust.rub.de/projects/linux-device-driver-infineon-tpm/ 
  *
@@ -671,7 +671,7 @@ static void __exit cleanup_inf(void)
 module_init(init_inf);
 module_exit(cleanup_inf);
 
-MODULE_AUTHOR("Marcel Selhorst <m.selhorst@sirrix.com>");
+MODULE_AUTHOR("Marcel Selhorst <tpmdd@sirrix.com>");
 MODULE_DESCRIPTION("Driver for Infineon TPM SLD 9630 TT 1.1 / SLB 9635 TT 1.2");
 MODULE_VERSION("1.9.2");
 MODULE_LICENSE("GPL");
