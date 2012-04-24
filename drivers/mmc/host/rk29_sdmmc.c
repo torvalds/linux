@@ -84,7 +84,7 @@ int debug_level = 5;
 #define RK29_SDMMC_WAIT_DTO_INTERNVAL   4500  //The time interval from the CMD_DONE_INT to DTO_INT
 #define RK29_SDMMC_REMOVAL_DELAY        2000  //The time interval from the CD_INT to detect_timer react.
 
-#define RK29_SDMMC_VERSION "Ver.3.06 The last modify date is 2012-04-05"
+#define RK29_SDMMC_VERSION "Ver.3.07 The last modify date is 2012-04-23"
 
 #if !defined(CONFIG_USE_SDMMC0_FOR_WIFI_DEVELOP_BOARD)	
 #define RK29_CTRL_SDMMC_ID   0  //mainly used by SDMMC
@@ -229,6 +229,7 @@ struct rk29_sdmmc {
     int write_protect;
 #endif
 
+	bool			irq_state;
     void (*set_iomux)(int device_id, unsigned int bus_width);
 
 };
@@ -303,6 +304,31 @@ static int rk29_sdmmc_regs_printk(struct rk29_sdmmc *host)
 	return 0;
 }
 
+static void rk29_sdmmc_enable_irq(struct rk29_sdmmc *host, bool irqflag)
+{
+	unsigned long flags;
+
+    if(!host)
+    {
+        return;
+    }
+    
+	local_irq_save(flags);
+	if(host->irq_state != irqflag)
+	{
+	    host->irq_state = irqflag;
+	    if(irqflag)
+	    {
+	        enable_irq(host->irq);
+	    }
+	    else
+	    {
+	        disable_irq(host->irq);
+	    }
+	}
+	local_irq_restore(flags);
+}
+
 
 #ifdef RK29_SDMMC_NOTIFY_REMOVE_INSERTION
 ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *attr,
@@ -351,8 +377,9 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         printk(KERN_WARNING "%s..%d.. You want to use sysfs for SDMMC but input-parameter is wrong.\n",__FUNCTION__,__LINE__);
         return count;
     }
+    rk29_sdmmc_enable_irq(host, false);
 
-    spin_lock(&host->lock);
+    //spin_lock(&host->lock);
     if(strncmp(buf,oldbuf , strlen(buf)))
     {
 	    printk(KERN_INFO ".%d.. MMC0 receive the message %s from VOLD.[%s]\n", __LINE__, buf, host->dma_name);
@@ -463,8 +490,9 @@ ssize_t rk29_sdmmc_progress_store(struct kobject *kobj, struct kobj_attribute *a
         }
     }
     
-    spin_unlock(&host->lock);
+   // spin_unlock(&host->lock);
     
+    rk29_sdmmc_enable_irq(host, true);    
     return count;
 }
 
@@ -1330,9 +1358,10 @@ static void rk29_sdmmc_submit_data(struct rk29_sdmmc *host, struct mmc_data *dat
 		if (data->flags & MMC_DATA_WRITE)
 		{
 		    host->cmdr |= (SDMMC_CMD_DAT_WRITE | SDMMC_CMD_DAT_EXP);
-            xbwprintk(7, "%s..%d...   write data, len=%d     [%s]\n", \
-					__FUNCTION__, __LINE__, data->blksz*data->blocks, host->dma_name);
 		    
+		    xbwprintk(7,"%s..%d..CMD%d(arg=0x%x), data->blksz=%d, data->blocks=%d   [%s]\n", \
+                __FUNCTION__, __LINE__, host->cmd->opcode,host->cmd->arg,\
+                data->blksz, data->blocks,  host->dma_name);
 			ret = rk29_sdmmc_prepare_write_data(host, data);
 	    }
 	    else
@@ -1822,7 +1851,7 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
 {
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *) host_data;
 
-	spin_lock(&host->lock);
+	//spin_lock(&host->lock);
 	
 	if(STATE_SENDING_CMD == host->state)
 	{
@@ -1834,7 +1863,7 @@ static void rk29_sdmmc_INT_CMD_DONE_timeout(unsigned long host_data)
             
         rk29_sdmmc_dealwith_timeout(host);        
 	}
-	spin_unlock(&host->lock);
+	//spin_unlock(&host->lock);
 	
 }
 
@@ -1843,7 +1872,7 @@ static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 {
 	struct rk29_sdmmc *host = (struct rk29_sdmmc *) host_data;
 
-	spin_lock(&host->lock);
+	//spin_lock(&host->lock);
 
 #if SDMMC_USE_INT_UNBUSY
     if( (host->cmdr & SDMMC_CMD_DAT_EXP) &&((STATE_DATA_BUSY == host->state)||(STATE_DATA_UNBUSY == host->state) ))
@@ -1859,7 +1888,7 @@ static void rk29_sdmmc_INT_DTO_timeout(unsigned long host_data)
 
 	    rk29_sdmmc_dealwith_timeout(host);  
 	}
-	spin_unlock(&host->lock);
+	//spin_unlock(&host->lock);
  
  
 }
@@ -2150,7 +2179,8 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
     unsigned int value;
 	struct rk29_sdmmc *host = mmc_priv(mmc);
 
-    spin_lock(&host->lock);
+    rk29_sdmmc_enable_irq(host, false);
+    //spin_lock(&host->lock);
 
     if(test_bit(RK29_SDMMC_CARD_PRESENT, &host->flags) || (RK29_CTRL_SDMMC_ID == host->pdev->id))
     {
@@ -2256,9 +2286,9 @@ static void rk29_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		//host->clock = ios->clock;	
 		rk29_sdmmc_change_clk_div(host, ios->clock);
 	}
-out:	
-
-    spin_unlock(&host->lock);
+out:	   
+    //spin_unlock(&host->lock);
+    rk29_sdmmc_enable_irq(host, true);
     
 }
 
@@ -2681,8 +2711,9 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 	enum rk29_sdmmc_state	state = host->state;
 	int pending_flag, stopflag;
 	unsigned long iflags;
-	
-	spin_lock_irqsave(&host->lock, iflags); 
+
+	rk29_sdmmc_enable_irq(host, false);
+	spin_lock(&host->lock);//spin_lock_irqsave(&host->lock, iflags); 
 	
 	state = host->state;
 	pending_flag = 0;
@@ -2881,7 +2912,8 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
     {
         host->errorstep = 0xf2;
         
-        spin_unlock_irqrestore(&host->lock, iflags);
+        spin_unlock(&host->lock);//spin_unlock_irqrestore(&host->lock, iflags);
+        rk29_sdmmc_enable_irq(host, true);
         return;
     }
     host->errorstep = 0xf3; 
@@ -2890,12 +2922,14 @@ static void rk29_sdmmc_tasklet_func(unsigned long priv)
 	 if(host->mrq && host->mmc->doneflag)
 	 {
 	    host->mmc->doneflag = 0;
-	    spin_unlock_irqrestore(&host->lock, iflags);	    
+	    spin_unlock(&host->lock);//spin_unlock_irqrestore(&host->lock, iflags);
+	    rk29_sdmmc_enable_irq(host, true);
 	    mmc_request_done(host->mmc, host->mrq);
 	 }
 	 else
 	 {
-	    spin_unlock_irqrestore(&host->lock, iflags);	    
+	    spin_unlock(&host->lock);//spin_unlock_irqrestore(&host->lock, iflags);
+	    rk29_sdmmc_enable_irq(host, true);
 	 }
 }
 
@@ -3404,7 +3438,9 @@ static int rk29_sdmmc_probe(struct platform_device *pdev)
 	    host->errorstep = 0x8C;
 	    goto err_dmaunmap;
 	}
-
+	
+    host->irq_state = true;
+    
     /* setup sdmmc1 wifi card detect change */
     if (pdata->register_status_notify) {
         pdata->register_status_notify(rk29_sdmmc1_status_notify_cb, host);
