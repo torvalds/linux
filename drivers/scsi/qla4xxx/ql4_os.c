@@ -1555,19 +1555,53 @@ static void qla4xxx_session_destroy(struct iscsi_cls_session *cls_sess)
 	struct iscsi_session *sess;
 	struct ddb_entry *ddb_entry;
 	struct scsi_qla_host *ha;
-	unsigned long flags;
+	unsigned long flags, wtime;
+	struct dev_db_entry *fw_ddb_entry = NULL;
+	dma_addr_t fw_ddb_entry_dma;
+	uint32_t ddb_state;
+	int ret;
 
 	DEBUG2(printk(KERN_INFO "Func: %s\n", __func__));
 	sess = cls_sess->dd_data;
 	ddb_entry = sess->dd_data;
 	ha = ddb_entry->ha;
 
+	fw_ddb_entry = dma_alloc_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+					  &fw_ddb_entry_dma, GFP_KERNEL);
+	if (!fw_ddb_entry) {
+		ql4_printk(KERN_ERR, ha,
+			   "%s: Unable to allocate dma buffer\n", __func__);
+		goto destroy_session;
+	}
+
+	wtime = jiffies + (HZ * LOGOUT_TOV);
+	do {
+		ret = qla4xxx_get_fwddb_entry(ha, ddb_entry->fw_ddb_index,
+					      fw_ddb_entry, fw_ddb_entry_dma,
+					      NULL, NULL, &ddb_state, NULL,
+					      NULL, NULL);
+		if (ret == QLA_ERROR)
+			goto destroy_session;
+
+		if ((ddb_state == DDB_DS_NO_CONNECTION_ACTIVE) ||
+		    (ddb_state == DDB_DS_SESSION_FAILED))
+			goto destroy_session;
+
+		schedule_timeout_uninterruptible(HZ);
+	} while ((time_after(wtime, jiffies)));
+
+destroy_session:
 	qla4xxx_clear_ddb_entry(ha, ddb_entry->fw_ddb_index);
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	qla4xxx_free_ddb(ha, ddb_entry);
 	spin_unlock_irqrestore(&ha->hardware_lock, flags);
+
 	iscsi_session_teardown(cls_sess);
+
+	if (fw_ddb_entry)
+		dma_free_coherent(&ha->pdev->dev, sizeof(*fw_ddb_entry),
+				  fw_ddb_entry, fw_ddb_entry_dma);
 }
 
 static struct iscsi_cls_conn *
