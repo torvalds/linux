@@ -444,32 +444,24 @@ EXPORT_SYMBOL(transport_deregister_session);
 /*
  * Called with cmd->t_state_lock held.
  */
-static void transport_all_task_dev_remove_state(struct se_cmd *cmd)
+static void target_remove_from_state_list(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_task *task;
 	unsigned long flags;
 
 	if (!dev)
 		return;
 
-	task = cmd->t_task;
-	if (task) {
-		if (task->task_flags & TF_ACTIVE)
-			return;
+	if (cmd->transport_state & CMD_T_BUSY)
+		return;
 
-		spin_lock_irqsave(&dev->execute_task_lock, flags);
-		if (task->t_state_active) {
-			pr_debug("Removed ITT: 0x%08x dev: %p task[%p]\n",
-				cmd->se_tfo->get_task_tag(cmd), dev, task);
-
-			list_del(&task->t_state_list);
-			atomic_dec(&cmd->t_task_cdbs_ex_left);
-			task->t_state_active = false;
-		}
-		spin_unlock_irqrestore(&dev->execute_task_lock, flags);
+	spin_lock_irqsave(&dev->execute_task_lock, flags);
+	if (cmd->state_active) {
+		list_del(&cmd->state_list);
+		atomic_dec(&cmd->t_task_cdbs_ex_left);
+		cmd->state_active = false;
 	}
-
+	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
 /*	transport_cmd_check_stop():
@@ -498,7 +490,7 @@ static int transport_cmd_check_stop(
 
 		cmd->transport_state &= ~CMD_T_ACTIVE;
 		if (transport_off == 2)
-			transport_all_task_dev_remove_state(cmd);
+			target_remove_from_state_list(cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
 		complete(&cmd->transport_lun_stop_comp);
@@ -514,7 +506,7 @@ static int transport_cmd_check_stop(
 			cmd->se_tfo->get_task_tag(cmd));
 
 		if (transport_off == 2)
-			transport_all_task_dev_remove_state(cmd);
+			target_remove_from_state_list(cmd);
 
 		/*
 		 * Clear struct se_cmd->se_lun before the transport_off == 2 handoff
@@ -530,7 +522,7 @@ static int transport_cmd_check_stop(
 	if (transport_off) {
 		cmd->transport_state &= ~CMD_T_ACTIVE;
 		if (transport_off == 2) {
-			transport_all_task_dev_remove_state(cmd);
+			target_remove_from_state_list(cmd);
 			/*
 			 * Clear struct se_cmd->se_lun before the transport_off == 2
 			 * handoff to fabric module.
@@ -578,7 +570,7 @@ static void transport_lun_remove_cmd(struct se_cmd *cmd)
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
 	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
 		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
-		transport_all_task_dev_remove_state(cmd);
+		target_remove_from_state_list(cmd);
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
@@ -711,7 +703,7 @@ void transport_complete_task(struct se_task *task, int success)
 	unsigned long flags;
 
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	task->task_flags &= ~TF_ACTIVE;
+	cmd->transport_state &= ~CMD_T_BUSY;
 
 	/*
 	 * See if any sense data exists, if so set the TASK_SENSE flag.
@@ -721,7 +713,6 @@ void transport_complete_task(struct se_task *task, int success)
 	if (dev && dev->transport->transport_complete) {
 		if (dev->transport->transport_complete(task) != 0) {
 			cmd->se_cmd_flags |= SCF_TRANSPORT_TASK_SENSE;
-			task->task_flags |= TF_HAS_SENSE;
 			success = 1;
 		}
 	}
@@ -730,9 +721,9 @@ void transport_complete_task(struct se_task *task, int success)
 	 * See if we are waiting for outstanding struct se_task
 	 * to complete for an exception condition
 	 */
-	if (task->task_flags & TF_REQUEST_STOP) {
+	if (cmd->transport_state & CMD_T_REQUEST_STOP) {
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		complete(&task->task_stop_comp);
+		complete(&cmd->task_stop_comp);
 		return;
 	}
 
@@ -781,144 +772,75 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 }
 EXPORT_SYMBOL(target_complete_cmd);
 
-/*
- * Called by transport_add_tasks_from_cmd() once a struct se_cmd's
- * struct se_task list are ready to be added to the active execution list
- * struct se_device
-
- * Called with se_dev_t->execute_task_lock called.
- */
-static inline int transport_add_task_check_sam_attr(
-	struct se_task *task,
-	struct se_device *dev)
-{
-	/*
-	 * No SAM Task attribute emulation enabled, add to tail of
-	 * execution queue
-	 */
-	if (dev->dev_task_attr_type != SAM_TASK_ATTR_EMULATED) {
-		list_add_tail(&task->t_execute_list, &dev->execute_task_list);
-		return 0;
-	}
-	/*
-	 * HEAD_OF_QUEUE attribute for received CDB, which means
-	 * the first task that is associated with a struct se_cmd goes to
-	 * head of the struct se_device->execute_task_list.
-	 */
-	if (task->task_se_cmd->sam_task_attr == MSG_HEAD_TAG) {
-		list_add(&task->t_execute_list, &dev->execute_task_list);
-
-		pr_debug("Set HEAD_OF_QUEUE for task CDB: 0x%02x"
-				" in execution queue\n",
-				task->task_se_cmd->t_task_cdb[0]);
-		return 1;
-	}
-	/*
-	 * For ORDERED, SIMPLE or UNTAGGED attribute tasks once they have been
-	 * transitioned from Dermant -> Active state, and are added to the end
-	 * of the struct se_device->execute_task_list
-	 */
-	list_add_tail(&task->t_execute_list, &dev->execute_task_list);
-	return 0;
-}
-
-/*	__transport_add_task_to_execute_queue():
- *
- *	Called with se_dev_t->execute_task_lock called.
- */
-static void __transport_add_task_to_execute_queue(
-	struct se_task *task,
-	struct se_device *dev)
-{
-	int head_of_queue;
-
-	head_of_queue = transport_add_task_check_sam_attr(task, dev);
-	atomic_inc(&dev->execute_tasks);
-
-	if (task->t_state_active)
-		return;
-	/*
-	 * Determine if this task needs to go to HEAD_OF_QUEUE for the
-	 * state list as well.  Running with SAM Task Attribute emulation
-	 * will always return head_of_queue == 0 here
-	 */
-	if (head_of_queue)
-		list_add(&task->t_state_list, &dev->state_task_list);
-	else
-		list_add_tail(&task->t_state_list, &dev->state_task_list);
-
-	task->t_state_active = true;
-
-	pr_debug("Added ITT: 0x%08x task[%p] to dev: %p\n",
-		task->task_se_cmd->se_tfo->get_task_tag(task->task_se_cmd),
-		task, dev);
-}
-
-static void transport_add_tasks_to_state_queue(struct se_cmd *cmd)
+static void target_add_to_state_list(struct se_cmd *cmd)
 {
 	struct se_device *dev = cmd->se_dev;
-	struct se_task *task;
 	unsigned long flags;
-
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	task = cmd->t_task;
-	if (task) {
-		if (task->task_flags & TF_ACTIVE)
-			goto out;
-
-		spin_lock(&dev->execute_task_lock);
-		if (!task->t_state_active) {
-			list_add_tail(&task->t_state_list,
-				      &dev->state_task_list);
-			task->t_state_active = true;
-
-			pr_debug("Added ITT: 0x%08x task[%p] to dev: %p\n",
-				task->task_se_cmd->se_tfo->get_task_tag(
-				task->task_se_cmd), task, dev);
-		}
-		spin_unlock(&dev->execute_task_lock);
-	}
-out:
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-}
-
-static void __transport_add_tasks_from_cmd(struct se_cmd *cmd)
-{
-	struct se_task *task;
-
-	task = cmd->t_task;
-	if (task && list_empty(&task->t_execute_list))
-		__transport_add_task_to_execute_queue(task, cmd->se_dev);
-}
-
-static void transport_add_tasks_from_cmd(struct se_cmd *cmd)
-{
-	unsigned long flags;
-	struct se_device *dev = cmd->se_dev;
 
 	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	__transport_add_tasks_from_cmd(cmd);
+	if (!cmd->state_active) {
+		list_add_tail(&cmd->state_list, &dev->state_list);
+		cmd->state_active = true;
+	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
-void __transport_remove_task_from_execute_queue(struct se_task *task,
-		struct se_device *dev)
+static void __target_add_to_execute_list(struct se_cmd *cmd)
 {
-	list_del_init(&task->t_execute_list);
-	atomic_dec(&dev->execute_tasks);
+	struct se_device *dev = cmd->se_dev;
+	bool head_of_queue = false;
+
+	if (!list_empty(&cmd->execute_list))
+		return;
+
+	if (dev->dev_task_attr_type == SAM_TASK_ATTR_EMULATED &&
+	    cmd->sam_task_attr == MSG_HEAD_TAG)
+		head_of_queue = true;
+
+	if (head_of_queue)
+		list_add(&cmd->execute_list, &dev->execute_list);
+	else
+		list_add_tail(&cmd->execute_list, &dev->execute_list);
+
+	atomic_inc(&dev->execute_tasks);
+
+	if (cmd->state_active)
+		return;
+
+	if (head_of_queue)
+		list_add(&cmd->state_list, &dev->state_list);
+	else
+		list_add_tail(&cmd->state_list, &dev->state_list);
+
+	cmd->state_active = true;
 }
 
-static void transport_remove_task_from_execute_queue(
-	struct se_task *task,
-	struct se_device *dev)
+static void target_add_to_execute_list(struct se_cmd *cmd)
 {
 	unsigned long flags;
+	struct se_device *dev = cmd->se_dev;
 
-	if (WARN_ON(list_empty(&task->t_execute_list)))
+	spin_lock_irqsave(&dev->execute_task_lock, flags);
+	__target_add_to_execute_list(cmd);
+	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
+}
+
+void __target_remove_from_execute_list(struct se_cmd *cmd)
+{
+	list_del_init(&cmd->execute_list);
+	atomic_dec(&cmd->se_dev->execute_tasks);
+}
+
+static void target_remove_from_execute_list(struct se_cmd *cmd)
+{
+	struct se_device *dev = cmd->se_dev;
+	unsigned long flags;
+
+	if (WARN_ON(list_empty(&cmd->execute_list)))
 		return;
 
 	spin_lock_irqsave(&dev->execute_task_lock, flags);
-	__transport_remove_task_from_execute_queue(task, dev);
+	__target_remove_from_execute_list(cmd);
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
 }
 
@@ -1342,9 +1264,9 @@ struct se_device *transport_add_device_to_core_hba(
 	INIT_LIST_HEAD(&dev->dev_list);
 	INIT_LIST_HEAD(&dev->dev_sep_list);
 	INIT_LIST_HEAD(&dev->dev_tmr_list);
-	INIT_LIST_HEAD(&dev->execute_task_list);
+	INIT_LIST_HEAD(&dev->execute_list);
 	INIT_LIST_HEAD(&dev->delayed_cmd_list);
-	INIT_LIST_HEAD(&dev->state_task_list);
+	INIT_LIST_HEAD(&dev->state_list);
 	INIT_LIST_HEAD(&dev->qf_cmd_list);
 	spin_lock_init(&dev->execute_task_lock);
 	spin_lock_init(&dev->delayed_cmd_lock);
@@ -1482,10 +1404,13 @@ void transport_init_se_cmd(
 	INIT_LIST_HEAD(&cmd->se_qf_node);
 	INIT_LIST_HEAD(&cmd->se_queue_node);
 	INIT_LIST_HEAD(&cmd->se_cmd_list);
+	INIT_LIST_HEAD(&cmd->execute_list);
+	INIT_LIST_HEAD(&cmd->state_list);
 	init_completion(&cmd->transport_lun_fe_stop_comp);
 	init_completion(&cmd->transport_lun_stop_comp);
 	init_completion(&cmd->t_transport_stop_comp);
 	init_completion(&cmd->cmd_wait_comp);
+	init_completion(&cmd->task_stop_comp);
 	spin_lock_init(&cmd->t_state_lock);
 	cmd->transport_state = CMD_T_DEV_ACTIVE;
 
@@ -1495,6 +1420,8 @@ void transport_init_se_cmd(
 	cmd->data_direction = data_direction;
 	cmd->sam_task_attr = task_attr;
 	cmd->sense_buffer = sense_buffer;
+
+	cmd->state_active = false;
 }
 EXPORT_SYMBOL(transport_init_se_cmd);
 
@@ -1855,70 +1782,29 @@ int transport_generic_handle_tmr(
 EXPORT_SYMBOL(transport_generic_handle_tmr);
 
 /*
- * If the task is active, request it to be stopped and sleep until it
+ * If the cmd is active, request it to be stopped and sleep until it
  * has completed.
  */
-bool target_stop_task(struct se_task *task, unsigned long *flags)
+bool target_stop_cmd(struct se_cmd *cmd, unsigned long *flags)
 {
-	struct se_cmd *cmd = task->task_se_cmd;
 	bool was_active = false;
 
-	if (task->task_flags & TF_ACTIVE) {
-		task->task_flags |= TF_REQUEST_STOP;
+	if (cmd->transport_state & CMD_T_BUSY) {
+		cmd->transport_state |= CMD_T_REQUEST_STOP;
 		spin_unlock_irqrestore(&cmd->t_state_lock, *flags);
 
-		pr_debug("Task %p waiting to complete\n", task);
-		wait_for_completion(&task->task_stop_comp);
-		pr_debug("Task %p stopped successfully\n", task);
+		pr_debug("cmd %p waiting to complete\n", cmd);
+		wait_for_completion(&cmd->task_stop_comp);
+		pr_debug("cmd %p stopped successfully\n", cmd);
 
 		spin_lock_irqsave(&cmd->t_state_lock, *flags);
 		atomic_dec(&cmd->t_task_cdbs_left);
-		task->task_flags &= ~(TF_ACTIVE | TF_REQUEST_STOP);
+		cmd->transport_state &= ~CMD_T_REQUEST_STOP;
+		cmd->transport_state &= ~CMD_T_BUSY;
 		was_active = true;
 	}
 
 	return was_active;
-}
-
-static int transport_stop_tasks_for_cmd(struct se_cmd *cmd)
-{
-	struct se_task *task;
-	unsigned long flags;
-	int ret = 0;
-
-	pr_debug("ITT[0x%08x] - Stopping tasks\n",
-		cmd->se_tfo->get_task_tag(cmd));
-
-	/*
-	 * No tasks remain in the execution queue
-	 */
-	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	task = cmd->t_task;
-	if (task) {
-		pr_debug("Processing task %p\n", task);
-		/*
-		 * If the struct se_task has not been sent and is not active,
-		 * remove the struct se_task from the execution queue.
-		 */
-		if (!(task->task_flags & (TF_ACTIVE | TF_SENT))) {
-			spin_unlock_irqrestore(&cmd->t_state_lock,
-					flags);
-			transport_remove_task_from_execute_queue(task,
-					cmd->se_dev);
-
-			pr_debug("Task %p removed from execute queue\n", task);
-			spin_lock_irqsave(&cmd->t_state_lock, flags);
-			goto out;
-		}
-
-		if (!target_stop_task(task, &flags)) {
-			pr_debug("Task %p - did nothing\n", task);
-			ret++;
-		}
-	}
-out:
-	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-	return ret;
 }
 
 /*
@@ -2153,11 +2039,7 @@ static int transport_execute_tasks(struct se_cmd *cmd)
 		add_tasks = transport_execute_task_attr(cmd);
 		if (!add_tasks)
 			goto execute_tasks;
-		/*
-		 * __transport_execute_tasks() -> __transport_add_tasks_from_cmd()
-		 * adds associated se_tasks while holding dev->execute_task_lock
-		 * before I/O dispath to avoid a double spinlock access.
-		 */
+
 		__transport_execute_tasks(se_dev, cmd);
 		return 0;
 	}
@@ -2167,36 +2049,27 @@ execute_tasks:
 	return 0;
 }
 
-/*
- * Called to check struct se_device tcq depth window, and once open pull struct se_task
- * from struct se_device->execute_task_list and
- *
- * Called from transport_processing_thread()
- */
 static int __transport_execute_tasks(struct se_device *dev, struct se_cmd *new_cmd)
 {
 	int error;
 	struct se_cmd *cmd = NULL;
-	struct se_task *task = NULL;
 	unsigned long flags;
 
 check_depth:
 	spin_lock_irq(&dev->execute_task_lock);
 	if (new_cmd != NULL)
-		__transport_add_tasks_from_cmd(new_cmd);
+		__target_add_to_execute_list(new_cmd);
 
-	if (list_empty(&dev->execute_task_list)) {
+	if (list_empty(&dev->execute_list)) {
 		spin_unlock_irq(&dev->execute_task_lock);
 		return 0;
 	}
-	task = list_first_entry(&dev->execute_task_list,
-				struct se_task, t_execute_list);
-	__transport_remove_task_from_execute_queue(task, dev);
+	cmd = list_first_entry(&dev->execute_list, struct se_cmd, execute_list);
+	__target_remove_from_execute_list(cmd);
 	spin_unlock_irq(&dev->execute_task_lock);
 
-	cmd = task->task_se_cmd;
 	spin_lock_irqsave(&cmd->t_state_lock, flags);
-	task->task_flags |= (TF_ACTIVE | TF_SENT);
+	cmd->transport_state |= CMD_T_BUSY;
 	cmd->transport_state |= CMD_T_SENT;
 
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -2204,14 +2077,14 @@ check_depth:
 	if (cmd->execute_cmd)
 		error = cmd->execute_cmd(cmd);
 	else
-		error = dev->transport->do_task(task);
+		error = dev->transport->do_task(cmd->t_task);
+
 	if (error != 0) {
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
-		task->task_flags &= ~TF_ACTIVE;
+		cmd->transport_state &= ~CMD_T_BUSY;
 		cmd->transport_state &= ~CMD_T_SENT;
 		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 
-		transport_stop_tasks_for_cmd(cmd);
 		transport_generic_request_failure(cmd);
 	}
 
@@ -2454,42 +2327,38 @@ static int transport_get_sense_data(struct se_cmd *cmd)
 		return 0;
 	}
 
-	task = cmd->t_task;
-	if (task) {
-		if (!(task->task_flags & TF_HAS_SENSE))
-			goto out;
+	if (!cmd->t_task)
+		goto out;
 
-		if (!dev->transport->get_sense_buffer) {
-			pr_err("dev->transport->get_sense_buffer"
-					" is NULL\n");
-			goto out;
-		}
+	if (!(cmd->se_cmd_flags & SCF_TRANSPORT_TASK_SENSE))
+		goto out;
 
-		sense_buffer = dev->transport->get_sense_buffer(task);
-		if (!sense_buffer) {
-			pr_err("ITT[0x%08x]_TASK[%p]: Unable to locate"
-				" sense buffer for task with sense\n",
-				cmd->se_tfo->get_task_tag(cmd), task);
-			goto out;
-		}
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-
-		offset = cmd->se_tfo->set_fabric_sense_len(cmd,
-				TRANSPORT_SENSE_BUFFER);
-
-		memcpy(&buffer[offset], sense_buffer,
-				TRANSPORT_SENSE_BUFFER);
-		cmd->scsi_status = task->task_scsi_status;
-		/* Automatically padded */
-		cmd->scsi_sense_length =
-				(TRANSPORT_SENSE_BUFFER + offset);
-
-		pr_debug("HBA_[%u]_PLUG[%s]: Set SAM STATUS: 0x%02x"
-				" and sense\n",
-			dev->se_hba->hba_id, dev->transport->name,
-				cmd->scsi_status);
-		return 0;
+	if (!dev->transport->get_sense_buffer) {
+		pr_err("dev->transport->get_sense_buffer is NULL\n");
+		goto out;
 	}
+
+	sense_buffer = dev->transport->get_sense_buffer(task);
+	if (!sense_buffer) {
+		pr_err("ITT[0x%08x]_TASK[%p]: Unable to locate"
+			" sense buffer for task with sense\n",
+			cmd->se_tfo->get_task_tag(cmd), task);
+		goto out;
+	}
+	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
+
+	offset = cmd->se_tfo->set_fabric_sense_len(cmd, TRANSPORT_SENSE_BUFFER);
+
+	memcpy(&buffer[offset], sense_buffer, TRANSPORT_SENSE_BUFFER);
+	cmd->scsi_status = task->task_scsi_status;
+
+	/* Automatically padded */
+	cmd->scsi_sense_length = TRANSPORT_SENSE_BUFFER + offset;
+
+	pr_debug("HBA_[%u]_PLUG[%s]: Set SAM STATUS: 0x%02x and sense\n",
+		dev->se_hba->hba_id, dev->transport->name, cmd->scsi_status);
+	return 0;
+
 out:
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 	return -1;
@@ -3234,7 +3103,7 @@ static void transport_complete_task_attr(struct se_cmd *cmd)
 			cmd_p->t_task_cdb[0],
 			cmd_p->sam_task_attr, cmd_p->se_ordered_id);
 
-		transport_add_tasks_from_cmd(cmd_p);
+		target_add_to_execute_list(cmd_p);
 		new_active_tasks++;
 
 		spin_lock(&dev->delayed_cmd_lock);
@@ -3413,7 +3282,7 @@ static void transport_free_dev_tasks(struct se_cmd *cmd)
 	struct se_task *task;
 
 	task = cmd->t_task;
-	if (task && !(task->task_flags & TF_ACTIVE))
+	if (task && !(cmd->transport_state & CMD_T_BUSY))
 		cmd->se_dev->transport->free_task(task);
 }
 
@@ -3492,7 +3361,7 @@ static void transport_put_cmd(struct se_cmd *cmd)
 
 	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
 		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
-		transport_all_task_dev_remove_state(cmd);
+		target_remove_from_state_list(cmd);
 		free_tasks = 1;
 	}
 	spin_unlock_irqrestore(&cmd->t_state_lock, flags);
@@ -3709,9 +3578,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 		goto out_fail;
 	}
 
-	INIT_LIST_HEAD(&task->t_execute_list);
-	INIT_LIST_HEAD(&task->t_state_list);
-	init_completion(&task->task_stop_comp);
 	task->task_se_cmd = cmd;
 	task->task_data_direction = cmd->data_direction;
 	task->task_sg = cmd->t_data_sg;
@@ -3733,7 +3599,7 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	 * thread a second time)
 	 */
 	if (cmd->data_direction == DMA_TO_DEVICE) {
-		transport_add_tasks_to_state_queue(cmd);
+		target_add_to_state_list(cmd);
 		return transport_generic_write_pending(cmd);
 	}
 	/*
@@ -3966,8 +3832,10 @@ EXPORT_SYMBOL(target_wait_for_sess_cmds);
  */
 static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 {
+	struct se_task *task = cmd->t_task;
 	unsigned long flags;
-	int ret;
+	int ret = 0;
+
 	/*
 	 * If the frontend has already requested this struct se_cmd to
 	 * be stopped, we can safely ignore this struct se_cmd.
@@ -3987,7 +3855,18 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 
 	wake_up_interruptible(&cmd->se_dev->dev_queue_obj.thread_wq);
 
-	ret = transport_stop_tasks_for_cmd(cmd);
+	// XXX: audit task_flags checks.
+	spin_lock_irqsave(&cmd->t_state_lock, flags);
+	if ((cmd->transport_state & CMD_T_BUSY) &&
+	    (cmd->transport_state & CMD_T_SENT)) {
+		if (!target_stop_cmd(cmd, &flags))
+			ret++;
+		spin_lock_irqsave(&cmd->t_state_lock, flags);
+	} else {
+		spin_unlock_irqrestore(&cmd->t_state_lock,
+				flags);
+		target_remove_from_execute_list(cmd);
+	}
 
 	pr_debug("ConfigFS: cmd: %p stop tasks ret:"
 			" %d\n", cmd, ret);
@@ -4062,7 +3941,7 @@ static void __transport_clear_lun_from_sessions(struct se_lun *lun)
 			goto check_cond;
 		}
 		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
-		transport_all_task_dev_remove_state(cmd);
+		target_remove_from_state_list(cmd);
 		spin_unlock_irqrestore(&cmd->t_state_lock, cmd_flags);
 
 		transport_free_dev_tasks(cmd);
@@ -4178,7 +4057,7 @@ bool transport_wait_for_tasks(struct se_cmd *cmd)
 		wait_for_completion(&cmd->transport_lun_fe_stop_comp);
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 
-		transport_all_task_dev_remove_state(cmd);
+		target_remove_from_state_list(cmd);
 		/*
 		 * At this point, the frontend who was the originator of this
 		 * struct se_cmd, now owns the structure and can be released through
@@ -4599,7 +4478,7 @@ get_cmd:
 	}
 
 out:
-	WARN_ON(!list_empty(&dev->state_task_list));
+	WARN_ON(!list_empty(&dev->state_list));
 	WARN_ON(!list_empty(&dev->dev_queue_obj.qobj_list));
 	dev->process_thread = NULL;
 	return 0;

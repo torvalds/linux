@@ -140,14 +140,6 @@ enum transport_tpg_type_table {
 	TRANSPORT_TPG_TYPE_DISCOVERY = 1,
 };
 
-/* struct se_task->task_flags */
-enum se_task_flags {
-	TF_ACTIVE		= (1 << 0),
-	TF_SENT			= (1 << 1),
-	TF_REQUEST_STOP		= (1 << 2),
-	TF_HAS_SENSE		= (1 << 3),
-};
-
 /* Special transport agnostic struct se_cmd->t_states */
 enum transport_state_table {
 	TRANSPORT_NO_STATE	= 0,
@@ -489,13 +481,8 @@ struct se_task {
 	struct se_cmd		*task_se_cmd;
 	struct scatterlist	*task_sg;
 	u32			task_sg_nents;
-	u16			task_flags;
 	u8			task_scsi_status;
 	enum dma_data_direction	task_data_direction;
-	struct list_head	t_execute_list;
-	struct list_head	t_state_list;
-	bool			t_state_active;
-	struct completion	task_stop_comp;
 };
 
 struct se_tmr_req {
@@ -583,6 +570,8 @@ struct se_cmd {
 #define CMD_T_LUN_STOP		(1 << 7)
 #define CMD_T_LUN_FE_STOP	(1 << 8)
 #define CMD_T_DEV_ACTIVE	(1 << 9)
+#define CMD_T_REQUEST_STOP	(1 << 10)
+#define CMD_T_BUSY		(1 << 11)
 	spinlock_t		t_state_lock;
 	struct completion	t_transport_stop_comp;
 	struct completion	transport_lun_fe_stop_comp;
@@ -595,6 +584,13 @@ struct se_cmd {
 	void			*t_data_vmap;
 	struct scatterlist	*t_bidi_data_sg;
 	unsigned int		t_bidi_data_nents;
+
+	struct list_head	execute_list;
+	struct list_head	state_list;
+	bool			state_active;
+
+	/* old task stop completion, consider merging with some of the above */
+	struct completion	task_stop_comp;
 
 	struct se_task		*t_task;
 };
@@ -820,8 +816,8 @@ struct se_device {
 	struct task_struct	*process_thread;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
-	struct list_head	execute_task_list;
-	struct list_head	state_task_list;
+	struct list_head	execute_list;
+	struct list_head	state_list;
 	struct list_head	qf_cmd_list;
 	/* Pointer to associated SE HBA */
 	struct se_hba		*se_hba;

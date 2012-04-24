@@ -104,8 +104,7 @@ void	release_se_kmem_caches(void);
 u32	scsi_get_new_index(scsi_index_t);
 void	transport_subsystem_check_init(void);
 void	transport_cmd_finish_abort(struct se_cmd *, int);
-void	__transport_remove_task_from_execute_queue(struct se_task *,
-		struct se_device *);
+void	__target_remove_from_execute_list(struct se_cmd *);
 unsigned char *transport_dump_cmd_direction(struct se_cmd *);
 void	transport_dump_dev_state(struct se_device *, char *, int *);
 void	transport_dump_dev_info(struct se_device *, struct se_lun *,
@@ -114,7 +113,7 @@ void	transport_dump_vpd_proto_id(struct t10_vpd *, unsigned char *, int);
 int	transport_dump_vpd_assoc(struct t10_vpd *, unsigned char *, int);
 int	transport_dump_vpd_ident_type(struct t10_vpd *, unsigned char *, int);
 int	transport_dump_vpd_ident(struct t10_vpd *, unsigned char *, int);
-bool	target_stop_task(struct se_task *task, unsigned long *flags);
+bool	target_stop_cmd(struct se_cmd *cmd, unsigned long *flags);
 int	transport_clear_lun_from_sessions(struct se_lun *);
 void	transport_send_task_abort(struct se_cmd *);
 
