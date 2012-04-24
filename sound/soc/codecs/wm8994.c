@@ -1982,7 +1982,7 @@ static int _wm8994_set_fll(struct snd_soc_codec *codec, int id, int src,
 			    WM8994_FLL1_ENA, 0);
 
 	if (wm8994->fll_byp && src == WM8994_FLL_SRC_BCLK &&
-	    freq_in == freq_out) {
+	    freq_in == freq_out && freq_out) {
 		dev_dbg(codec->dev, "Bypassing FLL%d\n", id + 1);
 		snd_soc_update_bits(codec, WM8994_FLL1_CONTROL_5 + reg_offset,
 				    WM8958_FLL1_BYP, WM8958_FLL1_BYP);
