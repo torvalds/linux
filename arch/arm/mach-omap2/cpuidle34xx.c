@@ -172,13 +172,12 @@ static inline int omap3_enter_idle(struct cpuidle_device *dev,
  * if it satisfies the enable_off_mode condition.
  */
 static int next_valid_state(struct cpuidle_device *dev,
-			struct cpuidle_driver *drv,
-				int index)
+			    struct cpuidle_driver *drv, int index)
 {
-	struct cpuidle_state *curr = &drv->states[index];
 	struct omap3_idle_statedata *cx = &omap3_idle_data[index];
 	u32 mpu_deepest_state = PWRDM_POWER_RET;
 	u32 core_deepest_state = PWRDM_POWER_RET;
+	int idx;
 	int next_index = -1;
 
 	if (enable_off_mode) {
@@ -194,41 +193,27 @@ static int next_valid_state(struct cpuidle_device *dev,
 
 	/* Check if current state is valid */
 	if ((cx->mpu_state >= mpu_deepest_state) &&
-	    (cx->core_state >= core_deepest_state)) {
+	    (cx->core_state >= core_deepest_state))
 		return index;
-	} else {
-		int idx = ARRAY_SIZE(omap3_idle_data) - 1;
 
-		/* Reach the current state starting at highest C-state */
-		for (; idx >= 0; idx--) {
-			if (&drv->states[idx] == curr) {
-				next_index = idx;
-				break;
-			}
+	/*
+	 * Drop to next valid state.
+	 * Start search from the next (lower) state.
+	 */
+	for (idx = index - 1; idx >= 0; idx--) {
+		cx =  &omap3_idle_data[idx];
+		if ((cx->mpu_state >= mpu_deepest_state) &&
+		    (cx->core_state >= core_deepest_state)) {
+			next_index = idx;
+			break;
 		}
-
-		/* Should never hit this condition */
-		WARN_ON(next_index == -1);
-
-		/*
-		 * Drop to next valid state.
-		 * Start search from the next (lower) state.
-		 */
-		idx--;
-		for (; idx >= 0; idx--) {
-			cx =  &omap3_idle_data[idx];
-			if ((cx->mpu_state >= mpu_deepest_state) &&
-			    (cx->core_state >= core_deepest_state)) {
-				next_index = idx;
-				break;
-			}
-		}
-		/*
-		 * C1 is always valid.
-		 * So, no need to check for 'next_index == -1' outside
-		 * this loop.
-		 */
 	}
+
+	/*
+	 * C1 is always valid.
+	 * So, no need to check for 'next_index == -1' outside
+	 * this loop.
+	 */
 
 	return next_index;
 }
