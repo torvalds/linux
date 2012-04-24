@@ -22,6 +22,23 @@
 	};
 
 	soc {
+		aips-bus@02000000 { /* AIPS1 */
+			spba-bus@02000000 {
+				ecspi@02008000 { /* eCSPI1 */
+					fsl,spi-num-chipselects = <1>;
+					cs-gpios = <&gpio3 19 0>;
+					status = "okay";
+
+					flash: m25p80@0 {
+						compatible = "sst,sst25vf016b";
+						spi-max-frequency = <20000000>;
+						reg = <0>;
+					};
+				};
+			};
+
+		};
+
 		aips-bus@02100000 { /* AIPS2 */
 			ethernet@02188000 {
 				phy-mode = "rgmii";
