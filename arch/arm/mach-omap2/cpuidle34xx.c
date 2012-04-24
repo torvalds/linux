@@ -95,8 +95,7 @@ static int __omap3_enter_idle(struct cpuidle_device *dev,
 				struct cpuidle_driver *drv,
 				int index)
 {
-	struct omap3_idle_statedata *cx =
-			cpuidle_get_statedata(&dev->states_usage[index]);
+	struct omap3_idle_statedata *cx = &omap3_idle_data[index];
 	u32 mpu_state = cx->mpu_state, core_state = cx->core_state;
 
 	local_fiq_disable();
@@ -176,9 +175,8 @@ static int next_valid_state(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 				int index)
 {
-	struct cpuidle_state_usage *curr_usage = &dev->states_usage[index];
 	struct cpuidle_state *curr = &drv->states[index];
-	struct omap3_idle_statedata *cx = cpuidle_get_statedata(curr_usage);
+	struct omap3_idle_statedata *cx = &omap3_idle_data[index];
 	u32 mpu_deepest_state = PWRDM_POWER_RET;
 	u32 core_deepest_state = PWRDM_POWER_RET;
 	int next_index = -1;
@@ -218,7 +216,7 @@ static int next_valid_state(struct cpuidle_device *dev,
 		 */
 		idx--;
 		for (; idx >= 0; idx--) {
-			cx = cpuidle_get_statedata(&dev->states_usage[idx]);
+			cx =  &omap3_idle_data[idx];
 			if ((cx->mpu_state >= mpu_deepest_state) &&
 			    (cx->core_state >= core_deepest_state)) {
 				next_index = idx;
@@ -275,7 +273,7 @@ static int omap3_enter_idle_bm(struct cpuidle_device *dev,
 	 * Prevent PER off if CORE is not in retention or off as this
 	 * would disable PER wakeups completely.
 	 */
-	cx = cpuidle_get_statedata(&dev->states_usage[index]);
+	cx = &omap3_idle_data[index];
 	core_next_state = cx->core_state;
 	per_next_state = per_saved_state = pwrdm_read_next_pwrst(per_pd);
 	if ((per_next_state == PWRDM_POWER_OFF) &&
@@ -365,19 +363,6 @@ struct cpuidle_driver omap3_idle_driver = {
 	.safe_state_index = 0,
 };
 
-/* Helper to register the driver_data */
-static inline struct omap3_idle_statedata *_fill_cstate_usage(
-					struct cpuidle_device *dev,
-					int idx)
-{
-	struct omap3_idle_statedata *cx = &omap3_idle_data[idx];
-	struct cpuidle_state_usage *state_usage = &dev->states_usage[idx];
-
-	cpuidle_set_statedata(state_usage, cx);
-
-	return cx;
-}
-
 /**
  * omap3_idle_init - Init routine for OMAP3 idle
  *
@@ -387,52 +372,16 @@ static inline struct omap3_idle_statedata *_fill_cstate_usage(
 int __init omap3_idle_init(void)
 {
 	struct cpuidle_device *dev;
-	struct omap3_idle_statedata *cx;
 
 	mpu_pd = pwrdm_lookup("mpu_pwrdm");
 	core_pd = pwrdm_lookup("core_pwrdm");
 	per_pd = pwrdm_lookup("per_pwrdm");
 	cam_pd = pwrdm_lookup("cam_pwrdm");
 
+	cpuidle_register_driver(&omap3_idle_driver);
 
 	dev = &per_cpu(omap3_idle_dev, smp_processor_id());
-
-	/* C1 . MPU WFI + Core active */
-	cx = _fill_cstate_usage(dev, 0);
-	cx->mpu_state = PWRDM_POWER_ON;
-	cx->core_state = PWRDM_POWER_ON;
-
-	/* C2 . MPU WFI + Core inactive */
-	cx = _fill_cstate_usage(dev, 1);
-	cx->mpu_state = PWRDM_POWER_ON;
-	cx->core_state = PWRDM_POWER_ON;
-
-	/* C3 . MPU CSWR + Core inactive */
-	cx = _fill_cstate_usage(dev, 2);
-	cx->mpu_state = PWRDM_POWER_RET;
-	cx->core_state = PWRDM_POWER_ON;
-
-	/* C4 . MPU OFF + Core inactive */
-	cx = _fill_cstate_usage(dev, 3);
-	cx->mpu_state = PWRDM_POWER_OFF;
-	cx->core_state = PWRDM_POWER_ON;
-
-	/* C5 . MPU RET + Core RET */
-	cx = _fill_cstate_usage(dev, 4);
-	cx->mpu_state = PWRDM_POWER_RET;
-	cx->core_state = PWRDM_POWER_RET;
-
-	/* C6 . MPU OFF + Core RET */
-	cx = _fill_cstate_usage(dev, 5);
-	cx->mpu_state = PWRDM_POWER_OFF;
-	cx->core_state = PWRDM_POWER_RET;
-
-	/* C7 . MPU OFF + Core OFF */
-	cx = _fill_cstate_usage(dev, 6);
-	cx->mpu_state = PWRDM_POWER_OFF;
-	cx->core_state = PWRDM_POWER_OFF;
-
-	cpuidle_register_driver(&omap3_idle_driver);
+	dev->cpu = 0;
 
 	if (cpuidle_register_device(dev)) {
 		printk(KERN_ERR "%s: CPUidle register device failed\n",
