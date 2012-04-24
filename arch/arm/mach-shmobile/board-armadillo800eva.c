@@ -93,7 +93,7 @@
  *     0     | Extension Bus | D8-D15 disable, eMMC enable
  *     1     | Extension Bus | D8-D15 enable,  eMMC disable
  * -12345678-+---------------+----------------------------
- *      0    | SDHI1         | COM8 enable,  COM14 disable
+ *      0    | SDHI1         | COM8 disable, COM14 enable
  *      1    | SDHI1         | COM8 enable,  COM14 disable
  * -12345678-+---------------+----------------------------
  *       0   | USB0          | COM20 enable,  COM24 disable
@@ -454,6 +454,44 @@ static struct platform_device sdhi0_device = {
 	.resource	= sdhi0_resources,
 };
 
+/* SDHI1 */
+static struct sh_mobile_sdhi_info sdhi1_info = {
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ,
+	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static struct resource sdhi1_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start	= 0xe6860000,
+		.end	= 0xe6860100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= evt2irq(0x0E80),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		.start	= evt2irq(0x0EA0),
+		.flags	= IORESOURCE_IRQ,
+	},
+	[3] = {
+		.start	= evt2irq(0x0EC0),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_device = {
+	.name		= "sh_mobile_sdhi",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &sdhi1_info,
+	},
+	.num_resources	= ARRAY_SIZE(sdhi1_resources),
+	.resource	= sdhi1_resources,
+};
+
 /* I2C */
 static struct i2c_board_info i2c0_devices[] = {
 	{
@@ -618,6 +656,32 @@ static void __init eva_init(void)
 	 */
 	gpio_request(GPIO_PORT176, NULL);
 	gpio_direction_output(GPIO_PORT176, 1);
+
+	/*
+	 * We can switch CON8/CON14 by SW1.5,
+	 * but it needs after DBGMD_SELECT_B
+	 */
+	gpio_request(GPIO_PORT6, NULL);
+	gpio_direction_input(GPIO_PORT6);
+	if (gpio_get_value(GPIO_PORT6)) {
+		/* CON14 enable */
+	} else {
+		/* CON8 (SDHI1) enable */
+		gpio_request(GPIO_FN_SDHI1_CLK,	NULL);
+		gpio_request(GPIO_FN_SDHI1_CMD,	NULL);
+		gpio_request(GPIO_FN_SDHI1_D0,	NULL);
+		gpio_request(GPIO_FN_SDHI1_D1,	NULL);
+		gpio_request(GPIO_FN_SDHI1_D2,	NULL);
+		gpio_request(GPIO_FN_SDHI1_D3,	NULL);
+		gpio_request(GPIO_FN_SDHI1_CD,	NULL);
+		gpio_request(GPIO_FN_SDHI1_WP,	NULL);
+
+		gpio_request(GPIO_PORT16, NULL); /* SDSLOT2_PON */
+		gpio_direction_output(GPIO_PORT16, 1);
+
+		platform_device_register(&sdhi1_device);
+	}
+
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 32K*8way */
