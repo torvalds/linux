@@ -935,26 +935,46 @@ static int snd_ftu_create_mixer(struct usb_mixer_interface *mixer)
 
 static int snd_ebox44_create_mixer(struct usb_mixer_interface *mixer)
 {
-	snd_create_std_mono_ctl(mixer, 4, 1, 0x0, USB_MIXER_INV_BOOLEAN,
+	int err;
+
+	err = snd_create_std_mono_ctl(mixer, 4, 1, 0x0, USB_MIXER_INV_BOOLEAN,
 				"Headphone Playback Switch", NULL);
-	snd_create_std_mono_ctl(mixer, 4, 2, 0x1, USB_MIXER_S16,
+	if (err < 0)
+		return err;
+	err = snd_create_std_mono_ctl(mixer, 4, 2, 0x1, USB_MIXER_S16,
 				"Headphone A Mix Playback Volume", NULL);
-	snd_create_std_mono_ctl(mixer, 4, 2, 0x2, USB_MIXER_S16,
+	if (err < 0)
+		return err;
+	err = snd_create_std_mono_ctl(mixer, 4, 2, 0x2, USB_MIXER_S16,
 				"Headphone B Mix Playback Volume", NULL);
+	if (err < 0)
+		return err;
 
-	snd_create_std_mono_ctl(mixer, 7, 1, 0x0, USB_MIXER_INV_BOOLEAN,
+	err = snd_create_std_mono_ctl(mixer, 7, 1, 0x0, USB_MIXER_INV_BOOLEAN,
 				"Output Playback Switch", NULL);
-	snd_create_std_mono_ctl(mixer, 7, 2, 0x1, USB_MIXER_S16,
+	if (err < 0)
+		return err;
+	err = snd_create_std_mono_ctl(mixer, 7, 2, 0x1, USB_MIXER_S16,
 				"Output A Playback Volume", NULL);
-	snd_create_std_mono_ctl(mixer, 7, 2, 0x2, USB_MIXER_S16,
+	if (err < 0)
+		return err;
+	err = snd_create_std_mono_ctl(mixer, 7, 2, 0x2, USB_MIXER_S16,
 				"Output B Playback Volume", NULL);
+	if (err < 0)
+		return err;
 
-	snd_create_std_mono_ctl(mixer, 10, 1, 0x0, USB_MIXER_INV_BOOLEAN,
+	err = snd_create_std_mono_ctl(mixer, 10, 1, 0x0, USB_MIXER_INV_BOOLEAN,
 				"Input Capture Switch", NULL);
-	snd_create_std_mono_ctl(mixer, 10, 2, 0x1, USB_MIXER_S16,
+	if (err < 0)
+		return err;
+	err = snd_create_std_mono_ctl(mixer, 10, 2, 0x1, USB_MIXER_S16,
 				"Input A Capture Volume", NULL);
-	snd_create_std_mono_ctl(mixer, 10, 2, 0x2, USB_MIXER_S16,
+	if (err < 0)
+		return err;
+	err = snd_create_std_mono_ctl(mixer, 10, 2, 0x2, USB_MIXER_S16,
 				"Input B Capture Volume", NULL);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
