@@ -2351,7 +2351,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
-	u32 error_mask;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
@@ -2372,16 +2371,7 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	 * Enable some error detection, note the instruction error mask
 	 * bit is reserved, so we leave it masked.
 	 */
-	if (IS_G4X(dev)) {
-		error_mask = ~(GM45_ERROR_PAGE_TABLE |
-			       GM45_ERROR_MEM_PRIV |
-			       GM45_ERROR_CP_PRIV |
-			       I915_ERROR_MEMORY_REFRESH);
-	} else {
-		error_mask = ~(I915_ERROR_PAGE_TABLE |
-			       I915_ERROR_MEMORY_REFRESH);
-	}
-	I915_WRITE(EMR, error_mask);
+	I915_WRITE(EMR, ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
 
 	I915_WRITE(IMR, dev_priv->irq_mask);
 	I915_WRITE(IER, enable_mask);
@@ -2390,7 +2380,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 	if (I915_HAS_HOTPLUG(dev)) {
 		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
-		/* Note HDMI and DP share bits */
 		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
 			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
@@ -2403,13 +2392,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 			hotplug_en |= CRT_HOTPLUG_INT_EN;
-
-			/* Programming the CRT detection parameters tends
-			   to generate a spurious hotplug event about three
-			   seconds later.  So just do it once.
-			*/
-			if (IS_G4X(dev))
-				hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
 			hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 		}
 
@@ -2428,26 +2410,17 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	struct drm_i915_master_private *master_priv;
-	u32 iir, new_iir;
-	u32 pipe_stats[I915_MAX_PIPES];
-	u32 vblank_status;
-	int vblank = 0;
+	u32 iir, new_iir, pipe_stats[I915_MAX_PIPES];
 	unsigned long irqflags;
-	int irq_received;
 	int ret = IRQ_NONE, pipe;
-	bool blc_event = false;
 
 	atomic_inc(&dev_priv->irq_received);
 
 	iir = I915_READ(IIR);
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		vblank_status = PIPE_START_VBLANK_INTERRUPT_STATUS;
-	else
-		vblank_status = PIPE_VBLANK_INTERRUPT_STATUS;
-
 	for (;;) {
-		irq_received = iir != 0;
+		bool blc_event = false;
+		int irq_received = iir != 0;
 
 		/* Can't rely on pipestat interrupt bit in iir as it might
 		 * have been cleared after the pipestat interrupt was received.
@@ -2498,17 +2471,8 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 		I915_WRITE(IIR, iir);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
 
-		if (dev->primary->master) {
-			master_priv = dev->primary->master->driver_priv;
-			if (master_priv->sarea_priv)
-				master_priv->sarea_priv->last_dispatch =
-					READ_BREADCRUMB(dev_priv);
-		}
-
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
-		if (iir & I915_BSD_USER_INTERRUPT)
-			notify_ring(dev, &dev_priv->ring[VCS]);
 
 		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
 			intel_prepare_page_flip(dev, 0);
@@ -2517,9 +2481,8 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 			intel_prepare_page_flip(dev, 1);
 
 		for_each_pipe(pipe) {
-			if (pipe_stats[pipe] & vblank_status &&
+			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS &&
 			    drm_handle_vblank(dev, pipe)) {
-				vblank++;
 				i915_pageflip_stall_check(dev, pipe);
 				intel_finish_page_flip(dev, pipe);
 			}
@@ -2527,7 +2490,6 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
 				blc_event = true;
 		}
-
 
 		if (blc_event || (iir & I915_ASLE_INTERRUPT))
 			intel_opregion_asle_intr(dev);
@@ -2548,6 +2510,13 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 		 * stray interrupts.
 		 */
 		iir = new_iir;
+	}
+
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
 	}
 
 	return ret;
