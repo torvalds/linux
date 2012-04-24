@@ -580,7 +580,7 @@ static void __init mx31moboard_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-struct sys_timer mx31moboard_timer = {
+static struct sys_timer mx31moboard_timer = {
 	.init	= mx31moboard_timer_init,
 };
 
