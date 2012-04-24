@@ -746,18 +746,18 @@ static void intel_sdvo_get_dtd_from_mode(struct intel_sdvo_dtd *dtd,
 	uint16_t h_blank_len, h_sync_len, v_blank_len, v_sync_len;
 	uint16_t h_sync_offset, v_sync_offset;
 
-	width = mode->crtc_hdisplay;
-	height = mode->crtc_vdisplay;
+	width = mode->hdisplay;
+	height = mode->vdisplay;
 
 	/* do some mode translations */
-	h_blank_len = mode->crtc_hblank_end - mode->crtc_hblank_start;
-	h_sync_len = mode->crtc_hsync_end - mode->crtc_hsync_start;
+	h_blank_len = mode->htotal - mode->hdisplay;
+	h_sync_len = mode->hsync_end - mode->hsync_start;
 
-	v_blank_len = mode->crtc_vblank_end - mode->crtc_vblank_start;
-	v_sync_len = mode->crtc_vsync_end - mode->crtc_vsync_start;
+	v_blank_len = mode->vtotal - mode->vdisplay;
+	v_sync_len = mode->vsync_end - mode->vsync_start;
 
-	h_sync_offset = mode->crtc_hsync_start - mode->crtc_hblank_start;
-	v_sync_offset = mode->crtc_vsync_start - mode->crtc_vblank_start;
+	h_sync_offset = mode->hsync_start - mode->hdisplay;
+	v_sync_offset = mode->vsync_start - mode->vdisplay;
 
 	dtd->part1.clock = mode->clock / 10;
 	dtd->part1.h_active = width & 0xff;
