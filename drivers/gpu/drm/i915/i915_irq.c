@@ -2339,7 +2339,7 @@ static void i915_irq_preinstall(struct drm_device * dev)
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	}
 
-	I915_WRITE(HWSTAM, 0xeffe);
+	I915_WRITE16(HWSTAM, 0xeffe);
 	for_each_pipe(pipe)
 		I915_WRITE(PIPESTAT(pipe), 0);
 	I915_WRITE(IMR, 0xffffffff);
@@ -2537,7 +2537,7 @@ static void i915_irq_uninstall(struct drm_device * dev)
 		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 	}
 
-	I915_WRITE(HWSTAM, 0xffffffff);
+	I915_WRITE16(HWSTAM, 0xffff);
 	for_each_pipe(pipe)
 		I915_WRITE(PIPESTAT(pipe), 0);
 	I915_WRITE(IMR, 0xffffffff);
