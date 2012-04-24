@@ -1428,6 +1428,28 @@ static int btrfsic_handle_extent_data(
 
 	file_extent_item_offset = offsetof(struct btrfs_leaf, items) +
 				  item_offset;
+	if (file_extent_item_offset +
+	    offsetof(struct btrfs_file_extent_item, disk_num_bytes) >
+	    block_ctx->len) {
+		printk(KERN_INFO
+		       "btrfsic: file item out of bounce at logical %llu, dev %s\n",
+		       block_ctx->start, block_ctx->dev->name);
+		return -1;
+	}
+
+	btrfsic_read_from_block_data(block_ctx, &file_extent_item,
+		file_extent_item_offset,
+		offsetof(struct btrfs_file_extent_item, disk_num_bytes));
+	if (BTRFS_FILE_EXTENT_REG != file_extent_item.type ||
+	    ((u64)0) == le64_to_cpu(file_extent_item.disk_bytenr)) {
+		if (state->print_mask & BTRFSIC_PRINT_MASK_VERY_VERBOSE)
+			printk(KERN_INFO "extent_data: type %u, disk_bytenr = %llu\n",
+			       file_extent_item.type,
+			       (unsigned long long)
+			       le64_to_cpu(file_extent_item.disk_bytenr));
+		return 0;
+	}
+
 	if (file_extent_item_offset + sizeof(struct btrfs_file_extent_item) >
 	    block_ctx->len) {
 		printk(KERN_INFO
@@ -1452,9 +1474,6 @@ static int btrfsic_handle_extent_data(
 		       le64_to_cpu(file_extent_item.disk_bytenr),
 		       (unsigned long long)le64_to_cpu(file_extent_item.offset),
 		       (unsigned long long)num_bytes);
-	if (BTRFS_FILE_EXTENT_REG != file_extent_item.type ||
-	    ((u64)0) == le64_to_cpu(file_extent_item.disk_bytenr))
-		return 0;
 	while (num_bytes > 0) {
 		u32 chunk_len;
 		int num_copies;
