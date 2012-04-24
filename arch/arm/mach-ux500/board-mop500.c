@@ -605,7 +605,6 @@ static void __init mop500_uart_init(struct device *parent)
 static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
-	&snowball_sbnet_dev,
 	&ab8500_device,
 };
 
