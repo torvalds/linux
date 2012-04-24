@@ -140,6 +140,9 @@ i915_gem_init_ioctl(struct drm_device *dev, void *data,
 {
 	struct drm_i915_gem_init *args = data;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	if (args->gtt_start >= args->gtt_end ||
 	    (args->gtt_end | args->gtt_start) & (PAGE_SIZE - 1))
 		return -EINVAL;
