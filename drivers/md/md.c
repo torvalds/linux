@@ -8140,7 +8140,8 @@ static int md_notify_reboot(struct notifier_block *this,
 
 	for_each_mddev(mddev, tmp) {
 		if (mddev_trylock(mddev)) {
-			__md_stop_writes(mddev);
+			if (mddev->pers)
+				__md_stop_writes(mddev);
 			mddev->safemode = 2;
 			mddev_unlock(mddev);
 		}
