@@ -1,7 +1,7 @@
 /*
  * sortextable.h
  *
- * Copyright 2011 Cavium, Inc.
+ * Copyright 2011 - 2012 Cavium, Inc.
  *
  * Some of this code was taken out of recordmcount.h written by:
  *
@@ -30,6 +30,7 @@
 #undef fn_ELF_R_SYM
 #undef fn_ELF_R_INFO
 #undef uint_t
+#undef _r
 #undef _w
 
 #ifdef SORTEXTABLE_64
@@ -51,6 +52,7 @@
 # define fn_ELF_R_SYM		fn_ELF64_R_SYM
 # define fn_ELF_R_INFO		fn_ELF64_R_INFO
 # define uint_t			uint64_t
+# define _r			r8
 # define _w			w8
 #else
 # define extable_ent_size	8
@@ -71,23 +73,24 @@
 # define fn_ELF_R_SYM		fn_ELF32_R_SYM
 # define fn_ELF_R_INFO		fn_ELF32_R_INFO
 # define uint_t			uint32_t
+# define _r			r
 # define _w			w
 #endif
 
 static int compare_extable(const void *a, const void *b)
 {
-	const uint_t *aa = a;
-	const uint_t *bb = b;
+	Elf_Addr av = _r(a);
+	Elf_Addr bv = _r(b);
 
-	if (_w(*aa) < _w(*bb))
+	if (av < bv)
 		return -1;
-	if (_w(*aa) > _w(*bb))
+	if (av > bv)
 		return 1;
 	return 0;
 }
 
 static void
-do_func(Elf_Ehdr *const ehdr, char const *const fname)
+do_func(Elf_Ehdr *ehdr, char const *const fname, table_sort_t custom_sort)
 {
 	Elf_Shdr *shdr;
 	Elf_Shdr *shstrtab_sec;
@@ -97,19 +100,31 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname)
 	Elf_Sym *sym;
 	Elf_Sym *sort_needed_sym;
 	Elf_Shdr *sort_needed_sec;
+	Elf_Rel *relocs = NULL;
+	int relocs_size;
 	uint32_t *sort_done_location;
 	const char *secstrtab;
 	const char *strtab;
+	char *extab_image;
+	int extab_index = 0;
 	int i;
 	int idx;
 
-	shdr = (Elf_Shdr *)((void *)ehdr + _w(ehdr->e_shoff));
-	shstrtab_sec = shdr + w2(ehdr->e_shstrndx);
-	secstrtab = (const char *)ehdr + _w(shstrtab_sec->sh_offset);
-	for (i = 0; i < w2(ehdr->e_shnum); i++) {
-		idx = w(shdr[i].sh_name);
-		if (strcmp(secstrtab + idx, "__ex_table") == 0)
+	shdr = (Elf_Shdr *)((char *)ehdr + _r(&ehdr->e_shoff));
+	shstrtab_sec = shdr + r2(&ehdr->e_shstrndx);
+	secstrtab = (const char *)ehdr + _r(&shstrtab_sec->sh_offset);
+	for (i = 0; i < r2(&ehdr->e_shnum); i++) {
+		idx = r(&shdr[i].sh_name);
+		if (strcmp(secstrtab + idx, "__ex_table") == 0) {
 			extab_sec = shdr + i;
+			extab_index = i;
+		}
+		if ((r(&shdr[i].sh_type) == SHT_REL ||
+		     r(&shdr[i].sh_type) == SHT_RELA) &&
+		    r(&shdr[i].sh_info) == extab_index) {
+			relocs = (void *)ehdr + _r(&shdr[i].sh_offset);
+			relocs_size = _r(&shdr[i].sh_size);
+		}
 		if (strcmp(secstrtab + idx, ".symtab") == 0)
 			symtab_sec = shdr + i;
 		if (strcmp(secstrtab + idx, ".strtab") == 0)
@@ -127,21 +142,29 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname)
 		fprintf(stderr,	"no __ex_table in  file: %s\n", fname);
 		fail_file();
 	}
-	strtab = (const char *)ehdr + _w(strtab_sec->sh_offset);
+	strtab = (const char *)ehdr + _r(&strtab_sec->sh_offset);
 
-	/* Sort the table in place */
-	qsort((void *)ehdr + _w(extab_sec->sh_offset),
-	      (_w(extab_sec->sh_size) / extable_ent_size),
-	      extable_ent_size, compare_extable);
+	extab_image = (void *)ehdr + _r(&extab_sec->sh_offset);
+
+	if (custom_sort) {
+		custom_sort(extab_image, _r(&extab_sec->sh_size));
+	} else {
+		int num_entries = _r(&extab_sec->sh_size) / extable_ent_size;
+		qsort(extab_image, num_entries,
+		      extable_ent_size, compare_extable);
+	}
+	/* If there were relocations, we no longer need them. */
+	if (relocs)
+		memset(relocs, 0, relocs_size);
 
 	/* find main_extable_sort_needed */
 	sort_needed_sym = NULL;
-	for (i = 0; i < _w(symtab_sec->sh_size) / sizeof(Elf_Sym); i++) {
-		sym = (void *)ehdr + _w(symtab_sec->sh_offset);
+	for (i = 0; i < _r(&symtab_sec->sh_size) / sizeof(Elf_Sym); i++) {
+		sym = (void *)ehdr + _r(&symtab_sec->sh_offset);
 		sym += i;
 		if (ELF_ST_TYPE(sym->st_info) != STT_OBJECT)
 			continue;
-		idx = w(sym->st_name);
+		idx = r(&sym->st_name);
 		if (strcmp(strtab + idx, "main_extable_sort_needed") == 0) {
 			sort_needed_sym = sym;
 			break;
@@ -153,16 +176,16 @@ do_func(Elf_Ehdr *const ehdr, char const *const fname)
 			fname);
 		fail_file();
 	}
-	sort_needed_sec = &shdr[w2(sort_needed_sym->st_shndx)];
+	sort_needed_sec = &shdr[r2(&sort_needed_sym->st_shndx)];
 	sort_done_location = (void *)ehdr +
-		_w(sort_needed_sec->sh_offset) +
-		_w(sort_needed_sym->st_value) -
-		_w(sort_needed_sec->sh_addr);
+		_r(&sort_needed_sec->sh_offset) +
+		_r(&sort_needed_sym->st_value) -
+		_r(&sort_needed_sec->sh_addr);
 
+#if 1
 	printf("sort done marker at %lx\n",
-		(unsigned long) (_w(sort_needed_sec->sh_offset) +
-				 _w(sort_needed_sym->st_value) -
-				 _w(sort_needed_sec->sh_addr)));
+	       (unsigned long)((char *)sort_done_location - (char *)ehdr));
+#endif
 	/* We sorted it, clear the flag. */
-	*sort_done_location = 0;
+	w(0, sort_done_location);
 }
