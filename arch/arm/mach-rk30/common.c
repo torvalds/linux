@@ -14,6 +14,7 @@
 #include <mach/fiq.h>
 #include <mach/pmu.h>
 #include <mach/loader.h>
+#include <mach/ddr.h>
 
 static void __init rk30_cpu_axi_init(void)
 {
@@ -127,6 +128,7 @@ void __init rk30_map_io(void)
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();
+    ddr_init(DDR_TYPE, DDR_FREQ);
 	rk30_iomux_init();
 	rk30_boot_mode_init();
 }

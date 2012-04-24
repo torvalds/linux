@@ -21,6 +21,7 @@
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/cru.h>
+#include <mach/ddr.h>
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
@@ -73,7 +74,7 @@ void __sramfunc sram_printch(char byte)
 }
 
 #ifdef CONFIG_DDR_TEST
-static int ddr_debug;
+static int ddr_debug=0;
 module_param(ddr_debug, int, 0644);
 
 static int inline calc_crc32(u32 addr, size_t len)
@@ -90,13 +91,14 @@ static void __sramfunc ddr_testmode(void)
 
 	if (ddr_debug == 1) {
 		for (;;) {
-			sram_printascii("change freq\n");
+			sram_printascii("\n change freq:");
 			g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
-			nMHz = 333 + random32();
-			nMHz %= 490;
-			if (nMHz < 100)
-				nMHz = 100;
-//			nMHz = ddr_change_freq(nMHz);
+			do
+			{
+			    nMHz = 300 + random32();
+			    nMHz %= 500;
+			}while(nMHz < 300);
+			nMHz = ddr_change_freq(nMHz);
 			sram_printhex(nMHz);
 			sram_printch(' ');
 			sram_printhex(n++);
@@ -117,9 +119,9 @@ static void __sramfunc ddr_testmode(void)
 			sram_printch(' ');
 			g_crc1 = calc_crc32((u32)_stext, (size_t)(_etext-_stext));
 			nMHz = (random32()>>13);// 16.7s max
-//			ddr_suspend();
-//			delayus(nMHz);
-//			ddr_resume();
+			ddr_suspend();
+			sram_udelay(nMHz);
+			ddr_resume();
 			sram_printhex(nMHz);
 			sram_printch(' ');
 			sram_printhex(n++);
@@ -217,8 +219,8 @@ static void pm_pll_wait_lock(int pll_idx)
 
 static unsigned long save_sp;
 
-extern void __sramfunc ddr_selfrefresh_enter(void);
-extern void __sramfunc ddr_selfrefresh_exit(void);
+//extern void __sramfunc ddr_selfrefresh_enter(void);
+//extern void __sramfunc ddr_selfrefresh_exit(void);
 
 static noinline void interface_ctr_reg_pread(void)
 {
@@ -321,7 +323,7 @@ static void __sramfunc rk30_sram_suspend(void)
 	int i;
 
 	sram_printch('5');
-	ddr_selfrefresh_enter();
+	ddr_suspend();
 	sram_printch('6');
 
 	for (i = 0; i < CRU_CLKGATES_CON_CNT; i++) {
@@ -369,7 +371,7 @@ static void __sramfunc rk30_sram_suspend(void)
 	}
 
 	sram_printch('6');
-	ddr_selfrefresh_exit();
+	ddr_resume();
 	sram_printch('5');
 }
 
@@ -389,12 +391,6 @@ static int rk30_pm_enter(suspend_state_t state)
 	u32 cru_mode_con;
 	u32 pmu_pwrdn_st;
 
-#ifdef CONFIG_DDR_TEST
-	// memory tester
-	if (ddr_debug != 2)
-		ddr_testmode();
-#endif
-
 	// dump GPIO INTEN for debug
 	rk30_pm_dump_inten();
 
@@ -406,6 +402,12 @@ static int rk30_pm_enter(suspend_state_t state)
 
 	pmu_pwrdn_st = pmu_readl(PMU_PWRDN_ST);
 	rk30_pm_set_power_domain(pmu_pwrdn_st, false);
+
+	#ifdef CONFIG_DDR_TEST
+	// memory tester
+	if (ddr_debug != 0)
+		ddr_testmode();
+    #endif
 
 	sram_printch('1');
 	local_fiq_disable();
