@@ -29,16 +29,15 @@ struct omap4_idle_statedata {
 	u32 cpu_state;
 	u32 mpu_logic_state;
 	u32 mpu_state;
-	u8 valid;
 };
 
 static struct cpuidle_params cpuidle_params_table[] = {
 	/* C1 - CPU0 ON + CPU1 ON + MPU ON */
-	{.exit_latency = 2 + 2 , .target_residency = 5, .valid = 1},
+	{.exit_latency = 2 + 2 , .target_residency = 5 },
 	/* C2- CPU0 OFF + CPU1 OFF + MPU CSWR */
-	{.exit_latency = 328 + 440 , .target_residency = 960, .valid = 1},
+	{.exit_latency = 328 + 440 , .target_residency = 960 },
 	/* C3 - CPU0 OFF + CPU1 OFF + MPU OSWR */
-	{.exit_latency = 460 + 518 , .target_residency = 1100, .valid = 1},
+	{.exit_latency = 460 + 518 , .target_residency = 1100 },
 };
 
 #define OMAP4_NUM_STATES ARRAY_SIZE(cpuidle_params_table)
@@ -155,7 +154,6 @@ static inline struct omap4_idle_statedata *_fill_cstate_usage(
 	struct omap4_idle_statedata *cx = &omap4_idle_data[idx];
 	struct cpuidle_state_usage *state_usage = &dev->states_usage[idx];
 
-	cx->valid		= cpuidle_params_table[idx].valid;
 	cpuidle_set_statedata(state_usage, cx);
 
 	return cx;
@@ -191,7 +189,6 @@ int __init omap4_idle_init(void)
 	_fill_cstate(drv, 0, "MPUSS ON");
 	drv->safe_state_index = 0;
 	cx = _fill_cstate_usage(dev, 0);
-	cx->valid = 1;	/* C1 is always valid */
 	cx->cpu_state = PWRDM_POWER_ON;
 	cx->mpu_state = PWRDM_POWER_ON;
 	cx->mpu_logic_state = PWRDM_POWER_RET;
