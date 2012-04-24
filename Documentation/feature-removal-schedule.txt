@@ -542,6 +542,15 @@ Who:	Sasikantha Babu <sasikanth.v19@gmail.com>
 
 ----------------------------
 
+What:	remove bogus DV presets V4L2_DV_1080I29_97, V4L2_DV_1080I30 and
+	V4L2_DV_1080I25
+When:	3.6
+Why:	These HDTV formats do not exist and were added by a confused mind
+	(that was me, to be precise...)
+Who:	Hans Verkuil <hans.verkuil@cisco.com>
+
+----------------------------
+
 What:	V4L2_CID_HCENTER, V4L2_CID_VCENTER V4L2 controls
 When:	3.7
 Why:	The V4L2_CID_VCENTER, V4L2_CID_HCENTER controls have been deprecated
