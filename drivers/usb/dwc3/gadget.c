@@ -276,6 +276,33 @@ static const char *dwc3_gadget_ep_cmd_string(u8 cmd)
 	}
 }
 
+int dwc3_send_gadget_generic_command(struct dwc3 *dwc, int cmd, u32 param)
+{
+	u32		timeout = 500;
+	u32		reg;
+
+	dwc3_writel(dwc->regs, DWC3_DGCMDPAR, param);
+	dwc3_writel(dwc->regs, DWC3_DGCMD, cmd | DWC3_DGCMD_CMDACT);
+
+	do {
+		reg = dwc3_readl(dwc->regs, DWC3_DGCMD);
+		if (!(reg & DWC3_DGCMD_CMDACT)) {
+			dev_vdbg(dwc->dev, "Command Complete --> %d\n",
+					DWC3_DGCMD_STATUS(reg));
+			return 0;
+		}
+
+		/*
+		 * We can't sleep here, because it's also called from
+		 * interrupt context.
+		 */
+		timeout--;
+		if (!timeout)
+			return -ETIMEDOUT;
+		udelay(1);
+	} while (1);
+}
+
 int dwc3_send_gadget_ep_cmd(struct dwc3 *dwc, unsigned ep,
 		unsigned cmd, struct dwc3_gadget_ep_cmd_params *params)
 {
