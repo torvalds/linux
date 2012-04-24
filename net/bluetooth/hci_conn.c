@@ -535,9 +535,6 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 				return ERR_PTR(-ENOMEM);
 
 			le->dst_type = entry->bdaddr_type;
-			le->pending_sec_level = sec_level;
-			le->sec_level = BT_SECURITY_LOW;
-			le->auth_type = auth_type;
 			hci_le_connect(le);
 		}
 
