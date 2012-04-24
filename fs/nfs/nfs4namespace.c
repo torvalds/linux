@@ -52,6 +52,30 @@ Elong:
 }
 
 /*
+ * return the path component of "<server>:<path>"
+ *  nfspath - the "<server>:<path>" string
+ *  end - one past the last char that could contain "<server>:"
+ * returns NULL on failure
+ */
+static char *nfs_path_component(const char *nfspath, const char *end)
+{
+	char *p;
+
+	if (*nfspath == '[') {
+		/* parse [] escaped IPv6 addrs */
+		p = strchr(nfspath, ']');
+		if (p != NULL && ++p < end && *p == ':')
+			return p + 1;
+	} else {
+		/* otherwise split on first colon */
+		p = strchr(nfspath, ':');
+		if (p != NULL && p < end)
+			return p + 1;
+	}
+	return NULL;
+}
+
+/*
  * Determine the mount path as a string
  */
 static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
@@ -59,9 +83,9 @@ static char *nfs4_path(struct dentry *dentry, char *buffer, ssize_t buflen)
 	char *limit;
 	char *path = nfs_path(&limit, dentry, buffer, buflen);
 	if (!IS_ERR(path)) {
-		char *colon = strchr(path, ':');
-		if (colon && colon < limit)
-			path = colon + 1;
+		char *path_component = nfs_path_component(path, limit);
+		if (path_component)
+			return path_component;
 	}
 	return path;
 }
