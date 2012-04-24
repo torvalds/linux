@@ -83,8 +83,17 @@ MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
 MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
 MODULE_LICENSE("GPL");
 
+#define PCI_VENDOR_ID_S626 0x1131
+#define PCI_DEVICE_ID_S626 0x7146
+#define PCI_SUBVENDOR_ID_S626 0x6000
+#define PCI_SUBDEVICE_ID_S626 0x0272
+
 struct s626_board {
 	const char *name;
+	int vendor_id;
+	int device_id;
+	int subvendor_id;
+	int subdevice_id;
 	int ai_chans;
 	int ai_bits;
 	int ao_chans;
@@ -97,6 +106,10 @@ struct s626_board {
 static const struct s626_board s626_boards[] = {
 	{
 	 .name = "s626",
+	 .vendor_id = PCI_VENDOR_ID_S626,
+	 .device_id = PCI_DEVICE_ID_S626,
+	 .subvendor_id = PCI_SUBVENDOR_ID_S626,
+	 .subdevice_id = PCI_SUBDEVICE_ID_S626,
 	 .ai_chans = S626_ADC_CHANNELS,
 	 .ai_bits = 14,
 	 .ao_chans = S626_DAC_CHANNELS,
@@ -108,8 +121,6 @@ static const struct s626_board s626_boards[] = {
 };
 
 #define thisboard ((const struct s626_board *)dev->board_ptr)
-#define PCI_VENDOR_ID_S626 0x1131
-#define PCI_DEVICE_ID_S626 0x7146
 
 /*
  * For devices with vendor:device id == 0x1131:0x7146 you must specify
@@ -117,7 +128,7 @@ static const struct s626_board s626_boards[] = {
  * Philips SAA7146 media/dvb based cards.
  */
 static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, 0x6000, 0x0272, 0, 0, 0},
+	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0},
 	{0}
 };
 
@@ -554,17 +565,17 @@ static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	resource_size_t resourceStart;
 	dma_addr_t appdma;
 	struct comedi_subdevice *s;
-	const struct pci_device_id *ids;
 	struct pci_dev *pdev = NULL;
 
 	if (alloc_private(dev, sizeof(struct s626_private)) < 0)
 		return -ENOMEM;
 
-	for (i = 0; i < (ARRAY_SIZE(s626_pci_table) - 1) && !pdev; i++) {
-		ids = &s626_pci_table[i];
+	for (i = 0; i < ARRAY_SIZE(s626_boards) && !pdev; i++) {
 		do {
-			pdev = pci_get_subsys(ids->vendor, ids->device,
-					      ids->subvendor, ids->subdevice,
+			pdev = pci_get_subsys(s626_boards[i].vendor_id,
+					      s626_boards[i].device_id,
+					      s626_boards[i].subvendor_id,
+					      s626_boards[i].subdevice_id,
 					      pdev);
 
 			if ((it->options[0] || it->options[1]) && pdev) {
