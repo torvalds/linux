@@ -3284,11 +3284,6 @@ static void transport_put_cmd(struct se_cmd *cmd)
 			goto out_busy;
 	}
 
-	if (atomic_read(&cmd->t_se_count)) {
-		if (!atomic_dec_and_test(&cmd->t_se_count))
-			goto out_busy;
-	}
-
 	if (cmd->transport_state & CMD_T_DEV_ACTIVE) {
 		cmd->transport_state &= ~CMD_T_DEV_ACTIVE;
 		target_remove_from_state_list(cmd);
@@ -3498,7 +3493,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	}
 
 	atomic_inc(&cmd->t_fe_count);
-	atomic_inc(&cmd->t_se_count);
 
 	/*
 	 * For WRITEs, let the fabric know its buffer is ready.
