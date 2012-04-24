@@ -44,7 +44,7 @@ struct omap3_idle_statedata {
 	u32 core_state;
 };
 
-struct omap3_idle_statedata omap3_idle_data[] = {
+static struct omap3_idle_statedata omap3_idle_data[] = {
 	{
 		.mpu_state = PWRDM_POWER_ON,
 		.core_state = PWRDM_POWER_ON,
