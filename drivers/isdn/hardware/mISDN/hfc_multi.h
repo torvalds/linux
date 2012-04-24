@@ -208,7 +208,10 @@ struct hfc_multi {
 	u_long		ledstate; /* save last state of leds */
 	int		opticalsupport; /* has the e1 board */
 					/* an optical Interface */
-	int		dslot;	/* channel # of d-channel (E1) default 16 */
+
+	u_int		bmask[32]; /* bitmask of bchannels for port */
+	u_char		dnum[32]; /* array of used dchannel numbers for port */
+	u_char		created[32]; /* what port is created */
 	u_int		activity_tx; /* if there is data TX / RX */
 	u_int		activity_rx; /* bitmask according to port number */
 				     /* (will be cleared after */
@@ -234,7 +237,6 @@ struct hfc_multi {
 	 * the bch->channel is equvalent to the hfc-channel
 	 */
 	struct hfc_chan	chan[32];
-	u_char		created[8]; /* what port is created */
 	signed char	slot_owner[256]; /* owner channel of slot */
 };
 
