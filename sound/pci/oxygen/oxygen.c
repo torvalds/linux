@@ -870,15 +870,4 @@ static struct pci_driver oxygen_driver = {
 #endif
 };
 
-static int __init alsa_card_oxygen_init(void)
-{
-	return pci_register_driver(&oxygen_driver);
-}
-
-static void __exit alsa_card_oxygen_exit(void)
-{
-	pci_unregister_driver(&oxygen_driver);
-}
-
-module_init(alsa_card_oxygen_init)
-module_exit(alsa_card_oxygen_exit)
+module_pci_driver(oxygen_driver);

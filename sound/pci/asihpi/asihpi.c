@@ -2963,7 +2963,7 @@ static DEFINE_PCI_DEVICE_TABLE(asihpi_pci_tbl) = {
 };
 MODULE_DEVICE_TABLE(pci, asihpi_pci_tbl);
 
-static struct pci_driver driver = {
+static struct pci_driver asihpi_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = asihpi_pci_tbl,
 	.probe = snd_asihpi_probe,
@@ -2974,19 +2974,4 @@ static struct pci_driver driver = {
 #endif
 };
 
-static int __init snd_asihpi_init(void)
-{
-	asihpi_init();
-	return pci_register_driver(&driver);
-}
-
-static void __exit snd_asihpi_exit(void)
-{
-
-	pci_unregister_driver(&driver);
-	asihpi_exit();
-}
-
-module_init(snd_asihpi_init)
-module_exit(snd_asihpi_exit)
-
+module_pci_driver(asihpi_driver);
