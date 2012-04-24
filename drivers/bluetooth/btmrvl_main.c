@@ -200,6 +200,36 @@ int btmrvl_send_module_cfg_cmd(struct btmrvl_private *priv, int subcmd)
 }
 EXPORT_SYMBOL_GPL(btmrvl_send_module_cfg_cmd);
 
+int btmrvl_send_hscfg_cmd(struct btmrvl_private *priv)
+{
+	struct sk_buff *skb;
+	struct btmrvl_cmd *cmd;
+
+	skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
+	if (!skb) {
+		BT_ERR("No free skb");
+		return -ENOMEM;
+	}
+
+	cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
+	cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF,
+						   BT_CMD_HOST_SLEEP_CONFIG));
+	cmd->length = 2;
+	cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
+	cmd->data[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
+
+	bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
+
+	skb->dev = (void *) priv->btmrvl_dev.hcidev;
+	skb_queue_head(&priv->adapter->tx_queue, skb);
+
+	BT_DBG("Queue HSCFG Command, gpio=0x%x, gap=0x%x", cmd->data[0],
+	       cmd->data[1]);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btmrvl_send_hscfg_cmd);
+
 int btmrvl_enable_ps(struct btmrvl_private *priv)
 {
 	struct sk_buff *skb;
@@ -271,32 +301,11 @@ static int btmrvl_enable_hs(struct btmrvl_private *priv)
 
 int btmrvl_prepare_command(struct btmrvl_private *priv)
 {
-	struct sk_buff *skb = NULL;
-	struct btmrvl_cmd *cmd;
 	int ret = 0;
 
 	if (priv->btmrvl_dev.hscfgcmd) {
 		priv->btmrvl_dev.hscfgcmd = 0;
-
-		skb = bt_skb_alloc(sizeof(*cmd), GFP_ATOMIC);
-		if (skb == NULL) {
-			BT_ERR("No free skb");
-			return -ENOMEM;
-		}
-
-		cmd = (struct btmrvl_cmd *) skb_put(skb, sizeof(*cmd));
-		cmd->ocf_ogf = cpu_to_le16(hci_opcode_pack(OGF, BT_CMD_HOST_SLEEP_CONFIG));
-		cmd->length = 2;
-		cmd->data[0] = (priv->btmrvl_dev.gpio_gap & 0xff00) >> 8;
-		cmd->data[1] = (u8) (priv->btmrvl_dev.gpio_gap & 0x00ff);
-
-		bt_cb(skb)->pkt_type = MRVL_VENDOR_PKT;
-
-		skb->dev = (void *) priv->btmrvl_dev.hcidev;
-		skb_queue_head(&priv->adapter->tx_queue, skb);
-
-		BT_DBG("Queue HSCFG Command, gpio=0x%x, gap=0x%x",
-						cmd->data[0], cmd->data[1]);
+		btmrvl_send_hscfg_cmd(priv);
 	}
 
 	if (priv->btmrvl_dev.pscmd) {

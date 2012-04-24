@@ -1008,6 +1008,9 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	priv->btmrvl_dev.psmode = 1;
 	btmrvl_enable_ps(priv);
 
+	priv->btmrvl_dev.gpio_gap = 0xffff;
+	btmrvl_send_hscfg_cmd(priv);
+
 	return 0;
 
 disable_host_int:
