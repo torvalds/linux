@@ -762,7 +762,8 @@ int ip_vs_check_template(struct ip_vs_conn *ct)
 static void ip_vs_conn_expire(unsigned long data)
 {
 	struct ip_vs_conn *cp = (struct ip_vs_conn *)data;
-	struct netns_ipvs *ipvs = net_ipvs(ip_vs_conn_net(cp));
+	struct net *net = ip_vs_conn_net(cp);
+	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	cp->timeout = 60*HZ;
 
@@ -826,6 +827,9 @@ static void ip_vs_conn_expire(unsigned long data)
 	IP_VS_DBG(7, "delayed: conn->refcnt-1=%d conn->n_control=%d\n",
 		  atomic_read(&cp->refcnt)-1,
 		  atomic_read(&cp->n_control));
+
+	if (ipvs->sync_state & IP_VS_STATE_MASTER)
+		ip_vs_sync_conn(net, cp, sysctl_sync_threshold(ipvs));
 
 	ip_vs_conn_put(cp);
 }
@@ -900,6 +904,7 @@ ip_vs_conn_new(const struct ip_vs_conn_param *p,
 	/* Set its state and timeout */
 	cp->state = 0;
 	cp->timeout = 3*HZ;
+	cp->sync_endtime = jiffies & ~3UL;
 
 	/* Bind its packet transmitter */
 #ifdef CONFIG_IP_VS_IPV6

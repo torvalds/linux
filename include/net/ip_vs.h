@@ -504,6 +504,7 @@ struct ip_vs_conn {
 						 * state transition triggerd
 						 * synchronization
 						 */
+	unsigned long		sync_endtime;	/* jiffies + sent_retries */
 
 	/* Control members */
 	struct ip_vs_conn       *control;       /* Master control connection */
@@ -875,6 +876,8 @@ struct netns_ipvs {
 	int			sysctl_expire_nodest_conn;
 	int			sysctl_expire_quiescent_template;
 	int			sysctl_sync_threshold[2];
+	unsigned int		sysctl_sync_refresh_period;
+	int			sysctl_sync_retries;
 	int			sysctl_nat_icmp_send;
 
 	/* ip_vs_lblc */
@@ -916,10 +919,13 @@ struct netns_ipvs {
 #define DEFAULT_SYNC_THRESHOLD	3
 #define DEFAULT_SYNC_PERIOD	50
 #define DEFAULT_SYNC_VER	1
+#define DEFAULT_SYNC_REFRESH_PERIOD	(0U * HZ)
+#define DEFAULT_SYNC_RETRIES		0
 #define IPVS_SYNC_WAKEUP_RATE	8
 #define IPVS_SYNC_QLEN_MAX	(IPVS_SYNC_WAKEUP_RATE * 4)
 #define IPVS_SYNC_SEND_DELAY	(HZ / 50)
 #define IPVS_SYNC_CHECK_PERIOD	HZ
+#define IPVS_SYNC_FLUSH_TIME	(HZ * 2)
 
 #ifdef CONFIG_SYSCTL
 
@@ -930,7 +936,17 @@ static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
 
 static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
 {
-	return ipvs->sysctl_sync_threshold[1];
+	return ACCESS_ONCE(ipvs->sysctl_sync_threshold[1]);
+}
+
+static inline unsigned int sysctl_sync_refresh_period(struct netns_ipvs *ipvs)
+{
+	return ACCESS_ONCE(ipvs->sysctl_sync_refresh_period);
+}
+
+static inline int sysctl_sync_retries(struct netns_ipvs *ipvs)
+{
+	return ipvs->sysctl_sync_retries;
 }
 
 static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
@@ -958,6 +974,16 @@ static inline int sysctl_sync_threshold(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_period(struct netns_ipvs *ipvs)
 {
 	return DEFAULT_SYNC_PERIOD;
+}
+
+static inline unsigned int sysctl_sync_refresh_period(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_REFRESH_PERIOD;
+}
+
+static inline int sysctl_sync_retries(struct netns_ipvs *ipvs)
+{
+	return DEFAULT_SYNC_RETRIES & 3;
 }
 
 static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
@@ -1248,7 +1274,7 @@ extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 extern int start_sync_thread(struct net *net, int state, char *mcast_ifn,
 			     __u8 syncid);
 extern int stop_sync_thread(struct net *net, int state);
-extern void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp);
+extern void ip_vs_sync_conn(struct net *net, struct ip_vs_conn *cp, int pkts);
 
 
 /*
