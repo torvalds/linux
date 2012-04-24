@@ -113,21 +113,25 @@ void ath9k_ps_restore(struct ath_softc *sc)
 	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
 	enum ath9k_power_mode mode;
 	unsigned long flags;
+	bool reset;
 
 	spin_lock_irqsave(&sc->sc_pm_lock, flags);
 	if (--sc->ps_usecount != 0)
 		goto unlock;
 
-	if (sc->ps_idle && (sc->ps_flags & PS_WAIT_FOR_TX_ACK))
+	if (sc->ps_idle) {
+		ath9k_hw_setrxabort(sc->sc_ah, 1);
+		ath9k_hw_stopdmarecv(sc->sc_ah, &reset);
 		mode = ATH9K_PM_FULL_SLEEP;
-	else if (sc->ps_enabled &&
-		 !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
-			      PS_WAIT_FOR_CAB |
-			      PS_WAIT_FOR_PSPOLL_DATA |
-			      PS_WAIT_FOR_TX_ACK)))
+	} else if (sc->ps_enabled &&
+		   !(sc->ps_flags & (PS_WAIT_FOR_BEACON |
+				     PS_WAIT_FOR_CAB |
+				     PS_WAIT_FOR_PSPOLL_DATA |
+				     PS_WAIT_FOR_TX_ACK))) {
 		mode = ATH9K_PM_NETWORK_SLEEP;
-	else
+	} else {
 		goto unlock;
+	}
 
 	spin_lock(&common->cc_lock);
 	ath_hw_cycle_counters_update(common);
@@ -1100,14 +1104,7 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 	}
 
-	/*
-	 * Cannot tx while the hardware is in full sleep, it first needs a full
-	 * chip reset to recover from that
-	 */
-	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP))
-		goto exit;
-
-	if (unlikely(sc->sc_ah->power_mode != ATH9K_PM_AWAKE)) {
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_NETWORK_SLEEP)) {
 		/*
 		 * We are using PS-Poll and mac80211 can request TX while in
 		 * power save mode. Need to wake up hardware for the TX to be
@@ -1126,10 +1123,19 @@ static void ath9k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 		}
 		/*
 		 * The actual restore operation will happen only after
-		 * the sc_flags bit is cleared. We are just dropping
+		 * the ps_flags bit is cleared. We are just dropping
 		 * the ps_usecount here.
 		 */
 		ath9k_ps_restore(sc);
+	}
+
+	/*
+	 * Cannot tx while the hardware is in full sleep, it first needs a full
+	 * chip reset to recover from that
+	 */
+	if (unlikely(sc->sc_ah->power_mode == ATH9K_PM_FULL_SLEEP)) {
+		ath_err(common, "TX while HW is in FULL_SLEEP mode\n");
+		goto exit;
 	}
 
 	memset(&txctl, 0, sizeof(struct ath_tx_control));
@@ -1528,6 +1534,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 static void ath9k_enable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	sc->ps_enabled = true;
 	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {
@@ -1537,11 +1544,13 @@ static void ath9k_enable_ps(struct ath_softc *sc)
 		}
 		ath9k_hw_setrxabort(ah, 1);
 	}
+	ath_dbg(common, PS, "PowerSave enabled\n");
 }
 
 static void ath9k_disable_ps(struct ath_softc *sc)
 {
 	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 
 	sc->ps_enabled = false;
 	ath9k_hw_setpower(ah, ATH9K_PM_AWAKE);
@@ -1556,7 +1565,7 @@ static void ath9k_disable_ps(struct ath_softc *sc)
 			ath9k_hw_set_interrupts(ah);
 		}
 	}
-
+	ath_dbg(common, PS, "PowerSave disabled\n");
 }
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
