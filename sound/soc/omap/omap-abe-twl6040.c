@@ -128,6 +128,9 @@ static const struct snd_soc_dapm_widget twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Main Handset Mic", NULL),
 	SND_SOC_DAPM_MIC("Sub Handset Mic", NULL),
 	SND_SOC_DAPM_LINE("Line In", NULL),
+
+	/* Digital microphones */
+	SND_SOC_DAPM_MIC("Digital Mic", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -210,10 +213,6 @@ static int omap_abe_twl6040_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-static const struct snd_soc_dapm_widget dmic_dapm_widgets[] = {
-	SND_SOC_DAPM_MIC("Digital Mic", NULL),
-};
-
 static const struct snd_soc_dapm_route dmic_audio_map[] = {
 	{"DMic", NULL, "Digital Mic"},
 	{"Digital Mic", NULL, "Digital Mic1 Bias"},
@@ -223,12 +222,6 @@ static int omap_abe_dmic_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
 	struct snd_soc_dapm_context *dapm = &codec->dapm;
-	int ret;
-
-	ret = snd_soc_dapm_new_controls(dapm, dmic_dapm_widgets,
-				ARRAY_SIZE(dmic_dapm_widgets));
-	if (ret)
-		return ret;
 
 	return snd_soc_dapm_add_routes(dapm, dmic_audio_map,
 				ARRAY_SIZE(dmic_audio_map));
