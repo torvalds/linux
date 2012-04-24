@@ -1393,29 +1393,20 @@ extern int install_special_mapping(struct mm_struct *mm,
 
 extern unsigned long get_unmapped_area(struct file *, unsigned long, unsigned long, unsigned long, unsigned long);
 
-extern unsigned long do_mmap_pgoff(struct file *file, unsigned long addr,
-	unsigned long len, unsigned long prot,
-	unsigned long flag, unsigned long pgoff);
 extern unsigned long mmap_region(struct file *file, unsigned long addr,
 	unsigned long len, unsigned long flags,
 	vm_flags_t vm_flags, unsigned long pgoff);
-
-static inline unsigned long do_mmap(struct file *file, unsigned long addr,
-	unsigned long len, unsigned long prot,
-	unsigned long flag, unsigned long offset)
-{
-	unsigned long ret = -EINVAL;
-	if ((offset + PAGE_ALIGN(len)) < offset)
-		goto out;
-	if (!(offset & ~PAGE_MASK))
-		ret = do_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
-out:
-	return ret;
-}
-
+extern unsigned long do_mmap(struct file *, unsigned long,
+        unsigned long, unsigned long,
+        unsigned long, unsigned long);
 extern int do_munmap(struct mm_struct *, unsigned long, size_t);
 
-extern unsigned long do_brk(unsigned long, unsigned long);
+/* These take the mm semaphore themselves */
+extern unsigned long vm_brk(unsigned long, unsigned long);
+extern int vm_munmap(unsigned long, size_t);
+extern unsigned long vm_mmap(struct file *, unsigned long,
+        unsigned long, unsigned long,
+        unsigned long, unsigned long);
 
 /* truncate.c */
 extern void truncate_inode_pages(struct address_space *, loff_t);
