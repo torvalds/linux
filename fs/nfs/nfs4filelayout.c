@@ -1184,7 +1184,12 @@ filelayout_free_layout_hdr(struct pnfs_layout_hdr *lo)
 static struct pnfs_ds_commit_info *
 filelayout_get_ds_info(struct inode *inode)
 {
-	return &FILELAYOUT_FROM_HDR(NFS_I(inode)->layout)->commit_info;
+	struct pnfs_layout_hdr *layout = NFS_I(inode)->layout;
+
+	if (layout == NULL)
+		return NULL;
+	else
+		return &FILELAYOUT_FROM_HDR(layout)->commit_info;
 }
 
 static struct pnfs_layoutdriver_type filelayout_type = {
