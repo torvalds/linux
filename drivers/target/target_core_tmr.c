@@ -313,11 +313,9 @@ static void core_tmr_drain_state_list(
 			cmd->se_tfo->get_cmd_state(cmd), cmd->t_state,
 			cmd->t_task_cdb[0]);
 		pr_debug("LUN_RESET: ITT[0x%08x] - pr_res_key: 0x%016Lx"
-			" t_task_cdbs_left: %d"
 			" -- CMD_T_ACTIVE: %d"
 			" CMD_T_STOP: %d CMD_T_SENT: %d\n",
 			cmd->se_tfo->get_task_tag(cmd), cmd->pr_res_key,
-			atomic_read(&cmd->t_task_cdbs_left),
 			(cmd->transport_state & CMD_T_ACTIVE) != 0,
 			(cmd->transport_state & CMD_T_STOP) != 0,
 			(cmd->transport_state & CMD_T_SENT) != 0);

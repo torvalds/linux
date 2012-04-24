@@ -700,11 +700,6 @@ void target_complete_cmd(struct se_cmd *cmd, u8 scsi_status)
 	if (!success)
 		cmd->transport_state |= CMD_T_FAILED;
 
-	if (!atomic_dec_and_test(&cmd->t_task_cdbs_left)) {
-		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-		return;
-	}
-
 	/*
 	 * Check for case where an explict ABORT_TASK has been received
 	 * and transport_wait_for_tasks() will be waiting for completion..
@@ -1755,7 +1750,6 @@ bool target_stop_cmd(struct se_cmd *cmd, unsigned long *flags)
 		pr_debug("cmd %p stopped successfully\n", cmd);
 
 		spin_lock_irqsave(&cmd->t_state_lock, *flags);
-		atomic_dec(&cmd->t_task_cdbs_left);
 		cmd->transport_state &= ~CMD_T_REQUEST_STOP;
 		cmd->transport_state &= ~CMD_T_BUSY;
 		was_active = true;
@@ -1777,10 +1771,8 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	pr_debug("-----[ i_state: %d t_state: %d scsi_sense_reason: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
 		cmd->t_state, cmd->scsi_sense_reason);
-	pr_debug("-----[ t_task_cdbs_left: %d"
-		" t_task_cdbs_ex_left: %d --"
+	pr_debug("-----[ t_task_cdbs_ex_left: %d --"
 		" CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
-		atomic_read(&cmd->t_task_cdbs_left),
 		atomic_read(&cmd->t_task_cdbs_ex_left),
 		(cmd->transport_state & CMD_T_ACTIVE) != 0,
 		(cmd->transport_state & CMD_T_STOP) != 0,
@@ -3511,7 +3503,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 	atomic_inc(&cmd->t_fe_count);
 	atomic_inc(&cmd->t_se_count);
 
-	atomic_set(&cmd->t_task_cdbs_left, 1);
 	atomic_set(&cmd->t_task_cdbs_ex_left, 1);
 
 	/*
