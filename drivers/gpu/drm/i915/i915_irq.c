@@ -2510,26 +2510,18 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 		if (iir & I915_BSD_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[VCS]);
 
-		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
+		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
 			intel_prepare_page_flip(dev, 0);
-			if (dev_priv->gen3_flip_pending_is_done)
-				intel_finish_page_flip_plane(dev, 0);
-		}
 
-		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
+		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
 			intel_prepare_page_flip(dev, 1);
-			if (dev_priv->gen3_flip_pending_is_done)
-				intel_finish_page_flip_plane(dev, 1);
-		}
 
 		for_each_pipe(pipe) {
 			if (pipe_stats[pipe] & vblank_status &&
 			    drm_handle_vblank(dev, pipe)) {
 				vblank++;
-				if (!dev_priv->gen3_flip_pending_is_done) {
-					i915_pageflip_stall_check(dev, pipe);
-					intel_finish_page_flip(dev, pipe);
-				}
+				i915_pageflip_stall_check(dev, pipe);
+				intel_finish_page_flip(dev, pipe);
 			}
 
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
@@ -2771,26 +2763,18 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 		if (iir & I915_BSD_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[VCS]);
 
-		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT) {
+		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
 			intel_prepare_page_flip(dev, 0);
-			if (dev_priv->gen3_flip_pending_is_done)
-				intel_finish_page_flip_plane(dev, 0);
-		}
 
-		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT) {
+		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
 			intel_prepare_page_flip(dev, 1);
-			if (dev_priv->gen3_flip_pending_is_done)
-				intel_finish_page_flip_plane(dev, 1);
-		}
 
 		for_each_pipe(pipe) {
 			if (pipe_stats[pipe] & vblank_status &&
 			    drm_handle_vblank(dev, pipe)) {
 				vblank++;
-				if (!dev_priv->gen3_flip_pending_is_done) {
-					i915_pageflip_stall_check(dev, pipe);
-					intel_finish_page_flip(dev, pipe);
-				}
+				i915_pageflip_stall_check(dev, pipe);
+				intel_finish_page_flip(dev, pipe);
 			}
 
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
@@ -2857,10 +2841,6 @@ void intel_irq_init(struct drm_device *dev)
 	INIT_WORK(&dev_priv->error_work, i915_error_work_func);
 	INIT_WORK(&dev_priv->rps_work, gen6_pm_rps_work);
 
-	/* IIR "flip pending" bit means done if this bit is set */
-	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
-		dev_priv->gen3_flip_pending_is_done = true;
-
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev) ||
@@ -2904,6 +2884,9 @@ void intel_irq_init(struct drm_device *dev)
 			dev->driver->irq_handler = i8xx_irq_handler;
 			dev->driver->irq_uninstall = i8xx_irq_uninstall;
 		} else if (INTEL_INFO(dev)->gen == 3) {
+			/* IIR "flip pending" means done if this bit is set */
+			I915_WRITE(ECOSKPD, _MASKED_BIT_DISABLE(ECO_FLIP_DONE));
+
 			dev->driver->irq_preinstall = i915_irq_preinstall;
 			dev->driver->irq_postinstall = i915_irq_postinstall;
 			dev->driver->irq_uninstall = i915_irq_uninstall;
