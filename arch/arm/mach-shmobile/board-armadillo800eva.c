@@ -31,6 +31,9 @@
 #include <linux/sh_eth.h>
 #include <linux/videodev2.h>
 #include <linux/usb/renesas_usbhs.h>
+#include <linux/mfd/tmio.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mobile_sdhi.h>
 #include <mach/common.h>
 #include <mach/irqs.h>
 #include <asm/page.h>
@@ -402,6 +405,55 @@ static struct platform_device gpio_keys_device = {
 	},
 };
 
+/* SDHI0 */
+/*
+ * FIXME
+ *
+ * It use polling mode here, since
+ * CD (= Card Detect) pin is not connected to SDHI0_CD.
+ * We can use IRQ31 as card detect irq,
+ * but it needs chattering removal operation
+ */
+#define IRQ31	evt2irq(0x33E0)
+static struct sh_mobile_sdhi_info sdhi0_info = {
+	.tmio_caps	= MMC_CAP_SD_HIGHSPEED | MMC_CAP_SDIO_IRQ |\
+			  MMC_CAP_NEEDS_POLL,
+	.tmio_ocr_mask	= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
+	.tmio_flags	= TMIO_MMC_HAS_IDLE_WAIT,
+};
+
+static struct resource sdhi0_resources[] = {
+	{
+		.name	= "SDHI0",
+		.start	= 0xe6850000,
+		.end	= 0xe6850100 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	/*
+	 * no SH_MOBILE_SDHI_IRQ_CARD_DETECT here
+	 */
+	{
+		.name	= SH_MOBILE_SDHI_IRQ_SDCARD,
+		.start	= evt2irq(0x0E20),
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= SH_MOBILE_SDHI_IRQ_SDIO,
+		.start	= evt2irq(0x0E40),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi0_device = {
+	.name		= "sh_mobile_sdhi",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &sdhi0_info,
+	},
+	.num_resources	= ARRAY_SIZE(sdhi0_resources),
+	.resource	= sdhi0_resources,
+};
+
 /* I2C */
 static struct i2c_board_info i2c0_devices[] = {
 	{
@@ -417,6 +469,7 @@ static struct platform_device *eva_devices[] __initdata = {
 	&lcdc0_device,
 	&gpio_keys_device,
 	&sh_eth_device,
+	&sdhi0_device,
 };
 
 static void __init eva_clock_init(void)
@@ -538,6 +591,24 @@ static void __init eva_init(void)
 		gpio_request(GPIO_FN_VBUS, NULL);
 		platform_device_register(&usbhsf_device);
 	}
+
+	/* SDHI0 */
+	gpio_request(GPIO_FN_SDHI0_CMD, NULL);
+	gpio_request(GPIO_FN_SDHI0_CLK, NULL);
+	gpio_request(GPIO_FN_SDHI0_D0, NULL);
+	gpio_request(GPIO_FN_SDHI0_D1, NULL);
+	gpio_request(GPIO_FN_SDHI0_D2, NULL);
+	gpio_request(GPIO_FN_SDHI0_D3, NULL);
+	gpio_request(GPIO_FN_SDHI0_WP, NULL);
+
+	gpio_request(GPIO_PORT17, NULL);	/* SDHI0_18/33_B */
+	gpio_request(GPIO_PORT74, NULL);	/* SDHI0_PON */
+	gpio_request(GPIO_PORT75, NULL);	/* SDSLOT1_PON */
+	gpio_direction_output(GPIO_PORT17, 0);
+	gpio_direction_output(GPIO_PORT74, 1);
+	gpio_direction_output(GPIO_PORT75, 1);
+
+	/* we can use GPIO_FN_IRQ31_PORT167 here for SDHI0 CD irq */
 
 	/*
 	 * CAUTION
