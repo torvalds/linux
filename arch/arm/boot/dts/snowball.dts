@@ -73,17 +73,19 @@
 	soc-u9500 {
 
 		external-bus@50000000 {
-			compatible = "simple-bus";
-			reg = <0x50000000 0x10000000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges;
+			status = "okay";
 
-			ethernet@50000000 {
-				compatible = "smsc,9111";
-				reg = <0x50000000 0x10000>;
-				interrupts = <12>;
+			ethernet@0 {
+				compatible = "smsc,lan9115";
+				reg = <0 0x10000>;
+				interrupts = <12 0x1>;
 				interrupt-parent = <&gpio4>;
+
+				reg-shift = <1>;
+				reg-io-width = <2>;
+				smsc,force-internal-phy;
+				smsc,irq-active-high;
+				smsc,irq-push-pull;
 			};
 		};
 

@@ -288,5 +288,14 @@
 			interrupts = <0 100 0x4>;
 			status = "disabled";
 		};
+
+		external-bus@50000000 {
+			compatible = "simple-bus";
+			reg = <0x50000000 0x4000000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0x50000000 0x4000000>;
+			status = "disabled";
+		};
 	};
 };
