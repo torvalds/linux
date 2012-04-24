@@ -51,25 +51,6 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 		}
 	}
 
-	if (is_qla8022(ha)) {
-		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
-			DEBUG2(ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: "
-			    "prematurely completing mbx cmd as firmware "
-			    "recovery detected\n", ha->host_no, __func__));
-			return status;
-		}
-		/* Do not send any mbx cmd if h/w is in failed state*/
-		qla4_8xxx_idc_lock(ha);
-		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
-		qla4_8xxx_idc_unlock(ha);
-		if (dev_state == QLA82XX_DEV_FAILED) {
-			ql4_printk(KERN_WARNING, ha, "scsi%ld: %s: H/W is in "
-			    "failed state, do not send any mailbox commands\n",
-			    ha->host_no, __func__);
-			return status;
-		}
-	}
-
 	if ((is_aer_supported(ha)) &&
 	    (test_bit(AF_PCI_CHANNEL_IO_PERM_FAILURE, &ha->flags))) {
 		DEBUG2(printk(KERN_WARNING "scsi%ld: %s: Perm failure on EEH, "
@@ -94,6 +75,25 @@ int qla4xxx_mailbox_command(struct scsi_qla_host *ha, uint8_t inCount,
 			return status;
 		}
 		msleep(10);
+	}
+
+	if (is_qla8022(ha)) {
+		if (test_bit(AF_FW_RECOVERY, &ha->flags)) {
+			DEBUG2(ql4_printk(KERN_WARNING, ha,
+					  "scsi%ld: %s: prematurely completing mbx cmd as firmware recovery detected\n",
+					  ha->host_no, __func__));
+			goto mbox_exit;
+		}
+		/* Do not send any mbx cmd if h/w is in failed state*/
+		qla4_8xxx_idc_lock(ha);
+		dev_state = qla4_8xxx_rd_32(ha, QLA82XX_CRB_DEV_STATE);
+		qla4_8xxx_idc_unlock(ha);
+		if (dev_state == QLA82XX_DEV_FAILED) {
+			ql4_printk(KERN_WARNING, ha,
+				   "scsi%ld: %s: H/W is in failed state, do not send any mailbox commands\n",
+				   ha->host_no, __func__);
+			goto mbox_exit;
+		}
 	}
 
 	spin_lock_irqsave(&ha->hardware_lock, flags);
