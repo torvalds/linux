@@ -22,7 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/platform_device.h>
-
+#include <linux/delay.h>
 #include <plat/voltage.h>
 
 /*
@@ -166,6 +166,27 @@ struct omap_sr {
 	u32				senn_mod;
 	void __iomem			*base;
 };
+
+/**
+ * test_cond_timeout - busy-loop, testing a condition
+ * @cond: condition to test until it evaluates to true
+ * @timeout: maximum number of microseconds in the timeout
+ * @index: loop index (integer)
+ *
+ * Loop waiting for @cond to become true or until at least @timeout
+ * microseconds have passed.  To use, define some integer @index in the
+ * calling code.  After running, if @index == @timeout, then the loop has
+ * timed out.
+ *
+ * Copied from omap_test_timeout */
+#define sr_test_cond_timeout(cond, timeout, index)		\
+({								\
+	for (index = 0; index < timeout; index++) {		\
+		if (cond)					\
+			break;					\
+		udelay(1);					\
+	}							\
+})
 
 /**
  * struct omap_sr_pmic_data - Strucutre to be populated by pmic code to pass
