@@ -19,8 +19,8 @@ static int sr_class3_enable(struct omap_sr *sr)
 	unsigned long volt = voltdm_get_voltage(sr->voltdm);
 
 	if (!volt) {
-		pr_warning("%s: Curr voltage unknown. Cannot enable sr_%s\n",
-				__func__, sr->voltdm->name);
+		pr_warning("%s: Curr voltage unknown. Cannot enable %s\n",
+				__func__, sr->name);
 		return -ENODATA;
 	}
 
