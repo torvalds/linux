@@ -86,7 +86,7 @@ static void *vb2_dma_contig_vaddr(void *buf_priv)
 {
 	struct vb2_dc_buf *buf = buf_priv;
 	if (!buf)
-		return 0;
+		return NULL;
 
 	return buf->vaddr;
 }
