@@ -66,7 +66,9 @@ static int init_rk30_lcdc(struct rk_lcdc_device_driver *dev_drv)
     	{
        		printk(KERN_ERR "failed to get lcdc%d clk source\n",lcdc_dev->id);
    	}
-	clk_enable(lcdc_dev->hclk);  //enable aclk for register config
+	clk_enable(lcdc_dev->hclk);  //enable aclk and hclk for register config
+	clk_enable(lcdc_dev->aclk);  
+	lcdc_dev->clk_on = 1;
 	LcdMskReg(lcdc_dev,SYS_CTRL0,m_HWC_CHANNEL_ID | m_WIN2_CHANNEL_ID | m_WIN1_CBR_CHANNEL_ID |
 		m_WIN1_YRGB_CHANNEL_ID | m_WIN0_CBR_CHANNEL1_ID | m_WIN0_YRGB_CHANNEL1_ID | 
 		m_WIN0_CBR_CHANNEL0_ID | m_WIN0_YRGB_CHANNEL0_ID,v_HWC_CHANNEL_ID(7) | 
@@ -107,94 +109,93 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 
 	// set the rgb or mcu
 	spin_lock(&lcdc_dev->reg_lock);
-	if(screen->type==SCREEN_MCU)
+	if(likely(lcdc_dev->clk_on))
 	{
-    		LcdMskReg(lcdc_dev, MCU_CTRL, m_MCU_OUTPUT_SELECT,v_MCU_OUTPUT_SELECT(1));
-		// set out format and mcu timing
-   		mcu_total  = (screen->mcu_wrperiod*150*1000)/1000000;
-    		if(mcu_total>31)    
-			mcu_total = 31;
-   		if(mcu_total<3)    
-			mcu_total = 3;
-    		mcu_rwstart = (mcu_total+1)/4 - 1;
-    		mcu_rwend = ((mcu_total+1)*3)/4 - 1;
-    		mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
-    		mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
+		if(screen->type==SCREEN_MCU)
+		{
+	    		LcdMskReg(lcdc_dev, MCU_CTRL, m_MCU_OUTPUT_SELECT,v_MCU_OUTPUT_SELECT(1));
+			// set out format and mcu timing
+	   		mcu_total  = (screen->mcu_wrperiod*150*1000)/1000000;
+	    		if(mcu_total>31)    
+				mcu_total = 31;
+	   		if(mcu_total<3)    
+				mcu_total = 3;
+	    		mcu_rwstart = (mcu_total+1)/4 - 1;
+	    		mcu_rwend = ((mcu_total+1)*3)/4 - 1;
+	    		mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
+	    		mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
 
-    		DBG(1,">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
-        		mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
+	    		//DBG(1,">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
+	        	//	mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
 
-		// set horizontal & vertical out timing
+			// set horizontal & vertical out timing
+		
+		    	right_margin = x_res/6; 
+			screen->pixclock = 150000000; //mcu fix to 150 MHz
+			LcdMskReg(lcdc_dev, MCU_CTRL,m_MCU_CS_ST | m_MCU_CS_END| m_MCU_RW_ST | m_MCU_RW_END |
+	             		m_MCU_WRITE_PERIOD | m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST,
+	            		v_MCU_CS_ST(mcu_csstart) | v_MCU_CS_END(mcu_csend) | v_MCU_RW_ST(mcu_rwstart) |
+	            		v_MCU_RW_END(mcu_rwend) |  v_MCU_WRITE_PERIOD(mcu_total) |
+	            		v_MCU_HOLDMODE_SELECT((SCREEN_MCU==screen->type)?(1):(0)) | v_MCU_HOLDMODE_FRAME_ST(0));
 	
-	    	right_margin = x_res/6; 
-		screen->pixclock = 150000000; //mcu fix to 150 MHz
-		LcdMskReg(lcdc_dev, MCU_CTRL,m_MCU_CS_ST | m_MCU_CS_END| m_MCU_RW_ST | m_MCU_RW_END |
-             		m_MCU_WRITE_PERIOD | m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST,
-            		v_MCU_CS_ST(mcu_csstart) | v_MCU_CS_END(mcu_csend) | v_MCU_RW_ST(mcu_rwstart) |
-            		v_MCU_RW_END(mcu_rwend) |  v_MCU_WRITE_PERIOD(mcu_total) |
-            		v_MCU_HOLDMODE_SELECT((SCREEN_MCU==screen->type)?(1):(0)) | v_MCU_HOLDMODE_FRAME_ST(0));
-	
+		}
+
+		switch (screen->face)
+		{
+	        	case OUT_P565:
+	            		face = OUT_P565;
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
+	            		break;
+	        	case OUT_P666:
+	            		face = OUT_P666;
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
+	            		break;
+	        	case OUT_D888_P565:
+	            		face = OUT_P888;
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
+	            		break;
+	        	case OUT_D888_P666:
+	            		face = OUT_P888;
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
+	            		break;
+	        	case OUT_P888:
+	            		face = OUT_P888;
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(1));
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(0) | v_DITHER_DOWN_MODE(0));
+	            		break;
+	        	default:
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(0));
+	            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(0) | v_DITHER_DOWN_MODE(0));
+	            		face = screen->face;
+	            		break;
+		}
+
+		//use default overlay,set vsyn hsync den dclk polarity
+		LcdMskReg(lcdc_dev, DSP_CTRL0,m_DISPLAY_FORMAT | m_HSYNC_POLARITY | m_VSYNC_POLARITY |
+	     		m_DEN_POLARITY |m_DCLK_POLARITY,v_DISPLAY_FORMAT(face) | 
+	     		v_HSYNC_POLARITY(screen->pin_hsync) | v_VSYNC_POLARITY(screen->pin_vsync) |
+	        	v_DEN_POLARITY(screen->pin_den) | v_DCLK_POLARITY(screen->pin_dclk));
+
+		//set background color to black,set swap according to the screen panel,disable blank mode
+		LcdMskReg(lcdc_dev, DSP_CTRL1, m_BG_COLOR | m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | 
+		 	m_DUMMY_SWAP | m_BLANK_MODE,v_BG_COLOR(0x000000) | v_OUTPUT_RB_SWAP(screen->swap_rb) | 
+		 	v_OUTPUT_RG_SWAP(screen->swap_rg) | v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy) |
+		 	v_BLACK_MODE(0));
+
+		
+		LcdWrReg(lcdc_dev, DSP_HTOTAL_HS_END,v_HSYNC(screen->hsync_len) |
+	             v_HORPRD(screen->hsync_len + screen->left_margin + x_res + right_margin));
+		LcdWrReg(lcdc_dev, DSP_HACT_ST_END, v_HAEP(screen->hsync_len + screen->left_margin + x_res) |
+	             v_HASP(screen->hsync_len + screen->left_margin));
+
+		LcdWrReg(lcdc_dev, DSP_VTOTAL_VS_END, v_VSYNC(screen->vsync_len) |
+	              v_VERPRD(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
+		LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
+	              v_VASP(screen->vsync_len + screen->upper_margin));
+		// let above to take effect
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
 	}
-
-	
-
-	// set synchronous pin polarity and data pin swap rule
-	switch (screen->face)
-	{
-        	case OUT_P565:
-            		face = OUT_P565;
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
-            		break;
-        	case OUT_P666:
-            		face = OUT_P666;
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
-            		break;
-        	case OUT_D888_P565:
-            		face = OUT_P888;
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(0));
-            		break;
-        	case OUT_D888_P666:
-            		face = OUT_P888;
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(1) | v_DITHER_DOWN_MODE(1));
-            		break;
-        	case OUT_P888:
-            		face = OUT_P888;
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(1));
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(0) | v_DITHER_DOWN_MODE(0));
-            		break;
-        	default:
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_UP_EN, v_DITHER_UP_EN(0));
-            		LcdMskReg(lcdc_dev, DSP_CTRL0, m_DITHER_DOWN_EN | m_DITHER_DOWN_MODE, v_DITHER_DOWN_EN(0) | v_DITHER_DOWN_MODE(0));
-            		face = screen->face;
-            		break;
-	}
-
-	//use default overlay,set vsyn hsync den dclk polarity
-	LcdMskReg(lcdc_dev, DSP_CTRL0,m_DISPLAY_FORMAT | m_HSYNC_POLARITY | m_VSYNC_POLARITY |
-     		m_DEN_POLARITY |m_DCLK_POLARITY,v_DISPLAY_FORMAT(face) | 
-     		v_HSYNC_POLARITY(screen->pin_hsync) | v_VSYNC_POLARITY(screen->pin_vsync) |
-        	v_DEN_POLARITY(screen->pin_den) | v_DCLK_POLARITY(screen->pin_dclk));
-
-	//set background color to black,set swap according to the screen panel,disable blank mode
-	LcdMskReg(lcdc_dev, DSP_CTRL1, m_BG_COLOR | m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | 
-	 	m_DUMMY_SWAP | m_BLANK_MODE,v_BG_COLOR(0x000000) | v_OUTPUT_RB_SWAP(screen->swap_rb) | 
-	 	v_OUTPUT_RG_SWAP(screen->swap_rg) | v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy) |
-	 	v_BLACK_MODE(0));
-
-	
-	LcdWrReg(lcdc_dev, DSP_HTOTAL_HS_END,v_HSYNC(screen->hsync_len) |
-             v_HORPRD(screen->hsync_len + screen->left_margin + x_res + right_margin));
-	LcdWrReg(lcdc_dev, DSP_HACT_ST_END, v_HAEP(screen->hsync_len + screen->left_margin + x_res) |
-             v_HASP(screen->hsync_len + screen->left_margin));
-
-	LcdWrReg(lcdc_dev, DSP_VTOTAL_VS_END, v_VSYNC(screen->vsync_len) |
-              v_VERPRD(screen->vsync_len + screen->upper_margin + y_res + lower_margin));
-	LcdWrReg(lcdc_dev, DSP_VACT_ST_END,  v_VAEP(screen->vsync_len + screen->upper_margin+y_res)|
-              v_VASP(screen->vsync_len + screen->upper_margin));
-	// let above to take effect
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
-                                                        
- 
+ 	spin_unlock(&lcdc_dev->reg_lock);
 
 	ret = clk_set_rate(lcdc_dev->dclk, screen->pixclock);
 	if(ret)
@@ -220,7 +221,6 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
         	
 	}
 
-  	spin_unlock(&lcdc_dev->reg_lock);
     	if(screen->init)
     	{
     		screen->init();
@@ -243,20 +243,25 @@ static int win0_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
 	
 	spin_lock(&lcdc_dev->reg_lock);
-	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(open));
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
-	lcdc_dev->driver.layer_par[0]->state = open;
+	if(likely(lcdc_dev->clk_on))
+	{
+		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_EN, v_W0_EN(open));
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+		lcdc_dev->driver.layer_par[0]->state = open;
+	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	printk(KERN_INFO "lcdc%d win0 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
 }
 static int win1_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
-	
 	spin_lock(&lcdc_dev->reg_lock);
-	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(open));
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
-	lcdc_dev->driver.layer_par[1]->state = open;
+	if(likely(lcdc_dev->clk_on))
+	{
+		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W1_EN, v_W1_EN(open));
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+		lcdc_dev->driver.layer_par[1]->state = open;
+	}
 	spin_unlock(&lcdc_dev->reg_lock);
 	printk(KERN_INFO "lcdc%d win1 %s\n",lcdc_dev->id,open?"open":"closed");
 	return 0;
@@ -268,19 +273,26 @@ static int rk30_lcdc_blank(struct rk_lcdc_device_driver*lcdc_drv,int layer_id,in
 	struct rk30_lcdc_device * lcdc_dev = container_of(lcdc_drv,struct rk30_lcdc_device ,driver);
 
 	printk(KERN_INFO "%s>>>>>%d\n",__func__, blank_mode);
-	switch(blank_mode)
-    	{
-    		case FB_BLANK_UNBLANK:
-      			LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE ,v_BLANK_MODE(0));
-			break;
-    		case FB_BLANK_NORMAL:
-         		LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE ,v_BLANK_MODE(1));
-			break;
-    		default:
-			LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE ,v_BLANK_MODE(1));
-			break;
+
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		switch(blank_mode)
+	    	{
+	    		case FB_BLANK_UNBLANK:
+	      			LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE ,v_BLANK_MODE(0));
+				break;
+	    		case FB_BLANK_NORMAL:
+	         		LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE ,v_BLANK_MODE(1));
+				break;
+	    		default:
+				LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE ,v_BLANK_MODE(1));
+				break;
+		}
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
 	}
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	spin_unlock(&lcdc_dev->reg_lock);
+	
     	return 0;
 }
 
@@ -291,9 +303,16 @@ static  int win0_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 	y_addr = par->smem_start + par->y_offset;
     	uv_addr = par->cbr_start + par->c_offset;
 	DBG(2,KERN_INFO "lcdc%d>>%s:y_addr:0x%x>>uv_addr:0x%x\n",lcdc_dev->id,__func__,y_addr,uv_addr);
-	LcdWrReg(lcdc_dev, WIN0_YRGB_MST0, y_addr);
-    	LcdWrReg(lcdc_dev, WIN0_CBR_MST0, uv_addr);
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);  
+
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		LcdWrReg(lcdc_dev, WIN0_YRGB_MST0, y_addr);
+	    	LcdWrReg(lcdc_dev, WIN0_CBR_MST0, uv_addr);
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	
 	return 0;
 	
 }
@@ -305,9 +324,16 @@ static  int win1_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 	y_addr = par->smem_start + par->y_offset;
     	uv_addr = par->cbr_start + par->c_offset;
 	DBG(2,KERN_INFO "lcdc%d>>%s>>y_addr:0x%x>>uv_addr:0x%x\n",lcdc_dev->id,__func__,y_addr,uv_addr);
-	LcdWrReg(lcdc_dev, WIN1_YRGB_MST, y_addr);
-    	LcdWrReg(lcdc_dev, WIN1_CBR_MST, uv_addr);
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+	
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		LcdWrReg(lcdc_dev, WIN1_YRGB_MST, y_addr);
+	    	LcdWrReg(lcdc_dev, WIN1_CBR_MST, uv_addr);
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+	
 	return 0;
 }
 
@@ -350,38 +376,42 @@ static  int win0_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 
 	DBG(1,"%s for lcdc%d>>format:%d>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
 		__func__,lcdc_dev->id,par->format,xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
+	
 	spin_lock(&lcdc_dev->reg_lock);
-	LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
-	LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_CBR,v_X_SCL_FACTOR(ScaleCbrX)| v_Y_SCL_FACTOR(ScaleCbrY));
-	LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(par->format));		//(inf->video_mode==0)
-	LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
-	LcdWrReg(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));
-	LcdWrReg(lcdc_dev, WIN0_DSP_INFO, v_DSP_WIDTH(par->xsize)| v_DSP_HEIGHT(par->ysize));
-	LcdMskReg(lcdc_dev, WIN0_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,
-		v_COLORKEY_EN(1) | v_KEYCOLOR(0));
-	switch(par->format) 
+	if(likely(lcdc_dev->clk_on))
 	{
-		case ARGB888:
-			LcdWrReg(lcdc_dev, WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
-			//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
-			break;
-		case RGB888:  //rgb888
-			LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
-			//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
-			break;
-		case RGB565:  //rgb565
-			LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB565_VIRWIDTH(xvir));
-			break;
-		case YUV422:
-		case YUV420:   
-			LcdWrReg(lcdc_dev, WIN0_VIR,v_YUV_VIRWIDTH(xvir));
-			break;
-		default:
-			LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
-			break;
-	}
+		LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
+		LcdWrReg(lcdc_dev, WIN0_SCL_FACTOR_CBR,v_X_SCL_FACTOR(ScaleCbrX)| v_Y_SCL_FACTOR(ScaleCbrY));
+		LcdMskReg(lcdc_dev, SYS_CTRL1, m_W0_FORMAT, v_W0_FORMAT(par->format));		//(inf->video_mode==0)
+		LcdWrReg(lcdc_dev, WIN0_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
+		LcdWrReg(lcdc_dev, WIN0_DSP_ST, v_DSP_STX(xpos) | v_DSP_STY(ypos));
+		LcdWrReg(lcdc_dev, WIN0_DSP_INFO, v_DSP_WIDTH(par->xsize)| v_DSP_HEIGHT(par->ysize));
+		LcdMskReg(lcdc_dev, WIN0_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,
+			v_COLORKEY_EN(1) | v_KEYCOLOR(0));
+		switch(par->format) 
+		{
+			case ARGB888:
+				LcdWrReg(lcdc_dev, WIN0_VIR,v_ARGB888_VIRWIDTH(xvir));
+				//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				break;
+			case RGB888:  //rgb888
+				LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
+				//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W0_RGB_RB_SWAP,v_W0_RGB_RB_SWAP(1));
+				break;
+			case RGB565:  //rgb565
+				LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB565_VIRWIDTH(xvir));
+				break;
+			case YUV422:
+			case YUV420:   
+				LcdWrReg(lcdc_dev, WIN0_VIR,v_YUV_VIRWIDTH(xvir));
+				break;
+			default:
+				LcdWrReg(lcdc_dev, WIN0_VIR,v_RGB888_VIRWIDTH(xvir));
+				break;
+		}
 
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	}
 	spin_unlock(&lcdc_dev->reg_lock);
 
     return 0;
@@ -411,56 +441,58 @@ static int win1_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 
 	
 	spin_lock(&lcdc_dev->reg_lock);
-	switch (par->format)
- 	{
-		case YUV422:// yuv422
-			ScaleCbrX = CalScale((xact/2), par->xsize);
-			ScaleCbrY = CalScale(yact, par->ysize);
-			break;
-		case YUV420: // yuv420
-			ScaleCbrX = CalScale(xact/2, par->xsize);
-			ScaleCbrY = CalScale(yact/2, par->ysize);
-			break;
-		case YUV444:// yuv444
-			ScaleCbrX = CalScale(xact, par->xsize);
-			ScaleCbrY = CalScale(yact, par->ysize);
-			break;
-		default:
-			break;
-	}
+	if(likely(lcdc_dev->clk_on))
+	{
+		switch (par->format)
+	 	{
+			case YUV422:// yuv422
+				ScaleCbrX = CalScale((xact/2), par->xsize);
+				ScaleCbrY = CalScale(yact, par->ysize);
+				break;
+			case YUV420: // yuv420
+				ScaleCbrX = CalScale(xact/2, par->xsize);
+				ScaleCbrY = CalScale(yact/2, par->ysize);
+				break;
+			case YUV444:// yuv444
+				ScaleCbrX = CalScale(xact, par->xsize);
+				ScaleCbrY = CalScale(yact, par->ysize);
+				break;
+			default:
+				break;
+		}
 
-	LcdWrReg(lcdc_dev, WIN1_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
-	LcdWrReg(lcdc_dev, WIN1_SCL_FACTOR_CBR,  v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
-	LcdMskReg(lcdc_dev,SYS_CTRL1, m_W1_FORMAT, v_W1_FORMAT(par->format));
-	LcdWrReg(lcdc_dev, WIN1_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
-	LcdWrReg(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
-	LcdWrReg(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
-	// enable win1 color key and set the color to black(rgb=0)
-	LcdMskReg(lcdc_dev, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,
-		v_COLORKEY_EN(1) | v_KEYCOLOR(0));
-	switch(par->format)
-    	{
-	        case ARGB888:
-			LcdWrReg(lcdc_dev, WIN1_VIR,v_ARGB888_VIRWIDTH(xvir));
-			//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
-			break;
-	        case RGB888:  //rgb888
-			LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
-			// LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
-			break;
-	        case RGB565:  //rgb565
-			LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB565_VIRWIDTH(xvir));
-			break;
-	        case YUV422:
-	        case YUV420:   
-			LcdWrReg(lcdc_dev, WIN1_VIR,v_YUV_VIRWIDTH(xvir));
-			break;
-	        default:
-			LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
-			break;
-    	}
-	
-	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+		LcdWrReg(lcdc_dev, WIN1_SCL_FACTOR_YRGB, v_X_SCL_FACTOR(ScaleYrgbX) | v_Y_SCL_FACTOR(ScaleYrgbY));
+		LcdWrReg(lcdc_dev, WIN1_SCL_FACTOR_CBR,  v_X_SCL_FACTOR(ScaleCbrX) | v_Y_SCL_FACTOR(ScaleCbrY));
+		LcdMskReg(lcdc_dev,SYS_CTRL1, m_W1_FORMAT, v_W1_FORMAT(par->format));
+		LcdWrReg(lcdc_dev, WIN1_ACT_INFO,v_ACT_WIDTH(xact) | v_ACT_HEIGHT(yact));
+		LcdWrReg(lcdc_dev, WIN1_DSP_ST,v_DSP_STX(xpos) | v_DSP_STY(ypos));
+		LcdWrReg(lcdc_dev, WIN1_DSP_INFO,v_DSP_WIDTH(par->xsize) | v_DSP_HEIGHT(par->ysize));
+		// enable win1 color key and set the color to black(rgb=0)
+		LcdMskReg(lcdc_dev, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR,v_COLORKEY_EN(1) | v_KEYCOLOR(0));
+		switch(par->format)
+	    	{
+		        case ARGB888:
+				LcdWrReg(lcdc_dev, WIN1_VIR,v_ARGB888_VIRWIDTH(xvir));
+				//LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				break;
+		        case RGB888:  //rgb888
+				LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
+				// LcdMskReg(lcdc_dev,SYS_CTRL1,m_W1_RGB_RB_SWAP,v_W1_RGB_RB_SWAP(1));
+				break;
+		        case RGB565:  //rgb565
+				LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB565_VIRWIDTH(xvir));
+				break;
+		        case YUV422:
+		        case YUV420:   
+				LcdWrReg(lcdc_dev, WIN1_VIR,v_YUV_VIRWIDTH(xvir));
+				break;
+		        default:
+				LcdWrReg(lcdc_dev, WIN1_VIR,v_RGB888_VIRWIDTH(xvir));
+				break;
+	    	}
+		
+		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01); 
+	}
 	spin_unlock(&lcdc_dev->reg_lock);
     return 0;
 }
@@ -597,8 +629,13 @@ static int rk30_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id
 int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	
+	spin_lock(&lcdc_dev->reg_lock);
+	lcdc_dev->clk_on = 0;
 	LcdMskReg(lcdc_dev, SYS_CTRL0,m_LCDC_STANDBY,v_LCDC_STANDBY(1));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	spin_unlock(&lcdc_dev->reg_lock);
+	
 	return 0;
 }
 
@@ -606,8 +643,13 @@ int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 int rk30_lcdc_early_resume(struct rk_lcdc_device_driver *dev_drv)
 {  
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	
+	spin_lock(&lcdc_dev->reg_lock);
 	LcdMskReg(lcdc_dev, SYS_CTRL0,m_LCDC_STANDBY,v_LCDC_STANDBY(0));
 	LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+	lcdc_dev->clk_on = 1;
+	spin_unlock(&lcdc_dev->reg_lock);
+	
     	return 0;
 }
 static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
@@ -659,6 +701,7 @@ static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)
 	clk_disable(lcdc_dev->dclk);
 	clk_disable(lcdc_dev->hclk);
 	clk_disable(lcdc_dev->aclk);
+	
 	return 0;
 }
 
@@ -669,9 +712,8 @@ static int rk30_lcdc_resume(struct platform_device *pdev)
 	clk_enable(lcdc_dev->hclk);
 	clk_enable(lcdc_dev->dclk);
 	clk_enable(lcdc_dev->aclk);
-	usleep_range(10*1000, 10*1000);
 	memcpy((u8*)lcdc_dev->preg, (u8*)&lcdc_dev->regbak, 0xc4);  //resume reg
-	usleep_range(40*1000, 40*1000);
+	
 	return 0;
 }
 

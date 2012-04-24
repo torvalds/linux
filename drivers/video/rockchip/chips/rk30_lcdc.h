@@ -482,6 +482,7 @@ struct rk30_lcdc_device{
 	u32 reg_phy_base;       	// physical basic address of lcdc register
 	u32 len;               		// physical map length of lcdc register
 	spinlock_t  reg_lock;		//one time only one process allowed to config the register
+	bool clk_on;			//if aclk or hclk is closed ,acess to register is not allowed
 
 	unsigned int		irq;
 	

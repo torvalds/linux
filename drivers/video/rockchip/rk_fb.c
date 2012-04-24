@@ -33,21 +33,6 @@
 #include "hdmi/rk_hdmi.h"
 
 
-#if 0
-	#define fbprintk(msg...)	printk(msg);
-#else
-	#define fbprintk(msg...)
-#endif
-
-#if 1
-#define CHK_SUSPEND(drv)	\
-	if(atomic_read(&drv->in_suspend))	{	\
-		printk(">>>>>> fb is in suspend! return! \n");	\
-		return -EPERM;	\
-	}
-#else
-#define CHK_SUSPEND(inf)
-#endif
 
 static struct platform_device *g_fb_pdev;
 
@@ -110,7 +95,7 @@ static int rk_fb_open(struct fb_info *info,int user)
 {
     struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     int layer_id;
-    CHK_SUSPEND(dev_drv);
+  
     layer_id = get_fb_layer_id(&info->fix);
     if(dev_drv->layer_par[layer_id]->state)
     {
@@ -145,7 +130,7 @@ static int rk_fb_close(struct fb_info *info,int user)
 static void fb_copy_by_ipp(struct fb_info *dst_info, struct fb_info *src_info,int offset)
 {
 	struct rk29_ipp_req ipp_req;
-    	u32 dstoffset = 0;
+ 
 	memset(&ipp_req, 0, sizeof(struct rk29_ipp_req));
 	ipp_req.src0.YrgbMst = src_info->fix.smem_start + offset;
 	ipp_req.src0.w = src_info->var.xres;
@@ -185,7 +170,7 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 	u32 yoffset = var->yoffset;				
 	u32 xvir = var->xres_virtual;
 	u8 data_format = var->nonstd&0xff;
-	CHK_SUSPEND(dev_drv);
+	
 	layer_id = get_fb_layer_id(fix);
 	if(layer_id < 0)
 	{
@@ -252,9 +237,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	u32 yuv_phy[2];
 	void __user *argp = (void __user *)arg;
-	fbprintk(">>>>>> %s : cmd:0x%x \n",__FUNCTION__,cmd);
 	
-	CHK_SUSPEND(dev_drv);
 	switch(cmd)
 	{
  		case FBIOPUT_FBPHYADD:
@@ -295,7 +278,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
     	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int layer_id;
-	CHK_SUSPEND(dev_drv);
+	
 	layer_id = get_fb_layer_id(fix);
 	if(layer_id < 0)
 	{
@@ -310,7 +293,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
-	CHK_SUSPEND(dev_drv);
+	
 	if( 0==var->xres_virtual || 0==var->yres_virtual ||
 		 0==var->xres || 0==var->yres || var->xres<16 ||
 		 ((16!=var->bits_per_pixel)&&(32!=var->bits_per_pixel)) )
@@ -408,7 +391,7 @@ static int rk_fb_set_par(struct fb_info *info)
 	u32 yvir = var->yres_virtual;
 	u8 data_format = var->nonstd&0xff;
 	var->pixclock = dev_drv->pixclock;
-	CHK_SUSPEND(dev_drv);
+	
 	#if defined(CONFIG_HDMI_RK30)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug())
@@ -630,7 +613,7 @@ void rk_direct_fb_show(struct fb_info * fbi)
 EXPORT_SYMBOL(rk_direct_fb_show);
 
 
-void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
+int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 {
 	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
 	struct fb_info *info = NULL;
@@ -701,6 +684,8 @@ void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 			printk(KERN_WARNING "%s>>only one lcdc,dual display no supported!",__func__);
 		}
 	#endif 
+
+	return 0;
 
 }
 static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
@@ -989,7 +974,6 @@ static void rkfb_early_suspend(struct early_suspend *h)
 	int i;
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
-		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,1);
 		if(inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable)
 			inf->lcdc_dev_drv[i]->screen_ctr_info->io_disable();
 		if(inf->lcdc_dev_drv[i]->screen->standby)
@@ -1012,7 +996,6 @@ static void rkfb_early_resume(struct early_suspend *h)
 			inf->lcdc_dev_drv[i]->screen->standby(0);
 		
 		inf->lcdc_dev_drv[i]->resume(inf->lcdc_dev_drv[i]);
-		atomic_set(&inf->lcdc_dev_drv[i]->in_suspend,0);
 	}
 
 }
@@ -1029,7 +1012,6 @@ static struct suspend_info suspend_info = {
 static int __devinit rk_fb_probe (struct platform_device *pdev)
 {
 	struct rk_fb_inf *fb_inf = NULL;
-	struct rk29fb_info * mach_info = NULL;
 	int ret = 0;
 	g_fb_pdev=pdev;
     	/* Malloc rk_fb_inf and set it to pdev for drvdata */

@@ -197,8 +197,6 @@ struct rk_lcdc_device_driver{
 	spinlock_t  cpl_lock; 			 //lock for completion  frame done
 	int first_frame ;
 
-	atomic_t in_suspend;		        //when enter suspend write or read lcdc register are forbidden
-
 	struct rk29fb_info *screen_ctr_info;
 	int (*open)(struct rk_lcdc_device_driver *dev_drv,int layer_id,bool open);
 	int (*init_lcdc)(struct rk_lcdc_device_driver *dev_drv);
@@ -231,6 +229,6 @@ extern int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 extern int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv);
 extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
-extern void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
+extern int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
 #endif
