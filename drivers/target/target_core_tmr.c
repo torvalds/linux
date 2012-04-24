@@ -333,13 +333,6 @@ static void core_tmr_drain_state_list(
 		spin_lock_irqsave(&cmd->t_state_lock, flags);
 		target_stop_cmd(cmd, &flags);
 
-		if (!atomic_dec_and_test(&cmd->t_task_cdbs_ex_left)) {
-			spin_unlock_irqrestore(&cmd->t_state_lock, flags);
-			pr_debug("LUN_RESET: Skipping cmd: %p, dev: %p for"
-				" t_task_cdbs_ex_left: %d\n", cmd, dev,
-				atomic_read(&cmd->t_task_cdbs_ex_left));
-			continue;
-		}
 		fe_count = atomic_read(&cmd->t_fe_count);
 
 		if (!(cmd->transport_state & CMD_T_ACTIVE)) {

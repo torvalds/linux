@@ -549,7 +549,6 @@ struct se_cmd {
 	unsigned long long	t_task_lba;
 	atomic_t		t_fe_count;
 	atomic_t		t_se_count;
-	atomic_t		t_task_cdbs_ex_left;
 	unsigned int		transport_state;
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)

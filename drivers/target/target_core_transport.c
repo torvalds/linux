@@ -457,7 +457,6 @@ static void target_remove_from_state_list(struct se_cmd *cmd)
 	spin_lock_irqsave(&dev->execute_task_lock, flags);
 	if (cmd->state_active) {
 		list_del(&cmd->state_list);
-		atomic_dec(&cmd->t_task_cdbs_ex_left);
 		cmd->state_active = false;
 	}
 	spin_unlock_irqrestore(&dev->execute_task_lock, flags);
@@ -1771,9 +1770,7 @@ void transport_generic_request_failure(struct se_cmd *cmd)
 	pr_debug("-----[ i_state: %d t_state: %d scsi_sense_reason: %d\n",
 		cmd->se_tfo->get_cmd_state(cmd),
 		cmd->t_state, cmd->scsi_sense_reason);
-	pr_debug("-----[ t_task_cdbs_ex_left: %d --"
-		" CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
-		atomic_read(&cmd->t_task_cdbs_ex_left),
+	pr_debug("-----[ CMD_T_ACTIVE: %d CMD_T_STOP: %d CMD_T_SENT: %d\n",
 		(cmd->transport_state & CMD_T_ACTIVE) != 0,
 		(cmd->transport_state & CMD_T_STOP) != 0,
 		(cmd->transport_state & CMD_T_SENT) != 0);
@@ -3502,8 +3499,6 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 
 	atomic_inc(&cmd->t_fe_count);
 	atomic_inc(&cmd->t_se_count);
-
-	atomic_set(&cmd->t_task_cdbs_ex_left, 1);
 
 	/*
 	 * For WRITEs, let the fabric know its buffer is ready.
