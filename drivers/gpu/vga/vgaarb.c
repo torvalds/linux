@@ -137,6 +137,8 @@ struct pci_dev *vga_default_device(void)
 	return vga_default;
 }
 
+EXPORT_SYMBOL_GPL(vga_default_device);
+
 void vga_set_default_device(struct pci_dev *pdev)
 {
 	vga_default = pdev;
