@@ -20,6 +20,7 @@
 #include <linux/ptrace.h>
 #include <linux/personality.h>
 #include <linux/freezer.h>
+#include <linux/tracehook.h>
 
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
@@ -446,15 +447,12 @@ asmlinkage long xtensa_sigaltstack(const stack_t __user *uss,
  * the kernel can handle, and then we build all the user-level signal handling
  * stack-frames in one go after that.
  */
-void do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
 	sigset_t oldset;
-
-	if (!user_mode(regs))
-		return;
 
 	if (try_to_freeze())
 		goto no_signal;
@@ -542,3 +540,17 @@ no_signal:
 	return;
 }
 
+void do_notify_resume(struct pt_regs *regs)
+{
+	if (!user_mode(regs))
+		return;
+
+	if (test_thread_flag(TIF_SIGPENDING))
+		do_signal(regs);
+
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
+}
