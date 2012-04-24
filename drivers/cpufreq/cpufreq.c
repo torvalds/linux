@@ -2455,6 +2455,20 @@ static int cpuhp_cpufreq_offline(unsigned int cpu)
 	return 0;
 }
 
+static char cpufreq_driver_name[CPUFREQ_NAME_LEN];
+
+static int __init cpufreq_driver_setup(char *str)
+{
+	strlcpy(cpufreq_driver_name, str, CPUFREQ_NAME_LEN);
+	return 1;
+}
+
+/*
+ * Set this name to only allow one specific cpu freq driver, e.g.,
+ * cpufreq_driver=powernow-k8
+ */
+__setup("cpufreq_driver=", cpufreq_driver_setup);
+
 /**
  * cpufreq_register_driver - register a CPU Frequency driver
  * @driver_data: A struct cpufreq_driver containing the values#
@@ -2481,7 +2495,13 @@ int cpufreq_register_driver(struct cpufreq_driver *driver_data)
 	     (!!driver_data->get_intermediate != !!driver_data->target_intermediate))
 		return -EINVAL;
 
-	pr_debug("trying to register driver %s\n", driver_data->name);
+	pr_debug("trying to register driver %s, cpufreq_driver=%s\n",
+		driver_data->name, cpufreq_driver_name);
+
+	if (cpufreq_driver_name[0])
+		if (!driver_data->name ||
+			strcmp(cpufreq_driver_name, driver_data->name))
+				return -EINVAL;
 
 	/* Protect against concurrent CPU online/offline. */
 	cpus_read_lock();
