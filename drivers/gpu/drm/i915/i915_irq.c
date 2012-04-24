@@ -2350,15 +2350,30 @@ static void i915_irq_preinstall(struct drm_device * dev)
 static int i915_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
+	u32 enable_mask;
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 
-	/* Unmask the interrupts that we always want on. */
-	dev_priv->irq_mask = ~I915_INTERRUPT_ENABLE_FIX;
-
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
+
+	I915_WRITE(EMR, ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
+
+	/* Unmask the interrupts that we always want on. */
+	dev_priv->irq_mask =
+		~(I915_ASLE_INTERRUPT |
+		  I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		  I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		  I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+		  I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT |
+		  I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
+
+	enable_mask =
+		I915_ASLE_INTERRUPT |
+		I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
+		I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
+		I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT |
+		I915_USER_INTERRUPT;
 
 	if (I915_HAS_HOTPLUG(dev)) {
 		/* Enable in IER... */
@@ -2366,12 +2381,6 @@ static int i915_irq_postinstall(struct drm_device *dev)
 		/* and unmask in IMR */
 		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
 	}
-
-	/*
-	 * Enable some error detection, note the instruction error mask
-	 * bit is reserved, so we leave it masked.
-	 */
-	I915_WRITE(EMR, ~(I915_ERROR_PAGE_TABLE | I915_ERROR_MEMORY_REFRESH));
 
 	I915_WRITE(IMR, dev_priv->irq_mask);
 	I915_WRITE(IER, enable_mask);
@@ -2412,15 +2421,21 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 	struct drm_i915_master_private *master_priv;
 	u32 iir, new_iir, pipe_stats[I915_MAX_PIPES];
 	unsigned long irqflags;
-	int ret = IRQ_NONE, pipe;
+	u32 flip_mask =
+		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
+		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT;
+	u32 flip[2] = {
+		I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT,
+		I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT
+	};
+	int pipe, ret = IRQ_NONE;
 
 	atomic_inc(&dev_priv->irq_received);
 
 	iir = I915_READ(IIR);
-
-	for (;;) {
+	do {
+		bool irq_received = (iir & ~flip_mask) != 0;
 		bool blc_event = false;
-		int irq_received = iir != 0;
 
 		/* Can't rely on pipestat interrupt bit in iir as it might
 		 * have been cleared after the pipestat interrupt was received.
@@ -2435,23 +2450,19 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 			int reg = PIPESTAT(pipe);
 			pipe_stats[pipe] = I915_READ(reg);
 
-			/*
-			 * Clear the PIPE*STAT regs before the IIR
-			 */
+			/* Clear the PIPE*STAT regs before the IIR */
 			if (pipe_stats[pipe] & 0x8000ffff) {
 				if (pipe_stats[pipe] & PIPE_FIFO_UNDERRUN_STATUS)
 					DRM_DEBUG_DRIVER("pipe %c underrun\n",
 							 pipe_name(pipe));
 				I915_WRITE(reg, pipe_stats[pipe]);
-				irq_received = 1;
+				irq_received = true;
 			}
 		}
 		spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 		if (!irq_received)
 			break;
-
-		ret = IRQ_HANDLED;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
 		if ((I915_HAS_HOTPLUG(dev)) &&
@@ -2465,26 +2476,26 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 					   &dev_priv->hotplug_work);
 
 			I915_WRITE(PORT_HOTPLUG_STAT, hotplug_status);
-			I915_READ(PORT_HOTPLUG_STAT);
+			POSTING_READ(PORT_HOTPLUG_STAT);
 		}
 
-		I915_WRITE(IIR, iir);
+		I915_WRITE(IIR, iir & ~flip_mask);
 		new_iir = I915_READ(IIR); /* Flush posted writes */
 
 		if (iir & I915_USER_INTERRUPT)
 			notify_ring(dev, &dev_priv->ring[RCS]);
 
-		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
-			intel_prepare_page_flip(dev, 0);
-
-		if (iir & I915_DISPLAY_PLANE_B_FLIP_PENDING_INTERRUPT)
-			intel_prepare_page_flip(dev, 1);
-
 		for_each_pipe(pipe) {
+			int plane = pipe;
+			if (IS_MOBILE(dev))
+				plane = !plane;
 			if (pipe_stats[pipe] & PIPE_VBLANK_INTERRUPT_STATUS &&
 			    drm_handle_vblank(dev, pipe)) {
-				i915_pageflip_stall_check(dev, pipe);
-				intel_finish_page_flip(dev, pipe);
+				if (iir & flip[plane]) {
+					intel_prepare_page_flip(dev, plane);
+					intel_finish_page_flip(dev, pipe);
+					flip_mask &= ~flip[plane];
+				}
 			}
 
 			if (pipe_stats[pipe] & PIPE_LEGACY_BLC_EVENT_STATUS)
@@ -2509,8 +2520,9 @@ static irqreturn_t i915_irq_handler(DRM_IRQ_ARGS)
 		 * trigger the 99% of 100,000 interrupts test for disabling
 		 * stray interrupts.
 		 */
+		ret = IRQ_HANDLED;
 		iir = new_iir;
-	}
+	} while (iir & ~flip_mask);
 
 	if (dev->primary->master) {
 		master_priv = dev->primary->master->driver_priv;
