@@ -43,6 +43,7 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/module.h>
+#include <linux/tracehook.h>
 
 #include <asm/setup.h>
 #include <asm/uaccess.h>
@@ -1154,7 +1155,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage void do_signal(struct pt_regs *regs)
+static void do_signal(struct pt_regs *regs)
 {
 	siginfo_t info;
 	struct k_sigaction ka;
@@ -1184,5 +1185,17 @@ asmlinkage void do_signal(struct pt_regs *regs)
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
+}
+
+void do_notify_resume(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SIGPENDING))
+		do_signal(regs);
+
+	if (test_and_clear_thread_flag(TIF_NOTIFY_RESUME)) {
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
 	}
 }
