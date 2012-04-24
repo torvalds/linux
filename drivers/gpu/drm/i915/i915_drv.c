@@ -438,7 +438,7 @@ void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_MT_ACK) & 1))
 		udelay(10);
 
-	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 1);
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(1));
 	POSTING_READ(FORCEWAKE_MT);
 
 	count = 0;
@@ -480,7 +480,7 @@ void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 0);
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(1));
 	/* The below doubles as a POSTING_READ */
 	gen6_gt_check_fifodbg(dev_priv);
 }

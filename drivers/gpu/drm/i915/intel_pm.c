@@ -2821,9 +2821,8 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		intel_flush_display_plane(dev_priv, pipe);
 	}
 
-	I915_WRITE(CACHE_MODE_1, I915_READ(CACHE_MODE_1) |
-		   (PIXEL_SUBSPAN_COLLECT_OPT_DISABLE << 16) |
-		   PIXEL_SUBSPAN_COLLECT_OPT_DISABLE);
+	I915_WRITE(CACHE_MODE_1,
+		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 }
 
 static void g4x_init_clock_gating(struct drm_device *dev)

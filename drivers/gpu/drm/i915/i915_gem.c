@@ -3494,9 +3494,9 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 
 	I915_WRITE(TILECTL, I915_READ(TILECTL) | TILECTL_SWZCTL);
 	if (IS_GEN6(dev))
-		I915_WRITE(ARB_MODE, ARB_MODE_ENABLE(ARB_MODE_SWIZZLE_SNB));
+		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_SNB));
 	else
-		I915_WRITE(ARB_MODE, ARB_MODE_ENABLE(ARB_MODE_SWIZZLE_IVB));
+		I915_WRITE(ARB_MODE, _MASKED_BIT_ENABLE(ARB_MODE_SWIZZLE_IVB));
 }
 
 void i915_gem_init_ppgtt(struct drm_device *dev)
@@ -3545,7 +3545,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		ecochk = I915_READ(GAM_ECOCHK);
 		I915_WRITE(GAM_ECOCHK, ecochk | ECOCHK_SNB_BIT |
 				       ECOCHK_PPGTT_CACHE64B);
-		I915_WRITE(GFX_MODE, GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
+		I915_WRITE(GFX_MODE, _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 	} else if (INTEL_INFO(dev)->gen >= 7) {
 		I915_WRITE(GAM_ECOCHK, ECOCHK_PPGTT_CACHE64B);
 		/* GFX_MODE is per-ring on gen7+ */
@@ -3556,7 +3556,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 
 		if (INTEL_INFO(dev)->gen >= 7)
 			I915_WRITE(RING_MODE_GEN7(ring),
-				   GFX_MODE_ENABLE(GFX_PPGTT_ENABLE));
+				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
 
 		I915_WRITE(RING_PP_DIR_DCLV(ring), PP_DIR_DCLV_2G);
 		I915_WRITE(RING_PP_DIR_BASE(ring), pd_offset);

@@ -401,12 +401,11 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	int ret = init_ring_common(ring);
 
 	if (INTEL_INFO(dev)->gen > 3) {
-		int mode = VS_TIMER_DISPATCH << 16 | VS_TIMER_DISPATCH;
-		I915_WRITE(MI_MODE, mode);
+		I915_WRITE(MI_MODE, _MASKED_BIT_ENABLE(VS_TIMER_DISPATCH));
 		if (IS_GEN7(dev))
 			I915_WRITE(GFX_MODE_GEN7,
-				   GFX_MODE_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
-				   GFX_MODE_ENABLE(GFX_REPLAY_MODE));
+				   _MASKED_BIT_DISABLE(GFX_TLB_INVALIDATE_ALWAYS) |
+				   _MASKED_BIT_ENABLE(GFX_REPLAY_MODE));
 	}
 
 	if (INTEL_INFO(dev)->gen >= 5) {
@@ -415,10 +414,8 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	if (INTEL_INFO(dev)->gen >= 6) {
-		I915_WRITE(INSTPM,
-			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
-	}
+	if (INTEL_INFO(dev)->gen >= 6)
+		I915_WRITE(INSTPM, _MASKED_BIT_ENABLE(INSTPM_FORCE_ORDERING));
 
 	return ret;
 }
