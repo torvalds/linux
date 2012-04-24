@@ -94,13 +94,13 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			addr += ab->start;
 
 		if (!ab->use_offset) {
-			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ":", addr);
+			printed = scnprintf(bf, sizeof(bf), "  %" PRIx64 ":", addr);
 		} else {
 			if (bdl->jump_target) {
-				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ":",
+				printed = scnprintf(bf, sizeof(bf), "  %*" PRIx64 ":",
 						    ab->offset_width, addr);
 			} else {
-				printed = scnprintf(bf, sizeof(bf), "%*s ",
+				printed = scnprintf(bf, sizeof(bf), "  %*s ",
 						    ab->offset_width, " ");
 			}
 		}
@@ -139,6 +139,59 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 
 	if (current_entry)
 		ab->selection = dl;
+}
+
+static void annotate_browser__draw_current_loop(struct ui_browser *browser)
+{
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
+	struct map_symbol *ms = browser->priv;
+	struct symbol *sym = ms->sym;
+	struct annotation *notes = symbol__annotation(sym);
+	struct disasm_line *cursor = ab->selection, *pos = cursor, *target;
+	struct browser_disasm_line *bcursor = disasm_line__browser(cursor),
+				   *btarget, *bpos;
+	unsigned int from, to, start_width = 2;
+
+	list_for_each_entry_from(pos, &notes->src->source, node) {
+		if (!pos->ins || !ins__is_jump(pos->ins))
+			continue;
+
+		target = ab->offsets[pos->ops.target];
+		if (!target)
+			continue;
+
+		btarget = disasm_line__browser(target);
+		if (btarget->idx <= bcursor->idx)
+			goto found;
+	}
+
+	return;
+
+found:
+	bpos = disasm_line__browser(pos);
+	if (ab->hide_src_code) {
+		from = bpos->idx_asm;
+		to = btarget->idx_asm;
+	} else {
+		from = (u64)bpos->idx;
+		to = (u64)btarget->idx;
+	}
+
+	ui_browser__set_color(browser, HE_COLORSET_CODE);
+
+	if (!bpos->jump_target)
+		start_width += ab->offset_width + 1;
+
+	__ui_browser__line_arrow_up(browser, 10, from, to, start_width);
+}
+
+static unsigned int annotate_browser__refresh(struct ui_browser *browser)
+{
+	int ret = ui_browser__list_head_refresh(browser);
+
+	annotate_browser__draw_current_loop(browser);
+
+	return ret;
 }
 
 static double disasm_line__calc_percent(struct disasm_line *dl, struct symbol *sym, int evidx)
@@ -666,7 +719,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 	};
 	struct annotate_browser browser = {
 		.b = {
-			.refresh = ui_browser__list_head_refresh,
+			.refresh = annotate_browser__refresh,
 			.seek	 = ui_browser__list_head_seek,
 			.write	 = annotate_browser__write,
 			.filter  = disasm_line__filter,

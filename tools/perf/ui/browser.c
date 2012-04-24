@@ -600,6 +600,45 @@ void ui_browser__write_graph(struct ui_browser *browser __used, int graph)
 	SLsmg_set_char_set(0);
 }
 
+void __ui_browser__line_arrow_up(struct ui_browser *browser, unsigned int column,
+				 u64 start, u64 end, int start_width)
+{
+	unsigned int row, end_row;
+
+	SLsmg_set_char_set(1);
+
+	if (start < browser->top_idx + browser->height) {
+		row = start - browser->top_idx;
+		ui_browser__gotorc(browser, row, column);
+		SLsmg_write_char(SLSMG_LLCORN_CHAR);
+		ui_browser__gotorc(browser, row, column + 1);
+		SLsmg_draw_hline(start_width);
+
+		if (row-- == 0)
+			goto out;
+	} else
+		row = browser->height - 1;
+
+	if (end > browser->top_idx)
+		end_row = end - browser->top_idx;
+	else
+		end_row = 0;
+
+	ui_browser__gotorc(browser, end_row, column);
+	SLsmg_draw_vline(row - end_row + 1);
+
+	ui_browser__gotorc(browser, end_row, column);
+	if (end >= browser->top_idx) {
+		SLsmg_write_char(SLSMG_ULCORN_CHAR);
+		ui_browser__gotorc(browser, end_row, column + 1);
+		SLsmg_write_char(SLSMG_HLINE_CHAR);
+		ui_browser__gotorc(browser, end_row, column + 2);
+		SLsmg_write_char(SLSMG_RARROW_CHAR);
+	}
+out:
+	SLsmg_set_char_set(0);
+}
+
 void ui_browser__init(void)
 {
 	int i = 0;
