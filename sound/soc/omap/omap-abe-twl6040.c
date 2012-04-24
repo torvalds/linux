@@ -235,7 +235,7 @@ static int omap_abe_dmic_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 /* Digital audio interface glue - connects codec <--> CPU */
-static struct snd_soc_dai_link twl6040_dmic_dai[] = {
+static struct snd_soc_dai_link abe_twl6040_dai_links[] = {
 	{
 		.name = "TWL6040",
 		.stream_name = "TWL6040",
@@ -258,19 +258,6 @@ static struct snd_soc_dai_link twl6040_dmic_dai[] = {
 	},
 };
 
-static struct snd_soc_dai_link twl6040_only_dai[] = {
-	{
-		.name = "TWL6040",
-		.stream_name = "TWL6040",
-		.cpu_dai_name = "omap-mcpdm",
-		.codec_dai_name = "twl6040-legacy",
-		.platform_name = "omap-pcm-audio",
-		.codec_name = "twl6040-codec",
-		.init = omap_abe_twl6040_init,
-		.ops = &omap_abe_ops,
-	},
-};
-
 /* Audio machine driver */
 static struct snd_soc_card omap_abe_card = {
 	.owner = THIS_MODULE,
@@ -285,6 +272,7 @@ static __devinit int omap_abe_probe(struct platform_device *pdev)
 {
 	struct omap_abe_twl6040_data *pdata = dev_get_platdata(&pdev->dev);
 	struct snd_soc_card *card = &omap_abe_card;
+	int num_links = 0;
 	int ret;
 
 	card->dev = &pdev->dev;
@@ -306,13 +294,13 @@ static __devinit int omap_abe_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (pdata->has_dmic) {
-		card->dai_link = twl6040_dmic_dai;
-		card->num_links = ARRAY_SIZE(twl6040_dmic_dai);
-	} else {
-		card->dai_link = twl6040_only_dai;
-		card->num_links = ARRAY_SIZE(twl6040_only_dai);
-	}
+	if (pdata->has_dmic)
+		num_links = 2;
+	else
+		num_links = 1;
+
+	card->dai_link = abe_twl6040_dai_links;
+	card->num_links = num_links;
 
 	ret = snd_soc_register_card(card);
 	if (ret)
