@@ -803,7 +803,7 @@ static void qla4xxx_conn_get_stats(struct iscsi_cls_conn *cls_conn,
 				     iscsi_stats_dma);
 	if (ret != QLA_SUCCESS) {
 		ql4_printk(KERN_ERR, ha,
-			   "Unable to retreive iscsi stats\n");
+			   "Unable to retrieve iscsi stats\n");
 		goto free_stats;
 	}
 
@@ -4332,7 +4332,7 @@ static int qla4xxx_compare_tuple_ddb(struct scsi_qla_host *ha,
 		return QLA_ERROR;
 
 	/* For multi sessions, driver generates the ISID, so do not compare
-	 * ISID in reset path since it would be a comparision between the
+	 * ISID in reset path since it would be a comparison between the
 	 * driver generated ISID and firmware generated ISID. This could
 	 * lead to adding duplicated DDBs in the list as driver generated
 	 * ISID would not match firmware generated ISID.
@@ -5196,7 +5196,7 @@ static void qla4xxx_destroy_fw_ddb_session(struct scsi_qla_host *ha)
 	}
 }
 /**
- * qla4xxx_remove_adapter - calback function to remove adapter.
+ * qla4xxx_remove_adapter - callback function to remove adapter.
  * @pci_dev: PCI device pointer
  **/
 static void __devexit qla4xxx_remove_adapter(struct pci_dev *pdev)

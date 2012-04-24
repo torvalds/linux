@@ -212,7 +212,7 @@ static void isci_port_link_up(struct isci_host *isci_host,
 		memcpy(iphy->sas_phy.attached_sas_addr,
 		       iphy->frame_rcvd.iaf.sas_addr, SAS_ADDR_SIZE);
 	} else {
-		dev_err(&isci_host->pdev->dev, "%s: unkown target\n", __func__);
+		dev_err(&isci_host->pdev->dev, "%s: unknown target\n", __func__);
 		success = false;
 	}
 

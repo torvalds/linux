@@ -492,7 +492,7 @@ static void sci_controller_process_completions(struct isci_host *ihost)
 	u32 event_cycle;
 
 	dev_dbg(&ihost->pdev->dev,
-		"%s: completion queue begining get:0x%08x\n",
+		"%s: completion queue beginning get:0x%08x\n",
 		__func__,
 		ihost->completion_queue_get);
 
