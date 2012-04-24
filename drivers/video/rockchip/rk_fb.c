@@ -640,35 +640,66 @@ void rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	struct fb_var_screeninfo *hdmi_var    = NULL;
 	struct fb_fix_screeninfo *pmy_fix = NULL;
 	struct fb_fix_screeninfo *hdmi_fix    = NULL;
+	char name[6];
 	int ret;
-	if(lcdc_id == 0)
+	int i;
+	sprintf(name, "lcdc%d",lcdc_id);
+	for(i = 0; i < inf->num_lcdc; i++)
+	{
+		if(!strcmp(inf->lcdc_dev_drv[i]->name,name))
+		{
+			dev_drv = inf->lcdc_dev_drv[i];
+			break;
+		}
+	}
+
+	if(i == inf->num_lcdc)
+	{
+		printk(KERN_ERR "%s driver not found!",name);
+		return -ENODEV;
+		
+	}
+
+	if((lcdc_id == 0) || (inf->num_lcdc == 1))
 	{
 		info = inf->fb[0];
 	}
-	else
+	else if( (inf->num_lcdc == 2)&&(lcdc_id = 1))
 	{
-		info = inf->fb[2] ;
+		info = inf->fb[2];
 	}
 	
 	hdmi_var = &info->var;
 	hdmi_fix = &info->fix;
 	#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
-		pmy_var = &inf->fb[0]->var;
-		pmy_fix = &inf->fb[0]->fix;
-		hdmi_var->xres = pmy_var->xres;
-		hdmi_var->yres = pmy_var->yres;
-		hdmi_var->xres_virtual = pmy_var->xres_virtual;
-		hdmi_var->yres_virtual = pmy_var->yres_virtual;
-		hdmi_var->nonstd = pmy_var->nonstd;
+		if(likely(inf->num_lcdc == 2))
+		{
+			pmy_var = &inf->fb[0]->var;
+			pmy_fix = &inf->fb[0]->fix;
+			hdmi_var->xres = pmy_var->xres;
+			hdmi_var->yres = pmy_var->yres;
+			hdmi_var->xres_virtual = pmy_var->xres_virtual;
+			hdmi_var->yres_virtual = pmy_var->yres_virtual;
+			hdmi_var->nonstd = pmy_var->nonstd;
+		}
+		else
+		{
+			printk(KERN_WARNING "%s>>only one lcdc,dual display no supported!",__func__);
+		}
 	#endif
-	//hdmi_fix->smem_start = pmy_fix->smem_start;
-	dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_open(info,1);
 	ret = info->fbops->fb_set_par(info);
 	#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
-		pmy_info = inf->fb[0];
-		pmy_info->fbops->fb_pan_display(pmy_var,pmy_info);
+		if(likely(inf->num_lcdc == 2))
+		{
+			pmy_info = inf->fb[0];
+			pmy_info->fbops->fb_pan_display(pmy_var,pmy_info);
+		}
+		else
+		{
+			printk(KERN_WARNING "%s>>only one lcdc,dual display no supported!",__func__);
+		}
 	#endif 
 
 }
@@ -843,6 +874,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	else
 	{
 		printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
+		fb_inf->num_lcdc--;
 		return -ENODEV;
 	}
 		
