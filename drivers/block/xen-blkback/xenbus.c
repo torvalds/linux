@@ -416,7 +416,7 @@ static void xen_blkbk_discard(struct xenbus_transaction xbt, struct backend_info
 				    "discard-secure", "%d",
 				    blkif->vbd.discard_secure);
 		if (err) {
-			dev_warn(dev-dev, "writing discard-secure (%d)", err);
+			dev_warn(&dev->dev, "writing discard-secure (%d)", err);
 			return;
 		}
 	}

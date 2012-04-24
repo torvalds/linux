@@ -1,7 +1,7 @@
 /*
  * Process creation support for Hexagon
  *
- * Copyright (c) 2010-2011, Code Aurora Forum. All rights reserved.
+ * Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -88,7 +88,7 @@ void (*idle_sleep)(void) = default_idle;
 void cpu_idle(void)
 {
 	while (1) {
-		tick_nohz_stop_sched_tick(1);
+		tick_nohz_idle_enter();
 		local_irq_disable();
 		while (!need_resched()) {
 			idle_sleep();
@@ -97,7 +97,7 @@ void cpu_idle(void)
 			local_irq_disable();
 		}
 		local_irq_enable();
-		tick_nohz_restart_sched_tick();
+		tick_nohz_idle_exit();
 		schedule();
 	}
 }

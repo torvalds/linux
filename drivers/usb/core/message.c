@@ -1136,8 +1136,6 @@ void usb_disable_interface(struct usb_device *dev, struct usb_interface *intf,
  * Deallocates hcd/hardware state for the endpoints (nuking all or most
  * pending urbs) and usbcore state for the interfaces, so that usbcore
  * must usb_set_configuration() before any interfaces could be used.
- *
- * Must be called with hcd->bandwidth_mutex held.
  */
 void usb_disable_device(struct usb_device *dev, int skip_ep0)
 {
@@ -1190,7 +1188,9 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 			usb_disable_endpoint(dev, i + USB_DIR_IN, false);
 		}
 		/* Remove endpoints from the host controller internal state */
+		mutex_lock(hcd->bandwidth_mutex);
 		usb_hcd_alloc_bandwidth(dev, NULL, NULL, NULL);
+		mutex_unlock(hcd->bandwidth_mutex);
 		/* Second pass: remove endpoint pointers */
 	}
 	for (i = skip_ep0; i < 16; ++i) {
@@ -1750,7 +1750,6 @@ free_interfaces:
 	/* if it's already configured, clear out old state first.
 	 * getting rid of old interfaces means unbinding their drivers.
 	 */
-	mutex_lock(hcd->bandwidth_mutex);
 	if (dev->state != USB_STATE_ADDRESS)
 		usb_disable_device(dev, 1);	/* Skip ep0 */
 
@@ -1763,6 +1762,7 @@ free_interfaces:
 	 * host controller will not allow submissions to dropped endpoints.  If
 	 * this call fails, the device state is unchanged.
 	 */
+	mutex_lock(hcd->bandwidth_mutex);
 	ret = usb_hcd_alloc_bandwidth(dev, cp, NULL, NULL);
 	if (ret < 0) {
 		mutex_unlock(hcd->bandwidth_mutex);
