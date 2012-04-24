@@ -1854,6 +1854,8 @@ static bool generate_unmatched_resp(struct ib_mad_private *recv,
 		response->mad.mad.mad_hdr.method = IB_MGMT_METHOD_GET_RESP;
 		response->mad.mad.mad_hdr.status =
 			cpu_to_be16(IB_MGMT_MAD_STATUS_UNSUPPORTED_METHOD_ATTRIB);
+		if (recv->mad.mad.mad_hdr.mgmt_class == IB_MGMT_CLASS_SUBN_DIRECTED_ROUTE)
+			response->mad.mad.mad_hdr.status |= IB_SMP_DIRECTION;
 
 		return true;
 	} else {
