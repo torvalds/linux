@@ -1612,6 +1612,9 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	if (!dev_priv || !LP_RING(dev_priv)->virtual_start) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
@@ -1638,6 +1641,9 @@ int i915_irq_wait(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_irq_wait_t *irqwait = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
@@ -1801,6 +1807,9 @@ int i915_vblank_pipe_set(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
@@ -1814,6 +1823,9 @@ int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_vblank_pipe_t *pipe = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");

@@ -239,6 +239,9 @@ static int i915_dma_init(struct drm_device *dev, void *data,
 	drm_i915_init_t *init = data;
 	int retcode = 0;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	switch (init->func) {
 	case I915_INIT_DMA:
 		retcode = i915_initialize(dev, init);
@@ -581,6 +584,9 @@ static int i915_flush_ioctl(struct drm_device *dev, void *data,
 {
 	int ret;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	mutex_lock(&dev->struct_mutex);
@@ -600,6 +606,9 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	drm_i915_batchbuffer_t *batch = data;
 	int ret;
 	struct drm_clip_rect *cliprects = NULL;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	if (!dev_priv->allow_batchbuffer) {
 		DRM_ERROR("Batchbuffer ioctl disabled\n");
@@ -658,6 +667,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	DRM_DEBUG_DRIVER("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
 			cmdbuf->buf, cmdbuf->sz, cmdbuf->num_cliprects);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (cmdbuf->num_cliprects < 0)
@@ -713,6 +725,9 @@ static int i915_flip_bufs(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
@@ -849,6 +864,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	drm_i915_hws_addr_t *hws = data;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	if (!I915_NEED_GFX_HWS(dev))
 		return -EINVAL;
