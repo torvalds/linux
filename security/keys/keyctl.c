@@ -1454,7 +1454,6 @@ long keyctl_get_security(key_serial_t keyid,
  */
 long keyctl_session_to_parent(void)
 {
-#ifdef TIF_NOTIFY_RESUME
 	struct task_struct *me, *parent;
 	const struct cred *mycred, *pcred;
 	struct cred *cred, *oldcred;
@@ -1542,15 +1541,6 @@ not_permitted:
 error_keyring:
 	key_ref_put(keyring_r);
 	return ret;
-
-#else /* !TIF_NOTIFY_RESUME */
-	/*
-	 * To be removed when TIF_NOTIFY_RESUME has been implemented on
-	 * m68k/xtensa
-	 */
-#warning TIF_NOTIFY_RESUME not implemented
-	return -EOPNOTSUPP;
-#endif /* !TIF_NOTIFY_RESUME */
 }
 
 /*
