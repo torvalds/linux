@@ -59,7 +59,18 @@ struct bt_ctrl
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
 #endif
 
-static const char bt_name[] = "bcm4329";
+static const char bt_name[] = 
+#if defined(CONFIG_RKWIFI)
+    "rk903"
+#elif defined(CONFIG_BCM4329)
+    "bcm4329"
+#elif defined(CONFIG_MV8787)
+    "mv8787"
+#else
+    "bt_default"
+#endif
+;
+
 extern int rk29sdk_bt_power_state;
 extern int rk29sdk_wifi_power_state;
 
