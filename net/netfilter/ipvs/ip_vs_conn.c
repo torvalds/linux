@@ -613,14 +613,33 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 {
 	struct ip_vs_dest *dest;
 
-	if ((cp) && (!cp->dest)) {
-		dest = ip_vs_find_dest(ip_vs_conn_net(cp), cp->af, &cp->daddr,
-				       cp->dport, &cp->vaddr, cp->vport,
-				       cp->protocol, cp->fwmark, cp->flags);
+	dest = ip_vs_find_dest(ip_vs_conn_net(cp), cp->af, &cp->daddr,
+			       cp->dport, &cp->vaddr, cp->vport,
+			       cp->protocol, cp->fwmark, cp->flags);
+	if (dest) {
+		struct ip_vs_proto_data *pd;
+
+		/* Applications work depending on the forwarding method
+		 * but better to reassign them always when binding dest */
+		if (cp->app)
+			ip_vs_unbind_app(cp);
+
 		ip_vs_bind_dest(cp, dest);
-		return dest;
-	} else
-		return NULL;
+
+		/* Update its packet transmitter */
+		cp->packet_xmit = NULL;
+#ifdef CONFIG_IP_VS_IPV6
+		if (cp->af == AF_INET6)
+			ip_vs_bind_xmit_v6(cp);
+		else
+#endif
+			ip_vs_bind_xmit(cp);
+
+		pd = ip_vs_proto_data_get(ip_vs_conn_net(cp), cp->protocol);
+		if (pd && atomic_read(&pd->appcnt))
+			ip_vs_bind_app(cp, pd->pp);
+	}
+	return dest;
 }
 
 
