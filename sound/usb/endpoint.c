@@ -40,25 +40,26 @@
  * USB endpoint and its streaming.
  *
  * There are functions to activate and deactivate the streaming URBs and
- * optinal callbacks to let the pcm logic handle the actual content of the
+ * optional callbacks to let the pcm logic handle the actual content of the
  * packets for playback and record. Thus, the bus streaming and the audio
  * handlers are fully decoupled.
  *
- * There are two different types of endpoints in for audio applications.
+ * There are two different types of endpoints in audio applications.
  *
  * SND_USB_ENDPOINT_TYPE_DATA handles full audio data payload for both
  * inbound and outbound traffic.
  *
- * SND_USB_ENDPOINT_TYPE_SYNC are for inbound traffic only and expect the
- * payload to carry Q16.16 formatted sync information (3 or 4 bytes).
+ * SND_USB_ENDPOINT_TYPE_SYNC endpoints are for inbound traffic only and
+ * expect the payload to carry Q10.14 / Q16.16 formatted sync information
+ * (3 or 4 bytes).
  *
- * Each endpoint has to be configured (by calling
- * snd_usb_endpoint_set_params()) before it can be used.
+ * Each endpoint has to be configured prior to being used by calling
+ * snd_usb_endpoint_set_params().
  *
  * The model incorporates a reference counting, so that multiple users
  * can call snd_usb_endpoint_start() and snd_usb_endpoint_stop(), and
  * only the first user will effectively start the URBs, and only the last
- * one will tear them down again.
+ * one to stop it will tear the URBs down again.
  */
 
 /*
@@ -120,7 +121,7 @@ static const char *usb_error_string(int err)
 /**
  * snd_usb_endpoint_implicit_feedback_sink: Report endpoint usage type
  *
- * @ep: The endpoint
+ * @ep: The snd_usb_endpoint
  *
  * Determine whether an endpoint is driven by an implicit feedback
  * data endpoint source.
@@ -278,17 +279,18 @@ static inline void prepare_inbound_urb(struct snd_usb_endpoint *ep,
 }
 
 /*
- * Send output urbs that have been prepared previously. Urbs are dequeued
+ * Send output urbs that have been prepared previously. URBs are dequeued
  * from ep->ready_playback_urbs and in case there there aren't any available
  * or there are no packets that have been prepared, this function does
  * nothing.
  *
- * The reason why the functionality of sending and preparing urbs is separated
- * is that host controllers don't guarantee an ordering in returing inbound
- * and outbound packets to their submitters.
+ * The reason why the functionality of sending and preparing URBs is separated
+ * is that host controllers don't guarantee the order in which they return
+ * inbound and outbound packets to their submitters.
  *
  * This function is only used for implicit feedback endpoints. For endpoints
- * driven by sync endpoints, urbs are submitted from their completion handler.
+ * driven by dedicated sync endpoints, URBs are immediately re-submitted
+ * from their completion handler.
  */
 static void queue_pending_output_urbs(struct snd_usb_endpoint *ep)
 {
@@ -391,7 +393,7 @@ exit_clear:
 }
 
 /**
- * snd_usb_add_endpoint: Add an endpoint to an audio chip
+ * snd_usb_add_endpoint: Add an endpoint to an USB audio chip
  *
  * @chip: The chip
  * @alts: The USB host interface
@@ -745,11 +747,14 @@ out_of_memory:
 }
 
 /**
- * snd_usb_endpoint_set_params: configure an snd_endpoint
+ * snd_usb_endpoint_set_params: configure an snd_usb_endpoint
  *
- * @ep: the endpoint to configure
+ * @ep: the snd_usb_endpoint to configure
+ * @hw_params: the hardware parameters
+ * @fmt: the USB audio format information
+ * @sync_ep: the sync endpoint to use, if any
  *
- * Determine the number of of URBs to be used on this endpoint.
+ * Determine the number of URBs to be used on this endpoint.
  * An endpoint must be configured before it can be started.
  * An endpoint that is already running can not be reconfigured.
  */
@@ -807,7 +812,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
  * @ep: the endpoint to start
  *
  * A call to this function will increment the use count of the endpoint.
- * In case this not already running, the URBs for this endpoint will be
+ * In case it is not already running, the URBs for this endpoint will be
  * submitted. Otherwise, this function does nothing.
  *
  * Must be balanced to calls of snd_usb_endpoint_stop().
@@ -840,7 +845,8 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep)
 	/*
 	 * If this endpoint has a data endpoint as implicit feedback source,
 	 * don't start the urbs here. Instead, mark them all as available,
-	 * wait for the record urbs to arrive and queue from that context.
+	 * wait for the record urbs to return and queue the playback urbs
+	 * from that context.
 	 */
 
 	set_bit(EP_FLAG_RUNNING, &ep->flags);
@@ -892,7 +898,7 @@ __error:
  *
  * A call to this function will decrement the use count of the endpoint.
  * In case the last user has requested the endpoint stop, the URBs will
- * actually deactivated.
+ * actually be deactivated.
  *
  * Must be balanced to calls of snd_usb_endpoint_start().
  */
@@ -994,7 +1000,8 @@ int snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 	return -EBUSY;
 }
 
-/** snd_usb_endpoint_free: Free the resources of an snd_usb_endpoint
+/**
+ * snd_usb_endpoint_free: Free the resources of an snd_usb_endpoint
  *
  * @ep: the list header of the endpoint to free
  *
@@ -1032,8 +1039,9 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 
 	/*
 	 * In case the endpoint is operating in implicit feedback mode, prepare
-	 * and a new outbound URB that has the same layout as the received
-	 * packet and add it to the list of pending urbs.
+	 * a new outbound URB that has the same layout as the received packet
+	 * and add it to the list of pending urbs. queue_pending_output_urbs()
+	 * will take care of them later.
 	 */
 	if (snd_usb_endpoint_implict_feedback_sink(ep) &&
 	    ep->use_count != 0) {
@@ -1063,8 +1071,8 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 		/*
 		 * Iterate through the inbound packet and prepare the lengths
 		 * for the output packet. The OUT packet we are about to send
-		 * will have the same amount of payload than the IN packet we
-		 * just received.
+		 * will have the same amount of payload bytes than the IN
+		 * packet we just received.
 		 */
 
 		out_packet->packets = in_ctx->packets;
