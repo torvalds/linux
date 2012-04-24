@@ -45,6 +45,7 @@ struct inet_connection_sock_af_ops {
 				      struct dst_entry *dst);
 	struct inet_peer *(*get_peer)(struct sock *sk, bool *release_it);
 	u16	    net_header_len;
+	u16	    net_frag_header_len;
 	u16	    sockaddr_len;
 	int	    (*setsockopt)(struct sock *sk, int level, int optname, 
 				  char __user *optval, unsigned int optlen);
