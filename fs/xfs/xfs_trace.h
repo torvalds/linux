@@ -874,6 +874,22 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 		  __print_flags(__entry->flags, "|", XFS_LI_FLAGS))
 )
 
+TRACE_EVENT(xfs_log_force,
+	TP_PROTO(struct xfs_mount *mp, xfs_lsn_t lsn),
+	TP_ARGS(mp, lsn),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_lsn_t, lsn)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->lsn = lsn;
+	),
+	TP_printk("dev %d:%d lsn 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->lsn)
+)
+
 #define DEFINE_LOG_ITEM_EVENT(name) \
 DEFINE_EVENT(xfs_log_item_class, name, \
 	TP_PROTO(struct xfs_log_item *lip), \
