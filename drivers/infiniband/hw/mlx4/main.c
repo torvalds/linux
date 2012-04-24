@@ -247,7 +247,7 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 		err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
 				   NULL, NULL, in_mad, out_mad);
 		if (err)
-			return err;
+			goto out;
 
 		/* Checking LinkSpeedActive for FDR-10 */
 		if (out_mad->data[15] & 0x1)
