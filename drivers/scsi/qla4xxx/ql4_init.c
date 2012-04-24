@@ -884,8 +884,8 @@ int qla4xxx_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		switch (state) {
 		case DDB_DS_SESSION_ACTIVE:
 		case DDB_DS_DISCOVERY:
-			ddb_entry->unblock_sess(ddb_entry->sess);
 			qla4xxx_update_session_conn_param(ha, ddb_entry);
+			ddb_entry->unblock_sess(ddb_entry->sess);
 			status = QLA_SUCCESS;
 			break;
 		case DDB_DS_SESSION_FAILED:
@@ -897,6 +897,7 @@ int qla4xxx_ddb_change(struct scsi_qla_host *ha, uint32_t fw_ddb_index,
 		}
 		break;
 	case DDB_DS_SESSION_ACTIVE:
+	case DDB_DS_DISCOVERY:
 		switch (state) {
 		case DDB_DS_SESSION_FAILED:
 			/*
