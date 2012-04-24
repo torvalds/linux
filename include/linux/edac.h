@@ -412,7 +412,44 @@ struct edac_mc_layer {
 #define EDAC_MAX_LAYERS		3
 
 /**
- * EDAC_DIMM_PTR - Macro responsible to find a pointer inside a pointer array
+ * EDAC_DIMM_OFF - Macro responsible to get a pointer offset inside a pointer array
+ *		   for the element given by [layer0,layer1,layer2] position
+ *
+ * @layers:	a struct edac_mc_layer array, describing how many elements
+ *		were allocated for each layer
+ * @n_layers:	Number of layers at the @layers array
+ * @layer0:	layer0 position
+ * @layer1:	layer1 position. Unused if n_layers < 2
+ * @layer2:	layer2 position. Unused if n_layers < 3
+ *
+ * For 1 layer, this macro returns &var[layer0] - &var
+ * For 2 layers, this macro is similar to allocate a bi-dimensional array
+ *		and to return "&var[layer0][layer1] - &var"
+ * For 3 layers, this macro is similar to allocate a tri-dimensional array
+ *		and to return "&var[layer0][layer1][layer2] - &var"
+ *
+ * A loop could be used here to make it more generic, but, as we only have
+ * 3 layers, this is a little faster.
+ * By design, layers can never be 0 or more than 3. If that ever happens,
+ * a NULL is returned, causing an OOPS during the memory allocation routine,
+ * with would point to the developer that he's doing something wrong.
+ */
+#define EDAC_DIMM_OFF(layers, nlayers, layer0, layer1, layer2) ({		\
+	int __i;							\
+	if ((nlayers) == 1)						\
+		__i = layer0;						\
+	else if ((nlayers) == 2)					\
+		__i = (layer1) + ((layers[1]).size * (layer0));		\
+	else if ((nlayers) == 3)					\
+		__i = (layer2) + ((layers[2]).size * ((layer1) +	\
+			    ((layers[1]).size * (layer0))));		\
+	else								\
+		__i = -EINVAL;						\
+	__i;								\
+})
+
+/**
+ * EDAC_DIMM_PTR - Macro responsible to get a pointer inside a pointer array
  *		   for the element given by [layer0,layer1,layer2] position
  *
  * @layers:	a struct edac_mc_layer array, describing how many elements
@@ -429,24 +466,14 @@ struct edac_mc_layer {
  *		and to return "&var[layer0][layer1]"
  * For 3 layers, this macro is similar to allocate a tri-dimensional array
  *		and to return "&var[layer0][layer1][layer2]"
- *
- * A loop could be used here to make it more generic, but, as we only have
- * 3 layers, this is a little faster.
- * By design, layers can never be 0 or more than 3. If that ever happens,
- * a NULL is returned, causing an OOPS during the memory allocation routine,
- * with would point to the developer that he's doing something wrong.
  */
 #define EDAC_DIMM_PTR(layers, var, nlayers, layer0, layer1, layer2) ({	\
-	typeof(var) __p;						\
-	if ((nlayers) == 1)						\
-		__p = &var[layer0];					\
-	else if ((nlayers) == 2)					\
-		__p = &var[(layer1) + ((layers[1]).size * (layer0))];	\
-	else if ((nlayers) == 3)					\
-		__p = &var[(layer2) + ((layers[2]).size * ((layer1) +	\
-			    ((layers[1]).size * (layer0))))];		\
-	else								\
+	typeof(*var) __p;						\
+	int ___i = EDAC_DIMM_OFF(layers, nlayers, layer0, layer1, layer2);	\
+	if (___i < 0)							\
 		__p = NULL;						\
+	else								\
+		__p = (var)[___i];					\
 	__p;								\
 })
 
@@ -486,8 +513,6 @@ struct dimm_info {
  *	  patches in this series will fix this issue.
  */
 struct rank_info {
-	struct device dev;
-
 	int chan_idx;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
@@ -513,7 +538,7 @@ struct csrow_info {
 
 	/* channel information for this csrow */
 	u32 nr_channels;
-	struct rank_info *channels;
+	struct rank_info **channels;
 };
 
 /*
@@ -572,7 +597,7 @@ struct mem_ctl_info {
 	unsigned long (*ctl_page_to_phys) (struct mem_ctl_info * mci,
 					   unsigned long page);
 	int mc_idx;
-	struct csrow_info *csrows;
+	struct csrow_info **csrows;
 	unsigned nr_csrows, num_cschannel;
 
 	/*
@@ -592,7 +617,7 @@ struct mem_ctl_info {
 	 * DIMM info. Will eventually remove the entire csrows_info some day
 	 */
 	unsigned tot_dimms;
-	struct dimm_info *dimms;
+	struct dimm_info **dimms;
 
 	/*
 	 * FIXME - what about controllers on other busses? - IDs must be

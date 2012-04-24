@@ -146,7 +146,7 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 		if (handle_errors) {
 			row = (info->ecc_mode_status >> 4) & 0xf;
 			edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
-					     mci->csrows[row].first_page, 0, 0,
+					     mci->csrows[row]->first_page, 0, 0,
 					     row, 0, -1,
 					     mci->ctl_name, "", NULL);
 		}
@@ -161,7 +161,7 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 		if (handle_errors) {
 			row = info->ecc_mode_status & 0xf;
 			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci,
-					     mci->csrows[row].first_page, 0, 0,
+					     mci->csrows[row]->first_page, 0, 0,
 					     row, 0, -1,
 					     mci->ctl_name, "", NULL);
 		}
@@ -194,8 +194,8 @@ static void amd76x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	int index;
 
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
-		dimm = csrow->channels[0].dimm;
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		/* find the DRAM Chip Select Base address and mask */
 		pci_read_config_dword(pdev,

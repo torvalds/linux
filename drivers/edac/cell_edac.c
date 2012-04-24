@@ -33,7 +33,7 @@ struct cell_edac_priv
 static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 {
 	struct cell_edac_priv		*priv = mci->pvt_info;
-	struct csrow_info		*csrow = &mci->csrows[0];
+	struct csrow_info		*csrow = mci->csrows[0];
 	unsigned long			address, pfn, offset, syndrome;
 
 	dev_dbg(mci->pdev, "ECC CE err on node %d, channel %d, ar = 0x%016llx\n",
@@ -56,7 +56,7 @@ static void cell_edac_count_ce(struct mem_ctl_info *mci, int chan, u64 ar)
 static void cell_edac_count_ue(struct mem_ctl_info *mci, int chan, u64 ar)
 {
 	struct cell_edac_priv		*priv = mci->pvt_info;
-	struct csrow_info		*csrow = &mci->csrows[0];
+	struct csrow_info		*csrow = mci->csrows[0];
 	unsigned long			address, pfn, offset;
 
 	dev_dbg(mci->pdev, "ECC UE err on node %d, channel %d, ar = 0x%016llx\n",
@@ -126,7 +126,7 @@ static void cell_edac_check(struct mem_ctl_info *mci)
 
 static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 {
-	struct csrow_info		*csrow = &mci->csrows[0];
+	struct csrow_info		*csrow = mci->csrows[0];
 	struct dimm_info		*dimm;
 	struct cell_edac_priv		*priv = mci->pvt_info;
 	struct device_node		*np;
@@ -150,7 +150,7 @@ static void __devinit cell_edac_init_csrows(struct mem_ctl_info *mci)
 		csrow->last_page = csrow->first_page + nr_pages - 1;
 
 		for (j = 0; j < csrow->nr_channels; j++) {
-			dimm = csrow->channels[j].dimm;
+			dimm = csrow->channels[j]->dimm;
 			dimm->mtype = MEM_XDR;
 			dimm->edac_mode = EDAC_SECDED;
 			dimm->nr_pages = nr_pages / csrow->nr_channels;

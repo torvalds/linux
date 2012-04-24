@@ -197,8 +197,8 @@ static void i82443bxgx_init_csrows(struct mem_ctl_info *mci,
 	pci_read_config_byte(pdev, I82443BXGX_DRAMC, &dramc);
 	row_high_limit_last = 0;
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
-		dimm = csrow->channels[0].dimm;
+		csrow = mci->csrows[index];
+		dimm = csrow->channels[0]->dimm;
 
 		pci_read_config_byte(pdev, I82443BXGX_DRB + index, &drbar);
 		debugf1("MC%d: %s: %s() Row=%d DRB = %#0x\n",

@@ -379,7 +379,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	 */
 	for (i = 0; i < mci->nr_csrows; i++) {
 		unsigned long nr_pages;
-		struct csrow_info *csrow = &mci->csrows[i];
+		struct csrow_info *csrow = mci->csrows[i];
 
 		nr_pages = drb_to_nr_pages(drbs, stacked,
 			i / I3200_RANKS_PER_CHANNEL,
@@ -389,7 +389,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 			continue;
 
 		for (j = 0; j < nr_channels; j++) {
-			struct dimm_info *dimm = csrow->channels[j].dimm;
+			struct dimm_info *dimm = csrow->channels[j]->dimm;
 
 			dimm->nr_pages = nr_pages / nr_channels;
 			dimm->grain = nr_pages << PAGE_SHIFT;

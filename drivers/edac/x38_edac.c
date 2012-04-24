@@ -378,7 +378,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	 */
 	for (i = 0; i < mci->nr_csrows; i++) {
 		unsigned long nr_pages;
-		struct csrow_info *csrow = &mci->csrows[i];
+		struct csrow_info *csrow = mci->csrows[i];
 
 		nr_pages = drb_to_nr_pages(drbs, stacked,
 			i / X38_RANKS_PER_CHANNEL,
@@ -388,7 +388,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 			continue;
 
 		for (j = 0; j < x38_channel_num; j++) {
-			struct dimm_info *dimm = csrow->channels[j].dimm;
+			struct dimm_info *dimm = csrow->channels[j]->dimm;
 
 			dimm->nr_pages = nr_pages / x38_channel_num;
 			dimm->grain = nr_pages << PAGE_SHIFT;

@@ -670,8 +670,8 @@ static void mv64x60_init_csrows(struct mem_ctl_info *mci,
 
 	ctl = in_le32(pdata->mc_vbase + MV64X60_SDRAM_CONFIG);
 
-	csrow = &mci->csrows[0];
-	dimm = csrow->channels[0].dimm;
+	csrow = mci->csrows[0];
+	dimm = csrow->channels[0]->dimm;
 
 	dimm->nr_pages = pdata->total_mem >> PAGE_SHIFT;
 	dimm->grain = 8;

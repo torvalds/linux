@@ -236,7 +236,7 @@ static int i3000_process_error_info(struct mem_ctl_info *mci,
 	int row, multi_chan, channel;
 	unsigned long pfn, offset;
 
-	multi_chan = mci->csrows[0].nr_channels - 1;
+	multi_chan = mci->csrows[0]->nr_channels - 1;
 
 	if (!(info->errsts & I3000_ERRSTS_BITS))
 		return 0;
@@ -393,7 +393,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	for (last_cumul_size = i = 0; i < mci->nr_csrows; i++) {
 		u8 value;
 		u32 cumul_size;
-		struct csrow_info *csrow = &mci->csrows[i];
+		struct csrow_info *csrow = mci->csrows[i];
 
 		value = drb[i];
 		cumul_size = value << (I3000_DRB_SHIFT - PAGE_SHIFT);
@@ -410,7 +410,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 		last_cumul_size = cumul_size;
 
 		for (j = 0; j < nr_channels; j++) {
-			struct dimm_info *dimm = csrow->channels[j].dimm;
+			struct dimm_info *dimm = csrow->channels[j]->dimm;
 
 			dimm->nr_pages = nr_pages / nr_channels;
 			dimm->grain = I3000_DEAP_GRAIN;

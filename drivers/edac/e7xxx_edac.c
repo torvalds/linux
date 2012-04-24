@@ -378,7 +378,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	for (index = 0; index < mci->nr_csrows; index++) {
 		/* mem_dev 0=x8, 1=x4 */
 		mem_dev = (dra >> (index * 4 + 3)) & 0x1;
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
 
 		pci_read_config_byte(pdev, E7XXX_DRB + index, &value);
 		/* convert a 64 or 32 MiB DRB to a page size. */
@@ -409,7 +409,7 @@ static void e7xxx_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 			edac_mode = EDAC_NONE;
 
 		for (j = 0; j < drc_chan + 1; j++) {
-			dimm = csrow->channels[j].dimm;
+			dimm = csrow->channels[j]->dimm;
 
 			dimm->nr_pages = nr_pages / (drc_chan + 1);
 			dimm->grain = 1 << 12;	/* 4KiB - resolution of CELOG */

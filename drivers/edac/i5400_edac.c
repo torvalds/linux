@@ -1203,8 +1203,8 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 
 			size_mb =  pvt->dimm_info[slot][channel].megabytes;
 
-			debugf2("%s: dimm%zd (branch %d channel %d slot %d): %d.%03d GB\n",
-				__func__, dimm - mci->dimms,
+			debugf2("%s: dimm (branch %d channel %d slot %d): %d.%03d GB\n",
+				__func__,
 				channel / 2, channel % 2, slot,
 				size_mb / 1000, size_mb % 1000);
 
@@ -1227,7 +1227,7 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 	 * With such single-DIMM mode, the SDCC algorithm degrades to SECDEC+.
 	 */
 	if (ndimms == 1)
-		mci->dimms[0].edac_mode = EDAC_SECDED;
+		mci->dimms[0]->edac_mode = EDAC_SECDED;
 
 	return (ndimms == 0);
 }

@@ -308,10 +308,10 @@ static int i82975x_process_error_info(struct mem_ctl_info *mci,
 			(info->xeap & 1) ? 1 : 0, info->eap, (unsigned int) page);
 		return 0;
 	}
-	chan = (mci->csrows[row].nr_channels == 1) ? 0 : info->eap & 1;
+	chan = (mci->csrows[row]->nr_channels == 1) ? 0 : info->eap & 1;
 	offst = info->eap
 			& ((1 << PAGE_SHIFT) -
-			   (1 << mci->csrows[row].channels[chan].dimm->grain));
+			   (1 << mci->csrows[row]->channels[chan]->dimm->grain));
 
 	if (info->errsts & 0x0002)
 		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci,
@@ -394,7 +394,7 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 	 */
 
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
 
 		value = readb(mch_window + I82975X_DRB + index +
 					((index >= 4) ? 0x80 : 0));
@@ -421,10 +421,10 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		 */
 		dtype = i82975x_dram_type(mch_window, index);
 		for (chan = 0; chan < csrow->nr_channels; chan++) {
-			dimm = mci->csrows[index].channels[chan].dimm;
+			dimm = mci->csrows[index]->channels[chan]->dimm;
 
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
-			strncpy(csrow->channels[chan].dimm->label,
+			strncpy(csrow->channels[chan]->dimm->label,
 					labels[(index >> 1) + (chan * 2)],
 					EDAC_MC_LABEL_LEN);
 			dimm->grain = 1 << 7;	/* 128Byte cache-line resolution */

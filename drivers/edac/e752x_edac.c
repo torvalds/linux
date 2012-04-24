@@ -1096,7 +1096,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 	for (last_cumul_size = index = 0; index < mci->nr_csrows; index++) {
 		/* mem_dev 0=x8, 1=x4 */
 		mem_dev = (dra >> (index * 4 + 2)) & 0x3;
-		csrow = &mci->csrows[remap_csrow_index(mci, index)];
+		csrow = mci->csrows[remap_csrow_index(mci, index)];
 
 		mem_dev = (mem_dev == 2);
 		pci_read_config_byte(pdev, E752X_DRB + index, &value);
@@ -1127,7 +1127,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		} else
 			edac_mode = EDAC_NONE;
 		for (i = 0; i < csrow->nr_channels; i++) {
-			struct dimm_info *dimm = csrow->channels[i].dimm;
+			struct dimm_info *dimm = csrow->channels[i]->dimm;
 
 			debugf3("Initializing rank at (%i,%i)\n", index, i);
 			dimm->nr_pages = nr_pages / csrow->nr_channels;

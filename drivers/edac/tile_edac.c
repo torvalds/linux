@@ -84,10 +84,10 @@ static void tile_edac_check(struct mem_ctl_info *mci)
  */
 static int __devinit tile_edac_init_csrows(struct mem_ctl_info *mci)
 {
-	struct csrow_info	*csrow = &mci->csrows[0];
+	struct csrow_info	*csrow = mci->csrows[0];
 	struct tile_edac_priv	*priv = mci->pvt_info;
 	struct mshim_mem_info	mem_info;
-	struct dimm_info *dimm = csrow->channels[0].dimm;
+	struct dimm_info *dimm = csrow->channels[0]->dimm;
 
 	if (hv_dev_pread(priv->hv_devhdl, 0, (HV_VirtAddr)&mem_info,
 		sizeof(struct mshim_mem_info), MSHIM_MEM_INFO_OFF) !=

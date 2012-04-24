@@ -227,7 +227,7 @@ static int i82875p_process_error_info(struct mem_ctl_info *mci,
 {
 	int row, multi_chan;
 
-	multi_chan = mci->csrows[0].nr_channels - 1;
+	multi_chan = mci->csrows[0]->nr_channels - 1;
 
 	if (!(info->errsts & 0x0081))
 		return 0;
@@ -367,7 +367,7 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 	 */
 
 	for (index = 0; index < mci->nr_csrows; index++) {
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
 
 		value = readb(ovrfl_window + I82875P_DRB + index);
 		cumul_size = value << (I82875P_DRB_SHIFT - PAGE_SHIFT);
@@ -382,7 +382,7 @@ static void i82875p_init_csrows(struct mem_ctl_info *mci,
 		last_cumul_size = cumul_size;
 
 		for (j = 0; j < nr_chans; j++) {
-			dimm = csrow->channels[j].dimm;
+			dimm = csrow->channels[j]->dimm;
 
 			dimm->nr_pages = nr_pages / nr_chans;
 			dimm->grain = 1 << 12;	/* I82875P_EAP has 4KiB reolution */

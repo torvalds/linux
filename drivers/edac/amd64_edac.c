@@ -2205,6 +2205,7 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 static int init_csrows(struct mem_ctl_info *mci)
 {
 	struct csrow_info *csrow;
+	struct dimm_info *dimm;
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u64 base, mask;
 	u32 val;
@@ -2222,7 +2223,7 @@ static int init_csrows(struct mem_ctl_info *mci)
 		!!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
 	for_each_chip_select(i, 0, pvt) {
-		csrow = &mci->csrows[i];
+		csrow = mci->csrows[i];
 
 		if (!csrow_enabled(i, 0, pvt) && !csrow_enabled(i, 1, pvt)) {
 			debugf1("----CSROW %d EMPTY for node %d\n", i,
@@ -2257,9 +2258,10 @@ static int init_csrows(struct mem_ctl_info *mci)
 			edac_mode = EDAC_NONE;
 
 		for (j = 0; j < pvt->channel_count; j++) {
-			csrow->channels[j].dimm->mtype = mtype;
-			csrow->channels[j].dimm->edac_mode = edac_mode;
-			csrow->channels[j].dimm->nr_pages = nr_pages;
+			dimm = csrow->channels[j]->dimm;
+			dimm->mtype = mtype;
+			dimm->edac_mode = edac_mode;
+			dimm->nr_pages = nr_pages;
 		}
 	}
 

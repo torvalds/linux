@@ -348,7 +348,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		if (bba == 0)
 			continue; /* not populated */
 
-		csrow = &mci->csrows[index];
+		csrow = mci->csrows[index];
 
 		row_size = bba * (1UL << 28);	/* 256M */
 		csrow->first_page = last_nr_pages;
@@ -380,7 +380,7 @@ static void cpc925_init_csrows(struct mem_ctl_info *mci)
 		break;
 		}
 		for (j = 0; j < csrow->nr_channels; j++) {
-			dimm = csrow->channels[j].dimm;
+			dimm = csrow->channels[j]->dimm;
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			dimm->mtype = MEM_RDDR;
 			dimm->edac_mode = EDAC_SECDED;
@@ -463,7 +463,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 	*csrow = rank;
 
 #ifdef CONFIG_EDAC_DEBUG
-	if (mci->csrows[rank].first_page == 0) {
+	if (mci->csrows[rank]->first_page == 0) {
 		cpc925_mc_printk(mci, KERN_ERR, "ECC occurs in a "
 			"non-populated csrow, broken hardware?\n");
 		return;
@@ -471,7 +471,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 #endif
 
 	/* Revert csrow number */
-	pa = mci->csrows[rank].first_page << PAGE_SHIFT;
+	pa = mci->csrows[rank]->first_page << PAGE_SHIFT;
 
 	/* Revert column address */
 	col += bcnt;
