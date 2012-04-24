@@ -1789,6 +1789,69 @@ struct kvm_msi {
 No flags are defined so far. The corresponding field must be 0.
 
 
+4.71 KVM_CREATE_PIT2
+
+Capability: KVM_CAP_PIT2
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_pit_config (in)
+Returns: 0 on success, -1 on error
+
+Creates an in-kernel device model for the i8254 PIT. This call is only valid
+after enabling in-kernel irqchip support via KVM_CREATE_IRQCHIP. The following
+parameters have to be passed:
+
+struct kvm_pit_config {
+	__u32 flags;
+	__u32 pad[15];
+};
+
+Valid flags are:
+
+#define KVM_PIT_SPEAKER_DUMMY     1 /* emulate speaker port stub */
+
+This IOCTL replaces the obsolete KVM_CREATE_PIT.
+
+
+4.72 KVM_GET_PIT2
+
+Capability: KVM_CAP_PIT_STATE2
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_pit_state2 (out)
+Returns: 0 on success, -1 on error
+
+Retrieves the state of the in-kernel PIT model. Only valid after
+KVM_CREATE_PIT2. The state is returned in the following structure:
+
+struct kvm_pit_state2 {
+	struct kvm_pit_channel_state channels[3];
+	__u32 flags;
+	__u32 reserved[9];
+};
+
+Valid flags are:
+
+/* disable PIT in HPET legacy mode */
+#define KVM_PIT_FLAGS_HPET_LEGACY  0x00000001
+
+This IOCTL replaces the obsolete KVM_GET_PIT.
+
+
+4.73 KVM_SET_PIT2
+
+Capability: KVM_CAP_PIT_STATE2
+Architectures: x86
+Type: vm ioctl
+Parameters: struct kvm_pit_state2 (in)
+Returns: 0 on success, -1 on error
+
+Sets the state of the in-kernel PIT model. Only valid after KVM_CREATE_PIT2.
+See KVM_GET_PIT2 for details on struct kvm_pit_state2.
+
+This IOCTL replaces the obsolete KVM_SET_PIT.
+
+
 5. The kvm_run structure
 ------------------------
 
