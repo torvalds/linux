@@ -667,7 +667,7 @@ static inline void ubi_ro_mode(struct ubi_device *ubi)
 	if (!ubi->ro_mode) {
 		ubi->ro_mode = 1;
 		ubi_warn("switch to read-only mode");
-		ubi_dbg_dump_stack();
+		dump_stack();
 	}
 }
 

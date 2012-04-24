@@ -1603,7 +1603,7 @@ static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec)
 	if (ec != read_ec) {
 		ubi_err("paranoid check failed for PEB %d", pnum);
 		ubi_err("read EC is %lld, should be %d", read_ec, ec);
-		ubi_dbg_dump_stack();
+		dump_stack();
 		err = 1;
 	} else
 		err = 0;
@@ -1634,7 +1634,7 @@ static int paranoid_check_in_wl_tree(const struct ubi_device *ubi,
 
 	ubi_err("paranoid check failed for PEB %d, EC %d, RB-tree %p ",
 		e->pnum, e->ec, root);
-	ubi_dbg_dump_stack();
+	dump_stack();
 	return -EINVAL;
 }
 
@@ -1662,7 +1662,7 @@ static int paranoid_check_in_pq(const struct ubi_device *ubi,
 
 	ubi_err("paranoid check failed for PEB %d, EC %d, Protect queue",
 		e->pnum, e->ec);
-	ubi_dbg_dump_stack();
+	dump_stack();
 	return -EINVAL;
 }
 

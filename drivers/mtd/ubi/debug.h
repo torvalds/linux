@@ -28,13 +28,11 @@
 	if (unlikely(!(expr))) {                                             \
 		printk(KERN_CRIT "UBI assert failed in %s at %u (pid %d)\n", \
 		       __func__, __LINE__, current->pid);                    \
-		ubi_dbg_dump_stack();                                        \
+		dump_stack();                                                \
 	}                                                                    \
 } while (0)
 
 #define dbg_err(fmt, ...) ubi_err(fmt, ##__VA_ARGS__)
-
-#define ubi_dbg_dump_stack() dump_stack()
 
 #define ubi_dbg_print_hex_dump(l, ps, pt, r, g, b, len, a)  \
 		print_hex_dump(l, ps, pt, r, g, b, len, a)
@@ -194,7 +192,6 @@ static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 #define dbg_io(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
 #define dbg_bld(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
 
-static inline void ubi_dbg_dump_stack(void)                          { return; }
 static inline void
 ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)                 { return; }
 static inline void
