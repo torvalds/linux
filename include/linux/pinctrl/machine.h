@@ -163,5 +163,5 @@ static inline int pinctrl_register_mappings(struct pinctrl_map const *map,
 	return 0;
 }
 
-#endif /* !CONFIG_PINMUX */
+#endif /* !CONFIG_PINCTRL */
 #endif
