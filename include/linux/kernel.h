@@ -308,6 +308,8 @@ extern long long simple_strtoll(const char *,char **,unsigned int);
 #define strict_strtoull	kstrtoull
 #define strict_strtoll	kstrtoll
 
+extern int num_to_str(char *buf, int size, unsigned long long num);
+
 extern int sprintf(char * buf, const char * fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));
 extern int vsprintf(char *buf, const char *, va_list)

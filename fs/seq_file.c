@@ -642,6 +642,39 @@ int seq_puts(struct seq_file *m, const char *s)
 }
 EXPORT_SYMBOL(seq_puts);
 
+/*
+ * A helper routine for putting decimal numbers without rich format of printf().
+ * only 'unsigned long long' is supported.
+ * This routine will put one byte delimiter + number into seq_file.
+ * This routine is very quick when you show lots of numbers.
+ * In usual cases, it will be better to use seq_printf(). It's easier to read.
+ */
+int seq_put_decimal_ull(struct seq_file *m, char delimiter,
+			unsigned long long num)
+{
+	int len;
+
+	if (m->count + 2 >= m->size) /* we'll write 2 bytes at least */
+		goto overflow;
+
+	m->buf[m->count++] = delimiter;
+
+	if (num < 10) {
+		m->buf[m->count++] = num + '0';
+		return 0;
+	}
+
+	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	if (!len)
+		goto overflow;
+	m->count += len;
+	return 0;
+overflow:
+	m->count = m->size;
+	return -1;
+}
+EXPORT_SYMBOL(seq_put_decimal_ull);
+
 /**
  * seq_write - write arbitrary data to buffer
  * @seq: seq_file identifying the buffer to which data should be written
