@@ -253,6 +253,9 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 
 	if (i2c->cmd_err == -ENXIO)
 		mxs_i2c_reset(i2c);
+	else
+		writel(MXS_I2C_QUEUECTRL_QUEUE_RUN,
+				i2c->regs + MXS_I2C_QUEUECTRL_CLR);
 
 	dev_dbg(i2c->dev, "Done with err=%d\n", i2c->cmd_err);
 
@@ -383,8 +386,6 @@ static int __devexit mxs_i2c_remove(struct platform_device *pdev)
 	if (ret)
 		return -EBUSY;
 
-	writel(MXS_I2C_QUEUECTRL_QUEUE_RUN,
-			i2c->regs + MXS_I2C_QUEUECTRL_CLR);
 	writel(MXS_I2C_CTRL0_SFTRST, i2c->regs + MXS_I2C_CTRL0_SET);
 
 	platform_set_drvdata(pdev, NULL);
