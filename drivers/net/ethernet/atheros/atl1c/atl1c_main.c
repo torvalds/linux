@@ -2314,6 +2314,7 @@ static int atl1c_suspend(struct device *dev)
 	u32 wol_ctrl_data = 0;
 	u16 mii_intr_status_data = 0;
 	u32 wufc = adapter->wol;
+	u32 phy_ctrl_data;
 
 	atl1c_disable_l0s_l1(hw);
 	if (netif_running(netdev)) {
@@ -2328,6 +2329,7 @@ static int atl1c_suspend(struct device *dev)
 
 	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
 	AT_READ_REG(hw, REG_MAC_CTRL, &mac_ctrl_data);
+	AT_READ_REG(hw, REG_GPHY_CTRL, &phy_ctrl_data);
 
 	master_ctrl_data &= ~MASTER_CTRL_CLK_SEL_DIS;
 	mac_ctrl_data &= ~(MAC_CTRL_PRMLEN_MASK << MAC_CTRL_PRMLEN_SHIFT);
@@ -2336,9 +2338,13 @@ static int atl1c_suspend(struct device *dev)
 			MAC_CTRL_PRMLEN_SHIFT);
 	mac_ctrl_data &= ~(MAC_CTRL_SPEED_MASK << MAC_CTRL_SPEED_SHIFT);
 	mac_ctrl_data &= ~MAC_CTRL_DUPLX;
+	phy_ctrl_data &= ~(GPHY_CTRL_EXT_RESET | GPHY_CTRL_CLS);
+	phy_ctrl_data |= GPHY_CTRL_SEL_ANA_RST | GPHY_CTRL_HIB_PULSE |
+			GPHY_CTRL_HIB_EN;
 
 	if (wufc) {
 		mac_ctrl_data |= MAC_CTRL_RX_EN;
+		phy_ctrl_data |= GPHY_CTRL_EXT_RESET;
 		if (adapter->link_speed == SPEED_1000 ||
 			adapter->link_speed == SPEED_0) {
 			mac_ctrl_data |= atl1c_mac_speed_1000 <<
@@ -2381,22 +2387,19 @@ static int atl1c_suspend(struct device *dev)
 		dev_dbg(&pdev->dev,
 			"%s: suspend MAC=0x%x\n",
 			atl1c_driver_name, mac_ctrl_data);
-		AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
-		AT_WRITE_REG(hw, REG_WOL_CTRL, wol_ctrl_data);
-		AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
-
-		AT_WRITE_REG(hw, REG_GPHY_CTRL, GPHY_CTRL_DEFAULT |
-			GPHY_CTRL_EXT_RESET);
 	} else {
-		AT_WRITE_REG(hw, REG_GPHY_CTRL, GPHY_CTRL_POWER_SAVING);
 		master_ctrl_data |= MASTER_CTRL_CLK_SEL_DIS;
 		mac_ctrl_data |= atl1c_mac_speed_10_100 << MAC_CTRL_SPEED_SHIFT;
 		mac_ctrl_data |= MAC_CTRL_DUPLX;
-		AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
-		AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
-		AT_WRITE_REG(hw, REG_WOL_CTRL, 0);
+		phy_ctrl_data |= GPHY_CTRL_PHY_IDDQ | GPHY_CTRL_PWDOWN_HW;
+		wol_ctrl_data = 0;
 		hw->phy_configured = false; /* re-init PHY when resume */
 	}
+
+	AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
+	AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
+	AT_WRITE_REG(hw, REG_GPHY_CTRL, phy_ctrl_data);
+	AT_WRITE_REG(hw, REG_WOL_CTRL, wol_ctrl_data);
 
 	return 0;
 }
