@@ -1416,7 +1416,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			oz_trace("USB_REQ_SET_CONFIGURATION - req\n");
 			break;
 		case USB_REQ_GET_CONFIGURATION:
-			/* We short curcuit this case and reply directly since
+			/* We short circuit this case and reply directly since
 			 * we have the selected configuration number cached.
 			 */
 			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest, 0, 0,
@@ -1432,7 +1432,7 @@ static void oz_process_ep0_urb(struct oz_hcd *ozhcd, struct urb *urb,
 			}
 			break;
 		case USB_REQ_GET_INTERFACE:
-			/* We short curcuit this case and reply directly since
+			/* We short circuit this case and reply directly since
 			 * we have the selected interface alternative cached.
 			 */
 			oz_event_log(OZ_EVT_CTRL_LOCAL, setup->bRequest, 0, 0,
