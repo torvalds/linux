@@ -51,15 +51,13 @@ struct ad5446_state {
  * struct ad5446_chip_info - chip specific information
  * @channel:		channel spec for the DAC
  * @int_vref_mv:	AD5620/40/60: the internal reference voltage
- * @store_sample:	chip specific helper function to store the datum
- * @store_sample:	chip specific helper function to store the powerpown cmd
+ * @write:		chip specific helper function to write to the register
  */
 
 struct ad5446_chip_info {
 	struct iio_chan_spec	channel;
 	u16			int_vref_mv;
-	int (*store_sample)	(struct ad5446_state *st, unsigned val);
-	int (*store_pwr_down)	(struct ad5446_state *st, unsigned mode);
+	int			(*write)(struct ad5446_state *st, unsigned val);
 };
 
 /**
