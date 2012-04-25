@@ -821,6 +821,7 @@ static int fsl_ifc_chip_init(struct fsl_ifc_mtd *priv)
 	/* Hardware generates ECC per 512 Bytes */
 	chip->ecc.size = 512;
 	chip->ecc.bytes = 8;
+	chip->ecc.strength = 4;
 
 	switch (csor & CSOR_NAND_PGS_MASK) {
 	case CSOR_NAND_PGS_512:
