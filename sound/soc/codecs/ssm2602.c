@@ -43,8 +43,6 @@
 
 #include "ssm2602.h"
 
-#define SSM2602_VERSION "0.1"
-
 enum ssm2602_type {
 	SSM2602,
 	SSM2604,
@@ -607,8 +605,6 @@ static int ssm260x_probe(struct snd_soc_codec *codec)
 {
 	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	int ret;
-
-	pr_info("ssm2602 Audio Codec %s", SSM2602_VERSION);
 
 	ret = snd_soc_codec_set_cache_io(codec, 7, 9, ssm2602->control_type);
 	if (ret < 0) {
