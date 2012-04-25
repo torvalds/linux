@@ -469,7 +469,7 @@ static __init int perf_event_ibs_init(void)
 
 	perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
 	perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
-	register_nmi_handler(NMI_LOCAL, &perf_ibs_nmi_handler, 0, "perf_ibs");
+	register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
 	printk(KERN_INFO "perf: AMD IBS detected (0x%08x)\n", ibs_caps);
 
 	return 0;
