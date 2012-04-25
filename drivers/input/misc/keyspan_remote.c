@@ -267,7 +267,9 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.tester = remote->data.tester >> 6;
 				remote->data.bits_left -= 6;
 			} else {
-				err("%s - Unknown sequence found in system data.\n", __func__);
+				dev_err(&remote->udev->dev,
+					"%s - Unknown sequence found in system data.\n",
+					__func__);
 				remote->stage = 0;
 				return;
 			}
@@ -286,7 +288,9 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.tester = remote->data.tester >> 6;
 				remote->data.bits_left -= 6;
 			} else {
-				err("%s - Unknown sequence found in button data.\n", __func__);
+				dev_err(&remote->udev->dev,
+					"%s - Unknown sequence found in button data.\n",
+					__func__);
 				remote->stage = 0;
 				return;
 			}
@@ -302,7 +306,9 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.tester = remote->data.tester >> 6;
 			remote->data.bits_left -= 6;
 		} else {
-			err("%s - Error in message, invalid toggle.\n", __func__);
+			dev_err(&remote->udev->dev,
+				"%s - Error in message, invalid toggle.\n",
+				__func__);
 			remote->stage = 0;
 			return;
 		}
@@ -312,7 +318,8 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.tester = remote->data.tester >> 5;
 			remote->data.bits_left -= 5;
 		} else {
-			err("Bad message received, no stop bit found.\n");
+			dev_err(&remote->udev->dev,
+				"Bad message received, no stop bit found.\n");
 		}
 
 		dev_dbg(&remote->udev->dev,
@@ -397,7 +404,9 @@ static void keyspan_irq_recv(struct urb *urb)
 resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result: %d", __func__, retval);
+		dev_err(&dev->udev->dev,
+			"%s - usb_submit_urb failed with result: %d\n",
+			__func__, retval);
 }
 
 static int keyspan_open(struct input_dev *dev)
