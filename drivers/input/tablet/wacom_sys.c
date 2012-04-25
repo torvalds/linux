@@ -122,8 +122,9 @@ static void wacom_sys_irq(struct urb *urb)
 	usb_mark_last_busy(wacom->usbdev);
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&wacom->intf->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static int wacom_open(struct input_dev *dev)
