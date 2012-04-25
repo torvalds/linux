@@ -465,6 +465,35 @@ static inline void soc_cleanup_card_debugfs(struct snd_soc_card *card)
 }
 #endif
 
+struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
+		const char *dai_link, int stream)
+{
+	int i;
+
+	for (i = 0; i < card->num_links; i++) {
+		if (card->rtd[i].dai_link->no_pcm &&
+			!strcmp(card->rtd[i].dai_link->name, dai_link))
+			return card->rtd[i].pcm->streams[stream].substream;
+	}
+	dev_dbg(card->dev, "failed to find dai link %s\n", dai_link);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_dai_substream);
+
+struct snd_soc_pcm_runtime *snd_soc_get_pcm_runtime(struct snd_soc_card *card,
+		const char *dai_link)
+{
+	int i;
+
+	for (i = 0; i < card->num_links; i++) {
+		if (!strcmp(card->rtd[i].dai_link->name, dai_link))
+			return &card->rtd[i];
+	}
+	dev_dbg(card->dev, "failed to find rtd %s\n", dai_link);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_pcm_runtime);
+
 #ifdef CONFIG_SND_SOC_AC97_BUS
 /* unregister ac97 codec */
 static int soc_ac97_dev_unregister(struct snd_soc_codec *codec)
