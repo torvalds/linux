@@ -297,10 +297,10 @@ static int __devinit tps65090_i2c_probe(struct i2c_client *client,
 	tps65090->rmap = regmap_init_i2c(tps65090->client,
 		&tps65090_regmap_config);
 	if (IS_ERR(tps65090->rmap)) {
-		dev_err(&client->dev, "regmap_init failed with err: %ld\n",
-			PTR_ERR(tps65090->rmap));
+		ret = PTR_ERR(tps65090->rmap);
+		dev_err(&client->dev, "regmap_init failed with err: %d\n", ret);
 		goto err_irq_exit;
-	};
+	}
 
 	ret = mfd_add_devices(tps65090->dev, -1, tps65090s,
 		ARRAY_SIZE(tps65090s), NULL, 0);
