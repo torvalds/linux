@@ -235,9 +235,6 @@ struct bt_skb_cb {
 	__u8 pkt_type;
 	__u8 incoming;
 	__u16 expect;
-	__u16 tx_seq;
-	__u8 retries;
-	__u8 sar;
 	__u8 force_active;
 	struct l2cap_ctrl control;
 };
