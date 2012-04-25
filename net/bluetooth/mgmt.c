@@ -1644,9 +1644,9 @@ static u8 link_to_bdaddr(u8 link_type, u8 addr_type)
 	}
 }
 
-static u8 mgmt_to_le(u8 mgmt_type)
+static u8 bdaddr_to_le(u8 bdaddr_type)
 {
-	switch (mgmt_type) {
+	switch (bdaddr_type) {
 	case BDADDR_LE_PUBLIC:
 		return ADDR_LE_DEV_PUBLIC;
 
@@ -2665,7 +2665,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 			type = HCI_SMP_LTK_SLAVE;
 
 		hci_add_ltk(hdev, &key->addr.bdaddr,
-			    mgmt_to_le(key->addr.type),
+			    bdaddr_to_le(key->addr.type),
 			    type, 0, key->authenticated, key->val,
 			    key->enc_size, key->ediv, key->rand);
 	}
