@@ -25,7 +25,7 @@ config I2C_MUX_PCA9541
 	  I2C Master Selector.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca9541.
+	  will be called i2c-mux-pca9541.
 
 config I2C_MUX_PCA954x
 	tristate "Philips PCA954x I2C Mux/switches"
@@ -35,6 +35,6 @@ config I2C_MUX_PCA954x
 	  I2C mux/switch devices.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called pca954x.
+	  will be called i2c-mux-pca954x.
 
 endmenu

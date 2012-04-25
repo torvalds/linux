@@ -5104,7 +5104,7 @@ PCA9541 I2C BUS MASTER SELECTOR DRIVER
 M:	Guenter Roeck <guenter.roeck@ericsson.com>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
-F:	drivers/i2c/muxes/pca9541.c
+F:	drivers/i2c/muxes/i2c-mux-pca9541.c
 
 PCA9564/PCA9665 I2C BUS DRIVER
 M:	Wolfram Sang <w.sang@pengutronix.de>
