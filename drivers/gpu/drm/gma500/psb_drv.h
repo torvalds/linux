@@ -669,6 +669,8 @@ struct drm_psb_private {
 	u32 dspcntr[3];
 
 	int mdfld_panel_id;
+
+	bool dplla_96mhz;	/* DPLL data from the VBT */
 };
 
 

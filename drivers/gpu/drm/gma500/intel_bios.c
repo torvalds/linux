@@ -217,6 +217,23 @@ static void parse_general_features(struct drm_psb_private *dev_priv,
 	}
 }
 
+static void
+parse_driver_features(struct drm_psb_private *dev_priv,
+		      struct bdb_header *bdb)
+{
+	struct bdb_driver_features *driver;
+
+	driver = find_section(bdb, BDB_DRIVER_FEATURES);
+	if (!driver)
+		return;
+
+	/* This bit means to use 96Mhz for DPLL_A or not */
+	if (driver->primary_lfp_id)
+		dev_priv->dplla_96mhz = true;
+	else
+		dev_priv->dplla_96mhz = false;
+}
+
 /**
  * psb_intel_init_bios - initialize VBIOS settings & find VBT
  * @dev: DRM device
@@ -263,6 +280,7 @@ bool psb_intel_init_bios(struct drm_device *dev)
 
 	/* Grab useful general definitions */
 	parse_general_features(dev_priv, bdb);
+	parse_driver_features(dev_priv, bdb);
 	parse_lfp_panel_data(dev_priv, bdb);
 	parse_sdvo_panel_data(dev_priv, bdb);
 	parse_backlight_data(dev_priv, bdb);
