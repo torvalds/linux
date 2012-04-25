@@ -3666,15 +3666,27 @@ static __init int ftrace_init_dyn_debugfs(struct dentry *d_tracer)
 	return 0;
 }
 
-static void ftrace_swap_recs(void *a, void *b, int size)
+static int ftrace_cmp_ips(const void *a, const void *b)
 {
-	struct dyn_ftrace *reca = a;
-	struct dyn_ftrace *recb = b;
-	struct dyn_ftrace t;
+	const unsigned long *ipa = a;
+	const unsigned long *ipb = b;
 
-	t = *reca;
-	*reca = *recb;
-	*recb = t;
+	if (*ipa > *ipb)
+		return 1;
+	if (*ipa < *ipb)
+		return -1;
+	return 0;
+}
+
+static void ftrace_swap_ips(void *a, void *b, int size)
+{
+	unsigned long *ipa = a;
+	unsigned long *ipb = b;
+	unsigned long t;
+
+	t = *ipa;
+	*ipa = *ipb;
+	*ipb = t;
 }
 
 static int ftrace_process_locs(struct module *mod,
@@ -3692,6 +3704,9 @@ static int ftrace_process_locs(struct module *mod,
 
 	if (!count)
 		return 0;
+
+	sort(start, count, sizeof(*start),
+	     ftrace_cmp_ips, ftrace_swap_ips);
 
 	pg = ftrace_allocate_pages(count);
 	if (!pg)
@@ -3739,11 +3754,6 @@ static int ftrace_process_locs(struct module *mod,
 
 	/* These new locations need to be initialized */
 	ftrace_new_pgs = pg;
-
-	/* Make each individual set of pages sorted by ips */
-	for (; pg; pg = pg->next)
-		sort(pg->records, pg->index, sizeof(struct dyn_ftrace),
-		     ftrace_cmp_recs, ftrace_swap_recs);
 
 	/*
 	 * We only need to disable interrupts on start up
