@@ -584,7 +584,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 	int retval = 0, size;
 
 	if (!data) {
-		err("bcm5974: out of memory");
+		dev_err(&dev->intf->dev, "out of memory\n");
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -597,7 +597,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 			BCM5974_WELLSPRING_MODE_REQUEST_INDEX, data, 8, 5000);
 
 	if (size != 8) {
-		err("bcm5974: could not read from device");
+		dev_err(&dev->intf->dev, "could not read from device\n");
 		retval = -EIO;
 		goto out;
 	}
@@ -615,7 +615,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 			BCM5974_WELLSPRING_MODE_REQUEST_INDEX, data, 8, 5000);
 
 	if (size != 8) {
-		err("bcm5974: could not write to device");
+		dev_err(&dev->intf->dev, "could not write to device\n");
 		retval = -EIO;
 		goto out;
 	}
@@ -654,7 +654,7 @@ static void bcm5974_irq_button(struct urb *urb)
 exit:
 	error = usb_submit_urb(dev->bt_urb, GFP_ATOMIC);
 	if (error)
-		err("bcm5974: button urb failed: %d", error);
+		dev_err(&dev->intf->dev, "button urb failed: %d\n", error);
 }
 
 static void bcm5974_irq_trackpad(struct urb *urb)
@@ -687,7 +687,7 @@ static void bcm5974_irq_trackpad(struct urb *urb)
 exit:
 	error = usb_submit_urb(dev->tp_urb, GFP_ATOMIC);
 	if (error)
-		err("bcm5974: trackpad urb failed: %d", error);
+		dev_err(&dev->intf->dev, "trackpad urb failed: %d\n", error);
 }
 
 /*
@@ -833,7 +833,7 @@ static int bcm5974_probe(struct usb_interface *iface,
 	dev = kzalloc(sizeof(struct bcm5974), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!dev || !input_dev) {
-		err("bcm5974: out of memory");
+		dev_err(&iface->dev, "out of memory\n");
 		goto err_free_devs;
 	}
 
