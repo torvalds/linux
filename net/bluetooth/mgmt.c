@@ -1524,7 +1524,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto unlock;
 	}
 
-	if (cp->addr.type == MGMT_ADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR)
 		err = hci_remove_link_key(hdev, &cp->addr.bdaddr);
 	else
 		err = hci_remove_ltk(hdev, &cp->addr.bdaddr);
@@ -1536,7 +1536,7 @@ static int unpair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	if (cp->disconnect) {
-		if (cp->addr.type == MGMT_ADDR_BREDR)
+		if (cp->addr.type == BDADDR_BREDR)
 			conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK,
 							&cp->addr.bdaddr);
 		else
@@ -1596,7 +1596,7 @@ static int disconnect(struct sock *sk, struct hci_dev *hdev, void *data,
 		goto failed;
 	}
 
-	if (cp->addr.type == MGMT_ADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR)
 		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &cp->addr.bdaddr);
 	else
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, &cp->addr.bdaddr);
@@ -1631,23 +1631,23 @@ static u8 link_to_mgmt(u8 link_type, u8 addr_type)
 	case LE_LINK:
 		switch (addr_type) {
 		case ADDR_LE_DEV_PUBLIC:
-			return MGMT_ADDR_LE_PUBLIC;
+			return BDADDR_LE_PUBLIC;
 
 		default:
 			/* Fallback to LE Random address type */
-			return MGMT_ADDR_LE_RANDOM;
+			return BDADDR_LE_RANDOM;
 		}
 
 	default:
 		/* Fallback to BR/EDR type */
-		return MGMT_ADDR_BREDR;
+		return BDADDR_BREDR;
 	}
 }
 
 static u8 mgmt_to_le(u8 mgmt_type)
 {
 	switch (mgmt_type) {
-	case MGMT_ADDR_LE_PUBLIC:
+	case BDADDR_LE_PUBLIC:
 		return ADDR_LE_DEV_PUBLIC;
 
 	default:
@@ -1914,7 +1914,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	else
 		auth_type = HCI_AT_DEDICATED_BONDING_MITM;
 
-	if (cp->addr.type == MGMT_ADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR)
 		conn = hci_connect(hdev, ACL_LINK, &cp->addr.bdaddr, sec_level,
 				   auth_type);
 	else
@@ -1947,7 +1947,7 @@ static int pair_device(struct sock *sk, struct hci_dev *hdev, void *data,
 	}
 
 	/* For LE, just connecting isn't a proof that the pairing finished */
-	if (cp->addr.type == MGMT_ADDR_BREDR)
+	if (cp->addr.type == BDADDR_BREDR)
 		conn->connect_cfm_cb = pairing_complete_cb;
 
 	conn->security_cfm_cb = pairing_complete_cb;
@@ -2024,7 +2024,7 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 		goto done;
 	}
 
-	if (type == MGMT_ADDR_BREDR)
+	if (type == BDADDR_BREDR)
 		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, bdaddr);
 	else
 		conn = hci_conn_hash_lookup_ba(hdev, LE_LINK, bdaddr);
@@ -2035,7 +2035,7 @@ static int user_pairing_resp(struct sock *sk, struct hci_dev *hdev,
 		goto done;
 	}
 
-	if (type == MGMT_ADDR_LE_PUBLIC || type == MGMT_ADDR_LE_RANDOM) {
+	if (type == BDADDR_LE_PUBLIC || type == BDADDR_LE_RANDOM) {
 		/* Continue with pairing via SMP */
 		err = smp_user_confirm_reply(conn, mgmt_op, passkey);
 
@@ -2967,7 +2967,7 @@ int mgmt_new_link_key(struct hci_dev *hdev, struct link_key *key, bool persisten
 
 	ev.store_hint = persistent;
 	bacpy(&ev.key.addr.bdaddr, &key->bdaddr);
-	ev.key.addr.type = MGMT_ADDR_BREDR;
+	ev.key.addr.type = BDADDR_BREDR;
 	ev.key.type = key->type;
 	memcpy(ev.key.val, key->val, 16);
 	ev.key.pin_len = key->pin_len;
@@ -3125,7 +3125,7 @@ int mgmt_pin_code_request(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 secure)
 	struct mgmt_ev_pin_code_request ev;
 
 	bacpy(&ev.addr.bdaddr, bdaddr);
-	ev.addr.type = MGMT_ADDR_BREDR;
+	ev.addr.type = BDADDR_BREDR;
 	ev.secure = secure;
 
 	return mgmt_event(MGMT_EV_PIN_CODE_REQUEST, hdev, &ev, sizeof(ev),
@@ -3144,7 +3144,7 @@ int mgmt_pin_code_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		return -ENOENT;
 
 	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = MGMT_ADDR_BREDR;
+	rp.addr.type = BDADDR_BREDR;
 
 	err = cmd_complete(cmd->sk, hdev->id, MGMT_OP_PIN_CODE_REPLY,
 			   mgmt_status(status), &rp, sizeof(rp));
@@ -3166,7 +3166,7 @@ int mgmt_pin_code_neg_reply_complete(struct hci_dev *hdev, bdaddr_t *bdaddr,
 		return -ENOENT;
 
 	bacpy(&rp.addr.bdaddr, bdaddr);
-	rp.addr.type = MGMT_ADDR_BREDR;
+	rp.addr.type = BDADDR_BREDR;
 
 	err = cmd_complete(cmd->sk, hdev->id, MGMT_OP_PIN_CODE_NEG_REPLY,
 			   mgmt_status(status), &rp, sizeof(rp));

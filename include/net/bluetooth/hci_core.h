@@ -963,16 +963,12 @@ void hci_send_to_monitor(struct hci_dev *hdev, struct sk_buff *skb);
 void hci_sock_dev_event(struct hci_dev *hdev, int event);
 
 /* Management interface */
-#define MGMT_ADDR_BREDR			0x00
-#define MGMT_ADDR_LE_PUBLIC		0x01
-#define MGMT_ADDR_LE_RANDOM		0x02
-
-#define DISCOV_TYPE_BREDR		(BIT(MGMT_ADDR_BREDR))
-#define DISCOV_TYPE_LE			(BIT(MGMT_ADDR_LE_PUBLIC) | \
-						BIT(MGMT_ADDR_LE_RANDOM))
-#define DISCOV_TYPE_INTERLEAVED		(BIT(MGMT_ADDR_BREDR) | \
-						BIT(MGMT_ADDR_LE_PUBLIC) | \
-						BIT(MGMT_ADDR_LE_RANDOM))
+#define DISCOV_TYPE_BREDR		(BIT(BDADDR_BREDR))
+#define DISCOV_TYPE_LE			(BIT(BDADDR_LE_PUBLIC) | \
+					 BIT(BDADDR_LE_RANDOM))
+#define DISCOV_TYPE_INTERLEAVED		(BIT(BDADDR_BREDR) | \
+					 BIT(BDADDR_LE_PUBLIC) | \
+					 BIT(BDADDR_LE_RANDOM))
 
 int mgmt_control(struct sock *sk, struct msghdr *msg, size_t len);
 int mgmt_index_added(struct hci_dev *hdev);
