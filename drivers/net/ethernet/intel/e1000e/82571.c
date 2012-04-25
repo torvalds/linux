@@ -1279,6 +1279,16 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 		ew32(CTRL_EXT, reg);
 	}
 
+	/*
+	 * Disable IPv6 extension header parsing because some malformed
+	 * IPv6 headers can hang the Rx.
+	 */
+	if (hw->mac.type <= e1000_82573) {
+		reg = er32(RFCTL);
+		reg |= (E1000_RFCTL_IPV6_EX_DIS | E1000_RFCTL_NEW_IPV6_EXT_DIS);
+		ew32(RFCTL, reg);
+	}
+
 	/* PCI-Ex Control Registers */
 	switch (hw->mac.type) {
 	case e1000_82574:

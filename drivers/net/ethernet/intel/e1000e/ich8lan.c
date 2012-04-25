@@ -3468,6 +3468,13 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
 	 */
 	reg = er32(RFCTL);
 	reg |= (E1000_RFCTL_NFSW_DIS | E1000_RFCTL_NFSR_DIS);
+
+	/*
+	 * Disable IPv6 extension header parsing because some malformed
+	 * IPv6 headers can hang the Rx.
+	 */
+	if (hw->mac.type == e1000_ich8lan)
+		reg |= (E1000_RFCTL_IPV6_EX_DIS | E1000_RFCTL_NEW_IPV6_EXT_DIS);
 	ew32(RFCTL, reg);
 }
 
