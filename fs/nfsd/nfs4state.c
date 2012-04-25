@@ -42,6 +42,7 @@
 #include <linux/sunrpc/clnt.h>
 #include "xdr4.h"
 #include "vfs.h"
+#include "current_stateid.h"
 
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
