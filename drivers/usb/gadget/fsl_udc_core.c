@@ -730,7 +730,7 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 		: (1 << (ep_index(ep)));
 
 	/* check if the pipe is empty */
-	if (!(list_empty(&ep->queue))) {
+	if (!(list_empty(&ep->queue)) && !(ep_index(ep) == 0)) {
 		/* Add td to the end */
 		struct fsl_req *lastreq;
 		lastreq = list_entry(ep->queue.prev, struct fsl_req, queue);
@@ -917,10 +917,6 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 	} else {
 		return -ENOMEM;
 	}
-
-	/* Update ep0 state */
-	if ((ep_index(ep) == 0))
-		udc->ep0_state = DATA_STATE_XMIT;
 
 	/* irq handler advances the queue */
 	if (req != NULL)
@@ -1279,7 +1275,8 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 		udc->ep0_dir = USB_DIR_OUT;
 
 	ep = &udc->eps[0];
-	udc->ep0_state = WAIT_FOR_OUT_STATUS;
+	if (udc->ep0_state != DATA_STATE_XMIT)
+		udc->ep0_state = WAIT_FOR_OUT_STATUS;
 
 	req->ep = ep;
 	req->req.length = 0;
@@ -1384,6 +1381,9 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 
 	list_add_tail(&req->queue, &ep->queue);
 	udc->ep0_state = DATA_STATE_XMIT;
+	if (ep0_prime_status(udc, EP_DIR_OUT))
+		ep0stall(udc);
+
 	return;
 stall:
 	ep0stall(udc);
@@ -1492,6 +1492,14 @@ static void setup_received_irq(struct fsl_udc *udc,
 		spin_lock(&udc->lock);
 		udc->ep0_state = (setup->bRequestType & USB_DIR_IN)
 				?  DATA_STATE_XMIT : DATA_STATE_RECV;
+		/*
+		 * If the data stage is IN, send status prime immediately.
+		 * See 2.0 Spec chapter 8.5.3.3 for detail.
+		 */
+		if (udc->ep0_state == DATA_STATE_XMIT)
+			if (ep0_prime_status(udc, EP_DIR_OUT))
+				ep0stall(udc);
+
 	} else {
 		/* No data phase, IN status from gadget */
 		udc->ep0_dir = USB_DIR_IN;
@@ -1520,9 +1528,8 @@ static void ep0_req_complete(struct fsl_udc *udc, struct fsl_ep *ep0,
 
 	switch (udc->ep0_state) {
 	case DATA_STATE_XMIT:
-		/* receive status phase */
-		if (ep0_prime_status(udc, EP_DIR_OUT))
-			ep0stall(udc);
+		/* already primed at setup_received_irq */
+		udc->ep0_state = WAIT_FOR_OUT_STATUS;
 		break;
 	case DATA_STATE_RECV:
 		/* send status phase */

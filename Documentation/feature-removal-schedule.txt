@@ -531,3 +531,11 @@ Why:	There appear to be no production users of the get_robust_list syscall,
 	of ASLR. It was only ever intended for debugging, so it should be
 	removed.
 Who:	Kees Cook <keescook@chromium.org>
+
+----------------------------
+
+What:	setitimer accepts user NULL pointer (value)
+When:	3.6
+Why:	setitimer is not returning -EFAULT if user pointer is NULL. This
+	violates the spec.
+Who:	Sasikantha Babu <sasikanth.v19@gmail.com>

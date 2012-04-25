@@ -474,7 +474,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	while (remaining_len > 0) {
 
-		frag_len = min_t(u16, local->remote_miu, remaining_len);
+		frag_len = min_t(size_t, local->remote_miu, remaining_len);
 
 		pr_debug("Fragment %zd bytes remaining %zd",
 			 frag_len, remaining_len);
@@ -497,7 +497,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 		release_sock(sk);
 
 		remaining_len -= frag_len;
-		msg_ptr += len;
+		msg_ptr += frag_len;
 	}
 
 	kfree(msg_data);

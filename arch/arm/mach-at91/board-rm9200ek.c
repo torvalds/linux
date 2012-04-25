@@ -117,7 +117,7 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
 };
 
 #define EK_FLASH_BASE	AT91_CHIPSELECT_0
-#define EK_FLASH_SIZE	SZ_2M
+#define EK_FLASH_SIZE	SZ_8M
 
 static struct physmap_flash_data ek_flash_data = {
 	.width		= 2,

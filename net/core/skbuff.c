@@ -952,9 +952,11 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		goto adjust_others;
 	}
 
-	data = kmalloc(size + sizeof(struct skb_shared_info), gfp_mask);
+	data = kmalloc(size + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
+		       gfp_mask);
 	if (!data)
 		goto nodata;
+	size = SKB_WITH_OVERHEAD(ksize(data));
 
 	/* Copy only real data... and, alas, header. This should be
 	 * optimized for the cases when header is void.

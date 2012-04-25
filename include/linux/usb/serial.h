@@ -28,13 +28,6 @@
 /* parity check flag */
 #define RELEVANT_IFLAG(iflag)	(iflag & (IGNBRK|BRKINT|IGNPAR|PARMRK|INPCK))
 
-enum port_dev_state {
-	PORT_UNREGISTERED,
-	PORT_REGISTERING,
-	PORT_REGISTERED,
-	PORT_UNREGISTERING,
-};
-
 /* USB serial flags */
 #define USB_SERIAL_WRITE_BUSY	0
 
@@ -124,7 +117,6 @@ struct usb_serial_port {
 	char			throttle_req;
 	unsigned long		sysrq; /* sysrq timeout */
 	struct device		dev;
-	enum port_dev_state	dev_state;
 };
 #define to_usb_serial_port(d) container_of(d, struct usb_serial_port, dev)
 

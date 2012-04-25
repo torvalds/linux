@@ -1521,8 +1521,8 @@ M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jh/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
 S:	Maintained
 F:	drivers/bluetooth/
 
@@ -1532,8 +1532,8 @@ M:	Gustavo Padovan <gustavo@padovan.org>
 M:	Johan Hedberg <johan.hedberg@gmail.com>
 L:	linux-bluetooth@vger.kernel.org
 W:	http://www.bluez.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/padovan/bluetooth.git
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jh/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/bluetooth/bluetooth-next.git
 S:	Maintained
 F:	net/bluetooth/
 F:	include/net/bluetooth/
@@ -2321,9 +2321,9 @@ S:	Supported
 F:	drivers/acpi/dock.c
 
 DOCUMENTATION
-M:	Randy Dunlap <rdunlap@xenotime.net>
+M:	Rob Landley <rob@landley.net>
 L:	linux-doc@vger.kernel.org
-T:	quilt http://xenotime.net/kernel-doc-patches/current/
+T:	TBD
 S:	Maintained
 F:	Documentation/
 
@@ -4533,8 +4533,7 @@ S:	Supported
 F:	drivers/net/ethernet/myricom/myri10ge/
 
 NATSEMI ETHERNET DRIVER (DP8381x)
-M:	Tim Hockin <thockin@hockin.org>
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/natsemi/natsemi.c
 
 NATIVE INSTRUMENTS USB SOUND INTERFACE DRIVER
@@ -4803,6 +4802,7 @@ F:	arch/arm/mach-omap2/clockdomain2xxx_3xxx.c
 F:	arch/arm/mach-omap2/clockdomain44xx.c
 
 OMAP AUDIO SUPPORT
+M:	Peter Ujfalusi <peter.ujfalusi@ti.com>
 M:	Jarkko Nikula <jarkko.nikula@bitmer.com>
 L:	alsa-devel@alsa-project.org (subscribers-only)
 L:	linux-omap@vger.kernel.org
@@ -5116,6 +5116,11 @@ F:	drivers/i2c/algos/i2c-algo-pca.c
 F:	drivers/i2c/busses/i2c-pca-*
 F:	include/linux/i2c-algo-pca.h
 F:	include/linux/i2c-pca-platform.h
+
+PCDP - PRIMARY CONSOLE AND DEBUG PORT
+M:	Khalid Aziz <khalid.aziz@hp.com>
+S:	Maintained
+F:	drivers/firmware/pcdp.*
 
 PCI ERROR RECOVERY
 M:     Linas Vepstas <linasvepstas@gmail.com>
@@ -6466,6 +6471,7 @@ S:	Odd Fixes
 F:	drivers/staging/olpc_dcon/
 
 STAGING - OZMO DEVICES USB OVER WIFI DRIVER
+M:	Rupesh Gujare <rgujare@ozmodevices.com>
 M:	Chris Kelly <ckelly@ozmodevices.com>
 S:	Maintained
 F:	drivers/staging/ozwpan/
@@ -7461,8 +7467,7 @@ F:	include/linux/wm97xx.h
 
 WOLFSON MICROELECTRONICS DRIVERS
 M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
-M:	Ian Lartey <ian@opensource.wolfsonmicro.com>
-M:	Dimitris Papastamos <dp@opensource.wolfsonmicro.com>
+L:	patches@opensource.wolfsonmicro.com
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-asoc
 T:	git git://opensource.wolfsonmicro.com/linux-2.6-audioplus
 W:	http://opensource.wolfsonmicro.com/content/linux-drivers-wolfson-devices
