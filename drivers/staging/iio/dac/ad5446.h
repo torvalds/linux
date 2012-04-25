@@ -83,6 +83,7 @@ enum ad5446_supported_device_ids {
 	ID_AD5640_1250,
 	ID_AD5660_2500,
 	ID_AD5660_1250,
+	ID_AD5662,
 };
 
 #endif /* IIO_DAC_AD5446_H_ */

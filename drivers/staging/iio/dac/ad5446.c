@@ -217,6 +217,10 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.int_vref_mv = 1250,
 		.write = ad5660_write,
 	},
+	[ID_AD5662] = {
+		.channel = AD5446_CHANNEL_POWERDOWN(16, 16, 0),
+		.write = ad5660_write,
+	},
 };
 
 static int ad5446_read_raw(struct iio_dev *indio_dev,
@@ -370,6 +374,7 @@ static const struct spi_device_id ad5446_id[] = {
 	{"ad5640-1250", ID_AD5640_1250},
 	{"ad5660-2500", ID_AD5660_2500},
 	{"ad5660-1250", ID_AD5660_1250},
+	{"ad5662", ID_AD5662},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, ad5446_id);
