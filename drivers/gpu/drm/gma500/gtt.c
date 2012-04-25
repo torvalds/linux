@@ -93,7 +93,7 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 	pages = r->pages;
 
 	/* Make sure changes are visible to the GPU */
-	set_pages_array_uc(pages, r->npage);
+	set_pages_array_wc(pages, r->npage);
 
 	/* Write our page entries into the GTT itself */
 	for (i = r->roll; i < r->npage; i++) {
