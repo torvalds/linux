@@ -699,11 +699,9 @@ static void atl1c_set_mac_type(struct atl1c_hw *hw)
 
 static int atl1c_setup_mac_funcs(struct atl1c_hw *hw)
 {
-	u32 phy_status_data;
 	u32 link_ctrl_data;
 
 	atl1c_set_mac_type(hw);
-	AT_READ_REG(hw, REG_PHY_STATUS, &phy_status_data);
 	AT_READ_REG(hw, REG_LINK_CTRL, &link_ctrl_data);
 
 	hw->ctrl_flags = ATL1C_INTR_MODRT_ENABLE  |

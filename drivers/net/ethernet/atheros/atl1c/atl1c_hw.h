@@ -293,13 +293,6 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 #define MDIO_AP_EN              	0x10000000
 #define MDIO_WAIT_TIMES         	10
 
-/* MII PHY Status Register */
-#define REG_PHY_STATUS           	0x1418
-#define PHY_GENERAL_STATUS_MASK		0xFFFF
-#define PHY_STATUS_RECV_ENABLE		0x0001
-#define PHY_OE_PWSP_STATUS_MASK		0x07FF
-#define PHY_OE_PWSP_STATUS_SHIFT	16
-#define PHY_STATUS_LPW_STATE		0x80000000
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL              	0x141c
 #define BIST0_NOW                   	0x1
