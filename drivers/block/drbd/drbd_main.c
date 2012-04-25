@@ -1326,6 +1326,15 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
 		drbd_resume_al(mdev);
 
+	/* remember last connect and attach times so request_timer_fn() won't
+	 * kill newly established sessions while we are still trying to thaw
+	 * previously frozen IO */
+	if (os.conn != C_WF_REPORT_PARAMS && ns.conn == C_WF_REPORT_PARAMS)
+		mdev->last_reconnect_jif = jiffies;
+	if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
+	    ns.disk > D_NEGOTIATING)
+		mdev->last_reattach_jif = jiffies;
+
 	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
 	if (ascw) {
 		ascw->os = os;

@@ -1200,43 +1200,65 @@ void request_timer_fn(unsigned long data)
 	struct drbd_request *req; /* oldest request */
 	struct list_head *le;
 	unsigned long ent = 0, dt = 0, et, nt; /* effective timeout = ko_count * timeout */
+	unsigned long now;
 
 	if (get_net_conf(mdev)) {
-		ent = mdev->net_conf->timeout*HZ/10 * mdev->net_conf->ko_count;
+		if (mdev->state.conn >= C_WF_REPORT_PARAMS)
+			ent = mdev->net_conf->timeout*HZ/10
+				* mdev->net_conf->ko_count;
 		put_net_conf(mdev);
 	}
-	if (get_ldev(mdev)) {
+	if (get_ldev(mdev)) { /* implicit state.disk >= D_INCONSISTENT */
 		dt = mdev->ldev->dc.disk_timeout * HZ / 10;
 		put_ldev(mdev);
 	}
 	et = min_not_zero(dt, ent);
 
-	if (!et || (mdev->state.conn < C_WF_REPORT_PARAMS && mdev->state.disk <= D_FAILED))
+	if (!et)
 		return; /* Recurring timer stopped */
+
+	now = jiffies;
 
 	spin_lock_irq(&mdev->req_lock);
 	le = &mdev->oldest_tle->requests;
 	if (list_empty(le)) {
 		spin_unlock_irq(&mdev->req_lock);
-		mod_timer(&mdev->request_timer, jiffies + et);
+		mod_timer(&mdev->request_timer, now + et);
 		return;
 	}
 
 	le = le->prev;
 	req = list_entry(le, struct drbd_request, tl_requests);
-	if (ent && req->rq_state & RQ_NET_PENDING) {
-		if (time_is_before_eq_jiffies(req->start_time + ent)) {
-			dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
-			_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
-		}
+
+	/* The request is considered timed out, if
+	 * - we have some effective timeout from the configuration,
+	 *   with above state restrictions applied,
+	 * - the oldest request is waiting for a response from the network
+	 *   resp. the local disk,
+	 * - the oldest request is in fact older than the effective timeout,
+	 * - the connection was established (resp. disk was attached)
+	 *   for longer than the timeout already.
+	 * Note that for 32bit jiffies and very stable connections/disks,
+	 * we may have a wrap around, which is catched by
+	 *   !time_in_range(now, last_..._jif, last_..._jif + timeout).
+	 *
+	 * Side effect: once per 32bit wrap-around interval, which means every
+	 * ~198 days with 250 HZ, we have a window where the timeout would need
+	 * to expire twice (worst case) to become effective. Good enough.
+	 */
+	if (ent && req->rq_state & RQ_NET_PENDING &&
+		 time_after(now, req->start_time + ent) &&
+		!time_in_range(now, mdev->last_reconnect_jif, mdev->last_reconnect_jif + ent)) {
+		dev_warn(DEV, "Remote failed to finish a request within ko-count * timeout\n");
+		_drbd_set_state(_NS(mdev, conn, C_TIMEOUT), CS_VERBOSE | CS_HARD, NULL);
 	}
-	if (dt && req->rq_state & RQ_LOCAL_PENDING) {
-		if (time_is_before_eq_jiffies(req->start_time + dt)) {
-			dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
-			__drbd_chk_io_error(mdev, 1);
-		}
+	if (dt && req->rq_state & RQ_LOCAL_PENDING &&
+		 time_after(now, req->start_time + dt) &&
+		!time_in_range(now, mdev->last_reattach_jif, mdev->last_reattach_jif + dt)) {
+		dev_warn(DEV, "Local backing device failed to meet the disk-timeout\n");
+		__drbd_chk_io_error(mdev, 1);
 	}
-	nt = (time_is_before_eq_jiffies(req->start_time + et) ? jiffies : req->start_time) + et;
+	nt = (time_after(now, req->start_time + et) ? now : req->start_time) + et;
 	spin_unlock_irq(&mdev->req_lock);
 	mod_timer(&mdev->request_timer, nt);
 }

@@ -1049,6 +1049,8 @@ struct drbd_conf {
 	struct crypto_hash *csums_tfm;
 	struct crypto_hash *verify_tfm;
 
+	unsigned long last_reattach_jif;
+	unsigned long last_reconnect_jif;
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
