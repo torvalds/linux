@@ -11,8 +11,8 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 struct iio_sysfs_trig {
 	struct iio_trigger *trig;

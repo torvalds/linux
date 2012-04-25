@@ -11,8 +11,8 @@
 #include <linux/spi/spi.h>
 #include <linux/export.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 #include "ade7758.h"
 
 /**

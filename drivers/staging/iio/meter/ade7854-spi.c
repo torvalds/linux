@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "ade7854.h"
 
 static int ade7854_spi_write_reg_8(struct device *dev,

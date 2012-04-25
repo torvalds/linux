@@ -23,11 +23,11 @@
 #include <linux/slab.h>
 #include <linux/anon_inodes.h>
 #include <linux/debugfs.h>
-#include "iio.h"
+#include <linux/iio/iio.h>
 #include "iio_core.h"
 #include "iio_core_trigger.h"
-#include "sysfs.h"
-#include "events.h"
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 
 /* IDA to assign each registered device a unique id*/
 static DEFINE_IDA(iio_ida);

@@ -21,10 +21,10 @@
 #include <linux/slab.h>
 #include <linux/poll.h>
 
-#include "iio.h"
+#include <linux/iio/iio.h>
 #include "iio_core.h"
-#include "sysfs.h"
-#include "buffer.h"
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 
 static const char * const iio_endian_prefix[] = {
 	[IIO_BE] = "be",

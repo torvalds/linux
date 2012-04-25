@@ -18,10 +18,10 @@
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
 #include <linux/module.h>
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
+#include <linux/iio/buffer.h>
 
 #include "sca3000.h"
 

@@ -19,9 +19,9 @@
 #include <linux/module.h>
 #include <asm/div64.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 #include "../ring_sw.h"
 
 #include "ad5933.h"

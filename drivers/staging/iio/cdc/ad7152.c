@@ -15,8 +15,8 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 /*
  * TODO: Check compliance of calibbias with abi (units)

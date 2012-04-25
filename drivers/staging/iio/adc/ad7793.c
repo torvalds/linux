@@ -18,12 +18,12 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 #include "../ring_sw.h"
-#include "../trigger.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger.h>
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad7793.h"
 

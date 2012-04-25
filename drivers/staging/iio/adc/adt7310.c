@@ -15,9 +15,9 @@
 #include <linux/spi/spi.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 /*
  * ADT7310 registers definition
  */

@@ -16,8 +16,8 @@
 #include <linux/sysfs.h>
 #include <linux/regulator/consumer.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dac.h"
 
 #define AD5064_MAX_DAC_CHANNELS			8

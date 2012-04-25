@@ -6,11 +6,11 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../kfifo_buf.h"
-#include "../trigger.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/trigger.h>
+#include <linux/iio/trigger_consumer.h>
 #include "lis3l02dq.h"
 
 /**

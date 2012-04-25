@@ -19,8 +19,8 @@
 #include <linux/module.h>
 #include <asm/div64.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dds.h"
 
 #include "ad9834.h"

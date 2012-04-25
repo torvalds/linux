@@ -28,8 +28,8 @@
 #include <linux/delay.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #define CONVERSION_TIME_MS		100
 

@@ -5,8 +5,7 @@
 #include <linux/workqueue.h>
 #include <linux/kfifo.h>
 #include <linux/mutex.h>
-
-#include "kfifo_buf.h"
+#include <linux/iio/kfifo_buf.h>
 
 struct iio_kfifo {
 	struct iio_buffer buffer;

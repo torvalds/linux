@@ -16,9 +16,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 #include "dac.h"
 #include "ad5504.h"
 

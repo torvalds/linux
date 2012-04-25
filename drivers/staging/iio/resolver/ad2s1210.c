@@ -18,8 +18,8 @@
 #include <linux/gpio.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "ad2s1210.h"
 
 #define DRV_NAME "ad2s1210"

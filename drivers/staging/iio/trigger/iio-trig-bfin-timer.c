@@ -15,8 +15,8 @@
 
 #include <asm/gptimers.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 struct bfin_timer {
 	unsigned short id, bit;

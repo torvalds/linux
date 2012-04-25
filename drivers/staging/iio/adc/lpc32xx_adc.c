@@ -32,8 +32,8 @@
 #include <linux/completion.h>
 #include <linux/of.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 /*
  * LPC32XX registers definitions

@@ -35,9 +35,9 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 #include "tsl2563.h"
 
 /* Use this many bits for fraction part. */

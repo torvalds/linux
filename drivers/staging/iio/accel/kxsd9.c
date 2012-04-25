@@ -23,8 +23,8 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #define KXSD9_REG_X		0x00
 #define KXSD9_REG_Y		0x02

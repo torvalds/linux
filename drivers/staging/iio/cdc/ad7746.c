@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/stat.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #include "ad7746.h"
 

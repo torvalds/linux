@@ -19,9 +19,9 @@
 #include <linux/rtc.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../events.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/events.h>
+#include <linux/iio/sysfs.h>
 #include "adt7316.h"
 
 /*

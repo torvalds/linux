@@ -28,7 +28,7 @@
 #include <linux/unistd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include "../iio.h"
+#include <linux/iio/iio.h>
 
 #define TSL258X_MAX_DEVICE_REGS		32
 

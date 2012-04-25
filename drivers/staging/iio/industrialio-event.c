@@ -20,10 +20,10 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
-#include "iio.h"
+#include <linux/iio/iio.h>
 #include "iio_core.h"
-#include "sysfs.h"
-#include "events.h"
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 
 /**
  * struct iio_event_interface - chrdev interface for an event line

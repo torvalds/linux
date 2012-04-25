@@ -11,11 +11,11 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 
-#include "iio.h"
+#include <linux/iio/iio.h>
 #include "iio_core.h"
-#include "machine.h"
-#include "driver.h"
-#include "consumer.h"
+#include <linux/iio/machine.h>
+#include <linux/iio/driver.h>
+#include <linux/iio/consumer.h>
 
 struct iio_map_internal {
 	struct iio_dev *indio_dev;

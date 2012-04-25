@@ -19,8 +19,8 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 /*
  * SPEAR registers definitions

@@ -12,9 +12,9 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "ade7758.h"
 
 /**

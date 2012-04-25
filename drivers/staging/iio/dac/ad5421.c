@@ -16,9 +16,9 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 #include "dac.h"
 #include "ad5421.h"
 

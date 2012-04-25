@@ -15,11 +15,11 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 
-#include "iio.h"
-#include "trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 #include "iio_core.h"
 #include "iio_core_trigger.h"
-#include "trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 
 /* RFC - Question of approach
  * Make the common case (single sensor single trigger)

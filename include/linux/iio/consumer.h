@@ -9,7 +9,7 @@
  */
 #ifndef _IIO_INKERN_CONSUMER_H_
 #define _IIO_INKERN_CONSUMER_H
-#include "types.h"
+#include <linux/iio/types.h>
 
 struct iio_dev;
 struct iio_chan_spec;

@@ -15,8 +15,8 @@
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #define ADIS16060_GYRO		0x20 /* Measure Angular Rate (Gyro) */
 #define ADIS16060_TEMP_OUT	0x10 /* Measure Temperature */

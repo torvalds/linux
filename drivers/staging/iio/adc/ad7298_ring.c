@@ -11,10 +11,10 @@
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 
-#include "../iio.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad7298.h"
 

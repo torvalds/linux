@@ -17,9 +17,9 @@
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 
 /*
  * Simplified handling

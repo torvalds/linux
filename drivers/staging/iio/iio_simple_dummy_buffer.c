@@ -18,9 +18,9 @@
 #include <linux/irq.h>
 #include <linux/bitmap.h>
 
-#include "iio.h"
-#include "trigger_consumer.h"
-#include "kfifo_buf.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/kfifo_buf.h>
 
 #include "iio_simple_dummy.h"
 

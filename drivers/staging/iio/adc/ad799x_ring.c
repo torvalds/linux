@@ -16,10 +16,10 @@
 #include <linux/i2c.h>
 #include <linux/bitops.h>
 
-#include "../iio.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 
 #include "ad799x.h"
 

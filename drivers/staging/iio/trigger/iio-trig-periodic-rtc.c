@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/rtc.h>
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 static LIST_HEAD(iio_prtc_trigger_list);
 static DEFINE_MUTEX(iio_prtc_trigger_list_lock);

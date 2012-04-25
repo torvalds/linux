@@ -6,9 +6,9 @@
 #include <linux/bitops.h>
 #include <linux/export.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "adis16400.h"
 
 /**

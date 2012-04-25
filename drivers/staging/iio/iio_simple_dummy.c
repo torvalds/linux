@@ -19,10 +19,10 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 
-#include "iio.h"
-#include "sysfs.h"
-#include "events.h"
-#include "buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
+#include <linux/iio/buffer.h>
 #include "iio_simple_dummy.h"
 
 /*

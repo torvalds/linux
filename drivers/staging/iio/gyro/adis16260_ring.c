@@ -5,9 +5,9 @@
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "adis16260.h"
 
 /**

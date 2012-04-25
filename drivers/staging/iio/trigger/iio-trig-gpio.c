@@ -22,8 +22,8 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
-#include "../trigger.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger.h>
 
 static LIST_HEAD(iio_gpio_trigger_list);
 static DEFINE_MUTEX(iio_gpio_trigger_list_lock);

@@ -11,7 +11,7 @@
 
 #include <linux/ioctl.h>
 #include <linux/types.h>
-#include "types.h"
+#include <linux/iio/types.h>
 
 /**
  * struct iio_event_data - The actual event being pushed to userspace

@@ -25,8 +25,8 @@
 #include <linux/i2c.h>
 #include <linux/err.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dac.h"
 
 #include "max517.h"

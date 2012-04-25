@@ -22,8 +22,8 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #define HMC5843_I2C_ADDRESS			0x1E
 
