@@ -291,21 +291,20 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	}
 }
 
-/*
- * Bring up the lockd process if it's not already up.
- */
-int lockd_up(struct net *net)
+static struct svc_serv *lockd_create_svc(void)
 {
 	struct svc_serv *serv;
-	int		error = 0;
 
-	mutex_lock(&nlmsvc_mutex);
 	/*
 	 * Check whether we're already up and running.
 	 */
 	if (nlmsvc_rqst) {
-		error = lockd_up_net(nlmsvc_rqst->rq_server, net);
-		goto out;
+		/*
+		 * Note: increase service usage, because later in case of error
+		 * svc_destroy() will be called.
+		 */
+		svc_get(nlmsvc_rqst->rq_server);
+		return nlmsvc_rqst->rq_server;
 	}
 
 	/*
@@ -316,11 +315,28 @@ int lockd_up(struct net *net)
 		printk(KERN_WARNING
 			"lockd_up: no pid, %d users??\n", nlmsvc_users);
 
-	error = -ENOMEM;
 	serv = svc_create(&nlmsvc_program, LOCKD_BUFSIZE, NULL);
 	if (!serv) {
 		printk(KERN_WARNING "lockd_up: create service failed\n");
-		goto out;
+		return ERR_PTR(-ENOMEM);
+	}
+	return serv;
+}
+
+/*
+ * Bring up the lockd process if it's not already up.
+ */
+int lockd_up(struct net *net)
+{
+	struct svc_serv *serv;
+	int		error = 0;
+
+	mutex_lock(&nlmsvc_mutex);
+
+	serv = lockd_create_svc();
+	if (IS_ERR(serv)) {
+		error = PTR_ERR(serv);
+		goto err_create;
 	}
 
 	error = lockd_up_net(serv, net);
@@ -360,9 +376,9 @@ int lockd_up(struct net *net)
 	 */
 err_net:
 	svc_destroy(serv);
-out:
 	if (!error)
 		nlmsvc_users++;
+err_create:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
 
