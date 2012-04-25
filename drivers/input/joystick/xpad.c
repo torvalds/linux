@@ -492,8 +492,9 @@ static void xpad_irq_in(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err ("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&xpad->udev->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static void xpad_bulk_out(struct urb *urb)
@@ -516,6 +517,7 @@ static void xpad_bulk_out(struct urb *urb)
 #if defined(CONFIG_JOYSTICK_XPAD_FF) || defined(CONFIG_JOYSTICK_XPAD_LEDS)
 static void xpad_irq_out(struct urb *urb)
 {
+	struct usb_xpad *xpad = urb->context;
 	int retval, status;
 
 	status = urb->status;
@@ -540,8 +542,9 @@ static void xpad_irq_out(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result %d",
-		    __func__, retval);
+		dev_err(&xpad->udev->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 }
 
 static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
