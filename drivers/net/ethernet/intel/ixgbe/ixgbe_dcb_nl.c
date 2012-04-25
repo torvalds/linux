@@ -395,6 +395,9 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 		} else {
 			hw->mac.ops.fc_enable(hw);
 		}
+
+		ixgbe_set_rx_drop_en(adapter);
+
 		ret = DCB_HW_CHG;
 	}
 
@@ -640,6 +643,8 @@ static int ixgbe_dcbnl_ieee_setpfc(struct net_device *dev,
 		err = ixgbe_dcb_hw_pfc_config(hw, pfc->pfc_en, prio_tc);
 	else
 		err = hw->mac.ops.fc_enable(hw);
+
+	ixgbe_set_rx_drop_en(adapter);
 
 	return err;
 }

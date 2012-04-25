@@ -652,6 +652,7 @@ extern void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 						 union ixgbe_atr_input *mask);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_DCB
+extern void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter);
 extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #endif
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
