@@ -474,7 +474,6 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	char msg[EDAC_MC_LABEL_LEN + 1 + 160];
 	char *specific = NULL;
 	u32 allErrors;
-	int branch;
 	int channel;
 	int bank;
 	int rank;
@@ -486,8 +485,7 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	if (!allErrors)
 		return;		/* if no error, return now */
 
-	branch = EXTRACT_FBDCHAN_INDX(info->ferr_fat_fbd);
-	channel = branch;
+	channel = EXTRACT_FBDCHAN_INDX(info->ferr_fat_fbd);
 
 	/* Use the NON-Recoverable macros to extract data */
 	bank = NREC_BANK(info->nrecmema);
@@ -496,9 +494,9 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 	ras = NREC_RAS(info->nrecmemb);
 	cas = NREC_CAS(info->nrecmemb);
 
-	debugf0("\t\tCSROW= %d  Channels= %d,%d  (Branch= %d "
-		"DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
-		rank, channel, channel + 1, branch >> 1, bank,
+	debugf0("\t\tCSROW= %d  Channel= %d "
+		"(DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
+		rank, channel, bank,
 		rdwr ? "Write" : "Read", ras, cas);
 
 	/* Only 1 bit will be on */
@@ -539,7 +537,7 @@ static void i5000_process_fatal_error_info(struct mem_ctl_info *mci,
 
 	/* Call the helper to output message */
 	edac_mc_handle_error(HW_EVENT_ERR_FATAL, mci, 0, 0, 0,
-			     branch >> 1, -1, rank,
+			     channel >> 1, channel & 1, rank,
 			     rdwr ? "Write error" : "Read error",
 			     msg, NULL);
 }
