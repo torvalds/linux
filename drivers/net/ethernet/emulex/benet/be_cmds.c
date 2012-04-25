@@ -1221,7 +1221,7 @@ int lancer_cmd_get_pport_stats(struct be_adapter *adapter,
 			OPCODE_ETH_GET_PPORT_STATS, nonemb_cmd->size, wrb,
 			nonemb_cmd);
 
-	req->cmd_params.params.pport_num = cpu_to_le16(adapter->port_num);
+	req->cmd_params.params.pport_num = cpu_to_le16(adapter->hba_port_num);
 	req->cmd_params.params.reset_stats = 0;
 
 	be_mcc_notify(adapter);
