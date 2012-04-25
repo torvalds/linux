@@ -189,9 +189,9 @@ retry:
 		}
 
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d%s while reading %d bytes from PEB "
-			       "%d:%d, read only %zd bytes, retry",
-			       err, errstr, len, pnum, offset, read);
+			ubi_warn("error %d%s while reading %d bytes from PEB "
+				 "%d:%d, read only %zd bytes, retry",
+				 err, errstr, len, pnum, offset, read);
 			yield();
 			goto retry;
 		}
@@ -364,8 +364,8 @@ retry:
 	err = mtd_erase(ubi->mtd, &ei);
 	if (err) {
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error %d while erasing PEB %d, retry",
-			       err, pnum);
+			ubi_warn("error %d while erasing PEB %d, retry",
+				 err, pnum);
 			yield();
 			goto retry;
 		}
@@ -383,7 +383,7 @@ retry:
 
 	if (ei.state == MTD_ERASE_FAILED) {
 		if (retries++ < UBI_IO_RETRIES) {
-			dbg_io("error while erasing PEB %d, retry", pnum);
+			ubi_warn("error while erasing PEB %d, retry", pnum);
 			yield();
 			goto retry;
 		}
