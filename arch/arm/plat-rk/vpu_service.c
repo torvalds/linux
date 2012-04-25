@@ -610,7 +610,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 
 	switch (cmd) {
 	case VPU_IOC_SET_CLIENT_TYPE : {
-	session->type = (VPU_CLIENT_TYPE)arg;
+		session->type = (VPU_CLIENT_TYPE)arg;
 		break;
 	}
 	case VPU_IOC_GET_HW_FUSE_STATUS : {
@@ -781,6 +781,7 @@ err:
 
 static int vpu_service_open(struct inode *inode, struct file *filp)
 {
+	unsigned long flag;
 	vpu_session *session = (vpu_session *)kmalloc(sizeof(vpu_session), GFP_KERNEL);
 	if (NULL == session) {
 		pr_err("unable to allocate memory for vpu_session.");
@@ -794,10 +795,11 @@ static int vpu_service_open(struct inode *inode, struct file *filp)
 	INIT_LIST_HEAD(&session->done);
 	INIT_LIST_HEAD(&session->list_session);
 	init_waitqueue_head(&session->wait);
-	/* no need to protect */
-	list_add_tail(&session->list_session, &service.session);
 	atomic_set(&session->task_running, 0);
+	spin_lock_irqsave(&service.lock, flag);
+	list_add_tail(&session->list_session, &service.session);
 	filp->private_data = (void *)session;
+	spin_unlock_irqrestore(&service.lock, flag);
 
 	pr_debug("dev opened\n");
 	return nonseekable_open(inode, filp);
@@ -822,10 +824,9 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	/* remove this filp from the asynchronusly notified filp's */
 	//vpu_service_fasync(-1, filp, 0);
 	list_del(&session->list_session);
-
 	vpu_service_session_clear(session);
-
 	kfree(session);
+	filp->private_data = NULL;
 	spin_unlock_irqrestore(&service.lock, flag);
 
 	pr_debug("dev closed\n");
