@@ -923,63 +923,48 @@ static inline int is_subvolume_inode(struct inode *inode)
  */
 static char *setup_root_args(char *args)
 {
-	unsigned copied = 0;
-	unsigned len = strlen(args) + 2;
-	char *pos;
-	char *ret;
+	unsigned len = strlen(args) + 2 + 1;
+	char *src, *dst, *buf;
 
 	/*
-	 * We need the same args as before, but minus
+	 * We need the same args as before, but with this substitution:
+	 * s!subvol=[^,]+!subvolid=0!
 	 *
-	 * subvol=a
-	 *
-	 * and add
-	 *
-	 * subvolid=0
-	 *
-	 * which is a difference of 2 characters, so we allocate strlen(args) +
-	 * 2 characters.
+	 * Since the replacement string is up to 2 bytes longer than the
+	 * original, allocate strlen(args) + 2 + 1 bytes.
 	 */
-	ret = kzalloc(len * sizeof(char), GFP_NOFS);
-	if (!ret)
-		return NULL;
-	pos = strstr(args, "subvol=");
 
+	src = strstr(args, "subvol=");
 	/* This shouldn't happen, but just in case.. */
-	if (!pos) {
-		kfree(ret);
+	if (!src)
 		return NULL;
-	}
+
+	buf = dst = kmalloc(len, GFP_NOFS);
+	if (!buf)
+		return NULL;
 
 	/*
-	 * The subvol=<> arg is not at the front of the string, copy everybody
-	 * up to that into ret.
+	 * If the subvol= arg is not at the start of the string,
+	 * copy whatever precedes it into buf.
 	 */
-	if (pos != args) {
-		*pos = '\0';
-		strcpy(ret, args);
-		copied += strlen(args);
-		pos++;
+	if (src != args) {
+		*src++ = '\0';
+		strcpy(buf, args);
+		dst += strlen(args);
 	}
 
-	strncpy(ret + copied, "subvolid=0", len - copied);
-
-	/* Length of subvolid=0 */
-	copied += 10;
+	strcpy(dst, "subvolid=0");
+	dst += strlen("subvolid=0");
 
 	/*
-	 * If there is no , after the subvol= option then we know there's no
-	 * other options and we can just return.
+	 * If there is a "," after the original subvol=... string,
+	 * copy that suffix into our buffer.  Otherwise, we're done.
 	 */
-	pos = strchr(pos, ',');
-	if (!pos)
-		return ret;
+	src = strchr(src, ',');
+	if (src)
+		strcpy(dst, src);
 
-	/* Copy the rest of the arguments into our buffer */
-	strncpy(ret + copied, pos, len - copied);
-	copied += strlen(pos);
-
-	return ret;
+	return buf;
 }
 
 static struct dentry *mount_subvol(const char *subvol_name, int flags,
