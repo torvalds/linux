@@ -331,13 +331,6 @@
 	i2c@7000c400 {
 		status = "okay";
 		clock-frequency = <100000>;
-
-		smart-battery@b {
-			compatible = "ti,bq20z75", "smart-battery-1.1";
-			reg = <0xb>;
-			ti,i2c-retry-count = <2>;
-			ti,poll-retry-count = <10>;
-		};
 	};
 
 	i2cmux {
@@ -362,6 +355,13 @@
 			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+
+			smart-battery@b {
+				compatible = "ti,bq20z75", "smart-battery-1.1";
+				reg = <0xb>;
+				ti,i2c-retry-count = <2>;
+				ti,poll-retry-count = <10>;
+			};
 		};
 	};
 
