@@ -1824,18 +1824,16 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	spin_unlock_bh(&adapter->mcc_lock);
 
 	if (!wait_for_completion_timeout(&adapter->flash_compl,
-			msecs_to_jiffies(12000)))
+					 msecs_to_jiffies(30000)))
 		status = -1;
 	else
 		status = adapter->flash_status;
 
 	resp = embedded_payload(wrb);
-	if (!status) {
+	if (!status)
 		*data_written = le32_to_cpu(resp->actual_write_len);
-	} else {
+	else
 		*addn_status = resp->additional_status;
-		status = resp->status;
-	}
 
 	return status;
 
