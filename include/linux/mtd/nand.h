@@ -459,6 +459,8 @@ struct nand_buffers {
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
  * @pagebuf:		[INTERN] holds the pagenumber which is currently in
  *			data_buf.
+ * @pagebuf_bitflips:	[INTERN] holds the bitflip count for the page which is
+ *			currently in data_buf.
  * @subpagesize:	[INTERN] holds the subpagesize
  * @onfi_version:	[INTERN] holds the chip ONFI version (BCD encoded),
  *			non 0 if ONFI supported.
@@ -519,6 +521,7 @@ struct nand_chip {
 	uint64_t chipsize;
 	int pagemask;
 	int pagebuf;
+	unsigned int pagebuf_bitflips;
 	int subpagesize;
 	uint8_t cellinfo;
 	int badblockpos;

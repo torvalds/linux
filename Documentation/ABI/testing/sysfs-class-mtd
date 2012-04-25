@@ -167,7 +167,10 @@ Description:
 		block degradation, but high enough to avoid the consequences of
 		a persistent return value of -EUCLEAN on devices where sticky
 		bitflips occur.  Note that if bitflip_threshold exceeds
-		ecc_strength, -EUCLEAN is never returned by the read functions.
+		ecc_strength, -EUCLEAN is never returned by mtd_read().
+		Conversely, if bitflip_threshold is zero, -EUCLEAN is always
+		returned, absent a hard error.
 
 		This is generally applicable only to NAND flash devices with ECC
-		capability.  It is ignored on devices lacking ECC capability.
+		capability.  It is ignored on devices lacking ECC capability;
+		i.e., devices for which ecc_strength is zero.
