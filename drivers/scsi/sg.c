@@ -146,6 +146,7 @@ typedef struct sg_request {	/* SG_MAX_QUEUE requests outstanding per file */
 } Sg_request;
 
 typedef struct sg_fd {		/* holds the state of a file descriptor */
+	/* sfd_siblings is protected by sg_index_lock */
 	struct list_head sfd_siblings;
 	struct sg_device *parentdp;	/* owning device */
 	wait_queue_head_t read_wait;	/* queue read until command done */
@@ -172,6 +173,7 @@ typedef struct sg_device { /* holds the state of each scsi generic device */
 	wait_queue_head_t o_excl_wait;	/* queue open() when O_EXCL in use */
 	int sg_tablesize;	/* adapter's max scatter-gather table size */
 	u32 index;		/* device index number */
+	/* sfds is protected by sg_index_lock */
 	struct list_head sfds;
 	volatile char detached;	/* 0->attached, 1->detached pending removal */
 	/* exclude protected by sg_open_exclusive_lock */
@@ -244,6 +246,17 @@ static int set_exclude(Sg_device *sdp, char val)
 	return val;
 }
 
+static int sfds_list_empty(Sg_device *sdp)
+{
+	unsigned long flags;
+	int ret;
+
+	read_lock_irqsave(&sg_index_lock, flags);
+	ret = list_empty(&sdp->sfds);
+	read_unlock_irqrestore(&sg_index_lock, flags);
+	return ret;
+}
+
 static int
 sg_open(struct inode *inode, struct file *filp)
 {
@@ -287,12 +300,12 @@ sg_open(struct inode *inode, struct file *filp)
 			retval = -EPERM; /* Can't lock it with read only access */
 			goto error_out;
 		}
-		if (!list_empty(&sdp->sfds) && (flags & O_NONBLOCK)) {
+		if (!sfds_list_empty(sdp) && (flags & O_NONBLOCK)) {
 			retval = -EBUSY;
 			goto error_out;
 		}
 		res = wait_event_interruptible(sdp->o_excl_wait,
-					   ((!list_empty(&sdp->sfds) || get_exclude(sdp)) ? 0 : set_exclude(sdp, 1)));
+					   ((!sfds_list_empty(sdp) || get_exclude(sdp)) ? 0 : set_exclude(sdp, 1)));
 		if (res) {
 			retval = res;	/* -ERESTARTSYS because signal hit process */
 			goto error_out;
@@ -312,7 +325,7 @@ sg_open(struct inode *inode, struct file *filp)
 		retval = -ENODEV;
 		goto error_out;
 	}
-	if (list_empty(&sdp->sfds)) {	/* no existing opens on this device */
+	if (sfds_list_empty(sdp)) {	/* no existing opens on this device */
 		sdp->sgdebug = 0;
 		q = sdp->device->request_queue;
 		sdp->sg_tablesize = queue_max_segments(q);
