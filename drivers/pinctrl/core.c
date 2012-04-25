@@ -911,13 +911,13 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
 		case PIN_MAP_TYPE_MUX_GROUP:
 			ret = pinmux_validate_map(&maps[i], i);
 			if (ret < 0)
-				return 0;
+				return ret;
 			break;
 		case PIN_MAP_TYPE_CONFIGS_PIN:
 		case PIN_MAP_TYPE_CONFIGS_GROUP:
 			ret = pinconf_validate_map(&maps[i], i);
 			if (ret < 0)
-				return 0;
+				return ret;
 			break;
 		default:
 			pr_err("failed to register map %s (%d): invalid type given\n",
