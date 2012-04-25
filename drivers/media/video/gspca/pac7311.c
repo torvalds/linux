@@ -20,31 +20,26 @@
  */
 
 /* Some documentation about various registers as determined by trial and error.
-   When the register addresses differ between the 7202 and the 7311 the 2
-   different addresses are written as 7302addr/7311addr, when one of the 2
-   addresses is a - sign that register description is not valid for the
-   matching IC.
 
    Register page 1:
 
    Address	Description
-   -/0x08	Unknown compressor related, must always be 8 except when not
+   0x08		Unknown compressor related, must always be 8 except when not
 		in 640x480 resolution and page 4 reg 2 <= 3 then set it to 9 !
-   -/0x1b	Auto white balance related, bit 0 is AWB enable (inverted)
+   0x1b		Auto white balance related, bit 0 is AWB enable (inverted)
 		bits 345 seem to toggle per color gains on/off (inverted)
    0x78		Global control, bit 6 controls the LED (inverted)
-   -/0x80	JPEG compression ratio ? Best not touched
+   0x80		JPEG compression ratio ? Best not touched
 
-   Register page 3/4:
+   Register page 4:
 
    Address	Description
    0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
 		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
-   -/0x0f	Master gain 1-245, low value = high gain
-   0x10/-	Master gain 0-31
-   -/0x10	Another gain 0-15, limited influence (1-2x gain I guess)
+   0x0f		Master gain 1-245, low value = high gain
+   0x10		Another gain 0-15, limited influence (1-2x gain I guess)
    0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
-   -/0x27	Seems to toggle various gains on / off, Setting bit 7 seems to
+   0x27		Seems to toggle various gains on / off, Setting bit 7 seems to
 		completely disable the analog amplification block. Set to 0x68
 		for max gain, 0x14 for minimal gain.
 */
@@ -60,7 +55,6 @@ MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
 MODULE_LICENSE("GPL");
 
-/* specific webcam descriptor for pac7311 */
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
@@ -92,7 +86,6 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
-/* This control is for both the 7302 and the 7311 */
 	{
 	    {
 		.id      = V4L2_CID_CONTRAST,
@@ -108,7 +101,6 @@ static const struct ctrl sd_ctrls[] = {
 	    .set = sd_setcontrast,
 	    .get = sd_getcontrast,
 	},
-/* All controls below are for both the 7302 and the 7311 */
 	{
 	    {
 		.id      = V4L2_CID_GAIN,
@@ -206,7 +198,6 @@ static const struct v4l2_pix_format vga_mode[] = {
 #define LOAD_PAGE4		254
 #define END_OF_SEQUENCE		0
 
-/* pac 7311 */
 static const __u8 init_7311[] = {
 	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
 	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
@@ -392,7 +383,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam = &gspca_dev->cam;
 
-	PDEBUG(D_CONF, "Find Sensor PAC7311");
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
@@ -405,7 +395,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* This function is used by pac7311 only */
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -438,7 +427,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 reg;
 
-	/* register 2 of frame 3/4 contains the clock divider configuring the
+	/* register 2 of page 4 contains the clock divider configuring the
 	   no fps according to the formula: 60 / reg. sd->exposure is the
 	   desired exposure time in ms. */
 	reg = 120 * sd->exposure / 1000;
@@ -451,7 +440,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x02, reg);
 
 	/* Page 1 register 8 must always be 0x08 except when not in
-	   640x480 mode and Page3/4 reg 2 <= 3 then it must be 9 */
+	   640x480 mode and page 4 reg 2 <= 3 then it must be 9 */
 	reg_w(gspca_dev, 0xff, 0x01);
 	if (gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv &&
 			reg <= 3) {
@@ -499,12 +488,12 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* set correct resolution */
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
-	case 2:					/* 160x120 pac7311 */
+	case 2:					/* 160x120 */
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x17, 0x20);
 		reg_w(gspca_dev, 0x87, 0x10);
 		break;
-	case 1:					/* 320x240 pac7311 */
+	case 1:					/* 320x240 */
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x17, 0x30);
 		reg_w(gspca_dev, 0x87, 0x11);
@@ -539,11 +528,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
-}
-
-/* called on streamoff with alt 0 and on disconnect for 7311 */
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
 }
 
 /* Include pac common sof detection functions */
@@ -820,7 +804,6 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 }
 #endif
 
-/* sub-driver description for pac7311 */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
@@ -829,7 +812,6 @@ static const struct sd_desc sd_desc = {
 	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)

@@ -89,7 +89,6 @@ enum e_ctrl {
 	NCTRLS		/* number of controls */
 };
 
-/* specific webcam descriptor for pac7302 */
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
@@ -270,7 +269,6 @@ static const struct v4l2_pix_format vga_mode[] = {
 #define LOAD_PAGE3		255
 #define END_OF_SEQUENCE		0
 
-/* pac 7302 */
 static const u8 init_7302[] = {
 /*	index,value */
 	0xff, 0x01,		/* page 1 */
@@ -509,7 +507,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* This function is used by pac7302 only */
 static void setbrightcont(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -536,7 +533,6 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
 
-/* This function is used by pac7302 only */
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -699,8 +695,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setbluebalance(gspca_dev);
 	setautogain(gspca_dev);
 	sethvflip(gspca_dev);
-
-	/* only resolution 640x480 is supported for pac7302 */
 
 	sd->sof_read = 0;
 	atomic_set(&sd->avg_lum, 270 + sd->ctrls[BRIGHTNESS].val);
