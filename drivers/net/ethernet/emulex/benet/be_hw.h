@@ -162,22 +162,23 @@
 #define QUERY_FAT	1
 
 /* Flashrom related descriptors */
+#define MAX_FLASH_COMP			32
 #define IMAGE_TYPE_FIRMWARE		160
 #define IMAGE_TYPE_BOOTCODE		224
 #define IMAGE_TYPE_OPTIONROM		32
 
 #define NUM_FLASHDIR_ENTRIES		32
 
-#define IMG_TYPE_ISCSI_ACTIVE		0
-#define IMG_TYPE_REDBOOT		1
-#define IMG_TYPE_BIOS			2
-#define IMG_TYPE_PXE_BIOS		3
-#define IMG_TYPE_FCOE_BIOS		8
-#define IMG_TYPE_ISCSI_BACKUP		9
-#define IMG_TYPE_FCOE_FW_ACTIVE		10
-#define IMG_TYPE_FCOE_FW_BACKUP 	11
-#define IMG_TYPE_NCSI_FW		13
-#define IMG_TYPE_PHY_FW			99
+#define OPTYPE_ISCSI_ACTIVE		0
+#define OPTYPE_REDBOOT			1
+#define OPTYPE_BIOS			2
+#define OPTYPE_PXE_BIOS			3
+#define OPTYPE_FCOE_BIOS		8
+#define OPTYPE_ISCSI_BACKUP		9
+#define OPTYPE_FCOE_FW_ACTIVE		10
+#define OPTYPE_FCOE_FW_BACKUP		11
+#define OPTYPE_NCSI_FW			13
+#define OPTYPE_PHY_FW			99
 #define TN_8022				13
 
 #define ILLEGAL_IOCTL_REQ		2
@@ -222,6 +223,24 @@
 #define FLASH_FCoE_BIOS_START_g3           (13631488)
 #define FLASH_REDBOOT_START_g3             (262144)
 #define FLASH_PHY_FW_START_g3		   1310720
+
+#define IMAGE_NCSI			16
+#define IMAGE_OPTION_ROM_PXE		32
+#define IMAGE_OPTION_ROM_FCoE		33
+#define IMAGE_OPTION_ROM_ISCSI		34
+#define IMAGE_FLASHISM_JUMPVECTOR	48
+#define IMAGE_FLASH_ISM			49
+#define IMAGE_JUMP_VECTOR		50
+#define IMAGE_FIRMWARE_iSCSI		160
+#define IMAGE_FIRMWARE_COMP_iSCSI	161
+#define IMAGE_FIRMWARE_FCoE		162
+#define IMAGE_FIRMWARE_COMP_FCoE	163
+#define IMAGE_FIRMWARE_BACKUP_iSCSI	176
+#define IMAGE_FIRMWARE_BACKUP_COMP_iSCSI 177
+#define IMAGE_FIRMWARE_BACKUP_FCoE	178
+#define IMAGE_FIRMWARE_BACKUP_COMP_FCoE 179
+#define IMAGE_FIRMWARE_PHY		192
+#define IMAGE_BOOT_CODE			224
 
 /************* Rx Packet Type Encoding **************/
 #define BE_UNICAST_PACKET		0
@@ -445,6 +464,7 @@ struct flash_comp {
 	unsigned long offset;
 	int optype;
 	int size;
+	int img_type;
 };
 
 struct image_hdr {
@@ -481,17 +501,19 @@ struct flash_section_hdr {
 	u32 format_rev;
 	u32 cksum;
 	u32 antidote;
-	u32 build_no;
-	u8 id_string[64];
-	u32 active_entry_mask;
-	u32 valid_entry_mask;
-	u32 org_content_mask;
-	u32 rsvd0;
-	u32 rsvd1;
-	u32 rsvd2;
-	u32 rsvd3;
-	u32 rsvd4;
-};
+	u32 num_images;
+	u8 id_string[128];
+	u32 rsvd[4];
+} __packed;
+
+struct flash_section_hdr_g2 {
+	u32 format_rev;
+	u32 cksum;
+	u32 antidote;
+	u32 build_num;
+	u8 id_string[128];
+	u32 rsvd[8];
+} __packed;
 
 struct flash_section_entry {
 	u32 type;
@@ -503,10 +525,16 @@ struct flash_section_entry {
 	u32 rsvd0;
 	u32 rsvd1;
 	u8 ver_data[32];
-};
+} __packed;
 
 struct flash_section_info {
 	u8 cookie[32];
 	struct flash_section_hdr fsec_hdr;
 	struct flash_section_entry fsec_entry[32];
-};
+} __packed;
+
+struct flash_section_info_g2 {
+	u8 cookie[32];
+	struct flash_section_hdr_g2 fsec_hdr;
+	struct flash_section_entry fsec_entry[32];
+} __packed;

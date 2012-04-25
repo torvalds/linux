@@ -2759,6 +2759,8 @@ static void be_netpoll(struct net_device *netdev)
 #endif
 
 #define FW_FILE_HDR_SIGN 	"ServerEngines Corp. "
+char flash_cookie[2][16] =      {"*** SE FLAS", "H DIRECTORY *** "};
+
 static bool be_flash_redboot(struct be_adapter *adapter,
 			const u8 *p, u32 img_start, int image_size,
 			int hdr_size)
@@ -2792,58 +2794,101 @@ static bool phy_flashing_required(struct be_adapter *adapter)
 		adapter->phy.interface_type == PHY_TYPE_BASET_10GB);
 }
 
+static bool is_comp_in_ufi(struct be_adapter *adapter,
+			   struct flash_section_info *fsec, int type)
+{
+	int i = 0, img_type = 0;
+	struct flash_section_info_g2 *fsec_g2 = NULL;
+
+	if (adapter->generation != BE_GEN3)
+		fsec_g2 = (struct flash_section_info_g2 *)fsec;
+
+	for (i = 0; i < MAX_FLASH_COMP; i++) {
+		if (fsec_g2)
+			img_type = le32_to_cpu(fsec_g2->fsec_entry[i].type);
+		else
+			img_type = le32_to_cpu(fsec->fsec_entry[i].type);
+
+		if (img_type == type)
+			return true;
+	}
+	return false;
+
+}
+
+struct flash_section_info *get_fsec_info(struct be_adapter *adapter,
+					 int header_size,
+					 const struct firmware *fw)
+{
+	struct flash_section_info *fsec = NULL;
+	const u8 *p = fw->data;
+
+	p += header_size;
+	while (p < (fw->data + fw->size)) {
+		fsec = (struct flash_section_info *)p;
+		if (!memcmp(flash_cookie, fsec->cookie, sizeof(flash_cookie)))
+			return fsec;
+		p += 32;
+	}
+	return NULL;
+}
+
 static int be_flash_data(struct be_adapter *adapter,
-			const struct firmware *fw,
-			struct be_dma_mem *flash_cmd, int num_of_images)
+			 const struct firmware *fw,
+			 struct be_dma_mem *flash_cmd,
+			 int num_of_images)
 
 {
 	int status = 0, i, filehdr_size = 0;
+	int img_hdrs_size = (num_of_images * sizeof(struct image_hdr));
 	u32 total_bytes = 0, flash_op;
 	int num_bytes;
 	const u8 *p = fw->data;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
 	const struct flash_comp *pflashcomp;
-	int num_comp;
+	int num_comp, hdr_size;
+	struct flash_section_info *fsec = NULL;
 
-	static const struct flash_comp gen3_flash_types[10] = {
-		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, IMG_TYPE_ISCSI_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_REDBOOT_START_g3, IMG_TYPE_REDBOOT,
-			FLASH_REDBOOT_IMAGE_MAX_SIZE_g3},
-		{ FLASH_iSCSI_BIOS_START_g3, IMG_TYPE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
-		{ FLASH_PXE_BIOS_START_g3, IMG_TYPE_PXE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
-		{ FLASH_FCoE_BIOS_START_g3, IMG_TYPE_FCOE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
-		{ FLASH_iSCSI_BACKUP_IMAGE_START_g3, IMG_TYPE_ISCSI_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, IMG_TYPE_FCOE_FW_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, IMG_TYPE_FCOE_FW_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g3},
-		{ FLASH_NCSI_START_g3, IMG_TYPE_NCSI_FW,
-			FLASH_NCSI_IMAGE_MAX_SIZE_g3},
-		{ FLASH_PHY_FW_START_g3, IMG_TYPE_PHY_FW,
-			FLASH_PHY_FW_IMAGE_MAX_SIZE_g3}
+	struct flash_comp gen3_flash_types[] = {
+		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, OPTYPE_ISCSI_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_iSCSI},
+		{ FLASH_REDBOOT_START_g3, OPTYPE_REDBOOT,
+			FLASH_REDBOOT_IMAGE_MAX_SIZE_g3, IMAGE_BOOT_CODE},
+		{ FLASH_iSCSI_BIOS_START_g3, OPTYPE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3, IMAGE_OPTION_ROM_ISCSI},
+		{ FLASH_PXE_BIOS_START_g3, OPTYPE_PXE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3, IMAGE_OPTION_ROM_PXE},
+		{ FLASH_FCoE_BIOS_START_g3, OPTYPE_FCOE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3, IMAGE_OPTION_ROM_FCoE},
+		{ FLASH_iSCSI_BACKUP_IMAGE_START_g3, OPTYPE_ISCSI_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_BACKUP_iSCSI},
+		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, OPTYPE_FCOE_FW_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_FCoE},
+		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, OPTYPE_FCOE_FW_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_BACKUP_FCoE},
+		{ FLASH_NCSI_START_g3, OPTYPE_NCSI_FW,
+			FLASH_NCSI_IMAGE_MAX_SIZE_g3, IMAGE_NCSI},
+		{ FLASH_PHY_FW_START_g3, OPTYPE_PHY_FW,
+			FLASH_PHY_FW_IMAGE_MAX_SIZE_g3, IMAGE_FIRMWARE_PHY}
 	};
-	static const struct flash_comp gen2_flash_types[8] = {
-		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, IMG_TYPE_ISCSI_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g2},
-		{ FLASH_REDBOOT_START_g2, IMG_TYPE_REDBOOT,
-			FLASH_REDBOOT_IMAGE_MAX_SIZE_g2},
-		{ FLASH_iSCSI_BIOS_START_g2, IMG_TYPE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
-		{ FLASH_PXE_BIOS_START_g2, IMG_TYPE_PXE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
-		{ FLASH_FCoE_BIOS_START_g2, IMG_TYPE_FCOE_BIOS,
-			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
-		{ FLASH_iSCSI_BACKUP_IMAGE_START_g2, IMG_TYPE_ISCSI_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g2},
-		{ FLASH_FCoE_PRIMARY_IMAGE_START_g2, IMG_TYPE_FCOE_FW_ACTIVE,
-			FLASH_IMAGE_MAX_SIZE_g2},
-		{ FLASH_FCoE_BACKUP_IMAGE_START_g2, IMG_TYPE_FCOE_FW_BACKUP,
-			 FLASH_IMAGE_MAX_SIZE_g2}
+
+	struct flash_comp gen2_flash_types[] = {
+		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, OPTYPE_ISCSI_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_iSCSI},
+		{ FLASH_REDBOOT_START_g2, OPTYPE_REDBOOT,
+			FLASH_REDBOOT_IMAGE_MAX_SIZE_g2, IMAGE_BOOT_CODE},
+		{ FLASH_iSCSI_BIOS_START_g2, OPTYPE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2, IMAGE_OPTION_ROM_ISCSI},
+		{ FLASH_PXE_BIOS_START_g2, OPTYPE_PXE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2, IMAGE_OPTION_ROM_PXE},
+		{ FLASH_FCoE_BIOS_START_g2, OPTYPE_FCOE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2, IMAGE_OPTION_ROM_FCoE},
+		{ FLASH_iSCSI_BACKUP_IMAGE_START_g2, OPTYPE_ISCSI_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_BACKUP_iSCSI},
+		{ FLASH_FCoE_PRIMARY_IMAGE_START_g2, OPTYPE_FCOE_FW_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_FCoE},
+		{ FLASH_FCoE_BACKUP_IMAGE_START_g2, OPTYPE_FCOE_FW_BACKUP,
+			 FLASH_IMAGE_MAX_SIZE_g2, IMAGE_FIRMWARE_BACKUP_FCoE}
 	};
 
 	if (adapter->generation == BE_GEN3) {
@@ -2855,22 +2900,37 @@ static int be_flash_data(struct be_adapter *adapter,
 		filehdr_size = sizeof(struct flash_file_hdr_g2);
 		num_comp = ARRAY_SIZE(gen2_flash_types);
 	}
+	/* Get flash section info*/
+	fsec = get_fsec_info(adapter, filehdr_size + img_hdrs_size, fw);
+	if (!fsec) {
+		dev_err(&adapter->pdev->dev,
+			"Invalid Cookie. UFI corrupted ?\n");
+		return -1;
+	}
 	for (i = 0; i < num_comp; i++) {
-		if ((pflashcomp[i].optype == IMG_TYPE_NCSI_FW) &&
-				memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+		if (!is_comp_in_ufi(adapter, fsec, pflashcomp[i].img_type))
 			continue;
-		if (pflashcomp[i].optype == IMG_TYPE_PHY_FW) {
+
+		if ((pflashcomp[i].optype == OPTYPE_NCSI_FW) &&
+		    memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+			continue;
+
+		if (pflashcomp[i].optype == OPTYPE_PHY_FW) {
 			if (!phy_flashing_required(adapter))
 				continue;
 		}
-		if ((pflashcomp[i].optype == IMG_TYPE_REDBOOT) &&
-			(!be_flash_redboot(adapter, fw->data,
-			pflashcomp[i].offset, pflashcomp[i].size, filehdr_size +
-			(num_of_images * sizeof(struct image_hdr)))))
+
+		hdr_size = filehdr_size +
+			   (num_of_images * sizeof(struct image_hdr));
+
+		if ((pflashcomp[i].optype == OPTYPE_REDBOOT) &&
+		    (!be_flash_redboot(adapter, fw->data, pflashcomp[i].offset,
+				       pflashcomp[i].size, hdr_size)))
 			continue;
+
+		/* Flash the component */
 		p = fw->data;
-		p += filehdr_size + pflashcomp[i].offset
-			+ (num_of_images * sizeof(struct image_hdr));
+		p += filehdr_size + pflashcomp[i].offset + img_hdrs_size;
 		if (p + pflashcomp[i].size > fw->data + fw->size)
 			return -1;
 		total_bytes = pflashcomp[i].size;
@@ -2881,12 +2941,12 @@ static int be_flash_data(struct be_adapter *adapter,
 				num_bytes = total_bytes;
 			total_bytes -= num_bytes;
 			if (!total_bytes) {
-				if (pflashcomp[i].optype == IMG_TYPE_PHY_FW)
+				if (pflashcomp[i].optype == OPTYPE_PHY_FW)
 					flash_op = FLASHROM_OPER_PHY_FLASH;
 				else
 					flash_op = FLASHROM_OPER_FLASH;
 			} else {
-				if (pflashcomp[i].optype == IMG_TYPE_PHY_FW)
+				if (pflashcomp[i].optype == OPTYPE_PHY_FW)
 					flash_op = FLASHROM_OPER_PHY_SAVE;
 				else
 					flash_op = FLASHROM_OPER_SAVE;
@@ -2898,7 +2958,7 @@ static int be_flash_data(struct be_adapter *adapter,
 			if (status) {
 				if ((status == ILLEGAL_IOCTL_REQ) &&
 					(pflashcomp[i].optype ==
-						IMG_TYPE_PHY_FW))
+						OPTYPE_PHY_FW))
 					break;
 				dev_err(&adapter->pdev->dev,
 					"cmd to write to flash rom failed.\n");

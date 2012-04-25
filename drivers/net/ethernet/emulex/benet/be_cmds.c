@@ -1979,7 +1979,7 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_READ_FLASHROM, sizeof(*req)+4, wrb, NULL);
 
-	req->params.op_type = cpu_to_le32(IMG_TYPE_REDBOOT);
+	req->params.op_type = cpu_to_le32(OPTYPE_REDBOOT);
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
 	req->params.offset = cpu_to_le32(offset);
 	req->params.data_buf_size = cpu_to_le32(0x4);
