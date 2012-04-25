@@ -116,6 +116,7 @@ static int bcm_umi_bch_read_page_hwecc(struct mtd_info *mtd,
 	uint8_t eccCalc[NAND_ECC_NUM_BYTES];
 	int sectorOobSize = mtd->oobsize / eccsteps;
 	int stat;
+	unsigned int max_bitflips = 0;
 
 	for (sectorIdx = 0; sectorIdx < eccsteps;
 			sectorIdx++, datap += eccsize) {
@@ -177,9 +178,10 @@ static int bcm_umi_bch_read_page_hwecc(struct mtd_info *mtd,
 			}
 #endif
 			mtd->ecc_stats.corrected += stat;
+			max_bitflips = max_t(unsigned int, max_bitflips, stat);
 		}
 	}
-	return 0;
+	return max_bitflips;
 }
 
 /****************************************************************************

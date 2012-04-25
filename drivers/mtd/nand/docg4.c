@@ -720,6 +720,7 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 	struct docg4_priv *doc = nand->priv;
 	void __iomem *docptr = doc->virtadr;
 	uint16_t status, edc_err, *buf16;
+	int bits_corrected = 0;
 
 	dev_dbg(doc->dev, "%s: page %08x\n", __func__, page);
 
@@ -772,7 +773,7 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 
 		/* If bitflips are reported, attempt to correct with ecc */
 		if (edc_err & DOC_ECCCONF1_BCH_SYNDROM_ERR) {
-			int bits_corrected = correct_data(mtd, buf, page);
+			bits_corrected = correct_data(mtd, buf, page);
 			if (bits_corrected == -EBADMSG)
 				mtd->ecc_stats.failed++;
 			else
@@ -781,7 +782,7 @@ static int read_page(struct mtd_info *mtd, struct nand_chip *nand,
 	}
 
 	writew(0, docptr + DOC_DATAEND);
-	return 0;
+	return bits_corrected;
 }
 
 

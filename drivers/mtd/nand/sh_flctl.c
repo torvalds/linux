@@ -359,7 +359,7 @@ static int flctl_read_page_hwecc(struct mtd_info *mtd, struct nand_chip *chip,
 		if (flctl->hwecc_cant_correct[i])
 			mtd->ecc_stats.failed++;
 		else
-			mtd->ecc_stats.corrected += 0;
+			mtd->ecc_stats.corrected += 0; /* FIXME */
 	}
 
 	return 0;

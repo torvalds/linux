@@ -63,6 +63,7 @@ struct fsl_ifc_nand_ctrl {
 	unsigned int oob;	/* Non zero if operating on OOB data	*/
 	unsigned int eccread;	/* Non zero for a full-page ECC read	*/
 	unsigned int counter;	/* counter for the initializations	*/
+	unsigned int max_bitflips;  /* Saved during READ0 cmd		*/
 };
 
 static struct fsl_ifc_nand_ctrl *ifc_nand_ctrl;
@@ -262,6 +263,8 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_WPER)
 		dev_err(priv->dev, "NAND Flash Write Protect Error\n");
 
+	nctrl->max_bitflips = 0;
+
 	if (nctrl->eccread) {
 		int errors;
 		int bufnum = nctrl->page & priv->bufnum_mask;
@@ -290,6 +293,9 @@ static void fsl_ifc_run_command(struct mtd_info *mtd)
 			}
 
 			mtd->ecc_stats.corrected += errors;
+			nctrl->max_bitflips = max_t(unsigned int,
+						    nctrl->max_bitflips,
+						    errors);
 		}
 
 		nctrl->eccread = 0;
@@ -698,6 +704,7 @@ static int fsl_ifc_read_page(struct mtd_info *mtd,
 {
 	struct fsl_ifc_mtd *priv = chip->priv;
 	struct fsl_ifc_ctrl *ctrl = priv->ctrl;
+	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 
 	fsl_ifc_read_buf(mtd, buf, mtd->writesize);
 	fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
@@ -708,7 +715,7 @@ static int fsl_ifc_read_page(struct mtd_info *mtd,
 	if (ctrl->nand_stat != IFC_NAND_EVTER_STAT_OPC)
 		mtd->ecc_stats.failed++;
 
-	return 0;
+	return nctrl->max_bitflips;
 }
 
 /* ECC will be calculated automatically, and errors will be detected in

@@ -383,6 +383,7 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 			       uint8_t *buf, int page)
 {
 	struct cafe_priv *cafe = mtd->priv;
+	unsigned int max_bitflips = 0;
 
 	cafe_dev_dbg(&cafe->pdev->dev, "ECC result %08x SYN1,2 %08x\n",
 		     cafe_readl(cafe, NAND_ECC_RESULT),
@@ -449,10 +450,11 @@ static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		} else {
 			dev_dbg(&cafe->pdev->dev, "Corrected %d symbol errors\n", n);
 			mtd->ecc_stats.corrected += n;
+			max_bitflips = max_t(unsigned int, max_bitflips, n);
 		}
 	}
 
-	return 0;
+	return max_bitflips;
 }
 
 static struct nand_ecclayout cafe_oobinfo_2048 = {
