@@ -957,6 +957,10 @@ struct snd_soc_pcm_runtime {
 	struct snd_soc_dai *cpu_dai;
 
 	struct delayed_work delayed_work;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_dpcm_root;
+	struct dentry *debugfs_dpcm_state;
+#endif
 };
 
 /* mixer control */

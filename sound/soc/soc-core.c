@@ -1187,6 +1187,17 @@ static int soc_post_component_init(struct snd_soc_card *card,
 		dev_err(codec->dev,
 			"asoc: failed to add codec sysfs files: %d\n", ret);
 
+#ifdef CONFIG_DEBUG_FS
+	/* add DPCM sysfs entries */
+	if (!dai_link->dynamic)
+		goto out;
+
+	ret = soc_dpcm_debugfs_add(rtd);
+	if (ret < 0)
+		dev_err(rtd->dev, "asoc: failed to add dpcm sysfs entries: %d\n", ret);
+
+out:
+#endif
 	return 0;
 }
 

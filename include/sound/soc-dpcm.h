@@ -81,6 +81,9 @@ struct snd_soc_dpcm {
 
 	/* hw params for this link - may be different for each link */
 	struct snd_pcm_hw_params hw_params;
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_state;
+#endif
 };
 
 /*
@@ -128,5 +131,6 @@ void snd_soc_dpcm_be_set_state(struct snd_soc_pcm_runtime *be, int stream,
 
 /* internal use only */
 int soc_dpcm_be_digital_mute(struct snd_soc_pcm_runtime *fe, int mute);
+int soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd);
 
 #endif
