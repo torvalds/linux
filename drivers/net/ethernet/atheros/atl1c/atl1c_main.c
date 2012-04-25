@@ -165,11 +165,6 @@ static void atl1c_reset_pcie(struct atl1c_hw *hw, u32 flag)
 	atl1c_pcie_patch(hw);
 	if (flag & ATL1C_PCIE_L0S_L1_DISABLE)
 		atl1c_disable_l0s_l1(hw);
-	if (flag & ATL1C_PCIE_PHY_RESET)
-		AT_WRITE_REG(hw, REG_GPHY_CTRL, GPHY_CTRL_DEFAULT);
-	else
-		AT_WRITE_REG(hw, REG_GPHY_CTRL,
-			GPHY_CTRL_DEFAULT | GPHY_CTRL_EXT_RESET);
 
 	msleep(5);
 }
@@ -2409,8 +2404,7 @@ static int atl1c_resume(struct device *dev)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	AT_WRITE_REG(&adapter->hw, REG_WOL_CTRL, 0);
-	atl1c_reset_pcie(&adapter->hw, ATL1C_PCIE_L0S_L1_DISABLE |
-			ATL1C_PCIE_PHY_RESET);
+	atl1c_reset_pcie(&adapter->hw, ATL1C_PCIE_L0S_L1_DISABLE);
 
 	atl1c_phy_reset(&adapter->hw);
 	atl1c_reset_mac(&adapter->hw);
@@ -2568,8 +2562,7 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 		dev_err(&pdev->dev, "net device private data init failed\n");
 		goto err_sw_init;
 	}
-	atl1c_reset_pcie(&adapter->hw, ATL1C_PCIE_L0S_L1_DISABLE |
-			ATL1C_PCIE_PHY_RESET);
+	atl1c_reset_pcie(&adapter->hw, ATL1C_PCIE_L0S_L1_DISABLE);
 
 	/* Init GPHY as early as possible due to power saving issue  */
 	atl1c_phy_reset(&adapter->hw);
