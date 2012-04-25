@@ -1955,7 +1955,7 @@ static int at76_hw_scan(struct ieee80211_hw *hw,
 	ret = at76_set_card_command(priv->udev, CMD_SCAN, &scan, sizeof(scan));
 
 	if (ret < 0) {
-		err("CMD_SCAN failed: %d", ret);
+		wiphy_err(priv->hw->wiphy, "CMD_SCAN failed: %d\n", ret);
 		goto exit;
 	}
 
