@@ -347,22 +347,23 @@ static void sr_v2_disable(struct omap_sr *sr)
 	sr_write_reg(sr, IRQSTATUS, IRQSTATUS_MCUDISABLEACKINT);
 }
 
-static u32 sr_retrieve_nvalue(struct omap_sr *sr, u32 efuse_offs)
+static struct omap_sr_nvalue_table *sr_retrieve_nvalue_row(
+				struct omap_sr *sr, u32 efuse_offs)
 {
 	int i;
 
 	if (!sr->nvalue_table) {
 		dev_warn(&sr->pdev->dev, "%s: Missing ntarget value table\n",
 			__func__);
-		return 0;
+		return NULL;
 	}
 
 	for (i = 0; i < sr->nvalue_count; i++) {
 		if (sr->nvalue_table[i].efuse_offs == efuse_offs)
-			return sr->nvalue_table[i].nvalue;
+			return &sr->nvalue_table[i];
 	}
 
-	return 0;
+	return NULL;
 }
 
 /* Public Functions */
@@ -586,7 +587,7 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt)
 {
 	struct omap_volt_data *volt_data;
 	struct omap_sr *sr = _sr_lookup(voltdm);
-	u32 nvalue_reciprocal;
+	struct omap_sr_nvalue_table *nvalue_row;
 	int ret;
 
 	if (IS_ERR(sr)) {
@@ -602,16 +603,16 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt)
 		return PTR_ERR(volt_data);
 	}
 
-	nvalue_reciprocal = sr_retrieve_nvalue(sr, volt_data->sr_efuse_offs);
+	nvalue_row = sr_retrieve_nvalue_row(sr, volt_data->sr_efuse_offs);
 
-	if (!nvalue_reciprocal) {
-		dev_warn(&sr->pdev->dev, "%s: NVALUE = 0 at voltage %ld\n",
-			__func__, volt);
+	if (!nvalue_row) {
+		dev_warn(&sr->pdev->dev, "%s: failure getting SR data for this voltage %ld\n",
+			 __func__, volt);
 		return -ENODATA;
 	}
 
 	/* errminlimit is opp dependent and hence linked to voltage */
-	sr->err_minlimit = volt_data->sr_errminlimit;
+	sr->err_minlimit = nvalue_row->errminlimit;
 
 	pm_runtime_get_sync(&sr->pdev->dev);
 
@@ -624,7 +625,7 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt)
 	if (ret)
 		return ret;
 
-	sr_write_reg(sr, NVALUERECIPROCAL, nvalue_reciprocal);
+	sr_write_reg(sr, NVALUERECIPROCAL, nvalue_row->nvalue);
 
 	/* SRCONFIG - enable SR */
 	sr_modify_reg(sr, SRCONFIG, SRCONFIG_SRENABLE, SRCONFIG_SRENABLE);
@@ -872,7 +873,6 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	struct omap_sr_data *pdata = pdev->dev.platform_data;
 	struct resource *mem, *irq;
 	struct dentry *nvalue_dir;
-	struct omap_volt_data *volt_data;
 	int i, ret = 0;
 
 	sr_info = kzalloc(sizeof(struct omap_sr), GFP_KERNEL);
@@ -990,12 +990,10 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 		goto err_debugfs;
 	}
 
-	omap_voltage_get_volttable(sr_info->voltdm, &volt_data);
-	if (!volt_data) {
-		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the"
-			" corresponding vdd. Cannot create debugfs"
-			"entries for n-values\n",
-			__func__, sr_info->name);
+	if (sr_info->nvalue_count == 0 || !sr_info->nvalue_table) {
+		dev_warn(&pdev->dev, "%s: %s: No Voltage table for the corresponding vdd. Cannot create debugfs entries for n-values\n",
+			 __func__, sr_info->name);
+
 		ret = -ENODATA;
 		goto err_debugfs;
 	}
@@ -1003,8 +1001,8 @@ static int __init omap_sr_probe(struct platform_device *pdev)
 	for (i = 0; i < sr_info->nvalue_count; i++) {
 		char name[NVALUE_NAME_LEN + 1];
 
-		snprintf(name, sizeof(name), "volt_%d",
-			 volt_data[i].volt_nominal);
+		snprintf(name, sizeof(name), "volt_%lu",
+				sr_info->nvalue_table[i].volt_nominal);
 		(void) debugfs_create_x32(name, S_IRUGO | S_IWUSR, nvalue_dir,
 				&(sr_info->nvalue_table[i].nvalue));
 	}

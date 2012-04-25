@@ -243,12 +243,16 @@ struct omap_sr_class_data {
 /**
  * struct omap_sr_nvalue_table	- Smartreflex n-target value info
  *
- * @efuse_offs:	The offset of the efuse where n-target values are stored.
- * @nvalue:	The n-target value.
+ * @efuse_offs:	  The offset of the efuse where n-target values are stored.
+ * @nvalue:	  The n-target value.
+ * @errminlimit:  The value of the ERRMINLIMIT bitfield for this n-target
+ * @volt_nominal: microvolts DC that the VDD is initially programmed to
  */
 struct omap_sr_nvalue_table {
 	u32 efuse_offs;
 	u32 nvalue;
+	u32 errminlimit;
+	unsigned long volt_nominal;
 };
 
 /**
