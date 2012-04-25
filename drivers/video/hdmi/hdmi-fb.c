@@ -2,7 +2,7 @@
 #include <linux/fb.h>
 
 #include <linux/completion.h>
-#include "../display/screen/screen.h"
+#include <linux/rk_screen.h>
 #include <linux/hdmi.h>
 #include "../rk29_fb.h"
 
