@@ -257,7 +257,8 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 
 		status = usb_submit_urb(iforce->ctrl, GFP_ATOMIC);
 		if (status) {
-			err("usb_submit_urb failed %d", status);
+			dev_err(&iforce->usbdev->dev,
+				"usb_submit_urb failed %d\n", status);
 			return -1;
 		}
 
@@ -289,12 +290,15 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 			return -1;
 		}
 #else
-		err("iforce_get_id_packet: iforce->bus = SERIO!");
+		dev_err(&iforce->dev->dev,
+			"iforce_get_id_packet: iforce->bus = SERIO!\n");
 #endif
 		break;
 
 	default:
-		err("iforce_get_id_packet: iforce->bus = %d", iforce->bus);
+		dev_err(&iforce->dev->dev,
+			"iforce_get_id_packet: iforce->bus = %d\n",
+			iforce->bus);
 		break;
 	}
 
