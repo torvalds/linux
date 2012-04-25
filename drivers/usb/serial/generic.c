@@ -144,7 +144,6 @@ static void generic_cleanup(struct usb_serial_port *port)
 	if (serial->dev) {
 		/* shutdown any bulk transfers that might be going on */
 		if (port->bulk_out_size) {
-			usb_kill_urb(port->write_urb);
 			for (i = 0; i < ARRAY_SIZE(port->write_urbs); ++i)
 				usb_kill_urb(port->write_urbs[i]);
 
