@@ -1272,19 +1272,19 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 				jffs2_do_clear_inode(c, f);
 				return -ENAMETOOLONG;
 			}
-			f->target = kmalloc(je32_to_cpu(latest_node->csize) + 1, GFP_KERNEL);
+			f->target = kmalloc(csize + 1, GFP_KERNEL);
 			if (!f->target) {
-				JFFS2_ERROR("can't allocate %d bytes of memory for the symlink target path cache\n", je32_to_cpu(latest_node->csize));
+				JFFS2_ERROR("can't allocate %u bytes of memory for the symlink target path cache\n", csize);
 				mutex_unlock(&f->sem);
 				jffs2_do_clear_inode(c, f);
 				return -ENOMEM;
 			}
 
 			ret = jffs2_flash_read(c, ref_offset(rii.latest_ref) + sizeof(*latest_node),
-						je32_to_cpu(latest_node->csize), &retlen, (char *)f->target);
+					       csize, &retlen, (char *)f->target);
 
-			if (ret  || retlen != je32_to_cpu(latest_node->csize)) {
-				if (retlen != je32_to_cpu(latest_node->csize))
+			if (ret || retlen != csize) {
+				if (retlen != csize)
 					ret = -EIO;
 				kfree(f->target);
 				f->target = NULL;
@@ -1293,7 +1293,7 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 				return ret;
 			}
 
-			f->target[je32_to_cpu(latest_node->csize)] = '\0';
+			f->target[csize] = '\0';
 			dbg_readinode("symlink's target '%s' cached\n", f->target);
 		}
 
