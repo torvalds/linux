@@ -313,6 +313,22 @@ err:
 	return ret;
 
 }
+
+static int pwm_regulator_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct pwm_platform_data *pdata = pdev->dev.platform_data;
+	pwm_set_rate(pdata,1000*1000,0);//pwm clk will change to 24M after suspend
+	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
+	return 0;
+}
+
+static int pwm_regulator_resume(struct platform_device *pdev)
+{
+	struct pwm_platform_data *pdata = pdev->dev.platform_data;
+	DBG("%s,pwm_id=%d\n",__func__,pdata->pwm_id);
+	return 0;
+}
+
 static int __devexit pwm_regulator_remove(struct platform_device *pdev)
 {
 	struct pwm_platform_data *pdata = pdev->dev.platform_data;
@@ -328,6 +344,8 @@ static struct platform_driver pwm_regulator_driver = {
 	.driver = {
 		.name = "pwm-voltage-regulator",
 	},
+	.suspend = pwm_regulator_suspend,
+	.resume = pwm_regulator_resume,
 	.remove = __devexit_p(pwm_regulator_remove),
 };
 
