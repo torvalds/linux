@@ -1266,6 +1266,12 @@ static int jffs2_do_read_inode_internal(struct jffs2_sb_info *c,
 			/* Symlink's inode data is the target path. Read it and
 			 * keep in RAM to facilitate quick follow symlink
 			 * operation. */
+			uint32_t csize = je32_to_cpu(latest_node->csize);
+			if (csize > JFFS2_MAX_NAME_LEN) {
+				mutex_unlock(&f->sem);
+				jffs2_do_clear_inode(c, f);
+				return -ENAMETOOLONG;
+			}
 			f->target = kmalloc(je32_to_cpu(latest_node->csize) + 1, GFP_KERNEL);
 			if (!f->target) {
 				JFFS2_ERROR("can't allocate %d bytes of memory for the symlink target path cache\n", je32_to_cpu(latest_node->csize));
