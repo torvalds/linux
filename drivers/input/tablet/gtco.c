@@ -2,8 +2,6 @@
 
 GTCO digitizer USB driver
 
-Use the err() and dbg() macros from usb.h for system logging
-
 TO CHECK:  Is pressure done right on report 5?
 
 Copyright (C) 2006  GTCO CalComp
@@ -808,7 +806,8 @@ static void gtco_urb_callback(struct urb *urbinfo)
  resubmit:
 	rc = usb_submit_urb(urbinfo, GFP_ATOMIC);
 	if (rc != 0)
-		err("usb_submit_urb failed rc=0x%x", rc);
+		dev_err(&device->usbdev->dev,
+			"usb_submit_urb failed rc=0x%x\n", rc);
 }
 
 /*
@@ -838,7 +837,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	gtco = kzalloc(sizeof(struct gtco), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!gtco || !input_dev) {
-		err("No more memory");
+		dev_err(&usbinterface->dev, "No more memory\n");
 		error = -ENOMEM;
 		goto err_free_devs;
 	}
@@ -853,7 +852,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	gtco->buffer = usb_alloc_coherent(gtco->usbdev, REPORT_MAX_SIZE,
 					  GFP_KERNEL, &gtco->buf_dma);
 	if (!gtco->buffer) {
-		err("No more memory for us buffers");
+		dev_err(&usbinterface->dev, "No more memory for us buffers\n");
 		error = -ENOMEM;
 		goto err_free_devs;
 	}
@@ -861,7 +860,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	/* Allocate URB for reports */
 	gtco->urbinfo = usb_alloc_urb(0, GFP_KERNEL);
 	if (!gtco->urbinfo) {
-		err("Failed to allocate URB");
+		dev_err(&usbinterface->dev, "Failed to allocate URB\n");
 		error = -ENOMEM;
 		goto err_free_buf;
 	}
@@ -888,7 +887,8 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	 */
 	if (usb_get_extra_descriptor(usbinterface->cur_altsetting,
 				     HID_DEVICE_TYPE, &hid_desc) != 0){
-		err("Can't retrieve exta USB descriptor to get hid report descriptor length");
+		dev_err(&usbinterface->dev,
+			"Can't retrieve exta USB descriptor to get hid report descriptor length\n");
 		error = -EIO;
 		goto err_free_urb;
 	}
@@ -898,7 +898,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 
 	report = kzalloc(le16_to_cpu(hid_desc->wDescriptorLength), GFP_KERNEL);
 	if (!report) {
-		err("No more memory for report");
+		dev_err(&usbinterface->dev, "No more memory for report\n");
 		error = -ENOMEM;
 		goto err_free_urb;
 	}
@@ -926,8 +926,9 @@ static int gtco_probe(struct usb_interface *usbinterface,
 
 	/* If we didn't get the report, fail */
 	if (result != le16_to_cpu(hid_desc->wDescriptorLength)) {
-		err("Failed to get HID Report Descriptor of size: %d",
-		    hid_desc->wDescriptorLength);
+		dev_err(&usbinterface->dev,
+			"Failed to get HID Report Descriptor of size: %d\n",
+			hid_desc->wDescriptorLength);
 		error = -EIO;
 		goto err_free_urb;
 	}
