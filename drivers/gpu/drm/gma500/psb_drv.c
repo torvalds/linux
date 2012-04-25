@@ -246,6 +246,7 @@ static int psb_driver_unload(struct drm_device *dev)
 		}
 		psb_gtt_takedown(dev);
 		if (dev_priv->scratch_page) {
+			set_pages_wb(dev_priv->scratch_page, 1);
 			__free_page(dev_priv->scratch_page);
 			dev_priv->scratch_page = NULL;
 		}
