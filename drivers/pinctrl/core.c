@@ -291,7 +291,8 @@ pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
  *
  * Find the pin controller handling a certain GPIO pin from the pinspace of
  * the GPIO subsystem, return the device and the matching GPIO range. Returns
- * negative if the GPIO range could not be found in any device.
+ * -EPROBE_DEFER if the GPIO range could not be found in any device since it
+ * may still have not been registered.
  */
 static int pinctrl_get_device_gpio_range(unsigned gpio,
 					 struct pinctrl_dev **outdev,
@@ -311,7 +312,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		}
 	}
 
-	return -EINVAL;
+	return -EPROBE_DEFER;
 }
 
 /**
@@ -397,7 +398,7 @@ int pinctrl_request_gpio(unsigned gpio)
 	ret = pinctrl_get_device_gpio_range(gpio, &pctldev, &range);
 	if (ret) {
 		mutex_unlock(&pinctrl_mutex);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* Convert to the pin controllers number space */
