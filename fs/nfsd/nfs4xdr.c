@@ -1674,12 +1674,12 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
 
 static void write32(__be32 **p, u32 n)
 {
-	*(*p)++ = n;
+	*(*p)++ = htonl(n);
 }
 
 static void write64(__be32 **p, u64 n)
 {
-	write32(p, (u32)(n >> 32));
+	write32(p, (n >> 32));
 	write32(p, (u32)n);
 }
 
