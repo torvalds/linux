@@ -815,7 +815,7 @@ struct rk29fb_info lcdc1_screen_info = {
 	#if defined(CONFIG_HDMI_RK30)
 	.prop		= EXTEND,	//extend display device
 	.lcd_info  = NULL,
-	.set_screen_info = hdmi_set_info,
+	.set_screen_info = hdmi_init_lcdc,
 	#endif
 };
 #endif
