@@ -125,6 +125,7 @@ struct clk_node {
 	struct cpufreq_frequency_table	*dvfs_table;
 	clk_dvfs_target_callback	clk_dvfs_target;
 };
+
 struct dvfs_arm_table {
 	unsigned int	frequency; /* kHz - doesn't need to be in ascending
 				    * order */
@@ -132,6 +133,7 @@ struct dvfs_arm_table {
 
 	unsigned int	logic_volt;
 };
+
 #ifdef CONFIG_DVFS
 int rk30_dvfs_init(void);
 int is_support_dvfs(struct clk_node *dvfs_info);
@@ -142,6 +144,7 @@ void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs_target_callba
 struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk);
 int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table);
 int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table);
+int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, struct cpufreq_frequency_table *cpu_dvfs_table, struct cpufreq_frequency_table *dep_cpu2core_table);
 #else
 static inline int rk30_dvfs_init(void) { return 0; }
 static inline int is_support_dvfs(struct clk_node *dvfs_info) { return 0; }
@@ -152,6 +155,8 @@ static inline void dvfs_clk_register_set_rate_callback(struct clk *clk, clk_dvfs
 static inline struct cpufreq_frequency_table *dvfs_get_freq_volt_table(struct clk *clk) { return NULL; }
 static inline int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *table) { return 0; }
 static inline int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table) {return 0;}
+int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, struct cpufreq_frequency_table *cpu_dvfs_table, struct cpufreq_frequency_table *dep_cpu2core_table){ return 0; }
+
 #endif
 
 #endif

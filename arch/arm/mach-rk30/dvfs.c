@@ -257,6 +257,27 @@ int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequen
 	return 0;
 }
 
+int dvfs_set_arm_logic_volt(struct dvfs_arm_table *dvfs_cpu_logic_table, 
+		struct cpufreq_frequency_table *cpu_dvfs_table,
+		struct cpufreq_frequency_table *dep_cpu2core_table)
+{
+	int i = 0;
+	for (i = 0; dvfs_cpu_logic_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		cpu_dvfs_table[i].frequency = dvfs_cpu_logic_table[i].frequency;
+		cpu_dvfs_table[i].index = dvfs_cpu_logic_table[i].cpu_volt;
+
+		dep_cpu2core_table[i].frequency = dvfs_cpu_logic_table[i].frequency;
+		dep_cpu2core_table[i].index = dvfs_cpu_logic_table[i].logic_volt;
+	}
+
+	cpu_dvfs_table[i].frequency = CPUFREQ_TABLE_END;
+	dep_cpu2core_table[i].frequency = CPUFREQ_TABLE_END;
+
+	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), cpu_dvfs_table);
+	dvfs_set_depend_table(clk_get(NULL, "cpu"), "vd_core", dep_cpu2core_table);
+	return 0;
+}
+
 int clk_enable_dvfs(struct clk *clk)
 {
 	struct regulator *regulator;
