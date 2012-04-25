@@ -309,79 +309,27 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 
 static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	
 	if( 0==var->xres_virtual || 0==var->yres_virtual ||
 		 0==var->xres || 0==var->yres || var->xres<16 ||
 		 ((16!=var->bits_per_pixel)&&(32!=var->bits_per_pixel)) )
 	 {
-		 printk(">>>>>> fb_check_var fail 1!!! \n");
-		 printk(">>>>>> 0==%d || 0==%d ", var->xres_virtual,var->yres_virtual);
-		 printk("0==%d || 0==%d || %d<16 || ", var->xres,var->yres,var->xres<16);
-		 printk("bits_per_pixel=%d \n", var->bits_per_pixel);
+		 printk("%s check var fail 1!!! \n",info->fix.id);
+		 printk("xres_vir:%d>>yres_vir:%d\n", var->xres_virtual,var->yres_virtual);
+		 printk("xres:%d>>yres:%d\n", var->xres,var->yres);
+		 printk("bits_per_pixel:%d \n", var->bits_per_pixel);
 		 return -EINVAL;
 	 }
  
-	 if( (var->xoffset+var->xres)>var->xres_virtual ||
-		 (var->yoffset+var->yres)>var->yres_virtual*2 )
+	 if( ((var->xoffset+var->xres) > info->var.xres_virtual) ||
+	     ((var->yoffset+var->yres) > (info->var.yres_virtual*2)) )
 	 {
-		 printk(">>>>>> fb_check_var fail 2!!! \n");
-		 printk(">>>>>> (%d+%d)>%d || ", var->xoffset,var->xres,var->xres_virtual);
-		 printk("(%d+%d)>%d || ", var->yoffset,var->yres,var->yres_virtual);
+		 printk("%s check_var fail 2!!! \n",info->fix.id);
+		 printk("xoffset:%d>>xres:%d>>xres_vir:%d\n",var->xoffset,var->xres,info->var.xres_virtual);
+		 printk("yoffset:%d>>yres:%d>>yres_vir:%d\n",var->yoffset,var->yres,info->var.yres_virtual);
 		 return -EINVAL;
 	 }
 
- 
-    switch(var->nonstd&0x0f)
-    {
-        case 0: // rgb
-            switch(var->bits_per_pixel)
-            {
-            case 16:    // rgb565
-                var->xres_virtual = (var->xres_virtual + 0x1) & (~0x1);
-                var->xres = (var->xres + 0x1) & (~0x1);
-                var->xoffset = (var->xoffset) & (~0x1);
-                break;
-            default:    // rgb888
-                var->bits_per_pixel = 32;
-                break;
-            }
-            var->nonstd &= ~0xc0;  //not support I2P in this format
-            break;
-        case 1: // yuv422
-            var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
-            var->xres = (var->xres + 0x3) & (~0x3);
-            var->xoffset = (var->xoffset) & (~0x3);
-            break;
-        case 2: // yuv4200
-            var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
-            var->yres_virtual = (var->yres_virtual + 0x1) & (~0x1);
-            var->xres = (var->xres + 0x3) & (~0x3);
-            var->yres = (var->yres + 0x1) & (~0x1);
-            var->xoffset = (var->xoffset) & (~0x3);
-            var->yoffset = (var->yoffset) & (~0x1);
-            break;
-        case 3: // yuv4201
-            var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
-            var->yres_virtual = (var->yres_virtual + 0x1) & (~0x1);
-            var->xres = (var->xres + 0x3) & (~0x3);
-            var->yres = (var->yres + 0x1) & (~0x1);
-            var->xoffset = (var->xoffset) & (~0x3);
-            var->yoffset = (var->yoffset) & (~0x1);
-            var->nonstd &= ~0xc0;   //not support I2P in this format
-            break;
-        case 4: // none
-        case 5: // yuv444
-            var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
-            var->xres = (var->xres + 0x3) & (~0x3);
-            var->xoffset = (var->xoffset) & (~0x3);
-            var->nonstd &= ~0xc0;   //not support I2P in this format
-            break;
-        default:
-            printk(">>>>>> fb1 var->nonstd=%d is invalid! \n", var->nonstd);
-            return -EINVAL;
-        }
-	 
     return 0;
 }
 
