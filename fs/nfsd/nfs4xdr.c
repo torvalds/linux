@@ -3362,7 +3362,7 @@ nfsd4_encode_destroy_session(struct nfsd4_compoundres *resp, __be32 nfserr,
 }
 
 static __be32
-nfsd4_encode_free_stateid(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_free_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 			  struct nfsd4_free_stateid *free_stateid)
 {
 	__be32 *p;
@@ -3371,7 +3371,7 @@ nfsd4_encode_free_stateid(struct nfsd4_compoundres *resp, int nfserr,
 		return nfserr;
 
 	RESERVE_SPACE(4);
-	WRITE32(nfserr);
+	*p++ = nfserr;
 	ADJUST_ARGS();
 	return nfserr;
 }
