@@ -314,6 +314,18 @@ int clk_enable_dvfs(struct clk *clk)
 
 		dvfs_clk->set_freq = dvfs_clk_get_rate_kz(clk);
 		// DVFS_DBG("%s ,%s get freq%u!\n",__func__,dvfs_clk->name,dvfs_clk->set_freq);
+		
+		if (dvfs_clk_get_ref_volt(dvfs_clk, dvfs_clk->set_freq, &clk_fv)) {
+			if (dvfs_clk->dvfs_table[0].frequency == CPUFREQ_TABLE_END) {
+				DVFS_ERR("%s table empty\n", __func__);
+				dvfs_clk->enable_dvfs = 0;
+				return -1;
+			} else {
+				DVFS_ERR("WARNING: %s table all value are smaller than default, use default, just enable dvfs\n", __func__);
+				dvfs_clk->enable_dvfs++;
+				return 0;
+			}
+		}
 
 		if (dvfs_clk_get_ref_volt(dvfs_clk, dvfs_clk->set_freq, &clk_fv)) {
 			dvfs_clk->enable_dvfs = 0;
