@@ -287,6 +287,7 @@ struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
 struct snd_soc_cache_ops;
 #include <sound/soc-dapm.h>
+#include <sound/soc-dpcm.h>
 
 #ifdef CONFIG_GPIOLIB
 struct snd_soc_jack_gpio;
@@ -782,10 +783,13 @@ struct snd_soc_dai_link {
 	const char *cpu_dai_name;
 	const struct device_node *cpu_dai_of_node;
 	const char *codec_dai_name;
+	int be_id;	/* optional ID for machine driver BE identification */
 
 	const struct snd_soc_pcm_stream *params;
 
 	unsigned int dai_fmt;           /* format to set on init */
+
+	enum snd_soc_dpcm_trigger trigger[2]; /* trigger type for DPCM */
 
 	/* Keep DAI active over suspend */
 	unsigned int ignore_suspend:1;
@@ -793,11 +797,21 @@ struct snd_soc_dai_link {
 	/* Symmetry requirements */
 	unsigned int symmetric_rates:1;
 
+	/* Do not create a PCM for this DAI link (Backend link) */
+	unsigned int no_pcm:1;
+
+	/* This DAI link can route to other DAI links at runtime (Frontend)*/
+	unsigned int dynamic:1;
+
 	/* pmdown_time is ignored at stop */
 	unsigned int ignore_pmdown_time:1;
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_pcm_runtime *rtd);
+
+	/* optional hw_params re-writing for BE and FE sync */
+	int (*be_hw_params_fixup)(struct snd_soc_pcm_runtime *rtd,
+			struct snd_pcm_hw_params *params);
 
 	/* machine stream operations */
 	struct snd_soc_ops *ops;
@@ -929,6 +943,9 @@ struct snd_soc_pcm_runtime {
 	struct snd_pcm_ops ops;
 
 	unsigned int dev_registered:1;
+
+	/* Dynamic PCM BE runtime data */
+	struct snd_soc_dpcm_runtime dpcm[2];
 
 	long pmdown_time;
 
