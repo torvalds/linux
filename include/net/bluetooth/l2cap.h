@@ -724,13 +724,10 @@ static inline bool l2cap_clear_timer(struct l2cap_chan *chan,
 
 static inline int __seq_offset(struct l2cap_chan *chan, __u16 seq1, __u16 seq2)
 {
-	int offset;
-
-	offset = (seq1 - seq2) % (chan->tx_win_max + 1);
-	if (offset < 0)
-		offset += (chan->tx_win_max + 1);
-
-	return offset;
+	if (seq1 >= seq2)
+		return seq1 - seq2;
+	else
+		return chan->tx_win_max + 1 - seq2 + seq1;
 }
 
 static inline __u16 __next_seq(struct l2cap_chan *chan, __u16 seq)
