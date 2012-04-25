@@ -1411,6 +1411,8 @@ int ftrace_location(unsigned long ip)
 	key.ip = ip;
 
 	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		if (ip < pg->records[0].ip || ip > pg->records[pg->index - 1].ip)
+			continue;
 		rec = bsearch(&key, pg->records, pg->index,
 			      sizeof(struct dyn_ftrace),
 			      ftrace_cmp_recs);
@@ -1571,16 +1573,24 @@ void ftrace_bug(int failed, unsigned long ip)
 
 
 /* Return 1 if the address range is reserved for ftrace */
-int ftrace_text_reserved(void *start, void *end)
+int ftrace_text_reserved(void *s, void *e)
 {
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
+	unsigned long start = (unsigned long)s;
+	unsigned long end = (unsigned long)e;
+	int i;
 
-	do_for_each_ftrace_rec(pg, rec) {
-		if (rec->ip <= (unsigned long)end &&
-		    rec->ip + MCOUNT_INSN_SIZE > (unsigned long)start)
-			return 1;
-	} while_for_each_ftrace_rec();
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		if (end < pg->records[0].ip ||
+		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
+			continue;
+		for (i = 0; i < pg->index; i++) {
+			rec = &pg->records[i];
+			if (rec->ip <= end && rec->ip + MCOUNT_INSN_SIZE > start)
+				return 1;
+		}
+	}
 	return 0;
 }
 
