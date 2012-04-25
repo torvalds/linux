@@ -164,7 +164,7 @@ static int tegra_ehci_hub_control(
 			goto done;
 		}
 
-		temp &= ~PORT_WKCONN_E;
+		temp &= ~(PORT_RWC_BITS | PORT_WKCONN_E);
 		temp |= PORT_WKDISC_E | PORT_WKOC_E;
 		ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
 
