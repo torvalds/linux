@@ -327,10 +327,6 @@ int clk_enable_dvfs(struct clk *clk)
 			}
 		}
 
-		if (dvfs_clk_get_ref_volt(dvfs_clk, dvfs_clk->set_freq, &clk_fv)) {
-			dvfs_clk->enable_dvfs = 0;
-			return -1;
-		}
 		dvfs_clk->set_volt = clk_fv.index;
 		// DVFS_DBG("%s,%s,freq%u(ref vol %u)\n",__func__,dvfs_clk->name,
 		//	 dvfs_clk->set_freq,dvfs_clk->set_volt);
