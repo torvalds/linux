@@ -1412,23 +1412,47 @@ static void __init rk30_reserve(void)
 	board_mem_reserved();
 }
 
-static struct cpufreq_frequency_table cpu_dvfs_table[] = {
-	{.frequency    	= 252*1000, .index    = 1000*1000},
-	{.frequency    	= 504*1000, .index    = 1000*1000},
-	{.frequency     = 816*1000, .index    = 1000*1000},//logic 1.025V
-	{.frequency     = 1008*1000,.index    = 1025*1000},
-	{.frequency     = 1200*1000,.index    = 1100*1000},
-	{.frequency     = 1272*1000,.index    = 1150*1000},//logic 1.050V
-	{.frequency     = 1416*1000,.index    = 1225*1000},//logic 1.100V
-	{.frequency     = 1512*1000,.index    = 1300*1000},//logic 1.125V
-	{.frequency     = 1608*1000,.index    = 1350*1000},//logic 1.175V
-	{.frequency	= CPUFREQ_TABLE_END},
+/**
+ * dvfs_cpu_logic_table: table for arm and logic dvfs 
+ * @frequency	: arm frequency
+ * @cpu_volt	: arm voltage depend on frequency
+ * @logic_volt	: logic voltage arm requests depend on frequency
+ * comments	: min arm/logic voltage
+ */
+static struct dvfs_arm_table dvfs_cpu_logic_table[] = {
+	{.frequency = 252 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1025 * 1000},//0.975V/1.000V
+	{.frequency = 504 * 1000,	.cpu_volt = 1025 * 1000,	.logic_volt = 1025 * 1000},//0.975V/1.000V
+	{.frequency = 816 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.000V/1.025V
+	{.frequency = 1008 * 1000,	.cpu_volt = 1050 * 1000,	.logic_volt = 1050 * 1000},//1.025V/1.050V
+	{.frequency = 1200 * 1000,	.cpu_volt = 1150 * 1000,	.logic_volt = 1100 * 1000},//1.100V/1.050V
+	{.frequency = 1272 * 1000,	.cpu_volt = 1200 * 1000,	.logic_volt = 1150 * 1000},//1.150V/1.100V
+	{.frequency = 1416 * 1000,	.cpu_volt = 1275 * 1000,	.logic_volt = 1150 * 1000},//1.225V/1.100V
+	{.frequency = 1512 * 1000,	.cpu_volt = 1325 * 1000,	.logic_volt = 1200 * 1000},//1.300V/1.150V
+	{.frequency = 1608 * 1000,	.cpu_volt = 1350 * 1000,	.logic_volt = 1200 * 1000},//1.325V/1.175V
+	{.frequency = CPUFREQ_TABLE_END},
 };
+
+#define DVFS_CPU_TABLE_SIZE	(ARRAY_SIZE(dvfs_cpu_logic_table))
+static struct cpufreq_frequency_table cpu_dvfs_table[DVFS_CPU_TABLE_SIZE];
+static struct cpufreq_frequency_table dep_cpu2core_table[DVFS_CPU_TABLE_SIZE];
 
 void __init board_clock_init(void)
 {
+	int i = 0;
+	for (i = 0; dvfs_cpu_logic_table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		cpu_dvfs_table[i].frequency = dvfs_cpu_logic_table[i].frequency;
+		cpu_dvfs_table[i].index = dvfs_cpu_logic_table[i].cpu_volt;
+
+		dep_cpu2core_table[i].frequency = dvfs_cpu_logic_table[i].frequency;
+		dep_cpu2core_table[i].index = dvfs_cpu_logic_table[i].logic_volt;
+	}
+
+	cpu_dvfs_table[i].frequency = CPUFREQ_TABLE_END;
+	dep_cpu2core_table[i].frequency = CPUFREQ_TABLE_END;
+	
 	rk30_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
 	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), cpu_dvfs_table);
+	dvfs_set_depend_table(clk_get(NULL, "cpu"), "vd_core", dep_cpu2core_table);
 }
 
 MACHINE_START(RK30, "RK30board")
