@@ -1434,7 +1434,7 @@ xfs_vm_write_failed(
 		 * Check if there are any blocks that are outside of i_size
 		 * that need to be trimmed back.
 		 */
-		start_fsb = XFS_B_TO_FSB(ip->i_mount, inode->i_size) + 1;
+		start_fsb = XFS_B_TO_FSB(ip->i_mount, inode->i_size);
 		end_fsb = XFS_B_TO_FSB(ip->i_mount, to);
 		if (end_fsb <= start_fsb)
 			return;
