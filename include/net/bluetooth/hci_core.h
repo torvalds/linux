@@ -1073,4 +1073,6 @@ int hci_le_scan(struct hci_dev *hdev, u8 type, u16 interval, u16 window,
 		int timeout);
 int hci_cancel_le_scan(struct hci_dev *hdev);
 
+u8 bdaddr_to_le(u8 bdaddr_type);
+
 #endif /* __HCI_CORE_H */

@@ -1644,18 +1644,6 @@ static u8 link_to_bdaddr(u8 link_type, u8 addr_type)
 	}
 }
 
-static u8 bdaddr_to_le(u8 bdaddr_type)
-{
-	switch (bdaddr_type) {
-	case BDADDR_LE_PUBLIC:
-		return ADDR_LE_DEV_PUBLIC;
-
-	default:
-		/* Fallback to LE Random address type */
-		return ADDR_LE_DEV_RANDOM;
-	}
-}
-
 static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 			   u16 data_len)
 {

@@ -2946,3 +2946,15 @@ int hci_cancel_inquiry(struct hci_dev *hdev)
 
 	return hci_send_cmd(hdev, HCI_OP_INQUIRY_CANCEL, 0, NULL);
 }
+
+u8 bdaddr_to_le(u8 bdaddr_type)
+{
+	switch (bdaddr_type) {
+	case BDADDR_LE_PUBLIC:
+		return ADDR_LE_DEV_PUBLIC;
+
+	default:
+		/* Fallback to LE Random address type */
+		return ADDR_LE_DEV_RANDOM;
+	}
+}
