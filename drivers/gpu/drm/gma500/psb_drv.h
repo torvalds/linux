@@ -130,6 +130,7 @@ enum {
 #define _PSB_VSYNC_PIPEA_FLAG	  (1<<7)
 #define _MDFLD_MIPIA_FLAG	  (1<<16)
 #define _MDFLD_MIPIC_FLAG	  (1<<17)
+#define _PSB_IRQ_DISP_HOTSYNC	  (1<<17)
 #define _PSB_IRQ_SGX_FLAG	  (1<<18)
 #define _PSB_IRQ_MSVDX_FLAG	  (1<<19)
 #define _LNC_IRQ_TOPAZ_FLAG	  (1<<20)
@@ -703,6 +704,8 @@ struct psb_ops {
 
 	/* Display management hooks */
 	int (*output_init)(struct drm_device *dev);
+	int (*hotplug)(struct drm_device *dev);
+	void (*hotplug_enable)(struct drm_device *dev, bool on);
 	/* Power management hooks */
 	void (*init_pm)(struct drm_device *dev);
 	int (*save_regs)(struct drm_device *dev);
