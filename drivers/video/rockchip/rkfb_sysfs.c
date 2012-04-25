@@ -159,7 +159,6 @@ static struct device_attribute rkfb_attrs[] = {
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
 	__ATTR(overlay, S_IRUGO | S_IWUSR, show_overlay, set_overlay),
-	__ATTR_NULL,
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)
