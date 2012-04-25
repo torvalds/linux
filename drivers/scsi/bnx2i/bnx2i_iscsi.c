@@ -2244,6 +2244,7 @@ static struct scsi_host_template bnx2i_host_template = {
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.change_queue_depth	= iscsi_change_queue_depth,
+	.target_alloc		= iscsi_target_alloc,
 	.can_queue		= 2048,
 	.max_sectors		= 127,
 	.cmd_per_lun		= 128,
