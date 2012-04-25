@@ -34,7 +34,6 @@
  * @spi:		spi_device
  * @chip_info:		chip model specific constants, available modes etc
  * @reg:		supply regulator
- * @poll_work:		bottom half of polling interrupt handler
  * @vref_mv:		actual reference voltage used
  */
 
@@ -42,7 +41,6 @@ struct ad5446_state {
 	struct spi_device		*spi;
 	const struct ad5446_chip_info	*chip_info;
 	struct regulator		*reg;
-	struct work_struct		poll_work;
 	unsigned short			vref_mv;
 	unsigned			cached_val;
 	unsigned			pwr_down_mode;
