@@ -2413,15 +2413,13 @@ static struct trace_iterator *
 __tracing_open(struct inode *inode, struct file *file)
 {
 	long cpu_file = (long) inode->i_private;
-	void *fail_ret = ERR_PTR(-ENOMEM);
 	struct trace_iterator *iter;
-	struct seq_file *m;
-	int cpu, ret;
+	int cpu;
 
 	if (tracing_disabled)
 		return ERR_PTR(-ENODEV);
 
-	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
+	iter = __seq_open_private(file, &tracer_seq_ops, sizeof(*iter));
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 
@@ -2478,32 +2476,15 @@ __tracing_open(struct inode *inode, struct file *file)
 		tracing_iter_reset(iter, cpu);
 	}
 
-	ret = seq_open(file, &tracer_seq_ops);
-	if (ret < 0) {
-		fail_ret = ERR_PTR(ret);
-		goto fail_buffer;
-	}
-
-	m = file->private_data;
-	m->private = iter;
-
 	mutex_unlock(&trace_types_lock);
 
 	return iter;
 
- fail_buffer:
-	for_each_tracing_cpu(cpu) {
-		if (iter->buffer_iter[cpu])
-			ring_buffer_read_finish(iter->buffer_iter[cpu]);
-	}
-	free_cpumask_var(iter->started);
-	tracing_start();
  fail:
 	mutex_unlock(&trace_types_lock);
 	kfree(iter->trace);
-	kfree(iter);
-
-	return fail_ret;
+	seq_release_private(inode, file);
+	return ERR_PTR(-ENOMEM);
 }
 
 int tracing_open_generic(struct inode *inode, struct file *filp)
@@ -2539,11 +2520,10 @@ static int tracing_release(struct inode *inode, struct file *file)
 	tracing_start();
 	mutex_unlock(&trace_types_lock);
 
-	seq_release(inode, file);
 	mutex_destroy(&iter->mutex);
 	free_cpumask_var(iter->started);
 	kfree(iter->trace);
-	kfree(iter);
+	seq_release_private(inode, file);
 	return 0;
 }
 
