@@ -50,15 +50,16 @@ void chipcHw_reset(uint32_t mask)
 			chipcHw_softReset(chipcHw_REG_SOFT_RESET_CHIP_SOFT);
 		}
 		/* Bypass the PLL clocks before reboot */
-		pChipcHw->UARTClock |= chipcHw_REG_PLL_CLOCK_BYPASS_SELECT;
-		pChipcHw->SPIClock |= chipcHw_REG_PLL_CLOCK_BYPASS_SELECT;
+		writel(readl(&pChipcHw->UARTClock) | chipcHw_REG_PLL_CLOCK_BYPASS_SELECT,
+			&pChipcHw->UARTClock);
+		writel(readl(&pChipcHw->SPIClock) | chipcHw_REG_PLL_CLOCK_BYPASS_SELECT,
+			&pChipcHw->SPIClock);
 
 		/* Copy the chipcHw_warmReset_run_from_aram function into ARAM */
 		do {
-			((uint32_t *) MM_IO_BASE_ARAM)[i] =
-			    ((uint32_t *) &chipcHw_reset_run_from_aram)[i];
+			writel(((uint32_t *) &chipcHw_reset_run_from_aram)[i], ((uint32_t __iomem *) MM_IO_BASE_ARAM) + i);
 			i++;
-		} while (((uint32_t *) MM_IO_BASE_ARAM)[i - 1] != 0xe1a0f00f);	/* 0xe1a0f00f == asm ("mov r15, r15"); */
+		} while (readl(((uint32_t __iomem*) MM_IO_BASE_ARAM) + i - 1) != 0xe1a0f00f);	/* 0xe1a0f00f == asm ("mov r15, r15"); */
 
 		flush_cache_all();
 

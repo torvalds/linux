@@ -249,20 +249,20 @@ static int nand_dev_ready(struct mtd_info *mtd)
 int bcm_umi_nand_inithw(void)
 {
 	/* Configure nand timing parameters */
-	REG_UMI_NAND_TCR &= ~0x7ffff;
-	REG_UMI_NAND_TCR |= HW_CFG_NAND_TCR;
+	writel(readl(&REG_UMI_NAND_TCR) & ~0x7ffff, &REG_UMI_NAND_TCR);
+	writel(readl(&REG_UMI_NAND_TCR) | HW_CFG_NAND_TCR, &REG_UMI_NAND_TCR);
 
 #if !defined(CONFIG_MTD_NAND_BCM_UMI_HWCS)
 	/* enable software control of CS */
-	REG_UMI_NAND_TCR |= REG_UMI_NAND_TCR_CS_SWCTRL;
+	writel(readl(&REG_UMI_NAND_TCR) | REG_UMI_NAND_TCR_CS_SWCTRL, &REG_UMI_NAND_TCR);
 #endif
 
 	/* keep NAND chip select asserted */
-	REG_UMI_NAND_RCSR |= REG_UMI_NAND_RCSR_CS_ASSERTED;
+	writel(readl(&REG_UMI_NAND_RCSR) | REG_UMI_NAND_RCSR_CS_ASSERTED, &REG_UMI_NAND_RCSR);
 
-	REG_UMI_NAND_TCR &= ~REG_UMI_NAND_TCR_WORD16;
+	writel(readl(&REG_UMI_NAND_TCR) & ~REG_UMI_NAND_TCR_WORD16, &REG_UMI_NAND_TCR);
 	/* enable writes to flash */
-	REG_UMI_MMD_ICR |= REG_UMI_MMD_ICR_FLASH_WP;
+	writel(readl(&REG_UMI_MMD_ICR) | REG_UMI_MMD_ICR_FLASH_WP, &REG_UMI_MMD_ICR);
 
 	writel(NAND_CMD_RESET, bcm_umi_io_base + REG_NAND_CMD_OFFSET);
 	nand_bcm_umi_wait_till_ready();

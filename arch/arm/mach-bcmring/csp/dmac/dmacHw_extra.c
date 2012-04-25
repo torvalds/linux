@@ -27,7 +27,7 @@
 /* ---- Include Files ---------------------------------------------------- */
 
 #include <linux/types.h>
-#include <stddef.h>
+#include <linux/stddef.h>
 
 #include <mach/csp/dmacHw.h>
 #include <mach/csp/dmacHw_reg.h>

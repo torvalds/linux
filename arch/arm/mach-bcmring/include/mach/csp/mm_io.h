@@ -49,7 +49,7 @@
 #ifdef __ASSEMBLY__
 #define MM_IO_PHYS_TO_VIRT(phys)       (0xF0000000 | (((phys) >> 4) & 0x0F000000) | ((phys) & 0xFFFFFF))
 #else
-#define MM_IO_PHYS_TO_VIRT(phys)       (((phys) == MM_ADDR_IO_VPM_EXTMEM_RSVD) ? 0xF0000000 : \
+#define MM_IO_PHYS_TO_VIRT(phys)       (void __iomem *)(((phys) == MM_ADDR_IO_VPM_EXTMEM_RSVD) ? 0xF0000000 : \
 			(0xF0000000 | (((phys) >> 4) & 0x0F000000) | ((phys) & 0xFFFFFF)))
 #endif
 #endif
@@ -60,8 +60,8 @@
 #ifdef __ASSEMBLY__
 #define MM_IO_VIRT_TO_PHYS(virt)       ((((virt) & 0x0F000000) << 4) | ((virt) & 0xFFFFFF))
 #else
-#define MM_IO_VIRT_TO_PHYS(virt)       (((virt) == 0xF0000000) ? MM_ADDR_IO_VPM_EXTMEM_RSVD : \
-			((((virt) & 0x0F000000) << 4) | ((virt) & 0xFFFFFF)))
+#define MM_IO_VIRT_TO_PHYS(virt)       (((unsigned long)(virt) == 0xF0000000) ? MM_ADDR_IO_VPM_EXTMEM_RSVD : \
+			((((unsigned long)(virt) & 0x0F000000) << 4) | ((unsigned long)(virt) & 0xFFFFFF)))
 #endif
 #endif
 

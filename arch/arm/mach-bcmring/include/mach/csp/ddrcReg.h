@@ -416,7 +416,7 @@ extern "C" {
 	} ddrcReg_PHY_ADDR_CTL_REG_t;
 
 #define ddrcReg_PHY_ADDR_CTL_REG_OFFSET                 0x0400
-#define ddrcReg_PHY_ADDR_CTL_REGP                       ((volatile ddrcReg_PHY_ADDR_CTL_REG_t *) (MM_IO_BASE_DDRC + ddrcReg_PHY_ADDR_CTL_REG_OFFSET))
+#define ddrcReg_PHY_ADDR_CTL_REGP                       ((volatile ddrcReg_PHY_ADDR_CTL_REG_t __iomem*) (MM_IO_BASE_DDRC + ddrcReg_PHY_ADDR_CTL_REG_OFFSET))
 
 /* @todo These SS definitions are duplicates of ones below */
 
