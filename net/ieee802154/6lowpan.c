@@ -650,6 +650,53 @@ static void lowpan_fragment_timer_expired(unsigned long entry_addr)
 	kfree(entry);
 }
 
+static struct lowpan_fragment *
+lowpan_alloc_new_frame(struct sk_buff *skb, u8 iphc0, u8 len, u8 tag)
+{
+	struct lowpan_fragment *frame;
+
+	frame = kzalloc(sizeof(struct lowpan_fragment),
+			GFP_ATOMIC);
+	if (!frame)
+		goto frame_err;
+
+	INIT_LIST_HEAD(&frame->list);
+
+	frame->length = (iphc0 & 7) | (len << 3);
+	frame->tag = tag;
+
+	/* allocate buffer for frame assembling */
+	frame->skb = alloc_skb(frame->length +
+			       sizeof(struct ipv6hdr), GFP_ATOMIC);
+
+	if (!frame->skb)
+		goto skb_err;
+
+	frame->skb->priority = skb->priority;
+	frame->skb->dev = skb->dev;
+
+	/* reserve headroom for uncompressed ipv6 header */
+	skb_reserve(frame->skb, sizeof(struct ipv6hdr));
+	skb_put(frame->skb, frame->length);
+
+	init_timer(&frame->timer);
+	/* time out is the same as for ipv6 - 60 sec */
+	frame->timer.expires = jiffies + LOWPAN_FRAG_TIMEOUT;
+	frame->timer.data = (unsigned long)frame;
+	frame->timer.function = lowpan_fragment_timer_expired;
+
+	add_timer(&frame->timer);
+
+	list_add_tail(&frame->list, &lowpan_fragments);
+
+	return frame;
+
+skb_err:
+	kfree(frame);
+frame_err:
+	return NULL;
+}
+
 static int
 lowpan_process_data(struct sk_buff *skb)
 {
@@ -692,41 +739,9 @@ lowpan_process_data(struct sk_buff *skb)
 
 		/* alloc new frame structure */
 		if (!found) {
-			frame = kzalloc(sizeof(struct lowpan_fragment),
-								GFP_ATOMIC);
+			frame = lowpan_alloc_new_frame(skb, iphc0, len, tag);
 			if (!frame)
 				goto unlock_and_drop;
-
-			INIT_LIST_HEAD(&frame->list);
-
-			frame->length = (iphc0 & 7) | (len << 3);
-			frame->tag = tag;
-
-			/* allocate buffer for frame assembling */
-			frame->skb = alloc_skb(frame->length +
-					sizeof(struct ipv6hdr), GFP_ATOMIC);
-
-			if (!frame->skb) {
-				kfree(frame);
-				goto unlock_and_drop;
-			}
-
-			frame->skb->priority = skb->priority;
-			frame->skb->dev = skb->dev;
-
-			/* reserve headroom for uncompressed ipv6 header */
-			skb_reserve(frame->skb, sizeof(struct ipv6hdr));
-			skb_put(frame->skb, frame->length);
-
-			init_timer(&frame->timer);
-			/* time out is the same as for ipv6 - 60 sec */
-			frame->timer.expires = jiffies + LOWPAN_FRAG_TIMEOUT;
-			frame->timer.data = (unsigned long)frame;
-			frame->timer.function = lowpan_fragment_timer_expired;
-
-			add_timer(&frame->timer);
-
-			list_add_tail(&frame->list, &lowpan_fragments);
 		}
 
 		if ((iphc0 & LOWPAN_DISPATCH_MASK) == LOWPAN_DISPATCH_FRAG1)
