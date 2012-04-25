@@ -17,6 +17,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/power/smartreflex.h>
 
 #include <linux/err.h>
 #include <linux/slab.h>
@@ -24,7 +25,6 @@
 
 #include <plat/omap_device.h>
 
-#include "smartreflex.h"
 #include "voltage.h"
 #include "control.h"
 #include "pm.h"

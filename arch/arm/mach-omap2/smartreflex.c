@@ -25,11 +25,10 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
+#include <linux/power/smartreflex.h>
 
 #include "common.h"
-
 #include "pm.h"
-#include "smartreflex.h"
 
 #define SMARTREFLEX_NAME_LEN	16
 #define NVALUE_NAME_LEN		40
