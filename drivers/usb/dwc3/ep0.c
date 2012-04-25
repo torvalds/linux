@@ -569,6 +569,28 @@ static int dwc3_ep0_set_sel(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	return __dwc3_gadget_ep0_queue(dep, &dwc->ep0_usb_req);
 }
 
+static int dwc3_ep0_set_isoch_delay(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
+{
+	u16		wLength;
+	u16		wValue;
+	u16		wIndex;
+
+	wValue = le16_to_cpu(ctrl->wValue);
+	wLength = le16_to_cpu(ctrl->wLength);
+	wIndex = le16_to_cpu(ctrl->wIndex);
+
+	if (wIndex || wLength)
+		return -EINVAL;
+
+	/*
+	 * REVISIT It's unclear from Databook what to do with this
+	 * value. For now, just cache it.
+	 */
+	dwc->isoch_delay = wValue;
+
+	return 0;
+}
+
 static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 {
 	int ret;
@@ -597,6 +619,10 @@ static int dwc3_ep0_std_request(struct dwc3 *dwc, struct usb_ctrlrequest *ctrl)
 	case USB_REQ_SET_SEL:
 		dev_vdbg(dwc->dev, "USB_REQ_SET_SEL\n");
 		ret = dwc3_ep0_set_sel(dwc, ctrl);
+		break;
+	case USB_REQ_SET_ISOCH_DELAY:
+		dev_vdbg(dwc->dev, "USB_REQ_SET_ISOCH_DELAY\n");
+		ret = dwc3_ep0_set_isoch_delay(dwc, ctrl);
 		break;
 	default:
 		dev_vdbg(dwc->dev, "Forwarding to gadget driver\n");
