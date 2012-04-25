@@ -462,13 +462,48 @@ static void cdv_get_core_freq(struct drm_device *dev)
 	}
 }
 
+static void cdv_hotplug_work_func(struct work_struct *work)
+{
+        struct drm_psb_private *dev_priv = container_of(work, struct drm_psb_private,
+							hotplug_work);                 
+        struct drm_device *dev = dev_priv->dev;
+
+        /* Just fire off a uevent and let userspace tell us what to do */
+        drm_helper_hpd_irq_event(dev);
+}                       
+
+/* The core driver has received a hotplug IRQ. We are in IRQ context
+   so extract the needed information and kick off queued processing */
+   
+static int cdv_hotplug_event(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	schedule_work(&dev_priv->hotplug_work);
+	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
+	return 1;
+}
+
+static void cdv_hotplug_enable(struct drm_device *dev, bool on)
+{
+	if (on) {
+		u32 hotplug = REG_READ(PORT_HOTPLUG_EN);
+		hotplug |= HDMIB_HOTPLUG_INT_EN | HDMIC_HOTPLUG_INT_EN |
+			   HDMID_HOTPLUG_INT_EN | CRT_HOTPLUG_INT_EN;
+		REG_WRITE(PORT_HOTPLUG_EN, hotplug);
+	}  else {
+		REG_WRITE(PORT_HOTPLUG_EN, 0);
+		REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
+	}	
+}
+
 static int cdv_chip_setup(struct drm_device *dev)
 {
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	INIT_WORK(&dev_priv->hotplug_work, cdv_hotplug_work_func);
 	cdv_get_core_freq(dev);
 	gma_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
-	REG_WRITE(PORT_HOTPLUG_EN, 0);
-	REG_WRITE(PORT_HOTPLUG_STAT, REG_READ(PORT_HOTPLUG_STAT));
+	cdv_hotplug_enable(dev, false);
 	return 0;
 }
 
@@ -489,6 +524,8 @@ const struct psb_ops cdv_chip_ops = {
 	.crtc_funcs = &cdv_intel_crtc_funcs,
 
 	.output_init = cdv_output_init,
+	.hotplug = cdv_hotplug_event,
+	.hotplug_enable = cdv_hotplug_enable,
 
 #ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
 	.backlight_init = cdv_backlight_init,

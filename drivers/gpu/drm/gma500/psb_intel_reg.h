@@ -219,7 +219,7 @@
 #define DPLLB_LVDS_P2_CLOCK_DIV_14	(0 << 24)	/* i915 */
 #define DPLLB_LVDS_P2_CLOCK_DIV_7	(1 << 24)	/* i915 */
 #define DPLL_P2_CLOCK_DIV_MASK		0x03000000	/* i915 */
-#define DPLL_FPA01_P1_POST_DIV_MASK	0x00ff0000	/* i915 */
+#define DPLL_FPA0h1_P1_POST_DIV_MASK	0x00ff0000	/* i915 */
 #define DPLL_LOCK			(1 << 15)	/* CDV */
 
 /*
@@ -346,6 +346,9 @@
 #define FP_M2_DIV_SHIFT			0
 
 #define PORT_HOTPLUG_EN		0x61110
+#define HDMIB_HOTPLUG_INT_EN		(1 << 29)
+#define HDMIC_HOTPLUG_INT_EN		(1 << 28)
+#define HDMID_HOTPLUG_INT_EN		(1 << 27)
 #define SDVOB_HOTPLUG_INT_EN		(1 << 26)
 #define SDVOC_HOTPLUG_INT_EN		(1 << 25)
 #define TV_HOTPLUG_INT_EN		(1 << 18)

@@ -626,6 +626,11 @@ struct drm_psb_private {
 	uint32_t msi_addr;
 	uint32_t msi_data;
 
+	/*
+	 * Hotplug handling
+	 */
+
+	struct work_struct hotplug_work;
 
 	/*
 	 * LID-Switch
