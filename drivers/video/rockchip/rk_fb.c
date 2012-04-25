@@ -232,17 +232,19 @@ static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 }
 static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 {
- 	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
 	u32 yuv_phy[2];
+	int layer_id = get_fb_layer_id(&info->fix);
+	int enable; // enable fb:1 enable;0 disable 
+	int ovl;	//overlay:0 win1 on the top of win0;1,win0 on the top of win1
 	void __user *argp = (void __user *)arg;
 	
 	switch(cmd)
 	{
  		case FBIOPUT_FBPHYADD:
 			return info->fix.smem_start;
-		case FB1_IOCTL_SET_YUV_ADDR:   //when in video mode, buff alloc by android
+		case FBIOSET_YUV_ADDR:   //when in video mode, buff alloc by android
 			if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
 			{
 				if (copy_from_user(yuv_phy, argp, 8))
@@ -251,8 +253,24 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 				info->fix.mmio_start = yuv_phy[1];  //four uv
 			}
 			break;
+		case FBIOSET_ENABLE:
+			if (copy_from_user(&enable, argp, 1))
+				return -EFAULT;
+			dev_drv->open(dev_drv,layer_id,enable);
+			break;
+		case FBIOGET_ENABLE:
+			enable = dev_drv->get_layer_state(dev_drv,layer_id);
+			if(copy_to_user(argp,&enable,1))
+				return -EFAULT;
+			break;
+		case FBIOSET_OVERLAY_STATE:
+			if (copy_from_user(&ovl, argp, 1))
+				return -EFAULT;
+			dev_drv->ovl_mgr(dev_drv,ovl,1);
 		case FBIOGET_OVERLAY_STATE:
-			return inf->video_mode;
+			ovl = dev_drv->ovl_mgr(dev_drv,0,0);
+			if (copy_to_user(argp, &ovl, 1))
+				return -EFAULT;
 		case FBIOGET_SCREEN_STATE:
 		case FBIOPUT_SET_CURSOR_EN:
 		case FBIOPUT_SET_CURSOR_POS:
@@ -265,9 +283,8 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 		case FBIOGET_16OR32:
 		case FBIOGET_IDLEFBUff_16OR32:
 		case FBIOSET_COMPOSE_LAYER_COUNTS:
-		case FBIOGET_COMPOSE_LAYER_COUNTS:
         	default:
-			dev_drv->ioctl(dev_drv,cmd,arg,0);
+			dev_drv->ioctl(dev_drv,cmd,arg,layer_id);
             break;
     }
     return 0;
@@ -812,6 +829,7 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	dev_drv->num_layer	= def_drv->num_layer;
 	dev_drv->get_layer_state= def_drv->get_layer_state;
 	dev_drv->get_disp_info  = def_drv->get_disp_info;
+	dev_drv->ovl_mgr	= def_drv->ovl_mgr;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);

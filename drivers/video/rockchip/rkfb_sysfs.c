@@ -113,12 +113,52 @@ static ssize_t set_fb_state(struct device *dev,struct device_attribute *attr,
 	return count;
 }
 
+static ssize_t show_overlay(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	int ovl;
+	ovl =  dev_drv->ovl_mgr(dev_drv,0,0);
+	if(ovl < 0)
+	{
+		return ovl;
+	}
+
+	return snprintf(buf, PAGE_SIZE, "%s\n",
+		ovl?"win0 on the top of win1":"win1 on the top of win0");
+	
+}
+static ssize_t set_overlay(struct device *dev,struct device_attribute *attr,
+	const char *buf, size_t count)
+{
+	struct fb_info *fbi = dev_get_drvdata(dev);
+	struct rk_lcdc_device_driver * dev_drv = 
+		(struct rk_lcdc_device_driver * )fbi->par;
+	int ovl;
+	int ret;
+	ret = kstrtoint(buf, 0, &ovl);
+	if(ret)
+	{
+		return ret;
+	}
+	ret = dev_drv->ovl_mgr(dev_drv,ovl,1);
+	if(ret < 0)
+	{
+		return ret;
+	}
+
+	return count;
+}
+
 static struct device_attribute rkfb_attrs[] = {
 	__ATTR(phys_addr, S_IRUGO, show_phys, NULL),
 	__ATTR(virt_addr, S_IRUGO, show_virt, NULL),
 	__ATTR(disp_info, S_IRUGO, show_disp_info, NULL),
 	__ATTR(screen_info, S_IRUGO, show_screen_info, NULL),
 	__ATTR(enable, S_IRUGO | S_IWUSR, show_fb_state, set_fb_state),
+	__ATTR(overlay, S_IRUGO | S_IWUSR, show_overlay, set_overlay),
 };
 
 int rkfb_create_sysfs(struct fb_info *fbi)

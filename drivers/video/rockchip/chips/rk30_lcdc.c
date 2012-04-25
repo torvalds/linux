@@ -511,6 +511,7 @@ static int rk30_lcdc_open(struct rk_lcdc_device_driver *dev_drv,int layer_id,boo
 
 	return 0;
 }
+
 static int rk30_lcdc_set_par(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
@@ -588,9 +589,10 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
+	int ret = 0;
 	switch(cmd)
 	{
-		case FB1_IOCTL_GET_PANEL_SIZE:    //get panel size
+		case FBIOGET_PANEL_SIZE:    //get panel size
                 	panel_size[0] = lcdc_dev->screen->x_res;
                 	panel_size[1] = lcdc_dev->screen->y_res;
             		if(copy_to_user(argp, panel_size, 8)) 
@@ -600,26 +602,64 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 			break;
 	}
 
-	return 0;
+	return ret;
 }
 static int rk30_lcdc_get_layer_state(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	struct layer_par *par = dev_drv->layer_par[layer_id];
 
-	if(layer_id == 0)
+	spin_lock(&lcdc_dev->reg_lock);
+	if(lcdc_dev->clk_on)
 	{
-		par->state = LcdReadBit(lcdc_dev,SYS_CTRL1,m_W0_EN);
+		if(layer_id == 0)
+		{
+			par->state = LcdReadBit(lcdc_dev,SYS_CTRL1,m_W0_EN);
+		}
+		else if( layer_id == 1)
+		{
+			par->state = LcdReadBit(lcdc_dev,SYS_CTRL1,m_W1_EN);
+		}
 	}
-	else if( layer_id == 1)
-	{
-		par->state = LcdReadBit(lcdc_dev,SYS_CTRL1,m_W1_EN);
-	}
-
+	spin_unlock(&lcdc_dev->reg_lock);
+	
 	return par->state;
 	
 }
 
+/***********************************
+overlay manager
+swap:1 win0 on the top of win1
+        0 win1 on the top of win0
+set  : 1 set overlay 
+        0 get overlay state
+************************************/
+static int rk30_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
+{
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	int ovl;
+	spin_lock(&lcdc_dev->reg_lock);
+	if(lcdc_dev->clk_on)
+	{
+		if(set)  //set overlay
+		{
+			LcdMskReg(lcdc_dev,DSP_CTRL0,m_W0W1_POSITION_SWAP,v_W0W1_POSITION_SWAP(swap));
+			LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
+			ovl = swap;
+		}
+		else  //get overlay
+		{
+			ovl = LcdReadBit(lcdc_dev,DSP_CTRL0,m_W0W1_POSITION_SWAP);
+		}
+	}
+	else
+	{
+		ovl = -EPERM;
+	}
+	spin_unlock(&lcdc_dev->reg_lock);
+
+	return ovl;
+}
 static int rk30_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
@@ -690,6 +730,7 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.pan_display            = rk30_lcdc_pan_display,
 	.load_screen		= rk30_load_screen,
 	.get_layer_state	= rk30_lcdc_get_layer_state,
+	.ovl_mgr		= rk30_ovl_mgr,
 	.get_disp_info		= rk30_get_disp_info,
 };
 #ifdef CONFIG_PM

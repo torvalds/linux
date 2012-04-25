@@ -36,18 +36,20 @@
 #define FB_WIMO_FLAG
 #endif
 #ifdef FB_WIMO_FLAG
-#define FB0_IOCTL_SET_BUF					0x6017
+#define FB0_IOCTL_SET_BUF				0x6017
 #define FB0_IOCTL_COPY_CURBUF				0x6018
 #define FB0_IOCTL_CLOSE_BUF				0x6019
 #endif
 
-#define FB1_IOCTL_GET_PANEL_SIZE		0x5001
-#define FB1_IOCTL_SET_YUV_ADDR			0x5002
+#define FBIOGET_PANEL_SIZE		0x5001
+#define FBIOSET_YUV_ADDR		0x5002
 //#define FB1_TOCTL_SET_MCU_DIR			0x5003
-#define FB1_IOCTL_SET_ROTATE            0x5003
-#define FB1_IOCTL_SET_I2P_ODD_ADDR      0x5005
-#define FB1_IOCTL_SET_I2P_EVEN_ADDR     0x5006
-#define FB1_IOCTL_SET_WIN0_TOP          0x5018
+#define FBIOSET_ROTATE            	0x5003
+#define FB_IOCTL_SET_I2P_ODD_ADDR       0x5005
+#define FB_IOCTL_SET_I2P_EVEN_ADDR      0x5006
+#define FBIOSET_OVERLAY_STATE     	0x5018
+#define FBIOSET_ENABLE			0x5019	
+#define FBIOGET_ENABLE			0x5020
 
 /********************************************************************
 **              display output interface supported by rk lcdc                       *
@@ -209,6 +211,7 @@ struct rk_lcdc_device_driver{
 	int (*get_disp_info)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*load_screen)(struct rk_lcdc_device_driver *dev_drv, bool initscreen);
 	int (*get_layer_state)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
+	int (*ovl_mgr)(struct rk_lcdc_device_driver *dev_drv,int swap,bool set);  //overlay manager
 	
 };
 
