@@ -312,7 +312,7 @@ static int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 	if (!test_and_clear_bit(index, &port->read_urbs_free))
 		return 0;
 
-	dbg("%s - port %d, urb %d\n", __func__, port->number, index);
+	dbg("%s - port %d, urb %d", __func__, port->number, index);
 
 	res = usb_submit_urb(port->read_urbs[index], mem_flags);
 	if (res) {
@@ -394,10 +394,10 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 	}
 	set_bit(i, &port->read_urbs_free);
 
-	dbg("%s - port %d, urb %d, len %d\n", __func__, port->number, i,
+	dbg("%s - port %d, urb %d, len %d", __func__, port->number, i,
 							urb->actual_length);
 	if (urb->status) {
-		dbg("%s - non-zero urb status: %d\n", __func__, urb->status);
+		dbg("%s - non-zero urb status: %d", __func__, urb->status);
 		return;
 	}
 
