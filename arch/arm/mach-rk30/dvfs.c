@@ -26,11 +26,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/delay.h>
 
-#define JUMP_RATE 816000000
-#define LOGIC_VOLT_SCALING
-#define DVFS_DBG(fmt, args...) {while(0);}	//pr_debug(fmt, ##args)
+#define DVFS_DBG(fmt, args...) {while(0);}
 #define DVFS_ERR(fmt, args...) pr_err(fmt, ##args)
-#define DVFS_LOG(fmt, args...) pr_debug(fmt, ##args)//while(0)
+#define DVFS_LOG(fmt, args...) pr_debug(fmt, ##args)
+//#define DVFS_LOG(fmt, args...) pr_err(fmt, ##args)
 
 #define dvfs_regulator_get(dev,id) regulator_get((dev),(id))
 #define dvfs_regulator_put(regu) regulator_put((regu))
@@ -55,6 +54,11 @@ static DEFINE_MUTEX(mutex);
 
 extern int rk30_clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 extern int rk30_clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
+
+// #define DVFS_DUMP_TREE
+#ifdef DVFS_DUMP_TREE
+static void dump_dbg_map(void);
+#endif
 
 #define PD_ON	1
 #define PD_OFF	0
@@ -82,12 +86,33 @@ int dvfs_set_rate(struct clk *clk, unsigned long rate)
 	return ret;
 }
 
+static int dvfs_clk_get_ref_volt_depend(struct depend_list *depend, int rate_khz,
+		struct cpufreq_frequency_table *clk_fv)
+{
+	int i = 0;
+	if (rate_khz == 0 || !depend || !depend->dep_table) {
+		return -1;
+	}
+	clk_fv->frequency = rate_khz;
+	clk_fv->index = 0;
+
+	for (i = 0; (depend->dep_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+		if (depend->dep_table[i].frequency >= rate_khz) {
+			clk_fv->frequency = depend->dep_table[i].frequency;
+			clk_fv->index = depend->dep_table[i].index;
+			return 0;
+		}
+	}
+	clk_fv->frequency = 0;
+	clk_fv->index = 0;
+	return -1;
+}
 static int dvfs_clk_get_ref_volt(struct clk_node *dvfs_clk, int rate_khz,
 		struct cpufreq_frequency_table *clk_fv)
 {
 	int i = 0;
 	if (rate_khz == 0 || !dvfs_clk || !dvfs_clk->dvfs_table) {
-		/* since no need*/
+		/* since no need */
 		return -1;
 	}
 	clk_fv->frequency = rate_khz;
@@ -121,8 +146,8 @@ static int dvfs_pd_get_newvolt_byclk(struct pd_node *pd, struct clk_node *dvfs_c
 	}
 
 	list_for_each_entry(child, &pd->clk_list, node) {
-		//DVFS_DBG("%s ,pd(%s),dvfs(%s),volt(%u)\n",__func__,pd->name,
-		//dvfs_clk->name,dvfs_clk->set_volt);
+		// DVFS_DBG("%s ,pd(%s),dvfs(%s),volt(%u)\n",__func__,pd->name,
+		// dvfs_clk->name,dvfs_clk->set_volt);
 		volt_max = max(volt_max, child->dvfs_clk->set_volt);
 	}
 	return volt_max;
@@ -143,11 +168,19 @@ void dvfs_update_clk_pds_volt(struct clk_node *dvfs_clk)
 
 static int dvfs_vd_get_newvolt_bypd(struct vd_node *vd)
 {
-	struct pd_node *pd;
+	struct pd_node		*pd;
+	struct depend_list	*depend;
 	int 	volt_max_vd = 0;
 	list_for_each_entry(pd, &vd->pd_list, node) {
-		//DVFS_DBG("%s pd(%s,%u)\n",__func__,pd->name,pd->cur_volt);
+		// DVFS_DBG("%s pd(%s,%u)\n",__func__,pd->name,pd->cur_volt);
 		volt_max_vd = max(volt_max_vd, pd->cur_volt);
+	}
+
+	/* some clks depend on this voltage domain */
+	if (!list_empty(&vd->req_volt_list)) {
+		list_for_each_entry(depend, &vd->req_volt_list, node2vd) {
+			volt_max_vd = max(volt_max_vd, depend->req_volt);
+		}
 	}
 	return volt_max_vd;
 }
@@ -191,6 +224,39 @@ int dvfs_set_freq_volt_table(struct clk *clk, struct cpufreq_frequency_table *ta
 	return 0;
 }
 
+int dvfs_set_depend_table(struct clk *clk, char *vd_name, struct cpufreq_frequency_table *table)
+{
+	struct vd_node		*vd;
+	struct depend_list	*depend;
+	struct clk_node		*info;
+	info = clk_get_dvfs_info(clk);
+	if (!table || !info || !vd_name) {
+		DVFS_ERR("%s :DVFS SET DEPEND TABLE ERROR! table or info or name empty\n", __func__);
+		return -1;
+	}
+
+	list_for_each_entry(vd, &rk_dvfs_tree, node) {
+		if (0 == strcmp(vd->name, vd_name)) {
+			DVFS_LOG("FOUND A MATCH\n");
+			mutex_lock(&mutex);
+			list_for_each_entry(depend, &info->depend_list, node2clk) {
+				if (vd == depend->dep_vd && info == depend->dvfs_clk) {
+					depend->dep_table = table;
+					break;
+				}
+			}
+			mutex_unlock(&mutex);
+#ifdef DVFS_DUMP_TREE
+			dump_dbg_map();
+#endif
+			return 0;
+		}
+	}
+	DVFS_ERR("%s :DVFS SET DEPEND TABLE ERROR! can not find vd:%s\n", __func__, vd_name);
+
+	return 0;
+}
+
 int clk_enable_dvfs(struct clk *clk)
 {
 	struct regulator *regulator;
@@ -212,7 +278,7 @@ int clk_enable_dvfs(struct clk *clk)
 			if (dvfs_clk->vd->regulator_name)
 				regulator = dvfs_regulator_get(NULL, dvfs_clk->vd->regulator_name);
 			if (regulator) {
-				//DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
+				// DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
 				dvfs_clk->vd->regulator = regulator;
 			} else {
 				dvfs_clk->vd->regulator = NULL;
@@ -222,18 +288,18 @@ int clk_enable_dvfs(struct clk *clk)
 			}
 		} else {
 			dvfs_clk->vd->cur_volt = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
-			//DVFS_DBG("%s(%s) vd volt=%u\n",__func__,dvfs_clk->name,dvfs_clk->vd->cur_volt);
+			// DVFS_DBG("%s(%s) vd volt=%u\n",__func__,dvfs_clk->name,dvfs_clk->vd->cur_volt);
 		}
 
 		dvfs_clk->set_freq = dvfs_clk_get_rate_kz(clk);
-		//DVFS_DBG("%s ,%s get freq%u!\n",__func__,dvfs_clk->name,dvfs_clk->set_freq);
+		// DVFS_DBG("%s ,%s get freq%u!\n",__func__,dvfs_clk->name,dvfs_clk->set_freq);
 
 		if (dvfs_clk_get_ref_volt(dvfs_clk, dvfs_clk->set_freq, &clk_fv)) {
 			dvfs_clk->enable_dvfs = 0;
 			return -1;
 		}
 		dvfs_clk->set_volt = clk_fv.index;
-		//DVFS_DBG("%s,%s,freq%u(ref vol %u)\n",__func__,dvfs_clk->name,
+		// DVFS_DBG("%s,%s,freq%u(ref vol %u)\n",__func__,dvfs_clk->name,
 		//	 dvfs_clk->set_freq,dvfs_clk->set_volt);
 #if 0
 		if (dvfs_clk->dvfs_nb) {
@@ -318,6 +384,22 @@ static struct notifier_block rk_dvfs_clk_notifier = {
 	.notifier_call = rk_dvfs_clk_notifier_event,
 };
 
+static struct clk_node *dvfs_get_dvfs_clk_byname(char *name)
+{
+	struct vd_node *vd;
+	struct pd_node *pd;
+	struct clk_list	*child;
+	list_for_each_entry(vd, &rk_dvfs_tree, node) {
+		list_for_each_entry(pd, &vd->pd_list, node) {
+			list_for_each_entry(child, &pd->clk_list, node) {
+				if (0 == strcmp(child->dvfs_clk->name, name)) {
+					return child->dvfs_clk;
+				}
+			}
+		}
+	}
+	return NULL;
+}
 static int rk_regist_vd(struct vd_node *vd)
 {
 	if (!vd)
@@ -326,6 +408,7 @@ static int rk_regist_vd(struct vd_node *vd)
 	mutex_init(&vd->dvfs_mutex);
 	list_add(&vd->node, &rk_dvfs_tree);
 	INIT_LIST_HEAD(&vd->pd_list);
+	INIT_LIST_HEAD(&vd->req_volt_list);
 
 	mutex_unlock(&mutex);
 	return 0;
@@ -372,8 +455,40 @@ static int rk_regist_clk(struct clk_node *dvfs_clk)
 		list_add(&child->node, &pd->clk_list);
 	}
 	clk = dvfs_clk_get(NULL, dvfs_clk->name);
-	dvfs_clk->ck = clk;
+	dvfs_clk->clk = clk;
 	clk_register_dvfs(dvfs_clk, clk);
+	INIT_LIST_HEAD(&dvfs_clk->depend_list);
+	mutex_unlock(&mutex);
+	return 0;
+}
+
+static int rk_regist_depends(struct depend_lookup *dep_node)
+{
+	struct depend_list	*depend_list;
+	struct clk_node		*dvfs_clk;
+
+	if (!dep_node) {
+		DVFS_ERR("%s : DVFS BAD depend node!\n", __func__);
+		return -1;
+	}
+
+	if (!dep_node->clk_name || !dep_node->dep_vd) {
+		DVFS_ERR("%s : DVFS BAD depend members!\n", __func__);
+		return -1;
+	}
+
+	depend_list = &dep_node->dep_list;
+	dvfs_clk = dvfs_get_dvfs_clk_byname(dep_node->clk_name);
+
+	mutex_lock(&mutex);
+
+	depend_list->dvfs_clk = dvfs_clk;
+	depend_list->dep_vd = dep_node->dep_vd;
+	depend_list->dep_table = dep_node->dep_table;
+
+	list_add(&depend_list->node2clk, &dvfs_clk->depend_list);
+	list_add(&depend_list->node2vd, &depend_list->dep_vd->req_volt_list);
+
 	mutex_unlock(&mutex);
 	return 0;
 }
@@ -381,43 +496,121 @@ static int rk_regist_clk(struct clk_node *dvfs_clk)
 #define get_volt_up_delay(new_volt, old_volt)	\
 	((new_volt) > (old_volt) ? (((new_volt) - (old_volt)) >> 10) : 0)
 
-#ifdef LOGIC_VOLT_SCALING
-#define DVFS_LOGIC_VOLT_H	1175000
-#define DVFS_LOGIC_VOLT_L 	1025000
-static int dvfs_up_volt_logic(void)
+static int dvfs_set_depend_pre(struct clk_node *dvfs_clk, unsigned long rate_old, unsigned long rate_new)
 {
-	struct regulator *vdd_core;
-	int ret = 0;
-	DVFS_DBG("second jump > 816M\n");
-	vdd_core = dvfs_regulator_get(NULL, "vdd_core");
-	ret = dvfs_regulator_set_voltage(vdd_core, DVFS_LOGIC_VOLT_H, DVFS_LOGIC_VOLT_H);
-	udelay(200);
-	DVFS_DBG("DVFS > 816M\n");
-	if (ret != 0) {
-		DVFS_ERR("%s err, ret = %d\n", __func__, ret);
-		return -1;
+	struct depend_list	*depend;
+	struct cpufreq_frequency_table	clk_fv;
+	int ret = -1;
+	int volt = 0;
+	struct regulator *regulator;
+
+	if (rate_old >= rate_new) {
+		return 0;
 	}
-	dvfs_regulator_put(vdd_core);
-	return ret;
+	list_for_each_entry(depend, &dvfs_clk->depend_list, node2clk) {
+		ret = dvfs_clk_get_ref_volt_depend(depend, rate_new / 1000, &clk_fv);
+		if (ret != 0) {
+			DVFS_ERR("%s LOGIC DVFS CAN NOT GET REF VOLT!, frequency too large!\n", __func__);
+			return -1;
+		}
+
+		if (!depend->dep_vd->regulator) {
+			DVFS_LOG("%s regulator empty\n", __func__);
+			regulator = dvfs_regulator_get(NULL, depend->dep_vd->regulator_name);
+			if (!regulator) {
+				DVFS_ERR("%s get regulator err\n", __func__);
+				return -1;
+			}
+
+			depend->dep_vd->regulator = regulator;
+		}
+		if (!depend->dep_vd->regulator) {
+			DVFS_ERR("%s vd's(%s) regulator empty\n", __func__, depend->dep_vd->name);
+			return -1;
+		}
+
+		if (clk_fv.index == dvfs_regulator_get_voltage(depend->dep_vd->regulator)) {
+			depend->req_volt = clk_fv.index;
+			DVFS_LOG("%s same voltage\n", __func__);
+			return 0;
+		}
+
+		depend->req_volt = clk_fv.index;
+		volt = dvfs_vd_get_newvolt_bypd(depend->dep_vd);
+		DVFS_LOG("%s setting voltage = %d\n", __func__, volt);
+		ret = dvfs_regulator_set_voltage(depend->dep_vd->regulator, volt, volt);
+		if (0 != ret) {
+			DVFS_ERR("%s set voltage = %d ERROR, ret = %d\n", __func__, volt, ret);
+			return -1;
+		}
+		udelay(200);
+		DVFS_LOG("%s set voltage = %d OK, ret = %d\n", __func__, volt, ret);
+		if (ret != 0) {
+			DVFS_ERR("%s err, ret = %d\n", __func__, ret);
+			return -1;
+		}
+	}
+
+	return 0;
 }
 
-static int dvfs_down_volt_logic(void)
+static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_old, unsigned long rate_new)
 {
-	struct regulator *vdd_core;
-	int ret = 0;
-	DVFS_DBG("first jump %d\n", JUMP_RATE);
-	vdd_core = dvfs_regulator_get(NULL, "vdd_core");
-	ret = dvfs_regulator_set_voltage(vdd_core, DVFS_LOGIC_VOLT_L, DVFS_LOGIC_VOLT_L);
-	//udelay(200);
-	DVFS_DBG("DVFS <= 816M\n");
-	if (ret != 0) {
-		DVFS_ERR("%s err, ret = %d\n", __func__, ret);
-		return -1;
+	struct depend_list	*depend;
+	struct cpufreq_frequency_table	clk_fv;
+	int ret = -1;
+	int volt = 0;
+	struct regulator *regulator;
+
+	if (rate_old <= rate_new) 
+		return 0;
+	list_for_each_entry(depend, &dvfs_clk->depend_list, node2clk) {
+		ret = dvfs_clk_get_ref_volt_depend(depend, rate_new / 1000, &clk_fv);
+		if (ret != 0) {
+			DVFS_ERR("%s LOGIC DVFS CAN NOT GET REF VOLT!, frequency too large!\n", __func__);
+			return -1;
+		}
+
+		if (!depend->dep_vd->regulator) {
+			DVFS_LOG("%s regulator empty\n", __func__);
+			regulator = dvfs_regulator_get(NULL, depend->dep_vd->regulator_name);
+			if (!regulator) {
+				DVFS_ERR("%s get regulator err\n", __func__);
+				return -1;
+			}
+
+			depend->dep_vd->regulator = regulator;
+		}
+		if (!depend->dep_vd->regulator) {
+			DVFS_ERR("%s vd's(%s) regulator empty\n", __func__, depend->dep_vd->name);
+			return -1;
+		}
+
+		if (clk_fv.index == dvfs_regulator_get_voltage(depend->dep_vd->regulator)) {
+			depend->req_volt = clk_fv.index;
+			DVFS_LOG("%s same voltage\n", __func__);
+			return 0;
+		}
+
+		depend->req_volt = clk_fv.index;
+		volt = dvfs_vd_get_newvolt_bypd(depend->dep_vd);
+		DVFS_LOG("%s setting voltage = %d\n", __func__, volt);
+		ret = dvfs_regulator_set_voltage(depend->dep_vd->regulator, volt, volt);
+		if (0 != ret) {
+			DVFS_ERR("%s set voltage = %d ERROR, ret = %d\n", __func__, volt, ret);
+			return -1;
+		}
+		udelay(200);
+		DVFS_LOG("%s set voltage = %d OK, ret = %d\n", __func__, volt, ret);
+		if (ret != 0) {
+			DVFS_ERR("%s err, ret = %d\n", __func__, ret);
+			return -1;
+		}
 	}
-	dvfs_regulator_put(vdd_core);
-	return ret;
+
+	return 0;
 }
-#endif
+
 static int flag_core_set_volt_err = 0;
 int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 {
@@ -426,7 +619,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 	struct cpufreq_frequency_table clk_fv = {0, 0};
 	int ret = 0;
 	int flag_set_volt_correct = 0;
-	unsigned long temp_hz;
+	unsigned long rate_new, rate_old;
 
 	if (!clk) {
 		DVFS_ERR("%s is not clk\n", __func__);
@@ -439,14 +632,16 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		return -1;
 	}
 
-	temp_hz = rate_hz;//clk_round_rate_nolock(clk, rate_hz);
+	// clk_round_rate_nolock(clk, rate_hz);
+	rate_new = rate_hz;
+	rate_old = clk_get_rate(clk);
 
-	//DVFS_DBG("dvfs(%s) round rate(%lu)(rount %lu)\n",dvfs_clk->name,rate_hz,temp_hz);
+	// DVFS_DBG("dvfs(%s) round rate(%lu)(rount %lu)\n",dvfs_clk->name,rate_hz,rate_new);
 
 	/* find the clk corresponding voltage */
-	if (dvfs_clk_get_ref_volt(dvfs_clk, temp_hz / 1000, &clk_fv)) {
+	if (dvfs_clk_get_ref_volt(dvfs_clk, rate_new / 1000, &clk_fv)) {
 		DVFS_ERR("%s--%s:rate%lu,Get corresponding voltage error!\n", 
-				__func__, dvfs_clk->name, temp_hz);
+				__func__, dvfs_clk->name, rate_new);
 		return -1;
 	}
 	volt_old = dvfs_clk->vd->cur_volt;
@@ -457,8 +652,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 	volt_new = dvfs_vd_get_newvolt_byclk(dvfs_clk);
 
-	DVFS_LOG("dvfs--(%s),volt=%d(was %dmV),rate=%lu(was %lu),vd%u=(was%u)\n",
-			dvfs_clk->name, clk_fv.index, dvfs_clk->set_volt, temp_hz, clk_get_rate(clk)
+	DVFS_DBG("dvfs--(%s),volt=%d(was %dmV),rate=%lu(was %lu),vd%u=(was%u)\n",
+			dvfs_clk->name, clk_fv.index, dvfs_clk->set_volt, rate_new, rate_old
 			, volt_new, volt_old);
 
 	if (flag_core_set_volt_err) {
@@ -467,14 +662,14 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		if (flag_set_volt_correct <= 0) {
 			DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), try to reload core_volt error %d!!! stop scaling\n", 
 					__func__, dvfs_clk->name, volt_new, volt_old, 
-					temp_hz, clk_get_rate(clk), flag_set_volt_correct);
+					rate_new, rate_old, flag_set_volt_correct);
 			return -1;
 		}
 
 		flag_core_set_volt_err = 0;
 		DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), try to reload core_volt! core_volt_correct = %d\n", 
 				__func__, dvfs_clk->name, volt_new, volt_old, 
-				temp_hz, clk_get_rate(clk), flag_set_volt_correct);
+				rate_new, rate_old, flag_set_volt_correct);
 
 		/* Reset vd's voltage */
 		dvfs_clk->vd->cur_volt = flag_set_volt_correct;
@@ -489,7 +684,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 				flag_core_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage up err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
 						__func__, dvfs_clk->name, ret, 
-						temp_hz, clk_get_rate(clk), volt_new, volt_old);
+						rate_new, rate_old, volt_new, volt_old);
 				return -1;
 			}
 
@@ -500,14 +695,14 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 		dvfs_clk->vd->cur_volt = volt_new;
 		udelay(get_volt_up_delay(volt_new, volt_old));
-		DVFS_LOG("%s %s set voltage OK up ret = %d, Vnew = %d(was %d), Rnew = %lu(was %lu)\n", 
-				__func__, dvfs_clk->name, ret, volt_new, volt_old, temp_hz, clk_get_rate(clk));
+		DVFS_DBG("%s %s set voltage OK up ret = %d, Vnew = %d(was %d), Rnew = %lu(was %lu)\n", 
+				__func__, dvfs_clk->name, ret, volt_new, volt_old, rate_new, rate_old);
 	}
 
 	if (dvfs_clk->clk_dvfs_target) {
-		ret = dvfs_clk->clk_dvfs_target(clk, temp_hz, clk_set_rate_locked);
+		ret = dvfs_clk->clk_dvfs_target(clk, rate_new, clk_set_rate_locked);
 	} else {
-		ret = clk_set_rate_locked(clk, temp_hz);
+		ret = clk_set_rate_locked(clk, rate_new);
 	}
 
 	if (ret < 0) {
@@ -517,7 +712,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		DVFS_ERR("set rate err\n");
 		return -1;
 	}
-	dvfs_clk->set_freq	= temp_hz / 1000;
+	dvfs_clk->set_freq	= rate_new / 1000;
 
 	/* if down the voltage */
 	if (volt_old > volt_new) {
@@ -526,7 +721,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 			if (ret < 0) {
 				flag_core_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage down err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
-						__func__, dvfs_clk->name, ret, temp_hz, clk_get_rate(clk), 
+						__func__, dvfs_clk->name, ret, rate_new, rate_old, 
 						volt_new, volt_old);
 				return -1;
 			}
@@ -537,7 +732,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		}
 
 		dvfs_clk->vd->cur_volt = volt_new;
-		DVFS_LOG("dvfs %s set volt ok dn\n", dvfs_clk->name);
+		DVFS_DBG("dvfs %s set volt ok dn\n", dvfs_clk->name);
 
 	}
 
@@ -552,7 +747,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	struct cpufreq_frequency_table clk_fv;
 	int ret = 0;
 	int flag_set_volt_correct = 0;
-	unsigned long temp_hz, pre_rate_hz;
+	unsigned long rate_new, rate_old;
 
 
 	if (!clk) {
@@ -567,12 +762,12 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	}
 
 	/* need round rate */
-	temp_hz = clk_round_rate_nolock(clk, rate_hz);
-	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu)\n", dvfs_clk->name, rate_hz, temp_hz);
+	rate_new = clk_round_rate_nolock(clk, rate_hz);
+	DVFS_DBG("dvfs(%s) round rate (%lu)(rount %lu)\n", dvfs_clk->name, rate_hz, rate_new);
 
-	pre_rate_hz = clk_get_rate(clk);
+	rate_old = clk_get_rate(clk);
 	/* find the clk corresponding voltage */
-	if (0 != dvfs_clk_get_ref_volt(dvfs_clk, temp_hz / 1000, &clk_fv)) {
+	if (0 != dvfs_clk_get_ref_volt(dvfs_clk, rate_new / 1000, &clk_fv)) {
 		DVFS_ERR("dvfs(%s) rate %luhz is larger,not support\n", dvfs_clk->name, rate_hz);
 		return -1;
 	}
@@ -585,28 +780,20 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 		if (flag_set_volt_correct <= 0) {
 			DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), try to reload arm_volt error %d!!! stop scaling\n", 
 					__func__, dvfs_clk->name, volt_new, volt_old, 
-					temp_hz, clk_get_rate(clk), flag_set_volt_correct);
+					rate_new, rate_old, flag_set_volt_correct);
 			return -1;
 		}
 
 		flag_arm_set_volt_err = 0;
 		DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), try to reload arm_volt! arm_volt_correct = %d\n", 
 				__func__, dvfs_clk->name, volt_new, volt_old, 
-				temp_hz, clk_get_rate(clk), flag_set_volt_correct);
+				rate_new, rate_old, flag_set_volt_correct);
 
 		/* Reset vd's voltage */
 		dvfs_clk->vd->cur_volt = flag_set_volt_correct;
 		volt_old = dvfs_clk->vd->cur_volt;
 	}
-#ifdef LOGIC_VOLT_SCALING
-	if (temp_hz > JUMP_RATE && pre_rate_hz <= JUMP_RATE) {
-		ret = dvfs_up_volt_logic();
-		if (ret != 0) {
-			DVFS_ERR("%s up logic volt error %d", __func__, ret);
-			return -1;
-		}
-	}
-#endif
+
 	/* if up the voltage */
 	if (volt_old < volt_new) {
 		if (dvfs_clk->vd->regulator) {
@@ -614,7 +801,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 			if (ret < 0) {
 				flag_arm_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage up err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
-						__func__, dvfs_clk->name, ret, temp_hz, clk_get_rate(clk), 
+						__func__, dvfs_clk->name, ret, rate_new, rate_old, 
 						volt_new, volt_old);
 				return -1;
 			}
@@ -626,23 +813,39 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 
 		dvfs_clk->vd->cur_volt = volt_new;
 		udelay(get_volt_up_delay(volt_new, volt_old));
-		DVFS_LOG("%s %s set voltage OK up ret = %d, Vnew = %d(was %d), Rnew = %lu(was %lu)\n", 
-				__func__, dvfs_clk->name, ret, volt_new, volt_old, temp_hz, clk_get_rate(clk));
+		DVFS_DBG("%s %s set voltage OK up ret = %d, Vnew = %d(was %d), Rnew = %lu(was %lu)\n", 
+				__func__, dvfs_clk->name, ret, volt_new, volt_old, rate_new, rate_old);
+	}
+	
+	/* depend voltage domain set up*/
+	if (0 != dvfs_set_depend_pre(dvfs_clk, rate_old, rate_new)) {
+		DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), set depend pre voltage err, stop scaling\n", 
+				__func__, dvfs_clk->name, volt_new, volt_old, 
+				rate_new, rate_old);
+		return -1;
 	}
 
 	if (dvfs_clk->clk_dvfs_target) {
-		ret = dvfs_clk->clk_dvfs_target(clk, temp_hz, clk_set_rate_locked);
+		ret = dvfs_clk->clk_dvfs_target(clk, rate_new, clk_set_rate_locked);
 	} else {
-		ret = clk_set_rate_locked(clk, temp_hz);
+		ret = clk_set_rate_locked(clk, rate_new);
 	}
 
 	if (ret < 0) {
 		DVFS_ERR("set rate err\n");
 		return -1;
 	}
-	dvfs_clk->set_freq	= temp_hz / 1000;
+	dvfs_clk->set_freq	= rate_new / 1000;
 
-	DVFS_LOG("dvfs %s set rate%lu ok\n", dvfs_clk->name, clk_get_rate(clk));
+	DVFS_DBG("dvfs %s set rate %lu ok\n", dvfs_clk->name, clk_get_rate(clk));
+
+	/* depend voltage domain set down*/
+	if (0 != dvfs_set_depend_post(dvfs_clk, rate_old, rate_new)) {
+		DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), set depend post voltage  err, stop scaling\n", 
+				__func__, dvfs_clk->name, volt_new, volt_old, 
+				rate_new, rate_old);
+		return -1;
+	}
 
 	/* if down the voltage */
 	if (volt_old > volt_new) {
@@ -651,7 +854,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 			if (ret < 0) {
 				flag_arm_set_volt_err = 1;
 				DVFS_ERR("%s %s set voltage down err ret = %d, Rnew = %lu(was %lu)Hz, Vnew = %d(was %d)mV\n", 
-						__func__, dvfs_clk->name, ret, temp_hz, clk_get_rate(clk), 
+						__func__, dvfs_clk->name, ret, rate_new, rate_old, 
 						volt_new, volt_old);
 				return -1;
 			}
@@ -662,18 +865,10 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 		}
 
 		dvfs_clk->vd->cur_volt = volt_new;
-		DVFS_LOG("dvfs %s set volt ok dn\n", dvfs_clk->name);
+		DVFS_DBG("dvfs %s set volt ok dn\n", dvfs_clk->name);
 
 	}
-#ifdef LOGIC_VOLT_SCALING
-	if (temp_hz <= JUMP_RATE && pre_rate_hz > JUMP_RATE) {
-		ret = dvfs_down_volt_logic();
-		if (ret != 0) {
-			DVFS_ERR("%s down logic volt error %d", __func__, ret);
-			return -1;
-		}
-	}
-#endif
+
 	return ret;
 }
 
@@ -684,17 +879,17 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
  * rate must be raising sequence
  */
 static struct cpufreq_frequency_table cpu_dvfs_table[] = {
-	//{.frequency	= 48 * DVFS_KHZ, .index = 920*DVFS_MV},
-	//{.frequency	= 126 * DVFS_KHZ, .index	= 970 * DVFS_MV},
+	// {.frequency	= 48 * DVFS_KHZ, .index = 920*DVFS_MV},
+	// {.frequency	= 126 * DVFS_KHZ, .index	= 970 * DVFS_MV},
 	// {.frequency	= 252 * DVFS_KHZ, .index	= 1040 * DVFS_MV},
-	// {.frequency	= 504 * DVFS_KHZ, .index	= 1060 * DVFS_MV},
-	{.frequency	= 816 * DVFS_KHZ, .index	= 1080 * DVFS_MV},
-	//  {.frequency	= 1008 * DVFS_KHZ, .index	= 1100 * DVFS_MV},
+	// {.frequency	= 504 * DVFS_KHZ, .index	= 1050 * DVFS_MV},
+	{.frequency	= 816 * DVFS_KHZ, .index	= 1050 * DVFS_MV},
+	// {.frequency	= 1008 * DVFS_KHZ, .index	= 1100 * DVFS_MV},
 	{.frequency	= CPUFREQ_TABLE_END},
 };
 
 static struct cpufreq_frequency_table ddr_dvfs_table[] = {
-	//{.frequency = 100 * DVFS_KHZ, .index = 1100 * DVFS_MV},
+	// {.frequency = 100 * DVFS_KHZ, .index = 1100 * DVFS_MV},
 	{.frequency = 200 * DVFS_KHZ, .index = 1000 * DVFS_MV},
 	{.frequency = 300 * DVFS_KHZ, .index = 1050 * DVFS_MV},
 	{.frequency = 400 * DVFS_KHZ, .index = 1100 * DVFS_MV},
@@ -718,6 +913,19 @@ static struct cpufreq_frequency_table peri_aclk_dvfs_table[] = {
 	{.frequency = 300 * DVFS_KHZ, .index = 1070 * DVFS_MV},
 	{.frequency = 500 * DVFS_KHZ, .index = 1100 * DVFS_MV},
 	{.frequency = CPUFREQ_TABLE_END},
+};
+
+static struct cpufreq_frequency_table dep_cpu2core_table[] = {
+	// {.frequency = 252 * DVFS_KHZ, .index    = 1025 * DVFS_MV},
+	// {.frequency = 504 * DVFS_KHZ, .index    = 1025 * DVFS_MV},
+	{.frequency = 816 * DVFS_KHZ, .index    = 1050 * DVFS_MV},//logic 1.050V
+	// {.frequency = 1008 * DVFS_KHZ,.index    = 1050 * DVFS_MV},
+	// {.frequency = 1200 * DVFS_KHZ,.index    = 1050 * DVFS_MV},
+	// {.frequency = 1272 * DVFS_KHZ,.index    = 1050 * DVFS_MV},//logic 1.050V
+	// {.frequency = 1416 * DVFS_KHZ,.index    = 1100 * DVFS_MV},//logic 1.100V
+	// {.frequency = 1512 * DVFS_KHZ,.index    = 1125 * DVFS_MV},//logic 1.125V
+	// {.frequency = 1608 * DVFS_KHZ,.index    = 1175 * DVFS_MV},//logic 1.175V
+	{.frequency	= CPUFREQ_TABLE_END},
 };
 
 static struct vd_node vd_cpu = {
@@ -823,6 +1031,11 @@ static struct pds_list gpu_pds[] = {
 	CLK_PDS(NULL),
 };
 
+static struct pds_list aclk_periph_pds[] = {
+	CLK_PDS(&pd_peri),
+	CLK_PDS(NULL),
+};
+
 #define RK_CLKS(_clk_name, _ppds, _dvfs_table, _dvfs_nb) \
 { \
 	.name	= _clk_name, \
@@ -831,17 +1044,22 @@ static struct pds_list gpu_pds[] = {
 	.dvfs_nb	= _dvfs_nb,	\
 }
 
-static struct pds_list aclk_periph_pds[] = {
-	CLK_PDS(&pd_peri),
-	CLK_PDS(NULL),
-};
-
-
 static struct clk_node rk30_clks[] = {
 	RK_CLKS("cpu", cpu_pds, cpu_dvfs_table, &rk_dvfs_clk_notifier),
 	RK_CLKS("ddr", ddr_pds, ddr_dvfs_table, &rk_dvfs_clk_notifier),
 	RK_CLKS("gpu", gpu_pds, gpu_dvfs_table, &rk_dvfs_clk_notifier),
 	RK_CLKS("aclk_periph", aclk_periph_pds, peri_aclk_dvfs_table, &rk_dvfs_clk_notifier),
+};
+
+#define RK_DEPPENDS(_clk_name, _pvd, _dep_table) \
+{ \
+	.clk_name	= _clk_name, \
+	.dep_vd 	= _pvd,\
+	.dep_table 	= _dep_table,	\
+}
+
+static struct depend_lookup rk30_depends[] = {
+	RK_DEPPENDS("cpu", &vd_core, dep_cpu2core_table),
 };
 
 int rk30_dvfs_init(void)
@@ -856,12 +1074,16 @@ int rk30_dvfs_init(void)
 	for (i = 0; i < ARRAY_SIZE(rk30_clks); i++) {
 		rk_regist_clk(&rk30_clks[i]);
 	}
-
+	for (i = 0; i < ARRAY_SIZE(rk30_depends); i++) {
+		rk_regist_depends(&rk30_depends[i]);
+	}
+#ifdef DVFS_DUMP_TREE
+	dump_dbg_map();
+#endif
 	return 0;
 }
 
-//#define DVFS_DUMP_DBG
-#ifdef DVFS_DUMP_DBG
+#ifdef DVFS_DUMP_TREE
 /**
  * dump_dbg_map() : Draw all informations of dvfs while debug
  */
@@ -872,38 +1094,52 @@ static void dump_dbg_map(void)
 	struct pd_node	*pd, *clkparent;
 	struct clk_list	*child;
 	struct clk_node	*dvfs_clk;
+	struct depend_list *depend;
 
-	DVFS_DBG("-------------DVFS DEBUG-----------\n\n\n");
-	DVFS_DBG("RK30 DVFS TREE:\n");
+	DVFS_LOG("-------------DVFS DEBUG-----------\n\n\n");
+	DVFS_LOG("RK30 DVFS TREE:\n");
 	list_for_each_entry(vd, &rk_dvfs_tree, node) {
-		DVFS_DBG("|\n|- voltage domain:%s\n", vd->name);
-		DVFS_DBG("|- current voltage:%d\n", vd->cur_volt);
+		DVFS_LOG("|\n|- voltage domain:%s\n", vd->name);
+		DVFS_LOG("|- current voltage:%d\n", vd->cur_volt);
+		list_for_each_entry(depend, &vd->req_volt_list, node2vd) {
+			DVFS_LOG("|- request voltage:%d, clk:%s\n", depend->req_volt, depend->dvfs_clk->name);
+		}
 
 		list_for_each_entry(pd, &vd->pd_list, node) {
-			DVFS_DBG("|  |\n|  |- power domain:%s, status = %s, current volt = %d\n",
+			DVFS_LOG("|  |\n|  |- power domain:%s, status = %s, current volt = %d\n",
 					pd->name, (pd->pd_status == PD_ON) ? "ON" : "OFF", pd->cur_volt);
 
 			list_for_each_entry(child, &pd->clk_list, node) {
 				dvfs_clk = child->dvfs_clk;
-				DVFS_DBG("|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d, enable_dvfs = %s\n",
+				DVFS_LOG("|  |  |\n|  |  |- clock: %s current: rate %d, volt = %d, enable_dvfs = %s\n",
 						dvfs_clk->name, dvfs_clk->set_freq, dvfs_clk->set_volt, 
 						dvfs_clk->enable_dvfs == 0 ? "DISABLE" : "ENABLE");
 				for (i = 0; dvfs_clk->pds[i].pd != NULL; i++) {
 					clkparent = dvfs_clk->pds[i].pd;
-					DVFS_DBG("|  |  |  |- clock parents: %s, vd_parent = %s\n", 
+					DVFS_LOG("|  |  |  |- clock parents: %s, vd_parent = %s\n", 
 							clkparent->name, clkparent->vd->name);
 				}
 
 				for (i = 0; (dvfs_clk->dvfs_table[i].frequency != CPUFREQ_TABLE_END); i++) {
-					DVFS_DBG("|  |  |  |- freq = %d, volt = %d\n", 
+					DVFS_LOG("|  |  |  |- freq = %d, volt = %d\n", 
 							dvfs_clk->dvfs_table[i].frequency, 
 							dvfs_clk->dvfs_table[i].index);
 
 				}
+
+				list_for_each_entry(depend, &dvfs_clk->depend_list, node2clk) {
+					DVFS_LOG("|  |  |  |  |- DEPEND VD: %s\n", depend->dep_vd->name); 
+					for (i = 0; (depend->dep_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+						DVFS_LOG("|  |  |  |  |- freq = %d, req_volt = %d\n", 
+								depend->dep_table[i].frequency, 
+								depend->dep_table[i].index);
+
+					}
+				}
 			}
 		}
 	}
-	DVFS_DBG("-------------DVFS DEBUG END------------\n");
+	DVFS_LOG("-------------DVFS DEBUG END------------\n");
 }
 #endif
 
