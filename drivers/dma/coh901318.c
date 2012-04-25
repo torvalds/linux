@@ -1040,7 +1040,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 
 	if (!sgl)
 		goto out;
-	if (sgl->length == 0)
+	if (sg_dma_len(sgl) == 0)
 		goto out;
 
 	spin_lock_irqsave(&cohc->lock, flg);

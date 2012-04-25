@@ -415,9 +415,9 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 		ccw->bits |= BF_CCW(MXS_DMA_CMD_NO_XFER, COMMAND);
 	} else {
 		for_each_sg(sgl, sg, sg_len, i) {
-			if (sg->length > MAX_XFER_BYTES) {
+			if (sg_dma_len(sg) > MAX_XFER_BYTES) {
 				dev_err(mxs_dma->dma_device.dev, "maximum bytes for sg entry exceeded: %d > %d\n",
-						sg->length, MAX_XFER_BYTES);
+						sg_dma_len(sg), MAX_XFER_BYTES);
 				goto err_out;
 			}
 
@@ -425,7 +425,7 @@ static struct dma_async_tx_descriptor *mxs_dma_prep_slave_sg(
 
 			ccw->next = mxs_chan->ccw_phys + sizeof(*ccw) * idx;
 			ccw->bufaddr = sg->dma_address;
-			ccw->xfer_bytes = sg->length;
+			ccw->xfer_bytes = sg_dma_len(sg);
 
 			ccw->bits = 0;
 			ccw->bits |= CCW_CHAIN;

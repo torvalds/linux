@@ -1328,7 +1328,7 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 	int ret, tmp;
 
 	dev_dbg(&pl08x->adev->dev, "%s prepare transaction of %d bytes from %s\n",
-			__func__, sgl->length, plchan->name);
+			__func__, sg_dma_len(sgl), plchan->name);
 
 	txd = pl08x_get_txd(plchan, flags);
 	if (!txd) {

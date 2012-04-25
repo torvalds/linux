@@ -941,7 +941,7 @@ static struct dma_async_tx_descriptor *sdma_prep_slave_sg(
 
 		bd->buffer_addr = sg->dma_address;
 
-		count = sg->length;
+		count = sg_dma_len(sg);
 
 		if (count > 0xffff) {
 			dev_err(sdma->dev, "SDMA channel %d: maximum bytes for sg entry exceeded: %d > %d\n",
