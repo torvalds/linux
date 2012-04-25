@@ -38,8 +38,6 @@
 
 static bool debug;
 
-#define PL2303_CLOSING_WAIT	(30*HZ)
-
 static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_RSAQ2) },
