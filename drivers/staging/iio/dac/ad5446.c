@@ -272,7 +272,7 @@ static int ad5446_write_raw(struct iio_dev *indio_dev,
 			       long mask)
 {
 	struct ad5446_state *st = iio_priv(indio_dev);
-	int ret;
+	int ret = 0;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
@@ -282,8 +282,10 @@ static int ad5446_write_raw(struct iio_dev *indio_dev,
 		val <<= chan->scan_type.shift;
 		mutex_lock(&indio_dev->mlock);
 		st->cached_val = val;
-		st->chip_info->store_sample(st, val);
-		ret = spi_sync(st->spi, &st->msg);
+		if (!st->pwr_down) {
+			st->chip_info->store_sample(st, val);
+			ret = spi_sync(st->spi, &st->msg);
+		}
 		mutex_unlock(&indio_dev->mlock);
 		break;
 	default:
