@@ -91,6 +91,9 @@
 
 #define BLC_PWM_CTL		0x61254
 #define BLC_PWM_CTL2		0x61250
+#define  PWM_ENABLE		(1 << 31)
+#define  PWM_LEGACY_MODE	(1 << 30)
+#define  PWM_PIPE_B		(1 << 29)
 #define BLC_PWM_CTL_C		0x62254
 #define BLC_PWM_CTL2_C		0x62250
 #define BACKLIGHT_MODULATION_FREQ_SHIFT		(17)
@@ -1338,6 +1341,7 @@ No status bits are changed.
 
 #define LANE_PLL_MASK		(0x7 << 20)
 #define LANE_PLL_ENABLE		(0x3 << 20)
+#define LANE_PLL_PIPE(p)	(((p) == 0) ? (1 << 21) : (0 << 21))
 
 
 #endif

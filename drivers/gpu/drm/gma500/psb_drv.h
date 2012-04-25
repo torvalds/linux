@@ -688,6 +688,8 @@ struct psb_ops {
 	int pipes;		/* Number of output pipes */
 	int crtcs;		/* Number of CRTCs */
 	int sgx_offset;		/* Base offset of SGX device */
+	int hdmi_mask;		/* Mask of HDMI CRTCs */
+	int lvds_mask;		/* Mask of LVDS CRTCs */
 
 	/* Sub functions */
 	struct drm_crtc_helper_funcs const *crtc_helper;
@@ -696,6 +698,8 @@ struct psb_ops {
 	/* Setup hooks */
 	int (*chip_setup)(struct drm_device *dev);
 	void (*chip_teardown)(struct drm_device *dev);
+	/* Optional helper caller after modeset */
+	void (*errata)(struct drm_device *dev);
 
 	/* Display management hooks */
 	int (*output_init)(struct drm_device *dev);

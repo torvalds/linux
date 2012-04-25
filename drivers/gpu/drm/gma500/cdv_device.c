@@ -49,6 +49,9 @@ static void cdv_disable_vga(struct drm_device *dev)
 static int cdv_output_init(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+
+	drm_mode_create_scaling_mode_property(dev);
+
 	cdv_disable_vga(dev);
 
 	cdv_intel_crt_init(dev, &dev_priv->mode_dev);
@@ -238,6 +241,18 @@ static void cdv_init_pm(struct drm_device *dev)
 	dev_err(dev->dev, "GPU: power management timed out.\n");
 }
 
+static void cdv_errata(struct drm_device *dev)
+{
+	/* Disable bonus launch.
+	 *	CPU and GPU competes for memory and display misses updates and flickers.
+	 *	Worst with dual core, dual displays.
+	 *
+	 *	Fixes were done to Win 7 gfx driver to disable a feature called Bonus
+	 *	Launch to work around the issue, by degrading performance.
+	 */
+	 CDV_MSG_WRITE32(3, 0x30, 0x08027108);
+}
+
 /**
  *	cdv_save_display_registers	-	save registers lost on suspend
  *	@dev: our DRM device
@@ -355,7 +370,7 @@ static int cdv_restore_display_registers(struct drm_device *dev)
 	REG_WRITE(PSB_INT_MASK_R, regs->cdv.saveIMR);
 
 	/* Fix arbitration bug */
-	CDV_MSG_WRITE32(3, 0x30, 0x08027108);
+	cdv_errata(dev);
 
 	drm_mode_config_reset(dev);
 
@@ -464,8 +479,11 @@ const struct psb_ops cdv_chip_ops = {
 	.accel_2d = 0,
 	.pipes = 2,
 	.crtcs = 2,
+	.hdmi_mask = (1 << 0) | (1 << 1),
+	.lvds_mask = (1 << 1),
 	.sgx_offset = MRST_SGX_OFFSET,
 	.chip_setup = cdv_chip_setup,
+	.errata = cdv_errata,
 
 	.crtc_helper = &cdv_intel_helper_funcs,
 	.crtc_funcs = &cdv_intel_crtc_funcs,

@@ -78,9 +78,6 @@ static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 	if (mode->clock > 355000)
 		return MODE_CLOCK_HIGH;
 
-	if (mode->hdisplay > 1680 || mode->vdisplay > 1050)
-		return MODE_PANEL;
-
 	return MODE_OK;
 }
 
@@ -148,13 +145,7 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	u32 hotplug_en;
 	int i, tries = 0, ret = false;
-	u32 adpa_orig;
-
-	/* disable the DAC when doing the hotplug detection */
-
-	adpa_orig = REG_READ(ADPA);
-
-	REG_WRITE(ADPA, adpa_orig & ~(ADPA_DAC_ENABLE));
+	u32 orig;
 
 	/*
 	 * On a CDV thep, CRT detect sequence need to be done twice
@@ -162,7 +153,7 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
 	 */
 	tries = 2;
 
-	hotplug_en = REG_READ(PORT_HOTPLUG_EN);
+	orig = hotplug_en = REG_READ(PORT_HOTPLUG_EN);
 	hotplug_en &= ~(CRT_HOTPLUG_DETECT_MASK);
 	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
@@ -187,8 +178,11 @@ static bool cdv_intel_crt_detect_hotplug(struct drm_connector *connector,
 	    CRT_HOTPLUG_MONITOR_NONE)
 		ret = true;
 
-	/* Restore the saved ADPA */
-	REG_WRITE(ADPA, adpa_orig);
+	 /* clear the interrupt we just generated, if any */
+	REG_WRITE(PORT_HOTPLUG_STAT, CRT_HOTPLUG_INT_STATUS);
+
+	/* and put the bits back */
+	REG_WRITE(PORT_HOTPLUG_EN, orig);
 	return ret;
 }
 

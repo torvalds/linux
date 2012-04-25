@@ -487,6 +487,8 @@ const struct psb_ops oaktrail_chip_ops = {
 	.accel_2d = 1,
 	.pipes = 2,
 	.crtcs = 2,
+	.hdmi_mask = (1 << 0),
+	.lvds_mask = (1 << 0),
 	.sgx_offset = MRST_SGX_OFFSET,
 
 	.chip_setup = oaktrail_chip_setup,

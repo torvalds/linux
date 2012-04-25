@@ -748,10 +748,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_SDVO);
 			break;
 		case INTEL_OUTPUT_LVDS:
-			if (IS_MRST(dev))
-				crtc_mask = (1 << 0);
-			else
-				crtc_mask = (1 << 1);
+		        crtc_mask = dev_priv->ops->lvds_mask;
 			clone_mask = (1 << INTEL_OUTPUT_LVDS);
 			break;
 		case INTEL_OUTPUT_MIPI:
@@ -763,10 +760,7 @@ static void psb_setup_outputs(struct drm_device *dev)
 			clone_mask = (1 << INTEL_OUTPUT_MIPI2);
 			break;
 		case INTEL_OUTPUT_HDMI:
-			if (IS_MFLD(dev))
-				crtc_mask = (1 << 1);
-			else	
-				crtc_mask = (1 << 0);
+		        crtc_mask = dev_priv->ops->hdmi_mask;
 			clone_mask = (1 << INTEL_OUTPUT_HDMI);
 			break;
 		}
@@ -802,6 +796,9 @@ void psb_modeset_init(struct drm_device *dev)
 	dev->mode_config.max_height = 2048;
 
 	psb_setup_outputs(dev);
+
+	if (dev_priv->ops->errata)
+	        dev_priv->ops->errata(dev);
 }
 
 void psb_modeset_cleanup(struct drm_device *dev)

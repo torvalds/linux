@@ -226,13 +226,13 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	int dpll_reg = (pipe == 0) ? DPLL_A : DPLL_B;
 	int ref_sfr = (pipe == 0) ? SB_REF_DPLLA : SB_REF_DPLLB;
 	u32 ref_value;
+	u32 lane_reg, lane_value;
 
 	cdv_sb_reset(dev);
 
-	if ((REG_READ(dpll_reg) & DPLL_SYNCLOCK_ENABLE) == 0) {
-		DRM_ERROR("Attempting to set DPLL with refclk disabled\n");
-		return -EBUSY;
-	}
+	REG_WRITE(dpll_reg, DPLL_SYNCLOCK_ENABLE | DPLL_VGA_MODE_DIS);
+
+	udelay(100);
 
 	/* Follow the BIOS and write the REF/SFR Register. Hardcoded value */
 	ref_value = 0x68A701;
@@ -337,36 +337,29 @@ cdv_dpll_set_clock_cdv(struct drm_device *dev, struct drm_crtc *crtc,
 	if (ret)
 		return ret;
 
-	/* always Program the Lane Register for the Pipe A*/
-/* 	if (pipe == 0) */ {
-		/* Program the Lane0/1 for HDMI B */
-		u32 lane_reg, lane_value;
+	lane_reg = PSB_LANE0;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
-		lane_reg = PSB_LANE0;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
+	lane_reg = PSB_LANE1;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
-		lane_reg = PSB_LANE1;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
+	lane_reg = PSB_LANE2;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
-		/* Program the Lane2/3 for HDMI C */
-		lane_reg = PSB_LANE2;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
-
-		lane_reg = PSB_LANE3;
-		cdv_sb_read(dev, lane_reg, &lane_value);
-		lane_value &= ~(LANE_PLL_MASK);
-		lane_value |= LANE_PLL_ENABLE;
-		cdv_sb_write(dev, lane_reg, lane_value);
-	}
+	lane_reg = PSB_LANE3;
+	cdv_sb_read(dev, lane_reg, &lane_value);
+	lane_value &= ~(LANE_PLL_MASK);
+	lane_value |= LANE_PLL_ENABLE | LANE_PLL_PIPE(pipe);
+	cdv_sb_write(dev, lane_reg, lane_value);
 
 	return 0;
 }
