@@ -57,6 +57,7 @@ struct sockaddr_l2 {
 	__le16		l2_psm;
 	bdaddr_t	l2_bdaddr;
 	__le16		l2_cid;
+	__u8		l2_bdaddr_type;
 };
 
 /* L2CAP socket options */
