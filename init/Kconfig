@@ -932,7 +932,6 @@ config UIDGID_CONVERTED
 	depends on NET_9P = n
 
 	# Filesystems
-	depends on DEVTMPFS = n
 	depends on XENFS = n
 
 	depends on 9P_FS = n
