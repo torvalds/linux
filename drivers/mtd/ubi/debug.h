@@ -22,6 +22,8 @@
 #define __UBI_DEBUG_H__
 
 void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
+void ubi_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
+void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 
 #ifdef CONFIG_MTD_UBI_DEBUG
 #include <linux/random.h>
@@ -58,8 +60,6 @@ void ubi_dump_flash(struct ubi_device *ubi, int pnum, int offset, int len);
 /* Initialization and build messages */
 #define dbg_bld(fmt, ...) ubi_dbg_msg("bld", fmt, ##__VA_ARGS__)
 
-void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr);
-void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr);
 void ubi_dbg_dump_vol_info(const struct ubi_volume *vol);
 void ubi_dbg_dump_vtbl_record(const struct ubi_vtbl_record *r, int idx);
 void ubi_dbg_dump_sv(const struct ubi_scan_volume *sv);
@@ -193,10 +193,6 @@ static inline int ubi_dbg_is_erase_failure(const struct ubi_device *ubi)
 #define dbg_io(fmt, ...)   ubi_dbg_msg(fmt, ##__VA_ARGS__)
 #define dbg_bld(fmt, ...)  ubi_dbg_msg(fmt, ##__VA_ARGS__)
 
-static inline void
-ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)                 { return; }
-static inline void
-ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)              { return; }
 static inline void
 ubi_dbg_dump_vol_info(const struct ubi_volume *vol)                  { return; }
 static inline void

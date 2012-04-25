@@ -56,13 +56,11 @@ out:
 	return;
 }
 
-#ifdef CONFIG_MTD_UBI_DEBUG
-
 /**
- * ubi_dbg_dump_ec_hdr - dump an erase counter header.
+ * ubi_dump_ec_hdr - dump an erase counter header.
  * @ec_hdr: the erase counter header to dump
  */
-void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
+void ubi_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 {
 	printk(KERN_DEBUG "Erase counter header dump:\n");
 	printk(KERN_DEBUG "\tmagic          %#08x\n",
@@ -84,10 +82,10 @@ void ubi_dbg_dump_ec_hdr(const struct ubi_ec_hdr *ec_hdr)
 }
 
 /**
- * ubi_dbg_dump_vid_hdr - dump a volume identifier header.
+ * ubi_dump_vid_hdr - dump a volume identifier header.
  * @vid_hdr: the volume identifier header to dump
  */
-void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
+void ubi_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 {
 	printk(KERN_DEBUG "Volume identifier header dump:\n");
 	printk(KERN_DEBUG "\tmagic     %08x\n", be32_to_cpu(vid_hdr->magic));
@@ -107,6 +105,8 @@ void ubi_dbg_dump_vid_hdr(const struct ubi_vid_hdr *vid_hdr)
 	print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
 		       vid_hdr, UBI_VID_HDR_SIZE, 1);
 }
+
+#ifdef CONFIG_MTD_UBI_DEBUG
 
 /**
  * ubi_dbg_dump_vol_info- dump volume information.

@@ -230,7 +230,7 @@ static int validate_vid_hdr(const struct ubi_vid_hdr *vid_hdr,
 
 bad:
 	ubi_err("inconsistent VID header at PEB %d", pnum);
-	ubi_dbg_dump_vid_hdr(vid_hdr);
+	ubi_dump_vid_hdr(vid_hdr);
 	ubi_dbg_dump_sv(sv);
 	return -EINVAL;
 }
@@ -511,7 +511,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 			ubi_err("two LEBs with same sequence number %llu",
 				sqnum);
 			ubi_dbg_dump_seb(seb, 0);
-			ubi_dbg_dump_vid_hdr(vid_hdr);
+			ubi_dump_vid_hdr(vid_hdr);
 			return -EINVAL;
 		}
 
@@ -814,7 +814,7 @@ static int check_corruption(struct ubi_device *ubi, struct ubi_vid_hdr *vid_hdr,
 	ubi_err("PEB %d contains corrupted VID header, and the data does not "
 		"contain all 0xFF, this may be a non-UBI PEB or a severe VID "
 		"header corruption which requires manual inspection", pnum);
-	ubi_dbg_dump_vid_hdr(vid_hdr);
+	ubi_dump_vid_hdr(vid_hdr);
 	dbg_msg("hexdump of PEB %d offset %d, length %d",
 		pnum, ubi->leb_start, ubi->leb_size);
 	ubi_dbg_print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET, 32, 1,
@@ -911,7 +911,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 			 */
 			ubi_err("erase counter overflow, max is %d",
 				UBI_MAX_ERASECOUNTER);
-			ubi_dbg_dump_ec_hdr(ech);
+			ubi_dump_ec_hdr(ech);
 			return -EINVAL;
 		}
 
@@ -933,7 +933,7 @@ static int process_eb(struct ubi_device *ubi, struct ubi_scan_info *si,
 		    ubi->image_seq != image_seq) {
 			ubi_err("bad image sequence number %d in PEB %d, "
 				"expected %d", image_seq, pnum, ubi->image_seq);
-			ubi_dbg_dump_ec_hdr(ech);
+			ubi_dump_ec_hdr(ech);
 			return -EINVAL;
 		}
 	}
@@ -1595,7 +1595,7 @@ bad_sv:
 bad_vid_hdr:
 	ubi_err("bad scanning information about volume %d", sv->vol_id);
 	ubi_dbg_dump_sv(sv);
-	ubi_dbg_dump_vid_hdr(vidh);
+	ubi_dump_vid_hdr(vidh);
 
 out:
 	dump_stack();
