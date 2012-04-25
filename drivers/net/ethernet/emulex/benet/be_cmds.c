@@ -61,10 +61,21 @@ static inline void be_mcc_compl_use(struct be_mcc_compl *compl)
 	compl->flags = 0;
 }
 
+static struct be_cmd_resp_hdr *be_decode_resp_hdr(u32 tag0, u32 tag1)
+{
+	unsigned long addr;
+
+	addr = tag1;
+	addr = ((addr << 16) << 16) | tag0;
+	return (void *)addr;
+}
+
 static int be_mcc_compl_process(struct be_adapter *adapter,
-	struct be_mcc_compl *compl)
+				struct be_mcc_compl *compl)
 {
 	u16 compl_status, extd_status;
+	struct be_cmd_resp_hdr *resp_hdr;
+	u8 opcode = 0, subsystem = 0;
 
 	/* Just swap the status to host endian; mcc tag is opaquely copied
 	 * from mcc_wrb */
@@ -73,32 +84,36 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
 				CQE_STATUS_COMPL_MASK;
 
-	if (((compl->tag0 == OPCODE_COMMON_WRITE_FLASHROM) ||
-		(compl->tag0 == OPCODE_COMMON_WRITE_OBJECT)) &&
-		(compl->tag1 == CMD_SUBSYSTEM_COMMON)) {
+	resp_hdr = be_decode_resp_hdr(compl->tag0, compl->tag1);
+
+	if (resp_hdr) {
+		opcode = resp_hdr->opcode;
+		subsystem = resp_hdr->subsystem;
+	}
+
+	if (((opcode == OPCODE_COMMON_WRITE_FLASHROM) ||
+	     (opcode == OPCODE_COMMON_WRITE_OBJECT)) &&
+	    (subsystem == CMD_SUBSYSTEM_COMMON)) {
 		adapter->flash_status = compl_status;
 		complete(&adapter->flash_compl);
 	}
 
 	if (compl_status == MCC_STATUS_SUCCESS) {
-		if (((compl->tag0 == OPCODE_ETH_GET_STATISTICS) ||
-			 (compl->tag0 == OPCODE_ETH_GET_PPORT_STATS)) &&
-			(compl->tag1 == CMD_SUBSYSTEM_ETH)) {
+		if (((opcode == OPCODE_ETH_GET_STATISTICS) ||
+		     (opcode == OPCODE_ETH_GET_PPORT_STATS)) &&
+		    (subsystem == CMD_SUBSYSTEM_ETH)) {
 			be_parse_stats(adapter);
 			adapter->stats_cmd_sent = false;
 		}
-		if (compl->tag0 ==
-				OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES) {
-			struct be_mcc_wrb *mcc_wrb =
-				queue_index_node(&adapter->mcc_obj.q,
-						compl->tag1);
+		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES &&
+		    subsystem == CMD_SUBSYSTEM_COMMON) {
 			struct be_cmd_resp_get_cntl_addnl_attribs *resp =
-				embedded_payload(mcc_wrb);
+				(void *)resp_hdr;
 			adapter->drv_stats.be_on_die_temperature =
 				resp->on_die_temperature;
 		}
 	} else {
-		if (compl->tag0 == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
+		if (opcode == OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES)
 			be_get_temp_freq = 0;
 
 		if (compl_status == MCC_STATUS_NOT_SUPPORTED ||
@@ -108,13 +123,13 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 		if (compl_status == MCC_STATUS_UNAUTHORIZED_REQUEST) {
 			dev_warn(&adapter->pdev->dev, "This domain(VM) is not "
 				"permitted to execute this cmd (opcode %d)\n",
-				compl->tag0);
+				opcode);
 		} else {
 			extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
 					CQE_STATUS_EXTD_MASK;
 			dev_err(&adapter->pdev->dev, "Cmd (opcode %d) failed:"
 				"status %d, extd-status %d\n",
-				compl->tag0, compl_status, extd_status);
+				opcode, compl_status, extd_status);
 		}
 	}
 done:
@@ -286,7 +301,7 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 	if (i == mcc_timeout) {
 		dev_err(&adapter->pdev->dev, "FW not responding\n");
 		adapter->fw_timeout = true;
-		return -1;
+		return -EIO;
 	}
 	return status;
 }
@@ -294,8 +309,26 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 /* Notify MCC requests and wait for completion */
 static int be_mcc_notify_wait(struct be_adapter *adapter)
 {
+	int status;
+	struct be_mcc_wrb *wrb;
+	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
+	u16 index = mcc_obj->q.head;
+	struct be_cmd_resp_hdr *resp;
+
+	index_dec(&index, mcc_obj->q.len);
+	wrb = queue_index_node(&mcc_obj->q, index);
+
+	resp = be_decode_resp_hdr(wrb->tag0, wrb->tag1);
+
 	be_mcc_notify(adapter);
-	return be_mcc_wait_compl(adapter);
+
+	status = be_mcc_wait_compl(adapter);
+	if (status == -EIO)
+		goto out;
+
+	status = resp->status;
+out:
+	return status;
 }
 
 static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
@@ -435,14 +468,17 @@ static void be_wrb_cmd_hdr_prepare(struct be_cmd_req_hdr *req_hdr,
 				struct be_mcc_wrb *wrb, struct be_dma_mem *mem)
 {
 	struct be_sge *sge;
+	unsigned long addr = (unsigned long)req_hdr;
+	u64 req_addr = addr;
 
 	req_hdr->opcode = opcode;
 	req_hdr->subsystem = subsystem;
 	req_hdr->request_length = cpu_to_le32(cmd_len - sizeof(*req_hdr));
 	req_hdr->version = 0;
 
-	wrb->tag0 = opcode;
-	wrb->tag1 = subsystem;
+	wrb->tag0 = req_addr & 0xFFFFFFFF;
+	wrb->tag1 = upper_32_bits(req_addr);
+
 	wrb->payload_length = cmd_len;
 	if (mem) {
 		wrb->embedded |= (1 & MCC_WRB_SGE_CNT_MASK) <<
@@ -1283,12 +1319,9 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_get_cntl_addnl_attribs *req;
-	u16 mccq_index;
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
-
-	mccq_index = adapter->mcc_obj.q.head;
 
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
@@ -1300,8 +1333,6 @@ int be_cmd_get_die_temperature(struct be_adapter *adapter)
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES, sizeof(*req),
 		wrb, NULL);
-
-	wrb->tag1 = mccq_index;
 
 	be_mcc_notify(adapter);
 

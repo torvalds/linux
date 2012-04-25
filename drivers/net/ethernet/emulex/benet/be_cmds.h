@@ -225,8 +225,12 @@ struct be_cmd_req_hdr {
 #define RESP_HDR_INFO_OPCODE_SHIFT	0	/* bits 0 - 7 */
 #define RESP_HDR_INFO_SUBSYS_SHIFT	8 	/* bits 8 - 15 */
 struct be_cmd_resp_hdr {
-	u32 info;		/* dword 0 */
-	u32 status;		/* dword 1 */
+	u8 opcode;		/* dword 0 */
+	u8 subsystem;		/* dword 0 */
+	u8 rsvd[2];		/* dword 0 */
+	u8 status;		/* dword 1 */
+	u8 add_status;		/* dword 1 */
+	u8 rsvd1[2];		/* dword 1 */
 	u32 response_length;	/* dword 2 */
 	u32 actual_resp_len;	/* dword 3 */
 };

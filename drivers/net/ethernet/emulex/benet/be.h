@@ -162,6 +162,11 @@ static inline void queue_head_inc(struct be_queue_info *q)
 	index_inc(&q->head, q->len);
 }
 
+static inline void index_dec(u16 *index, u16 limit)
+{
+	*index = MODULO((*index - 1), limit);
+}
+
 static inline void queue_tail_inc(struct be_queue_info *q)
 {
 	index_inc(&q->tail, q->len);
