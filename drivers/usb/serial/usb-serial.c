@@ -1043,6 +1043,8 @@ int usb_serial_probe(struct usb_interface *interface,
 		dbg("the device claims to support interrupt out transfers, but write_int_callback is not defined");
 	}
 
+	usb_set_intfdata(interface, serial);
+
 	/* if this device type has an attach function, call it */
 	if (type->attach) {
 		retval = type->attach(serial);
@@ -1087,10 +1089,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	serial->disconnected = 0;
 
 	usb_serial_console_init(debug, minor);
-
 exit:
-	/* success */
-	usb_set_intfdata(interface, serial);
 	module_put(type->driver.owner);
 	return 0;
 
@@ -1112,7 +1111,6 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	dbg("%s", __func__);
 
 	mutex_lock(&serial->disc_mutex);
-	usb_set_intfdata(interface, NULL);
 	/* must set a flag, to signal subdrivers */
 	serial->disconnected = 1;
 	mutex_unlock(&serial->disc_mutex);
