@@ -257,6 +257,7 @@ struct psb_intel_opregion {
 	struct opregion_acpi *acpi;
 	struct opregion_swsci *swsci;
 	struct opregion_asle *asle;
+	void *vbt;
 	int enabled;
 };
 
@@ -494,6 +495,9 @@ struct psb_ops;
 struct drm_psb_private {
 	struct drm_device *dev;
 	const struct psb_ops *ops;
+	
+	struct child_device_config *child_dev;
+	int child_dev_num;
 
 	struct psb_gtt gtt;
 
