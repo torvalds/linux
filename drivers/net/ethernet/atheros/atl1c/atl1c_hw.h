@@ -49,6 +49,17 @@ int atl1c_phy_init(struct atl1c_hw *hw);
 int atl1c_check_eeprom_exist(struct atl1c_hw *hw);
 int atl1c_restart_autoneg(struct atl1c_hw *hw);
 int atl1c_phy_power_saving(struct atl1c_hw *hw);
+bool atl1c_wait_mdio_idle(struct atl1c_hw *hw);
+void atl1c_stop_phy_polling(struct atl1c_hw *hw);
+void atl1c_start_phy_polling(struct atl1c_hw *hw, u16 clk_sel);
+int atl1c_read_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
+			u16 reg, u16 *phy_data);
+int atl1c_write_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
+			u16 reg, u16 phy_data);
+int atl1c_read_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
+			u16 reg_addr, u16 *phy_data);
+int atl1c_write_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
+			u16 reg_addr, u16 phy_data);
 /* register definition */
 #define REG_DEVICE_CAP              	0x5C
 #define DEVICE_CAP_MAX_PAYLOAD_MASK     0x7
@@ -268,30 +279,36 @@ int atl1c_phy_power_saving(struct atl1c_hw *hw);
 
 /* MDIO Control Register */
 #define REG_MDIO_CTRL           	0x1414
-#define MDIO_DATA_MASK          	0xffff  /* On MDIO write, the 16-bit
-						 * control data to write to PHY
-						 * MII management register */
-#define MDIO_DATA_SHIFT         	0       /* On MDIO read, the 16-bit
-						 * status data that was read
-						 * from the PHY MII management register */
-#define MDIO_REG_ADDR_MASK      	0x1f    /* MDIO register address */
-#define MDIO_REG_ADDR_SHIFT     	16
-#define MDIO_RW                 	0x200000  /* 1: read, 0: write */
-#define MDIO_SUP_PREAMBLE       	0x400000  /* Suppress preamble */
-#define MDIO_START              	0x800000  /* Write 1 to initiate the MDIO
-						   * master. And this bit is self
-						   * cleared after one cycle */
-#define MDIO_CLK_SEL_SHIFT      	24
-#define MDIO_CLK_25_4           	0
-#define MDIO_CLK_25_6           	2
-#define MDIO_CLK_25_8           	3
-#define MDIO_CLK_25_10          	4
-#define MDIO_CLK_25_14          	5
-#define MDIO_CLK_25_20          	6
-#define MDIO_CLK_25_28          	7
-#define MDIO_BUSY               	0x8000000
-#define MDIO_AP_EN              	0x10000000
-#define MDIO_WAIT_TIMES         	10
+#define MDIO_CTRL_MODE_EXT		BIT(30)
+#define MDIO_CTRL_POST_READ		BIT(29)
+#define MDIO_CTRL_AP_EN			BIT(28)
+#define MDIO_CTRL_BUSY			BIT(27)
+#define MDIO_CTRL_CLK_SEL_MASK		0x7UL
+#define MDIO_CTRL_CLK_SEL_SHIFT		24
+#define MDIO_CTRL_CLK_25_4		0	/* 25MHz divide 4 */
+#define MDIO_CTRL_CLK_25_6		2
+#define MDIO_CTRL_CLK_25_8		3
+#define MDIO_CTRL_CLK_25_10		4
+#define MDIO_CTRL_CLK_25_32		5
+#define MDIO_CTRL_CLK_25_64		6
+#define MDIO_CTRL_CLK_25_128		7
+#define MDIO_CTRL_START			BIT(23)
+#define MDIO_CTRL_SPRES_PRMBL		BIT(22)
+#define MDIO_CTRL_OP_READ		BIT(21)	/* 1:read, 0:write */
+#define MDIO_CTRL_REG_MASK		0x1FUL
+#define MDIO_CTRL_REG_SHIFT		16
+#define MDIO_CTRL_DATA_MASK		0xFFFFUL
+#define MDIO_CTRL_DATA_SHIFT		0
+#define MDIO_MAX_AC_TO			120	/* 1.2ms timeout for slow clk */
+
+/* for extension reg access */
+#define REG_MDIO_EXTN			0x1448
+#define MDIO_EXTN_PORTAD_MASK		0x1FUL
+#define MDIO_EXTN_PORTAD_SHIFT		21
+#define MDIO_EXTN_DEVAD_MASK		0x1FUL
+#define MDIO_EXTN_DEVAD_SHIFT		16
+#define MDIO_EXTN_REG_MASK		0xFFFFUL
+#define MDIO_EXTN_REG_SHIFT		0
 
 /* BIST Control and Status Register0 (for the Packet Memory) */
 #define REG_BIST0_CTRL              	0x141c

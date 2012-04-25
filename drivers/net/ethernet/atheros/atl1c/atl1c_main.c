@@ -2270,7 +2270,7 @@ static int atl1c_open(struct net_device *netdev)
 		u32 phy_data;
 
 		AT_READ_REG(&adapter->hw, REG_MDIO_CTRL, &phy_data);
-		phy_data |= MDIO_AP_EN;
+		phy_data |= MDIO_CTRL_AP_EN;
 		AT_WRITE_REG(&adapter->hw, REG_MDIO_CTRL, phy_data);
 	}
 	return 0;
@@ -2558,7 +2558,7 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 	adapter->mii.mdio_read  = atl1c_mdio_read;
 	adapter->mii.mdio_write = atl1c_mdio_write;
 	adapter->mii.phy_id_mask = 0x1f;
-	adapter->mii.reg_num_mask = MDIO_REG_ADDR_MASK;
+	adapter->mii.reg_num_mask = MDIO_CTRL_REG_MASK;
 	netif_napi_add(netdev, &adapter->napi, atl1c_clean, 64);
 	setup_timer(&adapter->phy_config_timer, atl1c_phy_config,
 			(unsigned long)adapter);

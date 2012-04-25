@@ -278,33 +278,158 @@ void atl1c_hash_set(struct atl1c_hw *hw, u32 hash_value)
 }
 
 /*
+ * wait mdio module be idle
+ * return true: idle
+ *        false: still busy
+ */
+bool atl1c_wait_mdio_idle(struct atl1c_hw *hw)
+{
+	u32 val;
+	int i;
+
+	for (i = 0; i < MDIO_MAX_AC_TO; i++) {
+		AT_READ_REG(hw, REG_MDIO_CTRL, &val);
+		if (!(val & (MDIO_CTRL_BUSY | MDIO_CTRL_START)))
+			break;
+		udelay(10);
+	}
+
+	return i != MDIO_MAX_AC_TO;
+}
+
+void atl1c_stop_phy_polling(struct atl1c_hw *hw)
+{
+	if (!(hw->ctrl_flags & ATL1C_FPGA_VERSION))
+		return;
+
+	AT_WRITE_REG(hw, REG_MDIO_CTRL, 0);
+	atl1c_wait_mdio_idle(hw);
+}
+
+void atl1c_start_phy_polling(struct atl1c_hw *hw, u16 clk_sel)
+{
+	u32 val;
+
+	if (!(hw->ctrl_flags & ATL1C_FPGA_VERSION))
+		return;
+
+	val = MDIO_CTRL_SPRES_PRMBL |
+		FIELDX(MDIO_CTRL_CLK_SEL, clk_sel) |
+		FIELDX(MDIO_CTRL_REG, 1) |
+		MDIO_CTRL_START |
+		MDIO_CTRL_OP_READ;
+	AT_WRITE_REG(hw, REG_MDIO_CTRL, val);
+	atl1c_wait_mdio_idle(hw);
+	val |= MDIO_CTRL_AP_EN;
+	val &= ~MDIO_CTRL_START;
+	AT_WRITE_REG(hw, REG_MDIO_CTRL, val);
+	udelay(30);
+}
+
+
+/*
+ * atl1c_read_phy_core
+ * core funtion to read register in PHY via MDIO control regsiter.
+ * ext: extension register (see IEEE 802.3)
+ * dev: device address (see IEEE 802.3 DEVAD, PRTAD is fixed to 0)
+ * reg: reg to read
+ */
+int atl1c_read_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
+			u16 reg, u16 *phy_data)
+{
+	u32 val;
+	u16 clk_sel = MDIO_CTRL_CLK_25_4;
+
+	atl1c_stop_phy_polling(hw);
+
+	*phy_data = 0;
+
+	/* only l2c_b2 & l1d_2 could use slow clock */
+	if ((hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) &&
+		hw->hibernate)
+		clk_sel = MDIO_CTRL_CLK_25_128;
+	if (ext) {
+		val = FIELDX(MDIO_EXTN_DEVAD, dev) | FIELDX(MDIO_EXTN_REG, reg);
+		AT_WRITE_REG(hw, REG_MDIO_EXTN, val);
+		val = MDIO_CTRL_SPRES_PRMBL |
+			FIELDX(MDIO_CTRL_CLK_SEL, clk_sel) |
+			MDIO_CTRL_START |
+			MDIO_CTRL_MODE_EXT |
+			MDIO_CTRL_OP_READ;
+	} else {
+		val = MDIO_CTRL_SPRES_PRMBL |
+			FIELDX(MDIO_CTRL_CLK_SEL, clk_sel) |
+			FIELDX(MDIO_CTRL_REG, reg) |
+			MDIO_CTRL_START |
+			MDIO_CTRL_OP_READ;
+	}
+	AT_WRITE_REG(hw, REG_MDIO_CTRL, val);
+
+	if (!atl1c_wait_mdio_idle(hw))
+		return -1;
+
+	AT_READ_REG(hw, REG_MDIO_CTRL, &val);
+	*phy_data = (u16)FIELD_GETX(val, MDIO_CTRL_DATA);
+
+	atl1c_start_phy_polling(hw, clk_sel);
+
+	return 0;
+}
+
+/*
+ * atl1c_write_phy_core
+ * core funtion to write to register in PHY via MDIO control regsiter.
+ * ext: extension register (see IEEE 802.3)
+ * dev: device address (see IEEE 802.3 DEVAD, PRTAD is fixed to 0)
+ * reg: reg to write
+ */
+int atl1c_write_phy_core(struct atl1c_hw *hw, bool ext, u8 dev,
+			u16 reg, u16 phy_data)
+{
+	u32 val;
+	u16 clk_sel = MDIO_CTRL_CLK_25_4;
+
+	atl1c_stop_phy_polling(hw);
+
+
+	/* only l2c_b2 & l1d_2 could use slow clock */
+	if ((hw->nic_type == athr_l2c_b2 || hw->nic_type == athr_l1d_2) &&
+		hw->hibernate)
+		clk_sel = MDIO_CTRL_CLK_25_128;
+
+	if (ext) {
+		val = FIELDX(MDIO_EXTN_DEVAD, dev) | FIELDX(MDIO_EXTN_REG, reg);
+		AT_WRITE_REG(hw, REG_MDIO_EXTN, val);
+		val = MDIO_CTRL_SPRES_PRMBL |
+			FIELDX(MDIO_CTRL_CLK_SEL, clk_sel) |
+			FIELDX(MDIO_CTRL_DATA, phy_data) |
+			MDIO_CTRL_START |
+			MDIO_CTRL_MODE_EXT;
+	} else {
+		val = MDIO_CTRL_SPRES_PRMBL |
+			FIELDX(MDIO_CTRL_CLK_SEL, clk_sel) |
+			FIELDX(MDIO_CTRL_DATA, phy_data) |
+			FIELDX(MDIO_CTRL_REG, reg) |
+			MDIO_CTRL_START;
+	}
+	AT_WRITE_REG(hw, REG_MDIO_CTRL, val);
+
+	if (!atl1c_wait_mdio_idle(hw))
+		return -1;
+
+	atl1c_start_phy_polling(hw, clk_sel);
+
+	return 0;
+}
+
+/*
  * Reads the value from a PHY register
  * hw - Struct containing variables accessed by shared code
  * reg_addr - address of the PHY register to read
  */
 int atl1c_read_phy_reg(struct atl1c_hw *hw, u16 reg_addr, u16 *phy_data)
 {
-	u32 val;
-	int i;
-
-	val = ((u32)(reg_addr & MDIO_REG_ADDR_MASK)) << MDIO_REG_ADDR_SHIFT |
-		MDIO_START | MDIO_SUP_PREAMBLE | MDIO_RW |
-		MDIO_CLK_25_4 << MDIO_CLK_SEL_SHIFT;
-
-	AT_WRITE_REG(hw, REG_MDIO_CTRL, val);
-
-	for (i = 0; i < MDIO_WAIT_TIMES; i++) {
-		udelay(2);
-		AT_READ_REG(hw, REG_MDIO_CTRL, &val);
-		if (!(val & (MDIO_START | MDIO_BUSY)))
-			break;
-	}
-	if (!(val & (MDIO_START | MDIO_BUSY))) {
-		*phy_data = (u16)val;
-		return 0;
-	}
-
-	return -1;
+	return atl1c_read_phy_core(hw, false, 0, reg_addr, phy_data);
 }
 
 /*
@@ -315,27 +440,21 @@ int atl1c_read_phy_reg(struct atl1c_hw *hw, u16 reg_addr, u16 *phy_data)
  */
 int atl1c_write_phy_reg(struct atl1c_hw *hw, u32 reg_addr, u16 phy_data)
 {
-	int i;
-	u32 val;
+	return atl1c_write_phy_core(hw, false, 0, reg_addr, phy_data);
+}
 
-	val = ((u32)(phy_data & MDIO_DATA_MASK)) << MDIO_DATA_SHIFT   |
-	       (reg_addr & MDIO_REG_ADDR_MASK) << MDIO_REG_ADDR_SHIFT |
-	       MDIO_SUP_PREAMBLE | MDIO_START |
-	       MDIO_CLK_25_4 << MDIO_CLK_SEL_SHIFT;
+/* read from PHY extension register */
+int atl1c_read_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
+			u16 reg_addr, u16 *phy_data)
+{
+	return atl1c_read_phy_core(hw, true, dev_addr, reg_addr, phy_data);
+}
 
-	AT_WRITE_REG(hw, REG_MDIO_CTRL, val);
-
-	for (i = 0; i < MDIO_WAIT_TIMES; i++) {
-		udelay(2);
-		AT_READ_REG(hw, REG_MDIO_CTRL, &val);
-		if (!(val & (MDIO_START | MDIO_BUSY)))
-			break;
-	}
-
-	if (!(val & (MDIO_START | MDIO_BUSY)))
-		return 0;
-
-	return -1;
+/* write to PHY extension register */
+int atl1c_write_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
+			u16 reg_addr, u16 phy_data)
+{
+	return atl1c_write_phy_core(hw, true, dev_addr, reg_addr, phy_data);
 }
 
 /*
