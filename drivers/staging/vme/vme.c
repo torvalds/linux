@@ -98,14 +98,13 @@ void *vme_alloc_consistent(struct vme_resource *resource, size_t size,
 	}
 
 	if (bridge->parent == NULL) {
-		printk(KERN_ERR "Dev entry NULL for"
-			" bridge %s\n", bridge->name);
+		printk(KERN_ERR "Dev entry NULL for bridge %s\n", bridge->name);
 		return NULL;
 	}
 
 	if (bridge->alloc_consistent == NULL) {
-		printk(KERN_ERR "alloc_consistent not supported by"
-			" bridge %s\n", bridge->name);
+		printk(KERN_ERR "alloc_consistent not supported by bridge %s\n",
+		       bridge->name);
 		return NULL;
 	}
 
@@ -133,14 +132,13 @@ void vme_free_consistent(struct vme_resource *resource, size_t size,
 	}
 
 	if (bridge->parent == NULL) {
-		printk(KERN_ERR "Dev entry NULL for"
-			" bridge %s\n", bridge->name);
+		printk(KERN_ERR "Dev entry NULL for bridge %s\n", bridge->name);
 		return;
 	}
 
 	if (bridge->free_consistent == NULL) {
-		printk(KERN_ERR "free_consistent not supported by"
-			" bridge %s\n", bridge->name);
+		printk(KERN_ERR "free_consistent not supported by bridge %s\n",
+		       bridge->name);
 		return;
 	}
 
@@ -747,15 +745,13 @@ struct vme_dma_attr *vme_dma_pattern_attribute(u32 pattern, u32 type)
 
 	attributes = kmalloc(sizeof(struct vme_dma_attr), GFP_KERNEL);
 	if (attributes == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for attributes "
-			"structure\n");
+		printk(KERN_ERR "Unable to allocate memory for attributes structure\n");
 		goto err_attr;
 	}
 
 	pattern_attr = kmalloc(sizeof(struct vme_dma_pattern), GFP_KERNEL);
 	if (pattern_attr == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for pattern "
-			"attributes\n");
+		printk(KERN_ERR "Unable to allocate memory for pattern attributes\n");
 		goto err_pat;
 	}
 
@@ -786,15 +782,13 @@ struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t address)
 
 	attributes = kmalloc(sizeof(struct vme_dma_attr), GFP_KERNEL);
 	if (attributes == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for attributes "
-			"structure\n");
+		printk(KERN_ERR "Unable to allocate memory for attributes structure\n");
 		goto err_attr;
 	}
 
 	pci_attr = kmalloc(sizeof(struct vme_dma_pci), GFP_KERNEL);
 	if (pci_attr == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for pci "
-			"attributes\n");
+		printk(KERN_ERR "Unable to allocate memory for pci attributes\n");
 		goto err_pci;
 	}
 
@@ -826,15 +820,13 @@ struct vme_dma_attr *vme_dma_vme_attribute(unsigned long long address,
 	attributes = kmalloc(
 		sizeof(struct vme_dma_attr), GFP_KERNEL);
 	if (attributes == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for attributes "
-			"structure\n");
+		printk(KERN_ERR "Unable to allocate memory for attributes structure\n");
 		goto err_attr;
 	}
 
 	vme_attr = kmalloc(sizeof(struct vme_dma_vme), GFP_KERNEL);
 	if (vme_attr == NULL) {
-		printk(KERN_ERR "Unable to allocate memory for vme "
-			"attributes\n");
+		printk(KERN_ERR "Unable to allocate memory for vme attributes\n");
 		goto err_vme;
 	}
 
@@ -982,8 +974,8 @@ void vme_irq_handler(struct vme_bridge *bridge, int level, int statid)
 	if (call != NULL)
 		call(level, statid, priv_data);
 	else
-		printk(KERN_WARNING "Spurilous VME interrupt, level:%x, "
-			"vector:%x\n", level, statid);
+		printk(KERN_WARNING "Spurilous VME interrupt, level:%x, vector:%x\n",
+		       level, statid);
 }
 EXPORT_SYMBOL(vme_irq_handler);
 
@@ -1112,8 +1104,7 @@ struct vme_resource *vme_lm_request(struct vme_dev *vdev)
 			struct vme_lm_resource, list);
 
 		if (lm == NULL) {
-			printk(KERN_ERR "Registered NULL Location Monitor "
-				"resource\n");
+			printk(KERN_ERR "Registered NULL Location Monitor resource\n");
 			continue;
 		}
 
