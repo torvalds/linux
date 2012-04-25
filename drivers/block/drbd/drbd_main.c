@@ -1698,8 +1698,8 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	 * No harm done if some bits change during this phase.
 	 */
 	if (os.conn > C_CONNECTED && ns.conn <= C_CONNECTED && get_ldev(mdev)) {
-		drbd_queue_bitmap_io(mdev, &drbd_bm_write, NULL,
-			"write from resync_finished", BM_LOCKED_SET_ALLOWED);
+		drbd_queue_bitmap_io(mdev, &drbd_bm_write_copy_pages, NULL,
+			"write from resync_finished", BM_LOCKED_CHANGE_ALLOWED);
 		put_ldev(mdev);
 	}
 

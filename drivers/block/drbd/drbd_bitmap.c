@@ -1011,7 +1011,7 @@ static void bm_page_io_async(struct bm_aio_ctx *ctx, int page_nr, int rw) __must
 /*
  * bm_rw: read/write the whole bitmap from/to its on disk location.
  */
-static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_idx) __must_hold(local)
+static int bm_rw(struct drbd_conf *mdev, int rw, unsigned flags, unsigned lazy_writeout_upper_idx) __must_hold(local)
 {
 	struct bm_aio_ctx *ctx;
 	struct drbd_bitmap *b = mdev->bitmap;
@@ -1037,7 +1037,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
 		.mdev = mdev,
 		.in_flight = ATOMIC_INIT(1),
 		.done = 0,
-		.flags = lazy_writeout_upper_idx ? BM_AIO_COPY_PAGES : 0,
+		.flags = flags,
 		.error = 0,
 		.kref = { ATOMIC_INIT(2) },
 	};
@@ -1128,7 +1128,7 @@ static int bm_rw(struct drbd_conf *mdev, int rw, unsigned lazy_writeout_upper_id
  */
 int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
 {
-	return bm_rw(mdev, READ, 0);
+	return bm_rw(mdev, READ, 0, 0);
 }
 
 /**
@@ -1139,7 +1139,7 @@ int drbd_bm_read(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
 {
-	return bm_rw(mdev, WRITE, 0);
+	return bm_rw(mdev, WRITE, 0, 0);
 }
 
 /**
@@ -1149,7 +1149,23 @@ int drbd_bm_write(struct drbd_conf *mdev) __must_hold(local)
  */
 int drbd_bm_write_lazy(struct drbd_conf *mdev, unsigned upper_idx) __must_hold(local)
 {
-	return bm_rw(mdev, WRITE, upper_idx);
+	return bm_rw(mdev, WRITE, BM_AIO_COPY_PAGES, upper_idx);
+}
+
+/**
+ * drbd_bm_write_copy_pages() - Write the whole bitmap to its on disk location.
+ * @mdev:	DRBD device.
+ *
+ * Will only write pages that have changed since last IO.
+ * In contrast to drbd_bm_write(), this will copy the bitmap pages
+ * to temporary writeout pages. It is intended to trigger a full write-out
+ * while still allowing the bitmap to change, for example if a resync or online
+ * verify is aborted due to a failed peer disk, while local IO continues, or
+ * pending resync acks are still being processed.
+ */
+int drbd_bm_write_copy_pages(struct drbd_conf *mdev) __must_hold(local)
+{
+	return bm_rw(mdev, WRITE, BM_AIO_COPY_PAGES, 0);
 }
 
 
