@@ -44,6 +44,7 @@ struct nouveau_fence {
 
 	uint32_t sequence;
 	bool signalled;
+	unsigned long timeout;
 
 	void (*work)(void *priv, bool signalled);
 	void *priv;
@@ -172,6 +173,7 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	}
 	OUT_RING (chan, fence->sequence);
 	FIRE_RING(chan);
+	fence->timeout = jiffies + 3 * DRM_HZ;
 
 	return 0;
 }
@@ -230,7 +232,8 @@ __nouveau_fence_signalled(void *sync_obj, void *sync_arg)
 int
 __nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
 {
-	unsigned long timeout = jiffies + (3 * DRM_HZ);
+	struct nouveau_fence *fence = nouveau_fence(sync_obj);
+	unsigned long timeout = fence->timeout;
 	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
 	ktime_t t;
 	int ret = 0;
