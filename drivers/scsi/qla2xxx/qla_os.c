@@ -3577,9 +3577,25 @@ void qla2x00_relogin(struct scsi_qla_host *vha)
 						continue;
 					/* Attempt a retry. */
 					status = 1;
-				} else
+				} else {
 					status = qla2x00_fabric_login(vha,
 					    fcport, &next_loopid);
+					if (status ==  QLA_SUCCESS) {
+						int status2;
+						uint8_t opts;
+
+						opts = 0;
+						if (fcport->flags &
+						    FCF_FCP2_DEVICE)
+							opts |= BIT_1;
+							status2 =
+							    qla2x00_get_port_database(
+								vha, fcport,
+								opts);
+						if (status2 != QLA_SUCCESS)
+							status = 1;
+					}
+				}
 			} else
 				status = qla2x00_local_device_login(vha,
 								fcport);
