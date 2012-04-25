@@ -123,3 +123,15 @@ Description:
 		half page, or a quarter page).
 
 		In the case of ECC NOR, it is the ECC block size.
+
+What:		/sys/class/mtd/mtdX/ecc_strength
+Date:		April 2012
+KernelVersion:	3.4
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		Maximum number of bit errors that the device is capable of
+		correcting within each region covering an ecc step.  This will
+		always be a non-negative integer.  Note that some devices will
+		have multiple ecc steps within each writesize region.
+
+		In the case of devices lacking any ECC capability, it is 0.
