@@ -266,6 +266,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	error = make_socks(serv, net);
 	if (error < 0)
 		goto err_socks;
+	dprintk("lockd_up_net: per-net data created; net=%p\n", net);
 	return 0;
 
 err_socks:
@@ -283,6 +284,7 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
 			svc_shutdown_net(serv, net);
+			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
 		}
 	} else {
 		printk(KERN_ERR "lockd_down_net: no users! task=%p, net=%p\n",
@@ -360,6 +362,7 @@ static struct svc_serv *lockd_create_svc(void)
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
+	dprintk("lockd_up: service created\n");
 	return serv;
 }
 
@@ -426,7 +429,9 @@ lockd_down(struct net *net)
 		BUG();
 	}
 	kthread_stop(nlmsvc_task);
+	dprintk("lockd_down: service stopped\n");
 	svc_exit_thread(nlmsvc_rqst);
+	dprintk("lockd_down: service destroyed\n");
 	nlmsvc_task = NULL;
 	nlmsvc_rqst = NULL;
 out:
