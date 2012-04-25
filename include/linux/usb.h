@@ -409,6 +409,12 @@ struct usb3_lpm_parameters {
 	 * it will get data.
 	 */
 	unsigned int sel;
+	/*
+	 * The idle timeout value that is currently programmed into the parent
+	 * hub for this device.  When the timer counts to zero, the parent hub
+	 * will initiate an LPM transition to either U1 or U2.
+	 */
+	int timeout;
 };
 
 /**
@@ -468,8 +474,12 @@ struct usb3_lpm_parameters {
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
  * @removable: Device can be physically removed from this port
- * @u1_params: exit latencies for U1 (USB 3.0 LPM).
- * @u2_params: exit latencies for U2 (USB 3.0 LPM).
+ * @u1_params: exit latencies for USB3 U1 LPM state, and hub-initiated timeout.
+ * @u2_params: exit latencies for USB3 U2 LPM state, and hub-initiated timeout.
+ * @lpm_disable_count: Ref count used by usb_disable_lpm() and usb_enable_lpm()
+ *	to keep track of the number of functions that require USB 3.0 Link Power
+ *	Management to be disabled for this usb_device.  This count should only
+ *	be manipulated by those functions, with the bandwidth_mutex is held.
  *
  * Notes:
  * Usbcore drivers should not set usbdev->state directly.  Instead use
@@ -544,6 +554,7 @@ struct usb_device {
 	enum usb_device_removable removable;
 	struct usb3_lpm_parameters u1_params;
 	struct usb3_lpm_parameters u2_params;
+	unsigned lpm_disable_count;
 };
 #define	to_usb_device(d) container_of(d, struct usb_device, dev)
 
@@ -578,6 +589,12 @@ extern int usb_autopm_get_interface_async(struct usb_interface *intf);
 extern void usb_autopm_put_interface_async(struct usb_interface *intf);
 extern void usb_autopm_get_interface_no_resume(struct usb_interface *intf);
 extern void usb_autopm_put_interface_no_suspend(struct usb_interface *intf);
+
+extern int usb_disable_lpm(struct usb_device *udev);
+extern void usb_enable_lpm(struct usb_device *udev);
+/* Same as above, but these functions lock/unlock the bandwidth_mutex. */
+extern int usb_unlocked_disable_lpm(struct usb_device *udev);
+extern void usb_unlocked_enable_lpm(struct usb_device *udev);
 
 static inline void usb_mark_last_busy(struct usb_device *udev)
 {

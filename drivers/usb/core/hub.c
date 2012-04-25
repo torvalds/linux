@@ -3050,11 +3050,425 @@ void usb_root_hub_lost_power(struct usb_device *rhdev)
 }
 EXPORT_SYMBOL_GPL(usb_root_hub_lost_power);
 
+static const char * const usb3_lpm_names[]  = {
+	"U0",
+	"U1",
+	"U2",
+	"U3",
+};
+
+/*
+ * Send a Set SEL control transfer to the device, prior to enabling
+ * device-initiated U1 or U2.  This lets the device know the exit latencies from
+ * the time the device initiates a U1 or U2 exit, to the time it will receive a
+ * packet from the host.
+ *
+ * This function will fail if the SEL or PEL values for udev are greater than
+ * the maximum allowed values for the link state to be enabled.
+ */
+static int usb_req_set_sel(struct usb_device *udev, enum usb3_link_state state)
+{
+	struct usb_set_sel_req *sel_values;
+	unsigned long long u1_sel;
+	unsigned long long u1_pel;
+	unsigned long long u2_sel;
+	unsigned long long u2_pel;
+	int ret;
+
+	/* Convert SEL and PEL stored in ns to us */
+	u1_sel = DIV_ROUND_UP(udev->u1_params.sel, 1000);
+	u1_pel = DIV_ROUND_UP(udev->u1_params.pel, 1000);
+	u2_sel = DIV_ROUND_UP(udev->u2_params.sel, 1000);
+	u2_pel = DIV_ROUND_UP(udev->u2_params.pel, 1000);
+
+	/*
+	 * Make sure that the calculated SEL and PEL values for the link
+	 * state we're enabling aren't bigger than the max SEL/PEL
+	 * value that will fit in the SET SEL control transfer.
+	 * Otherwise the device would get an incorrect idea of the exit
+	 * latency for the link state, and could start a device-initiated
+	 * U1/U2 when the exit latencies are too high.
+	 */
+	if ((state == USB3_LPM_U1 &&
+				(u1_sel > USB3_LPM_MAX_U1_SEL_PEL ||
+				 u1_pel > USB3_LPM_MAX_U1_SEL_PEL)) ||
+			(state == USB3_LPM_U2 &&
+			 (u2_sel > USB3_LPM_MAX_U2_SEL_PEL ||
+			  u2_pel > USB3_LPM_MAX_U2_SEL_PEL))) {
+		dev_dbg(&udev->dev, "Device-initiated %s disabled due "
+				"to long SEL %llu ms or PEL %llu ms\n",
+				usb3_lpm_names[state], u1_sel, u1_pel);
+		return -EINVAL;
+	}
+
+	/*
+	 * If we're enabling device-initiated LPM for one link state,
+	 * but the other link state has a too high SEL or PEL value,
+	 * just set those values to the max in the Set SEL request.
+	 */
+	if (u1_sel > USB3_LPM_MAX_U1_SEL_PEL)
+		u1_sel = USB3_LPM_MAX_U1_SEL_PEL;
+
+	if (u1_pel > USB3_LPM_MAX_U1_SEL_PEL)
+		u1_pel = USB3_LPM_MAX_U1_SEL_PEL;
+
+	if (u2_sel > USB3_LPM_MAX_U2_SEL_PEL)
+		u2_sel = USB3_LPM_MAX_U2_SEL_PEL;
+
+	if (u2_pel > USB3_LPM_MAX_U2_SEL_PEL)
+		u2_pel = USB3_LPM_MAX_U2_SEL_PEL;
+
+	/*
+	 * usb_enable_lpm() can be called as part of a failed device reset,
+	 * which may be initiated by an error path of a mass storage driver.
+	 * Therefore, use GFP_NOIO.
+	 */
+	sel_values = kmalloc(sizeof *(sel_values), GFP_NOIO);
+	if (!sel_values)
+		return -ENOMEM;
+
+	sel_values->u1_sel = u1_sel;
+	sel_values->u1_pel = u1_pel;
+	sel_values->u2_sel = cpu_to_le16(u2_sel);
+	sel_values->u2_pel = cpu_to_le16(u2_pel);
+
+	ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+			USB_REQ_SET_SEL,
+			USB_RECIP_DEVICE,
+			0, 0,
+			sel_values, sizeof *(sel_values),
+			USB_CTRL_SET_TIMEOUT);
+	kfree(sel_values);
+	return ret;
+}
+
+/*
+ * Enable or disable device-initiated U1 or U2 transitions.
+ */
+static int usb_set_device_initiated_lpm(struct usb_device *udev,
+		enum usb3_link_state state, bool enable)
+{
+	int ret;
+	int feature;
+
+	switch (state) {
+	case USB3_LPM_U1:
+		feature = USB_DEVICE_U1_ENABLE;
+		break;
+	case USB3_LPM_U2:
+		feature = USB_DEVICE_U2_ENABLE;
+		break;
+	default:
+		dev_warn(&udev->dev, "%s: Can't %s non-U1 or U2 state.\n",
+				__func__, enable ? "enable" : "disable");
+		return -EINVAL;
+	}
+
+	if (udev->state != USB_STATE_CONFIGURED) {
+		dev_dbg(&udev->dev, "%s: Can't %s %s state "
+				"for unconfigured device.\n",
+				__func__, enable ? "enable" : "disable",
+				usb3_lpm_names[state]);
+		return 0;
+	}
+
+	if (enable) {
+		/*
+		 * First, let the device know about the exit latencies
+		 * associated with the link state we're about to enable.
+		 */
+		ret = usb_req_set_sel(udev, state);
+		if (ret < 0) {
+			dev_warn(&udev->dev, "Set SEL for device-initiated "
+					"%s failed.\n", usb3_lpm_names[state]);
+			return -EBUSY;
+		}
+		/*
+		 * Now send the control transfer to enable device-initiated LPM
+		 * for either U1 or U2.
+		 */
+		ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				USB_REQ_SET_FEATURE,
+				USB_RECIP_DEVICE,
+				feature,
+				0, NULL, 0,
+				USB_CTRL_SET_TIMEOUT);
+	} else {
+		ret = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				USB_REQ_CLEAR_FEATURE,
+				USB_RECIP_DEVICE,
+				feature,
+				0, NULL, 0,
+				USB_CTRL_SET_TIMEOUT);
+	}
+	if (ret < 0) {
+		dev_warn(&udev->dev, "%s of device-initiated %s failed.\n",
+				enable ? "Enable" : "Disable",
+				usb3_lpm_names[state]);
+		return -EBUSY;
+	}
+	return 0;
+}
+
+static int usb_set_lpm_timeout(struct usb_device *udev,
+		enum usb3_link_state state, int timeout)
+{
+	int ret;
+	int feature;
+
+	switch (state) {
+	case USB3_LPM_U1:
+		feature = USB_PORT_FEAT_U1_TIMEOUT;
+		break;
+	case USB3_LPM_U2:
+		feature = USB_PORT_FEAT_U2_TIMEOUT;
+		break;
+	default:
+		dev_warn(&udev->dev, "%s: Can't set timeout for non-U1 or U2 state.\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	if (state == USB3_LPM_U1 && timeout > USB3_LPM_U1_MAX_TIMEOUT &&
+			timeout != USB3_LPM_DEVICE_INITIATED) {
+		dev_warn(&udev->dev, "Failed to set %s timeout to 0x%x, "
+				"which is a reserved value.\n",
+				usb3_lpm_names[state], timeout);
+		return -EINVAL;
+	}
+
+	ret = set_port_feature(udev->parent,
+			USB_PORT_LPM_TIMEOUT(timeout) | udev->portnum,
+			feature);
+	if (ret < 0) {
+		dev_warn(&udev->dev, "Failed to set %s timeout to 0x%x,"
+				"error code %i\n", usb3_lpm_names[state],
+				timeout, ret);
+		return -EBUSY;
+	}
+	if (state == USB3_LPM_U1)
+		udev->u1_params.timeout = timeout;
+	else
+		udev->u2_params.timeout = timeout;
+	return 0;
+}
+
+/*
+ * Enable the hub-initiated U1/U2 idle timeouts, and enable device-initiated
+ * U1/U2 entry.
+ *
+ * We will attempt to enable U1 or U2, but there are no guarantees that the
+ * control transfers to set the hub timeout or enable device-initiated U1/U2
+ * will be successful.
+ *
+ * If we cannot set the parent hub U1/U2 timeout, we attempt to let the xHCI
+ * driver know about it.  If that call fails, it should be harmless, and just
+ * take up more slightly more bus bandwidth for unnecessary U1/U2 exit latency.
+ */
+static void usb_enable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
+		enum usb3_link_state state)
+{
+	int timeout;
+
+	/* We allow the host controller to set the U1/U2 timeout internally
+	 * first, so that it can change its schedule to account for the
+	 * additional latency to send data to a device in a lower power
+	 * link state.
+	 */
+	timeout = hcd->driver->enable_usb3_lpm_timeout(hcd, udev, state);
+
+	/* xHCI host controller doesn't want to enable this LPM state. */
+	if (timeout == 0)
+		return;
+
+	if (timeout < 0) {
+		dev_warn(&udev->dev, "Could not enable %s link state, "
+				"xHCI error %i.\n", usb3_lpm_names[state],
+				timeout);
+		return;
+	}
+
+	if (usb_set_lpm_timeout(udev, state, timeout))
+		/* If we can't set the parent hub U1/U2 timeout,
+		 * device-initiated LPM won't be allowed either, so let the xHCI
+		 * host know that this link state won't be enabled.
+		 */
+		hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state);
+
+	/* Only a configured device will accept the Set Feature U1/U2_ENABLE */
+	else if (udev->actconfig)
+		usb_set_device_initiated_lpm(udev, state, true);
+
+}
+
+/*
+ * Disable the hub-initiated U1/U2 idle timeouts, and disable device-initiated
+ * U1/U2 entry.
+ *
+ * If this function returns -EBUSY, the parent hub will still allow U1/U2 entry.
+ * If zero is returned, the parent will not allow the link to go into U1/U2.
+ *
+ * If zero is returned, device-initiated U1/U2 entry may still be enabled, but
+ * it won't have an effect on the bus link state because the parent hub will
+ * still disallow device-initiated U1/U2 entry.
+ *
+ * If zero is returned, the xHCI host controller may still think U1/U2 entry is
+ * possible.  The result will be slightly more bus bandwidth will be taken up
+ * (to account for U1/U2 exit latency), but it should be harmless.
+ */
+static int usb_disable_link_state(struct usb_hcd *hcd, struct usb_device *udev,
+		enum usb3_link_state state)
+{
+	int feature;
+
+	switch (state) {
+	case USB3_LPM_U1:
+		feature = USB_PORT_FEAT_U1_TIMEOUT;
+		break;
+	case USB3_LPM_U2:
+		feature = USB_PORT_FEAT_U2_TIMEOUT;
+		break;
+	default:
+		dev_warn(&udev->dev, "%s: Can't disable non-U1 or U2 state.\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	if (usb_set_lpm_timeout(udev, state, 0))
+		return -EBUSY;
+
+	usb_set_device_initiated_lpm(udev, state, false);
+
+	if (hcd->driver->disable_usb3_lpm_timeout(hcd, udev, state))
+		dev_warn(&udev->dev, "Could not disable xHCI %s timeout, "
+				"bus schedule bandwidth may be impacted.\n",
+				usb3_lpm_names[state]);
+	return 0;
+}
+
+/*
+ * Disable hub-initiated and device-initiated U1 and U2 entry.
+ * Caller must own the bandwidth_mutex.
+ *
+ * This will call usb_enable_lpm() on failure, which will decrement
+ * lpm_disable_count, and will re-enable LPM if lpm_disable_count reaches zero.
+ */
+int usb_disable_lpm(struct usb_device *udev)
+{
+	struct usb_hcd *hcd;
+
+	if (!udev || !udev->parent ||
+			udev->speed != USB_SPEED_SUPER ||
+			!udev->lpm_capable)
+		return 0;
+
+	hcd = bus_to_hcd(udev->bus);
+	if (!hcd || !hcd->driver->disable_usb3_lpm_timeout)
+		return 0;
+
+	udev->lpm_disable_count++;
+	if ((udev->u1_params.timeout == 0 && udev->u1_params.timeout == 0))
+		return 0;
+
+	/* If LPM is enabled, attempt to disable it. */
+	if (usb_disable_link_state(hcd, udev, USB3_LPM_U1))
+		goto enable_lpm;
+	if (usb_disable_link_state(hcd, udev, USB3_LPM_U2))
+		goto enable_lpm;
+
+	return 0;
+
+enable_lpm:
+	usb_enable_lpm(udev);
+	return -EBUSY;
+}
+EXPORT_SYMBOL_GPL(usb_disable_lpm);
+
+/* Grab the bandwidth_mutex before calling usb_disable_lpm() */
+int usb_unlocked_disable_lpm(struct usb_device *udev)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+	int ret;
+
+	if (!hcd)
+		return -EINVAL;
+
+	mutex_lock(hcd->bandwidth_mutex);
+	ret = usb_disable_lpm(udev);
+	mutex_unlock(hcd->bandwidth_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(usb_unlocked_disable_lpm);
+
+/*
+ * Attempt to enable device-initiated and hub-initiated U1 and U2 entry.  The
+ * xHCI host policy may prevent U1 or U2 from being enabled.
+ *
+ * Other callers may have disabled link PM, so U1 and U2 entry will be disabled
+ * until the lpm_disable_count drops to zero.  Caller must own the
+ * bandwidth_mutex.
+ */
+void usb_enable_lpm(struct usb_device *udev)
+{
+	struct usb_hcd *hcd;
+
+	if (!udev || !udev->parent ||
+			udev->speed != USB_SPEED_SUPER ||
+			!udev->lpm_capable)
+		return;
+
+	udev->lpm_disable_count--;
+	hcd = bus_to_hcd(udev->bus);
+	/* Double check that we can both enable and disable LPM.
+	 * Device must be configured to accept set feature U1/U2 timeout.
+	 */
+	if (!hcd || !hcd->driver->enable_usb3_lpm_timeout ||
+			!hcd->driver->disable_usb3_lpm_timeout)
+		return;
+
+	if (udev->lpm_disable_count > 0)
+		return;
+
+	usb_enable_link_state(hcd, udev, USB3_LPM_U1);
+	usb_enable_link_state(hcd, udev, USB3_LPM_U2);
+}
+EXPORT_SYMBOL_GPL(usb_enable_lpm);
+
+/* Grab the bandwidth_mutex before calling usb_enable_lpm() */
+void usb_unlocked_enable_lpm(struct usb_device *udev)
+{
+	struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+
+	if (!hcd)
+		return;
+
+	mutex_lock(hcd->bandwidth_mutex);
+	usb_enable_lpm(udev);
+	mutex_unlock(hcd->bandwidth_mutex);
+}
+EXPORT_SYMBOL_GPL(usb_unlocked_enable_lpm);
+
+
 #else	/* CONFIG_PM */
 
 #define hub_suspend		NULL
 #define hub_resume		NULL
 #define hub_reset_resume	NULL
+
+int usb_disable_lpm(struct usb_device *udev)
+{
+	return 0;
+}
+
+void usb_enable_lpm(struct usb_device *udev) { }
+
+int usb_unlocked_disable_lpm(struct usb_device *udev)
+{
+	return 0;
+}
+
+void usb_unlocked_enable_lpm(struct usb_device *udev) { }
 #endif
 
 

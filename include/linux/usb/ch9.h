@@ -935,6 +935,51 @@ enum usb_device_state {
 	 */
 };
 
+enum usb3_link_state {
+	USB3_LPM_U0 = 0,
+	USB3_LPM_U1,
+	USB3_LPM_U2,
+	USB3_LPM_U3
+};
+
+/*
+ * A U1 timeout of 0x0 means the parent hub will reject any transitions to U1.
+ * 0xff means the parent hub will accept transitions to U1, but will not
+ * initiate a transition.
+ *
+ * A U1 timeout of 0x1 to 0x7F also causes the hub to initiate a transition to
+ * U1 after that many microseconds.  Timeouts of 0x80 to 0xFE are reserved
+ * values.
+ *
+ * A U2 timeout of 0x0 means the parent hub will reject any transitions to U2.
+ * 0xff means the parent hub will accept transitions to U2, but will not
+ * initiate a transition.
+ *
+ * A U2 timeout of 0x1 to 0xFE also causes the hub to initiate a transition to
+ * U2 after N*256 microseconds.  Therefore a U2 timeout value of 0x1 means a U2
+ * idle timer of 256 microseconds, 0x2 means 512 microseconds, 0xFE means
+ * 65.024ms.
+ */
+#define USB3_LPM_DISABLED		0x0
+#define USB3_LPM_U1_MAX_TIMEOUT		0x7F
+#define USB3_LPM_U2_MAX_TIMEOUT		0xFE
+#define USB3_LPM_DEVICE_INITIATED	0xFF
+
+struct usb_set_sel_req {
+	__u8	u1_sel;
+	__u8	u1_pel;
+	__le16	u2_sel;
+	__le16	u2_pel;
+} __attribute__ ((packed));
+
+/*
+ * The Set System Exit Latency control transfer provides one byte each for
+ * U1 SEL and U1 PEL, so the max exit latency is 0xFF.  U2 SEL and U2 PEL each
+ * are two bytes long.
+ */
+#define USB3_LPM_MAX_U1_SEL_PEL		0xFF
+#define USB3_LPM_MAX_U2_SEL_PEL		0xFFFF
+
 /*-------------------------------------------------------------------------*/
 
 /*
