@@ -53,6 +53,7 @@ enum ssm2602_type {
 /* codec private data */
 struct ssm2602_priv {
 	unsigned int sysclk;
+	struct snd_pcm_hw_constraint_list *sysclk_constraints;
 	enum snd_soc_control_type control_type;
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
@@ -195,6 +196,24 @@ static const struct snd_soc_dapm_route ssm2604_routes[] = {
 	{"ADC", NULL, "Line Input"},
 };
 
+static const unsigned int ssm2602_rates_12288000[] = {
+	8000, 32000, 48000, 96000,
+};
+
+static struct snd_pcm_hw_constraint_list ssm2602_constraints_12288000 = {
+	.list = ssm2602_rates_12288000,
+	.count = ARRAY_SIZE(ssm2602_rates_12288000),
+};
+
+static const unsigned int ssm2602_rates_11289600[] = {
+	8000, 44100, 88200,
+};
+
+static struct snd_pcm_hw_constraint_list ssm2602_constraints_11289600 = {
+	.list = ssm2602_rates_11289600,
+	.count = ARRAY_SIZE(ssm2602_rates_11289600),
+};
+
 struct ssm2602_coeff {
 	u32 mclk;
 	u32 rate;
@@ -320,6 +339,12 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 	} else
 		ssm2602->master_substream = substream;
 
+	if (ssm2602->sysclk_constraints) {
+		snd_pcm_hw_constraint_list(substream->runtime, 0,
+				   SNDRV_PCM_HW_PARAM_RATE,
+				   ssm2602->sysclk_constraints);
+	}
+
 	return 0;
 }
 
@@ -361,16 +386,21 @@ static int ssm2602_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 			return -EINVAL;
 
 		switch (freq) {
-		case 11289600:
-		case 12000000:
 		case 12288000:
-		case 16934400:
 		case 18432000:
-			ssm2602->sysclk = freq;
+			ssm2602->sysclk_constraints = &ssm2602_constraints_12288000;
+			break;
+		case 11289600:
+		case 16934400:
+			ssm2602->sysclk_constraints = &ssm2602_constraints_11289600;
+			break;
+		case 12000000:
+			ssm2602->sysclk_constraints = NULL;
 			break;
 		default:
 			return -EINVAL;
 		}
+		ssm2602->sysclk = freq;
 	} else {
 		unsigned int mask;
 
