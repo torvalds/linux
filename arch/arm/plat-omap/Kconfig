@@ -45,26 +45,12 @@ config OMAP_DEBUG_LEDS
 	depends on OMAP_DEBUG_DEVICES
 	default y if LEDS_CLASS
 
-menuconfig POWER_AVS
-	tristate "Adaptive Voltage Scaling class support"
-	help
-	  AVS(Adaptive Voltage Scaling) is a power management technique which
-	  finely controls the operating voltage of a device in order to optimize
-	   (i.e. reduce) its power consumption.
-	  At a given operating point the voltage is adapted depending on
-	  static factors (chip manufacturing process) and dynamic factors
-	  (temperature depending performance).
-	  AVS is also called SmartReflex on OMAP devices.
-
-	  Say Y here to enable Adaptive Voltage Scaling class support.
-
-if POWER_AVS
-
 config POWER_AVS_OMAP
 	bool "AVS(Adaptive Voltage Scaling) support for OMAP IP versions 1&2"
-	depends on (ARCH_OMAP3 || ARCH_OMAP4) && PM
+	depends on POWER_AVS && (ARCH_OMAP3 || ARCH_OMAP4) && PM
 	help
-	  Say Y to enable AVS support on OMAP containing the version 1 or
+	  Say Y to enable AVS(Adaptive Voltage Scaling)
+	  support on OMAP containing the version 1 or
 	  version 2 of the SmartReflex IP.
 	  V1 is the 65nm version used in OMAP3430.
 	  V2 is the update for the 45nm version of the IP used in OMAP3630
@@ -88,8 +74,6 @@ config POWER_AVS_OMAP_CLASS3
 
 	  Class 3 implementation of Smartreflex employs continuous hardware
 	  voltage calibration.
-
-endif # POWER_AVS
 
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
