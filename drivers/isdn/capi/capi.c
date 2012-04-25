@@ -786,7 +786,6 @@ register_out:
 		return retval;
 
 	case CAPI_GET_VERSION:
-	{
 		if (copy_from_user(&data.contr, argp,
 				   sizeof(data.contr)))
 			return -EFAULT;
@@ -796,11 +795,9 @@ register_out:
 		if (copy_to_user(argp, &data.version,
 				 sizeof(data.version)))
 			return -EFAULT;
-	}
-	return 0;
+		return 0;
 
 	case CAPI_GET_SERIAL:
-	{
 		if (copy_from_user(&data.contr, argp,
 				   sizeof(data.contr)))
 			return -EFAULT;
@@ -810,10 +807,9 @@ register_out:
 		if (copy_to_user(argp, data.serial,
 				 sizeof(data.serial)))
 			return -EFAULT;
-	}
-	return 0;
+		return 0;
+
 	case CAPI_GET_PROFILE:
-	{
 		if (copy_from_user(&data.contr, argp,
 				   sizeof(data.contr)))
 			return -EFAULT;
@@ -837,11 +833,9 @@ register_out:
 		}
 		if (retval)
 			return -EFAULT;
-	}
-	return 0;
+		return 0;
 
 	case CAPI_GET_MANUFACTURER:
-	{
 		if (copy_from_user(&data.contr, argp,
 				   sizeof(data.contr)))
 			return -EFAULT;
@@ -853,8 +847,8 @@ register_out:
 				 sizeof(data.manufacturer)))
 			return -EFAULT;
 
-	}
-	return 0;
+		return 0;
+
 	case CAPI_GET_ERRCODE:
 		data.errcode = cdev->errcode;
 		cdev->errcode = CAPI_NOERROR;
@@ -870,8 +864,7 @@ register_out:
 			return 0;
 		return -ENXIO;
 
-	case CAPI_MANUFACTURER_CMD:
-	{
+	case CAPI_MANUFACTURER_CMD: {
 		struct capi_manufacturer_cmd mcmd;
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
@@ -879,8 +872,6 @@ register_out:
 			return -EFAULT;
 		return capi20_manufacturer(mcmd.cmd, mcmd.data);
 	}
-	return 0;
-
 	case CAPI_SET_FLAGS:
 	case CAPI_CLR_FLAGS: {
 		unsigned userflags;
