@@ -106,10 +106,10 @@ void request_done(dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req,
 				  int _status)
 {
 	unsigned stopped = _ep->stopped;
-
+    
 	DWC_DEBUGPL(DBG_PCDV, "%s(%p)\n", __func__, _ep);
 	list_del_init(&_req->queue);
-             
+
 	if (_req->req.status == -EINPROGRESS) 
 	{
 		_req->req.status = _status;
@@ -119,6 +119,7 @@ void request_done(dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req,
 		_status = _req->req.status;
 	}
 #if 1
+    if (_req->req.dma != DMA_ADDR_INVALID){
 	if (_req->mapped) {
 		dma_unmap_single(_ep->pcd->gadget.dev.parent,
 			_req->req.dma, _req->req.length,
@@ -133,6 +134,7 @@ void request_done(dwc_otg_pcd_ep_t *_ep, dwc_otg_pcd_request_t *_req,
 			_ep->dwc_ep.is_in
 				? DMA_TO_DEVICE
 				: DMA_FROM_DEVICE);
+	}
 #endif
 	/* don't modify queue heads during completion callback */
 	_ep->stopped = 1;
@@ -578,9 +580,11 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	}
 	
 	ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
+	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
 	if (!_ep || (!ep->desc && ep->dwc_ep.num != 0)) 
 	{
 		DWC_WARN("%s, bad ep\n", __func__);
+				SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
 		return -EINVAL;
 	}
 	pcd = ep->pcd;
@@ -588,6 +592,7 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	{
 		DWC_DEBUGPL(DBG_PCDV, "gadget.speed=%d\n", pcd->gadget.speed);
 		DWC_WARN("%s, bogus device state\n", __func__);
+				SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
 		return -ESHUTDOWN;
 	}
 
@@ -604,7 +609,6 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 		}
 	}
 
-	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
 
 #if defined(DEBUG) & defined(VERBOSE)
 	dump_msg(_req->buf, _req->length);
@@ -1622,7 +1626,7 @@ int dwc_otg20phy_suspend( int exitsuspend )
     }
     if( !exitsuspend && (pcd->phy_suspend == 0)) {
         pcd->phy_suspend = 1;
-        *otg_phy_con1 |= (0x01<<2);
+        *otg_phy_con1 |= ((0x01<<2)|(0x05<<6));
         *otg_phy_con1 &= ~(0x01<<3);    // enter suspend.
         udelay(3);
         clk_disable(pcd->otg_dev->phyclk);
@@ -1815,7 +1819,12 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     unsigned int usbgrf_status = *(unsigned int*)(USBGRF_SOC_STATUS0);
 #endif
     _pcd->check_vbus_timer.expires = jiffies + (HZ); /* 1 s */
-	if(usbgrf_status &0x20000){  // bvalid
+    if((usbgrf_status &(1<<20)) == 0){  // id low
+    
+        if( _pcd->phy_suspend) 
+             dwc_otg20phy_suspend( 1 );
+    }
+	else if(usbgrf_status &0x20000){  // bvalid
         /* if usb not connect before ,then start connect */
          if( _pcd->vbus_status == 0 ) {
             DWC_PRINT("********vbus detect*********************************************\n");

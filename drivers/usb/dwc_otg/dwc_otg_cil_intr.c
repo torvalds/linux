@@ -362,7 +362,7 @@ int32_t dwc_otg_handle_conn_id_status_change_intr(dwc_otg_core_if_t *_core_if)
 	* 注意,如果host设备如果快速拔插，会当成USB_ID为低的充电器处理
     */
     gotgctl.d32 = dwc_read_reg32( &_core_if->core_global_regs->gotgctl );
-	#if 1
+	#if 0
     if((!gotgctl.b.conidsts)&&( gotgctl.b.bsesvld ))
     {
     	if(pcd &&(pcd->vbus_status == 0))

@@ -181,10 +181,7 @@ void start_next_request( dwc_otg_pcd_ep_t *_ep )
 		_ep->dwc_ep.dma_addr = req->req.dma;
 		_ep->dwc_ep.sent_zlp = 0;
 		_ep->dwc_ep.total_len = _ep->dwc_ep.xfer_len;
-			
-		//DWC_ERROR(" -> starting transfer (start_next_req) %s %s\n",
-		//_ep->ep.name, _ep->dwc_ep.is_in?"IN":"OUT");
-			
+	
 		dwc_otg_ep_start_transfer( GET_CORE_IF(_ep->pcd), &_ep->dwc_ep );
 	}
 }
@@ -1779,7 +1776,7 @@ static void complete_ep( dwc_otg_pcd_ep_t *_ep )
 			}
 			request_done(_ep, req, 0);
         } else {
-//            DWC_PRINT("\n++++++FIND NULL req,ep=%s++++++++++\n" , _ep->ep.name );
+            DWC_PRINT("\n++++++FIND NULL req,ep=%s++++++++++\n" , _ep->ep.name );
             _ep->pcd->request_pending = 0;
         }
 		_ep->dwc_ep.start_xfer_buff = 0;
