@@ -700,6 +700,13 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		}
 
 		dlt = browser->offsets[dl->ops.target];
+		/*
+ 		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
+ 		 * have to adjust to the previous offset?
+ 		 */
+		if (dlt == NULL)
+			continue;
+
 		bdlt = disasm_line__browser(dlt);
 		bdlt->jump_target = true;
 	}
