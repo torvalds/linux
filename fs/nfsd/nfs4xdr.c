@@ -3251,7 +3251,7 @@ nfsd4_encode_write(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_w
 }
 
 static __be32
-nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, __be32 nfserr,
 			 struct nfsd4_exchange_id *exid)
 {
 	__be32 *p;
@@ -3306,7 +3306,7 @@ nfsd4_encode_exchange_id(struct nfsd4_compoundres *resp, int nfserr,
 }
 
 static __be32
-nfsd4_encode_create_session(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_create_session(struct nfsd4_compoundres *resp, __be32 nfserr,
 			    struct nfsd4_create_session *sess)
 {
 	__be32 *p;
@@ -3355,7 +3355,7 @@ nfsd4_encode_create_session(struct nfsd4_compoundres *resp, int nfserr,
 }
 
 static __be32
-nfsd4_encode_destroy_session(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_destroy_session(struct nfsd4_compoundres *resp, __be32 nfserr,
 			     struct nfsd4_destroy_session *destroy_session)
 {
 	return nfserr;
@@ -3377,7 +3377,7 @@ nfsd4_encode_free_stateid(struct nfsd4_compoundres *resp, int nfserr,
 }
 
 static __be32
-nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_sequence(struct nfsd4_compoundres *resp, __be32 nfserr,
 		      struct nfsd4_sequence *seq)
 {
 	__be32 *p;
@@ -3400,7 +3400,7 @@ nfsd4_encode_sequence(struct nfsd4_compoundres *resp, int nfserr,
 }
 
 static __be32
-nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
+nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, __be32 nfserr,
 			  struct nfsd4_test_stateid *test_stateid)
 {
 	struct nfsd4_test_stateid_id *stateid, *next;
@@ -3503,7 +3503,7 @@ static nfsd4_enc nfsd4_enc_ops[] = {
  * Our se_fmaxresp_cached will always be a multiple of PAGE_SIZE, and so
  * will be at least a page and will therefore hold the xdr_buf head.
  */
-int nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
+__be32 nfsd4_check_resp_size(struct nfsd4_compoundres *resp, u32 pad)
 {
 	struct xdr_buf *xb = &resp->rqstp->rq_res;
 	struct nfsd4_session *session = NULL;

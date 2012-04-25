@@ -886,7 +886,7 @@ static struct nfsd4_session *alloc_init_session(struct svc_rqst *rqstp, struct n
 	struct nfsd4_session *new;
 	struct nfsd4_channel_attrs *fchan = &cses->fore_channel;
 	int numslots, slotsize;
-	int status;
+	__be32 status;
 	int idx;
 
 	/*
@@ -1477,7 +1477,7 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		  struct nfsd4_exchange_id *exid)
 {
 	struct nfs4_client *unconf, *conf, *new;
-	int status;
+	__be32 status;
 	unsigned int		strhashval;
 	char			dname[HEXDIR_LEN];
 	char			addr_str[INET6_ADDRSTRLEN];
@@ -1599,7 +1599,7 @@ error:
 	return status;
 }
 
-static int
+static __be32
 check_slot_seqid(u32 seqid, u32 slot_seqid, int slot_inuse)
 {
 	dprintk("%s enter. seqid %d slot_seqid %d\n", __func__, seqid,
@@ -1627,7 +1627,7 @@ check_slot_seqid(u32 seqid, u32 slot_seqid, int slot_inuse)
  */
 static void
 nfsd4_cache_create_session(struct nfsd4_create_session *cr_ses,
-			   struct nfsd4_clid_slot *slot, int nfserr)
+			   struct nfsd4_clid_slot *slot, __be32 nfserr)
 {
 	slot->sl_status = nfserr;
 	memcpy(&slot->sl_cr_ses, cr_ses, sizeof(*cr_ses));
@@ -1658,7 +1658,7 @@ nfsd4_replay_create_session(struct nfsd4_create_session *cr_ses,
 				/* seqid, slotID, slotID, slotID, status */ \
 			5 ) * sizeof(__be32))
 
-static __be32 check_forechannel_attrs(struct nfsd4_channel_attrs fchannel)
+static bool check_forechannel_attrs(struct nfsd4_channel_attrs fchannel)
 {
 	return fchannel.maxreq_sz < NFSD_MIN_REQ_HDR_SEQ_SZ
 		|| fchannel.maxresp_sz < NFSD_MIN_RESP_HDR_SEQ_SZ;
@@ -1674,7 +1674,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	struct nfsd4_session *new;
 	struct nfsd4_clid_slot *cs_slot = NULL;
 	bool confirm_me = false;
-	int status = 0;
+	__be32 status = 0;
 
 	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
 		return nfserr_inval;
@@ -1819,7 +1819,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 		      struct nfsd4_destroy_session *sessionid)
 {
 	struct nfsd4_session *ses;
-	u32 status = nfserr_badsession;
+	__be32 status = nfserr_badsession;
 
 	/* Notes:
 	 * - The confirmed nfs4_client->cl_sessionid holds destroyed sessinid
@@ -1915,7 +1915,7 @@ nfsd4_sequence(struct svc_rqst *rqstp,
 	struct nfsd4_session *session;
 	struct nfsd4_slot *slot;
 	struct nfsd4_conn *conn;
-	int status;
+	__be32 status;
 
 	if (resp->opcnt != 1)
 		return nfserr_sequence_pos;
@@ -2020,7 +2020,7 @@ __be32
 nfsd4_destroy_clientid(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_destroy_clientid *dc)
 {
 	struct nfs4_client *conf, *unconf, *clp;
-	int status = 0;
+	__be32 status = 0;
 
 	nfs4_lock_state();
 	unconf = find_unconfirmed_client(&dc->clientid);
@@ -2056,7 +2056,7 @@ out:
 __be32
 nfsd4_reclaim_complete(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_reclaim_complete *rc)
 {
-	int status = 0;
+	__be32 status = 0;
 
 	if (rc->rca_one_fs) {
 		if (!cstate->current_fh.fh_dentry)
@@ -3347,7 +3347,7 @@ static bool stateid_generation_after(stateid_t *a, stateid_t *b)
 	return (s32)a->si_generation - (s32)b->si_generation > 0;
 }
 
-static int check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_session)
+static __be32 check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_session)
 {
 	/*
 	 * When sessions are used the stateid generation number is ignored
