@@ -743,7 +743,7 @@ dwc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 			struct dw_desc	*desc;
 			u32		len, dlen, mem;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
 			if (!((mem | len) & 7))
@@ -810,7 +810,7 @@ slave_sg_todev_fill_desc:
 			struct dw_desc	*desc;
 			u32		len, dlen, mem;
 
-			mem = sg_phys(sg);
+			mem = sg_dma_address(sg);
 			len = sg_dma_len(sg);
 
 			if (!((mem | len) & 7))

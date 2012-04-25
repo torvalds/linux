@@ -1382,11 +1382,11 @@ static struct dma_async_tx_descriptor *pl08x_prep_slave_sg(
 
 		dsg->len = sg_dma_len(sg);
 		if (direction == DMA_MEM_TO_DEV) {
-			dsg->src_addr = sg_phys(sg);
+			dsg->src_addr = sg_dma_address(sg);
 			dsg->dst_addr = slave_addr;
 		} else {
 			dsg->src_addr = slave_addr;
-			dsg->dst_addr = sg_phys(sg);
+			dsg->dst_addr = sg_dma_address(sg);
 		}
 	}
 
