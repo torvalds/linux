@@ -1029,7 +1029,7 @@ rpc_pipefs_event(struct notifier_block *nb, unsigned long event, void *ptr)
 	return ret;
 }
 
-struct notifier_block nfsd4_cld_block = {
+static struct notifier_block nfsd4_cld_block = {
 	.notifier_call = rpc_pipefs_event,
 };
 

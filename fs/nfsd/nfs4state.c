@@ -4021,7 +4021,7 @@ static void get_lock_access(struct nfs4_ol_stateid *lock_stp, u32 access)
 	__set_bit(access, &lock_stp->st_access_bmap);
 }
 
-__be32 lookup_or_create_lock_state(struct nfsd4_compound_state *cstate, struct nfs4_ol_stateid *ost, struct nfsd4_lock *lock, struct nfs4_ol_stateid **lst, bool *new)
+static __be32 lookup_or_create_lock_state(struct nfsd4_compound_state *cstate, struct nfs4_ol_stateid *ost, struct nfsd4_lock *lock, struct nfs4_ol_stateid **lst, bool *new)
 {
 	struct nfs4_file *fi = ost->st_file;
 	struct nfs4_openowner *oo = openowner(ost->st_stateowner);

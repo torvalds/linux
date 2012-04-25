@@ -706,7 +706,7 @@ static struct cache_head *svc_export_alloc(void)
 		return NULL;
 }
 
-struct cache_detail svc_export_cache_template = {
+static struct cache_detail svc_export_cache_template = {
 	.owner		= THIS_MODULE,
 	.hash_size	= EXPORT_HASHMAX,
 	.name		= "nfsd.export",
