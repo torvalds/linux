@@ -259,6 +259,34 @@ static ssize_t mtd_ecc_strength_show(struct device *dev,
 }
 static DEVICE_ATTR(ecc_strength, S_IRUGO, mtd_ecc_strength_show, NULL);
 
+static ssize_t mtd_bitflip_threshold_show(struct device *dev,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%u\n", mtd->bitflip_threshold);
+}
+
+static ssize_t mtd_bitflip_threshold_store(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	struct mtd_info *mtd = dev_get_drvdata(dev);
+	unsigned int bitflip_threshold;
+	int retval;
+
+	retval = kstrtouint(buf, 0, &bitflip_threshold);
+	if (retval)
+		return retval;
+
+	mtd->bitflip_threshold = bitflip_threshold;
+	return count;
+}
+static DEVICE_ATTR(bitflip_threshold, S_IRUGO | S_IWUSR,
+		   mtd_bitflip_threshold_show,
+		   mtd_bitflip_threshold_store);
+
 static struct attribute *mtd_attrs[] = {
 	&dev_attr_type.attr,
 	&dev_attr_flags.attr,
@@ -270,6 +298,7 @@ static struct attribute *mtd_attrs[] = {
 	&dev_attr_numeraseregions.attr,
 	&dev_attr_name.attr,
 	&dev_attr_ecc_strength.attr,
+	&dev_attr_bitflip_threshold.attr,
 	NULL,
 };
 
@@ -331,6 +360,10 @@ int add_mtd_device(struct mtd_info *mtd)
 
 	mtd->index = i;
 	mtd->usecount = 0;
+
+	/* default value if not set by driver */
+	if (mtd->bitflip_threshold == 0)
+		mtd->bitflip_threshold = mtd->ecc_strength;
 
 	if (is_power_of_2(mtd->erasesize))
 		mtd->erasesize_shift = ffs(mtd->erasesize) - 1;
