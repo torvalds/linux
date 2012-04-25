@@ -128,24 +128,25 @@ no_dcbz32_on:
 	/* First clear RI in our current MSR value */
 	li	r0, MSR_RI
 	andc	r6, r6, r0
-	MTMSR_EERI(r6)
-	mtsrr0	r9
-	mtsrr1	r4
 
 	PPC_LL	r0, SVCPU_R0(r3)
 	PPC_LL	r1, SVCPU_R1(r3)
 	PPC_LL	r2, SVCPU_R2(r3)
-	PPC_LL	r4, SVCPU_R4(r3)
 	PPC_LL	r5, SVCPU_R5(r3)
-	PPC_LL	r6, SVCPU_R6(r3)
 	PPC_LL	r7, SVCPU_R7(r3)
 	PPC_LL	r8, SVCPU_R8(r3)
-	PPC_LL	r9, SVCPU_R9(r3)
 	PPC_LL	r10, SVCPU_R10(r3)
 	PPC_LL	r11, SVCPU_R11(r3)
 	PPC_LL	r12, SVCPU_R12(r3)
 	PPC_LL	r13, SVCPU_R13(r3)
 
+	MTMSR_EERI(r6)
+	mtsrr0	r9
+	mtsrr1	r4
+
+	PPC_LL	r4, SVCPU_R4(r3)
+	PPC_LL	r6, SVCPU_R6(r3)
+	PPC_LL	r9, SVCPU_R9(r3)
 	PPC_LL	r3, (SVCPU_R3)(r3)
 
 	RFI
