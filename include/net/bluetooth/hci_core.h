@@ -255,9 +255,6 @@ struct hci_dev {
 
 	struct list_head	remote_oob_data;
 
-	struct list_head	adv_entries;
-	struct delayed_work	adv_work;
-
 	struct hci_dev_stats	stat;
 
 	struct sk_buff_head	driver_init;
@@ -691,12 +688,6 @@ struct oob_data *hci_find_remote_oob_data(struct hci_dev *hdev,
 int hci_add_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 *hash,
 								u8 *randomizer);
 int hci_remove_remote_oob_data(struct hci_dev *hdev, bdaddr_t *bdaddr);
-
-#define ADV_CLEAR_TIMEOUT (3*60*HZ) /* Three minutes */
-int hci_adv_entries_clear(struct hci_dev *hdev);
-struct adv_entry *hci_find_adv_entry(struct hci_dev *hdev, bdaddr_t *bdaddr);
-int hci_add_adv_entry(struct hci_dev *hdev,
-					struct hci_ev_le_advertising_info *ev);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 

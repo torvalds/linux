@@ -1100,10 +1100,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 
 		set_bit(HCI_LE_SCAN, &hdev->dev_flags);
 
-		cancel_delayed_work_sync(&hdev->adv_work);
-
 		hci_dev_lock(hdev);
-		hci_adv_entries_clear(hdev);
 		hci_discovery_set_state(hdev, DISCOVERY_FINDING);
 		hci_dev_unlock(hdev);
 		break;
@@ -1117,8 +1114,6 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 		}
 
 		clear_bit(HCI_LE_SCAN, &hdev->dev_flags);
-
-		schedule_delayed_work(&hdev->adv_work, ADV_CLEAR_TIMEOUT);
 
 		if (hdev->discovery.type == DISCOV_TYPE_INTERLEAVED &&
 		    hdev->discovery.state == DISCOVERY_FINDING) {
@@ -3352,8 +3347,6 @@ static inline void hci_le_adv_report_evt(struct hci_dev *hdev,
 
 	while (num_reports--) {
 		struct hci_ev_le_advertising_info *ev = ptr;
-
-		hci_add_adv_entry(hdev, ev);
 
 		rssi = ev->data[ev->length];
 		mgmt_device_found(hdev, &ev->bdaddr, LE_LINK, ev->bdaddr_type,
