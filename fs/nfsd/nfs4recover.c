@@ -570,7 +570,7 @@ static ssize_t
 cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	struct cld_upcall *tmp, *cup;
-	struct cld_msg *cmsg = (struct cld_msg *)src;
+	struct cld_msg __user *cmsg = (struct cld_msg __user *)src;
 	uint32_t xid;
 	struct nfsd_net *nn = net_generic(filp->f_dentry->d_sb->s_fs_info,
 						nfsd_net_id);
