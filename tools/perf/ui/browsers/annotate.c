@@ -112,7 +112,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			ui_browser__set_color(self, color);
 		if (dl->ins && dl->ins->ops->scnprintf) {
 			if (ins__is_jump(dl->ins)) {
-				bool fwd = dl->ops.target > (u64)dl->offset;
+				bool fwd = dl->ops.target.offset > (u64)dl->offset;
 
 				ui_browser__write_graph(self, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
@@ -156,7 +156,7 @@ static void annotate_browser__draw_current_loop(struct ui_browser *browser)
 		if (!pos->ins || !ins__is_jump(pos->ins))
 			continue;
 
-		target = ab->offsets[pos->ops.target];
+		target = ab->offsets[pos->ops.target.offset];
 		if (!target)
 			continue;
 
@@ -360,7 +360,7 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	if (!ins__is_call(dl->ins))
 		return false;
 
-	ip = ms->map->map_ip(ms->map, dl->ops.target);
+	ip = ms->map->map_ip(ms->map, dl->ops.target.addr);
 	target = map__find_symbol(ms->map, ip, NULL);
 	if (target == NULL) {
 		ui_helpline__puts("The called function was not found.");
@@ -411,7 +411,7 @@ static bool annotate_browser__jump(struct annotate_browser *browser)
 	if (!ins__is_jump(dl->ins))
 		return false;
 
-	dl = annotate_browser__find_offset(browser, dl->ops.target, &idx);
+	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
 	if (dl == NULL) {
 		ui_helpline__puts("Invallid jump offset");
 		return true;
@@ -692,14 +692,14 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		if (!dl || !dl->ins || !ins__is_jump(dl->ins))
 			continue;
 
-		if (dl->ops.target >= size) {
+		if (dl->ops.target.offset >= size) {
 			ui__error("jump to after symbol!\n"
 				  "size: %zx, jump target: %" PRIx64,
-				  size, dl->ops.target);
+				  size, dl->ops.target.offset);
 			continue;
 		}
 
-		dlt = browser->offsets[dl->ops.target];
+		dlt = browser->offsets[dl->ops.target.offset];
 		/*
  		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
  		 * have to adjust to the previous offset?

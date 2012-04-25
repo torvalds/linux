@@ -22,7 +22,7 @@ static int call__parse(struct ins_operands *ops)
 {
 	char *endptr, *tok, *name;
 
-	ops->target = strtoull(ops->raw, &endptr, 16);
+	ops->target.addr = strtoull(ops->raw, &endptr, 16);
 
 	name = strchr(endptr, '<');
 	if (name == NULL)
@@ -35,17 +35,17 @@ static int call__parse(struct ins_operands *ops)
 		return -1;
 
 	*tok = '\0';
-	ops->target_name = strdup(name);
+	ops->target.name = strdup(name);
 	*tok = '>';
 
-	return ops->target_name == NULL ? -1 : 0;
+	return ops->target.name == NULL ? -1 : 0;
 
 indirect_call:
 	tok = strchr(endptr, '*');
 	if (tok == NULL)
 		return -1;
 
-	ops->target = strtoull(tok + 1, NULL, 16);
+	ops->target.addr = strtoull(tok + 1, NULL, 16);
 	return 0;
 }
 
@@ -55,10 +55,10 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 	if (addrs)
 		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
 
-	if (ops->target_name)
-		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target_name);
+	if (ops->target.name)
+		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target.name);
 
-	return scnprintf(bf, size, "%-6.6s *%" PRIx64, ins->name, ops->target);
+	return scnprintf(bf, size, "%-6.6s *%" PRIx64, ins->name, ops->target.addr);
 }
 
 static struct ins_ops call_ops = {
@@ -78,7 +78,7 @@ static int jump__parse(struct ins_operands *ops)
 	if (s++ == NULL)
 		return -1;
 
-	ops->target = strtoll(s, NULL, 16);
+	ops->target.offset = strtoll(s, NULL, 16);
 	return 0;
 }
 
@@ -88,7 +88,7 @@ static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
 	if (addrs)
 		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
 
-	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target);
+	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target.offset);
 }
 
 static struct ins_ops jump_ops = {
@@ -289,7 +289,7 @@ void disasm_line__free(struct disasm_line *dl)
 {
 	free(dl->line);
 	free(dl->name);
-	free(dl->ops.target_name);
+	free(dl->ops.target.name);
 	free(dl);
 }
 
