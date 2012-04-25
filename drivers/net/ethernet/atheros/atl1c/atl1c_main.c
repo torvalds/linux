@@ -2273,13 +2273,6 @@ static int atl1c_open(struct net_device *netdev)
 	if (unlikely(err))
 		goto err_up;
 
-	if (adapter->hw.ctrl_flags & ATL1C_FPGA_VERSION) {
-		u32 phy_data;
-
-		AT_READ_REG(&adapter->hw, REG_MDIO_CTRL, &phy_data);
-		phy_data |= MDIO_CTRL_AP_EN;
-		AT_WRITE_REG(&adapter->hw, REG_MDIO_CTRL, phy_data);
-	}
 	return 0;
 
 err_up:
