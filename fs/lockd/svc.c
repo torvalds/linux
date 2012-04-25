@@ -259,9 +259,9 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 	if (ln->nlmsvc_users++)
 		return 0;
 
-	error = svc_rpcb_setup(serv, net);
+	error = svc_bind(serv, net);
 	if (error)
-		goto err_rpcb;
+		goto err_bind;
 
 	error = make_socks(serv, net);
 	if (error < 0)
@@ -270,7 +270,7 @@ static int lockd_up_net(struct svc_serv *serv, struct net *net)
 
 err_socks:
 	svc_rpcb_cleanup(serv, net);
-err_rpcb:
+err_bind:
 	ln->nlmsvc_users--;
 	return error;
 }
@@ -298,7 +298,6 @@ int lockd_up(struct net *net)
 {
 	struct svc_serv *serv;
 	int		error = 0;
-	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	mutex_lock(&nlmsvc_mutex);
 	/*
@@ -324,17 +323,9 @@ int lockd_up(struct net *net)
 		goto out;
 	}
 
-	error = svc_bind(serv, net);
-	if (error < 0) {
-		printk(KERN_WARNING "lockd_up: bind service failed\n");
-		goto destroy_and_out;
-	}
-
-	ln->nlmsvc_users++;
-
-	error = make_socks(serv, net);
+	error = lockd_up_net(serv, net);
 	if (error < 0)
-		goto err_start;
+		goto err_net;
 
 	/*
 	 * Create the kernel thread and wait for it to start.
@@ -367,7 +358,7 @@ int lockd_up(struct net *net)
 	 * Note: svc_serv structures have an initial use count of 1,
 	 * so we exit through here on both success and failure.
 	 */
-destroy_and_out:
+err_net:
 	svc_destroy(serv);
 out:
 	if (!error)
@@ -377,7 +368,7 @@ out:
 
 err_start:
 	lockd_down_net(serv, net);
-	goto destroy_and_out;
+	goto err_net;
 }
 EXPORT_SYMBOL_GPL(lockd_up);
 
