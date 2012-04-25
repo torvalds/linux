@@ -3487,7 +3487,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 
 	/* propagate ecc info to mtd_info */
 	mtd->ecclayout = chip->ecc.layout;
-	mtd->ecc_strength = chip->ecc.strength * chip->ecc.steps;
+	mtd->ecc_strength = chip->ecc.strength;
 
 	/* Check, if we should skip the bad block table scan */
 	if (chip->options & NAND_SKIP_BBTSCAN)
