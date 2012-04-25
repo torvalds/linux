@@ -1046,11 +1046,111 @@ static void btmrvl_sdio_remove(struct sdio_func *func)
 	}
 }
 
+static int btmrvl_sdio_suspend(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct btmrvl_sdio_card *card;
+	struct btmrvl_private *priv;
+	mmc_pm_flag_t pm_flags;
+	struct hci_dev *hcidev;
+
+	if (func) {
+		pm_flags = sdio_get_host_pm_caps(func);
+		BT_DBG("%s: suspend: PM flags = 0x%x", sdio_func_id(func),
+		       pm_flags);
+		if (!(pm_flags & MMC_PM_KEEP_POWER)) {
+			BT_ERR("%s: cannot remain alive while suspended",
+			       sdio_func_id(func));
+			return -ENOSYS;
+		}
+		card = sdio_get_drvdata(func);
+		if (!card || !card->priv) {
+			BT_ERR("card or priv structure is not valid");
+			return 0;
+		}
+	} else {
+		BT_ERR("sdio_func is not specified");
+		return 0;
+	}
+
+	priv = card->priv;
+
+	if (priv->adapter->hs_state != HS_ACTIVATED) {
+		if (btmrvl_enable_hs(priv)) {
+			BT_ERR("HS not actived, suspend failed!");
+			return -EBUSY;
+		}
+	}
+	hcidev = priv->btmrvl_dev.hcidev;
+	BT_DBG("%s: SDIO suspend", hcidev->name);
+	hci_suspend_dev(hcidev);
+	skb_queue_purge(&priv->adapter->tx_queue);
+
+	priv->adapter->is_suspended = true;
+
+	/* We will keep the power when hs enabled successfully */
+	if (priv->adapter->hs_state == HS_ACTIVATED) {
+		BT_DBG("suspend with MMC_PM_KEEP_POWER");
+		return sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	} else {
+		BT_DBG("suspend without MMC_PM_KEEP_POWER");
+		return 0;
+	}
+}
+
+static int btmrvl_sdio_resume(struct device *dev)
+{
+	struct sdio_func *func = dev_to_sdio_func(dev);
+	struct btmrvl_sdio_card *card;
+	struct btmrvl_private *priv;
+	mmc_pm_flag_t pm_flags;
+	struct hci_dev *hcidev;
+
+	if (func) {
+		pm_flags = sdio_get_host_pm_caps(func);
+		BT_DBG("%s: resume: PM flags = 0x%x", sdio_func_id(func),
+		       pm_flags);
+		card = sdio_get_drvdata(func);
+		if (!card || !card->priv) {
+			BT_ERR("card or priv structure is not valid");
+			return 0;
+		}
+	} else {
+		BT_ERR("sdio_func is not specified");
+		return 0;
+	}
+	priv = card->priv;
+
+	if (!priv->adapter->is_suspended) {
+		BT_DBG("device already resumed");
+		return 0;
+	}
+
+	priv->adapter->is_suspended = false;
+	hcidev = priv->btmrvl_dev.hcidev;
+	BT_DBG("%s: SDIO resume", hcidev->name);
+	hci_resume_dev(hcidev);
+	priv->hw_wakeup_firmware(priv);
+	priv->adapter->hs_state = HS_DEACTIVATED;
+	BT_DBG("%s: HS DEACTIVATED in resume!", hcidev->name);
+
+	return 0;
+}
+
+static const struct dev_pm_ops btmrvl_sdio_pm_ops = {
+	.suspend	= btmrvl_sdio_suspend,
+	.resume		= btmrvl_sdio_resume,
+};
+
 static struct sdio_driver bt_mrvl_sdio = {
 	.name		= "btmrvl_sdio",
 	.id_table	= btmrvl_sdio_ids,
 	.probe		= btmrvl_sdio_probe,
 	.remove		= btmrvl_sdio_remove,
+	.drv = {
+		.owner = THIS_MODULE,
+		.pm = &btmrvl_sdio_pm_ops,
+	}
 };
 
 static int __init btmrvl_sdio_init_module(void)
