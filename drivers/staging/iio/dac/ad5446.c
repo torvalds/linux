@@ -344,22 +344,12 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 	indio_dev->channels = &st->chip_info->channel;
 	indio_dev->num_channels = 1;
 
-	switch (spi_get_device_id(spi)->driver_data) {
-	case ID_AD5620_2500:
-	case ID_AD5620_1250:
-	case ID_AD5640_2500:
-	case ID_AD5640_1250:
-	case ID_AD5660_2500:
-	case ID_AD5660_1250:
+	if (st->chip_info->int_vref_mv)
 		st->vref_mv = st->chip_info->int_vref_mv;
-		break;
-	default:
-		if (voltage_uv)
-			st->vref_mv = voltage_uv / 1000;
-		else
-			dev_warn(&spi->dev,
-				 "reference voltage unspecified\n");
-	}
+	else if (voltage_uv)
+		st->vref_mv = voltage_uv / 1000;
+	else
+		dev_warn(&spi->dev, "reference voltage unspecified\n");
 
 	ret = iio_device_register(indio_dev);
 	if (ret)
