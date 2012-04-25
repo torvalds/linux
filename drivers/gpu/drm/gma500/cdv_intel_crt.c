@@ -67,7 +67,6 @@ static void cdv_intel_crt_dpms(struct drm_encoder *encoder, int mode)
 static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
-	int max_clock = 0;
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
 		return MODE_NO_DBLESCAN;
 
@@ -76,8 +75,7 @@ static int cdv_intel_crt_mode_valid(struct drm_connector *connector,
 		return MODE_CLOCK_LOW;
 
 	/* The max clock for CDV is 355 instead of 400 */
-	max_clock = 355000;
-	if (mode->clock > max_clock)
+	if (mode->clock > 355000)
 		return MODE_CLOCK_HIGH;
 
 	if (mode->hdisplay > 1680 || mode->vdisplay > 1050)
