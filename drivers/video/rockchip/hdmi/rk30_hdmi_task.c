@@ -211,7 +211,8 @@ void hdmi_work(struct work_struct *work)
 				if(rc == HDMI_ERROR_SUCESS)
 					hdmi->state = CONFIG_VIDEO;
 				break;
-			case CONFIG_VIDEO:					
+			case CONFIG_VIDEO:
+				hdmi->display = HDMI_DISABLE;
 				rc = rk30_hdmi_config_video(hdmi->vic, VIDEO_OUTPUT_RGB444, hdmi->edid.sink_hdmi);			
 				if(rc == HDMI_ERROR_SUCESS)
 				{
