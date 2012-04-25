@@ -633,9 +633,6 @@ static int oti6858_tiocmset(struct tty_struct *tty,
 	dbg("%s(port = %d, set = 0x%08x, clear = 0x%08x)",
 				__func__, port->number, set, clear);
 
-	if (!usb_get_intfdata(port->serial->interface))
-		return -ENODEV;
-
 	/* FIXME: check if this is correct (active high/low) */
 	spin_lock_irqsave(&priv->lock, flags);
 	control = priv->pending_setup.control;
@@ -664,9 +661,6 @@ static int oti6858_tiocmget(struct tty_struct *tty)
 	unsigned result = 0;
 
 	dbg("%s(port = %d)", __func__, port->number);
-
-	if (!usb_get_intfdata(port->serial->interface))
-		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	pin_state = priv->status.pin_state & PIN_MASK;
