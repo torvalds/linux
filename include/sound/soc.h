@@ -377,6 +377,9 @@ int snd_soc_params_to_bclk(struct snd_pcm_hw_params *parms);
 int snd_soc_set_runtime_hwparams(struct snd_pcm_substream *substream,
 	const struct snd_pcm_hardware *hw);
 
+int snd_soc_platform_trigger(struct snd_pcm_substream *substream,
+		int cmd, struct snd_soc_platform *platform);
+
 /* Jack reporting */
 int snd_soc_jack_new(struct snd_soc_codec *codec, const char *id, int type,
 		     struct snd_soc_jack *jack);
@@ -753,6 +756,7 @@ struct snd_soc_platform_driver {
 	/* platform IO - used for platform DAPM */
 	unsigned int (*read)(struct snd_soc_platform *, unsigned int);
 	int (*write)(struct snd_soc_platform *, unsigned int, unsigned int);
+	int (*bespoke_trigger)(struct snd_pcm_substream *, int);
 };
 
 struct snd_soc_platform {
