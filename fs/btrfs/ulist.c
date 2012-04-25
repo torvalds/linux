@@ -95,7 +95,7 @@ EXPORT_SYMBOL(ulist_reinit);
  *
  * The allocated ulist will be returned in an initialized state.
  */
-struct ulist *ulist_alloc(unsigned long gfp_mask)
+struct ulist *ulist_alloc(gfp_t gfp_mask)
 {
 	struct ulist *ulist = kmalloc(sizeof(*ulist), gfp_mask);
 
@@ -144,7 +144,7 @@ EXPORT_SYMBOL(ulist_free);
  * unaltered.
  */
 int ulist_add(struct ulist *ulist, u64 val, unsigned long aux,
-	      unsigned long gfp_mask)
+	      gfp_t gfp_mask)
 {
 	int i;
 
