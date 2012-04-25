@@ -75,10 +75,13 @@ static int jump__parse(struct ins_operands *ops)
 {
 	const char *s = strchr(ops->raw, '+');
 
-	if (s++ == NULL)
-		return -1;
+	ops->target.addr = strtoll(ops->raw, NULL, 16);
 
-	ops->target.offset = strtoll(s, NULL, 16);
+	if (s++ != NULL)
+		ops->target.offset = strtoll(s, NULL, 16);
+	else
+		ops->target.offset = UINT64_MAX;
+
 	return 0;
 }
 

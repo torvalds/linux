@@ -2,6 +2,7 @@
 #define __PERF_ANNOTATE_H
 
 #include <stdbool.h>
+#include <stdint.h>
 #include "types.h"
 #include "symbol.h"
 #include <linux/list.h>
@@ -40,6 +41,11 @@ struct disasm_line {
 	struct ins	    *ins;
 	struct ins_operands ops;
 };
+
+static inline bool disasm_line__has_offset(const struct disasm_line *dl)
+{
+	return dl->ops.target.offset != UINT64_MAX;
+}
 
 void disasm_line__free(struct disasm_line *dl);
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
