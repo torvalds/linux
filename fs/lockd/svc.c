@@ -329,7 +329,7 @@ static struct svc_serv *lockd_create_svc(void)
 int lockd_up(struct net *net)
 {
 	struct svc_serv *serv;
-	int		error = 0;
+	int error;
 
 	mutex_lock(&nlmsvc_mutex);
 
@@ -370,14 +370,13 @@ int lockd_up(struct net *net)
 		goto err_start;
 	}
 
+	nlmsvc_users++;
 	/*
 	 * Note: svc_serv structures have an initial use count of 1,
 	 * so we exit through here on both success and failure.
 	 */
 err_net:
 	svc_destroy(serv);
-	if (!error)
-		nlmsvc_users++;
 err_create:
 	mutex_unlock(&nlmsvc_mutex);
 	return error;
