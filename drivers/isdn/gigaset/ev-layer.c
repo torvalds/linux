@@ -658,7 +658,7 @@ static inline struct at_state_t *get_free_channel(struct cardstate *cs,
 	struct at_state_t *ret;
 
 	for (i = 0; i < cs->channels; ++i)
-		if (gigaset_get_channel(cs->bcs + i)) {
+		if (gigaset_get_channel(cs->bcs + i) >= 0) {
 			ret = &cs->bcs[i].at_state;
 			ret->cid = cid;
 			return ret;
@@ -923,18 +923,18 @@ static void do_stop(struct cardstate *cs)
  * channel >= 0: getting cid for the channel failed
  * channel < 0:  entering cid mode failed
  *
- * returns 0 on failure
+ * returns 0 on success, <0 on failure
  */
 static int reinit_and_retry(struct cardstate *cs, int channel)
 {
 	int i;
 
 	if (--cs->retry_count <= 0)
-		return 0;
+		return -EFAULT;
 
 	for (i = 0; i < cs->channels; ++i)
 		if (cs->bcs[i].at_state.cid > 0)
-			return 0;
+			return -EBUSY;
 
 	if (channel < 0)
 		dev_warn(cs->dev,
@@ -945,7 +945,7 @@ static int reinit_and_retry(struct cardstate *cs, int channel)
 		cs->bcs[channel].at_state.pending_commands |= PC_CID;
 	}
 	schedule_init(cs, MS_INIT);
-	return 1;
+	return 0;
 }
 
 static int at_state_invalid(struct cardstate *cs,
@@ -1016,7 +1016,7 @@ static int do_lock(struct cardstate *cs)
 			if (cs->bcs[i].at_state.pending_commands)
 				return -EBUSY;
 
-		if (!gigaset_get_channels(cs))
+		if (gigaset_get_channels(cs) < 0)
 			return -EBUSY;
 
 		break;
@@ -1125,7 +1125,7 @@ static void do_action(int action, struct cardstate *cs,
 			init_failed(cs, M_UNKNOWN);
 			break;
 		}
-		if (!reinit_and_retry(cs, -1))
+		if (reinit_and_retry(cs, -1) < 0)
 			schedule_init(cs, MS_RECOVER);
 		break;
 	case ACT_FAILUMODE:
@@ -1268,7 +1268,7 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_FAILCID:
 		cs->cur_at_seq = SEQ_NONE;
 		channel = cs->curchannel;
-		if (!reinit_and_retry(cs, channel)) {
+		if (reinit_and_retry(cs, channel) < 0) {
 			dev_warn(cs->dev,
 				 "Could not get a call ID. Cannot dial.\n");
 			at_state2 = &cs->bcs[channel].at_state;

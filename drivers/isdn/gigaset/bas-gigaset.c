@@ -2077,16 +2077,14 @@ static int gigaset_brkchars(struct cardstate *cs, const unsigned char buf[6])
 /* Free hardware dependent part of the B channel structure
  * parameter:
  *	bcs	B channel structure
- * return value:
- *	!=0 on success
  */
-static int gigaset_freebcshw(struct bc_state *bcs)
+static void gigaset_freebcshw(struct bc_state *bcs)
 {
 	struct bas_bc_state *ubc = bcs->hw.bas;
 	int i;
 
 	if (!ubc)
-		return 0;
+		return;
 
 	/* kill URBs and tasklets before freeing - better safe than sorry */
 	ubc->running = 0;
@@ -2104,14 +2102,13 @@ static int gigaset_freebcshw(struct bc_state *bcs)
 	kfree(ubc->isooutbuf);
 	kfree(ubc);
 	bcs->hw.bas = NULL;
-	return 1;
 }
 
 /* Initialize hardware dependent part of the B channel structure
  * parameter:
  *	bcs	B channel structure
  * return value:
- *	!=0 on success
+ *	0 on success, error code < 0 on failure
  */
 static int gigaset_initbcshw(struct bc_state *bcs)
 {
@@ -2121,7 +2118,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	bcs->hw.bas = ubc = kmalloc(sizeof(struct bas_bc_state), GFP_KERNEL);
 	if (!ubc) {
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	ubc->running = 0;
@@ -2138,7 +2135,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 		pr_err("out of memory\n");
 		kfree(ubc);
 		bcs->hw.bas = NULL;
-		return 0;
+		return -ENOMEM;
 	}
 	tasklet_init(&ubc->sent_tasklet,
 		     write_iso_tasklet, (unsigned long) bcs);
@@ -2163,7 +2160,7 @@ static int gigaset_initbcshw(struct bc_state *bcs)
 	ubc->stolen0s = 0;
 	tasklet_init(&ubc->rcvd_tasklet,
 		     read_iso_tasklet, (unsigned long) bcs);
-	return 1;
+	return 0;
 }
 
 static void gigaset_reinitbcshw(struct bc_state *bcs)
@@ -2186,6 +2183,12 @@ static void gigaset_freecshw(struct cardstate *cs)
 	cs->hw.bas = NULL;
 }
 
+/* Initialize hardware dependent part of the cardstate structure
+ * parameter:
+ *	cs	cardstate structure
+ * return value:
+ *	0 on success, error code < 0 on failure
+ */
 static int gigaset_initcshw(struct cardstate *cs)
 {
 	struct bas_cardstate *ucs;
@@ -2193,13 +2196,13 @@ static int gigaset_initcshw(struct cardstate *cs)
 	cs->hw.bas = ucs = kmalloc(sizeof *ucs, GFP_KERNEL);
 	if (!ucs) {
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 	ucs->int_in_buf = kmalloc(IP_MSGSIZE, GFP_KERNEL);
 	if (!ucs->int_in_buf) {
 		kfree(ucs);
 		pr_err("out of memory\n");
-		return 0;
+		return -ENOMEM;
 	}
 
 	ucs->urb_cmd_in = NULL;
@@ -2218,7 +2221,7 @@ static int gigaset_initcshw(struct cardstate *cs)
 	init_waitqueue_head(&ucs->waitqueue);
 	INIT_WORK(&ucs->int_in_wq, int_in_work);
 
-	return 1;
+	return 0;
 }
 
 /* freeurbs
@@ -2378,18 +2381,20 @@ static int gigaset_probe(struct usb_interface *interface,
 	/* save address of controller structure */
 	usb_set_intfdata(interface, cs);
 
-	if (!gigaset_start(cs))
+	rc = gigaset_start(cs);
+	if (rc < 0)
 		goto error;
 
 	return 0;
 
 allocerr:
 	dev_err(cs->dev, "could not allocate URBs\n");
+	rc = -ENOMEM;
 error:
 	freeurbs(cs);
 	usb_set_intfdata(interface, NULL);
 	gigaset_freecs(cs);
-	return -ENODEV;
+	return rc;
 }
 
 /* gigaset_disconnect

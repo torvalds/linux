@@ -583,7 +583,7 @@ struct gigaset_ops {
 	int (*initbcshw)(struct bc_state *bcs);
 
 	/* Called by gigaset_freecs() for freeing bcs->hw.xxx */
-	int (*freebcshw)(struct bc_state *bcs);
+	void (*freebcshw)(struct bc_state *bcs);
 
 	/* Called by gigaset_bchannel_down() for resetting bcs->hw.xxx */
 	void (*reinitbcshw)(struct bc_state *bcs);

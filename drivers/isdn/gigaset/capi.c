@@ -2346,7 +2346,7 @@ static const struct file_operations gigaset_proc_fops = {
  * @cs:		device descriptor structure.
  * @isdnid:	device name.
  *
- * Return value: 1 for success, 0 for failure
+ * Return value: 0 on success, error code < 0 on failure
  */
 int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 {
@@ -2356,7 +2356,7 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif = kmalloc(sizeof(*iif), GFP_KERNEL);
 	if (!iif) {
 		pr_err("%s: out of memory\n", __func__);
-		return 0;
+		return -ENOMEM;
 	}
 
 	/* prepare controller structure */
@@ -2380,12 +2380,12 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	if (rc) {
 		pr_err("attach_capi_ctr failed (%d)\n", rc);
 		kfree(iif);
-		return 0;
+		return rc;
 	}
 
 	cs->iif = iif;
 	cs->hw_hdr_len = CAPI_DATA_B3_REQ_LEN;
-	return 1;
+	return 0;
 }
 
 /**
