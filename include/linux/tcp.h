@@ -111,6 +111,11 @@ enum {
 #define TCP_QUEUE_SEQ		21
 #define TCP_REPAIR_OPTIONS	22
 
+struct tcp_repair_opt {
+	__u32	opt_code;
+	__u32	opt_val;
+};
+
 enum {
 	TCP_NO_QUEUE,
 	TCP_RECV_QUEUE,

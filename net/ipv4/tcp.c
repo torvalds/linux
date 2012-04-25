@@ -2283,60 +2283,40 @@ static inline int tcp_can_repair_sock(struct sock *sk)
 		((1 << sk->sk_state) & (TCPF_CLOSE | TCPF_ESTABLISHED));
 }
 
-static int tcp_repair_options_est(struct tcp_sock *tp, char __user *optbuf, unsigned int len)
+static int tcp_repair_options_est(struct tcp_sock *tp,
+		struct tcp_repair_opt __user *optbuf, unsigned int len)
 {
-	/*
-	 * Options are stored in CODE:VALUE form where CODE is 8bit and VALUE
-	 * fits the respective TCPOLEN_ size
-	 */
+	struct tcp_repair_opt opt;
 
-	while (len > 0) {
-		u8 opcode;
-
-		if (get_user(opcode, optbuf))
+	while (len >= sizeof(opt)) {
+		if (copy_from_user(&opt, optbuf, sizeof(opt)))
 			return -EFAULT;
 
 		optbuf++;
-		len--;
+		len -= sizeof(opt);
 
-		switch (opcode) {
-		case TCPOPT_MSS: {
-			u16 in_mss;
-
-			if (len < sizeof(in_mss))
-				return -ENODATA;
-			if (get_user(in_mss, optbuf))
-				return -EFAULT;
-
-			tp->rx_opt.mss_clamp = in_mss;
-
-			optbuf += sizeof(in_mss);
-			len -= sizeof(in_mss);
+		switch (opt.opt_code) {
+		case TCPOPT_MSS:
+			tp->rx_opt.mss_clamp = opt.opt_val;
 			break;
-		}
-		case TCPOPT_WINDOW: {
-			u8 wscale;
-
-			if (len < sizeof(wscale))
-				return -ENODATA;
-			if (get_user(wscale, optbuf))
-				return -EFAULT;
-
-			if (wscale > 14)
+		case TCPOPT_WINDOW:
+			if (opt.opt_val > 14)
 				return -EFBIG;
 
-			tp->rx_opt.snd_wscale = wscale;
-
-			optbuf += sizeof(wscale);
-			len -= sizeof(wscale);
+			tp->rx_opt.snd_wscale = opt.opt_val;
 			break;
-		}
 		case TCPOPT_SACK_PERM:
+			if (opt.opt_val != 0)
+				return -EINVAL;
+
 			tp->rx_opt.sack_ok |= TCP_SACK_SEEN;
 			if (sysctl_tcp_fack)
 				tcp_enable_fack(tp);
 			break;
 		case TCPOPT_TIMESTAMP:
+			if (opt.opt_val != 0)
+				return -EINVAL;
+
 			tp->rx_opt.tstamp_ok = 1;
 			break;
 		}
@@ -2557,7 +2537,9 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (!tp->repair)
 			err = -EINVAL;
 		else if (sk->sk_state == TCP_ESTABLISHED)
-			err = tcp_repair_options_est(tp, optval, optlen);
+			err = tcp_repair_options_est(tp,
+					(struct tcp_repair_opt __user *)optval,
+					optlen);
 		else
 			err = -EPERM;
 		break;
