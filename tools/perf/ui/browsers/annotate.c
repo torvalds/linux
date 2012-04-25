@@ -153,7 +153,8 @@ static void annotate_browser__draw_current_loop(struct ui_browser *browser)
 	unsigned int from, to, start_width = 2;
 
 	list_for_each_entry_from(pos, &notes->src->source, node) {
-		if (!pos->ins || !ins__is_jump(pos->ins))
+		if (!pos->ins || !ins__is_jump(pos->ins) ||
+		    !disasm_line__has_offset(pos))
 			continue;
 
 		target = ab->offsets[pos->ops.target.offset];
@@ -689,7 +690,8 @@ static void annotate_browser__mark_jump_targets(struct annotate_browser *browser
 		struct disasm_line *dl = browser->offsets[offset], *dlt;
 		struct browser_disasm_line *bdlt;
 
-		if (!dl || !dl->ins || !ins__is_jump(dl->ins))
+		if (!dl || !dl->ins || !ins__is_jump(dl->ins) ||
+		    !disasm_line__has_offset(dl))
 			continue;
 
 		if (dl->ops.target.offset >= size) {
