@@ -174,14 +174,6 @@ static const struct ad5446_chip_info ad5446_chip_info_tbl[] = {
 		.channel = AD5446_CHANNEL(16, 16, 0),
 		.store_sample = ad5446_store_sample,
 	},
-	[ID_AD5542A] = {
-		.channel = AD5446_CHANNEL(16, 16, 0),
-		.store_sample = ad5446_store_sample,
-	},
-	[ID_AD5543] = {
-		.channel = AD5446_CHANNEL(16, 16, 0),
-		.store_sample = ad5446_store_sample,
-	},
 	[ID_AD5512A] = {
 		.channel = AD5446_CHANNEL(12, 16, 4),
 		.store_sample = ad5446_store_sample,
@@ -389,8 +381,8 @@ static const struct spi_device_id ad5446_id[] = {
 	{"ad5446", ID_AD5446},
 	{"ad5512a", ID_AD5512A},
 	{"ad5541a", ID_AD5541A},
-	{"ad5542a", ID_AD5542A},
-	{"ad5543", ID_AD5543},
+	{"ad5542a", ID_AD5541A}, /* ad5541a and ad5542a are compatible */
+	{"ad5543", ID_AD5541A}, /* ad5541a and ad5543 are compatible */
 	{"ad5553", ID_AD5553},
 	{"ad5601", ID_AD5601},
 	{"ad5611", ID_AD5611},
