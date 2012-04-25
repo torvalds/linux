@@ -303,7 +303,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (!dev) {
-		err("Out of memory");
+		dev_err(&interface->dev, "Out of memory\n");
 		goto error;
 	}
 
@@ -311,7 +311,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 
 	/* register v4l2_device early so it can be used for printks */
 	if (v4l2_device_register(&interface->dev, &dev->v4l2_dev)) {
-		err("v4l2_device_register failed");
+		dev_err(&interface->dev, "v4l2_device_register failed\n");
 		goto error;
 	}
 
