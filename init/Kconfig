@@ -930,7 +930,6 @@ config UIDGID_CONVERTED
 	depends on 9P_FS = n
 	depends on AFS_FS = n
 	depends on AUTOFS4_FS = n
-	depends on BFS_FS = n
 	depends on BTRFS_FS = n
 	depends on CEPH_FS = n
 	depends on CIFS = n
