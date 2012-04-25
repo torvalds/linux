@@ -1393,7 +1393,7 @@ static int ftrace_cmp_recs(const void *a, const void *b)
 	return 0;
 }
 
-static int ftrace_location_range(unsigned long start, unsigned long end)
+static unsigned long ftrace_location_range(unsigned long start, unsigned long end)
 {
 	struct ftrace_page *pg;
 	struct dyn_ftrace *rec;
@@ -1410,7 +1410,7 @@ static int ftrace_location_range(unsigned long start, unsigned long end)
 			      sizeof(struct dyn_ftrace),
 			      ftrace_cmp_recs);
 		if (rec)
-			return 1;
+			return rec->ip;
 	}
 
 	return 0;
@@ -1420,12 +1420,12 @@ static int ftrace_location_range(unsigned long start, unsigned long end)
  * ftrace_location - return true if the ip giving is a traced location
  * @ip: the instruction pointer to check
  *
- * Returns 1 if @ip given is a pointer to a ftrace location.
+ * Returns rec->ip if @ip given is a pointer to a ftrace location.
  * That is, the instruction that is either a NOP or call to
  * the function tracer. It checks the ftrace internal tables to
  * determine if the address belongs or not.
  */
-int ftrace_location(unsigned long ip)
+unsigned long ftrace_location(unsigned long ip)
 {
 	return ftrace_location_range(ip, ip);
 }
@@ -1442,8 +1442,12 @@ int ftrace_location(unsigned long ip)
  */
 int ftrace_text_reserved(void *start, void *end)
 {
-	return ftrace_location_range((unsigned long)start,
-				     (unsigned long)end);
+	unsigned long ret;
+
+	ret = ftrace_location_range((unsigned long)start,
+				    (unsigned long)end);
+
+	return (int)!!ret;
 }
 
 static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
