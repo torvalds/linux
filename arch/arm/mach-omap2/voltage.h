@@ -16,6 +16,8 @@
 
 #include <linux/err.h>
 
+#include <plat/voltage.h>
+
 #include "vc.h"
 #include "vp.h"
 
@@ -88,25 +90,6 @@ struct voltagedomain {
 
 	u32 nominal_volt;
 	struct omap_volt_data *volt_data;
-};
-
-/**
- * struct omap_volt_data - Omap voltage specific data.
- * @voltage_nominal:	The possible voltage value in uV
- * @sr_efuse_offs:	The offset of the efuse register(from system
- *			control module base address) from where to read
- *			the n-target value for the smartreflex module.
- * @sr_errminlimit:	Error min limit value for smartreflex. This value
- *			differs at differnet opp and thus is linked
- *			with voltage.
- * @vp_errorgain:	Error gain value for the voltage processor. This
- *			field also differs according to the voltage/opp.
- */
-struct omap_volt_data {
-	u32	volt_nominal;
-	u32	sr_efuse_offs;
-	u8	sr_errminlimit;
-	u8	vp_errgain;
 };
 
 /**
