@@ -153,7 +153,7 @@ static void atl1c_get_regs(struct net_device *netdev,
 	AT_READ_REG(hw, REG_LINK_CTRL, 		  p++);
 	AT_READ_REG(hw, REG_IDLE_STATUS, 	  p++);
 	AT_READ_REG(hw, REG_MDIO_CTRL, 		  p++);
-	AT_READ_REG(hw, REG_SERDES_LOCK, 	  p++);
+	AT_READ_REG(hw, REG_SERDES,		  p++);
 	AT_READ_REG(hw, REG_MAC_CTRL, 		  p++);
 	AT_READ_REG(hw, REG_MAC_IPG_IFG, 	  p++);
 	AT_READ_REG(hw, REG_MAC_STA_ADDR, 	  p++);

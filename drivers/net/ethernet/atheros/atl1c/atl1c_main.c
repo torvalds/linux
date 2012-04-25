@@ -1008,7 +1008,6 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 	struct atl1c_rrd_ring *rrd_ring = &adapter->rrd_ring;
 	struct atl1c_tpd_ring *tpd_ring = (struct atl1c_tpd_ring *)
 				adapter->tpd_ring;
-	u32 data;
 
 	/* TPD */
 	AT_WRITE_REG(hw, REG_TX_BASE_ADDR_HI,
@@ -1051,13 +1050,6 @@ static void atl1c_configure_des_ring(struct atl1c_adapter *adapter)
 		AT_WRITE_REG(hw, REG_SRAM_TRD_ADDR, 0x03df03c0L);
 		AT_WRITE_REG(hw, REG_TXF_WATER_MARK, 0);	/* TX watermark, to enter l1 state.*/
 		AT_WRITE_REG(hw, REG_RXD_DMA_CTRL, 0);		/* RXD threshold.*/
-	}
-	if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l1d_2) {
-			/* Power Saving for L2c_B */
-		AT_READ_REG(hw, REG_SERDES_LOCK, &data);
-		data |= SERDES_MAC_CLK_SLOWDOWN;
-		data |= SERDES_PYH_CLK_SLOWDOWN;
-		AT_WRITE_REG(hw, REG_SERDES_LOCK, data);
 	}
 	/* Load all of base address above */
 	AT_WRITE_REG(hw, REG_LOAD_PTR, 1);
@@ -1177,7 +1169,7 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 {
 	struct atl1c_adapter *adapter = (struct atl1c_adapter *)hw->adapter;
 	struct pci_dev *pdev = adapter->pdev;
-	u32 master_ctrl_data = 0;
+	u32 ctrl_data = 0;
 
 	AT_WRITE_REG(hw, REG_IMR, 0);
 	AT_WRITE_REG(hw, REG_ISR, ISR_DIS_INT);
@@ -1189,10 +1181,9 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 	 * the current PCI configuration.  The global reset bit is self-
 	 * clearing, and should clear within a microsecond.
 	 */
-	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
-	master_ctrl_data |= MASTER_CTRL_OOB_DIS;
-	AT_WRITE_REG(hw, REG_MASTER_CTRL,
-		master_ctrl_data | MASTER_CTRL_SOFT_RST);
+	AT_READ_REG(hw, REG_MASTER_CTRL, &ctrl_data);
+	ctrl_data |= MASTER_CTRL_OOB_DIS;
+	AT_WRITE_REG(hw, REG_MASTER_CTRL, ctrl_data | MASTER_CTRL_SOFT_RST);
 
 	AT_WRITE_FLUSH(hw);
 	msleep(10);
@@ -1204,7 +1195,28 @@ static int atl1c_reset_mac(struct atl1c_hw *hw)
 			" disabled for 10ms second\n");
 		return -1;
 	}
-	AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
+	AT_WRITE_REG(hw, REG_MASTER_CTRL, ctrl_data);
+
+	/* driver control speed/duplex */
+	AT_READ_REG(hw, REG_MAC_CTRL, &ctrl_data);
+	AT_WRITE_REG(hw, REG_MAC_CTRL, ctrl_data | MAC_CTRL_SPEED_MODE_SW);
+
+	/* clk switch setting */
+	AT_READ_REG(hw, REG_SERDES, &ctrl_data);
+	switch (hw->nic_type) {
+	case athr_l2c_b:
+		ctrl_data &= ~(SERDES_PHY_CLK_SLOWDOWN |
+				SERDES_MAC_CLK_SLOWDOWN);
+		AT_WRITE_REG(hw, REG_SERDES, ctrl_data);
+		break;
+	case athr_l2c_b2:
+	case athr_l1d_2:
+		ctrl_data |= SERDES_PHY_CLK_SLOWDOWN | SERDES_MAC_CLK_SLOWDOWN;
+		AT_WRITE_REG(hw, REG_SERDES, ctrl_data);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }

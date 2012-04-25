@@ -327,18 +327,28 @@ int atl1c_write_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
 #define BIST1_FUSE_FLAG             	0x4
 
 /* SerDes Lock Detect Control and Status Register */
-#define REG_SERDES_LOCK            	0x1424
-#define SERDES_LOCK_DETECT          	0x1  /* SerDes lock detected. This signal
-					      * comes from Analog SerDes */
-#define SERDES_LOCK_DETECT_EN       	0x2  /* 1: Enable SerDes Lock detect function */
-#define SERDES_LOCK_STS_SELFB_PLL_SHIFT 0xE
-#define SERDES_LOCK_STS_SELFB_PLL_MASK  0x3
-#define SERDES_OVCLK_18_25		0x0
-#define SERDES_OVCLK_12_18		0x1
-#define SERDES_OVCLK_0_4		0x2
-#define SERDES_OVCLK_4_12		0x3
-#define SERDES_MAC_CLK_SLOWDOWN		0x20000
-#define SERDES_PYH_CLK_SLOWDOWN		0x40000
+#define REG_SERDES			0x1424
+#define SERDES_PHY_CLK_SLOWDOWN		BIT(18)
+#define SERDES_MAC_CLK_SLOWDOWN		BIT(17)
+#define SERDES_SELFB_PLL_MASK		0x3UL
+#define SERDES_SELFB_PLL_SHIFT		14
+#define SERDES_PHYCLK_SEL_GTX		BIT(13)	/* 1:gtx_clk, 0:25M */
+#define SERDES_PCIECLK_SEL_SRDS		BIT(12)	/* 1:serdes,0:25M */
+#define SERDES_BUFS_RX_EN		BIT(11)
+#define SERDES_PD_RX			BIT(10)
+#define SERDES_PLL_EN			BIT(9)
+#define SERDES_EN			BIT(8)
+#define SERDES_SELFB_PLL_SEL_CSR	BIT(6)	/* 0:state-machine,1:csr */
+#define SERDES_SELFB_PLL_CSR_MASK	0x3UL
+#define SERDES_SELFB_PLL_CSR_SHIFT	4
+#define SERDES_SELFB_PLL_CSR_4		3	/* 4-12% OV-CLK */
+#define SERDES_SELFB_PLL_CSR_0		2	/* 0-4% OV-CLK */
+#define SERDES_SELFB_PLL_CSR_12		1	/* 12-18% OV-CLK */
+#define SERDES_SELFB_PLL_CSR_18		0	/* 18-25% OV-CLK */
+#define SERDES_VCO_SLOW			BIT(3)
+#define SERDES_VCO_FAST			BIT(2)
+#define SERDES_LOCK_DETECT_EN		BIT(1)
+#define SERDES_LOCK_DETECT		BIT(0)
 
 /* MAC Control Register  */
 #define REG_MAC_CTRL         		0x1480
