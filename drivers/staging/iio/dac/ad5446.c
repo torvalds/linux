@@ -229,6 +229,9 @@ static int ad5446_read_raw(struct iio_dev *indio_dev,
 	unsigned long scale_uv;
 
 	switch (m) {
+	case IIO_CHAN_INFO_RAW:
+		*val = st->cached_val;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		scale_uv = (st->vref_mv * 1000) >> chan->scan_type.realbits;
 		*val =  scale_uv / 1000;
