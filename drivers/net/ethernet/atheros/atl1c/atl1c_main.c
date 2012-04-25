@@ -24,14 +24,6 @@
 #define ATL1C_DRV_VERSION "1.0.1.0-NAPI"
 char atl1c_driver_name[] = "atl1c";
 char atl1c_driver_version[] = ATL1C_DRV_VERSION;
-#define PCI_DEVICE_ID_ATTANSIC_L2C      0x1062
-#define PCI_DEVICE_ID_ATTANSIC_L1C      0x1063
-#define PCI_DEVICE_ID_ATHEROS_L2C_B	0x2060 /* AR8152 v1.1 Fast 10/100 */
-#define PCI_DEVICE_ID_ATHEROS_L2C_B2	0x2062 /* AR8152 v2.0 Fast 10/100 */
-#define PCI_DEVICE_ID_ATHEROS_L1D	0x1073 /* AR8151 v1.0 Gigabit 1000 */
-#define PCI_DEVICE_ID_ATHEROS_L1D_2_0	0x1083 /* AR8151 v2.0 Gigabit 1000 */
-#define L2CB_V10			0xc0
-#define L2CB_V11			0xc1
 
 /*
  * atl1c_pci_tbl - PCI Device ID Table
@@ -2307,12 +2299,7 @@ static int atl1c_suspend(struct device *dev)
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	struct atl1c_hw *hw = &adapter->hw;
-	u32 mac_ctrl_data = 0;
-	u32 master_ctrl_data = 0;
-	u32 wol_ctrl_data = 0;
-	u16 mii_intr_status_data = 0;
 	u32 wufc = adapter->wol;
-	u32 phy_ctrl_data;
 
 	atl1c_disable_l0s_l1(hw);
 	if (netif_running(netdev)) {
@@ -2322,82 +2309,10 @@ static int atl1c_suspend(struct device *dev)
 	netif_device_detach(netdev);
 
 	if (wufc)
-		if (atl1c_phy_power_saving(hw) != 0)
+		if (atl1c_phy_to_ps_link(hw) != 0)
 			dev_dbg(&pdev->dev, "phy power saving failed");
 
-	AT_READ_REG(hw, REG_MASTER_CTRL, &master_ctrl_data);
-	AT_READ_REG(hw, REG_MAC_CTRL, &mac_ctrl_data);
-	AT_READ_REG(hw, REG_GPHY_CTRL, &phy_ctrl_data);
-
-	master_ctrl_data &= ~MASTER_CTRL_CLK_SEL_DIS;
-	mac_ctrl_data &= ~(MAC_CTRL_PRMLEN_MASK << MAC_CTRL_PRMLEN_SHIFT);
-	mac_ctrl_data |= (((u32)adapter->hw.preamble_len &
-			MAC_CTRL_PRMLEN_MASK) <<
-			MAC_CTRL_PRMLEN_SHIFT);
-	mac_ctrl_data &= ~(MAC_CTRL_SPEED_MASK << MAC_CTRL_SPEED_SHIFT);
-	mac_ctrl_data &= ~MAC_CTRL_DUPLX;
-	phy_ctrl_data &= ~(GPHY_CTRL_EXT_RESET | GPHY_CTRL_CLS);
-	phy_ctrl_data |= GPHY_CTRL_SEL_ANA_RST | GPHY_CTRL_HIB_PULSE |
-			GPHY_CTRL_HIB_EN;
-
-	if (wufc) {
-		mac_ctrl_data |= MAC_CTRL_RX_EN;
-		phy_ctrl_data |= GPHY_CTRL_EXT_RESET;
-		if (adapter->link_speed == SPEED_1000 ||
-			adapter->link_speed == SPEED_0) {
-			mac_ctrl_data |= atl1c_mac_speed_1000 <<
-					MAC_CTRL_SPEED_SHIFT;
-			mac_ctrl_data |= MAC_CTRL_DUPLX;
-		} else
-			mac_ctrl_data |= atl1c_mac_speed_10_100 <<
-					MAC_CTRL_SPEED_SHIFT;
-
-		if (adapter->link_duplex == DUPLEX_FULL)
-			mac_ctrl_data |= MAC_CTRL_DUPLX;
-
-		/* turn on magic packet wol */
-		if (wufc & AT_WUFC_MAG) {
-			wol_ctrl_data |= WOL_MAGIC_EN | WOL_MAGIC_PME_EN;
-			if (hw->nic_type == athr_l2c_b &&
-			    hw->revision_id == L2CB_V11) {
-				wol_ctrl_data |=
-					WOL_PATTERN_EN | WOL_PATTERN_PME_EN;
-			}
-		}
-		if (wufc & AT_WUFC_LNKC) {
-			wol_ctrl_data |=  WOL_LINK_CHG_EN | WOL_LINK_CHG_PME_EN;
-			/* only link up can wake up */
-			if (atl1c_write_phy_reg(hw, MII_IER, IER_LINK_UP) != 0) {
-				dev_dbg(&pdev->dev, "%s: read write phy "
-						  "register failed.\n",
-						  atl1c_driver_name);
-			}
-		}
-		/* clear phy interrupt */
-		atl1c_read_phy_reg(hw, MII_ISR, &mii_intr_status_data);
-		/* Config MAC Ctrl register */
-		__atl1c_vlan_mode(netdev->features, &mac_ctrl_data);
-
-		/* magic packet maybe Broadcast&multicast&Unicast frame */
-		if (wufc & AT_WUFC_MAG)
-			mac_ctrl_data |= MAC_CTRL_BC_EN;
-
-		dev_dbg(&pdev->dev,
-			"%s: suspend MAC=0x%x\n",
-			atl1c_driver_name, mac_ctrl_data);
-	} else {
-		master_ctrl_data |= MASTER_CTRL_CLK_SEL_DIS;
-		mac_ctrl_data |= atl1c_mac_speed_10_100 << MAC_CTRL_SPEED_SHIFT;
-		mac_ctrl_data |= MAC_CTRL_DUPLX;
-		phy_ctrl_data |= GPHY_CTRL_PHY_IDDQ | GPHY_CTRL_PWDOWN_HW;
-		wol_ctrl_data = 0;
-		hw->phy_configured = false; /* re-init PHY when resume */
-	}
-
-	AT_WRITE_REG(hw, REG_MASTER_CTRL, master_ctrl_data);
-	AT_WRITE_REG(hw, REG_MAC_CTRL, mac_ctrl_data);
-	AT_WRITE_REG(hw, REG_GPHY_CTRL, phy_ctrl_data);
-	AT_WRITE_REG(hw, REG_WOL_CTRL, wol_ctrl_data);
+	atl1c_power_saving(hw, wufc);
 
 	return 0;
 }

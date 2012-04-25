@@ -48,7 +48,8 @@ bool atl1c_read_eeprom(struct atl1c_hw *hw, u32 offset, u32 *p_value);
 int atl1c_phy_init(struct atl1c_hw *hw);
 int atl1c_check_eeprom_exist(struct atl1c_hw *hw);
 int atl1c_restart_autoneg(struct atl1c_hw *hw);
-int atl1c_phy_power_saving(struct atl1c_hw *hw);
+int atl1c_phy_to_ps_link(struct atl1c_hw *hw);
+int atl1c_power_saving(struct atl1c_hw *hw, u32 wufc);
 bool atl1c_wait_mdio_idle(struct atl1c_hw *hw);
 void atl1c_stop_phy_polling(struct atl1c_hw *hw);
 void atl1c_start_phy_polling(struct atl1c_hw *hw, u16 clk_sel);
@@ -62,6 +63,16 @@ int atl1c_write_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
 			u16 reg_addr, u16 phy_data);
 int atl1c_read_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 *phy_data);
 int atl1c_write_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 phy_data);
+
+/* hw-ids */
+#define PCI_DEVICE_ID_ATTANSIC_L2C      0x1062
+#define PCI_DEVICE_ID_ATTANSIC_L1C      0x1063
+#define PCI_DEVICE_ID_ATHEROS_L2C_B	0x2060 /* AR8152 v1.1 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L2C_B2	0x2062 /* AR8152 v2.0 Fast 10/100 */
+#define PCI_DEVICE_ID_ATHEROS_L1D	0x1073 /* AR8151 v1.0 Gigabit 1000 */
+#define PCI_DEVICE_ID_ATHEROS_L1D_2_0	0x1083 /* AR8151 v2.0 Gigabit 1000 */
+#define L2CB_V10			0xc0
+#define L2CB_V11			0xc1
 
 /* register definition */
 #define REG_DEVICE_CAP              	0x5C
@@ -366,35 +377,36 @@ int atl1c_write_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 phy_data);
 
 /* MAC Control Register  */
 #define REG_MAC_CTRL         		0x1480
-#define MAC_CTRL_TX_EN			0x1
-#define MAC_CTRL_RX_EN			0x2
-#define MAC_CTRL_TX_FLOW		0x4
-#define MAC_CTRL_RX_FLOW            	0x8
-#define MAC_CTRL_LOOPBACK          	0x10
-#define MAC_CTRL_DUPLX              	0x20
-#define MAC_CTRL_ADD_CRC            	0x40
-#define MAC_CTRL_PAD                	0x80
-#define MAC_CTRL_LENCHK             	0x100
-#define MAC_CTRL_HUGE_EN            	0x200
-#define MAC_CTRL_PRMLEN_SHIFT       	10
-#define MAC_CTRL_PRMLEN_MASK        	0xf
-#define MAC_CTRL_RMV_VLAN           	0x4000
-#define MAC_CTRL_PROMIS_EN          	0x8000
-#define MAC_CTRL_TX_PAUSE           	0x10000
-#define MAC_CTRL_SCNT               	0x20000
-#define MAC_CTRL_SRST_TX            	0x40000
-#define MAC_CTRL_TX_SIMURST         	0x80000
-#define MAC_CTRL_SPEED_SHIFT        	20
-#define MAC_CTRL_SPEED_MASK         	0x3
-#define MAC_CTRL_DBG_TX_BKPRESURE   	0x400000
-#define MAC_CTRL_TX_HUGE            	0x800000
-#define MAC_CTRL_RX_CHKSUM_EN       	0x1000000
-#define MAC_CTRL_MC_ALL_EN          	0x2000000
-#define MAC_CTRL_BC_EN              	0x4000000
-#define MAC_CTRL_DBG                	0x8000000
-#define MAC_CTRL_SINGLE_PAUSE_EN	0x10000000
-#define MAC_CTRL_HASH_ALG_CRC32		0x20000000
-#define MAC_CTRL_SPEED_MODE_SW		0x40000000
+#define MAC_CTRL_SPEED_MODE_SW		BIT(30) /* 0:phy,1:sw */
+#define MAC_CTRL_HASH_ALG_CRC32		BIT(29) /* 1:legacy,0:lw_5b */
+#define MAC_CTRL_SINGLE_PAUSE_EN	BIT(28)
+#define MAC_CTRL_DBG			BIT(27)
+#define MAC_CTRL_BC_EN			BIT(26)
+#define MAC_CTRL_MC_ALL_EN		BIT(25)
+#define MAC_CTRL_RX_CHKSUM_EN		BIT(24)
+#define MAC_CTRL_TX_HUGE		BIT(23)
+#define MAC_CTRL_DBG_TX_BKPRESURE	BIT(22)
+#define MAC_CTRL_SPEED_MASK		3UL
+#define MAC_CTRL_SPEED_SHIFT		20
+#define MAC_CTRL_SPEED_10_100		1
+#define MAC_CTRL_SPEED_1000		2
+#define MAC_CTRL_TX_SIMURST		BIT(19)
+#define MAC_CTRL_SCNT			BIT(17)
+#define MAC_CTRL_TX_PAUSE		BIT(16)
+#define MAC_CTRL_PROMIS_EN		BIT(15)
+#define MAC_CTRL_RMV_VLAN		BIT(14)
+#define MAC_CTRL_PRMLEN_MASK		0xFUL
+#define MAC_CTRL_PRMLEN_SHIFT		10
+#define MAC_CTRL_HUGE_EN		BIT(9)
+#define MAC_CTRL_LENCHK			BIT(8)
+#define MAC_CTRL_PAD			BIT(7)
+#define MAC_CTRL_ADD_CRC		BIT(6)
+#define MAC_CTRL_DUPLX			BIT(5)
+#define MAC_CTRL_LOOPBACK		BIT(4)
+#define MAC_CTRL_RX_FLOW		BIT(3)
+#define MAC_CTRL_TX_FLOW		BIT(2)
+#define MAC_CTRL_RX_EN			BIT(1)
+#define MAC_CTRL_TX_EN			BIT(0)
 
 /* MAC IPG/IFG Control Register  */
 #define REG_MAC_IPG_IFG             	0x1484
