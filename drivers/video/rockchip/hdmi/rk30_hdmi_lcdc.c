@@ -62,6 +62,11 @@ const struct fb_videomode hdmi_mode [] = {
 
 };
 
+void hdmi_init_lcdc(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info)
+{
+	hdmi_set_info(screen, HDMI_VIDEO_DEFAULT_MODE);
+}
+
 int hdmi_set_info(struct rk29fb_screen *screen, unsigned int vic)
 {
     int i;
