@@ -3496,7 +3496,14 @@ int ath6kl_cfg80211_init(struct ath6kl *ar)
 		return -EINVAL;
 	}
 
-	if (!ht) {
+	/*
+	 * Even if the fw has HT support, advertise HT cap only when
+	 * the firmware has support to override RSN capability, otherwise
+	 * 4-way handshake would fail.
+	 */
+	if (!(ht &&
+	      test_bit(ATH6KL_FW_CAPABILITY_RSN_CAP_OVERRIDE,
+		       ar->fw_capabilities))) {
 		ath6kl_band_2ghz.ht_cap.cap = 0;
 		ath6kl_band_2ghz.ht_cap.ht_supported = false;
 		ath6kl_band_5ghz.ht_cap.cap = 0;
