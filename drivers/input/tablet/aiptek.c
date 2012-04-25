@@ -811,8 +811,9 @@ static void aiptek_irq(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval != 0) {
-		err("%s - usb_submit_urb failed with result %d",
-		    __func__, retval);
+		dev_err(&aiptek->usbdev->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 	}
 }
 
