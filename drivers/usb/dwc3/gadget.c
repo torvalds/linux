@@ -2308,8 +2308,7 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 		goto err1;
 	}
 
-	dwc->setup_buf = kzalloc(sizeof(*dwc->setup_buf) * 2,
-			GFP_KERNEL);
+	dwc->setup_buf = kzalloc(512, GFP_KERNEL);
 	if (!dwc->setup_buf) {
 		dev_err(dwc->dev, "failed to allocate setup buffer\n");
 		ret = -ENOMEM;
