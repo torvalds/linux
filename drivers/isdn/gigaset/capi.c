@@ -1887,6 +1887,9 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 
 	/* check for active logical connection */
 	if (bcs->apconnstate >= APCONN_ACTIVE) {
+		/* clear it */
+		bcs->apconnstate = APCONN_SETUP;
+
 		/*
 		 * emit DISCONNECT_B3_IND with cause 0x3301
 		 * use separate cmsg structure, as the content of iif->acmsg
@@ -1911,6 +1914,7 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 		}
 		capi_cmsg2message(b3cmsg,
 				  __skb_put(b3skb, CAPI_DISCONNECT_B3_IND_BASELEN));
+		dump_cmsg(DEBUG_CMD, __func__, b3cmsg);
 		kfree(b3cmsg);
 		capi_ctr_handle_message(&iif->ctr, ap->id, b3skb);
 	}
