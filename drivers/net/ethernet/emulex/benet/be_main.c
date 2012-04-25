@@ -797,21 +797,29 @@ static int be_vid_config(struct be_adapter *adapter, bool vf, u32 vf_num)
 	if (adapter->promiscuous)
 		return 0;
 
-	if (adapter->vlans_added <= adapter->max_vlans)  {
-		/* Construct VLAN Table to give to HW */
-		for (i = 0; i < VLAN_N_VID; i++) {
-			if (adapter->vlan_tag[i]) {
-				vtag[ntags] = cpu_to_le16(i);
-				ntags++;
-			}
-		}
-		status = be_cmd_vlan_config(adapter, adapter->if_handle,
-					vtag, ntags, 1, 0);
-	} else {
-		status = be_cmd_vlan_config(adapter, adapter->if_handle,
-					NULL, 0, 1, 1);
+	if (adapter->vlans_added > adapter->max_vlans)
+		goto set_vlan_promisc;
+
+	/* Construct VLAN Table to give to HW */
+	for (i = 0; i < VLAN_N_VID; i++)
+		if (adapter->vlan_tag[i])
+			vtag[ntags++] = cpu_to_le16(i);
+
+	status = be_cmd_vlan_config(adapter, adapter->if_handle,
+				    vtag, ntags, 1, 0);
+
+	/* Set to VLAN promisc mode as setting VLAN filter failed */
+	if (status) {
+		dev_info(&adapter->pdev->dev, "Exhausted VLAN HW filters.\n");
+		dev_info(&adapter->pdev->dev, "Disabling HW VLAN filtering.\n");
+		goto set_vlan_promisc;
 	}
 
+	return status;
+
+set_vlan_promisc:
+	status = be_cmd_vlan_config(adapter, adapter->if_handle,
+				    NULL, 0, 1, 1);
 	return status;
 }
 
@@ -862,6 +870,7 @@ ret:
 static void be_set_rx_mode(struct net_device *netdev)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	int status;
 
 	if (netdev->flags & IFF_PROMISC) {
 		be_cmd_rx_filter(adapter, IFF_PROMISC, ON);
@@ -908,7 +917,14 @@ static void be_set_rx_mode(struct net_device *netdev)
 		}
 	}
 
-	be_cmd_rx_filter(adapter, IFF_MULTICAST, ON);
+	status = be_cmd_rx_filter(adapter, IFF_MULTICAST, ON);
+
+	/* Set to MCAST promisc mode if setting MULTICAST address fails */
+	if (status) {
+		dev_info(&adapter->pdev->dev, "Exhausted multicast HW filters.\n");
+		dev_info(&adapter->pdev->dev, "Disabling HW multicast filtering.\n");
+		be_cmd_rx_filter(adapter, IFF_ALLMULTI, ON);
+	}
 done:
 	return;
 }
