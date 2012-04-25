@@ -401,8 +401,6 @@ static int opticon_tiocmget(struct tty_struct *tty)
 	int result = 0;
 
 	dbg("%s - port %d", __func__, port->number);
-	if (!usb_get_intfdata(port->serial->interface))
-		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->rts)
@@ -419,13 +417,13 @@ static int opticon_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial *serial = port->serial;
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
 	bool rts;
 	bool changed = false;
+	int ret;
 
-	if (!usb_get_intfdata(port->serial->interface))
-		return -ENODEV;
 	/* We only support RTS so we only handle that */
 	spin_lock_irqsave(&priv->lock, flags);
 
@@ -441,7 +439,14 @@ static int opticon_tiocmset(struct tty_struct *tty,
 		return 0;
 
 	/* Send the new RTS state to the connected device */
-	return send_control_msg(port, CONTROL_RTS, !rts);
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected)
+		ret = send_control_msg(port, CONTROL_RTS, !rts);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&serial->disc_mutex);
+
+	return ret;
 }
 
 static int get_serial_info(struct opticon_private *priv,
