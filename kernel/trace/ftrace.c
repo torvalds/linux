@@ -1520,35 +1520,6 @@ static void ftrace_hash_rec_enable(struct ftrace_ops *ops,
 	__ftrace_hash_rec_update(ops, filter_hash, 1);
 }
 
-static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
-{
-	if (ftrace_pages->index == ftrace_pages->size) {
-		/* We should have allocated enough */
-		if (WARN_ON(!ftrace_pages->next))
-			return NULL;
-		ftrace_pages = ftrace_pages->next;
-	}
-
-	return &ftrace_pages->records[ftrace_pages->index++];
-}
-
-static struct dyn_ftrace *
-ftrace_record_ip(unsigned long ip)
-{
-	struct dyn_ftrace *rec;
-
-	if (ftrace_disabled)
-		return NULL;
-
-	rec = ftrace_alloc_dyn_node(ip);
-	if (!rec)
-		return NULL;
-
-	rec->ip = ip;
-
-	return rec;
-}
-
 static void print_ip_ins(const char *fmt, unsigned char *p)
 {
 	int i;
@@ -3693,7 +3664,9 @@ static int ftrace_process_locs(struct module *mod,
 			       unsigned long *start,
 			       unsigned long *end)
 {
+	struct ftrace_page *start_pg;
 	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
 	unsigned long count;
 	unsigned long *p;
 	unsigned long addr;
@@ -3708,8 +3681,8 @@ static int ftrace_process_locs(struct module *mod,
 	sort(start, count, sizeof(*start),
 	     ftrace_cmp_ips, ftrace_swap_ips);
 
-	pg = ftrace_allocate_pages(count);
-	if (!pg)
+	start_pg = ftrace_allocate_pages(count);
+	if (!start_pg)
 		return -ENOMEM;
 
 	mutex_lock(&ftrace_lock);
@@ -3722,7 +3695,7 @@ static int ftrace_process_locs(struct module *mod,
 	if (!mod) {
 		WARN_ON(ftrace_pages || ftrace_pages_start);
 		/* First initialization */
-		ftrace_pages = ftrace_pages_start = pg;
+		ftrace_pages = ftrace_pages_start = start_pg;
 	} else {
 		if (!ftrace_pages)
 			goto out;
@@ -3733,11 +3706,11 @@ static int ftrace_process_locs(struct module *mod,
 				ftrace_pages = ftrace_pages->next;
 		}
 
-		ftrace_pages->next = pg;
-		ftrace_pages = pg;
+		ftrace_pages->next = start_pg;
 	}
 
 	p = start;
+	pg = start_pg;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
 		/*
@@ -3748,12 +3721,26 @@ static int ftrace_process_locs(struct module *mod,
 		 */
 		if (!addr)
 			continue;
-		if (!ftrace_record_ip(addr))
-			break;
+
+		if (pg->index == pg->size) {
+			/* We should have allocated enough */
+			if (WARN_ON(!pg->next))
+				break;
+			pg = pg->next;
+		}
+
+		rec = &pg->records[pg->index++];
+		rec->ip = addr;
 	}
 
+	/* We should have used all pages */
+	WARN_ON(pg->next);
+
+	/* Assign the last page to ftrace_pages */
+	ftrace_pages = pg;
+
 	/* These new locations need to be initialized */
-	ftrace_new_pgs = pg;
+	ftrace_new_pgs = start_pg;
 
 	/*
 	 * We only need to disable interrupts on start up
