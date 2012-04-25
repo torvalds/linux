@@ -1543,6 +1543,31 @@ void kvm_resched(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_resched);
 
+bool kvm_vcpu_yield_to(struct kvm_vcpu *target)
+{
+	struct pid *pid;
+	struct task_struct *task = NULL;
+
+	rcu_read_lock();
+	pid = rcu_dereference(target->pid);
+	if (pid)
+		task = get_pid_task(target->pid, PIDTYPE_PID);
+	rcu_read_unlock();
+	if (!task)
+		return false;
+	if (task->flags & PF_VCPU) {
+		put_task_struct(task);
+		return false;
+	}
+	if (yield_to(task, 1)) {
+		put_task_struct(task);
+		return true;
+	}
+	put_task_struct(task);
+	return false;
+}
+EXPORT_SYMBOL_GPL(kvm_vcpu_yield_to);
+
 void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 {
 	struct kvm *kvm = me->kvm;
@@ -1561,8 +1586,6 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 	 */
 	for (pass = 0; pass < 2 && !yielded; pass++) {
 		kvm_for_each_vcpu(i, vcpu, kvm) {
-			struct task_struct *task = NULL;
-			struct pid *pid;
 			if (!pass && i < last_boosted_vcpu) {
 				i = last_boosted_vcpu;
 				continue;
@@ -1572,24 +1595,11 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 				continue;
 			if (waitqueue_active(&vcpu->wq))
 				continue;
-			rcu_read_lock();
-			pid = rcu_dereference(vcpu->pid);
-			if (pid)
-				task = get_pid_task(vcpu->pid, PIDTYPE_PID);
-			rcu_read_unlock();
-			if (!task)
-				continue;
-			if (task->flags & PF_VCPU) {
-				put_task_struct(task);
-				continue;
-			}
-			if (yield_to(task, 1)) {
-				put_task_struct(task);
+			if (kvm_vcpu_yield_to(vcpu)) {
 				kvm->last_boosted_vcpu = i;
 				yielded = 1;
 				break;
 			}
-			put_task_struct(task);
 		}
 	}
 }

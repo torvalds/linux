@@ -53,6 +53,29 @@ static int __diag_time_slice_end(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+static int __diag_time_slice_end_directed(struct kvm_vcpu *vcpu)
+{
+	struct kvm *kvm = vcpu->kvm;
+	struct kvm_vcpu *tcpu;
+	int tid;
+	int i;
+
+	tid = vcpu->run->s.regs.gprs[(vcpu->arch.sie_block->ipa & 0xf0) >> 4];
+	vcpu->stat.diagnose_9c++;
+	VCPU_EVENT(vcpu, 5, "diag time slice end directed to %d", tid);
+
+	if (tid == vcpu->vcpu_id)
+		return 0;
+
+	kvm_for_each_vcpu(i, tcpu, kvm)
+		if (tcpu->vcpu_id == tid) {
+			kvm_vcpu_yield_to(tcpu);
+			break;
+		}
+
+	return 0;
+}
+
 static int __diag_ipl_functions(struct kvm_vcpu *vcpu)
 {
 	unsigned int reg = vcpu->arch.sie_block->ipa & 0xf;
@@ -89,6 +112,8 @@ int kvm_s390_handle_diag(struct kvm_vcpu *vcpu)
 		return diag_release_pages(vcpu);
 	case 0x44:
 		return __diag_time_slice_end(vcpu);
+	case 0x9c:
+		return __diag_time_slice_end_directed(vcpu);
 	case 0x308:
 		return __diag_ipl_functions(vcpu);
 	default:
