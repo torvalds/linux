@@ -196,7 +196,7 @@ lowpan_compress_addr_64(u8 **hc06_ptr, u8 shift, const struct in6_addr *ipaddr,
 static void
 lowpan_uip_ds6_set_addr_iid(struct in6_addr *ipaddr, unsigned char *lladdr)
 {
-	memcpy(&ipaddr->s6_addr[8], lladdr, IEEE802154_ALEN);
+	memcpy(&ipaddr->s6_addr[8], lladdr, IEEE802154_ADDR_LEN);
 	/* second bit-flip (Universe/Local) is done according RFC2464 */
 	ipaddr->s6_addr[8] ^= 0x02;
 }
@@ -221,7 +221,7 @@ lowpan_uncompress_addr(struct sk_buff *skb, struct in6_addr *ipaddr,
 
 	if (lladdr)
 		lowpan_raw_dump_inline(__func__, "linklocal address",
-						lladdr,	IEEE802154_ALEN);
+						lladdr,	IEEE802154_ADDR_LEN);
 	if (prefcount > 0)
 		memcpy(ipaddr, prefix, prefcount);
 
