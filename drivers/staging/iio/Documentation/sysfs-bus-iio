@@ -108,7 +108,7 @@ Description:
 		physically equivalent inputs when non differential readings are
 		separately available. In differential only parts, then all that
 		is required is a consistent labeling.  Units after application
-		of scale and offset are nanofarads..
+		of scale and offset are nanofarads.
 
 What:		/sys/bus/iio/devices/iio:deviceX/in_temp_raw
 What:		/sys/bus/iio/devices/iio:deviceX/in_tempX_raw
@@ -119,7 +119,7 @@ KernelVersion:	2.6.35
 Contact:	linux-iio@vger.kernel.org
 Description:
 		Raw (unscaled no bias removal etc) temperature measurement.
-		It an axis is specified it generally means that the temperature
+		If an axis is specified it generally means that the temperature
 		sensor is associated with one part of a compound device (e.g.
 		a gyroscope axis). Units after application of scale and offset
 		are milli degrees Celsuis.
@@ -232,7 +232,7 @@ Description:
 		If known for a device, scale to be applied to <type>Y[_name]_raw
 		post addition of <type>[Y][_name]_offset in order to obtain the
 		measured value in <type> units as specified in
-		<type>[Y][_name]_raw documentation..  If shared across all in
+		<type>[Y][_name]_raw documentation.  If shared across all in
 		channels then Y and <x|y|z> are not present and the value is
 		called <type>[Y][_name]_scale. The peak modifier means this
 		value is applied to <type>Y[_name]_peak_raw values.
