@@ -24,31 +24,40 @@
 
 #include "ad5446.h"
 
-static void ad5446_store_sample(struct ad5446_state *st, unsigned val)
+static int ad5446_store_sample(struct ad5446_state *st, unsigned val)
 {
-	st->data.d16 = cpu_to_be16(val);
+	__be16 data = cpu_to_be16(val);
+	return spi_write(st->spi, &data, sizeof(data));
 }
 
-static void ad5660_store_sample(struct ad5446_state *st, unsigned val)
+static int ad5660_store_sample(struct ad5446_state *st, unsigned val)
 {
+	uint8_t data[3];
+
 	val |= AD5660_LOAD;
-	st->data.d24[0] = (val >> 16) & 0xFF;
-	st->data.d24[1] = (val >> 8) & 0xFF;
-	st->data.d24[2] = val & 0xFF;
+	data[0] = (val >> 16) & 0xFF;
+	data[1] = (val >> 8) & 0xFF;
+	data[2] = val & 0xFF;
+
+	return spi_write(st->spi, data, sizeof(data));
 }
 
-static void ad5620_store_pwr_down(struct ad5446_state *st, unsigned mode)
+static int ad5620_store_pwr_down(struct ad5446_state *st, unsigned mode)
 {
-	st->data.d16 = cpu_to_be16(mode << 14);
+	__be16 data = cpu_to_be16(mode << 14);
+	return spi_write(st->spi, &data, sizeof(data));
 }
 
-static void ad5660_store_pwr_down(struct ad5446_state *st, unsigned mode)
+static int ad5660_store_pwr_down(struct ad5446_state *st, unsigned mode)
 {
 	unsigned val = mode << 16;
+	uint8_t data[3];
 
-	st->data.d24[0] = (val >> 16) & 0xFF;
-	st->data.d24[1] = (val >> 8) & 0xFF;
-	st->data.d24[2] = val & 0xFF;
+	data[0] = (val >> 16) & 0xFF;
+	data[1] = (val >> 8) & 0xFF;
+	data[2] = val & 0xFF;
+
+	return spi_write(st->spi, data, sizeof(data));
 }
 
 static ssize_t ad5446_write_powerdown_mode(struct device *dev,
@@ -111,11 +120,10 @@ static ssize_t ad5446_write_dac_powerdown(struct device *dev,
 	st->pwr_down = readin;
 
 	if (st->pwr_down)
-		st->chip_info->store_pwr_down(st, st->pwr_down_mode);
+		ret = st->chip_info->store_pwr_down(st, st->pwr_down_mode);
 	else
-		st->chip_info->store_sample(st, st->cached_val);
+		ret = st->chip_info->store_sample(st, st->cached_val);
 
-	ret = spi_sync(st->spi, &st->msg);
 	mutex_unlock(&indio_dev->mlock);
 
 	return ret ? ret : len;
@@ -272,10 +280,8 @@ static int ad5446_write_raw(struct iio_dev *indio_dev,
 		val <<= chan->scan_type.shift;
 		mutex_lock(&indio_dev->mlock);
 		st->cached_val = val;
-		if (!st->pwr_down) {
-			st->chip_info->store_sample(st, val);
-			ret = spi_sync(st->spi, &st->msg);
-		}
+		if (!st->pwr_down)
+			ret = st->chip_info->store_sample(st, val);
 		mutex_unlock(&indio_dev->mlock);
 		break;
 	default:
@@ -337,14 +343,6 @@ static int __devinit ad5446_probe(struct spi_device *spi)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = &st->chip_info->channel;
 	indio_dev->num_channels = 1;
-
-	/* Setup default message */
-
-	st->xfer.tx_buf = &st->data;
-	st->xfer.len = st->chip_info->channel.scan_type.storagebits / 8;
-
-	spi_message_init(&st->msg);
-	spi_message_add_tail(&st->xfer, &st->msg);
 
 	switch (spi_get_device_id(spi)->driver_data) {
 	case ID_AD5620_2500:

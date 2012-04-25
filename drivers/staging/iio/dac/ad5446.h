@@ -36,9 +36,6 @@
  * @reg:		supply regulator
  * @poll_work:		bottom half of polling interrupt handler
  * @vref_mv:		actual reference voltage used
- * @xfer:		default spi transfer
- * @msg:		default spi message
- * @data:		spi transmit buffer
  */
 
 struct ad5446_state {
@@ -50,12 +47,6 @@ struct ad5446_state {
 	unsigned			cached_val;
 	unsigned			pwr_down_mode;
 	unsigned			pwr_down;
-	struct spi_transfer		xfer;
-	struct spi_message		msg;
-	union {
-		unsigned short		d16;
-		unsigned char		d24[3];
-	} data;
 };
 
 /**
@@ -69,8 +60,8 @@ struct ad5446_state {
 struct ad5446_chip_info {
 	struct iio_chan_spec	channel;
 	u16			int_vref_mv;
-	void (*store_sample)	(struct ad5446_state *st, unsigned val);
-	void (*store_pwr_down)	(struct ad5446_state *st, unsigned mode);
+	int (*store_sample)	(struct ad5446_state *st, unsigned val);
+	int (*store_pwr_down)	(struct ad5446_state *st, unsigned mode);
 };
 
 /**
