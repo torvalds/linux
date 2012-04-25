@@ -410,10 +410,10 @@ static void check_pending(struct bas_cardstate *ucs)
 		if (!(ucs->basstate & BS_RESETTING))
 			ucs->pending = 0;
 		break;
-		/*
-		 * HD_READ_ATMESSAGE and HD_WRITE_ATMESSAGE are handled separately
-		 * and should never end up here
-		 */
+	/*
+	 * HD_READ_ATMESSAGE and HD_WRITE_ATMESSAGE are handled separately
+	 * and should never end up here
+	 */
 	default:
 		dev_warn(&ucs->interface->dev,
 			 "unknown pending request 0x%02x cleared\n",
@@ -877,8 +877,7 @@ static void read_iso_callback(struct urb *urb)
 		for (i = 0; i < BAS_NUMFRAMES; i++) {
 			ubc->isoinlost += urb->iso_frame_desc[i].actual_length;
 			if (unlikely(urb->iso_frame_desc[i].status != 0 &&
-				     urb->iso_frame_desc[i].status !=
-				     -EINPROGRESS))
+				     urb->iso_frame_desc[i].status != -EINPROGRESS))
 				ubc->loststatus = urb->iso_frame_desc[i].status;
 			urb->iso_frame_desc[i].status = 0;
 			urb->iso_frame_desc[i].actual_length = 0;
