@@ -30,6 +30,18 @@
 #include <linux/workqueue.h>
 #include "rk610_codec.h"
 
+#define RK610_PROC
+#ifdef RK610_PROC
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
+#include <linux/vmalloc.h>
+#endif
+
+//if you find resume rk610 cannot work,you can try RESUME_PROBLEM 1.
+//if rk610 Normal working on RESUME_PROBLEM 1, you must detect Machine other driver queue.
+//you can look soc-core.c the resume source.s
+#define RESUME_PROBLEM 0
+
 #ifdef CONFIG_ARCH_RK30
 #define RK610_SPK_CTRL_PIN  RK30_PIN4_PC6
 #else
@@ -41,7 +53,7 @@
 /*
  * Debug
  */
-#if 0
+#if 1
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
@@ -89,7 +101,29 @@ struct rk610_codec_priv {
 
 	struct delayed_work rk610_delayed_work;
 	unsigned int spk_ctrl_io;
+	bool hdmi_ndet;
+#if RESUME_PROBLEM
+	int rk610_workstatus;
+#endif
 };
+
+void codec_set_spk(bool on)
+{
+	struct rk610_codec_priv *rk610_codec;
+	if(!rk610_codec_codec)
+		return;
+		
+	rk610_codec=snd_soc_codec_get_drvdata(rk610_codec_codec);
+	if(!rk610_codec)
+		return;
+	
+	rk610_codec->hdmi_ndet = on;
+	if(on)
+		gpio_set_value(RK610_SPK_CTRL_PIN, GPIO_HIGH);
+	else
+		gpio_set_value(RK610_SPK_CTRL_PIN, GPIO_LOW);			
+}
+EXPORT_SYMBOL(codec_set_spk);
 
 /*
  * read rk610 register cache
@@ -292,6 +326,49 @@ static struct snd_pcm_hw_constraint_list constraints_12 = {
 	.list	= rates_12,
 };
 
+static int rk610_codec_set_bias_level(struct snd_soc_codec *codec,
+				 enum snd_soc_bias_level level)
+{
+	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
+	DBG("Enter::%s----%d now_level =%d  old_level = %d\n",__FUNCTION__,__LINE__,level,codec->dapm.bias_level);
+	switch (level) {
+	case SND_SOC_BIAS_ON:
+		break;
+	case SND_SOC_BIAS_PREPARE:
+		/* VREF, VMID=2x50k, digital enabled */
+	//	rk610_codec_write(codec, ACCELCODEC_R1D, pwr_reg | 0x0080);
+		break;
+
+	case SND_SOC_BIAS_STANDBY:
+#if RESUME_PROBLEM	
+		if(rk610_codec->rk610_workstatus == SND_SOC_DAPM_STREAM_RESUME)
+		{
+			DBG("rk610 is resume,have not into standby\n");
+			rk610_codec->rk610_workstatus = SND_SOC_DAPM_STREAM_NOP;
+			break;
+		}
+#endif
+		printk("rk610 standby\n");
+		spk_ctrl_fun(GPIO_LOW);
+		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFE);
+		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
+		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
+		break;
+
+	case SND_SOC_BIAS_OFF:
+		printk("rk610 power off\n");
+		spk_ctrl_fun(GPIO_LOW);
+		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFF);
+		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
+		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
+		break;
+	}
+
+	codec->dapm.bias_level = level;
+
+	return 0;
+}
+
 /*
  * Note that this should be called from init rather than from hw_params.
  */
@@ -340,6 +417,7 @@ static int rk610_codec_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
 	u16 iface = 0;
 
 	spk_ctrl_fun(GPIO_LOW);
@@ -453,7 +531,7 @@ static int rk610_codec_pcm_hw_params(struct snd_pcm_substream *substream,
 static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 {
     struct snd_soc_codec *codec = dai->codec;
-//	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
+	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
     DBG("Enter::%s----%d--mute=%d\n",__FUNCTION__,__LINE__,mute);
 
     if (mute)
@@ -486,44 +564,11 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 		#endif
 	//	schedule_delayed_work(&rk610_codec->rk610_delayed_work, 0);
 	//	rk610_codec_reg_read();
-		spk_ctrl_fun(GPIO_HIGH);
+		if(rk610_codec->hdmi_ndet)
+			spk_ctrl_fun(GPIO_HIGH);
     }
 
     return 0;
-}
-
-static int rk610_codec_set_bias_level(struct snd_soc_codec *codec,
-				 enum snd_soc_bias_level level)
-{
-	DBG("Enter::%s----%d level =%d\n",__FUNCTION__,__LINE__,level);
-	switch (level) {
-	case SND_SOC_BIAS_ON:
-		break;
-	case SND_SOC_BIAS_PREPARE:
-		/* VREF, VMID=2x50k, digital enabled */
-	//	rk610_codec_write(codec, ACCELCODEC_R1D, pwr_reg | 0x0080);
-		break;
-
-	case SND_SOC_BIAS_STANDBY:
-		printk("rk610 standby\n");
-		spk_ctrl_fun(GPIO_LOW);
-		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFE);
-		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
-		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
-		break;
-
-	case SND_SOC_BIAS_OFF:
-		printk("rk610 power off\n");
-		spk_ctrl_fun(GPIO_LOW);
-		rk610_codec_write(codec, ACCELCODEC_R1D, 0xFF);
-		rk610_codec_write(codec, ACCELCODEC_R1E, 0xFF);
-		rk610_codec_write(codec, ACCELCODEC_R1F, 0xFF);
-		break;
-	}
-
-	codec->dapm.bias_level = level;
-
-	return 0;
 }
 
 static void rk610_delayedwork_fun(struct work_struct *work)
@@ -580,23 +625,15 @@ static int rk610_codec_suspend(struct snd_soc_codec *codec, pm_message_t state)
 
 static int rk610_codec_resume(struct snd_soc_codec *codec)
 {
-	int i;
-	u8 data[2];
-	struct i2c_client *i2c;
-	u16 *cache = codec->reg_cache;
+	struct rk610_codec_priv *rk610_codec =snd_soc_codec_get_drvdata(codec);
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	/* Sync reg_cache with the hardware */
-/*
-	for (i = 0; i < RK610_CODEC_NUM_REG; i++) {
-		data[0] = cache[i] & 0x00ff;
-		i2c = (struct i2c_client *)codec->control_data;
-		i2c->addr = (i2c->addr & 0x60)|i;
-		codec->hw_write(codec->control_data, data, 1);
-	}
-*/
-	rk610_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-
+	
+//	rk610_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
+#if RESUME_PROBLEM
+	rk610_codec->rk610_workstatus = SND_SOC_DAPM_STREAM_RESUME;
+#endif
 	return 0;
 }
 
@@ -670,11 +707,18 @@ void rk610_codec_reg_set(void)
 //	#endif
 }
 
+#ifdef RK610_PROC	
+static int RK610_PROC_init(void);
+#endif
+
 static int rk610_codec_probe(struct snd_soc_codec *codec)
 {
 	struct rk610_codec_priv *rk610_codec = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
+#ifdef RK610_PROC	
+	RK610_PROC_init();
+#endif	
 	rk610_codec_codec = codec;
 	DBG("[%s] start\n", __FUNCTION__);
 	ret = snd_soc_codec_set_cache_io(codec, 8, 16, rk610_codec->control_type);
@@ -706,7 +750,11 @@ static int rk610_codec_probe(struct snd_soc_codec *codec)
 #else
 	rk610_codec->spk_ctrl_io = 0;
 #endif
-
+	rk610_codec->hdmi_ndet = true;
+#if RESUME_PROBLEM	
+	rk610_codec->rk610_workstatus = SND_SOC_DAPM_STREAM_NOP;
+#endif
+	
     rk610_control_init_codec();
     rk610_codec_reg_set();
 //	rk610_codec_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -808,3 +856,52 @@ MODULE_DESCRIPTION("ASoC RK610 CODEC driver");
 MODULE_AUTHOR("rk@rock-chips.com");
 MODULE_LICENSE("GPL");
 
+//=====================================================================
+//Proc
+#ifdef RK610_PROC
+static ssize_t RK610_PROC_write(struct file *file, const char __user *buffer,
+			   unsigned long len, void *data)
+{
+	char *cookie_pot; 
+	
+	cookie_pot = (char *)vmalloc( len );
+	if (!cookie_pot) 
+	{
+		return -ENOMEM;
+	} 
+	else 
+	{
+		if (copy_from_user( cookie_pot, buffer, len )) 
+			return -EFAULT;
+	}
+
+	switch(cookie_pot[0])
+	{
+	case 'p':
+		spk_ctrl_fun(GPIO_HIGH);
+		break;
+	case 'o':
+		spk_ctrl_fun(GPIO_LOW);
+		break;		
+	}
+
+	return len;
+}
+
+static int RK610_PROC_init(void)
+{
+	struct proc_dir_entry *RK610_PROC_entry;
+	RK610_PROC_entry = create_proc_entry("driver/rk610_ts", 0777, NULL);
+	if(RK610_PROC_entry != NULL)
+	{
+		RK610_PROC_entry->write_proc = RK610_PROC_write;
+		return -1;
+	}
+	else
+	{
+		printk("create proc error !\n");
+	}
+	return 0;
+}
+
+#endif
