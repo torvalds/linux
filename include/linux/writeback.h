@@ -58,7 +58,6 @@ extern const char *wb_reason_name[];
  * in a manner such that unspecified fields are set to zero.
  */
 struct writeback_control {
-	enum writeback_sync_modes sync_mode;
 	long nr_to_write;		/* Write this many pages, and decrement
 					   this for each page written */
 	long pages_skipped;		/* Pages which were not written */
@@ -70,6 +69,8 @@ struct writeback_control {
 	 */
 	loff_t range_start;
 	loff_t range_end;
+
+	enum writeback_sync_modes sync_mode;
 
 	unsigned for_kupdate:1;		/* A kupdate writeback */
 	unsigned for_background:1;	/* A background writeback */
