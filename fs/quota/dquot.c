@@ -638,7 +638,7 @@ int dquot_quota_sync(struct super_block *sb, int type, int wait)
 	dqstats_inc(DQST_SYNCS);
 	mutex_unlock(&dqopt->dqonoff_mutex);
 
-	if (!wait || (sb_dqopt(sb)->flags & DQUOT_QUOTA_SYS_FILE))
+	if (!wait || (dqopt->flags & DQUOT_QUOTA_SYS_FILE))
 		return 0;
 
 	/* This is not very clever (and fast) but currently I don't know about
@@ -652,18 +652,18 @@ int dquot_quota_sync(struct super_block *sb, int type, int wait)
 	 * Now when everything is written we can discard the pagecache so
 	 * that userspace sees the changes.
 	 */
-	mutex_lock(&sb_dqopt(sb)->dqonoff_mutex);
+	mutex_lock(&dqopt->dqonoff_mutex);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
 			continue;
 		if (!sb_has_quota_active(sb, cnt))
 			continue;
-		mutex_lock_nested(&sb_dqopt(sb)->files[cnt]->i_mutex,
+		mutex_lock_nested(&dqopt->files[cnt]->i_mutex,
 				  I_MUTEX_QUOTA);
-		truncate_inode_pages(&sb_dqopt(sb)->files[cnt]->i_data, 0);
-		mutex_unlock(&sb_dqopt(sb)->files[cnt]->i_mutex);
+		truncate_inode_pages(&dqopt->files[cnt]->i_data, 0);
+		mutex_unlock(&dqopt->files[cnt]->i_mutex);
 	}
-	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
+	mutex_unlock(&dqopt->dqonoff_mutex);
 
 	return 0;
 }
