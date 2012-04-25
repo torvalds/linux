@@ -262,7 +262,7 @@ static int atp_geyser_init(struct usb_device *udev)
 
 	data = kmalloc(8, GFP_KERNEL);
 	if (!data) {
-		err("Out of memory");
+		dev_err(&udev->dev, "Out of memory\n");
 		return -ENOMEM;
 	}
 
@@ -277,7 +277,7 @@ static int atp_geyser_init(struct usb_device *udev)
 		for (i = 0; i < 8; i++)
 			dprintk("appletouch[%d]: %d\n", i, data[i]);
 
-		err("Failed to read mode from device.");
+		dev_err(&udev->dev, "Failed to read mode from device.\n");
 		ret = -EIO;
 		goto out_free;
 	}
@@ -296,7 +296,7 @@ static int atp_geyser_init(struct usb_device *udev)
 		for (i = 0; i < 8; i++)
 			dprintk("appletouch[%d]: %d\n", i, data[i]);
 
-		err("Failed to request geyser raw mode");
+		dev_err(&udev->dev, "Failed to request geyser raw mode\n");
 		ret = -EIO;
 		goto out_free;
 	}
@@ -321,8 +321,9 @@ static void atp_reinit(struct work_struct *work)
 
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
 	if (retval)
-		err("atp_reinit: usb_submit_urb failed with error %d",
-		    retval);
+		dev_err(&udev->dev,
+			"atp_reinit: usb_submit_urb failed with error %d\n",
+			retval);
 }
 
 static int atp_calculate_abs(int *xy_sensors, int nb_sensors, int fact,
@@ -588,8 +589,9 @@ static void atp_complete_geyser_1_2(struct urb *urb)
  exit:
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
 	if (retval)
-		err("atp_complete: usb_submit_urb failed with result %d",
-		    retval);
+		dev_err(&dev->udev->dev,
+			"atp_complete: usb_submit_urb failed with result %d\n",
+			retval);
 }
 
 /* Interrupt function for older touchpads: GEYSER3/GEYSER4 */
@@ -722,8 +724,9 @@ static void atp_complete_geyser_3_4(struct urb *urb)
  exit:
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
 	if (retval)
-		err("atp_complete: usb_submit_urb failed with result %d",
-		    retval);
+		dev_err(&dev->udev->dev,
+			"atp_complete: usb_submit_urb failed with result %d\n",
+			retval);
 }
 
 static int atp_open(struct input_dev *input)
@@ -785,7 +788,7 @@ static int atp_probe(struct usb_interface *iface,
 		}
 	}
 	if (!int_in_endpointAddr) {
-		err("Could not find int-in endpoint");
+		dev_err(&iface->dev, "Could not find int-in endpoint\n");
 		return -EIO;
 	}
 
@@ -793,7 +796,7 @@ static int atp_probe(struct usb_interface *iface,
 	dev = kzalloc(sizeof(struct atp), GFP_KERNEL);
 	input_dev = input_allocate_device();
 	if (!dev || !input_dev) {
-		err("Out of memory");
+		dev_err(&iface->dev, "Out of memory\n");
 		goto err_free_devs;
 	}
 
