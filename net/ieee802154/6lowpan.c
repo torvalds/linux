@@ -1177,10 +1177,19 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
-	struct lowpan_dev_record *entry;
-	struct lowpan_dev_record *tmp;
+	struct lowpan_dev_record *entry, *tmp;
+	struct lowpan_fragment *frame, *tframe;
 
 	ASSERT_RTNL();
+
+	spin_lock(&flist_lock);
+	list_for_each_entry_safe(frame, tframe, &lowpan_fragments, list) {
+		del_timer(&frame->timer);
+		list_del(&frame->list);
+		dev_kfree_skb(frame->skb);
+		kfree(frame);
+	}
+	spin_unlock(&flist_lock);
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
 	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {
