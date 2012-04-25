@@ -92,10 +92,10 @@ static const struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Contrast",
 		.minimum = 0,
-#define CONTRAST_MAX 255
+#define CONTRAST_MAX 15
 		.maximum = CONTRAST_MAX,
 		.step    = 1,
-#define CONTRAST_DEF 127
+#define CONTRAST_DEF 7
 		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
@@ -107,11 +107,11 @@ static const struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Gain",
 		.minimum = 0,
-#define GAIN_MAX 255
+#define GAIN_MAX 244
 		.maximum = GAIN_MAX,
 		.step    = 1,
-#define GAIN_DEF 127
-#define GAIN_KNEE 255 /* Gain seems to cause little noise on the pac73xx */
+#define GAIN_DEF 122
+#define GAIN_KNEE GAIN_MAX /* Gain seems to cause little noise on the 7311 */
 		.default_value = GAIN_DEF,
 	    },
 	    .set = sd_setgain,
@@ -122,12 +122,12 @@ static const struct ctrl sd_ctrls[] = {
 		.id      = V4L2_CID_EXPOSURE,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Exposure",
-		.minimum = 0,
-#define EXPOSURE_MAX 255
+		.minimum = 2,
+#define EXPOSURE_MAX 63
 		.maximum = EXPOSURE_MAX,
 		.step    = 1,
-#define EXPOSURE_DEF  16 /*  32 ms / 30 fps */
-#define EXPOSURE_KNEE 50 /* 100 ms / 10 fps */
+#define EXPOSURE_DEF  2 /* 30 fps */
+#define EXPOSURE_KNEE 6 /* 10 fps */
 		.default_value = EXPOSURE_DEF,
 	    },
 	    .set = sd_setexposure,
@@ -400,7 +400,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x04);
-	reg_w(gspca_dev, 0x10, sd->contrast >> 4);
+	reg_w(gspca_dev, 0x10, sd->contrast);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
 }
@@ -408,15 +408,10 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int gain = GAIN_MAX - sd->gain;
 
-	if (gain < 1)
-		gain = 1;
-	else if (gain > 245)
-		gain = 245;
 	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
 	reg_w(gspca_dev, 0x0e, 0x00);
-	reg_w(gspca_dev, 0x0f, gain);
+	reg_w(gspca_dev, 0x0f, GAIN_MAX - sd->gain + 1);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
@@ -425,19 +420,9 @@ static void setgain(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 reg;
-
-	/* register 2 of page 4 contains the clock divider configuring the
-	   no fps according to the formula: 60 / reg. sd->exposure is the
-	   desired exposure time in ms. */
-	reg = 120 * sd->exposure / 1000;
-	if (reg < 2)
-		reg = 2;
-	else if (reg > 63)
-		reg = 63;
 
 	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
-	reg_w(gspca_dev, 0x02, reg);
+	reg_w(gspca_dev, 0x02, sd->exposure);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
@@ -446,7 +431,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	   640x480 mode and page 4 reg 2 <= 3 then it must be 9 */
 	reg_w(gspca_dev, 0xff, 0x01);
 	if (gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv &&
-			reg <= 3) {
+			sd->exposure <= 3) {
 		reg_w(gspca_dev, 0x08, 0x09);
 	} else {
 		reg_w(gspca_dev, 0x08, 0x08);
