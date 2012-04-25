@@ -316,13 +316,13 @@ _GLOBAL(kvmppc_resume_host)
 	PPC_STL	r5, VCPU_LR(r4)
 	mfspr	r7, SPRN_SPRG5
 	PPC_STL	r3, VCPU_VRSAVE(r4)
-	PPC_STL	r6, VCPU_SHARED_SPRG4(r11)
+	PPC_STD(r6, VCPU_SHARED_SPRG4, r11)
 	mfspr	r8, SPRN_SPRG6
-	PPC_STL	r7, VCPU_SHARED_SPRG5(r11)
+	PPC_STD(r7, VCPU_SHARED_SPRG5, r11)
 	mfspr	r9, SPRN_SPRG7
-	PPC_STL	r8, VCPU_SHARED_SPRG6(r11)
+	PPC_STD(r8, VCPU_SHARED_SPRG6, r11)
 	mfxer	r3
-	PPC_STL	r9, VCPU_SHARED_SPRG7(r11)
+	PPC_STD(r9, VCPU_SHARED_SPRG7, r11)
 
 	/* save guest MAS registers and restore host mas4 & mas6 */
 	mfspr	r5, SPRN_MAS0
@@ -537,13 +537,13 @@ lightweight_exit:
 	 * SPRGs, so we need to reload them here with the guest's values.
 	 */
 	lwz	r3, VCPU_VRSAVE(r4)
-	lwz	r5, VCPU_SHARED_SPRG4(r11)
+	PPC_LD(r5, VCPU_SHARED_SPRG4, r11)
 	mtspr	SPRN_VRSAVE, r3
-	lwz	r6, VCPU_SHARED_SPRG5(r11)
+	PPC_LD(r6, VCPU_SHARED_SPRG5, r11)
 	mtspr	SPRN_SPRG4W, r5
-	lwz	r7, VCPU_SHARED_SPRG6(r11)
+	PPC_LD(r7, VCPU_SHARED_SPRG6, r11)
 	mtspr	SPRN_SPRG5W, r6
-	lwz	r8, VCPU_SHARED_SPRG7(r11)
+	PPC_LD(r8, VCPU_SHARED_SPRG7, r11)
 	mtspr	SPRN_SPRG6W, r7
 	mtspr	SPRN_SPRG7W, r8
 
