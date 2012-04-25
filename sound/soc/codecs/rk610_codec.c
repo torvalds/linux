@@ -53,7 +53,7 @@
 /*
  * Debug
  */
-#if 1
+#if 0
 #define	DBG(x...)	printk(KERN_INFO x)
 #else
 #define	DBG(x...)
