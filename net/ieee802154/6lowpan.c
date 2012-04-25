@@ -1168,6 +1168,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	list_add_tail(&entry->list, &lowpan_devices);
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
 
+	spin_lock_init(&flist_lock);
+
 	register_netdevice(dev);
 
 	return 0;
