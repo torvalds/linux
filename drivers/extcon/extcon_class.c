@@ -621,6 +621,8 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 	}
 
 	edev->dev = kzalloc(sizeof(struct device), GFP_KERNEL);
+	if (!edev->dev)
+		return -ENOMEM;
 	edev->dev->parent = dev;
 	edev->dev->class = extcon_class;
 	edev->dev->release = extcon_dev_release;
