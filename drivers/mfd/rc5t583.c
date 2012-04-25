@@ -268,7 +268,7 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 	rc5t583->dev = &i2c->dev;
 	i2c_set_clientdata(i2c, rc5t583);
 
-	rc5t583->regmap = regmap_init_i2c(i2c, &rc5t583_regmap_config);
+	rc5t583->regmap = devm_regmap_init_i2c(i2c, &rc5t583_regmap_config);
 	if (IS_ERR(rc5t583->regmap)) {
 		ret = PTR_ERR(rc5t583->regmap);
 		dev_err(&i2c->dev, "regmap initialization failed: %d\n", ret);
@@ -277,7 +277,7 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 
 	ret = rc5t583_clear_ext_power_req(rc5t583, pdata);
 	if (ret < 0)
-		goto err_irq_init;
+		return ret;
 
 	if (i2c->irq) {
 		ret = rc5t583_irq_init(rc5t583, i2c->irq, pdata->irq_base);
@@ -300,8 +300,6 @@ static int __devinit rc5t583_i2c_probe(struct i2c_client *i2c,
 err_add_devs:
 	if (irq_init_success)
 		rc5t583_irq_exit(rc5t583);
-err_irq_init:
-	regmap_exit(rc5t583->regmap);
 	return ret;
 }
 
@@ -311,7 +309,6 @@ static int  __devexit rc5t583_i2c_remove(struct i2c_client *i2c)
 
 	mfd_remove_devices(rc5t583->dev);
 	rc5t583_irq_exit(rc5t583);
-	regmap_exit(rc5t583->regmap);
 	return 0;
 }
 
