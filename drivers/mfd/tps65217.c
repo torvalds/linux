@@ -150,7 +150,7 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	tps->pdata = pdata;
-	tps->regmap = regmap_init_i2c(client, &tps65217_regmap_config);
+	tps->regmap = devm_regmap_init_i2c(client, &tps65217_regmap_config);
 	if (IS_ERR(tps->regmap)) {
 		ret = PTR_ERR(tps->regmap);
 		dev_err(tps->dev, "Failed to allocate register map: %d\n",
@@ -163,9 +163,9 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 
 	ret = tps65217_reg_read(tps, TPS65217_REG_CHIPID, &version);
 	if (ret < 0) {
-		dev_err(tps->dev, "Failed to read revision"
-					" register: %d\n", ret);
-		goto err_regmap;
+		dev_err(tps->dev, "Failed to read revision register: %d\n",
+			ret);
+		return ret;
 	}
 
 	dev_info(tps->dev, "TPS65217 ID %#x version 1.%d\n",
@@ -190,11 +190,6 @@ static int __devinit tps65217_probe(struct i2c_client *client,
 	}
 
 	return 0;
-
-err_regmap:
-	regmap_exit(tps->regmap);
-
-	return ret;
 }
 
 static int __devexit tps65217_remove(struct i2c_client *client)
@@ -204,8 +199,6 @@ static int __devexit tps65217_remove(struct i2c_client *client)
 
 	for (i = 0; i < TPS65217_NUM_REGULATOR; i++)
 		platform_device_unregister(tps->regulator_pdev[i]);
-
-	regmap_exit(tps->regmap);
 
 	return 0;
 }
