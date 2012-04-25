@@ -57,7 +57,7 @@ static inline unsigned long count_bytes(unsigned long mask)
  * hit it), 'max' is the address space maximum (and we return
  * -EFAULT if we hit it).
  */
-static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, long max)
+static inline long do_strncpy_from_user(char *dst, const char __user *src, long count, unsigned long max)
 {
 	long res = 0;
 
@@ -100,7 +100,7 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src, long 
 	 * too? If so, that's ok - we got as much as the user asked for.
 	 */
 	if (res >= count)
-		return count;
+		return res;
 
 	/*
 	 * Nope: we hit the address space limit, and we still had more
