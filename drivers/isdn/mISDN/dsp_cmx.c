@@ -1624,7 +1624,7 @@ send_packet:
 
 static u32	jittercount; /* counter for jitter check */
 struct timer_list dsp_spl_tl;
-u32	dsp_spl_jiffies; /* calculate the next time to fire */
+unsigned long	dsp_spl_jiffies; /* calculate the next time to fire */
 static u16	dsp_count; /* last sample count */
 static int	dsp_count_valid; /* if we have last sample count */
 
