@@ -524,7 +524,7 @@ static int __devinit twl6040_probe(struct i2c_client *client,
 		goto err;
 	}
 
-	twl6040->regmap = regmap_init_i2c(client, &twl6040_regmap_config);
+	twl6040->regmap = devm_regmap_init_i2c(client, &twl6040_regmap_config);
 	if (IS_ERR(twl6040->regmap)) {
 		ret = PTR_ERR(twl6040->regmap);
 		goto err;
@@ -623,7 +623,6 @@ gpio2_err:
 		gpio_free(twl6040->audpwron);
 gpio1_err:
 	i2c_set_clientdata(client, NULL);
-	regmap_exit(twl6040->regmap);
 err:
 	return ret;
 }
@@ -643,7 +642,6 @@ static int __devexit twl6040_remove(struct i2c_client *client)
 
 	mfd_remove_devices(&client->dev);
 	i2c_set_clientdata(client, NULL);
-	regmap_exit(twl6040->regmap);
 
 	return 0;
 }
