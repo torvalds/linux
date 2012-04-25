@@ -383,8 +383,6 @@ static void oz_tx_frame_free(struct oz_pd *pd, struct oz_tx_frame *f)
 		pd->tx_pool = &f->link;
 		pd->tx_pool_count++;
 		f = 0;
-	} else {
-		kfree(f);
 	}
 	spin_unlock_bh(&pd->tx_frame_lock);
 	if (f)
