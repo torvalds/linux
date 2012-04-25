@@ -1383,13 +1383,36 @@ ftrace_ops_test(struct ftrace_ops *ops, unsigned long ip)
 
 static int ftrace_cmp_recs(const void *a, const void *b)
 {
-	const struct dyn_ftrace *reca = a;
-	const struct dyn_ftrace *recb = b;
+	const struct dyn_ftrace *key = a;
+	const struct dyn_ftrace *rec = b;
 
-	if (reca->ip > recb->ip)
-		return 1;
-	if (reca->ip < recb->ip)
+	if (key->flags < rec->ip)
 		return -1;
+	if (key->ip >= rec->ip + MCOUNT_INSN_SIZE)
+		return 1;
+	return 0;
+}
+
+static int ftrace_location_range(unsigned long start, unsigned long end)
+{
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+	struct dyn_ftrace key;
+
+	key.ip = start;
+	key.flags = end;	/* overload flags, as it is unsigned long */
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		if (end < pg->records[0].ip ||
+		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
+			continue;
+		rec = bsearch(&key, pg->records, pg->index,
+			      sizeof(struct dyn_ftrace),
+			      ftrace_cmp_recs);
+		if (rec)
+			return 1;
+	}
+
 	return 0;
 }
 
@@ -1404,23 +1427,23 @@ static int ftrace_cmp_recs(const void *a, const void *b)
  */
 int ftrace_location(unsigned long ip)
 {
-	struct ftrace_page *pg;
-	struct dyn_ftrace *rec;
-	struct dyn_ftrace key;
+	return ftrace_location_range(ip, ip);
+}
 
-	key.ip = ip;
-
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		if (ip < pg->records[0].ip || ip > pg->records[pg->index - 1].ip)
-			continue;
-		rec = bsearch(&key, pg->records, pg->index,
-			      sizeof(struct dyn_ftrace),
-			      ftrace_cmp_recs);
-		if (rec)
-			return 1;
-	}
-
-	return 0;
+/**
+ * ftrace_text_reserved - return true if range contains an ftrace location
+ * @start: start of range to search
+ * @end: end of range to search (inclusive). @end points to the last byte to check.
+ *
+ * Returns 1 if @start and @end contains a ftrace location.
+ * That is, the instruction that is either a NOP or call to
+ * the function tracer. It checks the ftrace internal tables to
+ * determine if the address belongs or not.
+ */
+int ftrace_text_reserved(void *start, void *end)
+{
+	return ftrace_location_range((unsigned long)start,
+				     (unsigned long)end);
 }
 
 static void __ftrace_hash_rec_update(struct ftrace_ops *ops,
@@ -1569,29 +1592,6 @@ void ftrace_bug(int failed, unsigned long ip)
 		pr_info("ftrace faulted on unknown error ");
 		print_ip_sym(ip);
 	}
-}
-
-
-/* Return 1 if the address range is reserved for ftrace */
-int ftrace_text_reserved(void *s, void *e)
-{
-	struct dyn_ftrace *rec;
-	struct ftrace_page *pg;
-	unsigned long start = (unsigned long)s;
-	unsigned long end = (unsigned long)e;
-	int i;
-
-	for (pg = ftrace_pages_start; pg; pg = pg->next) {
-		if (end < pg->records[0].ip ||
-		    start >= (pg->records[pg->index - 1].ip + MCOUNT_INSN_SIZE))
-			continue;
-		for (i = 0; i < pg->index; i++) {
-			rec = &pg->records[i];
-			if (rec->ip <= end && rec->ip + MCOUNT_INSN_SIZE > start)
-				return 1;
-		}
-	}
-	return 0;
 }
 
 static int ftrace_check_record(struct dyn_ftrace *rec, int enable, int update)
