@@ -523,12 +523,11 @@ static int pl2303_tiocmset(struct tty_struct *tty,
 			   unsigned int set, unsigned int clear)
 {
 	struct usb_serial_port *port = tty->driver_data;
+	struct usb_serial *serial = port->serial;
 	struct pl2303_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	u8 control;
-
-	if (!usb_get_intfdata(port->serial->interface))
-		return -ENODEV;
+	int ret;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (set & TIOCM_RTS)
@@ -542,7 +541,14 @@ static int pl2303_tiocmset(struct tty_struct *tty,
 	control = priv->line_control;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	return set_control_lines(port->serial->dev, control);
+	mutex_lock(&serial->disc_mutex);
+	if (!serial->disconnected)
+		ret = set_control_lines(serial->dev, control);
+	else
+		ret = -ENODEV;
+	mutex_unlock(&serial->disc_mutex);
+
+	return ret;
 }
 
 static int pl2303_tiocmget(struct tty_struct *tty)
@@ -555,9 +561,6 @@ static int pl2303_tiocmget(struct tty_struct *tty)
 	unsigned int result;
 
 	dbg("%s (%d)", __func__, port->number);
-
-	if (!usb_get_intfdata(port->serial->interface))
-		return -ENODEV;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	mcr = priv->line_control;
