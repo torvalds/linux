@@ -82,12 +82,14 @@ void hdmi_sys_remove(void)
 
 static void hdmi_sys_sleep(void)
 {
+	mutex_lock(&hdmi->enable_mutex);
 	if(hdmi->enable)
-		disable_irq(hdmi->irq);
+		disable_irq(hdmi->irq);				
 	hdmi->state = HDMI_SLEEP;
 	rk30_hdmi_removed();
 	if(hdmi->enable)
 		enable_irq(hdmi->irq);
+	mutex_unlock(&hdmi->enable_mutex);
 }
 
 static int hdmi_process_command(void)
@@ -102,15 +104,17 @@ static int hdmi_process_command(void)
 		{	
 			case HDMI_CONFIG_ENABLE:
 				/* disable HDMI */
-				if(!hdmi->enable)
+				mutex_lock(&hdmi->enable_mutex);
+				if(!hdmi->enable || hdmi->suspend)
 				{
-					if(hdmi->hotplug)
+					if(hdmi->hotplug == HDMI_HPD_ACTIVED)
 						hdmi_sys_remove();
 					hdmi->state = HDMI_SLEEP;
 					hdmi->hotplug = HDMI_HPD_REMOVED;
 					rk30_hdmi_removed();
 					state = HDMI_SLEEP;
 				}
+				mutex_unlock(&hdmi->enable_mutex);
 				if(hdmi->wait == 1) {
 					complete(&hdmi->complete);
 					hdmi->wait = 0;	
@@ -147,16 +151,21 @@ static int hdmi_process_command(void)
 	return state;
 }
 
+static DEFINE_MUTEX(work_mutex);
+
 void hdmi_work(struct work_struct *work)
 {
 	int hotplug, state_last;
 	int rc = HDMI_ERROR_SUCESS, trytimes = 0;
+	
+	mutex_lock(&work_mutex);
 	/* Process hdmi command */
 	hdmi->state = hdmi_process_command();
 	
-	if(!hdmi->enable)
+	if(!hdmi->enable || hdmi->suspend) {
+		mutex_unlock(&work_mutex);
 		return;
-	
+	}
 	hotplug = rk30_hdmi_detect_hotplug();
 	hdmi_dbg(hdmi->dev, "[%s] hotplug %02x curvalue %d\n", __FUNCTION__, hotplug, hdmi->hotplug);
 	
@@ -180,6 +189,7 @@ void hdmi_work(struct work_struct *work)
 				hdmi->wait = 0;	
 			}
 			kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
+			mutex_unlock(&work_mutex);
 			return;
 		}
 		else if(hotplug == HDMI_HPD_REMOVED) {
@@ -262,4 +272,5 @@ void hdmi_work(struct work_struct *work)
 		}
 	}
 	hdmi_dbg(hdmi->dev, "[%s] done\n", __FUNCTION__);
+	mutex_unlock(&work_mutex);
 }

@@ -30,12 +30,16 @@ extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent
 static void hdmi_early_suspend(struct early_suspend *h)
 {
 	hdmi_dbg(hdmi->dev, "hdmi enter early suspend pwr %d state %d\n", hdmi->pwr_mode, hdmi->state);
+	flush_delayed_work(&hdmi->delay_work);	
+	mutex_lock(&hdmi->enable_mutex);
+	hdmi->suspend = 1;
+	if(!hdmi->enable) {
+		mutex_unlock(&hdmi->enable_mutex);
+		return;
+	}
 	disable_irq(hdmi->irq);
-	hdmi->enable = 0;
+	mutex_unlock(&hdmi->enable_mutex);
 	hdmi->command = HDMI_CONFIG_ENABLE;
-	/* wait for hdmi configuration finish */
-	while(hdmi->wait)
-		msleep(10);
 	init_completion(&hdmi->complete);
 	hdmi->wait = 1;
 	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
@@ -48,8 +52,12 @@ static void hdmi_early_suspend(struct early_suspend *h)
 static void hdmi_early_resume(struct early_suspend *h)
 {
 	hdmi_dbg(hdmi->dev, "hdmi exit early resume\n");
-	hdmi->enable = 1;
-	enable_irq(hdmi->irq);
+	mutex_lock(&hdmi->enable_mutex);
+	hdmi->suspend = 0;
+	if(hdmi->enable) {
+		enable_irq(hdmi->irq);
+	}
+	mutex_unlock(&hdmi->enable_mutex);
 	return;
 }
 #endif
@@ -151,7 +159,8 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	hdmi_register_display_sysfs(hdmi, hdmi->dev);
 	
 	spin_lock_init(&hdmi->irq_lock);
-
+	mutex_init(&hdmi->enable_mutex);
+	
 	/* get the IRQ */
 	hdmi->irq = platform_get_irq(pdev, 0);
 	if(hdmi->irq <= 0) {

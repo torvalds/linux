@@ -63,11 +63,12 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 {
 	int value, ret = -1, ddc_bus_freq = 0;
 	char interrupt = 0, trytime = 2;
+	unsigned long flags;
 	
 	hdmi_dbg(hdmi->dev, "[%s] block %d\n", __FUNCTION__, block);
-	spin_lock(&hdmi->irq_lock);
+	spin_lock_irqsave(&hdmi->irq_lock, flags);
 	edid_result = 0;
-	spin_unlock(&hdmi->irq_lock);
+	spin_unlock_irqrestore(&hdmi->irq_lock, flags);
 	//Before Phy parameter was set, DDC_CLK is equal to PLLA freq which is 24MHz.
 	//Set DDC I2C CLK which devided from DDC_CLK to 100KHz.
 	ddc_bus_freq = (24000000/HDMI_EDID_DDC_CLK)/4;
@@ -85,10 +86,9 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 		value = 100;
 		while(value--)
 		{
-			spin_lock(&hdmi->irq_lock);
+			spin_lock_irqsave(&hdmi->irq_lock, flags);
 			interrupt = edid_result;
-			spin_unlock(&hdmi->irq_lock);
-//			hdmi_dbg(hdmi->dev, "[%s] interrupt %02x value %d\n", __FUNCTION__, interrupt, value);
+			spin_unlock_irqrestore(&hdmi->irq_lock, flags);
 			if(interrupt & (m_INT_EDID_ERR | m_INT_EDID_READY))
 				break;
 			msleep(10);
@@ -452,13 +452,12 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 {		
 	char interrupt1 = 0, interrupt2 = 0, interrupt3 = 0, interrupt4 = 0;
 	
-	spin_lock(&hdmi->irq_lock);
 	if(hdmi->pwr_mode == PWR_SAVE_MODE_A)
 	{
-		hdmi_dbg(hdmi->dev, "hdmi irq wake up\n");
 		HDMIWrReg(SYS_CTRL, 0x20);
 		hdmi->pwr_mode = PWR_SAVE_MODE_B;
 		
+		hdmi_dbg(hdmi->dev, "hdmi irq wake up\n");
 		// HDMI was inserted when system is sleeping, irq was triggered only once
 		// when wake up. So we need to check hotplug status.
 		if(HDMIRdReg(HPD_MENS_STA) & (m_HOTPLUG_STATUS | m_MSEN_STATUS)) {			
@@ -486,15 +485,17 @@ irqreturn_t hdmi_irq(int irq, void *priv)
 			interrupt1 &= ~(m_INT_HOTPLUG | m_INT_MSENS);
 			queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 		}
-		else if(interrupt1 & (m_INT_EDID_READY | m_INT_EDID_ERR))
+		else if(interrupt1 & (m_INT_EDID_READY | m_INT_EDID_ERR)) {
+			spin_lock(&hdmi->irq_lock);
 			edid_result = interrupt1;
+			spin_unlock(&hdmi->irq_lock);
+		}
 		else if(hdmi->state == HDMI_SLEEP) {
 			hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
 			HDMIWrReg(SYS_CTRL, 0x10);
 			hdmi->pwr_mode = PWR_SAVE_MODE_A;
 		}
 	}
-	spin_unlock(&hdmi->irq_lock);
 	return IRQ_HANDLED;
 }
 

@@ -3,6 +3,7 @@
 
 #include <linux/fb.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/display-sys.h>
@@ -48,10 +49,13 @@ struct hdmi {
 	struct delayed_work delay_work;
 	
 	spinlock_t	irq_lock;
+	struct mutex enable_mutex;
 	
 	int wait;
 	struct completion	complete;
+	
 #ifdef CONFIG_HAS_EARLYSUSPEND
+	int suspend;
 	struct early_suspend	early_suspend;
 #endif
 	

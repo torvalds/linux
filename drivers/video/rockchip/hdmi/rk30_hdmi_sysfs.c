@@ -7,24 +7,41 @@
 static int hdmi_get_enable(struct rk_display_device *device)
 {
 	struct hdmi *hdmi = device->priv_data;
-
-	return hdmi->enable;
+	int enable;
+	
+	mutex_lock(&hdmi->enable_mutex);
+	enable = hdmi->enable;
+	mutex_unlock(&hdmi->enable_mutex);
+	
+	return enable;
 }
 
 static int hdmi_set_enable(struct rk_display_device *device, int enable)
 {
 	struct hdmi *hdmi = device->priv_data;
 	
-	if(hdmi->enable == enable)
+	mutex_lock(&hdmi->enable_mutex);
+	if(hdmi->enable == enable) {
+		mutex_unlock(&hdmi->enable_mutex);
 		return 0;
+	}
 	hdmi->enable = enable;
+	
+	if(hdmi->suspend ) {
+		mutex_unlock(&hdmi->enable_mutex);
+		return 0;
+	}
+	
 	if(enable == 0) {
 		disable_irq(hdmi->irq);
+		mutex_unlock(&hdmi->enable_mutex);
 		hdmi->command = HDMI_CONFIG_ENABLE;
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
 	}
-	else
+	else {
 		enable_irq(hdmi->irq);
+		mutex_unlock(&hdmi->enable_mutex);
+	}
 	return 0;
 }
 
