@@ -26,8 +26,8 @@ unsigned int create_branch(const unsigned int *addr,
 			   unsigned long target, int flags);
 unsigned int create_cond_branch(const unsigned int *addr,
 				unsigned long target, int flags);
-void patch_branch(unsigned int *addr, unsigned long target, int flags);
-void patch_instruction(unsigned int *addr, unsigned int instr);
+int patch_branch(unsigned int *addr, unsigned long target, int flags);
+int patch_instruction(unsigned int *addr, unsigned int instr);
 
 int instr_is_relative_branch(unsigned int instr);
 int instr_is_branch_to_addr(const unsigned int *instr, unsigned long addr);
