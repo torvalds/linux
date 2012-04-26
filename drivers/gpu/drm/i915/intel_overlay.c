@@ -225,10 +225,10 @@ static int intel_overlay_do_wait_request(struct intel_overlay *overlay,
 	}
 	overlay->last_flip_req = request->seqno;
 	overlay->flip_tail = tail;
-	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req,
-				true);
+	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req);
 	if (ret)
 		return ret;
+	i915_gem_retire_requests(dev);
 
 	overlay->last_flip_req = 0;
 	return 0;
@@ -447,10 +447,10 @@ static int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay)
 	if (overlay->last_flip_req == 0)
 		return 0;
 
-	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req,
-				true);
+	ret = i915_wait_request(LP_RING(dev_priv), overlay->last_flip_req);
 	if (ret)
 		return ret;
+	i915_gem_retire_requests(dev);
 
 	if (overlay->flip_tail)
 		overlay->flip_tail(overlay);

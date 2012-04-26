@@ -1825,8 +1825,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
  */
 int
 i915_wait_request(struct intel_ring_buffer *ring,
-		  uint32_t seqno,
-		  bool do_retire)
+		  uint32_t seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	u32 ier;
@@ -1902,14 +1901,6 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	if (atomic_read(&dev_priv->mm.wedged))
 		ret = -EAGAIN;
 
-	/* Directly dispatch request retiring.  While we have the work queue
-	 * to handle this, the waiter on a request often wants an associated
-	 * buffer to have made it to the inactive list, and we would need
-	 * a separate wait queue to handle that.
-	 */
-	if (ret == 0 && do_retire)
-		i915_gem_retire_requests_ring(ring);
-
 	return ret;
 }
 
@@ -1931,10 +1922,10 @@ i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj)
 	 * it.
 	 */
 	if (obj->active) {
-		ret = i915_wait_request(obj->ring, obj->last_rendering_seqno,
-					true);
+		ret = i915_wait_request(obj->ring, obj->last_rendering_seqno);
 		if (ret)
 			return ret;
+		i915_gem_retire_requests_ring(obj->ring);
 	}
 
 	return 0;
@@ -2117,7 +2108,7 @@ i915_gem_flush_ring(struct intel_ring_buffer *ring,
 	return 0;
 }
 
-static int i915_ring_idle(struct intel_ring_buffer *ring, bool do_retire)
+static int i915_ring_idle(struct intel_ring_buffer *ring)
 {
 	int ret;
 
@@ -2131,18 +2122,17 @@ static int i915_ring_idle(struct intel_ring_buffer *ring, bool do_retire)
 			return ret;
 	}
 
-	return i915_wait_request(ring, i915_gem_next_request_seqno(ring),
-				 do_retire);
+	return i915_wait_request(ring, i915_gem_next_request_seqno(ring));
 }
 
-int i915_gpu_idle(struct drm_device *dev, bool do_retire)
+int i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret, i;
 
 	/* Flush everything onto the inactive list. */
 	for (i = 0; i < I915_NUM_RINGS; i++) {
-		ret = i915_ring_idle(&dev_priv->ring[i], do_retire);
+		ret = i915_ring_idle(&dev_priv->ring[i]);
 		if (ret)
 			return ret;
 	}
@@ -2331,9 +2321,7 @@ i915_gem_object_flush_fence(struct drm_i915_gem_object *obj)
 	}
 
 	if (obj->last_fenced_seqno) {
-		ret = i915_wait_request(obj->ring,
-					obj->last_fenced_seqno,
-					false);
+		ret = i915_wait_request(obj->ring, obj->last_fenced_seqno);
 		if (ret)
 			return ret;
 
@@ -3394,11 +3382,12 @@ i915_gem_idle(struct drm_device *dev)
 		return 0;
 	}
 
-	ret = i915_gpu_idle(dev, true);
+	ret = i915_gpu_idle(dev);
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
+	i915_gem_retire_requests(dev);
 
 	/* Under UMS, be paranoid and evict. */
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
@@ -4025,7 +4014,7 @@ rescan:
 		 * This has a dramatic impact to reduce the number of
 		 * OOM-killer events whilst running the GPU aggressively.
 		 */
-		if (i915_gpu_idle(dev, true) == 0)
+		if (i915_gpu_idle(dev) == 0)
 			goto rescan;
 	}
 	mutex_unlock(&dev->struct_mutex);
