@@ -53,6 +53,7 @@
 #endif
 #include <sound/core.h>
 #include <sound/initval.h>
+#include <linux/vgaarb.h>
 #include "hda_codec.h"
 
 
@@ -2494,6 +2495,45 @@ static int azx_dev_free(struct snd_device *device)
 }
 
 /*
+ * Check of disabled HDMI controller by vga-switcheroo
+ */
+static struct pci_dev __devinit *get_bound_vga(struct pci_dev *pci)
+{
+	struct pci_dev *p;
+
+	/* check only discrete GPU */
+	switch (pci->vendor) {
+	case PCI_VENDOR_ID_ATI:
+	case PCI_VENDOR_ID_AMD:
+	case PCI_VENDOR_ID_NVIDIA:
+		if (pci->devfn == 1) {
+			p = pci_get_domain_bus_and_slot(pci_domain_nr(pci->bus),
+							pci->bus->number, 0);
+			if (p) {
+				if ((p->class >> 8) == PCI_CLASS_DISPLAY_VGA)
+					return p;
+				pci_dev_put(p);
+			}
+		}
+		break;
+	}
+	return NULL;
+}
+
+static bool __devinit check_hdmi_disabled(struct pci_dev *pci)
+{
+	bool vga_inactive = false;
+	struct pci_dev *p = get_bound_vga(pci);
+
+	if (p) {
+		if (vga_default_device() && p != vga_default_device())
+			vga_inactive = true;
+		pci_dev_put(p);
+	}
+	return vga_inactive;
+}
+
+/*
  * white/black-listing for position_fix
  */
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
@@ -2928,6 +2968,12 @@ static int __devinit azx_probe(struct pci_dev *pci,
 		return -ENOENT;
 	}
 
+	if (check_hdmi_disabled(pci)) {
+		snd_printk(KERN_INFO SFX
+			   "Inactive VGA controller; disabled audio, too\n");
+		goto out;
+	}
+
 	err = snd_card_create(index[dev], id[dev], THIS_MODULE, 0, &card);
 	if (err < 0) {
 		snd_printk(KERN_ERR SFX "Error creating card!\n");
@@ -2984,8 +3030,10 @@ static int __devinit azx_probe(struct pci_dev *pci,
 	power_down_all_codecs(chip);
 	azx_notifier_register(chip);
 
+ out:
 	dev++;
-	return err;
+	return 0;
+
 out_free:
 	snd_card_free(card);
 	return err;
@@ -2993,7 +3041,9 @@ out_free:
 
 static void __devexit azx_remove(struct pci_dev *pci)
 {
-	snd_card_free(pci_get_drvdata(pci));
+	struct snd_card *card = pci_get_drvdata(pci);
+	if (card)
+		snd_card_free(card);
 	pci_set_drvdata(pci, NULL);
 }
 
