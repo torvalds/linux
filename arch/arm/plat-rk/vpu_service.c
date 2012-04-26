@@ -378,9 +378,9 @@ static void reg_deinit(vpu_reg *reg)
 {
 	list_del_init(&reg->session_link);
 	list_del_init(&reg->status_link);
-	kfree(reg);
 	if (reg == service.reg_codec) service.reg_codec = NULL;
 	if (reg == service.reg_pproc) service.reg_pproc = NULL;
+	kfree(reg);
 }
 
 static void reg_from_wait_to_run(vpu_reg *reg)
@@ -402,7 +402,6 @@ static void reg_copy_from_hw(vpu_reg *reg, volatile u32 *src, u32 count)
 
 static void reg_from_run_to_done(vpu_reg *reg)
 {
-	spin_lock(&service.lock);
 	list_del_init(&reg->status_link);
 	list_add_tail(&reg->status_link, &service.done);
 
@@ -441,7 +440,6 @@ static void reg_from_run_to_done(vpu_reg *reg)
 	atomic_sub(1, &reg->session->task_running);
 	atomic_sub(1, &service.total_running);
 	wake_up_interruptible_sync(&reg->session->wait);
-	spin_unlock(&service.lock);
 }
 
 void reg_copy_to_hw(vpu_reg *reg)
@@ -823,7 +821,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 	spin_lock_irqsave(&service.lock, flag);
 	/* remove this filp from the asynchronusly notified filp's */
 	//vpu_service_fasync(-1, filp, 0);
-	list_del(&session->list_session);
+	list_del_init(&session->list_session);
 	vpu_service_session_clear(session);
 	kfree(session);
 	filp->private_data = NULL;
@@ -1085,22 +1083,26 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		/* clear dec IRQ */
 		writel(irq_status_dec & (~DEC_INTERRUPT_BIT), dev->hwregs + DEC_INTERRUPT_REGISTER);
 		pr_debug("DEC IRQ received!\n");
+		spin_lock(&service.lock);
 		if (NULL == service.reg_codec) {
 			pr_err("dec isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_codec);
 		}
+		spin_unlock(&service.lock);
 	}
 
 	if (irq_status_pp & PP_INTERRUPT_BIT) {
 		/* clear pp IRQ */
 		writel(irq_status_pp & (~DEC_INTERRUPT_BIT), dev->hwregs + PP_INTERRUPT_REGISTER);
 		pr_debug("PP IRQ received!\n");
+		spin_lock(&service.lock);
 		if (NULL == service.reg_pproc) {
 			pr_err("pp isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_pproc);
 		}
+		spin_unlock(&service.lock);
 	}
 	try_set_reg();
 	return IRQ_HANDLED;
@@ -1117,11 +1119,13 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 		/* clear enc IRQ */
 		writel(irq_status & (~ENC_INTERRUPT_BIT), dev->hwregs + ENC_INTERRUPT_REGISTER);
 		pr_debug("ENC IRQ received!\n");
+		spin_lock(&service.lock);
 		if (NULL == service.reg_codec) {
 			pr_err("enc isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_codec);
 		}
+		spin_unlock(&service.lock);
 	}
 	try_set_reg();
 	return IRQ_HANDLED;
