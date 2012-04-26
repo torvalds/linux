@@ -570,7 +570,6 @@
 #define LM_BURST_LENGTH     0x00000700
 #define LM_FIFO_WATERMARK   0x0000001F
 #define MI_ARB_STATE	0x020e4 /* 915+ only */
-#define   MI_ARB_MASK_SHIFT	  16	/* shift for enable bits */
 
 /* Make render/texture TLB fetches lower priorty than associated data
  *   fetches. This is not turned on by default
@@ -635,7 +634,6 @@
 #define   MI_ARB_DISPLAY_PRIORITY_B_A		(1 << 0)	/* display B > display A */
 
 #define CACHE_MODE_0	0x02120 /* 915+ only */
-#define   CM0_MASK_SHIFT          16
 #define   CM0_IZ_OPT_DISABLE      (1<<6)
 #define   CM0_ZR_OPT_DISABLE      (1<<5)
 #define	  CM0_STC_EVICT_DISABLE_LRA_SNB	(1<<5)

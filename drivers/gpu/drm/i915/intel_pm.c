@@ -2663,9 +2663,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM2_LP_ILK, 0);
 	I915_WRITE(WM1_LP_ILK, 0);
 
-	/* clear masked bit */
 	I915_WRITE(CACHE_MODE_0,
-		   CM0_STC_EVICT_DISABLE_LRA_SNB << CM0_MASK_SHIFT);
+		   _MASKED_BIT_DISABLE(CM0_STC_EVICT_DISABLE_LRA_SNB));
 
 	I915_WRITE(GEN6_UCGCTL1,
 		   I915_READ(GEN6_UCGCTL1) |

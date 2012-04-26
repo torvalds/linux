@@ -3721,12 +3721,8 @@ i915_gem_load(struct drm_device *dev)
 
 	/* On GEN3 we really need to make sure the ARB C3 LP bit is set */
 	if (IS_GEN3(dev)) {
-		u32 tmp = I915_READ(MI_ARB_STATE);
-		if (!(tmp & MI_ARB_C3_LP_WRITE_ENABLE)) {
-			/* arb state is a masked write, so set bit + bit in mask */
-			tmp = MI_ARB_C3_LP_WRITE_ENABLE | (MI_ARB_C3_LP_WRITE_ENABLE << MI_ARB_MASK_SHIFT);
-			I915_WRITE(MI_ARB_STATE, tmp);
-		}
+		I915_WRITE(MI_ARB_STATE,
+			   _MASKED_BIT_ENABLE(MI_ARB_C3_LP_WRITE_ENABLE));
 	}
 
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
