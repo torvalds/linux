@@ -398,7 +398,6 @@ typedef struct drm_i915_private {
 	u32 hotplug_supported_mask;
 	struct work_struct hotplug_work;
 
-	int tex_lru_log_granularity;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int num_pipe;
 	int num_pch_pll;

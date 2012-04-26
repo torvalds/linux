@@ -879,7 +879,6 @@ static int i915_setparam(struct drm_device *dev, void *data,
 	case I915_SETPARAM_USE_MI_BATCHBUFFER_START:
 		break;
 	case I915_SETPARAM_TEX_LRU_LOG_GRANULARITY:
-		dev_priv->tex_lru_log_granularity = param->value;
 		break;
 	case I915_SETPARAM_ALLOW_BATCHBUFFER:
 		dev_priv->dri1.allow_batchbuffer = param->value ? 1 : 0;
