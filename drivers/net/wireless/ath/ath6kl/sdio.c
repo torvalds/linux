@@ -552,7 +552,7 @@ static int ath6kl_sdio_write_async(struct ath6kl *ar, u32 address, u8 *buffer,
 
 	bus_req = ath6kl_sdio_alloc_busreq(ar_sdio);
 
-	if (!bus_req)
+	if (WARN_ON_ONCE(!bus_req))
 		return -ENOMEM;
 
 	bus_req->address = address;

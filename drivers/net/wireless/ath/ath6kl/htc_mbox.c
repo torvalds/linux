@@ -854,6 +854,7 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 	int bundle_sent;
 	int n_pkts_bundle;
 	u8 ac = WMM_NUM_AC;
+	int status;
 
 	spin_lock_bh(&target->tx_lock);
 
@@ -915,7 +916,12 @@ static void ath6kl_htc_tx_from_queue(struct htc_target *target,
 
 			ath6kl_htc_tx_prep_pkt(packet, packet->info.tx.flags,
 					       0, packet->info.tx.seqno);
-			ath6kl_htc_tx_issue(target, packet);
+			status = ath6kl_htc_tx_issue(target, packet);
+
+			if (status) {
+				packet->status = status;
+				packet->completion(packet->context, packet);
+			}
 		}
 
 		spin_lock_bh(&target->tx_lock);
