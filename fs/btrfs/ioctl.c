@@ -2263,10 +2263,12 @@ static long btrfs_ioctl_dev_info(struct btrfs_root *root, void __user *arg)
 	di_args->bytes_used = dev->bytes_used;
 	di_args->total_bytes = dev->total_bytes;
 	memcpy(di_args->uuid, dev->uuid, sizeof(di_args->uuid));
-	if (dev->name)
+	if (dev->name) {
 		strncpy(di_args->path, dev->name, sizeof(di_args->path));
-	else
+		di_args->path[sizeof(di_args->path) - 1] = 0;
+	} else {
 		di_args->path[0] = '\0';
+	}
 
 out:
 	if (ret == 0 && copy_to_user(arg, di_args, sizeof(*di_args)))
