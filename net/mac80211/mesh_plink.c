@@ -302,6 +302,12 @@ static struct sta_info *mesh_peer_init(struct ieee80211_sub_if_data *sdata,
 	else
 		memset(&sta->sta.ht_cap, 0, sizeof(sta->sta.ht_cap));
 
+	if (elems->ht_operation)
+		if (!(elems->ht_operation->ht_param &
+		      IEEE80211_HT_PARAM_CHAN_WIDTH_ANY))
+			sta->sta.ht_cap.cap &=
+					    ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
+
 	rate_control_rate_init(sta);
 	spin_unlock_bh(&sta->lock);
 
