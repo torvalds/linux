@@ -549,9 +549,9 @@ down:
  * Get link speed and duplex from the slave's base driver
  * using ethtool. If for some reason the call fails or the
  * values are invalid, set speed and duplex to -1,
- * and return error.
+ * and return.
  */
-static int bond_update_speed_duplex(struct slave *slave)
+static void bond_update_speed_duplex(struct slave *slave)
 {
 	struct net_device *slave_dev = slave->dev;
 	struct ethtool_cmd ecmd;
@@ -563,24 +563,24 @@ static int bond_update_speed_duplex(struct slave *slave)
 
 	res = __ethtool_get_settings(slave_dev, &ecmd);
 	if (res < 0)
-		return -1;
+		return;
 
 	slave_speed = ethtool_cmd_speed(&ecmd);
 	if (slave_speed == 0 || slave_speed == ((__u32) -1))
-		return -1;
+		return;
 
 	switch (ecmd.duplex) {
 	case DUPLEX_FULL:
 	case DUPLEX_HALF:
 		break;
 	default:
-		return -1;
+		return;
 	}
 
 	slave->speed = slave_speed;
 	slave->duplex = ecmd.duplex;
 
-	return 0;
+	return;
 }
 
 /*
