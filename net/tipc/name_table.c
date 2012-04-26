@@ -516,9 +516,10 @@ struct publication *tipc_nametbl_insert_publ(u32 type, u32 lower, u32 upper,
 {
 	struct name_seq *seq = nametbl_find_seq(type);
 
-	if (lower > upper) {
-		warn("Failed to publish illegal {%u,%u,%u}\n",
-		     type, lower, upper);
+	if ((scope < TIPC_ZONE_SCOPE) || (scope > TIPC_NODE_SCOPE) ||
+	    (lower > upper)) {
+		dbg("Failed to publish illegal {%u,%u,%u} with scope %u\n",
+		     type, lower, upper, scope);
 		return NULL;
 	}
 

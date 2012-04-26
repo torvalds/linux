@@ -992,10 +992,6 @@ int tipc_publish(u32 ref, unsigned int scope, struct tipc_name_seq const *seq)
 
 	if (p_ptr->connected)
 		goto exit;
-	if (seq->lower > seq->upper)
-		goto exit;
-	if ((scope < TIPC_ZONE_SCOPE) || (scope > TIPC_NODE_SCOPE))
-		goto exit;
 	key = ref + p_ptr->pub_count + 1;
 	if (key == ref) {
 		res = -EADDRINUSE;
