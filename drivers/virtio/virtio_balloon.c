@@ -419,7 +419,7 @@ static int virtballoon_freeze(struct virtio_device *vdev)
 	return 0;
 }
 
-static int restore_common(struct virtio_device *vdev)
+static int virtballoon_restore(struct virtio_device *vdev)
 {
 	struct virtio_balloon *vb = vdev->priv;
 	int ret;
@@ -431,11 +431,6 @@ static int restore_common(struct virtio_device *vdev)
 	fill_balloon(vb, towards_target(vb));
 	update_balloon_size(vb);
 	return 0;
-}
-
-static int virtballoon_restore(struct virtio_device *vdev)
-{
-	return restore_common(vdev);
 }
 #endif
 
