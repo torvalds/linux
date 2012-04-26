@@ -5892,11 +5892,11 @@ F:	Documentation/scsi/st.txt
 F:	drivers/scsi/st*
 
 SCTP PROTOCOL
-M:	Vlad Yasevich <vladislav.yasevich@hp.com>
+M:	Vlad Yasevich <vyasevich@gmail.com>
 M:	Sridhar Samudrala <sri@us.ibm.com>
 L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
-S:	Supported
+S:	Maintained
 F:	Documentation/networking/sctp.txt
 F:	include/linux/sctp.h
 F:	include/net/sctp/
