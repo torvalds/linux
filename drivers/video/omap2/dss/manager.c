@@ -654,6 +654,17 @@ static int dss_mgr_check_zorder(struct omap_overlay_manager *mgr,
 	return 0;
 }
 
+int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
+		const struct omap_video_timings *timings)
+{
+	if (!dispc_mgr_timings_ok(mgr->id, timings)) {
+		DSSERR("check_manager: invalid timings\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int dss_mgr_check(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev,
 		struct omap_overlay_manager_info *info,
@@ -667,6 +678,10 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 		if (r)
 			return r;
 	}
+
+	r = dss_mgr_check_timings(mgr, &dssdev->panel.timings);
+	if (r)
+		return r;
 
 	list_for_each_entry(ovl, &mgr->overlays, list) {
 		struct omap_overlay_info *oi;

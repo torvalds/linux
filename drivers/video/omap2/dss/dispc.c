@@ -2479,7 +2479,7 @@ static bool _dispc_lcd_timings_ok(int hsw, int hfp, int hbp,
 }
 
 bool dispc_mgr_timings_ok(enum omap_channel channel,
-		struct omap_video_timings *timings)
+		const struct omap_video_timings *timings)
 {
 	bool timings_ok;
 
