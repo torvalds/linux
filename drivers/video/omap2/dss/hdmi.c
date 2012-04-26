@@ -492,6 +492,9 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	gpio_set_value(hdmi.ct_cp_hpd_gpio, 1);
 	gpio_set_value(hdmi.ls_oe_gpio, 1);
 
+	/* wait 300us after CT_CP_HPD for the 5V power output to reach 90% */
+	udelay(300);
+
 	r = hdmi_runtime_get();
 	if (r)
 		goto err_runtime_get;
