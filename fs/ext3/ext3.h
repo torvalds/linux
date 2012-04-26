@@ -920,7 +920,11 @@ struct dx_hash_info
 	u32		*seed;
 };
 
-#define EXT3_HTREE_EOF	0x7fffffff
+
+/* 32 and 64 bit signed EOF for dx directories */
+#define EXT3_HTREE_EOF_32BIT   ((1UL  << (32 - 1)) - 1)
+#define EXT3_HTREE_EOF_64BIT   ((1ULL << (64 - 1)) - 1)
+
 
 /*
  * Control parameters used by ext3_htree_next_block
