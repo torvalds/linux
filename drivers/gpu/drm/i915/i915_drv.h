@@ -1156,13 +1156,6 @@ extern int i915_irq_wait(struct drm_device *dev, void *data,
 
 extern void intel_irq_init(struct drm_device *dev);
 
-extern int i915_vblank_pipe_set(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
-extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
-				struct drm_file *file_priv);
-extern int i915_vblank_swap(struct drm_device *dev, void *data,
-			    struct drm_file *file_priv);
-
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
 

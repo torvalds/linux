@@ -1636,67 +1636,6 @@ static void valleyview_disable_vblank(struct drm_device *dev, int pipe)
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
-
-/* Set the vblank monitor pipe
- */
-int i915_vblank_pipe_set(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int i915_vblank_pipe_get(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_i915_vblank_pipe_t *pipe = data;
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
-	if (!dev_priv) {
-		DRM_ERROR("called with no initialization\n");
-		return -EINVAL;
-	}
-
-	pipe->pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
-
-	return 0;
-}
-
-/**
- * Schedule buffer swap at given vertical blank.
- */
-int i915_vblank_swap(struct drm_device *dev, void *data,
-		     struct drm_file *file_priv)
-{
-	/* The delayed swap mechanism was fundamentally racy, and has been
-	 * removed.  The model was that the client requested a delayed flip/swap
-	 * from the kernel, then waited for vblank before continuing to perform
-	 * rendering.  The problem was that the kernel might wake the client
-	 * up before it dispatched the vblank swap (since the lock has to be
-	 * held while touching the ringbuffer), in which case the client would
-	 * clear and start the next frame before the swap occurred, and
-	 * flicker would occur in addition to likely missing the vblank.
-	 *
-	 * In the absence of this ioctl, userland falls back to a correct path
-	 * of waiting for a vblank, then dispatching the swap on its own.
-	 * Context switching to userland and back is plenty fast enough for
-	 * meeting the requirements of vblank swapping.
-	 */
-	return -EINVAL;
-}
-
 static u32
 ring_last_seqno(struct intel_ring_buffer *ring)
 {

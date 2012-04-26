@@ -721,6 +721,48 @@ fail_batch_free:
 	return ret;
 }
 
+static int i915_vblank_pipe_get(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_vblank_pipe_t *pipe = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	pipe->pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
+
+	return 0;
+}
+
+/**
+ * Schedule buffer swap at given vertical blank.
+ */
+static int i915_vblank_swap(struct drm_device *dev, void *data,
+		     struct drm_file *file_priv)
+{
+	/* The delayed swap mechanism was fundamentally racy, and has been
+	 * removed.  The model was that the client requested a delayed flip/swap
+	 * from the kernel, then waited for vblank before continuing to perform
+	 * rendering.  The problem was that the kernel might wake the client
+	 * up before it dispatched the vblank swap (since the lock has to be
+	 * held while touching the ringbuffer), in which case the client would
+	 * clear and start the next frame before the swap occurred, and
+	 * flicker would occur in addition to likely missing the vblank.
+	 *
+	 * In the absence of this ioctl, userland falls back to a correct path
+	 * of waiting for a vblank, then dispatching the swap on its own.
+	 * Context switching to userland and back is plenty fast enough for
+	 * meeting the requirements of vblank swapping.
+	 */
+	return -EINVAL;
+}
+
 static int i915_flip_bufs(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
@@ -2162,7 +2204,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_CMDBUFFER, i915_cmdbuffer, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  i915_vblank_pipe_set, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE,  i915_vblank_pipe_get, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_VBLANK_SWAP, i915_vblank_swap, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_HWS_ADDR, i915_set_status_page, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
