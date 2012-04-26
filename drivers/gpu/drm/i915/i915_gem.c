@@ -3567,8 +3567,9 @@ int i915_gem_init(struct drm_device *dev)
 		return ret;
 	}
 
-	/* Allow hardware batchbuffers unless told otherwise. */
-	dev_priv->dri1.allow_batchbuffer = 1;
+	/* Allow hardware batchbuffers unless told otherwise, but not for KMS. */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		dev_priv->dri1.allow_batchbuffer = 1;
 	return 0;
 }
 
