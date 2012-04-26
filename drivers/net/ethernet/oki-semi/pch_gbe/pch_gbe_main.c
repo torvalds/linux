@@ -79,7 +79,6 @@ const char pch_driver_version[] = DRV_VERSION;
 #define	PCH_GBE_PAUSE_PKT4_VALUE    0x01000888
 #define	PCH_GBE_PAUSE_PKT5_VALUE    0x0000FFFF
 
-#define PCH_GBE_ETH_ALEN            6
 
 /* This defines the bits that are set in the Interrupt Mask
  * Set/Read Register.  Each bit is documented below:
@@ -519,7 +518,7 @@ static void pch_gbe_mac_mc_addr_list_update(struct pch_gbe_hw *hw,
 		if (mc_addr_count) {
 			pch_gbe_mac_mar_set(hw, mc_addr_list, i);
 			mc_addr_count--;
-			mc_addr_list += PCH_GBE_ETH_ALEN;
+			mc_addr_list += ETH_ALEN;
 		} else {
 			/* Clear MAC address mask */
 			adrmask = ioread32(&hw->reg->ADDR_MASK);
