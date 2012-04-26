@@ -506,8 +506,6 @@ void tipc_cfg_reinit(void)
 
 void tipc_cfg_stop(void)
 {
-	if (config_port_ref) {
-		tipc_deleteport(config_port_ref);
-		config_port_ref = 0;
-	}
+	tipc_deleteport(config_port_ref);
+	config_port_ref = 0;
 }
