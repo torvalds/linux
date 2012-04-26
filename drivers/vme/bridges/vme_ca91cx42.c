@@ -29,8 +29,8 @@
 #include <linux/time.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "../vme_bridge.h"
 #include "vme_ca91cx42.h"
 

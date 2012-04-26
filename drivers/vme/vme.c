@@ -30,8 +30,8 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
+#include <linux/vme.h>
 
-#include "vme.h"
 #include "vme_bridge.h"
 
 /* Bitmask and list of registered buses both protected by common mutex */

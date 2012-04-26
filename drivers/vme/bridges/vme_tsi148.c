@@ -30,8 +30,8 @@
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <linux/byteorder/generic.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "../vme_bridge.h"
 #include "vme_tsi148.h"
 

@@ -10,10 +10,10 @@ menuconfig VME_BUS
 
 if VME_BUS
 
-source "drivers/staging/vme/bridges/Kconfig"
+source "drivers/vme/bridges/Kconfig"
+
+source "drivers/vme/boards/Kconfig"
 
 source "drivers/staging/vme/devices/Kconfig"
-
-source "drivers/staging/vme/boards/Kconfig"
 
 endif # VME

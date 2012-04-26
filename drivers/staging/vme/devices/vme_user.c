@@ -36,8 +36,8 @@
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
+#include <linux/vme.h>
 
-#include "../vme.h"
 #include "vme_user.h"
 
 static DEFINE_MUTEX(vme_user_mutex);
