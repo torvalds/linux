@@ -155,6 +155,8 @@ static void rga_dump(void)
 	running = atomic_read(&rga_service.total_running);
 	printk("rga total_running %d\n", running);
 
+    return;
+
     /* Dump waiting list info */
     if (!list_empty(&rga_service.waiting))
     {        
@@ -243,7 +245,7 @@ static void rga_power_off(void)
 		pr_alert("power off when %d task running!!\n", total_running);               
 		mdelay(50);
 		pr_alert("delay 50 ms for running task\n");        
-        //rga_dump();
+        rga_dump();
 	}
     
 	clk_disable(aclk_rga);
@@ -394,6 +396,8 @@ static struct rga_reg * rga_reg_init(rga_session *session, struct rga_req *req)
 	INIT_LIST_HEAD(&reg->status_link);
 
     memcpy(&reg->req, req, sizeof(struct rga_req));
+
+    reg->MMU_base = NULL;
             
     if (req->mmu_info.mmu_en)
     {
@@ -618,7 +622,7 @@ static void rga_try_set_reg(uint32_t num)
 }
 
 
-#if 1//RGA_TEST  
+#if RGA_TEST  
 static void print_info(struct rga_req *req)
 {      
     printk("src.yrgb_addr = %.8x, src.uv_addr = %.8x, src.v_addr = %.8x\n", 
@@ -709,7 +713,7 @@ static void rga_del_running_list_timeout(void)
 }
 
 
-static rga_mem_addr_sel(struct rga_req *req)
+static void rga_mem_addr_sel(struct rga_req *req)
 {
     switch(req->src.format)
     {
@@ -718,10 +722,18 @@ static rga_mem_addr_sel(struct rga_req *req)
         case RK_FORMAT_YCbCr_422_P :
             break;
         case RK_FORMAT_YCbCr_420_SP :
+            if((req->src.yrgb_addr > 0xc0000000) && (req->src.uv_addr > 0xc0000000)
+                && (req->dst.yrgb_addr > 0xc0000000))
+            {
+                req->src.yrgb_addr = req->src.yrgb_addr - 0x60000000;
+                req->src.uv_addr = req->src.uv_addr - 0x60000000;
+                req->dst.yrgb_addr = req->dst.yrgb_addr - 0x60000000;
+                req->mmu_info.mmu_en = 0;
+                req->mmu_info.mmu_flag &= 0xfffe;
+            }
             break;
         case RK_FORMAT_YCbCr_420_P :
             break;
-
         case RK_FORMAT_YCrCb_422_SP :
             break;
         case RK_FORMAT_YCrCb_422_P :
@@ -800,6 +812,11 @@ static int rga_blit(rga_session *session, struct rga_req *req)
                 printk("req argument is inval\n");
                 break;
         	}
+
+            if(req->render_mode == bitblt_mode)
+            {
+                rga_mem_addr_sel(req);                
+            }
            
             reg = rga_reg_init(session, req);
             if(reg == NULL) {
@@ -1009,10 +1026,7 @@ static int rga_release(struct inode *inode, struct file *file)
 
 static irqreturn_t rga_irq(int irq,  void *dev_id)
 {
-    //struct rga_reg *reg;
-    uint32_t flag;
-    uint32_t i = 0;
-    //int int_enable = 0;
+    unsigned long flag;
     
     #if RGA_TEST
     printk("rga_irq is valid\n");
@@ -1041,18 +1055,7 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
     {
         spin_unlock_irqrestore(&rga_service.lock, flag);
     }
-   
-    /* add cmd to cmd buf */
-    /*
-    while((!list_empty(next)) && ((int_enable) == 0) && (num <= 0xf))
-    {        
-        num += 1;
-        reg = list_entry(next->next, struct rga_reg, status_link);
-        int_enable = atomic_read(&reg->int_enable);        
-        next = next->next;
-    } 
-    */
-       			
+          			
 	return IRQ_HANDLED;
 }
 
