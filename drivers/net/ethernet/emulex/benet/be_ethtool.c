@@ -557,7 +557,7 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 			if (!status)
 				be_link_status_update(adapter, link_status);
 			if (link_speed)
-				et_speed = link_speed;
+				et_speed = link_speed * 10;
 			else
 				et_speed = convert_to_et_speed(port_speed);
 		} else {
