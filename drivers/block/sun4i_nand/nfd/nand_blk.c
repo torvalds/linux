@@ -67,7 +67,7 @@ struct nand_disk disk_array[MAX_PART_COUNT];
 //#define NAND_BIO_ALIGN
 #define NAND_CACHE_RW
 #define USE_SYS_PIN
-#define USE_SYS_CLK
+//#define USE_SYS_CLK
 
 /**
 *USE_BIO_MERGE level description:
