@@ -81,6 +81,52 @@ int smiapp_replace_limit_at(struct smiapp_sensor *sensor,
 	return -EINVAL;
 }
 
+bool smiapp_quirk_reg(struct smiapp_sensor *sensor,
+		      u32 reg, u32 *val)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
+	const struct smia_reg *sreg;
+
+	if (!sensor->minfo.quirk)
+		return false;
+
+	sreg = sensor->minfo.quirk->regs;
+
+	if (!sreg)
+		return false;
+
+	while (sreg->type) {
+		u16 type = reg >> 16;
+		u16 reg16 = reg;
+
+		if (sreg->type != type || sreg->reg != reg16) {
+			sreg++;
+			continue;
+		}
+
+		switch ((u8)type) {
+		case SMIA_REG_8BIT:
+			dev_dbg(&client->dev, "quirk: 0x%8.8x: 0x%2.2x\n",
+				reg, sreg->val);
+			break;
+		case SMIA_REG_16BIT:
+			dev_dbg(&client->dev, "quirk: 0x%8.8x: 0x%4.4x\n",
+				reg, sreg->val);
+			break;
+		case SMIA_REG_32BIT:
+			dev_dbg(&client->dev, "quirk: 0x%8.8x: 0x%8.8x\n",
+				reg, sreg->val);
+			break;
+		}
+
+		*val = sreg->val;
+
+		return true;
+	}
+
+	return false;
+}
+
 static int jt8ew9_limits(struct smiapp_sensor *sensor)
 {
 	if (sensor->minfo.revision_number_major < 0x03)

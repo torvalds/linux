@@ -41,6 +41,7 @@ struct smiapp_quirk {
 	int (*post_poweron)(struct smiapp_sensor *sensor);
 	int (*pre_streamon)(struct smiapp_sensor *sensor);
 	int (*post_streamoff)(struct smiapp_sensor *sensor);
+	const struct smia_reg *regs;
 	unsigned long flags;
 };
 
@@ -55,6 +56,15 @@ struct smiapp_reg_8 {
 
 void smiapp_replace_limit(struct smiapp_sensor *sensor,
 			  u32 limit, u32 val);
+bool smiapp_quirk_reg(struct smiapp_sensor *sensor,
+		      u32 reg, u32 *val);
+
+#define SMIAPP_MK_QUIRK_REG(_reg, _val) \
+	{				\
+		.type = (_reg >> 16),	\
+		.reg = (u16)_reg,	\
+		.val = _val,		\
+	}
 
 #define smiapp_call_quirk(_sensor, _quirk, ...)				\
 	(_sensor->minfo.quirk &&					\

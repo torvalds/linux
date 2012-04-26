@@ -172,6 +172,9 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	    && len != SMIA_REG_32BIT)
 		return -EINVAL;
 
+	if (smiapp_quirk_reg(sensor, reg, val))
+		goto found_quirk;
+
 	if (len == SMIA_REG_8BIT && !only8)
 		rval = ____smiapp_read(sensor, (u16)reg, len, val);
 	else
@@ -179,6 +182,7 @@ static int __smiapp_read(struct smiapp_sensor *sensor, u32 reg, u32 *val,
 	if (rval < 0)
 		return rval;
 
+found_quirk:
 	if (reg & SMIA_REG_FLAG_FLOAT)
 		*val = float_to_u32_mul_1000000(client, *val);
 
