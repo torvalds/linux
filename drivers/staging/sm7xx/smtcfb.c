@@ -33,12 +33,6 @@
 
 #include "smtcfb.h"
 
-#ifdef DEBUG
-#define smdbg(format, arg...) printk(KERN_DEBUG format , ## arg)
-#else
-#define smdbg(format, arg...)
-#endif
-
 struct screen_info smtc_screen_info;
 
 /*
@@ -134,8 +128,9 @@ static void sm712_set_timing(struct smtcfb_info *sfb,
 	int i = 0, j = 0;
 	u32 m_nScreenStride;
 
-	smdbg("\nppar_info->width = %d ppar_info->height = %d"
-			"sfb->fb.var.bits_per_pixel = %d ppar_info->hz = %d\n",
+	dev_dbg(&sfb->dev->dev,
+	       "ppar_info->width=%d ppar_info->height=%d"
+			"sfb->fb.var.bits_per_pixel=%d ppar_info->hz=%d\n",
 			ppar_info->width, ppar_info->height,
 			sfb->fb.var.bits_per_pixel, ppar_info->hz);
 
@@ -145,13 +140,14 @@ static void sm712_set_timing(struct smtcfb_info *sfb,
 		    VGAMode[j].bpp == sfb->fb.var.bits_per_pixel &&
 		    VGAMode[j].hz == ppar_info->hz) {
 
-			smdbg("\nVGAMode[j].mmSizeX  = %d VGAMode[j].mmSizeY ="
-					"%d VGAMode[j].bpp = %d"
-					"VGAMode[j].hz=%d\n",
-					VGAMode[j].mmSizeX, VGAMode[j].mmSizeY,
-					VGAMode[j].bpp, VGAMode[j].hz);
+			dev_dbg(&sfb->dev->dev,
+				"VGAMode[j].mmSizeX=%d VGAMode[j].mmSizeY=%d"
+				"VGAMode[j].bpp=%d VGAMode[j].hz=%d\n",
+				VGAMode[j].mmSizeX, VGAMode[j].mmSizeY,
+				VGAMode[j].bpp, VGAMode[j].hz);
 
-			smdbg("VGAMode index=%d\n", j);
+			dev_dbg(&sfb->dev->dev,
+				"VGAMode index=%d\n", j);
 
 			smtc_mmiowb(0x0, 0x3c6);
 
@@ -805,16 +801,14 @@ static int __init sm712vga_setup(char *options)
 {
 	int index;
 
-	if (!options || !*options) {
-		smdbg("\n No vga parameter\n");
+	if (!options || !*options)
 		return -EINVAL;
-	}
 
 	smtc_screen_info.lfb_width = 0;
 	smtc_screen_info.lfb_height = 0;
 	smtc_screen_info.lfb_depth = 0;
 
-	smdbg("\nsm712vga_setup = %s\n", options);
+	pr_debug("sm712vga_setup = %s\n", options);
 
 	for (index = 0;
 	     index < ARRAY_SIZE(vesa_mode);
