@@ -63,10 +63,8 @@ ftrace_modify_code(unsigned long ip, unsigned int old, unsigned int new)
 		return -EINVAL;
 
 	/* replace the text with the new text */
-	if (probe_kernel_write((void *)ip, &new, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, new))
 		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -212,11 +210,8 @@ __ftrace_make_nop(struct module *mod,
 	 */
 	op = 0x48000008;	/* b +8 */
 
-	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, op))
 		return -EPERM;
-
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -286,10 +281,8 @@ __ftrace_make_nop(struct module *mod,
 
 	op = PPC_INST_NOP;
 
-	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, op))
 		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
@@ -426,10 +419,8 @@ __ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 
 	pr_devel("write to %lx\n", rec->ip);
 
-	if (probe_kernel_write((void *)ip, &op, MCOUNT_INSN_SIZE))
+	if (patch_instruction((unsigned int *)ip, op))
 		return -EPERM;
-
-	flush_icache_range(ip, ip + 8);
 
 	return 0;
 }
