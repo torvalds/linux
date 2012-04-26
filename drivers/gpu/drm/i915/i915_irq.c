@@ -1031,6 +1031,7 @@ static void i915_record_ring_state(struct drm_device *dev,
 		error->instdone[ring->id] = I915_READ(INSTDONE);
 	}
 
+	error->waiting[ring->id] = waitqueue_active(&ring->irq_queue);
 	error->instpm[ring->id] = I915_READ(RING_INSTPM(ring->mmio_base));
 	error->seqno[ring->id] = ring->get_seqno(ring);
 	error->acthd[ring->id] = intel_ring_get_active_head(ring);
@@ -1708,14 +1709,17 @@ ring_last_seqno(struct intel_ring_buffer *ring)
 
 static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 {
+	/* We don't check whether the ring even exists before calling this
+	 * function. Hence check whether it's initialized. */
+	if (ring->obj == NULL)
+		return true;
+
 	if (list_empty(&ring->request_list) ||
 	    i915_seqno_passed(ring->get_seqno(ring), ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
-		if (ring->waiting_seqno && waitqueue_active(&ring->irq_queue)) {
-			DRM_ERROR("Hangcheck timer elapsed... %s idle [waiting on %d, at %d], missed IRQ?\n",
-				  ring->name,
-				  ring->waiting_seqno,
-				  ring->get_seqno(ring));
+		if (waitqueue_active(&ring->irq_queue)) {
+			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
+				  ring->name);
 			wake_up_all(&ring->irq_queue);
 			*err = true;
 		}

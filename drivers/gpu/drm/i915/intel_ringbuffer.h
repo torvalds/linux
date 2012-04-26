@@ -60,7 +60,6 @@ struct  intel_ring_buffer {
 	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
 	u32		irq_seqno;		/* last seq seem at irq time */
 	u32		trace_irq_seqno;
-	u32		waiting_seqno;
 	u32		sync_seqno[I915_NUM_RINGS-1];
 	bool __must_check (*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);

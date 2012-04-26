@@ -414,8 +414,6 @@ static void i915_ring_seqno_info(struct seq_file *m,
 	if (ring->get_seqno) {
 		seq_printf(m, "Current sequence (%s): %d\n",
 			   ring->name, ring->get_seqno(ring));
-		seq_printf(m, "Waiter sequence (%s):  %d\n",
-			   ring->name, ring->waiting_seqno);
 		seq_printf(m, "IRQ sequence (%s):     %d\n",
 			   ring->name, ring->irq_seqno);
 	}
@@ -687,6 +685,7 @@ static void i915_ring_error_state(struct seq_file *m,
 			   error->semaphore_mboxes[ring][1]);
 	}
 	seq_printf(m, "  seqno: 0x%08x\n", error->seqno[ring]);
+	seq_printf(m, "  waiting: %s\n", yesno(error->waiting[ring]));
 	seq_printf(m, "  ring->head: 0x%08x\n", error->cpu_ring_head[ring]);
 	seq_printf(m, "  ring->tail: 0x%08x\n", error->cpu_ring_tail[ring]);
 }
