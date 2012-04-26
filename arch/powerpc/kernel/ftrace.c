@@ -484,6 +484,58 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	return ret;
 }
 
+static int __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
+{
+	unsigned long ftrace_addr = (unsigned long)FTRACE_ADDR;
+	int ret;
+
+	ret = ftrace_update_record(rec, enable);
+
+	switch (ret) {
+	case FTRACE_UPDATE_IGNORE:
+		return 0;
+	case FTRACE_UPDATE_MAKE_CALL:
+		return ftrace_make_call(rec, ftrace_addr);
+	case FTRACE_UPDATE_MAKE_NOP:
+		return ftrace_make_nop(NULL, rec, ftrace_addr);
+	}
+
+	return 0;
+}
+
+void ftrace_replace_code(int enable)
+{
+	struct ftrace_rec_iter *iter;
+	struct dyn_ftrace *rec;
+	int ret;
+
+	for (iter = ftrace_rec_iter_start(); iter;
+	     iter = ftrace_rec_iter_next(iter)) {
+		rec = ftrace_rec_iter_record(iter);
+		ret = __ftrace_replace_code(rec, enable);
+		if (ret) {
+			ftrace_bug(ret, rec->ip);
+			return;
+		}
+	}
+}
+
+void arch_ftrace_update_code(int command)
+{
+	if (command & FTRACE_UPDATE_CALLS)
+		ftrace_replace_code(1);
+	else if (command & FTRACE_DISABLE_CALLS)
+		ftrace_replace_code(0);
+
+	if (command & FTRACE_UPDATE_TRACE_FUNC)
+		ftrace_update_ftrace_func(ftrace_trace_function);
+
+	if (command & FTRACE_START_FUNC_RET)
+		ftrace_enable_ftrace_graph_caller();
+	else if (command & FTRACE_STOP_FUNC_RET)
+		ftrace_disable_ftrace_graph_caller();
+}
+
 int __init ftrace_dyn_arch_init(void *data)
 {
 	/* caller expects data to be zero */
