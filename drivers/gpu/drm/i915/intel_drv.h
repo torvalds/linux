@@ -462,5 +462,8 @@ extern void intel_init_pm(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern void intel_update_fbc(struct drm_device *dev);
+/* IPS */
+extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
+extern void intel_gpu_ips_teardown(void);
 
 #endif /* __INTEL_DRV_H__ */

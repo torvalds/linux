@@ -28,6 +28,8 @@
 #include <linux/cpufreq.h>
 #include "i915_drv.h"
 #include "intel_drv.h"
+#include "../../../platform/x86/intel_ips.h"
+#include <linux/module.h>
 
 /* FBC, or Frame Buffer Compression, is a technique employed to compress the
  * framebuffer contents in-memory, aiming at reducing the required bandwidth
@@ -2506,6 +2508,485 @@ static unsigned long intel_pxfreq(u32 vidfreq)
 	freq = ((div * 133333) / ((1<<post) * pre));
 
 	return freq;
+}
+
+static const struct cparams {
+	u16 i;
+	u16 t;
+	u16 m;
+	u16 c;
+} cparams[] = {
+	{ 1, 1333, 301, 28664 },
+	{ 1, 1066, 294, 24460 },
+	{ 1, 800, 294, 25192 },
+	{ 0, 1333, 276, 27605 },
+	{ 0, 1066, 276, 27605 },
+	{ 0, 800, 231, 23784 },
+};
+
+unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
+{
+	u64 total_count, diff, ret;
+	u32 count1, count2, count3, m = 0, c = 0;
+	unsigned long now = jiffies_to_msecs(jiffies), diff1;
+	int i;
+
+	diff1 = now - dev_priv->last_time1;
+
+	/* Prevent division-by-zero if we are asking too fast.
+	 * Also, we don't get interesting results if we are polling
+	 * faster than once in 10ms, so just return the saved value
+	 * in such cases.
+	 */
+	if (diff1 <= 10)
+		return dev_priv->chipset_power;
+
+	count1 = I915_READ(DMIEC);
+	count2 = I915_READ(DDREC);
+	count3 = I915_READ(CSIEC);
+
+	total_count = count1 + count2 + count3;
+
+	/* FIXME: handle per-counter overflow */
+	if (total_count < dev_priv->last_count1) {
+		diff = ~0UL - dev_priv->last_count1;
+		diff += total_count;
+	} else {
+		diff = total_count - dev_priv->last_count1;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cparams); i++) {
+		if (cparams[i].i == dev_priv->c_m &&
+		    cparams[i].t == dev_priv->r_t) {
+			m = cparams[i].m;
+			c = cparams[i].c;
+			break;
+		}
+	}
+
+	diff = div_u64(diff, diff1);
+	ret = ((m * diff) + c);
+	ret = div_u64(ret, 10);
+
+	dev_priv->last_count1 = total_count;
+	dev_priv->last_time1 = now;
+
+	dev_priv->chipset_power = ret;
+
+	return ret;
+}
+
+unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long m, x, b;
+	u32 tsfs;
+
+	tsfs = I915_READ(TSFS);
+
+	m = ((tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT);
+	x = I915_READ8(TR1);
+
+	b = tsfs & TSFS_INTR_MASK;
+
+	return ((m * x) / 127) - b;
+}
+
+static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
+{
+	static const struct v_table {
+		u16 vd; /* in .1 mil */
+		u16 vm; /* in .1 mil */
+	} v_table[] = {
+		{ 0, 0, },
+		{ 375, 0, },
+		{ 500, 0, },
+		{ 625, 0, },
+		{ 750, 0, },
+		{ 875, 0, },
+		{ 1000, 0, },
+		{ 1125, 0, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4125, 3000, },
+		{ 4250, 3125, },
+		{ 4375, 3250, },
+		{ 4500, 3375, },
+		{ 4625, 3500, },
+		{ 4750, 3625, },
+		{ 4875, 3750, },
+		{ 5000, 3875, },
+		{ 5125, 4000, },
+		{ 5250, 4125, },
+		{ 5375, 4250, },
+		{ 5500, 4375, },
+		{ 5625, 4500, },
+		{ 5750, 4625, },
+		{ 5875, 4750, },
+		{ 6000, 4875, },
+		{ 6125, 5000, },
+		{ 6250, 5125, },
+		{ 6375, 5250, },
+		{ 6500, 5375, },
+		{ 6625, 5500, },
+		{ 6750, 5625, },
+		{ 6875, 5750, },
+		{ 7000, 5875, },
+		{ 7125, 6000, },
+		{ 7250, 6125, },
+		{ 7375, 6250, },
+		{ 7500, 6375, },
+		{ 7625, 6500, },
+		{ 7750, 6625, },
+		{ 7875, 6750, },
+		{ 8000, 6875, },
+		{ 8125, 7000, },
+		{ 8250, 7125, },
+		{ 8375, 7250, },
+		{ 8500, 7375, },
+		{ 8625, 7500, },
+		{ 8750, 7625, },
+		{ 8875, 7750, },
+		{ 9000, 7875, },
+		{ 9125, 8000, },
+		{ 9250, 8125, },
+		{ 9375, 8250, },
+		{ 9500, 8375, },
+		{ 9625, 8500, },
+		{ 9750, 8625, },
+		{ 9875, 8750, },
+		{ 10000, 8875, },
+		{ 10125, 9000, },
+		{ 10250, 9125, },
+		{ 10375, 9250, },
+		{ 10500, 9375, },
+		{ 10625, 9500, },
+		{ 10750, 9625, },
+		{ 10875, 9750, },
+		{ 11000, 9875, },
+		{ 11125, 10000, },
+		{ 11250, 10125, },
+		{ 11375, 10250, },
+		{ 11500, 10375, },
+		{ 11625, 10500, },
+		{ 11750, 10625, },
+		{ 11875, 10750, },
+		{ 12000, 10875, },
+		{ 12125, 11000, },
+		{ 12250, 11125, },
+		{ 12375, 11250, },
+		{ 12500, 11375, },
+		{ 12625, 11500, },
+		{ 12750, 11625, },
+		{ 12875, 11750, },
+		{ 13000, 11875, },
+		{ 13125, 12000, },
+		{ 13250, 12125, },
+		{ 13375, 12250, },
+		{ 13500, 12375, },
+		{ 13625, 12500, },
+		{ 13750, 12625, },
+		{ 13875, 12750, },
+		{ 14000, 12875, },
+		{ 14125, 13000, },
+		{ 14250, 13125, },
+		{ 14375, 13250, },
+		{ 14500, 13375, },
+		{ 14625, 13500, },
+		{ 14750, 13625, },
+		{ 14875, 13750, },
+		{ 15000, 13875, },
+		{ 15125, 14000, },
+		{ 15250, 14125, },
+		{ 15375, 14250, },
+		{ 15500, 14375, },
+		{ 15625, 14500, },
+		{ 15750, 14625, },
+		{ 15875, 14750, },
+		{ 16000, 14875, },
+		{ 16125, 15000, },
+	};
+	if (dev_priv->info->is_mobile)
+		return v_table[pxvid].vm;
+	else
+		return v_table[pxvid].vd;
+}
+
+void i915_update_gfx_val(struct drm_i915_private *dev_priv)
+{
+	struct timespec now, diff1;
+	u64 diff;
+	unsigned long diffms;
+	u32 count;
+
+	if (dev_priv->info->gen != 5)
+		return;
+
+	getrawmonotonic(&now);
+	diff1 = timespec_sub(now, dev_priv->last_time2);
+
+	/* Don't divide by 0 */
+	diffms = diff1.tv_sec * 1000 + diff1.tv_nsec / 1000000;
+	if (!diffms)
+		return;
+
+	count = I915_READ(GFXEC);
+
+	if (count < dev_priv->last_count2) {
+		diff = ~0UL - dev_priv->last_count2;
+		diff += count;
+	} else {
+		diff = count - dev_priv->last_count2;
+	}
+
+	dev_priv->last_count2 = count;
+	dev_priv->last_time2 = now;
+
+	/* More magic constants... */
+	diff = diff * 1181;
+	diff = div_u64(diff, diffms * 10);
+	dev_priv->gfx_power = diff;
+}
+
+unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long t, corr, state1, corr2, state2;
+	u32 pxvid, ext_v;
+
+	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->cur_delay * 4));
+	pxvid = (pxvid >> 24) & 0x7f;
+	ext_v = pvid_to_extvid(dev_priv, pxvid);
+
+	state1 = ext_v;
+
+	t = i915_mch_val(dev_priv);
+
+	/* Revel in the empirically derived constants */
+
+	/* Correction factor in 1/100000 units */
+	if (t > 80)
+		corr = ((t * 2349) + 135940);
+	else if (t >= 50)
+		corr = ((t * 964) + 29317);
+	else /* < 50 */
+		corr = ((t * 301) + 1004);
+
+	corr = corr * ((150142 * state1) / 10000 - 78642);
+	corr /= 100000;
+	corr2 = (corr * dev_priv->corr);
+
+	state2 = (corr2 * state1) / 10000;
+	state2 /= 100; /* convert to mW */
+
+	i915_update_gfx_val(dev_priv);
+
+	return dev_priv->gfx_power + state2;
+}
+
+/* Global for IPS driver to get at the current i915 device */
+static struct drm_i915_private *i915_mch_dev;
+/*
+ * Lock protecting IPS related data structures
+ *   - i915_mch_dev
+ *   - dev_priv->max_delay
+ *   - dev_priv->min_delay
+ *   - dev_priv->fmax
+ *   - dev_priv->gpu_busy
+ */
+static DEFINE_SPINLOCK(mchdev_lock);
+
+/**
+ * i915_read_mch_val - return value for IPS use
+ *
+ * Calculate and return a value for the IPS driver to use when deciding whether
+ * we have thermal and power headroom to increase CPU or GPU power budget.
+ */
+unsigned long i915_read_mch_val(void)
+{
+	struct drm_i915_private *dev_priv;
+	unsigned long chipset_val, graphics_val, ret = 0;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev)
+		goto out_unlock;
+	dev_priv = i915_mch_dev;
+
+	chipset_val = i915_chipset_val(dev_priv);
+	graphics_val = i915_gfx_val(dev_priv);
+
+	ret = chipset_val + graphics_val;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_read_mch_val);
+
+/**
+ * i915_gpu_raise - raise GPU frequency limit
+ *
+ * Raise the limit; IPS indicates we have thermal headroom.
+ */
+bool i915_gpu_raise(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	if (dev_priv->max_delay > dev_priv->fmax)
+		dev_priv->max_delay--;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_raise);
+
+/**
+ * i915_gpu_lower - lower GPU frequency limit
+ *
+ * IPS indicates we're close to a thermal limit, so throttle back the GPU
+ * frequency maximum.
+ */
+bool i915_gpu_lower(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	if (dev_priv->max_delay < dev_priv->min_delay)
+		dev_priv->max_delay++;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_lower);
+
+/**
+ * i915_gpu_busy - indicate GPU business to IPS
+ *
+ * Tell the IPS driver whether or not the GPU is busy.
+ */
+bool i915_gpu_busy(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = false;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev)
+		goto out_unlock;
+	dev_priv = i915_mch_dev;
+
+	ret = dev_priv->busy;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_busy);
+
+/**
+ * i915_gpu_turbo_disable - disable graphics turbo
+ *
+ * Disable graphics turbo by resetting the max frequency and setting the
+ * current frequency to the default.
+ */
+bool i915_gpu_turbo_disable(void)
+{
+	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	dev_priv->max_delay = dev_priv->fstart;
+
+	if (!ironlake_set_drps(dev_priv->dev, dev_priv->fstart))
+		ret = false;
+
+out_unlock:
+	spin_unlock(&mchdev_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
+
+/**
+ * Tells the intel_ips driver that the i915 driver is now loaded, if
+ * IPS got loaded first.
+ *
+ * This awkward dance is so that neither module has to depend on the
+ * other in order for IPS to do the appropriate communication of
+ * GPU turbo limits to i915.
+ */
+static void
+ips_ping_for_i915_load(void)
+{
+	void (*link)(void);
+
+	link = symbol_get(ips_link_to_i915_driver);
+	if (link) {
+		link();
+		symbol_put(ips_link_to_i915_driver);
+	}
+}
+
+void intel_gpu_ips_init(struct drm_i915_private *dev_priv)
+{
+	spin_lock(&mchdev_lock);
+	i915_mch_dev = dev_priv;
+	dev_priv->mchdev_lock = &mchdev_lock;
+	spin_unlock(&mchdev_lock);
+
+	ips_ping_for_i915_load();
+}
+
+void intel_gpu_ips_teardown(void)
+{
+	spin_lock(&mchdev_lock);
+	i915_mch_dev = NULL;
+	spin_unlock(&mchdev_lock);
 }
 
 void intel_init_emon(struct drm_device *dev)
