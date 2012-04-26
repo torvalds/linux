@@ -1112,6 +1112,7 @@ MACHINE_START(UNIVERSAL_C210, "UNIVERSAL_C210")
 	.map_io		= universal_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= universal_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.reserve        = &universal_reserve,
 	.restart	= exynos4_restart,

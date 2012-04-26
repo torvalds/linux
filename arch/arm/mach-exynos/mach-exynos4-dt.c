@@ -83,6 +83,7 @@ DT_MACHINE_START(EXYNOS4210_DT, "Samsung Exynos4 (Flattened Device Tree)")
 	.map_io		= exynos4210_dt_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= exynos4210_dt_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.dt_compat	= exynos4210_dt_compat,
 	.restart        = exynos4_restart,

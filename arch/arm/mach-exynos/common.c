@@ -285,6 +285,11 @@ void exynos5_restart(char mode, const char *cmd)
 	__raw_writel(0x1, EXYNOS_SWRESET);
 }
 
+void __init exynos_init_late(void)
+{
+	exynos_pm_late_initcall();
+}
+
 /*
  * exynos_map_io
  *
