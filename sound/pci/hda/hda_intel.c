@@ -2551,6 +2551,8 @@ static struct snd_pci_quirk probe_mask_list[] __devinitdata = {
 	/* forced codec slots */
 	SND_PCI_QUIRK(0x1043, 0x1262, "ASUS W5Fm", 0x103),
 	SND_PCI_QUIRK(0x1046, 0x1262, "ASUS W5F", 0x103),
+	/* WinFast VP200 H (Teradici) user reported broken communication */
+	SND_PCI_QUIRK(0x3a21, 0x040d, "WinFast VP200 H", 0x101),
 	{}
 };
 
