@@ -599,18 +599,20 @@ int perf_evlist__mmap(struct perf_evlist *evlist, unsigned int pages,
 	return perf_evlist__mmap_per_cpu(evlist, prot, mask);
 }
 
-int perf_evlist__create_maps(struct perf_evlist *evlist, const char *target_pid,
-			     const char *target_tid, uid_t uid, const char *cpu_list)
+int perf_evlist__create_maps(struct perf_evlist *evlist,
+			     struct perf_target *target)
 {
-	evlist->threads = thread_map__new_str(target_pid, target_tid, uid);
+	evlist->threads = thread_map__new_str(target->pid, target->tid,
+					      target->uid);
 
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (uid != UINT_MAX || (cpu_list == NULL && target_tid))
+	if (target->uid != UINT_MAX ||
+	    (target->cpu_list == NULL && target->tid))
 		evlist->cpus = cpu_map__dummy_new();
 	else
-		evlist->cpus = cpu_map__new(cpu_list);
+		evlist->cpus = cpu_map__new(target->cpu_list);
 
 	if (evlist->cpus == NULL)
 		goto out_delete_threads;

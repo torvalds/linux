@@ -1258,9 +1258,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (top.target.uid_str != NULL && top.target.uid == UINT_MAX - 1)
 		goto out_delete_evlist;
 
-	if (perf_evlist__create_maps(top.evlist, top.target.pid,
-				     top.target.tid, top.target.uid,
-				     top.target.cpu_list) < 0)
+	if (perf_evlist__create_maps(top.evlist, &top.target) < 0)
 		usage_with_options(top_usage, options);
 
 	if (!top.evlist->nr_entries &&

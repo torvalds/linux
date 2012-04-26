@@ -891,9 +891,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	    rec->opts.target.uid == UINT_MAX - 1)
 		goto out_free_fd;
 
-	if (perf_evlist__create_maps(evsel_list, rec->opts.target.pid,
-				     rec->opts.target.tid, rec->opts.target.uid,
-				     rec->opts.target.cpu_list) < 0)
+	if (perf_evlist__create_maps(evsel_list, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
 	list_for_each_entry(pos, &evsel_list->entries, node) {
