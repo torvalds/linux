@@ -2436,6 +2436,7 @@ static int ironlake_setup_rc6(struct drm_device *dev)
 void ironlake_enable_rc6(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
 
 	/* rc6 disabled by default due to repeated reports of hanging during
@@ -2455,31 +2456,31 @@ void ironlake_enable_rc6(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
-	ret = BEGIN_LP_RING(6);
+	ret = intel_ring_begin(ring, 6);
 	if (ret) {
 		ironlake_teardown_rc6(dev);
 		mutex_unlock(&dev->struct_mutex);
 		return;
 	}
 
-	OUT_RING(MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
-	OUT_RING(MI_SET_CONTEXT);
-	OUT_RING(dev_priv->renderctx->gtt_offset |
-		 MI_MM_SPACE_GTT |
-		 MI_SAVE_EXT_STATE_EN |
-		 MI_RESTORE_EXT_STATE_EN |
-		 MI_RESTORE_INHIBIT);
-	OUT_RING(MI_SUSPEND_FLUSH);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_FLUSH);
-	ADVANCE_LP_RING();
+	intel_ring_emit(ring, MI_SUSPEND_FLUSH | MI_SUSPEND_FLUSH_EN);
+	intel_ring_emit(ring, MI_SET_CONTEXT);
+	intel_ring_emit(ring, dev_priv->renderctx->gtt_offset |
+			MI_MM_SPACE_GTT |
+			MI_SAVE_EXT_STATE_EN |
+			MI_RESTORE_EXT_STATE_EN |
+			MI_RESTORE_INHIBIT);
+	intel_ring_emit(ring, MI_SUSPEND_FLUSH);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, MI_FLUSH);
+	intel_ring_advance(ring);
 
 	/*
 	 * Wait for the command parser to advance past MI_SET_CONTEXT. The HW
 	 * does an implicit flush, combined with MI_FLUSH above, it should be
 	 * safe to assume that renderctx is valid
 	 */
-	ret = intel_wait_ring_idle(LP_RING(dev_priv));
+	ret = intel_wait_ring_idle(ring);
 	if (ret) {
 		DRM_ERROR("failed to enable ironlake power power savings\n");
 		ironlake_teardown_rc6(dev);

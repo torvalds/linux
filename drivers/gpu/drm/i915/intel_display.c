@@ -5749,16 +5749,17 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	unsigned long offset;
 	u32 flip_mask;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
 
-	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
 	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
-	ret = BEGIN_LP_RING(6);
+	ret = intel_ring_begin(ring, 6);
 	if (ret)
 		goto err_unpin;
 
@@ -5769,14 +5770,14 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
 	else
 		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-	OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_DISPLAY_FLIP |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitches[0]);
-	OUT_RING(obj->gtt_offset + offset);
-	OUT_RING(0); /* aux display base address, unused */
-	ADVANCE_LP_RING();
+	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, MI_DISPLAY_FLIP |
+			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	intel_ring_emit(ring, fb->pitches[0]);
+	intel_ring_emit(ring, obj->gtt_offset + offset);
+	intel_ring_emit(ring, 0); /* aux display base address, unused */
+	intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -5794,16 +5795,17 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	unsigned long offset;
 	u32 flip_mask;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
 
-	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
 
 	/* Offset into the new buffer for cases of shared fbs between CRTCs */
 	offset = crtc->y * fb->pitches[0] + crtc->x * fb->bits_per_pixel/8;
 
-	ret = BEGIN_LP_RING(6);
+	ret = intel_ring_begin(ring, 6);
 	if (ret)
 		goto err_unpin;
 
@@ -5811,15 +5813,15 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 		flip_mask = MI_WAIT_FOR_PLANE_B_FLIP;
 	else
 		flip_mask = MI_WAIT_FOR_PLANE_A_FLIP;
-	OUT_RING(MI_WAIT_FOR_EVENT | flip_mask);
-	OUT_RING(MI_NOOP);
-	OUT_RING(MI_DISPLAY_FLIP_I915 |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitches[0]);
-	OUT_RING(obj->gtt_offset + offset);
-	OUT_RING(MI_NOOP);
+	intel_ring_emit(ring, MI_WAIT_FOR_EVENT | flip_mask);
+	intel_ring_emit(ring, MI_NOOP);
+	intel_ring_emit(ring, MI_DISPLAY_FLIP_I915 |
+			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	intel_ring_emit(ring, fb->pitches[0]);
+	intel_ring_emit(ring, obj->gtt_offset + offset);
+	intel_ring_emit(ring, MI_NOOP);
 
-	ADVANCE_LP_RING();
+	intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -5836,13 +5838,14 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	uint32_t pf, pipesrc;
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	int ret;
 
-	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
 
-	ret = BEGIN_LP_RING(4);
+	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		goto err_unpin;
 
@@ -5850,10 +5853,10 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	 * Display Registers (which do not change across a page-flip)
 	 * so we need only reprogram the base address.
 	 */
-	OUT_RING(MI_DISPLAY_FLIP |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitches[0]);
-	OUT_RING(obj->gtt_offset | obj->tiling_mode);
+	intel_ring_emit(ring, MI_DISPLAY_FLIP |
+			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	intel_ring_emit(ring, fb->pitches[0]);
+	intel_ring_emit(ring, obj->gtt_offset | obj->tiling_mode);
 
 	/* XXX Enabling the panel-fitter across page-flip is so far
 	 * untested on non-native modes, so ignore it for now.
@@ -5861,8 +5864,8 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	 */
 	pf = 0;
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
-	OUT_RING(pf | pipesrc);
-	ADVANCE_LP_RING();
+	intel_ring_emit(ring, pf | pipesrc);
+	intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
@@ -5878,26 +5881,27 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_ring_buffer *ring = &dev_priv->ring[RCS];
 	uint32_t pf, pipesrc;
 	int ret;
 
-	ret = intel_pin_and_fence_fb_obj(dev, obj, LP_RING(dev_priv));
+	ret = intel_pin_and_fence_fb_obj(dev, obj, ring);
 	if (ret)
 		goto err;
 
-	ret = BEGIN_LP_RING(4);
+	ret = intel_ring_begin(ring, 4);
 	if (ret)
 		goto err_unpin;
 
-	OUT_RING(MI_DISPLAY_FLIP |
-		 MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
-	OUT_RING(fb->pitches[0] | obj->tiling_mode);
-	OUT_RING(obj->gtt_offset);
+	intel_ring_emit(ring, MI_DISPLAY_FLIP |
+			MI_DISPLAY_FLIP_PLANE(intel_crtc->plane));
+	intel_ring_emit(ring, fb->pitches[0] | obj->tiling_mode);
+	intel_ring_emit(ring, obj->gtt_offset);
 
 	pf = I915_READ(PF_CTL(intel_crtc->pipe)) & PF_ENABLE;
 	pipesrc = I915_READ(PIPESRC(intel_crtc->pipe)) & 0x0fff0fff;
-	OUT_RING(pf | pipesrc);
-	ADVANCE_LP_RING();
+	intel_ring_emit(ring, pf | pipesrc);
+	intel_ring_advance(ring);
 	return 0;
 
 err_unpin:
