@@ -1122,6 +1122,16 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
+
+	if (HAS_PCH_SPLIT(dev))
+		error->ier = I915_READ(DEIER) | I915_READ(GTIER);
+	else if (IS_VALLEYVIEW(dev))
+		error->ier = I915_READ(GTIER) | I915_READ(VLV_IER);
+	else if (IS_GEN2(dev))
+		error->ier = I915_READ16(IER);
+	else
+		error->ier = I915_READ(IER);
+
 	for_each_pipe(pipe)
 		error->pipestat[pipe] = I915_READ(PIPESTAT(pipe));
 

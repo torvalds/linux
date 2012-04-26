@@ -1828,7 +1828,6 @@ i915_wait_request(struct intel_ring_buffer *ring,
 		  uint32_t seqno)
 {
 	drm_i915_private_t *dev_priv = ring->dev->dev_private;
-	u32 ier;
 	int ret = 0;
 
 	BUG_ON(seqno == 0);
@@ -1863,19 +1862,6 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	}
 
 	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
-		if (HAS_PCH_SPLIT(ring->dev))
-			ier = I915_READ(DEIER) | I915_READ(GTIER);
-		else if (IS_VALLEYVIEW(ring->dev))
-			ier = I915_READ(GTIER) | I915_READ(VLV_IER);
-		else
-			ier = I915_READ(IER);
-		if (!ier) {
-			DRM_ERROR("something (likely vbetool) disabled "
-				  "interrupts, re-enabling\n");
-			ring->dev->driver->irq_preinstall(ring->dev);
-			ring->dev->driver->irq_postinstall(ring->dev);
-		}
-
 		trace_i915_gem_request_wait_begin(ring, seqno);
 
 		ring->waiting_seqno = seqno;

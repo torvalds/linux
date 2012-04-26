@@ -712,6 +712,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 		   error->time.tv_usec);
 	seq_printf(m, "PCI ID: 0x%04x\n", dev->pci_device);
 	seq_printf(m, "EIR: 0x%08x\n", error->eir);
+	seq_printf(m, "IER: 0x%08x\n", error->ier);
 	seq_printf(m, "PGTBL_ER: 0x%08x\n", error->pgtbl_er);
 
 	for (i = 0; i < dev_priv->num_fence_regs; i++)

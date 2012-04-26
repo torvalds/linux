@@ -173,6 +173,7 @@ struct intel_display_error_state;
 struct drm_i915_error_state {
 	u32 eir;
 	u32 pgtbl_er;
+	u32 ier;
 	u32 pipestat[I915_MAX_PIPES];
 	u32 tail[I915_NUM_RINGS];
 	u32 head[I915_NUM_RINGS];
