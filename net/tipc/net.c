@@ -175,8 +175,6 @@ int tipc_net_start(u32 addr)
 {
 	char addr_string[16];
 
-	tipc_subscr_stop();
-
 	write_lock_bh(&tipc_net_lock);
 	tipc_own_addr = addr;
 	tipc_named_reinit();
@@ -184,7 +182,6 @@ int tipc_net_start(u32 addr)
 	tipc_bclink_init();
 	write_unlock_bh(&tipc_net_lock);
 
-	tipc_k_signal((Handler)tipc_subscr_start, 0);
 	tipc_cfg_reinit();
 
 	info("Started in network mode\n");
