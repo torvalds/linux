@@ -68,6 +68,7 @@ struct bfin_serial_port {
 #define UMOD_MASK                0x30  /* Uart Mode Mask */
 #define WLS(x)                   (((x-5) & 0x03) << 8)  /* Word Length Select */
 #define WLS_MASK                 0x300  /* Word length Select Mask */
+#define WLS_OFFSET               8      /* Word length Select Offset */
 #define STB                      0x1000  /* Stop Bits */
 #define STBH                     0x2000  /* Half Stop Bits */
 #define PEN                      0x4000  /* Parity Enable */
@@ -76,7 +77,7 @@ struct bfin_serial_port {
 #define FPE                      0x20000  /* Force Parity Error On Transmit */
 #define FFE                      0x40000  /* Force Framing Error On Transmit */
 #define SB                       0x80000  /* Set Break */
-#define LCR_MASK		 (STP | EPS | PEN | STB | WLS_MASK)
+#define LCR_MASK		 (SB | STP | EPS | PEN | STB | WLS_MASK)
 #define FCPOL                    0x400000  /* Flow Control Pin Polarity */
 #define RPOLC                    0x800000  /* IrDA RX Polarity Change */
 #define TPOLC                    0x1000000  /* IrDA TX Polarity Change */
@@ -112,13 +113,14 @@ struct bfin_serial_port {
 /* UART_LCR Masks */
 #define WLS(x)                   (((x)-5) & 0x03)  /* Word Length Select */
 #define WLS_MASK                 0x03  /* Word length Select Mask */
+#define WLS_OFFSET               0     /* Word length Select Offset */
 #define STB                      0x04  /* Stop Bits */
 #define PEN                      0x08  /* Parity Enable */
 #define EPS                      0x10  /* Even Parity Select */
 #define STP                      0x20  /* Stick Parity */
 #define SB                       0x40  /* Set Break */
 #define DLAB                     0x80  /* Divisor Latch Access */
-#define LCR_MASK		 (STP | EPS | PEN | STB | WLS_MASK)
+#define LCR_MASK		 (SB | STP | EPS | PEN | STB | WLS_MASK)
 
 /* UART_LSR Masks */
 #define DR                       0x01  /* Data Ready */
