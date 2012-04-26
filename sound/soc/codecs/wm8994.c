@@ -70,8 +70,8 @@ static const struct wm8958_micd_rate micdet_rates[] = {
 static const struct wm8958_micd_rate jackdet_rates[] = {
 	{ 32768,       true,  0, 1 },
 	{ 32768,       false, 0, 1 },
-	{ 44100 * 256, true,  7, 10 },
-	{ 44100 * 256, false, 7, 10 },
+	{ 44100 * 256, true,  10, 10 },
+	{ 44100 * 256, false, 7, 8 },
 };
 
 static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
@@ -3298,6 +3298,8 @@ static irqreturn_t wm1811_jackdet_irq(int irq, void *data)
 
 	if (present) {
 		dev_dbg(codec->dev, "Jack detected\n");
+
+		wm8958_micd_set_rate(codec);
 
 		snd_soc_update_bits(codec, WM8958_MICBIAS2,
 				    WM8958_MICB2_DISCH, 0);
