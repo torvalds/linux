@@ -43,6 +43,8 @@ struct pinctrl_maps {
 	unsigned num_maps;
 };
 
+static bool pinctrl_dummy_state;
+
 /* Mutex taken by all entry points */
 DEFINE_MUTEX(pinctrl_mutex);
 
@@ -60,6 +62,19 @@ static LIST_HEAD(pinctrl_maps);
 		for (_i_ = 0, _map_ = &_maps_node_->maps[_i_]; \
 			_i_ < _maps_node_->num_maps; \
 			i++, _map_ = &_maps_node_->maps[_i_])
+
+/**
+ * pinctrl_provide_dummies() - indicate if pinctrl provides dummy state support
+ *
+ * Usually this function is called by platforms without pinctrl driver support
+ * but run with some shared drivers using pinctrl APIs.
+ * After calling this function, the pinctrl core will return successfully
+ * with creating a dummy state for the driver to keep going smoothly.
+ */
+void pinctrl_provide_dummies(void)
+{
+	pinctrl_dummy_state = true;
+}
 
 const char *pinctrl_dev_get_name(struct pinctrl_dev *pctldev)
 {
@@ -719,8 +734,18 @@ static struct pinctrl_state *pinctrl_lookup_state_locked(struct pinctrl *p,
 	struct pinctrl_state *state;
 
 	state = find_state(p, name);
-	if (!state)
-		return ERR_PTR(-ENODEV);
+	if (!state) {
+		if (pinctrl_dummy_state) {
+			/* create dummy state */
+			dev_dbg(p->dev, "using pinctrl dummy state (%s)\n",
+				name);
+			state = create_state(p, name);
+			if (IS_ERR(state))
+				return state;
+		} else {
+			return ERR_PTR(-ENODEV);
+		}
+	}
 
 	return state;
 }
