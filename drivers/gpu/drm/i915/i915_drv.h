@@ -369,7 +369,6 @@ typedef struct drm_i915_private {
 
 	drm_dma_handle_t *status_page_dmah;
 	uint32_t counter;
-	drm_local_map_t hws_map;
 	struct drm_i915_gem_object *pwrctx;
 	struct drm_i915_gem_object *renderctx;
 
@@ -743,6 +742,7 @@ typedef struct drm_i915_private {
 	 * here! */
 	struct {
 		unsigned allow_batchbuffer : 1;
+		u32 __iomem *gfx_hws_cpu_addr;
 	} dri1;
 
 	/* Kernel Modesetting */

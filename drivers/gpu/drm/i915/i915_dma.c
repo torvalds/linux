@@ -67,7 +67,16 @@
 		LOCK_TEST_WITH_RETURN(dev, file);			\
 } while (0)
 
-#define READ_HWSP(dev_priv, reg) intel_read_status_page(LP_RING(dev_priv), reg)
+static inline u32
+intel_read_legacy_status_page(struct drm_i915_private *dev_priv, int reg)
+{
+	if (I915_NEED_GFX_HWS(dev_priv->dev))
+		return ioread32(dev_priv->dri1.gfx_hws_cpu_addr + reg);
+	else
+		return intel_read_status_page(LP_RING(dev_priv), reg);
+}
+
+#define READ_HWSP(dev_priv, reg) intel_read_legacy_status_page(dev_priv, reg)
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_BREADCRUMB_INDEX		0x21
 
@@ -137,7 +146,7 @@ static void i915_free_hws(struct drm_device *dev)
 
 	if (ring->status_page.gfx_addr) {
 		ring->status_page.gfx_addr = 0;
-		drm_core_ioremapfree(&dev_priv->hws_map, dev);
+		iounmap(dev_priv->dri1.gfx_hws_cpu_addr);
 	}
 
 	/* Need to rewrite hardware status page */
@@ -1073,23 +1082,17 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
-	dev_priv->hws_map.offset = dev->agp->base + hws->addr;
-	dev_priv->hws_map.size = 4*1024;
-	dev_priv->hws_map.type = 0;
-	dev_priv->hws_map.flags = 0;
-	dev_priv->hws_map.mtrr = 0;
-
-	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
-	if (dev_priv->hws_map.handle == NULL) {
+	dev_priv->dri1.gfx_hws_cpu_addr = ioremap_wc(dev->agp->base + hws->addr,
+						     4096);
+	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
 		ring->status_page.gfx_addr = 0;
 		DRM_ERROR("can not ioremap virtual address for"
 				" G33 hw status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr =
-		(void __force __iomem *)dev_priv->hws_map.handle;
-	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
+
+	memset_io(dev_priv->dri1.gfx_hws_cpu_addr, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
 
 	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
