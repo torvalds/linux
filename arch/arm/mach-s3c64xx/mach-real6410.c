@@ -331,6 +331,7 @@ MACHINE_START(REAL6410, "REAL6410")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= real6410_map_io,
 	.init_machine	= real6410_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END
