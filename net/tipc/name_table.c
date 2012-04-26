@@ -186,7 +186,19 @@ static struct name_seq *tipc_nameseq_create(u32 type, struct hlist_head *seq_hea
 	return nseq;
 }
 
-/**
+/*
+ * nameseq_delete_empty - deletes a name sequence structure if now unused
+ */
+static void nameseq_delete_empty(struct name_seq *seq)
+{
+	if (!seq->first_free && list_empty(&seq->subscriptions)) {
+		hlist_del_init(&seq->ns_list);
+		kfree(seq->sseqs);
+		kfree(seq);
+	}
+}
+
+/*
  * nameseq_find_subseq - find sub-sequence (if any) matching a name instance
  *
  * Very time-critical, so binary searches through sub-sequence array.
@@ -529,12 +541,7 @@ struct publication *tipc_nametbl_remove_publ(u32 type, u32 lower,
 		return NULL;
 
 	publ = tipc_nameseq_remove_publ(seq, lower, node, ref, key);
-
-	if (!seq->first_free && list_empty(&seq->subscriptions)) {
-		hlist_del_init(&seq->ns_list);
-		kfree(seq->sseqs);
-		kfree(seq);
-	}
+	nameseq_delete_empty(seq);
 	return publ;
 }
 
@@ -768,11 +775,7 @@ void tipc_nametbl_unsubscribe(struct tipc_subscription *s)
 		spin_lock_bh(&seq->lock);
 		list_del_init(&s->nameseq_list);
 		spin_unlock_bh(&seq->lock);
-		if ((seq->first_free == 0) && list_empty(&seq->subscriptions)) {
-			hlist_del_init(&seq->ns_list);
-			kfree(seq->sseqs);
-			kfree(seq);
-		}
+		nameseq_delete_empty(seq);
 	}
 	write_unlock_bh(&tipc_nametbl_lock);
 }
