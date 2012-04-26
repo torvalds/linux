@@ -413,6 +413,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
+		REGAINED_BSS_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
 		ROLE_STOP_COMPLETE_EVENT_ID |
 		RSSI_SNR_TRIGGER_0_EVENT_ID |

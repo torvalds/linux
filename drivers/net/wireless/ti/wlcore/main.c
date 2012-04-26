@@ -1120,6 +1120,7 @@ int wl1271_plt_stop(struct wl1271 *wl)
 	cancel_work_sync(&wl->recovery_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 	cancel_delayed_work_sync(&wl->tx_watchdog_work);
+	cancel_delayed_work_sync(&wl->connection_loss_work);
 
 	mutex_lock(&wl->mutex);
 	wl1271_power_off(wl);
@@ -1753,6 +1754,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	cancel_work_sync(&wl->tx_work);
 	cancel_delayed_work_sync(&wl->elp_work);
 	cancel_delayed_work_sync(&wl->tx_watchdog_work);
+	cancel_delayed_work_sync(&wl->connection_loss_work);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
 	wl12xx_tx_reset(wl, true);
@@ -3705,6 +3707,9 @@ sta_not_found:
 			do_join = true;
 			set_assoc = true;
 
+			/* Cancel connection_loss_work */
+			cancel_delayed_work_sync(&wl->connection_loss_work);
+
 			/*
 			 * use basic rates from AP, and determine lowest rate
 			 * to use with control frames.
@@ -4815,6 +4820,34 @@ static struct bin_attribute fwlog_attr = {
 	.read = wl1271_sysfs_read_fwlog,
 };
 
+void wl1271_connection_loss_work(struct work_struct *work)
+{
+	struct delayed_work *dwork;
+	struct wl1271 *wl;
+	struct ieee80211_vif *vif;
+	struct wl12xx_vif *wlvif;
+
+	dwork = container_of(work, struct delayed_work, work);
+	wl = container_of(dwork, struct wl1271, connection_loss_work);
+
+	wl1271_info("Connection loss work.");
+
+	mutex_lock(&wl->mutex);
+
+	if (unlikely(wl->state == WL1271_STATE_OFF))
+		goto out;
+
+	/* Call mac80211 connection loss */
+	wl12xx_for_each_wlvif_sta(wl, wlvif) {
+		if (!test_bit(WLVIF_FLAG_STA_ASSOCIATED, &wlvif->flags))
+			goto out;
+		vif = wl12xx_wlvif_to_vif(wlvif);
+		ieee80211_connection_loss(vif);
+	}
+out:
+	mutex_unlock(&wl->mutex);
+}
+
 static void wl12xx_derive_mac_addresses(struct wl1271 *wl,
 					u32 oui, u32 nic, int n)
 {
@@ -5070,6 +5103,8 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	INIT_WORK(&wl->recovery_work, wl1271_recovery_work);
 	INIT_DELAYED_WORK(&wl->scan_complete_work, wl1271_scan_complete_work);
 	INIT_DELAYED_WORK(&wl->tx_watchdog_work, wl12xx_tx_watchdog_work);
+	INIT_DELAYED_WORK(&wl->connection_loss_work,
+			  wl1271_connection_loss_work);
 
 	wl->freezable_wq = create_freezable_workqueue("wl12xx_wq");
 	if (!wl->freezable_wq) {

@@ -243,6 +243,9 @@ struct wl1271 {
 	struct wl1271_scan scan;
 	struct delayed_work scan_complete_work;
 
+	/* Connection loss work */
+	struct delayed_work connection_loss_work;
+
 	bool sched_scanning;
 
 	/* The current band */
