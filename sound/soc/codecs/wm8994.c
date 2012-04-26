@@ -998,13 +998,11 @@ static void wm8994_update_class_w(struct snd_soc_codec *codec)
 				    WM8994_CP_DYN_PWR |
 				    WM8994_CP_DYN_SRC_SEL_MASK,
 				    source | WM8994_CP_DYN_PWR);
-		wm8994->hubs.class_w = true;
 
 	} else {
 		dev_dbg(codec->dev, "Class W disabled\n");
 		snd_soc_update_bits(codec, WM8994_CLASS_W_1,
 				    WM8994_CP_DYN_PWR, 0);
-		wm8994->hubs.class_w = false;
 	}
 }
 
@@ -3609,7 +3607,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		wm8994->hubs.dcs_readback_mode = 2;
 		wm8994->hubs.no_series_update = 1;
 		wm8994->hubs.hp_startup_mode = 1;
-		wm8994->hubs.no_cache_class_w = true;
+		wm8994->hubs.no_cache_dac_hp_direct = true;
 		wm8994->fll_byp = true;
 
 		switch (wm8994->revision) {

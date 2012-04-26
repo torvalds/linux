@@ -109,6 +109,42 @@ irqreturn_t wm_hubs_dcs_done(int irq, void *data)
 }
 EXPORT_SYMBOL_GPL(wm_hubs_dcs_done);
 
+static bool wm_hubs_dac_hp_direct(struct snd_soc_codec *codec)
+{
+	int reg;
+
+	/* If we're going via the mixer we'll need to do additional checks */
+	reg = snd_soc_read(codec, WM8993_OUTPUT_MIXER1);
+	if (!(reg & WM8993_DACL_TO_HPOUT1L)) {
+		if (reg & ~WM8993_DACL_TO_MIXOUTL) {
+			dev_vdbg(codec->dev, "Analogue paths connected: %x\n",
+				 reg & ~WM8993_DACL_TO_HPOUT1L);
+			return false;
+		} else {
+			dev_vdbg(codec->dev, "HPL connected to mixer\n");
+			return false;
+		}
+	} else {
+		dev_vdbg(codec->dev, "HPL connected to DAC\n");
+	}
+
+	reg = snd_soc_read(codec, WM8993_OUTPUT_MIXER2);
+	if (!(reg & WM8993_DACR_TO_HPOUT1R)) {
+		if (reg & ~WM8993_DACR_TO_MIXOUTR) {
+			dev_vdbg(codec->dev, "Analogue paths connected: %x\n",
+				 reg & ~WM8993_DACR_TO_HPOUT1R);
+			return false;
+		} else {
+			dev_vdbg(codec->dev, "HPR connected to mixer\n");
+			return false;
+		}
+	} else {
+		dev_vdbg(codec->dev, "HPR connected to DAC\n");
+	}
+
+	return true;
+}
+
 /*
  * Startup calibration of the DC servo
  */
@@ -129,10 +165,10 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 
 	/* If we're using a digital only path and have a previously
 	 * callibrated DC servo offset stored then use that. */
-	if (hubs->class_w && hubs->class_w_dcs) {
+	if (wm_hubs_dac_hp_direct(codec) && hubs->dac_hp_direct_dcs) {
 		dev_dbg(codec->dev, "Using cached DC servo offset %x\n",
-			hubs->class_w_dcs);
-		snd_soc_write(codec, dcs_reg, hubs->class_w_dcs);
+			hubs->dac_hp_direct_dcs);
+		snd_soc_write(codec, dcs_reg, hubs->dac_hp_direct_dcs);
 		wait_for_dc_servo(codec,
 				  WM8993_DCS_TRIG_DAC_WR_0 |
 				  WM8993_DCS_TRIG_DAC_WR_1);
@@ -207,8 +243,8 @@ static void calibrate_dc_servo(struct snd_soc_codec *codec)
 
 	/* Save the callibrated offset if we're in class W mode and
 	 * therefore don't have any analogue signal mixed in. */
-	if (hubs->class_w && !hubs->no_cache_class_w)
-		hubs->class_w_dcs = dcs_cfg;
+	if (wm_hubs_dac_hp_direct(codec) && !hubs->no_cache_dac_hp_direct)
+		hubs->dac_hp_direct_dcs = dcs_cfg;
 }
 
 /*
@@ -224,7 +260,7 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 	ret = snd_soc_put_volsw(kcontrol, ucontrol);
 
 	/* Updating the analogue gains invalidates the DC servo cache */
-	hubs->class_w_dcs = 0;
+	hubs->dac_hp_direct_dcs = 0;
 
 	/* If we're applying an offset correction then updating the
 	 * callibration would be likely to introduce further offsets. */
