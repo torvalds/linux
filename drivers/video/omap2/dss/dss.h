@@ -177,6 +177,8 @@ void dss_mgr_get_info(struct omap_overlay_manager *mgr,
 int dss_mgr_set_device(struct omap_overlay_manager *mgr,
 		struct omap_dss_device *dssdev);
 int dss_mgr_unset_device(struct omap_overlay_manager *mgr);
+void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
+		struct omap_video_timings *timings);
 
 bool dss_ovl_is_enabled(struct omap_overlay *ovl);
 int dss_ovl_enable(struct omap_overlay *ovl);
