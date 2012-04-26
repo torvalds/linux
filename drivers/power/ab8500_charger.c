@@ -2830,8 +2830,11 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 	destroy_workqueue(di->charger_wq);
 
 	flush_scheduled_work();
-	power_supply_unregister(&di->usb_chg.psy);
-	power_supply_unregister(&di->ac_chg.psy);
+	if(di->usb_chg.enabled)
+		power_supply_unregister(&di->usb_chg.psy);
+	if(di->ac_chg.enabled)
+		power_supply_unregister(&di->ac_chg.psy);
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -2899,6 +2902,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->ac_chg.max_out_curr = ab8500_charger_current_map[
 		ARRAY_SIZE(ab8500_charger_current_map) - 1];
+	di->ac_chg.enabled = di->pdata->ac_enabled;
 
 	/* USB supply */
 	/* power_supply base class */
@@ -2917,7 +2921,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->usb_chg.max_out_curr = ab8500_charger_current_map[
 		ARRAY_SIZE(ab8500_charger_current_map) - 1];
-
+	di->usb_chg.enabled = di->pdata->usb_enabled;
 
 	/* Create a work queue for the charger */
 	di->charger_wq =
@@ -2995,17 +2999,21 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	}
 
 	/* Register AC charger class */
-	ret = power_supply_register(di->dev, &di->ac_chg.psy);
-	if (ret) {
-		dev_err(di->dev, "failed to register AC charger\n");
-		goto free_charger_wq;
+	if(di->ac_chg.enabled) {
+		ret = power_supply_register(di->dev, &di->ac_chg.psy);
+		if (ret) {
+			dev_err(di->dev, "failed to register AC charger\n");
+			goto free_charger_wq;
+		}
 	}
 
 	/* Register USB charger class */
-	ret = power_supply_register(di->dev, &di->usb_chg.psy);
-	if (ret) {
-		dev_err(di->dev, "failed to register USB charger\n");
-		goto free_ac;
+	if(di->usb_chg.enabled) {
+		ret = power_supply_register(di->dev, &di->usb_chg.psy);
+		if (ret) {
+			dev_err(di->dev, "failed to register USB charger\n");
+			goto free_ac;
+		}
 	}
 
 	di->usb_phy = usb_get_phy(USB_PHY_TYPE_USB2);
@@ -3085,9 +3093,11 @@ free_irq:
 put_usb_phy:
 	usb_put_phy(di->usb_phy);
 free_usb:
-	power_supply_unregister(&di->usb_chg.psy);
+	if(di->usb_chg.enabled)
+		power_supply_unregister(&di->usb_chg.psy);
 free_ac:
-	power_supply_unregister(&di->ac_chg.psy);
+	if(di->ac_chg.enabled)
+		power_supply_unregister(&di->ac_chg.psy);
 free_charger_wq:
 	destroy_workqueue(di->charger_wq);
 	return ret;

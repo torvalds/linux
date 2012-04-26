@@ -27,12 +27,14 @@ struct ux500_charger_ops {
  * @ops			ux500 charger operations
  * @max_out_volt	maximum output charger voltage in mV
  * @max_out_curr	maximum output charger current in mA
+ * @enabled		indicates if this charger is used or not
  */
 struct ux500_charger {
 	struct power_supply psy;
 	struct ux500_charger_ops ops;
 	int max_out_volt;
 	int max_out_curr;
+	bool enabled;
 };
 
 #endif
