@@ -1175,6 +1175,38 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 	return fd;
 }
 
+static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
+				     int linux_psize)
+{
+	struct mmu_psize_def *def = &mmu_psize_defs[linux_psize];
+
+	if (!def->shift)
+		return;
+	(*sps)->page_shift = def->shift;
+	(*sps)->slb_enc = def->sllp;
+	(*sps)->enc[0].page_shift = def->shift;
+	(*sps)->enc[0].pte_enc = def->penc;
+	(*sps)++;
+}
+
+int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
+{
+	struct kvm_ppc_one_seg_page_size *sps;
+
+	info->flags = KVM_PPC_PAGE_SIZES_REAL;
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+		info->flags |= KVM_PPC_1T_SEGMENTS;
+	info->slb_size = mmu_slb_size;
+
+	/* We only support these sizes for now, and no muti-size segments */
+	sps = &info->sps[0];
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_4K);
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_64K);
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_16M);
+
+	return 0;
+}
+
 /*
  * Get (and clear) the dirty memory log for a memory slot.
  */

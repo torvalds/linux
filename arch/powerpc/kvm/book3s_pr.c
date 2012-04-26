@@ -1158,6 +1158,31 @@ out:
 	return r;
 }
 
+#ifdef CONFIG_PPC64
+int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
+{
+	/* No flags */
+	info->flags = 0;
+
+	/* SLB is always 64 entries */
+	info->slb_size = 64;
+
+	/* Standard 4k base page size segment */
+	info->sps[0].page_shift = 12;
+	info->sps[0].slb_enc = 0;
+	info->sps[0].enc[0].page_shift = 12;
+	info->sps[0].enc[0].pte_enc = 0;
+
+	/* Standard 16M large page size segment */
+	info->sps[1].page_shift = 24;
+	info->sps[1].slb_enc = SLB_VSID_L;
+	info->sps[1].enc[0].page_shift = 24;
+	info->sps[1].enc[0].pte_enc = 0;
+
+	return 0;
+}
+#endif /* CONFIG_PPC64 */
+
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				      struct kvm_userspace_memory_region *mem)
 {
