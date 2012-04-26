@@ -306,7 +306,6 @@ static int rga_get_result(rga_session *session, unsigned long arg)
 }
 
 
-
 static int rga_check_param(const struct rga_req *req)
 {
 	/*RGA can support up to 8192*8192 resolution in RGB format,but we limit the image size to 8191*8191 here*/
@@ -710,6 +709,33 @@ static void rga_del_running_list_timeout(void)
 }
 
 
+static rga_mem_addr_sel(struct rga_req *req)
+{
+    switch(req->src.format)
+    {
+        case RK_FORMAT_YCbCr_422_SP:
+            break;
+        case RK_FORMAT_YCbCr_422_P :
+            break;
+        case RK_FORMAT_YCbCr_420_SP :
+            break;
+        case RK_FORMAT_YCbCr_420_P :
+            break;
+
+        case RK_FORMAT_YCrCb_422_SP :
+            break;
+        case RK_FORMAT_YCrCb_422_P :
+            break;
+        case RK_FORMAT_YCrCb_420_SP :
+            break;
+        case RK_FORMAT_YCrCb_420_P :            
+            break;
+        default :
+            break;
+    }
+    
+}
+
 
 static int rga_blit(rga_session *session, struct rga_req *req)
 {
@@ -927,6 +953,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 static int rga_open(struct inode *inode, struct file *file)
 {
+    unsigned long flag;
     rga_session *session = (rga_session *)kmalloc(sizeof(rga_session), GFP_KERNEL);
 	if (NULL == session) {
 		pr_err("unable to allocate memory for rga_session.");
@@ -938,8 +965,11 @@ static int rga_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&session->running);
 	INIT_LIST_HEAD(&session->list_session);
 	init_waitqueue_head(&session->wait);
-	/* no need to protect */
+    
+	spin_lock_irqsave(&rga_service.lock, flag);
 	list_add_tail(&session->list_session, &rga_service.session);
+    spin_unlock_irqrestore(&rga_service.lock, flag);
+    
 	atomic_set(&session->task_running, 0);
     atomic_set(&session->num_done, 0);
 	file->private_data = (void *)session;
@@ -1001,11 +1031,15 @@ static irqreturn_t rga_irq(int irq,  void *dev_id)
 
     spin_lock_irqsave(&rga_service.lock, flag);        
     rga_del_running_list();
-    spin_unlock_irqrestore(&rga_service.lock, flag);
-       
+           
     if(!list_empty(&rga_service.waiting))
     {
+        spin_unlock_irqrestore(&rga_service.lock, flag);
         rga_try_set_reg(1);
+    }
+    else
+    {
+        spin_unlock_irqrestore(&rga_service.lock, flag);
     }
    
     /* add cmd to cmd buf */
