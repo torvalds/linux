@@ -152,7 +152,7 @@ static int tipc_core_start(void)
 	if (!res)
 		res = tipc_k_signal((Handler)tipc_subscr_start, 0);
 	if (!res)
-		res = tipc_k_signal((Handler)tipc_cfg_init, 0);
+		res = tipc_cfg_init();
 	if (!res)
 		res = tipc_netlink_start();
 	if (!res)
