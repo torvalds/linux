@@ -1684,7 +1684,9 @@ u8 *ieee80211_ie_build_ht_oper(u8 *pos, struct ieee80211_sta_ht_cap *ht_cap,
 		ht_oper->ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
 		break;
 	}
-	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
+	if (ht_cap->cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+	    channel_type != NL80211_CHAN_NO_HT &&
+	    channel_type != NL80211_CHAN_HT20)
 		ht_oper->ht_param |= IEEE80211_HT_PARAM_CHAN_WIDTH_ANY;
 
 	/*
@@ -1799,5 +1801,10 @@ int ieee80211_ave_rssi(struct ieee80211_vif *vif)
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
+	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION)) {
+		/* non-managed type inferfaces */
+		return 0;
+	}
 	return ifmgd->ave_beacon_signal;
 }
+EXPORT_SYMBOL_GPL(ieee80211_ave_rssi);

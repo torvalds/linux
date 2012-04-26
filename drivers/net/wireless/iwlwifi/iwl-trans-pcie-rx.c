@@ -140,7 +140,7 @@ void iwl_rx_queue_update_write_ptr(struct iwl_trans *trans,
 	if (q->need_update == 0)
 		goto exit_unlock;
 
-	if (cfg(trans)->base_params->shadow_reg_enable) {
+	if (trans->cfg->base_params->shadow_reg_enable) {
 		/* shadow register enabled */
 		/* Device expects a multiple of 8 */
 		q->write_actual = (q->write & ~0x7);
@@ -425,7 +425,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 		cmd_index = get_cmd_index(&txq->q, index);
 
 		if (reclaim)
-			cmd = txq->cmd[cmd_index];
+			cmd = txq->entries[cmd_index].cmd;
 		else
 			cmd = NULL;
 
@@ -543,7 +543,7 @@ static void iwl_rx_handle(struct iwl_trans *trans)
 static void iwl_irq_handle_error(struct iwl_trans *trans)
 {
 	/* W/A for WiFi/WiMAX coex and WiMAX own the RF */
-	if (cfg(trans)->internal_wimax_coex &&
+	if (trans->cfg->internal_wimax_coex &&
 	    (!(iwl_read_prph(trans, APMG_CLK_CTRL_REG) &
 			APMS_CLK_VAL_MRB_FUNC_MODE) ||
 	     (iwl_read_prph(trans, APMG_PS_CTRL_REG) &
@@ -648,8 +648,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		bool hw_rfkill;
 
-		hw_rfkill = !(iwl_read32(trans, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
+		hw_rfkill = iwl_is_rfkill_set(trans);
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 				hw_rfkill ? "disable radio" : "enable radio");
 
@@ -680,7 +679,7 @@ void iwl_irq_tasklet(struct iwl_trans *trans)
 	if (inta & CSR_INT_BIT_WAKEUP) {
 		IWL_DEBUG_ISR(trans, "Wakeup interrupt\n");
 		iwl_rx_queue_update_write_ptr(trans, &trans_pcie->rxq);
-		for (i = 0; i < cfg(trans)->base_params->num_of_queues; i++)
+		for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
 			iwl_txq_update_write_ptr(trans,
 						 &trans_pcie->txq[i]);
 

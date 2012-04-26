@@ -34,11 +34,10 @@
 #include <asm/unaligned.h>
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
 #define IWL_CMD_ENTRY(x) [x] = #x
 
@@ -339,7 +338,7 @@ static void iwlagn_recover_from_statistics(struct iwl_priv *priv,
 	if (msecs < 99)
 		return;
 
-	if (iwlagn_mod_params.plcp_check &&
+	if (iwlwifi_mod_params.plcp_check &&
 	    !iwlagn_good_plcp_health(priv, cur_ofdm, cur_ofdm_ht, msecs))
 		iwl_force_rf_reset(priv, false);
 }
@@ -604,16 +603,16 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 	if (flags & (SW_CARD_DISABLED | HW_CARD_DISABLED |
 		     CT_CARD_DISABLED)) {
 
-		iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_SET,
+		iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
 
-		iwl_write_direct32(trans(priv), HBUS_TARG_MBX_C,
+		iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 
 		if (!(flags & RXON_CARD_DISABLED)) {
-			iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+			iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 				    CSR_UCODE_DRV_GP1_BIT_CMD_BLOCKED);
-			iwl_write_direct32(trans(priv), HBUS_TARG_MBX_C,
+			iwl_write_direct32(priv->trans, HBUS_TARG_MBX_C,
 					HBUS_TARG_MBX_C_REG_BIT_CMD_BLOCKED);
 		}
 		if (flags & CT_CARD_DISABLED)
@@ -636,7 +635,7 @@ static int iwlagn_rx_card_state_notif(struct iwl_priv *priv,
 		wiphy_rfkill_set_hw_state(priv->hw->wiphy,
 			test_bit(STATUS_RF_KILL_HW, &priv->status));
 	else
-		wake_up(&trans(priv)->wait_command_queue);
+		wake_up(&priv->trans->wait_command_queue);
 	return 0;
 }
 
@@ -749,7 +748,7 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	}
 
 	/* In case of HW accelerated crypto and bad decryption, drop */
-	if (!iwlagn_mod_params.sw_crypto &&
+	if (!iwlwifi_mod_params.sw_crypto &&
 	    iwlagn_set_decrypted_flag(priv, hdr, ampdu_status, stats))
 		return;
 
@@ -762,8 +761,6 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	offset = (void *)hdr - rxb_addr(rxb) + rxb_offset(rxb);
 	p = rxb_steal_page(rxb);
 	skb_add_rx_frag(skb, 0, p, offset, len, len);
-
-	iwl_update_stats(priv, false, fc, len);
 
 	/*
 	* Wake any queues that were stopped due to a passive channel tx
@@ -970,7 +967,6 @@ static int iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	rx_status.signal = iwlagn_calc_rssi(priv, phy_res);
 
-	iwl_dbg_log_rx_data_frame(priv, len, header);
 	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",
 		rx_status.signal, (unsigned long long)rx_status.mactime);
 
@@ -1105,7 +1101,7 @@ void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	iwl_notification_wait_init(&priv->notif_wait);
 
 	/* Set up BT Rx handlers */
-	if (cfg(priv)->bt_params)
+	if (priv->cfg->bt_params)
 		iwlagn_bt_rx_handler_setup(priv);
 }
 

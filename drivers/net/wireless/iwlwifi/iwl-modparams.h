@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2007 - 2012 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -58,76 +58,67 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
  *****************************************************************************/
+#ifndef __iwl_shared_h__
+#define __iwl_shared_h__
 
-#ifndef __iwl_core_h__
-#define __iwl_core_h__
+#include <linux/types.h>
+#include <linux/spinlock.h>
+#include <linux/gfp.h>
+#include <net/mac80211.h>
 
-#include "iwl-dev.h"
-#include "iwl-io.h"
+extern struct iwl_mod_params iwlwifi_mod_params;
 
-/************************
- * forward declarations *
- ************************/
-struct iwl_host_cmd;
-struct iwl_cmd;
+enum iwl_power_level {
+	IWL_POWER_INDEX_1,
+	IWL_POWER_INDEX_2,
+	IWL_POWER_INDEX_3,
+	IWL_POWER_INDEX_4,
+	IWL_POWER_INDEX_5,
+	IWL_POWER_NUM
+};
 
-#define TIME_UNIT		1024
+#define IWL_DISABLE_HT_ALL	BIT(0)
+#define IWL_DISABLE_HT_TXAGG	BIT(1)
+#define IWL_DISABLE_HT_RXAGG	BIT(2)
 
-/***************************
- *   L i b                 *
- ***************************/
+/**
+ * struct iwl_mod_params
+ *
+ * Holds the module parameters
+ *
+ * @sw_crypto: using hardware encryption, default = 0
+ * @disable_11n: disable 11n capabilities, default = 0,
+ *	use IWL_DISABLE_HT_* constants
+ * @amsdu_size_8K: enable 8K amsdu size, default = 1
+ * @restart_fw: restart firmware, default = 1
+ * @plcp_check: enable plcp health check, default = true
+ * @wd_disable: enable stuck queue check, default = 0
+ * @bt_coex_active: enable bt coex, default = true
+ * @led_mode: system default, default = 0
+ * @power_save: disable power save, default = false
+ * @power_level: power level, default = 1
+ * @debug_level: levels are IWL_DL_*
+ * @ant_coupling: antenna coupling in dB, default = 0
+ * @bt_ch_announce: BT channel inhibition, default = enable
+ * @auto_agg: enable agg. without check, default = true
+ */
+struct iwl_mod_params {
+	int sw_crypto;
+	unsigned int disable_11n;
+	int amsdu_size_8K;
+	int restart_fw;
+	bool plcp_check;
+	int  wd_disable;
+	bool bt_coex_active;
+	int led_mode;
+	bool power_save;
+	int power_level;
+	u32 debug_level;
+	int ant_coupling;
+	bool bt_ch_announce;
+	bool auto_agg;
+};
 
-int iwl_cmd_echo_test(struct iwl_priv *priv);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_alloc_traffic_mem(struct iwl_priv *priv);
-void iwl_free_traffic_mem(struct iwl_priv *priv);
-void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
-				u16 length, struct ieee80211_hdr *header);
-void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
-				u16 length, struct ieee80211_hdr *header);
-const char *get_mgmt_string(int cmd);
-const char *get_ctrl_string(int cmd);
-void iwl_clear_traffic_stats(struct iwl_priv *priv);
-void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc,
-		      u16 len);
-void iwl_reset_traffic_log(struct iwl_priv *priv);
-
-#else
-static inline int iwl_alloc_traffic_mem(struct iwl_priv *priv)
-{
-	return 0;
-}
-static inline void iwl_free_traffic_mem(struct iwl_priv *priv)
-{
-}
-static inline void iwl_reset_traffic_log(struct iwl_priv *priv)
-{
-}
-static inline void iwl_dbg_log_tx_data_frame(struct iwl_priv *priv,
-		      u16 length, struct ieee80211_hdr *header)
-{
-}
-static inline void iwl_dbg_log_rx_data_frame(struct iwl_priv *priv,
-		      u16 length, struct ieee80211_hdr *header)
-{
-}
-static inline void iwl_update_stats(struct iwl_priv *priv, bool is_tx,
-				    __le16 fc, u16 len)
-{
-}
-#endif
-
-/*******************************************************************************
- * Scanning
- ******************************************************************************/
-/* traffic log definitions */
-#define IWL_TRAFFIC_ENTRIES	(256)
-#define IWL_TRAFFIC_ENTRY_SIZE  (64)
-
-/*****************************************************
- *   S e n d i n g     H o s t     C o m m a n d s   *
- *****************************************************/
-extern bool bt_siso_mode;
-
-#endif /* __iwl_core_h__ */
+#endif /* #__iwl_shared_h__ */

@@ -37,13 +37,12 @@
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
 #include "iwl-agn.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-commands.h"
 #include "iwl-debug.h"
 #include "iwl-power.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
 /*
  * Setting power level allows the card to go to sleep when not busy.
@@ -167,7 +166,7 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	u8 skip;
 	u32 slp_itrvl;
 
-	if (cfg(priv)->adv_pm) {
+	if (priv->cfg->adv_pm) {
 		table = apm_range_2;
 		if (period <= IWL_DTIM_RANGE_1_MAX)
 			table = apm_range_1;
@@ -215,13 +214,13 @@ static void iwl_static_sleep_cmd(struct iwl_priv *priv,
 	else
 		cmd->flags &= ~IWL_POWER_SLEEP_OVER_DTIM_MSK;
 
-	if (cfg(priv)->base_params->shadow_reg_enable)
+	if (priv->cfg->base_params->shadow_reg_enable)
 		cmd->flags |= IWL_POWER_SHADOW_REG_ENA;
 	else
 		cmd->flags &= ~IWL_POWER_SHADOW_REG_ENA;
 
 	if (iwl_advanced_bt_coexist(priv)) {
-		if (!cfg(priv)->bt_params->bt_sco_disable)
+		if (!priv->cfg->bt_params->bt_sco_disable)
 			cmd->flags |= IWL_POWER_BT_SCO_ENA;
 		else
 			cmd->flags &= ~IWL_POWER_BT_SCO_ENA;
@@ -295,7 +294,7 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 
 	if (priv->wowlan)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, dtimper);
-	else if (!cfg(priv)->base_params->no_idle_support &&
+	else if (!priv->cfg->base_params->no_idle_support &&
 		 priv->hw->conf.flags & IEEE80211_CONF_IDLE)
 		iwl_static_sleep_cmd(priv, cmd, IWL_POWER_INDEX_5, 20);
 	else if (iwl_tt_is_low_power_state(priv)) {
@@ -309,10 +308,10 @@ static void iwl_power_build_cmd(struct iwl_priv *priv,
 				     priv->power_data.debug_sleep_level_override,
 				     dtimper);
 	else {
-		if (iwlagn_mod_params.power_level > IWL_POWER_INDEX_1 &&
-		    iwlagn_mod_params.power_level <= IWL_POWER_INDEX_5)
+		if (iwlwifi_mod_params.power_level > IWL_POWER_INDEX_1 &&
+		    iwlwifi_mod_params.power_level <= IWL_POWER_INDEX_5)
 			iwl_static_sleep_cmd(priv, cmd,
-				iwlagn_mod_params.power_level, dtimper);
+				iwlwifi_mod_params.power_level, dtimper);
 		else
 			iwl_static_sleep_cmd(priv, cmd,
 				IWL_POWER_INDEX_1, dtimper);
@@ -378,7 +377,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 /* initialize to default */
 void iwl_power_initialize(struct iwl_priv *priv)
 {
-	priv->power_data.bus_pm = trans(priv)->pm_support;
+	priv->power_data.bus_pm = priv->trans->pm_support;
 
 	priv->power_data.debug_sleep_level_override = -1;
 

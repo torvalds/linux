@@ -33,7 +33,7 @@
 #include "rt2x00.h"
 #include "rt2x00lib.h"
 
-struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
+struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry, gfp_t gfp)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct sk_buff *skb;
@@ -68,7 +68,7 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct queue_entry *entry)
 	/*
 	 * Allocate skbuffer.
 	 */
-	skb = dev_alloc_skb(frame_size + head_size + tail_size);
+	skb = __dev_alloc_skb(frame_size + head_size + tail_size, gfp);
 	if (!skb)
 		return NULL;
 
@@ -1163,7 +1163,7 @@ static int rt2x00queue_alloc_rxskbs(struct data_queue *queue)
 	struct sk_buff *skb;
 
 	for (i = 0; i < queue->limit; i++) {
-		skb = rt2x00queue_alloc_rxskb(&queue->entries[i]);
+		skb = rt2x00queue_alloc_rxskb(&queue->entries[i], GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		queue->entries[i].skb = skb;

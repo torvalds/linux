@@ -44,13 +44,12 @@
 
 #include "iwl-eeprom.h"
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn-calib.h"
 #include "iwl-agn.h"
-#include "iwl-shared.h"
 #include "iwl-trans.h"
 #include "iwl-op-mode.h"
+#include "iwl-modparams.h"
 
 /*****************************************************************************
  *
@@ -147,7 +146,13 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		    IEEE80211_HW_AMPDU_AGGREGATION |
 		    IEEE80211_HW_NEED_DTIM_PERIOD |
 		    IEEE80211_HW_SPECTRUM_MGMT |
-		    IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+		    IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		    IEEE80211_HW_QUEUE_CONTROL |
+		    IEEE80211_HW_SUPPORTS_PS |
+		    IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
+		    IEEE80211_HW_SCAN_WHILE_IDLE;
+
+	hw->offchannel_tx_hw_queue = IWL_AUX_QUEUE;
 
 	/*
 	 * Including the following line will crash some AP's.  This
@@ -155,10 +160,6 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	 * the AP software can be fixed.
 	hw->max_tx_aggregation_subframes = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	 */
-
-	hw->flags |= IEEE80211_HW_SUPPORTS_PS |
-		     IEEE80211_HW_SUPPORTS_DYNAMIC_PS |
-		     IEEE80211_HW_SCAN_WHILE_IDLE;
 
 	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE)
 		hw->flags |= IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS |
@@ -198,13 +199,13 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 			    WIPHY_FLAG_IBSS_RSN;
 
 	if (priv->fw->img[IWL_UCODE_WOWLAN].sec[0].len &&
-	    trans(priv)->ops->wowlan_suspend &&
-	    device_can_wakeup(trans(priv)->dev)) {
+	    priv->trans->ops->wowlan_suspend &&
+	    device_can_wakeup(priv->trans->dev)) {
 		hw->wiphy->wowlan.flags = WIPHY_WOWLAN_MAGIC_PKT |
 					  WIPHY_WOWLAN_DISCONNECT |
 					  WIPHY_WOWLAN_EAP_IDENTITY_REQ |
 					  WIPHY_WOWLAN_RFKILL_RELEASE;
-		if (!iwlagn_mod_params.sw_crypto)
+		if (!iwlwifi_mod_params.sw_crypto)
 			hw->wiphy->wowlan.flags |=
 				WIPHY_WOWLAN_SUPPORTS_GTK_REKEY |
 				WIPHY_WOWLAN_GTK_REKEY_FAILURE;
@@ -216,7 +217,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 					IWLAGN_WOWLAN_MAX_PATTERN_LEN;
 	}
 
-	if (iwlagn_mod_params.power_save)
+	if (iwlwifi_mod_params.power_save)
 		hw->wiphy->flags |= WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	else
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
@@ -225,8 +226,11 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 	/* we create the 802.11 header and a zero-length SSID element */
 	hw->wiphy->max_scan_ie_len = capa->max_probe_length - 24 - 2;
 
-	/* Default value; 4 EDCA QOS priorities */
-	hw->queues = 4;
+	/*
+	 * We don't use all queues: 4 and 9 are unused and any
+	 * aggregation queue gets mapped down to the AC queue.
+	 */
+	hw->queues = IWLAGN_FIRST_AMPDU_QUEUE;
 
 	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
@@ -237,7 +241,7 @@ int iwlagn_mac_setup_register(struct iwl_priv *priv,
 		priv->hw->wiphy->bands[IEEE80211_BAND_5GHZ] =
 			&priv->bands[IEEE80211_BAND_5GHZ];
 
-	hw->wiphy->hw_version = trans(priv)->hw_id;
+	hw->wiphy->hw_version = priv->trans->hw_id;
 
 	iwl_leds_init(priv);
 
@@ -356,7 +360,7 @@ void iwlagn_mac_stop(struct ieee80211_hw *hw)
 	 * even if interface is down, trans->down will leave the RF
 	 * kill interrupt enabled
 	 */
-	iwl_trans_stop_hw(trans(priv));
+	iwl_trans_stop_hw(priv->trans, false);
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 }
@@ -367,7 +371,7 @@ void iwlagn_mac_set_rekey_data(struct ieee80211_hw *hw,
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 
-	if (iwlagn_mod_params.sw_crypto)
+	if (iwlwifi_mod_params.sw_crypto)
 		return;
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
@@ -412,9 +416,9 @@ int iwlagn_mac_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto error;
 
-	device_set_wakeup_enable(trans(priv)->dev, true);
+	device_set_wakeup_enable(priv->trans->dev, true);
 
-	iwl_trans_wowlan_suspend(trans(priv));
+	iwl_trans_wowlan_suspend(priv->trans);
 
 	goto out;
 
@@ -441,19 +445,19 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	iwl_write32(trans(priv), CSR_UCODE_DRV_GP1_CLR,
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
 			  CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->device_pointers.error_event_table;
 	if (iwlagn_hw_valid_rtc_data_addr(base)) {
-		spin_lock_irqsave(&trans(priv)->reg_lock, flags);
-		ret = iwl_grab_nic_access_silent(trans(priv));
+		spin_lock_irqsave(&priv->trans->reg_lock, flags);
+		ret = iwl_grab_nic_access_silent(priv->trans);
 		if (likely(ret == 0)) {
-			iwl_write32(trans(priv), HBUS_TARG_MEM_RADDR, base);
-			status = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
-			iwl_release_nic_access(trans(priv));
+			iwl_write32(priv->trans, HBUS_TARG_MEM_RADDR, base);
+			status = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
+			iwl_release_nic_access(priv->trans);
 		}
-		spin_unlock_irqrestore(&trans(priv)->reg_lock, flags);
+		spin_unlock_irqrestore(&priv->trans->reg_lock, flags);
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 		if (ret == 0) {
@@ -468,7 +472,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 			if (priv->wowlan_sram)
 				_iwl_read_targ_mem_words(
-				      trans(priv), 0x800000,
+				      priv->trans, 0x800000,
 				      priv->wowlan_sram,
 				      img->sec[IWL_UCODE_SECTION_DATA].len / 4);
 		}
@@ -480,7 +484,7 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 
 	priv->wowlan = false;
 
-	device_set_wakeup_enable(trans(priv)->dev, false);
+	device_set_wakeup_enable(priv->trans->dev, false);
 
 	iwlagn_prepare_restart(priv);
 
@@ -533,7 +537,7 @@ int iwlagn_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 
-	if (iwlagn_mod_params.sw_crypto) {
+	if (iwlwifi_mod_params.sw_crypto) {
 		IWL_DEBUG_MAC80211(priv, "leave - hwcrypto disabled\n");
 		return -EOPNOTSUPP;
 	}
@@ -644,7 +648,7 @@ int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_RXAGG)
 			break;
 		IWL_DEBUG_HT(priv, "start Rx\n");
 		ret = iwl_sta_rx_agg_start(priv, sta, tid, *ssn);
@@ -654,9 +658,9 @@ int iwlagn_mac_ampdu_action(struct ieee80211_hw *hw,
 		ret = iwl_sta_rx_agg_stop(priv, sta, tid);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		if (!trans(priv)->ops->tx_agg_setup)
+		if (!priv->trans->ops->tx_agg_setup)
 			break;
-		if (iwlagn_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
+		if (iwlwifi_mod_params.disable_11n & IWL_DISABLE_HT_TXAGG)
 			break;
 		IWL_DEBUG_HT(priv, "start Tx\n");
 		ret = iwlagn_tx_agg_start(priv, vif, sta, tid, ssn);
@@ -895,7 +899,6 @@ void iwlagn_mac_channel_switch(struct ieee80211_hw *hw,
 	iwl_set_rxon_ht(priv, ht_conf);
 	iwl_set_flags_for_band(priv, ctx, channel->band, ctx->vif);
 
-	iwl_set_rate(priv);
 	/*
 	 * at this point, staging_rxon has the
 	 * configuration for channel switch
@@ -1006,7 +1009,7 @@ void iwlagn_mac_flush(struct ieee80211_hw *hw, bool drop)
 		}
 	}
 	IWL_DEBUG_MAC80211(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(trans(priv));
+	iwl_trans_wait_tx_queue_empty(priv->trans);
 done:
 	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -1130,8 +1133,8 @@ void iwlagn_mac_rssi_callback(struct ieee80211_hw *hw,
 	IWL_DEBUG_MAC80211(priv, "enter\n");
 	mutex_lock(&priv->mutex);
 
-	if (cfg(priv)->bt_params &&
-			cfg(priv)->bt_params->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+			priv->cfg->bt_params->advanced_bt_coexist) {
 		if (rssi_event == RSSI_EVENT_LOW)
 			priv->bt_enable_pspoll = true;
 		else if (rssi_event == RSSI_EVENT_HIGH)
@@ -1220,7 +1223,7 @@ static int iwl_set_mode(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 {
 	struct ieee80211_vif *vif = ctx->vif;
-	int err;
+	int err, ac;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -1240,7 +1243,7 @@ int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		return err;
 	}
 
-	if (cfg(priv)->bt_params && cfg(priv)->bt_params->advanced_bt_coexist &&
+	if (priv->cfg->bt_params && priv->cfg->bt_params->advanced_bt_coexist &&
 	    vif->type == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * pretend to have high BT traffic as long as we
@@ -1250,11 +1253,20 @@ int iwl_setup_interface(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		priv->bt_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_HIGH;
 	}
 
+	/* set up queue mappings */
+	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
+		vif->hw_queue[ac] = ctx->ac_to_queue[ac];
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		vif->cab_queue = ctx->mcast_queue;
+	else
+		vif->cab_queue = IEEE80211_INVAL_HW_QUEUE;
+
 	return 0;
 }
 
 static int iwlagn_mac_add_interface(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif)
+				    struct ieee80211_vif *vif)
 {
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;

@@ -817,8 +817,10 @@ void ath9k_set_beaconing_status(struct ath_softc *sc, bool status)
 {
 	struct ath_hw *ah = sc->sc_ah;
 
-	if (!ath_has_valid_bslot(sc))
+	if (!ath_has_valid_bslot(sc)) {
+		sc->sc_flags &= ~SC_OP_BEACONS;
 		return;
+	}
 
 	ath9k_ps_wakeup(sc);
 	if (status) {

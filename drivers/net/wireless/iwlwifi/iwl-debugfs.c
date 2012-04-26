@@ -37,9 +37,9 @@
 
 #include "iwl-dev.h"
 #include "iwl-debug.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn.h"
+#include "iwl-modparams.h"
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
@@ -111,105 +111,6 @@ static const struct file_operations iwl_dbgfs_##name##_ops = {          \
 	.llseek = generic_file_llseek,					\
 };
 
-static ssize_t iwl_dbgfs_tx_statistics_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-
-	int cnt;
-	ssize_t ret;
-	const size_t bufsz = 100 +
-		sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
-	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_mgmt_string(cnt),
-				 priv->tx_stats.mgmt[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Control\n");
-	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_ctrl_string(cnt),
-				 priv->tx_stats.ctrl[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
-	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
-			 priv->tx_stats.data_cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
-			 priv->tx_stats.data_bytes);
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_clear_traffic_statistics_write(struct file *file,
-					const char __user *user_buf,
-					size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	u32 clear_flag;
-	char buf[8];
-	int buf_size;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%x", &clear_flag) != 1)
-		return -EFAULT;
-	iwl_clear_traffic_stats(priv);
-
-	return count;
-}
-
-static ssize_t iwl_dbgfs_rx_statistics_read(struct file *file,
-						char __user *user_buf,
-						size_t count, loff_t *ppos) {
-
-	struct iwl_priv *priv = file->private_data;
-	char *buf;
-	int pos = 0;
-	int cnt;
-	ssize_t ret;
-	const size_t bufsz = 100 +
-		sizeof(char) * 50 * (MANAGEMENT_MAX + CONTROL_MAX);
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	pos += scnprintf(buf + pos, bufsz - pos, "Management:\n");
-	for (cnt = 0; cnt < MANAGEMENT_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_mgmt_string(cnt),
-				 priv->rx_stats.mgmt[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Control:\n");
-	for (cnt = 0; cnt < CONTROL_MAX; cnt++) {
-		pos += scnprintf(buf + pos, bufsz - pos,
-				 "\t%25s\t\t: %u\n",
-				 get_ctrl_string(cnt),
-				 priv->rx_stats.ctrl[cnt]);
-	}
-	pos += scnprintf(buf + pos, bufsz - pos, "Data:\n");
-	pos += scnprintf(buf + pos, bufsz - pos, "\tcnt: %u\n",
-			 priv->rx_stats.data_cnt);
-	pos += scnprintf(buf + pos, bufsz - pos, "\tbytes: %llu\n",
-			 priv->rx_stats.data_bytes);
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
 static ssize_t iwl_dbgfs_sram_read(struct file *file,
 					char __user *user_buf,
 					size_t count, loff_t *ppos)
@@ -230,10 +131,8 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	/* default is to dump the entire data segment */
 	if (!priv->dbgfs_sram_offset && !priv->dbgfs_sram_len) {
 		priv->dbgfs_sram_offset = 0x800000;
-		if (!priv->ucode_loaded) {
-			IWL_ERR(priv, "No uCode has been loadded.\n");
+		if (!priv->ucode_loaded)
 			return -EINVAL;
-		}
 		img = &priv->fw->img[priv->cur_ucode];
 		priv->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	}
@@ -259,7 +158,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 	sram = priv->dbgfs_sram_offset & ~0x3;
 
 	/* read the first u32 from sram */
-	val = iwl_read_targ_mem(trans(priv), sram);
+	val = iwl_read_targ_mem(priv->trans, sram);
 
 	for (; len; len--) {
 		/* put the address at the start of every line */
@@ -278,7 +177,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file,
 		if (++offset == 4) {
 			sram += 4;
 			offset = 0;
-			val = iwl_read_targ_mem(trans(priv), sram);
+			val = iwl_read_targ_mem(priv->trans, sram);
 		}
 
 		/* put in extra spaces and split lines for human readability */
@@ -408,26 +307,21 @@ static ssize_t iwl_dbgfs_nvm_read(struct file *file,
 	const u8 *ptr;
 	char *buf;
 	u16 eeprom_ver;
-	size_t eeprom_len = cfg(priv)->base_params->eeprom_size;
+	size_t eeprom_len = priv->cfg->base_params->eeprom_size;
 	buf_size = 4 * eeprom_len + 256;
 
-	if (eeprom_len % 16) {
-		IWL_ERR(priv, "NVM size is not multiple of 16.\n");
+	if (eeprom_len % 16)
 		return -ENODATA;
-	}
 
 	ptr = priv->eeprom;
-	if (!ptr) {
-		IWL_ERR(priv, "Invalid EEPROM/OTP memory\n");
+	if (!ptr)
 		return -ENOMEM;
-	}
 
 	/* 4 characters for byte 0xYY */
 	buf = kzalloc(buf_size, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
+
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
 	pos += scnprintf(buf + pos, buf_size - pos, "NVM Type: %s, "
 			"version: 0x%x\n",
@@ -461,10 +355,8 @@ static ssize_t iwl_dbgfs_channels_read(struct file *file, char __user *user_buf,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	supp_band = iwl_get_hw_mode(priv, IEEE80211_BAND_2GHZ);
 	if (supp_band) {
@@ -566,10 +458,8 @@ static ssize_t iwl_dbgfs_rx_handlers_read(struct file *file,
 	ssize_t ret;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	for (cnt = 0; cnt < REPLY_MAX; cnt++) {
 		if (priv->rx_handlers_stats[cnt] > 0)
@@ -683,11 +573,8 @@ static ssize_t iwl_dbgfs_disable_ht40_write(struct file *file,
 		return -EFAULT;
 	if (!iwl_is_any_associated(priv))
 		priv->disable_ht40 = ht40 ? true : false;
-	else {
-		IWL_ERR(priv, "Sta associated with AP - "
-			"Change to 40MHz channel support is not allowed\n");
+	else
 		return -EINVAL;
-	}
 
 	return count;
 }
@@ -819,87 +706,6 @@ DEBUGFS_READ_FILE_OPS(temperature);
 DEBUGFS_READ_WRITE_FILE_OPS(sleep_level_override);
 DEBUGFS_READ_FILE_OPS(current_sleep_command);
 
-static ssize_t iwl_dbgfs_traffic_log_read(struct file *file,
-					 char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	int pos = 0, ofs = 0;
-	int cnt = 0, entry;
-
-	char *buf;
-	int bufsz = ((IWL_TRAFFIC_ENTRIES * IWL_TRAFFIC_ENTRY_SIZE * 64) * 2) +
-		(cfg(priv)->base_params->num_of_queues * 32 * 8) + 400;
-	const u8 *ptr;
-	ssize_t ret;
-
-	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate buffer\n");
-		return -ENOMEM;
-	}
-	if (priv->tx_traffic && iwl_have_debug_level(IWL_DL_TX)) {
-		ptr = priv->tx_traffic;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Tx Traffic idx: %u\n", priv->tx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++,  ofs += 16) {
-				pos += scnprintf(buf + pos, bufsz - pos,
-						"0x%.4x ", ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	if (priv->rx_traffic && iwl_have_debug_level(IWL_DL_RX)) {
-		ptr = priv->rx_traffic;
-		pos += scnprintf(buf + pos, bufsz - pos,
-				"Rx Traffic idx: %u\n", priv->rx_traffic_idx);
-		for (cnt = 0, ofs = 0; cnt < IWL_TRAFFIC_ENTRIES; cnt++) {
-			for (entry = 0; entry < IWL_TRAFFIC_ENTRY_SIZE / 16;
-			     entry++,  ofs += 16) {
-				pos += scnprintf(buf + pos, bufsz - pos,
-						"0x%.4x ", ofs);
-				hex_dump_to_buffer(ptr + ofs, 16, 16, 2,
-						   buf + pos, bufsz - pos, 0);
-				pos += strlen(buf + pos);
-				if (bufsz - pos > 0)
-					buf[pos++] = '\n';
-			}
-		}
-	}
-
-	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
-	kfree(buf);
-	return ret;
-}
-
-static ssize_t iwl_dbgfs_traffic_log_write(struct file *file,
-					 const char __user *user_buf,
-					 size_t count, loff_t *ppos)
-{
-	struct iwl_priv *priv = file->private_data;
-	char buf[8];
-	int buf_size;
-	int traffic_log;
-
-	memset(buf, 0, sizeof(buf));
-	buf_size = min(count, sizeof(buf) -  1);
-	if (copy_from_user(buf, user_buf, buf_size))
-		return -EFAULT;
-	if (sscanf(buf, "%d", &traffic_log) != 1)
-		return -EFAULT;
-	if (traffic_log == 0)
-		iwl_reset_traffic_log(priv);
-
-	return count;
-}
-
 static const char *fmt_value = "  %-30s %10u\n";
 static const char *fmt_hex   = "  %-30s       0x%02X\n";
 static const char *fmt_table = "  %-30s %10u  %10u  %10u  %10u\n";
@@ -950,10 +756,8 @@ static ssize_t iwl_dbgfs_ucode_rx_stats_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/*
 	 * the statistic information display here is based on
@@ -1379,10 +1183,8 @@ static ssize_t iwl_dbgfs_ucode_tx_stats_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* the statistic information display here is based on
 	 * the last statistics notification from uCode
@@ -1581,10 +1383,8 @@ static ssize_t iwl_dbgfs_ucode_general_stats_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* the statistic information display here is based on
 	 * the last statistics notification from uCode
@@ -1707,16 +1507,11 @@ static ssize_t iwl_dbgfs_ucode_bt_stats_read(struct file *file,
 	ret = iwl_send_statistics_request(priv, CMD_SYNC, false);
 	mutex_unlock(&priv->mutex);
 
-	if (ret) {
-		IWL_ERR(priv,
-			"Error sending statistics request: %zd\n", ret);
+	if (ret)
 		return -EAGAIN;
-	}
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/*
 	 * the statistic information display here is based on
@@ -1793,10 +1588,8 @@ static ssize_t iwl_dbgfs_reply_tx_error_read(struct file *file,
 		return -EAGAIN;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Statistics_TX_Error:\n");
 	pos += scnprintf(buf + pos, bufsz - pos, "%s:\t\t\t\t%u\n",
@@ -1936,10 +1729,8 @@ static ssize_t iwl_dbgfs_sensitivity_read(struct file *file,
 
 	data = &priv->sensitivity_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "auto_corr_ofdm:\t\t\t %u\n",
 			data->auto_corr_ofdm);
@@ -2017,10 +1808,8 @@ static ssize_t iwl_dbgfs_chain_noise_read(struct file *file,
 
 	data = &priv->chain_noise_data;
 	buf = kzalloc(bufsz, GFP_KERNEL);
-	if (!buf) {
-		IWL_ERR(priv, "Can not allocate Buffer\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "active_chains:\t\t\t %u\n",
 			data->active_chains);
@@ -2071,7 +1860,7 @@ static ssize_t iwl_dbgfs_power_save_status_read(struct file *file,
 	const size_t bufsz = sizeof(buf);
 	u32 pwrsave_status;
 
-	pwrsave_status = iwl_read32(trans(priv), CSR_GP_CNTRL) &
+	pwrsave_status = iwl_read32(priv->trans, CSR_GP_CNTRL) &
 			CSR_GP_REG_POWER_SAVE_STATUS_MSK;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "Power Save Status: ");
@@ -2380,7 +2169,7 @@ static ssize_t iwl_dbgfs_protection_mode_read(struct file *file,
 	char buf[40];
 	const size_t bufsz = sizeof(buf);
 
-	if (cfg(priv)->ht_params)
+	if (priv->cfg->ht_params)
 		pos += scnprintf(buf + pos, bufsz - pos,
 			 "use %s for aggregation\n",
 			 (priv->hw_params.use_rts_for_aggregation) ?
@@ -2400,7 +2189,7 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	int buf_size;
 	int rts;
 
-	if (!cfg(priv)->ht_params)
+	if (!priv->cfg->ht_params)
 		return -EINVAL;
 
 	memset(buf, 0, sizeof(buf));
@@ -2414,6 +2203,23 @@ static ssize_t iwl_dbgfs_protection_mode_write(struct file *file,
 	else
 		priv->hw_params.use_rts_for_aggregation = false;
 	return count;
+}
+
+static int iwl_cmd_echo_test(struct iwl_priv *priv)
+{
+	int ret;
+	struct iwl_host_cmd cmd = {
+		.id = REPLY_ECHO,
+		.len = { 0 },
+		.flags = CMD_SYNC,
+	};
+
+	ret = iwl_dvm_send_cmd(priv, &cmd);
+	if (ret)
+		IWL_ERR(priv, "echo testing fail: 0X%x\n", ret);
+	else
+		IWL_DEBUG_INFO(priv, "echo testing pass\n");
+	return ret;
 }
 
 static ssize_t iwl_dbgfs_echo_test_write(struct file *file,
@@ -2499,9 +2305,27 @@ static ssize_t iwl_dbgfs_calib_disabled_read(struct file *file,
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
-DEBUGFS_READ_FILE_OPS(rx_statistics);
-DEBUGFS_READ_FILE_OPS(tx_statistics);
-DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
+static ssize_t iwl_dbgfs_calib_disabled_write(struct file *file,
+					      const char __user *user_buf,
+					      size_t count, loff_t *ppos)
+{
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	u32 calib_disabled;
+	int buf_size;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%x", &calib_disabled) != 1)
+		return -EFAULT;
+
+	priv->calib_disabled = calib_disabled;
+
+	return count;
+}
+
 DEBUGFS_READ_FILE_OPS(ucode_rx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_tx_stats);
 DEBUGFS_READ_FILE_OPS(ucode_general_stats);
@@ -2509,7 +2333,6 @@ DEBUGFS_READ_FILE_OPS(sensitivity);
 DEBUGFS_READ_FILE_OPS(chain_noise);
 DEBUGFS_READ_FILE_OPS(power_save_status);
 DEBUGFS_WRITE_FILE_OPS(clear_ucode_statistics);
-DEBUGFS_WRITE_FILE_OPS(clear_traffic_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(ucode_tracing);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
 DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
@@ -2523,7 +2346,7 @@ DEBUGFS_READ_WRITE_FILE_OPS(protection_mode);
 DEBUGFS_READ_FILE_OPS(reply_tx_error);
 DEBUGFS_WRITE_FILE_OPS(echo_test);
 DEBUGFS_READ_WRITE_FILE_OPS(log_event);
-DEBUGFS_READ_FILE_OPS(calib_disabled);
+DEBUGFS_READ_WRITE_FILE_OPS(calib_disabled);
 
 /*
  * Create the debugfs files and directories
@@ -2564,12 +2387,8 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(temperature, dir_data, S_IRUSR);
 
-	DEBUGFS_ADD_FILE(rx_statistics, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_statistics, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(traffic_log, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
 	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(clear_traffic_statistics, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
 	DEBUGFS_ADD_FILE(rf_reset, dir_debug, S_IWUSR | S_IRUSR);
@@ -2592,9 +2411,9 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
 
 	/* Calibrations disabled/enabled status*/
-	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IRUSR);
+	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IWUSR | S_IRUSR);
 
-	if (iwl_trans_dbgfs_register(trans(priv), dir_debug))
+	if (iwl_trans_dbgfs_register(priv->trans, dir_debug))
 		goto err;
 	return 0;
 

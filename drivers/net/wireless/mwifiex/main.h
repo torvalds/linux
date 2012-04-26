@@ -92,9 +92,16 @@ enum {
 #define MWIFIEX_OUI_NOT_PRESENT			0
 #define MWIFIEX_OUI_PRESENT				1
 
+/*
+ * Do not check for data_received for USB, as data_received
+ * is handled in mwifiex_usb_recv for USB
+ */
 #define IS_CARD_RX_RCVD(adapter) (adapter->cmd_resp_received || \
-					adapter->event_received || \
-					adapter->data_received)
+				adapter->event_received || \
+				((adapter->iface_type != MWIFIEX_USB) && \
+				adapter->data_received) || \
+				((adapter->iface_type == MWIFIEX_USB) && \
+				!skb_queue_empty(&adapter->usb_rx_data_q)))
 
 #define MWIFIEX_TYPE_CMD				1
 #define MWIFIEX_TYPE_DATA				0
@@ -109,6 +116,11 @@ enum {
 #define MAX_FREQUENCY_BAND_BG   2484
 
 #define MWIFIEX_EVENT_HEADER_LEN           4
+
+#define MWIFIEX_TYPE_LEN			4
+#define MWIFIEX_USB_TYPE_CMD			0xF00DFACE
+#define MWIFIEX_USB_TYPE_DATA			0xBEADC0DE
+#define MWIFIEX_USB_TYPE_EVENT			0xBEEFFACE
 
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
@@ -162,6 +174,7 @@ enum MWIFIEX_PS_STATE {
 enum mwifiex_iface_type {
 	MWIFIEX_SDIO,
 	MWIFIEX_PCIE,
+	MWIFIEX_USB
 };
 
 struct mwifiex_add_ba_param {
@@ -546,6 +559,8 @@ struct mwifiex_if_ops {
 	void (*cleanup_mpa_buf) (struct mwifiex_adapter *);
 	int (*cmdrsp_complete) (struct mwifiex_adapter *, struct sk_buff *);
 	int (*event_complete) (struct mwifiex_adapter *, struct sk_buff *);
+	int (*data_complete) (struct mwifiex_adapter *, struct sk_buff *);
+	int (*dnld_fw) (struct mwifiex_adapter *, struct mwifiex_fw_image *);
 };
 
 struct mwifiex_adapter {
@@ -608,6 +623,7 @@ struct mwifiex_adapter {
 	struct list_head scan_pending_q;
 	/* spin lock for scan_pending_q */
 	spinlock_t scan_pending_q_lock;
+	struct sk_buff_head usb_rx_data_q;
 	u32 scan_processing;
 	u16 region_code;
 	struct mwifiex_802_11d_domain_reg domain_reg;

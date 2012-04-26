@@ -38,7 +38,6 @@
 
 #include "iwl-fh.h"
 #include "iwl-csr.h"
-#include "iwl-shared.h"
 #include "iwl-trans.h"
 #include "iwl-debug.h"
 #include "iwl-io.h"
@@ -180,30 +179,33 @@ struct iwl_queue {
 				* space less than this */
 };
 
+#define TFD_TX_CMD_SLOTS 256
+#define TFD_CMD_SLOTS 32
+
+struct iwl_pcie_tx_queue_entry {
+	struct iwl_device_cmd *cmd;
+	struct sk_buff *skb;
+	struct iwl_cmd_meta meta;
+};
+
 /**
  * struct iwl_tx_queue - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
- * @bd: base of circular buffer of TFDs
- * @cmd: array of command/TX buffer pointers
- * @meta: array of meta data for each command/tx buffer
- * @dma_addr_cmd: physical address of cmd/tx buffer array
- * @txb: array of per-TFD driver data
- * lock: queue lock
- * @time_stamp: time (in jiffies) of last read_ptr change
+ * @tfds: transmit frame descriptors (DMA memory)
+ * @entries: transmit entries (driver state)
+ * @lock: queue lock
+ * @stuck_timer: timer that fires if queue gets stuck
+ * @trans_pcie: pointer back to transport (for timer)
  * @need_update: indicates need to update read/write index
+ * @active: stores if queue is active
  *
  * A Tx queue consists of circular buffer of BDs (a.k.a. TFDs, transmit frame
  * descriptors) and required locking structures.
  */
-#define TFD_TX_CMD_SLOTS 256
-#define TFD_CMD_SLOTS 32
-
 struct iwl_tx_queue {
 	struct iwl_queue q;
 	struct iwl_tfd *tfds;
-	struct iwl_device_cmd **cmd;
-	struct iwl_cmd_meta *meta;
-	struct sk_buff **skbs;
+	struct iwl_pcie_tx_queue_entry *entries;
 	spinlock_t lock;
 	struct timer_list stuck_timer;
 	struct iwl_trans_pcie *trans_pcie;
@@ -215,6 +217,7 @@ struct iwl_tx_queue {
  * struct iwl_trans_pcie - PCIe transport specific data
  * @rxq: all the RX queue data
  * @rx_replenish: work that will be called when buffers need to be allocated
+ * @drv - pointer to iwl_drv
  * @trans: pointer to the generic transport area
  * @irq - the irq number for the device
  * @irq_requested: true when the irq has been requested
@@ -235,6 +238,7 @@ struct iwl_trans_pcie {
 	struct iwl_rx_queue rxq;
 	struct work_struct rx_replenish;
 	struct iwl_trans *trans;
+	struct iwl_drv *drv;
 
 	/* INT ICT Table */
 	__le32 *ict_tbl;
@@ -296,6 +300,11 @@ iwl_trans_pcie_get_trans(struct iwl_trans_pcie *trans_pcie)
 	return container_of((void *)trans_pcie, struct iwl_trans,
 			    trans_specific);
 }
+
+struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
+				       const struct pci_device_id *ent,
+				       const struct iwl_cfg *cfg);
+void iwl_trans_pcie_free(struct iwl_trans *trans);
 
 /*****************************************************
 * RX
@@ -424,6 +433,12 @@ trans_pcie_get_cmd_string(struct iwl_trans_pcie *trans_pcie, u8 cmd)
 	if (!trans_pcie->command_names || !trans_pcie->command_names[cmd])
 		return "UNKNOWN";
 	return trans_pcie->command_names[cmd];
+}
+
+static inline bool iwl_is_rfkill_set(struct iwl_trans *trans)
+{
+	return !(iwl_read32(trans, CSR_GP_CNTRL) &
+		CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
 }
 
 #endif /* __iwl_trans_int_pcie_h__ */

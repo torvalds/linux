@@ -30,7 +30,6 @@
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
 

@@ -33,12 +33,11 @@
 #include <linux/sched.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
 int iwlagn_hw_valid_rtc_data_addr(u32 addr)
 {
@@ -93,17 +92,6 @@ void iwlagn_temperature(struct iwl_priv *priv)
 	priv->temperature = le32_to_cpu(priv->statistics.common.temperature);
 	iwl_tt_handler(priv);
 }
-
-struct iwl_mod_params iwlagn_mod_params = {
-	.amsdu_size_8K = 1,
-	.restart_fw = 1,
-	.plcp_check = true,
-	.bt_coex_active = true,
-	.power_level = IWL_POWER_INDEX_1,
-	.bt_ch_announce = true,
-	.auto_agg = true,
-	/* the rest are 0 by default */
-};
 
 int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band)
 {
@@ -189,7 +177,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv, u16 flush_control)
 		goto done;
 	}
 	IWL_DEBUG_INFO(priv, "wait transmit/flush all frames\n");
-	iwl_trans_wait_tx_queue_empty(trans(priv));
+	iwl_trans_wait_tx_queue_empty(priv->trans);
 done:
 	ieee80211_wake_queues(priv->hw);
 	mutex_unlock(&priv->mutex);
@@ -312,21 +300,21 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	BUILD_BUG_ON(sizeof(iwlagn_def_3w_lookup) !=
 			sizeof(basic.bt3_lookup_table));
 
-	if (cfg(priv)->bt_params) {
+	if (priv->cfg->bt_params) {
 		/*
 		 * newer generation of devices (2000 series and newer)
 		 * use the version 2 of the bt command
 		 * we need to make sure sending the host command
 		 * with correct data structure to avoid uCode assert
 		 */
-		if (cfg(priv)->bt_params->bt_session_2) {
+		if (priv->cfg->bt_params->bt_session_2) {
 			bt_cmd_v2.prio_boost = cpu_to_le32(
-				cfg(priv)->bt_params->bt_prio_boost);
+				priv->cfg->bt_params->bt_prio_boost);
 			bt_cmd_v2.tx_prio_boost = 0;
 			bt_cmd_v2.rx_prio_boost = 0;
 		} else {
 			bt_cmd_v1.prio_boost =
-				cfg(priv)->bt_params->bt_prio_boost;
+				priv->cfg->bt_params->bt_prio_boost;
 			bt_cmd_v1.tx_prio_boost = 0;
 			bt_cmd_v1.rx_prio_boost = 0;
 		}
@@ -345,7 +333,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 	 * (might be in monitor mode), or the interface is in
 	 * IBSS mode (no proper uCode support for coex then).
 	 */
-	if (!iwlagn_mod_params.bt_coex_active ||
+	if (!iwlwifi_mod_params.bt_coex_active ||
 	    priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		basic.flags = IWLAGN_BT_FLAG_COEX_MODE_DISABLED;
 	} else {
@@ -374,7 +362,7 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		       priv->bt_full_concurrent ?
 		       "full concurrency" : "3-wire");
 
-	if (cfg(priv)->bt_params->bt_session_2) {
+	if (priv->cfg->bt_params->bt_session_2) {
 		memcpy(&bt_cmd_v2.basic, &basic,
 			sizeof(basic));
 		ret = iwl_dvm_send_cmd_pdu(priv, REPLY_BT_CONFIG,
@@ -740,8 +728,8 @@ static bool is_single_rx_stream(struct iwl_priv *priv)
  */
 static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	if (cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist &&
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
@@ -812,8 +800,8 @@ void iwlagn_set_rxon_chain(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 	else
 		active_chains = priv->hw_params.valid_rx_ant;
 
-	if (cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist &&
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist &&
 	    (priv->bt_full_concurrent ||
 	     priv->bt_traffic_load >= IWL_BT_COEX_TRAFFIC_LOAD_HIGH)) {
 		/*
@@ -1132,7 +1120,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	memcpy(&rxon, &ctx->active, sizeof(rxon));
 
 	priv->ucode_loaded = false;
-	iwl_trans_stop_device(trans(priv));
+	iwl_trans_stop_device(priv->trans);
 
 	priv->wowlan = true;
 
@@ -1154,7 +1142,7 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	if (ret)
 		goto out;
 
-	if (!iwlagn_mod_params.sw_crypto) {
+	if (!iwlwifi_mod_params.sw_crypto) {
 		/* mark all keys clear */
 		priv->ucode_key_table = 0;
 		ctx->key_mapping_keys = 0;
@@ -1260,7 +1248,7 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 		return -EIO;
 	}
 
-	return iwl_trans_send_cmd(trans(priv), cmd);
+	return iwl_trans_send_cmd(priv->trans, cmd);
 }
 
 int iwl_dvm_send_cmd_pdu(struct iwl_priv *priv, u8 id,

@@ -1282,7 +1282,7 @@ void rt2x00lib_dmadone(struct queue_entry *entry);
 void rt2x00lib_txdone(struct queue_entry *entry,
 		      struct txdone_entry_desc *txdesc);
 void rt2x00lib_txdone_noinfo(struct queue_entry *entry, u32 status);
-void rt2x00lib_rxdone(struct queue_entry *entry);
+void rt2x00lib_rxdone(struct queue_entry *entry, gfp_t gfp);
 
 /*
  * mac80211 handlers.

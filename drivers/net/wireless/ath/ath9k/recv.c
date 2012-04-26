@@ -812,6 +812,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
 	is_valid_tkip = rx_stats->rs_keyix != ATH9K_RXKEYIX_INVALID &&
 		test_bit(rx_stats->rs_keyix, common->tkip_keymap);
 	strip_mic = is_valid_tkip && ieee80211_is_data(fc) &&
+		ieee80211_has_protected(fc) &&
 		!(rx_stats->rs_status &
 		(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_CRC | ATH9K_RXERR_MIC |
 		 ATH9K_RXERR_KEYMISS));
@@ -907,7 +908,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	struct ieee80211_supported_band *sband;
 	enum ieee80211_band band;
 	unsigned int i = 0;
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_softc __maybe_unused *sc = common->priv;
 
 	band = hw->conf.channel->band;
 	sband = hw->wiphy->bands[band];

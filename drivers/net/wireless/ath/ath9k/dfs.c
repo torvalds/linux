@@ -148,11 +148,13 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 	struct ath_hw *ah = sc->sc_ah;
 	struct ath_common *common = ath9k_hw_common(ah);
 
+	DFS_STAT_INC(sc, pulses_total);
 	if ((rs->rs_phyerr != ATH9K_PHYERR_RADAR) &&
 	    (rs->rs_phyerr != ATH9K_PHYERR_FALSE_RADAR_EXT)) {
 		ath_dbg(common, DFS,
 			"Error: rs_phyer=0x%x not a radar error\n",
 			rs->rs_phyerr);
+		DFS_STAT_INC(sc, pulses_no_dfs);
 		return;
 	}
 
@@ -188,7 +190,9 @@ void ath9k_dfs_process_phyerr(struct ath_softc *sc, void *data,
 			"width=%d, rssi=%d, delta_ts=%llu\n",
 			pe.freq, pe.ts, pe.width, pe.rssi, pe.ts-last_ts);
 		last_ts = pe.ts;
+		DFS_STAT_INC(sc, pulses_processed);
 		if (pd != NULL && pd->add_pulse(pd, &pe)) {
+			DFS_STAT_INC(sc, radar_detected);
 			/*
 			 * TODO: forward radar event to DFS management layer
 			 */

@@ -68,9 +68,7 @@
 
 #include <net/mac80211.h>
 
-#include "iwl-commands.h"
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-debug.h"
 #include "iwl-agn.h"
 #include "iwl-eeprom.h"
@@ -189,7 +187,7 @@ static void iwl_eeprom_release_semaphore(struct iwl_trans *trans)
 
 static int iwl_eeprom_verify_signature(struct iwl_priv *priv)
 {
-	u32 gp = iwl_read32(trans(priv), CSR_EEPROM_GP) &
+	u32 gp = iwl_read32(priv->trans, CSR_EEPROM_GP) &
 			   CSR_EEPROM_GP_VALID_MSK;
 	int ret = 0;
 
@@ -236,8 +234,8 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 	eeprom_ver = iwl_eeprom_query16(priv, EEPROM_VERSION);
 	calib_ver = iwl_eeprom_calib_version(priv);
 
-	if (eeprom_ver < cfg(priv)->eeprom_ver ||
-	    calib_ver < cfg(priv)->eeprom_calib_ver)
+	if (eeprom_ver < priv->cfg->eeprom_ver ||
+	    calib_ver < priv->cfg->eeprom_calib_ver)
 		goto err;
 
 	IWL_INFO(priv, "device EEPROM VER=0x%x, CALIB=0x%x\n",
@@ -247,8 +245,8 @@ int iwl_eeprom_check_version(struct iwl_priv *priv)
 err:
 	IWL_ERR(priv, "Unsupported (too old) EEPROM VER=0x%x < 0x%x "
 		  "CALIB=0x%x < 0x%x\n",
-		  eeprom_ver, cfg(priv)->eeprom_ver,
-		  calib_ver,  cfg(priv)->eeprom_calib_ver);
+		  eeprom_ver, priv->cfg->eeprom_ver,
+		  calib_ver,  priv->cfg->eeprom_calib_ver);
 	return -EINVAL;
 
 }
@@ -259,7 +257,7 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 
 	priv->hw_params.sku = iwl_eeprom_query16(priv, EEPROM_SKU_CAP);
 	if (priv->hw_params.sku & EEPROM_SKU_CAP_11N_ENABLE &&
-	    !cfg(priv)->ht_params) {
+	    !priv->cfg->ht_params) {
 		IWL_ERR(priv, "Invalid 11n configuration\n");
 		return -EINVAL;
 	}
@@ -277,10 +275,10 @@ int iwl_eeprom_init_hw_params(struct iwl_priv *priv)
 	priv->hw_params.valid_rx_ant = EEPROM_RF_CFG_RX_ANT_MSK(radio_cfg);
 
 	/* check overrides (some devices have wrong EEPROM) */
-	if (cfg(priv)->valid_tx_ant)
-		priv->hw_params.valid_tx_ant = cfg(priv)->valid_tx_ant;
-	if (cfg(priv)->valid_rx_ant)
-		priv->hw_params.valid_rx_ant = cfg(priv)->valid_rx_ant;
+	if (priv->cfg->valid_tx_ant)
+		priv->hw_params.valid_tx_ant = priv->cfg->valid_tx_ant;
+	if (priv->cfg->valid_rx_ant)
+		priv->hw_params.valid_rx_ant = priv->cfg->valid_rx_ant;
 
 	if (!priv->hw_params.valid_tx_ant || !priv->hw_params.valid_rx_ant) {
 		IWL_ERR(priv, "Invalid chain (0x%X, 0x%X)\n",
@@ -349,7 +347,7 @@ static u32 eeprom_indirect_address(struct iwl_priv *priv, u32 address)
 const u8 *iwl_eeprom_query_addr(struct iwl_priv *priv, size_t offset)
 {
 	u32 address = eeprom_indirect_address(priv, offset);
-	BUG_ON(address >= cfg(priv)->base_params->eeprom_size);
+	BUG_ON(address >= priv->cfg->base_params->eeprom_size);
 	return &priv->eeprom[address];
 }
 
@@ -433,7 +431,7 @@ static int iwl_init_otp_access(struct iwl_trans *trans)
 		 * CSR auto clock gate disable bit -
 		 * this is only applicable for HW with OTP shadow RAM
 		 */
-		if (cfg(trans)->base_params->shadow_ram_support)
+		if (trans->cfg->base_params->shadow_ram_support)
 			iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 				CSR_RESET_LINK_PWR_MGMT_DISABLED);
 	}
@@ -554,7 +552,7 @@ static int iwl_find_otp_image(struct iwl_trans *trans,
 		}
 		/* more in the link list, continue */
 		usedblocks++;
-	} while (usedblocks <= cfg(trans)->base_params->max_ll_items);
+	} while (usedblocks <= trans->cfg->base_params->max_ll_items);
 
 	/* OTP has no valid blocks */
 	IWL_DEBUG_EEPROM(trans, "OTP has no valid blocks\n");
@@ -693,7 +691,7 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 				 ((txp->delta_20_in_40 & 0xf0) >> 4),
 				 (txp->delta_20_in_40 & 0x0f));
 
-		max_txp_avg = iwl_get_max_txpower_avg(cfg(priv), txp_array, idx,
+		max_txp_avg = iwl_get_max_txpower_avg(priv->cfg, txp_array, idx,
 						      &max_txp_avg_halfdbm);
 
 		/*
@@ -719,18 +717,18 @@ static void iwl_eeprom_enhanced_txpower(struct iwl_priv *priv)
 int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 {
 	__le16 *e;
-	u32 gp = iwl_read32(trans(priv), CSR_EEPROM_GP);
+	u32 gp = iwl_read32(priv->trans, CSR_EEPROM_GP);
 	int sz;
 	int ret;
 	u16 addr;
 	u16 validblockaddr = 0;
 	u16 cache_addr = 0;
 
-	priv->nvm_device_type = iwl_get_nvm_type(trans(priv), hw_rev);
+	priv->nvm_device_type = iwl_get_nvm_type(priv->trans, hw_rev);
 	if (priv->nvm_device_type == -ENOENT)
 		return -ENOENT;
 	/* allocate eeprom */
-	sz = cfg(priv)->base_params->eeprom_size;
+	sz = priv->cfg->base_params->eeprom_size;
 	IWL_DEBUG_EEPROM(priv, "NVM size = %d\n", sz);
 	priv->eeprom = kzalloc(sz, GFP_KERNEL);
 	if (!priv->eeprom) {
@@ -747,7 +745,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 	}
 
 	/* Make sure driver (instead of uCode) is allowed to read EEPROM */
-	ret = iwl_eeprom_acquire_semaphore(trans(priv));
+	ret = iwl_eeprom_acquire_semaphore(priv->trans);
 	if (ret < 0) {
 		IWL_ERR(priv, "Failed to acquire EEPROM semaphore.\n");
 		ret = -ENOENT;
@@ -756,22 +754,22 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 
 	if (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP) {
 
-		ret = iwl_init_otp_access(trans(priv));
+		ret = iwl_init_otp_access(priv->trans);
 		if (ret) {
 			IWL_ERR(priv, "Failed to initialize OTP access.\n");
 			ret = -ENOENT;
 			goto done;
 		}
-		iwl_write32(trans(priv), CSR_EEPROM_GP,
-			    iwl_read32(trans(priv), CSR_EEPROM_GP) &
+		iwl_write32(priv->trans, CSR_EEPROM_GP,
+			    iwl_read32(priv->trans, CSR_EEPROM_GP) &
 			    ~CSR_EEPROM_GP_IF_OWNER_MSK);
 
-		iwl_set_bit(trans(priv), CSR_OTP_GP_REG,
+		iwl_set_bit(priv->trans, CSR_OTP_GP_REG,
 			     CSR_OTP_GP_REG_ECC_CORR_STATUS_MSK |
 			     CSR_OTP_GP_REG_ECC_UNCORR_STATUS_MSK);
 		/* traversing the linked list if no shadow ram supported */
-		if (!cfg(priv)->base_params->shadow_ram_support) {
-			if (iwl_find_otp_image(trans(priv), &validblockaddr)) {
+		if (!priv->cfg->base_params->shadow_ram_support) {
+			if (iwl_find_otp_image(priv->trans, &validblockaddr)) {
 				ret = -ENOENT;
 				goto done;
 			}
@@ -780,7 +778,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 		     addr += sizeof(u16)) {
 			__le16 eeprom_data;
 
-			ret = iwl_read_otp_word(trans(priv), addr,
+			ret = iwl_read_otp_word(priv->trans, addr,
 						&eeprom_data);
 			if (ret)
 				goto done;
@@ -792,10 +790,10 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 		for (addr = 0; addr < sz; addr += sizeof(u16)) {
 			u32 r;
 
-			iwl_write32(trans(priv), CSR_EEPROM_REG,
+			iwl_write32(priv->trans, CSR_EEPROM_REG,
 				    CSR_EEPROM_REG_MSK_ADDR & (addr << 1));
 
-			ret = iwl_poll_bit(trans(priv), CSR_EEPROM_REG,
+			ret = iwl_poll_bit(priv->trans, CSR_EEPROM_REG,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  CSR_EEPROM_REG_READ_VALID_MSK,
 						  IWL_EEPROM_ACCESS_TIMEOUT);
@@ -804,7 +802,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 					"Time out reading EEPROM[%d]\n", addr);
 				goto done;
 			}
-			r = iwl_read32(trans(priv), CSR_EEPROM_REG);
+			r = iwl_read32(priv->trans, CSR_EEPROM_REG);
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}
@@ -816,7 +814,7 @@ int iwl_eeprom_init(struct iwl_priv *priv, u32 hw_rev)
 
 	ret = 0;
 done:
-	iwl_eeprom_release_semaphore(trans(priv));
+	iwl_eeprom_release_semaphore(priv->trans);
 
 err:
 	if (ret)
@@ -1132,7 +1130,7 @@ void iwl_rf_config(struct iwl_priv *priv)
 
 	/* write radio config values to register */
 	if (EEPROM_RF_CFG_TYPE_MSK(radio_cfg) <= EEPROM_RF_CONFIG_TYPE_MAX) {
-		iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
+		iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
 			    EEPROM_RF_CFG_TYPE_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_STEP_MSK(radio_cfg) |
 			    EEPROM_RF_CFG_DASH_MSK(radio_cfg));
@@ -1144,7 +1142,7 @@ void iwl_rf_config(struct iwl_priv *priv)
 		WARN_ON(1);
 
 	/* set CSR_HW_CONFIG_REG for uCode use */
-	iwl_set_bit(trans(priv), CSR_HW_IF_CONFIG_REG,
+	iwl_set_bit(priv->trans, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
 }

@@ -27,10 +27,9 @@
 #include <linux/etherdevice.h>
 #include "iwl-dev.h"
 #include "iwl-agn.h"
-#include "iwl-core.h"
 #include "iwl-agn-calib.h"
 #include "iwl-trans.h"
-#include "iwl-shared.h"
+#include "iwl-modparams.h"
 
 /*
  * initialize rxon structure with default values from eeprom
@@ -87,11 +86,6 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	priv->band = ch_info->band;
 
 	iwl_set_flags_for_band(priv, ctx, priv->band, ctx->vif);
-
-	ctx->staging.ofdm_basic_rates =
-	    (IWL_OFDM_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
-	ctx->staging.cck_basic_rates =
-	    (IWL_CCK_RATES_MASK >> IWL_FIRST_CCK_RATE) & 0xF;
 
 	/* clear both MIX and PURE40 mode flag */
 	ctx->staging.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
@@ -531,9 +525,9 @@ static int iwlagn_rxon_connect(struct iwl_priv *priv,
 	}
 
 	if (ctx->vif && ctx->vif->type == NL80211_IFTYPE_STATION &&
-	    cfg(priv)->ht_params && cfg(priv)->ht_params->smps_mode)
+	    priv->cfg->ht_params && priv->cfg->ht_params->smps_mode)
 		ieee80211_request_smps(ctx->vif,
-				       cfg(priv)->ht_params->smps_mode);
+				       priv->cfg->ht_params->smps_mode);
 
 	return 0;
 }
@@ -772,19 +766,6 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 	}
 }
 
-void iwl_set_rate(struct iwl_priv *priv)
-{
-	struct iwl_rxon_context *ctx;
-
-	for_each_context(priv, ctx) {
-		ctx->staging.cck_basic_rates =
-		    (IWL_CCK_BASIC_RATES_MASK >> IWL_FIRST_CCK_RATE) & 0xF;
-
-		ctx->staging.ofdm_basic_rates =
-		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
-	}
-}
-
 static void iwl_set_rxon_hwcrypto(struct iwl_priv *priv,
 				  struct iwl_rxon_context *ctx, int hw_decrypt)
 {
@@ -960,6 +941,97 @@ void iwl_print_rx_config_cmd(struct iwl_priv *priv,
 }
 #endif
 
+static void iwl_calc_basic_rates(struct iwl_priv *priv,
+				 struct iwl_rxon_context *ctx)
+{
+	int lowest_present_ofdm = 100;
+	int lowest_present_cck = 100;
+	u8 cck = 0;
+	u8 ofdm = 0;
+
+	if (ctx->vif) {
+		struct ieee80211_supported_band *sband;
+		unsigned long basic = ctx->vif->bss_conf.basic_rates;
+		int i;
+
+		sband = priv->hw->wiphy->bands[priv->hw->conf.channel->band];
+
+		for_each_set_bit(i, &basic, BITS_PER_LONG) {
+			int hw = sband->bitrates[i].hw_value;
+			if (hw >= IWL_FIRST_OFDM_RATE) {
+				ofdm |= BIT(hw - IWL_FIRST_OFDM_RATE);
+				if (lowest_present_ofdm > hw)
+					lowest_present_ofdm = hw;
+			} else {
+				BUILD_BUG_ON(IWL_FIRST_CCK_RATE != 0);
+
+				cck |= BIT(hw);
+				if (lowest_present_cck > hw)
+					lowest_present_cck = hw;
+			}
+		}
+	}
+
+	/*
+	 * Now we've got the basic rates as bitmaps in the ofdm and cck
+	 * variables. This isn't sufficient though, as there might not
+	 * be all the right rates in the bitmap. E.g. if the only basic
+	 * rates are 5.5 Mbps and 11 Mbps, we still need to add 1 Mbps
+	 * and 6 Mbps because the 802.11-2007 standard says in 9.6:
+	 *
+	 *    [...] a STA responding to a received frame shall transmit
+	 *    its Control Response frame [...] at the highest rate in the
+	 *    BSSBasicRateSet parameter that is less than or equal to the
+	 *    rate of the immediately previous frame in the frame exchange
+	 *    sequence ([...]) and that is of the same modulation class
+	 *    ([...]) as the received frame. If no rate contained in the
+	 *    BSSBasicRateSet parameter meets these conditions, then the
+	 *    control frame sent in response to a received frame shall be
+	 *    transmitted at the highest mandatory rate of the PHY that is
+	 *    less than or equal to the rate of the received frame, and
+	 *    that is of the same modulation class as the received frame.
+	 *
+	 * As a consequence, we need to add all mandatory rates that are
+	 * lower than all of the basic rates to these bitmaps.
+	 */
+
+	if (IWL_RATE_24M_INDEX < lowest_present_ofdm)
+		ofdm |= IWL_RATE_24M_MASK >> IWL_FIRST_OFDM_RATE;
+	if (IWL_RATE_12M_INDEX < lowest_present_ofdm)
+		ofdm |= IWL_RATE_12M_MASK >> IWL_FIRST_OFDM_RATE;
+	/* 6M already there or needed so always add */
+	ofdm |= IWL_RATE_6M_MASK >> IWL_FIRST_OFDM_RATE;
+
+	/*
+	 * CCK is a bit more complex with DSSS vs. HR/DSSS vs. ERP.
+	 * Note, however:
+	 *  - if no CCK rates are basic, it must be ERP since there must
+	 *    be some basic rates at all, so they're OFDM => ERP PHY
+	 *    (or we're in 5 GHz, and the cck bitmap will never be used)
+	 *  - if 11M is a basic rate, it must be ERP as well, so add 5.5M
+	 *  - if 5.5M is basic, 1M and 2M are mandatory
+	 *  - if 2M is basic, 1M is mandatory
+	 *  - if 1M is basic, that's the only valid ACK rate.
+	 * As a consequence, it's not as complicated as it sounds, just add
+	 * any lower rates to the ACK rate bitmap.
+	 */
+	if (IWL_RATE_11M_INDEX < lowest_present_ofdm)
+		ofdm |= IWL_RATE_11M_MASK >> IWL_FIRST_CCK_RATE;
+	if (IWL_RATE_5M_INDEX < lowest_present_ofdm)
+		ofdm |= IWL_RATE_5M_MASK >> IWL_FIRST_CCK_RATE;
+	if (IWL_RATE_2M_INDEX < lowest_present_ofdm)
+		ofdm |= IWL_RATE_2M_MASK >> IWL_FIRST_CCK_RATE;
+	/* 1M already there or needed so always add */
+	cck |= IWL_RATE_1M_MASK >> IWL_FIRST_CCK_RATE;
+
+	IWL_DEBUG_RATE(priv, "Set basic rates cck:0x%.2x ofdm:0x%.2x\n",
+		       cck, ofdm);
+
+	/* "basic_rates" is a misnomer here -- should be called ACK rates */
+	ctx->staging.cck_basic_rates = cck;
+	ctx->staging.ofdm_basic_rates = ofdm;
+}
+
 /**
  * iwlagn_commit_rxon - commit staging_rxon to hardware
  *
@@ -998,6 +1070,9 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 
 	/* always get timestamp with Rx frame */
 	ctx->staging.flags |= RXON_FLG_TSF2HOST_MSK;
+
+	/* recalculate basic rates */
+	iwl_calc_basic_rates(priv, ctx);
 
 	/*
 	 * force CTS-to-self frames protection if RTS-CTS is not preferred
@@ -1055,7 +1130,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		return 0;
 	}
 
-	iwl_set_rxon_hwcrypto(priv, ctx, !iwlagn_mod_params.sw_crypto);
+	iwl_set_rxon_hwcrypto(priv, ctx, !iwlwifi_mod_params.sw_crypto);
 
 	IWL_DEBUG_INFO(priv,
 		       "Going to commit RXON\n"
@@ -1187,13 +1262,6 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 		}
 
 		iwl_update_bcast_stations(priv);
-
-		/*
-		 * The list of supported rates and rate mask can be different
-		 * for each band; since the band may have changed, reset
-		 * the rate mask to what mac80211 lists.
-		 */
-		iwl_set_rate(priv);
 	}
 
 	if (changed & (IEEE80211_CONF_CHANGE_PS |
