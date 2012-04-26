@@ -188,7 +188,8 @@ void btrfs_printk(struct btrfs_fs_info *fs_info, const char *fmt, ...)
 	va_start(args, fmt);
 
 	if (fmt[0] == '<' && isdigit(fmt[1]) && fmt[2] == '>') {
-		strncpy(lvl, fmt, 3);
+		memcpy(lvl, fmt, 3);
+		lvl[3] = '\0';
 		fmt += 3;
 		type = logtypes[fmt[1] - '0'];
 	} else
