@@ -666,8 +666,8 @@ int dss_mgr_check_timings(struct omap_overlay_manager *mgr,
 }
 
 int dss_mgr_check(struct omap_overlay_manager *mgr,
-		struct omap_dss_device *dssdev,
 		struct omap_overlay_manager_info *info,
+		const struct omap_video_timings *mgr_timings,
 		struct omap_overlay_info **overlay_infos)
 {
 	struct omap_overlay *ovl;
@@ -679,7 +679,7 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 			return r;
 	}
 
-	r = dss_mgr_check_timings(mgr, &dssdev->panel.timings);
+	r = dss_mgr_check_timings(mgr, mgr_timings);
 	if (r)
 		return r;
 
@@ -692,7 +692,7 @@ int dss_mgr_check(struct omap_overlay_manager *mgr,
 		if (oi == NULL)
 			continue;
 
-		r = dss_ovl_check(ovl, oi, dssdev);
+		r = dss_ovl_check(ovl, oi, mgr_timings);
 		if (r)
 			return r;
 	}
