@@ -281,7 +281,7 @@
 	};
 
 	i2c@7000c400 {
-		clock-frequency = <400000>;
+		clock-frequency = <100000>;
 	};
 
 	i2c@7000c500 {
