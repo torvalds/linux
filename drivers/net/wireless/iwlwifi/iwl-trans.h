@@ -66,8 +66,9 @@
 #include <linux/ieee80211.h>
 #include <linux/mm.h> /* for page_address */
 
-#include "iwl-shared.h"
 #include "iwl-debug.h"
+#include "iwl-config.h"
+#include "iwl-fw.h"
 
 /**
  * DOC: Transport layer - what is it ?
@@ -103,13 +104,6 @@
  *
  *	6) Eventually, the free function will be called.
  */
-
-struct iwl_priv;
-struct iwl_shared;
-struct iwl_op_mode;
-struct fw_img;
-struct sk_buff;
-struct dentry;
 
 /**
  * DOC: Host command section
@@ -326,6 +320,8 @@ struct iwl_trans_config {
 	const char **command_names;
 };
 
+struct iwl_trans;
+
 /**
  * struct iwl_trans_ops - transport specific operations
  *
@@ -334,7 +330,8 @@ struct iwl_trans_config {
  * @start_hw: starts the HW- from that point on, the HW can send interrupts
  *	May sleep
  * @stop_hw: stops the HW- from that point on, the HW will be in low power but
- *	will still issue interrupt if the HW RF kill is triggered.
+ *	will still issue interrupt if the HW RF kill is triggered unless
+ *	op_mode_leaving is true.
  *	May sleep
  * @start_fw: allocates and inits all the resources for the transport
  *	layer. Also kick a fw image.
@@ -357,10 +354,6 @@ struct iwl_trans_config {
  *	May sleep
  * @tx_agg_disable: de-configure a Tx queue to send AMPDUs
  *	Must be atomic
- * @free: release all the ressource for the transport layer itself such as
- *	irq, tasklet etc... From this point on, the device may not issue
- *	any interrupt (incl. RFKILL).
- *	May sleep
  * @wait_tx_queue_empty: wait until all tx queues are empty
  *	May sleep
  * @dbgfs_register: add the dbgfs files under this directory. Files will be
@@ -378,7 +371,7 @@ struct iwl_trans_config {
 struct iwl_trans_ops {
 
 	int (*start_hw)(struct iwl_trans *iwl_trans);
-	void (*stop_hw)(struct iwl_trans *iwl_trans);
+	void (*stop_hw)(struct iwl_trans *iwl_trans, bool op_mode_leaving);
 	int (*start_fw)(struct iwl_trans *trans, const struct fw_img *fw);
 	void (*fw_alive)(struct iwl_trans *trans);
 	void (*stop_device)(struct iwl_trans *trans);
@@ -395,8 +388,6 @@ struct iwl_trans_ops {
 	void (*tx_agg_setup)(struct iwl_trans *trans, int queue, int fifo,
 			     int sta_id, int tid, int frame_limit, u16 ssn);
 	void (*tx_agg_disable)(struct iwl_trans *trans, int queue);
-
-	void (*free)(struct iwl_trans *trans);
 
 	int (*dbgfs_register)(struct iwl_trans *trans, struct dentry* dir);
 	int (*wait_tx_queue_empty)(struct iwl_trans *trans);
@@ -428,7 +419,7 @@ enum iwl_trans_state {
  *
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
- * @shrd - pointer to iwl_shared which holds shared data from the upper layer
+ * @cfg - pointer to the configuration
  * @reg_lock - protect hw register access
  * @dev - pointer to struct device * that represents the device
  * @hw_id: a u32 with the ID of the device / subdevice.
@@ -440,7 +431,7 @@ enum iwl_trans_state {
 struct iwl_trans {
 	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
-	struct iwl_shared *shrd;
+	const struct iwl_cfg *cfg;
 	enum iwl_trans_state state;
 	spinlock_t reg_lock;
 
@@ -477,11 +468,12 @@ static inline int iwl_trans_start_hw(struct iwl_trans *trans)
 	return trans->ops->start_hw(trans);
 }
 
-static inline void iwl_trans_stop_hw(struct iwl_trans *trans)
+static inline void iwl_trans_stop_hw(struct iwl_trans *trans,
+				     bool op_mode_leaving)
 {
 	might_sleep();
 
-	trans->ops->stop_hw(trans);
+	trans->ops->stop_hw(trans, op_mode_leaving);
 
 	trans->state = IWL_TRANS_NO_FW;
 }
@@ -566,11 +558,6 @@ static inline void iwl_trans_tx_agg_setup(struct iwl_trans *trans, int queue,
 				 frame_limit, ssn);
 }
 
-static inline void iwl_trans_free(struct iwl_trans *trans)
-{
-	trans->ops->free(trans);
-}
-
 static inline int iwl_trans_wait_tx_queue_empty(struct iwl_trans *trans)
 {
 	WARN_ONCE(trans->state != IWL_TRANS_FW_ALIVE,
@@ -618,19 +605,9 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 }
 
 /*****************************************************
-* Transport layers implementations + their allocation function
+* driver (transport) register/unregister functions
 ******************************************************/
-struct pci_dev;
-struct pci_device_id;
-extern const struct iwl_trans_ops trans_ops_pcie;
-struct iwl_trans *iwl_trans_pcie_alloc(struct iwl_shared *shrd,
-				       struct pci_dev *pdev,
-				       const struct pci_device_id *ent);
 int __must_check iwl_pci_register_driver(void);
 void iwl_pci_unregister_driver(void);
 
-extern const struct iwl_trans_ops trans_ops_idi;
-struct iwl_trans *iwl_trans_idi_alloc(struct iwl_shared *shrd,
-				      void *pdev_void,
-				      const void *ent_void);
 #endif /* __iwl_trans_h__ */

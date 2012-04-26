@@ -65,14 +65,13 @@
 #include <linux/string.h>
 
 #include "iwl-debug.h"
-#include "iwl-shared.h"
 #include "iwl-dev.h"
 
 #include "iwl-phy-db.h"
 
 #define CHANNEL_NUM_SIZE	4	/* num of channels in calib_ch size */
 
-struct iwl_phy_db *iwl_phy_db_init(struct iwl_shared *shrd)
+struct iwl_phy_db *iwl_phy_db_init(struct device *dev)
 {
 	struct iwl_phy_db *phy_db = kzalloc(sizeof(struct iwl_phy_db),
 					    GFP_KERNEL);
@@ -80,7 +79,7 @@ struct iwl_phy_db *iwl_phy_db_init(struct iwl_shared *shrd)
 	if (!phy_db)
 		return phy_db;
 
-	phy_db->shrd = shrd;
+	phy_db->dev = dev;
 
 	/* TODO: add default values of the phy db. */
 	return phy_db;

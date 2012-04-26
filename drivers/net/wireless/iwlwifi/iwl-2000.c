@@ -28,7 +28,8 @@
 #include <linux/stringify.h>
 #include "iwl-config.h"
 #include "iwl-cfg.h"
-#include "iwl-dev.h" /* still needed */
+#include "iwl-agn-hw.h"
+#include "iwl-commands.h" /* needed for BT for now */
 
 /* Highest firmware API version supported */
 #define IWL2030_UCODE_API_MAX 6
@@ -47,6 +48,11 @@
 #define IWL2000_UCODE_API_MIN 5
 #define IWL105_UCODE_API_MIN 5
 #define IWL135_UCODE_API_MIN 5
+
+/* EEPROM version */
+#define EEPROM_2000_TX_POWER_VERSION	(6)
+#define EEPROM_2000_EEPROM_VERSION	(0x805)
+
 
 #define IWL2030_FW_PRE "iwlwifi-2030-"
 #define IWL2030_MODULE_FIRMWARE(api) IWL2030_FW_PRE __stringify(api) ".ucode"

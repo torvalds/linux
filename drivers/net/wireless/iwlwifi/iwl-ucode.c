@@ -31,7 +31,6 @@
 #include <linux/init.h>
 
 #include "iwl-dev.h"
-#include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
@@ -145,8 +144,8 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 {
 	int ret;
 
-	if (cfg(priv)->bt_params &&
-	    cfg(priv)->bt_params->advanced_bt_coexist) {
+	if (priv->cfg->bt_params &&
+	    priv->cfg->bt_params->advanced_bt_coexist) {
 		/*
 		 * Tell uCode we are ready to perform calibration
 		 * need to perform this before any calibration
@@ -168,8 +167,8 @@ int iwl_init_alive_start(struct iwl_priv *priv)
 	 * temperature offset calibration is only needed for runtime ucode,
 	 * so prepare the value now.
 	 */
-	if (cfg(priv)->need_temp_offset_calib) {
-		if (cfg(priv)->temp_offset_v2)
+	if (priv->cfg->need_temp_offset_calib) {
+		if (priv->cfg->temp_offset_v2)
 			return iwl_set_temperature_offset_calib_v2(priv);
 		else
 			return iwl_set_temperature_offset_calib(priv);
@@ -244,7 +243,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 {
 	int ret;
 
-	iwl_trans_fw_alive(trans(priv));
+	iwl_trans_fw_alive(priv->trans);
 
 	priv->passive_no_rx = false;
 	priv->transport_queue_stop = 0;
@@ -253,7 +252,7 @@ static int iwl_alive_notify(struct iwl_priv *priv)
 	if (ret)
 		return ret;
 
-	if (!cfg(priv)->no_xtal_calib) {
+	if (!priv->cfg->no_xtal_calib) {
 		ret = iwl_set_Xtal_calib(priv);
 		if (ret)
 			return ret;
@@ -282,9 +281,9 @@ static int iwl_verify_sec_sparse(struct iwl_priv *priv,
 		/* read data comes through single port, auto-incr addr */
 		/* NOTE: Use the debugless read so we don't flood kernel log
 		 * if IWL_DL_IO is set */
-		iwl_write_direct32(trans(priv), HBUS_TARG_MEM_RADDR,
+		iwl_write_direct32(priv->trans, HBUS_TARG_MEM_RADDR,
 			i + fw_desc->offset);
-		val = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image))
 			return -EIO;
 	}
@@ -303,14 +302,14 @@ static void iwl_print_mismatch_sec(struct iwl_priv *priv,
 
 	IWL_DEBUG_FW(priv, "ucode inst image size is %u\n", len);
 
-	iwl_write_direct32(trans(priv), HBUS_TARG_MEM_RADDR,
+	iwl_write_direct32(priv->trans, HBUS_TARG_MEM_RADDR,
 				fw_desc->offset);
 
 	for (offs = 0;
 	     offs < len && errors < 20;
 	     offs += sizeof(u32), image++) {
 		/* read data comes through single port, auto-incr addr */
-		val = iwl_read32(trans(priv), HBUS_TARG_MEM_RDAT);
+		val = iwl_read32(priv->trans, HBUS_TARG_MEM_RDAT);
 		if (val != le32_to_cpu(*image)) {
 			IWL_ERR(priv, "uCode INST section at "
 				"offset 0x%x, is 0x%x, s/b 0x%x\n",
@@ -402,7 +401,7 @@ int iwl_load_ucode_wait_alive(struct iwl_priv *priv,
 				   alive_cmd, ARRAY_SIZE(alive_cmd),
 				   iwl_alive_fn, &alive_data);
 
-	ret = iwl_trans_start_fw(trans(priv), fw);
+	ret = iwl_trans_start_fw(priv->trans, fw);
 	if (ret) {
 		priv->cur_ucode = old_type;
 		iwl_remove_notification(&priv->notif_wait, &alive_wait);
@@ -526,7 +525,7 @@ int iwl_run_init_ucode(struct iwl_priv *priv)
 	iwl_remove_notification(&priv->notif_wait, &calib_wait);
  out:
 	/* Whatever happened, stop the device */
-	iwl_trans_stop_device(trans(priv));
+	iwl_trans_stop_device(priv->trans);
 	priv->ucode_loaded = false;
 
 	return ret;

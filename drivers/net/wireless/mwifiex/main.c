@@ -58,8 +58,9 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 	memmove(&adapter->if_ops, if_ops, sizeof(struct mwifiex_if_ops));
 
 	/* card specific initialization has been deferred until now .. */
-	if (adapter->if_ops.init_if(adapter))
-		goto error;
+	if (adapter->if_ops.init_if)
+		if (adapter->if_ops.init_if(adapter))
+			goto error;
 
 	adapter->priv_num = 0;
 
@@ -140,6 +141,7 @@ int mwifiex_main_process(struct mwifiex_adapter *adapter)
 {
 	int ret = 0;
 	unsigned long flags;
+	struct sk_buff *skb;
 
 	spin_lock_irqsave(&adapter->main_proc_lock, flags);
 
@@ -161,7 +163,8 @@ process_start:
 		if (adapter->int_status) {
 			if (adapter->hs_activated)
 				mwifiex_process_hs_config(adapter);
-			adapter->if_ops.process_int_status(adapter);
+			if (adapter->if_ops.process_int_status)
+				adapter->if_ops.process_int_status(adapter);
 		}
 
 		/* Need to wake up the card ? */
@@ -174,6 +177,7 @@ process_start:
 			adapter->if_ops.wakeup(adapter);
 			continue;
 		}
+
 		if (IS_CARD_RX_RCVD(adapter)) {
 			adapter->pm_wakeup_fw_try = false;
 			if (adapter->ps_state == PS_STATE_SLEEP)
@@ -193,6 +197,11 @@ process_start:
 					break;
 			}
 		}
+
+		/* Check Rx data for USB */
+		if (adapter->iface_type == MWIFIEX_USB)
+			while ((skb = skb_dequeue(&adapter->usb_rx_data_q)))
+				mwifiex_handle_rx_packet(adapter, skb);
 
 		/* Check for Cmd Resp */
 		if (adapter->cmd_resp_received) {
@@ -317,7 +326,10 @@ static void mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	fw.fw_buf = (u8 *) adapter->firmware->data;
 	fw.fw_len = adapter->firmware->size;
 
-	ret = mwifiex_dnld_fw(adapter, &fw);
+	if (adapter->if_ops.dnld_fw)
+		ret = adapter->if_ops.dnld_fw(adapter, &fw);
+	else
+		ret = mwifiex_dnld_fw(adapter, &fw);
 	if (ret == -1)
 		goto done;
 
@@ -731,7 +743,8 @@ mwifiex_add_card(void *card, struct semaphore *sem,
 
 err_init_fw:
 	pr_debug("info: %s: unregister device\n", __func__);
-	adapter->if_ops.unregister_dev(adapter);
+	if (adapter->if_ops.unregister_dev)
+		adapter->if_ops.unregister_dev(adapter);
 err_registerdev:
 	adapter->surprise_removed = true;
 	mwifiex_terminate_workqueue(adapter);
@@ -836,7 +849,8 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 
 	/* Unregister device */
 	dev_dbg(adapter->dev, "info: unregister device\n");
-	adapter->if_ops.unregister_dev(adapter);
+	if (adapter->if_ops.unregister_dev)
+		adapter->if_ops.unregister_dev(adapter);
 	/* Free adapter structure */
 	dev_dbg(adapter->dev, "info: free adapter\n");
 	mwifiex_free_adapter(adapter);

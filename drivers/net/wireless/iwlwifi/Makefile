@@ -5,7 +5,7 @@ iwlwifi-objs		+= iwl-ucode.o iwl-agn-tx.o iwl-debug.o
 iwlwifi-objs		+= iwl-agn-lib.o iwl-agn-calib.o iwl-io.o
 iwlwifi-objs		+= iwl-agn-tt.o iwl-agn-sta.o iwl-agn-rx.o
 
-iwlwifi-objs		+= iwl-core.o iwl-eeprom.o iwl-power.o
+iwlwifi-objs		+= iwl-eeprom.o iwl-power.o
 iwlwifi-objs		+= iwl-scan.o iwl-led.o
 iwlwifi-objs		+= iwl-agn-rxon.o iwl-agn-devices.o
 iwlwifi-objs		+= iwl-5000.o

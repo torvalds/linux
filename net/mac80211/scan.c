@@ -401,6 +401,30 @@ void ieee80211_run_deferred_scan(struct ieee80211_local *local)
 				     round_jiffies_relative(0));
 }
 
+static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
+					    unsigned long *next_delay)
+{
+	int i;
+	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
+	enum ieee80211_band band = local->hw.conf.channel->band;
+
+	for (i = 0; i < local->scan_req->n_ssids; i++)
+		ieee80211_send_probe_req(
+			sdata, NULL,
+			local->scan_req->ssids[i].ssid,
+			local->scan_req->ssids[i].ssid_len,
+			local->scan_req->ie, local->scan_req->ie_len,
+			local->scan_req->rates[band], false,
+			local->scan_req->no_cck);
+
+	/*
+	 * After sending probe requests, wait for probe responses
+	 * on the channel.
+	 */
+	*next_delay = IEEE80211_CHANNEL_TIME;
+	local->next_scan_state = SCAN_DECISION;
+}
+
 static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_scan_request *req)
 {
@@ -451,10 +475,47 @@ static int __ieee80211_start_scan(struct ieee80211_sub_if_data *sdata,
 	local->scan_req = req;
 	local->scan_sdata = sdata;
 
-	if (local->ops->hw_scan)
+	if (local->ops->hw_scan) {
 		__set_bit(SCAN_HW_SCANNING, &local->scanning);
-	else
+	} else if ((req->n_channels == 1) &&
+		   (req->channels[0]->center_freq ==
+		    local->hw.conf.channel->center_freq)) {
+
+		/* If we are scanning only on the current channel, then
+		 * we do not need to stop normal activities
+		 */
+		unsigned long next_delay;
+
+		__set_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning);
+
+		ieee80211_recalc_idle(local);
+
+		/* Notify driver scan is starting, keep order of operations
+		 * same as normal software scan, in case that matters. */
+		drv_sw_scan_start(local);
+
+		ieee80211_configure_filter(local); /* accept probe-responses */
+
+		/* We need to ensure power level is at max for scanning. */
+		ieee80211_hw_config(local, 0);
+
+		if ((req->channels[0]->flags &
+		     IEEE80211_CHAN_PASSIVE_SCAN) ||
+		    !local->scan_req->n_ssids) {
+			next_delay = IEEE80211_PASSIVE_CHANNEL_TIME;
+		} else {
+			ieee80211_scan_state_send_probe(local, &next_delay);
+			next_delay = IEEE80211_CHANNEL_TIME;
+		}
+
+		/* Now, just wait a bit and we are all done! */
+		ieee80211_queue_delayed_work(&local->hw, &local->scan_work,
+					     next_delay);
+		return 0;
+	} else {
+		/* Do normal software scan */
 		__set_bit(SCAN_SW_SCANNING, &local->scanning);
+	}
 
 	ieee80211_recalc_idle(local);
 
@@ -611,30 +672,6 @@ static void ieee80211_scan_state_set_channel(struct ieee80211_local *local,
 	local->next_scan_state = SCAN_SEND_PROBE;
 }
 
-static void ieee80211_scan_state_send_probe(struct ieee80211_local *local,
-					    unsigned long *next_delay)
-{
-	int i;
-	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
-	enum ieee80211_band band = local->hw.conf.channel->band;
-
-	for (i = 0; i < local->scan_req->n_ssids; i++)
-		ieee80211_send_probe_req(
-			sdata, NULL,
-			local->scan_req->ssids[i].ssid,
-			local->scan_req->ssids[i].ssid_len,
-			local->scan_req->ie, local->scan_req->ie_len,
-			local->scan_req->rates[band], false,
-			local->scan_req->no_cck);
-
-	/*
-	 * After sending probe requests, wait for probe responses
-	 * on the channel.
-	 */
-	*next_delay = IEEE80211_CHANNEL_TIME;
-	local->next_scan_state = SCAN_DECISION;
-}
-
 static void ieee80211_scan_state_suspend(struct ieee80211_local *local,
 					 unsigned long *next_delay)
 {
@@ -684,6 +721,12 @@ void ieee80211_scan_work(struct work_struct *work)
 	mutex_lock(&local->mtx);
 
 	sdata = local->scan_sdata;
+
+	/* When scanning on-channel, the first-callback means completed. */
+	if (test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning)) {
+		aborted = test_and_clear_bit(SCAN_ABORTED, &local->scanning);
+		goto out_complete;
+	}
 
 	if (test_and_clear_bit(SCAN_COMPLETED, &local->scanning)) {
 		aborted = test_and_clear_bit(SCAN_ABORTED, &local->scanning);

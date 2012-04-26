@@ -191,6 +191,22 @@ bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout)
 }
 EXPORT_SYMBOL(ath9k_hw_wait);
 
+void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
+			  int hw_delay)
+{
+	if (IS_CHAN_B(chan))
+		hw_delay = (4 * hw_delay) / 22;
+	else
+		hw_delay /= 10;
+
+	if (IS_CHAN_HALF_RATE(chan))
+		hw_delay *= 2;
+	else if (IS_CHAN_QUARTER_RATE(chan))
+		hw_delay *= 4;
+
+	udelay(hw_delay + BASE_ACTIVATE_DELAY);
+}
+
 void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt)
 {
@@ -1020,7 +1036,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ieee80211_conf *conf = &common->hw->conf;
 	const struct ath9k_channel *chan = ah->curchan;
-	int acktimeout, ctstimeout;
+	int acktimeout, ctstimeout, ack_offset = 0;
 	int slottime;
 	int sifstime;
 	int rx_lat = 0, tx_lat = 0, eifs = 0;
@@ -1041,6 +1057,11 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		rx_lat = 37;
 	tx_lat = 54;
 
+	if (IS_CHAN_5GHZ(chan))
+		sifstime = 16;
+	else
+		sifstime = 10;
+
 	if (IS_CHAN_HALF_RATE(chan)) {
 		eifs = 175;
 		rx_lat *= 2;
@@ -1048,8 +1069,9 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		    tx_lat += 11;
 
+		sifstime *= 2;
+		ack_offset = 16;
 		slottime = 13;
-		sifstime = 32;
 	} else if (IS_CHAN_QUARTER_RATE(chan)) {
 		eifs = 340;
 		rx_lat = (rx_lat * 4) - 1;
@@ -1057,8 +1079,9 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		if (IS_CHAN_A_FAST_CLOCK(ah, chan))
 		    tx_lat += 22;
 
+		sifstime *= 4;
+		ack_offset = 32;
 		slottime = 21;
-		sifstime = 64;
 	} else {
 		if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
 			eifs = AR_D_GBL_IFS_EIFS_ASYNC_FIFO;
@@ -1072,14 +1095,10 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		tx_lat = MS(reg, AR_USEC_TX_LAT);
 
 		slottime = ah->slottime;
-		if (IS_CHAN_5GHZ(chan))
-			sifstime = 16;
-		else
-			sifstime = 10;
 	}
 
 	/* As defined by IEEE 802.11-2007 17.3.8.6 */
-	acktimeout = slottime + sifstime + 3 * ah->coverage_class;
+	acktimeout = slottime + sifstime + 3 * ah->coverage_class + ack_offset;
 	ctstimeout = acktimeout;
 
 	/*
@@ -1089,7 +1108,8 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	 * BA frames in some implementations, but it has been found to fix ACK
 	 * timeout issues in other cases as well.
 	 */
-	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ) {
+	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ &&
+	    !IS_CHAN_HALF_RATE(chan) && !IS_CHAN_QUARTER_RATE(chan)) {
 		acktimeout += 64 - sifstime - ah->slottime;
 		ctstimeout += 48 - sifstime - ah->slottime;
 	}
@@ -1665,6 +1685,10 @@ static int ath9k_hw_do_fastcc(struct ath_hw *ah, struct ath9k_channel *chan)
 		goto fail;
 
 	if (chan->channel == ah->curchan->channel)
+		goto fail;
+
+	if ((ah->curchan->channelFlags | chan->channelFlags) &
+	    (CHANNEL_HALF | CHANNEL_QUARTER))
 		goto fail;
 
 	if ((chan->channelFlags & CHANNEL_ALL) !=

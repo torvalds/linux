@@ -64,6 +64,7 @@
 #define __iwl_agn_h__
 
 #include "iwl-dev.h"
+#include "iwl-config.h"
 
 /* The first 11 queues (0-10) are used otherwise */
 #define IWLAGN_FIRST_AMPDU_QUEUE	11
@@ -81,6 +82,7 @@ extern struct iwl_lib_ops iwl6000_lib;
 extern struct iwl_lib_ops iwl6030_lib;
 
 
+#define TIME_UNIT		1024
 
 /*****************************************************
 * DRIVER STATUS FUNCTIONS
@@ -154,7 +156,6 @@ void iwl_set_flags_for_band(struct iwl_priv *priv,
 			    struct iwl_rxon_context *ctx,
 			    enum ieee80211_band band,
 			    struct ieee80211_vif *vif);
-void iwl_set_rate(struct iwl_priv *priv);
 
 /* uCode */
 int iwl_send_bt_env(struct iwl_priv *priv, u8 action, u8 type);
@@ -279,8 +280,8 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena);
 
 static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 {
-	return cfg(priv)->bt_params &&
-	       cfg(priv)->bt_params->advanced_bt_coexist;
+	return priv->cfg->bt_params &&
+	       priv->cfg->bt_params->advanced_bt_coexist;
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
@@ -472,8 +473,21 @@ static inline void iwl_dvm_set_pmi(struct iwl_priv *priv, bool state)
 		set_bit(STATUS_POWER_PMI, &priv->status);
 	else
 		clear_bit(STATUS_POWER_PMI, &priv->status);
-	iwl_trans_set_pmi(trans(priv), state);
+	iwl_trans_set_pmi(priv->trans, state);
 }
+
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+int iwl_dbgfs_register(struct iwl_priv *priv, const char *name);
+void iwl_dbgfs_unregister(struct iwl_priv *priv);
+#else
+static inline int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
+{
+	return 0;
+}
+static inline void iwl_dbgfs_unregister(struct iwl_priv *priv)
+{
+}
+#endif /* CONFIG_IWLWIFI_DEBUGFS */
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define IWL_DEBUG_QUIET_RFKILL(m, fmt, args...)	\
@@ -481,7 +495,7 @@ do {									\
 	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
-		__iwl_err(trans(m)->dev, true,				\
+		__iwl_err((m)->dev, true,				\
 			  !iwl_have_debug_level(IWL_DL_RADIO),		\
 			  fmt, ##args);					\
 } while (0)
@@ -491,7 +505,7 @@ do {									\
 	if (!iwl_is_rfkill((m)))					\
 		IWL_ERR(m, fmt, ##args);				\
 	else								\
-		__iwl_err(trans(m)->dev, true, true, fmt, ##args);	\
+		__iwl_err((m)->dev, true, true, fmt, ##args);	\
 } while (0)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 

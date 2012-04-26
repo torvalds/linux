@@ -5,6 +5,7 @@
 #include <linux/firmware.h>
 #include <linux/firmware.h>
 #include <linux/module.h>
+#include <linux/sched.h>
 
 #include "dev.h"
 #include "decl.h"
