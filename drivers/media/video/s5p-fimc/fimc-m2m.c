@@ -676,8 +676,8 @@ static int fimc_m2m_open(struct file *file)
 	/* Setup the device context for memory-to-memory mode */
 	ctx->state = FIMC_CTX_M2M;
 	ctx->flags = 0;
-	ctx->in_path = FIMC_DMA;
-	ctx->out_path = FIMC_DMA;
+	ctx->in_path = FIMC_IO_DMA;
+	ctx->out_path = FIMC_IO_DMA;
 
 	ctx->m2m_ctx = v4l2_m2m_ctx_init(fimc->m2m.m2m_dev, ctx, queue_init);
 	if (IS_ERR(ctx->m2m_ctx)) {

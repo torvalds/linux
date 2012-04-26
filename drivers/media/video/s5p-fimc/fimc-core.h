@@ -76,26 +76,31 @@ enum fimc_dev_flags {
 #define fimc_capture_busy(dev) test_bit(ST_CAPT_BUSY, &(dev)->state)
 
 enum fimc_datapath {
-	FIMC_CAMERA,
-	FIMC_DMA,
-	FIMC_LCDFIFO,
-	FIMC_WRITEBACK
+	FIMC_IO_NONE,
+	FIMC_IO_CAMERA,
+	FIMC_IO_DMA,
+	FIMC_IO_LCDFIFO,
+	FIMC_IO_WRITEBACK,
+	FIMC_IO_ISP,
 };
 
 enum fimc_color_fmt {
-	S5P_FIMC_RGB444 = 0x10,
-	S5P_FIMC_RGB555,
-	S5P_FIMC_RGB565,
-	S5P_FIMC_RGB666,
-	S5P_FIMC_RGB888,
-	S5P_FIMC_RGB30_LOCAL,
-	S5P_FIMC_YCBCR420 = 0x20,
-	S5P_FIMC_YCBYCR422,
-	S5P_FIMC_YCRYCB422,
-	S5P_FIMC_CBYCRY422,
-	S5P_FIMC_CRYCBY422,
-	S5P_FIMC_YCBCR444_LOCAL,
-	S5P_FIMC_JPEG = 0x40,
+	FIMC_FMT_RGB444 = 0x10,
+	FIMC_FMT_RGB555,
+	FIMC_FMT_RGB565,
+	FIMC_FMT_RGB666,
+	FIMC_FMT_RGB888,
+	FIMC_FMT_RGB30_LOCAL,
+	FIMC_FMT_YCBCR420 = 0x20,
+	FIMC_FMT_YCBYCR422,
+	FIMC_FMT_YCRYCB422,
+	FIMC_FMT_CBYCRY422,
+	FIMC_FMT_CRYCBY422,
+	FIMC_FMT_YCBCR444_LOCAL,
+	FIMC_FMT_JPEG = 0x40,
+	FIMC_FMT_RAW8 = 0x80,
+	FIMC_FMT_RAW10,
+	FIMC_FMT_RAW12,
 };
 
 #define fimc_fmt_is_rgb(x) (!!((x) & 0x10))
@@ -563,9 +568,9 @@ static inline int tiled_fmt(struct fimc_fmt *fmt)
 static inline int fimc_get_alpha_mask(struct fimc_fmt *fmt)
 {
 	switch (fmt->color) {
-	case S5P_FIMC_RGB444:	return 0x0f;
-	case S5P_FIMC_RGB555:	return 0x01;
-	case S5P_FIMC_RGB888:	return 0xff;
+	case FIMC_FMT_RGB444:	return 0x0f;
+	case FIMC_FMT_RGB555:	return 0x01;
+	case FIMC_FMT_RGB888:	return 0xff;
 	default:		return 0;
 	};
 }

@@ -40,7 +40,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "RGB565",
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_RGB565,
+		.color		= FIMC_FMT_RGB565,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M,
@@ -48,7 +48,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "BGR666",
 		.fourcc		= V4L2_PIX_FMT_BGR666,
 		.depth		= { 32 },
-		.color		= S5P_FIMC_RGB666,
+		.color		= FIMC_FMT_RGB666,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M,
@@ -56,7 +56,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "ARGB8888, 32 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
 		.depth		= { 32 },
-		.color		= S5P_FIMC_RGB888,
+		.color		= FIMC_FMT_RGB888,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M | FMT_HAS_ALPHA,
@@ -64,7 +64,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "ARGB1555",
 		.fourcc		= V4L2_PIX_FMT_RGB555,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_RGB555,
+		.color		= FIMC_FMT_RGB555,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
@@ -72,7 +72,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "ARGB4444",
 		.fourcc		= V4L2_PIX_FMT_RGB444,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_RGB444,
+		.color		= FIMC_FMT_RGB444,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.flags		= FMT_FLAGS_M2M_OUT | FMT_HAS_ALPHA,
@@ -80,7 +80,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 packed, YCbYCr",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_YCBYCR422,
+		.color		= FIMC_FMT_YCBYCR422,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_YUYV8_2X8,
@@ -89,7 +89,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 packed, CbYCrY",
 		.fourcc		= V4L2_PIX_FMT_UYVY,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_CBYCRY422,
+		.color		= FIMC_FMT_CBYCRY422,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_UYVY8_2X8,
@@ -98,7 +98,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 packed, CrYCbY",
 		.fourcc		= V4L2_PIX_FMT_VYUY,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_CRYCBY422,
+		.color		= FIMC_FMT_CRYCBY422,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_VYUY8_2X8,
@@ -107,7 +107,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 packed, YCrYCb",
 		.fourcc		= V4L2_PIX_FMT_YVYU,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_YCRYCB422,
+		.color		= FIMC_FMT_YCRYCB422,
 		.memplanes	= 1,
 		.colplanes	= 1,
 		.mbus_code	= V4L2_MBUS_FMT_YVYU8_2X8,
@@ -116,7 +116,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
 		.depth		= { 12 },
-		.color		= S5P_FIMC_YCBYCR422,
+		.color		= FIMC_FMT_YCBYCR422,
 		.memplanes	= 1,
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
@@ -124,7 +124,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV16,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_YCBYCR422,
+		.color		= FIMC_FMT_YCBYCR422,
 		.memplanes	= 1,
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
@@ -132,7 +132,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:2 planar, Y/CrCb",
 		.fourcc		= V4L2_PIX_FMT_NV61,
 		.depth		= { 16 },
-		.color		= S5P_FIMC_YCRYCB422,
+		.color		= FIMC_FMT_YCRYCB422,
 		.memplanes	= 1,
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
@@ -140,7 +140,7 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:0 planar, YCbCr",
 		.fourcc		= V4L2_PIX_FMT_YUV420,
 		.depth		= { 12 },
-		.color		= S5P_FIMC_YCBCR420,
+		.color		= FIMC_FMT_YCBCR420,
 		.memplanes	= 1,
 		.colplanes	= 3,
 		.flags		= FMT_FLAGS_M2M,
@@ -148,14 +148,14 @@ static struct fimc_fmt fimc_formats[] = {
 		.name		= "YUV 4:2:0 planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12,
 		.depth		= { 12 },
-		.color		= S5P_FIMC_YCBCR420,
+		.color		= FIMC_FMT_YCBCR420,
 		.memplanes	= 1,
 		.colplanes	= 2,
 		.flags		= FMT_FLAGS_M2M,
 	}, {
 		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr",
 		.fourcc		= V4L2_PIX_FMT_NV12M,
-		.color		= S5P_FIMC_YCBCR420,
+		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
 		.memplanes	= 2,
 		.colplanes	= 2,
@@ -163,7 +163,7 @@ static struct fimc_fmt fimc_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 non-contiguous 3-planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420M,
-		.color		= S5P_FIMC_YCBCR420,
+		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 2, 2 },
 		.memplanes	= 3,
 		.colplanes	= 3,
@@ -171,7 +171,7 @@ static struct fimc_fmt fimc_formats[] = {
 	}, {
 		.name		= "YUV 4:2:0 non-contiguous 2-planar, Y/CbCr, tiled",
 		.fourcc		= V4L2_PIX_FMT_NV12MT,
-		.color		= S5P_FIMC_YCBCR420,
+		.color		= FIMC_FMT_YCBCR420,
 		.depth		= { 8, 4 },
 		.memplanes	= 2,
 		.colplanes	= 2,
@@ -179,7 +179,7 @@ static struct fimc_fmt fimc_formats[] = {
 	}, {
 		.name		= "JPEG encoded data",
 		.fourcc		= V4L2_PIX_FMT_JPEG,
-		.color		= S5P_FIMC_JPEG,
+		.color		= FIMC_FMT_JPEG,
 		.depth		= { 8 },
 		.memplanes	= 1,
 		.colplanes	= 1,
@@ -361,7 +361,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 		case 3:
 			paddr->cb = (u32)(paddr->y + pix_size);
 			/* decompose Y into Y/Cb/Cr */
-			if (S5P_FIMC_YCBCR420 == frame->fmt->color)
+			if (FIMC_FMT_YCBCR420 == frame->fmt->color)
 				paddr->cr = (u32)(paddr->cb
 						+ (pix_size >> 2));
 			else /* 422 */
@@ -394,16 +394,16 @@ void fimc_set_yuv_order(struct fimc_ctx *ctx)
 
 	/* Set order for 1 plane input formats. */
 	switch (ctx->s_frame.fmt->color) {
-	case S5P_FIMC_YCRYCB422:
+	case FIMC_FMT_YCRYCB422:
 		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_CBYCRY;
 		break;
-	case S5P_FIMC_CBYCRY422:
+	case FIMC_FMT_CBYCRY422:
 		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_YCRYCB;
 		break;
-	case S5P_FIMC_CRYCBY422:
+	case FIMC_FMT_CRYCBY422:
 		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_YCBYCR;
 		break;
-	case S5P_FIMC_YCBYCR422:
+	case FIMC_FMT_YCBYCR422:
 	default:
 		ctx->in_order_1p = FIMC_REG_MSCTRL_ORDER422_CRYCBY;
 		break;
@@ -411,16 +411,16 @@ void fimc_set_yuv_order(struct fimc_ctx *ctx)
 	dbg("ctx->in_order_1p= %d", ctx->in_order_1p);
 
 	switch (ctx->d_frame.fmt->color) {
-	case S5P_FIMC_YCRYCB422:
+	case FIMC_FMT_YCRYCB422:
 		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_CBYCRY;
 		break;
-	case S5P_FIMC_CBYCRY422:
+	case FIMC_FMT_CBYCRY422:
 		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_YCRYCB;
 		break;
-	case S5P_FIMC_CRYCBY422:
+	case FIMC_FMT_CRYCBY422:
 		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_YCBYCR;
 		break;
-	case S5P_FIMC_YCBYCR422:
+	case FIMC_FMT_YCBYCR422:
 	default:
 		ctx->out_order_1p = FIMC_REG_CIOCTRL_ORDER422_CRYCBY;
 		break;
@@ -453,7 +453,7 @@ void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 			f->dma_offset.cb_h >>= 1;
 			f->dma_offset.cr_h >>= 1;
 		}
-		if (f->fmt->color == S5P_FIMC_YCBCR420) {
+		if (f->fmt->color == FIMC_FMT_YCBCR420) {
 			f->dma_offset.cb_v >>= 1;
 			f->dma_offset.cr_v >>= 1;
 		}

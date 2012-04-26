@@ -1524,8 +1524,8 @@ static int fimc_register_capture_device(struct fimc_dev *fimc,
 		return -ENOMEM;
 
 	ctx->fimc_dev	 = fimc;
-	ctx->in_path	 = FIMC_CAMERA;
-	ctx->out_path	 = FIMC_DMA;
+	ctx->in_path	 = FIMC_IO_CAMERA;
+	ctx->out_path	 = FIMC_IO_DMA;
 	ctx->state	 = FIMC_CTX_CAP;
 	ctx->s_frame.fmt = fimc_find_format(NULL, NULL, FMT_FLAGS_CAM, 0);
 	ctx->d_frame.fmt = ctx->s_frame.fmt;

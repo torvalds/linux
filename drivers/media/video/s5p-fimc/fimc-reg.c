@@ -85,13 +85,13 @@ void fimc_hw_set_rotation(struct fimc_ctx *ctx)
 	 * in direct fifo output mode.
 	 */
 	if (ctx->rotation == 90 || ctx->rotation == 270) {
-		if (ctx->out_path == FIMC_LCDFIFO)
+		if (ctx->out_path == FIMC_IO_LCDFIFO)
 			cfg |= FIMC_REG_CITRGFMT_INROT90;
 		else
 			cfg |= FIMC_REG_CITRGFMT_OUTROT90;
 	}
 
-	if (ctx->out_path == FIMC_DMA) {
+	if (ctx->out_path == FIMC_IO_DMA) {
 		cfg |= fimc_hw_get_target_flip(ctx);
 		writel(cfg, dev->regs + FIMC_REG_CITRGFMT);
 	} else {
@@ -117,13 +117,13 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 		 FIMC_REG_CITRGFMT_VSIZE_MASK);
 
 	switch (frame->fmt->color) {
-	case S5P_FIMC_RGB444...S5P_FIMC_RGB888:
+	case FIMC_FMT_RGB444...FIMC_FMT_RGB888:
 		cfg |= FIMC_REG_CITRGFMT_RGB;
 		break;
-	case S5P_FIMC_YCBCR420:
+	case FIMC_FMT_YCBCR420:
 		cfg |= FIMC_REG_CITRGFMT_YCBCR420;
 		break;
-	case S5P_FIMC_YCBYCR422...S5P_FIMC_CRYCBY422:
+	case FIMC_FMT_YCBYCR422...FIMC_FMT_CRYCBY422:
 		if (frame->fmt->colplanes == 1)
 			cfg |= FIMC_REG_CITRGFMT_YCBCR422_1P;
 		else
@@ -200,11 +200,11 @@ void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
 	else if (fmt->colplanes == 3)
 		cfg |= FIMC_REG_CIOCTRL_YCBCR_3PLANE;
 
-	if (fmt->color == S5P_FIMC_RGB565)
+	if (fmt->color == FIMC_FMT_RGB565)
 		cfg |= FIMC_REG_CIOCTRL_RGB565;
-	else if (fmt->color == S5P_FIMC_RGB555)
+	else if (fmt->color == FIMC_FMT_RGB555)
 		cfg |= FIMC_REG_CIOCTRL_ARGB1555;
-	else if (fmt->color == S5P_FIMC_RGB444)
+	else if (fmt->color == FIMC_FMT_RGB444)
 		cfg |= FIMC_REG_CIOCTRL_ARGB4444;
 
 	writel(cfg, dev->regs + FIMC_REG_CIOCTRL);
@@ -277,28 +277,28 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 	if (sc->copy_mode)
 		cfg |= FIMC_REG_CISCCTRL_ONE2ONE;
 
-	if (ctx->in_path == FIMC_DMA) {
+	if (ctx->in_path == FIMC_IO_DMA) {
 		switch (src_frame->fmt->color) {
-		case S5P_FIMC_RGB565:
+		case FIMC_FMT_RGB565:
 			cfg |= FIMC_REG_CISCCTRL_INRGB_FMT_RGB565;
 			break;
-		case S5P_FIMC_RGB666:
+		case FIMC_FMT_RGB666:
 			cfg |= FIMC_REG_CISCCTRL_INRGB_FMT_RGB666;
 			break;
-		case S5P_FIMC_RGB888:
+		case FIMC_FMT_RGB888:
 			cfg |= FIMC_REG_CISCCTRL_INRGB_FMT_RGB888;
 			break;
 		}
 	}
 
-	if (ctx->out_path == FIMC_DMA) {
+	if (ctx->out_path == FIMC_IO_DMA) {
 		u32 color = dst_frame->fmt->color;
 
-		if (color >= S5P_FIMC_RGB444 && color <= S5P_FIMC_RGB565)
+		if (color >= FIMC_FMT_RGB444 && color <= FIMC_FMT_RGB565)
 			cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB565;
-		else if (color == S5P_FIMC_RGB666)
+		else if (color == FIMC_FMT_RGB666)
 			cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB666;
-		else if (color == S5P_FIMC_RGB888)
+		else if (color == FIMC_FMT_RGB888)
 			cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB888;
 	} else {
 		cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB888;
@@ -351,7 +351,7 @@ void fimc_hw_en_capture(struct fimc_ctx *ctx)
 
 	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
 
-	if (ctx->out_path == FIMC_DMA) {
+	if (ctx->out_path == FIMC_IO_DMA) {
 		/* one shot mode */
 		cfg |= FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
 			FIMC_REG_CIIMGCPT_IMGCPTEN;
@@ -408,7 +408,7 @@ static void fimc_hw_set_in_dma_size(struct fimc_ctx *ctx)
 	u32 cfg_o = 0;
 	u32 cfg_r = 0;
 
-	if (FIMC_LCDFIFO == ctx->out_path)
+	if (FIMC_IO_LCDFIFO == ctx->out_path)
 		cfg_r |= FIMC_REG_CIREAL_ISIZE_AUTOLOAD_EN;
 
 	cfg_o |= (frame->f_height << 16) | frame->f_width;
@@ -439,7 +439,7 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 	fimc_hw_set_in_dma_size(ctx);
 
 	/* Use DMA autoload only in FIFO mode. */
-	fimc_hw_en_autoload(dev, ctx->out_path == FIMC_LCDFIFO);
+	fimc_hw_en_autoload(dev, ctx->out_path == FIMC_IO_LCDFIFO);
 
 	/* Set the input DMA to process single frame only. */
 	cfg = readl(dev->regs + FIMC_REG_MSCTRL);
@@ -454,10 +454,10 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 		| FIMC_REG_MSCTRL_FIFO_CTRL_FULL);
 
 	switch (frame->fmt->color) {
-	case S5P_FIMC_RGB565...S5P_FIMC_RGB888:
+	case FIMC_FMT_RGB565...FIMC_FMT_RGB888:
 		cfg |= FIMC_REG_MSCTRL_INFORMAT_RGB;
 		break;
-	case S5P_FIMC_YCBCR420:
+	case FIMC_FMT_YCBCR420:
 		cfg |= FIMC_REG_MSCTRL_INFORMAT_YCBCR420;
 
 		if (frame->fmt->colplanes == 2)
@@ -466,7 +466,7 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 			cfg |= FIMC_REG_MSCTRL_C_INT_IN_3PLANE;
 
 		break;
-	case S5P_FIMC_YCBYCR422...S5P_FIMC_CRYCBY422:
+	case FIMC_FMT_YCBYCR422...FIMC_FMT_CRYCBY422:
 		if (frame->fmt->colplanes == 1) {
 			cfg |= ctx->in_order_1p
 				| FIMC_REG_MSCTRL_INFORMAT_YCBCR422_1P;
@@ -507,7 +507,7 @@ void fimc_hw_set_input_path(struct fimc_ctx *ctx)
 	u32 cfg = readl(dev->regs + FIMC_REG_MSCTRL);
 	cfg &= ~FIMC_REG_MSCTRL_INPUT_MASK;
 
-	if (ctx->in_path == FIMC_DMA)
+	if (ctx->in_path == FIMC_IO_DMA)
 		cfg |= FIMC_REG_MSCTRL_INPUT_MEMORY;
 	else
 		cfg |= FIMC_REG_MSCTRL_INPUT_EXTCAM;
@@ -521,7 +521,7 @@ void fimc_hw_set_output_path(struct fimc_ctx *ctx)
 
 	u32 cfg = readl(dev->regs + FIMC_REG_CISCCTRL);
 	cfg &= ~FIMC_REG_CISCCTRL_LCDPATHEN_FIFO;
-	if (ctx->out_path == FIMC_LCDFIFO)
+	if (ctx->out_path == FIMC_IO_LCDFIFO)
 		cfg |= FIMC_REG_CISCCTRL_LCDPATHEN_FIFO;
 	writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
 }
