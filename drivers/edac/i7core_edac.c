@@ -221,7 +221,9 @@ struct i7core_inject {
 };
 
 struct i7core_channel {
-	u32		ranks;
+	bool		is_3dimms_present;
+	bool		is_single_4rank;
+	bool		has_4rank;
 	u32		dimms;
 };
 
@@ -555,21 +557,20 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pci_read_config_dword(pvt->pci_ch[i][0],
 				MC_CHANNEL_DIMM_INIT_PARAMS, &data);
 
-		pvt->channel[i].ranks = (data & QUAD_RANK_PRESENT) ?
-						4 : 2;
+
+		if (data & THREE_DIMMS_PRESENT)
+			pvt->channel[i].is_3dimms_present = true;
+
+		if (data & SINGLE_QUAD_RANK_PRESENT)
+			pvt->channel[i].is_single_4rank = true;
+
+		if (data & QUAD_RANK_PRESENT)
+			pvt->channel[i].has_4rank = true;
 
 		if (data & REGISTERED_DIMM)
 			mtype = MEM_RDDR3;
 		else
 			mtype = MEM_DDR3;
-#if 0
-		if (data & THREE_DIMMS_PRESENT)
-			pvt->channel[i].dimms = 3;
-		else if (data & SINGLE_QUAD_RANK_PRESENT)
-			pvt->channel[i].dimms = 1;
-		else
-			pvt->channel[i].dimms = 2;
-#endif
 
 		/* Devices 4-6 function 1 */
 		pci_read_config_dword(pvt->pci_ch[i][1],
@@ -580,11 +581,13 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 				MC_DOD_CH_DIMM2, &dimm_dod[2]);
 
 		debugf0("Ch%d phy rd%d, wr%d (0x%08x): "
-			"%d ranks, %cDIMMs\n",
+			"%s%s%s%cDIMMs\n",
 			i,
 			RDLCH(pvt->info.ch_map, i), WRLCH(pvt->info.ch_map, i),
 			data,
-			pvt->channel[i].ranks,
+			pvt->channel[i].is_3dimms_present ? "3DIMMS " : "",
+			pvt->channel[i].is_3dimms_present ? "SINGLE_4R " : "",
+			pvt->channel[i].has_4rank ? "HAS_4R " : "",
 			(data & REGISTERED_DIMM) ? 'R' : 'U');
 
 		for (j = 0; j < 3; j++) {
