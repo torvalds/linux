@@ -539,7 +539,10 @@ static int a2150_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/*
+	 * step 2: make sure trigger sources are unique and mutually
+	 * compatible
+	 */
 
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_EXT)
 		err++;
@@ -771,7 +774,10 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	/*  start acquisition for soft trigger */
 	outw(0, dev->iobase + FIFO_START_REG);
 
-	/* there is a 35.6 sample delay for data to get through the antialias filter */
+	/*
+	 * there is a 35.6 sample delay for data to get through the
+	 * antialias filter
+	 */
 	for (n = 0; n < filter_delay; n++) {
 		for (i = 0; i < timeout; i++) {
 			if (inw(dev->iobase + STATUS_REG) & FNE_BIT)
@@ -812,8 +818,10 @@ static int a2150_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	return n;
 }
 
-/* sets bits in devpriv->clock_bits to nearest approximation of requested period,
- * adjusts requested period to actual timing. */
+/*
+ * sets bits in devpriv->clock_bits to nearest approximation of requested
+ * period, adjusts requested period to actual timing.
+ */
 static int a2150_get_timing(struct comedi_device *dev, unsigned int *period,
 			    int flags)
 {
