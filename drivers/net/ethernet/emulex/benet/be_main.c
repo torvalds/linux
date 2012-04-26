@@ -2704,24 +2704,15 @@ static int be_setup(struct be_adapter *adapter)
 
 	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
 
-	status = be_vid_config(adapter, false, 0);
-	if (status)
-		goto err;
+	be_vid_config(adapter, false, 0);
 
 	be_set_rx_mode(adapter->netdev);
 
-	status = be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
-	/* For Lancer: It is legal for this cmd to fail on VF */
-	if (status && (be_physfn(adapter) || !lancer_chip(adapter)))
-		goto err;
+	be_cmd_get_flow_control(adapter, &tx_fc, &rx_fc);
 
-	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc) {
-		status = be_cmd_set_flow_control(adapter, adapter->tx_fc,
+	if (rx_fc != adapter->rx_fc || tx_fc != adapter->tx_fc)
+		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
-		/* For Lancer: It is legal for this cmd to fail on VF */
-		if (status && (be_physfn(adapter) || !lancer_chip(adapter)))
-			goto err;
-	}
 
 	pcie_set_readrq(adapter->pdev, 4096);
 
