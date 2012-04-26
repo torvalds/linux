@@ -359,6 +359,10 @@ static int __init sa1100_init(void)
 
 arch_initcall(sa1100_init);
 
+void __init sa11x0_init_late(void)
+{
+	sa11x0_pm_init();
+}
 
 /*
  * Common I/O mapping:
