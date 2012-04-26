@@ -4447,10 +4447,10 @@ redo:
 		 * correctly treated as an imbalance.
 		 */
 		env.flags |= LBF_ALL_PINNED;
-		env.load_move	= imbalance;
-		env.src_cpu	= busiest->cpu;
-		env.src_rq	= busiest;
-		env.loop_max	= min_t(unsigned long, sysctl_sched_nr_migrate, busiest->nr_running);
+		env.load_move = imbalance;
+		env.src_cpu   = busiest->cpu;
+		env.src_rq    = busiest;
+		env.loop_max  = min(sysctl_sched_nr_migrate, busiest->nr_running);
 
 more_balance:
 		local_irq_save(flags);
