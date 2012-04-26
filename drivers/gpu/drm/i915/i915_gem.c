@@ -1819,6 +1819,57 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+static int
+i915_gem_check_wedge(struct drm_i915_private *dev_priv)
+{
+	BUG_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	if (atomic_read(&dev_priv->mm.wedged)) {
+		struct completion *x = &dev_priv->error_completion;
+		bool recovery_complete;
+		unsigned long flags;
+
+		/* Give the error handler a chance to run. */
+		spin_lock_irqsave(&x->wait.lock, flags);
+		recovery_complete = x->done > 0;
+		spin_unlock_irqrestore(&x->wait.lock, flags);
+
+		return recovery_complete ? -EIO : -EAGAIN;
+	}
+
+	return 0;
+}
+
+/*
+ * Compare seqno against outstanding lazy request. Emit a request if they are
+ * equal.
+ */
+static int
+i915_gem_check_olr(struct intel_ring_buffer *ring, u32 seqno)
+{
+	int ret = 0;
+
+	BUG_ON(!mutex_is_locked(&ring->dev->struct_mutex));
+
+	if (seqno == ring->outstanding_lazy_request) {
+		struct drm_i915_gem_request *request;
+
+		request = kzalloc(sizeof(*request), GFP_KERNEL);
+		if (request == NULL)
+			return -ENOMEM;
+
+		ret = i915_add_request(ring, NULL, request);
+		if (ret) {
+			kfree(request);
+			return ret;
+		}
+
+		BUG_ON(seqno != request->seqno);
+	}
+
+	return ret;
+}
+
 static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
 			bool interruptible)
 {
@@ -1862,34 +1913,13 @@ i915_wait_request(struct intel_ring_buffer *ring,
 
 	BUG_ON(seqno == 0);
 
-	if (atomic_read(&dev_priv->mm.wedged)) {
-		struct completion *x = &dev_priv->error_completion;
-		bool recovery_complete;
-		unsigned long flags;
+	ret = i915_gem_check_wedge(dev_priv);
+	if (ret)
+		return ret;
 
-		/* Give the error handler a chance to run. */
-		spin_lock_irqsave(&x->wait.lock, flags);
-		recovery_complete = x->done > 0;
-		spin_unlock_irqrestore(&x->wait.lock, flags);
-
-		return recovery_complete ? -EIO : -EAGAIN;
-	}
-
-	if (seqno == ring->outstanding_lazy_request) {
-		struct drm_i915_gem_request *request;
-
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-
-		ret = i915_add_request(ring, NULL, request);
-		if (ret) {
-			kfree(request);
-			return ret;
-		}
-
-		seqno = request->seqno;
-	}
+	ret = i915_gem_check_olr(ring, seqno);
+	if (ret)
+		return ret;
 
 	ret = __wait_seqno(ring, seqno, dev_priv->mm.interruptible);
 	if (atomic_read(&dev_priv->mm.wedged))
@@ -1957,22 +1987,9 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (seqno <= from->sync_seqno[idx])
 		return 0;
 
-	if (seqno == from->outstanding_lazy_request) {
-		struct drm_i915_gem_request *request;
-
-		request = kzalloc(sizeof(*request), GFP_KERNEL);
-		if (request == NULL)
-			return -ENOMEM;
-
-		ret = i915_add_request(from, NULL, request);
-		if (ret) {
-			kfree(request);
-			return ret;
-		}
-
-		seqno = request->seqno;
-	}
-
+	ret = i915_gem_check_olr(obj->ring, seqno);
+	if (ret)
+		return ret;
 
 	ret = to->sync_to(to, from, seqno);
 	if (!ret)
@@ -3160,20 +3177,9 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 		if (obj->base.write_domain & I915_GEM_GPU_DOMAINS) {
 			ret = i915_gem_flush_ring(obj->ring,
 						  0, obj->base.write_domain);
-		} else if (obj->ring->outstanding_lazy_request ==
-			   obj->last_rendering_seqno) {
-			struct drm_i915_gem_request *request;
-
-			/* This ring is not being cleared by active usage,
-			 * so emit a request to do so.
-			 */
-			request = kzalloc(sizeof(*request), GFP_KERNEL);
-			if (request) {
-				ret = i915_add_request(obj->ring, NULL, request);
-				if (ret)
-					kfree(request);
-			} else
-				ret = -ENOMEM;
+		} else {
+			ret = i915_gem_check_olr(obj->ring,
+						 obj->last_rendering_seqno);
 		}
 
 		/* Update the active list for the hardware's current position.
