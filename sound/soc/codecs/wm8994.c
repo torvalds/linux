@@ -945,27 +945,12 @@ static int vmid_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static void wm8994_update_class_w(struct snd_soc_codec *codec)
+static bool wm8994_check_class_w_digital(struct snd_soc_codec *codec)
 {
-	struct wm8994_priv *wm8994 = snd_soc_codec_get_drvdata(codec);
-	int enable = 1;
 	int source = 0;  /* GCC flow analysis can't track enable */
 	int reg, reg_r;
 
-	/* Only support direct DAC->headphone paths */
-	reg = snd_soc_read(codec, WM8994_OUTPUT_MIXER_1);
-	if (!(reg & WM8994_DAC1L_TO_HPOUT1L)) {
-		dev_vdbg(codec->dev, "HPL connected to output mixer\n");
-		enable = 0;
-	}
-
-	reg = snd_soc_read(codec, WM8994_OUTPUT_MIXER_2);
-	if (!(reg & WM8994_DAC1R_TO_HPOUT1R)) {
-		dev_vdbg(codec->dev, "HPR connected to output mixer\n");
-		enable = 0;
-	}
-
-	/* We also need the same setting for L/R and only one path */
+	/* We also need the same AIF source for L/R and only one path */
 	reg = snd_soc_read(codec, WM8994_DAC1_LEFT_MIXER_ROUTING);
 	switch (reg) {
 	case WM8994_AIF2DACL_TO_DAC1L:
@@ -982,28 +967,20 @@ static void wm8994_update_class_w(struct snd_soc_codec *codec)
 		break;
 	default:
 		dev_vdbg(codec->dev, "DAC mixer setting: %x\n", reg);
-		enable = 0;
-		break;
+		return false;
 	}
 
 	reg_r = snd_soc_read(codec, WM8994_DAC1_RIGHT_MIXER_ROUTING);
 	if (reg_r != reg) {
 		dev_vdbg(codec->dev, "Left and right DAC mixers different\n");
-		enable = 0;
+		return false;
 	}
 
-	if (enable) {
-		dev_dbg(codec->dev, "Class W enabled\n");
-		snd_soc_update_bits(codec, WM8994_CLASS_W_1,
-				    WM8994_CP_DYN_PWR |
-				    WM8994_CP_DYN_SRC_SEL_MASK,
-				    source | WM8994_CP_DYN_PWR);
+	/* Set the source up */
+	snd_soc_update_bits(codec, WM8994_CLASS_W_1,
+			    WM8994_CP_DYN_SRC_SEL_MASK, source);
 
-	} else {
-		dev_dbg(codec->dev, "Class W disabled\n");
-		snd_soc_update_bits(codec, WM8994_CLASS_W_1,
-				    WM8994_CP_DYN_PWR, 0);
-	}
+	return true;
 }
 
 static int late_enable_ev(struct snd_soc_dapm_widget *w,
@@ -1120,45 +1097,6 @@ static int dac_ev(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
-static const char *hp_mux_text[] = {
-	"Mixer",
-	"DAC",
-};
-
-#define WM8994_HP_ENUM(xname, xenum) \
-{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
-	.info = snd_soc_info_enum_double, \
- 	.get = snd_soc_dapm_get_enum_double, \
- 	.put = wm8994_put_hp_enum, \
-  	.private_value = (unsigned long)&xenum }
-
-static int wm8994_put_hp_enum(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
-	struct snd_soc_dapm_widget *w = wlist->widgets[0];
-	struct snd_soc_codec *codec = w->codec;
-	int ret;
-
-	ret = snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
-
-	wm8994_update_class_w(codec);
-
-	return ret;
-}
-
-static const struct soc_enum hpl_enum =
-	SOC_ENUM_SINGLE(WM8994_OUTPUT_MIXER_1, 8, 2, hp_mux_text);
-
-static const struct snd_kcontrol_new hpl_mux =
-	WM8994_HP_ENUM("Left Headphone Mux", hpl_enum);
-
-static const struct soc_enum hpr_enum =
-	SOC_ENUM_SINGLE(WM8994_OUTPUT_MIXER_2, 8, 2, hp_mux_text);
-
-static const struct snd_kcontrol_new hpr_mux =
-	WM8994_HP_ENUM("Right Headphone Mux", hpr_enum);
-
 static const char *adc_mux_text[] = {
 	"ADC",
 	"DMIC",
@@ -1270,7 +1208,7 @@ static int wm8994_put_class_w(struct snd_kcontrol *kcontrol,
 
 	ret = snd_soc_dapm_put_volsw(kcontrol, ucontrol);
 
-	wm8994_update_class_w(codec);
+	wm_hubs_update_class_w(codec);
 
 	return ret;
 }
@@ -1413,9 +1351,9 @@ SND_SOC_DAPM_MIXER_E("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
 SND_SOC_DAPM_MIXER_E("SPKR", WM8994_POWER_MANAGEMENT_3, 9, 0,
 		     right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer),
 		     late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_MUX_E("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &hpl_mux,
+SND_SOC_DAPM_MUX_E("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpl_mux,
 		   late_enable_ev, SND_SOC_DAPM_PRE_PMU),
-SND_SOC_DAPM_MUX_E("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &hpr_mux,
+SND_SOC_DAPM_MUX_E("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpr_mux,
 		   late_enable_ev, SND_SOC_DAPM_PRE_PMU),
 
 SND_SOC_DAPM_POST("Late Disable PGA", late_disable_ev)
@@ -1429,8 +1367,8 @@ SND_SOC_DAPM_MIXER("SPKL", WM8994_POWER_MANAGEMENT_3, 8, 0,
 		   left_speaker_mixer, ARRAY_SIZE(left_speaker_mixer)),
 SND_SOC_DAPM_MIXER("SPKR", WM8994_POWER_MANAGEMENT_3, 9, 0,
 		   right_speaker_mixer, ARRAY_SIZE(right_speaker_mixer)),
-SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &hpl_mux),
-SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &hpr_mux),
+SND_SOC_DAPM_MUX("Left Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpl_mux),
+SND_SOC_DAPM_MUX("Right Headphone Mux", SND_SOC_NOPM, 0, 0, &wm_hubs_hpr_mux),
 };
 
 static const struct snd_soc_dapm_widget wm8994_dac_revd_widgets[] = {
@@ -3829,7 +3767,8 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 		break;
 	}
 
-	wm8994_update_class_w(codec);
+	wm8994->hubs.check_class_w_digital = wm8994_check_class_w_digital;
+	wm_hubs_update_class_w(codec);
 
 	wm8994_handle_pdata(wm8994);
 

@@ -566,6 +566,65 @@ static int lineout_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+void wm_hubs_update_class_w(struct snd_soc_codec *codec)
+{
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	int enable = WM8993_CP_DYN_V | WM8993_CP_DYN_FREQ;
+
+	if (!wm_hubs_dac_hp_direct(codec))
+		enable = false;
+
+	if (hubs->check_class_w_digital && !hubs->check_class_w_digital(codec))
+		enable = false;
+
+	dev_vdbg(codec->dev, "Class W %s\n", enable ? "enabled" : "disabled");
+
+	snd_soc_update_bits(codec, WM8993_CLASS_W_0,
+			    WM8993_CP_DYN_V | WM8993_CP_DYN_FREQ, enable);
+}
+EXPORT_SYMBOL_GPL(wm_hubs_update_class_w);
+
+#define WM_HUBS_ENUM_W(xname, xenum) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = snd_soc_info_enum_double, \
+	.get = snd_soc_dapm_get_enum_double, \
+	.put = class_w_put, \
+	.private_value = (unsigned long)&xenum }
+
+static int class_w_put(struct snd_kcontrol *kcontrol,
+		       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget_list *wlist = snd_kcontrol_chip(kcontrol);
+	struct snd_soc_dapm_widget *widget = wlist->widgets[0];
+	struct snd_soc_codec *codec = widget->codec;
+	int ret;
+
+	ret = snd_soc_dapm_put_enum_double(kcontrol, ucontrol);
+
+	wm_hubs_update_class_w(codec);
+
+	return ret;
+}
+
+static const char *hp_mux_text[] = {
+	"Mixer",
+	"DAC",
+};
+
+static const struct soc_enum hpl_enum =
+	SOC_ENUM_SINGLE(WM8993_OUTPUT_MIXER1, 8, 2, hp_mux_text);
+
+const struct snd_kcontrol_new wm_hubs_hpl_mux =
+	WM_HUBS_ENUM_W("Left Headphone Mux", hpl_enum);
+EXPORT_SYMBOL_GPL(wm_hubs_hpl_mux);
+
+static const struct soc_enum hpr_enum =
+	SOC_ENUM_SINGLE(WM8993_OUTPUT_MIXER2, 8, 2, hp_mux_text);
+
+const struct snd_kcontrol_new wm_hubs_hpr_mux =
+	WM_HUBS_ENUM_W("Right Headphone Mux", hpr_enum);
+EXPORT_SYMBOL_GPL(wm_hubs_hpr_mux);
+
 static const struct snd_kcontrol_new in1l_pga[] = {
 SOC_DAPM_SINGLE("IN1LP Switch", WM8993_INPUT_MIXER2, 5, 1, 0),
 SOC_DAPM_SINGLE("IN1LN Switch", WM8993_INPUT_MIXER2, 4, 1, 0),

@@ -16,6 +16,7 @@
 
 #include <linux/completion.h>
 #include <linux/interrupt.h>
+#include <sound/control.h>
 
 struct snd_soc_codec;
 
@@ -32,6 +33,7 @@ struct wm_hubs_data {
 
 	bool no_cache_dac_hp_direct;
 	u16 dac_hp_direct_dcs;
+	bool (*check_class_w_digital)(struct snd_soc_codec *);
 
 	bool lineout1_se;
 	bool lineout1n_ena;
@@ -57,5 +59,9 @@ extern irqreturn_t wm_hubs_dcs_done(int irq, void *data);
 extern void wm_hubs_vmid_ena(struct snd_soc_codec *codec);
 extern void wm_hubs_set_bias_level(struct snd_soc_codec *codec,
 				   enum snd_soc_bias_level level);
+extern void wm_hubs_update_class_w(struct snd_soc_codec *codec);
+
+extern const struct snd_kcontrol_new wm_hubs_hpl_mux;
+extern const struct snd_kcontrol_new wm_hubs_hpr_mux;
 
 #endif
