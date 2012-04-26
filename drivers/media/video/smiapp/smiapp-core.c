@@ -653,6 +653,7 @@ static int smiapp_get_all_limits(struct smiapp_sensor *sensor)
 
 static int smiapp_get_limits_binning(struct smiapp_sensor *sensor)
 {
+	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
 	static u32 const limits[] = {
 		SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN,
 		SMIAPP_LIMIT_MAX_FRAME_LENGTH_LINES_BIN,
@@ -671,11 +672,11 @@ static int smiapp_get_limits_binning(struct smiapp_sensor *sensor)
 		SMIAPP_LIMIT_FINE_INTEGRATION_TIME_MIN,
 		SMIAPP_LIMIT_FINE_INTEGRATION_TIME_MAX_MARGIN,
 	};
+	unsigned int i;
+	int rval;
 
 	if (sensor->limits[SMIAPP_LIMIT_BINNING_CAPABILITY] ==
 	    SMIAPP_BINNING_CAPABILITY_NO) {
-		unsigned int i;
-
 		for (i = 0; i < ARRAY_SIZE(limits); i++)
 			sensor->limits[limits[i]] =
 				sensor->limits[limits_replace[i]];
@@ -683,7 +684,31 @@ static int smiapp_get_limits_binning(struct smiapp_sensor *sensor)
 		return 0;
 	}
 
-	return smiapp_get_limits(sensor, limits, ARRAY_SIZE(limits));
+	rval = smiapp_get_limits(sensor, limits, ARRAY_SIZE(limits));
+	if (rval < 0)
+		return rval;
+
+	/*
+	 * Sanity check whether the binning limits are valid. If not,
+	 * use the non-binning ones.
+	 */
+	if (sensor->limits[SMIAPP_LIMIT_MIN_FRAME_LENGTH_LINES_BIN]
+	    && sensor->limits[SMIAPP_LIMIT_MIN_LINE_LENGTH_PCK_BIN]
+	    && sensor->limits[SMIAPP_LIMIT_MIN_LINE_BLANKING_PCK_BIN])
+		return 0;
+
+	for (i = 0; i < ARRAY_SIZE(limits); i++) {
+		dev_dbg(&client->dev,
+			"replace limit 0x%8.8x \"%s\" = %d, 0x%x\n",
+			smiapp_reg_limits[limits[i]].addr,
+			smiapp_reg_limits[limits[i]].what,
+			sensor->limits[limits_replace[i]],
+			sensor->limits[limits_replace[i]]);
+		sensor->limits[limits[i]] =
+			sensor->limits[limits_replace[i]];
+	}
+
+	return 0;
 }
 
 static int smiapp_get_mbus_formats(struct smiapp_sensor *sensor)
