@@ -4834,9 +4834,6 @@ static void intel_crtc_update_cursor(struct drm_crtc *crtc,
 		else
 			i9xx_update_cursor(crtc, base);
 	}
-
-	if (visible)
-		intel_mark_busy(dev, to_intel_framebuffer(crtc->fb)->obj);
 }
 
 static int intel_crtc_cursor_set(struct drm_crtc *crtc,
@@ -5530,9 +5527,10 @@ void intel_mark_busy(struct drm_device *dev, struct drm_i915_gem_object *obj)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	if (!dev_priv->busy)
+	if (!dev_priv->busy) {
+		intel_sanitize_pm(dev);
 		dev_priv->busy = true;
-	else
+	} else
 		mod_timer(&dev_priv->idle_timer, jiffies +
 			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
 

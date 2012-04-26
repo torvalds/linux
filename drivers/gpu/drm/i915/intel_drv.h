@@ -344,6 +344,8 @@ extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
 extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
 
+void intel_sanitize_pm(struct drm_device *dev);
+
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 				   struct drm_display_mode *adjusted_mode);
