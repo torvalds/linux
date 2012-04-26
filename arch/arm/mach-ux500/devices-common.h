@@ -93,4 +93,16 @@ struct nmk_gpio_platform_data;
 void dbx500_add_gpios(struct device *parent, resource_size_t *base, int num,
 		      int irq, struct nmk_gpio_platform_data *pdata);
 
+static inline void
+dbx500_add_pinctrl(struct device *parent, const char *name)
+{
+	struct platform_device_info pdevinfo = {
+		.parent = parent,
+		.name = name,
+		.id = -1,
+	};
+
+	platform_device_register_full(&pdevinfo);
+}
+
 #endif

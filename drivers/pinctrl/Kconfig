@@ -36,6 +36,14 @@ config PINCTRL_MMP2
 	select PINCTRL_PXA3xx
 	select PINCONF
 
+config PINCTRL_NOMADIK
+	bool "Nomadik pin controller driver"
+	depends on ARCH_U8500
+
+config PINCTRL_DB8500
+	bool "DB8500 pin controller driver"
+	depends on PINCTRL_NOMADIK && ARCH_U8500
+
 config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"
 	depends on ARCH_MMP

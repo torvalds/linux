@@ -24,11 +24,14 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
+#include <linux/pinctrl/pinctrl.h>
 
 #include <asm/mach/irq.h>
 
 #include <plat/pincfg.h>
 #include <plat/gpio-nomadik.h>
+
+#include "pinctrl-nomadik.h"
 
 /*
  * The GPIO module in the Nomadik family of Systems-on-Chip is an
@@ -62,6 +65,12 @@ struct nmk_gpio_chip {
 	u32 fimsc;
 	u32 pull_up;
 	u32 lowemi;
+};
+
+struct nmk_pinctrl {
+	struct device *dev;
+	struct pinctrl_dev *pctl;
+	const struct nmk_pinctrl_soc_data *soc;
 };
 
 static struct nmk_gpio_chip *
@@ -1282,6 +1291,98 @@ out:
 	return ret;
 }
 
+static int nmk_get_groups_cnt(struct pinctrl_dev *pctldev)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	return npct->soc->ngroups;
+}
+
+static const char *nmk_get_group_name(struct pinctrl_dev *pctldev,
+				       unsigned selector)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	return npct->soc->groups[selector].name;
+}
+
+static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
+			      const unsigned **pins,
+			      unsigned *num_pins)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	*pins = npct->soc->groups[selector].pins;
+	*num_pins = npct->soc->groups[selector].npins;
+	return 0;
+}
+
+static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
+		   unsigned offset)
+{
+	seq_printf(s, " Nomadik GPIO");
+}
+
+static struct pinctrl_ops nmk_pinctrl_ops = {
+	.get_groups_count = nmk_get_groups_cnt,
+	.get_group_name = nmk_get_group_name,
+	.get_group_pins = nmk_get_group_pins,
+	.pin_dbg_show = nmk_pin_dbg_show,
+};
+
+static struct pinctrl_desc nmk_pinctrl_desc = {
+	.name = "pinctrl-nomadik",
+	.pctlops = &nmk_pinctrl_ops,
+	.owner = THIS_MODULE,
+};
+
+static int __devinit nmk_pinctrl_probe(struct platform_device *pdev)
+{
+	const struct platform_device_id *platid = platform_get_device_id(pdev);
+	struct nmk_pinctrl *npct;
+	int i;
+
+	npct = devm_kzalloc(&pdev->dev, sizeof(*npct), GFP_KERNEL);
+	if (!npct)
+		return -ENOMEM;
+
+	/* Poke in other ASIC variants here */
+	if (platid->driver_data == PINCTRL_NMK_DB8500)
+		nmk_pinctrl_db8500_init(&npct->soc);
+
+	/*
+	 * We need all the GPIO drivers to probe FIRST, or we will not be able
+	 * to obtain references to the struct gpio_chip * for them, and we
+	 * need this to proceed.
+	 */
+	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
+		if (!nmk_gpio_chips[i]) {
+			dev_warn(&pdev->dev, "GPIO chip %d not registered yet\n", i);
+			devm_kfree(&pdev->dev, npct);
+			return -EPROBE_DEFER;
+		}
+		npct->soc->gpio_ranges[i].gc = &nmk_gpio_chips[i]->chip;
+	}
+
+	nmk_pinctrl_desc.pins = npct->soc->pins;
+	nmk_pinctrl_desc.npins = npct->soc->npins;
+	npct->dev = &pdev->dev;
+	npct->pctl = pinctrl_register(&nmk_pinctrl_desc, &pdev->dev, npct);
+	if (!npct->pctl) {
+		dev_err(&pdev->dev, "could not register Nomadik pinctrl driver\n");
+		return -EINVAL;
+	}
+
+	/* We will handle a range of GPIO pins */
+	for (i = 0; i < npct->soc->gpio_num_ranges; i++)
+		pinctrl_add_gpio_range(npct->pctl, &npct->soc->gpio_ranges[i]);
+
+	platform_set_drvdata(pdev, npct);
+	dev_info(&pdev->dev, "initialized Nomadik pin control driver\n");
+
+	return 0;
+}
+
 static const struct of_device_id nmk_gpio_match[] = {
 	{ .compatible = "st,nomadik-gpio", },
 	{}
@@ -1296,9 +1397,28 @@ static struct platform_driver nmk_gpio_driver = {
 	.probe = nmk_gpio_probe,
 };
 
+static const struct platform_device_id nmk_pinctrl_id[] = {
+	{ "pinctrl-stn8815", PINCTRL_NMK_STN8815 },
+	{ "pinctrl-db8500", PINCTRL_NMK_DB8500 },
+};
+
+static struct platform_driver nmk_pinctrl_driver = {
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = "pinctrl-nomadik",
+	},
+	.probe = nmk_pinctrl_probe,
+	.id_table = nmk_pinctrl_id,
+};
+
 static int __init nmk_gpio_init(void)
 {
-	return platform_driver_register(&nmk_gpio_driver);
+	int ret;
+
+	ret = platform_driver_register(&nmk_gpio_driver);
+	if (ret)
+		return ret;
+	return platform_driver_register(&nmk_pinctrl_driver);
 }
 
 core_initcall(nmk_gpio_init);
