@@ -234,3 +234,8 @@ void __init imx53_soc_init(void)
 	platform_device_register_simple("imx31-audmux", 0, imx53_audmux_res,
 					ARRAY_SIZE(imx53_audmux_res));
 }
+
+void __init imx51_init_late(void)
+{
+	mx51_neon_fixup();
+}
