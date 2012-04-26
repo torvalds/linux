@@ -11,6 +11,7 @@
 #include <poll.h>
 #include "cpumap.h"
 #include "thread_map.h"
+#include "target.h"
 #include "evlist.h"
 #include "evsel.h"
 #include <unistd.h>

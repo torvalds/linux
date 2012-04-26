@@ -207,14 +207,7 @@ extern const char perf_version_string[];
 
 void pthread__unblock_sigwinch(void);
 
-struct perf_target {
-	const char   *pid;
-	const char   *tid;
-	const char   *cpu_list;
-	const char   *uid_str;
-	uid_t	     uid;
-	bool	     system_wide;
-};
+#include "util/target.h"
 
 struct perf_record_opts {
 	struct perf_target target;
