@@ -167,6 +167,7 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 {
 	struct clk_divider *div;
 	struct clk *clk;
+	struct clk_init_data init;
 
 	/* allocate the divider */
 	div = kzalloc(sizeof(struct clk_divider), GFP_KERNEL);
@@ -175,19 +176,22 @@ struct clk *clk_register_divider(struct device *dev, const char *name,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	init.name = name;
+	init.ops = &clk_divider_ops;
+	init.flags = flags;
+	init.parent_names = (parent_name ? &parent_name: NULL);
+	init.num_parents = (parent_name ? 1 : 0);
+
 	/* struct clk_divider assignments */
 	div->reg = reg;
 	div->shift = shift;
 	div->width = width;
 	div->flags = clk_divider_flags;
 	div->lock = lock;
+	div->hw.init = &init;
 
 	/* register the clock */
-	clk = clk_register(dev, name,
-			&clk_divider_ops, &div->hw,
-			(parent_name ? &parent_name: NULL),
-			(parent_name ? 1 : 0),
-			flags);
+	clk = clk_register(dev, &div->hw);
 
 	if (IS_ERR(clk))
 		kfree(div);

@@ -119,6 +119,7 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 {
 	struct clk_gate *gate;
 	struct clk *clk;
+	struct clk_init_data init;
 
 	/* allocate the gate */
 	gate = kzalloc(sizeof(struct clk_gate), GFP_KERNEL);
@@ -127,18 +128,20 @@ struct clk *clk_register_gate(struct device *dev, const char *name,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	init.name = name;
+	init.ops = &clk_gate_ops;
+	init.flags = flags;
+	init.parent_names = (parent_name ? &parent_name: NULL);
+	init.num_parents = (parent_name ? 1 : 0);
+
 	/* struct clk_gate assignments */
 	gate->reg = reg;
 	gate->bit_idx = bit_idx;
 	gate->flags = clk_gate_flags;
 	gate->lock = lock;
+	gate->hw.init = &init;
 
-	/* register the clock */
-	clk = clk_register(dev, name,
-			&clk_gate_ops, &gate->hw,
-			(parent_name ? &parent_name : NULL),
-			(parent_name ? 1 : 0),
-			flags);
+	clk = clk_register(dev, &gate->hw);
 
 	if (IS_ERR(clk))
 		kfree(gate);

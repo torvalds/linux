@@ -167,5 +167,7 @@ struct clk {
  */
 int __clk_init(struct device *dev, struct clk *clk);
 
+struct clk *__clk_register(struct device *dev, struct clk_hw *hw);
+
 #endif /* CONFIG_COMMON_CLK */
 #endif /* CLK_PRIVATE_H */

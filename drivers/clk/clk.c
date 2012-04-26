@@ -1169,26 +1169,6 @@ EXPORT_SYMBOL_GPL(clk_set_parent);
  *
  * Initializes the lists in struct clk, queries the hardware for the
  * parent and rate and sets them both.
- *
- * Any struct clk passed into __clk_init must have the following members
- * populated:
- * 	.name
- * 	.ops
- * 	.hw
- * 	.parent_names
- * 	.num_parents
- * 	.flags
- *
- * Essentially, everything that would normally be passed into clk_register is
- * assumed to be initialized already in __clk_init.  The other members may be
- * populated, but are optional.
- *
- * __clk_init is only exposed via clk-private.h and is intended for use with
- * very large numbers of clocks that need to be statically initialized.  It is
- * a layering violation to include clk-private.h from any code which implements
- * a clock's .ops; as such any statically initialized clock data MUST be in a
- * separate C file from the logic that implements it's operations.  Returns 0
- * on success, otherwise an error code.
  */
 int __clk_init(struct device *dev, struct clk *clk)
 {
@@ -1321,14 +1301,47 @@ out:
 }
 
 /**
+ * __clk_register - register a clock and return a cookie.
+ *
+ * Same as clk_register, except that the .clk field inside hw shall point to a
+ * preallocated (generally statically allocated) struct clk. None of the fields
+ * of the struct clk need to be initialized.
+ *
+ * The data pointed to by .init and .clk field shall NOT be marked as init
+ * data.
+ *
+ * __clk_register is only exposed via clk-private.h and is intended for use with
+ * very large numbers of clocks that need to be statically initialized.  It is
+ * a layering violation to include clk-private.h from any code which implements
+ * a clock's .ops; as such any statically initialized clock data MUST be in a
+ * separate C file from the logic that implements it's operations.  Returns 0
+ * on success, otherwise an error code.
+ */
+struct clk *__clk_register(struct device *dev, struct clk_hw *hw)
+{
+	int ret;
+	struct clk *clk;
+
+	clk = hw->clk;
+	clk->name = hw->init->name;
+	clk->ops = hw->init->ops;
+	clk->hw = hw;
+	clk->flags = hw->init->flags;
+	clk->parent_names = hw->init->parent_names;
+	clk->num_parents = hw->init->num_parents;
+
+	ret = __clk_init(dev, clk);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return clk;
+}
+EXPORT_SYMBOL_GPL(__clk_register);
+
+/**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
- * @name: clock name
- * @ops: operations this clock supports
  * @hw: link to hardware-specific clock data
- * @parent_names: array of string names for all possible parents
- * @num_parents: number of possible parents
- * @flags: framework-level hints and quirks
  *
  * clk_register is the primary interface for populating the clock tree with new
  * clock nodes.  It returns a pointer to the newly allocated struct clk which
@@ -1336,9 +1349,7 @@ out:
  * rest of the clock API.  In the event of an error clk_register will return an
  * error code; drivers must test for an error code after calling clk_register.
  */
-struct clk *clk_register(struct device *dev, const char *name,
-		const struct clk_ops *ops, struct clk_hw *hw,
-		const char **parent_names, u8 num_parents, unsigned long flags)
+struct clk *clk_register(struct device *dev, struct clk_hw *hw)
 {
 	int i, ret;
 	struct clk *clk;
@@ -1350,15 +1361,20 @@ struct clk *clk_register(struct device *dev, const char *name,
 		goto fail_out;
 	}
 
-	clk->name = name;
-	clk->ops = ops;
+	clk->name = kstrdup(hw->init->name, GFP_KERNEL);
+	if (!clk->name) {
+		pr_err("%s: could not allocate clk->name\n", __func__);
+		ret = -ENOMEM;
+		goto fail_name;
+	}
+	clk->ops = hw->init->ops;
 	clk->hw = hw;
-	clk->flags = flags;
-	clk->num_parents = num_parents;
+	clk->flags = hw->init->flags;
+	clk->num_parents = hw->init->num_parents;
 	hw->clk = clk;
 
 	/* allocate local copy in case parent_names is __initdata */
-	clk->parent_names = kzalloc((sizeof(char*) * num_parents),
+	clk->parent_names = kzalloc((sizeof(char*) * clk->num_parents),
 			GFP_KERNEL);
 
 	if (!clk->parent_names) {
@@ -1369,8 +1385,9 @@ struct clk *clk_register(struct device *dev, const char *name,
 
 
 	/* copy each string name in case parent_names is __initdata */
-	for (i = 0; i < num_parents; i++) {
-		clk->parent_names[i] = kstrdup(parent_names[i], GFP_KERNEL);
+	for (i = 0; i < clk->num_parents; i++) {
+		clk->parent_names[i] = kstrdup(hw->init->parent_names[i],
+						GFP_KERNEL);
 		if (!clk->parent_names[i]) {
 			pr_err("%s: could not copy parent_names\n", __func__);
 			ret = -ENOMEM;
@@ -1387,6 +1404,8 @@ fail_parent_names_copy:
 		kfree(clk->parent_names[i]);
 	kfree(clk->parent_names);
 fail_parent_names:
+	kfree(clk->name);
+fail_name:
 	kfree(clk);
 fail_out:
 	return ERR_PTR(ret);
