@@ -2981,25 +2981,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (seqno == 0)
 		return 0;
 
-	ret = 0;
-	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
-		/* And wait for the seqno passing without holding any locks and
-		 * causing extra latency for others. This is safe as the irq
-		 * generation is designed to be run atomically and so is
-		 * lockless.
-		 */
-		if (ring->irq_get(ring)) {
-			ret = wait_event_interruptible(ring->irq_queue,
-						       i915_seqno_passed(ring->get_seqno(ring), seqno)
-						       || atomic_read(&dev_priv->mm.wedged));
-			ring->irq_put(ring);
-
-			if (ret == 0 && atomic_read(&dev_priv->mm.wedged))
-				ret = -EIO;
-		} else
-			ret = -EBUSY;
-	}
-
+	ret = __wait_seqno(ring, seqno, true);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
