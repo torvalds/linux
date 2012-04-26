@@ -1471,28 +1471,6 @@ extern void intel_display_print_error_state(struct seq_file *m,
 					    struct intel_display_error_state *error);
 #endif
 
-#define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
-
-#define BEGIN_LP_RING(n) \
-	intel_ring_begin(LP_RING(dev_priv), (n))
-
-#define OUT_RING(x) \
-	intel_ring_emit(LP_RING(dev_priv), x)
-
-#define ADVANCE_LP_RING() \
-	intel_ring_advance(LP_RING(dev_priv))
-
-/**
- * Lock test for when it's just for synchronization of ring access.
- *
- * In that case, we don't need to do it when GEM is initialized as nobody else
- * has access to the ring.
- */
-#define RING_LOCK_TEST_WITH_RETURN(dev, file) do {			\
-	if (LP_RING(dev->dev_private)->obj == NULL)			\
-		LOCK_TEST_WITH_RETURN(dev, file);			\
-} while (0)
-
 /* On SNB platform, before reading ring registers forcewake bit
  * must be set to prevent GT core from power down and stale values being
  * returned.

@@ -47,6 +47,32 @@
 #include <acpi/video.h>
 #include <asm/pat.h>
 
+#define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
+
+#define BEGIN_LP_RING(n) \
+	intel_ring_begin(LP_RING(dev_priv), (n))
+
+#define OUT_RING(x) \
+	intel_ring_emit(LP_RING(dev_priv), x)
+
+#define ADVANCE_LP_RING() \
+	intel_ring_advance(LP_RING(dev_priv))
+
+/**
+ * Lock test for when it's just for synchronization of ring access.
+ *
+ * In that case, we don't need to do it when GEM is initialized as nobody else
+ * has access to the ring.
+ */
+#define RING_LOCK_TEST_WITH_RETURN(dev, file) do {			\
+	if (LP_RING(dev->dev_private)->obj == NULL)			\
+		LOCK_TEST_WITH_RETURN(dev, file);			\
+} while (0)
+
+#define READ_HWSP(dev_priv, reg) intel_read_status_page(LP_RING(dev_priv), reg)
+#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
+#define I915_BREADCRUMB_INDEX		0x21
+
 void i915_update_dri1_breadcrumb(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;

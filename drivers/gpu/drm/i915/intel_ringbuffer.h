@@ -167,10 +167,7 @@ intel_read_status_page(struct intel_ring_buffer *ring,
  *
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
-#define READ_HWSP(dev_priv, reg) intel_read_status_page(LP_RING(dev_priv), reg)
-#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
-#define I915_BREADCRUMB_INDEX		0x21
 
 void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring);
 
