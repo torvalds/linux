@@ -1864,22 +1864,19 @@ i915_wait_request(struct intel_ring_buffer *ring,
 	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
 		trace_i915_gem_request_wait_begin(ring, seqno);
 
-		if (ring->irq_get(ring)) {
-			if (dev_priv->mm.interruptible)
-				ret = wait_event_interruptible(ring->irq_queue,
-							       i915_seqno_passed(ring->get_seqno(ring), seqno)
-							       || atomic_read(&dev_priv->mm.wedged));
-			else
-				wait_event(ring->irq_queue,
-					   i915_seqno_passed(ring->get_seqno(ring), seqno)
-					   || atomic_read(&dev_priv->mm.wedged));
+		if (WARN_ON(!ring->irq_get(ring)))
+			return -ENODEV;
 
-			ring->irq_put(ring);
-		} else if (wait_for_atomic(i915_seqno_passed(ring->get_seqno(ring),
-							     seqno) ||
-					   atomic_read(&dev_priv->mm.wedged), 3000))
-			ret = -EBUSY;
+		if (dev_priv->mm.interruptible)
+			ret = wait_event_interruptible(ring->irq_queue,
+						       i915_seqno_passed(ring->get_seqno(ring), seqno)
+						       || atomic_read(&dev_priv->mm.wedged));
+		else
+			wait_event(ring->irq_queue,
+				   i915_seqno_passed(ring->get_seqno(ring), seqno)
+				   || atomic_read(&dev_priv->mm.wedged));
 
+		ring->irq_put(ring);
 		trace_i915_gem_request_wait_end(ring, seqno);
 	}
 	if (atomic_read(&dev_priv->mm.wedged))
