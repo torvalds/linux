@@ -150,7 +150,7 @@ static int tipc_core_start(void)
 	if (!res)
 		res = tipc_nametbl_init();
 	if (!res)
-		res = tipc_k_signal((Handler)tipc_subscr_start, 0);
+		res = tipc_subscr_start();
 	if (!res)
 		res = tipc_cfg_init();
 	if (!res)
