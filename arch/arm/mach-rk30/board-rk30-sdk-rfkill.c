@@ -24,6 +24,7 @@
 #include <mach/iomux.h>
 #include <linux/wakelock.h>
 #include <linux/timer.h>
+#include <mach/board.h>
 
 #if 0
 #define DBG(x...)   printk(KERN_INFO x)
@@ -31,7 +32,7 @@
 #define DBG(x...)
 #endif
 
-#define BT_WAKE_HOST_SUPPORT 0
+#define BT_WAKE_HOST_SUPPORT 1
 
 struct bt_ctrl
 {
@@ -49,19 +50,25 @@ struct bt_ctrl
 #define BT_GPIO_RESET           RK30_PIN3_PD1
 #define IOMUX_BT_GPIO_RESET     rk29_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_NAME, GPIO3D_GPIO3D1);
 #else
-#define BT_GPIO_POWER                 RK30_PIN3_PD1
+#define BT_GPIO_POWER           RK30_PIN3_PD1
 #define IOMUX_BT_GPIO_POWER     rk29_mux_api_set(GPIO3D1_SDMMC1BACKENDPWR_NAME, GPIO3D_GPIO3D1);
 #endif
 
 #ifdef CONFIG_BT_HCIBCM4325
 #define BT_GPIO_WAKE_UP         RK30_PIN3_PC6
+#define IOMUX_BT_GPIO_WAKE_UP() rk29_mux_api_set(GPIO3C6_SDMMC1DETECTN_NAME, GPIO3C_GPIO3C6);
 #endif
 
 #if BT_WAKE_HOST_SUPPORT
-#define BT_GPIO_WAKE_UP_HOST    //RK2818_PIN_PA7
-#define IOMUX_BT_GPIO_WAKE_UP_HOST() //rk2818_mux_api_set(GPIOA7_FLASHCS3_SEL_NAME,0);
+#define BT_GPIO_WAKE_UP_HOST    RK30_PIN6_PA7
+#define IOMUX_BT_GPIO_WAKE_UP_HOST()
 
 #define BT_WAKE_LOCK_TIMEOUT    10 //s
+
+//bt cts paired to uart rts
+#define UART_RTS                RK30_PIN1_PA3
+#define IOMUX_UART_RTS_GPIO     rk29_mux_api_set(GPIO1A3_UART0RTSN_NAME, GPIO1A_GPIO1A3);
+#define IOMUX_UART_RTS          rk29_mux_api_set(GPIO1A3_UART0RTSN_NAME, GPIO1A_UART0_RTS_N);
 #endif
 
 static const char bt_name[] = 
@@ -111,19 +118,46 @@ static void timer_hostSleep(unsigned long arg)
     btWakeupHostUnlock();
 }
 
+extern int bcm4325_sleep(int bSleep);
 
 #ifdef CONFIG_PM
+static void rfkill_do_wakeup(struct work_struct *work)
+{
+    DBG("Enable UART_RTS\n");
+    gpio_set_value(UART_RTS, GPIO_LOW);
+    IOMUX_UART_RTS;
+}
+
+static DECLARE_DELAYED_WORK(wakeup_work, rfkill_do_wakeup);
+
 static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t state)
-{   
-    DBG("%s\n",__FUNCTION__);  	
+{
+    DBG("%s\n",__FUNCTION__);
+
+#ifdef CONFIG_BT_HCIBCM4325
+    bcm4325_sleep(1);
+#endif
+
+    DBG("Disable UART_RTS\n");
+	//To prevent uart to receive bt data when suspended
+	IOMUX_UART_RTS_GPIO;
+	gpio_request(UART_RTS, "uart_rts");
+	gpio_set_value(UART_RTS, GPIO_HIGH);
+
     return 0;
 }
 
 static int bcm4329_rfkill_resume(struct platform_device *pdev)
 {  
     DBG("%s\n",__FUNCTION__);     
-    btWakeupHostLock();
-    resetBtHostSleepTimer();
+
+#ifdef CONFIG_BT_HCIBCM4325
+    bcm4325_sleep(0);
+#endif
+
+    DBG("delay 1s\n");
+    schedule_delayed_work(&wakeup_work, HZ);
+
     return 0;
 }
 #else
@@ -133,6 +167,8 @@ static int bcm4329_rfkill_resume(struct platform_device *pdev)
 
 static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
 {
+    DBG("%s\n",__FUNCTION__);
+
     btWakeupHostLock();
     resetBtHostSleepTimer();
 	return IRQ_HANDLED;
@@ -142,12 +178,11 @@ static irqreturn_t bcm4329_wake_host_irq(int irq, void *dev)
 #ifdef CONFIG_BT_HCIBCM4325
 int bcm4325_sleep(int bSleep)
 {
-    //printk("*************bt enter sleep***************\n");
-    if (bSleep)
-    gpio_set_value(BT_GPIO_WAKE_UP, GPIO_LOW);   //low represent bt device may enter sleep  
-    else
-    gpio_set_value(BT_GPIO_WAKE_UP, GPIO_HIGH);  //high represent bt device must be awake 
-    //printk("sleep=%d\n",bSleep);
+    DBG("************* bt enter sleep: %d ***************\n", bSleep);
+    //low represent bt device may enter sleep
+    //high represent bt device must be awake 
+    IOMUX_BT_GPIO_WAKE_UP();
+    gpio_set_value(BT_GPIO_WAKE_UP, bSleep?GPIO_LOW:GPIO_HIGH);
     return 0;
 }
 #endif
@@ -171,13 +206,13 @@ static int bcm4329_set_block(void *data, bool blocked)
     		mdelay(20);
         
 #if BT_WAKE_HOST_SUPPORT     
-            btWakeupHostLock();
+//            btWakeupHostLock();
 #endif         
         	pr_info("bt turn on power\n");
     	}
     	else {
 #if BT_WAKE_HOST_SUPPORT     
-            btWakeupHostUnlock();
+//            btWakeupHostUnlock();
 #endif
 //    		if (!rk29sdk_wifi_power_state) {
     			gpio_set_value(BT_GPIO_POWER, GPIO_LOW);  /* bt power off */
@@ -242,8 +277,8 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 
 #if BT_WAKE_HOST_SUPPORT
     init_timer(&(gBtCtrl.tl));
-    gBtCtrl.tl.expires = jiffies + BT_WAKE_LOCK_TIMEOUT*HZ;        
-    gBtCtrl.tl.function = timer_hostSleep;        
+    gBtCtrl.tl.expires = 0;
+    gBtCtrl.tl.function = timer_hostSleep;
     add_timer(&(gBtCtrl.tl));
     gBtCtrl.b_HostWake = false;
     
