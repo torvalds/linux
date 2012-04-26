@@ -478,6 +478,9 @@ struct fuse_conn {
 	/** Are BSD file locking primitives not implemented by fs? */
 	unsigned no_flock:1;
 
+	/** Is fallocate not implemented by fs? */
+	unsigned no_fallocate:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 

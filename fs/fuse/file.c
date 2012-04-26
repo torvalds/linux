@@ -2185,6 +2185,9 @@ long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	};
 	int err;
 
+	if (fc->no_fallocate)
+		return -EOPNOTSUPP;
+
 	req = fuse_get_req(fc);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -2196,6 +2199,10 @@ long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	req->in.args[0].value = &inarg;
 	fuse_request_send(fc, req);
 	err = req->out.h.error;
+	if (err == -ENOSYS) {
+		fc->no_fallocate = 1;
+		err = -EOPNOTSUPP;
+	}
 	fuse_put_request(fc, req);
 
 	return err;
