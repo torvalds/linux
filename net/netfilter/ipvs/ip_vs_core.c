@@ -1995,10 +1995,18 @@ static int __init ip_vs_init(void)
 		goto cleanup_dev;
 	}
 
+	ret = ip_vs_register_nl_ioctl();
+	if (ret < 0) {
+		pr_err("can't register netlink/ioctl.\n");
+		goto cleanup_hooks;
+	}
+
 	pr_info("ipvs loaded.\n");
 
 	return ret;
 
+cleanup_hooks:
+	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 cleanup_dev:
 	unregister_pernet_device(&ipvs_core_dev_ops);
 cleanup_sub:
@@ -2014,6 +2022,7 @@ exit:
 
 static void __exit ip_vs_cleanup(void)
 {
+	ip_vs_unregister_nl_ioctl();
 	nf_unregister_hooks(ip_vs_ops, ARRAY_SIZE(ip_vs_ops));
 	unregister_pernet_device(&ipvs_core_dev_ops);
 	unregister_pernet_subsys(&ipvs_core_ops);	/* free ip_vs struct */

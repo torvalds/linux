@@ -1203,6 +1203,8 @@ ip_vs_lookup_real_service(struct net *net, int af, __u16 protocol,
 
 extern int ip_vs_use_count_inc(void);
 extern void ip_vs_use_count_dec(void);
+extern int ip_vs_register_nl_ioctl(void);
+extern void ip_vs_unregister_nl_ioctl(void);
 extern int ip_vs_control_init(void);
 extern void ip_vs_control_cleanup(void);
 extern struct ip_vs_dest *
