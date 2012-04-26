@@ -960,7 +960,6 @@ config UIDGID_CONVERTED
 	depends on !UML || HOSTFS = n
 
 	# The rare drivers that won't build
-	depends on INFINIBAND_QIB = n
 	depends on BLK_DEV_LOOP = n
 	depends on ANDROID_BINDER_IPC = n
 
