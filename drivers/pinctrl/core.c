@@ -1391,37 +1391,29 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	/* check core ops for sanity */
 	ret = pinctrl_check_ops(pctldev);
 	if (ret) {
-		pr_err("%s pinctrl ops lacks necessary functions\n",
-			pctldesc->name);
+		dev_err(dev, "pinctrl ops lacks necessary functions\n");
 		goto out_err;
 	}
 
 	/* If we're implementing pinmuxing, check the ops for sanity */
 	if (pctldesc->pmxops) {
 		ret = pinmux_check_ops(pctldev);
-		if (ret) {
-			pr_err("%s pinmux ops lacks necessary functions\n",
-			       pctldesc->name);
+		if (ret)
 			goto out_err;
-		}
 	}
 
 	/* If we're implementing pinconfig, check the ops for sanity */
 	if (pctldesc->confops) {
 		ret = pinconf_check_ops(pctldev);
-		if (ret) {
-			pr_err("%s pin config ops lacks necessary functions\n",
-			       pctldesc->name);
+		if (ret)
 			goto out_err;
-		}
 	}
 
 	/* Register all the pins */
-	pr_debug("try to register %d pins on %s...\n",
-		 pctldesc->npins, pctldesc->name);
+	dev_dbg(dev, "try to register %d pins ...\n",  pctldesc->npins);
 	ret = pinctrl_register_pins(pctldev, pctldesc->pins, pctldesc->npins);
 	if (ret) {
-		pr_err("error during pin registration\n");
+		dev_err(dev, "error during pin registration\n");
 		pinctrl_free_pindescs(pctldev, pctldesc->pins,
 				      pctldesc->npins);
 		goto out_err;
@@ -1436,8 +1428,15 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 		struct pinctrl_state *s =
 			pinctrl_lookup_state_locked(pctldev->p,
 						    PINCTRL_STATE_DEFAULT);
-		if (!IS_ERR(s))
-			pinctrl_select_state_locked(pctldev->p, s);
+		if (IS_ERR(s)) {
+			dev_dbg(dev, "failed to lookup the default state\n");
+		} else {
+			ret = pinctrl_select_state_locked(pctldev->p, s);
+			if (ret) {
+				dev_err(dev,
+					"failed to select default state\n");
+			}
+		}
 	}
 
 	mutex_unlock(&pinctrl_mutex);
