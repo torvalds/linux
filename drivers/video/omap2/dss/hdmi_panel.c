@@ -30,7 +30,8 @@
 #include "dss.h"
 
 static struct {
-	struct mutex hdmi_lock;
+	/* This protects the panel ops, mainly when accessing the HDMI IP. */
+	struct mutex lock;
 } hdmi;
 
 
@@ -59,7 +60,7 @@ static int hdmi_panel_enable(struct omap_dss_device *dssdev)
 	int r = 0;
 	DSSDBG("ENTER hdmi_panel_enable\n");
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED) {
 		r = -EINVAL;
@@ -75,28 +76,28 @@ static int hdmi_panel_enable(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 err:
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 
 	return r;
 }
 
 static void hdmi_panel_disable(struct omap_dss_device *dssdev)
 {
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
 		omapdss_hdmi_display_disable(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 }
 
 static int hdmi_panel_suspend(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
 		r = -EINVAL;
@@ -108,7 +109,7 @@ static int hdmi_panel_suspend(struct omap_dss_device *dssdev)
 	omapdss_hdmi_display_disable(dssdev);
 
 err:
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 
 	return r;
 }
@@ -117,7 +118,7 @@ static int hdmi_panel_resume(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_SUSPENDED) {
 		r = -EINVAL;
@@ -133,7 +134,7 @@ static int hdmi_panel_resume(struct omap_dss_device *dssdev)
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
 err:
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 
 	return r;
 }
@@ -141,11 +142,11 @@ err:
 static void hdmi_get_timings(struct omap_dss_device *dssdev,
 			struct omap_video_timings *timings)
 {
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	*timings = dssdev->panel.timings;
 
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 }
 
 static void hdmi_set_timings(struct omap_dss_device *dssdev,
@@ -153,12 +154,12 @@ static void hdmi_set_timings(struct omap_dss_device *dssdev,
 {
 	DSSDBG("hdmi_set_timings\n");
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	dssdev->panel.timings = *timings;
 	omapdss_hdmi_display_set_timing(dssdev);
 
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 }
 
 static int hdmi_check_timings(struct omap_dss_device *dssdev,
@@ -168,11 +169,11 @@ static int hdmi_check_timings(struct omap_dss_device *dssdev,
 
 	DSSDBG("hdmi_check_timings\n");
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	r = omapdss_hdmi_display_check_timing(dssdev, timings);
 
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 	return r;
 }
 
@@ -180,7 +181,7 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev, u8 *buf, int len)
 {
 	int r;
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
 		r = omapdss_hdmi_display_enable(dssdev);
@@ -194,7 +195,7 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev, u8 *buf, int len)
 			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
 		omapdss_hdmi_display_disable(dssdev);
 err:
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 
 	return r;
 }
@@ -203,7 +204,7 @@ static bool hdmi_detect(struct omap_dss_device *dssdev)
 {
 	int r;
 
-	mutex_lock(&hdmi.hdmi_lock);
+	mutex_lock(&hdmi.lock);
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
 		r = omapdss_hdmi_display_enable(dssdev);
@@ -217,7 +218,7 @@ static bool hdmi_detect(struct omap_dss_device *dssdev)
 			dssdev->state == OMAP_DSS_DISPLAY_SUSPENDED)
 		omapdss_hdmi_display_disable(dssdev);
 err:
-	mutex_unlock(&hdmi.hdmi_lock);
+	mutex_unlock(&hdmi.lock);
 
 	return r;
 }
@@ -242,7 +243,7 @@ static struct omap_dss_driver hdmi_driver = {
 
 int hdmi_panel_init(void)
 {
-	mutex_init(&hdmi.hdmi_lock);
+	mutex_init(&hdmi.lock);
 
 	omap_dss_register_driver(&hdmi_driver);
 
