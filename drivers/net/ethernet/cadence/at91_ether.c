@@ -263,7 +263,7 @@ static void enable_phyirq(struct net_device *dev)
 		return;
 	}
 
-	irq_number = lp->board_data.phy_irq_pin;
+	irq_number = gpio_to_irq(lp->board_data.phy_irq_pin);
 	status = request_irq(irq_number, at91ether_phy_interrupt, 0, dev->name, dev);
 	if (status) {
 		printk(KERN_ERR "at91_ether: PHY IRQ %d request failed - status %d!\n", irq_number, status);
@@ -363,7 +363,7 @@ static void disable_phyirq(struct net_device *dev)
 	disable_mdi(lp);
 	spin_unlock_irq(&lp->lock);
 
-	irq_number = lp->board_data.phy_irq_pin;
+	irq_number = gpio_to_irq(lp->board_data.phy_irq_pin);
 	free_irq(irq_number, dev);			/* Free interrupt handler */
 }
 
@@ -1234,7 +1234,7 @@ static int at91ether_suspend(struct platform_device *pdev, pm_message_t mesg)
 
 	if (netif_running(net_dev)) {
 		if (gpio_is_valid(lp->board_data.phy_irq_pin)) {
-			int phy_irq = lp->board_data.phy_irq_pin;
+			int phy_irq = gpio_to_irq(lp->board_data.phy_irq_pin);
 			disable_irq(phy_irq);
 		}
 
@@ -1258,7 +1258,7 @@ static int at91ether_resume(struct platform_device *pdev)
 		netif_start_queue(net_dev);
 
 		if (gpio_is_valid(lp->board_data.phy_irq_pin)) {
-			int phy_irq = lp->board_data.phy_irq_pin;
+			int phy_irq = gpio_to_irq(lp->board_data.phy_irq_pin);
 			enable_irq(phy_irq);
 		}
 	}
