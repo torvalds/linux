@@ -38,6 +38,9 @@ struct vga_switcheroo_client_ops {
 void vga_switcheroo_unregister_client(struct pci_dev *dev);
 int vga_switcheroo_register_client(struct pci_dev *dev,
 				   const struct vga_switcheroo_client_ops *ops);
+int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
+					 const struct vga_switcheroo_client_ops *ops,
+					 int id, bool active);
 
 void vga_switcheroo_client_fb_set(struct pci_dev *dev,
 				  struct fb_info *info);
@@ -54,6 +57,9 @@ static inline int vga_switcheroo_register_client(struct pci_dev *dev,
 		const struct vga_switcheroo_client_ops *ops) { return 0; }
 static inline void vga_switcheroo_client_fb_set(struct pci_dev *dev, struct fb_info *info) {}
 static inline int vga_switcheroo_register_handler(struct vga_switcheroo_handler *handler) { return 0; }
+static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
+	const struct vga_switcheroo_client_ops *ops,
+	int id, bool active) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
 
