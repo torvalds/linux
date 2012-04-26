@@ -129,6 +129,10 @@ static inline void set_restore_sigmask(void)
 }
 #endif	/* TIF_RESTORE_SIGMASK && !HAVE_SET_RESTORE_SIGMASK */
 
+#ifndef HAVE_SET_RESTORE_SIGMASK
+#error "no set_restore_sigmask() provided and default one won't work"
+#endif
+
 #endif	/* __KERNEL__ */
 
 #endif /* _LINUX_THREAD_INFO_H */

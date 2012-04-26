@@ -1547,7 +1547,6 @@ asmlinkage long compat_sys_old_select(struct compat_sel_arg_struct __user *arg)
 				 compat_ptr(a.exp), compat_ptr(a.tvp));
 }
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 static long do_compat_pselect(int n, compat_ulong_t __user *inp,
 	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 	struct compat_timespec __user *tsp, compat_sigset_t __user *sigmask,
@@ -1670,11 +1669,9 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 
 	return ret;
 }
-#endif /* HAVE_SET_RESTORE_SIGMASK */
 
 #ifdef CONFIG_EPOLL
 
-#ifdef HAVE_SET_RESTORE_SIGMASK
 asmlinkage long compat_sys_epoll_pwait(int epfd,
 			struct compat_epoll_event __user *events,
 			int maxevents, int timeout,
@@ -1718,7 +1715,6 @@ asmlinkage long compat_sys_epoll_pwait(int epfd,
 
 	return err;
 }
-#endif /* HAVE_SET_RESTORE_SIGMASK */
 
 #endif /* CONFIG_EPOLL */
 
