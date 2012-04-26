@@ -699,14 +699,11 @@ static void __init pm_errata_configure(void)
 	}
 }
 
-static int __init omap3_pm_init(void)
+int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
 	struct clockdomain *neon_clkdm, *per_clkdm, *mpu_clkdm, *core_clkdm;
 	int ret;
-
-	if (!cpu_is_omap34xx())
-		return -ENODEV;
 
 	if (!omap3_has_io_chain_ctrl())
 		pr_warning("PM: no software I/O chain control; some wakeups may be lost\n");
@@ -808,5 +805,3 @@ err2:
 err1:
 	return ret;
 }
-
-late_initcall(omap3_pm_init);
