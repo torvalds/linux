@@ -556,7 +556,6 @@ struct gfs2_sb_host {
 struct lm_lockstruct {
 	int ls_jid;
 	unsigned int ls_first;
-	unsigned int ls_nodir;
 	const struct lm_lockops *ls_ops;
 	dlm_lockspace_t *ls_dlm;
 

@@ -84,6 +84,8 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
+	ls->ls_recover_locks_in = 0;
+
 	dlm_set_recover_status(ls, DLM_RS_NODES);
 
 	error = dlm_recover_members_wait(ls);
@@ -130,7 +132,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 * Clear lkb's for departed nodes.
 		 */
 
-		dlm_purge_locks(ls);
+		dlm_recover_purge(ls);
 
 		/*
 		 * Get new master nodeid's for rsb's that were mastered on
@@ -160,6 +162,9 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 			log_debug(ls, "dlm_recover_locks_wait error %d", error);
 			goto fail;
 		}
+
+		log_debug(ls, "dlm_recover_locks %u in",
+			  ls->ls_recover_locks_in);
 
 		/*
 		 * Finalize state in master rsb's now that all locks can be
@@ -225,7 +230,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
-	dlm_grant_after_purge(ls);
+	dlm_recover_grant(ls);
 
 	log_debug(ls, "dlm_recover %llu generation %u done: %u ms",
 		  (unsigned long long)rv->seq, ls->ls_generation,

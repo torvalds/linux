@@ -492,30 +492,41 @@ int dlm_send_ls_not_ready(int nodeid, struct dlm_rcom *rc_in)
 void dlm_receive_rcom(struct dlm_ls *ls, struct dlm_rcom *rc, int nodeid)
 {
 	int lock_size = sizeof(struct dlm_rcom) + sizeof(struct rcom_lock);
-	int stop, reply = 0;
+	int stop, reply = 0, lock = 0;
+	uint32_t status;
 	uint64_t seq;
 
 	switch (rc->rc_type) {
+	case DLM_RCOM_LOCK:
+		lock = 1;
+		break;
+	case DLM_RCOM_LOCK_REPLY:
+		lock = 1;
+		reply = 1;
+		break;
 	case DLM_RCOM_STATUS_REPLY:
 	case DLM_RCOM_NAMES_REPLY:
 	case DLM_RCOM_LOOKUP_REPLY:
-	case DLM_RCOM_LOCK_REPLY:
 		reply = 1;
 	};
 
 	spin_lock(&ls->ls_recover_lock);
+	status = ls->ls_recover_status;
 	stop = test_bit(LSFL_RECOVERY_STOP, &ls->ls_flags);
 	seq = ls->ls_recover_seq;
 	spin_unlock(&ls->ls_recover_lock);
 
 	if ((stop && (rc->rc_type != DLM_RCOM_STATUS)) ||
-	    (reply && (rc->rc_seq_reply != seq))) {
+	    (reply && (rc->rc_seq_reply != seq)) ||
+	    (lock && !(status & DLM_RS_DIR))) {
 		log_limit(ls, "dlm_receive_rcom ignore msg %d "
-			  "from %d %llu %llu seq %llu",
-			   rc->rc_type, nodeid,
+			  "from %d %llu %llu recover seq %llu sts %x gen %u",
+			   rc->rc_type,
+			   nodeid,
 			   (unsigned long long)rc->rc_seq,
 			   (unsigned long long)rc->rc_seq_reply,
-			   (unsigned long long)seq);
+			   (unsigned long long)seq,
+			   status, ls->ls_generation);
 		goto out;
 	}
 
