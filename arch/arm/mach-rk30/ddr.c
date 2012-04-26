@@ -949,14 +949,6 @@ static uint32 get_col(void)
     return ddr_cfg_2_rbc[i].col;
 }
 
-static uint32 get_cs0_cap(void)
-{
-    uint32 i;
-
-    i = *(volatile uint32*)SysSrv_DdrConf;
-    return (1 << ((ddr_cfg_2_rbc[i].row)+(ddr_cfg_2_rbc[i].col)+(ddr_cfg_2_rbc[i].bank)+2));
-}
-
 static uint32_t get_datatraing_addr(void)
 {
     uint32_t          value=0;
@@ -1346,7 +1338,7 @@ static uint32_t ddr_get_parameter(uint32_t nMHz)
             goto out;
         }
 
-        #define DDR3_tREFI_7_8_us    (39)
+        #define DDR3_tREFI_7_8_us    (78)
         #define DDR3_tMRD            (4)
         #define DDR3_tRFC_512Mb      (90)
         #define DDR3_tRFC_1Gb        (110)
@@ -2766,6 +2758,38 @@ void __sramfunc ddr_resume(void)
 }
 EXPORT_SYMBOL(ddr_resume);
 
+//获取容量，返回字节数
+uint32 ddr_get_cap(void)
+{
+    uint32 i;
+    uint32 row;
+    uint32 cs;
+
+    i = *(volatile uint32*)SysSrv_DdrConf;
+    switch((pPHY_Reg->PGCR>>18) & 0xF)
+    {
+        case 0xF:
+            cs = 4;
+        case 7:
+            cs = 3;
+            break;
+        case 3:
+            cs = 2;
+            break;
+        default:
+            cs = 1;
+            break;
+    }
+    row = ddr_cfg_2_rbc[i].row;
+    if(pGRF_Reg->GRF_SOC_CON[2] &  (1<<1))
+    {
+        row += 1;
+    }
+
+    return (1 << (row+(ddr_cfg_2_rbc[i].col)+(ddr_cfg_2_rbc[i].bank)+2))*cs;
+}
+EXPORT_SYMBOL(ddr_get_cap);
+
 int ddr_init(uint32_t dram_type, uint32_t freq)
 {
     volatile uint32_t value = 0;
@@ -2777,8 +2801,6 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_type = dram_type;
     ddr_freq = freq;    
-    //get capability per chip, not total size, used for calculate tRFC
-    capability = get_cs0_cap();
     switch(mem_type)
     {
         case DDR3:
@@ -2811,12 +2833,14 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
             cs = 1;
             break;
     }
+    //get capability per chip, not total size, used for calculate tRFC
+    capability = ddr_get_cap()/cs;
     ddr_print("%d CS, ROW=%d, Bank=%d, COL=%d, Total Capability=%dMB\n", 
                                                                     cs, \
                                                                     get_row(), \
                                                                     (0x1<<(get_bank())), \
                                                                     get_col(), \
-                                                                    ((capability*cs)>>20));
+                                                                    (ddr_get_cap()>>20));
     ddr_adjust_config(mem_type);
 
     value=ddr_change_freq(freq);
