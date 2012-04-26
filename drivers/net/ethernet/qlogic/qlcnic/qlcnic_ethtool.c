@@ -1132,6 +1132,11 @@ qlcnic_get_dump_flag(struct net_device *netdev, struct ethtool_dump *dump)
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
 
+	if (!fw_dump->tmpl_hdr) {
+		netdev_err(adapter->netdev, "FW Dump not supported\n");
+		return -ENOTSUPP;
+	}
+
 	if (fw_dump->clr)
 		dump->len = fw_dump->tmpl_hdr->size + fw_dump->size;
 	else
@@ -1149,6 +1154,11 @@ qlcnic_get_dump_data(struct net_device *netdev, struct ethtool_dump *dump,
 	u32 *hdr_ptr, *data;
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+
+	if (!fw_dump->tmpl_hdr) {
+		netdev_err(netdev, "FW Dump not supported\n");
+		return -ENOTSUPP;
+	}
 
 	if (!fw_dump->clr) {
 		netdev_info(netdev, "Dump not available\n");
@@ -1180,9 +1190,14 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 	int ret = 0;
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_fw_dump *fw_dump = &adapter->ahw->fw_dump;
+	u32 state;
 
 	switch (val->flag) {
 	case QLCNIC_FORCE_FW_DUMP_KEY:
+		if (!fw_dump->tmpl_hdr) {
+			netdev_err(netdev, "FW dump not supported\n");
+			return -ENOTSUPP;
+		}
 		if (!fw_dump->enable) {
 			netdev_info(netdev, "FW dump not enabled\n");
 			return ret;
@@ -1196,35 +1211,47 @@ qlcnic_set_dump(struct net_device *netdev, struct ethtool_dump *val)
 		qlcnic_dev_request_reset(adapter);
 		break;
 	case QLCNIC_DISABLE_FW_DUMP:
-		if (fw_dump->enable) {
+		if (fw_dump->enable && fw_dump->tmpl_hdr) {
 			netdev_info(netdev, "Disabling FW dump\n");
 			fw_dump->enable = 0;
 		}
-		break;
+		return ret;
 	case QLCNIC_ENABLE_FW_DUMP:
-		if (!fw_dump->enable && fw_dump->tmpl_hdr) {
+		if (!fw_dump->tmpl_hdr) {
+			netdev_err(netdev, "FW dump not supported\n");
+			return -ENOTSUPP;
+		}
+		if (!fw_dump->enable) {
 			netdev_info(netdev, "Enabling FW dump\n");
 			fw_dump->enable = 1;
 		}
-		break;
+		return ret;
 	case QLCNIC_FORCE_FW_RESET:
 		netdev_info(netdev, "Forcing a FW reset\n");
 		qlcnic_dev_request_reset(adapter);
 		adapter->flags &= ~QLCNIC_FW_RESET_OWNER;
-		break;
+		return ret;
+	case QLCNIC_SET_QUIESCENT:
+	case QLCNIC_RESET_QUIESCENT:
+		state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+		if (state == QLCNIC_DEV_FAILED || (state == QLCNIC_DEV_BADBAD))
+			netdev_info(netdev, "Device in FAILED state\n");
+		return ret;
 	default:
+		if (!fw_dump->tmpl_hdr) {
+			netdev_err(netdev, "FW dump not supported\n");
+			return -ENOTSUPP;
+		}
 		if (val->flag > QLCNIC_DUMP_MASK_MAX ||
 			val->flag < QLCNIC_DUMP_MASK_MIN) {
 				netdev_info(netdev,
 				"Invalid dump level: 0x%x\n", val->flag);
-				ret = -EINVAL;
-				goto out;
+				return -EINVAL;
 		}
 		fw_dump->tmpl_hdr->drv_cap_mask = val->flag & 0xff;
 		netdev_info(netdev, "Driver mask changed to: 0x%x\n",
 			fw_dump->tmpl_hdr->drv_cap_mask);
 	}
-out:
 	return ret;
 }
 
@@ -1257,4 +1284,11 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_dump_flag = qlcnic_get_dump_flag,
 	.get_dump_data = qlcnic_get_dump_data,
 	.set_dump = qlcnic_set_dump,
+};
+
+const struct ethtool_ops qlcnic_ethtool_failed_ops = {
+	.get_settings = qlcnic_get_settings,
+	.get_drvinfo = qlcnic_get_drvinfo,
+	.set_msglevel = qlcnic_set_msglevel,
+	.get_msglevel = qlcnic_get_msglevel,
 };

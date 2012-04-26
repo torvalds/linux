@@ -704,6 +704,8 @@ enum {
 #define QLCNIC_DEV_FAILED		0x6
 #define QLCNIC_DEV_QUISCENT		0x7
 
+#define QLCNIC_DEV_BADBAD		0xbad0bad0
+
 #define QLCNIC_DEV_NPAR_NON_OPER	0 /* NON Operational */
 #define QLCNIC_DEV_NPAR_OPER		1 /* NPAR Operational */
 #define QLCNIC_DEV_NPAR_OPER_TIMEO	30 /* Operational time out */
