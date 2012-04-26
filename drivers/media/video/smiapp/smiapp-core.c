@@ -873,7 +873,7 @@ static int smiapp_read_nvm(struct smiapp_sensor *sensor,
 			   unsigned char *nvm)
 {
 	u32 i, s, p, np, v;
-	int rval, rval2;
+	int rval = 0, rval2;
 
 	np = sensor->nvm_size / SMIAPP_NVM_PAGE_SIZE;
 	for (p = 0; p < np; p++) {
