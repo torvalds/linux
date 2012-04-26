@@ -2987,7 +2987,6 @@ int snd_soc_put_xr_sx(struct snd_kcontrol *kcontrol,
 	unsigned int regwmask = (1<<regwshift)-1;
 	unsigned int invert = mc->invert;
 	unsigned long mask = (1UL<<mc->nbits)-1;
-	long min = mc->min;
 	long max = mc->max;
 	long val = ucontrol->value.integer.value[0];
 	unsigned int i, regval, regmask;
