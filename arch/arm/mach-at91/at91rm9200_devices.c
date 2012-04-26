@@ -140,8 +140,8 @@ static struct macb_platform_data eth_data;
 
 static struct resource eth_resources[] = {
 	[0] = {
-		.start	= AT91_VA_BASE_EMAC,
-		.end	= AT91_VA_BASE_EMAC + SZ_16K - 1,
+		.start	= AT91RM9200_BASE_EMAC,
+		.end	= AT91RM9200_BASE_EMAC + SZ_16K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
