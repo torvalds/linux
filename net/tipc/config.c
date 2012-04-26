@@ -489,6 +489,21 @@ failed:
 	return res;
 }
 
+void tipc_cfg_reinit(void)
+{
+	struct tipc_name_seq seq;
+	int res;
+
+	seq.type = TIPC_CFG_SRV;
+	seq.lower = seq.upper = 0;
+	tipc_withdraw(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+
+	seq.lower = seq.upper = tipc_own_addr;
+	res = tipc_publish(config_port_ref, TIPC_ZONE_SCOPE, &seq);
+	if (res)
+		err("Unable to reinitialize configuration service\n");
+}
+
 void tipc_cfg_stop(void)
 {
 	if (config_port_ref) {
