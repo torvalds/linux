@@ -890,7 +890,6 @@ i915_dispatch_execbuffer(struct intel_ring_buffer *ring,
 
 static void cleanup_status_page(struct intel_ring_buffer *ring)
 {
-	drm_i915_private_t *dev_priv = ring->dev->dev_private;
 	struct drm_i915_gem_object *obj;
 
 	obj = ring->status_page.obj;
@@ -901,14 +900,11 @@ static void cleanup_status_page(struct intel_ring_buffer *ring)
 	i915_gem_object_unpin(obj);
 	drm_gem_object_unreference(&obj->base);
 	ring->status_page.obj = NULL;
-
-	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 }
 
 static int init_status_page(struct intel_ring_buffer *ring)
 {
 	struct drm_device *dev = ring->dev;
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
 	int ret;
 
@@ -929,7 +925,6 @@ static int init_status_page(struct intel_ring_buffer *ring)
 	ring->status_page.gfx_addr = obj->gtt_offset;
 	ring->status_page.page_addr = kmap(obj->pages[0]);
 	if (ring->status_page.page_addr == NULL) {
-		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 		goto err_unpin;
 	}
 	ring->status_page.obj = obj;
