@@ -12,6 +12,7 @@
 #include <linux/version.h>
 
 #include <asm/cacheflush.h>
+#include <asm/fiq_glue.h>
 #include <asm/hardware/gic.h>
 #include <asm/smp_scu.h>
 
@@ -64,6 +65,7 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 
 #ifdef CONFIG_FIQ
 	gic_secondary_init_non_secure();
+	fiq_glue_resume();
 #endif
 }
 
