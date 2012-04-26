@@ -821,8 +821,7 @@ static int __devinit smtcfb_pci_probe(struct pci_dev *pdev,
 	int err;
 	unsigned long pFramebufferPhysical;
 
-	dev_info(&pdev->dev,
-		 "Silicon Motion display driver " SMTC_LINUX_FB_VERSION);
+	dev_info(&pdev->dev, "Silicon Motion display driver.");
 
 	err = pci_enable_device(pdev);	/* enable SMTC chip */
 	if (err)

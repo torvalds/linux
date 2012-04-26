@@ -13,8 +13,6 @@
  *  more details.
  */
 
-#define SMTC_LINUX_FB_VERSION	"version 0.11.2619.21.01 July 27, 2008"
-
 #define NR_PALETTE        256
 #define NR_RGB            2
 
