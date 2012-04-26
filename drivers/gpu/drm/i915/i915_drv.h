@@ -1156,10 +1156,6 @@ extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
-extern int i915_irq_emit(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
-extern int i915_irq_wait(struct drm_device *dev, void *data,
-			 struct drm_file *file_priv);
 
 extern void intel_irq_init(struct drm_device *dev);
 

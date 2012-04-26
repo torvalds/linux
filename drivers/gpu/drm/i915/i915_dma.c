@@ -721,6 +721,116 @@ fail_batch_free:
 	return ret;
 }
 
+static int i915_emit_irq(struct drm_device * dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+
+	i915_kernel_lost_context(dev);
+
+	DRM_DEBUG_DRIVER("\n");
+
+	dev_priv->counter++;
+	if (dev_priv->counter > 0x7FFFFFFFUL)
+		dev_priv->counter = 1;
+	if (master_priv->sarea_priv)
+		master_priv->sarea_priv->last_enqueue = dev_priv->counter;
+
+	if (BEGIN_LP_RING(4) == 0) {
+		OUT_RING(MI_STORE_DWORD_INDEX);
+		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		OUT_RING(dev_priv->counter);
+		OUT_RING(MI_USER_INTERRUPT);
+		ADVANCE_LP_RING();
+	}
+
+	return dev_priv->counter;
+}
+
+static int i915_wait_irq(struct drm_device * dev, int irq_nr)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+	int ret = 0;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+
+	DRM_DEBUG_DRIVER("irq_nr=%d breadcrumb=%d\n", irq_nr,
+		  READ_BREADCRUMB(dev_priv));
+
+	if (READ_BREADCRUMB(dev_priv) >= irq_nr) {
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+		return 0;
+	}
+
+	if (master_priv->sarea_priv)
+		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+
+	if (ring->irq_get(ring)) {
+		DRM_WAIT_ON(ret, ring->irq_queue, 3 * DRM_HZ,
+			    READ_BREADCRUMB(dev_priv) >= irq_nr);
+		ring->irq_put(ring);
+	} else if (wait_for(READ_BREADCRUMB(dev_priv) >= irq_nr, 3000))
+		ret = -EBUSY;
+
+	if (ret == -EBUSY) {
+		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",
+			  READ_BREADCRUMB(dev_priv), (int)dev_priv->counter);
+	}
+
+	return ret;
+}
+
+/* Needs the lock as it touches the ring.
+ */
+static int i915_irq_emit(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_irq_emit_t *emit = data;
+	int result;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv || !LP_RING(dev_priv)->virtual_start) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	mutex_lock(&dev->struct_mutex);
+	result = i915_emit_irq(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
+		DRM_ERROR("copy_to_user\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+/* Doesn't need the hardware lock.
+ */
+static int i915_irq_wait(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_irq_wait_t *irqwait = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	return i915_wait_irq(dev, irqwait->irq_seq);
+}
+
 static int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv)
 {
