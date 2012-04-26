@@ -526,6 +526,113 @@ out_disable:
 	}
 }
 
+static void i915_pineview_get_mem_freq(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u32 tmp;
+
+	tmp = I915_READ(CLKCFG);
+
+	switch (tmp & CLKCFG_FSB_MASK) {
+	case CLKCFG_FSB_533:
+		dev_priv->fsb_freq = 533; /* 133*4 */
+		break;
+	case CLKCFG_FSB_800:
+		dev_priv->fsb_freq = 800; /* 200*4 */
+		break;
+	case CLKCFG_FSB_667:
+		dev_priv->fsb_freq =  667; /* 167*4 */
+		break;
+	case CLKCFG_FSB_400:
+		dev_priv->fsb_freq = 400; /* 100*4 */
+		break;
+	}
+
+	switch (tmp & CLKCFG_MEM_MASK) {
+	case CLKCFG_MEM_533:
+		dev_priv->mem_freq = 533;
+		break;
+	case CLKCFG_MEM_667:
+		dev_priv->mem_freq = 667;
+		break;
+	case CLKCFG_MEM_800:
+		dev_priv->mem_freq = 800;
+		break;
+	}
+
+	/* detect pineview DDR3 setting */
+	tmp = I915_READ(CSHRDDR3CTL);
+	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
+}
+
+static void i915_ironlake_get_mem_freq(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u16 ddrpll, csipll;
+
+	ddrpll = I915_READ16(DDRMPLL1);
+	csipll = I915_READ16(CSIPLL0);
+
+	switch (ddrpll & 0xff) {
+	case 0xc:
+		dev_priv->mem_freq = 800;
+		break;
+	case 0x10:
+		dev_priv->mem_freq = 1066;
+		break;
+	case 0x14:
+		dev_priv->mem_freq = 1333;
+		break;
+	case 0x18:
+		dev_priv->mem_freq = 1600;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown memory frequency 0x%02x\n",
+				 ddrpll & 0xff);
+		dev_priv->mem_freq = 0;
+		break;
+	}
+
+	dev_priv->r_t = dev_priv->mem_freq;
+
+	switch (csipll & 0x3ff) {
+	case 0x00c:
+		dev_priv->fsb_freq = 3200;
+		break;
+	case 0x00e:
+		dev_priv->fsb_freq = 3733;
+		break;
+	case 0x010:
+		dev_priv->fsb_freq = 4266;
+		break;
+	case 0x012:
+		dev_priv->fsb_freq = 4800;
+		break;
+	case 0x014:
+		dev_priv->fsb_freq = 5333;
+		break;
+	case 0x016:
+		dev_priv->fsb_freq = 5866;
+		break;
+	case 0x018:
+		dev_priv->fsb_freq = 6400;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown fsb frequency 0x%04x\n",
+				 csipll & 0x3ff);
+		dev_priv->fsb_freq = 0;
+		break;
+	}
+
+	if (dev_priv->fsb_freq == 3200) {
+		dev_priv->c_m = 0;
+	} else if (dev_priv->fsb_freq > 3200 && dev_priv->fsb_freq <= 4800) {
+		dev_priv->c_m = 1;
+	} else {
+		dev_priv->c_m = 2;
+	}
+}
+
 static const struct cxsr_latency cxsr_latency_table[] = {
 	{1, 0, 800, 400, 3382, 33382, 3983, 33983},    /* DDR2-400 SC */
 	{1, 0, 800, 667, 3354, 33354, 3807, 33807},    /* DDR2-667 SC */
@@ -3439,6 +3546,12 @@ void intel_init_pm(struct drm_device *dev)
 		}
 		/* 855GM needs testing */
 	}
+
+	/* For cxsr */
+	if (IS_PINEVIEW(dev))
+		i915_pineview_get_mem_freq(dev);
+	else if (IS_GEN5(dev))
+		i915_ironlake_get_mem_freq(dev);
 
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev)) {
