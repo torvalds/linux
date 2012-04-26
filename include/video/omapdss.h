@@ -605,6 +605,8 @@ struct omap_dss_device {
 
 struct omap_dss_hdmi_data
 {
+	int ct_cp_hpd_gpio;
+	int ls_oe_gpio;
 	int hpd_gpio;
 };
 
