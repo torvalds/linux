@@ -105,14 +105,6 @@ char __iomem *smtc_VRAMBaseAddress;	/* video memory starting address */
 static u32 colreg[17];
 static struct par_info hw;	/* hardware information */
 
-u16 smtc_ChipIDs[] = {
-	0x710,
-	0x712,
-	0x720
-};
-
-#define numSMTCchipIDs ARRAY_SIZE(smtc_ChipIDs)
-
 static struct fb_var_screeninfo smtcfb_var = {
 	.xres           = 1024,
 	.yres           = 600,

@@ -20,12 +20,6 @@
 
 #define FB_ACCEL_SMI_LYNX 88
 
-#ifdef __BIG_ENDIAN
-#define PC_VGA            0
-#else
-#define PC_VGA            1
-#endif
-
 #define SCREEN_X_RES      1024
 #define SCREEN_Y_RES      600
 #define SCREEN_BPP        16
