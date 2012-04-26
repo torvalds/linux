@@ -2247,24 +2247,50 @@ void snd_hda_ctls_clear(struct hda_codec *codec)
 /* pseudo device locking
  * toggle card->shutdown to allow/disallow the device access (as a hack)
  */
-static int hda_lock_devices(struct snd_card *card)
+int snd_hda_lock_devices(struct hda_bus *bus)
 {
+	struct snd_card *card = bus->card;
+	struct hda_codec *codec;
+
 	spin_lock(&card->files_lock);
-	if (card->shutdown) {
-		spin_unlock(&card->files_lock);
-		return -EINVAL;
-	}
+	if (card->shutdown)
+		goto err_unlock;
 	card->shutdown = 1;
+	if (!list_empty(&card->ctl_files))
+		goto err_clear;
+
+	list_for_each_entry(codec, &bus->codec_list, list) {
+		int pcm;
+		for (pcm = 0; pcm < codec->num_pcms; pcm++) {
+			struct hda_pcm *cpcm = &codec->pcm_info[pcm];
+			if (!cpcm->pcm)
+				continue;
+			if (cpcm->pcm->streams[0].substream_opened ||
+			    cpcm->pcm->streams[1].substream_opened)
+				goto err_clear;
+		}
+	}
 	spin_unlock(&card->files_lock);
 	return 0;
-}
 
-static void hda_unlock_devices(struct snd_card *card)
+ err_clear:
+	card->shutdown = 0;
+ err_unlock:
+	spin_unlock(&card->files_lock);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_HDA(snd_hda_lock_devices);
+
+void snd_hda_unlock_devices(struct hda_bus *bus)
 {
+	struct snd_card *card = bus->card;
+
+	card = bus->card;
 	spin_lock(&card->files_lock);
 	card->shutdown = 0;
 	spin_unlock(&card->files_lock);
 }
+EXPORT_SYMBOL_HDA(snd_hda_unlock_devices);
 
 /**
  * snd_hda_codec_reset - Clear all objects assigned to the codec
@@ -2278,26 +2304,12 @@ static void hda_unlock_devices(struct snd_card *card)
  */
 int snd_hda_codec_reset(struct hda_codec *codec)
 {
-	struct snd_card *card = codec->bus->card;
-	int i, pcm;
+	struct hda_bus *bus = codec->bus;
+	struct snd_card *card = bus->card;
+	int i;
 
-	if (hda_lock_devices(card) < 0)
+	if (snd_hda_lock_devices(bus) < 0)
 		return -EBUSY;
-	/* check whether the codec isn't used by any mixer or PCM streams */
-	if (!list_empty(&card->ctl_files)) {
-		hda_unlock_devices(card);
-		return -EBUSY;
-	}
-	for (pcm = 0; pcm < codec->num_pcms; pcm++) {
-		struct hda_pcm *cpcm = &codec->pcm_info[pcm];
-		if (!cpcm->pcm)
-			continue;
-		if (cpcm->pcm->streams[0].substream_opened ||
-		    cpcm->pcm->streams[1].substream_opened) {
-			hda_unlock_devices(card);
-			return -EBUSY;
-		}
-	}
 
 	/* OK, let it free */
 
@@ -2306,7 +2318,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	codec->power_on = 0;
 	codec->power_transition = 0;
 	codec->power_jiffies = jiffies;
-	flush_workqueue(codec->bus->workq);
+	flush_workqueue(bus->workq);
 #endif
 	snd_hda_ctls_clear(codec);
 	/* relase PCMs */
@@ -2314,7 +2326,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 		if (codec->pcm_info[i].pcm) {
 			snd_device_free(card, codec->pcm_info[i].pcm);
 			clear_bit(codec->pcm_info[i].device,
-				  codec->bus->pcm_dev_bits);
+				  bus->pcm_dev_bits);
 		}
 	}
 	if (codec->patch_ops.free)
@@ -2339,7 +2351,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	codec->owner = NULL;
 
 	/* allow device access again */
-	hda_unlock_devices(card);
+	snd_hda_unlock_devices(bus);
 	return 0;
 }
 
