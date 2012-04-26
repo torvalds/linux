@@ -1819,6 +1819,36 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	mutex_unlock(&dev->struct_mutex);
 }
 
+static int __wait_seqno(struct intel_ring_buffer *ring, u32 seqno,
+			bool interruptible)
+{
+	drm_i915_private_t *dev_priv = ring->dev->dev_private;
+	int ret = 0;
+
+	if (i915_seqno_passed(ring->get_seqno(ring), seqno))
+		return 0;
+
+	trace_i915_gem_request_wait_begin(ring, seqno);
+	if (WARN_ON(!ring->irq_get(ring)))
+		return -ENODEV;
+
+#define EXIT_COND \
+	(i915_seqno_passed(ring->get_seqno(ring), seqno) || \
+	atomic_read(&dev_priv->mm.wedged))
+
+	if (interruptible)
+		ret = wait_event_interruptible(ring->irq_queue,
+					       EXIT_COND);
+	else
+		wait_event(ring->irq_queue, EXIT_COND);
+
+	ring->irq_put(ring);
+	trace_i915_gem_request_wait_end(ring, seqno);
+#undef EXIT_COND
+
+	return ret;
+}
+
 /**
  * Waits for a sequence number to be signaled, and cleans up the
  * request and object lists appropriately for that event.
@@ -1861,24 +1891,7 @@ i915_wait_request(struct intel_ring_buffer *ring,
 		seqno = request->seqno;
 	}
 
-	if (!i915_seqno_passed(ring->get_seqno(ring), seqno)) {
-		trace_i915_gem_request_wait_begin(ring, seqno);
-
-		if (WARN_ON(!ring->irq_get(ring)))
-			return -ENODEV;
-
-		if (dev_priv->mm.interruptible)
-			ret = wait_event_interruptible(ring->irq_queue,
-						       i915_seqno_passed(ring->get_seqno(ring), seqno)
-						       || atomic_read(&dev_priv->mm.wedged));
-		else
-			wait_event(ring->irq_queue,
-				   i915_seqno_passed(ring->get_seqno(ring), seqno)
-				   || atomic_read(&dev_priv->mm.wedged));
-
-		ring->irq_put(ring);
-		trace_i915_gem_request_wait_end(ring, seqno);
-	}
+	ret = __wait_seqno(ring, seqno, dev_priv->mm.interruptible);
 	if (atomic_read(&dev_priv->mm.wedged))
 		ret = -EAGAIN;
 
