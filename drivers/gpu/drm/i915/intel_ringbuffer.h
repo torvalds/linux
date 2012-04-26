@@ -2,7 +2,7 @@
 #define _INTEL_RINGBUFFER_H_
 
 struct  intel_hw_status_page {
-	u32	__iomem	*page_addr;
+	u32		*page_addr;
 	unsigned int	gfx_addr;
 	struct		drm_i915_gem_object *obj;
 };
@@ -115,7 +115,6 @@ struct  intel_ring_buffer {
 	u32 outstanding_lazy_request;
 
 	wait_queue_head_t irq_queue;
-	drm_local_map_t map;
 
 	void *private;
 };
@@ -149,7 +148,9 @@ static inline u32
 intel_read_status_page(struct intel_ring_buffer *ring,
 		       int reg)
 {
-	return ioread32(ring->status_page.page_addr + reg);
+	/* Ensure that the compiler doesn't optimize away the load. */
+	barrier();
+	return ring->status_page.page_addr[reg];
 }
 
 /**

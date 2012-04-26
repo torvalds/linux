@@ -256,7 +256,7 @@ static int i915_dma_resume(struct drm_device * dev)
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
-	if (ring->map.handle == NULL) {
+	if (ring->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;

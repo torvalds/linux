@@ -977,20 +977,14 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	if (ret)
 		goto err_unref;
 
-	ring->map.size = ring->size;
-	ring->map.offset = dev->agp->base + obj->gtt_offset;
-	ring->map.type = 0;
-	ring->map.flags = 0;
-	ring->map.mtrr = 0;
-
-	drm_core_ioremap_wc(&ring->map, dev);
-	if (ring->map.handle == NULL) {
+	ring->virtual_start = ioremap_wc(dev->agp->base + obj->gtt_offset,
+					 ring->size);
+	if (ring->virtual_start == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
 		ret = -EINVAL;
 		goto err_unpin;
 	}
 
-	ring->virtual_start = ring->map.handle;
 	ret = ring->init(ring);
 	if (ret)
 		goto err_unmap;
@@ -1006,7 +1000,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	return 0;
 
 err_unmap:
-	drm_core_ioremapfree(&ring->map, dev);
+	iounmap(ring->virtual_start);
 err_unpin:
 	i915_gem_object_unpin(obj);
 err_unref:
@@ -1034,7 +1028,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 	I915_WRITE_CTL(ring, 0);
 
-	drm_core_ioremapfree(&ring->map, ring->dev);
+	iounmap(ring->virtual_start);
 
 	i915_gem_object_unpin(ring->obj);
 	drm_gem_object_unreference(&ring->obj->base);
@@ -1048,7 +1042,7 @@ void intel_cleanup_ring_buffer(struct intel_ring_buffer *ring)
 
 static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 {
-	unsigned int *virt;
+	uint32_t __iomem *virt;
 	int rem = ring->size - ring->tail;
 
 	if (ring->space < rem) {
@@ -1057,12 +1051,10 @@ static int intel_wrap_ring_buffer(struct intel_ring_buffer *ring)
 			return ret;
 	}
 
-	virt = (unsigned int *)(ring->virtual_start + ring->tail);
-	rem /= 8;
-	while (rem--) {
-		*virt++ = MI_NOOP;
-		*virt++ = MI_NOOP;
-	}
+	virt = ring->virtual_start + ring->tail;
+	rem /= 4;
+	while (rem--)
+		iowrite32(MI_NOOP, virt++);
 
 	ring->tail = 0;
 	ring->space = ring_space(ring);
@@ -1427,20 +1419,13 @@ int intel_render_ring_init_dri(struct drm_device *dev, u64 start, u32 size)
 	if (IS_I830(ring->dev))
 		ring->effective_size -= 128;
 
-	ring->map.offset = start;
-	ring->map.size = size;
-	ring->map.type = 0;
-	ring->map.flags = 0;
-	ring->map.mtrr = 0;
-
-	drm_core_ioremap_wc(&ring->map, dev);
-	if (ring->map.handle == NULL) {
+	ring->virtual_start = ioremap_wc(start, size);
+	if (ring->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
 	}
 
-	ring->virtual_start = (void __force __iomem *)ring->map.handle;
 	return 0;
 }
 
