@@ -314,8 +314,8 @@ static void __devexit wl1251_sdio_remove(struct sdio_func *func)
 
 	if (wl->irq)
 		free_irq(wl->irq, wl);
-	kfree(wl_sdio);
 	wl1251_free_hw(wl);
+	kfree(wl_sdio);
 
 	sdio_claim_host(func);
 	sdio_release_irq(func);
