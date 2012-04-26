@@ -778,6 +778,10 @@ struct qlcnic_legacy_intr_set {
 #define FLASH_ROM_WINDOW	0x42110030
 #define FLASH_ROM_DATA		0x42150000
 
+
+static const u32 FW_DUMP_LEVELS[] = {
+	0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
+
 static const u32 MIU_TEST_READ_DATA[] = {
 	0x410000A8, 0x410000AC, 0x410000B8, 0x410000BC, };
 
