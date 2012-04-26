@@ -71,7 +71,6 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
 /**
  * gfs2_setbit - Set a bit in the bitmaps
  * @rgd: the resource group descriptor
- * @buf1: the primary buffer that holds the bitmaps
  * @buf2: the clone buffer that holds the bitmaps
  * @bi: the bitmap structure
  * @block: the block to set
@@ -79,16 +78,16 @@ static u32 rgblk_search(struct gfs2_rgrpd *rgd, u32 goal,
  *
  */
 
-static inline void gfs2_setbit(struct gfs2_rgrpd *rgd, unsigned char *buf1,
-			       unsigned char *buf2, struct gfs2_bitmap *bi,
-			       u32 block, unsigned char new_state)
+static inline void gfs2_setbit(struct gfs2_rgrpd *rgd, unsigned char *buf2,
+			       struct gfs2_bitmap *bi, u32 block,
+			       unsigned char new_state)
 {
 	unsigned char *byte1, *byte2, *end, cur_state;
 	unsigned int buflen = bi->bi_len;
 	const unsigned int bit = (block % GFS2_NBBY) * GFS2_BIT_SIZE;
 
-	byte1 = buf1 + bi->bi_offset + (block / GFS2_NBBY);
-	end = buf1 + bi->bi_offset + buflen;
+	byte1 = bi->bi_bh->b_data + bi->bi_offset + (block / GFS2_NBBY);
+	end = bi->bi_bh->b_data + bi->bi_offset + buflen;
 
 	BUG_ON(byte1 >= end);
 
@@ -1369,8 +1368,8 @@ static u64 gfs2_alloc_extent(struct gfs2_rgrpd *rgd, struct gfs2_bitmap *bi,
 	*n = 0;
 	buffer = bi->bi_bh->b_data + bi->bi_offset;
 	gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-	gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone,
-		    bi, blk, dinode ? GFS2_BLKST_DINODE : GFS2_BLKST_USED);
+	gfs2_setbit(rgd, bi->bi_clone, bi, blk,
+		    dinode ? GFS2_BLKST_DINODE : GFS2_BLKST_USED);
 	(*n)++;
 	goal = blk;
 	while (*n < elen) {
@@ -1380,8 +1379,7 @@ static u64 gfs2_alloc_extent(struct gfs2_rgrpd *rgd, struct gfs2_bitmap *bi,
 		if (gfs2_testbit(rgd, buffer, bi->bi_len, goal) !=
 		    GFS2_BLKST_FREE)
 			break;
-		gfs2_setbit(rgd, bi->bi_bh->b_data, bi->bi_clone,
-			    bi, goal, GFS2_BLKST_USED);
+		gfs2_setbit(rgd, bi->bi_clone, bi, goal, GFS2_BLKST_USED);
 		(*n)++;
 	}
 	blk = gfs2_bi2rgd_blk(bi, blk);
@@ -1438,8 +1436,7 @@ static struct gfs2_rgrpd *rgblk_free(struct gfs2_sbd *sdp, u64 bstart,
 			       bi->bi_len);
 		}
 		gfs2_trans_add_bh(rgd->rd_gl, bi->bi_bh, 1);
-		gfs2_setbit(rgd, bi->bi_bh->b_data, NULL,
-			    bi, buf_blk, new_state);
+		gfs2_setbit(rgd, NULL, bi, buf_blk, new_state);
 	}
 
 	return rgd;
