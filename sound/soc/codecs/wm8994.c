@@ -82,7 +82,8 @@ static void wm8958_micd_set_rate(struct snd_soc_codec *codec)
 	const struct wm8958_micd_rate *rates;
 	int num_rates;
 
-	if (wm8994->jack_cb != wm8958_default_micdet)
+	if (!(wm8994->pdata && wm8994->pdata->micd_rates) &&
+	    wm8994->jack_cb != wm8958_default_micdet)
 		return;
 
 	idle = !wm8994->jack_mic;
