@@ -78,8 +78,15 @@ register_ip_vs_proto_netns(struct net *net, struct ip_vs_protocol *pp)
 	ipvs->proto_data_table[hash] = pd;
 	atomic_set(&pd->appcnt, 0);	/* Init app counter */
 
-	if (pp->init_netns != NULL)
-		pp->init_netns(net, pd);
+	if (pp->init_netns != NULL) {
+		int ret = pp->init_netns(net, pd);
+		if (ret) {
+			/* unlink an free proto data */
+			ipvs->proto_data_table[hash] = pd->next;
+			kfree(pd);
+			return ret;
+		}
+	}
 
 	return 0;
 }
