@@ -124,8 +124,9 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 				   limits->min_pll_ip_freq_hz));
 	limits->min_pre_pll_clk_div =
 		max_t(uint16_t, limits->min_pre_pll_clk_div,
-		      clk_div_even(pll->ext_clk_freq_hz /
-				   limits->max_pll_ip_freq_hz));
+		      clk_div_even_up(
+			      DIV_ROUND_UP(pll->ext_clk_freq_hz,
+					   limits->max_pll_ip_freq_hz)));
 	dev_dbg(dev, "pre-pll check: min / max pre_pll_clk_div: %d / %d\n",
 		limits->min_pre_pll_clk_div, limits->max_pre_pll_clk_div);
 
