@@ -37,7 +37,7 @@
 #endif
 #define RT5631_VERSION "0.01 alsa 1.0.24"
 
-#define RT5631_ALC_DAC_FUNC_ENA 1	//ALC functio for DAC
+#define RT5631_ALC_DAC_FUNC_ENA 0	//ALC functio for DAC
 #define RT5631_ALC_ADC_FUNC_ENA 1	//ALC function for ADC
 #define RT5631_SPK_TIMER	0	//if enable this, MUST enable RT5631_EQ_FUNC_ENA first!
 
