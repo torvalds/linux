@@ -2528,26 +2528,6 @@ static void ironlake_fdi_disable(struct drm_crtc *crtc)
 	udelay(100);
 }
 
-/*
- * When we disable a pipe, we need to clear any pending scanline wait events
- * to avoid hanging the ring, which we assume we are waiting on.
- */
-static void intel_clear_scanline_wait(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ring_buffer *ring;
-	u32 tmp;
-
-	if (IS_GEN2(dev))
-		/* Can't break the hang on i8xx */
-		return;
-
-	ring = LP_RING(dev_priv);
-	tmp = I915_READ_CTL(ring);
-	if (tmp & RING_WAIT)
-		I915_WRITE_CTL(ring, tmp);
-}
-
 static void intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -2931,7 +2911,6 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 
 	mutex_lock(&dev->struct_mutex);
 	intel_update_fbc(dev);
-	intel_clear_scanline_wait(dev);
 	mutex_unlock(&dev->struct_mutex);
 }
 
@@ -3036,7 +3015,6 @@ static void i9xx_crtc_disable(struct drm_crtc *crtc)
 	intel_crtc->active = false;
 	intel_update_fbc(dev);
 	intel_update_watermarks(dev);
-	intel_clear_scanline_wait(dev);
 }
 
 static void i9xx_crtc_dpms(struct drm_crtc *crtc, int mode)
