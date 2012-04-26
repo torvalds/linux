@@ -245,13 +245,6 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	return AE_OK;
 }
 
-static bool resource_contains(struct resource *res, resource_size_t point)
-{
-	if (res->start <= point && point <= res->end)
-		return true;
-	return false;
-}
-
 static void coalesce_windows(struct pci_root_info *info, unsigned long type)
 {
 	int i, j;
@@ -272,10 +265,7 @@ static void coalesce_windows(struct pci_root_info *info, unsigned long type)
 			 * our resources no longer match the ACPI _CRS, but
 			 * the kernel resource tree doesn't allow overlaps.
 			 */
-			if (resource_contains(res1, res2->start) ||
-			    resource_contains(res1, res2->end) ||
-			    resource_contains(res2, res1->start) ||
-			    resource_contains(res2, res1->end)) {
+			if (resource_overlaps(res1, res2)) {
 				res1->start = min(res1->start, res2->start);
 				res1->end = max(res1->end, res2->end);
 				dev_info(&info->bridge->dev,
