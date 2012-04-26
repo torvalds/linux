@@ -100,7 +100,7 @@
 			};
 			hdint {
 				nvidia,pins = "hdint", "lpw0", "lpw2", "lsc1",
-					"lsck", "lsda", "pta";
+					"lsck", "lsda";
 				nvidia,function = "hdmi";
 			};
 			i2cp {
@@ -133,6 +133,10 @@
 			pmc {
 				nvidia,pins = "pmc";
 				nvidia,function = "pwr_on";
+			};
+			pta {
+				nvidia,pins = "pta";
+				nvidia,function = "i2c2";
 			};
 			rm {
 				nvidia,pins = "rm";
