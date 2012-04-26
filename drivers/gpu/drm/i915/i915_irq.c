@@ -582,7 +582,6 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
-	struct drm_i915_master_private *master_priv;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -600,13 +599,6 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		goto done;
 
 	ret = IRQ_HANDLED;
-
-	if (dev->primary->master) {
-		master_priv = dev->primary->master->driver_priv;
-		if (master_priv->sarea_priv)
-			master_priv->sarea_priv->last_dispatch =
-				READ_BREADCRUMB(dev_priv);
-	}
 
 	snb_gt_irq_handler(dev, dev_priv, gt_iir);
 
@@ -669,7 +661,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
 	u32 hotplug_mask;
-	struct drm_i915_master_private *master_priv;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -693,13 +684,6 @@ static irqreturn_t ironlake_irq_handler(DRM_IRQ_ARGS)
 		hotplug_mask = SDE_HOTPLUG_MASK;
 
 	ret = IRQ_HANDLED;
-
-	if (dev->primary->master) {
-		master_priv = dev->primary->master->driver_priv;
-		if (master_priv->sarea_priv)
-			master_priv->sarea_priv->last_dispatch =
-				READ_BREADCRUMB(dev_priv);
-	}
 
 	if (IS_GEN5(dev))
 		ilk_gt_irq_handler(dev, dev_priv, gt_iir);
