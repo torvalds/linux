@@ -411,9 +411,12 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	    DAQBOARD2000_AcqResetScanListFifo |
 	    DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
 
-	/* If pacer clock is not set to some high value (> 10 us), we
-	   risk multiple samples to be put into the result FIFO. */
-	fpga->acqPacerClockDivLow = 1000000;	/* 1 second, should be long enough */
+	/*
+	 * If pacer clock is not set to some high value (> 10 us), we
+	 * risk multiple samples to be put into the result FIFO.
+	 */
+	/* 1 second, should be long enough */
+	fpga->acqPacerClockDivLow = 1000000;
 	fpga->acqPacerClockDivHigh = 0;
 
 	gain = CR_RANGE(insn->chanspec);
