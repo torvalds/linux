@@ -827,7 +827,7 @@ int perf_evlist__prepare_workload(struct perf_evlist *evlist,
 		exit(-1);
 	}
 
-	if (!opts->system_wide && !opts->target_tid && !opts->target_pid)
+	if (!opts->target.system_wide && !opts->target.tid && !opts->target.pid)
 		evlist->threads->map[0] = evlist->workload.pid;
 
 	close(child_ready_pipe[1]);

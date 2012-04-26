@@ -106,15 +106,15 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	if (opts->call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
-	if (opts->system_wide)
+	if (opts->target.system_wide)
 		attr->sample_type	|= PERF_SAMPLE_CPU;
 
 	if (opts->period)
 		attr->sample_type	|= PERF_SAMPLE_PERIOD;
 
 	if (!opts->sample_id_all_missing &&
-	    (opts->sample_time || opts->system_wide ||
-	     !opts->no_inherit || opts->cpu_list))
+	    (opts->sample_time || opts->target.system_wide ||
+	     !opts->no_inherit || opts->target.cpu_list))
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 
 	if (opts->raw_samples) {
@@ -135,8 +135,8 @@ void perf_evsel__config(struct perf_evsel *evsel, struct perf_record_opts *opts,
 	attr->mmap = track;
 	attr->comm = track;
 
-	if (!opts->target_pid && !opts->target_tid && !opts->system_wide &&
-	    (!opts->group || evsel == first)) {
+	if (!opts->target.pid && !opts->target.tid &&
+	    !opts->target.system_wide && (!opts->group || evsel == first)) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}

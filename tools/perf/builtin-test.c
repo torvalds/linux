@@ -1207,8 +1207,9 @@ static int test__PERF_RECORD(void)
 	 * perf_evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
-	err = perf_evlist__create_maps(evlist, opts.target_pid,
-				       opts.target_tid, UINT_MAX, opts.cpu_list);
+	err = perf_evlist__create_maps(evlist, opts.target.pid,
+				       opts.target.tid, UINT_MAX,
+				       opts.target.cpu_list);
 	if (err < 0) {
 		pr_debug("Not enough memory to create thread/cpu maps\n");
 		goto out_delete_evlist;
