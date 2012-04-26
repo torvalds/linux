@@ -1223,11 +1223,8 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 
 	/* Reject message if it is wrong sort of message for socket */
 
-	/*
-	 * WOULD IT BE BETTER TO JUST DISCARD THESE MESSAGES INSTEAD?
-	 * "NO PORT" ISN'T REALLY THE RIGHT ERROR CODE, AND THERE MAY
-	 * BE SECURITY IMPLICATIONS INHERENT IN REJECTING INVALID TRAFFIC
-	 */
+	if (msg_type(msg) > TIPC_DIRECT_MSG)
+		return TIPC_ERR_NO_PORT;
 
 	if (sock->state == SS_READY) {
 		if (msg_connected(msg))
