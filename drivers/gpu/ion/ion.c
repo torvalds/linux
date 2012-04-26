@@ -809,7 +809,7 @@ static void ion_vma_close(struct vm_area_struct *vma)
 	struct ion_handle *handle = vma->vm_private_data;
 	struct ion_buffer *buffer = vma->vm_file->private_data;
 	struct ion_client *client;
-	struct ion_user_map_addr *map = NULL;
+	struct ion_user_map_addr *map = NULL, *tmp;
 
 	pr_debug("%s: %d\n", __func__, __LINE__);
 	/* this indicates the client is gone, nothing to do here */
@@ -831,7 +831,7 @@ static void ion_vma_close(struct vm_area_struct *vma)
 		 atomic_read(&handle->ref.refcount),
 		 atomic_read(&buffer->ref.refcount));
 	mutex_lock(&buffer->lock);
-	list_for_each_entry(map, &buffer->map_addr, list)
+	list_for_each_entry_safe(map, tmp, &buffer->map_addr, list)
 		if(map->vaddr == vma->vm_start){
 			list_del(&map->list);
                         kfree(map);
