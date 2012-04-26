@@ -1484,11 +1484,8 @@ addr_scope_policy - INTEGER
 
 
 /proc/sys/net/core/*
-dev_weight - INTEGER
-	The maximum number of packets that kernel can handle on a NAPI
-	interrupt, it's a Per-CPU variable.
+	Please see: Documentation/sysctl/net.txt for descriptions of these entries.
 
-	Default: 64
 
 /proc/sys/net/unix/*
 max_dgram_qlen - INTEGER
