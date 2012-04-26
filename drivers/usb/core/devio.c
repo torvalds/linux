@@ -727,17 +727,6 @@ static int usbdev_open(struct inode *inode, struct file *file)
 	if (imajor(inode) == USB_DEVICE_MAJOR)
 		dev = usbdev_lookup_by_devt(inode->i_rdev);
 
-#ifdef CONFIG_USB_DEVICEFS
-	/* procfs file */
-	if (!dev) {
-		dev = inode->i_private;
-		if (dev && dev->usbfs_dentry &&
-					dev->usbfs_dentry->d_inode == inode)
-			usb_get_dev(dev);
-		else
-			dev = NULL;
-	}
-#endif
 	mutex_unlock(&usbfs_mutex);
 
 	if (!dev)

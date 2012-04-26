@@ -582,29 +582,6 @@ static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
 }
 #endif /* CONFIG_USB_SUSPEND */
 
-
-/*
- * USB device fs stuff
- */
-
-#ifdef CONFIG_USB_DEVICEFS
-
-/*
- * these are expected to be called from the USB core/hub thread
- * with the kernel lock held
- */
-extern void usbfs_update_special(void);
-extern int usbfs_init(void);
-extern void usbfs_cleanup(void);
-
-#else /* CONFIG_USB_DEVICEFS */
-
-static inline void usbfs_update_special(void) {}
-static inline int usbfs_init(void) { return 0; }
-static inline void usbfs_cleanup(void) { }
-
-#endif /* CONFIG_USB_DEVICEFS */
-
 /*-------------------------------------------------------------------------*/
 
 #if defined(CONFIG_USB_MON) || defined(CONFIG_USB_MON_MODULE)

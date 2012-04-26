@@ -87,7 +87,6 @@ kernel as built-in or modules:
 	CONFIG_SOUND             - Sound card support
 	CONFIG_SND               - Advanced Linux Sound Architecture
 	CONFIG_USB               - Support for Host-side USB
-	CONFIG_USB_DEVICEFS      - USB device filesystem
 	CONFIG_USB_EHCI_HCD      - EHCI HCD (USB 2.0) support
 
 Additionally, to use the example application, the following options need to
