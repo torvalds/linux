@@ -187,7 +187,7 @@ static int __devinit ad7780_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -265,7 +265,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -282,7 +282,7 @@ static int ad7780_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

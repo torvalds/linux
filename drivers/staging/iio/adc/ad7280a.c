@@ -839,7 +839,7 @@ static int __devinit ad7280_probe(struct spi_device *spi)
 	int ret;
 	const unsigned short tACQ_ns[4] = {465, 1010, 1460, 1890};
 	const unsigned short nAVG[4] = {1, 2, 4, 8};
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
 	if (indio_dev == NULL)
 		return -ENOMEM;
@@ -945,7 +945,7 @@ error_free_channels:
 	kfree(st->channels);
 
 error_free_device:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -964,7 +964,7 @@ static int __devexit ad7280_remove(struct spi_device *spi)
 
 	kfree(st->channels);
 	kfree(st->iio_attr);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -815,7 +815,7 @@ static int __devinit taos_probe(struct i2c_client *clientp,
 		return -EOPNOTSUPP;
 	}
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		dev_err(&clientp->dev, "iio allocation failed\n");
@@ -879,7 +879,7 @@ static int __devinit taos_probe(struct i2c_client *clientp,
 	dev_info(&clientp->dev, "Light sensor found.\n");
 	return 0;
 fail1:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 fail2:
 	return ret;
 }
@@ -926,7 +926,7 @@ static SIMPLE_DEV_PM_OPS(taos_pm_ops, taos_suspend, taos_resume);
 static int __devexit taos_remove(struct i2c_client *client)
 {
 	iio_device_unregister(i2c_get_clientdata(client));
-	iio_free_device(i2c_get_clientdata(client));
+	iio_device_free(i2c_get_clientdata(client));
 
 	return 0;
 }

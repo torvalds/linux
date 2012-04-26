@@ -1145,7 +1145,7 @@ static int __devinit sca3000_probe(struct spi_device *spi)
 	struct sca3000_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -1209,7 +1209,7 @@ error_unregister_ring:
 error_unregister_dev:
 	iio_device_unregister(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 error_ret:
 	return ret;
@@ -1247,7 +1247,7 @@ static int sca3000_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	sca3000_unconfigure_ring(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -289,7 +289,7 @@ static int __devinit ad5791_probe(struct spi_device *spi)
 	struct ad5791_state *st;
 	int ret, pos_voltage_uv = 0, neg_voltage_uv = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -369,7 +369,7 @@ error_put_reg_neg:
 error_put_reg_pos:
 	if (!IS_ERR(st->reg_vdd))
 		regulator_put(st->reg_vdd);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 
 	return ret;
@@ -390,7 +390,7 @@ static int __devexit ad5791_remove(struct spi_device *spi)
 		regulator_disable(st->reg_vss);
 		regulator_put(st->reg_vss);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

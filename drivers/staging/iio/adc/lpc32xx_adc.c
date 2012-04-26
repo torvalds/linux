@@ -141,7 +141,7 @@ static int __devinit lpc32xx_adc_probe(struct platform_device *pdev)
 		goto errout1;
 	}
 
-	iodev = iio_allocate_device(sizeof(struct lpc32xx_adc_info));
+	iodev = iio_device_alloc(sizeof(struct lpc32xx_adc_info));
 	if (!iodev) {
 		dev_err(&pdev->dev, "failed allocating iio device\n");
 		retval = -ENOMEM;
@@ -202,7 +202,7 @@ errout4:
 errout3:
 	iounmap(info->adc_base);
 errout2:
-	iio_free_device(iodev);
+	iio_device_free(iodev);
 errout1:
 	return retval;
 }
@@ -218,7 +218,7 @@ static int __devexit lpc32xx_adc_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	clk_put(info->clk);
 	iounmap(info->adc_base);
-	iio_free_device(iodev);
+	iio_device_free(iodev);
 
 	return 0;
 }

@@ -714,7 +714,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	int err = 0;
 	u8 id = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -801,7 +801,7 @@ fail2:
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 fail1:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 	return err;
 }
 
@@ -822,7 +822,7 @@ static int tsl2563_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

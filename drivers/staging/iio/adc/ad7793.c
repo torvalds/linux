@@ -469,7 +469,7 @@ static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 	struct ad7793_state *st = iio_priv(indio_dev);
 	int ret;
 
-	st->trig = iio_allocate_trigger("%s-dev%d",
+	st->trig = iio_trigger_alloc("%s-dev%d",
 					spi_get_device_id(st->spi)->name,
 					indio_dev->id);
 	if (st->trig == NULL) {
@@ -503,7 +503,7 @@ static int ad7793_probe_trigger(struct iio_dev *indio_dev)
 error_free_irq:
 	free_irq(st->spi->irq, indio_dev);
 error_free_trig:
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 error_ret:
 	return ret;
 }
@@ -514,7 +514,7 @@ static void ad7793_remove_trigger(struct iio_dev *indio_dev)
 
 	iio_trigger_unregister(st->trig);
 	free_irq(st->spi->irq, indio_dev);
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 }
 
 static const u16 sample_freq_avail[16] = {0, 470, 242, 123, 62, 50, 39, 33, 19,
@@ -904,7 +904,7 @@ static int __devinit ad7793_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -988,7 +988,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -1008,7 +1008,7 @@ static int ad7793_remove(struct spi_device *spi)
 		regulator_put(st->reg);
 	}
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

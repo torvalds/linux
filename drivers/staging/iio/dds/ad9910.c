@@ -367,7 +367,7 @@ static int __devinit ad9910_probe(struct spi_device *spi)
 	struct iio_dev *idev;
 	int ret = 0;
 
-	idev = iio_allocate_device(sizeof(*st));
+	idev = iio_device_alloc(sizeof(*st));
 	if (idev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -392,7 +392,7 @@ static int __devinit ad9910_probe(struct spi_device *spi)
 	return 0;
 
 error_free_dev:
-	iio_free_device(idev);
+	iio_device_free(idev);
 error_ret:
 	return ret;
 }
@@ -400,7 +400,7 @@ error_ret:
 static int __devexit ad9910_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
-	iio_free_device(spi_get_drvdata(spi));
+	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }

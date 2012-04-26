@@ -286,7 +286,7 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	int ret;
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
-	st->trig = iio_allocate_trigger("lis3l02dq-dev%d", indio_dev->id);
+	st->trig = iio_trigger_alloc("lis3l02dq-dev%d", indio_dev->id);
 	if (!st->trig) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -302,7 +302,7 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	return 0;
 
 error_free_trig:
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 error_ret:
 	return ret;
 }
@@ -312,7 +312,7 @@ void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 	iio_trigger_unregister(st->trig);
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 }
 
 void lis3l02dq_unconfigure_buffer(struct iio_dev *indio_dev)

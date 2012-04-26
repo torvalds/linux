@@ -300,7 +300,7 @@ static int __devinit spear_adc_probe(struct platform_device *pdev)
 	int ret = -ENODEV;
 	int irq;
 
-	iodev = iio_allocate_device(sizeof(struct spear_adc_info));
+	iodev = iio_device_alloc(sizeof(struct spear_adc_info));
 	if (!iodev) {
 		dev_err(dev, "failed allocating iio device\n");
 		ret = -ENOMEM;
@@ -404,7 +404,7 @@ errout4:
 errout3:
 	iounmap(info->adc_base_spear6xx);
 errout2:
-	iio_free_device(iodev);
+	iio_device_free(iodev);
 errout1:
 	return ret;
 }
@@ -420,7 +420,7 @@ static int __devexit spear_adc_remove(struct platform_device *pdev)
 	clk_unprepare(info->clk);
 	clk_put(info->clk);
 	iounmap(info->adc_base_spear6xx);
-	iio_free_device(iodev);
+	iio_device_free(iodev);
 
 	return 0;
 }

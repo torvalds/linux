@@ -392,7 +392,7 @@ static int __devinit iio_dummy_probe(int index)
 	 * It also has a region (accessed by iio_priv()
 	 * for chip specific state information.
 	 */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -472,7 +472,7 @@ error_unregister_events:
 error_free_device:
 	/* Note free device should only be called, before registration
 	 * has succeeded. */
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -509,7 +509,7 @@ static int iio_dummy_remove(int index)
 		goto error_ret;
 
 	/* Free all structures */
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 error_ret:
 	return ret;

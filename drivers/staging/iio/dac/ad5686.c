@@ -359,7 +359,7 @@ static int __devinit ad5686_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret, regdone = 0, voltage_uv = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return  -ENOMEM;
 
@@ -411,7 +411,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -426,7 +426,7 @@ static int __devexit ad5686_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -721,7 +721,7 @@ static int __devinit adt7410_probe(struct i2c_client *client,
 	int ret = 0;
 	unsigned long *adt7410_platform_data = client->dev.platform_data;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -797,7 +797,7 @@ error_unreg_int_irq:
 error_unreg_ct_irq:
 	free_irq(client->irq, indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -812,7 +812,7 @@ static int __devexit adt7410_remove(struct i2c_client *client)
 		free_irq(adt7410_platform_data[0], indio_dev);
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -1906,7 +1906,7 @@ static int __devinit tsl2x7x_probe(struct i2c_client *clientp,
 	struct iio_dev *indio_dev;
 	struct tsl2X7X_chip *chip;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -1986,7 +1986,7 @@ fail1:
 	if (clientp->irq)
 		free_irq(clientp->irq, indio_dev);
 fail2:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -2038,7 +2038,7 @@ static int __devexit tsl2x7x_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, chip->client->name);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

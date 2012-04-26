@@ -78,13 +78,13 @@ static inline struct iio_trigger *to_iio_trigger(struct device *d)
 	return container_of(d, struct iio_trigger, dev);
 };
 
-static inline void iio_put_trigger(struct iio_trigger *trig)
+static inline void iio_trigger_put(struct iio_trigger *trig)
 {
 	module_put(trig->ops->owner);
 	put_device(&trig->dev);
 };
 
-static inline void iio_get_trigger(struct iio_trigger *trig)
+static inline void iio_trigger_get(struct iio_trigger *trig)
 {
 	get_device(&trig->dev);
 	__module_get(trig->ops->owner);
@@ -113,7 +113,7 @@ void iio_trigger_poll_chained(struct iio_trigger *trig, s64 time);
 
 irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 
-__printf(1, 2) struct iio_trigger *iio_allocate_trigger(const char *fmt, ...);
-void iio_free_trigger(struct iio_trigger *trig);
+__printf(1, 2) struct iio_trigger *iio_trigger_alloc(const char *fmt, ...);
+void iio_trigger_free(struct iio_trigger *trig);
 
 #endif /* _IIO_TRIGGER_H_ */

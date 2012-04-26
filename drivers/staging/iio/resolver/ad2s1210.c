@@ -690,7 +690,7 @@ static int __devinit ad2s1210_probe(struct spi_device *spi)
 	if (spi->dev.platform_data == NULL)
 		return -EINVAL;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -731,7 +731,7 @@ static int __devinit ad2s1210_probe(struct spi_device *spi)
 error_free_gpios:
 	ad2s1210_free_gpios(st);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -742,7 +742,7 @@ static int __devexit ad2s1210_remove(struct spi_device *spi)
 
 	iio_device_unregister(indio_dev);
 	ad2s1210_free_gpios(iio_priv(indio_dev));
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

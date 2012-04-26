@@ -389,7 +389,7 @@ static int __devinit ad5380_probe(struct device *dev, struct regmap *regmap,
 	unsigned int ctrl = 0;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(dev, "Failed to allocate iio device\n");
 		ret = -ENOMEM;
@@ -455,7 +455,7 @@ error_free_reg:
 
 	kfree(indio_dev->channels);
 error_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_regmap_exit:
 	regmap_exit(regmap);
 
@@ -477,7 +477,7 @@ static int __devexit ad5380_remove(struct device *dev)
 	}
 
 	regmap_exit(st->regmap);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

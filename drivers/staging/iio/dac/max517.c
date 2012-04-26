@@ -218,7 +218,7 @@ static int max517_probe(struct i2c_client *client,
 	struct max517_platform_data *platform_data = client->dev.platform_data;
 	int err;
 
-	indio_dev = iio_allocate_device(sizeof(*data));
+	indio_dev = iio_device_alloc(sizeof(*data));
 	if (indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit;
@@ -257,14 +257,14 @@ static int max517_probe(struct i2c_client *client,
 	return 0;
 
 exit_free_device:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 exit:
 	return err;
 }
 
 static int max517_remove(struct i2c_client *client)
 {
-	iio_free_device(i2c_get_clientdata(client));
+	iio_device_free(i2c_get_clientdata(client));
 
 	return 0;
 }

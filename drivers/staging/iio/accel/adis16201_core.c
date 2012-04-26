@@ -532,7 +532,7 @@ static int __devinit adis16201_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -587,7 +587,7 @@ error_uninitialize_ring:
 error_unreg_ring_funcs:
 	adis16201_unconfigure_ring(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -600,7 +600,7 @@ static int adis16201_remove(struct spi_device *spi)
 	adis16201_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16201_unconfigure_ring(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

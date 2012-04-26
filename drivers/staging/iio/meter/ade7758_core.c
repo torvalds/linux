@@ -885,7 +885,7 @@ static int __devinit ade7758_probe(struct spi_device *spi)
 {
 	int i, ret;
 	struct ade7758_state *st;
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
@@ -962,7 +962,7 @@ error_free_tx:
 error_free_rx:
 	kfree(st->rx);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -984,7 +984,7 @@ static int ade7758_remove(struct spi_device *spi)
 	kfree(st->tx);
 	kfree(st->rx);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 err_ret:
 	return ret;

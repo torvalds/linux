@@ -152,7 +152,7 @@ static int __devinit adis16060_r_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -178,7 +178,7 @@ static int __devinit adis16060_r_probe(struct spi_device *spi)
 	return 0;
 
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -187,7 +187,7 @@ error_ret:
 static int adis16060_r_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
-	iio_free_device(spi_get_drvdata(spi));
+	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }

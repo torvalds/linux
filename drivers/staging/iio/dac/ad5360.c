@@ -465,7 +465,7 @@ static int __devinit ad5360_probe(struct spi_device *spi)
 	unsigned int i;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -520,7 +520,7 @@ error_free_reg:
 error_free_channels:
 	kfree(indio_dev->channels);
 error_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -537,7 +537,7 @@ static int __devexit ad5360_remove(struct spi_device *spi)
 	regulator_bulk_disable(st->chip_info->num_vrefs, st->vref_reg);
 	regulator_bulk_free(st->chip_info->num_vrefs, st->vref_reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

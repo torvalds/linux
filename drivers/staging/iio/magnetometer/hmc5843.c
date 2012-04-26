@@ -544,7 +544,7 @@ static int hmc5843_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int err = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*data));
+	indio_dev = iio_device_alloc(sizeof(*data));
 	if (indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit;
@@ -572,7 +572,7 @@ static int hmc5843_probe(struct i2c_client *client,
 		goto exit_free2;
 	return 0;
 exit_free2:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 exit:
 	return err;
 }
@@ -584,7 +584,7 @@ static int hmc5843_remove(struct i2c_client *client)
 	iio_device_unregister(indio_dev);
 	 /*  sleep mode to save power */
 	hmc5843_configure(client, MODE_SLEEP);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

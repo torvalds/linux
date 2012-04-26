@@ -482,7 +482,7 @@ static int __devinit isl29028_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (!indio_dev) {
 		dev_err(&client->dev, "iio allocation fails\n");
 		return -ENOMEM;
@@ -522,7 +522,7 @@ static int __devinit isl29028_probe(struct i2c_client *client,
 	return 0;
 
 exit_iio_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 	return ret;
 }
 
@@ -531,7 +531,7 @@ static int __devexit isl29028_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 	return 0;
 }
 

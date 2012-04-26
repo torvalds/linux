@@ -208,7 +208,7 @@ static int __devinit ade7854_i2c_probe(struct i2c_client *client,
 	struct ade7854_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 	st = iio_priv(indio_dev);
@@ -226,7 +226,7 @@ static int __devinit ade7854_i2c_probe(struct i2c_client *client,
 
 	ret = ade7854_probe(indio_dev, &client->dev);
 	if (ret)
-		iio_free_device(indio_dev);
+		iio_device_free(indio_dev);
 
 	return ret;
 }

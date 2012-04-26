@@ -604,7 +604,7 @@ static int ad7192_probe_trigger(struct iio_dev *indio_dev)
 	struct ad7192_state *st = iio_priv(indio_dev);
 	int ret;
 
-	st->trig = iio_allocate_trigger("%s-dev%d",
+	st->trig = iio_trigger_alloc("%s-dev%d",
 					spi_get_device_id(st->spi)->name,
 					indio_dev->id);
 	if (st->trig == NULL) {
@@ -637,7 +637,7 @@ static int ad7192_probe_trigger(struct iio_dev *indio_dev)
 error_free_irq:
 	free_irq(st->spi->irq, indio_dev);
 error_free_trig:
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 error_ret:
 	return ret;
 }
@@ -648,7 +648,7 @@ static void ad7192_remove_trigger(struct iio_dev *indio_dev)
 
 	iio_trigger_unregister(st->trig);
 	free_irq(st->spi->irq, indio_dev);
-	iio_free_trigger(st->trig);
+	iio_trigger_free(st->trig);
 }
 
 static ssize_t ad7192_read_frequency(struct device *dev,
@@ -1024,7 +1024,7 @@ static int __devinit ad7192_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL)
 		return -ENOMEM;
 
@@ -1105,7 +1105,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }

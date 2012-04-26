@@ -481,7 +481,7 @@ static int __devinit ad7152_probe(struct i2c_client *client,
 	struct ad7152_chip_info *chip;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -513,7 +513,7 @@ static int __devinit ad7152_probe(struct i2c_client *client,
 	return 0;
 
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -523,7 +523,7 @@ static int __devexit ad7152_remove(struct i2c_client *client)
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

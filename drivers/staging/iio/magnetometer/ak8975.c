@@ -504,7 +504,7 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 
 	/* Register with IIO */
-	indio_dev = iio_allocate_device(sizeof(*data));
+	indio_dev = iio_device_alloc(sizeof(*data));
 	if (indio_dev == NULL) {
 		err = -ENOMEM;
 		goto exit_gpio;
@@ -535,7 +535,7 @@ static int ak8975_probe(struct i2c_client *client,
 	return 0;
 
 exit_free_iio:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 exit_gpio:
 	if (gpio_is_valid(eoc_gpio))
 		gpio_free(eoc_gpio);
@@ -553,7 +553,7 @@ static int ak8975_remove(struct i2c_client *client)
 	if (gpio_is_valid(data->eoc_gpio))
 		gpio_free(data->eoc_gpio);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

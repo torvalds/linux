@@ -400,10 +400,10 @@ int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 extern struct bus_type iio_bus_type;
 
 /**
- * iio_put_device() - reference counted deallocation of struct device
+ * iio_device_put() - reference counted deallocation of struct device
  * @dev: the iio_device containing the device
  **/
-static inline void iio_put_device(struct iio_dev *indio_dev)
+static inline void iio_device_put(struct iio_dev *indio_dev)
 {
 	if (indio_dev)
 		put_device(&indio_dev->dev);
@@ -412,10 +412,10 @@ static inline void iio_put_device(struct iio_dev *indio_dev)
 /* Can we make this smaller? */
 #define IIO_ALIGN L1_CACHE_BYTES
 /**
- * iio_allocate_device() - allocate an iio_dev from a driver
+ * iio_device_alloc() - allocate an iio_dev from a driver
  * @sizeof_priv: Space to allocate for private structure.
  **/
-struct iio_dev *iio_allocate_device(int sizeof_priv);
+struct iio_dev *iio_device_alloc(int sizeof_priv);
 
 static inline void *iio_priv(const struct iio_dev *indio_dev)
 {
@@ -429,10 +429,10 @@ static inline struct iio_dev *iio_priv_to_dev(void *priv)
 }
 
 /**
- * iio_free_device() - free an iio_dev from a driver
+ * iio_device_free() - free an iio_dev from a driver
  * @dev: the iio_dev associated with the device
  **/
-void iio_free_device(struct iio_dev *indio_dev);
+void iio_device_free(struct iio_dev *indio_dev);
 
 /**
  * iio_buffer_enabled() - helper function to test if the buffer is enabled

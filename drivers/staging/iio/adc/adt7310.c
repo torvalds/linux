@@ -753,7 +753,7 @@ static int __devinit adt7310_probe(struct spi_device *spi_dev)
 	unsigned long *adt7310_platform_data = spi_dev->dev.platform_data;
 	unsigned long irq_flags;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -833,7 +833,7 @@ error_unreg_int_irq:
 error_unreg_ct_irq:
 	free_irq(spi_dev->irq, indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -849,7 +849,7 @@ static int __devexit adt7310_remove(struct spi_device *spi_dev)
 		free_irq(adt7310_platform_data[0], indio_dev);
 	if (spi_dev->irq)
 		free_irq(spi_dev->irq, indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

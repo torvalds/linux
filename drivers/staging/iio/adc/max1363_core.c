@@ -1287,7 +1287,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 	if (ret)
 		goto error_put_reg;
 
-	indio_dev = iio_allocate_device(sizeof(struct max1363_state));
+	indio_dev = iio_device_alloc(sizeof(struct max1363_state));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_disable_reg;
@@ -1358,7 +1358,7 @@ error_free_available_scan_masks:
 error_unregister_map:
 	iio_map_array_unregister(indio_dev, client->dev.platform_data);
 error_free_device:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_disable_reg:
 	regulator_disable(reg);
 error_put_reg:
@@ -1384,7 +1384,7 @@ static int max1363_remove(struct i2c_client *client)
 		regulator_put(reg);
 	}
 	iio_map_array_unregister(indio_dev, client->dev.platform_data);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

@@ -540,7 +540,7 @@ static int __devinit ade7754_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -568,7 +568,7 @@ static int __devinit ade7754_probe(struct spi_device *spi)
 	return 0;
 
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 error_ret:
 	return ret;
@@ -585,7 +585,7 @@ static int ade7754_remove(struct spi_device *spi)
 	if (ret)
 		goto err_ret;
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 err_ret:
 	return ret;

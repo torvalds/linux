@@ -112,7 +112,7 @@ static int __devinit ad2s1200_probe(struct spi_device *spi)
 						DRV_NAME, pins[pn]);
 			goto error_ret;
 		}
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -142,7 +142,7 @@ static int __devinit ad2s1200_probe(struct spi_device *spi)
 	return 0;
 
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	for (--pn; pn >= 0; pn--)
 		gpio_free(pins[pn]);
@@ -152,7 +152,7 @@ error_ret:
 static int __devexit ad2s1200_remove(struct spi_device *spi)
 {
 	iio_device_unregister(spi_get_drvdata(spi));
-	iio_free_device(spi_get_drvdata(spi));
+	iio_device_free(spi_get_drvdata(spi));
 
 	return 0;
 }

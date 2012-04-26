@@ -1161,7 +1161,7 @@ static int __devinit adis16400_probe(struct spi_device *spi)
 {
 	int ret;
 	struct adis16400_state *st;
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret =  -ENOMEM;
 		goto error_ret;
@@ -1218,7 +1218,7 @@ error_uninitialize_ring:
 error_unreg_ring_funcs:
 	adis16400_unconfigure_ring(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -1237,7 +1237,7 @@ static int adis16400_remove(struct spi_device *spi)
 	adis16400_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16400_unconfigure_ring(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 

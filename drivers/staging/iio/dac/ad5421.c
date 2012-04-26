@@ -457,7 +457,7 @@ static int __devinit ad5421_probe(struct spi_device *spi)
 	struct ad5421_state *st;
 	int ret;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		dev_err(&spi->dev, "Failed to allocate iio device\n");
 		return  -ENOMEM;
@@ -512,7 +512,7 @@ error_free_irq:
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
 error_free:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return ret;
 }
@@ -524,7 +524,7 @@ static int __devexit ad5421_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

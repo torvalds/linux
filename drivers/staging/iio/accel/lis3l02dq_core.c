@@ -680,7 +680,7 @@ static int __devinit lis3l02dq_probe(struct spi_device *spi)
 	struct lis3l02dq_state *st;
 	struct iio_dev *indio_dev;
 
-	indio_dev = iio_allocate_device(sizeof *st);
+	indio_dev = iio_device_alloc(sizeof *st);
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -748,7 +748,7 @@ error_uninitialize_buffer:
 error_unreg_buffer_funcs:
 	lis3l02dq_unconfigure_buffer(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -803,7 +803,7 @@ static int lis3l02dq_remove(struct spi_device *spi)
 	iio_buffer_unregister(indio_dev);
 	lis3l02dq_unconfigure_buffer(indio_dev);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 err_ret:
 	return ret;
 }

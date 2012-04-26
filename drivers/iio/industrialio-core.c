@@ -737,7 +737,7 @@ static struct device_type iio_dev_type = {
 	.release = iio_dev_release,
 };
 
-struct iio_dev *iio_allocate_device(int sizeof_priv)
+struct iio_dev *iio_device_alloc(int sizeof_priv)
 {
 	struct iio_dev *dev;
 	size_t alloc_size;
@@ -773,16 +773,16 @@ struct iio_dev *iio_allocate_device(int sizeof_priv)
 
 	return dev;
 }
-EXPORT_SYMBOL(iio_allocate_device);
+EXPORT_SYMBOL(iio_device_alloc);
 
-void iio_free_device(struct iio_dev *dev)
+void iio_device_free(struct iio_dev *dev)
 {
 	if (dev) {
 		ida_simple_remove(&iio_ida, dev->id);
 		kfree(dev);
 	}
 }
-EXPORT_SYMBOL(iio_free_device);
+EXPORT_SYMBOL(iio_device_free);
 
 /**
  * iio_chrdev_open() - chrdev file open for buffer access and ioctls

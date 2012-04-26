@@ -360,9 +360,9 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	indio_dev->trig = trig;
 
 	if (oldtrig && indio_dev->trig != oldtrig)
-		iio_put_trigger(oldtrig);
+		iio_trigger_put(oldtrig);
 	if (indio_dev->trig)
-		iio_get_trigger(indio_dev->trig);
+		iio_trigger_get(indio_dev->trig);
 
 	return len;
 }
@@ -426,7 +426,7 @@ static void iio_trig_subirqunmask(struct irq_data *d)
 	trig->subirqs[d->irq - trig->subirq_base].enabled = true;
 }
 
-struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
+struct iio_trigger *iio_trigger_alloc(const char *fmt, ...)
 {
 	va_list vargs;
 	struct iio_trigger *trig;
@@ -472,14 +472,14 @@ struct iio_trigger *iio_allocate_trigger(const char *fmt, ...)
 	}
 	return trig;
 }
-EXPORT_SYMBOL(iio_allocate_trigger);
+EXPORT_SYMBOL(iio_trigger_alloc);
 
-void iio_free_trigger(struct iio_trigger *trig)
+void iio_trigger_free(struct iio_trigger *trig)
 {
 	if (trig)
 		put_device(&trig->dev);
 }
-EXPORT_SYMBOL(iio_free_trigger);
+EXPORT_SYMBOL(iio_trigger_free);
 
 void iio_device_register_trigger_consumer(struct iio_dev *indio_dev)
 {
@@ -491,7 +491,7 @@ void iio_device_unregister_trigger_consumer(struct iio_dev *indio_dev)
 {
 	/* Clean up and associated but not attached triggers references */
 	if (indio_dev->trig)
-		iio_put_trigger(indio_dev->trig);
+		iio_trigger_put(indio_dev->trig);
 }
 
 int iio_triggered_buffer_postenable(struct iio_dev *indio_dev)

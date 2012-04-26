@@ -587,7 +587,7 @@ static int __devinit ad7291_probe(struct i2c_client *client,
 	struct iio_dev *indio_dev;
 	int ret = 0, voltage_uv = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -669,7 +669,7 @@ error_put_reg:
 	if (!IS_ERR(chip->reg))
 		regulator_put(chip->reg);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -689,7 +689,7 @@ static int __devexit ad7291_remove(struct i2c_client *client)
 		regulator_put(chip->reg);
 	}
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

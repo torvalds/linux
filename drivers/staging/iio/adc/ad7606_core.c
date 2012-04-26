@@ -461,7 +461,7 @@ struct iio_dev *ad7606_probe(struct device *dev, int irq,
 	struct ad7606_platform_data *pdata = dev->platform_data;
 	struct ad7606_state *st;
 	int ret;
-	struct iio_dev *indio_dev = iio_allocate_device(sizeof(*st));
+	struct iio_dev *indio_dev = iio_device_alloc(sizeof(*st));
 
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
@@ -560,7 +560,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ERR_PTR(ret);
 }
@@ -580,7 +580,7 @@ int ad7606_remove(struct iio_dev *indio_dev, int irq)
 	}
 
 	ad7606_free_gpios(st);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }
