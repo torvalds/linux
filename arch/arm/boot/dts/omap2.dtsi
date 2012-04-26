@@ -54,6 +54,18 @@
 			reg = <0x480FE000 0x1000>;
 		};
 
+		sdma: dma-controller@48056000 {
+			compatible = "ti,omap2430-sdma", "ti,omap2420-sdma";
+			reg = <0x48056000 0x1000>;
+			interrupts = <12>,
+				     <13>,
+				     <14>,
+				     <15>;
+			#dma-cells = <1>;
+			#dma-channels = <32>;
+			#dma-requests = <64>;
+		};
+
 		uart1: serial@4806a000 {
 			compatible = "ti,omap2-uart";
 			ti,hwmods = "uart1";
