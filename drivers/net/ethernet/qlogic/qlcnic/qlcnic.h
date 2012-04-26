@@ -607,6 +607,7 @@ struct qlcnic_recv_context {
 #define QLCNIC_CDRP_CMD_CONFIG_PORT		0x0000002E
 #define QLCNIC_CDRP_CMD_TEMP_SIZE		0x0000002f
 #define QLCNIC_CDRP_CMD_GET_TEMP_HDR		0x00000030
+#define QLCNIC_CDRP_CMD_GET_MAC_STATS		0x00000037
 
 #define QLCNIC_RCODE_SUCCESS		0
 #define QLCNIC_RCODE_NOT_SUPPORTED	9
@@ -1180,17 +1181,61 @@ struct qlcnic_esw_func_cfg {
 #define QLCNIC_STATS_ESWITCH		2
 #define QLCNIC_QUERY_RX_COUNTER		0
 #define QLCNIC_QUERY_TX_COUNTER		1
-#define QLCNIC_ESW_STATS_NOT_AVAIL	0xffffffffffffffffULL
+#define QLCNIC_STATS_NOT_AVAIL	0xffffffffffffffffULL
+#define QLCNIC_FILL_STATS(VAL1) \
+	(((VAL1) == QLCNIC_STATS_NOT_AVAIL) ? 0 : VAL1)
+#define QLCNIC_MAC_STATS 1
+#define QLCNIC_ESW_STATS 2
 
 #define QLCNIC_ADD_ESW_STATS(VAL1, VAL2)\
 do {	\
-	if (((VAL1) == QLCNIC_ESW_STATS_NOT_AVAIL) && \
-	    ((VAL2) != QLCNIC_ESW_STATS_NOT_AVAIL)) \
+	if (((VAL1) == QLCNIC_STATS_NOT_AVAIL) && \
+	    ((VAL2) != QLCNIC_STATS_NOT_AVAIL)) \
 		(VAL1) = (VAL2); \
-	else if (((VAL1) != QLCNIC_ESW_STATS_NOT_AVAIL) && \
-		 ((VAL2) != QLCNIC_ESW_STATS_NOT_AVAIL)) \
+	else if (((VAL1) != QLCNIC_STATS_NOT_AVAIL) && \
+		 ((VAL2) != QLCNIC_STATS_NOT_AVAIL)) \
 			(VAL1) += (VAL2); \
 } while (0)
+
+struct qlcnic_mac_statistics{
+	__le64	mac_tx_frames;
+	__le64	mac_tx_bytes;
+	__le64	mac_tx_mcast_pkts;
+	__le64	mac_tx_bcast_pkts;
+	__le64	mac_tx_pause_cnt;
+	__le64	mac_tx_ctrl_pkt;
+	__le64	mac_tx_lt_64b_pkts;
+	__le64	mac_tx_lt_127b_pkts;
+	__le64	mac_tx_lt_255b_pkts;
+	__le64	mac_tx_lt_511b_pkts;
+	__le64	mac_tx_lt_1023b_pkts;
+	__le64	mac_tx_lt_1518b_pkts;
+	__le64	mac_tx_gt_1518b_pkts;
+	__le64	rsvd1[3];
+
+	__le64	mac_rx_frames;
+	__le64	mac_rx_bytes;
+	__le64	mac_rx_mcast_pkts;
+	__le64	mac_rx_bcast_pkts;
+	__le64	mac_rx_pause_cnt;
+	__le64	mac_rx_ctrl_pkt;
+	__le64	mac_rx_lt_64b_pkts;
+	__le64	mac_rx_lt_127b_pkts;
+	__le64	mac_rx_lt_255b_pkts;
+	__le64	mac_rx_lt_511b_pkts;
+	__le64	mac_rx_lt_1023b_pkts;
+	__le64	mac_rx_lt_1518b_pkts;
+	__le64	mac_rx_gt_1518b_pkts;
+	__le64	rsvd2[3];
+
+	__le64	mac_rx_length_error;
+	__le64	mac_rx_length_small;
+	__le64	mac_rx_length_large;
+	__le64	mac_rx_jabber;
+	__le64	mac_rx_dropped;
+	__le64	mac_rx_crc_error;
+	__le64	mac_align_error;
+} __packed;
 
 struct __qlcnic_esw_statistics {
 	__le16 context_id;
@@ -1512,6 +1557,7 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *, const u8, const u8,
 int qlcnic_get_eswitch_stats(struct qlcnic_adapter *, const u8, u8,
 					struct __qlcnic_esw_statistics *);
 int qlcnic_clear_esw_stats(struct qlcnic_adapter *adapter, u8, u8, u8);
+int qlcnic_get_mac_stats(struct qlcnic_adapter *, struct qlcnic_mac_statistics *);
 extern int qlcnic_config_tso;
 
 /*
