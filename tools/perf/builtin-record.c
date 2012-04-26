@@ -884,15 +884,12 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		goto out_symbol_exit;
 	}
 
-	rec->opts.target.uid = parse_target_uid(rec->opts.target.uid_str,
-						rec->opts.target.tid,
-						rec->opts.target.pid);
+	perf_target__validate(&rec->opts.target);
+
+	rec->opts.target.uid = parse_target_uid(rec->opts.target.uid_str);
 	if (rec->opts.target.uid_str != NULL &&
 	    rec->opts.target.uid == UINT_MAX - 1)
 		goto out_free_fd;
-
-	if (rec->opts.target.pid)
-		rec->opts.target.tid = rec->opts.target.pid;
 
 	if (perf_evlist__create_maps(evsel_list, rec->opts.target.pid,
 				     rec->opts.target.tid, rec->opts.target.uid,

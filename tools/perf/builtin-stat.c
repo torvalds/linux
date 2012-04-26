@@ -1203,8 +1203,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 	if (add_default_attributes())
 		goto out;
 
-	if (target.pid)
-		target.tid = target.pid;
+	perf_target__validate(&target);
 
 	evsel_list->threads = thread_map__new_str(target.pid,
 						  target.tid, UINT_MAX);

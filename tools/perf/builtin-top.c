@@ -1252,20 +1252,11 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_browser(false);
 
-	top.target.uid = parse_target_uid(top.target.uid_str, top.target.tid,
-					  top.target.pid);
+	perf_target__validate(&top.target);
+
+	top.target.uid = parse_target_uid(top.target.uid_str);
 	if (top.target.uid_str != NULL && top.target.uid == UINT_MAX - 1)
 		goto out_delete_evlist;
-
-	/* CPU and PID are mutually exclusive */
-	if (top.target.tid && top.target.cpu_list) {
-		printf("WARNING: PID switch overriding CPU\n");
-		sleep(1);
-		top.target.cpu_list = NULL;
-	}
-
-	if (top.target.pid)
-		top.target.tid = top.target.pid;
 
 	if (perf_evlist__create_maps(top.evlist, top.target.pid,
 				     top.target.tid, top.target.uid,

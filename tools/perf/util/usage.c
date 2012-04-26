@@ -83,20 +83,13 @@ void warning(const char *warn, ...)
 	va_end(params);
 }
 
-uid_t parse_target_uid(const char *str, const char *tid, const char *pid)
+uid_t parse_target_uid(const char *str)
 {
 	struct passwd pwd, *result;
 	char buf[1024];
 
 	if (str == NULL)
 		return UINT_MAX;
-
-	/* UID and PID are mutually exclusive */
-	if (tid || pid) {
-		ui__warning("PID/TID switch overriding UID\n");
-		sleep(1);
-		return UINT_MAX;
-	}
 
 	getpwnam_r(str, &pwd, buf, sizeof(buf), &result);
 
@@ -119,4 +112,24 @@ uid_t parse_target_uid(const char *str, const char *tid, const char *pid)
 	}
 
 	return result->pw_uid;
+}
+
+void perf_target__validate(struct perf_target *target)
+{
+	if (target->pid)
+		target->tid = target->pid;
+
+	/* CPU and PID are mutually exclusive */
+	if (target->tid && target->cpu_list) {
+		ui__warning("WARNING: PID switch overriding CPU\n");
+		sleep(1);
+		target->cpu_list = NULL;
+	}
+
+	/* UID and PID are mutually exclusive */
+	if (target->tid && target->uid_str) {
+		ui__warning("PID/TID switch overriding UID\n");
+		sleep(1);
+		target->uid_str = NULL;
+	}
 }
