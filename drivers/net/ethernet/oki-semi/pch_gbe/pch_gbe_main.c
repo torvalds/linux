@@ -1240,8 +1240,6 @@ static void pch_gbe_tx_queue(struct pch_gbe_adapter *adapter,
 		if (skb->protocol == htons(ETH_P_IP)) {
 			struct iphdr *iph = ip_hdr(skb);
 			unsigned int offset;
-			iph->check = 0;
-			iph->check = ip_fast_csum((u8 *) iph, iph->ihl);
 			offset = skb_transport_offset(skb);
 			if (iph->protocol == IPPROTO_TCP) {
 				skb->csum = 0;
