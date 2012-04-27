@@ -993,6 +993,8 @@ static int __init dynamic_debug_init(void)
 
 	/* ddebug_query boot param got passed -> set it up */
 	if (ddebug_setup_string[0] != '\0') {
+		pr_warn("ddebug_query param name is deprecated,"
+			" change it to dyndbg\n");
 		ret = ddebug_exec_queries(ddebug_setup_string);
 		if (ret < 0)
 			pr_warn("Invalid ddebug boot param %s",
