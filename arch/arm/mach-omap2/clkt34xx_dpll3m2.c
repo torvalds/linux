@@ -45,8 +45,15 @@
  * Program the DPLL M2 divider with the rounded target rate.  Returns
  * -EINVAL upon error, or 0 upon success.
  */
+#ifdef CONFIG_COMMON_CLK
+int omap3_core_dpll_m2_set_rate(struct clk_hw *hw, unsigned long rate,
+					unsigned long parent_rate)
+{
+	struct clk_hw_omap *clk = to_clk_hw_omap(hw);
+#else
 int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 {
+#endif
 	u32 new_div = 0;
 	u32 unlock_dll = 0;
 	u32 c;
@@ -64,7 +71,11 @@ int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	sdrcrate = __clk_get_rate(sdrc_ick_p);
+#ifdef CONFIG_COMMON_CLK
+	clkrate = __clk_get_rate(hw->clk);
+#else
 	clkrate = __clk_get_rate(clk);
+#endif
 	if (rate > clkrate)
 		sdrcrate <<= ((rate / clkrate) >> 1);
 	else
@@ -113,7 +124,9 @@ int omap3_core_dpll_m2_set_rate(struct clk *clk, unsigned long rate)
 				  sdrc_cs0->rfr_ctrl, sdrc_cs0->actim_ctrla,
 				  sdrc_cs0->actim_ctrlb, sdrc_cs0->mr,
 				  0, 0, 0, 0);
+#ifndef CONFIG_COMMON_CLK
 	clk->rate = rate;
+#endif
 
 	return 0;
 }

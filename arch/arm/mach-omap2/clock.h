@@ -509,8 +509,13 @@ int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent);
 #endif
 
 /* clkt_iclk.c public functions */
+#ifdef CONFIG_COMMON_CLK
+extern void omap2_clkt_iclk_allow_idle(struct clk_hw_omap *clk);
+extern void omap2_clkt_iclk_deny_idle(struct clk_hw_omap *clk);
+#else
 extern void omap2_clkt_iclk_allow_idle(struct clk *clk);
 extern void omap2_clkt_iclk_deny_idle(struct clk *clk);
+#endif
 
 #ifdef CONFIG_COMMON_CLK
 u8 omap2_init_dpll_parent(struct clk_hw *hw);
@@ -561,8 +566,20 @@ extern const struct clk_hw_omap_ops clkhwops_omap3_dpll;
 extern const struct clk_hw_omap_ops clkhwops_iclk_wait;
 extern const struct clk_hw_omap_ops clkhwops_wait;
 extern const struct clk_hw_omap_ops clkhwops_omap4_dpllmx;
-#endif
-
+extern const struct clk_hw_omap_ops clkhwops_iclk;
+extern const struct clk_hw_omap_ops clkhwops_omap3430es2_ssi_wait;
+extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait;
+extern const struct clk_hw_omap_ops clkhwops_omap3430es2_dss_usbhost_wait;
+extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait;
+extern const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait;
+extern const struct clk_hw_omap_ops clkhwops_omap3430es2_hsotgusb_wait;
+extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_module_wait;
+extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait;
+extern const struct clk_hw_omap_ops clkhwops_apll54;
+extern const struct clk_hw_omap_ops clkhwops_apll96;
+extern const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll;
+extern const struct clk_hw_omap_ops clkhwops_omap2430_i2chs_wait;
+#else
 extern const struct clkops clkops_omap2_iclk_dflt_wait;
 extern const struct clkops clkops_omap2_iclk_dflt;
 extern const struct clkops clkops_omap2_iclk_idle_only;
@@ -571,6 +588,7 @@ extern const struct clkops clkops_omap2xxx_dpll_ops;
 extern const struct clkops clkops_omap3_noncore_dpll_ops;
 extern const struct clkops clkops_omap3_core_dpll_ops;
 extern const struct clkops clkops_omap4_dpllmx_ops;
+#endif /* CONFIG_COMMON_CLK */
 
 /* clksel_rate blocks shared between OMAP44xx and AM33xx */
 extern const struct clksel_rate div_1_0_rates[];

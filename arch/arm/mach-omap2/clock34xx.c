@@ -37,7 +37,11 @@
  * from the CM_{I,F}CLKEN bit.  Pass back the correct info via
  * @idlest_reg and @idlest_bit.  No return value.
  */
+#ifdef CONFIG_COMMON_CLK
+static void omap3430es2_clk_ssi_find_idlest(struct clk_hw_omap *clk,
+#else
 static void omap3430es2_clk_ssi_find_idlest(struct clk *clk,
+#endif
 					    void __iomem **idlest_reg,
 					    u8 *idlest_bit,
 					    u8 *idlest_val)
@@ -49,7 +53,19 @@ static void omap3430es2_clk_ssi_find_idlest(struct clk *clk,
 	*idlest_bit = OMAP3430ES2_ST_SSI_IDLE_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
+#ifdef CONFIG_COMMON_CLK
+const struct clk_hw_omap_ops clkhwops_omap3430es2_ssi_wait = {
+	.find_idlest	= omap3430es2_clk_ssi_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
 
+const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_ssi_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= omap3430es2_clk_ssi_find_idlest,
+	.find_companion = omap2_clk_dflt_find_companion,
+};
+#else
 const struct clkops clkops_omap3430es2_ssi_wait = {
 	.enable		= omap2_dflt_clk_enable,
 	.disable	= omap2_dflt_clk_disable,
@@ -65,6 +81,7 @@ const struct clkops clkops_omap3430es2_iclk_ssi_wait = {
 	.allow_idle	= omap2_clkt_iclk_allow_idle,
 	.deny_idle	= omap2_clkt_iclk_deny_idle,
 };
+#endif
 
 /**
  * omap3430es2_clk_dss_usbhost_find_idlest - CM_IDLEST info for DSS, USBHOST
@@ -80,7 +97,11 @@ const struct clkops clkops_omap3430es2_iclk_ssi_wait = {
  * default find_idlest code assumes that they are at the same
  * position.)  No return value.
  */
+#ifdef CONFIG_COMMON_CLK
+static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk_hw_omap *clk,
+#else
 static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk *clk,
+#endif
 						    void __iomem **idlest_reg,
 						    u8 *idlest_bit,
 						    u8 *idlest_val)
@@ -93,7 +114,19 @@ static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk *clk,
 	*idlest_bit = OMAP3430ES2_ST_DSS_IDLE_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
+#ifdef CONFIG_COMMON_CLK
+const struct clk_hw_omap_ops clkhwops_omap3430es2_dss_usbhost_wait = {
+	.find_idlest	= omap3430es2_clk_dss_usbhost_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
 
+const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_dss_usbhost_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= omap3430es2_clk_dss_usbhost_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+#else
 const struct clkops clkops_omap3430es2_dss_usbhost_wait = {
 	.enable		= omap2_dflt_clk_enable,
 	.disable	= omap2_dflt_clk_disable,
@@ -109,6 +142,7 @@ const struct clkops clkops_omap3430es2_iclk_dss_usbhost_wait = {
 	.allow_idle	= omap2_clkt_iclk_allow_idle,
 	.deny_idle	= omap2_clkt_iclk_deny_idle,
 };
+#endif
 
 /**
  * omap3430es2_clk_hsotgusb_find_idlest - return CM_IDLEST info for HSOTGUSB
@@ -121,7 +155,11 @@ const struct clkops clkops_omap3430es2_iclk_dss_usbhost_wait = {
  * shift from the CM_{I,F}CLKEN bit.  Pass back the correct info via
  * @idlest_reg and @idlest_bit.  No return value.
  */
+#ifdef CONFIG_COMMON_CLK
+static void omap3430es2_clk_hsotgusb_find_idlest(struct clk_hw_omap *clk,
+#else
 static void omap3430es2_clk_hsotgusb_find_idlest(struct clk *clk,
+#endif
 						 void __iomem **idlest_reg,
 						 u8 *idlest_bit,
 						 u8 *idlest_val)
@@ -133,7 +171,19 @@ static void omap3430es2_clk_hsotgusb_find_idlest(struct clk *clk,
 	*idlest_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT;
 	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
+#ifdef CONFIG_COMMON_CLK
+const struct clk_hw_omap_ops clkhwops_omap3430es2_iclk_hsotgusb_wait = {
+	.allow_idle	= omap2_clkt_iclk_allow_idle,
+	.deny_idle	= omap2_clkt_iclk_deny_idle,
+	.find_idlest	= omap3430es2_clk_hsotgusb_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
 
+const struct clk_hw_omap_ops clkhwops_omap3430es2_hsotgusb_wait = {
+	.find_idlest	= omap3430es2_clk_hsotgusb_find_idlest,
+	.find_companion	= omap2_clk_dflt_find_companion,
+};
+#else
 const struct clkops clkops_omap3430es2_hsotgusb_wait = {
 	.enable		= omap2_dflt_clk_enable,
 	.disable	= omap2_dflt_clk_disable,
@@ -149,3 +199,4 @@ const struct clkops clkops_omap3430es2_iclk_hsotgusb_wait = {
 	.allow_idle	= omap2_clkt_iclk_allow_idle,
 	.deny_idle	= omap2_clkt_iclk_deny_idle,
 };
+#endif
