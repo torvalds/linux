@@ -50,20 +50,26 @@
 
 #include <linux/input.h>
 #include "gspca.h"
+/* Include pac common sof detection functions */
+#include "pac_common.h"
 
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
 MODULE_LICENSE("GPL");
 
+enum e_ctrl {
+	CONTRAST,
+	GAIN,
+	EXPOSURE,
+	AUTOGAIN,
+	HFLIP,
+	VFLIP,
+	NCTRLS		/* number of controls */
+};
+
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
-
-	unsigned char contrast;
-	unsigned char gain;
-	unsigned char exposure;
-	unsigned char autogain;
-	__u8 hflip;
-	__u8 vflip;
+	struct gspca_ctrl ctrls[NCTRLS];
 
 	u8 sof_read;
 	u8 autogain_ignore_frames;
@@ -72,68 +78,52 @@ struct sd {
 };
 
 /* V4L2 controls supported by the driver */
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
+static void setcontrast(struct gspca_dev *gspca_dev);
+static void setgain(struct gspca_dev *gspca_dev);
+static void setexposure(struct gspca_dev *gspca_dev);
+static void setautogain(struct gspca_dev *gspca_dev);
+static void sethvflip(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[] = {
-	{
+[CONTRAST] = {
 	    {
 		.id      = V4L2_CID_CONTRAST,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Contrast",
 		.minimum = 0,
-#define CONTRAST_MAX 15
-		.maximum = CONTRAST_MAX,
+		.maximum = 15,
 		.step    = 1,
-#define CONTRAST_DEF 7
-		.default_value = CONTRAST_DEF,
+		.default_value = 7,
 	    },
-	    .set = sd_setcontrast,
-	    .get = sd_getcontrast,
+	    .set_control = setcontrast
 	},
-	{
+[GAIN] = {
 	    {
 		.id      = V4L2_CID_GAIN,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Gain",
 		.minimum = 0,
-#define GAIN_MAX 244
-		.maximum = GAIN_MAX,
+		.maximum = 244,
 		.step    = 1,
-#define GAIN_DEF 122
-#define GAIN_KNEE GAIN_MAX /* Gain seems to cause little noise on the 7311 */
-		.default_value = GAIN_DEF,
+		.default_value = 122,
+#define GAIN_KNEE 244 /* Gain seems to cause little noise on the 7311 */
 	    },
-	    .set = sd_setgain,
-	    .get = sd_getgain,
+	    .set_control = setgain,
 	},
-	{
+[EXPOSURE] = {
 	    {
 		.id      = V4L2_CID_EXPOSURE,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Exposure",
 		.minimum = 2,
-#define EXPOSURE_MAX 63
-		.maximum = EXPOSURE_MAX,
+		.maximum = 63,
 		.step    = 1,
-#define EXPOSURE_DEF  2 /* 30 fps */
+		.default_value = 2, /* 30 fps */
 #define EXPOSURE_KNEE 6 /* 10 fps */
-		.default_value = EXPOSURE_DEF,
 	    },
-	    .set = sd_setexposure,
-	    .get = sd_getexposure,
+	    .set_control = setexposure,
 	},
-	{
+[AUTOGAIN] = {
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
 		.type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -141,13 +131,11 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define AUTOGAIN_DEF 1
-		.default_value = AUTOGAIN_DEF,
+		.default_value = 1,
 	    },
-	    .set = sd_setautogain,
-	    .get = sd_getautogain,
+	    .set_control = setautogain,
 	},
-	{
+[HFLIP] = {
 	    {
 		.id      = V4L2_CID_HFLIP,
 		.type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -155,13 +143,11 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define HFLIP_DEF 0
-		.default_value = HFLIP_DEF,
+		.default_value = 0,
 	    },
-	    .set = sd_sethflip,
-	    .get = sd_gethflip,
+	    .set_control = sethvflip,
 	},
-	{
+[VFLIP] = {
 	    {
 		.id      = V4L2_CID_VFLIP,
 		.type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -169,11 +155,9 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define VFLIP_DEF 0
-		.default_value = VFLIP_DEF,
+		.default_value = 0,
 	    },
-	    .set = sd_setvflip,
-	    .get = sd_getvflip,
+	    .set_control = sethvflip,
 	},
 };
 
@@ -379,19 +363,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 			const struct usb_device_id *id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct cam *cam;
-
-	cam = &gspca_dev->cam;
+	struct cam *cam = &gspca_dev->cam;
 
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
 
-	sd->contrast = CONTRAST_DEF;
-	sd->gain = GAIN_DEF;
-	sd->exposure = EXPOSURE_DEF;
-	sd->autogain = AUTOGAIN_DEF;
-	sd->hflip = HFLIP_DEF;
-	sd->vflip = VFLIP_DEF;
+	gspca_dev->cam.ctrls = sd->ctrls;
+
 	return 0;
 }
 
@@ -400,7 +378,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x04);
-	reg_w(gspca_dev, 0x10, sd->contrast);
+	reg_w(gspca_dev, 0x10, sd->ctrls[CONTRAST].val);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
 }
@@ -411,7 +389,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 
 	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
 	reg_w(gspca_dev, 0x0e, 0x00);
-	reg_w(gspca_dev, 0x0f, GAIN_MAX - sd->gain + 1);
+	reg_w(gspca_dev, 0x0f, sd->ctrls[GAIN].max - sd->ctrls[GAIN].val + 1);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
@@ -422,7 +400,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
-	reg_w(gspca_dev, 0x02, sd->exposure);
+	reg_w(gspca_dev, 0x02, sd->ctrls[EXPOSURE].val);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
@@ -431,7 +409,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	   640x480 mode and page 4 reg 2 <= 3 then it must be 9 */
 	reg_w(gspca_dev, 0xff, 0x01);
 	if (gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv &&
-			sd->exposure <= 3) {
+			sd->ctrls[EXPOSURE].val <= 3) {
 		reg_w(gspca_dev, 0x08, 0x09);
 	} else {
 		reg_w(gspca_dev, 0x08, 0x08);
@@ -447,7 +425,8 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	__u8 data;
 
 	reg_w(gspca_dev, 0xff, 0x04);			/* page 4 */
-	data = (sd->hflip ? 0x04 : 0x00) | (sd->vflip ? 0x08 : 0x00);
+	data = (sd->ctrls[HFLIP].val ? 0x04 : 0x00) |
+	       (sd->ctrls[VFLIP].val ? 0x08 : 0x00);
 	reg_w(gspca_dev, 0x21, data);
 
 	/* load registers to sensor (Bit 0, auto clear) */
@@ -518,8 +497,8 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 }
 
-/* Include pac common sof detection functions */
-#include "pac_common.h"
+#define WANT_REGULAR_AUTOGAIN
+#include "autogain_functions.h"
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
@@ -527,7 +506,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	int avg_lum = atomic_read(&sd->avg_lum);
 	int desired_lum, deadzone;
 
-	if (avg_lum == -1)
+	if (sd->ctrls[AUTOGAIN].val == 0 || avg_lum == -1)
 		return;
 
 	desired_lum = 200;
@@ -535,7 +514,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
-	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
+	else if (auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
 			deadzone, GAIN_KNEE, EXPOSURE_KNEE))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
@@ -640,72 +619,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
 
-static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
+static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->contrast;
-	return 0;
-}
-
-static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->gain = val;
-	if (gspca_dev->streaming)
-		setgain(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->gain;
-	return 0;
-}
-
-static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->exposure = val;
-	if (gspca_dev->streaming)
-		setexposure(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->exposure;
-	return 0;
-}
-
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->autogain = val;
-	/* when switching to autogain set defaults to make sure
-	   we are on a valid point of the autogain gain /
-	   exposure knee graph, and give this change time to
-	   take effect before doing autogain. */
-	if (sd->autogain) {
-		sd->exposure = EXPOSURE_DEF;
-		sd->gain = GAIN_DEF;
+	if (sd->ctrls[AUTOGAIN].val) {
+		sd->ctrls[EXPOSURE].val = 2;
+		sd->ctrls[GAIN].val = 122;
 		if (gspca_dev->streaming) {
 			sd->autogain_ignore_frames =
 				PAC_AUTOGAIN_IGNORE_FRAMES;
@@ -713,52 +633,6 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 			setgain(gspca_dev);
 		}
 	}
-
-	return gspca_dev->usb_err;
-}
-
-static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->autogain;
-	return 0;
-}
-
-static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->hflip = val;
-	if (gspca_dev->streaming)
-		sethvflip(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->hflip;
-	return 0;
-}
-
-static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->vflip = val;
-	if (gspca_dev->streaming)
-		sethvflip(gspca_dev);
-	return gspca_dev->usb_err;
-}
-
-static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->vflip;
-	return 0;
 }
 
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
