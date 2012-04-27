@@ -33,6 +33,7 @@
 #include <linux/syscalls.h>
 #include <linux/reboot.h>
 #include <linux/proc_fs.h>
+#include <linux/async.h>
 #include "rk29_i2c_goodix.h"
 
 #include <linux/vmalloc.h>
@@ -1664,12 +1665,17 @@ Description:
 return:
 	Executive Outcomes. 0---succeed.
 ********************************************************/
-static int __devinit rk_ts_init(void)
+
+static void __init rk_ts_init_async(void *unused, async_cookie_t cookie)
 {
-	int ret ;
-	ret=i2c_add_driver(&rk_ts_driver);
+	i2c_add_driver(&rk_ts_driver);
 	dbg_sys_init();  //for debug
-	return ret; 
+}
+
+static int __init rk_ts_init(void)
+{
+	async_schedule(rk_ts_init_async, NULL);
+	return 0;
 }
 
 /*******************************************************	
