@@ -2279,6 +2279,8 @@ static netdev_tx_t nv_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netdev_sent_queue(np->dev, skb->len);
 
+	skb_tx_timestamp(skb);
+
 	np->put_tx.orig = put_tx;
 
 	spin_unlock_irqrestore(&np->lock, flags);
@@ -2425,6 +2427,8 @@ static netdev_tx_t nv_start_xmit_optimized(struct sk_buff *skb,
 	start_tx->flaglen |= cpu_to_le32(tx_flags | tx_flags_extra);
 
 	netdev_sent_queue(np->dev, skb->len);
+
+	skb_tx_timestamp(skb);
 
 	np->put_tx.ex = put_tx;
 
