@@ -252,7 +252,14 @@ filelayout_set_layoutcommit(struct nfs_write_data *wdata)
 static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = data;
+	struct pnfs_layout_segment *lseg = rdata->header->lseg;
 
+	if (filelayout_test_devid_invalid(FILELAYOUT_DEVID_NODE(lseg))) {
+		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
+		filelayout_reset_read(rdata);
+		rpc_exit(task, 0);
+		return;
+	}
 	rdata->read_done_cb = filelayout_read_done_cb;
 
 	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
@@ -268,6 +275,9 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 	struct nfs_read_data *rdata = data;
 
 	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
+
+	if (test_bit(NFS_IOHDR_REDO, &rdata->header->flags))
+		return;
 
 	/* Note this may cause RPC to be resent */
 	rdata->header->mds_ops->rpc_call_done(task, data);
@@ -343,7 +353,14 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
+	struct pnfs_layout_segment *lseg = wdata->header->lseg;
 
+	if (filelayout_test_devid_invalid(FILELAYOUT_DEVID_NODE(lseg))) {
+		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
+		filelayout_reset_write(wdata);
+		rpc_exit(task, 0);
+		return;
+	}
 	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
 				&wdata->args.seq_args, &wdata->res.seq_res,
 				task))
@@ -355,6 +372,9 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 static void filelayout_write_call_done(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
+
+	if (test_bit(NFS_IOHDR_REDO, &wdata->header->flags))
+		return;
 
 	/* Note this may cause RPC to be resent */
 	wdata->header->mds_ops->rpc_call_done(task, data);
