@@ -1164,7 +1164,7 @@ static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 
 	whdr = nfs_writehdr_alloc();
 	if (!whdr) {
-		desc->pg_completion_ops->error_cleanup(&hdr->pages);
+		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		return -ENOMEM;
 	}
 	hdr = &whdr->header;

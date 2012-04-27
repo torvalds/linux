@@ -1308,7 +1308,7 @@ pnfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 
 	whdr = nfs_writehdr_alloc();
 	if (!whdr) {
-		desc->pg_completion_ops->error_cleanup(&hdr->pages);
+		desc->pg_completion_ops->error_cleanup(&desc->pg_list);
 		put_lseg(desc->pg_lseg);
 		desc->pg_lseg = NULL;
 		return -ENOMEM;
