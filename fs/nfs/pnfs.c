@@ -692,6 +692,7 @@ out:
 	dprintk("<-- %s status: %d\n", __func__, status);
 	return status;
 }
+EXPORT_SYMBOL_GPL(_pnfs_return_layout);
 
 bool pnfs_roc(struct inode *ino)
 {

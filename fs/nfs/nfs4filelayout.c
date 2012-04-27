@@ -186,6 +186,8 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -EPIPE:
 		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
+		if (!filelayout_test_devid_invalid(devid))
+			_pnfs_return_layout(state->inode);
 		filelayout_mark_devid_invalid(devid);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		/* fall through */
