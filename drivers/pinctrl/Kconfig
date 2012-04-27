@@ -31,6 +31,14 @@ config PINCTRL_IMX
 	select PINMUX
 	select PINCONF
 
+config PINCTRL_IMX6Q
+	bool "IMX6Q pinctrl driver"
+	depends on OF
+	depends on SOC_IMX6Q
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6q pinctrl driver
+
 config PINCTRL_PXA3xx
 	bool
 	select PINMUX
