@@ -82,29 +82,77 @@ filelayout_get_dserver_offset(struct pnfs_layout_segment *lseg, loff_t offset)
 	BUG();
 }
 
+static void filelayout_reset_write(struct nfs_write_data *data)
+{
+	struct nfs_pgio_header *hdr = data->header;
+	struct inode *inode = hdr->inode;
+	struct rpc_task *task = &data->task;
+
+	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
+		dprintk("%s Reset task %5u for i/o through MDS "
+			"(req %s/%lld, %u bytes @ offset %llu)\n", __func__,
+			data->task.tk_pid,
+			inode->i_sb->s_id,
+			(long long)NFS_FILEID(inode),
+			data->args.count,
+			(unsigned long long)data->args.offset);
+
+		task->tk_status = pnfs_write_done_resend_to_mds(hdr->inode,
+							&hdr->pages,
+							hdr->completion_ops);
+	}
+}
+
+static void filelayout_reset_read(struct nfs_read_data *data)
+{
+	struct nfs_pgio_header *hdr = data->header;
+	struct inode *inode = hdr->inode;
+	struct rpc_task *task = &data->task;
+
+	if (!test_and_set_bit(NFS_IOHDR_REDO, &hdr->flags)) {
+		dprintk("%s Reset task %5u for i/o through MDS "
+			"(req %s/%lld, %u bytes @ offset %llu)\n", __func__,
+			data->task.tk_pid,
+			inode->i_sb->s_id,
+			(long long)NFS_FILEID(inode),
+			data->args.count,
+			(unsigned long long)data->args.offset);
+
+		task->tk_status = pnfs_read_done_resend_to_mds(hdr->inode,
+							&hdr->pages,
+							hdr->completion_ops);
+	}
+}
+
 static int filelayout_async_handle_error(struct rpc_task *task,
 					 struct nfs4_state *state,
 					 struct nfs_client *clp,
-					 int *reset)
+					 struct pnfs_layout_segment *lseg)
 {
-	struct nfs_server *mds_server = NFS_SERVER(state->inode);
+	struct inode *inode = lseg->pls_layout->plh_inode;
+	struct nfs_server *mds_server = NFS_SERVER(inode);
+	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
 	struct nfs_client *mds_client = mds_server->nfs_client;
 
 	if (task->tk_status >= 0)
 		return 0;
-	*reset = 0;
 
 	switch (task->tk_status) {
 	/* MDS state errors */
 	case -NFS4ERR_DELEG_REVOKED:
 	case -NFS4ERR_ADMIN_REVOKED:
 	case -NFS4ERR_BAD_STATEID:
+		if (state == NULL)
+			break;
 		nfs_remove_bad_delegation(state->inode);
 	case -NFS4ERR_OPENMODE:
+		if (state == NULL)
+			break;
 		nfs4_schedule_stateid_recovery(mds_server, state);
 		goto wait_on_recovery;
 	case -NFS4ERR_EXPIRED:
-		nfs4_schedule_stateid_recovery(mds_server, state);
+		if (state != NULL)
+			nfs4_schedule_stateid_recovery(mds_server, state);
 		nfs4_schedule_lease_recovery(mds_client);
 		goto wait_on_recovery;
 	/* DS session errors */
@@ -127,11 +175,22 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		break;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		break;
-	default:
-		dprintk("%s DS error. Retry through MDS %d\n", __func__,
+	/* RPC connection errors */
+	case -ECONNREFUSED:
+	case -EHOSTDOWN:
+	case -EHOSTUNREACH:
+	case -ENETUNREACH:
+	case -EIO:
+	case -ETIMEDOUT:
+	case -EPIPE:
+		dprintk("%s DS connection error %d\n", __func__,
 			task->tk_status);
-		*reset = 1;
-		break;
+		filelayout_mark_devid_invalid(devid);
+		/* fall through */
+	default:
+		dprintk("%s Retry through MDS. Error %d\n", __func__,
+			task->tk_status);
+		return -NFS4ERR_RESET_TO_MDS;
 	}
 out:
 	task->tk_status = 0;
@@ -148,16 +207,17 @@ wait_on_recovery:
 static int filelayout_read_done_cb(struct rpc_task *task,
 				struct nfs_read_data *data)
 {
-	int reset = 0;
+	struct nfs_pgio_header *hdr = data->header;
+	int err;
 
-	dprintk("%s DS read\n", __func__);
+	err = filelayout_async_handle_error(task, data->args.context->state,
+					    data->ds_clp, hdr->lseg);
 
-	if (filelayout_async_handle_error(task, data->args.context->state,
-					  data->ds_clp, &reset) == -EAGAIN) {
-		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
-			__func__, data->ds_clp, data->ds_clp->cl_session);
-		if (reset)
-			nfs4_reset_read(task, data);
+	switch (err) {
+	case -NFS4ERR_RESET_TO_MDS:
+		filelayout_reset_read(data);
+		return task->tk_status;
+	case -EAGAIN:
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
@@ -230,14 +290,17 @@ static void filelayout_read_release(void *data)
 static int filelayout_write_done_cb(struct rpc_task *task,
 				struct nfs_write_data *data)
 {
-	int reset = 0;
+	struct nfs_pgio_header *hdr = data->header;
+	int err;
 
-	if (filelayout_async_handle_error(task, data->args.context->state,
-					  data->ds_clp, &reset) == -EAGAIN) {
-		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
-			__func__, data->ds_clp, data->ds_clp->cl_session);
-		if (reset)
-			nfs4_reset_write(task, data);
+	err = filelayout_async_handle_error(task, data->args.context->state,
+					    data->ds_clp, hdr->lseg);
+
+	switch (err) {
+	case -NFS4ERR_RESET_TO_MDS:
+		filelayout_reset_write(data);
+		return task->tk_status;
+	case -EAGAIN:
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
@@ -260,16 +323,17 @@ static void prepare_to_resend_writes(struct nfs_commit_data *data)
 static int filelayout_commit_done_cb(struct rpc_task *task,
 				     struct nfs_commit_data *data)
 {
-	int reset = 0;
+	int err;
 
-	if (filelayout_async_handle_error(task, data->context->state,
-					  data->ds_clp, &reset) == -EAGAIN) {
-		dprintk("%s calling restart ds_clp %p ds_clp->cl_session %p\n",
-			__func__, data->ds_clp, data->ds_clp->cl_session);
-		if (reset)
-			prepare_to_resend_writes(data);
-		else
-			rpc_restart_call_prepare(task);
+	err = filelayout_async_handle_error(task, NULL, data->ds_clp,
+					    data->lseg);
+
+	switch (err) {
+	case -NFS4ERR_RESET_TO_MDS:
+		prepare_to_resend_writes(data);
+		return -EAGAIN;
+	case -EAGAIN:
+		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
 

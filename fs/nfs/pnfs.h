@@ -222,6 +222,10 @@ struct pnfs_layout_segment *pnfs_update_layout(struct inode *ino,
 					       gfp_t gfp_flags);
 
 void nfs4_deviceid_mark_client_invalid(struct nfs_client *clp);
+int pnfs_read_done_resend_to_mds(struct inode *inode, struct list_head *head,
+			const struct nfs_pgio_completion_ops *compl_ops);
+int pnfs_write_done_resend_to_mds(struct inode *inode, struct list_head *head,
+			const struct nfs_pgio_completion_ops *compl_ops);
 
 /* nfs4_deviceid_flags */
 enum {
