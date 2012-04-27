@@ -27,6 +27,7 @@
 #include <asm/mach-types.h>
 
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -149,6 +150,32 @@ static __devinit int tegra_snd_trimslice_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	if (pdev->dev.of_node) {
+		trimslice_tlv320aic23_dai.codec_name = NULL;
+		trimslice_tlv320aic23_dai.codec_of_node = of_parse_phandle(
+				pdev->dev.of_node, "nvidia,audio-codec", 0);
+		if (!trimslice_tlv320aic23_dai.codec_of_node) {
+			dev_err(&pdev->dev,
+				"Property 'nvidia,audio-codec' missing or invalid\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		trimslice_tlv320aic23_dai.cpu_dai_name = NULL;
+		trimslice_tlv320aic23_dai.cpu_dai_of_node = of_parse_phandle(
+				pdev->dev.of_node, "nvidia,i2s-controller", 0);
+		if (!trimslice_tlv320aic23_dai.cpu_dai_of_node) {
+			dev_err(&pdev->dev,
+				"Property 'nvidia,i2s-controller' missing or invalid\n");
+			ret = -EINVAL;
+			goto err;
+		}
+
+		trimslice_tlv320aic23_dai.platform_name = NULL;
+		trimslice_tlv320aic23_dai.platform_of_node =
+				trimslice_tlv320aic23_dai.cpu_dai_of_node;
+	}
+
 	ret = tegra_asoc_utils_init(&trimslice->util_data, &pdev->dev);
 	if (ret)
 		goto err;
@@ -184,10 +211,17 @@ static int __devexit tegra_snd_trimslice_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id trimslice_of_match[] __devinitconst = {
+	{ .compatible = "nvidia,tegra-audio-trimslice", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, trimslice_of_match);
+
 static struct platform_driver tegra_snd_trimslice_driver = {
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = trimslice_of_match,
 	},
 	.probe = tegra_snd_trimslice_probe,
 	.remove = __devexit_p(tegra_snd_trimslice_remove),
