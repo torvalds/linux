@@ -16,6 +16,16 @@ Supported chips:
     Prefixes: 'max34446'
     Addresses scanned: -
     Datasheet: http://datasheets.maxim-ic.com/en/ds/MAX34446.pdf
+  * Maxim MAX34460
+    PMBus 12-Channel Voltage Monitor & Sequencer
+    Prefix: 'max34460'
+    Addresses scanned: -
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34460.pdf
+  * Maxim MAX34461
+    PMBus 16-Channel Voltage Monitor & Sequencer
+    Prefix: 'max34461'
+    Addresses scanned: -
+    Datasheet: http://datasheets.maximintegrated.com/en/ds/MAX34461.pdf
 
 Author: Guenter Roeck <guenter.roeck@ericsson.com>
 
@@ -26,6 +36,9 @@ Description
 This driver supports hardware montoring for Maxim MAX34440 PMBus 6-Channel
 Power-Supply Manager, MAX34441 PMBus 5-Channel Power-Supply Manager
 and Intelligent Fan Controller, and MAX34446 PMBus Power-Supply Data Logger.
+It also supports the MAX34460 and MAX34461 PMBus Voltage Monitor & Sequencers.
+The MAX34460 supports 12 voltage channels, and the MAX34461 supports 16 voltage
+channels.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus for details on PMBus client drivers.
@@ -109,3 +122,6 @@ temp[1-8]_reset_history	Write any value to reset history.
 
 			temp7 and temp8 attributes only exist for MAX34440.
 			MAX34446 only supports temp[1-3].
+
+MAX34460 supports attribute groups in[1-12] and temp[1-5].
+MAX34461 supports attribute groups in[1-16] and temp[1-5].
