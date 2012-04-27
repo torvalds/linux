@@ -196,6 +196,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 			_pnfs_return_layout(state->inode);
 		filelayout_mark_devid_invalid(devid);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
+		nfs4_ds_disconnect(clp);
 		/* fall through */
 	default:
 		dprintk("%s Retry through MDS. Error %d\n", __func__,
