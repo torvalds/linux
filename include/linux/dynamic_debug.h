@@ -17,8 +17,8 @@ struct _ddebug {
 	const char *format;
 	unsigned int lineno:18;
 	/*
- 	 * The flags field controls the behaviour at the callsite.
- 	 * The bits here are changed dynamically when the user
+	 * The flags field controls the behaviour at the callsite.
+	 * The bits here are changed dynamically when the user
 	 * writes commands to <debugfs>/dynamic_debug/control
 	 */
 #define _DPRINTK_FLAGS_NONE	0
