@@ -540,7 +540,6 @@ struct nfs_commitres {
 struct nfs_removeargs {
 	const struct nfs_fh	*fh;
 	struct qstr		name;
-	const u32 *		bitmask;
 	struct nfs4_sequence_args	seq_args;
 };
 
@@ -559,7 +558,6 @@ struct nfs_renameargs {
 	const struct nfs_fh		*new_dir;
 	const struct qstr		*old_name;
 	const struct qstr		*new_name;
-	const u32			*bitmask;
 	struct nfs4_sequence_args	seq_args;
 };
 
