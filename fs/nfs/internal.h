@@ -373,13 +373,11 @@ void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
 
 /* nfs4proc.c */
 extern void __nfs4_read_done_cb(struct nfs_read_data *);
-extern void nfs4_reset_read(struct rpc_task *task, struct nfs_read_data *data);
 extern int nfs4_init_client(struct nfs_client *clp,
 			    const struct rpc_timeout *timeparms,
 			    const char *ip_addr,
 			    rpc_authflavor_t authflavour,
 			    int noresvport);
-extern void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data);
 extern int _nfs4_call_sync(struct rpc_clnt *clnt,
 			   struct nfs_server *server,
 			   struct rpc_message *msg,
