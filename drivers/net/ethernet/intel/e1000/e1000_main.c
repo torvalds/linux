@@ -3261,6 +3261,8 @@ static netdev_tx_t e1000_xmit_frame(struct sk_buff *skb,
 	                     nr_frags, mss);
 
 	if (count) {
+		skb_tx_timestamp(skb);
+
 		e1000_tx_queue(adapter, tx_ring, tx_flags, count);
 		/* Make sure there is space in the ring for the next send. */
 		e1000_maybe_stop_tx(netdev, tx_ring, MAX_SKB_FRAGS + 2);
