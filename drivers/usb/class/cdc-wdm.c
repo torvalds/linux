@@ -625,6 +625,8 @@ static int wdm_release(struct inode *inode, struct file *file)
 		kill_urbs(desc);
 		if (!test_bit(WDM_DISCONNECTING, &desc->flags))
 			desc->manage_power(desc->intf, 0);
+		else
+			cleanup(desc);
 	}
 	mutex_unlock(&wdm_mutex);
 	return 0;
