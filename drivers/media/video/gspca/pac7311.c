@@ -29,7 +29,18 @@
  * 0x1b		Auto white balance related, bit 0 is AWB enable (inverted)
  *		bits 345 seem to toggle per color gains on/off (inverted)
  * 0x78		Global control, bit 6 controls the LED (inverted)
- * 0x80		JPEG compression ratio ? Best not touched
+ * 0x80		Compression balance, interesting settings:
+ *		0x01 Use this to allow the camera to switch to higher compr.
+ *		     on the fly. Needed to stay within bandwidth @ 640x480@30
+ *		0x1c From usb captures under Windows for 640x480
+ *		0x2a Values >= this switch the camera to a lower compression,
+ *		     using the same table for both luminance and chrominance.
+ *		     This gives a sharper picture. Usable only at 640x480@ <
+ *		     15 fps or 320x240 / 160x120. Note currently the driver
+ *		     does not use this as the quality gain is small and the
+ *		     generated JPG-s are only understood by v4l-utils >= 0.8.9
+ *		0x3f From usb captures under Windows for 320x240
+ *		0x69 From usb captures under Windows for 160x120
  *
  * Register page 4:
  *
@@ -408,12 +419,21 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	 *  640x480 mode and page 4 reg 2 <= 3 then it must be 9
 	 */
 	reg_w(gspca_dev, 0xff, 0x01);
-	if (gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv &&
-			sd->ctrls[EXPOSURE].val <= 3) {
+	if (gspca_dev->width != 640 && sd->ctrls[EXPOSURE].val <= 3)
 		reg_w(gspca_dev, 0x08, 0x09);
-	} else {
+	else
 		reg_w(gspca_dev, 0x08, 0x08);
-	}
+
+	/*
+	 * Page1 register 80 sets the compression balance, normally we
+	 * want / use 0x1c, but for 640x480@30fps we must allow the
+	 * camera to use higher compression or we may run out of
+	 * bandwidth.
+	 */
+	if (gspca_dev->width == 640 && sd->ctrls[EXPOSURE].val == 2)
+		reg_w(gspca_dev, 0x80, 0x01);
+	else
+		reg_w(gspca_dev, 0x80, 0x1c);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
