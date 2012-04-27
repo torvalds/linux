@@ -690,7 +690,6 @@ struct gfs2_sbd {
 
 	struct list_head sd_log_le_buf;
 	struct list_head sd_log_le_revoke;
-	struct list_head sd_log_le_rg;
 	struct list_head sd_log_le_databuf;
 	struct list_head sd_log_le_ordered;
 
