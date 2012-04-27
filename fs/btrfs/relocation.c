@@ -1279,7 +1279,9 @@ static int __update_reloc_root(struct btrfs_root *root, int del)
 		if (rb_node)
 			backref_tree_panic(rb_node, -EEXIST, node->bytenr);
 	} else {
+		spin_lock(&root->fs_info->trans_lock);
 		list_del_init(&root->root_list);
+		spin_unlock(&root->fs_info->trans_lock);
 		kfree(node);
 	}
 	return 0;
