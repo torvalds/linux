@@ -2994,7 +2994,6 @@ struct nfs4_createdata {
 	struct nfs4_create_res res;
 	struct nfs_fh fh;
 	struct nfs_fattr fattr;
-	struct nfs_fattr dir_fattr;
 };
 
 static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
@@ -3018,9 +3017,7 @@ static struct nfs4_createdata *nfs4_alloc_createdata(struct inode *dir,
 		data->res.server = server;
 		data->res.fh = &data->fh;
 		data->res.fattr = &data->fattr;
-		data->res.dir_fattr = &data->dir_fattr;
 		nfs_fattr_init(data->res.fattr);
-		nfs_fattr_init(data->res.dir_fattr);
 	}
 	return data;
 }
@@ -3031,7 +3028,6 @@ static int nfs4_do_create(struct inode *dir, struct dentry *dentry, struct nfs4_
 				    &data->arg.seq_args, &data->res.seq_res, 1);
 	if (status == 0) {
 		update_changeattr(dir, &data->res.dir_cinfo);
-		nfs_post_op_update_inode(dir, data->res.dir_fattr);
 		status = nfs_instantiate(dentry, data->res.fh, data->res.fattr);
 	}
 	return status;
