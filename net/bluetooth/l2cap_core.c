@@ -2314,17 +2314,30 @@ static inline int l2cap_ertm_init(struct l2cap_chan *chan)
 {
 	int err;
 
+	chan->next_tx_seq = 0;
+	chan->expected_tx_seq = 0;
 	chan->expected_ack_seq = 0;
 	chan->unacked_frames = 0;
 	chan->buffer_seq = 0;
 	chan->num_acked = 0;
 	chan->frames_sent = 0;
+	chan->last_acked_seq = 0;
+	chan->sdu = NULL;
+	chan->sdu_last_frag = NULL;
+	chan->sdu_len = 0;
+
+	if (chan->mode != L2CAP_MODE_ERTM)
+		return 0;
+
+	chan->rx_state = L2CAP_RX_STATE_RECV;
+	chan->tx_state = L2CAP_TX_STATE_XMIT;
 
 	INIT_DELAYED_WORK(&chan->retrans_timer, l2cap_retrans_timeout);
 	INIT_DELAYED_WORK(&chan->monitor_timer, l2cap_monitor_timeout);
 	INIT_DELAYED_WORK(&chan->ack_timer, l2cap_ack_timeout);
 
 	skb_queue_head_init(&chan->srej_q);
+	skb_queue_head_init(&chan->tx_q);
 
 	INIT_LIST_HEAD(&chan->srej_l);
 	err = l2cap_seq_list_init(&chan->srej_list, chan->tx_win);
@@ -3192,10 +3205,8 @@ static inline int l2cap_config_req(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 
 		l2cap_state_change(chan, BT_CONNECTED);
 
-		chan->next_tx_seq = 0;
-		chan->expected_tx_seq = 0;
-		skb_queue_head_init(&chan->tx_q);
-		if (chan->mode == L2CAP_MODE_ERTM)
+		if (chan->mode == L2CAP_MODE_ERTM ||
+		    chan->mode == L2CAP_MODE_STREAMING)
 			err = l2cap_ertm_init(chan);
 
 		if (err < 0)
@@ -3327,10 +3338,8 @@ static inline int l2cap_config_rsp(struct l2cap_conn *conn, struct l2cap_cmd_hdr
 		set_default_fcs(chan);
 
 		l2cap_state_change(chan, BT_CONNECTED);
-		chan->next_tx_seq = 0;
-		chan->expected_tx_seq = 0;
-		skb_queue_head_init(&chan->tx_q);
-		if (chan->mode ==  L2CAP_MODE_ERTM)
+		if (chan->mode == L2CAP_MODE_ERTM ||
+		    chan->mode == L2CAP_MODE_STREAMING)
 			err = l2cap_ertm_init(chan);
 
 		if (err < 0)
