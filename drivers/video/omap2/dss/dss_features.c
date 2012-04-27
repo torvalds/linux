@@ -568,6 +568,7 @@ static const struct ti_hdmi_ip_ops omap4_hdmi_functions = {
 	.pll_enable		=	ti_hdmi_4xxx_pll_enable,
 	.pll_disable		=	ti_hdmi_4xxx_pll_disable,
 	.video_enable		=	ti_hdmi_4xxx_wp_video_start,
+	.video_disable		=	ti_hdmi_4xxx_wp_video_stop,
 	.dump_wrapper		=	ti_hdmi_4xxx_wp_dump,
 	.dump_core		=	ti_hdmi_4xxx_core_dump,
 	.dump_pll		=	ti_hdmi_4xxx_pll_dump,

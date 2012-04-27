@@ -96,7 +96,9 @@ struct ti_hdmi_ip_ops {
 
 	void (*pll_disable)(struct hdmi_ip_data *ip_data);
 
-	void (*video_enable)(struct hdmi_ip_data *ip_data, bool start);
+	int (*video_enable)(struct hdmi_ip_data *ip_data);
+
+	void (*video_disable)(struct hdmi_ip_data *ip_data);
 
 	void (*dump_wrapper)(struct hdmi_ip_data *ip_data, struct seq_file *s);
 
@@ -175,7 +177,8 @@ int ti_hdmi_4xxx_phy_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_phy_disable(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_read_edid(struct hdmi_ip_data *ip_data, u8 *edid, int len);
 bool ti_hdmi_4xxx_detect(struct hdmi_ip_data *ip_data);
-void ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data, bool start);
+int ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_wp_video_stop(struct hdmi_ip_data *ip_data);
 int ti_hdmi_4xxx_pll_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_pll_disable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_basic_configure(struct hdmi_ip_data *ip_data);

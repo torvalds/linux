@@ -324,7 +324,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 
 	hdmi_compute_pll(dssdev, phy, &hdmi.ip_data.pll_data);
 
-	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
+	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
 
 	/* config the PLL and PHY hdmi_set_pll_pwrfirst */
 	r = hdmi.ip_data.ops->pll_enable(&hdmi.ip_data);
@@ -358,7 +358,9 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	/* tv size */
 	dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
 
-	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 1);
+	r = hdmi.ip_data.ops->video_enable(&hdmi.ip_data);
+	if (r)
+		goto err_vid_enable;
 
 	r = dss_mgr_enable(dssdev->manager);
 	if (r)
@@ -367,7 +369,8 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	return 0;
 
 err_mgr_enable:
-	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
+	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
+err_vid_enable:
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 err:
@@ -379,7 +382,7 @@ static void hdmi_power_off(struct omap_dss_device *dssdev)
 {
 	dss_mgr_disable(dssdev->manager);
 
-	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 0);
+	hdmi.ip_data.ops->video_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->phy_disable(&hdmi.ip_data);
 	hdmi.ip_data.ops->pll_disable(&hdmi.ip_data);
 	hdmi_runtime_put();

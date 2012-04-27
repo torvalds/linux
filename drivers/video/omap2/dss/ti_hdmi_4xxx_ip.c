@@ -699,9 +699,15 @@ static void hdmi_wp_init(struct omap_video_timings *timings,
 
 }
 
-void ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data, bool start)
+int ti_hdmi_4xxx_wp_video_start(struct hdmi_ip_data *ip_data)
 {
-	REG_FLD_MOD(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, start, 31, 31);
+	REG_FLD_MOD(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, true, 31, 31);
+	return 0;
+}
+
+void ti_hdmi_4xxx_wp_video_stop(struct hdmi_ip_data *ip_data)
+{
+	REG_FLD_MOD(hdmi_wp_base(ip_data), HDMI_WP_VIDEO_CFG, false, 31, 31);
 }
 
 static void hdmi_wp_video_init_format(struct hdmi_video_format *video_fmt,
