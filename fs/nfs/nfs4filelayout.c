@@ -101,6 +101,9 @@ static void filelayout_reset_write(struct nfs_write_data *data)
 							&hdr->pages,
 							hdr->completion_ops);
 	}
+	/* balance nfs_get_client in filelayout_write_pagelist */
+	nfs_put_client(data->ds_clp);
+	data->ds_clp     = NULL;
 }
 
 static void filelayout_reset_read(struct nfs_read_data *data)
@@ -122,6 +125,9 @@ static void filelayout_reset_read(struct nfs_read_data *data)
 							&hdr->pages,
 							hdr->completion_ops);
 	}
+	/* balance nfs_get_client in filelayout_read_pagelist */
+	nfs_put_client(data->ds_clp);
+	data->ds_clp = NULL;
 }
 
 static int filelayout_async_handle_error(struct rpc_task *task,
@@ -298,6 +304,8 @@ static void filelayout_read_release(void *data)
 {
 	struct nfs_read_data *rdata = data;
 
+	if (!test_bit(NFS_IOHDR_REDO, &rdata->header->flags))
+		nfs_put_client(rdata->ds_clp);
 	rdata->header->mds_ops->rpc_release(data);
 }
 
@@ -395,6 +403,8 @@ static void filelayout_write_release(void *data)
 {
 	struct nfs_write_data *wdata = data;
 
+	if (!test_bit(NFS_IOHDR_REDO, &wdata->header->flags))
+		nfs_put_client(wdata->ds_clp);
 	wdata->header->mds_ops->rpc_release(data);
 }
 
@@ -431,6 +441,7 @@ static void filelayout_commit_release(void *calldata)
 
 	data->completion_ops->completion(data);
 	put_lseg(data->lseg);
+	nfs_put_client(data->ds_clp);
 	nfs_commitdata_release(data);
 }
 
@@ -476,9 +487,11 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds)
 		return PNFS_NOT_ATTEMPTED;
-	dprintk("%s USE DS: %s\n", __func__, ds->ds_remotestr);
+	dprintk("%s USE DS: %s cl_count %d\n", __func__,
+		ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 
 	/* No multipath support. Use first DS */
+	atomic_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
@@ -512,11 +525,12 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 	ds = nfs4_fl_prepare_ds(lseg, idx);
 	if (!ds)
 		return PNFS_NOT_ATTEMPTED;
-	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s\n", __func__,
-		hdr->inode->i_ino, sync, (size_t) data->args.count, offset,
-		ds->ds_remotestr);
+	dprintk("%s ino %lu sync %d req %Zu@%llu DS: %s cl_count %d\n",
+		__func__, hdr->inode->i_ino, sync, (size_t) data->args.count,
+		offset, ds->ds_remotestr, atomic_read(&ds->ds_clp->cl_count));
 
 	data->write_done_cb = filelayout_write_done_cb;
+	atomic_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
 	fh = nfs4_fl_select_ds_fh(lseg, j);
 	if (fh)
@@ -1048,8 +1062,10 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 		filelayout_commit_release(data);
 		return -EAGAIN;
 	}
-	dprintk("%s ino %lu, how %d\n", __func__, data->inode->i_ino, how);
+	dprintk("%s ino %lu, how %d cl_count %d\n", __func__,
+		data->inode->i_ino, how, atomic_read(&ds->ds_clp->cl_count));
 	data->commit_done_cb = filelayout_commit_done_cb;
+	atomic_inc(&ds->ds_clp->cl_count);
 	data->ds_clp = ds->ds_clp;
 	fh = select_ds_fh_from_commit(lseg, data->ds_commit_index);
 	if (fh)
