@@ -250,6 +250,11 @@
 
 	i2c@7000c500 {
 		clock-frequency = <400000>;
+
+		rtc@56 {
+			compatible = "emmicro,em3027";
+			reg = <0x56>;
+		};
 	};
 
 	i2c@7000d000 {
