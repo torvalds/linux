@@ -55,7 +55,6 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	dev_attr = (struct omap_gpio_dev_attr *)oh->dev_attr;
 	pdata->bank_width = dev_attr->bank_width;
 	pdata->dbck_flag = dev_attr->dbck_flag;
-	pdata->virtual_irq_start = IH_GPIO_BASE + 32 * (id - 1);
 	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
 	pdata->regs = kzalloc(sizeof(struct omap_gpio_reg_offs), GFP_KERNEL);
 	if (!pdata) {

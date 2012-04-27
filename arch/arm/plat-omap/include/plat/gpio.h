@@ -193,7 +193,6 @@ struct omap_gpio_reg_offs {
 };
 
 struct omap_gpio_platform_data {
-	u16 virtual_irq_start;
 	int bank_type;
 	int bank_width;		/* GPIO bank width */
 	int bank_stride;	/* Only needed for omap1 MPUIO */
