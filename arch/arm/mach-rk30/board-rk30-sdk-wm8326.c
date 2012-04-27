@@ -97,7 +97,7 @@ static int wm831x_pre_init(struct wm831x *parm)
 	Wm831x = parm;
 //	printk("%s\n", __func__);
 	gpio_request(PMU_POWER_SLEEP, "NULL");
-	gpio_direction_output(PMU_POWER_SLEEP, GPIO_HIGH);
+	gpio_direction_output(PMU_POWER_SLEEP, GPIO_LOW);
 	
 	ret = wm831x_reg_read(parm, WM831X_POWER_STATE) & 0xffff;
 	wm831x_reg_write(parm, WM831X_POWER_STATE, (ret & 0xfff8) | 0x04);
@@ -655,7 +655,7 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 				wm831x_set_bits(wm831x,
 						WM831X_GPIO1_CONTROL + i,
 						WM831X_GPN_POL_MASK,
-						0x0000);
+						0x0400);
 				wm831x_set_bits(wm831x,
 						WM831X_GPIO1_CONTROL + i,
 						WM831X_GPN_FN_MASK,
@@ -679,12 +679,7 @@ static int wm831x_init_pin_type(struct wm831x *wm831x)
 						1 << WM831X_GPN_POL_SHIFT | 1 << WM831X_GPN_PWR_DOM_SHIFT | 1 << 0);
 
 			}	// set gpio3 as clkout output 32.768K
-			else {
-				wm831x_set_bits(wm831x,
-						WM831X_GPIO1_CONTROL + i,
-						WM831X_GPN_PWR_DOM_MASK,
-						~WM831X_GPN_PWR_DOM);
-			}
+			
 		}
 	}
 
@@ -708,13 +703,13 @@ void __sramfunc board_pmu_suspend(void)
 {	
 	cru_writel(CRU_CLKGATE5_GRFCLK_ON,CRU_CLKGATE5_CON_ADDR); //open grf clk
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
-	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
+	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);  //set gpio6_b1 output low
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
 }
 void __sramfunc board_pmu_resume(void)
 {
 	grf_writel(GPIO6_PB1_DIR_OUT, GRF_GPIO6L_DIR_ADDR);
-	grf_writel(GPIO6_PB1_DO_HIGH, GRF_GPIO6L_DO_ADDR);     //set gpio6_b1 output high
+	grf_writel(GPIO6_PB1_DO_LOW, GRF_GPIO6L_DO_ADDR);     //set gpio6_b1 output high
 	grf_writel(GPIO6_PB1_EN_MASK, GRF_GPIO6L_EN_ADDR);
 	sram_udelay(10000);
 }
