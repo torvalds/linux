@@ -768,6 +768,29 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
 	return ret;
 }
 
+static int intel_gpu_reset(struct drm_device *dev, u8 flags)
+{
+	int ret = -ENODEV;
+
+	switch (INTEL_INFO(dev)->gen) {
+	case 7:
+	case 6:
+		ret = gen6_do_reset(dev, flags);
+		break;
+	case 5:
+		ret = ironlake_do_reset(dev, flags);
+		break;
+	case 4:
+		ret = i965_do_reset(dev, flags);
+		break;
+	case 2:
+		ret = i8xx_do_reset(dev, flags);
+		break;
+	}
+
+	return ret;
+}
+
 /**
  * i915_reset - reset chip after a hang
  * @dev: drm device to reset
@@ -800,23 +823,11 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	i915_gem_reset(dev);
 
 	ret = -ENODEV;
-	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
+	if (get_seconds() - dev_priv->last_gpu_reset < 5)
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-	} else switch (INTEL_INFO(dev)->gen) {
-	case 7:
-	case 6:
-		ret = gen6_do_reset(dev, flags);
-		break;
-	case 5:
-		ret = ironlake_do_reset(dev, flags);
-		break;
-	case 4:
-		ret = i965_do_reset(dev, flags);
-		break;
-	case 2:
-		ret = i8xx_do_reset(dev, flags);
-		break;
-	}
+	else
+		ret = intel_gpu_reset(dev, flags);
+
 	dev_priv->last_gpu_reset = get_seconds();
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
