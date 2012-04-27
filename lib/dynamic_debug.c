@@ -984,7 +984,7 @@ static int __init dynamic_debug_init(void)
 		if (strcmp(modname, iter->modname)) {
 			ret = ddebug_add_module(iter_start, n, modname);
 			if (ret)
-				goto out_free;
+				goto out_err;
 			n = 0;
 			modname = iter->modname;
 			iter_start = iter;
@@ -993,9 +993,11 @@ static int __init dynamic_debug_init(void)
 	}
 	ret = ddebug_add_module(iter_start, n, modname);
 	if (ret)
-		goto out_free;
+		goto out_err;
 
-	/* ddebug_query boot param got passed -> set it up */
+	ddebug_init_success = 1;
+
+	/* apply ddebug_query boot param, dont unload tables on err */
 	if (ddebug_setup_string[0] != '\0') {
 		pr_warn("ddebug_query param name is deprecated,"
 			" change it to dyndbg\n");
@@ -1005,9 +1007,6 @@ static int __init dynamic_debug_init(void)
 				ddebug_setup_string);
 		else
 			pr_info("%d changes by ddebug_query\n", ret);
-
-		/* keep tables even on ddebug_query parse error */
-		ret = 0;
 	}
 	/* now that ddebug tables are loaded, process all boot args
 	 * again to find and activate queries given in dyndbg params.
@@ -1021,12 +1020,10 @@ static int __init dynamic_debug_init(void)
 	parse_args("dyndbg params", cmdline, NULL,
 		   0, 0, 0, &ddebug_dyndbg_boot_param_cb);
 	kfree(cmdline);
+	return 0;
 
-out_free:
-	if (ret)
-		ddebug_remove_all_tables();
-	else
-		ddebug_init_success = 1;
+out_err:
+	ddebug_remove_all_tables();
 	return 0;
 }
 /* Allow early initialization for boot messages via boot param */
