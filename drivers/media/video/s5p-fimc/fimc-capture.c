@@ -34,16 +34,17 @@
 static int fimc_init_capture(struct fimc_dev *fimc)
 {
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
+	struct fimc_pipeline *p = &fimc->pipeline;
 	struct fimc_sensor_info *sensor;
 	unsigned long flags;
 	int ret = 0;
 
-	if (fimc->pipeline.sensor == NULL || ctx == NULL)
+	if (p->subdevs[IDX_SENSOR] == NULL || ctx == NULL)
 		return -ENXIO;
 	if (ctx->s_frame.fmt == NULL)
 		return -EINVAL;
 
-	sensor = v4l2_get_subdev_hostdata(fimc->pipeline.sensor);
+	sensor = v4l2_get_subdev_hostdata(p->subdevs[IDX_SENSOR]);
 
 	spin_lock_irqsave(&fimc->slock, flags);
 	fimc_prepare_dma_offset(ctx, &ctx->d_frame);
@@ -109,7 +110,7 @@ static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 	spin_unlock_irqrestore(&fimc->slock, flags);
 
 	if (streaming)
-		return fimc_pipeline_s_stream(fimc, 0);
+		return fimc_pipeline_s_stream(&fimc->pipeline, 0);
 	else
 		return 0;
 }
@@ -254,7 +255,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 		fimc_activate_capture(ctx);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_s_stream(fimc, 1);
+			fimc_pipeline_s_stream(&fimc->pipeline, 1);
 	}
 
 	return 0;
@@ -281,7 +282,7 @@ int fimc_capture_suspend(struct fimc_dev *fimc)
 	int ret = fimc_stop_capture(fimc, suspend);
 	if (ret)
 		return ret;
-	return fimc_pipeline_shutdown(fimc);
+	return fimc_pipeline_shutdown(&fimc->pipeline);
 }
 
 static void buffer_queue(struct vb2_buffer *vb);
@@ -297,7 +298,7 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 
 	INIT_LIST_HEAD(&fimc->vid_cap.active_buf_q);
 	vid_cap->buf_index = 0;
-	fimc_pipeline_initialize(fimc, &fimc->vid_cap.vfd->entity,
+	fimc_pipeline_initialize(&fimc->pipeline, &vid_cap->vfd->entity,
 				 false);
 	fimc_init_capture(fimc);
 
@@ -414,7 +415,7 @@ static void buffer_queue(struct vb2_buffer *vb)
 		spin_unlock_irqrestore(&fimc->slock, flags);
 
 		if (!test_and_set_bit(ST_CAPT_ISP_STREAM, &fimc->state))
-			fimc_pipeline_s_stream(fimc, 1);
+			fimc_pipeline_s_stream(&fimc->pipeline, 1);
 		return;
 	}
 	spin_unlock_irqrestore(&fimc->slock, flags);
@@ -464,7 +465,7 @@ int fimc_capture_ctrls_create(struct fimc_dev *fimc)
 		return ret;
 
 	return v4l2_ctrl_add_handler(&vid_cap->ctx->ctrl_handler,
-				    fimc->pipeline.sensor->ctrl_handler);
+		    fimc->pipeline.subdevs[IDX_SENSOR]->ctrl_handler);
 }
 
 static int fimc_capture_set_default_format(struct fimc_dev *fimc);
@@ -487,7 +488,7 @@ static int fimc_capture_open(struct file *file)
 	pm_runtime_get_sync(&fimc->pdev->dev);
 
 	if (++fimc->vid_cap.refcnt == 1) {
-		ret = fimc_pipeline_initialize(fimc,
+		ret = fimc_pipeline_initialize(&fimc->pipeline,
 			       &fimc->vid_cap.vfd->entity, true);
 		if (ret < 0) {
 			dev_err(&fimc->pdev->dev,
@@ -515,7 +516,7 @@ static int fimc_capture_close(struct file *file)
 	if (--fimc->vid_cap.refcnt == 0) {
 		clear_bit(ST_CAPT_BUSY, &fimc->state);
 		fimc_stop_capture(fimc, false);
-		fimc_pipeline_shutdown(fimc);
+		fimc_pipeline_shutdown(&fimc->pipeline);
 		clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
 	}
 
@@ -736,8 +737,8 @@ static int fimc_pipeline_try_format(struct fimc_ctx *ctx,
 				    bool set)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct v4l2_subdev *sd = fimc->pipeline.sensor;
-	struct v4l2_subdev *csis = fimc->pipeline.csis;
+	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
+	struct v4l2_subdev *csis = fimc->pipeline.subdevs[IDX_CSIS];
 	struct v4l2_subdev_format sfmt;
 	struct v4l2_mbus_framefmt *mf = &sfmt.format;
 	struct fimc_fmt *ffmt = NULL;
@@ -945,7 +946,7 @@ static int fimc_cap_enum_input(struct file *file, void *priv,
 			       struct v4l2_input *i)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct v4l2_subdev *sd = fimc->pipeline.sensor;
+	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
 
 	if (i->index != 0)
 		return -EINVAL;
@@ -1037,7 +1038,8 @@ static int fimc_cap_streamon(struct file *file, void *priv,
 	if (fimc_capture_active(fimc))
 		return -EBUSY;
 
-	media_entity_pipeline_start(&p->sensor->entity, p->pipe);
+	media_entity_pipeline_start(&p->subdevs[IDX_SENSOR]->entity,
+				    p->m_pipeline);
 
 	if (fimc->vid_cap.user_subdev_api) {
 		ret = fimc_pipeline_validate(fimc);
@@ -1051,7 +1053,7 @@ static int fimc_cap_streamoff(struct file *file, void *priv,
 			    enum v4l2_buf_type type)
 {
 	struct fimc_dev *fimc = video_drvdata(file);
-	struct v4l2_subdev *sd = fimc->pipeline.sensor;
+	struct v4l2_subdev *sd = fimc->pipeline.subdevs[IDX_SENSOR];
 	int ret;
 
 	ret = vb2_streamoff(&fimc->vid_cap.vbq, type);

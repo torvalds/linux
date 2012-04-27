@@ -400,11 +400,6 @@ struct samsung_fimc_driverdata {
 	int		num_entities;
 };
 
-struct fimc_pipeline {
-	struct media_pipeline *pipe;
-	struct v4l2_subdev *sensor;
-	struct v4l2_subdev *csis;
-};
 
 struct fimc_ctx;
 
