@@ -437,7 +437,7 @@ static struct spear_pingroup clcd_pingroup = {
 };
 
 static const unsigned clcd_high_res_pins[] = { 30, 31, 32, 33, 34, 35, 36, 37,
-	38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52 };
+	38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53 };
 static struct spear_muxreg clcd_high_res_muxreg[] = {
 	{
 		.reg = PAD_FUNCTION_EN_1,
