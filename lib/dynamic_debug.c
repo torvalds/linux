@@ -862,39 +862,43 @@ int ddebug_add_module(struct _ddebug *tab, unsigned int n,
 }
 EXPORT_SYMBOL_GPL(ddebug_add_module);
 
-/* handle both dyndbg=".." and $module.dyndbg=".." params at boot */
-static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
-				const char *unused)
+/* helper for ddebug_dyndbg_(boot|module)_param_cb */
+static int ddebug_dyndbg_param_cb(char *param, char *val,
+				const char *modname, int on_err)
 {
-	const char *modname = NULL;
 	char *sep;
 
 	sep = strchr(param, '.');
 	if (sep) {
+		/* needed only for ddebug_dyndbg_boot_param_cb */
 		*sep = '\0';
 		modname = param;
 		param = sep + 1;
 	}
 	if (strcmp(param, "dyndbg"))
-		return 0; /* skip all other params w/o error */
-
-	vpr_info("module: %s %s=\"%s\"\n", modname, param, val);
+		return on_err; /* determined by caller */
 
 	ddebug_exec_queries(val ? val : "+p");
 	return 0; /* query failure shouldnt stop module load */
 }
 
-/* handle dyndbg args to modprobe */
-int ddebug_dyndbg_module_param_cb(char *param, char *val, const char *doing)
+/* handle both dyndbg and $module.dyndbg params at boot */
+static int ddebug_dyndbg_boot_param_cb(char *param, char *val,
+				const char *unused)
 {
-	if (strcmp(param, "dyndbg"))
-		return -ENOENT;
+	vpr_info("%s=\"%s\"\n", param, val);
+	return ddebug_dyndbg_param_cb(param, val, NULL, 0);
+}
 
-	vpr_info("module: %s %s=\"%s\"\n", doing, param, val);
-
-	ddebug_exec_queries((val ? val : "+p"));
-
-	return 0; /* query failure shouldnt stop module load */
+/*
+ * modprobe foo finds foo.params in boot-args, strips "foo.", and
+ * passes them to load_module().  This callback gets unknown params,
+ * processes dyndbg params, rejects others.
+ */
+int ddebug_dyndbg_module_param_cb(char *param, char *val, const char *module)
+{
+	vpr_info("module: %s %s=\"%s\"\n", module, param, val);
+	return ddebug_dyndbg_param_cb(param, val, module, -ENOENT);
 }
 
 static void ddebug_table_free(struct ddebug_table *dt)
