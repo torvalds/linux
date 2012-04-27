@@ -1751,9 +1751,6 @@ void __init paging_init(void)
 	/* Setup bootmem... */
 	last_valid_pfn = end_pfn = bootmem_init(phys_base);
 
-#ifndef CONFIG_NEED_MULTIPLE_NODES
-	max_mapnr = last_valid_pfn;
-#endif
 	/* Once the OF device tree and MDESC have been setup, we know
 	 * the list of possible cpus.  Therefore we can allocate the
 	 * IRQ stacks.
