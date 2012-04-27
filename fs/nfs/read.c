@@ -206,7 +206,7 @@ out:
 
 int nfs_initiate_read(struct rpc_clnt *clnt,
 		      struct nfs_read_data *data,
-		      const struct rpc_call_ops *call_ops)
+		      const struct rpc_call_ops *call_ops, int flags)
 {
 	struct inode *inode = data->header->inode;
 	int swap_flags = IS_SWAPFILE(inode) ? NFS_RPC_SWAPFLAGS : 0;
@@ -223,7 +223,7 @@ int nfs_initiate_read(struct rpc_clnt *clnt,
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC | swap_flags,
+		.flags = RPC_TASK_ASYNC | swap_flags | flags,
 	};
 
 	/* Set up the initial task struct. */
@@ -272,7 +272,7 @@ static int nfs_do_read(struct nfs_read_data *data,
 {
 	struct inode *inode = data->header->inode;
 
-	return nfs_initiate_read(NFS_CLIENT(inode), data, call_ops);
+	return nfs_initiate_read(NFS_CLIENT(inode), data, call_ops, 0);
 }
 
 static int

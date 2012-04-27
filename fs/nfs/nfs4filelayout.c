@@ -401,7 +401,7 @@ filelayout_read_pagelist(struct nfs_read_data *data)
 
 	/* Perform an asynchronous read to ds */
 	status = nfs_initiate_read(ds->ds_clp->cl_rpcclient, data,
-				   &filelayout_read_call_ops);
+				  &filelayout_read_call_ops, RPC_TASK_SOFTCONN);
 	BUG_ON(status != 0);
 	return PNFS_ATTEMPTED;
 }
@@ -441,7 +441,8 @@ filelayout_write_pagelist(struct nfs_write_data *data, int sync)
 
 	/* Perform an asynchronous write */
 	status = nfs_initiate_write(ds->ds_clp->cl_rpcclient, data,
-				    &filelayout_write_call_ops, sync);
+				    &filelayout_write_call_ops, sync,
+				    RPC_TASK_SOFTCONN);
 	BUG_ON(status != 0);
 	return PNFS_ATTEMPTED;
 }
@@ -966,7 +967,8 @@ static int filelayout_initiate_commit(struct nfs_commit_data *data, int how)
 	if (fh)
 		data->args.fh = fh;
 	return nfs_initiate_commit(ds->ds_clp->cl_rpcclient, data,
-				   &filelayout_commit_call_ops, how);
+				   &filelayout_commit_call_ops, how,
+				   RPC_TASK_SOFTCONN);
 }
 
 static int
@@ -1120,7 +1122,7 @@ filelayout_commit_pagelist(struct inode *inode, struct list_head *mds_pages,
 		if (!data->lseg) {
 			nfs_init_commit(data, mds_pages, NULL, cinfo);
 			nfs_initiate_commit(NFS_CLIENT(inode), data,
-					    data->mds_ops, how);
+					    data->mds_ops, how, 0);
 		} else {
 			struct pnfs_commit_bucket *buckets;
 

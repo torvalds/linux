@@ -299,7 +299,7 @@ extern void nfs_pageio_init_read(struct nfs_pageio_descriptor *pgio,
 			const struct nfs_pgio_completion_ops *compl_ops);
 extern int nfs_initiate_read(struct rpc_clnt *clnt,
 			     struct nfs_read_data *data,
-			     const struct rpc_call_ops *call_ops);
+			     const struct rpc_call_ops *call_ops, int flags);
 extern void nfs_read_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_generic_pagein(struct nfs_pageio_descriptor *desc,
 			      struct nfs_pgio_header *hdr);
@@ -326,13 +326,13 @@ extern void nfs_commit_free(struct nfs_commit_data *p);
 extern int nfs_initiate_write(struct rpc_clnt *clnt,
 			      struct nfs_write_data *data,
 			      const struct rpc_call_ops *call_ops,
-			      int how);
+			      int how, int flags);
 extern void nfs_write_prepare(struct rpc_task *task, void *calldata);
 extern void nfs_commit_prepare(struct rpc_task *task, void *calldata);
 extern int nfs_initiate_commit(struct rpc_clnt *clnt,
 			       struct nfs_commit_data *data,
 			       const struct rpc_call_ops *call_ops,
-			       int how);
+			       int how, int flags);
 extern void nfs_init_commit(struct nfs_commit_data *data,
 			    struct list_head *head,
 			    struct pnfs_layout_segment *lseg,

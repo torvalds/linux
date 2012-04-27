@@ -916,7 +916,7 @@ static int flush_task_priority(int how)
 int nfs_initiate_write(struct rpc_clnt *clnt,
 		       struct nfs_write_data *data,
 		       const struct rpc_call_ops *call_ops,
-		       int how)
+		       int how, int flags)
 {
 	struct inode *inode = data->header->inode;
 	int priority = flush_task_priority(how);
@@ -933,7 +933,7 @@ int nfs_initiate_write(struct rpc_clnt *clnt,
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | flags,
 		.priority = priority,
 	};
 	int ret = 0;
@@ -1009,7 +1009,7 @@ static int nfs_do_write(struct nfs_write_data *data,
 {
 	struct inode *inode = data->header->inode;
 
-	return nfs_initiate_write(NFS_CLIENT(inode), data, call_ops, how);
+	return nfs_initiate_write(NFS_CLIENT(inode), data, call_ops, how, 0);
 }
 
 static int nfs_do_multiple_writes(struct list_head *head,
@@ -1394,7 +1394,7 @@ EXPORT_SYMBOL_GPL(nfs_commitdata_release);
 
 int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 			const struct rpc_call_ops *call_ops,
-			int how)
+			int how, int flags)
 {
 	struct rpc_task *task;
 	int priority = flush_task_priority(how);
@@ -1410,7 +1410,7 @@ int nfs_initiate_commit(struct rpc_clnt *clnt, struct nfs_commit_data *data,
 		.callback_ops = call_ops,
 		.callback_data = data,
 		.workqueue = nfsiod_workqueue,
-		.flags = RPC_TASK_ASYNC,
+		.flags = RPC_TASK_ASYNC | flags,
 		.priority = priority,
 	};
 	/* Set up the initial task struct.  */
@@ -1499,7 +1499,8 @@ nfs_commit_list(struct inode *inode, struct list_head *head, int how,
 	/* Set up the argument struct */
 	nfs_init_commit(data, head, NULL, cinfo);
 	atomic_inc(&cinfo->mds->rpcs_out);
-	return nfs_initiate_commit(NFS_CLIENT(inode), data, data->mds_ops, how);
+	return nfs_initiate_commit(NFS_CLIENT(inode), data, data->mds_ops,
+				   how, 0);
  out_bad:
 	nfs_retry_commit(head, NULL, cinfo);
 	cinfo->completion_ops->error_cleanup(NFS_I(inode));
