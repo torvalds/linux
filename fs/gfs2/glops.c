@@ -378,11 +378,6 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
 	if (error)
 		return error;
 
-	if (gfs2_metatype_check(GFS2_SB(&ip->i_inode), dibh, GFS2_METATYPE_DI)) {
-		brelse(dibh);
-		return -EIO;
-	}
-
 	error = gfs2_dinode_in(ip, dibh->b_data);
 	brelse(dibh);
 	clear_bit(GIF_INVALID, &ip->i_flags);
