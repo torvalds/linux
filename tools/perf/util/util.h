@@ -265,4 +265,6 @@ bool is_power_of_2(unsigned long n)
 	return (n != 0 && ((n & (n - 1)) == 0));
 }
 
+size_t hex_width(u64 v);
+
 #endif
