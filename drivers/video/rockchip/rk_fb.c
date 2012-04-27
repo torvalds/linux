@@ -819,6 +819,12 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 	{
 		dev_drv->screen_ctr_info->set_screen_info(dev_drv->screen,
 			dev_drv->screen_ctr_info->lcd_info);
+		if(SCREEN_NULL==dev_drv->screen->type)
+		{
+			printk(KERN_WARNING "no display device on lcdc%d!?\n",dev_drv->id);
+			fb_inf->num_lcdc--;
+			return -ENODEV;
+		}
 		if(dev_drv->screen_ctr_info->io_init)
 			dev_drv->screen_ctr_info->io_init(NULL);
 	}
