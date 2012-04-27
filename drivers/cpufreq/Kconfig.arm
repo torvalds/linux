@@ -4,6 +4,7 @@
 
 config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
+	depends on ARCH_OMAP2PLUS
 	default ARCH_OMAP2PLUS
 	select CPU_FREQ_TABLE
 

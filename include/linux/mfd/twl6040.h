@@ -174,8 +174,35 @@
 #define TWL6040_SYSCLK_SEL_LPPLL	0
 #define TWL6040_SYSCLK_SEL_HPPLL	1
 
+struct twl6040_codec_data {
+	u16 hs_left_step;
+	u16 hs_right_step;
+	u16 hf_left_step;
+	u16 hf_right_step;
+};
+
+struct twl6040_vibra_data {
+	unsigned int vibldrv_res;	/* left driver resistance */
+	unsigned int vibrdrv_res;	/* right driver resistance */
+	unsigned int viblmotor_res;	/* left motor resistance */
+	unsigned int vibrmotor_res;	/* right motor resistance */
+	int vddvibl_uV;			/* VDDVIBL volt, set 0 for fixed reg */
+	int vddvibr_uV;			/* VDDVIBR volt, set 0 for fixed reg */
+};
+
+struct twl6040_platform_data {
+	int audpwron_gpio;	/* audio power-on gpio */
+	unsigned int irq_base;
+
+	struct twl6040_codec_data *codec;
+	struct twl6040_vibra_data *vibra;
+};
+
+struct regmap;
+
 struct twl6040 {
 	struct device *dev;
+	struct regmap *regmap;
 	struct mutex mutex;
 	struct mutex io_mutex;
 	struct mutex irq_mutex;

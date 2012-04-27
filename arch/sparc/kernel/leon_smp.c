@@ -79,6 +79,8 @@ void __cpuinit leon_callin(void)
 	local_flush_tlb_all();
 	leon_configure_cache_smp();
 
+	notify_cpu_starting(cpuid);
+
 	/* Get our local ticker going. */
 	register_percpu_ce(cpuid);
 

@@ -123,6 +123,54 @@ static inline struct inet6_dev *ip6_dst_idev(struct dst_entry *dst)
 	return ((struct rt6_info *)dst)->rt6i_idev;
 }
 
+static inline void rt6_clean_expires(struct rt6_info *rt)
+{
+	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from)
+		dst_release(rt->dst.from);
+
+	rt->rt6i_flags &= ~RTF_EXPIRES;
+	rt->dst.from = NULL;
+}
+
+static inline void rt6_set_expires(struct rt6_info *rt, unsigned long expires)
+{
+	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from)
+		dst_release(rt->dst.from);
+
+	rt->rt6i_flags |= RTF_EXPIRES;
+	rt->dst.expires = expires;
+}
+
+static inline void rt6_update_expires(struct rt6_info *rt, int timeout)
+{
+	if (!(rt->rt6i_flags & RTF_EXPIRES)) {
+		if (rt->dst.from)
+			dst_release(rt->dst.from);
+		/* dst_set_expires relies on expires == 0 
+		 * if it has not been set previously.
+		 */
+		rt->dst.expires = 0;
+	}
+
+	dst_set_expires(&rt->dst, timeout);
+	rt->rt6i_flags |= RTF_EXPIRES;
+}
+
+static inline void rt6_set_from(struct rt6_info *rt, struct rt6_info *from)
+{
+	struct dst_entry *new = (struct dst_entry *) from;
+
+	if (!(rt->rt6i_flags & RTF_EXPIRES) && rt->dst.from) {
+		if (new == rt->dst.from)
+			return;
+		dst_release(rt->dst.from);
+	}
+
+	rt->rt6i_flags &= ~RTF_EXPIRES;
+	rt->dst.from = new;
+	dst_hold(new);
+}
+
 struct fib6_walker_t {
 	struct list_head lh;
 	struct fib6_node *root, *node;
