@@ -2118,6 +2118,9 @@ static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	if (chip->verify_buf(mtd, buf, mtd->writesize))
 		return -EIO;
+
+	/* Make sure the next page prog is preceded by a status read */
+	chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
 #endif
 	return 0;
 }
