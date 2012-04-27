@@ -787,11 +787,6 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
 int i915_reset(struct drm_device *dev, u8 flags)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	/*
-	 * We really should only reset the display subsystem if we actually
-	 * need to
-	 */
-	bool need_display = true;
 	int ret;
 
 	if (!i915_try_reset)
@@ -865,22 +860,18 @@ int i915_reset(struct drm_device *dev, u8 flags)
 		drm_irq_uninstall(dev);
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
-
-		mutex_lock(&dev->struct_mutex);
+	} else {
+		mutex_unlock(&dev->struct_mutex);
 	}
-
-	mutex_unlock(&dev->struct_mutex);
 
 	/*
 	 * Perform a full modeset as on later generations, e.g. Ironlake, we may
 	 * need to retrain the display link and cannot just restore the register
 	 * values.
 	 */
-	if (need_display) {
-		mutex_lock(&dev->mode_config.mutex);
-		drm_helper_resume_force_mode(dev);
-		mutex_unlock(&dev->mode_config.mutex);
-	}
+	mutex_lock(&dev->mode_config.mutex);
+	drm_helper_resume_force_mode(dev);
+	mutex_unlock(&dev->mode_config.mutex);
 
 	return 0;
 }
