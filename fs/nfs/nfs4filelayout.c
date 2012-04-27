@@ -182,6 +182,27 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		break;
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		break;
+	/* Invalidate Layout errors */
+	case -NFS4ERR_PNFS_NO_LAYOUT:
+	case -ESTALE:           /* mapped NFS4ERR_STALE */
+	case -EBADHANDLE:       /* mapped NFS4ERR_BADHANDLE */
+	case -EISDIR:           /* mapped NFS4ERR_ISDIR */
+	case -NFS4ERR_FHEXPIRED:
+	case -NFS4ERR_WRONG_TYPE:
+		dprintk("%s Invalid layout error %d\n", __func__,
+			task->tk_status);
+		/*
+		 * Destroy layout so new i/o will get a new layout.
+		 * Layout will not be destroyed until all current lseg
+		 * references are put. Mark layout as invalid to resend failed
+		 * i/o and all i/o waiting on the slot table to the MDS until
+		 * layout is destroyed and a new valid layout is obtained.
+		 */
+		set_bit(NFS_LAYOUT_INVALID,
+				&NFS_I(state->inode)->layout->plh_flags);
+		pnfs_destroy_layout(NFS_I(state->inode));
+		rpc_wake_up(&tbl->slot_tbl_waitq);
+		goto reset;
 	/* RPC connection errors */
 	case -ECONNREFUSED:
 	case -EHOSTDOWN:
@@ -199,6 +220,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 		nfs4_ds_disconnect(clp);
 		/* fall through */
 	default:
+reset:
 		dprintk("%s Retry through MDS. Error %d\n", __func__,
 			task->tk_status);
 		return -NFS4ERR_RESET_TO_MDS;
@@ -263,9 +285,8 @@ filelayout_set_layoutcommit(struct nfs_write_data *wdata)
 static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = data;
-	struct pnfs_layout_segment *lseg = rdata->header->lseg;
 
-	if (filelayout_test_devid_invalid(FILELAYOUT_DEVID_NODE(lseg))) {
+	if (filelayout_reset_to_mds(rdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_read(rdata);
 		rpc_exit(task, 0);
@@ -366,9 +387,8 @@ static int filelayout_commit_done_cb(struct rpc_task *task,
 static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
-	struct pnfs_layout_segment *lseg = wdata->header->lseg;
 
-	if (filelayout_test_devid_invalid(FILELAYOUT_DEVID_NODE(lseg))) {
+	if (filelayout_reset_to_mds(wdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_write(wdata);
 		rpc_exit(task, 0);

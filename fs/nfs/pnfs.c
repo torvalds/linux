@@ -455,6 +455,7 @@ pnfs_destroy_layout(struct nfs_inode *nfsi)
 	spin_unlock(&nfsi->vfs_inode.i_lock);
 	pnfs_free_lseg_list(&tmp_list);
 }
+EXPORT_SYMBOL_GPL(pnfs_destroy_layout);
 
 /*
  * Called by the state manger to remove all layouts established under an

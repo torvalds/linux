@@ -63,6 +63,7 @@ enum {
 	NFS_LAYOUT_BULK_RECALL,		/* bulk recall affecting layout */
 	NFS_LAYOUT_ROC,			/* some lseg had roc bit set */
 	NFS_LAYOUT_DESTROYED,		/* no new use of layout allowed */
+	NFS_LAYOUT_INVALID,		/* layout is being destroyed */
 };
 
 enum layoutdriver_policy_flags {
