@@ -1144,50 +1144,6 @@ static int __devinit omap_gpio_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARCH_OMAP2PLUS
 
-#if defined(CONFIG_PM_SLEEP)
-static int omap_gpio_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct gpio_bank *bank = platform_get_drvdata(pdev);
-	void __iomem *base = bank->base;
-	unsigned long flags;
-
-	if (!bank->mod_usage || !bank->loses_context)
-		return 0;
-
-	if (!bank->regs->wkup_en || !bank->context.wake_en)
-		return 0;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	_gpio_rmw(base, bank->regs->wkup_en, 0xffffffff, 0);
-	_gpio_rmw(base, bank->regs->wkup_en, bank->context.wake_en, 1);
-	spin_unlock_irqrestore(&bank->lock, flags);
-
-	return 0;
-}
-
-static int omap_gpio_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct gpio_bank *bank = platform_get_drvdata(pdev);
-	void __iomem *base = bank->base;
-	unsigned long flags;
-
-	if (!bank->mod_usage || !bank->loses_context)
-		return 0;
-
-	if (!bank->regs->wkup_en || !bank->context.wake_en)
-		return 0;
-
-	spin_lock_irqsave(&bank->lock, flags);
-	_gpio_rmw(base, bank->regs->wkup_en, 0xffffffff, 0);
-	_gpio_rmw(base, bank->regs->wkup_en, bank->context.wake_en, 1);
-	spin_unlock_irqrestore(&bank->lock, flags);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
 #if defined(CONFIG_PM_RUNTIME)
 static void omap_gpio_restore_context(struct gpio_bank *bank);
 
@@ -1416,14 +1372,11 @@ static void omap_gpio_restore_context(struct gpio_bank *bank)
 }
 #endif /* CONFIG_PM_RUNTIME */
 #else
-#define omap_gpio_suspend NULL
-#define omap_gpio_resume NULL
 #define omap_gpio_runtime_suspend NULL
 #define omap_gpio_runtime_resume NULL
 #endif
 
 static const struct dev_pm_ops gpio_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(omap_gpio_suspend, omap_gpio_resume)
 	SET_RUNTIME_PM_OPS(omap_gpio_runtime_suspend, omap_gpio_runtime_resume,
 									NULL)
 };
