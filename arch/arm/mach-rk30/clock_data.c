@@ -30,8 +30,8 @@
 #define MHZ			(1000*1000)
 #define KHZ			(1000)
 #define CLK_LOOPS_JIFFY_REF 11996091ULL
-#define CLK_LOOPS_RARE_REF (1200) //Mhz
-#define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RARE_REF)
+#define CLK_LOOPS_RATE_REF (1200) //Mhz
+#define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
 
 //flags bit
 //has extern 27mhz
@@ -80,7 +80,7 @@ struct pll_clk_set {
 
 
 #define _APLL_SET_LPJ(_mhz) \
-	.lpj= (CLK_LOOPS_JIFFY_REF * _mhz)/CLK_LOOPS_RARE_REF
+	.lpj= (CLK_LOOPS_JIFFY_REF * _mhz)/CLK_LOOPS_RATE_REF
 
 
 #define _APLL_SET_CLKS(_mhz, nr, nf, no, _periph_div,_axi_div,_ahb_div, _apb_div,_ahb2apb) \
