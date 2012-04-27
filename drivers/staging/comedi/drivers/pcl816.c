@@ -125,61 +125,13 @@ struct pcl816_board {
 	int i8254_osc_base;	/*  1/frequency of on board oscilator in ns */
 };
 
-static const struct pcl816_board boardtypes[] = {
-	{"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-	 &range_pcl816, PCLx1x_RANGE,
-	 0x00fc,		/*  IRQ mask */
-	 0x0a,			/*  DMA mask */
-	 0xffff,		/*  16-bit card */
-	 0xffff,		/*  D/A maxdata */
-	 1024,
-	 1,			/*  ao chan list */
-	 100},
-	{"pcl814b", 8, 16, 10000, 1, 16, 16, &range_pcl816,
-	 &range_pcl816, PCLx1x_RANGE,
-	 0x00fc,
-	 0x0a,
-	 0x3fff,		/* 14 bit card */
-	 0x3fff,
-	 1024,
-	 1,
-	 100},
-};
-
 #define devpriv ((struct pcl816_private *)dev->private)
 #define this_board ((const struct pcl816_board *)dev->board_ptr)
-
-static int pcl816_attach(struct comedi_device *dev,
-			 struct comedi_devconfig *it);
-static int pcl816_detach(struct comedi_device *dev);
 
 #ifdef unused
 static int RTC_lock;	/* RTC lock */
 static int RTC_timer_lock;	/* RTC int lock */
 #endif
-
-static struct comedi_driver driver_pcl816 = {
-	.driver_name = "pcl816",
-	.module = THIS_MODULE,
-	.attach = pcl816_attach,
-	.detach = pcl816_detach,
-	.board_name = &boardtypes[0].name,
-	.num_names = ARRAY_SIZE(boardtypes),
-	.offset = sizeof(struct pcl816_board),
-};
-
-static int __init driver_pcl816_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl816);
-}
-
-static void __exit driver_pcl816_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl816);
-}
-
-module_init(driver_pcl816_init_module);
-module_exit(driver_pcl816_cleanup_module);
 
 struct pcl816_private {
 
@@ -1108,12 +1060,6 @@ static void free_resources(struct comedi_device *dev)
 	/* printk("free_resource() end\n"); */
 }
 
-/*
-==============================================================================
-
-   Initialization
-
-*/
 static int pcl816_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	int ret;
@@ -1339,10 +1285,6 @@ case COMEDI_SUBD_DO:
 	return 0;
 }
 
-/*
-==============================================================================
-  Removes device
- */
 static int pcl816_detach(struct comedi_device *dev)
 {
 	DEBUG(printk(KERN_INFO "comedi%d: pcl816: remove\n", dev->minor);)
@@ -1353,6 +1295,49 @@ static int pcl816_detach(struct comedi_device *dev)
 #endif
 	return 0;
 }
+
+static const struct pcl816_board boardtypes[] = {
+	{"pcl816", 8, 16, 10000, 1, 16, 16, &range_pcl816,
+	 &range_pcl816, PCLx1x_RANGE,
+	 0x00fc,		/*  IRQ mask */
+	 0x0a,			/*  DMA mask */
+	 0xffff,		/*  16-bit card */
+	 0xffff,		/*  D/A maxdata */
+	 1024,
+	 1,			/*  ao chan list */
+	 100},
+	{"pcl814b", 8, 16, 10000, 1, 16, 16, &range_pcl816,
+	 &range_pcl816, PCLx1x_RANGE,
+	 0x00fc,
+	 0x0a,
+	 0x3fff,		/* 14 bit card */
+	 0x3fff,
+	 1024,
+	 1,
+	 100},
+};
+
+static struct comedi_driver driver_pcl816 = {
+	.driver_name	= "pcl816",
+	.module		= THIS_MODULE,
+	.attach		= pcl816_attach,
+	.detach		= pcl816_detach,
+	.board_name	= &boardtypes[0].name,
+	.num_names	= ARRAY_SIZE(boardtypes),
+	.offset		= sizeof(struct pcl816_board),
+};
+
+static int __init driver_pcl816_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl816);
+}
+module_init(driver_pcl816_init_module);
+
+static void __exit driver_pcl816_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl816);
+}
+module_exit(driver_pcl816_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
