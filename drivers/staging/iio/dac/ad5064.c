@@ -144,14 +144,14 @@ static const char ad5064_powerdown_modes[][15] = {
 };
 
 static ssize_t ad5064_read_powerdown_mode_available(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, char *buf)
+	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
 {
 	return sprintf(buf, "%s %s %s\n", ad5064_powerdown_modes[1],
 		ad5064_powerdown_modes[2], ad5064_powerdown_modes[3]);
 }
 
 static ssize_t ad5064_read_powerdown_mode(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, char *buf)
+	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
 
@@ -160,7 +160,8 @@ static ssize_t ad5064_read_powerdown_mode(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5064_write_powerdown_mode(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, const char *buf, size_t len)
+	uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
+	size_t len)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
 	unsigned int mode, i;
@@ -187,7 +188,7 @@ static ssize_t ad5064_write_powerdown_mode(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5064_read_dac_powerdown(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, char *buf)
+	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
 
@@ -195,7 +196,8 @@ static ssize_t ad5064_read_dac_powerdown(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5064_write_dac_powerdown(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, const char *buf, size_t len)
+	 uintptr_t private, const struct iio_chan_spec *chan, const char *buf,
+	 size_t len)
 {
 	struct ad5064_state *st = iio_priv(indio_dev);
 	bool pwr_down;

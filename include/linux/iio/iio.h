@@ -111,14 +111,17 @@ struct iio_dev;
  * @shared:	Whether this attribute is shared between all channels.
  * @read:	Read callback for this info attribute, may be NULL.
  * @write:	Write callback for this info attribute, may be NULL.
+ * @private:	Data private to the driver.
  */
 struct iio_chan_spec_ext_info {
 	const char *name;
 	bool shared;
-	ssize_t (*read)(struct iio_dev *, struct iio_chan_spec const *,
-			char *buf);
-	ssize_t (*write)(struct iio_dev *, struct iio_chan_spec const *,
-			const char *buf, size_t len);
+	ssize_t (*read)(struct iio_dev *, uintptr_t private,
+			struct iio_chan_spec const *, char *buf);
+	ssize_t (*write)(struct iio_dev *, uintptr_t private,
+			 struct iio_chan_spec const *, const char *buf,
+			 size_t len);
+	uintptr_t private;
 };
 
 /**

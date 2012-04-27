@@ -281,7 +281,7 @@ static ssize_t iio_read_channel_ext_info(struct device *dev,
 
 	ext_info = &this_attr->c->ext_info[this_attr->address];
 
-	return ext_info->read(indio_dev, this_attr->c, buf);
+	return ext_info->read(indio_dev, ext_info->private, this_attr->c, buf);
 }
 
 static ssize_t iio_write_channel_ext_info(struct device *dev,
@@ -295,7 +295,8 @@ static ssize_t iio_write_channel_ext_info(struct device *dev,
 
 	ext_info = &this_attr->c->ext_info[this_attr->address];
 
-	return ext_info->write(indio_dev, this_attr->c, buf, len);
+	return ext_info->write(indio_dev, ext_info->private,
+			       this_attr->c, buf, len);
 }
 
 static ssize_t iio_read_channel_info(struct device *dev,

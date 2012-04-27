@@ -46,13 +46,14 @@ static const char * const ad5446_powerdown_modes[] = {
 };
 
 static ssize_t ad5446_read_powerdown_mode_available(struct iio_dev *indio_dev,
-	const struct iio_chan_spec *chan, char *buf)
+	uintptr_t private, const struct iio_chan_spec *chan, char *buf)
 {
 	return sprintf(buf, "%s %s %s\n", ad5446_powerdown_modes[1],
 		ad5446_powerdown_modes[2], ad5446_powerdown_modes[3]);
 }
 
 static ssize_t ad5446_write_powerdown_mode(struct iio_dev *indio_dev,
+					    uintptr_t private,
 					    const struct iio_chan_spec *chan,
 					    const char *buf, size_t len)
 {
@@ -73,6 +74,7 @@ static ssize_t ad5446_write_powerdown_mode(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5446_read_powerdown_mode(struct iio_dev *indio_dev,
+					   uintptr_t private,
 					   const struct iio_chan_spec *chan,
 					   char *buf)
 {
@@ -82,6 +84,7 @@ static ssize_t ad5446_read_powerdown_mode(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5446_read_dac_powerdown(struct iio_dev *indio_dev,
+					   uintptr_t private,
 					   const struct iio_chan_spec *chan,
 					   char *buf)
 {
@@ -91,6 +94,7 @@ static ssize_t ad5446_read_dac_powerdown(struct iio_dev *indio_dev,
 }
 
 static ssize_t ad5446_write_dac_powerdown(struct iio_dev *indio_dev,
+					    uintptr_t private,
 					    const struct iio_chan_spec *chan,
 					    const char *buf, size_t len)
 {
