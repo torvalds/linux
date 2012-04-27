@@ -770,6 +770,7 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
 
 static int intel_gpu_reset(struct drm_device *dev, u8 flags)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret = -ENODEV;
 
 	switch (INTEL_INFO(dev)->gen) {
@@ -786,6 +787,17 @@ static int intel_gpu_reset(struct drm_device *dev, u8 flags)
 	case 2:
 		ret = i8xx_do_reset(dev, flags);
 		break;
+	}
+
+	/* Also reset the gpu hangman. */
+	if (dev_priv->stop_rings) {
+		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
+		dev_priv->stop_rings = 0;
+		if (ret == -ENODEV) {
+			DRM_ERROR("Reset not implemented, but ignoring "
+				  "error for simulated gpu hangs\n");
+			ret = 0;
+		}
 	}
 
 	return ret;
