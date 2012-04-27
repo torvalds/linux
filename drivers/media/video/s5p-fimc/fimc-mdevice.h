@@ -18,13 +18,15 @@
 #include <media/v4l2-subdev.h>
 
 #include "fimc-core.h"
+#include "fimc-lite.h"
 #include "mipi-csis.h"
 
-/* Group IDs of sensor, MIPI CSIS and the writeback subdevs. */
+/* Group IDs of sensor, MIPI-CSIS, FIMC-LITE and the writeback subdevs. */
 #define SENSOR_GROUP_ID		(1 << 8)
 #define CSIS_GROUP_ID		(1 << 9)
 #define WRITEBACK_GROUP_ID	(1 << 10)
 #define FIMC_GROUP_ID		(1 << 11)
+#define FLITE_GROUP_ID		(1 << 12)
 
 #define FIMC_MAX_SENSORS	8
 #define FIMC_MAX_CAMCLKS	2
@@ -74,6 +76,7 @@ struct fimc_md {
 	struct fimc_sensor_info sensor[FIMC_MAX_SENSORS];
 	int num_sensors;
 	struct fimc_camclk_info camclk[FIMC_MAX_CAMCLKS];
+	struct fimc_lite *fimc_lite[FIMC_LITE_MAX_DEVS];
 	struct fimc_dev *fimc[FIMC_MAX_DEVS];
 	struct media_device media_dev;
 	struct v4l2_device v4l2_dev;
