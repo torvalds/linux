@@ -34,8 +34,6 @@
 #include <asm/syscalls.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 struct rt_sigframe {
 	u32 rs_ass[4];		/* argument save space */
 	u32 rs_code[2];		/* signal trampoline */
@@ -162,7 +160,6 @@ score_rt_sigreturn(struct pt_regs *regs)
 	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	sig = restore_sigcontext(regs, &frame->rs_uc.uc_mcontext);

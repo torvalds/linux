@@ -273,7 +273,6 @@ asmlinkage long sys32_sigreturn(struct pt_regs *regs)
 				    sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (ia32_restore_sigcontext(regs, &frame->sc, &ax))
@@ -299,7 +298,6 @@ asmlinkage long sys32_rt_sigreturn(struct pt_regs *regs)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))

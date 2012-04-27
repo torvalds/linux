@@ -30,8 +30,6 @@
 
 #define DEBUG_SIG  0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 extern struct task_struct *coproc_owners[];
 
 struct rt_sigframe
@@ -261,7 +259,6 @@ asmlinkage long xtensa_rt_sigreturn(long a0, long a1, long a2, long a3,
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, frame))

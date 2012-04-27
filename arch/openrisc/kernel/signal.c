@@ -33,8 +33,6 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 asmlinkage long
 _sys_sigaltstack(const stack_t *uss, stack_t *uoss, struct pt_regs *regs)
 {
@@ -101,7 +99,6 @@ asmlinkage long _sys_rt_sigreturn(struct pt_regs *regs)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))

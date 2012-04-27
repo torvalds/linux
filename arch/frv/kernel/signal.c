@@ -28,8 +28,6 @@
 
 #define DEBUG_SIG 0
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 struct fdpic_func_descriptor {
 	unsigned long	text;
 	unsigned long	GOT;
@@ -149,7 +147,6 @@ asmlinkage int sys_sigreturn(void)
 	    __copy_from_user(&set.sig[1], &frame->extramask, sizeof(frame->extramask)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(&frame->sc, &gr8))
@@ -172,7 +169,6 @@ asmlinkage int sys_rt_sigreturn(void)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(&frame->uc.uc_mcontext, &gr8))

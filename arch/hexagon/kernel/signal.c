@@ -31,8 +31,6 @@
 #include <asm/signal.h>
 #include <asm/vdso.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 struct rt_sigframe {
 	unsigned long tramp[2];
 	struct siginfo info;
@@ -273,7 +271,6 @@ asmlinkage int sys_rt_sigreturn(void)
 	if (__copy_from_user(&blocked, &frame->uc.uc_sigmask, sizeof(blocked)))
 		goto badframe;
 
-	sigdelsetmask(&blocked, ~_BLOCKABLE);
 	set_current_blocked(&blocked);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))

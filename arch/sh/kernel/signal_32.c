@@ -32,8 +32,6 @@
 #include <asm/syscalls.h>
 #include <asm/fpu.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 struct fdpic_func_descriptor {
 	unsigned long	text;
 	unsigned long	GOT;
@@ -226,7 +224,6 @@ asmlinkage int sys_sigreturn(unsigned long r4, unsigned long r5,
 				    sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->sc, &r0))
@@ -256,7 +253,6 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))

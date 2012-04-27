@@ -250,7 +250,8 @@ extern long do_sigpending(void __user *, unsigned long);
 extern int do_sigtimedwait(const sigset_t *, siginfo_t *,
 				const struct timespec *);
 extern int sigprocmask(int, sigset_t *, sigset_t *);
-extern void set_current_blocked(const sigset_t *);
+extern void set_current_blocked(sigset_t *);
+extern void __set_current_blocked(const sigset_t *);
 extern int show_unhandled_signals;
 extern int sigsuspend(sigset_t *);
 

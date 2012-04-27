@@ -32,8 +32,6 @@
 #include "compat_ptrace.h"
 #include "entry.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 typedef struct 
 {
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE32];
@@ -364,7 +362,6 @@ asmlinkage long sys32_sigreturn(void)
 		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE32))
 		goto badframe;
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	if (restore_sigregs32(regs, &frame->sregs))
 		goto badframe;
@@ -390,7 +387,6 @@ asmlinkage long sys32_rt_sigreturn(void)
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	if (restore_sigregs32(regs, &frame->uc.uc_mcontext))
 		goto badframe;

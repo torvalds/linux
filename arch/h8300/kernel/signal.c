@@ -47,8 +47,6 @@
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
  */
@@ -186,7 +184,6 @@ asmlinkage int do_sigreturn(unsigned long __unused,...)
 			      sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	
 	if (restore_sigcontext(regs, &frame->sc, &er0))
@@ -211,7 +208,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused,...)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &er0))

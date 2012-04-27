@@ -51,8 +51,6 @@
 #include <asm/traps.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 #ifdef CONFIG_MMU
 
 /*
@@ -795,7 +793,6 @@ asmlinkage int do_sigreturn(unsigned long __unused)
 			      sizeof(frame->extramask))))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->sc, frame + 1))
@@ -820,7 +817,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (rt_restore_ucontext(regs, sw, &frame->uc))

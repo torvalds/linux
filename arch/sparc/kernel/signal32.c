@@ -32,8 +32,6 @@
 
 #include "sigutil.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* This magic should be in g_upper[0] for all upper parts
  * to be valid.
  */
@@ -274,7 +272,6 @@ void do_sigreturn32(struct pt_regs *regs)
 		case 2: set.sig[1] = seta[2] + (((long)seta[3]) << 32);
 		case 1: set.sig[0] = seta[0] + (((long)seta[1]) << 32);
 	}
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	return;
 
@@ -376,7 +373,6 @@ asmlinkage void do_rt_sigreturn32(struct pt_regs *regs)
 		case 2: set.sig[1] = seta.sig[2] + (((long)seta.sig[3]) << 32);
 		case 1: set.sig[0] = seta.sig[0] + (((long)seta.sig[1]) << 32);
 	}
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	return;
 segv:

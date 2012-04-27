@@ -19,8 +19,6 @@
 #include <asm/fixed_code.h>
 #include <asm/syscall.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* Location of the trace bit in SYSCFG. */
 #define TRACE_BITS 0x0001
 
@@ -98,7 +96,6 @@ asmlinkage int do_rt_sigreturn(unsigned long __unused)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (rt_restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))

@@ -57,7 +57,6 @@ void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
  */
 void restore_sigmask(sigset_t *set)
 {
-	sigdelsetmask(set, ~_BLOCKABLE);
 	set_current_blocked(set);
 }
 

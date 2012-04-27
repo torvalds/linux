@@ -38,8 +38,6 @@
 #include "systbls.h"
 #include "sigutil.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* {set, get}context() needed for 64-bit SparcLinux userland. */
 asmlinkage void sparc64_set_context(struct pt_regs *regs)
 {
@@ -71,7 +69,6 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 			if (__copy_from_user(&set, &ucp->uc_sigmask, sizeof(sigset_t)))
 				goto do_sigsegv;
 		}
-		sigdelsetmask(&set, ~_BLOCKABLE);
 		set_current_blocked(&set);
 	}
 	if (test_thread_flag(TIF_32BIT)) {
@@ -315,7 +312,6 @@ void do_rt_sigreturn(struct pt_regs *regs)
 	/* Prevent syscall restart.  */
 	pt_regs_clear_syscall(regs);
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	return;
 segv:

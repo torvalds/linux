@@ -48,9 +48,6 @@
 #define DBG(LEVEL, ...)
 #endif
 	
-
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /* gcc will complain if a pointer is cast to an integer of different
  * size.  If you really need to do this (and we do for an ELF32 user
  * application in an ELF64 kernel) then you have to do a cast to an
@@ -131,7 +128,6 @@ sys_rt_sigreturn(struct pt_regs *regs, int in_syscall)
 			goto give_sigsegv;
 	}
 		
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	/* Good thing we saved the old gr[30], eh? */

@@ -30,7 +30,6 @@
 
 #define DEBUG_SIG	0
 #define STACK_ALIGN	16		/* minimal alignment for stack pointer */
-#define _BLOCKABLE	(~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 #if _NSIG_WORDS > 1
 # define PUT_SIGSET(k,u)	__copy_to_user((u)->sig, (k)->sig, sizeof(sigset_t))
@@ -200,7 +199,6 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 	if (GET_SIGSET(&set, &sc->sc_mask))
 		goto give_sigsegv;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(sc, scr))

@@ -20,8 +20,6 @@
 #include <asm/cacheflush.h>
 
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * Do a signal return, undo the signal stack.
  */
@@ -87,7 +85,6 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs)
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext))

@@ -15,10 +15,6 @@
 EXPORT_SYMBOL(block_signals);
 EXPORT_SYMBOL(unblock_signals);
 
-#define _S(nr) (1<<((nr)-1))
-
-#define _BLOCKABLE (~(_S(SIGKILL) | _S(SIGSTOP)))
-
 /*
  * OK, we're invoking a handler
  */

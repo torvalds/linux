@@ -339,7 +339,6 @@ asmlinkage void sys_sigreturn(nabi_no_regargs struct pt_regs regs)
 	if (__copy_from_user(&blocked, &frame->sf_mask, sizeof(blocked)))
 		goto badframe;
 
-	sigdelsetmask(&blocked, ~_BLOCKABLE);
 	set_current_blocked(&blocked);
 
 	sig = restore_sigcontext(&regs, &frame->sf_sc);
@@ -375,7 +374,6 @@ asmlinkage void sys_rt_sigreturn(nabi_no_regargs struct pt_regs regs)
 	if (__copy_from_user(&set, &frame->rs_uc.uc_sigmask, sizeof(set)))
 		goto badframe;
 
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 
 	sig = restore_sigcontext(&regs, &frame->rs_uc.uc_mcontext);

@@ -33,9 +33,6 @@
 #include <asm/switch_to.h>
 #include "entry.h"
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
-
 typedef struct 
 {
 	__u8 callee_used_stack[__SIGNAL_FRAMESIZE];
@@ -169,7 +166,6 @@ SYSCALL_DEFINE0(sigreturn)
 		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->sc.oldmask, _SIGMASK_COPY_SIZE))
 		goto badframe;
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	if (restore_sigregs(regs, &frame->sregs))
 		goto badframe;
@@ -189,7 +185,6 @@ SYSCALL_DEFINE0(rt_sigreturn)
 		goto badframe;
 	if (__copy_from_user(&set.sig, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
-	sigdelsetmask(&set, ~_BLOCKABLE);
 	set_current_blocked(&set);
 	if (restore_sigregs(regs, &frame->uc.uc_mcontext))
 		goto badframe;

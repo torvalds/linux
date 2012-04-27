@@ -21,8 +21,6 @@
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
 
-#define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
-
 /*
  * For UniCore syscalls, we encode the syscall number into the instruction.
  */
@@ -61,10 +59,8 @@ static int restore_sigframe(struct pt_regs *regs, struct sigframe __user *sf)
 	int err;
 
 	err = __copy_from_user(&set, &sf->uc.uc_sigmask, sizeof(set));
-	if (err == 0) {
-		sigdelsetmask(&set, ~_BLOCKABLE);
+	if (err == 0)
 		set_current_blocked(&set);
-	}
 
 	err |= __get_user(regs->UCreg_00, &sf->uc.uc_mcontext.regs.UCreg_00);
 	err |= __get_user(regs->UCreg_01, &sf->uc.uc_mcontext.regs.UCreg_01);
