@@ -19,6 +19,103 @@
  */
 #define EMIF_MAX_NUM_FREQUENCIES			6
 
+/* State of the core voltage */
+#define DDR_VOLTAGE_STABLE				0
+#define DDR_VOLTAGE_RAMPING				1
+
+/* Defines for timing De-rating */
+#define EMIF_NORMAL_TIMINGS				0
+#define EMIF_DERATED_TIMINGS				1
+
+/* Length of the forced read idle period in terms of cycles */
+#define EMIF_READ_IDLE_LEN_VAL				5
+
+/*
+ * forced read idle interval to be used when voltage
+ * is changed as part of DVFS/DPS - 1ms
+ */
+#define READ_IDLE_INTERVAL_DVFS				(1*1000000)
+
+/*
+ * Forced read idle interval to be used when voltage is stable
+ * 50us - or maximum value will do
+ */
+#define READ_IDLE_INTERVAL_NORMAL			(50*1000000)
+
+/* DLL calibration interval when voltage is NOT stable - 1us */
+#define DLL_CALIB_INTERVAL_DVFS				(1*1000000)
+
+#define DLL_CALIB_ACK_WAIT_VAL				5
+
+/* Interval between ZQCS commands - hw team recommended value */
+#define EMIF_ZQCS_INTERVAL_US				(50*1000)
+/* Enable ZQ Calibration on exiting Self-refresh */
+#define ZQ_SFEXITEN_ENABLE				1
+/*
+ * ZQ Calibration simultaneously on both chip-selects:
+ * Needs one calibration resistor per CS
+ */
+#define	ZQ_DUALCALEN_DISABLE				0
+#define	ZQ_DUALCALEN_ENABLE				1
+
+#define T_ZQCS_DEFAULT_NS				90
+#define T_ZQCL_DEFAULT_NS				360
+#define T_ZQINIT_DEFAULT_NS				1000
+
+/* DPD_EN */
+#define DPD_DISABLE					0
+#define DPD_ENABLE					1
+
+/*
+ * Default values for the low-power entry to be used if not provided by user.
+ * OMAP4/5 has a hw bug(i735) due to which this value can not be less than 512
+ * Timeout values are in DDR clock 'cycles' and frequency threshold in Hz
+ */
+#define EMIF_LP_MODE_TIMEOUT_PERFORMANCE		2048
+#define EMIF_LP_MODE_TIMEOUT_POWER			512
+#define EMIF_LP_MODE_FREQ_THRESHOLD			400000000
+
+/* DDR_PHY_CTRL_1 values for EMIF4D - ATTILA PHY combination */
+#define EMIF_DDR_PHY_CTRL_1_BASE_VAL_ATTILAPHY		0x049FF000
+#define EMIF_DLL_SLAVE_DLY_CTRL_400_MHZ_ATTILAPHY	0x41
+#define EMIF_DLL_SLAVE_DLY_CTRL_200_MHZ_ATTILAPHY	0x80
+#define EMIF_DLL_SLAVE_DLY_CTRL_100_MHZ_AND_LESS_ATTILAPHY 0xFF
+
+/* DDR_PHY_CTRL_1 values for EMIF4D5 INTELLIPHY combination */
+#define EMIF_DDR_PHY_CTRL_1_BASE_VAL_INTELLIPHY		0x0E084200
+#define EMIF_PHY_TOTAL_READ_LATENCY_INTELLIPHY_PS	10000
+
+/* TEMP_ALERT_CONFIG - corresponding to temp gradient 5 C/s */
+#define TEMP_ALERT_POLL_INTERVAL_DEFAULT_MS		360
+
+#define EMIF_T_CSTA					3
+#define EMIF_T_PDLL_UL					128
+
+/* External PHY control registers magic values */
+#define EMIF_EXT_PHY_CTRL_1_VAL				0x04020080
+#define EMIF_EXT_PHY_CTRL_5_VAL				0x04010040
+#define EMIF_EXT_PHY_CTRL_6_VAL				0x01004010
+#define EMIF_EXT_PHY_CTRL_7_VAL				0x00001004
+#define EMIF_EXT_PHY_CTRL_8_VAL				0x04010040
+#define EMIF_EXT_PHY_CTRL_9_VAL				0x01004010
+#define EMIF_EXT_PHY_CTRL_10_VAL			0x00001004
+#define EMIF_EXT_PHY_CTRL_11_VAL			0x00000000
+#define EMIF_EXT_PHY_CTRL_12_VAL			0x00000000
+#define EMIF_EXT_PHY_CTRL_13_VAL			0x00000000
+#define EMIF_EXT_PHY_CTRL_14_VAL			0x80080080
+#define EMIF_EXT_PHY_CTRL_15_VAL			0x00800800
+#define EMIF_EXT_PHY_CTRL_16_VAL			0x08102040
+#define EMIF_EXT_PHY_CTRL_17_VAL			0x00000001
+#define EMIF_EXT_PHY_CTRL_18_VAL			0x540A8150
+#define EMIF_EXT_PHY_CTRL_19_VAL			0xA81502A0
+#define EMIF_EXT_PHY_CTRL_20_VAL			0x002A0540
+#define EMIF_EXT_PHY_CTRL_21_VAL			0x00000000
+#define EMIF_EXT_PHY_CTRL_22_VAL			0x00000000
+#define EMIF_EXT_PHY_CTRL_23_VAL			0x00000000
+#define EMIF_EXT_PHY_CTRL_24_VAL			0x00000077
+
+#define EMIF_INTELLI_PHY_DQS_GATE_OPENING_DELAY_PS	1200
+
 /* Registers offset */
 #define EMIF_MODULE_ID_AND_REVISION			0x0000
 #define EMIF_STATUS					0x0004
@@ -458,4 +555,35 @@
 #define READ_LATENCY_SHDW_SHIFT				0
 #define READ_LATENCY_SHDW_MASK				(0x1f << 0)
 
-#endif
+#ifndef __ASSEMBLY__
+/*
+ * Structure containing shadow of important registers in EMIF
+ * The calculation function fills in this structure to be later used for
+ * initialisation and DVFS
+ */
+struct emif_regs {
+	u32 freq;
+	u32 ref_ctrl_shdw;
+	u32 ref_ctrl_shdw_derated;
+	u32 sdram_tim1_shdw;
+	u32 sdram_tim1_shdw_derated;
+	u32 sdram_tim2_shdw;
+	u32 sdram_tim3_shdw;
+	u32 sdram_tim3_shdw_derated;
+	u32 pwr_mgmt_ctrl_shdw;
+	union {
+		u32 read_idle_ctrl_shdw_normal;
+		u32 dll_calib_ctrl_shdw_normal;
+	};
+	union {
+		u32 read_idle_ctrl_shdw_volt_ramp;
+		u32 dll_calib_ctrl_shdw_volt_ramp;
+	};
+
+	u32 phy_ctrl_1_shdw;
+	u32 ext_phy_ctrl_2_shdw;
+	u32 ext_phy_ctrl_3_shdw;
+	u32 ext_phy_ctrl_4_shdw;
+};
+#endif /* __ASSEMBLY__ */
+#endif /* __EMIF_H */
