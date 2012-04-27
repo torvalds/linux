@@ -172,6 +172,8 @@ struct omap_gpio_reg_offs {
 	u16 clr_dataout;
 	u16 irqstatus;
 	u16 irqstatus2;
+	u16 irqstatus_raw0;
+	u16 irqstatus_raw1;
 	u16 irqenable;
 	u16 irqenable2;
 	u16 set_irqenable;

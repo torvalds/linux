@@ -1286,14 +1286,14 @@ static int omap_gpio_runtime_resume(struct device *dev)
 		old0 = __raw_readl(bank->base + bank->regs->leveldetect0);
 		old1 = __raw_readl(bank->base + bank->regs->leveldetect1);
 
-		if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		if (!bank->regs->irqstatus_raw0) {
 			__raw_writel(old0 | gen, bank->base +
 						bank->regs->leveldetect0);
 			__raw_writel(old1 | gen, bank->base +
 						bank->regs->leveldetect1);
 		}
 
-		if (cpu_is_omap44xx()) {
+		if (bank->regs->irqstatus_raw0) {
 			__raw_writel(old0 | l, bank->base +
 						bank->regs->leveldetect0);
 			__raw_writel(old1 | l, bank->base +
