@@ -1378,6 +1378,9 @@ static int ath6kl_htc_pipe_conn_service(struct htc_target *target,
 	/* copy all the callbacks */
 	ep->ep_cb = conn_req->ep_cb;
 
+	/* initialize tx_drop_packet_threshold */
+	ep->tx_drop_packet_threshold = MAX_HI_COOKIE_NUM;
+
 	status = ath6kl_hif_pipe_map_service(ar, ep->svc_id,
 					     &ep->pipe.pipeid_ul,
 					     &ep->pipe.pipeid_dl);
