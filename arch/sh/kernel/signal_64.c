@@ -113,8 +113,8 @@ static void do_signal(struct pt_regs *regs)
 
 			tracehook_signal_handler(signr, &info, &ka, regs,
 					test_thread_flag(TIF_SINGLESTEP));
-			return;
 		}
+		return;
 	}
 
 	/* Did we come from a system call? */
