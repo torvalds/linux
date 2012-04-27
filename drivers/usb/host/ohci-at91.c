@@ -235,7 +235,8 @@ ohci_at91_start (struct usb_hcd *hcd)
 	ohci->num_ports = board->ports;
 
 	if ((ret = ohci_run(ohci)) < 0) {
-		err("can't start %s", hcd->self.bus_name);
+		dev_err(hcd->self.controller, "can't start %s\n",
+			hcd->self.bus_name);
 		ohci_stop(hcd);
 		return ret;
 	}
