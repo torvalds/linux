@@ -72,7 +72,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		slsmg_write_nstring(" ", 9);
 	}
 
-	ui_browser__write_graph(self, SLSMG_VLINE_CHAR);
 	SLsmg_write_char(' ');
 
 	/* The scroll bar isn't being used */
@@ -83,9 +82,9 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		ui_browser__set_color(self, HE_COLORSET_CODE);
 
 	if (!*dl->line)
-		slsmg_write_nstring(" ", width - 10);
+		slsmg_write_nstring(" ", width - 9);
 	else if (dl->offset == -1)
-		slsmg_write_nstring(dl->line, width - 10);
+		slsmg_write_nstring(dl->line, width - 9);
 	else {
 		char bf[256];
 		u64 addr = dl->offset;
@@ -138,7 +137,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			scnprintf(bf, sizeof(bf), "%-6.6s %s", dl->name, dl->ops.raw);
 		}
 
-		slsmg_write_nstring(bf, width - 12 - printed);
+		slsmg_write_nstring(bf, width - 11 - printed);
 	}
 
 	if (current_entry)
@@ -176,7 +175,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	if (!bcursor->jump_target)
 		start_width += ab->offset_width + 1;
 
-	__ui_browser__line_arrow(browser, 10, from, to, start_width);
+	__ui_browser__line_arrow(browser, 9, from, to, start_width);
 }
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
