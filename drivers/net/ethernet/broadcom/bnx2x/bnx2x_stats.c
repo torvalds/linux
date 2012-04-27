@@ -1316,7 +1316,7 @@ static void bnx2x_port_stats_base_init(struct bnx2x *bp)
  *
  * @param bp
  */
-static inline void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
+static void bnx2x_prep_fw_stats_req(struct bnx2x *bp)
 {
 	int i;
 	int first_queue_query_index;
