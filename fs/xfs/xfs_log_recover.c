@@ -440,6 +440,8 @@ xlog_find_verify_cycle(
 	 * a log sector, or we're out of luck.
 	 */
 	bufblks = 1 << ffs(nbblks);
+	while (bufblks > log->l_logBBsize)
+		bufblks >>= 1;
 	while (!(bp = xlog_get_bp(log, bufblks))) {
 		bufblks >>= 1;
 		if (bufblks < log->l_sectBBsize)
@@ -1225,6 +1227,8 @@ xlog_write_log_records(
 	 * log sector, or we're out of luck.
 	 */
 	bufblks = 1 << ffs(blocks);
+	while (bufblks > log->l_logBBsize)
+		bufblks >>= 1;
 	while (!(bp = xlog_get_bp(log, bufblks))) {
 		bufblks >>= 1;
 		if (bufblks < sectbb)
