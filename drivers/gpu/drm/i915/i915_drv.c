@@ -712,6 +712,7 @@ static int i965_reset_complete(struct drm_device *dev)
 
 static int i965_do_reset(struct drm_device *dev)
 {
+	int ret;
 	u8 gdrst;
 
 	/*
@@ -721,7 +722,17 @@ static int i965_do_reset(struct drm_device *dev)
 	 */
 	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
 	pci_write_config_byte(dev->pdev, I965_GDRST,
-			      gdrst | GRDOM_RENDER | 0x1);
+			      gdrst | GRDOM_RENDER |
+			      GRDOM_RESET_ENABLE);
+	ret =  wait_for(i965_reset_complete(dev), 500);
+	if (ret)
+		return ret;
+
+	/* We can't reset render&media without also resetting display ... */
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST,
+			      gdrst | GRDOM_MEDIA |
+			      GRDOM_RESET_ENABLE);
 
 	return wait_for(i965_reset_complete(dev), 500);
 }
@@ -729,9 +740,20 @@ static int i965_do_reset(struct drm_device *dev)
 static int ironlake_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	u32 gdrst;
+	int ret;
+
+	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
 	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
-		   gdrst | GRDOM_RENDER | 0x1);
+		   gdrst | GRDOM_RENDER | GRDOM_RESET_ENABLE);
+	ret = wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
+	if (ret)
+		return ret;
+
+	/* We can't reset render&media without also resetting display ... */
+	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
+		   gdrst | GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
 }
 
