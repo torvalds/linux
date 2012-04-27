@@ -4921,7 +4921,7 @@ static void nfs_fixup_referral_attributes(struct nfs_fattr *fattr)
 	fattr->nlink = 2;
 }
 
-int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
+static int _nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 		struct nfs4_fs_locations *fs_locations, struct page *page)
 {
 	struct nfs_server *server = NFS_SERVER(dir);
@@ -4959,6 +4959,19 @@ int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
 	status = nfs4_call_sync(server->client, server, &msg, &args.seq_args, &res.seq_res, 0);
 	dprintk("%s: returned status = %d\n", __func__, status);
 	return status;
+}
+
+int nfs4_proc_fs_locations(struct inode *dir, const struct qstr *name,
+		struct nfs4_fs_locations *fs_locations, struct page *page)
+{
+	struct nfs4_exception exception = { };
+	int err;
+	do {
+		err = nfs4_handle_exception(NFS_SERVER(dir),
+				_nfs4_proc_fs_locations(dir, name, fs_locations, page),
+				&exception);
+	} while (exception.retry);
+	return err;
 }
 
 static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct nfs4_secinfo_flavors *flavors)
