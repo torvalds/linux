@@ -435,7 +435,7 @@ static void run_sync(void)
 		local_irq_disable();
 }
 
-static void ftrace_replace_code(int enable)
+void ftrace_replace_code(int enable)
 {
 	struct ftrace_rec_iter *iter;
 	struct dyn_ftrace *rec;
@@ -493,18 +493,7 @@ void arch_ftrace_update_code(int command)
 {
 	modifying_ftrace_code++;
 
-	if (command & FTRACE_UPDATE_CALLS)
-		ftrace_replace_code(1);
-	else if (command & FTRACE_DISABLE_CALLS)
-		ftrace_replace_code(0);
-
-	if (command & FTRACE_UPDATE_TRACE_FUNC)
-		ftrace_update_ftrace_func(ftrace_trace_function);
-
-	if (command & FTRACE_START_FUNC_RET)
-		ftrace_enable_ftrace_graph_caller();
-	else if (command & FTRACE_STOP_FUNC_RET)
-		ftrace_disable_ftrace_graph_caller();
+	ftrace_modify_all_code(command);
 
 	modifying_ftrace_code--;
 }
