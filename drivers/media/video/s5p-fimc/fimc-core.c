@@ -841,7 +841,7 @@ static int fimc_probe(struct platform_device *pdev)
 	clk_enable(fimc->clock[CLK_BUS]);
 
 	ret = devm_request_irq(&pdev->dev, res->start, fimc_irq_handler,
-			       0, pdev->name, fimc);
+			       0, dev_name(&pdev->dev), fimc);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to install irq (%d)\n", ret);
 		goto err_clk;
