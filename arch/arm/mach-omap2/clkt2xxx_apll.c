@@ -38,48 +38,90 @@
 
 /* Private functions */
 
+#ifdef CONFIG_COMMON_CLK
+int omap2_clk_apll96_enable(struct clk_hw *hw)
+#else
 static int _apll96_enable(struct clk *clk)
+#endif
 {
 	return omap2xxx_cm_apll96_enable();
 }
 
+#ifdef CONFIG_COMMON_CLK
+int omap2_clk_apll54_enable(struct clk_hw *hw)
+#else
 static int _apll54_enable(struct clk *clk)
+#endif
 {
 	return omap2xxx_cm_apll54_enable();
 }
 
+#ifdef CONFIG_COMMON_CLK
+static void _apll96_allow_idle(struct clk_hw_omap *clk)
+#else
 static void _apll96_allow_idle(struct clk *clk)
+#endif
 {
 	omap2xxx_cm_set_apll96_auto_low_power_stop();
 }
 
+#ifdef CONFIG_COMMON_CLK
+static void _apll96_deny_idle(struct clk_hw_omap *clk)
+#else
 static void _apll96_deny_idle(struct clk *clk)
+#endif
 {
 	omap2xxx_cm_set_apll96_disable_autoidle();
 }
 
+#ifdef CONFIG_COMMON_CLK
+static void _apll54_allow_idle(struct clk_hw_omap *clk)
+#else
 static void _apll54_allow_idle(struct clk *clk)
+#endif
 {
 	omap2xxx_cm_set_apll54_auto_low_power_stop();
 }
 
+#ifdef CONFIG_COMMON_CLK
+static void _apll54_deny_idle(struct clk_hw_omap *clk)
+#else
 static void _apll54_deny_idle(struct clk *clk)
+#endif
 {
 	omap2xxx_cm_set_apll54_disable_autoidle();
 }
 
+#ifdef CONFIG_COMMON_CLK
+void omap2_clk_apll96_disable(struct clk_hw *hw)
+#else
 static void _apll96_disable(struct clk *clk)
+#endif
 {
 	omap2xxx_cm_apll96_disable();
 }
 
+#ifdef CONFIG_COMMON_CLK
+void omap2_clk_apll54_disable(struct clk_hw *hw)
+#else
 static void _apll54_disable(struct clk *clk)
+#endif
 {
 	omap2xxx_cm_apll54_disable();
 }
 
 /* Public data */
+#ifdef CONFIG_COMMON_CLK
+const struct clk_hw_omap_ops clkhwops_apll54 = {
+	.allow_idle	= _apll54_allow_idle,
+	.deny_idle	= _apll54_deny_idle,
+};
 
+const struct clk_hw_omap_ops clkhwops_apll96 = {
+	.allow_idle	= _apll96_allow_idle,
+	.deny_idle	= _apll96_deny_idle,
+};
+#else
 const struct clkops clkops_apll96 = {
 	.enable		= _apll96_enable,
 	.disable	= _apll96_disable,
@@ -93,6 +135,7 @@ const struct clkops clkops_apll54 = {
 	.allow_idle	= _apll54_allow_idle,
 	.deny_idle	= _apll54_deny_idle,
 };
+#endif
 
 /* Public functions */
 

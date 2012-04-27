@@ -35,7 +35,11 @@
  * clk_enable/clk_disable()-based usecounting for osc_ck should be
  * replaced with autoidle-based usecounting.
  */
+#ifdef CONFIG_COMMON_CLK
+int omap2_enable_osc_ck(struct clk_hw *clk)
+#else
 static int omap2_enable_osc_ck(struct clk *clk)
+#endif
 {
 	u32 pcc;
 
@@ -53,7 +57,11 @@ static int omap2_enable_osc_ck(struct clk *clk)
  * clk_enable/clk_disable()-based usecounting for osc_ck should be
  * replaced with autoidle-based usecounting.
  */
+#ifdef CONFIG_COMMON_CLK
+void omap2_disable_osc_ck(struct clk_hw *clk)
+#else
 static void omap2_disable_osc_ck(struct clk *clk)
+#endif
 {
 	u32 pcc;
 
@@ -62,12 +70,19 @@ static void omap2_disable_osc_ck(struct clk *clk)
 	__raw_writel(pcc | OMAP_AUTOEXTCLKMODE_MASK, prcm_clksrc_ctrl);
 }
 
+#ifndef CONFIG_COMMON_CLK
 const struct clkops clkops_oscck = {
 	.enable		= omap2_enable_osc_ck,
 	.disable	= omap2_disable_osc_ck,
 };
+#endif
 
+#ifdef CONFIG_COMMON_CLK
+unsigned long omap2_osc_clk_recalc(struct clk_hw *clk,
+				   unsigned long parent_rate)
+#else
 unsigned long omap2_osc_clk_recalc(struct clk *clk)
+#endif
 {
 	return omap2xxx_get_apll_clkin() * omap2xxx_get_sysclkdiv();
 }
