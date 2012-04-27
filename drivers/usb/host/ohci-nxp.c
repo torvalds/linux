@@ -379,7 +379,7 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s: " DRIVER_DESC " (nxp)\n", hcd_name);
 	if (usb_disabled()) {
-		err("USB is disabled");
+		dev_err(&pdev->dev, "USB is disabled\n");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -387,7 +387,7 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	if (pdev->num_resources != 2
 	    || pdev->resource[0].flags != IORESOURCE_MEM
 	    || pdev->resource[1].flags != IORESOURCE_IRQ) {
-		err("Invalid resource configuration");
+		dev_err(&pdev->dev, "Invalid resource configuration\\nn");
 		ret = -ENODEV;
 		goto out;
 	}
@@ -397,7 +397,7 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 
 	ret = i2c_add_driver(&isp1301_driver);
 	if (ret < 0) {
-		err("failed to add ISP1301 driver");
+		dev_err(&pdev->dev, "failed to add ISP1301 driver\n");
 		goto out;
 	}
 	i2c_adap = i2c_get_adapter(2);
@@ -407,7 +407,7 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 						   normal_i2c, NULL);
 	i2c_put_adapter(i2c_adap);
 	if (!isp1301_i2c_client) {
-		err("failed to connect I2C to ISP1301 USB Transceiver");
+		dev_err(&pdev->dev, "failed to connect I2C to ISP1301 USB Transceiver\n");
 		ret = -ENODEV;
 		goto out_i2c_driver;
 	}
@@ -417,20 +417,20 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	/* Enable USB PLL */
 	usb_clk = clk_get(&pdev->dev, "ck_pll5");
 	if (IS_ERR(usb_clk)) {
-		err("failed to acquire USB PLL");
+		dev_err(&pdev->dev, "failed to acquire USB PLL\n");
 		ret = PTR_ERR(usb_clk);
 		goto out1;
 	}
 
 	ret = clk_enable(usb_clk);
 	if (ret < 0) {
-		err("failed to start USB PLL");
+		dev_err(&pdev->dev, "failed to start USB PLL\n");
 		goto out2;
 	}
 
 	ret = clk_set_rate(usb_clk, 48000);
 	if (ret < 0) {
-		err("failed to set USB clock rate");
+		dev_err(&pdev->dev, "failed to set USB clock rate\n");
 		goto out3;
 	}
 
@@ -444,7 +444,7 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd (driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
-		err("Failed to allocate HC buffer");
+		dev_err(&pdev->dev, "Failed to allocate HC buffer\n");
 		ret = -ENOMEM;
 		goto out3;
 	}
