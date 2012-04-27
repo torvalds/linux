@@ -44,6 +44,9 @@ extern int ddebug_remove_module(const char *mod_name);
 extern __printf(2, 3)
 int __dynamic_pr_debug(struct _ddebug *descriptor, const char *fmt, ...);
 
+extern int ddebug_dyndbg_module_param_cb(char *param, char *val,
+					const char *modname);
+
 struct device;
 
 extern __printf(3, 4)
@@ -94,9 +97,23 @@ do {								\
 
 #else
 
+#include <linux/string.h>
+#include <linux/errno.h>
+
 static inline int ddebug_remove_module(const char *mod)
 {
 	return 0;
+}
+
+static inline int ddebug_dyndbg_module_param_cb(char *param, char *val,
+						const char *modname)
+{
+	if (strstr(param, "dyndbg")) {
+		pr_warn("dyndbg supported only in "
+			"CONFIG_DYNAMIC_DEBUG builds\n");
+		return 0; /* allow and ignore */
+	}
+	return -EINVAL;
 }
 
 #define dynamic_pr_debug(fmt, ...)					\
