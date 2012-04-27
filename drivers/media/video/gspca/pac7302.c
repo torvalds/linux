@@ -30,6 +30,14 @@
  *
  * Address	Description
  * 0x78		Global control, bit 6 controls the LED (inverted)
+ * 0x80		Compression balance, 2 interesting settings:
+ *		0x0f Default
+ *		0x50 Values >= this switch the camera to a lower compression,
+ *		     using the same table for both luminance and chrominance.
+ *		     This gives a sharper picture. Only usable when running
+ *		     at < 15 fps! Note currently the driver does not use this
+ *		     as the quality gain is small and the generated JPG-s are
+ *		     only understood by v4l-utils >= 0.8.9
  *
  * Register page 3:
  *
@@ -43,8 +51,14 @@
  *		1 -> ~30 fps, 2 -> ~20 fps
  * 0x0e		Exposure bits 0-7, 0-448, 0 = use full frame time
  * 0x0f		Exposure bit 8, 0-448, 448 = no exposure at all
- * 0x10		Master gain 0-31
+ * 0x10		Gain 0-31
+ * 0x12		Another gain 0-31, unlike 0x10 this one seems to start with an
+ *		amplification value of 1 rather then 0 at its lowest setting
  * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
+ * 0x80		Another framerate control, best left at 1, moving it from 1 to
+ *		2 causes the framerate to become 3/4th of what it was, and
+ *		also seems to cause pixel averaging, resulting in an effective
+ *		resolution of 320x240 and thus a much blockier image
  *
  * The registers are accessed in the following functions:
  *
