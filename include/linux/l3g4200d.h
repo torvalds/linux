@@ -50,7 +50,6 @@
 #define L3G4200D_IOCTL_SET_ENABLE _IOW(L3G4200D_IOCTL_BASE, 2, int)
 #define L3G4200D_IOCTL_GET_ENABLE _IOR(L3G4200D_IOCTL_BASE, 3, int)
 
-
 #define L3G4200D_FS_250DPS	0x00
 #define L3G4200D_FS_500DPS	0x10
 #define L3G4200D_FS_2000DPS	0x30
@@ -79,6 +78,10 @@
 #define L3G4200D_REG_CTRL_REG1 0x20
 #define ACTIVE_MASK 0x08
 
+#define GYRO_DEVID_L3G4200D		0xD3
+#define GYRO_DEVID_L3G20D		0xD4
+
+
 #ifdef __KERNEL__
 struct l3g4200d_platform_data {
 	u8 fs_range;
@@ -91,7 +94,9 @@ struct l3g4200d_platform_data {
 	u8 negate_y;
 	u8 negate_z;
 	signed char orientation[9];
-
+	int x_min;
+	int y_min;
+	int z_min;
 	int (*init)(void);
 	void (*exit)(void);
 	int (*power_on)(void);
@@ -101,40 +106,23 @@ struct l3g4200d_platform_data {
 
 #endif /* __KERNEL__ */
 
-#define MMAIO				0xA1
-
-/* IOCTLs for MMA8452 library */
-#define ECS_IOCTL_INIT                  _IO(MMAIO, 0x01)
-#define ECS_IOCTL_RESET      	          _IO(MMAIO, 0x04)
-#define ECS_IOCTL_CLOSE		           _IO(MMAIO, 0x02)
-#define ECS_IOCTL_START		             _IO(MMAIO, 0x03)
-#define ECS_IOCTL_GETDATA               _IOR(MMAIO, 0x08, char[RBUFF_SIZE+1])
-
-#define GYROSENSOR_IOCTL_MAGIC 'l'
-#define GYROSENSOR_IOCTL_GET_ENABLED _IOR(GYROSENSOR_IOCTL_MAGIC, 1, int *)
-#define GYROSENSOR_IOCTL_ENABLE _IOW(GYROSENSOR_IOCTL_MAGIC, 2, int *)
-
-/* IOCTLs for APPs */
-#define ECS_IOCTL_APP_SET_RATE		_IOW(MMAIO, 0x10, char)
-
-#define EVENT_TYPE_GYRO_X           ABS_RY
-#define ECS_IOCTL_APP_GET_ABS EVIOCGABS(EVENT_TYPE_GYRO_X)		
+struct l3g4200d_axis {
+	int x;
+	int y;
+	int z;
+};
 
 
 struct l3g4200d_data {
     char  status;
     char  curr_tate;
+	unsigned int devid;
 	struct input_dev *input_dev;
 	struct i2c_client *client;
 	struct work_struct work;
 	struct delayed_work delaywork;	/*report second event*/
 	struct l3g4200d_platform_data *pdata;
-};
-
-struct l3g4200d_axis {
-	int x;
-	int y;
-	int z;
+	struct l3g4200d_axis axis;
 };
 
 #define  GSENSOR_DEV_PATH    "/dev/gyrosensors"

@@ -260,15 +260,25 @@ static int l3g4200d_write_reg(struct i2c_client *client,int addr,int value)
 
 static char l3g4200d_get_devid(struct i2c_client *client)
 {
-	int tempvalue;
-	 tempvalue=l3g4200d_read_reg(client, WHO_AM_I);
-	if ((tempvalue & 0x00FF) == 0x00D3) {
-		DBG(KERN_INFO "I2C driver registered!\n");
-		return 1;
-	} else {		
-		DBG(KERN_INFO "I2C driver %d!\n",tempvalue);	
+	unsigned int devid = 0;
+	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
+	
+	devid = l3g4200d_read_reg(client, WHO_AM_I)&0xff;
+	if (devid == GYRO_DEVID_L3G4200D) {
+		l3g4200d->devid = devid;
+		printk(KERN_INFO "gyro is L3G4200D and devid=0x%x\n",devid);
 		return 0;
-	}	
+	} else if (devid == GYRO_DEVID_L3G20D)
+	{
+		l3g4200d->devid = devid;
+		printk(KERN_INFO "gyro is L3G20D and devid=0x%x\n",devid);
+		return 0;
+	}
+	else
+	{
+		printk(KERN_ERR "%s:gyro device id is error,devid=%d\n",__func__,devid);
+		return -1;
+	}
 }
 
 static int l3g4200d_active(struct i2c_client *client,int enable)
@@ -404,8 +414,8 @@ static int l3g4200d_get_data(struct i2c_client *client)
 	//char buffer[6];
 	int ret,i;
 	struct l3g4200d_axis axis;
-	struct l3g4200d_platform_data *pdata = pdata = client->dev.platform_data;
-
+	struct l3g4200d_platform_data *pdata = client->dev.platform_data;	
+	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)i2c_get_clientdata(client);
 	//int res;
 	unsigned char gyro_data[6];
 	/* x,y,z hardware data */
@@ -435,9 +445,20 @@ static int l3g4200d_get_data(struct i2c_client *client)
 		axis.y = y;
 		axis.z = z;	
 	}
-	
-	l3g4200d_report_value(client, &axis);
 
+	//filter gyro data
+	if((abs(l3g4200d->axis.x - axis.x) > pdata->x_min)||(abs(l3g4200d->axis.y - axis.y) > pdata->y_min)||(abs(l3g4200d->axis.z - axis.z) > pdata->z_min))
+	{
+		l3g4200d->axis.x = axis.x;
+		l3g4200d->axis.y = axis.y;
+		l3g4200d->axis.z = axis.z;	
+		if(abs(l3g4200d->axis.x) <= pdata->x_min) l3g4200d->axis.x = 0;	
+		if(abs(l3g4200d->axis.y) <= pdata->y_min) l3g4200d->axis.y = 0;
+		if(abs(l3g4200d->axis.z) <= pdata->z_min) l3g4200d->axis.z = 0;
+		
+		l3g4200d_report_value(client, &l3g4200d->axis);
+	}
+	
 	return 0;
 }
 
@@ -563,7 +584,7 @@ static irqreturn_t l3g4200d_interrupt(int irq, void *dev_id)
 	struct l3g4200d_data *l3g4200d = (struct l3g4200d_data *)dev_id;
 	
 	disable_irq_nosync(irq);
-	schedule_delayed_work(&l3g4200d->delaywork, msecs_to_jiffies(20));
+	schedule_delayed_work(&l3g4200d->delaywork, msecs_to_jiffies(10));
 	DBG("%s :enter\n",__FUNCTION__);	
 	return IRQ_HANDLED;
 }
@@ -731,7 +752,7 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 {
 	struct l3g4200d_data *l3g4200d;
 	struct l3g4200d_platform_data *pdata = pdata = client->dev.platform_data;
-	int err;
+	int i,err;
 	
 	if(pdata && pdata->init)
 		pdata->init();
@@ -772,6 +793,19 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 		goto exit_kfree_pdata;
 	}
 	this_data=l3g4200d;
+	
+	//try three times
+	for(i=0; i<3; i++)
+	{
+		err = l3g4200d_get_devid(client);
+		if (!err)
+		break;
+	}
+	if(err)
+	{
+		printk("%s:fail\n",__func__);
+		goto exit_kfree_pdata;
+	}
 		
 	l3g4200d->input_dev = input_allocate_device();
 	if (!l3g4200d->input_dev) {
@@ -795,7 +829,10 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 
 	l3g4200d->input_dev->name = "gyro";
 	l3g4200d->input_dev->dev.parent = &client->dev;
-
+	l3g4200d->axis.x = 0;	
+	l3g4200d->axis.y = 0;	
+	l3g4200d->axis.z = 0;
+	
 	err = input_register_device(l3g4200d->input_dev);
 	if (err < 0) {
 		DBG(KERN_ERR
@@ -825,11 +862,6 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 	l3g4200d_early_suspend.level = 0x2;
 	register_early_suspend(&l3g4200d_early_suspend);
 #endif
-	if(l3g4200d_get_devid(this_client))
-		printk(KERN_INFO "l3g4200d probe ok\n");
-	else
-		printk(KERN_INFO "l3g4200d probe error\n");
-	
 
 	l3g4200d->status = L3G4200D_CLOSE;
 #if  0	
