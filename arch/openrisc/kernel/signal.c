@@ -251,7 +251,7 @@ give_sigsegv:
 	return -EFAULT;
 }
 
-static inline int
+static inline void
 handle_signal(unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,
 	      struct pt_regs *regs)
@@ -260,11 +260,13 @@ handle_signal(unsigned long sig,
 
 	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
 	if (ret)
-		return ret;
+		return;
 
 	block_sigmask(ka, sig);
+	clear_thread_flag(TIF_RESTORE_SIGMASK);
 
-	return 0;
+	tracehook_signal_handler(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
@@ -341,18 +343,8 @@ void do_signal(struct pt_regs *regs)
 		 * back */
 		restore_saved_sigmask();
 	} else {		/* signr > 0 */
-
 		/* Whee!  Actually deliver the signal.  */
-		if (!handle_signal(signr, &info, &ka, regs)) {
-			/* a signal was successfully delivered; the saved
-			 * sigmask will have been stored in the signal frame,
-			 * and will be restored by sigreturn, so we can simply
-			 * clear the TIF_RESTORE_SIGMASK flag */
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-		}
-
-		tracehook_signal_handler(signr, &info, &ka, regs,
-					 test_thread_flag(TIF_SINGLESTEP));
+		handle_signal(signr, &info, &ka, regs);
 	}
 
 	return;
