@@ -103,6 +103,7 @@ devices, that would be 76 and 91.  */
  * List isn't full and will be updated with implementation of new functions
  */
 #define AMRADIO_SET_FREQ	0xa4
+#define AMRADIO_GET_SIGNAL	0xa7
 #define AMRADIO_SET_MUTE	0xab
 #define AMRADIO_SET_MONO	0xae
 
@@ -236,6 +237,35 @@ static int amradio_set_stereo(struct amradio_device *radio, char argument)
 	return 0;
 }
 
+static int amradio_get_stat(struct amradio_device *radio, bool *is_stereo, u32 *signal)
+{
+	int retval;
+	int size;
+
+	radio->buffer[0] = 0x00;
+	radio->buffer[1] = 0x55;
+	radio->buffer[2] = 0xaa;
+	radio->buffer[3] = 0x00;
+	radio->buffer[4] = AMRADIO_GET_SIGNAL;
+	radio->buffer[5] = 0x00;
+	radio->buffer[6] = 0x00;
+	radio->buffer[7] = 0x08;
+
+	retval = usb_bulk_msg(radio->usbdev, usb_sndbulkpipe(radio->usbdev, 0x02),
+		radio->buffer, BUFFER_LENGTH, &size, USB_TIMEOUT);
+	if (!retval)
+		retval = usb_bulk_msg(radio->usbdev, usb_rcvbulkpipe(radio->usbdev, 0x81),
+			radio->buffer, BUFFER_LENGTH, &size, USB_TIMEOUT);
+
+	if (retval || size != BUFFER_LENGTH) {
+		amradio_dev_warn(&radio->vdev.dev, "get stat failed\n");
+		return retval;
+	}
+	*is_stereo = radio->buffer[2] >> 7;
+	*signal = (radio->buffer[3] & 0xf0) << 8;
+	return 0;
+}
+
 /* Handle unplugging the device.
  * We call video_unregister_device in any case.
  * The last function called in this procedure is
@@ -272,20 +302,23 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct amradio_device *radio = video_drvdata(file);
+	bool is_stereo = false;
+	int retval;
 
 	if (v->index > 0)
 		return -EINVAL;
+
+	v->signal = 0;
+	retval = amradio_get_stat(radio, &is_stereo, &v->signal);
+	if (retval)
+		return retval;
 
 	strcpy(v->name, "FM");
 	v->type = V4L2_TUNER_RADIO;
 	v->rangelow = FREQ_MIN * FREQ_MUL;
 	v->rangehigh = FREQ_MAX * FREQ_MUL;
 	v->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO;
-	/* We do not know how to get hold of the stereo indicator, so
-	   all we can do is give back both mono and stereo, which
-	   effectively means that we don't know. */
-	v->rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MONO;
-	v->signal = 0xffff;
+	v->rxsubchans = is_stereo ? V4L2_TUNER_SUB_STEREO : V4L2_TUNER_SUB_MONO;
 	v->audmode = radio->stereo ?
 		V4L2_TUNER_MODE_STEREO : V4L2_TUNER_MODE_MONO;
 	return 0;
