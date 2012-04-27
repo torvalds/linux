@@ -293,10 +293,6 @@
 		status = "disable";
 	};
 
-	sdhci@c8000000 {
-		status = "disable";
-	};
-
 	sdhci@c8000200 {
 		status = "disable";
 	};
