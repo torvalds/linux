@@ -4192,7 +4192,6 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 	struct btrfs_path *path;
 	struct list_head ins_list;
 	struct list_head del_list;
-	struct qstr q;
 	int ret;
 	struct extent_buffer *leaf;
 	int slot;
@@ -4283,7 +4282,6 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 
 		while (di_cur < di_total) {
 			struct btrfs_key location;
-			struct dentry *tmp;
 
 			if (verify_dir_item(root, leaf, di))
 				break;
@@ -4304,33 +4302,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 			d_type = btrfs_filetype_table[btrfs_dir_type(leaf, di)];
 			btrfs_dir_item_key_to_cpu(leaf, di, &location);
 
-			q.name = name_ptr;
-			q.len = name_len;
-			q.hash = full_name_hash(q.name, q.len);
-			tmp = d_lookup(filp->f_dentry, &q);
-			if (!tmp) {
-				struct btrfs_key *newkey;
 
-				newkey = kzalloc(sizeof(struct btrfs_key),
-						 GFP_NOFS);
-				if (!newkey)
-					goto no_dentry;
-				tmp = d_alloc(filp->f_dentry, &q);
-				if (!tmp) {
-					kfree(newkey);
-					dput(tmp);
-					goto no_dentry;
-				}
-				memcpy(newkey, &location,
-				       sizeof(struct btrfs_key));
-				tmp->d_fsdata = newkey;
-				tmp->d_flags |= DCACHE_NEED_LOOKUP;
-				d_rehash(tmp);
-				dput(tmp);
-			} else {
-				dput(tmp);
-			}
-no_dentry:
 			/* is this a reference to our own snapshot? If so
 			 * skip it.
 			 *
