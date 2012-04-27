@@ -4464,10 +4464,12 @@ static inline int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
  */
 static bool tcp_try_coalesce(struct sock *sk,
 			     struct sk_buff *to,
-			     struct sk_buff *from)
+			     struct sk_buff *from,
+			     bool *fragstolen)
 {
-	int len = from->len;
+	int delta, len = from->len;
 
+	*fragstolen = false;
 	if (tcp_hdr(from)->fin)
 		return false;
 	if (len <= skb_tailroom(to)) {
@@ -4478,15 +4480,19 @@ merge:
 		TCP_SKB_CB(to)->ack_seq = TCP_SKB_CB(from)->ack_seq;
 		return true;
 	}
+
+	if (skb_has_frag_list(to) || skb_has_frag_list(from))
+		return false;
+
 	if (skb_headlen(from) == 0 &&
-	    !skb_has_frag_list(to) &&
-	    !skb_has_frag_list(from) &&
 	    (skb_shinfo(to)->nr_frags +
 	     skb_shinfo(from)->nr_frags <= MAX_SKB_FRAGS)) {
-		int delta = from->truesize - ksize(from->head) -
-			    SKB_DATA_ALIGN(sizeof(struct sk_buff));
+		WARN_ON_ONCE(from->head_frag);
+		delta = from->truesize - ksize(from->head) -
+			SKB_DATA_ALIGN(sizeof(struct sk_buff));
 
 		WARN_ON_ONCE(delta < len);
+copyfrags:
 		memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
 		       skb_shinfo(from)->frags,
 		       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
@@ -4498,6 +4504,20 @@ merge:
 		to->len += len;
 		to->data_len += len;
 		goto merge;
+	}
+	if (from->head_frag) {
+		struct page *page;
+		unsigned int offset;
+
+		if (skb_shinfo(to)->nr_frags + skb_shinfo(from)->nr_frags >= MAX_SKB_FRAGS)
+			return false;
+		page = virt_to_head_page(from->head);
+		offset = from->data - (unsigned char *)page_address(page);
+		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
+				   page, offset, skb_headlen(from));
+		*fragstolen = true;
+		delta = len; /* we dont know real truesize... */
+		goto copyfrags;
 	}
 	return false;
 }
@@ -4540,10 +4560,15 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 	end_seq = TCP_SKB_CB(skb)->end_seq;
 
 	if (seq == TCP_SKB_CB(skb1)->end_seq) {
-		if (!tcp_try_coalesce(sk, skb1, skb)) {
+		bool fragstolen;
+
+		if (!tcp_try_coalesce(sk, skb1, skb, &fragstolen)) {
 			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 		} else {
-			__kfree_skb(skb);
+			if (fragstolen)
+				kmem_cache_free(skbuff_head_cache, skb);
+			else
+				__kfree_skb(skb);
 			skb = NULL;
 		}
 
@@ -4626,6 +4651,7 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 	const struct tcphdr *th = tcp_hdr(skb);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int eaten = -1;
+	bool fragstolen = false;
 
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq)
 		goto drop;
@@ -4672,7 +4698,9 @@ queue_and_out:
 				goto drop;
 
 			tail = skb_peek_tail(&sk->sk_receive_queue);
-			eaten = (tail && tcp_try_coalesce(sk, tail, skb)) ? 1 : 0;
+			eaten = (tail &&
+				 tcp_try_coalesce(sk, tail, skb,
+						  &fragstolen)) ? 1 : 0;
 			if (eaten <= 0) {
 				skb_set_owner_r(skb, sk);
 				__skb_queue_tail(&sk->sk_receive_queue, skb);
@@ -4699,9 +4727,12 @@ queue_and_out:
 
 		tcp_fast_path_check(sk);
 
-		if (eaten > 0)
-			__kfree_skb(skb);
-		else if (!sock_flag(sk, SOCK_DEAD))
+		if (eaten > 0) {
+			if (fragstolen)
+				kmem_cache_free(skbuff_head_cache, skb);
+			else
+				__kfree_skb(skb);
+		} else if (!sock_flag(sk, SOCK_DEAD))
 			sk->sk_data_ready(sk, 0);
 		return;
 	}
