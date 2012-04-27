@@ -308,7 +308,7 @@ struct threshold_attr {
 #define SHOW_FIELDS(name)						\
 static ssize_t show_ ## name(struct threshold_block *b, char *buf)	\
 {									\
-	return sprintf(buf, "%lx\n", (unsigned long) b->name);		\
+	return sprintf(buf, "%lu\n", (unsigned long) b->name);		\
 }
 SHOW_FIELDS(interrupt_enable)
 SHOW_FIELDS(threshold_limit)
@@ -379,7 +379,7 @@ static ssize_t show_error_count(struct threshold_block *b, char *buf)
 	struct threshold_block_cross_cpu tbcc = { .tb = b, };
 
 	smp_call_function_single(b->cpu, local_error_count_handler, &tbcc, 1);
-	return sprintf(buf, "%lx\n", tbcc.retval);
+	return sprintf(buf, "%lu\n", tbcc.retval);
 }
 
 static ssize_t store_error_count(struct threshold_block *b,
