@@ -117,6 +117,9 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 				ui_browser__write_graph(self, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
 				SLsmg_write_char(' ');
+			} else if (ins__is_call(dl->ins)) {
+				ui_browser__write_graph(self, SLSMG_RARROW_CHAR);
+				SLsmg_write_char(' ');
 			} else {
 				slsmg_write_nstring(" ", 2);
 			}
