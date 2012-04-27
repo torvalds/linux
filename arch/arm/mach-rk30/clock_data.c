@@ -853,7 +853,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	u32 temp_div;
 	u32 old_aclk_div=0,new_aclk_div,gpll_arm_aclk_div;
 	struct arm_clks_div_set *temp_clk_div;
-	unsigned long arm_gpll_rate;
+	unsigned long arm_gpll_rate, arm_gpll_lpj;
 
 	ps = arm_pll_clk_get_best_pll_set(rate,(struct apll_clk_set *)clk->pll->table);
 
@@ -877,6 +877,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	//cru_writel(CORE_CLK_DIV(temp_div)|CORE_CLK_DIV_W_MSK, CRU_CLKSELS_CON(0));
 	
 	arm_gpll_rate=general_pll_clk.rate/temp_div;
+	arm_gpll_lpj = lpj_gpll / temp_div;
 	temp_clk_div=arm_clks_get_div(arm_gpll_rate/MHZ);
 	if(!temp_clk_div)
 		temp_clk_div=&arm_clk_div_tlb[4];
@@ -893,8 +894,8 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	
 	cru_writel(CORE_SEL_GPLL|CORE_SEL_PLL_W_MSK, CRU_CLKSELS_CON(0));
 	
-	loops_per_jiffy = lpj_gpll/temp_div;
-
+	loops_per_jiffy = arm_gpll_lpj;
+	smp_wmb();
 	
 	if((old_aclk_div==3||gpll_arm_aclk_div==3)&&(gpll_arm_aclk_div!=old_aclk_div))
 	{	
@@ -949,6 +950,7 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	//reparent to apll
 	cru_writel(CORE_SEL_PLL_W_MSK|CORE_SEL_APLL, CRU_CLKSELS_CON(0));
 	loops_per_jiffy = ps->lpj;
+	smp_wmb();
 	//CRU_PRINTK_DBG("apll set loops_per_jiffy =%lu,rate(%lu)\n",loops_per_jiffy,ps->rate);
 
 	local_irq_restore(flags);
