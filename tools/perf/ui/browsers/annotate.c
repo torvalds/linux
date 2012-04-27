@@ -30,6 +30,7 @@ struct annotate_browser {
 	int		    nr_entries;
 	bool		    hide_src_code;
 	bool		    use_offset;
+	bool		    jump_arrows;
 	bool		    searching_backwards;
 	u8		    offset_width;
 	char		    search_bf[128];
@@ -144,56 +145,47 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		ab->selection = dl;
 }
 
-static void annotate_browser__draw_current_loop(struct ui_browser *browser)
+static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
-	struct map_symbol *ms = browser->priv;
-	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
-	struct disasm_line *cursor = ab->selection, *pos = cursor, *target;
-	struct browser_disasm_line *bcursor = disasm_line__browser(cursor),
-				   *btarget, *bpos;
+	struct disasm_line *cursor = ab->selection, *target;
+	struct browser_disasm_line *btarget, *bcursor;
 	unsigned int from, to, start_width = 2;
 
-	list_for_each_entry_from(pos, &notes->src->source, node) {
-		if (!pos->ins || !ins__is_jump(pos->ins) ||
-		    !disasm_line__has_offset(pos))
-			continue;
+	if (!cursor->ins || !ins__is_jump(cursor->ins) ||
+	    !disasm_line__has_offset(cursor))
+		return;
 
-		target = ab->offsets[pos->ops.target.offset];
-		if (!target)
-			continue;
+	target = ab->offsets[cursor->ops.target.offset];
+	if (!target)
+		return;
 
-		btarget = disasm_line__browser(target);
-		if (btarget->idx <= bcursor->idx)
-			goto found;
-	}
+	bcursor = disasm_line__browser(cursor);
+	btarget = disasm_line__browser(target);
 
-	return;
-
-found:
-	bpos = disasm_line__browser(pos);
 	if (ab->hide_src_code) {
-		from = bpos->idx_asm;
+		from = bcursor->idx_asm;
 		to = btarget->idx_asm;
 	} else {
-		from = (u64)bpos->idx;
+		from = (u64)bcursor->idx;
 		to = (u64)btarget->idx;
 	}
 
 	ui_browser__set_color(browser, HE_COLORSET_CODE);
 
-	if (!bpos->jump_target)
+	if (!bcursor->jump_target)
 		start_width += ab->offset_width + 1;
 
-	__ui_browser__line_arrow_up(browser, 10, from, to, start_width);
+	__ui_browser__line_arrow(browser, 10, from, to, start_width);
 }
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 {
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	int ret = ui_browser__list_head_refresh(browser);
 
-	annotate_browser__draw_current_loop(browser);
+	if (ab->jump_arrows)
+		annotate_browser__draw_current_jump(browser);
 
 	return ret;
 }
@@ -628,6 +620,9 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		case 'o':
 			self->use_offset = !self->use_offset;
 			continue;
+		case 'j':
+			self->jump_arrows = !self->jump_arrows;
+			continue;
 		case '/':
 			if (annotate_browser__search(self, delay_secs)) {
 show_help:
@@ -739,6 +734,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.use_navkeypressed = true,
 		},
 		.use_offset = true,
+		.jump_arrows = true,
 	};
 	int ret = -1;
 
