@@ -369,14 +369,10 @@ static ssize_t show_error_count(struct threshold_block *b, char *buf)
 				     (THRESHOLD_MAX - b->threshold_limit)));
 }
 
-static ssize_t store_error_count(struct threshold_block *b,
-				 const char *buf, size_t count)
-{
-	struct thresh_restart tr = { .b = b, .reset = 1, .old_limit = 0 };
-
-	smp_call_function_single(b->cpu, threshold_restart_bank, &tr, 1);
-	return 1;
-}
+static struct threshold_attr error_count = {
+	.attr = {.name = __stringify(error_count), .mode = 0444 },
+	.show = show_error_count,
+};
 
 #define RW_ATTR(val)							\
 static struct threshold_attr val = {					\
@@ -387,7 +383,6 @@ static struct threshold_attr val = {					\
 
 RW_ATTR(interrupt_enable);
 RW_ATTR(threshold_limit);
-RW_ATTR(error_count);
 
 static struct attribute *default_attrs[] = {
 	&threshold_limit.attr,
