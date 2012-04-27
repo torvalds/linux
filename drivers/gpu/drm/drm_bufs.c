@@ -1510,8 +1510,8 @@ int drm_freebufs(struct drm_device *dev, void *data,
  * \param arg pointer to a drm_buf_map structure.
  * \return zero on success or a negative number on failure.
  *
- * Maps the AGP, SG or PCI buffer region with do_mmap(), and copies information
- * about each buffer into user space. For PCI buffers, it calls do_mmap() with
+ * Maps the AGP, SG or PCI buffer region with vm_mmap(), and copies information
+ * about each buffer into user space. For PCI buffers, it calls vm_mmap() with
  * offset equal to 0, which drm_mmap() interpretes as PCI buffers and calls
  * drm_mmap_dma().
  */
@@ -1553,18 +1553,14 @@ int drm_mapbufs(struct drm_device *dev, void *data,
 				retcode = -EINVAL;
 				goto done;
 			}
-			down_write(&current->mm->mmap_sem);
-			virtual = do_mmap(file_priv->filp, 0, map->size,
+			virtual = vm_mmap(file_priv->filp, 0, map->size,
 					  PROT_READ | PROT_WRITE,
 					  MAP_SHARED,
 					  token);
-			up_write(&current->mm->mmap_sem);
 		} else {
-			down_write(&current->mm->mmap_sem);
-			virtual = do_mmap(file_priv->filp, 0, dma->byte_count,
+			virtual = vm_mmap(file_priv->filp, 0, dma->byte_count,
 					  PROT_READ | PROT_WRITE,
 					  MAP_SHARED, 0);
-			up_write(&current->mm->mmap_sem);
 		}
 		if (virtual > -1024UL) {
 			/* Real error */
