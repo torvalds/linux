@@ -108,6 +108,7 @@ int dwc3_gadget_set_link_state(struct dwc3 *dwc, enum dwc3_link_state state)
 	dwc3_writel(dwc->regs, DWC3_DCTL, reg);
 
 	/* wait for a change in DSTS */
+	retries = 10000;
 	while (--retries) {
 		reg = dwc3_readl(dwc->regs, DWC3_DSTS);
 
