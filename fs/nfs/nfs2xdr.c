@@ -313,6 +313,8 @@ static int decode_fattr(struct xdr_stream *xdr, struct nfs_fattr *fattr)
 	p = xdr_decode_time(p, &fattr->atime);
 	p = xdr_decode_time(p, &fattr->mtime);
 	xdr_decode_time(p, &fattr->ctime);
+	fattr->change_attr = nfs_timespec_to_change_attr(&fattr->ctime);
+
 	return 0;
 out_overflow:
 	print_overflow_msg(__func__, xdr);
