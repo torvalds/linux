@@ -33,6 +33,13 @@
 #include "pnfs.h"
 
 /*
+ * Default data server connection timeout and retrans vaules.
+ * Set by module paramters dataserver_timeo and dataserver_retrans.
+ */
+#define NFS4_DEF_DS_TIMEO   60
+#define NFS4_DEF_DS_RETRANS 5
+
+/*
  * Field testing shows we need to support up to 4096 stripe indices.
  * We store each index as a u8 (u32 on the wire) to keep the memory footprint
  * reasonable. This in turn means we support a maximum of 256

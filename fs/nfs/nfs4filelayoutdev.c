@@ -30,11 +30,15 @@
 
 #include <linux/nfs_fs.h>
 #include <linux/vmalloc.h>
+#include <linux/module.h>
 
 #include "internal.h"
 #include "nfs4filelayout.h"
 
 #define NFSDBG_FACILITY		NFSDBG_PNFS_LD
+
+static unsigned int dataserver_timeo = NFS4_DEF_DS_TIMEO;
+static unsigned int dataserver_retrans = NFS4_DEF_DS_RETRANS;
 
 /*
  * Data server cache
@@ -165,8 +169,9 @@ nfs4_ds_connect(struct nfs_server *mds_srv, struct nfs4_pnfs_ds *ds)
 			__func__, ds->ds_remotestr, da->da_remotestr);
 
 		clp = nfs4_set_ds_client(mds_srv->nfs_client,
-				 (struct sockaddr *)&da->da_addr,
-				 da->da_addrlen, IPPROTO_TCP);
+					(struct sockaddr *)&da->da_addr,
+					da->da_addrlen, IPPROTO_TCP,
+					dataserver_timeo, dataserver_retrans);
 		if (!IS_ERR(clp))
 			break;
 	}
@@ -821,3 +826,12 @@ mark_dev_invalid:
 	filelayout_mark_devid_invalid(devid);
 	return NULL;
 }
+
+module_param(dataserver_retrans, uint, 0644);
+MODULE_PARM_DESC(dataserver_retrans, "The  number of times the NFSv4.1 client "
+			"retries a request before it attempts further "
+			" recovery  action.");
+module_param(dataserver_timeo, uint, 0644);
+MODULE_PARM_DESC(dataserver_timeo, "The time (in tenths of a second) the "
+			"NFSv4.1  client  waits for a response from a "
+			" data server before it retries an NFS request.");
