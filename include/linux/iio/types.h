@@ -27,6 +27,7 @@ enum iio_chan_type {
 	IIO_ANGL,
 	IIO_TIMESTAMP,
 	IIO_CAPACITANCE,
+	IIO_ALTVOLTAGE,
 };
 
 enum iio_modifier {

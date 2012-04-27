@@ -63,6 +63,7 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_ANGL] = "angl",
 	[IIO_TIMESTAMP] = "timestamp",
 	[IIO_CAPACITANCE] = "capacitance",
+	[IIO_ALTVOLTAGE] = "altvoltage",
 };
 
 static const char * const iio_modifier_names[] = {
@@ -88,6 +89,8 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_LOW_PASS_FILTER_3DB_FREQUENCY]
 	= "filter_low_pass_3db_frequency",
 	[IIO_CHAN_INFO_SAMP_FREQ] = "sampling_frequency",
+	[IIO_CHAN_INFO_FREQUENCY] = "frequency",
+	[IIO_CHAN_INFO_PHASE] = "phase",
 };
 
 const struct iio_chan_spec
