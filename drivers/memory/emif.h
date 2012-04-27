@@ -12,6 +12,13 @@
 #ifndef __EMIF_H
 #define __EMIF_H
 
+/*
+ * Maximum number of different frequencies supported by EMIF driver
+ * Determines the number of entries in the pointer array for register
+ * cache
+ */
+#define EMIF_MAX_NUM_FREQUENCIES			6
+
 /* Registers offset */
 #define EMIF_MODULE_ID_AND_REVISION			0x0000
 #define EMIF_STATUS					0x0004
