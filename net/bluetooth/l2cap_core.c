@@ -1256,6 +1256,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 
 	/* Kill channels */
 	list_for_each_entry_safe(chan, l, &conn->chan_l, list) {
+		l2cap_chan_hold(chan);
 		l2cap_chan_lock(chan);
 
 		l2cap_chan_del(chan, err);
@@ -1263,6 +1264,7 @@ static void l2cap_conn_del(struct hci_conn *hcon, int err)
 		l2cap_chan_unlock(chan);
 
 		chan->ops->close(chan->data);
+		l2cap_chan_put(chan);
 	}
 
 	mutex_unlock(&conn->chan_lock);
@@ -3375,11 +3377,13 @@ static inline int l2cap_disconnect_req(struct l2cap_conn *conn, struct l2cap_cmd
 	sk->sk_shutdown = SHUTDOWN_MASK;
 	release_sock(sk);
 
+	l2cap_chan_hold(chan);
 	l2cap_chan_del(chan, ECONNRESET);
 
 	l2cap_chan_unlock(chan);
 
 	chan->ops->close(chan->data);
+	l2cap_chan_put(chan);
 
 	mutex_unlock(&conn->chan_lock);
 
@@ -3407,11 +3411,13 @@ static inline int l2cap_disconnect_rsp(struct l2cap_conn *conn, struct l2cap_cmd
 
 	l2cap_chan_lock(chan);
 
+	l2cap_chan_hold(chan);
 	l2cap_chan_del(chan, 0);
 
 	l2cap_chan_unlock(chan);
 
 	chan->ops->close(chan->data);
+	l2cap_chan_put(chan);
 
 	mutex_unlock(&conn->chan_lock);
 
