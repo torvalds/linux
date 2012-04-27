@@ -64,12 +64,12 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 					         !self->navkeypressed)));
 	int width = self->width;
 
-	if (dl->offset != -1) {
+	if (dl->offset != -1 && bdl->percent != 0.0) {
 		ui_browser__set_percent_color(self, bdl->percent, current_entry);
-		slsmg_printf(" %7.2f ", bdl->percent);
+		slsmg_printf("%6.2f ", bdl->percent);
 	} else {
 		ui_browser__set_percent_color(self, 0, current_entry);
-		slsmg_write_nstring(" ", 9);
+		slsmg_write_nstring(" ", 7);
 	}
 
 	SLsmg_write_char(' ');
@@ -82,9 +82,9 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 		ui_browser__set_color(self, HE_COLORSET_CODE);
 
 	if (!*dl->line)
-		slsmg_write_nstring(" ", width - 9);
+		slsmg_write_nstring(" ", width - 7);
 	else if (dl->offset == -1)
-		slsmg_write_nstring(dl->line, width - 9);
+		slsmg_write_nstring(dl->line, width - 7);
 	else {
 		char bf[256];
 		u64 addr = dl->offset;
@@ -137,7 +137,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			scnprintf(bf, sizeof(bf), "%-6.6s %s", dl->name, dl->ops.raw);
 		}
 
-		slsmg_write_nstring(bf, width - 11 - printed);
+		slsmg_write_nstring(bf, width - 9 - printed);
 	}
 
 	if (current_entry)
@@ -175,7 +175,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	if (!bcursor->jump_target)
 		start_width += ab->offset_width + 1;
 
-	__ui_browser__line_arrow(browser, 9, from, to, start_width);
+	__ui_browser__line_arrow(browser, 7, from, to, start_width);
 }
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
