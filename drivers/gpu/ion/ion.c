@@ -391,6 +391,22 @@ int ion_phys(struct ion_client *client, struct ion_handle *handle,
 	return ret;
 }
 
+static void *ion_buffer_kmap_get(struct ion_buffer *buffer)
+{
+	void *vaddr;
+
+	if (buffer->kmap_cnt) {
+		buffer->kmap_cnt++;
+		return buffer->vaddr;
+	}
+	vaddr = buffer->heap->ops->map_kernel(buffer->heap, buffer);
+	if (IS_ERR_OR_NULL(vaddr))
+		return vaddr;
+	buffer->vaddr = vaddr;
+	buffer->kmap_cnt++;
+	return vaddr;
+}
+
 static void *ion_handle_kmap_get(struct ion_handle *handle)
 {
 	struct ion_buffer *buffer = handle->buffer;
@@ -399,21 +415,21 @@ static void *ion_handle_kmap_get(struct ion_handle *handle)
 	if (handle->kmap_cnt) {
 		handle->kmap_cnt++;
 		return buffer->vaddr;
-	} else if (buffer->kmap_cnt) {
-		handle->kmap_cnt++;
-		buffer->kmap_cnt++;
-		return buffer->vaddr;
 	}
-
-	vaddr = buffer->heap->ops->map_kernel(buffer->heap, buffer);
-	buffer->vaddr = vaddr;
-	if (IS_ERR_OR_NULL(vaddr)) {
-		buffer->vaddr = NULL;
+	vaddr = ion_buffer_kmap_get(buffer);
+	if (IS_ERR_OR_NULL(vaddr))
 		return vaddr;
-	}
 	handle->kmap_cnt++;
-	buffer->kmap_cnt++;
 	return vaddr;
+}
+
+static void ion_buffer_kmap_put(struct ion_buffer *buffer)
+{
+	buffer->kmap_cnt--;
+	if (!buffer->kmap_cnt) {
+		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
+		buffer->vaddr = NULL;
+	}
 }
 
 static void ion_handle_kmap_put(struct ion_handle *handle)
@@ -422,11 +438,7 @@ static void ion_handle_kmap_put(struct ion_handle *handle)
 
 	handle->kmap_cnt--;
 	if (!handle->kmap_cnt)
-		buffer->kmap_cnt--;
-	if (!buffer->kmap_cnt) {
-		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
-		buffer->vaddr = NULL;
-	}
+		ion_buffer_kmap_put(buffer);
 }
 
 void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle)
@@ -675,7 +687,8 @@ static void ion_dma_buf_release(struct dma_buf *dmabuf)
 
 static void *ion_dma_buf_kmap(struct dma_buf *dmabuf, unsigned long offset)
 {
-	return NULL;
+	struct ion_buffer *buffer = dmabuf->priv;
+	return buffer->vaddr + offset;
 }
 
 static void ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
@@ -684,26 +697,49 @@ static void ion_dma_buf_kunmap(struct dma_buf *dmabuf, unsigned long offset,
 	return;
 }
 
-static void *ion_dma_buf_kmap_atomic(struct dma_buf *dmabuf,
-				     unsigned long offset)
+static int ion_dma_buf_begin_cpu_access(struct dma_buf *dmabuf, size_t start,
+					size_t len,
+					enum dma_data_direction direction)
 {
-	return NULL;
+	struct ion_buffer *buffer = dmabuf->priv;
+	void *vaddr;
+
+	if (!buffer->heap->ops->map_kernel) {
+		pr_err("%s: map kernel is not implemented by this heap.\n",
+		       __func__);
+		return -ENODEV;
+	}
+
+	mutex_lock(&buffer->lock);
+	vaddr = ion_buffer_kmap_get(buffer);
+	mutex_unlock(&buffer->lock);
+	if (IS_ERR(vaddr))
+		return PTR_ERR(vaddr);
+	if (!vaddr)
+		return -ENOMEM;
+	return 0;
 }
 
-static void ion_dma_buf_kunmap_atomic(struct dma_buf *dmabuf,
-				      unsigned long offset, void *ptr)
+static void ion_dma_buf_end_cpu_access(struct dma_buf *dmabuf, size_t start,
+				       size_t len,
+				       enum dma_data_direction direction)
 {
-	return;
-}
+	struct ion_buffer *buffer = dmabuf->priv;
 
+	mutex_lock(&buffer->lock);
+	ion_buffer_kmap_put(buffer);
+	mutex_unlock(&buffer->lock);
+}
 
 struct dma_buf_ops dma_buf_ops = {
 	.map_dma_buf = ion_map_dma_buf,
 	.unmap_dma_buf = ion_unmap_dma_buf,
 	.mmap = ion_mmap,
 	.release = ion_dma_buf_release,
-	.kmap_atomic = ion_dma_buf_kmap_atomic,
-	.kunmap_atomic = ion_dma_buf_kunmap_atomic,
+	.begin_cpu_access = ion_dma_buf_begin_cpu_access,
+	.end_cpu_access = ion_dma_buf_end_cpu_access,
+	.kmap_atomic = ion_dma_buf_kmap,
+	.kunmap_atomic = ion_dma_buf_kunmap,
 	.kmap = ion_dma_buf_kmap,
 	.kunmap = ion_dma_buf_kunmap,
 };
