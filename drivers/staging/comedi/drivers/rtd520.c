@@ -328,14 +328,6 @@ static const struct rtdBoard rtd520Boards[] = {
 	 },
 };
 
-static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x7520) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x4520) },
-	{ 0 }
-};
-
-MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
-
 /*
  * Useful for shorthand access to the particular board structure
  */
@@ -704,22 +696,6 @@ struct rtdPrivate {
 /* Get status for DMA 1 */
 #define RtdDma1Status(dev) \
 	readb(devpriv->lcfg+LCFG_DMACSR1)
-
-/*
- * The struct comedi_driver structure tells the Comedi core module
- * which functions to call to configure/deconfigure (attac/detach)
- * the board, and also about the kernel module that contains
- * the device code.
- */
-static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int rtd_detach(struct comedi_device *dev);
-
-static struct comedi_driver rtd520Driver = {
-	.driver_name = DRV_NAME,
-	.module = THIS_MODULE,
-	.attach = rtd_attach,
-	.detach = rtd_detach,
-};
 
 static int rtd_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			struct comedi_insn *insn, unsigned int *data);
@@ -2348,10 +2324,13 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
+static struct comedi_driver rtd520Driver = {
+	.driver_name	= DRV_NAME,
+	.module		= THIS_MODULE,
+	.attach		= rtd_attach,
+	.detach		= rtd_detach,
+};
+
 static int __devinit rtd520Driver_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
@@ -2363,10 +2342,17 @@ static void __devexit rtd520Driver_pci_remove(struct pci_dev *dev)
 	comedi_pci_auto_unconfig(dev);
 }
 
+static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
+	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x7520) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_RTD, 0x4520) },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
+
 static struct pci_driver rtd520Driver_pci_driver = {
-	.id_table = rtd520_pci_table,
-	.probe = &rtd520Driver_pci_probe,
-	.remove = __devexit_p(&rtd520Driver_pci_remove)
+	.id_table	= rtd520_pci_table,
+	.probe		= &rtd520Driver_pci_probe,
+	.remove		= __devexit_p(&rtd520Driver_pci_remove)
 };
 
 static int __init rtd520Driver_init_module(void)
@@ -2380,14 +2366,13 @@ static int __init rtd520Driver_init_module(void)
 	rtd520Driver_pci_driver.name = (char *)rtd520Driver.driver_name;
 	return pci_register_driver(&rtd520Driver_pci_driver);
 }
+module_init(rtd520Driver_init_module);
 
 static void __exit rtd520Driver_cleanup_module(void)
 {
 	pci_unregister_driver(&rtd520Driver_pci_driver);
 	comedi_driver_unregister(&rtd520Driver);
 }
-
-module_init(rtd520Driver_init_module);
 module_exit(rtd520Driver_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
