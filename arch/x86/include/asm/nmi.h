@@ -40,7 +40,7 @@ typedef int (*nmi_handler_t)(unsigned int, struct pt_regs *);
 struct nmiaction {
 	struct list_head	list;
 	nmi_handler_t		handler;
-	unsigned int		flags;
+	unsigned long		flags;
 	const char		*name;
 };
 
