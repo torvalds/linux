@@ -698,12 +698,16 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	int i, j, page, offset, elt;
 
 	spin_lock_irqsave(&dev_priv->error_lock, flags);
-	if (!dev_priv->first_error) {
+	error = dev_priv->first_error;
+	if (error)
+		kref_get(&error->ref);
+	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+
+	if (!error) {
 		seq_printf(m, "no error state collected\n");
-		goto out;
+		return 0;
 	}
 
-	error = dev_priv->first_error;
 
 	seq_printf(m, "Time: %ld s %ld us\n", error->time.tv_sec,
 		   error->time.tv_usec);
@@ -786,8 +790,7 @@ static int i915_error_state(struct seq_file *m, void *unused)
 	if (error->display)
 		intel_display_print_error_state(m, dev, error->display);
 
-out:
-	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
+	kref_put(&error->ref, i915_error_state_free);
 
 	return 0;
 }

@@ -39,6 +39,7 @@
 #include <drm/intel-gtt.h>
 #include <linux/backlight.h>
 #include <linux/intel-iommu.h>
+#include <linux/kref.h>
 
 /* General customization:
  */
@@ -171,6 +172,7 @@ struct sdvo_device_mapping {
 struct intel_display_error_state;
 
 struct drm_i915_error_state {
+	struct kref ref;
 	u32 eir;
 	u32 pgtbl_er;
 	u32 ier;
@@ -465,6 +467,7 @@ typedef struct drm_i915_private {
 	unsigned int fsb_freq, mem_freq, is_ddr3;
 
 	spinlock_t error_lock;
+	/* Protected by dev->error_lock. */
 	struct drm_i915_error_state *first_error;
 	struct work_struct error_work;
 	struct completion error_completion;
@@ -1162,6 +1165,8 @@ void i915_hangcheck_elapsed(unsigned long data);
 void i915_handle_error(struct drm_device *dev, bool wedged);
 
 extern void intel_irq_init(struct drm_device *dev);
+
+void i915_error_state_free(struct kref *error_ref);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);

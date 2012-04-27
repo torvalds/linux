@@ -850,10 +850,11 @@ i915_error_object_free(struct drm_i915_error_object *obj)
 	kfree(obj);
 }
 
-static void
-i915_error_state_free(struct drm_device *dev,
-		      struct drm_i915_error_state *error)
+void
+i915_error_state_free(struct kref *error_ref)
 {
+	struct drm_i915_error_state *error = container_of(error_ref,
+							  typeof(*error), ref);
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
@@ -1102,6 +1103,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	DRM_INFO("capturing error event; look for more information in /debug/dri/%d/i915_error_state\n",
 		 dev->primary->index);
 
+	kref_init(&error->ref);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 
@@ -1173,7 +1175,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
 
 	if (error)
-		i915_error_state_free(dev, error);
+		i915_error_state_free(&error->ref);
 }
 
 void i915_destroy_error_state(struct drm_device *dev)
@@ -1188,7 +1190,7 @@ void i915_destroy_error_state(struct drm_device *dev)
 	spin_unlock_irqrestore(&dev_priv->error_lock, flags);
 
 	if (error)
-		i915_error_state_free(dev, error);
+		kref_put(&error->ref, i915_error_state_free);
 }
 #else
 #define i915_capture_error_state(x)
