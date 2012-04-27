@@ -2241,12 +2241,6 @@ static char *dpcm_state_string(enum snd_soc_dpcm_state state)
 	return "unknown";
 }
 
-static int dpcm_state_open_file(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t dpcm_show_state(struct snd_soc_pcm_runtime *fe,
 				int stream, char *buf, size_t size)
 {
@@ -2324,15 +2318,14 @@ static ssize_t dpcm_state_read_file(struct file *file, char __user *user_buf,
 		offset += dpcm_show_state(fe, SNDRV_PCM_STREAM_CAPTURE,
 					buf + offset, out_count - offset);
 
-        ret = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, offset);
 
-        kfree(buf);
-
-        return ret;
+	kfree(buf);
+	return ret;
 }
 
 static const struct file_operations dpcm_state_fops = {
-	.open = dpcm_state_open_file,
+	.open = simple_open,
 	.read = dpcm_state_read_file,
 	.llseek = default_llseek,
 };
@@ -2348,7 +2341,7 @@ int soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 		return -EINVAL;
 	}
 
-	rtd->debugfs_dpcm_state = debugfs_create_file("state", 0644,
+	rtd->debugfs_dpcm_state = debugfs_create_file("state", 0444,
 						rtd->debugfs_dpcm_root,
 						rtd, &dpcm_state_fops);
 
