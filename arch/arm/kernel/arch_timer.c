@@ -248,7 +248,7 @@ static struct local_timer_ops arch_timer_ops __cpuinitdata = {
 
 static struct clock_event_device arch_timer_global_evt;
 
-static int __init arch_timer_common_register(void)
+static int __init arch_timer_register(void)
 {
 	int err;
 
@@ -309,20 +309,6 @@ out_free:
 	return err;
 }
 
-int __init arch_timer_register(struct arch_timer *at)
-{
-	if (at->res[0].start <= 0 || !(at->res[0].flags & IORESOURCE_IRQ))
-		return -EINVAL;
-
-	arch_timer_ppi = at->res[0].start;
-
-	if (at->res[1].start > 0 || (at->res[1].flags & IORESOURCE_IRQ))
-		arch_timer_ppi2 = at->res[1].start;
-
-	return arch_timer_common_register();
-}
-
-#ifdef CONFIG_OF
 static const struct of_device_id arch_timer_of_match[] __initconst = {
 	{ .compatible	= "arm,armv7-timer",	},
 	{},
@@ -348,9 +334,8 @@ int __init arch_timer_of_register(void)
 	pr_info("arch_timer: found %s irqs %d %d\n",
 		np->name, arch_timer_ppi, arch_timer_ppi2);
 
-	return arch_timer_common_register();
+	return arch_timer_register();
 }
-#endif
 
 int __init arch_timer_sched_clock_init(void)
 {
