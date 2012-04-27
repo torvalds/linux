@@ -359,27 +359,14 @@ store_threshold_limit(struct threshold_block *b, const char *buf, size_t size)
 	return size;
 }
 
-struct threshold_block_cross_cpu {
-	struct threshold_block	*tb;
-	long			retval;
-};
-
-static void local_error_count_handler(void *_tbcc)
-{
-	struct threshold_block_cross_cpu *tbcc = _tbcc;
-	struct threshold_block *b = tbcc->tb;
-	u32 low, high;
-
-	rdmsr(b->address, low, high);
-	tbcc->retval = (high & 0xFFF) - (THRESHOLD_MAX - b->threshold_limit);
-}
-
 static ssize_t show_error_count(struct threshold_block *b, char *buf)
 {
-	struct threshold_block_cross_cpu tbcc = { .tb = b, };
+	u32 lo, hi;
 
-	smp_call_function_single(b->cpu, local_error_count_handler, &tbcc, 1);
-	return sprintf(buf, "%lu\n", tbcc.retval);
+	rdmsr_on_cpu(b->cpu, b->address, &lo, &hi);
+
+	return sprintf(buf, "%u\n", ((hi & THRESHOLD_MAX) -
+				     (THRESHOLD_MAX - b->threshold_limit)));
 }
 
 static ssize_t store_error_count(struct threshold_block *b,
