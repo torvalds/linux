@@ -3807,10 +3807,11 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
 		else {
+			int old_stripe_index = stripe_index;
 			stripe_index = find_live_mirror(map, stripe_index,
 					      map->sub_stripes, stripe_index +
 					      current->pid % map->sub_stripes);
-			mirror_num = stripe_index + 1;
+			mirror_num = stripe_index - old_stripe_index + 1;
 		}
 	} else {
 		/*
