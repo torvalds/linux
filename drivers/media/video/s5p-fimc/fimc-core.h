@@ -360,8 +360,7 @@ struct fimc_pix_limit {
 };
 
 /**
- * struct samsung_fimc_variant - camera interface variant information
- *
+ * struct fimc_variant - FIMC device variant information
  * @pix_hoff: indicate whether horizontal offset is in pixels or in bytes
  * @has_inp_rot: set if has input rotator
  * @has_out_rot: set if has output rotator
@@ -376,7 +375,7 @@ struct fimc_pix_limit {
  * @min_vsize_align: minimum vertical pixel size alignment
  * @out_buf_count: the number of buffers in output DMA sequence
  */
-struct samsung_fimc_variant {
+struct fimc_variant {
 	unsigned int	pix_hoff:1;
 	unsigned int	has_inp_rot:1;
 	unsigned int	has_out_rot:1;
@@ -393,18 +392,19 @@ struct samsung_fimc_variant {
 };
 
 /**
- * struct samsung_fimc_driverdata - per device type driver data for init time.
- *
- * @variant: the variant information for this driver.
- * @dev_cnt: number of fimc sub-devices available in SoC
- * @lclk_frequency: fimc bus clock frequency
+ * struct fimc_drvdata - per device type driver data
+ * @variant: variant information for this device
+ * @num_entities: number of fimc instances available in a SoC
+ * @lclk_frequency: local bus clock frequency
  */
-struct samsung_fimc_driverdata {
-	struct samsung_fimc_variant *variant[FIMC_MAX_DEVS];
-	unsigned long	lclk_frequency;
-	int		num_entities;
+struct fimc_drvdata {
+	struct fimc_variant *variant[FIMC_MAX_DEVS];
+	int num_entities;
+	unsigned long lclk_frequency;
 };
 
+#define fimc_get_drvdata(_pdev) \
+	((struct fimc_drvdata *) platform_get_device_id(_pdev)->driver_data)
 
 struct fimc_ctx;
 
@@ -431,7 +431,7 @@ struct fimc_dev {
 	struct mutex			lock;
 	struct platform_device		*pdev;
 	struct s5p_platform_fimc	*pdata;
-	struct samsung_fimc_variant	*variant;
+	struct fimc_variant		*variant;
 	u16				id;
 	struct clk			*clock[MAX_FIMC_CLOCKS];
 	void __iomem			*regs;

@@ -188,7 +188,7 @@ static struct fimc_fmt fimc_formats[] = {
 	},
 };
 
-struct fimc_fmt * fimc_get_format(unsigned int index)
+struct fimc_fmt *fimc_get_format(unsigned int index)
 {
 	if (index >= ARRAY_SIZE(fimc_formats))
 		return NULL;
@@ -231,7 +231,7 @@ static int fimc_get_scaler_factor(u32 src, u32 tar, u32 *ratio, u32 *shift)
 
 int fimc_set_scaler_info(struct fimc_ctx *ctx)
 {
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
+	struct fimc_variant *variant = ctx->fimc_dev->variant;
 	struct device *dev = &ctx->fimc_dev->pdev->dev;
 	struct fimc_scaler *sc = &ctx->scaler;
 	struct fimc_frame *s_frame = &ctx->s_frame;
@@ -430,7 +430,7 @@ void fimc_set_yuv_order(struct fimc_ctx *ctx)
 
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 {
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
+	struct fimc_variant *variant = ctx->fimc_dev->variant;
 	u32 i, depth = 0;
 
 	for (i = 0; i < f->fmt->colplanes; i++)
@@ -472,7 +472,7 @@ void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f)
 static int __fimc_s_ctrl(struct fimc_ctx *ctx, struct v4l2_ctrl *ctrl)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct samsung_fimc_variant *variant = fimc->variant;
+	struct fimc_variant *variant = fimc->variant;
 	unsigned int flags = FIMC_DST_FMT | FIMC_SRC_FMT;
 	int ret = 0;
 
@@ -532,7 +532,7 @@ static const struct v4l2_ctrl_ops fimc_ctrl_ops = {
 
 int fimc_ctrls_create(struct fimc_ctx *ctx)
 {
-	struct samsung_fimc_variant *variant = ctx->fimc_dev->variant;
+	struct fimc_variant *variant = ctx->fimc_dev->variant;
 	unsigned int max_alpha = fimc_get_alpha_mask(ctx->d_frame.fmt);
 
 	if (ctx->ctrls_rdy)
@@ -794,14 +794,11 @@ static int fimc_m2m_resume(struct fimc_dev *fimc)
 
 static int fimc_probe(struct platform_device *pdev)
 {
+	struct fimc_drvdata *drv_data = fimc_get_drvdata(pdev);
+	struct s5p_platform_fimc *pdata;
 	struct fimc_dev *fimc;
 	struct resource *res;
-	struct samsung_fimc_driverdata *drv_data;
-	struct s5p_platform_fimc *pdata;
 	int ret = 0;
-
-	drv_data = (struct samsung_fimc_driverdata *)
-		platform_get_device_id(pdev)->driver_data;
 
 	if (pdev->id >= drv_data->num_entities) {
 		dev_err(&pdev->dev, "Invalid platform device id: %d\n",
@@ -1004,7 +1001,7 @@ static struct fimc_pix_limit s5p_pix_limit[4] = {
 	},
 };
 
-static struct samsung_fimc_variant fimc0_variant_s5p = {
+static struct fimc_variant fimc0_variant_s5p = {
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
 	.has_cam_if	 = 1,
@@ -1016,17 +1013,17 @@ static struct samsung_fimc_variant fimc0_variant_s5p = {
 	.pix_limit	 = &s5p_pix_limit[0],
 };
 
-static struct samsung_fimc_variant fimc2_variant_s5p = {
+static struct fimc_variant fimc2_variant_s5p = {
 	.has_cam_if	 = 1,
 	.min_inp_pixsize = 16,
 	.min_out_pixsize = 16,
 	.hor_offs_align	 = 8,
 	.min_vsize_align = 16,
 	.out_buf_count	 = 4,
-	.pix_limit = &s5p_pix_limit[1],
+	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct samsung_fimc_variant fimc0_variant_s5pv210 = {
+static struct fimc_variant fimc0_variant_s5pv210 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1039,7 +1036,7 @@ static struct samsung_fimc_variant fimc0_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct samsung_fimc_variant fimc1_variant_s5pv210 = {
+static struct fimc_variant fimc1_variant_s5pv210 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1053,7 +1050,7 @@ static struct samsung_fimc_variant fimc1_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
+static struct fimc_variant fimc2_variant_s5pv210 = {
 	.has_cam_if	 = 1,
 	.pix_hoff	 = 1,
 	.min_inp_pixsize = 16,
@@ -1064,7 +1061,7 @@ static struct samsung_fimc_variant fimc2_variant_s5pv210 = {
 	.pix_limit	 = &s5p_pix_limit[2],
 };
 
-static struct samsung_fimc_variant fimc0_variant_exynos4 = {
+static struct fimc_variant fimc0_variant_exynos4 = {
 	.pix_hoff	 = 1,
 	.has_inp_rot	 = 1,
 	.has_out_rot	 = 1,
@@ -1080,7 +1077,7 @@ static struct samsung_fimc_variant fimc0_variant_exynos4 = {
 	.pix_limit	 = &s5p_pix_limit[1],
 };
 
-static struct samsung_fimc_variant fimc3_variant_exynos4 = {
+static struct fimc_variant fimc3_variant_exynos4 = {
 	.pix_hoff	 = 1,
 	.has_cam_if	 = 1,
 	.has_cistatus2	 = 1,
@@ -1095,7 +1092,7 @@ static struct samsung_fimc_variant fimc3_variant_exynos4 = {
 };
 
 /* S5PC100 */
-static struct samsung_fimc_driverdata fimc_drvdata_s5p = {
+static struct fimc_drvdata fimc_drvdata_s5p = {
 	.variant = {
 		[0] = &fimc0_variant_s5p,
 		[1] = &fimc0_variant_s5p,
@@ -1106,7 +1103,7 @@ static struct samsung_fimc_driverdata fimc_drvdata_s5p = {
 };
 
 /* S5PV210, S5PC110 */
-static struct samsung_fimc_driverdata fimc_drvdata_s5pv210 = {
+static struct fimc_drvdata fimc_drvdata_s5pv210 = {
 	.variant = {
 		[0] = &fimc0_variant_s5pv210,
 		[1] = &fimc1_variant_s5pv210,
@@ -1116,8 +1113,8 @@ static struct samsung_fimc_driverdata fimc_drvdata_s5pv210 = {
 	.lclk_frequency = 166000000UL,
 };
 
-/* S5PV310, S5PC210 */
-static struct samsung_fimc_driverdata fimc_drvdata_exynos4 = {
+/* EXYNOS4210, S5PV310, S5PC210 */
+static struct fimc_drvdata fimc_drvdata_exynos4 = {
 	.variant = {
 		[0] = &fimc0_variant_exynos4,
 		[1] = &fimc0_variant_exynos4,

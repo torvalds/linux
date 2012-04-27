@@ -31,7 +31,7 @@
 #include "fimc-core.h"
 #include "fimc-reg.h"
 
-static int fimc_init_capture(struct fimc_dev *fimc)
+static int fimc_capture_hw_init(struct fimc_dev *fimc)
 {
 	struct fimc_ctx *ctx = fimc->vid_cap.ctx;
 	struct fimc_pipeline *p = &fimc->pipeline;
@@ -73,6 +73,14 @@ static int fimc_init_capture(struct fimc_dev *fimc)
 	return ret;
 }
 
+/*
+ * Reinitialize the driver so it is ready to start the streaming again.
+ * Set fimc->state to indicate stream off and the hardware shut down state.
+ * If not suspending (@suspend is false), return any buffers to videobuf2.
+ * Otherwise put any owned buffers onto the pending buffers queue, so they
+ * can be re-spun when the device is being resumed. Also perform FIMC
+ * software reset and disable streaming on the whole pipeline if required.
+ */
 static int fimc_capture_state_cleanup(struct fimc_dev *fimc, bool suspend)
 {
 	struct fimc_vid_cap *cap = &fimc->vid_cap;
@@ -146,9 +154,6 @@ static int fimc_capture_config_update(struct fimc_ctx *ctx)
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	int ret;
 
-	if (!test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
-		return 0;
-
 	fimc_hw_set_camera_offset(fimc, &ctx->s_frame);
 
 	ret = fimc_set_scaler_info(ctx);
@@ -220,7 +225,8 @@ void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
 		set_bit(ST_CAPT_RUN, &fimc->state);
 	}
 
-	fimc_capture_config_update(cap->ctx);
+	if (test_bit(ST_CAPT_APPLY_CFG, &fimc->state))
+		fimc_capture_config_update(cap->ctx);
 done:
 	if (cap->active_buf_cnt == 1) {
 		fimc_deactivate_capture(fimc);
@@ -242,9 +248,11 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 
 	vid_cap->frame_count = 0;
 
-	ret = fimc_init_capture(fimc);
-	if (ret)
-		goto error;
+	ret = fimc_capture_hw_init(fimc);
+	if (ret) {
+		fimc_capture_state_cleanup(fimc, false);
+		return ret;
+	}
 
 	set_bit(ST_CAPT_PEND, &fimc->state);
 
@@ -259,9 +267,6 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 	}
 
 	return 0;
-error:
-	fimc_capture_state_cleanup(fimc, false);
-	return ret;
 }
 
 static int stop_streaming(struct vb2_queue *q)
@@ -300,7 +305,7 @@ int fimc_capture_resume(struct fimc_dev *fimc)
 	vid_cap->buf_index = 0;
 	fimc_pipeline_initialize(&fimc->pipeline, &vid_cap->vfd->entity,
 				 false);
-	fimc_init_capture(fimc);
+	fimc_capture_hw_init(fimc);
 
 	clear_bit(ST_CAPT_SUSPENDED, &fimc->state);
 
@@ -563,7 +568,7 @@ static struct fimc_fmt *fimc_capture_try_format(struct fimc_ctx *ctx,
 {
 	bool rotation = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct samsung_fimc_variant *var = fimc->variant;
+	struct fimc_variant *var = fimc->variant;
 	struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *dst = &ctx->d_frame;
 	u32 depth, min_w, max_w, min_h, align_h = 3;
@@ -629,7 +634,7 @@ static void fimc_capture_try_crop(struct fimc_ctx *ctx, struct v4l2_rect *r,
 {
 	bool rotate = ctx->rotation == 90 || ctx->rotation == 270;
 	struct fimc_dev *fimc = ctx->fimc_dev;
-	struct samsung_fimc_variant *var = fimc->variant;
+	struct fimc_variant *var = fimc->variant;
 	struct fimc_pix_limit *pl = var->pix_limit;
 	struct fimc_frame *sink = &ctx->s_frame;
 	u32 max_w, max_h, min_w = 0, min_h = 0, min_sz;
