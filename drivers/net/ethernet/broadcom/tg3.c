@@ -5844,7 +5844,7 @@ static int tg3_rx(struct tg3_napi *tnapi, int budget)
 			pci_unmap_single(tp->pdev, dma_addr, skb_size,
 					 PCI_DMA_FROMDEVICE);
 
-			skb = build_skb(data);
+			skb = build_skb(data, 0);
 			if (!skb) {
 				kfree(data);
 				goto drop_it_no_recycle;

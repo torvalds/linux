@@ -3006,7 +3006,7 @@ error:
 
 	dma_unmap_single(&bp->pdev->dev, dma_addr, bp->rx_buf_use_size,
 			 PCI_DMA_FROMDEVICE);
-	skb = build_skb(data);
+	skb = build_skb(data, 0);
 	if (!skb) {
 		kfree(data);
 		goto error;
