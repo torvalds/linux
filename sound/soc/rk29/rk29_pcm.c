@@ -28,6 +28,8 @@
 
 #include "rk29_pcm.h"
 
+#define PCM_DMA_DEBUG 0
+
 #if 0
 #define DBG(x...) printk(KERN_INFO x)
 #else
@@ -137,7 +139,22 @@ void rk29_audio_buffdone(void *dev_id, int size,
 {
         struct snd_pcm_substream *substream = dev_id;
 	struct rockchip_runtime_data *prtd;
-
+#if PCM_DMA_DEBUG
+	static ktime_t before = {0},after = {0};
+	s64 t;
+	before = after;
+	after = ktime_get();
+	t = ktime_to_us(ktime_sub(after, before));
+	if(result == RK29_RES_OK)
+	{
+		if(t > 23220+73 && t != ktime_to_us(after)) // 4096/4/44100 + 32/44100 
+		{
+			printk(KERN_DEBUG "Time out:: Audio DMA buffdone time out!!! the time = %lld!\n", t);
+		}
+		printk(KERN_DEBUG "audio DMA callback time = %lld\n", t);
+	}
+//	printk(KERN_DEBUG "a %d %d\n", size, result);
+#endif
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	
 	if (!substream)
