@@ -1159,8 +1159,9 @@ static int da7210_probe(struct snd_soc_codec *codec)
 	/* Enable Aux2 */
 	snd_soc_write(codec, DA7210_AUX2, DA7210_AUX2_EN);
 
-	/* Set PLL Master clock range 10-20 MHz */
-	snd_soc_write(codec, DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ);
+	/* Set PLL Master clock range 10-20 MHz, enable PLL bypass */
+	snd_soc_write(codec, DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ |
+					      DA7210_PLL_BYP);
 
 	/* Diable PLL and bypass it */
 	snd_soc_write(codec, DA7210_PLL, DA7210_PLL_FS_48000);
@@ -1191,8 +1192,8 @@ static struct reg_default da7210_regmap_i2c_patch[] = {
 
 	/* System controller master disable */
 	{ DA7210_STARTUP1, 0x00 },
-	/* make sure that DA7210 use bypass mode before start up */
-	{ DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ | DA7210_PLL_BYP },
+	/* Set PLL Master clock range 10-20 MHz */
+	{ DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ },
 
 	/* to unlock */
 	{ DA7210_A_HID_UNLOCK, 0x8B},
@@ -1290,8 +1291,8 @@ static struct reg_default da7210_regmap_spi_patch[] = {
 
 	/* System controller master disable */
 	{ DA7210_STARTUP1, 0x00 },
-	/* make sure that DA7210 use bypass mode before start up */
-	{ DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ | DA7210_PLL_BYP },
+	/* Set PLL Master clock range 10-20 MHz */
+	{ DA7210_PLL_DIV3, DA7210_MCLK_RANGE_10_20_MHZ },
 
 	/* to set PAGE1 of SPI register space */
 	{ DA7210_PAGE_CONTROL, 0x80 },
