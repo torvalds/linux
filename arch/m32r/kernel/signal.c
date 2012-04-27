@@ -320,9 +320,6 @@ static void do_signal(struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (try_to_freeze()) 
-		goto no_signal;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Re-enable any watchpoints before delivering the
@@ -337,7 +334,6 @@ static void do_signal(struct pt_regs *regs)
 		return;
 	}
 
- no_signal:
 	/* Did we come from a system call? */
 	if (regs->syscall_nr >= 0) {
 		/* Restart the system call - no handlers present */

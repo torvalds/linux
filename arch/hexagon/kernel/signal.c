@@ -205,9 +205,6 @@ static void do_signal(struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	signo = get_signal_to_deliver(&info, &sigact, regs, NULL);
 
 	if (signo > 0) {
@@ -215,7 +212,6 @@ static void do_signal(struct pt_regs *regs)
 		return;
 	}
 
-no_signal:
 	/*
 	 * If we came from a system call, handle the restart.
 	 */

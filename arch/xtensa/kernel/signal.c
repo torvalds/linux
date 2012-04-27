@@ -453,9 +453,6 @@ static void do_signal(struct pt_regs *regs)
 	int signr;
 	struct k_sigaction ka;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	task_pt_regs(current)->icountlevel = 0;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
@@ -506,7 +503,6 @@ static void do_signal(struct pt_regs *regs)
 		return;
 	}
 
-no_signal:
 	/* Did we come from a system call? */
 	if ((signed) regs->syscall >= 0) {
 		/* Restart the system call - no handlers present */

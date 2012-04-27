@@ -491,16 +491,12 @@ static void do_signal(void)
 	if (!user_mode(__frame))
 		return;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	signr = get_signal_to_deliver(&info, &ka, __frame, NULL);
 	if (signr > 0) {
 		handle_signal(signr, &info, &ka);
 		return;
 	}
 
-no_signal:
 	/* Did we come from a system call? */
 	if (__frame->syscallno != -1) {
 		/* Restart the system call - no handlers present */

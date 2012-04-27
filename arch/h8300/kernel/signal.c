@@ -466,9 +466,6 @@ statis void do_signal(struct pt_regs *regs)
 	if ((regs->ccr & 0x10))
 		return;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	current->thread.esp0 = (unsigned long) regs;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
@@ -477,7 +474,6 @@ statis void do_signal(struct pt_regs *regs)
 		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
- no_signal:
 	/* Did we come from a system call? */
 	if (regs->orig_er0 >= 0) {
 		/* Restart the system call - no handlers present */

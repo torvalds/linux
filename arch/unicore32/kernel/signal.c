@@ -396,16 +396,12 @@ static void do_signal(struct pt_regs *regs, int syscall)
 	if (!user_mode(regs))
 		return;
 
-	if (try_to_freeze())
-		goto no_signal;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		handle_signal(signr, &ka, &info, regs, syscall);
 		return;
 	}
 
- no_signal:
 	/*
 	 * No signal to deliver to the process - restart the syscall.
 	 */
