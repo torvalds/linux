@@ -394,6 +394,7 @@ struct dwc3_event_buffer {
  * @busy_slot: first slot which is owned by HW
  * @desc: usb_endpoint_descriptor pointer
  * @dwc: pointer to DWC controller
+ * @saved_state: ep state saved during hibernation
  * @flags: endpoint flags (wedged, stalled, ...)
  * @current_trb: index of current used trb
  * @number: endpoint number (1 - 15)
@@ -416,6 +417,7 @@ struct dwc3_ep {
 	const struct usb_ss_ep_comp_descriptor *comp_desc;
 	struct dwc3		*dwc;
 
+	u32			saved_state;
 	unsigned		flags;
 #define DWC3_EP_ENABLED		(1 << 0)
 #define DWC3_EP_STALL		(1 << 1)
