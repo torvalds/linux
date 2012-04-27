@@ -425,8 +425,15 @@ static int _call_per_cable(struct notifier_block *nb, unsigned long val,
 
 	if ((val & (1 << obj->cable_index)) !=
 	    (edev->state & (1 << obj->cable_index))) {
+		bool cable_state = true;
+
 		obj->previous_value = val;
-		return obj->user_nb->notifier_call(obj->user_nb, val, ptr);
+
+		if (val & (1 << obj->cable_index))
+			cable_state = false;
+
+		return obj->user_nb->notifier_call(obj->user_nb,
+				cable_state, ptr);
 	}
 
 	return NOTIFY_OK;
