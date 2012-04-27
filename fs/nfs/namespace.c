@@ -257,7 +257,6 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	struct nfs_fh *fh = NULL;
 	struct nfs_fattr *fattr = NULL;
 	struct rpc_clnt *client;
-	rpc_authflavor_t flavor = RPC_AUTH_UNIX;
 
 	dprintk("--> nfs_d_automount()\n");
 
@@ -285,7 +284,7 @@ struct vfsmount *nfs_d_automount(struct path *path)
 	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
 		mnt = nfs_do_refmount(client, path->dentry);
 	else
-		mnt = nfs_do_submount(path->dentry, fh, fattr, flavor);
+		mnt = nfs_do_submount(path->dentry, fh, fattr, client->cl_auth->au_flavor);
 	rpc_shutdown_client(client);
 
 	if (IS_ERR(mnt))
