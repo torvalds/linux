@@ -234,7 +234,6 @@ extern const u32 nfs41_maxwrite_overhead;
 /* nfs4proc.c */
 #ifdef CONFIG_NFS_V4
 extern struct rpc_procinfo nfs4_procedures[];
-void nfs_fixup_secinfo_attributes(struct nfs_fattr *, struct nfs_fh *);
 #endif
 
 extern int nfs4_init_ds_session(struct nfs_client *clp);

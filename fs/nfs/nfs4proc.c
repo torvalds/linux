@@ -2528,37 +2528,67 @@ static int _nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir,
 	return status;
 }
 
-void nfs_fixup_secinfo_attributes(struct nfs_fattr *fattr, struct nfs_fh *fh)
+static void nfs_fixup_secinfo_attributes(struct nfs_fattr *fattr)
 {
-	memset(fh, 0, sizeof(struct nfs_fh));
-	fattr->fsid.major = 1;
 	fattr->valid |= NFS_ATTR_FATTR_TYPE | NFS_ATTR_FATTR_MODE |
-		NFS_ATTR_FATTR_NLINK | NFS_ATTR_FATTR_FSID | NFS_ATTR_FATTR_MOUNTPOINT;
+		NFS_ATTR_FATTR_NLINK | NFS_ATTR_FATTR_MOUNTPOINT;
 	fattr->mode = S_IFDIR | S_IRUGO | S_IXUGO;
 	fattr->nlink = 2;
+}
+
+static int nfs4_proc_lookup_common(struct rpc_clnt **clnt, struct inode *dir,
+				   struct qstr *name, struct nfs_fh *fhandle,
+				   struct nfs_fattr *fattr)
+{
+	struct nfs4_exception exception = { };
+	struct rpc_clnt *client = *clnt;
+	int err;
+	do {
+		err = _nfs4_proc_lookup(client, dir, name, fhandle, fattr);
+		switch (err) {
+		case -NFS4ERR_BADNAME:
+			err = -ENOENT;
+			goto out;
+		case -NFS4ERR_MOVED:
+			err = nfs4_get_referral(dir, name, fattr, fhandle);
+			goto out;
+		case -NFS4ERR_WRONGSEC:
+			err = -EPERM;
+			if (client != *clnt)
+				goto out;
+
+			client = nfs4_create_sec_client(client, dir, name);
+			if (IS_ERR(client))
+				return PTR_ERR(client);
+
+			exception.retry = 1;
+			break;
+		default:
+			err = nfs4_handle_exception(NFS_SERVER(dir), err, &exception);
+		}
+	} while (exception.retry);
+
+out:
+	if (err == 0)
+		*clnt = client;
+	else if (client != *clnt)
+		rpc_shutdown_client(client);
+
+	return err;
 }
 
 static int nfs4_proc_lookup(struct rpc_clnt *clnt, struct inode *dir, struct qstr *name,
 			    struct nfs_fh *fhandle, struct nfs_fattr *fattr)
 {
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		int status;
+	int status;
+	struct rpc_clnt *client = NFS_CLIENT(dir);
 
-		status = _nfs4_proc_lookup(clnt, dir, name, fhandle, fattr);
-		switch (status) {
-		case -NFS4ERR_BADNAME:
-			return -ENOENT;
-		case -NFS4ERR_MOVED:
-			return nfs4_get_referral(dir, name, fattr, fhandle);
-		case -NFS4ERR_WRONGSEC:
-			nfs_fixup_secinfo_attributes(fattr, fhandle);
-		}
-		err = nfs4_handle_exception(NFS_SERVER(dir),
-				status, &exception);
-	} while (exception.retry);
-	return err;
+	status = nfs4_proc_lookup_common(&client, dir, name, fhandle, fattr);
+	if (client != NFS_CLIENT(dir)) {
+		rpc_shutdown_client(client);
+		nfs_fixup_secinfo_attributes(fattr);
+	}
+	return status;
 }
 
 static int _nfs4_proc_access(struct inode *inode, struct nfs_access_entry *entry)
@@ -4996,8 +5026,8 @@ static int _nfs4_proc_secinfo(struct inode *dir, const struct qstr *name, struct
 	return status;
 }
 
-static int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
-		struct nfs4_secinfo_flavors *flavors)
+int nfs4_proc_secinfo(struct inode *dir, const struct qstr *name,
+		      struct nfs4_secinfo_flavors *flavors)
 {
 	struct nfs4_exception exception = { };
 	int err;

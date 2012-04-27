@@ -132,6 +132,58 @@ static size_t nfs_parse_server_name(char *string, size_t len,
 	return ret;
 }
 
+static rpc_authflavor_t nfs4_negotiate_security(struct inode *inode, struct qstr *name)
+{
+	struct page *page;
+	struct nfs4_secinfo_flavors *flavors;
+	rpc_authflavor_t flavor;
+	int err;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+	flavors = page_address(page);
+
+	err = nfs4_proc_secinfo(inode, name, flavors);
+	if (err < 0) {
+		flavor = err;
+		goto out;
+	}
+
+	flavor = nfs_find_best_sec(flavors);
+
+out:
+	put_page(page);
+	return flavor;
+}
+
+/*
+ * Please call rpc_shutdown_client() when you are done with this client.
+ */
+struct rpc_clnt *nfs4_create_sec_client(struct rpc_clnt *clnt, struct inode *inode,
+					struct qstr *name)
+{
+	struct rpc_clnt *clone;
+	struct rpc_auth *auth;
+	rpc_authflavor_t flavor;
+
+	flavor = nfs4_negotiate_security(inode, name);
+	if (flavor < 0)
+		return ERR_PTR(flavor);
+
+	clone = rpc_clone_client(clnt);
+	if (IS_ERR(clone))
+		return clone;
+
+	auth = rpcauth_create(flavor, clone);
+	if (!auth) {
+		rpc_shutdown_client(clone);
+		clone = ERR_PTR(-EIO);
+	}
+
+	return clone;
+}
+
 static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 				     char *page, char *page2,
 				     const struct nfs4_fs_location *location)
