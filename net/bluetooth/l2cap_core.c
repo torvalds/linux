@@ -120,17 +120,6 @@ static struct l2cap_chan *__l2cap_get_chan_by_ident(struct l2cap_conn *conn, u8 
 	return NULL;
 }
 
-static inline struct l2cap_chan *l2cap_get_chan_by_ident(struct l2cap_conn *conn, u8 ident)
-{
-	struct l2cap_chan *c;
-
-	mutex_lock(&conn->chan_lock);
-	c = __l2cap_get_chan_by_ident(conn, ident);
-	mutex_unlock(&conn->chan_lock);
-
-	return c;
-}
-
 static struct l2cap_chan *__l2cap_global_chan_by_addr(__le16 psm, bdaddr_t *src)
 {
 	struct l2cap_chan *c;
