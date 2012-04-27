@@ -74,15 +74,14 @@ static int kern_do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka_copy;
 	siginfo_t info;
-	sigset_t *oldset;
 	int sig, handled_sig = 0;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	while ((sig = get_signal_to_deliver(&info, &ka_copy, regs, NULL)) > 0) {
+		sigset_t *oldset;
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			oldset = &current->saved_sigmask;
+		else
+			oldset = &current->blocked;
 		handled_sig = 1;
 		/* Whee!  Actually deliver the signal.  */
 		if (!handle_signal(regs, sig, &ka_copy, &info, oldset)) {
