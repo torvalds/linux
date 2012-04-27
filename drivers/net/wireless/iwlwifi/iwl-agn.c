@@ -1420,37 +1420,37 @@ void iwl_set_hw_params(struct iwl_priv *priv)
 
 
 
-void iwl_debug_config(struct iwl_priv *priv)
+/* show what optional capabilities we have */
+void iwl_option_config(struct iwl_priv *priv)
 {
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUG "
 #ifdef CONFIG_IWLWIFI_DEBUG
-		"enabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUG enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUG disabled\n");
 #endif
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUGFS "
+
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-		"enabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUGFS enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEBUGFS disabled\n");
 #endif
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING "
+
 #ifdef CONFIG_IWLWIFI_DEVICE_TRACING
-		"enabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TRACING disabled\n");
 #endif
-	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE "
+
 #ifdef CONFIG_IWLWIFI_DEVICE_TESTMODE
-		"enabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_DEVICE_TESTMODE disabled\n");
 #endif
-	IWL_INFO(priv, "CONFIG_IWLWIFI_P2P "
+
 #ifdef CONFIG_IWLWIFI_P2P
-		"enabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_P2P enabled\n");
 #else
-		"disabled\n");
+	IWL_INFO(priv, "CONFIG_IWLWIFI_P2P disabled\n");
 #endif
 }
 
@@ -1569,8 +1569,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 
 	SET_IEEE80211_DEV(priv->hw, priv->trans->dev);
 
-	/* show what debugging capabilities we have */
-	iwl_debug_config(priv);
+	iwl_option_config(priv);
 
 	IWL_DEBUG_INFO(priv, "*** LOAD DRIVER ***\n");
 
