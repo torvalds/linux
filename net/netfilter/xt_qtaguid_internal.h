@@ -202,7 +202,8 @@ struct iface_stat {
 	/* net_dev is only valid for active iface_stat */
 	struct net_device *net_dev;
 
-	struct byte_packet_counters totals[IFS_MAX_DIRECTIONS];
+	struct byte_packet_counters totals_via_dev[IFS_MAX_DIRECTIONS];
+	struct byte_packet_counters totals_via_skb[IFS_MAX_DIRECTIONS];
 	/*
 	 * We keep the last_known, because some devices reset their counters
 	 * just before NETDEV_UP, while some will reset just before
@@ -254,6 +255,8 @@ struct qtaguid_event_counts {
 	atomic64_t iface_events;  /* Number of NETDEV_* events handled */
 
 	atomic64_t match_calls;   /* Number of times iptables called mt */
+	/* Number of times iptables called mt from pre or post routing hooks */
+	atomic64_t match_calls_prepost;
 	/*
 	 * match_found_sk_*: numbers related to the netfilter matching
 	 * function finding a sock for the sk_buff.
