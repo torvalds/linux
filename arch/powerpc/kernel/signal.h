@@ -14,7 +14,6 @@ extern void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_fla
 
 extern void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
 				  size_t frame_size, int is_32);
-extern void restore_sigmask(sigset_t *set);
 
 extern int handle_signal32(unsigned long sig, struct k_sigaction *ka,
 			   siginfo_t *info, sigset_t *oldset,

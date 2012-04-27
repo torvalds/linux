@@ -51,15 +51,6 @@ void __user * get_sigframe(struct k_sigaction *ka, struct pt_regs *regs,
         return (void __user *)newsp;
 }
 
-
-/*
- * Restore the user process's signal mask
- */
-void restore_sigmask(sigset_t *set)
-{
-	set_current_blocked(set);
-}
-
 static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 				  int has_handler)
 {
