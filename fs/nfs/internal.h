@@ -185,17 +185,6 @@ static inline void nfs_fs_proc_exit(void)
 }
 #endif
 
-/* nfs4namespace.c */
-#ifdef CONFIG_NFS_V4
-extern struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry);
-#else
-static inline
-struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry)
-{
-	return ERR_PTR(-ENOENT);
-}
-#endif
-
 /* callback_xdr.c */
 extern struct svc_version nfs4_callback_version1;
 extern struct svc_version nfs4_callback_version4;
@@ -286,6 +275,10 @@ extern void nfs_sb_deactive(struct super_block *sb);
 extern char *nfs_path(char **p, struct dentry *dentry,
 		      char *buffer, ssize_t buflen);
 extern struct vfsmount *nfs_d_automount(struct path *path);
+struct vfsmount *nfs_submount(struct nfs_server *, struct dentry *,
+			      struct nfs_fh *, struct nfs_fattr *);
+struct vfsmount *nfs_do_submount(struct dentry *, struct nfs_fh *,
+				 struct nfs_fattr *, rpc_authflavor_t);
 
 /* getroot.c */
 extern struct dentry *nfs_get_root(struct super_block *, struct nfs_fh *,

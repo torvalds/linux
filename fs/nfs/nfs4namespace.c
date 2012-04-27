@@ -329,7 +329,7 @@ out:
  * @dentry - dentry of referral
  *
  */
-struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry)
+static struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOMEM);
 	struct dentry *parent;
@@ -368,5 +368,27 @@ out_free:
 	kfree(fs_locations);
 out:
 	dprintk("%s: done\n", __func__);
+	return mnt;
+}
+
+struct vfsmount *nfs4_submount(struct nfs_server *server, struct dentry *dentry,
+			       struct nfs_fh *fh, struct nfs_fattr *fattr)
+{
+	struct dentry *parent = dget_parent(dentry);
+	struct rpc_clnt *client;
+	struct vfsmount *mnt;
+
+	/* Look it up again to get its attributes and sec flavor */
+	client = nfs4_proc_lookup_mountpoint(parent->d_inode, &dentry->d_name, fh, fattr);
+	dput(parent);
+	if (IS_ERR(client))
+		return ERR_CAST(client);
+
+	if (fattr->valid & NFS_ATTR_FATTR_V4_REFERRAL)
+		mnt = nfs_do_refmount(client, dentry);
+	else
+		mnt = nfs_do_submount(dentry, fh, fattr, client->cl_auth->au_flavor);
+
+	rpc_shutdown_client(client);
 	return mnt;
 }
