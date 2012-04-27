@@ -1593,7 +1593,7 @@ static int import_ep(struct c4iw_ep *ep, __be32 peer_ip, struct dst_entry *dst,
 					n, n->dev, 0);
 		if (!ep->l2t)
 			goto out;
-		ep->mtu = dst_mtu(ep->dst);
+		ep->mtu = dst_mtu(dst);
 		ep->tx_chan = cxgb4_port_chan(n->dev);
 		ep->smac_idx = (cxgb4_port_viid(n->dev) & 0x7F) << 1;
 		step = cdev->rdev.lldi.ntxq /
