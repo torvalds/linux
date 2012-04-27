@@ -40,16 +40,8 @@ u32 omap2xxx_get_sysclkdiv(void)
 	return div;
 }
 
-#ifdef CONFIG_COMMON_CLK
 unsigned long omap2xxx_sys_clk_recalc(struct clk_hw *clk,
 				      unsigned long parent_rate)
 {
 	return parent_rate / omap2xxx_get_sysclkdiv();
 }
-#else
-unsigned long omap2xxx_sys_clk_recalc(struct clk *clk)
-{
-	return clk->parent->rate / omap2xxx_get_sysclkdiv();
-}
-#endif
-
