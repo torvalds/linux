@@ -758,7 +758,7 @@ static void i915_error_work_func(struct work_struct *work)
 	if (atomic_read(&dev_priv->mm.wedged)) {
 		DRM_DEBUG_DRIVER("resetting chip\n");
 		kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_event);
-		if (!i915_reset(dev, GRDOM_RENDER)) {
+		if (!i915_reset(dev)) {
 			atomic_set(&dev_priv->mm.wedged, 0);
 			kobject_uevent_env(&dev->primary->kdev.kobj, KOBJ_CHANGE, reset_done_event);
 		}
