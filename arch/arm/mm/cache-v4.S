@@ -88,6 +88,7 @@ ENTRY(v4_coherent_kern_range)
  *	- end	 - virtual end address
  */
 ENTRY(v4_coherent_user_range)
+	mov	r0, #0
 	mov	pc, lr
 
 /*
