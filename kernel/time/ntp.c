@@ -473,8 +473,6 @@ int second_overflow(unsigned long secs)
 							 << NTP_SCALE_SHIFT;
 	time_adjust = 0;
 
-
-
 out:
 	spin_unlock_irqrestore(&ntp_lock, flags);
 
@@ -559,10 +557,10 @@ static inline void process_adj_status(struct timex *txc, struct timespec *ts)
 	/* only set allowed bits */
 	time_status &= STA_RONLY;
 	time_status |= txc->status & ~STA_RONLY;
-
 }
+
 /*
- * Called with the xtime lock held, so we can access and modify
+ * Called with ntp_lock held, so we can access and modify
  * all the global NTP state:
  */
 static inline void process_adjtimex_modes(struct timex *txc, struct timespec *ts)
