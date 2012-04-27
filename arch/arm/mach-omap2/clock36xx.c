@@ -37,28 +37,18 @@
  * (Any other value different from the Read value) to the
  * corresponding CM_CLKSEL register will refresh the dividers.
  */
-#ifdef CONFIG_COMMON_CLK
 int omap36xx_pwrdn_clk_enable_with_hsdiv_restore(struct clk_hw *clk)
 {
 	struct clk_hw_omap *parent;
 	struct clk_hw *parent_hw;
-#else
-static int omap36xx_pwrdn_clk_enable_with_hsdiv_restore(struct clk *clk)
-{
-	struct clk *parent;
-#endif
 	u32 dummy_v, orig_v, clksel_shift;
 	int ret;
 
 	/* Clear PWRDN bit of HSDIVIDER */
 	ret = omap2_dflt_clk_enable(clk);
 
-#ifdef CONFIG_COMMON_CLK
 	parent_hw = __clk_get_hw(__clk_get_parent(clk->clk));
 	parent = to_clk_hw_omap(parent_hw);
-#else
-	parent = clk->parent;
-#endif
 
 	/* Restore the dividers */
 	if (!ret) {
@@ -76,12 +66,3 @@ static int omap36xx_pwrdn_clk_enable_with_hsdiv_restore(struct clk *clk)
 
 	return ret;
 }
-
-#ifndef CONFIG_COMMON_CLK
-const struct clkops clkops_omap36xx_pwrdn_with_hsdiv_wait_restore = {
-	.enable		= omap36xx_pwrdn_clk_enable_with_hsdiv_restore,
-	.disable	= omap2_dflt_clk_disable,
-	.find_companion	= omap2_clk_dflt_find_companion,
-	.find_idlest	= omap2_clk_dflt_find_idlest,
-};
-#endif
