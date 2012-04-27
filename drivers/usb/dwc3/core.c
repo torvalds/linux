@@ -255,7 +255,7 @@ static int __devinit dwc3_alloc_event_buffers(struct dwc3 *dwc, unsigned length)
  *
  * Returns 0 on success otherwise negative errno.
  */
-static int __devinit dwc3_event_buffers_setup(struct dwc3 *dwc)
+static int dwc3_event_buffers_setup(struct dwc3 *dwc)
 {
 	struct dwc3_event_buffer	*evt;
 	int				n;
@@ -265,6 +265,8 @@ static int __devinit dwc3_event_buffers_setup(struct dwc3 *dwc)
 		dev_dbg(dwc->dev, "Event buf %p dma %08llx length %d\n",
 				evt->buf, (unsigned long long) evt->dma,
 				evt->length);
+
+		evt->lpos = 0;
 
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(n),
 				lower_32_bits(evt->dma));
@@ -285,6 +287,9 @@ static void dwc3_event_buffers_cleanup(struct dwc3 *dwc)
 
 	for (n = 0; n < dwc->num_event_buffers; n++) {
 		evt = dwc->ev_buffs[n];
+
+		evt->lpos = 0;
+
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRLO(n), 0);
 		dwc3_writel(dwc->regs, DWC3_GEVNTADRHI(n), 0);
 		dwc3_writel(dwc->regs, DWC3_GEVNTSIZ(n), 0);
