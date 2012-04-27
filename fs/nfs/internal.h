@@ -186,10 +186,10 @@ static inline void nfs_fs_proc_exit(void)
 
 /* nfs4namespace.c */
 #ifdef CONFIG_NFS_V4
-extern struct vfsmount *nfs_do_refmount(struct dentry *dentry);
+extern struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry);
 #else
 static inline
-struct vfsmount *nfs_do_refmount(struct dentry *dentry)
+struct vfsmount *nfs_do_refmount(struct rpc_clnt *client, struct dentry *dentry)
 {
 	return ERR_PTR(-ENOENT);
 }
