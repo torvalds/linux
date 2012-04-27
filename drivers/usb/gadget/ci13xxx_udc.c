@@ -1686,7 +1686,7 @@ __acquires(udc->lock)
 	trace("%p", udc);
 
 	if (udc == NULL) {
-		err("EINVAL");
+		pr_err("EINVAL\n");
 		return;
 	}
 
@@ -1709,7 +1709,7 @@ __acquires(udc->lock)
 
  done:
 	if (retval)
-		err("error: %i", retval);
+		pr_err("error: %i\n", retval);
 }
 
 /**
@@ -1724,7 +1724,7 @@ static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
 	trace("%p, %p", ep, req);
 
 	if (ep == NULL || req == NULL) {
-		err("EINVAL");
+		pr_err("EINVAL\n");
 		return;
 	}
 
@@ -1907,7 +1907,7 @@ __acquires(udc->lock)
 	trace("%p", udc);
 
 	if (udc == NULL) {
-		err("EINVAL");
+		pr_err("EINVAL\n");
 		return;
 	}
 
@@ -1929,7 +1929,8 @@ __acquires(udc->lock)
 						  "ERROR", err);
 					spin_unlock(udc->lock);
 					if (usb_ep_set_halt(&mEp->ep))
-						err("error: ep_set_halt");
+						dev_err(&udc->gadget.dev,
+							"error: ep_set_halt\n");
 					spin_lock(udc->lock);
 				}
 			}
@@ -1940,7 +1941,8 @@ __acquires(udc->lock)
 			continue;
 
 		if (i != 0) {
-			warn("ctrl traffic received at endpoint");
+			dev_warn(&udc->gadget.dev,
+				"ctrl traffic received at endpoint\n");
 			continue;
 		}
 
@@ -2079,7 +2081,8 @@ delegate:
 
 			spin_unlock(udc->lock);
 			if (usb_ep_set_halt(&mEp->ep))
-				err("error: ep_set_halt");
+				dev_err(&udc->gadget.dev,
+					"error: ep_set_halt\n");
 			spin_lock(udc->lock);
 		}
 	}
@@ -2200,7 +2203,7 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	trace("%p, %i", ep, gfp_flags);
 
 	if (ep == NULL) {
-		err("EINVAL");
+		pr_err("EINVAL\n");
 		return NULL;
 	}
 
@@ -2236,10 +2239,10 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 	trace("%p, %p", ep, req);
 
 	if (ep == NULL || req == NULL) {
-		err("EINVAL");
+		pr_err("EINVAL\n");
 		return;
 	} else if (!list_empty(&mReq->queue)) {
-		err("EBUSY");
+		pr_err("EBUSY\n");
 		return;
 	}
 
@@ -2288,7 +2291,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	/* first nuke then test link, e.g. previous status has not sent */
 	if (!list_empty(&mReq->queue)) {
 		retval = -EBUSY;
-		err("request already in queue");
+		pr_err("request already in queue\n");
 		goto done;
 	}
 
@@ -2444,7 +2447,7 @@ static void ep_fifo_flush(struct usb_ep *ep)
 	trace("%p", ep);
 
 	if (ep == NULL) {
-		err("%02X: -EINVAL", _usb_addr(mEp));
+		pr_err("%02X: -EINVAL\n", _usb_addr(mEp));
 		return;
 	}
 
@@ -2777,7 +2780,7 @@ static irqreturn_t udc_irq(void)
 	trace();
 
 	if (udc == NULL) {
-		err("ENODEV");
+		pr_err("ENODEV\n");
 		return IRQ_HANDLED;
 	}
 
@@ -2849,7 +2852,7 @@ static void udc_release(struct device *dev)
 	trace("%p", dev);
 
 	if (dev == NULL)
-		err("EINVAL");
+		pr_err("EINVAL\n");
 }
 
 /**
@@ -2951,7 +2954,7 @@ remove_trans:
 		usb_put_transceiver(udc->transceiver);
 	}
 
-	err("error = %i", retval);
+	dev_err(dev, "error = %i\n", retval);
 remove_dbg:
 #ifdef CONFIG_USB_GADGET_DEBUG_FILES
 	dbg_remove_files(&udc->gadget.dev);
@@ -2977,7 +2980,7 @@ static void udc_remove(void)
 	struct ci13xxx *udc = _udc;
 
 	if (udc == NULL) {
-		err("EINVAL");
+		pr_err("EINVAL\n");
 		return;
 	}
 	usb_del_gadget_udc(&udc->gadget);
