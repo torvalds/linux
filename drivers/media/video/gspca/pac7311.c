@@ -70,6 +70,8 @@ enum e_ctrl {
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 	struct gspca_ctrl ctrls[NCTRLS];
+	int exp_too_low_cnt;
+	int exp_too_high_cnt;
 
 	u8 sof_read;
 	u8 autogain_ignore_frames;
@@ -81,7 +83,6 @@ struct sd {
 static void setcontrast(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
 static void setexposure(struct gspca_dev *gspca_dev);
-static void setautogain(struct gspca_dev *gspca_dev);
 static void sethvflip(struct gspca_dev *gspca_dev);
 
 static const struct ctrl sd_ctrls[] = {
@@ -106,7 +107,6 @@ static const struct ctrl sd_ctrls[] = {
 		.maximum = 244,
 		.step    = 1,
 		.default_value = 122,
-#define GAIN_KNEE 244 /* Gain seems to cause little noise on the 7311 */
 	    },
 	    .set_control = setgain,
 	},
@@ -118,8 +118,7 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 2,
 		.maximum = 63,
 		.step    = 1,
-		.default_value = 2, /* 30 fps */
-#define EXPOSURE_KNEE 6 /* 10 fps */
+		.default_value = 3, /* 20 fps, avoid using high compr. */
 	    },
 	    .set_control = setexposure,
 	},
@@ -133,7 +132,6 @@ static const struct ctrl sd_ctrls[] = {
 		.step    = 1,
 		.default_value = 1,
 	    },
-	    .set_control = setautogain,
 	},
 [HFLIP] = {
 	    {
@@ -497,7 +495,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 }
 
-#define WANT_REGULAR_AUTOGAIN
+#define WANT_COARSE_EXPO_AUTOGAIN
 #include "autogain_functions.h"
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -514,8 +512,8 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
-	else if (auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
-			deadzone, GAIN_KNEE, EXPOSURE_KNEE))
+	else if (coarse_grained_expo_autogain(gspca_dev, avg_lum, desired_lum,
+			deadzone))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
@@ -617,22 +615,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			gspca_dev->height, gspca_dev->width);
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
-}
-
-static void setautogain(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (sd->ctrls[AUTOGAIN].val) {
-		sd->ctrls[EXPOSURE].val = 2;
-		sd->ctrls[GAIN].val = 122;
-		if (gspca_dev->streaming) {
-			sd->autogain_ignore_frames =
-				PAC_AUTOGAIN_IGNORE_FRAMES;
-			setexposure(gspca_dev);
-			setgain(gspca_dev);
-		}
-	}
 }
 
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
