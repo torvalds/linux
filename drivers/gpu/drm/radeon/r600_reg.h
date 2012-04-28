@@ -192,9 +192,7 @@
 #define R600_HDMI_AUDIO_DEBUG_1         0xe4
 #define R600_HDMI_AUDIO_DEBUG_2         0xe8
 #define R600_HDMI_AUDIO_DEBUG_3         0xec
-
-/* HDMI additional config base register addresses */
-#define R600_HDMI_CONFIG1                 0x7600
-#define R600_HDMI_CONFIG2                 0x7a00
+#define R600_HDMI_AUDIO_PACKET_CNTL	0x204
+#define EVERGREEN_AUDIO_PACKET_CNTL	0xfc
 
 #endif

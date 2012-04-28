@@ -385,7 +385,6 @@ struct radeon_encoder {
 	void *enc_priv;
 	int audio_polling_active;
 	int hdmi_offset;
-	int hdmi_config_offset;
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
 	bool is_ext_encoder;

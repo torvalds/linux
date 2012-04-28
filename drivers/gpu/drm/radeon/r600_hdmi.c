@@ -485,14 +485,9 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 		}
 		radeon_encoder->hdmi_offset = EVERGREEN_HDMI_BASE +
 						eg_offsets[dig->dig_encoder];
-		radeon_encoder->hdmi_config_offset = radeon_encoder->hdmi_offset
-						+ EVERGREEN_HDMI_CONFIG_OFFSET;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
 			R600_HDMI_BLOCK3 : R600_HDMI_BLOCK1;
-		if (ASIC_IS_DCE32(rdev))
-			radeon_encoder->hdmi_config_offset = dig->dig_encoder ?
-				R600_HDMI_CONFIG2 : R600_HDMI_CONFIG1;
 	} else if (rdev->family >= CHIP_R600 || rdev->family == CHIP_RS600 ||
 		   rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) {
 		radeon_encoder->hdmi_offset = r600_hdmi_find_free_block(dev);
@@ -525,9 +520,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE4(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0x1, ~0x1);
+		WREG32_P(radeon_encoder->hdmi_offset + EVERGREEN_AUDIO_PACKET_CNTL, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE32(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0x1, ~0x1);
+		WREG32_P(radeon_encoder->hdmi_offset + R600_HDMI_AUDIO_PACKET_CNTL, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE3(rdev)) {
 		/* TODO */
 	} else if (rdev->family >= CHIP_R600) {
@@ -588,9 +583,9 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE4(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_config_offset + 0xc, 0, ~0x1);
+		WREG32_P(radeon_encoder->hdmi_offset + EVERGREEN_AUDIO_PACKET_CNTL, 0, ~0x1);
 	} else if (ASIC_IS_DCE32(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0, ~0x1);
+		WREG32_P(radeon_encoder->hdmi_offset + R600_HDMI_AUDIO_PACKET_CNTL, 0, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
@@ -610,5 +605,4 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	}
 
 	radeon_encoder->hdmi_offset = 0;
-	radeon_encoder->hdmi_config_offset = 0;
 }
