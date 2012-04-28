@@ -49,6 +49,21 @@ config PINCTRL_MMP2
 	select PINCTRL_PXA3xx
 	select PINCONF
 
+config PINCTRL_MXS
+	bool
+
+config PINCTRL_IMX23
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_MXS
+
+config PINCTRL_IMX28
+	bool
+	select PINMUX
+	select PINCONF
+	select PINCTRL_MXS
+
 config PINCTRL_PXA168
 	bool "PXA168 pin controller driver"
 	depends on ARCH_MMP
