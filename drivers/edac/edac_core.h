@@ -71,28 +71,29 @@ extern const char *edac_mem_types[];
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
 
-#define edac_debug_printk(level, fmt, arg...)                           \
-	do {                                                            \
-		if (level <= edac_debug_level)                          \
-			edac_printk(KERN_DEBUG, EDAC_DEBUG,		\
-				    "%s: " fmt, __func__, ##arg);	\
-	} while (0)
-
-#define debugf0( ... ) edac_debug_printk(0, __VA_ARGS__ )
-#define debugf1( ... ) edac_debug_printk(1, __VA_ARGS__ )
-#define debugf2( ... ) edac_debug_printk(2, __VA_ARGS__ )
-#define debugf3( ... ) edac_debug_printk(3, __VA_ARGS__ )
-#define debugf4( ... ) edac_debug_printk(4, __VA_ARGS__ )
+#define edac_debug_printk(level, fmt, ...)				\
+do {									\
+	if (level <= edac_debug_level)					\
+		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
+			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
 
 #else				/* !CONFIG_EDAC_DEBUG */
 
-#define debugf0( ... )
-#define debugf1( ... )
-#define debugf2( ... )
-#define debugf3( ... )
-#define debugf4( ... )
+#define edac_debug_printk(level, fmt, ...)				\
+do {									\
+	if (0)								\
+		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
+			    "%s: " fmt, __func__, ##__VA_ARGS__);	\
+} while (0)
 
 #endif				/* !CONFIG_EDAC_DEBUG */
+
+#define debugf0(fmt, ...) edac_debug_printk(0, fmt, ##__VA_ARGS__)
+#define debugf1(fmt, ...) edac_debug_printk(1, fmt, ##__VA_ARGS__)
+#define debugf2(fmt, ...) edac_debug_printk(2, fmt, ##__VA_ARGS__)
+#define debugf3(fmt, ...) edac_debug_printk(3, fmt, ##__VA_ARGS__)
+#define debugf4(fmt, ...) edac_debug_printk(4, fmt, ##__VA_ARGS__)
 
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev

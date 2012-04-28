@@ -273,7 +273,7 @@
 #define CHANNELS_PER_BRANCH	2
 #define MAX_BRANCHES		2
 
-/* Defines to extract the vaious fields from the
+/* Defines to extract the various fields from the
  *	MTRx - Memory Technology Registers
  */
 #define MTR_DIMMS_PRESENT(mtr)		((mtr) & (0x1 << 8))
@@ -286,22 +286,6 @@
 #define MTR_DIMM_ROWS_ADDR_BITS(mtr)	(MTR_DIMM_ROWS(mtr) + 13)
 #define MTR_DIMM_COLS(mtr)		((mtr) & 0x3)
 #define MTR_DIMM_COLS_ADDR_BITS(mtr)	(MTR_DIMM_COLS(mtr) + 10)
-
-#ifdef CONFIG_EDAC_DEBUG
-static char *numrow_toString[] = {
-	"8,192 - 13 rows",
-	"16,384 - 14 rows",
-	"32,768 - 15 rows",
-	"reserved"
-};
-
-static char *numcol_toString[] = {
-	"1,024 - 10 columns",
-	"2,048 - 11 columns",
-	"4,096 - 12 columns",
-	"reserved"
-};
-#endif
 
 /* enables the report of miscellaneous messages as CE errors - default off */
 static int misc_messages;
@@ -989,8 +973,16 @@ static void decode_mtr(int slot_row, u16 mtr)
 	debugf2("\t\tWIDTH: x%d\n", MTR_DRAM_WIDTH(mtr));
 	debugf2("\t\tNUMBANK: %d bank(s)\n", MTR_DRAM_BANKS(mtr));
 	debugf2("\t\tNUMRANK: %s\n", MTR_DIMM_RANK(mtr) ? "double" : "single");
-	debugf2("\t\tNUMROW: %s\n", numrow_toString[MTR_DIMM_ROWS(mtr)]);
-	debugf2("\t\tNUMCOL: %s\n", numcol_toString[MTR_DIMM_COLS(mtr)]);
+	debugf2("\t\tNUMROW: %s\n",
+		MTR_DIMM_ROWS(mtr) == 0 ? "8,192 - 13 rows" :
+		MTR_DIMM_ROWS(mtr) == 1 ? "16,384 - 14 rows" :
+		MTR_DIMM_ROWS(mtr) == 2 ? "32,768 - 15 rows" :
+		"reserved");
+	debugf2("\t\tNUMCOL: %s\n",
+		MTR_DIMM_COLS(mtr) == 0 ? "1,024 - 10 columns" :
+		MTR_DIMM_COLS(mtr) == 1 ? "2,048 - 11 columns" :
+		MTR_DIMM_COLS(mtr) == 2 ? "4,096 - 12 columns" :
+		"reserved");
 }
 
 static void handle_channel(struct i5000_pvt *pvt, int slot, int channel,

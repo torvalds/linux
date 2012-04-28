@@ -182,24 +182,6 @@ static const u16 mtr_regs[MAX_SLOTS] = {
 #define MTR_DIMM_COLS(mtr)		((mtr) & 0x3)
 #define MTR_DIMM_COLS_ADDR_BITS(mtr)	(MTR_DIMM_COLS(mtr) + 10)
 
-#ifdef CONFIG_EDAC_DEBUG
-/* MTR NUMROW */
-static const char *numrow_toString[] = {
-	"8,192 - 13 rows",
-	"16,384 - 14 rows",
-	"32,768 - 15 rows",
-	"65,536 - 16 rows"
-};
-
-/* MTR NUMCOL */
-static const char *numcol_toString[] = {
-	"1,024 - 10 columns",
-	"2,048 - 11 columns",
-	"4,096 - 12 columns",
-	"reserved"
-};
-#endif
-
 /************************************************
  * i7300 Register definitions for error detection
  ************************************************/
@@ -645,8 +627,16 @@ static int decode_mtr(struct i7300_pvt *pvt,
 
 	debugf2("\t\tNUMBANK: %d bank(s)\n", MTR_DRAM_BANKS(mtr));
 	debugf2("\t\tNUMRANK: %s\n", MTR_DIMM_RANKS(mtr) ? "double" : "single");
-	debugf2("\t\tNUMROW: %s\n", numrow_toString[MTR_DIMM_ROWS(mtr)]);
-	debugf2("\t\tNUMCOL: %s\n", numcol_toString[MTR_DIMM_COLS(mtr)]);
+	debugf2("\t\tNUMROW: %s\n",
+		MTR_DIMM_ROWS(mtr) == 0 ? "8,192 - 13 rows" :
+		MTR_DIMM_ROWS(mtr) == 1 ? "16,384 - 14 rows" :
+		MTR_DIMM_ROWS(mtr) == 2 ? "32,768 - 15 rows" :
+		"65,536 - 16 rows");
+	debugf2("\t\tNUMCOL: %s\n",
+		MTR_DIMM_COLS(mtr) == 0 ? "1,024 - 10 columns" :
+		MTR_DIMM_COLS(mtr) == 1 ? "2,048 - 11 columns" :
+		MTR_DIMM_COLS(mtr) == 2 ? "4,096 - 12 columns" :
+		"reserved");
 	debugf2("\t\tSIZE: %d MB\n", dinfo->megabytes);
 
 	/*
