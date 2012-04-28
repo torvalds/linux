@@ -3508,6 +3508,12 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 	brcmf_sdcard_cfg_write(bus->sdiodev, SDIO_FUNC_1,
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
+	if (ret == 0) {
+		ret = brcmf_sdcard_intr_reg(bus->sdiodev);
+		if (ret != 0)
+			brcmf_dbg(ERROR, "intr register failed:%d\n", ret);
+	}
+
 	/* If we didn't come up, turn off backplane clock */
 	if (bus_if->state != BRCMF_BUS_DATA)
 		brcmf_sdbrcm_clkctl(bus, CLK_NONE, false);
@@ -3967,15 +3973,6 @@ void *brcmf_sdbrcm_probe(u32 regsva, struct brcmf_sdio_dev *sdiodev)
 		brcmf_dbg(ERROR, "brcmf_sdbrcm_probe_init failed\n");
 		goto fail;
 	}
-
-	/* Register interrupt callback, but mask it (not operational yet). */
-	brcmf_dbg(INTR, "disable SDIO interrupts (not interested yet)\n");
-	ret = brcmf_sdcard_intr_reg(bus->sdiodev);
-	if (ret != 0) {
-		brcmf_dbg(ERROR, "FAILED: sdcard_intr_reg returned %d\n", ret);
-		goto fail;
-	}
-	brcmf_dbg(INTR, "registered SDIO interrupt function ok\n");
 
 	brcmf_dbg(INFO, "completed!!\n");
 
