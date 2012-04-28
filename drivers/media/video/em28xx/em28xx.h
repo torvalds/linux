@@ -250,7 +250,6 @@ struct em28xx_buffer {
 
 	struct list_head frame;
 	int top_field;
-	int receiving;
 };
 
 struct em28xx_dmaqueue {
