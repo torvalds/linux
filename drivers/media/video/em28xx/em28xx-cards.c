@@ -69,6 +69,8 @@ struct em28xx_hash_table {
 	unsigned int  tuner;
 };
 
+static void em28xx_pre_card_setup(struct em28xx *dev);
+
 /*
  *  Reset sequences for analog/digital modes
  */
@@ -2361,7 +2363,7 @@ static int em28xx_hint_sensor(struct em28xx *dev)
 /* Since em28xx_pre_card_setup() requires a proper dev->model,
  * this won't work for boards with generic PCI IDs
  */
-void em28xx_pre_card_setup(struct em28xx *dev)
+static void em28xx_pre_card_setup(struct em28xx *dev)
 {
 	/* Set the initial XCLK and I2C clock values based on the board
 	   definition */
@@ -2661,7 +2663,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 	return -1;
 }
 
-void em28xx_card_setup(struct em28xx *dev)
+static void em28xx_card_setup(struct em28xx *dev)
 {
 	/*
 	 * If the device can be a webcam, seek for a sensor.
