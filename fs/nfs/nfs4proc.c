@@ -3370,7 +3370,7 @@ static int nfs4_write_done_cb(struct rpc_task *task, struct nfs_write_data *data
 	}
 	if (task->tk_status >= 0) {
 		renew_lease(NFS_SERVER(inode), data->timestamp);
-		nfs_post_op_update_inode_force_wcc(inode, data->res.fattr);
+		nfs_post_op_update_inode_force_wcc(inode, &data->fattr);
 	}
 	return 0;
 }
@@ -3401,15 +3401,30 @@ void nfs4_reset_write(struct rpc_task *task, struct nfs_write_data *data)
 }
 EXPORT_SYMBOL_GPL(nfs4_reset_write);
 
+static
+bool nfs4_write_need_cache_consistency_data(const struct nfs_write_data *data)
+{
+	const struct nfs_pgio_header *hdr = data->header;
+
+	/* Don't request attributes for pNFS or O_DIRECT writes */
+	if (data->ds_clp != NULL || hdr->dreq != NULL)
+		return false;
+	/* Otherwise, request attributes if and only if we don't hold
+	 * a delegation
+	 */
+	return nfs_have_delegation(hdr->inode, FMODE_READ) == 0;
+}
+
 static void nfs4_proc_write_setup(struct nfs_write_data *data, struct rpc_message *msg)
 {
 	struct nfs_server *server = NFS_SERVER(data->header->inode);
 
-	if (data->ds_clp) {
+	if (!nfs4_write_need_cache_consistency_data(data)) {
 		data->args.bitmask = NULL;
 		data->res.fattr = NULL;
 	} else
 		data->args.bitmask = server->cache_consistency_bitmask;
+
 	if (!data->write_done_cb)
 		data->write_done_cb = nfs4_write_done_cb;
 	data->res.server = server;
