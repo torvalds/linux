@@ -280,6 +280,7 @@ config ARCH_INTEGRATOR
 	select NEED_MACH_IO_H
 	select NEED_MACH_MEMORY_H
 	select SPARSE_IRQ
+	select MULTI_IRQ_HANDLER
 	help
 	  Support for ARM's Integrator platform.
 
