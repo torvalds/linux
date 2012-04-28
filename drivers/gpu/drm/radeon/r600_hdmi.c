@@ -421,40 +421,6 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	r600_hdmi_audio_workaround(encoder);
 }
 
-static int r600_hdmi_find_free_block(struct drm_device *dev)
-{
-	struct radeon_device *rdev = dev->dev_private;
-	struct drm_encoder *encoder;
-	struct radeon_encoder *radeon_encoder;
-	bool free_blocks[3] = { true, true, true };
-
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		radeon_encoder = to_radeon_encoder(encoder);
-		switch (radeon_encoder->hdmi_offset) {
-		case R600_HDMI_BLOCK1:
-			free_blocks[0] = false;
-			break;
-		case R600_HDMI_BLOCK2:
-			free_blocks[1] = false;
-			break;
-		case R600_HDMI_BLOCK3:
-			free_blocks[2] = false;
-			break;
-		}
-	}
-
-	if (rdev->family == CHIP_RS600 || rdev->family == CHIP_RS690 ||
-	    rdev->family == CHIP_RS740) {
-		return free_blocks[0] ? R600_HDMI_BLOCK1 : 0;
-	} else if (rdev->family >= CHIP_R600) {
-		if (free_blocks[0])
-			return R600_HDMI_BLOCK1;
-		else if (free_blocks[1])
-			return R600_HDMI_BLOCK2;
-	}
-	return 0;
-}
-
 static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
@@ -488,9 +454,14 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
 			R600_HDMI_BLOCK3 : R600_HDMI_BLOCK1;
-	} else if (rdev->family >= CHIP_R600 || rdev->family == CHIP_RS600 ||
-		   rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) {
-		radeon_encoder->hdmi_offset = r600_hdmi_find_free_block(dev);
+	} else if (rdev->family >= CHIP_R600) {
+		/* 2 routable blocks, but using dig_encoder should be fine */
+		radeon_encoder->hdmi_offset = dig->dig_encoder ?
+			R600_HDMI_BLOCK2 : R600_HDMI_BLOCK1;
+	} else if (rdev->family == CHIP_RS600 || rdev->family == CHIP_RS690 ||
+		   rdev->family == CHIP_RS740) {
+		/* Only 1 routable block */
+		radeon_encoder->hdmi_offset = R600_HDMI_BLOCK1;
 	}
 }
 
