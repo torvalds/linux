@@ -10,7 +10,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
-#include <linux/gpio-i2cmux.h>
+#include <linux/i2c-mux-gpio.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -20,10 +20,10 @@
 struct gpiomux {
 	struct i2c_adapter *parent;
 	struct i2c_adapter **adap; /* child busses */
-	struct gpio_i2cmux_platform_data data;
+	struct i2c_mux_gpio_platform_data data;
 };
 
-static void gpiomux_set(const struct gpiomux *mux, unsigned val)
+static void i2c_mux_gpio_set(const struct gpiomux *mux, unsigned val)
 {
 	int i;
 
@@ -31,28 +31,28 @@ static void gpiomux_set(const struct gpiomux *mux, unsigned val)
 		gpio_set_value(mux->data.gpios[i], val & (1 << i));
 }
 
-static int gpiomux_select(struct i2c_adapter *adap, void *data, u32 chan)
+static int i2c_mux_gpio_select(struct i2c_adapter *adap, void *data, u32 chan)
 {
 	struct gpiomux *mux = data;
 
-	gpiomux_set(mux, mux->data.values[chan]);
+	i2c_mux_gpio_set(mux, mux->data.values[chan]);
 
 	return 0;
 }
 
-static int gpiomux_deselect(struct i2c_adapter *adap, void *data, u32 chan)
+static int i2c_mux_gpio_deselect(struct i2c_adapter *adap, void *data, u32 chan)
 {
 	struct gpiomux *mux = data;
 
-	gpiomux_set(mux, mux->data.idle);
+	i2c_mux_gpio_set(mux, mux->data.idle);
 
 	return 0;
 }
 
-static int __devinit gpiomux_probe(struct platform_device *pdev)
+static int __devinit i2c_mux_gpio_probe(struct platform_device *pdev)
 {
 	struct gpiomux *mux;
-	struct gpio_i2cmux_platform_data *pdata;
+	struct i2c_mux_gpio_platform_data *pdata;
 	struct i2c_adapter *parent;
 	int (*deselect) (struct i2c_adapter *, void *, u32);
 	unsigned initial_state;
@@ -86,16 +86,16 @@ static int __devinit gpiomux_probe(struct platform_device *pdev)
 		goto alloc_failed2;
 	}
 
-	if (pdata->idle != GPIO_I2CMUX_NO_IDLE) {
+	if (pdata->idle != I2C_MUX_GPIO_NO_IDLE) {
 		initial_state = pdata->idle;
-		deselect = gpiomux_deselect;
+		deselect = i2c_mux_gpio_deselect;
 	} else {
 		initial_state = pdata->values[0];
 		deselect = NULL;
 	}
 
 	for (i = 0; i < pdata->n_gpios; i++) {
-		ret = gpio_request(pdata->gpios[i], "gpio-i2cmux");
+		ret = gpio_request(pdata->gpios[i], "i2c-mux-gpio");
 		if (ret)
 			goto err_request_gpio;
 		gpio_direction_output(pdata->gpios[i],
@@ -105,9 +105,8 @@ static int __devinit gpiomux_probe(struct platform_device *pdev)
 	for (i = 0; i < pdata->n_values; i++) {
 		u32 nr = pdata->base_nr ? (pdata->base_nr + i) : 0;
 
-		mux->adap[i] = i2c_add_mux_adapter(parent, &pdev->dev, mux,
-						   nr, i,
-						   gpiomux_select, deselect);
+		mux->adap[i] = i2c_add_mux_adapter(parent, &pdev->dev, mux, nr, i,
+						   i2c_mux_gpio_select, deselect);
 		if (!mux->adap[i]) {
 			ret = -ENODEV;
 			dev_err(&pdev->dev, "Failed to add adapter %d\n", i);
@@ -138,7 +137,7 @@ alloc_failed:
 	return ret;
 }
 
-static int __devexit gpiomux_remove(struct platform_device *pdev)
+static int __devexit i2c_mux_gpio_remove(struct platform_device *pdev)
 {
 	struct gpiomux *mux = platform_get_drvdata(pdev);
 	int i;
@@ -157,18 +156,18 @@ static int __devexit gpiomux_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver gpiomux_driver = {
-	.probe	= gpiomux_probe,
-	.remove	= __devexit_p(gpiomux_remove),
+static struct platform_driver i2c_mux_gpio_driver = {
+	.probe	= i2c_mux_gpio_probe,
+	.remove	= __devexit_p(i2c_mux_gpio_remove),
 	.driver	= {
 		.owner	= THIS_MODULE,
-		.name	= "gpio-i2cmux",
+		.name	= "i2c-mux-gpio",
 	},
 };
 
-module_platform_driver(gpiomux_driver);
+module_platform_driver(i2c_mux_gpio_driver);
 
 MODULE_DESCRIPTION("GPIO-based I2C multiplexer driver");
 MODULE_AUTHOR("Peter Korsgaard <peter.korsgaard@barco.com>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:gpio-i2cmux");
+MODULE_ALIAS("platform:i2c-mux-gpio");

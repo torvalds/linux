@@ -2937,9 +2937,9 @@ GENERIC GPIO I2C MULTIPLEXER DRIVER
 M:	Peter Korsgaard <peter.korsgaard@barco.com>
 L:	linux-i2c@vger.kernel.org
 S:	Supported
-F:	drivers/i2c/muxes/gpio-i2cmux.c
-F:	include/linux/gpio-i2cmux.h
-F:	Documentation/i2c/muxes/gpio-i2cmux
+F:	drivers/i2c/muxes/i2c-mux-gpio.c
+F:	include/linux/i2c-mux-gpio.h
+F:	Documentation/i2c/muxes/i2c-mux-gpio
 
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>

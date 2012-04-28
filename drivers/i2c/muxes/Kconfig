@@ -15,7 +15,7 @@ config I2C_MUX_GPIO
 	  through GPIO pins.
 
 	  This driver can also be built as a module.  If so, the module
-	  will be called gpio-i2cmux.
+	  will be called i2c-mux-gpio.
 
 config I2C_MUX_PCA9541
 	tristate "NXP PCA9541 I2C Master Selector"
