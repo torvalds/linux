@@ -45,11 +45,7 @@ static void brcmf_sdioh_irqhandler(struct sdio_func *func)
 
 	brcmf_dbg(TRACE, "***IRQHandler\n");
 
-	sdio_release_host(func);
-
 	brcmf_sdbrcm_isr(sdiodev->bus);
-
-	sdio_claim_host(func);
 }
 
 /* dummy handler for SDIO function 2 interrupt */
