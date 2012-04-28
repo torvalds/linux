@@ -274,23 +274,21 @@ int radio_isa_common_probe(struct radio_isa_card *isa, struct device *pdev,
 		res = ops->s_stereo(isa, isa->stereo);
 	if (res < 0) {
 		v4l2_err(v4l2_dev, "Could not setup card\n");
-		goto err_node_reg;
+		goto err_hdl;
 	}
 	res = video_register_device(&isa->vdev, VFL_TYPE_RADIO, radio_nr);
 
 	if (res < 0) {
 		v4l2_err(v4l2_dev, "Could not register device node\n");
-		goto err_node_reg;
+		goto err_hdl;
 	}
 
 	v4l2_info(v4l2_dev, "Initialized radio card %s on port 0x%03x\n",
 			drv->card, isa->io);
 	return 0;
 
-err_node_reg:
-	v4l2_ctrl_handler_free(&isa->hdl);
 err_hdl:
-	v4l2_device_unregister(&isa->v4l2_dev);
+	v4l2_ctrl_handler_free(&isa->hdl);
 err_dev_reg:
 	release_region(isa->io, region_size);
 	kfree(isa);
