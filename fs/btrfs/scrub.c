@@ -1257,12 +1257,6 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	if (memcmp(csum, on_disk_csum, sdev->csum_size))
 		fail = 1;
 
-	if (fail) {
-		spin_lock(&sdev->stat_lock);
-		++sdev->stat.csum_errors;
-		spin_unlock(&sdev->stat_lock);
-	}
-
 	return fail;
 }
 
@@ -1334,15 +1328,6 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	btrfs_csum_final(crc, calculated_csum);
 	if (memcmp(calculated_csum, on_disk_csum, sdev->csum_size))
 		++crc_fail;
-
-	if (crc_fail || fail) {
-		spin_lock(&sdev->stat_lock);
-		if (crc_fail)
-			++sdev->stat.csum_errors;
-		if (fail)
-			++sdev->stat.verify_errors;
-		spin_unlock(&sdev->stat_lock);
-	}
 
 	return fail || crc_fail;
 }
