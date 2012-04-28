@@ -21,4 +21,22 @@
 __wsum do_csum(const unsigned char *buff, int len);
 #define do_csum do_csum
 
+/*
+ * Return the sum of all the 16-bit subwords in a long.
+ * This sums two subwords on a 32-bit machine, and four on 64 bits.
+ * The implementation does two vector adds to capture any overflow.
+ */
+static inline unsigned int csum_long(unsigned long x)
+{
+	unsigned long ret;
+#ifdef __tilegx__
+	ret = __insn_v2sadu(x, 0);
+	ret = __insn_v2sadu(ret, 0);
+#else
+	ret = __insn_sadh_u(x, 0);
+	ret = __insn_sadh_u(ret, 0);
+#endif
+	return ret;
+}
+
 #endif /* _ASM_TILE_CHECKSUM_H */
