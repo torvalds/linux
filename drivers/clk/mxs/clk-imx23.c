@@ -198,7 +198,7 @@ int __init mx23_clocks_init(void)
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
 
-	mxs_timer_init(NULL, MX23_INT_TIMER0);
+	mxs_timer_init(MX23_INT_TIMER0);
 
 	return 0;
 }

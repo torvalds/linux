@@ -244,14 +244,14 @@ static int __init mxs_clocksource_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxs_timer_init(struct clk *timer_clk, int irq)
+void __init mxs_timer_init(int irq)
 {
-	if (!timer_clk) {
-		timer_clk = clk_get_sys("timrot", NULL);
-		if (IS_ERR(timer_clk)) {
-			pr_err("%s: failed to get clk\n", __func__);
-			return;
-		}
+	struct clk *timer_clk;
+
+	timer_clk = clk_get_sys("timrot", NULL);
+	if (IS_ERR(timer_clk)) {
+		pr_err("%s: failed to get clk\n", __func__);
+		return;
 	}
 
 	clk_prepare_enable(timer_clk);
