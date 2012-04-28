@@ -331,15 +331,12 @@ static void notify_ring(struct drm_device *dev,
 			struct intel_ring_buffer *ring)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 seqno;
 
 	if (ring->obj == NULL)
 		return;
 
-	seqno = ring->get_seqno(ring);
-	trace_i915_gem_request_complete(ring, seqno);
+	trace_i915_gem_request_complete(ring, ring->get_seqno(ring));
 
-	ring->irq_seqno = seqno;
 	wake_up_all(&ring->irq_queue);
 	if (i915_enable_hangcheck) {
 		dev_priv->hangcheck_count = 0;
