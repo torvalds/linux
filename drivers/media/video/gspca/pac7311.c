@@ -20,29 +20,29 @@
  */
 
 /* Some documentation about various registers as determined by trial and error.
-
-   Register page 1:
-
-   Address	Description
-   0x08		Unknown compressor related, must always be 8 except when not
-		in 640x480 resolution and page 4 reg 2 <= 3 then set it to 9 !
-   0x1b		Auto white balance related, bit 0 is AWB enable (inverted)
-		bits 345 seem to toggle per color gains on/off (inverted)
-   0x78		Global control, bit 6 controls the LED (inverted)
-   0x80		JPEG compression ratio ? Best not touched
-
-   Register page 4:
-
-   Address	Description
-   0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
-		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
-   0x0f		Master gain 1-245, low value = high gain
-   0x10		Another gain 0-15, limited influence (1-2x gain I guess)
-   0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
-   0x27		Seems to toggle various gains on / off, Setting bit 7 seems to
-		completely disable the analog amplification block. Set to 0x68
-		for max gain, 0x14 for minimal gain.
-*/
+ *
+ * Register page 1:
+ *
+ * Address	Description
+ * 0x08		Unknown compressor related, must always be 8 except when not
+ *		in 640x480 resolution and page 4 reg 2 <= 3 then set it to 9 !
+ * 0x1b		Auto white balance related, bit 0 is AWB enable (inverted)
+ *		bits 345 seem to toggle per color gains on/off (inverted)
+ * 0x78		Global control, bit 6 controls the LED (inverted)
+ * 0x80		JPEG compression ratio ? Best not touched
+ *
+ * Register page 4:
+ *
+ * Address	Description
+ * 0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
+ *		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
+ * 0x0f		Master gain 1-245, low value = high gain
+ * 0x10		Another gain 0-15, limited influence (1-2x gain I guess)
+ * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
+ * 0x27		Seems to toggle various gains on / off, Setting bit 7 seems to
+ *		completely disable the analog amplification block. Set to 0x68
+ *		for max gain, 0x14 for minimal gain.
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -403,8 +403,10 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
 
-	/* Page 1 register 8 must always be 0x08 except when not in
-	   640x480 mode and page 4 reg 2 <= 3 then it must be 9 */
+	/*
+	 * Page 1 register 8 must always be 0x08 except when not in
+	 *  640x480 mode and page 4 reg 2 <= 3 then it must be 9
+	 */
 	reg_w(gspca_dev, 0xff, 0x01);
 	if (gspca_dev->cam.cam_mode[(int)gspca_dev->curr_mode].priv &&
 			sd->ctrls[EXPOSURE].val <= 3) {
@@ -577,10 +579,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (sof) {
 		int n, lum_offset, footer_length;
 
-		/* 6 bytes after the FF D9 EOF marker a number of lumination
-		   bytes are send corresponding to different parts of the
-		   image, the 14th and 15th byte after the EOF seem to
-		   correspond to the center of the image */
+		/*
+		 * 6 bytes after the FF D9 EOF marker a number of lumination
+		 * bytes are send corresponding to different parts of the
+		 * image, the 14th and 15th byte after the EOF seem to
+		 * correspond to the center of the image.
+		 */
 		lum_offset = 24 + sizeof pac_sof_marker;
 		footer_length = 26;
 
