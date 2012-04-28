@@ -107,6 +107,10 @@ static int fb_deferred_io_mkwrite(struct vm_area_struct *vma,
 	/* protect against the workqueue changing the page list */
 	mutex_lock(&fbdefio->lock);
 
+	/* first write in this cycle, notify the driver */
+	if (fbdefio->first_io && list_empty(&fbdefio->pagelist))
+		fbdefio->first_io(info);
+
 	/*
 	 * We want the page to remain locked from ->page_mkwrite until
 	 * the PTE is marked dirty to avoid page_mkclean() being called
