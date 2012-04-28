@@ -47,7 +47,7 @@ MODULE_AUTHOR("Emulex Corporation");
 MODULE_LICENSE("GPL");
 
 static LIST_HEAD(ocrdma_dev_list);
-static DEFINE_MUTEX(ocrdma_devlist_lock);
+static DEFINE_SPINLOCK(ocrdma_devlist_lock);
 static DEFINE_IDR(ocrdma_dev_id);
 
 static union ib_gid ocrdma_zero_sgid;
@@ -221,14 +221,14 @@ static int ocrdma_inet6addr_event(struct notifier_block *notifier,
 		is_vlan = true;
 		vid = vlan_dev_vlan_id(event_netdev);
 	}
-	mutex_lock(&ocrdma_devlist_lock);
-	list_for_each_entry(dev, &ocrdma_dev_list, entry) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(dev, &ocrdma_dev_list, entry) {
 		if (dev->nic_info.netdev == netdev) {
 			found = true;
 			break;
 		}
 	}
-	mutex_unlock(&ocrdma_devlist_lock);
+	rcu_read_unlock();
 
 	if (!found)
 		return NOTIFY_DONE;
@@ -431,9 +431,9 @@ static struct ocrdma_dev *ocrdma_add(struct be_dev_info *dev_info)
 	if (status)
 		goto alloc_err;
 
-	mutex_lock(&ocrdma_devlist_lock);
-	list_add_tail(&dev->entry, &ocrdma_dev_list);
-	mutex_unlock(&ocrdma_devlist_lock);
+	spin_lock(&ocrdma_devlist_lock);
+	list_add_tail_rcu(&dev->entry, &ocrdma_dev_list);
+	spin_unlock(&ocrdma_devlist_lock);
 	return dev;
 
 alloc_err:
@@ -448,16 +448,9 @@ idr_err:
 	return NULL;
 }
 
-static void ocrdma_remove(struct ocrdma_dev *dev)
+static void ocrdma_remove_free(struct rcu_head *rcu)
 {
-	/* first unregister with stack to stop all the active traffic
-	 * of the registered clients.
-	 */
-	ib_unregister_device(&dev->ibdev);
-
-	mutex_lock(&ocrdma_devlist_lock);
-	list_del(&dev->entry);
-	mutex_unlock(&ocrdma_devlist_lock);
+	struct ocrdma_dev *dev = container_of(rcu, struct ocrdma_dev, rcu);
 
 	ocrdma_free_resources(dev);
 	ocrdma_cleanup_hw(dev);
@@ -465,6 +458,19 @@ static void ocrdma_remove(struct ocrdma_dev *dev)
 	idr_remove(&ocrdma_dev_id, dev->id);
 	kfree(dev->mbx_cmd);
 	ib_dealloc_device(&dev->ibdev);
+}
+
+static void ocrdma_remove(struct ocrdma_dev *dev)
+{
+	/* first unregister with stack to stop all the active traffic
+	 * of the registered clients.
+	 */
+	ib_unregister_device(&dev->ibdev);
+
+	spin_lock(&ocrdma_devlist_lock);
+	list_del_rcu(&dev->entry);
+	spin_unlock(&ocrdma_devlist_lock);
+	call_rcu(&dev->rcu, ocrdma_remove_free);
 }
 
 static int ocrdma_open(struct ocrdma_dev *dev)

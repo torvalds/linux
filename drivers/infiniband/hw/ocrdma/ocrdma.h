@@ -168,6 +168,7 @@ struct ocrdma_dev {
 	struct be_dev_info nic_info;
 
 	struct list_head entry;
+	struct rcu_head rcu;
 	int id;
 };
 
