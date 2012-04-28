@@ -27,6 +27,7 @@
 #include "radeon_drm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
+#include "r600d.h"
 #include "atom.h"
 
 /*
@@ -108,20 +109,20 @@ static void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock)
 	CTS = r600_hdmi_ACR[i].CTS_32kHz;
 	N = r600_hdmi_ACR[i].N_32kHz;
 	r600_hdmi_calc_CTS(clock, &CTS, N, 32000);
-	WREG32(offset+R600_HDMI_32kHz_CTS, CTS << 12);
-	WREG32(offset+R600_HDMI_32kHz_N, N);
+	WREG32(HDMI0_ACR_32_0 + offset, HDMI0_ACR_CTS_32(CTS));
+	WREG32(HDMI0_ACR_32_1 + offset, N);
 
 	CTS = r600_hdmi_ACR[i].CTS_44_1kHz;
 	N = r600_hdmi_ACR[i].N_44_1kHz;
 	r600_hdmi_calc_CTS(clock, &CTS, N, 44100);
-	WREG32(offset+R600_HDMI_44_1kHz_CTS, CTS << 12);
-	WREG32(offset+R600_HDMI_44_1kHz_N, N);
+	WREG32(HDMI0_ACR_44_0 + offset, HDMI0_ACR_CTS_44(CTS));
+	WREG32(HDMI0_ACR_44_1 + offset, N);
 
 	CTS = r600_hdmi_ACR[i].CTS_48kHz;
 	N = r600_hdmi_ACR[i].N_48kHz;
 	r600_hdmi_calc_CTS(clock, &CTS, N, 48000);
-	WREG32(offset+R600_HDMI_48kHz_CTS, CTS << 12);
-	WREG32(offset+R600_HDMI_48kHz_N, N);
+	WREG32(HDMI0_ACR_48_0 + offset, HDMI0_ACR_CTS_48(CTS));
+	WREG32(HDMI0_ACR_48_1 + offset, N);
 }
 
 /*
@@ -204,13 +205,13 @@ static void r600_hdmi_videoinfoframe(
 	 * workaround this issue. */
 	frame[0x0] += 2;
 
-	WREG32(offset+R600_HDMI_VIDEOINFOFRAME_0,
+	WREG32(HDMI0_AVI_INFO0 + offset,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));
-	WREG32(offset+R600_HDMI_VIDEOINFOFRAME_1,
+	WREG32(HDMI0_AVI_INFO1 + offset,
 		frame[0x4] | (frame[0x5] << 8) | (frame[0x6] << 16) | (frame[0x7] << 24));
-	WREG32(offset+R600_HDMI_VIDEOINFOFRAME_2,
+	WREG32(HDMI0_AVI_INFO2 + offset,
 		frame[0x8] | (frame[0x9] << 8) | (frame[0xA] << 16) | (frame[0xB] << 24));
-	WREG32(offset+R600_HDMI_VIDEOINFOFRAME_3,
+	WREG32(HDMI0_AVI_INFO3 + offset,
 		frame[0xC] | (frame[0xD] << 8));
 }
 
@@ -249,9 +250,9 @@ static void r600_hdmi_audioinfoframe(
 
 	r600_hdmi_infoframe_checksum(0x84, 0x01, 0x0A, frame);
 
-	WREG32(offset+R600_HDMI_AUDIOINFOFRAME_0,
+	WREG32(HDMI0_AUDIO_INFO0 + offset,
 		frame[0x0] | (frame[0x1] << 8) | (frame[0x2] << 16) | (frame[0x3] << 24));
-	WREG32(offset+R600_HDMI_AUDIOINFOFRAME_1,
+	WREG32(HDMI0_AUDIO_INFO1 + offset,
 		frame[0x4] | (frame[0x5] << 8) | (frame[0x6] << 16) | (frame[0x8] << 24));
 }
 
@@ -264,7 +265,7 @@ static int r600_hdmi_is_audio_buffer_filled(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
 
-	return (RREG32(offset+R600_HDMI_STATUS) & 0x10) != 0;
+	return (RREG32(HDMI0_STATUS + offset) & 0x10) != 0;
 }
 
 /*
@@ -302,11 +303,11 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 		r600_hdmi_is_audio_buffer_filled(encoder)) {
 
 		/* disable audio workaround */
-		WREG32_P(offset+R600_HDMI_CNTL, 0x00000001, ~0x00001001);
+		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset, 0x0001, ~0x1001);
 
 	} else {
 		/* enable audio workaround */
-		WREG32_P(offset+R600_HDMI_CNTL, 0x00001001, ~0x00001001);
+		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset, 0x1001, ~0x1001);
 	}
 }
 
@@ -328,29 +329,29 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	r600_audio_set_clock(encoder, mode->clock);
 
-	WREG32(offset+R600_HDMI_UNKNOWN_0, 0x1000);
-	WREG32(offset+R600_HDMI_UNKNOWN_1, 0x0);
-	WREG32(offset+R600_HDMI_UNKNOWN_2, 0x1000);
+	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
+	WREG32(HDMI0_GC + offset, 0x0);
+	WREG32(HDMI0_ACR_PACKET_CONTROL + offset, 0x1000);
 
 	r600_hdmi_update_ACR(encoder, mode->clock);
 
-	WREG32(offset+R600_HDMI_VIDEOCNTL, 0x13);
+	WREG32(HDMI0_INFOFRAME_CONTROL0 + offset, 0x13);
 
-	WREG32(offset+R600_HDMI_VERSION, 0x202);
+	WREG32(HDMI0_INFOFRAME_CONTROL1 + offset, 0x202);
 
 	r600_hdmi_videoinfoframe(encoder, RGB, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
-	WREG32(offset+R600_HDMI_AUDIO_DEBUG_0, 0x00FFFFFF);
-	WREG32(offset+R600_HDMI_AUDIO_DEBUG_1, 0x007FFFFF);
-	WREG32(offset+R600_HDMI_AUDIO_DEBUG_2, 0x00000001);
-	WREG32(offset+R600_HDMI_AUDIO_DEBUG_3, 0x00000001);
+	WREG32(HDMI0_RAMP_CONTROL0 + offset, 0x00FFFFFF);
+	WREG32(HDMI0_RAMP_CONTROL1 + offset, 0x007FFFFF);
+	WREG32(HDMI0_RAMP_CONTROL2 + offset, 0x00000001);
+	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	r600_hdmi_audio_workaround(encoder);
 
 	/* audio packets per line, does anyone know how to calc this ? */
-	WREG32_P(offset+R600_HDMI_CNTL, 0x00040000, ~0x001F0000);
+	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset, 0x00040000, ~0x001F0000);
 }
 
 /*
@@ -401,7 +402,7 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	case 192000: iec |= 0xe << 24; break;
 	}
 
-	WREG32(offset+R600_HDMI_IEC60958_1, iec);
+	WREG32(HDMI0_60958_0 + offset, iec);
 
 	iec = 0;
 	switch (bps) {
@@ -412,10 +413,10 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	if (status_bits & AUDIO_STATUS_V)
 		iec |= 0x5 << 16;
 
-	WREG32_P(offset+R600_HDMI_IEC60958_2, iec, ~0x5000f);
+	WREG32_P(HDMI0_60958_1 + offset, iec, ~0x5000f);
 
 	/* 0x021 or 0x031 sets the audio frame length */
-	WREG32(offset+R600_HDMI_AUDIOCNTL, 0x31);
+	WREG32(HDMI0_VBI_PACKET_CONTROL + offset, 0x31);
 	r600_hdmi_audioinfoframe(encoder, channels-1, 0, 0, 0, 0, 0, 0, 0);
 
 	r600_hdmi_audio_workaround(encoder);
@@ -449,19 +450,22 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 			dev_err(rdev->dev, "Enabling HDMI on unknown dig\n");
 			return;
 		}
-		radeon_encoder->hdmi_offset = EVERGREEN_HDMI_BASE +
-						eg_offsets[dig->dig_encoder];
+		radeon_encoder->hdmi_offset = eg_offsets[dig->dig_encoder];
+		/* Temp hack for Evergreen until we split r600_hdmi.c
+		 * Evergreen first block is 0x7030 instead of 0x7400.
+		 */
+		radeon_encoder->hdmi_offset -= 0x3d0;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
-			R600_HDMI_BLOCK3 : R600_HDMI_BLOCK1;
+			DCE3_HDMI_OFFSET1 : DCE3_HDMI_OFFSET0;
 	} else if (rdev->family >= CHIP_R600) {
 		/* 2 routable blocks, but using dig_encoder should be fine */
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
-			R600_HDMI_BLOCK2 : R600_HDMI_BLOCK1;
+			DCE2_HDMI_OFFSET1 : DCE2_HDMI_OFFSET0;
 	} else if (rdev->family == CHIP_RS600 || rdev->family == CHIP_RS690 ||
 		   rdev->family == CHIP_RS740) {
 		/* Only 1 routable block */
-		radeon_encoder->hdmi_offset = R600_HDMI_BLOCK1;
+		radeon_encoder->hdmi_offset = DCE2_HDMI_OFFSET0;
 	}
 	radeon_encoder->hdmi_enabled = true;
 }
@@ -492,9 +496,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE4(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_offset + EVERGREEN_AUDIO_PACKET_CNTL, 0x1, ~0x1);
+		WREG32_P(0x74fc + radeon_encoder->hdmi_offset, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE32(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_offset + R600_HDMI_AUDIO_PACKET_CNTL, 0x1, ~0x1);
+		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + radeon_encoder->hdmi_offset, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE3(rdev)) {
 		/* TODO */
 	} else if (rdev->family >= CHIP_R600) {
@@ -502,12 +506,12 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, AVIVO_TMDSA_CNTL_HDMI_EN,
 				 ~AVIVO_TMDSA_CNTL_HDMI_EN);
-			WREG32(offset + R600_HDMI_ENABLE, 0x101);
+			WREG32(HDMI0_CONTROL + offset, 0x101);
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 			WREG32_P(AVIVO_LVTMA_CNTL, AVIVO_LVTMA_CNTL_HDMI_EN,
 				 ~AVIVO_LVTMA_CNTL_HDMI_EN);
-			WREG32(offset + R600_HDMI_ENABLE, 0x105);
+			WREG32(HDMI0_CONTROL + offset, 0x105);
 			break;
 		default:
 			dev_err(rdev->dev, "Unknown HDMI output type\n");
@@ -517,7 +521,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 
 	if (rdev->irq.installed) {
 		/* if irq is available use it */
-		rdev->irq.afmt[offset == R600_HDMI_BLOCK1 ? 0 : 1] = true;
+		rdev->irq.afmt[offset == 0 ? 0 : 1] = true;
 		radeon_irq_set(rdev);
 	}
 
@@ -548,27 +552,27 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		offset, radeon_encoder->encoder_id);
 
 	/* disable irq */
-	rdev->irq.afmt[offset == R600_HDMI_BLOCK1 ? 0 : 1] = false;
+	rdev->irq.afmt[offset == 0 ? 0 : 1] = false;
 	radeon_irq_set(rdev);
 
 
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
 	} else if (ASIC_IS_DCE4(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_offset + EVERGREEN_AUDIO_PACKET_CNTL, 0, ~0x1);
+		WREG32_P(0x74fc + radeon_encoder->hdmi_offset, 0, ~0x1);
 	} else if (ASIC_IS_DCE32(rdev)) {
-		WREG32_P(radeon_encoder->hdmi_offset + R600_HDMI_AUDIO_PACKET_CNTL, 0, ~0x1);
+		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + radeon_encoder->hdmi_offset, 0, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, 0,
 				 ~AVIVO_TMDSA_CNTL_HDMI_EN);
-			WREG32(offset + R600_HDMI_ENABLE, 0);
+			WREG32(HDMI0_CONTROL + offset, 0);
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 			WREG32_P(AVIVO_LVTMA_CNTL, 0,
 				 ~AVIVO_LVTMA_CNTL_HDMI_EN);
-			WREG32(offset + R600_HDMI_ENABLE, 0);
+			WREG32(HDMI0_CONTROL + offset, 0);
 			break;
 		default:
 			dev_err(rdev->dev, "Unknown HDMI output type\n");
