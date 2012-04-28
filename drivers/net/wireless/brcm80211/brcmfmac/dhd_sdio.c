@@ -2352,6 +2352,24 @@ static void brcmf_sdbrcm_bus_stop(struct device *dev)
 	up(&bus->sdsem);
 }
 
+#ifdef CONFIG_BRCMFMAC_SDIO_OOB
+static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&bus->sdiodev->irq_en_lock, flags);
+	if (!bus->sdiodev->irq_en && !bus->ipend) {
+		enable_irq(bus->sdiodev->irq);
+		bus->sdiodev->irq_en = true;
+	}
+	spin_unlock_irqrestore(&bus->sdiodev->irq_en_lock, flags);
+}
+#else
+static inline void brcmf_sdbrcm_clrintr(struct brcmf_sdio *bus)
+{
+}
+#endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
+
 static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 {
 	u32 intstatus, newstatus = 0;
@@ -2509,6 +2527,8 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	bus->intstatus = intstatus;
 
 clkwait:
+	brcmf_sdbrcm_clrintr(bus);
+
 	if (data_ok(bus) && bus->ctrl_frame_stat &&
 		(bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
@@ -3509,7 +3529,7 @@ static int brcmf_sdbrcm_bus_init(struct device *dev)
 			       SBSDIO_FUNC1_CHIPCLKCSR, saveclk, &err);
 
 	if (ret == 0) {
-		ret = brcmf_sdcard_intr_reg(bus->sdiodev);
+		ret = brcmf_sdio_intr_register(bus->sdiodev);
 		if (ret != 0)
 			brcmf_dbg(ERROR, "intr register failed:%d\n", ret);
 	}
@@ -3873,7 +3893,7 @@ static void brcmf_sdbrcm_release(struct brcmf_sdio *bus)
 
 	if (bus) {
 		/* De-register interrupt handler */
-		brcmf_sdcard_intr_dereg(bus->sdiodev);
+		brcmf_sdio_intr_unregister(bus->sdiodev);
 
 		if (bus->sdiodev->bus_if->drvr) {
 			brcmf_detach(bus->sdiodev->dev);
