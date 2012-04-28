@@ -275,7 +275,7 @@ int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	int status, result;
 
-	if (!radeon_encoder->hdmi_offset)
+	if (!radeon_encoder->hdmi_enabled)
 		return 0;
 
 	status = r600_hdmi_is_audio_buffer_filled(encoder);
@@ -295,7 +295,7 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset = radeon_encoder->hdmi_offset;
 
-	if (!offset)
+	if (!radeon_encoder->hdmi_enabled)
 		return;
 
 	if (!radeon_encoder->hdmi_audio_workaround ||
@@ -323,7 +323,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	if (ASIC_IS_DCE5(rdev))
 		return;
 
-	if (!offset)
+	if (!to_radeon_encoder(encoder)->hdmi_enabled)
 		return;
 
 	r600_audio_set_clock(encoder, mode->clock);
@@ -370,7 +370,7 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 
 	uint32_t iec;
 
-	if (!offset)
+	if (!to_radeon_encoder(encoder)->hdmi_enabled)
 		return;
 
 	DRM_DEBUG("%s with %d channels, %d Hz sampling rate, %d bits per sample,\n",
@@ -463,6 +463,7 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 		/* Only 1 routable block */
 		radeon_encoder->hdmi_offset = R600_HDMI_BLOCK1;
 	}
+	radeon_encoder->hdmi_enabled = true;
 }
 
 /*
@@ -478,9 +479,9 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	if (ASIC_IS_DCE5(rdev))
 		return;
 
-	if (!radeon_encoder->hdmi_offset) {
+	if (!radeon_encoder->hdmi_enabled) {
 		r600_hdmi_assign_block(encoder);
-		if (!radeon_encoder->hdmi_offset) {
+		if (!radeon_encoder->hdmi_enabled) {
 			dev_warn(rdev->dev, "Could not find HDMI block for "
 				"0x%x encoder\n", radeon_encoder->encoder_id);
 			return;
@@ -538,7 +539,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		return;
 
 	offset = radeon_encoder->hdmi_offset;
-	if (!offset) {
+	if (!radeon_encoder->hdmi_enabled) {
 		dev_err(rdev->dev, "Disabling not enabled HDMI\n");
 		return;
 	}
@@ -575,5 +576,6 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 		}
 	}
 
+	radeon_encoder->hdmi_enabled = false;
 	radeon_encoder->hdmi_offset = 0;
 }
