@@ -261,13 +261,6 @@ struct em28xx_dmaqueue {
 	int                        pos;
 };
 
-/* io methods */
-enum em28xx_io_method {
-	IO_NONE,
-	IO_READ,
-	IO_MMAP,
-};
-
 /* inputs */
 
 #define MAX_EM28XX_INPUT 4
@@ -562,7 +555,6 @@ struct em28xx {
 
 	/* states */
 	enum em28xx_dev_state state;
-	enum em28xx_io_method io;
 
 	/* vbi related state tracking */
 	int capture_type;
