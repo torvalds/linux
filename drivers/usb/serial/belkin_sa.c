@@ -2,17 +2,17 @@
  * Belkin USB Serial Adapter Driver
  *
  *  Copyright (C) 2000		William Greathouse (wgreathouse@smva.com)
- *  Copyright (C) 2000-2001 	Greg Kroah-Hartman (greg@kroah.com)
+ *  Copyright (C) 2000-2001	Greg Kroah-Hartman (greg@kroah.com)
  *  Copyright (C) 2010		Johan Hovold (jhovold@gmail.com)
  *
  *  This program is largely derived from work by the linux-usb group
  *  and associated source files.  Please see the usb/serial files for
  *  individual credits and copyrights.
  *
- * 	This program is free software; you can redistribute it and/or modify
- * 	it under the terms of the GNU General Public License as published by
- * 	the Free Software Foundation; either version 2 of the License, or
- * 	(at your option) any later version.
+ *	This program is free software; you can redistribute it and/or modify
+ *	it under the terms of the GNU General Public License as published by
+ *	the Free Software Foundation; either version 2 of the License, or
+ *	(at your option) any later version.
  *
  * See Documentation/usb/usb-serial.txt for more information on using this
  * driver
@@ -403,7 +403,8 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 		case CS8:
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
-		default: dbg("CSIZE was not CS5-CS8, using default of 8");
+		default:
+			dbg("CSIZE was not CS5-CS8, using default of 8");
 			urb_value = BELKIN_SA_DATA_BITS(8);
 			break;
 		}
