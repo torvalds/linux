@@ -71,7 +71,7 @@
  *  0   | 0xc7       | setbluebalance()
  *  0   | 0xdc       | setbrightcont(), setcolors()
  *  3   | 0x02       | setexposure()
- *  3   | 0x10       | setgain()
+ *  3   | 0x10, 0x12 | setgain()
  *  3   | 0x11       | setcolors(), setgain(), setexposure(), sethvflip()
  *  3   | 0x21       | sethvflip()
  */
@@ -212,10 +212,10 @@ static const struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Gain",
 		.minimum = 0,
-		.maximum = 255,
+		.maximum = 62,
 		.step    = 1,
-#define GAIN_DEF 127
-#define GAIN_KNEE 255 /* Gain seems to cause little noise on the pac73xx */
+#define GAIN_DEF 15
+#define GAIN_KNEE 46
 		.default_value = GAIN_DEF,
 	    },
 	    .set_control = setgain
@@ -601,9 +601,19 @@ static void setbluebalance(struct gspca_dev *gspca_dev)
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 reg10, reg12;
+
+	if (sd->ctrls[GAIN].val < 32) {
+		reg10 = sd->ctrls[GAIN].val;
+		reg12 = 0;
+	} else {
+		reg10 = 31;
+		reg12 = sd->ctrls[GAIN].val - 31;
+	}
 
 	reg_w(gspca_dev, 0xff, 0x03);			/* page 3 */
-	reg_w(gspca_dev, 0x10, sd->ctrls[GAIN].val >> 3);
+	reg_w(gspca_dev, 0x10, reg10);
+	reg_w(gspca_dev, 0x12, reg12);
 
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
