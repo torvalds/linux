@@ -23,43 +23,44 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-/* Some documentation about various registers as determined by trial and error.
-
-   Register page 1:
-
-   Address	Description
-   0x78		Global control, bit 6 controls the LED (inverted)
-
-   Register page 3:
-
-   Address	Description
-   0x02		Clock divider 3-63, fps = 90 / val. Must be a multiple of 3 on
-		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
-   0x03		Variable framerate ctrl reg2==3: 0 -> ~30 fps, 255 -> ~22fps
-   0x04		Another var framerate ctrl reg2==3, reg3==0: 0 -> ~30 fps,
-		63 -> ~27 fps, the 2 msb's must always be 1 !!
-   0x05		Another var framerate ctrl reg2==3, reg3==0, reg4==0xc0:
-		1 -> ~30 fps, 2 -> ~20 fps
-   0x0e		Exposure bits 0-7, 0-448, 0 = use full frame time
-   0x0f		Exposure bit 8, 0-448, 448 = no exposure at all
-   0x10		Master gain 0-31
-   0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
-
-   The registers are accessed in the following functions:
-
-   Page | Register   | Function
-   -----+------------+---------------------------------------------------
-    0   | 0x0f..0x20 | setcolors()
-    0   | 0xa2..0xab | setbrightcont()
-    0   | 0xc5       | setredbalance()
-    0   | 0xc6       | setwhitebalance()
-    0   | 0xc7       | setbluebalance()
-    0   | 0xdc       | setbrightcont(), setcolors()
-    3   | 0x02       | setexposure()
-    3   | 0x10       | setgain()
-    3   | 0x11       | setcolors(), setgain(), setexposure(), sethvflip()
-    3   | 0x21       | sethvflip()
-*/
+/*
+ * Some documentation about various registers as determined by trial and error.
+ *
+ * Register page 1:
+ *
+ * Address	Description
+ * 0x78		Global control, bit 6 controls the LED (inverted)
+ *
+ * Register page 3:
+ *
+ * Address	Description
+ * 0x02		Clock divider 3-63, fps = 90 / val. Must be a multiple of 3 on
+ *		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
+ * 0x03		Variable framerate ctrl reg2==3: 0 -> ~30 fps, 255 -> ~22fps
+ * 0x04		Another var framerate ctrl reg2==3, reg3==0: 0 -> ~30 fps,
+ *		63 -> ~27 fps, the 2 msb's must always be 1 !!
+ * 0x05		Another var framerate ctrl reg2==3, reg3==0, reg4==0xc0:
+ *		1 -> ~30 fps, 2 -> ~20 fps
+ * 0x0e		Exposure bits 0-7, 0-448, 0 = use full frame time
+ * 0x0f		Exposure bit 8, 0-448, 448 = no exposure at all
+ * 0x10		Master gain 0-31
+ * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
+ *
+ * The registers are accessed in the following functions:
+ *
+ * Page | Register   | Function
+ * -----+------------+---------------------------------------------------
+ *  0   | 0x0f..0x20 | setcolors()
+ *  0   | 0xa2..0xab | setbrightcont()
+ *  0   | 0xc5       | setredbalance()
+ *  0   | 0xc6       | setwhitebalance()
+ *  0   | 0xc7       | setbluebalance()
+ *  0   | 0xdc       | setbrightcont(), setcolors()
+ *  3   | 0x02       | setexposure()
+ *  3   | 0x10       | setgain()
+ *  3   | 0x11       | setcolors(), setgain(), setexposure(), sethvflip()
+ *  3   | 0x21       | sethvflip()
+ */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -600,28 +601,36 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	u8 clockdiv;
 	u16 exposure;
 
-	/* register 2 of frame 3 contains the clock divider configuring the
-	   no fps according to the formula: 90 / reg. sd->exposure is the
-	   desired exposure time in 0.5 ms. */
+	/*
+	 * Register 2 of frame 3 contains the clock divider configuring the
+	 * no fps according to the formula: 90 / reg. sd->exposure is the
+	 * desired exposure time in 0.5 ms.
+	 */
 	clockdiv = (90 * sd->ctrls[EXPOSURE].val + 1999) / 2000;
 
-	/* Note clockdiv = 3 also works, but when running at 30 fps, depending
-	   on the scene being recorded, the camera switches to another
-	   quantization table for certain JPEG blocks, and we don't know how
-	   to decompress these blocks. So we cap the framerate at 15 fps */
+	/*
+	 * Note clockdiv = 3 also works, but when running at 30 fps, depending
+	 * on the scene being recorded, the camera switches to another
+	 * quantization table for certain JPEG blocks, and we don't know how
+	 * to decompress these blocks. So we cap the framerate at 15 fps.
+	 */
 	if (clockdiv < 6)
 		clockdiv = 6;
 	else if (clockdiv > 63)
 		clockdiv = 63;
 
-	/* reg2 MUST be a multiple of 3, except when between 6 and 12?
-	   Always round up, otherwise we cannot get the desired frametime
-	   using the partial frame time exposure control */
+	/*
+	 * Register 2 MUST be a multiple of 3, except when between 6 and 12?
+	 * Always round up, otherwise we cannot get the desired frametime
+	 * using the partial frame time exposure control.
+	 */
 	if (clockdiv < 6 || clockdiv > 12)
 		clockdiv = ((clockdiv + 2) / 3) * 3;
 
-	/* frame exposure time in ms = 1000 * clockdiv / 90    ->
-	exposure = (sd->exposure / 2) * 448 / (1000 * clockdiv / 90) */
+	/*
+	 * frame exposure time in ms = 1000 * clockdiv / 90    ->
+	 * exposure = (sd->exposure / 2) * 448 / (1000 * clockdiv / 90)
+	 */
 	exposure = (sd->ctrls[EXPOSURE].val * 45 * 448) / (1000 * clockdiv);
 	/* 0 = use full frametime, 448 = no exposure, reverse it */
 	exposure = 448 - exposure;
@@ -639,10 +648,12 @@ static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* when switching to autogain set defaults to make sure
-	   we are on a valid point of the autogain gain /
-	   exposure knee graph, and give this change time to
-	   take effect before doing autogain. */
+	/*
+	 * When switching to autogain set defaults to make sure
+	 * we are on a valid point of the autogain gain /
+	 * exposure knee graph, and give this change time to
+	 * take effect before doing autogain.
+	 */
 	if (sd->ctrls[AUTOGAIN].val) {
 		sd->ctrls[EXPOSURE].val = EXPOSURE_DEF;
 		sd->ctrls[GAIN].val = GAIN_DEF;
@@ -784,10 +795,12 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (sof) {
 		int n, lum_offset, footer_length;
 
-		/* 6 bytes after the FF D9 EOF marker a number of lumination
-		   bytes are send corresponding to different parts of the
-		   image, the 14th and 15th byte after the EOF seem to
-		   correspond to the center of the image */
+		/*
+		 * 6 bytes after the FF D9 EOF marker a number of lumination
+		 * bytes are send corresponding to different parts of the
+		 * image, the 14th and 15th byte after the EOF seem to
+		 * correspond to the center of the image.
+		 */
 		lum_offset = 61 + sizeof pac_sof_marker;
 		footer_length = 74;
 
@@ -831,9 +844,10 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 	u8 index;
 	u8 value;
 
-	/* reg->reg: bit0..15: reserved for register index (wIndex is 16bit
-			       long on the USB bus)
-	*/
+	/*
+	 * reg->reg: bit0..15: reserved for register index (wIndex is 16bit
+	 *		       long on the USB bus)
+	 */
 	if (reg->match.type == V4L2_CHIP_MATCH_HOST &&
 	    reg->match.addr == 0 &&
 	    (reg->reg < 0x000000ff) &&
@@ -844,9 +858,11 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 		index = reg->reg;
 		value = reg->val;
 
-		/* Note that there shall be no access to other page
-		   by any other function between the page swith and
-		   the actual register write */
+		/*
+		 * Note that there shall be no access to other page
+		 * by any other function between the page switch and
+		 * the actual register write.
+		 */
 		reg_w(gspca_dev, 0xff, 0x00);		/* page 0 */
 		reg_w(gspca_dev, index, value);
 
