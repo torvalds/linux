@@ -1027,8 +1027,6 @@ void __init setup_arch(char **cmdline_p)
 
 	x86_init.timers.wallclock_init();
 
-	x86_platform.wallclock_init();
-
 	mcheck_init();
 
 	arch_init_ideal_nops();
