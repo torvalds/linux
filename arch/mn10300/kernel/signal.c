@@ -461,8 +461,7 @@ static int handle_signal(int sig,
 	if (ret)
 		return;
 
-	block_sigmask(ka, sig);
-	tracehook_signal_handler(sig, info, ka, regs,
+	signal_delivered(sig, info, ka, regs,
 				 test_thread_flag(TIF_SINGLESTEP));
 }
 

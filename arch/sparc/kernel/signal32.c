@@ -785,8 +785,7 @@ static inline void handle_signal32(unsigned long signr, struct k_sigaction *ka,
 	if (err)
 		return;
 
-	block_sigmask(ka, signr);
-	tracehook_signal_handler(signr, info, ka, regs, 0);
+	signal_delivered(signr, info, ka, regs, 0);
 }
 
 static inline void syscall_restart32(unsigned long orig_i0, struct pt_regs *regs,

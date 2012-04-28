@@ -278,7 +278,7 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 		ret = setup_rt_frame(sig, ka, info, oldset, regs);
 	if (ret)
 		return;
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

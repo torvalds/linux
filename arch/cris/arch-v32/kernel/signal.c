@@ -485,7 +485,7 @@ handle_signal(int canrestart, unsigned long sig,
 		ret = setup_frame(sig, ka, oldset, regs);
 
 	if (ret == 0)
-		block_sigmask(ka, sig);
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

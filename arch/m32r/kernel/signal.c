@@ -294,7 +294,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs))
 		return;
 
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

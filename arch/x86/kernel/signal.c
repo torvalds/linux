@@ -715,10 +715,8 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	 */
 	regs->flags &= ~X86_EFLAGS_TF;
 
-	block_sigmask(ka, sig);
-
-	tracehook_signal_handler(sig, info, ka, regs,
-				 test_thread_flag(TIF_SINGLESTEP));
+	signal_delivered(sig, info, ka, regs,
+			 test_thread_flag(TIF_SINGLESTEP));
 }
 
 #ifdef CONFIG_X86_32

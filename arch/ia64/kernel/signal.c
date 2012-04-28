@@ -419,12 +419,7 @@ handle_signal (unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	if (!setup_frame(sig, ka, info, sigmask_to_save(), scr))
 		return 0;
 
-	block_sigmask(ka, sig);
-
-	/*
-	 * Let tracing know that we've done the handler setup.
-	 */
-	tracehook_signal_handler(sig, info, ka, &scr->pt,
+	signal_delivered(sig, info, ka, &scr->pt,
 				 test_thread_flag(TIF_SINGLESTEP));
 
 	return 1;

@@ -1137,7 +1137,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	if (err)
 		return;
 
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 
 	if (test_thread_flag(TIF_DELAYED_TRACE)) {
 		regs->sr &= ~0x8000;

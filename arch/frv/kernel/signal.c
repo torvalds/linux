@@ -460,8 +460,7 @@ static void handle_signal(unsigned long sig, siginfo_t *info,
 	if (ret)
 		return;
 
-	block_sigmask(ka, sig);
-	tracehook_signal_handler(sig, info, ka, __frame,
+	signal_delivered(sig, info, ka, __frame,
 				 test_thread_flag(TIF_SINGLESTEP));
 } /* end handle_signal() */
 

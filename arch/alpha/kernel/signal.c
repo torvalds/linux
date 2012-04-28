@@ -478,7 +478,7 @@ handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 		force_sigsegv(sig, current);
 		return;
 	}
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 static inline void

@@ -362,10 +362,7 @@ static void handle_signal(unsigned long sig, struct k_sigaction *ka,
 		return;
 	}
 
-	/*
-	 * Block the signal if we were successful.
-	 */
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

@@ -241,7 +241,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	if (ret != 0)
 		force_sigsegv(sig, current);
 	else
-		block_sigmask(ka, sig);
+		signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

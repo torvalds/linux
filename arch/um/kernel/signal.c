@@ -61,7 +61,7 @@ static void handle_signal(struct pt_regs *regs, unsigned long signr,
 	if (err)
 		force_sigsegv(signr, current);
 	else
-		block_sigmask(ka, signr);
+		signal_delivered(signr, info, ka, regs, 0);
 }
 
 static int kern_do_signal(struct pt_regs *regs)

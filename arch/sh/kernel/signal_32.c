@@ -533,8 +533,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 
 	if (ret)
 		return;
-	block_sigmask(ka, sig);
-	tracehook_signal_handler(sig, info, ka, regs,
+	signal_delivered(sig, info, ka, regs,
 			test_thread_flag(TIF_SINGLESTEP));
 }
 

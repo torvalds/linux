@@ -323,7 +323,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 	if (ret)
 		return;
 
-	block_sigmask(ka, sig);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

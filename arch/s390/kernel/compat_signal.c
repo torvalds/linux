@@ -580,11 +580,7 @@ void handle_signal32(unsigned long sig, struct k_sigaction *ka,
 		ret = setup_frame32(sig, ka, oldset, regs);
 	if (ret)
 		return;
-	block_sigmask(ka, sig);
-	/*
-	 * Let tracing know that we've done the handler setup.
-	 */
-	tracehook_signal_handler(sig, info, ka, regs,
+	signal_delivered(sig, info, ka, regs,
 				 test_thread_flag(TIF_SINGLE_STEP));
 }
 

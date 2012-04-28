@@ -557,12 +557,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka,
 		force_sigsegv(sig, tsk);
 		return;
 	}
-
-	/*
-	 * Block the signal if we were successful.
-	 */
-	block_sigmask(ka, sig);
-	tracehook_signal_handler(sig, info, ka, regs, 0);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

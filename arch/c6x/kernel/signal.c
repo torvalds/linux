@@ -276,8 +276,7 @@ static void handle_signal(int sig,
 	/* Set up the stack frame */
 	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs) < 0)
 		return;
-	block_sigmask(ka, sig);
-	tracehook_signal_handler(sig, info, ka, regs, 0);
+	signal_delivered(sig, info, ka, regs, 0);
 }
 
 /*

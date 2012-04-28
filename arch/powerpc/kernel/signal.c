@@ -148,11 +148,7 @@ static int do_signal(struct pt_regs *regs)
 
 	regs->trap = 0;
 	if (ret) {
-		block_sigmask(&ka, signr);
-		/*
-		 * Let tracing know that we've done the handler setup.
-		 */
-		tracehook_signal_handler(signr, &info, &ka, regs,
+		signal_delivered(signr, &info, &ka, regs,
 					 test_thread_flag(TIF_SINGLESTEP));
 	}
 
