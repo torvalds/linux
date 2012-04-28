@@ -3,3 +3,5 @@
 #
 
 obj-y += clk.o clk-pll.o clk-ref.o clk-div.o clk-frac.o
+
+obj-$(CONFIG_SOC_IMX23) += clk-imx23.o
