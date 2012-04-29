@@ -573,10 +573,9 @@ iscsi_iser_ep_connect(struct Scsi_Host *shost, struct sockaddr *dst_addr,
 
 	err = iser_connect(ib_conn, NULL, (struct sockaddr_in *)dst_addr,
 			   non_blocking);
-	if (err) {
-		iscsi_destroy_endpoint(ep);
+	if (err)
 		return ERR_PTR(err);
-	}
+
 	return ep;
 }
 
