@@ -1910,9 +1910,6 @@ static void brcms_b_xtal(struct brcms_hardware *wlc_hw, bool want)
 	if (!want && wlc_hw->pllreq)
 		return;
 
-	if (wlc_hw->sih)
-		ai_clkctl_xtal(wlc_hw->sih, XTAL | PLL, want);
-
 	wlc_hw->sbclk = want;
 	if (!wlc_hw->sbclk) {
 		wlc_hw->clk = false;

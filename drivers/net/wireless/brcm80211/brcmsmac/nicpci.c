@@ -240,6 +240,7 @@ static void pr28829_delay(void)
 struct pcicore_info *pcicore_init(struct si_pub *sih, struct bcma_device *core)
 {
 	struct pcicore_info *pi;
+	u8 cap_ptr;
 
 	/* alloc struct pcicore_info */
 	pi = kzalloc(sizeof(struct pcicore_info), GFP_ATOMIC);
@@ -250,12 +251,9 @@ struct pcicore_info *pcicore_init(struct si_pub *sih, struct bcma_device *core)
 	pi->dev = core->bus->host_pci;
 	pi->core = core;
 
-	if (core->id.id == PCIE_CORE_ID) {
-		u8 cap_ptr;
-		cap_ptr = pcicore_find_pci_capability(pi->dev, PCI_CAP_ID_EXP,
+	cap_ptr = pcicore_find_pci_capability(pi->dev, PCI_CAP_ID_EXP,
 						      NULL, NULL);
-		pi->pciecap_lcreg_offset = cap_ptr + PCIE_CAP_LINKCTRL_OFFSET;
-	}
+	pi->pciecap_lcreg_offset = cap_ptr + PCIE_CAP_LINKCTRL_OFFSET;
 	return pi;
 }
 
@@ -791,18 +789,7 @@ void pcicore_fixcfg(struct pcicore_info *pi)
 	u16 val16;
 	uint regoff;
 
-	switch (pi->core->id.id) {
-	case BCMA_CORE_PCI:
-		regoff = PCIREGOFFS(sprom[SRSH_PI_OFFSET]);
-		break;
-
-	case BCMA_CORE_PCIE:
-		regoff = PCIEREGOFFS(sprom[SRSH_PI_OFFSET]);
-		break;
-
-	default:
-		return;
-	}
+	regoff = PCIEREGOFFS(sprom[SRSH_PI_OFFSET]);
 
 	val16 = bcma_read16(pi->core, regoff);
 	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) !=
@@ -810,20 +797,5 @@ void pcicore_fixcfg(struct pcicore_info *pi)
 		val16 = ((u16)core->core_index << SRSH_PI_SHIFT) |
 			(val16 & ~SRSH_PI_MASK);
 		bcma_write16(pi->core, regoff, val16);
-	}
-}
-
-/* precondition: current core is pci core */
-void
-pcicore_pci_setup(struct pcicore_info *pi)
-{
-	bcma_set32(pi->core, PCIREGOFFS(sbtopci2),
-		   SBTOPCI_PREF | SBTOPCI_BURST);
-
-	if (pi->core->id.rev >= 11) {
-		bcma_set32(pi->core, PCIREGOFFS(sbtopci2),
-			   SBTOPCI_RC_READMULTI);
-		bcma_set32(pi->core, PCIREGOFFS(clkrun), PCI_CLKRUN_DSBL);
-		(void)bcma_read32(pi->core, PCIREGOFFS(clkrun));
 	}
 }

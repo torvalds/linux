@@ -320,7 +320,6 @@
 #define	IS_SIM(chippkg)	\
 	((chippkg == HDLSIM_PKG_ID) || (chippkg == HWSIM_PKG_ID))
 
-#define PCI(sih)	(ai_get_buscoretype(sih) == PCI_CORE_ID)
 #define PCIE(sih)	(ai_get_buscoretype(sih) == PCIE_CORE_ID)
 
 #define PCI_FORCEHT(sih) (PCIE(sih) && (ai_get_chip_id(sih) == BCM4716_CHIP_ID))
@@ -453,36 +452,9 @@ struct aidmp {
 	u32 componentid3;	/* 0xffc */
 };
 
-/* return true if PCIE capability exists in the pci config space */
-static bool ai_ispcie(struct si_info *sii)
-{
-	u8 cap_ptr;
-
-	cap_ptr =
-	    pcicore_find_pci_capability(sii->pcibus, PCI_CAP_ID_EXP, NULL,
-					NULL);
-	if (!cap_ptr)
-		return false;
-
-	return true;
-}
-
-static bool ai_buscore_prep(struct si_info *sii)
-{
-	/* kludge to enable the clock on the 4306 which lacks a slowclock */
-	if (!ai_ispcie(sii))
-		ai_clkctl_xtal(&sii->pub, XTAL | PLL, ON);
-	return true;
-}
-
 static bool
 ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 {
-	struct bcma_device *pci = NULL;
-	struct bcma_device *pcie = NULL;
-	struct bcma_device *core;
-
-
 	/* no cores found, bail out */
 	if (cc->bus->nr_cores == 0)
 		return false;
@@ -504,30 +476,7 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	}
 
 	/* figure out buscore */
-	list_for_each_entry(core, &cc->bus->cores, list) {
-		uint cid, crev;
-
-		cid = core->id.id;
-		crev = core->id.rev;
-
-		if (cid == PCI_CORE_ID) {
-			pci = core;
-		} else if (cid == PCIE_CORE_ID) {
-			pcie = core;
-		}
-	}
-
-	if (pci && pcie) {
-		if (ai_ispcie(sii))
-			pci = NULL;
-		else
-			pcie = NULL;
-	}
-	if (pci) {
-		sii->buscore = pci;
-	} else if (pcie) {
-		sii->buscore = pcie;
-	}
+	sii->buscore = ai_findcore(&sii->pub, PCIE_CORE_ID, 0);
 
 	/* fixup necessary chip/core configurations */
 	if (!sii->pch) {
@@ -556,10 +505,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 
 	/* switch to Chipcommon core */
 	cc = pbus->drv_cc.core;
-
-	/* bus/core/clk setup for register access */
-	if (!ai_buscore_prep(sii))
-		return NULL;
 
 	sih->chip = pbus->chipinfo.id;
 	sih->chiprev = pbus->chipinfo.rev;
@@ -816,69 +761,6 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	return fpdelay;
 }
 
-/* turn primary xtal and/or pll off/on */
-int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on)
-{
-	struct si_info *sii;
-	u32 in, out, outen;
-
-	sii = (struct si_info *)sih;
-
-	/* pcie core doesn't have any mapping to control the xtal pu */
-	if (PCIE(sih))
-		return -1;
-
-	pci_read_config_dword(sii->pcibus, PCI_GPIO_IN, &in);
-	pci_read_config_dword(sii->pcibus, PCI_GPIO_OUT, &out);
-	pci_read_config_dword(sii->pcibus, PCI_GPIO_OUTEN, &outen);
-
-	/*
-	 * Avoid glitching the clock if GPRS is already using it.
-	 * We can't actually read the state of the PLLPD so we infer it
-	 * by the value of XTAL_PU which *is* readable via gpioin.
-	 */
-	if (on && (in & PCI_CFG_GPIO_XTAL))
-		return 0;
-
-	if (what & XTAL)
-		outen |= PCI_CFG_GPIO_XTAL;
-	if (what & PLL)
-		outen |= PCI_CFG_GPIO_PLL;
-
-	if (on) {
-		/* turn primary xtal on */
-		if (what & XTAL) {
-			out |= PCI_CFG_GPIO_XTAL;
-			if (what & PLL)
-				out |= PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->pcibus,
-					       PCI_GPIO_OUT, out);
-			pci_write_config_dword(sii->pcibus,
-					       PCI_GPIO_OUTEN, outen);
-			udelay(XTAL_ON_DELAY);
-		}
-
-		/* turn pll on */
-		if (what & PLL) {
-			out &= ~PCI_CFG_GPIO_PLL;
-			pci_write_config_dword(sii->pcibus,
-					       PCI_GPIO_OUT, out);
-			mdelay(2);
-		}
-	} else {
-		if (what & XTAL)
-			out &= ~PCI_CFG_GPIO_XTAL;
-		if (what & PLL)
-			out |= PCI_CFG_GPIO_PLL;
-		pci_write_config_dword(sii->pcibus,
-				       PCI_GPIO_OUT, out);
-		pci_write_config_dword(sii->pcibus,
-				       PCI_GPIO_OUTEN, outen);
-	}
-
-	return 0;
-}
-
 /* clk control mechanism through chipcommon, no policy checking */
 static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
 {
@@ -985,15 +867,11 @@ void ai_pci_setup(struct si_pub *sih, uint coremask)
 	 * Enable sb->pci interrupts.  Assume
 	 * PCI rev 2.3 support was added in pci core rev 6 and things changed..
 	 */
-	if (PCIE(sih) || (PCI(sih) && (ai_get_buscorerev(sih) >= 6))) {
+	if (PCIE(sih)) {
 		/* pci config write to set this core bit in PCIIntMask */
 		pci_read_config_dword(sii->pcibus, PCI_INT_MASK, &w);
 		w |= (coremask << PCI_SBIM_SHIFT);
 		pci_write_config_dword(sii->pcibus, PCI_INT_MASK, w);
-	}
-
-	if (PCI(sih)) {
-		pcicore_pci_setup(sii->pch);
 	}
 }
 
