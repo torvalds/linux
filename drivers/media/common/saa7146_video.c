@@ -202,65 +202,6 @@ int saa7146_stop_preview(struct saa7146_fh *fh)
 EXPORT_SYMBOL_GPL(saa7146_stop_preview);
 
 /********************************************************************************/
-/* device controls */
-
-static struct v4l2_queryctrl controls[] = {
-	{
-		.id		= V4L2_CID_BRIGHTNESS,
-		.name		= "Brightness",
-		.minimum	= 0,
-		.maximum	= 255,
-		.step		= 1,
-		.default_value	= 128,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.flags 		= V4L2_CTRL_FLAG_SLIDER,
-	},{
-		.id		= V4L2_CID_CONTRAST,
-		.name		= "Contrast",
-		.minimum	= 0,
-		.maximum	= 127,
-		.step		= 1,
-		.default_value	= 64,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.flags 		= V4L2_CTRL_FLAG_SLIDER,
-	},{
-		.id		= V4L2_CID_SATURATION,
-		.name		= "Saturation",
-		.minimum	= 0,
-		.maximum	= 127,
-		.step		= 1,
-		.default_value	= 64,
-		.type		= V4L2_CTRL_TYPE_INTEGER,
-		.flags 		= V4L2_CTRL_FLAG_SLIDER,
-	},{
-		.id		= V4L2_CID_VFLIP,
-		.name		= "Vertical Flip",
-		.minimum	= 0,
-		.maximum	= 1,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-	},{
-		.id		= V4L2_CID_HFLIP,
-		.name		= "Horizontal Flip",
-		.minimum	= 0,
-		.maximum	= 1,
-		.type		= V4L2_CTRL_TYPE_BOOLEAN,
-	},
-};
-static int NUM_CONTROLS = sizeof(controls)/sizeof(struct v4l2_queryctrl);
-
-#define V4L2_CID_PRIVATE_LASTP1      (V4L2_CID_PRIVATE_BASE + 0)
-
-static struct v4l2_queryctrl* ctrl_by_id(int id)
-{
-	int i;
-
-	for (i = 0; i < NUM_CONTROLS; i++)
-		if (controls[i].id == id)
-			return controls+i;
-	return NULL;
-}
-
-/********************************************************************************/
 /* common pagetable functions */
 
 static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *buf)
@@ -510,12 +451,13 @@ static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *
 	strlcpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
 	sprintf((char *)cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	cap->version = SAA7146_VERSION_CODE;
-	cap->capabilities =
+	cap->device_caps =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_VIDEO_OVERLAY |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING;
-	cap->capabilities |= dev->ext_vv_data->capabilities;
+	cap->device_caps |= dev->ext_vv_data->capabilities;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -579,135 +521,58 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *fh, struct v4l2_fmtd
 	return 0;
 }
 
-static int vidioc_queryctrl(struct file *file, void *fh, struct v4l2_queryctrl *c)
+int saa7146_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	const struct v4l2_queryctrl *ctrl;
-
-	if ((c->id <  V4L2_CID_BASE ||
-	     c->id >= V4L2_CID_LASTP1) &&
-	    (c->id <  V4L2_CID_PRIVATE_BASE ||
-	     c->id >= V4L2_CID_PRIVATE_LASTP1))
-		return -EINVAL;
-
-	ctrl = ctrl_by_id(c->id);
-	if (ctrl == NULL)
-		return -EINVAL;
-
-	DEB_EE("VIDIOC_QUERYCTRL: id:%d\n", c->id);
-	*c = *ctrl;
-	return 0;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *c)
-{
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_dev *dev = container_of(ctrl->handler,
+				struct saa7146_dev, ctrl_handler);
 	struct saa7146_vv *vv = dev->vv_data;
-	const struct v4l2_queryctrl *ctrl;
-	u32 value = 0;
+	u32 val;
 
-	ctrl = ctrl_by_id(c->id);
-	if (NULL == ctrl)
-		return -EINVAL;
-	switch (c->id) {
+	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		value = saa7146_read(dev, BCS_CTRL);
-		c->value = 0xff & (value >> 24);
-		DEB_D("V4L2_CID_BRIGHTNESS: %d\n", c->value);
+		val = saa7146_read(dev, BCS_CTRL);
+		val &= 0x00ffffff;
+		val |= (ctrl->val << 24);
+		saa7146_write(dev, BCS_CTRL, val);
+		saa7146_write(dev, MC2, MASK_22 | MASK_06);
 		break;
+
 	case V4L2_CID_CONTRAST:
-		value = saa7146_read(dev, BCS_CTRL);
-		c->value = 0x7f & (value >> 16);
-		DEB_D("V4L2_CID_CONTRAST: %d\n", c->value);
+		val = saa7146_read(dev, BCS_CTRL);
+		val &= 0xff00ffff;
+		val |= (ctrl->val << 16);
+		saa7146_write(dev, BCS_CTRL, val);
+		saa7146_write(dev, MC2, MASK_22 | MASK_06);
 		break;
+
 	case V4L2_CID_SATURATION:
-		value = saa7146_read(dev, BCS_CTRL);
-		c->value = 0x7f & (value >> 0);
-		DEB_D("V4L2_CID_SATURATION: %d\n", c->value);
-		break;
-	case V4L2_CID_VFLIP:
-		c->value = vv->vflip;
-		DEB_D("V4L2_CID_VFLIP: %d\n", c->value);
-		break;
-	case V4L2_CID_HFLIP:
-		c->value = vv->hflip;
-		DEB_D("V4L2_CID_HFLIP: %d\n", c->value);
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
-{
-	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
-	struct saa7146_vv *vv = dev->vv_data;
-	const struct v4l2_queryctrl *ctrl;
-
-	ctrl = ctrl_by_id(c->id);
-	if (NULL == ctrl) {
-		DEB_D("unknown control %d\n", c->id);
-		return -EINVAL;
-	}
-
-	switch (ctrl->type) {
-	case V4L2_CTRL_TYPE_BOOLEAN:
-	case V4L2_CTRL_TYPE_MENU:
-	case V4L2_CTRL_TYPE_INTEGER:
-		if (c->value < ctrl->minimum)
-			c->value = ctrl->minimum;
-		if (c->value > ctrl->maximum)
-			c->value = ctrl->maximum;
-		break;
-	default:
-		/* nothing */;
-	}
-
-	switch (c->id) {
-	case V4L2_CID_BRIGHTNESS: {
-		u32 value = saa7146_read(dev, BCS_CTRL);
-		value &= 0x00ffffff;
-		value |= (c->value << 24);
-		saa7146_write(dev, BCS_CTRL, value);
+		val = saa7146_read(dev, BCS_CTRL);
+		val &= 0xffffff00;
+		val |= (ctrl->val << 0);
+		saa7146_write(dev, BCS_CTRL, val);
 		saa7146_write(dev, MC2, MASK_22 | MASK_06);
 		break;
-	}
-	case V4L2_CID_CONTRAST: {
-		u32 value = saa7146_read(dev, BCS_CTRL);
-		value &= 0xff00ffff;
-		value |= (c->value << 16);
-		saa7146_write(dev, BCS_CTRL, value);
-		saa7146_write(dev, MC2, MASK_22 | MASK_06);
-		break;
-	}
-	case V4L2_CID_SATURATION: {
-		u32 value = saa7146_read(dev, BCS_CTRL);
-		value &= 0xffffff00;
-		value |= (c->value << 0);
-		saa7146_write(dev, BCS_CTRL, value);
-		saa7146_write(dev, MC2, MASK_22 | MASK_06);
-		break;
-	}
+
 	case V4L2_CID_HFLIP:
 		/* fixme: we can support changing VFLIP and HFLIP here... */
-		if (IS_CAPTURE_ACTIVE(fh) != 0) {
-			DEB_D("V4L2_CID_HFLIP while active capture\n");
+		if ((vv->video_status & STATUS_CAPTURE))
 			return -EBUSY;
-		}
-		vv->hflip = c->value;
+		vv->hflip = ctrl->val;
 		break;
+
 	case V4L2_CID_VFLIP:
-		if (IS_CAPTURE_ACTIVE(fh) != 0) {
-			DEB_D("V4L2_CID_VFLIP while active capture\n");
+		if ((vv->video_status & STATUS_CAPTURE))
 			return -EBUSY;
-		}
-		vv->vflip = c->value;
+		vv->vflip = ctrl->val;
 		break;
+
 	default:
 		return -EINVAL;
 	}
 
-	if (IS_OVERLAY_ACTIVE(fh) != 0) {
+	if ((vv->video_status & STATUS_OVERLAY) != 0) { /* CHECK: && (vv->video_fh == fh)) */
+		struct saa7146_fh *fh = vv->video_fh;
+
 		saa7146_stop_preview(fh);
 		saa7146_start_preview(fh);
 	}
@@ -720,6 +585,8 @@ static int vidioc_g_parm(struct file *file, void *fh,
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct saa7146_vv *vv = dev->vv_data;
 
+	if (parm->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
 	parm->parm.capture.readbuffers = 1;
 	v4l2_video_std_frame_period(vv->standard->id,
 				    &parm->parm.capture.timeperframe);
@@ -787,6 +654,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_forma
 	}
 
 	f->fmt.pix.field = field;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	if (f->fmt.pix.width > maxw)
 		f->fmt.pix.width = maxw;
 	if (f->fmt.pix.height > maxh)
@@ -1141,9 +1009,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_dqbuf                = vidioc_dqbuf,
 	.vidioc_g_std                = vidioc_g_std,
 	.vidioc_s_std                = vidioc_s_std,
-	.vidioc_queryctrl            = vidioc_queryctrl,
-	.vidioc_g_ctrl               = vidioc_g_ctrl,
-	.vidioc_s_ctrl               = vidioc_s_ctrl,
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
 	.vidioc_g_parm 		     = vidioc_g_parm,
@@ -1338,6 +1203,7 @@ static int video_open(struct saa7146_dev *dev, struct file *file)
 	fh->video_fmt.pixelformat = V4L2_PIX_FMT_BGR24;
 	fh->video_fmt.bytesperline = 0;
 	fh->video_fmt.field = V4L2_FIELD_ANY;
+	fh->video_fmt.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	sfmt = saa7146_format_by_fourcc(dev,fh->video_fmt.pixelformat);
 	fh->video_fmt.sizeimage = (fh->video_fmt.width * fh->video_fmt.height * sfmt->depth)/8;
 

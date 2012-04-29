@@ -10,33 +10,4 @@
 
 #define MXB_AUDIOS	6
 
-/* these are the available audio sources, which can switched
-   to the line- and cd-output individually */
-static struct v4l2_audio mxb_audios[MXB_AUDIOS] = {
-	    {
-		.index	= 0,
-		.name	= "Tuner",
-		.capability = V4L2_AUDCAP_STEREO,
-	} , {
-		.index	= 1,
-		.name	= "AUX1",
-		.capability = V4L2_AUDCAP_STEREO,
-	} , {
-		.index	= 2,
-		.name	= "AUX2",
-		.capability = V4L2_AUDCAP_STEREO,
-	} , {
-		.index	= 3,
-		.name	= "AUX3",
-		.capability = V4L2_AUDCAP_STEREO,
-	} , {
-		.index	= 4,
-		.name	= "Radio (X9)",
-		.capability = V4L2_AUDCAP_STEREO,
-	} , {
-		.index	= 5,
-		.name	= "CD-ROM (X10)",
-		.capability = V4L2_AUDCAP_STEREO,
-	}
-};
 #endif

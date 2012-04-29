@@ -13,6 +13,7 @@
 #include <linux/mutex.h>
 #include <linux/scatterlist.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 
 #include <linux/vmalloc.h>	/* for vmalloc() */
 #include <linux/mm.h>		/* for vmalloc_to_page() */
@@ -121,6 +122,7 @@ struct saa7146_dev
 	struct list_head		item;
 
 	struct v4l2_device 		v4l2_dev;
+	struct v4l2_ctrl_handler	ctrl_handler;
 
 	/* different device locks */
 	spinlock_t			slock;

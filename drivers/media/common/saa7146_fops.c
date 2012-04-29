@@ -429,8 +429,13 @@ static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 	}
 }
 
+static const struct v4l2_ctrl_ops saa7146_ctrl_ops = {
+	.s_ctrl = saa7146_s_ctrl,
+};
+
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
+	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
 	struct saa7146_vv *vv;
 	int err;
 
@@ -438,9 +443,28 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	if (err)
 		return err;
 
+	v4l2_ctrl_handler_init(hdl, 6);
+	v4l2_ctrl_new_std(hdl, &saa7146_ctrl_ops,
+		V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+	v4l2_ctrl_new_std(hdl, &saa7146_ctrl_ops,
+		V4L2_CID_CONTRAST, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(hdl, &saa7146_ctrl_ops,
+		V4L2_CID_SATURATION, 0, 127, 1, 64);
+	v4l2_ctrl_new_std(hdl, &saa7146_ctrl_ops,
+		V4L2_CID_VFLIP, 0, 1, 1, 0);
+	v4l2_ctrl_new_std(hdl, &saa7146_ctrl_ops,
+		V4L2_CID_HFLIP, 0, 1, 1, 0);
+	if (hdl->error) {
+		err = hdl->error;
+		v4l2_ctrl_handler_free(hdl);
+		return err;
+	}
+	dev->v4l2_dev.ctrl_handler = hdl;
+
 	vv = kzalloc(sizeof(struct saa7146_vv), GFP_KERNEL);
 	if (vv == NULL) {
 		ERR("out of memory. aborting.\n");
+		v4l2_ctrl_handler_free(hdl);
 		return -ENOMEM;
 	}
 	ext_vv->ops = saa7146_video_ioctl_ops;
@@ -463,6 +487,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	if( NULL == vv->d_clipping.cpu_addr ) {
 		ERR("out of memory. aborting.\n");
 		kfree(vv);
+		v4l2_ctrl_handler_free(hdl);
 		return -1;
 	}
 	memset(vv->d_clipping.cpu_addr, 0x0, SAA7146_CLIPPING_MEM);
@@ -486,6 +511,7 @@ int saa7146_vv_release(struct saa7146_dev* dev)
 
 	v4l2_device_unregister(&dev->v4l2_dev);
 	pci_free_consistent(dev->pci, SAA7146_CLIPPING_MEM, vv->d_clipping.cpu_addr, vv->d_clipping.dma_handle);
+	v4l2_ctrl_handler_free(&dev->ctrl_handler);
 	kfree(vv);
 	dev->vv_data = NULL;
 	dev->vv_callback = NULL;
@@ -516,6 +542,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	   This driver needs auditing so that this flag can be removed. */
 	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->v4l2_lock;
+	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->tvnorms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
