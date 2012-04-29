@@ -2413,6 +2413,9 @@ extern int ext4_bio_write_page(struct ext4_io_submit *io,
 
 /* mmp.c */
 extern int ext4_multi_mount_protect(struct super_block *, ext4_fsblk_t);
+extern void ext4_mmp_csum_set(struct super_block *sb, struct mmp_struct *mmp);
+extern int ext4_mmp_csum_verify(struct super_block *sb,
+				struct mmp_struct *mmp);
 
 /* BH_Uninit flag: blocks are allocated but uninitialized on disk */
 enum ext4_state_bits {
