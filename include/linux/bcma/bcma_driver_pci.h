@@ -87,6 +87,9 @@ struct pci_dev;
 #define BCMA_CORE_PCI_PCICFG2			0x0600	/* PCI config space 2 (rev >= 8) */
 #define BCMA_CORE_PCI_PCICFG3			0x0700	/* PCI config space 3 (rev >= 8) */
 #define BCMA_CORE_PCI_SPROM(wordoffset)		(0x0800 + ((wordoffset) * 2)) /* SPROM shadow area (72 bytes) */
+#define  BCMA_CORE_PCI_SPROM_PI_OFFSET		0	/* first word */
+#define   BCMA_CORE_PCI_SPROM_PI_MASK		0xf000	/* bit 15:12 */
+#define   BCMA_CORE_PCI_SPROM_PI_SHIFT		12	/* bit 15:12 */
 
 /* SBtoPCIx */
 #define BCMA_CORE_PCI_SBTOPCI_MEM		0x00000000
@@ -202,7 +205,9 @@ struct bcma_drv_pci {
 };
 
 /* Register access */
+#define pcicore_read16(pc, offset)		bcma_read16((pc)->core, offset)
 #define pcicore_read32(pc, offset)		bcma_read32((pc)->core, offset)
+#define pcicore_write16(pc, offset, val)	bcma_write16((pc)->core, offset, val)
 #define pcicore_write32(pc, offset, val)	bcma_write32((pc)->core, offset, val)
 
 extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);

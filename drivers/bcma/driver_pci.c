@@ -168,12 +168,31 @@ static void bcma_pcicore_serdes_workaround(struct bcma_drv_pci *pc)
 		                     tmp & ~BCMA_CORE_PCI_PLL_CTRL_FREQDET_EN);
 }
 
+static void bcma_core_pci_fixcfg(struct bcma_drv_pci *pc)
+{
+	struct bcma_device *core = pc->core;
+	u16 val16, core_index;
+	uint regoff;
+
+	regoff = BCMA_CORE_PCI_SPROM(BCMA_CORE_PCI_SPROM_PI_OFFSET);
+	core_index = (u16)core->core_index;
+
+	val16 = pcicore_read16(pc, regoff);
+	if (((val16 & BCMA_CORE_PCI_SPROM_PI_MASK) >> BCMA_CORE_PCI_SPROM_PI_SHIFT)
+	     != core_index) {
+		val16 = (core_index << BCMA_CORE_PCI_SPROM_PI_SHIFT) |
+			(val16 & ~BCMA_CORE_PCI_SPROM_PI_MASK);
+		pcicore_write16(pc, regoff, val16);
+	}
+}
+
 /**************************************************
  * Init.
  **************************************************/
 
 static void __devinit bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
+	bcma_core_pci_fixcfg(pc);
 	bcma_pcicore_serdes_workaround(pc);
 }
 
