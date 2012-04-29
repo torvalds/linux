@@ -1998,7 +1998,7 @@ u16 b43legacy_default_radio_attenuation(struct b43legacy_wldev *dev)
 			if (phy->type == B43legacy_PHYTYPE_G) {
 				if (is_bcm_board_vendor(dev) &&
 				    dev->dev->bus->boardinfo.type == 0x421 &&
-				    dev->dev->bus->boardinfo.rev >= 30)
+				    dev->dev->bus->sprom.board_rev >= 30)
 					att = 3;
 				else if (is_bcm_board_vendor(dev) &&
 					 dev->dev->bus->boardinfo.type == 0x416)
@@ -2008,7 +2008,7 @@ u16 b43legacy_default_radio_attenuation(struct b43legacy_wldev *dev)
 			} else {
 				if (is_bcm_board_vendor(dev) &&
 				    dev->dev->bus->boardinfo.type == 0x421 &&
-				    dev->dev->bus->boardinfo.rev >= 30)
+				    dev->dev->bus->sprom.board_rev >= 30)
 					att = 7;
 				else
 					att = 6;
@@ -2018,7 +2018,7 @@ u16 b43legacy_default_radio_attenuation(struct b43legacy_wldev *dev)
 			if (phy->type == B43legacy_PHYTYPE_G) {
 				if (is_bcm_board_vendor(dev) &&
 				    dev->dev->bus->boardinfo.type == 0x421 &&
-				    dev->dev->bus->boardinfo.rev >= 30)
+				    dev->dev->bus->sprom.board_rev >= 30)
 					att = 3;
 				else if (is_bcm_board_vendor(dev) &&
 					 dev->dev->bus->boardinfo.type ==
@@ -2052,9 +2052,9 @@ u16 b43legacy_default_radio_attenuation(struct b43legacy_wldev *dev)
 	}
 	if (is_bcm_board_vendor(dev) &&
 	    dev->dev->bus->boardinfo.type == 0x421) {
-		if (dev->dev->bus->boardinfo.rev < 0x43)
+		if (dev->dev->bus->sprom.board_rev < 0x43)
 			att = 2;
-		else if (dev->dev->bus->boardinfo.rev < 0x51)
+		else if (dev->dev->bus->sprom.board_rev < 0x51)
 			att = 3;
 	}
 	if (att == 0xFFFF)

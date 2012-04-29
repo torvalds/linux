@@ -784,7 +784,6 @@ static void ssb_pci_get_boardinfo(struct ssb_bus *bus,
 {
 	bi->vendor = bus->host_pci->subsystem_vendor;
 	bi->type = bus->host_pci->subsystem_device;
-	bi->rev = bus->host_pci->revision;
 }
 
 int ssb_pci_get_invariants(struct ssb_bus *bus,

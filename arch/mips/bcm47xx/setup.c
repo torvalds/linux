@@ -115,8 +115,6 @@ static int bcm47xx_get_invariants(struct ssb_bus *bus,
 		iv->boardinfo.vendor = SSB_BOARDVENDOR_BCM;
 	if (nvram_getenv("boardtype", buf, sizeof(buf)) >= 0)
 		iv->boardinfo.type = (u16)simple_strtoul(buf, NULL, 0);
-	if (nvram_getenv("boardrev", buf, sizeof(buf)) >= 0)
-		iv->boardinfo.rev = (u16)simple_strtoul(buf, NULL, 0);
 
 	bcm47xx_fill_sprom(&iv->sprom, NULL);
 
