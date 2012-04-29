@@ -876,7 +876,6 @@ int ai_pci_fixcfg(struct si_pub *sih)
 	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
 	/* check 'pi' is correct and fix it if not */
 	pcicore_fixcfg(sii->pch);
-	pcicore_hwup(sii->pch);
 	return 0;
 }
 

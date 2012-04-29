@@ -500,28 +500,6 @@ static void pcie_war_serdes(struct pcicore_info *pi)
 	}
 }
 
-/* Fix MISC config to allow coming out of L2/L3-Ready state w/o PRST */
-/* Needs to happen when coming out of 'standby'/'hibernate' */
-static void pcie_misc_config_fixup(struct pcicore_info *pi)
-{
-	u16 val16;
-
-	val16 = bcma_read16(pi->core,
-			    PCIEREGOFFS(sprom[SRSH_PCIE_MISC_CONFIG]));
-
-	if ((val16 & SRSH_L23READY_EXIT_NOPERST) == 0) {
-		val16 |= SRSH_L23READY_EXIT_NOPERST;
-		bcma_write16(pi->core,
-			     PCIEREGOFFS(sprom[SRSH_PCIE_MISC_CONFIG]), val16);
-	}
-}
-
-/* Needs to happen when coming out of 'standby'/'hibernate' */
-static void pcie_war_pci_setup(struct pcicore_info *pi)
-{
-	pcie_misc_config_fixup(pi);
-}
-
 /* ***** Functions called during driver state changes ***** */
 void pcicore_attach(struct pcicore_info *pi, int state)
 {
@@ -529,14 +507,6 @@ void pcicore_attach(struct pcicore_info *pi, int state)
 	pcie_war_polarity(pi);
 
 	pcie_war_serdes(pi);
-}
-
-void pcicore_hwup(struct pcicore_info *pi)
-{
-	if (!pi || ai_get_buscoretype(pi->sih) != PCIE_CORE_ID)
-		return;
-
-	pcie_war_pci_setup(pi);
 }
 
 void pcicore_up(struct pcicore_info *pi, int state)
