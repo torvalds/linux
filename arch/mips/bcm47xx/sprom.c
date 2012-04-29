@@ -618,3 +618,15 @@ void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 		bcm47xx_fill_sprom_r1(sprom, prefix);
 	}
 }
+
+#ifdef CONFIG_BCM47XX_SSB
+void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
+				const char *prefix)
+{
+	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0);
+	if (!boardinfo->vendor)
+		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
+
+	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0);
+}
+#endif
