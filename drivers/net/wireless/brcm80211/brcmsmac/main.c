@@ -5050,8 +5050,6 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 
 static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 {
-	uint coremask;
-
 	BCMMSG(wlc_hw->wlc->wiphy, "wl%d\n", wlc_hw->unit);
 
 	/*
@@ -5066,9 +5064,8 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 * Configure pci/pcmcia here instead of in brcms_c_attach()
 	 * to allow mfg hotswap:  down, hotswap (chip power cycle), up.
 	 */
-	coremask = (1 << wlc_hw->wlc->core->coreidx);
-
-	ai_pci_setup(wlc_hw->sih, coremask);
+	bcma_core_pci_irq_ctl(&wlc_hw->d11core->bus->drv_pci, wlc_hw->d11core,
+			      true);
 
 	/*
 	 * Need to read the hwradio status here to cover the case where the

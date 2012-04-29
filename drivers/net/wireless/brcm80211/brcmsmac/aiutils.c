@@ -843,29 +843,6 @@ void ai_pci_down(struct si_pub *sih)
 }
 
 /*
- * Configure the pci core for pci client (NIC) action
- * coremask is the bitvec of cores by index to be enabled.
- */
-void ai_pci_setup(struct si_pub *sih, uint coremask)
-{
-	struct si_info *sii;
-	u32 w;
-
-	sii = (struct si_info *)sih;
-
-	/*
-	 * Enable sb->pci interrupts.  Assume
-	 * PCI rev 2.3 support was added in pci core rev 6 and things changed..
-	 */
-	if (PCIE(sih)) {
-		/* pci config write to set this core bit in PCIIntMask */
-		pci_read_config_dword(sii->pcibus, PCI_INT_MASK, &w);
-		w |= (coremask << PCI_SBIM_SHIFT);
-		pci_write_config_dword(sii->pcibus, PCI_INT_MASK, w);
-	}
-}
-
-/*
  * Fixup SROMless PCI device's configuration.
  * The current core may be changed upon return.
  */
