@@ -174,7 +174,6 @@ struct si_info {
 	struct pci_dev *pcibus;	/* handle to pci bus */
 	struct pcicore_info *pch; /* PCI/E core handle */
 	struct bcma_device *buscore;
-	struct list_head var_list; /* list of srom variables */
 
 	u32 chipst;		/* chip status */
 };
@@ -205,12 +204,6 @@ extern int ai_clkctl_xtal(struct si_pub *sih, uint what, bool on);
 extern bool ai_deviceremoved(struct si_pub *sih);
 extern u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val,
 			     u8 priority);
-
-/* OTP status */
-extern bool ai_is_otp_disabled(struct si_pub *sih);
-
-/* SPROM availability */
-extern bool ai_is_sprom_available(struct si_pub *sih);
 
 extern void ai_pci_sleep(struct si_pub *sih);
 extern void ai_pci_down(struct si_pub *sih);

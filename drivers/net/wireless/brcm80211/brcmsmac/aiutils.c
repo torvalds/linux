@@ -29,7 +29,6 @@
 #include "types.h"
 #include "pub.h"
 #include "pmu.h"
-#include "srom.h"
 #include "nicpci.h"
 #include "aiutils.h"
 
@@ -600,10 +599,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	if (!ai_buscore_setup(sii, cc))
 		goto exit;
 
-	/* Init nvram from sprom/otp if they exist */
-	if (srom_var_init(&sii->pub))
-		goto exit;
-
 	ai_nvram_process(sii);
 
 	/* === NVRAM, clock is ready === */
@@ -706,7 +701,6 @@ void ai_detach(struct si_pub *sih)
 		pcicore_deinit(sii->pch);
 	sii->pch = NULL;
 
-	srom_free_vars(sih);
 	kfree(sii);
 }
 
@@ -1188,45 +1182,6 @@ bool ai_deviceremoved(struct si_pub *sih)
 		return true;
 
 	return false;
-}
-
-bool ai_is_sprom_available(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-
-	if (ai_get_ccrev(sih) >= 31) {
-		struct bcma_device *cc;
-		u32 sromctrl;
-
-		if ((ai_get_cccaps(sih) & CC_CAP_SROM) == 0)
-			return false;
-
-		cc = ai_findcore(sih, BCMA_CORE_CHIPCOMMON, 0);
-		sromctrl = bcma_read32(cc, CHIPCREGOFFS(sromcontrol));
-		return sromctrl & SRC_PRESENT;
-	}
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM4313_CHIP_ID:
-		return (sii->chipst & CST4313_SPROM_PRESENT) != 0;
-	default:
-		return true;
-	}
-}
-
-bool ai_is_otp_disabled(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-
-	switch (ai_get_chip_id(sih)) {
-	case BCM4313_CHIP_ID:
-		return (sii->chipst & CST4313_OTP_PRESENT) == 0;
-		/* These chips always have their OTP on */
-	case BCM43224_CHIP_ID:
-	case BCM43225_CHIP_ID:
-	default:
-		return false;
-	}
 }
 
 uint ai_get_buscoretype(struct si_pub *sih)
