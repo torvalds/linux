@@ -1142,7 +1142,7 @@ TRACE_EVENT(xfs_bunmap,
 
 );
 
-DECLARE_EVENT_CLASS(xfs_busy_class,
+DECLARE_EVENT_CLASS(xfs_extent_busy_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len),
 	TP_ARGS(mp, agno, agbno, len),
@@ -1165,17 +1165,17 @@ DECLARE_EVENT_CLASS(xfs_busy_class,
 		  __entry->len)
 );
 #define DEFINE_BUSY_EVENT(name) \
-DEFINE_EVENT(xfs_busy_class, name, \
+DEFINE_EVENT(xfs_extent_busy_class, name, \
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, \
 		 xfs_agblock_t agbno, xfs_extlen_t len), \
 	TP_ARGS(mp, agno, agbno, len))
-DEFINE_BUSY_EVENT(xfs_alloc_busy);
-DEFINE_BUSY_EVENT(xfs_alloc_busy_enomem);
-DEFINE_BUSY_EVENT(xfs_alloc_busy_force);
-DEFINE_BUSY_EVENT(xfs_alloc_busy_reuse);
-DEFINE_BUSY_EVENT(xfs_alloc_busy_clear);
+DEFINE_BUSY_EVENT(xfs_extent_busy);
+DEFINE_BUSY_EVENT(xfs_extent_busy_enomem);
+DEFINE_BUSY_EVENT(xfs_extent_busy_force);
+DEFINE_BUSY_EVENT(xfs_extent_busy_reuse);
+DEFINE_BUSY_EVENT(xfs_extent_busy_clear);
 
-TRACE_EVENT(xfs_alloc_busy_trim,
+TRACE_EVENT(xfs_extent_busy_trim,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
 		 xfs_agblock_t agbno, xfs_extlen_t len,
 		 xfs_agblock_t tbno, xfs_extlen_t tlen),

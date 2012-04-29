@@ -47,7 +47,7 @@ STATIC int xfs_alloc_ag_vextent_near(xfs_alloc_arg_t *);
 STATIC int xfs_alloc_ag_vextent_size(xfs_alloc_arg_t *);
 STATIC int xfs_alloc_ag_vextent_small(xfs_alloc_arg_t *,
 		xfs_btree_cur_t *, xfs_agblock_t *, xfs_extlen_t *, int *);
-STATIC void xfs_alloc_busy_trim(struct xfs_alloc_arg *,
+STATIC void xfs_extent_busy_trim(struct xfs_alloc_arg *,
 		xfs_agblock_t, xfs_extlen_t, xfs_agblock_t *, xfs_extlen_t *);
 
 /*
@@ -152,7 +152,7 @@ xfs_alloc_compute_aligned(
 	xfs_extlen_t	len;
 
 	/* Trim busy sections out of found extent */
-	xfs_alloc_busy_trim(args, foundbno, foundlen, &bno, &len);
+	xfs_extent_busy_trim(args, foundbno, foundlen, &bno, &len);
 
 	if (args->alignment > 1 && len >= args->minlen) {
 		xfs_agblock_t	aligned_bno = roundup(bno, args->alignment);
@@ -536,7 +536,7 @@ xfs_alloc_ag_vextent(
 		if (error)
 			return error;
 
-		ASSERT(!xfs_alloc_busy_search(args->mp, args->agno,
+		ASSERT(!xfs_extent_busy_search(args->mp, args->agno,
 					      args->agbno, args->len));
 	}
 
@@ -603,7 +603,7 @@ xfs_alloc_ag_vextent_exact(
 	/*
 	 * Check for overlapping busy extents.
 	 */
-	xfs_alloc_busy_trim(args, fbno, flen, &tbno, &tlen);
+	xfs_extent_busy_trim(args, fbno, flen, &tbno, &tlen);
 
 	/*
 	 * Give up if the start of the extent is busy, or the freespace isn't
@@ -1391,7 +1391,7 @@ xfs_alloc_ag_vextent_small(
 		if (error)
 			goto error0;
 		if (fbno != NULLAGBLOCK) {
-			xfs_alloc_busy_reuse(args->mp, args->agno, fbno, 1,
+			xfs_extent_busy_reuse(args->mp, args->agno, fbno, 1,
 					     args->userdata);
 
 			if (args->userdata) {
@@ -2496,7 +2496,7 @@ xfs_free_extent(
 
 	error = xfs_free_ag_extent(tp, args.agbp, args.agno, args.agbno, len, 0);
 	if (!error)
-		xfs_alloc_busy_insert(tp, args.agno, args.agbno, len, 0);
+		xfs_extent_busy_insert(tp, args.agno, args.agbno, len, 0);
 error0:
 	xfs_perag_put(args.pag);
 	return error;

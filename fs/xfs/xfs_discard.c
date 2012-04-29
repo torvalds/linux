@@ -118,7 +118,7 @@ xfs_trim_extents(
 		 * If any blocks in the range are still busy, skip the
 		 * discard and try again the next time.
 		 */
-		if (xfs_alloc_busy_search(mp, agno, fbno, flen)) {
+		if (xfs_extent_busy_search(mp, agno, fbno, flen)) {
 			trace_xfs_discard_busy(mp, agno, fbno, flen);
 			goto next_extent;
 		}
@@ -212,7 +212,7 @@ xfs_discard_extents(
 	struct xfs_mount	*mp,
 	struct list_head	*list)
 {
-	struct xfs_busy_extent	*busyp;
+	struct xfs_extent_busy	*busyp;
 	int			error = 0;
 
 	list_for_each_entry(busyp, list, list) {

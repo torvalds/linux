@@ -338,8 +338,8 @@ xlog_cil_committed(
 	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
 					ctx->start_lsn, abort);
 
-	xfs_alloc_busy_sort(&ctx->busy_extents);
-	xfs_alloc_busy_clear(mp, &ctx->busy_extents,
+	xfs_extent_busy_sort(&ctx->busy_extents);
+	xfs_extent_busy_clear(mp, &ctx->busy_extents,
 			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
 	spin_lock(&ctx->cil->xc_cil_lock);
@@ -352,7 +352,7 @@ xlog_cil_committed(
 		ASSERT(mp->m_flags & XFS_MOUNT_DISCARD);
 
 		xfs_discard_extents(mp, &ctx->busy_extents);
-		xfs_alloc_busy_clear(mp, &ctx->busy_extents, false);
+		xfs_extent_busy_clear(mp, &ctx->busy_extents, false);
 	}
 
 	kmem_free(ctx);

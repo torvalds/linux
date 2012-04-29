@@ -32,27 +32,27 @@
 #include "xfs_trace.h"
 
 void
-xfs_alloc_busy_insert(
+xfs_extent_busy_insert(
 	struct xfs_trans	*tp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
 	unsigned int		flags)
 {
-	struct xfs_busy_extent	*new;
-	struct xfs_busy_extent	*busyp;
+	struct xfs_extent_busy	*new;
+	struct xfs_extent_busy	*busyp;
 	struct xfs_perag	*pag;
 	struct rb_node		**rbp;
 	struct rb_node		*parent = NULL;
 
-	new = kmem_zalloc(sizeof(struct xfs_busy_extent), KM_MAYFAIL);
+	new = kmem_zalloc(sizeof(struct xfs_extent_busy), KM_MAYFAIL);
 	if (!new) {
 		/*
 		 * No Memory!  Since it is now not possible to track the free
 		 * block, make this a synchronous transaction to insure that
 		 * the block is not reused before this transaction commits.
 		 */
-		trace_xfs_alloc_busy_enomem(tp->t_mountp, agno, bno, len);
+		trace_xfs_extent_busy_enomem(tp->t_mountp, agno, bno, len);
 		xfs_trans_set_sync(tp);
 		return;
 	}
@@ -64,14 +64,14 @@ xfs_alloc_busy_insert(
 	new->flags = flags;
 
 	/* trace before insert to be able to see failed inserts */
-	trace_xfs_alloc_busy(tp->t_mountp, agno, bno, len);
+	trace_xfs_extent_busy(tp->t_mountp, agno, bno, len);
 
 	pag = xfs_perag_get(tp->t_mountp, new->agno);
 	spin_lock(&pag->pagb_lock);
 	rbp = &pag->pagb_tree.rb_node;
 	while (*rbp) {
 		parent = *rbp;
-		busyp = rb_entry(parent, struct xfs_busy_extent, rb_node);
+		busyp = rb_entry(parent, struct xfs_extent_busy, rb_node);
 
 		if (new->bno < busyp->bno) {
 			rbp = &(*rbp)->rb_left;
@@ -95,14 +95,14 @@ xfs_alloc_busy_insert(
 /*
  * Search for a busy extent within the range of the extent we are about to
  * allocate.  You need to be holding the busy extent tree lock when calling
- * xfs_alloc_busy_search(). This function returns 0 for no overlapping busy
+ * xfs_extent_busy_search(). This function returns 0 for no overlapping busy
  * extent, -1 for an overlapping but not exact busy extent, and 1 for an exact
  * match. This is done so that a non-zero return indicates an overlap that
  * will require a synchronous transaction, but it can still be
  * used to distinguish between a partial or exact match.
  */
 int
-xfs_alloc_busy_search(
+xfs_extent_busy_search(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		bno,
@@ -110,7 +110,7 @@ xfs_alloc_busy_search(
 {
 	struct xfs_perag	*pag;
 	struct rb_node		*rbp;
-	struct xfs_busy_extent	*busyp;
+	struct xfs_extent_busy	*busyp;
 	int			match = 0;
 
 	pag = xfs_perag_get(mp, agno);
@@ -120,7 +120,7 @@ xfs_alloc_busy_search(
 
 	/* find closest start bno overlap */
 	while (rbp) {
-		busyp = rb_entry(rbp, struct xfs_busy_extent, rb_node);
+		busyp = rb_entry(rbp, struct xfs_extent_busy, rb_node);
 		if (bno < busyp->bno) {
 			/* may overlap, but exact start block is lower */
 			if (bno + len > busyp->bno)
@@ -154,10 +154,10 @@ xfs_alloc_busy_search(
  * needs to be restarted.
  */
 STATIC bool
-xfs_alloc_busy_update_extent(
+xfs_extent_busy_update_extent(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
-	struct xfs_busy_extent	*busyp,
+	struct xfs_extent_busy	*busyp,
 	xfs_agblock_t		fbno,
 	xfs_extlen_t		flen,
 	bool			userdata)
@@ -171,7 +171,7 @@ xfs_alloc_busy_update_extent(
 	 * performing the discard a chance to mark the extent unbusy
 	 * and retry.
 	 */
-	if (busyp->flags & XFS_ALLOC_BUSY_DISCARDED) {
+	if (busyp->flags & XFS_EXTENT_BUSY_DISCARDED) {
 		spin_unlock(&pag->pagb_lock);
 		delay(1);
 		spin_lock(&pag->pagb_lock);
@@ -285,13 +285,13 @@ xfs_alloc_busy_update_extent(
 		ASSERT(0);
 	}
 
-	trace_xfs_alloc_busy_reuse(mp, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_reuse(mp, pag->pag_agno, fbno, flen);
 	return true;
 
 out_force_log:
 	spin_unlock(&pag->pagb_lock);
 	xfs_log_force(mp, XFS_LOG_SYNC);
-	trace_xfs_alloc_busy_force(mp, pag->pag_agno, fbno, flen);
+	trace_xfs_extent_busy_force(mp, pag->pag_agno, fbno, flen);
 	spin_lock(&pag->pagb_lock);
 	return false;
 }
@@ -301,7 +301,7 @@ out_force_log:
  * For a given extent [fbno, flen], make sure we can reuse it safely.
  */
 void
-xfs_alloc_busy_reuse(
+xfs_extent_busy_reuse(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		fbno,
@@ -318,8 +318,8 @@ xfs_alloc_busy_reuse(
 restart:
 	rbp = pag->pagb_tree.rb_node;
 	while (rbp) {
-		struct xfs_busy_extent *busyp =
-			rb_entry(rbp, struct xfs_busy_extent, rb_node);
+		struct xfs_extent_busy *busyp =
+			rb_entry(rbp, struct xfs_extent_busy, rb_node);
 		xfs_agblock_t	bbno = busyp->bno;
 		xfs_agblock_t	bend = bbno + busyp->length;
 
@@ -331,7 +331,7 @@ restart:
 			continue;
 		}
 
-		if (!xfs_alloc_busy_update_extent(mp, pag, busyp, fbno, flen,
+		if (!xfs_extent_busy_update_extent(mp, pag, busyp, fbno, flen,
 						  userdata))
 			goto restart;
 	}
@@ -346,7 +346,7 @@ restart:
  * code needs to force out the log and retry the allocation.
  */
 STATIC void
-xfs_alloc_busy_trim(
+xfs_extent_busy_trim(
 	struct xfs_alloc_arg	*args,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
@@ -365,8 +365,8 @@ restart:
 	flen = len;
 	rbp = args->pag->pagb_tree.rb_node;
 	while (rbp && flen >= args->minlen) {
-		struct xfs_busy_extent *busyp =
-			rb_entry(rbp, struct xfs_busy_extent, rb_node);
+		struct xfs_extent_busy *busyp =
+			rb_entry(rbp, struct xfs_extent_busy, rb_node);
 		xfs_agblock_t	fend = fbno + flen;
 		xfs_agblock_t	bbno = busyp->bno;
 		xfs_agblock_t	bend = bbno + busyp->length;
@@ -384,8 +384,8 @@ restart:
 		 * extent instead of trimming the allocation.
 		 */
 		if (!args->userdata &&
-		    !(busyp->flags & XFS_ALLOC_BUSY_DISCARDED)) {
-			if (!xfs_alloc_busy_update_extent(args->mp, args->pag,
+		    !(busyp->flags & XFS_EXTENT_BUSY_DISCARDED)) {
+			if (!xfs_extent_busy_update_extent(args->mp, args->pag,
 							  busyp, fbno, flen,
 							  false))
 				goto restart;
@@ -517,7 +517,7 @@ restart:
 	spin_unlock(&args->pag->pagb_lock);
 
 	if (fbno != bno || flen != len) {
-		trace_xfs_alloc_busy_trim(args->mp, args->agno, bno, len,
+		trace_xfs_extent_busy_trim(args->mp, args->agno, bno, len,
 					  fbno, flen);
 	}
 	*rbno = fbno;
@@ -529,19 +529,19 @@ fail:
 	 * re-check if the trimmed extent satisfies the minlen requirement.
 	 */
 	spin_unlock(&args->pag->pagb_lock);
-	trace_xfs_alloc_busy_trim(args->mp, args->agno, bno, len, fbno, 0);
+	trace_xfs_extent_busy_trim(args->mp, args->agno, bno, len, fbno, 0);
 	*rbno = fbno;
 	*rlen = 0;
 }
 
-static void
-xfs_alloc_busy_clear_one(
+STATIC void
+xfs_extent_busy_clear_one(
 	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
-	struct xfs_busy_extent	*busyp)
+	struct xfs_extent_busy	*busyp)
 {
 	if (busyp->length) {
-		trace_xfs_alloc_busy_clear(mp, busyp->agno, busyp->bno,
+		trace_xfs_extent_busy_clear(mp, busyp->agno, busyp->bno,
 						busyp->length);
 		rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	}
@@ -556,12 +556,12 @@ xfs_alloc_busy_clear_one(
  * these as undergoing a discard operation instead.
  */
 void
-xfs_alloc_busy_clear(
+xfs_extent_busy_clear(
 	struct xfs_mount	*mp,
 	struct list_head	*list,
 	bool			do_discard)
 {
-	struct xfs_busy_extent	*busyp, *n;
+	struct xfs_extent_busy	*busyp, *n;
 	struct xfs_perag	*pag = NULL;
 	xfs_agnumber_t		agno = NULLAGNUMBER;
 
@@ -577,10 +577,10 @@ xfs_alloc_busy_clear(
 		}
 
 		if (do_discard && busyp->length &&
-		    !(busyp->flags & XFS_ALLOC_BUSY_SKIP_DISCARD))
-			busyp->flags = XFS_ALLOC_BUSY_DISCARDED;
+		    !(busyp->flags & XFS_EXTENT_BUSY_SKIP_DISCARD))
+			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
 		else
-			xfs_alloc_busy_clear_one(mp, pag, busyp);
+			xfs_extent_busy_clear_one(mp, pag, busyp);
 	}
 
 	if (pag) {
@@ -593,11 +593,11 @@ xfs_alloc_busy_clear(
  * Callback for list_sort to sort busy extents by the AG they reside in.
  */
 int
-xfs_alloc_busy_ag_cmp(
+xfs_extent_busy_ag_cmp(
 	void			*priv,
 	struct list_head	*a,
 	struct list_head	*b)
 {
-	return container_of(a, struct xfs_busy_extent, list)->agno -
-		container_of(b, struct xfs_busy_extent, list)->agno;
+	return container_of(a, struct xfs_extent_busy, list)->agno -
+		container_of(b, struct xfs_extent_busy, list)->agno;
 }
