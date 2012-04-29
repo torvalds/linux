@@ -850,10 +850,14 @@ int nfs_flush_incompatible(struct file *file, struct page *page)
  * the PageUptodate() flag. In this case, we will need to turn off
  * write optimisations that depend on the page contents being correct.
  */
-static int nfs_write_pageuptodate(struct page *page, struct inode *inode)
+static bool nfs_write_pageuptodate(struct page *page, struct inode *inode)
 {
-	return PageUptodate(page) &&
-		!(NFS_I(inode)->cache_validity & (NFS_INO_REVAL_PAGECACHE|NFS_INO_INVALID_DATA));
+	if (nfs_have_delegated_attributes(inode))
+		goto out;
+	if (NFS_I(inode)->cache_validity & NFS_INO_REVAL_PAGECACHE)
+		return false;
+out:
+	return PageUptodate(page) != 0;
 }
 
 /*
