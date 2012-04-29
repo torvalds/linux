@@ -124,6 +124,7 @@ ret_from_intr:
 	lwi	r11, r1, PT_MODE
 	bneid	r11, no_intr_resched
 
+3:
 	lwi	r6, r31, TS_THREAD_INFO	/* get thread info */
 	lwi	r19, r6, TI_FLAGS	/* get flags in thread info */
 				/* do an extra work if any bits are set */
@@ -132,11 +133,13 @@ ret_from_intr:
 	beqi	r11, 1f
 	bralid	r15, schedule
 	nop
+	bri	3b
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqid	r11, no_intr_resched
 	addk	r5, r1, r0
 	bralid	r15, do_notify_resume
 	addk	r6, r0, r0
+	bri	3b
 
 no_intr_resched:
 	/* Disable interrupts, we are now committed to the state restore */
@@ -486,18 +489,24 @@ ENTRY(ret_from_kernel_thread)
 work_pending:
 	lwi	r11, r1, PT_MODE
 	bneid	r11, 2f
+3:
 	enable_irq
-
 	andi	r11, r19, _TIF_NEED_RESCHED
 	beqi	r11, 1f
 	bralid	r15, schedule
 	nop
+	bri	4f
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqi	r11, no_work_pending
 	addk	r5, r30, r0
 	bralid	r15, do_notify_resume
 	addik	r6, r0, 1
-	bri	no_work_pending
+	addk	r30, r0, r0	/* no restarts from now on */
+4:
+	disable_irq
+	lwi	r6, r31, TS_THREAD_INFO /* get thread info */
+	lwi	r19, r6, TI_FLAGS /* get flags in thread info */
+	bri	3b
 
 ENTRY(ret_to_user)
 	disable_irq
