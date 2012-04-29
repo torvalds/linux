@@ -118,6 +118,20 @@ static void dump_dev_cap_flags(struct mlx4_dev *dev, u64 flags)
 			mlx4_dbg(dev, "    %s\n", fname[i]);
 }
 
+static void dump_dev_cap_flags2(struct mlx4_dev *dev, u64 flags)
+{
+	static const char * const fname[] = {
+		[0] = "RSS support",
+		[1] = "RSS Toeplitz Hash Function support",
+		[2] = "RSS XOR Hash Function support"
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(fname); ++i)
+		if (fname[i] && (flags & (1LL << i)))
+			mlx4_dbg(dev, "    %s\n", fname[i]);
+}
+
 int mlx4_MOD_STAT_CFG(struct mlx4_dev *dev, struct mlx4_mod_stat_cfg *cfg)
 {
 	struct mlx4_cmd_mailbox *mailbox;
@@ -346,6 +360,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_MAX_REQ_QP_OFFSET		0x29
 #define QUERY_DEV_CAP_MAX_RES_QP_OFFSET		0x2b
 #define QUERY_DEV_CAP_MAX_GSO_OFFSET		0x2d
+#define QUERY_DEV_CAP_RSS_OFFSET		0x2e
 #define QUERY_DEV_CAP_MAX_RDMA_OFFSET		0x2f
 #define QUERY_DEV_CAP_RSZ_SRQ_OFFSET		0x33
 #define QUERY_DEV_CAP_ACK_DELAY_OFFSET		0x35
@@ -390,6 +405,7 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 #define QUERY_DEV_CAP_RSVD_LKEY_OFFSET		0x98
 #define QUERY_DEV_CAP_MAX_ICM_SZ_OFFSET		0xa0
 
+	dev_cap->flags2 = 0;
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
 		return PTR_ERR(mailbox);
@@ -439,6 +455,17 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 	else
 		dev_cap->max_gso_sz = 1 << field;
 
+	MLX4_GET(field, outbox, QUERY_DEV_CAP_RSS_OFFSET);
+	if (field & 0x20)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RSS_XOR;
+	if (field & 0x10)
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RSS_TOP;
+	field &= 0xf;
+	if (field) {
+		dev_cap->flags2 |= MLX4_DEV_CAP_FLAG2_RSS;
+		dev_cap->max_rss_tbl_sz = 1 << field;
+	} else
+		dev_cap->max_rss_tbl_sz = 0;
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_MAX_RDMA_OFFSET);
 	dev_cap->max_rdma_global = 1 << (field & 0x3f);
 	MLX4_GET(field, outbox, QUERY_DEV_CAP_ACK_DELAY_OFFSET);
@@ -632,8 +659,10 @@ int mlx4_QUERY_DEV_CAP(struct mlx4_dev *dev, struct mlx4_dev_cap *dev_cap)
 		 dev_cap->max_rq_desc_sz, dev_cap->max_rq_sg);
 	mlx4_dbg(dev, "Max GSO size: %d\n", dev_cap->max_gso_sz);
 	mlx4_dbg(dev, "Max counters: %d\n", dev_cap->max_counters);
+	mlx4_dbg(dev, "Max RSS Table size: %d\n", dev_cap->max_rss_tbl_sz);
 
 	dump_dev_cap_flags(dev, dev_cap->flags);
+	dump_dev_cap_flags2(dev, dev_cap->flags2);
 
 out:
 	mlx4_free_cmd_mailbox(dev, mailbox);
