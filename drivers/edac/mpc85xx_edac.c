@@ -280,7 +280,7 @@ static int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_DR, ~0);
 
 	if (edac_pci_add_device(pci, pdata->edac_idx) > 0) {
-		debugf3("%s(): failed edac_pci_add_device()\n", __func__);
+		debugf3("failed edac_pci_add_device()\n");
 		goto err;
 	}
 
@@ -303,7 +303,7 @@ static int __devinit mpc85xx_pci_err_probe(struct platform_device *op)
 	}
 
 	devres_remove_group(&op->dev, mpc85xx_pci_err_probe);
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 	printk(KERN_INFO EDAC_MOD_STR " PCI err registered\n");
 
 	return 0;
@@ -321,7 +321,7 @@ static int mpc85xx_pci_err_remove(struct platform_device *op)
 	struct edac_pci_ctl_info *pci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_pci_pdata *pdata = pci->pvt_info;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	out_be32(pdata->pci_vbase + MPC85XX_PCI_ERR_CAP_DR,
 		 orig_pci_err_cap_dr);
@@ -582,7 +582,7 @@ static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
 	pdata->edac_idx = edac_dev_idx++;
 
 	if (edac_device_add_device(edac_dev) > 0) {
-		debugf3("%s(): failed edac_device_add_device()\n", __func__);
+		debugf3("failed edac_device_add_device()\n");
 		goto err;
 	}
 
@@ -610,7 +610,7 @@ static int __devinit mpc85xx_l2_err_probe(struct platform_device *op)
 
 	devres_remove_group(&op->dev, mpc85xx_l2_err_probe);
 
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 	printk(KERN_INFO EDAC_MOD_STR " L2 err registered\n");
 
 	return 0;
@@ -628,7 +628,7 @@ static int mpc85xx_l2_err_remove(struct platform_device *op)
 	struct edac_device_ctl_info *edac_dev = dev_get_drvdata(&op->dev);
 	struct mpc85xx_l2_pdata *pdata = edac_dev->pvt_info;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		out_be32(pdata->l2_vbase + MPC85XX_L2_ERRINTEN, 0);
@@ -1037,7 +1037,7 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 		goto err;
 	}
 
-	debugf3("%s(): init mci\n", __func__);
+	debugf3("init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_RDDR2 |
 	    MEM_FLAG_DDR | MEM_FLAG_DDR2;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
@@ -1063,13 +1063,13 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_DETECT, ~0);
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("failed edac_mc_add_mc()\n");
 		goto err;
 	}
 
 	if (mpc85xx_create_sysfs_attributes(mci)) {
 		edac_mc_del_mc(mci->pdev);
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("failed edac_mc_add_mc()\n");
 		goto err;
 	}
 
@@ -1103,7 +1103,7 @@ static int __devinit mpc85xx_mc_err_probe(struct platform_device *op)
 	}
 
 	devres_remove_group(&op->dev, mpc85xx_mc_err_probe);
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 	printk(KERN_INFO EDAC_MOD_STR " MC err registered\n");
 
 	return 0;
@@ -1121,7 +1121,7 @@ static int mpc85xx_mc_err_remove(struct platform_device *op)
 	struct mem_ctl_info *mci = dev_get_drvdata(&op->dev);
 	struct mpc85xx_mc_pdata *pdata = mci->pvt_info;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	if (edac_op_state == EDAC_OPSTATE_INT) {
 		out_be32(pdata->mc_vbase + MPC85XX_MC_ERR_INT_EN, 0);

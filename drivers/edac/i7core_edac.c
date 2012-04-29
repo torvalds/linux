@@ -824,7 +824,7 @@ static ssize_t i7core_inject_store_##param(			\
 	long value;						\
 	int rc;							\
 								\
-	debugf1("%s()\n", __func__);				\
+	debugf1("\n");				\
 	pvt = mci->pvt_info;					\
 								\
 	if (pvt->inject.enable)					\
@@ -852,7 +852,7 @@ static ssize_t i7core_inject_show_##param(			\
 	struct i7core_pvt *pvt;					\
 								\
 	pvt = mci->pvt_info;					\
-	debugf1("%s() pvt=%p\n", __func__, pvt);		\
+	debugf1("pvt=%p\n", pvt);		\
 	if (pvt->inject.param < 0)				\
 		return sprintf(data, "any\n");			\
 	else							\
@@ -1059,7 +1059,7 @@ static ssize_t i7core_show_counter_##param(			\
 	struct mem_ctl_info *mci = to_mci(dev);			\
 	struct i7core_pvt *pvt = mci->pvt_info;			\
 								\
-	debugf1("%s()\n", __func__);				\
+	debugf1("\n");				\
 	if (!pvt->ce_count_available || (pvt->is_registered))	\
 		return sprintf(data, "data unavailable\n");	\
 	return sprintf(data, "%lu\n",				\
@@ -1190,8 +1190,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 	dev_set_name(pvt->addrmatch_dev, "inject_addrmatch");
 	dev_set_drvdata(pvt->addrmatch_dev, mci);
 
-	debugf1("%s(): creating %s\n", __func__,
-		dev_name(pvt->addrmatch_dev));
+	debugf1("creating %s\n", dev_name(pvt->addrmatch_dev));
 
 	rc = device_add(pvt->addrmatch_dev);
 	if (rc < 0)
@@ -1213,8 +1212,7 @@ static int i7core_create_sysfs_devices(struct mem_ctl_info *mci)
 		dev_set_name(pvt->chancounts_dev, "all_channel_counts");
 		dev_set_drvdata(pvt->chancounts_dev, mci);
 
-		debugf1("%s(): creating %s\n", __func__,
-			dev_name(pvt->chancounts_dev));
+		debugf1("creating %s\n", dev_name(pvt->chancounts_dev));
 
 		rc = device_add(pvt->chancounts_dev);
 		if (rc < 0)
@@ -1254,7 +1252,7 @@ static void i7core_put_devices(struct i7core_dev *i7core_dev)
 {
 	int i;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("\n");
 	for (i = 0; i < i7core_dev->n_devs; i++) {
 		struct pci_dev *pdev = i7core_dev->pdev[i];
 		if (!pdev)
@@ -1652,7 +1650,7 @@ static void i7core_udimm_check_mc_ecc_err(struct mem_ctl_info *mci)
 	int new0, new1, new2;
 
 	if (!pvt->pci_mcr[4]) {
-		debugf0("%s MCR registers not found\n", __func__);
+		debugf0("MCR registers not found\n");
 		return;
 	}
 
@@ -2190,8 +2188,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 	struct i7core_pvt *pvt;
 
 	if (unlikely(!mci || !mci->pvt_info)) {
-		debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
-			__func__, &i7core_dev->pdev[0]->dev);
+		debugf0("MC: dev = %p\n", &i7core_dev->pdev[0]->dev);
 
 		i7core_printk(KERN_ERR, "Couldn't find mci handler\n");
 		return;
@@ -2199,8 +2196,7 @@ static void i7core_unregister_mci(struct i7core_dev *i7core_dev)
 
 	pvt = mci->pvt_info;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &i7core_dev->pdev[0]->dev);
+	debugf0("MC: mci = %p, dev = %p\n", mci, &i7core_dev->pdev[0]->dev);
 
 	/* Disable scrubrate setting */
 	if (pvt->enable_scrub)
@@ -2241,8 +2237,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	if (unlikely(!mci))
 		return -ENOMEM;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &i7core_dev->pdev[0]->dev);
+	debugf0("MC: mci = %p, dev = %p\n", mci, &i7core_dev->pdev[0]->dev);
 
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
@@ -2285,8 +2280,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (unlikely(edac_mc_add_mc(mci))) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf0("MC: failed edac_mc_add_mc()\n");
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it
 		 */
@@ -2295,8 +2289,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 		goto fail0;
 	}
 	if (i7core_create_sysfs_devices(mci)) {
-		debugf0("MC: " __FILE__
-			": %s(): failed to create sysfs nodes\n", __func__);
+		debugf0("MC: failed to create sysfs nodes\n");
 		edac_mc_del_mc(mci->pdev);
 		rc = -EINVAL;
 		goto fail0;
@@ -2402,7 +2395,7 @@ static void __devexit i7core_remove(struct pci_dev *pdev)
 {
 	struct i7core_dev *i7core_dev;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("\n");
 
 	/*
 	 * we have a trouble here: pdev value for removal will be wrong, since
@@ -2451,7 +2444,7 @@ static int __init i7core_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	debugf2("\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -2476,7 +2469,7 @@ static int __init i7core_init(void)
  */
 static void __exit i7core_exit(void)
 {
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	debugf2("\n");
 	pci_unregister_driver(&i7core_driver);
 }
 

@@ -180,7 +180,7 @@ static int amd76x_process_error_info(struct mem_ctl_info *mci,
 static void amd76x_check(struct mem_ctl_info *mci)
 {
 	struct amd76x_error_info info;
-	debugf3("%s()\n", __func__);
+	debugf3("\n");
 	amd76x_get_error_info(mci, &info);
 	amd76x_process_error_info(mci, &info, 1);
 }
@@ -241,7 +241,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	u32 ems_mode;
 	struct amd76x_error_info discard;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 	pci_read_config_dword(pdev, AMD76X_ECC_MODE_STATUS, &ems);
 	ems_mode = (ems >> 10) & 0x3;
 
@@ -256,7 +256,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf0("%s(): mci = %p\n", __func__, mci);
+	debugf0("mci = %p\n", mci);
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_EC | EDAC_FLAG_SECDED;
@@ -276,7 +276,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -292,7 +292,7 @@ static int amd76x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 	return 0;
 
 fail:
@@ -304,7 +304,7 @@ fail:
 static int __devinit amd76x_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	/* don't need to call pci_enable_device() */
 	return amd76x_probe1(pdev, ent->driver_data);
@@ -322,7 +322,7 @@ static void __devexit amd76x_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	if (amd76x_pci)
 		edac_pci_release_generic_ctl(amd76x_pci);

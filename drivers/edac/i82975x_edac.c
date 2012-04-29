@@ -331,7 +331,7 @@ static void i82975x_check(struct mem_ctl_info *mci)
 {
 	struct i82975x_error_info info;
 
-	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
+	debugf1("MC%d\n", mci->mc_idx);
 	i82975x_get_error_info(mci, &info);
 	i82975x_process_error_info(mci, &info, 1);
 }
@@ -406,7 +406,7 @@ static void i82975x_init_csrows(struct mem_ctl_info *mci,
 		 */
 		if (csrow->nr_channels > 1)
 			cumul_size <<= 1;
-		debugf3("%s(): (%d) cumul_size 0x%x\n", __func__, index,
+		debugf3("(%d) cumul_size 0x%x\n", index,
 			cumul_size);
 
 		nr_pages = cumul_size - last_cumul_size;
@@ -489,11 +489,11 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	u8 c1drb[4];
 #endif
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	pci_read_config_dword(pdev, I82975X_MCHBAR, &mchbar);
 	if (!(mchbar & 1)) {
-		debugf3("%s(): failed, MCHBAR disabled!\n", __func__);
+		debugf3("failed, MCHBAR disabled!\n");
 		goto fail0;
 	}
 	mchbar &= 0xffffc000;	/* bits 31:14 used for 16K window */
@@ -558,7 +558,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 		goto fail1;
 	}
 
-	debugf3("%s(): init mci\n", __func__);
+	debugf3("init mci\n");
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
@@ -569,7 +569,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = i82975x_check;
 	mci->ctl_page_to_phys = NULL;
-	debugf3("%s(): init pvt\n", __func__);
+	debugf3("init pvt\n");
 	pvt = (struct i82975x_pvt *) mci->pvt_info;
 	pvt->mch_window = mch_window;
 	i82975x_init_csrows(mci, pdev, mch_window);
@@ -578,12 +578,12 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 
 	/* finalize this instance of memory controller with edac core */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("failed edac_mc_add_mc()\n");
 		goto fail2;
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 	return 0;
 
 fail2:
@@ -601,7 +601,7 @@ static int __devinit i82975x_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
@@ -619,7 +619,7 @@ static void __devexit i82975x_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct i82975x_pvt *pvt;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	mci = edac_mc_del_mc(&pdev->dev);
 	if (mci  == NULL)
@@ -655,7 +655,7 @@ static int __init i82975x_init(void)
 {
 	int pci_rc;
 
-	debugf3("%s()\n", __func__);
+	debugf3("\n");
 
        /* Ensure that the OPSTATE is set correctly for POLL or NMI */
        opstate_init();
@@ -697,7 +697,7 @@ fail0:
 
 static void __exit i82975x_exit(void)
 {
-	debugf3("%s()\n", __func__);
+	debugf3("\n");
 
 	pci_unregister_driver(&i82975x_driver);
 

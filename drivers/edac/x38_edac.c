@@ -243,7 +243,7 @@ static void x38_check(struct mem_ctl_info *mci)
 {
 	struct x38_error_info info;
 
-	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
+	debugf1("MC%d\n", mci->mc_idx);
 	x38_get_and_clear_error_info(mci, &info);
 	x38_process_error_info(mci, &info);
 }
@@ -331,7 +331,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	bool stacked;
 	void __iomem *window;
 
-	debugf0("MC: %s()\n", __func__);
+	debugf0("MC:\n");
 
 	window = x38_map_mchbar(pdev);
 	if (!window)
@@ -352,7 +352,7 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("MC: %s(): init mci\n", __func__);
+	debugf3("MC: init mci\n");
 
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
@@ -402,12 +402,12 @@ static int x38_probe1(struct pci_dev *pdev, int dev_idx)
 
 	rc = -ENODEV;
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("MC: failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: %s(): success\n", __func__);
+	debugf3("MC: success\n");
 	return 0;
 
 fail:
@@ -423,7 +423,7 @@ static int __devinit x38_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: %s()\n", __func__);
+	debugf0("MC:\n");
 
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
@@ -439,7 +439,7 @@ static void __devexit x38_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	mci = edac_mc_del_mc(&pdev->dev);
 	if (!mci)
@@ -472,7 +472,7 @@ static int __init x38_init(void)
 {
 	int pci_rc;
 
-	debugf3("MC: %s()\n", __func__);
+	debugf3("MC:\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -513,7 +513,7 @@ fail0:
 
 static void __exit x38_exit(void)
 {
-	debugf3("MC: %s()\n", __func__);
+	debugf3("MC:\n");
 
 	pci_unregister_driver(&x38_driver);
 	if (!x38_registered) {

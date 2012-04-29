@@ -376,8 +376,7 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	dev_set_name(&csrow->dev, "csrow%d", index);
 	dev_set_drvdata(&csrow->dev, csrow);
 
-	debugf0("%s(): creating (virtual) csrow node %s\n", __func__,
-		dev_name(&csrow->dev));
+	debugf0("creating (virtual) csrow node %s\n", dev_name(&csrow->dev));
 
 	err = device_add(&csrow->dev);
 	if (err < 0)
@@ -623,8 +622,7 @@ static int edac_create_dimm_object(struct mem_ctl_info *mci,
 
 	err =  device_add(&dimm->dev);
 
-	debugf0("%s(): creating rank/dimm device %s\n", __func__,
-		dev_name(&dimm->dev));
+	debugf0("creating rank/dimm device %s\n", dev_name(&dimm->dev));
 
 	return err;
 }
@@ -981,8 +979,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	dev_set_drvdata(&mci->dev, mci);
 	pm_runtime_forbid(&mci->dev);
 
-	debugf0("%s(): creating device %s\n", __func__,
-		dev_name(&mci->dev));
+	debugf0("creating device %s\n", dev_name(&mci->dev));
 	err = device_add(&mci->dev);
 	if (err < 0) {
 		bus_unregister(&mci->bus);
@@ -999,8 +996,8 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 		if (dimm->nr_pages == 0)
 			continue;
 #ifdef CONFIG_EDAC_DEBUG
-		debugf1("%s creating dimm%d, located at ",
-			__func__, i);
+		debugf1("creating dimm%d, located at ",
+			i);
 		if (edac_debug_level >= 1) {
 			int lay;
 			for (lay = 0; lay < mci->n_layers; lay++)
@@ -1012,8 +1009,8 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 #endif
 		err = edac_create_dimm_object(mci, dimm, i);
 		if (err) {
-			debugf1("%s() failure: create dimm %d obj\n",
-				__func__, i);
+			debugf1("failure: create dimm %d obj\n",
+				i);
 			goto fail;
 		}
 	}
@@ -1051,7 +1048,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 {
 	int i;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 #ifdef CONFIG_EDAC_DEBUG
 	debugfs_remove(mci->debugfs);
@@ -1064,8 +1061,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 		struct dimm_info *dimm = mci->dimms[i];
 		if (dimm->nr_pages == 0)
 			continue;
-		debugf0("%s(): removing device %s\n", __func__,
-			dev_name(&dimm->dev));
+		debugf0("removing device %s\n", dev_name(&dimm->dev));
 		put_device(&dimm->dev);
 		device_del(&dimm->dev);
 	}
@@ -1105,7 +1101,7 @@ int __init edac_mc_sysfs_init(void)
 	/* get the /sys/devices/system/edac subsys reference */
 	edac_subsys = edac_get_sysfs_subsys();
 	if (edac_subsys == NULL) {
-		debugf1("%s() no edac_subsys\n", __func__);
+		debugf1("no edac_subsys\n");
 		return -EINVAL;
 	}
 

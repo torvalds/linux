@@ -245,7 +245,7 @@ static void i3200_check(struct mem_ctl_info *mci)
 {
 	struct i3200_error_info info;
 
-	debugf1("MC%d: %s()\n", mci->mc_idx, __func__);
+	debugf1("MC%d\n", mci->mc_idx);
 	i3200_get_and_clear_error_info(mci, &info);
 	i3200_process_error_info(mci, &info);
 }
@@ -332,7 +332,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	void __iomem *window;
 	struct i3200_priv *priv;
 
-	debugf0("MC: %s()\n", __func__);
+	debugf0("MC:\n");
 
 	window = i3200_map_mchbar(pdev);
 	if (!window)
@@ -352,7 +352,7 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("MC: %s(): init mci\n", __func__);
+	debugf3("MC: init mci\n");
 
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
@@ -403,12 +403,12 @@ static int i3200_probe1(struct pci_dev *pdev, int dev_idx)
 
 	rc = -ENODEV;
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("MC: failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: %s(): success\n", __func__);
+	debugf3("MC: success\n");
 	return 0;
 
 fail:
@@ -424,7 +424,7 @@ static int __devinit i3200_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: %s()\n", __func__);
+	debugf0("MC:\n");
 
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
@@ -441,7 +441,7 @@ static void __devexit i3200_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct i3200_priv *priv;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	mci = edac_mc_del_mc(&pdev->dev);
 	if (!mci)
@@ -475,7 +475,7 @@ static int __init i3200_init(void)
 {
 	int pci_rc;
 
-	debugf3("MC: %s()\n", __func__);
+	debugf3("MC:\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -516,7 +516,7 @@ fail0:
 
 static void __exit i3200_exit(void)
 {
-	debugf3("MC: %s()\n", __func__);
+	debugf3("MC:\n");
 
 	pci_unregister_driver(&i3200_driver);
 	if (!i3200_registered) {

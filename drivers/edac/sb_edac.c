@@ -1064,7 +1064,7 @@ static void sbridge_put_devices(struct sbridge_dev *sbridge_dev)
 {
 	int i;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("\n");
 	for (i = 0; i < sbridge_dev->n_devs; i++) {
 		struct pci_dev *pdev = sbridge_dev->pdev[i];
 		if (!pdev)
@@ -1592,8 +1592,7 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 	struct sbridge_pvt *pvt;
 
 	if (unlikely(!mci || !mci->pvt_info)) {
-		debugf0("MC: " __FILE__ ": %s(): dev = %p\n",
-			__func__, &sbridge_dev->pdev[0]->dev);
+		debugf0("MC: dev = %p\n", &sbridge_dev->pdev[0]->dev);
 
 		sbridge_printk(KERN_ERR, "Couldn't find mci handler\n");
 		return;
@@ -1601,8 +1600,8 @@ static void sbridge_unregister_mci(struct sbridge_dev *sbridge_dev)
 
 	pvt = mci->pvt_info;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &sbridge_dev->pdev[0]->dev);
+	debugf0("MC: mci = %p, dev = %p\n",
+		mci, &sbridge_dev->pdev[0]->dev);
 
 	mce_unregister_decode_chain(&sbridge_mce_dec);
 
@@ -1640,8 +1639,8 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	if (unlikely(!mci))
 		return -ENOMEM;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p, dev = %p\n",
-		__func__, mci, &sbridge_dev->pdev[0]->dev);
+	debugf0("MC: mci = %p, dev = %p\n",
+		mci, &sbridge_dev->pdev[0]->dev);
 
 	pvt = mci->pvt_info;
 	memset(pvt, 0, sizeof(*pvt));
@@ -1676,8 +1675,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (unlikely(edac_mc_add_mc(mci))) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf0("MC: failed edac_mc_add_mc()\n");
 		rc = -EINVAL;
 		goto fail0;
 	}
@@ -1755,7 +1753,7 @@ static void __devexit sbridge_remove(struct pci_dev *pdev)
 {
 	struct sbridge_dev *sbridge_dev;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("\n");
 
 	/*
 	 * we have a trouble here: pdev value for removal will be wrong, since
@@ -1804,7 +1802,7 @@ static int __init sbridge_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	debugf2("\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -1826,7 +1824,7 @@ static int __init sbridge_init(void)
  */
 static void __exit sbridge_exit(void)
 {
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	debugf2("\n");
 	pci_unregister_driver(&sbridge_driver);
 }
 

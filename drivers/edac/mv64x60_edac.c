@@ -169,7 +169,7 @@ static int __devinit mv64x60_pci_err_probe(struct platform_device *pdev)
 		 MV64X60_PCIx_ERR_MASK_VAL);
 
 	if (edac_pci_add_device(pci, pdata->edac_idx) > 0) {
-		debugf3("%s(): failed edac_pci_add_device()\n", __func__);
+		debugf3("failed edac_pci_add_device()\n");
 		goto err;
 	}
 
@@ -194,7 +194,7 @@ static int __devinit mv64x60_pci_err_probe(struct platform_device *pdev)
 	devres_remove_group(&pdev->dev, mv64x60_pci_err_probe);
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 
 	return 0;
 
@@ -210,7 +210,7 @@ static int mv64x60_pci_err_remove(struct platform_device *pdev)
 {
 	struct edac_pci_ctl_info *pci = platform_get_drvdata(pdev);
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	edac_pci_del_device(&pdev->dev);
 
@@ -336,7 +336,7 @@ static int __devinit mv64x60_sram_err_probe(struct platform_device *pdev)
 	pdata->edac_idx = edac_dev_idx++;
 
 	if (edac_device_add_device(edac_dev) > 0) {
-		debugf3("%s(): failed edac_device_add_device()\n", __func__);
+		debugf3("failed edac_device_add_device()\n");
 		goto err;
 	}
 
@@ -363,7 +363,7 @@ static int __devinit mv64x60_sram_err_probe(struct platform_device *pdev)
 	devres_remove_group(&pdev->dev, mv64x60_sram_err_probe);
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 
 	return 0;
 
@@ -379,7 +379,7 @@ static int mv64x60_sram_err_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *edac_dev = platform_get_drvdata(pdev);
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(edac_dev);
@@ -531,7 +531,7 @@ static int __devinit mv64x60_cpu_err_probe(struct platform_device *pdev)
 	pdata->edac_idx = edac_dev_idx++;
 
 	if (edac_device_add_device(edac_dev) > 0) {
-		debugf3("%s(): failed edac_device_add_device()\n", __func__);
+		debugf3("failed edac_device_add_device()\n");
 		goto err;
 	}
 
@@ -558,7 +558,7 @@ static int __devinit mv64x60_cpu_err_probe(struct platform_device *pdev)
 	devres_remove_group(&pdev->dev, mv64x60_cpu_err_probe);
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 
 	return 0;
 
@@ -574,7 +574,7 @@ static int mv64x60_cpu_err_remove(struct platform_device *pdev)
 {
 	struct edac_device_ctl_info *edac_dev = platform_get_drvdata(pdev);
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	edac_device_del_device(&pdev->dev);
 	edac_device_free_ctl_info(edac_dev);
@@ -766,7 +766,7 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	debugf3("%s(): init mci\n", __func__);
+	debugf3("init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR | MEM_FLAG_DDR;
 	mci->edac_ctl_cap = EDAC_FLAG_NONE | EDAC_FLAG_SECDED;
 	mci->edac_cap = EDAC_FLAG_SECDED;
@@ -790,7 +790,7 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 	out_le32(pdata->mc_vbase + MV64X60_SDRAM_ERR_ECC_CNTL, ctl);
 
 	if (edac_mc_add_mc(mci)) {
-		debugf3("%s(): failed edac_mc_add_mc()\n", __func__);
+		debugf3("failed edac_mc_add_mc()\n");
 		goto err;
 	}
 
@@ -815,7 +815,7 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 	}
 
 	/* get this far and it's successful */
-	debugf3("%s(): success\n", __func__);
+	debugf3("success\n");
 
 	return 0;
 
@@ -831,7 +831,7 @@ static int mv64x60_mc_err_remove(struct platform_device *pdev)
 {
 	struct mem_ctl_info *mci = platform_get_drvdata(pdev);
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	edac_mc_del_mc(&pdev->dev);
 	edac_mc_free(mci);

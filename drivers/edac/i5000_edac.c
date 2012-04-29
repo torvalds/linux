@@ -779,7 +779,7 @@ static void i5000_clear_error(struct mem_ctl_info *mci)
 static void i5000_check_error(struct mem_ctl_info *mci)
 {
 	struct i5000_error_info info;
-	debugf4("MC%d: %s: %s()\n", mci->mc_idx, __FILE__, __func__);
+	debugf4("MC%d\n", mci->mc_idx);
 	i5000_get_error_info(mci, &info);
 	i5000_process_error_info(mci, &info, 1);
 }
@@ -1363,9 +1363,8 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	int num_channels;
 	int num_dimms_per_channel;
 
-	debugf0("MC: %s: %s(), pdev bus %u dev=0x%x fn=0x%x\n",
-		__FILE__, __func__,
-		pdev->bus->number,
+	debugf0("MC: %s(), pdev bus %u dev=0x%x fn=0x%x\n",
+		__FILE__, pdev->bus->number,
 		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
 	/* We only are looking for func 0 of the set */
@@ -1388,8 +1387,8 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	i5000_get_dimm_and_channel_counts(pdev, &num_dimms_per_channel,
 					&num_channels);
 
-	debugf0("MC: %s(): Number of Branches=2 Channels= %d  DIMMS= %d\n",
-		__func__, num_channels, num_dimms_per_channel);
+	debugf0("MC: Number of Branches=2 Channels= %d  DIMMS= %d\n",
+		num_channels, num_dimms_per_channel);
 
 	/* allocate a new MC control structure */
 
@@ -1406,7 +1405,7 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf0("MC: %s: %s(): mci = %p\n", __FILE__, __func__, mci);
+	debugf0("MC: %s(): mci = %p\n", __FILE__, mci);
 
 	mci->pdev = &pdev->dev;	/* record ptr  to the generic device */
 
@@ -1449,8 +1448,8 @@ static int i5000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (edac_mc_add_mc(mci)) {
-		debugf0("MC: %s: %s(): failed edac_mc_add_mc()\n",
-			__FILE__, __func__);
+		debugf0("MC: %s(): failed edac_mc_add_mc()\n",
+			__FILE__);
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it
 		 */
@@ -1494,7 +1493,7 @@ static int __devinit i5000_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: %s: %s()\n", __FILE__, __func__);
+	debugf0("MC: %s()\n", __FILE__);
 
 	/* wake up device */
 	rc = pci_enable_device(pdev);
@@ -1513,7 +1512,7 @@ static void __devexit i5000_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s: %s()\n", __FILE__, __func__);
+	debugf0("%s()\n", __FILE__);
 
 	if (i5000_pci)
 		edac_pci_release_generic_ctl(i5000_pci);
@@ -1559,7 +1558,7 @@ static int __init i5000_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: %s: %s()\n", __FILE__, __func__);
+	debugf2("MC: %s()\n", __FILE__);
 
        /* Ensure that the OPSTATE is set correctly for POLL or NMI */
        opstate_init();
@@ -1575,7 +1574,7 @@ static int __init i5000_init(void)
  */
 static void __exit i5000_exit(void)
 {
-	debugf2("MC: %s: %s()\n", __FILE__, __func__);
+	debugf2("MC: %s()\n", __FILE__);
 	pci_unregister_driver(&i5000_driver);
 }
 

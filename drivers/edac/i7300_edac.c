@@ -1032,8 +1032,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 	if (rc == -EIO)
 		return rc;
 
-	debugf0("MC: " __FILE__ ": %s(), pdev bus %u dev=0x%x fn=0x%x\n",
-		__func__,
+	debugf0("MC: pdev bus %u dev=0x%x fn=0x%x\n",
 		pdev->bus->number,
 		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
@@ -1055,7 +1054,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf0("MC: " __FILE__ ": %s(): mci = %p\n", __func__, mci);
+	debugf0("MC: mci = %p\n", mci);
 
 	mci->pdev = &pdev->dev;	/* record ptr  to the generic device */
 
@@ -1099,8 +1098,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (edac_mc_add_mc(mci)) {
-		debugf0("MC: " __FILE__
-			": %s(): failed edac_mc_add_mc()\n", __func__);
+		debugf0("MC: failed edac_mc_add_mc()\n");
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it
 		 */
@@ -1142,7 +1140,7 @@ static void __devexit i7300_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	char *tmp;
 
-	debugf0(__FILE__ ": %s()\n", __func__);
+	debugf0("\n");
 
 	if (i7300_pci)
 		edac_pci_release_generic_ctl(i7300_pci);
@@ -1189,7 +1187,7 @@ static int __init i7300_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	debugf2("\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -1204,7 +1202,7 @@ static int __init i7300_init(void)
  */
 static void __exit i7300_exit(void)
 {
-	debugf2("MC: " __FILE__ ": %s()\n", __func__);
+	debugf2("\n");
 	pci_unregister_driver(&i7300_driver);
 }
 

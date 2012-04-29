@@ -316,13 +316,12 @@ static void get_total_mem(struct cpc925_mc_pdata *pdata)
 		reg += aw;
 		size = of_read_number(reg, sw);
 		reg += sw;
-		debugf1("%s: start 0x%lx, size 0x%lx\n", __func__,
-			start, size);
+		debugf1("start 0x%lx, size 0x%lx\n", start, size);
 		pdata->total_mem += size;
 	} while (reg < reg_end);
 
 	of_node_put(np);
-	debugf0("%s: total_mem 0x%lx\n", __func__, pdata->total_mem);
+	debugf0("total_mem 0x%lx\n", pdata->total_mem);
 }
 
 static void cpc925_init_csrows(struct mem_ctl_info *mci)
@@ -512,7 +511,7 @@ static void cpc925_mc_get_pfn(struct mem_ctl_info *mci, u32 mear,
 	*offset = pa & (PAGE_SIZE - 1);
 	*pfn = pa >> PAGE_SHIFT;
 
-	debugf0("%s: ECC physical address 0x%lx\n", __func__, pa);
+	debugf0("ECC physical address 0x%lx\n", pa);
 }
 
 static int cpc925_mc_find_channel(struct mem_ctl_info *mci, u16 syndrome)
@@ -852,8 +851,8 @@ static void cpc925_add_edac_devices(void __iomem *vbase)
 			goto err2;
 		}
 
-		debugf0("%s: Successfully added edac device for %s\n",
-			__func__, dev_info->ctl_name);
+		debugf0("Successfully added edac device for %s\n",
+			dev_info->ctl_name);
 
 		continue;
 
@@ -884,8 +883,8 @@ static void cpc925_del_edac_devices(void)
 		if (dev_info->exit)
 			dev_info->exit(dev_info);
 
-		debugf0("%s: Successfully deleted edac device for %s\n",
-			__func__, dev_info->ctl_name);
+		debugf0("Successfully deleted edac device for %s\n",
+			dev_info->ctl_name);
 	}
 }
 
@@ -900,7 +899,7 @@ static int cpc925_get_sdram_scrub_rate(struct mem_ctl_info *mci)
 	mscr = __raw_readl(pdata->vbase + REG_MSCR_OFFSET);
 	si = (mscr & MSCR_SI_MASK) >> MSCR_SI_SHIFT;
 
-	debugf0("%s, Mem Scrub Ctrl Register 0x%x\n", __func__, mscr);
+	debugf0("Mem Scrub Ctrl Register 0x%x\n", mscr);
 
 	if (((mscr & MSCR_SCRUB_MOD_MASK) != MSCR_BACKGR_SCRUB) ||
 	    (si == 0)) {
@@ -928,8 +927,7 @@ static int cpc925_mc_get_channels(void __iomem *vbase)
 	    ((mbcr & MBCR_64BITBUS_MASK) == 0))
 		dual = 1;
 
-	debugf0("%s: %s channel\n", __func__,
-		(dual > 0) ? "Dual" : "Single");
+	debugf0("%s channel\n", (dual > 0) ? "Dual" : "Single");
 
 	return dual;
 }
@@ -944,7 +942,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	struct resource *r;
 	int res = 0, nr_channels;
 
-	debugf0("%s: %s platform device found!\n", __func__, pdev->name);
+	debugf0("%s platform device found!\n", pdev->name);
 
 	if (!devres_open_group(&pdev->dev, cpc925_probe, GFP_KERNEL)) {
 		res = -ENOMEM;
@@ -1026,7 +1024,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	cpc925_add_edac_devices(vbase);
 
 	/* get this far and it's successful */
-	debugf0("%s: success\n", __func__);
+	debugf0("success\n");
 
 	res = 0;
 	goto out;

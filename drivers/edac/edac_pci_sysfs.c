@@ -78,7 +78,7 @@ static void edac_pci_instance_release(struct kobject *kobj)
 {
 	struct edac_pci_ctl_info *pci;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	/* Form pointer to containing struct, the pci control struct */
 	pci = to_instance(kobj);
@@ -161,7 +161,7 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 	struct kobject *main_kobj;
 	int err;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	/* First bump the ref count on the top main kobj, which will
 	 * track the number of PCI instances we have, and thus nest
@@ -177,14 +177,14 @@ static int edac_pci_create_instance_kobj(struct edac_pci_ctl_info *pci, int idx)
 	err = kobject_init_and_add(&pci->kobj, &ktype_pci_instance,
 				   edac_pci_top_main_kobj, "pci%d", idx);
 	if (err != 0) {
-		debugf2("%s() failed to register instance pci%d\n",
-			__func__, idx);
+		debugf2("failed to register instance pci%d\n",
+			idx);
 		kobject_put(edac_pci_top_main_kobj);
 		goto error_out;
 	}
 
 	kobject_uevent(&pci->kobj, KOBJ_ADD);
-	debugf1("%s() Register instance 'pci%d' kobject\n", __func__, idx);
+	debugf1("Register instance 'pci%d' kobject\n", idx);
 
 	return 0;
 
@@ -201,7 +201,7 @@ error_out:
 static void edac_pci_unregister_sysfs_instance_kobj(
 			struct edac_pci_ctl_info *pci)
 {
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	/* Unregister the instance kobject and allow its release
 	 * function release the main reference count and then
@@ -317,7 +317,7 @@ static struct edac_pci_dev_attribute *edac_pci_attr[] = {
  */
 static void edac_pci_release_main_kobj(struct kobject *kobj)
 {
-	debugf0("%s() here to module_put(THIS_MODULE)\n", __func__);
+	debugf0("here to module_put(THIS_MODULE)\n");
 
 	kfree(kobj);
 
@@ -345,7 +345,7 @@ static int edac_pci_main_kobj_setup(void)
 	int err;
 	struct bus_type *edac_subsys;
 
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	/* check and count if we have already created the main kobject */
 	if (atomic_inc_return(&edac_pci_sysfs_refcount) != 1)
@@ -356,7 +356,7 @@ static int edac_pci_main_kobj_setup(void)
 	 */
 	edac_subsys = edac_get_sysfs_subsys();
 	if (edac_subsys == NULL) {
-		debugf1("%s() no edac_subsys\n", __func__);
+		debugf1("no edac_subsys\n");
 		err = -ENODEV;
 		goto decrement_count_fail;
 	}
@@ -366,7 +366,7 @@ static int edac_pci_main_kobj_setup(void)
 	 * level main kobj for EDAC PCI
 	 */
 	if (!try_module_get(THIS_MODULE)) {
-		debugf1("%s() try_module_get() failed\n", __func__);
+		debugf1("try_module_get() failed\n");
 		err = -ENODEV;
 		goto mod_get_fail;
 	}
@@ -421,15 +421,14 @@ decrement_count_fail:
  */
 static void edac_pci_main_kobj_teardown(void)
 {
-	debugf0("%s()\n", __func__);
+	debugf0("\n");
 
 	/* Decrement the count and only if no more controller instances
 	 * are connected perform the unregisteration of the top level
 	 * main kobj
 	 */
 	if (atomic_dec_return(&edac_pci_sysfs_refcount) == 0) {
-		debugf0("%s() called kobject_put on main kobj\n",
-			__func__);
+		debugf0("called kobject_put on main kobj\n");
 		kobject_put(edac_pci_top_main_kobj);
 	}
 	edac_put_sysfs_subsys();
@@ -446,7 +445,7 @@ int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci)
 	int err;
 	struct kobject *edac_kobj = &pci->kobj;
 
-	debugf0("%s() idx=%d\n", __func__, pci->pci_idx);
+	debugf0("idx=%d\n", pci->pci_idx);
 
 	/* create the top main EDAC PCI kobject, IF needed */
 	err = edac_pci_main_kobj_setup();
@@ -460,8 +459,8 @@ int edac_pci_create_sysfs(struct edac_pci_ctl_info *pci)
 
 	err = sysfs_create_link(edac_kobj, &pci->dev->kobj, EDAC_PCI_SYMLINK);
 	if (err) {
-		debugf0("%s() sysfs_create_link() returned err= %d\n",
-			__func__, err);
+		debugf0("sysfs_create_link() returned err= %d\n",
+			err);
 		goto symlink_fail;
 	}
 
@@ -484,7 +483,7 @@ unregister_cleanup:
  */
 void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci)
 {
-	debugf0("%s() index=%d\n", __func__, pci->pci_idx);
+	debugf0("index=%d\n", pci->pci_idx);
 
 	/* Remove the symlink */
 	sysfs_remove_link(&pci->kobj, EDAC_PCI_SYMLINK);
@@ -496,7 +495,7 @@ void edac_pci_remove_sysfs(struct edac_pci_ctl_info *pci)
 	 * if this 'pci' is the last instance.
 	 * If it is, the main kobject will be unregistered as a result
 	 */
-	debugf0("%s() calling edac_pci_main_kobj_teardown()\n", __func__);
+	debugf0("calling edac_pci_main_kobj_teardown()\n");
 	edac_pci_main_kobj_teardown();
 }
 
@@ -671,7 +670,7 @@ void edac_pci_do_parity_check(void)
 {
 	int before_count;
 
-	debugf3("%s()\n", __func__);
+	debugf3("\n");
 
 	/* if policy has PCI check off, leave now */
 	if (!check_pci_errors)
