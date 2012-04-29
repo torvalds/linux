@@ -113,7 +113,7 @@ error:
  */
 static void __exit edac_exit(void)
 {
-	debugf0("\n");
+	edac_dbg(0, "\n");
 
 	/* tear down the various subsystems */
 	edac_workqueue_teardown();

@@ -542,10 +542,9 @@ static void i5400_proccess_non_recoverable_info(struct mem_ctl_info *mci,
 	ras = nrec_ras(info);
 	cas = nrec_cas(info);
 
-	debugf0("\t\tDIMM= %d  Channels= %d,%d  (Branch= %d "
-		"DRAM Bank= %d Buffer ID = %d rdwr= %s ras= %d cas= %d)\n",
-		rank, channel, channel + 1, branch >> 1, bank,
-		buf_id, rdwr_str(rdwr), ras, cas);
+	edac_dbg(0, "\t\tDIMM= %d  Channels= %d,%d  (Branch= %d DRAM Bank= %d Buffer ID = %d rdwr= %s ras= %d cas= %d)\n",
+		 rank, channel, channel + 1, branch >> 1, bank,
+		 buf_id, rdwr_str(rdwr), ras, cas);
 
 	/* Only 1 bit will be on */
 	errnum = find_first_bit(&allErrors, ARRAY_SIZE(error_name));
@@ -595,7 +594,7 @@ static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
 
 	/* Correctable errors */
 	if (allErrors & ERROR_NF_CORRECTABLE) {
-		debugf0("\tCorrected bits= 0x%lx\n", allErrors);
+		edac_dbg(0, "\tCorrected bits= 0x%lx\n", allErrors);
 
 		branch = extract_fbdchan_indx(info->ferr_nf_fbd);
 
@@ -616,10 +615,9 @@ static void i5400_process_nonfatal_error_info(struct mem_ctl_info *mci,
 		/* Only 1 bit will be on */
 		errnum = find_first_bit(&allErrors, ARRAY_SIZE(error_name));
 
-		debugf0("\t\tDIMM= %d Channel= %d  (Branch %d "
-			"DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
-			rank, channel, branch >> 1, bank,
-			rdwr_str(rdwr), ras, cas);
+		edac_dbg(0, "\t\tDIMM= %d Channel= %d  (Branch %d DRAM Bank= %d rdwr= %s ras= %d cas= %d)\n",
+			 rank, channel, branch >> 1, bank,
+			 rdwr_str(rdwr), ras, cas);
 
 		/* Form out message */
 		snprintf(msg, sizeof(msg),
@@ -682,7 +680,7 @@ static void i5400_clear_error(struct mem_ctl_info *mci)
 static void i5400_check_error(struct mem_ctl_info *mci)
 {
 	struct i5400_error_info info;
-	debugf4("MC%d\n", mci->mc_idx);
+	edac_dbg(4, "MC%d\n", mci->mc_idx);
 	i5400_get_error_info(mci, &info);
 	i5400_process_error_info(mci, &info);
 }
@@ -768,15 +766,16 @@ static int i5400_get_devices(struct mem_ctl_info *mci, int dev_idx)
 	}
 	pvt->fsb_error_regs = pdev;
 
-	debugf1("System Address, processor bus- PCI Bus ID: %s  %x:%x\n",
-		pci_name(pvt->system_address),
-		pvt->system_address->vendor, pvt->system_address->device);
-	debugf1("Branchmap, control and errors - PCI Bus ID: %s  %x:%x\n",
-		pci_name(pvt->branchmap_werrors),
-		pvt->branchmap_werrors->vendor, pvt->branchmap_werrors->device);
-	debugf1("FSB Error Regs - PCI Bus ID: %s  %x:%x\n",
-		pci_name(pvt->fsb_error_regs),
-		pvt->fsb_error_regs->vendor, pvt->fsb_error_regs->device);
+	edac_dbg(1, "System Address, processor bus- PCI Bus ID: %s  %x:%x\n",
+		 pci_name(pvt->system_address),
+		 pvt->system_address->vendor, pvt->system_address->device);
+	edac_dbg(1, "Branchmap, control and errors - PCI Bus ID: %s  %x:%x\n",
+		 pci_name(pvt->branchmap_werrors),
+		 pvt->branchmap_werrors->vendor,
+		 pvt->branchmap_werrors->device);
+	edac_dbg(1, "FSB Error Regs - PCI Bus ID: %s  %x:%x\n",
+		 pci_name(pvt->fsb_error_regs),
+		 pvt->fsb_error_regs->vendor, pvt->fsb_error_regs->device);
 
 	pvt->branch_0 = pci_get_device(PCI_VENDOR_ID_INTEL,
 				       PCI_DEVICE_ID_INTEL_5400_FBD0, NULL);
@@ -864,8 +863,8 @@ static int determine_mtr(struct i5400_pvt *pvt, int dimm, int channel)
 	n = dimm;
 
 	if (n >= DIMMS_PER_CHANNEL) {
-		debugf0("ERROR: trying to access an invalid dimm: %d\n",
-			dimm);
+		edac_dbg(0, "ERROR: trying to access an invalid dimm: %d\n",
+			 dimm);
 		return 0;
 	}
 
@@ -885,28 +884,29 @@ static void decode_mtr(int slot_row, u16 mtr)
 
 	ans = MTR_DIMMS_PRESENT(mtr);
 
-	debugf2("\tMTR%d=0x%x:  DIMMs are %s\n", slot_row, mtr,
-		ans ? "Present" : "NOT Present");
+	edac_dbg(2, "\tMTR%d=0x%x:  DIMMs are %sPresent\n",
+		 slot_row, mtr, ans ? "" : "NOT ");
 	if (!ans)
 		return;
 
-	debugf2("\t\tWIDTH: x%d\n", MTR_DRAM_WIDTH(mtr));
+	edac_dbg(2, "\t\tWIDTH: x%d\n", MTR_DRAM_WIDTH(mtr));
 
-	debugf2("\t\tELECTRICAL THROTTLING is %s\n",
-		MTR_DIMMS_ETHROTTLE(mtr) ? "enabled" : "disabled");
+	edac_dbg(2, "\t\tELECTRICAL THROTTLING is %s\n",
+		 MTR_DIMMS_ETHROTTLE(mtr) ? "enabled" : "disabled");
 
-	debugf2("\t\tNUMBANK: %d bank(s)\n", MTR_DRAM_BANKS(mtr));
-	debugf2("\t\tNUMRANK: %s\n", MTR_DIMM_RANK(mtr) ? "double" : "single");
-	debugf2("\t\tNUMROW: %s\n",
-		MTR_DIMM_ROWS(mtr) == 0 ? "8,192 - 13 rows" :
-		MTR_DIMM_ROWS(mtr) == 1 ? "16,384 - 14 rows" :
-		MTR_DIMM_ROWS(mtr) == 2 ? "32,768 - 15 rows" :
-		"65,536 - 16 rows");
-	debugf2("\t\tNUMCOL: %s\n",
-		MTR_DIMM_COLS(mtr) == 0 ? "1,024 - 10 columns" :
-		MTR_DIMM_COLS(mtr) == 1 ? "2,048 - 11 columns" :
-		MTR_DIMM_COLS(mtr) == 2 ? "4,096 - 12 columns" :
-		"reserved");
+	edac_dbg(2, "\t\tNUMBANK: %d bank(s)\n", MTR_DRAM_BANKS(mtr));
+	edac_dbg(2, "\t\tNUMRANK: %s\n",
+		 MTR_DIMM_RANK(mtr) ? "double" : "single");
+	edac_dbg(2, "\t\tNUMROW: %s\n",
+		 MTR_DIMM_ROWS(mtr) == 0 ? "8,192 - 13 rows" :
+		 MTR_DIMM_ROWS(mtr) == 1 ? "16,384 - 14 rows" :
+		 MTR_DIMM_ROWS(mtr) == 2 ? "32,768 - 15 rows" :
+		 "65,536 - 16 rows");
+	edac_dbg(2, "\t\tNUMCOL: %s\n",
+		 MTR_DIMM_COLS(mtr) == 0 ? "1,024 - 10 columns" :
+		 MTR_DIMM_COLS(mtr) == 1 ? "2,048 - 11 columns" :
+		 MTR_DIMM_COLS(mtr) == 2 ? "4,096 - 12 columns" :
+		 "reserved");
 }
 
 static void handle_channel(struct i5400_pvt *pvt, int dimm, int channel,
@@ -979,7 +979,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 					"-------------------------------");
 			p += n;
 			space -= n;
-			debugf2("%s\n", mem_buffer);
+			edac_dbg(2, "%s\n", mem_buffer);
 			p = mem_buffer;
 			space = PAGE_SIZE;
 		}
@@ -994,7 +994,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 			p += n;
 			space -= n;
 		}
-		debugf2("%s\n", mem_buffer);
+		edac_dbg(2, "%s\n", mem_buffer);
 		p = mem_buffer;
 		space = PAGE_SIZE;
 	}
@@ -1004,7 +1004,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 			"-------------------------------");
 	p += n;
 	space -= n;
-	debugf2("%s\n", mem_buffer);
+	edac_dbg(2, "%s\n", mem_buffer);
 	p = mem_buffer;
 	space = PAGE_SIZE;
 
@@ -1019,7 +1019,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	}
 
 	space -= n;
-	debugf2("%s\n", mem_buffer);
+	edac_dbg(2, "%s\n", mem_buffer);
 	p = mem_buffer;
 	space = PAGE_SIZE;
 
@@ -1032,7 +1032,7 @@ static void calculate_dimm_size(struct i5400_pvt *pvt)
 	}
 
 	/* output the last message and free buffer */
-	debugf2("%s\n", mem_buffer);
+	edac_dbg(2, "%s\n", mem_buffer);
 	kfree(mem_buffer);
 }
 
@@ -1062,18 +1062,18 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 	maxdimmperch = pvt->maxdimmperch;
 	maxch = pvt->maxch;
 
-	debugf2("AMBASE= 0x%lx  MAXCH= %d  MAX-DIMM-Per-CH= %d\n",
-		(long unsigned int)pvt->ambase, pvt->maxch, pvt->maxdimmperch);
+	edac_dbg(2, "AMBASE= 0x%lx  MAXCH= %d  MAX-DIMM-Per-CH= %d\n",
+		 (long unsigned int)pvt->ambase, pvt->maxch, pvt->maxdimmperch);
 
 	/* Get the Branch Map regs */
 	pci_read_config_word(pvt->branchmap_werrors, TOLM, &pvt->tolm);
 	pvt->tolm >>= 12;
-	debugf2("\nTOLM (number of 256M regions) =%u (0x%x)\n", pvt->tolm,
-		pvt->tolm);
+	edac_dbg(2, "\nTOLM (number of 256M regions) =%u (0x%x)\n",
+		 pvt->tolm, pvt->tolm);
 
 	actual_tolm = (u32) ((1000l * pvt->tolm) >> (30 - 28));
-	debugf2("Actual TOLM byte addr=%u.%03u GB (0x%x)\n",
-		actual_tolm/1000, actual_tolm % 1000, pvt->tolm << 28);
+	edac_dbg(2, "Actual TOLM byte addr=%u.%03u GB (0x%x)\n",
+		 actual_tolm/1000, actual_tolm % 1000, pvt->tolm << 28);
 
 	pci_read_config_word(pvt->branchmap_werrors, MIR0, &pvt->mir0);
 	pci_read_config_word(pvt->branchmap_werrors, MIR1, &pvt->mir1);
@@ -1082,11 +1082,13 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 	limit = (pvt->mir0 >> 4) & 0x0fff;
 	way0 = pvt->mir0 & 0x1;
 	way1 = pvt->mir0 & 0x2;
-	debugf2("MIR0: limit= 0x%x  WAY1= %u  WAY0= %x\n", limit, way1, way0);
+	edac_dbg(2, "MIR0: limit= 0x%x  WAY1= %u  WAY0= %x\n",
+		 limit, way1, way0);
 	limit = (pvt->mir1 >> 4) & 0xfff;
 	way0 = pvt->mir1 & 0x1;
 	way1 = pvt->mir1 & 0x2;
-	debugf2("MIR1: limit= 0x%x  WAY1= %u  WAY0= %x\n", limit, way1, way0);
+	edac_dbg(2, "MIR1: limit= 0x%x  WAY1= %u  WAY0= %x\n",
+		 limit, way1, way0);
 
 	/* Get the set of MTR[0-3] regs by each branch */
 	for (slot_row = 0; slot_row < DIMMS_PER_CHANNEL; slot_row++) {
@@ -1096,8 +1098,8 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 		pci_read_config_word(pvt->branch_0, where,
 				&pvt->b0_mtr[slot_row]);
 
-		debugf2("MTR%d where=0x%x B0 value=0x%x\n", slot_row, where,
-			pvt->b0_mtr[slot_row]);
+		edac_dbg(2, "MTR%d where=0x%x B0 value=0x%x\n",
+			 slot_row, where, pvt->b0_mtr[slot_row]);
 
 		if (pvt->maxch < CHANNELS_PER_BRANCH) {
 			pvt->b1_mtr[slot_row] = 0;
@@ -1107,22 +1109,22 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 		/* Branch 1 set of MTR registers */
 		pci_read_config_word(pvt->branch_1, where,
 				&pvt->b1_mtr[slot_row]);
-		debugf2("MTR%d where=0x%x B1 value=0x%x\n", slot_row, where,
-			pvt->b1_mtr[slot_row]);
+		edac_dbg(2, "MTR%d where=0x%x B1 value=0x%x\n",
+			 slot_row, where, pvt->b1_mtr[slot_row]);
 	}
 
 	/* Read and dump branch 0's MTRs */
-	debugf2("\nMemory Technology Registers:\n");
-	debugf2("   Branch 0:\n");
+	edac_dbg(2, "Memory Technology Registers:\n");
+	edac_dbg(2, "   Branch 0:\n");
 	for (slot_row = 0; slot_row < DIMMS_PER_CHANNEL; slot_row++)
 		decode_mtr(slot_row, pvt->b0_mtr[slot_row]);
 
 	pci_read_config_word(pvt->branch_0, AMBPRESENT_0,
 			&pvt->b0_ambpresent0);
-	debugf2("\t\tAMB-Branch 0-present0 0x%x:\n", pvt->b0_ambpresent0);
+	edac_dbg(2, "\t\tAMB-Branch 0-present0 0x%x:\n", pvt->b0_ambpresent0);
 	pci_read_config_word(pvt->branch_0, AMBPRESENT_1,
 			&pvt->b0_ambpresent1);
-	debugf2("\t\tAMB-Branch 0-present1 0x%x:\n", pvt->b0_ambpresent1);
+	edac_dbg(2, "\t\tAMB-Branch 0-present1 0x%x:\n", pvt->b0_ambpresent1);
 
 	/* Only if we have 2 branchs (4 channels) */
 	if (pvt->maxch < CHANNELS_PER_BRANCH) {
@@ -1130,18 +1132,18 @@ static void i5400_get_mc_regs(struct mem_ctl_info *mci)
 		pvt->b1_ambpresent1 = 0;
 	} else {
 		/* Read and dump  branch 1's MTRs */
-		debugf2("   Branch 1:\n");
+		edac_dbg(2, "   Branch 1:\n");
 		for (slot_row = 0; slot_row < DIMMS_PER_CHANNEL; slot_row++)
 			decode_mtr(slot_row, pvt->b1_mtr[slot_row]);
 
 		pci_read_config_word(pvt->branch_1, AMBPRESENT_0,
 				&pvt->b1_ambpresent0);
-		debugf2("\t\tAMB-Branch 1-present0 0x%x:\n",
-			pvt->b1_ambpresent0);
+		edac_dbg(2, "\t\tAMB-Branch 1-present0 0x%x:\n",
+			 pvt->b1_ambpresent0);
 		pci_read_config_word(pvt->branch_1, AMBPRESENT_1,
 				&pvt->b1_ambpresent1);
-		debugf2("\t\tAMB-Branch 1-present1 0x%x:\n",
-			pvt->b1_ambpresent1);
+		edac_dbg(2, "\t\tAMB-Branch 1-present1 0x%x:\n",
+			 pvt->b1_ambpresent1);
 	}
 
 	/* Go and determine the size of each DIMM and place in an
@@ -1193,9 +1195,9 @@ static int i5400_init_dimms(struct mem_ctl_info *mci)
 
 			size_mb =  pvt->dimm_info[slot][channel].megabytes;
 
-			debugf2("dimm (branch %d channel %d slot %d): %d.%03d GB\n",
-				channel / 2, channel % 2, slot,
-				size_mb / 1000, size_mb % 1000);
+			edac_dbg(2, "dimm (branch %d channel %d slot %d): %d.%03d GB\n",
+				 channel / 2, channel % 2, slot,
+				 size_mb / 1000, size_mb % 1000);
 
 			dimm->nr_pages = size_mb << 8;
 			dimm->grain = 8;
@@ -1259,9 +1261,9 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	if (dev_idx >= ARRAY_SIZE(i5400_devs))
 		return -EINVAL;
 
-	debugf0("MC: %s(), pdev bus %u dev=0x%x fn=0x%x\n",
-		__FILE__, pdev->bus->number,
-		PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
+	edac_dbg(0, "MC: pdev bus %u dev=0x%x fn=0x%x\n",
+		 pdev->bus->number,
+		 PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
 	/* We only are looking for func 0 of the set */
 	if (PCI_FUNC(pdev->devfn) != 0)
@@ -1285,7 +1287,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf0("MC: %s(): mci = %p\n", __FILE__, mci);
+	edac_dbg(0, "MC: mci = %p\n", mci);
 
 	mci->pdev = &pdev->dev;	/* record ptr  to the generic device */
 
@@ -1317,19 +1319,16 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	/* initialize the MC control structure 'dimms' table
 	 * with the mapping and control information */
 	if (i5400_init_dimms(mci)) {
-		debugf0("MC: Setting mci->edac_cap to EDAC_FLAG_NONE\n"
-			"    because i5400_init_dimms() returned nonzero "
-			"value\n");
+		edac_dbg(0, "MC: Setting mci->edac_cap to EDAC_FLAG_NONE because i5400_init_dimms() returned nonzero value\n");
 		mci->edac_cap = EDAC_FLAG_NONE;	/* no dimms found */
 	} else {
-		debugf1("MC: Enable error reporting now\n");
+		edac_dbg(1, "MC: Enable error reporting now\n");
 		i5400_enable_error_reporting(mci);
 	}
 
 	/* add this new MC control structure to EDAC's list of MCs */
 	if (edac_mc_add_mc(mci)) {
-		debugf0("MC: %s(): failed edac_mc_add_mc()\n",
-			__FILE__);
+		edac_dbg(0, "MC: failed edac_mc_add_mc()\n");
 		/* FIXME: perhaps some code should go here that disables error
 		 * reporting if we just enabled it
 		 */
@@ -1373,7 +1372,7 @@ static int __devinit i5400_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC: %s()\n", __FILE__);
+	edac_dbg(0, "MC:\n");
 
 	/* wake up device */
 	rc = pci_enable_device(pdev);
@@ -1392,7 +1391,7 @@ static void __devexit i5400_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("%s()\n", __FILE__);
+	edac_dbg(0, "\n");
 
 	if (i5400_pci)
 		edac_pci_release_generic_ctl(i5400_pci);
@@ -1438,7 +1437,7 @@ static int __init i5400_init(void)
 {
 	int pci_rc;
 
-	debugf2("MC: %s()\n", __FILE__);
+	edac_dbg(2, "MC:\n");
 
 	/* Ensure that the OPSTATE is set correctly for POLL or NMI */
 	opstate_init();
@@ -1454,7 +1453,7 @@ static int __init i5400_init(void)
  */
 static void __exit i5400_exit(void)
 {
-	debugf2("MC: %s()\n", __FILE__);
+	edac_dbg(2, "MC:\n");
 	pci_unregister_driver(&i5400_driver);
 }
 

@@ -321,8 +321,8 @@ found:
 	return edac_mc_find((int)node_id);
 
 err_no_match:
-	debugf2("sys_addr 0x%lx doesn't match any node\n",
-		(unsigned long)sys_addr);
+	edac_dbg(2, "sys_addr 0x%lx doesn't match any node\n",
+		 (unsigned long)sys_addr);
 
 	return NULL;
 }
@@ -393,15 +393,15 @@ static int input_addr_to_csrow(struct mem_ctl_info *mci, u64 input_addr)
 		mask = ~mask;
 
 		if ((input_addr & mask) == (base & mask)) {
-			debugf2("InputAddr 0x%lx matches csrow %d (node %d)\n",
-				(unsigned long)input_addr, csrow,
-				pvt->mc_node_id);
+			edac_dbg(2, "InputAddr 0x%lx matches csrow %d (node %d)\n",
+				 (unsigned long)input_addr, csrow,
+				 pvt->mc_node_id);
 
 			return csrow;
 		}
 	}
-	debugf2("no matching csrow for InputAddr 0x%lx (MC node %d)\n",
-		(unsigned long)input_addr, pvt->mc_node_id);
+	edac_dbg(2, "no matching csrow for InputAddr 0x%lx (MC node %d)\n",
+		 (unsigned long)input_addr, pvt->mc_node_id);
 
 	return -1;
 }
@@ -430,20 +430,20 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 
 	/* only revE and later have the DRAM Hole Address Register */
 	if (boot_cpu_data.x86 == 0xf && pvt->ext_model < K8_REV_E) {
-		debugf1("  revision %d for node %d does not support DHAR\n",
-			pvt->ext_model, pvt->mc_node_id);
+		edac_dbg(1, "  revision %d for node %d does not support DHAR\n",
+			 pvt->ext_model, pvt->mc_node_id);
 		return 1;
 	}
 
 	/* valid for Fam10h and above */
 	if (boot_cpu_data.x86 >= 0x10 && !dhar_mem_hoist_valid(pvt)) {
-		debugf1("  Dram Memory Hoisting is DISABLED on this system\n");
+		edac_dbg(1, "  Dram Memory Hoisting is DISABLED on this system\n");
 		return 1;
 	}
 
 	if (!dhar_valid(pvt)) {
-		debugf1("  Dram Memory Hoisting is DISABLED on this node %d\n",
-			pvt->mc_node_id);
+		edac_dbg(1, "  Dram Memory Hoisting is DISABLED on this node %d\n",
+			 pvt->mc_node_id);
 		return 1;
 	}
 
@@ -475,9 +475,9 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 	else
 		*hole_offset = k8_dhar_offset(pvt);
 
-	debugf1("  DHAR info for node %d base 0x%lx offset 0x%lx size 0x%lx\n",
-		pvt->mc_node_id, (unsigned long)*hole_base,
-		(unsigned long)*hole_offset, (unsigned long)*hole_size);
+	edac_dbg(1, "  DHAR info for node %d base 0x%lx offset 0x%lx size 0x%lx\n",
+		 pvt->mc_node_id, (unsigned long)*hole_base,
+		 (unsigned long)*hole_offset, (unsigned long)*hole_size);
 
 	return 0;
 }
@@ -528,10 +528,9 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 			/* use DHAR to translate SysAddr to DramAddr */
 			dram_addr = sys_addr - hole_offset;
 
-			debugf2("using DHAR to translate SysAddr 0x%lx to "
-				"DramAddr 0x%lx\n",
-				(unsigned long)sys_addr,
-				(unsigned long)dram_addr);
+			edac_dbg(2, "using DHAR to translate SysAddr 0x%lx to DramAddr 0x%lx\n",
+				 (unsigned long)sys_addr,
+				 (unsigned long)dram_addr);
 
 			return dram_addr;
 		}
@@ -548,9 +547,8 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 	 */
 	dram_addr = (sys_addr & GENMASK(0, 39)) - dram_base;
 
-	debugf2("using DRAM Base register to translate SysAddr 0x%lx to "
-		"DramAddr 0x%lx\n", (unsigned long)sys_addr,
-		(unsigned long)dram_addr);
+	edac_dbg(2, "using DRAM Base register to translate SysAddr 0x%lx to DramAddr 0x%lx\n",
+		 (unsigned long)sys_addr, (unsigned long)dram_addr);
 	return dram_addr;
 }
 
@@ -586,9 +584,9 @@ static u64 dram_addr_to_input_addr(struct mem_ctl_info *mci, u64 dram_addr)
 	input_addr = ((dram_addr >> intlv_shift) & GENMASK(12, 35)) +
 		      (dram_addr & 0xfff);
 
-	debugf2("  Intlv Shift=%d DramAddr=0x%lx maps to InputAddr=0x%lx\n",
-		intlv_shift, (unsigned long)dram_addr,
-		(unsigned long)input_addr);
+	edac_dbg(2, "  Intlv Shift=%d DramAddr=0x%lx maps to InputAddr=0x%lx\n",
+		 intlv_shift, (unsigned long)dram_addr,
+		 (unsigned long)input_addr);
 
 	return input_addr;
 }
@@ -604,8 +602,8 @@ static u64 sys_addr_to_input_addr(struct mem_ctl_info *mci, u64 sys_addr)
 	input_addr =
 	    dram_addr_to_input_addr(mci, sys_addr_to_dram_addr(mci, sys_addr));
 
-	debugf2("SysAdddr 0x%lx translates to InputAddr 0x%lx\n",
-		(unsigned long)sys_addr, (unsigned long)input_addr);
+	edac_dbg(2, "SysAdddr 0x%lx translates to InputAddr 0x%lx\n",
+		 (unsigned long)sys_addr, (unsigned long)input_addr);
 
 	return input_addr;
 }
@@ -637,8 +635,8 @@ static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
 
 	intlv_shift = num_node_interleave_bits(dram_intlv_en(pvt, 0));
 	if (intlv_shift == 0) {
-		debugf1("    InputAddr 0x%lx translates to DramAddr of "
-			"same value\n",	(unsigned long)input_addr);
+		edac_dbg(1, "    InputAddr 0x%lx translates to DramAddr of same value\n",
+			 (unsigned long)input_addr);
 
 		return input_addr;
 	}
@@ -649,9 +647,9 @@ static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
 	intlv_sel = dram_intlv_sel(pvt, node_id) & ((1 << intlv_shift) - 1);
 	dram_addr = bits + (intlv_sel << 12);
 
-	debugf1("InputAddr 0x%lx translates to DramAddr 0x%lx "
-		"(%d node interleave bits)\n", (unsigned long)input_addr,
-		(unsigned long)dram_addr, intlv_shift);
+	edac_dbg(1, "InputAddr 0x%lx translates to DramAddr 0x%lx (%d node interleave bits)\n",
+		 (unsigned long)input_addr,
+		 (unsigned long)dram_addr, intlv_shift);
 
 	return dram_addr;
 }
@@ -673,9 +671,9 @@ static u64 dram_addr_to_sys_addr(struct mem_ctl_info *mci, u64 dram_addr)
 		    (dram_addr < (hole_base + hole_size))) {
 			sys_addr = dram_addr + hole_offset;
 
-			debugf1("using DHAR to translate DramAddr 0x%lx to "
-				"SysAddr 0x%lx\n", (unsigned long)dram_addr,
-				(unsigned long)sys_addr);
+			edac_dbg(1, "using DHAR to translate DramAddr 0x%lx to SysAddr 0x%lx\n",
+				 (unsigned long)dram_addr,
+				 (unsigned long)sys_addr);
 
 			return sys_addr;
 		}
@@ -697,9 +695,9 @@ static u64 dram_addr_to_sys_addr(struct mem_ctl_info *mci, u64 dram_addr)
 	 */
 	sys_addr |= ~((sys_addr & (1ull << 39)) - 1);
 
-	debugf1("    Node %d, DramAddr 0x%lx to SysAddr 0x%lx\n",
-		pvt->mc_node_id, (unsigned long)dram_addr,
-		(unsigned long)sys_addr);
+	edac_dbg(1, "    Node %d, DramAddr 0x%lx to SysAddr 0x%lx\n",
+		 pvt->mc_node_id, (unsigned long)dram_addr,
+		 (unsigned long)sys_addr);
 
 	return sys_addr;
 }
@@ -768,49 +766,48 @@ static void amd64_debug_display_dimm_sizes(struct amd64_pvt *, u8);
 
 static void amd64_dump_dramcfg_low(u32 dclr, int chan)
 {
-	debugf1("F2x%d90 (DRAM Cfg Low): 0x%08x\n", chan, dclr);
+	edac_dbg(1, "F2x%d90 (DRAM Cfg Low): 0x%08x\n", chan, dclr);
 
-	debugf1("  DIMM type: %sbuffered; all DIMMs support ECC: %s\n",
-		(dclr & BIT(16)) ?  "un" : "",
-		(dclr & BIT(19)) ? "yes" : "no");
+	edac_dbg(1, "  DIMM type: %sbuffered; all DIMMs support ECC: %s\n",
+		 (dclr & BIT(16)) ?  "un" : "",
+		 (dclr & BIT(19)) ? "yes" : "no");
 
-	debugf1("  PAR/ERR parity: %s\n",
-		(dclr & BIT(8)) ?  "enabled" : "disabled");
+	edac_dbg(1, "  PAR/ERR parity: %s\n",
+		 (dclr & BIT(8)) ?  "enabled" : "disabled");
 
 	if (boot_cpu_data.x86 == 0x10)
-		debugf1("  DCT 128bit mode width: %s\n",
-			(dclr & BIT(11)) ?  "128b" : "64b");
+		edac_dbg(1, "  DCT 128bit mode width: %s\n",
+			 (dclr & BIT(11)) ?  "128b" : "64b");
 
-	debugf1("  x4 logical DIMMs present: L0: %s L1: %s L2: %s L3: %s\n",
-		(dclr & BIT(12)) ?  "yes" : "no",
-		(dclr & BIT(13)) ?  "yes" : "no",
-		(dclr & BIT(14)) ?  "yes" : "no",
-		(dclr & BIT(15)) ?  "yes" : "no");
+	edac_dbg(1, "  x4 logical DIMMs present: L0: %s L1: %s L2: %s L3: %s\n",
+		 (dclr & BIT(12)) ?  "yes" : "no",
+		 (dclr & BIT(13)) ?  "yes" : "no",
+		 (dclr & BIT(14)) ?  "yes" : "no",
+		 (dclr & BIT(15)) ?  "yes" : "no");
 }
 
 /* Display and decode various NB registers for debug purposes. */
 static void dump_misc_regs(struct amd64_pvt *pvt)
 {
-	debugf1("F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
+	edac_dbg(1, "F3xE8 (NB Cap): 0x%08x\n", pvt->nbcap);
 
-	debugf1("  NB two channel DRAM capable: %s\n",
-		(pvt->nbcap & NBCAP_DCT_DUAL) ? "yes" : "no");
+	edac_dbg(1, "  NB two channel DRAM capable: %s\n",
+		 (pvt->nbcap & NBCAP_DCT_DUAL) ? "yes" : "no");
 
-	debugf1("  ECC capable: %s, ChipKill ECC capable: %s\n",
-		(pvt->nbcap & NBCAP_SECDED) ? "yes" : "no",
-		(pvt->nbcap & NBCAP_CHIPKILL) ? "yes" : "no");
+	edac_dbg(1, "  ECC capable: %s, ChipKill ECC capable: %s\n",
+		 (pvt->nbcap & NBCAP_SECDED) ? "yes" : "no",
+		 (pvt->nbcap & NBCAP_CHIPKILL) ? "yes" : "no");
 
 	amd64_dump_dramcfg_low(pvt->dclr0, 0);
 
-	debugf1("F3xB0 (Online Spare): 0x%08x\n", pvt->online_spare);
+	edac_dbg(1, "F3xB0 (Online Spare): 0x%08x\n", pvt->online_spare);
 
-	debugf1("F1xF0 (DRAM Hole Address): 0x%08x, base: 0x%08x, "
-			"offset: 0x%08x\n",
-			pvt->dhar, dhar_base(pvt),
-			(boot_cpu_data.x86 == 0xf) ? k8_dhar_offset(pvt)
-						   : f10_dhar_offset(pvt));
+	edac_dbg(1, "F1xF0 (DRAM Hole Address): 0x%08x, base: 0x%08x, offset: 0x%08x\n",
+		 pvt->dhar, dhar_base(pvt),
+		 (boot_cpu_data.x86 == 0xf) ? k8_dhar_offset(pvt)
+		 : f10_dhar_offset(pvt));
 
-	debugf1("  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
+	edac_dbg(1, "  DramHoleValid: %s\n", dhar_valid(pvt) ? "yes" : "no");
 
 	amd64_debug_display_dimm_sizes(pvt, 0);
 
@@ -857,15 +854,15 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 		u32 *base1 = &pvt->csels[1].csbases[cs];
 
 		if (!amd64_read_dct_pci_cfg(pvt, reg0, base0))
-			debugf0("  DCSB0[%d]=0x%08x reg: F2x%x\n",
-				cs, *base0, reg0);
+			edac_dbg(0, "  DCSB0[%d]=0x%08x reg: F2x%x\n",
+				 cs, *base0, reg0);
 
 		if (boot_cpu_data.x86 == 0xf || dct_ganging_enabled(pvt))
 			continue;
 
 		if (!amd64_read_dct_pci_cfg(pvt, reg1, base1))
-			debugf0("  DCSB1[%d]=0x%08x reg: F2x%x\n",
-				cs, *base1, reg1);
+			edac_dbg(0, "  DCSB1[%d]=0x%08x reg: F2x%x\n",
+				 cs, *base1, reg1);
 	}
 
 	for_each_chip_select_mask(cs, 0, pvt) {
@@ -875,15 +872,15 @@ static void read_dct_base_mask(struct amd64_pvt *pvt)
 		u32 *mask1 = &pvt->csels[1].csmasks[cs];
 
 		if (!amd64_read_dct_pci_cfg(pvt, reg0, mask0))
-			debugf0("    DCSM0[%d]=0x%08x reg: F2x%x\n",
-				cs, *mask0, reg0);
+			edac_dbg(0, "    DCSM0[%d]=0x%08x reg: F2x%x\n",
+				 cs, *mask0, reg0);
 
 		if (boot_cpu_data.x86 == 0xf || dct_ganging_enabled(pvt))
 			continue;
 
 		if (!amd64_read_dct_pci_cfg(pvt, reg1, mask1))
-			debugf0("    DCSM1[%d]=0x%08x reg: F2x%x\n",
-				cs, *mask1, reg1);
+			edac_dbg(0, "    DCSM1[%d]=0x%08x reg: F2x%x\n",
+				 cs, *mask1, reg1);
 	}
 }
 
@@ -1193,7 +1190,7 @@ static int f1x_early_channel_count(struct amd64_pvt *pvt)
 	 * Need to check DCT0[0] and DCT1[0] to see if only one of them has
 	 * their CSEnable bit on. If so, then SINGLE DIMM case.
 	 */
-	debugf0("Data width is not 128 bits - need more decoding\n");
+	edac_dbg(0, "Data width is not 128 bits - need more decoding\n");
 
 	/*
 	 * Check DRAM Bank Address Mapping values for each DIMM to see if there
@@ -1272,25 +1269,24 @@ static void read_dram_ctl_register(struct amd64_pvt *pvt)
 		return;
 
 	if (!amd64_read_dct_pci_cfg(pvt, DCT_SEL_LO, &pvt->dct_sel_lo)) {
-		debugf0("F2x110 (DCTSelLow): 0x%08x, High range addrs at: 0x%x\n",
-			pvt->dct_sel_lo, dct_sel_baseaddr(pvt));
+		edac_dbg(0, "F2x110 (DCTSelLow): 0x%08x, High range addrs at: 0x%x\n",
+			 pvt->dct_sel_lo, dct_sel_baseaddr(pvt));
 
-		debugf0("  DCTs operate in %s mode.\n",
-			(dct_ganging_enabled(pvt) ? "ganged" : "unganged"));
+		edac_dbg(0, "  DCTs operate in %s mode\n",
+			 (dct_ganging_enabled(pvt) ? "ganged" : "unganged"));
 
 		if (!dct_ganging_enabled(pvt))
-			debugf0("  Address range split per DCT: %s\n",
-				(dct_high_range_enabled(pvt) ? "yes" : "no"));
+			edac_dbg(0, "  Address range split per DCT: %s\n",
+				 (dct_high_range_enabled(pvt) ? "yes" : "no"));
 
-		debugf0("  data interleave for ECC: %s, "
-			"DRAM cleared since last warm reset: %s\n",
-			(dct_data_intlv_enabled(pvt) ? "enabled" : "disabled"),
-			(dct_memory_cleared(pvt) ? "yes" : "no"));
+		edac_dbg(0, "  data interleave for ECC: %s, DRAM cleared since last warm reset: %s\n",
+			 (dct_data_intlv_enabled(pvt) ? "enabled" : "disabled"),
+			 (dct_memory_cleared(pvt) ? "yes" : "no"));
 
-		debugf0("  channel interleave: %s, "
-			"interleave bits selector: 0x%x\n",
-			(dct_interleave_enabled(pvt) ? "enabled" : "disabled"),
-			dct_sel_interleave_addr(pvt));
+		edac_dbg(0, "  channel interleave: %s, "
+			 "interleave bits selector: 0x%x\n",
+			 (dct_interleave_enabled(pvt) ? "enabled" : "disabled"),
+			 dct_sel_interleave_addr(pvt));
 	}
 
 	amd64_read_dct_pci_cfg(pvt, DCT_SEL_HI, &pvt->dct_sel_hi);
@@ -1428,7 +1424,7 @@ static int f1x_lookup_addr_in_dct(u64 in_addr, u32 nid, u8 dct)
 
 	pvt = mci->pvt_info;
 
-	debugf1("input addr: 0x%llx, DCT: %d\n", in_addr, dct);
+	edac_dbg(1, "input addr: 0x%llx, DCT: %d\n", in_addr, dct);
 
 	for_each_chip_select(csrow, dct, pvt) {
 		if (!csrow_enabled(csrow, dct, pvt))
@@ -1436,19 +1432,18 @@ static int f1x_lookup_addr_in_dct(u64 in_addr, u32 nid, u8 dct)
 
 		get_cs_base_and_mask(pvt, csrow, dct, &cs_base, &cs_mask);
 
-		debugf1("    CSROW=%d CSBase=0x%llx CSMask=0x%llx\n",
-			csrow, cs_base, cs_mask);
+		edac_dbg(1, "    CSROW=%d CSBase=0x%llx CSMask=0x%llx\n",
+			 csrow, cs_base, cs_mask);
 
 		cs_mask = ~cs_mask;
 
-		debugf1("    (InputAddr & ~CSMask)=0x%llx "
-			"(CSBase & ~CSMask)=0x%llx\n",
-			(in_addr & cs_mask), (cs_base & cs_mask));
+		edac_dbg(1, "    (InputAddr & ~CSMask)=0x%llx (CSBase & ~CSMask)=0x%llx\n",
+			 (in_addr & cs_mask), (cs_base & cs_mask));
 
 		if ((in_addr & cs_mask) == (cs_base & cs_mask)) {
 			cs_found = f10_process_possible_spare(pvt, dct, csrow);
 
-			debugf1(" MATCH csrow=%d\n", cs_found);
+			edac_dbg(1, " MATCH csrow=%d\n", cs_found);
 			break;
 		}
 	}
@@ -1505,8 +1500,8 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 	u8 intlv_en   = dram_intlv_en(pvt, range);
 	u32 intlv_sel = dram_intlv_sel(pvt, range);
 
-	debugf1("(range %d) SystemAddr= 0x%llx Limit=0x%llx\n",
-		range, sys_addr, get_dram_limit(pvt, range));
+	edac_dbg(1, "(range %d) SystemAddr= 0x%llx Limit=0x%llx\n",
+		 range, sys_addr, get_dram_limit(pvt, range));
 
 	if (dhar_valid(pvt) &&
 	    dhar_base(pvt) <= sys_addr &&
@@ -1562,7 +1557,7 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 				     (chan_addr & 0xfff);
 	}
 
-	debugf1("   Normalized DCT addr: 0x%llx\n", chan_addr);
+	edac_dbg(1, "   Normalized DCT addr: 0x%llx\n", chan_addr);
 
 	cs_found = f1x_lookup_addr_in_dct(chan_addr, node_id, channel);
 
@@ -1664,7 +1659,8 @@ static void amd64_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 	dcsb = (ctrl && !dct_ganging_enabled(pvt)) ? pvt->csels[1].csbases
 						   : pvt->csels[0].csbases;
 
-	debugf1("F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n", ctrl, dbam);
+	edac_dbg(1, "F2x%d80 (DRAM Bank Address Mapping): 0x%08x\n",
+		 ctrl, dbam);
 
 	edac_printk(KERN_DEBUG, EDAC_MC, "DCT%d chip selects:\n", ctrl);
 
@@ -1840,7 +1836,7 @@ static int decode_syndrome(u16 syndrome, u16 *vectors, unsigned num_vecs,
 		}
 	}
 
-	debugf0("syndrome(%x) not found\n", syndrome);
+	edac_dbg(0, "syndrome(%x) not found\n", syndrome);
 	return -1;
 }
 
@@ -2047,9 +2043,9 @@ static int reserve_mc_sibling_devs(struct amd64_pvt *pvt, u16 f1_id, u16 f3_id)
 
 		return -ENODEV;
 	}
-	debugf1("F1: %s\n", pci_name(pvt->F1));
-	debugf1("F2: %s\n", pci_name(pvt->F2));
-	debugf1("F3: %s\n", pci_name(pvt->F3));
+	edac_dbg(1, "F1: %s\n", pci_name(pvt->F1));
+	edac_dbg(1, "F2: %s\n", pci_name(pvt->F2));
+	edac_dbg(1, "F3: %s\n", pci_name(pvt->F3));
 
 	return 0;
 }
@@ -2076,15 +2072,15 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 	 * those are Read-As-Zero
 	 */
 	rdmsrl(MSR_K8_TOP_MEM1, pvt->top_mem);
-	debugf0("  TOP_MEM:  0x%016llx\n", pvt->top_mem);
+	edac_dbg(0, "  TOP_MEM:  0x%016llx\n", pvt->top_mem);
 
 	/* check first whether TOP_MEM2 is enabled */
 	rdmsrl(MSR_K8_SYSCFG, msr_val);
 	if (msr_val & (1U << 21)) {
 		rdmsrl(MSR_K8_TOP_MEM2, pvt->top_mem2);
-		debugf0("  TOP_MEM2: 0x%016llx\n", pvt->top_mem2);
+		edac_dbg(0, "  TOP_MEM2: 0x%016llx\n", pvt->top_mem2);
 	} else
-		debugf0("  TOP_MEM2 disabled.\n");
+		edac_dbg(0, "  TOP_MEM2 disabled\n");
 
 	amd64_read_pci_cfg(pvt->F3, NBCAP, &pvt->nbcap);
 
@@ -2100,17 +2096,17 @@ static void read_mc_regs(struct amd64_pvt *pvt)
 		if (!rw)
 			continue;
 
-		debugf1("  DRAM range[%d], base: 0x%016llx; limit: 0x%016llx\n",
-			range,
-			get_dram_base(pvt, range),
-			get_dram_limit(pvt, range));
+		edac_dbg(1, "  DRAM range[%d], base: 0x%016llx; limit: 0x%016llx\n",
+			 range,
+			 get_dram_base(pvt, range),
+			 get_dram_limit(pvt, range));
 
-		debugf1("   IntlvEn=%s; Range access: %s%s IntlvSel=%d DstNode=%d\n",
-			dram_intlv_en(pvt, range) ? "Enabled" : "Disabled",
-			(rw & 0x1) ? "R" : "-",
-			(rw & 0x2) ? "W" : "-",
-			dram_intlv_sel(pvt, range),
-			dram_dst_node(pvt, range));
+		edac_dbg(1, "   IntlvEn=%s; Range access: %s%s IntlvSel=%d DstNode=%d\n",
+			 dram_intlv_en(pvt, range) ? "Enabled" : "Disabled",
+			 (rw & 0x1) ? "R" : "-",
+			 (rw & 0x2) ? "W" : "-",
+			 dram_intlv_sel(pvt, range),
+			 dram_dst_node(pvt, range));
 	}
 
 	read_dct_base_mask(pvt);
@@ -2191,9 +2187,9 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 
 	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode) << (20 - PAGE_SHIFT);
 
-	debugf0("  (csrow=%d) DBAM map index= %d\n", csrow_nr, cs_mode);
-	debugf0("    nr_pages/channel= %u  channel-count = %d\n",
-		nr_pages, pvt->channel_count);
+	edac_dbg(0, "  (csrow=%d) DBAM map index= %d\n", csrow_nr, cs_mode);
+	edac_dbg(0, "    nr_pages/channel= %u  channel-count = %d\n",
+		 nr_pages, pvt->channel_count);
 
 	return nr_pages;
 }
@@ -2218,21 +2214,18 @@ static int init_csrows(struct mem_ctl_info *mci)
 
 	pvt->nbcfg = val;
 
-	debugf0("node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
-		pvt->mc_node_id, val,
-		!!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
+	edac_dbg(0, "node %d, NBCFG=0x%08x[ChipKillEccCap: %d|DramEccEn: %d]\n",
+		 pvt->mc_node_id, val,
+		 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
 	for_each_chip_select(i, 0, pvt) {
 		csrow = mci->csrows[i];
 
 		if (!csrow_enabled(i, 0, pvt) && !csrow_enabled(i, 1, pvt)) {
-			debugf1("----CSROW %d EMPTY for node %d\n", i,
-				pvt->mc_node_id);
+			edac_dbg(1, "----CSROW %d VALID for MC node %d\n",
+				 i, pvt->mc_node_id);
 			continue;
 		}
-
-		debugf1("----CSROW %d VALID for MC node %d\n",
-			i, pvt->mc_node_id);
 
 		empty = 0;
 		if (csrow_enabled(i, 0, pvt))
@@ -2245,8 +2238,9 @@ static int init_csrows(struct mem_ctl_info *mci)
 
 		mtype = amd64_determine_memory_type(pvt, i);
 
-		debugf1("  for MC node %d csrow %d:\n", pvt->mc_node_id, i);
-		debugf1("    nr_pages: %u\n", nr_pages * pvt->channel_count);
+		edac_dbg(1, "  for MC node %d csrow %d:\n", pvt->mc_node_id, i);
+		edac_dbg(1, "    nr_pages: %u\n",
+			 nr_pages * pvt->channel_count);
 
 		/*
 		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating
@@ -2298,9 +2292,9 @@ static bool amd64_nb_mce_bank_enabled_on_node(unsigned nid)
 		struct msr *reg = per_cpu_ptr(msrs, cpu);
 		nbe = reg->l & MSR_MCGCTL_NBE;
 
-		debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
-			cpu, reg->q,
-			(nbe ? "enabled" : "disabled"));
+		edac_dbg(0, "core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
+			 cpu, reg->q,
+			 (nbe ? "enabled" : "disabled"));
 
 		if (!nbe)
 			goto out;
@@ -2371,8 +2365,8 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 
 	amd64_read_pci_cfg(F3, NBCFG, &value);
 
-	debugf0("1: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
-		nid, value, !!(value & NBCFG_ECC_ENABLE));
+	edac_dbg(0, "1: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
+		 nid, value, !!(value & NBCFG_ECC_ENABLE));
 
 	if (!(value & NBCFG_ECC_ENABLE)) {
 		amd64_warn("DRAM ECC disabled on this node, enabling...\n");
@@ -2396,8 +2390,8 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 		s->flags.nb_ecc_prev = 1;
 	}
 
-	debugf0("2: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
-		nid, value, !!(value & NBCFG_ECC_ENABLE));
+	edac_dbg(0, "2: node %d, NBCFG=0x%08x[DramEccEn: %d]\n",
+		 nid, value, !!(value & NBCFG_ECC_ENABLE));
 
 	return ret;
 }
@@ -2615,11 +2609,11 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 
 	ret = -ENODEV;
 	if (edac_mc_add_mc(mci)) {
-		debugf1("failed edac_mc_add_mc()\n");
+		edac_dbg(1, "failed edac_mc_add_mc()\n");
 		goto err_add_mc;
 	}
 	if (set_mc_sysfs_attrs(mci)) {
-		debugf1("failed edac_mc_add_mc()\n");
+		edac_dbg(1, "failed edac_mc_add_mc()\n");
 		goto err_add_sysfs;
 	}
 
@@ -2660,7 +2654,7 @@ static int __devinit amd64_probe_one_instance(struct pci_dev *pdev,
 
 	ret = pci_enable_device(pdev);
 	if (ret < 0) {
-		debugf0("ret=%d\n", ret);
+		edac_dbg(0, "ret=%d\n", ret);
 		return -EIO;
 	}
 

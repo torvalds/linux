@@ -287,7 +287,7 @@ static void csrow_attr_release(struct device *dev)
 {
 	struct csrow_info *csrow = container_of(dev, struct csrow_info, dev);
 
-	debugf1("Releasing csrow device %s\n", dev_name(dev));
+	edac_dbg(1, "Releasing csrow device %s\n", dev_name(dev));
 	kfree(csrow);
 }
 
@@ -376,7 +376,8 @@ static int edac_create_csrow_object(struct mem_ctl_info *mci,
 	dev_set_name(&csrow->dev, "csrow%d", index);
 	dev_set_drvdata(&csrow->dev, csrow);
 
-	debugf0("creating (virtual) csrow node %s\n", dev_name(&csrow->dev));
+	edac_dbg(0, "creating (virtual) csrow node %s\n",
+		 dev_name(&csrow->dev));
 
 	err = device_add(&csrow->dev);
 	if (err < 0)
@@ -460,8 +461,8 @@ static void edac_delete_csrow_objects(struct mem_ctl_info *mci)
 		for (chan = csrow->nr_channels - 1; chan >= 0; chan--) {
 			if (!csrow->channels[chan]->dimm->nr_pages)
 				continue;
-			debugf1("Removing csrow %d channel %d sysfs nodes\n",
-				i, chan);
+			edac_dbg(1, "Removing csrow %d channel %d sysfs nodes\n",
+				 i, chan);
 			device_remove_file(&csrow->dev,
 						dynamic_csrow_dimm_attr[chan]);
 			device_remove_file(&csrow->dev,
@@ -591,7 +592,7 @@ static void dimm_attr_release(struct device *dev)
 {
 	struct dimm_info *dimm = container_of(dev, struct dimm_info, dev);
 
-	debugf1("Releasing dimm device %s\n", dev_name(dev));
+	edac_dbg(1, "Releasing dimm device %s\n", dev_name(dev));
 	kfree(dimm);
 }
 
@@ -622,7 +623,7 @@ static int edac_create_dimm_object(struct mem_ctl_info *mci,
 
 	err =  device_add(&dimm->dev);
 
-	debugf0("creating rank/dimm device %s\n", dev_name(&dimm->dev));
+	edac_dbg(0, "creating rank/dimm device %s\n", dev_name(&dimm->dev));
 
 	return err;
 }
@@ -897,7 +898,7 @@ static void mci_attr_release(struct device *dev)
 {
 	struct mem_ctl_info *mci = container_of(dev, struct mem_ctl_info, dev);
 
-	debugf1("Releasing csrow device %s\n", dev_name(dev));
+	edac_dbg(1, "Releasing csrow device %s\n", dev_name(dev));
 	kfree(mci);
 }
 
@@ -964,7 +965,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	mci->bus.name = kasprintf(GFP_KERNEL, "mc%d", mci->mc_idx);
 	if (!mci->bus.name)
 		return -ENOMEM;
-	debugf0("creating bus %s\n",mci->bus.name);
+	edac_dbg(0, "creating bus %s\n", mci->bus.name);
 	err = bus_register(&mci->bus);
 	if (err < 0)
 		return err;
@@ -979,7 +980,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 	dev_set_drvdata(&mci->dev, mci);
 	pm_runtime_forbid(&mci->dev);
 
-	debugf0("creating device %s\n", dev_name(&mci->dev));
+	edac_dbg(0, "creating device %s\n", dev_name(&mci->dev));
 	err = device_add(&mci->dev);
 	if (err < 0) {
 		bus_unregister(&mci->bus);
@@ -996,8 +997,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 		if (dimm->nr_pages == 0)
 			continue;
 #ifdef CONFIG_EDAC_DEBUG
-		debugf1("creating dimm%d, located at ",
-			i);
+		edac_dbg(1, "creating dimm%d, located at ", i);
 		if (edac_debug_level >= 1) {
 			int lay;
 			for (lay = 0; lay < mci->n_layers; lay++)
@@ -1009,8 +1009,7 @@ int edac_create_sysfs_mci_device(struct mem_ctl_info *mci)
 #endif
 		err = edac_create_dimm_object(mci, dimm, i);
 		if (err) {
-			debugf1("failure: create dimm %d obj\n",
-				i);
+			edac_dbg(1, "failure: create dimm %d obj\n", i);
 			goto fail;
 		}
 	}
@@ -1048,7 +1047,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 {
 	int i;
 
-	debugf0("\n");
+	edac_dbg(0, "\n");
 
 #ifdef CONFIG_EDAC_DEBUG
 	debugfs_remove(mci->debugfs);
@@ -1061,7 +1060,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 		struct dimm_info *dimm = mci->dimms[i];
 		if (dimm->nr_pages == 0)
 			continue;
-		debugf0("removing device %s\n", dev_name(&dimm->dev));
+		edac_dbg(0, "removing device %s\n", dev_name(&dimm->dev));
 		put_device(&dimm->dev);
 		device_del(&dimm->dev);
 	}
@@ -1069,7 +1068,7 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
-	debugf1("Unregistering device %s\n", dev_name(&mci->dev));
+	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
 	put_device(&mci->dev);
 	device_del(&mci->dev);
 	bus_unregister(&mci->bus);
@@ -1083,7 +1082,7 @@ static void mc_attr_release(struct device *dev)
 	 * parent device, used to create the /sys/devices/mc sysfs node.
 	 * So, there are no attributes on it.
 	 */
-	debugf1("Releasing device %s\n", dev_name(dev));
+	edac_dbg(1, "Releasing device %s\n", dev_name(dev));
 	kfree(dev);
 }
 
@@ -1101,7 +1100,7 @@ int __init edac_mc_sysfs_init(void)
 	/* get the /sys/devices/system/edac subsys reference */
 	edac_subsys = edac_get_sysfs_subsys();
 	if (edac_subsys == NULL) {
-		debugf1("no edac_subsys\n");
+		edac_dbg(1, "no edac_subsys\n");
 		return -EINVAL;
 	}
 
@@ -1116,7 +1115,7 @@ int __init edac_mc_sysfs_init(void)
 	if (err < 0)
 		return err;
 
-	debugf0("device %s created\n", dev_name(mci_pdev));
+	edac_dbg(0, "device %s created\n", dev_name(mci_pdev));
 
 	return 0;
 }

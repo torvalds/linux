@@ -275,7 +275,7 @@ static void i3000_check(struct mem_ctl_info *mci)
 {
 	struct i3000_error_info info;
 
-	debugf1("MC%d\n", mci->mc_idx);
+	edac_dbg(1, "MC%d\n", mci->mc_idx);
 	i3000_get_error_info(mci, &info);
 	i3000_process_error_info(mci, &info, 1);
 }
@@ -322,7 +322,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	unsigned long mchbar;
 	void __iomem *window;
 
-	debugf0("MC:\n");
+	edac_dbg(0, "MC:\n");
 
 	pci_read_config_dword(pdev, I3000_MCHBAR, (u32 *) & mchbar);
 	mchbar &= I3000_MCHBAR_MASK;
@@ -366,7 +366,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	if (!mci)
 		return -ENOMEM;
 
-	debugf3("MC: init mci\n");
+	edac_dbg(3, "MC: init mci\n");
 
 	mci->pdev = &pdev->dev;
 	mci->mtype_cap = MEM_FLAG_DDR2;
@@ -399,8 +399,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 		cumul_size = value << (I3000_DRB_SHIFT - PAGE_SHIFT);
 		if (interleaved)
 			cumul_size <<= 1;
-		debugf3("MC: (%d) cumul_size 0x%x\n",
-			i, cumul_size);
+		edac_dbg(3, "MC: (%d) cumul_size 0x%x\n", i, cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;
 
@@ -429,7 +428,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 
 	rc = -ENODEV;
 	if (edac_mc_add_mc(mci)) {
-		debugf3("MC: failed edac_mc_add_mc()\n");
+		edac_dbg(3, "MC: failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -445,7 +444,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("MC: success\n");
+	edac_dbg(3, "MC: success\n");
 	return 0;
 
 fail:
@@ -461,7 +460,7 @@ static int __devinit i3000_init_one(struct pci_dev *pdev,
 {
 	int rc;
 
-	debugf0("MC:\n");
+	edac_dbg(0, "MC:\n");
 
 	if (pci_enable_device(pdev) < 0)
 		return -EIO;
@@ -477,7 +476,7 @@ static void __devexit i3000_remove_one(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 
-	debugf0("\n");
+	edac_dbg(0, "\n");
 
 	if (i3000_pci)
 		edac_pci_release_generic_ctl(i3000_pci);
@@ -511,7 +510,7 @@ static int __init i3000_init(void)
 {
 	int pci_rc;
 
-	debugf3("MC:\n");
+	edac_dbg(3, "MC:\n");
 
        /* Ensure that the OPSTATE is set correctly for POLL or NMI */
        opstate_init();
@@ -525,14 +524,14 @@ static int __init i3000_init(void)
 		mci_pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 					PCI_DEVICE_ID_INTEL_3000_HB, NULL);
 		if (!mci_pdev) {
-			debugf0("i3000 pci_get_device fail\n");
+			edac_dbg(0, "i3000 pci_get_device fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
 
 		pci_rc = i3000_init_one(mci_pdev, i3000_pci_tbl);
 		if (pci_rc < 0) {
-			debugf0("i3000 init fail\n");
+			edac_dbg(0, "i3000 init fail\n");
 			pci_rc = -ENODEV;
 			goto fail1;
 		}
@@ -552,7 +551,7 @@ fail0:
 
 static void __exit i3000_exit(void)
 {
-	debugf3("MC:\n");
+	edac_dbg(3, "MC:\n");
 
 	pci_unregister_driver(&i3000_driver);
 	if (!i3000_registered) {

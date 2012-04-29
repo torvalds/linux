@@ -309,7 +309,7 @@ static unsigned long ctl_page_to_phys(struct mem_ctl_info *mci,
 	u32 remap;
 	struct e752x_pvt *pvt = (struct e752x_pvt *)mci->pvt_info;
 
-	debugf3("\n");
+	edac_dbg(3, "\n");
 
 	if (page < pvt->tolm)
 		return page;
@@ -335,7 +335,7 @@ static void do_process_ce(struct mem_ctl_info *mci, u16 error_one,
 	int i;
 	struct e752x_pvt *pvt = (struct e752x_pvt *)mci->pvt_info;
 
-	debugf3("\n");
+	edac_dbg(3, "\n");
 
 	/* convert the addr to 4k page */
 	page = sec1_add >> (PAGE_SHIFT - 4);
@@ -394,7 +394,7 @@ static void do_process_ue(struct mem_ctl_info *mci, u16 error_one,
 	int row;
 	struct e752x_pvt *pvt = (struct e752x_pvt *)mci->pvt_info;
 
-	debugf3("\n");
+	edac_dbg(3, "\n");
 
 	if (error_one & 0x0202) {
 		error_2b = ded_add;
@@ -453,7 +453,7 @@ static inline void process_ue_no_info_wr(struct mem_ctl_info *mci,
 	if (!handle_error)
 		return;
 
-	debugf3("\n");
+	edac_dbg(3, "\n");
 	edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 0, 0, 0,
 			     -1, -1, -1,
 			     "e752x UE log memory write", "", NULL);
@@ -982,7 +982,7 @@ static void e752x_check(struct mem_ctl_info *mci)
 {
 	struct e752x_error_info info;
 
-	debugf3("\n");
+	edac_dbg(3, "\n");
 	e752x_get_error_info(mci, &info);
 	e752x_process_error_info(mci, &info, 1);
 }
@@ -1102,8 +1102,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		pci_read_config_byte(pdev, E752X_DRB + index, &value);
 		/* convert a 128 or 64 MiB DRB to a page size. */
 		cumul_size = value << (25 + drc_drbg - PAGE_SHIFT);
-		debugf3("(%d) cumul_size 0x%x\n", index,
-			cumul_size);
+		edac_dbg(3, "(%d) cumul_size 0x%x\n", index, cumul_size);
 		if (cumul_size == last_cumul_size)
 			continue;	/* not populated */
 
@@ -1129,7 +1128,7 @@ static void e752x_init_csrows(struct mem_ctl_info *mci, struct pci_dev *pdev,
 		for (i = 0; i < csrow->nr_channels; i++) {
 			struct dimm_info *dimm = csrow->channels[i]->dimm;
 
-			debugf3("Initializing rank at (%i,%i)\n", index, i);
+			edac_dbg(3, "Initializing rank at (%i,%i)\n", index, i);
 			dimm->nr_pages = nr_pages / csrow->nr_channels;
 			dimm->grain = 1 << 12;	/* 4KiB - resolution of CELOG */
 			dimm->mtype = MEM_RDDR;	/* only one type supported */
@@ -1270,8 +1269,8 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	int drc_chan;		/* Number of channels 0=1chan,1=2chan */
 	struct e752x_error_info discard;
 
-	debugf0("mci\n");
-	debugf0("Starting Probe1\n");
+	edac_dbg(0, "mci\n");
+	edac_dbg(0, "Starting Probe1\n");
 
 	/* check to see if device 0 function 1 is enabled; if it isn't, we
 	 * assume the BIOS has reserved it for a reason and is expecting
@@ -1301,7 +1300,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	if (mci == NULL)
 		return -ENOMEM;
 
-	debugf3("init mci\n");
+	edac_dbg(3, "init mci\n");
 	mci->mtype_cap = MEM_FLAG_RDDR;
 	/* 3100 IMCH supports SECDEC only */
 	mci->edac_ctl_cap = (dev_idx == I3100) ? EDAC_FLAG_SECDED :
@@ -1311,7 +1310,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	mci->mod_ver = E752X_REVISION;
 	mci->pdev = &pdev->dev;
 
-	debugf3("init pvt\n");
+	edac_dbg(3, "init pvt\n");
 	pvt = (struct e752x_pvt *)mci->pvt_info;
 	pvt->dev_info = &e752x_devs[dev_idx];
 	pvt->mc_symmetric = ((ddrcsr & 0x10) != 0);
@@ -1321,7 +1320,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		return -ENODEV;
 	}
 
-	debugf3("more mci init\n");
+	edac_dbg(3, "more mci init\n");
 	mci->ctl_name = pvt->dev_info->ctl_name;
 	mci->dev_name = pci_name(pdev);
 	mci->edac_check = e752x_check;
@@ -1343,7 +1342,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 		mci->edac_cap = EDAC_FLAG_SECDED; /* the only mode supported */
 	else
 		mci->edac_cap |= EDAC_FLAG_NONE;
-	debugf3("tolm, remapbase, remaplimit\n");
+	edac_dbg(3, "tolm, remapbase, remaplimit\n");
 
 	/* load the top of low memory, remap base, and remap limit vars */
 	pci_read_config_word(pdev, E752X_TOLM, &pci_data);
@@ -1360,7 +1359,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	 * type of memory controller.  The ID is therefore hardcoded to 0.
 	 */
 	if (edac_mc_add_mc(mci)) {
-		debugf3("failed edac_mc_add_mc()\n");
+		edac_dbg(3, "failed edac_mc_add_mc()\n");
 		goto fail;
 	}
 
@@ -1378,7 +1377,7 @@ static int e752x_probe1(struct pci_dev *pdev, int dev_idx)
 	}
 
 	/* get this far and it's successful */
-	debugf3("success\n");
+	edac_dbg(3, "success\n");
 	return 0;
 
 fail:
@@ -1394,7 +1393,7 @@ fail:
 static int __devinit e752x_init_one(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
-	debugf0("\n");
+	edac_dbg(0, "\n");
 
 	/* wake up and enable device */
 	if (pci_enable_device(pdev) < 0)
@@ -1408,7 +1407,7 @@ static void __devexit e752x_remove_one(struct pci_dev *pdev)
 	struct mem_ctl_info *mci;
 	struct e752x_pvt *pvt;
 
-	debugf0("\n");
+	edac_dbg(0, "\n");
 
 	if (e752x_pci)
 		edac_pci_release_generic_ctl(e752x_pci);
@@ -1454,7 +1453,7 @@ static int __init e752x_init(void)
 {
 	int pci_rc;
 
-	debugf3("\n");
+	edac_dbg(3, "\n");
 
        /* Ensure that the OPSTATE is set correctly for POLL or NMI */
        opstate_init();
@@ -1465,7 +1464,7 @@ static int __init e752x_init(void)
 
 static void __exit e752x_exit(void)
 {
-	debugf3("\n");
+	edac_dbg(3, "\n");
 	pci_unregister_driver(&e752x_driver);
 }
 

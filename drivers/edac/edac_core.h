@@ -71,7 +71,7 @@ extern const char *edac_mem_types[];
 #ifdef CONFIG_EDAC_DEBUG
 extern int edac_debug_level;
 
-#define edac_debug_printk(level, fmt, ...)				\
+#define edac_dbg(level, fmt, ...)					\
 do {									\
 	if (level <= edac_debug_level)					\
 		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
@@ -80,7 +80,7 @@ do {									\
 
 #else				/* !CONFIG_EDAC_DEBUG */
 
-#define edac_debug_printk(level, fmt, ...)				\
+#define edac_dbg(level, fmt, ...)					\
 do {									\
 	if (0)								\
 		edac_printk(KERN_DEBUG, EDAC_DEBUG,			\
@@ -88,12 +88,6 @@ do {									\
 } while (0)
 
 #endif				/* !CONFIG_EDAC_DEBUG */
-
-#define debugf0(fmt, ...) edac_debug_printk(0, fmt, ##__VA_ARGS__)
-#define debugf1(fmt, ...) edac_debug_printk(1, fmt, ##__VA_ARGS__)
-#define debugf2(fmt, ...) edac_debug_printk(2, fmt, ##__VA_ARGS__)
-#define debugf3(fmt, ...) edac_debug_printk(3, fmt, ##__VA_ARGS__)
-#define debugf4(fmt, ...) edac_debug_printk(4, fmt, ##__VA_ARGS__)
 
 #define PCI_VEND_DEV(vend, dev) PCI_VENDOR_ID_ ## vend, \
 	PCI_DEVICE_ID_ ## vend ## _ ## dev
