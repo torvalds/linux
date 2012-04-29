@@ -77,7 +77,7 @@ void bcma_core_set_clockmode(struct bcma_device *core,
 			pr_err("HT force timeout\n");
 		break;
 	case BCMA_CLKMODE_DYNAMIC:
-		pr_warn("Dynamic clockmode not supported yet!\n");
+		bcma_set32(core, BCMA_CLKCTLST, ~BCMA_CLKCTLST_FORCEHT);
 		break;
 	}
 }
