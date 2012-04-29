@@ -168,7 +168,6 @@ struct si_info {
 	struct si_pub pub;	/* back plane public state (must be first) */
 	struct bcma_bus *icbus;	/* handle to soc interconnect bus */
 	struct pci_dev *pcibus;	/* handle to pci bus */
-	struct pcicore_info *pch; /* PCI/E core handle */
 	struct bcma_device *buscore;
 
 	u32 chipst;		/* chip status */

@@ -19,7 +19,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/delay.h>
-#include <linux/pci.h>
 
 #include <defs.h>
 #include <chipcommon.h>
@@ -29,7 +28,6 @@
 #include "types.h"
 #include "pub.h"
 #include "pmu.h"
-#include "nicpci.h"
 #include "aiutils.h"
 
 /* slow_clk_ctl */
@@ -478,13 +476,6 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	/* figure out buscore */
 	sii->buscore = ai_findcore(&sii->pub, PCIE_CORE_ID, 0);
 
-	/* fixup necessary chip/core configurations */
-	if (!sii->pch) {
-		sii->pch = pcicore_init(&sii->pub, sii->icbus->drv_pci.core);
-		if (sii->pch == NULL)
-			return false;
-	}
-
 	return true;
 }
 
@@ -565,9 +556,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	return sii;
 
  exit:
-	if (sii->pch)
-		pcicore_deinit(sii->pch);
-	sii->pch = NULL;
 
 	return NULL;
 }
@@ -605,10 +593,6 @@ void ai_detach(struct si_pub *sih)
 
 	if (sii == NULL)
 		return;
-
-	if (sii->pch)
-		pcicore_deinit(sii->pch);
-	sii->pch = NULL;
 
 	kfree(sii);
 }

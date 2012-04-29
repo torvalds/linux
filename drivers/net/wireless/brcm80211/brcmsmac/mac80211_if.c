@@ -25,7 +25,6 @@
 #include <linux/bcma/bcma.h>
 #include <net/mac80211.h>
 #include <defs.h>
-#include "nicpci.h"
 #include "phy/phy_int.h"
 #include "d11.h"
 #include "channel.h"
