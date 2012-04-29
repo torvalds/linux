@@ -4434,9 +4434,14 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	struct pci_dev *pcidev = core->bus->host_pci;
 	struct ssb_sprom *sprom = &core->bus->sprom;
 
-	BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
-	       pcidev->vendor,
-	       pcidev->device);
+	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI)
+		BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
+		       pcidev->vendor,
+		       pcidev->device);
+	else
+		BCMMSG(wlc->wiphy, "wl%d: vendor 0x%x device 0x%x\n", unit,
+		       core->bus->boardinfo.vendor,
+		       core->bus->boardinfo.type);
 
 	wme = true;
 
@@ -4462,7 +4467,8 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	}
 
 	/* verify again the device is supported */
-	if (!brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
+	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI &&
+	    !brcms_c_chipmatch(pcidev->vendor, pcidev->device)) {
 		wiphy_err(wiphy, "wl%d: brcms_b_attach: Unsupported "
 			"vendor/device (0x%x/0x%x)\n",
 			 unit, pcidev->vendor, pcidev->device);
@@ -4470,8 +4476,13 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 		goto fail;
 	}
 
-	wlc_hw->vendorid = pcidev->vendor;
-	wlc_hw->deviceid = pcidev->device;
+	if (core->bus->hosttype == BCMA_HOSTTYPE_PCI) {
+		wlc_hw->vendorid = pcidev->vendor;
+		wlc_hw->deviceid = pcidev->device;
+	} else {
+		wlc_hw->vendorid = core->bus->boardinfo.vendor;
+		wlc_hw->deviceid = core->bus->boardinfo.type;
+	}
 
 	wlc_hw->d11core = core;
 	wlc_hw->corerev = core->id.rev;
