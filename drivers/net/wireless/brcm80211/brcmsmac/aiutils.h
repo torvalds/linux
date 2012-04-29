@@ -217,11 +217,6 @@ extern void ai_epa_4313war(struct si_pub *sih);
 extern uint ai_get_buscoretype(struct si_pub *sih);
 extern uint ai_get_buscorerev(struct si_pub *sih);
 
-static inline int ai_get_ccrev(struct si_pub *sih)
-{
-	return sih->ccrev;
-}
-
 static inline u32 ai_get_cccaps(struct si_pub *sih)
 {
 	return sih->cccaps;
