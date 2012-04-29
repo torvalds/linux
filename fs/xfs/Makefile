@@ -33,6 +33,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_discard.o \
 				   xfs_error.o \
 				   xfs_export.o \
+				   xfs_extent_busy.o \
 				   xfs_file.o \
 				   xfs_filestream.o \
 				   xfs_fsops.o \

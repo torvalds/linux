@@ -28,6 +28,7 @@
 #include "xfs_mount.h"
 #include "xfs_error.h"
 #include "xfs_alloc.h"
+#include "xfs_extent_busy.h"
 #include "xfs_discard.h"
 
 /*
