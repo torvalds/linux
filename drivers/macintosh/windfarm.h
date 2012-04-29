@@ -17,7 +17,7 @@
 #include <linux/device.h>
 
 /* Display a 16.16 fixed point value */
-#define FIX32TOPRINT(f)	((f) >> 16),((((f) & 0xffff) * 1000) >> 16)
+#define FIX32TOPRINT(f)	(((s32)(f)) >> 16),(((((s32)(f)) & 0xffff) * 1000) >> 16)
 
 /*
  * Control objects
@@ -41,6 +41,7 @@ struct wf_control {
 	int				type;
 	struct kref			ref;
 	struct device_attribute		attr;
+	void				*priv;
 };
 
 #define WF_CONTROL_TYPE_GENERIC		0

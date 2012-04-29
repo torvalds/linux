@@ -41,10 +41,10 @@
  * applied to the setpoint RPM speed, that is basically the
  * speed we proviously "asked" for.
  *
- * I'm not sure which of these Apple's algorithm is supposed
- * to use
+ * I'm using 0 for now which is what therm_pm72 used to do and
+ * what Darwin -apparently- does based on observed behaviour.
  */
-#define RPM_PID_USE_ACTUAL_SPEED	1
+#define RPM_PID_USE_ACTUAL_SPEED	0
 
 /* Default min/max for pumps */
 #define CPU_PUMP_OUTPUT_MAX		3200
@@ -154,8 +154,6 @@ static int wf_fcu_fan_set_rpm(struct wf_control *ct, s32 value)
 	if (value > fan->max)
 		value = fan->max;
 
-	if (fan->target && fan->target == value)
-		return 0;
 	fan->target = value;
 
 	buf[0] = value >> (8 - shift);
@@ -213,8 +211,6 @@ static int wf_fcu_fan_set_pwm(struct wf_control *ct, s32 value)
 	if (value > fan->max)
 		value = fan->max;
 
-	if (fan->target && fan->target == value)
-		return 0;
 	fan->target = value;
 
 	value = (value * 2559) / 1000;

@@ -169,8 +169,11 @@ static ssize_t wf_show_control(struct device *dev,
 	int err;
 
 	err = ctrl->ops->get_value(ctrl, &val);
-	if (err < 0)
+	if (err < 0) {
+		if (err == -EFAULT)
+			return sprintf(buf, "<HW FAULT>\n");
 		return err;
+	}
 	switch(ctrl->type) {
 	case WF_CONTROL_RPM_FAN:
 		typestr = " RPM";
@@ -481,11 +484,6 @@ static int __init windfarm_core_init(void)
 {
 	DBG("wf: core loaded\n");
 
-	/* Don't register on old machines that use therm_pm72 for now */
-	if (of_machine_is_compatible("PowerMac7,2") ||
-	    of_machine_is_compatible("PowerMac7,3") ||
-	    of_machine_is_compatible("RackMac3,1"))
-		return -ENODEV;
 	platform_device_register(&wf_platform_device);
 	return 0;
 }
