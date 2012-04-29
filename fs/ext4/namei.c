@@ -145,6 +145,14 @@ struct dx_map_entry
 	u16 size;
 };
 
+/*
+ * This goes at the end of each htree block.
+ */
+struct dx_tail {
+	u32 dt_reserved;
+	__le32 dt_checksum;	/* crc32c(uuid+inum+dirblock) */
+};
+
 static inline ext4_lblk_t dx_get_block(struct dx_entry *entry);
 static void dx_set_block(struct dx_entry *entry, ext4_lblk_t value);
 static inline unsigned dx_get_hash(struct dx_entry *entry);
