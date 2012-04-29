@@ -225,6 +225,8 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
 	struct nlattr *nest;
 	struct sock *sk = NULL;
 	struct inet_sock *inet;
+	struct l2tp_stats stats;
+	unsigned int start;
 
 	hdr = genlmsg_put(skb, pid, seq, &l2tp_nl_family, flags,
 			  L2TP_CMD_TUNNEL_GET);
@@ -242,16 +244,28 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
 	if (nest == NULL)
 		goto nla_put_failure;
 
-	if (nla_put_u64(skb, L2TP_ATTR_TX_PACKETS, tunnel->stats.tx_packets) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_BYTES, tunnel->stats.tx_bytes) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_ERRORS, tunnel->stats.tx_errors) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_PACKETS, tunnel->stats.rx_packets) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_BYTES, tunnel->stats.rx_bytes) ||
+	do {
+		start = u64_stats_fetch_begin(&tunnel->stats.syncp);
+		stats.tx_packets = tunnel->stats.tx_packets;
+		stats.tx_bytes = tunnel->stats.tx_bytes;
+		stats.tx_errors = tunnel->stats.tx_errors;
+		stats.rx_packets = tunnel->stats.rx_packets;
+		stats.rx_bytes = tunnel->stats.rx_bytes;
+		stats.rx_errors = tunnel->stats.rx_errors;
+		stats.rx_seq_discards = tunnel->stats.rx_seq_discards;
+		stats.rx_oos_packets = tunnel->stats.rx_oos_packets;
+	} while (u64_stats_fetch_retry(&tunnel->stats.syncp, start));
+
+	if (nla_put_u64(skb, L2TP_ATTR_TX_PACKETS, stats.tx_packets) ||
+	    nla_put_u64(skb, L2TP_ATTR_TX_BYTES, stats.tx_bytes) ||
+	    nla_put_u64(skb, L2TP_ATTR_TX_ERRORS, stats.tx_errors) ||
+	    nla_put_u64(skb, L2TP_ATTR_RX_PACKETS, stats.rx_packets) ||
+	    nla_put_u64(skb, L2TP_ATTR_RX_BYTES, stats.rx_bytes) ||
 	    nla_put_u64(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
-			tunnel->stats.rx_seq_discards) ||
+			stats.rx_seq_discards) ||
 	    nla_put_u64(skb, L2TP_ATTR_RX_OOS_PACKETS,
-			tunnel->stats.rx_oos_packets) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_ERRORS, tunnel->stats.rx_errors))
+			stats.rx_oos_packets) ||
+	    nla_put_u64(skb, L2TP_ATTR_RX_ERRORS, stats.rx_errors))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 
@@ -563,6 +577,8 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 pid, u32 seq, int flags
 	struct nlattr *nest;
 	struct l2tp_tunnel *tunnel = session->tunnel;
 	struct sock *sk = NULL;
+	struct l2tp_stats stats;
+	unsigned int start;
 
 	sk = tunnel->sock;
 
@@ -600,19 +616,33 @@ static int l2tp_nl_session_send(struct sk_buff *skb, u32 pid, u32 seq, int flags
 	    (session->reorder_timeout &&
 	     nla_put_msecs(skb, L2TP_ATTR_RECV_TIMEOUT, session->reorder_timeout)))
 		goto nla_put_failure;
+
 	nest = nla_nest_start(skb, L2TP_ATTR_STATS);
 	if (nest == NULL)
 		goto nla_put_failure;
-	if (nla_put_u64(skb, L2TP_ATTR_TX_PACKETS, session->stats.tx_packets) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_BYTES, session->stats.tx_bytes) ||
-	    nla_put_u64(skb, L2TP_ATTR_TX_ERRORS, session->stats.tx_errors) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_PACKETS, session->stats.rx_packets) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_BYTES, session->stats.rx_bytes) ||
+
+	do {
+		start = u64_stats_fetch_begin(&session->stats.syncp);
+		stats.tx_packets = session->stats.tx_packets;
+		stats.tx_bytes = session->stats.tx_bytes;
+		stats.tx_errors = session->stats.tx_errors;
+		stats.rx_packets = session->stats.rx_packets;
+		stats.rx_bytes = session->stats.rx_bytes;
+		stats.rx_errors = session->stats.rx_errors;
+		stats.rx_seq_discards = session->stats.rx_seq_discards;
+		stats.rx_oos_packets = session->stats.rx_oos_packets;
+	} while (u64_stats_fetch_retry(&session->stats.syncp, start));
+
+	if (nla_put_u64(skb, L2TP_ATTR_TX_PACKETS, stats.tx_packets) ||
+	    nla_put_u64(skb, L2TP_ATTR_TX_BYTES, stats.tx_bytes) ||
+	    nla_put_u64(skb, L2TP_ATTR_TX_ERRORS, stats.tx_errors) ||
+	    nla_put_u64(skb, L2TP_ATTR_RX_PACKETS, stats.rx_packets) ||
+	    nla_put_u64(skb, L2TP_ATTR_RX_BYTES, stats.rx_bytes) ||
 	    nla_put_u64(skb, L2TP_ATTR_RX_SEQ_DISCARDS,
-			session->stats.rx_seq_discards) ||
+			stats.rx_seq_discards) ||
 	    nla_put_u64(skb, L2TP_ATTR_RX_OOS_PACKETS,
-			session->stats.rx_oos_packets) ||
-	    nla_put_u64(skb, L2TP_ATTR_RX_ERRORS, session->stats.rx_errors))
+			stats.rx_oos_packets) ||
+	    nla_put_u64(skb, L2TP_ATTR_RX_ERRORS, stats.rx_errors))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 

@@ -45,6 +45,7 @@ struct l2tp_stats {
 	u64			rx_oos_packets;
 	u64			rx_errors;
 	u64			rx_cookie_discards;
+	struct u64_stats_sync	syncp;
 };
 
 struct l2tp_tunnel;
