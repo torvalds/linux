@@ -542,27 +542,12 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 	return true;
 }
 
-/*
- * get boardtype and boardrev
- */
-static __used void ai_nvram_process(struct si_info *sii)
-{
-	uint w = 0;
-
-	/* do a pci config read to get subsystem id and subvendor id */
-	pci_read_config_dword(sii->pcibus, PCI_SUBSYSTEM_VENDOR_ID, &w);
-
-	sii->pub.boardvendor = w & 0xffff;
-	sii->pub.boardtype = (w >> 16) & 0xffff;
-}
-
 static struct si_info *ai_doattach(struct si_info *sii,
 				   struct bcma_bus *pbus)
 {
 	struct si_pub *sih = &sii->pub;
 	u32 w, savewin;
 	struct bcma_device *cc;
-	uint socitype;
 	struct ssb_sprom *sprom = &pbus->sprom;
 
 	savewin = 0;
@@ -577,29 +562,14 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	if (!ai_buscore_prep(sii))
 		return NULL;
 
-	/*
-	 * ChipID recognition.
-	 *   We assume we can read chipid at offset 0 from the regs arg.
-	 *   If we add other chiptypes (or if we need to support old sdio
-	 *   hosts w/o chipcommon), some way of recognizing them needs to
-	 *   be added here.
-	 */
-	w = bcma_read32(cc, CHIPCREGOFFS(chipid));
-	socitype = (w & CID_TYPE_MASK) >> CID_TYPE_SHIFT;
-	/* Might as wll fill in chip id rev & pkg */
-	sih->chip = w & CID_ID_MASK;
-	sih->chiprev = (w & CID_REV_MASK) >> CID_REV_SHIFT;
-	sih->chippkg = (w & CID_PKG_MASK) >> CID_PKG_SHIFT;
+	sih->chip = pbus->chipinfo.id;
+	sih->chiprev = pbus->chipinfo.rev;
+	sih->chippkg = pbus->chipinfo.pkg;
+	sih->boardvendor = pbus->boardinfo.vendor;
+	sih->boardtype = pbus->boardinfo.type;
 
-	/* scan for cores */
-	if (socitype != SOCI_AI)
-		return NULL;
-
-	SI_MSG("Found chip type AI (0x%08x)\n", w);
 	if (!ai_buscore_setup(sii, cc))
 		goto exit;
-
-	ai_nvram_process(sii);
 
 	/* === NVRAM, clock is ready === */
 	bcma_write32(cc, CHIPCREGOFFS(gpiopullup), 0);
