@@ -1368,6 +1368,7 @@ static int l2tp_tunnel_sock_create(u32 tunnel_id, u32 peer_tunnel_id, struct l2t
 	struct sockaddr_in udp_addr;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct sockaddr_in6 udp6_addr;
+	struct sockaddr_l2tpip6 ip6_addr;
 #endif
 	struct sockaddr_l2tpip ip_addr;
 	struct socket *sock = NULL;
@@ -1437,32 +1438,59 @@ static int l2tp_tunnel_sock_create(u32 tunnel_id, u32 peer_tunnel_id, struct l2t
 	case L2TP_ENCAPTYPE_IP:
 #if IS_ENABLED(CONFIG_IPV6)
 		if (cfg->local_ip6 && cfg->peer_ip6) {
-			/* IP encap over IPv6 not yet supported */
-			err = -EPROTONOSUPPORT;
-			goto out;
-		}
+			err = sock_create(AF_INET6, SOCK_DGRAM, IPPROTO_L2TP,
+					  sockp);
+			if (err < 0)
+				goto out;
+
+			sock = *sockp;
+
+			memset(&ip6_addr, 0, sizeof(ip6_addr));
+			ip6_addr.l2tp_family = AF_INET6;
+			memcpy(&ip6_addr.l2tp_addr, cfg->local_ip6,
+			       sizeof(ip6_addr.l2tp_addr));
+			ip6_addr.l2tp_conn_id = tunnel_id;
+			err = kernel_bind(sock, (struct sockaddr *) &ip6_addr,
+					  sizeof(ip6_addr));
+			if (err < 0)
+				goto out;
+
+			ip6_addr.l2tp_family = AF_INET6;
+			memcpy(&ip6_addr.l2tp_addr, cfg->peer_ip6,
+			       sizeof(ip6_addr.l2tp_addr));
+			ip6_addr.l2tp_conn_id = peer_tunnel_id;
+			err = kernel_connect(sock,
+					     (struct sockaddr *) &ip6_addr,
+					     sizeof(ip6_addr), 0);
+			if (err < 0)
+				goto out;
+		} else
 #endif
-		err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_L2TP, sockp);
-		if (err < 0)
-			goto out;
+		{
+			err = sock_create(AF_INET, SOCK_DGRAM, IPPROTO_L2TP,
+					  sockp);
+			if (err < 0)
+				goto out;
 
-		sock = *sockp;
+			sock = *sockp;
 
-		memset(&ip_addr, 0, sizeof(ip_addr));
-		ip_addr.l2tp_family = AF_INET;
-		ip_addr.l2tp_addr = cfg->local_ip;
-		ip_addr.l2tp_conn_id = tunnel_id;
-		err = kernel_bind(sock, (struct sockaddr *) &ip_addr, sizeof(ip_addr));
-		if (err < 0)
-			goto out;
+			memset(&ip_addr, 0, sizeof(ip_addr));
+			ip_addr.l2tp_family = AF_INET;
+			ip_addr.l2tp_addr = cfg->local_ip;
+			ip_addr.l2tp_conn_id = tunnel_id;
+			err = kernel_bind(sock, (struct sockaddr *) &ip_addr,
+					  sizeof(ip_addr));
+			if (err < 0)
+				goto out;
 
-		ip_addr.l2tp_family = AF_INET;
-		ip_addr.l2tp_addr = cfg->peer_ip;
-		ip_addr.l2tp_conn_id = peer_tunnel_id;
-		err = kernel_connect(sock, (struct sockaddr *) &ip_addr, sizeof(ip_addr), 0);
-		if (err < 0)
-			goto out;
-
+			ip_addr.l2tp_family = AF_INET;
+			ip_addr.l2tp_addr = cfg->peer_ip;
+			ip_addr.l2tp_conn_id = peer_tunnel_id;
+			err = kernel_connect(sock, (struct sockaddr *) &ip_addr,
+					     sizeof(ip_addr), 0);
+			if (err < 0)
+				goto out;
+		}
 		break;
 
 	default:
