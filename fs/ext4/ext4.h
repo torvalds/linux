@@ -1280,6 +1280,9 @@ struct ext4_sb_info {
 
 	/* Reference to checksum algorithm driver via cryptoapi */
 	struct crypto_shash *s_chksum_driver;
+
+	/* Precomputed FS UUID checksum for seeding other checksums */
+	__u32 s_csum_seed;
 };
 
 static inline struct ext4_sb_info *EXT4_SB(struct super_block *sb)
@@ -2004,6 +2007,10 @@ extern int ext4_group_extend(struct super_block *sb,
 extern int ext4_resize_fs(struct super_block *sb, ext4_fsblk_t n_blocks_count);
 
 /* super.c */
+extern int ext4_superblock_csum_verify(struct super_block *sb,
+				       struct ext4_super_block *es);
+extern void ext4_superblock_csum_set(struct super_block *sb,
+				     struct ext4_super_block *es);
 extern void *ext4_kvmalloc(size_t size, gfp_t flags);
 extern void *ext4_kvzalloc(size_t size, gfp_t flags);
 extern void ext4_kvfree(void *ptr);
@@ -2279,6 +2286,9 @@ static inline void ext4_unlock_group(struct super_block *sb,
 
 static inline void ext4_mark_super_dirty(struct super_block *sb)
 {
+	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
+
+	ext4_superblock_csum_set(sb, es);
 	if (EXT4_SB(sb)->s_journal == NULL)
 		sb->s_dirt =1;
 }
