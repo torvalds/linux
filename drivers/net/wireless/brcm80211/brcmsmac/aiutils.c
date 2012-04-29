@@ -484,8 +484,6 @@ ai_buscore_setup(struct si_info *sii, struct bcma_device *cc)
 		if (sii->pch == NULL)
 			return false;
 	}
-	if (ai_pci_fixcfg(&sii->pub))
-		return false;
 
 	return true;
 }
@@ -813,20 +811,6 @@ void ai_pci_down(struct si_pub *sih)
 
 	if (PCIE(sih))
 		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
-}
-
-/*
- * Fixup SROMless PCI device's configuration.
- * The current core may be changed upon return.
- */
-int ai_pci_fixcfg(struct si_pub *sih)
-{
-	struct si_info *sii = (struct si_info *)sih;
-
-	/* Fixup PI in SROM shadow area to enable the correct PCI core access */
-	/* check 'pi' is correct and fix it if not */
-	pcicore_fixcfg(sii->pch);
-	return 0;
 }
 
 /* Enable BT-COEX & Ex-PA for 4313 */

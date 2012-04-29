@@ -199,7 +199,6 @@ extern bool ai_deviceremoved(struct si_pub *sih);
 
 extern void ai_pci_down(struct si_pub *sih);
 extern void ai_pci_up(struct si_pub *sih);
-extern int ai_pci_fixcfg(struct si_pub *sih);
 
 /* Enable Ex-PA for 4313 */
 extern void ai_epa_4313war(struct si_pub *sih);

@@ -5021,8 +5021,6 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	ai_clkctl_init(wlc_hw->sih);
 	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
-	ai_pci_fixcfg(wlc_hw->sih);
-
 	/*
 	 * TODO: test suspend/resume
 	 *

@@ -239,20 +239,3 @@ void pcicore_deinit(struct pcicore_info *pch)
 {
 	kfree(pch);
 }
-
-void pcicore_fixcfg(struct pcicore_info *pi)
-{
-	struct bcma_device *core = pi->core;
-	u16 val16;
-	uint regoff;
-
-	regoff = PCIEREGOFFS(sprom[SRSH_PI_OFFSET]);
-
-	val16 = bcma_read16(pi->core, regoff);
-	if (((val16 & SRSH_PI_MASK) >> SRSH_PI_SHIFT) !=
-	    (u16)core->core_index) {
-		val16 = ((u16)core->core_index << SRSH_PI_SHIFT) |
-			(val16 & ~SRSH_PI_MASK);
-		bcma_write16(pi->core, regoff, val16);
-	}
-}
