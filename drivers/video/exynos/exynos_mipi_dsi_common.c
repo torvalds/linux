@@ -738,11 +738,11 @@ int exynos_mipi_dsi_set_display_mode(struct mipi_dsim_device *dsim,
 		if (dsim_config->auto_vertical_cnt == 0) {
 			exynos_mipi_dsi_set_main_disp_vporch(dsim,
 				dsim_config->cmd_allow,
-				timing->upper_margin,
-				timing->lower_margin);
+				timing->lower_margin,
+				timing->upper_margin);
 			exynos_mipi_dsi_set_main_disp_hporch(dsim,
-				timing->left_margin,
-				timing->right_margin);
+				timing->right_margin,
+				timing->left_margin);
 			exynos_mipi_dsi_set_main_disp_sync_area(dsim,
 				timing->vsync_len,
 				timing->hsync_len);
