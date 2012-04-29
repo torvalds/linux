@@ -353,6 +353,7 @@ C_ENTRY(_user_exception):
 	/* Figure out which function to use for this system call.  */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12;			/* convert num -> ptr */
+	addi	r30, r0, 1			/* restarts allowed */
 	add	r12, r12, r12;
 
 #ifdef DEBUG
@@ -417,7 +418,7 @@ C_ENTRY(ret_from_trap):
 
 	addik	r5, r1, 0;		/* Arg 1: struct pt_regs *regs */
 	bralid	r15, do_notify_resume;	/* Handle any signals */
-	addi	r6, r0, 1;		/* Arg 2: int in_syscall */
+	add	r6, r30, r0;		/* Arg 2: int in_syscall */
 
 /* Finally, return to user state.  */
 1:	set_bip;			/*  Ints masked for state restore */
@@ -464,6 +465,7 @@ C_ENTRY(ret_from_kernel_thread):
 	add	r3, r0, r0
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
+	addik	r30, r0, 0		/* no restarts */
 	brid	sys_rt_sigreturn	/* Do real work */
 	addik	r5, r1, 0;		/* add user context as 1st arg */
 

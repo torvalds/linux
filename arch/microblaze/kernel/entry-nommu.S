@@ -280,6 +280,7 @@ ENTRY(_user_exception)
 	/* Figure out which function to use for this system call. */
 	/* Note Microblaze barrel shift is optional, so don't rely on it */
 	add	r12, r12, r12			/* convert num -> ptr */
+	addik	r30, r0, 1			/* restarts allowed */
 	add	r12, r12, r12
 	lwi	r12, r12, sys_call_table	/* Get function pointer */
 	addik	r15, r0, ret_to_user-8		/* set return address */
@@ -369,6 +370,7 @@ ENTRY(_debug_exception)
 	bralid	r15, send_sig
 	add	r7, r0, r0			/* 3rd param zero */
 
+	addik	r30, r0, 1			/* restarts allowed ??? */
 	/* Restore r3/r4 to work around how ret_to_user works */
 	lwi	r3, r1, PT_R3
 	lwi	r4, r1, PT_R4
@@ -492,7 +494,7 @@ work_pending:
 	nop
 1:	andi	r11, r19, _TIF_SIGPENDING | _TIF_NOTIFY_RESUME
 	beqi	r11, no_work_pending
-	addk	r5, r1, r0
+	addk	r5, r30, r0
 	bralid	r15, do_notify_resume
 	addik	r6, r0, 1
 	bri	no_work_pending
@@ -562,6 +564,7 @@ no_work_pending:
 	nop
 
 sys_rt_sigreturn_wrapper:
+	addk	r30, r0, r0		/* no restarts for this one */
 	brid	sys_rt_sigreturn
 	addk	r5, r1, r0
 
