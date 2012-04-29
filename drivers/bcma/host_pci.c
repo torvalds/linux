@@ -201,6 +201,9 @@ static int __devinit bcma_host_pci_probe(struct pci_dev *dev,
 	bus->hosttype = BCMA_HOSTTYPE_PCI;
 	bus->ops = &bcma_host_pci_ops;
 
+	bus->boardinfo.vendor = bus->host_pci->subsystem_vendor;
+	bus->boardinfo.type = bus->host_pci->subsystem_device;
+
 	/* Register */
 	err = bcma_bus_register(bus);
 	if (err)

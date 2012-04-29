@@ -26,6 +26,11 @@ struct bcma_chipinfo {
 	u8 pkg;
 };
 
+struct bcma_boardinfo {
+	u16 vendor;
+	u16 type;
+};
+
 enum bcma_clkmode {
 	BCMA_CLKMODE_FAST,
 	BCMA_CLKMODE_DYNAMIC,
@@ -197,6 +202,8 @@ struct bcma_bus {
 	};
 
 	struct bcma_chipinfo chipinfo;
+
+	struct bcma_boardinfo boardinfo;
 
 	struct bcma_device *mapped_core;
 	struct list_head cores;

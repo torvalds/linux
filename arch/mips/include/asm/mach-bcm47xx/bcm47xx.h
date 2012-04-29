@@ -51,5 +51,9 @@ void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom, const char *prefix);
 void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
 				const char *prefix);
 #endif
+#ifdef CONFIG_BCM47XX_BCMA
+void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
+				 const char *prefix);
+#endif
 
 #endif /* __ASM_BCM47XX_H */

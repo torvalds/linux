@@ -630,3 +630,15 @@ void bcm47xx_fill_ssb_boardinfo(struct ssb_boardinfo *boardinfo,
 	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0);
 }
 #endif
+
+#ifdef CONFIG_BCM47XX_BCMA
+void bcm47xx_fill_bcma_boardinfo(struct bcma_boardinfo *boardinfo,
+				 const char *prefix)
+{
+	nvram_read_u16(prefix, NULL, "boardvendor", &boardinfo->vendor, 0);
+	if (!boardinfo->vendor)
+		boardinfo->vendor = SSB_BOARDVENDOR_BCM;
+
+	nvram_read_u16(prefix, NULL, "boardtype", &boardinfo->type, 0);
+}
+#endif

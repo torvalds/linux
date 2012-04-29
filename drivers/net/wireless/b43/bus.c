@@ -107,11 +107,9 @@ struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core)
 	dev->dma_dev = core->dma_dev;
 	dev->irq = core->irq;
 
-	/*
 	dev->board_vendor = core->bus->boardinfo.vendor;
 	dev->board_type = core->bus->boardinfo.type;
-	dev->board_rev = core->bus->boardinfo.rev;
-	*/
+	dev->board_rev = core->bus->sprom.board_rev;
 
 	dev->chip_id = core->bus->chipinfo.id;
 	dev->chip_rev = core->bus->chipinfo.rev;
