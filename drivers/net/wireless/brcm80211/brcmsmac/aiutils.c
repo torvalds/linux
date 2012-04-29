@@ -856,15 +856,6 @@ int ai_pci_fixcfg(struct si_pub *sih)
 	return 0;
 }
 
-/* mask&set gpiocontrol bits */
-u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val, u8 priority)
-{
-	uint regoff;
-
-	regoff = offsetof(struct chipcregs, gpiocontrol);
-	return ai_cc_reg(sih, regoff, mask, val);
-}
-
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {

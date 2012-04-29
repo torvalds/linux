@@ -200,8 +200,6 @@ extern void ai_clkctl_init(struct si_pub *sih);
 extern u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih);
 extern bool ai_clkctl_cc(struct si_pub *sih, uint mode);
 extern bool ai_deviceremoved(struct si_pub *sih);
-extern u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val,
-			     u8 priority);
 
 extern void ai_pci_down(struct si_pub *sih);
 extern void ai_pci_up(struct si_pub *sih);

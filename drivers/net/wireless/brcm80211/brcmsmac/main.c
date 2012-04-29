@@ -2208,7 +2208,7 @@ static void brcms_c_gpio_init(struct brcms_c_info *wlc)
 		gm |= gc |= BOARD_GPIO_PACTRL;
 
 	/* apply to gpiocontrol register */
-	ai_gpiocontrol(wlc_hw->sih, gm, gc, GPIO_DRV_PRIORITY);
+	bcma_chipco_gpio_control(&wlc_hw->d11core->bus->drv_cc, gm, gc);
 }
 
 static void brcms_ucode_write(struct brcms_hardware *wlc_hw,

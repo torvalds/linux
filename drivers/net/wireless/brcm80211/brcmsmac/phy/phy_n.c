@@ -21343,7 +21343,7 @@ void wlc_phy_antsel_init(struct brcms_phy_pub *ppi, bool lut_init)
 		write_phy_reg(pi, 0xc8, 0x0);
 		write_phy_reg(pi, 0xc9, 0x0);
 
-		ai_gpiocontrol(pi->sh->sih, mask, mask, GPIO_DRV_PRIORITY);
+		bcma_chipco_gpio_control(&pi->d11core->bus->drv_cc, mask, mask);
 
 		mc = bcma_read32(pi->d11core, D11REGOFFS(maccontrol));
 		mc &= ~MCTL_GPOUT_SEL_MASK;
