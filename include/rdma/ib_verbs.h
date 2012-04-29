@@ -964,7 +964,7 @@ struct ib_qp {
 	struct ib_srq	       *srq;
 	struct ib_xrcd	       *xrcd; /* XRC TGT QPs only */
 	struct list_head	xrcd_list;
-	atomic_t		usecnt; /* count times opened */
+	atomic_t		usecnt; /* count times opened, mcast attaches */
 	struct list_head	open_list;
 	struct ib_qp           *real_qp;
 	struct ib_uobject      *uobject;
