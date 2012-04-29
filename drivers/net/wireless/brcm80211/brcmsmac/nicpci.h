@@ -66,8 +66,6 @@ extern struct pcicore_info *pcicore_init(struct si_pub *sih,
 extern void pcicore_deinit(struct pcicore_info *pch);
 extern void pcicore_up(struct pcicore_info *pch, int state);
 extern void pcicore_down(struct pcicore_info *pch, int state);
-extern u8 pcicore_find_pci_capability(struct pci_dev *dev, u8 req_cap_id,
-				      unsigned char *buf, u32 *buflen);
 extern void pcicore_fixcfg(struct pcicore_info *pch);
 
 #endif /* _BRCM_NICPCI_H_ */
