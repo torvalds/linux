@@ -186,6 +186,23 @@ static void bcma_core_pci_fixcfg(struct bcma_drv_pci *pc)
 	}
 }
 
+/* Fix MISC config to allow coming out of L2/L3-Ready state w/o PRST */
+/* Needs to happen when coming out of 'standby'/'hibernate' */
+static void bcma_core_pci_config_fixup(struct bcma_drv_pci *pc)
+{
+	u16 val16;
+	uint regoff;
+
+	regoff = BCMA_CORE_PCI_SPROM(BCMA_CORE_PCI_SPROM_MISC_CONFIG);
+
+	val16 = pcicore_read16(pc, regoff);
+
+	if (!(val16 & BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST)) {
+		val16 |= BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST;
+		pcicore_write16(pc, regoff, val16);
+	}
+}
+
 /**************************************************
  * Init.
  **************************************************/
@@ -194,6 +211,7 @@ static void __devinit bcma_core_pci_clientmode_init(struct bcma_drv_pci *pc)
 {
 	bcma_core_pci_fixcfg(pc);
 	bcma_pcicore_serdes_workaround(pc);
+	bcma_core_pci_config_fixup(pc);
 }
 
 void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc)

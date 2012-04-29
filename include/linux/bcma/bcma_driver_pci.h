@@ -90,6 +90,10 @@ struct pci_dev;
 #define  BCMA_CORE_PCI_SPROM_PI_OFFSET		0	/* first word */
 #define   BCMA_CORE_PCI_SPROM_PI_MASK		0xf000	/* bit 15:12 */
 #define   BCMA_CORE_PCI_SPROM_PI_SHIFT		12	/* bit 15:12 */
+#define  BCMA_CORE_PCI_SPROM_MISC_CONFIG	5	/* word 5 */
+#define   BCMA_CORE_PCI_SPROM_L23READY_EXIT_NOPERST	0x8000	/* bit 15 */
+#define   BCMA_CORE_PCI_SPROM_CLKREQ_OFFSET_REV5	20	/* word 20 for srom rev <= 5 */
+#define   BCMA_CORE_PCI_SPROM_CLKREQ_ENB	0x0800	/* bit 11 */
 
 /* SBtoPCIx */
 #define BCMA_CORE_PCI_SBTOPCI_MEM		0x00000000
