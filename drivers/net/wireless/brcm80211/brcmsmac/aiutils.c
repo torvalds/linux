@@ -828,16 +828,6 @@ void ai_pci_up(struct si_pub *sih)
 
 }
 
-/* Unconfigure and/or apply various WARs when system is going to sleep mode */
-void ai_pci_sleep(struct si_pub *sih)
-{
-	struct si_info *sii;
-
-	sii = (struct si_info *)sih;
-
-	pcicore_sleep(sii->pch);
-}
-
 /* Unconfigure and/or apply various WARs when going down */
 void ai_pci_down(struct si_pub *sih)
 {

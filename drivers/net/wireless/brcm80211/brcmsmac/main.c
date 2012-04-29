@@ -4933,15 +4933,6 @@ static int brcms_b_detach(struct brcms_c_info *wlc)
 
 	callbacks = 0;
 
-	if (wlc_hw->sih) {
-		/*
-		 * detach interrupt sync mechanism since interrupt is disabled
-		 * and per-port interrupt object may has been freed. this must
-		 * be done before sb core switch
-		 */
-		ai_pci_sleep(wlc_hw->sih);
-	}
-
 	brcms_b_detach_dmapio(wlc_hw);
 
 	band = wlc_hw->band;

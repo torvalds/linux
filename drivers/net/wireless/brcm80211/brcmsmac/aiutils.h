@@ -204,7 +204,6 @@ extern bool ai_deviceremoved(struct si_pub *sih);
 extern u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val,
 			     u8 priority);
 
-extern void ai_pci_sleep(struct si_pub *sih);
 extern void ai_pci_down(struct si_pub *sih);
 extern void ai_pci_up(struct si_pub *sih);
 extern int ai_pci_fixcfg(struct si_pub *sih);

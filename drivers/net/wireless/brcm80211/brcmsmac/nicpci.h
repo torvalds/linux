@@ -67,7 +67,6 @@ extern void pcicore_deinit(struct pcicore_info *pch);
 extern void pcicore_attach(struct pcicore_info *pch, int state);
 extern void pcicore_hwup(struct pcicore_info *pch);
 extern void pcicore_up(struct pcicore_info *pch, int state);
-extern void pcicore_sleep(struct pcicore_info *pch);
 extern void pcicore_down(struct pcicore_info *pch, int state);
 extern u8 pcicore_find_pci_capability(struct pci_dev *dev, u8 req_cap_id,
 				      unsigned char *buf, u32 *buflen);
