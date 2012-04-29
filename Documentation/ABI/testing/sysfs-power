@@ -172,3 +172,20 @@ Description:
 
 		Reading from this file will display the current value, which is
 		set to 1 MB by default.
+
+What:		/sys/power/autosleep
+Date:		April 2012
+Contact:	Rafael J. Wysocki <rjw@sisk.pl>
+Description:
+		The /sys/power/autosleep file can be written one of the strings
+		returned by reads from /sys/power/state.  If that happens, a
+		work item attempting to trigger a transition of the system to
+		the sleep state represented by that string is queued up.  This
+		attempt will only succeed if there are no active wakeup sources
+		in the system at that time.  After every execution, regardless
+		of whether or not the attempt to put the system to sleep has
+		succeeded, the work item requeues itself until user space
+		writes "off" to /sys/power/autosleep.
+
+		Reading from this file causes the last string successfully
+		written to it to be returned.
