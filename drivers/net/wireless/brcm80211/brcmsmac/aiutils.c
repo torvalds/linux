@@ -794,8 +794,7 @@ void ai_pci_up(struct si_pub *sih)
 	}
 
 	if (PCIE(sih))
-		pcicore_up(sii->pch, SI_PCIUP);
-
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, true);
 }
 
 /* Unconfigure and/or apply various WARs when going down */
@@ -812,7 +811,8 @@ void ai_pci_down(struct si_pub *sih)
 		bcma_core_set_clockmode(cc, BCMA_CLKMODE_DYNAMIC);
 	}
 
-	pcicore_down(sii->pch, SI_PCIDOWN);
+	if (PCIE(sih))
+		bcma_core_pci_extend_L1timer(&sii->icbus->drv_pci, false);
 }
 
 /*
