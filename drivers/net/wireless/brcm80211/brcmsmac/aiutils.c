@@ -865,30 +865,6 @@ u32 ai_gpiocontrol(struct si_pub *sih, u32 mask, u32 val, u8 priority)
 	return ai_cc_reg(sih, regoff, mask, val);
 }
 
-void ai_chipcontrl_epa4331(struct si_pub *sih, bool on)
-{
-	struct bcma_device *cc;
-	u32 val;
-
-	cc = ai_findcore(sih, CC_CORE_ID, 0);
-
-	if (on) {
-		if (ai_get_chippkg(sih) == 9 || ai_get_chippkg(sih) == 0xb)
-			/* Ext PA Controls for 4331 12x9 Package */
-			bcma_set32(cc, CHIPCREGOFFS(chipcontrol),
-				   CCTRL4331_EXTPA_EN |
-				   CCTRL4331_EXTPA_ON_GPIO2_5);
-		else
-			/* Ext PA Controls for 4331 12x12 Package */
-			bcma_set32(cc, CHIPCREGOFFS(chipcontrol),
-				   CCTRL4331_EXTPA_EN);
-	} else {
-		val &= ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5);
-		bcma_mask32(cc, CHIPCREGOFFS(chipcontrol),
-			    ~(CCTRL4331_EXTPA_EN | CCTRL4331_EXTPA_ON_GPIO2_5));
-	}
-}
-
 /* Enable BT-COEX & Ex-PA for 4313 */
 void ai_epa_4313war(struct si_pub *sih)
 {
