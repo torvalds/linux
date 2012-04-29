@@ -211,17 +211,10 @@ struct pcicore_info {
 	struct bcma_device *core;
 	struct si_pub *sih;	/* System interconnect handle */
 	struct pci_dev *dev;
-	u8 pcie_polarity;
 
 	u8 pmecap_offset;	/* PM Capability offset in the config space */
 	bool pmecap;		/* Capable of generating PME */
 };
-
-/* delay needed between the mdio control/ mdiodata register data access */
-static void pr28829_delay(void)
-{
-	udelay(10);
-}
 
 /* Initialize the PCI core.
  * It's caller's responsibility to make sure that this is done only once
@@ -351,103 +344,6 @@ static uint pcie_writereg(struct bcma_device *core, uint addrtype,
 	return 0;
 }
 
-static bool pcie_mdiosetblock(struct pcicore_info *pi, uint blk)
-{
-	uint mdiodata, i = 0;
-	uint pcie_serdes_spinwait = 200;
-
-	mdiodata = (MDIODATA_START | MDIODATA_WRITE | MDIODATA_TA |
-		    (MDIODATA_DEV_ADDR << MDIODATA_DEVADDR_SHF) |
-		    (MDIODATA_BLK_ADDR << MDIODATA_REGADDR_SHF) |
-		    (blk << 4));
-	bcma_write32(pi->core, PCIEREGOFFS(mdiodata), mdiodata);
-
-	pr28829_delay();
-	/* retry till the transaction is complete */
-	while (i < pcie_serdes_spinwait) {
-		if (bcma_read32(pi->core, PCIEREGOFFS(mdiocontrol)) &
-		    MDIOCTL_ACCESS_DONE)
-			break;
-
-		udelay(1000);
-		i++;
-	}
-
-	if (i >= pcie_serdes_spinwait)
-		return false;
-
-	return true;
-}
-
-static int
-pcie_mdioop(struct pcicore_info *pi, uint physmedia, uint regaddr, bool write,
-	    uint *val)
-{
-	uint mdiodata;
-	uint i = 0;
-	uint pcie_serdes_spinwait = 10;
-
-	/* enable mdio access to SERDES */
-	bcma_write32(pi->core, PCIEREGOFFS(mdiocontrol),
-		     MDIOCTL_PREAM_EN | MDIOCTL_DIVISOR_VAL);
-
-	/* new serdes is slower in rw,
-	 * using two layers of reg address mapping
-	 */
-	if (!pcie_mdiosetblock(pi, physmedia))
-		return 1;
-	mdiodata = ((MDIODATA_DEV_ADDR << MDIODATA_DEVADDR_SHF) |
-		    (regaddr << MDIODATA_REGADDR_SHF));
-	pcie_serdes_spinwait *= 20;
-
-	if (!write)
-		mdiodata |= (MDIODATA_START | MDIODATA_READ | MDIODATA_TA);
-	else
-		mdiodata |= (MDIODATA_START | MDIODATA_WRITE | MDIODATA_TA |
-			     *val);
-
-	bcma_write32(pi->core, PCIEREGOFFS(mdiodata), mdiodata);
-
-	pr28829_delay();
-
-	/* retry till the transaction is complete */
-	while (i < pcie_serdes_spinwait) {
-		if (bcma_read32(pi->core, PCIEREGOFFS(mdiocontrol)) &
-		    MDIOCTL_ACCESS_DONE) {
-			if (!write) {
-				pr28829_delay();
-				*val = (bcma_read32(pi->core,
-						    PCIEREGOFFS(mdiodata)) &
-					MDIODATA_MASK);
-			}
-			/* Disable mdio access to SERDES */
-			bcma_write32(pi->core, PCIEREGOFFS(mdiocontrol), 0);
-			return 0;
-		}
-		udelay(1000);
-		i++;
-	}
-
-	/* Timed out. Disable mdio access to SERDES. */
-	bcma_write32(pi->core, PCIEREGOFFS(mdiocontrol), 0);
-	return 1;
-}
-
-/* use the mdio interface to read from mdio slaves */
-static int
-pcie_mdioread(struct pcicore_info *pi, uint physmedia, uint regaddr,
-	      uint *regval)
-{
-	return pcie_mdioop(pi, physmedia, regaddr, false, regval);
-}
-
-/* use the mdio interface to write to mdio slaves */
-static int
-pcie_mdiowrite(struct pcicore_info *pi, uint physmedia, uint regaddr, uint val)
-{
-	return pcie_mdioop(pi, physmedia, regaddr, true, &val);
-}
-
 /* ***** Support functions ***** */
 static void pcie_extendL1timer(struct pcicore_info *pi, bool extend)
 {
@@ -460,53 +356,6 @@ static void pcie_extendL1timer(struct pcicore_info *pi, bool extend)
 		w &= ~PCIE_ASPMTIMER_EXTEND;
 	pcie_writereg(pi->core, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG, w);
 	w = pcie_readreg(pi->core, PCIE_PCIEREGS, PCIE_DLLP_PMTHRESHREG);
-}
-
-/* ***** PCI core WARs ***** */
-/* Done only once at attach time */
-static void pcie_war_polarity(struct pcicore_info *pi)
-{
-	u32 w;
-
-	if (pi->pcie_polarity != 0)
-		return;
-
-	w = pcie_readreg(pi->core, PCIE_PCIEREGS, PCIE_PLP_STATUSREG);
-
-	/* Detect the current polarity at attach and force that polarity and
-	 * disable changing the polarity
-	 */
-	if ((w & PCIE_PLP_POLARITYINV_STAT) == 0)
-		pi->pcie_polarity = SERDES_RX_CTRL_FORCE;
-	else
-		pi->pcie_polarity = (SERDES_RX_CTRL_FORCE |
-				     SERDES_RX_CTRL_POLARITY);
-}
-
-/* Apply the polarity determined at the start */
-/* Needs to happen when coming out of 'standby'/'hibernate' */
-static void pcie_war_serdes(struct pcicore_info *pi)
-{
-	u32 w = 0;
-
-	if (pi->pcie_polarity != 0)
-		pcie_mdiowrite(pi, MDIODATA_DEV_RX, SERDES_RX_CTRL,
-			       pi->pcie_polarity);
-
-	pcie_mdioread(pi, MDIODATA_DEV_PLL, SERDES_PLL_CTRL, &w);
-	if (w & PLL_CTRL_FREQDET_EN) {
-		w &= ~PLL_CTRL_FREQDET_EN;
-		pcie_mdiowrite(pi, MDIODATA_DEV_PLL, SERDES_PLL_CTRL, w);
-	}
-}
-
-/* ***** Functions called during driver state changes ***** */
-void pcicore_attach(struct pcicore_info *pi, int state)
-{
-	/* These need to happen in this order only */
-	pcie_war_polarity(pi);
-
-	pcie_war_serdes(pi);
 }
 
 void pcicore_up(struct pcicore_info *pi, int state)

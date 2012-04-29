@@ -534,9 +534,6 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	ai_cc_reg(sih, offsetof(struct chipcregs, gpiotimerval),
 		  ~0, w);
 
-	if (PCIE(sih))
-		pcicore_attach(sii->pch, SI_DOATTACH);
-
 	if (ai_get_chip_id(sih) == BCM43224_CHIP_ID) {
 		/*
 		 * enable 12 mA drive strenth for 43224 and
