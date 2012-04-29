@@ -3462,7 +3462,6 @@ static int nfs4_commit_done_cb(struct rpc_task *task, struct nfs_commit_data *da
 		rpc_restart_call_prepare(task);
 		return -EAGAIN;
 	}
-	nfs_refresh_inode(inode, data->res.fattr);
 	return 0;
 }
 
@@ -3477,11 +3476,6 @@ static void nfs4_proc_commit_setup(struct nfs_commit_data *data, struct rpc_mess
 {
 	struct nfs_server *server = NFS_SERVER(data->inode);
 
-	if (data->lseg) {
-		data->args.bitmask = NULL;
-		data->res.fattr = NULL;
-	} else
-		data->args.bitmask = server->cache_consistency_bitmask;
 	if (data->commit_done_cb == NULL)
 		data->commit_done_cb = nfs4_commit_done_cb;
 	data->res.server = server;

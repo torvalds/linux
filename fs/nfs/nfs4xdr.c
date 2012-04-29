@@ -421,13 +421,11 @@ static int nfs4_stat_to_errno(int);
 #define NFS4_enc_commit_sz	(compound_encode_hdr_maxsz + \
 				encode_sequence_maxsz + \
 				encode_putfh_maxsz + \
-				encode_commit_maxsz + \
-				encode_getattr_maxsz)
+				encode_commit_maxsz)
 #define NFS4_dec_commit_sz	(compound_decode_hdr_maxsz + \
 				decode_sequence_maxsz + \
 				decode_putfh_maxsz + \
-				decode_commit_maxsz + \
-				decode_getattr_maxsz)
+				decode_commit_maxsz)
 #define NFS4_enc_open_sz        (compound_encode_hdr_maxsz + \
 				encode_sequence_maxsz + \
 				encode_putfh_maxsz + \
@@ -2425,8 +2423,6 @@ static void nfs4_xdr_enc_commit(struct rpc_rqst *req, struct xdr_stream *xdr,
 	encode_sequence(xdr, &args->seq_args, &hdr);
 	encode_putfh(xdr, args->fh, &hdr);
 	encode_commit(xdr, args, &hdr);
-	if (args->bitmask)
-		encode_getfattr(xdr, args->bitmask, &hdr);
 	encode_nops(&hdr);
 }
 
@@ -6306,10 +6302,6 @@ static int nfs4_xdr_dec_commit(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 	if (status)
 		goto out;
 	status = decode_commit(xdr, res);
-	if (status)
-		goto out;
-	if (res->fattr)
-		decode_getfattr(xdr, res->fattr, res->server);
 out:
 	return status;
 }
