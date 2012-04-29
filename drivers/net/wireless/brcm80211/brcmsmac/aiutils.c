@@ -564,6 +564,7 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	u32 w, savewin;
 	struct bcma_device *cc;
 	uint socitype;
+	struct ssb_sprom *sprom = &pbus->sprom;
 
 	savewin = 0;
 
@@ -617,7 +618,8 @@ static struct si_info *ai_doattach(struct si_info *sii,
 	}
 
 	/* setup the GPIO based LED powersave register */
-	w = getintvar(sih, BRCMS_SROM_LEDDC);
+	w = (sprom->leddc_on_time << BCMA_CC_GPIOTIMER_ONTIME_SHIFT) |
+		 (sprom->leddc_off_time << BCMA_CC_GPIOTIMER_OFFTIME_SHIFT);
 	if (w == 0)
 		w = DEFAULT_GPIOTIMERVAL;
 	ai_cc_reg(sih, offsetof(struct chipcregs, gpiotimerval),

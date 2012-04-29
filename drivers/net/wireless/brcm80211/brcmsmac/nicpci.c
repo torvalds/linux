@@ -714,7 +714,10 @@ static void pcie_war_pci_setup(struct pcicore_info *pi)
 void pcicore_attach(struct pcicore_info *pi, int state)
 {
 	struct si_pub *sih = pi->sih;
-	u32 bfl2 = (u32)getintvar(sih, BRCMS_SROM_BOARDFLAGS2);
+	struct ssb_sprom *sprom = &pi->core->bus->sprom;
+	u32 bfl2;
+
+	bfl2 = sprom->boardflags2_lo + (sprom->boardflags2_hi << 16);
 
 	/* Determine if this board needs override */
 	if (PCIE_ASPM(sih)) {
