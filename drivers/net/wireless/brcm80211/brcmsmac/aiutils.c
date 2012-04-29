@@ -761,39 +761,6 @@ u16 ai_clkctl_fast_pwrup_delay(struct si_pub *sih)
 	return fpdelay;
 }
 
-/* clk control mechanism through chipcommon, no policy checking */
-static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
-{
-	struct bcma_device *cc;
-	u32 scc;
-
-	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
-
-	switch (mode) {
-	case CLK_FAST:		/* FORCEHT, fast (pll) clock */
-		bcma_set32(cc, CHIPCREGOFFS(clk_ctl_st), CCS_FORCEHT);
-
-		/* wait for the PLL */
-		if (ai_get_cccaps(&sii->pub) & CC_CAP_PMU) {
-			u32 htavail = CCS_HTAVAIL;
-			SPINWAIT(((bcma_read32(cc, CHIPCREGOFFS(clk_ctl_st)) &
-				   htavail) == 0), PMU_MAX_TRANSITION_DLY);
-		} else {
-			udelay(PLL_DELAY);
-		}
-		break;
-
-	case CLK_DYNAMIC:	/* enable dynamic clock control */
-		bcma_mask32(cc, CHIPCREGOFFS(clk_ctl_st), ~CCS_FORCEHT);
-		break;
-
-	default:
-		break;
-	}
-
-	return mode == CLK_FAST;
-}
-
 /*
  *  clock control policy function throught chipcommon
  *
@@ -802,26 +769,32 @@ static bool _ai_clkctl_cc(struct si_info *sii, uint mode)
  *    this is a wrapper over the next internal function
  *      to allow flexible policy settings for outside caller
  */
-bool ai_clkctl_cc(struct si_pub *sih, uint mode)
+bool ai_clkctl_cc(struct si_pub *sih, enum bcma_clkmode mode)
 {
 	struct si_info *sii;
+	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
 
 	if (PCI_FORCEHT(sih))
-		return mode == CLK_FAST;
+		return mode == BCMA_CLKMODE_FAST;
 
-	return _ai_clkctl_cc(sii, mode);
+	cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+	bcma_core_set_clockmode(cc, mode);
+	return mode == BCMA_CLKMODE_FAST;
 }
 
 void ai_pci_up(struct si_pub *sih)
 {
 	struct si_info *sii;
+	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
 
-	if (PCI_FORCEHT(sih))
-		_ai_clkctl_cc(sii, CLK_FAST);
+	if (PCI_FORCEHT(sih)) {
+		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+		bcma_core_set_clockmode(cc, BCMA_CLKMODE_FAST);
+	}
 
 	if (PCIE(sih))
 		pcicore_up(sii->pch, SI_PCIUP);
@@ -832,12 +805,15 @@ void ai_pci_up(struct si_pub *sih)
 void ai_pci_down(struct si_pub *sih)
 {
 	struct si_info *sii;
+	struct bcma_device *cc;
 
 	sii = (struct si_info *)sih;
 
 	/* release FORCEHT since chip is going to "down" state */
-	if (PCI_FORCEHT(sih))
-		_ai_clkctl_cc(sii, CLK_DYNAMIC);
+	if (PCI_FORCEHT(sih)) {
+		cc = ai_findcore(&sii->pub, BCMA_CORE_CHIPCOMMON, 0);
+		bcma_core_set_clockmode(cc, BCMA_CLKMODE_DYNAMIC);
+	}
 
 	pcicore_down(sii->pch, SI_PCIDOWN);
 }

@@ -113,10 +113,6 @@
 #define	XTAL			0x1	/* primary crystal oscillator (2050) */
 #define	PLL			0x2	/* main chip pll */
 
-/* clkctl clk mode */
-#define	CLK_FAST		0	/* force fast (pll) clock */
-#define	CLK_DYNAMIC		2	/* enable dynamic clock control */
-
 /* GPIO usage priorities */
 #define GPIO_DRV_PRIORITY	0	/* Driver */
 #define GPIO_APP_PRIORITY	1	/* Application */

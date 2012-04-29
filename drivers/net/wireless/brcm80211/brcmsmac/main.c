@@ -1219,7 +1219,7 @@ static void brcms_b_wait_for_wake(struct brcms_hardware *wlc_hw)
 }
 
 /* control chip clock to save power, enable dynamic clock or force fast clock */
-static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
+static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, enum bcma_clkmode mode)
 {
 	if (ai_get_cccaps(wlc_hw->sih) & CC_CAP_PMU) {
 		/* new chips with PMU, CCS_FORCEHT will distribute the HT clock
@@ -1229,7 +1229,7 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 		 */
 
 		if (wlc_hw->clk) {
-			if (mode == CLK_FAST) {
+			if (mode == BCMA_CLKMODE_FAST) {
 				bcma_set32(wlc_hw->d11core,
 					   D11REGOFFS(clk_ctl_st),
 					   CCS_FORCEHT);
@@ -1260,7 +1260,7 @@ static void brcms_b_clkctl_clk(struct brcms_hardware *wlc_hw, uint mode)
 					~CCS_FORCEHT);
 			}
 		}
-		wlc_hw->forcefastclk = (mode == CLK_FAST);
+		wlc_hw->forcefastclk = (mode == BCMA_CLKMODE_FAST);
 	} else {
 
 		/* old chips w/o PMU, force HT through cc,
@@ -1567,7 +1567,7 @@ void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw)
 	/* request FAST clock if not on */
 	fastclk = wlc_hw->forcefastclk;
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	wlc_phy_bw_state_set(wlc_hw->band->pi, bw);
 
@@ -1576,7 +1576,7 @@ void brcms_b_bw_set(struct brcms_hardware *wlc_hw, u16 bw)
 
 	/* restore the clk */
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 }
 
 static void brcms_b_upd_synthpu(struct brcms_hardware *wlc_hw)
@@ -1994,7 +1994,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	/* request FAST clock if not on  */
 	fastclk = wlc_hw->forcefastclk;
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/* reset the dma engines except first time thru */
 	if (bcma_core_is_enabled(wlc_hw->d11core)) {
@@ -2043,7 +2043,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 	brcms_c_mctrl_reset(wlc_hw);
 
 	if (ai_get_cccaps(wlc_hw->sih) & CC_CAP_PMU)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	brcms_b_phy_reset(wlc_hw);
 
@@ -2055,7 +2055,7 @@ void brcms_b_corereset(struct brcms_hardware *wlc_hw, u32 flags)
 
 	/* restore the clk setting */
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 }
 
 /* txfifo sizes needs to be modified(increased) since the newer cores
@@ -3361,7 +3361,7 @@ static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec) {
 	/* request FAST clock if not on */
 	fastclk = wlc_hw->forcefastclk;
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/* disable interrupts */
 	macintmask = brcms_intrsoff(wlc->wl);
@@ -3395,7 +3395,7 @@ static brcms_b_init(struct brcms_hardware *wlc_hw, u16 chanspec) {
 
 	/* restore the clk */
 	if (!fastclk)
-		brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 }
 
 static void brcms_c_set_phy_chanspec(struct brcms_c_info *wlc,
@@ -4491,7 +4491,7 @@ static int brcms_b_attach(struct brcms_c_info *wlc, struct bcma_device *core,
 	 *   is still false; But it will be called again inside wlc_corereset,
 	 *   after d11 is out of reset.
 	 */
-	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 	brcms_b_corereset(wlc_hw, BRCMS_USE_COREFLAGS);
 
 	if (!brcms_b_validate_chip_access(wlc_hw)) {
@@ -5019,7 +5019,7 @@ static void brcms_b_hw_up(struct brcms_hardware *wlc_hw)
 	 */
 	brcms_b_xtal(wlc_hw, ON);
 	ai_clkctl_init(wlc_hw->sih);
-	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	ai_pci_fixcfg(wlc_hw->sih);
 
@@ -5058,7 +5058,7 @@ static int brcms_b_up_prep(struct brcms_hardware *wlc_hw)
 	 */
 	brcms_b_xtal(wlc_hw, ON);
 	ai_clkctl_init(wlc_hw->sih);
-	brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 
 	/*
 	 * Configure pci/pcmcia here instead of in brcms_c_attach()
@@ -5095,7 +5095,7 @@ static int brcms_b_up_finish(struct brcms_hardware *wlc_hw)
 	wlc_phy_hw_state_upd(wlc_hw->band->pi, true);
 
 	/* FULLY enable dynamic power control and d11 core interrupt */
-	brcms_b_clkctl_clk(wlc_hw, CLK_DYNAMIC);
+	brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_DYNAMIC);
 	brcms_intrson(wlc_hw->wlc->wl);
 	return 0;
 }
@@ -5236,7 +5236,7 @@ static int brcms_b_bmac_down_prep(struct brcms_hardware *wlc_hw)
 		brcms_intrsoff(wlc_hw->wlc->wl);
 
 		/* ensure we're running on the pll clock again */
-		brcms_b_clkctl_clk(wlc_hw, CLK_FAST);
+		brcms_b_clkctl_clk(wlc_hw, BCMA_CLKMODE_FAST);
 	}
 	/* down phy at the last of this stage */
 	callbacks += wlc_phy_down(wlc_hw->band->pi);
