@@ -1160,7 +1160,7 @@ static int ext4_setup_new_descs(handle_t *handle, struct super_block *sb,
 					     EXT4_B2C(sbi, group_data->free_blocks_count));
 		ext4_free_inodes_set(sb, gdp, EXT4_INODES_PER_GROUP(sb));
 		gdp->bg_flags = cpu_to_le16(*bg_flags);
-		gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);
+		ext4_group_desc_csum_set(sb, group, gdp);
 
 		err = ext4_handle_dirty_metadata(handle, NULL, gdb_bh);
 		if (unlikely(err)) {
@@ -1399,17 +1399,14 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
 			   (1 + ext4_bg_num_gdb(sb, group + i) +
 			    le16_to_cpu(es->s_reserved_gdt_blocks)) : 0;
 		group_data[i].free_blocks_count = blocks_per_group - overhead;
-		if (EXT4_HAS_RO_COMPAT_FEATURE(sb,
-					       EXT4_FEATURE_RO_COMPAT_GDT_CSUM))
+		if (ext4_has_group_desc_csum(sb))
 			flex_gd->bg_flags[i] = EXT4_BG_BLOCK_UNINIT |
 					       EXT4_BG_INODE_UNINIT;
 		else
 			flex_gd->bg_flags[i] = EXT4_BG_INODE_ZEROED;
 	}
 
-	if (last_group == n_group &&
-	    EXT4_HAS_RO_COMPAT_FEATURE(sb,
-				       EXT4_FEATURE_RO_COMPAT_GDT_CSUM))
+	if (last_group == n_group && ext4_has_group_desc_csum(sb))
 		/* We need to initialize block bitmap of last group. */
 		flex_gd->bg_flags[i - 1] &= ~EXT4_BG_BLOCK_UNINIT;
 
