@@ -256,7 +256,7 @@ static void mlx4_ib_qp_event(struct mlx4_qp *qp, enum mlx4_event type)
 			event.event = IB_EVENT_QP_ACCESS_ERR;
 			break;
 		default:
-			printk(KERN_WARNING "mlx4_ib: Unexpected event type %d "
+			pr_warn("Unexpected event type %d "
 			       "on QP %06x\n", type, qp->qpn);
 			return;
 		}
@@ -715,7 +715,7 @@ static void destroy_qp_common(struct mlx4_ib_dev *dev, struct mlx4_ib_qp *qp,
 	if (qp->state != IB_QPS_RESET)
 		if (mlx4_qp_modify(dev->dev, NULL, to_mlx4_state(qp->state),
 				   MLX4_QP_STATE_RST, NULL, 0, 0, &qp->mqp))
-			printk(KERN_WARNING "mlx4_ib: modify QP %06x to RESET failed.\n",
+			pr_warn("modify QP %06x to RESET failed.\n",
 			       qp->mqp.qpn);
 
 	get_cqs(qp, &send_cq, &recv_cq);
@@ -946,7 +946,7 @@ static int mlx4_set_path(struct mlx4_ib_dev *dev, const struct ib_ah_attr *ah,
 
 	if (ah->ah_flags & IB_AH_GRH) {
 		if (ah->grh.sgid_index >= dev->dev->caps.gid_table_len[port]) {
-			printk(KERN_ERR "sgid_index (%u) too large. max is %d\n",
+			pr_err("sgid_index (%u) too large. max is %d\n",
 			       ah->grh.sgid_index, dev->dev->caps.gid_table_len[port] - 1);
 			return -1;
 		}
@@ -1050,7 +1050,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 			context->mtu_msgmax = (IB_MTU_4096 << 5) | 12;
 	} else if (attr_mask & IB_QP_PATH_MTU) {
 		if (attr->path_mtu < IB_MTU_256 || attr->path_mtu > IB_MTU_4096) {
-			printk(KERN_ERR "path MTU (%u) is invalid\n",
+			pr_err("path MTU (%u) is invalid\n",
 			       attr->path_mtu);
 			goto out;
 		}
@@ -1266,7 +1266,7 @@ static int __mlx4_ib_modify_qp(struct ib_qp *ibqp,
 	if (is_qp0(dev, qp)) {
 		if (cur_state != IB_QPS_RTR && new_state == IB_QPS_RTR)
 			if (mlx4_INIT_PORT(dev->dev, qp->port))
-				printk(KERN_WARNING "INIT_PORT failed for port %d\n",
+				pr_warn("INIT_PORT failed for port %d\n",
 				       qp->port);
 
 		if (cur_state != IB_QPS_RESET && cur_state != IB_QPS_ERR &&
@@ -1460,16 +1460,16 @@ static int build_mlx_header(struct mlx4_ib_sqp *sqp, struct ib_send_wr *wr,
 	header_size = ib_ud_header_pack(&sqp->ud_header, sqp->header_buf);
 
 	if (0) {
-		printk(KERN_ERR "built UD header of size %d:\n", header_size);
+		pr_err("built UD header of size %d:\n", header_size);
 		for (i = 0; i < header_size / 4; ++i) {
 			if (i % 8 == 0)
-				printk("  [%02x] ", i * 4);
-			printk(" %08x",
-			       be32_to_cpu(((__be32 *) sqp->header_buf)[i]));
+				pr_err("  [%02x] ", i * 4);
+			pr_cont(" %08x",
+				be32_to_cpu(((__be32 *) sqp->header_buf)[i]));
 			if ((i + 1) % 8 == 0)
-				printk("\n");
+				pr_cont("\n");
 		}
-		printk("\n");
+		pr_err("\n");
 	}
 
 	/*

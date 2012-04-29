@@ -338,7 +338,7 @@ int mlx4_ib_unmap_fmr(struct list_head *fmr_list)
 
 	err = mlx4_SYNC_TPT(mdev);
 	if (err)
-		printk(KERN_WARNING "mlx4_ib: SYNC_TPT error %d when "
+		pr_warn("SYNC_TPT error %d when "
 		       "unmapping FMRs\n", err);
 
 	return 0;

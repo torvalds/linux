@@ -789,7 +789,7 @@ static int mlx4_ib_mcg_detach(struct ib_qp *ibqp, union ib_gid *gid, u16 lid)
 		list_del(&ge->list);
 		kfree(ge);
 	} else
-		printk(KERN_WARNING "could not find mgid entry\n");
+		pr_warn("could not find mgid entry\n");
 
 	mutex_unlock(&mqp->mutex);
 
@@ -902,7 +902,7 @@ static void update_gids_task(struct work_struct *work)
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox)) {
-		printk(KERN_WARNING "update gid table failed %ld\n", PTR_ERR(mailbox));
+		pr_warn("update gid table failed %ld\n", PTR_ERR(mailbox));
 		return;
 	}
 
@@ -913,7 +913,7 @@ static void update_gids_task(struct work_struct *work)
 		       1, MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
 		       MLX4_CMD_NATIVE);
 	if (err)
-		printk(KERN_WARNING "set port command failed\n");
+		pr_warn("set port command failed\n");
 	else {
 		memcpy(gw->dev->iboe.gid_table[gw->port - 1], gw->gids, sizeof gw->gids);
 		event.device = &gw->dev->ib_dev;
@@ -1084,10 +1084,10 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	int err;
 	struct mlx4_ib_iboe *iboe;
 
-	printk_once(KERN_INFO "%s", mlx4_ib_version);
+	pr_info_once("%s", mlx4_ib_version);
 
 	if (mlx4_is_mfunc(dev)) {
-		printk(KERN_WARNING "IB not yet supported in SRIOV\n");
+		pr_warn("IB not yet supported in SRIOV\n");
 		return NULL;
 	}
 
@@ -1253,7 +1253,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 
 err_notif:
 	if (unregister_netdevice_notifier(&ibdev->iboe.nb))
-		printk(KERN_WARNING "failure unregistering notifier\n");
+		pr_warn("failure unregistering notifier\n");
 	flush_workqueue(wq);
 
 err_reg:
@@ -1288,7 +1288,7 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 	ib_unregister_device(&ibdev->ib_dev);
 	if (ibdev->iboe.nb.notifier_call) {
 		if (unregister_netdevice_notifier(&ibdev->iboe.nb))
-			printk(KERN_WARNING "failure unregistering notifier\n");
+			pr_warn("failure unregistering notifier\n");
 		ibdev->iboe.nb.notifier_call = NULL;
 	}
 	iounmap(ibdev->uar_map);
