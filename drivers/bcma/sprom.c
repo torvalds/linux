@@ -185,6 +185,18 @@ static int bcma_sprom_valid(const u16 *sprom)
 	bus->sprom._field = ((((u32)sprom[SPOFF((_offset)+2)] << 16 | \
 				sprom[SPOFF(_offset)]) & (_mask)) >> (_shift))
 
+#define SPEX_ARRAY8(_field, _offset, _mask, _shift)	\
+	do {	\
+		SPEX(_field[0], _offset +  0, _mask, _shift);	\
+		SPEX(_field[1], _offset +  2, _mask, _shift);	\
+		SPEX(_field[2], _offset +  4, _mask, _shift);	\
+		SPEX(_field[3], _offset +  6, _mask, _shift);	\
+		SPEX(_field[4], _offset +  8, _mask, _shift);	\
+		SPEX(_field[5], _offset + 10, _mask, _shift);	\
+		SPEX(_field[6], _offset + 12, _mask, _shift);	\
+		SPEX(_field[7], _offset + 14, _mask, _shift);	\
+	} while (0)
+
 static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 {
 	u16 v, o;
@@ -375,6 +387,64 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 	     SSB_SPROM8_AGAIN2, SSB_SPROM8_AGAIN2_SHIFT);
 	SPEX(antenna_gain.a3, SSB_SPROM8_AGAIN23,
 	     SSB_SPROM8_AGAIN3, SSB_SPROM8_AGAIN3_SHIFT);
+
+	SPEX(leddc_on_time, SSB_SPROM8_LEDDC, SSB_SPROM8_LEDDC_ON,
+	     SSB_SPROM8_LEDDC_ON_SHIFT);
+	SPEX(leddc_off_time, SSB_SPROM8_LEDDC, SSB_SPROM8_LEDDC_OFF,
+	     SSB_SPROM8_LEDDC_OFF_SHIFT);
+
+	SPEX(txchain, SSB_SPROM8_TXRXC, SSB_SPROM8_TXRXC_TXCHAIN,
+	     SSB_SPROM8_TXRXC_TXCHAIN_SHIFT);
+	SPEX(rxchain, SSB_SPROM8_TXRXC, SSB_SPROM8_TXRXC_RXCHAIN,
+	     SSB_SPROM8_TXRXC_RXCHAIN_SHIFT);
+	SPEX(antswitch, SSB_SPROM8_TXRXC, SSB_SPROM8_TXRXC_SWITCH,
+	     SSB_SPROM8_TXRXC_SWITCH_SHIFT);
+
+	SPEX(opo, SSB_SPROM8_OFDM2GPO, 0x00ff, 0);
+
+	SPEX_ARRAY8(mcs2gpo, SSB_SPROM8_2G_MCSPO, ~0, 0);
+	SPEX_ARRAY8(mcs5gpo, SSB_SPROM8_5G_MCSPO, ~0, 0);
+	SPEX_ARRAY8(mcs5glpo, SSB_SPROM8_5GL_MCSPO, ~0, 0);
+	SPEX_ARRAY8(mcs5ghpo, SSB_SPROM8_5GH_MCSPO, ~0, 0);
+
+	SPEX(rawtempsense, SSB_SPROM8_RAWTS, SSB_SPROM8_RAWTS_RAWTEMP,
+	     SSB_SPROM8_RAWTS_RAWTEMP_SHIFT);
+	SPEX(measpower, SSB_SPROM8_RAWTS, SSB_SPROM8_RAWTS_MEASPOWER,
+	     SSB_SPROM8_RAWTS_MEASPOWER_SHIFT);
+	SPEX(tempsense_slope, SSB_SPROM8_OPT_CORRX,
+	     SSB_SPROM8_OPT_CORRX_TEMP_SLOPE,
+	     SSB_SPROM8_OPT_CORRX_TEMP_SLOPE_SHIFT);
+	SPEX(tempcorrx, SSB_SPROM8_OPT_CORRX, SSB_SPROM8_OPT_CORRX_TEMPCORRX,
+	     SSB_SPROM8_OPT_CORRX_TEMPCORRX_SHIFT);
+	SPEX(tempsense_option, SSB_SPROM8_OPT_CORRX,
+	     SSB_SPROM8_OPT_CORRX_TEMP_OPTION,
+	     SSB_SPROM8_OPT_CORRX_TEMP_OPTION_SHIFT);
+	SPEX(freqoffset_corr, SSB_SPROM8_HWIQ_IQSWP,
+	     SSB_SPROM8_HWIQ_IQSWP_FREQ_CORR,
+	     SSB_SPROM8_HWIQ_IQSWP_FREQ_CORR_SHIFT);
+	SPEX(iqcal_swp_dis, SSB_SPROM8_HWIQ_IQSWP,
+	     SSB_SPROM8_HWIQ_IQSWP_IQCAL_SWP,
+	     SSB_SPROM8_HWIQ_IQSWP_IQCAL_SWP_SHIFT);
+	SPEX(hw_iqcal_en, SSB_SPROM8_HWIQ_IQSWP, SSB_SPROM8_HWIQ_IQSWP_HW_IQCAL,
+	     SSB_SPROM8_HWIQ_IQSWP_HW_IQCAL_SHIFT);
+
+	SPEX(bw40po, SSB_SPROM8_BW40PO, ~0, 0);
+	SPEX(cddpo, SSB_SPROM8_CDDPO, ~0, 0);
+	SPEX(stbcpo, SSB_SPROM8_STBCPO, ~0, 0);
+	SPEX(bwduppo, SSB_SPROM8_BWDUPPO, ~0, 0);
+
+	SPEX(tempthresh, SSB_SPROM8_THERMAL, SSB_SPROM8_THERMAL_TRESH,
+	     SSB_SPROM8_THERMAL_TRESH_SHIFT);
+	SPEX(tempoffset, SSB_SPROM8_THERMAL, SSB_SPROM8_THERMAL_OFFSET,
+	     SSB_SPROM8_THERMAL_OFFSET_SHIFT);
+	SPEX(phycal_tempdelta, SSB_SPROM8_TEMPDELTA,
+	     SSB_SPROM8_TEMPDELTA_PHYCAL,
+	     SSB_SPROM8_TEMPDELTA_PHYCAL_SHIFT);
+	SPEX(temps_period, SSB_SPROM8_TEMPDELTA, SSB_SPROM8_TEMPDELTA_PERIOD,
+	     SSB_SPROM8_TEMPDELTA_PERIOD_SHIFT);
+	SPEX(temps_hysteresis, SSB_SPROM8_TEMPDELTA,
+	     SSB_SPROM8_TEMPDELTA_HYSTERESIS,
+	     SSB_SPROM8_TEMPDELTA_HYSTERESIS_SHIFT);
 }
 
 /*
