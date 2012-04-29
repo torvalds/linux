@@ -268,6 +268,8 @@ static int mxb_probe(struct saa7146_dev *dev)
 	/* we store the pointer in our private data field */
 	dev->ext_priv = mxb;
 
+	v4l2_ctrl_handler_setup(hdl);
+
 	return 0;
 }
 
@@ -374,7 +376,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 
 	/* the rest for mxb */
 	mxb->cur_input = 0;
-	mxb->cur_mute = 1;
+	mxb->cur_mute = 0;
 
 	mxb->cur_mode = V4L2_TUNER_MODE_STEREO;
 
@@ -749,6 +751,10 @@ static int mxb_detach(struct saa7146_dev *dev)
 
 	DEB_EE("dev:%p\n", dev);
 
+	/* mute audio on tea6420s */
+	tea6420_route_line(mxb, 6);
+	tea6420_route_cd(mxb, 6);
+
 	saa7146_unregister_device(&mxb->video_dev,dev);
 	if (MXB_BOARD_CAN_DO_VBI(dev))
 		saa7146_unregister_device(&mxb->vbi_dev, dev);
@@ -774,16 +780,22 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* unset the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 0);
-		tuner_call(mxb, core, s_std, std);
+		saa7111a_call(mxb, core, s_std, std);
+		if (mxb->cur_input == 0)
+			tuner_call(mxb, core, s_std, std);
 	} else {
 		v4l2_std_id std = V4L2_STD_PAL_BG;
 
+		if (mxb->cur_input)
+			std = standard->id;
 		DEB_D("VIDIOC_S_STD: setting mxb for PAL/NTSC/SECAM\n");
 		/* set the 7146 gpio register -- I don't know what this does exactly */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* set the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 1);
-		tuner_call(mxb, core, s_std, std);
+		saa7111a_call(mxb, core, s_std, std);
+		if (mxb->cur_input == 0)
+			tuner_call(mxb, core, s_std, std);
 	}
 	return 0;
 }
