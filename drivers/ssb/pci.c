@@ -360,8 +360,9 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 	SPEX(et0mdcport, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0M, 14);
 	SPEX(et1mdcport, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET1M, 15);
 	SPEX(board_rev, SSB_SPROM1_BINF, SSB_SPROM1_BINF_BREV, 0);
-	SPEX(country_code, SSB_SPROM1_BINF, SSB_SPROM1_BINF_CCODE,
-	     SSB_SPROM1_BINF_CCODE_SHIFT);
+	if (out->revision == 1)
+		SPEX(country_code, SSB_SPROM1_BINF, SSB_SPROM1_BINF_CCODE,
+		     SSB_SPROM1_BINF_CCODE_SHIFT);
 	SPEX(ant_available_a, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTA,
 	     SSB_SPROM1_BINF_ANTA_SHIFT);
 	SPEX(ant_available_bg, SSB_SPROM1_BINF, SSB_SPROM1_BINF_ANTBG,
@@ -387,6 +388,8 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 	SPEX(boardflags_lo, SSB_SPROM1_BFLLO, 0xFFFF, 0);
 	if (out->revision >= 2)
 		SPEX(boardflags_hi, SSB_SPROM2_BFLHI, 0xFFFF, 0);
+	SPEX(alpha2[0], SSB_SPROM1_CCODE, 0xff00, 8);
+	SPEX(alpha2[1], SSB_SPROM1_CCODE, 0x00ff, 0);
 
 	/* Extract the antenna gain values. */
 	out->antenna_gain.a0 = r123_extract_antgain(out->revision, in,
@@ -456,13 +459,15 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 	SPEX(et1phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET1A,
 	     SSB_SPROM4_ETHPHY_ET1A_SHIFT);
 	if (out->revision == 4) {
-		SPEX(country_code, SSB_SPROM4_CCODE, 0xFFFF, 0);
+		SPEX(alpha2[0], SSB_SPROM4_CCODE, 0xff00, 8);
+		SPEX(alpha2[1], SSB_SPROM4_CCODE, 0x00ff, 0);
 		SPEX(boardflags_lo, SSB_SPROM4_BFLLO, 0xFFFF, 0);
 		SPEX(boardflags_hi, SSB_SPROM4_BFLHI, 0xFFFF, 0);
 		SPEX(boardflags2_lo, SSB_SPROM4_BFL2LO, 0xFFFF, 0);
 		SPEX(boardflags2_hi, SSB_SPROM4_BFL2HI, 0xFFFF, 0);
 	} else {
-		SPEX(country_code, SSB_SPROM5_CCODE, 0xFFFF, 0);
+		SPEX(alpha2[0], SSB_SPROM5_CCODE, 0xff00, 8);
+		SPEX(alpha2[1], SSB_SPROM5_CCODE, 0x00ff, 0);
 		SPEX(boardflags_lo, SSB_SPROM5_BFLLO, 0xFFFF, 0);
 		SPEX(boardflags_hi, SSB_SPROM5_BFLHI, 0xFFFF, 0);
 		SPEX(boardflags2_lo, SSB_SPROM5_BFL2LO, 0xFFFF, 0);
@@ -525,7 +530,8 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 		v = in[SPOFF(SSB_SPROM8_IL0MAC) + i];
 		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
 	}
-	SPEX(country_code, SSB_SPROM8_CCODE, 0xFFFF, 0);
+	SPEX(alpha2[0], SSB_SPROM8_CCODE, 0xff00, 8);
+	SPEX(alpha2[1], SSB_SPROM8_CCODE, 0x00ff, 0);
 	SPEX(boardflags_lo, SSB_SPROM8_BFLLO, 0xFFFF, 0);
 	SPEX(boardflags_hi, SSB_SPROM8_BFLHI, 0xFFFF, 0);
 	SPEX(boardflags2_lo, SSB_SPROM8_BFL2LO, 0xFFFF, 0);

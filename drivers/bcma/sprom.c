@@ -243,7 +243,8 @@ static void bcma_sprom_extract_r8(struct bcma_bus *bus, const u16 *sprom)
 	SPEX(boardflags2_lo, SSB_SPROM8_BFL2LO, ~0, 0);
 	SPEX(boardflags2_hi, SSB_SPROM8_BFL2HI, ~0, 0);
 
-	SPEX(country_code, SSB_SPROM8_CCODE, ~0, 0);
+	SPEX(alpha2[0], SSB_SPROM8_CCODE, 0xff00, 8);
+	SPEX(alpha2[1], SSB_SPROM8_CCODE, 0x00ff, 0);
 
 	/* Extract cores power info info */
 	for (i = 0; i < ARRAY_SIZE(pwr_info_offset); i++) {

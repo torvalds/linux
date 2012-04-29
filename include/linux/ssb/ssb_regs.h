@@ -228,6 +228,7 @@
 #define  SSB_SPROM1_AGAIN_BG_SHIFT	0
 #define  SSB_SPROM1_AGAIN_A		0xFF00	/* A-PHY */
 #define  SSB_SPROM1_AGAIN_A_SHIFT	8
+#define SSB_SPROM1_CCODE		0x0076
 
 /* SPROM Revision 2 (inherits from rev 1) */
 #define SSB_SPROM2_BFLHI		0x0038	/* Boardflags (high 16 bits) */
