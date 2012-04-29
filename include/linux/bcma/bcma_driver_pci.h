@@ -133,6 +133,7 @@ struct pci_dev;
 #define BCMA_CORE_PCI_DLLP_LRREG		0x120	/* Link Replay */
 #define BCMA_CORE_PCI_DLLP_LACKTOREG		0x124	/* Link Ack Timeout */
 #define BCMA_CORE_PCI_DLLP_PMTHRESHREG		0x128	/* Power Management Threshold */
+#define  BCMA_CORE_PCI_ASPMTIMER_EXTEND		0x01000000 /* > rev7: enable extend ASPM timer */
 #define BCMA_CORE_PCI_DLLP_RTRYWPREG		0x12C	/* Retry buffer write ptr */
 #define BCMA_CORE_PCI_DLLP_RTRYRPREG		0x130	/* Retry buffer Read ptr */
 #define BCMA_CORE_PCI_DLLP_RTRYPPREG		0x134	/* Retry buffer Purged ptr */
@@ -207,6 +208,7 @@ struct bcma_drv_pci {
 extern void __devinit bcma_core_pci_init(struct bcma_drv_pci *pc);
 extern int bcma_core_pci_irq_ctl(struct bcma_drv_pci *pc,
 				 struct bcma_device *core, bool enable);
+extern void bcma_core_pci_extend_L1timer(struct bcma_drv_pci *pc, bool extend);
 
 extern int bcma_core_pci_pcibios_map_irq(const struct pci_dev *dev);
 extern int bcma_core_pci_plat_dev_init(struct pci_dev *dev);
