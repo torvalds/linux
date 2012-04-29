@@ -122,6 +122,14 @@ static void l2tp_dfs_seq_tunnel_show(struct seq_file *m, void *v)
 	seq_printf(m, "\nTUNNEL %u peer %u", tunnel->tunnel_id, tunnel->peer_tunnel_id);
 	if (tunnel->sock) {
 		struct inet_sock *inet = inet_sk(tunnel->sock);
+
+#if IS_ENABLED(CONFIG_IPV6)
+		if (tunnel->sock->sk_family == AF_INET6) {
+			struct ipv6_pinfo *np = inet6_sk(tunnel->sock);
+			seq_printf(m, " from %pI6c to %pI6c\n",
+				&np->saddr, &np->daddr);
+		} else
+#endif
 		seq_printf(m, " from %pI4 to %pI4\n",
 			   &inet->inet_saddr, &inet->inet_daddr);
 		if (tunnel->encap == L2TP_ENCAPTYPE_UDP)
