@@ -764,6 +764,7 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 {
 	u32 ctrl;
 	s32 ret_val;
+	u16 kum_reg_data;
 
 	/*
 	 * Prevent the PCI-E bus from sticking if there is no TLP connection
@@ -788,6 +789,13 @@ static s32 e1000_reset_hw_80003es2lan(struct e1000_hw *hw)
 	e_dbg("Issuing a global reset to MAC\n");
 	ew32(CTRL, ctrl | E1000_CTRL_RST);
 	e1000_release_phy_80003es2lan(hw);
+
+	/* Disable IBIST slave mode (far-end loopback) */
+	e1000_read_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+					&kum_reg_data);
+	kum_reg_data |= E1000_KMRNCTRLSTA_IBIST_DISABLE;
+	e1000_write_kmrn_reg_80003es2lan(hw, E1000_KMRNCTRLSTA_INBAND_PARAM,
+					 kum_reg_data);
 
 	ret_val = e1000e_get_auto_rd_done(hw);
 	if (ret_val)

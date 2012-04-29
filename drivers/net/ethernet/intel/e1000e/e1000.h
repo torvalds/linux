@@ -735,9 +735,46 @@ static inline u32 __er32(struct e1000_hw *hw, unsigned long reg)
 	return readl(hw->hw_addr + reg);
 }
 
+#define er32(reg)	__er32(hw, E1000_##reg)
+
+/**
+ * __ew32_prepare - prepare to write to MAC CSR register on certain parts
+ * @hw: pointer to the HW structure
+ *
+ * When updating the MAC CSR registers, the Manageability Engine (ME) could
+ * be accessing the registers at the same time.  Normally, this is handled in
+ * h/w by an arbiter but on some parts there is a bug that acknowledges Host
+ * accesses later than it should which could result in the register to have
+ * an incorrect value.  Workaround this by checking the FWSM register which
+ * has bit 24 set while ME is accessing MAC CSR registers, wait if it is set
+ * and try again a number of times.
+ **/
+static inline s32 __ew32_prepare(struct e1000_hw *hw)
+{
+	s32 i = E1000_ICH_FWSM_PCIM2PCI_COUNT;
+
+	while ((er32(FWSM) & E1000_ICH_FWSM_PCIM2PCI) && --i)
+		udelay(50);
+
+	return i;
+}
+
 static inline void __ew32(struct e1000_hw *hw, unsigned long reg, u32 val)
 {
+	if (hw->adapter->flags2 & FLAG2_PCIM2PCI_ARBITER_WA)
+		__ew32_prepare(hw);
+
 	writel(val, hw->hw_addr + reg);
 }
+
+#define ew32(reg, val)	__ew32(hw, E1000_##reg, (val))
+
+#define e1e_flush()	er32(STATUS)
+
+#define E1000_WRITE_REG_ARRAY(a, reg, offset, value) \
+	(__ew32((a), (reg + ((offset) << 2)), (value)))
+
+#define E1000_READ_REG_ARRAY(a, reg, offset) \
+	(readl((a)->hw_addr + reg + ((offset) << 2)))
 
 #endif /* _E1000_H_ */

@@ -600,6 +600,8 @@ extern void ixgbe_disable_rx_queue(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *);
 extern void ixgbe_update_stats(struct ixgbe_adapter *adapter);
 extern int ixgbe_init_interrupt_scheme(struct ixgbe_adapter *adapter);
+extern int ixgbe_wol_supported(struct ixgbe_adapter *adapter, u16 device_id,
+			       u16 subdevice_id);
 extern void ixgbe_clear_interrupt_scheme(struct ixgbe_adapter *adapter);
 extern netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *,
 					 struct ixgbe_adapter *,
