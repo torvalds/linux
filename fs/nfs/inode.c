@@ -870,6 +870,15 @@ static int nfs_invalidate_mapping(struct inode *inode, struct address_space *map
 	return 0;
 }
 
+static bool nfs_mapping_need_revalidate_inode(struct inode *inode)
+{
+	if (nfs_have_delegated_attributes(inode))
+		return false;
+	return (NFS_I(inode)->cache_validity & NFS_INO_REVAL_PAGECACHE)
+		|| nfs_attribute_timeout(inode)
+		|| NFS_STALE(inode);
+}
+
 /**
  * nfs_revalidate_mapping - Revalidate the pagecache
  * @inode - pointer to host inode
@@ -880,9 +889,7 @@ int nfs_revalidate_mapping(struct inode *inode, struct address_space *mapping)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	int ret = 0;
 
-	if ((nfsi->cache_validity & NFS_INO_REVAL_PAGECACHE)
-			|| nfs_attribute_cache_expired(inode)
-			|| NFS_STALE(inode)) {
+	if (nfs_mapping_need_revalidate_inode(inode)) {
 		ret = __nfs_revalidate_inode(NFS_SERVER(inode), inode);
 		if (ret < 0)
 			goto out;
