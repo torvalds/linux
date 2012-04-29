@@ -2019,6 +2019,8 @@ extern long ext4_compat_ioctl(struct file *, unsigned int, unsigned long);
 extern int ext4_ext_migrate(struct inode *);
 
 /* namei.c */
+extern int ext4_dirent_csum_verify(struct inode *inode,
+				   struct ext4_dir_entry *dirent);
 extern int ext4_orphan_add(handle_t *, struct inode *);
 extern int ext4_orphan_del(handle_t *, struct inode *);
 extern int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
