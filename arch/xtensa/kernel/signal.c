@@ -527,9 +527,6 @@ static void do_signal(struct pt_regs *regs)
 
 void do_notify_resume(struct pt_regs *regs)
 {
-	if (!user_mode(regs))
-		return;
-
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs);
 
