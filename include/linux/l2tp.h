@@ -108,6 +108,8 @@ enum {
 	L2TP_ATTR_MTU,			/* u16 */
 	L2TP_ATTR_MRU,			/* u16 */
 	L2TP_ATTR_STATS,		/* nested */
+	L2TP_ATTR_IP6_SADDR,		/* struct in6_addr */
+	L2TP_ATTR_IP6_DADDR,		/* struct in6_addr */
 	__L2TP_ATTR_MAX,
 };
 

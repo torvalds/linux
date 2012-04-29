@@ -151,6 +151,10 @@ struct l2tp_tunnel_cfg {
 	/* Used only for kernel-created sockets */
 	struct in_addr		local_ip;
 	struct in_addr		peer_ip;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct in6_addr		*local_ip6;
+	struct in6_addr		*peer_ip6;
+#endif
 	u16			local_udp_port;
 	u16			peer_udp_port;
 	unsigned int		use_udp_checksums:1;

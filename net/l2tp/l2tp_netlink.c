@@ -133,10 +133,25 @@ static int l2tp_nl_cmd_tunnel_create(struct sk_buff *skb, struct genl_info *info
 	if (info->attrs[L2TP_ATTR_FD]) {
 		fd = nla_get_u32(info->attrs[L2TP_ATTR_FD]);
 	} else {
-		if (info->attrs[L2TP_ATTR_IP_SADDR])
-			cfg.local_ip.s_addr = nla_get_be32(info->attrs[L2TP_ATTR_IP_SADDR]);
-		if (info->attrs[L2TP_ATTR_IP_DADDR])
-			cfg.peer_ip.s_addr = nla_get_be32(info->attrs[L2TP_ATTR_IP_DADDR]);
+#if IS_ENABLED(CONFIG_IPV6)
+		if (info->attrs[L2TP_ATTR_IP6_SADDR] &&
+		    info->attrs[L2TP_ATTR_IP6_DADDR]) {
+			cfg.local_ip6 = nla_data(
+				info->attrs[L2TP_ATTR_IP6_SADDR]);
+			cfg.peer_ip6 = nla_data(
+				info->attrs[L2TP_ATTR_IP6_DADDR]);
+		} else
+#endif
+		if (info->attrs[L2TP_ATTR_IP_SADDR] &&
+		    info->attrs[L2TP_ATTR_IP_DADDR]) {
+			cfg.local_ip.s_addr = nla_get_be32(
+				info->attrs[L2TP_ATTR_IP_SADDR]);
+			cfg.peer_ip.s_addr = nla_get_be32(
+				info->attrs[L2TP_ATTR_IP_DADDR]);
+		} else {
+			ret = -EINVAL;
+			goto out;
+		}
 		if (info->attrs[L2TP_ATTR_UDP_SPORT])
 			cfg.local_udp_port = nla_get_u16(info->attrs[L2TP_ATTR_UDP_SPORT]);
 		if (info->attrs[L2TP_ATTR_UDP_DPORT])
@@ -225,6 +240,9 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
 	struct nlattr *nest;
 	struct sock *sk = NULL;
 	struct inet_sock *inet;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct ipv6_pinfo *np = NULL;
+#endif
 	struct l2tp_stats stats;
 	unsigned int start;
 
@@ -273,6 +291,11 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
 	if (!sk)
 		goto out;
 
+#if IS_ENABLED(CONFIG_IPV6)
+	if (sk->sk_family == AF_INET6)
+		np = inet6_sk(sk);
+#endif
+
 	inet = inet_sk(sk);
 
 	switch (tunnel->encap) {
@@ -284,6 +307,15 @@ static int l2tp_nl_tunnel_send(struct sk_buff *skb, u32 pid, u32 seq, int flags,
 			goto nla_put_failure;
 		/* NOBREAK */
 	case L2TP_ENCAPTYPE_IP:
+#if IS_ENABLED(CONFIG_IPV6)
+		if (np) {
+			if (nla_put(skb, L2TP_ATTR_IP6_SADDR, sizeof(np->saddr),
+				    &np->saddr) ||
+			    nla_put(skb, L2TP_ATTR_IP6_DADDR, sizeof(np->daddr),
+				    &np->daddr))
+				goto nla_put_failure;
+		} else
+#endif
 		if (nla_put_be32(skb, L2TP_ATTR_IP_SADDR, inet->inet_saddr) ||
 		    nla_put_be32(skb, L2TP_ATTR_IP_DADDR, inet->inet_daddr))
 			goto nla_put_failure;
@@ -752,6 +784,14 @@ static struct nla_policy l2tp_nl_policy[L2TP_ATTR_MAX + 1] = {
 	[L2TP_ATTR_MTU]			= { .type = NLA_U16, },
 	[L2TP_ATTR_MRU]			= { .type = NLA_U16, },
 	[L2TP_ATTR_STATS]		= { .type = NLA_NESTED, },
+	[L2TP_ATTR_IP6_SADDR] = {
+		.type = NLA_BINARY,
+		.len = sizeof(struct in6_addr),
+	},
+	[L2TP_ATTR_IP6_DADDR] = {
+		.type = NLA_BINARY,
+		.len = sizeof(struct in6_addr),
+	},
 	[L2TP_ATTR_IFNAME] = {
 		.type = NLA_NUL_STRING,
 		.len = IFNAMSIZ - 1,
