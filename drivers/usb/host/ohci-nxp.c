@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/of.h>
+#include <linux/usb/isp1301.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -58,54 +59,6 @@
 #define TRANSPARENT_I2C_EN	(1 << 7)
 #define HOST_EN			(1 << 0)
 
-/* ISP1301 USB transceiver I2C registers */
-#define	ISP1301_MODE_CONTROL_1		0x04	/* u8 read, set, +1 clear */
-
-#define	MC1_SPEED_REG		(1 << 0)
-#define	MC1_SUSPEND_REG		(1 << 1)
-#define	MC1_DAT_SE0		(1 << 2)
-#define	MC1_TRANSPARENT		(1 << 3)
-#define	MC1_BDIS_ACON_EN	(1 << 4)
-#define	MC1_OE_INT_EN		(1 << 5)
-#define	MC1_UART_EN		(1 << 6)
-#define	MC1_MASK		0x7f
-
-#define	ISP1301_MODE_CONTROL_2		0x12	/* u8 read, set, +1 clear */
-
-#define	MC2_GLOBAL_PWR_DN	(1 << 0)
-#define	MC2_SPD_SUSP_CTRL	(1 << 1)
-#define	MC2_BI_DI		(1 << 2)
-#define	MC2_TRANSP_BDIR0	(1 << 3)
-#define	MC2_TRANSP_BDIR1	(1 << 4)
-#define	MC2_AUDIO_EN		(1 << 5)
-#define	MC2_PSW_EN		(1 << 6)
-#define	MC2_EN2V7		(1 << 7)
-
-#define	ISP1301_OTG_CONTROL_1		0x06	/* u8 read, set, +1 clear */
-#	define	OTG1_DP_PULLUP		(1 << 0)
-#	define	OTG1_DM_PULLUP		(1 << 1)
-#	define	OTG1_DP_PULLDOWN	(1 << 2)
-#	define	OTG1_DM_PULLDOWN	(1 << 3)
-#	define	OTG1_ID_PULLDOWN	(1 << 4)
-#	define	OTG1_VBUS_DRV		(1 << 5)
-#	define	OTG1_VBUS_DISCHRG	(1 << 6)
-#	define	OTG1_VBUS_CHRG		(1 << 7)
-#define	ISP1301_OTG_STATUS		0x10	/* u8 readonly */
-#	define	OTG_B_SESS_END		(1 << 6)
-#	define	OTG_B_SESS_VLD		(1 << 7)
-
-#define ISP1301_I2C_ADDR 0x2C
-
-#define ISP1301_I2C_MODE_CONTROL_1 0x4
-#define ISP1301_I2C_MODE_CONTROL_2 0x12
-#define ISP1301_I2C_OTG_CONTROL_1 0x6
-#define ISP1301_I2C_OTG_CONTROL_2 0x10
-#define ISP1301_I2C_INTERRUPT_SOURCE 0x8
-#define ISP1301_I2C_INTERRUPT_LATCH 0xA
-#define ISP1301_I2C_INTERRUPT_FALLING 0xC
-#define ISP1301_I2C_INTERRUPT_RISING 0xE
-#define ISP1301_I2C_REG_CLEAR_ADDR 1
-
 /* On LPC32xx, those are undefined */
 #ifndef start_int_set_falling_edge
 #define start_int_set_falling_edge(irq)
@@ -115,40 +68,11 @@
 #define start_int_umask(irq)
 #endif
 
-static struct i2c_driver isp1301_driver;
 static struct i2c_client *isp1301_i2c_client;
 
 extern int usb_disabled(void);
 
 static struct clk *usb_clk;
-
-static const unsigned short normal_i2c[] =
-    { ISP1301_I2C_ADDR, ISP1301_I2C_ADDR + 1, I2C_CLIENT_END };
-
-static int isp1301_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
-{
-	return 0;
-}
-
-static int isp1301_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
-static const struct i2c_device_id isp1301_id[] = {
-	{ "isp1301_nxp", 0 },
-	{ }
-};
-
-static struct i2c_driver isp1301_driver = {
-	.driver = {
-		.name = "isp1301_nxp",
-	},
-	.probe = isp1301_probe,
-	.remove = isp1301_remove,
-	.id_table = isp1301_id,
-};
 
 static void isp1301_configure_pnx4008(void)
 {
@@ -373,11 +297,22 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd = 0;
 	struct ohci_hcd *ohci;
 	const struct hc_driver *driver = &ohci_nxp_hc_driver;
-	struct i2c_adapter *i2c_adap;
-	struct i2c_board_info i2c_info;
 	struct resource *res;
-
 	int ret = 0, irq;
+	struct device_node *isp1301_node;
+
+	if (pdev->dev.of_node) {
+		isp1301_node = of_parse_phandle(pdev->dev.of_node,
+						"transceiver", 0);
+	} else {
+		isp1301_node = NULL;
+	}
+
+	isp1301_i2c_client = isp1301_get_client(isp1301_node);
+	if (!isp1301_i2c_client) {
+		ret = -EPROBE_DEFER;
+		goto out;
+	}
 
 	pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 	pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
@@ -391,28 +326,6 @@ static int __devinit usb_hcd_nxp_probe(struct platform_device *pdev)
 
 	/* Enable AHB slave USB clock, needed for further USB clock control */
 	__raw_writel(USB_SLAVE_HCLK_EN | PAD_CONTROL_LAST_DRIVEN, USB_CTRL);
-
-	ret = i2c_add_driver(&isp1301_driver);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add ISP1301 driver\n");
-		goto out;
-	}
-	i2c_adap = i2c_get_adapter(2);
-	if (!i2c_adap) {
-		dev_err(&pdev->dev, "failed on i2c_get_adapter");
-		goto out_i2c_driver;
-	}
-
-	memset(&i2c_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(i2c_info.type, "isp1301_nxp", I2C_NAME_SIZE);
-	isp1301_i2c_client = i2c_new_probed_device(i2c_adap, &i2c_info,
-						   normal_i2c, NULL);
-	i2c_put_adapter(i2c_adap);
-	if (!isp1301_i2c_client) {
-		dev_err(&pdev->dev, "failed to connect I2C to ISP1301 USB Transceiver\n");
-		ret = -ENODEV;
-		goto out_i2c_driver;
-	}
 
 	isp1301_configure();
 
@@ -495,10 +408,7 @@ out3:
 out2:
 	clk_put(usb_clk);
 out1:
-	i2c_unregister_device(isp1301_i2c_client);
 	isp1301_i2c_client = NULL;
-out_i2c_driver:
-	i2c_del_driver(&isp1301_driver);
 out:
 	return ret;
 }
@@ -516,7 +426,6 @@ static int usb_hcd_nxp_remove(struct platform_device *pdev)
 	clk_put(usb_clk);
 	i2c_unregister_device(isp1301_i2c_client);
 	isp1301_i2c_client = NULL;
-	i2c_del_driver(&isp1301_driver);
 
 	platform_set_drvdata(pdev, NULL);
 
