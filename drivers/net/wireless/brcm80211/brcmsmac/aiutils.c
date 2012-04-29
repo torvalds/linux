@@ -816,6 +816,9 @@ bool ai_deviceremoved(struct si_pub *sih)
 
 	sii = (struct si_info *)sih;
 
+	if (sii->icbus->hosttype != BCMA_HOSTTYPE_PCI)
+		return false;
+
 	pci_read_config_dword(sii->pcibus, PCI_VENDOR_ID, &w);
 	if ((w & 0xFFFF) != PCI_VENDOR_ID_BROADCOM)
 		return true;
