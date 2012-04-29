@@ -1076,6 +1076,86 @@ static int mlx4_ib_netdev_event(struct notifier_block *this, unsigned long event
 	return NOTIFY_DONE;
 }
 
+static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
+{
+	char name[32];
+	int eq_per_port = 0;
+	int added_eqs = 0;
+	int total_eqs = 0;
+	int i, j, eq;
+
+	/* Init eq table */
+	ibdev->eq_table = NULL;
+	ibdev->eq_added = 0;
+
+	/* Legacy mode? */
+	if (dev->caps.comp_pool == 0)
+		return;
+
+	eq_per_port = rounddown_pow_of_two(dev->caps.comp_pool/
+					dev->caps.num_ports);
+
+	/* Init eq table */
+	added_eqs = 0;
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB)
+		added_eqs += eq_per_port;
+
+	total_eqs = dev->caps.num_comp_vectors + added_eqs;
+
+	ibdev->eq_table = kzalloc(total_eqs * sizeof(int), GFP_KERNEL);
+	if (!ibdev->eq_table)
+		return;
+
+	ibdev->eq_added = added_eqs;
+
+	eq = 0;
+	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
+		for (j = 0; j < eq_per_port; j++) {
+			sprintf(name, "mlx4-ib-%d-%d@%s",
+				i, j, dev->pdev->bus->name);
+			/* Set IRQ for specific name (per ring) */
+			if (mlx4_assign_eq(dev, name, &ibdev->eq_table[eq])) {
+				/* Use legacy (same as mlx4_en driver) */
+				pr_warn("Can't allocate EQ %d; reverting to legacy\n", eq);
+				ibdev->eq_table[eq] =
+					(eq % dev->caps.num_comp_vectors);
+			}
+			eq++;
+		}
+	}
+
+	/* Fill the reset of the vector with legacy EQ */
+	for (i = 0, eq = added_eqs; i < dev->caps.num_comp_vectors; i++)
+		ibdev->eq_table[eq++] = i;
+
+	/* Advertise the new number of EQs to clients */
+	ibdev->ib_dev.num_comp_vectors = total_eqs;
+}
+
+static void mlx4_ib_free_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
+{
+	int i;
+	int total_eqs;
+
+	/* Reset the advertised EQ number */
+	ibdev->ib_dev.num_comp_vectors = dev->caps.num_comp_vectors;
+
+	/* Free only the added eqs */
+	for (i = 0; i < ibdev->eq_added; i++) {
+		/* Don't free legacy eqs if used */
+		if (ibdev->eq_table[i] <= dev->caps.num_comp_vectors)
+			continue;
+		mlx4_release_eq(dev, ibdev->eq_table[i]);
+	}
+
+	total_eqs = dev->caps.num_comp_vectors + ibdev->eq_added;
+	memset(ibdev->eq_table, 0, total_eqs * sizeof(int));
+	kfree(ibdev->eq_table);
+
+	ibdev->eq_table = NULL;
+	ibdev->eq_added = 0;
+}
+
 static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
@@ -1210,6 +1290,8 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			(1ull << IB_USER_VERBS_CMD_CLOSE_XRCD);
 	}
 
+	mlx4_ib_alloc_eqs(dev, ibdev);
+
 	spin_lock_init(&iboe->lock);
 
 	if (init_node_data(ibdev))
@@ -1297,6 +1379,8 @@ static void mlx4_ib_remove(struct mlx4_dev *dev, void *ibdev_ptr)
 			mlx4_counter_free(ibdev->dev, ibdev->counters[p]);
 	mlx4_foreach_port(p, dev, MLX4_PORT_TYPE_IB)
 		mlx4_CLOSE_PORT(dev, p);
+
+	mlx4_ib_free_eqs(dev, ibdev);
 
 	mlx4_uar_free(dev, &ibdev->priv_uar);
 	mlx4_pd_free(dev, ibdev->priv_pdn);
