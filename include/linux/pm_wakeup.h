@@ -34,6 +34,7 @@
  * @total_time: Total time this wakeup source has been active.
  * @max_time: Maximum time this wakeup source has been continuously active.
  * @last_time: Monotonic clock when the wakeup source's was touched last time.
+ * @prevent_sleep_time: Total time this source has been preventing autosleep.
  * @event_count: Number of signaled wakeup events.
  * @active_count: Number of times the wakeup sorce was activated.
  * @relax_count: Number of times the wakeup sorce was deactivated.
@@ -51,12 +52,15 @@ struct wakeup_source {
 	ktime_t total_time;
 	ktime_t max_time;
 	ktime_t last_time;
+	ktime_t start_prevent_time;
+	ktime_t prevent_sleep_time;
 	unsigned long		event_count;
 	unsigned long		active_count;
 	unsigned long		relax_count;
 	unsigned long		expire_count;
 	unsigned long		wakeup_count;
 	bool			active:1;
+	bool			autosleep_enabled:1;
 };
 
 #ifdef CONFIG_PM_SLEEP

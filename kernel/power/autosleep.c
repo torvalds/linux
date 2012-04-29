@@ -101,8 +101,12 @@ int pm_autosleep_set_state(suspend_state_t state)
 
 	__pm_relax(autosleep_ws);
 
-	if (state > PM_SUSPEND_ON)
+	if (state > PM_SUSPEND_ON) {
+		pm_wakep_autosleep_enabled(true);
 		queue_up_suspend_work();
+	} else {
+		pm_wakep_autosleep_enabled(false);
+	}
 
 	mutex_unlock(&autosleep_lock);
 	return 0;

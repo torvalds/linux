@@ -380,6 +380,8 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	ws->active = true;
 	ws->active_count++;
 	ws->last_time = ktime_get();
+	if (ws->autosleep_enabled)
+		ws->start_prevent_time = ws->last_time;
 
 	/* Increment the counter of events in progress. */
 	cec = atomic_inc_return(&combined_event_count);
@@ -449,6 +451,17 @@ void pm_stay_awake(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(pm_stay_awake);
 
+#ifdef CONFIG_PM_AUTOSLEEP
+static void update_prevent_sleep_time(struct wakeup_source *ws, ktime_t now)
+{
+	ktime_t delta = ktime_sub(now, ws->start_prevent_time);
+	ws->prevent_sleep_time = ktime_add(ws->prevent_sleep_time, delta);
+}
+#else
+static inline void update_prevent_sleep_time(struct wakeup_source *ws,
+					     ktime_t now) {}
+#endif
+
 /**
  * wakup_source_deactivate - Mark given wakeup source as inactive.
  * @ws: Wakeup source to handle.
@@ -489,6 +502,9 @@ static void wakeup_source_deactivate(struct wakeup_source *ws)
 	ws->last_time = now;
 	del_timer(&ws->timer);
 	ws->timer_expires = 0;
+
+	if (ws->autosleep_enabled)
+		update_prevent_sleep_time(ws, now);
 
 	/*
 	 * Increment the counter of registered wakeup events and decrement the
@@ -718,6 +734,34 @@ bool pm_save_wakeup_count(unsigned int count)
 	return events_check_enabled;
 }
 
+#ifdef CONFIG_PM_AUTOSLEEP
+/**
+ * pm_wakep_autosleep_enabled - Modify autosleep_enabled for all wakeup sources.
+ * @enabled: Whether to set or to clear the autosleep_enabled flags.
+ */
+void pm_wakep_autosleep_enabled(bool set)
+{
+	struct wakeup_source *ws;
+	ktime_t now = ktime_get();
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
+		spin_lock_irq(&ws->lock);
+		if (ws->autosleep_enabled != set) {
+			ws->autosleep_enabled = set;
+			if (ws->active) {
+				if (set)
+					ws->start_prevent_time = now;
+				else
+					update_prevent_sleep_time(ws, now);
+			}
+		}
+		spin_unlock_irq(&ws->lock);
+	}
+	rcu_read_unlock();
+}
+#endif /* CONFIG_PM_AUTOSLEEP */
+
 static struct dentry *wakeup_sources_stats_dentry;
 
 /**
@@ -733,28 +777,37 @@ static int print_wakeup_source_stats(struct seq_file *m,
 	ktime_t max_time;
 	unsigned long active_count;
 	ktime_t active_time;
+	ktime_t prevent_sleep_time;
 	int ret;
 
 	spin_lock_irqsave(&ws->lock, flags);
 
 	total_time = ws->total_time;
 	max_time = ws->max_time;
+	prevent_sleep_time = ws->prevent_sleep_time;
 	active_count = ws->active_count;
 	if (ws->active) {
-		active_time = ktime_sub(ktime_get(), ws->last_time);
+		ktime_t now = ktime_get();
+
+		active_time = ktime_sub(now, ws->last_time);
 		total_time = ktime_add(total_time, active_time);
 		if (active_time.tv64 > max_time.tv64)
 			max_time = active_time;
+
+		if (ws->autosleep_enabled)
+			prevent_sleep_time = ktime_add(prevent_sleep_time,
+				ktime_sub(now, ws->start_prevent_time));
 	} else {
 		active_time = ktime_set(0, 0);
 	}
 
 	ret = seq_printf(m, "%-12s\t%lu\t\t%lu\t\t%lu\t\t%lu\t\t"
-			"%lld\t\t%lld\t\t%lld\t\t%lld\n",
+			"%lld\t\t%lld\t\t%lld\t\t%lld\t\t%lld\n",
 			ws->name, active_count, ws->event_count,
 			ws->wakeup_count, ws->expire_count,
 			ktime_to_ms(active_time), ktime_to_ms(total_time),
-			ktime_to_ms(max_time), ktime_to_ms(ws->last_time));
+			ktime_to_ms(max_time), ktime_to_ms(ws->last_time),
+			ktime_to_ms(prevent_sleep_time));
 
 	spin_unlock_irqrestore(&ws->lock, flags);
 
@@ -771,7 +824,7 @@ static int wakeup_sources_stats_show(struct seq_file *m, void *unused)
 
 	seq_puts(m, "name\t\tactive_count\tevent_count\twakeup_count\t"
 		"expire_count\tactive_since\ttotal_time\tmax_time\t"
-		"last_change\n");
+		"last_change\tprevent_suspend_time\n");
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
