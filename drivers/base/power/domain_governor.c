@@ -14,6 +14,31 @@
 
 #ifdef CONFIG_PM_RUNTIME
 
+static int dev_update_qos_constraint(struct device *dev, void *data)
+{
+	s64 *constraint_ns_p = data;
+	s32 constraint_ns = -1;
+
+	if (dev->power.subsys_data && dev->power.subsys_data->domain_data)
+		constraint_ns = dev_gpd_data(dev)->td.effective_constraint_ns;
+
+	if (constraint_ns < 0) {
+		constraint_ns = dev_pm_qos_read_value(dev);
+		constraint_ns *= NSEC_PER_USEC;
+	}
+	if (constraint_ns == 0)
+		return 0;
+
+	/*
+	 * constraint_ns cannot be negative here, because the device has been
+	 * suspended.
+	 */
+	if (constraint_ns < *constraint_ns_p || *constraint_ns_p == 0)
+		*constraint_ns_p = constraint_ns;
+
+	return 0;
+}
+
 /**
  * default_stop_ok - Default PM domain governor routine for stopping devices.
  * @dev: Device to check.
@@ -21,14 +46,34 @@
 bool default_stop_ok(struct device *dev)
 {
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	s64 constraint_ns;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	if (dev->power.max_time_suspended_ns < 0 || td->break_even_ns == 0)
-		return true;
+	constraint_ns = dev_pm_qos_read_value(dev);
+	if (constraint_ns < 0)
+		return false;
 
-	return td->stop_latency_ns + td->start_latency_ns < td->break_even_ns
-		&& td->break_even_ns < dev->power.max_time_suspended_ns;
+	constraint_ns *= NSEC_PER_USEC;
+	/*
+	 * We can walk the children without any additional locking, because
+	 * they all have been suspended at this point.
+	 */
+	if (!dev->power.ignore_children)
+		device_for_each_child(dev, &constraint_ns,
+				      dev_update_qos_constraint);
+
+	if (constraint_ns > 0) {
+		constraint_ns -= td->start_latency_ns;
+		if (constraint_ns == 0)
+			return false;
+	}
+	td->effective_constraint_ns = constraint_ns;
+	/*
+	 * The children have been suspended already, so we don't need to take
+	 * their stop latencies into account here.
+	 */
+	return constraint_ns > td->stop_latency_ns || constraint_ns == 0;
 }
 
 /**

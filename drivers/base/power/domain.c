@@ -506,6 +506,7 @@ static int pm_genpd_runtime_suspend(struct device *dev)
 	if (dev_gpd_data(dev)->always_on)
 		return -EBUSY;
 
+	dev_gpd_data(dev)->td.effective_constraint_ns = -1;
 	stop_ok = genpd->gov ? genpd->gov->stop_ok : NULL;
 	if (stop_ok && !stop_ok(dev))
 		return -EBUSY;
