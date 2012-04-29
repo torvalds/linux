@@ -114,7 +114,7 @@ enum fimc_color_fmt {
 #define	FIMC_PARAMS		(1 << 0)
 #define	FIMC_SRC_FMT		(1 << 3)
 #define	FIMC_DST_FMT		(1 << 4)
-#define	FIMC_DST_CROP		(1 << 5)
+#define	FIMC_COMPOSE		(1 << 5)
 #define	FIMC_CTX_M2M		(1 << 16)
 #define	FIMC_CTX_CAP		(1 << 17)
 #define	FIMC_CTX_SHUT		(1 << 18)
