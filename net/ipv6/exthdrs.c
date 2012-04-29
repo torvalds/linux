@@ -883,6 +883,7 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 	return opt;
 }
+EXPORT_SYMBOL_GPL(ipv6_fixup_options);
 
 /**
  * fl6_update_dst - update flowi destination address with info given
