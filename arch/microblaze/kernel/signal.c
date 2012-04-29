@@ -343,15 +343,6 @@ static void do_signal(struct pt_regs *regs, int in_syscall)
 
 asmlinkage void do_notify_resume(struct pt_regs *regs, int in_syscall)
 {
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (kernel_mode(regs))
-		return;
-
 	if (test_thread_flag(TIF_SIGPENDING))
 		do_signal(regs, in_syscall);
 
