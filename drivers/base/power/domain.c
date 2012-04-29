@@ -381,6 +381,7 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 		return 0;
 	}
 
+	genpd->max_off_time_ns = -1;
 	if (genpd->gov && genpd->gov->power_down_ok) {
 		if (!genpd->gov->power_down_ok(&genpd->domain))
 			return -EAGAIN;
@@ -443,7 +444,6 @@ static int pm_genpd_poweroff(struct generic_pm_domain *genpd)
 	}
 
 	genpd->status = GPD_STATE_POWER_OFF;
-	genpd->power_off_time = ktime_get();
 
 	/* Update PM QoS information for devices in the domain. */
 	list_for_each_entry_reverse(pdd, &genpd->dev_list, list_node) {
