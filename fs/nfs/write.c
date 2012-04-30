@@ -567,6 +567,17 @@ int nfs_write_need_commit(struct nfs_write_data *data)
 }
 
 #else
+static void nfs_init_cinfo_from_inode(struct nfs_commit_info *cinfo,
+				      struct inode *inode)
+{
+}
+
+void nfs_init_cinfo(struct nfs_commit_info *cinfo,
+		    struct inode *inode,
+		    struct nfs_direct_req *dreq)
+{
+}
+
 void
 nfs_mark_request_commit(struct nfs_page *req, struct pnfs_layout_segment *lseg,
 			struct nfs_commit_info *cinfo)
