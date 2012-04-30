@@ -157,7 +157,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define PM_CTRL_PM_REQ_TIMER_MASK	0xFUL
 #define PM_CTRL_PM_REQ_TIMER_SHIFT	20	/* pm_request_l1 time > @
 						 * ->L0s not L1 */
-#define PM_CTRL_PM_REQ_TO_DEF		0xC
+#define PM_CTRL_PM_REQ_TO_DEF		0xF
 #define PMCTRL_TXL1_AFTER_L0S		BIT(19)	/* l1dv2.0+ */
 #define L1D_PMCTRL_L1_ENTRY_TM_MASK	7UL	/* l1dv2.0+, 3bits */
 #define L1D_PMCTRL_L1_ENTRY_TM_SHIFT	16
