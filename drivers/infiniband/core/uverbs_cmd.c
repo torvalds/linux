@@ -1423,13 +1423,6 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 		}
 		device = xrcd->device;
 	} else {
-		pd  = idr_read_pd(cmd.pd_handle, file->ucontext);
-		scq = idr_read_cq(cmd.send_cq_handle, file->ucontext, 0);
-		if (!pd || !scq) {
-			ret = -EINVAL;
-			goto err_put;
-		}
-
 		if (cmd.qp_type == IB_QPT_XRC_INI) {
 			cmd.max_recv_wr = cmd.max_recv_sge = 0;
 		} else {
@@ -1440,13 +1433,24 @@ ssize_t ib_uverbs_create_qp(struct ib_uverbs_file *file,
 					goto err_put;
 				}
 			}
-			rcq = (cmd.recv_cq_handle == cmd.send_cq_handle) ?
-			       scq : idr_read_cq(cmd.recv_cq_handle, file->ucontext, 1);
-			if (!rcq) {
-				ret = -EINVAL;
-				goto err_put;
+
+			if (cmd.recv_cq_handle != cmd.send_cq_handle) {
+				rcq = idr_read_cq(cmd.recv_cq_handle, file->ucontext, 0);
+				if (!rcq) {
+					ret = -EINVAL;
+					goto err_put;
+				}
 			}
 		}
+
+		scq = idr_read_cq(cmd.send_cq_handle, file->ucontext, !!rcq);
+		rcq = rcq ?: scq;
+		pd  = idr_read_pd(cmd.pd_handle, file->ucontext);
+		if (!pd || !scq) {
+			ret = -EINVAL;
+			goto err_put;
+		}
+
 		device = pd->device;
 	}
 
@@ -2484,27 +2488,27 @@ static int __uverbs_create_xsrq(struct ib_uverbs_file *file,
 	init_uobj(&obj->uevent.uobject, cmd->user_handle, file->ucontext, &srq_lock_class);
 	down_write(&obj->uevent.uobject.mutex);
 
-	pd  = idr_read_pd(cmd->pd_handle, file->ucontext);
-	if (!pd) {
-		ret = -EINVAL;
-		goto err;
-	}
-
 	if (cmd->srq_type == IB_SRQT_XRC) {
-		attr.ext.xrc.cq  = idr_read_cq(cmd->cq_handle, file->ucontext, 0);
-		if (!attr.ext.xrc.cq) {
-			ret = -EINVAL;
-			goto err_put_pd;
-		}
-
 		attr.ext.xrc.xrcd  = idr_read_xrcd(cmd->xrcd_handle, file->ucontext, &xrcd_uobj);
 		if (!attr.ext.xrc.xrcd) {
 			ret = -EINVAL;
-			goto err_put_cq;
+			goto err;
 		}
 
 		obj->uxrcd = container_of(xrcd_uobj, struct ib_uxrcd_object, uobject);
 		atomic_inc(&obj->uxrcd->refcnt);
+
+		attr.ext.xrc.cq  = idr_read_cq(cmd->cq_handle, file->ucontext, 0);
+		if (!attr.ext.xrc.cq) {
+			ret = -EINVAL;
+			goto err_put_xrcd;
+		}
+	}
+
+	pd  = idr_read_pd(cmd->pd_handle, file->ucontext);
+	if (!pd) {
+		ret = -EINVAL;
+		goto err_put_cq;
 	}
 
 	attr.event_handler  = ib_uverbs_srq_event_handler;
@@ -2581,17 +2585,17 @@ err_destroy:
 	ib_destroy_srq(srq);
 
 err_put:
-	if (cmd->srq_type == IB_SRQT_XRC) {
-		atomic_dec(&obj->uxrcd->refcnt);
-		put_uobj_read(xrcd_uobj);
-	}
+	put_pd_read(pd);
 
 err_put_cq:
 	if (cmd->srq_type == IB_SRQT_XRC)
 		put_cq_read(attr.ext.xrc.cq);
 
-err_put_pd:
-	put_pd_read(pd);
+err_put_xrcd:
+	if (cmd->srq_type == IB_SRQT_XRC) {
+		atomic_dec(&obj->uxrcd->refcnt);
+		put_uobj_read(xrcd_uobj);
+	}
 
 err:
 	put_uobj_write(&obj->uevent.uobject);
