@@ -951,6 +951,14 @@ static int smsc75xx_reset(struct usbnet *dev)
 	ret = smsc75xx_write_reg(dev, INT_EP_CTL, buf);
 	check_warn_return(ret, "Failed to write INT_EP_CTL: %d", ret);
 
+	/* allow mac to detect speed and duplex from phy */
+	ret = smsc75xx_read_reg(dev, MAC_CR, &buf);
+	check_warn_return(ret, "Failed to read MAC_CR: %d", ret);
+
+	buf |= (MAC_CR_ADD | MAC_CR_ASD);
+	ret = smsc75xx_write_reg(dev, MAC_CR, buf);
+	check_warn_return(ret, "Failed to write MAC_CR: %d", ret);
+
 	ret = smsc75xx_read_reg(dev, MAC_TX, &buf);
 	check_warn_return(ret, "Failed to read MAC_TX: %d", ret);
 
