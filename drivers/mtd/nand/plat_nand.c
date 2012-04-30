@@ -31,6 +31,7 @@ static const char *part_probe_types[] = { "cmdlinepart", NULL };
 static int __devinit plat_nand_probe(struct platform_device *pdev)
 {
 	struct platform_nand_data *pdata = pdev->dev.platform_data;
+	struct mtd_part_parser_data ppdata;
 	struct plat_nand_data *data;
 	struct resource *res;
 	const char **part_types;
@@ -103,7 +104,8 @@ static int __devinit plat_nand_probe(struct platform_device *pdev)
 
 	part_types = pdata->chip.part_probe_types ? : part_probe_types;
 
-	err = mtd_device_parse_register(&data->mtd, part_types, NULL,
+	ppdata.of_node = pdev->dev.of_node;
+	err = mtd_device_parse_register(&data->mtd, part_types, &ppdata,
 					pdata->chip.partitions,
 					pdata->chip.nr_partitions);
 
@@ -144,12 +146,19 @@ static int __devexit plat_nand_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id plat_nand_match[] = {
+	{ .compatible = "gen_nand" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, plat_nand_match);
+
 static struct platform_driver plat_nand_driver = {
-	.probe		= plat_nand_probe,
-	.remove		= __devexit_p(plat_nand_remove),
-	.driver		= {
-		.name	= "gen_nand",
-		.owner	= THIS_MODULE,
+	.probe	= plat_nand_probe,
+	.remove	= __devexit_p(plat_nand_remove),
+	.driver	= {
+		.name		= "gen_nand",
+		.owner		= THIS_MODULE,
+		.of_match_table = plat_nand_match,
 	},
 };
 
