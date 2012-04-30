@@ -626,6 +626,8 @@ struct dwc3_scratchpad_array {
  * @mode: mode of operation
  * @usb2_phy: pointer to USB2 PHY
  * @usb3_phy: pointer to USB3 PHY
+ * @dcfg: saved contents of DCFG register
+ * @gctl: saved contents of GCTL register
  * @is_selfpowered: true when we are selfpowered
  * @three_stage_setup: set if we perform a three phase setup
  * @ep0_bounced: true when we used bounce buffer
@@ -674,6 +676,10 @@ struct dwc3 {
 
 	void __iomem		*regs;
 	size_t			regs_size;
+
+	/* used for suspend/resume */
+	u32			dcfg;
+	u32			gctl;
 
 	u32			num_event_buffers;
 	u32			u1u2;
@@ -884,5 +890,32 @@ static inline int dwc3_gadget_init(struct dwc3 *dwc)
 static inline void dwc3_gadget_exit(struct dwc3 *dwc)
 { }
 #endif
+
+/* power management interface */
+#if !IS_ENABLED(CONFIG_USB_DWC3_HOST)
+int dwc3_gadget_prepare(struct dwc3 *dwc);
+void dwc3_gadget_complete(struct dwc3 *dwc);
+int dwc3_gadget_suspend(struct dwc3 *dwc);
+int dwc3_gadget_resume(struct dwc3 *dwc);
+#else
+static inline int dwc3_gadget_prepare(struct dwc3 *dwc)
+{
+	return 0;
+}
+
+static inline void dwc3_gadget_complete(struct dwc3 *dwc)
+{
+}
+
+static inline int dwc3_gadget_suspend(struct dwc3 *dwc)
+{
+	return 0;
+}
+
+static inline int dwc3_gadget_resume(struct dwc3 *dwc)
+{
+	return 0;
+}
+#endif /* !IS_ENABLED(CONFIG_USB_DWC3_HOST) */
 
 #endif /* __DRIVERS_USB_DWC3_CORE_H */

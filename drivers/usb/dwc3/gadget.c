@@ -2594,6 +2594,8 @@ err0:
 	return ret;
 }
 
+/* -------------------------------------------------------------------------- */
+
 void dwc3_gadget_exit(struct dwc3 *dwc)
 {
 	usb_del_gadget_udc(&dwc->gadget);
@@ -2610,4 +2612,63 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 
 	dma_free_coherent(dwc->dev, sizeof(*dwc->ctrl_req),
 			dwc->ctrl_req, dwc->ctrl_req_addr);
+}
+
+int dwc3_gadget_prepare(struct dwc3 *dwc)
+{
+	if (dwc->pullups_connected)
+		dwc3_gadget_disable_irq(dwc);
+
+	return 0;
+}
+
+void dwc3_gadget_complete(struct dwc3 *dwc)
+{
+	if (dwc->pullups_connected) {
+		dwc3_gadget_enable_irq(dwc);
+		dwc3_gadget_run_stop(dwc, true);
+	}
+}
+
+int dwc3_gadget_suspend(struct dwc3 *dwc)
+{
+	__dwc3_gadget_ep_disable(dwc->eps[0]);
+	__dwc3_gadget_ep_disable(dwc->eps[1]);
+
+	dwc->dcfg = dwc3_readl(dwc->regs, DWC3_DCFG);
+
+	return 0;
+}
+
+int dwc3_gadget_resume(struct dwc3 *dwc)
+{
+	struct dwc3_ep		*dep;
+	int			ret;
+
+	/* Start with SuperSpeed Default */
+	dwc3_gadget_ep0_desc.wMaxPacketSize = cpu_to_le16(512);
+
+	dep = dwc->eps[0];
+	ret = __dwc3_gadget_ep_enable(dep, &dwc3_gadget_ep0_desc, NULL, false);
+	if (ret)
+		goto err0;
+
+	dep = dwc->eps[1];
+	ret = __dwc3_gadget_ep_enable(dep, &dwc3_gadget_ep0_desc, NULL, false);
+	if (ret)
+		goto err1;
+
+	/* begin to receive SETUP packets */
+	dwc->ep0state = EP0_SETUP_PHASE;
+	dwc3_ep0_out_start(dwc);
+
+	dwc3_writel(dwc->regs, DWC3_DCFG, dwc->dcfg);
+
+	return 0;
+
+err1:
+	__dwc3_gadget_ep_disable(dwc->eps[0]);
+
+err0:
+	return ret;
 }
