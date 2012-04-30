@@ -678,7 +678,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	if (strcmp(report.input_name, "-") != 0) {
 		if (report.use_gtk)
-			perf_gtk_setup_browser(true);
+			perf_gtk__setup_browser(true);
 		else
 			setup_browser(true);
 	} else {
