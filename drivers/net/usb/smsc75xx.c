@@ -652,6 +652,7 @@ static int smsc75xx_phy_initialize(struct usbnet *dev)
 	dev->mii.mdio_write = smsc75xx_mdio_write;
 	dev->mii.phy_id_mask = 0x1f;
 	dev->mii.reg_num_mask = 0x1f;
+	dev->mii.supports_gmii = 1;
 	dev->mii.phy_id = SMSC75XX_INTERNAL_PHY_ID;
 
 	/* reset phy and wait for reset to complete */
@@ -672,6 +673,8 @@ static int smsc75xx_phy_initialize(struct usbnet *dev)
 	smsc75xx_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
 		ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP |
 		ADVERTISE_PAUSE_ASYM);
+	smsc75xx_mdio_write(dev->net, dev->mii.phy_id, MII_CTRL1000,
+		ADVERTISE_1000FULL);
 
 	/* read and write to clear phy interrupt status */
 	ret = smsc75xx_mdio_read(dev->net, dev->mii.phy_id, PHY_INT_SRC);
