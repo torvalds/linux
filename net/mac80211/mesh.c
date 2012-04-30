@@ -396,7 +396,8 @@ int mesh_add_ht_oper_ie(struct sk_buff *skb,
 		return -ENOMEM;
 
 	pos = skb_put(skb, 2 + sizeof(struct ieee80211_ht_operation));
-	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type);
+	ieee80211_ie_build_ht_oper(pos, ht_cap, channel, channel_type,
+				   sdata->vif.bss_conf.ht_operation_mode);
 
 	return 0;
 }
