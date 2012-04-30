@@ -25,6 +25,7 @@
 #define ARCH_ID_AT91SAM9G45MRL	0x819b05a2	/* aka 9G45-ES2 & non ES lots */
 #define ARCH_ID_AT91SAM9G45ES	0x819b05a1	/* 9G45-ES (Engineering Sample) */
 #define ARCH_ID_AT91SAM9X5	0x819a05a0
+#define ARCH_ID_AT91SAM9N12	0x819a07a0
 
 #define ARCH_ID_AT91SAM9XE128	0x329973a0
 #define ARCH_ID_AT91SAM9XE256	0x329a93a0
@@ -70,6 +71,9 @@ enum at91_soc_type {
 
 	/* SAM9X5 */
 	AT91_SOC_SAM9X5,
+
+	/* SAM9N12 */
+	AT91_SOC_SAM9N12,
 
 	/* Unknown type */
 	AT91_SOC_NONE
@@ -175,6 +179,12 @@ static inline int at91_soc_is_detected(void)
 #define cpu_is_at91sam9x35()	(0)
 #define cpu_is_at91sam9g25()	(0)
 #define cpu_is_at91sam9x25()	(0)
+#endif
+
+#ifdef CONFIG_SOC_AT91SAM9N12
+#define cpu_is_at91sam9n12()	(at91_soc_initdata.type == AT91_SOC_SAM9N12)
+#else
+#define cpu_is_at91sam9n12()	(0)
 #endif
 
 /*

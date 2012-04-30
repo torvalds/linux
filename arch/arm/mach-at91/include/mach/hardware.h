@@ -32,6 +32,7 @@
 #include <mach/at91sam9rl.h>
 #include <mach/at91sam9g45.h>
 #include <mach/at91sam9x5.h>
+#include <mach/at91sam9n12.h>
 
 /*
  * On all at91 except rm9200 and x40 have the System Controller starts
