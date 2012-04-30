@@ -341,6 +341,9 @@ struct regmap *regmap_init(struct device *dev,
 		break;
 	}
 
+	if (map->format.format_write)
+		map->use_single_rw = true;
+
 	if (!map->format.format_write &&
 	    !(map->format.format_reg && map->format.format_val))
 		goto err_map;
