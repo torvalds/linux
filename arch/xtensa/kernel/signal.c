@@ -496,6 +496,7 @@ int do_signal(struct pt_regs *regs, sigset_t *oldset)
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	if (signr > 0) {
+		int ret;
 
 		/* Are we from a system call? */
 
