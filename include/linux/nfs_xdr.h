@@ -1176,6 +1176,11 @@ struct nfs41_free_stateid_res {
 	struct nfs4_sequence_res	seq_res;
 };
 
+#else
+
+struct pnfs_ds_commit_info {
+};
+
 #endif /* CONFIG_NFS_V4_1 */
 
 struct nfs_page;
