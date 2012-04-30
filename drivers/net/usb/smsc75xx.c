@@ -1212,7 +1212,7 @@ static const struct driver_info smsc75xx_info = {
 	.rx_fixup	= smsc75xx_rx_fixup,
 	.tx_fixup	= smsc75xx_tx_fixup,
 	.status		= smsc75xx_status,
-	.flags		= FLAG_ETHER | FLAG_SEND_ZLP,
+	.flags		= FLAG_ETHER | FLAG_SEND_ZLP | FLAG_LINK_INTR,
 };
 
 static const struct usb_device_id products[] = {
