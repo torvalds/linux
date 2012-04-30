@@ -11,6 +11,7 @@
 #include <linux/dmi.h>
 #include <linux/slab.h>
 
+#include <asm-generic/pci-bridge.h>
 #include <asm/acpi.h>
 #include <asm/segment.h>
 #include <asm/io.h>
@@ -229,6 +230,14 @@ static int __devinit assign_all_busses(const struct dmi_system_id *d)
 }
 #endif
 
+static int __devinit set_scan_all(const struct dmi_system_id *d)
+{
+	printk(KERN_INFO "PCI: %s detected, enabling pci=pcie_scan_all\n",
+	       d->ident);
+	pci_add_flags(PCI_SCAN_ALL_PCIE_DEVS);
+	return 0;
+}
+
 static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 #ifdef __i386__
 /*
@@ -418,6 +427,13 @@ static const struct dmi_system_id __devinitconst pciprobe_dmi_table[] = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ProLiant DL585 G2"),
+		},
+	},
+	{
+		.callback = set_scan_all,
+		.ident = "Stratus/NEC ftServer",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ftServer"),
 		},
 	},
 	{}
