@@ -173,7 +173,7 @@ static int edid_load(struct drm_connector *connector, char *name,
 	}
 	memcpy(edid, fwdata, fwsize);
 
-	if (!drm_edid_block_valid(edid)) {
+	if (!drm_edid_block_valid(edid, 0)) {
 		DRM_ERROR("Base block of EDID firmware \"%s\" is invalid ",
 		    name);
 		kfree(edid);
@@ -185,7 +185,7 @@ static int edid_load(struct drm_connector *connector, char *name,
 		if (i != valid_extensions + 1)
 			memcpy(edid + (valid_extensions + 1) * EDID_LENGTH,
 			    edid + i * EDID_LENGTH, EDID_LENGTH);
-		if (drm_edid_block_valid(edid + i * EDID_LENGTH))
+		if (drm_edid_block_valid(edid + i * EDID_LENGTH, i))
 			valid_extensions++;
 	}
 
