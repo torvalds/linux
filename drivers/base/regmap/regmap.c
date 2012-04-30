@@ -698,6 +698,9 @@ static int _regmap_read(struct regmap *map, unsigned int reg,
 		trace_regmap_reg_read(map->dev, reg, *val);
 	}
 
+	if (ret == 0 && !map->cache_bypass)
+		regcache_write(map, reg, *val);
+
 	return ret;
 }
 
