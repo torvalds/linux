@@ -5679,7 +5679,7 @@ static int netdev_set_mac_address(struct net_device *dev, void *addr)
 		memcpy(hw->override_addr, mac->sa_data, MAC_ADDR_LEN);
 	}
 
-	memcpy(dev->dev_addr, mac->sa_data, MAX_ADDR_LEN);
+	memcpy(dev->dev_addr, mac->sa_data, ETH_ALEN);
 
 	interrupt = hw_block_intr(hw);
 
