@@ -424,12 +424,14 @@ static inline void unset_pnfs_layoutdriver(struct nfs_server *s)
 {
 }
 
-static inline bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode)
+static inline bool pnfs_pageio_init_read(struct nfs_pageio_descriptor *pgio, struct inode *inode,
+					 const struct nfs_pgio_completion_ops *compl_ops)
 {
 	return false;
 }
 
-static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags)
+static inline bool pnfs_pageio_init_write(struct nfs_pageio_descriptor *pgio, struct inode *inode, int ioflags,
+					  const struct nfs_pgio_completion_ops *compl_ops)
 {
 	return false;
 }
