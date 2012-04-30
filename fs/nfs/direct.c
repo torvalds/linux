@@ -149,26 +149,16 @@ static inline struct nfs_direct_req *nfs_direct_req_alloc(void)
 {
 	struct nfs_direct_req *dreq;
 
-	dreq = kmem_cache_alloc(nfs_direct_cachep, GFP_KERNEL);
+	dreq = kmem_cache_zalloc(nfs_direct_cachep, GFP_KERNEL);
 	if (!dreq)
 		return NULL;
 
 	kref_init(&dreq->kref);
 	kref_get(&dreq->kref);
 	init_completion(&dreq->completion);
-	dreq->mds_cinfo.ncommit = 0;
-	atomic_set(&dreq->mds_cinfo.rpcs_out, 0);
 	INIT_LIST_HEAD(&dreq->mds_cinfo.list);
 	INIT_WORK(&dreq->work, nfs_direct_write_schedule_work);
-	memset(&dreq->ds_cinfo, 0, sizeof(dreq->ds_cinfo));
-	dreq->iocb = NULL;
-	dreq->ctx = NULL;
-	dreq->l_ctx = NULL;
 	spin_lock_init(&dreq->lock);
-	atomic_set(&dreq->io_count, 0);
-	dreq->count = 0;
-	dreq->error = 0;
-	dreq->flags = 0;
 
 	return dreq;
 }
