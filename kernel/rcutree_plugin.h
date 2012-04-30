@@ -2057,16 +2057,34 @@ static bool rcu_cpu_has_nonlazy_callbacks(int cpu)
 }
 
 /*
+ * Handler for smp_call_function_single().  The only point of this
+ * handler is to wake the CPU up, so the handler does only tracing.
+ */
+void rcu_idle_demigrate(void *unused)
+{
+	trace_rcu_prep_idle("Demigrate");
+}
+
+/*
  * Timer handler used to force CPU to start pushing its remaining RCU
  * callbacks in the case where it entered dyntick-idle mode with callbacks
  * pending.  The hander doesn't really need to do anything because the
  * real work is done upon re-entry to idle, or by the next scheduling-clock
  * interrupt should idle not be re-entered.
+ *
+ * One special case: the timer gets migrated without awakening the CPU
+ * on which the timer was scheduled on.  In this case, we must wake up
+ * that CPU.  We do so with smp_call_function_single().
  */
-static void rcu_idle_gp_timer_func(unsigned long unused)
+static void rcu_idle_gp_timer_func(unsigned long cpu_in)
 {
-	WARN_ON_ONCE(1); /* Getting here can hang the system... */
+	int cpu = (int)cpu_in;
+
 	trace_rcu_prep_idle("Timer");
+	if (cpu != smp_processor_id())
+		smp_call_function_single(cpu, rcu_idle_demigrate, NULL, 0);
+	else
+		WARN_ON_ONCE(1); /* Getting here can hang the system... */
 }
 
 /*
@@ -2075,7 +2093,7 @@ static void rcu_idle_gp_timer_func(unsigned long unused)
 static void rcu_prepare_for_idle_init(int cpu)
 {
 	setup_timer(&per_cpu(rcu_idle_gp_timer, cpu),
-		    rcu_idle_gp_timer_func, 0);
+		    rcu_idle_gp_timer_func, cpu);
 }
 
 /*
