@@ -278,7 +278,6 @@ nvc0_fifo_create(struct drm_device *dev)
 		goto error;
 
 	nouveau_irq_register(dev, 8, nvc0_fifo_isr);
-	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
 	return 0;
 
 error:

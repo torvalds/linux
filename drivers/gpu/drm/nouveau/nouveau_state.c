@@ -39,6 +39,7 @@
 #include "nouveau_gpio.h"
 #include "nouveau_pm.h"
 #include "nv50_display.h"
+#include "nouveau_software.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
 static int nouveau_stub_init(struct drm_device *dev) { return 0; }
@@ -765,6 +766,26 @@ nouveau_card_init(struct drm_device *dev)
 		goto out_ttmvram;
 
 	if (!dev_priv->noaccel) {
+		switch (dev_priv->card_type) {
+		case NV_04:
+		case NV_10:
+		case NV_20:
+		case NV_30:
+		case NV_40:
+			nv04_software_create(dev);
+			break;
+		case NV_50:
+			nv50_software_create(dev);
+			break;
+		case NV_C0:
+		case NV_D0:
+		case NV_E0:
+			nvc0_software_create(dev);
+			break;
+		default:
+			break;
+		}
+
 		switch (dev_priv->card_type) {
 		case NV_04:
 			nv04_graph_create(dev);

@@ -296,14 +296,6 @@ struct nouveau_channel {
 	uint32_t sw_subchannel[8];
 
 	struct nouveau_vma dispc_vma[4];
-	struct {
-		struct nouveau_gpuobj *vblsem;
-		uint32_t vblsem_head;
-		uint32_t vblsem_offset;
-		uint32_t vblsem_rval;
-		struct list_head vbl_wait;
-		struct list_head flip;
-	} nvsw;
 
 	struct {
 		bool active;

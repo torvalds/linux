@@ -333,70 +333,6 @@ nv50_graph_context_switch(struct drm_device *dev)
 		NV40_PGRAPH_INTR_EN) | NV_PGRAPH_INTR_CONTEXT_SWITCH);
 }
 
-static int
-nv50_graph_nvsw_dma_vblsem(struct nouveau_channel *chan,
-			   u32 class, u32 mthd, u32 data)
-{
-	struct nouveau_gpuobj *gpuobj;
-
-	gpuobj = nouveau_ramht_find(chan, data);
-	if (!gpuobj)
-		return -ENOENT;
-
-	if (nouveau_notifier_offset(gpuobj, NULL))
-		return -EINVAL;
-
-	chan->nvsw.vblsem = gpuobj;
-	chan->nvsw.vblsem_offset = ~0;
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_vblsem_offset(struct nouveau_channel *chan,
-			      u32 class, u32 mthd, u32 data)
-{
-	if (nouveau_notifier_offset(chan->nvsw.vblsem, &data))
-		return -ERANGE;
-
-	chan->nvsw.vblsem_offset = data >> 2;
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_vblsem_release_val(struct nouveau_channel *chan,
-				   u32 class, u32 mthd, u32 data)
-{
-	chan->nvsw.vblsem_rval = data;
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_vblsem_release(struct nouveau_channel *chan,
-			       u32 class, u32 mthd, u32 data)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	if (!chan->nvsw.vblsem || chan->nvsw.vblsem_offset == ~0 || data > 1)
-		return -EINVAL;
-
-	drm_vblank_get(dev, data);
-
-	chan->nvsw.vblsem_head = data;
-	list_add(&chan->nvsw.vbl_wait, &dev_priv->vbl_waiting);
-
-	return 0;
-}
-
-static int
-nv50_graph_nvsw_mthd_page_flip(struct nouveau_channel *chan,
-			       u32 class, u32 mthd, u32 data)
-{
-	nouveau_finish_page_flip(chan, NULL);
-	return 0;
-}
-
-
 static void
 nv50_graph_tlb_flush(struct drm_device *dev, int engine)
 {
@@ -1017,14 +953,6 @@ nv50_graph_create(struct drm_device *dev)
 		pgraph->base.tlb_flush = nv84_graph_tlb_flush;
 
 	nouveau_irq_register(dev, 12, nv50_graph_isr);
-
-	/* NVSW really doesn't live here... */
-	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
-	NVOBJ_MTHD (dev, 0x506e, 0x018c, nv50_graph_nvsw_dma_vblsem);
-	NVOBJ_MTHD (dev, 0x506e, 0x0400, nv50_graph_nvsw_vblsem_offset);
-	NVOBJ_MTHD (dev, 0x506e, 0x0404, nv50_graph_nvsw_vblsem_release_val);
-	NVOBJ_MTHD (dev, 0x506e, 0x0408, nv50_graph_nvsw_vblsem_release);
-	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv50_graph_nvsw_mthd_page_flip);
 
 	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
 	NVOBJ_CLASS(dev, 0x0030, GR); /* null */

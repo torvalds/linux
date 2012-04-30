@@ -28,6 +28,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_ramht.h"
+#include "nouveau_software.h"
 
 static int
 nouveau_channel_pushbuf_init(struct nouveau_channel *chan)
@@ -155,8 +156,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	}
 
 	NV_DEBUG(dev, "initialising channel %d\n", chan->id);
-	INIT_LIST_HEAD(&chan->nvsw.vbl_wait);
-	INIT_LIST_HEAD(&chan->nvsw.flip);
 	INIT_LIST_HEAD(&chan->fence.pending);
 	spin_lock_init(&chan->fence.lock);
 
@@ -212,6 +211,12 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
 		OUT_RING  (chan, 0x00000000);
 	FIRE_RING(chan);
+
+	ret = nouveau_gpuobj_gr_new(chan, NvSw, nouveau_software_class(dev));
+	if (ret) {
+		nouveau_channel_put(&chan);
+		return ret;
+	}
 
 	ret = nouveau_fence_channel_init(chan);
 	if (ret) {

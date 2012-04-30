@@ -32,6 +32,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
+#include "nouveau_software.h"
 #include "nouveau_dma.h"
 
 #define USE_REFCNT(dev) (nouveau_private(dev)->chipset >= 0x10)
@@ -503,11 +504,6 @@ nouveau_fence_channel_init(struct nouveau_channel *chan)
 	int ret;
 
 	if (dev_priv->card_type < NV_C0) {
-		/* Create an NV_SW object for various sync purposes */
-		ret = nouveau_gpuobj_gr_new(chan, NvSw, NV_SW);
-		if (ret)
-			return ret;
-
 		ret = RING_SPACE(chan, 2);
 		if (ret)
 			return ret;

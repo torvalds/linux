@@ -645,20 +645,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcb,
 static void
 nv50_display_vblank_crtc_handler(struct drm_device *dev, int crtc)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_channel *chan, *tmp;
-
-	list_for_each_entry_safe(chan, tmp, &dev_priv->vbl_waiting,
-				 nvsw.vbl_wait) {
-		if (chan->nvsw.vblsem_head != crtc)
-			continue;
-
-		nouveau_bo_wr32(chan->notifier_bo, chan->nvsw.vblsem_offset,
-						chan->nvsw.vblsem_rval);
-		list_del(&chan->nvsw.vbl_wait);
-		drm_vblank_put(dev, crtc);
-	}
-
+	nouveau_software_vblank(dev, crtc);
 	drm_handle_vblank(dev, crtc);
 }
 

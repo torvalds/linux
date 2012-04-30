@@ -439,7 +439,6 @@ nv40_graph_create(struct drm_device *dev)
 	NVOBJ_ENGINE_ADD(dev, GR, &pgraph->base);
 	nouveau_irq_register(dev, 12, nv40_graph_isr);
 
-	NVOBJ_CLASS(dev, 0x506e, SW); /* nvsw */
 	NVOBJ_CLASS(dev, 0x0030, GR); /* null */
 	NVOBJ_CLASS(dev, 0x0039, GR); /* m2mf */
 	NVOBJ_CLASS(dev, 0x004a, GR); /* gdirect */
@@ -462,8 +461,5 @@ nv40_graph_create(struct drm_device *dev)
 	else
 		NVOBJ_CLASS(dev, 0x4097, GR);
 
-	/* nvsw */
-	NVOBJ_CLASS(dev, 0x506e, SW);
-	NVOBJ_MTHD (dev, 0x506e, 0x0500, nv04_graph_mthd_page_flip);
 	return 0;
 }
