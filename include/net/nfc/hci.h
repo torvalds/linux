@@ -112,6 +112,8 @@ void nfc_hci_unregister_device(struct nfc_hci_dev *hdev);
 void nfc_hci_set_clientdata(struct nfc_hci_dev *hdev, void *clientdata);
 void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev);
 
+void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err);
+
 /* Host IDs */
 #define NFC_HCI_HOST_CONTROLLER_ID	0x00
 #define NFC_HCI_TERMINAL_HOST_ID	0x01

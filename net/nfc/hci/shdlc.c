@@ -523,10 +523,6 @@ static void nfc_shdlc_handle_send_queue(struct nfc_shdlc *shdlc)
 
 		r = shdlc->ops->xmit(shdlc, skb);
 		if (r < 0) {
-			/*
-			 * TODO: Cannot send, shdlc machine is dead, we
-			 * must propagate the information up to HCI.
-			 */
 			shdlc->hard_fault = r;
 			break;
 		}
@@ -590,6 +586,11 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
 		skb_queue_purge(&shdlc->ack_pending_q);
 		break;
 	case SHDLC_CONNECTING:
+		if (shdlc->hard_fault) {
+			nfc_shdlc_connect_complete(shdlc, shdlc->hard_fault);
+			break;
+		}
+
 		if (shdlc->connect_tries++ < 5)
 			r = nfc_shdlc_connect_initiate(shdlc);
 		else
@@ -610,6 +611,11 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
 		}
 
 		nfc_shdlc_handle_rcv_queue(shdlc);
+
+		if (shdlc->hard_fault) {
+			nfc_shdlc_connect_complete(shdlc, shdlc->hard_fault);
+			break;
+		}
 		break;
 	case SHDLC_CONNECTED:
 		nfc_shdlc_handle_rcv_queue(shdlc);
@@ -637,10 +643,7 @@ static void nfc_shdlc_sm_work(struct work_struct *work)
 		}
 
 		if (shdlc->hard_fault) {
-			/*
-			 * TODO: Handle hard_fault that occured during
-			 * this invocation of the shdlc worker
-			 */
+			nfc_hci_driver_failure(shdlc->hdev, shdlc->hard_fault);
 		}
 		break;
 	default:

@@ -717,6 +717,14 @@ void *nfc_hci_get_clientdata(struct nfc_hci_dev *hdev)
 }
 EXPORT_SYMBOL(nfc_hci_get_clientdata);
 
+void nfc_hci_driver_failure(struct nfc_hci_dev *hdev, int err)
+{
+	/* TODO: lower layer has permanent failure.
+	 * complete potential HCI command or send an empty tag discovered event
+	 */
+}
+EXPORT_SYMBOL(nfc_hci_driver_failure);
+
 void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hcp_packet *packet;
