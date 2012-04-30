@@ -300,11 +300,11 @@ loff_t ext3_dir_llseek(struct file *file, loff_t offset, int origin)
 {
 	struct inode *inode = file->f_mapping->host;
 	int dx_dir = is_dx_dir(inode);
+	loff_t htree_max = ext3_get_htree_eof(file);
 
 	if (likely(dx_dir))
 		return generic_file_llseek_size(file, offset, origin,
-					        ext3_get_htree_eof(file),
-						i_size_read(inode));
+					        htree_max, htree_max);
 	else
 		return generic_file_llseek(file, offset, origin);
 }
