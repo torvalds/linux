@@ -753,9 +753,10 @@ struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	{},
 };
 
-static const struct of_device_id u8500_soc_node[] = {
+static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
+	{ .compatible = "simple-bus"},
 	{ },
 };
 
@@ -774,7 +775,7 @@ static void __init u8500_init_machine(void)
 		snowball_platform_devs[i]->dev.parent = parent;
 
 	/* automatically probe child nodes of db8500 device */
-	of_platform_populate(NULL, u8500_soc_node, u8500_auxdata_lookup, parent);
+	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
 
 	if (of_machine_is_compatible("st-ericsson,mop500")) {
 		mop500_gpio_keys[0].gpio = GPIO_PROX_SENSOR;
