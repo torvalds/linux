@@ -93,14 +93,37 @@ static void newt_suspend(void *d __used)
 	newtResume();
 }
 
+static void ui__exit(void);
+
+static void ui__signal(int sig)
+{
+	ui__exit();
+	psignal(sig, "perf");
+	exit(0);
+}
+
 static int ui__init(void)
 {
-	int err = SLkp_init();
+	int err;
 
-	if (err < 0)
+	newtInit();
+	err = SLkp_init();
+	if (err < 0) {
+		pr_err("TUI initialization failed.\n");
 		goto out;
+	}
 
 	SLkp_define_keysym((char *)"^(kB)", SL_KEY_UNTAB);
+
+	newtSetSuspendCallback(newt_suspend, NULL);
+	ui_helpline__init();
+	ui_browser__init();
+
+	signal(SIGSEGV, ui__signal);
+	signal(SIGFPE, ui__signal);
+	signal(SIGINT, ui__signal);
+	signal(SIGQUIT, ui__signal);
+	signal(SIGTERM, ui__signal);
 out:
 	return err;
 }
@@ -113,13 +136,6 @@ static void ui__exit(void)
 	SLang_reset_tty();
 }
 
-static void ui__signal(int sig)
-{
-	ui__exit();
-	psignal(sig, "perf");
-	exit(0);
-}
-
 void setup_browser(bool fallback_to_pager)
 {
 	if (!isatty(1) || !use_browser || dump_trace) {
@@ -130,17 +146,7 @@ void setup_browser(bool fallback_to_pager)
 	}
 
 	use_browser = 1;
-	newtInit();
 	ui__init();
-	newtSetSuspendCallback(newt_suspend, NULL);
-	ui_helpline__init();
-	ui_browser__init();
-
-	signal(SIGSEGV, ui__signal);
-	signal(SIGFPE, ui__signal);
-	signal(SIGINT, ui__signal);
-	signal(SIGQUIT, ui__signal);
-	signal(SIGTERM, ui__signal);
 }
 
 void exit_browser(bool wait_for_ok)
