@@ -1827,6 +1827,20 @@ int r600_fmt_get_nblocksy(u32 format, u32 h);
 /*
  * r600 functions used by radeon_encoder.c
  */
+struct radeon_hdmi_acr {
+	u32 clock;
+
+	int n_32khz;
+	int cts_32khz;
+
+	int n_44_1khz;
+	int cts_44_1khz;
+
+	int n_48khz;
+	int cts_48khz;
+
+};
+
 extern void r600_hdmi_enable(struct drm_encoder *encoder);
 extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);

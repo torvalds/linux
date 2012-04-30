@@ -53,19 +53,7 @@ enum r600_hdmi_iec_status_bits {
 	AUDIO_STATUS_LEVEL        = 0x80
 };
 
-struct {
-	uint32_t Clock;
-
-	int N_32kHz;
-	int CTS_32kHz;
-
-	int N_44_1kHz;
-	int CTS_44_1kHz;
-
-	int N_48kHz;
-	int CTS_48kHz;
-
-} r600_hdmi_ACR[] = {
+struct radeon_hdmi_acr r600_hdmi_predefined_acr[] = {
     /*	     32kHz	  44.1kHz	48kHz    */
     /* Clock      N     CTS      N     CTS      N     CTS */
     {  25174,  4576,  28125,  7007,  31250,  6864,  28125 }, /*  25,20/1.001 MHz */
@@ -84,12 +72,30 @@ struct {
 /*
  * calculate CTS value if it's not found in the table
  */
-static void r600_hdmi_calc_CTS(uint32_t clock, int *CTS, int N, int freq)
+static void r600_hdmi_calc_cts(uint32_t clock, int *CTS, int N, int freq)
 {
 	if (*CTS == 0)
 		*CTS = clock * N / (128 * freq) * 1000;
 	DRM_DEBUG("Using ACR timing N=%d CTS=%d for frequency %d\n",
 		  N, *CTS, freq);
+}
+
+struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock)
+{
+	struct radeon_hdmi_acr res;
+	u8 i;
+
+	for (i = 0; r600_hdmi_predefined_acr[i].clock != clock &&
+	     r600_hdmi_predefined_acr[i].clock != 0; i++)
+		;
+	res = r600_hdmi_predefined_acr[i];
+
+	/* In case some CTS are missing */
+	r600_hdmi_calc_cts(clock, &res.cts_32khz, res.n_32khz, 32000);
+	r600_hdmi_calc_cts(clock, &res.cts_44_1khz, res.n_44_1khz, 44100);
+	r600_hdmi_calc_cts(clock, &res.cts_48khz, res.n_48khz, 48000);
+
+	return res;
 }
 
 /*
@@ -99,30 +105,17 @@ static void r600_hdmi_update_ACR(struct drm_encoder *encoder, uint32_t clock)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_hdmi_acr acr = r600_hdmi_acr(clock);
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
-	int CTS;
-	int N;
-	int i;
 
-	for (i = 0; r600_hdmi_ACR[i].Clock != clock && r600_hdmi_ACR[i].Clock != 0; i++);
+	WREG32(HDMI0_ACR_32_0 + offset, HDMI0_ACR_CTS_32(acr.cts_32khz));
+	WREG32(HDMI0_ACR_32_1 + offset, acr.n_32khz);
 
-	CTS = r600_hdmi_ACR[i].CTS_32kHz;
-	N = r600_hdmi_ACR[i].N_32kHz;
-	r600_hdmi_calc_CTS(clock, &CTS, N, 32000);
-	WREG32(HDMI0_ACR_32_0 + offset, HDMI0_ACR_CTS_32(CTS));
-	WREG32(HDMI0_ACR_32_1 + offset, N);
+	WREG32(HDMI0_ACR_44_0 + offset, HDMI0_ACR_CTS_44(acr.cts_44_1khz));
+	WREG32(HDMI0_ACR_44_1 + offset, acr.n_44_1khz);
 
-	CTS = r600_hdmi_ACR[i].CTS_44_1kHz;
-	N = r600_hdmi_ACR[i].N_44_1kHz;
-	r600_hdmi_calc_CTS(clock, &CTS, N, 44100);
-	WREG32(HDMI0_ACR_44_0 + offset, HDMI0_ACR_CTS_44(CTS));
-	WREG32(HDMI0_ACR_44_1 + offset, N);
-
-	CTS = r600_hdmi_ACR[i].CTS_48kHz;
-	N = r600_hdmi_ACR[i].N_48kHz;
-	r600_hdmi_calc_CTS(clock, &CTS, N, 48000);
-	WREG32(HDMI0_ACR_48_0 + offset, HDMI0_ACR_CTS_48(CTS));
-	WREG32(HDMI0_ACR_48_1 + offset, N);
+	WREG32(HDMI0_ACR_48_0 + offset, HDMI0_ACR_CTS_48(acr.cts_48khz));
+	WREG32(HDMI0_ACR_48_1 + offset, acr.n_48khz);
 }
 
 /*
