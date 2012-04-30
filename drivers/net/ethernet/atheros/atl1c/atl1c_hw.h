@@ -36,7 +36,7 @@ struct atl1c_hw;
 
 /* function prototype */
 void atl1c_phy_disable(struct atl1c_hw *hw);
-void atl1c_hw_set_mac_addr(struct atl1c_hw *hw);
+void atl1c_hw_set_mac_addr(struct atl1c_hw *hw, u8 *mac_addr);
 int atl1c_phy_reset(struct atl1c_hw *hw);
 int atl1c_read_mac_addr(struct atl1c_hw *hw);
 int atl1c_get_speed_and_duplex(struct atl1c_hw *hw, u16 *speed, u16 *duplex);
@@ -94,25 +94,17 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define REG_DEV_SERIAL_NUM_EN_SHIFT	1
 
 #define REG_TWSI_CTRL               	0x218
+#define TWSI_CTLR_FREQ_MASK		0x3UL
+#define TWSI_CTRL_FREQ_SHIFT		24
+#define TWSI_CTRL_FREQ_100K		0
+#define TWSI_CTRL_FREQ_200K		1
+#define TWSI_CTRL_FREQ_300K		2
+#define TWSI_CTRL_FREQ_400K		3
+#define TWSI_CTRL_LD_EXIST		BIT(23)
+#define TWSI_CTRL_HW_LDSTAT		BIT(12)	/* 0:finish,1:in progress */
+#define TWSI_CTRL_SW_LDSTART            BIT(11)
 #define TWSI_CTRL_LD_OFFSET_MASK        0xFF
 #define TWSI_CTRL_LD_OFFSET_SHIFT       0
-#define TWSI_CTRL_LD_SLV_ADDR_MASK      0x7
-#define TWSI_CTRL_LD_SLV_ADDR_SHIFT     8
-#define TWSI_CTRL_SW_LDSTART            0x800
-#define TWSI_CTRL_HW_LDSTART            0x1000
-#define TWSI_CTRL_SMB_SLV_ADDR_MASK     0x7F
-#define TWSI_CTRL_SMB_SLV_ADDR_SHIFT    15
-#define TWSI_CTRL_LD_EXIST              0x400000
-#define TWSI_CTRL_READ_FREQ_SEL_MASK    0x3
-#define TWSI_CTRL_READ_FREQ_SEL_SHIFT   23
-#define TWSI_CTRL_FREQ_SEL_100K         0
-#define TWSI_CTRL_FREQ_SEL_200K         1
-#define TWSI_CTRL_FREQ_SEL_300K         2
-#define TWSI_CTRL_FREQ_SEL_400K         3
-#define TWSI_CTRL_SMB_SLV_ADDR
-#define TWSI_CTRL_WRITE_FREQ_SEL_MASK   0x3
-#define TWSI_CTRL_WRITE_FREQ_SEL_SHIFT  24
-
 
 #define REG_PCIE_DEV_MISC_CTRL      	0x21C
 #define PCIE_DEV_MISC_EXT_PIPE     	0x2
@@ -135,7 +127,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define L2CB1_PCIE_PHYMISC2_CDR_BW	3
 
 #define REG_TWSI_DEBUG			0x1108
-#define TWSI_DEBUG_DEV_EXIST		0x20000000
+#define TWSI_DEBUG_DEV_EXIST		BIT(29)
 
 #define REG_DMA_DBG			0x1114
 #define DMA_DBG_VENDOR_MSG		BIT(0)
@@ -151,7 +143,7 @@ void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 #define REG_EEPROM_DATA_LO		0x12C4
 
 #define REG_OTP_CTRL			0x12F0
-#define OTP_CTRL_CLK_EN			0x0002
+#define OTP_CTRL_CLK_EN			BIT(1)
 
 #define REG_PM_CTRL			0x12F8
 #define PM_CTRL_HOTRST			BIT(31)

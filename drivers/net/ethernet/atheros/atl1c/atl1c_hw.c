@@ -43,7 +43,7 @@ int atl1c_check_eeprom_exist(struct atl1c_hw *hw)
 	return 0;
 }
 
-void atl1c_hw_set_mac_addr(struct atl1c_hw *hw)
+void atl1c_hw_set_mac_addr(struct atl1c_hw *hw, u8 *mac_addr)
 {
 	u32 value;
 	/*
@@ -51,15 +51,29 @@ void atl1c_hw_set_mac_addr(struct atl1c_hw *hw)
 	 * 0:  6AF600DC 1: 000B
 	 * low dword
 	 */
-	value = (((u32)hw->mac_addr[2]) << 24) |
-		(((u32)hw->mac_addr[3]) << 16) |
-		(((u32)hw->mac_addr[4]) << 8)  |
-		(((u32)hw->mac_addr[5])) ;
+	value = mac_addr[2] << 24 |
+		mac_addr[3] << 16 |
+		mac_addr[4] << 8  |
+		mac_addr[5];
 	AT_WRITE_REG_ARRAY(hw, REG_MAC_STA_ADDR, 0, value);
 	/* hight dword */
-	value = (((u32)hw->mac_addr[0]) << 8) |
-		(((u32)hw->mac_addr[1])) ;
+	value = mac_addr[0] << 8 |
+		mac_addr[1];
 	AT_WRITE_REG_ARRAY(hw, REG_MAC_STA_ADDR, 1, value);
+}
+
+/* read mac address from hardware register */
+static bool atl1c_read_current_addr(struct atl1c_hw *hw, u8 *eth_addr)
+{
+	u32 addr[2];
+
+	AT_READ_REG(hw, REG_MAC_STA_ADDR, &addr[0]);
+	AT_READ_REG(hw, REG_MAC_STA_ADDR + 4, &addr[1]);
+
+	*(u32 *) &eth_addr[2] = htonl(addr[0]);
+	*(u16 *) &eth_addr[0] = htons((u16)addr[1]);
+
+	return is_valid_ether_addr(eth_addr);
 }
 
 /*
@@ -68,16 +82,17 @@ void atl1c_hw_set_mac_addr(struct atl1c_hw *hw)
  */
 static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 {
-	u32 addr[2];
 	u32 i;
 	u32 otp_ctrl_data;
 	u32 twsi_ctrl_data;
-	u8  eth_addr[ETH_ALEN];
 	u16 phy_data;
 	bool raise_vol = false;
 
+	/* MAC-address from BIOS is the 1st priority */
+	if (atl1c_read_current_addr(hw, hw->perm_mac_addr))
+		return 0;
+
 	/* init */
-	addr[0] = addr[1] = 0;
 	AT_READ_REG(hw, REG_OTP_CTRL, &otp_ctrl_data);
 	if (atl1c_check_eeprom_exist(hw)) {
 		if (hw->nic_type == athr_l1c || hw->nic_type == athr_l2c) {
@@ -89,21 +104,14 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 				msleep(1);
 			}
 		}
-
-		if (hw->nic_type == athr_l2c_b ||
-		    hw->nic_type == athr_l2c_b2 ||
-		    hw->nic_type == athr_l1d) {
-			atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x00);
-			if (atl1c_read_phy_reg(hw, MII_DBG_DATA, &phy_data))
-				goto out;
-			phy_data &= 0xFF7F;
-			atl1c_write_phy_reg(hw, MII_DBG_DATA, phy_data);
-
-			atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x3B);
-			if (atl1c_read_phy_reg(hw, MII_DBG_DATA, &phy_data))
-				goto out;
-			phy_data |= 0x8;
-			atl1c_write_phy_reg(hw, MII_DBG_DATA, phy_data);
+		/* raise voltage temporally for l2cb */
+		if (hw->nic_type == athr_l2c_b || hw->nic_type == athr_l2c_b2) {
+			atl1c_read_phy_dbg(hw, MIIDBG_ANACTRL, &phy_data);
+			phy_data &= ~ANACTRL_HB_EN;
+			atl1c_write_phy_dbg(hw, MIIDBG_ANACTRL, phy_data);
+			atl1c_read_phy_dbg(hw, MIIDBG_VOLT_CTRL, &phy_data);
+			phy_data |= VOLT_CTRL_SWLOWEST;
+			atl1c_write_phy_dbg(hw, MIIDBG_VOLT_CTRL, phy_data);
 			udelay(20);
 			raise_vol = true;
 		}
@@ -127,37 +135,18 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 		msleep(1);
 	}
 	if (raise_vol) {
-		if (hw->nic_type == athr_l2c_b ||
-		    hw->nic_type == athr_l2c_b2 ||
-		    hw->nic_type == athr_l1d ||
-		    hw->nic_type == athr_l1d_2) {
-			atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x00);
-			if (atl1c_read_phy_reg(hw, MII_DBG_DATA, &phy_data))
-				goto out;
-			phy_data |= 0x80;
-			atl1c_write_phy_reg(hw, MII_DBG_DATA, phy_data);
-
-			atl1c_write_phy_reg(hw, MII_DBG_ADDR, 0x3B);
-			if (atl1c_read_phy_reg(hw, MII_DBG_DATA, &phy_data))
-				goto out;
-			phy_data &= 0xFFF7;
-			atl1c_write_phy_reg(hw, MII_DBG_DATA, phy_data);
-			udelay(20);
-		}
+		atl1c_read_phy_dbg(hw, MIIDBG_ANACTRL, &phy_data);
+		phy_data |= ANACTRL_HB_EN;
+		atl1c_write_phy_dbg(hw, MIIDBG_ANACTRL, phy_data);
+		atl1c_read_phy_dbg(hw, MIIDBG_VOLT_CTRL, &phy_data);
+		phy_data &= ~VOLT_CTRL_SWLOWEST;
+		atl1c_write_phy_dbg(hw, MIIDBG_VOLT_CTRL, phy_data);
+		udelay(20);
 	}
 
-	/* maybe MAC-address is from BIOS */
-	AT_READ_REG(hw, REG_MAC_STA_ADDR, &addr[0]);
-	AT_READ_REG(hw, REG_MAC_STA_ADDR + 4, &addr[1]);
-	*(u32 *) &eth_addr[2] = swab32(addr[0]);
-	*(u16 *) &eth_addr[0] = swab16(*(u16 *)&addr[1]);
-
-	if (is_valid_ether_addr(eth_addr)) {
-		memcpy(hw->perm_mac_addr, eth_addr, ETH_ALEN);
+	if (atl1c_read_current_addr(hw, hw->perm_mac_addr))
 		return 0;
-	}
 
-out:
 	return -1;
 }
 

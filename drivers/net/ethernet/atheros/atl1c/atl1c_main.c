@@ -463,7 +463,7 @@ static int atl1c_set_mac_addr(struct net_device *netdev, void *p)
 	memcpy(adapter->hw.mac_addr, addr->sa_data, netdev->addr_len);
 	netdev->addr_assign_type &= ~NET_ADDR_RANDOM;
 
-	atl1c_hw_set_mac_addr(&adapter->hw);
+	atl1c_hw_set_mac_addr(&adapter->hw, adapter->hw.mac_addr);
 
 	return 0;
 }
@@ -2534,7 +2534,7 @@ static int __devinit atl1c_probe(struct pci_dev *pdev,
 		dev_dbg(&pdev->dev, "mac address : %pM\n",
 			adapter->hw.mac_addr);
 
-	atl1c_hw_set_mac_addr(&adapter->hw);
+	atl1c_hw_set_mac_addr(&adapter->hw, adapter->hw.mac_addr);
 	INIT_WORK(&adapter->common_task, atl1c_common_task);
 	adapter->work_event = 0;
 	err = register_netdev(netdev);
@@ -2578,6 +2578,8 @@ static void __devexit atl1c_remove(struct pci_dev *pdev)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	unregister_netdev(netdev);
+	/* restore permanent address */
+	atl1c_hw_set_mac_addr(&adapter->hw, adapter->hw.perm_mac_addr);
 	atl1c_phy_disable(&adapter->hw);
 
 	iounmap(adapter->hw.hw_addr);
