@@ -49,6 +49,16 @@
 #define LTQ_ASC1_BASE_ADDR	0x1E100C00
 #define LTQ_ASC_SIZE		0x400
 
+/* BOOT_SEL - find what boot media we have */
+#define BS_EXT_ROM		0x0
+#define BS_FLASH		0x1
+#define BS_MII0			0x2
+#define BS_PCI			0x3
+#define BS_UART1		0x4
+#define BS_SPI			0x5
+#define BS_NAND			0x6
+#define BS_RMII0		0x7
+
 /*
  * during early_printk no ioremap is possible
  * lets use KSEG1 instead

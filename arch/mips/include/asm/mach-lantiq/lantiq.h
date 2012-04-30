@@ -48,7 +48,8 @@ extern spinlock_t ebu_lock;
 extern void ltq_disable_irq(struct irq_data *data);
 extern void ltq_mask_and_ack_irq(struct irq_data *data);
 extern void ltq_enable_irq(struct irq_data *data);
-
+/* find out what bootsource we have */
+extern unsigned char ltq_boot_select(void);
 /* find out what caused the last cpu reset */
 extern int ltq_reset_cause(void);
 #define LTQ_RST_CAUSE_WDTRST	0x20
