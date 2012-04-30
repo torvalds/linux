@@ -2594,6 +2594,15 @@ static struct omap_hwmod omap44xx_ipu_hwmod = {
 static struct omap_hwmod_class_sysconfig omap44xx_iss_sysc = {
 	.rev_offs	= 0x0000,
 	.sysc_offs	= 0x0010,
+	/*
+	 * ISS needs 100 OCP clk cycles delay after a softreset before
+	 * accessing sysconfig again.
+	 * The lowest frequency at the moment for L3 bus is 100 MHz, so
+	 * 1usec delay is needed. Add an x2 margin to be safe (2 usecs).
+	 *
+	 * TODO: Indicate errata when available.
+	 */
+	.srst_udelay	= 2,
 	.sysc_flags	= (SYSC_HAS_MIDLEMODE | SYSC_HAS_RESET_STATUS |
 			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
 	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |

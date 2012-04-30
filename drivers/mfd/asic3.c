@@ -527,7 +527,9 @@ static void asic3_gpio_set(struct gpio_chip *chip,
 
 static int asic3_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	return (offset < ASIC3_NUM_GPIOS) ? IRQ_BOARD_START + offset : -ENXIO;
+	struct asic3 *asic = container_of(chip, struct asic3, gpio);
+
+	return (offset < ASIC3_NUM_GPIOS) ? asic->irq_base + offset : -ENXIO;
 }
 
 static __init int asic3_gpio_probe(struct platform_device *pdev,

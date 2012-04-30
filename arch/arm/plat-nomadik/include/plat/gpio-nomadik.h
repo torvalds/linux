@@ -29,6 +29,7 @@
 #define NMK_GPIO_SLPC	0x1c
 #define NMK_GPIO_AFSLA	0x20
 #define NMK_GPIO_AFSLB	0x24
+#define NMK_GPIO_LOWEMI	0x28
 
 #define NMK_GPIO_RIMSC	0x40
 #define NMK_GPIO_FIMSC	0x44

@@ -423,7 +423,7 @@ alloc_sglist(int nents, int max, int vary)
 	unsigned		i;
 	unsigned		size = max;
 
-	sg = kmalloc(nents * sizeof *sg, GFP_KERNEL);
+	sg = kmalloc_array(nents, sizeof *sg, GFP_KERNEL);
 	if (!sg)
 		return NULL;
 	sg_init_table(sg, nents);
@@ -903,6 +903,9 @@ test_ctrl_queue(struct usbtest_dev *dev, struct usbtest_param *param)
 	struct urb		**urb;
 	struct ctrl_ctx		context;
 	int			i;
+
+	if (param->sglen == 0 || param->iterations > UINT_MAX / param->sglen)
+		return -EOPNOTSUPP;
 
 	spin_lock_init(&context.lock);
 	context.dev = dev;
@@ -1981,8 +1984,6 @@ usbtest_ioctl(struct usb_interface *intf, unsigned int code, void *buf)
 
 	/* queued control messaging */
 	case 10:
-		if (param->sglen == 0)
-			break;
 		retval = 0;
 		dev_info(&intf->dev,
 				"TEST 10:  queue %d control calls, %d times\n",
@@ -2276,6 +2277,8 @@ usbtest_probe(struct usb_interface *intf, const struct usb_device_id *id)
 			if (status < 0) {
 				WARNING(dev, "couldn't get endpoints, %d\n",
 						status);
+				kfree(dev->buf);
+				kfree(dev);
 				return status;
 			}
 			/* may find bulk or ISO pipes */
