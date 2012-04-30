@@ -1326,7 +1326,7 @@ static void atl1c_set_aspm(struct atl1c_hw *hw, u16 link_speed)
 	}
 
 	/* L0S/L1 enable */
-	if (hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT)
+	if ((hw->ctrl_flags & ATL1C_ASPM_L0S_SUPPORT) && link_speed != SPEED_0)
 		pm_ctrl_data |= PM_CTRL_ASPM_L0S_EN | PM_CTRL_MAC_ASPM_CHK;
 	if (hw->ctrl_flags & ATL1C_ASPM_L1_SUPPORT)
 		pm_ctrl_data |= PM_CTRL_ASPM_L1_EN | PM_CTRL_MAC_ASPM_CHK;
