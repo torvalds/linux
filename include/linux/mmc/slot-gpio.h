@@ -8,11 +8,11 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef MMC_CD_GPIO_H
-#define MMC_CD_GPIO_H
+#ifndef MMC_SLOT_GPIO_H
+#define MMC_SLOT_GPIO_H
 
 struct mmc_host;
-int mmc_cd_gpio_request(struct mmc_host *host, unsigned int gpio);
-void mmc_cd_gpio_free(struct mmc_host *host);
+int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio);
+void mmc_gpio_free_cd(struct mmc_host *host);
 
 #endif
