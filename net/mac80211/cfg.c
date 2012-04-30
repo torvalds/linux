@@ -1538,6 +1538,11 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 			return -ENOTSUPP;
 		conf->rssi_threshold = nconf->rssi_threshold;
 	}
+	if (_chg_mesh_attr(NL80211_MESHCONF_HT_OPMODE, mask)) {
+		conf->ht_opmode = nconf->ht_opmode;
+		sdata->vif.bss_conf.ht_operation_mode = nconf->ht_opmode;
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+	}
 	return 0;
 }
 

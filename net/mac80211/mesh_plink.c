@@ -157,6 +157,7 @@ out:
 
 	if (sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
 		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
+		sdata->u.mesh.mshcfg.ht_opmode = ht_opmode;
 		changed = BSS_CHANGED_HT;
 		mpl_dbg("mesh_plink %pM: protection mode changed to %d",
 			sdata->vif.addr, ht_opmode);

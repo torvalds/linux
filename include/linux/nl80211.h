@@ -2154,6 +2154,8 @@ enum nl80211_mntr_flags {
  * @NL80211_MESHCONF_SYNC_OFFSET_MAX_NEIGHBOR: maximum number of neighbors
  * to synchronize to for 11s default synchronization method (see 11C.12.2.2)
  *
+ * @NL80211_MESHCONF_HT_OPMODE: set mesh HT protection mode.
+ *
  * @__NL80211_MESHCONF_ATTR_AFTER_LAST: internal use
  */
 enum nl80211_meshconf_params {
@@ -2179,6 +2181,7 @@ enum nl80211_meshconf_params {
 	NL80211_MESHCONF_FORWARDING,
 	NL80211_MESHCONF_RSSI_THRESHOLD,
 	NL80211_MESHCONF_SYNC_OFFSET_MAX_NEIGHBOR,
+	NL80211_MESHCONF_HT_OPMODE,
 
 	/* keep last */
 	__NL80211_MESHCONF_ATTR_AFTER_LAST,
