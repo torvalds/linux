@@ -17,17 +17,32 @@
 #define SOC_ID_DANUBE1		0x129
 #define SOC_ID_DANUBE2		0x12B
 #define SOC_ID_TWINPASS		0x12D
-#define SOC_ID_AMAZON_SE	0x152
+#define SOC_ID_AMAZON_SE_1	0x152 /* 50601 */
+#define SOC_ID_AMAZON_SE_2	0x153 /* 50600 */
 #define SOC_ID_ARX188		0x16C
-#define SOC_ID_ARX168		0x16D
+#define SOC_ID_ARX168_1		0x16D
+#define SOC_ID_ARX168_2		0x16E
 #define SOC_ID_ARX182		0x16F
+#define SOC_ID_GRX188		0x170
+#define SOC_ID_GRX168		0x171
 
-/* SoC Types */
+#define SOC_ID_VRX288		0x1C0 /* v1.1 */
+#define SOC_ID_VRX282		0x1C1 /* v1.1 */
+#define SOC_ID_VRX268		0x1C2 /* v1.1 */
+#define SOC_ID_GRX268		0x1C8 /* v1.1 */
+#define SOC_ID_GRX288		0x1C9 /* v1.1 */
+#define SOC_ID_VRX288_2		0x00B /* v1.2 */
+#define SOC_ID_VRX268_2		0x00C /* v1.2 */
+#define SOC_ID_GRX288_2		0x00D /* v1.2 */
+#define SOC_ID_GRX282_2		0x00E /* v1.2 */
+
+ /* SoC Types */
 #define SOC_TYPE_DANUBE		0x01
 #define SOC_TYPE_TWINPASS	0x02
 #define SOC_TYPE_AR9		0x03
-#define SOC_TYPE_VR9		0x04
-#define SOC_TYPE_AMAZON_SE	0x05
+#define SOC_TYPE_VR9		0x04 /* v1.1 */
+#define SOC_TYPE_VR9_2		0x05 /* v1.2 */
+#define SOC_TYPE_AMAZON_SE	0x06
 
 /* ASC0/1 - serial port */
 #define LTQ_ASC0_BASE_ADDR	0x1E100400
