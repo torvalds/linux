@@ -1287,13 +1287,6 @@ static struct i2c_driver cs42l52_i2c_driver = {
 	.remove =   __devexit_p(cs42l52_i2c_remove),
 };
 
-static void __exit cs42l52_exit(void)
-{
-	i2c_del_driver(&cs42l52_i2c_driver);
-}
-
-module_exit(cs42l52_exit);
-
 module_i2c_driver(cs42l52_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC CS42L52 driver");
