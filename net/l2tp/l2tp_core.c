@@ -56,6 +56,7 @@
 #include <net/inet6_connection_sock.h>
 #include <net/inet_ecn.h>
 #include <net/ip6_route.h>
+#include <net/ip6_checksum.h>
 
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
