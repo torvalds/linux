@@ -2637,10 +2637,10 @@ int set_resource_options(struct drbd_tconn *tconn, struct res_opts *res_opts)
 	/* silently ignore cpu mask on UP kernel */
 	if (nr_cpu_ids > 1 && res_opts->cpu_mask[0] != 0) {
 		/* FIXME: Get rid of constant 32 here */
-		err = __bitmap_parse(res_opts->cpu_mask, 32, 0,
-				cpumask_bits(new_cpu_mask), nr_cpu_ids);
+		err = bitmap_parse(res_opts->cpu_mask, 32,
+				   cpumask_bits(new_cpu_mask), nr_cpu_ids);
 		if (err) {
-			conn_warn(tconn, "__bitmap_parse() failed with %d\n", err);
+			conn_warn(tconn, "bitmap_parse() failed with %d\n", err);
 			/* retcode = ERR_CPU_MASK_PARSE; */
 			goto fail;
 		}
