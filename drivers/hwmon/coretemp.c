@@ -752,6 +752,10 @@ static void __cpuinit put_core_offline(unsigned int cpu)
 
 	indx = TO_ATTR_NO(cpu);
 
+	/* The core id is too big, just return */
+	if (indx > MAX_CORE_DATA - 1)
+		return;
+
 	if (pdata->core_data[indx] && pdata->core_data[indx]->cpu == cpu)
 		coretemp_remove_core(pdata, &pdev->dev, indx);
 
