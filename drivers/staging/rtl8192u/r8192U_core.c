@@ -203,7 +203,7 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 		{
 			Dot11d_Init(ieee);
 			ieee->bGlobalDomain = false;
-			//actually 8225 & 8256 rf chip only support B,G,24N mode
+			//actually 8225 & 8256 rf chips only support B,G,24N mode
 			if ((priv->rf_chip == RF_8225) || (priv->rf_chip == RF_8256))
 			{
 				min_chan = 1;
@@ -1476,7 +1476,7 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 	if(tcb_desc->queue_index != TXCMD_QUEUE) {
 		if(tx_urb->status == 0) {
 			dev->trans_start = jiffies;
-			// As act as station mode, destination shall be unicast address.
+			// Act as station mode, destination shall be unicast address.
 			//priv->ieee80211->stats.tx_bytes+=(skb->len - priv->ieee80211->tx_headroom);
 			//priv->ieee80211->stats.tx_packets++;
 			priv->stats.txoktotal++;
@@ -1527,8 +1527,8 @@ static void rtl8192_tx_isr(struct urb *tx_urb)
 				 *    function, it should contain enough tx irq;
 				 * 2. check packet type;
 				 * 3. initialize sendlist, check whether the to-be send packet no greater than 1
-				 * 4. aggregates the packets, and fill firmware info and tx desc to it, etc.
-				 * 5. check whether the packet could be sent, otherwise just insert to wait head
+				 * 4. aggregates the packets, and fill firmware info and tx desc into it, etc.
+				 * 5. check whether the packet could be sent, otherwise just insert into wait head
 				 * */
 				skb = skb_dequeue(&priv->ieee80211->skb_drv_aggQ[queue_index]);
 				if(!check_nic_enough_desc(dev, queue_index)) {
@@ -2783,7 +2783,7 @@ static void rtl8192_init_priv_variable(struct net_device* dev)
 		(TCR_MXDMA_2048<<TCR_MXDMA_OFFSET)|  // Max DMA Burst Size per Tx DMA Burst, 7: reserved.
 		(priv->ShortRetryLimit<<TCR_SRL_OFFSET)|	// Short retry limit
 		(priv->LongRetryLimit<<TCR_LRL_OFFSET) |	// Long retry limit
-		(false ? TCR_SAT: 0);	// FALSE: HW provides PLCP length and LENGEXT, TURE: SW provides them
+		(false ? TCR_SAT: 0);	// FALSE: HW provides PLCP length and LENGEXT, TRUE: SW provides them
 #ifdef TO_DO_LIST
 	if(Adapter->bInHctTest)
 		pHalData->ReceiveConfig	=	pHalData->CSMethod |
@@ -3437,7 +3437,7 @@ if(Adapter->ResetProgress == RESET_TYPE_NORESET)
 		{ // User disable RF via registry.
 			RT_TRACE((COMP_INIT|COMP_RF), DBG_LOUD, ("InitializeAdapter819xUsb(): Turn off RF for RegRfOff ----------\n"));
 			MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_SW);
-			// Those action will be discard in MgntActSet_RF_State because of the same state
+			// Those actions will be discard in MgntActSet_RF_State because of the same state
 			for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
 				PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x0);
 		}
@@ -3458,7 +3458,7 @@ if(Adapter->ResetProgress == RESET_TYPE_NORESET)
 		if(pHalData->eRFPowerState == eRfOff)
 		{
 			MgntActSet_RF_State(Adapter, eRfOff, pMgntInfo->RfOffReason);
-			// Those action will be discard in MgntActSet_RF_State because of the same state
+			// Those actions will be discard in MgntActSet_RF_State because of the same state
 			for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
 				PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x0);
 		}
@@ -4516,7 +4516,7 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
 
 /**
  * Function:     UpdateRxPktTimeStamp
- * Overview:     Record down the TSF time stamp when receiving a packet
+ * Overview:     Record the TSF time stamp when receiving a packet
  *
  * Input:
  *       PADAPTER        Adapter
@@ -4558,8 +4558,8 @@ long rtl819x_translate_todbm(u8 signal_strength_index	)// 0-100 index.
 
 /* 2008/01/22 MH We can not declare RSSI/EVM total value of sliding window to
     be a local static. Otherwise, it may increase when we return from S3/S4. The
-    value will be kept in memory or disk. We must declare the value in adapter
-    and it will be reinitialized when return from S3/S4. */
+    value will be kept in memory or disk. Declare the value in the adaptor
+    and it will be reinitialized when returned from S3/S4. */
 void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee80211_rx_stats * pprevious_stats, struct ieee80211_rx_stats * pcurrent_stats)
 {
 	bool bcheck = false;
@@ -5092,7 +5092,7 @@ static void rtl8192_query_rxphystatus(
 			rx_evmX = (char)(tmp_rxevm);
 
 			// Do not use shift operation like "rx_evmX >>= 1" because the compiler of free build environment
-			// fill most significant bit to "zero" when doing shifting operation which may change a negative
+			// will set the most significant bit to "zero" when doing shifting operation which may change a negative
 			// value to positive one, then the dbm value (which is supposed to be negative)  is not correct anymore.
 			rx_evmX /= 2;	//dbm
 
@@ -5211,7 +5211,7 @@ void TranslateRxSignalStuff819xUsb(struct sk_buff *skb,
 
 /**
 * Function:	UpdateReceivedRateHistogramStatistics
-* Overview:	Record down the received data rate
+* Overview:	Record the received data rate
 *
 * Input:
 * 	struct net_device *dev

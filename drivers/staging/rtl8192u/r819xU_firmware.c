@@ -279,7 +279,7 @@ bool init_firmware(struct net_device *dev)
 	 */
 	for(init_step = starting_state; init_step <= FW_INIT_STEP2_DATA; init_step++) {
 		/*
-		 * Open Image file, and map file to continuous memory if open file success.
+		 * Open image file, and map file to continuous memory if open file success.
 		 * or read image file from array. Default load from IMG file
 		 */
 		if(rst_opt == OPT_SYSTEM_RESET) {

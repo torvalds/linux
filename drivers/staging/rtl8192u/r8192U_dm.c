@@ -1457,7 +1457,7 @@ static void dm_InitializeTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	// Tx Power tracking by Thermal Meter require Firmware R/W 3-wire. This mechanism
+	// Tx Power tracking by Thermal Meter requires Firmware R/W 3-wire. This mechanism
 	// can be enabled only when Firmware R/W 3-wire is enabled. Otherwise, frequent r/w
 	// 3-wire by driver causes RF to go into a wrong state.
 	if(priv->ieee80211->FwRWRF)
@@ -1520,7 +1520,7 @@ static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 
 	if(!TM_Trigger)
 	{
-		//Attention!! You have to write all 12bits data to RF, or it may cause RF to crash
+		//Attention!! You have to write all 12bits of data to RF, or it may cause RF to crash
 		//actually write reg0x02 bit1=0, then bit1=1.
 		//DbgPrint("Trigger ThermalMeter, write RF reg0x2 = 0x4d to 0x4f\n");
 		rtl8192_phy_SetRFReg(dev, RF90_PATH_A, 0x02, bMask12Bits, 0x4d);
@@ -2161,7 +2161,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	pHalData->UndecoratedSmoothedPWDB, DM_DigTable.RssiLowThresh,
 	DM_DigTable.RssiHighThresh, DM_DigTable.Dig_State);*/
 	/* 1. When RSSI decrease, We have to judge if it is smaller than a threshold
-		  and then execute below step. */
+		  and then execute the step below. */
 	if ((priv->undecorated_smoothed_pwdb <= dm_digtable.rssi_low_thresh))
 	{
 		/* 2008/02/05 MH When we execute silent reset, the DIG PHY parameters
@@ -2221,7 +2221,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	}
 
 	/* 2. When RSSI increase, We have to judge if it is larger than a threshold
-		  and then execute below step.  */
+		  and then execute the step below.  */
 	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) )
 	{
 		u8 reset_flag = 0;
@@ -2329,7 +2329,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 	}
 
 	/* 3. When RSSI >75% or <70%, it is a high power issue. We have to judge if
-		  it is larger than a threshold and then execute below step.  */
+		  it is larger than a threshold and then execute the step below.  */
 	// 2008/02/05 MH SD3-Jerry Modify PD_TH for high power issue.
 	if (priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_power_highthresh)
 	{
@@ -2842,7 +2842,7 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
 	// Work around for DTM test, we will not enable HW - radio on/off because r/w
-	// page 1 register before extra bus is enabled causing system fails when resuming
+	// page 1 register before extra bus is enabled causing system failures when resuming
 	// from S4. 20080218, Emily
 
 	// Stop to execute workitem to prevent S3/S4 bug.
@@ -3392,7 +3392,7 @@ extern void dm_fsync_timer_callback(unsigned long data)
 		}
 		else
 		{
-			// Stop continue count
+			// Stop the continued count
 			priv->ContiuneDiffCount = 0;
 		}
 
@@ -3523,7 +3523,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
 	// Initial rate record to zero, start to record.
 	priv->rate_record = 0;
-	// Initial continue diff count to zero, start to record.
+	// Initialize continue diff count to zero, start to record.
 	priv->ContiuneDiffCount = 0;
 	priv->rateCountDiffRecord = 0;
 	priv->bswitch_fsync  = false;

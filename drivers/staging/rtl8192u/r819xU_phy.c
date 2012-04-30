@@ -176,7 +176,7 @@ u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, 
 	rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2,  bLSSIReadEdge, 0x1);
 
 
-	// TODO: we should not delay such a long time. Ask help from SD3
+	// TODO: we should not delay such a long time. Ask for help from SD3
 	msleep(1);
 
 	ret = rtl8192_QueryBBReg(dev, pPhyReg->rfLSSIReadBack, bLSSIReadBackData);
@@ -1425,7 +1425,7 @@ void rtl8192_SwChnl_WorkItem(struct net_device *dev)
 }
 
 /******************************************************************************
- *function:  This function scheduled actual workitem to set channel
+ *function:  This function scheduled actual work item to set channel
  *   input:  net_device dev
  *   	     u8		channel //channel to set
  *  output:  none
