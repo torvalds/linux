@@ -493,6 +493,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	uint32_t offset;
+	u32 hdmi;
 
 	if (ASIC_IS_DCE5(rdev))
 		return;
@@ -507,26 +508,34 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	}
 
 	offset = radeon_encoder->hdmi_offset;
-	if (ASIC_IS_DCE5(rdev)) {
-		/* TODO */
-	} else if (ASIC_IS_DCE3(rdev)) {
-		/* TODO */
-	} else if (rdev->family >= CHIP_R600) {
+
+	/* Older chipsets require setting HDMI and routing manually */
+	if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
+		hdmi = HDMI0_ERROR_ACK | HDMI0_ENABLE;
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, AVIVO_TMDSA_CNTL_HDMI_EN,
 				 ~AVIVO_TMDSA_CNTL_HDMI_EN);
-			WREG32(HDMI0_CONTROL + offset, 0x101);
+			hdmi |= HDMI0_STREAM(HDMI0_STREAM_TMDSA);
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 			WREG32_P(AVIVO_LVTMA_CNTL, AVIVO_LVTMA_CNTL_HDMI_EN,
 				 ~AVIVO_LVTMA_CNTL_HDMI_EN);
-			WREG32(HDMI0_CONTROL + offset, 0x105);
+			hdmi |= HDMI0_STREAM(HDMI0_STREAM_LVTMA);
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_DDI:
+			WREG32_P(DDIA_CNTL, DDIA_HDMI_EN, ~DDIA_HDMI_EN);
+			hdmi |= HDMI0_STREAM(HDMI0_STREAM_DDIA);
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
+			hdmi |= HDMI0_STREAM(HDMI0_STREAM_DVOA);
 			break;
 		default:
-			dev_err(rdev->dev, "Unknown HDMI output type\n");
+			dev_err(rdev->dev, "Invalid encoder for HDMI: 0x%X\n",
+				radeon_encoder->encoder_id);
 			break;
 		}
+		WREG32(HDMI0_CONTROL + offset, hdmi);
 	}
 
 	if (rdev->irq.installed) {
@@ -565,25 +574,28 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	rdev->irq.afmt[offset == 0 ? 0 : 1] = false;
 	radeon_irq_set(rdev);
 
-
-	if (ASIC_IS_DCE5(rdev)) {
-		/* TODO */
-	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
+	/* Older chipsets not handled by AtomBIOS */
+	if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, 0,
 				 ~AVIVO_TMDSA_CNTL_HDMI_EN);
-			WREG32(HDMI0_CONTROL + offset, 0);
 			break;
 		case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 			WREG32_P(AVIVO_LVTMA_CNTL, 0,
 				 ~AVIVO_LVTMA_CNTL_HDMI_EN);
-			WREG32(HDMI0_CONTROL + offset, 0);
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_DDI:
+			WREG32_P(DDIA_CNTL, 0, ~DDIA_HDMI_EN);
+			break;
+		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DVO1:
 			break;
 		default:
-			dev_err(rdev->dev, "Unknown HDMI output type\n");
+			dev_err(rdev->dev, "Invalid encoder for HDMI: 0x%X\n",
+				radeon_encoder->encoder_id);
 			break;
 		}
+		WREG32(HDMI0_CONTROL + offset, HDMI0_ERROR_ACK);
 	}
 
 	radeon_encoder->hdmi_enabled = false;
