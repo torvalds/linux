@@ -871,7 +871,7 @@ allocate_barrier:
 
 	if (is_susp(mdev->state)) {
 		/* If we got suspended, use the retry mechanism of
-		   generic_make_request() to restart processing of this
+		   drbd_make_request() to restart processing of this
 		   bio. In the next call to drbd_make_request
 		   we sleep in inc_ap_bio() */
 		ret = 1;
@@ -1102,8 +1102,9 @@ void drbd_make_request(struct request_queue *q, struct bio *bio)
 	e_enr = (bio->bi_sector+(bio->bi_size>>9)-1) >> HT_SHIFT;
 
 	if (likely(s_enr == e_enr)) {
-		inc_ap_bio(mdev, 1);
-		drbd_make_request_common(mdev, bio, start_time);
+		do {
+			inc_ap_bio(mdev, 1);
+		} while (drbd_make_request_common(mdev, bio, start_time));
 		return;
 	}
 
