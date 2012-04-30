@@ -601,6 +601,9 @@ static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode 
 }
 
 #else
+static void nfs_direct_write_schedule_work(struct work_struct *work)
+{
+}
 
 static void nfs_direct_write_complete(struct nfs_direct_req *dreq, struct inode *inode)
 {
