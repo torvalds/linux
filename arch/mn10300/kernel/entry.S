@@ -108,6 +108,10 @@ restore_all:
 ###############################################################################
 	ALIGN
 syscall_exit_work:
+	mov	(REG_EPSW,fp),d0
+	and	EPSW_nSL,d0
+	beq	resume_kernel		# returning to supervisor mode
+
 	btst	_TIF_SYSCALL_TRACE,d2
 	beq	work_pending
 	LOCAL_IRQ_ENABLE		# could let syscall_trace_exit() call

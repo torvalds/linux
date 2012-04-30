@@ -475,11 +475,6 @@ static void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 
-	/* we want the common case to go fast, which is why we may in certain
-	 * cases get here from kernel mode */
-	if (!user_mode(regs))
-		return;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		if (handle_signal(signr, &info, &ka, regs) == 0) {
