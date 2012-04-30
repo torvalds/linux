@@ -458,7 +458,6 @@ static int setup_vbus_gpio(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't enable vbus\n");
 		return err;
 	}
-	gpio_set_value(gpio, 1);
 
 	return err;
 }
