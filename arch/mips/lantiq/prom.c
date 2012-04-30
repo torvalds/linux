@@ -68,4 +68,9 @@ void __init prom_init(void)
 	soc_info.sys_type[LTQ_SYS_TYPE_LEN - 1] = '\0';
 	pr_info("SoC: %s\n", soc_info.sys_type);
 	prom_init_cmdline();
+
+#if defined(CONFIG_MIPS_MT_SMP)
+	if (register_vsmp_smp_ops())
+		panic("failed to register_vsmp_smp_ops()");
+#endif
 }

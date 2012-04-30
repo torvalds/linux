@@ -54,6 +54,14 @@
 #define ltq_eiu_w32(x, y)	ltq_w32((x), ltq_eiu_membase + (y))
 #define ltq_eiu_r32(x)		ltq_r32(ltq_eiu_membase + (x))
 
+/* our 2 ipi interrupts for VSMP */
+#define MIPS_CPU_IPI_RESCHED_IRQ	0
+#define MIPS_CPU_IPI_CALL_IRQ		1
+
+#if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
+int gic_present;
+#endif
+
 static unsigned short ltq_eiu_irq[MAX_EIU] = {
 	LTQ_EIU_IR0,
 	LTQ_EIU_IR1,
@@ -219,6 +227,47 @@ static void ltq_hw5_irqdispatch(void)
 	do_IRQ(MIPS_CPU_TIMER_IRQ);
 }
 
+#ifdef CONFIG_MIPS_MT_SMP
+void __init arch_init_ipiirq(int irq, struct irqaction *action)
+{
+	setup_irq(irq, action);
+	irq_set_handler(irq, handle_percpu_irq);
+}
+
+static void ltq_sw0_irqdispatch(void)
+{
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ);
+}
+
+static void ltq_sw1_irqdispatch(void)
+{
+	do_IRQ(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ);
+}
+static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
+{
+	scheduler_ipi();
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
+{
+	smp_call_function_interrupt();
+	return IRQ_HANDLED;
+}
+
+static struct irqaction irq_resched = {
+	.handler	= ipi_resched_interrupt,
+	.flags		= IRQF_PERCPU,
+	.name		= "IPI_resched"
+};
+
+static struct irqaction irq_call = {
+	.handler	= ipi_call_interrupt,
+	.flags		= IRQF_PERCPU,
+	.name		= "IPI_call"
+};
+#endif
+
 asmlinkage void plat_irq_dispatch(void)
 {
 	unsigned int pending = read_c0_status() & read_c0_cause() & ST0_IM;
@@ -311,6 +360,17 @@ void __init arch_init_irq(void)
 		else
 			irq_set_chip_and_handler(i, &ltq_irq_type,
 				handle_level_irq);
+
+#if defined(CONFIG_MIPS_MT_SMP)
+	if (cpu_has_vint) {
+		pr_info("Setting up IPI vectored interrupts\n");
+		set_vi_handler(MIPS_CPU_IPI_RESCHED_IRQ, ltq_sw0_irqdispatch);
+		set_vi_handler(MIPS_CPU_IPI_CALL_IRQ, ltq_sw1_irqdispatch);
+	}
+	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_RESCHED_IRQ,
+		&irq_resched);
+	arch_init_ipiirq(MIPS_CPU_IRQ_BASE + MIPS_CPU_IPI_CALL_IRQ, &irq_call);
+#endif
 
 #if !defined(CONFIG_MIPS_MT_SMP) && !defined(CONFIG_MIPS_MT_SMTC)
 	set_c0_status(IE_IRQ0 | IE_IRQ1 | IE_IRQ2 |
