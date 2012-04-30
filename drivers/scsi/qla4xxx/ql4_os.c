@@ -68,6 +68,14 @@ MODULE_PARM_DESC(ql4xmaxqdepth,
 		 " Maximum queue depth to report for target devices.\n"
 		 "\t\t  Default: 32.");
 
+static int ql4xqfulltracking = 1;
+module_param(ql4xqfulltracking, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(ql4xqfulltracking,
+		 " Enable or disable dynamic tracking and adjustment of\n"
+		 "\t\t scsi device queue depth.\n"
+		 "\t\t  0 - Disable.\n"
+		 "\t\t  1 - Enable. (Default)");
+
 static int ql4xsess_recovery_tmo = QL4_SESS_RECOVERY_TMO;
 module_param(ql4xsess_recovery_tmo, int, S_IRUGO);
 MODULE_PARM_DESC(ql4xsess_recovery_tmo,
@@ -140,6 +148,8 @@ static int qla4xxx_slave_configure(struct scsi_device *device);
 static void qla4xxx_slave_destroy(struct scsi_device *sdev);
 static umode_t ql4_attr_is_visible(int param_type, int param);
 static int qla4xxx_host_reset(struct Scsi_Host *shost, int reset_type);
+static int qla4xxx_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				      int reason);
 
 static struct qla4_8xxx_legacy_intr_set legacy_intr[] =
     QLA82XX_LEGACY_INTR_CONFIG;
@@ -159,6 +169,7 @@ static struct scsi_host_template qla4xxx_driver_template = {
 	.slave_configure	= qla4xxx_slave_configure,
 	.slave_alloc		= qla4xxx_slave_alloc,
 	.slave_destroy		= qla4xxx_slave_destroy,
+	.change_queue_depth	= qla4xxx_change_queue_depth,
 
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
@@ -5249,6 +5260,15 @@ static int qla4xxx_slave_configure(struct scsi_device *sdev)
 static void qla4xxx_slave_destroy(struct scsi_device *sdev)
 {
 	scsi_deactivate_tcq(sdev, 1);
+}
+
+static int qla4xxx_change_queue_depth(struct scsi_device *sdev, int qdepth,
+				      int reason)
+{
+	if (!ql4xqfulltracking)
+		return -EOPNOTSUPP;
+
+	return iscsi_change_queue_depth(sdev, qdepth, reason);
 }
 
 /**
