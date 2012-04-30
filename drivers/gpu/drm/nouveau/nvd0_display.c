@@ -284,8 +284,6 @@ nvd0_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	u32 *push;
 	int ret;
 
-	evo_sync(crtc->dev, EVO_MASTER);
-
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
