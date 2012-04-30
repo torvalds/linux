@@ -73,7 +73,6 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 	u32 otp_ctrl_data;
 	u32 twsi_ctrl_data;
 	u32 ltssm_ctrl_data;
-	u32 wol_data;
 	u8  eth_addr[ETH_ALEN];
 	u16 phy_data;
 	bool raise_vol = false;
@@ -113,10 +112,6 @@ static int atl1c_get_permanent_address(struct atl1c_hw *hw)
 		AT_READ_REG(hw, REG_LTSSM_ID_CTRL, &ltssm_ctrl_data);
 		ltssm_ctrl_data &= ~LTSSM_ID_EN_WRO;
 		AT_WRITE_REG(hw, REG_LTSSM_ID_CTRL, ltssm_ctrl_data);
-
-		/* clear any WOL settings */
-		AT_WRITE_REG(hw, REG_WOL_CTRL, 0);
-		AT_READ_REG(hw, REG_WOL_CTRL, &wol_data);
 
 
 		AT_READ_REG(hw, REG_TWSI_CTRL, &twsi_ctrl_data);
