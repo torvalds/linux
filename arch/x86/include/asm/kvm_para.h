@@ -178,14 +178,16 @@ static inline int kvm_para_available(void)
 	unsigned int eax, ebx, ecx, edx;
 	char signature[13];
 
-	cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
-	memcpy(signature + 0, &ebx, 4);
-	memcpy(signature + 4, &ecx, 4);
-	memcpy(signature + 8, &edx, 4);
-	signature[12] = 0;
+	if (cpu_has_hypervisor) {
+		cpuid(KVM_CPUID_SIGNATURE, &eax, &ebx, &ecx, &edx);
+		memcpy(signature + 0, &ebx, 4);
+		memcpy(signature + 4, &ecx, 4);
+		memcpy(signature + 8, &edx, 4);
+		signature[12] = 0;
 
-	if (strcmp(signature, "KVMKVMKVM") == 0)
-		return 1;
+		if (strcmp(signature, "KVMKVMKVM") == 0)
+			return 1;
+	}
 
 	return 0;
 }
