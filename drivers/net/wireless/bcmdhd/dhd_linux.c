@@ -2448,6 +2448,9 @@ dhd_open(struct net_device *net)
 
 	OLD_MOD_INC_USE_COUNT;
 exit:
+	if (ret)
+		dhd_stop(net);
+
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 	return ret;
 }
