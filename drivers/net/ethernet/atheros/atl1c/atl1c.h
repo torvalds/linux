@@ -436,6 +436,7 @@ struct atl1c_hw {
 	bool phy_configured;
 	bool re_autoneg;
 	bool emi_ca;
+	bool msi_lnkpatch;	/* link patch for specific platforms */
 };
 
 /*

@@ -63,6 +63,7 @@ int atl1c_write_phy_ext(struct atl1c_hw *hw, u8 dev_addr,
 			u16 reg_addr, u16 phy_data);
 int atl1c_read_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 *phy_data);
 int atl1c_write_phy_dbg(struct atl1c_hw *hw, u16 reg_addr, u16 phy_data);
+void atl1c_post_phy_linkchg(struct atl1c_hw *hw, u16 link_speed);
 
 /* hw-ids */
 #define PCI_DEVICE_ID_ATTANSIC_L2C      0x1062

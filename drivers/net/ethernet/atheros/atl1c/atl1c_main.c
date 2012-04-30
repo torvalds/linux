@@ -258,6 +258,7 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 			if (netif_msg_hw(adapter))
 				dev_warn(&pdev->dev, "stop mac failed\n");
 		atl1c_set_aspm(hw, SPEED_0);
+		atl1c_post_phy_linkchg(hw, SPEED_0);
 		netif_carrier_off(netdev);
 		netif_stop_queue(netdev);
 	} else {
@@ -274,6 +275,7 @@ static void atl1c_check_link_status(struct atl1c_adapter *adapter)
 			adapter->link_speed  = speed;
 			adapter->link_duplex = duplex;
 			atl1c_set_aspm(hw, speed);
+			atl1c_post_phy_linkchg(hw, speed);
 			atl1c_start_mac(adapter);
 			if (netif_msg_link(adapter))
 				dev_info(&pdev->dev,
@@ -697,6 +699,55 @@ static int atl1c_setup_mac_funcs(struct atl1c_hw *hw)
 		hw->link_cap_flags |= ATL1C_LINK_CAP_1000M;
 	return 0;
 }
+
+struct atl1c_platform_patch {
+	u16 pci_did;
+	u8  pci_revid;
+	u16 subsystem_vid;
+	u16 subsystem_did;
+	u32 patch_flag;
+#define ATL1C_LINK_PATCH	0x1
+};
+static const struct atl1c_platform_patch plats[] __devinitdata = {
+{0x2060, 0xC1, 0x1019, 0x8152, 0x1},
+{0x2060, 0xC1, 0x1019, 0x2060, 0x1},
+{0x2060, 0xC1, 0x1019, 0xE000, 0x1},
+{0x2062, 0xC0, 0x1019, 0x8152, 0x1},
+{0x2062, 0xC0, 0x1019, 0x2062, 0x1},
+{0x2062, 0xC0, 0x1458, 0xE000, 0x1},
+{0x2062, 0xC1, 0x1019, 0x8152, 0x1},
+{0x2062, 0xC1, 0x1019, 0x2062, 0x1},
+{0x2062, 0xC1, 0x1458, 0xE000, 0x1},
+{0x2062, 0xC1, 0x1565, 0x2802, 0x1},
+{0x2062, 0xC1, 0x1565, 0x2801, 0x1},
+{0x1073, 0xC0, 0x1019, 0x8151, 0x1},
+{0x1073, 0xC0, 0x1019, 0x1073, 0x1},
+{0x1073, 0xC0, 0x1458, 0xE000, 0x1},
+{0x1083, 0xC0, 0x1458, 0xE000, 0x1},
+{0x1083, 0xC0, 0x1019, 0x8151, 0x1},
+{0x1083, 0xC0, 0x1019, 0x1083, 0x1},
+{0x1083, 0xC0, 0x1462, 0x7680, 0x1},
+{0x1083, 0xC0, 0x1565, 0x2803, 0x1},
+{0},
+};
+
+static void __devinit atl1c_patch_assign(struct atl1c_hw *hw)
+{
+	int i = 0;
+
+	hw->msi_lnkpatch = false;
+
+	while (plats[i].pci_did != 0) {
+		if (plats[i].pci_did == hw->device_id &&
+		    plats[i].pci_revid == hw->revision_id &&
+		    plats[i].subsystem_vid == hw->subsystem_vendor_id &&
+		    plats[i].subsystem_did == hw->subsystem_id) {
+			if (plats[i].patch_flag & ATL1C_LINK_PATCH)
+				hw->msi_lnkpatch = true;
+		}
+		i++;
+	}
+}
 /*
  * atl1c_sw_init - Initialize general software structures (struct atl1c_adapter)
  * @adapter: board private structure to initialize
@@ -732,6 +783,8 @@ static int __devinit atl1c_sw_init(struct atl1c_adapter *adapter)
 		dev_err(&pdev->dev, "set mac function pointers failed\n");
 		return -1;
 	}
+	atl1c_patch_assign(hw);
+
 	hw->intr_mask = IMR_NORMAL_MASK;
 	hw->phy_configured = false;
 	hw->preamble_len = 7;
