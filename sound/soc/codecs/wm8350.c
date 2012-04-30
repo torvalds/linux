@@ -92,7 +92,7 @@ static inline int wm8350_out1_ramp_step(struct snd_soc_codec *codec)
 {
 	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out1 = &wm8350_data->out1;
-	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350 *wm8350 = wm8350_data->wm8350;
 	int left_complete = 0, right_complete = 0;
 	u16 reg, val;
 
@@ -158,7 +158,7 @@ static inline int wm8350_out2_ramp_step(struct snd_soc_codec *codec)
 {
 	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
 	struct wm8350_output *out2 = &wm8350_data->out2;
-	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350 *wm8350 = wm8350_data->wm8350;
 	int left_complete = 0, right_complete = 0;
 	u16 reg, val;
 
@@ -774,7 +774,8 @@ static int wm8350_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
+	struct wm8350 *wm8350 = wm8350_data->wm8350;
 	u16 fll_4;
 
 	switch (clk_id) {
@@ -927,7 +928,8 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_soc_dai *codec_dai)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350_data *wm8350_data = snd_soc_codec_get_drvdata(codec);
+	struct wm8350 *wm8350 = wm8350_data->wm8350;
 	u16 iface = snd_soc_read(codec, WM8350_AI_FORMATING) &
 	    ~WM8350_AIF_WL_MASK;
 
@@ -966,12 +968,15 @@ static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 static int wm8350_mute(struct snd_soc_dai *dai, int mute)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8350 *wm8350 = codec->control_data;
+	unsigned int val;
 
 	if (mute)
-		wm8350_set_bits(wm8350, WM8350_DAC_MUTE, WM8350_DAC_MUTE_ENA);
+		val = WM8350_DAC_MUTE_ENA;
 	else
-		wm8350_clear_bits(wm8350, WM8350_DAC_MUTE, WM8350_DAC_MUTE_ENA);
+		val = 0;
+
+	snd_soc_update_bits(codec, WM8350_DAC_MUTE, WM8350_DAC_MUTE_ENA, val);
+
 	return 0;
 }
 
@@ -1040,8 +1045,8 @@ static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
 			  unsigned int freq_out)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8350 *wm8350 = codec->control_data;
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
+	struct wm8350 *wm8350 = priv->wm8350;
 	struct _fll_div fll_div;
 	int ret = 0;
 	u16 fll_1, fll_4;
@@ -1092,8 +1097,8 @@ static int wm8350_set_fll(struct snd_soc_dai *codec_dai,
 static int wm8350_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8350 *wm8350 = codec->control_data;
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
+	struct wm8350 *wm8350 = priv->wm8350;
 	struct wm8350_audio_platform_data *platform =
 		wm8350->codec.platform_data;
 	u16 pm1;
@@ -1349,7 +1354,7 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 			  struct snd_soc_jack *jack, int report)
 {
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
-	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350 *wm8350 = priv->wm8350;
 	int irq;
 	int ena;
 
@@ -1432,7 +1437,7 @@ int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
 			   int detect_report, int short_report)
 {
 	struct wm8350_data *priv = snd_soc_codec_get_drvdata(codec);
-	struct wm8350 *wm8350 = codec->control_data;
+	struct wm8350 *wm8350 = priv->wm8350;
 
 	priv->mic.jack = jack;
 	priv->mic.report = detect_report;
