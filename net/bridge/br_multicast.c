@@ -744,8 +744,7 @@ static void br_multicast_local_router_expired(unsigned long data)
 
 static void br_multicast_querier_expired(unsigned long data)
 {
-	struct net_bridge_port *port = (void *)data;
-	struct net_bridge *br = port->br;
+	struct net_bridge *br = (void *)data;
 
 	spin_lock(&br->multicast_lock);
 	if (!netif_running(br->dev) || br->multicast_disabled)
@@ -1581,7 +1580,7 @@ void br_multicast_init(struct net_bridge *br)
 	setup_timer(&br->multicast_router_timer,
 		    br_multicast_local_router_expired, 0);
 	setup_timer(&br->multicast_querier_timer,
-		    br_multicast_querier_expired, 0);
+		    br_multicast_querier_expired, (unsigned long)br);
 	setup_timer(&br->multicast_query_timer, br_multicast_query_expired,
 		    (unsigned long)br);
 }
