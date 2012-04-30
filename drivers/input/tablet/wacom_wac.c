@@ -768,6 +768,72 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	return 1;
 }
 
+static int find_slot_from_contactid(struct wacom_wac *wacom, int contactid)
+{
+	int touch_max = wacom->features.touch_max;
+	int i;
+
+	if (!wacom->slots)
+		return -1;
+
+	for (i = 0; i < touch_max; ++i) {
+		if (wacom->slots[i] == contactid)
+			return i;
+	}
+	for (i = 0; i < touch_max; ++i) {
+		if (wacom->slots[i] == -1)
+			return i;
+	}
+	return -1;
+}
+
+static int wacom_mt_touch(struct wacom_wac *wacom)
+{
+	struct input_dev *input = wacom->input;
+	char *data = wacom->data;
+	int i;
+	int current_num_contacts = data[2];
+	int contacts_to_send = 0;
+
+	/*
+	 * First packet resets the counter since only the first
+	 * packet in series will have non-zero current_num_contacts.
+	 */
+	if (current_num_contacts)
+		wacom->num_contacts_left = current_num_contacts;
+
+	/* There are at most 5 contacts per packet */
+	contacts_to_send = min(5, wacom->num_contacts_left);
+
+	for (i = 0; i < contacts_to_send; i++) {
+		int offset = (WACOM_BYTES_PER_MT_PACKET * i) + 3;
+		bool touch = data[offset] & 0x1;
+		int id = le16_to_cpup((__le16 *)&data[offset + 1]);
+		int slot = find_slot_from_contactid(wacom, id);
+
+		if (slot < 0)
+			continue;
+
+		input_mt_slot(input, slot);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, touch);
+		if (touch) {
+			int x = le16_to_cpup((__le16 *)&data[offset + 7]);
+			int y = le16_to_cpup((__le16 *)&data[offset + 9]);
+			input_report_abs(input, ABS_MT_POSITION_X, x);
+			input_report_abs(input, ABS_MT_POSITION_Y, y);
+		}
+		wacom->slots[slot] = touch ? id : -1;
+	}
+
+	input_mt_report_pointer_emulation(input, true);
+
+	wacom->num_contacts_left -= contacts_to_send;
+	if (wacom->num_contacts_left < 0)
+		wacom->num_contacts_left = 0;
+
+	return 1;
+}
+
 static int wacom_tpc_mt_touch(struct wacom_wac *wacom)
 {
 	struct input_dev *input = wacom->input;
@@ -805,6 +871,9 @@ static int wacom_tpc_single_touch(struct wacom_wac *wacom, size_t len)
 	struct input_dev *input = wacom->input;
 	bool prox;
 	int x = 0, y = 0;
+
+	if (wacom->features.touch_max > 1 || len > WACOM_PKGLEN_TPC2FG)
+		return 0;
 
 	if (!wacom->shared->stylus_in_proximity) {
 		if (len == WACOM_PKGLEN_TPC1FG) {
@@ -873,10 +942,10 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 
 	switch (len) {
 	case WACOM_PKGLEN_TPC1FG:
-		 return wacom_tpc_single_touch(wacom, len);
+		return wacom_tpc_single_touch(wacom, len);
 
 	case WACOM_PKGLEN_TPC2FG:
- 		return wacom_tpc_mt_touch(wacom);
+		return wacom_tpc_mt_touch(wacom);
 
 	default:
 		switch (data[0]) {
@@ -884,6 +953,9 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 		case WACOM_REPORT_TPCHID:
 		case WACOM_REPORT_TPCST:
 			return wacom_tpc_single_touch(wacom, len);
+
+		case WACOM_REPORT_TPCMT:
+			return wacom_mt_touch(wacom);
 
 		case WACOM_REPORT_PENABLED:
 			return wacom_tpc_pen(wacom);
@@ -1164,6 +1236,7 @@ void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 
 	case TABLETPC:
 	case TABLETPC2FG:
+	case MTSCREEN:
 		sync = wacom_tpc_irq(wacom_wac, len);
 		break;
 
@@ -1237,7 +1310,8 @@ void wacom_setup_device_quirks(struct wacom_features *features)
 	/* these device have multiple inputs */
 	if (features->type == TABLETPC || features->type == TABLETPC2FG ||
 	    features->type == BAMBOO_PT || features->type == WIRELESS ||
-	    (features->type >= INTUOS5S && features->type <= INTUOS5L))
+	    (features->type >= INTUOS5S && features->type <= INTUOS5L) ||
+	    features->type == MTSCREEN)
 		features->quirks |= WACOM_QUIRK_MULTI_INPUT;
 
 	/* quirk for bamboo touch with 2 low res touches */
@@ -1268,8 +1342,8 @@ static unsigned int wacom_calculate_touch_res(unsigned int logical_max,
        return (logical_max * 100) / physical_max;
 }
 
-void wacom_setup_input_capabilities(struct input_dev *input_dev,
-				    struct wacom_wac *wacom_wac)
+int wacom_setup_input_capabilities(struct input_dev *input_dev,
+				   struct wacom_wac *wacom_wac)
 {
 	struct wacom_features *features = &wacom_wac->features;
 	int i;
@@ -1465,7 +1539,17 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		break;
 
 	case TABLETPC2FG:
+	case MTSCREEN:
 		if (features->device_type == BTN_TOOL_FINGER) {
+
+			wacom_wac->slots = kmalloc(features->touch_max *
+							sizeof(int),
+						   GFP_KERNEL);
+			if (!wacom_wac->slots)
+				return -ENOMEM;
+
+			for (i = 0; i < features->touch_max; i++)
+				wacom_wac->slots[i] = -1;
 
 			input_mt_init_slots(input_dev, features->touch_max);
 			input_set_abs_params(input_dev, ABS_MT_TOOL_TYPE,
@@ -1552,6 +1636,7 @@ void wacom_setup_input_capabilities(struct input_dev *input_dev,
 		}
 		break;
 	}
+	return 0;
 }
 
 static const struct wacom_features wacom_features_0x00 =
@@ -1784,6 +1869,9 @@ static const struct wacom_features wacom_features_0xE3 =
 	{ "Wacom ISDv4 E3",       WACOM_PKGLEN_TPC2FG,    26202, 16325,  255,
 	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
 	  .touch_max = 2 };
+static const struct wacom_features wacom_features_0xE5 =
+	{ "Wacom ISDv4 E5",       WACOM_PKGLEN_MTOUCH,    26202, 16325,  255,
+	  0, MTSCREEN, WACOM_INTUOS_RES, WACOM_INTUOS_RES };
 static const struct wacom_features wacom_features_0xE6 =
 	{ "Wacom ISDv4 E6",       WACOM_PKGLEN_TPC2FG,    27760, 15694,  255,
 	  0, TABLETPC2FG, WACOM_INTUOS_RES, WACOM_INTUOS_RES,
@@ -1962,6 +2050,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x9F) },
 	{ USB_DEVICE_WACOM(0xE2) },
 	{ USB_DEVICE_WACOM(0xE3) },
+	{ USB_DEVICE_WACOM(0xE5) },
 	{ USB_DEVICE_WACOM(0xE6) },
 	{ USB_DEVICE_WACOM(0xEC) },
 	{ USB_DEVICE_WACOM(0x47) },
