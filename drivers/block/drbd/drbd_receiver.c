@@ -2455,7 +2455,7 @@ static int drbd_uuid_compare(struct drbd_conf *mdev, int *rule_nr) __must_hold(l
 			mdev->p_uuid[UI_BITMAP] = mdev->p_uuid[UI_HISTORY_START];
 			mdev->p_uuid[UI_HISTORY_START] = mdev->p_uuid[UI_HISTORY_START + 1];
 
-			dev_info(DEV, "Did not got last syncUUID packet, corrected:\n");
+			dev_info(DEV, "Lost last syncUUID packet, corrected:\n");
 			drbd_uuid_dump(mdev, "peer", mdev->p_uuid, mdev->p_uuid[UI_SIZE], mdev->p_uuid[UI_FLAGS]);
 
 			return -1;
