@@ -187,6 +187,23 @@ config TOUCHSCREEN_DA9034
 	  Say Y here to enable the support for the touchscreen found
 	  on Dialog Semiconductor DA9034 PMIC.
 
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da9034-ts.
+
+config TOUCHSCREEN_DA9052
+	tristate "Dialog DA9052/DA9053 TSI"
+	depends on PMIC_DA9052
+	help
+	  Say Y here to support the touchscreen found on Dialog Semiconductor
+	  DA9052-BC and DA9053-AA/Bx PMICs.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called da9052_tsi.
+
 config TOUCHSCREEN_DYNAPRO
 	tristate "Dynapro serial touchscreen"
 	select SERIO
