@@ -70,6 +70,12 @@ void iconnect_init(void);
 static inline void iconnect_init(void) {};
 #endif
 
+#ifdef CONFIG_MACH_IB62X0_DT
+void ib62x0_init(void);
+#else
+static inline void ib62x0_init(void) {};
+#endif
+
 /* early init functions not converted to fdt yet */
 char *kirkwood_id(void);
 void kirkwood_l2_init(void);
