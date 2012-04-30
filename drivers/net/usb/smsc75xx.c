@@ -661,7 +661,7 @@ static int smsc75xx_phy_initialize(struct usbnet *dev)
 		bmcr = smsc75xx_mdio_read(dev->net, dev->mii.phy_id, MII_BMCR);
 		check_warn_return(bmcr, "Error reading MII_BMCR");
 		timeout++;
-	} while ((bmcr & MII_BMCR) && (timeout < 100));
+	} while ((bmcr & BMCR_RESET) && (timeout < 100));
 
 	if (timeout >= 100) {
 		netdev_warn(dev->net, "timeout on PHY Reset");
