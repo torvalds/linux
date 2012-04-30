@@ -1068,22 +1068,6 @@ nouveau_ttm_fault_reserve_notify(struct ttm_buffer_object *bo)
 	return nouveau_bo_validate(nvbo, false, true, false);
 }
 
-void
-nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
-{
-	struct nouveau_fence *old_fence;
-
-	if (likely(fence))
-		nouveau_fence_ref(fence);
-
-	spin_lock(&nvbo->bo.bdev->fence_lock);
-	old_fence = nvbo->bo.sync_obj;
-	nvbo->bo.sync_obj = fence;
-	spin_unlock(&nvbo->bo.bdev->fence_lock);
-
-	nouveau_fence_unref(&old_fence);
-}
-
 static int
 nouveau_ttm_tt_populate(struct ttm_tt *ttm)
 {
@@ -1181,6 +1165,52 @@ nouveau_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	ttm_pool_unpopulate(ttm);
 }
 
+void
+nouveau_bo_fence(struct nouveau_bo *nvbo, struct nouveau_fence *fence)
+{
+	struct nouveau_fence *old_fence = NULL;
+
+	if (likely(fence))
+		nouveau_fence_ref(fence);
+
+	spin_lock(&nvbo->bo.bdev->fence_lock);
+	old_fence = nvbo->bo.sync_obj;
+	nvbo->bo.sync_obj = fence;
+	spin_unlock(&nvbo->bo.bdev->fence_lock);
+
+	nouveau_fence_unref(&old_fence);
+}
+
+static void
+nouveau_bo_fence_unref(void **sync_obj)
+{
+	nouveau_fence_unref((struct nouveau_fence **)sync_obj);
+}
+
+static void *
+nouveau_bo_fence_ref(void *sync_obj)
+{
+	return nouveau_fence_ref(sync_obj);
+}
+
+static bool
+nouveau_bo_fence_signalled(void *sync_obj, void *sync_arg)
+{
+	return nouveau_fence_signalled(sync_obj);
+}
+
+static int
+nouveau_bo_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
+{
+	return nouveau_fence_wait(sync_obj, lazy, intr);
+}
+
+static int
+nouveau_bo_fence_flush(void *sync_obj, void *sync_arg)
+{
+	return 0;
+}
+
 struct ttm_bo_driver nouveau_bo_driver = {
 	.ttm_tt_create = &nouveau_ttm_tt_create,
 	.ttm_tt_populate = &nouveau_ttm_tt_populate,
@@ -1191,11 +1221,11 @@ struct ttm_bo_driver nouveau_bo_driver = {
 	.move_notify = nouveau_bo_move_ntfy,
 	.move = nouveau_bo_move,
 	.verify_access = nouveau_bo_verify_access,
-	.sync_obj_signaled = __nouveau_fence_signalled,
-	.sync_obj_wait = __nouveau_fence_wait,
-	.sync_obj_flush = __nouveau_fence_flush,
-	.sync_obj_unref = __nouveau_fence_unref,
-	.sync_obj_ref = __nouveau_fence_ref,
+	.sync_obj_signaled = nouveau_bo_fence_signalled,
+	.sync_obj_wait = nouveau_bo_fence_wait,
+	.sync_obj_flush = nouveau_bo_fence_flush,
+	.sync_obj_unref = nouveau_bo_fence_unref,
+	.sync_obj_ref = nouveau_bo_fence_ref,
 	.fault_reserve_notify = &nouveau_ttm_fault_reserve_notify,
 	.io_mem_reserve = &nouveau_ttm_io_mem_reserve,
 	.io_mem_free = &nouveau_ttm_io_mem_free,

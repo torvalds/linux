@@ -199,28 +199,23 @@ nouveau_fence_work(struct nouveau_fence *fence,
 }
 
 void
-__nouveau_fence_unref(void **sync_obj)
+nouveau_fence_unref(struct nouveau_fence **pfence)
 {
-	struct nouveau_fence *fence = nouveau_fence(*sync_obj);
-
-	if (fence)
-		kref_put(&fence->refcount, nouveau_fence_del);
-	*sync_obj = NULL;
+	if (*pfence)
+		kref_put(&(*pfence)->refcount, nouveau_fence_del);
+	*pfence = NULL;
 }
 
-void *
-__nouveau_fence_ref(void *sync_obj)
+struct nouveau_fence *
+nouveau_fence_ref(struct nouveau_fence *fence)
 {
-	struct nouveau_fence *fence = nouveau_fence(sync_obj);
-
 	kref_get(&fence->refcount);
-	return sync_obj;
+	return fence;
 }
 
 bool
-__nouveau_fence_signalled(void *sync_obj, void *sync_arg)
+nouveau_fence_signalled(struct nouveau_fence *fence)
 {
-	struct nouveau_fence *fence = nouveau_fence(sync_obj);
 	struct nouveau_channel *chan = fence->channel;
 
 	if (fence->signalled)
@@ -231,25 +226,20 @@ __nouveau_fence_signalled(void *sync_obj, void *sync_arg)
 }
 
 int
-__nouveau_fence_wait(void *sync_obj, void *sync_arg, bool lazy, bool intr)
+nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 {
-	struct nouveau_fence *fence = nouveau_fence(sync_obj);
-	unsigned long timeout = fence->timeout;
 	unsigned long sleep_time = NSEC_PER_MSEC / 1000;
 	ktime_t t;
 	int ret = 0;
 
-	while (1) {
-		if (__nouveau_fence_signalled(sync_obj, sync_arg))
-			break;
-
-		if (time_after_eq(jiffies, timeout)) {
+	while (!nouveau_fence_signalled(fence)) {
+		if (time_after_eq(jiffies, fence->timeout)) {
 			ret = -EBUSY;
 			break;
 		}
 
-		__set_current_state(intr ? TASK_INTERRUPTIBLE
-			: TASK_UNINTERRUPTIBLE);
+		__set_current_state(intr ? TASK_INTERRUPTIBLE :
+					   TASK_UNINTERRUPTIBLE);
 		if (lazy) {
 			t = ktime_set(0, sleep_time);
 			schedule_hrtimeout(&t, HRTIMER_MODE_REL);
