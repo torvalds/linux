@@ -622,7 +622,7 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 	}
 
 	DEB_EE("VIDIOC_G_AUDIO %d\n", a->index);
-	memcpy(a, &mxb_audios[video_audio_connect[mxb->cur_audinput]], sizeof(struct v4l2_audio));
+	*a = mxb_audios[video_audio_connect[mxb->cur_audinput]];
 	return 0;
 }
 
