@@ -3359,8 +3359,8 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 		      .check_perm = (_p) }
 #define N    D(0)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
-#define G(_f, _g) { .flags = ((_f) | Group), .u.group = (_g) }
-#define GD(_f, _g) { .flags = ((_f) | GroupDual), .u.gdual = (_g) }
+#define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
+#define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
 #define I(_f, _e) { .flags = (_f), .u.execute = (_e) }
 #define II(_f, _e, _i) \
 	{ .flags = (_f), .u.execute = (_e), .intercept = x86_intercept_##_i }
@@ -3380,25 +3380,25 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 		I2bv(((_f) & ~Lock) | DstAcc | SrcImm, _e)
 
 static struct opcode group7_rm1[] = {
-	DI(SrcNone | ModRM | Priv, monitor),
-	DI(SrcNone | ModRM | Priv, mwait),
+	DI(SrcNone | Priv, monitor),
+	DI(SrcNone | Priv, mwait),
 	N, N, N, N, N, N,
 };
 
 static struct opcode group7_rm3[] = {
-	DIP(SrcNone | ModRM | Prot | Priv, vmrun,   check_svme_pa),
-	II(SrcNone | ModRM | Prot | VendorSpecific, em_vmmcall, vmmcall),
-	DIP(SrcNone | ModRM | Prot | Priv, vmload,  check_svme_pa),
-	DIP(SrcNone | ModRM | Prot | Priv, vmsave,  check_svme_pa),
-	DIP(SrcNone | ModRM | Prot | Priv, stgi,    check_svme),
-	DIP(SrcNone | ModRM | Prot | Priv, clgi,    check_svme),
-	DIP(SrcNone | ModRM | Prot | Priv, skinit,  check_svme),
-	DIP(SrcNone | ModRM | Prot | Priv, invlpga, check_svme),
+	DIP(SrcNone | Prot | Priv,		vmrun,		check_svme_pa),
+	II(SrcNone  | Prot | VendorSpecific,	em_vmmcall,	vmmcall),
+	DIP(SrcNone | Prot | Priv,		vmload,		check_svme_pa),
+	DIP(SrcNone | Prot | Priv,		vmsave,		check_svme_pa),
+	DIP(SrcNone | Prot | Priv,		stgi,		check_svme),
+	DIP(SrcNone | Prot | Priv,		clgi,		check_svme),
+	DIP(SrcNone | Prot | Priv,		skinit,		check_svme),
+	DIP(SrcNone | Prot | Priv,		invlpga,	check_svme),
 };
 
 static struct opcode group7_rm7[] = {
 	N,
-	DIP(SrcNone | ModRM, rdtscp, check_rdtsc),
+	DIP(SrcNone, rdtscp, check_rdtsc),
 	N, N, N, N, N, N,
 };
 
@@ -3414,76 +3414,77 @@ static struct opcode group1[] = {
 };
 
 static struct opcode group1A[] = {
-	I(DstMem | SrcNone | ModRM | Mov | Stack, em_pop), N, N, N, N, N, N, N,
+	I(DstMem | SrcNone | Mov | Stack, em_pop), N, N, N, N, N, N, N,
 };
 
 static struct opcode group3[] = {
-	I(DstMem | SrcImm | ModRM, em_test),
-	I(DstMem | SrcImm | ModRM, em_test),
-	I(DstMem | SrcNone | ModRM | Lock, em_not),
-	I(DstMem | SrcNone | ModRM | Lock, em_neg),
-	I(SrcMem | ModRM, em_mul_ex),
-	I(SrcMem | ModRM, em_imul_ex),
-	I(SrcMem | ModRM, em_div_ex),
-	I(SrcMem | ModRM, em_idiv_ex),
+	I(DstMem | SrcImm, em_test),
+	I(DstMem | SrcImm, em_test),
+	I(DstMem | SrcNone | Lock, em_not),
+	I(DstMem | SrcNone | Lock, em_neg),
+	I(SrcMem, em_mul_ex),
+	I(SrcMem, em_imul_ex),
+	I(SrcMem, em_div_ex),
+	I(SrcMem, em_idiv_ex),
 };
 
 static struct opcode group4[] = {
-	I(ByteOp | DstMem | SrcNone | ModRM | Lock, em_grp45),
-	I(ByteOp | DstMem | SrcNone | ModRM | Lock, em_grp45),
+	I(ByteOp | DstMem | SrcNone | Lock, em_grp45),
+	I(ByteOp | DstMem | SrcNone | Lock, em_grp45),
 	N, N, N, N, N, N,
 };
 
 static struct opcode group5[] = {
-	I(DstMem | SrcNone | ModRM | Lock, em_grp45),
-	I(DstMem | SrcNone | ModRM | Lock, em_grp45),
-	I(SrcMem | ModRM | Stack, em_grp45),
-	I(SrcMemFAddr | ModRM | ImplicitOps | Stack, em_call_far),
-	I(SrcMem | ModRM | Stack, em_grp45),
-	I(SrcMemFAddr | ModRM | ImplicitOps, em_grp45),
-	I(SrcMem | ModRM | Stack, em_grp45), N,
+	I(DstMem | SrcNone | Lock,		em_grp45),
+	I(DstMem | SrcNone | Lock,		em_grp45),
+	I(SrcMem | Stack,			em_grp45),
+	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
+	I(SrcMem | Stack,			em_grp45),
+	I(SrcMemFAddr | ImplicitOps,		em_grp45),
+	I(SrcMem | Stack,			em_grp45), N,
 };
 
 static struct opcode group6[] = {
-	DI(ModRM | Prot,        sldt),
-	DI(ModRM | Prot,        str),
-	DI(ModRM | Prot | Priv, lldt),
-	DI(ModRM | Prot | Priv, ltr),
+	DI(Prot,	sldt),
+	DI(Prot,	str),
+	DI(Prot | Priv,	lldt),
+	DI(Prot | Priv,	ltr),
 	N, N, N, N,
 };
 
 static struct group_dual group7 = { {
-	DI(ModRM | Mov | DstMem | Priv, sgdt),
-	DI(ModRM | Mov | DstMem | Priv, sidt),
-	II(ModRM | SrcMem | Priv, em_lgdt, lgdt),
-	II(ModRM | SrcMem | Priv, em_lidt, lidt),
-	II(SrcNone | ModRM | DstMem | Mov, em_smsw, smsw), N,
-	II(SrcMem16 | ModRM | Mov | Priv, em_lmsw, lmsw),
-	II(SrcMem | ModRM | ByteOp | Priv | NoAccess, em_invlpg, invlpg),
+	DI(Mov | DstMem | Priv,			sgdt),
+	DI(Mov | DstMem | Priv,			sidt),
+	II(SrcMem | Priv,			em_lgdt, lgdt),
+	II(SrcMem | Priv,			em_lidt, lidt),
+	II(SrcNone | DstMem | Mov,		em_smsw, smsw), N,
+	II(SrcMem16 | Mov | Priv,		em_lmsw, lmsw),
+	II(SrcMem | ByteOp | Priv | NoAccess,	em_invlpg, invlpg),
 }, {
-	I(SrcNone | ModRM | Priv | VendorSpecific, em_vmcall),
+	I(SrcNone | Priv | VendorSpecific,	em_vmcall),
 	EXT(0, group7_rm1),
 	N, EXT(0, group7_rm3),
-	II(SrcNone | ModRM | DstMem | Mov, em_smsw, smsw), N,
-	II(SrcMem16 | ModRM | Mov | Priv, em_lmsw, lmsw), EXT(0, group7_rm7),
+	II(SrcNone | DstMem | Mov,		em_smsw, smsw), N,
+	II(SrcMem16 | Mov | Priv,		em_lmsw, lmsw),
+	EXT(0, group7_rm7),
 } };
 
 static struct opcode group8[] = {
 	N, N, N, N,
-	I(DstMem | SrcImmByte | ModRM, em_bt),
-	I(DstMem | SrcImmByte | ModRM | Lock | PageTable, em_bts),
-	I(DstMem | SrcImmByte | ModRM | Lock, em_btr),
-	I(DstMem | SrcImmByte | ModRM | Lock | PageTable, em_btc),
+	I(DstMem | SrcImmByte,				em_bt),
+	I(DstMem | SrcImmByte | Lock | PageTable,	em_bts),
+	I(DstMem | SrcImmByte | Lock,			em_btr),
+	I(DstMem | SrcImmByte | Lock | PageTable,	em_btc),
 };
 
 static struct group_dual group9 = { {
-	N, I(DstMem64 | ModRM | Lock | PageTable, em_cmpxchg8b), N, N, N, N, N, N,
+	N, I(DstMem64 | Lock | PageTable, em_cmpxchg8b), N, N, N, N, N, N,
 }, {
 	N, N, N, N, N, N, N, N,
 } };
 
 static struct opcode group11[] = {
-	I(DstMem | SrcImm | ModRM | Mov | PageTable, em_mov),
+	I(DstMem | SrcImm | Mov | PageTable, em_mov),
 	X7(D(Undefined)),
 };
 
@@ -3541,10 +3542,10 @@ static struct opcode opcode_table[256] = {
 	/* 0x70 - 0x7F */
 	X16(D(SrcImmByte)),
 	/* 0x80 - 0x87 */
-	G(ByteOp | DstMem | SrcImm | ModRM | Group, group1),
-	G(DstMem | SrcImm | ModRM | Group, group1),
-	G(ByteOp | DstMem | SrcImm | ModRM | No64 | Group, group1),
-	G(DstMem | SrcImmByte | ModRM | Group, group1),
+	G(ByteOp | DstMem | SrcImm, group1),
+	G(DstMem | SrcImm, group1),
+	G(ByteOp | DstMem | SrcImm | No64, group1),
+	G(DstMem | SrcImmByte, group1),
 	I2bv(DstMem | SrcReg | ModRM, em_test),
 	I2bv(DstMem | SrcReg | ModRM | Lock | PageTable, em_xchg),
 	/* 0x88 - 0x8F */
