@@ -98,7 +98,7 @@ static int __must_check smsc75xx_read_reg(struct usbnet *dev, u32 index,
 
 	if (unlikely(ret < 0))
 		netdev_warn(dev->net,
-			"Failed to read register index 0x%08x", index);
+			"Failed to read reg index 0x%08x: %d", index, ret);
 
 	le32_to_cpus(buf);
 	*data = *buf;
@@ -128,7 +128,7 @@ static int __must_check smsc75xx_write_reg(struct usbnet *dev, u32 index,
 
 	if (unlikely(ret < 0))
 		netdev_warn(dev->net,
-			"Failed to write register index 0x%08x", index);
+			"Failed to write reg index 0x%08x: %d", index, ret);
 
 	kfree(buf);
 
