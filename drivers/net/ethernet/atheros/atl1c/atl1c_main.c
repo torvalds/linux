@@ -330,6 +330,9 @@ static void atl1c_common_task(struct work_struct *work)
 	adapter = container_of(work, struct atl1c_adapter, common_task);
 	netdev = adapter->netdev;
 
+	if (test_bit(__AT_DOWN, &adapter->flags))
+		return;
+
 	if (test_and_clear_bit(ATL1C_WORK_EVENT_RESET, &adapter->work_event)) {
 		netif_device_detach(netdev);
 		atl1c_down(adapter);
@@ -2311,6 +2314,8 @@ static int atl1c_close(struct net_device *netdev)
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 
 	WARN_ON(test_bit(__AT_RESETTING, &adapter->flags));
+	set_bit(__AT_DOWN, &adapter->flags);
+	cancel_work_sync(&adapter->common_task);
 	atl1c_down(adapter);
 	atl1c_free_ring_resources(adapter);
 	return 0;
