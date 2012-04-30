@@ -42,44 +42,63 @@
 static DEFINE_MUTEX(mem_ctls_mutex);
 static LIST_HEAD(mc_devices);
 
+unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
+			         unsigned len)
+{
+	struct mem_ctl_info *mci = dimm->mci;
+	int i, n, count = 0;
+	char *p = buf;
+
+	for (i = 0; i < mci->n_layers; i++) {
+		n = snprintf(p, len, "%s %d ",
+			      edac_layer_name[mci->layers[i].type],
+			      dimm->location[i]);
+		p += n;
+		len -= n;
+		count += n;
+		if (!len)
+			break;
+	}
+
+	return count;
+}
+
 #ifdef CONFIG_EDAC_DEBUG
 
 static void edac_mc_dump_channel(struct rank_info *chan)
 {
-	edac_dbg(4, "\tchannel = %p\n", chan);
-	edac_dbg(4, "\tchannel->chan_idx = %d\n", chan->chan_idx);
-	edac_dbg(4, "\tchannel->csrow = %p\n", chan->csrow);
-	edac_dbg(4, "\tchannel->dimm = %p\n", chan->dimm);
+	edac_dbg(4, "  channel->chan_idx = %d\n", chan->chan_idx);
+	edac_dbg(4, "    channel = %p\n", chan);
+	edac_dbg(4, "    channel->csrow = %p\n", chan->csrow);
+	edac_dbg(4, "    channel->dimm = %p\n", chan->dimm);
 }
 
-static void edac_mc_dump_dimm(struct dimm_info *dimm)
+static void edac_mc_dump_dimm(struct dimm_info *dimm, int number)
 {
-	int i;
+	char location[80];
 
-	edac_dbg(4, "\tdimm = %p\n", dimm);
-	edac_dbg(4, "\tdimm->label = '%s'\n", dimm->label);
-	edac_dbg(4, "\tdimm->nr_pages = 0x%x\n", dimm->nr_pages);
-	edac_dbg(4, "\tdimm location ");
-	for (i = 0; i < dimm->mci->n_layers; i++) {
-		printk(KERN_CONT "%d", dimm->location[i]);
-		if (i < dimm->mci->n_layers - 1)
-			printk(KERN_CONT ".");
-	}
-	printk(KERN_CONT "\n");
-	edac_dbg(4, "\tdimm->grain = %d\n", dimm->grain);
-	edac_dbg(4, "\tdimm->nr_pages = 0x%x\n", dimm->nr_pages);
+	edac_dimm_info_location(dimm, location, sizeof(location));
+
+	edac_dbg(4, "%s%i: %smapped as virtual row %d, chan %d\n",
+		 dimm->mci->mem_is_per_rank ? "rank" : "dimm",
+		 number, location, dimm->csrow, dimm->cschannel);
+	edac_dbg(4, "  dimm = %p\n", dimm);
+	edac_dbg(4, "  dimm->label = '%s'\n", dimm->label);
+	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
+	edac_dbg(4, "  dimm->grain = %d\n", dimm->grain);
+	edac_dbg(4, "  dimm->nr_pages = 0x%x\n", dimm->nr_pages);
 }
 
 static void edac_mc_dump_csrow(struct csrow_info *csrow)
 {
-	edac_dbg(4, "\tcsrow = %p\n", csrow);
-	edac_dbg(4, "\tcsrow->csrow_idx = %d\n", csrow->csrow_idx);
-	edac_dbg(4, "\tcsrow->first_page = 0x%lx\n", csrow->first_page);
-	edac_dbg(4, "\tcsrow->last_page = 0x%lx\n", csrow->last_page);
-	edac_dbg(4, "\tcsrow->page_mask = 0x%lx\n", csrow->page_mask);
-	edac_dbg(4, "\tcsrow->nr_channels = %d\n", csrow->nr_channels);
-	edac_dbg(4, "\tcsrow->channels = %p\n", csrow->channels);
-	edac_dbg(4, "\tcsrow->mci = %p\n", csrow->mci);
+	edac_dbg(4, "csrow->csrow_idx = %d\n", csrow->csrow_idx);
+	edac_dbg(4, "  csrow = %p\n", csrow);
+	edac_dbg(4, "  csrow->first_page = 0x%lx\n", csrow->first_page);
+	edac_dbg(4, "  csrow->last_page = 0x%lx\n", csrow->last_page);
+	edac_dbg(4, "  csrow->page_mask = 0x%lx\n", csrow->page_mask);
+	edac_dbg(4, "  csrow->nr_channels = %d\n", csrow->nr_channels);
+	edac_dbg(4, "  csrow->channels = %p\n", csrow->channels);
+	edac_dbg(4, "  csrow->mci = %p\n", csrow->mci);
 }
 
 static void edac_mc_dump_mci(struct mem_ctl_info *mci)
@@ -327,8 +346,6 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	memset(&pos, 0, sizeof(pos));
 	row = 0;
 	chn = 0;
-	edac_dbg(4, "initializing %d %s\n",
-		 tot_dimms, per_rank ? "ranks" : "dimms");
 	for (i = 0; i < tot_dimms; i++) {
 		chan = mci->csrows[row]->channels[chn];
 		off = EDAC_DIMM_OFF(layer, n_layers, pos[0], pos[1], pos[2]);
@@ -340,10 +357,6 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 		dimm = kzalloc(sizeof(**mci->dimms), GFP_KERNEL);
 		mci->dimms[off] = dimm;
 		dimm->mci = mci;
-
-		edac_dbg(2, "%d: %s%i (%d:%d:%d): row %d, chan %d\n",
-			 i, per_rank ? "rank" : "dimm", off,
-			 pos[0], pos[1], pos[2], row, chn);
 
 		/*
 		 * Copy DIMM location and initialize it.
@@ -700,14 +713,22 @@ int edac_mc_add_mc(struct mem_ctl_info *mci)
 		int i;
 
 		for (i = 0; i < mci->nr_csrows; i++) {
+			struct csrow_info *csrow = mci->csrows[i];
+			u32 nr_pages = 0;
 			int j;
 
-			edac_mc_dump_csrow(mci->csrows[i]);
-			for (j = 0; j < mci->csrows[i]->nr_channels; j++)
-				edac_mc_dump_channel(mci->csrows[i]->channels[j]);
+			for (j = 0; j < csrow->nr_channels; j++)
+				nr_pages += csrow->channels[j]->dimm->nr_pages;
+			if (!nr_pages)
+				continue;
+			edac_mc_dump_csrow(csrow);
+			for (j = 0; j < csrow->nr_channels; j++)
+				if (csrow->channels[j]->dimm->nr_pages)
+					edac_mc_dump_channel(csrow->channels[j]);
 		}
 		for (i = 0; i < mci->tot_dimms; i++)
-			edac_mc_dump_dimm(mci->dimms[i]);
+			if (mci->dimms[i]->nr_pages)
+				edac_mc_dump_dimm(mci->dimms[i], i);
 	}
 #endif
 	mutex_lock(&mem_ctls_mutex);

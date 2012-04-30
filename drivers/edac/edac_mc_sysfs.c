@@ -485,17 +485,8 @@ static ssize_t dimmdev_location_show(struct device *dev,
 				     struct device_attribute *mattr, char *data)
 {
 	struct dimm_info *dimm = to_dimm(dev);
-	struct mem_ctl_info *mci = dimm->mci;
-	int i;
-	char *p = data;
 
-	for (i = 0; i < mci->n_layers; i++) {
-		p += sprintf(p, "%s %d ",
-			     edac_layer_name[mci->layers[i].type],
-			     dimm->location[i]);
-	}
-
-	return p - data;
+	return edac_dimm_info_location(dimm, data, PAGE_SIZE);
 }
 
 static ssize_t dimmdev_label_show(struct device *dev,
