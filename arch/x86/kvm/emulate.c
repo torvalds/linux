@@ -972,7 +972,6 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
 		ctxt->modrm_rm = base_reg = (ctxt->rex_prefix & 1) << 3; /* REG.B */
 	}
 
-	ctxt->modrm = insn_fetch(u8, ctxt);
 	ctxt->modrm_mod |= (ctxt->modrm & 0xc0) >> 6;
 	ctxt->modrm_reg |= (ctxt->modrm & 0x38) >> 3;
 	ctxt->modrm_rm |= (ctxt->modrm & 0x07);
@@ -3976,17 +3975,16 @@ done_prefixes:
 	}
 	ctxt->d = opcode.flags;
 
+	if (ctxt->d & ModRM)
+		ctxt->modrm = insn_fetch(u8, ctxt);
+
 	while (ctxt->d & GroupMask) {
 		switch (ctxt->d & GroupMask) {
 		case Group:
-			ctxt->modrm = insn_fetch(u8, ctxt);
-			--ctxt->_eip;
 			goffset = (ctxt->modrm >> 3) & 7;
 			opcode = opcode.u.group[goffset];
 			break;
 		case GroupDual:
-			ctxt->modrm = insn_fetch(u8, ctxt);
-			--ctxt->_eip;
 			goffset = (ctxt->modrm >> 3) & 7;
 			if ((ctxt->modrm >> 6) == 3)
 				opcode = opcode.u.gdual->mod3[goffset];
