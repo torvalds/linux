@@ -548,6 +548,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
 
+	/* We get here with MSR.EE=0, so enable it to be a nice citizen */
+	__hard_irq_enable();
+
 	trace_kvm_book3s_exit(exit_nr, vcpu);
 	preempt_enable();
 	kvm_resched(vcpu);
