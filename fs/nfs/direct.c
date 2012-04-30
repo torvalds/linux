@@ -396,7 +396,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
 			pos += req_len;
 			count -= req_len;
 		}
-	} while (count != 0);
+	} while (count != 0 && result >= 0);
 
 	kfree(pagevec);
 
@@ -692,6 +692,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 				nfs_release_request(req);
 				nfs_direct_release_pages(pagevec + i,
 							 npages - i);
+				break;
 			}
 			pgbase = 0;
 			bytes -= req_len;
@@ -700,7 +701,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 			pos += req_len;
 			count -= req_len;
 		}
-	} while (count != 0);
+	} while (count != 0 && result >= 0);
 
 	kfree(pagevec);
 
