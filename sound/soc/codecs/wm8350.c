@@ -71,13 +71,6 @@ struct wm8350_data {
 	int fll_freq_in;
 };
 
-static unsigned int wm8350_codec_cache_read(struct snd_soc_codec *codec,
-					    unsigned int reg)
-{
-	struct wm8350 *wm8350 = codec->control_data;
-	return wm8350->reg_cache[reg];
-}
-
 static unsigned int wm8350_codec_read(struct snd_soc_codec *codec,
 				      unsigned int reg)
 {
@@ -929,38 +922,6 @@ static int wm8350_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	return 0;
 }
 
-static int wm8350_pcm_trigger(struct snd_pcm_substream *substream,
-			      int cmd, struct snd_soc_dai *codec_dai)
-{
-	struct snd_soc_codec *codec = codec_dai->codec;
-	int master = wm8350_codec_cache_read(codec, WM8350_AI_DAC_CONTROL) &
-	    WM8350_BCLK_MSTR;
-	int enabled = 0;
-
-	/* Check that the DACs or ADCs are enabled since they are
-	 * required for LRC in master mode. The DACs or ADCs need a
-	 * valid audio path i.e. pin -> ADC or DAC -> pin before
-	 * the LRC will be enabled in master mode. */
-	if (!master || cmd != SNDRV_PCM_TRIGGER_START)
-		return 0;
-
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
-		enabled = wm8350_codec_cache_read(codec, WM8350_POWER_MGMT_4) &
-		    (WM8350_ADCR_ENA | WM8350_ADCL_ENA);
-	} else {
-		enabled = wm8350_codec_cache_read(codec, WM8350_POWER_MGMT_4) &
-		    (WM8350_DACR_ENA | WM8350_DACL_ENA);
-	}
-
-	if (!enabled) {
-		dev_err(codec->dev,
-		       "%s: invalid audio path - no clocks available\n",
-		       __func__);
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int wm8350_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *codec_dai)
@@ -1491,7 +1452,6 @@ EXPORT_SYMBOL_GPL(wm8350_mic_jack_detect);
 static const struct snd_soc_dai_ops wm8350_dai_ops = {
 	 .hw_params	= wm8350_pcm_hw_params,
 	 .digital_mute	= wm8350_mute,
-	 .trigger	= wm8350_pcm_trigger,
 	 .set_fmt	= wm8350_set_dai_fmt,
 	 .set_sysclk	= wm8350_set_dai_sysclk,
 	 .set_pll	= wm8350_set_fll,
