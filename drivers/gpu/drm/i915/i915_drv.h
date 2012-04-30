@@ -401,7 +401,6 @@ typedef struct drm_i915_private {
 	int tex_lru_log_granularity;
 	int allow_batchbuffer;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
-	int vblank_pipe;
 	int num_pipe;
 	int num_pch_pll;
 
