@@ -100,7 +100,7 @@ static void ui__signal(int sig)
 	exit(0);
 }
 
-int ui__init(bool fallback_to_pager __used)
+int ui__init(void)
 {
 	int err;
 

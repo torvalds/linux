@@ -45,27 +45,24 @@ void setup_browser(bool fallback_to_pager);
 void exit_browser(bool wait_for_ok);
 
 #ifdef NO_NEWT_SUPPORT
-static inline int ui__init(bool fallback_to_pager)
+static inline int ui__init(void)
 {
-	if (fallback_to_pager)
-		setup_pager();
-	return 0;
+	return -1;
 }
 static inline void ui__exit(bool wait_for_ok __used) {}
 #else
-int ui__init(bool fallback_to_pager);
+int ui__init(void);
 void ui__exit(bool wait_for_ok);
 #endif
 
 #ifdef NO_GTK2_SUPPORT
-static inline void perf_gtk__init(bool fallback_to_pager)
+static inline int perf_gtk__init(void)
 {
-	if (fallback_to_pager)
-		setup_pager();
+	return -1;
 }
 static inline void perf_gtk__exit(bool wait_for_ok __used) {}
 #else
-void perf_gtk__init(bool fallback_to_pager);
+int perf_gtk__init(void);
 void perf_gtk__exit(bool wait_for_ok);
 #endif
 #endif /* NO_NEWT_SUPPORT && NO_GTK2_SUPPORT */

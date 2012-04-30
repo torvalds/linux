@@ -13,13 +13,14 @@ void setup_browser(bool fallback_to_pager)
 
 	switch (use_browser) {
 	case 2:
-		perf_gtk__init(fallback_to_pager);
-		break;
-
+		if (perf_gtk__init() == 0)
+			break;
+		/* fall through */
 	case 1:
-		ui__init(fallback_to_pager);
-		break;
-
+		use_browser = 1;
+		if (ui__init() == 0)
+			break;
+		/* fall through */
 	default:
 		if (fallback_to_pager)
 			setup_pager();
