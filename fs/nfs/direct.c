@@ -292,7 +292,7 @@ out_put:
 	hdr->release(hdr);
 }
 
-static void nfs_sync_pgio_error(struct list_head *head)
+static void nfs_read_sync_pgio_error(struct list_head *head)
 {
 	struct nfs_page *req;
 
@@ -309,7 +309,7 @@ static void nfs_direct_pgio_init(struct nfs_pgio_header *hdr)
 }
 
 static const struct nfs_pgio_completion_ops nfs_direct_read_completion_ops = {
-	.error_cleanup = nfs_sync_pgio_error,
+	.error_cleanup = nfs_read_sync_pgio_error,
 	.init_hdr = nfs_direct_pgio_init,
 	.completion = nfs_direct_read_completion,
 };
@@ -775,8 +775,20 @@ out_put:
 	hdr->release(hdr);
 }
 
+static void nfs_write_sync_pgio_error(struct list_head *head)
+{
+	struct nfs_page *req;
+
+	while (!list_empty(head)) {
+		req = nfs_list_entry(head->next);
+		nfs_list_remove_request(req);
+		nfs_release_request(req);
+		nfs_unlock_request(req);
+	}
+}
+
 static const struct nfs_pgio_completion_ops nfs_direct_write_completion_ops = {
-	.error_cleanup = nfs_sync_pgio_error,
+	.error_cleanup = nfs_write_sync_pgio_error,
 	.init_hdr = nfs_direct_pgio_init,
 	.completion = nfs_direct_write_completion,
 };
