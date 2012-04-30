@@ -52,14 +52,12 @@
 #endif
 
 /* global variables used by multiple sub-systems within TIPC */
-
 int tipc_random;
 
 const char tipc_alphabet[] =
 	"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.";
 
 /* configurable TIPC parameters */
-
 u32 tipc_own_addr;
 int tipc_max_ports;
 int tipc_max_subscriptions;
@@ -77,7 +75,6 @@ int tipc_remote_management;
  * NOTE: Headroom is reserved to allow prepending of a data link header.
  *       There may also be unrequested tailroom present at the buffer's end.
  */
-
 struct sk_buff *tipc_buf_acquire(u32 size)
 {
 	struct sk_buff *skb;
@@ -95,7 +92,6 @@ struct sk_buff *tipc_buf_acquire(u32 size)
 /**
  * tipc_core_stop_net - shut down TIPC networking sub-systems
  */
-
 static void tipc_core_stop_net(void)
 {
 	tipc_net_stop();
@@ -105,7 +101,6 @@ static void tipc_core_stop_net(void)
 /**
  * start_net - start TIPC networking sub-systems
  */
-
 int tipc_core_start_net(unsigned long addr)
 {
 	int res;
@@ -121,7 +116,6 @@ int tipc_core_start_net(unsigned long addr)
 /**
  * tipc_core_stop - switch TIPC from SINGLE NODE to NOT RUNNING mode
  */
-
 static void tipc_core_stop(void)
 {
 	tipc_netlink_stop();
@@ -137,7 +131,6 @@ static void tipc_core_stop(void)
 /**
  * tipc_core_start - switch TIPC from NOT RUNNING to SINGLE NODE mode
  */
-
 static int tipc_core_start(void)
 {
 	int res;

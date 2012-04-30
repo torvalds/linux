@@ -58,7 +58,6 @@
  * Note: There is no field that identifies the publishing node because it is
  * the same for all items contained within a publication message.
  */
-
 struct distr_item {
 	__be32 type;
 	__be32 lower;
@@ -103,7 +102,6 @@ static struct publ_list *publ_lists[] = {
 /**
  * publ_to_item - add publication info to a publication message
  */
-
 static void publ_to_item(struct distr_item *i, struct publication *p)
 {
 	i->type = htonl(p->type);
@@ -116,7 +114,6 @@ static void publ_to_item(struct distr_item *i, struct publication *p)
 /**
  * named_prepare_buf - allocate & initialize a publication message
  */
-
 static struct sk_buff *named_prepare_buf(u32 type, u32 size, u32 dest)
 {
 	struct sk_buff *buf = tipc_buf_acquire(INT_H_SIZE + size);
@@ -151,7 +148,6 @@ static void named_cluster_distribute(struct sk_buff *buf)
 /**
  * tipc_named_publish - tell other nodes about a new publication by this node
  */
-
 void tipc_named_publish(struct publication *publ)
 {
 	struct sk_buff *buf;
@@ -177,7 +173,6 @@ void tipc_named_publish(struct publication *publ)
 /**
  * tipc_named_withdraw - tell other nodes about a withdrawn publication by this node
  */
-
 void tipc_named_withdraw(struct publication *publ)
 {
 	struct sk_buff *buf;
@@ -236,7 +231,6 @@ static void named_distribute(struct list_head *message_list, u32 node,
 /**
  * tipc_named_node_up - tell specified node about all publications by this node
  */
-
 void tipc_named_node_up(unsigned long nodearg)
 {
 	struct tipc_node *n_ptr;
@@ -246,7 +240,6 @@ void tipc_named_node_up(unsigned long nodearg)
 	u32 max_item_buf = 0;
 
 	/* compute maximum amount of publication data to send per message */
-
 	read_lock_bh(&tipc_net_lock);
 	n_ptr = tipc_node_find(node);
 	if (n_ptr) {
@@ -262,7 +255,6 @@ void tipc_named_node_up(unsigned long nodearg)
 		return;
 
 	/* create list of publication messages, then send them as a unit */
-
 	INIT_LIST_HEAD(&message_list);
 
 	read_lock_bh(&tipc_nametbl_lock);
@@ -279,7 +271,6 @@ void tipc_named_node_up(unsigned long nodearg)
  * Invoked for each publication issued by a newly failed node.
  * Removes publication structure from name table & deletes it.
  */
-
 static void named_purge_publ(struct publication *publ)
 {
 	struct publication *p;
@@ -303,7 +294,6 @@ static void named_purge_publ(struct publication *publ)
 /**
  * tipc_named_recv - process name table update message sent by another node
  */
-
 void tipc_named_recv(struct sk_buff *buf)
 {
 	struct publication *publ;
@@ -361,7 +351,6 @@ void tipc_named_recv(struct sk_buff *buf)
  * All name table entries published by this node are updated to reflect
  * the node's new network address.
  */
-
 void tipc_named_reinit(void)
 {
 	struct publication *publ;

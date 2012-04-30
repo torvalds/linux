@@ -131,7 +131,6 @@ static struct sk_buff *tipc_show_stats(void)
 	tipc_printf(&pb, "TIPC version " TIPC_MOD_VER "\n");
 
 	/* Use additional tipc_printf()'s to return more info ... */
-
 	str_len = tipc_printbuf_validate(&pb);
 	skb_put(buf, TLV_SPACE(str_len));
 	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
@@ -191,7 +190,6 @@ static struct sk_buff *cfg_set_own_addr(void)
 	 * configuration commands can't be received until a local configuration
 	 * command to enable the first bearer is received and processed.
 	 */
-
 	spin_unlock_bh(&config_lock);
 	tipc_core_start_net(addr);
 	spin_lock_bh(&config_lock);
@@ -283,13 +281,11 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	spin_lock_bh(&config_lock);
 
 	/* Save request and reply details in a well-known location */
-
 	req_tlv_area = request_area;
 	req_tlv_space = request_space;
 	rep_headroom = reply_headroom;
 
 	/* Check command authorization */
-
 	if (likely(in_own_node(orig_node))) {
 		/* command is permitted */
 	} else if (cmd >= 0x8000) {
@@ -310,7 +306,6 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	}
 
 	/* Call appropriate processing routine */
-
 	switch (cmd) {
 	case TIPC_CMD_NOOP:
 		rep_tlv_buf = tipc_cfg_reply_none();
@@ -433,7 +428,6 @@ static void cfg_named_msg_event(void *userdata,
 	struct sk_buff *rep_buf;
 
 	/* Validate configuration message header (ignore invalid message) */
-
 	req_hdr = (struct tipc_cfg_msg_hdr *)msg;
 	if ((size < sizeof(*req_hdr)) ||
 	    (size != TCM_ALIGN(ntohl(req_hdr->tcm_len))) ||
@@ -443,7 +437,6 @@ static void cfg_named_msg_event(void *userdata,
 	}
 
 	/* Generate reply for request (if can't, return request) */
-
 	rep_buf = tipc_cfg_do_cmd(orig->node,
 				  ntohs(req_hdr->tcm_type),
 				  msg + sizeof(*req_hdr),
