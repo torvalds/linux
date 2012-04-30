@@ -119,6 +119,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		      struct drm_file *file_priv,
 		      uint32_t vram_handle, uint32_t gart_handle)
 {
+	struct nouveau_exec_engine *fence = nv_engine(dev, NVOBJ_ENGINE_FENCE);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
@@ -157,8 +158,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	}
 
 	NV_DEBUG(dev, "initialising channel %d\n", chan->id);
-	INIT_LIST_HEAD(&chan->fence.pending);
-	spin_lock_init(&chan->fence.lock);
 
 	/* setup channel's memory and vm */
 	ret = nouveau_gpuobj_channel_init(chan, vram_handle, gart_handle);
@@ -188,7 +187,7 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	chan->user_put = 0x40;
 	chan->user_get = 0x44;
 	if (dev_priv->card_type >= NV_50)
-                chan->user_get_hi = 0x60;
+		chan->user_get_hi = 0x60;
 
 	/* disable the fifo caches */
 	pfifo->reassign(dev, false);
@@ -211,7 +210,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 
 	for (i = 0; i < NOUVEAU_DMA_SKIPS; i++)
 		OUT_RING  (chan, 0x00000000);
-	FIRE_RING(chan);
 
 	ret = nouveau_gpuobj_gr_new(chan, NvSw, nouveau_software_class(dev));
 	if (ret) {
@@ -219,7 +217,21 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
-	ret = nouveau_fence_channel_init(chan);
+	if (dev_priv->card_type < NV_C0) {
+		ret = RING_SPACE(chan, 2);
+		if (ret) {
+			nouveau_channel_put(&chan);
+			return ret;
+		}
+
+		BEGIN_NV04(chan, NvSubSw, NV01_SUBCHAN_OBJECT, 1);
+		OUT_RING  (chan, NvSw);
+		FIRE_RING (chan);
+	}
+
+	FIRE_RING(chan);
+
+	ret = fence->context_new(chan, NVOBJ_ENGINE_FENCE);
 	if (ret) {
 		nouveau_channel_put(&chan);
 		return ret;
@@ -291,12 +303,6 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	/* give it chance to idle */
 	nouveau_channel_idle(chan);
 
-	/* ensure all outstanding fences are signaled.  they should be if the
-	 * above attempts at idling were OK, but if we failed this'll tell TTM
-	 * we're done with the buffers.
-	 */
-	nouveau_fence_channel_fini(chan);
-
 	/* boot it off the hardware */
 	pfifo->reassign(dev, false);
 
@@ -305,6 +311,9 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
 		if (chan->engctx[i])
 			dev_priv->eng[i]->context_del(chan, i);
+		/*XXX: clean this up later, order is important */
+		if (i == NVOBJ_ENGINE_FENCE)
+			pfifo->destroy_context(chan);
 	}
 
 	pfifo->reassign(dev, true);
@@ -367,18 +376,14 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	nouveau_fence_update(chan);
-
-	if (chan->fence.sequence != chan->fence.sequence_ack) {
-		ret = nouveau_fence_new(chan, &fence);
-		if (!ret) {
-			ret = nouveau_fence_wait(fence, false, false);
-			nouveau_fence_unref(&fence);
-		}
-
-		if (ret)
-			NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
+	ret = nouveau_fence_new(chan, &fence);
+	if (!ret) {
+		ret = nouveau_fence_wait(fence, false, false);
+		nouveau_fence_unref(&fence);
 	}
+
+	if (ret)
+		NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
 }
 
 /* cleans up all the fifos from file_priv */

@@ -39,6 +39,7 @@
 #include "nouveau_gpio.h"
 #include "nouveau_pm.h"
 #include "nv50_display.h"
+#include "nouveau_fence.h"
 #include "nouveau_software.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
@@ -768,6 +769,29 @@ nouveau_card_init(struct drm_device *dev)
 	if (!dev_priv->noaccel) {
 		switch (dev_priv->card_type) {
 		case NV_04:
+			nv04_fence_create(dev);
+			break;
+		case NV_10:
+		case NV_20:
+		case NV_30:
+		case NV_40:
+		case NV_50:
+			if (dev_priv->chipset < 0x84)
+				nv10_fence_create(dev);
+			else
+				nv84_fence_create(dev);
+			break;
+		case NV_C0:
+		case NV_D0:
+		case NV_E0:
+			nvc0_fence_create(dev);
+			break;
+		default:
+			break;
+		}
+
+		switch (dev_priv->card_type) {
+		case NV_04:
 		case NV_10:
 		case NV_20:
 		case NV_30:
@@ -894,14 +918,10 @@ nouveau_card_init(struct drm_device *dev)
 	nouveau_backlight_init(dev);
 	nouveau_pm_init(dev);
 
-	ret = nouveau_fence_init(dev);
-	if (ret)
-		goto out_pm;
-
 	if (dev_priv->eng[NVOBJ_ENGINE_GR]) {
 		ret = nouveau_card_channel_init(dev);
 		if (ret)
-			goto out_fence;
+			goto out_pm;
 	}
 
 	if (dev->mode_config.num_crtc) {
@@ -916,8 +936,6 @@ nouveau_card_init(struct drm_device *dev)
 
 out_chan:
 	nouveau_card_channel_fini(dev);
-out_fence:
-	nouveau_fence_fini(dev);
 out_pm:
 	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
@@ -974,7 +992,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	}
 
 	nouveau_card_channel_fini(dev);
-	nouveau_fence_fini(dev);
 	nouveau_pm_fini(dev);
 	nouveau_backlight_exit(dev);
 	nouveau_display_destroy(dev);

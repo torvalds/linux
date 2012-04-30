@@ -165,6 +165,7 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_PPP	NVOBJ_ENGINE_MPEG
 #define NVOBJ_ENGINE_BSP	6
 #define NVOBJ_ENGINE_VP		7
+#define NVOBJ_ENGINE_FENCE	14
 #define NVOBJ_ENGINE_DISPLAY	15
 #define NVOBJ_ENGINE_NR		16
 
@@ -233,17 +234,6 @@ struct nouveau_channel {
 	uint32_t user_get;
 	uint32_t user_get_hi;
 	uint32_t user_put;
-
-	/* Fencing */
-	struct {
-		/* lock protects the pending list only */
-		spinlock_t lock;
-		struct list_head pending;
-		uint32_t sequence;
-		uint32_t sequence_ack;
-		atomic_t last_sequence_irq;
-		struct nouveau_vma vma;
-	} fence;
 
 	/* DMA push buffer */
 	struct nouveau_gpuobj *pushbuf;
@@ -1443,13 +1433,6 @@ extern int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
 			       struct nouveau_vma *);
 extern void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
-/* nouveau_fence.c */
-int  nouveau_fence_init(struct drm_device *);
-void nouveau_fence_fini(struct drm_device *);
-int  nouveau_fence_channel_init(struct nouveau_channel *);
-void nouveau_fence_channel_fini(struct nouveau_channel *);
-void nouveau_fence_work(struct nouveau_fence *fence,
-			void (*work)(void *priv, bool signalled), void *priv);
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, int size, int align,
 			   uint32_t domain, uint32_t tile_mode,
@@ -1746,6 +1729,7 @@ nv44_graph_class(struct drm_device *dev)
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_EQUAL                 0x00000001
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_WRITE_LONG                    0x00000002
 #define NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL                0x00000004
+#define NVC0_SUBCHAN_SEMAPHORE_TRIGGER_YIELD                         0x00001000
 #define NV84_SUBCHAN_NOTIFY_INTR                                     0x00000020
 #define NV84_SUBCHAN_WRCACHE_FLUSH                                   0x00000024
 #define NV10_SUBCHAN_REF_CNT                                         0x00000050

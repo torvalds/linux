@@ -26,6 +26,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
+#include "nouveau_fence.h"
 #include "nouveau_software.h"
 #include "nouveau_hw.h"
 
@@ -36,13 +37,6 @@ struct nv04_software_priv {
 struct nv04_software_chan {
 	struct nouveau_software_chan base;
 };
-
-static int
-mthd_fence(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
-{
-	atomic_set(&chan->fence.last_sequence_irq, data);
-	return 0;
-}
 
 static int
 mthd_flip(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
@@ -69,7 +63,6 @@ nv04_software_context_new(struct nouveau_channel *chan, int engine)
 		return -ENOMEM;
 
 	nouveau_software_context_new(&pch->base);
-	atomic_set(&chan->fence.last_sequence_irq, 0);
 	chan->engctx[engine] = pch;
 	return 0;
 }
@@ -143,7 +136,7 @@ nv04_software_create(struct drm_device *dev)
 	NVOBJ_ENGINE_ADD(dev, SW, &psw->base.base);
 	if (dev_priv->card_type <= NV_04) {
 		NVOBJ_CLASS(dev, 0x006e, SW);
-		NVOBJ_MTHD (dev, 0x006e, 0x0150, mthd_fence);
+		NVOBJ_MTHD (dev, 0x006e, 0x0150, nv04_fence_mthd);
 		NVOBJ_MTHD (dev, 0x006e, 0x0500, mthd_flip);
 	} else {
 		NVOBJ_CLASS(dev, 0x016e, SW);

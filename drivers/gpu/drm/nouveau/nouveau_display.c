@@ -461,7 +461,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 		OUT_RING  (chan, 0x00000000);
 	} else {
 		BEGIN_NVC0(chan, 0, NV10_SUBCHAN_REF_CNT, 1);
-		OUT_RING  (chan, ++chan->fence.sequence);
+		OUT_RING  (chan, 0);
 		BEGIN_IMC0(chan, 0, NVSW_SUBCHAN_PAGE_FLIP, 0x0000);
 	}
 	FIRE_RING (chan);

@@ -709,7 +709,7 @@ nouveau_gem_ioctl_pushbuf(struct drm_device *dev, void *data,
 	}
 
 	if (chan->dma.ib_max) {
-		ret = nouveau_dma_wait(chan, req->nr_push + 1, 6);
+		ret = nouveau_dma_wait(chan, req->nr_push + 1, 16);
 		if (ret) {
 			NV_INFO(dev, "nv50cal_space: %d\n", ret);
 			goto out;
