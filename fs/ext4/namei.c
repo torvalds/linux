@@ -1612,11 +1612,8 @@ static int add_dirent_to_buf(handle_t *handle, struct dentry *dentry,
 		de = de1;
 	}
 	de->file_type = EXT4_FT_UNKNOWN;
-	if (inode) {
-		de->inode = cpu_to_le32(inode->i_ino);
-		ext4_set_de_type(dir->i_sb, de, inode->i_mode);
-	} else
-		de->inode = 0;
+	de->inode = cpu_to_le32(inode->i_ino);
+	ext4_set_de_type(dir->i_sb, de, inode->i_mode);
 	de->name_len = namelen;
 	memcpy(de->name, name, namelen);
 	/*
