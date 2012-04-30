@@ -76,6 +76,7 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
 	u32 basic_rates = 0;
+	enum nl80211_channel_type sta_channel_type = NL80211_CHAN_NO_HT;
 
 	/*
 	 * As support for each feature is added, check for matching
@@ -102,10 +103,15 @@ bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.bss_conf.basic_rates != basic_rates)
 		goto mismatch;
 
-	/* disallow peering with mismatched channel types for now */
+	if (ie->ht_operation)
+		sta_channel_type =
+			ieee80211_ht_oper_to_channel_type(ie->ht_operation);
+
+	/* Disallow HT40+/- mismatch */
 	if (ie->ht_operation &&
-	    (local->_oper_channel_type !=
-	     ieee80211_ht_oper_to_channel_type(ie->ht_operation)))
+	    local->_oper_channel_type > NL80211_CHAN_HT20 &&
+	    sta_channel_type > NL80211_CHAN_HT20 &&
+	    local->_oper_channel_type != sta_channel_type)
 		goto mismatch;
 
 	return true;
