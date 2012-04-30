@@ -303,11 +303,13 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 		r600_hdmi_is_audio_buffer_filled(encoder)) {
 
 		/* disable audio workaround */
-		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset, 0x0001, ~0x1001);
+		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
+			 0, ~HDMI0_AUDIO_TEST_EN);
 
 	} else {
 		/* enable audio workaround */
-		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset, 0x1001, ~0x1001);
+		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
+			 HDMI0_AUDIO_TEST_EN, ~HDMI0_AUDIO_TEST_EN);
 	}
 }
 
@@ -331,6 +333,18 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
 	WREG32(HDMI0_GC + offset, 0x0);
+
+	/* Send audio packets */
+	if (ASIC_IS_DCE4(rdev))
+		WREG32_P(0x74fc + offset,
+			 AFMT_AUDIO_SAMPLE_SEND, ~AFMT_AUDIO_SAMPLE_SEND);
+	else if (ASIC_IS_DCE32(rdev))
+		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + offset,
+			 AFMT_AUDIO_SAMPLE_SEND, ~AFMT_AUDIO_SAMPLE_SEND);
+	else
+		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
+			 HDMI0_AUDIO_SAMPLE_SEND, ~HDMI0_AUDIO_SAMPLE_SEND);
+
 	WREG32(HDMI0_ACR_PACKET_CONTROL + offset, 0x1000);
 
 	r600_hdmi_update_ACR(encoder, mode->clock);
@@ -495,10 +509,6 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	offset = radeon_encoder->hdmi_offset;
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
-	} else if (ASIC_IS_DCE4(rdev)) {
-		WREG32_P(0x74fc + radeon_encoder->hdmi_offset, 0x1, ~0x1);
-	} else if (ASIC_IS_DCE32(rdev)) {
-		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + radeon_encoder->hdmi_offset, 0x1, ~0x1);
 	} else if (ASIC_IS_DCE3(rdev)) {
 		/* TODO */
 	} else if (rdev->family >= CHIP_R600) {
@@ -558,10 +568,6 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 
 	if (ASIC_IS_DCE5(rdev)) {
 		/* TODO */
-	} else if (ASIC_IS_DCE4(rdev)) {
-		WREG32_P(0x74fc + radeon_encoder->hdmi_offset, 0, ~0x1);
-	} else if (ASIC_IS_DCE32(rdev)) {
-		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + radeon_encoder->hdmi_offset, 0, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
