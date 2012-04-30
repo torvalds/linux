@@ -37,7 +37,6 @@
 #include "nouveau_ramht.h"
 #include "nouveau_software.h"
 #include "nouveau_vm.h"
-#include "nv50_display.h"
 
 struct nouveau_gpuobj_method {
 	struct list_head head;
@@ -556,11 +555,10 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 static int
 nvc0_gpuobj_channel_init(struct nouveau_channel *chan, struct nouveau_vm *vm)
 {
-	struct drm_nouveau_private *dev_priv = chan->dev->dev_private;
 	struct drm_device *dev = chan->dev;
 	struct nouveau_gpuobj *pgd = NULL;
 	struct nouveau_vm_pgd *vpgd;
-	int ret, i;
+	int ret;
 
 	ret = nouveau_gpuobj_new(dev, NULL, 4096, 0x1000, 0, &chan->ramin);
 	if (ret)
@@ -585,19 +583,6 @@ nvc0_gpuobj_channel_init(struct nouveau_channel *chan, struct nouveau_vm *vm)
 	nv_wo32(chan->ramin, 0x0208, 0xffffffff);
 	nv_wo32(chan->ramin, 0x020c, 0x000000ff);
 
-	/* map display semaphore buffers into channel's vm */
-	for (i = 0; i < dev->mode_config.num_crtc; i++) {
-		struct nouveau_bo *bo;
-		if (dev_priv->card_type >= NV_D0)
-			bo = nvd0_display_crtc_sema(dev, i);
-		else
-			bo = nv50_display(dev)->crtc[i].sem.bo;
-
-		ret = nouveau_bo_vma_add(bo, chan->vm, &chan->dispc_vma[i]);
-		if (ret)
-			return ret;
-	}
-
 	return 0;
 }
 
@@ -610,7 +595,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(chan->file_priv);
 	struct nouveau_vm *vm = fpriv ? fpriv->vm : dev_priv->chan_vm;
 	struct nouveau_gpuobj *vram = NULL, *tt = NULL;
-	int ret, i;
+	int ret;
 
 	NV_DEBUG(dev, "ch%d vram=0x%08x tt=0x%08x\n", chan->id, vram_h, tt_h);
 	if (dev_priv->card_type >= NV_C0)
@@ -658,25 +643,6 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 		nouveau_gpuobj_ref(NULL, &ramht);
 		if (ret)
 			return ret;
-
-		/* dma objects for display sync channel semaphore blocks */
-		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nouveau_gpuobj *sem = NULL;
-			struct nv50_display_crtc *dispc =
-				&nv50_display(dev)->crtc[i];
-			u64 offset = dispc->sem.bo->bo.offset;
-
-			ret = nouveau_gpuobj_dma_new(chan, 0x3d, offset, 0xfff,
-						     NV_MEM_ACCESS_RW,
-						     NV_MEM_TARGET_VRAM, &sem);
-			if (ret)
-				return ret;
-
-			ret = nouveau_ramht_insert(chan, NvEvoSema0 + i, sem);
-			nouveau_gpuobj_ref(NULL, &sem);
-			if (ret)
-				return ret;
-		}
 	}
 
 	/* VRAM ctxdma */
@@ -736,25 +702,7 @@ nouveau_gpuobj_channel_init(struct nouveau_channel *chan,
 void
 nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 {
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int i;
-
-	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	if (dev_priv->card_type >= NV_D0) {
-		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nouveau_bo *bo = nvd0_display_crtc_sema(dev, i);
-			nouveau_bo_vma_del(bo, &chan->dispc_vma[i]);
-		}
-	} else
-	if (dev_priv->card_type >= NV_50) {
-		struct nv50_display *disp = nv50_display(dev);
-		for (i = 0; i < dev->mode_config.num_crtc; i++) {
-			struct nv50_display_crtc *dispc = &disp->crtc[i];
-			nouveau_bo_vma_del(dispc->sem.bo, &chan->dispc_vma[i]);
-		}
-	}
+	NV_DEBUG(chan->dev, "ch%d\n", chan->id);
 
 	nouveau_vm_ref(NULL, &chan->vm, chan->vm_pd);
 	nouveau_gpuobj_ref(NULL, &chan->vm_pd);

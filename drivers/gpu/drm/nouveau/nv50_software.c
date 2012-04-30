@@ -23,9 +23,12 @@
  */
 
 #include "drmP.h"
+
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
 #include "nouveau_software.h"
+
+#include "nv50_display.h"
 
 struct nv50_software_priv {
 	struct nouveau_software_priv base;
@@ -103,7 +106,10 @@ mthd_flip(struct nouveau_channel *chan, u32 class, u32 mthd, u32 data)
 static int
 nv50_software_context_new(struct nouveau_channel *chan, int engine)
 {
+	struct nv50_software_priv *psw = nv_engine(chan->dev, NVOBJ_ENGINE_SW);
+	struct nv50_display *pdisp = nv50_display(chan->dev);
 	struct nv50_software_chan *pch;
+	int ret = 0, i;
 
 	pch = kzalloc(sizeof(*pch), GFP_KERNEL);
 	if (!pch)
@@ -111,9 +117,27 @@ nv50_software_context_new(struct nouveau_channel *chan, int engine)
 
 	nouveau_software_context_new(&pch->base);
 	pch->base.vblank.bo = chan->notifier_bo;
-
 	chan->engctx[engine] = pch;
-	return 0;
+
+	/* dma objects for display sync channel semaphore blocks */
+	for (i = 0; i < chan->dev->mode_config.num_crtc; i++) {
+		struct nv50_display_crtc *dispc = &pdisp->crtc[i];
+		struct nouveau_gpuobj *obj = NULL;
+
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY,
+					     dispc->sem.bo->bo.offset, 0x1000,
+					     NV_MEM_ACCESS_RW,
+					     NV_MEM_TARGET_VRAM, &obj);
+		if (ret)
+			break;
+
+		ret = nouveau_ramht_insert(chan, NvEvoSema0 + i, obj);
+		nouveau_gpuobj_ref(NULL, &obj);
+	}
+
+	if (ret)
+		psw->base.base.context_del(chan, engine);
+	return ret;
 }
 
 static void

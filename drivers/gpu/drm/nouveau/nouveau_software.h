@@ -64,5 +64,6 @@ nouveau_software_class(struct drm_device *dev)
 int nv04_software_create(struct drm_device *);
 int nv50_software_create(struct drm_device *);
 int nvc0_software_create(struct drm_device *);
+u64 nvc0_software_crtc(struct nouveau_channel *, int crtc);
 
 #endif

@@ -295,8 +295,6 @@ struct nouveau_channel {
 
 	uint32_t sw_subchannel[8];
 
-	struct nouveau_vma dispc_vma[4];
-
 	struct {
 		bool active;
 		char name[32];
