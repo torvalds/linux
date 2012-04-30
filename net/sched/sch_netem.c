@@ -26,6 +26,7 @@
 
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/inet_ecn.h>
 
 #define VERSION "1.3"
 
@@ -78,6 +79,7 @@ struct netem_sched_data {
 	psched_tdiff_t jitter;
 
 	u32 loss;
+	u32 ecn;
 	u32 limit;
 	u32 counter;
 	u32 gap;
@@ -374,9 +376,12 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		++count;
 
 	/* Drop packet? */
-	if (loss_event(q))
-		--count;
-
+	if (loss_event(q)) {
+		if (q->ecn && INET_ECN_set_ce(skb))
+			sch->qstats.drops++; /* mark packet */
+		else
+			--count;
+	}
 	if (count == 0) {
 		sch->qstats.drops++;
 		kfree_skb(skb);
@@ -706,6 +711,7 @@ static const struct nla_policy netem_policy[TCA_NETEM_MAX + 1] = {
 	[TCA_NETEM_CORRUPT]	= { .len = sizeof(struct tc_netem_corrupt) },
 	[TCA_NETEM_RATE]	= { .len = sizeof(struct tc_netem_rate) },
 	[TCA_NETEM_LOSS]	= { .type = NLA_NESTED },
+	[TCA_NETEM_ECN]		= { .type = NLA_U32 },
 };
 
 static int parse_attr(struct nlattr *tb[], int maxtype, struct nlattr *nla,
@@ -775,6 +781,9 @@ static int netem_change(struct Qdisc *sch, struct nlattr *opt)
 
 	if (tb[TCA_NETEM_RATE])
 		get_rate(sch, tb[TCA_NETEM_RATE]);
+
+	if (tb[TCA_NETEM_ECN])
+		q->ecn = nla_get_u32(tb[TCA_NETEM_ECN]);
 
 	q->loss_model = CLG_RANDOM;
 	if (tb[TCA_NETEM_LOSS])
@@ -900,6 +909,9 @@ static int netem_dump(struct Qdisc *sch, struct sk_buff *skb)
 	rate.cell_size = q->cell_size;
 	rate.cell_overhead = q->cell_overhead;
 	if (nla_put(skb, TCA_NETEM_RATE, sizeof(rate), &rate))
+		goto nla_put_failure;
+
+	if (q->ecn && nla_put_u32(skb, TCA_NETEM_ECN, q->ecn))
 		goto nla_put_failure;
 
 	if (dump_loss_model(q, skb) != 0)
