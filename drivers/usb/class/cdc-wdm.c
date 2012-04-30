@@ -620,10 +620,12 @@ static int wdm_release(struct inode *inode, struct file *file)
 	if (!desc->count) {
 		dev_dbg(&desc->intf->dev, "wdm_release: cleanup");
 		kill_urbs(desc);
-		if (!test_bit(WDM_DISCONNECTING, &desc->flags))
+		if (!test_bit(WDM_DISCONNECTING, &desc->flags)) {
 			desc->manage_power(desc->intf, 0);
-		else
+		} else {
+			dev_dbg(&desc->intf->dev, "%s: device gone - cleaning up\n", __func__);
 			cleanup(desc);
+		}
 	}
 	mutex_unlock(&wdm_mutex);
 	return 0;
@@ -897,6 +899,8 @@ static void wdm_disconnect(struct usb_interface *intf)
 	mutex_unlock(&desc->rlock);
 	if (!desc->count)
 		cleanup(desc);
+	else
+		dev_dbg(&intf->dev, "%s: %d open files - postponing cleanup\n", __func__, desc->count);
 	mutex_unlock(&wdm_mutex);
 }
 
