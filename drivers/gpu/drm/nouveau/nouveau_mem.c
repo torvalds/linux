@@ -39,6 +39,7 @@
 #include "nouveau_pm.h"
 #include "nouveau_mm.h"
 #include "nouveau_vm.h"
+#include "nouveau_fence.h"
 
 /*
  * NV10-NV40 tiling helpers
@@ -89,7 +90,7 @@ nv10_mem_get_tile_region(struct drm_device *dev, int i)
 	spin_lock(&dev_priv->tile.lock);
 
 	if (!tile->used &&
-	    (!tile->fence || nouveau_fence_signalled(tile->fence)))
+	    (!tile->fence || nouveau_fence_done(tile->fence)))
 		tile->used = true;
 	else
 		tile = NULL;

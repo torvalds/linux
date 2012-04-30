@@ -1444,26 +1444,12 @@ extern int  nouveau_bo_vma_add(struct nouveau_bo *, struct nouveau_vm *,
 extern void nouveau_bo_vma_del(struct nouveau_bo *, struct nouveau_vma *);
 
 /* nouveau_fence.c */
-struct nouveau_fence;
-extern int nouveau_fence_init(struct drm_device *);
-extern void nouveau_fence_fini(struct drm_device *);
-extern int nouveau_fence_channel_init(struct nouveau_channel *);
-extern void nouveau_fence_channel_fini(struct nouveau_channel *);
-extern void nouveau_fence_update(struct nouveau_channel *);
-extern int nouveau_fence_new(struct nouveau_channel *, struct nouveau_fence **,
-			     bool emit);
-extern int nouveau_fence_emit(struct nouveau_fence *);
-extern void nouveau_fence_work(struct nouveau_fence *fence,
-			       void (*work)(void *priv, bool signalled),
-			       void *priv);
-struct nouveau_channel *nouveau_fence_channel(struct nouveau_fence *);
-
-extern bool nouveau_fence_signalled(struct nouveau_fence *);
-extern int nouveau_fence_wait(struct nouveau_fence *, bool lazy, bool intr);
-extern void nouveau_fence_unref(struct nouveau_fence **);
-extern struct nouveau_fence *nouveau_fence_ref(struct nouveau_fence *);
-extern int nouveau_fence_sync(struct nouveau_fence *, struct nouveau_channel *);
-
+int  nouveau_fence_init(struct drm_device *);
+void nouveau_fence_fini(struct drm_device *);
+int  nouveau_fence_channel_init(struct nouveau_channel *);
+void nouveau_fence_channel_fini(struct nouveau_channel *);
+void nouveau_fence_work(struct nouveau_fence *fence,
+			void (*work)(void *priv, bool signalled), void *priv);
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, int size, int align,
 			   uint32_t domain, uint32_t tile_mode,

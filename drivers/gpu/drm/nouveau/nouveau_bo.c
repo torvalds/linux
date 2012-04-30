@@ -35,6 +35,7 @@
 #include "nouveau_dma.h"
 #include "nouveau_mm.h"
 #include "nouveau_vm.h"
+#include "nouveau_fence.h"
 
 #include <linux/log2.h>
 #include <linux/slab.h>
@@ -478,7 +479,7 @@ nouveau_bo_move_accel_cleanup(struct nouveau_channel *chan,
 	struct nouveau_fence *fence = NULL;
 	int ret;
 
-	ret = nouveau_fence_new(chan, &fence, true);
+	ret = nouveau_fence_new(chan, &fence);
 	if (ret)
 		return ret;
 
@@ -1196,7 +1197,7 @@ nouveau_bo_fence_ref(void *sync_obj)
 static bool
 nouveau_bo_fence_signalled(void *sync_obj, void *sync_arg)
 {
-	return nouveau_fence_signalled(sync_obj);
+	return nouveau_fence_done(sync_obj);
 }
 
 static int

@@ -35,6 +35,7 @@
 #include "nouveau_connector.h"
 #include "nouveau_software.h"
 #include "nouveau_gpio.h"
+#include "nouveau_fence.h"
 #include "nv50_display.h"
 
 static void
@@ -465,7 +466,7 @@ nouveau_page_flip_emit(struct nouveau_channel *chan,
 	}
 	FIRE_RING (chan);
 
-	ret = nouveau_fence_new(chan, pfence, true);
+	ret = nouveau_fence_new(chan, pfence);
 	if (ret)
 		goto fail;
 
@@ -486,7 +487,7 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	struct nouveau_bo *old_bo = nouveau_framebuffer(crtc->fb)->nvbo;
 	struct nouveau_bo *new_bo = nouveau_framebuffer(fb)->nvbo;
 	struct nouveau_page_flip_state *s;
-	struct nouveau_channel *chan;
+	struct nouveau_channel *chan = NULL;
 	struct nouveau_fence *fence;
 	int ret;
 
@@ -509,7 +510,9 @@ nouveau_crtc_page_flip(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		  new_bo->bo.offset };
 
 	/* Choose the channel the flip will be handled in */
-	chan = nouveau_fence_channel(new_bo->bo.sync_obj);
+	fence = new_bo->bo.sync_obj;
+	if (fence)
+		chan = nouveau_channel_get_unlocked(fence->channel);
 	if (!chan)
 		chan = nouveau_channel_get_unlocked(dev_priv->channel);
 	mutex_lock(&chan->mutex);

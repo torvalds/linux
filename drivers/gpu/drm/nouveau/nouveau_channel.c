@@ -28,6 +28,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
 #include "nouveau_ramht.h"
+#include "nouveau_fence.h"
 #include "nouveau_software.h"
 
 static int
@@ -369,7 +370,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 	nouveau_fence_update(chan);
 
 	if (chan->fence.sequence != chan->fence.sequence_ack) {
-		ret = nouveau_fence_new(chan, &fence, true);
+		ret = nouveau_fence_new(chan, &fence);
 		if (!ret) {
 			ret = nouveau_fence_wait(fence, false, false);
 			nouveau_fence_unref(&fence);

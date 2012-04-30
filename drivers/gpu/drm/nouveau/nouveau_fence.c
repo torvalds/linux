@@ -32,46 +32,12 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_ramht.h"
+#include "nouveau_fence.h"
 #include "nouveau_software.h"
 #include "nouveau_dma.h"
 
 #define USE_REFCNT(dev) (nouveau_private(dev)->chipset >= 0x10)
 #define USE_SEMA(dev) (nouveau_private(dev)->chipset >= 0x17)
-
-struct nouveau_fence {
-	struct nouveau_channel *channel;
-	struct kref refcount;
-	struct list_head entry;
-
-	uint32_t sequence;
-	bool signalled;
-	unsigned long timeout;
-
-	void (*work)(void *priv, bool signalled);
-	void *priv;
-};
-
-struct nouveau_semaphore {
-	struct kref ref;
-	struct drm_device *dev;
-	struct drm_mm_node *mem;
-};
-
-static inline struct nouveau_fence *
-nouveau_fence(void *sync_obj)
-{
-	return (struct nouveau_fence *)sync_obj;
-}
-
-static void
-nouveau_fence_del(struct kref *ref)
-{
-	struct nouveau_fence *fence =
-		container_of(ref, struct nouveau_fence, refcount);
-
-	nouveau_channel_ref(NULL, &fence->channel);
-	kfree(fence);
-}
 
 void
 nouveau_fence_update(struct nouveau_channel *chan)
@@ -94,16 +60,16 @@ nouveau_fence_update(struct nouveau_channel *chan)
 		chan->fence.sequence_ack = sequence;
 	}
 
-	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
+	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, head) {
 		if (fence->sequence > chan->fence.sequence_ack)
 			break;
 
-		fence->signalled = true;
-		list_del(&fence->entry);
+		fence->channel = NULL;
+		list_del(&fence->head);
 		if (fence->work)
 			fence->work(fence->priv, true);
 
-		kref_put(&fence->refcount, nouveau_fence_del);
+		nouveau_fence_unref(&fence);
 	}
 
 out:
@@ -111,37 +77,8 @@ out:
 }
 
 int
-nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence,
-		  bool emit)
+nouveau_fence_emit(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
-	struct nouveau_fence *fence;
-	int ret = 0;
-
-	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (!fence)
-		return -ENOMEM;
-	kref_init(&fence->refcount);
-	nouveau_channel_ref(chan, &fence->channel);
-
-	if (emit)
-		ret = nouveau_fence_emit(fence);
-
-	if (ret)
-		nouveau_fence_unref(&fence);
-	*pfence = fence;
-	return ret;
-}
-
-struct nouveau_channel *
-nouveau_fence_channel(struct nouveau_fence *fence)
-{
-	return fence ? nouveau_channel_get_unlocked(fence->channel) : NULL;
-}
-
-int
-nouveau_fence_emit(struct nouveau_fence *fence)
-{
-	struct nouveau_channel *chan = fence->channel;
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int ret;
@@ -158,10 +95,11 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	}
 
 	fence->sequence = ++chan->fence.sequence;
+	fence->channel = chan;
 
-	kref_get(&fence->refcount);
+	kref_get(&fence->kref);
 	spin_lock(&chan->fence.lock);
-	list_add_tail(&fence->entry, &chan->fence.pending);
+	list_add_tail(&fence->head, &chan->fence.pending);
 	spin_unlock(&chan->fence.lock);
 
 	if (USE_REFCNT(dev)) {
@@ -179,50 +117,12 @@ nouveau_fence_emit(struct nouveau_fence *fence)
 	return 0;
 }
 
-void
-nouveau_fence_work(struct nouveau_fence *fence,
-		   void (*work)(void *priv, bool signalled),
-		   void *priv)
-{
-	BUG_ON(fence->work);
-
-	spin_lock(&fence->channel->fence.lock);
-
-	if (fence->signalled) {
-		work(priv, true);
-	} else {
-		fence->work = work;
-		fence->priv = priv;
-	}
-
-	spin_unlock(&fence->channel->fence.lock);
-}
-
-void
-nouveau_fence_unref(struct nouveau_fence **pfence)
-{
-	if (*pfence)
-		kref_put(&(*pfence)->refcount, nouveau_fence_del);
-	*pfence = NULL;
-}
-
-struct nouveau_fence *
-nouveau_fence_ref(struct nouveau_fence *fence)
-{
-	kref_get(&fence->refcount);
-	return fence;
-}
-
 bool
-nouveau_fence_signalled(struct nouveau_fence *fence)
+nouveau_fence_done(struct nouveau_fence *fence)
 {
-	struct nouveau_channel *chan = fence->channel;
-
-	if (fence->signalled)
-		return true;
-
-	nouveau_fence_update(chan);
-	return fence->signalled;
+	if (fence->channel)
+		nouveau_fence_update(fence->channel);
+	return !fence->channel;
 }
 
 int
@@ -232,8 +132,8 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 	ktime_t t;
 	int ret = 0;
 
-	while (!nouveau_fence_signalled(fence)) {
-		if (time_after_eq(jiffies, fence->timeout)) {
+	while (!nouveau_fence_done(fence)) {
+		if (fence->timeout && time_after_eq(jiffies, fence->timeout)) {
 			ret = -EBUSY;
 			break;
 		}
@@ -255,8 +155,69 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 	}
 
 	__set_current_state(TASK_RUNNING);
-
 	return ret;
+}
+
+static void
+nouveau_fence_del(struct kref *kref)
+{
+	struct nouveau_fence *fence = container_of(kref, typeof(*fence), kref);
+	kfree(fence);
+}
+
+void
+nouveau_fence_unref(struct nouveau_fence **pfence)
+{
+	if (*pfence)
+		kref_put(&(*pfence)->kref, nouveau_fence_del);
+	*pfence = NULL;
+}
+
+struct nouveau_fence *
+nouveau_fence_ref(struct nouveau_fence *fence)
+{
+	kref_get(&fence->kref);
+	return fence;
+}
+
+int
+nouveau_fence_new(struct nouveau_channel *chan, struct nouveau_fence **pfence)
+{
+	struct nouveau_fence *fence;
+	int ret = 0;
+
+	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
+	if (!fence)
+		return -ENOMEM;
+	kref_init(&fence->kref);
+
+	if (chan) {
+		ret = nouveau_fence_emit(fence, chan);
+		if (ret)
+			nouveau_fence_unref(&fence);
+	}
+
+	*pfence = fence;
+	return ret;
+}
+
+struct nouveau_semaphore {
+	struct kref ref;
+	struct drm_device *dev;
+	struct drm_mm_node *mem;
+};
+
+void
+nouveau_fence_work(struct nouveau_fence *fence,
+		   void (*work)(void *priv, bool signalled),
+		   void *priv)
+{
+	if (!fence->channel) {
+		work(priv, true);
+	} else {
+		fence->work = work;
+		fence->priv = priv;
+	}
 }
 
 static struct nouveau_semaphore *
@@ -367,7 +328,7 @@ semaphore_acquire(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 	}
 
 	/* Delay semaphore destruction until its work is done */
-	ret = nouveau_fence_new(chan, &fence, true);
+	ret = nouveau_fence_new(chan, &fence);
 	if (ret)
 		return ret;
 
@@ -421,7 +382,7 @@ semaphore_release(struct nouveau_channel *chan, struct nouveau_semaphore *sema)
 	}
 
 	/* Delay semaphore destruction until its work is done */
-	ret = nouveau_fence_new(chan, &fence, true);
+	ret = nouveau_fence_new(chan, &fence);
 	if (ret)
 		return ret;
 
@@ -435,13 +396,13 @@ int
 nouveau_fence_sync(struct nouveau_fence *fence,
 		   struct nouveau_channel *wchan)
 {
-	struct nouveau_channel *chan = nouveau_fence_channel(fence);
+	struct nouveau_channel *chan;
 	struct drm_device *dev = wchan->dev;
 	struct nouveau_semaphore *sema;
 	int ret = 0;
 
-	if (likely(!chan || chan == wchan ||
-		   nouveau_fence_signalled(fence)))
+	chan = fence ? nouveau_channel_get_unlocked(fence->channel) : NULL;
+	if (likely(!chan || chan == wchan || nouveau_fence_done(fence)))
 		goto out;
 
 	sema = semaphore_alloc(dev);
@@ -477,12 +438,6 @@ out:
 	if (chan)
 		nouveau_channel_put_unlocked(&chan);
 	return ret;
-}
-
-int
-__nouveau_fence_flush(void *sync_obj, void *sync_arg)
-{
-	return 0;
 }
 
 int
@@ -538,14 +493,14 @@ nouveau_fence_channel_fini(struct nouveau_channel *chan)
 	struct nouveau_fence *tmp, *fence;
 
 	spin_lock(&chan->fence.lock);
-	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, entry) {
-		fence->signalled = true;
-		list_del(&fence->entry);
+	list_for_each_entry_safe(fence, tmp, &chan->fence.pending, head) {
+		fence->channel = NULL;
+		list_del(&fence->head);
 
 		if (unlikely(fence->work))
 			fence->work(fence->priv, false);
 
-		kref_put(&fence->refcount, nouveau_fence_del);
+		kref_put(&fence->kref, nouveau_fence_del);
 	}
 	spin_unlock(&chan->fence.lock);
 
