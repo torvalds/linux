@@ -69,7 +69,7 @@
 #include <trace/events/skb.h>
 #include <linux/highmem.h>
 
-static struct kmem_cache *skbuff_head_cache __read_mostly;
+struct kmem_cache *skbuff_head_cache __read_mostly;
 static struct kmem_cache *skbuff_fclone_cache __read_mostly;
 
 static void sock_pipe_buf_release(struct pipe_inode_info *pipe,
@@ -2900,6 +2900,31 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		skb->data_len = 0;
 
 		NAPI_GRO_CB(skb)->free = 1;
+		goto done;
+	} else if (skb->head_frag) {
+		int nr_frags = pinfo->nr_frags;
+		skb_frag_t *frag = pinfo->frags + nr_frags;
+		struct page *page = virt_to_head_page(skb->head);
+		unsigned int first_size = headlen - offset;
+		unsigned int first_offset;
+
+		if (nr_frags + 1 + skbinfo->nr_frags > MAX_SKB_FRAGS)
+			return -E2BIG;
+
+		first_offset = skb->data -
+			       (unsigned char *)page_address(page) +
+			       offset;
+
+		pinfo->nr_frags = nr_frags + 1 + skbinfo->nr_frags;
+
+		frag->page.p	  = page;
+		frag->page_offset = first_offset;
+		skb_frag_size_set(frag, first_size);
+
+		memcpy(frag + 1, skbinfo->frags, sizeof(*frag) * skbinfo->nr_frags);
+		/* We dont need to clear skbinfo->nr_frags here */
+
+		NAPI_GRO_CB(skb)->free = NAPI_GRO_FREE_STOLEN_HEAD;
 		goto done;
 	} else if (skb_gro_len(p) != pinfo->gso_size)
 		return -E2BIG;

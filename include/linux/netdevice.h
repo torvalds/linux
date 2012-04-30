@@ -1509,6 +1509,8 @@ struct napi_gro_cb {
 
 	/* Free the skb? */
 	int free;
+#define NAPI_GRO_FREE		  1
+#define NAPI_GRO_FREE_STOLEN_HEAD 2
 };
 
 #define NAPI_GRO_CB(skb) ((struct napi_gro_cb *)(skb)->cb)
