@@ -123,7 +123,7 @@ KEY SERVICE OVERVIEW
 
 The key service provides a number of features besides keys:
 
- (*) The key service defines two special key types:
+ (*) The key service defines three special key types:
 
      (+) "keyring"
 
@@ -136,6 +136,18 @@ The key service provides a number of features besides keys:
 	 A key of this type has a description and a payload that are arbitrary
 	 blobs of data. These can be created, updated and read by userspace,
 	 and aren't intended for use by kernel services.
+
+     (+) "logon"
+
+	 Like a "user" key, a "logon" key has a payload that is an arbitrary
+	 blob of data. It is intended as a place to store secrets which are
+	 accessible to the kernel but not to userspace programs.
+
+	 The description can be arbitrary, but must be prefixed with a non-zero
+	 length string that describes the key "subclass". The subclass is
+	 separated from the rest of the description by a ':'. "logon" keys can
+	 be created and updated from userspace, but the payload is only
+	 readable from kernel space.
 
  (*) Each process subscribes to three keyrings: a thread-specific keyring, a
      process-specific keyring, and a session-specific keyring.

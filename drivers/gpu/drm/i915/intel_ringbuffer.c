@@ -401,6 +401,14 @@ static int init_render_ring(struct intel_ring_buffer *ring)
 	if (INTEL_INFO(dev)->gen >= 6) {
 		I915_WRITE(INSTPM,
 			   INSTPM_FORCE_ORDERING << 16 | INSTPM_FORCE_ORDERING);
+
+		/* From the Sandybridge PRM, volume 1 part 3, page 24:
+		 * "If this bit is set, STCunit will have LRA as replacement
+		 *  policy. [...] This bit must be reset.  LRA replacement
+		 *  policy is not supported."
+		 */
+		I915_WRITE(CACHE_MODE_0,
+			   CM0_STC_EVICT_DISABLE_LRA_SNB << CM0_MASK_SHIFT);
 	}
 
 	return ret;
