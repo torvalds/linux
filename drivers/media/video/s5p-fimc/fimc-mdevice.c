@@ -371,6 +371,8 @@ static int fimc_md_register_platform_entities(struct fimc_md *fmd)
 	 * Check if there is any sensor on the MIPI-CSI2 bus and
 	 * if not skip the s5p-csis module loading.
 	 */
+	if (pdata == NULL)
+		return 0;
 	for (i = 0; i < pdata->num_clients; i++) {
 		if (pdata->isp_info[i].bus_type == FIMC_MIPI_CSI2) {
 			ret = 1;
