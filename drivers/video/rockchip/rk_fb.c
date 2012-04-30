@@ -778,6 +778,7 @@ static int init_lcdc_device_driver(struct rk_lcdc_device_driver *dev_drv,
 	dev_drv->get_layer_state= def_drv->get_layer_state;
 	dev_drv->get_disp_info  = def_drv->get_disp_info;
 	dev_drv->ovl_mgr	= def_drv->ovl_mgr;
+	dev_drv->fps_mgr	= def_drv->fps_mgr;
 	init_layer_par(dev_drv);
 	init_completion(&dev_drv->frame_done);
 	spin_lock_init(&dev_drv->cpl_lock);

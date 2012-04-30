@@ -92,19 +92,19 @@ struct rk29lcd_info {
 
 /* Screen description */
 typedef struct rk29fb_screen {
-    /* screen type & hardware connect format & out face */
-    u16 type;
-    u16 hw_format;
-    u16 face;
+	/* screen type & hardware connect format & out face */
+	u16 type;
+	u16 hw_format;
+	u16 face;
 
 	/* Screen size */
 	u16 x_res;
 	u16 y_res;
-    u16 width;
-    u16 height;
+	u16 width;
+	u16 height;
 
-    u32 mode;
-    /* Timing */
+	u32 mode;
+	/* Timing */
 	u32 pixclock;
 	u16 left_margin;
 	u16 right_margin;
@@ -112,6 +112,7 @@ typedef struct rk29fb_screen {
 	u16 upper_margin;
 	u16 lower_margin;
 	u16 vsync_len;
+	u8  ft;	//the time need to display one frame,in ms
 #ifdef CONFIG_HDMI_DUAL_DISP
     /* Scaler mode Timing */
 	u32 s_pixclock;
@@ -125,34 +126,34 @@ typedef struct rk29fb_screen {
 	u16 s_vsync_st;
 #endif
 	u8 hdmi_resolution;
-    /* mcu need */
+	    /* mcu need */
 	u8 mcu_wrperiod;
-    u8 mcu_usefmk;
-    u8 mcu_frmrate;
+	u8 mcu_usefmk;
+	u8 mcu_frmrate;
 
-	/* Pin polarity */
+		/* Pin polarity */
 	u8 pin_hsync;
 	u8 pin_vsync;
 	u8 pin_den;
 	u8 pin_dclk;
-    u32 lcdc_aclk;
+	u32 lcdc_aclk;
 	u8 pin_dispon;
 
 	/* Swap rule */
-    u8 swap_rb;
-    u8 swap_rg;
-    u8 swap_gb;
-    u8 swap_delta;
-    u8 swap_dumy;
+	u8 swap_rb;
+	u8 swap_rg;
+	u8 swap_gb;
+	u8 swap_delta;
+	u8 swap_dumy;
 
-    /* Operation function*/
-    int (*init)(void);
-    int (*standby)(u8 enable);
-    int (*refresh)(u8 arg);
-    int (*scandir)(u16 dir);
-    int (*disparea)(u8 area);
-    int (*sscreen_get)(struct rk29fb_screen *screen, u8 resolution);
-    int (*sscreen_set)(struct rk29fb_screen *screen, bool type);// 1: use scaler 0:bypass
+	/* Operation function*/
+	int (*init)(void);
+	int (*standby)(u8 enable);
+	int (*refresh)(u8 arg);
+	int (*scandir)(u16 dir);
+	int (*disparea)(u8 area);
+	int (*sscreen_get)(struct rk29fb_screen *screen, u8 resolution);
+	int (*sscreen_set)(struct rk29fb_screen *screen, bool type);// 1: use scaler 0:bypass
 } rk_screen;
 
 extern void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info);

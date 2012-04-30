@@ -101,6 +101,8 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 	int ret = -EINVAL;
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	rk_screen *screen = lcdc_dev->screen;
+	u64 ft;
+	int fps;
 	u16 face;
 	u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
 	u16 right_margin = screen->right_margin;
@@ -204,7 +206,13 @@ static int rk30_load_screen(struct rk_lcdc_device_driver *dev_drv, bool initscre
 	}
     	lcdc_dev->driver.pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
 	clk_enable(lcdc_dev->dclk);
-    	printk("%s: dclk:%lu ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk));
+	
+	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
+		(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
+		(dev_drv->pixclock);       // one frame time ,(pico seconds)
+	fps = div64_u64(1000000000000llu,ft);
+	screen->ft = 1000/fps;
+    	printk("%s: dclk:%lu>>fps:%d ",lcdc_dev->driver.name,clk_get_rate(lcdc_dev->dclk),fps);
     	if(initscreen)
     	{
         	if(screen->lcdc_aclk)
@@ -312,7 +320,7 @@ static  int win0_display(struct rk30_lcdc_device *lcdc_dev,struct layer_par *par
 		LcdWrReg(lcdc_dev, REG_CFG_DONE, 0x01);
 	}
 	spin_unlock(&lcdc_dev->reg_lock);
-	
+
 	return 0;
 	
 }
@@ -570,7 +578,7 @@ int rk30_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id)
 	spin_lock_irqsave(&dev_drv->cpl_lock,flags);
 	init_completion(&dev_drv->frame_done);
 	spin_unlock_irqrestore(&dev_drv->cpl_lock,flags);
-	timeout = wait_for_completion_interruptible_timeout(&dev_drv->frame_done,msecs_to_jiffies(25));
+	timeout = wait_for_completion_interruptible_timeout(&dev_drv->frame_done,msecs_to_jiffies(dev_drv->screen->ft+5));
 	if(!timeout)
 	{
 		printk(KERN_ERR "wait for new frame start time out!\n");
@@ -634,7 +642,7 @@ swap:1 win0 on the top of win1
 set  : 1 set overlay 
         0 get overlay state
 ************************************/
-static int rk30_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
+static int rk30_lcdc_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	int ovl;
@@ -660,12 +668,48 @@ static int rk30_ovl_mgr(struct rk_lcdc_device_driver *dev_drv,int swap,bool set)
 
 	return ovl;
 }
-static int rk30_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
+static int rk30_lcdc_get_disp_info(struct rk_lcdc_device_driver *dev_drv,int layer_id)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
 	return 0;
 }
 
+
+/*******************************************
+lcdc fps manager,set or get lcdc fps
+set:0 get
+     1 set
+********************************************/
+static int rk30_lcdc_fps_mgr(struct rk_lcdc_device_driver *dev_drv,int fps,bool set)
+{
+	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
+	rk_screen * screen = dev_drv->screen;
+	u64 ft = 0;
+	u32 dotclk;
+	int ret;
+
+	if(set)
+	{
+		ft = div_u64(1000000000000llu,fps);
+		dev_drv->pixclock = div_u64(ft,(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
+				(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len));
+		dotclk = div_u64(1000000000000llu,dev_drv->pixclock);
+		ret = clk_set_rate(lcdc_dev->dclk, dotclk);
+		if(ret)
+		{
+	        	printk(KERN_ERR ">>>>>> set lcdc%d dclk failed\n",lcdc_dev->id);
+		}
+	    	dev_drv->pixclock = lcdc_dev->pixclock = div_u64(1000000000000llu, clk_get_rate(lcdc_dev->dclk));
+			
+	}
+	
+	ft = (u64)(screen->upper_margin + screen->lower_margin + screen->y_res +screen->vsync_len)*
+	(screen->left_margin + screen->right_margin + screen->x_res + screen->hsync_len)*
+	(dev_drv->pixclock);       // one frame time ,(pico seconds)
+	fps = div64_u64(1000000000000llu,ft);
+	screen->ft = 1000/fps ;  //one frame time in ms
+	return fps;
+}
 int rk30_lcdc_early_suspend(struct rk_lcdc_device_driver *dev_drv)
 {
 	struct rk30_lcdc_device *lcdc_dev = container_of(dev_drv,struct rk30_lcdc_device,driver);
@@ -730,8 +774,9 @@ static struct rk_lcdc_device_driver lcdc_driver = {
 	.pan_display            = rk30_lcdc_pan_display,
 	.load_screen		= rk30_load_screen,
 	.get_layer_state	= rk30_lcdc_get_layer_state,
-	.ovl_mgr		= rk30_ovl_mgr,
-	.get_disp_info		= rk30_get_disp_info,
+	.ovl_mgr		= rk30_lcdc_ovl_mgr,
+	.get_disp_info		= rk30_lcdc_get_disp_info,
+	.fps_mgr		= rk30_lcdc_fps_mgr,
 };
 #ifdef CONFIG_PM
 static int rk30_lcdc_suspend(struct platform_device *pdev, pm_message_t state)

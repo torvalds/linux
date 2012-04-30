@@ -212,6 +212,7 @@ struct rk_lcdc_device_driver{
 	int (*load_screen)(struct rk_lcdc_device_driver *dev_drv, bool initscreen);
 	int (*get_layer_state)(struct rk_lcdc_device_driver *dev_drv,int layer_id);
 	int (*ovl_mgr)(struct rk_lcdc_device_driver *dev_drv,int swap,bool set);  //overlay manager
+	int (*fps_mgr)(struct rk_lcdc_device_driver *dev_drv,int fps,bool set);
 	
 };
 
