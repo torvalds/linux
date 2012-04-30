@@ -225,7 +225,8 @@ loff_t ext4_llseek(struct file *file, loff_t offset, int origin)
 	else
 		maxbytes = inode->i_sb->s_maxbytes;
 
-	return generic_file_llseek_size(file, offset, origin, maxbytes);
+	return generic_file_llseek_size(file, offset, origin,
+					maxbytes, i_size_read(inode));
 }
 
 const struct file_operations ext4_file_operations = {

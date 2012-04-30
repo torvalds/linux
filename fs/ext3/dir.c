@@ -303,7 +303,8 @@ loff_t ext3_dir_llseek(struct file *file, loff_t offset, int origin)
 
 	if (likely(dx_dir))
 		return generic_file_llseek_size(file, offset, origin,
-					        ext3_get_htree_eof(file));
+					        ext3_get_htree_eof(file),
+						i_size_read(inode));
 	else
 		return generic_file_llseek(file, offset, origin);
 }
