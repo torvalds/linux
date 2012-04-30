@@ -1,7 +1,7 @@
 /*
  * AD7298 SPI ADC driver
  *
- * Copyright 2011 Analog Devices Inc.
+ * Copyright 2011-2012 Analog Devices Inc.
  *
  * Licensed under the GPL-2.
  */
@@ -13,7 +13,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include "../ring_sw.h"
+#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 
 #include "ad7298.h"
@@ -118,7 +118,7 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	int ret;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -132,7 +132,7 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
+		goto error_deallocate_kfifo;
 	}
 
 	/* Ring buffer functions - here trigger setup related */
@@ -143,8 +143,8 @@ int ad7298_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
+error_deallocate_kfifo:
+	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -152,5 +152,5 @@ error_ret:
 void ad7298_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }

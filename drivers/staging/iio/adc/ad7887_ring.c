@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2011 Analog Devices Inc.
+ * Copyright 2010-2012 Analog Devices Inc.
  * Copyright (C) 2008 Jonathan Cameron
  *
  * Licensed under the GPL-2.
@@ -14,7 +14,7 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
-#include "../ring_sw.h"
+#include <linux/iio/kfifo_buf.h>
 #include <linux/iio/trigger_consumer.h>
 
 #include "ad7887.h"
@@ -114,7 +114,7 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	int ret;
 
-	indio_dev->buffer = iio_sw_rb_allocate(indio_dev);
+	indio_dev->buffer = iio_kfifo_allocate(indio_dev);
 	if (!indio_dev->buffer) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -127,7 +127,7 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 						 indio_dev->id);
 	if (indio_dev->pollfunc == NULL) {
 		ret = -ENOMEM;
-		goto error_deallocate_sw_rb;
+		goto error_deallocate_kfifo;
 	}
 	/* Ring buffer functions - here trigger setup related */
 	indio_dev->setup_ops = &ad7887_ring_setup_ops;
@@ -136,8 +136,8 @@ int ad7887_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 	indio_dev->modes |= INDIO_BUFFER_TRIGGERED;
 	return 0;
 
-error_deallocate_sw_rb:
-	iio_sw_rb_free(indio_dev->buffer);
+error_deallocate_kfifo:
+	iio_kfifo_free(indio_dev->buffer);
 error_ret:
 	return ret;
 }
@@ -145,5 +145,5 @@ error_ret:
 void ad7887_ring_cleanup(struct iio_dev *indio_dev)
 {
 	iio_dealloc_pollfunc(indio_dev->pollfunc);
-	iio_sw_rb_free(indio_dev->buffer);
+	iio_kfifo_free(indio_dev->buffer);
 }
