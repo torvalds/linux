@@ -676,14 +676,10 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	}
 
-	if (strcmp(report.input_name, "-") != 0) {
-		if (report.use_gtk)
-			perf_gtk__setup_browser(true);
-		else
-			setup_browser(true);
-	} else {
+	if (strcmp(report.input_name, "-") != 0)
+		setup_browser(true);
+	else
 		use_browser = 0;
-	}
 
 	/*
 	 * Only in the newt browser we are doing integrated annotation,

@@ -9,16 +9,6 @@
 
 #define MAX_COLUMNS			32
 
-void perf_gtk__setup_browser(bool fallback_to_pager __used)
-{
-	gtk_init(NULL, NULL);
-}
-
-void perf_gtk__exit_browser(bool wait_for_ok __used)
-{
-	gtk_main_quit();
-}
-
 static void perf_gtk__signal(int sig)
 {
 	psignal(sig, "perf");

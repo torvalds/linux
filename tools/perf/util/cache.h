@@ -33,7 +33,7 @@ extern int pager_use_color;
 
 extern int use_browser;
 
-#ifdef NO_NEWT_SUPPORT
+#if defined(NO_NEWT_SUPPORT) && defined(NO_GTK2_SUPPORT)
 static inline void setup_browser(bool fallback_to_pager)
 {
 	if (fallback_to_pager)
@@ -43,19 +43,32 @@ static inline void exit_browser(bool wait_for_ok __used) {}
 #else
 void setup_browser(bool fallback_to_pager);
 void exit_browser(bool wait_for_ok);
+
+#ifdef NO_NEWT_SUPPORT
+static inline int ui__init(bool fallback_to_pager)
+{
+	if (fallback_to_pager)
+		setup_pager();
+	return 0;
+}
+static inline void ui__exit(bool wait_for_ok __used) {}
+#else
+int ui__init(bool fallback_to_pager);
+void ui__exit(bool wait_for_ok);
 #endif
 
 #ifdef NO_GTK2_SUPPORT
-static inline void perf_gtk__setup_browser(bool fallback_to_pager)
+static inline void perf_gtk__init(bool fallback_to_pager)
 {
 	if (fallback_to_pager)
 		setup_pager();
 }
-static inline void perf_gtk__exit_browser(bool wait_for_ok __used) {}
+static inline void perf_gtk__exit(bool wait_for_ok __used) {}
 #else
-void perf_gtk__setup_browser(bool fallback_to_pager);
-void perf_gtk__exit_browser(bool wait_for_ok);
+void perf_gtk__init(bool fallback_to_pager);
+void perf_gtk__exit(bool wait_for_ok);
 #endif
+#endif /* NO_NEWT_SUPPORT && NO_GTK2_SUPPORT */
 
 char *alias_lookup(const char *alias);
 int split_cmdline(char *cmdline, const char ***argv);
