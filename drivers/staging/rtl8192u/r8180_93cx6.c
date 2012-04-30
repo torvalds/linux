@@ -14,7 +14,7 @@
 
    Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
 
-   We want to tanks the Authors of those projects and the Ndiswrapper
+   We want to thanks the Authors of those projects and the Ndiswrapper
    project Authors.
 */
 

@@ -11,7 +11,7 @@
 
    Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver
 
-   We want to tanks the Authors of those projects and the Ndiswrapper
+   We want to thanks the Authors of those projects and the Ndiswrapper
    project Authors.
 */
 
@@ -98,7 +98,7 @@ do { if(rt_global_debug_component & component) \
 #define COMP_INIT				BIT2		// during driver initialization / halt / reset.
 
 
-#define COMP_RECV				BIT3		// Reveive part data path.
+#define COMP_RECV				BIT3		// Revive part data path.
 #define COMP_SEND				BIT4		// Send part path.
 #define COMP_IO					BIT5		// I/O Related. Added by Annie, 2006-03-02.
 #define COMP_POWER				BIT6		// 802.11 Power Save mode or System/Device Power state related.
@@ -322,7 +322,7 @@ typedef struct _tx_fwinfo_819x_usb {
         u8		TxSubCarrier:2;         // This is used for legacy OFDM rate only.
         u8		STBC:2;
         u8		AllowAggregation:1;
-        u8		RtsHT:1;                //Interpre RtsRate field as high throughput data rate
+        u8		RtsHT:1;                //Interprete RtsRate field as high throughput data rate
         u8		RtsShort:1;             //Short PLCP for CCK, or short GI for 11n MCS
         u8		RtsBandwidth:1;         // This is used for HT MCS rate only.
         u8		RtsSubcarrier:2;        // This is used for legacy OFDM rate only.
