@@ -466,6 +466,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
 #define IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED	(u32)(1 << 10)
+#define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 11)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -719,6 +720,7 @@ extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
 extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 				    struct ifreq *ifr, int cmd);
 extern void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
 #endif /* CONFIG_IXGBE_PTP */
 
 #endif /* _IXGBE_H_ */
