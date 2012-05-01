@@ -193,8 +193,9 @@ just_reset:
 	nv50_fifo_init_context_table(dev);
 	nv50_fifo_init_regs__nv(dev);
 	nv50_fifo_init_regs(dev);
-	dev_priv->engine.fifo.enable(dev);
-	dev_priv->engine.fifo.reassign(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
+	nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	return 0;
 }
@@ -215,13 +216,6 @@ nv50_fifo_takedown(struct drm_device *dev)
 
 	nouveau_gpuobj_ref(NULL, &pfifo->playlist[0]);
 	nouveau_gpuobj_ref(NULL, &pfifo->playlist[1]);
-}
-
-int
-nv50_fifo_channel_id(struct drm_device *dev)
-{
-	return nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) &
-			NV50_PFIFO_CACHE1_PUSH1_CHID_MASK;
 }
 
 int
@@ -313,13 +307,16 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	pfifo->reassign(dev, false);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 
 	/* Unload the context if it's the currently active one */
-	if (pfifo->channel_id(dev) == chan->id) {
-		pfifo->disable(dev);
+	if ((nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) & 0x7f) == chan->id) {
+		nv_mask(dev, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
+		nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 0);
+		nv_mask(dev, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
 		pfifo->unload_context(dev);
-		pfifo->enable(dev);
+		nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
+		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
 
 	/* This will ensure the channel is seen as disabled. */
@@ -332,7 +329,7 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 		nv50_fifo_channel_disable(dev, 127);
 	nv50_fifo_playlist_update(dev);
 
-	pfifo->reassign(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the channel resources */
@@ -416,14 +413,13 @@ int
 nv50_fifo_unload_context(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_gpuobj *ramfc, *cache;
 	struct nouveau_channel *chan = NULL;
 	int chid, get, put, ptr;
 
 	NV_DEBUG(dev, "\n");
 
-	chid = pfifo->channel_id(dev);
+	chid = nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) & 0x7f;
 	if (chid < 1 || chid >= dev_priv->engine.fifo.channels - 1)
 		return 0;
 

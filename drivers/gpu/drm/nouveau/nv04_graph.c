@@ -998,7 +998,8 @@ nv04_graph_context_switch(struct drm_device *dev)
 	nv04_graph_unload_context(dev);
 
 	/* Load context for next channel */
-	chid = dev_priv->engine.fifo.channel_id(dev);
+	chid = nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) &
+			    NV03_PFIFO_CACHE1_PUSH1_CHID_MASK;
 	chan = dev_priv->channels.ptr[chid];
 	if (chan)
 		nv04_graph_load_context(chan);

@@ -221,8 +221,12 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 			nouveau_channel_idle(chan);
 	}
 
-	pfifo->reassign(dev, false);
-	pfifo->disable(dev);
+	if (dev_priv->card_type < NV_C0) {
+		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
+		nv_mask(dev, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
+		nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 0);
+		nv_mask(dev, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
+	}
 	pfifo->unload_context(dev);
 
 	for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
@@ -265,8 +269,11 @@ out_abort:
 		if (dev_priv->eng[e])
 			dev_priv->eng[e]->init(dev, e);
 	}
-	pfifo->enable(dev);
-	pfifo->reassign(dev, true);
+	if (dev_priv->card_type < NV_C0) {
+		nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
+		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
+		nv_wr32(dev, NV03_PFIFO_CACHES, 1);
+	}
 	return ret;
 }
 

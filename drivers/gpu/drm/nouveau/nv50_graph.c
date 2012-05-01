@@ -262,7 +262,6 @@ nv50_graph_context_del(struct nouveau_channel *chan, int engine)
 	struct nouveau_gpuobj *grctx = chan->engctx[engine];
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
 	unsigned long flags;
 
@@ -272,7 +271,7 @@ nv50_graph_context_del(struct nouveau_channel *chan, int engine)
 		return;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	pfifo->reassign(dev, false);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 	nv50_graph_fifo_access(dev, false);
 
 	if (nv50_graph_channel(dev) == chan)
@@ -283,7 +282,7 @@ nv50_graph_context_del(struct nouveau_channel *chan, int engine)
 	dev_priv->engine.instmem.flush(dev);
 
 	nv50_graph_fifo_access(dev, true);
-	pfifo->reassign(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	nouveau_gpuobj_ref(NULL, &grctx);

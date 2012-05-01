@@ -92,12 +92,6 @@ nve0_fifo_playlist_update(struct drm_device *dev, u32 engine)
 }
 
 int
-nve0_fifo_channel_id(struct drm_device *dev)
-{
-	return 4095;
-}
-
-int
 nve0_fifo_create_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;

@@ -43,34 +43,6 @@
 #define RAMFC_WR(offset, val) nv_wo32(chan->ramfc, NV04_RAMFC_##offset, (val))
 #define RAMFC_RD(offset)      nv_ro32(chan->ramfc, NV04_RAMFC_##offset)
 
-void
-nv04_fifo_disable(struct drm_device *dev)
-{
-	uint32_t tmp;
-
-	tmp = nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUSH);
-	nv_wr32(dev, NV04_PFIFO_CACHE1_DMA_PUSH, tmp & ~1);
-	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 0);
-	tmp = nv_rd32(dev, NV03_PFIFO_CACHE1_PULL1);
-	nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, tmp & ~1);
-}
-
-void
-nv04_fifo_enable(struct drm_device *dev)
-{
-	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
-	nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
-}
-
-bool
-nv04_fifo_reassign(struct drm_device *dev, bool enable)
-{
-	uint32_t reassign = nv_rd32(dev, NV03_PFIFO_CACHES);
-
-	nv_wr32(dev, NV03_PFIFO_CACHES, enable ? 1 : 0);
-	return (reassign == 1);
-}
-
 bool
 nv04_fifo_cache_pull(struct drm_device *dev, bool enable)
 {
@@ -98,13 +70,6 @@ nv04_fifo_cache_pull(struct drm_device *dev, bool enable)
 	}
 
 	return pull & 1;
-}
-
-int
-nv04_fifo_channel_id(struct drm_device *dev)
-{
-	return nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) &
-			NV03_PFIFO_CACHE1_PUSH1_CHID_MASK;
 }
 
 #ifdef __BIG_ENDIAN
@@ -162,19 +127,21 @@ nv04_fifo_destroy_context(struct nouveau_channel *chan)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	pfifo->reassign(dev, false);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 
 	/* Unload the context if it's the currently active one */
-	if (pfifo->channel_id(dev) == chan->id) {
-		pfifo->disable(dev);
+	if ((nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) & 0xf) == chan->id) {
+		nv_mask(dev, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
+		nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 0);
+		nv_mask(dev, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
 		pfifo->unload_context(dev);
-		pfifo->enable(dev);
+		nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
+		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
 
 	/* Keep it from being rescheduled */
 	nv_mask(dev, NV04_PFIFO_MODE, 1 << chan->id, 0);
-
-	pfifo->reassign(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Free the channel resources */
@@ -231,7 +198,7 @@ nv04_fifo_unload_context(struct drm_device *dev)
 	uint32_t tmp;
 	int chid;
 
-	chid = pfifo->channel_id(dev);
+	chid = nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) & 0xf;
 	if (chid < 0 || chid >= dev_priv->engine.fifo.channels)
 		return 0;
 
@@ -313,8 +280,9 @@ nv04_fifo_init(struct drm_device *dev)
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, pfifo->channels - 1);
 
 	nv04_fifo_init_intr(dev);
-	pfifo->enable(dev);
-	pfifo->reassign(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
+	nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
 		if (dev_priv->channels.ptr[i]) {
@@ -392,7 +360,6 @@ void
 nv04_fifo_isr(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
 	uint32_t status, reassign;
 	int cnt = 0;
 
@@ -402,7 +369,8 @@ nv04_fifo_isr(struct drm_device *dev)
 
 		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 
-		chid = engine->fifo.channel_id(dev);
+		chid  = nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1);
+		chid &= dev_priv->engine.fifo.channels - 1;
 		get  = nv_rd32(dev, NV03_PFIFO_CACHE1_GET);
 
 		if (status & NV_PFIFO_INTR_CACHE_ERROR) {

@@ -149,7 +149,7 @@ nv40_fifo_unload_context(struct drm_device *dev)
 	uint32_t fc, tmp;
 	int chid;
 
-	chid = pfifo->channel_id(dev);
+	chid = nv_rd32(dev, NV03_PFIFO_CACHE1_PUSH1) & 0x1f;
 	if (chid < 0 || chid >= dev_priv->engine.fifo.channels)
 		return 0;
 	fc = NV40_RAMFC(chid);
@@ -293,8 +293,9 @@ nv40_fifo_init(struct drm_device *dev)
 	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH1, pfifo->channels - 1);
 
 	nv40_fifo_init_intr(dev);
-	pfifo->enable(dev);
-	pfifo->reassign(dev, true);
+	nv_wr32(dev, NV03_PFIFO_CACHE1_PUSH0, 1);
+	nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
+	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
 		if (dev_priv->channels.ptr[i]) {

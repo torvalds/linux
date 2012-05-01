@@ -69,34 +69,6 @@ nvc0_fifo_playlist_update(struct drm_device *dev)
 		NV_ERROR(dev, "PFIFO - playlist update failed\n");
 }
 
-void
-nvc0_fifo_disable(struct drm_device *dev)
-{
-}
-
-void
-nvc0_fifo_enable(struct drm_device *dev)
-{
-}
-
-bool
-nvc0_fifo_reassign(struct drm_device *dev, bool enable)
-{
-	return false;
-}
-
-bool
-nvc0_fifo_cache_pull(struct drm_device *dev, bool enable)
-{
-	return false;
-}
-
-int
-nvc0_fifo_channel_id(struct drm_device *dev)
-{
-	return 127;
-}
-
 int
 nvc0_fifo_create_context(struct nouveau_channel *chan)
 {

@@ -190,7 +190,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		chan->user_get_hi = 0x60;
 
 	/* disable the fifo caches */
-	pfifo->reassign(dev, false);
+	if (dev_priv->card_type < NV_C0)
+		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 
 	/* Construct initial RAMFC for new channel */
 	ret = pfifo->create_context(chan);
@@ -199,7 +200,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
-	pfifo->reassign(dev, true);
+	if (dev_priv->card_type < NV_C0)
+		nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	/* Insert NOPs for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
@@ -304,7 +306,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	nouveau_channel_idle(chan);
 
 	/* boot it off the hardware */
-	pfifo->reassign(dev, false);
+	if (dev_priv->card_type < NV_C0)
+		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
 
 	/* destroy the engine specific contexts */
 	for (i = NVOBJ_ENGINE_NR - 1; i >= 0; i--) {
@@ -315,7 +318,8 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 			pfifo->destroy_context(chan);
 	}
 
-	pfifo->reassign(dev, true);
+	if (dev_priv->card_type < NV_C0)
+		nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	/* aside from its resources, the channel should now be dead,
 	 * remove it from the channel list
