@@ -1035,7 +1035,7 @@ static int buffer_activate (struct saa7146_dev *dev,
 	buf->vb.state = VIDEOBUF_ACTIVE;
 	saa7146_set_capture(dev,buf,next);
 
-	mod_timer(&vv->video_q.timeout, jiffies+BUFFER_TIMEOUT);
+	mod_timer(&vv->video_dmaq.timeout, jiffies+BUFFER_TIMEOUT);
 	return 0;
 }
 
@@ -1158,7 +1158,7 @@ static void buffer_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 	struct saa7146_buf *buf = (struct saa7146_buf *)vb;
 
 	DEB_CAP("vbuf:%p\n", vb);
-	saa7146_buffer_queue(fh->dev,&vv->video_q,buf);
+	saa7146_buffer_queue(fh->dev, &vv->video_dmaq, buf);
 }
 
 static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
@@ -1187,12 +1187,12 @@ static struct videobuf_queue_ops video_qops = {
 
 static void video_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 {
-	INIT_LIST_HEAD(&vv->video_q.queue);
+	INIT_LIST_HEAD(&vv->video_dmaq.queue);
 
-	init_timer(&vv->video_q.timeout);
-	vv->video_q.timeout.function = saa7146_buffer_timeout;
-	vv->video_q.timeout.data     = (unsigned long)(&vv->video_q);
-	vv->video_q.dev              = dev;
+	init_timer(&vv->video_dmaq.timeout);
+	vv->video_dmaq.timeout.function = saa7146_buffer_timeout;
+	vv->video_dmaq.timeout.data     = (unsigned long)(&vv->video_dmaq);
+	vv->video_dmaq.dev              = dev;
 
 	/* set some default values */
 	vv->standard = &dev->ext_vv_data->stds[0];
@@ -1237,7 +1237,7 @@ static void video_close(struct saa7146_dev *dev, struct file *file)
 static void video_irq_done(struct saa7146_dev *dev, unsigned long st)
 {
 	struct saa7146_vv *vv = dev->vv_data;
-	struct saa7146_dmaqueue *q = &vv->video_q;
+	struct saa7146_dmaqueue *q = &vv->video_dmaq;
 
 	spin_lock(&dev->slock);
 	DEB_CAP("called\n");

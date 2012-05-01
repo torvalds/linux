@@ -101,7 +101,7 @@ struct saa7146_fh {
 struct saa7146_vv
 {
 	/* vbi capture */
-	struct saa7146_dmaqueue		vbi_q;
+	struct saa7146_dmaqueue		vbi_dmaq;
 	struct v4l2_vbi_format		vbi_fmt;
 	struct timer_list		vbi_read_timeout;
 	/* vbi workaround interrupt queue */
@@ -119,7 +119,7 @@ struct saa7146_vv
 	struct saa7146_fh		*ov_suspend;
 
 	/* video capture */
-	struct saa7146_dmaqueue		video_q;
+	struct saa7146_dmaqueue		video_dmaq;
 	struct v4l2_pix_format		video_fmt;
 	enum v4l2_field			last_field;
 
