@@ -1363,7 +1363,7 @@ static int __devinit hss_init_one(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, port);
 
-	netdev_info(dev, "HSS-%i\n", port->id);
+	netdev_info(dev, "initialized\n");
 	return 0;
 
 err_free_netdev:
