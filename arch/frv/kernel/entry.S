@@ -924,9 +924,7 @@ __syscall_exit:
 	movgs		gr23,psr
 
 	ldi		@(gr15,#TI_FLAGS),gr4
-	sethi.p		%hi(_TIF_ALLWORK_MASK),gr5
-	setlo		%lo(_TIF_ALLWORK_MASK),gr5
-	andcc		gr4,gr5,gr0,icc0
+	andicc		gr4,#_TIF_ALLWORK_MASK,gr0,icc0
 	bne		icc0,#0,__syscall_exit_work
 
 	# restore all registers and return
@@ -1111,9 +1109,7 @@ __entry_resume_userspace:
 __entry_return_from_user_interrupt:
 	LEDS		0x6402
 	ldi		@(gr15,#TI_FLAGS),gr4
-	sethi.p		%hi(_TIF_WORK_MASK),gr5
-	setlo		%lo(_TIF_WORK_MASK),gr5
-	andcc		gr4,gr5,gr0,icc0
+	andicc		gr4,#_TIF_WORK_MASK,gr0,icc0
 	beq		icc0,#1,__entry_return_direct
 
 __entry_work_pending:
@@ -1133,9 +1129,7 @@ __entry_work_resched:
 
 	LEDS		0x6401
 	ldi		@(gr15,#TI_FLAGS),gr4
-	sethi.p		%hi(_TIF_WORK_MASK),gr5
-	setlo		%lo(_TIF_WORK_MASK),gr5
-	andcc		gr4,gr5,gr0,icc0
+	andicc		gr4,#_TIF_WORK_MASK,gr0,icc0
 	beq		icc0,#1,__entry_return_direct
 	andicc		gr4,#_TIF_NEED_RESCHED,gr0,icc0
 	bne		icc0,#1,__entry_work_resched
