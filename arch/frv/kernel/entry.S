@@ -905,18 +905,19 @@ __syscall_call:
 __syscall_exit:
 	LEDS		0x6300
 
-	sti		gr8,@(gr28,#REG_GR(8))	; save return value
+	# keep current PSR in GR23
+	movsg		psr,gr23
+
+	ldi		@(gr28,#REG_PSR),gr22
+
+	sti.p		gr8,@(gr28,#REG_GR(8))	; save return value
 
 	# rebuild saved psr - execve will change it for init/main.c
-	ldi		@(gr28,#REG_PSR),gr22
 	srli		gr22,#1,gr5
 	andi.p		gr22,#~PSR_PS,gr22
 	andi		gr5,#PSR_PS,gr5
 	or		gr5,gr22,gr22
-	ori		gr22,#PSR_S,gr22
-
-	# keep current PSR in GR23
-	movsg		psr,gr23
+	ori.p		gr22,#PSR_S,gr22
 
 	# make sure we don't miss an interrupt setting need_resched or sigpending between
 	# sampling and the RETT
