@@ -1163,7 +1163,9 @@ __syscall_trace_entry:
 	# perform syscall exit tracing
 __syscall_exit_work:
 	LEDS		0x6340
-	andicc		gr4,#_TIF_SYSCALL_TRACE,gr0,icc0
+	andicc		gr22,#PSR_PS,gr0,icc1	; don't handle on return to kernel mode
+	andicc.p	gr4,#_TIF_SYSCALL_TRACE,gr0,icc0
+	bne		icc1,#0,__entry_return_direct
 	beq		icc0,#1,__entry_work_pending
 
 	movsg		psr,gr23

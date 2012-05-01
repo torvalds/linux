@@ -474,17 +474,7 @@ static void do_signal(void)
 {
 	struct k_sigaction ka;
 	siginfo_t info;
-	sigset_t *oldset;
 	int signr;
-
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(__frame))
-		return;
 
 	signr = get_signal_to_deliver(&info, &ka, __frame, NULL);
 	if (signr > 0) {
