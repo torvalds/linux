@@ -172,7 +172,7 @@ static void check_ioctl_unit_attention(struct ctlr_info *h,
 static void calc_bucket_map(int *bucket, int num_buckets,
 	int nsgs, int *bucket_map);
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h);
-static inline u32 next_command(struct ctlr_info *h);
+static inline u32 next_command(struct ctlr_info *h, u8 q);
 static int __devinit hpsa_find_cfg_addrs(struct pci_dev *pdev,
 	void __iomem *vaddr, u32 *cfg_base_addr, u64 *cfg_base_addr_index,
 	u64 *cfg_offset);
@@ -529,24 +529,25 @@ static inline void addQ(struct list_head *list, struct CommandList *c)
 	list_add_tail(&c->list, list);
 }
 
-static inline u32 next_command(struct ctlr_info *h)
+static inline u32 next_command(struct ctlr_info *h, u8 q)
 {
 	u32 a;
+	struct reply_pool *rq = &h->reply_queue[q];
 
 	if (unlikely(!(h->transMethod & CFGTBL_Trans_Performant)))
-		return h->access.command_completed(h);
+		return h->access.command_completed(h, q);
 
-	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
-		a = *(h->reply_pool_head); /* Next cmd in ring buffer */
-		(h->reply_pool_head)++;
+	if ((rq->head[rq->current_entry] & 1) == rq->wraparound) {
+		a = rq->head[rq->current_entry];
+		rq->current_entry++;
 		h->commands_outstanding--;
 	} else {
 		a = FIFO_EMPTY;
 	}
 	/* Check for wraparound */
-	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
-		h->reply_pool_head = h->reply_pool;
-		h->reply_pool_wraparound ^= 1;
+	if (rq->current_entry == h->max_commands) {
+		rq->current_entry = 0;
+		rq->wraparound ^= 1;
 	}
 	return a;
 }
@@ -557,8 +558,12 @@ static inline u32 next_command(struct ctlr_info *h)
  */
 static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 {
-	if (likely(h->transMethod & CFGTBL_Trans_Performant))
+	if (likely(h->transMethod & CFGTBL_Trans_Performant)) {
 		c->busaddr |= 1 | (h->blockFetchTable[c->Header.SGList] << 1);
+		if (likely(h->msix_vector))
+			c->Header.ReplyQueue =
+				smp_processor_id() % h->nreply_queues;
+	}
 }
 
 static void enqueue_cmd_and_start_io(struct ctlr_info *h,
@@ -3323,9 +3328,9 @@ static void start_io(struct ctlr_info *h)
 	}
 }
 
-static inline unsigned long get_next_completion(struct ctlr_info *h)
+static inline unsigned long get_next_completion(struct ctlr_info *h, u8 q)
 {
-	return h->access.command_completed(h);
+	return h->access.command_completed(h, q);
 }
 
 static inline bool interrupt_pending(struct ctlr_info *h)
@@ -3428,9 +3433,20 @@ static int ignore_bogus_interrupt(struct ctlr_info *h)
 	return 1;
 }
 
-static irqreturn_t hpsa_intx_discard_completions(int irq, void *dev_id)
+/*
+ * Convert &h->q[x] (passed to interrupt handlers) back to h.
+ * Relies on (h-q[x] == x) being true for x such that
+ * 0 <= x < MAX_REPLY_QUEUES.
+ */
+static struct ctlr_info *queue_to_hba(u8 *queue)
 {
-	struct ctlr_info *h = dev_id;
+	return container_of((queue - *queue), struct ctlr_info, q[0]);
+}
+
+static irqreturn_t hpsa_intx_discard_completions(int irq, void *queue)
+{
+	struct ctlr_info *h = queue_to_hba(queue);
+	u8 q = *(u8 *) queue;
 	unsigned long flags;
 	u32 raw_tag;
 
@@ -3442,71 +3458,75 @@ static irqreturn_t hpsa_intx_discard_completions(int irq, void *dev_id)
 	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
 	while (interrupt_pending(h)) {
-		raw_tag = get_next_completion(h);
+		raw_tag = get_next_completion(h, q);
 		while (raw_tag != FIFO_EMPTY)
-			raw_tag = next_command(h);
+			raw_tag = next_command(h, q);
 	}
 	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t hpsa_msix_discard_completions(int irq, void *dev_id)
+static irqreturn_t hpsa_msix_discard_completions(int irq, void *queue)
 {
-	struct ctlr_info *h = dev_id;
+	struct ctlr_info *h = queue_to_hba(queue);
 	unsigned long flags;
 	u32 raw_tag;
+	u8 q = *(u8 *) queue;
 
 	if (ignore_bogus_interrupt(h))
 		return IRQ_NONE;
 
 	spin_lock_irqsave(&h->lock, flags);
+
 	h->last_intr_timestamp = get_jiffies_64();
-	raw_tag = get_next_completion(h);
+	raw_tag = get_next_completion(h, q);
 	while (raw_tag != FIFO_EMPTY)
-		raw_tag = next_command(h);
+		raw_tag = next_command(h, q);
 	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t do_hpsa_intr_intx(int irq, void *dev_id)
+static irqreturn_t do_hpsa_intr_intx(int irq, void *queue)
 {
-	struct ctlr_info *h = dev_id;
+	struct ctlr_info *h = queue_to_hba((u8 *) queue);
 	unsigned long flags;
 	u32 raw_tag;
+	u8 q = *(u8 *) queue;
 
 	if (interrupt_not_for_us(h))
 		return IRQ_NONE;
 	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
 	while (interrupt_pending(h)) {
-		raw_tag = get_next_completion(h);
+		raw_tag = get_next_completion(h, q);
 		while (raw_tag != FIFO_EMPTY) {
 			if (likely(hpsa_tag_contains_index(raw_tag)))
 				process_indexed_cmd(h, raw_tag);
 			else
 				process_nonindexed_cmd(h, raw_tag);
-			raw_tag = next_command(h);
+			raw_tag = next_command(h, q);
 		}
 	}
 	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t do_hpsa_intr_msi(int irq, void *dev_id)
+static irqreturn_t do_hpsa_intr_msi(int irq, void *queue)
 {
-	struct ctlr_info *h = dev_id;
+	struct ctlr_info *h = queue_to_hba(queue);
 	unsigned long flags;
 	u32 raw_tag;
+	u8 q = *(u8 *) queue;
 
 	spin_lock_irqsave(&h->lock, flags);
 	h->last_intr_timestamp = get_jiffies_64();
-	raw_tag = get_next_completion(h);
+	raw_tag = get_next_completion(h, q);
 	while (raw_tag != FIFO_EMPTY) {
 		if (likely(hpsa_tag_contains_index(raw_tag)))
 			process_indexed_cmd(h, raw_tag);
 		else
 			process_nonindexed_cmd(h, raw_tag);
-		raw_tag = next_command(h);
+		raw_tag = next_command(h, q);
 	}
 	spin_unlock_irqrestore(&h->lock, flags);
 	return IRQ_HANDLED;
@@ -3942,10 +3962,13 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
 static void __devinit hpsa_interrupt_mode(struct ctlr_info *h)
 {
 #ifdef CONFIG_PCI_MSI
-	int err;
-	struct msix_entry hpsa_msix_entries[4] = { {0, 0}, {0, 1},
-	{0, 2}, {0, 3}
-	};
+	int err, i;
+	struct msix_entry hpsa_msix_entries[MAX_REPLY_QUEUES];
+
+	for (i = 0; i < MAX_REPLY_QUEUES; i++) {
+		hpsa_msix_entries[i].vector = 0;
+		hpsa_msix_entries[i].entry = i;
+	}
 
 	/* Some boards advertise MSI but don't really support it */
 	if ((h->board_id == 0x40700E11) || (h->board_id == 0x40800E11) ||
@@ -3953,12 +3976,11 @@ static void __devinit hpsa_interrupt_mode(struct ctlr_info *h)
 		goto default_int_mode;
 	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
 		dev_info(&h->pdev->dev, "MSIX\n");
-		err = pci_enable_msix(h->pdev, hpsa_msix_entries, 4);
+		err = pci_enable_msix(h->pdev, hpsa_msix_entries,
+						MAX_REPLY_QUEUES);
 		if (!err) {
-			h->intr[0] = hpsa_msix_entries[0].vector;
-			h->intr[1] = hpsa_msix_entries[1].vector;
-			h->intr[2] = hpsa_msix_entries[2].vector;
-			h->intr[3] = hpsa_msix_entries[3].vector;
+			for (i = 0; i < MAX_REPLY_QUEUES; i++)
+				h->intr[i] = hpsa_msix_entries[i].vector;
 			h->msix_vector = 1;
 			return;
 		}
@@ -4372,14 +4394,33 @@ static int hpsa_request_irq(struct ctlr_info *h,
 	irqreturn_t (*msixhandler)(int, void *),
 	irqreturn_t (*intxhandler)(int, void *))
 {
-	int rc;
+	int rc, i;
 
-	if (h->msix_vector || h->msi_vector)
-		rc = request_irq(h->intr[h->intr_mode], msixhandler,
-				0, h->devname, h);
-	else
-		rc = request_irq(h->intr[h->intr_mode], intxhandler,
-				IRQF_SHARED, h->devname, h);
+	/*
+	 * initialize h->q[x] = x so that interrupt handlers know which
+	 * queue to process.
+	 */
+	for (i = 0; i < MAX_REPLY_QUEUES; i++)
+		h->q[i] = (u8) i;
+
+	if (h->intr_mode == PERF_MODE_INT && h->msix_vector) {
+		/* If performant mode and MSI-X, use multiple reply queues */
+		for (i = 0; i < MAX_REPLY_QUEUES; i++)
+			rc = request_irq(h->intr[i], msixhandler,
+					0, h->devname,
+					&h->q[i]);
+	} else {
+		/* Use single reply pool */
+		if (h->msix_vector || h->msi_vector) {
+			rc = request_irq(h->intr[h->intr_mode],
+				msixhandler, 0, h->devname,
+				&h->q[h->intr_mode]);
+		} else {
+			rc = request_irq(h->intr[h->intr_mode],
+				intxhandler, IRQF_SHARED, h->devname,
+				&h->q[h->intr_mode]);
+		}
+	}
 	if (rc) {
 		dev_err(&h->pdev->dev, "unable to get irq %d for %s\n",
 		       h->intr[h->intr_mode], h->devname);
@@ -4412,9 +4453,24 @@ static int __devinit hpsa_kdump_soft_reset(struct ctlr_info *h)
 	return 0;
 }
 
+static void free_irqs(struct ctlr_info *h)
+{
+	int i;
+
+	if (!h->msix_vector || h->intr_mode != PERF_MODE_INT) {
+		/* Single reply queue, only one irq to free */
+		i = h->intr_mode;
+		free_irq(h->intr[i], &h->q[i]);
+		return;
+	}
+
+	for (i = 0; i < MAX_REPLY_QUEUES; i++)
+		free_irq(h->intr[i], &h->q[i]);
+}
+
 static void hpsa_undo_allocations_after_kdump_soft_reset(struct ctlr_info *h)
 {
-	free_irq(h->intr[h->intr_mode], h);
+	free_irqs(h);
 #ifdef CONFIG_PCI_MSI
 	if (h->msix_vector)
 		pci_disable_msix(h->pdev);
@@ -4682,7 +4738,7 @@ reinit_after_soft_reset:
 		spin_lock_irqsave(&h->lock, flags);
 		h->access.set_intr_mask(h, HPSA_INTR_OFF);
 		spin_unlock_irqrestore(&h->lock, flags);
-		free_irq(h->intr[h->intr_mode], h);
+		free_irqs(h);
 		rc = hpsa_request_irq(h, hpsa_msix_discard_completions,
 					hpsa_intx_discard_completions);
 		if (rc) {
@@ -4732,7 +4788,7 @@ reinit_after_soft_reset:
 clean4:
 	hpsa_free_sg_chain_blocks(h);
 	hpsa_free_cmd_pool(h);
-	free_irq(h->intr[h->intr_mode], h);
+	free_irqs(h);
 clean2:
 clean1:
 	kfree(h);
@@ -4775,7 +4831,7 @@ static void hpsa_shutdown(struct pci_dev *pdev)
 	 */
 	hpsa_flush_cache(h);
 	h->access.set_intr_mask(h, HPSA_INTR_OFF);
-	free_irq(h->intr[h->intr_mode], h);
+	free_irqs(h);
 #ifdef CONFIG_PCI_MSI
 	if (h->msix_vector)
 		pci_disable_msix(h->pdev);
@@ -4915,11 +4971,8 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 	 * 10 = 6 s/g entry or 24k
 	 */
 
-	h->reply_pool_wraparound = 1; /* spec: init to 1 */
-
 	/* Controller spec: zero out this buffer. */
 	memset(h->reply_pool, 0, h->reply_pool_size);
-	h->reply_pool_head = h->reply_pool;
 
 	bft[7] = SG_ENTRIES_IN_CMD + 4;
 	calc_bucket_map(bft, ARRAY_SIZE(bft),
@@ -4929,12 +4982,19 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 
 	/* size of controller ring buffer */
 	writel(h->max_commands, &h->transtable->RepQSize);
-	writel(1, &h->transtable->RepQCount);
+	writel(h->nreply_queues, &h->transtable->RepQCount);
 	writel(0, &h->transtable->RepQCtrAddrLow32);
 	writel(0, &h->transtable->RepQCtrAddrHigh32);
-	writel(h->reply_pool_dhandle, &h->transtable->RepQAddr0Low32);
-	writel(0, &h->transtable->RepQAddr0High32);
-	writel(CFGTBL_Trans_Performant | use_short_tags,
+
+	for (i = 0; i < h->nreply_queues; i++) {
+		writel(0, &h->transtable->RepQAddr[i].upper);
+		writel(h->reply_pool_dhandle +
+			(h->max_commands * sizeof(u64) * i),
+			&h->transtable->RepQAddr[i].lower);
+	}
+
+	writel(CFGTBL_Trans_Performant | use_short_tags |
+		CFGTBL_Trans_enable_directed_msix,
 		&(h->cfgtable->HostWrite.TransportRequest));
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 	hpsa_wait_for_mode_change_ack(h);
@@ -4952,6 +5012,7 @@ static __devinit void hpsa_enter_performant_mode(struct ctlr_info *h,
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
+	int i;
 
 	if (hpsa_simple_mode)
 		return;
@@ -4960,11 +5021,19 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	if (!(trans_support & PERFORMANT_MODE))
 		return;
 
+	h->nreply_queues = h->msix_vector ? MAX_REPLY_QUEUES : 1;
 	hpsa_get_max_perf_mode_cmds(h);
 	/* Performant mode ring buffer and supporting data structures */
-	h->reply_pool_size = h->max_commands * sizeof(u64);
+	h->reply_pool_size = h->max_commands * sizeof(u64) * h->nreply_queues;
 	h->reply_pool = pci_alloc_consistent(h->pdev, h->reply_pool_size,
 				&(h->reply_pool_dhandle));
+
+	for (i = 0; i < h->nreply_queues; i++) {
+		h->reply_queue[i].head = &h->reply_pool[h->max_commands * i];
+		h->reply_queue[i].size = h->max_commands;
+		h->reply_queue[i].wraparound = 1;  /* spec: init to 1 */
+		h->reply_queue[i].current_entry = 0;
+	}
 
 	/* Need a block fetch table for performant mode */
 	h->blockFetchTable = kmalloc(((SG_ENTRIES_IN_CMD + 1) *

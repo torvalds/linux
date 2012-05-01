@@ -129,6 +129,7 @@
 #define CFGTBL_Trans_Simple     0x00000002l
 #define CFGTBL_Trans_Performant 0x00000004l
 #define CFGTBL_Trans_use_short_tags 0x20000000l
+#define CFGTBL_Trans_enable_directed_msix (1 << 30)
 
 #define CFGTBL_BusType_Ultra2   0x00000001l
 #define CFGTBL_BusType_Ultra3   0x00000002l
@@ -380,8 +381,8 @@ struct TransTable_struct {
 	u32            RepQCount;
 	u32            RepQCtrAddrLow32;
 	u32            RepQCtrAddrHigh32;
-	u32            RepQAddr0Low32;
-	u32            RepQAddr0High32;
+#define MAX_REPLY_QUEUES 8
+	struct vals32  RepQAddr[MAX_REPLY_QUEUES];
 };
 
 struct hpsa_pci_info {

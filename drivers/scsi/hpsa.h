@@ -34,7 +34,7 @@ struct access_method {
 	void (*set_intr_mask)(struct ctlr_info *h, unsigned long val);
 	unsigned long (*fifo_full)(struct ctlr_info *h);
 	bool (*intr_pending)(struct ctlr_info *h);
-	unsigned long (*command_completed)(struct ctlr_info *h);
+	unsigned long (*command_completed)(struct ctlr_info *h, u8 q);
 };
 
 struct hpsa_scsi_dev_t {
@@ -46,6 +46,13 @@ struct hpsa_scsi_dev_t {
 	unsigned char vendor[8];        /* bytes 8-15 of inquiry data */
 	unsigned char model[16];        /* bytes 16-31 of inquiry data */
 	unsigned char raid_level;	/* from inquiry page 0xC1 */
+};
+
+struct reply_pool {
+	u64 *head;
+	size_t size;
+	u8 wraparound;
+	u32 current_entry;
 };
 
 struct ctlr_info {
@@ -68,7 +75,7 @@ struct ctlr_info {
 #	define DOORBELL_INT	1
 #	define SIMPLE_MODE_INT	2
 #	define MEMQ_MODE_INT	3
-	unsigned int intr[4];
+	unsigned int intr[MAX_REPLY_QUEUES];
 	unsigned int msix_vector;
 	unsigned int msi_vector;
 	int intr_mode; /* either PERF_MODE_INT or SIMPLE_MODE_INT */
@@ -111,13 +118,13 @@ struct ctlr_info {
 	unsigned long transMethod;
 
 	/*
-	 * Performant mode completion buffer
+	 * Performant mode completion buffers
 	 */
 	u64 *reply_pool;
-	dma_addr_t reply_pool_dhandle;
-	u64 *reply_pool_head;
 	size_t reply_pool_size;
-	unsigned char reply_pool_wraparound;
+	struct reply_pool reply_queue[MAX_REPLY_QUEUES];
+	u8 nreply_queues;
+	dma_addr_t reply_pool_dhandle;
 	u32 *blockFetchTable;
 	unsigned char *hba_inquiry_data;
 	u64 last_intr_timestamp;
@@ -125,6 +132,8 @@ struct ctlr_info {
 	u64 last_heartbeat_timestamp;
 	u32 lockup_detected;
 	struct list_head lockup_list;
+	/* Address of h->q[x] is passed to intr handler to know which queue */
+	u8 q[MAX_REPLY_QUEUES];
 	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */
 #define HPSATMF_BITS_SUPPORTED  (1 << 0)
 #define HPSATMF_PHYS_LUN_RESET  (1 << 1)
@@ -275,8 +284,9 @@ static void SA5_performant_intr_mask(struct ctlr_info *h, unsigned long val)
 	}
 }
 
-static unsigned long SA5_performant_completed(struct ctlr_info *h)
+static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 {
+	struct reply_pool *rq = &h->reply_queue[q];
 	unsigned long register_value = FIFO_EMPTY;
 
 	/* msi auto clears the interrupt pending bit. */
@@ -292,19 +302,18 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h)
 		register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
 	}
 
-	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
-		register_value = *(h->reply_pool_head);
-		(h->reply_pool_head)++;
+	if ((rq->head[rq->current_entry] & 1) == rq->wraparound) {
+		register_value = rq->head[rq->current_entry];
+		rq->current_entry++;
 		h->commands_outstanding--;
 	} else {
 		register_value = FIFO_EMPTY;
 	}
 	/* Check for wraparound */
-	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
-		h->reply_pool_head = h->reply_pool;
-		h->reply_pool_wraparound ^= 1;
+	if (rq->current_entry == h->max_commands) {
+		rq->current_entry = 0;
+		rq->wraparound ^= 1;
 	}
-
 	return register_value;
 }
 
@@ -324,7 +333,8 @@ static unsigned long SA5_fifo_full(struct ctlr_info *h)
  *   returns value read from hardware.
  *     returns FIFO_EMPTY if there is nothing to read
  */
-static unsigned long SA5_completed(struct ctlr_info *h)
+static unsigned long SA5_completed(struct ctlr_info *h,
+	__attribute__((unused)) u8 q)
 {
 	unsigned long register_value
 		= readl(h->vaddr + SA5_REPLY_PORT_OFFSET);
