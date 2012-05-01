@@ -811,6 +811,16 @@ int av7110_init_v4l(struct av7110 *av7110)
 	vv_data->vid_ops.vidioc_s_frequency = vidioc_s_frequency;
 	vv_data->vid_ops.vidioc_g_audio = vidioc_g_audio;
 	vv_data->vid_ops.vidioc_s_audio = vidioc_s_audio;
+
+	vv_data->vbi_ops.vidioc_enum_input = vidioc_enum_input;
+	vv_data->vbi_ops.vidioc_g_input = vidioc_g_input;
+	vv_data->vbi_ops.vidioc_s_input = vidioc_s_input;
+	vv_data->vbi_ops.vidioc_g_tuner = vidioc_g_tuner;
+	vv_data->vbi_ops.vidioc_s_tuner = vidioc_s_tuner;
+	vv_data->vbi_ops.vidioc_g_frequency = vidioc_g_frequency;
+	vv_data->vbi_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data->vbi_ops.vidioc_g_audio = vidioc_g_audio;
+	vv_data->vbi_ops.vidioc_s_audio = vidioc_s_audio;
 	vv_data->vbi_ops.vidioc_g_sliced_vbi_cap = vidioc_g_sliced_vbi_cap;
 	vv_data->vbi_ops.vidioc_g_fmt_sliced_vbi_out = vidioc_g_fmt_sliced_vbi_out;
 	vv_data->vbi_ops.vidioc_s_fmt_sliced_vbi_out = vidioc_s_fmt_sliced_vbi_out;

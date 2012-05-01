@@ -575,6 +575,13 @@ static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	return call_all(dev, tuner, s_tuner, t);
 }
 
+static int vidioc_querystd(struct file *file, void *fh, v4l2_std_id *norm)
+{
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+
+	return call_all(dev, video, querystd, norm);
+}
+
 static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
@@ -707,6 +714,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
 	vv_data.vid_ops.vidioc_g_input = vidioc_g_input;
 	vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
+	vv_data.vid_ops.vidioc_querystd = vidioc_querystd;
 	vv_data.vid_ops.vidioc_g_tuner = vidioc_g_tuner;
 	vv_data.vid_ops.vidioc_s_tuner = vidioc_s_tuner;
 	vv_data.vid_ops.vidioc_g_frequency = vidioc_g_frequency;
