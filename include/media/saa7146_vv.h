@@ -90,7 +90,6 @@ struct saa7146_fh {
 
 	/* video capture */
 	struct videobuf_queue	video_q;
-	struct v4l2_pix_format	video_fmt;
 
 	/* vbi capture */
 	struct videobuf_queue	vbi_q;
@@ -123,6 +122,7 @@ struct saa7146_vv
 
 	/* video capture */
 	struct saa7146_dmaqueue		video_q;
+	struct v4l2_pix_format		video_fmt;
 	enum v4l2_field			last_field;
 
 	/* common: fixme? shouldn't this be in saa7146_fh?
