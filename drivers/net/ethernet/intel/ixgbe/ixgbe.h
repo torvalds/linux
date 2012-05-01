@@ -36,6 +36,12 @@
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
 
+#ifdef CONFIG_IXGBE_PTP
+#include <linux/clocksource.h>
+#include <linux/net_tstamp.h>
+#include <linux/ptp_clock_kernel.h>
+#endif /* CONFIG_IXGBE_PTP */
+
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
 #include "ixgbe_dcb.h"
@@ -96,6 +102,7 @@
 #define IXGBE_TX_FLAGS_FCOE		(u32)(1 << 5)
 #define IXGBE_TX_FLAGS_FSO		(u32)(1 << 6)
 #define IXGBE_TX_FLAGS_TXSW		(u32)(1 << 7)
+#define IXGBE_TX_FLAGS_TSTAMP		(u32)(1 << 8)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT  29
@@ -458,6 +465,7 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
+#define IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED	(u32)(1 << 10)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -544,6 +552,17 @@ struct ixgbe_adapter {
 
 	u32 interrupt_event;
 	u32 led_reg;
+
+#ifdef CONFIG_IXGBE_PTP
+	struct ptp_clock *ptp_clock;
+	struct ptp_clock_info ptp_caps;
+	unsigned long last_overflow_check;
+	spinlock_t tmreg_lock;
+	struct cyclecounter cc;
+	struct timecounter tc;
+	u32 base_incval;
+	u32 cycle_speed;
+#endif /* CONFIG_IXGBE_PTP */
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
@@ -688,5 +707,18 @@ static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
 {
 	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
 }
+
+#ifdef CONFIG_IXGBE_PTP
+extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
+				  struct sk_buff *skb);
+extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
+				  struct sk_buff *skb);
+extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
+				    struct ifreq *ifr, int cmd);
+extern void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
+#endif /* CONFIG_IXGBE_PTP */
 
 #endif /* _IXGBE_H_ */

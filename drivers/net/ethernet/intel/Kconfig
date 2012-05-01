@@ -220,6 +220,17 @@ config IXGBE_DCB
 
 	  If unsure, say N.
 
+config IXGBE_PTP
+	bool "PTP Clock Support"
+	default n
+	depends on IXGBE && PTP_1588_CLOCK
+	---help---
+	  Say Y here if you want support for 1588 Timestamping with a
+	  PHC device, using the PTP 1588 Clock support. This is
+	  required to enable timestamping support for the device.
+
+	  If unsure, say N.
+
 config IXGBEVF
 	tristate "Intel(R) 82599 Virtual Function Ethernet support"
 	depends on PCI_MSI
