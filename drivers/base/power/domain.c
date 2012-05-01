@@ -1279,11 +1279,13 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 			   struct device *dev)
 {
 	struct pm_domain_data *pdd;
-	int ret = -EINVAL;
+	int ret = 0;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev))
+	if (IS_ERR_OR_NULL(genpd) || IS_ERR_OR_NULL(dev)
+	    ||  IS_ERR_OR_NULL(dev->pm_domain)
+	    ||  pd_to_genpd(dev->pm_domain) != genpd)
 		return -EINVAL;
 
 	genpd_acquire_lock(genpd);
@@ -1293,21 +1295,14 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
-		if (pdd->dev != dev)
-			continue;
+	dev->pm_domain = NULL;
+	pdd = dev->power.subsys_data->domain_data;
+	list_del_init(&pdd->list_node);
+	dev->power.subsys_data->domain_data = NULL;
+	dev_pm_put_subsys_data(dev);
+	kfree(to_gpd_data(pdd));
 
-		list_del_init(&pdd->list_node);
-		pdd->dev = NULL;
-		dev_pm_put_subsys_data(dev);
-		dev->pm_domain = NULL;
-		kfree(to_gpd_data(pdd));
-
-		genpd->device_count--;
-
-		ret = 0;
-		break;
-	}
+	genpd->device_count--;
 
  out:
 	genpd_release_lock(genpd);
