@@ -3592,6 +3592,7 @@ S:	Supported
 F:	drivers/net/wireless/iwlegacy/
 
 INTEL WIRELESS WIFI LINK (iwlwifi)
+M:	Johannes Berg <johannes.berg@intel.com>
 M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
@@ -7578,8 +7579,8 @@ F:	Documentation/filesystems/xfs.txt
 F:	fs/xfs/
 
 XILINX AXI ETHERNET DRIVER
-M:	Ariane Keller <ariane.keller@tik.ee.ethz.ch>
-M:	Daniel Borkmann <daniel.borkmann@tik.ee.ethz.ch>
+M:	Anirudha Sarangi <anirudh@xilinx.com>
+M:	John Linn <John.Linn@xilinx.com>
 S:	Maintained
 F:	drivers/net/ethernet/xilinx/xilinx_axienet*
 
