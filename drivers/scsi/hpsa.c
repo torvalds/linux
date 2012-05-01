@@ -3705,14 +3705,6 @@ static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
 	return ARRAY_SIZE(products) - 1; /* generic unknown smart array */
 }
 
-static inline bool hpsa_board_disabled(struct pci_dev *pdev)
-{
-	u16 command;
-
-	(void) pci_read_config_word(pdev, PCI_COMMAND, &command);
-	return ((command & PCI_COMMAND_MEMORY) == 0);
-}
-
 static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 	unsigned long *memory_bar)
 {
@@ -3928,11 +3920,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		return -ENODEV;
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
-
-	if (hpsa_board_disabled(h->pdev)) {
-		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
-		return -ENODEV;
-	}
 
 	pci_disable_link_state(h->pdev, PCIE_LINK_STATE_L0S |
 			       PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_CLKPM);
