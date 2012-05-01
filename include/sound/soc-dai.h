@@ -198,6 +198,7 @@ struct snd_soc_dai_driver {
 	const char *name;
 	unsigned int id;
 	int ac97_control;
+	unsigned int base;
 
 	/* DAI driver callbacks */
 	int (*probe)(struct snd_soc_dai *dai);
