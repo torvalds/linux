@@ -26,7 +26,7 @@
 #define DIO_METADATA	0x00000020
 
 struct gfs2_log_operations;
-struct gfs2_log_element;
+struct gfs2_bufdata;
 struct gfs2_holder;
 struct gfs2_glock;
 struct gfs2_quota_data;
@@ -52,7 +52,7 @@ struct gfs2_log_header_host {
  */
 
 struct gfs2_log_operations {
-	void (*lo_add) (struct gfs2_sbd *sdp, struct gfs2_log_element *le);
+	void (*lo_add) (struct gfs2_sbd *sdp, struct gfs2_bufdata *bd);
 	void (*lo_before_commit) (struct gfs2_sbd *sdp);
 	void (*lo_after_commit) (struct gfs2_sbd *sdp, struct gfs2_ail *ai);
 	void (*lo_before_scan) (struct gfs2_jdesc *jd,
@@ -62,11 +62,6 @@ struct gfs2_log_operations {
 				 int pass);
 	void (*lo_after_scan) (struct gfs2_jdesc *jd, int error, int pass);
 	const char *lo_name;
-};
-
-struct gfs2_log_element {
-	struct list_head le_list;
-	const struct gfs2_log_operations *le_ops;
 };
 
 #define GBF_FULL 1
@@ -120,7 +115,8 @@ struct gfs2_bufdata {
 	struct gfs2_glock *bd_gl;
 	u64 bd_blkno;
 
-	struct gfs2_log_element bd_le;
+	struct list_head bd_list;
+	const struct gfs2_log_operations *bd_ops;
 
 	struct gfs2_ail *bd_ail;
 	struct list_head bd_ail_st_list;

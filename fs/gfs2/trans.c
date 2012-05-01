@@ -158,16 +158,16 @@ void gfs2_trans_add_bh(struct gfs2_glock *gl, struct buffer_head *bh, int meta)
 		gfs2_attach_bufdata(gl, bh, meta);
 		bd = bh->b_private;
 	}
-	lops_add(sdp, &bd->bd_le);
+	lops_add(sdp, bd);
 }
 
 void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	BUG_ON(!list_empty(&bd->bd_le.le_list));
+	BUG_ON(!list_empty(&bd->bd_list));
 	BUG_ON(!list_empty(&bd->bd_ail_st_list));
 	BUG_ON(!list_empty(&bd->bd_ail_gl_list));
-	lops_init_le(&bd->bd_le, &gfs2_revoke_lops);
-	lops_add(sdp, &bd->bd_le);
+	lops_init_le(bd, &gfs2_revoke_lops);
+	lops_add(sdp, bd);
 }
 
 void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
@@ -177,9 +177,9 @@ void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 	unsigned int n = len;
 
 	gfs2_log_lock(sdp);
-	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_le_revoke, bd_le.le_list) {
+	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_le_revoke, bd_list) {
 		if ((bd->bd_blkno >= blkno) && (bd->bd_blkno < (blkno + len))) {
-			list_del_init(&bd->bd_le.le_list);
+			list_del_init(&bd->bd_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;
 			kmem_cache_free(gfs2_bufdata_cachep, bd);

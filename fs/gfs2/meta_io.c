@@ -294,9 +294,9 @@ void gfs2_attach_bufdata(struct gfs2_glock *gl, struct buffer_head *bh,
 	bd->bd_gl = gl;
 
 	if (meta)
-		lops_init_le(&bd->bd_le, &gfs2_buf_lops);
+		lops_init_le(bd, &gfs2_buf_lops);
 	else
-		lops_init_le(&bd->bd_le, &gfs2_databuf_lops);
+		lops_init_le(bd, &gfs2_databuf_lops);
 	bh->b_private = bd;
 
 	if (meta)
@@ -312,7 +312,7 @@ void gfs2_remove_from_journal(struct buffer_head *bh, struct gfs2_trans *tr, int
 	if (test_clear_buffer_pinned(bh)) {
 		trace_gfs2_pin(bd, 0);
 		atomic_dec(&sdp->sd_log_pinned);
-		list_del_init(&bd->bd_le.le_list);
+		list_del_init(&bd->bd_list);
 		if (meta) {
 			gfs2_assert_warn(sdp, sdp->sd_log_num_buf);
 			sdp->sd_log_num_buf--;

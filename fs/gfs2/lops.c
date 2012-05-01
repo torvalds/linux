@@ -388,9 +388,8 @@ static struct page *gfs2_get_log_desc(struct gfs2_sbd *sdp, u32 ld_type,
 	return page;
 }
 
-static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
+static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
 	struct gfs2_meta_header *mh;
 	struct gfs2_trans *tr;
 
@@ -398,7 +397,7 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	gfs2_log_lock(sdp);
 	tr = current->journal_info;
 	tr->tr_touched = 1;
-	if (!list_empty(&le->le_list))
+	if (!list_empty(&bd->bd_list))
 		goto out;
 	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
@@ -408,7 +407,7 @@ static void buf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	mh->__pad0 = cpu_to_be64(0);
 	mh->mh_jid = cpu_to_be32(sdp->sd_jdesc->jd_jid);
 	sdp->sd_log_num_buf++;
-	list_add(&le->le_list, &sdp->sd_log_le_buf);
+	list_add(&bd->bd_list, &sdp->sd_log_le_buf);
 	tr->tr_num_buf_new++;
 out:
 	gfs2_log_unlock(sdp);
@@ -440,7 +439,7 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 	__be64 *ptr;
 
 	gfs2_log_lock(sdp);
-	bd1 = bd2 = list_prepare_entry(bd1, blist, bd_le.le_list);
+	bd1 = bd2 = list_prepare_entry(bd1, blist, bd_list);
 	while(total) {
 		num = total;
 		if (total > limit)
@@ -452,7 +451,7 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 		ptr = (__be64 *)(ld + 1);
 
 		n = 0;
-		list_for_each_entry_continue(bd1, blist, bd_le.le_list) {
+		list_for_each_entry_continue(bd1, blist, bd_list) {
 			*ptr++ = cpu_to_be64(bd1->bd_bh->b_blocknr);
 			if (is_databuf) {
 				gfs2_check_magic(bd1->bd_bh);
@@ -467,7 +466,7 @@ static void gfs2_before_commit(struct gfs2_sbd *sdp, unsigned int limit,
 		gfs2_log_lock(sdp);
 
 		n = 0;
-		list_for_each_entry_continue(bd2, blist, bd_le.le_list) {
+		list_for_each_entry_continue(bd2, blist, bd_list) {
 			get_bh(bd2->bd_bh);
 			gfs2_log_unlock(sdp);
 			lock_buffer(bd2->bd_bh);
@@ -513,8 +512,8 @@ static void buf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 	struct gfs2_bufdata *bd;
 
 	while (!list_empty(head)) {
-		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
-		list_del_init(&bd->bd_le.le_list);
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
+		list_del_init(&bd->bd_list);
 		sdp->sd_log_num_buf--;
 
 		gfs2_unpin(sdp, bd->bd_bh, ai);
@@ -601,9 +600,8 @@ static void buf_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
 	        jd->jd_jid, sdp->sd_replayed_blocks, sdp->sd_found_blocks);
 }
 
-static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
+static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
 	struct gfs2_glock *gl = bd->bd_gl;
 	struct gfs2_trans *tr;
 
@@ -613,7 +611,7 @@ static void revoke_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	sdp->sd_log_num_revoke++;
 	atomic_inc(&gl->gl_revokes);
 	set_bit(GLF_LFLUSH, &gl->gl_flags);
-	list_add(&le->le_list, &sdp->sd_log_le_revoke);
+	list_add(&bd->bd_list, &sdp->sd_log_le_revoke);
 }
 
 static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
@@ -634,7 +632,7 @@ static void revoke_lo_before_commit(struct gfs2_sbd *sdp)
 	ld = page_address(page);
 	offset = sizeof(struct gfs2_log_descriptor);
 
-	list_for_each_entry(bd, head, bd_le.le_list) {
+	list_for_each_entry(bd, head, bd_list) {
 		sdp->sd_log_num_revoke--;
 
 		if (offset + sizeof(u64) > sdp->sd_sb.sb_bsize) {
@@ -664,8 +662,8 @@ static void revoke_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 	struct gfs2_glock *gl;
 
 	while (!list_empty(head)) {
-		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
-		list_del_init(&bd->bd_le.le_list);
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
+		list_del_init(&bd->bd_list);
 		gl = bd->bd_gl;
 		atomic_dec(&gl->gl_revokes);
 		clear_bit(GLF_LFLUSH, &gl->gl_flags);
@@ -768,9 +766,8 @@ static void revoke_lo_after_scan(struct gfs2_jdesc *jd, int error, int pass)
  *    blocks, which isn't an enormous overhead but twice as much as
  *    for normal metadata blocks.
  */
-static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
+static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 {
-	struct gfs2_bufdata *bd = container_of(le, struct gfs2_bufdata, bd_le);
 	struct gfs2_trans *tr = current->journal_info;
 	struct address_space *mapping = bd->bd_bh->b_page->mapping;
 	struct gfs2_inode *ip = GFS2_I(mapping->host);
@@ -779,7 +776,7 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 	gfs2_log_lock(sdp);
 	if (tr)
 		tr->tr_touched = 1;
-	if (!list_empty(&le->le_list))
+	if (!list_empty(&bd->bd_list))
 		goto out;
 	set_bit(GLF_LFLUSH, &bd->bd_gl->gl_flags);
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
@@ -787,9 +784,9 @@ static void databuf_lo_add(struct gfs2_sbd *sdp, struct gfs2_log_element *le)
 		gfs2_pin(sdp, bd->bd_bh);
 		tr->tr_num_databuf_new++;
 		sdp->sd_log_num_databuf++;
-		list_add_tail(&le->le_list, &sdp->sd_log_le_databuf);
+		list_add_tail(&bd->bd_list, &sdp->sd_log_le_databuf);
 	} else {
-		list_add_tail(&le->le_list, &sdp->sd_log_le_ordered);
+		list_add_tail(&bd->bd_list, &sdp->sd_log_le_ordered);
 	}
 out:
 	gfs2_log_unlock(sdp);
@@ -885,8 +882,8 @@ static void databuf_lo_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
 	struct gfs2_bufdata *bd;
 
 	while (!list_empty(head)) {
-		bd = list_entry(head->next, struct gfs2_bufdata, bd_le.le_list);
-		list_del_init(&bd->bd_le.le_list);
+		bd = list_entry(head->next, struct gfs2_bufdata, bd_list);
+		list_del_init(&bd->bd_list);
 		sdp->sd_log_num_databuf--;
 		gfs2_unpin(sdp, bd->bd_bh, ai);
 	}

@@ -486,8 +486,8 @@ static int bd_cmp(void *priv, struct list_head *a, struct list_head *b)
 {
 	struct gfs2_bufdata *bda, *bdb;
 
-	bda = list_entry(a, struct gfs2_bufdata, bd_le.le_list);
-	bdb = list_entry(b, struct gfs2_bufdata, bd_le.le_list);
+	bda = list_entry(a, struct gfs2_bufdata, bd_list);
+	bdb = list_entry(b, struct gfs2_bufdata, bd_list);
 
 	if (bda->bd_bh->b_blocknr < bdb->bd_bh->b_blocknr)
 		return -1;
@@ -505,8 +505,8 @@ static void gfs2_ordered_write(struct gfs2_sbd *sdp)
 	gfs2_log_lock(sdp);
 	list_sort(NULL, &sdp->sd_log_le_ordered, &bd_cmp);
 	while (!list_empty(&sdp->sd_log_le_ordered)) {
-		bd = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_bufdata, bd_le.le_list);
-		list_move(&bd->bd_le.le_list, &written);
+		bd = list_entry(sdp->sd_log_le_ordered.next, struct gfs2_bufdata, bd_list);
+		list_move(&bd->bd_list, &written);
 		bh = bd->bd_bh;
 		if (!buffer_dirty(bh))
 			continue;
@@ -533,7 +533,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
 
 	gfs2_log_lock(sdp);
 	while (!list_empty(&sdp->sd_log_le_ordered)) {
-		bd = list_entry(sdp->sd_log_le_ordered.prev, struct gfs2_bufdata, bd_le.le_list);
+		bd = list_entry(sdp->sd_log_le_ordered.prev, struct gfs2_bufdata, bd_list);
 		bh = bd->bd_bh;
 		if (buffer_locked(bh)) {
 			get_bh(bh);
@@ -543,7 +543,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
 			gfs2_log_lock(sdp);
 			continue;
 		}
-		list_del_init(&bd->bd_le.le_list);
+		list_del_init(&bd->bd_list);
 	}
 	gfs2_log_unlock(sdp);
 }
