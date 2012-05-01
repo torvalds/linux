@@ -569,12 +569,42 @@ static void set_performant_mode(struct ctlr_info *h, struct CommandList *c)
 	}
 }
 
+static int is_firmware_flash_cmd(u8 *cdb)
+{
+	return cdb[0] == BMIC_WRITE && cdb[6] == BMIC_FLASH_FIRMWARE;
+}
+
+/*
+ * During firmware flash, the heartbeat register may not update as frequently
+ * as it should.  So we dial down lockup detection during firmware flash. and
+ * dial it back up when firmware flash completes.
+ */
+#define HEARTBEAT_SAMPLE_INTERVAL_DURING_FLASH (240 * HZ)
+#define HEARTBEAT_SAMPLE_INTERVAL (30 * HZ)
+static void dial_down_lockup_detection_during_fw_flash(struct ctlr_info *h,
+		struct CommandList *c)
+{
+	if (!is_firmware_flash_cmd(c->Request.CDB))
+		return;
+	atomic_inc(&h->firmware_flash_in_progress);
+	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL_DURING_FLASH;
+}
+
+static void dial_up_lockup_detection_on_fw_flash_complete(struct ctlr_info *h,
+		struct CommandList *c)
+{
+	if (is_firmware_flash_cmd(c->Request.CDB) &&
+		atomic_dec_and_test(&h->firmware_flash_in_progress))
+		h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
+}
+
 static void enqueue_cmd_and_start_io(struct ctlr_info *h,
 	struct CommandList *c)
 {
 	unsigned long flags;
 
 	set_performant_mode(h, c);
+	dial_down_lockup_detection_during_fw_flash(h, c);
 	spin_lock_irqsave(&h->lock, flags);
 	addQ(&h->reqQ, c);
 	h->Qdepth++;
@@ -3385,6 +3415,7 @@ static inline void finish_cmd(struct CommandList *c)
 	spin_lock_irqsave(&c->h->lock, flags);
 	removeQ(c);
 	spin_unlock_irqrestore(&c->h->lock, flags);
+	dial_up_lockup_detection_on_fw_flash_complete(c->h, c);
 	if (likely(c->cmd_type == CMD_SCSI))
 		complete_scsi_command(c);
 	else if (c->cmd_type == CMD_IOCTL_PEND)
@@ -4562,9 +4593,6 @@ static void controller_lockup_detected(struct ctlr_info *h)
 	spin_unlock_irqrestore(&h->lock, flags);
 }
 
-#define HEARTBEAT_SAMPLE_INTERVAL (10 * HZ)
-#define HEARTBEAT_CHECK_MINIMUM_INTERVAL (HEARTBEAT_SAMPLE_INTERVAL / 2)
-
 static void detect_controller_lockup(struct ctlr_info *h)
 {
 	u64 now;
@@ -4575,7 +4603,7 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	now = get_jiffies_64();
 	/* If we've received an interrupt recently, we're ok. */
 	if (time_after64(h->last_intr_timestamp +
-				(HEARTBEAT_CHECK_MINIMUM_INTERVAL), now))
+				(h->heartbeat_sample_interval), now))
 		return;
 
 	/*
@@ -4584,7 +4612,7 @@ static void detect_controller_lockup(struct ctlr_info *h)
 	 * otherwise don't care about signals in this thread.
 	 */
 	if (time_after64(h->last_heartbeat_timestamp +
-				(HEARTBEAT_CHECK_MINIMUM_INTERVAL), now))
+				(h->heartbeat_sample_interval), now))
 		return;
 
 	/* If heartbeat has not changed since we last looked, we're not ok. */
@@ -4626,6 +4654,7 @@ static void add_ctlr_to_lockup_detector_list(struct ctlr_info *h)
 {
 	unsigned long flags;
 
+	h->heartbeat_sample_interval = HEARTBEAT_SAMPLE_INTERVAL;
 	spin_lock_irqsave(&lockup_detector_lock, flags);
 	list_add_tail(&h->lockup_list, &hpsa_ctlr_list);
 	spin_unlock_irqrestore(&lockup_detector_lock, flags);
