@@ -100,7 +100,7 @@ static void iforce_usb_irq(struct urb *urb)
 exit:
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
-		dev_err(&iforce->usbdev->dev,
+		dev_err(&iforce->dev->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, status);
 }
