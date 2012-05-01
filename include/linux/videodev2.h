@@ -944,6 +944,9 @@ struct v4l2_standard {
 	__u32		     reserved[4];
 };
 
+/* The DV Preset API is deprecated in favor of the DV Timings API.
+   New drivers shouldn't use this anymore! */
+
 /*
  *	V I D E O	T I M I N G S	D V	P R E S E T
  */
@@ -2608,6 +2611,9 @@ struct v4l2_create_buffers {
 #endif
 
 #define VIDIOC_S_HW_FREQ_SEEK	 _IOW('V', 82, struct v4l2_hw_freq_seek)
+
+/* These four DV Preset ioctls are deprecated in favor of the DV Timings
+   ioctls. */
 #define	VIDIOC_ENUM_DV_PRESETS	_IOWR('V', 83, struct v4l2_dv_enum_preset)
 #define	VIDIOC_S_DV_PRESET	_IOWR('V', 84, struct v4l2_dv_preset)
 #define	VIDIOC_G_DV_PRESET	_IOWR('V', 85, struct v4l2_dv_preset)

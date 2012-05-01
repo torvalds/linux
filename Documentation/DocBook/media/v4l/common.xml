@@ -744,11 +744,13 @@ header can be used to get the timings of the formats in the <xref linkend="cea86
 	</para>
 	</listitem>
 	<listitem>
-	<para>DV Presets: Digital Video (DV) presets. These are IDs representing a
+	<para>DV Presets: Digital Video (DV) presets (<emphasis role="bold">deprecated</emphasis>).
+	These are IDs representing a
 video timing at the input/output. Presets are pre-defined timings implemented
 by the hardware according to video standards. A __u32 data type is used to represent
 a preset unlike the bit mask that is used in &v4l2-std-id; allowing future extensions
-to support as many different presets as needed.</para>
+to support as many different presets as needed. This API is deprecated in favor of the DV Timings
+API.</para>
 	</listitem>
 	</itemizedlist>
 	<para>To enumerate and query the attributes of the DV timings supported by a device,
