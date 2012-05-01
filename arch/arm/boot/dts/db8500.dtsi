@@ -357,6 +357,10 @@
 					compatible = "stericsson,ab8500-pwm";
 				};
 
+				ab8500-debugfs {
+					compatible = "stericsson,ab8500-debug";
+				};
+
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";
 
