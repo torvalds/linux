@@ -85,7 +85,6 @@ struct ctlr_info {
 	struct list_head reqQ;
 	struct list_head cmpQ;
 	unsigned int Qdepth;
-	unsigned int maxQsinceinit;
 	unsigned int maxSG;
 	spinlock_t lock;
 	int maxsgentries;
