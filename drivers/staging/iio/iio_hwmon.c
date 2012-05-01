@@ -51,12 +51,12 @@ static ssize_t iio_hwmon_read_val(struct device *dev,
 	 * No locking between this pair, so theoretically possible
 	 * the scale has changed.
 	 */
-	ret = iio_st_read_channel_raw(&state->channels[sattr->index],
+	ret = iio_read_channel_raw(&state->channels[sattr->index],
 				      &val);
 	if (ret < 0)
 		return ret;
 
-	ret = iio_st_read_channel_scale(&state->channels[sattr->index],
+	ret = iio_read_channel_scale(&state->channels[sattr->index],
 					&scaleint, &scalepart);
 	if (ret < 0)
 		return ret;
@@ -106,7 +106,7 @@ static int __devinit iio_hwmon_probe(struct platform_device *pdev)
 		goto error_ret;
 	}
 
-	st->channels = iio_st_channel_get_all(dev_name(&pdev->dev));
+	st->channels = iio_channel_get_all(dev_name(&pdev->dev));
 	if (IS_ERR(st->channels)) {
 		ret = PTR_ERR(st->channels);
 		goto error_free_state;
@@ -130,7 +130,7 @@ static int __devinit iio_hwmon_probe(struct platform_device *pdev)
 		}
 
 		sysfs_attr_init(&a->dev_attr.attr);
-		ret = iio_st_get_channel_type(&st->channels[i], &type);
+		ret = iio_get_channel_type(&st->channels[i], &type);
 		if (ret < 0) {
 			kfree(a);
 			goto error_free_attrs;
@@ -186,7 +186,7 @@ error_free_attrs:
 	iio_hwmon_free_attrs(st);
 	kfree(st->attrs);
 error_release_channels:
-	iio_st_channel_release_all(st->channels);
+	iio_channel_release_all(st->channels);
 error_free_state:
 	kfree(st);
 error_ret:
@@ -201,7 +201,7 @@ static int __devexit iio_hwmon_remove(struct platform_device *pdev)
 	sysfs_remove_group(&pdev->dev.kobj, &st->attr_group);
 	iio_hwmon_free_attrs(st);
 	kfree(st->attrs);
-	iio_st_channel_release_all(st->channels);
+	iio_channel_release_all(st->channels);
 
 	return 0;
 }
