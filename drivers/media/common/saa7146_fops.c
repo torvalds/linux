@@ -229,9 +229,8 @@ static int fops_open(struct file *file)
 
 	file->private_data = fh;
 	fh->dev = dev;
-	fh->type = type;
 
-	if( fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		DEB_S("initializing vbi...\n");
 		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 			result = saa7146_vbi_uops.open(dev,file);
@@ -263,6 +262,7 @@ out:
 
 static int fops_release(struct file *file)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh  *fh  = file->private_data;
 	struct saa7146_dev *dev = fh->dev;
 
@@ -271,7 +271,7 @@ static int fops_release(struct file *file)
 	if (mutex_lock_interruptible(&saa7146_devices_lock))
 		return -ERESTARTSYS;
 
-	if( fh->type == V4L2_BUF_TYPE_VBI_CAPTURE) {
+	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 			saa7146_vbi_uops.release(dev,file);
 		if (dev->ext_vv_data->vbi_fops.release)
@@ -291,17 +291,18 @@ static int fops_release(struct file *file)
 
 static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_queue *q;
 
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE: {
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER: {
 		DEB_EE("V4L2_BUF_TYPE_VIDEO_CAPTURE: file:%p, vma:%p\n",
 		       file, vma);
 		q = &fh->video_q;
 		break;
 		}
-	case V4L2_BUF_TYPE_VBI_CAPTURE: {
+	case VFL_TYPE_VBI: {
 		DEB_EE("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, vma:%p\n",
 		       file, vma);
 		q = &fh->vbi_q;
@@ -317,13 +318,14 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 
 static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_buffer *buf = NULL;
 	struct videobuf_queue *q;
 
 	DEB_EE("file:%p, poll:%p\n", file, wait);
 
-	if (V4L2_BUF_TYPE_VBI_CAPTURE == fh->type) {
+	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if( 0 == fh->vbi_q.streaming )
 			return videobuf_poll_stream(file, &fh->vbi_q, wait);
 		q = &fh->vbi_q;
@@ -352,16 +354,17 @@ static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
 
 static ssize_t fops_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
 
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
 /*
 		DEB_EE("V4L2_BUF_TYPE_VIDEO_CAPTURE: file:%p, data:%p, count:%lun",
 		       file, data, (unsigned long)count);
 */
 		return saa7146_video_uops.read(file,data,count,ppos);
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
+	case VFL_TYPE_VBI:
 /*
 		DEB_EE("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, data:%p, count:%lu\n",
 		       file, data, (unsigned long)count);
@@ -377,12 +380,13 @@ static ssize_t fops_read(struct file *file, char __user *data, size_t count, lof
 
 static ssize_t fops_write(struct file *file, const char __user *data, size_t count, loff_t *ppos)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct saa7146_fh *fh = file->private_data;
 
-	switch (fh->type) {
-	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
 		return -EINVAL;
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
+	case VFL_TYPE_VBI:
 		if (fh->dev->ext_vv_data->vbi_fops.write)
 			return fh->dev->ext_vv_data->vbi_fops.write(file, data, count, ppos);
 		else

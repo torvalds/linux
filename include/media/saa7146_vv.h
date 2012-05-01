@@ -85,8 +85,6 @@ struct saa7146_overlay {
 /* per open data */
 struct saa7146_fh {
 	struct saa7146_dev	*dev;
-	/* if this is a vbi or capture open */
-	enum v4l2_buf_type	type;
 
 	/* video capture */
 	struct videobuf_queue	video_q;
