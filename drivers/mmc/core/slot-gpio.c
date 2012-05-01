@@ -18,7 +18,9 @@
 #include <linux/slab.h>
 
 struct mmc_gpio {
+	int ro_gpio;
 	int cd_gpio;
+	char *ro_label;
 	char cd_label[0];
 };
 
@@ -43,11 +45,14 @@ static int mmc_gpio_alloc(struct mmc_host *host)
 		 * before device_add(), i.e., between mmc_alloc_host() and
 		 * mmc_add_host()
 		 */
-		ctx = devm_kzalloc(&host->class_dev, sizeof(*ctx) + len,
+		ctx = devm_kzalloc(&host->class_dev, sizeof(*ctx) + 2 * len,
 				   GFP_KERNEL);
 		if (ctx) {
+			ctx->ro_label = ctx->cd_label + len;
 			snprintf(ctx->cd_label, len, "%s cd", dev_name(host->parent));
+			snprintf(ctx->ro_label, len, "%s ro", dev_name(host->parent));
 			ctx->cd_gpio = -EINVAL;
+			ctx->ro_gpio = -EINVAL;
 			host->slot.handler_priv = ctx;
 		}
 	}
@@ -56,6 +61,18 @@ static int mmc_gpio_alloc(struct mmc_host *host)
 
 	return ctx ? 0 : -ENOMEM;
 }
+
+int mmc_gpio_get_ro(struct mmc_host *host)
+{
+	struct mmc_gpio *ctx = host->slot.handler_priv;
+
+	if (!ctx || !gpio_is_valid(ctx->ro_gpio))
+		return -ENOSYS;
+
+	return !gpio_get_value_cansleep(ctx->ro_gpio) ^
+		!!(host->caps2 & MMC_CAP2_RO_ACTIVE_HIGH);
+}
+EXPORT_SYMBOL(mmc_gpio_get_ro);
 
 int mmc_gpio_get_cd(struct mmc_host *host)
 {
@@ -68,6 +85,24 @@ int mmc_gpio_get_cd(struct mmc_host *host)
 		!!(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH);
 }
 EXPORT_SYMBOL(mmc_gpio_get_cd);
+
+int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
+{
+	struct mmc_gpio *ctx;
+	int ret;
+
+	if (!gpio_is_valid(gpio))
+		return -EINVAL;
+
+	ret = mmc_gpio_alloc(host);
+	if (ret < 0)
+		return ret;
+
+	ctx = host->slot.handler_priv;
+
+	return gpio_request_one(gpio, GPIOF_DIR_IN, ctx->ro_label);
+}
+EXPORT_SYMBOL(mmc_gpio_request_ro);
 
 int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
 {
@@ -116,6 +151,21 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
 	return 0;
 }
 EXPORT_SYMBOL(mmc_gpio_request_cd);
+
+void mmc_gpio_free_ro(struct mmc_host *host)
+{
+	struct mmc_gpio *ctx = host->slot.handler_priv;
+	int gpio;
+
+	if (!ctx || !gpio_is_valid(ctx->ro_gpio))
+		return;
+
+	gpio = ctx->ro_gpio;
+	ctx->ro_gpio = -EINVAL;
+
+	gpio_free(gpio);
+}
+EXPORT_SYMBOL(mmc_gpio_free_ro);
 
 void mmc_gpio_free_cd(struct mmc_host *host)
 {
