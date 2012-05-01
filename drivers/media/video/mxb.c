@@ -63,13 +63,13 @@ MODULE_PARM_DESC(debug, "Turn on/off device debugging (default:off).");
 enum { TUNER, AUX1, AUX3, AUX3_YC };
 
 static struct v4l2_input mxb_inputs[MXB_INPUTS] = {
-	{ TUNER,   "Tuner",          V4L2_INPUT_TYPE_TUNER,  0x2f, 0,
+	{ TUNER,   "Tuner",          V4L2_INPUT_TYPE_TUNER,  0x3f, 0,
 		V4L2_STD_PAL_BG | V4L2_STD_PAL_I, 0, V4L2_IN_CAP_STD },
-	{ AUX1,	   "AUX1",           V4L2_INPUT_TYPE_CAMERA, 0x2f, 0,
+	{ AUX1,	   "AUX1",           V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
 		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
-	{ AUX3,	   "AUX3 Composite", V4L2_INPUT_TYPE_CAMERA, 0x2f, 0,
+	{ AUX3,	   "AUX3 Composite", V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
 		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
-	{ AUX3_YC, "AUX3 S-Video",   V4L2_INPUT_TYPE_CAMERA, 0x2f, 0,
+	{ AUX3_YC, "AUX3 S-Video",   V4L2_INPUT_TYPE_CAMERA, 0x3f, 0,
 		V4L2_STD_ALL, 0, V4L2_IN_CAP_STD },
 };
 
@@ -181,6 +181,15 @@ struct mxb
 #define call_all(dev, o, f, args...) \
 	v4l2_device_call_until_err(&dev->v4l2_dev, 0, o, f, ##args)
 
+static void mxb_update_audmode(struct mxb *mxb)
+{
+	struct v4l2_tuner t = {
+		.audmode = mxb->cur_mode,
+	};
+
+	tda9840_call(mxb, tuner, s_tuner, &t);
+}
+
 static inline void tea6420_route(struct mxb *mxb, int idx)
 {
 	v4l2_subdev_call(mxb->tea6420_1, audio, s_routing,
@@ -224,7 +233,7 @@ static int mxb_probe(struct saa7146_dev *dev)
 	struct mxb *mxb = NULL;
 
 	v4l2_ctrl_new_std(hdl, &mxb_ctrl_ops,
-			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 0);
+			V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
 	if (hdl->error)
 		return hdl->error;
 	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
@@ -344,6 +353,9 @@ static int mxb_init_done(struct saa7146_dev* dev)
 
 	int i = 0, err = 0;
 
+	/* mute audio on tea6420s */
+	tea6420_route(mxb, 6);
+
 	/* select video mode in saa7111a */
 	saa7111a_call(mxb, core, s_std, std);
 
@@ -364,10 +376,11 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	tuner_call(mxb, tuner, s_frequency, &mxb->cur_freq);
 
 	/* set a default video standard */
+	/* These two gpio calls set the GPIO pins that control the tda9820 */
+	saa7146_write(dev, GPIO_CTRL, 0x00404050);
+	saa7111a_call(mxb, core, s_gpio, 1);
+	saa7111a_call(mxb, core, s_std, std);
 	tuner_call(mxb, core, s_std, std);
-
-	/* mute audio on tea6420s */
-	tea6420_route(mxb, 6);
 
 	/* switch to tuner-channel on tea6415c */
 	tea6415c_call(mxb, video, s_routing, 3, 17, 0);
@@ -378,9 +391,10 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	/* the rest for mxb */
 	mxb->cur_input = 0;
 	mxb->cur_audinput = video_audio_connect[mxb->cur_input];
-	mxb->cur_mute = 0;
+	mxb->cur_mute = 1;
 
 	mxb->cur_mode = V4L2_TUNER_MODE_STEREO;
+	mxb_update_audmode(mxb);
 
 	/* check if the saa7740 (aka 'sound arena module') is present
 	   on the mxb. if so, we must initialize it. due to lack of
@@ -518,6 +532,8 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	/* switch the audio-source only if necessary */
 	if (0 == mxb->cur_mute)
 		tea6420_route(mxb, mxb->cur_audinput);
+	if (mxb->cur_audinput == 0)
+		mxb_update_audmode(mxb);
 
 	return 0;
 }
@@ -591,6 +607,8 @@ static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency
 	/* let the tuner subdev clamp the frequency to the tuner range */
 	tuner_call(mxb, tuner, g_frequency, f);
 	mxb->cur_freq = *f;
+	if (mxb->cur_audinput == 0)
+		mxb_update_audmode(mxb);
 
 	if (mxb->cur_input)
 		return 0;
@@ -616,13 +634,8 @@ static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 
-	if (a->index > MXB_INPUTS) {
-		DEB_D("VIDIOC_G_AUDIO %d out of range\n", a->index);
-		return -EINVAL;
-	}
-
-	DEB_EE("VIDIOC_G_AUDIO %d\n", a->index);
-	*a = mxb_audios[video_audio_connect[mxb->cur_audinput]];
+	DEB_EE("VIDIOC_G_AUDIO\n");
+	*a = mxb_audios[mxb->cur_audinput];
 	return 0;
 }
 
@@ -636,6 +649,8 @@ static int vidioc_s_audio(struct file *file, void *fh, struct v4l2_audio *a)
 		if (mxb->cur_audinput != a->index) {
 			mxb->cur_audinput = a->index;
 			tea6420_route(mxb, a->index);
+			if (mxb->cur_audinput == 0)
+				mxb_update_audmode(mxb);
 		}
 		return 0;
 	}
@@ -738,9 +753,8 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		v4l2_std_id std = V4L2_STD_PAL_I;
 
 		DEB_D("VIDIOC_S_STD: setting mxb for PAL_I\n");
-		/* set the 7146 gpio register -- I don't know what this does exactly */
+		/* These two gpio calls set the GPIO pins that control the tda9820 */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
-		/* unset the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 0);
 		saa7111a_call(mxb, core, s_std, std);
 		if (mxb->cur_input == 0)
@@ -751,9 +765,8 @@ static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standa
 		if (mxb->cur_input)
 			std = standard->id;
 		DEB_D("VIDIOC_S_STD: setting mxb for PAL/NTSC/SECAM\n");
-		/* set the 7146 gpio register -- I don't know what this does exactly */
+		/* These two gpio calls set the GPIO pins that control the tda9820 */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
-		/* set the 7111 gpio register -- I don't know what this does exactly */
 		saa7111a_call(mxb, core, s_gpio, 1);
 		saa7111a_call(mxb, core, s_std, std);
 		if (mxb->cur_input == 0)
