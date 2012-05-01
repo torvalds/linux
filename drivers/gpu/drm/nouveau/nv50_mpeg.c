@@ -162,7 +162,6 @@ nv50_mpeg_init(struct drm_device *dev, int engine)
 static int
 nv50_mpeg_fini(struct drm_device *dev, int engine, bool suspend)
 {
-	/*XXX: context save for s/r */
 	nv_mask(dev, 0x00b32c, 0x00000001, 0x00000000);
 	nv_wr32(dev, 0x00b140, 0x00000000);
 	return 0;

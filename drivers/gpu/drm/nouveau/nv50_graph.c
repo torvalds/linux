@@ -210,12 +210,6 @@ nv50_graph_init(struct drm_device *dev, int engine)
 static int
 nv50_graph_fini(struct drm_device *dev, int engine, bool suspend)
 {
-	nv_mask(dev, 0x400500, 0x00010001, 0x00000000);
-	if (!nv_wait(dev, 0x400700, ~0, 0) && suspend) {
-		nv_mask(dev, 0x400500, 0x00010001, 0x00010001);
-		return -EBUSY;
-	}
-	nv50_graph_unload_context(dev);
 	nv_wr32(dev, 0x40013c, 0x00000000);
 	return 0;
 }

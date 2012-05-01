@@ -143,13 +143,6 @@ static int
 nva3_copy_fini(struct drm_device *dev, int engine, bool suspend)
 {
 	nv_mask(dev, 0x104048, 0x00000003, 0x00000000);
-
-	/* trigger fuc context unload */
-	nv_wait(dev, 0x104008, 0x0000000c, 0x00000000);
-	nv_mask(dev, 0x104054, 0x40000000, 0x00000000);
-	nv_wr32(dev, 0x104000, 0x00000008);
-	nv_wait(dev, 0x104008, 0x00000008, 0x00000000);
-
 	nv_wr32(dev, 0x104014, 0xffffffff);
 	return 0;
 }
