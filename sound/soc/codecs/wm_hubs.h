@@ -16,6 +16,7 @@
 
 #include <linux/completion.h>
 #include <linux/interrupt.h>
+#include <linux/list.h>
 #include <sound/control.h>
 
 struct snd_soc_codec;
@@ -32,7 +33,7 @@ struct wm_hubs_data {
 	int no_series_update;
 
 	bool no_cache_dac_hp_direct;
-	u16 dac_hp_direct_dcs;
+	struct list_head dcs_cache;
 	bool (*check_class_w_digital)(struct snd_soc_codec *);
 
 	bool lineout1_se;
