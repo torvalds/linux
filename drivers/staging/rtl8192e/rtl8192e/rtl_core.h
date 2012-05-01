@@ -943,7 +943,7 @@ struct r8192_priv {
 	bool		bfsync_processing;
 	u32		rate_record;
 	u32		rateCountDiffRecord;
-	u32		ContiuneDiffCount;
+	u32		ContinueDiffCount;
 	bool		bswitch_fsync;
 	u8		framesync;
 	u32		framesyncC34;

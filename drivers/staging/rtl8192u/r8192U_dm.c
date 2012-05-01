@@ -3379,28 +3379,28 @@ extern void dm_fsync_timer_callback(unsigned long data)
 			u32 DiffNum = priv->rateCountDiffRecord - rate_count_diff;
 			// Continue count
 			if(DiffNum >= priv->ieee80211->fsync_seconddiff_ratethreshold)
-				priv->ContiuneDiffCount++;
+				priv->ContinueDiffCount++;
 			else
-				priv->ContiuneDiffCount = 0;
+				priv->ContinueDiffCount = 0;
 
 			// Continue count over
-			if(priv->ContiuneDiffCount >=2)
+			if(priv->ContinueDiffCount >=2)
 			{
 				bSwitchFromCountDiff = true;
-				priv->ContiuneDiffCount = 0;
+				priv->ContinueDiffCount = 0;
 			}
 		}
 		else
 		{
 			// Stop the continued count
-			priv->ContiuneDiffCount = 0;
+			priv->ContinueDiffCount = 0;
 		}
 
 		//If Count diff <= FsyncRateCountThreshold
 		if(rate_count_diff <= priv->ieee80211->fsync_firstdiff_ratethreshold)
 		{
 			bSwitchFromCountDiff = true;
-			priv->ContiuneDiffCount = 0;
+			priv->ContinueDiffCount = 0;
 		}
 		priv->rate_record = rate_count;
 		priv->rateCountDiffRecord = rate_count_diff;
@@ -3468,14 +3468,14 @@ extern void dm_fsync_timer_callback(unsigned long data)
 		#endif
 			write_nic_byte(dev, 0xC3e, 0x96);
 		}
-		priv->ContiuneDiffCount = 0;
+		priv->ContinueDiffCount = 0;
 	#ifdef RTL8190P
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x164052cd);
 	#else
 		write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 	#endif
 	}
-	RT_TRACE(COMP_HALDM, "ContiuneDiffCount %d\n", priv->ContiuneDiffCount);
+	RT_TRACE(COMP_HALDM, "ContinueDiffCount %d\n", priv->ContinueDiffCount);
 	RT_TRACE(COMP_HALDM, "rateRecord %d rateCount %d, rateCountdiff %d bSwitchFsync %d\n", priv->rate_record, rate_count, rate_count_diff , priv->bswitch_fsync);
 }
 
@@ -3507,7 +3507,7 @@ static void dm_EndSWFsync(struct net_device *dev)
 		write_nic_byte(dev, 0xC3e, 0x96);
 	}
 
-	priv->ContiuneDiffCount = 0;
+	priv->ContinueDiffCount = 0;
 #ifndef RTL8190P
 	write_nic_dword(dev, rOFDM0_RxDetector2, 0x465c52cd);
 #endif
@@ -3524,7 +3524,7 @@ static void dm_StartSWFsync(struct net_device *dev)
 	// Initial rate record to zero, start to record.
 	priv->rate_record = 0;
 	// Initialize continue diff count to zero, start to record.
-	priv->ContiuneDiffCount = 0;
+	priv->ContinueDiffCount = 0;
 	priv->rateCountDiffRecord = 0;
 	priv->bswitch_fsync  = false;
 

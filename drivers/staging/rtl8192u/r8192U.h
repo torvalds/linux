@@ -1116,7 +1116,7 @@ typedef struct r8192_priv
 	bool bfsync_processing;	// 500ms Fsync timer is active or not
 	u32 	rate_record;
 	u32 	rateCountDiffRecord;
-	u32	ContiuneDiffCount;
+	u32	ContinueDiffCount;
 	bool bswitch_fsync;
 
 	u8	framesync;
