@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 325395 2012-04-03 03:57:43Z $
+ * $Id: dhd_sdio.c 326662 2012-04-10 06:38:08Z $
  */
 
 #include <typedefs.h>
@@ -4616,8 +4616,7 @@ clkwait:
 		int ret, i;
 		uint8* frame_seq = bus->ctrl_frame_buf + SDPCM_FRAMETAG_LEN;
 
-		if (((bus->sih->chip == BCM4329_CHIP_ID) ||   /* limit to 4329 & 4330 for now  */
-			 (bus->sih->chip == BCM4330_CHIP_ID)) && (*frame_seq != bus->tx_seq)) {
+		if (*frame_seq != bus->tx_seq) {
 			DHD_INFO(("%s IOCTL frame seq lag detected!"
 				" frm_seq:%d != bus->tx_seq:%d, corrected\n",
 				__FUNCTION__, *frame_seq, bus->tx_seq));
