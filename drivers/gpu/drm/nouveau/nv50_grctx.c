@@ -210,7 +210,7 @@ nv50_grctx_generate(struct nouveau_grctx *ctx)
 	cp_name(ctx, cp_check_load);
 	cp_bra (ctx, AUTO_LOAD, PENDING, cp_setup_auto_load);
 	cp_bra (ctx, USER_LOAD, PENDING, cp_setup_load);
-	cp_bra (ctx, ALWAYS, TRUE, cp_exit);
+	cp_bra (ctx, ALWAYS, TRUE, cp_prepare_exit);
 
 	/* setup for context load */
 	cp_name(ctx, cp_setup_auto_load);
