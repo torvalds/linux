@@ -3117,6 +3117,44 @@ control in the future, if more options are required.</para></footnote></entry>
 	  </row>
 	  <row><entry></entry></row>
 
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_ISO_SENSITIVITY</constant>&nbsp;</entry>
+	    <entry>integer menu</entry>
+	  </row><row><entry spanname="descr">Determines ISO equivalent of an
+image sensor indicating the sensor's sensitivity to light. The numbers are
+expressed in arithmetic scale, as per <xref linkend="iso12232" /> standard,
+where doubling the sensor sensitivity is represented by doubling the numerical
+ISO value. Applications should interpret the values as standard ISO values
+multiplied by 1000, e.g. control value 800 stands for ISO 0.8. Drivers will
+usually support only a subset of standard ISO values. The effect of setting
+this control while the <constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>
+control is set to a value other than <constant>V4L2_CID_ISO_SENSITIVITY_MANUAL
+</constant> is undefined, drivers should ignore such requests.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row id="v4l2-iso-sensitivity-auto-type">
+	    <entry spanname="id"><constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>&nbsp;</entry>
+	    <entry>enum&nbsp;v4l2_iso_sensitivity_type</entry>
+	  </row><row><entry spanname="descr">Enables or disables automatic ISO
+sensitivity adjustments.</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_CID_ISO_SENSITIVITY_MANUAL</constant>&nbsp;</entry>
+		  <entry>Manual ISO sensitivity.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>&nbsp;</entry>
+		  <entry>Automatic ISO sensitivity adjustments.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry></entry></row>
+
 	</tbody>
       </tgroup>
     </table>
