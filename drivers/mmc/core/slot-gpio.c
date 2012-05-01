@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 
 struct mmc_gpio {
-	unsigned int cd_gpio;
+	int cd_gpio;
 	char cd_label[0];
 };
 
@@ -29,15 +29,24 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+int mmc_gpio_get_cd(struct mmc_host *host)
+{
+	struct mmc_gpio *ctx = host->slot.handler_priv;
+
+	if (!ctx || !gpio_is_valid(ctx->cd_gpio))
+		return -ENOSYS;
+
+	return !gpio_get_value_cansleep(ctx->cd_gpio) ^
+		!!(host->caps2 & MMC_CAP2_CD_ACTIVE_HIGH);
+}
+EXPORT_SYMBOL(mmc_gpio_get_cd);
+
 int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
 {
 	size_t len = strlen(dev_name(host->parent)) + 4;
 	struct mmc_gpio *ctx;
 	int irq = gpio_to_irq(gpio);
 	int ret;
-
-	if (irq < 0)
-		return irq;
 
 	ctx = kmalloc(sizeof(*ctx) + len, GFP_KERNEL);
 	if (!ctx)
@@ -49,20 +58,32 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
 	if (ret < 0)
 		goto egpioreq;
 
-	ret = request_threaded_irq(irq, NULL, mmc_gpio_cd_irqt,
+	/*
+	 * Even if gpio_to_irq() returns a valid IRQ number, the platform might
+	 * still prefer to poll, e.g., because that IRQ number is already used
+	 * by another unit and cannot be shared.
+	 */
+	if (irq >= 0 && host->caps & MMC_CAP_NEEDS_POLL)
+		irq = -EINVAL;
+
+	if (irq >= 0) {
+		ret = request_threaded_irq(irq, NULL, mmc_gpio_cd_irqt,
 			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			ctx->cd_label, host);
-	if (ret < 0)
-		goto eirqreq;
+		if (ret < 0)
+			irq = ret;
+	}
+
+	host->slot.cd_irq = irq;
+
+	if (irq < 0)
+		host->caps |= MMC_CAP_NEEDS_POLL;
 
 	ctx->cd_gpio = gpio;
-	host->slot.cd_irq = irq;
 	host->slot.handler_priv = ctx;
 
 	return 0;
 
-eirqreq:
-	gpio_free(gpio);
 egpioreq:
 	kfree(ctx);
 	return ret;
@@ -72,12 +93,21 @@ EXPORT_SYMBOL(mmc_gpio_request_cd);
 void mmc_gpio_free_cd(struct mmc_host *host)
 {
 	struct mmc_gpio *ctx = host->slot.handler_priv;
+	int gpio;
 
-	if (!ctx)
+	if (!ctx || !gpio_is_valid(ctx->cd_gpio))
 		return;
 
-	free_irq(host->slot.cd_irq, host);
-	gpio_free(ctx->cd_gpio);
+	if (host->slot.cd_irq >= 0) {
+		free_irq(host->slot.cd_irq, host);
+		host->slot.cd_irq = -EINVAL;
+	}
+
+	gpio = ctx->cd_gpio;
+	ctx->cd_gpio = -EINVAL;
+
+	gpio_free(gpio);
+	host->slot.handler_priv = NULL;
 	kfree(ctx);
 }
 EXPORT_SYMBOL(mmc_gpio_free_cd);
