@@ -436,6 +436,7 @@ static const struct v4l2_ctrl_ops saa7146_ctrl_ops = {
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
 	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
+	struct v4l2_pix_format *fmt;
 	struct saa7146_vv *vv;
 	int err;
 
@@ -496,6 +497,15 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	if (dev->ext_vv_data->capabilities & V4L2_CAP_VBI_CAPTURE)
 		saa7146_vbi_uops.init(dev,vv);
 
+	fmt = &vv->ov_fb.fmt;
+	fmt->width = vv->standard->h_max_out;
+	fmt->height = vv->standard->v_max_out;
+	fmt->pixelformat = V4L2_PIX_FMT_RGB565;
+	fmt->bytesperline = 2 * fmt->width;
+	fmt->sizeimage = fmt->bytesperline * fmt->height;
+	fmt->colorspace = V4L2_COLORSPACE_SRGB;
+	vv->ov_fb.capability = V4L2_FBUF_CAP_LIST_CLIPPING;
+	vv->ov_fb.flags = V4L2_FBUF_FLAG_PRIMARY;
 	dev->vv_data = vv;
 	dev->vv_callback = &vv_callback;
 

@@ -112,8 +112,8 @@ int saa7146_start_preview(struct saa7146_fh *fh)
 
 	DEB_EE("dev:%p, fh:%p\n", dev, fh);
 
-	/* check if we have overlay informations */
-	if( NULL == fh->ov.fh ) {
+	/* check if we have overlay information */
+	if (vv->ov.fh == NULL) {
 		DEB_D("no overlay data available. try S_FMT first.\n");
 		return -EAGAIN;
 	}
@@ -139,19 +139,18 @@ int saa7146_start_preview(struct saa7146_fh *fh)
 		return -EBUSY;
 	}
 
-	fmt.fmt.win = fh->ov.win;
+	fmt.fmt.win = vv->ov.win;
 	err = vidioc_try_fmt_vid_overlay(NULL, fh, &fmt);
 	if (0 != err) {
 		saa7146_res_free(vv->video_fh, RESOURCE_DMA1_HPS|RESOURCE_DMA2_CLP);
 		return -EBUSY;
 	}
-	fh->ov.win = fmt.fmt.win;
-	vv->ov_data = &fh->ov;
+	vv->ov.win = fmt.fmt.win;
 
 	DEB_D("%dx%d+%d+%d %s field=%s\n",
-	      fh->ov.win.w.width, fh->ov.win.w.height,
-	      fh->ov.win.w.left, fh->ov.win.w.top,
-	      vv->ov_fmt->name, v4l2_field_names[fh->ov.win.field]);
+	      vv->ov.win.w.width, vv->ov.win.w.height,
+	      vv->ov.win.w.left, vv->ov.win.w.top,
+	      vv->ov_fmt->name, v4l2_field_names[vv->ov.win.field]);
 
 	if (0 != (ret = saa7146_enable_overlay(fh))) {
 		DEB_D("enabling overlay failed: %d\n", ret);
@@ -468,6 +467,7 @@ static int vidioc_g_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 
 	*fb = vv->ov_fb;
 	fb->capability = V4L2_FBUF_CAP_LIST_CLIPPING;
+	fb->flags = V4L2_FBUF_FLAG_PRIMARY;
 	return 0;
 }
 
@@ -601,7 +601,10 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 
 static int vidioc_g_fmt_vid_overlay(struct file *file, void *fh, struct v4l2_format *f)
 {
-	f->fmt.win = ((struct saa7146_fh *)fh)->ov.win;
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_vv *vv = dev->vv_data;
+
+	f->fmt.win = vv->ov.win;
 	return 0;
 }
 
@@ -768,17 +771,17 @@ static int vidioc_s_fmt_vid_overlay(struct file *file, void *__fh, struct v4l2_f
 	err = vidioc_try_fmt_vid_overlay(file, fh, f);
 	if (0 != err)
 		return err;
-	fh->ov.win    = f->fmt.win;
-	fh->ov.nclips = f->fmt.win.clipcount;
-	if (fh->ov.nclips > 16)
-		fh->ov.nclips = 16;
-	if (copy_from_user(fh->ov.clips, f->fmt.win.clips,
-				sizeof(struct v4l2_clip) * fh->ov.nclips)) {
+	vv->ov.win    = f->fmt.win;
+	vv->ov.nclips = f->fmt.win.clipcount;
+	if (vv->ov.nclips > 16)
+		vv->ov.nclips = 16;
+	if (copy_from_user(vv->ov.clips, f->fmt.win.clips,
+				sizeof(struct v4l2_clip) * vv->ov.nclips)) {
 		return -EFAULT;
 	}
 
-	/* fh->ov.fh is used to indicate that we have valid overlay informations, too */
-	fh->ov.fh = fh;
+	/* vv->ov.fh is used to indicate that we have valid overlay informations, too */
+	vv->ov.fh = fh;
 
 	/* check if our current overlay is active */
 	if (IS_OVERLAY_ACTIVE(fh) != 0) {

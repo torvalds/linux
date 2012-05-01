@@ -88,9 +88,6 @@ struct saa7146_fh {
 	/* if this is a vbi or capture open */
 	enum v4l2_buf_type	type;
 
-	/* video overlay */
-	struct saa7146_overlay	ov;
-
 	/* video capture */
 	struct videobuf_queue	video_q;
 	struct v4l2_pix_format	video_fmt;
@@ -119,9 +116,9 @@ struct saa7146_vv
 	struct saa7146_fh		*video_fh;
 
 	/* video overlay */
+	struct saa7146_overlay		ov;
 	struct v4l2_framebuffer		ov_fb;
 	struct saa7146_format		*ov_fmt;
-	struct saa7146_overlay		*ov_data;
 	struct saa7146_fh		*ov_suspend;
 
 	/* video capture */
