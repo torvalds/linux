@@ -81,7 +81,6 @@ typedef void (*tipc_continue_event) (void *usr_handle, u32 portref);
  * @ref: object reference to associated TIPC port
  * <various callback routines>
  */
-
 struct user_port {
 	void *usr_handle;
 	u32 ref;
@@ -236,7 +235,6 @@ void tipc_port_reinit(void);
 /**
  * tipc_port_lock - lock port instance referred to and return its pointer
  */
-
 static inline struct tipc_port *tipc_port_lock(u32 ref)
 {
 	return (struct tipc_port *)tipc_ref_lock(ref);
@@ -247,7 +245,6 @@ static inline struct tipc_port *tipc_port_lock(u32 ref)
  *
  * Can use pointer instead of tipc_ref_unlock() since port is already locked.
  */
-
 static inline void tipc_port_unlock(struct tipc_port *p_ptr)
 {
 	spin_unlock_bh(p_ptr->lock);
