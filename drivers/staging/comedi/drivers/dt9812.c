@@ -196,7 +196,7 @@ struct dt9812_flash_data {
 };
 
 #define DT9812_MAX_NUM_MULTI_BYTE_RDS  \
-    ((DT9812_MAX_WRITE_CMD_PIPE_SIZE - 4 - 1) / sizeof(u8))
+	((DT9812_MAX_WRITE_CMD_PIPE_SIZE - 4 - 1) / sizeof(u8))
 
 struct dt9812_read_multi {
 	u8 count;
@@ -209,8 +209,8 @@ struct dt9812_write_byte {
 };
 
 #define DT9812_MAX_NUM_MULTI_BYTE_WRTS  \
-    ((DT9812_MAX_WRITE_CMD_PIPE_SIZE - 4 - 1) / \
-      sizeof(struct dt9812_write_byte))
+	((DT9812_MAX_WRITE_CMD_PIPE_SIZE - 4 - 1) / \
+	 sizeof(struct dt9812_write_byte))
 
 struct dt9812_write_multi {
 	u8 count;
@@ -224,7 +224,8 @@ struct dt9812_rmw_byte {
 };
 
 #define DT9812_MAX_NUM_MULTI_BYTE_RMWS  \
-    ((DT9812_MAX_WRITE_CMD_PIPE_SIZE - 4 - 1) / sizeof(struct dt9812_rmw_byte))
+	((DT9812_MAX_WRITE_CMD_PIPE_SIZE - 4 - 1) / \
+	 sizeof(struct dt9812_rmw_byte))
 
 struct dt9812_rmw_multi {
 	u8 count;
