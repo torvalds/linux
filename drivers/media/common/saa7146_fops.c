@@ -437,6 +437,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
 	struct v4l2_ctrl_handler *hdl = &dev->ctrl_handler;
 	struct v4l2_pix_format *fmt;
+	struct v4l2_vbi_format *vbi;
 	struct saa7146_vv *vv;
 	int err;
 
@@ -513,6 +514,20 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	fmt->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	fmt->bytesperline = 3 * fmt->width;
 	fmt->sizeimage = fmt->bytesperline * fmt->height;
+
+	vbi = &vv->vbi_fmt;
+	vbi->sampling_rate	= 27000000;
+	vbi->offset		= 248; /* todo */
+	vbi->samples_per_line	= 720 * 2;
+	vbi->sample_format	= V4L2_PIX_FMT_GREY;
+
+	/* fixme: this only works for PAL */
+	vbi->start[0] = 5;
+	vbi->count[0] = 16;
+	vbi->start[1] = 312;
+	vbi->count[1] = 16;
+
+	init_timer(&vv->vbi_read_timeout);
 
 	vv->ov_fb.capability = V4L2_FBUF_CAP_LIST_CLIPPING;
 	vv->ov_fb.flags = V4L2_FBUF_FLAG_PRIMARY;

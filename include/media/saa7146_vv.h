@@ -93,8 +93,6 @@ struct saa7146_fh {
 
 	/* vbi capture */
 	struct videobuf_queue	vbi_q;
-	struct v4l2_vbi_format	vbi_fmt;
-	struct timer_list	vbi_read_timeout;
 
 	unsigned int resources;	/* resource management for device open */
 };
@@ -106,6 +104,8 @@ struct saa7146_vv
 {
 	/* vbi capture */
 	struct saa7146_dmaqueue		vbi_q;
+	struct v4l2_vbi_format		vbi_fmt;
+	struct timer_list		vbi_read_timeout;
 	/* vbi workaround interrupt queue */
 	wait_queue_head_t		vbi_wq;
 	int				vbi_fieldcount;

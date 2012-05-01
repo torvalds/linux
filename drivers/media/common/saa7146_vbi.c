@@ -344,7 +344,7 @@ static void vbi_stop(struct saa7146_fh *fh, struct file *file)
 	vv->vbi_streaming = NULL;
 
 	del_timer(&vv->vbi_q.timeout);
-	del_timer(&fh->vbi_read_timeout);
+	del_timer(&vv->vbi_read_timeout);
 
 	spin_unlock_irqrestore(&dev->slock, flags);
 }
@@ -377,6 +377,7 @@ static void vbi_init(struct saa7146_dev *dev, struct saa7146_vv *vv)
 static int vbi_open(struct saa7146_dev *dev, struct file *file)
 {
 	struct saa7146_fh *fh = file->private_data;
+	struct saa7146_vv *vv = fh->dev->vv_data;
 
 	u32 arbtr_ctrl	= saa7146_read(dev, PCI_BT_V1);
 	int ret = 0;
@@ -395,19 +396,6 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 	saa7146_write(dev, PCI_BT_V1, arbtr_ctrl);
 	saa7146_write(dev, MC2, (MASK_04|MASK_20));
 
-	memset(&fh->vbi_fmt,0,sizeof(fh->vbi_fmt));
-
-	fh->vbi_fmt.sampling_rate	= 27000000;
-	fh->vbi_fmt.offset		= 248; /* todo */
-	fh->vbi_fmt.samples_per_line	= vbi_pixel_to_capture;
-	fh->vbi_fmt.sample_format	= V4L2_PIX_FMT_GREY;
-
-	/* fixme: this only works for PAL */
-	fh->vbi_fmt.start[0] = 5;
-	fh->vbi_fmt.count[0] = 16;
-	fh->vbi_fmt.start[1] = 312;
-	fh->vbi_fmt.count[1] = 16;
-
 	videobuf_queue_sg_init(&fh->vbi_q, &vbi_qops,
 			    &dev->pci->dev, &dev->slock,
 			    V4L2_BUF_TYPE_VBI_CAPTURE,
@@ -415,9 +403,8 @@ static int vbi_open(struct saa7146_dev *dev, struct file *file)
 			    sizeof(struct saa7146_buf),
 			    file, &dev->v4l2_lock);
 
-	init_timer(&fh->vbi_read_timeout);
-	fh->vbi_read_timeout.function = vbi_read_timeout;
-	fh->vbi_read_timeout.data = (unsigned long)file;
+	vv->vbi_read_timeout.function = vbi_read_timeout;
+	vv->vbi_read_timeout.data = (unsigned long)file;
 
 	/* initialize the brs */
 	if ( 0 != (SAA7146_USE_PORT_B_FOR_VBI & dev->ext_vv_data->flags)) {
@@ -488,7 +475,7 @@ static ssize_t vbi_read(struct file *file, char __user *data, size_t count, loff
 		return -EBUSY;
 	}
 
-	mod_timer(&fh->vbi_read_timeout, jiffies+BUFFER_TIMEOUT);
+	mod_timer(&vv->vbi_read_timeout, jiffies+BUFFER_TIMEOUT);
 	ret = videobuf_read_stream(&fh->vbi_q, data, count, ppos, 1,
 				   file->f_flags & O_NONBLOCK);
 /*

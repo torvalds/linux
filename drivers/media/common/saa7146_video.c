@@ -613,7 +613,10 @@ static int vidioc_g_fmt_vid_overlay(struct file *file, void *fh, struct v4l2_for
 
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f)
 {
-	f->fmt.vbi = ((struct saa7146_fh *)fh)->vbi_fmt;
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct saa7146_vv *vv = dev->vv_data;
+
+	f->fmt.vbi = vv->vbi_fmt;
 	return 0;
 }
 
