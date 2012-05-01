@@ -3614,22 +3614,6 @@ cifs_get_volume_info(char *mount_data, const char *devname)
 	return volume_info;
 }
 
-/* make sure ra_pages is a multiple of rsize */
-static inline unsigned int
-cifs_ra_pages(struct cifs_sb_info *cifs_sb)
-{
-	unsigned int reads;
-	unsigned int rsize_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;
-
-	if (rsize_pages >= default_backing_dev_info.ra_pages)
-		return default_backing_dev_info.ra_pages;
-	else if (rsize_pages == 0)
-		return rsize_pages;
-
-	reads = default_backing_dev_info.ra_pages / rsize_pages;
-	return reads * rsize_pages;
-}
-
 int
 cifs_mount(struct cifs_sb_info *cifs_sb, struct smb_vol *volume_info)
 {
@@ -3717,7 +3701,7 @@ try_mount_again:
 	cifs_sb->rsize = cifs_negotiate_rsize(tcon, volume_info);
 
 	/* tune readahead according to rsize */
-	cifs_sb->bdi.ra_pages = cifs_ra_pages(cifs_sb);
+	cifs_sb->bdi.ra_pages = cifs_sb->rsize / PAGE_CACHE_SIZE;
 
 remote_path_check:
 #ifdef CONFIG_CIFS_DFS_UPCALL
