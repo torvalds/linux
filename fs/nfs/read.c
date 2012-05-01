@@ -179,34 +179,26 @@ static void nfs_read_completion(struct nfs_pgio_header *hdr)
 
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags))
 		goto out;
-	if (!test_bit(NFS_IOHDR_ERROR, &hdr->flags)) {
-		while (!list_empty(&hdr->pages)) {
-			struct nfs_page *req = nfs_list_entry(hdr->pages.next);
-			struct page *page = req->wb_page;
+	while (!list_empty(&hdr->pages)) {
+		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
+		struct page *page = req->wb_page;
 
-			if (test_bit(NFS_IOHDR_EOF, &hdr->flags)) {
-				if (bytes > hdr->good_bytes)
-					zero_user(page, 0, PAGE_SIZE);
-				else if (hdr->good_bytes - bytes < PAGE_SIZE)
-					zero_user_segment(page,
-						hdr->good_bytes & ~PAGE_MASK,
-						PAGE_SIZE);
-			}
-			SetPageUptodate(page);
-			nfs_list_remove_request(req);
-			nfs_readpage_release(req);
-			bytes += PAGE_SIZE;
+		if (test_bit(NFS_IOHDR_EOF, &hdr->flags)) {
+			if (bytes > hdr->good_bytes)
+				zero_user(page, 0, PAGE_SIZE);
+			else if (hdr->good_bytes - bytes < PAGE_SIZE)
+				zero_user_segment(page,
+					hdr->good_bytes & ~PAGE_MASK,
+					PAGE_SIZE);
 		}
-	} else {
-		while (!list_empty(&hdr->pages)) {
-			struct nfs_page *req = nfs_list_entry(hdr->pages.next);
-
-			bytes += req->wb_bytes;
+		bytes += req->wb_bytes;
+		if (test_bit(NFS_IOHDR_ERROR, &hdr->flags)) {
 			if (bytes <= hdr->good_bytes)
-				SetPageUptodate(req->wb_page);
-			nfs_list_remove_request(req);
-			nfs_readpage_release(req);
-		}
+				SetPageUptodate(page);
+		} else
+			SetPageUptodate(page);
+		nfs_list_remove_request(req);
+		nfs_readpage_release(req);
 	}
 out:
 	hdr->release(hdr);
