@@ -264,6 +264,7 @@ exit:
 
 static int max517_remove(struct i2c_client *client)
 {
+	iio_device_unregister(i2c_get_clientdata(client));
 	iio_device_free(i2c_get_clientdata(client));
 
 	return 0;
