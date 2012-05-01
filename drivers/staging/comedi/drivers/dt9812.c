@@ -366,7 +366,7 @@ static int dt9812_read_info(struct usb_dt9812 *dev, int offset, void *buf,
 }
 
 static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
-					  u8 * address, u8 * value)
+					  u8 *address, u8 *value)
 {
 	struct dt9812_usb_cmd cmd;
 	int i, count, retval;
@@ -392,8 +392,8 @@ static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 }
 
 static int dt9812_write_multiple_registers(struct usb_dt9812 *dev,
-					   int reg_count, u8 * address,
-					   u8 * value)
+					   int reg_count, u8 *address,
+					   u8 *value)
 {
 	struct dt9812_usb_cmd cmd;
 	int i, count, retval;
@@ -431,7 +431,7 @@ static int dt9812_rmw_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 	return retval;
 }
 
-static int dt9812_digital_in(struct slot_dt9812 *slot, u8 * bits)
+static int dt9812_digital_in(struct slot_dt9812 *slot, u8 *bits)
 {
 	int result = -ENODEV;
 
@@ -477,7 +477,7 @@ static int dt9812_digital_out(struct slot_dt9812 *slot, u8 bits)
 	return result;
 }
 
-static int dt9812_digital_out_shadow(struct slot_dt9812 *slot, u8 * bits)
+static int dt9812_digital_out_shadow(struct slot_dt9812 *slot, u8 *bits)
 {
 	int result = -ENODEV;
 
@@ -553,7 +553,7 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 	}
 }
 
-static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 * value,
+static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 *value,
 			    enum dt9812_gain gain)
 {
 	struct dt9812_rmw_byte rmw[3];
@@ -620,7 +620,7 @@ exit:
 }
 
 static int dt9812_analog_out_shadow(struct slot_dt9812 *slot, int channel,
-				    u16 * value)
+				    u16 *value)
 {
 	int result = -ENODEV;
 
