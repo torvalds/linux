@@ -246,9 +246,6 @@ static void SA5_submit_command(struct ctlr_info *h,
 		c->Header.Tag.lower);
 	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
 	(void) readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
-	h->commands_outstanding++;
-	if (h->commands_outstanding > h->max_outstanding)
-		h->max_outstanding = h->commands_outstanding;
 }
 
 /*
@@ -287,7 +284,7 @@ static void SA5_performant_intr_mask(struct ctlr_info *h, unsigned long val)
 static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 {
 	struct reply_pool *rq = &h->reply_queue[q];
-	unsigned long register_value = FIFO_EMPTY;
+	unsigned long flags, register_value = FIFO_EMPTY;
 
 	/* msi auto clears the interrupt pending bit. */
 	if (!(h->msi_vector || h->msix_vector)) {
@@ -305,7 +302,9 @@ static unsigned long SA5_performant_completed(struct ctlr_info *h, u8 q)
 	if ((rq->head[rq->current_entry] & 1) == rq->wraparound) {
 		register_value = rq->head[rq->current_entry];
 		rq->current_entry++;
+		spin_lock_irqsave(&h->lock, flags);
 		h->commands_outstanding--;
+		spin_unlock_irqrestore(&h->lock, flags);
 	} else {
 		register_value = FIFO_EMPTY;
 	}
@@ -338,9 +337,13 @@ static unsigned long SA5_completed(struct ctlr_info *h,
 {
 	unsigned long register_value
 		= readl(h->vaddr + SA5_REPLY_PORT_OFFSET);
+	unsigned long flags;
 
-	if (register_value != FIFO_EMPTY)
+	if (register_value != FIFO_EMPTY) {
+		spin_lock_irqsave(&h->lock, flags);
 		h->commands_outstanding--;
+		spin_unlock_irqrestore(&h->lock, flags);
+	}
 
 #ifdef HPSA_DEBUG
 	if (register_value != FIFO_EMPTY)
