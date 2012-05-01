@@ -220,6 +220,7 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	}
 
 	ath5k_deinit_ah(ah);
+	iounmap(ah->iobase);
 	platform_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 
