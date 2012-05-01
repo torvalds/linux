@@ -3063,7 +3063,7 @@ static inline int bad_tag(struct ctlr_info *h, u32 tag_index,
 	return 0;
 }
 
-static inline void finish_cmd(struct CommandList *c, u32 raw_tag)
+static inline void finish_cmd(struct CommandList *c)
 {
 	removeQ(c);
 	if (likely(c->cmd_type == CMD_SCSI))
@@ -3103,7 +3103,7 @@ static inline u32 process_indexed_cmd(struct ctlr_info *h,
 	if (bad_tag(h, tag_index, raw_tag))
 		return next_command(h);
 	c = h->cmd_pool + tag_index;
-	finish_cmd(c, raw_tag);
+	finish_cmd(c);
 	return next_command(h);
 }
 
@@ -3117,7 +3117,7 @@ static inline u32 process_nonindexed_cmd(struct ctlr_info *h,
 	tag = hpsa_tag_discard_error_bits(h, raw_tag);
 	list_for_each_entry(c, &h->cmpQ, list) {
 		if ((c->busaddr & 0xFFFFFFE0) == (tag & 0xFFFFFFE0)) {
-			finish_cmd(c, raw_tag);
+			finish_cmd(c);
 			return next_command(h);
 		}
 	}
@@ -4167,7 +4167,7 @@ static void fail_all_cmds_on_list(struct ctlr_info *h, struct list_head *list)
 	while (!list_empty(list)) {
 		c = list_entry(list->next, struct CommandList, list);
 		c->err_info->CommandStatus = CMD_HARDWARE_ERR;
-		finish_cmd(c, c->Header.Tag.lower);
+		finish_cmd(c);
 	}
 }
 
