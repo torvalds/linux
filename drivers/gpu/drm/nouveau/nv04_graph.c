@@ -356,12 +356,12 @@ static struct nouveau_channel *
 nv04_graph_channel(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int chid = dev_priv->engine.fifo.channels;
+	int chid = 15;
 
 	if (nv_rd32(dev, NV04_PGRAPH_CTX_CONTROL) & 0x00010000)
 		chid = nv_rd32(dev, NV04_PGRAPH_CTX_USER) >> 24;
 
-	if (chid >= dev_priv->engine.fifo.channels)
+	if (chid > 15)
 		return NULL;
 
 	return dev_priv->channels.ptr[chid];
@@ -404,7 +404,6 @@ nv04_graph_load_context(struct nouveau_channel *chan)
 static int
 nv04_graph_unload_context(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = NULL;
 	struct graph_state *ctx;
 	uint32_t tmp;
@@ -420,7 +419,7 @@ nv04_graph_unload_context(struct drm_device *dev)
 
 	nv_wr32(dev, NV04_PGRAPH_CTX_CONTROL, 0x10000000);
 	tmp  = nv_rd32(dev, NV04_PGRAPH_CTX_USER) & 0x00ffffff;
-	tmp |= (dev_priv->engine.fifo.channels - 1) << 24;
+	tmp |= 15 << 24;
 	nv_wr32(dev, NV04_PGRAPH_CTX_USER, tmp);
 	return 0;
 }
@@ -495,7 +494,6 @@ nv04_graph_object_new(struct nouveau_channel *chan, int engine,
 static int
 nv04_graph_init(struct drm_device *dev, int engine)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
@@ -527,7 +525,7 @@ nv04_graph_init(struct drm_device *dev, int engine)
 	nv_wr32(dev, NV04_PGRAPH_STATE        , 0xFFFFFFFF);
 	nv_wr32(dev, NV04_PGRAPH_CTX_CONTROL  , 0x10000100);
 	tmp  = nv_rd32(dev, NV04_PGRAPH_CTX_USER) & 0x00ffffff;
-	tmp |= (dev_priv->engine.fifo.channels - 1) << 24;
+	tmp |= 15 << 24;
 	nv_wr32(dev, NV04_PGRAPH_CTX_USER, tmp);
 
 	/* These don't belong here, they're part of a per-channel context */

@@ -43,8 +43,6 @@ struct nv20_graph_engine {
 int
 nv20_graph_unload_context(struct drm_device *dev)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_channel *chan;
 	struct nouveau_gpuobj *grctx;
 	u32 tmp;
@@ -62,7 +60,7 @@ nv20_graph_unload_context(struct drm_device *dev)
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_CONTROL, 0x10000000);
 	tmp  = nv_rd32(dev, NV10_PGRAPH_CTX_USER) & 0x00ffffff;
-	tmp |= (pfifo->channels - 1) << 24;
+	tmp |= 31 << 24;
 	nv_wr32(dev, NV10_PGRAPH_CTX_USER, tmp);
 	return 0;
 }

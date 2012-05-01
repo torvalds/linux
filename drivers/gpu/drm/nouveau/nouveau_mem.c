@@ -39,6 +39,7 @@
 #include "nouveau_pm.h"
 #include "nouveau_mm.h"
 #include "nouveau_vm.h"
+#include "nouveau_fifo.h"
 #include "nouveau_fence.h"
 
 /*

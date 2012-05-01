@@ -27,6 +27,7 @@
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
 #include "nouveau_dma.h"
+#include "nouveau_fifo.h"
 #include "nouveau_ramht.h"
 #include "nouveau_fence.h"
 #include "nouveau_software.h"
@@ -120,8 +121,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		      uint32_t vram_handle, uint32_t gart_handle)
 {
 	struct nouveau_exec_engine *fence = nv_engine(dev, NVOBJ_ENGINE_FENCE);
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_fpriv *fpriv = nouveau_fpriv(file_priv);
 	struct nouveau_channel *chan;
 	unsigned long flags;
@@ -189,19 +190,12 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	if (dev_priv->card_type >= NV_50)
 		chan->user_get_hi = 0x60;
 
-	/* disable the fifo caches */
-	if (dev_priv->card_type < NV_50)
-		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
-
-	/* Construct initial RAMFC for new channel */
-	ret = pfifo->create_context(chan);
+	/* create fifo context */
+	ret = pfifo->base.context_new(chan, NVOBJ_ENGINE_FIFO);
 	if (ret) {
 		nouveau_channel_put(&chan);
 		return ret;
 	}
-
-	if (dev_priv->card_type < NV_50)
-		nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	/* Insert NOPs for NOUVEAU_DMA_SKIPS */
 	ret = RING_SPACE(chan, NOUVEAU_DMA_SKIPS);
@@ -288,7 +282,6 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	struct nouveau_channel *chan = *pchan;
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	unsigned long flags;
 	int i;
 
@@ -305,21 +298,11 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	/* give it chance to idle */
 	nouveau_channel_idle(chan);
 
-	/* boot it off the hardware */
-	if (dev_priv->card_type < NV_50)
-		nv_wr32(dev, NV03_PFIFO_CACHES, 0);
-
 	/* destroy the engine specific contexts */
 	for (i = NVOBJ_ENGINE_NR - 1; i >= 0; i--) {
 		if (chan->engctx[i])
 			dev_priv->eng[i]->context_del(chan, i);
-		/*XXX: clean this up later, order is important */
-		if (i == NVOBJ_ENGINE_FENCE)
-			pfifo->destroy_context(chan);
 	}
-
-	if (dev_priv->card_type < NV_50)
-		nv_wr32(dev, NV03_PFIFO_CACHES, 1);
 
 	/* aside from its resources, the channel should now be dead,
 	 * remove it from the channel list
@@ -393,13 +376,15 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 void
 nouveau_channel_cleanup(struct drm_device *dev, struct drm_file *file_priv)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct nouveau_channel *chan;
 	int i;
 
+	if (!pfifo)
+		return;
+
 	NV_DEBUG(dev, "clearing FIFO enables from file_priv\n");
-	for (i = 0; i < engine->fifo.channels; i++) {
+	for (i = 0; i < pfifo->channels; i++) {
 		chan = nouveau_channel_get(file_priv, i);
 		if (IS_ERR(chan))
 			continue;

@@ -34,6 +34,7 @@
 #include "drm.h"
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_fifo.h"
 #include "nouveau_ramht.h"
 #include "nouveau_software.h"
 #include "nouveau_vm.h"
@@ -120,12 +121,13 @@ nouveau_gpuobj_mthd_call2(struct drm_device *dev, int chid,
 			  u32 class, u32 mthd, u32 data)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct nouveau_channel *chan = NULL;
 	unsigned long flags;
 	int ret = -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->channels.lock, flags);
-	if (chid >= 0 && chid < dev_priv->engine.fifo.channels)
+	if (chid >= 0 && chid < pfifo->channels)
 		chan = dev_priv->channels.ptr[chid];
 	if (chan)
 		ret = nouveau_gpuobj_mthd_call(chan, class, mthd, data);

@@ -25,6 +25,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_fifo.h"
 #include "nouveau_ramht.h"
 #include "nouveau_fence.h"
 
@@ -148,8 +149,8 @@ nvc0_fence_destroy(struct drm_device *dev, int engine)
 int
 nvc0_fence_create(struct drm_device *dev)
 {
+	struct nouveau_fifo_priv *pfifo = nv_engine(dev, NVOBJ_ENGINE_FIFO);
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nvc0_fence_priv *priv;
 	int ret;
 

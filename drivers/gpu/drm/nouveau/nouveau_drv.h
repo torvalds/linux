@@ -165,9 +165,10 @@ enum nouveau_flags {
 #define NVOBJ_ENGINE_PPP	NVOBJ_ENGINE_MPEG
 #define NVOBJ_ENGINE_BSP	6
 #define NVOBJ_ENGINE_VP		7
-#define NVOBJ_ENGINE_FENCE	14
-#define NVOBJ_ENGINE_DISPLAY	15
+#define NVOBJ_ENGINE_FIFO	14
+#define NVOBJ_ENGINE_FENCE	15
 #define NVOBJ_ENGINE_NR		16
+#define NVOBJ_ENGINE_DISPLAY	(NVOBJ_ENGINE_NR + 0) /*XXX*/
 
 #define NVOBJ_FLAG_DONT_MAP             (1 << 0)
 #define NVOBJ_FLAG_ZERO_ALLOC		(1 << 1)
@@ -248,8 +249,6 @@ struct nouveau_channel {
 
 	/* PFIFO context */
 	struct nouveau_gpuobj *ramfc;
-	struct nouveau_gpuobj *cache;
-	void *fifo_priv;
 
 	/* Execution engine contexts */
 	void *engctx[NVOBJ_ENGINE_NR];
@@ -282,8 +281,6 @@ struct nouveau_channel {
 		int ib_free;
 		int ib_put;
 	} dma;
-
-	uint32_t sw_subchannel[8];
 
 	struct {
 		bool active;
@@ -345,23 +342,6 @@ struct nouveau_fb_engine {
 				 uint32_t pitch, uint32_t flags);
 	void (*set_tile_region)(struct drm_device *dev, int i);
 	void (*free_tile_region)(struct drm_device *dev, int i);
-};
-
-struct nouveau_fifo_engine {
-	void *priv;
-	int  channels;
-
-	struct nouveau_gpuobj *playlist[2];
-	int cur_playlist;
-
-	int  (*init)(struct drm_device *);
-	void (*takedown)(struct drm_device *);
-
-	int  (*create_context)(struct nouveau_channel *);
-	void (*destroy_context)(struct nouveau_channel *);
-	int  (*load_context)(struct nouveau_channel *);
-	int  (*unload_context)(struct drm_device *);
-	void (*tlb_flush)(struct drm_device *dev);
 };
 
 struct nouveau_display_engine {
@@ -571,7 +551,6 @@ struct nouveau_engine {
 	struct nouveau_mc_engine      mc;
 	struct nouveau_timer_engine   timer;
 	struct nouveau_fb_engine      fb;
-	struct nouveau_fifo_engine    fifo;
 	struct nouveau_display_engine display;
 	struct nouveau_gpio_engine    gpio;
 	struct nouveau_pm_engine      pm;
@@ -1182,52 +1161,6 @@ extern void nv50_fb_vm_trap(struct drm_device *, int display);
 /* nvc0_fb.c */
 extern int  nvc0_fb_init(struct drm_device *);
 extern void nvc0_fb_takedown(struct drm_device *);
-
-/* nv04_fifo.c */
-extern int  nv04_fifo_init(struct drm_device *);
-extern void nv04_fifo_fini(struct drm_device *);
-extern int  nv04_fifo_create_context(struct nouveau_channel *);
-extern void nv04_fifo_destroy_context(struct nouveau_channel *);
-extern int  nv04_fifo_load_context(struct nouveau_channel *);
-extern int  nv04_fifo_unload_context(struct drm_device *);
-extern void nv04_fifo_isr(struct drm_device *);
-bool nv04_fifo_cache_pull(struct drm_device *, bool enable);
-
-/* nv10_fifo.c */
-extern int  nv10_fifo_init(struct drm_device *);
-extern int  nv10_fifo_create_context(struct nouveau_channel *);
-extern int  nv10_fifo_load_context(struct nouveau_channel *);
-extern int  nv10_fifo_unload_context(struct drm_device *);
-
-/* nv40_fifo.c */
-extern int  nv40_fifo_init(struct drm_device *);
-extern int  nv40_fifo_create_context(struct nouveau_channel *);
-extern int  nv40_fifo_load_context(struct nouveau_channel *);
-extern int  nv40_fifo_unload_context(struct drm_device *);
-
-/* nv50_fifo.c */
-extern int  nv50_fifo_init(struct drm_device *);
-extern void nv50_fifo_takedown(struct drm_device *);
-extern int  nv50_fifo_create_context(struct nouveau_channel *);
-extern void nv50_fifo_destroy_context(struct nouveau_channel *);
-extern int  nv50_fifo_load_context(struct nouveau_channel *);
-extern int  nv50_fifo_unload_context(struct drm_device *);
-extern void nv50_fifo_tlb_flush(struct drm_device *dev);
-
-/* nvc0_fifo.c */
-extern int  nvc0_fifo_init(struct drm_device *);
-extern void nvc0_fifo_takedown(struct drm_device *);
-extern int  nvc0_fifo_create_context(struct nouveau_channel *);
-extern void nvc0_fifo_destroy_context(struct nouveau_channel *);
-extern int  nvc0_fifo_load_context(struct nouveau_channel *);
-extern int  nvc0_fifo_unload_context(struct drm_device *);
-
-/* nve0_fifo.c */
-extern int  nve0_fifo_init(struct drm_device *);
-extern void nve0_fifo_takedown(struct drm_device *);
-extern int  nve0_fifo_create_context(struct nouveau_channel *);
-extern void nve0_fifo_destroy_context(struct nouveau_channel *);
-extern int  nve0_fifo_unload_context(struct drm_device *);
 
 /* nv04_graph.c */
 extern int  nv04_graph_create(struct drm_device *);

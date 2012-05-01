@@ -39,6 +39,7 @@
 #include "nouveau_gpio.h"
 #include "nouveau_pm.h"
 #include "nv50_display.h"
+#include "nouveau_fifo.h"
 #include "nouveau_fence.h"
 #include "nouveau_software.h"
 
@@ -68,13 +69,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv04_fb_init;
 		engine->fb.takedown		= nv04_fb_takedown;
-		engine->fifo.channels		= 16;
-		engine->fifo.init		= nv04_fifo_init;
-		engine->fifo.takedown		= nv04_fifo_fini;
-		engine->fifo.create_context	= nv04_fifo_create_context;
-		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
-		engine->fifo.load_context	= nv04_fifo_load_context;
-		engine->fifo.unload_context	= nv04_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
@@ -108,13 +102,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv10_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv10_fb_free_tile_region;
-		engine->fifo.channels		= 32;
-		engine->fifo.init		= nv10_fifo_init;
-		engine->fifo.takedown		= nv04_fifo_fini;
-		engine->fifo.create_context	= nv10_fifo_create_context;
-		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
-		engine->fifo.load_context	= nv10_fifo_load_context;
-		engine->fifo.unload_context	= nv10_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
@@ -154,13 +141,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv20_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv20_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv20_fb_free_tile_region;
-		engine->fifo.channels		= 32;
-		engine->fifo.init		= nv10_fifo_init;
-		engine->fifo.takedown		= nv04_fifo_fini;
-		engine->fifo.create_context	= nv10_fifo_create_context;
-		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
-		engine->fifo.load_context	= nv10_fifo_load_context;
-		engine->fifo.unload_context	= nv10_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
@@ -196,13 +176,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv10_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
-		engine->fifo.channels		= 32;
-		engine->fifo.init		= nv10_fifo_init;
-		engine->fifo.takedown		= nv04_fifo_fini;
-		engine->fifo.create_context	= nv10_fifo_create_context;
-		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
-		engine->fifo.load_context	= nv10_fifo_load_context;
-		engine->fifo.unload_context	= nv10_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
@@ -241,13 +214,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->fb.init_tile_region	= nv30_fb_init_tile_region;
 		engine->fb.set_tile_region	= nv40_fb_set_tile_region;
 		engine->fb.free_tile_region	= nv30_fb_free_tile_region;
-		engine->fifo.channels		= 32;
-		engine->fifo.init		= nv40_fifo_init;
-		engine->fifo.takedown		= nv04_fifo_fini;
-		engine->fifo.create_context	= nv40_fifo_create_context;
-		engine->fifo.destroy_context	= nv04_fifo_destroy_context;
-		engine->fifo.load_context	= nv40_fifo_load_context;
-		engine->fifo.unload_context	= nv40_fifo_unload_context;
 		engine->display.early_init	= nv04_display_early_init;
 		engine->display.late_takedown	= nv04_display_late_takedown;
 		engine->display.create		= nv04_display_create;
@@ -294,14 +260,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nv50_fb_init;
 		engine->fb.takedown		= nv50_fb_takedown;
-		engine->fifo.channels		= 128;
-		engine->fifo.init		= nv50_fifo_init;
-		engine->fifo.takedown		= nv50_fifo_takedown;
-		engine->fifo.create_context	= nv50_fifo_create_context;
-		engine->fifo.destroy_context	= nv50_fifo_destroy_context;
-		engine->fifo.load_context	= nv50_fifo_load_context;
-		engine->fifo.unload_context	= nv50_fifo_unload_context;
-		engine->fifo.tlb_flush		= nv50_fifo_tlb_flush;
 		engine->display.early_init	= nv50_display_early_init;
 		engine->display.late_takedown	= nv50_display_late_takedown;
 		engine->display.create		= nv50_display_create;
@@ -365,13 +323,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
-		engine->fifo.channels		= 128;
-		engine->fifo.init		= nvc0_fifo_init;
-		engine->fifo.takedown		= nvc0_fifo_takedown;
-		engine->fifo.create_context	= nvc0_fifo_create_context;
-		engine->fifo.destroy_context	= nvc0_fifo_destroy_context;
-		engine->fifo.load_context	= nvc0_fifo_load_context;
-		engine->fifo.unload_context	= nvc0_fifo_unload_context;
 		engine->display.early_init	= nv50_display_early_init;
 		engine->display.late_takedown	= nv50_display_late_takedown;
 		engine->display.create		= nv50_display_create;
@@ -414,13 +365,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
-		engine->fifo.channels		= 128;
-		engine->fifo.init		= nvc0_fifo_init;
-		engine->fifo.takedown		= nvc0_fifo_takedown;
-		engine->fifo.create_context	= nvc0_fifo_create_context;
-		engine->fifo.destroy_context	= nvc0_fifo_destroy_context;
-		engine->fifo.load_context	= nvc0_fifo_load_context;
-		engine->fifo.unload_context	= nvc0_fifo_unload_context;
 		engine->display.early_init	= nouveau_stub_init;
 		engine->display.late_takedown	= nouveau_stub_takedown;
 		engine->display.create		= nvd0_display_create;
@@ -461,13 +405,6 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 		engine->timer.takedown		= nv04_timer_takedown;
 		engine->fb.init			= nvc0_fb_init;
 		engine->fb.takedown		= nvc0_fb_takedown;
-		engine->fifo.channels		= 4096;
-		engine->fifo.init		= nve0_fifo_init;
-		engine->fifo.takedown		= nve0_fifo_takedown;
-		engine->fifo.create_context	= nve0_fifo_create_context;
-		engine->fifo.destroy_context	= nve0_fifo_destroy_context;
-		engine->fifo.load_context	= nvc0_fifo_load_context;
-		engine->fifo.unload_context	= nve0_fifo_unload_context;
 		engine->display.early_init	= nouveau_stub_init;
 		engine->display.late_takedown	= nouveau_stub_takedown;
 		engine->display.create		= nvd0_display_create;
@@ -728,6 +665,38 @@ nouveau_card_init(struct drm_device *dev)
 	if (!dev_priv->noaccel) {
 		switch (dev_priv->card_type) {
 		case NV_04:
+			nv04_fifo_create(dev);
+			break;
+		case NV_10:
+		case NV_20:
+		case NV_30:
+			if (dev_priv->chipset < 0x17)
+				nv10_fifo_create(dev);
+			else
+				nv17_fifo_create(dev);
+			break;
+		case NV_40:
+			nv40_fifo_create(dev);
+			break;
+		case NV_50:
+			if (dev_priv->chipset == 0x50)
+				nv50_fifo_create(dev);
+			else
+				nv84_fifo_create(dev);
+			break;
+		case NV_C0:
+		case NV_D0:
+			nvc0_fifo_create(dev);
+			break;
+		case NV_E0:
+			nve0_fifo_create(dev);
+			break;
+		default:
+			break;
+		}
+
+		switch (dev_priv->card_type) {
+		case NV_04:
 			nv04_fence_create(dev);
 			break;
 		case NV_10:
@@ -859,16 +828,11 @@ nouveau_card_init(struct drm_device *dev)
 					goto out_engine;
 			}
 		}
-
-		/* PFIFO */
-		ret = engine->fifo.init(dev);
-		if (ret)
-			goto out_engine;
 	}
 
 	ret = nouveau_irq_init(dev);
 	if (ret)
-		goto out_fifo;
+		goto out_engine;
 
 	ret = nouveau_display_create(dev);
 	if (ret)
@@ -901,9 +865,6 @@ out_pm:
 	nouveau_display_destroy(dev);
 out_irq:
 	nouveau_irq_fini(dev);
-out_fifo:
-	if (!dev_priv->noaccel)
-		engine->fifo.takedown(dev);
 out_engine:
 	if (!dev_priv->noaccel) {
 		for (e = e - 1; e >= 0; e--) {
@@ -956,7 +917,6 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	nouveau_display_destroy(dev);
 
 	if (!dev_priv->noaccel) {
-		engine->fifo.takedown(dev);
 		for (e = NVOBJ_ENGINE_NR - 1; e >= 0; e--) {
 			if (dev_priv->eng[e]) {
 				dev_priv->eng[e]->fini(dev, e, false);

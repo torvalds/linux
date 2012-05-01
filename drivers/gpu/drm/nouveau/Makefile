@@ -16,8 +16,8 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv04_mc.o nv40_mc.o nv50_mc.o \
              nv04_fb.o nv10_fb.o nv20_fb.o nv30_fb.o nv40_fb.o \
              nv50_fb.o nvc0_fb.o \
-             nv04_fifo.o nv10_fifo.o nv40_fifo.o nv50_fifo.o nvc0_fifo.o \
-             nve0_fifo.o \
+             nv04_fifo.o nv10_fifo.o nv17_fifo.o nv40_fifo.o nv50_fifo.o \
+             nv84_fifo.o nvc0_fifo.o nve0_fifo.o \
              nv04_fence.o nv10_fence.o nv84_fence.o nvc0_fence.o \
              nv04_software.o nv50_software.o nvc0_software.o \
              nv04_graph.o nv10_graph.o nv20_graph.o \
