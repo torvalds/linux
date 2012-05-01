@@ -49,6 +49,7 @@ struct per_cpu_dm_data {
 	struct sk_buff __rcu *skb;
 	atomic_t dm_hit_count;
 	struct timer_list send_timer;
+	int cpu;
 };
 
 struct dm_hw_stat_delta {
@@ -73,7 +74,6 @@ static int dm_hit_limit = 64;
 static int dm_delay = 1;
 static unsigned long dm_hw_check_delta = 2*HZ;
 static LIST_HEAD(hw_stats_list);
-static int initialized = 0;
 
 static void reset_per_cpu_data(struct per_cpu_dm_data *data)
 {
@@ -96,8 +96,8 @@ static void reset_per_cpu_data(struct per_cpu_dm_data *data)
 				  sizeof(struct net_dm_alert_msg));
 		msg = nla_data(nla);
 		memset(msg, 0, al);
-	} else if (initialized)
-		schedule_work_on(smp_processor_id(), &data->dm_alert_work);
+	} else
+		schedule_work_on(data->cpu, &data->dm_alert_work);
 
 	/*
 	 * Don't need to lock this, since we are guaranteed to only
@@ -120,6 +120,8 @@ static void send_dm_alert(struct work_struct *unused)
 {
 	struct sk_buff *skb;
 	struct per_cpu_dm_data *data = &get_cpu_var(dm_cpu_data);
+
+	WARN_ON_ONCE(data->cpu != smp_processor_id());
 
 	/*
 	 * Grab the skb we're about to send
@@ -403,14 +405,14 @@ static int __init init_net_drop_monitor(void)
 
 	for_each_present_cpu(cpu) {
 		data = &per_cpu(dm_cpu_data, cpu);
-		reset_per_cpu_data(data);
+		data->cpu = cpu;
 		INIT_WORK(&data->dm_alert_work, send_dm_alert);
 		init_timer(&data->send_timer);
 		data->send_timer.data = cpu;
 		data->send_timer.function = sched_send_work;
+		reset_per_cpu_data(data);
 	}
 
-	initialized = 1;
 
 	goto out;
 
