@@ -44,6 +44,15 @@ static struct pci_root_info __init *find_pci_root_info(int node, int link)
 	return NULL;
 }
 
+static void __init set_mp_bus_range_to_node(int min_bus, int max_bus, int node)
+{
+#ifdef CONFIG_NUMA
+	int j;
+
+	for (j = min_bus; j <= max_bus; j++)
+		set_mp_bus_to_node(j, node);
+#endif
+}
 /**
  * early_fill_mp_bus_to_node()
  * called before pcibios_scan_root and pci_scan_bus
@@ -53,7 +62,6 @@ static struct pci_root_info __init *find_pci_root_info(int node, int link)
 static int __init early_fill_mp_bus_info(void)
 {
 	int i;
-	int j;
 	unsigned bus;
 	unsigned slot;
 	int node;
@@ -109,10 +117,7 @@ static int __init early_fill_mp_bus_info(void)
 		min_bus = (reg >> 16) & 0xff;
 		max_bus = (reg >> 24) & 0xff;
 		node = (reg >> 4) & 0x07;
-#ifdef CONFIG_NUMA
-		for (j = min_bus; j <= max_bus; j++)
-			set_mp_bus_to_node(j, node);
-#endif
+		set_mp_bus_range_to_node(min_bus, max_bus, node);
 		link = (reg >> 8) & 0x03;
 
 		info = alloc_pci_root_info(min_bus, max_bus, node, link);
