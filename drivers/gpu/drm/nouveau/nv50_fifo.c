@@ -36,25 +36,22 @@ nv50_fifo_playlist_update(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
 	struct nouveau_gpuobj *cur;
-	int i, nr;
+	int i, p;
 
 	NV_DEBUG(dev, "\n");
 
 	cur = pfifo->playlist[pfifo->cur_playlist];
 	pfifo->cur_playlist = !pfifo->cur_playlist;
 
-	/* We never schedule channel 0 or 127 */
-	for (i = 1, nr = 0; i < 127; i++) {
-		if (dev_priv->channels.ptr[i] &&
-		    dev_priv->channels.ptr[i]->ramfc) {
-			nv_wo32(cur, (nr * 4), i);
-			nr++;
-		}
+	for (i = 0, p = 0; i < pfifo->channels; i++) {
+		if (nv_rd32(dev, 0x002600 + (i * 4)) & 0x80000000)
+			nv_wo32(cur, p++ * 4, i);
 	}
+
 	dev_priv->engine.instmem.flush(dev);
 
 	nv_wr32(dev, 0x32f4, cur->vinst >> 12);
-	nv_wr32(dev, 0x32ec, nr);
+	nv_wr32(dev, 0x32ec, p);
 	nv_wr32(dev, 0x2500, 0x101);
 }
 
@@ -301,7 +298,6 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_fifo_engine *pfifo = &dev_priv->engine.fifo;
-	struct nouveau_gpuobj *ramfc = NULL;
 	unsigned long flags;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
@@ -319,9 +315,6 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
 
-	/* This will ensure the channel is seen as disabled. */
-	nouveau_gpuobj_ref(chan->ramfc, &ramfc);
-	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 	nv50_fifo_channel_disable(dev, chan->id);
 
 	/* Dummy channel, also used on ch 127 */
@@ -337,7 +330,7 @@ nv50_fifo_destroy_context(struct nouveau_channel *chan)
 		iounmap(chan->user);
 		chan->user = NULL;
 	}
-	nouveau_gpuobj_ref(NULL, &ramfc);
+	nouveau_gpuobj_ref(NULL, &chan->ramfc);
 	nouveau_gpuobj_ref(NULL, &chan->cache);
 }
 
