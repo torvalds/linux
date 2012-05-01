@@ -46,18 +46,34 @@ static int dev_update_qos_constraint(struct device *dev, void *data)
 bool default_stop_ok(struct device *dev)
 {
 	struct gpd_timing_data *td = &dev_gpd_data(dev)->td;
+	unsigned long flags;
 	s64 constraint_ns;
 
 	dev_dbg(dev, "%s()\n", __func__);
 
-	constraint_ns = dev_pm_qos_read_value(dev);
+	spin_lock_irqsave(&dev->power.lock, flags);
+
+	if (!td->constraint_changed) {
+		bool ret = td->cached_stop_ok;
+
+		spin_unlock_irqrestore(&dev->power.lock, flags);
+		return ret;
+	}
+	td->constraint_changed = false;
+	td->cached_stop_ok = false;
+	td->effective_constraint_ns = -1;
+	constraint_ns = __dev_pm_qos_read_value(dev);
+
+	spin_unlock_irqrestore(&dev->power.lock, flags);
+
 	if (constraint_ns < 0)
 		return false;
 
 	constraint_ns *= NSEC_PER_USEC;
 	/*
 	 * We can walk the children without any additional locking, because
-	 * they all have been suspended at this point.
+	 * they all have been suspended at this point and their
+	 * effective_constraint_ns fields won't be modified in parallel with us.
 	 */
 	if (!dev->power.ignore_children)
 		device_for_each_child(dev, &constraint_ns,
@@ -69,11 +85,13 @@ bool default_stop_ok(struct device *dev)
 			return false;
 	}
 	td->effective_constraint_ns = constraint_ns;
+	td->cached_stop_ok = constraint_ns > td->stop_latency_ns ||
+				constraint_ns == 0;
 	/*
 	 * The children have been suspended already, so we don't need to take
 	 * their stop latencies into account here.
 	 */
-	return constraint_ns > td->stop_latency_ns || constraint_ns == 0;
+	return td->cached_stop_ok;
 }
 
 /**
@@ -89,6 +107,25 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 	struct pm_domain_data *pdd;
 	s64 min_dev_off_time_ns;
 	s64 off_on_time_ns;
+
+	if (genpd->max_off_time_changed) {
+		struct gpd_link *link;
+
+		/*
+		 * We have to invalidate the cached results for the masters, so
+		 * use the observation that default_power_down_ok() is not
+		 * going to be called for any master until this instance
+		 * returns.
+		 */
+		list_for_each_entry(link, &genpd->slave_links, slave_node)
+			link->master->max_off_time_changed = true;
+
+		genpd->max_off_time_changed = false;
+		genpd->cached_power_down_ok = false;
+		genpd->max_off_time_ns = -1;
+	} else {
+		return genpd->cached_power_down_ok;
+	}
 
 	off_on_time_ns = genpd->power_off_latency_ns +
 				genpd->power_on_latency_ns;
@@ -164,6 +201,8 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		    || min_dev_off_time_ns < 0)
 			min_dev_off_time_ns = constraint_ns;
 	}
+
+	genpd->cached_power_down_ok = true;
 
 	/*
 	 * If the computed minimum device off time is negative, there are no
