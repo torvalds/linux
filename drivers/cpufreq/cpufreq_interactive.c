@@ -232,7 +232,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 	 * floor frequency for the minimum sample time since last validated.
 	 */
 	if (new_freq < pcpu->floor_freq) {
-		if (pcpu->timer_run_time - pcpu->target_validate_time
+		if (pcpu->timer_run_time - pcpu->floor_validate_time
 		    < min_sample_time) {
 			trace_cpufreq_interactive_notyet(data, cpu_load,
 					 pcpu->target_freq, new_freq);
