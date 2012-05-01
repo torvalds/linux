@@ -455,14 +455,15 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 	/* 7f92 to zero */
 	local_transfer_buffer[0] = 0;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
-				VENDOR_DIR_OUT,	/* bmRequestType */
-				USBDUXFASTSUB_CPUCS,	/* Value */
-				0x0000,	/* Index */
-				/* address of the transfer buffer */
-				local_transfer_buffer,
-				1,	/* Length */
-				EZTIMEOUT);	/* Timeout */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,	  /* bmRequestType */
+			      USBDUXFASTSUB_CPUCS,    /* Value */
+			      0x0000,	/* Index */
+			      /* address of the transfer buffer */
+			      local_transfer_buffer,
+			      1,      /* Length */
+			      EZTIMEOUT);    /* Timeout */
 	if (ret < 0) {
 		printk("comedi_: usbduxfast_: control msg failed (start)\n");
 		return ret;
@@ -479,7 +480,8 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 	/* 7f92 to one */
 	local_transfer_buffer[0] = 1;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,	/* Value */
 			      0x0000,	/* Index */
@@ -506,14 +508,15 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	       startAddr, local_transfer_buffer[0]);
 #endif
 	/* brequest, firmware */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
-				VENDOR_DIR_OUT,	/* bmRequestType */
-				startAddr,	/* value */
-				0x0000,	/* index */
-				/* our local safe buffer */
-				local_transfer_buffer,
-				len,	/* length */
-				EZTIMEOUT);	/* timeout */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,	/* bmRequestType */
+			      startAddr,	/* value */
+			      0x0000,	 /* index */
+			      /* our local safe buffer */
+			      local_transfer_buffer,
+			      len,	/* length */
+			      EZTIMEOUT);      /* timeout */
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi_: usbduxfast: result=%d\n", ret);
