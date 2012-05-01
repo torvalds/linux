@@ -638,10 +638,6 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 			map_key_clear(BTN_STYLUS2);
 			break;
 
-		case 0x51: /* ContactID */
-			device->quirks |= HID_QUIRK_MULTITOUCH;
-			goto unknown;
-
 		default:  goto unknown;
 		}
 		break;
@@ -1206,13 +1202,6 @@ int hidinput_connect(struct hid_device *hid, unsigned int force)
 				hidinput = NULL;
 			}
 		}
-	}
-
-	if (hid->quirks & HID_QUIRK_MULTITOUCH) {
-		/* generic hid does not know how to handle multitouch devices */
-		if (hidinput)
-			goto out_cleanup;
-		goto out_unwind;
 	}
 
 	if (hidinput && input_register_device(hidinput->input))
