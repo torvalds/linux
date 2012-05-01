@@ -40,47 +40,6 @@ struct nv50_graph_engine {
 };
 
 static int
-nv50_graph_do_load_context(struct drm_device *dev, uint32_t inst)
-{
-	uint32_t fifo = nv_rd32(dev, 0x400500);
-
-	nv_wr32(dev, 0x400500, fifo & ~1);
-	nv_wr32(dev, 0x400784, inst);
-	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x40);
-	nv_wr32(dev, 0x400320, nv_rd32(dev, 0x400320) | 0x11);
-	nv_wr32(dev, 0x400040, 0xffffffff);
-	(void)nv_rd32(dev, 0x400040);
-	nv_wr32(dev, 0x400040, 0x00000000);
-	nv_wr32(dev, 0x400304, nv_rd32(dev, 0x400304) | 1);
-
-	if (nouveau_wait_for_idle(dev))
-		nv_wr32(dev, 0x40032c, inst | (1<<31));
-	nv_wr32(dev, 0x400500, fifo);
-
-	return 0;
-}
-
-static int
-nv50_graph_unload_context(struct drm_device *dev)
-{
-	uint32_t inst;
-
-	inst  = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
-	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
-		return 0;
-	inst &= NV50_PGRAPH_CTXCTL_CUR_INSTANCE;
-
-	nouveau_wait_for_idle(dev);
-	nv_wr32(dev, 0x400784, inst);
-	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) | 0x20);
-	nv_wr32(dev, 0x400304, nv_rd32(dev, 0x400304) | 0x01);
-	nouveau_wait_for_idle(dev);
-
-	nv_wr32(dev, NV50_PGRAPH_CTXCTL_CUR, inst);
-	return 0;
-}
-
-static int
 nv50_graph_init(struct drm_device *dev, int engine)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -252,21 +211,6 @@ nv50_graph_object_new(struct nouveau_channel *chan, int engine,
 	ret = nouveau_ramht_insert(chan, handle, obj);
 	nouveau_gpuobj_ref(NULL, &obj);
 	return ret;
-}
-
-static void
-nv50_graph_context_switch(struct drm_device *dev)
-{
-	uint32_t inst;
-
-	nv50_graph_unload_context(dev);
-
-	inst  = nv_rd32(dev, NV50_PGRAPH_CTXCTL_NEXT);
-	inst &= NV50_PGRAPH_CTXCTL_NEXT_INSTANCE;
-	nv50_graph_do_load_context(dev, inst);
-
-	nv_wr32(dev, NV40_PGRAPH_INTR_EN, nv_rd32(dev,
-		NV40_PGRAPH_INTR_EN) | NV_PGRAPH_INTR_CONTEXT_SWITCH);
 }
 
 static void
@@ -803,15 +747,6 @@ nv50_graph_isr(struct drm_device *dev)
 			if (!nouveau_gpuobj_mthd_call2(dev, chid, class,
 						       mthd, data))
 				show &= ~0x00000010;
-		}
-
-		if (stat & 0x00001000) {
-			nv_wr32(dev, 0x400500, 0x00000000);
-			nv_wr32(dev, 0x400100, 0x00001000);
-			nv_mask(dev, 0x40013c, 0x00001000, 0x00000000);
-			nv50_graph_context_switch(dev);
-			stat &= ~0x00001000;
-			show &= ~0x00001000;
 		}
 
 		show = (show && nouveau_ratelimit()) ? show : 0;
