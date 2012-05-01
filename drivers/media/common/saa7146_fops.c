@@ -198,7 +198,6 @@ static int fops_open(struct file *file)
 	struct saa7146_dev *dev = video_drvdata(file);
 	struct saa7146_fh *fh = NULL;
 	int result = 0;
-
 	enum v4l2_buf_type type;
 
 	DEB_EE("file:%p, dev:%s\n", file, video_device_node_name(vdev));
@@ -227,7 +226,9 @@ static int fops_open(struct file *file)
 		goto out;
 	}
 
-	file->private_data = fh;
+	v4l2_fh_init(&fh->fh, vdev);
+
+	file->private_data = &fh->fh;
 	fh->dev = dev;
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
@@ -251,6 +252,7 @@ static int fops_open(struct file *file)
 	}
 
 	result = 0;
+	v4l2_fh_add(&fh->fh);
 out:
 	if (fh && result != 0) {
 		kfree(fh);
@@ -280,6 +282,8 @@ static int fops_release(struct file *file)
 		saa7146_video_uops.release(dev,file);
 	}
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	module_put(dev->ext->module);
 	file->private_data = NULL;
 	kfree(fh);
@@ -322,12 +326,13 @@ static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
 	struct saa7146_fh *fh = file->private_data;
 	struct videobuf_buffer *buf = NULL;
 	struct videobuf_queue *q;
+	unsigned int res = v4l2_ctrl_poll(file, wait);
 
 	DEB_EE("file:%p, poll:%p\n", file, wait);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if( 0 == fh->vbi_q.streaming )
-			return videobuf_poll_stream(file, &fh->vbi_q, wait);
+			return res | videobuf_poll_stream(file, &fh->vbi_q, wait);
 		q = &fh->vbi_q;
 	} else {
 		DEB_D("using video queue\n");
@@ -339,17 +344,17 @@ static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
 
 	if (!buf) {
 		DEB_D("buf == NULL!\n");
-		return POLLERR;
+		return res | POLLERR;
 	}
 
 	poll_wait(file, &buf->done, wait);
 	if (buf->state == VIDEOBUF_DONE || buf->state == VIDEOBUF_ERROR) {
 		DEB_D("poll succeeded!\n");
-		return POLLIN|POLLRDNORM;
+		return res | POLLIN | POLLRDNORM;
 	}
 
 	DEB_D("nothing to poll for, buf->state:%d\n", buf->state);
-	return 0;
+	return res;
 }
 
 static ssize_t fops_read(struct file *file, char __user *data, size_t count, loff_t *ppos)
@@ -583,6 +588,7 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	vfd->lock = &dev->v4l2_lock;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->tvnorms = 0;
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
 		vfd->tvnorms |= dev->ext_vv_data->stds[i].id;
 	strlcpy(vfd->name, name, sizeof(vfd->name));

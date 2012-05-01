@@ -3,6 +3,7 @@
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-fh.h>
 #include <media/saa7146.h>
 #include <media/videobuf-dma-sg.h>
 
@@ -84,6 +85,8 @@ struct saa7146_overlay {
 
 /* per open data */
 struct saa7146_fh {
+	/* Must be the first field! */
+	struct v4l2_fh		fh;
 	struct saa7146_dev	*dev;
 
 	/* video capture */

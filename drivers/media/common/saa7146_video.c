@@ -2,6 +2,8 @@
 
 #include <media/saa7146_vv.h>
 #include <media/v4l2-chip-ident.h>
+#include <media/v4l2-event.h>
+#include <media/v4l2-ctrls.h>
 #include <linux/module.h>
 
 static int max_memory = 32;
@@ -1021,6 +1023,8 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
 	.vidioc_g_parm 		     = vidioc_g_parm,
+	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 };
 
 /*********************************************************************************/
