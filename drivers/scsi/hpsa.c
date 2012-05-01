@@ -159,6 +159,7 @@ static int hpsa_change_queue_depth(struct scsi_device *sdev,
 	int qdepth, int reason);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
+static int hpsa_eh_abort_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_slave_alloc(struct scsi_device *sdev);
 static void hpsa_slave_destroy(struct scsi_device *sdev);
 
@@ -180,6 +181,7 @@ static int __devinit hpsa_pci_find_memory_BAR(struct pci_dev *pdev,
 static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id);
 static int __devinit hpsa_wait_for_board_state(struct pci_dev *pdev,
 	void __iomem *vaddr, int wait_for_ready);
+static inline void finish_cmd(struct CommandList *c);
 #define BOARD_NOT_READY 0
 #define BOARD_READY 1
 
@@ -507,6 +509,7 @@ static struct scsi_host_template hpsa_driver_template = {
 	.change_queue_depth	= hpsa_change_queue_depth,
 	.this_id		= -1,
 	.use_clustering		= ENABLE_CLUSTERING,
+	.eh_abort_handler	= hpsa_eh_abort_handler,
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
 	.slave_alloc		= hpsa_slave_alloc,
@@ -2352,6 +2355,191 @@ static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd)
 	return FAILED;
 }
 
+static int hpsa_send_abort(struct ctlr_info *h, unsigned char *scsi3addr,
+	struct CommandList *abort)
+{
+	int rc = IO_OK;
+	struct CommandList *c;
+	struct ErrorInfo *ei;
+
+	c = cmd_special_alloc(h);
+	if (c == NULL) {	/* trouble... */
+		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
+		return -ENOMEM;
+	}
+
+	fill_cmd(c, HPSA_ABORT_MSG, h, abort, 0, 0, scsi3addr, TYPE_MSG);
+	hpsa_scsi_do_simple_cmd_core(h, c);
+	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: do_simple_cmd_core completed.\n",
+		__func__, abort->Header.Tag.upper, abort->Header.Tag.lower);
+	/* no unmap needed here because no data xfer. */
+
+	ei = c->err_info;
+	switch (ei->CommandStatus) {
+	case CMD_SUCCESS:
+		break;
+	case CMD_UNABORTABLE: /* Very common, don't make noise. */
+		rc = -1;
+		break;
+	default:
+		dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: interpreting error.\n",
+			__func__, abort->Header.Tag.upper,
+			abort->Header.Tag.lower);
+		hpsa_scsi_interpret_error(c);
+		rc = -1;
+		break;
+	}
+	cmd_special_free(h, c);
+	dev_dbg(&h->pdev->dev, "%s: Tag:0x%08x:%08x: Finished.\n", __func__,
+		abort->Header.Tag.upper, abort->Header.Tag.lower);
+	return rc;
+}
+
+/*
+ * hpsa_find_cmd_in_queue
+ *
+ * Used to determine whether a command (find) is still present
+ * in queue_head.   Optionally excludes the last element of queue_head.
+ *
+ * This is used to avoid unnecessary aborts.  Commands in h->reqQ have
+ * not yet been submitted, and so can be aborted by the driver without
+ * sending an abort to the hardware.
+ *
+ * Returns pointer to command if found in queue, NULL otherwise.
+ */
+static struct CommandList *hpsa_find_cmd_in_queue(struct ctlr_info *h,
+			struct scsi_cmnd *find, struct list_head *queue_head)
+{
+	unsigned long flags;
+	struct CommandList *c = NULL;	/* ptr into cmpQ */
+
+	if (!find)
+		return 0;
+	spin_lock_irqsave(&h->lock, flags);
+	list_for_each_entry(c, queue_head, list) {
+		if (c->scsi_cmd == NULL) /* e.g.: passthru ioctl */
+			continue;
+		if (c->scsi_cmd == find) {
+			spin_unlock_irqrestore(&h->lock, flags);
+			return c;
+		}
+	}
+	spin_unlock_irqrestore(&h->lock, flags);
+	return NULL;
+}
+
+/* Send an abort for the specified command.
+ *	If the device and controller support it,
+ *		send a task abort request.
+ */
+static int hpsa_eh_abort_handler(struct scsi_cmnd *sc)
+{
+
+	int i, rc;
+	struct ctlr_info *h;
+	struct hpsa_scsi_dev_t *dev;
+	struct CommandList *abort; /* pointer to command to be aborted */
+	struct CommandList *found;
+	struct scsi_cmnd *as;	/* ptr to scsi cmd inside aborted command. */
+	char msg[256];		/* For debug messaging. */
+	int ml = 0;
+
+	/* Find the controller of the command to be aborted */
+	h = sdev_to_hba(sc->device);
+	if (WARN(h == NULL,
+			"ABORT REQUEST FAILED, Controller lookup failed.\n"))
+		return FAILED;
+
+	/* Check that controller supports some kind of task abort */
+	if (!(HPSATMF_PHYS_TASK_ABORT & h->TMFSupportFlags) &&
+		!(HPSATMF_LOG_TASK_ABORT & h->TMFSupportFlags))
+		return FAILED;
+
+	memset(msg, 0, sizeof(msg));
+	ml += sprintf(msg+ml, "ABORT REQUEST on C%d:B%d:T%d:L%d ",
+		h->scsi_host->host_no, sc->device->channel,
+		sc->device->id, sc->device->lun);
+
+	/* Find the device of the command to be aborted */
+	dev = sc->device->hostdata;
+	if (!dev) {
+		dev_err(&h->pdev->dev, "%s FAILED, Device lookup failed.\n",
+				msg);
+		return FAILED;
+	}
+
+	/* Get SCSI command to be aborted */
+	abort = (struct CommandList *) sc->host_scribble;
+	if (abort == NULL) {
+		dev_err(&h->pdev->dev, "%s FAILED, Command to abort is NULL.\n",
+				msg);
+		return FAILED;
+	}
+
+	ml += sprintf(msg+ml, "Tag:0x%08x:%08x ",
+		abort->Header.Tag.upper, abort->Header.Tag.lower);
+	as  = (struct scsi_cmnd *) abort->scsi_cmd;
+	if (as != NULL)
+		ml += sprintf(msg+ml, "Command:0x%x SN:0x%lx ",
+			as->cmnd[0], as->serial_number);
+	dev_dbg(&h->pdev->dev, "%s\n", msg);
+	dev_warn(&h->pdev->dev, "Abort request on C%d:B%d:T%d:L%d\n",
+		h->scsi_host->host_no, dev->bus, dev->target, dev->lun);
+
+	/* Search reqQ to See if command is queued but not submitted,
+	 * if so, complete the command with aborted status and remove
+	 * it from the reqQ.
+	 */
+	found = hpsa_find_cmd_in_queue(h, sc, &h->reqQ);
+	if (found) {
+		found->err_info->CommandStatus = CMD_ABORTED;
+		finish_cmd(found);
+		dev_info(&h->pdev->dev, "%s Request SUCCEEDED (driver queue).\n",
+				msg);
+		return SUCCESS;
+	}
+
+	/* not in reqQ, if also not in cmpQ, must have already completed */
+	found = hpsa_find_cmd_in_queue(h, sc, &h->cmpQ);
+	if (!found)  {
+		dev_dbg(&h->pdev->dev, "%s Request FAILED (not known to driver).\n",
+				msg);
+		return SUCCESS;
+	}
+
+	/*
+	 * Command is in flight, or possibly already completed
+	 * by the firmware (but not to the scsi mid layer) but we can't
+	 * distinguish which.  Send the abort down.
+	 */
+	rc = hpsa_send_abort(h, dev->scsi3addr, abort);
+	if (rc != 0) {
+		dev_dbg(&h->pdev->dev, "%s Request FAILED.\n", msg);
+		dev_warn(&h->pdev->dev, "FAILED abort on device C%d:B%d:T%d:L%d\n",
+			h->scsi_host->host_no,
+			dev->bus, dev->target, dev->lun);
+		return FAILED;
+	}
+	dev_info(&h->pdev->dev, "%s REQUEST SUCCEEDED.\n", msg);
+
+	/* If the abort(s) above completed and actually aborted the
+	 * command, then the command to be aborted should already be
+	 * completed.  If not, wait around a bit more to see if they
+	 * manage to complete normally.
+	 */
+#define ABORT_COMPLETE_WAIT_SECS 30
+	for (i = 0; i < ABORT_COMPLETE_WAIT_SECS * 10; i++) {
+		found = hpsa_find_cmd_in_queue(h, sc, &h->cmpQ);
+		if (!found)
+			return SUCCESS;
+		msleep(100);
+	}
+	dev_warn(&h->pdev->dev, "%s FAILED. Aborted command has not completed after %d seconds.\n",
+		msg, ABORT_COMPLETE_WAIT_SECS);
+	return FAILED;
+}
+
+
 /*
  * For operations that cannot sleep, a command block is allocated at init,
  * and managed by cmd_alloc() and cmd_free() using a simple bitmap to track
@@ -2884,6 +3072,7 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 	int cmd_type)
 {
 	int pci_dir = XFER_NONE;
+	struct CommandList *a; /* for commands to be aborted */
 
 	c->cmd_type = CMD_IOCTL_PEND;
 	c->Header.ReplyQueue = 0;
@@ -2967,8 +3156,35 @@ static void fill_cmd(struct CommandList *c, u8 cmd, struct ctlr_info *h,
 			c->Request.CDB[5] = 0x00;
 			c->Request.CDB[6] = 0x00;
 			c->Request.CDB[7] = 0x00;
+			break;
+		case  HPSA_ABORT_MSG:
+			a = buff;       /* point to command to be aborted */
+			dev_dbg(&h->pdev->dev, "Abort Tag:0x%08x:%08x using request Tag:0x%08x:%08x\n",
+				a->Header.Tag.upper, a->Header.Tag.lower,
+				c->Header.Tag.upper, c->Header.Tag.lower);
+			c->Request.CDBLen = 16;
+			c->Request.Type.Type = TYPE_MSG;
+			c->Request.Type.Attribute = ATTR_SIMPLE;
+			c->Request.Type.Direction = XFER_WRITE;
+			c->Request.Timeout = 0; /* Don't time out */
+			c->Request.CDB[0] = HPSA_TASK_MANAGEMENT;
+			c->Request.CDB[1] = HPSA_TMF_ABORT_TASK;
+			c->Request.CDB[2] = 0x00; /* reserved */
+			c->Request.CDB[3] = 0x00; /* reserved */
+			/* Tag to abort goes in CDB[4]-CDB[11] */
+			c->Request.CDB[4] = a->Header.Tag.lower & 0xFF;
+			c->Request.CDB[5] = (a->Header.Tag.lower >> 8) & 0xFF;
+			c->Request.CDB[6] = (a->Header.Tag.lower >> 16) & 0xFF;
+			c->Request.CDB[7] = (a->Header.Tag.lower >> 24) & 0xFF;
+			c->Request.CDB[8] = a->Header.Tag.upper & 0xFF;
+			c->Request.CDB[9] = (a->Header.Tag.upper >> 8) & 0xFF;
+			c->Request.CDB[10] = (a->Header.Tag.upper >> 16) & 0xFF;
+			c->Request.CDB[11] = (a->Header.Tag.upper >> 24) & 0xFF;
+			c->Request.CDB[12] = 0x00; /* reserved */
+			c->Request.CDB[13] = 0x00; /* reserved */
+			c->Request.CDB[14] = 0x00; /* reserved */
+			c->Request.CDB[15] = 0x00; /* reserved */
 		break;
-
 		default:
 			dev_warn(&h->pdev->dev, "unknown message type %d\n",
 				cmd);
@@ -3848,6 +4064,9 @@ static void __devinit hpsa_find_board_params(struct ctlr_info *h)
 		h->maxsgentries = 31; /* default to traditional values */
 		h->chainsize = 0;
 	}
+
+	/* Find out what task management functions are supported and cache */
+	h->TMFSupportFlags = readl(&(h->cfgtable->TMFSupportFlags));
 }
 
 static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)

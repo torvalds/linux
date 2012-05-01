@@ -125,6 +125,27 @@ struct ctlr_info {
 	u64 last_heartbeat_timestamp;
 	u32 lockup_detected;
 	struct list_head lockup_list;
+	u32 TMFSupportFlags; /* cache what task mgmt funcs are supported. */
+#define HPSATMF_BITS_SUPPORTED  (1 << 0)
+#define HPSATMF_PHYS_LUN_RESET  (1 << 1)
+#define HPSATMF_PHYS_NEX_RESET  (1 << 2)
+#define HPSATMF_PHYS_TASK_ABORT (1 << 3)
+#define HPSATMF_PHYS_TSET_ABORT (1 << 4)
+#define HPSATMF_PHYS_CLEAR_ACA  (1 << 5)
+#define HPSATMF_PHYS_CLEAR_TSET (1 << 6)
+#define HPSATMF_PHYS_QRY_TASK   (1 << 7)
+#define HPSATMF_PHYS_QRY_TSET   (1 << 8)
+#define HPSATMF_PHYS_QRY_ASYNC  (1 << 9)
+#define HPSATMF_MASK_SUPPORTED  (1 << 16)
+#define HPSATMF_LOG_LUN_RESET   (1 << 17)
+#define HPSATMF_LOG_NEX_RESET   (1 << 18)
+#define HPSATMF_LOG_TASK_ABORT  (1 << 19)
+#define HPSATMF_LOG_TSET_ABORT  (1 << 20)
+#define HPSATMF_LOG_CLEAR_ACA   (1 << 21)
+#define HPSATMF_LOG_CLEAR_TSET  (1 << 22)
+#define HPSATMF_LOG_QRY_TASK    (1 << 23)
+#define HPSATMF_LOG_QRY_TSET    (1 << 24)
+#define HPSATMF_LOG_QRY_ASYNC   (1 << 25)
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
