@@ -161,7 +161,8 @@ struct saa7146_ext_vv
 	int (*std_callback)(struct saa7146_dev*, struct saa7146_standard *);
 
 	/* the extension can override this */
-	struct v4l2_ioctl_ops ops;
+	struct v4l2_ioctl_ops vid_ops;
+	struct v4l2_ioctl_ops vbi_ops;
 	/* pointer to the saa7146 core ops */
 	const struct v4l2_ioctl_ops *core_ops;
 
@@ -200,6 +201,7 @@ void saa7146_set_gpio(struct saa7146_dev *saa, u8 pin, u8 data);
 
 /* from saa7146_video.c */
 extern const struct v4l2_ioctl_ops saa7146_video_ioctl_ops;
+extern const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops;
 extern struct saa7146_use_ops saa7146_video_uops;
 int saa7146_start_preview(struct saa7146_fh *fh);
 int saa7146_stop_preview(struct saa7146_fh *fh);

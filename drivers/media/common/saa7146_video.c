@@ -446,18 +446,24 @@ static int video_end(struct saa7146_fh *fh, struct file *file)
 
 static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
+	struct video_device *vdev = video_devdata(file);
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
 	strcpy((char *)cap->driver, "saa7146 v4l2");
 	strlcpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
 	sprintf((char *)cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->version = SAA7146_VERSION_CODE;
 	cap->device_caps =
 		V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_VIDEO_OVERLAY |
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING;
 	cap->device_caps |= dev->ext_vv_data->capabilities;
+	if (vdev->vfl_type == VFL_TYPE_GRABBER)
+		cap->device_caps &=
+			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
+	else
+		cap->device_caps &=
+			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY);
 	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
@@ -990,10 +996,14 @@ static int vidioc_g_chip_ident(struct file *file, void *__fh,
 
 	chip->ident = V4L2_IDENT_NONE;
 	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_HOST && !chip->match.addr) {
-		chip->ident = V4L2_IDENT_SAA7146;
+	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
+		if (v4l2_chip_match_host(&chip->match))
+			chip->ident = V4L2_IDENT_SAA7146;
 		return 0;
 	}
+	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
+		return -EINVAL;
 	return v4l2_device_call_until_err(&dev->v4l2_dev, 0,
 			core, g_chip_ident, chip);
 }
@@ -1008,7 +1018,6 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_g_fmt_vid_overlay    = vidioc_g_fmt_vid_overlay,
 	.vidioc_try_fmt_vid_overlay  = vidioc_try_fmt_vid_overlay,
 	.vidioc_s_fmt_vid_overlay    = vidioc_s_fmt_vid_overlay,
-	.vidioc_g_fmt_vbi_cap        = vidioc_g_fmt_vbi_cap,
 	.vidioc_g_chip_ident         = vidioc_g_chip_ident,
 
 	.vidioc_overlay 	     = vidioc_overlay,
@@ -1023,6 +1032,24 @@ const struct v4l2_ioctl_ops saa7146_video_ioctl_ops = {
 	.vidioc_streamon             = vidioc_streamon,
 	.vidioc_streamoff            = vidioc_streamoff,
 	.vidioc_g_parm 		     = vidioc_g_parm,
+	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
+};
+
+const struct v4l2_ioctl_ops saa7146_vbi_ioctl_ops = {
+	.vidioc_querycap             = vidioc_querycap,
+	.vidioc_g_fmt_vbi_cap        = vidioc_g_fmt_vbi_cap,
+	.vidioc_g_chip_ident         = vidioc_g_chip_ident,
+
+	.vidioc_reqbufs              = vidioc_reqbufs,
+	.vidioc_querybuf             = vidioc_querybuf,
+	.vidioc_qbuf                 = vidioc_qbuf,
+	.vidioc_dqbuf                = vidioc_dqbuf,
+	.vidioc_g_std                = vidioc_g_std,
+	.vidioc_s_std                = vidioc_s_std,
+	.vidioc_streamon             = vidioc_streamon,
+	.vidioc_streamoff            = vidioc_streamoff,
+	.vidioc_g_parm		     = vidioc_g_parm,
 	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 };

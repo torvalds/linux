@@ -662,13 +662,28 @@ static int vidioc_g_register(struct file *file, void *fh, struct v4l2_dbg_regist
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
-	return call_all(dev, core, g_register, reg);
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (v4l2_chip_match_host(&reg->match)) {
+		reg->val = saa7146_read(dev, reg->reg);
+		reg->size = 4;
+		return 0;
+	}
+	call_all(dev, core, g_register, reg);
+	return 0;
 }
 
 static int vidioc_s_register(struct file *file, void *fh, struct v4l2_dbg_register *reg)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (v4l2_chip_match_host(&reg->match)) {
+		saa7146_write(dev, reg->reg, reg->val);
+		reg->size = 4;
+		return 0;
+	}
 	return call_all(dev, core, s_register, reg);
 }
 #endif
@@ -689,19 +704,19 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	}
 	mxb = (struct mxb *)dev->ext_priv;
 
-	vv_data.ops.vidioc_enum_input = vidioc_enum_input;
-	vv_data.ops.vidioc_g_input = vidioc_g_input;
-	vv_data.ops.vidioc_s_input = vidioc_s_input;
-	vv_data.ops.vidioc_g_tuner = vidioc_g_tuner;
-	vv_data.ops.vidioc_s_tuner = vidioc_s_tuner;
-	vv_data.ops.vidioc_g_frequency = vidioc_g_frequency;
-	vv_data.ops.vidioc_s_frequency = vidioc_s_frequency;
-	vv_data.ops.vidioc_enumaudio = vidioc_enumaudio;
-	vv_data.ops.vidioc_g_audio = vidioc_g_audio;
-	vv_data.ops.vidioc_s_audio = vidioc_s_audio;
+	vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
+	vv_data.vid_ops.vidioc_g_input = vidioc_g_input;
+	vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
+	vv_data.vid_ops.vidioc_g_tuner = vidioc_g_tuner;
+	vv_data.vid_ops.vidioc_s_tuner = vidioc_s_tuner;
+	vv_data.vid_ops.vidioc_g_frequency = vidioc_g_frequency;
+	vv_data.vid_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data.vid_ops.vidioc_enumaudio = vidioc_enumaudio;
+	vv_data.vid_ops.vidioc_g_audio = vidioc_g_audio;
+	vv_data.vid_ops.vidioc_s_audio = vidioc_s_audio;
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	vv_data.ops.vidioc_g_register = vidioc_g_register;
-	vv_data.ops.vidioc_s_register = vidioc_s_register;
+	vv_data.vid_ops.vidioc_g_register = vidioc_g_register;
+	vv_data.vid_ops.vidioc_s_register = vidioc_s_register;
 #endif
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_GRABBER)) {
 		ERR("cannot register capture v4l2 device. skipping.\n");

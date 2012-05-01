@@ -478,7 +478,8 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 		v4l2_ctrl_handler_free(hdl);
 		return -ENOMEM;
 	}
-	ext_vv->ops = saa7146_video_ioctl_ops;
+	ext_vv->vid_ops = saa7146_video_ioctl_ops;
+	ext_vv->vbi_ops = saa7146_vbi_ioctl_ops;
 	ext_vv->core_ops = &saa7146_video_ioctl_ops;
 
 	DEB_EE("dev:%p\n", dev);
@@ -579,7 +580,10 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 		return -ENOMEM;
 
 	vfd->fops = &video_fops;
-	vfd->ioctl_ops = &dev->ext_vv_data->ops;
+	if (type == VFL_TYPE_GRABBER)
+		vfd->ioctl_ops = &dev->ext_vv_data->vid_ops;
+	else
+		vfd->ioctl_ops = &dev->ext_vv_data->vbi_ops;
 	vfd->release = video_device_release;
 	/* Locking in file operations other than ioctl should be done by
 	   the driver, not the V4L2 core.

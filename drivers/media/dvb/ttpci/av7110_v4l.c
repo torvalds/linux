@@ -802,18 +802,18 @@ int av7110_init_v4l(struct av7110 *av7110)
 		ERR("cannot init capture device. skipping\n");
 		return -ENODEV;
 	}
-	vv_data->ops.vidioc_enum_input = vidioc_enum_input;
-	vv_data->ops.vidioc_g_input = vidioc_g_input;
-	vv_data->ops.vidioc_s_input = vidioc_s_input;
-	vv_data->ops.vidioc_g_tuner = vidioc_g_tuner;
-	vv_data->ops.vidioc_s_tuner = vidioc_s_tuner;
-	vv_data->ops.vidioc_g_frequency = vidioc_g_frequency;
-	vv_data->ops.vidioc_s_frequency = vidioc_s_frequency;
-	vv_data->ops.vidioc_g_audio = vidioc_g_audio;
-	vv_data->ops.vidioc_s_audio = vidioc_s_audio;
-	vv_data->ops.vidioc_g_sliced_vbi_cap = vidioc_g_sliced_vbi_cap;
-	vv_data->ops.vidioc_g_fmt_sliced_vbi_out = vidioc_g_fmt_sliced_vbi_out;
-	vv_data->ops.vidioc_s_fmt_sliced_vbi_out = vidioc_s_fmt_sliced_vbi_out;
+	vv_data->vid_ops.vidioc_enum_input = vidioc_enum_input;
+	vv_data->vid_ops.vidioc_g_input = vidioc_g_input;
+	vv_data->vid_ops.vidioc_s_input = vidioc_s_input;
+	vv_data->vid_ops.vidioc_g_tuner = vidioc_g_tuner;
+	vv_data->vid_ops.vidioc_s_tuner = vidioc_s_tuner;
+	vv_data->vid_ops.vidioc_g_frequency = vidioc_g_frequency;
+	vv_data->vid_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data->vid_ops.vidioc_g_audio = vidioc_g_audio;
+	vv_data->vid_ops.vidioc_s_audio = vidioc_s_audio;
+	vv_data->vbi_ops.vidioc_g_sliced_vbi_cap = vidioc_g_sliced_vbi_cap;
+	vv_data->vbi_ops.vidioc_g_fmt_sliced_vbi_out = vidioc_g_fmt_sliced_vbi_out;
+	vv_data->vbi_ops.vidioc_s_fmt_sliced_vbi_out = vidioc_s_fmt_sliced_vbi_out;
 
 	if (saa7146_register_device(&av7110->v4l_dev, dev, "av7110", VFL_TYPE_GRABBER)) {
 		ERR("cannot register capture device. skipping\n");
