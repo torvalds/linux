@@ -369,8 +369,11 @@ struct rtdPrivate {
 	u8 utcCtrl[4];		/* crtl mode for 3 utc + read back */
 	u8 dioStatus;		/* could be read back (dio0Ctrl) */
 #ifdef USE_DMA
-	/* Always DMA 1/2 FIFO.  Buffer (dmaBuff?) is (at least) twice that size.
-	   After transferring, interrupt processes 1/2 FIFO and passes to comedi */
+	/*
+	 * Always DMA 1/2 FIFO.  Buffer (dmaBuff?) is (at least) twice that
+	 * size.  After transferring, interrupt processes 1/2 FIFO and
+	 * passes to comedi
+	 */
 	s16 dma0Offset;		/* current processing offset (0, 1/2) */
 	uint16_t *dma0Buff[DMA_CHAIN_COUNT];	/* DMA buffers (for ADC) */
 	dma_addr_t dma0BuffPhysAddr[DMA_CHAIN_COUNT];	/* physical addresses */
@@ -573,7 +576,8 @@ struct rtdPrivate {
 
 /* User output N source select (write only) */
 #define RtdUsrOutSource(dev, n, v) \
-	writel(v, devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : LAS0_UOUT1_SELECT))
+	writel(v, devpriv->las0+((n <= 0) ? LAS0_UOUT0_SELECT : \
+				LAS0_UOUT1_SELECT))
 
 /* Digital IO */
 #define RtdDio0Read(dev) \
@@ -600,7 +604,8 @@ struct rtdPrivate {
 /* Write one data value (sign + 12bit + marker bits) */
 /* Note: matches what DMA would put.  Actual value << 3 */
 #define RtdDacFifoPut(dev, n, v) \
-	writew((v), devpriv->las1 + (((n) == 0) ? LAS1_DAC1_FIFO : LAS1_DAC2_FIFO))
+	writew((v), devpriv->las1 + (((n) == 0) ? LAS1_DAC1_FIFO : \
+				LAS1_DAC2_FIFO))
 
 /* Start single DAC conversion */
 #define RtdDacUpdate(dev, n) \
@@ -617,7 +622,8 @@ struct rtdPrivate {
 
 /* Reset DAC FIFO */
 #define RtdDacClearFifo(dev, n) \
-	writel(0, devpriv->las0+(((n) == 0) ? LAS0_DAC1_RESET : LAS0_DAC2_RESET))
+	writel(0, devpriv->las0+(((n) == 0) ? LAS0_DAC1_RESET : \
+				LAS0_DAC2_RESET))
 
 /* Set source for DMA 0 (write only, shadow?) */
 #define RtdDma0Source(dev, n) \
@@ -713,7 +719,10 @@ static int rtd_ai_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_cmd *cmd);
 static int rtd_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s);
 static int rtd_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s);
-/* static int rtd_ai_poll (struct comedi_device *dev,struct comedi_subdevice *s); */
+/*
+ * static int rtd_ai_poll(struct comedi_device *dev,
+ *			  struct comedi_subdevice *s);
+ */
 static int rtd_ns_to_timer(unsigned int *ns, int roundMode);
 static irqreturn_t rtd_interrupt(int irq, void *d);
 static int rtd520_probe_fifo_depth(struct comedi_device *dev);
@@ -833,7 +842,9 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			DPRINTK("rtd520: PCI latency = %d\n", pci_latency);
 		}
 
-		/* Undocumented EPLD version (doesn't match RTD driver results) */
+		/*
+		 * Undocumented EPLD version (doesn't match RTD driver results)
+		 */
 		/*DPRINTK ("rtd520: Reading epld from %p\n",
 		   devpriv->las0+0);
 		   epld_version = readl (devpriv->las0+0);
@@ -946,9 +957,11 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #ifdef USE_DMA
 	if (dev->irq > 0) {
 		printk("( DMA buff=%d )\n", DMA_CHAIN_COUNT);
-		/* The PLX9080 has 2 DMA controllers, but there could be 4 sources:
-		   ADC, digital, DAC1, and DAC2.  Since only the ADC supports cmd mode
-		   right now, this isn't an issue (yet) */
+		/*
+		 * The PLX9080 has 2 DMA controllers, but there could be
+		 * 4 sources: ADC, digital, DAC1, and DAC2.  Since only the
+		 * ADC supports cmd mode right now, this isn't an issue (yet)
+		 */
 		devpriv->dma0Offset = 0;
 
 		for (index = 0; index < DMA_CHAIN_COUNT; index++) {
@@ -964,10 +977,14 @@ static int rtd_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			}
 			/*DPRINTK ("buff[%d] @ %p virtual, %x PCI\n",
 			   index,
-			   devpriv->dma0Buff[index], devpriv->dma0BuffPhysAddr[index]); */
+			   devpriv->dma0Buff[index],
+			   devpriv->dma0BuffPhysAddr[index]); */
 		}
 
-		/* setup DMA descriptor ring (use cpu_to_le32 for byte ordering?) */
+		/*
+		 * setup DMA descriptor ring (use cpu_to_le32 for byte
+		 * ordering?)
+		 */
 		devpriv->dma0Chain =
 		    pci_alloc_consistent(devpriv->pci_dev,
 					 sizeof(struct plx_dma_desc) *
@@ -1254,7 +1271,8 @@ static int rtd520_probe_fifo_depth(struct comedi_device *dev)
 		}
 	}
 	if (i == limit) {
-		printk(KERN_INFO "\ncomedi: %s: failed to probe fifo size.\n", DRV_NAME);
+		printk(KERN_INFO "\ncomedi: %s: failed to probe fifo size.\n",
+		       DRV_NAME);
 		return -EIO;
 	}
 	RtdAdcClearFifo(dev);
@@ -1354,9 +1372,10 @@ static int ai_read_n(struct comedi_device *dev, struct comedi_subdevice *s,
 		d = RtdAdcFifoGet(dev);	/* get 2s comp value */
 
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan))
-			sample = d + 2048;	/* convert to comedi unsigned data */
-		else
+		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
+			/* convert to comedi unsigned data */
+			sample = d + 2048;
+		} else
 			sample = d;
 
 		if (!comedi_buf_put(s->async, sample))
@@ -1382,9 +1401,10 @@ static int ai_read_dregs(struct comedi_device *dev, struct comedi_subdevice *s)
 		}
 
 		d = d >> 3;	/* low 3 bits are marker lines */
-		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan))
-			sample = d + 2048;	/* convert to comedi unsigned data */
-		else
+		if (CHAN_ARRAY_TEST(devpriv->chanBipolar, s->async->cur_chan)) {
+			/* convert to comedi unsigned data */
+			sample = d + 2048;
+		} else
 			sample = d;
 
 		if (!comedi_buf_put(s->async, sample))
@@ -1501,7 +1521,9 @@ static int ai_process_dma(struct comedi_device *dev, struct comedi_subdevice *s)
 	comedi_buf_memcpy_to(s->async, 0, dp, n);
 	comedi_buf_write_free(s->async, n);
 
-	/* always at least 1 scan -- 1/2 FIFO is larger than our max scan list */
+	/*
+	 * always at least 1 scan -- 1/2 FIFO is larger than our max scan list
+	 */
 	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
 
 	if (++devpriv->dma0Offset >= DMA_CHAIN_COUNT) {	/* next buffer */
