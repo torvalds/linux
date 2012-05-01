@@ -892,7 +892,9 @@ void __init setup_arch(char **cmdline_p)
 {
 	u32 mmr;
 	unsigned long sclk, cclk;
+#ifdef CONFIG_BF60x
 	struct clk *clk;
+#endif
 
 	native_machine_early_platform_add_devices();
 
