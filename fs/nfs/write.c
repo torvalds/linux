@@ -1058,6 +1058,19 @@ static const struct nfs_pgio_completion_ops nfs_async_write_completion_ops = {
 	.completion = nfs_write_completion,
 };
 
+static void nfs_flush_error(struct nfs_pageio_descriptor *desc,
+		struct nfs_pgio_header *hdr)
+{
+	set_bit(NFS_IOHDR_REDO, &hdr->flags);
+	while (!list_empty(&hdr->rpc_list)) {
+		struct nfs_write_data *data = list_first_entry(&hdr->rpc_list,
+				struct nfs_write_data, list);
+		list_del(&data->list);
+		nfs_writedata_release(data);
+	}
+	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
+}
+
 /*
  * Generate multiple small requests to write out a single
  * contiguous dirty area on one page.
@@ -1071,12 +1084,9 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 	size_t wsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
 	int requests = 0;
-	int ret = 0;
 	struct nfs_commit_info cinfo;
 
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
-	nfs_list_remove_request(req);
-	nfs_list_add_request(req, &hdr->pages);
 
 	if ((desc->pg_ioflags & FLUSH_COND_STABLE) &&
 	    (desc->pg_moreio || nfs_reqs_to_commit(&cinfo) ||
@@ -1090,8 +1100,10 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 		size_t len = min(nbytes, wsize);
 
 		data = nfs_writedata_alloc(hdr, 1);
-		if (!data)
-			goto out_bad;
+		if (!data) {
+			nfs_flush_error(desc, hdr);
+			return -ENOMEM;
+		}
 		data->pages.pagevec[0] = page;
 		nfs_write_rpcsetup(data, len, offset, desc->pg_ioflags, &cinfo);
 		list_add(&data->list, &hdr->rpc_list);
@@ -1099,17 +1111,10 @@ static int nfs_flush_multi(struct nfs_pageio_descriptor *desc,
 		nbytes -= len;
 		offset += len;
 	} while (nbytes != 0);
+	nfs_list_remove_request(req);
+	nfs_list_add_request(req, &hdr->pages);
 	desc->pg_rpc_callops = &nfs_write_common_ops;
-	return ret;
-
-out_bad:
-	while (!list_empty(&hdr->rpc_list)) {
-		data = list_first_entry(&hdr->rpc_list, struct nfs_write_data, list);
-		list_del(&data->list);
-		nfs_writedata_release(data);
-	}
-	desc->pg_completion_ops->error_cleanup(&hdr->pages);
-	return -ENOMEM;
+	return 0;
 }
 
 /*
@@ -1127,15 +1132,13 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc,
 	struct page		**pages;
 	struct nfs_write_data	*data;
 	struct list_head *head = &desc->pg_list;
-	int ret = 0;
 	struct nfs_commit_info cinfo;
 
 	data = nfs_writedata_alloc(hdr, nfs_page_array_len(desc->pg_base,
 							   desc->pg_count));
 	if (!data) {
-		desc->pg_completion_ops->error_cleanup(head);
-		ret = -ENOMEM;
-		goto out;
+		nfs_flush_error(desc, hdr);
+		return -ENOMEM;
 	}
 
 	nfs_init_cinfo(&cinfo, desc->pg_inode, desc->pg_dreq);
@@ -1155,8 +1158,7 @@ static int nfs_flush_one(struct nfs_pageio_descriptor *desc,
 	nfs_write_rpcsetup(data, desc->pg_count, 0, desc->pg_ioflags, &cinfo);
 	list_add(&data->list, &hdr->rpc_list);
 	desc->pg_rpc_callops = &nfs_write_common_ops;
-out:
-	return ret;
+	return 0;
 }
 
 int nfs_generic_flush(struct nfs_pageio_descriptor *desc,
@@ -1186,8 +1188,6 @@ static int nfs_generic_pg_writepages(struct nfs_pageio_descriptor *desc)
 		ret = nfs_do_multiple_writes(&hdr->rpc_list,
 					     desc->pg_rpc_callops,
 					     desc->pg_ioflags);
-	else
-		set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 	return ret;

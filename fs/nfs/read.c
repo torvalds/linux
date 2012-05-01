@@ -320,6 +320,19 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops = {
 	.completion = nfs_read_completion,
 };
 
+static void nfs_pagein_error(struct nfs_pageio_descriptor *desc,
+		struct nfs_pgio_header *hdr)
+{
+	set_bit(NFS_IOHDR_REDO, &hdr->flags);
+	while (!list_empty(&hdr->rpc_list)) {
+		struct nfs_read_data *data = list_first_entry(&hdr->rpc_list,
+				struct nfs_read_data, list);
+		list_del(&data->list);
+		nfs_readdata_release(data);
+	}
+	desc->pg_completion_ops->error_cleanup(&desc->pg_list);
+}
+
 /*
  * Generate multiple requests to fill a single page.
  *
@@ -342,33 +355,27 @@ static int nfs_pagein_multi(struct nfs_pageio_descriptor *desc,
 	size_t rsize = desc->pg_bsize, nbytes;
 	unsigned int offset;
 
-	nfs_list_remove_request(req);
-	nfs_list_add_request(req, &hdr->pages);
-
 	offset = 0;
 	nbytes = desc->pg_count;
 	do {
 		size_t len = min(nbytes,rsize);
 
 		data = nfs_readdata_alloc(hdr, 1);
-		if (!data)
-			goto out_bad;
+		if (!data) {
+			nfs_pagein_error(desc, hdr);
+			return -ENOMEM;
+		}
 		data->pages.pagevec[0] = page;
 		nfs_read_rpcsetup(data, len, offset);
 		list_add(&data->list, &hdr->rpc_list);
 		nbytes -= len;
 		offset += len;
 	} while (nbytes != 0);
+
+	nfs_list_remove_request(req);
+	nfs_list_add_request(req, &hdr->pages);
 	desc->pg_rpc_callops = &nfs_read_common_ops;
 	return 0;
-out_bad:
-	while (!list_empty(&hdr->rpc_list)) {
-		data = list_first_entry(&hdr->rpc_list, struct nfs_read_data, list);
-		list_del(&data->list);
-		nfs_readdata_release(data);
-	}
-	desc->pg_completion_ops->error_cleanup(&hdr->pages);
-	return -ENOMEM;
 }
 
 static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
@@ -378,12 +385,11 @@ static int nfs_pagein_one(struct nfs_pageio_descriptor *desc,
 	struct page		**pages;
 	struct nfs_read_data    *data;
 	struct list_head *head = &desc->pg_list;
-	int ret = 0;
 
 	data = nfs_readdata_alloc(hdr, nfs_page_array_len(desc->pg_base,
 							  desc->pg_count));
 	if (!data) {
-		desc->pg_completion_ops->error_cleanup(head);
+		nfs_pagein_error(desc, hdr);
 		return -ENOMEM;
 	}
 
@@ -427,8 +433,6 @@ static int nfs_generic_pg_readpages(struct nfs_pageio_descriptor *desc)
 	if (ret == 0)
 		ret = nfs_do_multiple_reads(&hdr->rpc_list,
 					    desc->pg_rpc_callops);
-	else
-		set_bit(NFS_IOHDR_REDO, &hdr->flags);
 	if (atomic_dec_and_test(&hdr->refcnt))
 		hdr->completion_ops->completion(hdr);
 	return ret;
