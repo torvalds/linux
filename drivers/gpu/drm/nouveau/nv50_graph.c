@@ -39,45 +39,6 @@ struct nv50_graph_engine {
 	u32 grctx_size;
 };
 
-static void
-nv50_graph_fifo_access(struct drm_device *dev, bool enabled)
-{
-	const uint32_t mask = 0x00010001;
-
-	if (enabled)
-		nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) | mask);
-	else
-		nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) & ~mask);
-}
-
-static struct nouveau_channel *
-nv50_graph_channel(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	uint32_t inst;
-	int i;
-
-	/* Be sure we're not in the middle of a context switch or bad things
-	 * will happen, such as unloading the wrong pgraph context.
-	 */
-	if (!nv_wait(dev, 0x400300, 0x00000001, 0x00000000))
-		NV_ERROR(dev, "Ctxprog is still running\n");
-
-	inst = nv_rd32(dev, NV50_PGRAPH_CTXCTL_CUR);
-	if (!(inst & NV50_PGRAPH_CTXCTL_CUR_LOADED))
-		return NULL;
-	inst = (inst & NV50_PGRAPH_CTXCTL_CUR_INSTANCE) << 12;
-
-	for (i = 0; i < dev_priv->engine.fifo.channels; i++) {
-		struct nouveau_channel *chan = dev_priv->channels.ptr[i];
-
-		if (chan && chan->ramin && chan->ramin->vinst == inst)
-			return chan;
-	}
-
-	return NULL;
-}
-
 static int
 nv50_graph_do_load_context(struct drm_device *dev, uint32_t inst)
 {
@@ -257,31 +218,13 @@ nv50_graph_context_del(struct nouveau_channel *chan, int engine)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	int i, hdr = (dev_priv->chipset == 0x50) ? 0x200 : 0x20;
-	unsigned long flags;
-
-	NV_DEBUG(dev, "ch%d\n", chan->id);
-
-	if (!chan->ramin)
-		return;
-
-	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
-	nv_wr32(dev, NV03_PFIFO_CACHES, 0);
-	nv50_graph_fifo_access(dev, false);
-
-	if (nv50_graph_channel(dev) == chan)
-		nv50_graph_unload_context(dev);
 
 	for (i = hdr; i < hdr + 24; i += 4)
 		nv_wo32(chan->ramin, i, 0);
 	dev_priv->engine.instmem.flush(dev);
 
-	nv50_graph_fifo_access(dev, true);
-	nv_wr32(dev, NV03_PFIFO_CACHES, 1);
-	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
-
-	nouveau_gpuobj_ref(NULL, &grctx);
-
 	atomic_dec(&chan->vm->engref[engine]);
+	nouveau_gpuobj_ref(NULL, &grctx);
 	chan->engctx[engine] = NULL;
 }
 

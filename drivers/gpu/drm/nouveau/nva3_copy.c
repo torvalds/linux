@@ -79,29 +79,13 @@ static void
 nva3_copy_context_del(struct nouveau_channel *chan, int engine)
 {
 	struct nouveau_gpuobj *ctx = chan->engctx[engine];
-	struct drm_device *dev = chan->dev;
-	u32 inst;
+	int i;
 
-	inst  = (chan->ramin->vinst >> 12);
-	inst |= 0x40000000;
-
-	/* disable fifo access */
-	nv_wr32(dev, 0x104048, 0x00000000);
-	/* mark channel as unloaded if it's currently active */
-	if (nv_rd32(dev, 0x104050) == inst)
-		nv_mask(dev, 0x104050, 0x40000000, 0x00000000);
-	/* mark next channel as invalid if it's about to be loaded */
-	if (nv_rd32(dev, 0x104054) == inst)
-		nv_mask(dev, 0x104054, 0x40000000, 0x00000000);
-	/* restore fifo access */
-	nv_wr32(dev, 0x104048, 0x00000003);
-
-	for (inst = 0xc0; inst <= 0xd4; inst += 4)
-		nv_wo32(chan->ramin, inst, 0x00000000);
-
-	nouveau_gpuobj_ref(NULL, &ctx);
+	for (i = 0xc0; i <= 0xd4; i += 4)
+		nv_wo32(chan->ramin, i, 0x00000000);
 
 	atomic_dec(&chan->vm->engref[engine]);
+	nouveau_gpuobj_ref(NULL, &ctx);
 	chan->engctx[engine] = ctx;
 }
 
