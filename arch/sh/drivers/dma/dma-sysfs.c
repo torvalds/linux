@@ -54,7 +54,7 @@ static int __init dma_subsys_init(void)
 	if (unlikely(ret))
 		return ret;
 
-	return device_create_file(dma_subsys.dev_root, &dev_attr_devices.attr);
+	return device_create_file(dma_subsys.dev_root, &dev_attr_devices);
 }
 postcore_initcall(dma_subsys_init);
 

@@ -74,15 +74,23 @@ static int ipv4_get_l4proto(const struct sk_buff *skb, unsigned int nhoff,
 
 	iph = skb_header_pointer(skb, nhoff, sizeof(_iph), &_iph);
 	if (iph == NULL)
-		return -NF_DROP;
+		return -NF_ACCEPT;
 
 	/* Conntrack defragments packets, we might still see fragments
 	 * inside ICMP packets though. */
 	if (iph->frag_off & htons(IP_OFFSET))
-		return -NF_DROP;
+		return -NF_ACCEPT;
 
 	*dataoff = nhoff + (iph->ihl << 2);
 	*protonum = iph->protocol;
+
+	/* Check bogus IP headers */
+	if (*dataoff > skb->len) {
+		pr_debug("nf_conntrack_ipv4: bogus IPv4 packet: "
+			 "nhoff %u, ihl %u, skblen %u\n",
+			 nhoff, iph->ihl << 2, skb->len);
+		return -NF_ACCEPT;
+	}
 
 	return NF_ACCEPT;
 }

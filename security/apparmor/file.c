@@ -67,22 +67,22 @@ static void file_audit_cb(struct audit_buffer *ab, void *va)
 	struct common_audit_data *sa = va;
 	uid_t fsuid = current_fsuid();
 
-	if (sa->aad.fs.request & AA_AUDIT_FILE_MASK) {
+	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " requested_mask=");
-		audit_file_mask(ab, sa->aad.fs.request);
+		audit_file_mask(ab, sa->aad->fs.request);
 	}
-	if (sa->aad.fs.denied & AA_AUDIT_FILE_MASK) {
+	if (sa->aad->fs.denied & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " denied_mask=");
-		audit_file_mask(ab, sa->aad.fs.denied);
+		audit_file_mask(ab, sa->aad->fs.denied);
 	}
-	if (sa->aad.fs.request & AA_AUDIT_FILE_MASK) {
+	if (sa->aad->fs.request & AA_AUDIT_FILE_MASK) {
 		audit_log_format(ab, " fsuid=%d", fsuid);
-		audit_log_format(ab, " ouid=%d", sa->aad.fs.ouid);
+		audit_log_format(ab, " ouid=%d", sa->aad->fs.ouid);
 	}
 
-	if (sa->aad.fs.target) {
+	if (sa->aad->fs.target) {
 		audit_log_format(ab, " target=");
-		audit_log_untrustedstring(ab, sa->aad.fs.target);
+		audit_log_untrustedstring(ab, sa->aad->fs.target);
 	}
 }
 
@@ -107,45 +107,47 @@ int aa_audit_file(struct aa_profile *profile, struct file_perms *perms,
 {
 	int type = AUDIT_APPARMOR_AUTO;
 	struct common_audit_data sa;
+	struct apparmor_audit_data aad = {0,};
 	COMMON_AUDIT_DATA_INIT(&sa, NONE);
-	sa.aad.op = op,
-	sa.aad.fs.request = request;
-	sa.aad.name = name;
-	sa.aad.fs.target = target;
-	sa.aad.fs.ouid = ouid;
-	sa.aad.info = info;
-	sa.aad.error = error;
+	sa.aad = &aad;
+	aad.op = op,
+	aad.fs.request = request;
+	aad.name = name;
+	aad.fs.target = target;
+	aad.fs.ouid = ouid;
+	aad.info = info;
+	aad.error = error;
 
-	if (likely(!sa.aad.error)) {
+	if (likely(!sa.aad->error)) {
 		u32 mask = perms->audit;
 
 		if (unlikely(AUDIT_MODE(profile) == AUDIT_ALL))
 			mask = 0xffff;
 
 		/* mask off perms that are not being force audited */
-		sa.aad.fs.request &= mask;
+		sa.aad->fs.request &= mask;
 
-		if (likely(!sa.aad.fs.request))
+		if (likely(!sa.aad->fs.request))
 			return 0;
 		type = AUDIT_APPARMOR_AUDIT;
 	} else {
 		/* only report permissions that were denied */
-		sa.aad.fs.request = sa.aad.fs.request & ~perms->allow;
+		sa.aad->fs.request = sa.aad->fs.request & ~perms->allow;
 
-		if (sa.aad.fs.request & perms->kill)
+		if (sa.aad->fs.request & perms->kill)
 			type = AUDIT_APPARMOR_KILL;
 
 		/* quiet known rejects, assumes quiet and kill do not overlap */
-		if ((sa.aad.fs.request & perms->quiet) &&
+		if ((sa.aad->fs.request & perms->quiet) &&
 		    AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		    AUDIT_MODE(profile) != AUDIT_ALL)
-			sa.aad.fs.request &= ~perms->quiet;
+			sa.aad->fs.request &= ~perms->quiet;
 
-		if (!sa.aad.fs.request)
-			return COMPLAIN_MODE(profile) ? 0 : sa.aad.error;
+		if (!sa.aad->fs.request)
+			return COMPLAIN_MODE(profile) ? 0 : sa.aad->error;
 	}
 
-	sa.aad.fs.denied = sa.aad.fs.request & ~perms->allow;
+	sa.aad->fs.denied = sa.aad->fs.request & ~perms->allow;
 	return aa_audit(type, profile, gfp, &sa, file_audit_cb);
 }
 

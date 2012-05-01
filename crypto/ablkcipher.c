@@ -613,8 +613,7 @@ out:
 	return err;
 }
 
-static struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type,
-						 u32 mask)
+struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -652,6 +651,7 @@ static struct crypto_alg *crypto_lookup_skcipher(const char *name, u32 type,
 
 	return ERR_PTR(crypto_givcipher_default(alg, type, mask));
 }
+EXPORT_SYMBOL_GPL(crypto_lookup_skcipher);
 
 int crypto_grab_skcipher(struct crypto_skcipher_spawn *spawn, const char *name,
 			 u32 type, u32 mask)

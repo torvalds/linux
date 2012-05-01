@@ -3114,7 +3114,7 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			current->pid);
 		if (1 == test_bit(SEP_LEGACY_SENDMSG_DONE_OFFSET,
 				  &call_status->status)) {
-			dev_warn(&sep->pdev->dev,
+			dev_dbg(&sep->pdev->dev,
 				"[PID%d] dcb prep needed before send msg\n",
 				current->pid);
 			error = -EPROTO;
@@ -3122,9 +3122,9 @@ static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 
 		if (!arg) {
-			dev_warn(&sep->pdev->dev,
+			dev_dbg(&sep->pdev->dev,
 				"[PID%d] dcb null arg\n", current->pid);
-			error = EINVAL;
+			error = -EINVAL;
 			goto end_function;
 		}
 

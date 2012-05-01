@@ -454,7 +454,8 @@ static void sh_mmcif_clock_control(struct sh_mmcif_host *host, unsigned int clk)
 		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_SUP_PCLK);
 	else
 		sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_CLEAR &
-				((fls(host->clk / clk) - 1) << 16));
+				((fls(DIV_ROUND_UP(host->clk,
+						   clk) - 1) - 1) << 16));
 
 	sh_mmcif_bitset(host, MMCIF_CE_CLK_CTRL, CLK_ENABLE);
 }
@@ -1297,14 +1298,8 @@ static int __devinit sh_mmcif_probe(struct platform_device *pdev)
 	spin_lock_init(&host->lock);
 
 	mmc->ops = &sh_mmcif_ops;
-	mmc->f_max = host->clk;
-	/* close to 400KHz */
-	if (mmc->f_max < 51200000)
-		mmc->f_min = mmc->f_max / 128;
-	else if (mmc->f_max < 102400000)
-		mmc->f_min = mmc->f_max / 256;
-	else
-		mmc->f_min = mmc->f_max / 512;
+	mmc->f_max = host->clk / 2;
+	mmc->f_min = host->clk / 512;
 	if (pd->ocr)
 		mmc->ocr_avail = pd->ocr;
 	mmc->caps = MMC_CAP_MMC_HIGHSPEED;

@@ -91,7 +91,10 @@ MODULE_DESCRIPTION("Intel(R) 82599 Virtual Function Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);
 
-#define DEFAULT_DEBUG_LEVEL_SHIFT 3
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* forward decls */
 static void ixgbevf_set_itr_msix(struct ixgbevf_q_vector *q_vector);
@@ -3367,7 +3370,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	hw = &adapter->hw;
 	hw->back = adapter;
-	adapter->msg_enable = (1 << DEFAULT_DEBUG_LEVEL_SHIFT) - 1;
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	/*
 	 * call save state here in standalone driver because it relies on

@@ -23,6 +23,8 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/smsc911x.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -214,6 +216,11 @@ static int weim_cs_config(void)
 	return 0;
 }
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 void __init imx53_ard_common_init(void)
 {
 	mxc_iomux_v3_setup_multiple_pads(mx53_ard_pads,
@@ -232,6 +239,7 @@ static void __init mx53_ard_board_init(void)
 
 	imx53_ard_common_init();
 	mx53_ard_io_init();
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 
 	imx53_add_sdhci_esdhc_imx(0, &mx53_ard_sd1_data);

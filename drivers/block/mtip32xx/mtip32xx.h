@@ -34,8 +34,8 @@
 /* offset of Device Control register in PCIe extended capabilites space */
 #define PCIE_CONFIG_EXT_DEVICE_CONTROL_OFFSET	0x48
 
-/* # of times to retry timed out IOs */
-#define MTIP_MAX_RETRIES	5
+/* # of times to retry timed out/failed IOs */
+#define MTIP_MAX_RETRIES	2
 
 /* Various timeout values in ms */
 #define MTIP_NCQ_COMMAND_TIMEOUT_MS       5000
@@ -114,12 +114,41 @@
 #define __force_bit2int (unsigned int __force)
 
 /* below are bit numbers in 'flags' defined in mtip_port */
-#define MTIP_FLAG_IC_ACTIVE_BIT			0
-#define MTIP_FLAG_EH_ACTIVE_BIT			1
-#define MTIP_FLAG_SVC_THD_ACTIVE_BIT		2
-#define MTIP_FLAG_ISSUE_CMDS_BIT		4
-#define MTIP_FLAG_REBUILD_BIT			5
-#define MTIP_FLAG_SVC_THD_SHOULD_STOP_BIT	8
+#define MTIP_PF_IC_ACTIVE_BIT		0 /* pio/ioctl */
+#define MTIP_PF_EH_ACTIVE_BIT		1 /* error handling */
+#define MTIP_PF_SE_ACTIVE_BIT		2 /* secure erase */
+#define MTIP_PF_DM_ACTIVE_BIT		3 /* download microcde */
+#define MTIP_PF_PAUSE_IO	((1 << MTIP_PF_IC_ACTIVE_BIT) | \
+				(1 << MTIP_PF_EH_ACTIVE_BIT) | \
+				(1 << MTIP_PF_SE_ACTIVE_BIT) | \
+				(1 << MTIP_PF_DM_ACTIVE_BIT))
+
+#define MTIP_PF_SVC_THD_ACTIVE_BIT	4
+#define MTIP_PF_ISSUE_CMDS_BIT		5
+#define MTIP_PF_REBUILD_BIT		6
+#define MTIP_PF_SVC_THD_STOP_BIT	8
+
+/* below are bit numbers in 'dd_flag' defined in driver_data */
+#define MTIP_DDF_REMOVE_PENDING_BIT	1
+#define MTIP_DDF_OVER_TEMP_BIT		2
+#define MTIP_DDF_WRITE_PROTECT_BIT	3
+#define MTIP_DDF_STOP_IO	((1 << MTIP_DDF_REMOVE_PENDING_BIT) | \
+				(1 << MTIP_DDF_OVER_TEMP_BIT) | \
+				(1 << MTIP_DDF_WRITE_PROTECT_BIT))
+
+#define MTIP_DDF_CLEANUP_BIT		5
+#define MTIP_DDF_RESUME_BIT		6
+#define MTIP_DDF_INIT_DONE_BIT		7
+#define MTIP_DDF_REBUILD_FAILED_BIT	8
+
+__packed struct smart_attr{
+	u8 attr_id;
+	u16 flags;
+	u8 cur;
+	u8 worst;
+	u32 data;
+	u8 res[3];
+};
 
 /* Register Frame Information Structure (FIS), host to device. */
 struct host_to_dev_fis {
@@ -345,6 +374,12 @@ struct mtip_port {
 	 * when the command slot and all associated data structures
 	 * are no longer needed.
 	 */
+	u16 *log_buf;
+	dma_addr_t log_buf_dma;
+
+	u8 *smart_buf;
+	dma_addr_t smart_buf_dma;
+
 	unsigned long allocated[SLOTBITS_IN_LONGS];
 	/*
 	 * used to queue commands when an internal command is in progress
@@ -368,6 +403,7 @@ struct mtip_port {
 	 * Timer used to complete commands that have been active for too long.
 	 */
 	struct timer_list cmd_timer;
+	unsigned long ic_pause_timer;
 	/*
 	 * Semaphore used to block threads if there are no
 	 * command slots available.
@@ -404,13 +440,9 @@ struct driver_data {
 
 	unsigned slot_groups; /* number of slot groups the product supports */
 
-	atomic_t drv_cleanup_done; /* Atomic variable for SRSI */
-
 	unsigned long index; /* Index to determine the disk name */
 
-	unsigned int ftlrebuildflag; /* FTL rebuild flag */
-
-	atomic_t resumeflag; /* Atomic variable to track suspend/resume */
+	unsigned long dd_flag; /* NOTE: use atomic bit operations on this */
 
 	struct task_struct *mtip_svc_handler; /* task_struct of svc thd */
 };

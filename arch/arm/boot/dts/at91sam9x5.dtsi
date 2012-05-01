@@ -34,7 +34,7 @@
 		};
 	};
 
-	memory@20000000 {
+	memory {
 		reg = <0x20000000 0x10000000>;
 	};
 
@@ -54,7 +54,6 @@
 				#interrupt-cells = <2>;
 				compatible = "atmel,at91rm9200-aic";
 				interrupt-controller;
-				interrupt-parent;
 				reg = <0xfffff000 0x200>;
 			};
 
@@ -201,8 +200,8 @@
 			      >;
 			atmel,nand-addr-offset = <21>;
 			atmel,nand-cmd-offset = <22>;
-			gpios = <&pioC 8 0
-				 &pioC 14 0
+			gpios = <&pioD 5 0
+				 &pioD 4 0
 				 0
 				>;
 			status = "disabled";

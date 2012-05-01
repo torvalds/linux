@@ -138,9 +138,10 @@ static int __devinit anatop_regulator_probe(struct platform_device *pdev)
 	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->owner = THIS_MODULE;
 	sreg->mfd = anatopmfd;
-	ret = of_property_read_u32(np, "reg", &sreg->control_reg);
+	ret = of_property_read_u32(np, "anatop-reg-offset",
+				   &sreg->control_reg);
 	if (ret) {
-		dev_err(dev, "no reg property set\n");
+		dev_err(dev, "no anatop-reg-offset property set\n");
 		goto anatop_probe_end;
 	}
 	ret = of_property_read_u32(np, "anatop-vol-bit-width",
@@ -213,7 +214,7 @@ static struct of_device_id __devinitdata of_anatop_regulator_match_tbl[] = {
 	{ /* end */ }
 };
 
-static struct platform_driver anatop_regulator = {
+static struct platform_driver anatop_regulator_driver = {
 	.driver = {
 		.name	= "anatop_regulator",
 		.owner  = THIS_MODULE,
@@ -225,13 +226,13 @@ static struct platform_driver anatop_regulator = {
 
 static int __init anatop_regulator_init(void)
 {
-	return platform_driver_register(&anatop_regulator);
+	return platform_driver_register(&anatop_regulator_driver);
 }
 postcore_initcall(anatop_regulator_init);
 
 static void __exit anatop_regulator_exit(void)
 {
-	platform_driver_unregister(&anatop_regulator);
+	platform_driver_unregister(&anatop_regulator_driver);
 }
 module_exit(anatop_regulator_exit);
 

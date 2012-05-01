@@ -217,7 +217,7 @@ and name space for cpusets, with a minimum of additional kernel code.
 
 The cpus and mems files in the root (top_cpuset) cpuset are
 read-only.  The cpus file automatically tracks the value of
-cpu_online_map using a CPU hotplug notifier, and the mems file
+cpu_online_mask using a CPU hotplug notifier, and the mems file
 automatically tracks the value of node_states[N_HIGH_MEMORY]--i.e.,
 nodes with memory--using the cpuset_track_online_nodes() hook.
 

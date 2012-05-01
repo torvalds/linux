@@ -59,8 +59,7 @@ static int eeh_event_handler(void * dummy)
 	struct eeh_event *event;
 	struct eeh_dev *edev;
 
-	daemonize("eehd");
-	set_current_state(TASK_INTERRUPTIBLE);
+	set_task_comm(current, "eehd");
 
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
 	event = NULL;
@@ -83,6 +82,7 @@ static int eeh_event_handler(void * dummy)
 	printk(KERN_INFO "EEH: Detected PCI bus error on device %s\n",
 	       eeh_pci_name(edev->pdev));
 
+	set_current_state(TASK_INTERRUPTIBLE);	/* Don't add to load average */
 	edev = handle_eeh_events(event);
 
 	eeh_clear_slot(eeh_dev_to_of_node(edev), EEH_MODE_RECOVERING);

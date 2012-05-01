@@ -1943,13 +1943,15 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 	rcu_read_lock();
 	hostsp = smack_host_label(sap);
 	if (hostsp != NULL) {
-		sk_lbl = SMACK_UNLABELED_SOCKET;
 #ifdef CONFIG_AUDIT
-		smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
-		ad.a.u.net.family = sap->sin_family;
-		ad.a.u.net.dport = sap->sin_port;
-		ad.a.u.net.v4info.daddr = sap->sin_addr.s_addr;
+		struct lsm_network_audit net;
+
+		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+		ad.a.u.net->family = sap->sin_family;
+		ad.a.u.net->dport = sap->sin_port;
+		ad.a.u.net->v4info.daddr = sap->sin_addr.s_addr;
 #endif
+		sk_lbl = SMACK_UNLABELED_SOCKET;
 		rc = smk_access(ssp->smk_out, hostsp, MAY_WRITE, &ad);
 	} else {
 		sk_lbl = SMACK_CIPSO_SOCKET;
@@ -2810,8 +2812,12 @@ static int smack_unix_stream_connect(struct sock *sock,
 	struct smk_audit_info ad;
 	int rc = 0;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
+#ifdef CONFIG_AUDIT
+	struct lsm_network_audit net;
+
+	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 	smk_ad_setfield_u_net_sk(&ad, other);
+#endif
 
 	if (!capable(CAP_MAC_OVERRIDE))
 		rc = smk_access(ssp->smk_out, osp->smk_in, MAY_WRITE, &ad);
@@ -2842,8 +2848,12 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
 	struct smk_audit_info ad;
 	int rc = 0;
 
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
+#ifdef CONFIG_AUDIT
+	struct lsm_network_audit net;
+
+	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
 	smk_ad_setfield_u_net_sk(&ad, other->sk);
+#endif
 
 	if (!capable(CAP_MAC_OVERRIDE))
 		rc = smk_access(ssp->smk_out, osp->smk_in, MAY_WRITE, &ad);
@@ -2990,6 +3000,9 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	char *csp;
 	int rc;
 	struct smk_audit_info ad;
+#ifdef CONFIG_AUDIT
+	struct lsm_network_audit net;
+#endif
 	if (sk->sk_family != PF_INET && sk->sk_family != PF_INET6)
 		return 0;
 
@@ -3007,9 +3020,9 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	netlbl_secattr_destroy(&secattr);
 
 #ifdef CONFIG_AUDIT
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
-	ad.a.u.net.family = sk->sk_family;
-	ad.a.u.net.netif = skb->skb_iif;
+	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+	ad.a.u.net->family = sk->sk_family;
+	ad.a.u.net->netif = skb->skb_iif;
 	ipv4_skb_to_auditdata(skb, &ad.a, NULL);
 #endif
 	/*
@@ -3152,6 +3165,9 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	char *sp;
 	int rc;
 	struct smk_audit_info ad;
+#ifdef CONFIG_AUDIT
+	struct lsm_network_audit net;
+#endif
 
 	/* handle mapped IPv4 packets arriving via IPv6 sockets */
 	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
@@ -3166,9 +3182,9 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	netlbl_secattr_destroy(&secattr);
 
 #ifdef CONFIG_AUDIT
-	smk_ad_init(&ad, __func__, LSM_AUDIT_DATA_NET);
-	ad.a.u.net.family = family;
-	ad.a.u.net.netif = skb->skb_iif;
+	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+	ad.a.u.net->family = family;
+	ad.a.u.net->netif = skb->skb_iif;
 	ipv4_skb_to_auditdata(skb, &ad.a, NULL);
 #endif
 	/*
@@ -3624,8 +3640,38 @@ struct security_operations smack_ops = {
 };
 
 
-static __init void init_smack_know_list(void)
+static __init void init_smack_known_list(void)
 {
+	/*
+	 * Initialize CIPSO locks
+	 */
+	spin_lock_init(&smack_known_huh.smk_cipsolock);
+	spin_lock_init(&smack_known_hat.smk_cipsolock);
+	spin_lock_init(&smack_known_star.smk_cipsolock);
+	spin_lock_init(&smack_known_floor.smk_cipsolock);
+	spin_lock_init(&smack_known_invalid.smk_cipsolock);
+	spin_lock_init(&smack_known_web.smk_cipsolock);
+	/*
+	 * Initialize rule list locks
+	 */
+	mutex_init(&smack_known_huh.smk_rules_lock);
+	mutex_init(&smack_known_hat.smk_rules_lock);
+	mutex_init(&smack_known_floor.smk_rules_lock);
+	mutex_init(&smack_known_star.smk_rules_lock);
+	mutex_init(&smack_known_invalid.smk_rules_lock);
+	mutex_init(&smack_known_web.smk_rules_lock);
+	/*
+	 * Initialize rule lists
+	 */
+	INIT_LIST_HEAD(&smack_known_huh.smk_rules);
+	INIT_LIST_HEAD(&smack_known_hat.smk_rules);
+	INIT_LIST_HEAD(&smack_known_star.smk_rules);
+	INIT_LIST_HEAD(&smack_known_floor.smk_rules);
+	INIT_LIST_HEAD(&smack_known_invalid.smk_rules);
+	INIT_LIST_HEAD(&smack_known_web.smk_rules);
+	/*
+	 * Create the known labels list
+	 */
 	list_add(&smack_known_huh.list, &smack_known_list);
 	list_add(&smack_known_hat.list, &smack_known_list);
 	list_add(&smack_known_star.list, &smack_known_list);
@@ -3660,16 +3706,8 @@ static __init int smack_init(void)
 	cred = (struct cred *) current->cred;
 	cred->security = tsp;
 
-	/* initialize the smack_know_list */
-	init_smack_know_list();
-	/*
-	 * Initialize locks
-	 */
-	spin_lock_init(&smack_known_huh.smk_cipsolock);
-	spin_lock_init(&smack_known_hat.smk_cipsolock);
-	spin_lock_init(&smack_known_star.smk_cipsolock);
-	spin_lock_init(&smack_known_floor.smk_cipsolock);
-	spin_lock_init(&smack_known_invalid.smk_cipsolock);
+	/* initialize the smack_known_list */
+	init_smack_known_list();
 
 	/*
 	 * Register with LSM

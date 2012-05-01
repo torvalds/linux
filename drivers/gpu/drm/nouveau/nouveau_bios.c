@@ -177,14 +177,15 @@ bios_shadow_pci(struct nvbios *bios)
 
 	if (!pci_enable_rom(pdev)) {
 		void __iomem *rom = pci_map_rom(pdev, &length);
-		if (rom) {
+		if (rom && length) {
 			bios->data = kmalloc(length, GFP_KERNEL);
 			if (bios->data) {
 				memcpy_fromio(bios->data, rom, length);
 				bios->length = length;
 			}
-			pci_unmap_rom(pdev, rom);
 		}
+		if (rom)
+			pci_unmap_rom(pdev, rom);
 
 		pci_disable_rom(pdev);
 	}

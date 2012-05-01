@@ -47,7 +47,7 @@ maxcpus=n    Restrict boot time cpus to n. Say if you have 4 cpus, using
              other cpus later online, read FAQ's for more info.
 
 additional_cpus=n (*)	Use this to limit hotpluggable cpus. This option sets
-  			cpu_possible_map = cpu_present_map + additional_cpus
+  			cpu_possible_mask = cpu_present_mask + additional_cpus
 
 cede_offline={"off","on"}  Use this option to disable/enable putting offlined
 		            processors to an extended H_CEDE state on
@@ -64,11 +64,11 @@ should only rely on this to count the # of cpus, but *MUST* not rely
 on the apicid values in those tables for disabled apics. In the event
 BIOS doesn't mark such hot-pluggable cpus as disabled entries, one could
 use this parameter "additional_cpus=x" to represent those cpus in the
-cpu_possible_map.
+cpu_possible_mask.
 
 possible_cpus=n		[s390,x86_64] use this to set hotpluggable cpus.
 			This option sets possible_cpus bits in
-			cpu_possible_map. Thus keeping the numbers of bits set
+			cpu_possible_mask. Thus keeping the numbers of bits set
 			constant even if the machine gets rebooted.
 
 CPU maps and such
@@ -76,7 +76,7 @@ CPU maps and such
 [More on cpumaps and primitive to manipulate, please check
 include/linux/cpumask.h that has more descriptive text.]
 
-cpu_possible_map: Bitmap of possible CPUs that can ever be available in the
+cpu_possible_mask: Bitmap of possible CPUs that can ever be available in the
 system. This is used to allocate some boot time memory for per_cpu variables
 that aren't designed to grow/shrink as CPUs are made available or removed.
 Once set during boot time discovery phase, the map is static, i.e no bits
@@ -84,13 +84,13 @@ are added or removed anytime.  Trimming it accurately for your system needs
 upfront can save some boot time memory. See below for how we use heuristics
 in x86_64 case to keep this under check.
 
-cpu_online_map: Bitmap of all CPUs currently online. Its set in __cpu_up()
+cpu_online_mask: Bitmap of all CPUs currently online. Its set in __cpu_up()
 after a cpu is available for kernel scheduling and ready to receive
 interrupts from devices. Its cleared when a cpu is brought down using
 __cpu_disable(), before which all OS services including interrupts are
 migrated to another target CPU.
 
-cpu_present_map: Bitmap of CPUs currently present in the system. Not all
+cpu_present_mask: Bitmap of CPUs currently present in the system. Not all
 of them may be online. When physical hotplug is processed by the relevant
 subsystem (e.g ACPI) can change and new bit either be added or removed
 from the map depending on the event is hot-add/hot-remove. There are currently
@@ -99,22 +99,22 @@ at which time hotplug is disabled.
 
 You really dont need to manipulate any of the system cpu maps. They should
 be read-only for most use. When setting up per-cpu resources almost always use
-cpu_possible_map/for_each_possible_cpu() to iterate.
+cpu_possible_mask/for_each_possible_cpu() to iterate.
 
 Never use anything other than cpumask_t to represent bitmap of CPUs.
 
 	#include <linux/cpumask.h>
 
-	for_each_possible_cpu     - Iterate over cpu_possible_map
-	for_each_online_cpu       - Iterate over cpu_online_map
-	for_each_present_cpu      - Iterate over cpu_present_map
+	for_each_possible_cpu     - Iterate over cpu_possible_mask
+	for_each_online_cpu       - Iterate over cpu_online_mask
+	for_each_present_cpu      - Iterate over cpu_present_mask
 	for_each_cpu_mask(x,mask) - Iterate over some random collection of cpu mask.
 
 	#include <linux/cpu.h>
 	get_online_cpus() and put_online_cpus():
 
 The above calls are used to inhibit cpu hotplug operations. While the
-cpu_hotplug.refcount is non zero, the cpu_online_map will not change.
+cpu_hotplug.refcount is non zero, the cpu_online_mask will not change.
 If you merely need to avoid cpus going away, you could also use
 preempt_disable() and preempt_enable() for those sections.
 Just remember the critical section cannot call any

@@ -710,13 +710,13 @@ static u16 pmbus_data2reg(struct pmbus_data *data,
  * If a negative value is stored in any of the referenced registers, this value
  * reflects an error code which will be returned.
  */
-static int pmbus_get_boolean(struct pmbus_data *data, int index, int *val)
+static int pmbus_get_boolean(struct pmbus_data *data, int index)
 {
 	u8 s1 = (index >> 24) & 0xff;
 	u8 s2 = (index >> 16) & 0xff;
 	u8 reg = (index >> 8) & 0xff;
 	u8 mask = index & 0xff;
-	int status;
+	int ret, status;
 	u8 regval;
 
 	status = data->status[reg];
@@ -725,7 +725,7 @@ static int pmbus_get_boolean(struct pmbus_data *data, int index, int *val)
 
 	regval = status & mask;
 	if (!s1 && !s2)
-		*val = !!regval;
+		ret = !!regval;
 	else {
 		long v1, v2;
 		struct pmbus_sensor *sensor1, *sensor2;
@@ -739,9 +739,9 @@ static int pmbus_get_boolean(struct pmbus_data *data, int index, int *val)
 
 		v1 = pmbus_reg2data(data, sensor1);
 		v2 = pmbus_reg2data(data, sensor2);
-		*val = !!(regval && v1 >= v2);
+		ret = !!(regval && v1 >= v2);
 	}
-	return 0;
+	return ret;
 }
 
 static ssize_t pmbus_show_boolean(struct device *dev,
@@ -750,11 +750,10 @@ static ssize_t pmbus_show_boolean(struct device *dev,
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct pmbus_data *data = pmbus_update_device(dev);
 	int val;
-	int err;
 
-	err = pmbus_get_boolean(data, attr->index, &val);
-	if (err)
-		return err;
+	val = pmbus_get_boolean(data, attr->index);
+	if (val < 0)
+		return val;
 	return snprintf(buf, PAGE_SIZE, "%d\n", val);
 }
 

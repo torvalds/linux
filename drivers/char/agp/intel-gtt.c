@@ -1190,7 +1190,6 @@ static inline int needs_idle_maps(void)
 {
 #ifdef CONFIG_INTEL_IOMMU
 	const unsigned short gpu_devid = intel_private.pcidev->device;
-	extern int intel_iommu_gfx_mapped;
 
 	/* Query intel_iommu to see if we need the workaround. Presumably that
 	 * was loaded first.
@@ -1458,6 +1457,8 @@ static const struct intel_gtt_driver_description {
 	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_M_GT2_IG,
 	    "Ivybridge", &sandybridge_gtt_driver },
 	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT1_IG,
+	    "Ivybridge", &sandybridge_gtt_driver },
+	{ PCI_DEVICE_ID_INTEL_IVYBRIDGE_S_GT2_IG,
 	    "Ivybridge", &sandybridge_gtt_driver },
 	{ 0, NULL, NULL }
 };

@@ -114,7 +114,7 @@ static struct resource mcf_fec1_resources[] = {
 
 static struct platform_device mcf_fec1 = {
 	.name			= "fec",
-	.id			= 0,
+	.id			= 1,
 	.num_resources		= ARRAY_SIZE(mcf_fec1_resources),
 	.resource		= mcf_fec1_resources,
 };

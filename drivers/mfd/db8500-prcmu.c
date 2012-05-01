@@ -2788,6 +2788,7 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 		.constraints = {
 			.name = "db8500-vape",
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.always_on = true,
 		},
 		.consumer_supplies = db8500_vape_consumers,
 		.num_consumer_supplies = ARRAY_SIZE(db8500_vape_consumers),

@@ -485,6 +485,7 @@ static struct inode *hugetlbfs_get_root(struct super_block *sb,
 		inode->i_fop = &simple_dir_operations;
 		/* directory inodes start off with i_nlink == 2 (for "." entry) */
 		inc_nlink(inode);
+		lockdep_annotate_inode_mutex_key(inode);
 	}
 	return inode;
 }
@@ -1031,7 +1032,6 @@ static int __init init_hugetlbfs_fs(void)
 	}
 
 	error = PTR_ERR(vfsmount);
-	unregister_filesystem(&hugetlbfs_fs_type);
 
  out:
 	kmem_cache_destroy(hugetlbfs_inode_cachep);

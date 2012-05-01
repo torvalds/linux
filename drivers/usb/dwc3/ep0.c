@@ -353,6 +353,9 @@ static int dwc3_ep0_handle_feature(struct dwc3 *dwc,
 
 			dwc->test_mode_nr = wIndex >> 8;
 			dwc->test_mode = true;
+			break;
+		default:
+			return -EINVAL;
 		}
 		break;
 
@@ -559,14 +562,19 @@ static void dwc3_ep0_complete_data(struct dwc3 *dwc,
 	length = trb->size & DWC3_TRB_SIZE_MASK;
 
 	if (dwc->ep0_bounced) {
+		unsigned transfer_size = ur->length;
+		unsigned maxp = ep0->endpoint.maxpacket;
+
+		transfer_size += (maxp - (transfer_size % maxp));
 		transferred = min_t(u32, ur->length,
-				ep0->endpoint.maxpacket - length);
+				transfer_size - length);
 		memcpy(ur->buf, dwc->ep0_bounce, transferred);
 		dwc->ep0_bounced = false;
 	} else {
 		transferred = ur->length - length;
-		ur->actual += transferred;
 	}
+
+	ur->actual += transferred;
 
 	if ((epnum & 1) && ur->actual < ur->length) {
 		/* for some reason we did not get everything out */

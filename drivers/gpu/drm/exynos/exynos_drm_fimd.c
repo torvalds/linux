@@ -172,7 +172,7 @@ static void fimd_dpms(struct device *subdrv_dev, int mode)
 static void fimd_apply(struct device *subdrv_dev)
 {
 	struct fimd_context *ctx = get_fimd_context(subdrv_dev);
-	struct exynos_drm_manager *mgr = &ctx->subdrv.manager;
+	struct exynos_drm_manager *mgr = ctx->subdrv.manager;
 	struct exynos_drm_manager_ops *mgr_ops = mgr->ops;
 	struct exynos_drm_overlay_ops *ovl_ops = mgr->overlay_ops;
 	struct fimd_win_data *win_data;
@@ -577,6 +577,13 @@ static struct exynos_drm_overlay_ops fimd_overlay_ops = {
 	.disable = fimd_win_disable,
 };
 
+static struct exynos_drm_manager fimd_manager = {
+	.pipe		= -1,
+	.ops		= &fimd_manager_ops,
+	.overlay_ops	= &fimd_overlay_ops,
+	.display_ops	= &fimd_display_ops,
+};
+
 static void fimd_finish_pageflip(struct drm_device *drm_dev, int crtc)
 {
 	struct exynos_drm_private *dev_priv = drm_dev->dev_private;
@@ -628,7 +635,7 @@ static irqreturn_t fimd_irq_handler(int irq, void *dev_id)
 	struct fimd_context *ctx = (struct fimd_context *)dev_id;
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
 	struct drm_device *drm_dev = subdrv->drm_dev;
-	struct exynos_drm_manager *manager = &subdrv->manager;
+	struct exynos_drm_manager *manager = subdrv->manager;
 	u32 val;
 
 	val = readl(ctx->regs + VIDINTCON1);
@@ -744,7 +751,7 @@ static void fimd_clear_win(struct fimd_context *ctx, int win)
 static int fimd_power_on(struct fimd_context *ctx, bool enable)
 {
 	struct exynos_drm_subdrv *subdrv = &ctx->subdrv;
-	struct device *dev = subdrv->manager.dev;
+	struct device *dev = subdrv->dev;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
@@ -867,13 +874,10 @@ static int __devinit fimd_probe(struct platform_device *pdev)
 
 	subdrv = &ctx->subdrv;
 
+	subdrv->dev = dev;
+	subdrv->manager = &fimd_manager;
 	subdrv->probe = fimd_subdrv_probe;
 	subdrv->remove = fimd_subdrv_remove;
-	subdrv->manager.pipe = -1;
-	subdrv->manager.ops = &fimd_manager_ops;
-	subdrv->manager.overlay_ops = &fimd_overlay_ops;
-	subdrv->manager.display_ops = &fimd_display_ops;
-	subdrv->manager.dev = dev;
 
 	mutex_init(&ctx->lock);
 

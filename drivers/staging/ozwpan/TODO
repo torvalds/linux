@@ -8,5 +8,7 @@ TODO:
 	- code review by USB developer community.
 	- testing with as many devices as possible.
 
-Please send any patches for this driver to Chris Kelly <ckelly@ozmodevices.com>
+Please send any patches for this driver to
+Rupesh Gujare <rgujare@ozmodevices.com>
+Chris Kelly <ckelly@ozmodevices.com>
 and Greg Kroah-Hartman <gregkh@linuxfoundation.org>.

@@ -173,9 +173,9 @@ static void __init kvm_linear_init_one(ulong size, int count, int type)
 
 static struct kvmppc_linear_info *kvm_alloc_linear(int type)
 {
-	struct kvmppc_linear_info *ri;
+	struct kvmppc_linear_info *ri, *ret;
 
-	ri = NULL;
+	ret = NULL;
 	spin_lock(&linear_lock);
 	list_for_each_entry(ri, &free_linears, list) {
 		if (ri->type != type)
@@ -183,11 +183,12 @@ static struct kvmppc_linear_info *kvm_alloc_linear(int type)
 
 		list_del(&ri->list);
 		atomic_inc(&ri->use_count);
+		memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
+		ret = ri;
 		break;
 	}
 	spin_unlock(&linear_lock);
-	memset(ri->base_virt, 0, ri->npages << PAGE_SHIFT);
-	return ri;
+	return ret;
 }
 
 static void kvm_release_linear(struct kvmppc_linear_info *ri)

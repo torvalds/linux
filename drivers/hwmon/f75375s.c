@@ -276,6 +276,7 @@ static bool duty_mode_enabled(u8 pwm_enable)
 		return false;
 	default:
 		BUG();
+		return true;
 	}
 }
 
@@ -291,6 +292,7 @@ static bool auto_mode_enabled(u8 pwm_enable)
 		return true;
 	default:
 		BUG();
+		return false;
 	}
 }
 

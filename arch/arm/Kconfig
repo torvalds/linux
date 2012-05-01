@@ -338,6 +338,7 @@ config ARCH_AT91
 	select HAVE_CLK
 	select CLKDEV_LOOKUP
 	select IRQ_DOMAIN
+	select NEED_MACH_IO_H if PCCARD
 	help
 	  This enables support for systems based on the Atmel AT91RM9200,
 	  AT91SAM9 processors.

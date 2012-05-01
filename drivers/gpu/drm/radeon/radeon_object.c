@@ -241,7 +241,8 @@ int radeon_bo_pin_restricted(struct radeon_bo *bo, u32 domain, u64 max_offset,
 				domain_start = bo->rdev->mc.vram_start;
 			else
 				domain_start = bo->rdev->mc.gtt_start;
-			WARN_ON_ONCE((*gpu_addr - domain_start) > max_offset);
+			WARN_ON_ONCE(max_offset <
+				     (radeon_bo_gpu_offset(bo) - domain_start));
 		}
 
 		return 0;

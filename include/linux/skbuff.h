@@ -238,11 +238,12 @@ enum {
 /*
  * The callback notifies userspace to release buffers when skb DMA is done in
  * lower device, the skb last reference should be 0 when calling this.
- * The desc is used to track userspace buffer index.
+ * The ctx field is used to track device context.
+ * The desc field is used to track userspace buffer index.
  */
 struct ubuf_info {
-	void (*callback)(void *);
-	void *arg;
+	void (*callback)(struct ubuf_info *);
+	void *ctx;
 	unsigned long desc;
 };
 
@@ -481,6 +482,7 @@ struct sk_buff {
 	union {
 		__u32		mark;
 		__u32		dropcount;
+		__u32		avail_size;
 	};
 
 	sk_buff_data_t		transport_header;
@@ -1363,6 +1365,18 @@ static inline unsigned int skb_headroom(const struct sk_buff *skb)
 static inline int skb_tailroom(const struct sk_buff *skb)
 {
 	return skb_is_nonlinear(skb) ? 0 : skb->end - skb->tail;
+}
+
+/**
+ *	skb_availroom - bytes at buffer end
+ *	@skb: buffer to check
+ *
+ *	Return the number of bytes of free space at the tail of an sk_buff
+ *	allocated by sk_stream_alloc()
+ */
+static inline int skb_availroom(const struct sk_buff *skb)
+{
+	return skb_is_nonlinear(skb) ? 0 : skb->avail_size - skb->len;
 }
 
 /**

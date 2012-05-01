@@ -95,7 +95,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	/* must disable */
 	sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 	sprctl |= SPRITE_ENABLE;
-	sprctl |= SPRITE_DEST_KEY;
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -410,6 +409,9 @@ intel_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	obj = intel_fb->obj;
 
 	old_obj = intel_plane->obj;
+
+	src_w = src_w >> 16;
+	src_h = src_h >> 16;
 
 	/* Pipe must be running... */
 	if (!(I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE))

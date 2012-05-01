@@ -101,7 +101,7 @@ static int wm831x_isink_set_current(struct regulator_dev *rdev,
 
 	for (i = 0; i < ARRAY_SIZE(wm831x_isinkv_values); i++) {
 		int val = wm831x_isinkv_values[i];
-		if (min_uA >= val && val <= max_uA) {
+		if (min_uA <= val && val <= max_uA) {
 			ret = wm831x_set_bits(wm831x, isink->reg,
 					      WM831X_CS1_ISEL_MASK, i);
 			return ret;

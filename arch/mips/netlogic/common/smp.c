@@ -165,7 +165,7 @@ void __init nlm_smp_setup(void)
 	cpu_set(boot_cpu, phys_cpu_present_map);
 	__cpu_number_map[boot_cpu] = 0;
 	__cpu_logical_map[0] = boot_cpu;
-	cpu_set(0, cpu_possible_map);
+	set_cpu_possible(0, true);
 
 	num_cpus = 1;
 	for (i = 0; i < NR_CPUS; i++) {
@@ -177,14 +177,14 @@ void __init nlm_smp_setup(void)
 			cpu_set(i, phys_cpu_present_map);
 			__cpu_number_map[i] = num_cpus;
 			__cpu_logical_map[num_cpus] = i;
-			cpu_set(num_cpus, cpu_possible_map);
+			set_cpu_possible(num_cpus, true);
 			++num_cpus;
 		}
 	}
 
 	pr_info("Phys CPU present map: %lx, possible map %lx\n",
 		(unsigned long)phys_cpu_present_map.bits[0],
-		(unsigned long)cpu_possible_map.bits[0]);
+		(unsigned long)cpumask_bits(cpu_possible_mask)[0]);
 
 	pr_info("Detected %i Slave CPU(s)\n", num_cpus);
 	nlm_set_nmi_handler(nlm_boot_secondary_cpus);

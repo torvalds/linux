@@ -41,7 +41,7 @@
 struct sdv_gpio_chip_data {
 	int irq_base;
 	void __iomem *gpio_pub_base;
-	struct irq_domain id;
+	struct irq_domain *id;
 	struct irq_chip_generic *gc;
 	struct bgpio_chip bgpio;
 };
@@ -51,10 +51,9 @@ static int sdv_gpio_pub_set_type(struct irq_data *d, unsigned int type)
 	struct irq_chip_generic *gc = irq_data_get_irq_chip_data(d);
 	struct sdv_gpio_chip_data *sd = gc->private;
 	void __iomem *type_reg;
-	u32 irq_offs = d->irq - sd->irq_base;
 	u32 reg;
 
-	if (irq_offs < 8)
+	if (d->hwirq < 8)
 		type_reg = sd->gpio_pub_base + GPIT1R0;
 	else
 		type_reg = sd->gpio_pub_base + GPIT1R1;
@@ -63,11 +62,11 @@ static int sdv_gpio_pub_set_type(struct irq_data *d, unsigned int type)
 
 	switch (type) {
 	case IRQ_TYPE_LEVEL_HIGH:
-		reg &= ~BIT(4 * (irq_offs % 8));
+		reg &= ~BIT(4 * (d->hwirq % 8));
 		break;
 
 	case IRQ_TYPE_LEVEL_LOW:
-		reg |= BIT(4 * (irq_offs % 8));
+		reg |= BIT(4 * (d->hwirq % 8));
 		break;
 
 	default:
@@ -91,7 +90,7 @@ static irqreturn_t sdv_gpio_pub_irq_handler(int irq, void *data)
 		u32 irq_bit = __fls(irq_stat);
 
 		irq_stat &= ~BIT(irq_bit);
-		generic_handle_irq(sd->irq_base + irq_bit);
+		generic_handle_irq(irq_find_mapping(sd->id, irq_bit));
 	}
 
 	return IRQ_HANDLED;
@@ -127,7 +126,7 @@ static int sdv_xlate(struct irq_domain *h, struct device_node *node,
 }
 
 static struct irq_domain_ops irq_domain_sdv_ops = {
-	.dt_translate	= sdv_xlate,
+	.xlate = sdv_xlate,
 };
 
 static __devinit int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
@@ -148,10 +147,6 @@ static __devinit int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 			"sdv_gpio", sd);
 	if (ret)
 		goto out_free_desc;
-
-	sd->id.irq_base = sd->irq_base;
-	sd->id.of_node = of_node_get(pdev->dev.of_node);
-	sd->id.ops = &irq_domain_sdv_ops;
 
 	/*
 	 * This gpio irq controller latches level irqs. Testing shows that if
@@ -179,7 +174,10 @@ static __devinit int sdv_register_irqsupport(struct sdv_gpio_chip_data *sd,
 			IRQ_GC_INIT_MASK_CACHE, IRQ_NOREQUEST,
 			IRQ_LEVEL | IRQ_NOPROBE);
 
-	irq_domain_add(&sd->id);
+	sd->id = irq_domain_add_legacy(pdev->dev.of_node, SDV_NUM_PUB_GPIOS,
+				sd->irq_base, 0, &irq_domain_sdv_ops, sd);
+	if (!sd->id)
+		goto out_free_irq;
 	return 0;
 out_free_irq:
 	free_irq(pdev->irq, sd);
@@ -260,7 +258,6 @@ static void sdv_gpio_remove(struct pci_dev *pdev)
 {
 	struct sdv_gpio_chip_data *sd = pci_get_drvdata(pdev);
 
-	irq_domain_del(&sd->id);
 	free_irq(pdev->irq, sd);
 	irq_free_descs(sd->irq_base, SDV_NUM_PUB_GPIOS);
 

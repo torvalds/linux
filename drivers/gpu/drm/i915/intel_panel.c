@@ -47,8 +47,6 @@ intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 	adjusted_mode->vtotal = fixed_mode->vtotal;
 
 	adjusted_mode->clock = fixed_mode->clock;
-
-	drm_mode_set_crtcinfo(adjusted_mode, 0);
 }
 
 /* adjusted_mode has been preset to be the panel's fixed mode */

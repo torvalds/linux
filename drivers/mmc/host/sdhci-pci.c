@@ -1418,8 +1418,6 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 
 	slots = chip->num_slots;	/* Quirk may have changed this */
 
-	pci_enable_msi(pdev);
-
 	for (i = 0; i < slots; i++) {
 		slot = sdhci_pci_probe_slot(pdev, chip, first_bar, i);
 		if (IS_ERR(slot)) {
@@ -1438,8 +1436,6 @@ static int __devinit sdhci_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 free:
-	pci_disable_msi(pdev);
-
 	pci_set_drvdata(pdev, NULL);
 	kfree(chip);
 
@@ -1461,8 +1457,6 @@ static void __devexit sdhci_pci_remove(struct pci_dev *pdev)
 
 		for (i = 0; i < chip->num_slots; i++)
 			sdhci_pci_remove_slot(chip->slots[i]);
-
-		pci_disable_msi(pdev);
 
 		pci_set_drvdata(pdev, NULL);
 		kfree(chip);

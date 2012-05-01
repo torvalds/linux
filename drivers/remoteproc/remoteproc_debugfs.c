@@ -50,16 +50,9 @@ static ssize_t rproc_trace_read(struct file *filp, char __user *userbuf,
 	return simple_read_from_buffer(userbuf, count, ppos, trace->va, len);
 }
 
-static int rproc_open_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static const struct file_operations trace_rproc_ops = {
 	.read = rproc_trace_read,
-	.open = rproc_open_generic,
+	.open = simple_open,
 	.llseek	= generic_file_llseek,
 };
 
@@ -94,7 +87,7 @@ static ssize_t rproc_state_read(struct file *filp, char __user *userbuf,
 
 static const struct file_operations rproc_state_ops = {
 	.read = rproc_state_read,
-	.open = rproc_open_generic,
+	.open = simple_open,
 	.llseek	= generic_file_llseek,
 };
 
@@ -114,7 +107,7 @@ static ssize_t rproc_name_read(struct file *filp, char __user *userbuf,
 
 static const struct file_operations rproc_name_ops = {
 	.read = rproc_name_read,
-	.open = rproc_open_generic,
+	.open = simple_open,
 	.llseek	= generic_file_llseek,
 };
 

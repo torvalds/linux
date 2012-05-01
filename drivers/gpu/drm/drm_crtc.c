@@ -3335,10 +3335,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 	ret = crtc->funcs->page_flip(crtc, fb, e);
 	if (ret) {
-		spin_lock_irqsave(&dev->event_lock, flags);
-		file_priv->event_space += sizeof e->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(e);
+		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+			spin_lock_irqsave(&dev->event_lock, flags);
+			file_priv->event_space += sizeof e->event;
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+			kfree(e);
+		}
 	}
 
 out:

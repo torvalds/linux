@@ -12,7 +12,7 @@ config TILE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
 	select SYS_HYPERVISOR
-	select ARCH_HAVE_NMI_SAFE_CMPXCHG if !M386
+	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -69,6 +69,9 @@ config ARCH_PHYS_ADDR_T_64BIT
 config ARCH_DMA_ADDR_T_64BIT
 	def_bool y
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
 config LOCKDEP_SUPPORT
 	def_bool y
 
@@ -118,7 +121,7 @@ config 64BIT
 
 config ARCH_DEFCONFIG
 	string
-	default "arch/tile/configs/tile_defconfig" if !TILEGX
+	default "arch/tile/configs/tilepro_defconfig" if !TILEGX
 	default "arch/tile/configs/tilegx_defconfig" if TILEGX
 
 source "init/Kconfig"
@@ -240,6 +243,7 @@ endchoice
 
 config PAGE_OFFSET
 	hex
+	depends on !64BIT
 	default 0xF0000000 if VMSPLIT_3_75G
 	default 0xE0000000 if VMSPLIT_3_5G
 	default 0xB0000000 if VMSPLIT_2_75G
