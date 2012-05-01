@@ -150,8 +150,19 @@ struct mmc_async_req {
 	int (*err_check) (struct mmc_card *, struct mmc_async_req *);
 };
 
-struct mmc_hotplug {
-	unsigned int irq;
+/**
+ * struct mmc_slot - MMC slot functions
+ *
+ * @cd_irq:		MMC/SD-card slot hotplug detection IRQ or -EINVAL
+ * @handler_priv:	MMC/SD-card slot context
+ *
+ * Some MMC/SD host controllers implement slot-functions like card and
+ * write-protect detection natively. However, a large number of controllers
+ * leave these functions to the CPU. This struct provides a hook to attach
+ * such slot-function drivers.
+ */
+struct mmc_slot {
+	int cd_irq;
 	void *handler_priv;
 };
 
@@ -297,7 +308,7 @@ struct mmc_host {
 
 	struct delayed_work	detect;
 	int			detect_change;	/* card detect flag */
-	struct mmc_hotplug	hotplug;
+	struct mmc_slot		slot;
 
 	const struct mmc_bus_ops *bus_ops;	/* current bus driver */
 	unsigned int		bus_refs;	/* reference counter */

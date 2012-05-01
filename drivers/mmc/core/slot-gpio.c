@@ -56,8 +56,8 @@ int mmc_gpio_request_cd(struct mmc_host *host, unsigned int gpio)
 		goto eirqreq;
 
 	ctx->cd_gpio = gpio;
-	host->hotplug.irq = irq;
-	host->hotplug.handler_priv = ctx;
+	host->slot.cd_irq = irq;
+	host->slot.handler_priv = ctx;
 
 	return 0;
 
@@ -71,12 +71,12 @@ EXPORT_SYMBOL(mmc_gpio_request_cd);
 
 void mmc_gpio_free_cd(struct mmc_host *host)
 {
-	struct mmc_gpio *ctx = host->hotplug.handler_priv;
+	struct mmc_gpio *ctx = host->slot.handler_priv;
 
 	if (!ctx)
 		return;
 
-	free_irq(host->hotplug.irq, host);
+	free_irq(host->slot.cd_irq, host);
 	gpio_free(ctx->cd_gpio);
 	kfree(ctx);
 }
