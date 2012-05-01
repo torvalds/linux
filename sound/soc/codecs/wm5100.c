@@ -1265,29 +1265,12 @@ static const __devinitdata struct reg_default wm5100_reva_patches[] = {
 	{ WM5100_AUDIO_IF_3_19, 1 },
 };
 
-static int wm5100_dai_to_base(struct snd_soc_dai *dai)
-{
-	switch (dai->id) {
-	case 0:
-		return WM5100_AUDIO_IF_1_1 - 1;
-	case 1:
-		return WM5100_AUDIO_IF_2_1 - 1;
-	case 2:
-		return WM5100_AUDIO_IF_3_1 - 1;
-	default:
-		BUG();
-		return -EINVAL;
-	}
-}
-
 static int wm5100_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
 	int lrclk, bclk, mask, base;
 
-	base = wm5100_dai_to_base(dai);
-	if (base < 0)
-		return base;
+	base = dai->driver->base;
 
 	lrclk = 0;
 	bclk = 0;
@@ -1414,9 +1397,7 @@ static int wm5100_hw_params(struct snd_pcm_substream *substream,
 	int i, base, bclk, aif_rate, lrclk, wl, fl, sr;
 	int *bclk_rates;
 
-	base = wm5100_dai_to_base(dai);
-	if (base < 0)
-		return base;
+	base = dai->driver->base;
 
 	/* Data sizes if not using TDM */
 	wl = snd_pcm_format_width(params_format(params));
@@ -1897,6 +1878,7 @@ static int wm5100_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif1",
+		.base = WM5100_AUDIO_IF_1_1 - 1,
 		.playback = {
 			.stream_name = "AIF1 Playback",
 			.channels_min = 2,
@@ -1916,6 +1898,7 @@ static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif2",
 		.id = 1,
+		.base = WM5100_AUDIO_IF_2_1 - 1,
 		.playback = {
 			.stream_name = "AIF2 Playback",
 			.channels_min = 2,
@@ -1935,6 +1918,7 @@ static struct snd_soc_dai_driver wm5100_dai[] = {
 	{
 		.name = "wm5100-aif3",
 		.id = 2,
+		.base = WM5100_AUDIO_IF_3_1 - 1,
 		.playback = {
 			.stream_name = "AIF3 Playback",
 			.channels_min = 2,
