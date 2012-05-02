@@ -22,6 +22,7 @@ extern struct device * __init u5500_init_devices(void);
 extern struct device * __init u8500_init_devices(void);
 
 extern void __init ux500_init_irq(void);
+extern void __init ux500_init_late(void);
 
 extern void __init u5500_sdi_init(struct device *parent);
 
