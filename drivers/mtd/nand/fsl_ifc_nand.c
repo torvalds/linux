@@ -706,7 +706,8 @@ static int fsl_ifc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct fsl_ifc_nand_ctrl *nctrl = ifc_nand_ctrl;
 
 	fsl_ifc_read_buf(mtd, buf, mtd->writesize);
-	fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	if (oob_required)
+		fsl_ifc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (ctrl->nand_stat & IFC_NAND_EVTER_STAT_ECCER)
 		dev_err(priv->dev, "NAND Flash ECC Uncorrectable Error\n");
