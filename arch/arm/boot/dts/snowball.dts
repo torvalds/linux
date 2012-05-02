@@ -78,6 +78,7 @@
 			label = "user_led";
 			gpios = <&gpio4 14 0x4>;
 			default-state = "on";
+			linux,default-trigger = "heartbeat";
 		};
 	};
 
