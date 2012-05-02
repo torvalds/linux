@@ -124,7 +124,6 @@ static int __init h1910_init(void)
 	/* 15 us command delay time */
 	this->chip_delay = 50;
 	this->ecc.mode = NAND_ECC_SOFT;
-	this->options = NAND_NO_AUTOINCR;
 
 	/* Scan to find existence of the device */
 	if (nand_scan(h1910_nand_mtd, 1)) {

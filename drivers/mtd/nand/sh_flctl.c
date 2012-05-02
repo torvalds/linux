@@ -881,8 +881,6 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 	flctl->hwecc = pdata->has_hwecc;
 	flctl->holden = pdata->use_holden;
 
-	nand->options = NAND_NO_AUTOINCR;
-
 	/* Set address of hardware control function */
 	/* 20 us command delay time */
 	nand->chip_delay = 20;
