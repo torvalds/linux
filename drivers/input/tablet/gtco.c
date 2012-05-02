@@ -200,6 +200,7 @@ struct hid_descriptor
 static void parse_hid_report_descriptor(struct gtco *device, char * report,
 					int length)
 {
+	struct device *ddev = &device->inputdevice->dev;
 	int   x, i = 0;
 
 	/* Tag primitive vars */
@@ -226,7 +227,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 	char  indentstr[10] = "";
 
 
-	dbg("======>>>>>>PARSE<<<<<<======");
+	dev_dbg(ddev, "======>>>>>>PARSE<<<<<<======\n");
 
 	/* Walk  this report and pull out the info we need */
 	while (i < length) {
@@ -275,11 +276,11 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 				else if (data == 3)
 					strcpy(globtype, "Var|Const");
 
-				dbg("::::: Saving Report: %d input #%d Max: 0x%X(%d) Min:0x%X(%d) of %d bits",
-				    globalval[TAG_GLOB_REPORT_ID], inputnum,
-				    globalval[TAG_GLOB_LOG_MAX], globalval[TAG_GLOB_LOG_MAX],
-				    globalval[TAG_GLOB_LOG_MIN], globalval[TAG_GLOB_LOG_MIN],
-				    globalval[TAG_GLOB_REPORT_SZ] * globalval[TAG_GLOB_REPORT_CNT]);
+				dev_dbg(ddev, "::::: Saving Report: %d input #%d Max: 0x%X(%d) Min:0x%X(%d) of %d bits\n",
+					globalval[TAG_GLOB_REPORT_ID], inputnum,
+					globalval[TAG_GLOB_LOG_MAX], globalval[TAG_GLOB_LOG_MAX],
+					globalval[TAG_GLOB_LOG_MIN], globalval[TAG_GLOB_LOG_MIN],
+					globalval[TAG_GLOB_REPORT_SZ] * globalval[TAG_GLOB_REPORT_CNT]);
 
 
 				/*
@@ -290,7 +291,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 				 */
 				switch (inputnum) {
 				case 0:  /* X coord */
-					dbg("GER: X Usage: 0x%x", usage);
+					dev_dbg(ddev, "GER: X Usage: 0x%x\n", usage);
 					if (device->max_X == 0) {
 						device->max_X = globalval[TAG_GLOB_LOG_MAX];
 						device->min_X = globalval[TAG_GLOB_LOG_MIN];
@@ -298,7 +299,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 					break;
 
 				case 1:  /* Y coord */
-					dbg("GER: Y Usage: 0x%x", usage);
+					dev_dbg(ddev, "GER: Y Usage: 0x%x\n", usage);
 					if (device->max_Y == 0) {
 						device->max_Y = globalval[TAG_GLOB_LOG_MAX];
 						device->min_Y = globalval[TAG_GLOB_LOG_MIN];
@@ -348,10 +349,10 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 				maintype = 'S';
 
 				if (data == 0) {
-					dbg("======>>>>>> Physical");
+					dev_dbg(ddev, "======>>>>>> Physical\n");
 					strcpy(globtype, "Physical");
 				} else
-					dbg("======>>>>>>");
+					dev_dbg(ddev, "======>>>>>>\n");
 
 				/* Indent the debug output */
 				indent++;
@@ -366,7 +367,7 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 				break;
 
 			case TAG_MAIN_COL_END:
-				dbg("<<<<<<======");
+				dev_dbg(ddev, "<<<<<<======\n");
 				maintype = 'E';
 				indent--;
 				for (x = 0; x < indent; x++)
@@ -382,18 +383,18 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 
 			switch (size) {
 			case 1:
-				dbg("%sMAINTAG:(%d) %c SIZE: %d Data: %s 0x%x",
-				    indentstr, tag, maintype, size, globtype, data);
+				dev_dbg(ddev, "%sMAINTAG:(%d) %c SIZE: %d Data: %s 0x%x\n",
+					indentstr, tag, maintype, size, globtype, data);
 				break;
 
 			case 2:
-				dbg("%sMAINTAG:(%d) %c SIZE: %d Data: %s 0x%x",
-				    indentstr, tag, maintype, size, globtype, data16);
+				dev_dbg(ddev, "%sMAINTAG:(%d) %c SIZE: %d Data: %s 0x%x\n",
+					indentstr, tag, maintype, size, globtype, data16);
 				break;
 
 			case 4:
-				dbg("%sMAINTAG:(%d) %c SIZE: %d Data: %s 0x%x",
-				    indentstr, tag, maintype, size, globtype, data32);
+				dev_dbg(ddev, "%sMAINTAG:(%d) %c SIZE: %d Data: %s 0x%x\n",
+					indentstr, tag, maintype, size, globtype, data32);
 				break;
 			}
 			break;
@@ -463,26 +464,26 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 			if (tag < TAG_GLOB_MAX) {
 				switch (size) {
 				case 1:
-					dbg("%sGLOBALTAG:%s(%d) SIZE: %d Data: 0x%x",
-					    indentstr, globtype, tag, size, data);
+					dev_dbg(ddev, "%sGLOBALTAG:%s(%d) SIZE: %d Data: 0x%x\n",
+						indentstr, globtype, tag, size, data);
 					globalval[tag] = data;
 					break;
 
 				case 2:
-					dbg("%sGLOBALTAG:%s(%d) SIZE: %d Data: 0x%x",
-					    indentstr, globtype, tag, size, data16);
+					dev_dbg(ddev, "%sGLOBALTAG:%s(%d) SIZE: %d Data: 0x%x\n",
+						indentstr, globtype, tag, size, data16);
 					globalval[tag] = data16;
 					break;
 
 				case 4:
-					dbg("%sGLOBALTAG:%s(%d) SIZE: %d Data: 0x%x",
-					    indentstr, globtype, tag, size, data32);
+					dev_dbg(ddev, "%sGLOBALTAG:%s(%d) SIZE: %d Data: 0x%x\n",
+						indentstr, globtype, tag, size, data32);
 					globalval[tag] = data32;
 					break;
 				}
 			} else {
-				dbg("%sGLOBALTAG: ILLEGAL TAG:%d SIZE: %d ",
-				    indentstr, tag, size);
+				dev_dbg(ddev, "%sGLOBALTAG: ILLEGAL TAG:%d SIZE: %d\n",
+					indentstr, tag, size);
 			}
 			break;
 
@@ -509,18 +510,18 @@ static void parse_hid_report_descriptor(struct gtco *device, char * report,
 
 			switch (size) {
 			case 1:
-				dbg("%sLOCALTAG:(%d) %s SIZE: %d Data: 0x%x",
-				    indentstr, tag, globtype, size, data);
+				dev_dbg(ddev, "%sLOCALTAG:(%d) %s SIZE: %d Data: 0x%x\n",
+					indentstr, tag, globtype, size, data);
 				break;
 
 			case 2:
-				dbg("%sLOCALTAG:(%d) %s SIZE: %d Data: 0x%x",
-				    indentstr, tag, globtype, size, data16);
+				dev_dbg(ddev, "%sLOCALTAG:(%d) %s SIZE: %d Data: 0x%x\n",
+					indentstr, tag, globtype, size, data16);
 				break;
 
 			case 4:
-				dbg("%sLOCALTAG:(%d) %s SIZE: %d Data: 0x%x",
-				    indentstr, tag, globtype, size, data32);
+				dev_dbg(ddev, "%sLOCALTAG:(%d) %s SIZE: %d Data: 0x%x\n",
+					indentstr, tag, globtype, size, data32);
 				break;
 			}
 
@@ -712,8 +713,9 @@ static void gtco_urb_callback(struct urb *urbinfo)
 				 * the rest as 0
 				 */
 				val = device->buffer[5] & MASK_BUTTON;
-				dbg("======>>>>>>REPORT 1: val 0x%X(%d)",
-				    val, val);
+				dev_dbg(&inputdev->dev,
+					"======>>>>>>REPORT 1: val 0x%X(%d)\n",
+					val, val);
 
 				/*
 				 * We don't apply any meaning to the button
@@ -872,14 +874,14 @@ static int gtco_probe(struct usb_interface *usbinterface,
 	endpoint = &usbinterface->altsetting[0].endpoint[0].desc;
 
 	/* Some debug */
-	dbg("gtco # interfaces: %d", usbinterface->num_altsetting);
-	dbg("num endpoints:     %d", usbinterface->cur_altsetting->desc.bNumEndpoints);
-	dbg("interface class:   %d", usbinterface->cur_altsetting->desc.bInterfaceClass);
-	dbg("endpoint: attribute:0x%x type:0x%x", endpoint->bmAttributes, endpoint->bDescriptorType);
+	dev_dbg(&usbinterface->dev, "gtco # interfaces: %d\n", usbinterface->num_altsetting);
+	dev_dbg(&usbinterface->dev, "num endpoints:     %d\n", usbinterface->cur_altsetting->desc.bNumEndpoints);
+	dev_dbg(&usbinterface->dev, "interface class:   %d\n", usbinterface->cur_altsetting->desc.bInterfaceClass);
+	dev_dbg(&usbinterface->dev, "endpoint: attribute:0x%x type:0x%x\n", endpoint->bmAttributes, endpoint->bDescriptorType);
 	if (usb_endpoint_xfer_int(endpoint))
-		dbg("endpoint: we have interrupt endpoint\n");
+		dev_dbg(&usbinterface->dev, "endpoint: we have interrupt endpoint\n");
 
-	dbg("endpoint extra len:%d ", usbinterface->altsetting[0].extralen);
+	dev_dbg(&usbinterface->dev, "endpoint extra len:%d\n", usbinterface->altsetting[0].extralen);
 
 	/*
 	 * Find the HID descriptor so we can find out the size of the
@@ -893,8 +895,9 @@ static int gtco_probe(struct usb_interface *usbinterface,
 		goto err_free_urb;
 	}
 
-	dbg("Extra descriptor success: type:%d  len:%d",
-	    hid_desc->bDescriptorType,  hid_desc->wDescriptorLength);
+	dev_dbg(&usbinterface->dev,
+		"Extra descriptor success: type:%d  len:%d\n",
+		hid_desc->bDescriptorType,  hid_desc->wDescriptorLength);
 
 	report = kzalloc(le16_to_cpu(hid_desc->wDescriptorLength), GFP_KERNEL);
 	if (!report) {
@@ -915,7 +918,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 					 le16_to_cpu(hid_desc->wDescriptorLength),
 					 5000); /* 5 secs */
 
-		dbg("usb_control_msg result: %d", result);
+		dev_dbg(&usbinterface->dev, "usb_control_msg result: %d\n", result);
 		if (result == le16_to_cpu(hid_desc->wDescriptorLength)) {
 			parse_hid_report_descriptor(gtco, report, result);
 			break;
