@@ -34,6 +34,12 @@
 #define LTQ_ASC1_BASE_ADDR	0x1E100C00
 #define LTQ_ASC_SIZE		0x400
 
+/*
+ * during early_printk no ioremap is possible
+ * lets use KSEG1 instead
+ */
+#define LTQ_EARLY_ASC		KSEG1ADDR(LTQ_ASC1_BASE_ADDR)
+
 /* RCU - reset control unit */
 #define LTQ_RCU_BASE_ADDR	0x1F203000
 #define LTQ_RCU_SIZE		0x1000
