@@ -774,12 +774,18 @@ static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 	if (IS_ERR_OR_NULL(clk))
 		return NULL;
 
+	/* save parent rate, if it exists */
+	if (clk->parent)
+		best_parent_rate = clk->parent->rate;
+
 	/* never propagate up to the parent */
 	if (!(clk->flags & CLK_SET_RATE_PARENT)) {
 		if (!clk->ops->round_rate) {
 			clk->new_rate = clk->rate;
 			return NULL;
 		}
+		new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
+		goto out;
 	}
 
 	/* need clk->parent from here on out */
@@ -795,7 +801,6 @@ static struct clk *clk_calc_new_rates(struct clk *clk, unsigned long rate)
 		goto out;
 	}
 
-	best_parent_rate = clk->parent->rate;
 	new_rate = clk->ops->round_rate(clk->hw, rate, &best_parent_rate);
 
 	if (best_parent_rate != clk->parent->rate) {
