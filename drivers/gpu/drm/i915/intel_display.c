@@ -384,28 +384,6 @@ out_unlock:
 	return val;
 }
 
-static void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
-			     u32 val)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
-	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
-		DRM_ERROR("DPIO idle wait timed out\n");
-		goto out_unlock;
-	}
-
-	I915_WRITE(DPIO_DATA, val);
-	I915_WRITE(DPIO_REG, reg);
-	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_WRITE | DPIO_PORTID |
-		   DPIO_BYTE);
-	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100))
-		DRM_ERROR("DPIO write wait timed out\n");
-
-out_unlock:
-	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
-}
-
 static void vlv_init_dpio(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
