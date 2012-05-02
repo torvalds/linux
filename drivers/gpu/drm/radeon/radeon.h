@@ -255,8 +255,7 @@ struct radeon_fence_driver {
 	volatile uint32_t		*cpu_addr;
 	atomic_t			seq;
 	uint32_t			last_seq;
-	unsigned long			last_jiffies;
-	unsigned long			last_timeout;
+	unsigned long			last_activity;
 	wait_queue_head_t		queue;
 	struct list_head		created;
 	struct list_head		emitted;
