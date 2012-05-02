@@ -428,7 +428,7 @@ static void urb_irq_callback(struct urb *urb)
 	int ret, status = urb->status;
 
 	if (status)
-		dev_err(&yld->udev->dev, "%s - urb status %d\n",
+		dev_err(&yld->idev->dev, "%s - urb status %d\n",
 			__func__, status);
 
 	switch (yld->irq_data->cmd) {
@@ -444,7 +444,7 @@ static void urb_irq_callback(struct urb *urb)
 		break;
 
 	default:
-		dev_err(&yld->udev->dev, "unexpected response %x\n",
+		dev_err(&yld->idev->dev, "unexpected response %x\n",
 			yld->irq_data->cmd);
 	}
 
@@ -453,7 +453,7 @@ static void urb_irq_callback(struct urb *urb)
 	if (!yld->shutdown) {
 		ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
 		if (ret && ret != -EPERM)
-			dev_err(&yld->udev->dev,
+			dev_err(&yld->idev->dev,
 				"%s - usb_submit_urb failed %d\n",
 				__func__, ret);
 	}
@@ -465,7 +465,7 @@ static void urb_ctl_callback(struct urb *urb)
 	int ret = 0, status = urb->status;
 
 	if (status)
-		dev_err(&yld->udev->dev, "%s - urb status %d\n",
+		dev_err(&yld->idev->dev, "%s - urb status %d\n",
 			__func__, status);
 
 	switch (yld->ctl_data->cmd) {
@@ -484,7 +484,7 @@ static void urb_ctl_callback(struct urb *urb)
 	}
 
 	if (ret && ret != -EPERM)
-		dev_err(&yld->udev->dev, "%s - usb_submit_urb failed %d\n",
+		dev_err(&yld->idev->dev, "%s - usb_submit_urb failed %d\n",
 			__func__, ret);
 }
 
