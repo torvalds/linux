@@ -943,14 +943,16 @@ static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 
 #include <linux/seq_file.h>
 
-static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
+static void nmk_gpio_dbg_show_one(struct seq_file *s, struct gpio_chip *chip,
+				  unsigned offset, unsigned gpio)
 {
-	int mode;
-	unsigned		i;
-	unsigned		gpio = chip->base;
-	int			is_out;
+	const char *label = gpiochip_is_requested(chip, offset);
 	struct nmk_gpio_chip *nmk_chip =
 		container_of(chip, struct nmk_gpio_chip, chip);
+	int mode;
+	bool is_out;
+	bool pull;
+	u32 bit = 1 << offset;
 	const char *modes[] = {
 		[NMK_GPIO_ALT_GPIO]	= "gpio",
 		[NMK_GPIO_ALT_A]	= "altA",
@@ -959,56 +961,63 @@ static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 	};
 
 	clk_enable(nmk_chip->clk);
+	is_out = !!(readl(nmk_chip->addr + NMK_GPIO_DIR) & bit);
+	pull = !(readl(nmk_chip->addr + NMK_GPIO_PDIS) & bit);
+	mode = nmk_gpio_get_mode(gpio);
 
-	for (i = 0; i < chip->ngpio; i++, gpio++) {
-		const char *label = gpiochip_is_requested(chip, i);
-		bool pull;
-		u32 bit = 1 << i;
+	seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s %s",
+		   gpio, label ?: "(none)",
+		   is_out ? "out" : "in ",
+		   chip->get
+		   ? (chip->get(chip, offset) ? "hi" : "lo")
+		   : "?  ",
+		   (mode < 0) ? "unknown" : modes[mode],
+		   pull ? "pull" : "none");
 
-		is_out = readl(nmk_chip->addr + NMK_GPIO_DIR) & bit;
-		pull = !(readl(nmk_chip->addr + NMK_GPIO_PDIS) & bit);
-		mode = nmk_gpio_get_mode(gpio);
-		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s %s",
-			gpio, label ?: "(none)",
-			is_out ? "out" : "in ",
-			chip->get
-				? (chip->get(chip, i) ? "hi" : "lo")
-				: "?  ",
-			(mode < 0) ? "unknown" : modes[mode],
-			pull ? "pull" : "none");
+	if (label && !is_out) {
+		int		irq = gpio_to_irq(gpio);
+		struct irq_desc	*desc = irq_to_desc(irq);
 
-		if (label && !is_out) {
-			int		irq = gpio_to_irq(gpio);
-			struct irq_desc	*desc = irq_to_desc(irq);
+		/* This races with request_irq(), set_irq_type(),
+		 * and set_irq_wake() ... but those are "rare".
+		 */
+		if (irq >= 0 && desc->action) {
+			char *trigger;
+			u32 bitmask = nmk_gpio_get_bitmask(gpio);
 
-			/* This races with request_irq(), set_irq_type(),
-			 * and set_irq_wake() ... but those are "rare".
-			 */
-			if (irq >= 0 && desc->action) {
-				char *trigger;
-				u32 bitmask = nmk_gpio_get_bitmask(gpio);
+			if (nmk_chip->edge_rising & bitmask)
+				trigger = "edge-rising";
+			else if (nmk_chip->edge_falling & bitmask)
+				trigger = "edge-falling";
+			else
+				trigger = "edge-undefined";
 
-				if (nmk_chip->edge_rising & bitmask)
-					trigger = "edge-rising";
-				else if (nmk_chip->edge_falling & bitmask)
-					trigger = "edge-falling";
-				else
-					trigger = "edge-undefined";
-
-				seq_printf(s, " irq-%d %s%s",
-					irq, trigger,
-					irqd_is_wakeup_set(&desc->irq_data)
-						? " wakeup" : "");
-			}
+			seq_printf(s, " irq-%d %s%s",
+				   irq, trigger,
+				   irqd_is_wakeup_set(&desc->irq_data)
+				   ? " wakeup" : "");
 		}
-
-		seq_printf(s, "\n");
 	}
-
 	clk_disable(nmk_chip->clk);
 }
 
+static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
+{
+	unsigned		i;
+	unsigned		gpio = chip->base;
+
+	for (i = 0; i < chip->ngpio; i++, gpio++) {
+		nmk_gpio_dbg_show_one(s, chip, i, gpio);
+		seq_printf(s, "\n");
+	}
+}
+
 #else
+static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
+					 struct gpio_chip *chip,
+					 unsigned offset, unsigned gpio)
+{
+}
 #define nmk_gpio_dbg_show	NULL
 #endif
 
