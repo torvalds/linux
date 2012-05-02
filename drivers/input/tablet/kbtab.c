@@ -80,7 +80,7 @@ static void kbtab_irq(struct urb *urb)
  exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&kbtab->usbdev->dev,
+		dev_err(&dev->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
 }
