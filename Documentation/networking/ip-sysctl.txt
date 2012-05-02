@@ -190,6 +190,20 @@ tcp_cookie_size - INTEGER
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
+tcp_early_retrans - INTEGER
+	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
+	for triggering fast retransmit when the amount of outstanding data is
+	small and when no previously unsent data can be transmitted (such
+	that limited transmit could be used).
+	Possible values:
+		0 disables ER
+		1 enables ER
+		2 enables ER but delays fast recovery and fast retransmit
+		  by a fourth of RTT. This mitigates connection falsely
+		  recovers when network has a small degree of reordering
+		  (less than 3 packets).
+	Default: 2
+
 tcp_ecn - INTEGER
 	Enable Explicit Congestion Notification (ECN) in TCP. ECN is only
 	used when both ends of the TCP flow support it. It is useful to
