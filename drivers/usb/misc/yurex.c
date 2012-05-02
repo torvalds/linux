@@ -95,7 +95,7 @@ static void yurex_delete(struct kref *kref)
 {
 	struct usb_yurex *dev = to_yurex_dev(kref);
 
-	dbg("yurex_delete");
+	dev_dbg(&dev->interface->dev, "%s\n", __func__);
 
 	usb_put_dev(dev->udev);
 	if (dev->cntl_urb) {
@@ -165,16 +165,19 @@ static void yurex_interrupt(struct urb *urb)
 				if (i != 5)
 					dev->bbu <<= 8;
 			}
-			dbg("%s count: %lld", __func__, dev->bbu);
+			dev_dbg(&dev->interface->dev, "%s count: %lld\n",
+				__func__, dev->bbu);
 			spin_unlock_irqrestore(&dev->lock, flags);
 
 			kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
 		}
 		else
-			dbg("data format error - no EOF");
+			dev_dbg(&dev->interface->dev,
+				"data format error - no EOF\n");
 		break;
 	case CMD_ACK:
-		dbg("%s ack: %c", __func__, buf[1]);
+		dev_dbg(&dev->interface->dev, "%s ack: %c\n",
+			__func__, buf[1]);
 		wake_up_interruptible(&dev->waitq);
 		break;
 	}
@@ -509,7 +512,8 @@ static ssize_t yurex_write(struct file *file, const char *user_buffer, size_t co
 
 	/* send the data as the control msg */
 	prepare_to_wait(&dev->waitq, &wait, TASK_INTERRUPTIBLE);
-	dbg("%s - submit %c", __func__, dev->cntl_buffer[0]);
+	dev_dbg(&dev->interface->dev, "%s - submit %c\n", __func__,
+		dev->cntl_buffer[0]);
 	retval = usb_submit_urb(dev->cntl_urb, GFP_KERNEL);
 	if (retval >= 0)
 		timeout = schedule_timeout(YUREX_WRITE_TIMEOUT);
