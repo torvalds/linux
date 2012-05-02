@@ -35,6 +35,11 @@
 						reg = <0>;
 					};
 				};
+
+				ssi1: ssi@02028000 {
+					fsl,mode = "i2s-slave";
+					status = "okay";
+				};
 			};
 
 		};
