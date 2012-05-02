@@ -209,8 +209,8 @@ static void lcd_write_bulk_callback(struct urb *urb)
 	    !(status == -ENOENT ||
 	      status == -ECONNRESET ||
 	      status == -ESHUTDOWN)) {
-		dbg("USBLCD: %s - nonzero write bulk status received: %d",
-		    __func__, status);
+		dev_dbg(&dev->interface->dev,
+			"nonzero write bulk status received: %d\n", status);
 	}
 
 	/* free up our allocated buffer */
