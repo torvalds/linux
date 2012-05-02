@@ -972,9 +972,7 @@ int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 		goto out;
 
 
-	ret = filemap_write_and_wait(inode->i_mapping);
-	if (ret)
-		goto out;
+	btrfs_wait_ordered_range(inode, 0, (u64)-1);
 
 	key.objectid = BTRFS_FREE_SPACE_OBJECTID;
 	key.offset = offset;

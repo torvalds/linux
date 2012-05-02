@@ -1172,9 +1172,8 @@ int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			      cached_state, mask);
 }
 
-static int clear_extent_uptodate(struct extent_io_tree *tree, u64 start,
-				 u64 end, struct extent_state **cached_state,
-				 gfp_t mask)
+int clear_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
+			  struct extent_state **cached_state, gfp_t mask)
 {
 	return clear_extent_bit(tree, start, end, EXTENT_UPTODATE, 0, 0,
 				cached_state, mask);
@@ -2221,17 +2220,7 @@ int end_extent_writepage(struct page *page, int err, u64 start, u64 end)
 			uptodate = 0;
 	}
 
-	if (!uptodate && tree->ops &&
-	    tree->ops->writepage_io_failed_hook) {
-		ret = tree->ops->writepage_io_failed_hook(NULL, page,
-						 start, end, NULL);
-		/* Writeback already completed */
-		if (ret == 0)
-			return 1;
-	}
-
 	if (!uptodate) {
-		clear_extent_uptodate(tree, start, end, NULL, GFP_NOFS);
 		ClearPageUptodate(page);
 		SetPageError(page);
 	}

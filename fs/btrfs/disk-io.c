@@ -3671,17 +3671,6 @@ int btrfs_cleanup_transaction(struct btrfs_root *root)
 	return 0;
 }
 
-static int btree_writepage_io_failed_hook(struct bio *bio, struct page *page,
-					  u64 start, u64 end,
-					  struct extent_state *state)
-{
-	struct super_block *sb = page->mapping->host->i_sb;
-	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
-	btrfs_error(fs_info, -EIO,
-		    "Error occured while writing out btree at %llu", start);
-	return -EIO;
-}
-
 static struct extent_io_ops btree_extent_io_ops = {
 	.write_cache_pages_lock_hook = btree_lock_page_hook,
 	.readpage_end_io_hook = btree_readpage_end_io_hook,
@@ -3689,5 +3678,4 @@ static struct extent_io_ops btree_extent_io_ops = {
 	.submit_bio_hook = btree_submit_bio_hook,
 	/* note we're sharing with inode.c for the merge bio hook */
 	.merge_bio_hook = btrfs_merge_bio_hook,
-	.writepage_io_failed_hook = btree_writepage_io_failed_hook,
 };
