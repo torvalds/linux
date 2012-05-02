@@ -85,9 +85,9 @@ static void destroy_priv(struct kref *kref)
 {
 	struct parport_uss720_private *priv = container_of(kref, struct parport_uss720_private, ref_count);
 
+	dev_dbg(&priv->usbdev->dev, "destroying priv datastructure\n");
 	usb_put_dev(priv->usbdev);
 	kfree(priv);
-	dbg("destroying priv datastructure");
 }
 
 static void destroy_async(struct kref *kref)
@@ -123,10 +123,12 @@ static void async_complete(struct urb *urb)
 	} else if (rq->dr.bRequest == 3) {
 		memcpy(priv->reg, rq->reg, sizeof(priv->reg));
 #if 0
-		dbg("async_complete regs %02x %02x %02x %02x %02x %02x %02x",
-		    (unsigned int)priv->reg[0], (unsigned int)priv->reg[1], (unsigned int)priv->reg[2],
-		    (unsigned int)priv->reg[3], (unsigned int)priv->reg[4], (unsigned int)priv->reg[5],
-		    (unsigned int)priv->reg[6]);
+		dev_dbg(&priv->usbdev->dev,
+			"async_complete regs %02x %02x %02x %02x %02x %02x %02x\n",
+			(unsigned int)priv->reg[0], (unsigned int)priv->reg[1],
+			(unsigned int)priv->reg[2], (unsigned int)priv->reg[3],
+			(unsigned int)priv->reg[4], (unsigned int)priv->reg[5],
+			(unsigned int)priv->reg[6]);
 #endif
 		/* if nAck interrupts are enabled and we have an interrupt, call the interrupt procedure */
 		if (rq->reg[2] & rq->reg[1] & 0x10 && pp)
@@ -693,9 +695,9 @@ static int uss720_probe(struct usb_interface *intf,
 	unsigned char reg;
 	int i;
 
-	dbg("probe: vendor id 0x%x, device id 0x%x\n",
-	    le16_to_cpu(usbdev->descriptor.idVendor),
-	    le16_to_cpu(usbdev->descriptor.idProduct));
+	dev_dbg(&intf->dev, "probe: vendor id 0x%x, device id 0x%x\n",
+		le16_to_cpu(usbdev->descriptor.idVendor),
+		le16_to_cpu(usbdev->descriptor.idProduct));
 
 	/* our known interfaces have 3 alternate settings */
 	if (intf->num_altsetting != 3) {
@@ -703,7 +705,7 @@ static int uss720_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 	i = usb_set_interface(usbdev, intf->altsetting->desc.bInterfaceNumber, 2);
-	dbg("set inteface result %d", i);
+	dev_dbg(&intf->dev, "set inteface result %d\n", i);
 
 	interface = intf->cur_altsetting;
 
@@ -734,11 +736,13 @@ static int uss720_probe(struct usb_interface *intf,
 	set_1284_register(pp, 2, 0x0c, GFP_KERNEL);
 	/* debugging */
 	get_1284_register(pp, 0, &reg, GFP_KERNEL);
-	dbg("reg: %02x %02x %02x %02x %02x %02x %02x",
-	    priv->reg[0], priv->reg[1], priv->reg[2], priv->reg[3], priv->reg[4], priv->reg[5], priv->reg[6]);
+	dev_dbg(&intf->dev, "reg: %02x %02x %02x %02x %02x %02x %02x\n",
+		priv->reg[0], priv->reg[1], priv->reg[2], priv->reg[3],
+		priv->reg[4], priv->reg[5], priv->reg[6]);
 
 	endpoint = &interface->endpoint[2];
-	dbg("epaddr %d interval %d", endpoint->desc.bEndpointAddress, endpoint->desc.bInterval);
+	dev_dbg(&intf->dev, "epaddr %d interval %d\n",
+		endpoint->desc.bEndpointAddress, endpoint->desc.bInterval);
 	parport_announce_port(pp);
 
 	usb_set_intfdata(intf, pp);
@@ -756,20 +760,20 @@ static void uss720_disconnect(struct usb_interface *intf)
 	struct parport_uss720_private *priv;
 	struct usb_device *usbdev;
 
-	dbg("disconnect");
+	dev_dbg(&intf->dev, "disconnect\n");
 	usb_set_intfdata(intf, NULL);
 	if (pp) {
 		priv = pp->private_data;
 		usbdev = priv->usbdev;
 		priv->usbdev = NULL;
 		priv->pp = NULL;
-		dbg("parport_remove_port");
+		dev_dbg(&intf->dev, "parport_remove_port\n");
 		parport_remove_port(pp);
 		parport_put_port(pp);
 		kill_all_async_requests_priv(priv);
 		kref_put(&priv->ref_count, destroy_priv);
 	}
-	dbg("disconnect done");
+	dev_dbg(&intf->dev, "disconnect done\n");
 }
 
 /* table of cables that work through this driver */
