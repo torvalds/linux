@@ -253,8 +253,9 @@ MODULE_PARM_DESC(debug, "Activate debugging output");
  * packets (Report ID 2). This code changes device mode, so it
  * sends raw sensor reports (Report ID 5).
  */
-static int atp_geyser_init(struct usb_device *udev)
+static int atp_geyser_init(struct atp *dev)
 {
+	struct usb_device *udev = dev->udev;
 	char *data;
 	int size;
 	int i;
@@ -262,7 +263,7 @@ static int atp_geyser_init(struct usb_device *udev)
 
 	data = kmalloc(8, GFP_KERNEL);
 	if (!data) {
-		dev_err(&udev->dev, "Out of memory\n");
+		dev_err(&dev->input->dev, "Out of memory\n");
 		return -ENOMEM;
 	}
 
@@ -277,7 +278,7 @@ static int atp_geyser_init(struct usb_device *udev)
 		for (i = 0; i < 8; i++)
 			dprintk("appletouch[%d]: %d\n", i, data[i]);
 
-		dev_err(&udev->dev, "Failed to read mode from device.\n");
+		dev_err(&dev->input->dev, "Failed to read mode from device.\n");
 		ret = -EIO;
 		goto out_free;
 	}
@@ -296,7 +297,7 @@ static int atp_geyser_init(struct usb_device *udev)
 		for (i = 0; i < 8; i++)
 			dprintk("appletouch[%d]: %d\n", i, data[i]);
 
-		dev_err(&udev->dev, "Failed to request geyser raw mode\n");
+		dev_err(&dev->input->dev, "Failed to request geyser raw mode\n");
 		ret = -EIO;
 		goto out_free;
 	}
@@ -313,15 +314,14 @@ out_free:
 static void atp_reinit(struct work_struct *work)
 {
 	struct atp *dev = container_of(work, struct atp, work);
-	struct usb_device *udev = dev->udev;
 	int retval;
 
 	dprintk("appletouch: putting appletouch to sleep (reinit)\n");
-	atp_geyser_init(udev);
+	atp_geyser_init(dev);
 
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&udev->dev,
+		dev_err(&dev->input->dev,
 			"atp_reinit: usb_submit_urb failed with error %d\n",
 			retval);
 }
@@ -589,7 +589,7 @@ static void atp_complete_geyser_1_2(struct urb *urb)
  exit:
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->input->dev,
 			"atp_complete: usb_submit_urb failed with result %d\n",
 			retval);
 }
@@ -724,7 +724,7 @@ static void atp_complete_geyser_3_4(struct urb *urb)
  exit:
 	retval = usb_submit_urb(dev->urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&dev->udev->dev,
+		dev_err(&dev->input->dev,
 			"atp_complete: usb_submit_urb failed with result %d\n",
 			retval);
 }
@@ -751,14 +751,12 @@ static void atp_close(struct input_dev *input)
 
 static int atp_handle_geyser(struct atp *dev)
 {
-	struct usb_device *udev = dev->udev;
-
 	if (dev->info != &fountain_info) {
 		/* switch to raw sensor mode */
-		if (atp_geyser_init(udev))
+		if (atp_geyser_init(dev))
 			return -EIO;
 
-		printk(KERN_INFO "appletouch: Geyser mode initialized.\n");
+		dev_info(&dev->input->dev, "Geyser mode initialized.\n");
 	}
 
 	return 0;
