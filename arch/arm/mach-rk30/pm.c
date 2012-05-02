@@ -219,16 +219,13 @@ static void pm_pll_wait_lock(int pll_idx)
 
 static unsigned long save_sp;
 
-//extern void __sramfunc ddr_selfrefresh_enter(void);
-//extern void __sramfunc ddr_selfrefresh_exit(void);
-
 static noinline void interface_ctr_reg_pread(void)
 {
 	u32 addr;
 
 	flush_cache_all();
 	outer_flush_all();
-	flush_tlb_all();
+	local_flush_tlb_all();
 
 	for (addr = (u32)SRAM_CODE_OFFSET; addr < (u32)SRAM_CODE_END; addr += PAGE_SIZE)
 		readl_relaxed(addr);
