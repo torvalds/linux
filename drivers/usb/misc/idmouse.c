@@ -200,7 +200,8 @@ reset:
 			return -EAGAIN;
 
 	/* should be IMGSIZE == 65040 */
-	dbg("read %d bytes fingerprint data", bytes_read);
+	dev_dbg(&dev->interface->dev, "read %d bytes fingerprint data\n",
+		bytes_read);
 	return result;
 }
 
