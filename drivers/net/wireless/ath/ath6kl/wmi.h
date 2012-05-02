@@ -106,6 +106,8 @@ struct wmi_data_sync_bufs {
 #define WMM_AC_VI   2		/* video */
 #define WMM_AC_VO   3		/* voice */
 
+#define WMI_VOICE_USER_PRIORITY		0x7
+
 struct wmi {
 	u16 stream_exist_for_ac[WMM_NUM_AC];
 	u8 fat_pipe_exist;

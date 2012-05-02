@@ -290,6 +290,13 @@ int ath6kl_wmi_implicit_create_pstream(struct wmi *wmi, u8 if_idx,
 					layer2_priority);
 		} else
 			usr_pri = layer2_priority & 0x7;
+
+		/*
+		 * Queue the EAPOL frames in the same WMM_AC_VO queue
+		 * as that of management frames.
+		 */
+		if (skb->protocol == cpu_to_be16(ETH_P_PAE))
+			usr_pri = WMI_VOICE_USER_PRIORITY;
 	}
 
 	/*
