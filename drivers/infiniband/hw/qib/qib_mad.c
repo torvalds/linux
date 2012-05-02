@@ -631,7 +631,7 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 	struct qib_devdata *dd;
 	struct qib_pportdata *ppd;
 	struct qib_ibport *ibp;
-	char clientrereg = 0;
+	u8 clientrereg = (pip->clientrereg_resv_subnetto & 0x80);
 	unsigned long flags;
 	u16 lid, smlid;
 	u8 lwe;
@@ -781,12 +781,6 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 
 	ibp->subnet_timeout = pip->clientrereg_resv_subnetto & 0x1F;
 
-	if (pip->clientrereg_resv_subnetto & 0x80) {
-		clientrereg = 1;
-		event.event = IB_EVENT_CLIENT_REREGISTER;
-		ib_dispatch_event(&event);
-	}
-
 	/*
 	 * Do the port state change now that the other link parameters
 	 * have been set.
@@ -844,10 +838,15 @@ static int subn_set_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 		smp->status |= IB_SMP_INVALID_FIELD;
 	}
 
+	if (clientrereg) {
+		event.event = IB_EVENT_CLIENT_REREGISTER;
+		ib_dispatch_event(&event);
+	}
+
 	ret = subn_get_portinfo(smp, ibdev, port);
 
-	if (clientrereg)
-		pip->clientrereg_resv_subnetto |= 0x80;
+	/* restore re-reg bit per o14-12.2.1 */
+	pip->clientrereg_resv_subnetto |= clientrereg;
 
 	goto get_only;
 
