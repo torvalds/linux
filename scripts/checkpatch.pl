@@ -1869,12 +1869,6 @@ sub process {
 			    "No space is necessary after a cast\n" . $hereprev);
 		}
 
-		if ($rawline =~ /^\+[ \t]*\/\*[ \t]*$/ &&
-		    $prevrawline =~ /^\+[ \t]*$/) {
-			CHK("BLOCK_COMMENT_STYLE",
-			    "Don't begin block comments with only a /* line, use /* comment...\n" . $hereprev);
-		}
-
 # check for spaces at the beginning of a line.
 # Exceptions:
 #  1) within comments

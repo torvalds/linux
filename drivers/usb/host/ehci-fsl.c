@@ -218,6 +218,9 @@ static void ehci_fsl_setup_phy(struct ehci_hcd *ehci,
 	u32 portsc;
 	struct usb_hcd *hcd = ehci_to_hcd(ehci);
 	void __iomem *non_ehci = hcd->regs;
+	struct fsl_usb2_platform_data *pdata;
+
+	pdata = hcd->self.controller->platform_data;
 
 	portsc = ehci_readl(ehci, &ehci->regs->port_status[port_offset]);
 	portsc &= ~(PORT_PTS_MSK | PORT_PTS_PTW);
@@ -234,7 +237,9 @@ static void ehci_fsl_setup_phy(struct ehci_hcd *ehci,
 		/* fall through */
 	case FSL_USB2_PHY_UTMI:
 		/* enable UTMI PHY */
-		setbits32(non_ehci + FSL_SOC_USB_CTRL, CTRL_UTMI_PHY_EN);
+		if (pdata->have_sysif_regs)
+			setbits32(non_ehci + FSL_SOC_USB_CTRL,
+				  CTRL_UTMI_PHY_EN);
 		portsc |= PORT_PTS_UTMI;
 		break;
 	case FSL_USB2_PHY_NONE:

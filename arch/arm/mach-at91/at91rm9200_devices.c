@@ -1162,7 +1162,6 @@ void __init at91_add_device_serial(void)
 	}
 }
 #else
-void __init __deprecated at91_init_serial(struct at91_uart_config *config) {}
 void __init at91_register_uart(unsigned id, unsigned portnr, unsigned pins) {}
 void __init at91_add_device_serial(void) {}
 #endif

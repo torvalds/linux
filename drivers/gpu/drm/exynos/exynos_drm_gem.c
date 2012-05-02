@@ -581,10 +581,8 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	obj->filp->f_op = &exynos_drm_gem_fops;
 	obj->filp->private_data = obj;
 
-	down_write(&current->mm->mmap_sem);
-	addr = do_mmap(obj->filp, 0, args->size,
+	addr = vm_mmap(obj->filp, 0, args->size,
 			PROT_READ | PROT_WRITE, MAP_SHARED, 0);
-	up_write(&current->mm->mmap_sem);
 
 	drm_gem_object_unreference_unlocked(obj);
 

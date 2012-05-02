@@ -206,11 +206,11 @@ static void dwc3_free_event_buffers(struct dwc3 *dwc)
 
 	for (i = 0; i < dwc->num_event_buffers; i++) {
 		evt = dwc->ev_buffs[i];
-		if (evt) {
+		if (evt)
 			dwc3_free_one_event_buffer(dwc, evt);
-			dwc->ev_buffs[i] = NULL;
-		}
 	}
+
+	kfree(dwc->ev_buffs);
 }
 
 /**
