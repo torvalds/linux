@@ -4565,12 +4565,10 @@ merge:
 	if (skb_headlen(from) == 0 &&
 	    (skb_shinfo(to)->nr_frags +
 	     skb_shinfo(from)->nr_frags <= MAX_SKB_FRAGS)) {
-		WARN_ON_ONCE(from->head_frag);
-		delta = from->truesize - ksize(from->head) -
-			SKB_DATA_ALIGN(sizeof(struct sk_buff));
-
-		WARN_ON_ONCE(delta < len);
+		delta = from->truesize -
+			SKB_TRUESIZE(skb_end_pointer(from) - from->head);
 copyfrags:
+		WARN_ON_ONCE(delta < len);
 		memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
 		       skb_shinfo(from)->frags,
 		       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
@@ -4600,7 +4598,7 @@ copyfrags:
 		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
 				   page, offset, skb_headlen(from));
 		*fragstolen = true;
-		delta = len; /* we dont know real truesize... */
+		delta = from->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));
 		goto copyfrags;
 	}
 	return false;
