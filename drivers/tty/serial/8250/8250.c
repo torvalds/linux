@@ -297,25 +297,6 @@ static void default_dl_write(struct uart_8250_port *up, int value)
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
 }
 
-#if defined(CONFIG_SERIAL_8250_RM9K)
-static int _serial_dl_read(struct uart_8250_port *up)
-{
-	return	(up->port.iotype == UPIO_RM9000) ?
-		(((__raw_readl(up->port.membase + 0x10) << 8) |
-		(__raw_readl(up->port.membase + 0x08) & 0xff)) & 0xffff) :
-		default_dl_read(up);
-}
-
-static void _serial_dl_write(struct uart_8250_port *up, int value)
-{
-	if (up->port.iotype == UPIO_RM9000) {
-		__raw_writel(value, up->port.membase + 0x08);
-		__raw_writel(value >> 8, up->port.membase + 0x10);
-	} else {
-		default_dl_write(up, value);
-	}
-}
-#else
 static int _serial_dl_read(struct uart_8250_port *up)
 {
 	return default_dl_read(up);
@@ -325,7 +306,6 @@ static void _serial_dl_write(struct uart_8250_port *up, int value)
 {
 	default_dl_write(up, value);
 }
-#endif
 
 #ifdef CONFIG_MIPS_ALCHEMY
 
@@ -373,7 +353,7 @@ static void au_serial_dl_write(struct uart_8250_port *up, int value)
 
 #endif
 
-#if defined(CONFIG_SERIAL_8250_RM9K)
+#ifdef CONFIG_SERIAL_8250_RM9K
 
 static const u8
 	regmap_in[8] = {
@@ -397,27 +377,35 @@ static const u8
 		[UART_SCR]	= 0x2c
 	};
 
-static inline int map_8250_in_reg(struct uart_port *p, int offset)
+static unsigned int rm9k_serial_in(struct uart_port *p, int offset)
 {
-	if (p->iotype != UPIO_RM9000)
-		return offset;
-	return regmap_in[offset];
+	offset = regmap_in[offset] << p->regshift;
+	return readl(p->membase + offset);
 }
 
-static inline int map_8250_out_reg(struct uart_port *p, int offset)
+static void rm9k_serial_out(struct uart_port *p, int offset, int value)
 {
-	if (p->iotype != UPIO_RM9000)
-		return offset;
-	return regmap_out[offset];
+	offset = regmap_out[offset] << p->regshift;
+	writel(value, p->membase + offset);
 }
 
-#else
+static int rm9k_serial_dl_read(struct uart_8250_port *up)
+{
+	return ((__raw_readl(up->port.membase + 0x10) << 8) |
+		(__raw_readl(up->port.membase + 0x08) & 0xff)) & 0xffff;
+}
+
+static void rm9k_serial_dl_write(struct uart_8250_port *up, int value)
+{
+	__raw_writel(value, up->port.membase + 0x08);
+	__raw_writel(value >> 8, up->port.membase + 0x10);
+}
+
+#endif
 
 /* sane hardware needs no mapping */
 #define map_8250_in_reg(up, offset) (offset)
 #define map_8250_out_reg(up, offset) (offset)
-
-#endif
 
 static unsigned int hub6_serial_in(struct uart_port *p, int offset)
 {
@@ -490,11 +478,19 @@ static void set_io_from_upio(struct uart_port *p)
 		p->serial_out = mem_serial_out;
 		break;
 
-	case UPIO_RM9000:
 	case UPIO_MEM32:
 		p->serial_in = mem32_serial_in;
 		p->serial_out = mem32_serial_out;
 		break;
+
+#ifdef CONFIG_SERIAL_8250_RM9K
+	case UPIO_RM9000:
+		p->serial_in = rm9k_serial_in;
+		p->serial_out = rm9k_serial_out;
+		up->dl_read = rm9k_serial_dl_read;
+		up->dl_write = rm9k_serial_dl_write;
+		break;
+#endif
 
 #ifdef CONFIG_MIPS_ALCHEMY
 	case UPIO_AU:
