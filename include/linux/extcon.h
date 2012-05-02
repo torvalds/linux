@@ -66,6 +66,7 @@ enum extcon_cable_name {
 	EXTCON_SPDIF_OUT,
 	EXTCON_VIDEO_IN,
 	EXTCON_VIDEO_OUT,
+	EXTCON_MECHANICAL,
 };
 extern const char *extcon_cable_name[];
 

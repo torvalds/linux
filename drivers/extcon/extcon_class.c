@@ -60,6 +60,7 @@ const char *extcon_cable_name[] = {
 	[EXTCON_SPDIF_OUT]	= "SPDIF-out",
 	[EXTCON_VIDEO_IN]	= "Video-in",
 	[EXTCON_VIDEO_OUT]	= "Video-out",
+	[EXTCON_MECHANICAL]	= "Mechanical",
 
 	NULL,
 };
