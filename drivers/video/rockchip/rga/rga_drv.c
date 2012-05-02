@@ -99,7 +99,7 @@ static void rga_try_set_reg(uint32_t num);
 
 
 /* Logging */
-#define RGA_DEBUG 1
+#define RGA_DEBUG 0
 #if RGA_DEBUG
 #define DBG(format, args...) printk(KERN_DEBUG "%s: " format, DRIVER_NAME, ## args)
 #define ERR(format, args...) printk(KERN_ERR "%s: " format, DRIVER_NAME, ## args)
@@ -155,8 +155,6 @@ static void rga_dump(void)
 	running = atomic_read(&rga_service.total_running);
 	printk("rga total_running %d\n", running);
 
-    return;
-
     /* Dump waiting list info */
     if (!list_empty(&rga_service.waiting))
     {        
@@ -191,8 +189,7 @@ static void rga_dump(void)
         }
         while(!list_empty(next));                            
     }
-    
-
+  
 	list_for_each_entry_safe(session, session_tmp, &rga_service.session, list_session) 
     {
 		printk("session pid %d:\n", session->pid);
@@ -225,7 +222,7 @@ static void rga_power_on(void)
 }
 
 
-static void rga_power_off(void)
+static void rga_power_off(struct work_struct *work)
 {
     int total_running;
 
@@ -242,9 +239,9 @@ static void rga_power_off(void)
 
     total_running = atomic_read(&rga_service.total_running);
 	if (total_running) {
-		pr_alert("power off when %d task running!!\n", total_running);               
+		pr_err("power off when %d task running!!\n", total_running);               
 		mdelay(50);
-		pr_alert("delay 50 ms for running task\n");        
+		pr_err("delay 50 ms for running task\n");        
         rga_dump();
 	}
     
@@ -258,6 +255,7 @@ static int rga_flush(rga_session *session, unsigned long arg)
 {	
     int ret = 0;
     int ret_timeout;
+    unsigned long flag;
     
     #if RGA_TEST_FLUSH_TIME
     ktime_t start;
@@ -269,12 +267,16 @@ static int rga_flush(rga_session *session, unsigned long arg)
     
 	if (unlikely(ret_timeout < 0)) {
 		pr_err("flush pid %d wait task ret %d\n", session->pid, ret);                    
+        spin_lock_irqsave(&rga_service.lock, flag);
         rga_del_running_list();
+        spin_unlock_irqrestore(&rga_service.lock, flag);
         ret = -ETIMEDOUT;
 	} else if (0 == ret_timeout) {
 		pr_err("flush pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
         printk("bus  = %.8x\n", rga_read(RGA_INT));
+        spin_lock_irqsave(&rga_service.lock, flag);
         rga_del_running_list_timeout();
+        spin_unlock_irqrestore(&rga_service.lock, flag);
         rga_try_set_reg(1);
 		ret = -ETIMEDOUT;
 	}
@@ -364,11 +366,15 @@ static void rga_copy_reg(struct rga_reg *reg, uint32_t offset)
     uint32_t i;
     uint32_t *cmd_buf;
     uint32_t *reg_p;
+
+    if(atomic_read(&reg->session->task_running) != 0)
+    {
+        printk(KERN_ERR "task_running is no zero\n");
+    }
     
     atomic_add(1, &rga_service.cmd_num);
-	atomic_add(1, &reg->session->task_running);
-    atomic_add(1, &rga_service.total_running);
-    
+	atomic_add(1, &reg->session->task_running);    
+        
     cmd_buf = (uint32_t *)rga_service.cmd_buff + offset*28;
     reg_p = (uint32_t *)reg->cmd_reg;
 
@@ -654,8 +660,8 @@ static void rga_del_running_list(void)
         if(reg->MMU_base != NULL)
         {
             kfree(reg->MMU_base);
+            reg->MMU_base = NULL;
         }
-                
         atomic_sub(1, &reg->session->task_running);
 	    atomic_sub(1, &rga_service.total_running);
         
@@ -755,6 +761,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
     int num = 0; 
     struct rga_reg *reg;
     struct rga_req *req2;
+    unsigned long flag;
 
     uint32_t saw, sah, daw, dah;
 
@@ -825,7 +832,12 @@ static int rga_blit(rga_session *session, struct rga_req *req)
             num = 1;       
         }        
 
-        atomic_set(&reg->int_enable, 1);        
+        //atomic_set(&reg->int_enable, 1);
+        
+        spin_lock_irqsave(&rga_service.lock, flag);
+        atomic_add(num, &rga_service.total_running);
+        spin_unlock_irqrestore(&rga_service.lock, flag);
+        
         rga_try_set_reg(num);
         
         return 0;         
@@ -858,6 +870,7 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
 {
     int ret = -1;
     int ret_timeout = 0;
+    unsigned long flag;
        
     #if RGA_TEST
     printk("*** rga_blit_sync proc ***\n");
@@ -875,13 +888,17 @@ static int rga_blit_sync(rga_session *session, struct rga_req *req)
     if (unlikely(ret_timeout< 0)) 
     {
 		pr_err("sync pid %d wait task ret %d\n", session->pid, ret_timeout);        
+        spin_lock_irqsave(&rga_service.lock, flag);
         rga_del_running_list();
+        spin_unlock_irqrestore(&rga_service.lock, flag);
         ret = -ETIMEDOUT;
 	} 
     else if (0 == ret_timeout)
     {
 		pr_err("sync pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+        spin_lock_irqsave(&rga_service.lock, flag);
         rga_del_running_list_timeout();
+        spin_unlock_irqrestore(&rga_service.lock, flag);
         rga_try_set_reg(1);
 		ret = -ETIMEDOUT;
 	}
@@ -977,21 +994,24 @@ static int rga_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
+    memset(session, 0x0, sizeof(rga_session));
+
 	session->pid = current->pid;
+    //printk(KERN_DEBUG  "+");
+    
 	INIT_LIST_HEAD(&session->waiting);
 	INIT_LIST_HEAD(&session->running);
 	INIT_LIST_HEAD(&session->list_session);
 	init_waitqueue_head(&session->wait);
-    
-	spin_lock_irqsave(&rga_service.lock, flag);
-	list_add_tail(&session->list_session, &rga_service.session);
+    spin_lock_irqsave(&rga_service.lock, flag);
+	list_add_tail(&session->list_session, &rga_service.session); 
     spin_unlock_irqrestore(&rga_service.lock, flag);
-    
 	atomic_set(&session->task_running, 0);
     atomic_set(&session->num_done, 0);
+        
 	file->private_data = (void *)session;
 
-    DBG("*** rga dev opened by pid %d *** \n", session->pid);    
+    //DBG("*** rga dev opened by pid %d *** \n", session->pid);    
 	return nonseekable_open(inode, file);
     
 }
@@ -1003,12 +1023,12 @@ static int rga_release(struct inode *inode, struct file *file)
 	rga_session *session = (rga_session *)file->private_data;
 	if (NULL == session)
 		return -EINVAL;
-    
+    //printk(KERN_DEBUG  "-");
 	task_running = atomic_read(&session->task_running);
 
     if (task_running) 
     {
-		pr_err("rga_service session %d still has %d task running when closing\n", session->pid, task_running);
+		pr_err("rga_service session %d still has %d task running when closing\n", session->pid, task_running);        
 		msleep(100);
         /*Í¬²½*/        
 	}
@@ -1020,30 +1040,18 @@ static int rga_release(struct inode *inode, struct file *file)
 	kfree(session);
 	spin_unlock_irqrestore(&rga_service.lock, flag);
 
-    DBG("*** rga dev close ***\n");
+    //DBG("*** rga dev close ***\n");
 	return 0;
 }
 
 static irqreturn_t rga_irq(int irq,  void *dev_id)
 {
     unsigned long flag;
-    
-    #if RGA_TEST
-    printk("rga_irq is valid\n");
-    #endif      
-
-    #if 0//RGA_INFO_BUS_ERROR
-    if(rga_read(RGA_INT) & 0x1)
-    {
-        printk("bus Error interrupt is occur\n");
-        rga_soft_reset();
-    }
-    #endif
-
+        
     /*clear INT */
 	rga_write(rga_read(RGA_INT) | (0x1<<6) | (0x1<<7) | (0x1<<4), RGA_INT);
 
-    spin_lock_irqsave(&rga_service.lock, flag);        
+    spin_lock_irqsave(&rga_service.lock, flag);
     rga_del_running_list();
            
     if(!list_empty(&rga_service.waiting))
@@ -1064,7 +1072,7 @@ static int rga_suspend(struct platform_device *pdev, pm_message_t state)
 	uint32_t enable;
     
     enable = rga_service.enable;    
-	rga_power_off();
+	rga_power_off(NULL);
     rga_service.enable = enable;
 
 	return 0;
@@ -1085,7 +1093,7 @@ static int rga_resume(struct platform_device *pdev)
 static void rga_shutdown(struct platform_device *pdev)
 {
 	pr_cont("shutdown...");	    
-	rga_power_off();    
+	rga_power_off(NULL);    
     pr_cont("done\n");
 }
 
@@ -1193,7 +1201,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		goto err_misc_register;
 	}
 
-    rga_power_off();
+    rga_power_off(NULL);
     
 	DBG("RGA Driver loaded succesfully\n");
 
@@ -1295,7 +1303,7 @@ static void __exit rga_exit(void)
 {
     uint32_t i;
 
-    rga_power_off();
+    rga_power_off(NULL);
 
     for(i=0; i<2048; i++)
     {

@@ -347,15 +347,15 @@ typedef struct rga_session {
     atomic_t        num_done;
 } rga_session;
 
-struct rga_reg {
+struct rga_reg {    
     rga_session 		*session;
 	struct list_head	session_link;		/* link to rga service session */
 	struct list_head	status_link;		/* link to register set list */
 	uint32_t  sys_reg[RGA_REG_CTRL_LEN];
     uint32_t  cmd_reg[RGA_REG_CMD_LEN];
     uint32_t *MMU_base;
-    atomic_t int_enable;
-    
+    //atomic_t int_enable;
+        
     struct rga_req req;
 };
 
