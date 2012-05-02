@@ -4532,6 +4532,7 @@ static inline int tcp_try_rmem_schedule(struct sock *sk, unsigned int size)
  * @sk: socket
  * @to: prior buffer
  * @from: buffer to add in queue
+ * @fragstolen: pointer to boolean
  *
  * Before queueing skb @from after @to, try to merge them
  * to reduce overall memory use and queue lengths, if cost is small.
@@ -4544,10 +4545,10 @@ static bool tcp_try_coalesce(struct sock *sk,
 			     struct sk_buff *from,
 			     bool *fragstolen)
 {
-	int delta, len = from->len;
+	int i, delta, len = from->len;
 
 	*fragstolen = false;
-	if (tcp_hdr(from)->fin)
+	if (tcp_hdr(from)->fin || skb_cloned(to))
 		return false;
 	if (len <= skb_tailroom(to)) {
 		BUG_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
@@ -4574,7 +4575,13 @@ copyfrags:
 		       skb_shinfo(from)->frags,
 		       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
 		skb_shinfo(to)->nr_frags += skb_shinfo(from)->nr_frags;
-		skb_shinfo(from)->nr_frags = 0;
+
+		if (skb_cloned(from))
+			for (i = 0; i < skb_shinfo(from)->nr_frags; i++)
+				skb_frag_ref(from, i);
+		else
+			skb_shinfo(from)->nr_frags = 0;
+
 		to->truesize += delta;
 		atomic_add(delta, &sk->sk_rmem_alloc);
 		sk_mem_charge(sk, delta);
@@ -4592,11 +4599,24 @@ copyfrags:
 		offset = from->data - (unsigned char *)page_address(page);
 		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
 				   page, offset, skb_headlen(from));
-		*fragstolen = true;
+
+		if (skb_cloned(from))
+			get_page(page);
+		else
+			*fragstolen = true;
+
 		delta = len; /* we dont know real truesize... */
 		goto copyfrags;
 	}
 	return false;
+}
+
+static void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
+{
+	if (head_stolen)
+		kmem_cache_free(skbuff_head_cache, skb);
+	else
+		__kfree_skb(skb);
 }
 
 static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
@@ -4642,10 +4662,7 @@ static void tcp_data_queue_ofo(struct sock *sk, struct sk_buff *skb)
 		if (!tcp_try_coalesce(sk, skb1, skb, &fragstolen)) {
 			__skb_queue_after(&tp->out_of_order_queue, skb1, skb);
 		} else {
-			if (fragstolen)
-				kmem_cache_free(skbuff_head_cache, skb);
-			else
-				__kfree_skb(skb);
+			kfree_skb_partial(skb, fragstolen);
 			skb = NULL;
 		}
 
@@ -4804,12 +4821,9 @@ queue_and_out:
 
 		tcp_fast_path_check(sk);
 
-		if (eaten > 0) {
-			if (fragstolen)
-				kmem_cache_free(skbuff_head_cache, skb);
-			else
-				__kfree_skb(skb);
-		} else if (!sock_flag(sk, SOCK_DEAD))
+		if (eaten > 0)
+			kfree_skb_partial(skb, fragstolen);
+		else if (!sock_flag(sk, SOCK_DEAD))
 			sk->sk_data_ready(sk, 0);
 		return;
 	}
