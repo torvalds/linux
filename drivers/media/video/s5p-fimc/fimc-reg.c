@@ -12,9 +12,9 @@
 
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <mach/map.h>
 #include <media/s5p_fimc.h>
 
+#include "fimc-reg.h"
 #include "fimc-core.h"
 
 
@@ -22,19 +22,19 @@ void fimc_hw_reset(struct fimc_dev *dev)
 {
 	u32 cfg;
 
-	cfg = readl(dev->regs + S5P_CISRCFMT);
-	cfg |= S5P_CISRCFMT_ITU601_8BIT;
-	writel(cfg, dev->regs + S5P_CISRCFMT);
+	cfg = readl(dev->regs + FIMC_REG_CISRCFMT);
+	cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
+	writel(cfg, dev->regs + FIMC_REG_CISRCFMT);
 
 	/* Software reset. */
-	cfg = readl(dev->regs + S5P_CIGCTRL);
-	cfg |= (S5P_CIGCTRL_SWRST | S5P_CIGCTRL_IRQ_LEVEL);
-	writel(cfg, dev->regs + S5P_CIGCTRL);
+	cfg = readl(dev->regs + FIMC_REG_CIGCTRL);
+	cfg |= (FIMC_REG_CIGCTRL_SWRST | FIMC_REG_CIGCTRL_IRQ_LEVEL);
+	writel(cfg, dev->regs + FIMC_REG_CIGCTRL);
 	udelay(10);
 
-	cfg = readl(dev->regs + S5P_CIGCTRL);
-	cfg &= ~S5P_CIGCTRL_SWRST;
-	writel(cfg, dev->regs + S5P_CIGCTRL);
+	cfg = readl(dev->regs + FIMC_REG_CIGCTRL);
+	cfg &= ~FIMC_REG_CIGCTRL_SWRST;
+	writel(cfg, dev->regs + FIMC_REG_CIGCTRL);
 
 	if (dev->variant->out_buf_count > 4)
 		fimc_hw_set_dma_seq(dev, 0xF);
@@ -42,32 +42,32 @@ void fimc_hw_reset(struct fimc_dev *dev)
 
 static u32 fimc_hw_get_in_flip(struct fimc_ctx *ctx)
 {
-	u32 flip = S5P_MSCTRL_FLIP_NORMAL;
+	u32 flip = FIMC_REG_MSCTRL_FLIP_NORMAL;
 
 	if (ctx->hflip)
-		flip = S5P_MSCTRL_FLIP_X_MIRROR;
+		flip = FIMC_REG_MSCTRL_FLIP_X_MIRROR;
 	if (ctx->vflip)
-		flip = S5P_MSCTRL_FLIP_Y_MIRROR;
+		flip = FIMC_REG_MSCTRL_FLIP_Y_MIRROR;
 
 	if (ctx->rotation <= 90)
 		return flip;
 
-	return (flip ^ S5P_MSCTRL_FLIP_180) & S5P_MSCTRL_FLIP_180;
+	return (flip ^ FIMC_REG_MSCTRL_FLIP_180) & FIMC_REG_MSCTRL_FLIP_180;
 }
 
 static u32 fimc_hw_get_target_flip(struct fimc_ctx *ctx)
 {
-	u32 flip = S5P_CITRGFMT_FLIP_NORMAL;
+	u32 flip = FIMC_REG_CITRGFMT_FLIP_NORMAL;
 
 	if (ctx->hflip)
-		flip |= S5P_CITRGFMT_FLIP_X_MIRROR;
+		flip |= FIMC_REG_CITRGFMT_FLIP_X_MIRROR;
 	if (ctx->vflip)
-		flip |= S5P_CITRGFMT_FLIP_Y_MIRROR;
+		flip |= FIMC_REG_CITRGFMT_FLIP_Y_MIRROR;
 
 	if (ctx->rotation <= 90)
 		return flip;
 
-	return (flip ^ S5P_CITRGFMT_FLIP_180) & S5P_CITRGFMT_FLIP_180;
+	return (flip ^ FIMC_REG_CITRGFMT_FLIP_180) & FIMC_REG_CITRGFMT_FLIP_180;
 }
 
 void fimc_hw_set_rotation(struct fimc_ctx *ctx)
@@ -75,9 +75,9 @@ void fimc_hw_set_rotation(struct fimc_ctx *ctx)
 	u32 cfg, flip;
 	struct fimc_dev *dev = ctx->fimc_dev;
 
-	cfg = readl(dev->regs + S5P_CITRGFMT);
-	cfg &= ~(S5P_CITRGFMT_INROT90 | S5P_CITRGFMT_OUTROT90 |
-		 S5P_CITRGFMT_FLIP_180);
+	cfg = readl(dev->regs + FIMC_REG_CITRGFMT);
+	cfg &= ~(FIMC_REG_CITRGFMT_INROT90 | FIMC_REG_CITRGFMT_OUTROT90 |
+		 FIMC_REG_CITRGFMT_FLIP_180);
 
 	/*
 	 * The input and output rotator cannot work simultaneously.
@@ -86,20 +86,20 @@ void fimc_hw_set_rotation(struct fimc_ctx *ctx)
 	 */
 	if (ctx->rotation == 90 || ctx->rotation == 270) {
 		if (ctx->out_path == FIMC_LCDFIFO)
-			cfg |= S5P_CITRGFMT_INROT90;
+			cfg |= FIMC_REG_CITRGFMT_INROT90;
 		else
-			cfg |= S5P_CITRGFMT_OUTROT90;
+			cfg |= FIMC_REG_CITRGFMT_OUTROT90;
 	}
 
 	if (ctx->out_path == FIMC_DMA) {
 		cfg |= fimc_hw_get_target_flip(ctx);
-		writel(cfg, dev->regs + S5P_CITRGFMT);
+		writel(cfg, dev->regs + FIMC_REG_CITRGFMT);
 	} else {
 		/* LCD FIFO path */
-		flip = readl(dev->regs + S5P_MSCTRL);
-		flip &= ~S5P_MSCTRL_FLIP_MASK;
+		flip = readl(dev->regs + FIMC_REG_MSCTRL);
+		flip &= ~FIMC_REG_MSCTRL_FLIP_MASK;
 		flip |= fimc_hw_get_in_flip(ctx);
-		writel(flip, dev->regs + S5P_MSCTRL);
+		writel(flip, dev->regs + FIMC_REG_MSCTRL);
 	}
 }
 
@@ -110,43 +110,40 @@ void fimc_hw_set_target_format(struct fimc_ctx *ctx)
 	struct fimc_frame *frame = &ctx->d_frame;
 
 	dbg("w= %d, h= %d color: %d", frame->width,
-		frame->height, frame->fmt->color);
+	    frame->height, frame->fmt->color);
 
-	cfg = readl(dev->regs + S5P_CITRGFMT);
-	cfg &= ~(S5P_CITRGFMT_FMT_MASK | S5P_CITRGFMT_HSIZE_MASK |
-		  S5P_CITRGFMT_VSIZE_MASK);
+	cfg = readl(dev->regs + FIMC_REG_CITRGFMT);
+	cfg &= ~(FIMC_REG_CITRGFMT_FMT_MASK | FIMC_REG_CITRGFMT_HSIZE_MASK |
+		 FIMC_REG_CITRGFMT_VSIZE_MASK);
 
 	switch (frame->fmt->color) {
 	case S5P_FIMC_RGB444...S5P_FIMC_RGB888:
-		cfg |= S5P_CITRGFMT_RGB;
+		cfg |= FIMC_REG_CITRGFMT_RGB;
 		break;
 	case S5P_FIMC_YCBCR420:
-		cfg |= S5P_CITRGFMT_YCBCR420;
+		cfg |= FIMC_REG_CITRGFMT_YCBCR420;
 		break;
 	case S5P_FIMC_YCBYCR422...S5P_FIMC_CRYCBY422:
 		if (frame->fmt->colplanes == 1)
-			cfg |= S5P_CITRGFMT_YCBCR422_1P;
+			cfg |= FIMC_REG_CITRGFMT_YCBCR422_1P;
 		else
-			cfg |= S5P_CITRGFMT_YCBCR422;
+			cfg |= FIMC_REG_CITRGFMT_YCBCR422;
 		break;
 	default:
 		break;
 	}
 
-	if (ctx->rotation == 90 || ctx->rotation == 270) {
-		cfg |= S5P_CITRGFMT_HSIZE(frame->height);
-		cfg |= S5P_CITRGFMT_VSIZE(frame->width);
-	} else {
+	if (ctx->rotation == 90 || ctx->rotation == 270)
+		cfg |= (frame->height << 16) | frame->width;
+	else
+		cfg |= (frame->width << 16) | frame->height;
 
-		cfg |= S5P_CITRGFMT_HSIZE(frame->width);
-		cfg |= S5P_CITRGFMT_VSIZE(frame->height);
-	}
+	writel(cfg, dev->regs + FIMC_REG_CITRGFMT);
 
-	writel(cfg, dev->regs + S5P_CITRGFMT);
-
-	cfg = readl(dev->regs + S5P_CITAREA) & ~S5P_CITAREA_MASK;
+	cfg = readl(dev->regs + FIMC_REG_CITAREA);
+	cfg &= ~FIMC_REG_CITAREA_MASK;
 	cfg |= (frame->width * frame->height);
-	writel(cfg, dev->regs + S5P_CITAREA);
+	writel(cfg, dev->regs + FIMC_REG_CITAREA);
 }
 
 static void fimc_hw_set_out_dma_size(struct fimc_ctx *ctx)
@@ -155,87 +152,82 @@ static void fimc_hw_set_out_dma_size(struct fimc_ctx *ctx)
 	struct fimc_frame *frame = &ctx->d_frame;
 	u32 cfg;
 
-	cfg = S5P_ORIG_SIZE_HOR(frame->f_width);
-	cfg |= S5P_ORIG_SIZE_VER(frame->f_height);
-	writel(cfg, dev->regs + S5P_ORGOSIZE);
+	cfg = (frame->f_height << 16) | frame->f_width;
+	writel(cfg, dev->regs + FIMC_REG_ORGOSIZE);
 
 	/* Select color space conversion equation (HD/SD size).*/
-	cfg = readl(dev->regs + S5P_CIGCTRL);
+	cfg = readl(dev->regs + FIMC_REG_CIGCTRL);
 	if (frame->f_width >= 1280) /* HD */
-		cfg |= S5P_CIGCTRL_CSC_ITU601_709;
+		cfg |= FIMC_REG_CIGCTRL_CSC_ITU601_709;
 	else	/* SD */
-		cfg &= ~S5P_CIGCTRL_CSC_ITU601_709;
-	writel(cfg, dev->regs + S5P_CIGCTRL);
+		cfg &= ~FIMC_REG_CIGCTRL_CSC_ITU601_709;
+	writel(cfg, dev->regs + FIMC_REG_CIGCTRL);
 
 }
 
 void fimc_hw_set_out_dma(struct fimc_ctx *ctx)
 {
-	u32 cfg;
 	struct fimc_dev *dev = ctx->fimc_dev;
 	struct fimc_frame *frame = &ctx->d_frame;
 	struct fimc_dma_offset *offset = &frame->dma_offset;
 	struct fimc_fmt *fmt = frame->fmt;
+	u32 cfg;
 
 	/* Set the input dma offsets. */
-	cfg = 0;
-	cfg |= S5P_CIO_OFFS_HOR(offset->y_h);
-	cfg |= S5P_CIO_OFFS_VER(offset->y_v);
-	writel(cfg, dev->regs + S5P_CIOYOFF);
+	cfg = (offset->y_v << 16) | offset->y_h;
+	writel(cfg, dev->regs + FIMC_REG_CIOYOFF);
 
-	cfg = 0;
-	cfg |= S5P_CIO_OFFS_HOR(offset->cb_h);
-	cfg |= S5P_CIO_OFFS_VER(offset->cb_v);
-	writel(cfg, dev->regs + S5P_CIOCBOFF);
+	cfg = (offset->cb_v << 16) | offset->cb_h;
+	writel(cfg, dev->regs + FIMC_REG_CIOCBOFF);
 
-	cfg = 0;
-	cfg |= S5P_CIO_OFFS_HOR(offset->cr_h);
-	cfg |= S5P_CIO_OFFS_VER(offset->cr_v);
-	writel(cfg, dev->regs + S5P_CIOCROFF);
+	cfg = (offset->cr_v << 16) | offset->cr_h;
+	writel(cfg, dev->regs + FIMC_REG_CIOCROFF);
 
 	fimc_hw_set_out_dma_size(ctx);
 
 	/* Configure chroma components order. */
-	cfg = readl(dev->regs + S5P_CIOCTRL);
+	cfg = readl(dev->regs + FIMC_REG_CIOCTRL);
 
-	cfg &= ~(S5P_CIOCTRL_ORDER2P_MASK | S5P_CIOCTRL_ORDER422_MASK |
-		 S5P_CIOCTRL_YCBCR_PLANE_MASK | S5P_CIOCTRL_RGB16FMT_MASK);
+	cfg &= ~(FIMC_REG_CIOCTRL_ORDER2P_MASK |
+		 FIMC_REG_CIOCTRL_ORDER422_MASK |
+		 FIMC_REG_CIOCTRL_YCBCR_PLANE_MASK |
+		 FIMC_REG_CIOCTRL_RGB16FMT_MASK);
 
 	if (fmt->colplanes == 1)
 		cfg |= ctx->out_order_1p;
 	else if (fmt->colplanes == 2)
-		cfg |= ctx->out_order_2p | S5P_CIOCTRL_YCBCR_2PLANE;
+		cfg |= ctx->out_order_2p | FIMC_REG_CIOCTRL_YCBCR_2PLANE;
 	else if (fmt->colplanes == 3)
-		cfg |= S5P_CIOCTRL_YCBCR_3PLANE;
+		cfg |= FIMC_REG_CIOCTRL_YCBCR_3PLANE;
 
 	if (fmt->color == S5P_FIMC_RGB565)
-		cfg |= S5P_CIOCTRL_RGB565;
+		cfg |= FIMC_REG_CIOCTRL_RGB565;
 	else if (fmt->color == S5P_FIMC_RGB555)
-		cfg |= S5P_CIOCTRL_ARGB1555;
+		cfg |= FIMC_REG_CIOCTRL_ARGB1555;
 	else if (fmt->color == S5P_FIMC_RGB444)
-		cfg |= S5P_CIOCTRL_ARGB4444;
+		cfg |= FIMC_REG_CIOCTRL_ARGB4444;
 
-	writel(cfg, dev->regs + S5P_CIOCTRL);
+	writel(cfg, dev->regs + FIMC_REG_CIOCTRL);
 }
 
 static void fimc_hw_en_autoload(struct fimc_dev *dev, int enable)
 {
-	u32 cfg = readl(dev->regs + S5P_ORGISIZE);
+	u32 cfg = readl(dev->regs + FIMC_REG_ORGISIZE);
 	if (enable)
-		cfg |= S5P_CIREAL_ISIZE_AUTOLOAD_EN;
+		cfg |= FIMC_REG_CIREAL_ISIZE_AUTOLOAD_EN;
 	else
-		cfg &= ~S5P_CIREAL_ISIZE_AUTOLOAD_EN;
-	writel(cfg, dev->regs + S5P_ORGISIZE);
+		cfg &= ~FIMC_REG_CIREAL_ISIZE_AUTOLOAD_EN;
+	writel(cfg, dev->regs + FIMC_REG_ORGISIZE);
 }
 
 void fimc_hw_en_lastirq(struct fimc_dev *dev, int enable)
 {
-	u32 cfg = readl(dev->regs + S5P_CIOCTRL);
+	u32 cfg = readl(dev->regs + FIMC_REG_CIOCTRL);
 	if (enable)
-		cfg |= S5P_CIOCTRL_LASTIRQ_ENABLE;
+		cfg |= FIMC_REG_CIOCTRL_LASTIRQ_ENABLE;
 	else
-		cfg &= ~S5P_CIOCTRL_LASTIRQ_ENABLE;
-	writel(cfg, dev->regs + S5P_CIOCTRL);
+		cfg &= ~FIMC_REG_CIOCTRL_LASTIRQ_ENABLE;
+	writel(cfg, dev->regs + FIMC_REG_CIOCTRL);
 }
 
 void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
@@ -245,15 +237,13 @@ void fimc_hw_set_prescaler(struct fimc_ctx *ctx)
 	u32 cfg, shfactor;
 
 	shfactor = 10 - (sc->hfactor + sc->vfactor);
+	cfg = shfactor << 28;
 
-	cfg = S5P_CISCPRERATIO_SHFACTOR(shfactor);
-	cfg |= S5P_CISCPRERATIO_HOR(sc->pre_hratio);
-	cfg |= S5P_CISCPRERATIO_VER(sc->pre_vratio);
-	writel(cfg, dev->regs + S5P_CISCPRERATIO);
+	cfg |= (sc->pre_hratio << 16) | sc->pre_vratio;
+	writel(cfg, dev->regs + FIMC_REG_CISCPRERATIO);
 
-	cfg = S5P_CISCPREDST_WIDTH(sc->pre_dst_width);
-	cfg |= S5P_CISCPREDST_HEIGHT(sc->pre_dst_height);
-	writel(cfg, dev->regs + S5P_CISCPREDST);
+	cfg = (sc->pre_dst_width << 16) | sc->pre_dst_height;
+	writel(cfg, dev->regs + FIMC_REG_CISCPREDST);
 }
 
 static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
@@ -263,39 +253,40 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 	struct fimc_frame *src_frame = &ctx->s_frame;
 	struct fimc_frame *dst_frame = &ctx->d_frame;
 
-	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
+	u32 cfg = readl(dev->regs + FIMC_REG_CISCCTRL);
 
-	cfg &= ~(S5P_CISCCTRL_CSCR2Y_WIDE | S5P_CISCCTRL_CSCY2R_WIDE |
-		 S5P_CISCCTRL_SCALEUP_H | S5P_CISCCTRL_SCALEUP_V |
-		 S5P_CISCCTRL_SCALERBYPASS | S5P_CISCCTRL_ONE2ONE |
-		 S5P_CISCCTRL_INRGB_FMT_MASK | S5P_CISCCTRL_OUTRGB_FMT_MASK |
-		 S5P_CISCCTRL_INTERLACE | S5P_CISCCTRL_RGB_EXT);
+	cfg &= ~(FIMC_REG_CISCCTRL_CSCR2Y_WIDE | FIMC_REG_CISCCTRL_CSCY2R_WIDE |
+		 FIMC_REG_CISCCTRL_SCALEUP_H | FIMC_REG_CISCCTRL_SCALEUP_V |
+		 FIMC_REG_CISCCTRL_SCALERBYPASS | FIMC_REG_CISCCTRL_ONE2ONE |
+		 FIMC_REG_CISCCTRL_INRGB_FMT_MASK | FIMC_REG_CISCCTRL_OUTRGB_FMT_MASK |
+		 FIMC_REG_CISCCTRL_INTERLACE | FIMC_REG_CISCCTRL_RGB_EXT);
 
 	if (!(ctx->flags & FIMC_COLOR_RANGE_NARROW))
-		cfg |= (S5P_CISCCTRL_CSCR2Y_WIDE | S5P_CISCCTRL_CSCY2R_WIDE);
+		cfg |= (FIMC_REG_CISCCTRL_CSCR2Y_WIDE |
+			FIMC_REG_CISCCTRL_CSCY2R_WIDE);
 
 	if (!sc->enabled)
-		cfg |= S5P_CISCCTRL_SCALERBYPASS;
+		cfg |= FIMC_REG_CISCCTRL_SCALERBYPASS;
 
 	if (sc->scaleup_h)
-		cfg |= S5P_CISCCTRL_SCALEUP_H;
+		cfg |= FIMC_REG_CISCCTRL_SCALEUP_H;
 
 	if (sc->scaleup_v)
-		cfg |= S5P_CISCCTRL_SCALEUP_V;
+		cfg |= FIMC_REG_CISCCTRL_SCALEUP_V;
 
 	if (sc->copy_mode)
-		cfg |= S5P_CISCCTRL_ONE2ONE;
+		cfg |= FIMC_REG_CISCCTRL_ONE2ONE;
 
 	if (ctx->in_path == FIMC_DMA) {
 		switch (src_frame->fmt->color) {
 		case S5P_FIMC_RGB565:
-			cfg |= S5P_CISCCTRL_INRGB_FMT_RGB565;
+			cfg |= FIMC_REG_CISCCTRL_INRGB_FMT_RGB565;
 			break;
 		case S5P_FIMC_RGB666:
-			cfg |= S5P_CISCCTRL_INRGB_FMT_RGB666;
+			cfg |= FIMC_REG_CISCCTRL_INRGB_FMT_RGB666;
 			break;
 		case S5P_FIMC_RGB888:
-			cfg |= S5P_CISCCTRL_INRGB_FMT_RGB888;
+			cfg |= FIMC_REG_CISCCTRL_INRGB_FMT_RGB888;
 			break;
 		}
 	}
@@ -304,19 +295,19 @@ static void fimc_hw_set_scaler(struct fimc_ctx *ctx)
 		u32 color = dst_frame->fmt->color;
 
 		if (color >= S5P_FIMC_RGB444 && color <= S5P_FIMC_RGB565)
-			cfg |= S5P_CISCCTRL_OUTRGB_FMT_RGB565;
+			cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB565;
 		else if (color == S5P_FIMC_RGB666)
-			cfg |= S5P_CISCCTRL_OUTRGB_FMT_RGB666;
+			cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB666;
 		else if (color == S5P_FIMC_RGB888)
-			cfg |= S5P_CISCCTRL_OUTRGB_FMT_RGB888;
+			cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB888;
 	} else {
-		cfg |= S5P_CISCCTRL_OUTRGB_FMT_RGB888;
+		cfg |= FIMC_REG_CISCCTRL_OUTRGB_FMT_RGB888;
 
 		if (ctx->flags & FIMC_SCAN_MODE_INTERLACED)
-			cfg |= S5P_CISCCTRL_INTERLACE;
+			cfg |= FIMC_REG_CISCCTRL_INTERLACE;
 	}
 
-	writel(cfg, dev->regs + S5P_CISCCTRL);
+	writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
 }
 
 void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
@@ -327,29 +318,30 @@ void fimc_hw_set_mainscaler(struct fimc_ctx *ctx)
 	u32 cfg;
 
 	dbg("main_hratio= 0x%X  main_vratio= 0x%X",
-		sc->main_hratio, sc->main_vratio);
+	    sc->main_hratio, sc->main_vratio);
 
 	fimc_hw_set_scaler(ctx);
 
-	cfg = readl(dev->regs + S5P_CISCCTRL);
-	cfg &= ~(S5P_CISCCTRL_MHRATIO_MASK | S5P_CISCCTRL_MVRATIO_MASK);
+	cfg = readl(dev->regs + FIMC_REG_CISCCTRL);
+	cfg &= ~(FIMC_REG_CISCCTRL_MHRATIO_MASK |
+		 FIMC_REG_CISCCTRL_MVRATIO_MASK);
 
 	if (variant->has_mainscaler_ext) {
-		cfg |= S5P_CISCCTRL_MHRATIO_EXT(sc->main_hratio);
-		cfg |= S5P_CISCCTRL_MVRATIO_EXT(sc->main_vratio);
-		writel(cfg, dev->regs + S5P_CISCCTRL);
+		cfg |= FIMC_REG_CISCCTRL_MHRATIO_EXT(sc->main_hratio);
+		cfg |= FIMC_REG_CISCCTRL_MVRATIO_EXT(sc->main_vratio);
+		writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
 
-		cfg = readl(dev->regs + S5P_CIEXTEN);
+		cfg = readl(dev->regs + FIMC_REG_CIEXTEN);
 
-		cfg &= ~(S5P_CIEXTEN_MVRATIO_EXT_MASK |
-			 S5P_CIEXTEN_MHRATIO_EXT_MASK);
-		cfg |= S5P_CIEXTEN_MHRATIO_EXT(sc->main_hratio);
-		cfg |= S5P_CIEXTEN_MVRATIO_EXT(sc->main_vratio);
-		writel(cfg, dev->regs + S5P_CIEXTEN);
+		cfg &= ~(FIMC_REG_CIEXTEN_MVRATIO_EXT_MASK |
+			 FIMC_REG_CIEXTEN_MHRATIO_EXT_MASK);
+		cfg |= FIMC_REG_CIEXTEN_MHRATIO_EXT(sc->main_hratio);
+		cfg |= FIMC_REG_CIEXTEN_MVRATIO_EXT(sc->main_vratio);
+		writel(cfg, dev->regs + FIMC_REG_CIEXTEN);
 	} else {
-		cfg |= S5P_CISCCTRL_MHRATIO(sc->main_hratio);
-		cfg |= S5P_CISCCTRL_MVRATIO(sc->main_vratio);
-		writel(cfg, dev->regs + S5P_CISCCTRL);
+		cfg |= FIMC_REG_CISCCTRL_MHRATIO(sc->main_hratio);
+		cfg |= FIMC_REG_CISCCTRL_MVRATIO(sc->main_vratio);
+		writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
 	}
 }
 
@@ -357,22 +349,24 @@ void fimc_hw_en_capture(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 
-	u32 cfg = readl(dev->regs + S5P_CIIMGCPT);
+	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
 
 	if (ctx->out_path == FIMC_DMA) {
 		/* one shot mode */
-		cfg |= S5P_CIIMGCPT_CPT_FREN_ENABLE | S5P_CIIMGCPT_IMGCPTEN;
+		cfg |= FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
+			FIMC_REG_CIIMGCPT_IMGCPTEN;
 	} else {
 		/* Continuous frame capture mode (freerun). */
-		cfg &= ~(S5P_CIIMGCPT_CPT_FREN_ENABLE |
-			 S5P_CIIMGCPT_CPT_FRMOD_CNT);
-		cfg |= S5P_CIIMGCPT_IMGCPTEN;
+		cfg &= ~(FIMC_REG_CIIMGCPT_CPT_FREN_ENABLE |
+			 FIMC_REG_CIIMGCPT_CPT_FRMOD_CNT);
+		cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN;
 	}
 
 	if (ctx->scaler.enabled)
-		cfg |= S5P_CIIMGCPT_IMGCPTEN_SC;
+		cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN_SC;
 
-	writel(cfg | S5P_CIIMGCPT_IMGCPTEN, dev->regs + S5P_CIIMGCPT);
+	cfg |= FIMC_REG_CIIMGCPT_IMGCPTEN;
+	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
 }
 
 void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active)
@@ -382,15 +376,14 @@ void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active)
 	u32 cfg = 0;
 
 	if (active) {
-		cfg |= S5P_CIIMGEFF_IE_SC_AFTER | S5P_CIIMGEFF_IE_ENABLE;
+		cfg |= FIMC_REG_CIIMGEFF_IE_SC_AFTER |
+			FIMC_REG_CIIMGEFF_IE_ENABLE;
 		cfg |= effect->type;
-		if (effect->type == S5P_FIMC_EFFECT_ARBITRARY) {
-			cfg |= S5P_CIIMGEFF_PAT_CB(effect->pat_cb);
-			cfg |= S5P_CIIMGEFF_PAT_CR(effect->pat_cr);
-		}
+		if (effect->type == FIMC_REG_CIIMGEFF_FIN_ARBITRARY)
+			cfg |= (effect->pat_cb << 13) | effect->pat_cr;
 	}
 
-	writel(cfg, dev->regs + S5P_CIIMGEFF);
+	writel(cfg, dev->regs + FIMC_REG_CIIMGEFF);
 }
 
 void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx)
@@ -402,10 +395,10 @@ void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx)
 	if (!(frame->fmt->flags & FMT_HAS_ALPHA))
 		return;
 
-	cfg = readl(dev->regs + S5P_CIOCTRL);
-	cfg &= ~S5P_CIOCTRL_ALPHA_OUT_MASK;
+	cfg = readl(dev->regs + FIMC_REG_CIOCTRL);
+	cfg &= ~FIMC_REG_CIOCTRL_ALPHA_OUT_MASK;
 	cfg |= (frame->alpha << 4);
-	writel(cfg, dev->regs + S5P_CIOCTRL);
+	writel(cfg, dev->regs + FIMC_REG_CIOCTRL);
 }
 
 static void fimc_hw_set_in_dma_size(struct fimc_ctx *ctx)
@@ -416,15 +409,13 @@ static void fimc_hw_set_in_dma_size(struct fimc_ctx *ctx)
 	u32 cfg_r = 0;
 
 	if (FIMC_LCDFIFO == ctx->out_path)
-		cfg_r |= S5P_CIREAL_ISIZE_AUTOLOAD_EN;
+		cfg_r |= FIMC_REG_CIREAL_ISIZE_AUTOLOAD_EN;
 
-	cfg_o |= S5P_ORIG_SIZE_HOR(frame->f_width);
-	cfg_o |= S5P_ORIG_SIZE_VER(frame->f_height);
-	cfg_r |= S5P_CIREAL_ISIZE_WIDTH(frame->width);
-	cfg_r |= S5P_CIREAL_ISIZE_HEIGHT(frame->height);
+	cfg_o |= (frame->f_height << 16) | frame->f_width;
+	cfg_r |= (frame->height << 16) | frame->width;
 
-	writel(cfg_o, dev->regs + S5P_ORGISIZE);
-	writel(cfg_r, dev->regs + S5P_CIREAL_ISIZE);
+	writel(cfg_o, dev->regs + FIMC_REG_ORGISIZE);
+	writel(cfg_r, dev->regs + FIMC_REG_CIREAL_ISIZE);
 }
 
 void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
@@ -435,17 +426,14 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 	u32 cfg;
 
 	/* Set the pixel offsets. */
-	cfg = S5P_CIO_OFFS_HOR(offset->y_h);
-	cfg |= S5P_CIO_OFFS_VER(offset->y_v);
-	writel(cfg, dev->regs + S5P_CIIYOFF);
+	cfg = (offset->y_v << 16) | offset->y_h;
+	writel(cfg, dev->regs + FIMC_REG_CIIYOFF);
 
-	cfg = S5P_CIO_OFFS_HOR(offset->cb_h);
-	cfg |= S5P_CIO_OFFS_VER(offset->cb_v);
-	writel(cfg, dev->regs + S5P_CIICBOFF);
+	cfg = (offset->cb_v << 16) | offset->cb_h;
+	writel(cfg, dev->regs + FIMC_REG_CIICBOFF);
 
-	cfg = S5P_CIO_OFFS_HOR(offset->cr_h);
-	cfg |= S5P_CIO_OFFS_VER(offset->cr_v);
-	writel(cfg, dev->regs + S5P_CIICROFF);
+	cfg = (offset->cr_v << 16) | offset->cr_h;
+	writel(cfg, dev->regs + FIMC_REG_CIICROFF);
 
 	/* Input original and real size. */
 	fimc_hw_set_in_dma_size(ctx);
@@ -454,61 +442,61 @@ void fimc_hw_set_in_dma(struct fimc_ctx *ctx)
 	fimc_hw_en_autoload(dev, ctx->out_path == FIMC_LCDFIFO);
 
 	/* Set the input DMA to process single frame only. */
-	cfg = readl(dev->regs + S5P_MSCTRL);
-	cfg &= ~(S5P_MSCTRL_INFORMAT_MASK
-		| S5P_MSCTRL_IN_BURST_COUNT_MASK
-		| S5P_MSCTRL_INPUT_MASK
-		| S5P_MSCTRL_C_INT_IN_MASK
-		| S5P_MSCTRL_2P_IN_ORDER_MASK);
+	cfg = readl(dev->regs + FIMC_REG_MSCTRL);
+	cfg &= ~(FIMC_REG_MSCTRL_INFORMAT_MASK
+		 | FIMC_REG_MSCTRL_IN_BURST_COUNT_MASK
+		 | FIMC_REG_MSCTRL_INPUT_MASK
+		 | FIMC_REG_MSCTRL_C_INT_IN_MASK
+		 | FIMC_REG_MSCTRL_2P_IN_ORDER_MASK);
 
-	cfg |= (S5P_MSCTRL_IN_BURST_COUNT(4)
-		| S5P_MSCTRL_INPUT_MEMORY
-		| S5P_MSCTRL_FIFO_CTRL_FULL);
+	cfg |= (FIMC_REG_MSCTRL_IN_BURST_COUNT(4)
+		| FIMC_REG_MSCTRL_INPUT_MEMORY
+		| FIMC_REG_MSCTRL_FIFO_CTRL_FULL);
 
 	switch (frame->fmt->color) {
 	case S5P_FIMC_RGB565...S5P_FIMC_RGB888:
-		cfg |= S5P_MSCTRL_INFORMAT_RGB;
+		cfg |= FIMC_REG_MSCTRL_INFORMAT_RGB;
 		break;
 	case S5P_FIMC_YCBCR420:
-		cfg |= S5P_MSCTRL_INFORMAT_YCBCR420;
+		cfg |= FIMC_REG_MSCTRL_INFORMAT_YCBCR420;
 
 		if (frame->fmt->colplanes == 2)
-			cfg |= ctx->in_order_2p | S5P_MSCTRL_C_INT_IN_2PLANE;
+			cfg |= ctx->in_order_2p | FIMC_REG_MSCTRL_C_INT_IN_2PLANE;
 		else
-			cfg |= S5P_MSCTRL_C_INT_IN_3PLANE;
+			cfg |= FIMC_REG_MSCTRL_C_INT_IN_3PLANE;
 
 		break;
 	case S5P_FIMC_YCBYCR422...S5P_FIMC_CRYCBY422:
 		if (frame->fmt->colplanes == 1) {
 			cfg |= ctx->in_order_1p
-				| S5P_MSCTRL_INFORMAT_YCBCR422_1P;
+				| FIMC_REG_MSCTRL_INFORMAT_YCBCR422_1P;
 		} else {
-			cfg |= S5P_MSCTRL_INFORMAT_YCBCR422;
+			cfg |= FIMC_REG_MSCTRL_INFORMAT_YCBCR422;
 
 			if (frame->fmt->colplanes == 2)
 				cfg |= ctx->in_order_2p
-					| S5P_MSCTRL_C_INT_IN_2PLANE;
+					| FIMC_REG_MSCTRL_C_INT_IN_2PLANE;
 			else
-				cfg |= S5P_MSCTRL_C_INT_IN_3PLANE;
+				cfg |= FIMC_REG_MSCTRL_C_INT_IN_3PLANE;
 		}
 		break;
 	default:
 		break;
 	}
 
-	writel(cfg, dev->regs + S5P_MSCTRL);
+	writel(cfg, dev->regs + FIMC_REG_MSCTRL);
 
 	/* Input/output DMA linear/tiled mode. */
-	cfg = readl(dev->regs + S5P_CIDMAPARAM);
-	cfg &= ~S5P_CIDMAPARAM_TILE_MASK;
+	cfg = readl(dev->regs + FIMC_REG_CIDMAPARAM);
+	cfg &= ~FIMC_REG_CIDMAPARAM_TILE_MASK;
 
 	if (tiled_fmt(ctx->s_frame.fmt))
-		cfg |= S5P_CIDMAPARAM_R_64X32;
+		cfg |= FIMC_REG_CIDMAPARAM_R_64X32;
 
 	if (tiled_fmt(ctx->d_frame.fmt))
-		cfg |= S5P_CIDMAPARAM_W_64X32;
+		cfg |= FIMC_REG_CIDMAPARAM_W_64X32;
 
-	writel(cfg, dev->regs + S5P_CIDMAPARAM);
+	writel(cfg, dev->regs + FIMC_REG_CIDMAPARAM);
 }
 
 
@@ -516,40 +504,40 @@ void fimc_hw_set_input_path(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 
-	u32 cfg = readl(dev->regs + S5P_MSCTRL);
-	cfg &= ~S5P_MSCTRL_INPUT_MASK;
+	u32 cfg = readl(dev->regs + FIMC_REG_MSCTRL);
+	cfg &= ~FIMC_REG_MSCTRL_INPUT_MASK;
 
 	if (ctx->in_path == FIMC_DMA)
-		cfg |= S5P_MSCTRL_INPUT_MEMORY;
+		cfg |= FIMC_REG_MSCTRL_INPUT_MEMORY;
 	else
-		cfg |= S5P_MSCTRL_INPUT_EXTCAM;
+		cfg |= FIMC_REG_MSCTRL_INPUT_EXTCAM;
 
-	writel(cfg, dev->regs + S5P_MSCTRL);
+	writel(cfg, dev->regs + FIMC_REG_MSCTRL);
 }
 
 void fimc_hw_set_output_path(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *dev = ctx->fimc_dev;
 
-	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
-	cfg &= ~S5P_CISCCTRL_LCDPATHEN_FIFO;
+	u32 cfg = readl(dev->regs + FIMC_REG_CISCCTRL);
+	cfg &= ~FIMC_REG_CISCCTRL_LCDPATHEN_FIFO;
 	if (ctx->out_path == FIMC_LCDFIFO)
-		cfg |= S5P_CISCCTRL_LCDPATHEN_FIFO;
-	writel(cfg, dev->regs + S5P_CISCCTRL);
+		cfg |= FIMC_REG_CISCCTRL_LCDPATHEN_FIFO;
+	writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
 }
 
 void fimc_hw_set_input_addr(struct fimc_dev *dev, struct fimc_addr *paddr)
 {
-	u32 cfg = readl(dev->regs + S5P_CIREAL_ISIZE);
-	cfg |= S5P_CIREAL_ISIZE_ADDR_CH_DIS;
-	writel(cfg, dev->regs + S5P_CIREAL_ISIZE);
+	u32 cfg = readl(dev->regs + FIMC_REG_CIREAL_ISIZE);
+	cfg |= FIMC_REG_CIREAL_ISIZE_ADDR_CH_DIS;
+	writel(cfg, dev->regs + FIMC_REG_CIREAL_ISIZE);
 
-	writel(paddr->y, dev->regs + S5P_CIIYSA(0));
-	writel(paddr->cb, dev->regs + S5P_CIICBSA(0));
-	writel(paddr->cr, dev->regs + S5P_CIICRSA(0));
+	writel(paddr->y, dev->regs + FIMC_REG_CIIYSA(0));
+	writel(paddr->cb, dev->regs + FIMC_REG_CIICBSA(0));
+	writel(paddr->cr, dev->regs + FIMC_REG_CIICRSA(0));
 
-	cfg &= ~S5P_CIREAL_ISIZE_ADDR_CH_DIS;
-	writel(cfg, dev->regs + S5P_CIREAL_ISIZE);
+	cfg &= ~FIMC_REG_CIREAL_ISIZE_ADDR_CH_DIS;
+	writel(cfg, dev->regs + FIMC_REG_CIREAL_ISIZE);
 }
 
 void fimc_hw_set_output_addr(struct fimc_dev *dev,
@@ -557,9 +545,9 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 {
 	int i = (index == -1) ? 0 : index;
 	do {
-		writel(paddr->y, dev->regs + S5P_CIOYSA(i));
-		writel(paddr->cb, dev->regs + S5P_CIOCBSA(i));
-		writel(paddr->cr, dev->regs + S5P_CIOCRSA(i));
+		writel(paddr->y, dev->regs + FIMC_REG_CIOYSA(i));
+		writel(paddr->cb, dev->regs + FIMC_REG_CIOCBSA(i));
+		writel(paddr->cr, dev->regs + FIMC_REG_CIOCRSA(i));
 		dbg("dst_buf[%d]: 0x%X, cb: 0x%X, cr: 0x%X",
 		    i, paddr->y, paddr->cb, paddr->cr);
 	} while (index == -1 && ++i < FIMC_MAX_OUT_BUFS);
@@ -568,31 +556,44 @@ void fimc_hw_set_output_addr(struct fimc_dev *dev,
 int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
 				struct s5p_fimc_isp_info *cam)
 {
-	u32 cfg = readl(fimc->regs + S5P_CIGCTRL);
+	u32 cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
-	cfg &= ~(S5P_CIGCTRL_INVPOLPCLK | S5P_CIGCTRL_INVPOLVSYNC |
-		 S5P_CIGCTRL_INVPOLHREF | S5P_CIGCTRL_INVPOLHSYNC |
-		 S5P_CIGCTRL_INVPOLFIELD);
+	cfg &= ~(FIMC_REG_CIGCTRL_INVPOLPCLK | FIMC_REG_CIGCTRL_INVPOLVSYNC |
+		 FIMC_REG_CIGCTRL_INVPOLHREF | FIMC_REG_CIGCTRL_INVPOLHSYNC |
+		 FIMC_REG_CIGCTRL_INVPOLFIELD);
 
 	if (cam->flags & V4L2_MBUS_PCLK_SAMPLE_FALLING)
-		cfg |= S5P_CIGCTRL_INVPOLPCLK;
+		cfg |= FIMC_REG_CIGCTRL_INVPOLPCLK;
 
 	if (cam->flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-		cfg |= S5P_CIGCTRL_INVPOLVSYNC;
+		cfg |= FIMC_REG_CIGCTRL_INVPOLVSYNC;
 
 	if (cam->flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-		cfg |= S5P_CIGCTRL_INVPOLHREF;
+		cfg |= FIMC_REG_CIGCTRL_INVPOLHREF;
 
 	if (cam->flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-		cfg |= S5P_CIGCTRL_INVPOLHSYNC;
+		cfg |= FIMC_REG_CIGCTRL_INVPOLHSYNC;
 
 	if (cam->flags & V4L2_MBUS_FIELD_EVEN_LOW)
-		cfg |= S5P_CIGCTRL_INVPOLFIELD;
+		cfg |= FIMC_REG_CIGCTRL_INVPOLFIELD;
 
-	writel(cfg, fimc->regs + S5P_CIGCTRL);
+	writel(cfg, fimc->regs + FIMC_REG_CIGCTRL);
 
 	return 0;
 }
+
+struct mbus_pixfmt_desc {
+	u32 pixelcode;
+	u32 cisrcfmt;
+	u16 bus_width;
+};
+
+static const struct mbus_pixfmt_desc pix_desc[] = {
+	{ V4L2_MBUS_FMT_YUYV8_2X8, FIMC_REG_CISRCFMT_ORDER422_YCBYCR, 8 },
+	{ V4L2_MBUS_FMT_YVYU8_2X8, FIMC_REG_CISRCFMT_ORDER422_YCRYCB, 8 },
+	{ V4L2_MBUS_FMT_VYUY8_2X8, FIMC_REG_CISRCFMT_ORDER422_CRYCBY, 8 },
+	{ V4L2_MBUS_FMT_UYVY8_2X8, FIMC_REG_CISRCFMT_ORDER422_CBYCRY, 8 },
+};
 
 int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 			      struct s5p_fimc_isp_info *cam)
@@ -601,18 +602,6 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 	u32 cfg = 0;
 	u32 bus_width;
 	int i;
-
-	static const struct {
-		u32 pixelcode;
-		u32 cisrcfmt;
-		u16 bus_width;
-	} pix_desc[] = {
-		{ V4L2_MBUS_FMT_YUYV8_2X8, S5P_CISRCFMT_ORDER422_YCBYCR, 8 },
-		{ V4L2_MBUS_FMT_YVYU8_2X8, S5P_CISRCFMT_ORDER422_YCRYCB, 8 },
-		{ V4L2_MBUS_FMT_VYUY8_2X8, S5P_CISRCFMT_ORDER422_CRYCBY, 8 },
-		{ V4L2_MBUS_FMT_UYVY8_2X8, S5P_CISRCFMT_ORDER422_CBYCRY, 8 },
-		/* TODO: Add pixel codes for 16-bit bus width */
-	};
 
 	if (cam->bus_type == FIMC_ITU_601 || cam->bus_type == FIMC_ITU_656) {
 		for (i = 0; i < ARRAY_SIZE(pix_desc); i++) {
@@ -632,41 +621,37 @@ int fimc_hw_set_camera_source(struct fimc_dev *fimc,
 
 		if (cam->bus_type == FIMC_ITU_601) {
 			if (bus_width == 8)
-				cfg |= S5P_CISRCFMT_ITU601_8BIT;
+				cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
 			else if (bus_width == 16)
-				cfg |= S5P_CISRCFMT_ITU601_16BIT;
+				cfg |= FIMC_REG_CISRCFMT_ITU601_16BIT;
 		} /* else defaults to ITU-R BT.656 8-bit */
 	} else if (cam->bus_type == FIMC_MIPI_CSI2) {
 		if (fimc_fmt_is_jpeg(f->fmt->color))
-			cfg |= S5P_CISRCFMT_ITU601_8BIT;
+			cfg |= FIMC_REG_CISRCFMT_ITU601_8BIT;
 	}
 
-	cfg |= S5P_CISRCFMT_HSIZE(f->o_width) | S5P_CISRCFMT_VSIZE(f->o_height);
-	writel(cfg, fimc->regs + S5P_CISRCFMT);
+	cfg |= (f->o_width << 16) | f->o_height;
+	writel(cfg, fimc->regs + FIMC_REG_CISRCFMT);
 	return 0;
 }
 
-
-int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
+void fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f)
 {
 	u32 hoff2, voff2;
 
-	u32 cfg = readl(fimc->regs + S5P_CIWDOFST);
+	u32 cfg = readl(fimc->regs + FIMC_REG_CIWDOFST);
 
-	cfg &= ~(S5P_CIWDOFST_HOROFF_MASK | S5P_CIWDOFST_VEROFF_MASK);
-	cfg |=  S5P_CIWDOFST_OFF_EN |
-		S5P_CIWDOFST_HOROFF(f->offs_h) |
-		S5P_CIWDOFST_VEROFF(f->offs_v);
+	cfg &= ~(FIMC_REG_CIWDOFST_HOROFF_MASK | FIMC_REG_CIWDOFST_VEROFF_MASK);
+	cfg |=  FIMC_REG_CIWDOFST_OFF_EN |
+		(f->offs_h << 16) | f->offs_v;
 
-	writel(cfg, fimc->regs + S5P_CIWDOFST);
+	writel(cfg, fimc->regs + FIMC_REG_CIWDOFST);
 
 	/* See CIWDOFSTn register description in the datasheet for details. */
 	hoff2 = f->o_width - f->width - f->offs_h;
 	voff2 = f->o_height - f->height - f->offs_v;
-	cfg = S5P_CIWDOFST2_HOROFF(hoff2) | S5P_CIWDOFST2_VEROFF(voff2);
-
-	writel(cfg, fimc->regs + S5P_CIWDOFST2);
-	return 0;
+	cfg = (hoff2 << 16) | voff2;
+	writel(cfg, fimc->regs + FIMC_REG_CIWDOFST2);
 }
 
 int fimc_hw_set_camera_type(struct fimc_dev *fimc,
@@ -676,27 +661,27 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 	struct fimc_vid_cap *vid_cap = &fimc->vid_cap;
 	u32 csis_data_alignment = 32;
 
-	cfg = readl(fimc->regs + S5P_CIGCTRL);
+	cfg = readl(fimc->regs + FIMC_REG_CIGCTRL);
 
 	/* Select ITU B interface, disable Writeback path and test pattern. */
-	cfg &= ~(S5P_CIGCTRL_TESTPAT_MASK | S5P_CIGCTRL_SELCAM_ITU_A |
-		S5P_CIGCTRL_SELCAM_MIPI | S5P_CIGCTRL_CAMIF_SELWB |
-		S5P_CIGCTRL_SELCAM_MIPI_A | S5P_CIGCTRL_CAM_JPEG);
+	cfg &= ~(FIMC_REG_CIGCTRL_TESTPAT_MASK | FIMC_REG_CIGCTRL_SELCAM_ITU_A |
+		FIMC_REG_CIGCTRL_SELCAM_MIPI | FIMC_REG_CIGCTRL_CAMIF_SELWB |
+		FIMC_REG_CIGCTRL_SELCAM_MIPI_A | FIMC_REG_CIGCTRL_CAM_JPEG);
 
 	if (cam->bus_type == FIMC_MIPI_CSI2) {
-		cfg |= S5P_CIGCTRL_SELCAM_MIPI;
+		cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI;
 
 		if (cam->mux_id == 0)
-			cfg |= S5P_CIGCTRL_SELCAM_MIPI_A;
+			cfg |= FIMC_REG_CIGCTRL_SELCAM_MIPI_A;
 
 		/* TODO: add remaining supported formats. */
 		switch (vid_cap->mf.code) {
 		case V4L2_MBUS_FMT_VYUY8_2X8:
-			tmp = S5P_CSIIMGFMT_YCBCR422_8BIT;
+			tmp = FIMC_REG_CSIIMGFMT_YCBCR422_8BIT;
 			break;
 		case V4L2_MBUS_FMT_JPEG_1X8:
-			tmp = S5P_CSIIMGFMT_USER(1);
-			cfg |= S5P_CIGCTRL_CAM_JPEG;
+			tmp = FIMC_REG_CSIIMGFMT_USER(1);
+			cfg |= FIMC_REG_CIGCTRL_CAM_JPEG;
 			break;
 		default:
 			v4l2_err(fimc->vid_cap.vfd,
@@ -706,19 +691,84 @@ int fimc_hw_set_camera_type(struct fimc_dev *fimc,
 		}
 		tmp |= (csis_data_alignment == 32) << 8;
 
-		writel(tmp, fimc->regs + S5P_CSIIMGFMT);
+		writel(tmp, fimc->regs + FIMC_REG_CSIIMGFMT);
 
 	} else if (cam->bus_type == FIMC_ITU_601 ||
 		   cam->bus_type == FIMC_ITU_656) {
 		if (cam->mux_id == 0) /* ITU-A, ITU-B: 0, 1 */
-			cfg |= S5P_CIGCTRL_SELCAM_ITU_A;
+			cfg |= FIMC_REG_CIGCTRL_SELCAM_ITU_A;
 	} else if (cam->bus_type == FIMC_LCD_WB) {
-		cfg |= S5P_CIGCTRL_CAMIF_SELWB;
+		cfg |= FIMC_REG_CIGCTRL_CAMIF_SELWB;
 	} else {
 		err("invalid camera bus type selected\n");
 		return -EINVAL;
 	}
-	writel(cfg, fimc->regs + S5P_CIGCTRL);
+	writel(cfg, fimc->regs + FIMC_REG_CIGCTRL);
 
 	return 0;
+}
+
+void fimc_hw_clear_irq(struct fimc_dev *dev)
+{
+	u32 cfg = readl(dev->regs + FIMC_REG_CIGCTRL);
+	cfg |= FIMC_REG_CIGCTRL_IRQ_CLR;
+	writel(cfg, dev->regs + FIMC_REG_CIGCTRL);
+}
+
+void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on)
+{
+	u32 cfg = readl(dev->regs + FIMC_REG_CISCCTRL);
+	if (on)
+		cfg |= FIMC_REG_CISCCTRL_SCALERSTART;
+	else
+		cfg &= ~FIMC_REG_CISCCTRL_SCALERSTART;
+	writel(cfg, dev->regs + FIMC_REG_CISCCTRL);
+}
+
+void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on)
+{
+	u32 cfg = readl(dev->regs + FIMC_REG_MSCTRL);
+	if (on)
+		cfg |= FIMC_REG_MSCTRL_ENVID;
+	else
+		cfg &= ~FIMC_REG_MSCTRL_ENVID;
+	writel(cfg, dev->regs + FIMC_REG_MSCTRL);
+}
+
+void fimc_hw_dis_capture(struct fimc_dev *dev)
+{
+	u32 cfg = readl(dev->regs + FIMC_REG_CIIMGCPT);
+	cfg &= ~(FIMC_REG_CIIMGCPT_IMGCPTEN | FIMC_REG_CIIMGCPT_IMGCPTEN_SC);
+	writel(cfg, dev->regs + FIMC_REG_CIIMGCPT);
+}
+
+/* Return an index to the buffer actually being written. */
+u32 fimc_hw_get_frame_index(struct fimc_dev *dev)
+{
+	u32 reg;
+
+	if (dev->variant->has_cistatus2) {
+		reg = readl(dev->regs + FIMC_REG_CISTATUS2) & 0x3F;
+		return reg > 0 ? --reg : reg;
+	}
+
+	reg = readl(dev->regs + FIMC_REG_CISTATUS);
+
+	return (reg & FIMC_REG_CISTATUS_FRAMECNT_MASK) >>
+		FIMC_REG_CISTATUS_FRAMECNT_SHIFT;
+}
+
+/* Locking: the caller holds fimc->slock */
+void fimc_activate_capture(struct fimc_ctx *ctx)
+{
+	fimc_hw_enable_scaler(ctx->fimc_dev, ctx->scaler.enabled);
+	fimc_hw_en_capture(ctx);
+}
+
+void fimc_deactivate_capture(struct fimc_dev *fimc)
+{
+	fimc_hw_en_lastirq(fimc, true);
+	fimc_hw_dis_capture(fimc);
+	fimc_hw_enable_scaler(fimc, false);
+	fimc_hw_en_lastirq(fimc, false);
 }

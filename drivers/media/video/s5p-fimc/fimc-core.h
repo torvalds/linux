@@ -26,8 +26,6 @@
 #include <media/v4l2-mediabus.h>
 #include <media/s5p_fimc.h>
 
-#include "regs-fimc.h"
-
 #define err(fmt, args...) \
 	printk(KERN_ERR "%s:%d: " fmt "\n", __func__, __LINE__, ##args)
 
@@ -105,17 +103,6 @@ enum fimc_color_fmt {
 
 #define IS_M2M(__strt) ((__strt) == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE || \
 			__strt == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
-
-/* Cb/Cr chrominance components order for 2 plane Y/CbCr 4:2:2 formats. */
-#define	S5P_FIMC_LSB_CRCB	S5P_CIOCTRL_ORDER422_2P_LSB_CRCB
-
-/* The embedded image effect selection */
-#define	S5P_FIMC_EFFECT_ORIGINAL	S5P_CIIMGEFF_FIN_BYPASS
-#define	S5P_FIMC_EFFECT_ARBITRARY	S5P_CIIMGEFF_FIN_ARBITRARY
-#define	S5P_FIMC_EFFECT_NEGATIVE	S5P_CIIMGEFF_FIN_NEGATIVE
-#define	S5P_FIMC_EFFECT_ARTFREEZE	S5P_CIIMGEFF_FIN_ARTFREEZE
-#define	S5P_FIMC_EFFECT_EMBOSSING	S5P_CIIMGEFF_FIN_EMBOSSING
-#define	S5P_FIMC_EFFECT_SIKHOUETTE	S5P_CIIMGEFF_FIN_SILHOUETTE
 
 /* The hardware context state. */
 #define	FIMC_PARAMS		(1 << 0)
@@ -588,54 +575,6 @@ static inline int fimc_get_alpha_mask(struct fimc_fmt *fmt)
 	};
 }
 
-static inline void fimc_hw_clear_irq(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + S5P_CIGCTRL);
-	cfg |= S5P_CIGCTRL_IRQ_CLR;
-	writel(cfg, dev->regs + S5P_CIGCTRL);
-}
-
-static inline void fimc_hw_enable_scaler(struct fimc_dev *dev, bool on)
-{
-	u32 cfg = readl(dev->regs + S5P_CISCCTRL);
-	if (on)
-		cfg |= S5P_CISCCTRL_SCALERSTART;
-	else
-		cfg &= ~S5P_CISCCTRL_SCALERSTART;
-	writel(cfg, dev->regs + S5P_CISCCTRL);
-}
-
-static inline void fimc_hw_activate_input_dma(struct fimc_dev *dev, bool on)
-{
-	u32 cfg = readl(dev->regs + S5P_MSCTRL);
-	if (on)
-		cfg |= S5P_MSCTRL_ENVID;
-	else
-		cfg &= ~S5P_MSCTRL_ENVID;
-	writel(cfg, dev->regs + S5P_MSCTRL);
-}
-
-static inline void fimc_hw_dis_capture(struct fimc_dev *dev)
-{
-	u32 cfg = readl(dev->regs + S5P_CIIMGCPT);
-	cfg &= ~(S5P_CIIMGCPT_IMGCPTEN | S5P_CIIMGCPT_IMGCPTEN_SC);
-	writel(cfg, dev->regs + S5P_CIIMGCPT);
-}
-
-/**
- * fimc_hw_set_dma_seq - configure output DMA buffer sequence
- * @mask: each bit corresponds to one of 32 output buffer registers set
- *	  1 to include buffer in the sequence, 0 to disable
- *
- * This function mask output DMA ring buffers, i.e. it allows to configure
- * which of the output buffer address registers will be used by the DMA
- * engine.
- */
-static inline void fimc_hw_set_dma_seq(struct fimc_dev *dev, u32 mask)
-{
-	writel(mask, dev->regs + S5P_CIFCNTSEQ);
-}
-
 static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 					       enum v4l2_buf_type type)
 {
@@ -656,48 +595,6 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 
 	return frame;
 }
-
-/* Return an index to the buffer actually being written. */
-static inline u32 fimc_hw_get_frame_index(struct fimc_dev *dev)
-{
-	u32 reg;
-
-	if (dev->variant->has_cistatus2) {
-		reg = readl(dev->regs + S5P_CISTATUS2) & 0x3F;
-		return reg > 0 ? --reg : reg;
-	} else {
-		reg = readl(dev->regs + S5P_CISTATUS);
-		return (reg & S5P_CISTATUS_FRAMECNT_MASK) >>
-			S5P_CISTATUS_FRAMECNT_SHIFT;
-	}
-}
-
-/* -----------------------------------------------------*/
-/* fimc-reg.c						*/
-void fimc_hw_reset(struct fimc_dev *fimc);
-void fimc_hw_set_rotation(struct fimc_ctx *ctx);
-void fimc_hw_set_target_format(struct fimc_ctx *ctx);
-void fimc_hw_set_out_dma(struct fimc_ctx *ctx);
-void fimc_hw_en_lastirq(struct fimc_dev *fimc, int enable);
-void fimc_hw_en_irq(struct fimc_dev *fimc, int enable);
-void fimc_hw_set_prescaler(struct fimc_ctx *ctx);
-void fimc_hw_set_mainscaler(struct fimc_ctx *ctx);
-void fimc_hw_en_capture(struct fimc_ctx *ctx);
-void fimc_hw_set_effect(struct fimc_ctx *ctx, bool active);
-void fimc_hw_set_rgb_alpha(struct fimc_ctx *ctx);
-void fimc_hw_set_in_dma(struct fimc_ctx *ctx);
-void fimc_hw_set_input_path(struct fimc_ctx *ctx);
-void fimc_hw_set_output_path(struct fimc_ctx *ctx);
-void fimc_hw_set_input_addr(struct fimc_dev *fimc, struct fimc_addr *paddr);
-void fimc_hw_set_output_addr(struct fimc_dev *fimc, struct fimc_addr *paddr,
-			     int index);
-int fimc_hw_set_camera_source(struct fimc_dev *fimc,
-			      struct s5p_fimc_isp_info *cam);
-int fimc_hw_set_camera_offset(struct fimc_dev *fimc, struct fimc_frame *f);
-int fimc_hw_set_camera_polarity(struct fimc_dev *fimc,
-				struct s5p_fimc_isp_info *cam);
-int fimc_hw_set_camera_type(struct fimc_dev *fimc,
-			    struct s5p_fimc_isp_info *cam);
 
 /* -----------------------------------------------------*/
 /* fimc-core.c */
@@ -744,21 +641,6 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 			void *arg);
 int fimc_capture_suspend(struct fimc_dev *fimc);
 int fimc_capture_resume(struct fimc_dev *fimc);
-
-/* Locking: the caller holds fimc->slock */
-static inline void fimc_activate_capture(struct fimc_ctx *ctx)
-{
-	fimc_hw_enable_scaler(ctx->fimc_dev, ctx->scaler.enabled);
-	fimc_hw_en_capture(ctx);
-}
-
-static inline void fimc_deactivate_capture(struct fimc_dev *fimc)
-{
-	fimc_hw_en_lastirq(fimc, true);
-	fimc_hw_dis_capture(fimc);
-	fimc_hw_enable_scaler(fimc, false);
-	fimc_hw_en_lastirq(fimc, false);
-}
 
 /*
  * Buffer list manipulation functions. Must be called with fimc.slock held.

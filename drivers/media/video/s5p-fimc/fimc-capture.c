@@ -29,6 +29,7 @@
 
 #include "fimc-mdevice.h"
 #include "fimc-core.h"
+#include "fimc-reg.h"
 
 static int fimc_init_capture(struct fimc_dev *fimc)
 {
