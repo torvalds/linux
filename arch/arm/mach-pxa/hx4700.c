@@ -291,6 +291,7 @@ static struct asic3_platform_data asic3_platform_data = {
 	.gpio_config_num = ARRAY_SIZE(asic3_gpio_config),
 	.irq_base        = IRQ_BOARD_START,
 	.gpio_base       = HX4700_ASIC3_GPIO_BASE,
+	.clock_rate      = 4000000,
 	.leds            = asic3_leds,
 };
 
