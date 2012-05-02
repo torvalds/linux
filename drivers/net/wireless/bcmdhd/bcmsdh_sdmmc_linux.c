@@ -178,6 +178,8 @@ MODULE_DEVICE_TABLE(sdio, bcmsdh_sdmmc_ids);
 static int bcmsdh_sdmmc_suspend(struct device *pdev)
 {
 	struct sdio_func *func = dev_to_sdio_func(pdev);
+	mmc_pm_flag_t sdio_flags;
+	int ret;
 
 	if (func->num != 2)
 		return 0;
@@ -186,6 +188,21 @@ static int bcmsdh_sdmmc_suspend(struct device *pdev)
 
 	if (dhd_os_check_wakelock(bcmsdh_get_drvdata()))
 		return -EBUSY;
+
+	sdio_flags = sdio_get_host_pm_caps(func);
+
+	if (!(sdio_flags & MMC_PM_KEEP_POWER)) {
+		sd_err(("%s: can't keep power while host is suspended\n", __FUNCTION__));
+		return  -EINVAL;
+	}
+
+	/* keep power while host suspended */
+	ret = sdio_set_host_pm_flags(func, MMC_PM_KEEP_POWER);
+	if (ret) {
+		sd_err(("%s: error while trying to keep power\n", __FUNCTION__));
+		return ret;
+	}
+
 #if defined(OOB_INTR_ONLY)
 	bcmsdh_oob_intr_set(0);
 #endif	/* defined(OOB_INTR_ONLY) */
