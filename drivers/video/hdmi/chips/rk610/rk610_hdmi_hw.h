@@ -100,8 +100,8 @@ enum{
 
 //0x00
 #define RK610_INT_POL       1
-#define RK610_SYS_PWR_ON    1
-#define RK610_SYS_PWR_OFF   0
+#define RK610_SYS_PWR_ON    0
+#define RK610_SYS_PWR_OFF   1
 #define RK610_PHY_CLK       0
 #define RK610_SYS_CLK       1
 
@@ -240,12 +240,15 @@ struct rk610_hdmi_hw_inf{
     u8 config_param;
     bool suspend_flag;
     bool hpd;
+	bool analog_sync;
 };
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 extern int Rk610_hdmi_suspend(struct i2c_client *client);
 extern int Rk610_hdmi_resume(struct i2c_client *client);
 #endif
+extern void Rk610_hdmi_plug(struct i2c_client *client);
+extern void Rk610_hdmi_unplug(struct i2c_client *client);
 extern int Rk610_hdmi_Set_Video(u8 video_format);
 extern int Rk610_hdmi_Set_Audio(u8 audio_fs);
 extern int Rk610_hdmi_Config_Done(struct i2c_client *client);

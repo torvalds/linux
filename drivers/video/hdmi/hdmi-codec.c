@@ -1,5 +1,5 @@
 #include <linux/hdmi.h>
-#if defined CONFIG_SND_SOC_WM8900 || defined CONFIG_SND_SOC_RT5631 || defined CONFIG_SND_SOC_RT5621
+#if defined CONFIG_SND_SOC_WM8900 || defined CONFIG_SND_SOC_RT5631 || defined CONFIG_SND_SOC_RT5621 || defined CONFIG_SND_RK29_SOC_RK610
 /* sound/soc/codecs/wm8900.c */
 extern void codec_set_spk(bool on);
 #else

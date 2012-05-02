@@ -9,8 +9,8 @@ static struct edid_result Rk610_edid_result;
 byte DoEdidRead (struct i2c_client *client);
 static int RK610_hdmi_soft_reset(struct i2c_client *client);
 static int Rk610_hdmi_Display_switch(struct i2c_client *client);
-static void Rk610_hdmi_plug(struct i2c_client *client);
-static void Rk610_hdmi_unplug(struct i2c_client *client);
+static int Rk610_hdmi_sys_power_up(struct i2c_client *client);
+static int Rk610_hdmi_sys_power_down(struct i2c_client *client);
 
 static int Rk610_hdmi_i2c_read_p0_reg(struct i2c_client *client, char reg, char *val)
 {
@@ -20,25 +20,42 @@ static int Rk610_hdmi_i2c_write_p0_reg(struct i2c_client *client, char reg, char
 {
 	return i2c_master_reg8_send(client, reg, val, 1, 100*1000) > 0? 0: -EINVAL;
 }
-
+static int RK610_hdmi_audio_mute(struct i2c_client *client,bool enable)
+{
+	char c;
+	int ret=0;
+    c = ((~enable)&1)<<1;
+	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0x05, &c);
+}
 static int Rk610_hdmi_pwr_mode(struct i2c_client *client, int mode)
 {
     char c;
     int ret=0;
+	RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     switch(mode){
      case NORMAL:
+	   	Rk610_hdmi_sys_power_down(client);
+		c=0x82;
+	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);
+		c=0x00;
+	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
         c=0x00;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe4, &c);
 	    c=0x00;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe7, &c);
         c=0x8e;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe1, &c);
-	    c=0x00;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
-		c=0x82;
-	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);   
-	    break;
+		ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe1, &c);
+		c=0x00;
+	   	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xce, &c);
+		c=0x01;
+		ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xce, &c);
+		RK610_hdmi_audio_mute(client,1);
+		Rk610_hdmi_sys_power_up(client);
+		g_hw_inf.analog_sync = 1;
+		break;
 	case LOWER_PWR:
+		RK610_hdmi_audio_mute(client,0);
+	   	Rk610_hdmi_sys_power_down(client);
 		c=0x02;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe3, &c);
 	    c=0x1c;
@@ -49,7 +66,7 @@ static int Rk610_hdmi_pwr_mode(struct i2c_client *client, int mode)
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe7, &c);
 	    c=0x03;
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xe4, &c);
-	    break;
+		break;
 	default:
 	    RK610_ERR(&client->dev,"unkown rk610 hdmi pwr mode %d\n",mode);
     }
@@ -84,21 +101,21 @@ int Rk610_hdmi_resume(struct i2c_client *client)
 	return ret;
 }
 #endif
-static int Rk610_hdmi_sys_power_down(struct i2c_client *client)
-{
-    char c = 0;
-    int ret = 0;
-    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
-    c= RK610_SYS_CLK<<2 |RK610_SYS_PWR_OFF<<1 |RK610_INT_POL;
-	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0x00, &c);
-	return ret;
-}
 static int Rk610_hdmi_sys_power_up(struct i2c_client *client)
 {
     char c = 0;
     int ret = 0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
     c= RK610_SYS_CLK<<2 |RK610_SYS_PWR_ON<<1 |RK610_INT_POL;
+	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0x00, &c);
+	return ret;
+}
+static int Rk610_hdmi_sys_power_down(struct i2c_client *client)
+{
+    char c = 0;
+    int ret = 0;
+    RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
+    c= RK610_SYS_CLK<<2 |RK610_SYS_PWR_OFF<<1 |RK610_INT_POL;
 	ret =Rk610_hdmi_i2c_write_p0_reg(client, 0x00, &c);
 	return ret;
 }
@@ -1106,15 +1123,14 @@ static int RK610_hdmi_PLL_mode(struct i2c_client *client)
 	ret = Rk610_hdmi_i2c_write_p0_reg(client, 0xe5, &c);
 	return 0;
 }
-static void Rk610_hdmi_plug(struct i2c_client *client)
+void Rk610_hdmi_plug(struct i2c_client *client)
 {
     RK610_DBG(&client->dev,">>> hdmi plug \n");
 	DoEdidRead(client);
 	Rk610_hdmi_Display_switch(client);
-	Rk610_hdmi_pwr_mode(client,LOWER_PWR);
 	Rk610_hdmi_pwr_mode(client,NORMAL);
 }
-static void Rk610_hdmi_unplug(struct i2c_client *client)
+void Rk610_hdmi_unplug(struct i2c_client *client)
 {
     RK610_DBG(&client->dev,">>> hdmi unplug \n");
 	g_edid.edidDataValid = FALSE;
@@ -1138,11 +1154,11 @@ void Rk610_hdmi_event_work(struct i2c_client *client, bool *hpd)
 	    ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xc1, &c);
 	    ret =Rk610_hdmi_i2c_read_p0_reg(client, 0xc8, &c);
 		if(c & RK610_HPD_PLUG ){
-            Rk610_hdmi_plug(client);
+        //    Rk610_hdmi_plug(client);
 			g_hw_inf.hpd=1;
 		}
 		else{
-            Rk610_hdmi_unplug(client);
+          //  Rk610_hdmi_unplug(client);
 			g_hw_inf.hpd=0;
 		}
 
@@ -1162,7 +1178,7 @@ int Rk610_hdmi_Config_Done(struct i2c_client *client)
     int ret=0;
     RK610_DBG(&client->dev,"%s \n",__FUNCTION__);
 
-    ret =Rk610_hdmi_sys_power_up(client);
+    ret =Rk610_hdmi_sys_power_down(client);
 
     if(g_hw_inf.config_param != 0){
 	c=0x08;
@@ -1178,9 +1194,16 @@ int Rk610_hdmi_Config_Done(struct i2c_client *client)
         g_hw_inf.config_param &= (~AUDIO_CHANGE); 
   	}
     }
-    ret =Rk610_hdmi_sys_power_down(client);
     ret =Rk610_hdmi_sys_power_up(client);
     ret =Rk610_hdmi_sys_power_down(client);
+    ret =Rk610_hdmi_sys_power_up(client);
+	if(g_hw_inf.analog_sync){
+		c=0x00;
+		ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xce, &c);
+		c=0x01;
+		ret =Rk610_hdmi_i2c_write_p0_reg(client, 0xce, &c);
+		g_hw_inf.analog_sync = 0;
+	}
 
     return ret;
 }
@@ -1220,7 +1243,7 @@ static void Rk610_hdmi_Variable_Initial(void)
     g_hw_inf.config_param = AUDIO_CHANGE | VIDEO_CHANGE;
     g_hw_inf.hpd = 0;
     g_hw_inf.suspend_flag = 0;
-
+	g_hw_inf.analog_sync = 0;
 }
 int Rk610_hdmi_init(struct i2c_client *client)
 {
@@ -1233,14 +1256,13 @@ int Rk610_hdmi_init(struct i2c_client *client)
 	Rk610_hdmi_Set_Video(g_hw_inf.video_format);
 	Rk610_hdmi_Set_Audio(g_hw_inf.audio_fs);
     Rk610_hdmi_Config_Done(client);
-    
     Rk610_hdmi_i2c_read_p0_reg(client, 0xc8, &c);
-    if(c & RK610_HPD_PLUG ){
+	if(c & RK610_HPD_PLUG ){
         Rk610_hdmi_plug(client);
-	    g_hw_inf.hpd=1;
+		g_hw_inf.hpd=1;
 	}else{
-        Rk610_hdmi_unplug(client);
-	    g_hw_inf.hpd=0;
+       	Rk610_hdmi_unplug(client);
+		g_hw_inf.hpd=0;
 	}
 	return 0;
 }

@@ -2935,8 +2935,14 @@ int FB_Switch_Screen( struct rk29fb_screen *screen, u32 enable )
     if(inf->cur_screen->standby)    inf->cur_screen->standby(1);
     // operate the display_on pin to power down the lcd
 #ifdef CONFIG_HDMI_DUAL_DISP
-    inf->panel1_info.sscreen_get(&inf->panel1_info,inf->panel2_info.hdmi_resolution);
-    inf->panel1_info.sscreen_set(&inf->panel1_info,enable);
+	if(inf->panel1_info.sscreen_get!=NULL)
+    	inf->panel1_info.sscreen_get(&inf->panel1_info,inf->panel2_info.hdmi_resolution);
+	else
+		printk("warnig : LCD driver do not support dual display");
+	if(inf->panel1_info.sscreen_set!=NULL)
+    	inf->panel1_info.sscreen_set(&inf->panel1_info,enable);
+	else
+		printk("warnig : LCD driver do not support dual display");
 #else
     if(enable && mach_info->io_disable)mach_info->io_disable();  //close lcd out
     else if (mach_info->io_enable)mach_info->io_enable();       //open lcd out
