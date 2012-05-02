@@ -4562,9 +4562,31 @@ merge:
 	if (skb_has_frag_list(to) || skb_has_frag_list(from))
 		return false;
 
-	if (skb_headlen(from) == 0 &&
-	    (skb_shinfo(to)->nr_frags +
-	     skb_shinfo(from)->nr_frags <= MAX_SKB_FRAGS)) {
+	if (skb_headlen(from) != 0) {
+		struct page *page;
+		unsigned int offset;
+
+		if (skb_shinfo(to)->nr_frags +
+		    skb_shinfo(from)->nr_frags >= MAX_SKB_FRAGS)
+			return false;
+
+		if (!from->head_frag || skb_cloned(from))
+			return false;
+
+		delta = from->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));
+
+		page = virt_to_head_page(from->head);
+		offset = from->data - (unsigned char *)page_address(page);
+
+		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
+				   page, offset, skb_headlen(from));
+		*fragstolen = true;
+		goto copyfrags;
+	} else {
+		if (skb_shinfo(to)->nr_frags +
+		    skb_shinfo(from)->nr_frags > MAX_SKB_FRAGS)
+			return false;
+
 		delta = from->truesize -
 			SKB_TRUESIZE(skb_end_pointer(from) - from->head);
 copyfrags:
@@ -4586,20 +4608,6 @@ copyfrags:
 		to->len += len;
 		to->data_len += len;
 		goto merge;
-	}
-	if (from->head_frag && !skb_cloned(from)) {
-		struct page *page;
-		unsigned int offset;
-
-		if (skb_shinfo(to)->nr_frags + skb_shinfo(from)->nr_frags >= MAX_SKB_FRAGS)
-			return false;
-		page = virt_to_head_page(from->head);
-		offset = from->data - (unsigned char *)page_address(page);
-		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
-				   page, offset, skb_headlen(from));
-		*fragstolen = true;
-		delta = from->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));
-		goto copyfrags;
 	}
 	return false;
 }
