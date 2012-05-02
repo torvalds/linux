@@ -3221,11 +3221,14 @@
 #define DE_PCH_EVENT_IVB		(1<<28)
 #define DE_DP_A_HOTPLUG_IVB		(1<<27)
 #define DE_AUX_CHANNEL_A_IVB		(1<<26)
+#define DE_SPRITEC_FLIP_DONE_IVB	(1<<14)
+#define DE_PLANEC_FLIP_DONE_IVB		(1<<13)
+#define DE_PIPEC_VBLANK_IVB		(1<<10)
 #define DE_SPRITEB_FLIP_DONE_IVB	(1<<9)
-#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
 #define DE_PLANEB_FLIP_DONE_IVB		(1<<8)
-#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEB_VBLANK_IVB		(1<<5)
+#define DE_SPRITEA_FLIP_DONE_IVB	(1<<4)
+#define DE_PLANEA_FLIP_DONE_IVB		(1<<3)
 #define DE_PIPEA_VBLANK_IVB		(1<<0)
 
 #define VLV_MASTER_IER			0x4400c /* Gunit master IER */

@@ -615,11 +615,19 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 		intel_finish_page_flip_plane(dev, 1);
 	}
 
+	if (de_iir & DE_PLANEC_FLIP_DONE_IVB) {
+		intel_prepare_page_flip(dev, 2);
+		intel_finish_page_flip_plane(dev, 2);
+	}
+
 	if (de_iir & DE_PIPEA_VBLANK_IVB)
 		drm_handle_vblank(dev, 0);
 
 	if (de_iir & DE_PIPEB_VBLANK_IVB)
 		drm_handle_vblank(dev, 1);
+
+	if (de_iir & DE_PIPEC_VBLANK_IVB)
+		drm_handle_vblank(dev, 2);
 
 	/* check event from PCH */
 	if (de_iir & DE_PCH_EVENT_IVB) {
@@ -1418,8 +1426,8 @@ static int ivybridge_enable_vblank(struct drm_device *dev, int pipe)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	ironlake_enable_display_irq(dev_priv, (pipe == 0) ?
-				    DE_PIPEA_VBLANK_IVB : DE_PIPEB_VBLANK_IVB);
+	ironlake_enable_display_irq(dev_priv,
+				    DE_PIPEA_VBLANK_IVB << (5 * pipe));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 
 	return 0;
@@ -1486,8 +1494,8 @@ static void ivybridge_disable_vblank(struct drm_device *dev, int pipe)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev_priv->irq_lock, irqflags);
-	ironlake_disable_display_irq(dev_priv, (pipe == 0) ?
-				     DE_PIPEA_VBLANK_IVB : DE_PIPEB_VBLANK_IVB);
+	ironlake_disable_display_irq(dev_priv,
+				     DE_PIPEA_VBLANK_IVB << (pipe * 5));
 	spin_unlock_irqrestore(&dev_priv->irq_lock, irqflags);
 }
 
@@ -1802,9 +1810,11 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
-	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE_IVB |
-		DE_PCH_EVENT_IVB | DE_PLANEA_FLIP_DONE_IVB |
-		DE_PLANEB_FLIP_DONE_IVB;
+	u32 display_mask =
+		DE_MASTER_IRQ_CONTROL | DE_GSE_IVB | DE_PCH_EVENT_IVB |
+		DE_PLANEC_FLIP_DONE_IVB |
+		DE_PLANEB_FLIP_DONE_IVB |
+		DE_PLANEA_FLIP_DONE_IVB;
 	u32 render_irqs;
 	u32 hotplug_mask;
 
@@ -1813,8 +1823,11 @@ static int ivybridge_irq_postinstall(struct drm_device *dev)
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
 	I915_WRITE(DEIMR, dev_priv->irq_mask);
-	I915_WRITE(DEIER, display_mask | DE_PIPEA_VBLANK_IVB |
-		   DE_PIPEB_VBLANK_IVB);
+	I915_WRITE(DEIER,
+		   display_mask |
+		   DE_PIPEC_VBLANK_IVB |
+		   DE_PIPEB_VBLANK_IVB |
+		   DE_PIPEA_VBLANK_IVB);
 	POSTING_READ(DEIER);
 
 	dev_priv->gt_irq_mask = ~0;
