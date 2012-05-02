@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/fs_struct.h>
 #include <linux/swap.h>
+#include <linux/nsproxy.h>
 
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/svcsock.h>
@@ -330,6 +331,8 @@ static int nfsd_get_default_max_blksize(void)
 
 int nfsd_create_serv(void)
 {
+	int error;
+
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 	if (nfsd_serv) {
 		svc_get(nfsd_serv);
@@ -342,6 +345,12 @@ int nfsd_create_serv(void)
 				      nfsd_last_thread, nfsd, THIS_MODULE);
 	if (nfsd_serv == NULL)
 		return -ENOMEM;
+
+	error = svc_bind(nfsd_serv, current->nsproxy->net_ns);
+	if (error < 0) {
+		svc_destroy(nfsd_serv);
+		return error;
+	}
 
 	set_max_drc();
 	do_gettimeofday(&nfssvc_boot);		/* record boot time */
