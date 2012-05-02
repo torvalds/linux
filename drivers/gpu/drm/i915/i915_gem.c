@@ -3568,7 +3568,7 @@ int i915_gem_init(struct drm_device *dev)
 	}
 
 	/* Allow hardware batchbuffers unless told otherwise. */
-	dev_priv->allow_batchbuffer = 1;
+	dev_priv->dri1.allow_batchbuffer = 1;
 	return 0;
 }
 

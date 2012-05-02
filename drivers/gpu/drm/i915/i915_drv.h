@@ -399,7 +399,6 @@ typedef struct drm_i915_private {
 	struct work_struct hotplug_work;
 
 	int tex_lru_log_granularity;
-	int allow_batchbuffer;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int num_pipe;
 	int num_pch_pll;
@@ -740,6 +739,15 @@ typedef struct drm_i915_private {
 		size_t object_memory;
 		u32 object_count;
 	} mm;
+
+	/* Old dri1 support infrastructure, beware the dragons ya fools entering
+	 * here! */
+	struct {
+		unsigned allow_batchbuffer : 1;
+	} dri1;
+
+	/* Kernel Modesetting */
+
 	struct sdvo_device_mapping sdvo_mappings[2];
 	/* indicate whether the LVDS_BORDER should be enabled or not */
 	unsigned int lvds_border_bits;

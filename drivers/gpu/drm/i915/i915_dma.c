@@ -198,7 +198,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
-	dev_priv->allow_batchbuffer = 1;
+	dev_priv->dri1.allow_batchbuffer = 1;
 
 	return 0;
 }
@@ -610,7 +610,7 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return -ENODEV;
 
-	if (!dev_priv->allow_batchbuffer) {
+	if (!dev_priv->dri1.allow_batchbuffer) {
 		DRM_ERROR("Batchbuffer ioctl disabled\n");
 		return -EINVAL;
 	}
@@ -799,7 +799,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pdev->irq ? 1 : 0;
 		break;
 	case I915_PARAM_ALLOW_BATCHBUFFER:
-		value = dev_priv->allow_batchbuffer ? 1 : 0;
+		value = dev_priv->dri1.allow_batchbuffer ? 1 : 0;
 		break;
 	case I915_PARAM_LAST_DISPATCH:
 		value = READ_BREADCRUMB(dev_priv);
@@ -882,7 +882,7 @@ static int i915_setparam(struct drm_device *dev, void *data,
 		dev_priv->tex_lru_log_granularity = param->value;
 		break;
 	case I915_SETPARAM_ALLOW_BATCHBUFFER:
-		dev_priv->allow_batchbuffer = param->value;
+		dev_priv->dri1.allow_batchbuffer = param->value ? 1 : 0;
 		break;
 	case I915_SETPARAM_NUM_USED_FENCES:
 		if (param->value > dev_priv->num_fence_regs ||
