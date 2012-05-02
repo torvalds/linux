@@ -711,11 +711,141 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(spi2_oc1_1, NMK_GPIO_ALT_C),
 };
 
+/* We use this macro to define the groups applicable to a function */
+#define DB8500_FUNC_GROUPS(a, b...)	   \
+static const char * const a##_groups[] = { b };
+
+DB8500_FUNC_GROUPS(u0, "u0_a_1", "u0_c_1");
+DB8500_FUNC_GROUPS(u1, "u1rxtx_a_1", "u1ctsrts_a_1");
+/*
+ * UART2 can be muxed out with just RX/TX in four places, CTS+RTS is however
+ * only available on two pins in alternative function C
+ */
+DB8500_FUNC_GROUPS(u2, "u2rxtx_b_1", "u2rxtx_c_1", "u2ctsrts_c_1",
+		   "u2rxtx_c_2", "u2rxtx_c_3");
+DB8500_FUNC_GROUPS(ipi2c, "ipi2c_a_1", "ipi2c_a_2");
+/*
+ * MSP0 can only be on a certain set of pins, but the TX/RX pins can be
+ * switched around by selecting the altfunction A or B. The SCK pin is
+ * only available on the altfunction B.
+ */
+DB8500_FUNC_GROUPS(msp0, "msp0txrx_a_1", "msp0tfstck_a_1", "msp0rfstck_a_1",
+		   "msp0txrx_b_1", "msp0sck_b_1");
+DB8500_FUNC_GROUPS(mc0, "mc0_a_1");
+/* MSP0 can swap RX/TX like MSP0 but has no SCK pin available */
+DB8500_FUNC_GROUPS(msp1, "msp1txrx_a_1", "msp1_a_1", "msp1txrx_b_1");
+DB8500_FUNC_GROUPS(lcdb, "lcdb_a_1");
+DB8500_FUNC_GROUPS(lcd, "lcdvsi0_a_1", "lcdvsi1_a_1", "lcd_d0_d7_a_1",
+	"lcd_d8_d11_a_1", "lcd_d12_d23_a_1", "lcd_b_1");
+DB8500_FUNC_GROUPS(kp, "kp_a_1", "kp_b_1", "kp_c_1", "kp_oc1_1");
+DB8500_FUNC_GROUPS(mc2, "mc2_a_1", "mc2rstn_c_1");
+DB8500_FUNC_GROUPS(ssp1, "ssp1_a_1");
+DB8500_FUNC_GROUPS(ssp0, "ssp0_a_1");
+DB8500_FUNC_GROUPS(i2c0, "i2c0_a_1");
+/* The image processor has 8 GPIO pins that can be muxed out */
+DB8500_FUNC_GROUPS(ipgpio, "ipgpio0_a_1", "ipgpio1_a_1", "ipgpio7_b_1",
+	"ipgpio2_b_1", "ipgpio3_b_1", "ipgpio6_c_1", "ipgpio0_c_1",
+	"ipgpio1_c_1", "ipgpio3_c_1", "ipgpio2_c_1", "ipgpio4_c_1",
+	"ipgpio5_c_1", "ipgpio6_c_2", "ipgpio7_c_1", "ipgpio2_c_2",
+	"ipgpio3_c_2", "ipgpio4_c_2", "ipgpio5_c_2");
+/* MSP2 can not invert the RX/TX pins but has the optional SCK pin */
+DB8500_FUNC_GROUPS(msp2, "msp2sck_a_1", "msp2_a_1");
+DB8500_FUNC_GROUPS(mc4, "mc4_a_1", "mc4rstn_c_1");
+DB8500_FUNC_GROUPS(mc1, "mc1_a_1", "mc1dir_a_1");
+DB8500_FUNC_GROUPS(hsi, "hsir1_a_1", "hsit1_a_1");
+DB8500_FUNC_GROUPS(clkout, "clkout_a_1", "clkout_a_2", "clkout_c_1");
+DB8500_FUNC_GROUPS(usb, "usb_a_1");
+DB8500_FUNC_GROUPS(trig, "trig_b_1");
+DB8500_FUNC_GROUPS(i2c4, "i2c4_b_1");
+DB8500_FUNC_GROUPS(i2c1, "i2c1_b_1", "i2c1_b_2");
+DB8500_FUNC_GROUPS(i2c2, "i2c2_b_1", "i2c2_b_2");
+/*
+ * The modem UART can output its RX and TX pins in some different places,
+ * so select one of each.
+ */
+DB8500_FUNC_GROUPS(uartmod, "uartmodtx_b_1", "uartmodrx_b_1", "uartmodrx_b_2",
+		   "uartmodrx_c_1", "uartmod_tx_c_1");
+DB8500_FUNC_GROUPS(stmmod, "stmmod_b_1", "stmmod_c_1");
+DB8500_FUNC_GROUPS(spi3, "spi3_b_1");
+/* Select between CS0 on alt B or PS1 on alt C */
+DB8500_FUNC_GROUPS(sm, "sm_b_1", "smcs0_b_1", "smcleale_c_1", "smps1_c_1");
+DB8500_FUNC_GROUPS(lcda, "lcdaclk_b_1", "lcda_b_1");
+DB8500_FUNC_GROUPS(ddrtrig, "ddrtrig_b_1");
+DB8500_FUNC_GROUPS(pwl, "pwl_b_1", "pwl_b_2", "pwl_b_3", "pwl_b_4");
+DB8500_FUNC_GROUPS(spi1, "spi1_b_1");
+DB8500_FUNC_GROUPS(mc3, "mc3_b_1");
+DB8500_FUNC_GROUPS(ipjtag, "ipjtag_c_1");
+DB8500_FUNC_GROUPS(slim0, "slim0_c_1");
+DB8500_FUNC_GROUPS(ms, "ms_c_1");
+DB8500_FUNC_GROUPS(iptrigout, "iptrigout_c_1");
+DB8500_FUNC_GROUPS(stmape, "stmape_c_1", "stmape_c_2");
+DB8500_FUNC_GROUPS(mc5, "mc5_c_1");
+DB8500_FUNC_GROUPS(usbsim, "usbsim_c_1", "usbsim_c_2");
+DB8500_FUNC_GROUPS(i2c3, "i2c3_c_1", "i2c3_c_2");
+DB8500_FUNC_GROUPS(spi0, "spi0_c_1");
+DB8500_FUNC_GROUPS(spi2, "spi2_oc1_1");
+
+#define FUNCTION(fname)					\
+	{						\
+		.name = #fname,				\
+		.groups = fname##_groups,		\
+		.ngroups = ARRAY_SIZE(fname##_groups),	\
+	}
+
+static const struct nmk_function nmk_db8500_functions[] = {
+	FUNCTION(u0),
+	FUNCTION(u1),
+	FUNCTION(u2),
+	FUNCTION(ipi2c),
+	FUNCTION(msp0),
+	FUNCTION(mc0),
+	FUNCTION(msp1),
+	FUNCTION(lcdb),
+	FUNCTION(lcd),
+	FUNCTION(kp),
+	FUNCTION(mc2),
+	FUNCTION(ssp1),
+	FUNCTION(ssp0),
+	FUNCTION(i2c0),
+	FUNCTION(ipgpio),
+	FUNCTION(msp2),
+	FUNCTION(mc4),
+	FUNCTION(mc1),
+	FUNCTION(hsi),
+	FUNCTION(clkout),
+	FUNCTION(usb),
+	FUNCTION(trig),
+	FUNCTION(i2c4),
+	FUNCTION(i2c1),
+	FUNCTION(i2c2),
+	FUNCTION(uartmod),
+	FUNCTION(stmmod),
+	FUNCTION(spi3),
+	FUNCTION(sm),
+	FUNCTION(lcda),
+	FUNCTION(ddrtrig),
+	FUNCTION(pwl),
+	FUNCTION(spi1),
+	FUNCTION(mc3),
+	FUNCTION(ipjtag),
+	FUNCTION(slim0),
+	FUNCTION(ms),
+	FUNCTION(iptrigout),
+	FUNCTION(stmape),
+	FUNCTION(mc5),
+	FUNCTION(usbsim),
+	FUNCTION(i2c3),
+	FUNCTION(spi0),
+	FUNCTION(spi2),
+};
+
 static const struct nmk_pinctrl_soc_data nmk_db8500_soc = {
 	.gpio_ranges = nmk_db8500_ranges,
 	.gpio_num_ranges = ARRAY_SIZE(nmk_db8500_ranges),
 	.pins = nmk_db8500_pins,
 	.npins = ARRAY_SIZE(nmk_db8500_pins),
+	.functions = nmk_db8500_functions,
+	.nfunctions = ARRAY_SIZE(nmk_db8500_functions),
 	.groups = nmk_db8500_groups,
 	.ngroups = ARRAY_SIZE(nmk_db8500_groups),
 };

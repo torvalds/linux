@@ -8,6 +8,18 @@
 #define PINCTRL_NMK_DB8500	1
 
 /**
+ * struct nmk_function - Nomadik pinctrl mux function
+ * @name: The name of the function, exported to pinctrl core.
+ * @groups: An array of pin groups that may select this function.
+ * @ngroups: The number of entries in @groups.
+ */
+struct nmk_function {
+	const char *name;
+	const char * const *groups;
+	unsigned ngroups;
+};
+
+/**
  * struct nmk_pingroup - describes a Nomadik pin group
  * @name: the name of this specific pin group
  * @pins: an array of discrete physical pins used in this group, taken
@@ -21,7 +33,7 @@ struct nmk_pingroup {
 	const char *name;
 	const unsigned int *pins;
 	const unsigned npins;
-	u32 altsetting;
+	int altsetting;
 };
 
 /**
@@ -32,7 +44,9 @@ struct nmk_pingroup {
  *		All pins which are also GPIOs must be listed first within the
  *		array, and be numbered identically to the GPIO controller's
  *		numbering.
- * @npins:	The numbmer of entries in @pins.
+ * @npins:	The number of entries in @pins.
+ * @functions:	The functions supported on this SoC.
+ * @nfunction:	The number of entries in @functions.
  * @groups:	An array describing all pin groups the pin SoC supports.
  * @ngroups:	The number of entries in @groups.
  */
@@ -41,6 +55,8 @@ struct nmk_pinctrl_soc_data {
 	unsigned gpio_num_ranges;
 	const struct pinctrl_pin_desc *pins;
 	unsigned npins;
+	const struct nmk_function *functions;
+	unsigned nfunctions;
 	const struct nmk_pingroup *groups;
 	unsigned ngroups;
 };

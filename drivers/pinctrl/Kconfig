@@ -39,6 +39,7 @@ config PINCTRL_MMP2
 config PINCTRL_NOMADIK
 	bool "Nomadik pin controller driver"
 	depends on ARCH_U8500
+	select PINMUX
 
 config PINCTRL_DB8500
 	bool "DB8500 pin controller driver"

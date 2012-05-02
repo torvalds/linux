@@ -25,6 +25,9 @@
 #include <linux/irqdomain.h>
 #include <linux/slab.h>
 #include <linux/pinctrl/pinctrl.h>
+#include <linux/pinctrl/pinmux.h>
+/* Since we request GPIOs from ourself */
+#include <linux/pinctrl/consumer.h>
 
 #include <asm/mach/irq.h>
 
@@ -873,6 +876,25 @@ static int nmk_gpio_init_irq(struct nmk_gpio_chip *nmk_chip)
 }
 
 /* I/O Functions */
+
+static int nmk_gpio_request(struct gpio_chip *chip, unsigned offset)
+{
+	/*
+	 * Map back to global GPIO space and request muxing, the direction
+	 * parameter does not matter for this controller.
+	 */
+	int gpio = chip->base + offset;
+
+	return pinctrl_request_gpio(gpio);
+}
+
+static void nmk_gpio_free(struct gpio_chip *chip, unsigned offset)
+{
+	int gpio = chip->base + offset;
+
+	pinctrl_free_gpio(gpio);
+}
+
 static int nmk_gpio_make_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct nmk_gpio_chip *nmk_chip =
@@ -1023,6 +1045,8 @@ static inline void nmk_gpio_dbg_show_one(struct seq_file *s,
 
 /* This structure is replicated for each GPIO block allocated at probe time */
 static struct gpio_chip nmk_gpio_template = {
+	.request		= nmk_gpio_request,
+	.free			= nmk_gpio_free,
 	.direction_input	= nmk_gpio_make_input,
 	.get			= nmk_gpio_get_input,
 	.direction_output	= nmk_gpio_make_output,
@@ -1365,9 +1389,189 @@ static struct pinctrl_ops nmk_pinctrl_ops = {
 	.pin_dbg_show = nmk_pin_dbg_show,
 };
 
+static int nmk_pmx_get_funcs_cnt(struct pinctrl_dev *pctldev)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	return npct->soc->nfunctions;
+}
+
+static const char *nmk_pmx_get_func_name(struct pinctrl_dev *pctldev,
+					 unsigned function)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	return npct->soc->functions[function].name;
+}
+
+static int nmk_pmx_get_func_groups(struct pinctrl_dev *pctldev,
+				   unsigned function,
+				   const char * const **groups,
+				   unsigned * const num_groups)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	*groups = npct->soc->functions[function].groups;
+	*num_groups = npct->soc->functions[function].ngroups;
+
+	return 0;
+}
+
+static int nmk_pmx_enable(struct pinctrl_dev *pctldev, unsigned function,
+			  unsigned group)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+	const struct nmk_pingroup *g;
+	static unsigned int slpm[NUM_BANKS];
+	unsigned long flags;
+	bool glitch;
+	int ret = -EINVAL;
+	int i;
+
+	g = &npct->soc->groups[group];
+
+	if (g->altsetting < 0)
+		return -EINVAL;
+
+	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->name, g->npins);
+
+	/* Handle this special glitch on altfunction C */
+	glitch = (g->altsetting == NMK_GPIO_ALT_C);
+
+	if (glitch) {
+		spin_lock_irqsave(&nmk_gpio_slpm_lock, flags);
+
+		/* Initially don't put any pins to sleep when switching */
+		memset(slpm, 0xff, sizeof(slpm));
+
+		/*
+		 * Then mask the pins that need to be sleeping now when we're
+		 * switching to the ALT C function.
+		 */
+		for (i = 0; i < g->npins; i++)
+			slpm[g->pins[i] / NMK_GPIO_PER_CHIP] &= ~BIT(g->pins[i]);
+		nmk_gpio_glitch_slpm_init(slpm);
+	}
+
+	for (i = 0; i < g->npins; i++) {
+		struct pinctrl_gpio_range *range;
+		struct nmk_gpio_chip *nmk_chip;
+		struct gpio_chip *chip;
+		unsigned bit;
+
+		range = nmk_match_gpio_range(pctldev, g->pins[i]);
+		if (!range) {
+			dev_err(npct->dev,
+				"invalid pin offset %d in group %s at index %d\n",
+				g->pins[i], g->name, i);
+			goto out_glitch;
+		}
+		if (!range->gc) {
+			dev_err(npct->dev, "GPIO chip missing in range for pin offset %d in group %s at index %d\n",
+				g->pins[i], g->name, i);
+			goto out_glitch;
+		}
+		chip = range->gc;
+		nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
+		dev_dbg(npct->dev, "setting pin %d to altsetting %d\n", g->pins[i], g->altsetting);
+
+		clk_enable(nmk_chip->clk);
+		bit = g->pins[i] % NMK_GPIO_PER_CHIP;
+		/*
+		 * If the pin is switching to altfunc, and there was an
+		 * interrupt installed on it which has been lazy disabled,
+		 * actually mask the interrupt to prevent spurious interrupts
+		 * that would occur while the pin is under control of the
+		 * peripheral. Only SKE does this.
+		 */
+		nmk_gpio_disable_lazy_irq(nmk_chip, bit);
+
+		__nmk_gpio_set_mode_safe(nmk_chip, bit, g->altsetting, glitch);
+		clk_disable(nmk_chip->clk);
+	}
+
+	/* When all pins are successfully reconfigured we get here */
+	ret = 0;
+
+out_glitch:
+	if (glitch) {
+		nmk_gpio_glitch_slpm_restore(slpm);
+		spin_unlock_irqrestore(&nmk_gpio_slpm_lock, flags);
+	}
+
+	return ret;
+}
+
+static void nmk_pmx_disable(struct pinctrl_dev *pctldev,
+			    unsigned function, unsigned group)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+	const struct nmk_pingroup *g;
+
+	g = &npct->soc->groups[group];
+
+	if (g->altsetting < 0)
+		return;
+
+	/* Poke out the mux, set the pin to some default state? */
+	dev_dbg(npct->dev, "disable group %s, %u pins\n", g->name, g->npins);
+}
+
+int nmk_gpio_request_enable(struct pinctrl_dev *pctldev,
+			    struct pinctrl_gpio_range *range,
+			    unsigned offset)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+	struct nmk_gpio_chip *nmk_chip;
+	struct gpio_chip *chip;
+	unsigned bit;
+
+	if (!range) {
+		dev_err(npct->dev, "invalid range\n");
+		return -EINVAL;
+	}
+	if (!range->gc) {
+		dev_err(npct->dev, "missing GPIO chip in range\n");
+		return -EINVAL;
+	}
+	chip = range->gc;
+	nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
+
+	dev_dbg(npct->dev, "enable pin %u as GPIO\n", offset);
+
+	clk_enable(nmk_chip->clk);
+	bit = offset % NMK_GPIO_PER_CHIP;
+	/* There is no glitch when converting any pin to GPIO */
+	__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
+	clk_disable(nmk_chip->clk);
+
+	return 0;
+}
+
+void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
+			   struct pinctrl_gpio_range *range,
+			   unsigned offset)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+
+	dev_dbg(npct->dev, "disable pin %u as GPIO\n", offset);
+	/* Set the pin to some default state, GPIO is usually default */
+}
+
+static struct pinmux_ops nmk_pinmux_ops = {
+	.get_functions_count = nmk_pmx_get_funcs_cnt,
+	.get_function_name = nmk_pmx_get_func_name,
+	.get_function_groups = nmk_pmx_get_func_groups,
+	.enable = nmk_pmx_enable,
+	.disable = nmk_pmx_disable,
+	.gpio_request_enable = nmk_gpio_request_enable,
+	.gpio_disable_free = nmk_gpio_disable_free,
+};
+
 static struct pinctrl_desc nmk_pinctrl_desc = {
 	.name = "pinctrl-nomadik",
 	.pctlops = &nmk_pinctrl_ops,
+	.pmxops = &nmk_pinmux_ops,
 	.owner = THIS_MODULE,
 };
 
