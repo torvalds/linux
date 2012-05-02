@@ -648,23 +648,6 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
-config AB5500_CORE
-	bool "ST-Ericsson AB5500 Mixed Signal Power Management chip"
-	depends on ABX500_CORE && MFD_DB5500_PRCMU
-	select MFD_CORE
-	help
-	  Select this option to enable access to AB5500 power management
-	  chip. This connects to the db5500 chip via the I2C bus via PRCMU.
-	  This chip embeds various other multimedia funtionalities as well.
-
-config AB5500_DEBUG
-	bool "Enable debug info via debugfs"
-	depends on AB5500_CORE && DEBUG_FS
-	default y if DEBUG_FS
-	help
-	  Select this option if you want debug information from the AB5500
-	  using the debug filesystem, debugfs.
-
 config AB8500_CORE
 	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
 	depends on GENERIC_HARDIRQS && ABX500_CORE
@@ -707,16 +690,6 @@ config MFD_DB8500_PRCMU
 	select MFD_CORE
 	help
 	  Select this option to enable support for the DB8500 Power Reset
-	  and Control Management Unit. This is basically an autonomous
-	  system controller running an XP70 microprocessor, which is accessed
-	  through a register map.
-
-config MFD_DB5500_PRCMU
-	bool "ST-Ericsson DB5500 Power Reset Control Management Unit"
-	depends on UX500_SOC_DB5500
-	select MFD_CORE
-	help
-	  Select this option to enable support for the DB5500 Power Reset
 	  and Control Management Unit. This is basically an autonomous
 	  system controller running an XP70 microprocessor, which is accessed
 	  through a register map.
