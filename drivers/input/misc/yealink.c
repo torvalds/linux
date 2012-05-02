@@ -438,7 +438,8 @@ static void urb_irq_callback(struct urb *urb)
 		break;
 
 	case CMD_SCANCODE:
-		dbg("get scancode %x", yld->irq_data->data[0]);
+		dev_dbg(&yld->idev->dev, "get scancode %x\n",
+			yld->irq_data->data[0]);
 
 		report_key(yld, map_p1k_to_key(yld->irq_data->data[0]));
 		break;
@@ -517,7 +518,7 @@ static int input_open(struct input_dev *dev)
 	struct yealink_dev *yld = input_get_drvdata(dev);
 	int i, ret;
 
-	dbg("%s", __func__);
+	dev_dbg(&yld->idev->dev, "%s\n", __func__);
 
 	/* force updates to device */
 	for (i = 0; i<sizeof(yld->master); i++)
@@ -532,8 +533,9 @@ static int input_open(struct input_dev *dev)
 	yld->ctl_data->size	= 10;
 	yld->ctl_data->sum	= 0x100-CMD_INIT-10;
 	if ((ret = usb_submit_urb(yld->urb_ctl, GFP_KERNEL)) != 0) {
-		dbg("%s - usb_submit_urb failed with result %d",
-		     __func__, ret);
+		dev_dbg(&yld->idev->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, ret);
 		return ret;
 	}
 	return 0;
