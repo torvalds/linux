@@ -1392,25 +1392,6 @@ int cayman_cp_resume(struct radeon_device *rdev)
 	return 0;
 }
 
-bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	u32 srbm_status;
-	u32 grbm_status;
-	u32 grbm_status_se0, grbm_status_se1;
-
-	srbm_status = RREG32(SRBM_STATUS);
-	grbm_status = RREG32(GRBM_STATUS);
-	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
-	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
-	if (!(grbm_status & GUI_ACTIVE)) {
-		radeon_ring_lockup_update(ring);
-		return false;
-	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
-	return radeon_ring_test_lockup(rdev, ring);
-}
-
 static int cayman_gpu_soft_reset(struct radeon_device *rdev)
 {
 	struct evergreen_mc_save save;

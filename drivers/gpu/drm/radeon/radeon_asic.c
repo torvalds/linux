@@ -1339,7 +1339,7 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
-			.is_lockup = &cayman_gpu_is_lockup,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1349,7 +1349,7 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
-			.is_lockup = &cayman_gpu_is_lockup,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1359,7 +1359,7 @@ static struct radeon_asic cayman_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
-			.is_lockup = &cayman_gpu_is_lockup,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -1433,7 +1433,7 @@ static struct radeon_asic trinity_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
-			.is_lockup = &cayman_gpu_is_lockup,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP1_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1443,7 +1443,7 @@ static struct radeon_asic trinity_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
-			.is_lockup = &cayman_gpu_is_lockup,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		},
 		[CAYMAN_RING_TYPE_CP2_INDEX] = {
 			.ib_execute = &cayman_ring_ib_execute,
@@ -1453,7 +1453,7 @@ static struct radeon_asic trinity_asic = {
 			.cs_parse = &evergreen_cs_parse,
 			.ring_test = &r600_ring_test,
 			.ib_test = &r600_ib_test,
-			.is_lockup = &cayman_gpu_is_lockup,
+			.is_lockup = &evergreen_gpu_is_lockup,
 		}
 	},
 	.irq = {

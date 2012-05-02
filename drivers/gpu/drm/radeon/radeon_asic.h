@@ -437,7 +437,6 @@ int cayman_init(struct radeon_device *rdev);
 void cayman_fini(struct radeon_device *rdev);
 int cayman_suspend(struct radeon_device *rdev);
 int cayman_resume(struct radeon_device *rdev);
-bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);
