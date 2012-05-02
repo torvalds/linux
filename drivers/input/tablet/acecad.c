@@ -105,7 +105,7 @@ static void usb_acecad_irq(struct urb *urb)
 resubmit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
-		dev_err(&acecad->usbdev->dev,
+		dev_err(&dev->dev,
 			"can't resubmit intr, %s-%s/input0, status %d\n",
 			acecad->usbdev->bus->bus_name,
 			acecad->usbdev->devpath, status);
