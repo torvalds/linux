@@ -1281,14 +1281,17 @@ static void bnx2x_hc_int_enable(struct bnx2x *bp)
 	int port = BP_PORT(bp);
 	u32 addr = port ? HC_REG_CONFIG_1 : HC_REG_CONFIG_0;
 	u32 val = REG_RD(bp, addr);
-	int msix = (bp->flags & USING_MSIX_FLAG) ? 1 : 0;
-	int msi = (bp->flags & USING_MSI_FLAG) ? 1 : 0;
+	bool msix = (bp->flags & USING_MSIX_FLAG) ? true : false;
+	bool single_msix = (bp->flags & USING_SINGLE_MSIX_FLAG) ? true : false;
+	bool msi = (bp->flags & USING_MSI_FLAG) ? true : false;
 
 	if (msix) {
 		val &= ~(HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
 			 HC_CONFIG_0_REG_INT_LINE_EN_0);
 		val |= (HC_CONFIG_0_REG_MSI_MSIX_INT_EN_0 |
 			HC_CONFIG_0_REG_ATTN_BIT_EN_0);
+		if (single_msix)
+			val |= HC_CONFIG_0_REG_SINGLE_ISR_EN_0;
 	} else if (msi) {
 		val &= ~HC_CONFIG_0_REG_INT_LINE_EN_0;
 		val |= (HC_CONFIG_0_REG_SINGLE_ISR_EN_0 |
