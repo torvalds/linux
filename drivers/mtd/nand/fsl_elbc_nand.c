@@ -754,7 +754,8 @@ static int fsl_elbc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	struct fsl_elbc_fcm_ctrl *elbc_fcm_ctrl = ctrl->nand;
 
 	fsl_elbc_read_buf(mtd, buf, mtd->writesize);
-	fsl_elbc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
+	if (oob_required)
+		fsl_elbc_read_buf(mtd, chip->oob_poi, mtd->oobsize);
 
 	if (fsl_elbc_wait(mtd, chip) & NAND_STATUS_FAIL)
 		mtd->ecc_stats.failed++;
