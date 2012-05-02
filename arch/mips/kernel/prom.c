@@ -105,4 +105,6 @@ void __init __dt_setup_arch(struct boot_param_header *bph)
 	}
 
 	initial_boot_params = bph;
+
+	early_init_devtree(initial_boot_params);
 }
