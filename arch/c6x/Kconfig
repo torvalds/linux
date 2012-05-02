@@ -3,7 +3,7 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
-config TMS320C6X
+config C6X
 	def_bool y
 	select CLKDEV_LOOKUP
 	select GENERIC_IRQ_SHOW
