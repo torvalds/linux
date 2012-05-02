@@ -1222,14 +1222,14 @@ static void setup_channel_list(struct comedi_device *dev,
 	DPRINTK("SegLen: %d\n", seglen);
 	for (i = 0; i < seglen; i++) {	/*  store range list to card */
 		chanprog = muxonechan[CR_CHAN(chanlist[i])];
-		outw(chanprog, dev->iobase + PCI171x_MUX);	/* select channel */
+		outw(chanprog, dev->iobase + PCI171x_MUX); /* select channel */
 		range = this_board->rangecode_ai[CR_RANGE(chanlist[i])];
 		if (CR_AREF(chanlist[i]) == AREF_DIFF)
 			range |= 0x0020;
-		outw(range, dev->iobase + PCI171x_RANGE);	/* select gain */
+		outw(range, dev->iobase + PCI171x_RANGE); /* select gain */
 #ifdef PCI171x_PARANOIDCHECK
 		devpriv->act_chanlist[i] =
-		    (CR_CHAN(chanlist[i]) << 12) & 0xf000;
+			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
 #endif
 		DPRINTK("GS: %2d. [%4x]=%4x %4x\n", i, chanprog, range,
 			devpriv->act_chanlist[i]);
@@ -1237,13 +1237,14 @@ static void setup_channel_list(struct comedi_device *dev,
 #ifdef PCI171x_PARANOIDCHECK
 	for ( ; i < n_chan; i++) { /* store remainder of channel list */
 		devpriv->act_chanlist[i] =
-		    (CR_CHAN(chanlist[i]) << 12) & 0xf000;
+			(CR_CHAN(chanlist[i]) << 12) & 0xf000;
 	}
 #endif
 
 	devpriv->ai_et_MuxVal =
-	    CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);
-	outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);	/* select channel interval to scan */
+		CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8);
+	/* select channel interval to scan */
+	outw(devpriv->ai_et_MuxVal, dev->iobase + PCI171x_MUX);
 	DPRINTK("MUX: %4x L%4x.H%4x\n",
 		CR_CHAN(chanlist[0]) | (CR_CHAN(chanlist[seglen - 1]) << 8),
 		CR_CHAN(chanlist[0]), CR_CHAN(chanlist[seglen - 1]));
