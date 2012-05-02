@@ -441,7 +441,7 @@ bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 		return false;
 	}
 	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
-	if (elapsed >= 10000) {
+	if (radeon_lockup_timeout && elapsed >= radeon_lockup_timeout) {
 		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
 		return true;
 	}
