@@ -618,7 +618,7 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 		ecmd->supported = adapter->phy.supported;
 	}
 
-	ecmd->duplex = DUPLEX_FULL;
+	ecmd->duplex = netif_carrier_ok(netdev) ? DUPLEX_FULL : DUPLEX_UNKNOWN;
 	ecmd->phy_address = adapter->port_num;
 
 	return 0;
