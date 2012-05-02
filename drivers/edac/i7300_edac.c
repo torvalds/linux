@@ -1051,8 +1051,7 @@ static int __devinit i7300_init_one(struct pci_dev *pdev,
 	layers[2].type = EDAC_MC_LAYER_SLOT;
 	layers[2].size = MAX_SLOTS;
 	layers[2].is_virt_csrow = true;
-	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
-
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
 		return -ENOMEM;
 

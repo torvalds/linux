@@ -362,7 +362,7 @@ static int i3000_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = nr_channels;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		return -ENOMEM;
 

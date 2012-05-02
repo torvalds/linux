@@ -555,7 +555,7 @@ static int i82975x_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = I82975X_NR_CSROWS(chans);
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (!mci) {
 		rc = -ENOMEM;
 		goto fail1;

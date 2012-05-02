@@ -715,7 +715,7 @@ static int __devinit mv64x60_mc_err_probe(struct platform_device *pdev)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = 1;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
 			    sizeof(struct mv64x60_mc_pdata));
 	if (!mci) {
 		printk(KERN_ERR "%s: No memory for CPU err\n", __func__);

@@ -141,7 +141,7 @@ static int __devinit tile_edac_mc_probe(struct platform_device *pdev)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = TILE_EDAC_NR_CHANS;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
 			    sizeof(struct tile_edac_priv));
 	if (mci == NULL)
 		return -ENOMEM;

@@ -982,7 +982,7 @@ static int __devinit cpc925_probe(struct platform_device *pdev)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = nr_channels;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(edac_mc_idx, ARRAY_SIZE(layers), layers,
 			    sizeof(struct cpc925_mc_pdata));
 	if (!mci) {
 		cpc925_printk(KERN_ERR, "No memory for mem_ctl_info\n");

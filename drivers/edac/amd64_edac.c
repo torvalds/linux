@@ -2596,7 +2596,7 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = pvt->channel_count;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(nid, ARRAY_SIZE(layers), layers, 0);
+	mci = edac_mc_alloc(nid, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		goto err_siblings;
 

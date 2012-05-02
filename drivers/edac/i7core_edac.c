@@ -2147,7 +2147,7 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev)
 	layers[1].type = EDAC_MC_LAYER_SLOT;
 	layers[1].size = MAX_DIMMS;
 	layers[1].is_virt_csrow = true;
-	mci = new_edac_mc_alloc(i7core_dev->socket, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(i7core_dev->socket, ARRAY_SIZE(layers), layers,
 			    sizeof(*pvt));
 	if (unlikely(!mci))
 		return -ENOMEM;

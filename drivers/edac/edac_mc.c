@@ -195,13 +195,13 @@ void *edac_align_ptr(void **p, unsigned size, int n_elems)
  * on such scenarios, as grouping the multiple ranks require drivers change.
  *
  * Returns:
- *	NULL allocation failed
- *	struct mem_ctl_info pointer
+ *	On failure: NULL
+ *	On success: struct mem_ctl_info pointer
  */
-struct mem_ctl_info *new_edac_mc_alloc(unsigned mc_num,
-				       unsigned n_layers,
-				       struct edac_mc_layer *layers,
-				       unsigned sz_pvt)
+struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
+				   unsigned n_layers,
+				   struct edac_mc_layer *layers,
+				   unsigned sz_pvt)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
@@ -369,46 +369,6 @@ struct mem_ctl_info *new_edac_mc_alloc(unsigned mc_num,
 	 * will occur during the kobject callback operation
 	 */
 	return mci;
-}
-EXPORT_SYMBOL_GPL(new_edac_mc_alloc);
-
-/**
- * edac_mc_alloc: Allocate and partially fill a struct mem_ctl_info structure
- * @mc_num:		Memory controller number
- * @n_layers:		Number of layers at the MC hierarchy
- * layers:		Describes each layer as seen by the Memory Controller
- * @size_pvt:		Size of private storage needed
- *
- *
- * FIXME: drivers handle multi-rank memories in different ways: some
- * drivers map multi-ranked DIMMs as one DIMM while others
- * as several DIMMs.
- *
- * Everything is kmalloc'ed as one big chunk - more efficient.
- * It can only be used if all structures have the same lifetime - otherwise
- * you have to allocate and initialize your own structures.
- *
- * Use edac_mc_free() to free mc structures allocated by this function.
- *
- * Returns:
- *	On failure: NULL
- *	On success: struct mem_ctl_info pointer
- */
-
-struct mem_ctl_info *edac_mc_alloc(unsigned sz_pvt, unsigned nr_csrows,
-				   unsigned nr_chans, int mc_num)
-{
-	unsigned n_layers = 2;
-	struct edac_mc_layer layers[n_layers];
-
-	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
-	layers[0].size = nr_csrows;
-	layers[0].is_virt_csrow = true;
-	layers[1].type = EDAC_MC_LAYER_CHANNEL;
-	layers[1].size = nr_chans;
-	layers[1].is_virt_csrow = false;
-
-	return new_edac_mc_alloc(mc_num, ARRAY_SIZE(layers), layers, sz_pvt);
 }
 EXPORT_SYMBOL_GPL(edac_mc_alloc);
 

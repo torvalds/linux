@@ -1280,8 +1280,7 @@ static int i5400_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[2].type = EDAC_MC_LAYER_SLOT;
 	layers[2].size = DIMMS_PER_CHANNEL;
 	layers[2].is_virt_csrow = true;
-	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
-
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, sizeof(*pvt));
 	if (mci == NULL)
 		return -ENOMEM;
 

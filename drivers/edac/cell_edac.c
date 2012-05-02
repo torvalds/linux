@@ -204,7 +204,7 @@ static int __devinit cell_edac_probe(struct platform_device *pdev)
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = num_chans;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(pdev->id, ARRAY_SIZE(layers), layers,
 			    sizeof(struct cell_edac_priv));
 	if (mci == NULL)
 		return -ENOMEM;

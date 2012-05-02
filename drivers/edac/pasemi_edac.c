@@ -215,7 +215,7 @@ static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
 	layers[1].type = EDAC_MC_LAYER_CHANNEL;
 	layers[1].size = PASEMI_EDAC_NR_CHANS;
 	layers[1].is_virt_csrow = false;
-	mci = new_edac_mc_alloc(system_mmc_id++, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(system_mmc_id++, ARRAY_SIZE(layers), layers,
 			    0);
 	if (mci == NULL)
 		return -ENOMEM;

@@ -936,7 +936,7 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	layers[1].type = EDAC_MC_LAYER_SLOT;
 	layers[1].size = ranksperch;
 	layers[1].is_virt_csrow = true;
-	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers,
 			    sizeof(*priv));
 	if (!mci) {
 		ret = -ENOMEM;

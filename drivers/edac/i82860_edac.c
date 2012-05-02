@@ -206,7 +206,7 @@ static int i82860_probe1(struct pci_dev *pdev, int dev_idx)
 	layers[1].type = EDAC_MC_LAYER_SLOT;
 	layers[1].size = 8;
 	layers[1].is_virt_csrow = true;
-	mci = new_edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
+	mci = edac_mc_alloc(0, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
 		return -ENOMEM;
 

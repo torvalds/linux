@@ -1640,7 +1640,7 @@ static int sbridge_register_mci(struct sbridge_dev *sbridge_dev)
 	layers[1].type = EDAC_MC_LAYER_SLOT;
 	layers[1].size = MAX_DIMMS;
 	layers[1].is_virt_csrow = true;
-	mci = new_edac_mc_alloc(sbridge_dev->mc, ARRAY_SIZE(layers), layers,
+	mci = edac_mc_alloc(sbridge_dev->mc, ARRAY_SIZE(layers), layers,
 			    sizeof(*pvt));
 
 	if (unlikely(!mci))
