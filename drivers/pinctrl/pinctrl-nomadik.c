@@ -1326,10 +1326,36 @@ static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
+static struct pinctrl_gpio_range *
+nmk_match_gpio_range(struct pinctrl_dev *pctldev, unsigned offset)
+{
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+	int i;
+
+	for (i = 0; i < npct->soc->gpio_num_ranges; i++) {
+		struct pinctrl_gpio_range *range;
+
+		range = &npct->soc->gpio_ranges[i];
+		if (offset >= range->pin_base &&
+		    offset <= (range->pin_base + range->npins - 1))
+			return range;
+	}
+	return NULL;
+}
+
 static void nmk_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		   unsigned offset)
 {
-	seq_printf(s, " Nomadik GPIO");
+	struct pinctrl_gpio_range *range;
+	struct gpio_chip *chip;
+
+	range = nmk_match_gpio_range(pctldev, offset);
+	if (!range || !range->gc) {
+		seq_printf(s, "invalid pin offset");
+		return;
+	}
+	chip = range->gc;
+	nmk_gpio_dbg_show_one(s, chip, offset - chip->base, offset);
 }
 
 static struct pinctrl_ops nmk_pinctrl_ops = {
