@@ -166,8 +166,9 @@ struct clk_lookup_alloc {
 	char	con_id[MAX_CON_ID];
 };
 
-struct clk_lookup * __init_refok
-clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
+static struct clk_lookup * __init_refok
+vclkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt,
+	va_list ap)
 {
 	struct clk_lookup_alloc *cla;
 
@@ -182,15 +183,24 @@ clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 	}
 
 	if (dev_fmt) {
-		va_list ap;
-
-		va_start(ap, dev_fmt);
 		vscnprintf(cla->dev_id, sizeof(cla->dev_id), dev_fmt, ap);
 		cla->cl.dev_id = cla->dev_id;
-		va_end(ap);
 	}
 
 	return &cla->cl;
+}
+
+struct clk_lookup * __init_refok
+clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
+{
+	struct clk_lookup *cl;
+	va_list ap;
+
+	va_start(ap, dev_fmt);
+	cl = vclkdev_alloc(clk, con_id, dev_fmt, ap);
+	va_end(ap);
+
+	return cl;
 }
 EXPORT_SYMBOL(clkdev_alloc);
 
@@ -223,3 +233,65 @@ void clkdev_drop(struct clk_lookup *cl)
 	kfree(cl);
 }
 EXPORT_SYMBOL(clkdev_drop);
+
+/**
+ * clk_register_clkdev - register one clock lookup for a struct clk
+ * @clk: struct clk to associate with all clk_lookups
+ * @con_id: connection ID string on device
+ * @dev_id: format string describing device name
+ *
+ * con_id or dev_id may be NULL as a wildcard, just as in the rest of
+ * clkdev.
+ *
+ * To make things easier for mass registration, we detect error clks
+ * from a previous clk_register() call, and return the error code for
+ * those.  This is to permit this function to be called immediately
+ * after clk_register().
+ */
+int clk_register_clkdev(struct clk *clk, const char *con_id,
+	const char *dev_fmt, ...)
+{
+	struct clk_lookup *cl;
+	va_list ap;
+
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	va_start(ap, dev_fmt);
+	cl = vclkdev_alloc(clk, con_id, dev_fmt, ap);
+	va_end(ap);
+
+	if (!cl)
+		return -ENOMEM;
+
+	clkdev_add(cl);
+
+	return 0;
+}
+
+/**
+ * clk_register_clkdevs - register a set of clk_lookup for a struct clk
+ * @clk: struct clk to associate with all clk_lookups
+ * @cl: array of clk_lookup structures with con_id and dev_id pre-initialized
+ * @num: number of clk_lookup structures to register
+ *
+ * To make things easier for mass registration, we detect error clks
+ * from a previous clk_register() call, and return the error code for
+ * those.  This is to permit this function to be called immediately
+ * after clk_register().
+ */
+int clk_register_clkdevs(struct clk *clk, struct clk_lookup *cl, size_t num)
+{
+	unsigned i;
+
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	for (i = 0; i < num; i++, cl++) {
+		cl->clk = clk;
+		clkdev_add(cl);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(clk_register_clkdevs);
