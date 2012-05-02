@@ -61,6 +61,7 @@ struct threshold_bank {
 	struct kobject		*kobj;
 	struct threshold_block	*blocks;
 };
+
 static DEFINE_PER_CPU(struct threshold_bank * [NR_BANKS], threshold_banks);
 
 static unsigned char shared_bank[NR_BANKS] = {
@@ -545,13 +546,6 @@ out_free:
 	return err;
 }
 
-static __cpuinit long
-local_allocate_threshold_blocks(int cpu, unsigned int bank)
-{
-	return allocate_threshold_blocks(cpu, bank, 0,
-					 MSR_IA32_MC0_MISC + bank * 4);
-}
-
 static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 {
 	struct device *dev = per_cpu(mce_device, cpu);
@@ -575,7 +569,8 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
-	err = local_allocate_threshold_blocks(cpu, bank);
+	err = allocate_threshold_blocks(cpu, bank, 0,
+					MSR_IA32_MC0_MISC + bank * 4);
 	if (!err)
 		goto out;
 
