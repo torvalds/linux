@@ -908,22 +908,25 @@ static int gpmi_ecc_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 		mtd->ecc_stats.corrected += corrected;
 	}
 
-	/*
-	 * It's time to deliver the OOB bytes. See gpmi_ecc_read_oob() for
-	 * details about our policy for delivering the OOB.
-	 *
-	 * We fill the caller's buffer with set bits, and then copy the block
-	 * mark to th caller's buffer. Note that, if block mark swapping was
-	 * necessary, it has already been done, so we can rely on the first
-	 * byte of the auxiliary buffer to contain the block mark.
-	 */
-	memset(chip->oob_poi, ~0, mtd->oobsize);
-	chip->oob_poi[0] = ((uint8_t *) auxiliary_virt)[0];
+	if (oob_required) {
+		/*
+		 * It's time to deliver the OOB bytes. See gpmi_ecc_read_oob()
+		 * for details about our policy for delivering the OOB.
+		 *
+		 * We fill the caller's buffer with set bits, and then copy the
+		 * block mark to th caller's buffer. Note that, if block mark
+		 * swapping was necessary, it has already been done, so we can
+		 * rely on the first byte of the auxiliary buffer to contain
+		 * the block mark.
+		 */
+		memset(chip->oob_poi, ~0, mtd->oobsize);
+		chip->oob_poi[0] = ((uint8_t *) auxiliary_virt)[0];
 
-	read_page_swap_end(this, buf, mtd->writesize,
-			this->payload_virt, this->payload_phys,
-			nfc_geo->payload_size,
-			payload_virt, payload_phys);
+		read_page_swap_end(this, buf, mtd->writesize,
+				this->payload_virt, this->payload_phys,
+				nfc_geo->payload_size,
+				payload_virt, payload_phys);
+	}
 exit_nfc:
 	return ret;
 }
