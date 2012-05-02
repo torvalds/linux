@@ -46,5 +46,12 @@ int __init tegra_powergate_debugfs_init(void);
 static inline int tegra_powergate_debugfs_init(void) { return 0; }
 #endif
 
+int __init harmony_regulator_init(void);
+#ifdef CONFIG_TEGRA_PCI
+int __init harmony_pcie_init(void);
+#else
+static inline int harmony_pcie_init(void) { return 0; }
+#endif
+
 extern struct sys_timer tegra_timer;
 #endif

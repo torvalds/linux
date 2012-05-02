@@ -109,12 +109,32 @@ static void __init trimslice_init(void)
 }
 #endif
 
+#ifdef CONFIG_MACH_HARMONY
+static void __init harmony_init(void)
+{
+	int ret;
+
+	ret = harmony_regulator_init();
+	if (ret) {
+		pr_err("harmony_regulator_init() failed: %d\n", ret);
+		return;
+	}
+
+	ret = harmony_pcie_init();
+	if (ret)
+		pr_err("harmony_pcie_init() failed: %d\n", ret);
+}
+#endif
+
 static struct {
 	char *machine;
 	void (*init)(void);
 } board_init_funcs[] = {
 #ifdef CONFIG_MACH_TRIMSLICE
 	{ "compulab,trimslice", trimslice_init },
+#endif
+#ifdef CONFIG_MACH_HARMONY
+	{ "nvidia,harmony", harmony_init },
 #endif
 };
 
