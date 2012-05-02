@@ -492,7 +492,7 @@ static void xpad_irq_in(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&xpad->udev->dev,
+		dev_err(&xpad->dev->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
 }
@@ -542,7 +542,7 @@ static void xpad_irq_out(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&xpad->udev->dev,
+		dev_err(&xpad->dev->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
 }
