@@ -341,7 +341,7 @@ static int bcm_umi_nand_verify_buf(struct mtd_info *mtd, const u_char * buf,
 	 * for MLC parts which may have permanently stuck bits.
 	 */
 	struct nand_chip *chip = mtd->priv;
-	int ret = chip->ecc.read_page(mtd, chip, readbackbuf, 0);
+	int ret = chip->ecc.read_page(mtd, chip, readbackbuf, 0, 0);
 	if (ret < 0)
 		return -EFAULT;
 	else {

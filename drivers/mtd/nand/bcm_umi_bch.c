@@ -22,9 +22,9 @@
 
 /* ---- Private Function Prototypes -------------------------------------- */
 static int bcm_umi_bch_read_page_hwecc(struct mtd_info *mtd,
-	struct nand_chip *chip, uint8_t *buf, int page);
+	struct nand_chip *chip, uint8_t *buf, int oob_required, int page);
 static void bcm_umi_bch_write_page_hwecc(struct mtd_info *mtd,
-	struct nand_chip *chip, const uint8_t *buf);
+	struct nand_chip *chip, const uint8_t *buf, int oob_required);
 
 /* ---- Private Variables ------------------------------------------------ */
 
@@ -103,11 +103,12 @@ static struct nand_ecclayout nand_hw_eccoob_4096 = {
 *  @mtd:	mtd info structure
 *  @chip:	nand chip info structure
 *  @buf:	buffer to store read data
+*  @oob_required:	caller expects OOB data read to chip->oob_poi
 *
 ***************************************************************************/
 static int bcm_umi_bch_read_page_hwecc(struct mtd_info *mtd,
 				       struct nand_chip *chip, uint8_t * buf,
-						 int page)
+				       int oob_required, int page)
 {
 	int sectorIdx = 0;
 	int eccsize = chip->ecc.size;
@@ -190,10 +191,11 @@ static int bcm_umi_bch_read_page_hwecc(struct mtd_info *mtd,
 *  @mtd:	mtd info structure
 *  @chip:	nand chip info structure
 *  @buf:	data buffer
+*  @oob_required:	must write chip->oob_poi to OOB
 *
 ***************************************************************************/
 static void bcm_umi_bch_write_page_hwecc(struct mtd_info *mtd,
-	struct nand_chip *chip, const uint8_t *buf)
+	struct nand_chip *chip, const uint8_t *buf, int oob_required)
 {
 	int sectorIdx = 0;
 	int eccsize = chip->ecc.size;

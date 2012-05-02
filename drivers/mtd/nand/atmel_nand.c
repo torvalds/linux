@@ -324,9 +324,10 @@ static int atmel_nand_calculate(struct mtd_info *mtd,
  * mtd:        mtd info structure
  * chip:       nand chip info structure
  * buf:        buffer to store read data
+ * oob_required:    caller expects OOB data read to chip->oob_poi
  */
-static int atmel_nand_read_page(struct mtd_info *mtd,
-		struct nand_chip *chip, uint8_t *buf, int page)
+static int atmel_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
+				uint8_t *buf, int oob_required, int page)
 {
 	int eccsize = chip->ecc.size;
 	int eccbytes = chip->ecc.bytes;

@@ -375,12 +375,13 @@ static int cafe_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
  * @mtd:	mtd info structure
  * @chip:	nand chip info structure
  * @buf:	buffer to store read data
+ * @oob_required:	caller expects OOB data read to chip->oob_poi
  *
  * The hw generator calculates the error syndrome automatically. Therefor
  * we need a special oob layout and handling.
  */
 static int cafe_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
-			       uint8_t *buf, int page)
+			       uint8_t *buf, int oob_required, int page)
 {
 	struct cafe_priv *cafe = mtd->priv;
 	unsigned int max_bitflips = 0;
@@ -520,7 +521,8 @@ static struct nand_bbt_descr cafe_bbt_mirror_descr_512 = {
 
 
 static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
-					  struct nand_chip *chip, const uint8_t *buf)
+					  struct nand_chip *chip,
+					  const uint8_t *buf, int oob_required)
 {
 	struct cafe_priv *cafe = mtd->priv;
 
@@ -532,16 +534,17 @@ static void cafe_nand_write_page_lowlevel(struct mtd_info *mtd,
 }
 
 static int cafe_nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
-				const uint8_t *buf, int page, int cached, int raw)
+				const uint8_t *buf, int oob_required, int page,
+				int cached, int raw)
 {
 	int status;
 
 	chip->cmdfunc(mtd, NAND_CMD_SEQIN, 0x00, page);
 
 	if (unlikely(raw))
-		chip->ecc.write_page_raw(mtd, chip, buf);
+		chip->ecc.write_page_raw(mtd, chip, buf, oob_required);
 	else
-		chip->ecc.write_page(mtd, chip, buf);
+		chip->ecc.write_page(mtd, chip, buf, oob_required);
 
 	/*
 	 * Cached progamming disabled for now, Not sure if its worth the
