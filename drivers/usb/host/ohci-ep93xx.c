@@ -47,7 +47,7 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 	struct usb_hcd *hcd;
 
 	if (pdev->resource[1].flags != IORESOURCE_IRQ) {
-		dbg("resource[1] is not IORESOURCE_IRQ");
+		dev_dbg(&pdev->dev, "resource[1] is not IORESOURCE_IRQ\n");
 		return -ENOMEM;
 	}
 
@@ -65,14 +65,14 @@ static int usb_hcd_ep93xx_probe(const struct hc_driver *driver,
 
 	hcd->regs = ioremap(hcd->rsrc_start, hcd->rsrc_len);
 	if (hcd->regs == NULL) {
-		dbg("ioremap failed");
+		dev_dbg(&pdev->dev, "ioremap failed\n");
 		retval = -ENOMEM;
 		goto err2;
 	}
 
 	usb_host_clock = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usb_host_clock)) {
-		dbg("clk_get failed");
+		dev_dbg(&pdev->dev, "clk_get failed\n");
 		retval = PTR_ERR(usb_host_clock);
 		goto err3;
 	}
