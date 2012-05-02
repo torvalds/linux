@@ -826,8 +826,16 @@ static struct machine *
 {
 	const u8 cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
-	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest)
-		return perf_session__find_machine(session, event->ip.pid);
+	if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
+		u32 pid;
+
+		if (event->header.type == PERF_RECORD_MMAP)
+			pid = event->mmap.pid;
+		else
+			pid = event->ip.pid;
+
+		return perf_session__find_machine(session, pid);
+	}
 
 	return perf_session__find_host_machine(session);
 }
@@ -868,11 +876,11 @@ static int perf_session_deliver_event(struct perf_session *session,
 		dump_sample(session, event, sample);
 		if (evsel == NULL) {
 			++session->hists.stats.nr_unknown_id;
-			return -1;
+			return 0;
 		}
 		if (machine == NULL) {
 			++session->hists.stats.nr_unprocessable_samples;
-			return -1;
+			return 0;
 		}
 		return tool->sample(tool, event, sample, evsel, machine);
 	case PERF_RECORD_MMAP:

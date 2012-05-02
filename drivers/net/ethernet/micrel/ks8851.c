@@ -889,16 +889,17 @@ static int ks8851_net_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	mutex_lock(&ks->lock);
+	/* turn off the IRQs and ack any outstanding */
+	ks8851_wrreg16(ks, KS_IER, 0x0000);
+	ks8851_wrreg16(ks, KS_ISR, 0xffff);
+	mutex_unlock(&ks->lock);
 
 	/* stop any outstanding work */
 	flush_work(&ks->irq_work);
 	flush_work(&ks->tx_work);
 	flush_work(&ks->rxctrl_work);
 
-	/* turn off the IRQs and ack any outstanding */
-	ks8851_wrreg16(ks, KS_IER, 0x0000);
-	ks8851_wrreg16(ks, KS_ISR, 0xffff);
-
+	mutex_lock(&ks->lock);
 	/* shutdown RX process */
 	ks8851_wrreg16(ks, KS_RXCR1, 0x0000);
 
@@ -907,6 +908,7 @@ static int ks8851_net_stop(struct net_device *dev)
 
 	/* set powermode to soft power down to save power */
 	ks8851_set_powermode(ks, PMECR_PM_SOFTDOWN);
+	mutex_unlock(&ks->lock);
 
 	/* ensure any queued tx buffers are dumped */
 	while (!skb_queue_empty(&ks->txq)) {
@@ -918,7 +920,6 @@ static int ks8851_net_stop(struct net_device *dev)
 		dev_kfree_skb(txb);
 	}
 
-	mutex_unlock(&ks->lock);
 	return 0;
 }
 
@@ -1418,6 +1419,7 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	struct net_device *ndev;
 	struct ks8851_net *ks;
 	int ret;
+	unsigned cider;
 
 	ndev = alloc_etherdev(sizeof(struct ks8851_net));
 	if (!ndev)
@@ -1484,8 +1486,8 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	ks8851_soft_reset(ks, GRR_GSR);
 
 	/* simple check for a valid chip being connected to the bus */
-
-	if ((ks8851_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
+	cider = ks8851_rdreg16(ks, KS_CIDER);
+	if ((cider & ~CIDER_REV_MASK) != CIDER_ID) {
 		dev_err(&spi->dev, "failed to read device ID\n");
 		ret = -ENODEV;
 		goto err_id;
@@ -1516,15 +1518,14 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 	}
 
 	netdev_info(ndev, "revision %d, MAC %pM, IRQ %d, %s EEPROM\n",
-		    CIDER_REV_GET(ks8851_rdreg16(ks, KS_CIDER)),
-		    ndev->dev_addr, ndev->irq,
+		    CIDER_REV_GET(cider), ndev->dev_addr, ndev->irq,
 		    ks->rc_ccr & CCR_EEPROM ? "has" : "no");
 
 	return 0;
 
 
 err_netdev:
-	free_irq(ndev->irq, ndev);
+	free_irq(ndev->irq, ks);
 
 err_id:
 err_irq:

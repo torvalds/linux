@@ -123,7 +123,7 @@ struct hsc_client_data {
 static unsigned int hsc_major;
 /* Maximum buffer size that hsi_char will accept from userspace */
 static unsigned int max_data_size = 0x1000;
-module_param(max_data_size, uint, S_IRUSR | S_IWUSR);
+module_param(max_data_size, uint, 0);
 MODULE_PARM_DESC(max_data_size, "max read/write data size [4,8..65536] (^2)");
 
 static void hsc_add_tail(struct hsc_channel *channel, struct hsi_msg *msg,

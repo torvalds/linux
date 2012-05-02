@@ -95,7 +95,6 @@ ivb_update_plane(struct drm_plane *plane, struct drm_framebuffer *fb,
 	/* must disable */
 	sprctl |= SPRITE_TRICKLE_FEED_DISABLE;
 	sprctl |= SPRITE_ENABLE;
-	sprctl |= SPRITE_DEST_KEY;
 
 	/* Sizes are 0 based */
 	src_w--;

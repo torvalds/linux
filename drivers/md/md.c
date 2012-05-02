@@ -7560,14 +7560,14 @@ void md_check_recovery(struct mddev *mddev)
 		 * any transients in the value of "sync_action".
 		 */
 		set_bit(MD_RECOVERY_RUNNING, &mddev->recovery);
-		clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 		/* Clear some bits that don't mean anything, but
 		 * might be left set
 		 */
 		clear_bit(MD_RECOVERY_INTR, &mddev->recovery);
 		clear_bit(MD_RECOVERY_DONE, &mddev->recovery);
 
-		if (test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
+		if (!test_and_clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
+		    test_bit(MD_RECOVERY_FROZEN, &mddev->recovery))
 			goto unlock;
 		/* no recovery is running.
 		 * remove any failed drives, then
@@ -8140,7 +8140,8 @@ static int md_notify_reboot(struct notifier_block *this,
 
 	for_each_mddev(mddev, tmp) {
 		if (mddev_trylock(mddev)) {
-			__md_stop_writes(mddev);
+			if (mddev->pers)
+				__md_stop_writes(mddev);
 			mddev->safemode = 2;
 			mddev_unlock(mddev);
 		}

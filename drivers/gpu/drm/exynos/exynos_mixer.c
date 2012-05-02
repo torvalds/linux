@@ -37,7 +37,8 @@
 #include "exynos_drm_drv.h"
 #include "exynos_drm_hdmi.h"
 
-#define HDMI_OVERLAY_NUMBER	3
+#define MIXER_WIN_NR		3
+#define MIXER_DEFAULT_WIN	0
 
 #define get_mixer_context(dev)	platform_get_drvdata(to_platform_device(dev))
 
@@ -75,16 +76,12 @@ struct mixer_resources {
 };
 
 struct mixer_context {
-	struct fb_videomode	*default_timing;
-	unsigned int		default_win;
-	unsigned int		default_bpp;
 	unsigned int		irq;
 	int			pipe;
 	bool			interlace;
-	bool			vp_enabled;
 
 	struct mixer_resources	mixer_res;
-	struct hdmi_win_data	win_data[HDMI_OVERLAY_NUMBER];
+	struct hdmi_win_data	win_data[MIXER_WIN_NR];
 };
 
 static const u8 filter_y_horiz_tap8[] = {
@@ -643,9 +640,9 @@ static void mixer_win_mode_set(void *ctx,
 
 	win = overlay->zpos;
 	if (win == DEFAULT_ZPOS)
-		win = mixer_ctx->default_win;
+		win = MIXER_DEFAULT_WIN;
 
-	if (win < 0 || win > HDMI_OVERLAY_NUMBER) {
+	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
 		return;
 	}
@@ -683,9 +680,9 @@ static void mixer_win_commit(void *ctx, int zpos)
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
 	if (win == DEFAULT_ZPOS)
-		win = mixer_ctx->default_win;
+		win = MIXER_DEFAULT_WIN;
 
-	if (win < 0 || win > HDMI_OVERLAY_NUMBER) {
+	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
 		return;
 	}
@@ -706,9 +703,9 @@ static void mixer_win_disable(void *ctx, int zpos)
 	DRM_DEBUG_KMS("[%d] %s, win: %d\n", __LINE__, __func__, win);
 
 	if (win == DEFAULT_ZPOS)
-		win = mixer_ctx->default_win;
+		win = MIXER_DEFAULT_WIN;
 
-	if (win < 0 || win > HDMI_OVERLAY_NUMBER) {
+	if (win < 0 || win > MIXER_WIN_NR) {
 		DRM_ERROR("overlay plane[%d] is wrong\n", win);
 		return;
 	}
@@ -722,9 +719,12 @@ static void mixer_win_disable(void *ctx, int zpos)
 	spin_unlock_irqrestore(&res->reg_slock, flags);
 }
 
-static struct exynos_hdmi_overlay_ops overlay_ops = {
+static struct exynos_mixer_ops mixer_ops = {
+	/* manager */
 	.enable_vblank		= mixer_enable_vblank,
 	.disable_vblank		= mixer_disable_vblank,
+
+	/* overlay */
 	.win_mode_set		= mixer_win_mode_set,
 	.win_commit		= mixer_win_commit,
 	.win_disable		= mixer_win_disable,
@@ -771,8 +771,7 @@ static void mixer_finish_pageflip(struct drm_device *drm_dev, int crtc)
 static irqreturn_t mixer_irq_handler(int irq, void *arg)
 {
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx = arg;
-	struct mixer_context *ctx =
-			(struct mixer_context *)drm_hdmi_ctx->ctx;
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 	struct mixer_resources *res = &ctx->mixer_res;
 	u32 val, val_base;
 
@@ -902,7 +901,7 @@ static int mixer_runtime_resume(struct device *dev)
 
 	DRM_DEBUG_KMS("resume - start\n");
 
-	mixer_resource_poweron((struct mixer_context *)ctx->ctx);
+	mixer_resource_poweron(ctx->ctx);
 
 	return 0;
 }
@@ -913,7 +912,7 @@ static int mixer_runtime_suspend(struct device *dev)
 
 	DRM_DEBUG_KMS("suspend - start\n");
 
-	mixer_resource_poweroff((struct mixer_context *)ctx->ctx);
+	mixer_resource_poweroff(ctx->ctx);
 
 	return 0;
 }
@@ -926,8 +925,7 @@ static const struct dev_pm_ops mixer_pm_ops = {
 static int __devinit mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 				 struct platform_device *pdev)
 {
-	struct mixer_context *mixer_ctx =
-			(struct mixer_context *)ctx->ctx;
+	struct mixer_context *mixer_ctx = ctx->ctx;
 	struct device *dev = &pdev->dev;
 	struct mixer_resources *mixer_res = &mixer_ctx->mixer_res;
 	struct resource *res;
@@ -1076,7 +1074,7 @@ static int __devinit mixer_probe(struct platform_device *pdev)
 		goto fail;
 
 	/* register specific callback point to common hdmi. */
-	exynos_drm_overlay_ops_register(&overlay_ops);
+	exynos_mixer_ops_register(&mixer_ops);
 
 	mixer_resource_poweron(ctx);
 
@@ -1093,7 +1091,7 @@ static int mixer_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct exynos_drm_hdmi_context *drm_hdmi_ctx =
 					platform_get_drvdata(pdev);
-	struct mixer_context *ctx = (struct mixer_context *)drm_hdmi_ctx->ctx;
+	struct mixer_context *ctx = drm_hdmi_ctx->ctx;
 
 	dev_info(dev, "remove successful\n");
 

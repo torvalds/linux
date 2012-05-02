@@ -247,12 +247,17 @@ static int ib_link_query_port(struct ib_device *ibdev, u8 port,
 		err = mlx4_MAD_IFC(to_mdev(ibdev), 1, 1, port,
 				   NULL, NULL, in_mad, out_mad);
 		if (err)
-			return err;
+			goto out;
 
 		/* Checking LinkSpeedActive for FDR-10 */
 		if (out_mad->data[15] & 0x1)
 			props->active_speed = IB_SPEED_FDR10;
 	}
+
+	/* Avoid wrong speed value returned by FW if the IB link is down. */
+	if (props->state == IB_PORT_DOWN)
+		 props->active_speed = IB_SPEED_SDR;
+
 out:
 	kfree(in_mad);
 	kfree(out_mad);

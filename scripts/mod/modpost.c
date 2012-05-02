@@ -132,8 +132,10 @@ static struct module *new_module(char *modname)
 	/* strip trailing .o */
 	s = strrchr(p, '.');
 	if (s != NULL)
-		if (strcmp(s, ".o") == 0)
+		if (strcmp(s, ".o") == 0) {
 			*s = '\0';
+			mod->is_dot_o = 1;
+		}
 
 	/* add to list */
 	mod->name = p;
@@ -587,7 +589,8 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 	unsigned int crc;
 	enum export export;
 
-	if (!is_vmlinux(mod->name) && strncmp(symname, "__ksymtab", 9) == 0)
+	if ((!is_vmlinux(mod->name) || mod->is_dot_o) &&
+	    strncmp(symname, "__ksymtab", 9) == 0)
 		export = export_from_secname(info, get_secindex(info, sym));
 	else
 		export = export_from_sec(info, get_secindex(info, sym));

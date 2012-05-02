@@ -1565,7 +1565,7 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		ips->poll_turbo_status = true;
 
 	if (!ips_get_i915_syms(ips)) {
-		dev_err(&dev->dev, "failed to get i915 symbols, graphics turbo disabled\n");
+		dev_info(&dev->dev, "failed to get i915 symbols, graphics turbo disabled until i915 loads\n");
 		ips->gpu_turbo_enabled = false;
 	} else {
 		dev_dbg(&dev->dev, "graphics turbo enabled\n");

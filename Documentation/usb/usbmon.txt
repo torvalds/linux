@@ -183,10 +183,10 @@ An input control transfer to get a port status.
 d5ea89a0 3575914555 S Ci:1:001:0 s a3 00 0000 0003 0004 4 <
 d5ea89a0 3575914560 C Ci:1:001:0 0 4 = 01050000
 
-An output bulk transfer to send a SCSI command 0x5E in a 31-byte Bulk wrapper
-to a storage device at address 5:
+An output bulk transfer to send a SCSI command 0x28 (READ_10) in a 31-byte
+Bulk wrapper to a storage device at address 5:
 
-dd65f0e8 4128379752 S Bo:1:005:2 -115 31 = 55534243 5e000000 00000000 00000600 00000000 00000000 00000000 000000
+dd65f0e8 4128379752 S Bo:1:005:2 -115 31 = 55534243 ad000000 00800000 80010a28 20000000 20000040 00000000 000000
 dd65f0e8 4128379808 C Bo:1:005:2 0 31 >
 
 * Raw binary format and API

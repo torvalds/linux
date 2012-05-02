@@ -224,6 +224,7 @@ static int tegra_ehci_hub_control(
 		temp &= ~(PORT_RWC_BITS | PORT_WAKE_BITS);
 		/* start resume signalling */
 		ehci_writel(ehci, temp | PORT_RESUME, status_reg);
+		set_bit(wIndex-1, &ehci->resuming_ports);
 
 		spin_unlock_irqrestore(&ehci->lock, flags);
 		msleep(20);
@@ -236,6 +237,7 @@ static int tegra_ehci_hub_control(
 			pr_err("%s: timeout waiting for SUSPEND\n", __func__);
 
 		ehci->reset_done[wIndex-1] = 0;
+		clear_bit(wIndex-1, &ehci->resuming_ports);
 
 		tegra->port_resuming = 1;
 		goto done;
@@ -729,7 +731,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto fail;
 	}
-	set_irq_flags(irq, IRQF_VALID);
 
 #ifdef CONFIG_USB_OTG_UTILS
 	if (pdata->operating_mode == TEGRA_USB_OTG) {

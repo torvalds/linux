@@ -3324,12 +3324,14 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 	stripe_size = devices_info[ndevs-1].max_avail;
 	num_stripes = ndevs * dev_stripes;
 
-	if (stripe_size * num_stripes > max_chunk_size * ncopies) {
+	if (stripe_size * ndevs > max_chunk_size * ncopies) {
 		stripe_size = max_chunk_size * ncopies;
-		do_div(stripe_size, num_stripes);
+		do_div(stripe_size, ndevs);
 	}
 
 	do_div(stripe_size, dev_stripes);
+
+	/* align to BTRFS_STRIPE_LEN */
 	do_div(stripe_size, BTRFS_STRIPE_LEN);
 	stripe_size *= BTRFS_STRIPE_LEN;
 
@@ -3805,10 +3807,11 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		else if (mirror_num)
 			stripe_index += mirror_num - 1;
 		else {
+			int old_stripe_index = stripe_index;
 			stripe_index = find_live_mirror(map, stripe_index,
 					      map->sub_stripes, stripe_index +
 					      current->pid % map->sub_stripes);
-			mirror_num = stripe_index + 1;
+			mirror_num = stripe_index - old_stripe_index + 1;
 		}
 	} else {
 		/*
@@ -3833,6 +3836,7 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 		int sub_stripes = 0;
 		u64 stripes_per_dev = 0;
 		u32 remaining_stripes = 0;
+		u32 last_stripe = 0;
 
 		if (map->type &
 		    (BTRFS_BLOCK_GROUP_RAID0 | BTRFS_BLOCK_GROUP_RAID10)) {
@@ -3846,6 +3850,8 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 						      stripe_nr_orig,
 						      factor,
 						      &remaining_stripes);
+			div_u64_rem(stripe_nr_end - 1, factor, &last_stripe);
+			last_stripe *= sub_stripes;
 		}
 
 		for (i = 0; i < num_stripes; i++) {
@@ -3858,16 +3864,29 @@ static int __btrfs_map_block(struct btrfs_mapping_tree *map_tree, int rw,
 					 BTRFS_BLOCK_GROUP_RAID10)) {
 				bbio->stripes[i].length = stripes_per_dev *
 							  map->stripe_len;
+
 				if (i / sub_stripes < remaining_stripes)
 					bbio->stripes[i].length +=
 						map->stripe_len;
+
+				/*
+				 * Special for the first stripe and
+				 * the last stripe:
+				 *
+				 * |-------|...|-------|
+				 *     |----------|
+				 *    off     end_off
+				 */
 				if (i < sub_stripes)
 					bbio->stripes[i].length -=
 						stripe_offset;
-				if ((i / sub_stripes + 1) %
-				    sub_stripes == remaining_stripes)
+
+				if (stripe_index >= last_stripe &&
+				    stripe_index <= (last_stripe +
+						     sub_stripes - 1))
 					bbio->stripes[i].length -=
 						stripe_end_offset;
+
 				if (i == sub_stripes - 1)
 					stripe_offset = 0;
 			} else
@@ -4334,8 +4353,10 @@ static int open_seed_devices(struct btrfs_root *root, u8 *fsid)
 
 	ret = __btrfs_open_devices(fs_devices, FMODE_READ,
 				   root->fs_info->bdev_holder);
-	if (ret)
+	if (ret) {
+		free_fs_devices(fs_devices);
 		goto out;
+	}
 
 	if (!fs_devices->seeding) {
 		__btrfs_close_devices(fs_devices);
