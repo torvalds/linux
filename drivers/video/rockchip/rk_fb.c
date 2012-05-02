@@ -595,6 +595,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	char name[6];
 	int ret;
 	int i;
+	int layer_id;
 	sprintf(name, "lcdc%d",lcdc_id);
 	for(i = 0; i < inf->num_lcdc; i++)
 	{
@@ -612,6 +613,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 		
 	}
 
+	
 	if((lcdc_id == 0) || (inf->num_lcdc == 1))
 	{
 		info = inf->fb[0];
@@ -619,6 +621,12 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	else if((lcdc_id == 1)&&(inf->num_lcdc == 2))
 	{
 		info = inf->fb[2];
+	}
+
+	layer_id = get_fb_layer_id(&info->fix);
+	if(!enable)
+	{
+		dev_drv->open(dev_drv,layer_id,enable); //disable the layer which attached to this fb
 	}
 	
 	hdmi_var = &info->var;
