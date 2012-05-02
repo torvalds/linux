@@ -227,7 +227,6 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOC0_LED0,		/* red */
 	ASIC3_GPIOC1_LED1,		/* green */
 	ASIC3_GPIOC2_LED2,		/* blue */
-	ASIC3_GPIOC4_CF_nCD,
 	ASIC3_GPIOC5_nCIOW,
 	ASIC3_GPIOC6_nCIOR,
 	ASIC3_GPIOC7_nPCE_1,
@@ -241,6 +240,7 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOC15_nPIOR,
 
 	/* GPIOD: input GPIOs, CF */
+	ASIC3_GPIOD4_CF_nCD,
 	ASIC3_GPIOD11_nCIOIS16,
 	ASIC3_GPIOD12_nCWAIT,
 	ASIC3_GPIOD15_nPIOW,
