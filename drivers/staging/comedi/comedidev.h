@@ -298,6 +298,18 @@ int comedi_device_attach(struct comedi_device *dev,
 int comedi_driver_register(struct comedi_driver *);
 int comedi_driver_unregister(struct comedi_driver *);
 
+/**
+ * module_comedi_driver() - Helper macro for registering a comedi driver
+ * @__comedi_driver: comedi_driver struct
+ *
+ * Helper macro for comedi drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only use
+ * this macro once, and calling it replaces module_init() and module_exit().
+ */
+#define module_comedi_driver(__comedi_driver) \
+	module_driver(__comedi_driver, comedi_driver_register, \
+			comedi_driver_unregister)
+
 void init_polling(void);
 void cleanup_polling(void);
 void start_polling(struct comedi_device *);
