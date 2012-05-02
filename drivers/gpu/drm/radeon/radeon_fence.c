@@ -297,7 +297,7 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 	return r;
 }
 
-int radeon_fence_wait_last(struct radeon_device *rdev, int ring)
+int radeon_fence_wait_empty(struct radeon_device *rdev, int ring)
 {
 	unsigned long irq_flags;
 	struct radeon_fence *fence;
@@ -442,7 +442,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		if (!rdev->fence_drv[ring].initialized)
 			continue;
-		radeon_fence_wait_last(rdev, ring);
+		radeon_fence_wait_empty(rdev, ring);
 		wake_up_all(&rdev->fence_drv[ring].queue);
 		write_lock_irqsave(&rdev->fence_lock, irq_flags);
 		radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
