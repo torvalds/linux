@@ -313,7 +313,7 @@ static unsigned char __devinit sp5100_tco_setupdevice(void)
 	tcobase_phys = val;
 
 	tcobase = ioremap(val, SP5100_WDT_MEM_MAP_SIZE);
-	if (tcobase == 0) {
+	if (!tcobase) {
 		pr_err("failed to get tcobase address\n");
 		goto unreg_mem_region;
 	}
