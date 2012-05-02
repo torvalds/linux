@@ -943,7 +943,8 @@ qh_make (
 		}
 		break;
 	default:
-		dbg ("bogus dev %p speed %d", urb->dev, urb->dev->speed);
+		ehci_dbg(ehci, "bogus dev %p speed %d\n", urb->dev,
+			urb->dev->speed);
 done:
 		qh_put (qh);
 		return NULL;
