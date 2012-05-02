@@ -63,7 +63,7 @@ ATOMIC64_DECL(add_unless);
 
 /**
  * atomic64_cmpxchg - cmpxchg atomic64 variable
- * @p: pointer to type atomic64_t
+ * @v: pointer to type atomic64_t
  * @o: expected value
  * @n: new value
  *
@@ -98,7 +98,7 @@ static inline long long atomic64_xchg(atomic64_t *v, long long n)
 /**
  * atomic64_set - set atomic64 variable
  * @v: pointer to type atomic64_t
- * @n: value to assign
+ * @i: value to assign
  *
  * Atomically sets the value of @v to @n.
  */
@@ -200,7 +200,7 @@ static inline long long atomic64_sub(long long i, atomic64_t *v)
  * atomic64_sub_and_test - subtract value from variable and test result
  * @i: integer value to subtract
  * @v: pointer to type atomic64_t
-  *
+ *
  * Atomically subtracts @i from @v and returns
  * true if the result is zero, or false for all
  * other cases.
@@ -224,9 +224,9 @@ static inline void atomic64_inc(atomic64_t *v)
 
 /**
  * atomic64_dec - decrement atomic64 variable
- * @ptr: pointer to type atomic64_t
+ * @v: pointer to type atomic64_t
  *
- * Atomically decrements @ptr by 1.
+ * Atomically decrements @v by 1.
  */
 static inline void atomic64_dec(atomic64_t *v)
 {
