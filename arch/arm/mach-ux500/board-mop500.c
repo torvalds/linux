@@ -58,7 +58,7 @@
 static struct gpio_led snowball_led_array[] = {
 	{
 		.name = "user_led",
-		.default_trigger = "none",
+		.default_trigger = "heartbeat",
 		.gpio = 142,
 	},
 };
