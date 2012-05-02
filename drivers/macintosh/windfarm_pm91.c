@@ -234,7 +234,7 @@ static void wf_smu_cpu_fans_tick(struct wf_smu_cpu_fans_state *st)
 		return;
 	}
 
-	rc = wf_sensor_get(&sensor_cpu_power, &power);
+	rc = wf_sensor_get(sensor_cpu_power, &power);
 	if (rc) {
 		printk(KERN_WARNING "windfarm: CPU power sensor error %d\n",
 		       rc);
