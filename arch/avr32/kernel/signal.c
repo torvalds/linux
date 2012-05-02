@@ -247,6 +247,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	 * Block the signal if we were successful.
 	 */
 	block_sigmask(ka, sig);
+	clear_thread_flag(TIF_RESTORE_SIGMASK);
 }
 
 /*
