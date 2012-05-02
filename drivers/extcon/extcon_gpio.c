@@ -153,7 +153,7 @@ static int __devexit gpio_extcon_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver gpio_extcon = {
+static struct platform_driver gpio_extcon_driver = {
 	.probe		= gpio_extcon_probe,
 	.remove		= __devexit_p(gpio_extcon_remove),
 	.driver		= {
@@ -162,7 +162,7 @@ static struct platform_driver gpio_extcon = {
 	},
 };
 
-module_platform_driver(gpio_extcon);
+module_platform_driver(gpio_extcon_driver);
 
 MODULE_AUTHOR("Mike Lockwood <lockwood@android.com>");
 MODULE_DESCRIPTION("GPIO extcon driver");
