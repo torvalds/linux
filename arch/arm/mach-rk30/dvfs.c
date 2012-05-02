@@ -27,7 +27,7 @@
 #include <linux/delay.h>
 
 #define DVFS_DBG(fmt, args...) {while(0);}
-#define DVFS_ERR(fmt, args...) pr_err(fmt, ##args)
+#define DVFS_ERR(fmt, args...) pr_err("DVFS ERR:\t"fmt, ##args)
 #define DVFS_LOG(fmt, args...) pr_debug(fmt, ##args)
 //#define DVFS_LOG(fmt, args...) pr_err(fmt, ##args)
 
@@ -298,7 +298,7 @@ int clk_enable_dvfs(struct clk *clk)
 			regulator = NULL;
 			if (dvfs_clk->vd->regulator_name)
 				regulator = dvfs_regulator_get(NULL, dvfs_clk->vd->regulator_name);
-			if (regulator) {
+			if (!IS_ERR(regulator)) {
 				// DVFS_DBG("dvfs_regulator_get(%s)\n",dvfs_clk->vd->regulator_name);
 				dvfs_clk->vd->regulator = regulator;
 			} else {
@@ -308,7 +308,12 @@ int clk_enable_dvfs(struct clk *clk)
 				return -1;
 			}
 		} else {
-			dvfs_clk->vd->cur_volt = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+			if (!IS_ERR(dvfs_clk->vd->regulator))
+				dvfs_clk->vd->cur_volt = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+			else {
+				DVFS_ERR("%s regulator not NULL but error\n", __func__);
+				return -1;
+			}
 			// DVFS_DBG("%s(%s) vd volt=%u\n",__func__,dvfs_clk->name,dvfs_clk->vd->cur_volt);
 		}
 
@@ -553,8 +558,8 @@ static int dvfs_set_depend_pre(struct clk_node *dvfs_clk, unsigned long rate_old
 
 			depend->dep_vd->regulator = regulator;
 		}
-		if (!depend->dep_vd->regulator) {
-			DVFS_ERR("%s vd's(%s) regulator empty\n", __func__, depend->dep_vd->name);
+		if (IS_ERR(depend->dep_vd->regulator)) {
+			DVFS_ERR("%s vd's(%s) regulator not NULL but error\n", __func__, depend->dep_vd->name);
 			return -1;
 		}
 
@@ -610,8 +615,8 @@ static int dvfs_set_depend_post(struct clk_node *dvfs_clk, unsigned long rate_ol
 
 			depend->dep_vd->regulator = regulator;
 		}
-		if (!depend->dep_vd->regulator) {
-			DVFS_ERR("%s vd's(%s) regulator empty\n", __func__, depend->dep_vd->name);
+		if (IS_ERR(depend->dep_vd->regulator)) {
+			DVFS_ERR("%s vd's(%s) regulator not NULL but error\n", __func__, depend->dep_vd->name);
 			return -1;
 		}
 
@@ -707,7 +712,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 	/* if up the voltage */
 	if (volt_old < volt_new) {
-		if (dvfs_clk->vd->regulator) {
+		if (!IS_ERR(dvfs_clk->vd->regulator)) {
 			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_core_set_volt_err = 1;
@@ -745,7 +750,7 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 	/* if down the voltage */
 	if (volt_old > volt_new) {
-		if (dvfs_clk->vd->regulator) {
+		if (!IS_ERR(dvfs_clk->vd->regulator)) {
 			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_core_set_volt_err = 1;
@@ -805,7 +810,11 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 	volt_new = clk_fv.index;
 	if (flag_arm_set_volt_err) {
 		/* It means the last time set voltage error */
-		flag_set_volt_correct = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+		if (!IS_ERR(dvfs_clk->vd->regulator))
+			flag_set_volt_correct = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+		else {
+			DVFS_ERR("dvfs regulator is ERROR\n");
+		}
 		if (flag_set_volt_correct <= 0) {
 			DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), try to reload arm_volt error %d!!! stop scaling\n", 
 					__func__, dvfs_clk->name, volt_new, volt_old, 
@@ -825,7 +834,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 
 	/* if up the voltage */
 	if (volt_old < volt_new) {
-		if (dvfs_clk->vd->regulator) {
+		if (!IS_ERR(dvfs_clk->vd->regulator)) {
 			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_arm_set_volt_err = 1;
@@ -878,7 +887,7 @@ int dvfs_target_cpu(struct clk *clk, unsigned long rate_hz)
 
 	/* if down the voltage */
 	if (volt_old > volt_new) {
-		if (dvfs_clk->vd->regulator) {
+		if (!IS_ERR(dvfs_clk->vd->regulator)) {
 			ret = dvfs_regulator_set_voltage(dvfs_clk->vd->regulator, volt_new, volt_new);
 			if (ret < 0) {
 				flag_arm_set_volt_err = 1;
