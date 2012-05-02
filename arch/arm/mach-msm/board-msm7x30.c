@@ -120,6 +120,11 @@ static void __init msm7x30_map_io(void)
 	msm_clock_init(msm_clocks_7x30, msm_num_clocks_7x30);
 }
 
+static void __init msm7x30_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
 	.atag_offset = 0x100,
 	.fixup = msm7x30_fixup,
@@ -127,6 +132,7 @@ MACHINE_START(MSM7X30_SURF, "QCT MSM7X30 SURF")
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
+	.init_late = msm7x30_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -137,6 +143,7 @@ MACHINE_START(MSM7X30_FFA, "QCT MSM7X30 FFA")
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
+	.init_late = msm7x30_init_late,
 	.timer = &msm_timer,
 MACHINE_END
 
@@ -147,5 +154,6 @@ MACHINE_START(MSM7X30_FLUID, "QCT MSM7X30 FLUID")
 	.map_io = msm7x30_map_io,
 	.init_irq = msm7x30_init_irq,
 	.init_machine = msm7x30_init,
+	.init_late = msm7x30_init_late,
 	.timer = &msm_timer,
 MACHINE_END
