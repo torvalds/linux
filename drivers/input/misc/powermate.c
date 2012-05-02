@@ -110,7 +110,7 @@ static void powermate_irq(struct urb *urb)
 exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&pm->udev->dev,
+		dev_err(&pm->input->dev,
 			"%s - usb_submit_urb failed with result: %d\n",
 			__func__, retval);
 }
