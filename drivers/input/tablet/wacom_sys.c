@@ -1030,13 +1030,13 @@ static void wacom_wireless_work(struct work_struct *work)
 	wacom = usb_get_intfdata(usbdev->config->interface[1]);
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
-	wacom->wacom_wac.input = 0;
+	wacom->wacom_wac.input = NULL;
 
 	/* Touch interface */
 	wacom = usb_get_intfdata(usbdev->config->interface[2]);
 	if (wacom->wacom_wac.input)
 		input_unregister_device(wacom->wacom_wac.input);
-	wacom->wacom_wac.input = 0;
+	wacom->wacom_wac.input = NULL;
 
 	if (wacom_wac->pid == 0) {
 		printk(KERN_INFO "wacom: wireless tablet disconnected\n");
