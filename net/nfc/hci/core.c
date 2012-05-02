@@ -735,16 +735,6 @@ void nfc_hci_recv_frame(struct nfc_hci_dev *hdev, struct sk_buff *skb)
 	struct sk_buff *frag_skb;
 	int msg_len;
 
-	if (skb == NULL) {
-		/* TODO ELa: lower layer had permanent failure, need to
-		 * propagate that up
-		 */
-
-		skb_queue_purge(&hdev->rx_hcp_frags);
-
-		return;
-	}
-
 	packet = (struct hcp_packet *)skb->data;
 	if ((packet->header & ~NFC_HCI_FRAGMENT) == 0) {
 		skb_queue_tail(&hdev->rx_hcp_frags, skb);
