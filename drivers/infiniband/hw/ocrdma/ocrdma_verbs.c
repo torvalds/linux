@@ -486,8 +486,8 @@ struct ib_mr *ocrdma_get_dma_mr(struct ib_pd *ibpd, int acc)
 	struct ocrdma_mr *mr;
 
 	mr = ocrdma_alloc_lkey(ibpd, acc, 0, OCRDMA_ADDR_CHECK_DISABLE);
-	if (!mr)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(mr))
+		return ERR_CAST(mr);
 
 	return &mr->ibmr;
 }
