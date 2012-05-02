@@ -3301,6 +3301,45 @@ lens-distortion correction.</entry>
 	  </row>
 	  <row><entry></entry></row>
 
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_3A_LOCK</constant></entry>
+	    <entry>bitmask</entry>
+	  </row>
+	  <row>
+	    <entry spanname="descr">This control locks or unlocks the automatic
+focus, exposure and white balance. The automatic adjustments can be paused
+independently by setting the corresponding lock bit to 1. The camera then retains
+the settings until the lock bit is cleared. The following lock bits are defined:
+</entry>
+	  </row>
+	  <row>
+	    <entrytbl spanname="descr" cols="2">
+	      <tbody valign="top">
+		<row>
+		  <entry><constant>V4L2_LOCK_EXPOSURE</constant></entry>
+		  <entry>Automatic exposure adjustments lock.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_LOCK_WHITE_BALANCE</constant></entry>
+		  <entry>Automatic white balance adjustments lock.</entry>
+		</row>
+		<row>
+		  <entry><constant>V4L2_LOCK_FOCUS</constant></entry>
+		  <entry>Automatic focus lock.</entry>
+		</row>
+	      </tbody>
+	    </entrytbl>
+	  </row>
+	  <row><entry spanname="descr">
+When a given algorithm is not enabled, drivers should ignore requests
+to lock it and should return no error. An example might be an application
+setting bit <constant>V4L2_LOCK_WHITE_BALANCE</constant> when the
+<constant>V4L2_CID_AUTO_WHITE_BALANCE</constant> control is set to
+<constant>FALSE</constant>. The value of this control may be changed
+by exposure, white balance or focus controls.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
 	</tbody>
       </tgroup>
     </table>

@@ -1758,6 +1758,11 @@ enum v4l2_scene_mode {
 	V4L2_SCENE_MODE_TEXT			= 13,
 };
 
+#define V4L2_CID_3A_LOCK			(V4L2_CID_CAMERA_CLASS_BASE+27)
+#define V4L2_LOCK_EXPOSURE			(1 << 0)
+#define V4L2_LOCK_WHITE_BALANCE			(1 << 1)
+#define V4L2_LOCK_FOCUS				(1 << 2)
+
 /* FM Modulator class control IDs */
 #define V4L2_CID_FM_TX_CLASS_BASE		(V4L2_CTRL_CLASS_FM_TX | 0x900)
 #define V4L2_CID_FM_TX_CLASS			(V4L2_CTRL_CLASS_FM_TX | 1)
