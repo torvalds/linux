@@ -286,7 +286,7 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 	}
 	if (list_empty(&rdev->fence_drv[ring].emitted)) {
 		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
-		return 0;
+		return -ENOENT;
 	}
 	fence = list_entry(rdev->fence_drv[ring].emitted.next,
 			   struct radeon_fence, list);
