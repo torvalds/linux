@@ -655,7 +655,9 @@
 			};
 
 			audmux@021d8000 {
+				compatible = "fsl,imx6q-audmux", "fsl,imx31-audmux";
 				reg = <0x021d8000 0x4000>;
+				status = "disabled";
 			};
 
 			mipi@021dc000 { /* MIPI-CSI */

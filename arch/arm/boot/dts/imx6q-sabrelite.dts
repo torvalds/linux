@@ -65,6 +65,10 @@
 				status = "okay";
 			};
 
+			audmux@021d8000 {
+				status = "okay";
+			};
+
 			uart2: serial@021e8000 {
 				status = "okay";
 			};
