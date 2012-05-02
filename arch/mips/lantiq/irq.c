@@ -271,12 +271,13 @@ void __init arch_init_irq(void)
 	if (!ltq_eiu_membase)
 		panic("Failed to remap eiu memory");
 
-	/* make sure all irqs are turned off by default */
-	for (i = 0; i < 5; i++)
+	/* turn off all irqs by default */
+	for (i = 0; i < 5; i++) {
+		/* make sure all irqs are turned off by default */
 		ltq_icu_w32(0, LTQ_ICU_IM0_IER + (i * LTQ_ICU_OFFSET));
-
-	/* clear all possibly pending interrupts */
-	ltq_icu_w32(~0, LTQ_ICU_IM0_ISR + (i * LTQ_ICU_OFFSET));
+		/* clear all possibly pending interrupts */
+		ltq_icu_w32(~0, LTQ_ICU_IM0_ISR + (i * LTQ_ICU_OFFSET));
+	}
 
 	mips_cpu_irq_init();
 
