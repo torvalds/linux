@@ -161,6 +161,8 @@ int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
 	/* get chunks */
 	INIT_LIST_HEAD(&p->validated);
 	p->idx = 0;
+	p->ib = NULL;
+	p->const_ib = NULL;
 	p->chunk_ib_idx = -1;
 	p->chunk_relocs_idx = -1;
 	p->chunk_flags_idx = -1;
@@ -325,6 +327,9 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 	kfree(parser->chunks);
 	kfree(parser->chunks_array);
 	radeon_ib_free(parser->rdev, &parser->ib);
+	if (parser->const_ib) {
+		radeon_ib_free(parser->rdev, &parser->const_ib);
+	}
 }
 
 static int radeon_cs_ib_chunk(struct radeon_device *rdev,
