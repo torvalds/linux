@@ -45,10 +45,12 @@ static void __init prom_init_cmdline(void)
 	char **argv = (char **) KSEG1ADDR(fw_arg1);
 	int i;
 
-	for (i = 0; i < argc; i++) {
-		char *p = (char *)  KSEG1ADDR(argv[i]);
+	arcs_cmdline[0] = '\0';
 
-		if (p && *p) {
+	for (i = 0; i < argc; i++) {
+		char *p = (char *) KSEG1ADDR(argv[i]);
+
+		if (CPHYSADDR(p) && *p) {
 			strlcat(arcs_cmdline, p, sizeof(arcs_cmdline));
 			strlcat(arcs_cmdline, " ", sizeof(arcs_cmdline));
 		}
