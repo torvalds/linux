@@ -132,3 +132,9 @@ void __init tegra30_init_early(void)
 	tegra_powergate_init();
 }
 #endif
+
+void __init tegra_init_late(void)
+{
+	tegra_clk_debugfs_init();
+	tegra_powergate_debugfs_init();
+}
