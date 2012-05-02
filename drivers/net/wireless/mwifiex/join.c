@@ -1377,19 +1377,21 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
  */
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 {
-	int ret = 0;
+	if (!priv->media_connected)
+		return 0;
 
-	if (priv->media_connected) {
-		if (priv->bss_mode == NL80211_IFTYPE_STATION) {
-			ret = mwifiex_deauthenticate_infra(priv, mac);
-		} else if (priv->bss_mode == NL80211_IFTYPE_ADHOC) {
-			ret = mwifiex_send_cmd_sync(priv,
-						HostCmd_CMD_802_11_AD_HOC_STOP,
-						HostCmd_ACT_GEN_SET, 0, NULL);
-		}
+	switch (priv->bss_mode) {
+	case NL80211_IFTYPE_STATION:
+		return mwifiex_deauthenticate_infra(priv, mac);
+	case NL80211_IFTYPE_ADHOC:
+		return mwifiex_send_cmd_sync(priv,
+					     HostCmd_CMD_802_11_AD_HOC_STOP,
+					     HostCmd_ACT_GEN_SET, 0, NULL);
+	default:
+		break;
 	}
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_deauthenticate);
 
