@@ -34,7 +34,7 @@
 #include "atom.h"
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev);
-int radeon_debugfs_ring_init(struct radeon_device *rdev);
+int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
 u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 {
@@ -237,9 +237,6 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (radeon_debugfs_ib_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for IB !\n");
 	}
-	if (radeon_debugfs_ring_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for rings !\n");
-	}
 	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 	return 0;
 }
@@ -411,6 +408,9 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->ring_free_dw = ring->ring_size / 4;
+	if (radeon_debugfs_ring_init(rdev, ring)) {
+		DRM_ERROR("Failed to register debugfs file for rings !\n");
+	}
 	return 0;
 }
 
@@ -501,17 +501,24 @@ static char radeon_debugfs_ib_names[RADEON_IB_POOL_SIZE][32];
 static unsigned radeon_debugfs_ib_idx[RADEON_IB_POOL_SIZE];
 #endif
 
-int radeon_debugfs_ring_init(struct radeon_device *rdev)
+int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (rdev->family >= CHIP_CAYMAN)
-		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
-						ARRAY_SIZE(radeon_debugfs_ring_info_list));
-	else
-		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list, 1);
-#else
-	return 0;
+	unsigned i;
+	for (i = 0; i < ARRAY_SIZE(radeon_debugfs_ring_info_list); ++i) {
+		struct drm_info_list *info = &radeon_debugfs_ring_info_list[i];
+		int ridx = *(int*)radeon_debugfs_ring_info_list[i].data;
+		unsigned r;
+
+		if (&rdev->ring[ridx] != ring)
+			continue;
+
+		r = radeon_debugfs_add_files(rdev, info, 1);
+		if (r)
+			return r;
+	}
 #endif
+	return 0;
 }
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev)
