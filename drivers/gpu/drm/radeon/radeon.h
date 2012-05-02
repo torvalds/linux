@@ -1547,7 +1547,6 @@ struct radeon_device {
 	struct radeon_mutex		cs_mutex;
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;
-	bool				gpu_lockup;
 	bool				shutdown;
 	bool				suspend;
 	bool				need_dma32;

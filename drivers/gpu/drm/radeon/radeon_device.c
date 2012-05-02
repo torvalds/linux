@@ -714,7 +714,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->is_atom_bios = false;
 	rdev->usec_timeout = RADEON_MAX_USEC_TIMEOUT;
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-	rdev->gpu_lockup = false;
 	rdev->accel_working = false;
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X).\n",

@@ -71,14 +71,7 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 		return 0;
 	}
 	fence->seq = atomic_add_return(1, &rdev->fence_drv[fence->ring].seq);
-	if (!rdev->ring[fence->ring].ready)
-		/* FIXME: cp is not running assume everythings is done right
-		 * away
-		 */
-		radeon_fence_write(rdev, fence->seq, fence->ring);
-	else
-		radeon_fence_ring_emit(rdev, fence->ring, fence);
-
+	radeon_fence_ring_emit(rdev, fence->ring, fence);
 	trace_radeon_fence_emit(rdev->ddev, fence->seq);
 	fence->emitted = true;
 	list_move_tail(&fence->list, &rdev->fence_drv[fence->ring].emitted);
@@ -191,9 +184,6 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 	if (!fence)
 		return true;
 
-	if (fence->rdev->gpu_lockup)
-		return true;
-
 	write_lock_irqsave(&fence->rdev->fence_lock, irq_flags);
 	signaled = fence->signaled;
 	/* if we are shuting down report all fence as signaled */
@@ -260,18 +250,16 @@ retry:
 		 */
 		if (seq == rdev->fence_drv[fence->ring].last_seq &&
 		    radeon_ring_is_lockup(rdev, fence->ring, &rdev->ring[fence->ring])) {
+
 			/* good news we believe it's a lockup */
 			printk(KERN_WARNING "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n",
 			     fence->seq, seq);
-			/* FIXME: what should we do ? marking everyone
-			 * as signaled for now
-			 */
-			rdev->gpu_lockup = true;
+
+			/* mark the ring as not ready any more */
+			rdev->ring[fence->ring].ready = false;
 			r = radeon_gpu_reset(rdev);
 			if (r)
 				return r;
-			radeon_fence_write(rdev, fence->seq, fence->ring);
-			rdev->gpu_lockup = false;
 		}
 		timeout = RADEON_FENCE_JIFFIES_TIMEOUT;
 		write_lock_irqsave(&rdev->fence_lock, irq_flags);
@@ -289,10 +277,11 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 	struct radeon_fence *fence;
 	int r;
 
-	if (rdev->gpu_lockup) {
-		return 0;
-	}
 	write_lock_irqsave(&rdev->fence_lock, irq_flags);
+	if (!rdev->ring[ring].ready) {
+		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+		return -EBUSY;
+	}
 	if (list_empty(&rdev->fence_drv[ring].emitted)) {
 		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 		return 0;
@@ -312,10 +301,11 @@ int radeon_fence_wait_last(struct radeon_device *rdev, int ring)
 	struct radeon_fence *fence;
 	int r;
 
-	if (rdev->gpu_lockup) {
-		return 0;
-	}
 	write_lock_irqsave(&rdev->fence_lock, irq_flags);
+	if (!rdev->ring[ring].ready) {
+		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+		return -EBUSY;
+	}
 	if (list_empty(&rdev->fence_drv[ring].emitted)) {
 		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 		return 0;

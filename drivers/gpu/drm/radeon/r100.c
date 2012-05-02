@@ -2300,7 +2300,6 @@ int r100_asic_reset(struct radeon_device *rdev)
 	if (G_000E40_SE_BUSY(status) || G_000E40_RE_BUSY(status) ||
 		G_000E40_TAM_BUSY(status) || G_000E40_PB_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
-		rdev->gpu_lockup = true;
 		ret = -1;
 	} else
 		dev_info(rdev->dev, "GPU reset succeed\n");
