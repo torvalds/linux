@@ -2424,7 +2424,6 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status_se0, grbm_status_se1;
-	struct r100_gpu_lockup *lockup = &rdev->config.evergreen.lockup;
 	int r;
 
 	srbm_status = RREG32(SRBM_STATUS);
@@ -2432,7 +2431,7 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
 	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
 	if (!(grbm_status & GUI_ACTIVE)) {
-		r100_gpu_lockup_update(lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
@@ -2444,7 +2443,7 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *rin
 		radeon_ring_unlock_commit(rdev, ring);
 	}
 	ring->rptr = RREG32(CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 static int evergreen_gpu_soft_reset(struct radeon_device *rdev)

@@ -384,7 +384,7 @@ bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 
 	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r300.lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
@@ -396,7 +396,7 @@ bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		radeon_ring_unlock_commit(rdev, ring);
 	}
 	ring->rptr = RREG32(RADEON_CP_RB_RPTR);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 int r300_asic_reset(struct radeon_device *rdev)

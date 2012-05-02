@@ -396,6 +396,59 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 	mutex_unlock(&ring->mutex);
 }
 
+void radeon_ring_lockup_update(struct radeon_ring *ring)
+{
+	ring->last_rptr = ring->rptr;
+	ring->last_activity = jiffies;
+}
+
+/**
+ * radeon_ring_test_lockup() - check if ring is lockedup by recording information
+ * @rdev:       radeon device structure
+ * @ring:       radeon_ring structure holding ring information
+ *
+ * We don't need to initialize the lockup tracking information as we will either
+ * have CP rptr to a different value of jiffies wrap around which will force
+ * initialization of the lockup tracking informations.
+ *
+ * A possible false positivie is if we get call after while and last_cp_rptr ==
+ * the current CP rptr, even if it's unlikely it might happen. To avoid this
+ * if the elapsed time since last call is bigger than 2 second than we return
+ * false and update the tracking information. Due to this the caller must call
+ * radeon_ring_test_lockup several time in less than 2sec for lockup to be reported
+ * the fencing code should be cautious about that.
+ *
+ * Caller should write to the ring to force CP to do something so we don't get
+ * false positive when CP is just gived nothing to do.
+ *
+ **/
+bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	unsigned long cjiffies, elapsed;
+	uint32_t rptr;
+
+	cjiffies = jiffies;
+	if (!time_after(cjiffies, ring->last_activity)) {
+		/* likely a wrap around */
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	rptr = RREG32(ring->rptr_reg);
+	ring->rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
+	if (ring->rptr != ring->last_rptr) {
+		/* CP is still working no lockup */
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
+	if (elapsed >= 10000) {
+		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
+		return true;
+	}
+	/* give a chance to the GPU ... */
+	return false;
+}
+
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)

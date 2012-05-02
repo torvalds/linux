@@ -670,6 +670,8 @@ struct radeon_ring {
 	unsigned		ring_size;
 	unsigned		ring_free_dw;
 	int			count_dw;
+	unsigned long		last_activity;
+	unsigned		last_rptr;
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
 	uint32_t		ptr_mask;
@@ -814,6 +816,8 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
+void radeon_ring_lockup_update(struct radeon_ring *ring);
+bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring);
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop);
@@ -1272,16 +1276,10 @@ struct radeon_asic {
 /*
  * Asic structures
  */
-struct r100_gpu_lockup {
-	unsigned long	last_jiffies;
-	u32		last_cp_rptr;
-};
-
 struct r100_asic {
 	const unsigned		*reg_safe_bm;
 	unsigned		reg_safe_bm_size;
 	u32			hdp_cntl;
-	struct r100_gpu_lockup	lockup;
 };
 
 struct r300_asic {
@@ -1289,7 +1287,6 @@ struct r300_asic {
 	unsigned		reg_safe_bm_size;
 	u32			resync_scratch;
 	u32			hdp_cntl;
-	struct r100_gpu_lockup	lockup;
 };
 
 struct r600_asic {
@@ -1311,7 +1308,6 @@ struct r600_asic {
 	unsigned		tiling_group_size;
 	unsigned		tile_config;
 	unsigned		backend_map;
-	struct r100_gpu_lockup	lockup;
 };
 
 struct rv770_asic {
@@ -1337,7 +1333,6 @@ struct rv770_asic {
 	unsigned		tiling_group_size;
 	unsigned		tile_config;
 	unsigned		backend_map;
-	struct r100_gpu_lockup	lockup;
 };
 
 struct evergreen_asic {
@@ -1364,7 +1359,6 @@ struct evergreen_asic {
 	unsigned tiling_group_size;
 	unsigned tile_config;
 	unsigned backend_map;
-	struct r100_gpu_lockup	lockup;
 };
 
 struct cayman_asic {
@@ -1403,7 +1397,6 @@ struct cayman_asic {
 	unsigned multi_gpu_tile_size;
 
 	unsigned tile_config;
-	struct r100_gpu_lockup	lockup;
 };
 
 struct si_asic {
@@ -1434,7 +1427,6 @@ struct si_asic {
 	unsigned multi_gpu_tile_size;
 
 	unsigned tile_config;
-	struct r100_gpu_lockup	lockup;
 };
 
 union radeon_asic_config {

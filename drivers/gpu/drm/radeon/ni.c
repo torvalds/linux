@@ -1397,7 +1397,6 @@ bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status_se0, grbm_status_se1;
-	struct r100_gpu_lockup *lockup = &rdev->config.cayman.lockup;
 	int r;
 
 	srbm_status = RREG32(SRBM_STATUS);
@@ -1405,7 +1404,7 @@ bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
 	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
 	if (!(grbm_status & GUI_ACTIVE)) {
-		r100_gpu_lockup_update(lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
@@ -1418,7 +1417,7 @@ bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	}
 	/* XXX deal with CP0,1,2 */
 	ring->rptr = RREG32(ring->rptr_reg);
-	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 static int cayman_gpu_soft_reset(struct radeon_device *rdev)
