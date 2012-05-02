@@ -1031,7 +1031,13 @@ static int gfs2_unlink(struct inode *dir, struct dentry *dentry)
 	struct buffer_head *bh;
 	struct gfs2_holder ghs[3];
 	struct gfs2_rgrpd *rgd;
-	int error = -EROFS;
+	int error;
+
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
+	error = -EROFS;
 
 	gfs2_holder_init(dip->i_gl, LM_ST_EXCLUSIVE, 0, ghs);
 	gfs2_holder_init(ip->i_gl,  LM_ST_EXCLUSIVE, 0, ghs + 1);
@@ -1224,6 +1230,10 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			return 0;
 	}
 
+	error = gfs2_rindex_update(sdp);
+	if (error)
+		return error;
+
 	if (odip != ndip) {
 		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE,
 					   0, &r_gh);
@@ -1345,7 +1355,6 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	error = alloc_required;
 	if (error < 0)
 		goto out_gunlock;
-	error = 0;
 
 	if (alloc_required) {
 		struct gfs2_qadata *qa = gfs2_qadata_get(ndip);

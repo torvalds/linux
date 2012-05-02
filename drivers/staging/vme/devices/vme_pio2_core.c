@@ -35,10 +35,10 @@ static int vector[PIO2_CARDS_MAX];
 static int vector_num;
 static int level[PIO2_CARDS_MAX];
 static int level_num;
-static const char *variant[PIO2_CARDS_MAX];
+static char *variant[PIO2_CARDS_MAX];
 static int variant_num;
 
-static int loopback;
+static bool loopback;
 
 static int pio2_match(struct vme_dev *);
 static int __devinit pio2_probe(struct vme_dev *);

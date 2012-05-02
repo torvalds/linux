@@ -38,6 +38,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <drm/intel-gtt.h>
 #include <linux/backlight.h>
+#include <linux/intel-iommu.h>
 
 /* General customization:
  */
@@ -145,7 +146,6 @@ struct drm_i915_master_private {
 struct drm_i915_fence_reg {
 	struct list_head lru_list;
 	struct drm_i915_gem_object *obj;
-	uint32_t setup_seqno;
 	int pin_count;
 };
 
@@ -930,13 +930,12 @@ struct drm_i915_gem_object {
 	 */
 	uint32_t gtt_offset;
 
-	/** Breadcrumb of last rendering to the buffer. */
-	uint32_t last_rendering_seqno;
 	struct intel_ring_buffer *ring;
 
+	/** Breadcrumb of last rendering to the buffer. */
+	uint32_t last_rendering_seqno;
 	/** Breadcrumb of last fenced GPU access to the buffer. */
 	uint32_t last_fenced_seqno;
-	struct intel_ring_buffer *last_fenced_ring;
 
 	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
@@ -1127,8 +1126,10 @@ extern void i915_driver_preclose(struct drm_device *dev,
 extern void i915_driver_postclose(struct drm_device *dev,
 				  struct drm_file *file_priv);
 extern int i915_driver_device_is_agp(struct drm_device * dev);
+#ifdef CONFIG_COMPAT
 extern long i915_compat_ioctl(struct file *filp, unsigned int cmd,
 			      unsigned long arg);
+#endif
 extern int i915_emit_box(struct drm_device *dev,
 			 struct drm_clip_rect *box,
 			 int DR1, int DR4);
@@ -1230,6 +1231,8 @@ void i915_gem_lastclose(struct drm_device *dev);
 
 int __must_check i915_mutex_lock_interruptible(struct drm_device *dev);
 int __must_check i915_gem_object_wait_rendering(struct drm_i915_gem_object *obj);
+int i915_gem_object_sync(struct drm_i915_gem_object *obj,
+			 struct intel_ring_buffer *to);
 void i915_gem_object_move_to_active(struct drm_i915_gem_object *obj,
 				    struct intel_ring_buffer *ring,
 				    u32 seqno);
@@ -1252,17 +1255,18 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 
 u32 i915_gem_next_request_seqno(struct intel_ring_buffer *ring);
 
-int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj,
-					   struct intel_ring_buffer *pipelined);
+int __must_check i915_gem_object_get_fence(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_object_put_fence(struct drm_i915_gem_object *obj);
 
-static inline void
+static inline bool
 i915_gem_object_pin_fence(struct drm_i915_gem_object *obj)
 {
 	if (obj->fence_reg != I915_FENCE_REG_NONE) {
 		struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
 		dev_priv->fence_regs[obj->fence_reg].pin_count++;
-	}
+		return true;
+	} else
+		return false;
 }
 
 static inline void
@@ -1380,6 +1384,10 @@ extern int i915_restore_state(struct drm_device *dev);
 extern int i915_save_state(struct drm_device *dev);
 extern int i915_restore_state(struct drm_device *dev);
 
+/* i915_sysfs.c */
+void i915_setup_sysfs(struct drm_device *dev_priv);
+void i915_teardown_sysfs(struct drm_device *dev_priv);
+
 /* intel_i2c.c */
 extern int intel_setup_gmbus(struct drm_device *dev);
 extern void intel_teardown_gmbus(struct drm_device *dev);
@@ -1424,6 +1432,7 @@ static inline void intel_unregister_dsm_handler(void) { return; }
 #endif /* CONFIG_ACPI */
 
 /* modesetting */
+extern void intel_modeset_init_hw(struct drm_device *dev);
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
@@ -1436,7 +1445,9 @@ extern void ironlake_enable_rc6(struct drm_device *dev);
 extern void gen6_set_rps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch(struct drm_device *dev);
 extern int intel_trans_dp_port_sel(struct drm_crtc *crtc);
+extern int intel_enable_rc6(const struct drm_device *dev);
 
+extern bool i915_semaphore_is_enabled(struct drm_device *dev);
 extern void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv);
 extern void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv);
 extern void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv);

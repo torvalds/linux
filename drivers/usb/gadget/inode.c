@@ -1574,7 +1574,6 @@ static void destroy_ep_files (struct dev_data *dev)
 	DBG (dev, "%s %d\n", __func__, dev->state);
 
 	/* dev->state must prevent interference */
-restart:
 	spin_lock_irq (&dev->lock);
 	while (!list_empty(&dev->epfiles)) {
 		struct ep_data	*ep;

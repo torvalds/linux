@@ -723,7 +723,7 @@ config CPU_HIGH_VECTOR
 	bool "Select the High exception vector"
 	help
 	  Say Y here to select high exception vector(0xFFFF0000~).
-	  The exception vector can be vary depending on the platform
+	  The exception vector can vary depending on the platform
 	  design in nommu mode. If your platform needs to select
 	  high exception vector, say Y.
 	  Otherwise or if you are unsure, say N, and the low exception

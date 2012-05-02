@@ -152,6 +152,7 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 		pVBInfo->pXGINew_CR97 = &XG20_CR97;
 
 	if (ChipType == XG27) {
+		unsigned char temp;
 		pVBInfo->MCLKData
 			= (struct SiS_MCLKData *) XGI27New_MCLKData;
 		pVBInfo->CR40 = XGI27_cr41;
@@ -162,7 +163,13 @@ void InitTo330Pointer(unsigned char ChipType, struct vb_device_info *pVBInfo)
 		pVBInfo->pCRDE = XG27_CRDE;
 		pVBInfo->pSR40 = &XG27_SR40;
 		pVBInfo->pSR41 = &XG27_SR41;
+		pVBInfo->SR15 = XG27_SR13;
 
+		/*Z11m DDR*/
+		temp = xgifb_reg_get(pVBInfo->P3c4, 0x3B);
+		/* SR3B[7][3]MAA15 MAA11 (Power on Trapping) */
+		if (((temp & 0x88) == 0x80) || ((temp & 0x88) == 0x08))
+			pVBInfo->pXGINew_CR97 = &Z11m_CR97;
 	}
 
 	if (ChipType >= XG20) {

@@ -1,7 +1,7 @@
 /******************************************************************************
 
     AudioScience HPI driver
-    Copyright (C) 1997-2011  AudioScience Inc. <support@audioscience.com>
+    Copyright (C) 1997-2012  AudioScience Inc. <support@audioscience.com>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of version 2 of the GNU General Public License as
@@ -39,11 +39,11 @@ void hpios_delay_micro_seconds(u32 num_micro_sec)
 
 }
 
-/** Allocated an area of locked memory for bus master DMA operations.
+/** Allocate an area of locked memory for bus master DMA operations.
 
-On error, return -ENOMEM, and *pMemArea.size = 0
+If allocation fails, return 1, and *pMemArea.size = 0
 */
-int hpios_locked_mem_alloc(struct consistent_dma_area *p_mem_area, u32 size,
+u16 hpios_locked_mem_alloc(struct consistent_dma_area *p_mem_area, u32 size,
 	struct pci_dev *pdev)
 {
 	/*?? any benefit in using managed dmam_alloc_coherent? */
@@ -62,7 +62,7 @@ int hpios_locked_mem_alloc(struct consistent_dma_area *p_mem_area, u32 size,
 		HPI_DEBUG_LOG(WARNING,
 			"failed to allocate %d bytes locked memory\n", size);
 		p_mem_area->size = 0;
-		return -ENOMEM;
+		return 1;
 	}
 }
 

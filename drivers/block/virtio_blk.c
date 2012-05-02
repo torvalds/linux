@@ -351,6 +351,7 @@ static void virtblk_config_changed_work(struct work_struct *work)
 		  cap_str_10, cap_str_2);
 
 	set_capacity(vblk->disk, capacity);
+	revalidate_disk(vblk->disk);
 done:
 	mutex_unlock(&vblk->config_lock);
 }

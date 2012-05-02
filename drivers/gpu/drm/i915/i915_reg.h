@@ -127,6 +127,13 @@
 #define   ECOCHK_PPGTT_CACHE64B		(0x3<<3)
 #define   ECOCHK_PPGTT_CACHE4B		(0x0<<3)
 
+#define GAC_ECO_BITS			0x14090
+#define   ECOBITS_PPGTT_CACHE64B	(3<<8)
+#define   ECOBITS_PPGTT_CACHE4B		(0<<8)
+
+#define GAB_CTL				0x24000
+#define   GAB_CTL_CONT_AFTER_PAGEFAULT	(1<<8)
+
 /* VGA stuff */
 
 #define VGA_ST01_MDA 0x3ba
@@ -224,6 +231,7 @@
 #define   MI_BATCH_NON_SECURE	(1)
 #define   MI_BATCH_NON_SECURE_I965 (1<<8)
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
+#define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_SEMAPHORE_MBOX	MI_INSTR(0x16, 1) /* gen6+ */
 #define  MI_SEMAPHORE_GLOBAL_GTT    (1<<22)
 #define  MI_SEMAPHORE_UPDATE	    (1<<21)
@@ -490,6 +498,7 @@
  */
 # define _3D_CHICKEN2_WM_READ_PIPELINED			(1 << 14)
 #define _3D_CHICKEN3	0x02090
+#define  _3D_CHICKEN_SF_DISABLE_FASTCLIP_CULL		(1 << 5)
 
 #define MI_MODE		0x0209c
 # define VS_TIMER_DISPATCH				(1 << 6)
@@ -631,6 +640,7 @@
 #define   CM0_MASK_SHIFT          16
 #define   CM0_IZ_OPT_DISABLE      (1<<6)
 #define   CM0_ZR_OPT_DISABLE      (1<<5)
+#define	  CM0_STC_EVICT_DISABLE_LRA_SNB	(1<<5)
 #define   CM0_DEPTH_EVICT_DISABLE (1<<4)
 #define   CM0_COLOR_EVICT_DISABLE (1<<3)
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
@@ -681,6 +691,21 @@
 #define   GEN6_BSD_USER_INTERRUPT	(1 << 12)
 
 #define GEN6_BSD_RNCID			0x12198
+
+#define GEN7_FF_THREAD_MODE		0x20a0
+#define   GEN7_FF_SCHED_MASK		0x0077070
+#define   GEN7_FF_TS_SCHED_HS1		(0x5<<16)
+#define   GEN7_FF_TS_SCHED_HS0		(0x3<<16)
+#define   GEN7_FF_TS_SCHED_LOAD_BALANCE	(0x1<<16)
+#define   GEN7_FF_TS_SCHED_HW		(0x0<<16) /* Default */
+#define   GEN7_FF_VS_SCHED_HS1		(0x5<<12)
+#define   GEN7_FF_VS_SCHED_HS0		(0x3<<12)
+#define   GEN7_FF_VS_SCHED_LOAD_BALANCE	(0x1<<12) /* Default */
+#define   GEN7_FF_VS_SCHED_HW		(0x0<<12)
+#define   GEN7_FF_DS_SCHED_HS1		(0x5<<4)
+#define   GEN7_FF_DS_SCHED_HS0		(0x3<<4)
+#define   GEN7_FF_DS_SCHED_LOAD_BALANCE	(0x1<<4)  /* Default */
+#define   GEN7_FF_DS_SCHED_HW		(0x0<<4)
 
 /*
  * Framebuffer compression (915+ only)
@@ -2860,6 +2885,13 @@
 #define DSPSURF(plane) _PIPE(plane, _DSPASURF, _DSPBSURF)
 #define DSPTILEOFF(plane) _PIPE(plane, _DSPATILEOFF, _DSPBTILEOFF)
 
+/* Display/Sprite base address macros */
+#define DISP_BASEADDR_MASK	(0xfffff000)
+#define I915_LO_DISPBASE(val)	(val & ~DISP_BASEADDR_MASK)
+#define I915_HI_DISPBASE(val)	(val & DISP_BASEADDR_MASK)
+#define I915_MODIFY_DISPBASE(reg, gfx_addr) \
+		(I915_WRITE(reg, gfx_addr | I915_LO_DISPBASE(I915_READ(reg))))
+
 /* VBIOS flags */
 #define SWF00			0x71410
 #define SWF01			0x71414
@@ -3648,6 +3680,9 @@
 #define  FDI_LINK_TRAIN_PATTERN_IDLE_CPT	(2<<8)
 #define  FDI_LINK_TRAIN_NORMAL_CPT		(3<<8)
 #define  FDI_LINK_TRAIN_PATTERN_MASK_CPT	(3<<8)
+/* LPT */
+#define  FDI_PORT_WIDTH_2X_LPT			(1<<19)
+#define  FDI_PORT_WIDTH_1X_LPT			(0<<19)
 
 #define _FDI_RXA_MISC            0xf0010
 #define _FDI_RXB_MISC            0xf1010
@@ -3891,6 +3926,10 @@
 #define  GT_FIFO_FREE_ENTRIES			0x120008
 #define    GT_FIFO_NUM_RESERVED_ENTRIES		20
 
+#define GEN6_UCGCTL1				0x9400
+# define GEN6_BLBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
+# define GEN6_CSUNIT_CLOCK_GATE_DISABLE			(1 << 7)
+
 #define GEN6_UCGCTL2				0x9404
 # define GEN6_RCZUNIT_CLOCK_GATE_DISABLE		(1 << 13)
 # define GEN6_RCPBUNIT_CLOCK_GATE_DISABLE		(1 << 12)
@@ -3969,6 +4008,11 @@
 #define  GEN6_PM_DEFERRED_EVENTS		(GEN6_PM_RP_UP_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_THRESHOLD | \
 						 GEN6_PM_RP_DOWN_TIMEOUT)
+
+#define GEN6_GT_GFX_RC6_LOCKED			0x138104
+#define GEN6_GT_GFX_RC6				0x138108
+#define GEN6_GT_GFX_RC6p			0x13810C
+#define GEN6_GT_GFX_RC6pp			0x138110
 
 #define GEN6_PCODE_MAILBOX			0x138124
 #define   GEN6_PCODE_READY			(1<<31)
@@ -4170,6 +4214,10 @@
 #define  WRPLL_PLL_SELECT_SSC			(0x01<<28)
 #define  WRPLL_PLL_SELECT_NON_SCC		(0x02<<28)
 #define  WRPLL_PLL_SELECT_LCPLL_2700	(0x03<<28)
+/* WRPLL divider programming */
+#define  WRPLL_DIVIDER_REFERENCE(x)		((x)<<0)
+#define  WRPLL_DIVIDER_POST(x)			((x)<<8)
+#define  WRPLL_DIVIDER_FEEDBACK(x)		((x)<<16)
 
 /* Port clock selection */
 #define PORT_CLK_SEL_A			0x46100

@@ -219,14 +219,38 @@ intel_dp_max_data_rate(int max_link_clock, int max_lanes)
 	return (max_link_clock * max_lanes * 8) / 10;
 }
 
+static bool
+intel_dp_adjust_dithering(struct intel_dp *intel_dp,
+			  struct drm_display_mode *mode,
+			  struct drm_display_mode *adjusted_mode)
+{
+	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
+	int max_lanes = intel_dp_max_lane_count(intel_dp);
+	int max_rate, mode_rate;
+
+	mode_rate = intel_dp_link_required(mode->clock, 24);
+	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
+
+	if (mode_rate > max_rate) {
+		mode_rate = intel_dp_link_required(mode->clock, 18);
+		if (mode_rate > max_rate)
+			return false;
+
+		if (adjusted_mode)
+			adjusted_mode->private_flags
+				|= INTEL_MODE_DP_FORCE_6BPC;
+
+		return true;
+	}
+
+	return true;
+}
+
 static int
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
 	struct intel_dp *intel_dp = intel_attached_dp(connector);
-	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_dp));
-	int max_lanes = intel_dp_max_lane_count(intel_dp);
-	int max_rate, mode_rate;
 
 	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
 		if (mode->hdisplay > intel_dp->panel_fixed_mode->hdisplay)
@@ -236,16 +260,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 			return MODE_PANEL;
 	}
 
-	mode_rate = intel_dp_link_required(mode->clock, 24);
-	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
-
-	if (mode_rate > max_rate) {
-			mode_rate = intel_dp_link_required(mode->clock, 18);
-			if (mode_rate > max_rate)
-				return MODE_CLOCK_HIGH;
-			else
-				mode->private_flags |= INTEL_MODE_DP_FORCE_6BPC;
-	}
+	if (!intel_dp_adjust_dithering(intel_dp, mode, NULL))
+		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
 		return MODE_CLOCK_LOW;
@@ -672,7 +688,7 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	int lane_count, clock;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
 	int max_clock = intel_dp_max_link_bw(intel_dp) == DP_LINK_BW_2_7 ? 1 : 0;
-	int bpp = mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
+	int bpp;
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
 
 	if (is_edp(intel_dp) && intel_dp->panel_fixed_mode) {
@@ -685,6 +701,11 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		 */
 		mode->clock = intel_dp->panel_fixed_mode->clock;
 	}
+
+	if (!intel_dp_adjust_dithering(intel_dp, mode, adjusted_mode))
+		return false;
+
+	bpp = adjusted_mode->private_flags & INTEL_MODE_DP_FORCE_6BPC ? 18 : 24;
 
 	for (lane_count = 1; lane_count <= max_lane_count; lane_count <<= 1) {
 		for (clock = 0; clock <= max_clock; clock++) {
@@ -1128,6 +1149,7 @@ static void ironlake_edp_panel_off(struct intel_dp *intel_dp)
 	DRM_DEBUG_KMS("Turn eDP power off\n");
 
 	WARN(intel_dp->want_panel_vdd, "Cannot turn power off while VDD is on\n");
+	ironlake_panel_vdd_off_sync(intel_dp); /* finish any pending work */
 
 	pp = ironlake_get_pp_control(dev_priv);
 	pp &= ~(POWER_TARGET_ON | EDP_FORCE_VDD | PANEL_POWER_RESET | EDP_BLC_ENABLE);
@@ -2461,6 +2483,13 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 		pp_on = I915_READ(PCH_PP_ON_DELAYS);
 		pp_off = I915_READ(PCH_PP_OFF_DELAYS);
 		pp_div = I915_READ(PCH_PP_DIVISOR);
+
+		if (!pp_on || !pp_off || !pp_div) {
+			DRM_INFO("bad panel power sequencing delays, disabling panel\n");
+			intel_dp_encoder_destroy(&intel_dp->base.base);
+			intel_dp_destroy(&intel_connector->base);
+			return;
+		}
 
 		/* Pull timing values out of registers */
 		cur.t1_t3 = (pp_on & PANEL_POWER_UP_DELAY_MASK) >>

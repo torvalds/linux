@@ -64,7 +64,7 @@ MODULE_PARM_DESC(semaphores,
 		"Use semaphores for inter-ring sync (default: -1 (use per-chip defaults))");
 
 int i915_enable_rc6 __read_mostly = -1;
-module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0600);
+module_param_named(i915_enable_rc6, i915_enable_rc6, int, 0400);
 MODULE_PARM_DESC(i915_enable_rc6,
 		"Enable power-saving render C-state 6. "
 		"Different stages can be selected via bitmask values "
@@ -392,6 +392,21 @@ void intel_detect_pch(struct drm_device *dev)
 		}
 		pci_dev_put(pch);
 	}
+}
+
+bool i915_semaphore_is_enabled(struct drm_device *dev)
+{
+	if (INTEL_INFO(dev)->gen < 6)
+		return 0;
+
+	if (i915_semaphores >= 0)
+		return i915_semaphores;
+
+	/* Enable semaphores on SNB when IO remapping is off */
+	if (INTEL_INFO(dev)->gen == 6)
+		return !intel_iommu_enabled;
+
+	return 1;
 }
 
 void __gen6_gt_force_wake_get(struct drm_i915_private *dev_priv)
@@ -836,9 +851,14 @@ int i915_reset(struct drm_device *dev, u8 flags)
 		i915_gem_init_ppgtt(dev);
 
 		mutex_unlock(&dev->struct_mutex);
+
+		if (drm_core_check_feature(dev, DRIVER_MODESET))
+			intel_modeset_init_hw(dev);
+
 		drm_irq_uninstall(dev);
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
+
 		mutex_lock(&dev->struct_mutex);
 	}
 

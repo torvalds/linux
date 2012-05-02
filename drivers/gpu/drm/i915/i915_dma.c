@@ -2115,7 +2115,7 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	spin_lock_init(&dev_priv->error_lock);
 	spin_lock_init(&dev_priv->rps_lock);
 
-	if (IS_IVYBRIDGE(dev))
+	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 		dev_priv->num_pipe = 3;
 	else if (IS_MOBILE(dev) || !IS_GEN2(dev))
 		dev_priv->num_pipe = 2;
@@ -2138,6 +2138,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_gem_unload;
 		}
 	}
+
+	i915_setup_sysfs(dev);
 
 	/* Must be done after probing outputs */
 	intel_opregion_init(dev);
@@ -2189,6 +2191,8 @@ int i915_driver_unload(struct drm_device *dev)
 	spin_lock(&mchdev_lock);
 	i915_mch_dev = NULL;
 	spin_unlock(&mchdev_lock);
+
+	i915_teardown_sysfs(dev);
 
 	if (dev_priv->mm.inactive_shrinker.shrink)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);

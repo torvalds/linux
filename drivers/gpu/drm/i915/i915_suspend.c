@@ -879,17 +879,7 @@ int i915_restore_state(struct drm_device *dev)
 	mutex_unlock(&dev->struct_mutex);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		intel_init_clock_gating(dev);
-
-	if (IS_IRONLAKE_M(dev)) {
-		ironlake_enable_drps(dev);
-		intel_init_emon(dev);
-	}
-
-	if (INTEL_INFO(dev)->gen >= 6) {
-		gen6_enable_rps(dev_priv);
-		gen6_update_ring_freq(dev_priv);
-	}
+		intel_modeset_init_hw(dev);
 
 	mutex_lock(&dev->struct_mutex);
 
