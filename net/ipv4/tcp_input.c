@@ -4548,15 +4548,13 @@ static bool tcp_try_coalesce(struct sock *sk,
 	int i, delta, len = from->len;
 
 	*fragstolen = false;
+
 	if (tcp_hdr(from)->fin || skb_cloned(to))
 		return false;
+
 	if (len <= skb_tailroom(to)) {
 		BUG_ON(skb_copy_bits(from, 0, skb_put(to, len), len));
-merge:
-		NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOALESCE);
-		TCP_SKB_CB(to)->end_seq = TCP_SKB_CB(from)->end_seq;
-		TCP_SKB_CB(to)->ack_seq = TCP_SKB_CB(from)->ack_seq;
-		return true;
+		goto merge;
 	}
 
 	if (skb_has_frag_list(to) || skb_has_frag_list(from))
@@ -4581,7 +4579,6 @@ merge:
 		skb_fill_page_desc(to, skb_shinfo(to)->nr_frags,
 				   page, offset, skb_headlen(from));
 		*fragstolen = true;
-		goto copyfrags;
 	} else {
 		if (skb_shinfo(to)->nr_frags +
 		    skb_shinfo(from)->nr_frags > MAX_SKB_FRAGS)
@@ -4589,27 +4586,33 @@ merge:
 
 		delta = from->truesize -
 			SKB_TRUESIZE(skb_end_pointer(from) - from->head);
-copyfrags:
-		WARN_ON_ONCE(delta < len);
-		memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
-		       skb_shinfo(from)->frags,
-		       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
-		skb_shinfo(to)->nr_frags += skb_shinfo(from)->nr_frags;
-
-		if (skb_cloned(from))
-			for (i = 0; i < skb_shinfo(from)->nr_frags; i++)
-				skb_frag_ref(from, i);
-		else
-			skb_shinfo(from)->nr_frags = 0;
-
-		to->truesize += delta;
-		atomic_add(delta, &sk->sk_rmem_alloc);
-		sk_mem_charge(sk, delta);
-		to->len += len;
-		to->data_len += len;
-		goto merge;
 	}
-	return false;
+
+	WARN_ON_ONCE(delta < len);
+
+	memcpy(skb_shinfo(to)->frags + skb_shinfo(to)->nr_frags,
+	       skb_shinfo(from)->frags,
+	       skb_shinfo(from)->nr_frags * sizeof(skb_frag_t));
+	skb_shinfo(to)->nr_frags += skb_shinfo(from)->nr_frags;
+
+	if (!skb_cloned(from))
+		skb_shinfo(from)->nr_frags = 0;
+
+	/* if the skb is cloned this does nothing since we set nr_frags to 0 */
+	for (i = 0; i < skb_shinfo(from)->nr_frags; i++)
+		skb_frag_ref(from, i);
+
+	to->truesize += delta;
+	atomic_add(delta, &sk->sk_rmem_alloc);
+	sk_mem_charge(sk, delta);
+	to->len += len;
+	to->data_len += len;
+
+merge:
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOALESCE);
+	TCP_SKB_CB(to)->end_seq = TCP_SKB_CB(from)->end_seq;
+	TCP_SKB_CB(to)->ack_seq = TCP_SKB_CB(from)->ack_seq;
+	return true;
 }
 
 static void kfree_skb_partial(struct sk_buff *skb, bool head_stolen)
