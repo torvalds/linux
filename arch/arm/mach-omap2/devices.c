@@ -722,12 +722,13 @@ static int __init omap2_init_devices(void)
 	 */
 	omap_init_audio();
 	omap_init_mcpdm();
-	omap_init_dmic();
 	omap_init_camera();
 	omap_init_mbox();
 	/* If dtb is there, the devices will be created dynamically */
-	if (!of_have_populated_dt())
+	if (!of_have_populated_dt()) {
+		omap_init_dmic();
 		omap_init_mcspi();
+	}
 	omap_init_pmu();
 	omap_hdq_init();
 	omap_init_sti();
