@@ -106,6 +106,12 @@ static inline int gpio_request_one(unsigned gpio,
 	return -ENOSYS;
 }
 
+static inline int devm_gpio_request_one(struct device *dev, unsigned gpio,
+					unsigned long flags, const char *label)
+{
+	return -ENOSYS;
+}
+
 static inline int gpio_request_array(const struct gpio *array, size_t num)
 {
 	return -ENOSYS;
