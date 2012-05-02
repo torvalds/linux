@@ -23,17 +23,6 @@ config COMMON_CLK
 menu "Common Clock Framework"
 	depends on COMMON_CLK
 
-config COMMON_CLK_DISABLE_UNUSED
-	bool "Disabled unused clocks at boot"
-	depends on COMMON_CLK
-	---help---
-	  Traverses the entire clock tree and disables any clocks that are
-	  enabled in hardware but have not been enabled by any device drivers.
-	  This saves power and keeps the software model of the clock in line
-	  with reality.
-
-	  If in doubt, say "N".
-
 config COMMON_CLK_DEBUG
 	bool "DebugFS representation of clock tree"
 	depends on COMMON_CLK
