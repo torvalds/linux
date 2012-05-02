@@ -50,7 +50,7 @@ static void __iomem *scu_base_addr(void)
 {
 	if (cpu_is_u5500())
 		return __io_address(U5500_SCU_BASE);
-	else if (cpu_is_u8500())
+	else if (cpu_is_u8500_family())
 		return __io_address(U8500_SCU_BASE);
 	else
 		ux500_unknown_soc();
@@ -99,7 +99,7 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	write_pen_release(cpu_logical_map(cpu));
 
-	gic_raise_softirq(cpumask_of(cpu), 1);
+	smp_send_reschedule(cpu);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
@@ -122,7 +122,7 @@ static void __init wakeup_secondary(void)
 
 	if (cpu_is_u5500())
 		backupram = __io_address(U5500_BACKUPRAM0_BASE);
-	else if (cpu_is_u8500())
+	else if (cpu_is_u8500_family())
 		backupram = __io_address(U8500_BACKUPRAM0_BASE);
 	else
 		ux500_unknown_soc();

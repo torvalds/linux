@@ -102,7 +102,7 @@ static int __init mop500_uib_init(void)
 	struct i2c_adapter *i2c0;
 	int ret;
 
-	if (!cpu_is_u8500())
+	if (!cpu_is_u8500_family())
 		return -ENODEV;
 
 	if (uib) {

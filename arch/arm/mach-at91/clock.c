@@ -35,6 +35,7 @@
 #include "generic.h"
 
 void __iomem *at91_pmc_base;
+EXPORT_SYMBOL_GPL(at91_pmc_base);
 
 /*
  * There's a lot more which can be done with clocks, including cpufreq
