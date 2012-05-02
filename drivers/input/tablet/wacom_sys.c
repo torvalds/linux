@@ -517,11 +517,12 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 		goto out;
 	}
 
-	if (usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc)) {
-		if (usb_get_extra_descriptor(&interface->endpoint[0],
-				HID_DEVICET_REPORT, &hid_desc)) {
-			printk("wacom: can not retrieve extra class descriptor\n");
-			error = 1;
+	error = usb_get_extra_descriptor(interface, HID_DEVICET_HID, &hid_desc);
+	if (error) {
+		error = usb_get_extra_descriptor(&interface->endpoint[0],
+						 HID_DEVICET_REPORT, &hid_desc);
+		if (error) {
+			printk(KERN_ERR "wacom: can not retrieve extra class descriptor\n");
 			goto out;
 		}
 	}
