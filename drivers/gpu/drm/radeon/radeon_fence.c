@@ -244,6 +244,8 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 			/* change sequence value on all rings, so nobody else things there is a lockup */
 			for (i = 0; i < RADEON_NUM_RINGS; ++i)
 				rdev->fence_drv[i].last_seq -= 0x10000;
+
+			rdev->fence_drv[fence->ring].last_activity = jiffies;
 			write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 
 			if (radeon_ring_is_lockup(rdev, fence->ring, &rdev->ring[fence->ring])) {
@@ -254,13 +256,7 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 
 				/* mark the ring as not ready any more */
 				rdev->ring[fence->ring].ready = false;
-				r = radeon_gpu_reset(rdev);
-				if (r)
-					return r;
-
-				write_lock_irqsave(&rdev->fence_lock, irq_flags);
-				rdev->fence_drv[fence->ring].last_activity = jiffies;
-				write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+				return -EDEADLK;
 			}
 		}
 	}

@@ -496,6 +496,16 @@ out:
 	return r;
 }
 
+static int radeon_cs_handle_lockup(struct radeon_device *rdev, int r)
+{
+	if (r == -EDEADLK) {
+		r = radeon_gpu_reset(rdev);
+		if (!r)
+			r = -EAGAIN;
+	}
+	return r;
+}
+
 int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct radeon_device *rdev = dev->dev_private;
@@ -517,6 +527,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");
 		radeon_cs_parser_fini(&parser, r);
+		r = radeon_cs_handle_lockup(rdev, r);
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
@@ -525,6 +536,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("Failed to parse relocation %d!\n", r);
 		radeon_cs_parser_fini(&parser, r);
+		r = radeon_cs_handle_lockup(rdev, r);
 		radeon_mutex_unlock(&rdev->cs_mutex);
 		return r;
 	}
@@ -538,6 +550,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	}
 out:
 	radeon_cs_parser_fini(&parser, r);
+	r = radeon_cs_handle_lockup(rdev, r);
 	radeon_mutex_unlock(&rdev->cs_mutex);
 	return r;
 }

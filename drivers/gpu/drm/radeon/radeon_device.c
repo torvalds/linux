@@ -986,9 +986,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	int r;
 	int resched;
 
-	/* Prevent CS ioctl from interfering */
-	radeon_mutex_lock(&rdev->cs_mutex);
-
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
@@ -1002,8 +999,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		drm_helper_resume_force_mode(rdev->ddev);
 		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	}
-
-	radeon_mutex_unlock(&rdev->cs_mutex);
 
 	if (r) {
 		/* bad news, how to tell it to userspace ? */
