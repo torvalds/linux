@@ -215,6 +215,8 @@ static const match_table_t cifs_mount_option_tokens = {
 
 	{ Opt_ignore, "cred" },
 	{ Opt_ignore, "credentials" },
+	{ Opt_ignore, "cred=%s" },
+	{ Opt_ignore, "credentials=%s" },
 	{ Opt_ignore, "guest" },
 	{ Opt_ignore, "rw" },
 	{ Opt_ignore, "ro" },
