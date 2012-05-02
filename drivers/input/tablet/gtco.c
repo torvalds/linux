@@ -806,7 +806,7 @@ static void gtco_urb_callback(struct urb *urbinfo)
  resubmit:
 	rc = usb_submit_urb(urbinfo, GFP_ATOMIC);
 	if (rc != 0)
-		dev_err(&device->usbdev->dev,
+		dev_err(&inputdev->dev,
 			"usb_submit_urb failed rc=0x%x\n", rc);
 }
 
