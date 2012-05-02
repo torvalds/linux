@@ -657,7 +657,7 @@ struct v4l2_buffer {
 		struct v4l2_plane *planes;
 	} m;
 	__u32			length;
-	__u32			input;
+	__u32			reserved2;
 	__u32			reserved;
 };
 
@@ -671,7 +671,6 @@ struct v4l2_buffer {
 /* Buffer is ready, but the data contained within is corrupted. */
 #define V4L2_BUF_FLAG_ERROR	0x0040
 #define V4L2_BUF_FLAG_TIMECODE	0x0100	/* timecode field is valid */
-#define V4L2_BUF_FLAG_INPUT     0x0200  /* input field is valid */
 #define V4L2_BUF_FLAG_PREPARED	0x0400	/* Buffer is prepared for queuing */
 /* Cache handling flags */
 #define V4L2_BUF_FLAG_NO_CACHE_INVALIDATE	0x0800

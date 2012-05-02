@@ -2458,6 +2458,18 @@ details.</para>
       </orderedlist>
     </section>
 
+    <section>
+      <title>V4L2 in Linux 3.5</title>
+      <orderedlist>
+	<listitem>
+	  <para>Replaced <structfield>input</structfield> in
+	  <structname>v4l2_buffer</structname> by
+	  <structfield>reserved2</structfield> and removed
+	  <constant>V4L2_BUF_FLAG_INPUT</constant>.</para>
+	</listitem>
+      </orderedlist>
+    </section>
+
     <section id="other">
       <title>Relation of V4L2 to other Linux multimedia APIs</title>
 
