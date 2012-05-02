@@ -751,7 +751,6 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 				struct btrfs_ordered_extent *ordered)
 {
 	struct btrfs_ordered_inode_tree *tree = &BTRFS_I(inode)->ordered_tree;
-	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	u64 disk_i_size;
 	u64 new_i_size;
 	u64 i_size_test;
@@ -784,14 +783,6 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 		goto out;
 	}
 
-	/*
-	 * we can't update the disk_isize if there are delalloc bytes
-	 * between disk_i_size and  this ordered extent
-	 */
-	if (test_range_bit(io_tree, disk_i_size, offset - 1,
-			   EXTENT_DELALLOC, 0, NULL)) {
-		goto out;
-	}
 	/*
 	 * walk backward from this ordered extent to disk_i_size.
 	 * if we find an ordered extent then we can't update disk i_size
@@ -853,15 +844,11 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 
 	/*
 	 * i_size_test is the end of a region after this ordered
-	 * extent where there are no ordered extents.  As long as there
-	 * are no delalloc bytes in this area, it is safe to update
-	 * disk_i_size to the end of the region.
+	 * extent where there are no ordered extents, we can safely set
+	 * disk_i_size to this.
 	 */
-	if (i_size_test > offset &&
-	    !test_range_bit(io_tree, offset, i_size_test - 1,
-			    EXTENT_DELALLOC, 0, NULL)) {
+	if (i_size_test > offset)
 		new_i_size = min_t(u64, i_size_test, i_size);
-	}
 	BTRFS_I(inode)->disk_i_size = new_i_size;
 	ret = 0;
 out:
