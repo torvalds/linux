@@ -51,7 +51,9 @@
 #if defined(CONFIG_ANDROID_TIMED_GPIO)
 #include "../../../drivers/staging/android/timed_gpio.h"
 #endif
-
+#include <linux/mtk23d.h>
+#include "../../../drivers/tty/serial/sc8800.h"
+#define BP_VOL_PIN			RK30_PIN6_PB2
 #define RK30_FB0_MEM_SIZE 8*SZ_1M
 
 #ifdef CONFIG_VIDEO_RK29
@@ -519,8 +521,6 @@ struct goodix_platform_data goodix_info = {
 };
 #endif
 
-static struct spi_board_info board_spi_devices[] = {
-};
 
 /***********************************************************
 *	rk30  backlight
@@ -645,6 +645,83 @@ static struct platform_device rk30_device_modem = {
 	}
 };
 #endif
+#if defined(CONFIG_RK29_SC8800)
+// tdsc8800
+static int tdsc8800_io_init(void)
+{
+
+	return 0;
+}
+
+static int tdsc8800_io_deinit(void)
+{
+
+	return 0;
+}
+
+struct rk2818_23d_data rk29_tdsc8800_info = {
+	.io_init = tdsc8800_io_init,
+       .io_deinit = tdsc8800_io_deinit,
+	.bp_power = BP_VOL_PIN,
+	.bp_power_active_low = 1,
+};
+struct platform_device rk29_device_tdsc8800 = {
+        .name = "tdsc8800",
+	.id = -1,
+	.dev		= {
+		.platform_data = &rk29_tdsc8800_info,
+	}
+    };
+//sc8800
+static int sc8800_io_init(void)
+{
+	rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCADDR17_HSADCDATA8_NAME, GPIO2B_GPIO2B5);
+	rk30_mux_api_set(GPIO2A2_LCDCDATA2_SMCADDR6_NAME, GPIO2A_GPIO2A2);
+
+
+	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME, GPIO2C_SPI1_CLK);
+	rk30_mux_api_set(GPIO2C4_LCDC1DATA20_SPI1CSN0_HSADCDATA1_NAME, GPIO2C_SPI1_CSN0);
+	rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SPI1TXD_HSADCDATA2_NAME, GPIO2C_SPI1_TXD);
+	rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SPI1RXD_HSADCDATA3_NAME, GPIO2C_SPI1_RXD);
+	return 0;
+}
+
+static int sc8800_io_deinit(void)
+{
+
+	return 0;
+}
+
+static struct plat_sc8800 sc8800_plat_data = {
+	.slav_rts_pin = RK30_PIN6_PA0,
+	.slav_rdy_pin = RK30_PIN6_PA1,
+	.master_rts_pin = RK30_PIN2_PB5,
+	.master_rdy_pin = RK30_PIN2_PA2,
+	//.poll_time = 100,
+	.io_init = sc8800_io_init,
+    .io_deinit = sc8800_io_deinit,
+};
+static struct rk29xx_spi_chip sc8800_spi_chip = {
+	//.poll_mode = 1,
+	.enable_dma = 0,
+};
+
+#endif
+
+static struct spi_board_info board_spi_devices[] = {
+
+#if defined(CONFIG_RK29_SC8800)
+		{
+			.modalias  = "sc8800",
+			.bus_num = 1,
+			.platform_data = &sc8800_plat_data,
+			.max_speed_hz  = 12*1000*1000,
+			.chip_select   = 0,		
+			.controller_data = &sc8800_spi_chip,
+		},
+#endif
+
+};
 
 /*MMA8452 gsensor*/
 #if defined (CONFIG_GS_MMA8452)
@@ -1183,6 +1260,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_RK29_SUPPORT_MODEM
     &rk30_device_modem,
+#endif
+#if defined(CONFIG_TDSC8800)
+&rk29_device_tdsc8800,
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
