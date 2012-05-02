@@ -401,6 +401,7 @@ static inline void atp_report_fingers(struct input_dev *input, int fingers)
 static int atp_status_check(struct urb *urb)
 {
 	struct atp *dev = urb->context;
+	struct input_dev *idev = dev->input;
 
 	switch (urb->status) {
 	case 0:
@@ -408,8 +409,8 @@ static int atp_status_check(struct urb *urb)
 		break;
 	case -EOVERFLOW:
 		if (!dev->overflow_warned) {
-			printk(KERN_WARNING "appletouch: OVERFLOW with data "
-				"length %d, actual length is %d\n",
+			dev_warn(&idev->dev,
+				"appletouch: OVERFLOW with data length %d, actual length is %d\n",
 				dev->info->datalen, dev->urb->actual_length);
 			dev->overflow_warned = true;
 		}
@@ -417,13 +418,15 @@ static int atp_status_check(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
-		dbg("atp_complete: urb shutting down with status: %d",
-		    urb->status);
+		dev_dbg(&idev->dev,
+			"atp_complete: urb shutting down with status: %d\n",
+			urb->status);
 		return ATP_URB_STATUS_ERROR_FATAL;
 
 	default:
-		dbg("atp_complete: nonzero urb status received: %d",
-		    urb->status);
+		dev_dbg(&idev->dev,
+			"atp_complete: nonzero urb status received: %d\n",
+			urb->status);
 		return ATP_URB_STATUS_ERROR;
 	}
 
@@ -446,7 +449,8 @@ static void atp_detect_size(struct atp *dev)
 	for (i = dev->info->xsensors; i < ATP_XSENSORS; i++) {
 		if (dev->xy_cur[i]) {
 
-			printk(KERN_INFO "appletouch: 17\" model detected.\n");
+			dev_info(&dev->input->dev,
+				"appletouch: 17\" model detected.\n");
 
 			input_set_abs_params(dev->input, ABS_X, 0,
 					     (dev->info->xsensors_17 - 1) *
