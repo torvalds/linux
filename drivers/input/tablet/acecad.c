@@ -73,10 +73,12 @@ static void usb_acecad_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__, urb->status);
+		dev_dbg(&dev->dev, "%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__, urb->status);
+		dev_dbg(&dev->dev, "%s - nonzero urb status received: %d\n",
+			__func__, urb->status);
 		goto resubmit;
 	}
 
