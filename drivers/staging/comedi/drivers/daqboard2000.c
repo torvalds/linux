@@ -321,7 +321,6 @@ static const struct daq200_boardtype boardtypes[] = {
 	{"ids4", DAQBOARD2000_SUBSYSTEM_IDS4},
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct daq200_boardtype))
 #define this_board ((const struct daq200_boardtype *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(daqboard2000_pci_table) = {
@@ -412,9 +411,12 @@ static int daqboard2000_ai_insn_read(struct comedi_device *dev,
 	    DAQBOARD2000_AcqResetScanListFifo |
 	    DAQBOARD2000_AcqResetResultsFifo | DAQBOARD2000_AcqResetConfigPipe;
 
-	/* If pacer clock is not set to some high value (> 10 us), we
-	   risk multiple samples to be put into the result FIFO. */
-	fpga->acqPacerClockDivLow = 1000000;	/* 1 second, should be long enough */
+	/*
+	 * If pacer clock is not set to some high value (> 10 us), we
+	 * risk multiple samples to be put into the result FIFO.
+	 */
+	/* 1 second, should be long enough */
+	fpga->acqPacerClockDivLow = 1000000;
 	fpga->acqPacerClockDivHigh = 0;
 
 	gain = CR_RANGE(insn->chanspec);
@@ -761,7 +763,7 @@ static int daqboard2000_attach(struct comedi_device *dev,
 		devpriv->pci_dev = card;
 		id = ((u32) card->
 		      subsystem_device << 16) | card->subsystem_vendor;
-		for (i = 0; i < n_boardtypes; i++) {
+		for (i = 0; i < ARRAY_SIZE(boardtypes); i++) {
 			if (boardtypes[i].id == id) {
 				dev_dbg(dev->hw_dev, "%s\n",
 					boardtypes[i].name);
@@ -878,7 +880,7 @@ static int __devinit driver_daqboard2000_pci_probe(struct pci_dev *dev,
 						   const struct pci_device_id
 						   *ent)
 {
-	return comedi_pci_auto_config(dev, driver_daqboard2000.driver_name);
+	return comedi_pci_auto_config(dev, &driver_daqboard2000);
 }
 
 static void __devexit driver_daqboard2000_pci_remove(struct pci_dev *dev)

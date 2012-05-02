@@ -19,9 +19,9 @@
 #include <linux/rtc.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../events.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/events.h>
+#include <linux/iio/sysfs.h>
 #include "adt7316.h"
 
 /*
@@ -2133,7 +2133,7 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 	unsigned short *adt7316_platform_data = dev->platform_data;
 	int ret = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -2210,7 +2210,7 @@ int __devinit adt7316_probe(struct device *dev, struct adt7316_bus *bus,
 error_unreg_irq:
 	free_irq(chip->bus.irq, indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -2224,7 +2224,7 @@ int __devexit adt7316_remove(struct device *dev)
 	iio_device_unregister(indio_dev);
 	if (chip->bus.irq)
 		free_irq(chip->bus.irq, indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

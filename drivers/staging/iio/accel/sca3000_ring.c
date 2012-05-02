@@ -18,9 +18,9 @@
 #include <linux/sched.h>
 #include <linux/poll.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 #include "../ring_hw.h"
 #include "sca3000.h"
 

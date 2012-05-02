@@ -12,9 +12,9 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include "iio.h"
-#include "sysfs.h"
-#include "events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 #include "iio_simple_dummy.h"
 
 /* Evgen 'fakes' interrupt events for this example */

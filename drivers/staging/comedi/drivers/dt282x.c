@@ -350,7 +350,6 @@ static const struct dt282x_board boardtypes[] = {
 	 },
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct dt282x_board))
 #define this_board ((const struct dt282x_board *)dev->board_ptr)
 
 struct dt282x_private {
@@ -420,7 +419,7 @@ static struct comedi_driver driver_dt282x = {
 	.attach = dt282x_attach,
 	.detach = dt282x_detach,
 	.board_name = &boardtypes[0].name,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.offset = sizeof(struct dt282x_board),
 };
 

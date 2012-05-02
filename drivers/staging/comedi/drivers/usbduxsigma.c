@@ -267,6 +267,8 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
+static struct comedi_driver driver_usbduxsigma;	/* see below for initializer */
+
 /*
  * Stops the data acquision
  * It should be safe to call this function from any context
@@ -2312,11 +2314,11 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 						     void *context)
 {
 	struct usbduxsub *usbduxsub_tmp = context;
-	struct usb_device *usbdev = usbduxsub_tmp->usbdev;
+	struct usb_interface *uinterf = usbduxsub_tmp->interface;
 	int ret;
 
 	if (fw == NULL) {
-		dev_err(&usbdev->dev,
+		dev_err(&uinterf->dev,
 			"Firmware complete handler without firmware!\n");
 		return;
 	}
@@ -2328,11 +2330,11 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 	ret = firmwareUpload(usbduxsub_tmp, fw->data, fw->size);
 
 	if (ret) {
-		dev_err(&usbdev->dev,
+		dev_err(&uinterf->dev,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(usbdev, BOARDNAME);
+	comedi_usb_auto_config(uinterf, &driver_usbduxsigma);
 out:
 	release_firmware(fw);
 }
@@ -2623,7 +2625,7 @@ static void usbduxsigma_disconnect(struct usb_interface *intf)
 	if (usbduxsub_tmp->ao_cmd_running)
 		/* we are still running a command */
 		usbdux_ao_stop(usbduxsub_tmp, 1);
-	comedi_usb_auto_unconfig(udev);
+	comedi_usb_auto_unconfig(intf);
 	down(&start_stop_sem);
 	down(&usbduxsub_tmp->sem);
 	tidy_up(usbduxsub_tmp);

@@ -3384,6 +3384,7 @@ IIO SUBSYSTEM AND DRIVERS
 M:	Jonathan Cameron <jic23@cam.ac.uk>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
+F:	drivers/iio/
 F:	drivers/staging/iio/
 
 IKANOS/ADI EAGLE ADSL USB DRIVER

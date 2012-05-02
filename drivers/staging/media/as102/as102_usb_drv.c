@@ -367,7 +367,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 	ENTER();
 
 	/* This should never actually happen */
-	if ((sizeof(as102_usb_id_table) / sizeof(struct usb_device_id)) !=
+	if (ARRAY_SIZE(as102_usb_id_table) !=
 	    (sizeof(as102_device_names) / sizeof(const char *))) {
 		pr_err("Device names table invalid size");
 		return -EINVAL;
@@ -380,8 +380,7 @@ static int as102_usb_probe(struct usb_interface *intf,
 	}
 
 	/* Assign the user-friendly device name */
-	for (i = 0; i < (sizeof(as102_usb_id_table) /
-			 sizeof(struct usb_device_id)); i++) {
+	for (i = 0; i < ARRAY_SIZE(as102_usb_id_table); i++) {
 		if (id == &as102_usb_id_table[i]) {
 			as102_dev->name = as102_device_names[i];
 			as102_dev->elna_cfg = as102_elna_cfg[i];

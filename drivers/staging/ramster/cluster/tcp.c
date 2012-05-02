@@ -111,7 +111,7 @@ static struct socket *r2net_listen_sock;
  * r2net_wq.  teardown detaches the callbacks before destroying the workqueue.
  * quorum work is queued as sock containers are shutdown.. stop_listening
  * tears down all the node's sock containers, preventing future shutdowns
- * and queued quroum work, before canceling delayed quorum work and
+ * and queued quorum work, before canceling delayed quorum work and
  * destroying the work queue.
  */
 static struct workqueue_struct *r2net_wq;
@@ -660,7 +660,7 @@ out:
 
 /*
  * we register callbacks so we can queue work on events before calling
- * the original callbacks.  our callbacks our careful to test user_data
+ * the original callbacks.  our callbacks are careful to test user_data
  * to discover when they've reaced with r2net_unregister_callbacks().
  */
 static void r2net_register_callbacks(struct sock *sk,

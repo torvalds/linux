@@ -45,12 +45,12 @@ static DEFINE_PER_CPU(struct mapping_area, zs_map_area);
 
 static int is_first_page(struct page *page)
 {
-	return test_bit(PG_private, &page->flags);
+	return PagePrivate(page);
 }
 
 static int is_last_page(struct page *page)
 {
-	return test_bit(PG_private_2, &page->flags);
+	return PagePrivate2(page);
 }
 
 static void get_zspage_mapping(struct page *page, unsigned int *class_idx,
@@ -377,7 +377,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 
 		INIT_LIST_HEAD(&page->lru);
 		if (i == 0) {	/* first page */
-			set_bit(PG_private, &page->flags);
+			SetPagePrivate(page);
 			set_page_private(page, 0);
 			first_page = page;
 			first_page->inuse = 0;
@@ -389,8 +389,7 @@ static struct page *alloc_zspage(struct size_class *class, gfp_t flags)
 		if (i >= 2)
 			list_add(&page->lru, &prev_page->lru);
 		if (i == class->zspage_order - 1)	/* last page */
-			set_bit(PG_private_2, &page->flags);
-
+			SetPagePrivate2(page);
 		prev_page = page;
 	}
 

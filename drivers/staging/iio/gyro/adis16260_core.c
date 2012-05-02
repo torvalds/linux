@@ -18,9 +18,9 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../buffer.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/buffer.h>
 
 #include "adis16260.h"
 
@@ -389,30 +389,76 @@ enum adis16260_channel {
 };
 #define ADIS16260_GYRO_CHANNEL_SET(axis, mod)				\
 	struct iio_chan_spec adis16260_channels_##axis[] = {		\
-		IIO_CHAN(IIO_ANGL_VEL, 1, 0, 0, NULL, 0, mod,		\
-			 IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |	\
-			 IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |	\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 gyro, ADIS16260_SCAN_GYRO,			\
-			 IIO_ST('s', 14, 16, 0), 0),			\
-		IIO_CHAN(IIO_ANGL, 1, 0, 0, NULL, 0, mod,		\
-			 0,						\
-			 angle, ADIS16260_SCAN_ANGL,			\
-			 IIO_ST('u', 14, 16, 0), 0),			\
-		IIO_CHAN(IIO_TEMP, 0, 1, 0, NULL, 0, 0,			\
-			 IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 temp, ADIS16260_SCAN_TEMP,			\
-			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, "supply", 0, 0,		\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 in_supply, ADIS16260_SCAN_SUPPLY,		\
-			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN(IIO_VOLTAGE, 0, 1, 0, NULL, 1, 0,		\
-			 IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
-			 in_aux, ADIS16260_SCAN_AUX_ADC,		\
-			 IIO_ST('u', 12, 16, 0), 0),			\
-		IIO_CHAN_SOFT_TIMESTAMP(5)				\
+		{							\
+			.type = IIO_ANGL_VEL,				\
+			.modified = 1,					\
+			.channel2 = mod,				\
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+			IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT |		\
+			IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |		\
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+			.address = gyro,				\
+			.scan_index = ADIS16260_SCAN_GYRO,		\
+			.scan_type = {					\
+				.sign = 's',				\
+				.realbits = 14,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_ANGL,				\
+			.modified = 1,					\
+			.channel2 = mod,				\
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,	\
+			.address = angle,				\
+			.scan_index = ADIS16260_SCAN_ANGL,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 14,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_TEMP,				\
+			.indexed = 1,					\
+			.channel = 0,					\
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+			IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |		\
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+			.address = temp,				\
+			.scan_index = ADIS16260_SCAN_TEMP,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 12,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_VOLTAGE,				\
+			.indexed = 1,					\
+			.channel = 0,					\
+			.extend_name = "supply",			\
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+			.address = in_supply,				\
+			.scan_index = ADIS16260_SCAN_SUPPLY,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 12,				\
+				.storagebits = 16,			\
+			},						\
+		}, {							\
+			.type = IIO_VOLTAGE,				\
+			.indexed = 1,					\
+			.channel = 1,					\
+			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
+			IIO_CHAN_INFO_SCALE_SEPARATE_BIT,		\
+			.address = in_aux,				\
+			.scan_index = ADIS16260_SCAN_AUX_ADC,		\
+			.scan_type = {					\
+				.sign = 'u',				\
+				.realbits = 12,				\
+				.storagebits = 16,			\
+			},						\
+		},							\
+		IIO_CHAN_SOFT_TIMESTAMP(5),				\
 	}
 
 static const ADIS16260_GYRO_CHANNEL_SET(x, IIO_MOD_X);
@@ -440,7 +486,7 @@ static int adis16260_read_raw(struct iio_dev *indio_dev,
 	s16 val16;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		mutex_lock(&indio_dev->mlock);
 		addr = adis16260_addresses[chan->address][0];
 		ret = adis16260_spi_read_reg_16(indio_dev, addr, &val16);
@@ -581,7 +627,7 @@ static int __devinit adis16260_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -666,7 +712,7 @@ error_uninitialize_ring:
 error_unreg_ring_funcs:
 	adis16260_unconfigure_ring(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -687,7 +733,7 @@ static int adis16260_remove(struct spi_device *spi)
 	adis16260_remove_trigger(indio_dev);
 	iio_buffer_unregister(indio_dev);
 	adis16260_unconfigure_ring(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 err_ret:
 	return ret;

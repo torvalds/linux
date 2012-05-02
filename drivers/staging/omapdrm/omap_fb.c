@@ -167,7 +167,7 @@ void omap_framebuffer_update_scanout(struct drm_framebuffer *fb, int x, int y,
 }
 
 /* Call for unpin 'a' (if not NULL), and pin 'b' (if not NULL).  Although
- * buffers to unpin are just just pushed to the unpin fifo so that the
+ * buffers to unpin are just pushed to the unpin fifo so that the
  * caller can defer unpin until vblank.
  *
  * Note if this fails (ie. something went very wrong!), all buffers are

@@ -12,9 +12,9 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
-#include "../iio.h"
+#include <linux/iio/iio.h>
 #include "../ring_sw.h"
-#include "../trigger_consumer.h"
+#include <linux/iio/trigger_consumer.h>
 #include "ade7758.h"
 
 /**
@@ -72,7 +72,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 			*dat32 = get_unaligned_be32(&st->rx_buf[5]) & 0xFFFFFF;
 
 	/* Guaranteed to be aligned with 8 byte boundary */
-	if (ring->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		dat64[1] = pf->timestamp;
 
 	ring->access->store_to(ring, (u8 *)dat64, pf->timestamp);
@@ -92,28 +92,18 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 static int ade7758_ring_preenable(struct iio_dev *indio_dev)
 {
 	struct ade7758_state *st = iio_priv(indio_dev);
-	struct iio_buffer *ring = indio_dev->buffer;
-	size_t d_size;
 	unsigned channel;
+	int ret;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
 		return -EINVAL;
 
+	ret = iio_sw_buffer_preenable(indio_dev);
+	if (ret < 0)
+		return ret;
+
 	channel = find_first_bit(indio_dev->active_scan_mask,
 				 indio_dev->masklength);
-
-	d_size = st->ade7758_ring_channels[channel].scan_type.storagebits / 8;
-
-	if (ring->scan_timestamp) {
-		d_size += sizeof(s64);
-
-		if (d_size % sizeof(s64))
-			d_size += sizeof(s64) - (d_size % sizeof(s64));
-	}
-
-	if (indio_dev->buffer->access->set_bytes_per_datum)
-		indio_dev->buffer->access->
-			set_bytes_per_datum(indio_dev->buffer, d_size);
 
 	ade7758_write_waveform_type(&indio_dev->dev,
 		st->ade7758_ring_channels[channel].address);

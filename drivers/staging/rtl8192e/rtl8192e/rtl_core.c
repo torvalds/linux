@@ -1025,7 +1025,7 @@ static int rtl8192_sta_down(struct net_device *dev, bool shutdownrf)
 			break;
 		}
 		RT_TRACE(COMP_DBG, "===>%s():RF is in progress, need to wait "
-			 "until rf chang is done.\n", __func__);
+			 "until rf change is done.\n", __func__);
 		mdelay(1);
 		RFInProgressTimeOut++;
 		spin_lock_irqsave(&priv->rf_ps_lock, flags);
@@ -1211,7 +1211,7 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	priv->AcmControl = 0;
 	priv->pFirmware = vzalloc(sizeof(struct rt_firmware));
 	if (!priv->pFirmware)
-		printk(KERN_ERR "rtl8193e: Unable to allocate space "
+		printk(KERN_ERR "rtl8192e: Unable to allocate space "
 		       "for firmware\n");
 
 	skb_queue_head_init(&priv->rx_queue);

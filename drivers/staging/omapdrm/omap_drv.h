@@ -148,8 +148,15 @@ int omap_gem_roll(struct drm_gem_object *obj, uint32_t roll);
 int omap_gem_get_paddr(struct drm_gem_object *obj,
 		dma_addr_t *paddr, bool remap);
 int omap_gem_put_paddr(struct drm_gem_object *obj);
+int omap_gem_get_pages(struct drm_gem_object *obj, struct page ***pages,
+		bool remap);
+int omap_gem_put_pages(struct drm_gem_object *obj);
+uint32_t omap_gem_flags(struct drm_gem_object *obj);
 uint64_t omap_gem_mmap_offset(struct drm_gem_object *obj);
 size_t omap_gem_mmap_size(struct drm_gem_object *obj);
+
+struct dma_buf * omap_gem_prime_export(struct drm_device *dev,
+		struct drm_gem_object *obj, int flags);
 
 static inline int align_pitch(int pitch, int width, int bpp)
 {

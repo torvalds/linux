@@ -2528,14 +2528,12 @@ static const struct addi_board boardtypes[] = {
 #endif
 };
 
-#define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
-
 static struct comedi_driver driver_addi = {
 	.driver_name = ADDIDATA_DRIVER_NAME,
 	.module = THIS_MODULE,
 	.attach = i_ADDI_Attach,
 	.detach = i_ADDI_Detach,
-	.num_names = n_boardtypes,
+	.num_names = ARRAY_SIZE(boardtypes),
 	.board_name = &boardtypes[0].pc_DriverName,
 	.offset = sizeof(struct addi_board),
 };
@@ -2543,7 +2541,7 @@ static struct comedi_driver driver_addi = {
 static int __devinit driver_addi_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_addi.driver_name);
+	return comedi_pci_auto_config(dev, &driver_addi);
 }
 
 static void __devexit driver_addi_pci_remove(struct pci_dev *dev)

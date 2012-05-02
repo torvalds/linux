@@ -474,7 +474,7 @@ static struct comedi_driver driver_ni_660x = {
 static int __devinit driver_ni_660x_pci_probe(struct pci_dev *dev,
 					      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_ni_660x.driver_name);
+	return comedi_pci_auto_config(dev, &driver_ni_660x);
 }
 
 static void __devexit driver_ni_660x_pci_remove(struct pci_dev *dev)

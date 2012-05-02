@@ -58,14 +58,35 @@ MODULE_LICENSE("GPL");
 #ifdef CONFIG_COMEDI_DEBUG
 int comedi_debug;
 EXPORT_SYMBOL(comedi_debug);
-module_param(comedi_debug, int, 0644);
+module_param(comedi_debug, int, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(comedi_debug,
+		 "enable comedi core and driver debugging if non-zero (default 0)"
+		);
 #endif
 
 bool comedi_autoconfig = 1;
-module_param(comedi_autoconfig, bool, 0444);
+module_param(comedi_autoconfig, bool, S_IRUGO);
+MODULE_PARM_DESC(comedi_autoconfig,
+		 "enable drivers to auto-configure comedi devices (default 1)");
 
 static int comedi_num_legacy_minors;
-module_param(comedi_num_legacy_minors, int, 0444);
+module_param(comedi_num_legacy_minors, int, S_IRUGO);
+MODULE_PARM_DESC(comedi_num_legacy_minors,
+		 "number of comedi minor devices to reserve for non-auto-configured devices (default 0)"
+		);
+
+unsigned int comedi_default_buf_size_kb = CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB;
+module_param(comedi_default_buf_size_kb, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(comedi_default_buf_size_kb,
+		 "default asynchronous buffer size in KiB (default "
+		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB) ")");
+
+unsigned int comedi_default_buf_maxsize_kb
+	= CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
+module_param(comedi_default_buf_maxsize_kb, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(comedi_default_buf_maxsize_kb,
+		 "default maximum size of asynchronous buffer in KiB (default "
+		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB) ")");
 
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
 static struct comedi_device_file_info
@@ -280,7 +301,7 @@ static int do_devconfig_ioctl(struct comedi_device *dev,
 	if (ret == 0) {
 		if (!try_module_get(dev->driver->module)) {
 			comedi_device_detach(dev);
-			return -ENOSYS;
+			ret = -ENOSYS;
 		}
 	}
 
@@ -1545,7 +1566,7 @@ done:
 	return retval;
 }
 
-static unsigned int comedi_poll(struct file *file, poll_table * wait)
+static unsigned int comedi_poll(struct file *file, poll_table *wait)
 {
 	unsigned int mask = 0;
 	const unsigned minor = iminor(file->f_dentry->d_inode);
@@ -2192,7 +2213,6 @@ static void comedi_device_cleanup(struct comedi_device *dev)
 
 int comedi_alloc_board_minor(struct device *hardware_device)
 {
-	unsigned long flags;
 	struct comedi_device_file_info *info;
 	struct device *csdev;
 	unsigned i;
@@ -2206,15 +2226,16 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		kfree(info);
 		return -ENOMEM;
 	}
+	info->hardware_device = hardware_device;
 	comedi_device_init(info->device);
-	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock(&comedi_file_info_table_lock);
 	for (i = 0; i < COMEDI_NUM_BOARD_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
 			comedi_file_info_table[i] = info;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock(&comedi_file_info_table_lock);
 	if (i == COMEDI_NUM_BOARD_MINORS) {
 		comedi_device_cleanup(info->device);
 		kfree(info->device);
@@ -2271,14 +2292,13 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 
 void comedi_free_board_minor(unsigned minor)
 {
-	unsigned long flags;
 	struct comedi_device_file_info *info;
 
 	BUG_ON(minor >= COMEDI_NUM_BOARD_MINORS);
-	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock(&comedi_file_info_table_lock);
 	info = comedi_file_info_table[minor];
 	comedi_file_info_table[minor] = NULL;
-	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock(&comedi_file_info_table_lock);
 
 	if (info) {
 		struct comedi_device *dev = info->device;
@@ -2294,10 +2314,26 @@ void comedi_free_board_minor(unsigned minor)
 	}
 }
 
+int comedi_find_board_minor(struct device *hardware_device)
+{
+	int minor;
+	struct comedi_device_file_info *info;
+
+	for (minor = 0; minor < COMEDI_NUM_BOARD_MINORS; minor++) {
+		spin_lock(&comedi_file_info_table_lock);
+		info = comedi_file_info_table[minor];
+		if (info && info->hardware_device == hardware_device) {
+			spin_unlock(&comedi_file_info_table_lock);
+			return minor;
+		}
+		spin_unlock(&comedi_file_info_table_lock);
+	}
+	return -ENODEV;
+}
+
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s)
 {
-	unsigned long flags;
 	struct comedi_device_file_info *info;
 	struct device *csdev;
 	unsigned i;
@@ -2309,14 +2345,14 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	info->device = dev;
 	info->read_subdevice = s;
 	info->write_subdevice = s;
-	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock(&comedi_file_info_table_lock);
 	for (i = COMEDI_FIRST_SUBDEVICE_MINOR; i < COMEDI_NUM_MINORS; ++i) {
 		if (comedi_file_info_table[i] == NULL) {
 			comedi_file_info_table[i] = info;
 			break;
 		}
 	}
-	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock(&comedi_file_info_table_lock);
 	if (i == COMEDI_NUM_MINORS) {
 		kfree(info);
 		printk(KERN_ERR
@@ -2372,7 +2408,6 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 
 void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 {
-	unsigned long flags;
 	struct comedi_device_file_info *info;
 
 	if (s == NULL)
@@ -2383,10 +2418,10 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 	BUG_ON(s->minor >= COMEDI_NUM_MINORS);
 	BUG_ON(s->minor < COMEDI_FIRST_SUBDEVICE_MINOR);
 
-	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock(&comedi_file_info_table_lock);
 	info = comedi_file_info_table[s->minor];
 	comedi_file_info_table[s->minor] = NULL;
-	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock(&comedi_file_info_table_lock);
 
 	if (s->class_dev) {
 		device_destroy(comedi_class, MKDEV(COMEDI_MAJOR, s->minor));
@@ -2397,13 +2432,12 @@ void comedi_free_subdevice_minor(struct comedi_subdevice *s)
 
 struct comedi_device_file_info *comedi_get_device_file_info(unsigned minor)
 {
-	unsigned long flags;
 	struct comedi_device_file_info *info;
 
 	BUG_ON(minor >= COMEDI_NUM_MINORS);
-	spin_lock_irqsave(&comedi_file_info_table_lock, flags);
+	spin_lock(&comedi_file_info_table_lock);
 	info = comedi_file_info_table[minor];
-	spin_unlock_irqrestore(&comedi_file_info_table_lock, flags);
+	spin_unlock(&comedi_file_info_table_lock);
 	return info;
 }
 EXPORT_SYMBOL_GPL(comedi_get_device_file_info);

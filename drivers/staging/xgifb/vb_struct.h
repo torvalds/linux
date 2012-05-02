@@ -10,28 +10,11 @@ struct XGI_LVDSCRT1VDataStruct {
 	unsigned char Reg[7];
 };
 
-struct XGI_StStruct {
-	unsigned char St_ModeID;
-	unsigned short St_ModeFlag;
-	unsigned char St_StTableIndex;
-	unsigned char St_CRT2CRTC;
-	unsigned char St_CRT2CRTC2;
-	unsigned char St_ResInfo;
-	unsigned char VB_StTVFlickerIndex;
-	unsigned char VB_StTVEdgeIndex;
-	unsigned char VB_StTVYFilterIndex;
-};
-
 struct XGI_ExtStruct {
 	unsigned char Ext_ModeID;
 	unsigned short Ext_ModeFlag;
 	unsigned short Ext_ModeInfo;
-	unsigned short Ext_Point;
-	unsigned short Ext_VESAID;
-	unsigned char Ext_VESAMEMSize;
 	unsigned char Ext_RESINFO;
-	unsigned char VB_ExtTVFlickerIndex;
-	unsigned char VB_ExtTVEdgeIndex;
 	unsigned char VB_ExtTVYFilterIndex;
 	unsigned char REFindex;
 };
@@ -67,14 +50,6 @@ struct XGI_LCDDataTablStruct {
 	unsigned short CAP;
 	unsigned short DATAPTR;
 };
-
-struct XGI330_LCDDataDesStruct {
-	unsigned short LCDHDES;
-	unsigned short LCDHRS;
-	unsigned short LCDVDES;
-	unsigned short LCDVRS;
-};
-
 
 struct XGI330_LVDSDataStruct {
 	unsigned short VGAHT;
@@ -236,7 +211,6 @@ struct vb_device_info {
 
 	void __iomem *FBAddr;
 	unsigned long BaseAddr;
-	unsigned long RelIO;
 
 	unsigned char (*CR6B)[4];
 	unsigned char (*CR6E)[4];
@@ -314,7 +288,6 @@ struct vb_device_info {
 	struct XGI_TimingHStruct  *TimingH;
 	struct XGI_TimingVStruct  *TimingV;
 
-	struct XGI_StStruct          *SModeIDTable;
 	struct SiS_StandTable_S  *StandTable;
 	struct XGI_ExtStruct         *EModeIDTable;
 	struct XGI_Ext2Struct        *RefIndex;

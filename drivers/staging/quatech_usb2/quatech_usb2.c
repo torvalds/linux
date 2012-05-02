@@ -541,7 +541,7 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dbg("port->write_urb == NULL, allocating one");
 		port->write_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!port->write_urb) {
-			err("Allocating write URB failed");
+			dev_err(&port->dev, "Allocating write URB failed\n");
 			return -ENOMEM;
 		}
 		/* buffer same size as port0 */
@@ -549,7 +549,7 @@ int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		port->bulk_out_buffer = kmalloc(port->bulk_out_size,
 						GFP_KERNEL);
 		if (!port->bulk_out_buffer) {
-			err("Couldn't allocate bulk_out_buffer");
+			dev_err(&port->dev, "Couldn't allocate bulk_out_buffer\n");
 			return -ENOMEM;
 		}
 	}
@@ -732,7 +732,7 @@ static int qt2_write(struct tty_struct *tty, struct usb_serial_port *port,
 	}
 
 	/* We must fill the first 5 bytes of anything we sent with a transmit
-	 * header which directes the data to the correct port. The maximum
+	 * header which directs the data to the correct port. The maximum
 	 * size we can send out in one URB is port->bulk_out_size, which caps
 	 * the number of bytes of real data we can send in each write. As the
 	 * semantics of write allow us to write less than we were give, we cap

@@ -15,8 +15,8 @@
 #include <linux/sysfs.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 
 #include "adis16220.h"
 
@@ -507,7 +507,7 @@ static int adis16220_read_raw(struct iio_dev *indio_dev,
 	u8 bits;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		addrind = 0;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
@@ -575,11 +575,13 @@ static const struct iio_chan_spec adis16220_channels[] = {
 		.indexed = 1,
 		.channel = 0,
 		.extend_name = "supply",
-		.info_mask = IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_supply,
 	}, {
 		.type = IIO_ACCEL,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT |
 			     IIO_CHAN_INFO_PEAK_SEPARATE_BIT,
 		.address = accel,
@@ -587,20 +589,23 @@ static const struct iio_chan_spec adis16220_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = temp,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+			     IIO_CHAN_INFO_OFFSET_SEPARATE_BIT |
 			     IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
 		.address = in_1,
 	}, {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 2,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
 		.address = in_2,
 	}
 };
@@ -629,7 +634,7 @@ static int __devinit adis16220_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 
 	/* setup the industrialio driver allocated elements */
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -680,7 +685,7 @@ error_rm_accel_bin:
 error_unregister_dev:
 	iio_device_unregister(indio_dev);
 error_free_dev:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 	return ret;
 }
@@ -695,7 +700,7 @@ static int adis16220_remove(struct spi_device *spi)
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &adc1_bin);
 	sysfs_remove_bin_file(&indio_dev->dev.kobj, &accel_bin);
 	iio_device_unregister(indio_dev);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

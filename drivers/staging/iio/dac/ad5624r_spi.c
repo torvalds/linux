@@ -16,8 +16,8 @@
 #include <linux/regulator/consumer.h>
 #include <linux/module.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
 #include "dac.h"
 #include "ad5624r.h"
 
@@ -26,7 +26,8 @@
 	.indexed = 1, \
 	.output = 1, \
 	.channel = (_chan), \
-	.info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT, \
+	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
+		     IIO_CHAN_INFO_SCALE_SHARED_BIT, \
 	.address = (_chan), \
 	.scan_type = IIO_ST('u', (_bits), 16, 16 - (_bits)), \
 }
@@ -122,7 +123,7 @@ static int ad5624r_write_raw(struct iio_dev *indio_dev,
 	int ret;
 
 	switch (mask) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
 		if (val >= (1 << chan->scan_type.realbits) || val < 0)
 			return -EINVAL;
 
@@ -255,7 +256,7 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 	struct iio_dev *indio_dev;
 	int ret, voltage_uv = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*st));
+	indio_dev = iio_device_alloc(sizeof(*st));
 	if (indio_dev == NULL) {
 		ret = -ENOMEM;
 		goto error_ret;
@@ -305,7 +306,7 @@ error_disable_reg:
 error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 error_ret:
 
 	return ret;
@@ -321,7 +322,7 @@ static int __devexit ad5624r_remove(struct spi_device *spi)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

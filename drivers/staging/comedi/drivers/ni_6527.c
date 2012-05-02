@@ -493,7 +493,7 @@ static int ni6527_find_device(struct comedi_device *dev, int bus, int slot)
 static int __devinit driver_ni6527_pci_probe(struct pci_dev *dev,
 					     const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, driver_ni6527.driver_name);
+	return comedi_pci_auto_config(dev, &driver_ni6527);
 }
 
 static void __devexit driver_ni6527_pci_remove(struct pci_dev *dev)

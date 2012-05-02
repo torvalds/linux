@@ -14,6 +14,26 @@ config COMEDI_DEBUG
 	  This is an option for use by developers; most people should
 	  say N here. This enables comedi core and driver debugging.
 
+config COMEDI_DEFAULT_BUF_SIZE_KB
+	int "Comedi default initial asynchronous buffer size in KiB"
+	default "2048"
+	depends on COMEDI != n
+	---help---
+	  This is the default asynchronous buffer size which is used for
+	  commands running in the background in kernel space.  This
+	  defaults to 2048 KiB of memory so that a 16 channel card
+	  running at 10 kHz has of 2-4 seconds of buffer.
+
+config COMEDI_DEFAULT_BUF_MAXSIZE_KB
+	int "Comedi default maximum asynchronous buffer size in KiB"
+	default "20480"
+	depends on COMEDI != n
+	---help---
+	  This is the default maximum asynchronous buffer size which can
+	  be requested by a userspace program without root privileges.
+	  This is set to 20480 KiB so that a fast I/O card with 16
+	  channels running at 100 kHz has 2-4 seconds of buffer.
+
 menuconfig COMEDI_MISC_DRIVERS
 	tristate "Comedi misc drivers"
 	depends on COMEDI
@@ -211,6 +231,38 @@ config COMEDI_PCM3730
 	  To compile this driver as a module, choose M here: the module will be
 	  called pcm3730.
 
+config COMEDI_AMPLC_DIO200_ISA
+	tristate "Amplicon PC212E/PC214E/PC215E/PC218E/PC272E"
+	select COMEDI_AMPLC_DIO200
+	depends on COMEDI_ISA_DRIVERS
+	default N
+	---help---
+	  Enable support for Amplicon PC212E, PC214E, PC215E, PC218E and
+	  PC272E ISA DIO boards
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called amplc_dio200.
+
+config COMEDI_AMPLC_PC236_ISA
+	tristate "Amplicon PC36AT DIO board support"
+	select COMEDI_AMPLC_PC236
+	default N
+	---help---
+	  Enable support for Amplicon PC36AT ISA DIO board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called amplc_pc236.
+
+config COMEDI_AMPLC_PC263_ISA
+	tristate "Amplicon PC263 relay board support"
+	select COMEDI_AMPLC_PC263
+	default N
+	---help---
+	  Enable support for Amplicon PC263 ISA relay board.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called amplc_pc263.
+
 config COMEDI_RTI800
 	tristate "Analog Devices RTI-800/815 ISA card support"
 	default N
@@ -239,6 +291,20 @@ config COMEDI_DAS16M1
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called das16m1.
+
+config COMEDI_DAS08_ISA
+	tristate "DAS-08 compatible ISA and PC/104 card support"
+	select COMEDI_DAS08
+	default N
+	---help---
+	  Enable support for Keithley Metrabyte/ComputerBoards DAS08
+	  and compatible ISA and PC/104 cards:
+	  Keithley Metrabyte/ComputerBoards DAS08, DAS08-PGM, DAS08-PGH,
+	  DAS08-PGL, DAS08-AOH, DAS08-AOL, DAS08-AOM, DAS08/JR-AO,
+	  DAS08/JR-16-AO, PC104-DAS08, DAS08/JR/16.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called das08.
 
 config COMEDI_DAS16
 	tristate "DAS-16 compatible ISA and PC/104 card support"
@@ -772,31 +838,32 @@ config COMEDI_ADV_PCI_DIO
 	  To compile this driver as a module, choose M here: the module will be
 	  called adv_pci_dio.
 
-config COMEDI_AMPLC_DIO200
-	tristate "Amplicon PC272E and PCI272 DIO board support"
-	select COMEDI_8255
+config COMEDI_AMPLC_DIO200_PCI
+	tristate "Amplicon PCI215 and PCI272 DIO board support"
+	select COMEDI_AMPLC_DIO200
 	default N
 	---help---
-	  Enable support for Amplicon PC272E and PCI272 DIO boards
+	  Enable support for Amplicon PCI215 and PCI272 DIO boards.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_dio200.
 
-config COMEDI_AMPLC_PC236
-	tristate "Amplicon PC36AT and PCI236 DIO board support"
-	select COMEDI_8255
+config COMEDI_AMPLC_PC236_PCI
+	tristate "Amplicon PCI236 DIO board support"
+	select COMEDI_AMPLC_PC236
 	default N
 	---help---
-	  Enable support for Amplicon PC36AT and PCI236 DIO boards
+	  Enable support for Amplicon PCI236 DIO board.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc236.
 
-config COMEDI_AMPLC_PC263
-	tristate "Amplicon PC263 and PCI263 relay board support"
+config COMEDI_AMPLC_PC263_PCI
+	tristate "Amplicon PCI263 relay board support"
+	select COMEDI_AMPLC_PC263
 	default N
 	---help---
-	  Enable support for Amplicon PC263 and PCI263 relay boards
+	  Enable support for Amplicon PCI263 relay board.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called amplc_pc263.
@@ -830,6 +897,16 @@ config COMEDI_CONTEC_PCI_DIO
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called contec_pci_dio.
+
+config COMEDI_DAS08_PCI
+	tristate "DAS-08 PCI support"
+	select COMEDI_DAS08
+	default N
+	---help---
+	  Enable support for PCI DAS-08 cards.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called das08.
 
 config COMEDI_DT3000
 	tristate "Data Translation DT3000 series support"
@@ -1357,20 +1434,6 @@ config COMEDI_8255
 	  To compile this driver as a module, choose M here: the module will be
 	  called 8255.
 
-config COMEDI_DAS08
-	tristate "DAS-08 compatible support"
-	depends on COMEDI
-	select COMEDI_8255
-	default N
-	---help---
-	  Enable support for DAS08 and compatible ISA, PC/104 and PCI cards.
-
-	  Note that PCMCIA DAS08 cards are not directly supported by this
-	  driver, and need a separate driver as a wrapper.
-
-	  To compile this driver as a module, choose M here: the module will be
-	  called das08.
-
 config COMEDI_FC
 	tristate "Comedi shared functions for low-level driver support"
 	depends on COMEDI
@@ -1382,3 +1445,22 @@ config COMEDI_FC
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called comedi_fc.
+
+config COMEDI_AMPLC_DIO200
+	def_tristate N
+	depends on COMEDI
+	select COMEDI_8255
+
+config COMEDI_AMPLC_PC236
+	def_tristate N
+	depends on COMEDI
+	select COMEDI_8255
+
+config COMEDI_AMPLC_PC263
+	def_tristate N
+	depends on COMEDI
+
+config COMEDI_DAS08
+	def_tristate N
+	depends on COMEDI
+	select COMEDI_8255

@@ -180,6 +180,9 @@ struct comedi_async {
 			unsigned int x);
 };
 
+struct pci_dev;
+struct usb_interface;
+
 struct comedi_driver {
 	struct comedi_driver *next;
 
@@ -187,6 +190,8 @@ struct comedi_driver {
 	struct module *module;
 	int (*attach) (struct comedi_device *, struct comedi_devconfig *);
 	int (*detach) (struct comedi_device *);
+	int (*attach_pci) (struct comedi_device *, struct pci_dev *);
+	int (*attach_usb) (struct comedi_device *, struct usb_interface *);
 
 	/* number of elements in board_name and board_id arrays */
 	unsigned int num_names;
@@ -230,10 +235,16 @@ struct comedi_device {
 	void (*close) (struct comedi_device *dev);
 };
 
+static inline const void *comedi_board(struct comedi_device *dev)
+{
+	return dev->board_ptr;
+}
+
 struct comedi_device_file_info {
 	struct comedi_device *device;
 	struct comedi_subdevice *read_subdevice;
 	struct comedi_subdevice *write_subdevice;
+	struct device *hardware_device;
 };
 
 #ifdef CONFIG_COMEDI_DEBUG
@@ -456,11 +467,12 @@ static inline void *comedi_aux_data(int options[], int n)
 int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 				 struct comedi_subdevice *s);
 void comedi_free_subdevice_minor(struct comedi_subdevice *s);
-int comedi_pci_auto_config(struct pci_dev *pcidev, const char *board_name);
+int comedi_pci_auto_config(struct pci_dev *pcidev,
+			   struct comedi_driver *driver);
 void comedi_pci_auto_unconfig(struct pci_dev *pcidev);
-struct usb_device;		/* forward declaration */
-int comedi_usb_auto_config(struct usb_device *usbdev, const char *board_name);
-void comedi_usb_auto_unconfig(struct usb_device *usbdev);
+int comedi_usb_auto_config(struct usb_interface *intf,
+			   struct comedi_driver *driver);
+void comedi_usb_auto_unconfig(struct usb_interface *intf);
 
 #ifdef CONFIG_COMEDI_PCI_DRIVERS
 #define CONFIG_COMEDI_PCI

@@ -1559,8 +1559,9 @@ static void qt_unthrottle(struct tty_struct *tty)
 					  qt_read_bulk_callback, port);
 			result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 			if (result)
-				err("%s - failed restarting read urb, error %d",
-				    __func__, result);
+				dev_err(&port->dev,
+					"%s - failed restarting read urb, error %d\n",
+					__func__, result);
 		}
 	}
 	mutex_unlock(&qt_port->lock);

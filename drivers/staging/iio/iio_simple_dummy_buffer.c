@@ -18,9 +18,9 @@
 #include <linux/irq.h>
 #include <linux/bitmap.h>
 
-#include "iio.h"
-#include "trigger_consumer.h"
-#include "kfifo_buf.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/kfifo_buf.h>
 
 #include "iio_simple_dummy.h"
 
@@ -48,12 +48,9 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct iio_buffer *buffer = indio_dev->buffer;
 	int len = 0;
-	/*
-	 * The datasize is obtained from the buffer. It was stored when
-	 * the preenable setup function was called.
-	 */
-	size_t datasize = buffer->access->get_bytes_per_datum(buffer);
-	u16 *data = kmalloc(datasize, GFP_KERNEL);
+	u16 *data;
+
+	data = kmalloc(indio_dev->scan_bytes, GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
 
@@ -87,7 +84,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		}
 	}
 	/* Store a timestampe at an 8 byte boundary */
-	if (buffer->scan_timestamp)
+	if (indio_dev->scan_timestamp)
 		*(s64 *)(((phys_addr_t)data + len
 				+ sizeof(s64) - 1) & ~(sizeof(s64) - 1))
 			= iio_get_time_ns();

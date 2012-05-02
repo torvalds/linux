@@ -62,7 +62,7 @@
  * You can define GET_SKBUFF_QOS() to override how the skbuff output
  * function determines which output queue is used. The default
  * implementation always uses the base queue for the port. If, for
- * example, you wanted to use the skb->priority fieid, define
+ * example, you wanted to use the skb->priority field, define
  * GET_SKBUFF_QOS as: #define GET_SKBUFF_QOS(skb) ((skb)->priority)
  */
 #ifndef GET_SKBUFF_QOS
@@ -165,8 +165,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	/*
-	 * Prefetch the private data structure.  It is larger that one
-	 * cache line.
+	 * Prefetch the private data structure.  It is larger than the
+	 * one cache line.
 	 */
 	prefetch(priv);
 
@@ -291,8 +291,8 @@ int cvm_oct_xmit(struct sk_buff *skb, struct net_device *dev)
 	 * See if we can put this skb in the FPA pool. Any strange
 	 * behavior from the Linux networking stack will most likely
 	 * be caused by a bug in the following code. If some field is
-	 * in use by the network stack and get carried over when a
-	 * buffer is reused, bad thing may happen.  If in doubt and
+	 * in use by the network stack and gets carried over when a
+	 * buffer is reused, bad things may happen.  If in doubt and
 	 * you dont need the absolute best performance, disable the
 	 * define REUSE_SKBUFFS_WITHOUT_FREE. The reuse of buffers has
 	 * shown a 25% increase in performance under some loads.

@@ -1322,9 +1322,9 @@ static struct iw_statistics *r8192_get_wireless_stats(struct net_device *dev)
 
 struct iw_handler_def  r8192_wx_handlers_def = {
 	.standard = r8192_wx_handlers,
-	.num_standard = sizeof(r8192_wx_handlers) / sizeof(iw_handler),
+	.num_standard = ARRAY_SIZE(r8192_wx_handlers),
 	.private = r8192_private_handler,
-	.num_private = sizeof(r8192_private_handler) / sizeof(iw_handler),
+	.num_private = ARRAY_SIZE(r8192_private_handler),
 	.num_private_args = sizeof(r8192_private_args) /
 			    sizeof(struct iw_priv_args),
 	.get_wireless_stats = r8192_get_wireless_stats,

@@ -35,9 +35,9 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 
-#include "../iio.h"
-#include "../sysfs.h"
-#include "../events.h"
+#include <linux/iio/iio.h>
+#include <linux/iio/sysfs.h>
+#include <linux/iio/events.h>
 #include "tsl2563.h"
 
 /* Use this many bits for fraction part. */
@@ -465,7 +465,7 @@ static int tsl2563_write_raw(struct iio_dev *indio_dev,
 {
 	struct tsl2563_chip *chip = iio_priv(indio_dev);
 
-	if (chan->channel == 0)
+	if (chan->channel == IIO_MOD_LIGHT_BOTH)
 		chip->calib0 = calib_from_sysfs(val);
 	else
 		chip->calib1 = calib_from_sysfs(val);
@@ -485,7 +485,8 @@ static int tsl2563_read_raw(struct iio_dev *indio_dev,
 
 	mutex_lock(&chip->lock);
 	switch (m) {
-	case 0:
+	case IIO_CHAN_INFO_RAW:
+	case IIO_CHAN_INFO_PROCESSED:
 		switch (chan->type) {
 		case IIO_LIGHT:
 			ret = tsl2563_get_adc(chip);
@@ -534,12 +535,14 @@ static const struct iio_chan_spec tsl2563_channels[] = {
 	{
 		.type = IIO_LIGHT,
 		.indexed = 1,
+		.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT,
 		.channel = 0,
 	}, {
 		.type = IIO_INTENSITY,
 		.modified = 1,
 		.channel2 = IIO_MOD_LIGHT_BOTH,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
 		.event_mask = (IIO_EV_BIT(IIO_EV_TYPE_THRESH,
 					  IIO_EV_DIR_RISING) |
 			       IIO_EV_BIT(IIO_EV_TYPE_THRESH,
@@ -548,7 +551,8 @@ static const struct iio_chan_spec tsl2563_channels[] = {
 		.type = IIO_INTENSITY,
 		.modified = 1,
 		.channel2 = IIO_MOD_LIGHT_IR,
-		.info_mask = IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
+		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
+		IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
 	}
 };
 
@@ -710,7 +714,7 @@ static int __devinit tsl2563_probe(struct i2c_client *client,
 	int err = 0;
 	u8 id = 0;
 
-	indio_dev = iio_allocate_device(sizeof(*chip));
+	indio_dev = iio_device_alloc(sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
 
@@ -797,7 +801,7 @@ fail2:
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 fail1:
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 	return err;
 }
 
@@ -818,7 +822,7 @@ static int tsl2563_remove(struct i2c_client *client)
 	if (client->irq)
 		free_irq(client->irq, indio_dev);
 
-	iio_free_device(indio_dev);
+	iio_device_free(indio_dev);
 
 	return 0;
 }

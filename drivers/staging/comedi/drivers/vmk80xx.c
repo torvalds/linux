@@ -247,6 +247,8 @@ static struct vmk80xx_usb vmb[VMK80XX_MAX_BOARDS];
 
 static DEFINE_MUTEX(glb_mutex);
 
+static struct comedi_driver driver_vmk80xx;	/* see below for initializer */
+
 static void vmk80xx_tx_callback(struct urb *urb)
 {
 	struct vmk80xx_usb *dev = urb->context;
@@ -295,7 +297,9 @@ resubmit:
 		if (!usb_submit_urb(urb, GFP_KERNEL))
 			goto exit;
 
-		err("comedi#: vmk80xx: %s - submit urb failed\n", __func__);
+		dev_err(&urb->dev->dev,
+			"comedi#: vmk80xx: %s - submit urb failed\n",
+			__func__);
 
 		usb_unanchor_urb(urb);
 	}
@@ -1018,11 +1022,11 @@ static int vmk80xx_cnt_cinsn(struct comedi_device *cdev,
 	if (n)
 		return n;
 
-	down(&dev->limit_sem);
-
 	insn_cmd = data[0];
 	if (insn_cmd != INSN_CONFIG_RESET && insn_cmd != GPCT_RESET)
 		return -EINVAL;
+
+	down(&dev->limit_sem);
 
 	chan = CR_CHAN(insn->chanspec);
 
@@ -1482,7 +1486,7 @@ static int vmk80xx_probe(struct usb_interface *intf,
 
 	mutex_unlock(&glb_mutex);
 
-	comedi_usb_auto_config(dev->udev, BOARDNAME);
+	comedi_usb_auto_config(intf, &driver_vmk80xx);
 
 	return 0;
 error:
@@ -1500,7 +1504,7 @@ static void vmk80xx_disconnect(struct usb_interface *intf)
 	if (!dev)
 		return;
 
-	comedi_usb_auto_unconfig(dev->udev);
+	comedi_usb_auto_unconfig(intf);
 
 	mutex_lock(&glb_mutex);
 	down(&dev->limit_sem);
