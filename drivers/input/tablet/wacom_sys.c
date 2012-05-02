@@ -522,7 +522,8 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 		error = usb_get_extra_descriptor(&interface->endpoint[0],
 						 HID_DEVICET_REPORT, &hid_desc);
 		if (error) {
-			printk(KERN_ERR "wacom: can not retrieve extra class descriptor\n");
+			dev_err(&intf->dev,
+				"can not retrieve extra class descriptor\n");
 			goto out;
 		}
 	}
@@ -1040,13 +1041,13 @@ static void wacom_wireless_work(struct work_struct *work)
 	wacom->wacom_wac.input = NULL;
 
 	if (wacom_wac->pid == 0) {
-		printk(KERN_INFO "wacom: wireless tablet disconnected\n");
+		dev_info(&wacom->intf->dev, "wireless tablet disconnected\n");
 	} else {
 		const struct usb_device_id *id = wacom_ids;
 
-		printk(KERN_INFO
-		       "wacom: wireless tablet connected with PID %x\n",
-		       wacom_wac->pid);
+		dev_info(&wacom->intf->dev,
+			 "wireless tablet connected with PID %x\n",
+			 wacom_wac->pid);
 
 		while (id->match_flags) {
 			if (id->idVendor == USB_VENDOR_ID_WACOM &&
@@ -1056,8 +1057,8 @@ static void wacom_wireless_work(struct work_struct *work)
 		}
 
 		if (!id->match_flags) {
-			printk(KERN_INFO
-			       "wacom: ignorning unknown PID.\n");
+			dev_info(&wacom->intf->dev,
+				 "ignoring unknown PID.\n");
 			return;
 		}
 

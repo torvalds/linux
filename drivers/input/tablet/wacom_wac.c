@@ -61,7 +61,8 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom)
 		break;
 
 	default:
-		printk(KERN_INFO "wacom_penpartner_irq: received unknown report #%d\n", data[0]);
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d\n", __func__, data[0]);
 		return 0;
         }
 
@@ -76,7 +77,8 @@ static int wacom_pl_irq(struct wacom_wac *wacom)
 	int prox, pressure;
 
 	if (data[0] != WACOM_REPORT_PENABLED) {
-		dbg("wacom_pl_irq: received unknown report #%d", data[0]);
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d\n", __func__, data[0]);
 		return 0;
 	}
 
@@ -146,7 +148,8 @@ static int wacom_ptu_irq(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 
 	if (data[0] != WACOM_REPORT_PENABLED) {
-		printk(KERN_INFO "wacom_ptu_irq: received unknown report #%d\n", data[0]);
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d\n", __func__, data[0]);
 		return 0;
 	}
 
@@ -175,7 +178,8 @@ static int wacom_dtu_irq(struct wacom_wac *wacom)
 	struct input_dev *input = wacom->input;
 	int prox = data[1] & 0x20, pressure;
 
-	dbg("wacom_dtu_irq: received report #%d", data[0]);
+	dev_dbg(input->dev.parent,
+		"%s: received report #%d", __func__, data[0]);
 
 	if (prox) {
 		/* Going into proximity select tool */
@@ -211,7 +215,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom)
 	int retval = 0;
 
 	if (data[0] != WACOM_REPORT_PENABLED) {
-		dbg("wacom_graphire_irq: received unknown report #%d", data[0]);
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d\n", __func__, data[0]);
 		goto exit;
 	}
 
@@ -489,10 +494,13 @@ static int wacom_intuos_irq(struct wacom_wac *wacom)
 	unsigned int t;
 	int idx = 0, result;
 
-	if (data[0] != WACOM_REPORT_PENABLED && data[0] != WACOM_REPORT_INTUOSREAD
-		&& data[0] != WACOM_REPORT_INTUOSWRITE && data[0] != WACOM_REPORT_INTUOSPAD
-		&& data[0] != WACOM_REPORT_INTUOS5PAD) {
-		dbg("wacom_intuos_irq: received unknown report #%d", data[0]);
+	if (data[0] != WACOM_REPORT_PENABLED &&
+	    data[0] != WACOM_REPORT_INTUOSREAD &&
+	    data[0] != WACOM_REPORT_INTUOSWRITE &&
+	    data[0] != WACOM_REPORT_INTUOSPAD &&
+	    data[0] != WACOM_REPORT_INTUOS5PAD) {
+		dev_dbg(input->dev.parent,
+			"%s: received unknown report #%d\n", __func__, data[0]);
                 return 0;
 	}
 
@@ -938,7 +946,8 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 {
 	char *data = wacom->data;
 
-	dbg("wacom_tpc_irq: received report #%d", data[0]);
+	dev_dbg(wacom->input->dev.parent,
+		"%s: received report #%d\n", __func__, data[0]);
 
 	switch (len) {
 	case WACOM_PKGLEN_TPC1FG:
