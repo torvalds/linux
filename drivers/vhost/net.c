@@ -166,7 +166,7 @@ static void handle_tx(struct vhost_net *net)
 	if (wmem < sock->sk->sk_sndbuf / 2)
 		tx_poll_stop(net);
 	hdr_size = vq->vhost_hlen;
-	zcopy = vhost_sock_zcopy(sock);
+	zcopy = vq->ubufs;
 
 	for (;;) {
 		/* Release DMAs done buffers first */
