@@ -153,10 +153,10 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 
 		requesttype = rio_cmd.requesttype | USB_DIR_IN |
 		    USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-		dbg
-		    ("sending command:reqtype=%0x req=%0x value=%0x index=%0x len=%0x",
-		     requesttype, rio_cmd.request, rio_cmd.value,
-		     rio_cmd.index, rio_cmd.length);
+		dev_dbg(&rio->rio_dev->dev,
+			"sending command:reqtype=%0x req=%0x value=%0x index=%0x len=%0x\n",
+			requesttype, rio_cmd.request, rio_cmd.value,
+			rio_cmd.index, rio_cmd.length);
 		/* Send rio control message */
 		retries = 3;
 		while (retries) {
@@ -176,8 +176,9 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 					result);
 				retries = 0;
 			} else {
-				dbg("Executed ioctl. Result = %d (data=%02x)",
-				     result, buffer[0]);
+				dev_dbg(&rio->rio_dev->dev,
+					"Executed ioctl. Result = %d (data=%02x)\n",
+					result, buffer[0]);
 				if (copy_to_user(rio_cmd.buffer, buffer,
 						 rio_cmd.length)) {
 					free_page((unsigned long) buffer);
@@ -223,9 +224,10 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 
 		requesttype = rio_cmd.requesttype | USB_DIR_OUT |
 		    USB_TYPE_VENDOR | USB_RECIP_DEVICE;
-		dbg("sending command: reqtype=%0x req=%0x value=%0x index=%0x len=%0x",
-		     requesttype, rio_cmd.request, rio_cmd.value,
-		     rio_cmd.index, rio_cmd.length);
+		dev_dbg(&rio->rio_dev->dev,
+			"sending command: reqtype=%0x req=%0x value=%0x index=%0x len=%0x\n",
+			requesttype, rio_cmd.request, rio_cmd.value,
+			rio_cmd.index, rio_cmd.length);
 		/* Send rio control message */
 		retries = 3;
 		while (retries) {
@@ -245,7 +247,8 @@ static long ioctl_rio(struct file *file, unsigned int cmd, unsigned long arg)
 					result);
 				retries = 0;
 			} else {
-				dbg("Executed ioctl. Result = %d", result);
+				dev_dbg(&rio->rio_dev->dev,
+					"Executed ioctl. Result = %d\n", result);
 				retries = 0;
 
 			}
@@ -317,8 +320,9 @@ write_rio(struct file *file, const char __user *buffer,
 					 usb_sndbulkpipe(rio->rio_dev, 2),
 					 obuf, thistime, &partial, 5000);
 
-			dbg("write stats: result:%d thistime:%lu partial:%u",
-			     result, thistime, partial);
+			dev_dbg(&rio->rio_dev->dev,
+				"write stats: result:%d thistime:%lu partial:%u\n",
+				result, thistime, partial);
 
 			if (result == -ETIMEDOUT) {	/* NAK - so hold for a while */
 				if (!maxretry--) {
@@ -398,8 +402,9 @@ read_rio(struct file *file, char __user *buffer, size_t count, loff_t * ppos)
 				      ibuf, this_read, &partial,
 				      8000);
 
-		dbg("read stats: result:%d this_read:%u partial:%u",
-		       result, this_read, partial);
+		dev_dbg(&rio->rio_dev->dev,
+			"read stats: result:%d this_read:%u partial:%u\n",
+			result, this_read, partial);
 
 		if (partial) {
 			count = this_read = partial;
@@ -479,7 +484,7 @@ static int probe_rio(struct usb_interface *intf,
 		usb_deregister_dev(intf, &usb_rio_class);
 		return -ENOMEM;
 	}
-	dbg("probe_rio: obuf address:%p", rio->obuf);
+	dev_dbg(&intf->dev, "obuf address:%p\n", rio->obuf);
 
 	if (!(rio->ibuf = kmalloc(IBUF_SIZE, GFP_KERNEL))) {
 		dev_err(&dev->dev,
@@ -488,7 +493,7 @@ static int probe_rio(struct usb_interface *intf,
 		kfree(rio->obuf);
 		return -ENOMEM;
 	}
-	dbg("probe_rio: ibuf address:%p", rio->ibuf);
+	dev_dbg(&intf->dev, "ibuf address:%p\n", rio->ibuf);
 
 	mutex_init(&(rio->lock));
 
