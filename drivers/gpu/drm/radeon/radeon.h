@@ -1162,7 +1162,6 @@ struct radeon_asic {
 	int (*resume)(struct radeon_device *rdev);
 	int (*suspend)(struct radeon_device *rdev);
 	void (*vga_set_state)(struct radeon_device *rdev, bool state);
-	bool (*gpu_is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
 	int (*asic_reset)(struct radeon_device *rdev);
 	/* ioctl hw specific callback. Some hw might want to perform special
 	 * operation on specific ioctl. For instance on wait idle some hw
@@ -1191,6 +1190,7 @@ struct radeon_asic {
 		void (*ring_start)(struct radeon_device *rdev, struct radeon_ring *cp);
 		int (*ring_test)(struct radeon_device *rdev, struct radeon_ring *cp);
 		int (*ib_test)(struct radeon_device *rdev, struct radeon_ring *cp);
+		bool (*is_lockup)(struct radeon_device *rdev, struct radeon_ring *cp);
 	} ring[RADEON_NUM_RINGS];
 	/* irqs */
 	struct {
@@ -1740,7 +1740,6 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_suspend(rdev) (rdev)->asic->suspend((rdev))
 #define radeon_cs_parse(rdev, r, p) (rdev)->asic->ring[(r)].cs_parse((p))
 #define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
-#define radeon_gpu_is_lockup(rdev, cp) (rdev)->asic->gpu_is_lockup((rdev), (cp))
 #define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart.tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart.set_page((rdev), (i), (p))
@@ -1749,6 +1748,7 @@ void radeon_ring_write(struct radeon_ring *ring, uint32_t v);
 #define radeon_ib_test(rdev, r, cp) (rdev)->asic->ring[(r)].ib_test((rdev), (cp))
 #define radeon_ring_ib_execute(rdev, r, ib) (rdev)->asic->ring[(r)].ib_execute((rdev), (ib))
 #define radeon_ring_ib_parse(rdev, r, ib) (rdev)->asic->ring[(r)].ib_parse((rdev), (ib))
+#define radeon_ring_is_lockup(rdev, r, cp) (rdev)->asic->ring[(r)].is_lockup((rdev), (cp))
 #define radeon_irq_set(rdev) (rdev)->asic->irq.set((rdev))
 #define radeon_irq_process(rdev) (rdev)->asic->irq.process((rdev))
 #define radeon_get_vblank_counter(rdev, crtc) (rdev)->asic->display.get_vblank_counter((rdev), (crtc))

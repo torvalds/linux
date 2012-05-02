@@ -259,7 +259,7 @@ retry:
 		 * if we experiencing a lockup the value doesn't change
 		 */
 		if (seq == rdev->fence_drv[fence->ring].last_seq &&
-		    radeon_gpu_is_lockup(rdev, &rdev->ring[fence->ring])) {
+		    radeon_ring_is_lockup(rdev, fence->ring, &rdev->ring[fence->ring])) {
 			/* good news we believe it's a lockup */
 			printk(KERN_WARNING "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n",
 			     fence->seq, seq);
