@@ -99,6 +99,38 @@ static int hdmi_get_mode(struct rk_display_device *device, struct fb_videomode *
 	return 0;
 }
 
+static int hdmi_set_scale(struct rk_display_device *device, int direction, int value)
+{
+	struct hdmi *hdmi = device->priv_data;
+	
+	if(!hdmi || value < 0 || value > 100)
+		return -1;
+			
+	if(direction == DISPLAY_SCALE_X)
+		hdmi->xscale = value;
+	else if(direction == DISPLAY_SCALE_Y)
+		hdmi->yscale = value;
+	else
+		return -1;
+	rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, HDMI_SOURCE_DEFAULT);
+	return 0;
+}
+
+static int hdmi_get_scale(struct rk_display_device *device, int direction)
+{
+	struct hdmi *hdmi = device->priv_data;
+	
+	if(!hdmi)
+		return -1;
+		
+	if(direction == DISPLAY_SCALE_X)
+		return hdmi->xscale;
+	else if(direction == DISPLAY_SCALE_Y)
+		return hdmi->yscale;
+	else
+		return -1;
+}
+
 struct rk_display_ops hdmi_display_ops = {
 	.setenable = hdmi_set_enable,
 	.getenable = hdmi_get_enable,
@@ -106,6 +138,8 @@ struct rk_display_ops hdmi_display_ops = {
 	.getmodelist = hdmi_get_modelist,
 	.setmode = hdmi_set_mode,
 	.getmode = hdmi_get_mode,
+	.setscale = hdmi_set_scale,
+	.getscale = hdmi_get_scale,
 };
 
 #if 1

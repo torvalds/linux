@@ -148,6 +148,47 @@ static ssize_t display_store_mode(struct device *dev,
 	return -EINVAL;
 }
 
+static ssize_t display_show_scale(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+	int xscale, yscale;
+	
+	if(dsp->ops && dsp->ops->getscale) {
+		xscale = dsp->ops->getscale(dsp, DISPLAY_SCALE_X);
+		yscale = dsp->ops->getscale(dsp, DISPLAY_SCALE_Y);
+		if(xscale && yscale)
+			return snprintf(buf, PAGE_SIZE, "xscale=%d yscale=%d\n", xscale, yscale);
+	}
+	return -EINVAL;
+}
+
+static ssize_t display_store_scale(struct device *dev, 
+						struct device_attribute *attr,
+			 			const char *buf, size_t count)
+{
+	struct rk_display_device *dsp = dev_get_drvdata(dev);
+	int scale = 100;
+	
+	if(dsp->ops && dsp->ops->setscale) {
+		if(!strncmp(buf, "xscale", 6)) {
+			sscanf(buf, "xscale=%d", &scale);
+			dsp->ops->setscale(dsp, DISPLAY_SCALE_X, scale);
+		}
+		else if(!strncmp(buf, "yscale", 6)) {
+			sscanf(buf, "yscale=%d", &scale);
+			dsp->ops->setscale(dsp, DISPLAY_SCALE_Y, scale);
+		}
+		else {
+			sscanf(buf, "%d", &scale);
+			dsp->ops->setscale(dsp, DISPLAY_SCALE_X, scale);
+			dsp->ops->setscale(dsp, DISPLAY_SCALE_Y, scale);
+		}
+		return count;
+	}
+	return -EINVAL;
+}
+
 static struct device_attribute display_attrs[] = {
 	__ATTR(name, S_IRUGO, display_show_name, NULL),
 	__ATTR(type, S_IRUGO, display_show_type, NULL),
@@ -155,6 +196,7 @@ static struct device_attribute display_attrs[] = {
 	__ATTR(connect, S_IRUGO, display_show_connect, NULL),
 	__ATTR(modes, S_IRUGO, display_show_modes, NULL),
 	__ATTR(mode, 0664, display_show_mode, display_store_mode),
+	__ATTR(scale, 0664, display_show_scale, display_store_scale),
 	__ATTR_NULL
 };
 

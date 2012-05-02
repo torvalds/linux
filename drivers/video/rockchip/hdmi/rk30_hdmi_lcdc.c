@@ -507,6 +507,7 @@ int hdmi_switch_fb(struct hdmi *hdmi, int vic)
 
 	if(rc == 0) {		
 		rk_fb_switch_screen(hdmi->lcdc->screen, 1, HDMI_SOURCE_DEFAULT);
+		rk_fb_disp_scale(hdmi->xscale, hdmi->yscale, HDMI_SOURCE_DEFAULT);
 	}
 	return rc;
 }

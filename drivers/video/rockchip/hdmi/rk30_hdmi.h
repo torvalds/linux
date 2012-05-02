@@ -75,7 +75,9 @@ struct hdmi {
 	int state;					// hdmi state machine status
 	int autoconfig;				// if true, auto config hdmi output mode according to EDID.
 	int command;				// HDMI configuration command
-	int display;				// HDMI display status	
+	int display;				// HDMI display status
+	int xscale;					// x direction scale value
+	int yscale;					// y directoon scale value
 };
 
 extern struct hdmi *hdmi;

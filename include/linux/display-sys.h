@@ -15,6 +15,11 @@ enum rk_display_priority {
 	DISPLAY_PRIORITY_LCD,
 };
 
+enum {
+	DISPLAY_SCALE_X = 0,
+	DISPLAY_SCALE_Y
+};
+
 /* This structure defines all the properties of a Display. */
 struct rk_display_driver {
 	void (*suspend)(struct rk_display_device *, pm_message_t state);
@@ -30,6 +35,8 @@ struct rk_display_ops {
 	int (*getmodelist)(struct rk_display_device *, struct list_head **modelist);
 	int (*setmode)(struct rk_display_device *, struct fb_videomode *mode);
 	int (*getmode)(struct rk_display_device *, struct fb_videomode *mode);
+	int (*setscale)(struct rk_display_device *, int, int);
+	int (*getscale)(struct rk_display_device *, int);
 };
 
 struct rk_display_device {

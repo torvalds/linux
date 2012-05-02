@@ -116,7 +116,7 @@ int rk30_hdmi_read_edid(int block, unsigned char *buff)
 	}
 	// Disable edid interrupt
 	HDMIWrReg(INTR_MASK1, m_INT_HOTPLUG | m_INT_MSENS);
-	msleep(100);
+//	msleep(100);
 	return ret;
 }
 
