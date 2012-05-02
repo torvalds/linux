@@ -447,13 +447,15 @@ static void aiptek_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* This urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, urb->status);
+		dev_dbg(&inputdev->dev,
+			"%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		return;
 
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, urb->status);
+		dev_dbg(&inputdev->dev,
+			"%s - nonzero urb status received: %d\n",
+			__func__, urb->status);
 		goto exit;
 	}
 
@@ -785,7 +787,7 @@ static void aiptek_irq(struct urb *urb)
 				 1 | AIPTEK_REPORT_TOOL_UNKNOWN);
 		input_sync(inputdev);
 	} else {
-		dbg("Unknown report %d", data[0]);
+		dev_dbg(&inputdev->dev, "Unknown report %d\n", data[0]);
 	}
 
 	/* Jitter may occur when the user presses a button on the stlyus
@@ -913,8 +915,9 @@ aiptek_command(struct aiptek *aiptek, unsigned char command, unsigned char data)
 
 	if ((ret =
 	     aiptek_set_report(aiptek, 3, 2, buf, sizeof_buf)) != sizeof_buf) {
-		dbg("aiptek_program: failed, tried to send: 0x%02x 0x%02x",
-		    command, data);
+		dev_dbg(&aiptek->inputdev->dev,
+			"aiptek_program: failed, tried to send: 0x%02x 0x%02x\n",
+			command, data);
 	}
 	kfree(buf);
 	return ret < 0 ? ret : 0;
@@ -948,8 +951,9 @@ aiptek_query(struct aiptek *aiptek, unsigned char command, unsigned char data)
 
 	if ((ret =
 	     aiptek_get_report(aiptek, 3, 2, buf, sizeof_buf)) != sizeof_buf) {
-		dbg("aiptek_query failed: returned 0x%02x 0x%02x 0x%02x",
-		    buf[0], buf[1], buf[2]);
+		dev_dbg(&aiptek->inputdev->dev,
+			"aiptek_query failed: returned 0x%02x 0x%02x 0x%02x\n",
+			buf[0], buf[1], buf[2]);
 		ret = -EIO;
 	} else {
 		ret = get_unaligned_le16(buf + 1);
