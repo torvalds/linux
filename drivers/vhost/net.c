@@ -257,7 +257,8 @@ static void handle_tx(struct vhost_net *net)
 					UIO_MAXIOV;
 			}
 			vhost_discard_vq_desc(vq, 1);
-			tx_poll_start(net, sock);
+			if (err == -EAGAIN || err == -ENOBUFS)
+				tx_poll_start(net, sock);
 			break;
 		}
 		if (err != len)
