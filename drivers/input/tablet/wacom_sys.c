@@ -122,7 +122,7 @@ static void wacom_sys_irq(struct urb *urb)
 	usb_mark_last_busy(wacom->usbdev);
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&wacom->intf->dev,
+		dev_err(&wacom->wacom_wac.input->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, retval);
 }
@@ -818,7 +818,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	}
 
 	if (error) {
-		dev_err(&wacom->intf->dev,
+		dev_err(&wacom->wacom_wac.input->dev,
 			"cannot create sysfs group err: %d\n", error);
 		return error;
 	}
