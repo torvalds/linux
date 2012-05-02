@@ -266,12 +266,14 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 			iforce->ctrl->status != -EINPROGRESS, HZ);
 
 		if (iforce->ctrl->status) {
-			dbg("iforce->ctrl->status = %d", iforce->ctrl->status);
+			dev_dbg(&iforce->dev->dev,
+				"iforce->ctrl->status = %d\n",
+				iforce->ctrl->status);
 			usb_unlink_urb(iforce->ctrl);
 			return -1;
 		}
 #else
-		dbg("iforce_get_id_packet: iforce->bus = USB!");
+		printk(KERN_DEBUG "iforce_get_id_packet: iforce->bus = USB!\n");
 #endif
 		}
 		break;

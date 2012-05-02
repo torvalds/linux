@@ -76,6 +76,7 @@ void iforce_usb_xmit(struct iforce *iforce)
 static void iforce_usb_irq(struct urb *urb)
 {
 	struct iforce *iforce = urb->context;
+	struct device *dev = &iforce->dev->dev;
 	int status;
 
 	switch (urb->status) {
@@ -86,11 +87,12 @@ static void iforce_usb_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, urb->status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		return;
 	default:
-		dbg("%s - urb has status of: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - urb has status of: %d\n",
+			__func__, urb->status);
 		goto exit;
 	}
 
@@ -100,8 +102,7 @@ static void iforce_usb_irq(struct urb *urb)
 exit:
 	status = usb_submit_urb (urb, GFP_ATOMIC);
 	if (status)
-		dev_err(&iforce->dev->dev,
-			"%s - usb_submit_urb failed with result %d\n",
+		dev_err(dev, "%s - usb_submit_urb failed with result %d\n",
 			__func__, status);
 }
 
@@ -111,7 +112,8 @@ static void iforce_usb_out(struct urb *urb)
 
 	if (urb->status) {
 		clear_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags);
-		dbg("urb->status %d, exiting", urb->status);
+		dev_dbg(&iforce->dev->dev, "urb->status %d, exiting\n",
+			urb->status);
 		return;
 	}
 
