@@ -247,6 +247,9 @@ config SND_SOC_TLV320DAC33
 config SND_SOC_TLV320AIC3111
 	tristate
 
+config SND_SOC_TLV320AIC326X
+	tristate
+
 config SND_SOC_TWL4030
 	select TWL4030_CODEC
 	tristate

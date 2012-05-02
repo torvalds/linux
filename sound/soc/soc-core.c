@@ -3147,7 +3147,7 @@ EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r_sx);
 int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_value *ucontrol)
 {
-	struct soc_mixer_control *mc =
+	/*struct soc_mixer_control *mc =
 		(struct soc_mixer_control *)kcontrol->private_value;
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	unsigned int mask = (1<<mc->shift)-1;
@@ -3174,6 +3174,31 @@ int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
 		if (ret < 0)
 			return ret;
 	}
+
+	return 0;*/		//sxj modify, this function have bug
+
+	struct soc_mixer_control *mc =
+         (struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = (1<<mc->shift)-1;
+	int min = mc->min;
+	int ret;
+	unsigned int val, valr, oval, ovalr;
+
+	val = ((ucontrol->value.integer.value[0]+min) & 0xff);
+	val &= mask;
+	valr = ((ucontrol->value.integer.value[1]+min) & 0xff);
+	valr &= mask;
+
+	ret = 0;
+	ret = snd_soc_update_bits_locked(codec, mc->reg, mask, val);
+	if(ret < 0)
+		return ret;
+
+	ret = snd_soc_update_bits_locked(codec, mc->rreg, mask, valr);
+
+	if(ret < 0)
+		return ret;
 
 	return 0;
 }

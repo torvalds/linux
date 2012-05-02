@@ -134,6 +134,15 @@ config SND_RK29_SOC_AIC3111
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the AIC3111.
 
+config SND_RK29_SOC_AIC3262
+	tristate "SoC I2S Audio support for rockchip - AIC3262"
+	depends on SND_RK29_SOC
+	select SND_RK29_SOC_I2S
+	select SND_SOC_TLV320AIC326X
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the AIC3262.
+
 config SND_RK29_SOC_RK1000
 	tristate "SoC I2S Audio support for rockchip - RK1000"
 	depends on SND_RK29_SOC
@@ -160,7 +169,7 @@ config SND_RK29_SOC_RK610
 	  Say Y if you want to add support for SoC audio on rockchip
 	  with the RK610(JETTA).
 
-if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111 || SND_RK29_SOC_HDMI || SND_RK29_SOC_RK610
+if SND_RK29_SOC_WM8988 || SND_RK29_SOC_RK1000 || SND_RK29_SOC_WM8994 || SND_RK29_SOC_WM8900 || SND_RK29_SOC_RT5621 || SND_RK29_SOC_RT5631 || SND_RK29_SOC_RT5625 || SND_RK29_SOC_CS42L52 || SND_RK29_SOC_AIC3111 || SND_RK29_SOC_HDMI || SND_RK29_SOC_RK610 || SND_RK29_SOC_AIC3262
 choice
   bool "Set i2s type"
   default SND_RK29_CODEC_SOC_SLAVE

@@ -1319,6 +1319,15 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.flags         = 0,
 	},
 #endif
+
+#if defined (CONFIG_SND_SOC_TLV320AIC326X)
+	{
+		.type    		= "tlv320aic3262",
+		.addr           = 0x18,
+		.flags			= 0,
+	},
+#endif
+
 #if defined (CONFIG_SND_SOC_RT5631)
         {
                 .type                   = "rt5631",

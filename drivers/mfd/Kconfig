@@ -233,6 +233,11 @@ config TWL6030_PWM
 	  Say yes here if you want support for TWL6030 PWM.
 	  This is used to control charging LED brightness.
 
+config AIC3262_CODEC
+	bool "Support TI Codec Aic3262"
+	select MFD_CORE
+	default n
+
 config MFD_STMPE
 	bool "Support STMicroelectronics STMPE"
 	depends on I2C=y && GENERIC_HARDIRQS
