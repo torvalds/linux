@@ -716,6 +716,8 @@ static void __init mop500_init_machine(void)
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
+
+	mop500_uib_init();
 }
 
 static void __init snowball_init_machine(void)
@@ -780,6 +782,8 @@ static void __init hrefv60_init_machine(void)
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();
+
+	mop500_uib_init();
 }
 
 MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
@@ -883,6 +887,8 @@ static void __init u8500_init_machine(void)
 		i2c_register_board_info(2, mop500_i2c2_devices,
 					ARRAY_SIZE(mop500_i2c2_devices));
 
+		mop500_uib_init();
+
 	} else if (of_machine_is_compatible("calaosystems,snowball-a9500")) {
 		/*
 		 * Devices to be DT:ed:
@@ -913,6 +919,8 @@ static void __init u8500_init_machine(void)
 		i2c_register_board_info(0, mop500_i2c0_devices, i2c0_devs);
 		i2c_register_board_info(2, mop500_i2c2_devices,
 					ARRAY_SIZE(mop500_i2c2_devices));
+
+		mop500_uib_init();
 	}
 	mop500_i2c_init(parent);
 
