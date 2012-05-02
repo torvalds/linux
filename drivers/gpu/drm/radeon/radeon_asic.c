@@ -299,7 +299,7 @@ static struct radeon_asic r300_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -373,7 +373,7 @@ static struct radeon_asic r300_asic_pcie = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -447,7 +447,7 @@ static struct radeon_asic r420_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -521,7 +521,7 @@ static struct radeon_asic rs400_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -595,7 +595,7 @@ static struct radeon_asic rs600_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -669,7 +669,7 @@ static struct radeon_asic rs690_asic = {
 			.ring_start = &r300_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -743,7 +743,7 @@ static struct radeon_asic rv515_asic = {
 			.ring_start = &rv515_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {
@@ -817,7 +817,7 @@ static struct radeon_asic r520_asic = {
 			.ring_start = &rv515_ring_start,
 			.ring_test = &r100_ring_test,
 			.ib_test = &r100_ib_test,
-			.is_lockup = &r300_gpu_is_lockup,
+			.is_lockup = &r100_gpu_is_lockup,
 		}
 	},
 	.irq = {

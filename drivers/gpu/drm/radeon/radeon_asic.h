@@ -154,7 +154,6 @@ extern int r300_init(struct radeon_device *rdev);
 extern void r300_fini(struct radeon_device *rdev);
 extern int r300_suspend(struct radeon_device *rdev);
 extern int r300_resume(struct radeon_device *rdev);
-extern bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 extern int r300_asic_reset(struct radeon_device *rdev);
 extern void r300_ring_start(struct radeon_device *rdev, struct radeon_ring *ring);
 extern void r300_fence_ring_emit(struct radeon_device *rdev,

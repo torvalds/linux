@@ -377,20 +377,6 @@ void r300_gpu_init(struct radeon_device *rdev)
 		 rdev->num_gb_pipes, rdev->num_z_pipes);
 }
 
-bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
-{
-	u32 rbbm_status;
-
-	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
-	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		radeon_ring_lockup_update(ring);
-		return false;
-	}
-	/* force CP activities */
-	radeon_ring_force_activity(rdev, ring);
-	return radeon_ring_test_lockup(rdev, ring);
-}
-
 int r300_asic_reset(struct radeon_device *rdev)
 {
 	struct r100_mc_save save;
