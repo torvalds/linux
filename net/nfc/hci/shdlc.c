@@ -404,12 +404,12 @@ static void nfc_shdlc_rcv_u_frame(struct nfc_shdlc *shdlc,
 				r = nfc_shdlc_connect_send_ua(shdlc);
 				nfc_shdlc_connect_complete(shdlc, r);
 			}
-		} else if (shdlc->state > SHDLC_NEGOCIATING) {
+		} else if (shdlc->state == SHDLC_CONNECTED) {
 			/*
-			 * TODO: Chip wants to reset link
-			 * send ua, empty skb lists, reset counters
-			 * propagate info to HCI layer
+			 * Chip wants to reset link. This is unexpected and
+			 * unsupported.
 			 */
+			shdlc->hard_fault = -ECONNRESET;
 		}
 		break;
 	case U_FRAME_UA:
