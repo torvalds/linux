@@ -284,6 +284,66 @@ static const struct serial8250_config uart_config[] = {
 	},
 };
 
+/* Uart divisor latch read */
+static int default_dl_read(struct uart_8250_port *up)
+{
+	return serial_in(up, UART_DLL) | serial_in(up, UART_DLM) << 8;
+}
+
+/* Uart divisor latch write */
+static void default_dl_write(struct uart_8250_port *up, int value)
+{
+	serial_out(up, UART_DLL, value & 0xff);
+	serial_out(up, UART_DLM, value >> 8 & 0xff);
+}
+
+#if defined(CONFIG_MIPS_ALCHEMY)
+/* Au1x00 haven't got a standard divisor latch */
+static int _serial_dl_read(struct uart_8250_port *up)
+{
+	if (up->port.iotype == UPIO_AU)
+		return __raw_readl(up->port.membase + 0x28);
+	else
+		return default_dl_read(up);
+}
+
+static void _serial_dl_write(struct uart_8250_port *up, int value)
+{
+	if (up->port.iotype == UPIO_AU)
+		__raw_writel(value, up->port.membase + 0x28);
+	else
+		default_dl_write(up, value);
+}
+#elif defined(CONFIG_SERIAL_8250_RM9K)
+static int _serial_dl_read(struct uart_8250_port *up)
+{
+	return	(up->port.iotype == UPIO_RM9000) ?
+		(((__raw_readl(up->port.membase + 0x10) << 8) |
+		(__raw_readl(up->port.membase + 0x08) & 0xff)) & 0xffff) :
+		default_dl_read(up);
+}
+
+static void _serial_dl_write(struct uart_8250_port *up, int value)
+{
+	if (up->port.iotype == UPIO_RM9000) {
+		__raw_writel(value, up->port.membase + 0x08);
+		__raw_writel(value >> 8, up->port.membase + 0x10);
+	} else {
+		default_dl_write(up, value);
+	}
+}
+#else
+static int _serial_dl_read(struct uart_8250_port *up)
+{
+	return default_dl_read(up);
+}
+
+static void _serial_dl_write(struct uart_8250_port *up, int value)
+{
+	default_dl_write(up, value);
+}
+#endif
+
 #if defined(CONFIG_MIPS_ALCHEMY)
 
 /* Au1x00 UART hardware has a weird register layout */
@@ -434,6 +494,10 @@ static void set_io_from_upio(struct uart_port *p)
 {
 	struct uart_8250_port *up =
 		container_of(p, struct uart_8250_port, port);
+
+	up->dl_read = _serial_dl_read;
+	up->dl_write = _serial_dl_write;
+
 	switch (p->iotype) {
 	case UPIO_HUB6:
 		p->serial_in = hub6_serial_in;
@@ -480,59 +544,6 @@ serial_port_out_sync(struct uart_port *p, int offset, int value)
 		p->serial_out(p, offset, value);
 	}
 }
-
-/* Uart divisor latch read */
-static inline int _serial_dl_read(struct uart_8250_port *up)
-{
-	return serial_in(up, UART_DLL) | serial_in(up, UART_DLM) << 8;
-}
-
-/* Uart divisor latch write */
-static inline void _serial_dl_write(struct uart_8250_port *up, int value)
-{
-	serial_out(up, UART_DLL, value & 0xff);
-	serial_out(up, UART_DLM, value >> 8 & 0xff);
-}
-
-#if defined(CONFIG_MIPS_ALCHEMY)
-/* Au1x00 haven't got a standard divisor latch */
-static int serial_dl_read(struct uart_8250_port *up)
-{
-	if (up->port.iotype == UPIO_AU)
-		return __raw_readl(up->port.membase + 0x28);
-	else
-		return _serial_dl_read(up);
-}
-
-static void serial_dl_write(struct uart_8250_port *up, int value)
-{
-	if (up->port.iotype == UPIO_AU)
-		__raw_writel(value, up->port.membase + 0x28);
-	else
-		_serial_dl_write(up, value);
-}
-#elif defined(CONFIG_SERIAL_8250_RM9K)
-static int serial_dl_read(struct uart_8250_port *up)
-{
-	return	(up->port.iotype == UPIO_RM9000) ?
-		(((__raw_readl(up->port.membase + 0x10) << 8) |
-		(__raw_readl(up->port.membase + 0x08) & 0xff)) & 0xffff) :
-		_serial_dl_read(up);
-}
-
-static void serial_dl_write(struct uart_8250_port *up, int value)
-{
-	if (up->port.iotype == UPIO_RM9000) {
-		__raw_writel(value, up->port.membase + 0x08);
-		__raw_writel(value >> 8, up->port.membase + 0x10);
-	} else {
-		_serial_dl_write(up, value);
-	}
-}
-#else
-#define serial_dl_read(up) _serial_dl_read(up)
-#define serial_dl_write(up, value) _serial_dl_write(up, value)
-#endif
 
 /*
  * For the 16C950
