@@ -234,5 +234,6 @@ extern int rk_fb_unregister(struct rk_lcdc_device_driver *dev_drv);
 extern int get_fb_layer_id(struct fb_fix_screeninfo *fix);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id);
+extern int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id);
 extern int rkfb_create_sysfs(struct fb_info *fbi);
 #endif

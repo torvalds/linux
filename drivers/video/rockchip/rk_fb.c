@@ -382,17 +382,18 @@ static int rk_fb_set_par(struct fb_info *info)
 			par2 = dev_drv1->layer_par[layer_id];
 		}
 	}
-	if((!strcmp(fix->id,"fb0"))||(!strcmp(fix->id,"fb2")))  //four ui
-	{
-		xsize = screen->x_res;
-		ysize = screen->y_res;
-	}
-	else if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
+	
+	if(var->grayscale>>8)
 	{
 		xsize = (var->grayscale>>8) & 0xfff;  //visiable size in panel ,for vide0
 		ysize = (var->grayscale>>20) & 0xfff;
 	}
-
+	else
+	{
+		xsize = screen->x_res;
+              	ysize = screen->y_res;
+	}
+		
 	/* calculate y_offset,c_offset,line_length,cblen and crlen  */
 #if 1
 	switch (data_format)
@@ -471,10 +472,13 @@ static int rk_fb_set_par(struct fb_info *info)
 		#if defined(CONFIG_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug())
 			{
-				par2->xact = par->xact;
-				par2->yact = par->yact;
-				par2->format = par->format;
-				dev_drv1->set_par(dev_drv1,layer_id);
+				if(info != info2)
+				{
+					par2->xact = par->xact;
+					par2->yact = par->yact;
+					par2->format = par->format;
+					dev_drv1->set_par(dev_drv1,layer_id);
+				}
 			}
 		#endif
 	#endif
@@ -612,7 +616,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	{
 		info = inf->fb[0];
 	}
-	else if( (inf->num_lcdc == 2)&&(lcdc_id = 1))
+	else if((lcdc_id == 1)&&(inf->num_lcdc == 2))
 	{
 		info = inf->fb[2];
 	}
@@ -628,13 +632,16 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 			hdmi_var->yres = pmy_var->yres;
 			hdmi_var->xres_virtual = pmy_var->xres_virtual;
 			hdmi_var->yres_virtual = pmy_var->yres_virtual;
-			hdmi_var->nonstd = pmy_var->nonstd;
+			hdmi_var->nonstd &= 0xffffff00;
+			hdmi_var->nonstd |= (pmy_var->nonstd & 0xff); //use the same format as primary screen
 		}
 		else
 		{
 			printk(KERN_WARNING "%s>>only one lcdc,dual display no supported!",__func__);
 		}
 	#endif
+	hdmi_var->grayscale &= 0xff;
+	hdmi_var->grayscale |= (dev_drv->screen->x_res<<8) + (dev_drv->screen->y_res<<20);
 	ret = dev_drv->load_screen(dev_drv,1);
 	ret = info->fbops->fb_open(info,1);
 	ret = info->fbops->fb_set_par(info);
@@ -653,6 +660,63 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	return 0;
 
 }
+
+int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
+{
+	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
+	struct fb_info *info = NULL;
+	struct fb_var_screeninfo *var = NULL;
+	struct rk_lcdc_device_driver * dev_drv = NULL;
+	u16 screen_x,screen_y;
+	u16 xpos,ypos;
+	u16 xsize,ysize;
+	
+	char name[6];
+	int i;
+	sprintf(name, "lcdc%d",lcdc_id);
+	for(i = 0; i < inf->num_lcdc; i++)
+	{
+		if(!strcmp(inf->lcdc_dev_drv[i]->name,name))
+		{
+			dev_drv = inf->lcdc_dev_drv[i];
+			break;
+		}
+	}
+
+	if(i == inf->num_lcdc)
+	{
+		printk(KERN_ERR "%s driver not found!",name);
+		return -ENODEV;
+		
+	}
+
+	if((lcdc_id == 0) || (inf->num_lcdc == 1))
+	{
+		info = inf->fb[0];
+	}
+	else if( (inf->num_lcdc == 2)&&(lcdc_id == 1))
+	{
+		info = inf->fb[2];
+	}
+
+	var = &info->var;
+	screen_x = dev_drv->screen->x_res;
+	screen_y = dev_drv->screen->y_res;
+	xpos = (screen_x-screen_x*scale_x/100)>>1;
+	ypos = (screen_y-screen_y*scale_y/100)>>1;
+	xsize = screen_x*scale_x/100;
+	ysize = screen_y*scale_y/100;
+	var->nonstd &= 0xff;
+	var->nonstd |= (xpos<<8) + (ypos<<20);
+	var->grayscale &= 0xff;
+	var->grayscale |= (xsize<<8) + (ysize<<20);
+
+	info->fbops->fb_set_par(info);
+	return 0;
+	
+	
+}
+
 static int rk_request_fb_buffer(struct fb_info *fbi,int fb_id)
 {
 	struct resource *res;
@@ -855,6 +919,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
         sprintf(fbi->fix.id,"fb%d",fb_inf->num_fb);
         fbi->var.xres = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
         fbi->var.yres = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
+	fbi->var.grayscale |= (fbi->var.xres<<8) + (fbi->var.yres<<20);
         fbi->var.bits_per_pixel = 16;
         fbi->var.xres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->x_res;
         fbi->var.yres_virtual = fb_inf->lcdc_dev_drv[lcdc_id]->screen->y_res;
