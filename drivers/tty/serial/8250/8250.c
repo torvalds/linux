@@ -285,26 +285,16 @@ static const struct serial8250_config uart_config[] = {
 };
 
 /* Uart divisor latch read */
-static int default_dl_read(struct uart_8250_port *up)
+static int default_serial_dl_read(struct uart_8250_port *up)
 {
 	return serial_in(up, UART_DLL) | serial_in(up, UART_DLM) << 8;
 }
 
 /* Uart divisor latch write */
-static void default_dl_write(struct uart_8250_port *up, int value)
+static void default_serial_dl_write(struct uart_8250_port *up, int value)
 {
 	serial_out(up, UART_DLL, value & 0xff);
 	serial_out(up, UART_DLM, value >> 8 & 0xff);
-}
-
-static int _serial_dl_read(struct uart_8250_port *up)
-{
-	return default_dl_read(up);
-}
-
-static void _serial_dl_write(struct uart_8250_port *up, int value)
-{
-	default_dl_write(up, value);
 }
 
 #ifdef CONFIG_MIPS_ALCHEMY
@@ -403,57 +393,53 @@ static void rm9k_serial_dl_write(struct uart_8250_port *up, int value)
 
 #endif
 
-/* sane hardware needs no mapping */
-#define map_8250_in_reg(up, offset) (offset)
-#define map_8250_out_reg(up, offset) (offset)
-
 static unsigned int hub6_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	outb(p->hub6 - 1 + offset, p->iobase);
 	return inb(p->iobase + 1);
 }
 
 static void hub6_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	outb(p->hub6 - 1 + offset, p->iobase);
 	outb(value, p->iobase + 1);
 }
 
 static unsigned int mem_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	return readb(p->membase + offset);
 }
 
 static void mem_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	writeb(value, p->membase + offset);
 }
 
 static void mem32_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	writel(value, p->membase + offset);
 }
 
 static unsigned int mem32_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	return readl(p->membase + offset);
 }
 
 static unsigned int io_serial_in(struct uart_port *p, int offset)
 {
-	offset = map_8250_in_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	return inb(p->iobase + offset);
 }
 
 static void io_serial_out(struct uart_port *p, int offset, int value)
 {
-	offset = map_8250_out_reg(p, offset) << p->regshift;
+	offset = offset << p->regshift;
 	outb(value, p->iobase + offset);
 }
 
@@ -464,8 +450,8 @@ static void set_io_from_upio(struct uart_port *p)
 	struct uart_8250_port *up =
 		container_of(p, struct uart_8250_port, port);
 
-	up->dl_read = _serial_dl_read;
-	up->dl_write = _serial_dl_write;
+	up->dl_read = default_serial_dl_read;
+	up->dl_write = default_serial_dl_write;
 
 	switch (p->iotype) {
 	case UPIO_HUB6:
