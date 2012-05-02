@@ -125,7 +125,7 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO88_GPIO,
 
 	/* HX4700 specific input GPIOs */
-	GPIO12_GPIO,	/* ASIC3_IRQ */
+	GPIO12_GPIO | WAKEUP_ON_EDGE_RISE,	/* ASIC3_IRQ */
 	GPIO13_GPIO,	/* W3220_IRQ */
 	GPIO14_GPIO,	/* nWLAN_IRQ */
 
@@ -860,6 +860,7 @@ static void __init hx4700_init(void)
 	int ret;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(hx4700_pin_config));
+	gpio_set_wake(GPIO12_HX4700_ASIC3_IRQ, 1);
 	ret = gpio_request_array(ARRAY_AND_SIZE(global_gpios));
 	if (ret)
 		pr_err ("hx4700: Failed to request GPIOs.\n");
