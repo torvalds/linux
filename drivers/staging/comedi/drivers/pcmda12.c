@@ -172,10 +172,10 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	iobase = it->options[0];
 	printk(KERN_INFO
-	       "comedi%d: %s: io: %lx %s ", dev->minor, driver.driver_name,
+	       "comedi%d: %s: io: %lx %s ", dev->minor, dev->driver->driver_name,
 	       iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
 
-	if (!request_region(iobase, IOSIZE, driver.driver_name)) {
+	if (!request_region(iobase, IOSIZE, dev->driver->driver_name)) {
 		printk("I/O port conflict\n");
 		return -EIO;
 	}
@@ -230,7 +230,7 @@ static int pcmda12_attach(struct comedi_device *dev,
 static int pcmda12_detach(struct comedi_device *dev)
 {
 	printk(KERN_INFO
-	       "comedi%d: %s: remove\n", dev->minor, driver.driver_name);
+	       "comedi%d: %s: remove\n", dev->minor, dev->driver->driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, IOSIZE);
 	return 0;

@@ -757,13 +757,13 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	irq[1] = it->options[2];
 
 	dev_dbg(dev->hw_dev, "comedi%d: %s: io: %lx attached\n", dev->minor,
-		driver.driver_name, iobase);
+		dev->driver->driver_name, iobase);
 
 	dev->iobase = iobase;
 
 	if (!iobase || !request_region(iobase,
 				       thisboard->num_asics * ASIC_IOSIZE,
-				       driver.driver_name)) {
+				       dev->driver->driver_name)) {
 		dev_err(dev->hw_dev, "I/O port conflict\n");
 		return -EIO;
 	}
@@ -913,7 +913,7 @@ static int pcmuio_detach(struct comedi_device *dev)
 	int i;
 
 	dev_dbg(dev->hw_dev, "comedi%d: %s: remove\n", dev->minor,
-		driver.driver_name);
+		dev->driver->driver_name);
 	if (dev->iobase)
 		release_region(dev->iobase, ASIC_IOSIZE * thisboard->num_asics);
 
