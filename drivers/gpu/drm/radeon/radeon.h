@@ -257,7 +257,6 @@ struct radeon_fence_driver {
 	uint32_t			last_seq;
 	unsigned long			last_activity;
 	wait_queue_head_t		queue;
-	struct list_head		created;
 	struct list_head		emitted;
 	struct list_head		signaled;
 	bool				initialized;

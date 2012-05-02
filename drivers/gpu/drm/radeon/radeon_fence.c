@@ -139,8 +139,6 @@ int radeon_fence_create(struct radeon_device *rdev,
 			struct radeon_fence **fence,
 			int ring)
 {
-	unsigned long irq_flags;
-
 	*fence = kmalloc(sizeof(struct radeon_fence), GFP_KERNEL);
 	if ((*fence) == NULL) {
 		return -ENOMEM;
@@ -153,10 +151,6 @@ int radeon_fence_create(struct radeon_device *rdev,
 	(*fence)->ring = ring;
 	(*fence)->semaphore = NULL;
 	INIT_LIST_HEAD(&(*fence)->list);
-
-	write_lock_irqsave(&rdev->fence_lock, irq_flags);
-	list_add_tail(&(*fence)->list, &rdev->fence_drv[ring].created);
-	write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 	return 0;
 }
 
@@ -411,7 +405,6 @@ static void radeon_fence_driver_init_ring(struct radeon_device *rdev, int ring)
 	rdev->fence_drv[ring].cpu_addr = NULL;
 	rdev->fence_drv[ring].gpu_addr = 0;
 	atomic_set(&rdev->fence_drv[ring].seq, 0);
-	INIT_LIST_HEAD(&rdev->fence_drv[ring].created);
 	INIT_LIST_HEAD(&rdev->fence_drv[ring].emitted);
 	INIT_LIST_HEAD(&rdev->fence_drv[ring].signaled);
 	init_waitqueue_head(&rdev->fence_drv[ring].queue);
