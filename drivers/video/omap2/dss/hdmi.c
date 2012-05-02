@@ -771,12 +771,35 @@ static void hdmi_put_clocks(void)
 		clk_put(hdmi.sys_clk);
 }
 
+static void __init hdmi_probe_pdata(struct platform_device *pdev)
+{
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int r, i;
+
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_HDMI)
+			continue;
+
+		r = hdmi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+					dssdev->name, r);
+	}
+}
+
 /* HDMI HW IP initialisation */
 static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	struct resource *hdmi_mem;
-	int r, i;
+	int r;
 
 	hdmi.pdev = pdev;
 
@@ -813,23 +836,7 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		if (dssdev->type != OMAP_DISPLAY_TYPE_HDMI)
-			continue;
-
-		r = hdmi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
-
-		r = omap_dss_register_device(dssdev, &pdev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-					dssdev->name, r);
-	}
+	hdmi_probe_pdata(pdev);
 
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)

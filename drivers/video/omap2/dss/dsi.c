@@ -4602,6 +4602,34 @@ static void dsi_put_clocks(struct platform_device *dsidev)
 		clk_put(dsi->sys_clk);
 }
 
+static void __init dsi_probe_pdata(struct platform_device *dsidev)
+{
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct omap_dss_board_info *pdata = dsidev->dev.platform_data;
+	int i, r;
+
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_DSI)
+			continue;
+
+		if (dssdev->phy.dsi.module != dsi->module_id)
+			continue;
+
+		r = dsi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
+
+		r = omap_dss_register_device(dssdev, &dsidev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+					dssdev->name, r);
+	}
+}
+
 /* DSI1 HW IP initialisation */
 static int __init omap_dsihw_probe(struct platform_device *dsidev)
 {
@@ -4609,7 +4637,6 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 	int r, i;
 	struct resource *dsi_mem;
 	struct dsi_data *dsi;
-	struct omap_dss_board_info *pdata = dsidev->dev.platform_data;
 
 	dsi = devm_kzalloc(&dsidev->dev, sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
@@ -4697,26 +4724,7 @@ static int __init omap_dsihw_probe(struct platform_device *dsidev)
 	else
 		dsi->num_lanes_supported = 3;
 
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		if (dssdev->type != OMAP_DISPLAY_TYPE_DSI)
-			continue;
-
-		if (dssdev->phy.dsi.module != dsi->module_id)
-			continue;
-
-		r = dsi_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
-
-		r = omap_dss_register_device(dssdev, &dsidev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-				dssdev->name, r);
-	}
+	dsi_probe_pdata(dsidev);
 
 	dsi_runtime_put(dsidev);
 

@@ -365,7 +365,7 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int __init omap_dpi_probe(struct platform_device *pdev)
+static void __init dpi_probe_pdata(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int i, r;
@@ -387,6 +387,11 @@ static int __init omap_dpi_probe(struct platform_device *pdev)
 			DSSERR("device %s register failed: %d\n",
 					dssdev->name, r);
 	}
+}
+
+static int __init omap_dpi_probe(struct platform_device *pdev)
+{
+	dpi_probe_pdata(pdev);
 
 	return 0;
 }

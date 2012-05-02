@@ -176,7 +176,7 @@ static int __init sdi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int __init omap_sdi_probe(struct platform_device *pdev)
+static void __init sdi_probe_pdata(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	int i, r;
@@ -198,6 +198,11 @@ static int __init omap_sdi_probe(struct platform_device *pdev)
 			DSSERR("device %s register failed: %d\n",
 					dssdev->name, r);
 	}
+}
+
+static int __init omap_sdi_probe(struct platform_device *pdev)
+{
+	sdi_probe_pdata(pdev);
 
 	return 0;
 }

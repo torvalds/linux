@@ -829,13 +829,36 @@ static void venc_put_clocks(void)
 		clk_put(venc.tv_dac_clk);
 }
 
+static void __init venc_probe_pdata(struct platform_device *pdev)
+{
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int r, i;
+
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_VENC)
+			continue;
+
+		r = venc_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+					dssdev->name, r);
+	}
+}
+
 /* VENC HW IP initialisation */
 static int __init omap_venchw_probe(struct platform_device *pdev)
 {
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	u8 rev_id;
 	struct resource *venc_mem;
-	int r, i;
+	int r;
 
 	venc.pdev = pdev;
 
@@ -877,23 +900,7 @@ static int __init omap_venchw_probe(struct platform_device *pdev)
 
 	dss_debugfs_create_file("venc", venc_dump_regs);
 
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		if (dssdev->type != OMAP_DISPLAY_TYPE_VENC)
-			continue;
-
-		r = venc_init_display(dssdev);
-		if (r) {
-			DSSERR("device %s init failed: %d\n", dssdev->name, r);
-			continue;
-		}
-
-		r = omap_dss_register_device(dssdev, &pdev->dev, i);
-		if (r)
-			DSSERR("device %s register failed: %d\n",
-					dssdev->name, r);
-	}
+	venc_probe_pdata(pdev);
 
 	return 0;
 
