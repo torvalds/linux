@@ -460,6 +460,10 @@ void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
 				  struct radeon_semaphore *semaphore);
 void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
+int radeon_semaphore_sync_rings(struct radeon_device *rdev,
+				struct radeon_semaphore *semaphore,
+				bool sync_to[RADEON_NUM_RINGS],
+				int dst_ring);
 void radeon_semaphore_free(struct radeon_device *rdev,
 			   struct radeon_semaphore *semaphore);
 

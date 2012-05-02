@@ -118,6 +118,7 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 {
 	bool sync_to_ring[RADEON_NUM_RINGS] = { };
+	bool need_sync = false;
 	int i, r;
 
 	for (i = 0; i < p->nrelocs; i++) {
@@ -126,36 +127,24 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 
 		if (!(p->relocs[i].flags & RADEON_RELOC_DONT_SYNC)) {
 			struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
-			if (!radeon_fence_signaled(fence)) {
+			if (fence->ring != p->ring && !radeon_fence_signaled(fence)) {
 				sync_to_ring[fence->ring] = true;
+				need_sync = true;
 			}
 		}
 	}
 
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		/* no need to sync to our own or unused rings */
-		if (i == p->ring || !sync_to_ring[i] || !p->rdev->ring[i].ready)
-			continue;
-
-		if (!p->ib->fence->semaphore) {
-			r = radeon_semaphore_create(p->rdev, &p->ib->fence->semaphore);
-			if (r)
-				return r;
-		}
-
-		r = radeon_ring_lock(p->rdev, &p->rdev->ring[i], 3);
-		if (r)
-			return r;
-		radeon_semaphore_emit_signal(p->rdev, i, p->ib->fence->semaphore);
-		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[i]);
-
-		r = radeon_ring_lock(p->rdev, &p->rdev->ring[p->ring], 3);
-		if (r)
-			return r;
-		radeon_semaphore_emit_wait(p->rdev, p->ring, p->ib->fence->semaphore);
-		radeon_ring_unlock_commit(p->rdev, &p->rdev->ring[p->ring]);
+	if (!need_sync) {
+		return 0;
 	}
-	return 0;
+
+	r = radeon_semaphore_create(p->rdev, &p->ib->fence->semaphore);
+	if (r) {
+		return r;
+	}
+
+	return radeon_semaphore_sync_rings(p->rdev, p->ib->fence->semaphore,
+					   sync_to_ring, p->ring);
 }
 
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
