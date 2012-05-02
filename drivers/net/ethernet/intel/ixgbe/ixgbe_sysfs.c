@@ -185,8 +185,10 @@ static void ixgbe_sysfs_del_adapter(struct ixgbe_adapter *adapter)
 		hwmon_device_unregister(adapter->ixgbe_hwmon_buff.device);
 #endif /* CONFIG_IXGBE_HWMON */
 
-	if (adapter->info_kobj != NULL)
+	if (adapter->info_kobj != NULL) {
 		kobject_put(adapter->info_kobj);
+		adapter->info_kobj = NULL;
+	}
 }
 
 /* called from ixgbe_main.c */
