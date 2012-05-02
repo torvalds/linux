@@ -267,6 +267,36 @@ int radeon_ib_pool_suspend(struct radeon_device *rdev)
 	return radeon_sa_bo_manager_suspend(rdev, &rdev->ib_pool.sa_manager);
 }
 
+int radeon_ib_ring_tests(struct radeon_device *rdev)
+{
+	unsigned i;
+	int r;
+
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		struct radeon_ring *ring = &rdev->ring[i];
+
+		if (!ring->ready)
+			continue;
+
+		r = radeon_ib_test(rdev, i, ring);
+		if (r) {
+			ring->ready = false;
+
+			if (i == RADEON_RING_TYPE_GFX_INDEX) {
+				/* oh, oh, that's really bad */
+				DRM_ERROR("radeon: failed testing IB on GFX ring (%d).\n", r);
+		                rdev->accel_working = false;
+				return r;
+
+			} else {
+				/* still not good, but we can live with it */
+				DRM_ERROR("radeon: failed testing IB on ring %d (%d).\n", i, r);
+			}
+		}
+	}
+	return 0;
+}
+
 /*
  * Ring.
  */
