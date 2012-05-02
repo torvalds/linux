@@ -3,6 +3,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 
+#include <asm/pgtable-hwdef.h>
 #include <asm/hardware/gic.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
@@ -128,9 +129,36 @@ void __init rk30_map_io(void)
 	rk29_sram_init();
 	board_clock_init();
 	rk30_l2_cache_init();
-    ddr_init(DDR_TYPE, DDR_FREQ);
+	ddr_init(DDR_TYPE, DDR_FREQ);
 	rk30_iomux_init();
 	rk30_boot_mode_init();
+}
+
+extern u32 ddr_get_cap(void);
+static __init u32 rk30_get_ddr_size(void)
+{
+	u32 size;
+	u32 v[3], a[3];
+	u32 pgtbl = PAGE_OFFSET + TEXT_OFFSET - 0x4000;
+	u32 flag = PMD_TYPE_SECT | PMD_SECT_XN | PMD_SECT_AP_WRITE | PMD_SECT_AP_READ;
+
+	a[0] = pgtbl + (((u32)RK30_CPU_AXI_BUS_BASE >> 20) << 2);
+	a[1] = pgtbl + (((u32)RK30_DDR_PUBL_BASE >> 20) << 2);
+	a[2] = pgtbl + (((u32)RK30_GRF_BASE >> 20) << 2);
+	v[0] = readl_relaxed(a[0]);
+	v[1] = readl_relaxed(a[1]);
+	v[2] = readl_relaxed(a[2]);
+	writel_relaxed(flag | ((RK30_CPU_AXI_BUS_PHYS >> 20) << 20), a[0]);
+	writel_relaxed(flag | ((RK30_DDR_PUBL_PHYS >> 20) << 20), a[1]);
+	writel_relaxed(flag | ((RK30_GRF_PHYS >> 20) << 20), a[2]);
+
+	size = ddr_get_cap();
+
+	writel_relaxed(v[0], a[0]);
+	writel_relaxed(v[1], a[1]);
+	writel_relaxed(v[2], a[2]);
+
+	return size;
 }
 
 void __init rk30_fixup(struct machine_desc *desc, struct tag *tags,
@@ -138,6 +166,6 @@ void __init rk30_fixup(struct machine_desc *desc, struct tag *tags,
 {
 	mi->nr_banks = 1;
 	mi->bank[0].start = PLAT_PHYS_OFFSET;
-	mi->bank[0].size = SZ_1G;
+	mi->bank[0].size = rk30_get_ddr_size();
 }
 
