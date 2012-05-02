@@ -114,17 +114,12 @@ static void check_syscall_restart(struct pt_regs *regs, struct k_sigaction *ka,
 
 static int do_signal(struct pt_regs *regs)
 {
-	sigset_t *oldset;
+	sigset_t *oldset = sigmask_to_save();
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
 	int ret;
 	int is32 = is_32bit_task();
-
-	if (current_thread_info()->local_flags & _TLF_RESTORE_SIGMASK)
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 

@@ -398,12 +398,7 @@ void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
+	sigset_t *oldset = sigmask_to_save();
 
 	/*
 	 * Get signal to deliver. When running under ptrace, at this point

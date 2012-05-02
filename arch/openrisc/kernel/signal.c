@@ -254,11 +254,11 @@ give_sigsegv:
 static inline int
 handle_signal(unsigned long sig,
 	      siginfo_t *info, struct k_sigaction *ka,
-	      sigset_t *oldset, struct pt_regs *regs)
+	      struct pt_regs *regs)
 {
 	int ret;
 
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
 	if (ret)
 		return ret;
 
@@ -341,15 +341,9 @@ void do_signal(struct pt_regs *regs)
 		 * back */
 		restore_saved_sigmask();
 	} else {		/* signr > 0 */
-		sigset_t *oldset;
-
-		if (current_thread_info()->flags & _TIF_RESTORE_SIGMASK)
-			oldset = &current->saved_sigmask;
-		else
-			oldset = &current->blocked;
 
 		/* Whee!  Actually deliver the signal.  */
-		if (!handle_signal(signr, &info, &ka, oldset, regs)) {
+		if (!handle_signal(signr, &info, &ka, regs)) {
 			/* a signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply

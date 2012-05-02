@@ -512,7 +512,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 {
 	struct k_sigaction ka;
 	int restart_syscall;
-	sigset_t *oldset;
+	sigset_t *oldset = sigmask_to_save();
 	siginfo_t info;
 	int signr;
 	
@@ -537,11 +537,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (pt_regs_is_syscall(regs) &&
 	    (regs->tstate & (TSTATE_XCARRY | TSTATE_ICARRY)))
 		regs->u_regs[UREG_G6] = orig_i0;
-
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 #ifdef CONFIG_COMPAT
 	if (test_thread_flag(TIF_32BIT)) {

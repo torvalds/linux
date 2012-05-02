@@ -412,8 +412,9 @@ give_sigsegv:
  */
 static void
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
-	      sigset_t *oldset,	struct pt_regs * regs)
+	      struct pt_regs * regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 	/* are we from a system call? */
 	if (regs->orig_er0 >= 0) {
@@ -457,7 +458,6 @@ statis void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -473,15 +473,10 @@ statis void do_signal(struct pt_regs *regs)
 
 	current->thread.esp0 = (unsigned long) regs;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &info, &ka, oldset, regs);
+		handle_signal(signr, &info, &ka, regs);
 		return;
 	}
  no_signal:

@@ -451,8 +451,9 @@ sigsegv:
 
 static inline int
 handle_signal(unsigned long signr, struct k_sigaction *ka,
-	      siginfo_t *info, sigset_t *oldset, struct pt_regs *regs)
+	      siginfo_t *info, struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int err;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
@@ -498,7 +499,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 {
 	struct k_sigaction ka;
 	int restart_syscall;
-	sigset_t *oldset;
 	siginfo_t info;
 	int signr;
 
@@ -523,11 +523,6 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (pt_regs_is_syscall(regs) && (regs->psr & PSR_C))
 		regs->u_regs[UREG_G6] = orig_i0;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 
 	/* If the debugger messes with the program counter, it clears
@@ -544,7 +539,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	if (signr > 0) {
 		if (restart_syscall)
 			syscall_restart(orig_i0, regs, &ka.sa);
-		if (handle_signal(signr, &ka, &info, oldset, regs) == 0) {
+		if (handle_signal(signr, &ka, &info, regs) == 0) {
 			/* a signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply

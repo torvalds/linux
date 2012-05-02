@@ -313,12 +313,11 @@ static inline void setup_syscall_restart(struct pt_regs *regs)
  * OK, we're invoking a handler
  */
 static int handle_signal(unsigned long sig, struct k_sigaction *ka,
-	      siginfo_t *info, sigset_t *oldset,
-	      struct pt_regs *regs, int syscall)
+	      siginfo_t *info, struct pt_regs *regs, int syscall)
 {
 	struct thread_info *thread = current_thread_info();
 	struct task_struct *tsk = current;
-	sigset_t blocked;
+	sigset_t *oldset = sigmask_to_save();
 	int usig = sig;
 	int ret;
 
@@ -404,13 +403,7 @@ static void do_signal(struct pt_regs *regs, int syscall)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
-		sigset_t *oldset;
-
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			oldset = &current->saved_sigmask;
-		else
-			oldset = &current->blocked;
-		if (handle_signal(signr, &ka, &info, oldset, regs, syscall)
+		if (handle_signal(signr, &ka, &info, regs, syscall)
 				== 0) {
 			/*
 			 * A signal was successfully delivered; the saved

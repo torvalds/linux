@@ -427,8 +427,9 @@ give_sigsegv:
  * OK, we're invoking a handler
  */
 static int handle_signal(unsigned long sig, siginfo_t *info,
-			 struct k_sigaction *ka, sigset_t *oldset)
+			 struct k_sigaction *ka)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	/* Are we from a system call? */
@@ -492,14 +493,9 @@ static void do_signal(void)
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, __frame, NULL);
 	if (signr > 0) {
-		if (handle_signal(signr, &info, &ka, oldset) == 0) {
+		if (handle_signal(signr, &info, &ka) == 0) {
 			/* a signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply

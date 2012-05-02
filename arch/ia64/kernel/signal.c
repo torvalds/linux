@@ -415,10 +415,10 @@ setup_frame (int sig, struct k_sigaction *ka, siginfo_t *info, sigset_t *set,
 }
 
 static long
-handle_signal (unsigned long sig, struct k_sigaction *ka, siginfo_t *info, sigset_t *oldset,
+handle_signal (unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	       struct sigscratch *scr)
 {
-	if (!setup_frame(sig, ka, info, oldset, scr))
+	if (!setup_frame(sig, ka, info, sigmask_to_save(), scr))
 		return 0;
 
 	block_sigmask(ka, sig);
@@ -440,7 +440,6 @@ void
 ia64_do_signal (struct sigscratch *scr, long in_syscall)
 {
 	struct k_sigaction ka;
-	sigset_t *oldset;
 	siginfo_t info;
 	long restart = in_syscall;
 	long errno = scr->pt.r8;
@@ -452,11 +451,6 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 	 */
 	if (!user_mode(&scr->pt))
 		return;
-
-	if (current_thread_info()->status & TS_RESTORE_SIGMASK)
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	/*
 	 * This only loops in the rare cases of handle_signal() failing, in which case we
@@ -507,7 +501,7 @@ ia64_do_signal (struct sigscratch *scr, long in_syscall)
 		 * Whee!  Actually deliver the signal.  If the delivery failed, we need to
 		 * continue to iterate in this loop so we can deliver the SIGSEGV...
 		 */
-		if (handle_signal(signr, &ka, &info, oldset, scr)) {
+		if (handle_signal(signr, &ka, &info, scr)) {
 			/*
 			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,

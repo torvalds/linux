@@ -452,15 +452,9 @@ static void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t oldset;
 
 	if (try_to_freeze())
 		goto no_signal;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	task_pt_regs(current)->icountlevel = 0;
 
@@ -501,7 +495,7 @@ static void do_signal(struct pt_regs *regs)
 
 		/* Whee!  Actually deliver the signal.  */
 		/* Set up the stack frame */
-		ret = setup_frame(signr, &ka, &info, oldset, regs);
+		ret = setup_frame(signr, &ka, &info, sigmask_to_save(), regs);
 		if (ret)
 			return;
 

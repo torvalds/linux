@@ -1123,8 +1123,9 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
  */
 static void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs)
+	      struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int err;
 	/* are we from a system call? */
 	if (regs->orig_d0 >= 0)
@@ -1160,19 +1161,13 @@ static void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	struct k_sigaction ka;
 	int signr;
-	sigset_t *oldset;
 
 	current->thread.esp0 = (unsigned long) regs;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &ka, &info, oldset, regs);
+		handle_signal(signr, &ka, &info, regs);
 		return;
 	}
 

@@ -242,7 +242,7 @@ give_sigsegv:
 }
 
 static int handle_signal(unsigned long sig, siginfo_t *info,
-	struct k_sigaction *ka, sigset_t *oldset, struct pt_regs *regs)
+	struct k_sigaction *ka, struct pt_regs *regs)
 {
 	int ret;
 
@@ -269,7 +269,7 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 	/*
 	 * Set up the stack frame
 	 */
-	ret = setup_rt_frame(ka, regs, sig, oldset, info);
+	ret = setup_rt_frame(ka, regs, sig, sigmask_to_save(), info);
 
 	if (ret == 0)
 		block_sigmask(ka, sig);
@@ -280,7 +280,6 @@ static int handle_signal(unsigned long sig, siginfo_t *info,
 static void do_signal(struct pt_regs *regs)
 {
 	struct k_sigaction ka;
-	sigset_t *oldset;
 	siginfo_t info;
 	int signr;
 
@@ -292,15 +291,10 @@ static void do_signal(struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
+		if (handle_signal(signr, &info, &ka, regs) == 0) {
 			/*
 			 * A signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,

@@ -249,7 +249,7 @@ handle_restart(struct pt_regs *regs, struct k_sigaction *ka, int has_handler)
  */
 static int
 handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
-	      sigset_t *oldset, struct pt_regs *regs)
+	      struct pt_regs *regs)
 {
 	int ret;
 
@@ -259,7 +259,7 @@ handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 		handle_restart(regs, ka, 1);
 
 	/* set up the stack frame */
-	ret = setup_rt_frame(sig, ka, info, oldset, regs);
+	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
 
 	if (ret == 0)
 		block_sigmask(ka, sig);
@@ -281,22 +281,16 @@ asmlinkage void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
 
 	current->thread.esp0 = (unsigned long)regs;
 
 	if (try_to_freeze())
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &info, &ka, oldset, regs) == 0) {
+		if (handle_signal(signr, &info, &ka, regs) == 0) {
 			/* a signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply

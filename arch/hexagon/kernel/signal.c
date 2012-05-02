@@ -150,7 +150,7 @@ sigsegv:
  * Setup invocation of signal handler
  */
 static int handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
-			 sigset_t *oldset, struct pt_regs *regs)
+			 struct pt_regs *regs)
 {
 	int rc;
 
@@ -186,7 +186,7 @@ static int handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 	 * Set up the stack frame; not doing the SA_SIGINFO thing.  We
 	 * only set up the rt_frame flavor.
 	 */
-	rc = setup_rt_frame(sig, ka, info, oldset, regs);
+	rc = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
 
 	/* If there was an error on setup, no signal was delivered. */
 	if (rc)
@@ -215,14 +215,7 @@ static void do_signal(struct pt_regs *regs)
 	signo = get_signal_to_deliver(&info, &sigact, regs, NULL);
 
 	if (signo > 0) {
-		sigset_t *oldset;
-
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			oldset = &current->saved_sigmask;
-		else
-			oldset = &current->blocked;
-
-		if (handle_signal(signo, &info, &sigact, oldset, regs) == 0) {
+		if (handle_signal(signo, &info, &sigact, regs) == 0) {
 			/*
 			 * Successful delivery case.  The saved sigmask is
 			 * stored in the signal frame, and will be restored

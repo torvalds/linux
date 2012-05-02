@@ -269,7 +269,7 @@ static int prev_insn(struct pt_regs *regs)
 
 static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
-	      sigset_t *oldset, struct pt_regs *regs)
+	      struct pt_regs *regs)
 {
 	/* Are we from a system call? */
 	if (regs->syscall_nr >= 0) {
@@ -294,7 +294,7 @@ handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	}
 
 	/* Set up the stack frame */
-	if (setup_rt_frame(sig, ka, info, oldset, regs))
+	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs))
 		return -EFAULT;
 
 	block_sigmask(ka, sig);
@@ -311,7 +311,6 @@ static void do_signal(struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
 	struct k_sigaction ka;
-	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -325,11 +324,6 @@ static void do_signal(struct pt_regs *regs)
 	if (try_to_freeze()) 
 		goto no_signal;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Re-enable any watchpoints before delivering the
@@ -339,7 +333,7 @@ static void do_signal(struct pt_regs *regs)
 		 */
 
 		/* Whee!  Actually deliver the signal.  */
-		if (handle_signal(signr, &ka, &info, oldset, regs) == 0)
+		if (handle_signal(signr, &ka, &info, regs) == 0)
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
 
 		return;

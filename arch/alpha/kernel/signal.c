@@ -468,11 +468,8 @@ static inline void
 handle_signal(int sig, struct k_sigaction *ka, siginfo_t *info,
 	      struct pt_regs * regs, struct switch_stack *sw)
 {
-	sigset_t *oldset = &current->blocked;
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
 
 	if (ka->sa.sa_flags & SA_SIGINFO)
 		ret = setup_rt_frame(sig, ka, info, oldset, regs, sw);

@@ -417,8 +417,9 @@ give_sigsegv:
 
 static inline int handle_signal(int canrestart, unsigned long sig,
 	siginfo_t *info, struct k_sigaction *ka,
-	sigset_t *oldset, struct pt_regs *regs)
+	struct pt_regs *regs)
 {
+	sigset_t *oldset = sigmask_to_save();
 	int ret;
 
 	/* Are we from a system call? */
@@ -478,7 +479,6 @@ void do_signal(int canrestart, struct pt_regs *regs)
 	siginfo_t info;
 	int signr;
         struct k_sigaction ka;
-	sigset_t *oldset;
 
 	/*
 	 * We want the common case to go fast, which
@@ -489,16 +489,11 @@ void do_signal(int canrestart, struct pt_regs *regs)
 	if (!user_mode(regs))
 		return;
 
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else
-		oldset = &current->blocked;
-
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
 		/* Whee!  Actually deliver the signal.  */
 		if (handle_signal(canrestart, signr, &info, &ka,
-				oldset, regs)) {
+				regs)) {
 			/* a signal was successfully delivered; the saved
 			 * sigmask will have been stored in the signal frame,
 			 * and will be restored by sigreturn, so we can simply
