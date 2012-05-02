@@ -3112,6 +3112,84 @@ static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *
 }
 
 /**
+ *	serial8250_register_8250_port - register a serial port
+ *	@port: serial port template
+ *
+ *	Configure the serial port specified by the request. If the
+ *	port exists and is in use, it is hung up and unregistered
+ *	first.
+ *
+ *	The port is then probed and if necessary the IRQ is autodetected
+ *	If this fails an error is returned.
+ *
+ *	On success the port is ready to use and the line number is returned.
+ */
+int serial8250_register_8250_port(struct uart_8250_port *up)
+{
+	struct uart_8250_port *uart;
+	int ret = -ENOSPC;
+
+	if (up->port.uartclk == 0)
+		return -EINVAL;
+
+	mutex_lock(&serial_mutex);
+
+	uart = serial8250_find_match_or_unused(&up->port);
+	if (uart) {
+		uart_remove_one_port(&serial8250_reg, &uart->port);
+
+		uart->port.iobase       = up->port.iobase;
+		uart->port.membase      = up->port.membase;
+		uart->port.irq          = up->port.irq;
+		uart->port.irqflags     = up->port.irqflags;
+		uart->port.uartclk      = up->port.uartclk;
+		uart->port.fifosize     = up->port.fifosize;
+		uart->port.regshift     = up->port.regshift;
+		uart->port.iotype       = up->port.iotype;
+		uart->port.flags        = up->port.flags | UPF_BOOT_AUTOCONF;
+		uart->port.mapbase      = up->port.mapbase;
+		uart->port.private_data = up->port.private_data;
+		if (up->port.dev)
+			uart->port.dev = up->port.dev;
+
+		if (up->port.flags & UPF_FIXED_TYPE)
+			serial8250_init_fixed_type_port(uart, up->port.type);
+
+		set_io_from_upio(&uart->port);
+		/* Possibly override default I/O functions.  */
+		if (up->port.serial_in)
+			uart->port.serial_in = up->port.serial_in;
+		if (up->port.serial_out)
+			uart->port.serial_out = up->port.serial_out;
+		if (up->port.handle_irq)
+			uart->port.handle_irq = up->port.handle_irq;
+		/*  Possibly override set_termios call */
+		if (up->port.set_termios)
+			uart->port.set_termios = up->port.set_termios;
+		if (up->port.pm)
+			uart->port.pm = up->port.pm;
+		if (up->port.handle_break)
+			uart->port.handle_break = up->port.handle_break;
+		if (up->dl_read)
+			uart->dl_read = up->dl_read;
+		if (up->dl_write)
+			uart->dl_write = up->dl_write;
+
+		if (serial8250_isa_config != NULL)
+			serial8250_isa_config(0, &uart->port,
+					&uart->capabilities);
+
+		ret = uart_add_one_port(&serial8250_reg, &uart->port);
+		if (ret == 0)
+			ret = uart->port.line;
+	}
+	mutex_unlock(&serial_mutex);
+
+	return ret;
+}
+EXPORT_SYMBOL(serial8250_register_8250_port);
+
+/**
  *	serial8250_register_port - register a serial port
  *	@port: serial port template
  *
@@ -3126,62 +3204,11 @@ static struct uart_8250_port *serial8250_find_match_or_unused(struct uart_port *
  */
 int serial8250_register_port(struct uart_port *port)
 {
-	struct uart_8250_port *uart;
-	int ret = -ENOSPC;
+	struct uart_8250_port up;
 
-	if (port->uartclk == 0)
-		return -EINVAL;
-
-	mutex_lock(&serial_mutex);
-
-	uart = serial8250_find_match_or_unused(port);
-	if (uart) {
-		uart_remove_one_port(&serial8250_reg, &uart->port);
-
-		uart->port.iobase       = port->iobase;
-		uart->port.membase      = port->membase;
-		uart->port.irq          = port->irq;
-		uart->port.irqflags     = port->irqflags;
-		uart->port.uartclk      = port->uartclk;
-		uart->port.fifosize     = port->fifosize;
-		uart->port.regshift     = port->regshift;
-		uart->port.iotype       = port->iotype;
-		uart->port.flags        = port->flags | UPF_BOOT_AUTOCONF;
-		uart->port.mapbase      = port->mapbase;
-		uart->port.private_data = port->private_data;
-		if (port->dev)
-			uart->port.dev = port->dev;
-
-		if (port->flags & UPF_FIXED_TYPE)
-			serial8250_init_fixed_type_port(uart, port->type);
-
-		set_io_from_upio(&uart->port);
-		/* Possibly override default I/O functions.  */
-		if (port->serial_in)
-			uart->port.serial_in = port->serial_in;
-		if (port->serial_out)
-			uart->port.serial_out = port->serial_out;
-		if (port->handle_irq)
-			uart->port.handle_irq = port->handle_irq;
-		/*  Possibly override set_termios call */
-		if (port->set_termios)
-			uart->port.set_termios = port->set_termios;
-		if (port->pm)
-			uart->port.pm = port->pm;
-		if (port->handle_break)
-			uart->port.handle_break = port->handle_break;
-
-		if (serial8250_isa_config != NULL)
-			serial8250_isa_config(0, &uart->port,
-					&uart->capabilities);
-
-		ret = uart_add_one_port(&serial8250_reg, &uart->port);
-		if (ret == 0)
-			ret = uart->port.line;
-	}
-	mutex_unlock(&serial_mutex);
-
-	return ret;
+	memset(&up, 0, sizeof(up));
+	memcpy(&up.port, port, sizeof(*port));
+	return serial8250_register_8250_port(&up);
 }
 EXPORT_SYMBOL(serial8250_register_port);
 
