@@ -5000,8 +5000,6 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 
 	if (!(flags & ACL_CONT)) {
 		struct l2cap_hdr *hdr;
-		struct l2cap_chan *chan;
-		u16 cid;
 		int len;
 
 		if (conn->rx_len) {
@@ -5021,7 +5019,6 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 
 		hdr = (struct l2cap_hdr *) skb->data;
 		len = __le16_to_cpu(hdr->len) + L2CAP_HDR_SIZE;
-		cid = __le16_to_cpu(hdr->cid);
 
 		if (len == skb->len) {
 			/* Complete frame received */
@@ -5036,23 +5033,6 @@ int l2cap_recv_acldata(struct hci_conn *hcon, struct sk_buff *skb, u16 flags)
 				skb->len, len);
 			l2cap_conn_unreliable(conn, ECOMM);
 			goto drop;
-		}
-
-		chan = l2cap_get_chan_by_scid(conn, cid);
-
-		if (chan && chan->sk) {
-			struct sock *sk = chan->sk;
-			lock_sock(sk);
-
-			if (chan->imtu < len - L2CAP_HDR_SIZE) {
-				BT_ERR("Frame exceeding recv MTU (len %d, "
-							"MTU %d)", len,
-							chan->imtu);
-				release_sock(sk);
-				l2cap_conn_unreliable(conn, ECOMM);
-				goto drop;
-			}
-			release_sock(sk);
 		}
 
 		/* Allocate skb for the complete frame (with header) */
