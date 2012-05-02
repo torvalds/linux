@@ -51,12 +51,6 @@ static DEFINE_SPINLOCK(ocrdma_devlist_lock);
 static DEFINE_IDR(ocrdma_dev_id);
 
 static union ib_gid ocrdma_zero_sgid;
-static int ocrdma_inet6addr_event(struct notifier_block *,
-				  unsigned long, void *);
-
-static struct notifier_block ocrdma_inet6addr_notifier = {
-	.notifier_call = ocrdma_inet6addr_event
-};
 
 static int ocrdma_get_instance(void)
 {
@@ -204,6 +198,8 @@ static int ocrdma_build_sgid_tbl(struct ocrdma_dev *dev)
 	return 0;
 }
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+
 static int ocrdma_inet6addr_event(struct notifier_block *notifier,
 				  unsigned long event, void *ptr)
 {
@@ -258,6 +254,12 @@ static int ocrdma_inet6addr_event(struct notifier_block *notifier,
 	mutex_unlock(&dev->dev_lock);
 	return NOTIFY_OK;
 }
+
+static struct notifier_block ocrdma_inet6addr_notifier = {
+	.notifier_call = ocrdma_inet6addr_event
+};
+
+#endif /* IPV6 */
 
 static enum rdma_link_layer ocrdma_link_layer(struct ib_device *device,
 					      u8 port_num)
@@ -541,23 +543,34 @@ static struct ocrdma_driver ocrdma_drv = {
 	.state_change_handler	= ocrdma_event_handler,
 };
 
+static void ocrdma_unregister_inet6addr_notifier(void)
+{
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+	unregister_inet6addr_notifier(&ocrdma_inet6addr_notifier);
+#endif
+}
+
 static int __init ocrdma_init_module(void)
 {
 	int status;
 
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	status = register_inet6addr_notifier(&ocrdma_inet6addr_notifier);
 	if (status)
 		return status;
+#endif
+
 	status = be_roce_register_driver(&ocrdma_drv);
 	if (status)
-		unregister_inet6addr_notifier(&ocrdma_inet6addr_notifier);
+		ocrdma_unregister_inet6addr_notifier();
+
 	return status;
 }
 
 static void __exit ocrdma_exit_module(void)
 {
 	be_roce_unregister_driver(&ocrdma_drv);
-	unregister_inet6addr_notifier(&ocrdma_inet6addr_notifier);
+	ocrdma_unregister_inet6addr_notifier();
 }
 
 module_init(ocrdma_init_module);
