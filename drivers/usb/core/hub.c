@@ -2702,6 +2702,12 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 	if (udev->usb2_hw_lpm_enabled == 1)
 		usb_set_usb2_hardware_lpm(udev, 0);
 
+	if (usb_unlocked_disable_lpm(udev)) {
+		dev_err(&udev->dev, "%s Failed to disable LPM before suspend\n.",
+				__func__);
+		return -ENOMEM;
+	}
+
 	/* see 7.1.7.6 */
 	if (hub_is_superspeed(hub->hdev))
 		status = set_port_feature(hub->hdev,
@@ -2724,6 +2730,9 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 		/* Try to enable USB2 hardware LPM again */
 		if (udev->usb2_hw_lpm_capable == 1)
 			usb_set_usb2_hardware_lpm(udev, 1);
+
+		/* Try to enable USB3 LPM again */
+		usb_unlocked_enable_lpm(udev);
 
 		/* System sleep transitions should never fail */
 		if (!PMSG_IS_AUTO(msg))
@@ -2922,6 +2931,9 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		/* Try to enable USB2 hardware LPM */
 		if (udev->usb2_hw_lpm_capable == 1)
 			usb_set_usb2_hardware_lpm(udev, 1);
+
+		/* Try to enable USB3 LPM */
+		usb_unlocked_enable_lpm(udev);
 	}
 
 	return status;
@@ -4681,11 +4693,22 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		goto done;
 
 	mutex_lock(hcd->bandwidth_mutex);
+	/* Disable LPM while we reset the device and reinstall the alt settings.
+	 * Device-initiated LPM settings, and system exit latency settings are
+	 * cleared when the device is reset, so we have to set them up again.
+	 */
+	ret = usb_disable_lpm(udev);
+	if (ret) {
+		dev_err(&udev->dev, "%s Failed to disable LPM\n.", __func__);
+		mutex_unlock(hcd->bandwidth_mutex);
+		goto done;
+	}
 	ret = usb_hcd_alloc_bandwidth(udev, udev->actconfig, NULL, NULL);
 	if (ret < 0) {
 		dev_warn(&udev->dev,
 				"Busted HC?  Not enough HCD resources for "
 				"old configuration.\n");
+		usb_enable_lpm(udev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		goto re_enumerate;
 	}
@@ -4697,6 +4720,7 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 		dev_err(&udev->dev,
 			"can't restore configuration #%d (error=%d)\n",
 			udev->actconfig->desc.bConfigurationValue, ret);
+		usb_enable_lpm(udev);
 		mutex_unlock(hcd->bandwidth_mutex);
 		goto re_enumerate;
   	}
@@ -4735,10 +4759,13 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 				desc->bInterfaceNumber,
 				desc->bAlternateSetting,
 				ret);
+			usb_unlocked_enable_lpm(udev);
 			goto re_enumerate;
 		}
 	}
 
+	/* Now that the alt settings are re-installed, enable LPM. */
+	usb_unlocked_enable_lpm(udev);
 done:
 	return 0;
  
