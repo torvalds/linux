@@ -398,6 +398,22 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 	mutex_unlock(&ring->mutex);
 }
 
+void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	int r;
+
+	mutex_lock(&ring->mutex);
+	radeon_ring_free_size(rdev, ring);
+	if (ring->rptr == ring->wptr) {
+		r = radeon_ring_alloc(rdev, ring, 1);
+		if (!r) {
+			radeon_ring_write(ring, ring->nop);
+			radeon_ring_commit(rdev, ring);
+		}
+	}
+	mutex_unlock(&ring->mutex);
+}
+
 void radeon_ring_lockup_update(struct radeon_ring *ring)
 {
 	ring->last_rptr = ring->rptr;

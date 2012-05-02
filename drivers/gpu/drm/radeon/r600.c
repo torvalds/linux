@@ -1350,7 +1350,6 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status2;
-	int r;
 
 	srbm_status = RREG32(R_000E50_SRBM_STATUS);
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
@@ -1360,14 +1359,7 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(ring->rptr_reg);
+	radeon_ring_force_activity(rdev, ring);
 	return radeon_ring_test_lockup(rdev, ring);
 }
 
