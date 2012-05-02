@@ -78,6 +78,10 @@ void hdmi_sys_remove(void)
 	memset(&hdmi->edid, 0, sizeof(struct hdmi_edid));
 	INIT_LIST_HEAD(&hdmi->edid.modelist);
 	hdmi->display	= HDMI_DISABLE;
+	kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
+	#ifdef CONFIG_SWITCH
+	switch_set_state(&(hdmi->switch_hdmi), 0);
+	#endif
 }
 
 static void hdmi_sys_sleep(void)
@@ -188,7 +192,6 @@ void hdmi_work(struct work_struct *work)
 				complete(&hdmi->complete);
 				hdmi->wait = 0;	
 			}
-			kobject_uevent_env(&hdmi->dev->kobj, KOBJ_REMOVE, envp);
 			mutex_unlock(&work_mutex);
 			return;
 		}
@@ -210,6 +213,9 @@ void hdmi_work(struct work_struct *work)
 				{
 					hdmi->state = SYSTEM_CONFIG;	
 					kobject_uevent_env(&hdmi->dev->kobj, KOBJ_ADD, envp);
+					#ifdef CONFIG_SWITCH
+					switch_set_state(&(hdmi->switch_hdmi), 1);
+					#endif
 				}
 				break;
 			case SYSTEM_CONFIG:

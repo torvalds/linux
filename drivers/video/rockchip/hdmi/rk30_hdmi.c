@@ -154,10 +154,13 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	hdmi->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 10;
 	register_early_suspend(&hdmi->early_suspend);
 	#endif
-	
-	
+		
 	hdmi_register_display_sysfs(hdmi, hdmi->dev);
-	
+	#ifdef CONFIG_SWITCH
+	hdmi->switch_hdmi.name="hdmi";
+	switch_dev_register(&(hdmi->switch_hdmi));
+	#endif
+		
 	spin_lock_init(&hdmi->irq_lock);
 	mutex_init(&hdmi->enable_mutex);
 	
@@ -180,9 +183,12 @@ static int __devinit rk30_hdmi_probe (struct platform_device *pdev)
 	hdmi_dbg(hdmi->dev, "rk30 hdmi probe sucess.\n");
 	return 0;
 err2:
-#ifdef CONFIG_HAS_EARLYSUSPEND
+	#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&(hdmi->switch_hdmi));
+	#endif
+	#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&hdmi->early_suspend);
-#endif
+	#endif
 	iounmap((void*)hdmi->regbase);
 err1:
 	release_mem_region(res->start,(res->end - res->start) + 1);
@@ -197,6 +203,9 @@ static int __devexit rk30_hdmi_remove(struct platform_device *pdev)
 {
 	flush_scheduled_work();
 	destroy_workqueue(hdmi->workqueue);
+	#ifdef CONFIG_SWITCH
+	switch_dev_unregister(&(hdmi->switch_hdmi));
+	#endif
 	#ifdef CONFIG_HAS_EARLYSUSPEND
 	unregister_early_suspend(&hdmi->early_suspend);
 	#endif

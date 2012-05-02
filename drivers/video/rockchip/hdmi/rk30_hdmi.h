@@ -1,18 +1,20 @@
 #ifndef __RK30_HDMI_H__
 #define __RK30_HDMI_H__
 
+#include <linux/kernel.h>
 #include <linux/fb.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/workqueue.h>
 #include <linux/display-sys.h>
-
+#ifdef CONFIG_SWITCH
+#include <linux/switch.h>
+#endif
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
 
-//#include "../../display/screen/screen.h"
 #include<linux/rk_screen.h>
 #include <linux/rk_fb.h>
 #include "rk_hdmi.h"
@@ -44,6 +46,10 @@ struct hdmi {
 	int 			regbase;
 	int				irq;
 	struct rk_lcdc_device_driver *lcdc;
+	
+	#ifdef CONFIG_SWITCH
+	struct switch_dev	switch_hdmi;
+	#endif
 	
 	struct workqueue_struct *workqueue;
 	struct delayed_work delay_work;
