@@ -321,6 +321,13 @@
 					vddadc-supply = <&ab8500_ldo_tvout_reg>;
 				};
 
+				ab8500-ponkey {
+					compatible = "stericsson,ab8500-ponkey";
+					interrupts = <0 6 0x4
+						      0 7 0x4>;
+					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
+				};
+
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";
 
