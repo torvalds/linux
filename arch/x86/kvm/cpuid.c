@@ -398,7 +398,7 @@ static int do_cpuid_ent(struct kvm_cpuid_entry2 *entry, u32 function,
 	case KVM_CPUID_SIGNATURE: {
 		char signature[12] = "KVMKVMKVM\0\0";
 		u32 *sigptr = (u32 *)signature;
-		entry->eax = 0;
+		entry->eax = KVM_CPUID_FEATURES;
 		entry->ebx = sigptr[0];
 		entry->ecx = sigptr[1];
 		entry->edx = sigptr[2];
