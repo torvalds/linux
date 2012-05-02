@@ -60,7 +60,6 @@ struct threshold_block {
 struct threshold_bank {
 	struct kobject		*kobj;
 	struct threshold_block	*blocks;
-	cpumask_var_t		cpus;
 };
 static DEFINE_PER_CPU(struct threshold_bank * [NR_BANKS], threshold_banks);
 
@@ -224,8 +223,6 @@ void mce_amd_feature_init(struct cpuinfo_x86 *c)
 
 			if (!block)
 				per_cpu(bank_map, cpu) |= (1 << bank);
-			if (shared_bank[bank] && c->cpu_core_id)
-				break;
 
 			memset(&b, 0, sizeof(b));
 			b.cpu			= cpu;
@@ -555,89 +552,35 @@ local_allocate_threshold_blocks(int cpu, unsigned int bank)
 					 MSR_IA32_MC0_MISC + bank * 4);
 }
 
-/* symlinks sibling shared banks to first core.  first core owns dir/files. */
 static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 {
-	int i, err = 0;
-	struct threshold_bank *b = NULL;
 	struct device *dev = per_cpu(mce_device, cpu);
+	struct threshold_bank *b = NULL;
 	char name[32];
+	int err = 0;
 
 	sprintf(name, "threshold_bank%i", bank);
-
-#ifdef CONFIG_SMP
-	if (cpu_data(cpu).cpu_core_id && shared_bank[bank]) {	/* symlink */
-		i = cpumask_first(cpu_llc_shared_mask(cpu));
-
-		/* first core not up yet */
-		if (cpu_data(i).cpu_core_id)
-			goto out;
-
-		/* already linked */
-		if (per_cpu(threshold_banks, cpu)[bank])
-			goto out;
-
-		b = per_cpu(threshold_banks, i)[bank];
-
-		if (!b)
-			goto out;
-
-		err = sysfs_create_link(&dev->kobj, b->kobj, name);
-		if (err)
-			goto out;
-
-		cpumask_copy(b->cpus, cpu_llc_shared_mask(cpu));
-		per_cpu(threshold_banks, cpu)[bank] = b;
-
-		goto out;
-	}
-#endif
 
 	b = kzalloc(sizeof(struct threshold_bank), GFP_KERNEL);
 	if (!b) {
 		err = -ENOMEM;
 		goto out;
 	}
-	if (!zalloc_cpumask_var(&b->cpus, GFP_KERNEL)) {
-		kfree(b);
-		err = -ENOMEM;
-		goto out;
-	}
 
 	b->kobj = kobject_create_and_add(name, &dev->kobj);
-	if (!b->kobj)
+	if (!b->kobj) {
+		err = -EINVAL;
 		goto out_free;
-
-#ifndef CONFIG_SMP
-	cpumask_setall(b->cpus);
-#else
-	cpumask_set_cpu(cpu, b->cpus);
-#endif
+	}
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
 	err = local_allocate_threshold_blocks(cpu, bank);
-	if (err)
-		goto out_free;
-
-	for_each_cpu(i, b->cpus) {
-		if (i == cpu)
-			continue;
-
-		dev = per_cpu(mce_device, i);
-		if (dev)
-			err = sysfs_create_link(&dev->kobj,b->kobj, name);
-		if (err)
-			goto out;
-
-		per_cpu(threshold_banks, i)[bank] = b;
-	}
-
-	goto out;
+	if (!err)
+		goto out;
 
 out_free:
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
-	free_cpumask_var(b->cpus);
 	kfree(b);
 out:
 	return err;
@@ -659,12 +602,6 @@ static __cpuinit int threshold_create_device(unsigned int cpu)
 
 	return err;
 }
-
-/*
- * let's be hotplug friendly.
- * in case of multiple core processors, the first core always takes ownership
- *   of shared sysfs dir/files, and rest of the cores will be symlinked to it.
- */
 
 static void deallocate_threshold_block(unsigned int cpu,
 						 unsigned int bank)
@@ -689,9 +626,6 @@ static void deallocate_threshold_block(unsigned int cpu,
 static void threshold_remove_bank(unsigned int cpu, int bank)
 {
 	struct threshold_bank *b;
-	struct device *dev;
-	char name[32];
-	int i = 0;
 
 	b = per_cpu(threshold_banks, cpu)[bank];
 	if (!b)
@@ -699,36 +633,11 @@ static void threshold_remove_bank(unsigned int cpu, int bank)
 	if (!b->blocks)
 		goto free_out;
 
-	sprintf(name, "threshold_bank%i", bank);
-
-#ifdef CONFIG_SMP
-	/* sibling symlink */
-	if (shared_bank[bank] && b->blocks->cpu != cpu) {
-		dev = per_cpu(mce_device, cpu);
-		sysfs_remove_link(&dev->kobj, name);
-		per_cpu(threshold_banks, cpu)[bank] = NULL;
-
-		return;
-	}
-#endif
-
-	/* remove all sibling symlinks before unregistering */
-	for_each_cpu(i, b->cpus) {
-		if (i == cpu)
-			continue;
-
-		dev = per_cpu(mce_device, i);
-		if (dev)
-			sysfs_remove_link(&dev->kobj, name);
-		per_cpu(threshold_banks, i)[bank] = NULL;
-	}
-
 	deallocate_threshold_block(cpu, bank);
 
 free_out:
 	kobject_del(b->kobj);
 	kobject_put(b->kobj);
-	free_cpumask_var(b->cpus);
 	kfree(b);
 	per_cpu(threshold_banks, cpu)[bank] = NULL;
 }
