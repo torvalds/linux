@@ -2708,11 +2708,14 @@ found:
 	DRM_DEBUG_DRIVER("using pll %d for pipe %d\n", i, intel_crtc->pipe);
 prepare: /* separate function? */
 	DRM_DEBUG_DRIVER("switching PLL %x off\n", pll->pll_reg);
-	I915_WRITE(pll->fp0_reg, fp);
-	I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
 
+	/* Wait for the clocks to stabilize before rewriting the regs */
+	I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
 	POSTING_READ(pll->pll_reg);
 	udelay(150);
+
+	I915_WRITE(pll->fp0_reg, fp);
+	I915_WRITE(pll->pll_reg, dpll & ~DPLL_VCO_ENABLE);
 	pll->on = false;
 	return pll;
 }
