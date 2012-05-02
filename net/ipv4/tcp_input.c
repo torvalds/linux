@@ -4739,6 +4739,22 @@ end:
 		skb_set_owner_r(skb, sk);
 }
 
+int tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int hdrlen,
+		  bool *fragstolen)
+{
+	int eaten;
+	struct sk_buff *tail = skb_peek_tail(&sk->sk_receive_queue);
+
+	__skb_pull(skb, hdrlen);
+	eaten = (tail &&
+		 tcp_try_coalesce(sk, tail, skb, fragstolen)) ? 1 : 0;
+	tcp_sk(sk)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
+	if (!eaten) {
+		__skb_queue_tail(&sk->sk_receive_queue, skb);
+		skb_set_owner_r(skb, sk);
+	}
+	return eaten;
+}
 
 static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 {
@@ -4785,20 +4801,12 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 		}
 
 		if (eaten <= 0) {
-			struct sk_buff *tail;
 queue_and_out:
 			if (eaten < 0 &&
 			    tcp_try_rmem_schedule(sk, skb->truesize))
 				goto drop;
 
-			tail = skb_peek_tail(&sk->sk_receive_queue);
-			eaten = (tail &&
-				 tcp_try_coalesce(sk, tail, skb,
-						  &fragstolen)) ? 1 : 0;
-			if (eaten <= 0) {
-				skb_set_owner_r(skb, sk);
-				__skb_queue_tail(&sk->sk_receive_queue, skb);
-			}
+			eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
 		}
 		tp->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 		if (skb->len)
@@ -5493,14 +5501,6 @@ discard:
 	return 0;
 }
 
-void tcp_queue_rcv(struct sock *sk, struct sk_buff *skb, int hdrlen)
-{
-	__skb_pull(skb, hdrlen);
-	__skb_queue_tail(&sk->sk_receive_queue, skb);
-	skb_set_owner_r(skb, sk);
-	tcp_sk(sk)->rcv_nxt = TCP_SKB_CB(skb)->end_seq;
-}
-
 /*
  *	TCP receive function for the ESTABLISHED state.
  *
@@ -5609,6 +5609,7 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		} else {
 			int eaten = 0;
 			int copied_early = 0;
+			bool fragstolen = false;
 
 			if (tp->copied_seq == tp->rcv_nxt &&
 			    len - tcp_header_len <= tp->ucopy.len) {
@@ -5666,7 +5667,8 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPHPHITS);
 
 				/* Bulk data transfer: receiver */
-				tcp_queue_rcv(sk, skb, tcp_header_len);
+				eaten = tcp_queue_rcv(sk, skb, tcp_header_len,
+						      &fragstolen);
 			}
 
 			tcp_event_data_recv(sk, skb);
@@ -5688,7 +5690,7 @@ no_ack:
 			else
 #endif
 			if (eaten)
-				__kfree_skb(skb);
+				kfree_skb_partial(skb, fragstolen);
 			else
 				sk->sk_data_ready(sk, 0);
 			return 0;
