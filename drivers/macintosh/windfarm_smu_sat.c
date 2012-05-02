@@ -287,7 +287,7 @@ static int wf_sat_probe(struct i2c_client *client,
 		sens->sat = sat;
 		sens->sens.ops = &wf_sat_ops;
 		sens->sens.name = (char *) (sens + 1);
-		snprintf(sens->sens.name, 16, "%s-%d", name, cpu);
+		snprintf((char *)sens->sens.name, 16, "%s-%d", name, cpu);
 
 		if (wf_register_sensor(&sens->sens))
 			kfree(sens);
@@ -314,7 +314,7 @@ static int wf_sat_probe(struct i2c_client *client,
 		sens->sat = sat;
 		sens->sens.ops = &wf_sat_ops;
 		sens->sens.name = (char *) (sens + 1);
-		snprintf(sens->sens.name, 16, "cpu-power-%d", cpu);
+		snprintf((char *)sens->sens.name, 16, "cpu-power-%d", cpu);
 
 		if (wf_register_sensor(&sens->sens))
 			kfree(sens);
