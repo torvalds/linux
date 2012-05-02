@@ -433,7 +433,7 @@ static int check_mkey(struct qib_ibport *ibp, struct ib_smp *smp, int mad_flags)
 					ibp->mkey_lease_period * HZ;
 			/* Generate a trap notice. */
 			qib_bad_mkey(ibp, smp);
-			ret = IB_MAD_RESULT_SUCCESS | IB_MAD_RESULT_CONSUMED;
+			ret = 1;
 		}
 	}
 
@@ -464,6 +464,7 @@ static int subn_get_portinfo(struct ib_smp *smp, struct ib_device *ibdev,
 			ibp = to_iport(ibdev, port_num);
 			ret = check_mkey(ibp, smp, 0);
 			if (ret)
+				ret = IB_MAD_RESULT_FAILURE;
 				goto bail;
 		}
 	}
@@ -1848,6 +1849,7 @@ static int process_subn(struct ib_device *ibdev, int mad_flags,
 		    port_num && port_num <= ibdev->phys_port_cnt &&
 		    port != port_num)
 			(void) check_mkey(to_iport(ibdev, port_num), smp, 0);
+		ret = IB_MAD_RESULT_FAILURE;
 		goto bail;
 	}
 
