@@ -2871,6 +2871,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	unsigned int len = skb_gro_len(skb);
 	unsigned int offset = skb_gro_offset(skb);
 	unsigned int headlen = skb_headlen(skb);
+	unsigned int delta_truesize;
 
 	if (p->len + len >= 65536)
 		return -E2BIG;
@@ -2900,11 +2901,14 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		frag->page_offset += offset;
 		skb_frag_size_sub(frag, offset);
 
+		/* all fragments truesize : remove (head size + sk_buff) */
+		delta_truesize = skb->truesize - SKB_TRUESIZE(skb_end_pointer(skb) - skb->head);
+
 		skb->truesize -= skb->data_len;
 		skb->len -= skb->data_len;
 		skb->data_len = 0;
 
-		NAPI_GRO_CB(skb)->free = 1;
+		NAPI_GRO_CB(skb)->free = NAPI_GRO_FREE;
 		goto done;
 	} else if (skb->head_frag) {
 		int nr_frags = pinfo->nr_frags;
@@ -2929,6 +2933,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 		memcpy(frag + 1, skbinfo->frags, sizeof(*frag) * skbinfo->nr_frags);
 		/* We dont need to clear skbinfo->nr_frags here */
 
+		delta_truesize = skb->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));
 		NAPI_GRO_CB(skb)->free = NAPI_GRO_FREE_STOLEN_HEAD;
 		goto done;
 	} else if (skb_gro_len(p) != pinfo->gso_size)
@@ -2971,7 +2976,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	p = nskb;
 
 merge:
-	p->truesize += skb->truesize - len;
+	delta_truesize = skb->truesize;
 	if (offset > headlen) {
 		unsigned int eat = offset - headlen;
 
@@ -2991,7 +2996,7 @@ merge:
 done:
 	NAPI_GRO_CB(p)->count++;
 	p->data_len += len;
-	p->truesize += len;
+	p->truesize += delta_truesize;
 	p->len += len;
 
 	NAPI_GRO_CB(skb)->same_flow = 1;
