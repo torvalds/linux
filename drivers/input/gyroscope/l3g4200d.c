@@ -684,7 +684,7 @@ static struct i2c_driver l3g4200d_driver = {
 };
 
 
-static int l3g4200d_init_client(struct i2c_client *client)
+static int l3g4200d_init_irq(struct i2c_client *client)
 {
 	struct l3g4200d_data *l3g4200d;
 	int ret;
@@ -709,7 +709,7 @@ static int l3g4200d_init_client(struct i2c_client *client)
 	ret = request_irq(client->irq, l3g4200d_interrupt, IRQF_TRIGGER_LOW, client->dev.driver->name, l3g4200d);
 	DBG("request irq is %d,ret is  0x%x\n",client->irq,ret);
 	if (ret ) {
-		DBG(KERN_ERR "l3g4200d_init_client: request irq failed,ret is %d\n",ret);
+		DBG(KERN_ERR "l3g4200d_init_irq: request irq failed,ret is %d\n",ret);
         return ret;
 	}
 	disable_irq(client->irq);
@@ -772,14 +772,6 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 
 	this_client = client;
 
-	err = l3g4200d_init_client(client);
-	if (err < 0) {
-		DBG(KERN_ERR
-		       "l3g4200d_probe: l3g4200d_init_client failed\n");
-		goto exit_request_gpio_irq_failed;
-	}
-
-
 	l3g4200d->pdata = kmalloc(sizeof(*l3g4200d->pdata), GFP_KERNEL);
 
 	if (l3g4200d->pdata == NULL)
@@ -805,6 +797,14 @@ static int  l3g4200d_probe(struct i2c_client *client, const struct i2c_device_id
 	{
 		printk("%s:fail\n",__func__);
 		goto exit_kfree_pdata;
+	}
+
+	
+	err = l3g4200d_init_irq(client);
+	if (err < 0) {
+		DBG(KERN_ERR
+		       "l3g4200d_probe: l3g4200d_init_irq failed\n");
+		goto exit_request_gpio_irq_failed;
 	}
 		
 	l3g4200d->input_dev = input_allocate_device();
@@ -880,9 +880,9 @@ exit_input_register_device_failed:
 exit_input_allocate_device_failed:
     free_irq(client->irq, l3g4200d);
 exit_kfree_pdata:
+exit_request_gpio_irq_failed:
 	kfree(l3g4200d->pdata);
 exit_kfree:
-exit_request_gpio_irq_failed:
 	kfree(l3g4200d);	
 exit_alloc_data_failed:
 	DBG("%s error\n",__FUNCTION__);
