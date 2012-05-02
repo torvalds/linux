@@ -25,6 +25,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 
+#include <asm/amd_nb.h>
 #include <asm/apic.h>
 #include <asm/idle.h>
 #include <asm/mce.h>
@@ -44,23 +45,6 @@
 #define MASK_ERR_COUNT_HI 0x00000FFF
 #define MASK_BLKPTR_LO    0xFF000000
 #define MCG_XBLK_ADDR     0xC0000400
-
-struct threshold_block {
-	unsigned int		block;
-	unsigned int		bank;
-	unsigned int		cpu;
-	u32			address;
-	u16			interrupt_enable;
-	bool			interrupt_capable;
-	u16			threshold_limit;
-	struct kobject		kobj;
-	struct list_head	miscj;
-};
-
-struct threshold_bank {
-	struct kobject		*kobj;
-	struct threshold_block	*blocks;
-};
 
 static DEFINE_PER_CPU(struct threshold_bank * [NR_BANKS], threshold_banks);
 
@@ -546,14 +530,61 @@ out_free:
 	return err;
 }
 
+static __cpuinit int __threshold_add_blocks(struct threshold_bank *b)
+{
+	struct list_head *head = &b->blocks->miscj;
+	struct threshold_block *pos = NULL;
+	struct threshold_block *tmp = NULL;
+	int err = 0;
+
+	err = kobject_add(&b->blocks->kobj, b->kobj, b->blocks->kobj.name);
+	if (err)
+		return err;
+
+	list_for_each_entry_safe(pos, tmp, head, miscj) {
+
+		err = kobject_add(&pos->kobj, b->kobj, pos->kobj.name);
+		if (err) {
+			list_for_each_entry_safe_reverse(pos, tmp, head, miscj)
+				kobject_del(&pos->kobj);
+
+			return err;
+		}
+	}
+	return err;
+}
+
 static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 {
 	struct device *dev = per_cpu(mce_device, cpu);
+	struct amd_northbridge *nb = NULL;
 	struct threshold_bank *b = NULL;
 	char name[32];
 	int err = 0;
 
 	sprintf(name, "threshold_bank%i", bank);
+
+	if (shared_bank[bank]) {
+
+		nb = node_to_amd_nb(amd_get_nb_id(cpu));
+		WARN_ON(!nb);
+
+		/* threshold descriptor already initialized on this node? */
+		if (nb->bank4) {
+			/* yes, use it */
+			b = nb->bank4;
+			err = kobject_add(b->kobj, &dev->kobj, name);
+			if (err)
+				goto out;
+
+			per_cpu(threshold_banks, cpu)[bank] = b;
+			atomic_inc(&b->cpus);
+
+			err = __threshold_add_blocks(b);
+
+			goto out;
+		}
+	}
 
 	b = kzalloc(sizeof(struct threshold_bank), GFP_KERNEL);
 	if (!b) {
@@ -569,15 +600,23 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 
 	per_cpu(threshold_banks, cpu)[bank] = b;
 
+	if (shared_bank[bank]) {
+		atomic_set(&b->cpus, 1);
+
+		/* nb is already initialized, see above */
+		WARN_ON(nb->bank4);
+		nb->bank4 = b;
+	}
+
 	err = allocate_threshold_blocks(cpu, bank, 0,
 					MSR_IA32_MC0_MISC + bank * 4);
 	if (!err)
 		goto out;
 
-out_free:
-	per_cpu(threshold_banks, cpu)[bank] = NULL;
+ out_free:
 	kfree(b);
-out:
+
+ out:
 	return err;
 }
 
@@ -618,15 +657,43 @@ static void deallocate_threshold_block(unsigned int cpu,
 	per_cpu(threshold_banks, cpu)[bank]->blocks = NULL;
 }
 
+static void __threshold_remove_blocks(struct threshold_bank *b)
+{
+	struct threshold_block *pos = NULL;
+	struct threshold_block *tmp = NULL;
+
+	kobject_del(b->kobj);
+
+	list_for_each_entry_safe(pos, tmp, &b->blocks->miscj, miscj)
+		kobject_del(&pos->kobj);
+}
+
 static void threshold_remove_bank(unsigned int cpu, int bank)
 {
+	struct amd_northbridge *nb;
 	struct threshold_bank *b;
 
 	b = per_cpu(threshold_banks, cpu)[bank];
 	if (!b)
 		return;
+
 	if (!b->blocks)
 		goto free_out;
+
+	if (shared_bank[bank]) {
+		if (!atomic_dec_and_test(&b->cpus)) {
+			__threshold_remove_blocks(b);
+			per_cpu(threshold_banks, cpu)[bank] = NULL;
+			return;
+		} else {
+			/*
+			 * the last CPU on this node using the shared bank is
+			 * going away, remove that bank now.
+			 */
+			nb = node_to_amd_nb(amd_get_nb_id(cpu));
+			nb->bank4 = NULL;
+		}
+	}
 
 	deallocate_threshold_block(cpu, bank);
 
