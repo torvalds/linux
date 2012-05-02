@@ -372,7 +372,8 @@ struct tcp_sock {
 		repair      : 1,
 		unused      : 1;
 	u8	repair_queue;
-	u8	do_early_retrans:1;/* Enable RFC5827 early-retransmit  */
+	u8	do_early_retrans:1,/* Enable RFC5827 early-retransmit  */
+		early_retrans_delayed:1; /* Delayed ER timer installed */
 
 /* RTT measurement */
 	u32	srtt;		/* smoothed round trip time << 3	*/

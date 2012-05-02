@@ -78,9 +78,8 @@ static void tcp_event_new_data_sent(struct sock *sk, const struct sk_buff *skb)
 		tp->frto_counter = 3;
 
 	tp->packets_out += tcp_skb_pcount(skb);
-	if (!prior_packets)
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
+	if (!prior_packets || tp->early_retrans_delayed)
+		tcp_rearm_rto(sk);
 }
 
 /* SND.NXT, if window was not shrunk.

@@ -2344,6 +2344,27 @@ static inline int tcp_dupack_heuristics(const struct tcp_sock *tp)
 	return tcp_is_fack(tp) ? tp->fackets_out : tp->sacked_out + 1;
 }
 
+static bool tcp_pause_early_retransmit(struct sock *sk, int flag)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	unsigned long delay;
+
+	/* Delay early retransmit and entering fast recovery for
+	 * max(RTT/4, 2msec) unless ack has ECE mark, no RTT samples
+	 * available, or RTO is scheduled to fire first.
+	 */
+	if (sysctl_tcp_early_retrans < 2 || (flag & FLAG_ECE) || !tp->srtt)
+		return false;
+
+	delay = max_t(unsigned long, (tp->srtt >> 5), msecs_to_jiffies(2));
+	if (!time_after(inet_csk(sk)->icsk_timeout, (jiffies + delay)))
+		return false;
+
+	inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, delay, TCP_RTO_MAX);
+	tp->early_retrans_delayed = 1;
+	return true;
+}
+
 static inline int tcp_skb_timedout(const struct sock *sk,
 				   const struct sk_buff *skb)
 {
@@ -2451,7 +2472,7 @@ static inline int tcp_head_timedout(const struct sock *sk)
  * Main question: may we further continue forward transmission
  * with the same cwnd?
  */
-static int tcp_time_to_recover(struct sock *sk)
+static int tcp_time_to_recover(struct sock *sk, int flag)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	__u32 packets_out;
@@ -2505,7 +2526,7 @@ static int tcp_time_to_recover(struct sock *sk)
 	if (tp->do_early_retrans && !tp->retrans_out && tp->sacked_out &&
 	    (tp->packets_out == (tp->sacked_out + 1) && tp->packets_out < 4) &&
 	    !tcp_may_send_now(sk))
-		return 1;
+		return !tcp_pause_early_retransmit(sk, flag);
 
 	return 0;
 }
@@ -3172,7 +3193,7 @@ static void tcp_fastretrans_alert(struct sock *sk, int pkts_acked,
 		if (icsk->icsk_ca_state <= TCP_CA_Disorder)
 			tcp_try_undo_dsack(sk);
 
-		if (!tcp_time_to_recover(sk)) {
+		if (!tcp_time_to_recover(sk, flag)) {
 			tcp_try_to_open(sk, flag);
 			return;
 		}
@@ -3271,16 +3292,47 @@ static void tcp_cong_avoid(struct sock *sk, u32 ack, u32 in_flight)
 /* Restart timer after forward progress on connection.
  * RFC2988 recommends to restart timer to now+rto.
  */
-static void tcp_rearm_rto(struct sock *sk)
+void tcp_rearm_rto(struct sock *sk)
 {
-	const struct tcp_sock *tp = tcp_sk(sk);
+	struct tcp_sock *tp = tcp_sk(sk);
 
 	if (!tp->packets_out) {
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
 	} else {
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto, TCP_RTO_MAX);
+		u32 rto = inet_csk(sk)->icsk_rto;
+		/* Offset the time elapsed after installing regular RTO */
+		if (tp->early_retrans_delayed) {
+			struct sk_buff *skb = tcp_write_queue_head(sk);
+			const u32 rto_time_stamp = TCP_SKB_CB(skb)->when + rto;
+			s32 delta = (s32)(rto_time_stamp - tcp_time_stamp);
+			/* delta may not be positive if the socket is locked
+			 * when the delayed ER timer fires and is rescheduled.
+			 */
+			if (delta > 0)
+				rto = delta;
+		}
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS, rto,
+					  TCP_RTO_MAX);
 	}
+	tp->early_retrans_delayed = 0;
+}
+
+/* This function is called when the delayed ER timer fires. TCP enters
+ * fast recovery and performs fast-retransmit.
+ */
+void tcp_resume_early_retransmit(struct sock *sk)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	tcp_rearm_rto(sk);
+
+	/* Stop if ER is disabled after the delayed ER timer is scheduled */
+	if (!tp->do_early_retrans)
+		return;
+
+	tcp_enter_recovery(sk, false);
+	tcp_update_scoreboard(sk, 1);
+	tcp_xmit_retransmit_queue(sk);
 }
 
 /* If we get here, the whole TSO packet has not been acked. */
@@ -3728,6 +3780,9 @@ static int tcp_ack(struct sock *sk, const struct sk_buff *skb, int flag)
 	 */
 	if (after(ack, tp->snd_nxt))
 		goto invalid_ack;
+
+	if (tp->early_retrans_delayed)
+		tcp_rearm_rto(sk);
 
 	if (after(ack, prior_snd_una))
 		flag |= FLAG_SND_UNA_ADVANCED;

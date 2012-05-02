@@ -500,6 +500,8 @@ extern void tcp_send_delayed_ack(struct sock *sk);
 
 /* tcp_input.c */
 extern void tcp_cwnd_application_limited(struct sock *sk);
+extern void tcp_resume_early_retransmit(struct sock *sk);
+extern void tcp_rearm_rto(struct sock *sk);
 
 /* tcp_timer.c */
 extern void tcp_init_xmit_timers(struct sock *);
@@ -805,6 +807,7 @@ static inline void tcp_enable_early_retrans(struct tcp_sock *tp)
 {
 	tp->do_early_retrans = sysctl_tcp_early_retrans &&
 		!sysctl_tcp_thin_dupack && sysctl_tcp_reordering == 3;
+	tp->early_retrans_delayed = 0;
 }
 
 static inline void tcp_disable_early_retrans(struct tcp_sock *tp)
