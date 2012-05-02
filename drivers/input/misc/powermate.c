@@ -85,6 +85,7 @@ static void powermate_config_complete(struct urb *urb);
 static void powermate_irq(struct urb *urb)
 {
 	struct powermate_device *pm = urb->context;
+	struct device *dev = &pm->input->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -95,10 +96,12 @@ static void powermate_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - urb shutting down with status: %d\n",
+			__func__, urb->status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d", __func__, urb->status);
+		dev_dbg(dev, "%s - nonzero urb status received: %d\n",
+			__func__, urb->status);
 		goto exit;
 	}
 
@@ -110,8 +113,7 @@ static void powermate_irq(struct urb *urb)
 exit:
 	retval = usb_submit_urb (urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&pm->input->dev,
-			"%s - usb_submit_urb failed with result: %d\n",
+		dev_err(dev, "%s - usb_submit_urb failed with result: %d\n",
 			__func__, retval);
 }
 
