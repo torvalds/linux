@@ -1380,7 +1380,7 @@ exit:
 	usb_mark_last_busy(interface_to_usbdev(usbtouch->interface));
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&usbtouch->interface->dev,
+		dev_err(&usbtouch->input->dev,
 			"%s - usb_submit_urb failed with result: %d\n",
 			__func__, retval);
 }
@@ -1623,7 +1623,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		err = usb_submit_urb(usbtouch->irq, GFP_KERNEL);
 		if (err) {
 			usb_autopm_put_interface(intf);
-			dev_err(&intf->dev,
+			dev_err(&input_dev->dev,
 				"%s - usb_submit_urb failed with result: %d\n",
 				__func__, err);
 			goto out_unregister_input;
