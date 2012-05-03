@@ -967,11 +967,14 @@ i915_gem_execbuffer_move_to_active(struct list_head *objects,
 			obj->pending_gpu_write = true;
 			list_move_tail(&obj->gpu_write_list,
 				       &ring->gpu_write_list);
-			intel_mark_busy(ring->dev, obj);
+			if (obj->pin_count) /* check for potential scanout */
+				intel_mark_busy(ring->dev, obj);
 		}
 
 		trace_i915_gem_object_change_domain(obj, old_read, old_write);
 	}
+
+	intel_mark_busy(ring->dev, NULL);
 }
 
 static void
