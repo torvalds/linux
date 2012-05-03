@@ -326,9 +326,12 @@ static int write_inode(struct inode *inode, struct writeback_control *wbc)
 }
 
 /*
- * Wait for writeback on an inode to complete.
+ * Wait for writeback on an inode to complete. Called with i_lock held.
+ * Caller must make sure inode cannot go away when we drop i_lock.
  */
-static void inode_wait_for_writeback(struct inode *inode)
+static void __inode_wait_for_writeback(struct inode *inode)
+	__releases(inode->i_lock)
+	__acquires(inode->i_lock)
 {
 	DEFINE_WAIT_BIT(wq, &inode->i_state, __I_SYNC);
 	wait_queue_head_t *wqh;
@@ -339,6 +342,36 @@ static void inode_wait_for_writeback(struct inode *inode)
 		__wait_on_bit(wqh, &wq, inode_wait, TASK_UNINTERRUPTIBLE);
 		spin_lock(&inode->i_lock);
 	}
+}
+
+/*
+ * Wait for writeback on an inode to complete. Caller must have inode pinned.
+ */
+void inode_wait_for_writeback(struct inode *inode)
+{
+	spin_lock(&inode->i_lock);
+	__inode_wait_for_writeback(inode);
+	spin_unlock(&inode->i_lock);
+}
+
+/*
+ * Sleep until I_SYNC is cleared. This function must be called with i_lock
+ * held and drops it. It is aimed for callers not holding any inode reference
+ * so once i_lock is dropped, inode can go away.
+ */
+static void inode_sleep_on_writeback(struct inode *inode)
+	__releases(inode->i_lock)
+{
+	DEFINE_WAIT(wait);
+	wait_queue_head_t *wqh = bit_waitqueue(&inode->i_state, __I_SYNC);
+	int sleep;
+
+	prepare_to_wait(wqh, &wait, TASK_UNINTERRUPTIBLE);
+	sleep = inode->i_state & I_SYNC;
+	spin_unlock(&inode->i_lock);
+	if (sleep)
+		schedule();
+	finish_wait(wqh, &wait);
 }
 
 /*
@@ -479,9 +512,11 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 		if (wbc->sync_mode != WB_SYNC_ALL)
 			goto out;
 		/*
-		 * It's a data-integrity sync.  We must wait.
+		 * It's a data-integrity sync. We must wait. Since callers hold
+		 * inode reference or inode has I_WILL_FREE set, it cannot go
+		 * away under us.
 		 */
-		inode_wait_for_writeback(inode);
+		__inode_wait_for_writeback(inode);
 	}
 	WARN_ON(inode->i_state & I_SYNC);
 	/*
@@ -620,20 +655,28 @@ static long writeback_sb_inodes(struct super_block *sb,
 		}
 		spin_unlock(&wb->list_lock);
 
-		__iget(inode);
 		/*
 		 * We already requeued the inode if it had I_SYNC set and we
 		 * are doing WB_SYNC_NONE writeback. So this catches only the
 		 * WB_SYNC_ALL case.
 		 */
-		if (inode->i_state & I_SYNC)
-			inode_wait_for_writeback(inode);
+		if (inode->i_state & I_SYNC) {
+			/* Wait for I_SYNC. This function drops i_lock... */
+			inode_sleep_on_writeback(inode);
+			/* Inode may be gone, start again */
+			continue;
+		}
 		inode->i_state |= I_SYNC;
 		spin_unlock(&inode->i_lock);
+
 		write_chunk = writeback_chunk_size(wb->bdi, work);
 		wbc.nr_to_write = write_chunk;
 		wbc.pages_skipped = 0;
 
+		/*
+		 * We use I_SYNC to pin the inode in memory. While it is set
+		 * evict_inode() will wait so the inode cannot be freed.
+		 */
 		__writeback_single_inode(inode, wb, &wbc);
 
 		work->nr_pages -= write_chunk - wbc.nr_to_write;
@@ -645,10 +688,7 @@ static long writeback_sb_inodes(struct super_block *sb,
 		requeue_inode(inode, wb, &wbc);
 		inode_sync_complete(inode);
 		spin_unlock(&inode->i_lock);
-		spin_unlock(&wb->list_lock);
-		iput(inode);
-		cond_resched();
-		spin_lock(&wb->list_lock);
+		cond_resched_lock(&wb->list_lock);
 		/*
 		 * bail out to wb_writeback() often enough to check
 		 * background threshold and other termination conditions.
@@ -843,8 +883,8 @@ static long wb_writeback(struct bdi_writeback *wb,
 			inode = wb_inode(wb->b_more_io.prev);
 			spin_lock(&inode->i_lock);
 			spin_unlock(&wb->list_lock);
-			inode_wait_for_writeback(inode);
-			spin_unlock(&inode->i_lock);
+			/* This function drops i_lock... */
+			inode_sleep_on_writeback(inode);
 			spin_lock(&wb->list_lock);
 		}
 	}

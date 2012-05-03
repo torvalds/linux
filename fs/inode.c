@@ -530,7 +530,13 @@ static void evict(struct inode *inode)
 
 	inode_sb_list_del(inode);
 
-	inode_sync_wait(inode);
+	/*
+	 * Wait for flusher thread to be done with the inode so that filesystem
+	 * does not start destroying it while writeback is still running. Since
+	 * the inode has I_FREEING set, flusher thread won't start new work on
+	 * the inode.  We just have to wait for running writeback to finish.
+	 */
+	inode_wait_for_writeback(inode);
 
 	if (op->evict_inode) {
 		op->evict_inode(inode);
