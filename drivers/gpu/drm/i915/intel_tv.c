@@ -1249,7 +1249,6 @@ intel_tv_detect(struct drm_connector *connector, bool force)
 	int type;
 
 	mode = reported_modes[0];
-	drm_mode_set_crtcinfo(&mode, 0);
 
 	if (force) {
 		struct intel_load_detect_pipe tmp;

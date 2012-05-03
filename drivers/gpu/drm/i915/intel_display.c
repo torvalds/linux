@@ -5357,7 +5357,6 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 	mode->vsync_end = ((vsync & 0xffff0000) >> 16) + 1;
 
 	drm_mode_set_name(mode);
-	drm_mode_set_crtcinfo(mode, 0);
 
 	return mode;
 }

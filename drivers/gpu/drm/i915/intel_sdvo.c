@@ -1576,9 +1576,6 @@ end:
 			intel_sdvo->sdvo_lvds_fixed_mode =
 				drm_mode_duplicate(connector->dev, newmode);
 
-			drm_mode_set_crtcinfo(intel_sdvo->sdvo_lvds_fixed_mode,
-					      0);
-
 			intel_sdvo->is_lvds = true;
 			break;
 		}

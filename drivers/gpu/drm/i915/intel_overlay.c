@@ -263,7 +263,7 @@ i830_activate_pipe_a(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("Enabling pipe A in order to enable overlay\n");
 
 	mode = drm_mode_duplicate(dev, &vesa_640x480);
-	drm_mode_set_crtcinfo(mode, 0);
+
 	if (!drm_crtc_helper_set_mode(&crtc->base, mode,
 				       crtc->base.x, crtc->base.y,
 				       crtc->base.fb))
