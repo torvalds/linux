@@ -131,7 +131,6 @@ static void keyspan_pda_request_unthrottle(struct work_struct *work)
 	struct usb_serial *serial = priv->serial;
 	int result;
 
-	dbg(" request_unthrottle");
 	/* ask the device to tell us when the tx buffer becomes
 	   sufficiently empty */
 	result = usb_control_msg(serial->dev,
@@ -226,7 +225,7 @@ static void keyspan_pda_rx_throttle(struct tty_struct *tty)
 	   send an XOFF, although it might make sense to foist that off
 	   upon the device too. */
 	struct usb_serial_port *port = tty->driver_data;
-	dbg("keyspan_pda_rx_throttle port %d", port->number);
+
 	usb_kill_urb(port->interrupt_in_urb);
 }
 
@@ -235,7 +234,7 @@ static void keyspan_pda_rx_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	/* just restart the receive interrupt URB */
-	dbg("keyspan_pda_rx_unthrottle port %d", port->number);
+
 	if (usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL))
 		dbg(" usb_submit_urb(read urb) failed");
 }
@@ -466,7 +465,6 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	   select() or poll() too) until we receive that unthrottle interrupt.
 	   Block if we can't write anything at all, otherwise write as much as
 	   we can. */
-	dbg("keyspan_pda_write(%d)", count);
 	if (count == 0) {
 		dbg(" write request of 0 bytes");
 		return 0;
@@ -766,8 +764,6 @@ static int keyspan_pda_startup(struct usb_serial *serial)
 
 static void keyspan_pda_release(struct usb_serial *serial)
 {
-	dbg("%s", __func__);
-
 	kfree(usb_get_serial_port_data(serial->port[0]));
 }
 
