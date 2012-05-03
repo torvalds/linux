@@ -85,7 +85,6 @@ static void ssu100_release(struct usb_serial *serial)
 {
 	struct ssu100_port_private *priv = usb_get_serial_port_data(*serial->port);
 
-	dbg("%s", __func__);
 	kfree(priv);
 }
 
@@ -171,8 +170,6 @@ static int ssu100_initdevice(struct usb_device *dev)
 	u8 *data;
 	int result = 0;
 
-	dbg("%s", __func__);
-
 	data = kzalloc(3, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -236,8 +233,6 @@ static void ssu100_set_termios(struct tty_struct *tty,
 	unsigned int cflag = termios->c_cflag;
 	u16 urb_value = 0; /* will hold the new flags */
 	int result;
-
-	dbg("%s", __func__);
 
 	if (cflag & PARENB) {
 		if (cflag & PARODD)
@@ -312,8 +307,6 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 	int result;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	data = kzalloc(2, GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
@@ -348,7 +341,6 @@ static int ssu100_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void ssu100_close(struct usb_serial_port *port)
 {
-	dbg("%s", __func__);
 	usb_serial_generic_close(port);
 }
 
@@ -467,8 +459,6 @@ static int ssu100_attach(struct usb_serial *serial)
 	struct ssu100_port_private *priv;
 	struct usb_serial_port *port = *serial->port;
 
-	dbg("%s", __func__);
-
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
 		dev_err(&port->dev, "%s- kmalloc(%Zd) failed.\n", __func__,
@@ -489,8 +479,6 @@ static int ssu100_tiocmget(struct tty_struct *tty)
 	struct usb_device *dev = port->serial->dev;
 	u8 *d;
 	int r;
-
-	dbg("%s\n", __func__);
 
 	d = kzalloc(2, GFP_KERNEL);
 	if (!d)
@@ -522,15 +510,12 @@ static int ssu100_tiocmset(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_device *dev = port->serial->dev;
 
-	dbg("%s\n", __func__);
 	return update_mctrl(dev, set, clear);
 }
 
 static void ssu100_dtr_rts(struct usb_serial_port *port, int on)
 {
 	struct usb_device *dev = port->serial->dev;
-
-	dbg("%s\n", __func__);
 
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected) {
@@ -618,8 +603,6 @@ static int ssu100_process_packet(struct urb *urb,
 	int i;
 	char *ch;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if ((len >= 4) &&
 	    (packet[0] == 0x1b) && (packet[1] == 0x1b) &&
 	    ((packet[2] == 0x00) || (packet[2] == 0x01))) {
@@ -655,8 +638,6 @@ static void ssu100_process_read_urb(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	int count;
-
-	dbg("%s", __func__);
 
 	tty = tty_port_tty_get(&port->port);
 	if (!tty)
