@@ -509,7 +509,7 @@ struct drm_psb_private {
 	struct page *scratch_page;
 	u32 __iomem *gtt_map;
 	uint32_t stolen_base;
-	void *vram_addr;
+	u8 __iomem *vram_addr;
 	unsigned long vram_stolen_size;
 	int gtt_initialized;
 	u16 gmch_ctrl;		/* Saved GTT setup */

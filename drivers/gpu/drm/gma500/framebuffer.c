@@ -455,8 +455,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fix.ypanstep = 0;
 
 	/* Accessed stolen memory directly */
-	info->screen_base = (char *)dev_priv->vram_addr +
-							backing->offset;
+	info->screen_base = dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 
 	if (dev_priv->gtt.stolen_size) {
