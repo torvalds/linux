@@ -725,7 +725,7 @@ static void hci_set_le_support(struct hci_dev *hdev)
 
 	memset(&cp, 0, sizeof(cp));
 
-	if (enable_le && test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
+	if (test_bit(HCI_LE_ENABLED, &hdev->dev_flags)) {
 		cp.le = 1;
 		cp.simul = !!(hdev->features[6] & LMP_SIMUL_LE_BR);
 	}

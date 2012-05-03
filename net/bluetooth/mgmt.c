@@ -35,7 +35,6 @@
 #include <net/bluetooth/smp.h>
 
 bool enable_hs;
-bool enable_le;
 
 #define MGMT_VERSION	1
 #define MGMT_REVISION	1
@@ -384,10 +383,8 @@ static u32 get_supported_settings(struct hci_dev *hdev)
 	if (enable_hs)
 		settings |= MGMT_SETTING_HS;
 
-	if (enable_le) {
-		if (hdev->features[4] & LMP_LE)
-			settings |= MGMT_SETTING_LE;
-	}
+	if (hdev->features[4] & LMP_LE)
+		settings |= MGMT_SETTING_LE;
 
 	return settings;
 }
@@ -1199,7 +1196,7 @@ static int set_le(struct sock *sk, struct hci_dev *hdev, void *data, u16 len)
 
 	hci_dev_lock(hdev);
 
-	if (!enable_le || !(hdev->features[4] & LMP_LE)) {
+	if (!(hdev->features[4] & LMP_LE)) {
 		err = cmd_status(sk, hdev->id, MGMT_OP_SET_LE,
 				 MGMT_STATUS_NOT_SUPPORTED);
 		goto unlock;
@@ -3657,6 +3654,3 @@ int mgmt_device_unblocked(struct hci_dev *hdev, bdaddr_t *bdaddr, u8 type)
 
 module_param(enable_hs, bool, 0644);
 MODULE_PARM_DESC(enable_hs, "Enable High Speed support");
-
-module_param(enable_le, bool, 0644);
-MODULE_PARM_DESC(enable_le, "Enable Low Energy support");
