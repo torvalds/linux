@@ -190,7 +190,7 @@ int parse_args(const char *doing,
 	/* Chew leading spaces */
 	args = skip_spaces(args);
 
-	if (args && *args)
+	if (*args)
 		pr_debug("doing %s, parsing ARGS: '%s'\n", doing, args);
 
 	while (*args) {
