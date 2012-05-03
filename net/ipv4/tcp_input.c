@@ -4568,7 +4568,7 @@ static bool tcp_try_coalesce(struct sock *sk,
 		    skb_shinfo(from)->nr_frags >= MAX_SKB_FRAGS)
 			return false;
 
-		if (!from->head_frag || skb_cloned(from))
+		if (skb_head_is_locked(from))
 			return false;
 
 		delta = from->truesize - SKB_DATA_ALIGN(sizeof(struct sk_buff));

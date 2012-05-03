@@ -1699,7 +1699,6 @@ static bool __skb_splice_bits(struct sk_buff *skb, struct pipe_inode_info *pipe,
 			      struct splice_pipe_desc *spd, struct sock *sk)
 {
 	int seg;
-	bool head_is_locked = !skb->head_frag || skb_cloned(skb);
 
 	/* map the linear part :
 	 * If skb->head_frag is set, this 'linear' part is backed by a
@@ -1710,7 +1709,7 @@ static bool __skb_splice_bits(struct sk_buff *skb, struct pipe_inode_info *pipe,
 			     (unsigned long) skb->data & (PAGE_SIZE - 1),
 			     skb_headlen(skb),
 			     offset, len, skb, spd,
-			     head_is_locked,
+			     skb_head_is_locked(skb),
 			     sk, pipe))
 		return true;
 
