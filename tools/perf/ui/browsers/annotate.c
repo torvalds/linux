@@ -81,9 +81,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	if (!self->navkeypressed)
 		width += 1;
 
-	if (dl->offset != -1 && change_color)
-		ui_browser__set_color(self, HE_COLORSET_CODE);
-
 	if (!*dl->line)
 		slsmg_write_nstring(" ", width - 7);
 	else if (dl->offset == -1) {
