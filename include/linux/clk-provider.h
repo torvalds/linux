@@ -277,6 +277,29 @@ struct clk *clk_register_mux(struct device *dev, const char *name,
 		u8 clk_mux_flags, spinlock_t *lock);
 
 /**
+ * struct clk_fixed_factor - fixed multiplier and divider clock
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @mult:	multiplier
+ * @div:	divider
+ *
+ * Clock with a fixed multiplier and divider. The output frequency is the
+ * parent clock rate divided by div and multiplied by mult.
+ * Implements .recalc_rate, .set_rate and .round_rate
+ */
+
+struct clk_fixed_factor {
+	struct clk_hw	hw;
+	unsigned int	mult;
+	unsigned int	div;
+};
+
+extern struct clk_ops clk_fixed_factor_ops;
+struct clk *clk_register_fixed_factor(struct device *dev, const char *name,
+		const char *parent_name, unsigned long flags,
+		unsigned int mult, unsigned int div);
+
+/**
  * clk_register - allocate a new clock, register it and return an opaque cookie
  * @dev: device that is registering this clock
  * @hw: link to hardware-specific clock data

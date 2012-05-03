@@ -143,6 +143,26 @@ struct clk {
 	DEFINE_CLK(_name, clk_mux_ops, _flags, _parent_names,	\
 			_parents);
 
+#define DEFINE_CLK_FIXED_FACTOR(_name, _parent_name,		\
+				_parent_ptr, _flags,		\
+				_mult, _div)			\
+	static struct clk _name;				\
+	static const char *_name##_parent_names[] = {		\
+		_parent_name,					\
+	};							\
+	static struct clk *_name##_parents[] = {		\
+		_parent_ptr,					\
+	};							\
+	static struct clk_fixed_factor _name##_hw = {		\
+		.hw = {						\
+			.clk = &_name,				\
+		},						\
+		.mult = _mult,					\
+		.div = _div,					\
+	};							\
+	DEFINE_CLK(_name, clk_fixed_factor_ops, _flags,		\
+			_name##_parent_names, _name##_parents);
+
 /**
  * __clk_init - initialize the data structures in a struct clk
  * @dev:	device initializing this clk, placeholder for now
