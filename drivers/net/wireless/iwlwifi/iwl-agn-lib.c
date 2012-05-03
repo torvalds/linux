@@ -31,6 +31,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <net/mac80211.h>
 
 #include "iwl-dev.h"
 #include "iwl-io.h"
@@ -593,9 +594,18 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
 	bool need_update = false;
+	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
+	int ave_rssi;
 
+	ave_rssi = ieee80211_ave_rssi(ctx->vif);
+	if (!ave_rssi) {
+		/* no rssi data, no changes to reduce tx power */
+		IWL_DEBUG_COEX(priv, "no rssi data available\n");
+		return need_update;
+	}
 	if (!priv->reduced_txpower &&
 	    !iwl_is_associated(priv, IWL_RXON_CTX_PAN) &&
+	    (ave_rssi > BT_ENABLE_REDUCED_TXPOWER_THRESHOLD) &&
 	    (uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
 	    BT_UART_MSG_FRAME3OBEX_MSK)) &&
 	    !(uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
@@ -606,6 +616,7 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 		need_update = true;
 	} else if (priv->reduced_txpower &&
 		   (iwl_is_associated(priv, IWL_RXON_CTX_PAN) ||
+		   (ave_rssi < BT_DISABLE_REDUCED_TXPOWER_THRESHOLD) ||
 		   (uart_msg->frame3 & (BT_UART_MSG_FRAME3SCOESCO_MSK |
 		   BT_UART_MSG_FRAME3SNIFF_MSK | BT_UART_MSG_FRAME3A2DP_MSK)) ||
 		   !(uart_msg->frame3 & (BT_UART_MSG_FRAME3ACL_MSK |
