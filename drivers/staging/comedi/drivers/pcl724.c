@@ -205,7 +205,7 @@ static const struct pcl724_board boardtypes[] = {
 	{ "pet48dio", 48, 2, 0x9eb8, PET48_SIZE, 0, 1, },
 };
 
-static struct comedi_driver driver_pcl724 = {
+static struct comedi_driver pcl724_driver = {
 	.driver_name	= "pcl724",
 	.module		= THIS_MODULE,
 	.attach		= pcl724_attach,
@@ -214,18 +214,7 @@ static struct comedi_driver driver_pcl724 = {
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl724_board),
 };
-
-static int __init driver_pcl724_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl724);
-}
-module_init(driver_pcl724_init_module);
-
-static void __exit driver_pcl724_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl724);
-}
-module_exit(driver_pcl724_cleanup_module);
+module_comedi_driver(pcl724_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -948,7 +948,7 @@ static int s526_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_s526 = {
+static struct comedi_driver s526_driver = {
 	.driver_name	= "s526",
 	.module		= THIS_MODULE,
 	.attach		= s526_attach,
@@ -957,18 +957,7 @@ static struct comedi_driver driver_s526 = {
 	.offset		= sizeof(struct s526_board),
 	.num_names	= ARRAY_SIZE(s526_boards),
 };
-
-static int __init driver_s526_init_module(void)
-{
-	return comedi_driver_register(&driver_s526);
-}
-module_init(driver_s526_init_module);
-
-static void __exit driver_s526_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_s526);
-}
-module_exit(driver_s526_cleanup_module);
+module_comedi_driver(s526_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

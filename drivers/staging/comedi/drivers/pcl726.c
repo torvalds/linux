@@ -365,7 +365,7 @@ static int pcl726_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_pcl726 = {
+static struct comedi_driver pcl726_driver = {
 	.driver_name	= "pcl726",
 	.module		= THIS_MODULE,
 	.attach		= pcl726_attach,
@@ -374,18 +374,7 @@ static struct comedi_driver driver_pcl726 = {
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl726_board),
 };
-
-static int __init driver_pcl726_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl726);
-}
-module_init(driver_pcl726_init_module);
-
-static void __exit driver_pcl726_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl726);
-}
-module_exit(driver_pcl726_cleanup_module);
+module_comedi_driver(pcl726_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

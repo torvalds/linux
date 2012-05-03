@@ -139,24 +139,13 @@ static int rti802_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_rti802 = {
+static struct comedi_driver rti802_driver = {
 	.driver_name	= "rti802",
 	.module		= THIS_MODULE,
 	.attach		= rti802_attach,
 	.detach		= rti802_detach,
 };
-
-static int __init driver_rti802_init_module(void)
-{
-	return comedi_driver_register(&driver_rti802);
-}
-module_init(driver_rti802_init_module);
-
-static void __exit driver_rti802_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_rti802);
-}
-module_exit(driver_rti802_cleanup_module);
+module_comedi_driver(rti802_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

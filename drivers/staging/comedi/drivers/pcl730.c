@@ -150,7 +150,7 @@ static const struct pcl730_board boardtypes[] = {
 	{ "acl7130", ACL7130_SIZE, },
 };
 
-static struct comedi_driver driver_pcl730 = {
+static struct comedi_driver pcl730_driver = {
 	.driver_name	= "pcl730",
 	.module		= THIS_MODULE,
 	.attach		= pcl730_attach,
@@ -159,18 +159,7 @@ static struct comedi_driver driver_pcl730 = {
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl730_board),
 };
-
-static int __init driver_pcl730_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl730);
-}
-module_init(driver_pcl730_init_module);
-
-static void __exit driver_pcl730_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl730);
-}
-module_exit(driver_pcl730_cleanup_module);
+module_comedi_driver(pcl730_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

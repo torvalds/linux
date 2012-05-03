@@ -1992,7 +1992,7 @@ static const struct pcl818_board boardtypes[] = {
 	 0x0a, 0xfff, 0xfff, 0, 1 /* XXX ? */ },
 };
 
-static struct comedi_driver driver_pcl818 = {
+static struct comedi_driver pcl818_driver = {
 	.driver_name	= "pcl818",
 	.module		= THIS_MODULE,
 	.attach		= pcl818_attach,
@@ -2001,18 +2001,7 @@ static struct comedi_driver driver_pcl818 = {
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct pcl818_board),
 };
-
-static int __init driver_pcl818_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl818);
-}
-module_init(driver_pcl818_init_module);
-
-static void __exit driver_pcl818_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl818);
-}
-module_exit(driver_pcl818_cleanup_module);
+module_comedi_driver(pcl818_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

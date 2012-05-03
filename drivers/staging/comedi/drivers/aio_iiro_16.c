@@ -159,7 +159,7 @@ static int aio_iiro_16_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_aio_iiro_16 = {
+static struct comedi_driver aio_iiro_16_driver = {
 	.driver_name	= "aio_iiro_16",
 	.module		= THIS_MODULE,
 	.attach		= aio_iiro_16_attach,
@@ -168,18 +168,7 @@ static struct comedi_driver driver_aio_iiro_16 = {
 	.offset		= sizeof(struct aio_iiro_16_board),
 	.num_names	= ARRAY_SIZE(aio_iiro_16_boards),
 };
-
-static int __init driver_aio_iiro_16_init_module(void)
-{
-	return comedi_driver_register(&driver_aio_iiro_16);
-}
-module_init(driver_aio_iiro_16_init_module);
-
-static void __exit driver_aio_iiro_16_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_aio_iiro_16);
-}
-module_exit(driver_aio_iiro_16_cleanup_module);
+module_comedi_driver(aio_iiro_16_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

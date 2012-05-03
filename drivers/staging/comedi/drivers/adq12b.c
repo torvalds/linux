@@ -347,7 +347,7 @@ static const struct adq12b_board adq12b_boards[] = {
 	},
 };
 
-static struct comedi_driver driver_adq12b = {
+static struct comedi_driver adq12b_driver = {
 	.driver_name	= "adq12b",
 	.module		= THIS_MODULE,
 	.attach		= adq12b_attach,
@@ -356,18 +356,7 @@ static struct comedi_driver driver_adq12b = {
 	.offset		= sizeof(struct adq12b_board),
 	.num_names	= ARRAY_SIZE(adq12b_boards),
 };
-
-static int __init driver_adq12b_init_module(void)
-{
-	return comedi_driver_register(&driver_adq12b);
-}
-module_init(driver_adq12b_init_module);
-
-static void __exit driver_adq12b_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_adq12b);
-}
-module_exit(driver_adq12b_cleanup_module);
+module_comedi_driver(adq12b_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

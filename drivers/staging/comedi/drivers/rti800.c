@@ -461,7 +461,7 @@ static const struct rti800_board boardtypes[] = {
 	{ "rti815", 1 },
 };
 
-static struct comedi_driver driver_rti800 = {
+static struct comedi_driver rti800_driver = {
 	.driver_name	= "rti800",
 	.module		= THIS_MODULE,
 	.attach		= rti800_attach,
@@ -470,18 +470,7 @@ static struct comedi_driver driver_rti800 = {
 	.board_name	= &boardtypes[0].name,
 	.offset		= sizeof(struct rti800_board),
 };
-
-static int __init driver_rti800_init_module(void)
-{
-	return comedi_driver_register(&driver_rti800);
-}
-module_init(driver_rti800_init_module);
-
-static void __exit driver_rti800_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_rti800);
-}
-module_exit(driver_rti800_cleanup_module);
+module_comedi_driver(rti800_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

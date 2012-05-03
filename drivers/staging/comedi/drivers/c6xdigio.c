@@ -508,24 +508,13 @@ static int c6xdigio_detach(struct comedi_device *dev)
 	return 0;
 }
 
-struct comedi_driver driver_c6xdigio = {
+static struct comedi_driver c6xdigio_driver = {
 	.driver_name	= "c6xdigio",
 	.module		= THIS_MODULE,
 	.attach		= c6xdigio_attach,
 	.detach		= c6xdigio_detach,
 };
-
-static int __init driver_c6xdigio_init_module(void)
-{
-	return comedi_driver_register(&driver_c6xdigio);
-}
-module_init(driver_c6xdigio_init_module);
-
-static void __exit driver_c6xdigio_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_c6xdigio);
-}
-module_exit(driver_c6xdigio_cleanup_module);
+module_comedi_driver(c6xdigio_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

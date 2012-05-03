@@ -242,7 +242,7 @@ static const struct pcmda12_board pcmda12_boards[] = {
 	},
 };
 
-static struct comedi_driver driver = {
+static struct comedi_driver pcmda12_driver = {
 	.driver_name	= "pcmda12",
 	.module		= THIS_MODULE,
 	.attach		= pcmda12_attach,
@@ -251,18 +251,7 @@ static struct comedi_driver driver = {
 	.offset		= sizeof(struct pcmda12_board),
 	.num_names	= ARRAY_SIZE(pcmda12_boards),
 };
-
-static int __init driver_init_module(void)
-{
-	return comedi_driver_register(&driver);
-}
-module_init(driver_init_module);
-
-static void __exit driver_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver);
-}
-module_exit(driver_cleanup_module);
+module_comedi_driver(pcmda12_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

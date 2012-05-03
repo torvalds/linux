@@ -868,7 +868,7 @@ static const struct serial2002_board serial2002_boards[] = {
 	},
 };
 
-struct comedi_driver driver_serial2002 = {
+static struct comedi_driver serial2002_driver = {
 	.driver_name	= "serial2002",
 	.module		= THIS_MODULE,
 	.attach		= serial2002_attach,
@@ -877,18 +877,7 @@ struct comedi_driver driver_serial2002 = {
 	.offset		= sizeof(struct serial2002_board),
 	.num_names	= ARRAY_SIZE(serial2002_boards),
 };
-
-static int __init driver_serial2002_init_module(void)
-{
-	return comedi_driver_register(&driver_serial2002);
-}
-module_init(driver_serial2002_init_module);
-
-static void __exit driver_serial2002_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_serial2002);
-}
-module_exit(driver_serial2002_cleanup_module);
+module_comedi_driver(serial2002_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

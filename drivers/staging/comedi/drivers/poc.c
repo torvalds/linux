@@ -222,7 +222,7 @@ static const struct boarddef_struct boards[] = {
 	},
 };
 
-static struct comedi_driver driver_poc = {
+static struct comedi_driver poc_driver = {
 	.driver_name	= "poc",
 	.module		= THIS_MODULE,
 	.attach		= poc_attach,
@@ -231,18 +231,7 @@ static struct comedi_driver driver_poc = {
 	.num_names	= ARRAY_SIZE(boards),
 	.offset		= sizeof(boards[0]),
 };
-
-static int __init driver_poc_init_module(void)
-{
-	return comedi_driver_register(&driver_poc);
-}
-module_init(driver_poc_init_module);
-
-static void __exit driver_poc_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_poc);
-}
-module_exit(driver_poc_cleanup_module);
+module_comedi_driver(poc_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

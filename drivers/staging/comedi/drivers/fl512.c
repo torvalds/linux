@@ -182,24 +182,13 @@ static int fl512_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_fl512 = {
+static struct comedi_driver fl512_driver = {
 	.driver_name	= "fl512",
 	.module		= THIS_MODULE,
 	.attach		= fl512_attach,
 	.detach		= fl512_detach,
 };
-
-static int __init driver_fl512_init_module(void)
-{
-	return comedi_driver_register(&driver_fl512);
-}
-module_init(driver_fl512_init_module);
-
-static void __exit driver_fl512_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_fl512);
-}
-module_exit(driver_fl512_cleanup_module);
+module_comedi_driver(fl512_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

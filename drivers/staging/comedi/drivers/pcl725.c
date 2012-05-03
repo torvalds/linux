@@ -99,24 +99,13 @@ static int pcl725_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_pcl725 = {
+static struct comedi_driver pcl725_driver = {
 	.driver_name	= "pcl725",
 	.module		= THIS_MODULE,
 	.attach		= pcl725_attach,
 	.detach		= pcl725_detach,
 };
-
-static int __init driver_pcl725_init_module(void)
-{
-	return comedi_driver_register(&driver_pcl725);
-}
-module_init(driver_pcl725_init_module);
-
-static void __exit driver_pcl725_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcl725);
-}
-module_exit(driver_pcl725_cleanup_module);
+module_comedi_driver(pcl725_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

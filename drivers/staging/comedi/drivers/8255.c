@@ -437,24 +437,13 @@ static int dev_8255_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_8255 = {
+static struct comedi_driver dev_8255_driver = {
 	.driver_name	= "8255",
 	.module		= THIS_MODULE,
 	.attach		= dev_8255_attach,
 	.detach		= dev_8255_detach,
 };
-
-static int __init driver_8255_init_module(void)
-{
-	return comedi_driver_register(&driver_8255);
-}
-module_init(driver_8255_init_module);
-
-static void __exit driver_8255_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_8255);
-}
-module_exit(driver_8255_cleanup_module);
+module_comedi_driver(dev_8255_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

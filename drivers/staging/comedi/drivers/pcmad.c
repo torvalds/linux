@@ -161,7 +161,7 @@ static const struct pcmad_board_struct pcmad_boards[] = {
 		.n_ai_bits	= 16,
 	},
 };
-static struct comedi_driver driver_pcmad = {
+static struct comedi_driver pcmad_driver = {
 	.driver_name	= "pcmad",
 	.module		= THIS_MODULE,
 	.attach		= pcmad_attach,
@@ -170,18 +170,7 @@ static struct comedi_driver driver_pcmad = {
 	.num_names	= ARRAY_SIZE(pcmad_boards),
 	.offset		= sizeof(pcmad_boards[0]),
 };
-
-static int __init driver_pcmad_init_module(void)
-{
-	return comedi_driver_register(&driver_pcmad);
-}
-module_init(driver_pcmad_init_module);
-
-static void __exit driver_pcmad_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_pcmad);
-}
-module_exit(driver_pcmad_cleanup_module);
+module_comedi_driver(pcmad_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -1261,7 +1261,7 @@ static const struct pcmmio_board pcmmio_boards[] = {
 	},
 };
 
-static struct comedi_driver driver = {
+static struct comedi_driver pcmmio_driver = {
 	.driver_name	= "pcmmio",
 	.module		= THIS_MODULE,
 	.attach		= pcmmio_attach,
@@ -1270,18 +1270,7 @@ static struct comedi_driver driver = {
 	.offset		= sizeof(struct pcmmio_board),
 	.num_names	= ARRAY_SIZE(pcmmio_boards),
 };
-
-static int __init driver_init_module(void)
-{
-	return comedi_driver_register(&driver);
-}
-module_init(driver_init_module);
-
-static void __exit driver_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver);
-}
-module_exit(driver_cleanup_module);
+module_comedi_driver(pcmmio_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

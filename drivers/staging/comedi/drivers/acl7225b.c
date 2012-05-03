@@ -134,7 +134,7 @@ static const struct boardtype boardtypes[] = {
 	{ "p16r16dio", P16R16DIO_SIZE, },
 };
 
-static struct comedi_driver driver_acl7225b = {
+static struct comedi_driver acl7225b_driver = {
 	.driver_name	= "acl7225b",
 	.module		= THIS_MODULE,
 	.attach		= acl7225b_attach,
@@ -143,18 +143,7 @@ static struct comedi_driver driver_acl7225b = {
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.offset		= sizeof(struct boardtype),
 };
-
-static int __init driver_acl7225b_init_module(void)
-{
-	return comedi_driver_register(&driver_acl7225b);
-}
-module_init(driver_acl7225b_init_module);
-
-static void __exit driver_acl7225b_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_acl7225b);
-}
-module_exit(driver_acl7225b_cleanup_module);
+module_comedi_driver(acl7225b_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

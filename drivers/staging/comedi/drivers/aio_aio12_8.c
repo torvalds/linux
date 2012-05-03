@@ -217,28 +217,16 @@ static int aio_aio12_8_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_aio_aio12_8 = {
-	.driver_name = "aio_aio12_8",
-	.module = THIS_MODULE,
-	.attach = aio_aio12_8_attach,
-	.detach = aio_aio12_8_detach,
-	.board_name = &board_types[0].name,
-	.num_names = 1,
-	.offset = sizeof(struct aio12_8_boardtype),
+static struct comedi_driver aio_aio12_8_driver = {
+	.driver_name	= "aio_aio12_8",
+	.module		= THIS_MODULE,
+	.attach		= aio_aio12_8_attach,
+	.detach		= aio_aio12_8_detach,
+	.board_name	= &board_types[0].name,
+	.num_names	= ARRAY_SIZE(board_types),
+	.offset		= sizeof(struct aio12_8_boardtype),
 };
-
-static int __init driver_aio_aio12_8_init_module(void)
-{
-	return comedi_driver_register(&driver_aio_aio12_8);
-}
-
-static void __exit driver_aio_aio12_8_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_aio_aio12_8);
-}
-
-module_init(driver_aio_aio12_8_init_module);
-module_exit(driver_aio_aio12_8_cleanup_module);
+module_comedi_driver(aio_aio12_8_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
