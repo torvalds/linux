@@ -1501,7 +1501,7 @@ static int ca91cx42_slot_get(struct vme_bridge *ca91cx42_bridge)
 
 }
 
-void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
+static void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
 	dma_addr_t *dma)
 {
 	struct pci_dev *pdev;
@@ -1512,8 +1512,8 @@ void *ca91cx42_alloc_consistent(struct device *parent, size_t size,
 	return pci_alloc_consistent(pdev, size, dma);
 }
 
-void ca91cx42_free_consistent(struct device *parent, size_t size, void *vaddr,
-	dma_addr_t dma)
+static void ca91cx42_free_consistent(struct device *parent, size_t size,
+	void *vaddr, dma_addr_t dma)
 {
 	struct pci_dev *pdev;
 
