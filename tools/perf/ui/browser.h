@@ -49,6 +49,8 @@ int ui_browser__refresh(struct ui_browser *self);
 int ui_browser__run(struct ui_browser *browser, int delay_secs);
 void ui_browser__update_nr_entries(struct ui_browser *browser, u32 nr_entries);
 void ui_browser__handle_resize(struct ui_browser *browser);
+void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
+			 u16 start, u16 end);
 
 int ui_browser__warning(struct ui_browser *browser, int timeout,
 			const char *format, ...);

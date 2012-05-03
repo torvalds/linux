@@ -593,6 +593,15 @@ unsigned int ui_browser__argv_refresh(struct ui_browser *browser)
 	return row;
 }
 
+void __ui_browser__vline(struct ui_browser *browser, unsigned int column,
+			 u16 start, u16 end)
+{
+	SLsmg_set_char_set(1);
+	ui_browser__gotorc(browser, start, column);
+	SLsmg_draw_vline(end - start + 1);
+	SLsmg_set_char_set(0);
+}
+
 void ui_browser__write_graph(struct ui_browser *browser __used, int graph)
 {
 	SLsmg_set_char_set(1);
