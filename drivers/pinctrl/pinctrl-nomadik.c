@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/pinconf.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 
@@ -1568,10 +1569,122 @@ static struct pinmux_ops nmk_pinmux_ops = {
 	.gpio_disable_free = nmk_gpio_disable_free,
 };
 
+int nmk_pin_config_get(struct pinctrl_dev *pctldev,
+		       unsigned pin,
+		       unsigned long *config)
+{
+	/* Not implemented */
+	return -EINVAL;
+}
+
+int nmk_pin_config_set(struct pinctrl_dev *pctldev,
+		       unsigned pin,
+		       unsigned long config)
+{
+	static const char *pullnames[] = {
+		[NMK_GPIO_PULL_NONE]	= "none",
+		[NMK_GPIO_PULL_UP]	= "up",
+		[NMK_GPIO_PULL_DOWN]	= "down",
+		[3] /* illegal */	= "??"
+	};
+	static const char *slpmnames[] = {
+		[NMK_GPIO_SLPM_INPUT]		= "input/wakeup",
+		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change/no-wakeup",
+	};
+	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
+	struct nmk_gpio_chip *nmk_chip;
+	struct pinctrl_gpio_range *range;
+	struct gpio_chip *chip;
+	unsigned bit;
+
+	/*
+	 * The pin config contains pin number and altfunction fields, here
+	 * we just ignore that part. It's being handled by the framework and
+	 * pinmux callback respectively.
+	 */
+	pin_cfg_t cfg = (pin_cfg_t) config;
+	int pull = PIN_PULL(cfg);
+	int slpm = PIN_SLPM(cfg);
+	int output = PIN_DIR(cfg);
+	int val = PIN_VAL(cfg);
+	bool lowemi = PIN_LOWEMI(cfg);
+	bool gpiomode = PIN_GPIOMODE(cfg);
+	bool sleep = PIN_SLEEPMODE(cfg);
+
+	range = nmk_match_gpio_range(pctldev, pin);
+	if (!range) {
+		dev_err(npct->dev, "invalid pin offset %d\n", pin);
+		return -EINVAL;
+	}
+	if (!range->gc) {
+		dev_err(npct->dev, "GPIO chip missing in range for pin %d\n",
+			pin);
+		return -EINVAL;
+	}
+	chip = range->gc;
+	nmk_chip = container_of(chip, struct nmk_gpio_chip, chip);
+
+	if (sleep) {
+		int slpm_pull = PIN_SLPM_PULL(cfg);
+		int slpm_output = PIN_SLPM_DIR(cfg);
+		int slpm_val = PIN_SLPM_VAL(cfg);
+
+		/* All pins go into GPIO mode at sleep */
+		gpiomode = true;
+
+		/*
+		 * The SLPM_* values are normal values + 1 to allow zero to
+		 * mean "same as normal".
+		 */
+		if (slpm_pull)
+			pull = slpm_pull - 1;
+		if (slpm_output)
+			output = slpm_output - 1;
+		if (slpm_val)
+			val = slpm_val - 1;
+
+		dev_dbg(nmk_chip->chip.dev, "pin %d: sleep pull %s, dir %s, val %s\n",
+			pin,
+			slpm_pull ? pullnames[pull] : "same",
+			slpm_output ? (output ? "output" : "input") : "same",
+			slpm_val ? (val ? "high" : "low") : "same");
+	}
+
+	dev_dbg(nmk_chip->chip.dev, "pin %d [%#lx]: pull %s, slpm %s (%s%s), lowemi %s\n",
+		pin, cfg, pullnames[pull], slpmnames[slpm],
+		output ? "output " : "input",
+		output ? (val ? "high" : "low") : "",
+		lowemi ? "on" : "off" );
+
+	clk_enable(nmk_chip->clk);
+	bit = pin % NMK_GPIO_PER_CHIP;
+	if (gpiomode)
+		/* No glitch when going to GPIO mode */
+		__nmk_gpio_set_mode(nmk_chip, bit, NMK_GPIO_ALT_GPIO);
+	if (output)
+		__nmk_gpio_make_output(nmk_chip, bit, val);
+	else {
+		__nmk_gpio_make_input(nmk_chip, bit);
+		__nmk_gpio_set_pull(nmk_chip, bit, pull);
+	}
+	/* TODO: isn't this only applicable on output pins? */
+	__nmk_gpio_set_lowemi(nmk_chip, bit, lowemi);
+
+	__nmk_gpio_set_slpm(nmk_chip, bit, slpm);
+	clk_disable(nmk_chip->clk);
+	return 0;
+}
+
+static struct pinconf_ops nmk_pinconf_ops = {
+	.pin_config_get = nmk_pin_config_get,
+	.pin_config_set = nmk_pin_config_set,
+};
+
 static struct pinctrl_desc nmk_pinctrl_desc = {
 	.name = "pinctrl-nomadik",
 	.pctlops = &nmk_pinctrl_ops,
 	.pmxops = &nmk_pinmux_ops,
+	.confops = &nmk_pinconf_ops,
 	.owner = THIS_MODULE,
 };
 
