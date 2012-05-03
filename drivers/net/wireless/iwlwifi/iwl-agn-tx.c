@@ -590,11 +590,17 @@ turn_off:
 	spin_unlock_bh(&priv->sta_lock);
 
 	if (test_bit(txq_id, priv->agg_q_alloc)) {
-		/* If the transport didn't know that we wanted to start
-		 * agreggation, don't tell it that we want to stop them
+		/*
+		 * If the transport didn't know that we wanted to start
+		 * agreggation, don't tell it that we want to stop them.
+		 * This can happen when we don't get the addBA response on
+		 * time, or we hadn't time to drain the AC queues.
 		 */
-		if (agg_state != IWL_AGG_STARTING)
+		if (agg_state == IWL_AGG_ON)
 			iwl_trans_tx_agg_disable(priv->trans, txq_id);
+		else
+			IWL_DEBUG_TX_QUEUES(priv, "Don't disable tx agg: %d\n",
+					    agg_state);
 		iwlagn_dealloc_agg_txq(priv, txq_id);
 	}
 
