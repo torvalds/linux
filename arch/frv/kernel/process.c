@@ -44,16 +44,6 @@ asmlinkage void ret_from_fork(void);
 void (*pm_power_off)(void);
 EXPORT_SYMBOL(pm_power_off);
 
-struct task_struct *alloc_task_struct_node(int node)
-{
-	return kmalloc_node(sizeof(task_struct), GFP_KERNEL, node);
-}
-
-void free_task_struct(struct task_struct *p)
-{
-	kfree(p);
-}
-
 static void core_sleep_idle(void)
 {
 #ifdef LED_DEBUG_SLEEP
