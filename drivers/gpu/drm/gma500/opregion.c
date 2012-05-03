@@ -302,7 +302,7 @@ int psb_intel_opregion_setup(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct psb_intel_opregion *opregion = &dev_priv->opregion;
 	u32 opregion_phy, mboxes;
-	void *base;
+	void __iomem *base;
 	int err = 0;
 
 	pci_read_config_dword(dev->pdev, PCI_ASLS, &opregion_phy);
