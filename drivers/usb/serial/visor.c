@@ -239,8 +239,6 @@ static int visor_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int result = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	if (!port->read_urb) {
 		/* this is needed for some brain dead Sony devices */
 		dev_err(&port->dev, "Device lied about number of ports, please use a lower one.\n");
@@ -253,7 +251,7 @@ static int visor_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto exit;
 
 	if (port->interrupt_in_urb) {
-		dbg("%s - adding interrupt input for treo", __func__);
+		dev_dbg(&port->dev, "adding interrupt input for treo\n");
 		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (result)
 			dev_err(&port->dev,
@@ -268,8 +266,6 @@ exit:
 static void visor_close(struct usb_serial_port *port)
 {
 	unsigned char *transfer_buffer;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	/* shutdown our urbs */
 	usb_serial_generic_close(port);
@@ -305,12 +301,12 @@ static void visor_read_int_callback(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - urb shutting down with status: %d\n",
+			__func__, status);
 		return;
 	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
+		dev_dbg(&port->dev, "%s - nonzero urb status received: %d\n",
+			__func__, status);
 		goto exit;
 	}
 
@@ -342,8 +338,6 @@ static int palm_os_3_probe(struct usb_serial *serial,
 	int retval = 0;
 	int i;
 	int num_ports = 0;
-
-	dbg("%s", __func__);
 
 	transfer_buffer = kmalloc(sizeof(*connection_info), GFP_KERNEL);
 	if (!transfer_buffer) {
@@ -440,8 +434,6 @@ static int palm_os_4_probe(struct usb_serial *serial,
 	unsigned char *transfer_buffer;
 	int retval;
 
-	dbg("%s", __func__);
-
 	transfer_buffer =  kmalloc(sizeof(*connection_info), GFP_KERNEL);
 	if (!transfer_buffer) {
 		dev_err(dev, "%s - kmalloc(%Zd) failed.\n", __func__,
@@ -472,8 +464,6 @@ static int visor_probe(struct usb_serial *serial,
 	int retval = 0;
 	int (*startup)(struct usb_serial *serial,
 					const struct usb_device_id *id);
-
-	dbg("%s", __func__);
 
 	/*
 	 * some Samsung Android phones in modem mode have the same ID
@@ -515,8 +505,6 @@ static int clie_3_5_startup(struct usb_serial *serial)
 	struct device *dev = &serial->dev->dev;
 	int result;
 	u8 *data;
-
-	dbg("%s", __func__);
 
 	data = kmalloc(1, GFP_KERNEL);
 	if (!data)
@@ -580,8 +568,6 @@ static int treo_attach(struct usb_serial *serial)
 		(serial->num_interrupt_in == 0))
 		return 0;
 
-	dbg("%s", __func__);
-
 	/*
 	* It appears that Treos and Kyoceras want to use the
 	* 1st bulk in endpoint to communicate with the 2nd bulk out endpoint,
@@ -616,8 +602,6 @@ static int clie_5_attach(struct usb_serial *serial)
 	struct usb_serial_port *port;
 	unsigned int pipe;
 	int j;
-
-	dbg("%s", __func__);
 
 	/* TH55 registers 2 ports.
 	   Communication in from the UX50/TH55 uses bulk_in_endpointAddress
