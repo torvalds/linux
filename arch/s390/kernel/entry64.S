@@ -968,7 +968,6 @@ ENTRY(sie64a)
 	xc	__SF_EMPTY+16(8,%r15),__SF_EMPTY+16(%r15) # host id == 0
 	lmg	%r0,%r13,0(%r3)			# load guest gprs 0-13
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
-	oi	__TI_flags+6(%r14),_TIF_SIE>>8
 sie_loop:
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 	tm	__TI_flags+7(%r14),_TIF_EXIT_SIE
@@ -986,7 +985,6 @@ sie_done:
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 sie_exit:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
-	ni	__TI_flags+6(%r14),255-(_TIF_SIE>>8)
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers
@@ -995,7 +993,6 @@ sie_exit:
 sie_fault:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
-	ni	__TI_flags+6(%r14),255-(_TIF_SIE>>8)
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
 	stmg	%r0,%r13,0(%r14)		# save guest gprs 0-13
 	lmg	%r6,%r14,__SF_GPRS(%r15)	# restore kernel registers

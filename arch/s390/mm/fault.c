@@ -294,7 +294,7 @@ static inline int do_exception(struct pt_regs *regs, int access)
 	down_read(&mm->mmap_sem);
 
 #ifdef CONFIG_PGSTE
-	if (test_tsk_thread_flag(current, TIF_SIE) && S390_lowcore.gmap) {
+	if ((current->flags & PF_VCPU) && S390_lowcore.gmap) {
 		address = __gmap_fault(address,
 				     (struct gmap *) S390_lowcore.gmap);
 		if (address == -EFAULT) {
