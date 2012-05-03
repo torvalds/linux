@@ -309,6 +309,10 @@ EXPORT_SYMBOL_GPL(devres_remove);
  * which @match returns 1.  If @match is NULL, it's considered to
  * match all.  If found, the resource is removed atomically and freed.
  *
+ * Note that the release function for the resource will not be called,
+ * only the devres-allocated data will be freed.  The caller becomes
+ * responsible for freeing any other data.
+ *
  * RETURNS:
  * 0 if devres is found and freed, -ENOENT if not found.
  */
