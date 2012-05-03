@@ -205,8 +205,6 @@ static int whiteheat_firmware_download(struct usb_serial *serial,
 	const struct firmware *loader_fw = NULL, *firmware_fw = NULL;
 	const struct ihex_binrec *record;
 
-	dbg("%s", __func__);
-
 	if (request_ihex_firmware(&firmware_fw, "whiteheat.fw",
 				  &serial->dev->dev)) {
 		dev_err(&serial->dev->dev,
@@ -437,8 +435,6 @@ static void whiteheat_release(struct usb_serial *serial)
 	struct whiteheat_private *info;
 	int i;
 
-	dbg("%s", __func__);
-
 	/* free up our private data for our command port */
 	command_port = serial->port[COMMAND_PORT];
 	kfree(usb_get_serial_port_data(command_port));
@@ -452,8 +448,6 @@ static void whiteheat_release(struct usb_serial *serial)
 static int whiteheat_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	int retval;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	retval = start_command_port(port->serial);
 	if (retval)
@@ -487,15 +481,12 @@ static int whiteheat_open(struct tty_struct *tty, struct usb_serial_port *port)
 		goto exit;
 	}
 exit:
-	dbg("%s - exit, retval = %d", __func__, retval);
 	return retval;
 }
 
 
 static void whiteheat_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
 	firm_report_tx_done(port);
 	firm_close(port);
 
@@ -509,8 +500,6 @@ static int whiteheat_tiocmget(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
 	unsigned int modem_signals = 0;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	firm_get_dtr_rts(port);
 	if (info->mcr & UART_MCR_DTR)
@@ -526,8 +515,6 @@ static int whiteheat_tiocmset(struct tty_struct *tty,
 {
 	struct usb_serial_port *port = tty->driver_data;
 	struct whiteheat_private *info = usb_get_serial_port_data(port);
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (set & TIOCM_RTS)
 		info->mcr |= UART_MCR_RTS;
@@ -598,8 +585,6 @@ static void command_port_write_callback(struct urb *urb)
 {
 	int status = urb->status;
 
-	dbg("%s", __func__);
-
 	if (status) {
 		dbg("nonzero urb status: %d", status);
 		return;
@@ -614,8 +599,6 @@ static void command_port_read_callback(struct urb *urb)
 	int status = urb->status;
 	unsigned char *data = urb->transfer_buffer;
 	int result;
-
-	dbg("%s", __func__);
 
 	command_info = usb_get_serial_port_data(command_port);
 	if (!command_info) {
