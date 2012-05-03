@@ -426,7 +426,7 @@ void psb_irq_turn_off_dpst(struct drm_device *dev)
 		psb_disable_pipestat(dev_priv, 0, PIPE_DPST_EVENT_ENABLE);
 
 		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-		PSB_WVDC32(pwm_reg & !(PWM_PHASEIN_INT_ENABLE),
+		PSB_WVDC32(pwm_reg & ~PWM_PHASEIN_INT_ENABLE,
 							PWM_CONTROL_LOGIC);
 		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
 
