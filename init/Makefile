@@ -9,7 +9,10 @@ else
 obj-$(CONFIG_BLK_DEV_INITRD)   += initramfs.o
 endif
 obj-$(CONFIG_GENERIC_CALIBRATE_DELAY) += calibrate.o
-obj-$(CONFIG_HAVE_GENERIC_INIT_TASK) += init_task.o
+
+ifneq ($(CONFIG_ARCH_INIT_TASK),y)
+obj-y                          += init_task.o
+endif
 
 mounts-y			:= do_mounts.o
 mounts-$(CONFIG_BLK_DEV_RAM)	+= do_mounts_rd.o

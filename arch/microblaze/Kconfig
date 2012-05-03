@@ -22,7 +22,6 @@ config MICROBLAZE
 	select GENERIC_PCI_IOMAP
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
-	select HAVE_GENERIC_INIT_TASK
 
 config SWAP
 	def_bool n

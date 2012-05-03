@@ -10,7 +10,6 @@ config UML
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select GENERIC_IO
-	select HAVE_GENERIC_INIT_TASK
 
 config MMU
 	bool
