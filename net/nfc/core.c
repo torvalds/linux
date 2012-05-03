@@ -560,6 +560,8 @@ EXPORT_SYMBOL(nfc_alloc_recv_skb);
  * The device driver must call this function when one or many nfc targets
  * are found. After calling this function, the device driver must stop
  * polling for targets.
+ * NOTE: This function can be called with targets=NULL and n_targets=0 to
+ * notify a driver error, meaning that the polling operation cannot complete.
  * IMPORTANT: this function must not be called from an atomic context.
  * In addition, it must also not be called from a context that would prevent
  * the NFC Core to call other nfc ops entry point concurrently.
@@ -586,13 +588,18 @@ int nfc_targets_found(struct nfc_dev *dev,
 	dev->targets_generation++;
 
 	kfree(dev->targets);
-	dev->targets = kmemdup(targets, n_targets * sizeof(struct nfc_target),
-			       GFP_ATOMIC);
+	dev->targets = NULL;
 
-	if (!dev->targets) {
-		dev->n_targets = 0;
-		device_unlock(&dev->dev);
-		return -ENOMEM;
+	if (targets) {
+		dev->targets = kmemdup(targets,
+				       n_targets * sizeof(struct nfc_target),
+				       GFP_ATOMIC);
+
+		if (!dev->targets) {
+			dev->n_targets = 0;
+			device_unlock(&dev->dev);
+			return -ENOMEM;
+		}
 	}
 
 	dev->n_targets = n_targets;
