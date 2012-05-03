@@ -926,9 +926,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 	case ACPI_TYPE_STRING:
 
 		acpi_os_printf("[String] Value: ");
-		for (i = 0; i < obj_desc->string.length; i++) {
-			acpi_os_printf("%c", obj_desc->string.pointer[i]);
-		}
+		acpi_ut_print_string(obj_desc->string.pointer, ACPI_UINT8_MAX);
 		acpi_os_printf("\n");
 		break;
 
