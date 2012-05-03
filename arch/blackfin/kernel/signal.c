@@ -187,17 +187,22 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 	err |= copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
-	wrusp((unsigned long)frame);
 	if (current->personality & FDPIC_FUNCPTRS) {
 		struct fdpic_func_descriptor __user *funcptr =
 			(struct fdpic_func_descriptor *) ka->sa.sa_handler;
-		__get_user(regs->pc, &funcptr->text);
-		__get_user(regs->p3, &funcptr->GOT);
+		u32 pc, p3;
+		err |= __get_user(pc, &funcptr->text);
+		err |= __get_user(p3, &funcptr->GOT);
+		if (err)
+			return -EFAULT;
+		regs->pc = pc;
+		regs->p3 = p3;
 	} else
 		regs->pc = (unsigned long)ka->sa.sa_handler;
+	wrusp((unsigned long)frame);
 	regs->rets = SIGRETURN_STUB;
 
 	regs->r0 = frame->sig;
@@ -205,10 +210,6 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t * info,
 	regs->r2 = (unsigned long)(&frame->uc);
 
 	return 0;
-
- give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 static inline void
@@ -248,20 +249,17 @@ static void
 handle_signal(int sig, siginfo_t *info, struct k_sigaction *ka,
 	      struct pt_regs *regs)
 {
-	int ret;
-
 	/* are we from a system call? to see pt_regs->orig_p0 */
 	if (regs->orig_p0 >= 0)
 		/* If so, check system call restarting.. */
 		handle_restart(regs, ka, 1);
 
 	/* set up the stack frame */
-	ret = setup_rt_frame(sig, ka, info, sigmask_to_save(), regs);
-	if (ret)
-		return;
-
-	signal_delivered(sig, info, ka, regs,
-			test_thread_flag(TIF_SINGLESTEP));
+	if (setup_rt_frame(sig, ka, info, sigmask_to_save(), regs) < 0)
+		force_sigsegv(sig, current);
+	else 
+		signal_delivered(sig, info, ka, regs,
+				test_thread_flag(TIF_SINGLESTEP));
 }
 
 /*
