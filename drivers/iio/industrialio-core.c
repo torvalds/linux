@@ -227,15 +227,12 @@ static int iio_device_register_debugfs(struct iio_dev *indio_dev)
 	if (indio_dev->info->debugfs_reg_access == NULL)
 		return 0;
 
-	if (IS_ERR(iio_debugfs_dentry))
+	if (!iio_debugfs_dentry)
 		return 0;
 
 	indio_dev->debugfs_dentry =
 		debugfs_create_dir(dev_name(&indio_dev->dev),
 				   iio_debugfs_dentry);
-	if (IS_ERR(indio_dev->debugfs_dentry))
-		return PTR_ERR(indio_dev->debugfs_dentry);
-
 	if (indio_dev->debugfs_dentry == NULL) {
 		dev_warn(indio_dev->dev.parent,
 			 "Failed to create debugfs directory\n");
