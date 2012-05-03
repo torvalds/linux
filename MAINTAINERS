@@ -7313,6 +7313,18 @@ S:	Maintained
 F:	drivers/vlynq/vlynq.c
 F:	include/linux/vlynq.h
 
+VME SUBSYSTEM
+M:	Martyn Welch <martyn.welch@ge.com>
+M:	Manohar Vanga <manohar.vanga@cern.ch>
+M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+L:	devel@driverdev.osuosl.org
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git
+F:	Documentation/vme_api.txt
+F:	drivers/staging/vme/
+F:	drivers/vme/
+F:	include/linux/vme*
+
 VMWARE VMXNET3 ETHERNET DRIVER
 M:	Shreyas Bhatewara <sbhatewara@vmware.com>
 M:	"VMware, Inc." <pv-drivers@vmware.com>
