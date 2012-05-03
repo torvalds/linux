@@ -556,7 +556,7 @@ static void cdv_intel_lvds_enc_destroy(struct drm_encoder *encoder)
 	drm_encoder_cleanup(encoder);
 }
 
-const struct drm_encoder_funcs cdv_intel_lvds_enc_funcs = {
+static const struct drm_encoder_funcs cdv_intel_lvds_enc_funcs = {
 	.destroy = cdv_intel_lvds_enc_destroy,
 };
 
