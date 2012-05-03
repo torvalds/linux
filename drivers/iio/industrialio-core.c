@@ -152,14 +152,6 @@ static void __exit iio_exit(void)
 }
 
 #if defined(CONFIG_DEBUG_FS)
-static int iio_debugfs_open(struct inode *inode, struct file *file)
-{
-	if (inode->i_private)
-		file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 			      size_t count, loff_t *ppos)
 {
@@ -218,7 +210,7 @@ static ssize_t iio_debugfs_write_reg(struct file *file,
 }
 
 static const struct file_operations iio_debugfs_reg_fops = {
-	.open = iio_debugfs_open,
+	.open = simple_open,
 	.read = iio_debugfs_read_reg,
 	.write = iio_debugfs_write_reg,
 };
