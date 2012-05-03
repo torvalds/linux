@@ -351,7 +351,7 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
 
 	acpi_video_register();
-	if (dev_priv->lid_state)
+	if (dev_priv->opregion.lid_state)
 		psb_lid_timer_init(dev_priv);
 
 	ret = drm_vblank_init(dev, dev_priv->num_pipe);

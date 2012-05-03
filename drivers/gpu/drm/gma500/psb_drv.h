@@ -640,7 +640,6 @@ struct drm_psb_private {
 	spinlock_t lid_lock;
 	struct timer_list lid_timer;
 	struct psb_intel_opregion opregion;
-	u32 *lid_state;
 	u32 lid_last_state;
 
 	/*

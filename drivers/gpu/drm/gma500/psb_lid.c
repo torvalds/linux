@@ -29,7 +29,7 @@ static void psb_lid_timer_func(unsigned long data)
 	struct drm_device *dev = (struct drm_device *)dev_priv->dev;
 	struct timer_list *lid_timer = &dev_priv->lid_timer;
 	unsigned long irq_flags;
-	u32 *lid_state = dev_priv->lid_state;
+	u32 __iomem *lid_state = dev_priv->opregion.lid_state;
 	u32 pp_status;
 
 	if (readl(lid_state) == dev_priv->lid_last_state)
