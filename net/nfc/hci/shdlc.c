@@ -340,15 +340,6 @@ static void nfc_shdlc_connect_complete(struct nfc_shdlc *shdlc, int r)
 		shdlc->state = SHDLC_CONNECTED;
 	} else {
 		shdlc->state = SHDLC_DISCONNECTED;
-
-		/*
-		 * TODO: Could it be possible that there are pending
-		 * executing commands that are waiting for connect to complete
-		 * before they can be carried? As connect is a blocking
-		 * operation, it would require that the userspace process can
-		 * send commands on the same device from a second thread before
-		 * the device is up. I don't think that is possible, is it?
-		 */
 	}
 
 	shdlc->connect_result = r;
@@ -925,8 +916,6 @@ EXPORT_SYMBOL(nfc_shdlc_allocate);
 void nfc_shdlc_free(struct nfc_shdlc *shdlc)
 {
 	pr_debug("\n");
-
-	/* TODO: Check that this cannot be called while still in use */
 
 	nfc_hci_unregister_device(shdlc->hdev);
 	nfc_hci_free_device(shdlc->hdev);
