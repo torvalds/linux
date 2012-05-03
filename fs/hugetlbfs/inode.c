@@ -393,7 +393,7 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 static void hugetlbfs_evict_inode(struct inode *inode)
 {
 	truncate_hugepages(inode, 0);
-	end_writeback(inode);
+	clear_inode(inode);
 }
 
 static inline void
