@@ -28,26 +28,14 @@
 
 #include "hci.h"
 
-static int nfc_hci_result_to_errno(u8 result)
-{
-	switch (result) {
-	case NFC_HCI_ANY_OK:
-		return 0;
-	case NFC_HCI_ANY_E_TIMEOUT:
-		return -ETIMEDOUT;
-	default:
-		return -1;
-	}
-}
-
-static void nfc_hci_execute_cb(struct nfc_hci_dev *hdev, u8 result,
+static void nfc_hci_execute_cb(struct nfc_hci_dev *hdev, int err,
 			       struct sk_buff *skb, void *cb_data)
 {
 	struct hcp_exec_waiter *hcp_ew = (struct hcp_exec_waiter *)cb_data;
 
-	pr_debug("HCI Cmd completed with HCI result=%d\n", result);
+	pr_debug("HCI Cmd completed with result=%d\n", err);
 
-	hcp_ew->exec_result = nfc_hci_result_to_errno(result);
+	hcp_ew->exec_result = err;
 	if (hcp_ew->exec_result == 0)
 		hcp_ew->result_skb = skb;
 	else

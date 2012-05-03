@@ -32,6 +32,18 @@
 /* Largest headroom needed for outgoing HCI commands */
 #define HCI_CMDS_HEADROOM 1
 
+static int nfc_hci_result_to_errno(u8 result)
+{
+	switch (result) {
+	case NFC_HCI_ANY_OK:
+		return 0;
+	case NFC_HCI_ANY_E_TIMEOUT:
+		return -ETIME;
+	default:
+		return -1;
+	}
+}
+
 static void nfc_hci_msg_tx_work(struct work_struct *work)
 {
 	struct nfc_hci_dev *hdev = container_of(work, struct nfc_hci_dev,
@@ -46,7 +58,7 @@ static void nfc_hci_msg_tx_work(struct work_struct *work)
 		if (timer_pending(&hdev->cmd_timer) == 0) {
 			if (hdev->cmd_pending_msg->cb)
 				hdev->cmd_pending_msg->cb(hdev,
-							  NFC_HCI_ANY_E_TIMEOUT,
+							  -ETIME,
 							  NULL,
 							  hdev->
 							  cmd_pending_msg->
@@ -71,8 +83,7 @@ next_msg:
 			kfree_skb(skb);
 			skb_queue_purge(&msg->msg_frags);
 			if (msg->cb)
-				msg->cb(hdev, NFC_HCI_ANY_E_NOK, NULL,
-					msg->cb_context);
+				msg->cb(hdev, r, NULL, msg->cb_context);
 			kfree(msg);
 			break;
 		}
@@ -129,7 +140,8 @@ void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
 	del_timer_sync(&hdev->cmd_timer);
 
 	if (hdev->cmd_pending_msg->cb)
-		hdev->cmd_pending_msg->cb(hdev, result, skb,
+		hdev->cmd_pending_msg->cb(hdev, nfc_hci_result_to_errno(result),
+					  skb,
 					  hdev->cmd_pending_msg->cb_context);
 	else
 		kfree_skb(skb);

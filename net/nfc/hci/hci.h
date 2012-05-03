@@ -37,10 +37,11 @@ struct hcp_packet {
 
 /*
  * HCI command execution completion callback.
- * result will be one of the HCI response codes.
- * skb contains the response data and must be disposed.
+ * result will be a standard linux error (may be converted from HCI response)
+ * skb contains the response data and must be disposed, or may be NULL if
+ * an error occured
  */
-typedef void (*hci_cmd_cb_t) (struct nfc_hci_dev *hdev, u8 result,
+typedef void (*hci_cmd_cb_t) (struct nfc_hci_dev *hdev, int result,
 			      struct sk_buff *skb, void *cb_data);
 
 struct hcp_exec_waiter {
