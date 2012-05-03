@@ -46,17 +46,12 @@ EXPORT_SYMBOL(pm_power_off);
 
 struct task_struct *alloc_task_struct_node(int node)
 {
-	struct task_struct *p = kmalloc_node(THREAD_SIZE, GFP_KERNEL, node);
-
-	if (p)
-		atomic_set((atomic_t *)(p+1), 1);
-	return p;
+	return kmalloc_node(sizeof(task_struct), GFP_KERNEL, node);
 }
 
 void free_task_struct(struct task_struct *p)
 {
-	if (atomic_dec_and_test((atomic_t *)(p+1)))
-		kfree(p);
+	kfree(p);
 }
 
 static void core_sleep_idle(void)
