@@ -373,21 +373,8 @@ writeback_single_inode(struct inode *inode, struct bdi_writeback *wb,
 		WARN_ON(inode->i_state & I_WILL_FREE);
 
 	if (inode->i_state & I_SYNC) {
-		/*
-		 * If this inode is locked for writeback and we are not doing
-		 * writeback-for-data-integrity, move it to b_more_io so that
-		 * writeback can proceed with the other inodes on s_io.
-		 *
-		 * We'll have another go at writing back this inode when we
-		 * completed a full scan of b_io.
-		 */
-		if (wbc->sync_mode != WB_SYNC_ALL) {
-			requeue_io(inode, wb);
-			trace_writeback_single_inode_requeue(inode, wbc,
-							     nr_to_write);
+		if (wbc->sync_mode != WB_SYNC_ALL)
 			return 0;
-		}
-
 		/*
 		 * It's a data-integrity sync.  We must wait.
 		 */
@@ -574,6 +561,21 @@ static long writeback_sb_inodes(struct super_block *sb,
 		if (inode->i_state & (I_NEW | I_FREEING | I_WILL_FREE)) {
 			spin_unlock(&inode->i_lock);
 			redirty_tail(inode, wb);
+			continue;
+		}
+		if ((inode->i_state & I_SYNC) && wbc.sync_mode != WB_SYNC_ALL) {
+			/*
+			 * If this inode is locked for writeback and we are not
+			 * doing writeback-for-data-integrity, move it to
+			 * b_more_io so that writeback can proceed with the
+			 * other inodes on s_io.
+			 *
+			 * We'll have another go at writing back this inode
+			 * when we completed a full scan of b_io.
+			 */
+			spin_unlock(&inode->i_lock);
+			requeue_io(inode, wb);
+			trace_writeback_sb_inodes_requeue(inode);
 			continue;
 		}
 		__iget(inode);
