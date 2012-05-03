@@ -127,6 +127,23 @@ static void nfc_hci_msg_rx_work(struct work_struct *work)
 	}
 }
 
+static void __nfc_hci_cmd_completion(struct nfc_hci_dev *hdev, int err,
+				     struct sk_buff *skb)
+{
+	del_timer_sync(&hdev->cmd_timer);
+
+	if (hdev->cmd_pending_msg->cb)
+		hdev->cmd_pending_msg->cb(hdev, err, skb,
+					  hdev->cmd_pending_msg->cb_context);
+	else
+		kfree_skb(skb);
+
+	kfree(hdev->cmd_pending_msg);
+	hdev->cmd_pending_msg = NULL;
+
+	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+}
+
 void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
 			   struct sk_buff *skb)
 {
@@ -137,19 +154,7 @@ void nfc_hci_resp_received(struct nfc_hci_dev *hdev, u8 result,
 		goto exit;
 	}
 
-	del_timer_sync(&hdev->cmd_timer);
-
-	if (hdev->cmd_pending_msg->cb)
-		hdev->cmd_pending_msg->cb(hdev, nfc_hci_result_to_errno(result),
-					  skb,
-					  hdev->cmd_pending_msg->cb_context);
-	else
-		kfree_skb(skb);
-
-	kfree(hdev->cmd_pending_msg);
-	hdev->cmd_pending_msg = NULL;
-
-	queue_work(hdev->msg_tx_wq, &hdev->msg_tx_work);
+	__nfc_hci_cmd_completion(hdev, nfc_hci_result_to_errno(result), skb);
 
 exit:
 	mutex_unlock(&hdev->msg_tx_mutex);
