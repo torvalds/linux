@@ -274,9 +274,20 @@ void iwlagn_send_advance_bt_config(struct iwl_priv *priv)
 		return;
 	}
 
+	/*
+	 * Possible situations when BT needs to take over for receive,
+	 * at the same time where STA needs to response to AP's frame(s),
+	 * reduce the tx power of the required response frames, by that,
+	 * allow the concurrent BT receive & WiFi transmit
+	 * (BT - ANT A, WiFi -ANT B), without interference to one another
+	 *
+	 * Reduced tx power apply to control frames only (ACK/Back/CTS)
+	 * when indicated by the BT config command
+	 */
 	basic.kill_ack_mask = priv->kill_ack_mask;
 	basic.kill_cts_mask = priv->kill_cts_mask;
-	basic.reduce_txpower = priv->reduced_txpower;
+	if (priv->reduced_txpower)
+		basic.reduce_txpower = IWLAGN_BT_REDUCED_TX_PWR;
 	basic.valid = priv->bt_valid;
 
 	/*
@@ -590,6 +601,15 @@ static bool iwlagn_set_kill_msk(struct iwl_priv *priv,
 	return need_update;
 }
 
+/*
+ * Upon RSSI changes, sends a bt config command with following changes
+ *  1. enable/disable "reduced control frames tx power
+ *  2. update the "kill)ack_mask" and "kill_cts_mask"
+ *
+ * If "reduced tx power" is enabled, uCode shall
+ *  1. ACK/Back/CTS rate shall reduced to 6Mbps
+ *  2. not use duplciate 20/40MHz mode
+ */
 static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 				struct iwl_bt_uart_msg *uart_msg)
 {
