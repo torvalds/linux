@@ -25,6 +25,7 @@
 #include <linux/mutex.h>
 #include <linux/async.h>
 #include <linux/pm_runtime.h>
+#include <linux/netdevice.h>
 
 #include "base.h"
 #include "power/power.h"
@@ -1843,15 +1844,60 @@ void device_shutdown(void)
  */
 
 #ifdef CONFIG_PRINTK
-
 int __dev_printk(const char *level, const struct device *dev,
 		 struct va_format *vaf)
 {
+	char dict[128];
+	size_t dictlen = 0;
+	const char *subsys;
+
 	if (!dev)
 		return printk("%s(NULL device *): %pV", level, vaf);
 
-	return printk("%s%s %s: %pV",
-		      level, dev_driver_string(dev), dev_name(dev), vaf);
+	if (dev->class)
+		subsys = dev->class->name;
+	else if (dev->bus)
+		subsys = dev->bus->name;
+	else
+		goto skip;
+
+	dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
+			    "SUBSYSTEM=%s", subsys);
+
+	/*
+	 * Add device identifier DEVICE=:
+	 *   b12:8         block dev_t
+	 *   c127:3        char dev_t
+	 *   n8            netdev ifindex
+	 *   +sound:card0  subsystem:devname
+	 */
+	if (MAJOR(dev->devt)) {
+		char c;
+
+		if (strcmp(subsys, "block") == 0)
+			c = 'b';
+		else
+			c = 'c';
+		dictlen++;
+		dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
+				   "DEVICE=%c%u:%u",
+				   c, MAJOR(dev->devt), MINOR(dev->devt));
+	} else if (strcmp(subsys, "net") == 0) {
+		struct net_device *net = to_net_dev(dev);
+
+		dictlen++;
+		dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
+				    "DEVICE=n%u", net->ifindex);
+	} else {
+		dictlen++;
+		dictlen += snprintf(dict + dictlen, sizeof(dict) - dictlen,
+				    "DEVICE=+%s:%s", subsys, dev_name(dev));
+	}
+skip:
+	return printk_emit(0, level[1] - '0',
+			   dictlen ? dict : NULL, dictlen,
+			   "%s %s: %pV",
+			   dev_driver_string(dev), dev_name(dev), vaf);
 }
 EXPORT_SYMBOL(__dev_printk);
 
