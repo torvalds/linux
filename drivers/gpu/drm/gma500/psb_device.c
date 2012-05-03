@@ -293,7 +293,7 @@ static int psb_chip_setup(struct drm_device *dev)
 {
 	psb_get_core_freq(dev);
 	gma_intel_setup_gmbus(dev);
-	gma_intel_opregion_init(dev);
+	psb_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
 	return 0;
 }

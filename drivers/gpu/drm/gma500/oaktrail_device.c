@@ -466,7 +466,7 @@ static int oaktrail_chip_setup(struct drm_device *dev)
 		return ret;
 	if (vbt->size == 0) {
 		/* Now pull the BIOS data */
-		gma_intel_opregion_init(dev);
+		psb_intel_opregion_init(dev);
 		psb_intel_init_bios(dev);
 	}
 	oaktrail_hdmi_setup(dev);

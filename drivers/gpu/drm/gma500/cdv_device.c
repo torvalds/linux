@@ -157,7 +157,7 @@ static int cdv_backlight_init(struct drm_device *dev)
 
 	cdv_backlight_device->props.brightness =
 			cdv_get_brightness(cdv_backlight_device);
-	cdv_backlight_device->props.max_brightness = cdv_get_max_brightness;
+	cdv_backlight_device->props.max_brightness = cdv_get_max_backlight(dev);
 	backlight_update_status(cdv_backlight_device);
 	dev_priv->backlight_device = cdv_backlight_device;
 	return 0;
@@ -490,7 +490,7 @@ static int cdv_chip_setup(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	INIT_WORK(&dev_priv->hotplug_work, cdv_hotplug_work_func);
 	cdv_get_core_freq(dev);
-	gma_intel_opregion_init(dev);
+	psb_intel_opregion_init(dev);
 	psb_intel_init_bios(dev);
 	cdv_hotplug_enable(dev, false);
 	return 0;

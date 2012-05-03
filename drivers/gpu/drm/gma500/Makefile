@@ -12,8 +12,8 @@ gma500_gfx-y += gem_glue.o \
 	  intel_bios.o \
 	  intel_i2c.o \
 	  intel_gmbus.o \
-	  intel_opregion.o \
 	  mmu.o \
+	  opregion.o \
 	  power.o \
 	  psb_drv.o \
 	  psb_intel_display.o \
