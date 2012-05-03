@@ -612,7 +612,7 @@ struct drm_psb_private {
 	int rpm_enabled;
 
 	/* MID specific */
-	struct oaktrail_vbt vbt_data;
+	bool has_gct;
 	struct oaktrail_gct_data gct_data;
 
 	/* Oaktrail HDMI state */
