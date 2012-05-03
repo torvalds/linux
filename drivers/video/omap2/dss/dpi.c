@@ -297,6 +297,8 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 
 		dispc_runtime_put();
 		dss_runtime_put();
+	} else {
+		dss_mgr_set_timings(dssdev->manager, timings);
 	}
 }
 EXPORT_SYMBOL(dpi_set_timings);
