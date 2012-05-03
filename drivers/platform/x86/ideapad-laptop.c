@@ -784,6 +784,10 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 			case 9:
 				ideapad_sync_rfk_state(priv);
 				break;
+			case 13:
+			case 6:
+				ideapad_input_report(priv, vpc_bit);
+				break;
 			case 4:
 				ideapad_backlight_notify_brightness(priv);
 				break;
@@ -794,7 +798,7 @@ static void ideapad_acpi_notify(struct acpi_device *adevice, u32 event)
 				ideapad_backlight_notify_power(priv);
 				break;
 			default:
-				ideapad_input_report(priv, vpc_bit);
+				pr_info("Unknown event: %lu\n", vpc_bit);
 			}
 		}
 	}
