@@ -977,6 +977,15 @@ config TOUCHSCREEN_GT818_IIC
 config TOUCHSCREEN_PIXCIR
 	tristate "PIXCIR_IIC based touchscreens"
 	depends on I2C2_RK29
+	
+config TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK
+	tristate "Synaptics i2c rmi4 touchscreen"
+	depends on I2C2_RK30
+	help
+	  This enables support for Synaptics RMI over I2C based touchscreens.
+	config TOUCHSCREEN_SYNAPTICS_S3202
+		tristate "SYNAPTICS S3202 touchscreen"
+		depends on TOUCHSCREEN_SYNAPTICS_RMI4_I2C_RK
 
 config D70_L3188A
 	tristate "D70-L3188A based touchscreens"
@@ -988,7 +997,7 @@ config TOUCHSCREEN_GT819
 
 config TOUCHSCREEN_FT5306
 	tristate "FT5306 based touchscreens: FT5306 Interface"
-	depends on I2C2_RK29
+	depends on I2C2_RK29 || I2C2_RK30
 
 config TOUCHSCREEN_FT5406
 	tristate "FT5406 based touchscreens: FT5406 Interface"
