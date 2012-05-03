@@ -454,8 +454,6 @@ static int spcp8x5_open(struct tty_struct *tty, struct usb_serial_port *port)
 	u8 status = 0x30;
 	/* status 0x30 means DSR and CTS = 1 other CDC RI and delta = 0 */
 
-	dbg("%s -  port %d", __func__, port->number);
-
 	usb_clear_halt(serial->dev, port->write_urb->pipe);
 	usb_clear_halt(serial->dev, port->read_urb->pipe);
 
