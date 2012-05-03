@@ -408,6 +408,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 			return -ENOMEM;
 	}
 
+	memset(dev_priv->vram_addr + backing->offset, 0, size);
+
 	mutex_lock(&dev->struct_mutex);
 
 	info = framebuffer_alloc(0, device);
