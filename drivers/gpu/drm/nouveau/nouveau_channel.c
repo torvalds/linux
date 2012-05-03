@@ -307,8 +307,7 @@ nouveau_channel_put_unlocked(struct nouveau_channel **pchan)
 	pfifo->reassign(dev, false);
 
 	/* destroy the engine specific contexts */
-	pfifo->destroy_context(chan);
-	for (i = 0; i < NVOBJ_ENGINE_NR; i++) {
+	for (i = NVOBJ_ENGINE_NR - 1; i >= 0; i--) {
 		if (chan->engctx[i])
 			dev_priv->eng[i]->context_del(chan, i);
 		/*XXX: clean this up later, order is important */
