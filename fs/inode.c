@@ -500,7 +500,6 @@ void end_writeback(struct inode *inode)
 	BUG_ON(!list_empty(&inode->i_data.private_list));
 	BUG_ON(!(inode->i_state & I_FREEING));
 	BUG_ON(inode->i_state & I_CLEAR);
-	inode_sync_wait(inode);
 	/* don't need i_lock here, no concurrent mods to i_state */
 	inode->i_state = I_FREEING | I_CLEAR;
 }
@@ -530,6 +529,8 @@ static void evict(struct inode *inode)
 		inode_wb_list_del(inode);
 
 	inode_sb_list_del(inode);
+
+	inode_sync_wait(inode);
 
 	if (op->evict_inode) {
 		op->evict_inode(inode);
