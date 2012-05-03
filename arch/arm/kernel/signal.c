@@ -29,7 +29,6 @@
  */
 #define SWI_SYS_SIGRETURN	(0xef000000|(__NR_sigreturn)|(__NR_OABI_SYSCALL_BASE))
 #define SWI_SYS_RT_SIGRETURN	(0xef000000|(__NR_rt_sigreturn)|(__NR_OABI_SYSCALL_BASE))
-#define SWI_SYS_RESTART		(0xef000000|__NR_restart_syscall|__NR_OABI_SYSCALL_BASE)
 
 /*
  * With EABI, the syscall number has to be loaded into r7.
@@ -47,18 +46,6 @@
 const unsigned long sigreturn_codes[7] = {
 	MOV_R7_NR_SIGRETURN,    SWI_SYS_SIGRETURN,    SWI_THUMB_SIGRETURN,
 	MOV_R7_NR_RT_SIGRETURN, SWI_SYS_RT_SIGRETURN, SWI_THUMB_RT_SIGRETURN,
-};
-
-/*
- * Either we support OABI only, or we have EABI with the OABI
- * compat layer enabled.  In the later case we don't know if
- * user space is EABI or not, and if not we must not clobber r7.
- * Always using the OABI syscall solves that issue and works for
- * all those cases.
- */
-const unsigned long syscall_restart_code[2] = {
-	SWI_SYS_RESTART,	/* swi	__NR_restart_syscall */
-	0xe49df004,		/* ldr	pc, [sp], #4 */
 };
 
 /*
