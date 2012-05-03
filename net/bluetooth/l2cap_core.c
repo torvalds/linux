@@ -1892,14 +1892,14 @@ static struct sk_buff *l2cap_create_basic_pdu(struct l2cap_chan *chan,
 {
 	struct l2cap_conn *conn = chan->conn;
 	struct sk_buff *skb;
-	int err, count, hlen = L2CAP_HDR_SIZE;
+	int err, count;
 	struct l2cap_hdr *lh;
 
 	BT_DBG("chan %p len %d", chan, (int)len);
 
-	count = min_t(unsigned int, (conn->mtu - hlen), len);
+	count = min_t(unsigned int, (conn->mtu - L2CAP_HDR_SIZE), len);
 
-	skb = chan->ops->alloc_skb(chan, count + hlen,
+	skb = chan->ops->alloc_skb(chan, count + L2CAP_HDR_SIZE,
 				   msg->msg_flags & MSG_DONTWAIT);
 	if (IS_ERR(skb))
 		return skb;
