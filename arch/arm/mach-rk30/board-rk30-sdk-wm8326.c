@@ -140,6 +140,27 @@ static int wm831x_mask_interrupt(struct wm831x *Wm831x)
 	/*****************************************************************/
 }
 
+#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
+static int wm831x_low_power_detection(struct wm831x *wm831x)
+{
+	wm831x_reg_write(wm831x,WM831X_AUXADC_CONTROL,0x803f);     //open adc 
+	wm831x_reg_write(wm831x,WM831X_AUXADC_CONTROL,0xd03f);
+	wm831x_reg_write(wm831x,WM831X_AUXADC_SOURCE,0x0001);
+	
+	wm831x_reg_write(wm831x,WM831X_COMPARATOR_CONTROL,0x0001);
+	wm831x_reg_write(wm831x,WM831X_COMPARATOR_1,0x2910);   //set the low power is 3.4v
+	
+	wm831x_reg_write(wm831x,WM831X_INTERRUPT_STATUS_1_MASK,0x99ee);
+	wm831x_set_bits(wm831x,WM831X_SYSTEM_INTERRUPTS_MASK,0x0100,0x0000);
+	if (wm831x_reg_read(wm831x,WM831X_AUXADC_DATA)< 0x1900){
+		printk("The vbat is too low.\n");
+		wm831x_device_shutdown(wm831x);
+	}
+	return 0;
+}
+#endif
+
+
 int wm831x_post_init(struct wm831x *Wm831x)
 {
 	struct regulator *dcdc;
@@ -258,6 +279,11 @@ int wm831x_post_init(struct wm831x *Wm831x)
 	udelay(100);
 
 	wm831x_mask_interrupt(Wm831x);
+
+	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
+	wm831x_low_power_detection(Wm831x);
+	#endif
+	
 	printk("wm831x_post_init end");
 	return 0;
 }

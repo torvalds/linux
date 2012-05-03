@@ -28,6 +28,8 @@
 #include <linux/mfd/wm831x/regulator.h>
 #include <linux/mfd/wm831x/pmu.h>
 
+#include <mach/board.h>
+
 
 /* Current settings - values are 2*2^(reg_val/4) microamps.  These are
  * exported since they are used by multiple drivers.
@@ -420,6 +422,15 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm831x_auxadc_read);
+
+#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
+static irqreturn_t wm831x_vbatlo_irq(int irq, void *irq_data)
+{
+	rk28_send_wakeup_key();
+
+	return IRQ_HANDLED;
+}
+#endif
 
 static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
 {
@@ -1617,14 +1628,32 @@ int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	if (ret != 0)
 		goto err;
 
+	switch (parent) {
+	#ifdef CONFIG_WM8326_VBAT_LOW_DETECTION
+	case WM8326:
+		if (wm831x->irq_base) {
+		ret = request_threaded_irq(wm831x->irq_base +
+					   WM831X_IRQ_AUXADC_DCOMP1,
+					   NULL, wm831x_vbatlo_irq, IRQF_TRIGGER_RISING,
+					   "dcomp1", wm831x);
+			}
+		if (ret < 0)
+			dev_err(wm831x->dev, "dcomp1 IRQ request failed: %d\n",
+				ret);
+		break;
+	#endif
+
+	default:	
 	if (wm831x->irq_base) {
 		ret = request_threaded_irq(wm831x->irq_base +
 					   WM831X_IRQ_AUXADC_DATA,
 					   NULL, wm831x_auxadc_irq, 0,
 					   "auxadc", wm831x);
+		}
 		if (ret < 0)
 			dev_err(wm831x->dev, "AUXADC IRQ request failed: %d\n",
 				ret);
+	
 	}
 
 	/* The core device is up, instantiate the subdevices. */

@@ -325,4 +325,8 @@ config BATTERY_RK30_VOL3V8
 config POWER_ON_CHARGER_DISPLAY
 	bool "Support charger display"
 
+config WM8326_VBAT_LOW_DETECTION
+	tristate "Support for WM8326 battery voltage detection."
+	default n
+
 endif # POWER_SUPPLY
