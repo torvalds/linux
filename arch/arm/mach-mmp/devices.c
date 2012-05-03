@@ -114,7 +114,7 @@ static void u2o_write(void __iomem *base, unsigned int offset,
 
 #if defined(CONFIG_USB_MV_UDC) || defined(CONFIG_USB_EHCI_MV)
 
-#if defined(CONFIG_CPU_PXA910)
+#if defined(CONFIG_CPU_PXA910) || defined(CONFIG_CPU_PXA168)
 
 static DEFINE_MUTEX(phy_lock);
 static int phy_init_cnt;
