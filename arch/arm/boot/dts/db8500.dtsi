@@ -328,6 +328,10 @@
 					interrupt-names = "ONKEY_DBF", "ONKEY_DBR";
 				};
 
+				ab8500-sysctrl {
+					compatible = "stericsson,ab8500-sysctrl";
+				};
+
 				ab8500-regulators {
 					compatible = "stericsson,ab8500-regulator";
 
