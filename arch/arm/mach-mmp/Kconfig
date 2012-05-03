@@ -113,4 +113,11 @@ config CPU_MMP2
 	select CPU_PJ4
 	help
 	  Select code specific to MMP2. MMP2 is ARMv7 compatible.
+
+config USB_EHCI_MV_U2O
+        bool "EHCI support for PXA USB OTG controller"
+	depends on USB_EHCI_MV
+	help
+	  Enables support for OTG controller which can be switched to host mode.
+
 endif
