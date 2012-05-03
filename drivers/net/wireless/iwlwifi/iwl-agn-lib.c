@@ -643,7 +643,7 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 		   BT_UART_MSG_FRAME3OBEX_MSK)))) {
 		/* disable reduced tx power */
 		priv->reduced_txpower = false;
-		priv->bt_valid &= ~IWLAGN_BT_VALID_REDUCED_TX_PWR;
+		priv->bt_valid |= IWLAGN_BT_VALID_REDUCED_TX_PWR;
 		need_update = true;
 	}
 
