@@ -536,8 +536,6 @@ static int ipaq_open(struct tty_struct *tty,
 	int			result = 0;
 	int			retries = connect_retries;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	msleep(1000*initial_wait);
 
 	/*
@@ -593,8 +591,6 @@ static int ipaq_calc_num_ports(struct usb_serial *serial)
 
 static int ipaq_startup(struct usb_serial *serial)
 {
-	dbg("%s", __func__);
-
 	/* Some of the devices in ipaq_id_table[] are composite, and we
 	 * shouldn't bind to all the interfaces.  This test will rule out
 	 * some obviously invalid possibilities.
