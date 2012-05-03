@@ -638,6 +638,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	if(!enable)
 	{
 		dev_drv->open(dev_drv,layer_id,enable); //disable the layer which attached to this fb
+		return 0;
 	}
 	
 	hdmi_var = &info->var;
