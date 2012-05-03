@@ -221,6 +221,11 @@ static int posix_get_boottime(const clockid_t which_clock, struct timespec *tp)
 	return 0;
 }
 
+static int posix_get_tai(clockid_t which_clock, struct timespec *tp)
+{
+	timekeeping_clocktai(tp);
+	return 0;
+}
 
 /*
  * Initialize everything, well, just everything in Posix clocks/timers ;)
@@ -261,6 +266,10 @@ static __init int init_posix_timers(void)
 		.clock_getres	= posix_get_coarse_res,
 		.clock_get	= posix_get_monotonic_coarse,
 	};
+	struct k_clock clock_tai = {
+		.clock_getres	= hrtimer_get_res,
+		.clock_get	= posix_get_tai,
+	};
 	struct k_clock clock_boottime = {
 		.clock_getres	= hrtimer_get_res,
 		.clock_get	= posix_get_boottime,
@@ -278,6 +287,7 @@ static __init int init_posix_timers(void)
 	posix_timers_register_clock(CLOCK_REALTIME_COARSE, &clock_realtime_coarse);
 	posix_timers_register_clock(CLOCK_MONOTONIC_COARSE, &clock_monotonic_coarse);
 	posix_timers_register_clock(CLOCK_BOOTTIME, &clock_boottime);
+	posix_timers_register_clock(CLOCK_TAI, &clock_tai);
 
 	posix_timers_cache = kmem_cache_create("posix_timers_cache",
 					sizeof (struct k_itimer), 0, SLAB_PANIC,
