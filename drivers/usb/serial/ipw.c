@@ -155,8 +155,6 @@ static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 	u8 *buf_flow_init;
 	int result;
 
-	dbg("%s", __func__);
-
 	buf_flow_init = kmemdup(buf_flow_static, 16, GFP_KERNEL);
 	if (!buf_flow_init)
 		return -ENOMEM;
