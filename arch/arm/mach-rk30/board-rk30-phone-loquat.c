@@ -589,10 +589,6 @@ struct ft5406_platform_data ft5306_info = {
 
 #endif
 
-
-static struct spi_board_info board_spi_devices[] = {
-};
-
 /***********************************************************
 *	rk30  backlight
 ************************************************************/
