@@ -497,7 +497,6 @@ static void cpufreq_interactive_boost(void)
 	unsigned long flags;
 	struct cpufreq_interactive_cpuinfo *pcpu;
 
-	trace_cpufreq_interactive_boost(hispeed_freq);
 	spin_lock_irqsave(&up_cpumask_lock, flags);
 
 	for_each_online_cpu(i) {
@@ -536,8 +535,10 @@ static void cpufreq_interactive_input_event(struct input_handle *handle,
 					    unsigned int type,
 					    unsigned int code, int value)
 {
-	if (input_boost_val && type == EV_SYN && code == SYN_REPORT)
+	if (input_boost_val && type == EV_SYN && code == SYN_REPORT) {
+		trace_cpufreq_interactive_boost("input");
 		cpufreq_interactive_boost();
+	}
 }
 
 static void cpufreq_interactive_input_open(struct work_struct *w)
@@ -765,15 +766,35 @@ static ssize_t store_boost(struct kobject *kobj, struct attribute *attr,
 
 	boost_val = val;
 
-	if (boost_val)
+	if (boost_val) {
+		trace_cpufreq_interactive_boost("on");
 		cpufreq_interactive_boost();
-	else
-		trace_cpufreq_interactive_unboost(hispeed_freq);
+	} else {
+		trace_cpufreq_interactive_unboost("off");
+	}
 
 	return count;
 }
 
 define_one_global_rw(boost);
+
+static ssize_t store_boostpulse(struct kobject *kobj, struct attribute *attr,
+				const char *buf, size_t count)
+{
+	int ret;
+	unsigned long val;
+
+	ret = kstrtoul(buf, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	trace_cpufreq_interactive_boost("pulse");
+	cpufreq_interactive_boost();
+	return count;
+}
+
+static struct global_attr boostpulse =
+	__ATTR(boostpulse, 0200, NULL, store_boostpulse);
 
 static struct attribute *interactive_attributes[] = {
 	&hispeed_freq_attr.attr,
@@ -783,6 +804,7 @@ static struct attribute *interactive_attributes[] = {
 	&timer_rate_attr.attr,
 	&input_boost.attr,
 	&boost.attr,
+	&boostpulse.attr,
 	NULL,
 };
 
