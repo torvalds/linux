@@ -427,8 +427,6 @@ static void mct_u232_release(struct usb_serial *serial)
 	struct mct_u232_private *priv;
 	int i;
 
-	dbg("%s", __func__);
-
 	for (i = 0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
 		priv = usb_get_serial_port_data(serial->port[i]);
@@ -445,8 +443,6 @@ static int  mct_u232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags;
 	unsigned char last_lcr;
 	unsigned char last_msr;
-
-	dbg("%s port %d", __func__, port->number);
 
 	/* Compensate for a hardware bug: although the Sitecom U232-P25
 	 * device reports a maximum output packet size of 32 bytes,
@@ -528,8 +524,6 @@ static void mct_u232_dtr_rts(struct usb_serial_port *port, int on)
 
 static void mct_u232_close(struct usb_serial_port *port)
 {
-	dbg("%s port %d", __func__, port->number);
-
 	if (port->serial->dev) {
 		/* shutdown our urbs */
 		usb_kill_urb(port->write_urb);
@@ -572,7 +566,6 @@ static void mct_u232_read_int_callback(struct urb *urb)
 		return;
 	}
 
-	dbg("%s - port %d", __func__, port->number);
 	usb_serial_debug_data(debug, &port->dev, __func__,
 					urb->actual_length, data);
 
@@ -733,8 +726,6 @@ static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
 	unsigned char lcr;
 	unsigned long flags;
 
-	dbg("%sstate=%d", __func__, break_state);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	lcr = priv->last_lcr;
 
@@ -753,8 +744,6 @@ static int mct_u232_tiocmget(struct tty_struct *tty)
 	unsigned int control_state;
 	unsigned long flags;
 
-	dbg("%s", __func__);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -770,8 +759,6 @@ static int mct_u232_tiocmset(struct tty_struct *tty,
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	unsigned int control_state;
 	unsigned long flags;
-
-	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
@@ -796,8 +783,6 @@ static void mct_u232_throttle(struct tty_struct *tty)
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	unsigned int control_state;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	spin_lock_irq(&priv->lock);
 	priv->rx_flags |= THROTTLED;
 	if (C_CRTSCTS(tty)) {
@@ -815,8 +800,6 @@ static void mct_u232_unthrottle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct mct_u232_private *priv = usb_get_serial_port_data(port);
 	unsigned int control_state;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irq(&priv->lock);
 	if ((priv->rx_flags & THROTTLED) && C_CRTSCTS(tty)) {
