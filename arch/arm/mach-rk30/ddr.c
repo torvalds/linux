@@ -1285,7 +1285,10 @@ static __sramfunc void ddr_adjust_config(uint32_t dram_type)
     move_to_Config_state();
 
     //extend capability for debug
-    pGRF_Reg->GRF_SOC_CON[2] = rank_to_row15_en;
+    if(pGRF_Reg->GRF_SOC_CON[2] & (0x1<<1))
+    {
+        pGRF_Reg->GRF_SOC_CON[2] = rank_to_row15_en;
+    }
 
     //set data training address
     pPHY_Reg->DTAR = value;
