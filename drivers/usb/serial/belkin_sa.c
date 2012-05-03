@@ -159,8 +159,6 @@ static void belkin_sa_release(struct usb_serial *serial)
 {
 	int i;
 
-	dbg("%s", __func__);
-
 	for (i = 0; i < serial->num_ports; ++i)
 		kfree(usb_get_serial_port_data(serial->port[i]));
 }
@@ -169,8 +167,6 @@ static int belkin_sa_open(struct tty_struct *tty,
 					struct usb_serial_port *port)
 {
 	int retval;
-
-	dbg("%s port %d", __func__, port->number);
 
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
@@ -187,8 +183,6 @@ static int belkin_sa_open(struct tty_struct *tty,
 
 static void belkin_sa_close(struct usb_serial_port *port)
 {
-	dbg("%s port %d", __func__, port->number);
-
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 }
@@ -464,8 +458,6 @@ static int belkin_sa_tiocmget(struct tty_struct *tty)
 	unsigned long control_state;
 	unsigned long flags;
 
-	dbg("%s", __func__);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -484,8 +476,6 @@ static int belkin_sa_tiocmset(struct tty_struct *tty,
 	int retval;
 	int rts = 0;
 	int dtr = 0;
-
-	dbg("%s", __func__);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	control_state = priv->control_state;
