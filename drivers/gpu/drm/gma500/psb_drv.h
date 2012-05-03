@@ -525,8 +525,8 @@ struct drm_psb_private {
 	 * Register base
 	 */
 
-	uint8_t *sgx_reg;
-	uint8_t *vdc_reg;
+	uint8_t __iomem *sgx_reg;
+	uint8_t __iomem *vdc_reg;
 	uint32_t gatt_free_offset;
 
 	/*
