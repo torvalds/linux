@@ -1986,12 +1986,19 @@ static void rcu_idle_count_callbacks_posted(void)
 #define RCU_IDLE_GP_DELAY 6		/* Roughly one grace period. */
 #define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
+/* Loop counter for rcu_prepare_for_idle(). */
 static DEFINE_PER_CPU(int, rcu_dyntick_drain);
+/* If rcu_dyntick_holdoff==jiffies, don't try to enter dyntick-idle mode. */
 static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
+/* Timer to awaken the CPU if it enters dyntick-idle mode with callbacks. */
 static DEFINE_PER_CPU(struct timer_list, rcu_idle_gp_timer);
+/* Scheduled expiry time for rcu_idle_gp_timer to allow reposting. */
 static DEFINE_PER_CPU(unsigned long, rcu_idle_gp_timer_expires);
+/* Enable special processing on first attempt to enter dyntick-idle mode. */
 static DEFINE_PER_CPU(bool, rcu_idle_first_pass);
+/* Running count of non-lazy callbacks posted, never decremented. */
 static DEFINE_PER_CPU(unsigned long, rcu_nonlazy_posted);
+/* Snapshot of rcu_nonlazy_posted to detect meaningful exits from idle. */
 static DEFINE_PER_CPU(unsigned long, rcu_nonlazy_posted_snap);
 
 /*
@@ -2092,8 +2099,11 @@ static void rcu_idle_gp_timer_func(unsigned long cpu_in)
  */
 static void rcu_prepare_for_idle_init(int cpu)
 {
+	per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 	setup_timer(&per_cpu(rcu_idle_gp_timer, cpu),
 		    rcu_idle_gp_timer_func, cpu);
+	per_cpu(rcu_idle_gp_timer_expires, cpu) = jiffies - 1;
+	per_cpu(rcu_idle_first_pass, cpu) = 1;
 }
 
 /*
@@ -2232,10 +2242,12 @@ static void rcu_prepare_for_idle(int cpu)
 }
 
 /*
- * Keep a running count of callbacks posted so that rcu_prepare_for_idle()
- * can detect when something out of the idle loop posts a callback.
- * Of course, it had better do so either from a trace event designed to
- * be called from idle or from within RCU_NONIDLE().
+ * Keep a running count of the number of non-lazy callbacks posted
+ * on this CPU.  This running counter (which is never decremented) allows
+ * rcu_prepare_for_idle() to detect when something out of the idle loop
+ * posts a callback, even if an equal number of callbacks are invoked.
+ * Of course, callbacks should only be posted from within a trace event
+ * designed to be called from idle or from within RCU_NONIDLE().
  */
 static void rcu_idle_count_callbacks_posted(void)
 {
