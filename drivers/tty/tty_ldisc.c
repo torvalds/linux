@@ -28,7 +28,6 @@
 
 static DEFINE_SPINLOCK(tty_ldisc_lock);
 static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_wait);
-static DECLARE_WAIT_QUEUE_HEAD(tty_ldisc_idle);
 /* Line disc dispatch table */
 static struct tty_ldisc_ops *tty_ldiscs[NR_LDISCS];
 
@@ -65,7 +64,7 @@ static void put_ldisc(struct tty_ldisc *ld)
 		return;
 	}
 	local_irq_restore(flags);
-	wake_up(&tty_ldisc_idle);
+	wake_up(&ld->wq_idle);
 }
 
 /**
@@ -200,6 +199,8 @@ static struct tty_ldisc *tty_ldisc_get(int disc)
 
 	ld->ops = ldops;
 	atomic_set(&ld->users, 1);
+	init_waitqueue_head(&ld->wq_idle);
+
 	return ld;
 }
 
@@ -538,7 +539,7 @@ static void tty_ldisc_flush_works(struct tty_struct *tty)
 static int tty_ldisc_wait_idle(struct tty_struct *tty, long timeout)
 {
 	long ret;
-	ret = wait_event_timeout(tty_ldisc_idle,
+	ret = wait_event_timeout(tty->ldisc->wq_idle,
 			atomic_read(&tty->ldisc->users) == 1, timeout);
 	return ret > 0 ? 0 : -EBUSY;
 }
