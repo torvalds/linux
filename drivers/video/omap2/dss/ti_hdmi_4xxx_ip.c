@@ -1152,6 +1152,14 @@ static void ti_hdmi_4xxx_core_audio_config(struct hdmi_ip_data *ip_data,
 	r = FLD_MOD(r, cfg->en_parallel_aud_input, 2, 2);
 	r = FLD_MOD(r, cfg->en_spdif, 1, 1);
 	hdmi_write_reg(av_base, HDMI_CORE_AV_AUD_MODE, r);
+
+	/* Audio channel mappings */
+	/* TODO: Make channel mapping dynamic. For now, map channels
+	 * in the ALSA order: FL/FR/RL/RR/C/LFE/SL/SR. Remapping is needed as
+	 * HDMI speaker order is different. See CEA-861 Section 6.6.2.
+	 */
+	hdmi_write_reg(av_base, HDMI_CORE_AV_I2S_IN_MAP, 0x78);
+	REG_FLD_MOD(av_base, HDMI_CORE_AV_SWAP_I2S, 1, 5, 5);
 }
 
 static void ti_hdmi_4xxx_core_audio_infoframe_cfg(struct hdmi_ip_data *ip_data,
