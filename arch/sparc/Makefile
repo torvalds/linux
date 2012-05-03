@@ -62,7 +62,6 @@ endif
 endif
 
 head-y                 := arch/sparc/kernel/head_$(BITS).o
-head-y                 += arch/sparc/kernel/init_task.o
 
 core-y                 += arch/sparc/kernel/
 core-y                 += arch/sparc/mm/ arch/sparc/math-emu/
