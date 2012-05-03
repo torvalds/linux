@@ -1,7 +1,7 @@
 #
 #	KMS driver for the GMA500
 #
-ccflags-y += -Iinclude/drm
+ccflags-y += -I$(srctree)/include/drm
 
 gma500_gfx-y += gem_glue.o \
 	  accel_2d.o \
