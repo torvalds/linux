@@ -57,4 +57,12 @@ config ARCH_VEXPRESS_CORTEX_A5_A9_ERRATA
 config ARCH_VEXPRESS_CA9X4
 	bool "Versatile Express Cortex-A9x4 tile"
 
+config ARCH_VEXPRESS_DCSCB
+	bool "Dual Cluster System Control Block (DCSCB) support"
+	depends on MCPM
+	help
+	  Support for the Dual Cluster System Configuration Block (DCSCB).
+	  This is needed to provide CPU and cluster power management
+	  on RTSM implementing big.LITTLE.
+
 endmenu
