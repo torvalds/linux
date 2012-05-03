@@ -194,7 +194,6 @@ static int write_ec_cmd(acpi_handle handle, int cmd, unsigned long data)
 /*
  * debugfs
  */
-#define DEBUGFS_EVENT_LEN (4096)
 static int debugfs_status_show(struct seq_file *s, void *data)
 {
 	unsigned long value;
@@ -315,7 +314,7 @@ static int __devinit ideapad_debugfs_init(struct ideapad_private *priv)
 	node = debugfs_create_file("status", S_IRUGO, priv->debug, NULL,
 				   &debugfs_status_fops);
 	if (!node) {
-		pr_err("failed to create event in debugfs");
+		pr_err("failed to create status in debugfs");
 		goto errout;
 	}
 
