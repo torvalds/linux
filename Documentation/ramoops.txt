@@ -3,7 +3,7 @@ Ramoops oops/panic logger
 
 Sergiu Iordache <sergiu@chromium.org>
 
-Updated: 8 August 2011
+Updated: 17 November 2011
 
 0. Introduction
 
@@ -71,6 +71,6 @@ timestamp and a new line. The dump then continues with the actual data.
 
 4. Reading the data
 
-The dump data can be read from memory (through /dev/mem or other means).
-Getting the module parameters, which are needed in order to parse the data, can
-be done through /sys/module/ramoops/parameters/* .
+The dump data can be read from the pstore filesystem. The format for these
+files is "dmesg-ramoops-N", where N is the record number in memory. To delete
+a stored record from RAM, simply unlink the respective pstore file.
