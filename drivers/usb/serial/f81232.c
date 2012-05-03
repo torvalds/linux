@@ -68,8 +68,6 @@ static void f81232_read_int_callback(struct urb *urb)
 	int status = urb->status;
 	int retval;
 
-	dbg("%s (%d)", __func__, port->number);
-
 	switch (status) {
 	case 0:
 		/* success */
@@ -203,7 +201,6 @@ static int f81232_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		f81232_set_termios(tty, port, &tmp_termios);
 
-	dbg("%s - submitting interrupt urb", __func__);
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
