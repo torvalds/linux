@@ -85,6 +85,7 @@ struct rk29lcd_info {
 	u32 txd_pin;
 	u32 clk_pin;
 	u32 cs_pin;
+	u32	reset_pin;
 	int (*io_init)(void);
 	int (*io_deinit)(void);
 };
