@@ -4861,7 +4861,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 		goto err_dummy_packet;
 	}
 
-	wl->mbox = kmalloc(sizeof(*wl->mbox), GFP_DMA);
+	wl->mbox = kmalloc(sizeof(*wl->mbox), GFP_KERNEL | GFP_DMA);
 	if (!wl->mbox) {
 		ret = -ENOMEM;
 		goto err_fwlog;

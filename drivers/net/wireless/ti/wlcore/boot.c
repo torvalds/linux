@@ -72,7 +72,7 @@ static int wlcore_boot_fw_version(struct wl1271 *wl)
 	struct wl1271_static_data *static_data;
 	int ret;
 
-	static_data = kmalloc(sizeof(*static_data), GFP_DMA);
+	static_data = kmalloc(sizeof(*static_data), GFP_KERNEL | GFP_DMA);
 	if (!static_data) {
 		wl1271_error("Couldn't allocate memory for static data!");
 		return -ENOMEM;
