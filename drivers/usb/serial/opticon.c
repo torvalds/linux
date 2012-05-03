@@ -70,8 +70,6 @@ static void opticon_read_bulk_callback(struct urb *urb)
 	int data_length;
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	switch (status) {
 	case 0:
 		/* success */
@@ -179,8 +177,6 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags;
 	int result = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
 	priv->actually_throttled = false;
@@ -215,8 +211,6 @@ static int opticon_open(struct tty_struct *tty, struct usb_serial_port *port)
 static void opticon_close(struct usb_serial_port *port)
 {
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
-
-	dbg("%s - port %d", __func__, port->number);
 
 	/* shutdown our urbs */
 	usb_kill_urb(priv->bulk_read_urb);
@@ -255,8 +249,6 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	unsigned long flags;
 	int status;
 	struct usb_ctrlrequest *dr;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->outstanding_urbs > URB_UPPER_LIMIT) {
@@ -338,8 +330,6 @@ static int opticon_write_room(struct tty_struct *tty)
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	/*
 	 * We really can take almost anything the user throws at us
 	 * but let's pick a nice big number to tell the tty
@@ -362,7 +352,6 @@ static void opticon_throttle(struct tty_struct *tty)
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
 
-	dbg("%s - port %d", __func__, port->number);
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = true;
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -375,8 +364,6 @@ static void opticon_unthrottle(struct tty_struct *tty)
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
 	int result, was_throttled;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
@@ -399,8 +386,6 @@ static int opticon_tiocmget(struct tty_struct *tty)
 	struct opticon_private *priv = usb_get_serial_data(port->serial);
 	unsigned long flags;
 	int result = 0;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->rts)
@@ -560,8 +545,6 @@ static void opticon_disconnect(struct usb_serial *serial)
 {
 	struct opticon_private *priv = usb_get_serial_data(serial);
 
-	dbg("%s", __func__);
-
 	usb_kill_urb(priv->bulk_read_urb);
 	usb_free_urb(priv->bulk_read_urb);
 }
@@ -569,8 +552,6 @@ static void opticon_disconnect(struct usb_serial *serial)
 static void opticon_release(struct usb_serial *serial)
 {
 	struct opticon_private *priv = usb_get_serial_data(serial);
-
-	dbg("%s", __func__);
 
 	kfree(priv->bulk_in_buffer);
 	kfree(priv);
