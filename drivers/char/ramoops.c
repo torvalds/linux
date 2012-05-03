@@ -243,7 +243,7 @@ static int __init ramoops_probe(struct platform_device *pdev)
 
 	if (!request_mem_region(cxt->phys_addr, cxt->size, "ramoops")) {
 		pr_err("request mem region (0x%lx@0x%llx) failed\n",
-			cxt->size, cxt->phys_addr);
+			cxt->size, (unsigned long long)cxt->phys_addr);
 		err = -EINVAL;
 		goto fail_buf;
 	}
@@ -270,7 +270,8 @@ static int __init ramoops_probe(struct platform_device *pdev)
 	dump_oops = pdata->dump_oops;
 
 	pr_info("attached 0x%lx@0x%llx (%ux0x%zx)\n",
-		cxt->size, cxt->phys_addr, cxt->max_count, cxt->record_size);
+		cxt->size, (unsigned long long)cxt->phys_addr,
+		cxt->max_count, cxt->record_size);
 
 	return 0;
 
