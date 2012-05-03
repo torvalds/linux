@@ -611,7 +611,7 @@ void ui_browser__write_graph(struct ui_browser *browser __used, int graph)
 
 static void __ui_browser__line_arrow_up(struct ui_browser *browser,
 					unsigned int column,
-					u64 start, u64 end, int start_width)
+					u64 start, u64 end)
 {
 	unsigned int row, end_row;
 
@@ -622,7 +622,7 @@ static void __ui_browser__line_arrow_up(struct ui_browser *browser,
 		ui_browser__gotorc(browser, row, column);
 		SLsmg_write_char(SLSMG_LLCORN_CHAR);
 		ui_browser__gotorc(browser, row, column + 1);
-		SLsmg_draw_hline(start_width);
+		SLsmg_draw_hline(2);
 
 		if (row-- == 0)
 			goto out;
@@ -651,7 +651,7 @@ out:
 
 static void __ui_browser__line_arrow_down(struct ui_browser *browser,
 					  unsigned int column,
-					  u64 start, u64 end, int start_width)
+					  u64 start, u64 end)
 {
 	unsigned int row, end_row;
 
@@ -662,7 +662,7 @@ static void __ui_browser__line_arrow_down(struct ui_browser *browser,
 		ui_browser__gotorc(browser, row, column);
 		SLsmg_write_char(SLSMG_ULCORN_CHAR);
 		ui_browser__gotorc(browser, row, column + 1);
-		SLsmg_draw_hline(start_width);
+		SLsmg_draw_hline(2);
 
 		if (row++ == 0)
 			goto out;
@@ -690,12 +690,12 @@ out:
 }
 
 void __ui_browser__line_arrow(struct ui_browser *browser, unsigned int column,
-			      u64 start, u64 end, int start_width)
+			      u64 start, u64 end)
 {
 	if (start > end)
-		__ui_browser__line_arrow_up(browser, column, start, end, start_width);
+		__ui_browser__line_arrow_up(browser, column, start, end);
 	else
-		__ui_browser__line_arrow_down(browser, column, start, end, start_width);
+		__ui_browser__line_arrow_down(browser, column, start, end);
 }
 
 void ui_browser__init(void)

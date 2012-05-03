@@ -32,7 +32,9 @@ struct annotate_browser {
 	bool		    use_offset;
 	bool		    jump_arrows;
 	bool		    searching_backwards;
-	u8		    offset_width;
+	u8		    addr_width;
+	u8		    min_addr_width;
+	u8		    max_addr_width;
 	char		    search_bf[128];
 };
 
@@ -62,7 +64,8 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	bool change_color = (!ab->hide_src_code &&
 			     (!current_entry || (self->use_navkeypressed &&
 					         !self->navkeypressed)));
-	int width = self->width;
+	int width = self->width, printed;
+	char bf[256];
 
 	if (dl->offset != -1 && bdl->percent != 0.0) {
 		ui_browser__set_percent_color(self, bdl->percent, current_entry);
@@ -83,25 +86,27 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 
 	if (!*dl->line)
 		slsmg_write_nstring(" ", width - 7);
-	else if (dl->offset == -1)
-		slsmg_write_nstring(dl->line, width - 7);
-	else {
-		char bf[256];
+	else if (dl->offset == -1) {
+		printed = scnprintf(bf, sizeof(bf), "%*s  ",
+				    ab->addr_width, " ");
+		slsmg_write_nstring(bf, printed);
+		slsmg_write_nstring(dl->line, width - printed - 6);
+	} else {
 		u64 addr = dl->offset;
-		int printed, color = -1;
+		int color = -1;
 
 		if (!ab->use_offset)
 			addr += ab->start;
 
 		if (!ab->use_offset) {
-			printed = scnprintf(bf, sizeof(bf), "  %" PRIx64 ":", addr);
+			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
 			if (bdl->jump_target) {
-				printed = scnprintf(bf, sizeof(bf), "  %*" PRIx64 ":",
-						    ab->offset_width, addr);
+				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
+						    ab->addr_width, addr);
 			} else {
-				printed = scnprintf(bf, sizeof(bf), "  %*s ",
-						    ab->offset_width, " ");
+				printed = scnprintf(bf, sizeof(bf), "%*s  ",
+						    ab->addr_width, " ");
 			}
 		}
 
@@ -137,7 +142,7 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			scnprintf(bf, sizeof(bf), "%-6.6s %s", dl->name, dl->ops.raw);
 		}
 
-		slsmg_write_nstring(bf, width - 9 - printed);
+		slsmg_write_nstring(bf, width - 10 - printed);
 	}
 
 	if (current_entry)
@@ -149,7 +154,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	struct disasm_line *cursor = ab->selection, *target;
 	struct browser_disasm_line *btarget, *bcursor;
-	unsigned int from, to, start_width = 2;
+	unsigned int from, to;
 
 	if (!cursor->ins || !ins__is_jump(cursor->ins) ||
 	    !disasm_line__has_offset(cursor))
@@ -171,11 +176,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 	}
 
 	ui_browser__set_color(browser, HE_COLORSET_CODE);
-
-	if (!bcursor->jump_target)
-		start_width += ab->offset_width + 1;
-
-	__ui_browser__line_arrow(browser, 7, from, to, start_width);
+	__ui_browser__line_arrow(browser, 9 + ab->addr_width, from, to);
 }
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
@@ -186,6 +187,8 @@ static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 	if (ab->jump_arrows)
 		annotate_browser__draw_current_jump(browser);
 
+	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
+	__ui_browser__vline(browser, 7, 0, browser->height - 1);
 	return ret;
 }
 
@@ -618,6 +621,10 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		case 'O':
 		case 'o':
 			self->use_offset = !self->use_offset;
+			if (self->use_offset)
+				self->addr_width = self->min_addr_width;
+			else
+				self->addr_width = self->max_addr_width;
 			continue;
 		case 'j':
 			self->jump_arrows = !self->jump_arrows;
@@ -784,7 +791,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	annotate_browser__mark_jump_targets(&browser, size);
 
-	browser.offset_width = hex_width(size);
+	browser.addr_width = browser.min_addr_width = hex_width(size);
+	browser.max_addr_width = hex_width(sym->end);
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */
