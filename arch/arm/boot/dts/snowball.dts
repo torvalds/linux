@@ -20,6 +20,16 @@
 		reg = <0x00000000 0x20000000>;
 	};
 
+	en_3v3_reg: en_3v3 {
+		compatible = "regulator-fixed";
+                regulator-name = "en-3v3-fixed-supply";
+                regulator-min-microvolt = <3300000>;
+                regulator-max-microvolt = <3300000>;
+                gpios = <&gpio0 26  0x4>; // 26
+                startup-delay-us = <5000>;
+                enable-active-high;
+	};
+
 	gpio_keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
@@ -79,6 +89,9 @@
 				reg = <0 0x10000>;
 				interrupts = <12 0x1>;
 				interrupt-parent = <&gpio4>;
+				vdd33a-supply = <&en_3v3_reg>;
+				vddvario-supply = <&db8500_vape_reg>;
+
 
 				reg-shift = <1>;
 				reg-io-width = <2>;

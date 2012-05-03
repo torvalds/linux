@@ -2735,6 +2735,7 @@ static struct regulator_consumer_supply db8500_vape_consumers[] = {
 	REGULATOR_SUPPLY("vcore", "uart2"),
 	REGULATOR_SUPPLY("v-ape", "nmk-ske-keypad.0"),
 	REGULATOR_SUPPLY("v-hsi", "ste_hsi.0"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x.0"),
 };
 
 static struct regulator_consumer_supply db8500_vsmps2_consumers[] = {
