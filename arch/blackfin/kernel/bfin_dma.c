@@ -90,7 +90,8 @@ static const struct file_operations proc_dma_operations = {
 
 static int __init proc_dma_init(void)
 {
-	return proc_create("dma", 0, NULL, &proc_dma_operations) != NULL;
+	proc_create("dma", 0, NULL, &proc_dma_operations);
+	return 0;
 }
 late_initcall(proc_dma_init);
 #endif
