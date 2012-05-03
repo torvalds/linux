@@ -850,8 +850,19 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 	if (da7210->mclk_rate && (da7210->mclk_rate != sysclk)) {
 		/* PLL mode, disable PLL bypass */
 		snd_soc_update_bits(codec, DA7210_PLL_DIV3, DA7210_PLL_BYP, 0);
+
+		if (!da7210->master) {
+			/* PLL slave mode, also enable SRM */
+			snd_soc_update_bits(codec, DA7210_PLL,
+						   (DA7210_MCLK_SRM_EN |
+						    DA7210_MCLK_DET_EN),
+						   (DA7210_MCLK_SRM_EN |
+						    DA7210_MCLK_DET_EN));
+		}
 	} else {
-		/* PLL bypass mode, enable PLL bypass */
+		/* PLL bypass mode, enable PLL bypass and Auto Detection */
+		snd_soc_update_bits(codec, DA7210_PLL, DA7210_MCLK_DET_EN,
+						       DA7210_MCLK_DET_EN);
 		snd_soc_update_bits(codec, DA7210_PLL_DIV3, DA7210_PLL_BYP,
 							    DA7210_PLL_BYP);
 	}
@@ -1014,18 +1025,9 @@ static int da7210_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 	snd_soc_update_bits(codec, DA7210_PLL_DIV3,
 				   DA7210_PLL_DIV_L_MASK, pll_div3);
 
-	if (da7210->master) {
-		/* In master mode, no need to enable SRM */
-		snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_EN,
-						       DA7210_PLL_EN);
-	} else {
-		/* In slave mode, enable SRM and PLL */
-		snd_soc_update_bits(codec, DA7210_PLL,
-				   (DA7210_PLL_EN | DA7210_MCLK_SRM_EN |
-						     DA7210_MCLK_DET_EN),
-				   (DA7210_PLL_EN | DA7210_MCLK_SRM_EN |
-						    DA7210_MCLK_DET_EN));
-	}
+	/* Enable PLL */
+	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_EN, DA7210_PLL_EN);
+
 	/* Enable active mode */
 	snd_soc_update_bits(codec, DA7210_STARTUP1, DA7210_SC_MST_EN,
 						    DA7210_SC_MST_EN);
