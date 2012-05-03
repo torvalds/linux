@@ -566,13 +566,9 @@ EXPORT_SYMBOL_GPL(zs_destroy_pool);
  * zs_malloc - Allocate block of given size from pool.
  * @pool: pool to allocate from
  * @size: size of block to allocate
- * @page: page no. that holds the object
- * @offset: location of object within page
  *
- * On success, <page, offset> identifies block allocated
- * and 0 is returned. On failure, <page, offset> is set to
- * 0 and -ENOMEM is returned.
- *
+ * On success, handle to the allocated object is returned,
+ * otherwise NULL.
  * Allocation requests with size > ZS_MAX_ALLOC_SIZE will fail.
  */
 void *zs_malloc(struct zs_pool *pool, size_t size)
@@ -667,6 +663,15 @@ void zs_free(struct zs_pool *pool, void *obj)
 }
 EXPORT_SYMBOL_GPL(zs_free);
 
+/**
+ * zs_map_object - get address of allocated object from handle.
+ * @pool: pool from which the object was allocated
+ * @handle: handle returned from zs_malloc
+ *
+ * Before using an object allocated from zs_malloc, it must be mapped using
+ * this function. When done with the object, it must be unmapped using
+ * zs_unmap_object
+*/
 void *zs_map_object(struct zs_pool *pool, void *handle)
 {
 	struct page *page;
