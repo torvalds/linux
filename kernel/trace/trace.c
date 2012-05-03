@@ -5112,7 +5112,8 @@ __init static int tracer_alloc_buffers(void)
 		max_tr.data[i] = &per_cpu(max_tr_data, i);
 	}
 
-	set_buffer_entries(&global_trace, ring_buf_size);
+	set_buffer_entries(&global_trace,
+			   ring_buffer_size(global_trace.buffer, 0));
 #ifdef CONFIG_TRACER_MAX_TRACE
 	set_buffer_entries(&max_tr, 1);
 #endif
