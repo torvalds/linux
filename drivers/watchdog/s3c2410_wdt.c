@@ -40,6 +40,7 @@
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
 #include <linux/err.h>
+#include <linux/of.h>
 
 #include <mach/map.h>
 
@@ -503,8 +504,6 @@ static const struct of_device_id s3c2410_wdt_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c2410_wdt_match);
-#else
-#define s3c2410_wdt_match NULL
 #endif
 
 static struct platform_driver s3c2410wdt_driver = {
@@ -516,7 +515,7 @@ static struct platform_driver s3c2410wdt_driver = {
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "s3c2410-wdt",
-		.of_match_table	= s3c2410_wdt_match,
+		.of_match_table	= of_match_ptr(s3c2410_wdt_match),
 	},
 };
 
