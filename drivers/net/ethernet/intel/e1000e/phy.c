@@ -722,8 +722,24 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 		phy_data |= M88E1000_PSCR_POLARITY_REVERSAL;
 
 	/* Enable downshift on BM (disabled by default) */
-	if (phy->type == e1000_phy_bm)
+	if (phy->type == e1000_phy_bm) {
+		/* For 82574/82583, first disable then enable downshift */
+		if (phy->id == BME1000_E_PHY_ID_R2) {
+			phy_data &= ~BME1000_PSCR_ENABLE_DOWNSHIFT;
+			ret_val = e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL,
+					   phy_data);
+			if (ret_val)
+				return ret_val;
+			/* Commit the changes. */
+			ret_val = e1000e_commit_phy(hw);
+			if (ret_val) {
+				e_dbg("Error committing the PHY changes\n");
+				return ret_val;
+			}
+		}
+
 		phy_data |= BME1000_PSCR_ENABLE_DOWNSHIFT;
+	}
 
 	ret_val = e1e_wphy(hw, M88E1000_PHY_SPEC_CTRL, phy_data);
 	if (ret_val)
