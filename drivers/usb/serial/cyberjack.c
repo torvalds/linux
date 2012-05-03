@@ -122,8 +122,6 @@ static int cyberjack_startup(struct usb_serial *serial)
 	struct cyberjack_private *priv;
 	int i;
 
-	dbg("%s", __func__);
-
 	/* allocate the private data structure */
 	priv = kmalloc(sizeof(struct cyberjack_private), GFP_KERNEL);
 	if (!priv)
@@ -155,8 +153,6 @@ static void cyberjack_disconnect(struct usb_serial *serial)
 {
 	int i;
 
-	dbg("%s", __func__);
-
 	for (i = 0; i < serial->num_ports; ++i)
 		usb_kill_urb(serial->port[i]->interrupt_in_urb);
 }
@@ -164,8 +160,6 @@ static void cyberjack_disconnect(struct usb_serial *serial)
 static void cyberjack_release(struct usb_serial *serial)
 {
 	int i;
-
-	dbg("%s", __func__);
 
 	for (i = 0; i < serial->num_ports; ++i) {
 		/* My special items, the standard routines free my urbs */
@@ -179,8 +173,6 @@ static int  cyberjack_open(struct tty_struct *tty,
 	struct cyberjack_private *priv;
 	unsigned long flags;
 	int result = 0;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	dbg("%s - usb_clear_halt", __func__);
 	usb_clear_halt(port->serial->dev, port->write_urb->pipe);
@@ -197,8 +189,6 @@ static int  cyberjack_open(struct tty_struct *tty,
 
 static void cyberjack_close(struct usb_serial_port *port)
 {
-	dbg("%s - port %d", __func__, port->number);
-
 	if (port->serial->dev) {
 		/* shutdown any bulk reads that might be going on */
 		usb_kill_urb(port->write_urb);
@@ -213,8 +203,6 @@ static int cyberjack_write(struct tty_struct *tty,
 	unsigned long flags;
 	int result;
 	int wrexpected;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	if (count == 0) {
 		dbg("%s - write request of 0 bytes", __func__);
@@ -307,8 +295,6 @@ static void cyberjack_read_int_callback(struct urb *urb)
 	int status = urb->status;
 	int result;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	/* the urb might have been killed. */
 	if (status)
 		return;
@@ -367,8 +353,6 @@ static void cyberjack_read_bulk_callback(struct urb *urb)
 	int result;
 	int status = urb->status;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	usb_serial_debug_data(debug, &port->dev, __func__,
 						urb->actual_length, data);
 	if (status) {
@@ -416,8 +400,6 @@ static void cyberjack_write_bulk_callback(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	struct cyberjack_private *priv = usb_get_serial_port_data(port);
 	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	set_bit(0, &port->write_urbs_free);
 	if (status) {
