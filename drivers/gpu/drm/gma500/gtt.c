@@ -61,7 +61,7 @@ static inline uint32_t psb_gtt_mask_pte(uint32_t pfn, int type)
  *	Given a gtt_range object return the GTT offset of the page table
  *	entries for this gtt_range
  */
-static u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
+static u32 __iomem *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	unsigned long offset;
@@ -82,7 +82,8 @@ static u32 *psb_gtt_entry(struct drm_device *dev, struct gtt_range *r)
  */
 static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 {
-	u32 *gtt_slot, pte;
+	u32 __iomem *gtt_slot;
+	u32 pte;
 	struct page **pages;
 	int i;
 
@@ -126,7 +127,8 @@ static int psb_gtt_insert(struct drm_device *dev, struct gtt_range *r)
 static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	u32 *gtt_slot, pte;
+	u32 __iomem *gtt_slot;
+	u32 pte;
 	int i;
 
 	WARN_ON(r->stolen);
@@ -152,7 +154,8 @@ static void psb_gtt_remove(struct drm_device *dev, struct gtt_range *r)
  */
 void psb_gtt_roll(struct drm_device *dev, struct gtt_range *r, int roll)
 {
-	u32 *gtt_slot, pte;
+	u32 __iomem *gtt_slot;
+	u32 pte;
 	int i;
 
 	if (roll >= r->npage) {
