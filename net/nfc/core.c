@@ -571,12 +571,17 @@ int nfc_targets_found(struct nfc_dev *dev,
 
 	pr_debug("dev_name=%s n_targets=%d\n", dev_name(&dev->dev), n_targets);
 
-	dev->polling = false;
-
 	for (i = 0; i < n_targets; i++)
 		targets[i].idx = dev->target_next_idx++;
 
 	device_lock(&dev->dev);
+
+	if (dev->polling == false) {
+		device_unlock(&dev->dev);
+		return 0;
+	}
+
+	dev->polling = false;
 
 	dev->targets_generation++;
 
