@@ -54,8 +54,6 @@ static void symbol_int_callback(struct urb *urb)
 	int result;
 	int data_length;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	switch (status) {
 	case 0:
 		/* success */
@@ -125,8 +123,6 @@ static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port)
 	unsigned long flags;
 	int result = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
 	priv->actually_throttled = false;
@@ -150,8 +146,6 @@ static void symbol_close(struct usb_serial_port *port)
 {
 	struct symbol_private *priv = usb_get_serial_data(port->serial);
 
-	dbg("%s - port %d", __func__, port->number);
-
 	/* shutdown our urbs */
 	usb_kill_urb(priv->int_urb);
 }
@@ -161,7 +155,6 @@ static void symbol_throttle(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct symbol_private *priv = usb_get_serial_data(port->serial);
 
-	dbg("%s - port %d", __func__, port->number);
 	spin_lock_irq(&priv->lock);
 	priv->throttled = true;
 	spin_unlock_irq(&priv->lock);
@@ -173,8 +166,6 @@ static void symbol_unthrottle(struct tty_struct *tty)
 	struct symbol_private *priv = usb_get_serial_data(port->serial);
 	int result;
 	bool was_throttled;
-
-	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irq(&priv->lock);
 	priv->throttled = false;
@@ -266,8 +257,6 @@ static void symbol_disconnect(struct usb_serial *serial)
 {
 	struct symbol_private *priv = usb_get_serial_data(serial);
 
-	dbg("%s", __func__);
-
 	usb_kill_urb(priv->int_urb);
 	usb_free_urb(priv->int_urb);
 }
@@ -275,8 +264,6 @@ static void symbol_disconnect(struct usb_serial *serial)
 static void symbol_release(struct usb_serial *serial)
 {
 	struct symbol_private *priv = usb_get_serial_data(serial);
-
-	dbg("%s", __func__);
 
 	kfree(priv->int_buffer);
 	kfree(priv);
