@@ -182,10 +182,21 @@ int __nf_ct_try_assign_helper(struct nf_conn *ct, struct nf_conn *tmpl,
 	struct net *net = nf_ct_net(ct);
 	int ret = 0;
 
+	/* We already got a helper explicitly attached. The function
+	 * nf_conntrack_alter_reply - in case NAT is in use - asks for looking
+	 * the helper up again. Since now the user is in full control of
+	 * making consistent helper configurations, skip this automatic
+	 * re-lookup, otherwise we'll lose the helper.
+	 */
+	if (test_bit(IPS_HELPER_BIT, &ct->status))
+		return 0;
+
 	if (tmpl != NULL) {
 		help = nfct_help(tmpl);
-		if (help != NULL)
+		if (help != NULL) {
 			helper = help->helper;
+			set_bit(IPS_HELPER_BIT, &ct->status);
+		}
 	}
 
 	help = nfct_help(ct);
