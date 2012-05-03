@@ -106,6 +106,19 @@ config UCB1400_CORE
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_core.
 
+config MFD_LM3533
+	tristate "LM3533 Lighting Power chip"
+	depends on I2C
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to enable support for National Semiconductor / TI
+	  LM3533 Lighting Power chips.
+
+	  This driver provides common support for accessing the device;
+	  additional drivers must be enabled in order to use the LED,
+	  backlight or ambient-light-sensor functionality of the device.
+
 config TPS6105X
 	tristate "TPS61050/61052 Boost Converters"
 	depends on I2C

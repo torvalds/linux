@@ -1,0 +1,38 @@
+What:		/sys/bus/i2c/devices/.../boost_freq
+Date:		April 2012
+KernelVersion:	3.5
+Contact:	Johan Hovold <jhovold@gmail.com>
+Description:
+		Set the boost converter switching frequency (0, 1), where
+
+		0 -  500Hz
+		1 - 1000Hz
+
+What:		/sys/bus/i2c/devices/.../boost_ovp
+Date:		April 2012
+KernelVersion:	3.5
+Contact:	Johan Hovold <jhovold@gmail.com>
+Description:
+		Set the boost converter over-voltage protection threshold
+		(0..3), where
+
+		0 - 16V
+		1 - 24V
+		2 - 32V
+		3 - 40V
+
+What:		/sys/bus/i2c/devices/.../output_hvled[n]
+Date:		April 2012
+KernelVersion:	3.5
+Contact:	Johan Hovold <jhovold@gmail.com>
+Description:
+		Set the controlling backlight device for high-voltage current
+		sink HVLED[n] (n = 1, 2) (0, 1).
+
+What:		/sys/bus/i2c/devices/.../output_lvled[n]
+Date:		April 2012
+KernelVersion:	3.5
+Contact:	Johan Hovold <jhovold@gmail.com>
+Description:
+		Set the controlling led device for low-voltage current sink
+		LVLED[n] (n = 1..5) (0..3).
