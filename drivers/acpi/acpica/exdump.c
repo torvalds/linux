@@ -109,9 +109,9 @@ static struct acpi_exdump_info acpi_ex_dump_package[5] = {
 static struct acpi_exdump_info acpi_ex_dump_device[4] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_device), NULL},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.handler), "Handler"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(device.notify_list[1]),
 	 "Device Notify"}
 };
 
@@ -158,9 +158,9 @@ static struct acpi_exdump_info acpi_ex_dump_power[5] = {
 	 "System Level"},
 	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(power_resource.resource_order),
 	 "Resource Order"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(power_resource.notify_list[1]),
 	 "Device Notify"}
 };
 
@@ -169,18 +169,18 @@ static struct acpi_exdump_info acpi_ex_dump_processor[7] = {
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(processor.proc_id), "Processor ID"},
 	{ACPI_EXD_UINT8, ACPI_EXD_OFFSET(processor.length), "Length"},
 	{ACPI_EXD_ADDRESS, ACPI_EXD_OFFSET(processor.address), "Address"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.notify_list[1]),
 	 "Device Notify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(processor.handler), "Handler"}
 };
 
 static struct acpi_exdump_info acpi_ex_dump_thermal[4] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_thermal), NULL},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.system_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.notify_list[0]),
 	 "System Notify"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.device_notify),
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.notify_list[1]),
 	 "Device Notify"},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(thermal_zone.handler), "Handler"}
 };
@@ -241,10 +241,15 @@ static struct acpi_exdump_info acpi_ex_dump_address_handler[6] = {
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(address_space.context), "Context"}
 };
 
-static struct acpi_exdump_info acpi_ex_dump_notify[3] = {
+static struct acpi_exdump_info acpi_ex_dump_notify[7] = {
 	{ACPI_EXD_INIT, ACPI_EXD_TABLE_SIZE(acpi_ex_dump_notify), NULL},
 	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.node), "Node"},
-	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.context), "Context"}
+	{ACPI_EXD_UINT32, ACPI_EXD_OFFSET(notify.handler_type), "Handler Type"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.handler), "Handler"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.context), "Context"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.next[0]),
+	 "Next System Notify"},
+	{ACPI_EXD_POINTER, ACPI_EXD_OFFSET(notify.next[1]), "Next Device Notify"}
 };
 
 /* Miscellaneous tables */

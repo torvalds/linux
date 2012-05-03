@@ -304,8 +304,8 @@ acpi_status acpi_ut_init_globals(void)
 
 	/* Global handlers */
 
-	acpi_gbl_system_notify.handler = NULL;
-	acpi_gbl_device_notify.handler = NULL;
+	acpi_gbl_global_notify[0].handler = NULL;
+	acpi_gbl_global_notify[1].handler = NULL;
 	acpi_gbl_exception_handler = NULL;
 	acpi_gbl_init_handler = NULL;
 	acpi_gbl_table_handler = NULL;

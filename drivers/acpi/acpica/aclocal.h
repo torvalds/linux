@@ -600,13 +600,22 @@ acpi_status(*acpi_parse_downwards) (struct acpi_walk_state * walk_state,
 
 typedef acpi_status(*acpi_parse_upwards) (struct acpi_walk_state * walk_state);
 
+/* Global handlers for AML Notifies */
+
+struct acpi_global_notify_handler {
+	acpi_notify_handler handler;
+	void *context;
+};
+
 /*
  * Notify info - used to pass info to the deferred notify
  * handler/dispatcher.
  */
 struct acpi_notify_info {
-	ACPI_STATE_COMMON struct acpi_namespace_node *node;
-	union acpi_operand_object *handler_obj;
+	ACPI_STATE_COMMON u8 handler_list_id;
+	struct acpi_namespace_node *node;
+	union acpi_operand_object *handler_list_head;
+	struct acpi_global_notify_handler *global;
 };
 
 /* Generic state is union of structs above */

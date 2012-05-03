@@ -706,9 +706,13 @@ typedef u32 acpi_event_status;
 #define ACPI_DEVICE_NOTIFY              0x2
 #define ACPI_ALL_NOTIFY                 (ACPI_SYSTEM_NOTIFY | ACPI_DEVICE_NOTIFY)
 #define ACPI_MAX_NOTIFY_HANDLER_TYPE    0x3
+#define ACPI_NUM_NOTIFY_TYPES           2
 
 #define ACPI_MAX_SYS_NOTIFY             0x7F
 #define ACPI_MAX_DEVICE_SPECIFIC_NOTIFY 0xBF
+
+#define ACPI_SYSTEM_HANDLER_LIST        0	/* Used as index, must be SYSTEM_NOTIFY -1 */
+#define ACPI_DEVICE_HANDLER_LIST        1	/* Used as index, must be DEVICE_NOTIFY -1 */
 
 /* Address Space (Operation Region) Types */
 

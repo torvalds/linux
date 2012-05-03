@@ -152,7 +152,7 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
 
-		/* Walk the notify handler list for this object */
+		/* Walk the address handler list for this object */
 
 		handler_desc = object->common_notify.handler;
 		while (handler_desc) {
@@ -480,6 +480,7 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 	acpi_status status = AE_OK;
 	union acpi_generic_state *state_list = NULL;
 	union acpi_operand_object *next_object = NULL;
+	union acpi_operand_object *prev_object;
 	union acpi_generic_state *state;
 	u32 i;
 
@@ -505,12 +506,21 @@ acpi_ut_update_object_reference(union acpi_operand_object *object, u16 action)
 		case ACPI_TYPE_POWER:
 		case ACPI_TYPE_THERMAL:
 
-			/* Update the notify objects for these types (if present) */
-
-			acpi_ut_update_ref_count(object->common_notify.
-						 system_notify, action);
-			acpi_ut_update_ref_count(object->common_notify.
-						 device_notify, action);
+			/*
+			 * Update the notify objects for these types (if present)
+			 * Two lists, system and device notify handlers.
+			 */
+			for (i = 0; i < ACPI_NUM_NOTIFY_TYPES; i++) {
+				prev_object =
+				    object->common_notify.notify_list[i];
+				while (prev_object) {
+					next_object =
+					    prev_object->notify.next[i];
+					acpi_ut_update_ref_count(prev_object,
+								 action);
+					prev_object = next_object;
+				}
+			}
 			break;
 
 		case ACPI_TYPE_PACKAGE:
