@@ -2561,7 +2561,7 @@ s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw)
 			break;
 		else
 			/* Use interrupt-safe sleep just in case */
-			udelay(10);
+			udelay(1000);
 	}
 
 	/* For informational purposes only */
