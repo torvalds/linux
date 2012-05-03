@@ -113,6 +113,10 @@ struct ti_hdmi_ip_ops {
 	int (*audio_enable)(struct hdmi_ip_data *ip_data);
 
 	void (*audio_disable)(struct hdmi_ip_data *ip_data);
+
+	int (*audio_start)(struct hdmi_ip_data *ip_data);
+
+	void (*audio_stop)(struct hdmi_ip_data *ip_data);
 #endif
 
 };
@@ -190,5 +194,7 @@ void ti_hdmi_4xxx_phy_dump(struct hdmi_ip_data *ip_data, struct seq_file *s);
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
 int ti_hdmi_4xxx_wp_audio_enable(struct hdmi_ip_data *ip_data);
 void ti_hdmi_4xxx_wp_audio_disable(struct hdmi_ip_data *ip_data);
+int ti_hdmi_4xxx_audio_start(struct hdmi_ip_data *ip_data);
+void ti_hdmi_4xxx_audio_stop(struct hdmi_ip_data *ip_data);
 #endif
 #endif
