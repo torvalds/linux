@@ -2141,7 +2141,7 @@ static int tsi148_slot_get(struct vme_bridge *tsi148_bridge)
 	return (int)slot;
 }
 
-void *tsi148_alloc_consistent(struct device *parent, size_t size,
+static void *tsi148_alloc_consistent(struct device *parent, size_t size,
 	dma_addr_t *dma)
 {
 	struct pci_dev *pdev;
@@ -2152,8 +2152,8 @@ void *tsi148_alloc_consistent(struct device *parent, size_t size,
 	return pci_alloc_consistent(pdev, size, dma);
 }
 
-void tsi148_free_consistent(struct device *parent, size_t size, void *vaddr,
-	dma_addr_t dma)
+static void tsi148_free_consistent(struct device *parent, size_t size,
+	void *vaddr, dma_addr_t dma)
 {
 	struct pci_dev *pdev;
 
