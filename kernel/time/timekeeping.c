@@ -513,6 +513,48 @@ error: /* even if we error out, we forwarded the time, so call update */
 }
 EXPORT_SYMBOL(timekeeping_inject_offset);
 
+
+/**
+ * timekeeping_get_tai_offset - Returns current TAI offset from UTC
+ *
+ */
+s32 timekeeping_get_tai_offset(void)
+{
+	struct timekeeper *tk = &timekeeper;
+	unsigned int seq;
+	s32 ret;
+
+	do {
+		seq = read_seqbegin(&tk->lock);
+		ret = tk->tai_offset;
+	} while (read_seqretry(&tk->lock, seq));
+
+	return ret;
+}
+
+/**
+ * __timekeeping_set_tai_offset - Lock free worker function
+ *
+ */
+void __timekeeping_set_tai_offset(struct timekeeper *tk, s32 tai_offset)
+{
+	tk->tai_offset = tai_offset;
+}
+
+/**
+ * timekeeping_set_tai_offset - Sets the current TAI offset from UTC
+ *
+ */
+void timekeeping_set_tai_offset(s32 tai_offset)
+{
+	struct timekeeper *tk = &timekeeper;
+	unsigned long flags;
+
+	write_seqlock_irqsave(&tk->lock, flags);
+	__timekeeping_set_tai_offset(tk, tai_offset);
+	write_sequnlock_irqrestore(&tk->lock, flags);
+}
+
 /**
  * change_clocksource - Swaps clocksources if a new one is available
  *
@@ -1142,6 +1184,8 @@ static inline void accumulate_nsecs_to_secs(struct timekeeper *tk)
 			ts.tv_nsec = 0;
 			tk_set_wall_to_mono(tk,
 				timespec_sub(tk->wall_to_monotonic, ts));
+
+			__timekeeping_set_tai_offset(tk, tk->tai_offset - leap);
 
 			clock_was_set_delayed();
 		}

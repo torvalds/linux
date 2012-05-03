@@ -62,6 +62,9 @@ struct timekeeper {
 	ktime_t			offs_boot;
 	/* The raw monotonic time for the CLOCK_MONOTONIC_RAW posix clock. */
 	struct timespec		raw_time;
+	/* The current UTC to TAI offset in seconds */
+	s32			tai_offset;
+
 	/* Seqlock for all timekeeper values */
 	seqlock_t		lock;
 };
