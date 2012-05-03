@@ -1210,7 +1210,11 @@ int intel_ring_begin(struct intel_ring_buffer *ring,
 
 void intel_ring_advance(struct intel_ring_buffer *ring)
 {
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+
 	ring->tail &= ring->size - 1;
+	if (dev_priv->stop_rings & intel_ring_flag(ring))
+		return;
 	ring->write_tail(ring, ring->tail);
 }
 

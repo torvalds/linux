@@ -412,6 +412,8 @@ typedef struct drm_i915_private {
 	uint32_t last_instdone;
 	uint32_t last_instdone1;
 
+	unsigned int stop_rings;
+
 	unsigned long cfb_size;
 	unsigned int cfb_fb;
 	enum plane cfb_plane;

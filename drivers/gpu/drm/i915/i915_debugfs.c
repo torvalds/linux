@@ -1586,6 +1586,64 @@ static const struct file_operations i915_wedged_fops = {
 };
 
 static ssize_t
+i915_ring_stop_read(struct file *filp,
+		    char __user *ubuf,
+		    size_t max,
+		    loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	char buf[20];
+	int len;
+
+	len = snprintf(buf, sizeof(buf),
+		       "0x%08x\n", dev_priv->stop_rings);
+
+	if (len > sizeof(buf))
+		len = sizeof(buf);
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static ssize_t
+i915_ring_stop_write(struct file *filp,
+		     const char __user *ubuf,
+		     size_t cnt,
+		     loff_t *ppos)
+{
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	char buf[20];
+	int val = 0;
+
+	if (cnt > 0) {
+		if (cnt > sizeof(buf) - 1)
+			return -EINVAL;
+
+		if (copy_from_user(buf, ubuf, cnt))
+			return -EFAULT;
+		buf[cnt] = 0;
+
+		val = simple_strtoul(buf, NULL, 0);
+	}
+
+	DRM_DEBUG_DRIVER("Stopping rings 0x%08x\n", val);
+
+	mutex_lock(&dev->struct_mutex);
+	dev_priv->stop_rings = val;
+	mutex_unlock(&dev->struct_mutex);
+
+	return cnt;
+}
+
+static const struct file_operations i915_ring_stop_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_ring_stop_read,
+	.write = i915_ring_stop_write,
+	.llseek = default_llseek,
+};
+static ssize_t
 i915_max_freq_read(struct file *filp,
 		   char __user *ubuf,
 		   size_t max,
@@ -1885,6 +1943,11 @@ int i915_debugfs_init(struct drm_minor *minor)
 				  &i915_cache_sharing_fops);
 	if (ret)
 		return ret;
+	ret = i915_debugfs_create(minor->debugfs_root, minor,
+				  "i915_ring_stop",
+				  &i915_ring_stop_fops);
+	if (ret)
+		return ret;
 
 	return drm_debugfs_create_files(i915_debugfs_list,
 					I915_DEBUGFS_ENTRIES,
@@ -1902,6 +1965,8 @@ void i915_debugfs_cleanup(struct drm_minor *minor)
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_max_freq_fops,
 				 1, minor);
 	drm_debugfs_remove_files((struct drm_info_list *) &i915_cache_sharing_fops,
+				 1, minor);
+	drm_debugfs_remove_files((struct drm_info_list *) &i915_ring_stop_fops,
 				 1, minor);
 }
 
