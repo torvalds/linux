@@ -93,7 +93,7 @@ void do_remaining_work(struct rts51x_chip *chip)
 		ms_cleanup_work(chip);
 }
 
-void do_reset_xd_card(struct rts51x_chip *chip)
+static void do_reset_xd_card(struct rts51x_chip *chip)
 {
 	int retval;
 
@@ -147,7 +147,7 @@ void do_reset_sd_card(struct rts51x_chip *chip)
 	}
 }
 
-void do_reset_ms_card(struct rts51x_chip *chip)
+static void do_reset_ms_card(struct rts51x_chip *chip)
 {
 	int retval;
 
@@ -174,7 +174,7 @@ void do_reset_ms_card(struct rts51x_chip *chip)
 	}
 }
 
-void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
+static void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 		      u8 *need_release)
 {
 	int retval;
@@ -701,7 +701,7 @@ u8 get_lun_card(struct rts51x_chip *chip, unsigned int lun)
 	return 0;
 }
 
-int card_share_mode(struct rts51x_chip *chip, int card)
+static int card_share_mode(struct rts51x_chip *chip, int card)
 {
 	u8 value;
 

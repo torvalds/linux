@@ -108,7 +108,7 @@ static inline void usb_autopm_disable(struct usb_interface *intf)
 	usb_autopm_get_interface(intf);
 }
 
-void rts51x_try_to_enter_ss(struct rts51x_chip *chip)
+static void rts51x_try_to_enter_ss(struct rts51x_chip *chip)
 {
 	RTS51X_DEBUGP("Ready to enter SS state\n");
 	usb_autopm_enable(chip->usb->pusb_intf);
@@ -201,7 +201,7 @@ int rts51x_reset_resume(struct usb_interface *iface)
 
 #else /* CONFIG_PM */
 
-void rts51x_try_to_enter_ss(struct rts51x_chip *chip)
+static void rts51x_try_to_enter_ss(struct rts51x_chip *chip)
 {
 }
 

@@ -183,7 +183,6 @@ enum xfer_buf_dir { TO_XFER_BUF, FROM_XFER_BUF };
 
 /* General routines provided by the usb-storage standard core */
 #ifdef CONFIG_PM
-void rts51x_try_to_enter_ss(struct rts51x_chip *chip);
 void rts51x_try_to_exit_ss(struct rts51x_chip *chip);
 int rts51x_suspend(struct usb_interface *iface, pm_message_t message);
 int rts51x_resume(struct usb_interface *iface);
