@@ -1587,7 +1587,6 @@ nfsd4_exchange_id(struct svc_rqst *rqstp,
 		 * Falling into 18.35.4 case 2, possible router replay.
 		 * Leave confirmed record intact and return same result.
 		 */
-		copy_verf(conf, &verf);
 		new = conf;
 		goto out_copy;
 	}
