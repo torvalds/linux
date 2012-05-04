@@ -822,7 +822,7 @@ nve0_graph_create(struct drm_device *dev)
 	NVOBJ_CLASS(dev, 0xa0c0, GR); /* subc 1: COMPUTE */
 	NVOBJ_CLASS(dev, 0xa040, GR); /* subc 2: P2MF */
 	NVOBJ_CLASS(dev, 0x902d, GR); /* subc 3: 2D */
-	//NVOBJ_CLASS(dev, 0xa0b5, GR); /* subc 4: COPY */
+	NVOBJ_CLASS(dev, 0xa0b5, GR); /* subc 4: COPY */
 	return 0;
 
 error:

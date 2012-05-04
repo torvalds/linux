@@ -509,73 +509,16 @@ nouveau_card_channel_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
-	int ret, oclass;
+	int ret;
 
 	ret = nouveau_channel_alloc(dev, &chan, NULL, NvDmaFB, NvDmaTT);
 	dev_priv->channel = chan;
 	if (ret)
 		return ret;
-
 	mutex_unlock(&dev_priv->channel->mutex);
 
-	if (dev_priv->card_type <= NV_50) {
-		if (dev_priv->card_type < NV_50)
-			oclass = 0x0039;
-		else
-			oclass = 0x5039;
-
-		ret = nouveau_gpuobj_gr_new(chan, NvM2MF, oclass);
-		if (ret)
-			goto error;
-
-		ret = nouveau_notifier_alloc(chan, NvNotify0, 32, 0xfe0, 0x1000,
-					     &chan->m2mf_ntfy);
-		if (ret)
-			goto error;
-
-		ret = RING_SPACE(chan, 6);
-		if (ret)
-			goto error;
-
-		BEGIN_NV04(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_NAME, 1);
-		OUT_RING  (chan, NvM2MF);
-		BEGIN_NV04(chan, NvSubM2MF, NV_MEMORY_TO_MEMORY_FORMAT_DMA_NOTIFY, 3);
-		OUT_RING  (chan, NvNotify0);
-		OUT_RING  (chan, chan->vram_handle);
-		OUT_RING  (chan, chan->gart_handle);
-	} else
-	if (dev_priv->card_type <= NV_D0) {
-		ret = nouveau_gpuobj_gr_new(chan, 0x9039, 0x9039);
-		if (ret)
-			goto error;
-
-		ret = RING_SPACE(chan, 2);
-		if (ret)
-			goto error;
-
-		BEGIN_NVC0(chan, NvSubM2MF, 0x0000, 1);
-		OUT_RING  (chan, 0x00009039);
-	} else
-	if (dev_priv->card_type <= NV_E0) {
-		/* not used, but created to get a graph context */
-		ret = nouveau_gpuobj_gr_new(chan, 0xa040, 0xa040);
-		if (ret)
-			goto error;
-
-		/* bind strange copy engine to subchannel 4 (fixed...) */
-		ret = RING_SPACE(chan, 2);
-		if (ret)
-			goto error;
-
-		BEGIN_NVC0(chan, NvSubCopy, 0x0000, 1);
-		OUT_RING  (chan, 0x0000a0b5);
-	}
-
-	FIRE_RING (chan);
-error:
-	if (ret)
-		nouveau_card_channel_fini(dev);
-	return ret;
+	nouveau_bo_move_init(chan);
+	return 0;
 }
 
 static const struct vga_switcheroo_client_ops nouveau_switcheroo_ops = {

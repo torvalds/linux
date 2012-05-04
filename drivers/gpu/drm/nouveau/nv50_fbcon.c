@@ -201,8 +201,7 @@ nv50_fbcon_accel_init(struct fb_info *info)
 
 	BEGIN_NV04(chan, NvSub2D, 0x0000, 1);
 	OUT_RING(chan, Nv2D);
-	BEGIN_NV04(chan, NvSub2D, 0x0180, 4);
-	OUT_RING(chan, NvNotify0);
+	BEGIN_NV04(chan, NvSub2D, 0x0184, 3);
 	OUT_RING(chan, chan->vram_handle);
 	OUT_RING(chan, chan->vram_handle);
 	OUT_RING(chan, chan->vram_handle);

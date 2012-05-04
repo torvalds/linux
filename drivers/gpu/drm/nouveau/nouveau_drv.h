@@ -693,6 +693,9 @@ struct drm_nouveau_private {
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 		atomic_t validate_sequence;
+		int (*move)(struct nouveau_channel *,
+			    struct ttm_buffer_object *,
+			    struct ttm_mem_reg *, struct ttm_mem_reg *);
 	} ttm;
 
 	struct {
@@ -930,7 +933,7 @@ extern void nouveau_channel_put_unlocked(struct nouveau_channel **);
 extern void nouveau_channel_put(struct nouveau_channel **);
 extern void nouveau_channel_ref(struct nouveau_channel *chan,
 				struct nouveau_channel **pchan);
-extern void nouveau_channel_idle(struct nouveau_channel *chan);
+extern int  nouveau_channel_idle(struct nouveau_channel *chan);
 
 /* nouveau_object.c */
 #define NVOBJ_ENGINE_ADD(d, e, p) do {                                         \
@@ -1322,6 +1325,7 @@ extern int nv04_crtc_create(struct drm_device *, int index);
 
 /* nouveau_bo.c */
 extern struct ttm_bo_driver nouveau_bo_driver;
+extern void nouveau_bo_move_init(struct nouveau_channel *);
 extern int nouveau_bo_new(struct drm_device *, int size, int align,
 			  uint32_t flags, uint32_t tile_mode,
 			  uint32_t tile_flags,

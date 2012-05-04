@@ -508,7 +508,6 @@ nouveau_gpuobj_gr_new(struct nouveau_channel *chan, u32 handle, int class)
 		return eng->object_new(chan, oc->engine, handle, class);
 	}
 
-	NV_ERROR(dev, "illegal object class: 0x%x\n", class);
 	return -EINVAL;
 }
 

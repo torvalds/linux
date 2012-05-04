@@ -48,13 +48,12 @@ void nv50_dma_push(struct nouveau_channel *, struct nouveau_bo *,
 
 /* Hardcoded object assignments to subchannels (subchannel id). */
 enum {
-	NvSubM2MF	= 0,
+	NvSubCtxSurf2D  = 0,
 	NvSubSw		= 1,
-	NvSubCtxSurf2D  = 2,
+	NvSubImageBlit  = 2,
 	NvSub2D		= 3,
 	NvSubGdiRect    = 3,
 	NvSubCopy	= 4,
-	NvSubImageBlit  = 4
 };
 
 /* Object handles. */
@@ -74,6 +73,7 @@ enum {
 	NvSema		= 0x8000000f,
 	NvEvoSema0	= 0x80000010,
 	NvEvoSema1	= 0x80000011,
+	NvNotify1       = 0x80000012,
 
 	/* G80+ display objects */
 	NvEvoVRAM	= 0x01000000,

@@ -355,7 +355,7 @@ nouveau_channel_ref(struct nouveau_channel *chan,
 	*pchan = chan;
 }
 
-void
+int
 nouveau_channel_idle(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
@@ -370,6 +370,7 @@ nouveau_channel_idle(struct nouveau_channel *chan)
 
 	if (ret)
 		NV_ERROR(dev, "Failed to idle channel %d.\n", chan->id);
+	return ret;
 }
 
 /* cleans up all the fifos from file_priv */
