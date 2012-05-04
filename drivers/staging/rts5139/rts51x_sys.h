@@ -33,10 +33,6 @@
 
 #define USING_POLLING_CYCLE_DELINK
 
-extern int  rts51x_check_start_time(struct rts51x_chip *chip);
-extern void rts51x_set_start_time(struct rts51x_chip *chip);
-extern void rts51x_clear_start_time(struct rts51x_chip *chip);
-
 /* typedef dma_addr_t ULONG_PTR; */
 
 static inline void rts51x_reset_detected_cards(struct rts51x_chip *chip)

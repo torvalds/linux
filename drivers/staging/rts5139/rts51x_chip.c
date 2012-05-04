@@ -144,7 +144,6 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 		card_power_on(chip, SD_CARD | MS_CARD | XD_CARD);
 		wait_timeout(10);
 	}
-	rts51x_clear_start_time(chip);
 
 	return STATUS_SUCCESS;
 }
@@ -252,19 +251,6 @@ static inline void rts51x_blink_led(struct rts51x_chip *chip)
 	}
 }
 #endif
-
-int rts51x_check_start_time(struct rts51x_chip *chip)
-{
-	return 0;
-}
-
-void rts51x_set_start_time(struct rts51x_chip *chip)
-{
-}
-
-void rts51x_clear_start_time(struct rts51x_chip *chip)
-{
-}
 
 static void rts51x_auto_delink_cmd(struct rts51x_chip *chip)
 {
@@ -484,7 +470,6 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 		rts51x_auto_delink(chip);
 	} else {
 		chip->auto_delink_counter = 0;
-		rts51x_clear_start_time(chip);
 	}
 }
 

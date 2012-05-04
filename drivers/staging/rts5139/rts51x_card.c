@@ -191,7 +191,6 @@ void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 		goto Exit_Debounce;
 
 	if (chip->card_exist) {
-		rts51x_clear_start_time(chip);
 		retval = rts51x_read_register(chip, CARD_INT_PEND, &value);
 		if (retval != STATUS_SUCCESS) {
 			rts51x_ep0_write_register(chip, MC_FIFO_CTL, FIFO_FLUSH,
@@ -214,17 +213,11 @@ void card_cd_debounce(struct rts51x_chip *chip, u8 *need_reset,
 		}
 	} else {
 		if (chip->card_status & XD_CD) {
-			rts51x_clear_start_time(chip);
 			reset_map |= XD_CARD;
 		} else if (chip->card_status & SD_CD) {
-			rts51x_clear_start_time(chip);
 			reset_map |= SD_CARD;
 		} else if (chip->card_status & MS_CD) {
-			rts51x_clear_start_time(chip);
 			reset_map |= MS_CARD;
-		} else {
-			if (rts51x_check_start_time(chip))
-				rts51x_set_start_time(chip);
 		}
 	}
 
