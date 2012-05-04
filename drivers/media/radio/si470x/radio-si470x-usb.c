@@ -367,23 +367,6 @@ static int si470x_get_scratch_page_versions(struct si470x_device *radio)
 
 
 /**************************************************************************
- * General Driver Functions - DISCONNECT_CHECK
- **************************************************************************/
-
-/*
- * si470x_disconnect_check - check whether radio disconnects
- */
-int si470x_disconnect_check(struct si470x_device *radio)
-{
-	if (radio->disconnected)
-		return -EIO;
-	else
-		return 0;
-}
-
-
-
-/**************************************************************************
  * RDS Driver Functions
  **************************************************************************/
 
@@ -414,9 +397,6 @@ static void si470x_int_in_callback(struct urb *urb)
 		}
 	}
 
-	/* safety checks */
-	if (radio->disconnected)
-		return;
 	if ((radio->registers[SYSCONFIG1] & SYSCONFIG1_RDS) == 0)
 		goto resubmit;
 
@@ -512,19 +492,16 @@ resubmit:
 int si470x_fops_open(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	int retval;
+	int retval = v4l2_fh_open(file);
 
-	mutex_lock(&radio->lock);
-	radio->users++;
+	if (retval)
+		return retval;
 
 	retval = usb_autopm_get_interface(radio->intf);
-	if (retval < 0) {
-		radio->users--;
-		retval = -EIO;
+	if (retval < 0)
 		goto done;
-	}
 
-	if (radio->users == 1) {
+	if (v4l2_fh_is_singular_file(file)) {
 		/* start radio */
 		retval = si470x_start(radio);
 		if (retval < 0) {
@@ -555,7 +532,8 @@ int si470x_fops_open(struct file *file)
 	}
 
 done:
-	mutex_unlock(&radio->lock);
+	if (retval)
+		v4l2_fh_release(file);
 	return retval;
 }
 
@@ -566,45 +544,36 @@ done:
 int si470x_fops_release(struct file *file)
 {
 	struct si470x_device *radio = video_drvdata(file);
-	int retval = 0;
 
-	/* safety check */
-	if (!radio) {
-		retval = -ENODEV;
-		goto done;
-	}
-
-	mutex_lock(&radio->lock);
-	radio->users--;
-	if (radio->users == 0) {
+	if (v4l2_fh_is_singular_file(file)) {
 		/* shutdown interrupt handler */
 		if (radio->int_in_running) {
 			radio->int_in_running = 0;
-		if (radio->int_in_urb)
-			usb_kill_urb(radio->int_in_urb);
-		}
-
-		if (radio->disconnected) {
-			video_unregister_device(radio->videodev);
-			kfree(radio->int_in_buffer);
-			kfree(radio->buffer);
-			mutex_unlock(&radio->lock);
-			kfree(radio);
-			goto done;
+			if (radio->int_in_urb)
+				usb_kill_urb(radio->int_in_urb);
 		}
 
 		/* cancel read processes */
 		wake_up_interruptible(&radio->read_queue);
 
 		/* stop radio */
-		retval = si470x_stop(radio);
+		si470x_stop(radio);
 		usb_autopm_put_interface(radio->intf);
 	}
-	mutex_unlock(&radio->lock);
-done:
-	return retval;
+	return v4l2_fh_release(file);
 }
 
+static void si470x_usb_release(struct video_device *vdev)
+{
+	struct si470x_device *radio = video_get_drvdata(vdev);
+
+	usb_free_urb(radio->int_in_urb);
+	v4l2_ctrl_handler_free(&radio->hdl);
+	v4l2_device_unregister(&radio->v4l2_dev);
+	kfree(radio->int_in_buffer);
+	kfree(radio->buffer);
+	kfree(radio);
+}
 
 
 /**************************************************************************
@@ -623,9 +592,9 @@ int si470x_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(capability->card, DRIVER_CARD, sizeof(capability->card));
 	usb_make_path(radio->usbdev, capability->bus_info,
 			sizeof(capability->bus_info));
-	capability->capabilities = V4L2_CAP_HW_FREQ_SEEK |
+	capability->device_caps = V4L2_CAP_HW_FREQ_SEEK |
 		V4L2_CAP_TUNER | V4L2_CAP_RADIO | V4L2_CAP_RDS_CAPTURE;
-
+	capability->capabilities = capability->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -653,8 +622,6 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		retval = -ENOMEM;
 		goto err_initial;
 	}
-	radio->users = 0;
-	radio->disconnected = 0;
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->intf = intf;
 	mutex_init(&radio->lock);
@@ -691,20 +658,34 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 		goto err_intbuffer;
 	}
 
-	/* video device allocation and initialization */
-	radio->videodev = video_device_alloc();
-	if (!radio->videodev) {
-		retval = -ENOMEM;
+	retval = v4l2_device_register(&intf->dev, &radio->v4l2_dev);
+	if (retval < 0) {
+		dev_err(&intf->dev, "couldn't register v4l2_device\n");
 		goto err_urb;
 	}
-	memcpy(radio->videodev, &si470x_viddev_template,
-			sizeof(si470x_viddev_template));
-	video_set_drvdata(radio->videodev, radio);
+
+	v4l2_ctrl_handler_init(&radio->hdl, 2);
+	v4l2_ctrl_new_std(&radio->hdl, &si470x_ctrl_ops,
+			  V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
+	v4l2_ctrl_new_std(&radio->hdl, &si470x_ctrl_ops,
+			  V4L2_CID_AUDIO_VOLUME, 0, 15, 1, 15);
+	if (radio->hdl.error) {
+		retval = radio->hdl.error;
+		dev_err(&intf->dev, "couldn't register control\n");
+		goto err_dev;
+	}
+	radio->videodev = si470x_viddev_template;
+	radio->videodev.ctrl_handler = &radio->hdl;
+	radio->videodev.lock = &radio->lock;
+	radio->videodev.v4l2_dev = &radio->v4l2_dev;
+	radio->videodev.release = si470x_usb_release;
+	set_bit(V4L2_FL_USE_FH_PRIO, &radio->videodev.flags);
+	video_set_drvdata(&radio->videodev, radio);
 
 	/* get device and chip versions */
 	if (si470x_get_all_registers(radio) < 0) {
 		retval = -EIO;
-		goto err_video;
+		goto err_ctrl;
 	}
 	dev_info(&intf->dev, "DeviceID=0x%4.4hx ChipID=0x%4.4hx\n",
 			radio->registers[DEVICEID], radio->registers[CHIPID]);
@@ -721,7 +702,7 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	/* get software and hardware versions */
 	if (si470x_get_scratch_page_versions(radio) < 0) {
 		retval = -EIO;
-		goto err_video;
+		goto err_ctrl;
 	}
 	dev_info(&intf->dev, "software version %d, hardware version %d\n",
 			radio->software_version, radio->hardware_version);
@@ -764,28 +745,30 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	radio->buffer = kmalloc(radio->buf_size, GFP_KERNEL);
 	if (!radio->buffer) {
 		retval = -EIO;
-		goto err_video;
+		goto err_ctrl;
 	}
 
 	/* rds buffer configuration */
 	radio->wr_index = 0;
 	radio->rd_index = 0;
 	init_waitqueue_head(&radio->read_queue);
+	usb_set_intfdata(intf, radio);
 
 	/* register video device */
-	retval = video_register_device(radio->videodev, VFL_TYPE_RADIO,
+	retval = video_register_device(&radio->videodev, VFL_TYPE_RADIO,
 			radio_nr);
 	if (retval) {
 		dev_warn(&intf->dev, "Could not register video device\n");
 		goto err_all;
 	}
-	usb_set_intfdata(intf, radio);
 
 	return 0;
 err_all:
 	kfree(radio->buffer);
-err_video:
-	video_device_release(radio->videodev);
+err_ctrl:
+	v4l2_ctrl_handler_free(&radio->hdl);
+err_dev:
+	v4l2_device_unregister(&radio->v4l2_dev);
 err_urb:
 	usb_free_urb(radio->int_in_urb);
 err_intbuffer:
@@ -828,23 +811,10 @@ static void si470x_usb_driver_disconnect(struct usb_interface *intf)
 	struct si470x_device *radio = usb_get_intfdata(intf);
 
 	mutex_lock(&radio->lock);
-	radio->disconnected = 1;
+	v4l2_device_disconnect(&radio->v4l2_dev);
+	video_unregister_device(&radio->videodev);
 	usb_set_intfdata(intf, NULL);
-	if (radio->users == 0) {
-		/* set led to disconnect state */
-		si470x_set_led_state(radio, BLINK_ORANGE_LED);
-
-		/* Free data structures. */
-		usb_free_urb(radio->int_in_urb);
-
-		kfree(radio->int_in_buffer);
-		video_unregister_device(radio->videodev);
-		kfree(radio->buffer);
-		mutex_unlock(&radio->lock);
-		kfree(radio);
-	} else {
-		mutex_unlock(&radio->lock);
-	}
+	mutex_unlock(&radio->lock);
 }
 
 
