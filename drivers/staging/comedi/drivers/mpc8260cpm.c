@@ -46,75 +46,6 @@ struct mpc8260cpm_private {
 
 #define devpriv ((struct mpc8260cpm_private *)dev->private)
 
-static int mpc8260cpm_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it);
-static int mpc8260cpm_detach(struct comedi_device *dev);
-static struct comedi_driver driver_mpc8260cpm = {
-	.driver_name = "mpc8260cpm",
-	.module = THIS_MODULE,
-	.attach = mpc8260cpm_attach,
-	.detach = mpc8260cpm_detach,
-};
-
-static int __init driver_mpc8260cpm_init_module(void)
-{
-	return comedi_driver_register(&driver_mpc8260cpm);
-}
-
-static void __exit driver_mpc8260cpm_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_mpc8260cpm);
-}
-
-module_init(driver_mpc8260cpm_init_module);
-module_exit(driver_mpc8260cpm_cleanup_module);
-
-static int mpc8260cpm_dio_config(struct comedi_device *dev,
-				 struct comedi_subdevice *s,
-				 struct comedi_insn *insn, unsigned int *data);
-static int mpc8260cpm_dio_bits(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data);
-
-static int mpc8260cpm_attach(struct comedi_device *dev,
-			     struct comedi_devconfig *it)
-{
-	struct comedi_subdevice *s;
-	int i;
-
-	printk("comedi%d: mpc8260cpm: ", dev->minor);
-
-	dev->board_ptr = mpc8260cpm_boards + dev->board;
-
-	dev->board_name = thisboard->name;
-
-	if (alloc_private(dev, sizeof(struct mpc8260cpm_private)) < 0)
-		return -ENOMEM;
-
-	if (alloc_subdevices(dev, 4) < 0)
-		return -ENOMEM;
-
-	for (i = 0; i < 4; i++) {
-		s = dev->subdevices + i;
-		s->type = COMEDI_SUBD_DIO;
-		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
-		s->n_chan = 32;
-		s->maxdata = 1;
-		s->range_table = &range_digital;
-		s->insn_config = mpc8260cpm_dio_config;
-		s->insn_bits = mpc8260cpm_dio_bits;
-	}
-
-	return 1;
-}
-
-static int mpc8260cpm_detach(struct comedi_device *dev)
-{
-	printk("comedi%d: mpc8260cpm: remove\n", dev->minor);
-
-	return 0;
-}
-
 static unsigned long *cpm_pdat(int port)
 {
 	switch (port) {
@@ -184,3 +115,50 @@ static int mpc8260cpm_dio_bits(struct comedi_device *dev,
 
 	return 2;
 }
+
+static int mpc8260cpm_attach(struct comedi_device *dev,
+			     struct comedi_devconfig *it)
+{
+	struct comedi_subdevice *s;
+	int i;
+
+	printk("comedi%d: mpc8260cpm: ", dev->minor);
+
+	dev->board_ptr = mpc8260cpm_boards + dev->board;
+
+	dev->board_name = thisboard->name;
+
+	if (alloc_private(dev, sizeof(struct mpc8260cpm_private)) < 0)
+		return -ENOMEM;
+
+	if (alloc_subdevices(dev, 4) < 0)
+		return -ENOMEM;
+
+	for (i = 0; i < 4; i++) {
+		s = dev->subdevices + i;
+		s->type = COMEDI_SUBD_DIO;
+		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
+		s->n_chan = 32;
+		s->maxdata = 1;
+		s->range_table = &range_digital;
+		s->insn_config = mpc8260cpm_dio_config;
+		s->insn_bits = mpc8260cpm_dio_bits;
+	}
+
+	return 1;
+}
+
+static int mpc8260cpm_detach(struct comedi_device *dev)
+{
+	printk("comedi%d: mpc8260cpm: remove\n", dev->minor);
+
+	return 0;
+}
+
+static struct comedi_driver mpc8260cpm_driver = {
+	.driver_name	= "mpc8260cpm",
+	.module		= THIS_MODULE,
+	.attach		= mpc8260cpm_attach,
+	.detach		= mpc8260cpm_detach,
+};
+module_comedi_driver(mpc8260cpm_driver);
