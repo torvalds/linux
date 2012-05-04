@@ -1,0 +1,10 @@
+description	"Load gator driver module and launch gator daemon"
+author		"Pawel Moll <pawel.moll@arm.com>"
+
+start on filesystem
+
+exec /usr/sbin/gatord -c /var/lib/gatord/configuration.xml
+
+pre-start script
+	modprobe -q gator || true
+end script

@@ -1,0 +1,98 @@
+gator (5.10.0) precise; urgency=low
+
+  * New release from ARM.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Thu, 10 May 2012 16:47:32 +0000
+
+gator (5.9.7) precise; urgency=low
+
+  * New source and binary package layout with automated packaging scripts.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 2 May 2012 17:01:18 +0000
+
+gator-daemon (5.9-6) precise; urgency=low
+
+  * Remove Depends: gator-module* as Linaro kernels should
+    now all contain the required module.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 25 Apr 2012 18:06:28 +0000
+
+gator-daemon (5.9-5) precise; urgency=low
+
+  * Move to armhf and Precise
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 25 Apr 2012 10:16:00 +0000
+
+gator-daemon (5.9-4) oneiric; urgency=low
+
+  * Add alternative Depends on gator-module-in-tree.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Fri, 16 Mar 2012 18:24:27 +0000
+
+gator-daemon (5.9-3) oneiric; urgency=low
+
+  * Add missing build depends: 'quilt'.
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Thu, 23 Feb 2012 13:59:08 +0000
+
+gator-daemon (5.9-2) oneiric; urgency=low
+
+  [ Wade Cherry ]
+  * Fix counters initialisation
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Thu, 23 Feb 2012 12:06:33 +0000
+
+gator-daemon (5.9-1) oneiric; urgency=low
+
+  * New upstream release (DS-5.9)
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Mon, 20 Feb 2012 10:35:47 +0000
+
+gator-daemon (5.9~rc1-1) oneiric; urgency=low
+
+  * New upstream release (DS-5.9)
+
+ -- Jon Medhurst (Tixy) <jon.medhurst@linaro.org>  Wed, 15 Feb 2012 14:38:26 +0000
+
+gator-daemon (5.8-1) oneiric; urgency=low
+
+  * New upstream release
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@linaro.org>  Fri, 25 Nov 2011 12:41:57 -0200
+
+gator-daemon (5.8~rc2-1) oneiric; urgency=low
+
+  * New upstream version (DS-5.8~rc2)
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@linaro.org>  Wed, 16 Nov 2011 15:30:07 -0200
+
+gator-daemon (5.7-2) natty; urgency=low
+
+  * Package now depends on the new gator-module meta package
+
+ -- Ricardo Salveti de Araujo <ricardo.salveti@linaro.org>  Mon, 10 Oct 2011 23:39:34 -0300
+
+gator-daemon (5.7-1) natty; urgency=low
+
+  * Updated to DS-5.7 release
+  * Added sources (GPLv2)
+
+ -- Pawel Moll <pawel.moll@arm.com>  Fri, 30 Sep 2011 16:02:05 +0100
+
+gator-daemon (5.6-2) natty; urgency=low
+
+  * Added dependency on 5.6 version of the gator-module[-dkms]
+
+ -- Pawel Moll <pawel.moll@arm.com>  Tue, 13 Sep 2011 15:59:37 +0100
+
+gator-daemon (5.6-1) natty; urgency=low
+
+  * Updated to DS-5.6 release
+
+ -- Pawel Moll <pawel.moll@arm.com>  Wed, 03 Aug 2011 11:54:40 +0100
+
+gator-daemon (5.5-1) natty; urgency=low
+
+  * Initial release
+
+ -- Pawel Moll <pawel.moll@arm.com>  Mon, 06 Jun 2011 18:42:31 +0100

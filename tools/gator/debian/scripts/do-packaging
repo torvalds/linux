@@ -1,0 +1,86 @@
+#!/bin/bash
+
+set -e
+
+while [ $1 ]
+do
+	OPT=$1
+	shift
+	if [ "$OPT" == "--commit" ]
+	then
+		OPT_COMMIT=y
+		continue
+	fi
+	if [ "$OPT" == "--sign" ]
+	then
+		OPT_SIGN=y
+		continue
+	fi
+	echo $0: Unknown option: "$OPT" 1>&2
+	exit 1
+done
+
+
+#
+# Clean working dirctory
+#
+
+git reset --hard HEAD
+git clean -dfx ..
+
+
+#
+# Update changelog
+#
+
+if [ "$DEBEMAIL" == "" -o "$DEBFULLNAME" == "" ]
+then
+	export DEBEMAIL='jon.medhurst@linaro.org'
+	export DEBFULLNAME='Jon Medhurst (Tixy)'
+fi
+dch -i -c debian/changelog CHANGE_MSG
+
+TIMESTAMP="$(date -u +%Y%m%d%H%M%S)"
+sed -i -e "1 s/ubuntu1/-$TIMESTAMP/" debian/changelog
+
+GIT_COMMIT="$(git rev-parse HEAD)"
+GIT_REMOTE_AND_BRANCH="$(git show-ref | sed -n 's,'$GIT_COMMIT'.*refs/remotes/\(.*\),\1,p' | sed -n 1p)"
+GIT_REMOTE=$(echo $GIT_REMOTE_AND_BRANCH | awk -F/ '{print $1}')
+GIT_BRANCH=$(echo $GIT_REMOTE_AND_BRANCH | awk -F/ '{print $2}')
+GIT_URL="$(git remote -v show $GIT_REMOTE | sed -n 's/.*Fetch URL: \(.*\)/\1/p')"
+GIT_TAG="$(git describe --exact-match --tags $GIT_COMMIT 2>/dev/null || echo "")"
+
+CHANGE_MSG="Automatically packaged from git repository:\n"
+CHANGE_MSG="$CHANGE_MSG    URL:    $GIT_URL\n"
+CHANGE_MSG="$CHANGE_MSG    Tag:    $GIT_TAG\n"
+CHANGE_MSG="$CHANGE_MSG    Branch: $GIT_BRANCH\n"
+CHANGE_MSG="$CHANGE_MSG    Commit: $GIT_COMMIT"
+sed -i -e "s%CHANGE_MSG%$CHANGE_MSG%" debian/changelog
+
+echo $CHANGE_MSG
+
+VERSION="$(sed -n '1s/.*(\(.*\)).*/\1/p' debian/changelog)"
+
+
+#
+# Commit changes
+#
+
+if [ $OPT_COMMIT ]
+then
+	git add debian/changelog
+	git commit -s -m "gator-$VERSION: Automated packaging"
+fi
+
+
+#
+# Build packages
+#
+
+if [ ! $OPT_SIGN ]
+then
+	DEBUILD_SIGN="-us -uc"
+fi
+
+debuild $DEBUILD_SIGN -aarmhf -b
+debuild --no-tgz-check $DEBUILD_SIGN -S
