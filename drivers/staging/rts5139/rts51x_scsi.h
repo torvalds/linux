@@ -150,11 +150,7 @@ int slave_alloc(struct scsi_device *sdev);
 int slave_configure(struct scsi_device *sdev);
 int proc_info(struct Scsi_Host *host, char *buffer,
 	      char **start, off_t offset, int length, int inout);
-#if 0 /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37) */
-int queuecommand(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *));
-#else
 int queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
-#endif
 int command_abort(struct scsi_cmnd *srb);
 int device_reset(struct scsi_cmnd *srb);
 int bus_reset(struct scsi_cmnd *srb);
