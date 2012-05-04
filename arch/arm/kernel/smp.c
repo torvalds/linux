@@ -454,6 +454,9 @@ static struct local_timer_ops *lt_ops;
 #ifdef CONFIG_LOCAL_TIMERS
 int local_timer_register(struct local_timer_ops *ops)
 {
+	if (!is_smp() || !setup_max_cpus)
+		return -ENXIO;
+
 	if (lt_ops)
 		return -EBUSY;
 
