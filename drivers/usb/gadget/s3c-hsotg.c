@@ -147,6 +147,7 @@ struct s3c_hsotg_ep {
  * @ep0_buff: Buffer for EP0 reply data, if needed.
  * @ctrl_buff: Buffer for EP0 control requests.
  * @ctrl_req: Request for EP0 control packets.
+ * @setup: NAK management for EP0 SETUP
  * @eps: The endpoints being supplied to the gadget framework
  */
 struct s3c_hsotg {
@@ -173,6 +174,7 @@ struct s3c_hsotg {
 	u8			ctrl_buff[8];
 
 	struct usb_gadget	gadget;
+	unsigned int		setup;
 	struct s3c_hsotg_ep	eps[];
 };
 
@@ -696,7 +698,8 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 	}
 
 	length = ureq->length - ureq->actual;
-
+	dev_dbg(hsotg->dev, "ureq->length:%d ureq->actual:%d\n",
+		ureq->length, ureq->actual);
 	if (0)
 		dev_dbg(hsotg->dev,
 			"REQ buf %p len %d dma 0x%08x noi=%d zp=%d snok=%d\n",
@@ -762,7 +765,15 @@ static void s3c_hsotg_start_req(struct s3c_hsotg *hsotg,
 
 	ctrl |= S3C_DxEPCTL_EPEna;	/* ensure ep enabled */
 	ctrl |= S3C_DxEPCTL_USBActEp;
-	ctrl |= S3C_DxEPCTL_CNAK;	/* clear NAK set by core */
+
+	dev_dbg(hsotg->dev, "setup req:%d\n", hsotg->setup);
+
+	/* For Setup request do not clear NAK */
+	if (hsotg->setup && index == 0)
+		hsotg->setup = 0;
+	else
+		ctrl |= S3C_DxEPCTL_CNAK;	/* clear NAK set by core */
+
 
 	dev_dbg(hsotg->dev, "%s: DxEPCTL=0x%08x\n", __func__, ctrl);
 	writel(ctrl, hsotg->regs + epctrl_reg);
@@ -1527,6 +1538,12 @@ static void s3c_hsotg_handle_outdone(struct s3c_hsotg *hsotg,
 	if (req->actual < req->length && size_left == 0) {
 		s3c_hsotg_start_req(hsotg, hs_ep, hs_req, true);
 		return;
+	} else if (epnum == 0) {
+		/*
+		 * After was_setup = 1 =>
+		 * set CNAK for non Setup requests
+		 */
+		hsotg->setup = was_setup ? 0 : 1;
 	}
 
 	if (req->actual < req->length && req->short_not_ok) {
