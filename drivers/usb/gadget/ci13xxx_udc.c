@@ -1650,8 +1650,8 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	gadget_for_each_ep(ep, gadget) {
 		usb_ep_fifo_flush(ep);
 	}
-	usb_ep_fifo_flush(&udc->ep0out.ep);
-	usb_ep_fifo_flush(&udc->ep0in.ep);
+	usb_ep_fifo_flush(&udc->ep0out->ep);
+	usb_ep_fifo_flush(&udc->ep0in->ep);
 
 	udc->driver->disconnect(gadget);
 
@@ -1661,7 +1661,7 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	}
 
 	if (udc->status != NULL) {
-		usb_ep_free_request(&udc->ep0in.ep, udc->status);
+		usb_ep_free_request(&udc->ep0in->ep, udc->status);
 		udc->status = NULL;
 	}
 
@@ -1701,7 +1701,7 @@ __acquires(udc->lock)
 	if (retval)
 		goto done;
 
-	udc->status = usb_ep_alloc_request(&udc->ep0in.ep, GFP_ATOMIC);
+	udc->status = usb_ep_alloc_request(&udc->ep0in->ep, GFP_ATOMIC);
 	if (udc->status == NULL)
 		retval = -ENOMEM;
 
@@ -1744,7 +1744,7 @@ static int isr_get_status_response(struct ci13xxx *udc,
 __releases(mEp->lock)
 __acquires(mEp->lock)
 {
-	struct ci13xxx_ep *mEp = &udc->ep0in;
+	struct ci13xxx_ep *mEp = udc->ep0in;
 	struct usb_request *req = NULL;
 	gfp_t gfp_flags = GFP_ATOMIC;
 	int dir, num, retval;
@@ -1835,7 +1835,7 @@ __acquires(mEp->lock)
 
 	trace("%p", udc);
 
-	mEp = (udc->ep0_dir == TX) ? &udc->ep0out : &udc->ep0in;
+	mEp = (udc->ep0_dir == TX) ? udc->ep0out : udc->ep0in;
 	udc->status->context = udc;
 	udc->status->complete = isr_setup_status_complete;
 
@@ -1877,7 +1877,7 @@ __acquires(mEp->lock)
 			spin_unlock(mEp->lock);
 			if ((mEp->type == USB_ENDPOINT_XFER_CONTROL) &&
 					mReq->req.length)
-				mEpTemp = &_udc->ep0in;
+				mEpTemp = _udc->ep0in;
 			mReq->req.complete(&mEpTemp->ep, &mReq->req);
 			spin_lock(mEp->lock);
 		}
@@ -1950,8 +1950,8 @@ __acquires(udc->lock)
 		 * Flush data and handshake transactions of previous
 		 * setup packet.
 		 */
-		_ep_nuke(&udc->ep0out);
-		_ep_nuke(&udc->ep0in);
+		_ep_nuke(udc->ep0out);
+		_ep_nuke(udc->ep0in);
 
 		/* read_setup_packet */
 		do {
@@ -2279,7 +2279,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	if (mEp->type == USB_ENDPOINT_XFER_CONTROL) {
 		if (req->length)
 			mEp = (_udc->ep0_dir == RX) ?
-				&_udc->ep0out : &_udc->ep0in;
+				_udc->ep0out : _udc->ep0in;
 		if (!list_empty(&mEp->qh.queue)) {
 			_ep_nuke(mEp);
 			retval = -EOVERFLOW;
@@ -2496,7 +2496,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 		if (is_active) {
 			pm_runtime_get_sync(&_gadget->dev);
 			hw_device_reset(udc);
-			hw_device_state(udc->ep0out.qh.dma);
+			hw_device_state(udc->ep0out->qh.dma);
 		} else {
 			hw_device_state(0);
 			if (udc->udc_driver->notify_event)
@@ -2637,28 +2637,38 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 			else
 				memset(mEp->qh.ptr, 0, sizeof(*mEp->qh.ptr));
 
-			/* skip ep0 out and in endpoints */
-			if (i == 0)
+			/*
+			 * set up shorthands for ep0 out and in endpoints,
+			 * don't add to gadget's ep_list
+			 */
+			if (i == 0) {
+				if (j == RX)
+					udc->ep0out = mEp;
+				else
+					udc->ep0in = mEp;
+
 				continue;
+			}
 
 			list_add_tail(&mEp->ep.ep_list, &udc->gadget.ep_list);
 		}
 	}
 	if (retval)
 		goto done;
+
 	spin_unlock_irqrestore(udc->lock, flags);
-	udc->ep0out.ep.desc = &ctrl_endpt_out_desc;
-	retval = usb_ep_enable(&udc->ep0out.ep);
+	udc->ep0out->ep.desc = &ctrl_endpt_out_desc;
+	retval = usb_ep_enable(&udc->ep0out->ep);
 	if (retval)
 		return retval;
 
-	udc->ep0in.ep.desc = &ctrl_endpt_in_desc;
-	retval = usb_ep_enable(&udc->ep0in.ep);
+	udc->ep0in->ep.desc = &ctrl_endpt_in_desc;
+	retval = usb_ep_enable(&udc->ep0in->ep);
 	if (retval)
 		return retval;
 	spin_lock_irqsave(udc->lock, flags);
 
-	udc->gadget.ep0 = &udc->ep0in.ep;
+	udc->gadget.ep0 = &udc->ep0in->ep;
 	/* bind gadget */
 	driver->driver.bus     = NULL;
 	udc->gadget.dev.driver = &driver->driver;
@@ -2684,7 +2694,7 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 		}
 	}
 
-	retval = hw_device_state(udc->ep0out.qh.dma);
+	retval = hw_device_state(udc->ep0out->qh.dma);
 	if (retval)
 		pm_runtime_put_sync(&udc->gadget.dev);
 

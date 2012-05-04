@@ -125,8 +125,7 @@ struct ci13xxx {
 	struct usb_gadget          gadget;     /* USB slave device */
 	struct ci13xxx_ep          ci13xxx_ep[ENDPT_MAX]; /* extended endpts */
 	u32                        ep0_dir;    /* ep0 direction */
-#define ep0out ci13xxx_ep[0]
-#define ep0in  ci13xxx_ep[hw_ep_max / 2]
+	struct ci13xxx_ep          *ep0out, *ep0in;
 	u8                         remote_wakeup; /* Is remote wakeup feature
 							enabled by the host? */
 	u8                         suspended;  /* suspended by the host */
