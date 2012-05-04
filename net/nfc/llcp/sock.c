@@ -111,7 +111,7 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	}
 
 	llcp_sock->dev = dev;
-	llcp_sock->local = local;
+	llcp_sock->local = nfc_llcp_local_get(local);
 	llcp_sock->nfc_protocol = llcp_addr.nfc_protocol;
 	llcp_sock->service_name_len = min_t(unsigned int,
 					    llcp_addr.service_name_len,
@@ -487,7 +487,7 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	}
 
 	llcp_sock->dev = dev;
-	llcp_sock->local = local;
+	llcp_sock->local = nfc_llcp_local_get(local);
 	llcp_sock->ssap = nfc_llcp_get_local_ssap(local);
 	if (llcp_sock->ssap == LLCP_SAP_MAX) {
 		ret = -ENOMEM;
@@ -701,8 +701,6 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 
 void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 {
-	struct nfc_llcp_local *local = sock->local;
-
 	kfree(sock->service_name);
 
 	skb_queue_purge(&sock->tx_queue);
@@ -710,13 +708,11 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 	skb_queue_purge(&sock->tx_backlog_queue);
 
 	list_del_init(&sock->accept_queue);
-
-	if (local != NULL && sock == local->sockets[sock->ssap])
-		local->sockets[sock->ssap] = NULL;
-	else
-		list_del_init(&sock->list);
+	list_del_init(&sock->list);
 
 	sock->parent = NULL;
+
+	nfc_llcp_local_put(sock->local);
 }
 
 static int llcp_sock_create(struct net *net, struct socket *sock,

@@ -44,6 +44,8 @@ struct nfc_llcp_local {
 	struct list_head list;
 	struct nfc_dev *dev;
 
+	struct kref ref;
+
 	struct mutex sdp_lock;
 	struct mutex socket_lock;
 
@@ -165,6 +167,8 @@ struct nfc_llcp_sock {
 
 
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev);
+struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local);
+int nfc_llcp_local_put(struct nfc_llcp_local *local);
 u8 nfc_llcp_get_sdp_ssap(struct nfc_llcp_local *local,
 			 struct nfc_llcp_sock *sock);
 u8 nfc_llcp_get_local_ssap(struct nfc_llcp_local *local);
