@@ -402,7 +402,6 @@ static inline void atp_report_fingers(struct input_dev *input, int fingers)
 static int atp_status_check(struct urb *urb)
 {
 	struct atp *dev = urb->context;
-	struct input_dev *idev = dev->input;
 	struct usb_interface *intf = dev->intf;
 
 	switch (urb->status) {
