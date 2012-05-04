@@ -259,7 +259,6 @@ static void rts51x_auto_delink_polling_cycle(struct rts51x_chip *chip)
 			chip->option.delink_delay * 2) {
 		if (chip->auto_delink_counter ==
 		    chip->option.delink_delay) {
-			clear_first_install_mark(chip);
 			if (chip->card_exist) {
 				/* False card */
 				if (!chip->card_ejected) {

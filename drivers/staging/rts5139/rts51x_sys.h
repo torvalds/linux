@@ -35,15 +35,6 @@
 
 /* typedef dma_addr_t ULONG_PTR; */
 
-static inline void rts51x_reset_detected_cards(struct rts51x_chip *chip)
-{
-/*      rts51x_reset_cards(chip); */
-}
-
-static inline void clear_first_install_mark(struct rts51x_chip *chip)
-{
-}
-
 void rts51x_enter_ss(struct rts51x_chip *chip);
 void rts51x_exit_ss(struct rts51x_chip *chip);
 
