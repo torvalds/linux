@@ -124,7 +124,7 @@ static int llcp_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	if (llcp_sock->ssap == LLCP_MAX_SAP)
 		goto put_dev;
 
-	local->sockets[llcp_sock->ssap] = llcp_sock;
+	nfc_llcp_sock_link(&local->sockets, sk);
 
 	pr_debug("Socket bound to SAP %d\n", llcp_sock->ssap);
 
@@ -379,15 +379,6 @@ static int llcp_sock_release(struct socket *sock)
 		goto out;
 	}
 
-	mutex_lock(&local->socket_lock);
-
-	if (llcp_sock == local->sockets[llcp_sock->ssap])
-		local->sockets[llcp_sock->ssap] = NULL;
-	else
-		list_del_init(&llcp_sock->list);
-
-	mutex_unlock(&local->socket_lock);
-
 	lock_sock(sk);
 
 	/* Send a DISC */
@@ -412,13 +403,11 @@ static int llcp_sock_release(struct socket *sock)
 		}
 	}
 
-	/* Freeing the SAP */
-	if ((sk->sk_state == LLCP_CONNECTED
-	     && llcp_sock->ssap > LLCP_LOCAL_SAP_OFFSET) ||
-	    sk->sk_state == LLCP_BOUND || sk->sk_state == LLCP_LISTEN)
-		nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
+	nfc_llcp_put_ssap(llcp_sock->local, llcp_sock->ssap);
 
 	release_sock(sk);
+
+	nfc_llcp_sock_unlink(&local->sockets, sk);
 
 out:
 	sock_orphan(sk);
@@ -505,20 +494,25 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 					  llcp_sock->service_name_len,
 					  GFP_KERNEL);
 
-	local->sockets[llcp_sock->ssap] = llcp_sock;
+	nfc_llcp_sock_link(&local->connecting_sockets, sk);
 
 	ret = nfc_llcp_send_connect(llcp_sock);
 	if (ret)
-		goto put_dev;
+		goto sock_unlink;
 
 	ret = sock_wait_state(sk, LLCP_CONNECTED,
 			      sock_sndtimeo(sk, flags & O_NONBLOCK));
 	if (ret)
-		goto put_dev;
+		goto sock_unlink;
 
 	release_sock(sk);
 
 	return 0;
+
+sock_unlink:
+	nfc_llcp_put_ssap(local, llcp_sock->ssap);
+
+	nfc_llcp_sock_unlink(&local->connecting_sockets, sk);
 
 put_dev:
 	nfc_put_device(dev);
@@ -690,7 +684,6 @@ struct sock *nfc_llcp_sock_alloc(struct socket *sock, int type, gfp_t gfp)
 	skb_queue_head_init(&llcp_sock->tx_queue);
 	skb_queue_head_init(&llcp_sock->tx_pending_queue);
 	skb_queue_head_init(&llcp_sock->tx_backlog_queue);
-	INIT_LIST_HEAD(&llcp_sock->list);
 	INIT_LIST_HEAD(&llcp_sock->accept_queue);
 
 	if (sock != NULL)
@@ -708,7 +701,6 @@ void nfc_llcp_sock_free(struct nfc_llcp_sock *sock)
 	skb_queue_purge(&sock->tx_backlog_queue);
 
 	list_del_init(&sock->accept_queue);
-	list_del_init(&sock->list);
 
 	sock->parent = NULL;
 

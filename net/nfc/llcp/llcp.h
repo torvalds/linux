@@ -40,6 +40,11 @@ enum llcp_state {
 
 struct nfc_llcp_sock;
 
+struct llcp_sock_list {
+	struct hlist_head head;
+	rwlock_t          lock;
+};
+
 struct nfc_llcp_local {
 	struct list_head list;
 	struct nfc_dev *dev;
@@ -47,7 +52,6 @@ struct nfc_llcp_local {
 	struct kref ref;
 
 	struct mutex sdp_lock;
-	struct mutex socket_lock;
 
 	struct timer_list link_timer;
 	struct sk_buff_head tx_queue;
@@ -82,12 +86,12 @@ struct nfc_llcp_local {
 	u8  remote_rw;
 
 	/* sockets array */
-	struct nfc_llcp_sock *sockets[LLCP_MAX_SAP];
+	struct llcp_sock_list sockets;
+	struct llcp_sock_list connecting_sockets;
 };
 
 struct nfc_llcp_sock {
 	struct sock sk;
-	struct list_head list;
 	struct nfc_dev *dev;
 	struct nfc_llcp_local *local;
 	u32 target_idx;
@@ -166,6 +170,8 @@ struct nfc_llcp_sock {
 #define LLCP_DM_REJ     0x03
 
 
+void nfc_llcp_sock_link(struct llcp_sock_list *l, struct sock *s);
+void nfc_llcp_sock_unlink(struct llcp_sock_list *l, struct sock *s);
 struct nfc_llcp_local *nfc_llcp_find_local(struct nfc_dev *dev);
 struct nfc_llcp_local *nfc_llcp_local_get(struct nfc_llcp_local *local);
 int nfc_llcp_local_put(struct nfc_llcp_local *local);
