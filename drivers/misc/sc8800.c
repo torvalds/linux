@@ -316,11 +316,19 @@ static int sc8800_tx(struct sc8800_data *sc8800)
 		schedule();
 	}
 	mutex_lock(&sc8800s_lock);
+	#if defined(CONFIG_ARCH_RK30)
+	ap_rts(sc8800,1);
+	#else
 	ap_rts(sc8800,0);
+	#endif
 #if 1
 	while(bp_rdy(sc8800)){
 		if(sc8800->write_tmo){
+			#if defined(CONFIG_ARCH_RK30)
+			ap_rts(sc8800,0);
+			#else
 			ap_rts(sc8800,1);
+			#endif
 			sc8800_dbg(sc8800->dev, "ERR: %s write timeout ->bp not ready (bp_rdy = 1)\n", __func__);
 			kfree(buf);
 			mutex_unlock(&sc8800s_lock);
@@ -334,7 +342,11 @@ static int sc8800_tx(struct sc8800_data *sc8800)
 
 	if(ret < 0)
 		dev_err(sc8800->dev, "ERR: %s spi in err = %d\n", __func__, ret);
+	#if defined(CONFIG_ARCH_RK30)
+	ap_rts(sc8800,0);
+	#else
 	ap_rts(sc8800,1);
+	#endif
 	if(buf){
 		kfree(buf);
 		buf = NULL;
