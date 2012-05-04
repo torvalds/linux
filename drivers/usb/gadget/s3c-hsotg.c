@@ -2139,6 +2139,178 @@ static struct s3c_hsotg *our_hsotg;
 			S3C_GINTSTS_RxFLvl)
 
 /**
+ * s3c_hsotg_corereset - issue softreset to the core
+ * @hsotg: The device state
+ *
+ * Issue a soft reset to the core, and await the core finishing it.
+*/
+static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
+{
+	int timeout;
+	u32 grstctl;
+
+	dev_dbg(hsotg->dev, "resetting core\n");
+
+	/* issue soft reset */
+	writel(S3C_GRSTCTL_CSftRst, hsotg->regs + S3C_GRSTCTL);
+
+	timeout = 1000;
+	do {
+		grstctl = readl(hsotg->regs + S3C_GRSTCTL);
+	} while ((grstctl & S3C_GRSTCTL_CSftRst) && timeout-- > 0);
+
+	if (grstctl & S3C_GRSTCTL_CSftRst) {
+		dev_err(hsotg->dev, "Failed to get CSftRst asserted\n");
+		return -EINVAL;
+	}
+
+	timeout = 1000;
+
+	while (1) {
+		u32 grstctl = readl(hsotg->regs + S3C_GRSTCTL);
+
+		if (timeout-- < 0) {
+			dev_info(hsotg->dev,
+				 "%s: reset failed, GRSTCTL=%08x\n",
+				 __func__, grstctl);
+			return -ETIMEDOUT;
+		}
+
+		if (!(grstctl & S3C_GRSTCTL_AHBIdle))
+			continue;
+
+		break;		/* reset done */
+	}
+
+	dev_dbg(hsotg->dev, "reset successful\n");
+	return 0;
+}
+
+static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
+{
+	s3c_hsotg_corereset(hsotg);
+
+	/*
+	 * we must now enable ep0 ready for host detection and then
+	 * set configuration.
+	 */
+
+	/* set the PLL on, remove the HNP/SRP and set the PHY */
+	writel(S3C_GUSBCFG_PHYIf16 | S3C_GUSBCFG_TOutCal(7) |
+	       (0x5 << 10), hsotg->regs + S3C_GUSBCFG);
+
+	s3c_hsotg_init_fifo(hsotg);
+
+	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
+
+	writel(1 << 18 | S3C_DCFG_DevSpd_HS,  hsotg->regs + S3C_DCFG);
+
+	/* Clear any pending OTG interrupts */
+	writel(0xffffffff, hsotg->regs + S3C_GOTGINT);
+
+	/* Clear any pending interrupts */
+	writel(0xffffffff, hsotg->regs + S3C_GINTSTS);
+
+	writel(S3C_GINTSTS_DisconnInt | S3C_GINTSTS_SessReqInt |
+	       S3C_GINTSTS_GOUTNakEff | S3C_GINTSTS_GINNakEff |
+	       S3C_GINTSTS_ConIDStsChng | S3C_GINTSTS_USBRst |
+	       S3C_GINTSTS_EnumDone | S3C_GINTSTS_OTGInt |
+	       S3C_GINTSTS_USBSusp | S3C_GINTSTS_WkUpInt |
+	       S3C_GINTSTS_ErlySusp,
+	       hsotg->regs + S3C_GINTMSK);
+
+	if (using_dma(hsotg))
+		writel(S3C_GAHBCFG_GlblIntrEn | S3C_GAHBCFG_DMAEn |
+		       S3C_GAHBCFG_HBstLen_Incr4,
+		       hsotg->regs + S3C_GAHBCFG);
+	else
+		writel(S3C_GAHBCFG_GlblIntrEn, hsotg->regs + S3C_GAHBCFG);
+
+	/*
+	 * Enabling INTknTXFEmpMsk here seems to be a big mistake, we end
+	 * up being flooded with interrupts if the host is polling the
+	 * endpoint to try and read data.
+	 */
+
+	writel(((hsotg->dedicated_fifos) ? S3C_DIEPMSK_TxFIFOEmpty : 0) |
+	       S3C_DIEPMSK_EPDisbldMsk | S3C_DIEPMSK_XferComplMsk |
+	       S3C_DIEPMSK_TimeOUTMsk | S3C_DIEPMSK_AHBErrMsk |
+	       S3C_DIEPMSK_INTknEPMisMsk,
+	       hsotg->regs + S3C_DIEPMSK);
+
+	/*
+	 * don't need XferCompl, we get that from RXFIFO in slave mode. In
+	 * DMA mode we may need this.
+	 */
+	writel((using_dma(hsotg) ? (S3C_DIEPMSK_XferComplMsk |
+				    S3C_DIEPMSK_TimeOUTMsk) : 0) |
+	       S3C_DOEPMSK_EPDisbldMsk | S3C_DOEPMSK_AHBErrMsk |
+	       S3C_DOEPMSK_SetupMsk,
+	       hsotg->regs + S3C_DOEPMSK);
+
+	writel(0, hsotg->regs + S3C_DAINTMSK);
+
+	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
+		readl(hsotg->regs + S3C_DIEPCTL0),
+		readl(hsotg->regs + S3C_DOEPCTL0));
+
+	/* enable in and out endpoint interrupts */
+	s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_OEPInt | S3C_GINTSTS_IEPInt);
+
+	/*
+	 * Enable the RXFIFO when in slave mode, as this is how we collect
+	 * the data. In DMA mode, we get events from the FIFO but also
+	 * things we cannot process, so do not use it.
+	 */
+	if (!using_dma(hsotg))
+		s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_RxFLvl);
+
+	/* Enable interrupts for EP0 in and out */
+	s3c_hsotg_ctrl_epint(hsotg, 0, 0, 1);
+	s3c_hsotg_ctrl_epint(hsotg, 0, 1, 1);
+
+	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_PWROnPrgDone);
+	udelay(10);  /* see openiboot */
+	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_PWROnPrgDone);
+
+	dev_dbg(hsotg->dev, "DCTL=0x%08x\n", readl(hsotg->regs + S3C_DCTL));
+
+	/*
+	 * S3C_DxEPCTL_USBActEp says RO in manual, but seems to be set by
+	 * writing to the EPCTL register..
+	 */
+
+	/* set to read 1 8byte packet */
+	writel(S3C_DxEPTSIZ_MC(1) | S3C_DxEPTSIZ_PktCnt(1) |
+	       S3C_DxEPTSIZ_XferSize(8), hsotg->regs + DOEPTSIZ0);
+
+	writel(s3c_hsotg_ep0_mps(hsotg->eps[0].ep.maxpacket) |
+	       S3C_DxEPCTL_CNAK | S3C_DxEPCTL_EPEna |
+	       S3C_DxEPCTL_USBActEp,
+	       hsotg->regs + S3C_DOEPCTL0);
+
+	/* enable, but don't activate EP0in */
+	writel(s3c_hsotg_ep0_mps(hsotg->eps[0].ep.maxpacket) |
+	       S3C_DxEPCTL_USBActEp, hsotg->regs + S3C_DIEPCTL0);
+
+	s3c_hsotg_enqueue_setup(hsotg);
+
+	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
+		readl(hsotg->regs + S3C_DIEPCTL0),
+		readl(hsotg->regs + S3C_DOEPCTL0));
+
+	/* clear global NAKs */
+	writel(S3C_DCTL_CGOUTNak | S3C_DCTL_CGNPInNAK,
+	       hsotg->regs + S3C_DCTL);
+
+	/* must be at-least 3ms to allow bus to see disconnect */
+	mdelay(3);
+
+	/* remove the soft-disconnect and let's go */
+	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
+}
+
+/**
  * s3c_hsotg_irq - handle device interrupt
  * @irq: The IRQ number triggered
  * @pw: The pw value when registered the handler.
@@ -2579,54 +2751,6 @@ static struct usb_ep_ops s3c_hsotg_ep_ops = {
 };
 
 /**
- * s3c_hsotg_corereset - issue softreset to the core
- * @hsotg: The device state
- *
- * Issue a soft reset to the core, and await the core finishing it.
-*/
-static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
-{
-	int timeout;
-	u32 grstctl;
-
-	dev_dbg(hsotg->dev, "resetting core\n");
-
-	/* issue soft reset */
-	writel(S3C_GRSTCTL_CSftRst, hsotg->regs + S3C_GRSTCTL);
-
-	timeout = 1000;
-	do {
-		grstctl = readl(hsotg->regs + S3C_GRSTCTL);
-	} while ((grstctl & S3C_GRSTCTL_CSftRst) && timeout-- > 0);
-
-	if (grstctl & S3C_GRSTCTL_CSftRst) {
-		dev_err(hsotg->dev, "Failed to get CSftRst asserted\n");
-		return -EINVAL;
-	}
-
-	timeout = 1000;
-
-	while (1) {
-		u32 grstctl = readl(hsotg->regs + S3C_GRSTCTL);
-
-		if (timeout-- < 0) {
-			dev_info(hsotg->dev,
-				 "%s: reset failed, GRSTCTL=%08x\n",
-				 __func__, grstctl);
-			return -ETIMEDOUT;
-		}
-
-		if (!(grstctl & S3C_GRSTCTL_AHBIdle))
-			continue;
-
-		break;		/* reset done */
-	}
-
-	dev_dbg(hsotg->dev, "reset successful\n");
-	return 0;
-}
-
-/**
  * s3c_hsotg_phy_enable - enable platform phy dev
  *
  * @param: The driver state
@@ -2706,119 +2830,7 @@ static int s3c_hsotg_start(struct usb_gadget_driver *driver,
 		goto err;
 	}
 
-	/* we must now enable ep0 ready for host detection and then
-	 * set configuration. */
-
-	s3c_hsotg_corereset(hsotg);
-
-	/* set the PLL on, remove the HNP/SRP and set the PHY */
-	writel(S3C_GUSBCFG_PHYIf16 | S3C_GUSBCFG_TOutCal(7) |
-	       (0x5 << 10), hsotg->regs + S3C_GUSBCFG);
-
-	/* looks like soft-reset changes state of FIFOs */
-	s3c_hsotg_init_fifo(hsotg);
-
-	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
-
-	writel(1 << 18 | S3C_DCFG_DevSpd_HS,  hsotg->regs + S3C_DCFG);
-
-	/* Clear any pending OTG interrupts */
-	writel(0xffffffff, hsotg->regs + S3C_GOTGINT);
-
-	/* Clear any pending interrupts */
-	writel(0xffffffff, hsotg->regs + S3C_GINTSTS);
-
-	writel(S3C_GINTSTS_DisconnInt | S3C_GINTSTS_SessReqInt |
-	       S3C_GINTSTS_ConIDStsChng | S3C_GINTSTS_USBRst |
-	       S3C_GINTSTS_EnumDone | S3C_GINTSTS_OTGInt |
-	       S3C_GINTSTS_USBSusp | S3C_GINTSTS_WkUpInt |
-	       S3C_GINTSTS_GOUTNakEff | S3C_GINTSTS_GINNakEff |
-	       S3C_GINTSTS_ErlySusp,
-	       hsotg->regs + S3C_GINTMSK);
-
-	if (using_dma(hsotg))
-		writel(S3C_GAHBCFG_GlblIntrEn | S3C_GAHBCFG_DMAEn |
-		       S3C_GAHBCFG_HBstLen_Incr4,
-		       hsotg->regs + S3C_GAHBCFG);
-	else
-		writel(S3C_GAHBCFG_GlblIntrEn, hsotg->regs + S3C_GAHBCFG);
-
-	/* Enabling INTknTXFEmpMsk here seems to be a big mistake, we end
-	 * up being flooded with interrupts if the host is polling the
-	 * endpoint to try and read data. */
-
-	writel(S3C_DIEPMSK_TimeOUTMsk | S3C_DIEPMSK_AHBErrMsk |
-	       S3C_DIEPMSK_INTknEPMisMsk |
-	       S3C_DIEPMSK_EPDisbldMsk | S3C_DIEPMSK_XferComplMsk |
-	       ((hsotg->dedicated_fifos) ? S3C_DIEPMSK_TxFIFOEmpty : 0),
-	       hsotg->regs + S3C_DIEPMSK);
-
-	/* don't need XferCompl, we get that from RXFIFO in slave mode. In
-	 * DMA mode we may need this. */
-	writel(S3C_DOEPMSK_SetupMsk | S3C_DOEPMSK_AHBErrMsk |
-	       S3C_DOEPMSK_EPDisbldMsk |
-	       (using_dma(hsotg) ? (S3C_DIEPMSK_XferComplMsk |
-				   S3C_DIEPMSK_TimeOUTMsk) : 0),
-	       hsotg->regs + S3C_DOEPMSK);
-
-	writel(0, hsotg->regs + S3C_DAINTMSK);
-
-	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
-		readl(hsotg->regs + S3C_DIEPCTL0),
-		readl(hsotg->regs + S3C_DOEPCTL0));
-
-	/* enable in and out endpoint interrupts */
-	s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_OEPInt | S3C_GINTSTS_IEPInt);
-
-	/* Enable the RXFIFO when in slave mode, as this is how we collect
-	 * the data. In DMA mode, we get events from the FIFO but also
-	 * things we cannot process, so do not use it. */
-	if (!using_dma(hsotg))
-		s3c_hsotg_en_gsint(hsotg, S3C_GINTSTS_RxFLvl);
-
-	/* Enable interrupts for EP0 in and out */
-	s3c_hsotg_ctrl_epint(hsotg, 0, 0, 1);
-	s3c_hsotg_ctrl_epint(hsotg, 0, 1, 1);
-
-	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_PWROnPrgDone);
-	udelay(10);  /* see openiboot */
-	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_PWROnPrgDone);
-
-	dev_dbg(hsotg->dev, "DCTL=0x%08x\n", readl(hsotg->regs + S3C_DCTL));
-
-	/* S3C_DxEPCTL_USBActEp says RO in manual, but seems to be set by
-	   writing to the EPCTL register.. */
-
-	/* set to read 1 8byte packet */
-	writel(S3C_DxEPTSIZ_MC(1) | S3C_DxEPTSIZ_PktCnt(1) |
-	       S3C_DxEPTSIZ_XferSize(8), hsotg->regs + DOEPTSIZ0);
-
-	writel(s3c_hsotg_ep0_mps(hsotg->eps[0].ep.maxpacket) |
-	       S3C_DxEPCTL_CNAK | S3C_DxEPCTL_EPEna |
-	       S3C_DxEPCTL_USBActEp,
-	       hsotg->regs + S3C_DOEPCTL0);
-
-	/* enable, but don't activate EP0in */
-	writel(s3c_hsotg_ep0_mps(hsotg->eps[0].ep.maxpacket) |
-	       S3C_DxEPCTL_USBActEp, hsotg->regs + S3C_DIEPCTL0);
-
-	s3c_hsotg_enqueue_setup(hsotg);
-
-	dev_dbg(hsotg->dev, "EP0: DIEPCTL0=0x%08x, DOEPCTL0=0x%08x\n",
-		readl(hsotg->regs + S3C_DIEPCTL0),
-		readl(hsotg->regs + S3C_DOEPCTL0));
-
-	/* clear global NAKs */
-	writel(S3C_DCTL_CGOUTNak | S3C_DCTL_CGNPInNAK,
-	       hsotg->regs + S3C_DCTL);
-
-	/* must be at-least 3ms to allow bus to see disconnect */
-	msleep(3);
-
-	/* remove the soft-disconnect and let's go */
-	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
-
-	/* report to the user, and return */
+	s3c_hsotg_core_init(hsotg);
 
 	dev_info(hsotg->dev, "bound driver %s\n", driver->driver.name);
 	return 0;
