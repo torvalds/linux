@@ -94,16 +94,33 @@ static u32 intel_infoframe_index(struct dip_infoframe *frame)
 	return flags;
 }
 
-static u32 intel_infoframe_flags(struct dip_infoframe *frame)
+static u32 intel_infoframe_enable(struct dip_infoframe *frame)
 {
 	u32 flags = 0;
 
 	switch (frame->type) {
 	case DIP_TYPE_AVI:
-		flags |= VIDEO_DIP_ENABLE_AVI | VIDEO_DIP_FREQ_VSYNC;
+		flags |= VIDEO_DIP_ENABLE_AVI;
 		break;
 	case DIP_TYPE_SPD:
-		flags |= VIDEO_DIP_ENABLE_SPD | VIDEO_DIP_FREQ_VSYNC;
+		flags |= VIDEO_DIP_ENABLE_SPD;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
+		break;
+	}
+
+	return flags;
+}
+
+static u32 intel_infoframe_frequency(struct dip_infoframe *frame)
+{
+	u32 flags = 0;
+
+	switch (frame->type) {
+	case DIP_TYPE_AVI:
+	case DIP_TYPE_SPD:
+		flags |= VIDEO_DIP_FREQ_VSYNC;
 		break;
 	default:
 		DRM_DEBUG_DRIVER("unknown info frame type %d\n", frame->type);
@@ -145,7 +162,8 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 		data++;
 	}
 
-	val |= intel_infoframe_flags(frame);
+	val |= intel_infoframe_enable(frame);
+	val |= intel_infoframe_frequency(frame);
 
 	I915_WRITE(VIDEO_DIP_CTL, val);
 }
@@ -176,7 +194,8 @@ static void ironlake_write_infoframe(struct drm_encoder *encoder,
 		data++;
 	}
 
-	val |= intel_infoframe_flags(frame);
+	val |= intel_infoframe_enable(frame);
+	val |= intel_infoframe_frequency(frame);
 
 	I915_WRITE(reg, val);
 }
@@ -207,7 +226,8 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 		data++;
 	}
 
-	val |= intel_infoframe_flags(frame);
+	val |= intel_infoframe_enable(frame);
+	val |= intel_infoframe_frequency(frame);
 
 	I915_WRITE(reg, val);
 }
