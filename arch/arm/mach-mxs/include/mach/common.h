@@ -31,4 +31,7 @@ extern void mx28_init_irq(void);
 
 extern void icoll_init_irq(void);
 
+extern struct platform_device *mxs_add_dma(const char *devid,
+						resource_size_t base);
+
 #endif /* __MACH_MXS_COMMON_H__ */

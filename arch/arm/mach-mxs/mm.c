@@ -66,9 +66,15 @@ void __init mx28_init_irq(void)
 void __init mx23_soc_init(void)
 {
 	pinctrl_provide_dummies();
+
+	mxs_add_dma("imx23-dma-apbh", MX23_APBH_DMA_BASE_ADDR);
+	mxs_add_dma("imx23-dma-apbx", MX23_APBX_DMA_BASE_ADDR);
 }
 
 void __init mx28_soc_init(void)
 {
 	pinctrl_provide_dummies();
+
+	mxs_add_dma("imx28-dma-apbh", MX23_APBH_DMA_BASE_ADDR);
+	mxs_add_dma("imx28-dma-apbx", MX23_APBX_DMA_BASE_ADDR);
 }
