@@ -14,6 +14,14 @@
 / {
 	interrupt-parent = <&icoll>;
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+		gpio3 = &gpio3;
+		gpio4 = &gpio4;
+	};
+
 	cpus {
 		cpu@0 {
 			compatible = "arm,arm926ejs";
@@ -97,8 +105,53 @@
 			pinctrl@80018000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx28-pinctrl";
+				compatible = "fsl,imx28-pinctrl", "simple-bus";
 				reg = <0x80018000 2000>;
+
+				gpio0: gpio@0 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					interrupts = <127>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio1: gpio@1 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					interrupts = <126>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio2: gpio@2 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					interrupts = <125>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio3: gpio@3 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					interrupts = <124>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio4: gpio@4 {
+					compatible = "fsl,imx28-gpio", "fsl,mxs-gpio";
+					interrupts = <123>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 
 				duart_pins_a: duart@0 {
 					reg = <0>;

@@ -14,6 +14,12 @@
 / {
 	interrupt-parent = <&icoll>;
 
+	aliases {
+		gpio0 = &gpio0;
+		gpio1 = &gpio1;
+		gpio2 = &gpio2;
+	};
+
 	cpus {
 		cpu@0 {
 			compatible = "arm,arm926ejs";
@@ -74,8 +80,35 @@
 			pinctrl@80018000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx23-pinctrl";
+				compatible = "fsl,imx23-pinctrl", "simple-bus";
 				reg = <0x80018000 2000>;
+
+				gpio0: gpio@0 {
+					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					interrupts = <16>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio1: gpio@1 {
+					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					interrupts = <17>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
+
+				gpio2: gpio@2 {
+					compatible = "fsl,imx23-gpio", "fsl,mxs-gpio";
+					interrupts = <18>;
+					gpio-controller;
+					#gpio-cells = <2>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
+				};
 
 				duart_pins_a: duart@0 {
 					reg = <0>;
