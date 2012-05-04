@@ -363,6 +363,9 @@ int __init omap3_idle_init(void)
 	per_pd = pwrdm_lookup("per_pwrdm");
 	cam_pd = pwrdm_lookup("cam_pwrdm");
 
+	if (!mpu_pd || !core_pd || !per_pd || !cam_pd)
+		return -ENODEV;
+
 	cpuidle_register_driver(&omap3_idle_driver);
 
 	dev = &per_cpu(omap3_idle_dev, smp_processor_id());
