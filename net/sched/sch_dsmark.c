@@ -265,8 +265,7 @@ static int dsmark_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	return NET_XMIT_SUCCESS;
 
 drop:
-	kfree_skb(skb);
-	sch->qstats.drops++;
+	qdisc_drop(skb, sch);
 	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 }
 

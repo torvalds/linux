@@ -332,15 +332,13 @@ static int choke_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	}
 
 	q->stats.pdrop++;
-	sch->qstats.drops++;
-	kfree_skb(skb);
-	return NET_XMIT_DROP;
+	return qdisc_drop(skb, sch);
 
- congestion_drop:
+congestion_drop:
 	qdisc_drop(skb, sch);
 	return NET_XMIT_CN;
 
- other_drop:
+other_drop:
 	if (ret & __NET_XMIT_BYPASS)
 		sch->qstats.drops++;
 	kfree_skb(skb);
