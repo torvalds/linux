@@ -36,8 +36,6 @@
 #include <plat/regs-usb-hsotg-phy.h>
 #include "s3c-hsotg.h"
 #include <linux/platform_data/s3c-hsotg.h>
-#include <mach/regs-sys.h>
-#include <plat/cpu.h>
 
 #define DMA_ADDR_INVALID (~((dma_addr_t)0))
 
@@ -2846,51 +2844,6 @@ static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 	}
 }
 
-/**
- * s3c_hsotg_otgreset - reset the OtG phy block
- * @hsotg: The host state.
- *
- * Power up the phy, set the basic configuration and start the PHY.
- */
-static void s3c_hsotg_otgreset(struct s3c_hsotg *hsotg)
-{
-	struct clk *xusbxti;
-	u32 pwr, osc;
-
-	pwr = readl(S3C_PHYPWR);
-	pwr &= ~0x19;
-	writel(pwr, S3C_PHYPWR);
-	mdelay(1);
-
-	osc = hsotg->plat->is_osc ? S3C_PHYCLK_EXT_OSC : 0;
-
-	xusbxti = clk_get(hsotg->dev, "xusbxti");
-	if (xusbxti && !IS_ERR(xusbxti)) {
-		switch (clk_get_rate(xusbxti)) {
-		case 12*MHZ:
-			osc |= S3C_PHYCLK_CLKSEL_12M;
-			break;
-		case 24*MHZ:
-			osc |= S3C_PHYCLK_CLKSEL_24M;
-			break;
-		default:
-		case 48*MHZ:
-			/* default reference clock */
-			break;
-		}
-		clk_put(xusbxti);
-	}
-
-	writel(osc | 0x10, S3C_PHYCLK);
-
-	/* issue a full set of resets to the otg and core */
-
-	writel(S3C_RSTCON_PHY, S3C_RSTCON);
-	udelay(20);	/* at-least 10uS */
-	writel(0, S3C_RSTCON);
-}
-
-
 static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 {
 	u32 cfg4;
@@ -3263,32 +3216,6 @@ static void __devexit s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 	debugfs_remove(hsotg->debug_root);
 }
 
-/**
- * s3c_hsotg_gate - set the hardware gate for the block
- * @pdev: The device we bound to
- * @on: On or off.
- *
- * Set the hardware gate setting into the block. If we end up on
- * something other than an S3C64XX, then we might need to change this
- * to using a platform data callback, or some other mechanism.
- */
-static void s3c_hsotg_gate(struct platform_device *pdev, bool on)
-{
-	unsigned long flags;
-	u32 others;
-
-	local_irq_save(flags);
-
-	others = __raw_readl(S3C64XX_OTHERS);
-	if (on)
-		others |= S3C64XX_OTHERS_USBMASK;
-	else
-		others &= ~S3C64XX_OTHERS_USBMASK;
-	__raw_writel(others, S3C64XX_OTHERS);
-
-	local_irq_restore(flags);
-}
-
 static struct s3c_hsotg_plat s3c_hsotg_default_pdata;
 
 static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
@@ -3390,9 +3317,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	clk_enable(hsotg->clk);
 
-	s3c_hsotg_gate(pdev, true);
 
-	s3c_hsotg_otgreset(hsotg);
 	s3c_hsotg_corereset(hsotg);
 	s3c_hsotg_init(hsotg);
 
@@ -3412,7 +3337,6 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
-	s3c_hsotg_gate(pdev, false);
 	clk_disable(hsotg->clk);
 	clk_put(hsotg->clk);
 
@@ -3445,7 +3369,6 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	release_resource(hsotg->regs_res);
 	kfree(hsotg->regs_res);
 
-	s3c_hsotg_gate(pdev, false);
 
 	clk_disable(hsotg->clk);
 	clk_put(hsotg->clk);
