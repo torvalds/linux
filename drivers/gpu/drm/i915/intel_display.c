@@ -784,6 +784,17 @@ intel_find_pll_g4x_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return true;
 }
 
+static void ironlake_wait_for_vblank(struct drm_device *dev, int pipe)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 frame, frame_reg = PIPEFRAME(pipe);
+
+	frame = I915_READ(frame_reg);
+
+	if (wait_for(I915_READ_NOTRACE(frame_reg) != frame, 50))
+		DRM_DEBUG_KMS("vblank wait timed out\n");
+}
+
 /**
  * intel_wait_for_vblank - wait for vblank on a given pipe
  * @dev: drm device
@@ -796,6 +807,11 @@ void intel_wait_for_vblank(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipestat_reg = PIPESTAT(pipe);
+
+	if (INTEL_INFO(dev)->gen >= 5) {
+		ironlake_wait_for_vblank(dev, pipe);
+		return;
+	}
 
 	/* Clear existing vblank status. Note this will clear any other
 	 * sticky status fields as well.
