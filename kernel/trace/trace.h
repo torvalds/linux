@@ -158,12 +158,38 @@ struct trace_array_cpu {
  */
 struct trace_array {
 	struct ring_buffer	*buffer;
+	struct list_head	list;
 	int			cpu;
 	int			buffer_disabled;
+	unsigned int		flags;
 	cycle_t			time_start;
+	struct dentry		*dir;
+	struct dentry		*event_dir;
+	struct list_head	systems;
+	struct list_head	events;
 	struct task_struct	*waiter;
 	struct trace_array_cpu	*data[NR_CPUS];
 };
+
+enum {
+	TRACE_ARRAY_FL_GLOBAL	= (1 << 0)
+};
+
+extern struct list_head ftrace_trace_arrays;
+
+/*
+ * The global tracer (top) should be the first trace array added,
+ * but we check the flag anyway.
+ */
+static inline struct trace_array *top_trace_array(void)
+{
+	struct trace_array *tr;
+
+	tr = list_entry(ftrace_trace_arrays.prev,
+			typeof(*tr), list);
+	WARN_ON(!(tr->flags & TRACE_ARRAY_FL_GLOBAL));
+	return tr;
+}
 
 #define FTRACE_CMP_TYPE(var, type) \
 	__builtin_types_compatible_p(typeof(var), type *)
@@ -851,10 +877,17 @@ struct event_filter {
 struct event_subsystem {
 	struct list_head	list;
 	const char		*name;
-	struct dentry		*entry;
 	struct event_filter	*filter;
-	int			nr_events;
 	int			ref_count;
+};
+
+struct ftrace_subsystem_dir {
+	struct list_head		list;
+	struct event_subsystem		*subsystem;
+	struct trace_array		*tr;
+	struct dentry			*entry;
+	int				ref_count;
+	int				nr_events;
 };
 
 #define FILTER_PRED_INVALID	((unsigned short)-1)
@@ -914,7 +947,7 @@ extern void print_event_filter(struct ftrace_event_call *call,
 			       struct trace_seq *s);
 extern int apply_event_filter(struct ftrace_event_call *call,
 			      char *filter_string);
-extern int apply_subsystem_event_filter(struct event_subsystem *system,
+extern int apply_subsystem_event_filter(struct ftrace_subsystem_dir *dir,
 					char *filter_string);
 extern void print_subsystem_event_filter(struct event_subsystem *system,
 					 struct trace_seq *s);

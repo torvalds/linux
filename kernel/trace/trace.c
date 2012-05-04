@@ -189,6 +189,8 @@ unsigned long long ns2usecs(cycle_t nsec)
  */
 static struct trace_array	global_trace;
 
+LIST_HEAD(ftrace_trace_arrays);
+
 static DEFINE_PER_CPU(struct trace_array_cpu, global_trace_cpu);
 
 int filter_current_check_discard(struct ring_buffer *buffer,
@@ -5358,6 +5360,12 @@ __init static int tracer_alloc_buffers(void)
 				       &trace_panic_notifier);
 
 	register_die_notifier(&trace_die_notifier);
+
+	global_trace.flags = TRACE_ARRAY_FL_GLOBAL;
+
+	INIT_LIST_HEAD(&global_trace.systems);
+	INIT_LIST_HEAD(&global_trace.events);
+	list_add(&global_trace.list, &ftrace_trace_arrays);
 
 	while (trace_boot_options) {
 		char *option;

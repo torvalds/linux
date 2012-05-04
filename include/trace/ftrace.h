@@ -518,7 +518,8 @@ static inline notrace int ftrace_get_offsets_##call(			\
 static notrace void							\
 ftrace_raw_event_##call(void *__data, proto)				\
 {									\
-	struct ftrace_event_call *event_call = __data;			\
+	struct ftrace_event_file *ftrace_file = __data;			\
+	struct ftrace_event_call *event_call = ftrace_file->event_call;	\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ring_buffer_event *event;				\
 	struct ftrace_raw_##call *entry;				\
