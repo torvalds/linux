@@ -25,6 +25,9 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/basic_mmio_gpio.h>
@@ -207,8 +210,19 @@ static struct platform_device_id mxs_gpio_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, mxs_gpio_ids);
 
+static const struct of_device_id mxs_gpio_dt_ids[] = {
+	{ .compatible = "fsl,imx23-gpio", .data = (void *) IMX23_GPIO, },
+	{ .compatible = "fsl,imx28-gpio", .data = (void *) IMX28_GPIO, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_gpio_dt_ids);
+
 static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(mxs_gpio_dt_ids, &pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *parent;
 	static void __iomem *base;
 	struct mxs_gpio_port *port;
 	struct resource *iores = NULL;
@@ -218,8 +232,15 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 	if (!port)
 		return -ENOMEM;
 
-	port->id = pdev->id;
-	port->devid = pdev->id_entry->driver_data;
+	if (np) {
+		port->id = of_alias_get_id(np, "gpio");
+		if (port->id < 0)
+			return port->id;
+		port->devid = (enum mxs_gpio_id) of_id->data;
+	} else {
+		port->id = pdev->id;
+		port->devid = pdev->id_entry->driver_data;
+	}
 	port->virtual_irq_start = MXS_GPIO_IRQ_START + port->id * 32;
 
 	port->irq = platform_get_irq(pdev, 0);
@@ -231,8 +252,14 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 	 * share the same one
 	 */
 	if (!base) {
-		iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		base = devm_request_and_ioremap(&pdev->dev, iores);
+		if (np) {
+			parent = of_get_parent(np);
+			base = of_iomap(parent, 0);
+			of_node_put(parent);
+		} else {
+			iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+			base = devm_request_and_ioremap(&pdev->dev, iores);
+		}
 		if (!base)
 			return -EADDRNOTAVAIL;
 	}
@@ -278,6 +305,7 @@ static struct platform_driver mxs_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-mxs",
 		.owner	= THIS_MODULE,
+		.of_match_table = mxs_gpio_dt_ids,
 	},
 	.probe		= mxs_gpio_probe,
 	.id_table	= mxs_gpio_ids,
