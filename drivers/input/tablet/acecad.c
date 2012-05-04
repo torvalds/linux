@@ -51,6 +51,7 @@ struct usb_acecad {
 	char name[128];
 	char phys[64];
 	struct usb_device *usbdev;
+	struct usb_interface *intf;
 	struct input_dev *input;
 	struct urb *irq;
 
@@ -63,6 +64,7 @@ static void usb_acecad_irq(struct urb *urb)
 	struct usb_acecad *acecad = urb->context;
 	unsigned char *data = acecad->data;
 	struct input_dev *dev = acecad->input;
+	struct usb_interface *intf = acecad->intf;
 	int prox, status;
 
 	switch (urb->status) {
@@ -73,11 +75,11 @@ static void usb_acecad_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 		/* this urb is terminated, clean up */
-		dev_dbg(&dev->dev, "%s - urb shutting down with status: %d\n",
+		dev_dbg(&intf->dev, "%s - urb shutting down with status: %d\n",
 			__func__, urb->status);
 		return;
 	default:
-		dev_dbg(&dev->dev, "%s - nonzero urb status received: %d\n",
+		dev_dbg(&intf->dev, "%s - nonzero urb status received: %d\n",
 			__func__, urb->status);
 		goto resubmit;
 	}
@@ -107,7 +109,7 @@ static void usb_acecad_irq(struct urb *urb)
 resubmit:
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status)
-		dev_err(&dev->dev,
+		dev_err(&intf->dev,
 			"can't resubmit intr, %s-%s/input0, status %d\n",
 			acecad->usbdev->bus->bus_name,
 			acecad->usbdev->devpath, status);
@@ -172,6 +174,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 	}
 
 	acecad->usbdev = dev;
+	acecad->intf = intf;
 	acecad->input = input_dev;
 
 	if (dev->manufacturer)
