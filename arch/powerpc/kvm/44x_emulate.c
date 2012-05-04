@@ -37,22 +37,19 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                            unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
-	int dcrn;
-	int ra;
-	int rb;
-	int rc;
-	int rs;
-	int rt;
-	int ws;
+	int dcrn = get_dcrn(inst);
+	int ra = get_ra(inst);
+	int rb = get_rb(inst);
+	int rc = get_rc(inst);
+	int rs = get_rs(inst);
+	int rt = get_rt(inst);
+	int ws = get_ws(inst);
 
 	switch (get_op(inst)) {
 	case 31:
 		switch (get_xop(inst)) {
 
 		case XOP_MFDCR:
-			dcrn = get_dcrn(inst);
-			rt = get_rt(inst);
-
 			/* The guest may access CPR0 registers to determine the timebase
 			 * frequency, and it must know the real host frequency because it
 			 * can directly access the timebase registers.
@@ -88,9 +85,6 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 
 		case XOP_MTDCR:
-			dcrn = get_dcrn(inst);
-			rs = get_rs(inst);
-
 			/* emulate some access in kernel */
 			switch (dcrn) {
 			case DCRN_CPR0_CONFIG_ADDR:
@@ -108,17 +102,10 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 
 		case XOP_TLBWE:
-			ra = get_ra(inst);
-			rs = get_rs(inst);
-			ws = get_ws(inst);
 			emulated = kvmppc_44x_emul_tlbwe(vcpu, ra, rs, ws);
 			break;
 
 		case XOP_TLBSX:
-			rt = get_rt(inst);
-			ra = get_ra(inst);
-			rb = get_rb(inst);
-			rc = get_rc(inst);
 			emulated = kvmppc_44x_emul_tlbsx(vcpu, rt, ra, rb, rc);
 			break;
 

@@ -86,9 +86,9 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                            unsigned int inst, int *advance)
 {
 	int emulated = EMULATE_DONE;
-	int ra;
-	int rb;
-	int rt;
+	int ra = get_ra(inst);
+	int rb = get_rb(inst);
+	int rt = get_rt(inst);
 
 	switch (get_op(inst)) {
 	case 31:
@@ -96,11 +96,11 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 
 #ifdef CONFIG_KVM_E500MC
 		case XOP_MSGSND:
-			emulated = kvmppc_e500_emul_msgsnd(vcpu, get_rb(inst));
+			emulated = kvmppc_e500_emul_msgsnd(vcpu, rb);
 			break;
 
 		case XOP_MSGCLR:
-			emulated = kvmppc_e500_emul_msgclr(vcpu, get_rb(inst));
+			emulated = kvmppc_e500_emul_msgclr(vcpu, rb);
 			break;
 #endif
 
@@ -113,20 +113,14 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 
 		case XOP_TLBSX:
-			rb = get_rb(inst);
 			emulated = kvmppc_e500_emul_tlbsx(vcpu,rb);
 			break;
 
 		case XOP_TLBILX:
-			ra = get_ra(inst);
-			rb = get_rb(inst);
-			rt = get_rt(inst);
 			emulated = kvmppc_e500_emul_tlbilx(vcpu, rt, ra, rb);
 			break;
 
 		case XOP_TLBIVAX:
-			ra = get_ra(inst);
-			rb = get_rb(inst);
 			emulated = kvmppc_e500_emul_tlbivax(vcpu, ra, rb);
 			break;
 
