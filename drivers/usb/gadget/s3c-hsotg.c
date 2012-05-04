@@ -3547,7 +3547,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	/* reset the system */
 
-	clk_enable(hsotg->clk);
+	clk_prepare_enable(hsotg->clk);
 
 	/* regulators */
 
@@ -3645,7 +3645,7 @@ err_supplies:
 
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
-	clk_disable(hsotg->clk);
+	clk_disable_unprepare(hsotg->clk);
 	clk_put(hsotg->clk);
 
 err_regs:
@@ -3687,7 +3687,7 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	s3c_hsotg_phy_disable(hsotg);
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
-	clk_disable(hsotg->clk);
+	clk_disable_unprepare(hsotg->clk);
 	clk_put(hsotg->clk);
 
 	device_unregister(&hsotg->gadget.dev);
