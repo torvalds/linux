@@ -52,17 +52,19 @@ nv10_fence_emit(struct nouveau_fence *fence)
 	return ret;
 }
 
+
 static int
-nv10_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
+nv10_fence_sync(struct nouveau_fence *fence,
+		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	return -ENODEV;
 }
 
 static int
-nv17_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
+nv17_fence_sync(struct nouveau_fence *fence,
+		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nv10_fence_priv *priv = nv_engine(chan->dev, NVOBJ_ENGINE_FENCE);
-	struct nouveau_channel *prev = fence->channel;
 	u32 value;
 	int ret;
 

@@ -55,16 +55,18 @@ nv84_fence_emit(struct nouveau_fence *fence)
 	return ret;
 }
 
+
 static int
-nv84_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
+nv84_fence_sync(struct nouveau_fence *fence,
+		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	int ret = RING_SPACE(chan, 7);
 	if (ret == 0) {
 		BEGIN_NV04(chan, 0, NV11_SUBCHAN_DMA_SEMAPHORE, 1);
 		OUT_RING  (chan, NvSema);
 		BEGIN_NV04(chan, 0, NV84_SUBCHAN_SEMAPHORE_ADDRESS_HIGH, 4);
-		OUT_RING  (chan, upper_32_bits(fence->channel->id * 16));
-		OUT_RING  (chan, lower_32_bits(fence->channel->id * 16));
+		OUT_RING  (chan, upper_32_bits(prev->id * 16));
+		OUT_RING  (chan, lower_32_bits(prev->id * 16));
 		OUT_RING  (chan, fence->sequence);
 		OUT_RING  (chan, NV84_SUBCHAN_SEMAPHORE_TRIGGER_ACQUIRE_GEQUAL);
 		FIRE_RING (chan);

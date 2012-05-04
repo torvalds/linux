@@ -34,7 +34,8 @@ struct nouveau_fence_chan {
 struct nouveau_fence_priv {
 	struct nouveau_exec_engine engine;
 	int (*emit)(struct nouveau_fence *);
-	int (*sync)(struct nouveau_fence *, struct nouveau_channel *);
+	int (*sync)(struct nouveau_fence *, struct nouveau_channel *,
+		    struct nouveau_channel *);
 	u32 (*read)(struct nouveau_channel *);
 };
 

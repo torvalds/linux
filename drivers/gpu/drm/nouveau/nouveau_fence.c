@@ -147,15 +147,19 @@ nouveau_fence_wait(struct nouveau_fence *fence, bool lazy, bool intr)
 int
 nouveau_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
 {
-	struct nouveau_channel *prev = fence ? fence->channel : NULL;
 	struct drm_device *dev = chan->dev;
 	struct nouveau_fence_priv *priv = nv_engine(dev, NVOBJ_ENGINE_FENCE);
+	struct nouveau_channel *prev;
 	int ret = 0;
 
-	if (unlikely(prev && prev != chan && !nouveau_fence_done(fence))) {
-		ret = priv->sync(fence, chan);
-		if (unlikely(ret))
-			ret = nouveau_fence_wait(fence, true, false);
+	prev = fence ? nouveau_channel_get_unlocked(fence->channel) : NULL;
+	if (prev) {
+		if (unlikely(prev != chan && !nouveau_fence_done(fence))) {
+			ret = priv->sync(fence, prev, chan);
+			if (unlikely(ret))
+				ret = nouveau_fence_wait(fence, true, false);
+		}
+		nouveau_channel_put_unlocked(&prev);
 	}
 
 	return ret;

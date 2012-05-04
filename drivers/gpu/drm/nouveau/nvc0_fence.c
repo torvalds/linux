@@ -60,10 +60,11 @@ nvc0_fence_emit(struct nouveau_fence *fence)
 }
 
 static int
-nvc0_fence_sync(struct nouveau_fence *fence, struct nouveau_channel *chan)
+nvc0_fence_sync(struct nouveau_fence *fence,
+		struct nouveau_channel *prev, struct nouveau_channel *chan)
 {
 	struct nvc0_fence_chan *fctx = chan->engctx[NVOBJ_ENGINE_FENCE];
-	u64 addr = fctx->vma.offset + fence->channel->id * 16;
+	u64 addr = fctx->vma.offset + prev->id * 16;
 	int ret;
 
 	ret = RING_SPACE(chan, 5);
