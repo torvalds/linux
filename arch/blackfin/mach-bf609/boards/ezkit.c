@@ -677,10 +677,25 @@ int bf609_nor_flash_init(struct platform_device *dev)
 	return 0;
 }
 
+void bf609_nor_flash_exit(struct platform_device *dev)
+{
+	const unsigned short pins[] = {
+		P_A3, P_A4, P_A5, P_A6, P_A7, P_A8, P_A9, P_A10, P_A11, P_A12,
+		P_A13, P_A14, P_A15, P_A16, P_A17, P_A18, P_A19, P_A20, P_A21,
+		P_A22, P_A23, P_A24, P_A25, P_NORCK, 0,
+	};
+
+	peripheral_free_list(pins);
+
+	bfin_write32(SMC_GCTL, 0);
+	return 0;
+}
+
 static struct physmap_flash_data ezkit_flash_data = {
 	.width      = 2,
 	.parts      = ezkit_partitions,
-	.init 	    = bf609_nor_flash_init,
+	.init       = bf609_nor_flash_init,
+	.exit       = bf609_nor_flash_exit,
 	.nr_parts   = ARRAY_SIZE(ezkit_partitions),
 #ifdef CONFIG_ROMKERNEL
 	.probe_type = "map_rom",
