@@ -322,7 +322,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
 		int i;
 
 		pgbase = user_addr & ~PAGE_MASK;
-		bytes = min(max(rsize, PAGE_SIZE), count);
+		bytes = min(max_t(size_t, rsize, PAGE_SIZE), count);
 
 		result = -ENOMEM;
 		npages = nfs_page_array_len(pgbase, bytes);
@@ -349,7 +349,7 @@ static ssize_t nfs_direct_read_schedule_segment(struct nfs_pageio_descriptor *de
 
 		for (i = 0; i < npages; i++) {
 			struct nfs_page *req;
-			unsigned int req_len = min(bytes, PAGE_SIZE - pgbase);
+			unsigned int req_len = min_t(size_t, bytes, PAGE_SIZE - pgbase);
 			/* XXX do we need to do the eof zeroing found in async_filler? */
 			req = nfs_create_request(dreq->ctx, dreq->inode,
 						 pagevec[i],
@@ -619,7 +619,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 		int i;
 
 		pgbase = user_addr & ~PAGE_MASK;
-		bytes = min(max(wsize, PAGE_SIZE), count);
+		bytes = min(max_t(size_t, wsize, PAGE_SIZE), count);
 
 		result = -ENOMEM;
 		npages = nfs_page_array_len(pgbase, bytes);
@@ -647,7 +647,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 
 		for (i = 0; i < npages; i++) {
 			struct nfs_page *req;
-			unsigned int req_len = min(bytes, PAGE_SIZE - pgbase);
+			unsigned int req_len = min_t(size_t, bytes, PAGE_SIZE - pgbase);
 
 			req = nfs_create_request(dreq->ctx, dreq->inode,
 						 pagevec[i],
