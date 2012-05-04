@@ -583,6 +583,8 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk = vdev->priv;
 	int index = vblk->index;
+	struct virtblk_req *vbr;
+	unsigned long flags;
 
 	/* Prevent config work handler from accessing the device. */
 	mutex_lock(&vblk->config_lock);
@@ -598,6 +600,15 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 	flush_work(&vblk->config_work);
 
 	del_gendisk(vblk->disk);
+
+	/* Abort requests dispatched to driver. */
+	spin_lock_irqsave(&vblk->lock, flags);
+	while ((vbr = virtqueue_detach_unused_buf(vblk->vq))) {
+		__blk_end_request_all(vbr->req, -EIO);
+		mempool_free(vbr, vblk->pool);
+	}
+	spin_unlock_irqrestore(&vblk->lock, flags);
+
 	blk_cleanup_queue(vblk->disk->queue);
 	put_disk(vblk->disk);
 	mempool_destroy(vblk->pool);
