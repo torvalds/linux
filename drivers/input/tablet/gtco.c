@@ -106,6 +106,7 @@ struct gtco {
 
 	struct input_dev  *inputdevice; /* input device struct pointer  */
 	struct usb_device *usbdev; /* the usb device for this device */
+	struct usb_interface *intf;	/* the usb interface for this device */
 	struct urb        *urbinfo;	 /* urb for incoming reports      */
 	dma_addr_t        buf_dma;  /* dma addr of the data buffer*/
 	unsigned char *   buffer;   /* databuffer for reports */
@@ -200,7 +201,7 @@ struct hid_descriptor
 static void parse_hid_report_descriptor(struct gtco *device, char * report,
 					int length)
 {
-	struct device *ddev = &device->inputdevice->dev;
+	struct device *ddev = &device->intf->dev;
 	int   x, i = 0;
 
 	/* Tag primitive vars */
@@ -713,7 +714,7 @@ static void gtco_urb_callback(struct urb *urbinfo)
 				 * the rest as 0
 				 */
 				val = device->buffer[5] & MASK_BUTTON;
-				dev_dbg(&inputdev->dev,
+				dev_dbg(&device->intf->dev,
 					"======>>>>>>REPORT 1: val 0x%X(%d)\n",
 					val, val);
 
@@ -808,7 +809,7 @@ static void gtco_urb_callback(struct urb *urbinfo)
  resubmit:
 	rc = usb_submit_urb(urbinfo, GFP_ATOMIC);
 	if (rc != 0)
-		dev_err(&inputdev->dev,
+		dev_err(&device->intf->dev,
 			"usb_submit_urb failed rc=0x%x\n", rc);
 }
 
@@ -849,6 +850,7 @@ static int gtco_probe(struct usb_interface *usbinterface,
 
 	/* Save interface information */
 	gtco->usbdev = usb_get_dev(interface_to_usbdev(usbinterface));
+	gtco->intf = usbinterface;
 
 	/* Allocate some data for incoming reports */
 	gtco->buffer = usb_alloc_coherent(gtco->usbdev, REPORT_MAX_SIZE,
