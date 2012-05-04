@@ -121,12 +121,6 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 
 	/* GPIO OE */
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_GPIO, GPIO_OE, GPIO_OE);
-#ifdef LED_AUTO_BLINK
-	/* LED autoblink */
-	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_AUTO_BLINK,
-		       BLINK_ENABLE | BLINK_SPEED_MASK,
-		       BLINK_ENABLE | chip->option.led_blink_speed);
-#endif
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_DMA1_CTL,
 		       EXTEND_DMA1_ASYNC_SIGNAL, EXTEND_DMA1_ASYNC_SIGNAL);
 
@@ -230,7 +224,6 @@ int rts51x_release_chip(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-#ifndef LED_AUTO_BLINK
 static inline void rts51x_blink_led(struct rts51x_chip *chip)
 {
 	/* Read/Write */
@@ -244,7 +237,6 @@ static inline void rts51x_blink_led(struct rts51x_chip *chip)
 		}
 	}
 }
-#endif
 
 static void rts51x_auto_delink_cmd(struct rts51x_chip *chip)
 {
@@ -360,9 +352,7 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 		if (!RTS51X_CHK_STAT(chip, STAT_IDLE)) {
 			RTS51X_DEBUGP("Idle state!\n");
 			RTS51X_SET_STAT(chip, STAT_IDLE);
-#ifndef LED_AUTO_BLINK
 			chip->led_toggle_counter = 0;
-#endif
 			/* Idle state, turn off LED
 			 * to reduce power consumption */
 			if (chip->option.led_always_on
@@ -396,9 +386,7 @@ void rts51x_polling_func(struct rts51x_chip *chip)
 
 	switch (RTS51X_GET_STAT(chip)) {
 	case STAT_RUN:
-#ifndef LED_AUTO_BLINK
 		rts51x_blink_led(chip);
-#endif
 		do_remaining_work(chip);
 		break;
 

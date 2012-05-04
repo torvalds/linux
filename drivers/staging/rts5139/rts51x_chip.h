@@ -39,8 +39,6 @@
 #define SUPPORT_CPRM
 #define SUPPORT_MAGIC_GATE
 #define SUPPORT_MSXC
-/* #define LED_AUTO_BLINK */
-
 /* { wwang, 2010-07-26
  * Add support for SD lock/unlock */
 /* #define SUPPORT_SD_LOCK */
@@ -720,9 +718,8 @@ struct rts51x_chip {
 	struct scsi_cmnd *srb;
 	struct sense_data_t sense_buffer[MAX_ALLOWED_LUN_CNT];
 
-#ifndef LED_AUTO_BLINK
 	int led_toggle_counter;
-#endif
+
 	int ss_counter;
 	int idle_counter;
 	int auto_delink_counter;
