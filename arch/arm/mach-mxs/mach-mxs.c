@@ -41,6 +41,15 @@ static void __init mxs_dt_init_irq(void)
 	of_irq_init(mxs_irq_match);
 }
 
+static void __init imx23_timer_init(void)
+{
+	mx23_clocks_init();
+}
+
+static struct sys_timer imx23_timer = {
+	.init = imx23_timer_init,
+};
+
 static void __init imx28_timer_init(void)
 {
 	mx28_clocks_init();
@@ -69,11 +78,26 @@ static void __init mxs_machine_init(void)
 				NULL, NULL);
 }
 
+static const char *imx23_dt_compat[] __initdata = {
+	"fsl,imx23-evk",
+	"fsl,imx23",
+	NULL,
+};
+
 static const char *imx28_dt_compat[] __initdata = {
 	"fsl,imx28-evk",
 	"fsl,imx28",
 	NULL,
 };
+
+DT_MACHINE_START(IMX23, "Freescale i.MX23 (Device Tree)")
+	.map_io		= mx23_map_io,
+	.init_irq	= mxs_dt_init_irq,
+	.timer		= &imx23_timer,
+	.init_machine	= mxs_machine_init,
+	.dt_compat	= imx23_dt_compat,
+	.restart	= mxs_restart,
+MACHINE_END
 
 DT_MACHINE_START(IMX28, "Freescale i.MX28 (Device Tree)")
 	.map_io		= mx28_map_io,

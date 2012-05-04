@@ -23,6 +23,7 @@ comment "MXS platforms:"
 
 config MACH_MXS_DT
 	bool "Support MXS platforms from device tree"
+	select SOC_IMX23
 	select SOC_IMX28
 	select USE_OF
 	help

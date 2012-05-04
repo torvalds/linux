@@ -1,6 +1,10 @@
 Freescale i.MX Platforms Device Tree Bindings
 -----------------------------------------------
 
+i.MX23 Evaluation Kit
+Required root node properties:
+    - compatible = "fsl,imx23-evk", "fsl,imx23";
+
 i.MX28 Evaluation Kit
 Required root node properties:
     - compatible = "fsl,imx28-evk", "fsl,imx28";
