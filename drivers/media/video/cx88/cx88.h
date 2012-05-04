@@ -141,7 +141,7 @@ struct sram_channel {
 	u32  cnt1_reg;
 	u32  cnt2_reg;
 };
-extern const struct sram_channel const cx88_sram_channels[];
+extern const struct sram_channel cx88_sram_channels[];
 
 /* ----------------------------------------------------------- */
 /* card configuration                                          */

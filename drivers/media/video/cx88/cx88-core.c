@@ -253,7 +253,7 @@ cx88_free_buffer(struct videobuf_queue *q, struct cx88_buffer *buf)
  *    0x0c00 -           FIFOs
  */
 
-const struct sram_channel const cx88_sram_channels[] = {
+const struct sram_channel cx88_sram_channels[] = {
 	[SRAM_CH21] = {
 		.name       = "video y / packed",
 		.cmds_start = 0x180040,
