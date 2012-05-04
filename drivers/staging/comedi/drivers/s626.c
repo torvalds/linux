@@ -79,10 +79,6 @@ INSN_CONFIG instructions:
 #include "comedi_fc.h"
 #include "s626.h"
 
-MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
-MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
-MODULE_LICENSE("GPL");
-
 #define PCI_VENDOR_ID_S626 0x1131
 #define PCI_DEVICE_ID_S626 0x7146
 #define PCI_SUBVENDOR_ID_S626 0x6000
@@ -121,28 +117,6 @@ static const struct s626_board s626_boards[] = {
 };
 
 #define thisboard ((const struct s626_board *)dev->board_ptr)
-
-/*
- * For devices with vendor:device id == 0x1131:0x7146 you must specify
- * also subvendor:subdevice ids, because otherwise it will conflict with
- * Philips SAA7146 media/dvb based cards.
- */
-static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
-	{PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626, PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, s626_pci_table);
-
-static int s626_attach(struct comedi_device *dev, struct comedi_devconfig *it);
-static int s626_detach(struct comedi_device *dev);
-
-static struct comedi_driver driver_s626 = {
-	.driver_name = "s626",
-	.module = THIS_MODULE,
-	.attach = s626_attach,
-	.detach = s626_detach,
-};
 
 struct s626_private {
 	struct pci_dev *pdev;
@@ -234,44 +208,6 @@ static struct dio_private *dio_private_word[]={
 
 #define devpriv ((struct s626_private *)dev->private)
 #define diopriv ((struct dio_private *)s->private)
-
-static int __devinit driver_s626_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
-{
-	return comedi_pci_auto_config(dev, &driver_s626);
-}
-
-static void __devexit driver_s626_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
-}
-
-static struct pci_driver driver_s626_pci_driver = {
-	.id_table = s626_pci_table,
-	.probe = &driver_s626_pci_probe,
-	.remove = __devexit_p(&driver_s626_pci_remove)
-};
-
-static int __init driver_s626_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_s626);
-	if (retval < 0)
-		return retval;
-
-	driver_s626_pci_driver.name = (char *)driver_s626.driver_name;
-	return pci_register_driver(&driver_s626_pci_driver);
-}
-
-static void __exit driver_s626_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_s626_pci_driver);
-	comedi_driver_unregister(&driver_s626);
-}
-
-module_init(driver_s626_init_module);
-module_exit(driver_s626_cleanup_module);
 
 /* ioctl routines */
 static int s626_ai_insn_config(struct comedi_device *dev,
@@ -3378,3 +3314,63 @@ static void CountersInit(struct comedi_device *dev)
 	DEBUG("CountersInit: counters initialized\n");
 
 }
+
+static struct comedi_driver driver_s626 = {
+	.driver_name	= "s626",
+	.module		= THIS_MODULE,
+	.attach		= s626_attach,
+	.detach		= s626_detach,
+};
+
+static int __devinit driver_s626_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, &driver_s626);
+}
+
+static void __devexit driver_s626_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+/*
+ * For devices with vendor:device id == 0x1131:0x7146 you must specify
+ * also subvendor:subdevice ids, because otherwise it will conflict with
+ * Philips SAA7146 media/dvb based cards.
+ */
+static DEFINE_PCI_DEVICE_TABLE(s626_pci_table) = {
+	{ PCI_VENDOR_ID_S626, PCI_DEVICE_ID_S626,
+		PCI_SUBVENDOR_ID_S626, PCI_SUBDEVICE_ID_S626, 0, 0, 0 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, s626_pci_table);
+
+static struct pci_driver driver_s626_pci_driver = {
+	.id_table	= s626_pci_table,
+	.probe		= driver_s626_pci_probe,
+	.remove		= __devexit_p(driver_s626_pci_remove),
+};
+
+static int __init driver_s626_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_s626);
+	if (retval < 0)
+		return retval;
+
+	driver_s626_pci_driver.name = (char *)driver_s626.driver_name;
+	return pci_register_driver(&driver_s626_pci_driver);
+}
+module_init(driver_s626_init_module);
+
+static void __exit driver_s626_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_s626_pci_driver);
+	comedi_driver_unregister(&driver_s626);
+}
+module_exit(driver_s626_cleanup_module);
+
+MODULE_AUTHOR("Gianluca Palli <gpalli@deis.unibo.it>");
+MODULE_DESCRIPTION("Sensoray 626 Comedi driver module");
+MODULE_LICENSE("GPL");
