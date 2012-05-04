@@ -2737,7 +2737,7 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
 	for (i = 0; i < hw_ep_max; i++) {
 		struct ci13xxx_ep *mEp = &udc->ci13xxx_ep[i];
 
-		if (!list_empty(&mEp->ep.ep_list))
+		if (mEp->num)
 			list_del_init(&mEp->ep.ep_list);
 
 		if (mEp->qh.ptr != NULL)
