@@ -153,7 +153,7 @@ nouveau_fbcon_sync(struct fb_info *info)
 	struct drm_device *dev = nfbdev->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan = dev_priv->channel;
-	int ret, i;
+	int ret;
 
 	if (!chan || !chan->accel_done || in_interrupt() ||
 	    info->state != FBINFO_STATE_RUNNING ||
@@ -163,38 +163,8 @@ nouveau_fbcon_sync(struct fb_info *info)
 	if (!mutex_trylock(&chan->mutex))
 		return 0;
 
-	ret = RING_SPACE(chan, 4);
-	if (ret) {
-		mutex_unlock(&chan->mutex);
-		nouveau_fbcon_gpu_lockup(info);
-		return 0;
-	}
-
-	if (dev_priv->card_type >= NV_C0) {
-		BEGIN_NVC0(chan, NvSub2D, 0x010c, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NVC0(chan, NvSub2D, 0x0100, 1);
-		OUT_RING  (chan, 0);
-	} else {
-		BEGIN_NV04(chan, 0, 0x0104, 1);
-		OUT_RING  (chan, 0);
-		BEGIN_NV04(chan, 0, 0x0100, 1);
-		OUT_RING  (chan, 0);
-	}
-
-	nouveau_bo_wr32(chan->notifier_bo, chan->m2mf_ntfy/4 + 3, 0xffffffff);
-	FIRE_RING(chan);
+	ret = nouveau_channel_idle(chan);
 	mutex_unlock(&chan->mutex);
-
-	ret = -EBUSY;
-	for (i = 0; i < 100000; i++) {
-		if (!nouveau_bo_rd32(chan->notifier_bo, chan->m2mf_ntfy/4 + 3)) {
-			ret = 0;
-			break;
-		}
-		DRM_UDELAY(1);
-	}
-
 	if (ret) {
 		nouveau_fbcon_gpu_lockup(info);
 		return 0;
