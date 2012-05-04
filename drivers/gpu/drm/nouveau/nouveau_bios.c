@@ -196,35 +196,24 @@ static void
 bios_shadow_acpi(struct nvbios *bios)
 {
 	struct pci_dev *pdev = bios->dev->pdev;
-	int ptr, len, ret;
-	u8 data[3];
+	int cnt = 65536 / ROM_BIOS_PAGE;
+	int ret;
 
 	if (!nouveau_acpi_rom_supported(pdev))
 		return;
 
-	ret = nouveau_acpi_get_bios_chunk(data, 0, sizeof(data));
-	if (ret != sizeof(data))
-		return;
-
-	bios->length = min(data[2] * 512, 65536);
-	bios->data = kmalloc(bios->length, GFP_KERNEL);
+	bios->data = kmalloc(cnt * ROM_BIOS_PAGE, GFP_KERNEL);
 	if (!bios->data)
 		return;
 
-	len = bios->length;
-	ptr = 0;
-	while (len) {
-		int size = (len > ROM_BIOS_PAGE) ? ROM_BIOS_PAGE : len;
-
-		ret = nouveau_acpi_get_bios_chunk(bios->data, ptr, size);
-		if (ret != size) {
-			kfree(bios->data);
-			bios->data = NULL;
+	bios->length = 0;
+	while (cnt--) {
+		ret = nouveau_acpi_get_bios_chunk(bios->data, bios->length,
+						  ROM_BIOS_PAGE);
+		if (ret != ROM_BIOS_PAGE)
 			return;
-		}
 
-		len -= size;
-		ptr += size;
+		bios->length += ROM_BIOS_PAGE;
 	}
 }
 
@@ -294,6 +283,7 @@ bios_shadow(struct drm_device *dev)
 		mthd->score = score_vbios(bios, mthd->rw);
 		mthd->size = bios->length;
 		mthd->data = bios->data;
+		bios->data = NULL;
 	} while (mthd->score != 3 && (++mthd)->shadow);
 
 	mthd = shadow_methods;
