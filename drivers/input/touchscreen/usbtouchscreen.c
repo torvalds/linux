@@ -269,7 +269,7 @@ static int e2i_init(struct usbtouch_usb *usbtouch)
 	                      0x01, 0x02, 0x0000, 0x0081,
 	                      NULL, 0, USB_CTRL_SET_TIMEOUT);
 
-	dev_dbg(&usbtouch->input->dev,
+	dev_dbg(&usbtouch->interface->dev,
 		"%s - usb_control_msg - E2I_RESET - bytes|err: %d\n",
 		__func__, ret);
 	return ret;
@@ -426,7 +426,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	                      MTOUCHUSB_RESET,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      1, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
-	dev_dbg(&usbtouch->input->dev,
+	dev_dbg(&usbtouch->interface->dev,
 		"%s - usb_control_msg - MTOUCHUSB_RESET - bytes|err: %d\n",
 		__func__, ret);
 	if (ret < 0)
@@ -438,7 +438,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 				      MTOUCHUSB_ASYNC_REPORT,
 				      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				      1, 1, NULL, 0, USB_CTRL_SET_TIMEOUT);
-		dev_dbg(&usbtouch->input->dev,
+		dev_dbg(&usbtouch->interface->dev,
 			"%s - usb_control_msg - MTOUCHUSB_ASYNC_REPORT - bytes|err: %d\n",
 			__func__, ret);
 		if (ret >= 0)
@@ -740,29 +740,29 @@ static int jastec_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #ifdef CONFIG_TOUCHSCREEN_USB_ZYTRONIC
 static int zytronic_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
-	struct input_dev *input = dev->input;
+	struct usb_interface *intf = dev->interface;
 
 	switch (pkt[0]) {
 	case 0x3A: /* command response */
-		dev_dbg(&input->dev, "%s: Command response %d\n", __func__, pkt[1]);
+		dev_dbg(&intf->dev, "%s: Command response %d\n", __func__, pkt[1]);
 		break;
 
 	case 0xC0: /* down */
 		dev->x = (pkt[1] & 0x7f) | ((pkt[2] & 0x07) << 7);
 		dev->y = (pkt[3] & 0x7f) | ((pkt[4] & 0x07) << 7);
 		dev->touch = 1;
-		dev_dbg(&input->dev, "%s: down %d,%d\n", __func__, dev->x, dev->y);
+		dev_dbg(&intf->dev, "%s: down %d,%d\n", __func__, dev->x, dev->y);
 		return 1;
 
 	case 0x80: /* up */
 		dev->x = (pkt[1] & 0x7f) | ((pkt[2] & 0x07) << 7);
 		dev->y = (pkt[3] & 0x7f) | ((pkt[4] & 0x07) << 7);
 		dev->touch = 0;
-		dev_dbg(&input->dev, "%s: up %d,%d\n", __func__, dev->x, dev->y);
+		dev_dbg(&intf->dev, "%s: up %d,%d\n", __func__, dev->x, dev->y);
 		return 1;
 
 	default:
-		dev_dbg(&input->dev, "%s: Unknown return %d\n", __func__, pkt[0]);
+		dev_dbg(&intf->dev, "%s: Unknown return %d\n", __func__, pkt[0]);
 		break;
 	}
 
@@ -817,7 +817,7 @@ static int nexio_alloc(struct usbtouch_usb *usbtouch)
 
 	priv->ack = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->ack) {
-		dev_dbg(&usbtouch->input->dev,
+		dev_dbg(&usbtouch->interface->dev,
 			"%s - usb_alloc_urb failed: usbtouch->ack\n", __func__);
 		goto err_ack_buf;
 	}
@@ -1355,7 +1355,7 @@ out_flush_buf:
 static void usbtouch_irq(struct urb *urb)
 {
 	struct usbtouch_usb *usbtouch = urb->context;
-	struct device *dev = &usbtouch->input->dev;
+	struct device *dev = &usbtouch->interface->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -1388,8 +1388,7 @@ exit:
 	usb_mark_last_busy(interface_to_usbdev(usbtouch->interface));
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&usbtouch->input->dev,
-			"%s - usb_submit_urb failed with result: %d\n",
+		dev_err(dev, "%s - usb_submit_urb failed with result: %d\n",
 			__func__, retval);
 }
 
@@ -1465,7 +1464,7 @@ static int usbtouch_reset_resume(struct usb_interface *intf)
 	if (usbtouch->type->init) {
 		err = usbtouch->type->init(usbtouch);
 		if (err) {
-			dev_dbg(&input->dev,
+			dev_dbg(&intf->dev,
 				"%s - type->init() failed, err: %d\n",
 				__func__, err);
 			return err;
@@ -1639,7 +1638,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		err = usb_submit_urb(usbtouch->irq, GFP_KERNEL);
 		if (err) {
 			usb_autopm_put_interface(intf);
-			dev_err(&input_dev->dev,
+			dev_err(&intf->dev,
 				"%s - usb_submit_urb failed with result: %d\n",
 				__func__, err);
 			goto out_unregister_input;
@@ -1671,7 +1670,7 @@ static void usbtouch_disconnect(struct usb_interface *intf)
 	if (!usbtouch)
 		return;
 
-	dev_dbg(&usbtouch->input->dev,
+	dev_dbg(&intf->dev,
 		"%s - usbtouch is initialized, cleaning up\n", __func__);
 
 	usb_set_intfdata(intf, NULL);
