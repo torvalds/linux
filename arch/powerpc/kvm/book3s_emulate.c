@@ -318,10 +318,9 @@ static struct kvmppc_bat *kvmppc_find_bat(struct kvm_vcpu *vcpu, int sprn)
 	return bat;
 }
 
-int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
+int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 {
 	int emulated = EMULATE_DONE;
-	ulong spr_val = kvmppc_get_gpr(vcpu, rs);
 
 	switch (sprn) {
 	case SPRN_SDR1:
@@ -433,7 +432,7 @@ unprivileged:
 	return emulated;
 }
 
-int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
+int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 {
 	int emulated = EMULATE_DONE;
 
@@ -446,46 +445,46 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 		struct kvmppc_bat *bat = kvmppc_find_bat(vcpu, sprn);
 
 		if (sprn % 2)
-			kvmppc_set_gpr(vcpu, rt, bat->raw >> 32);
+			*spr_val = bat->raw >> 32;
 		else
-			kvmppc_set_gpr(vcpu, rt, bat->raw);
+			*spr_val = bat->raw;
 
 		break;
 	}
 	case SPRN_SDR1:
 		if (!spr_allowed(vcpu, PRIV_HYPER))
 			goto unprivileged;
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->sdr1);
+		*spr_val = to_book3s(vcpu)->sdr1;
 		break;
 	case SPRN_DSISR:
-		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->dsisr);
+		*spr_val = vcpu->arch.shared->dsisr;
 		break;
 	case SPRN_DAR:
-		kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->dar);
+		*spr_val = vcpu->arch.shared->dar;
 		break;
 	case SPRN_HIOR:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hior);
+		*spr_val = to_book3s(vcpu)->hior;
 		break;
 	case SPRN_HID0:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[0]);
+		*spr_val = to_book3s(vcpu)->hid[0];
 		break;
 	case SPRN_HID1:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[1]);
+		*spr_val = to_book3s(vcpu)->hid[1];
 		break;
 	case SPRN_HID2:
 	case SPRN_HID2_GEKKO:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[2]);
+		*spr_val = to_book3s(vcpu)->hid[2];
 		break;
 	case SPRN_HID4:
 	case SPRN_HID4_GEKKO:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[4]);
+		*spr_val = to_book3s(vcpu)->hid[4];
 		break;
 	case SPRN_HID5:
-		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[5]);
+		*spr_val = to_book3s(vcpu)->hid[5];
 		break;
 	case SPRN_CFAR:
 	case SPRN_PURR:
-		kvmppc_set_gpr(vcpu, rt, 0);
+		*spr_val = 0;
 		break;
 	case SPRN_GQR0:
 	case SPRN_GQR1:
@@ -495,8 +494,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_GQR5:
 	case SPRN_GQR6:
 	case SPRN_GQR7:
-		kvmppc_set_gpr(vcpu, rt,
-			       to_book3s(vcpu)->gqr[sprn - SPRN_GQR0]);
+		*spr_val = to_book3s(vcpu)->gqr[sprn - SPRN_GQR0];
 		break;
 	case SPRN_THRM1:
 	case SPRN_THRM2:
@@ -511,7 +509,7 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	case SPRN_PMC3_GEKKO:
 	case SPRN_PMC4_GEKKO:
 	case SPRN_WPAR_GEKKO:
-		kvmppc_set_gpr(vcpu, rt, 0);
+		*spr_val = 0;
 		break;
 	default:
 unprivileged:

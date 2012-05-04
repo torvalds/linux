@@ -154,6 +154,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	int sprn = get_sprn(inst);
 	enum emulation_result emulated = EMULATE_DONE;
 	int advance = 1;
+	ulong spr_val = 0;
 
 	/* this default type might be overwritten by subcategories */
 	kvmppc_set_exit_type(vcpu, EMULATED_INST_EXITS);
@@ -235,55 +236,59 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		case OP_31_XOP_MFSPR:
 			switch (sprn) {
 			case SPRN_SRR0:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->srr0);
+				spr_val = vcpu->arch.shared->srr0;
 				break;
 			case SPRN_SRR1:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->srr1);
+				spr_val = vcpu->arch.shared->srr1;
 				break;
 			case SPRN_PVR:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.pvr); break;
+				spr_val = vcpu->arch.pvr;
+				break;
 			case SPRN_PIR:
-				kvmppc_set_gpr(vcpu, rt, vcpu->vcpu_id); break;
+				spr_val = vcpu->vcpu_id;
+				break;
 			case SPRN_MSSSR0:
-				kvmppc_set_gpr(vcpu, rt, 0); break;
+				spr_val = 0;
+				break;
 
 			/* Note: mftb and TBRL/TBWL are user-accessible, so
 			 * the guest can always access the real TB anyways.
 			 * In fact, we probably will never see these traps. */
 			case SPRN_TBWL:
-				kvmppc_set_gpr(vcpu, rt, get_tb() >> 32); break;
+				spr_val = get_tb() >> 32;
+				break;
 			case SPRN_TBWU:
-				kvmppc_set_gpr(vcpu, rt, get_tb()); break;
+				spr_val = get_tb();
+				break;
 
 			case SPRN_SPRG0:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg0);
+				spr_val = vcpu->arch.shared->sprg0;
 				break;
 			case SPRN_SPRG1:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg1);
+				spr_val = vcpu->arch.shared->sprg1;
 				break;
 			case SPRN_SPRG2:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg2);
+				spr_val = vcpu->arch.shared->sprg2;
 				break;
 			case SPRN_SPRG3:
-				kvmppc_set_gpr(vcpu, rt, vcpu->arch.shared->sprg3);
+				spr_val = vcpu->arch.shared->sprg3;
 				break;
 			/* Note: SPRG4-7 are user-readable, so we don't get
 			 * a trap. */
 
 			case SPRN_DEC:
-			{
-				kvmppc_set_gpr(vcpu, rt,
-					       kvmppc_get_dec(vcpu, get_tb()));
+				spr_val = kvmppc_get_dec(vcpu, get_tb());
 				break;
-			}
 			default:
-				emulated = kvmppc_core_emulate_mfspr(vcpu, sprn, rt);
-				if (emulated == EMULATE_FAIL) {
-					printk("mfspr: unknown spr %x\n", sprn);
-					kvmppc_set_gpr(vcpu, rt, 0);
+				emulated = kvmppc_core_emulate_mfspr(vcpu, sprn,
+								     &spr_val);
+				if (unlikely(emulated == EMULATE_FAIL)) {
+					printk(KERN_INFO "mfspr: unknown spr "
+						"0x%x\n", sprn);
 				}
 				break;
 			}
+			kvmppc_set_gpr(vcpu, rt, spr_val);
 			kvmppc_set_exit_type(vcpu, EMULATED_MFSPR_EXITS);
 			break;
 
@@ -301,12 +306,13 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			break;
 
 		case OP_31_XOP_MTSPR:
+			spr_val = kvmppc_get_gpr(vcpu, rs);
 			switch (sprn) {
 			case SPRN_SRR0:
-				vcpu->arch.shared->srr0 = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.shared->srr0 = spr_val;
 				break;
 			case SPRN_SRR1:
-				vcpu->arch.shared->srr1 = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.shared->srr1 = spr_val;
 				break;
 
 			/* XXX We need to context-switch the timebase for
@@ -317,27 +323,29 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			case SPRN_MSSSR0: break;
 
 			case SPRN_DEC:
-				vcpu->arch.dec = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.dec = spr_val;
 				kvmppc_emulate_dec(vcpu);
 				break;
 
 			case SPRN_SPRG0:
-				vcpu->arch.shared->sprg0 = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.shared->sprg0 = spr_val;
 				break;
 			case SPRN_SPRG1:
-				vcpu->arch.shared->sprg1 = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.shared->sprg1 = spr_val;
 				break;
 			case SPRN_SPRG2:
-				vcpu->arch.shared->sprg2 = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.shared->sprg2 = spr_val;
 				break;
 			case SPRN_SPRG3:
-				vcpu->arch.shared->sprg3 = kvmppc_get_gpr(vcpu, rs);
+				vcpu->arch.shared->sprg3 = spr_val;
 				break;
 
 			default:
-				emulated = kvmppc_core_emulate_mtspr(vcpu, sprn, rs);
+				emulated = kvmppc_core_emulate_mtspr(vcpu, sprn,
+								     spr_val);
 				if (emulated == EMULATE_FAIL)
-					printk("mtspr: unknown spr %x\n", sprn);
+					printk(KERN_INFO "mtspr: unknown spr "
+						"0x%x\n", sprn);
 				break;
 			}
 			kvmppc_set_exit_type(vcpu, EMULATED_MTSPR_EXITS);
