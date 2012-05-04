@@ -662,8 +662,6 @@ source "drivers/media/video/tm6000/Kconfig"
 
 source "drivers/media/video/usbvision/Kconfig"
 
-source "drivers/media/video/et61x251/Kconfig"
-
 source "drivers/media/video/sn9c102/Kconfig"
 
 source "drivers/media/video/pwc/Kconfig"
