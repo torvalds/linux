@@ -16,8 +16,6 @@
 
 #include <video/exynos_dp.h>
 
-#include <plat/cpu.h>
-
 #include "exynos_dp_core.h"
 #include "exynos_dp_reg.h"
 

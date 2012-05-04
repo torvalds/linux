@@ -21,8 +21,6 @@
 
 #include <video/exynos_dp.h>
 
-#include <plat/cpu.h>
-
 #include "exynos_dp_core.h"
 
 static int exynos_dp_init_dp(struct exynos_dp_device *dp)
