@@ -2086,14 +2086,14 @@ static void kill_all_requests(struct s3c_hsotg *hsotg,
 		(_hs)->driver->_entry(&(_hs)->gadget);
 
 /**
- * s3c_hsotg_disconnect_irq - disconnect irq service
+ * s3c_hsotg_disconnect - disconnect service
  * @hsotg: The device state.
  *
- * A disconnect IRQ has been received, meaning that the host has
- * lost contact with the bus. Remove all current transactions
- * and signal the gadget driver that this has happened.
+ * The device has been disconnected. Remove all current
+ * transactions and signal the gadget driver that this
+ * has happened.
 */
-static void s3c_hsotg_disconnect_irq(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg)
 {
 	unsigned ep;
 
