@@ -157,7 +157,7 @@ static int keyspan_load_tester(struct usb_keyspan* dev, int bits_needed)
 	 * though so it's not too big a deal
 	 */
 	if (dev->data.pos >= dev->data.len) {
-		dev_dbg(&dev->udev->dev,
+		dev_dbg(&dev->interface->dev,
 			"%s - Error ran out of data. pos: %d, len: %d\n",
 			__func__, dev->data.pos, dev->data.len);
 		return -1;
@@ -267,7 +267,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.tester = remote->data.tester >> 6;
 				remote->data.bits_left -= 6;
 			} else {
-				dev_err(&remote->input->dev,
+				dev_err(&remote->interface->dev,
 					"%s - Unknown sequence found in system data.\n",
 					__func__);
 				remote->stage = 0;
@@ -288,7 +288,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 				remote->data.tester = remote->data.tester >> 6;
 				remote->data.bits_left -= 6;
 			} else {
-				dev_err(&remote->input->dev,
+				dev_err(&remote->interface->dev,
 					"%s - Unknown sequence found in button data.\n",
 					__func__);
 				remote->stage = 0;
@@ -306,7 +306,7 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.tester = remote->data.tester >> 6;
 			remote->data.bits_left -= 6;
 		} else {
-			dev_err(&remote->input->dev,
+			dev_err(&remote->interface->dev,
 				"%s - Error in message, invalid toggle.\n",
 				__func__);
 			remote->stage = 0;
@@ -318,11 +318,11 @@ static void keyspan_check_data(struct usb_keyspan *remote)
 			remote->data.tester = remote->data.tester >> 5;
 			remote->data.bits_left -= 5;
 		} else {
-			dev_err(&remote->input->dev,
+			dev_err(&remote->interface->dev,
 				"Bad message received, no stop bit found.\n");
 		}
 
-		dev_dbg(&remote->udev->dev,
+		dev_dbg(&remote->interface->dev,
 			"%s found valid message: system: %d, button: %d, toggle: %d\n",
 			__func__, message.system, message.button, message.toggle);
 
@@ -404,7 +404,7 @@ static void keyspan_irq_recv(struct urb *urb)
 resubmit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		dev_err(&dev->input->dev,
+		dev_err(&dev->interface->dev,
 			"%s - usb_submit_urb failed with result: %d\n",
 			__func__, retval);
 }
