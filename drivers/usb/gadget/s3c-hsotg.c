@@ -2211,12 +2211,11 @@ static void s3c_hsotg_core_init(struct s3c_hsotg *hsotg)
 	/* Clear any pending interrupts */
 	writel(0xffffffff, hsotg->regs + S3C_GINTSTS);
 
-	writel(S3C_GINTSTS_DisconnInt | S3C_GINTSTS_SessReqInt |
+	writel(S3C_GINTSTS_ErlySusp | S3C_GINTSTS_SessReqInt |
 	       S3C_GINTSTS_GOUTNakEff | S3C_GINTSTS_GINNakEff |
 	       S3C_GINTSTS_ConIDStsChng | S3C_GINTSTS_USBRst |
 	       S3C_GINTSTS_EnumDone | S3C_GINTSTS_OTGInt |
-	       S3C_GINTSTS_USBSusp | S3C_GINTSTS_WkUpInt |
-	       S3C_GINTSTS_ErlySusp,
+	       S3C_GINTSTS_USBSusp | S3C_GINTSTS_WkUpInt,
 	       hsotg->regs + S3C_GINTMSK);
 
 	if (using_dma(hsotg))
@@ -2337,13 +2336,6 @@ irq_retry:
 		dev_info(hsotg->dev, "OTGInt: %08x\n", otgint);
 
 		writel(otgint, hsotg->regs + S3C_GOTGINT);
-	}
-
-	if (gintsts & S3C_GINTSTS_DisconnInt) {
-		dev_dbg(hsotg->dev, "%s: DisconnInt\n", __func__);
-		writel(S3C_GINTSTS_DisconnInt, hsotg->regs + S3C_GINTSTS);
-
-		s3c_hsotg_disconnect_irq(hsotg);
 	}
 
 	if (gintsts & S3C_GINTSTS_SessReqInt) {
