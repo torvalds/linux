@@ -120,32 +120,33 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
-	u32 port, flags, val = I915_READ(VIDEO_DIP_CTL);
+	u32 val = I915_READ(VIDEO_DIP_CTL);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
 
 
 	/* XXX first guess at handling video port, is this corrent? */
 	if (intel_hdmi->sdvox_reg == SDVOB)
-		port = VIDEO_DIP_PORT_B;
+		val |= VIDEO_DIP_PORT_B;
 	else if (intel_hdmi->sdvox_reg == SDVOC)
-		port = VIDEO_DIP_PORT_C;
+		val |= VIDEO_DIP_PORT_C;
 	else
 		return;
 
-	flags = intel_infoframe_index(frame);
-
 	val &= ~VIDEO_DIP_SELECT_MASK;
+	val |= intel_infoframe_index(frame);
 
-	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | val | port | flags);
+	val |= VIDEO_DIP_ENABLE;
+
+	I915_WRITE(VIDEO_DIP_CTL, val);
 
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VIDEO_DIP_DATA, *data);
 		data++;
 	}
 
-	flags |= intel_infoframe_flags(frame);
+	val |= intel_infoframe_flags(frame);
 
-	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | val | port | flags);
+	I915_WRITE(VIDEO_DIP_CTL, val);
 }
 
 static void ironlake_write_infoframe(struct drm_encoder *encoder,
@@ -158,24 +159,25 @@ static void ironlake_write_infoframe(struct drm_encoder *encoder,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
-	u32 flags, val = I915_READ(reg);
+	u32 val = I915_READ(reg);
 
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-	flags = intel_infoframe_index(frame);
-
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
+	val |= intel_infoframe_index(frame);
 
-	I915_WRITE(reg, VIDEO_DIP_ENABLE | val | flags);
+	val |= VIDEO_DIP_ENABLE;
+
+	I915_WRITE(reg, val);
 
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
 
-	flags |= intel_infoframe_flags(frame);
+	val |= intel_infoframe_flags(frame);
 
-	I915_WRITE(reg, VIDEO_DIP_ENABLE | val | flags);
+	I915_WRITE(reg, val);
 }
 
 static void vlv_write_infoframe(struct drm_encoder *encoder,
@@ -188,24 +190,25 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int reg = VLV_TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
-	u32 flags, val = I915_READ(reg);
+	u32 val = I915_READ(reg);
 
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
-	flags = intel_infoframe_index(frame);
-
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
+	val |= intel_infoframe_index(frame);
 
-	I915_WRITE(reg, VIDEO_DIP_ENABLE | val | flags);
+	val |= VIDEO_DIP_ENABLE;
+
+	I915_WRITE(reg, val);
 
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VLV_TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
 		data++;
 	}
 
-	flags |= intel_infoframe_flags(frame);
+	val |= intel_infoframe_flags(frame);
 
-	I915_WRITE(reg, VIDEO_DIP_ENABLE | val | flags);
+	I915_WRITE(reg, val);
 }
 
 static void intel_set_infoframe(struct drm_encoder *encoder,
