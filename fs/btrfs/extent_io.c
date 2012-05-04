@@ -4120,6 +4120,7 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 			if (atomic_inc_not_zero(&exists->refs)) {
 				spin_unlock(&mapping->private_lock);
 				unlock_page(p);
+				page_cache_release(p);
 				mark_extent_buffer_accessed(exists);
 				goto free_eb;
 			}
@@ -4199,8 +4200,7 @@ free_eb:
 			unlock_page(eb->pages[i]);
 	}
 
-	if (!atomic_dec_and_test(&eb->refs))
-		return exists;
+	WARN_ON(!atomic_dec_and_test(&eb->refs));
 	btrfs_release_extent_buffer(eb);
 	return exists;
 }
