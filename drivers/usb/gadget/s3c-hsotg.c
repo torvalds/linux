@@ -128,8 +128,6 @@ struct s3c_hsotg_ep {
 	char			name[10];
 };
 
-#define S3C_HSOTG_EPS	(8+1)	/* limit to 9 for the moment */
-
 /**
  * struct s3c_hsotg - driver state.
  * @dev: The parent device supplied to the probe function
@@ -140,6 +138,7 @@ struct s3c_hsotg_ep {
  * @irq: The IRQ number we are using
  * @supplies: Definition of USB power supplies
  * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
+ * @num_of_eps: Number of available EPs (excluding EP0)
  * @debug_root: root directrory for debugfs.
  * @debug_file: main status file for debugfs.
  * @debug_fifo: FIFO status file for debugfs.
@@ -164,6 +163,7 @@ struct s3c_hsotg {
 	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
 
 	unsigned int		dedicated_fifos:1;
+	unsigned char           num_of_eps;
 
 	struct dentry		*debug_root;
 	struct dentry		*debug_file;
@@ -177,7 +177,7 @@ struct s3c_hsotg {
 	struct usb_gadget	gadget;
 	unsigned int		setup;
 	unsigned long           last_rst;
-	struct s3c_hsotg_ep	eps[];
+	struct s3c_hsotg_ep	*eps;
 };
 
 /**
@@ -952,7 +952,7 @@ static struct s3c_hsotg_ep *ep_from_windex(struct s3c_hsotg *hsotg,
 	if (windex >= 0x100)
 		return NULL;
 
-	if (idx > S3C_HSOTG_EPS)
+	if (idx > hsotg->num_of_eps)
 		return NULL;
 
 	if (idx && ep->dir_in != dir)
@@ -2036,7 +2036,7 @@ static void s3c_hsotg_irq_enumdone(struct s3c_hsotg *hsotg)
 	if (ep0_mps) {
 		int i;
 		s3c_hsotg_set_ep_maxpacket(hsotg, 0, ep0_mps);
-		for (i = 1; i < S3C_HSOTG_EPS; i++)
+		for (i = 1; i < hsotg->num_of_eps; i++)
 			s3c_hsotg_set_ep_maxpacket(hsotg, i, ep_mps);
 	}
 
@@ -2099,7 +2099,7 @@ static void s3c_hsotg_disconnect(struct s3c_hsotg *hsotg)
 {
 	unsigned ep;
 
-	for (ep = 0; ep < S3C_HSOTG_EPS; ep++)
+	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		kill_all_requests(hsotg, &hsotg->eps[ep], -ESHUTDOWN, true);
 
 	call_gadget(hsotg, disconnect);
@@ -2117,7 +2117,7 @@ static void s3c_hsotg_irq_fifoempty(struct s3c_hsotg *hsotg, bool periodic)
 
 	/* look through for any more data to transmit */
 
-	for (epno = 0; epno < S3C_HSOTG_EPS; epno++) {
+	for (epno = 0; epno < hsotg->num_of_eps; epno++) {
 		ep = &hsotg->eps[epno];
 
 		if (!ep->dir_in)
@@ -2783,6 +2783,45 @@ static void s3c_hsotg_phy_disable(struct s3c_hsotg *hsotg)
 		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
 }
 
+static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
+{
+	/* unmask subset of endpoint interrupts */
+
+	writel(S3C_DIEPMSK_TimeOUTMsk | S3C_DIEPMSK_AHBErrMsk |
+	       S3C_DIEPMSK_EPDisbldMsk | S3C_DIEPMSK_XferComplMsk,
+	       hsotg->regs + S3C_DIEPMSK);
+
+	writel(S3C_DOEPMSK_SetupMsk | S3C_DOEPMSK_AHBErrMsk |
+	       S3C_DOEPMSK_EPDisbldMsk | S3C_DOEPMSK_XferComplMsk,
+	       hsotg->regs + S3C_DOEPMSK);
+
+	writel(0, hsotg->regs + S3C_DAINTMSK);
+
+	/* Be in disconnected state until gadget is registered */
+	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
+
+	if (0) {
+		/* post global nak until we're ready */
+		writel(S3C_DCTL_SGNPInNAK | S3C_DCTL_SGOUTNak,
+		       hsotg->regs + S3C_DCTL);
+	}
+
+	/* setup fifos */
+
+	dev_dbg(hsotg->dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
+		readl(hsotg->regs + S3C_GRXFSIZ),
+		readl(hsotg->regs + S3C_GNPTXFSIZ));
+
+	s3c_hsotg_init_fifo(hsotg);
+
+	/* set the PLL on, remove the HNP/SRP and set the PHY */
+	writel(S3C_GUSBCFG_PHYIf16 | S3C_GUSBCFG_TOutCal(7) | (0x5 << 10),
+	       hsotg->regs + S3C_GUSBCFG);
+
+	writel(using_dma(hsotg) ? S3C_GAHBCFG_DMAEn : 0x0,
+	       hsotg->regs + S3C_GAHBCFG);
+}
+
 static int s3c_hsotg_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
@@ -2853,7 +2892,7 @@ static int s3c_hsotg_stop(struct usb_gadget_driver *driver)
 		return -EINVAL;
 
 	/* all endpoints should be shutdown */
-	for (ep = 0; ep < S3C_HSOTG_EPS; ep++)
+	for (ep = 0; ep < hsotg->num_of_eps; ep++)
 		s3c_hsotg_ep_disable(&hsotg->eps[ep].ep);
 
 	call_gadget(hsotg, disconnect);
@@ -2944,53 +2983,28 @@ static void __devinit s3c_hsotg_initep(struct s3c_hsotg *hsotg,
 	}
 }
 
-static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
+/**
+ * s3c_hsotg_hw_cfg - read HW configuration registers
+ * @param: The device state
+ *
+ * Read the USB core HW configuration registers
+ */
+static void s3c_hsotg_hw_cfg(struct s3c_hsotg *hsotg)
 {
-	u32 cfg4;
-
-	/* unmask subset of endpoint interrupts */
-
-	writel(S3C_DIEPMSK_TimeOUTMsk | S3C_DIEPMSK_AHBErrMsk |
-	       S3C_DIEPMSK_EPDisbldMsk | S3C_DIEPMSK_XferComplMsk,
-	       hsotg->regs + S3C_DIEPMSK);
-
-	writel(S3C_DOEPMSK_SetupMsk | S3C_DOEPMSK_AHBErrMsk |
-	       S3C_DOEPMSK_EPDisbldMsk | S3C_DOEPMSK_XferComplMsk,
-	       hsotg->regs + S3C_DOEPMSK);
-
-	writel(0, hsotg->regs + S3C_DAINTMSK);
-
-	/* Be in disconnected state until gadget is registered */
-	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
-
-	if (0) {
-		/* post global nak until we're ready */
-		writel(S3C_DCTL_SGNPInNAK | S3C_DCTL_SGOUTNak,
-		       hsotg->regs + S3C_DCTL);
-	}
-
-	/* setup fifos */
-
-	dev_dbg(hsotg->dev, "GRXFSIZ=0x%08x, GNPTXFSIZ=0x%08x\n",
-		readl(hsotg->regs + S3C_GRXFSIZ),
-		readl(hsotg->regs + S3C_GNPTXFSIZ));
-
-	s3c_hsotg_init_fifo(hsotg);
-
-	/* set the PLL on, remove the HNP/SRP and set the PHY */
-	writel(S3C_GUSBCFG_PHYIf16 | S3C_GUSBCFG_TOutCal(7) | (0x5 << 10),
-	       hsotg->regs + S3C_GUSBCFG);
-
-	writel(using_dma(hsotg) ? S3C_GAHBCFG_DMAEn : 0x0,
-	       hsotg->regs + S3C_GAHBCFG);
-
+	u32 cfg2, cfg4;
 	/* check hardware configuration */
+
+	cfg2 = readl(hsotg->regs + 0x48);
+	hsotg->num_of_eps = (cfg2 >> 10) & 0xF;
+
+	dev_info(hsotg->dev, "EPs:%d\n", hsotg->num_of_eps);
 
 	cfg4 = readl(hsotg->regs + 0x50);
 	hsotg->dedicated_fifos = (cfg4 >> 25) & 1;
 
 	dev_info(hsotg->dev, "%s fifos\n",
 		 hsotg->dedicated_fifos ? "dedicated" : "shared");
+
 }
 
 static void s3c_hsotg_dump(struct s3c_hsotg *hsotg)
@@ -3284,7 +3298,7 @@ static void __devinit s3c_hsotg_create_debug(struct s3c_hsotg *hsotg)
 
 	/* create one file for each endpoint */
 
-	for (epidx = 0; epidx < S3C_HSOTG_EPS; epidx++) {
+	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
 		struct s3c_hsotg_ep *ep = &hsotg->eps[epidx];
 
 		ep->debugfs = debugfs_create_file(ep->name, 0444,
@@ -3306,7 +3320,7 @@ static void __devexit s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 {
 	unsigned epidx;
 
-	for (epidx = 0; epidx < S3C_HSOTG_EPS; epidx++) {
+	for (epidx = 0; epidx < hsotg->num_of_eps; epidx++) {
 		struct s3c_hsotg_ep *ep = &hsotg->eps[epidx];
 		debugfs_remove(ep->debugfs);
 	}
@@ -3320,6 +3334,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 {
 	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
+	struct s3c_hsotg_ep *eps;
 	struct s3c_hsotg *hsotg;
 	struct resource *res;
 	int epnum;
@@ -3332,9 +3347,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	hsotg = kzalloc(sizeof(struct s3c_hsotg) +
-			sizeof(struct s3c_hsotg_ep) * S3C_HSOTG_EPS,
-			GFP_KERNEL);
+	hsotg = kzalloc(sizeof(struct s3c_hsotg), GFP_KERNEL);
 	if (!hsotg) {
 		dev_err(dev, "cannot get memory\n");
 		return -ENOMEM;
@@ -3401,20 +3414,6 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	hsotg->gadget.dev.parent = dev;
 	hsotg->gadget.dev.dma_mask = dev->dma_mask;
 
-	/* setup endpoint information */
-
-	INIT_LIST_HEAD(&hsotg->gadget.ep_list);
-	hsotg->gadget.ep0 = &hsotg->eps[0].ep;
-
-	/* allocate EP0 request */
-
-	hsotg->ctrl_req = s3c_hsotg_ep_alloc_request(&hsotg->eps[0].ep,
-						     GFP_KERNEL);
-	if (!hsotg->ctrl_req) {
-		dev_err(dev, "failed to allocate ctrl req\n");
-		goto err_regs;
-	}
-
 	/* reset the system */
 
 	clk_enable(hsotg->clk);
@@ -3444,14 +3443,45 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	s3c_hsotg_corereset(hsotg);
 	s3c_hsotg_init(hsotg);
+	s3c_hsotg_hw_cfg(hsotg);
+
+	/* hsotg->num_of_eps holds number of EPs other than ep0 */
+
+	if (hsotg->num_of_eps == 0) {
+		dev_err(dev, "wrong number of EPs (zero)\n");
+		goto err_supplies;
+	}
+
+	eps = kcalloc(hsotg->num_of_eps + 1, sizeof(struct s3c_hsotg_ep),
+		      GFP_KERNEL);
+	if (!eps) {
+		dev_err(dev, "cannot get memory\n");
+		goto err_supplies;
+	}
+
+	hsotg->eps = eps;
+
+	/* setup endpoint information */
+
+	INIT_LIST_HEAD(&hsotg->gadget.ep_list);
+	hsotg->gadget.ep0 = &hsotg->eps[0].ep;
+
+	/* allocate EP0 request */
+
+	hsotg->ctrl_req = s3c_hsotg_ep_alloc_request(&hsotg->eps[0].ep,
+						     GFP_KERNEL);
+	if (!hsotg->ctrl_req) {
+		dev_err(dev, "failed to allocate ctrl req\n");
+		goto err_ep_mem;
+	}
 
 	/* initialise the endpoints now the core has been initialised */
-	for (epnum = 0; epnum < S3C_HSOTG_EPS; epnum++)
+	for (epnum = 0; epnum < hsotg->num_of_eps; epnum++)
 		s3c_hsotg_initep(hsotg, &hsotg->eps[epnum], epnum);
 
 	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
 	if (ret)
-		goto err_supplies;
+		goto err_ep_mem;
 
 	s3c_hsotg_create_debug(hsotg);
 
@@ -3459,6 +3489,9 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	our_hsotg = hsotg;
 	return 0;
+
+ err_ep_mem:
+	kfree(eps);
 
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
