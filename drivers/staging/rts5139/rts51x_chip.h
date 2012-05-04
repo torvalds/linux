@@ -39,6 +39,7 @@
 #define SUPPORT_CPRM
 #define SUPPORT_MAGIC_GATE
 #define SUPPORT_MSXC
+#define USING_POLLING_CYCLE_DELINK
 
 #ifdef SUPPORT_MAGIC_GA
 /* Using NORMAL_WRITE instead of AUTO_WRITE to set ICVTE */

@@ -34,7 +34,6 @@
 #include "rts51x_chip.h"
 #include "rts51x_card.h"
 #include "rts51x_transport.h"
-#include "rts51x_sys.h"
 #include "xd.h"
 #include "ms.h"
 #include "sd.h"

@@ -40,7 +40,6 @@
 #include "rts51x_scsi.h"
 #include "rts51x_card.h"
 #include "rts51x_transport.h"
-#include "rts51x_sys.h"
 #include "sd_cprm.h"
 #include "ms_mg.h"
 #include "trace.h"
