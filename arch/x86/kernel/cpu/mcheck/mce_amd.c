@@ -46,6 +46,15 @@
 #define MASK_BLKPTR_LO    0xFF000000
 #define MCG_XBLK_ADDR     0xC0000400
 
+static const char * const th_names[] = {
+	"load_store",
+	"insn_fetch",
+	"combined_unit",
+	"",
+	"northbridge",
+	"execution_unit",
+};
+
 static DEFINE_PER_CPU(struct threshold_bank * [NR_BANKS], threshold_banks);
 
 static unsigned char shared_bank[NR_BANKS] = {
@@ -67,6 +76,26 @@ struct thresh_restart {
 	int			lvt_off;
 	u16			old_limit;
 };
+
+static const char * const bank4_names(struct threshold_block *b)
+{
+	switch (b->address) {
+	/* MSR4_MISC0 */
+	case 0x00000413:
+		return "dram";
+
+	case 0xc0000408:
+		return "ht_links";
+
+	case 0xc0000409:
+		return "l3_cache";
+
+	default:
+		WARN(1, "Funny MSR: 0x%08x\n", b->address);
+		return "";
+	}
+};
+
 
 static bool lvt_interrupt_supported(unsigned int bank, u32 msr_high_bits)
 {
@@ -481,7 +510,7 @@ static __cpuinit int allocate_threshold_blocks(unsigned int cpu,
 
 	err = kobject_init_and_add(&b->kobj, &threshold_ktype,
 				   per_cpu(threshold_banks, cpu)[bank]->kobj,
-				   "misc%i", block);
+				   (bank == 4 ? bank4_names(b) : th_names[bank]));
 	if (err)
 		goto out_free;
 recurse:
@@ -541,10 +570,8 @@ static __cpuinit int threshold_create_bank(unsigned int cpu, unsigned int bank)
 	struct device *dev = per_cpu(mce_device, cpu);
 	struct amd_northbridge *nb = NULL;
 	struct threshold_bank *b = NULL;
-	char name[32];
+	const char *name = th_names[bank];
 	int err = 0;
-
-	sprintf(name, "threshold_bank%i", bank);
 
 	if (shared_bank[bank]) {
 
