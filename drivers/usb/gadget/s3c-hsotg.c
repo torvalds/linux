@@ -33,7 +33,6 @@
 
 #include <mach/map.h>
 
-#include <plat/regs-usb-hsotg-phy.h>
 #include "s3c-hsotg.h"
 #include <linux/platform_data/s3c-hsotg.h>
 
@@ -2571,6 +2570,39 @@ static int s3c_hsotg_corereset(struct s3c_hsotg *hsotg)
 	return 0;
 }
 
+/**
+ * s3c_hsotg_phy_enable - enable platform phy dev
+ *
+ * @param: The driver state
+ *
+ * A wrapper for platform code responsible for controlling
+ * low-level USB code
+ */
+static void s3c_hsotg_phy_enable(struct s3c_hsotg *hsotg)
+{
+	struct platform_device *pdev = to_platform_device(hsotg->dev);
+
+	dev_dbg(hsotg->dev, "pdev 0x%p\n", pdev);
+	if (hsotg->plat->phy_init)
+		hsotg->plat->phy_init(pdev, hsotg->plat->phy_type);
+}
+
+/**
+ * s3c_hsotg_phy_disable - disable platform phy dev
+ *
+ * @param: The driver state
+ *
+ * A wrapper for platform code responsible for controlling
+ * low-level USB code
+ */
+static void s3c_hsotg_phy_disable(struct s3c_hsotg *hsotg)
+{
+	struct platform_device *pdev = to_platform_device(hsotg->dev);
+
+	if (hsotg->plat->phy_exit)
+		hsotg->plat->phy_exit(pdev, hsotg->plat->phy_type);
+}
+
 static int s3c_hsotg_start(struct usb_gadget_driver *driver,
 		int (*bind)(struct usb_gadget *))
 {
@@ -3216,8 +3248,6 @@ static void __devexit s3c_hsotg_delete_debug(struct s3c_hsotg *hsotg)
 	debugfs_remove(hsotg->debug_root);
 }
 
-static struct s3c_hsotg_plat s3c_hsotg_default_pdata;
-
 static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 {
 	struct s3c_hsotg_plat *plat = pdev->dev.platform_data;
@@ -3227,8 +3257,11 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	int epnum;
 	int ret;
 
-	if (!plat)
-		plat = &s3c_hsotg_default_pdata;
+	plat = pdev->dev.platform_data;
+	if (!plat) {
+		dev_err(&pdev->dev, "no platform data defined\n");
+		return -EINVAL;
+	}
 
 	hsotg = kzalloc(sizeof(struct s3c_hsotg) +
 			sizeof(struct s3c_hsotg_ep) * S3C_HSOTG_EPS,
@@ -3317,6 +3350,8 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	clk_enable(hsotg->clk);
 
+	/* usb phy enable */
+	s3c_hsotg_phy_enable(hsotg);
 
 	s3c_hsotg_corereset(hsotg);
 	s3c_hsotg_init(hsotg);
@@ -3337,6 +3372,8 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_udc:
+	s3c_hsotg_phy_disable(hsotg);
+
 	clk_disable(hsotg->clk);
 	clk_put(hsotg->clk);
 
@@ -3369,6 +3406,7 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	release_resource(hsotg->regs_res);
 	kfree(hsotg->regs_res);
 
+	s3c_hsotg_phy_disable(hsotg);
 
 	clk_disable(hsotg->clk);
 	clk_put(hsotg->clk);
