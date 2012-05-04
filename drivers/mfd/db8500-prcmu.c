@@ -2720,6 +2720,7 @@ static struct regulator_consumer_supply db8500_vape_consumers[] = {
 	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.1"),
 	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.2"),
 	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.3"),
+	REGULATOR_SUPPLY("v-i2c", "nmk-i2c.4"),
 	/* "v-mmc" changed to "vcore" in the mainline kernel */
 	REGULATOR_SUPPLY("vcore", "sdi0"),
 	REGULATOR_SUPPLY("vcore", "sdi1"),
