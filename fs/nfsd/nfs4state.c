@@ -1022,7 +1022,8 @@ static inline void
 renew_client_locked(struct nfs4_client *clp)
 {
 	if (is_client_expired(clp)) {
-		dprintk("%s: client (clientid %08x/%08x) already expired\n",
+		WARN_ON(1);
+		printk("%s: client (clientid %08x/%08x) already expired\n",
 			__func__,
 			clp->cl_clientid.cl_boot,
 			clp->cl_clientid.cl_id);
