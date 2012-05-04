@@ -218,7 +218,7 @@ static void nfs_direct_complete(struct nfs_direct_req *dreq)
 	nfs_direct_req_release(dreq);
 }
 
-void nfs_direct_readpage_release(struct nfs_page *req)
+static void nfs_direct_readpage_release(struct nfs_page *req)
 {
 	dprintk("NFS: direct read done (%s/%lld %d@%lld)\n",
 		req->wb_context->dentry->d_inode->i_sb->s_id,

@@ -35,7 +35,7 @@ static const struct nfs_pgio_completion_ops nfs_async_read_completion_ops;
 
 static struct kmem_cache *nfs_rdata_cachep;
 
-struct nfs_read_header *nfs_readhdr_alloc()
+struct nfs_read_header *nfs_readhdr_alloc(void)
 {
 	struct nfs_read_header *rhdr;
 

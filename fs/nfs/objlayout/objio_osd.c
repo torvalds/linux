@@ -211,7 +211,7 @@ static void copy_single_comp(struct ore_components *oc, unsigned c,
 	memcpy(ocomp->cred, src_comp->oc_cap.cred, sizeof(ocomp->cred));
 }
 
-int __alloc_objio_seg(unsigned numdevs, gfp_t gfp_flags,
+static int __alloc_objio_seg(unsigned numdevs, gfp_t gfp_flags,
 		       struct objio_segment **pseg)
 {
 /*	This is the in memory structure of the objio_segment
