@@ -178,9 +178,25 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
 	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
 	unsigned i, len = DIP_HEADER_SIZE + frame->len;
 	u32 val = I915_READ(reg);
+
+	val &= ~VIDEO_DIP_PORT_MASK;
+	switch (intel_hdmi->sdvox_reg) {
+	case HDMIB:
+		val |= VIDEO_DIP_PORT_B;
+		break;
+	case HDMIC:
+		val |= VIDEO_DIP_PORT_C;
+		break;
+	case HDMID:
+		val |= VIDEO_DIP_PORT_D;
+		break;
+	default:
+		return;
+	}
 
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 
