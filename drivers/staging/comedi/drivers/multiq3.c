@@ -83,29 +83,6 @@ Devices: [Quanser Consulting] MultiQ-3 (multiq3)
 
 #define MULTIQ3_TIMEOUT 30
 
-static int multiq3_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
-static int multiq3_detach(struct comedi_device *dev);
-static struct comedi_driver driver_multiq3 = {
-	.driver_name = "multiq3",
-	.module = THIS_MODULE,
-	.attach = multiq3_attach,
-	.detach = multiq3_detach,
-};
-
-static int __init driver_multiq3_init_module(void)
-{
-	return comedi_driver_register(&driver_multiq3);
-}
-
-static void __exit driver_multiq3_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_multiq3);
-}
-
-module_init(driver_multiq3_init_module);
-module_exit(driver_multiq3_cleanup_module);
-
 struct multiq3_private {
 	unsigned int ao_readback[2];
 };
@@ -349,6 +326,14 @@ static int multiq3_detach(struct comedi_device *dev)
 
 	return 0;
 }
+
+static struct comedi_driver multiq3_driver = {
+	.driver_name	= "multiq3",
+	.module		= THIS_MODULE,
+	.attach		= multiq3_attach,
+	.detach		= multiq3_detach,
+};
+module_comedi_driver(multiq3_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
