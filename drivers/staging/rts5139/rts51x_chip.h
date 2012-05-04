@@ -57,7 +57,6 @@
 #define SUPPORT_OCP
 
 #define MS_SPEEDUP
-/* #define XD_SPEEDUP */
 
 #define SD_XD_IO_FOLLOW_PWR
 
