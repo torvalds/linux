@@ -9,6 +9,7 @@ if MEMORY
 
 config TI_EMIF
 	tristate "Texas Instruments EMIF driver"
+	depends on ARCH_OMAP2PLUS
 	select DDR
 	help
 	  This driver is for the EMIF module available in Texas Instruments
