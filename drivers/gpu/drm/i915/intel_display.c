@@ -3125,8 +3125,7 @@ void intel_encoder_commit(struct drm_encoder *encoder)
 {
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	struct drm_device *dev = encoder->dev;
-	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
-	struct intel_crtc *intel_crtc = to_intel_crtc(intel_encoder->base.crtc);
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->crtc);
 
 	/* lvds has its own version of commit see intel_lvds_commit */
 	encoder_funcs->dpms(encoder, DRM_MODE_DPMS_ON);
