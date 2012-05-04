@@ -83,8 +83,6 @@ struct unioxx5_subd_priv {
 	unsigned char usp_prev_cn_val[3];	/* previous channel value */
 };
 
-static int unioxx5_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it);
 static int unioxx5_subdev_write(struct comedi_device *dev,
 				struct comedi_subdevice *subdev,
 				struct comedi_insn *insn, unsigned int *data);
@@ -94,9 +92,6 @@ static int unioxx5_subdev_read(struct comedi_device *dev,
 static int unioxx5_insn_config(struct comedi_device *dev,
 			       struct comedi_subdevice *subdev,
 			       struct comedi_insn *insn, unsigned int *data);
-static int unioxx5_detach(struct comedi_device *dev);
-static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
-				 int subdev_iobase, int minor);
 static int __unioxx5_digital_write(struct unioxx5_subd_priv *usp,
 				   unsigned int *data, int channel, int minor);
 static int __unioxx5_digital_read(struct unioxx5_subd_priv *usp,
@@ -108,72 +103,6 @@ static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
 				 unsigned int *data, int channel, int minor);
 static int __unioxx5_define_chan_offset(int chan_num);
 static void __unioxx5_analog_config(struct unioxx5_subd_priv *usp, int channel);
-
-static struct comedi_driver unioxx5_driver = {
-	.driver_name = DRIVER_NAME,
-	.module = THIS_MODULE,
-	.attach = unioxx5_attach,
-	.detach = unioxx5_detach
-};
-
-static int __init unioxx5_driver_init_module(void)
-{
-	return comedi_driver_register(&unioxx5_driver);
-}
-
-static void __exit unioxx5_driver_cleanup_module(void)
-{
-	comedi_driver_unregister(&unioxx5_driver);
-}
-
-module_init(unioxx5_driver_init_module);
-module_exit(unioxx5_driver_cleanup_module);
-
-static int unioxx5_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
-{
-	int iobase, i, n_subd;
-	int id, num, ba;
-
-	iobase = it->options[0];
-
-	dev->board_name = DRIVER_NAME;
-	dev->iobase = iobase;
-	iobase += UNIOXX5_SUBDEV_BASE;
-
-	/* defining number of subdevices and getting they types (it must be 'g01')  */
-	for (i = n_subd = 0, ba = iobase; i < 4; i++, ba += UNIOXX5_SUBDEV_ODDS) {
-		id = inb(ba + 0xE);
-		num = inb(ba + 0xF);
-
-		if (id != 'g' || num != 1)
-			continue;
-
-		n_subd++;
-	}
-
-	/* unioxx5 can has from two to four subdevices */
-	if (n_subd < 2) {
-		printk(KERN_ERR
-		       "your card must has at least 2 'g01' subdevices\n");
-		return -1;
-	}
-
-	if (alloc_subdevices(dev, n_subd) < 0) {
-		printk(KERN_ERR "out of memory\n");
-		return -ENOMEM;
-	}
-
-	/* initializing each of for same subdevices */
-	for (i = 0; i < n_subd; i++, iobase += UNIOXX5_SUBDEV_ODDS) {
-		if (__unioxx5_subdev_init(&dev->subdevices[i], iobase,
-					  dev->minor) < 0)
-			return -1;
-	}
-
-	printk(KERN_INFO "attached\n");
-	return 0;
-}
 
 static int unioxx5_subdev_read(struct comedi_device *dev,
 			       struct comedi_subdevice *subdev,
@@ -271,22 +200,6 @@ static int unioxx5_insn_config(struct comedi_device *dev,
 	outb(0, usp->usp_iobase + 0);
 	/* saves written value */
 	usp->usp_prev_cn_val[channel_offset - 1] = flags;
-
-	return 0;
-}
-
-static int unioxx5_detach(struct comedi_device *dev)
-{
-	int i;
-	struct comedi_subdevice *subdev;
-	struct unioxx5_subd_priv *usp;
-
-	for (i = 0; i < dev->n_subdevices; i++) {
-		subdev = &dev->subdevices[i];
-		usp = subdev->private;
-		release_region(usp->usp_iobase, UNIOXX5_SIZE);
-		kfree(subdev->private);
-	}
 
 	return 0;
 }
@@ -552,6 +465,76 @@ static int __unioxx5_define_chan_offset(int chan_num)
 
 	return (chan_num >> 3) + 1;
 }
+
+static int unioxx5_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	int iobase, i, n_subd;
+	int id, num, ba;
+
+	iobase = it->options[0];
+
+	dev->board_name = DRIVER_NAME;
+	dev->iobase = iobase;
+	iobase += UNIOXX5_SUBDEV_BASE;
+
+	/* defining number of subdevices and getting they types (it must be 'g01')  */
+	for (i = n_subd = 0, ba = iobase; i < 4; i++, ba += UNIOXX5_SUBDEV_ODDS) {
+		id = inb(ba + 0xE);
+		num = inb(ba + 0xF);
+
+		if (id != 'g' || num != 1)
+			continue;
+
+		n_subd++;
+	}
+
+	/* unioxx5 can has from two to four subdevices */
+	if (n_subd < 2) {
+		printk(KERN_ERR
+		       "your card must has at least 2 'g01' subdevices\n");
+		return -1;
+	}
+
+	if (alloc_subdevices(dev, n_subd) < 0) {
+		printk(KERN_ERR "out of memory\n");
+		return -ENOMEM;
+	}
+
+	/* initializing each of for same subdevices */
+	for (i = 0; i < n_subd; i++, iobase += UNIOXX5_SUBDEV_ODDS) {
+		if (__unioxx5_subdev_init(&dev->subdevices[i], iobase,
+					  dev->minor) < 0)
+			return -1;
+	}
+
+	printk(KERN_INFO "attached\n");
+	return 0;
+}
+
+static int unioxx5_detach(struct comedi_device *dev)
+{
+	int i;
+	struct comedi_subdevice *subdev;
+	struct unioxx5_subd_priv *usp;
+
+	for (i = 0; i < dev->n_subdevices; i++) {
+		subdev = &dev->subdevices[i];
+		usp = subdev->private;
+		release_region(usp->usp_iobase, UNIOXX5_SIZE);
+		kfree(subdev->private);
+	}
+
+	return 0;
+}
+
+static struct comedi_driver unioxx5_driver = {
+	.driver_name	= DRIVER_NAME,
+	.module		= THIS_MODULE,
+	.attach		= unioxx5_attach,
+	.detach		= unioxx5_detach,
+};
+module_comedi_driver(unioxx5_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
