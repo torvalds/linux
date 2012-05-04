@@ -706,9 +706,11 @@ static int __devinit max17042_probe(struct i2c_client *client,
 			reg |= CONFIG_ALRT_BIT_ENBL;
 			max17042_write_reg(client, MAX17042_CONFIG, reg);
 			max17042_set_soc_threshold(chip, 1);
-		} else
+		} else {
+			client->irq = 0;
 			dev_err(&client->dev, "%s(): cannot get IRQ\n",
 				__func__);
+		}
 	}
 
 	reg = max17042_read_reg(chip->client, MAX17042_STATUS);
