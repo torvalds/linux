@@ -951,17 +951,6 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		fastpath = atomic_read(&skb_shinfo(skb)->dataref) == delta;
 	}
 
-	if (fastpath && !skb->head_frag &&
-	    size + sizeof(struct skb_shared_info) <= ksize(skb->head)) {
-		memmove(skb->head + size, skb_shinfo(skb),
-			offsetof(struct skb_shared_info,
-				 frags[skb_shinfo(skb)->nr_frags]));
-		memmove(skb->head + nhead, skb->head,
-			skb_tail_pointer(skb) - skb->head);
-		off = nhead;
-		goto adjust_others;
-	}
-
 	data = kmalloc(size + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 		       gfp_mask);
 	if (!data)
@@ -997,7 +986,6 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 
 	skb->head     = data;
 	skb->head_frag = 0;
-adjust_others:
 	skb->data    += off;
 #ifdef NET_SKBUFF_DATA_USES_OFFSET
 	skb->end      = size;
