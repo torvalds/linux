@@ -37,15 +37,12 @@
 #include <linux/netfilter.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_IDLETIMER.h>
-#include <linux/netlink.h>
 #include <linux/kdev_t.h>
 #include <linux/kobject.h>
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/sysfs.h>
 #include <net/net_namespace.h>
-
-static struct sock *nl_sk;
 
 struct idletimer_tg_attr {
 	struct attribute attr;
@@ -71,44 +68,30 @@ static DEFINE_MUTEX(list_mutex);
 
 static struct kobject *idletimer_tg_kobj;
 
-static void notify_netlink(const char *iface, struct idletimer_tg *timer)
+static void notify_netlink_uevent(const char *iface, struct idletimer_tg *timer)
 {
-	struct sk_buff *log_skb;
-	size_t size;
-	struct nlmsghdr *nlh;
-	char str[NLMSG_MAX_SIZE];
-	int event_type, res;
+	char iface_msg[NLMSG_MAX_SIZE];
+	char state_msg[NLMSG_MAX_SIZE];
+	char *envp[] = { iface_msg, state_msg, NULL };
+	int res;
 
-	size = NLMSG_SPACE(NLMSG_MAX_SIZE);
-	size = max(size, (size_t)NLMSG_GOODSIZE);
-	log_skb = alloc_skb(size, GFP_ATOMIC);
-	if (!log_skb) {
-		pr_err("xt_cannot alloc skb for logging\n");
+	res = snprintf(iface_msg, NLMSG_MAX_SIZE, "INTERFACE=%s",
+		       iface);
+	if (NLMSG_MAX_SIZE <= res) {
+		pr_err("message too long (%d)", res);
 		return;
 	}
-
-	event_type = timer->active ? NL_EVENT_TYPE_ACTIVE
-				: NL_EVENT_TYPE_INACTIVE;
-	res = snprintf(str, NLMSG_MAX_SIZE, "%s %s\n", iface,
-		timer->active ? "ACTIVE" : "INACTIVE");
-	if (NLMSG_MAX_SIZE <= res)
-		goto nlmsg_failure;
-
-	/* NLMSG_PUT() uses "goto nlmsg_failure" */
-	nlh = NLMSG_PUT(log_skb, /*pid*/0, /*seq*/0, event_type,
-			/* Size of message */NLMSG_MAX_SIZE);
-
-	strncpy(NLMSG_DATA(nlh), str, MAX_IDLETIMER_LABEL_SIZE);
-
-	NETLINK_CB(log_skb).dst_group = 1;
-	netlink_broadcast(nl_sk, log_skb, 0, 1, GFP_ATOMIC);
-
-	pr_debug("putting nlmsg: %s", str);
+	res = snprintf(state_msg, NLMSG_MAX_SIZE, "STATE=%s",
+		       timer->active ? "active" : "inactive");
+	if (NLMSG_MAX_SIZE <= res) {
+		pr_err("message too long (%d)", res);
+		return;
+	}
+	pr_debug("putting nlmsg: <%s> <%s>\n", iface_msg, state_msg);
+	kobject_uevent_env(idletimer_tg_kobj, KOBJ_CHANGE, envp);
 	return;
 
-nlmsg_failure:  /* Used within NLMSG_PUT() */
-	consume_skb(log_skb);
-	pr_debug("Failed nlmsg_put\n");
+
 }
 
 static
@@ -160,7 +143,7 @@ static void idletimer_tg_work(struct work_struct *work)
 	sysfs_notify(idletimer_tg_kobj, NULL, timer->attr.attr.name);
 
 	if (timer->send_nl_msg)
-		notify_netlink(timer->attr.attr.name, timer);
+		notify_netlink_uevent(timer->attr.attr.name, timer);
 }
 
 static void idletimer_tg_expired(unsigned long data)
@@ -368,15 +351,6 @@ static int __init idletimer_tg_init(void)
 	if (err < 0) {
 		pr_debug("couldn't register xt target\n");
 		goto out_dev;
-	}
-
-	nl_sk = netlink_kernel_create(&init_net,
-				      NETLINK_IDLETIMER, 1, NULL,
-				      NULL, THIS_MODULE);
-
-	if (!nl_sk) {
-		pr_err("Failed to create netlink socket\n");
-		return -ENOMEM;
 	}
 
 	return 0;
