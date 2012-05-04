@@ -257,7 +257,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 
 		status = usb_submit_urb(iforce->ctrl, GFP_ATOMIC);
 		if (status) {
-			dev_err(&iforce->dev->dev,
+			dev_err(&iforce->intf->dev,
 				"usb_submit_urb failed %d\n", status);
 			return -1;
 		}
@@ -266,7 +266,7 @@ int iforce_get_id_packet(struct iforce *iforce, char *packet)
 			iforce->ctrl->status != -EINPROGRESS, HZ);
 
 		if (iforce->ctrl->status) {
-			dev_dbg(&iforce->dev->dev,
+			dev_dbg(&iforce->intf->dev,
 				"iforce->ctrl->status = %d\n",
 				iforce->ctrl->status);
 			usb_unlink_urb(iforce->ctrl);
