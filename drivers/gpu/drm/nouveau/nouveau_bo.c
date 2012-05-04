@@ -562,6 +562,44 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 }
 
 static int
+nva3_bo_move_copy(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	struct nouveau_mem *node = old_mem->mm_node;
+	u64 src_offset = node->vma[0].offset;
+	u64 dst_offset = node->vma[1].offset;
+	u32 page_count = new_mem->num_pages;
+	int ret;
+
+	page_count = new_mem->num_pages;
+	while (page_count) {
+		int line_count = (page_count > 8191) ? 8191 : page_count;
+
+		ret = RING_SPACE(chan, 11);
+		if (ret)
+			return ret;
+
+		BEGIN_NV04(chan, NvSubCopy, 0x030c, 8);
+		OUT_RING  (chan, upper_32_bits(src_offset));
+		OUT_RING  (chan, lower_32_bits(src_offset));
+		OUT_RING  (chan, upper_32_bits(dst_offset));
+		OUT_RING  (chan, lower_32_bits(dst_offset));
+		OUT_RING  (chan, PAGE_SIZE);
+		OUT_RING  (chan, PAGE_SIZE);
+		OUT_RING  (chan, PAGE_SIZE);
+		OUT_RING  (chan, line_count);
+		BEGIN_NV04(chan, NvSubCopy, 0x0300, 1);
+		OUT_RING  (chan, 0x00000110);
+
+		page_count -= line_count;
+		src_offset += (PAGE_SIZE * line_count);
+		dst_offset += (PAGE_SIZE * line_count);
+	}
+
+	return 0;
+}
+
+static int
 nv98_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
 {
@@ -856,8 +894,9 @@ nouveau_bo_move_init(struct nouveau_channel *chan)
 		int (*init)(struct nouveau_channel *, u32 handle);
 	} _methods[] = {
 		{  "COPY", 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
-		{  "M2MF", 0x9039, nvc0_bo_move_m2mf, nvc0_bo_move_init },
+		{  "COPY", 0x85b5, nva3_bo_move_copy, nv50_bo_move_init },
 		{ "CRYPT", 0x74c1, nv84_bo_move_exec, nv50_bo_move_init },
+		{  "M2MF", 0x9039, nvc0_bo_move_m2mf, nvc0_bo_move_init },
 		{  "M2MF", 0x5039, nv50_bo_move_m2mf, nv50_bo_move_init },
 		{  "M2MF", 0x0039, nv04_bo_move_m2mf, nv04_bo_move_init },
 		{},
