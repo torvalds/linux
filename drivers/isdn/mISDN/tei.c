@@ -1023,6 +1023,8 @@ create_teimgr(struct manager *mgr, struct channel_req *crq)
 		mgr->up = crq->ch;
 		id = DL_INFO_L2_CONNECT;
 		teiup_create(mgr, DL_INFORMATION_IND, sizeof(id), &id);
+		if (test_bit(MGR_PH_ACTIVE, &mgr->options))
+			teiup_create(mgr, PH_ACTIVATE_IND, 0, NULL);
 		crq->ch = NULL;
 		if (!list_empty(&mgr->layer2)) {
 			read_lock_irqsave(&mgr->lock, flags);
@@ -1096,12 +1098,16 @@ mgr_send(struct mISDNchannel *ch, struct sk_buff *skb)
 		break;
 	case PH_ACTIVATE_IND:
 		test_and_set_bit(MGR_PH_ACTIVE, &mgr->options);
+		if (mgr->up)
+			teiup_create(mgr, PH_ACTIVATE_IND, 0, NULL);
 		mISDN_FsmEvent(&mgr->deact, EV_ACTIVATE_IND, NULL);
 		do_send(mgr);
 		ret = 0;
 		break;
 	case PH_DEACTIVATE_IND:
 		test_and_clear_bit(MGR_PH_ACTIVE, &mgr->options);
+		if (mgr->up)
+			teiup_create(mgr, PH_DEACTIVATE_IND, 0, NULL);
 		mISDN_FsmEvent(&mgr->deact, EV_DEACTIVATE_IND, NULL);
 		ret = 0;
 		break;
