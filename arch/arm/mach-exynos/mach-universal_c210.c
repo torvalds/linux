@@ -42,6 +42,7 @@
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
 #include <plat/mipi_csis.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <mach/map.h>
 

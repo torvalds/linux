@@ -156,7 +156,7 @@
 
 #define S3C_HPTXFSIZ				S3C_HSOTG_REG(0x100)
 
-#define S3C_DPTXFSIZn(_a)			S3C_HSOTG_REG(0x104 + (((_a) - 1) * 4))
+#define S3C_DPTXFSIZn(_a)		S3C_HSOTG_REG(0x104 + (((_a) - 1) * 4))
 
 #define S3C_DPTXFSIZn_DPTxFSize_MASK		(0xffff << 16)
 #define S3C_DPTXFSIZn_DPTxFSize_SHIFT		(16)
@@ -261,8 +261,8 @@
 
 #define S3C_DIEPCTL0				S3C_HSOTG_REG(0x900)
 #define S3C_DOEPCTL0				S3C_HSOTG_REG(0xB00)
-#define S3C_DIEPCTL(_a)				S3C_HSOTG_REG(0x900 + ((_a) * 0x20))
-#define S3C_DOEPCTL(_a)				S3C_HSOTG_REG(0xB00 + ((_a) * 0x20))
+#define S3C_DIEPCTL(_a)			S3C_HSOTG_REG(0x900 + ((_a) * 0x20))
+#define S3C_DOEPCTL(_a)			S3C_HSOTG_REG(0xB00 + ((_a) * 0x20))
 
 /* EP0 specialness:
  * bits[29..28] - reserved (no SetD0PID, SetD1PID)
@@ -312,8 +312,8 @@
 #define S3C_DxEPCTL_MPS_LIMIT			(0x7ff)
 #define S3C_DxEPCTL_MPS(_x)			((_x) << 0)
 
-#define S3C_DIEPINT(_a)				S3C_HSOTG_REG(0x908 + ((_a) * 0x20))
-#define S3C_DOEPINT(_a)				S3C_HSOTG_REG(0xB08 + ((_a) * 0x20))
+#define S3C_DIEPINT(_a)			S3C_HSOTG_REG(0x908 + ((_a) * 0x20))
+#define S3C_DOEPINT(_a)			S3C_HSOTG_REG(0xB08 + ((_a) * 0x20))
 
 #define S3C_DxEPINT_INEPNakEff			(1 << 6)
 #define S3C_DxEPINT_Back2BackSetup		(1 << 6)
@@ -349,8 +349,8 @@
 #define S3C_DOEPTSIZ0_XferSize_MASK		(0x7f << 0)
 #define S3C_DOEPTSIZ0_XferSize_SHIFT		(0)
 
-#define S3C_DIEPTSIZ(_a)			S3C_HSOTG_REG(0x910 + ((_a) * 0x20))
-#define S3C_DOEPTSIZ(_a)			S3C_HSOTG_REG(0xB10 + ((_a) * 0x20))
+#define S3C_DIEPTSIZ(_a)		S3C_HSOTG_REG(0x910 + ((_a) * 0x20))
+#define S3C_DOEPTSIZ(_a)		S3C_HSOTG_REG(0xB10 + ((_a) * 0x20))
 
 #define S3C_DxEPTSIZ_MC_MASK			(0x3 << 29)
 #define S3C_DxEPTSIZ_MC_SHIFT			(29)
@@ -370,10 +370,10 @@
 #define S3C_DxEPTSIZ_XferSize(_x)		((_x) << 0)
 
 
-#define S3C_DIEPDMA(_a)				S3C_HSOTG_REG(0x914 + ((_a) * 0x20))
-#define S3C_DOEPDMA(_a)				S3C_HSOTG_REG(0xB14 + ((_a) * 0x20))
-#define S3C_DTXFSTS(_a)				S3C_HSOTG_REG(0x918 + ((_a) * 0x20))
+#define S3C_DIEPDMA(_a)			S3C_HSOTG_REG(0x914 + ((_a) * 0x20))
+#define S3C_DOEPDMA(_a)			S3C_HSOTG_REG(0xB14 + ((_a) * 0x20))
+#define S3C_DTXFSTS(_a)			S3C_HSOTG_REG(0x918 + ((_a) * 0x20))
 
-#define S3C_EPFIFO(_a)				S3C_HSOTG_REG(0x1000 + ((_a) * 0x1000))
+#define S3C_EPFIFO(_a)			S3C_HSOTG_REG(0x1000 + ((_a) * 0x1000))
 
 #endif /* __PLAT_S3C64XX_REGS_USB_HSOTG_H */

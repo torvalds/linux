@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c/include/plat/udc-hs.h
+/* include/linux/platform_data/s3c-hsotg.h
  *
  * Copyright 2008 Openmoko, Inc.
  * Copyright 2008 Simtec Electronics
@@ -25,7 +25,8 @@ enum s3c_hsotg_dmamode {
  */
 struct s3c_hsotg_plat {
 	enum s3c_hsotg_dmamode	dma;
-	unsigned int		is_osc : 1;
+	unsigned int		is_osc:1;
+	int                     phy_type;
 
 	int (*phy_init)(struct platform_device *pdev, int type);
 	int (*phy_exit)(struct platform_device *pdev, int type);
