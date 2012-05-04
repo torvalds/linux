@@ -58,6 +58,8 @@ enum {
 	EV_L1_DEACTIVATE,
 	EV_L2_T200,
 	EV_L2_T203,
+	EV_L2_T200I,
+	EV_L2_T203I,
 	EV_L2_SET_OWN_BUSY,
 	EV_L2_CLEAR_OWN_BUSY,
 	EV_L2_FRAME_ERROR,
@@ -86,6 +88,8 @@ static char *strL2Event[] =
 	"EV_L1_DEACTIVATE",
 	"EV_L2_T200",
 	"EV_L2_T203",
+	"EV_L2_T200I",
+	"EV_L2_T203I",
 	"EV_L2_SET_OWN_BUSY",
 	"EV_L2_CLEAR_OWN_BUSY",
 	"EV_L2_FRAME_ERROR",
@@ -274,6 +278,31 @@ ph_data_confirm(struct layer2 *l2, struct mISDNhead *hh, struct sk_buff *skb) {
 			test_and_clear_bit(FLG_L1_NOTREADY, &l2->flag);
 	}
 	return ret;
+}
+
+static void
+l2_timeout(struct FsmInst *fi, int event, void *arg)
+{
+	struct layer2 *l2 = fi->userdata;
+	struct sk_buff *skb;
+	struct mISDNhead *hh;
+
+	skb = mI_alloc_skb(0, GFP_ATOMIC);
+	if (!skb) {
+		printk(KERN_WARNING "L2(%d,%d) nr:%x timer %s lost - no skb\n",
+		       l2->sapi, l2->tei, l2->ch.nr, event == EV_L2_T200 ?
+		       "T200" : "T203");
+		return;
+	}
+	hh = mISDN_HEAD_P(skb);
+	hh->prim = event == EV_L2_T200 ? DL_TIMER200_IND : DL_TIMER203_IND;
+	hh->id = l2->ch.nr;
+	if (*debug & DEBUG_TIMER)
+		printk(KERN_DEBUG "L2(%d,%d) nr:%x timer %s expired\n",
+		       l2->sapi, l2->tei, l2->ch.nr, event == EV_L2_T200 ?
+		       "T200" : "T203");
+	if (l2->ch.st)
+		l2->ch.st->own.recv(&l2->ch.st->own, skb);
 }
 
 static int
@@ -1814,11 +1843,16 @@ static struct FsmNode L2FnList[] =
 	{ST_L2_8, EV_L2_SUPER, l2_st8_got_super},
 	{ST_L2_7, EV_L2_I, l2_got_iframe},
 	{ST_L2_8, EV_L2_I, l2_got_iframe},
-	{ST_L2_5, EV_L2_T200, l2_st5_tout_200},
-	{ST_L2_6, EV_L2_T200, l2_st6_tout_200},
-	{ST_L2_7, EV_L2_T200, l2_st7_tout_200},
-	{ST_L2_8, EV_L2_T200, l2_st8_tout_200},
-	{ST_L2_7, EV_L2_T203, l2_st7_tout_203},
+	{ST_L2_5, EV_L2_T200, l2_timeout},
+	{ST_L2_6, EV_L2_T200, l2_timeout},
+	{ST_L2_7, EV_L2_T200, l2_timeout},
+	{ST_L2_8, EV_L2_T200, l2_timeout},
+	{ST_L2_7, EV_L2_T203, l2_timeout},
+	{ST_L2_5, EV_L2_T200I, l2_st5_tout_200},
+	{ST_L2_6, EV_L2_T200I, l2_st6_tout_200},
+	{ST_L2_7, EV_L2_T200I, l2_st7_tout_200},
+	{ST_L2_8, EV_L2_T200I, l2_st8_tout_200},
+	{ST_L2_7, EV_L2_T203I, l2_st7_tout_203},
 	{ST_L2_7, EV_L2_ACK_PULL, l2_pull_iqueue},
 	{ST_L2_7, EV_L2_SET_OWN_BUSY, l2_set_own_busy},
 	{ST_L2_8, EV_L2_SET_OWN_BUSY, l2_set_own_busy},
@@ -1932,6 +1966,14 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 	if (*debug & DEBUG_L2_RECV)
 		printk(KERN_DEBUG "%s: prim(%x) id(%x) sapi(%d) tei(%d)\n",
 		       __func__, hh->prim, hh->id, l2->sapi, l2->tei);
+	if (hh->prim == DL_INTERN_MSG) {
+		struct mISDNhead *chh = hh + 1; /* saved copy */
+
+		*hh = *chh;
+		if (*debug & DEBUG_L2_RECV)
+			printk(KERN_DEBUG "%s: prim(%x) id(%x) internal msg\n",
+			       __func__, hh->prim, hh->id);
+	}
 	switch (hh->prim) {
 	case PH_DATA_IND:
 		ret = ph_data_indication(l2, hh, skb);
@@ -1986,6 +2028,12 @@ l2_send(struct mISDNchannel *ch, struct sk_buff *skb)
 				      l2_newid(l2), 0, NULL);
 		ret = mISDN_FsmEvent(&l2->l2m, EV_L2_DL_RELEASE_REQ,
 				     skb);
+		break;
+	case DL_TIMER200_IND:
+		mISDN_FsmEvent(&l2->l2m, EV_L2_T200I, NULL);
+		break;
+	case DL_TIMER203_IND:
+		mISDN_FsmEvent(&l2->l2m, EV_L2_T203I, NULL);
 		break;
 	default:
 		if (*debug & DEBUG_L2)
