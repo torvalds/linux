@@ -1641,7 +1641,7 @@ static void ab8500_fg_algorithm_discharging(struct ab8500_fg *di)
 
 			if (di->recovery_needed) {
 				ab8500_fg_discharge_state_to(di,
-					AB8500_FG_DISCHARGE_RECOVERY);
+					AB8500_FG_DISCHARGE_INIT_RECOVERY);
 
 				queue_delayed_work(di->fg_wq,
 					&di->fg_periodic_work, 0);
