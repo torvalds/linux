@@ -562,6 +562,24 @@ nvc0_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 }
 
 static int
+nv84_bo_move_exec(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
+		  struct ttm_mem_reg *old_mem, struct ttm_mem_reg *new_mem)
+{
+	struct nouveau_mem *node = old_mem->mm_node;
+	int ret = RING_SPACE(chan, 7);
+	if (ret == 0) {
+		BEGIN_NV04(chan, NvSubCopy, 0x0304, 6);
+		OUT_RING  (chan, new_mem->num_pages << PAGE_SHIFT);
+		OUT_RING  (chan, upper_32_bits(node->vma[0].offset));
+		OUT_RING  (chan, lower_32_bits(node->vma[0].offset));
+		OUT_RING  (chan, upper_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, lower_32_bits(node->vma[1].offset));
+		OUT_RING  (chan, 0x00000000 /* MODE_COPY, QUERY_NONE */);
+	}
+	return ret;
+}
+
+static int
 nv50_bo_move_init(struct nouveau_channel *chan, u32 handle)
 {
 	int ret = nouveau_notifier_alloc(chan, NvNotify0, 32, 0xfe0, 0x1000,
@@ -821,6 +839,7 @@ nouveau_bo_move_init(struct nouveau_channel *chan)
 	} _methods[] = {
 		{  "COPY", 0xa0b5, nve0_bo_move_copy, nvc0_bo_move_init },
 		{  "M2MF", 0x9039, nvc0_bo_move_m2mf, nvc0_bo_move_init },
+		{ "CRYPT", 0x74c1, nv84_bo_move_exec, nv50_bo_move_init },
 		{  "M2MF", 0x5039, nv50_bo_move_m2mf, nv50_bo_move_init },
 		{  "M2MF", 0x0039, nv04_bo_move_m2mf, nv04_bo_move_init },
 		{}
