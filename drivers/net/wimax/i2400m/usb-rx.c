@@ -277,7 +277,7 @@ retry:
 		d_printf(1, dev, "RX: size changed to %d, received %d, "
 			 "copied %d, capacity %ld\n",
 			 rx_size, read_size, rx_skb->len,
-			 (long) (skb_end_pointer(new_skb) - new_skb->head));
+			 (long) skb_end_offset(new_skb));
 		goto retry;
 	}
 		/* In most cases, it happens due to the hardware scheduling a
