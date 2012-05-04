@@ -56,12 +56,6 @@ MODULE_DESCRIPTION(RTS51X_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRIVER_VERSION);
 
-#ifdef SCSI_SCAN_DELAY
-static unsigned int delay_use = 5;
-module_param(delay_use, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
-#endif
-
 static int auto_delink_en;
 module_param(auto_delink_en, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(auto_delink_en, "enable auto delink");
@@ -364,11 +358,6 @@ static int rts51x_polling_thread(void *__chip)
 {
 	struct rts51x_chip *chip = (struct rts51x_chip *)__chip;
 
-#ifdef SCSI_SCAN_DELAY
-	/* Wait until SCSI scan finished */
-	wait_timeout((delay_use + 5) * HZ);
-#endif
-
 	for (;;) {
 		wait_timeout(POLLING_INTERVAL);
 
@@ -431,38 +420,6 @@ static int rts51x_polling_thread(void *__chip)
 	__set_current_state(TASK_RUNNING); */
 	return 0;
 }
-
-#ifdef SCSI_SCAN_DELAY
-/* Thread to carry out delayed SCSI-device scanning */
-static int rts51x_scan_thread(void *__chip)
-{
-	struct rts51x_chip *chip = (struct rts51x_chip *)__chip;
-
-	printk(KERN_DEBUG
-	       "rts51x: device found at %d\n", chip->usb->pusb_dev->devnum);
-
-	set_freezable();
-	/* Wait for the timeout to expire or for a disconnect */
-	if (delay_use > 0) {
-		printk(KERN_DEBUG "rts51x: waiting for device "
-		       "to settle before scanning\n");
-		wait_event_freezable_timeout(chip->usb->delay_wait,
-					     test_bit(FLIDX_DONT_SCAN,
-						      &chip->usb->dflags),
-					     delay_use * HZ);
-	}
-
-	/* If the device is still connected, perform the scanning */
-	if (!test_bit(FLIDX_DONT_SCAN, &chip->usb->dflags)) {
-		scsi_scan_host(rts51x_to_host(chip));
-		printk(KERN_DEBUG "rts51x: device scan complete\n");
-
-		/* Should we unbind if no devices were detected? */
-	}
-
-	complete_and_exit(&chip->usb->scanning_done, 0);
-}
-#endif
 
 /* Associate our private data with the USB device */
 static int associate_dev(struct rts51x_chip *chip, struct usb_interface *intf)
@@ -737,15 +694,6 @@ static void quiesce_and_remove_host(struct rts51x_chip *chip)
 	if (rts51x->pusb_dev->state == USB_STATE_NOTATTACHED)
 		set_bit(FLIDX_DISCONNECTING, &rts51x->dflags);
 
-#ifdef SCSI_SCAN_DELAY
-	/* Prevent SCSI-scanning (if it hasn't started yet)
-	 * and wait for the SCSI-scanning thread to stop.
-	 */
-	set_bit(FLIDX_DONT_SCAN, &rts51x->dflags);
-	wake_up(&rts51x->delay_wait);
-	wait_for_completion(&rts51x->scanning_done);
-#endif
-
 	/* Removing the host will perform an orderly shutdown: caches
 	 * synchronized, disks spun down, etc.
 	 */
@@ -757,9 +705,6 @@ static void quiesce_and_remove_host(struct rts51x_chip *chip)
 	scsi_lock(host);
 	set_bit(FLIDX_DISCONNECTING, &rts51x->dflags);
 	scsi_unlock(host);
-#ifdef SCSI_SCAN_DELAY
-	wake_up(&rts51x->delay_wait);
-#endif
 }
 
 /* Second stage of disconnect processing: deallocate all resources */
@@ -818,10 +763,6 @@ static int rts51x_probe(struct usb_interface *intf,
 	init_completion(&rts51x->control_exit);
 	init_completion(&rts51x->polling_exit);
 	init_completion(&(rts51x->notify));
-#ifdef SCSI_SCAN_DELAY
-	init_waitqueue_head(&rts51x->delay_wait);
-	init_completion(&rts51x->scanning_done);
-#endif
 
 	chip->usb = rts51x;
 
@@ -855,22 +796,7 @@ static int rts51x_probe(struct usb_interface *intf,
 		printk(KERN_WARNING RTS51X_TIP "Unable to add the scsi host\n");
 		goto BadDevice;
 	}
-#ifdef SCSI_SCAN_DELAY
-	/* Start up the thread for delayed SCSI-device scanning */
-	th = kthread_create(rts51x_scan_thread, chip, RTS51X_SCAN_THREAD);
-	if (IS_ERR(th)) {
-		printk(KERN_WARNING RTS51X_TIP
-		       "Unable to start the device-scanning thread\n");
-		complete(&rts51x->scanning_done);
-		quiesce_and_remove_host(chip);
-		result = PTR_ERR(th);
-		goto BadDevice;
-	}
-
-	wake_up_process(th);
-#else
 	scsi_scan_host(rts51x_to_host(chip));
-#endif
 
 	/* Start up our polling thread */
 	th = kthread_run(rts51x_polling_thread, chip, RTS51X_POLLING_THREAD);
