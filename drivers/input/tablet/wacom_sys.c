@@ -99,7 +99,7 @@ static int wacom_set_report(struct usb_interface *intf, u8 type, u8 id,
 static void wacom_sys_irq(struct urb *urb)
 {
 	struct wacom *wacom = urb->context;
-	struct device *dev = &wacom->wacom_wac.input->dev;
+	struct device *dev = &wacom->intf->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -820,7 +820,7 @@ static int wacom_initialize_leds(struct wacom *wacom)
 	}
 
 	if (error) {
-		dev_err(&wacom->wacom_wac.input->dev,
+		dev_err(&wacom->intf->dev,
 			"cannot create sysfs group err: %d\n", error);
 		return error;
 	}
