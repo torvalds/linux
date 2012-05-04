@@ -382,6 +382,7 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 	int i = 0;
 	int tot = 0;
 	int err = 0;
+	struct net *net = &init_net;
 
 	WARN_ON(!mutex_is_locked(&nfsd_mutex));
 
@@ -426,6 +427,9 @@ int nfsd_set_nrthreads(int n, int *nthreads)
 		if (err)
 			break;
 	}
+
+	if (nfsd_serv->sv_nrthreads == 1)
+		svc_shutdown_net(nfsd_serv, net);
 	svc_destroy(nfsd_serv);
 
 	return err;
@@ -441,6 +445,7 @@ nfsd_svc(unsigned short port, int nrservs)
 {
 	int	error;
 	bool	nfsd_up_before;
+	struct net *net = &init_net;
 
 	mutex_lock(&nfsd_mutex);
 	dprintk("nfsd: creating service\n");
@@ -473,6 +478,8 @@ out_shutdown:
 	if (error < 0 && !nfsd_up_before)
 		nfsd_shutdown();
 out_destroy:
+	if (nfsd_serv->sv_nrthreads == 1)
+		svc_shutdown_net(nfsd_serv, net);
 	svc_destroy(nfsd_serv);		/* Release server */
 out:
 	mutex_unlock(&nfsd_mutex);
@@ -556,6 +563,9 @@ nfsd(void *vrqstp)
 	nfsdstats.th_cnt --;
 
 out:
+	if (rqstp->rq_server->sv_nrthreads == 1)
+		svc_shutdown_net(rqstp->rq_server, &init_net);
+
 	/* Release the thread */
 	svc_exit_thread(rqstp);
 
@@ -668,8 +678,12 @@ int nfsd_pool_stats_open(struct inode *inode, struct file *file)
 int nfsd_pool_stats_release(struct inode *inode, struct file *file)
 {
 	int ret = seq_release(inode, file);
+	struct net *net = &init_net;
+
 	mutex_lock(&nfsd_mutex);
 	/* this function really, really should have been called svc_put() */
+	if (nfsd_serv->sv_nrthreads == 1)
+		svc_shutdown_net(nfsd_serv, net);
 	svc_destroy(nfsd_serv);
 	mutex_unlock(&nfsd_mutex);
 	return ret;
