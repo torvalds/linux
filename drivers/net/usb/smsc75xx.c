@@ -511,7 +511,8 @@ static int smsc75xx_link_reset(struct usbnet *dev)
 	/* read and write to clear phy interrupt status */
 	ret = smsc75xx_mdio_read(dev->net, mii->phy_id, PHY_INT_SRC);
 	check_warn_return(ret, "Error reading PHY_INT_SRC");
-	smsc75xx_mdio_write(dev->net, mii->phy_id, PHY_INT_SRC, 0xffff);
+	smsc75xx_mdio_write(dev->net, mii->phy_id, PHY_INT_SRC,
+		PHY_INT_SRC_CLEAR_ALL);
 
 	ret = smsc75xx_write_reg(dev, INT_STS, INT_STS_CLEAR_ALL);
 	check_warn_return(ret, "Error writing INT_STS");
