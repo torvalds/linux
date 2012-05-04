@@ -584,7 +584,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 	int retval = 0, size;
 
 	if (!data) {
-		dev_err(&dev->input->dev, "out of memory\n");
+		dev_err(&dev->intf->dev, "out of memory\n");
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -597,7 +597,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 			BCM5974_WELLSPRING_MODE_REQUEST_INDEX, data, 8, 5000);
 
 	if (size != 8) {
-		dev_err(&dev->input->dev, "could not read from device\n");
+		dev_err(&dev->intf->dev, "could not read from device\n");
 		retval = -EIO;
 		goto out;
 	}
@@ -615,7 +615,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 			BCM5974_WELLSPRING_MODE_REQUEST_INDEX, data, 8, 5000);
 
 	if (size != 8) {
-		dev_err(&dev->input->dev, "could not write to device\n");
+		dev_err(&dev->intf->dev, "could not write to device\n");
 		retval = -EIO;
 		goto out;
 	}
@@ -631,7 +631,7 @@ static int bcm5974_wellspring_mode(struct bcm5974 *dev, bool on)
 static void bcm5974_irq_button(struct urb *urb)
 {
 	struct bcm5974 *dev = urb->context;
-	struct input_dev *idev = dev->input;
+	struct usb_interface *intf = dev->intf;
 	int error;
 
 	switch (urb->status) {
@@ -641,11 +641,11 @@ static void bcm5974_irq_button(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		dev_dbg(&idev->dev, "button urb shutting down: %d\n",
+		dev_dbg(&intf->dev, "button urb shutting down: %d\n",
 			urb->status);
 		return;
 	default:
-		dev_dbg(&idev->dev, "button urb status: %d\n", urb->status);
+		dev_dbg(&intf->dev, "button urb status: %d\n", urb->status);
 		goto exit;
 	}
 
@@ -656,13 +656,13 @@ static void bcm5974_irq_button(struct urb *urb)
 exit:
 	error = usb_submit_urb(dev->bt_urb, GFP_ATOMIC);
 	if (error)
-		dev_err(&idev->dev, "button urb failed: %d\n", error);
+		dev_err(&intf->dev, "button urb failed: %d\n", error);
 }
 
 static void bcm5974_irq_trackpad(struct urb *urb)
 {
 	struct bcm5974 *dev = urb->context;
-	struct input_dev *idev = dev->input;
+	struct usb_interface *intf = dev->intf;
 	int error;
 
 	switch (urb->status) {
@@ -672,11 +672,11 @@ static void bcm5974_irq_trackpad(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
-		dev_dbg(&idev->dev, "trackpad urb shutting down: %d\n",
+		dev_dbg(&intf->dev, "trackpad urb shutting down: %d\n",
 			urb->status);
 		return;
 	default:
-		dev_dbg(&idev->dev, "trackpad urb status: %d\n", urb->status);
+		dev_dbg(&intf->dev, "trackpad urb status: %d\n", urb->status);
 		goto exit;
 	}
 
@@ -691,7 +691,7 @@ static void bcm5974_irq_trackpad(struct urb *urb)
 exit:
 	error = usb_submit_urb(dev->tp_urb, GFP_ATOMIC);
 	if (error)
-		dev_err(&idev->dev, "trackpad urb failed: %d\n", error);
+		dev_err(&intf->dev, "trackpad urb failed: %d\n", error);
 }
 
 /*
