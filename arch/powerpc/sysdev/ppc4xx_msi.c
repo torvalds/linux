@@ -175,8 +175,8 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 	msi_virt = dma_alloc_coherent(&dev->dev, 64, &msi_phys, GFP_KERNEL);
 	if (!msi_virt)
 		return -ENOMEM;
-	msi->msi_addr_hi = (u32)(msi_phys >> 32);
-	msi->msi_addr_lo = (u32)(msi_phys & 0xffffffff);
+	msi->msi_addr_hi = upper_32_bits(msi_phys);
+	msi->msi_addr_lo = lower_32_bits(msi_phys & 0xffffffff);
 	dev_dbg(&dev->dev, "PCIE-MSI: msi address high 0x%x, low 0x%x\n",
 		msi->msi_addr_hi, msi->msi_addr_lo);
 
