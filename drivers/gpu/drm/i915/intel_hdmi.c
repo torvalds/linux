@@ -187,13 +187,7 @@ static void ibx_write_infoframe(struct drm_encoder *encoder,
 	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
 	val |= intel_infoframe_index(frame);
 
-	/* The DIP control register spec says that we need to update the AVI
-	 * infoframe without clearing its enable bit */
-	if (frame->type == DIP_TYPE_AVI)
-		val |= VIDEO_DIP_ENABLE_AVI;
-	else
-		val &= ~intel_infoframe_enable(frame);
-
+	val &= ~intel_infoframe_enable(frame);
 	val |= VIDEO_DIP_ENABLE;
 
 	I915_WRITE(reg, val);
