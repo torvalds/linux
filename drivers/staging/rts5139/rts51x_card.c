@@ -815,22 +815,6 @@ int enable_card_clock(struct rts51x_chip *chip, u8 card)
 	return STATUS_SUCCESS;
 }
 
-int disable_card_clock(struct rts51x_chip *chip, u8 card)
-{
-	u8 clk_en = 0;
-
-	if (card & XD_CARD)
-		clk_en |= XD_CLK_EN;
-	if (card & SD_CARD)
-		clk_en |= SD_CLK_EN;
-	if (card & MS_CARD)
-		clk_en |= MS_CLK_EN;
-
-	RTS51X_WRITE_REG(chip, CARD_CLK_EN, clk_en, 0);
-
-	return STATUS_SUCCESS;
-}
-
 int card_power_on(struct rts51x_chip *chip, u8 card)
 {
 	u8 mask, val1, val2;

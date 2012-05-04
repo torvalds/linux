@@ -757,7 +757,6 @@ void eject_card(struct rts51x_chip *chip, unsigned int lun);
 void trans_dma_enable(enum dma_data_direction dir, struct rts51x_chip *chip,
 		      u32 byte_cnt, u8 pack_size);
 int enable_card_clock(struct rts51x_chip *chip, u8 card);
-int disable_card_clock(struct rts51x_chip *chip, u8 card);
 int card_power_on(struct rts51x_chip *chip, u8 card);
 int card_power_off(struct rts51x_chip *chip, u8 card);
 int toggle_gpio(struct rts51x_chip *chip, u8 gpio);
