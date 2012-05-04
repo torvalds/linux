@@ -883,20 +883,12 @@ static int read_write(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 
 	retval = card_rw(srb, chip, start_sec, sec_cnt);
 	if (retval != STATUS_SUCCESS) {
-#if 0
-		if (chip->need_release & chip->lun2card[lun]) {
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
-		} else {
-#endif
 		if (srb->sc_data_direction == DMA_FROM_DEVICE) {
 			set_sense_type(chip, lun,
 				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 		} else {
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_WRITE_ERR);
 		}
-#if 0
-		}
-#endif
 		TRACE_RET(chip, TRANSPORT_FAILED);
 	}
 
@@ -2111,14 +2103,7 @@ int queuecommand_lck(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *))
 	return 0;
 }
 
-#if 0 /* LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 37) */
-int queuecommand(struct scsi_cmnd *srb, void (*done) (struct scsi_cmnd *))
-{
-	return queuecommand_lck(srb, done);
-}
-#else
 DEF_SCSI_QCMD(queuecommand)
-#endif
 /***********************************************************************
  * Error handling functions
  ***********************************************************************/
