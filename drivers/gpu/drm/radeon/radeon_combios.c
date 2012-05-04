@@ -2845,7 +2845,7 @@ bool radeon_combios_external_tmds_setup(struct drm_encoder *encoder)
 					case 4:
 						val = RBIOS16(index);
 						index += 2;
-						udelay(val * 1000);
+						mdelay(val);
 						break;
 					case 6:
 						slave_addr = id & 0xff;
@@ -3044,7 +3044,7 @@ static void combios_parse_pll_table(struct drm_device *dev, uint16_t offset)
 					udelay(150);
 					break;
 				case 2:
-					udelay(1000);
+					mdelay(1);
 					break;
 				case 3:
 					while (tmp--) {
@@ -3075,13 +3075,13 @@ static void combios_parse_pll_table(struct drm_device *dev, uint16_t offset)
 						/*mclk_cntl |= 0x00001111;*//* ??? */
 						WREG32_PLL(RADEON_MCLK_CNTL,
 							   mclk_cntl);
-						udelay(10000);
+						mdelay(10);
 #endif
 						WREG32_PLL
 						    (RADEON_CLK_PWRMGT_CNTL,
 						     tmp &
 						     ~RADEON_CG_NO1_DEBUG_0);
-						udelay(10000);
+						mdelay(10);
 					}
 					break;
 				default:

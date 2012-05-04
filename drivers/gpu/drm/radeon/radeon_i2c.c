@@ -900,6 +900,10 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	struct radeon_i2c_chan *i2c;
 	int ret;
 
+	/* don't add the mm_i2c bus unless hw_i2c is enabled */
+	if (rec->mm_i2c && (radeon_hw_i2c == 0))
+		return NULL;
+
 	i2c = kzalloc(sizeof(struct radeon_i2c_chan), GFP_KERNEL);
 	if (i2c == NULL)
 		return NULL;

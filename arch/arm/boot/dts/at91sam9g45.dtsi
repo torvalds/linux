@@ -56,7 +56,6 @@
 				#interrupt-cells = <2>;
 				compatible = "atmel,at91rm9200-aic";
 				interrupt-controller;
-				interrupt-parent;
 				reg = <0xfffff000 0x200>;
 			};
 

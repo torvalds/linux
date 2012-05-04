@@ -1392,7 +1392,7 @@ nfsd4_decode_test_stateid(struct nfsd4_compoundargs *argp, struct nfsd4_test_sta
 	for (i = 0; i < test_stateid->ts_num_ids; i++) {
 		stateid = kmalloc(sizeof(struct nfsd4_test_stateid_id), GFP_KERNEL);
 		if (!stateid) {
-			status = PTR_ERR(stateid);
+			status = nfserrno(-ENOMEM);
 			goto out;
 		}
 
@@ -3410,7 +3410,7 @@ nfsd4_encode_test_stateid(struct nfsd4_compoundres *resp, int nfserr,
 	*p++ = htonl(test_stateid->ts_num_ids);
 
 	list_for_each_entry_safe(stateid, next, &test_stateid->ts_stateid_list, ts_id_list) {
-		*p++ = htonl(stateid->ts_id_status);
+		*p++ = stateid->ts_id_status;
 	}
 
 	ADJUST_ARGS();

@@ -225,24 +225,25 @@ struct exynos_drm_private {
  * Exynos drm sub driver structure.
  *
  * @list: sub driver has its own list object to register to exynos drm driver.
+ * @dev: pointer to device object for subdrv device driver.
  * @drm_dev: pointer to drm_device and this pointer would be set
  *	when sub driver calls exynos_drm_subdrv_register().
- * @is_local: appear encoder and connector disrelated device.
+ * @manager: subdrv has its own manager to control a hardware appropriately
+ *	and we can access a hardware drawing on this manager.
  * @probe: this callback would be called by exynos drm driver after
  *	subdrv is registered to it.
  * @remove: this callback is used to release resources created
  *	by probe callback.
  * @open: this would be called with drm device file open.
  * @close: this would be called with drm device file close.
- * @manager: subdrv has its own manager to control a hardware appropriately
- *	and we can access a hardware drawing on this manager.
  * @encoder: encoder object owned by this sub driver.
  * @connector: connector object owned by this sub driver.
  */
 struct exynos_drm_subdrv {
 	struct list_head list;
+	struct device *dev;
 	struct drm_device *drm_dev;
-	bool is_local;
+	struct exynos_drm_manager *manager;
 
 	int (*probe)(struct drm_device *drm_dev, struct device *dev);
 	void (*remove)(struct drm_device *dev);
@@ -251,7 +252,6 @@ struct exynos_drm_subdrv {
 	void (*close)(struct drm_device *drm_dev, struct device *dev,
 			struct drm_file *file);
 
-	struct exynos_drm_manager manager;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 };

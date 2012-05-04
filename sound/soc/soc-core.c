@@ -1081,6 +1081,8 @@ static int soc_probe_platform(struct snd_soc_card *card,
 		snd_soc_dapm_new_controls(&platform->dapm,
 			driver->dapm_widgets, driver->num_dapm_widgets);
 
+	platform->dapm.idle_bias_off = 1;
+
 	if (driver->probe) {
 		ret = driver->probe(platform);
 		if (ret < 0) {
@@ -3111,6 +3113,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 				 GFP_KERNEL);
 	if (card->rtd == NULL)
 		return -ENOMEM;
+	card->num_rtd = 0;
 	card->rtd_aux = &card->rtd[card->num_links];
 
 	for (i = 0; i < card->num_links; i++)

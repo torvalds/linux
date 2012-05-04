@@ -96,7 +96,7 @@ static void gpio_vbus_work(struct work_struct *work)
 	struct gpio_vbus_data *gpio_vbus =
 		container_of(work, struct gpio_vbus_data, work);
 	struct gpio_vbus_mach_info *pdata = gpio_vbus->dev->platform_data;
-	int gpio;
+	int gpio, status;
 
 	if (!gpio_vbus->phy.otg->gadget)
 		return;
@@ -108,7 +108,9 @@ static void gpio_vbus_work(struct work_struct *work)
 	 */
 	gpio = pdata->gpio_pullup;
 	if (is_vbus_powered(pdata)) {
+		status = USB_EVENT_VBUS;
 		gpio_vbus->phy.state = OTG_STATE_B_PERIPHERAL;
+		gpio_vbus->phy.last_event = status;
 		usb_gadget_vbus_connect(gpio_vbus->phy.otg->gadget);
 
 		/* drawing a "unit load" is *always* OK, except for OTG */
@@ -117,6 +119,9 @@ static void gpio_vbus_work(struct work_struct *work)
 		/* optionally enable D+ pullup */
 		if (gpio_is_valid(gpio))
 			gpio_set_value(gpio, !pdata->gpio_pullup_inverted);
+
+		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
+					   status, gpio_vbus->phy.otg->gadget);
 	} else {
 		/* optionally disable D+ pullup */
 		if (gpio_is_valid(gpio))
@@ -125,7 +130,12 @@ static void gpio_vbus_work(struct work_struct *work)
 		set_vbus_draw(gpio_vbus, 0);
 
 		usb_gadget_vbus_disconnect(gpio_vbus->phy.otg->gadget);
+		status = USB_EVENT_NONE;
 		gpio_vbus->phy.state = OTG_STATE_B_IDLE;
+		gpio_vbus->phy.last_event = status;
+
+		atomic_notifier_call_chain(&gpio_vbus->phy.notifier,
+					   status, gpio_vbus->phy.otg->gadget);
 	}
 }
 
@@ -287,6 +297,9 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 			irq, err);
 		goto err_irq;
 	}
+
+	ATOMIC_INIT_NOTIFIER_HEAD(&gpio_vbus->phy.notifier);
+
 	INIT_WORK(&gpio_vbus->work, gpio_vbus_work);
 
 	gpio_vbus->vbus_draw = regulator_get(&pdev->dev, "vbus_draw");

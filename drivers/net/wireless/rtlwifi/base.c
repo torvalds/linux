@@ -838,7 +838,10 @@ void rtl_get_tcb_desc(struct ieee80211_hw *hw,
 	__le16 fc = hdr->frame_control;
 
 	txrate = ieee80211_get_tx_rate(hw, info);
-	tcb_desc->hw_rate = txrate->hw_value;
+	if (txrate)
+		tcb_desc->hw_rate = txrate->hw_value;
+	else
+		tcb_desc->hw_rate = 0;
 
 	if (ieee80211_is_data(fc)) {
 		/*

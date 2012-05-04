@@ -35,6 +35,14 @@ typedef union sigval {
 #define __ARCH_SI_BAND_T long
 #endif
 
+#ifndef __ARCH_SI_CLOCK_T
+#define __ARCH_SI_CLOCK_T __kernel_clock_t
+#endif
+
+#ifndef __ARCH_SI_ATTRIBUTES
+#define __ARCH_SI_ATTRIBUTES
+#endif
+
 #ifndef HAVE_ARCH_SIGINFO_T
 
 typedef struct siginfo {
@@ -72,8 +80,8 @@ typedef struct siginfo {
 			__kernel_pid_t _pid;	/* which child */
 			__ARCH_SI_UID_T _uid;	/* sender's uid */
 			int _status;		/* exit code */
-			__kernel_clock_t _utime;
-			__kernel_clock_t _stime;
+			__ARCH_SI_CLOCK_T _utime;
+			__ARCH_SI_CLOCK_T _stime;
 		} _sigchld;
 
 		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
@@ -98,7 +106,7 @@ typedef struct siginfo {
 			unsigned int _arch;	/* AUDIT_ARCH_* of syscall */
 		} _sigsys;
 	} _sifields;
-} siginfo_t;
+} __ARCH_SI_ATTRIBUTES siginfo_t;
 
 /* If the arch shares siginfo, then it has SIGSYS. */
 #define __ARCH_SIGSYS

@@ -86,9 +86,6 @@ static void __init halibut_init(void)
 static void __init halibut_fixup(struct tag *tags, char **cmdline,
 				 struct meminfo *mi)
 {
-	mi->nr_banks=1;
-	mi->bank[0].start = PHYS_OFFSET;
-	mi->bank[0].size = (101*1024*1024);
 }
 
 static void __init halibut_map_io(void)

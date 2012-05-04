@@ -82,6 +82,7 @@ int iio_map_array_unregister(struct iio_dev *indio_dev,
 			ret = -ENODEV;
 			goto error_ret;
 		}
+		i++;
 	}
 error_ret:
 	mutex_unlock(&iio_map_list_lock);

@@ -47,9 +47,9 @@ static int omap1_dm_timer_set_src(struct platform_device *pdev,
 	int n = (pdev->id - 1) << 1;
 	u32 l;
 
-	l = __raw_readl(MOD_CONF_CTRL_1) & ~(0x03 << n);
+	l = omap_readl(MOD_CONF_CTRL_1) & ~(0x03 << n);
 	l |= source << n;
-	__raw_writel(l, MOD_CONF_CTRL_1);
+	omap_writel(l, MOD_CONF_CTRL_1);
 
 	return 0;
 }

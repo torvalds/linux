@@ -91,11 +91,10 @@ config DW_DMAC
 
 config AT_HDMAC
 	tristate "Atmel AHB DMA support"
-	depends on ARCH_AT91SAM9RL || ARCH_AT91SAM9G45
+	depends on ARCH_AT91
 	select DMA_ENGINE
 	help
-	  Support the Atmel AHB DMA controller.  This can be integrated in
-	  chips such as the Atmel AT91SAM9RL.
+	  Support the Atmel AHB DMA controller.
 
 config FSL_DMA
 	tristate "Freescale Elo and Elo Plus DMA support"

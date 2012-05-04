@@ -33,8 +33,6 @@ extern atomic_t ppc_n_lost_interrupts;
 /* Same thing, used by the generic IRQ code */
 #define NR_IRQS_LEGACY		NUM_ISA_INTERRUPTS
 
-struct irq_data;
-extern irq_hw_number_t irqd_to_hwirq(struct irq_data *d);
 extern irq_hw_number_t virq_to_hw(unsigned int virq);
 
 /**
