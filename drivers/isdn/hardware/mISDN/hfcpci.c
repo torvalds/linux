@@ -1819,7 +1819,7 @@ channel_ctrl(struct hfc_pci *hc, struct mISDN_ctrl_req *cq)
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
 		cq->op = MISDN_CTRL_LOOP | MISDN_CTRL_CONNECT |
-			MISDN_CTRL_DISCONNECT;
+			 MISDN_CTRL_DISCONNECT | MISDN_CTRL_L1_TIMER3;
 		break;
 	case MISDN_CTRL_LOOP:
 		/* channel 0 disabled loop */
@@ -1895,6 +1895,9 @@ channel_ctrl(struct hfc_pci *hc, struct mISDN_ctrl_req *cq)
 		hc->hw.conn = (hc->hw.conn & ~0x3f) | 0x09;
 		Write_hfc(hc, HFCPCI_CONNECT, hc->hw.conn);
 		hc->hw.trm &= 0x7f;	/* disable IOM-loop */
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = l1_event(hc->dch.l1, HW_TIMER3_VALUE | (cq->p1 & 0xff));
 		break;
 	default:
 		printk(KERN_WARNING "%s: unknown Op %x\n",

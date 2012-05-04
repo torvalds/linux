@@ -37,7 +37,7 @@
  */
 #define	MISDN_MAJOR_VERSION	1
 #define	MISDN_MINOR_VERSION	1
-#define MISDN_RELEASE		26
+#define MISDN_RELEASE		27
 
 /* primitives for information exchange
  * generell format
@@ -372,6 +372,7 @@ clear_channelmap(u_int nr, u_char *map)
 #define MISDN_CTRL_RX_OFF		0x0100
 #define MISDN_CTRL_FILL_EMPTY		0x0200
 #define MISDN_CTRL_GETPEER		0x0400
+#define MISDN_CTRL_L1_TIMER3		0x0800
 #define MISDN_CTRL_HW_FEATURES_OP	0x2000
 #define MISDN_CTRL_HW_FEATURES		0x2001
 #define MISDN_CTRL_HFC_OP		0x4000

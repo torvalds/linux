@@ -1035,7 +1035,10 @@ channel_ctrl(struct w6692_hw *card, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = 0;
+		cq->op = MISDN_CTRL_L1_TIMER3;
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = l1_event(card->dch.l1, HW_TIMER3_VALUE | (cq->p1 & 0xff));
 		break;
 	default:
 		pr_info("%s: unknown CTRL OP %x\n", card->name, cq->op);

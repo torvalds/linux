@@ -30,11 +30,12 @@ struct layer1 {
 	struct FsmInst l1m;
 	struct FsmTimer timer;
 	int delay;
+	int t3_value;
 	struct dchannel *dch;
 	dchannel_l1callback *dcb;
 };
 
-#define TIMER3_VALUE 7000
+#define TIMER3_DEFAULT_VALUE	7000
 
 static
 struct Fsm l1fsm_s = {NULL, 0, 0, NULL, NULL};
@@ -233,7 +234,7 @@ l1_activate_s(struct FsmInst *fi, int event, void *arg)
 {
 	struct layer1 *l1 = fi->userdata;
 
-	mISDN_FsmRestartTimer(&l1->timer, TIMER3_VALUE, EV_TIMER3, NULL, 2);
+	mISDN_FsmRestartTimer(&l1->timer, l1->t3_value, EV_TIMER3, NULL, 2);
 	test_and_set_bit(FLG_L1_T3RUN, &l1->Flags);
 	l1->dcb(l1->dch, HW_RESET_REQ);
 }
@@ -356,6 +357,16 @@ l1_event(struct layer1 *l1, u_int event)
 		release_l1(l1);
 		break;
 	default:
+		if ((event & ~HW_TIMER3_VMASK) == HW_TIMER3_VALUE) {
+			int val = event & HW_TIMER3_VMASK;
+
+			if (val < 5)
+				val = 5;
+			if (val > 30)
+				val = 30;
+			l1->t3_value = val;
+			break;
+		}
 		if (*debug & DEBUG_L1)
 			printk(KERN_DEBUG "%s %x unhandled\n",
 			       __func__, event);
@@ -377,6 +388,7 @@ create_l1(struct dchannel *dch, dchannel_l1callback *dcb) {
 	nl1->l1m.fsm = &l1fsm_s;
 	nl1->l1m.state = ST_L1_F3;
 	nl1->Flags = 0;
+	nl1->t3_value = TIMER3_DEFAULT_VALUE;
 	nl1->l1m.debug = *debug & DEBUG_L1_FSM;
 	nl1->l1m.userdata = nl1;
 	nl1->l1m.userint = 0;

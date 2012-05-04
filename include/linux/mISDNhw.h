@@ -135,6 +135,9 @@ extern int	create_l1(struct dchannel *, dchannel_l1callback *);
 #define HW_TESTRX_RAW	0x9602
 #define HW_TESTRX_HDLC	0x9702
 #define HW_TESTRX_OFF	0x9802
+#define HW_TIMER3_IND	0x9902
+#define HW_TIMER3_VALUE	0x9a00
+#define HW_TIMER3_VMASK	0x00FF
 
 struct layer1;
 extern int	l1_event(struct layer1 *, u_int);

@@ -603,10 +603,11 @@ isac_l1hw(struct mISDNchannel *ch, struct sk_buff *skb)
 }
 
 static int
-isac_ctrl(struct isac_hw *isac, u32 cmd, u_long para)
+isac_ctrl(struct isac_hw *isac, u32 cmd, unsigned long para)
 {
 	u8 tl = 0;
-	u_long flags;
+	unsigned long flags;
+	int ret = 0;
 
 	switch (cmd) {
 	case HW_TESTLOOP:
@@ -626,12 +627,15 @@ isac_ctrl(struct isac_hw *isac, u32 cmd, u_long para)
 		}
 		spin_unlock_irqrestore(isac->hwlock, flags);
 		break;
+	case HW_TIMER3_VALUE:
+		ret = l1_event(isac->dch.l1, HW_TIMER3_VALUE | (para & 0xff));
+		break;
 	default:
 		pr_debug("%s: %s unknown command %x %lx\n", isac->name,
 			 __func__, cmd, para);
-		return -1;
+		ret = -1;
 	}
-	return 0;
+	return ret;
 }
 
 static int
@@ -1526,7 +1530,7 @@ channel_ctrl(struct ipac_hw *ipac, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_LOOP;
+		cq->op = MISDN_CTRL_LOOP | MISDN_CTRL_L1_TIMER3;
 		break;
 	case MISDN_CTRL_LOOP:
 		/* cq->channel: 0 disable, 1 B1 loop 2 B2 loop, 3 both */
@@ -1535,6 +1539,9 @@ channel_ctrl(struct ipac_hw *ipac, struct mISDN_ctrl_req *cq)
 			break;
 		}
 		ret = ipac->ctrl(ipac, HW_TESTLOOP, cq->channel);
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = ipac->isac.ctrl(&ipac->isac, HW_TIMER3_VALUE, cq->p1);
 		break;
 	default:
 		pr_info("%s: unknown CTRL OP %x\n", ipac->name, cq->op);

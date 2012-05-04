@@ -4161,7 +4161,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = MISDN_CTRL_HFC_OP;
+		cq->op = MISDN_CTRL_HFC_OP | MISDN_CTRL_L1_TIMER3;
 		break;
 	case MISDN_CTRL_HFC_WD_INIT: /* init the watchdog */
 		wd_cnt = cq->p1 & 0xf;
@@ -4190,6 +4190,9 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 			printk(KERN_DEBUG "%s: MISDN_CTRL_HFC_WD_RESET\n",
 			       __func__);
 		HFC_outb(hc, R_BERT_WD_MD, hc->hw.r_bert_wd_md | V_WD_RES);
+		break;
+	case MISDN_CTRL_L1_TIMER3:
+		ret = l1_event(dch->l1, HW_TIMER3_VALUE | (cq->p1 & 0xff));
 		break;
 	default:
 		printk(KERN_WARNING "%s: unknown Op %x\n",
