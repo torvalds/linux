@@ -55,6 +55,8 @@
 #include "io.h"
 
 static void dwc3_ep0_do_control_status(struct dwc3 *dwc, u32 epnum);
+static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
+		struct dwc3_ep *dep, struct dwc3_request *req);
 
 static const char *dwc3_ep0_state_string(enum dwc3_ep0_state state)
 {
@@ -150,9 +152,8 @@ static int __dwc3_gadget_ep0_queue(struct dwc3_ep *dep,
 			return 0;
 		}
 
-		ret = dwc3_ep0_start_trans(dwc, direction,
-				req->request.dma, req->request.length,
-				DWC3_TRBCTL_CONTROL_DATA);
+		__dwc3_ep0_do_control_data(dwc, dwc->eps[direction], req);
+
 		dep->flags &= ~(DWC3_EP_PENDING_REQUEST |
 				DWC3_EP0_DIR_IN);
 	} else if (dwc->delayed_status) {
@@ -787,12 +788,63 @@ static void dwc3_ep0_do_control_setup(struct dwc3 *dwc,
 	dwc3_ep0_out_start(dwc);
 }
 
+static void __dwc3_ep0_do_control_data(struct dwc3 *dwc,
+		struct dwc3_ep *dep, struct dwc3_request *req)
+{
+	int			ret;
+
+	req->direction = !!dep->number;
+
+	if (req->request.length == 0) {
+		ret = dwc3_ep0_start_trans(dwc, dep->number,
+				dwc->ctrl_req_addr, 0,
+				DWC3_TRBCTL_CONTROL_DATA);
+	} else if ((req->request.length % dep->endpoint.maxpacket)
+			&& (dep->number == 0)) {
+		u32		transfer_size;
+
+		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
+				dep->number);
+		if (ret) {
+			dev_dbg(dwc->dev, "failed to map request\n");
+			return;
+		}
+
+		WARN_ON(req->request.length > DWC3_EP0_BOUNCE_SIZE);
+
+		transfer_size = roundup(req->request.length,
+				(u32) dep->endpoint.maxpacket);
+
+		dwc->ep0_bounced = true;
+
+		/*
+		 * REVISIT in case request length is bigger than
+		 * DWC3_EP0_BOUNCE_SIZE we will need two chained
+		 * TRBs to handle the transfer.
+		 */
+		ret = dwc3_ep0_start_trans(dwc, dep->number,
+				dwc->ep0_bounce_addr, transfer_size,
+				DWC3_TRBCTL_CONTROL_DATA);
+	} else {
+		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
+				dep->number);
+		if (ret) {
+			dev_dbg(dwc->dev, "failed to map request\n");
+			return;
+		}
+
+		ret = dwc3_ep0_start_trans(dwc, dep->number, req->request.dma,
+				req->request.length, DWC3_TRBCTL_CONTROL_DATA);
+	}
+
+	WARN_ON(ret < 0);
+}
+
 static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 		const struct dwc3_event_depevt *event)
 {
 	struct dwc3_ep		*dep;
 	struct dwc3_request	*req;
-	int			ret;
 
 	dep = dwc->eps[0];
 
@@ -806,47 +858,9 @@ static void dwc3_ep0_do_control_data(struct dwc3 *dwc,
 	}
 
 	req = next_request(&dep->request_list);
-	req->direction = !!event->endpoint_number;
+	dep = dwc->eps[event->endpoint_number];
 
-	if (req->request.length == 0) {
-		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
-				dwc->ctrl_req_addr, 0,
-				DWC3_TRBCTL_CONTROL_DATA);
-	} else if ((req->request.length % dep->endpoint.maxpacket)
-			&& (event->endpoint_number == 0)) {
-		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
-				event->endpoint_number);
-		if (ret) {
-			dev_dbg(dwc->dev, "failed to map request\n");
-			return;
-		}
-
-		WARN_ON(req->request.length > DWC3_EP0_BOUNCE_SIZE);
-
-		dwc->ep0_bounced = true;
-
-		/*
-		 * REVISIT in case request length is bigger than
-		 * DWC3_EP0_BOUNCE_SIZE we will need two chained
-		 * TRBs to handle the transfer.
-		 */
-		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
-				dwc->ep0_bounce_addr, dep->endpoint.maxpacket,
-				DWC3_TRBCTL_CONTROL_DATA);
-	} else {
-		ret = usb_gadget_map_request(&dwc->gadget, &req->request,
-				event->endpoint_number);
-		if (ret) {
-			dev_dbg(dwc->dev, "failed to map request\n");
-			return;
-		}
-
-		ret = dwc3_ep0_start_trans(dwc, event->endpoint_number,
-				req->request.dma, req->request.length,
-				DWC3_TRBCTL_CONTROL_DATA);
-	}
-
-	WARN_ON(ret < 0);
+	__dwc3_ep0_do_control_data(dwc, dep, req);
 }
 
 static int dwc3_ep0_start_control_status(struct dwc3_ep *dep)
