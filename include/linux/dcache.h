@@ -282,7 +282,7 @@ extern struct dentry *d_hash_and_lookup(struct dentry *, struct qstr *);
 extern struct dentry *__d_lookup(struct dentry *, struct qstr *);
 extern struct dentry *__d_lookup_rcu(const struct dentry *parent,
 				const struct qstr *name,
-				unsigned *seq, struct inode **inode);
+				unsigned *seq, struct inode *inode);
 
 /**
  * __d_rcu_to_refcount - take a refcount on dentry if sequence check is ok
