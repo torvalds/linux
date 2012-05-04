@@ -163,12 +163,6 @@ int rts51x_init_chip(struct rts51x_chip *chip)
 	chip->card_ejected = 0;
 
 	chip->lun2card[0] = XD_CARD | SD_CARD | MS_CARD;
-#if 0
-	chip->option.sdr50_tx_phase = 0x01;
-	chip->option.sdr50_rx_phase = 0x05;
-	chip->option.ddr50_tx_phase = 0x09;
-	chip->option.ddr50_rx_phase = 0x06; /* add for debug */
-#endif
 #ifdef CLOSE_SSC_POWER
 	rts51x_write_register(chip, FPDCTL, SSC_POWER_MASK, SSC_POWER_ON);
 	udelay(100);
@@ -307,59 +301,8 @@ static void rts51x_auto_delink(struct rts51x_chip *chip)
 }
 #else
 /* some of called funcs are not implemented, so comment it out */
-#if 0
-/* using precise time as delink time */
-static void rts51x_auto_delink_precise_time(struct rts51x_chip *chip)
-{
-	int retvalue = 0;
-
-	retvalue = rts51x_get_card_status(chip, &chip->card_status);
-	/* get card CD status success and card CD not exist,
-	 * then check whether delink */
-	if ((retvalue == STATUS_SUCCESS)
-	    && (!(chip->card_status & (SD_CD | MS_CD | XD_CD)))) {
-		if (rts51x_count_delink_time(chip) >=
-		    chip->option.delink_delay) {
-			clear_first_install_mark(chip);
-			RTS51X_DEBUGP("No card inserted, do delink\n");
-			/* sangdy2010-05-17:disable because there is error
-			 * after SSC clock closed and card power
-			 * has been closed before */
-			/* rts51x_write_register(chip, CARD_PWR_CTL,
-					DV3318_AUTO_PWR_OFF, 0); */
-			rts51x_auto_delink_cmd(chip);
-	}
-	/* card CD exist and not ready, then do force delink */
-	if ((retvalue == STATUS_SUCCESS)
-	    && (chip->card_status & (SD_CD | MS_CD | XD_CD))) {
-		/* if card is not ejected or safely remove,
-		 * then do force delink */
-		if (!chip->card_ejected) {
-			/* sangdy2010-11-16:polling at least 2 cycles
-			 * then do force delink for card may force delink
-			 * if card is extracted and insert quickly
-			 * after ready. */
-			if (chip->auto_delink_counter > 1) {
-				if (rts51x_count_delink_time(chip) >
-				    chip->option.delink_delay * 2) {
-					RTS51X_DEBUGP("Try to do force"
-							"delink\n");
-					rts51x_auto_delink_force_cmd(chip);
-				}
-			}
-		}
-	}
-	chip->auto_delink_counter++;
-}
-#else
-static void rts51x_auto_delink_precise_time(struct rts51x_chip *chip)
-{
-}
-#endif
-
 static void rts51x_auto_delink(struct rts51x_chip *chip)
 {
-	rts51x_auto_delink_precise_time(chip);
 }
 #endif
 
@@ -847,16 +790,6 @@ void rts51x_prepare_run(struct rts51x_chip *chip)
 
 		rts51x_write_register(chip, CLK_DIV, CLK_CHANGE, 0x00);
 	}
-#endif
-#if 0
-	if (chip->option.ss_en && RTS51X_CHK_STAT(chip, STAT_SS)) {
-		rts51x_try_to_exit_ss(chip);
-		wait_timeout(100);
-		rts51x_init_chip(chip);
-		rts51x_init_cards(chip);
-	}
-
-	RTS51X_SET_STAT(chip, STAT_RUN);
 #endif
 }
 
