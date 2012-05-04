@@ -2476,7 +2476,8 @@
 
 /* Pipe A */
 #define _PIPEADSL		0x70000
-#define   DSL_LINEMASK		0x00000fff
+#define   DSL_LINEMASK_GEN2	0x00000fff
+#define   DSL_LINEMASK_GEN3	0x00001fff
 #define _PIPEACONF		0x70008
 #define   PIPECONF_ENABLE	(1<<31)
 #define   PIPECONF_DISABLE	0

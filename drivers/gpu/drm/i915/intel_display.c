@@ -849,15 +849,20 @@ void intel_wait_for_pipe_off(struct drm_device *dev, int pipe)
 			     100))
 			DRM_DEBUG_KMS("pipe_off wait timed out\n");
 	} else {
-		u32 last_line;
+		u32 last_line, line_mask;
 		int reg = PIPEDSL(pipe);
 		unsigned long timeout = jiffies + msecs_to_jiffies(100);
 
+		if (IS_GEN2(dev))
+			line_mask = DSL_LINEMASK_GEN2;
+		else
+			line_mask = DSL_LINEMASK_GEN3;
+
 		/* Wait for the display line to settle */
 		do {
-			last_line = I915_READ(reg) & DSL_LINEMASK;
+			last_line = I915_READ(reg) & line_mask;
 			mdelay(5);
-		} while (((I915_READ(reg) & DSL_LINEMASK) != last_line) &&
+		} while (((I915_READ(reg) & line_mask) != last_line) &&
 			 time_after(timeout, jiffies));
 		if (time_after(jiffies, timeout))
 			DRM_DEBUG_KMS("pipe_off wait timed out\n");
