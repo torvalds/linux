@@ -932,7 +932,6 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	u8 *data;
 	int size = nhead + (skb_end_pointer(skb) - skb->head) + ntail;
 	long off;
-	bool fastpath;
 
 	BUG_ON(nhead < 0);
 
@@ -940,16 +939,6 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 		BUG();
 
 	size = SKB_DATA_ALIGN(size);
-
-	/* Check if we can avoid taking references on fragments if we own
-	 * the last reference on skb->head. (see skb_release_data())
-	 */
-	if (!skb->cloned)
-		fastpath = true;
-	else {
-		int delta = skb->nohdr ? (1 << SKB_DATAREF_SHIFT) + 1 : 1;
-		fastpath = atomic_read(&skb_shinfo(skb)->dataref) == delta;
-	}
 
 	data = kmalloc(size + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)),
 		       gfp_mask);
@@ -966,9 +955,12 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 	       skb_shinfo(skb),
 	       offsetof(struct skb_shared_info, frags[skb_shinfo(skb)->nr_frags]));
 
-	if (fastpath) {
-		skb_free_head(skb);
-	} else {
+	/*
+	 * if shinfo is shared we must drop the old head gracefully, but if it
+	 * is not we can just drop the old head and let the existing refcount
+	 * be since all we did is relocate the values
+	 */
+	if (skb_cloned(skb)) {
 		/* copy this zero copy skb frags */
 		if (skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY) {
 			if (skb_copy_ubufs(skb, gfp_mask))
@@ -981,6 +973,8 @@ int pskb_expand_head(struct sk_buff *skb, int nhead, int ntail,
 			skb_clone_fraglist(skb);
 
 		skb_release_data(skb);
+	} else {
+		skb_free_head(skb);
 	}
 	off = (data + nhead) - skb->head;
 
