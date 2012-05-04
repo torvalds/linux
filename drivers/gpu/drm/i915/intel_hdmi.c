@@ -170,8 +170,48 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 	I915_WRITE(VIDEO_DIP_CTL, val);
 }
 
-static void ironlake_write_infoframe(struct drm_encoder *encoder,
-				     struct dip_infoframe *frame)
+static void ibx_write_infoframe(struct drm_encoder *encoder,
+				struct dip_infoframe *frame)
+{
+	uint32_t *data = (uint32_t *)frame;
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int reg = TVIDEO_DIP_CTL(intel_crtc->pipe);
+	unsigned i, len = DIP_HEADER_SIZE + frame->len;
+	u32 val = I915_READ(reg);
+
+	intel_wait_for_vblank(dev, intel_crtc->pipe);
+
+	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
+	val |= intel_infoframe_index(frame);
+
+	/* The DIP control register spec says that we need to update the AVI
+	 * infoframe without clearing its enable bit */
+	if (frame->type == DIP_TYPE_AVI)
+		val |= VIDEO_DIP_ENABLE_AVI;
+	else
+		val &= ~intel_infoframe_enable(frame);
+
+	val |= VIDEO_DIP_ENABLE;
+
+	I915_WRITE(reg, val);
+
+	for (i = 0; i < len; i += 4) {
+		I915_WRITE(TVIDEO_DIP_DATA(intel_crtc->pipe), *data);
+		data++;
+	}
+
+	val |= intel_infoframe_enable(frame);
+	val &= ~VIDEO_DIP_FREQ_MASK;
+	val |= intel_infoframe_frequency(frame);
+
+	I915_WRITE(reg, val);
+}
+
+static void cpt_write_infoframe(struct drm_encoder *encoder,
+				struct dip_infoframe *frame)
 {
 	uint32_t *data = (uint32_t *)frame;
 	struct drm_device *dev = encoder->dev;
@@ -627,8 +667,12 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		for_each_pipe(i)
 			I915_WRITE(VLV_TVIDEO_DIP_CTL(i), 0);
-	}  else {
-		intel_hdmi->write_infoframe = ironlake_write_infoframe;
+	} else if (HAS_PCH_IBX(dev)) {
+		intel_hdmi->write_infoframe = ibx_write_infoframe;
+		for_each_pipe(i)
+			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
+	} else {
+		intel_hdmi->write_infoframe = cpt_write_infoframe;
 		for_each_pipe(i)
 			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
 	}
