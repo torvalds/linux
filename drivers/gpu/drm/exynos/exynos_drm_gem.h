@@ -127,6 +127,10 @@ int exynos_drm_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv);
 
+/* get buffer information to memory region allocated by gem. */
+int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv);
+
 /* initialize gem object. */
 int exynos_drm_gem_init_object(struct drm_gem_object *obj);
 

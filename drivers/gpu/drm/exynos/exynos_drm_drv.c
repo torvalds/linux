@@ -211,6 +211,8 @@ static struct drm_ioctl_desc exynos_ioctls[] = {
 			DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_MMAP,
 			exynos_drm_gem_mmap_ioctl, DRM_UNLOCKED | DRM_AUTH),
+	DRM_IOCTL_DEF_DRV(EXYNOS_GEM_GET,
+			exynos_drm_gem_get_ioctl, DRM_UNLOCKED),
 	DRM_IOCTL_DEF_DRV(EXYNOS_PLANE_SET_ZPOS, exynos_plane_set_zpos_ioctl,
 			DRM_UNLOCKED | DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(EXYNOS_VIDI_CONNECTION,

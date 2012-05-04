@@ -604,6 +604,32 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+int exynos_drm_gem_get_ioctl(struct drm_device *dev, void *data,
+				      struct drm_file *file_priv)
+{	struct exynos_drm_gem_obj *exynos_gem_obj;
+	struct drm_exynos_gem_info *args = data;
+	struct drm_gem_object *obj;
+
+	mutex_lock(&dev->struct_mutex);
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		mutex_unlock(&dev->struct_mutex);
+		return -EINVAL;
+	}
+
+	exynos_gem_obj = to_exynos_gem_obj(obj);
+
+	args->flags = exynos_gem_obj->flags;
+	args->size = exynos_gem_obj->size;
+
+	drm_gem_object_unreference(obj);
+	mutex_unlock(&dev->struct_mutex);
+
+	return 0;
+}
+
 int exynos_drm_gem_init_object(struct drm_gem_object *obj)
 {
 	DRM_DEBUG_KMS("%s\n", __FILE__);

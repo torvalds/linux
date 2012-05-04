@@ -75,6 +75,21 @@ struct drm_exynos_gem_mmap {
 };
 
 /**
+ * A structure to gem information.
+ *
+ * @handle: a handle to gem object created.
+ * @flags: flag value including memory type and cache attribute and
+ *	this value would be set by driver.
+ * @size: size to memory region allocated by gem and this size would
+ *	be set by driver.
+ */
+struct drm_exynos_gem_info {
+	unsigned int handle;
+	unsigned int flags;
+	uint64_t size;
+};
+
+/**
  * A structure for user connection request of virtual display.
  *
  * @connection: indicate whether doing connetion or not by user.
@@ -113,6 +128,7 @@ enum e_drm_exynos_gem_mem_type {
 #define DRM_EXYNOS_GEM_MAP_OFFSET	0x01
 #define DRM_EXYNOS_GEM_MMAP		0x02
 /* Reserved 0x03 ~ 0x05 for exynos specific gem ioctl */
+#define DRM_EXYNOS_GEM_GET		0x04
 #define DRM_EXYNOS_PLANE_SET_ZPOS	0x06
 #define DRM_EXYNOS_VIDI_CONNECTION	0x07
 
@@ -124,6 +140,9 @@ enum e_drm_exynos_gem_mem_type {
 
 #define DRM_IOCTL_EXYNOS_GEM_MMAP	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_GEM_MMAP, struct drm_exynos_gem_mmap)
+
+#define DRM_IOCTL_EXYNOS_GEM_GET	DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_EXYNOS_GEM_GET,	struct drm_exynos_gem_info)
 
 #define DRM_IOCTL_EXYNOS_PLANE_SET_ZPOS	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_EXYNOS_PLANE_SET_ZPOS, struct drm_exynos_plane_set_zpos)
