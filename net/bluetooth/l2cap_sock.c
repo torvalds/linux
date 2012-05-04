@@ -720,16 +720,13 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 	if (msg->msg_flags & MSG_OOB)
 		return -EOPNOTSUPP;
 
-	lock_sock(sk);
-
-	if (sk->sk_state != BT_CONNECTED) {
-		release_sock(sk);
+	if (sk->sk_state != BT_CONNECTED)
 		return -ENOTCONN;
-	}
 
+	l2cap_chan_lock(chan);
 	err = l2cap_chan_send(chan, msg, len, sk->sk_priority);
+	l2cap_chan_unlock(chan);
 
-	release_sock(sk);
 	return err;
 }
 
@@ -940,7 +937,10 @@ static struct sk_buff *l2cap_sock_alloc_skb_cb(struct l2cap_chan *chan,
 	struct sk_buff *skb;
 	int err;
 
+	l2cap_chan_unlock(chan);
 	skb = bt_skb_send_alloc(chan->sk, len, nb, &err);
+	l2cap_chan_lock(chan);
+
 	if (!skb)
 		return ERR_PTR(err);
 
