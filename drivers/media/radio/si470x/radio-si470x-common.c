@@ -570,7 +570,6 @@ static int si470x_s_ctrl(struct v4l2_ctrl *ctrl)
 		else
 			radio->registers[POWERCFG] |= POWERCFG_DMUTE;
 		return si470x_set_register(radio, POWERCFG);
-		break;
 	default:
 		return -EINVAL;
 	}
