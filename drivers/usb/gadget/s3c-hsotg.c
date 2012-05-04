@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/regulator/consumer.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -37,6 +38,11 @@
 #include <linux/platform_data/s3c-hsotg.h>
 
 #define DMA_ADDR_INVALID (~((dma_addr_t)0))
+
+static const char * const s3c_hsotg_supply_names[] = {
+	"vusb_d",		/* digital USB supply, 1.2V */
+	"vusb_a",		/* analog USB supply, 1.1V */
+};
 
 /* EP0_MPS_LIMIT
  *
@@ -132,6 +138,7 @@ struct s3c_hsotg_ep {
  * @regs: The memory area mapped for accessing registers.
  * @regs_res: The resource that was allocated when claiming register space.
  * @irq: The IRQ number we are using
+ * @supplies: Definition of USB power supplies
  * @dedicated_fifos: Set if the hardware has dedicated IN-EP fifos.
  * @debug_root: root directrory for debugfs.
  * @debug_file: main status file for debugfs.
@@ -151,6 +158,8 @@ struct s3c_hsotg {
 	struct resource		*regs_res;
 	int			irq;
 	struct clk		*clk;
+
+	struct regulator_bulk_data supplies[ARRAY_SIZE(s3c_hsotg_supply_names)];
 
 	unsigned int		dedicated_fifos:1;
 
@@ -3256,6 +3265,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	struct resource *res;
 	int epnum;
 	int ret;
+	int i;
 
 	plat = pdev->dev.platform_data;
 	if (!plat) {
@@ -3350,6 +3360,26 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	clk_enable(hsotg->clk);
 
+	/* regulators */
+
+	for (i = 0; i < ARRAY_SIZE(hsotg->supplies); i++)
+		hsotg->supplies[i].supply = s3c_hsotg_supply_names[i];
+
+	ret = regulator_bulk_get(dev, ARRAY_SIZE(hsotg->supplies),
+				 hsotg->supplies);
+	if (ret) {
+		dev_err(dev, "failed to request supplies: %d\n", ret);
+		goto err_supplies;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
+				    hsotg->supplies);
+
+	if (ret) {
+		dev_err(hsotg->dev, "failed to enable supplies: %d\n", ret);
+		goto err_supplies;
+	}
+
 	/* usb phy enable */
 	s3c_hsotg_phy_enable(hsotg);
 
@@ -3362,7 +3392,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	ret = usb_add_gadget_udc(&pdev->dev, &hsotg->gadget);
 	if (ret)
-		goto err_add_udc;
+		goto err_supplies;
 
 	s3c_hsotg_create_debug(hsotg);
 
@@ -3371,8 +3401,11 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 	our_hsotg = hsotg;
 	return 0;
 
-err_add_udc:
+err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
+
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
+	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable(hsotg->clk);
 	clk_put(hsotg->clk);
@@ -3407,6 +3440,10 @@ static int __devexit s3c_hsotg_remove(struct platform_device *pdev)
 	kfree(hsotg->regs_res);
 
 	s3c_hsotg_phy_disable(hsotg);
+
+
+	regulator_bulk_disable(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
+	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
 
 	clk_disable(hsotg->clk);
 	clk_put(hsotg->clk);
