@@ -3558,7 +3558,7 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 				 hsotg->supplies);
 	if (ret) {
 		dev_err(dev, "failed to request supplies: %d\n", ret);
-		goto err_supplies;
+		goto err_irq;
 	}
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(hsotg->supplies),
@@ -3637,17 +3637,13 @@ static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 
 	return 0;
 
- err_ep_mem:
+err_ep_mem:
 	kfree(eps);
-
 err_supplies:
 	s3c_hsotg_phy_disable(hsotg);
-
 	regulator_bulk_free(ARRAY_SIZE(hsotg->supplies), hsotg->supplies);
-
-	clk_disable_unprepare(hsotg->clk);
-	clk_put(hsotg->clk);
-
+err_irq:
+	free_irq(hsotg->irq, hsotg);
 err_regs:
 	iounmap(hsotg->regs);
 
@@ -3655,6 +3651,7 @@ err_regs_res:
 	release_resource(hsotg->regs_res);
 	kfree(hsotg->regs_res);
 err_clk:
+	clk_disable_unprepare(hsotg->clk);
 	clk_put(hsotg->clk);
 err_mem:
 	kfree(hsotg);
