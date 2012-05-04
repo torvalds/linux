@@ -132,7 +132,7 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 	else
 		return;
 
-	val &= ~VIDEO_DIP_SELECT_MASK;
+	val &= ~(VIDEO_DIP_SELECT_MASK | 0xf); /* clear DIP data offset */
 	val |= intel_infoframe_index(frame);
 
 	val |= VIDEO_DIP_ENABLE;
