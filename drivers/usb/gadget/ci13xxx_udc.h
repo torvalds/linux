@@ -212,7 +212,6 @@ do { \
 			   "[%s] " format "\n", __func__, ## args); \
 } while (0)
 
-#define err(format, args...)    ci13xxx_printk(KERN_ERR, format, ## args)
 #define warn(format, args...)   ci13xxx_printk(KERN_WARNING, format, ## args)
 #define info(format, args...)   ci13xxx_printk(KERN_INFO, format, ## args)
 
