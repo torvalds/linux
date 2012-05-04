@@ -164,6 +164,7 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 	}
 
 	val |= intel_infoframe_enable(frame);
+	val &= ~VIDEO_DIP_FREQ_MASK;
 	val |= intel_infoframe_frequency(frame);
 
 	I915_WRITE(VIDEO_DIP_CTL, val);
@@ -203,6 +204,7 @@ static void ironlake_write_infoframe(struct drm_encoder *encoder,
 	}
 
 	val |= intel_infoframe_enable(frame);
+	val &= ~VIDEO_DIP_FREQ_MASK;
 	val |= intel_infoframe_frequency(frame);
 
 	I915_WRITE(reg, val);
@@ -236,6 +238,7 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 	}
 
 	val |= intel_infoframe_enable(frame);
+	val &= ~VIDEO_DIP_FREQ_MASK;
 	val |= intel_infoframe_frequency(frame);
 
 	I915_WRITE(reg, val);

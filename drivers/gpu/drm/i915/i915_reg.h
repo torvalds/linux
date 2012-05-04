@@ -1711,6 +1711,7 @@
 #define   VIDEO_DIP_FREQ_ONCE		(0 << 16)
 #define   VIDEO_DIP_FREQ_VSYNC		(1 << 16)
 #define   VIDEO_DIP_FREQ_2VSYNC		(2 << 16)
+#define   VIDEO_DIP_FREQ_MASK		(3 << 16)
 
 /* Panel power sequencing */
 #define PP_STATUS	0x61200
