@@ -39,10 +39,6 @@
 #define SUPPORT_CPRM
 #define SUPPORT_MAGIC_GATE
 #define SUPPORT_MSXC
-/* { wwang, 2010-07-26
- * Add support for SD lock/unlock */
-/* #define SUPPORT_SD_LOCK */
-/* } wwang, 2010-07-26 */
 
 #ifdef SUPPORT_MAGIC_GA
 /* Using NORMAL_WRITE instead of AUTO_WRITE to set ICVTE */
@@ -204,10 +200,6 @@ struct trace_msg_t {
 #define SENSE_TYPE_MG_INCOMPATIBLE_MEDIUM		0x0d
 /* WRITE ERROR */
 #define SENSE_TYPE_MG_WRITE_ERR				0x0e
-#endif
-#ifdef SUPPORT_SD_LOCK
-/* FOR Locked SD card */
-#define SENSE_TYPE_MEDIA_READ_FORBIDDEN			0x10
 #endif
 
 /*---- sense key ----*/
@@ -612,11 +604,6 @@ struct sd_info {
 	u8 sd_reset_fail;	/* sangdy2010-07-01 */
 	u8 sd_send_status_en;
 
-#ifdef SUPPORT_SD_LOCK
-	u8 sd_lock_status;
-	u8 sd_erase_status;
-	u8 sd_lock_notify;
-#endif
 };
 
 #define MODE_512_SEQ		0x01

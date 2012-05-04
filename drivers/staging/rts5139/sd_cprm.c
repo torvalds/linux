@@ -206,11 +206,7 @@ RTY_SEND_CMD:
 			if (buf[1] & 0x80)
 				TRACE_RET(chip, STATUS_FAIL);
 		}
-#ifdef SUPPORT_SD_LOCK
-		if (buf[1] & 0x7D) {
-#else
 		if (buf[1] & 0x7F) {
-#endif
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 		if (buf[2] & 0xF8)
@@ -305,26 +301,8 @@ int ext_sd_execute_no_data(struct rts51x_chip *chip, unsigned int lun,
 	retval = sd_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, TRANSPORT_FAILED);
-#ifdef SUPPORT_SD_LOCK
-	if ((sd_card->sd_lock_status & SD_LOCK_1BIT_MODE) == 0) {
-		if (CHK_MMC_8BIT(sd_card)) {
-			retval =
-			    rts51x_write_register(chip, SD_CFG1, 0x03,
-						  SD_BUS_WIDTH_8);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, TRANSPORT_FAILED);
-		} else if (CHK_SD(sd_card) || CHK_MMC_4BIT(sd_card)) {
-			retval =
-			    rts51x_write_register(chip, SD_CFG1, 0x03,
-						  SD_BUS_WIDTH_4);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, TRANSPORT_FAILED);
-		}
-	}
-#else
 	/* Set H/W SD/MMC Bus Width */
 	rts51x_write_register(chip, SD_CFG1, 0x03, SD_BUS_WIDTH_4);
-#endif
 
 	if (standby) {
 		retval = sd_select_card(chip, 0);
@@ -350,12 +328,6 @@ int ext_sd_execute_no_data(struct rts51x_chip *chip, unsigned int lun,
 		if (retval != STATUS_SUCCESS)
 			TRACE_GOTO(chip, SD_Execute_Cmd_Failed);
 	}
-#ifdef SUPPORT_SD_LOCK
-	/* Get SD lock status */
-	retval = sd_update_lock_status(chip);
-	if (retval != STATUS_SUCCESS)
-		TRACE_GOTO(chip, SD_Execute_Cmd_Failed);
-#endif
 
 	return TRANSPORT_GOOD;
 
@@ -399,21 +371,7 @@ int ext_sd_execute_read_data(struct rts51x_chip *chip, unsigned int lun,
 	retval = sd_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, TRANSPORT_FAILED);
-#ifdef SUPPORT_SD_LOCK
-	if ((sd_card->sd_lock_status & SD_LOCK_1BIT_MODE) == 0) {
-		if (CHK_MMC_8BIT(sd_card))
-			bus_width = SD_BUS_WIDTH_8;
-		else if (CHK_SD(sd_card) || CHK_MMC_4BIT(sd_card))
-			bus_width = SD_BUS_WIDTH_4;
-		else
-			bus_width = SD_BUS_WIDTH_1;
-	} else {
-		bus_width = SD_BUS_WIDTH_4;
-	}
-	RTS51X_DEBUGP("bus_width = %d\n", bus_width);
-#else
 	bus_width = SD_BUS_WIDTH_4;
-#endif
 
 	if (data_len < 512) {
 		retval = ext_sd_send_cmd_get_rsp(chip, SET_BLOCKLEN, data_len,
@@ -599,11 +557,6 @@ int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 	int cmd13_checkbit = 0, write_err = 0;
 	u8 rsp_type;
 	u32 i;
-#ifdef SUPPORT_SD_LOCK
-	int lock_cmd_fail = 0;
-	u8 sd_lock_state = 0;
-	u8 lock_cmd_type = 0;
-#endif
 
 	if (sd_card->pre_cmd_err) {
 		sd_card->pre_cmd_err = 0;
@@ -614,12 +567,6 @@ int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 	retval = sd_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, STATUS_FAIL);
-#ifdef SUPPORT_SD_LOCK
-	if (cmd_idx == LOCK_UNLOCK) {
-		sd_lock_state = sd_card->sd_lock_status;
-		sd_lock_state &= SD_LOCKED;
-	}
-#endif
 
 	retval = get_rsp_type(rsp_code, &rsp_type, &rsp_len);
 	if (retval != STATUS_SUCCESS) {
@@ -631,25 +578,7 @@ int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 	retval = sd_switch_clock(chip);
 	if (retval != STATUS_SUCCESS)
 		TRACE_RET(chip, TRANSPORT_FAILED);
-#ifdef SUPPORT_SD_LOCK
-	if ((sd_card->sd_lock_status & SD_LOCK_1BIT_MODE) == 0) {
-		if (CHK_MMC_8BIT(sd_card)) {
-			retval =
-			    rts51x_write_register(chip, SD_CFG1, 0x03,
-						  SD_BUS_WIDTH_8);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, TRANSPORT_FAILED);
-		} else if (CHK_SD(sd_card) || CHK_MMC_4BIT(sd_card)) {
-			retval =
-			    rts51x_write_register(chip, SD_CFG1, 0x03,
-						  SD_BUS_WIDTH_4);
-			if (retval != STATUS_SUCCESS)
-				TRACE_RET(chip, TRANSPORT_FAILED);
-		}
-	}
-#else
 	rts51x_write_register(chip, SD_CFG1, 0x03, SD_BUS_WIDTH_4);
-#endif
 
 	if (data_len < 512) {
 		retval = ext_sd_send_cmd_get_rsp(chip, SET_BLOCKLEN, data_len,
@@ -692,10 +621,6 @@ int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 		else
 			memcpy(buf, data_buf, data_len);
 
-#ifdef SUPPORT_SD_LOCK
-		if (cmd_idx == LOCK_UNLOCK)
-			lock_cmd_type = buf[0] & 0x0F;
-#endif
 
 		if (data_len > 256) {
 			rts51x_init_cmd(chip);
@@ -802,29 +727,6 @@ int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 				      SD_STOP | SD_CLR_ERR);
 		TRACE_GOTO(chip, SD_Execute_Write_Cmd_Failed);
 	}
-#ifdef SUPPORT_SD_LOCK
-	if (cmd_idx == LOCK_UNLOCK) {
-		if (lock_cmd_type == SD_ERASE) {
-			sd_card->sd_erase_status = SD_UNDER_ERASING;
-			scsi_set_resid(srb, 0);
-			return TRANSPORT_GOOD;
-		}
-
-		rts51x_init_cmd(chip);
-		rts51x_add_cmd(chip, CHECK_REG_CMD, SD_BUS_STAT, SD_DAT0_STATUS,
-			       SD_DAT0_STATUS);
-		retval = rts51x_send_cmd(chip, MODE_CR, 250);
-		if (retval != STATUS_SUCCESS)
-			TRACE_GOTO(chip, SD_Execute_Write_Cmd_Failed);
-		rts51x_get_rsp(chip, 1, 200); /* Don't care return value */
-
-		retval = sd_update_lock_status(chip);
-		if (retval != STATUS_SUCCESS) {
-			RTS51X_DEBUGP("Lock command fail!\n");
-			lock_cmd_fail = 1;
-		}
-	}
-#endif /* SUPPORT_SD_LOCK */
 
 	if (standby) {
 		retval = sd_select_card(chip, 1);
@@ -865,51 +767,6 @@ int ext_sd_execute_write_data(struct rts51x_chip *chip, unsigned int lun,
 	}
 	if (retval != STATUS_SUCCESS)
 		TRACE_GOTO(chip, SD_Execute_Write_Cmd_Failed);
-#ifdef SUPPORT_SD_LOCK
-	if (cmd_idx == LOCK_UNLOCK) {
-		if (!lock_cmd_fail) {
-			RTS51X_DEBUGP("lock_cmd_type = 0x%x\n",
-				       lock_cmd_type);
-			if (lock_cmd_type & SD_CLR_PWD)
-				sd_card->sd_lock_status &= ~SD_PWD_EXIST;
-			if (lock_cmd_type & SD_SET_PWD)
-				sd_card->sd_lock_status |= SD_PWD_EXIST;
-		}
-
-		RTS51X_DEBUGP("sd_lock_state = 0x%x,"
-				"sd_card->sd_lock_status = 0x%x\n",
-				sd_lock_state, sd_card->sd_lock_status);
-		if (sd_lock_state ^ (sd_card->sd_lock_status & SD_LOCKED)) {
-			sd_card->sd_lock_notify = 1;
-			if (sd_lock_state) {
-				if (sd_card->sd_lock_status &
-						SD_LOCK_1BIT_MODE) {
-					sd_card->sd_lock_status |=
-					    (SD_UNLOCK_POW_ON | SD_SDR_RST);
-					if (CHK_SD(sd_card)) {
-						retval = reset_sd(chip);
-						if (retval != STATUS_SUCCESS) {
-							sd_card->sd_lock_status
-							&= ~(SD_UNLOCK_POW_ON |
-							      SD_SDR_RST);
-							TRACE_GOTO(chip,
-								   SD_Execute_Write_Cmd_Failed);
-						}
-					}
-
-					sd_card->sd_lock_status &=
-					    ~(SD_UNLOCK_POW_ON | SD_SDR_RST);
-				}
-			}
-		}
-	}
-
-	if (lock_cmd_fail) {
-		scsi_set_resid(srb, 0);
-		set_sense_type(chip, lun, SENSE_TYPE_NO_SENSE);
-		TRACE_RET(chip, TRANSPORT_FAILED);
-	}
-#endif /* SUPPORT_SD_LOCK */
 
 	return TRANSPORT_GOOD;
 
@@ -1173,24 +1030,12 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 	switch (srb->cmnd[1] & 0x0F) {
 	case 0:
 		/* SD Card Power Off -> ON and Initialization */
-#ifdef SUPPORT_SD_LOCK
-		if (0x64 == srb->cmnd[9]) {
-			/* Command Mode */
-			sd_card->sd_lock_status |= SD_SDR_RST;
-		}
-#endif /* SUPPORT_SD_LOCK */
 		retval = reset_sd_card(chip);
 		if (retval != STATUS_SUCCESS) {
-#ifdef SUPPORT_SD_LOCK
-			sd_card->sd_lock_status &= ~SD_SDR_RST;
-#endif
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 			sd_card->pre_cmd_err = 1;
 			TRACE_RET(chip, TRANSPORT_FAILED);
 		}
-#ifdef SUPPORT_SD_LOCK
-		sd_card->sd_lock_status &= ~SD_SDR_RST;
-#endif
 		break;
 
 	case 1:

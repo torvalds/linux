@@ -300,33 +300,6 @@ static void rts51x_auto_delink(struct rts51x_chip *chip)
 
 void rts51x_polling_func(struct rts51x_chip *chip)
 {
-#ifdef SUPPORT_SD_LOCK
-	struct sd_info *sd_card = &(chip->sd_card);
-
-	if (sd_card->sd_erase_status) {
-		if (chip->card_exist & SD_CARD) {
-			u8 val;
-			rts51x_read_register(chip, SD_BUS_STAT, &val);
-			if (val & SD_DAT0_STATUS) {
-				/* Erase completed */
-				sd_card->sd_erase_status = SD_NOT_ERASE;
-				sd_card->sd_lock_notify = 1;
-
-				/* SD card should be reinited,
-				 * so we release it here. */
-				sd_cleanup_work(chip);
-				release_sd_card(chip);
-				chip->card_ready &= ~SD_CARD;
-				chip->card_exist &= ~SD_CARD;
-				chip->rw_card[chip->card2lun[SD_CARD]] = NULL;
-				clear_bit(chip->card2lun[SD_CARD],
-					  &(chip->lun_mc));
-			}
-		} else {
-			sd_card->sd_erase_status = SD_NOT_ERASE;
-		}
-	}
-#endif
 
 	rts51x_init_cards(chip);
 
@@ -923,24 +896,6 @@ void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 *status,
 				status[0x0F] = 0x00;
 		}
 	}
-#ifdef SUPPORT_SD_LOCK
-	/* SD Lock/Unlock */
-	if (card == SD_CARD) {
-		status[0x17] = 0x80;
-		if (sd_card->sd_erase_status)
-			status[0x17] |= 0x01; /* Under erasing */
-		if (sd_card->sd_lock_status & SD_LOCKED) {
-			status[0x17] |= 0x02; /* Locked */
-			status[0x07] |= 0x40; /* Read protected */
-		}
-		if (sd_card->sd_lock_status & SD_PWD_EXIST)
-			status[0x17] |= 0x04; /* Contain PWD */
-	} else {
-		status[0x17] = 0x00;
-	}
-
-	RTS51X_DEBUGP("status[0x17] = 0x%x\n", status[0x17]);
-#endif
 
 	/* Function 0
 	 * Support Magic Gate, CPRM and PhyRegister R/W */
@@ -949,12 +904,6 @@ void rts51x_pp_status(struct rts51x_chip *chip, unsigned int lun, u8 *status,
 	/* Function 2
 	 * Support OC LUN status & WP LUN status */
 	status[0x1A] = 0x28;
-
-	/* Function 7 */
-#ifdef SUPPORT_SD_LOCK
-	/* Support SD Lock/Unlock */
-	status[0x1F] = 0x01;
-#endif
 
 	/* Function 2
 	 * Support OC LUN status & WP LUN status */
