@@ -125,6 +125,7 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 
 
 	/* XXX first guess at handling video port, is this corrent? */
+	val &= ~VIDEO_DIP_PORT_MASK;
 	if (intel_hdmi->sdvox_reg == SDVOB)
 		val |= VIDEO_DIP_PORT_B;
 	else if (intel_hdmi->sdvox_reg == SDVOC)
