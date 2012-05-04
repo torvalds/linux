@@ -855,17 +855,6 @@ int card_power_on(struct rts51x_chip *chip, u8 card)
 	return STATUS_SUCCESS;
 }
 
-int card_power_off(struct rts51x_chip *chip, u8 card)
-{
-	u8 mask, val;
-
-	mask = POWER_MASK;
-	val = POWER_OFF;
-	RTS51X_WRITE_REG(chip, CARD_PWR_CTL, mask, val);
-
-	return STATUS_SUCCESS;
-}
-
 int monitor_card_cd(struct rts51x_chip *chip, u8 card)
 {
 	int retval;
