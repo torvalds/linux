@@ -2319,7 +2319,7 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 		goto err1;
 	}
 
-	dwc->setup_buf = kzalloc(512, GFP_KERNEL);
+	dwc->setup_buf = kzalloc(DWC3_EP0_BOUNCE_SIZE, GFP_KERNEL);
 	if (!dwc->setup_buf) {
 		dev_err(dwc->dev, "failed to allocate setup buffer\n");
 		ret = -ENOMEM;
@@ -2327,7 +2327,8 @@ int __devinit dwc3_gadget_init(struct dwc3 *dwc)
 	}
 
 	dwc->ep0_bounce = dma_alloc_coherent(dwc->dev,
-			512, &dwc->ep0_bounce_addr, GFP_KERNEL);
+			DWC3_EP0_BOUNCE_SIZE, &dwc->ep0_bounce_addr,
+			GFP_KERNEL);
 	if (!dwc->ep0_bounce) {
 		dev_err(dwc->dev, "failed to allocate ep0 bounce buffer\n");
 		ret = -ENOMEM;
@@ -2414,8 +2415,8 @@ err5:
 	dwc3_gadget_free_endpoints(dwc);
 
 err4:
-	dma_free_coherent(dwc->dev, 512, dwc->ep0_bounce,
-			dwc->ep0_bounce_addr);
+	dma_free_coherent(dwc->dev, DWC3_EP0_BOUNCE_SIZE,
+			dwc->ep0_bounce, dwc->ep0_bounce_addr);
 
 err3:
 	kfree(dwc->setup_buf);
@@ -2444,8 +2445,8 @@ void dwc3_gadget_exit(struct dwc3 *dwc)
 
 	dwc3_gadget_free_endpoints(dwc);
 
-	dma_free_coherent(dwc->dev, 512, dwc->ep0_bounce,
-			dwc->ep0_bounce_addr);
+	dma_free_coherent(dwc->dev, DWC3_EP0_BOUNCE_SIZE,
+			dwc->ep0_bounce, dwc->ep0_bounce_addr);
 
 	kfree(dwc->setup_buf);
 
