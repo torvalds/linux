@@ -1641,10 +1641,9 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	reply = ovs_vport_cmd_build_info(vport, info->snd_pid, info->snd_seq,
 					 OVS_VPORT_CMD_NEW);
 	if (IS_ERR(reply)) {
-		err = PTR_ERR(reply);
 		netlink_set_err(init_net.genl_sock, 0,
-				ovs_dp_vport_multicast_group.id, err);
-		return 0;
+				ovs_dp_vport_multicast_group.id, PTR_ERR(reply));
+		goto exit_unlock;
 	}
 
 	genl_notify(reply, genl_info_net(info), info->snd_pid,
