@@ -186,12 +186,16 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 	struct resource *iores = NULL;
 	int err;
 
-	port = kzalloc(sizeof(struct mxs_gpio_port), GFP_KERNEL);
+	port = devm_kzalloc(&pdev->dev, sizeof(*port), GFP_KERNEL);
 	if (!port)
 		return -ENOMEM;
 
 	port->id = pdev->id;
 	port->virtual_irq_start = MXS_GPIO_IRQ_START + port->id * 32;
+
+	port->irq = platform_get_irq(pdev, 0);
+	if (port->irq < 0)
+		return port->irq;
 
 	/*
 	 * map memory region only once, as all the gpio ports
@@ -199,30 +203,11 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 	 */
 	if (!base) {
 		iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!iores) {
-			err = -ENODEV;
-			goto out_kfree;
-		}
-
-		if (!request_mem_region(iores->start, resource_size(iores),
-					pdev->name)) {
-			err = -EBUSY;
-			goto out_kfree;
-		}
-
-		base = ioremap(iores->start, resource_size(iores));
-		if (!base) {
-			err = -ENOMEM;
-			goto out_release_mem;
-		}
+		base = devm_request_and_ioremap(&pdev->dev, iores);
+		if (!base)
+			return -EADDRNOTAVAIL;
 	}
 	port->base = base;
-
-	port->irq = platform_get_irq(pdev, 0);
-	if (port->irq < 0) {
-		err = -EINVAL;
-		goto out_iounmap;
-	}
 
 	/*
 	 * select the pin interrupt functionality but initially
@@ -246,29 +231,18 @@ static int __devinit mxs_gpio_probe(struct platform_device *pdev)
 			 port->base + PINCTRL_DOUT(port->id), NULL,
 			 port->base + PINCTRL_DOE(port->id), NULL, false);
 	if (err)
-		goto out_iounmap;
+		return err;
 
 	port->bgc.gc.to_irq = mxs_gpio_to_irq;
 	port->bgc.gc.base = port->id * 32;
 
 	err = gpiochip_add(&port->bgc.gc);
-	if (err)
-		goto out_bgpio_remove;
+	if (err) {
+		bgpio_remove(&port->bgc);
+		return err;
+	}
 
 	return 0;
-
-out_bgpio_remove:
-	bgpio_remove(&port->bgc);
-out_iounmap:
-	if (iores)
-		iounmap(port->base);
-out_release_mem:
-	if (iores)
-		release_mem_region(iores->start, resource_size(iores));
-out_kfree:
-	kfree(port);
-	dev_info(&pdev->dev, "%s failed with errno %d\n", __func__, err);
-	return err;
 }
 
 static struct platform_driver mxs_gpio_driver = {
