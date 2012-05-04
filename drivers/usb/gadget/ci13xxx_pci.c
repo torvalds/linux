@@ -55,6 +55,7 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 				       const struct pci_device_id *id)
 {
 	void __iomem *regs = NULL;
+	uintptr_t capoffset = DEF_CAPOFFSET;
 	int retval = 0;
 
 	if (id == NULL)
@@ -86,7 +87,11 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	retval = udc_probe(&ci13xxx_pci_udc_driver, &pdev->dev, regs);
+	if (pdev->vendor == PCI_VENDOR_ID_INTEL)
+		capoffset = 0;
+
+	retval = udc_probe(&ci13xxx_pci_udc_driver, &pdev->dev, regs,
+			   capoffset);
 	if (retval)
 		goto iounmap;
 

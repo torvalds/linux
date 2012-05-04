@@ -79,7 +79,8 @@ static int ci13xxx_msm_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = udc_probe(&ci13xxx_msm_udc_driver, &pdev->dev, regs);
+	ret = udc_probe(&ci13xxx_msm_udc_driver, &pdev->dev, regs,
+			DEF_CAPOFFSET);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "udc_probe failed\n");
 		goto iounmap;

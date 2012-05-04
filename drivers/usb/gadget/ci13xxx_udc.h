@@ -140,6 +140,9 @@ struct ci13xxx {
 /******************************************************************************
  * REGISTERS
  *****************************************************************************/
+/* Default offset of capability registers */
+#define DEF_CAPOFFSET		0x100
+
 /* register size */
 #define REG_BITS   (32)
 
