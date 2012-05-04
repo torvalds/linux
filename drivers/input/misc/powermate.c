@@ -65,6 +65,7 @@ struct powermate_device {
 	struct urb *irq, *config;
 	struct usb_ctrlrequest *configcr;
 	struct usb_device *udev;
+	struct usb_interface *intf;
 	struct input_dev *input;
 	spinlock_t lock;
 	int static_brightness;
@@ -85,7 +86,7 @@ static void powermate_config_complete(struct urb *urb);
 static void powermate_irq(struct urb *urb)
 {
 	struct powermate_device *pm = urb->context;
-	struct device *dev = &pm->input->dev;
+	struct device *dev = &pm->intf->dev;
 	int retval;
 
 	switch (urb->status) {
@@ -333,6 +334,7 @@ static int powermate_probe(struct usb_interface *intf, const struct usb_device_i
 		goto fail3;
 
 	pm->udev = udev;
+	pm->intf = intf;
 	pm->input = input_dev;
 
 	usb_make_path(udev, pm->phys, sizeof(pm->phys));
