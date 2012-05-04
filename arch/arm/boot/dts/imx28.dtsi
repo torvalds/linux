@@ -48,8 +48,8 @@
 			};
 
 			dma-apbh@80004000 {
+				compatible = "fsl,imx28-dma-apbh";
 				reg = <0x80004000 2000>;
-				status = "disabled";
 			};
 
 			perfmon@80006000 {
@@ -140,8 +140,8 @@
 			};
 
 			dma-apbx@80024000 {
+				compatible = "fsl,imx28-dma-apbx";
 				reg = <0x80024000 2000>;
-				status = "disabled";
 			};
 
 			dcp@80028000 {
