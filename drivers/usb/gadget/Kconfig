@@ -798,6 +798,16 @@ config USB_MASS_STORAGE
 	  Say "y" to link the driver statically, or "m" to build
 	  a dynamically linked module called "g_mass_storage".
 
+config USB_GADGET_TARGET
+	tristate "USB Gadget Target Fabric Module"
+	depends on TARGET_CORE
+	help
+	  This fabric is an USB gadget. Two USB protocols are supported that is
+	  BBB or BOT (Bulk Only Transport) and UAS (USB Attached SCSI). BOT is
+	  advertised on alternative interface 0 (primary) and UAS is on
+	  alternative interface 1. Both protocols can work on USB2.0 and USB3.0.
+	  UAS utilizes the USB 3.0 feature called streams support.
+
 config USB_G_SERIAL
 	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
 	help
