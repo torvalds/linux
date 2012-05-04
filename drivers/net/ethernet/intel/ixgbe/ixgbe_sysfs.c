@@ -37,12 +37,7 @@
 #include <linux/netdevice.h>
 #include <linux/hwmon.h>
 
-/*
- * This file provides a sysfs interface to export information from the
- * driver.  The information presented is READ-ONLY.
- */
 #ifdef CONFIG_IXGBE_HWMON
-
 /* hwmon callback functions */
 static ssize_t ixgbe_hwmon_show_location(struct device *dev,
 					 struct device_attribute *attr,
@@ -162,17 +157,13 @@ static int ixgbe_add_hwmon_attr(struct ixgbe_adapter *adapter,
 
 	return rc;
 }
-#endif /* CONFIG_IXGBE_HWMON */
 
 static void ixgbe_sysfs_del_adapter(struct ixgbe_adapter *adapter)
 {
-#ifdef CONFIG_IXGBE_HWMON
 	int i;
-#endif /* CONFIG_IXGBE_HWMON */
 
 	if (adapter == NULL)
 		return;
-#ifdef CONFIG_IXGBE_HWMON
 
 	for (i = 0; i < adapter->ixgbe_hwmon_buff.n_hwmon; i++) {
 		device_remove_file(&adapter->pdev->dev,
@@ -183,12 +174,6 @@ static void ixgbe_sysfs_del_adapter(struct ixgbe_adapter *adapter)
 
 	if (adapter->ixgbe_hwmon_buff.device)
 		hwmon_device_unregister(adapter->ixgbe_hwmon_buff.device);
-#endif /* CONFIG_IXGBE_HWMON */
-
-	if (adapter->info_kobj != NULL) {
-		kobject_put(adapter->info_kobj);
-		adapter->info_kobj = NULL;
-	}
 }
 
 /* called from ixgbe_main.c */
@@ -200,32 +185,19 @@ void ixgbe_sysfs_exit(struct ixgbe_adapter *adapter)
 /* called from ixgbe_main.c */
 int ixgbe_sysfs_init(struct ixgbe_adapter *adapter)
 {
-#ifdef CONFIG_IXGBE_HWMON
 	struct hwmon_buff *ixgbe_hwmon = &adapter->ixgbe_hwmon_buff;
 	unsigned int i;
 	int n_attrs;
-#endif /* CONFIG_IXGBE_HWMON */
-	struct net_device *netdev = adapter->netdev;
 	int rc = 0;
 
-	/* create info kobj and attribute listings in kobj */
-	adapter->info_kobj = kobject_create_and_add("info", &netdev->dev.kobj);
-	if (adapter->info_kobj == NULL) {
-		rc = -ENOMEM;
-		goto err;
-	}
-
-#ifdef CONFIG_IXGBE_HWMON
 	/* If this method isn't defined we don't support thermals */
 	if (adapter->hw.mac.ops.init_thermal_sensor_thresh == NULL) {
-		rc = -EPERM;
-		goto err;
+		goto exit;
 	}
 
 	/* Don't create thermal hwmon interface if no sensors present */
-	rc = adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw);
-	if (rc)
-		goto err;
+	if (adapter->hw.mac.ops.init_thermal_sensor_thresh(&adapter->hw))
+		goto exit;
 
 	/*
 	 * Allocation space for max attributs
@@ -261,7 +233,6 @@ int ixgbe_sysfs_init(struct ixgbe_adapter *adapter)
 		if (rc)
 			goto err;
 	}
-#endif /* CONFIG_IXGBE_HWMON */
 
 	goto exit;
 
@@ -270,4 +241,5 @@ err:
 exit:
 	return rc;
 }
+#endif /* CONFIG_IXGBE_HWMON */
 

@@ -677,8 +677,10 @@ extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #endif
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 extern void ixgbe_do_reset(struct net_device *netdev);
+#ifdef CONFIG_IXGBE_HWMON
 extern void ixgbe_sysfs_exit(struct ixgbe_adapter *adapter);
 extern int ixgbe_sysfs_init(struct ixgbe_adapter *adapter);
+#endif /* CONFIG_IXGBE_HWMON */
 #ifdef IXGBE_FCOE
 extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_ring *tx_ring,
