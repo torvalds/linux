@@ -101,6 +101,7 @@ static const struct lcd_segment_map {
 struct yealink_dev {
 	struct input_dev *idev;		/* input device */
 	struct usb_device *udev;	/* usb device */
+	struct usb_interface *intf;	/* usb interface */
 
 	/* irq input channel */
 	struct yld_ctl_packet	*irq_data;
@@ -428,7 +429,7 @@ static void urb_irq_callback(struct urb *urb)
 	int ret, status = urb->status;
 
 	if (status)
-		dev_err(&yld->idev->dev, "%s - urb status %d\n",
+		dev_err(&yld->intf->dev, "%s - urb status %d\n",
 			__func__, status);
 
 	switch (yld->irq_data->cmd) {
@@ -438,14 +439,14 @@ static void urb_irq_callback(struct urb *urb)
 		break;
 
 	case CMD_SCANCODE:
-		dev_dbg(&yld->idev->dev, "get scancode %x\n",
+		dev_dbg(&yld->intf->dev, "get scancode %x\n",
 			yld->irq_data->data[0]);
 
 		report_key(yld, map_p1k_to_key(yld->irq_data->data[0]));
 		break;
 
 	default:
-		dev_err(&yld->idev->dev, "unexpected response %x\n",
+		dev_err(&yld->intf->dev, "unexpected response %x\n",
 			yld->irq_data->cmd);
 	}
 
@@ -454,7 +455,7 @@ static void urb_irq_callback(struct urb *urb)
 	if (!yld->shutdown) {
 		ret = usb_submit_urb(yld->urb_ctl, GFP_ATOMIC);
 		if (ret && ret != -EPERM)
-			dev_err(&yld->idev->dev,
+			dev_err(&yld->intf->dev,
 				"%s - usb_submit_urb failed %d\n",
 				__func__, ret);
 	}
@@ -466,7 +467,7 @@ static void urb_ctl_callback(struct urb *urb)
 	int ret = 0, status = urb->status;
 
 	if (status)
-		dev_err(&yld->idev->dev, "%s - urb status %d\n",
+		dev_err(&yld->intf->dev, "%s - urb status %d\n",
 			__func__, status);
 
 	switch (yld->ctl_data->cmd) {
@@ -485,7 +486,7 @@ static void urb_ctl_callback(struct urb *urb)
 	}
 
 	if (ret && ret != -EPERM)
-		dev_err(&yld->idev->dev, "%s - usb_submit_urb failed %d\n",
+		dev_err(&yld->intf->dev, "%s - usb_submit_urb failed %d\n",
 			__func__, ret);
 }
 
@@ -518,7 +519,7 @@ static int input_open(struct input_dev *dev)
 	struct yealink_dev *yld = input_get_drvdata(dev);
 	int i, ret;
 
-	dev_dbg(&yld->idev->dev, "%s\n", __func__);
+	dev_dbg(&yld->intf->dev, "%s\n", __func__);
 
 	/* force updates to device */
 	for (i = 0; i<sizeof(yld->master); i++)
@@ -533,7 +534,7 @@ static int input_open(struct input_dev *dev)
 	yld->ctl_data->size	= 10;
 	yld->ctl_data->sum	= 0x100-CMD_INIT-10;
 	if ((ret = usb_submit_urb(yld->urb_ctl, GFP_KERNEL)) != 0) {
-		dev_dbg(&yld->idev->dev,
+		dev_dbg(&yld->intf->dev,
 			"%s - usb_submit_urb failed with result %d\n",
 			__func__, ret);
 		return ret;
@@ -884,6 +885,7 @@ static int usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		return -ENOMEM;
 
 	yld->udev = udev;
+	yld->intf = intf;
 
 	yld->idev = input_dev = input_allocate_device();
 	if (!input_dev)
