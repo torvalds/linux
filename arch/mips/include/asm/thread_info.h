@@ -140,8 +140,7 @@ register struct thread_info *__current_thread_info __asm__("$28");
 
 /* work to do on interrupt/exception return */
 #define _TIF_WORK_MASK		\
-	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_NOTIFY_RESUME | \
-	 _TIF_RESTORE_SIGMASK)
+	(_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_NOTIFY_RESUME)
 /* work to do on any return to u-space */
 #define _TIF_ALLWORK_MASK	(_TIF_WORK_MASK | _TIF_WORK_SYSCALL_EXIT)
 
