@@ -85,8 +85,7 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 	sdiodev->irq_wake = true;
 
 	/* must configure SDIO_CCCR_IENx to enable irq */
-	data = brcmf_sdcard_cfg_read(sdiodev, SDIO_FUNC_0,
-				     SDIO_CCCR_IENx, &ret);
+	data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
 	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
 	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_IENx,
 			       data, &ret);
@@ -157,29 +156,6 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 #endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
-
-u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
-			 int *err)
-{
-	int status;
-	s32 retry = 0;
-	u8 data = 0;
-
-	do {
-		if (retry)	/* wait for 1 ms till bus get settled down */
-			udelay(1000);
-		status = brcmf_sdioh_request_byte(sdiodev, SDIOH_READ, fnc_num,
-						  addr, (u8 *) &data);
-	} while (status != 0
-		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
-	if (err)
-		*err = status;
-
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, u8data = 0x%x\n",
-		  fnc_num, addr, data);
-
-	return data;
-}
 
 void
 brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,

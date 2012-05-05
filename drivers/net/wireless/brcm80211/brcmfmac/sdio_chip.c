@@ -434,8 +434,8 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 
 	/* If register supported, wait for ALPAvail and then force ALP */
 	/* This may take up to 15 milliseconds */
-	clkval = brcmf_sdcard_cfg_read(sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_CHIPCLKCSR, NULL);
+	clkval = brcmf_sdio_regrb(sdiodev,
+				  SBSDIO_FUNC1_CHIPCLKCSR, NULL);
 
 	if ((clkval & ~SBSDIO_AVBITS) != clkset) {
 		brcmf_dbg(ERROR, "ChipClkCSR access: wrote 0x%02x read 0x%02x\n",
@@ -443,8 +443,8 @@ brcmf_sdio_chip_buscoreprep(struct brcmf_sdio_dev *sdiodev)
 		return -EACCES;
 	}
 
-	SPINWAIT(((clkval = brcmf_sdcard_cfg_read(sdiodev, SDIO_FUNC_1,
-				SBSDIO_FUNC1_CHIPCLKCSR, NULL)),
+	SPINWAIT(((clkval = brcmf_sdio_regrb(sdiodev,
+					     SBSDIO_FUNC1_CHIPCLKCSR, NULL)),
 			!SBSDIO_ALPAV(clkval)),
 			PMU_MAX_TRANSITION_DLY);
 	if (!SBSDIO_ALPAV(clkval)) {

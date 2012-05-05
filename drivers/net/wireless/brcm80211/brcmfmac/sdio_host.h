@@ -174,8 +174,6 @@ extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
  *   data: data byte to write
  *   err:  pointer to error code (or NULL)
  */
-extern u8 brcmf_sdcard_cfg_read(struct brcmf_sdio_dev *sdiodev, uint func,
-				u32 addr, int *err);
 extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
 				   u32 addr, u8 data, int *err);
 
