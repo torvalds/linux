@@ -3807,12 +3807,6 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 	ixgbe_set_rx_mode(adapter->netdev);
 	ixgbe_restore_vlan(adapter);
 
-#ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
-		ixgbe_configure_fcoe(adapter);
-
-#endif /* IXGBE_FCOE */
-
 	switch (hw->mac.type) {
 	case ixgbe_mac_82599EB:
 	case ixgbe_mac_X540:
@@ -3842,6 +3836,11 @@ static void ixgbe_configure(struct ixgbe_adapter *adapter)
 
 	ixgbe_configure_virtualization(adapter);
 
+#ifdef IXGBE_FCOE
+	/* configure FCoE L2 filters, redirection table, and Rx control */
+	ixgbe_configure_fcoe(adapter);
+
+#endif /* IXGBE_FCOE */
 	ixgbe_configure_tx(adapter);
 	ixgbe_configure_rx(adapter);
 }
@@ -4434,6 +4433,11 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		break;
 	}
 
+#ifdef IXGBE_FCOE
+	/* FCoE support exists, always init the FCoE lock */
+	spin_lock_init(&adapter->fcoe.lock);
+
+#endif
 	/* n-tuple support exists, always init our spinlock */
 	spin_lock_init(&adapter->fdir_perfect_lock);
 
@@ -4662,7 +4666,11 @@ static int ixgbe_setup_all_rx_resources(struct ixgbe_adapter *adapter)
 		goto err_setup_rx;
 	}
 
-	return 0;
+#ifdef IXGBE_FCOE
+	err = ixgbe_setup_fcoe_ddp_resources(adapter);
+	if (!err)
+#endif
+		return 0;
 err_setup_rx:
 	/* rewind the index freeing the rings as we go */
 	while (i--)
@@ -4741,6 +4749,10 @@ static void ixgbe_free_all_rx_resources(struct ixgbe_adapter *adapter)
 {
 	int i;
 
+#ifdef IXGBE_FCOE
+	ixgbe_free_fcoe_ddp_resources(adapter);
+
+#endif
 	for (i = 0; i < adapter->num_rx_queues; i++)
 		if (adapter->rx_ring[i]->desc)
 			ixgbe_free_rx_resources(adapter->rx_ring[i]);
@@ -7235,11 +7247,12 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 			if (device_caps & IXGBE_DEVICE_CAPS_FCOE_OFFLOADS)
 				adapter->flags &= ~IXGBE_FLAG_FCOE_CAPABLE;
 		}
-	}
-	if (adapter->flags & IXGBE_FLAG_FCOE_CAPABLE) {
-		netdev->vlan_features |= NETIF_F_FCOE_CRC;
-		netdev->vlan_features |= NETIF_F_FSO;
-		netdev->vlan_features |= NETIF_F_FCOE_MTU;
+
+		adapter->ring_feature[RING_F_FCOE].limit = IXGBE_FCRETA_SIZE;
+
+		netdev->vlan_features |= NETIF_F_FSO |
+					 NETIF_F_FCOE_CRC |
+					 NETIF_F_FCOE_MTU;
 	}
 #endif /* IXGBE_FCOE */
 	if (pci_using_dac) {
@@ -7435,12 +7448,6 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 #ifdef CONFIG_IXGBE_HWMON
 	ixgbe_sysfs_exit(adapter);
 #endif /* CONFIG_IXGBE_HWMON */
-
-#ifdef IXGBE_FCOE
-	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)
-		ixgbe_cleanup_fcoe(adapter);
-
-#endif /* IXGBE_FCOE */
 
 	/* remove the added san mac */
 	ixgbe_del_sanmac_netdev(netdev);

@@ -691,7 +691,6 @@ extern void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fso(struct ixgbe_ring *tx_ring,
 		     struct ixgbe_tx_buffer *first,
 		     u8 *hdr_len);
-extern void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 			  union ixgbe_adv_rx_desc *rx_desc,
 			  struct sk_buff *skb);
@@ -700,6 +699,8 @@ extern int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 extern int ixgbe_fcoe_ddp_target(struct net_device *netdev, u16 xid,
 				 struct scatterlist *sgl, unsigned int sgc);
 extern int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid);
+extern int ixgbe_setup_fcoe_ddp_resources(struct ixgbe_adapter *adapter);
+extern void ixgbe_free_fcoe_ddp_resources(struct ixgbe_adapter *adapter);
 extern int ixgbe_fcoe_enable(struct net_device *netdev);
 extern int ixgbe_fcoe_disable(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_DCB

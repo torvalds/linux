@@ -77,7 +77,7 @@ struct ixgbe_fcoe {
 	atomic_t refcnt;
 	spinlock_t lock;
 	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];
-	unsigned char *extra_ddp_buffer;
+	void *extra_ddp_buffer;
 	dma_addr_t extra_ddp_buffer_dma;
 	unsigned long mode;
 #ifdef CONFIG_IXGBE_DCB
