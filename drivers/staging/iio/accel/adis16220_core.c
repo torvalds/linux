@@ -204,26 +204,6 @@ static int adis16220_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16220_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-	bool val;
-	int ret;
-
-	ret = strtobool(buf, &val);
-	if (ret)
-		return ret;
-	if (!val)
-		return -EINVAL;
-
-	ret = adis16220_reset(indio_dev);
-	if (ret)
-		return ret;
-	return len;
-}
-
 static ssize_t adis16220_write_capture(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
@@ -454,9 +434,6 @@ static struct bin_attribute adc2_bin = {
 	.size = ADIS16220_CAPTURE_SIZE,
 };
 
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL,
-		adis16220_write_reset, 0);
-
 #define IIO_DEV_ATTR_CAPTURE(_store)				\
 	IIO_DEVICE_ATTR(capture, S_IWUSR, NULL, _store, 0)
 
@@ -611,7 +588,6 @@ static const struct iio_chan_spec adis16220_channels[] = {
 };
 
 static struct attribute *adis16220_attributes[] = {
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_capture.dev_attr.attr,
 	&iio_dev_attr_capture_count.dev_attr.attr,
 	NULL

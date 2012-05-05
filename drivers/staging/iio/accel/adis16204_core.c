@@ -207,23 +207,6 @@ static int adis16204_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16204_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-
-	if (len < 1)
-		return -EINVAL;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return adis16204_reset(indio_dev);
-	}
-	return -EINVAL;
-}
-
 int adis16204_set_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int ret = 0;
@@ -309,8 +292,6 @@ static IIO_DEV_ATTR_ACCEL_XY(adis16204_read_14bit_signed,
 static IIO_DEV_ATTR_ACCEL_XYPEAK(adis16204_read_14bit_signed,
 		ADIS16204_XY_PEAK_OUT);
 static IIO_CONST_ATTR(in_accel_xy_scale, "0.017125");
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16204_write_reset, 0);
 
 enum adis16204_channel {
 	in_supply,
@@ -520,7 +501,6 @@ static struct iio_chan_spec adis16204_channels[] = {
 };
 
 static struct attribute *adis16204_attributes[] = {
-	&iio_dev_attr_reset.dev_attr.attr,
 	&iio_dev_attr_in_accel_xy.dev_attr.attr,
 	&iio_dev_attr_in_accel_xypeak.dev_attr.attr,
 	&iio_const_attr_in_accel_xy_scale.dev_attr.attr,

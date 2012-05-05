@@ -153,23 +153,6 @@ static int adis16209_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16209_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
-
-	if (len < 1)
-		return -EINVAL;
-	switch (buf[0]) {
-	case '1':
-	case 'y':
-	case 'Y':
-		return adis16209_reset(indio_dev);
-	}
-	return -EINVAL;
-}
-
 int adis16209_set_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int ret = 0;
@@ -519,19 +502,7 @@ static struct iio_chan_spec adis16209_channels[] = {
 	IIO_CHAN_SOFT_TIMESTAMP(8)
 };
 
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16209_write_reset, 0);
-
-static struct attribute *adis16209_attributes[] = {
-	&iio_dev_attr_reset.dev_attr.attr,
-	NULL
-};
-
-static const struct attribute_group adis16209_attribute_group = {
-	.attrs = adis16209_attributes,
-};
-
 static const struct iio_info adis16209_info = {
-	.attrs = &adis16209_attribute_group,
 	.read_raw = &adis16209_read_raw,
 	.write_raw = &adis16209_write_raw,
 	.driver_module = THIS_MODULE,
