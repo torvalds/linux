@@ -1735,7 +1735,7 @@ static uint32_t ddr_get_parameter(uint32_t nMHz)
             cwl = 4;
             p_ddr_timing->phy_timing.mr[2] = LPDDR2_RL8_WL4;
         }
-        p_ddr_timing->phy_timing.mr[3] = LPDDR2_DS_48;
+        p_ddr_timing->phy_timing.mr[3] = LPDDR2_DS_34;
         p_ddr_timing->phy_timing.mr[0] = 0;
         /**************************************************
          * PCTL Timing
@@ -2548,7 +2548,7 @@ static uint32_t __sramlocalfunc ddr_update_timing(void)
         pDDR_Reg->DFITRDDATAEN   = pDDR_Reg->TCL-2;
         pDDR_Reg->DFITPHYWRLAT   = pDDR_Reg->TCWL-1;
     }
-    if(mem_type == LPDDR2)
+    else if(mem_type == LPDDR2)
     {
         if(ddr_freq>=200)
         {
@@ -2802,7 +2802,7 @@ int ddr_init(uint32_t dram_type, uint32_t freq)
     uint32_t cs;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20120424 \n");
+    ddr_print("version 1.00 20120505 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_type = dram_type;
