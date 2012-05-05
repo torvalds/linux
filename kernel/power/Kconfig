@@ -125,6 +125,11 @@ config PM_WAKELOCKS_LIMIT
 	default 100
 	depends on PM_WAKELOCKS
 
+config PM_WAKELOCKS_GC
+	bool "Garbage collector for user space wakeup sources"
+	depends on PM_WAKELOCKS
+	default y
+
 config PM_RUNTIME
 	bool "Run-time PM core functionality"
 	depends on !IA64_HP_SIM
