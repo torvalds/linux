@@ -557,8 +557,6 @@ void bcm47xx_fill_sprom_ethernet(struct ssb_sprom *sprom, const char *prefix)
 
 void bcm47xx_fill_sprom(struct ssb_sprom *sprom, const char *prefix)
 {
-	memset(sprom, 0, sizeof(struct ssb_sprom));
-
 	bcm47xx_fill_sprom_ethernet(sprom, prefix);
 
 	nvram_read_u8(prefix, NULL, "sromrev", &sprom->revision, 0);
