@@ -80,19 +80,6 @@ register struct thread_info *__current_thread_info asm("gr15");
 
 #define current_thread_info() ({ __current_thread_info; })
 
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define alloc_thread_info_node(tsk, node)			\
-		kzalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#else
-#define alloc_thread_info_node(tsk, node)			\
-		kmalloc_node(THREAD_SIZE, GFP_KERNEL, node)
-#endif
-
-#define free_thread_info(info)	kfree(info)
-
 #endif /* __ASSEMBLY__ */
 
 /*
