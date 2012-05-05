@@ -225,6 +225,11 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
 	IXGBE_WRITE_FLUSH(hw);
 
+	/* Disable VMDq flag so device will be set in VM mode */
+	if (adapter->ring_feature[RING_F_VMDQ].limit == 1)
+		adapter->flags &= ~IXGBE_FLAG_VMDQ_ENABLED;
+	adapter->ring_feature[RING_F_VMDQ].offset = 0;
+
 	/* take a breather then clean up driver data */
 	msleep(100);
 

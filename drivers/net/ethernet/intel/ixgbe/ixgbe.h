@@ -113,7 +113,7 @@
 #define IXGBE_MAX_VFTA_ENTRIES          128
 #define MAX_EMULATION_MAC_ADDRS         16
 #define IXGBE_MAX_PF_MACVLANS           15
-#define VMDQ_P(p)   ((p) + adapter->num_vfs)
+#define VMDQ_P(p)   ((p) + adapter->ring_feature[RING_F_VMDQ].offset)
 #define IXGBE_82599_VF_DEVICE_ID        0x10ED
 #define IXGBE_X540_VF_DEVICE_ID         0x1515
 

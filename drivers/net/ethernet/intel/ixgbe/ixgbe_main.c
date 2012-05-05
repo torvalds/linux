@@ -3118,7 +3118,7 @@ static void ixgbe_setup_psrtype(struct ixgbe_adapter *adapter)
 		psrtype |= 1 << 29;
 
 	for (p = 0; p < adapter->num_rx_pools; p++)
-		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(adapter->num_vfs + p),
+		IXGBE_WRITE_REG(hw, IXGBE_PSRTYPE(VMDQ_P(p)),
 				psrtype);
 }
 
@@ -3135,12 +3135,12 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	vmdctl = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
 	vmdctl |= IXGBE_VMD_CTL_VMDQ_EN;
 	vmdctl &= ~IXGBE_VT_CTL_POOL_MASK;
-	vmdctl |= (adapter->num_vfs << IXGBE_VT_CTL_POOL_SHIFT);
+	vmdctl |= VMDQ_P(0) << IXGBE_VT_CTL_POOL_SHIFT;
 	vmdctl |= IXGBE_VT_CTL_REPLEN;
 	IXGBE_WRITE_REG(hw, IXGBE_VT_CTL, vmdctl);
 
-	vf_shift = adapter->num_vfs % 32;
-	reg_offset = (adapter->num_vfs >= 32) ? 1 : 0;
+	vf_shift = VMDQ_P(0) % 32;
+	reg_offset = (VMDQ_P(0) >= 32) ? 1 : 0;
 
 	/* Enable only the PF's pool for Tx/Rx */
 	IXGBE_WRITE_REG(hw, IXGBE_VFRE(reg_offset), (~0) << vf_shift);
@@ -3150,7 +3150,7 @@ static void ixgbe_configure_virtualization(struct ixgbe_adapter *adapter)
 	IXGBE_WRITE_REG(hw, IXGBE_PFDTXGSWC, IXGBE_PFDTXGSWC_VT_LBEN);
 
 	/* Map PF MAC address in RAR Entry 0 to first pool following VFs */
-	hw->mac.ops.set_vmdq(hw, 0, adapter->num_vfs);
+	hw->mac.ops.set_vmdq(hw, 0, VMDQ_P(0));
 
 	/*
 	 * Set up VF register offsets for selected VT Mode,
@@ -3310,10 +3310,9 @@ static int ixgbe_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	int pool_ndx = adapter->num_vfs;
 
 	/* add VID to filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, pool_ndx, true);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), true);
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -3323,10 +3322,9 @@ static int ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	int pool_ndx = adapter->num_vfs;
 
 	/* remove VID from filter table */
-	hw->mac.ops.set_vfta(&adapter->hw, vid, pool_ndx, false);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, VMDQ_P(0), false);
 	clear_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -3444,7 +3442,6 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
-	unsigned int vfn = adapter->num_vfs;
 	unsigned int rar_entries = IXGBE_MAX_PF_MACVLANS;
 	int count = 0;
 
@@ -3462,7 +3459,7 @@ static int ixgbe_write_uc_addr_list(struct net_device *netdev)
 			if (!rar_entries)
 				break;
 			hw->mac.ops.set_rar(hw, rar_entries--, ha->addr,
-					    vfn, IXGBE_RAH_AV);
+					    VMDQ_P(0), IXGBE_RAH_AV);
 			count++;
 		}
 	}
@@ -3536,12 +3533,14 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		vmolr |= IXGBE_VMOLR_ROPE;
 	}
 
-	if (adapter->num_vfs) {
+	if (adapter->num_vfs)
 		ixgbe_restore_vf_multicasts(adapter);
-		vmolr |= IXGBE_READ_REG(hw, IXGBE_VMOLR(adapter->num_vfs)) &
+
+	if (hw->mac.type != ixgbe_mac_82598EB) {
+		vmolr |= IXGBE_READ_REG(hw, IXGBE_VMOLR(VMDQ_P(0))) &
 			 ~(IXGBE_VMOLR_MPE | IXGBE_VMOLR_ROMPE |
 			   IXGBE_VMOLR_ROPE);
-		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(adapter->num_vfs), vmolr);
+		IXGBE_WRITE_REG(hw, IXGBE_VMOLR(VMDQ_P(0)), vmolr);
 	}
 
 	/* This is useful for sniffing bad packets. */
@@ -4120,8 +4119,7 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 	clear_bit(__IXGBE_IN_SFP_INIT, &adapter->state);
 
 	/* reprogram the RAR[0] in case user changed it. */
-	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, adapter->num_vfs,
-			    IXGBE_RAH_AV);
+	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, VMDQ_P(0), IXGBE_RAH_AV);
 }
 
 /**
@@ -6445,8 +6443,7 @@ static int ixgbe_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
-	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, adapter->num_vfs,
-			    IXGBE_RAH_AV);
+	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, VMDQ_P(0), IXGBE_RAH_AV);
 
 	return 0;
 }
