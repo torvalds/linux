@@ -964,10 +964,15 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 {
 	int irq, i, ret = 0;
 	u8 val;
-	struct abx500_bm_plat_data *plat_data;
+	struct abx500_bm_plat_data *plat_data = pdev->dev.platform_data;
+	struct ab8500_btemp *di;
 
-	struct ab8500_btemp *di =
-		kzalloc(sizeof(struct ab8500_btemp), GFP_KERNEL);
+	if (!plat_data) {
+		dev_err(&pdev->dev, "No platform data\n");
+		return -EINVAL;
+	}
+
+	di = kzalloc(sizeof(*di), GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;
 
@@ -977,13 +982,12 @@ static int __devinit ab8500_btemp_probe(struct platform_device *pdev)
 	di->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
 
 	/* get btemp specific platform data */
-	plat_data = pdev->dev.platform_data;
-	if (!plat_data || !plat_data->btemp) {
+	di->pdata = plat_data->btemp;
+	if (!di->pdata) {
 		dev_err(di->dev, "no btemp platform data supplied\n");
 		ret = -EINVAL;
 		goto free_device_info;
 	}
-	di->pdata = plat_data->btemp;
 
 	/* get battery specific platform data */
 	di->bat = plat_data->battery;
