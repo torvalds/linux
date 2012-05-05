@@ -93,8 +93,8 @@ static struct clk_lookup xbus_lookups[] __initdata = {
 };
 
 static struct clk_lookup ssp_lookups[] __initdata = {
-	{ .dev_id = "mxs-mmc.0", },
-	{ .dev_id = "mxs-mmc.1", },
+	{ .dev_id = "imx23-mmc.0", },
+	{ .dev_id = "imx23-mmc.1", },
 	{ .dev_id = "80010000.ssp", },
 	{ .dev_id = "80034000.ssp", },
 };
