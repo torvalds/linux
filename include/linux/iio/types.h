@@ -44,6 +44,7 @@ enum iio_modifier {
 	IIO_MOD_X_OR_Y_OR_Z,
 	IIO_MOD_LIGHT_BOTH,
 	IIO_MOD_LIGHT_IR,
+	IIO_MOD_ROOT_SUM_SQUARED_X_Y,
 };
 
 #define IIO_VAL_INT 1
