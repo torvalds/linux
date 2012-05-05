@@ -1515,6 +1515,7 @@ err_out:
 static const struct platform_device_id gpmi_ids[] = {
 	{ .name = "imx23-gpmi-nand", .driver_data = IS_MX23, },
 	{ .name = "imx28-gpmi-nand", .driver_data = IS_MX28, },
+	{ .name = "imx6q-gpmi-nand", .driver_data = IS_MX6Q, },
 	{},
 };
 
@@ -1525,6 +1526,9 @@ static const struct of_device_id gpmi_nand_id_table[] = {
 	}, {
 		.compatible = "fsl,imx28-gpmi-nand",
 		.data = (void *)&gpmi_ids[IS_MX28]
+	}, {
+		.compatible = "fsl,imx6q-gpmi-nand",
+		.data = (void *)&gpmi_ids[IS_MX6Q]
 	}, {}
 };
 MODULE_DEVICE_TABLE(of, gpmi_nand_id_table);
