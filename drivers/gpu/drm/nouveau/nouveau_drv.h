@@ -938,7 +938,7 @@ extern void nouveau_channel_ref(struct nouveau_channel *chan,
 				struct nouveau_channel **pchan);
 extern int  nouveau_channel_idle(struct nouveau_channel *chan);
 
-/* nouveau_object.c */
+/* nouveau_gpuobj.c */
 #define NVOBJ_ENGINE_ADD(d, e, p) do {                                         \
 	struct drm_nouveau_private *dev_priv = (d)->dev_private;               \
 	dev_priv->eng[NVOBJ_ENGINE_##e] = (p);                                 \
