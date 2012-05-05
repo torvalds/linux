@@ -23,6 +23,16 @@
 #include <linux/power/charger-manager.h>
 #include <linux/regulator/consumer.h>
 
+static const char * const default_event_names[] = {
+	[CM_EVENT_UNKNOWN] = "Unknown",
+	[CM_EVENT_BATT_FULL] = "Battery Full",
+	[CM_EVENT_BATT_IN] = "Battery Inserted",
+	[CM_EVENT_BATT_OUT] = "Battery Pulled Out",
+	[CM_EVENT_EXT_PWR_IN_OUT] = "External Power Attach/Detach",
+	[CM_EVENT_CHG_START_STOP] = "Charging Start/Stop",
+	[CM_EVENT_OTHERS] = "Other battery events"
+};
+
 /*
  * Regard CM_JIFFIES_SMALL jiffies is small enough to ignore for
  * delayed works so that we can run delayed works with CM_JIFFIES_SMALL
@@ -523,6 +533,69 @@ static void cm_monitor_poller(struct work_struct *work)
 {
 	cm_monitor();
 	schedule_work(&setup_polling);
+}
+
+/**
+ * fullbatt_handler - Event handler for CM_EVENT_BATT_FULL
+ * @cm: the Charger Manager representing the battery.
+ */
+static void fullbatt_handler(struct charger_manager *cm)
+{
+	struct charger_desc *desc = cm->desc;
+
+	if (!desc->fullbatt_vchkdrop_uV || !desc->fullbatt_vchkdrop_ms)
+		goto out;
+
+	if (cm_suspended)
+		device_set_wakeup_capable(cm->dev, true);
+
+	if (delayed_work_pending(&cm->fullbatt_vchk_work))
+		cancel_delayed_work(&cm->fullbatt_vchk_work);
+	queue_delayed_work(cm_wq, &cm->fullbatt_vchk_work,
+			   msecs_to_jiffies(desc->fullbatt_vchkdrop_ms));
+	cm->fullbatt_vchk_jiffies_at = jiffies + msecs_to_jiffies(
+				       desc->fullbatt_vchkdrop_ms);
+
+	if (cm->fullbatt_vchk_jiffies_at == 0)
+		cm->fullbatt_vchk_jiffies_at = 1;
+
+out:
+	dev_info(cm->dev, "EVENT_HANDLE: Battery Fully Charged.\n");
+	uevent_notify(cm, default_event_names[CM_EVENT_BATT_FULL]);
+}
+
+/**
+ * battout_handler - Event handler for CM_EVENT_BATT_OUT
+ * @cm: the Charger Manager representing the battery.
+ */
+static void battout_handler(struct charger_manager *cm)
+{
+	if (cm_suspended)
+		device_set_wakeup_capable(cm->dev, true);
+
+	if (!is_batt_present(cm)) {
+		dev_emerg(cm->dev, "Battery Pulled Out!\n");
+		uevent_notify(cm, default_event_names[CM_EVENT_BATT_OUT]);
+	} else {
+		uevent_notify(cm, "Battery Reinserted?");
+	}
+}
+
+/**
+ * misc_event_handler - Handler for other evnets
+ * @cm: the Charger Manager representing the battery.
+ * @type: the Charger Manager representing the battery.
+ */
+static void misc_event_handler(struct charger_manager *cm,
+			enum cm_event_types type)
+{
+	if (cm_suspended)
+		device_set_wakeup_capable(cm->dev, true);
+
+	if (!delayed_work_pending(&cm_monitor_work) &&
+	    is_polling_required(cm) && cm->desc->polling_interval_ms)
+		schedule_work(&setup_polling);
+	uevent_notify(cm, default_event_names[type]);
 }
 
 static int charger_get_property(struct power_supply *psy,
@@ -1112,6 +1185,13 @@ static int charger_manager_probe(struct platform_device *pdev)
 	list_add(&cm->entry, &cm_list);
 	mutex_unlock(&cm_list_mtx);
 
+	/*
+	 * Charger-manager is capable of waking up the systme from sleep
+	 * when event is happend through cm_notify_event()
+	 */
+	device_init_wakeup(&pdev->dev, true);
+	device_set_wakeup_capable(&pdev->dev, false);
+
 	schedule_work(&setup_polling);
 
 	return 0;
@@ -1168,6 +1248,18 @@ static const struct platform_device_id charger_manager_id[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, charger_manager_id);
+
+static int cm_suspend_noirq(struct device *dev)
+{
+	int ret = 0;
+
+	if (device_may_wakeup(dev)) {
+		device_set_wakeup_capable(dev, false);
+		ret = -EAGAIN;
+	}
+
+	return ret;
+}
 
 static int cm_suspend_prepare(struct device *dev)
 {
@@ -1250,11 +1342,13 @@ static void cm_suspend_complete(struct device *dev)
 		queue_delayed_work(cm_wq, &cm->fullbatt_vchk_work,
 				   msecs_to_jiffies(delay));
 	}
+	device_set_wakeup_capable(cm->dev, false);
 	uevent_notify(cm, NULL);
 }
 
 static const struct dev_pm_ops charger_manager_pm = {
 	.prepare	= cm_suspend_prepare,
+	.suspend_noirq	= cm_suspend_noirq,
 	.complete	= cm_suspend_complete,
 };
 
@@ -1286,6 +1380,75 @@ static void __exit charger_manager_cleanup(void)
 	platform_driver_unregister(&charger_manager_driver);
 }
 module_exit(charger_manager_cleanup);
+
+/**
+ * find_power_supply - find the associated power_supply of charger
+ * @cm: the Charger Manager representing the battery
+ * @psy: pointer to instance of charger's power_supply
+ */
+static bool find_power_supply(struct charger_manager *cm,
+			struct power_supply *psy)
+{
+	int i;
+	bool found = false;
+
+	for (i = 0; cm->charger_stat[i]; i++) {
+		if (psy == cm->charger_stat[i]) {
+			found = true;
+			break;
+		}
+	}
+
+	return found;
+}
+
+/**
+ * cm_notify_event - charger driver notify Charger Manager of charger event
+ * @psy: pointer to instance of charger's power_supply
+ * @type: type of charger event
+ * @msg: optional message passed to uevent_notify fuction
+ */
+void cm_notify_event(struct power_supply *psy, enum cm_event_types type,
+		     char *msg)
+{
+	struct charger_manager *cm;
+	bool found_power_supply = false;
+
+	if (psy == NULL)
+		return;
+
+	mutex_lock(&cm_list_mtx);
+	list_for_each_entry(cm, &cm_list, entry) {
+		found_power_supply = find_power_supply(cm, psy);
+		if (found_power_supply)
+			break;
+	}
+	mutex_unlock(&cm_list_mtx);
+
+	if (!found_power_supply)
+		return;
+
+	switch (type) {
+	case CM_EVENT_BATT_FULL:
+		fullbatt_handler(cm);
+		break;
+	case CM_EVENT_BATT_OUT:
+		battout_handler(cm);
+		break;
+	case CM_EVENT_BATT_IN:
+	case CM_EVENT_EXT_PWR_IN_OUT ... CM_EVENT_CHG_START_STOP:
+		misc_event_handler(cm, type);
+		break;
+	case CM_EVENT_UNKNOWN:
+	case CM_EVENT_OTHERS:
+		uevent_notify(cm, msg ? msg : default_event_names[type]);
+		break;
+	default:
+		dev_err(cm->dev, "%s type not specified.\n", __func__);
+		break;
+	}
+}
+EXPORT_SYMBOL_GPL(cm_notify_event);
 
 MODULE_AUTHOR("MyungJoo Ham <myungjoo.ham@samsung.com>");
 MODULE_DESCRIPTION("Charger Manager");

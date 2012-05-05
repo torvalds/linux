@@ -31,6 +31,16 @@ enum polling_modes {
 	CM_POLL_CHARGING_ONLY,
 };
 
+enum cm_event_types {
+	CM_EVENT_UNKNOWN = 0,
+	CM_EVENT_BATT_FULL,
+	CM_EVENT_BATT_IN,
+	CM_EVENT_BATT_OUT,
+	CM_EVENT_EXT_PWR_IN_OUT,
+	CM_EVENT_CHG_START_STOP,
+	CM_EVENT_OTHERS,
+};
+
 /**
  * struct charger_global_desc
  * @rtc_name: the name of RTC used to wake up the system from suspend.
@@ -159,14 +169,13 @@ struct charger_manager {
 #ifdef CONFIG_CHARGER_MANAGER
 extern int setup_charger_manager(struct charger_global_desc *gd);
 extern bool cm_suspend_again(void);
+extern void cm_notify_event(struct power_supply *psy,
+				enum cm_event_types type, char *msg);
 #else
-static void __maybe_unused setup_charger_manager(struct charger_global_desc *gd)
-{ }
-
-static bool __maybe_unused cm_suspend_again(void)
-{
-	return false;
-}
+static inline int setup_charger_manager(struct charger_global_desc *gd)
+{ return 0; }
+static inline bool cm_suspend_again(void) { return false; }
+static inline void cm_notify_event(struct power_supply *psy,
+				enum cm_event_types type, char *msg) { }
 #endif
-
 #endif /* _CHARGER_MANAGER_H */
