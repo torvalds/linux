@@ -35,6 +35,8 @@ config IA64
 	select GENERIC_IOMAP
 	select GENERIC_SMP_IDLE_THREAD
 	select ARCH_INIT_TASK
+	select ARCH_TASK_STRUCT_ALLOCATOR
+	select ARCH_THREAD_INFO_ALLOCATOR
 	default y
 	help
 	  The Itanium Processor Family is Intel's 64-bit successor to

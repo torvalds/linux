@@ -80,8 +80,6 @@ register struct thread_info *current_thread_info_reg asm("g6");
  */
 #define THREAD_INFO_ORDER  1
 
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
 BTFIXUPDEF_CALL(struct thread_info *, alloc_thread_info_node, int)
 #define alloc_thread_info_node(tsk, node) BTFIXUP_CALL(alloc_thread_info_node)(node)
 
