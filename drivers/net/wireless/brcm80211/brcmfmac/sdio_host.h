@@ -174,9 +174,6 @@ extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
  *   data: data for register write
  */
 extern u32
-brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr);
-
-extern u32
 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data);
 
 /* sdio device register access interface */

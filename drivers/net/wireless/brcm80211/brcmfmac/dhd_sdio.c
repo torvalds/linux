@@ -630,19 +630,20 @@ static bool data_ok(struct brcmf_sdio *bus)
  * adresses on the 32 bit backplane bus.
  */
 static void
-r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
+r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 offset, u32 *retryvar)
 {
 	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	int ret;
 	*retryvar = 0;
 	do {
-		*regvar = brcmf_sdcard_reg_read(bus->sdiodev,
-				bus->ci->c_inf[idx].base + reg_offset);
-	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
-		 (++(*retryvar) <= retry_limit));
+		*regvar = brcmf_sdio_regrl(bus->sdiodev,
+					   bus->ci->c_inf[idx].base + offset,
+					   &ret);
+	} while ((ret != 0) && (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
 		bus->regfails += (*retryvar-1);
 		if (*retryvar > retry_limit) {
-			brcmf_dbg(ERROR, "FAILED READ %Xh\n", reg_offset);
+			brcmf_dbg(ERROR, "FAILED READ %Xh\n", offset);
 			*regvar = 0;
 		}
 	}
@@ -3705,12 +3706,8 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 
 	bus->alp_only = true;
 
-	/* Return the window to backplane enumeration space for core access */
-	if (brcmf_sdcard_set_sbaddr_window(bus->sdiodev, SI_ENUM_BASE))
-		brcmf_dbg(ERROR, "FAILED to return to SI_ENUM_BASE\n");
-
 	pr_debug("F1 signature read @0x18000000=0x%4x\n",
-		 brcmf_sdcard_reg_read(bus->sdiodev, SI_ENUM_BASE));
+		 brcmf_sdio_regrl(bus->sdiodev, SI_ENUM_BASE, NULL));
 
 	/*
 	 * Force PLL off until brcmf_sdio_chip_attach()
@@ -3753,7 +3750,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	reg_addr = bus->ci->c_inf[idx].base +
 		   offsetof(struct sdpcmd_regs, corecontrol);
-	reg_val = brcmf_sdcard_reg_read(bus->sdiodev, reg_addr);
+	reg_val = brcmf_sdio_regrl(bus->sdiodev, reg_addr, NULL);
 	brcmf_sdcard_reg_write(bus->sdiodev, reg_addr, reg_val | CC_BPRESEN);
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);

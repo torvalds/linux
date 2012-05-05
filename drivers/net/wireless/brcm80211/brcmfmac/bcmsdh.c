@@ -298,38 +298,6 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 		*ret = retval;
 }
 
-u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr)
-{
-	int status;
-	u32 word = 0;
-	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
-
-	brcmf_dbg(INFO, "fun = 1, addr = 0x%x\n", addr);
-
-	if (bar0 != sdiodev->sbwad) {
-		if (brcmf_sdcard_set_sbaddr_window(sdiodev, bar0))
-			return 0xFFFFFFFF;
-
-		sdiodev->sbwad = bar0;
-	}
-
-	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
-
-	status = brcmf_sdioh_request_word(sdiodev, SDIOH_READ, SDIO_FUNC_1,
-					  addr, &word, 4);
-
-	sdiodev->regfail = (status != 0);
-
-	if (status == 0) {
-		brcmf_dbg(INFO, "data = 0x%x\n", word);
-		return word;
-	} else {
-		brcmf_dbg(ERROR, "failed %d at addr 0x%04x\n", status, addr);
-		return 0xFFFFFFFF;
-	}
-}
-
 u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data)
 {
 	int status;
