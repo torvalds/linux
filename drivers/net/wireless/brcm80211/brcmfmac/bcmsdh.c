@@ -196,11 +196,11 @@ brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 
 	/*
 	 * figure out how to read the register based on address range
-	 * 0x00 ~ 0xFF: function 0 CCCR
+	 * 0x00 ~ 0x7FF: function 0 CCCR and FBR
 	 * 0x10000 ~ 0x1FFFF: function 1 miscellaneous registers
 	 * The rest: function 1 silicon backplane core registers
 	 */
-	if ((addr & ~REG_F0_CCCR_MASK) == 0) {
+	if ((addr & ~REG_F0_REG_MASK) == 0) {
 		func_num = SDIO_FUNC_0;
 		reg_size = 1;
 	} else if ((addr & ~REG_F1_MISC_MASK) == 0) {

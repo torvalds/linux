@@ -41,7 +41,7 @@
 #define SDIOD_MAX_IOFUNCS	7
 
 /* mask of register map */
-#define REG_F0_CCCR_MASK	0xFF
+#define REG_F0_REG_MASK		0x7FF
 #define REG_F1_MISC_MASK	0x1FFFF
 
 /* as of sdiod rev 0, supports 3 functions */
