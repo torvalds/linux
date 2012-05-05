@@ -77,7 +77,7 @@ FEXPORT(syscall_exit)
 	and	t0, a2, t0
 	bnez	t0, syscall_exit_work
 
-FEXPORT(restore_all)			# restore full frame
+restore_all:				# restore full frame
 #ifdef CONFIG_MIPS_MT_SMTC
 #ifdef CONFIG_MIPS_MT_SMTC_IM_BACKSTOP
 /* Re-arm any temporarily masked interrupts not explicitly "acked" */
@@ -117,7 +117,7 @@ FEXPORT(restore_all)			# restore full frame
 	RESTORE_TEMP
 	RESTORE_AT
 	RESTORE_STATIC
-FEXPORT(restore_partial)		# restore partial frame
+restore_partial:		# restore partial frame
 #ifdef CONFIG_TRACE_IRQFLAGS
 	SAVE_STATIC
 	SAVE_AT
@@ -164,7 +164,13 @@ work_notifysig:				# deal with pending signals and
 	jal	do_notify_resume	# a2 already loaded
 	j	resume_userspace
 
-FEXPORT(syscall_exit_work_partial)
+FEXPORT(syscall_exit_partial)
+	local_irq_disable		# make sure need_resched doesn't
+					# change between and return
+	LONG_L	a2, TI_FLAGS($28)	# current->work
+	li	t0, _TIF_ALLWORK_MASK
+	and	t0, a2
+	beqz	t0, restore_partial
 	SAVE_STATIC
 syscall_exit_work:
 	LONG_L	t0, PT_STATUS(sp)		# returning to kernel mode?
