@@ -195,14 +195,6 @@ static const unsigned int ccc_tbl[] = {
 	1200000,
 };
 
-/* Convert register value to current using lookup table */
-static int hw_to_current(const unsigned int *tbl, size_t size, unsigned int val)
-{
-	if (val >= size)
-		return -EINVAL;
-	return tbl[val];
-}
-
 /* Convert current to register value using lookup table */
 static int current_to_hw(const unsigned int *tbl, size_t size, unsigned int val)
 {
@@ -891,7 +883,6 @@ static int smb347_battery_get_property(struct power_supply *psy,
 	struct smb347_charger *smb =
 			container_of(psy, struct smb347_charger, battery);
 	const struct smb347_charger_platform_data *pdata = smb->pdata;
-	unsigned int v;
 	int ret;
 
 	ret = smb347_update_ps_status(smb);
@@ -943,44 +934,6 @@ static int smb347_battery_get_property(struct power_supply *psy,
 		val->intval = pdata->battery_info.voltage_max_design;
 		break;
 
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		if (!smb347_is_ps_online(smb))
-			return -ENODATA;
-		ret = regmap_read(smb->regmap, STAT_A, &v);
-		if (ret < 0)
-			return ret;
-
-		v &= STAT_A_FLOAT_VOLTAGE_MASK;
-		if (v > 0x3d)
-			v = 0x3d;
-
-		val->intval = 3500000 + v * 20000;
-		break;
-
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		if (!smb347_is_ps_online(smb))
-			return -ENODATA;
-
-		ret = regmap_read(smb->regmap, STAT_B, &v);
-		if (ret < 0)
-			return ret;
-
-		/*
-		 * The current value is composition of FCC and PCC values
-		 * and we can detect which table to use from bit 5.
-		 */
-		if (v & 0x20) {
-			val->intval = hw_to_current(fcc_tbl,
-						    ARRAY_SIZE(fcc_tbl),
-						    v & 7);
-		} else {
-			v >>= 3;
-			val->intval = hw_to_current(pcc_tbl,
-						    ARRAY_SIZE(pcc_tbl),
-						    v & 7);
-		}
-		break;
-
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		val->intval = pdata->battery_info.charge_full_design;
 		break;
@@ -1002,8 +955,6 @@ static enum power_supply_property smb347_battery_properties[] = {
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN,
 	POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_MODEL_NAME,
 };
