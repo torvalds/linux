@@ -19,6 +19,7 @@
 #include <linux/mtd/cfi.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
+#include <linux/of.h>
 
 #include <lantiq_soc.h>
 
@@ -115,6 +116,12 @@ ltq_mtd_probe(struct platform_device *pdev)
 	struct ltq_mtd *ltq_mtd;
 	struct cfi_private *cfi;
 	int err;
+
+	if (of_machine_is_compatible("lantiq,falcon") &&
+			(ltq_boot_select() != BS_FLASH)) {
+		dev_err(&pdev->dev, "invalid bootstrap options\n");
+		return -ENODEV;
+	}
 
 	ltq_mtd = kzalloc(sizeof(struct ltq_mtd), GFP_KERNEL);
 	platform_set_drvdata(pdev, ltq_mtd);
