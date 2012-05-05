@@ -993,7 +993,6 @@ out_no_update:
 
 static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 {
-	int num_q_vectors;
 	int i;
 
 	if (!(adapter->flags & IXGBE_FLAG_DCA_ENABLED))
@@ -1002,12 +1001,7 @@ static void ixgbe_setup_dca(struct ixgbe_adapter *adapter)
 	/* always use CB2 mode, difference is masked in the CB driver */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
 
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED)
-		num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-	else
-		num_q_vectors = 1;
-
-	for (i = 0; i < num_q_vectors; i++) {
+	for (i = 0; i < adapter->num_q_vectors; i++) {
 		adapter->q_vector[i]->cpu = -1;
 		ixgbe_update_dca(adapter->q_vector[i]);
 	}
@@ -1831,10 +1825,8 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_q_vector *q_vector;
-	int q_vectors, v_idx;
+	int v_idx;
 	u32 mask;
-
-	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
 	/* Populate MSIX to EITR Select */
 	if (adapter->num_vfs > 32) {
@@ -1846,7 +1838,7 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 	 * Populate the IVAR table and set the ITR values to the
 	 * corresponding register.
 	 */
-	for (v_idx = 0; v_idx < q_vectors; v_idx++) {
+	for (v_idx = 0; v_idx < adapter->num_q_vectors; v_idx++) {
 		struct ixgbe_ring *ring;
 		q_vector = adapter->q_vector[v_idx];
 
@@ -2410,11 +2402,10 @@ int ixgbe_poll(struct napi_struct *napi, int budget)
 static int ixgbe_request_msix_irqs(struct ixgbe_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 	int vector, err;
 	int ri = 0, ti = 0;
 
-	for (vector = 0; vector < q_vectors; vector++) {
+	for (vector = 0; vector < adapter->num_q_vectors; vector++) {
 		struct ixgbe_q_vector *q_vector = adapter->q_vector[vector];
 		struct msix_entry *entry = &adapter->msix_entries[vector];
 
@@ -2569,30 +2560,28 @@ static int ixgbe_request_irq(struct ixgbe_adapter *adapter)
 
 static void ixgbe_free_irq(struct ixgbe_adapter *adapter)
 {
-	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-		int i, q_vectors;
+	int vector;
 
-		q_vectors = adapter->num_msix_vectors;
-		i = q_vectors - 1;
-		free_irq(adapter->msix_entries[i].vector, adapter);
-		i--;
-
-		for (; i >= 0; i--) {
-			/* free only the irqs that were actually requested */
-			if (!adapter->q_vector[i]->rx.ring &&
-			    !adapter->q_vector[i]->tx.ring)
-				continue;
-
-			/* clear the affinity_mask in the IRQ descriptor */
-			irq_set_affinity_hint(adapter->msix_entries[i].vector,
-					      NULL);
-
-			free_irq(adapter->msix_entries[i].vector,
-				 adapter->q_vector[i]);
-		}
-	} else {
+	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED)) {
 		free_irq(adapter->pdev->irq, adapter);
+		return;
 	}
+
+	for (vector = 0; vector < adapter->num_q_vectors; vector++) {
+		struct ixgbe_q_vector *q_vector = adapter->q_vector[vector];
+		struct msix_entry *entry = &adapter->msix_entries[vector];
+
+		/* free only the irqs that were actually requested */
+		if (!q_vector->rx.ring && !q_vector->tx.ring)
+			continue;
+
+		/* clear the affinity_mask in the IRQ descriptor */
+		irq_set_affinity_hint(entry->vector, NULL);
+
+		free_irq(entry->vector, q_vector);
+	}
+
+	free_irq(adapter->msix_entries[vector++].vector, adapter);
 }
 
 /**
@@ -2616,9 +2605,12 @@ static inline void ixgbe_irq_disable(struct ixgbe_adapter *adapter)
 	}
 	IXGBE_WRITE_FLUSH(&adapter->hw);
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-		int i;
-		for (i = 0; i < adapter->num_msix_vectors; i++)
-			synchronize_irq(adapter->msix_entries[i].vector);
+		int vector;
+
+		for (vector = 0; vector < adapter->num_q_vectors; vector++)
+			synchronize_irq(adapter->msix_entries[vector].vector);
+
+		synchronize_irq(adapter->msix_entries[vector++].vector);
 	} else {
 		synchronize_irq(adapter->pdev->irq);
 	}
@@ -3561,33 +3553,17 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx;
-	struct ixgbe_q_vector *q_vector;
-	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
-	/* legacy and MSI only use one vector */
-	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
-		q_vectors = 1;
-
-	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
-		q_vector = adapter->q_vector[q_idx];
-		napi_enable(&q_vector->napi);
-	}
+	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++)
+		napi_enable(&adapter->q_vector[q_idx]->napi);
 }
 
 static void ixgbe_napi_disable_all(struct ixgbe_adapter *adapter)
 {
 	int q_idx;
-	struct ixgbe_q_vector *q_vector;
-	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
-	/* legacy and MSI only use one vector */
-	if (!(adapter->flags & IXGBE_FLAG_MSIX_ENABLED))
-		q_vectors = 1;
-
-	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
-		q_vector = adapter->q_vector[q_idx];
-		napi_disable(&q_vector->napi);
-	}
+	for (q_idx = 0; q_idx < adapter->num_q_vectors; q_idx++)
+		napi_disable(&adapter->q_vector[q_idx]->napi);
 }
 
 #ifdef CONFIG_IXGBE_DCB
@@ -4416,12 +4392,12 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	case ixgbe_mac_82598EB:
 		if (hw->device_id == IXGBE_DEV_ID_82598AT)
 			adapter->flags |= IXGBE_FLAG_FAN_FAIL_CAPABLE;
-		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82598;
+		adapter->max_q_vectors = MAX_Q_VECTORS_82598;
 		break;
 	case ixgbe_mac_X540:
 		adapter->flags2 |= IXGBE_FLAG2_TEMP_SENSOR_CAPABLE;
 	case ixgbe_mac_82599EB:
-		adapter->max_msix_q_vectors = MAX_MSIX_Q_VECTORS_82599;
+		adapter->max_q_vectors = MAX_Q_VECTORS_82599;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_CAPABLE;
 		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
 		if (hw->device_id == IXGBE_DEV_ID_82599_T3_LOM)
@@ -5313,7 +5289,7 @@ static void ixgbe_check_hang_subtask(struct ixgbe_adapter *adapter)
 			(IXGBE_EICS_TCP_TIMER | IXGBE_EICS_OTHER));
 	} else {
 		/* get one bit for every active tx/rx interrupt vector */
-		for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
+		for (i = 0; i < adapter->num_q_vectors; i++) {
 			struct ixgbe_q_vector *qv = adapter->q_vector[i];
 			if (qv->rx.ring || qv->tx.ring)
 				eics |= ((u64)1 << i);
@@ -6525,11 +6501,8 @@ static void ixgbe_netpoll(struct net_device *netdev)
 
 	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-		int num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-		for (i = 0; i < num_q_vectors; i++) {
-			struct ixgbe_q_vector *q_vector = adapter->q_vector[i];
-			ixgbe_msix_clean_rings(0, q_vector);
-		}
+		for (i = 0; i < adapter->num_q_vectors; i++)
+			ixgbe_msix_clean_rings(0, adapter->q_vector[i]);
 	} else {
 		ixgbe_intr(adapter->pdev->irq, netdev);
 	}
