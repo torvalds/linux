@@ -1,5 +1,5 @@
 menuconfig POWER_SUPPLY
-	tristate "Power supply class support"
+	bool "Power supply class support"
 	help
 	  Say Y here to enable power supply class support. This allows
 	  power supply (batteries, AC, USB) monitoring by userspace
