@@ -3225,20 +3225,22 @@ void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int pf)
 	 * PFVFSPOOF register array is size 8 with 8 bits assigned to
 	 * MAC anti-spoof enables in each register array element.
 	 */
-	for (j = 0; j < IXGBE_PFVFSPOOF_REG_COUNT; j++)
+	for (j = 0; j < pf_target_reg; j++)
 		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
-
-	/* If not enabling anti-spoofing then done */
-	if (!enable)
-		return;
 
 	/*
 	 * The PF should be allowed to spoof so that it can support
-	 * emulation mode NICs.  Reset the bit assigned to the PF
+	 * emulation mode NICs.  Do not set the bits assigned to the PF
 	 */
-	pfvfspoof = IXGBE_READ_REG(hw, IXGBE_PFVFSPOOF(pf_target_reg));
-	pfvfspoof ^= (1 << pf_target_shift);
-	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(pf_target_reg), pfvfspoof);
+	pfvfspoof &= (1 << pf_target_shift) - 1;
+	IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), pfvfspoof);
+
+	/*
+	 * Remaining pools belong to the PF so they do not need to have
+	 * anti-spoofing enabled.
+	 */
+	for (j++; j < IXGBE_PFVFSPOOF_REG_COUNT; j++)
+		IXGBE_WRITE_REG(hw, IXGBE_PFVFSPOOF(j), 0);
 }
 
 /**
