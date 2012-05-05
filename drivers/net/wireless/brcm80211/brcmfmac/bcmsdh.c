@@ -205,19 +205,30 @@ brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
 int
 brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 {
-	int err = 0;
-	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW,
-			 (address >> 8) & SBSDIO_SBADDRLOW_MASK, &err);
-	if (!err)
-		brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_SBADDRMID,
-				       (address >> 16) & SBSDIO_SBADDRMID_MASK,
-				       &err);
-	if (!err)
-		brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_1,
-				       SBSDIO_FUNC1_SBADDRHIGH,
-				       (address >> 24) & SBSDIO_SBADDRHIGH_MASK,
-				       &err);
+	int err = 0, i;
+	u8 addr[3];
+	s32 retry;
+
+	addr[0] = (address >> 8) & SBSDIO_SBADDRLOW_MASK;
+	addr[1] = (address >> 16) & SBSDIO_SBADDRMID_MASK;
+	addr[2] = (address >> 24) & SBSDIO_SBADDRHIGH_MASK;
+
+	for (i = 0; i < 3; i++) {
+		retry = 0;
+		do {
+			if (retry)
+				usleep_range(1000, 2000);
+			err = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE,
+					SDIO_FUNC_1, SBSDIO_FUNC1_SBADDRLOW + i,
+					&addr[i]);
+		} while (err != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
+
+		if (err) {
+			brcmf_dbg(ERROR, "failed at addr:0x%0x\n",
+				  SBSDIO_FUNC1_SBADDRLOW + i);
+			break;
+		}
+	}
 
 	return err;
 }
