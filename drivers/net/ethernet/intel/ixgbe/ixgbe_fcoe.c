@@ -104,10 +104,10 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 			udelay(100);
 	}
 	if (ddp->sgl)
-		pci_unmap_sg(adapter->pdev, ddp->sgl, ddp->sgc,
+		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl, ddp->sgc,
 			     DMA_FROM_DEVICE);
 	if (ddp->pool) {
-		pci_pool_free(ddp->pool, ddp->udl, ddp->udp);
+		dma_pool_free(ddp->pool, ddp->udl, ddp->udp);
 		ddp->pool = NULL;
 	}
 
@@ -144,7 +144,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	unsigned int thislen = 0;
 	u32 fcbuff, fcdmarw, fcfltrw, fcrxctl;
 	dma_addr_t addr = 0;
-	struct pci_pool *pool;
+	struct dma_pool *pool;
 	unsigned int cpu;
 
 	if (!netdev || !sgl)
@@ -176,7 +176,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	ixgbe_fcoe_clear_ddp(ddp);
 
 	/* setup dma from scsi command sgl */
-	dmacount = pci_map_sg(adapter->pdev, sgl, sgc, DMA_FROM_DEVICE);
+	dmacount = dma_map_sg(&adapter->pdev->dev, sgl, sgc, DMA_FROM_DEVICE);
 	if (dmacount == 0) {
 		e_err(drv, "xid 0x%x DMA map error\n", xid);
 		return 0;
@@ -185,7 +185,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	/* alloc the udl from per cpu ddp pool */
 	cpu = get_cpu();
 	pool = *per_cpu_ptr(fcoe->pool, cpu);
-	ddp->udl = pci_pool_alloc(pool, GFP_ATOMIC, &ddp->udp);
+	ddp->udl = dma_pool_alloc(pool, GFP_ATOMIC, &ddp->udp);
 	if (!ddp->udl) {
 		e_err(drv, "failed allocated ddp context\n");
 		goto out_noddp_unmap;
@@ -293,11 +293,11 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	return 1;
 
 out_noddp_free:
-	pci_pool_free(pool, ddp->udl, ddp->udp);
+	dma_pool_free(pool, ddp->udl, ddp->udp);
 	ixgbe_fcoe_clear_ddp(ddp);
 
 out_noddp_unmap:
-	pci_unmap_sg(adapter->pdev, sgl, sgc, DMA_FROM_DEVICE);
+	dma_unmap_sg(&adapter->pdev->dev, sgl, sgc, DMA_FROM_DEVICE);
 	put_cpu();
 	return 0;
 }
@@ -409,7 +409,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 		break;
 	/* unmap the sg list when FCPRSP is received */
 	case __constant_cpu_to_le32(IXGBE_RXDADV_STAT_FCSTAT_FCPRSP):
-		pci_unmap_sg(adapter->pdev, ddp->sgl,
+		dma_unmap_sg(&adapter->pdev->dev, ddp->sgl,
 			     ddp->sgc, DMA_FROM_DEVICE);
 		ddp->err = ddp_err;
 		ddp->sgl = NULL;
@@ -566,12 +566,12 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 static void ixgbe_fcoe_ddp_pools_free(struct ixgbe_fcoe *fcoe)
 {
 	unsigned int cpu;
-	struct pci_pool **pool;
+	struct dma_pool **pool;
 
 	for_each_possible_cpu(cpu) {
 		pool = per_cpu_ptr(fcoe->pool, cpu);
 		if (*pool)
-			pci_pool_destroy(*pool);
+			dma_pool_destroy(*pool);
 	}
 	free_percpu(fcoe->pool);
 	fcoe->pool = NULL;
@@ -581,10 +581,10 @@ static void ixgbe_fcoe_ddp_pools_alloc(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 	unsigned int cpu;
-	struct pci_pool **pool;
+	struct dma_pool **pool;
 	char pool_name[32];
 
-	fcoe->pool = alloc_percpu(struct pci_pool *);
+	fcoe->pool = alloc_percpu(struct dma_pool *);
 	if (!fcoe->pool)
 		return;
 
@@ -592,9 +592,9 @@ static void ixgbe_fcoe_ddp_pools_alloc(struct ixgbe_adapter *adapter)
 	for_each_possible_cpu(cpu) {
 		snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%d", cpu);
 		pool = per_cpu_ptr(fcoe->pool, cpu);
-		*pool = pci_pool_create(pool_name,
-					adapter->pdev, IXGBE_FCPTR_MAX,
-					IXGBE_FCPTR_ALIGN, PAGE_SIZE);
+		*pool = dma_pool_create(pool_name, &adapter->pdev->dev,
+					IXGBE_FCPTR_MAX, IXGBE_FCPTR_ALIGN,
+					PAGE_SIZE);
 		if (!*pool) {
 			e_err(drv, "failed to alloc DDP pool on cpu:%d\n", cpu);
 			ixgbe_fcoe_ddp_pools_free(fcoe);

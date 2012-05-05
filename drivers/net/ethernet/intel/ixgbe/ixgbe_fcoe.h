@@ -62,11 +62,11 @@ struct ixgbe_fcoe_ddp {
 	struct scatterlist *sgl;
 	dma_addr_t udp;
 	u64 *udl;
-	struct pci_pool *pool;
+	struct dma_pool *pool;
 };
 
 struct ixgbe_fcoe {
-	struct pci_pool **pool;
+	struct dma_pool **pool;
 	atomic_t refcnt;
 	spinlock_t lock;
 	struct ixgbe_fcoe_ddp ddp[IXGBE_FCOE_DDP_MAX];
