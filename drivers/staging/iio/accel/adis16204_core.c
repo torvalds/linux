@@ -381,7 +381,7 @@ static int adis16204_read_raw(struct iio_dev *indio_dev,
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_ACCEL:
 			*val = 0;
-			if (chan->channel == 'x')
+			if (chan->channel2 == IIO_MOD_X)
 				*val2 = 17125;
 			else
 				*val2 = 8407;
