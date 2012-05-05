@@ -2847,40 +2847,34 @@ static void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter)
 static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter,
 				   struct ixgbe_ring *rx_ring)
 {
+	struct ixgbe_hw *hw = &adapter->hw;
 	u32 srrctl;
 	u8 reg_idx = rx_ring->reg_idx;
 
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_82598EB: {
-		struct ixgbe_ring_feature *feature = adapter->ring_feature;
-		const int mask = feature[RING_F_RSS].mask;
-		reg_idx = reg_idx & mask;
-	}
-		break;
-	case ixgbe_mac_82599EB:
-	case ixgbe_mac_X540:
-	default:
-		break;
+	if (hw->mac.type == ixgbe_mac_82598EB) {
+		u16 mask = adapter->ring_feature[RING_F_RSS].mask;
+
+		/*
+		 * if VMDq is not active we must program one srrctl register
+		 * per RSS queue since we have enabled RDRXCTL.MVMEN
+		 */
+		reg_idx &= mask;
 	}
 
-	srrctl = IXGBE_READ_REG(&adapter->hw, IXGBE_SRRCTL(reg_idx));
+	/* configure header buffer length, needed for RSC */
+	srrctl = IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT;
 
-	srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
-	srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
-	if (adapter->num_vfs)
-		srrctl |= IXGBE_SRRCTL_DROP_EN;
-
-	srrctl |= (IXGBE_RX_HDR_SIZE << IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT) &
-		  IXGBE_SRRCTL_BSIZEHDR_MASK;
-
+	/* configure the packet buffer length */
 #if PAGE_SIZE > IXGBE_MAX_RXBUFFER
 	srrctl |= IXGBE_MAX_RXBUFFER >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 #else
 	srrctl |= ixgbe_rx_bufsz(rx_ring) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
 #endif
+
+	/* configure descriptor type */
 	srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 
-	IXGBE_WRITE_REG(&adapter->hw, IXGBE_SRRCTL(reg_idx), srrctl);
+	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(reg_idx), srrctl);
 }
 
 static void ixgbe_setup_mrqc(struct ixgbe_adapter *adapter)
