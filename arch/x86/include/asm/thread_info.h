@@ -155,24 +155,6 @@ struct thread_info {
 
 #define PREEMPT_ACTIVE		0x10000000
 
-/* thread information allocation */
-#ifdef CONFIG_DEBUG_STACK_USAGE
-#define THREAD_FLAGS (GFP_KERNEL | __GFP_NOTRACK | __GFP_ZERO)
-#else
-#define THREAD_FLAGS (GFP_KERNEL | __GFP_NOTRACK)
-#endif
-
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
-
-#define alloc_thread_info_node(tsk, node)				\
-({									\
-	struct page *page = alloc_pages_node(node, THREAD_FLAGS,	\
-					     THREAD_ORDER);		\
-	struct thread_info *ret = page ? page_address(page) : NULL;	\
-									\
-	ret;								\
-})
-
 #ifdef CONFIG_X86_32
 
 #define STACK_WARN	(THREAD_SIZE/8)
@@ -282,7 +264,7 @@ static inline bool is_ia32_task(void)
 
 #ifndef __ASSEMBLY__
 extern void arch_task_cache_init(void);
-extern void free_thread_info(struct thread_info *ti);
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
+extern void arch_release_task_struct(struct task_struct *tsk);
 #endif
 #endif /* _ASM_X86_THREAD_INFO_H */

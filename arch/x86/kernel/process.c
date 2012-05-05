@@ -76,10 +76,9 @@ void free_thread_xstate(struct task_struct *tsk)
 	fpu_free(&tsk->thread.fpu);
 }
 
-void free_thread_info(struct thread_info *ti)
+void arch_release_task_struct(struct task_struct *tsk)
 {
-	free_thread_xstate(ti->task);
-	free_pages((unsigned long)ti, THREAD_ORDER);
+	free_thread_xstate(tsk);
 }
 
 void arch_task_cache_init(void)
