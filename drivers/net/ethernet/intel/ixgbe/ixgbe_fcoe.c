@@ -134,6 +134,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	struct ixgbe_hw *hw;
 	struct ixgbe_fcoe *fcoe;
 	struct ixgbe_fcoe_ddp *ddp;
+	struct ixgbe_fcoe_ddp_pool *ddp_pool;
 	struct scatterlist *sg;
 	unsigned int i, j, dmacount;
 	unsigned int len;
@@ -144,8 +145,6 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	unsigned int thislen = 0;
 	u32 fcbuff, fcdmarw, fcfltrw, fcrxctl;
 	dma_addr_t addr = 0;
-	struct dma_pool *pool;
-	unsigned int cpu;
 
 	if (!netdev || !sgl)
 		return 0;
@@ -162,11 +161,6 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		return 0;
 
 	fcoe = &adapter->fcoe;
-	if (!fcoe->pool) {
-		e_warn(drv, "xid=0x%x no ddp pool for fcoe\n", xid);
-		return 0;
-	}
-
 	ddp = &fcoe->ddp[xid];
 	if (ddp->sgl) {
 		e_err(drv, "xid 0x%x w/ non-null sgl=%p nents=%d\n",
@@ -175,22 +169,32 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	}
 	ixgbe_fcoe_clear_ddp(ddp);
 
+
+	if (!fcoe->ddp_pool) {
+		e_warn(drv, "No ddp_pool resources allocated\n");
+		return 0;
+	}
+
+	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, get_cpu());
+	if (!ddp_pool->pool) {
+		e_warn(drv, "xid=0x%x no ddp pool for fcoe\n", xid);
+		goto out_noddp;
+	}
+
 	/* setup dma from scsi command sgl */
 	dmacount = dma_map_sg(&adapter->pdev->dev, sgl, sgc, DMA_FROM_DEVICE);
 	if (dmacount == 0) {
 		e_err(drv, "xid 0x%x DMA map error\n", xid);
-		return 0;
+		goto out_noddp;
 	}
 
 	/* alloc the udl from per cpu ddp pool */
-	cpu = get_cpu();
-	pool = *per_cpu_ptr(fcoe->pool, cpu);
-	ddp->udl = dma_pool_alloc(pool, GFP_ATOMIC, &ddp->udp);
+	ddp->udl = dma_pool_alloc(ddp_pool->pool, GFP_ATOMIC, &ddp->udp);
 	if (!ddp->udl) {
 		e_err(drv, "failed allocated ddp context\n");
 		goto out_noddp_unmap;
 	}
-	ddp->pool = pool;
+	ddp->pool = ddp_pool->pool;
 	ddp->sgl = sgl;
 	ddp->sgc = sgc;
 
@@ -201,7 +205,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		while (len) {
 			/* max number of buffers allowed in one DDP context */
 			if (j >= IXGBE_BUFFCNT_MAX) {
-				*per_cpu_ptr(fcoe->pcpu_noddp, cpu) += 1;
+				ddp_pool->noddp++;
 				goto out_noddp_free;
 			}
 
@@ -241,7 +245,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	 */
 	if (lastsize == bufflen) {
 		if (j >= IXGBE_BUFFCNT_MAX) {
-			*per_cpu_ptr(fcoe->pcpu_noddp_ext_buff, cpu) += 1;
+			ddp_pool->noddp_ext_buff++;
 			goto out_noddp_free;
 		}
 
@@ -293,11 +297,12 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 	return 1;
 
 out_noddp_free:
-	dma_pool_free(pool, ddp->udl, ddp->udp);
+	dma_pool_free(ddp->pool, ddp->udl, ddp->udp);
 	ixgbe_fcoe_clear_ddp(ddp);
 
 out_noddp_unmap:
 	dma_unmap_sg(&adapter->pdev->dev, sgl, sgc, DMA_FROM_DEVICE);
+out_noddp:
 	put_cpu();
 	return 0;
 }
@@ -563,44 +568,63 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 	return 0;
 }
 
+static void ixgbe_fcoe_dma_pool_free(struct ixgbe_fcoe *fcoe, unsigned int cpu)
+{
+	struct ixgbe_fcoe_ddp_pool *ddp_pool;
+
+	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, cpu);
+	if (ddp_pool->pool)
+		dma_pool_destroy(ddp_pool->pool);
+	ddp_pool->pool = NULL;
+}
+
 static void ixgbe_fcoe_ddp_pools_free(struct ixgbe_fcoe *fcoe)
 {
 	unsigned int cpu;
-	struct dma_pool **pool;
 
-	for_each_possible_cpu(cpu) {
-		pool = per_cpu_ptr(fcoe->pool, cpu);
-		if (*pool)
-			dma_pool_destroy(*pool);
-	}
-	free_percpu(fcoe->pool);
-	fcoe->pool = NULL;
+	for_each_possible_cpu(cpu)
+		ixgbe_fcoe_dma_pool_free(fcoe, cpu);
+
+	free_percpu(fcoe->ddp_pool);
+	fcoe->ddp_pool = NULL;
+}
+
+static int ixgbe_fcoe_dma_pool_alloc(struct ixgbe_fcoe *fcoe,
+				     struct device *dev,
+				     unsigned int cpu)
+{
+	struct ixgbe_fcoe_ddp_pool *ddp_pool;
+	struct dma_pool *pool;
+	char pool_name[32];
+
+	snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%d", cpu);
+
+	pool = dma_pool_create(pool_name, dev, IXGBE_FCPTR_MAX,
+			       IXGBE_FCPTR_ALIGN, PAGE_SIZE);
+	if (!pool)
+		return -ENOMEM;
+
+	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, cpu);
+	ddp_pool->pool = pool;
+	ddp_pool->noddp = 0;
+	ddp_pool->noddp_ext_buff = 0;
+
+	return 0;
 }
 
 static void ixgbe_fcoe_ddp_pools_alloc(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
+	struct device *dev = &adapter->pdev->dev;
 	unsigned int cpu;
-	struct dma_pool **pool;
-	char pool_name[32];
 
-	fcoe->pool = alloc_percpu(struct dma_pool *);
-	if (!fcoe->pool)
+	fcoe->ddp_pool = alloc_percpu(struct ixgbe_fcoe_ddp_pool);
+	if (!fcoe->ddp_pool)
 		return;
 
 	/* allocate pci pool for each cpu */
-	for_each_possible_cpu(cpu) {
-		snprintf(pool_name, 32, "ixgbe_fcoe_ddp_%d", cpu);
-		pool = per_cpu_ptr(fcoe->pool, cpu);
-		*pool = dma_pool_create(pool_name, &adapter->pdev->dev,
-					IXGBE_FCPTR_MAX, IXGBE_FCPTR_ALIGN,
-					PAGE_SIZE);
-		if (!*pool) {
-			e_err(drv, "failed to alloc DDP pool on cpu:%d\n", cpu);
-			ixgbe_fcoe_ddp_pools_free(fcoe);
-			return;
-		}
-	}
+	for_each_possible_cpu(cpu)
+		ixgbe_fcoe_dma_pool_alloc(fcoe, dev, cpu);
 }
 
 /**
@@ -617,14 +641,13 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 	struct ixgbe_ring_feature *f = &adapter->ring_feature[RING_F_FCOE];
-	unsigned int cpu;
 	u32 etqf;
 
-	if (!fcoe->pool) {
+	if (!fcoe->ddp_pool) {
 		spin_lock_init(&fcoe->lock);
 
 		ixgbe_fcoe_ddp_pools_alloc(adapter);
-		if (!fcoe->pool) {
+		if (!fcoe->ddp_pool) {
 			e_err(drv, "failed to alloc percpu fcoe DDP pools\n");
 			return;
 		}
@@ -645,24 +668,6 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 				      fcoe->extra_ddp_buffer_dma)) {
 			e_err(drv, "failed to map extra DDP buffer\n");
 			goto out_extra_ddp_buffer;
-		}
-
-		/* Alloc per cpu mem to count the ddp alloc failure number */
-		fcoe->pcpu_noddp = alloc_percpu(u64);
-		if (!fcoe->pcpu_noddp) {
-			e_err(drv, "failed to alloc noddp counter\n");
-			goto out_pcpu_noddp_alloc_fail;
-		}
-
-		fcoe->pcpu_noddp_ext_buff = alloc_percpu(u64);
-		if (!fcoe->pcpu_noddp_ext_buff) {
-			e_err(drv, "failed to alloc noddp extra buff cnt\n");
-			goto out_pcpu_noddp_extra_buff_alloc_fail;
-		}
-
-		for_each_possible_cpu(cpu) {
-			*per_cpu_ptr(fcoe->pcpu_noddp, cpu) = 0;
-			*per_cpu_ptr(fcoe->pcpu_noddp_ext_buff, cpu) = 0;
 		}
 	}
 
@@ -704,13 +709,6 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 			(FC_FCOE_VER << IXGBE_FCRXCTRL_FCOEVER_SHIFT));
 
 	return;
-out_pcpu_noddp_extra_buff_alloc_fail:
-	free_percpu(fcoe->pcpu_noddp);
-out_pcpu_noddp_alloc_fail:
-	dma_unmap_single(&adapter->pdev->dev,
-			 fcoe->extra_ddp_buffer_dma,
-			 IXGBE_FCBUFF_MIN,
-			 DMA_FROM_DEVICE);
 out_extra_ddp_buffer:
 	kfree(fcoe->extra_ddp_buffer);
 out_ddp_pools:
@@ -730,18 +728,18 @@ void ixgbe_cleanup_fcoe(struct ixgbe_adapter *adapter)
 	int i;
 	struct ixgbe_fcoe *fcoe = &adapter->fcoe;
 
-	if (!fcoe->pool)
+	if (!fcoe->ddp_pool)
 		return;
 
 	for (i = 0; i < IXGBE_FCOE_DDP_MAX; i++)
 		ixgbe_fcoe_ddp_put(adapter->netdev, i);
+
 	dma_unmap_single(&adapter->pdev->dev,
 			 fcoe->extra_ddp_buffer_dma,
 			 IXGBE_FCBUFF_MIN,
 			 DMA_FROM_DEVICE);
-	free_percpu(fcoe->pcpu_noddp);
-	free_percpu(fcoe->pcpu_noddp_ext_buff);
 	kfree(fcoe->extra_ddp_buffer);
+
 	ixgbe_fcoe_ddp_pools_free(fcoe);
 }
 
