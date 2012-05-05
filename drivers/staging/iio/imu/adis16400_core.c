@@ -268,25 +268,6 @@ static int adis16400_reset(struct iio_dev *indio_dev)
 	return ret;
 }
 
-static ssize_t adis16400_write_reset(struct device *dev,
-		struct device_attribute *attr,
-		const char *buf, size_t len)
-{
-	bool val;
-	int ret;
-
-	ret = strtobool(buf, &val);
-	if (ret < 0)
-		return ret;
-	if (val) {
-		ret = adis16400_reset(dev_to_iio_dev(dev));
-		if (ret < 0)
-			return ret;
-	}
-
-	return len;
-}
-
 int adis16400_set_irq(struct iio_dev *indio_dev, bool enable)
 {
 	int ret;
@@ -453,8 +434,6 @@ err_ret:
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      adis16400_read_frequency,
 			      adis16400_write_frequency);
-
-static IIO_DEVICE_ATTR(reset, S_IWUSR, NULL, adis16400_write_reset, 0);
 
 static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("409 546 819 1638");
 
@@ -1066,7 +1045,6 @@ static const struct iio_chan_spec adis16334_channels[] = {
 static struct attribute *adis16400_attributes[] = {
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
-	&iio_dev_attr_reset.dev_attr.attr,
 	NULL
 };
 
