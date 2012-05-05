@@ -185,12 +185,12 @@ static inline bool ixgbe_cache_ring_fcoe(struct ixgbe_adapter *adapter)
 		else
 			ixgbe_cache_ring_rss(adapter);
 
-		fcoe_rx_i = f->mask;
-		fcoe_tx_i = f->mask;
+		fcoe_rx_i = f->offset;
+		fcoe_tx_i = f->offset;
 	}
 	for (i = 0; i < f->indices; i++, fcoe_rx_i++, fcoe_tx_i++) {
-		adapter->rx_ring[f->mask + i]->reg_idx = fcoe_rx_i;
-		adapter->tx_ring[f->mask + i]->reg_idx = fcoe_tx_i;
+		adapter->rx_ring[f->offset + i]->reg_idx = fcoe_rx_i;
+		adapter->tx_ring[f->offset + i]->reg_idx = fcoe_tx_i;
 	}
 	return true;
 }
@@ -327,10 +327,7 @@ static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
  * @adapter: board private structure to initialize
  *
  * FCoE RX FCRETA can use up to 8 rx queues for up to 8 different exchanges.
- * The ring feature mask is not used as a mask for FCoE, as it can take any 8
- * rx queues out of the max number of rx queues, instead, it is used as the
- * index of the first rx queue used by FCoE.
- *
+ * Offset is used as the index of the first rx queue used by FCoE.
  **/
 static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 {
@@ -353,7 +350,7 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 	}
 
 	/* adding FCoE rx rings to the end */
-	f->mask = adapter->num_rx_queues;
+	f->offset = adapter->num_rx_queues;
 	adapter->num_rx_queues += f->indices;
 	adapter->num_tx_queues += f->indices;
 
@@ -388,7 +385,7 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 
 #ifdef IXGBE_FCOE
 	/* FCoE enabled queues require special configuration indexed
-	 * by feature specific indices and mask. Here we map FCoE
+	 * by feature specific indices and offset. Here we map FCoE
 	 * indices onto the DCB queue pairs allowing FCoE to own
 	 * configuration later.
 	 */
@@ -401,7 +398,7 @@ static inline bool ixgbe_set_dcb_queues(struct ixgbe_adapter *adapter)
 		ixgbe_dcb_unpack_map(&adapter->dcb_cfg, DCB_TX_CONFIG, prio_tc);
 		tc = prio_tc[adapter->fcoe.up];
 		f->indices = dev->tc_to_txq[tc].count;
-		f->mask = dev->tc_to_txq[tc].offset;
+		f->offset = dev->tc_to_txq[tc].offset;
 	}
 #endif
 
@@ -632,8 +629,8 @@ static int ixgbe_alloc_q_vector(struct ixgbe_adapter *adapter,
 		if (adapter->netdev->features & NETIF_F_FCOE_MTU) {
 			struct ixgbe_ring_feature *f;
 			f = &adapter->ring_feature[RING_F_FCOE];
-			if ((rxr_idx >= f->mask) &&
-			    (rxr_idx < f->mask + f->indices))
+			if ((rxr_idx >= f->offset) &&
+			    (rxr_idx < f->offset + f->indices))
 				set_bit(__IXGBE_RX_FCOE, &ring->state);
 		}
 

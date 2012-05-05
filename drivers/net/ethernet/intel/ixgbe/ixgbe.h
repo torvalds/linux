@@ -280,7 +280,8 @@ enum ixgbe_ring_f_enum {
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
 	u16 indices;	/* current value of indices */
-	int mask;
+	u16 mask;	/* Mask used for feature to ring mapping */
+	u16 offset;	/* offset to start of feature */
 } ____cacheline_internodealigned_in_smp;
 
 /*

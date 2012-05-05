@@ -6211,7 +6211,7 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 
 		while (txq >= f->indices)
 			txq -= f->indices;
-		txq += adapter->ring_feature[RING_F_FCOE].mask;
+		txq += adapter->ring_feature[RING_F_FCOE].offset;
 
 		return txq;
 	}
