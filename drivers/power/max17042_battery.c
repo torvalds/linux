@@ -62,9 +62,13 @@
 #define dP_ACC_100	0x1900
 #define dP_ACC_200	0x3200
 
+#define MAX17042_IC_VERSION	0x0092
+#define MAX17047_IC_VERSION	0x00AC	/* same for max17050 */
+
 struct max17042_chip {
 	struct i2c_client *client;
 	struct power_supply battery;
+	enum max170xx_chip_type chip_type;
 	struct max17042_platform_data *pdata;
 	struct work_struct work;
 	int    init_complete;
@@ -152,7 +156,10 @@ static int max17042_get_property(struct power_supply *psy,
 		val->intval *= 20000; /* Units of LSB = 20mV */
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
-		ret = max17042_read_reg(chip->client, MAX17042_V_empty);
+		if (chip->chip_type == MAX17042)
+			ret = max17042_read_reg(chip->client, MAX17042_V_empty);
+		else
+			ret = max17042_read_reg(chip->client, MAX17047_V_empty);
 		if (ret < 0)
 			return ret;
 
@@ -389,6 +396,9 @@ static void max17042_write_config_regs(struct max17042_chip *chip)
 	max17042_write_reg(chip->client, MAX17042_FilterCFG,
 			config->filter_cfg);
 	max17042_write_reg(chip->client, MAX17042_RelaxCFG, config->relax_cfg);
+	if (chip->chip_type == MAX17047)
+		max17042_write_reg(chip->client, MAX17047_FullSOCThr,
+						config->full_soc_thresh);
 }
 
 static void  max17042_write_custom_regs(struct max17042_chip *chip)
@@ -399,12 +409,23 @@ static void  max17042_write_custom_regs(struct max17042_chip *chip)
 				config->rcomp0);
 	max17042_write_verify_reg(chip->client, MAX17042_TempCo,
 				config->tcompc0);
-	max17042_write_reg(chip->client, MAX17042_EmptyTempCo,
-			config->empty_tempco);
-	max17042_write_verify_reg(chip->client, MAX17042_K_empty0,
-				config->kempty0);
 	max17042_write_verify_reg(chip->client, MAX17042_ICHGTerm,
 				config->ichgt_term);
+	if (chip->chip_type == MAX17042) {
+		max17042_write_reg(chip->client, MAX17042_EmptyTempCo,
+					config->empty_tempco);
+		max17042_write_verify_reg(chip->client, MAX17042_K_empty0,
+					config->kempty0);
+	} else {
+		max17042_write_verify_reg(chip->client, MAX17047_QRTbl00,
+						config->qrtbl00);
+		max17042_write_verify_reg(chip->client, MAX17047_QRTbl10,
+						config->qrtbl10);
+		max17042_write_verify_reg(chip->client, MAX17047_QRTbl20,
+						config->qrtbl20);
+		max17042_write_verify_reg(chip->client, MAX17047_QRTbl30,
+						config->qrtbl30);
+	}
 }
 
 static void max17042_update_capacity_regs(struct max17042_chip *chip)
@@ -460,6 +481,8 @@ static void max17042_load_new_capacity_params(struct max17042_chip *chip)
 			config->design_cap);
 	max17042_write_verify_reg(chip->client, MAX17042_FullCAPNom,
 			config->fullcapnom);
+	/* Update SOC register with new SOC */
+	max17042_write_reg(chip->client, MAX17042_RepSOC, vfSoc);
 }
 
 /*
@@ -496,20 +519,28 @@ static inline void max17042_override_por_values(struct max17042_chip *chip)
 
 	max17042_override_por(client, MAX17042_FullCAP, config->fullcap);
 	max17042_override_por(client, MAX17042_FullCAPNom, config->fullcapnom);
-	max17042_override_por(client, MAX17042_SOC_empty, config->socempty);
+	if (chip->chip_type == MAX17042)
+		max17042_override_por(client, MAX17042_SOC_empty,
+						config->socempty);
 	max17042_override_por(client, MAX17042_LAvg_empty, config->lavg_empty);
 	max17042_override_por(client, MAX17042_dQacc, config->dqacc);
 	max17042_override_por(client, MAX17042_dPacc, config->dpacc);
 
-	max17042_override_por(client, MAX17042_V_empty, config->vempty);
+	if (chip->chip_type == MAX17042)
+		max17042_override_por(client, MAX17042_V_empty, config->vempty);
+	else
+		max17042_override_por(client, MAX17047_V_empty, config->vempty);
 	max17042_override_por(client, MAX17042_TempNom, config->temp_nom);
 	max17042_override_por(client, MAX17042_TempLim, config->temp_lim);
 	max17042_override_por(client, MAX17042_FCTC, config->fctc);
 	max17042_override_por(client, MAX17042_RCOMP0, config->rcomp0);
 	max17042_override_por(client, MAX17042_TempCo, config->tcompc0);
-	max17042_override_por(client, MAX17042_EmptyTempCo,
-			config->empty_tempco);
-	max17042_override_por(client, MAX17042_K_empty0, config->kempty0);
+	if (chip->chip_type) {
+		max17042_override_por(client, MAX17042_EmptyTempCo,
+					config->empty_tempco);
+		max17042_override_por(client, MAX17042_K_empty0,
+					config->kempty0);
+	}
 }
 
 static int max17042_init_chip(struct max17042_chip *chip)
@@ -666,7 +697,19 @@ static int __devinit max17042_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, chip);
 
-	chip->battery.name		= "max17042_battery";
+	ret = max17042_read_reg(chip->client, MAX17042_DevName);
+	if (ret == MAX17042_IC_VERSION) {
+		dev_dbg(&client->dev, "chip type max17042 detected\n");
+		chip->chip_type = MAX17042;
+	} else if (ret == MAX17047_IC_VERSION) {
+		dev_dbg(&client->dev, "chip type max17047/50 detected\n");
+		chip->chip_type = MAX17047;
+	} else {
+		dev_err(&client->dev, "device version mismatch: %x\n", ret);
+		return -EIO;
+	}
+
+	chip->battery.name		= "max170xx_battery";
 	chip->battery.type		= POWER_SUPPLY_TYPE_BATTERY;
 	chip->battery.get_property	= max17042_get_property;
 	chip->battery.properties	= max17042_battery_props;
@@ -778,6 +821,8 @@ static const struct dev_pm_ops max17042_pm_ops = {
 #ifdef CONFIG_OF
 static const struct of_device_id max17042_dt_match[] = {
 	{ .compatible = "maxim,max17042" },
+	{ .compatible = "maxim,max17047" },
+	{ .compatible = "maxim,max17050" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, max17042_dt_match);
@@ -785,6 +830,8 @@ MODULE_DEVICE_TABLE(of, max17042_dt_match);
 
 static const struct i2c_device_id max17042_id[] = {
 	{ "max17042", 0 },
+	{ "max17047", 1 },
+	{ "max17050", 2 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, max17042_id);
