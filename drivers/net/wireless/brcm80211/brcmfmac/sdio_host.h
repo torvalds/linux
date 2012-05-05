@@ -168,15 +168,6 @@ struct brcmf_sdio_dev {
 extern int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
-/* Access SDIO address space (e.g. CCCR) using CMD52 (single-byte interface).
- *   fn:   function number
- *   addr: unmodified SDIO-space address
- *   data: data byte to write
- *   err:  pointer to error code (or NULL)
- */
-extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
-				   u32 addr, u8 data, int *err);
-
 /* Synchronous access to device (client) core registers via CMD53 to F1.
  *   addr: backplane address (i.e. >= regsva from attach)
  *   size: register width in bytes (2 or 4)

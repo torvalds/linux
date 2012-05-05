@@ -87,15 +87,13 @@ int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev)
 	/* must configure SDIO_CCCR_IENx to enable irq */
 	data = brcmf_sdio_regrb(sdiodev, SDIO_CCCR_IENx, &ret);
 	data |= 1 << SDIO_FUNC_1 | 1 << SDIO_FUNC_2 | 1;
-	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_IENx,
-			       data, &ret);
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, data, &ret);
 
 	/* redirect, configure ane enable io for interrupt signal */
 	data = SDIO_SEPINT_MASK | SDIO_SEPINT_OE;
 	if (sdiodev->irq_flags | IRQF_TRIGGER_HIGH)
 		data |= SDIO_SEPINT_ACT_HI;
-	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_BRCM_SEPINT,
-			       data, &ret);
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, data, &ret);
 
 	return 0;
 }
@@ -104,9 +102,8 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 {
 	brcmf_dbg(TRACE, "Entering\n");
 
-	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_BRCM_SEPINT,
-			       0, NULL);
-	brcmf_sdcard_cfg_write(sdiodev, SDIO_FUNC_0, SDIO_CCCR_IENx, 0, NULL);
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_BRCM_SEPINT, 0, NULL);
+	brcmf_sdio_regwb(sdiodev, SDIO_CCCR_IENx, 0, NULL);
 
 	if (sdiodev->irq_wake) {
 		disable_irq_wake(sdiodev->irq);
@@ -156,27 +153,6 @@ int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev)
 	return 0;
 }
 #endif		/* CONFIG_BRCMFMAC_SDIO_OOB */
-
-void
-brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint fnc_num, u32 addr,
-		       u8 data, int *err)
-{
-	int status;
-	s32 retry = 0;
-
-	do {
-		if (retry)	/* wait for 1 ms till bus get settled down */
-			udelay(1000);
-		status = brcmf_sdioh_request_byte(sdiodev, SDIOH_WRITE, fnc_num,
-						  addr, (u8 *) &data);
-	} while (status != 0
-		 && (retry++ < SDIOH_API_ACCESS_RETRY_LIMIT));
-	if (err)
-		*err = status;
-
-	brcmf_dbg(INFO, "fun = %d, addr = 0x%x, u8data = 0x%x\n",
-		  fnc_num, addr, data);
-}
 
 int
 brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
