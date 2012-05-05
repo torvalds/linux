@@ -2284,7 +2284,6 @@ static int em28xx_v4l2_close(struct file *filp)
 	videobuf_mmap_free(&fh->vb_vbiq);
 	kfree(fh);
 	dev->users--;
-	wake_up_interruptible_nr(&dev->open, 1);
 	return 0;
 }
 

@@ -570,7 +570,6 @@ struct em28xx {
 	struct mutex ctrl_urb_lock;	/* protects urb_buf */
 	/* spinlock_t queue_lock; */
 	struct list_head inqueue, outqueue;
-	wait_queue_head_t open, wait_frame, wait_stream;
 	struct video_device *vbi_dev;
 	struct video_device *radio_dev;
 

@@ -2945,9 +2945,6 @@ static int em28xx_init_dev(struct em28xx *dev, struct usb_device *udev,
 	dev->udev = udev;
 	mutex_init(&dev->ctrl_urb_lock);
 	spin_lock_init(&dev->slock);
-	init_waitqueue_head(&dev->open);
-	init_waitqueue_head(&dev->wait_frame);
-	init_waitqueue_head(&dev->wait_stream);
 
 	dev->em28xx_write_regs = em28xx_write_regs;
 	dev->em28xx_read_reg = em28xx_read_reg;
@@ -3385,8 +3382,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 	   resources */
 	mutex_lock(&dev->lock);
 
-	wake_up_interruptible_all(&dev->open);
-
 	v4l2_device_disconnect(&dev->v4l2_dev);
 
 	if (dev->users) {
@@ -3398,8 +3393,6 @@ static void em28xx_usb_disconnect(struct usb_interface *interface)
 		dev->state |= DEV_MISCONFIGURED;
 		em28xx_uninit_isoc(dev, dev->mode);
 		dev->state |= DEV_DISCONNECTED;
-		wake_up_interruptible(&dev->wait_frame);
-		wake_up_interruptible(&dev->wait_stream);
 	} else {
 		dev->state |= DEV_DISCONNECTED;
 		em28xx_release_resources(dev);
