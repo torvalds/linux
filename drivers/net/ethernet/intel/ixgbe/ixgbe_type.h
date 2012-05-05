@@ -1452,6 +1452,7 @@ enum {
 #define IXGBE_ETQF_1588         0x40000000 /* bit 30 */
 #define IXGBE_ETQF_FILTER_EN    0x80000000 /* bit 31 */
 #define IXGBE_ETQF_POOL_ENABLE   (1 << 26) /* bit 26 */
+#define IXGBE_ETQF_POOL_SHIFT		20
 
 #define IXGBE_ETQS_RX_QUEUE     0x007F0000 /* bits 22:16 */
 #define IXGBE_ETQS_RX_QUEUE_SHIFT       16
