@@ -680,7 +680,7 @@ void sysfs_del_hardif(struct kobject **hardif_obj)
 int throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
 		 enum uev_action action, const char *data)
 {
-	int ret = -1;
+	int ret = -ENOMEM;
 	struct hard_iface *primary_if = NULL;
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };

@@ -626,7 +626,7 @@ static int generate_vis_packet(struct bat_priv *bat_priv)
 		best_tq = find_best_vis_server(bat_priv, info);
 
 		if (best_tq < 0)
-			return -1;
+			return best_tq;
 	}
 
 	for (i = 0; i < hash->size; i++) {
@@ -878,7 +878,7 @@ int vis_init(struct bat_priv *bat_priv)
 	int hash_added;
 
 	if (bat_priv->vis_hash)
-		return 1;
+		return 0;
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
 
@@ -929,7 +929,7 @@ int vis_init(struct bat_priv *bat_priv)
 
 	spin_unlock_bh(&bat_priv->vis_hash_lock);
 	start_vis_timer(bat_priv);
-	return 1;
+	return 0;
 
 free_info:
 	kfree(bat_priv->my_vis_info);
@@ -937,7 +937,7 @@ free_info:
 err:
 	spin_unlock_bh(&bat_priv->vis_hash_lock);
 	vis_quit(bat_priv);
-	return 0;
+	return -ENOMEM;
 }
 
 /* Decrease the reference count on a hash item info */

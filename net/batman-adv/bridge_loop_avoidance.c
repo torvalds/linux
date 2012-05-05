@@ -1164,13 +1164,13 @@ int bla_init(struct bat_priv *bat_priv)
 	bat_priv->bcast_duplist_curr = 0;
 
 	if (bat_priv->claim_hash)
-		return 1;
+		return 0;
 
 	bat_priv->claim_hash = hash_new(128);
 	bat_priv->backbone_hash = hash_new(32);
 
 	if (!bat_priv->claim_hash || !bat_priv->backbone_hash)
-		return -1;
+		return -ENOMEM;
 
 	batadv_hash_set_lock_class(bat_priv->claim_hash,
 				   &claim_hash_lock_class_key);
@@ -1180,7 +1180,7 @@ int bla_init(struct bat_priv *bat_priv)
 	bat_dbg(DBG_BLA, bat_priv, "bla hashes initialized\n");
 
 	bla_start_timer(bat_priv);
-	return 1;
+	return 0;
 }
 
 /**

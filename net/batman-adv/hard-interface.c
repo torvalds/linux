@@ -306,10 +306,8 @@ int hardif_enable_interface(struct hard_iface *hard_iface,
 	bat_priv = netdev_priv(hard_iface->soft_iface);
 
 	ret = bat_priv->bat_algo_ops->bat_iface_enable(hard_iface);
-	if (ret < 0) {
-		ret = -ENOMEM;
+	if (ret < 0)
 		goto err_dev;
-	}
 
 	hard_iface->if_num = bat_priv->num_ifaces;
 	bat_priv->num_ifaces++;

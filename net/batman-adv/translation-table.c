@@ -181,14 +181,14 @@ int tt_len(int changes_num)
 static int tt_local_init(struct bat_priv *bat_priv)
 {
 	if (bat_priv->tt_local_hash)
-		return 1;
+		return 0;
 
 	bat_priv->tt_local_hash = hash_new(1024);
 
 	if (!bat_priv->tt_local_hash)
-		return 0;
+		return -ENOMEM;
 
-	return 1;
+	return 0;
 }
 
 void tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
@@ -491,14 +491,14 @@ static void tt_local_table_free(struct bat_priv *bat_priv)
 static int tt_global_init(struct bat_priv *bat_priv)
 {
 	if (bat_priv->tt_global_hash)
-		return 1;
+		return 0;
 
 	bat_priv->tt_global_hash = hash_new(1024);
 
 	if (!bat_priv->tt_global_hash)
-		return 0;
+		return -ENOMEM;
 
-	return 1;
+	return 0;
 }
 
 static void tt_changes_list_free(struct bat_priv *bat_priv)
@@ -1773,11 +1773,15 @@ out:
 
 int tt_init(struct bat_priv *bat_priv)
 {
-	if (!tt_local_init(bat_priv))
-		return 0;
+	int ret;
 
-	if (!tt_global_init(bat_priv))
-		return 0;
+	ret = tt_local_init(bat_priv);
+	if (ret < 0)
+		return ret;
+
+	ret = tt_global_init(bat_priv);
+	if (ret < 0)
+		return ret;
 
 	tt_start_timer(bat_priv);
 

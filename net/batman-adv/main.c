@@ -92,6 +92,7 @@ static void __exit batman_exit(void)
 int mesh_init(struct net_device *soft_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(soft_iface);
+	int ret;
 
 	spin_lock_init(&bat_priv->forw_bat_list_lock);
 	spin_lock_init(&bat_priv->forw_bcast_list_lock);
@@ -110,30 +111,32 @@ int mesh_init(struct net_device *soft_iface)
 	INIT_LIST_HEAD(&bat_priv->tt_req_list);
 	INIT_LIST_HEAD(&bat_priv->tt_roam_list);
 
-	if (originator_init(bat_priv) < 1)
+	ret = originator_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
-	if (tt_init(bat_priv) < 1)
+	ret = tt_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
 	tt_local_add(soft_iface, soft_iface->dev_addr, NULL_IFINDEX);
 
-	if (vis_init(bat_priv) < 1)
+	ret = vis_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
-	if (bla_init(bat_priv) < 1)
+	ret = bla_init(bat_priv);
+	if (ret < 0)
 		goto err;
 
 	atomic_set(&bat_priv->gw_reselect, 0);
 	atomic_set(&bat_priv->mesh_state, MESH_ACTIVE);
-	goto end;
+
+	return 0;
 
 err:
 	mesh_free(soft_iface);
-	return -1;
-
-end:
-	return 0;
+	return ret;
 }
 
 void mesh_free(struct net_device *soft_iface)
@@ -319,12 +322,13 @@ static struct bat_algo_ops *bat_algo_get(char *name)
 int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 {
 	struct bat_algo_ops *bat_algo_ops_tmp;
-	int ret = -1;
+	int ret;
 
 	bat_algo_ops_tmp = bat_algo_get(bat_algo_ops->name);
 	if (bat_algo_ops_tmp) {
 		pr_info("Trying to register already registered routing algorithm: %s\n",
 			bat_algo_ops->name);
+		ret = -EEXIST;
 		goto out;
 	}
 
@@ -337,6 +341,7 @@ int bat_algo_register(struct bat_algo_ops *bat_algo_ops)
 	    !bat_algo_ops->bat_ogm_emit) {
 		pr_info("Routing algo '%s' does not implement required ops\n",
 			bat_algo_ops->name);
+		ret = -EINVAL;
 		goto out;
 	}
 
@@ -351,7 +356,7 @@ out:
 int bat_algo_select(struct bat_priv *bat_priv, char *name)
 {
 	struct bat_algo_ops *bat_algo_ops;
-	int ret = -1;
+	int ret = -EINVAL;
 
 	bat_algo_ops = bat_algo_get(name);
 	if (!bat_algo_ops)
