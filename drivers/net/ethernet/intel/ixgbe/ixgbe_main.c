@@ -4119,6 +4119,10 @@ void ixgbe_reset(struct ixgbe_adapter *adapter)
 
 	/* reprogram the RAR[0] in case user changed it. */
 	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, VMDQ_P(0), IXGBE_RAH_AV);
+
+	/* update SAN MAC vmdq pool selection */
+	if (hw->mac.san_mac_rar_index)
+		hw->mac.ops.set_vmdq_san_mac(hw, VMDQ_P(0));
 }
 
 /**
@@ -6509,12 +6513,15 @@ static int ixgbe_add_sanmac_netdev(struct net_device *dev)
 {
 	int err = 0;
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
-	struct ixgbe_mac_info *mac = &adapter->hw.mac;
+	struct ixgbe_hw *hw = &adapter->hw;
 
-	if (is_valid_ether_addr(mac->san_addr)) {
+	if (is_valid_ether_addr(hw->mac.san_addr)) {
 		rtnl_lock();
-		err = dev_addr_add(dev, mac->san_addr, NETDEV_HW_ADDR_T_SAN);
+		err = dev_addr_add(dev, hw->mac.san_addr, NETDEV_HW_ADDR_T_SAN);
 		rtnl_unlock();
+
+		/* update SAN MAC vmdq pool selection */
+		hw->mac.ops.set_vmdq_san_mac(hw, VMDQ_P(0));
 	}
 	return err;
 }

@@ -2847,6 +2847,7 @@ struct ixgbe_mac_operations {
 	s32 (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32, u32);
 	s32 (*clear_rar)(struct ixgbe_hw *, u32);
 	s32 (*set_vmdq)(struct ixgbe_hw *, u32, u32);
+	s32 (*set_vmdq_san_mac)(struct ixgbe_hw *, u32);
 	s32 (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
 	s32 (*init_rx_addrs)(struct ixgbe_hw *);
 	s32 (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
@@ -2922,6 +2923,7 @@ struct ixgbe_mac_info {
 	bool                            orig_link_settings_stored;
 	bool                            autotry_restart;
 	u8                              flags;
+	u8				san_mac_rar_index;
 	struct ixgbe_thermal_sensor_data  thermal_sensor_data;
 };
 
