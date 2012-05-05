@@ -119,7 +119,7 @@ static int bcma_extpci_read_config(struct bcma_drv_pci *pc, unsigned int dev,
 		if (unlikely(!addr))
 			goto out;
 		err = -ENOMEM;
-		mmio = ioremap_nocache(addr, len);
+		mmio = ioremap_nocache(addr, sizeof(val));
 		if (!mmio)
 			goto out;
 
@@ -171,7 +171,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 			addr = pc->core->addr + BCMA_CORE_PCI_PCICFG0;
 			addr |= (func << 8);
 			addr |= (off & 0xfc);
-			mmio = ioremap_nocache(addr, len);
+			mmio = ioremap_nocache(addr, sizeof(val));
 			if (!mmio)
 				goto out;
 		}
@@ -180,7 +180,7 @@ static int bcma_extpci_write_config(struct bcma_drv_pci *pc, unsigned int dev,
 		if (unlikely(!addr))
 			goto out;
 		err = -ENOMEM;
-		mmio = ioremap_nocache(addr, len);
+		mmio = ioremap_nocache(addr, sizeof(val));
 		if (!mmio)
 			goto out;
 
