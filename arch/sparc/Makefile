@@ -72,17 +72,6 @@ libs-y                 += arch/sparc/lib/
 
 drivers-$(CONFIG_OPROFILE)	+= arch/sparc/oprofile/
 
-# Export what is needed by arch/sparc/boot/Makefile
-export VMLINUX_INIT VMLINUX_MAIN
-VMLINUX_INIT := $(head-y) $(init-y)
-VMLINUX_MAIN := $(core-y) kernel/ mm/ fs/ ipc/ security/ crypto/ block/
-VMLINUX_MAIN += $(patsubst %/, %/lib.a, $(libs-y)) $(libs-y)
-VMLINUX_MAIN += $(drivers-y) $(net-y)
-
-ifdef CONFIG_KALLSYMS
-export kallsyms.o := .tmp_kallsyms2.o
-endif
-
 boot := arch/sparc/boot
 
 # Default target

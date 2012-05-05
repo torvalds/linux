@@ -39,11 +39,15 @@ define rule_image
 	echo 'cmd_$@ := $(cmd_image)' > $(@D)/.$(@F).cmd
 endef
 
-BTOBJS := $(patsubst %/, %/built-in.o, $(VMLINUX_INIT))
-BTLIBS := $(patsubst %/, %/built-in.o, $(VMLINUX_MAIN))
-LDFLAGS_image := -T arch/sparc/kernel/vmlinux.lds $(BTOBJS) \
-                  --start-group $(BTLIBS) --end-group \
-                  $(kallsyms.o) $(obj)/btfix.o
+# Support for kallsyms
+kallsyms-$(CONFIG_KALLSYMS) := .tmp_kallsyms2.o
+ifdef KALLSYMS_EXTRA_PASS
+        kallsyms-$(CONFIG_KALLSYMS) := .tmp_kallsyms3.o
+endif
+
+LDFLAGS_image := -T $(KBUILD_LDS) $(KBUILD_VMLINUX_INIT)           \
+                  --start-group $(KBUILD_VMLINUX_MAIN) --end-group \
+                  $(kallsyms-y) $(obj)/btfix.o
 
 # Link the final image including btfixup'ed symbols.
 # This is a replacement for the link done in the top-level Makefile.
