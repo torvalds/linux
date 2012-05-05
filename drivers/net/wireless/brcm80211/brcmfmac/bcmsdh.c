@@ -237,8 +237,7 @@ brcmf_sdio_regrw_helper(struct brcmf_sdio_dev *sdiodev, u32 addr,
 						       func_num, addr, data, 4);
 	} while (ret != 0 && retry++ < SDIOH_API_ACCESS_RETRY_LIMIT);
 
-	sdiodev->regfail = (ret != 0);
-	if (sdiodev->regfail)
+	if (ret != 0)
 		brcmf_dbg(ERROR, "failed with %d\n", ret);
 
 	return ret;
@@ -296,11 +295,6 @@ void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 
 	if (ret)
 		*ret = retval;
-}
-
-bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev)
-{
-	return sdiodev->regfail;
 }
 
 static int brcmf_sdcard_recv_prepare(struct brcmf_sdio_dev *sdiodev, uint fn,

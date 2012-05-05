@@ -1026,9 +1026,9 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 	/* Wait until the packet has been flushed (device/FIFO stable) */
 	for (lastrbc = retries = 0xffff; retries > 0; retries--) {
 		hi = brcmf_sdio_regrb(bus->sdiodev,
-				      SBSDIO_FUNC1_RFRAMEBCHI, NULL);
+				      SBSDIO_FUNC1_RFRAMEBCHI, &err);
 		lo = brcmf_sdio_regrb(bus->sdiodev,
-				      SBSDIO_FUNC1_RFRAMEBCLO, NULL);
+				      SBSDIO_FUNC1_RFRAMEBCLO, &err);
 		bus->f1regdata += 2;
 
 		if ((hi == 0) && (lo == 0))
@@ -1060,7 +1060,7 @@ static void brcmf_sdbrcm_rxfail(struct brcmf_sdio *bus, bool abort, bool rtx)
 	bus->nextlen = 0;
 
 	/* If we can't reach the device, signal failure */
-	if (err || brcmf_sdcard_regfail(bus->sdiodev))
+	if (err)
 		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 }
 
@@ -2221,10 +2221,11 @@ static uint brcmf_sdbrcm_sendfromq(struct brcmf_sdio *bus, uint maxframes)
 		/* In poll mode, need to check for other events */
 		if (!bus->intr && cnt) {
 			/* Check device status, signal pending interrupt */
-			r_sdreg32(bus, &intstatus,
-				  offsetof(struct sdpcmd_regs, intstatus));
+			ret = r_sdreg32(bus, &intstatus,
+					offsetof(struct sdpcmd_regs,
+						 intstatus));
 			bus->f2txdata++;
-			if (brcmf_sdcard_regfail(bus->sdiodev))
+			if (ret != 0)
 				break;
 			if (intstatus & bus->hostintmask)
 				bus->ipend = true;
@@ -2347,6 +2348,7 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	uint framecnt = 0;	/* Temporary counter of tx/rx frames */
 	bool rxdone = true;	/* Flag for no more read data */
 	bool resched = false;	/* Flag indicating resched wanted */
+	int err;
 
 	brcmf_dbg(TRACE, "Enter\n");
 
@@ -2357,7 +2359,6 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 
 	/* If waiting for HTAVAIL, check status */
 	if (bus->clkstate == CLK_PENDING) {
-		int err;
 		u8 clkctl, devctl = 0;
 
 #ifdef DEBUG
@@ -2414,16 +2415,17 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	/* Pending interrupt indicates new device status */
 	if (bus->ipend) {
 		bus->ipend = false;
-		r_sdreg32(bus, &newstatus,
-			  offsetof(struct sdpcmd_regs, intstatus));
+		err = r_sdreg32(bus, &newstatus,
+				offsetof(struct sdpcmd_regs, intstatus));
 		bus->f1regdata++;
-		if (brcmf_sdcard_regfail(bus->sdiodev))
+		if (err != 0)
 			newstatus = 0;
 		newstatus &= bus->hostintmask;
 		bus->fcstate = !!(newstatus & I_HMB_FC_STATE);
 		if (newstatus) {
-			w_sdreg32(bus, newstatus,
-				  offsetof(struct sdpcmd_regs, intstatus));
+			err = w_sdreg32(bus, newstatus,
+					offsetof(struct sdpcmd_regs,
+						 intstatus));
 			bus->f1regdata++;
 		}
 	}
@@ -2438,11 +2440,11 @@ static bool brcmf_sdbrcm_dpc(struct brcmf_sdio *bus)
 	 */
 	if (intstatus & I_HMB_FC_CHANGE) {
 		intstatus &= ~I_HMB_FC_CHANGE;
-		w_sdreg32(bus, I_HMB_FC_CHANGE,
-			  offsetof(struct sdpcmd_regs, intstatus));
+		err = w_sdreg32(bus, I_HMB_FC_CHANGE,
+				offsetof(struct sdpcmd_regs, intstatus));
 
-		r_sdreg32(bus, &newstatus,
-			  offsetof(struct sdpcmd_regs, intstatus));
+		err = r_sdreg32(bus, &newstatus,
+				offsetof(struct sdpcmd_regs, intstatus));
 		bus->f1regdata += 2;
 		bus->fcstate =
 		    !!(newstatus & (I_HMB_FC_STATE | I_HMB_FC_CHANGE));
@@ -2513,17 +2515,17 @@ clkwait:
 			brcmf_sdcard_abort(bus->sdiodev, SDIO_FUNC_2);
 
 			brcmf_sdio_regwb(bus->sdiodev, SBSDIO_FUNC1_FRAMECTRL,
-					 SFC_WF_TERM, NULL);
+					 SFC_WF_TERM, &err);
 			bus->f1regdata++;
 
 			for (i = 0; i < 3; i++) {
 				u8 hi, lo;
 				hi = brcmf_sdio_regrb(bus->sdiodev,
 						      SBSDIO_FUNC1_WFRAMEBCHI,
-						      NULL);
+						      &err);
 				lo = brcmf_sdio_regrb(bus->sdiodev,
 						      SBSDIO_FUNC1_WFRAMEBCLO,
-						      NULL);
+						      &err);
 				bus->f1regdata += 2;
 				if ((hi == 0) && (lo == 0))
 					break;
@@ -2550,10 +2552,8 @@ clkwait:
 		 else await next interrupt */
 	/* On failed register access, all bets are off:
 		 no resched or interrupts */
-	if ((bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) ||
-	    brcmf_sdcard_regfail(bus->sdiodev)) {
-		brcmf_dbg(ERROR, "failed backplane access over SDIO, halting operation %d\n",
-			  brcmf_sdcard_regfail(bus->sdiodev));
+	if ((bus->sdiodev->bus_if->state == BRCMF_BUS_DOWN) || (err != 0)) {
+		brcmf_dbg(ERROR, "failed backplane access over SDIO, halting operation\n");
 		bus->sdiodev->bus_if->state = BRCMF_BUS_DOWN;
 		bus->intstatus = 0;
 	} else if (bus->clkstate == CLK_PENDING) {

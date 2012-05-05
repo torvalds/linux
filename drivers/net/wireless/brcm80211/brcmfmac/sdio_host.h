@@ -146,7 +146,6 @@ struct brcmf_sdio_dev {
 	u8 num_funcs;			/* Supported funcs on client */
 	u32 func_cis_ptr[SDIOD_MAX_IOFUNCS];
 	u32 sbwad;			/* Save backplane window address */
-	bool regfail;			/* status of last reg_r/w call */
 	void *bus;
 	atomic_t suspend;		/* suspend flag */
 	wait_queue_head_t request_byte_wait;
@@ -175,9 +174,6 @@ extern void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			     u8 data, int *ret);
 extern void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
 			     u32 data, int *ret);
-
-/* Indicate if last reg read/write failed */
-extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
 
 /* Buffer transfer to/from device (client) core via cmd53.
  *   fn:       function number
