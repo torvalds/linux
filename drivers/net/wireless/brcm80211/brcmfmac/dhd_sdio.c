@@ -636,8 +636,7 @@ r_sdreg32(struct brcmf_sdio *bus, u32 *regvar, u32 reg_offset, u32 *retryvar)
 	*retryvar = 0;
 	do {
 		*regvar = brcmf_sdcard_reg_read(bus->sdiodev,
-				bus->ci->c_inf[idx].base + reg_offset,
-				sizeof(u32));
+				bus->ci->c_inf[idx].base + reg_offset);
 	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
 		 (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
@@ -3737,7 +3736,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 		brcmf_dbg(ERROR, "FAILED to return to SI_ENUM_BASE\n");
 
 	pr_debug("F1 signature read @0x18000000=0x%4x\n",
-		 brcmf_sdcard_reg_read(bus->sdiodev, SI_ENUM_BASE, 4));
+		 brcmf_sdcard_reg_read(bus->sdiodev, SI_ENUM_BASE));
 
 	/*
 	 * Force PLL off until brcmf_sdio_chip_attach()
@@ -3782,7 +3781,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
 	reg_addr = bus->ci->c_inf[idx].base +
 		   offsetof(struct sdpcmd_regs, corecontrol);
-	reg_val = brcmf_sdcard_reg_read(bus->sdiodev, reg_addr, sizeof(u32));
+	reg_val = brcmf_sdcard_reg_read(bus->sdiodev, reg_addr);
 	brcmf_sdcard_reg_write(bus->sdiodev, reg_addr, sizeof(u32),
 			       reg_val | CC_BPRESEN);
 

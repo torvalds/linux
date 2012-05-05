@@ -222,7 +222,7 @@ brcmf_sdcard_set_sbaddr_window(struct brcmf_sdio_dev *sdiodev, u32 address)
 	return err;
 }
 
-u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
+u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr)
 {
 	int status;
 	u32 word = 0;
@@ -238,34 +238,20 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size)
 	}
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	if (size == 4)
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 
 	status = brcmf_sdioh_request_word(sdiodev, SDIOH_READ, SDIO_FUNC_1,
-					  addr, &word, size);
+					  addr, &word, 4);
 
 	sdiodev->regfail = (status != 0);
 
-	brcmf_dbg(INFO, "u32data = 0x%x\n", word);
-
-	/* if ok, return appropriately masked word */
 	if (status == 0) {
-		switch (size) {
-		case sizeof(u8):
-			return word & 0xff;
-		case sizeof(u16):
-			return word & 0xffff;
-		case sizeof(u32):
-			return word;
-		default:
-			sdiodev->regfail = true;
-
-		}
+		brcmf_dbg(INFO, "data = 0x%x\n", word);
+		return word;
+	} else {
+		brcmf_dbg(ERROR, "failed %d at addr 0x%04x\n", status, addr);
+		return 0xFFFFFFFF;
 	}
-
-	/* otherwise, bad sdio access or invalid size */
-	brcmf_dbg(ERROR, "error reading addr 0x%04x size %d\n", addr, size);
-	return 0xFFFFFFFF;
 }
 
 u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,

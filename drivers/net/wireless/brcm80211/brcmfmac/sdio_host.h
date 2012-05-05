@@ -181,7 +181,7 @@ extern void brcmf_sdcard_cfg_write(struct brcmf_sdio_dev *sdiodev, uint func,
  *   data: data for register write
  */
 extern u32
-brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size);
+brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr);
 
 extern u32
 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
