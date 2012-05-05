@@ -40,6 +40,10 @@
 /* Maximum number of I/O funcs */
 #define SDIOD_MAX_IOFUNCS	7
 
+/* mask of register map */
+#define REG_F0_CCCR_MASK	0xFF
+#define REG_F1_MISC_MASK	0x1FFFF
+
 /* as of sdiod rev 0, supports 3 functions */
 #define SBSDIO_NUM_FUNCTION		3
 
@@ -185,6 +189,14 @@ brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr);
 
 extern u32
 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data);
+
+/* sdio device register access interface */
+extern u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+extern u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
+extern void brcmf_sdio_regwb(struct brcmf_sdio_dev *sdiodev, u32 addr,
+			     u8 data, int *ret);
+extern void brcmf_sdio_regwl(struct brcmf_sdio_dev *sdiodev, u32 addr,
+			     u32 data, int *ret);
 
 /* Indicate if last reg read/write failed */
 extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);
