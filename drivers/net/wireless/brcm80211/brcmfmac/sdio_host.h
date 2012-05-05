@@ -184,8 +184,7 @@ extern u32
 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr);
 
 extern u32
-brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
-		       u32 data);
+brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data);
 
 /* Indicate if last reg read/write failed */
 extern bool brcmf_sdcard_regfail(struct brcmf_sdio_dev *sdiodev);

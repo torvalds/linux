@@ -254,15 +254,14 @@ u32 brcmf_sdcard_reg_read(struct brcmf_sdio_dev *sdiodev, u32 addr)
 	}
 }
 
-u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
-			   u32 data)
+u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data)
 {
 	int status;
 	uint bar0 = addr & ~SBSDIO_SB_OFT_ADDR_MASK;
 	int err = 0;
 
-	brcmf_dbg(INFO, "fun = 1, addr = 0x%x, uint%ddata = 0x%x\n",
-		  addr, size * 8, data);
+	brcmf_dbg(INFO, "fun = 1, addr = 0x%x, uint32data = 0x%x\n",
+		  addr, data);
 
 	if (bar0 != sdiodev->sbwad) {
 		err = brcmf_sdcard_set_sbaddr_window(sdiodev, bar0);
@@ -273,18 +272,17 @@ u32 brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, uint size,
 	}
 
 	addr &= SBSDIO_SB_OFT_ADDR_MASK;
-	if (size == 4)
-		addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
+	addr |= SBSDIO_SB_ACCESS_2_4B_FLAG;
 	status =
 	    brcmf_sdioh_request_word(sdiodev, SDIOH_WRITE, SDIO_FUNC_1,
-				     addr, &data, size);
+				     addr, &data, 4);
 	sdiodev->regfail = (status != 0);
 
 	if (status == 0)
 		return 0;
 
-	brcmf_dbg(ERROR, "error writing 0x%08x to addr 0x%04x size %d\n",
-		  data, addr, size);
+	brcmf_dbg(ERROR, "error writing 0x%08x to addr 0x%04x\n",
+		  data, addr);
 	return 0xFFFFFFFF;
 }
 

@@ -171,7 +171,7 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatelow));
 		brcmf_sdcard_reg_write(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-				4, regdata | SSB_TMSLOW_REJECT);
+				regdata | SSB_TMSLOW_REJECT);
 
 		regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatelow));
@@ -192,7 +192,7 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbimstate)) |
 				SSB_IMSTATE_REJECT;
 			brcmf_sdcard_reg_write(sdiodev,
-				CORE_SB(ci->c_inf[idx].base, sbimstate), 4,
+				CORE_SB(ci->c_inf[idx].base, sbimstate),
 				regdata);
 			regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbimstate));
@@ -204,7 +204,7 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 
 		/* set reset and reject while enabling the clocks */
 		brcmf_sdcard_reg_write(sdiodev,
-			CORE_SB(ci->c_inf[idx].base, sbtmstatelow), 4,
+			CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
 			(SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK |
 			SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET));
 		regdata = brcmf_sdcard_reg_read(sdiodev,
@@ -219,14 +219,14 @@ brcmf_sdio_sb_coredisable(struct brcmf_sdio_dev *sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbimstate)) &
 				~SSB_IMSTATE_REJECT;
 			brcmf_sdcard_reg_write(sdiodev,
-				CORE_SB(ci->c_inf[idx].base, sbimstate), 4,
+				CORE_SB(ci->c_inf[idx].base, sbimstate),
 				regdata);
 		}
 	}
 
 	/* leave reset and reject asserted */
 	brcmf_sdcard_reg_write(sdiodev,
-		CORE_SB(ci->c_inf[idx].base, sbtmstatelow), 4,
+		CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
 		(SSB_TMSLOW_REJECT | SSB_TMSLOW_RESET));
 	udelay(1);
 }
@@ -246,14 +246,13 @@ brcmf_sdio_ai_coredisable(struct brcmf_sdio_dev *sdiodev,
 	if ((regdata & BCMA_RESET_CTL_RESET) != 0)
 		return;
 
-	brcmf_sdcard_reg_write(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			       4, 0);
+	brcmf_sdcard_reg_write(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL, 0);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					ci->c_inf[idx].wrapbase+BCMA_IOCTL);
 	udelay(10);
 
 	brcmf_sdcard_reg_write(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-			       4, BCMA_RESET_CTL_RESET);
+			       BCMA_RESET_CTL_RESET);
 	udelay(1);
 }
 
@@ -278,7 +277,7 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 	 * forcing them on throughout the core
 	 */
 	brcmf_sdcard_reg_write(sdiodev,
-			CORE_SB(ci->c_inf[idx].base, sbtmstatelow), 4,
+			CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
 			SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK | SSB_TMSLOW_RESET);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatelow));
@@ -289,18 +288,18 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatehigh));
 	if (regdata & SSB_TMSHIGH_SERR)
 		brcmf_sdcard_reg_write(sdiodev,
-			CORE_SB(ci->c_inf[idx].base, sbtmstatehigh), 4, 0);
+			CORE_SB(ci->c_inf[idx].base, sbtmstatehigh), 0);
 
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbimstate));
 	if (regdata & (SSB_IMSTATE_IBE | SSB_IMSTATE_TO))
 		brcmf_sdcard_reg_write(sdiodev,
-			CORE_SB(ci->c_inf[idx].base, sbimstate), 4,
+			CORE_SB(ci->c_inf[idx].base, sbimstate),
 			regdata & ~(SSB_IMSTATE_IBE | SSB_IMSTATE_TO));
 
 	/* clear reset and allow it to propagate throughout the core */
 	brcmf_sdcard_reg_write(sdiodev,
-		CORE_SB(ci->c_inf[idx].base, sbtmstatelow), 4,
+		CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
 		SSB_TMSLOW_FGC | SSB_TMSLOW_CLOCK);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatelow));
@@ -309,7 +308,7 @@ brcmf_sdio_sb_resetcore(struct brcmf_sdio_dev *sdiodev,
 	/* leave clock enabled */
 	brcmf_sdcard_reg_write(sdiodev,
 			       CORE_SB(ci->c_inf[idx].base, sbtmstatelow),
-			       4, SSB_TMSLOW_CLOCK);
+			       SSB_TMSLOW_CLOCK);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 				CORE_SB(ci->c_inf[idx].base, sbtmstatelow));
 	udelay(1);
@@ -329,15 +328,15 @@ brcmf_sdio_ai_resetcore(struct brcmf_sdio_dev *sdiodev,
 
 	/* now do initialization sequence */
 	brcmf_sdcard_reg_write(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			       4, BCMA_IOCTL_FGC | BCMA_IOCTL_CLK);
+			       BCMA_IOCTL_FGC | BCMA_IOCTL_CLK);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					ci->c_inf[idx].wrapbase+BCMA_IOCTL);
 	brcmf_sdcard_reg_write(sdiodev, ci->c_inf[idx].wrapbase+BCMA_RESET_CTL,
-			       4, 0);
+			       0);
 	udelay(1);
 
 	brcmf_sdcard_reg_write(sdiodev, ci->c_inf[idx].wrapbase+BCMA_IOCTL,
-			       4, BCMA_IOCTL_CLK);
+			       BCMA_IOCTL_CLK);
 	regdata = brcmf_sdcard_reg_read(sdiodev,
 					ci->c_inf[idx].wrapbase+BCMA_IOCTL);
 	udelay(1);
@@ -522,9 +521,9 @@ int brcmf_sdio_chip_attach(struct brcmf_sdio_dev *sdiodev,
 	brcmf_sdio_chip_buscoresetup(sdiodev, ci);
 
 	brcmf_sdcard_reg_write(sdiodev,
-		CORE_CC_REG(ci->c_inf[0].base, gpiopullup), 4, 0);
+		CORE_CC_REG(ci->c_inf[0].base, gpiopullup), 0);
 	brcmf_sdcard_reg_write(sdiodev,
-		CORE_CC_REG(ci->c_inf[0].base, gpiopulldown), 4, 0);
+		CORE_CC_REG(ci->c_inf[0].base, gpiopulldown), 0);
 
 	*ci_ptr = ci;
 	return 0;
@@ -591,7 +590,7 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 
 		brcmf_sdcard_reg_write(sdiodev,
 			CORE_CC_REG(ci->c_inf[0].base, chipcontrol_addr),
-			4, 1);
+			1);
 		cc_data_temp = brcmf_sdcard_reg_read(sdiodev,
 			CORE_CC_REG(ci->c_inf[0].base, chipcontrol_addr));
 		cc_data_temp &= ~str_mask;
@@ -599,7 +598,7 @@ brcmf_sdio_chip_drivestrengthinit(struct brcmf_sdio_dev *sdiodev,
 		cc_data_temp |= drivestrength_sel;
 		brcmf_sdcard_reg_write(sdiodev,
 			CORE_CC_REG(ci->c_inf[0].base, chipcontrol_addr),
-			4, cc_data_temp);
+			cc_data_temp);
 
 		brcmf_dbg(INFO, "SDIO: %dmA drive strength selected, set to 0x%08x\n",
 			  drivestrength, cc_data_temp);
