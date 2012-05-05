@@ -653,13 +653,13 @@ static void
 w_sdreg32(struct brcmf_sdio *bus, u32 regval, u32 reg_offset, u32 *retryvar)
 {
 	u8 idx = brcmf_sdio_chip_getinfidx(bus->ci, BCMA_CORE_SDIO_DEV);
+	int ret;
 	*retryvar = 0;
 	do {
-		brcmf_sdcard_reg_write(bus->sdiodev,
-				       bus->ci->c_inf[idx].base + reg_offset,
-				       regval);
-	} while (brcmf_sdcard_regfail(bus->sdiodev) &&
-		 (++(*retryvar) <= retry_limit));
+		brcmf_sdio_regwl(bus->sdiodev,
+				 bus->ci->c_inf[idx].base + reg_offset,
+				 regval, &ret);
+	} while ((ret != 0) && (++(*retryvar) <= retry_limit));
 	if (*retryvar) {
 		bus->regfails += (*retryvar-1);
 		if (*retryvar > retry_limit)
@@ -3751,7 +3751,7 @@ brcmf_sdbrcm_probe_attach(struct brcmf_sdio *bus, u32 regsva)
 	reg_addr = bus->ci->c_inf[idx].base +
 		   offsetof(struct sdpcmd_regs, corecontrol);
 	reg_val = brcmf_sdio_regrl(bus->sdiodev, reg_addr, NULL);
-	brcmf_sdcard_reg_write(bus->sdiodev, reg_addr, reg_val | CC_BPRESEN);
+	brcmf_sdio_regwl(bus->sdiodev, reg_addr, reg_val | CC_BPRESEN, NULL);
 
 	brcmu_pktq_init(&bus->txq, (PRIOMASK + 1), TXQLEN);
 

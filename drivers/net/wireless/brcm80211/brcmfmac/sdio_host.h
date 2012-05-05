@@ -168,14 +168,6 @@ struct brcmf_sdio_dev {
 extern int brcmf_sdio_intr_register(struct brcmf_sdio_dev *sdiodev);
 extern int brcmf_sdio_intr_unregister(struct brcmf_sdio_dev *sdiodev);
 
-/* Synchronous access to device (client) core registers via CMD53 to F1.
- *   addr: backplane address (i.e. >= regsva from attach)
- *   size: register width in bytes (2 or 4)
- *   data: data for register write
- */
-extern u32
-brcmf_sdcard_reg_write(struct brcmf_sdio_dev *sdiodev, u32 addr, u32 data);
-
 /* sdio device register access interface */
 extern u8 brcmf_sdio_regrb(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
 extern u32 brcmf_sdio_regrl(struct brcmf_sdio_dev *sdiodev, u32 addr, int *ret);
