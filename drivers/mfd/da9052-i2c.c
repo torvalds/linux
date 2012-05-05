@@ -104,7 +104,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 		struct device_node *np = client->dev.of_node;
 		const struct of_device_id *deviceid;
 
-		deviceid = of_match_node(np, dialog_dt_ids);
+		deviceid = of_match_node(dialog_dt_ids, np);
 		id = (const struct i2c_device_id *)deviceid->data;
 	}
 #endif
