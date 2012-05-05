@@ -132,6 +132,11 @@ static inline void free_task_struct(struct task_struct *tsk)
 
 void __weak arch_release_thread_info(struct thread_info *ti) { }
 
+/*
+ * Allocate pages if THREAD_SIZE is >= PAGE_SIZE, otherwise use a
+ * kmemcache based allocator.
+ */
+# if THREAD_SIZE >= PAGE_SIZE
 static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
 						  int node)
 {
@@ -146,6 +151,28 @@ static inline void free_thread_info(struct thread_info *ti)
 	arch_release_thread_info(ti);
 	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
 }
+# else
+static struct kmem_cache *thread_info_cache;
+
+static struct thread_info *alloc_thread_info_node(struct task_struct *tsk,
+						  int node)
+{
+	return kmem_cache_alloc_node(thread_info_cache, THREADINFO_GFP, node);
+}
+
+static void free_thread_info(struct thread_info *ti)
+{
+	arch_release_thread_info(ti);
+	kmem_cache_free(thread_info_cache, ti);
+}
+
+void thread_info_cache_init(void)
+{
+	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
+					      THREAD_SIZE, 0, NULL);
+	BUG_ON(thread_info_cache == NULL);
+}
+# endif
 #endif
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
