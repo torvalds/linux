@@ -558,6 +558,8 @@ void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd)
 	dwc_otg_pcd_ep_t *ep;
 	
 	gintmsk_data_t intr_mask = {.d32 = 0};
+    
+    SPIN_LOCK(&_pcd->lock);
 
 	num_in_eps = GET_CORE_IF(_pcd)->dev_if->num_in_eps;
 	num_out_eps = GET_CORE_IF(_pcd)->dev_if->num_out_eps;
@@ -607,6 +609,7 @@ void dwc_otg_pcd_stop(dwc_otg_pcd_t *_pcd)
 		_pcd->driver->disconnect(&_pcd->gadget);
 		SPIN_LOCK(&_pcd->lock);
 	}
+		SPIN_UNLOCK(&_pcd->lock);
 }
 
 /**

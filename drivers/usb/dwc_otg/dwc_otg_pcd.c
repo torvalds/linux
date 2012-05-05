@@ -287,8 +287,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 		return -ESHUTDOWN;
 	}
 
-	local_irq_save(flags);
-//	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
+	SPIN_LOCK_IRQSAVE(&pcd->lock, flags);
 		
 	ep->desc = _desc;
 	ep->ep.maxpacket = le16_to_cpu (_desc->wMaxPacketSize);
@@ -355,8 +354,7 @@ static int dwc_otg_pcd_ep_enable(struct usb_ep *_ep,
 					ep->dwc_ep.type, ep->dwc_ep.maxpacket, ep->desc );
 		
 	dwc_otg_ep_activate( GET_CORE_IF(pcd), &ep->dwc_ep );
-//	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
-    local_irq_restore(flags);
+	SPIN_UNLOCK_IRQRESTORE(&pcd->lock, flags);
 	return 0;
 }
 
@@ -383,8 +381,7 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 		return -EINVAL;
 	}
 		
-//	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
-    local_irq_save(flags);
+	SPIN_LOCK_IRQSAVE(&ep->pcd->lock, flags);
 	request_nuke( ep );		   
 
 	dwc_otg_ep_deactivate( GET_CORE_IF(ep->pcd), &ep->dwc_ep );
@@ -397,8 +394,7 @@ static int dwc_otg_pcd_ep_disable(struct usb_ep *_ep)
 		release_tx_fifo(GET_CORE_IF(ep->pcd), ep->dwc_ep.tx_fifo_num);
 	}	
 	
-//	SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
-    local_irq_restore(flags);
+	SPIN_UNLOCK_IRQRESTORE(&ep->pcd->lock, flags);
 
 	DWC_DEBUGPL(DBG_PCD, "%s disabled\n", _ep->name);
 	return 0;
@@ -1152,9 +1148,7 @@ static int32_t dwc_otg_pcd_suspend_cb( void *_p ,int suspend)
 //#endif		
 	if (pcd->driver && pcd->driver->resume) 
 	{
-		SPIN_UNLOCK(&pcd->lock);
 		pcd->driver->suspend(&pcd->gadget);
-		SPIN_LOCK(&pcd->lock);
 	}
 	return 1;
 }
@@ -1172,9 +1166,7 @@ static int32_t dwc_otg_pcd_resume_cb( void *_p )
 	
 	if (pcd->driver && pcd->driver->resume) 
 	{
-			SPIN_UNLOCK(&pcd->lock);
 			pcd->driver->resume(&pcd->gadget);
-			SPIN_LOCK(&pcd->lock);
 	}
 	
 	/* Stop the SRP timeout timer. */

@@ -155,7 +155,7 @@ static __inline__ void MDELAY( const uint32_t _msecs )
  */
 static __inline__ void SPIN_LOCK( spinlock_t *_lock )  
 {
-//        spin_lock(_lock);
+        spin_lock(_lock);
 }
 
 /**
@@ -166,7 +166,7 @@ static __inline__ void SPIN_LOCK( spinlock_t *_lock )
  */
 static __inline__ void SPIN_UNLOCK( spinlock_t *_lock )     
 { 
-//        spin_unlock(_lock);
+        spin_unlock(_lock);
 }
 
 /**
