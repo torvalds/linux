@@ -18,6 +18,8 @@
 #include <linux/power_supply.h>
 
 enum data_source {
+	CM_BATTERY_PRESENT,
+	CM_NO_BATTERY,
 	CM_FUEL_GAUGE,
 	CM_CHARGER_STAT,
 };
@@ -38,11 +40,18 @@ enum polling_modes {
  *	rtc_only_wakeup() returning false.
  *	If the RTC given to CM is the only wakeup reason,
  *	rtc_only_wakeup should return true.
+ * @assume_timer_stops_in_suspend:
+ *	Assume that the jiffy timer stops in suspend-to-RAM.
+ *	When enabled, CM does not rely on jiffies value in
+ *	suspend_again and assumes that jiffies value does not
+ *	change during suspend.
  */
 struct charger_global_desc {
 	char *rtc_name;
 
 	bool (*rtc_only_wakeup)(void);
+
+	bool assume_timer_stops_in_suspend;
 };
 
 /**
@@ -50,6 +59,11 @@ struct charger_global_desc {
  * @psy_name: the name of power-supply-class for charger manager
  * @polling_mode:
  *	Determine which polling mode will be used
+ * @fullbatt_vchkdrop_ms:
+ * @fullbatt_vchkdrop_uV:
+ *	Check voltage drop after the battery is fully charged.
+ *	If it has dropped more than fullbatt_vchkdrop_uV after
+ *	fullbatt_vchkdrop_ms, CM will restart charging.
  * @fullbatt_uV: voltage in microvolt
  *	If it is not being charged and VBATT >= fullbatt_uV,
  *	it is assumed to be full.
@@ -76,6 +90,8 @@ struct charger_desc {
 	enum polling_modes polling_mode;
 	unsigned int polling_interval_ms;
 
+	unsigned int fullbatt_vchkdrop_ms;
+	unsigned int fullbatt_vchkdrop_uV;
 	unsigned int fullbatt_uV;
 
 	enum data_source battery_present;
@@ -101,6 +117,11 @@ struct charger_desc {
  * @fuel_gauge: power_supply for fuel gauge
  * @charger_stat: array of power_supply for chargers
  * @charger_enabled: the state of charger
+ * @fullbatt_vchk_jiffies_at:
+ *	jiffies at the time full battery check will occur.
+ * @fullbatt_vchk_uV: voltage in microvolt
+ *	criteria for full battery
+ * @fullbatt_vchk_work: work queue for full battery check
  * @emergency_stop:
  *	When setting true, stop charging
  * @last_temp_mC: the measured temperature in milli-Celsius
@@ -120,6 +141,10 @@ struct charger_manager {
 	struct power_supply **charger_stat;
 
 	bool charger_enabled;
+
+	unsigned long fullbatt_vchk_jiffies_at;
+	unsigned int fullbatt_vchk_uV;
+	struct delayed_work fullbatt_vchk_work;
 
 	int emergency_stop;
 	int last_temp_mC;
