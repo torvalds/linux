@@ -458,13 +458,13 @@ static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *
 		V4L2_CAP_READWRITE |
 		V4L2_CAP_STREAMING;
 	cap->device_caps |= dev->ext_vv_data->capabilities;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	if (vdev->vfl_type == VFL_TYPE_GRABBER)
 		cap->device_caps &=
 			~(V4L2_CAP_VBI_CAPTURE | V4L2_CAP_SLICED_VBI_OUTPUT);
 	else
 		cap->device_caps &=
-			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY);
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+			~(V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY | V4L2_CAP_AUDIO);
 	return 0;
 }
 

@@ -107,7 +107,7 @@ static struct v4l2_input inputs[4] = {
 		.index		= 1,
 		.name		= "Television",
 		.type		= V4L2_INPUT_TYPE_TUNER,
-		.audioset	= 2,
+		.audioset	= 1,
 		.tuner		= 0,
 		.std		= V4L2_STD_PAL_BG|V4L2_STD_NTSC_M,
 		.status		= 0,
@@ -494,7 +494,7 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	dprintk(2, "VIDIOC_S_INPUT: %d\n", input);
 
 	if (!av7110->analog_tuner_flags)
-		return 0;
+		return input ? -EINVAL : 0;
 
 	if (input >= 4)
 		return -EINVAL;
@@ -503,19 +503,38 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 	return av7110_dvb_c_switch(fh);
 }
 
-static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
+static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
 {
 	dprintk(2, "VIDIOC_G_AUDIO: %d\n", a->index);
 	if (a->index != 0)
 		return -EINVAL;
-	memcpy(a, &msp3400_v4l2_audio, sizeof(struct v4l2_audio));
+	*a = msp3400_v4l2_audio;
+	return 0;
+}
+
+static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
+{
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
+
+	dprintk(2, "VIDIOC_G_AUDIO: %d\n", a->index);
+	if (a->index != 0)
+		return -EINVAL;
+	if (av7110->current_input >= 2)
+		return -EINVAL;
+	*a = msp3400_v4l2_audio;
 	return 0;
 }
 
 static int vidioc_s_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
+	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
+	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
+
 	dprintk(2, "VIDIOC_S_AUDIO: %d\n", a->index);
-	return 0;
+	if (av7110->current_input >= 2)
+		return -EINVAL;
+	return a->index ? -EINVAL : 0;
 }
 
 static int vidioc_g_sliced_vbi_cap(struct file *file, void *fh,
@@ -809,29 +828,32 @@ int av7110_init_v4l(struct av7110 *av7110)
 	vv_data->vid_ops.vidioc_s_tuner = vidioc_s_tuner;
 	vv_data->vid_ops.vidioc_g_frequency = vidioc_g_frequency;
 	vv_data->vid_ops.vidioc_s_frequency = vidioc_s_frequency;
+	vv_data->vid_ops.vidioc_enumaudio = vidioc_enumaudio;
 	vv_data->vid_ops.vidioc_g_audio = vidioc_g_audio;
 	vv_data->vid_ops.vidioc_s_audio = vidioc_s_audio;
+	vv_data->vid_ops.vidioc_g_fmt_vbi_cap = NULL;
 
-	vv_data->vbi_ops.vidioc_enum_input = vidioc_enum_input;
-	vv_data->vbi_ops.vidioc_g_input = vidioc_g_input;
-	vv_data->vbi_ops.vidioc_s_input = vidioc_s_input;
 	vv_data->vbi_ops.vidioc_g_tuner = vidioc_g_tuner;
 	vv_data->vbi_ops.vidioc_s_tuner = vidioc_s_tuner;
 	vv_data->vbi_ops.vidioc_g_frequency = vidioc_g_frequency;
 	vv_data->vbi_ops.vidioc_s_frequency = vidioc_s_frequency;
-	vv_data->vbi_ops.vidioc_g_audio = vidioc_g_audio;
-	vv_data->vbi_ops.vidioc_s_audio = vidioc_s_audio;
+	vv_data->vbi_ops.vidioc_g_fmt_vbi_cap = NULL;
 	vv_data->vbi_ops.vidioc_g_sliced_vbi_cap = vidioc_g_sliced_vbi_cap;
 	vv_data->vbi_ops.vidioc_g_fmt_sliced_vbi_out = vidioc_g_fmt_sliced_vbi_out;
 	vv_data->vbi_ops.vidioc_s_fmt_sliced_vbi_out = vidioc_s_fmt_sliced_vbi_out;
+
+	if (FW_VERSION(av7110->arm_app) < 0x2623)
+		vv_data->capabilities &= ~V4L2_CAP_SLICED_VBI_OUTPUT;
 
 	if (saa7146_register_device(&av7110->v4l_dev, dev, "av7110", VFL_TYPE_GRABBER)) {
 		ERR("cannot register capture device. skipping\n");
 		saa7146_vv_release(dev);
 		return -ENODEV;
 	}
-	if (saa7146_register_device(&av7110->vbi_dev, dev, "av7110", VFL_TYPE_VBI))
-		ERR("cannot register vbi v4l2 device. skipping\n");
+	if (FW_VERSION(av7110->arm_app) >= 0x2623) {
+		if (saa7146_register_device(&av7110->vbi_dev, dev, "av7110", VFL_TYPE_VBI))
+			ERR("cannot register vbi v4l2 device. skipping\n");
+	}
 	return 0;
 }
 
@@ -915,7 +937,7 @@ static int std_callback(struct saa7146_dev* dev, struct saa7146_standard *std)
 static struct saa7146_ext_vv av7110_vv_data_st = {
 	.inputs		= 1,
 	.audios		= 1,
-	.capabilities	= V4L2_CAP_SLICED_VBI_OUTPUT,
+	.capabilities	= V4L2_CAP_SLICED_VBI_OUTPUT | V4L2_CAP_AUDIO,
 	.flags		= 0,
 
 	.stds		= &standard[0],
@@ -930,7 +952,7 @@ static struct saa7146_ext_vv av7110_vv_data_st = {
 static struct saa7146_ext_vv av7110_vv_data_c = {
 	.inputs		= 1,
 	.audios		= 1,
-	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_SLICED_VBI_OUTPUT,
+	.capabilities	= V4L2_CAP_TUNER | V4L2_CAP_SLICED_VBI_OUTPUT | V4L2_CAP_AUDIO,
 	.flags		= SAA7146_USE_PORT_B_FOR_VBI,
 
 	.stds		= &standard[0],

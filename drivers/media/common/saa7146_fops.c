@@ -309,6 +309,8 @@ static int fops_mmap(struct file *file, struct vm_area_struct * vma)
 	case VFL_TYPE_VBI: {
 		DEB_EE("V4L2_BUF_TYPE_VBI_CAPTURE: file:%p, vma:%p\n",
 		       file, vma);
+		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
+			return -ENODEV;
 		q = &fh->vbi_q;
 		break;
 		}
@@ -331,6 +333,8 @@ static unsigned int fops_poll(struct file *file, struct poll_table_struct *wait)
 	DEB_EE("file:%p, poll:%p\n", file, wait);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
+		if (fh->dev->ext_vv_data->capabilities & V4L2_CAP_SLICED_VBI_OUTPUT)
+			return res | POLLOUT | POLLWRNORM;
 		if( 0 == fh->vbi_q.streaming )
 			return res | videobuf_poll_stream(file, &fh->vbi_q, wait);
 		q = &fh->vbi_q;
