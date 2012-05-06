@@ -1295,7 +1295,7 @@ static void unmap_page_range(struct mmu_gather *tlb,
 
 static void unmap_single_vma(struct mmu_gather *tlb,
 		struct vm_area_struct *vma, unsigned long start_addr,
-		unsigned long end_addr, unsigned long *nr_accounted,
+		unsigned long end_addr,
 		struct zap_details *details)
 {
 	unsigned long start = max(vma->vm_start, start_addr);
@@ -1306,9 +1306,6 @@ static void unmap_single_vma(struct mmu_gather *tlb,
 	end = min(vma->vm_end, end_addr);
 	if (end <= vma->vm_start)
 		return;
-
-	if (vma->vm_flags & VM_ACCOUNT)
-		*nr_accounted += (end - start) >> PAGE_SHIFT;
 
 	if (unlikely(is_pfn_mapping(vma)))
 		untrack_pfn_vma(vma, 0, 0);
@@ -1339,7 +1336,6 @@ static void unmap_single_vma(struct mmu_gather *tlb,
  * @vma: the starting vma
  * @start_addr: virtual address at which to start unmapping
  * @end_addr: virtual address at which to end unmapping
- * @nr_accounted: Place number of unmapped pages in vm-accountable vma's here
  *
  * Unmap all pages in the vma list.
  *
@@ -1354,13 +1350,13 @@ static void unmap_single_vma(struct mmu_gather *tlb,
  */
 void unmap_vmas(struct mmu_gather *tlb,
 		struct vm_area_struct *vma, unsigned long start_addr,
-		unsigned long end_addr, unsigned long *nr_accounted)
+		unsigned long end_addr)
 {
 	struct mm_struct *mm = vma->vm_mm;
 
 	mmu_notifier_invalidate_range_start(mm, start_addr, end_addr);
 	for ( ; vma && vma->vm_start < end_addr; vma = vma->vm_next)
-		unmap_single_vma(tlb, vma, start_addr, end_addr, nr_accounted, NULL);
+		unmap_single_vma(tlb, vma, start_addr, end_addr, NULL);
 	mmu_notifier_invalidate_range_end(mm, start_addr, end_addr);
 }
 
@@ -1379,14 +1375,13 @@ void zap_page_range(struct vm_area_struct *vma, unsigned long start,
 	struct mm_struct *mm = vma->vm_mm;
 	struct mmu_gather tlb;
 	unsigned long end = start + size;
-	unsigned long nr_accounted = 0;
 
 	lru_add_drain();
 	tlb_gather_mmu(&tlb, mm, 0);
 	update_hiwater_rss(mm);
 	mmu_notifier_invalidate_range_start(mm, start, end);
 	for ( ; vma && vma->vm_start < end; vma = vma->vm_next)
-		unmap_single_vma(&tlb, vma, start, end, &nr_accounted, details);
+		unmap_single_vma(&tlb, vma, start, end, details);
 	mmu_notifier_invalidate_range_end(mm, start, end);
 	tlb_finish_mmu(&tlb, start, end);
 }
@@ -1406,13 +1401,12 @@ static void zap_page_range_single(struct vm_area_struct *vma, unsigned long addr
 	struct mm_struct *mm = vma->vm_mm;
 	struct mmu_gather tlb;
 	unsigned long end = address + size;
-	unsigned long nr_accounted = 0;
 
 	lru_add_drain();
 	tlb_gather_mmu(&tlb, mm, 0);
 	update_hiwater_rss(mm);
 	mmu_notifier_invalidate_range_start(mm, address, end);
-	unmap_single_vma(&tlb, vma, address, end, &nr_accounted, details);
+	unmap_single_vma(&tlb, vma, address, end, details);
 	mmu_notifier_invalidate_range_end(mm, address, end);
 	tlb_finish_mmu(&tlb, address, end);
 }
