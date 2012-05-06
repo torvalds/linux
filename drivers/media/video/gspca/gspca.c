@@ -38,6 +38,7 @@
 #include <linux/uaccess.h>
 #include <linux/ktime.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 
 #include "gspca.h"
 
@@ -1006,6 +1007,8 @@ static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
 
 	/* set the current control values to their default values
 	 * which may have changed in sd_init() */
+	/* does nothing if ctrl_handler == NULL */
+	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
 	ctrl = gspca_dev->cam.ctrls;
 	if (ctrl != NULL) {
 		for (i = 0;
@@ -1323,6 +1326,7 @@ static void gspca_release(struct video_device *vfd)
 	PDEBUG(D_PROBE, "%s released",
 		video_device_node_name(&gspca_dev->vdev));
 
+	v4l2_ctrl_handler_free(gspca_dev->vdev.ctrl_handler);
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 }
@@ -2347,6 +2351,14 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	gspca_dev->sd_desc = sd_desc;
 	gspca_dev->nbufread = 2;
 	gspca_dev->empty_packet = -1;	/* don't check the empty packets */
+	gspca_dev->vdev = gspca_template;
+	gspca_dev->vdev.parent = &intf->dev;
+	gspca_dev->module = module;
+	gspca_dev->present = 1;
+
+	mutex_init(&gspca_dev->usb_lock);
+	mutex_init(&gspca_dev->queue_lock);
+	init_waitqueue_head(&gspca_dev->wq);
 
 	/* configure the subdriver and initialize the USB device */
 	ret = sd_desc->config(gspca_dev, id);
@@ -2357,21 +2369,17 @@ int gspca_dev_probe2(struct usb_interface *intf,
 	ret = sd_desc->init(gspca_dev);
 	if (ret < 0)
 		goto out;
+	if (sd_desc->init_controls)
+		ret = sd_desc->init_controls(gspca_dev);
+	if (ret < 0)
+		goto out;
 	gspca_set_default_mode(gspca_dev);
 
 	ret = gspca_input_connect(gspca_dev);
 	if (ret)
 		goto out;
 
-	mutex_init(&gspca_dev->usb_lock);
-	mutex_init(&gspca_dev->queue_lock);
-	init_waitqueue_head(&gspca_dev->wq);
-
 	/* init video stuff */
-	memcpy(&gspca_dev->vdev, &gspca_template, sizeof gspca_template);
-	gspca_dev->vdev.parent = &intf->dev;
-	gspca_dev->module = module;
-	gspca_dev->present = 1;
 	ret = video_register_device(&gspca_dev->vdev,
 				  VFL_TYPE_GRABBER,
 				  -1);
@@ -2391,6 +2399,7 @@ out:
 	if (gspca_dev->input_dev)
 		input_unregister_device(gspca_dev->input_dev);
 #endif
+	v4l2_ctrl_handler_free(gspca_dev->vdev.ctrl_handler);
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
@@ -2489,11 +2498,20 @@ EXPORT_SYMBOL(gspca_suspend);
 int gspca_resume(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+	int streaming;
 
 	gspca_dev->frozen = 0;
 	gspca_dev->sd_desc->init(gspca_dev);
 	gspca_input_create_urb(gspca_dev);
-	if (gspca_dev->streaming)
+	/*
+	 * Most subdrivers send all ctrl values on sd_start and thus
+	 * only write to the device registers on s_ctrl when streaming ->
+	 * Clear streaming to avoid setting all ctrls twice.
+	 */
+	streaming = gspca_dev->streaming;
+	gspca_dev->streaming = 0;
+	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
+	if (streaming)
 		return gspca_init_transfer(gspca_dev);
 	return 0;
 }
