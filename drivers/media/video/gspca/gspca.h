@@ -163,6 +163,7 @@ struct gspca_dev {
 	struct v4l2_device v4l2_dev;
 	struct usb_device *dev;
 	struct file *capt_file;		/* file doing video capture */
+					/* protected by queue_lock */
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
@@ -192,7 +193,7 @@ struct gspca_dev {
 	u8 fr_o;				/* next frame to dequeue */
 	__u8 last_packet_type;
 	__s8 empty_packet;		/* if (-1) don't check empty packets */
-	__u8 streaming;
+	__u8 streaming;			/* protected by both mutexes (*) */
 
 	__u8 curr_mode;			/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
@@ -214,6 +215,10 @@ struct gspca_dev {
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
 	u8 audio;			/* presence of audio device */
+
+	/* (*) These variables are proteced by both usb_lock and queue_lock,
+	   that is any code setting them is holding *both*, which means that
+	   any code getting them needs to hold at least one of them */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
