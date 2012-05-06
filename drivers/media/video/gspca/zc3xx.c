@@ -194,7 +194,7 @@ static const struct ctrl sd_ctrls[NCTRLS] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Compression Quality",
 		.minimum = 50,
-		.maximum = 94,
+		.maximum = 87,
 		.step    = 1,
 		.default_value = 75,
 	    },
@@ -241,8 +241,11 @@ static const struct v4l2_pix_format sif_mode[] = {
 		.priv = 0},
 };
 
-/* bridge reg08 bits 1-2 -> JPEG quality conversion table */
-static u8 jpeg_qual[] = {50, 75, 87, 94};
+/*
+ * Bridge reg08 bits 1-2 -> JPEG quality conversion table. Note the highest
+ * quality setting is not usable as USB 1 does not have enough bandwidth.
+ */
+static u8 jpeg_qual[] = {50, 75, 87, /* 94 */};
 
 /* usb exchanges */
 struct usb_action {
