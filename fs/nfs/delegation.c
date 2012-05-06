@@ -316,6 +316,10 @@ out:
  * nfs_client_return_marked_delegations - return previously marked delegations
  * @clp: nfs_client to process
  *
+ * Note that this function is designed to be called by the state
+ * manager thread. For this reason, it cannot flush the dirty data,
+ * since that could deadlock in case of a state recovery error.
+ *
  * Returns zero on success, or a negative errno value.
  */
 int nfs_client_return_marked_delegations(struct nfs_client *clp)
@@ -340,11 +344,9 @@ restart:
 								server);
 			rcu_read_unlock();
 
-			if (delegation != NULL) {
-				filemap_flush(inode->i_mapping);
+			if (delegation != NULL)
 				err = __nfs_inode_return_delegation(inode,
 								delegation, 0);
-			}
 			iput(inode);
 			if (!err)
 				goto restart;
@@ -541,6 +543,8 @@ int nfs_async_inode_return_delegation(struct inode *inode,
 	struct nfs_server *server = NFS_SERVER(inode);
 	struct nfs_client *clp = server->nfs_client;
 	struct nfs_delegation *delegation;
+
+	filemap_flush(inode->i_mapping);
 
 	rcu_read_lock();
 	delegation = rcu_dereference(NFS_I(inode)->delegation);
