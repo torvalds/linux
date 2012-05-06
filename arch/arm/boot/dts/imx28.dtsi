@@ -81,24 +81,28 @@
 			ssp0: ssp@80010000 {
 				reg = <0x80010000 2000>;
 				interrupts = <96 82>;
+				fsl,ssp-dma-channel = <0>;
 				status = "disabled";
 			};
 
 			ssp1: ssp@80012000 {
 				reg = <0x80012000 2000>;
 				interrupts = <97 83>;
+				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
 
 			ssp2: ssp@80014000 {
 				reg = <0x80014000 2000>;
 				interrupts = <98 84>;
+				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
 
 			ssp3: ssp@80016000 {
 				reg = <0x80016000 2000>;
 				interrupts = <99 85>;
+				fsl,ssp-dma-channel = <3>;
 				status = "disabled";
 			};
 
@@ -178,6 +182,27 @@
 					fsl,drive-strength = <1>;
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
+				};
+
+				mmc0_8bit_pins_a: mmc0-8bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x2000 0x2010 0x2020
+						0x2030 0x2040 0x2050 0x2060
+						0x2070 0x2080 0x2090 0x20a0>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				mmc0_cd_cfg: mmc0-cd-cfg {
+					fsl,pinmux-ids = <0x2090>;
+					fsl,pull-up = <0>;
+				};
+
+				mmc0_sck_cfg: mmc0-sck-cfg {
+					fsl,pinmux-ids = <0x20a0>;
+					fsl,drive-strength = <2>;
+					fsl,pull-up = <0>;
 				};
 			};
 
