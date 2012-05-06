@@ -508,7 +508,7 @@ static const struct v4l2_ctrl_ops smiapp_ctrl_ops = {
 static int smiapp_init_controls(struct smiapp_sensor *sensor)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->src->sd);
-	struct v4l2_ctrl_config cfg;
+	unsigned int max;
 	int rval;
 
 	rval = v4l2_ctrl_handler_init(&sensor->pixel_array->ctrl_handler, 7);
@@ -572,17 +572,12 @@ static int smiapp_init_controls(struct smiapp_sensor *sensor)
 		goto error;
 	sensor->src->ctrl_handler.lock = &sensor->mutex;
 
-	memset(&cfg, 0, sizeof(cfg));
+	for (max = 0; sensor->platform_data->op_sys_clock[max + 1]; max++);
 
-	cfg.ops = &smiapp_ctrl_ops;
-	cfg.id = V4L2_CID_LINK_FREQ;
-	cfg.type = V4L2_CTRL_TYPE_INTEGER_MENU;
-	while (sensor->platform_data->op_sys_clock[cfg.max + 1])
-		cfg.max++;
-	cfg.qmenu_int = sensor->platform_data->op_sys_clock;
-
-	sensor->link_freq = v4l2_ctrl_new_custom(
-		&sensor->src->ctrl_handler, &cfg, NULL);
+	sensor->link_freq = v4l2_ctrl_new_int_menu(
+		&sensor->src->ctrl_handler, &smiapp_ctrl_ops,
+		V4L2_CID_LINK_FREQ, max, 0,
+		sensor->platform_data->op_sys_clock);
 
 	sensor->pixel_rate_csi = v4l2_ctrl_new_std(
 		&sensor->src->ctrl_handler, &smiapp_ctrl_ops,
