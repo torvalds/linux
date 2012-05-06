@@ -380,6 +380,10 @@ void nfs_inode_return_delegation_noreclaim(struct inode *inode)
  * nfs_inode_return_delegation - synchronously return a delegation
  * @inode: inode to process
  *
+ * This routine will always flush any dirty data to disk on the
+ * assumption that if we need to return the delegation, then
+ * we should stop caching.
+ *
  * Returns zero on success, or a negative errno value.
  */
 int nfs_inode_return_delegation(struct inode *inode)
@@ -389,10 +393,10 @@ int nfs_inode_return_delegation(struct inode *inode)
 	struct nfs_delegation *delegation;
 	int err = 0;
 
+	nfs_wb_all(inode);
 	if (rcu_access_pointer(nfsi->delegation) != NULL) {
 		delegation = nfs_detach_delegation(nfsi, server);
 		if (delegation != NULL) {
-			nfs_wb_all(inode);
 			err = __nfs_inode_return_delegation(inode, delegation, 1);
 		}
 	}

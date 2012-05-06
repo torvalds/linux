@@ -66,6 +66,7 @@ static inline int nfs_have_delegation(struct inode *inode, fmode_t flags)
 
 static inline int nfs_inode_return_delegation(struct inode *inode)
 {
+	nfs_wb_all(inode);
 	return 0;
 }
 #endif
