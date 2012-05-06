@@ -21,6 +21,17 @@
 	};
 
 	apb@80000000 {
+		apbh@80000000 {
+			ssp0: ssp@80010000 {
+				compatible = "fsl,imx23-mmc";
+				pinctrl-names = "default";
+				pinctrl-0 = <&mmc0_8bit_pins_a &mmc0_pins_fixup>;
+				bus-width = <8>;
+				wp-gpios = <&gpio1 30 0>;
+				status = "okay";
+			};
+		};
+
 		apbx@80040000 {
 			duart: serial@80070000 {
 				pinctrl-names = "default";

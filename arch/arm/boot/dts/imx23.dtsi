@@ -69,6 +69,8 @@
 
 			ssp0: ssp@80010000 {
 				reg = <0x80010000 2000>;
+				interrupts = <15 14>;
+				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
 
@@ -117,6 +119,21 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				mmc0_8bit_pins_a: mmc0-8bit@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x2020 0x2030 0x2040
+						0x2050 0x0082 0x0092 0x00a2
+						0x00b2 0x2000 0x2010 0x2060>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				mmc0_pins_fixup: mmc0-pins-fixup {
+					fsl,pinmux-ids = <0x2010 0x2060>;
+					fsl,pull-up = <0>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -161,6 +178,8 @@
 
 			ssp1: ssp@80034000 {
 				reg = <0x80034000 2000>;
+				interrupts = <2 20>;
+				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
 
