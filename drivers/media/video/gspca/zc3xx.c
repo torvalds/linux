@@ -5923,6 +5923,8 @@ static void setquality(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	s8 reg07;
 
+	jpeg_set_qual(sd->jpeg_hdr, jpeg_qual[sd->reg08]);
+
 	reg07 = 0;
 	switch (sd->sensor) {
 	case SENSOR_OV7620:
@@ -6886,7 +6888,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	setquality(gspca_dev);
-	jpeg_set_qual(sd->jpeg_hdr, jpeg_qual[sd->reg08]);
 	setlightfreq(gspca_dev);
 
 	switch (sd->sensor) {
@@ -7042,7 +7043,7 @@ static int sd_setquality(struct gspca_dev *gspca_dev, __s32 val)
 	sd->reg08 = i;
 	sd->ctrls[QUALITY].val = jpeg_qual[i];
 	if (gspca_dev->streaming)
-		jpeg_set_qual(sd->jpeg_hdr, sd->ctrls[QUALITY].val);
+		setquality(gspca_dev);
 	return gspca_dev->usb_err;
 }
 
