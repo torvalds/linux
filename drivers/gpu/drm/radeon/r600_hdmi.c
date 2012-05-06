@@ -417,34 +417,51 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 	if (status_bits & AUDIO_STATUS_EMPHASIS)
 		iec |= 1 << 3;
 
-	iec |= category_code << 8;
+	iec |= HDMI0_60958_CS_CATEGORY_CODE(category_code);
 
 	switch (rate) {
-	case  32000: iec |= 0x3 << 24; break;
-	case  44100: iec |= 0x0 << 24; break;
-	case  88200: iec |= 0x8 << 24; break;
-	case 176400: iec |= 0xc << 24; break;
-	case  48000: iec |= 0x2 << 24; break;
-	case  96000: iec |= 0xa << 24; break;
-	case 192000: iec |= 0xe << 24; break;
+	case 32000:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x3);
+		break;
+	case 44100:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x0);
+		break;
+	case 48000:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x2);
+		break;
+	case 88200:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0x8);
+		break;
+	case 96000:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0xa);
+		break;
+	case 176400:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0xc);
+		break;
+	case 192000:
+		iec |= HDMI0_60958_CS_SAMPLING_FREQUENCY(0xe);
+		break;
 	}
 
 	WREG32(HDMI0_60958_0 + offset, iec);
 
 	iec = 0;
 	switch (bps) {
-	case 16: iec |= 0x2; break;
-	case 20: iec |= 0x3; break;
-	case 24: iec |= 0xb; break;
+	case 16:
+		iec |= HDMI0_60958_CS_WORD_LENGTH(0x2);
+		break;
+	case 20:
+		iec |= HDMI0_60958_CS_WORD_LENGTH(0x3);
+		break;
+	case 24:
+		iec |= HDMI0_60958_CS_WORD_LENGTH(0xb);
+		break;
 	}
 	if (status_bits & AUDIO_STATUS_V)
 		iec |= 0x5 << 16;
-
 	WREG32_P(HDMI0_60958_1 + offset, iec, ~0x5000f);
 
-	/* 0x021 or 0x031 sets the audio frame length */
-	WREG32(HDMI0_VBI_PACKET_CONTROL + offset, 0x31);
-	r600_hdmi_audioinfoframe(encoder, channels-1, 0, 0, 0, 0, 0, 0, 0);
+	r600_hdmi_audioinfoframe(encoder, channels - 1, 0, 0, 0, 0, 0, 0, 0);
 
 	r600_hdmi_audio_workaround(encoder);
 }
