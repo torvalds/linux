@@ -6093,7 +6093,8 @@ static void transfer_update(struct work_struct *work)
 		/* get the transfer status */
 		/* the bit 0 of the bridge register 11 indicates overflow */
 		mutex_lock(&gspca_dev->usb_lock);
-		if (!gspca_dev->present || !gspca_dev->streaming)
+		if (gspca_dev->frozen || !gspca_dev->dev ||
+					 !gspca_dev->streaming)
 			goto err;
 		reg11 = reg_r(gspca_dev, 0x0011);
 		if (gspca_dev->usb_err < 0
@@ -6949,7 +6950,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		mutex_lock(&gspca_dev->usb_lock);
 		sd->work_thread = NULL;
 	}
-	if (!gspca_dev->present)
+	if (!gspca_dev->dev)
 		return;
 	send_unknown(gspca_dev, sd->sensor);
 }

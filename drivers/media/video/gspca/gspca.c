@@ -2499,8 +2499,11 @@ int gspca_suspend(struct usb_interface *intf, pm_message_t message)
 	destroy_urbs(gspca_dev);
 	gspca_input_destroy_urb(gspca_dev);
 	gspca_set_alt0(gspca_dev);
-	if (gspca_dev->sd_desc->stop0)
+	if (gspca_dev->sd_desc->stop0) {
+		mutex_lock(&gspca_dev->usb_lock);
 		gspca_dev->sd_desc->stop0(gspca_dev);
+		mutex_unlock(&gspca_dev->usb_lock);
+	}
 	return 0;
 }
 EXPORT_SYMBOL(gspca_suspend);
@@ -2508,7 +2511,7 @@ EXPORT_SYMBOL(gspca_suspend);
 int gspca_resume(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
-	int streaming;
+	int streaming, ret = 0;
 
 	gspca_dev->frozen = 0;
 	gspca_dev->sd_desc->init(gspca_dev);
@@ -2521,9 +2524,12 @@ int gspca_resume(struct usb_interface *intf)
 	streaming = gspca_dev->streaming;
 	gspca_dev->streaming = 0;
 	v4l2_ctrl_handler_setup(gspca_dev->vdev.ctrl_handler);
-	if (streaming)
-		return gspca_init_transfer(gspca_dev);
-	return 0;
+	if (streaming) {
+		mutex_lock(&gspca_dev->queue_lock);
+		ret = gspca_init_transfer(gspca_dev);
+		mutex_unlock(&gspca_dev->queue_lock);
+	}
+	return ret;
 }
 EXPORT_SYMBOL(gspca_resume);
 #endif

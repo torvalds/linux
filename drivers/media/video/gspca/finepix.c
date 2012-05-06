@@ -94,7 +94,7 @@ static void dostream(struct work_struct *work)
 
 	/* loop reading a frame */
 again:
-	while (gspca_dev->present && gspca_dev->streaming) {
+	while (!gspca_dev->frozen && gspca_dev->dev && gspca_dev->streaming) {
 
 		/* request a frame */
 		mutex_lock(&gspca_dev->usb_lock);
@@ -102,7 +102,8 @@ again:
 		mutex_unlock(&gspca_dev->usb_lock);
 		if (ret < 0)
 			break;
-		if (!gspca_dev->present || !gspca_dev->streaming)
+		if (gspca_dev->frozen || !gspca_dev->dev ||
+					 !gspca_dev->streaming)
 			break;
 
 		/* the frame comes in parts */
@@ -117,7 +118,8 @@ again:
 				 * error. Just restart. */
 				goto again;
 			}
-			if (!gspca_dev->present || !gspca_dev->streaming)
+			if (gspca_dev->frozen || !gspca_dev->dev ||
+						 !gspca_dev->streaming)
 				goto out;
 			if (len < FPIX_MAX_TRANSFER ||
 				(data[len - 2] == 0xff &&
