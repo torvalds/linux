@@ -2165,15 +2165,17 @@ static void rcu_prepare_for_idle(int cpu)
 		   !rcu_pending(cpu) &&
 		   !local_softirq_pending()) {
 		/* Can we go dyntick-idle despite still having callbacks? */
-		trace_rcu_prep_idle("Dyntick with callbacks");
 		per_cpu(rcu_dyntick_drain, cpu) = 0;
 		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
-		if (rcu_cpu_has_nonlazy_callbacks(cpu))
+		if (rcu_cpu_has_nonlazy_callbacks(cpu)) {
+			trace_rcu_prep_idle("Dyntick with callbacks");
 			per_cpu(rcu_idle_gp_timer_expires, cpu) =
 					   jiffies + RCU_IDLE_GP_DELAY;
-		else
+		} else {
 			per_cpu(rcu_idle_gp_timer_expires, cpu) =
 					   jiffies + RCU_IDLE_LAZY_GP_DELAY;
+			trace_rcu_prep_idle("Dyntick with lazy callbacks");
+		}
 		tp = &per_cpu(rcu_idle_gp_timer, cpu);
 		mod_timer_pinned(tp, per_cpu(rcu_idle_gp_timer_expires, cpu));
 		per_cpu(rcu_nonlazy_posted_snap, cpu) =
