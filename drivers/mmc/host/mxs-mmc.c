@@ -23,6 +23,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -685,8 +688,18 @@ static struct platform_device_id mxs_mmc_ids[] = {
 };
 MODULE_DEVICE_TABLE(platform, mxs_mmc_ids);
 
+static const struct of_device_id mxs_mmc_dt_ids[] = {
+	{ .compatible = "fsl,imx23-mmc", .data = (void *) IMX23_MMC, },
+	{ .compatible = "fsl,imx28-mmc", .data = (void *) IMX28_MMC, },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, mxs_mmc_dt_ids);
+
 static int mxs_mmc_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id =
+			of_match_device(mxs_mmc_dt_ids, &pdev->dev);
+	struct device_node *np = pdev->dev.of_node;
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
 	struct resource *iores, *dmares;
@@ -699,7 +712,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	dmares = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	irq_err = platform_get_irq(pdev, 0);
 	irq_dma = platform_get_irq(pdev, 1);
-	if (!iores || !dmares || irq_err < 0 || irq_dma < 0)
+	if (!iores || irq_err < 0 || irq_dma < 0)
 		return -EINVAL;
 
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
@@ -713,15 +726,31 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		goto out_mmc_free;
 	}
 
-	host->devid = pdev->id_entry->driver_data;
+	if (np) {
+		host->devid = (enum mxs_mmc_id) of_id->data;
+		/*
+		 * TODO: This is a temporary solution and should be changed
+		 * to use generic DMA binding later when the helpers get in.
+		 */
+		ret = of_property_read_u32(np, "fsl,ssp-dma-channel",
+					   &host->dma_channel);
+		if (ret) {
+			dev_err(mmc_dev(host->mmc),
+				"failed to get dma channel\n");
+			goto out_mmc_free;
+		}
+	} else {
+		host->devid = pdev->id_entry->driver_data;
+		host->dma_channel = dmares->start;
+	}
+
 	host->mmc = mmc;
-	host->dma_channel = dmares->start;
 	host->sdio_irq_en = 0;
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
-		goto out_iounmap;
+		goto out_mmc_free;
 	}
 
 	host->clk = clk_get(&pdev->dev, NULL);
@@ -749,7 +778,15 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 		    MMC_CAP_SDIO_IRQ | MMC_CAP_NEEDS_POLL;
 
 	pdata =	mmc_dev(host->mmc)->platform_data;
-	if (pdata) {
+	if (!pdata) {
+		u32 bus_width = 0;
+		of_property_read_u32(np, "bus-width", &bus_width);
+		if (bus_width == 4)
+			mmc->caps |= MMC_CAP_4_BIT_DATA;
+		else if (bus_width == 8)
+			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
+		host->wp_gpio = of_get_named_gpio(np, "wp-gpios", 0);
+	} else {
 		if (pdata->flags & SLOTF_8_BIT_CAPABLE)
 			mmc->caps |= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA;
 		if (pdata->flags & SLOTF_4_BIT_CAPABLE)
@@ -857,6 +894,7 @@ static struct platform_driver mxs_mmc_driver = {
 		.owner	= THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &mxs_mmc_pm_ops,
+		.of_match_table = mxs_mmc_dt_ids,
 #endif
 	},
 };
