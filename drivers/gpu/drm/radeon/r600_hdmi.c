@@ -324,27 +324,53 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	r600_audio_set_clock(encoder, mode->clock);
 
+	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
+	       HDMI0_NULL_SEND); /* send null packets when required */
+
 	WREG32(HDMI0_AUDIO_CRC_CONTROL + offset, 0x1000);
-	WREG32(HDMI0_GC + offset, 0x0);
 
-	/* Send audio packets */
-	if (ASIC_IS_DCE32(rdev))
-		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + offset,
-			 AFMT_AUDIO_SAMPLE_SEND, ~AFMT_AUDIO_SAMPLE_SEND);
-	else
-		WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset,
-			 HDMI0_AUDIO_SAMPLE_SEND, ~HDMI0_AUDIO_SAMPLE_SEND);
+	if (ASIC_IS_DCE32(rdev)) {
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
+		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
+		       HDMI0_AUDIO_PACKETS_PER_LINE(3)); /* should be suffient for all audio modes and small enough for all hblanks */
+		WREG32(AFMT_AUDIO_PACKET_CONTROL + offset,
+		       AFMT_AUDIO_SAMPLE_SEND | /* send audio packets */
+		       AFMT_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
+	} else {
+		WREG32(HDMI0_AUDIO_PACKET_CONTROL + offset,
+		       HDMI0_AUDIO_SAMPLE_SEND | /* send audio packets */
+		       HDMI0_AUDIO_DELAY_EN(1) | /* default audio delay */
+		       HDMI0_AUDIO_SEND_MAX_PACKETS | /* send NULL packets if no audio is available */
+		       HDMI0_AUDIO_PACKETS_PER_LINE(3) | /* should be suffient for all audio modes and small enough for all hblanks */
+		       HDMI0_60958_CS_UPDATE); /* allow 60958 channel status fields to be updated */
+	}
 
-	WREG32(HDMI0_ACR_PACKET_CONTROL + offset, 0x1000);
+	WREG32(HDMI0_ACR_PACKET_CONTROL + offset,
+	       HDMI0_ACR_AUTO_SEND | /* allow hw to sent ACR packets when required */
+	       HDMI0_ACR_SOURCE); /* select SW CTS value */
 
-	r600_hdmi_update_ACR(encoder, mode->clock);
+	WREG32(HDMI0_VBI_PACKET_CONTROL + offset,
+	       HDMI0_NULL_SEND | /* send null packets when required */
+	       HDMI0_GC_SEND | /* send general control packets */
+	       HDMI0_GC_CONT); /* send general control packets every frame */
 
-	WREG32(HDMI0_INFOFRAME_CONTROL0 + offset, 0x13);
+	/* TODO: HDMI0_AUDIO_INFO_UPDATE */
+	WREG32(HDMI0_INFOFRAME_CONTROL0 + offset,
+	       HDMI0_AVI_INFO_SEND | /* enable AVI info frames */
+	       HDMI0_AVI_INFO_CONT | /* send AVI info frames every frame/field */
+	       HDMI0_AUDIO_INFO_SEND | /* enable audio info frames (frames won't be set until audio is enabled) */
+	       HDMI0_AUDIO_INFO_CONT); /* send audio info frames every frame/field */
 
-	WREG32(HDMI0_INFOFRAME_CONTROL1 + offset, 0x202);
+	WREG32(HDMI0_INFOFRAME_CONTROL1 + offset,
+	       HDMI0_AVI_INFO_LINE(2) | /* anything other than 0 */
+	       HDMI0_AUDIO_INFO_LINE(2)); /* anything other than 0 */
+
+	WREG32(HDMI0_GC + offset, 0); /* unset HDMI0_GC_AVMUTE */
 
 	r600_hdmi_videoinfoframe(encoder, RGB, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+
+	r600_hdmi_update_ACR(encoder, mode->clock);
 
 	/* it's unknown what these bits do excatly, but it's indeed quite useful for debugging */
 	WREG32(HDMI0_RAMP_CONTROL0 + offset, 0x00FFFFFF);
@@ -353,9 +379,6 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_RAMP_CONTROL3 + offset, 0x00000001);
 
 	r600_hdmi_audio_workaround(encoder);
-
-	/* audio packets per line, does anyone know how to calc this ? */
-	WREG32_P(HDMI0_AUDIO_PACKET_CONTROL + offset, 0x00040000, ~0x001F0000);
 }
 
 /*
