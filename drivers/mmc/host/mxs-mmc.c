@@ -146,8 +146,6 @@ struct mxs_mmc_host {
 	struct mmc_data			*data;
 
 	void __iomem			*base;
-	int				irq;
-	struct resource			*res;
 	struct resource			*dma_res;
 	struct clk			*clk;
 	unsigned int			clk_rate;
@@ -695,7 +693,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 {
 	struct mxs_mmc_host *host;
 	struct mmc_host *mmc;
-	struct resource *iores, *dmares, *r;
+	struct resource *iores, *dmares;
 	struct mxs_mmc_platform_data *pdata;
 	struct pinctrl *pinctrl;
 	int ret = 0, irq_err, irq_dma;
@@ -708,28 +706,20 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	if (!iores || !dmares || irq_err < 0 || irq_dma < 0)
 		return -EINVAL;
 
-	r = request_mem_region(iores->start, resource_size(iores), pdev->name);
-	if (!r)
-		return -EBUSY;
-
 	mmc = mmc_alloc_host(sizeof(struct mxs_mmc_host), &pdev->dev);
-	if (!mmc) {
-		ret = -ENOMEM;
-		goto out_release_mem;
-	}
+	if (!mmc)
+		return -ENOMEM;
 
 	host = mmc_priv(mmc);
-	host->base = ioremap(r->start, resource_size(r));
+	host->base = devm_request_and_ioremap(&pdev->dev, iores);
 	if (!host->base) {
-		ret = -ENOMEM;
+		ret = -EADDRNOTAVAIL;
 		goto out_mmc_free;
 	}
 
 	host->devid = pdev->id_entry->driver_data;
 	host->mmc = mmc;
-	host->res = r;
 	host->dma_res = dmares;
-	host->irq = irq_err;
 	host->sdio_irq_en = 0;
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
@@ -741,7 +731,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 	host->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
-		goto out_iounmap;
+		goto out_mmc_free;
 	}
 	clk_prepare_enable(host->clk);
 
@@ -782,7 +772,8 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, mmc);
 
-	ret = request_irq(host->irq, mxs_mmc_irq_handler, 0, DRIVER_NAME, host);
+	ret = devm_request_irq(&pdev->dev, irq_err, mxs_mmc_irq_handler, 0,
+			       DRIVER_NAME, host);
 	if (ret)
 		goto out_free_dma;
 
@@ -790,26 +781,20 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	ret = mmc_add_host(mmc);
 	if (ret)
-		goto out_free_irq;
+		goto out_free_dma;
 
 	dev_info(mmc_dev(host->mmc), "initialized\n");
 
 	return 0;
 
-out_free_irq:
-	free_irq(host->irq, host);
 out_free_dma:
 	if (host->dmach)
 		dma_release_channel(host->dmach);
 out_clk_put:
 	clk_disable_unprepare(host->clk);
 	clk_put(host->clk);
-out_iounmap:
-	iounmap(host->base);
 out_mmc_free:
 	mmc_free_host(mmc);
-out_release_mem:
-	release_mem_region(iores->start, resource_size(iores));
 	return ret;
 }
 
@@ -817,11 +802,8 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	struct mxs_mmc_host *host = mmc_priv(mmc);
-	struct resource *res = host->res;
 
 	mmc_remove_host(mmc);
-
-	free_irq(host->irq, host);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -831,11 +813,7 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 	clk_disable_unprepare(host->clk);
 	clk_put(host->clk);
 
-	iounmap(host->base);
-
 	mmc_free_host(mmc);
-
-	release_mem_region(res->start, resource_size(res));
 
 	return 0;
 }
