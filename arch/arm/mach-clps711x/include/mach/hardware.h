@@ -19,12 +19,21 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#ifndef __ASM_ARCH_HARDWARE_H
-#define __ASM_ARCH_HARDWARE_H
+#ifndef __MACH_HARDWARE_H
+#define __MACH_HARDWARE_H
 
+#include <asm/hardware/clps7111.h>
 
-#define CLPS7111_VIRT_BASE	0xff000000
-#define CLPS7111_BASE		CLPS7111_VIRT_BASE
+#define CLPS711X_VIRT_BASE	IOMEM(0xff000000)
+
+#ifndef __ASSEMBLY__
+#define clps_readb(off)		readb(CLPS711X_VIRT_BASE + (off))
+#define clps_readw(off)		readw(CLPS711X_VIRT_BASE + (off))
+#define clps_readl(off)		readl(CLPS711X_VIRT_BASE + (off))
+#define clps_writeb(val,off)	writeb(val, CLPS711X_VIRT_BASE + (off))
+#define clps_writew(val,off)	writew(val, CLPS711X_VIRT_BASE + (off))
+#define clps_writel(val,off)	writel(val, CLPS711X_VIRT_BASE + (off))
+#endif
 
 /*
  * The physical addresses that the external chip select signals map to is
@@ -54,14 +63,10 @@
 
 #if defined (CONFIG_ARCH_EP7211)
 
-#define EP7211_VIRT_BASE	CLPS7111_VIRT_BASE
-#define EP7211_BASE		CLPS7111_VIRT_BASE
 #include <asm/hardware/ep7211.h>
 
 #elif defined (CONFIG_ARCH_EP7212)
 
-#define EP7212_VIRT_BASE	CLPS7111_VIRT_BASE
-#define EP7212_BASE		CLPS7111_VIRT_BASE
 #include <asm/hardware/ep7212.h>
 
 #endif
@@ -71,10 +76,6 @@
 
 #if  defined (CONFIG_ARCH_AUTCPU12)
 
-#define  CS89712_VIRT_BASE	CLPS7111_VIRT_BASE
-#define  CS89712_BASE		CLPS7111_VIRT_BASE
-
-#include <asm/hardware/clps7111.h>
 #include <asm/hardware/ep7212.h>
 #include <asm/hardware/cs89712.h>
 
@@ -83,14 +84,8 @@
 
 #if defined (CONFIG_ARCH_CDB89712)
 
-#include <asm/hardware/clps7111.h>
 #include <asm/hardware/ep7212.h>
 #include <asm/hardware/cs89712.h>
-
-/* static cdb89712_map_io() areas */
-#define REGISTER_START   0x80000000
-#define REGISTER_SIZE    0x4000
-#define REGISTER_BASE    0xff000000
 
 #define ETHER_START      0x20000000
 #define ETHER_SIZE       0x1000
@@ -154,12 +149,7 @@
 
 #if defined (CONFIG_ARCH_CEIVA)
 
-#define  CEIVA_VIRT_BASE	CLPS7111_VIRT_BASE
-#define  CEIVA_BASE		CLPS7111_VIRT_BASE
-
-#include <asm/hardware/clps7111.h>
 #include <asm/hardware/ep7212.h>
-
 
 /*
  * The two flash banks are wired to chip selects 0 and 1. This is the mapping

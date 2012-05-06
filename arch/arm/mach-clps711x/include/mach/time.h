@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <asm/leds.h>
-#include <asm/hardware/clps7111.h>
+#include <mach/hardware.h>
 
 extern void clps711x_setup_timer(void);
 

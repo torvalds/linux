@@ -23,16 +23,7 @@
 #ifndef __ASM_HARDWARE_CLPS7111_H
 #define __ASM_HARDWARE_CLPS7111_H
 
-#define CLPS7111_PHYS_BASE	(0x80000000)
-
-#ifndef __ASSEMBLY__
-#define clps_readb(off)		__raw_readb(CLPS7111_BASE + (off))
-#define clps_readw(off)		__raw_readw(CLPS7111_BASE + (off))
-#define clps_readl(off)		__raw_readl(CLPS7111_BASE + (off))
-#define clps_writeb(val,off)	__raw_writeb(val, CLPS7111_BASE + (off))
-#define clps_writew(val,off)	__raw_writew(val, CLPS7111_BASE + (off))
-#define clps_writel(val,off)	__raw_writel(val, CLPS7111_BASE + (off))
-#endif
+#define CLPS711X_PHYS_BASE	(0x80000000)
 
 #define PADR		(0x0000)
 #define PBDR		(0x0001)
