@@ -559,22 +559,28 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 			     if_incoming, 0, bat_iv_ogm_fwd_send_time());
 }
 
-static void bat_iv_ogm_schedule(struct hard_iface *hard_iface,
-				int tt_num_changes)
+static void bat_iv_ogm_schedule(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct batman_ogm_packet *batman_ogm_packet;
 	struct hard_iface *primary_if;
-	int vis_server;
+	int vis_server, tt_num_changes = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
 	primary_if = primary_if_get_selected(bat_priv);
+
+	if (hard_iface == primary_if)
+		tt_num_changes = batadv_tt_append_diff(bat_priv,
+						       &hard_iface->packet_buff,
+						       &hard_iface->packet_len,
+						       BATMAN_OGM_HLEN);
 
 	batman_ogm_packet = (struct batman_ogm_packet *)hard_iface->packet_buff;
 
 	/* change sequence number to network order */
 	batman_ogm_packet->seqno =
 			htonl((uint32_t)atomic_read(&hard_iface->seqno));
+	atomic_inc(&hard_iface->seqno);
 
 	batman_ogm_packet->ttvn = atomic_read(&bat_priv->ttvn);
 	batman_ogm_packet->tt_crc = htons(bat_priv->tt_crc);
@@ -592,8 +598,6 @@ static void bat_iv_ogm_schedule(struct hard_iface *hard_iface,
 				(uint8_t)atomic_read(&bat_priv->gw_bandwidth);
 	else
 		batman_ogm_packet->gw_flags = NO_FLAGS;
-
-	atomic_inc(&hard_iface->seqno);
 
 	slide_own_bcast_window(hard_iface);
 	bat_iv_ogm_queue_add(bat_priv, hard_iface->packet_buff,

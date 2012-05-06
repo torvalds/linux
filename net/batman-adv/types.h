@@ -405,8 +405,7 @@ struct bat_algo_ops {
 	/* called when primary interface is selected / changed */
 	void (*bat_primary_iface_set)(struct hard_iface *hard_iface);
 	/* prepare a new outgoing OGM for the send queue */
-	void (*bat_ogm_schedule)(struct hard_iface *hard_iface,
-				 int tt_num_changes);
+	void (*bat_ogm_schedule)(struct hard_iface *hard_iface);
 	/* send scheduled OGM */
 	void (*bat_ogm_emit)(struct forw_packet *forw_packet);
 };

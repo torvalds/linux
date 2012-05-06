@@ -275,14 +275,64 @@ out:
 		tt_global_entry_free_ref(tt_global_entry);
 }
 
-int tt_changes_fill_buffer(struct bat_priv *bat_priv,
-			   unsigned char *buff, int buff_len)
+static void tt_realloc_packet_buff(unsigned char **packet_buff,
+				   int *packet_buff_len, int min_packet_len,
+				   int new_packet_len)
 {
-	int count = 0, tot_changes = 0;
-	struct tt_change_node *entry, *safe;
+	unsigned char *new_buff;
 
-	if (buff_len > 0)
-		tot_changes = buff_len / tt_len(1);
+	new_buff = kmalloc(new_packet_len, GFP_ATOMIC);
+
+	/* keep old buffer if kmalloc should fail */
+	if (new_buff) {
+		memcpy(new_buff, *packet_buff, min_packet_len);
+		kfree(*packet_buff);
+		*packet_buff = new_buff;
+		*packet_buff_len = new_packet_len;
+	}
+}
+
+static void tt_prepare_packet_buff(struct bat_priv *bat_priv,
+				   unsigned char **packet_buff,
+				   int *packet_buff_len, int min_packet_len)
+{
+	struct hard_iface *primary_if;
+	int req_len;
+
+	primary_if = primary_if_get_selected(bat_priv);
+
+	req_len = min_packet_len;
+	req_len += tt_len(atomic_read(&bat_priv->tt_local_changes));
+
+	/* if we have too many changes for one packet don't send any
+	 * and wait for the tt table request which will be fragmented
+	 */
+	if ((!primary_if) || (req_len > primary_if->soft_iface->mtu))
+		req_len = min_packet_len;
+
+	tt_realloc_packet_buff(packet_buff, packet_buff_len,
+			       min_packet_len, req_len);
+
+	if (primary_if)
+		hardif_free_ref(primary_if);
+}
+
+static int tt_changes_fill_buff(struct bat_priv *bat_priv,
+				unsigned char **packet_buff,
+				int *packet_buff_len, int min_packet_len)
+{
+	struct tt_change_node *entry, *safe;
+	int count = 0, tot_changes = 0, new_len;
+	unsigned char *tt_buff;
+
+	tt_prepare_packet_buff(bat_priv, packet_buff,
+			       packet_buff_len, min_packet_len);
+
+	new_len = *packet_buff_len - min_packet_len;
+	tt_buff = *packet_buff + min_packet_len;
+
+	if (new_len > 0)
+		tot_changes = new_len / tt_len(1);
 
 	spin_lock_bh(&bat_priv->tt_changes_list_lock);
 	atomic_set(&bat_priv->tt_local_changes, 0);
@@ -290,7 +340,7 @@ int tt_changes_fill_buffer(struct bat_priv *bat_priv,
 	list_for_each_entry_safe(entry, safe, &bat_priv->tt_changes_list,
 				 list) {
 		if (count < tot_changes) {
-			memcpy(buff + tt_len(count),
+			memcpy(tt_buff + tt_len(count),
 			       &entry->change, sizeof(struct tt_change));
 			count++;
 		}
@@ -304,17 +354,15 @@ int tt_changes_fill_buffer(struct bat_priv *bat_priv,
 	kfree(bat_priv->tt_buff);
 	bat_priv->tt_buff_len = 0;
 	bat_priv->tt_buff = NULL;
-	/* We check whether this new OGM has no changes due to size
-	 * problems */
-	if (buff_len > 0) {
-		/**
-		 * if kmalloc() fails we will reply with the full table
+	/* check whether this new OGM has no changes due to size problems */
+	if (new_len > 0) {
+		/* if kmalloc() fails we will reply with the full table
 		 * instead of providing the diff
 		 */
-		bat_priv->tt_buff = kmalloc(buff_len, GFP_ATOMIC);
+		bat_priv->tt_buff = kmalloc(new_len, GFP_ATOMIC);
 		if (bat_priv->tt_buff) {
-			memcpy(bat_priv->tt_buff, buff, buff_len);
-			bat_priv->tt_buff_len = buff_len;
+			memcpy(bat_priv->tt_buff, tt_buff, new_len);
+			bat_priv->tt_buff_len = new_len;
 		}
 	}
 	spin_unlock_bh(&bat_priv->tt_buff_lock);
@@ -1105,7 +1153,7 @@ static uint16_t tt_global_crc(struct bat_priv *bat_priv,
 }
 
 /* Calculates the checksum of the local table */
-uint16_t tt_local_crc(struct bat_priv *bat_priv)
+static uint16_t batadv_tt_local_crc(struct bat_priv *bat_priv)
 {
 	uint16_t total = 0, total_one;
 	struct hashtable_t *hash = bat_priv->tt_local_hash;
@@ -2025,20 +2073,56 @@ static void tt_local_purge_pending_clients(struct bat_priv *bat_priv)
 
 }
 
-void tt_commit_changes(struct bat_priv *bat_priv)
+static int tt_commit_changes(struct bat_priv *bat_priv,
+			     unsigned char **packet_buff, int *packet_buff_len,
+			     int packet_min_len)
 {
-	uint16_t changed_num = tt_set_flags(bat_priv->tt_local_hash,
-					    TT_CLIENT_NEW, false);
-	/* all the reset entries have now to be effectively counted as local
-	 * entries */
+	uint16_t changed_num = 0;
+
+	if (atomic_read(&bat_priv->tt_local_changes) < 1)
+		return -ENOENT;
+
+	changed_num = tt_set_flags(bat_priv->tt_local_hash,
+				   TT_CLIENT_NEW, false);
+
+	/* all reset entries have to be counted as local entries */
 	atomic_add(changed_num, &bat_priv->num_local_tt);
 	tt_local_purge_pending_clients(bat_priv);
+	bat_priv->tt_crc = batadv_tt_local_crc(bat_priv);
 
 	/* Increment the TTVN only once per OGM interval */
 	atomic_inc(&bat_priv->ttvn);
 	bat_dbg(DBG_TT, bat_priv, "Local changes committed, updating to ttvn %u\n",
 		(uint8_t)atomic_read(&bat_priv->ttvn));
 	bat_priv->tt_poss_change = false;
+
+	/* reset the sending counter */
+	atomic_set(&bat_priv->tt_ogm_append_cnt, TT_OGM_APPEND_MAX);
+
+	return tt_changes_fill_buff(bat_priv, packet_buff,
+				    packet_buff_len, packet_min_len);
+}
+
+/* when calling this function (hard_iface == primary_if) has to be true */
+int batadv_tt_append_diff(struct bat_priv *bat_priv,
+			  unsigned char **packet_buff, int *packet_buff_len,
+			  int packet_min_len)
+{
+	int tt_num_changes;
+
+	/* if at least one change happened */
+	tt_num_changes = tt_commit_changes(bat_priv, packet_buff,
+					   packet_buff_len, packet_min_len);
+
+	/* if the changes have been sent often enough */
+	if ((tt_num_changes < 0) &&
+	    (!atomic_dec_not_zero(&bat_priv->tt_ogm_append_cnt))) {
+		tt_realloc_packet_buff(packet_buff, packet_buff_len,
+				       packet_min_len, packet_min_len);
+		tt_num_changes = 0;
+	}
+
+	return tt_num_changes;
 }
 
 bool is_ap_isolated(struct bat_priv *bat_priv, uint8_t *src, uint8_t *dst)

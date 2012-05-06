@@ -77,62 +77,9 @@ send_skb_err:
 	return NET_XMIT_DROP;
 }
 
-static void realloc_packet_buffer(struct hard_iface *hard_iface,
-				  int new_len)
-{
-	unsigned char *new_buff;
-
-	new_buff = kmalloc(new_len, GFP_ATOMIC);
-
-	/* keep old buffer if kmalloc should fail */
-	if (new_buff) {
-		memcpy(new_buff, hard_iface->packet_buff,
-		       BATMAN_OGM_HLEN);
-
-		kfree(hard_iface->packet_buff);
-		hard_iface->packet_buff = new_buff;
-		hard_iface->packet_len = new_len;
-	}
-}
-
-/* when calling this function (hard_iface == primary_if) has to be true */
-static int prepare_packet_buffer(struct bat_priv *bat_priv,
-				  struct hard_iface *hard_iface)
-{
-	int new_len;
-
-	new_len = BATMAN_OGM_HLEN +
-		  tt_len((uint8_t)atomic_read(&bat_priv->tt_local_changes));
-
-	/* if we have too many changes for one packet don't send any
-	 * and wait for the tt table request which will be fragmented */
-	if (new_len > hard_iface->soft_iface->mtu)
-		new_len = BATMAN_OGM_HLEN;
-
-	realloc_packet_buffer(hard_iface, new_len);
-
-	bat_priv->tt_crc = tt_local_crc(bat_priv);
-
-	/* reset the sending counter */
-	atomic_set(&bat_priv->tt_ogm_append_cnt, TT_OGM_APPEND_MAX);
-
-	return tt_changes_fill_buffer(bat_priv,
-				      hard_iface->packet_buff + BATMAN_OGM_HLEN,
-				      hard_iface->packet_len - BATMAN_OGM_HLEN);
-}
-
-static int reset_packet_buffer(struct bat_priv *bat_priv,
-				struct hard_iface *hard_iface)
-{
-	realloc_packet_buffer(hard_iface, BATMAN_OGM_HLEN);
-	return 0;
-}
-
 void schedule_bat_ogm(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct hard_iface *primary_if;
-	int tt_num_changes = -1;
 
 	if ((hard_iface->if_status == IF_NOT_IN_USE) ||
 	    (hard_iface->if_status == IF_TO_BE_REMOVED))
@@ -148,26 +95,7 @@ void schedule_bat_ogm(struct hard_iface *hard_iface)
 	if (hard_iface->if_status == IF_TO_BE_ACTIVATED)
 		hard_iface->if_status = IF_ACTIVE;
 
-	primary_if = primary_if_get_selected(bat_priv);
-
-	if (hard_iface == primary_if) {
-		/* if at least one change happened */
-		if (atomic_read(&bat_priv->tt_local_changes) > 0) {
-			tt_commit_changes(bat_priv);
-			tt_num_changes = prepare_packet_buffer(bat_priv,
-							       hard_iface);
-		}
-
-		/* if the changes have been sent often enough */
-		if (!atomic_dec_not_zero(&bat_priv->tt_ogm_append_cnt))
-			tt_num_changes = reset_packet_buffer(bat_priv,
-							     hard_iface);
-	}
-
-	if (primary_if)
-		hardif_free_ref(primary_if);
-
-	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface, tt_num_changes);
+	bat_priv->bat_algo_ops->bat_ogm_schedule(hard_iface);
 }
 
 static void forw_packet_free(struct forw_packet *forw_packet)
