@@ -13,6 +13,7 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/pinctrl/machine.h>
 
 #include <asm/mach/map.h>
 
@@ -60,4 +61,14 @@ void __init mx28_map_io(void)
 void __init mx28_init_irq(void)
 {
 	icoll_init_irq();
+}
+
+void __init mx23_soc_init(void)
+{
+	pinctrl_provide_dummies();
+}
+
+void __init mx28_soc_init(void)
+{
+	pinctrl_provide_dummies();
 }
