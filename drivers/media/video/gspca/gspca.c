@@ -40,6 +40,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 
 #include "gspca.h"
 
@@ -2158,6 +2159,7 @@ static unsigned int dev_poll(struct file *file, poll_table *wait)
 		ret = POLLIN | POLLRDNORM;	/* yes */
 	else
 		ret = 0;
+	ret |= v4l2_ctrl_poll(file, wait);
 	mutex_unlock(&gspca_dev->queue_lock);
 	if (!gspca_dev->present)
 		return POLLHUP;
@@ -2269,6 +2271,8 @@ static const struct v4l2_ioctl_ops dev_ioctl_ops = {
 	.vidioc_s_register	= vidioc_s_register,
 #endif
 	.vidioc_g_chip_ident	= vidioc_g_chip_ident,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static const struct video_device gspca_template = {
