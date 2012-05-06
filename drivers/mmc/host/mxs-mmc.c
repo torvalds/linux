@@ -146,7 +146,7 @@ struct mxs_mmc_host {
 	struct mmc_data			*data;
 
 	void __iomem			*base;
-	struct resource			*dma_res;
+	int				dma_channel;
 	struct clk			*clk;
 	unsigned int			clk_rate;
 
@@ -668,7 +668,7 @@ static bool mxs_mmc_dma_filter(struct dma_chan *chan, void *param)
 	if (!mxs_dma_is_apbh(chan))
 		return false;
 
-	if (chan->chan_id != host->dma_res->start)
+	if (chan->chan_id != host->dma_channel)
 		return false;
 
 	chan->private = &host->dma_data;
@@ -719,7 +719,7 @@ static int mxs_mmc_probe(struct platform_device *pdev)
 
 	host->devid = pdev->id_entry->driver_data;
 	host->mmc = mmc;
-	host->dma_res = dmares;
+	host->dma_channel = dmares->start;
 	host->sdio_irq_en = 0;
 
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
