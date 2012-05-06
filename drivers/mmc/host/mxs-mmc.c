@@ -41,8 +41,7 @@
 #include <linux/fsl/mxs-dma.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/stmp_device.h>
-
-#include <mach/mmc.h>
+#include <linux/mmc/mxs-mmc.h>
 
 #define DRIVER_NAME	"mxs-mmc"
 
