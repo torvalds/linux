@@ -2871,8 +2871,8 @@ or
 *   The Assert validates the HCF assumption about Hermes implementation upon which the range of
 *   Pseudo-RIDs is based.
 *   Then the control fields up to the start of the 802.3 frame are read from the NIC into the lookahead buffer.
-*   The status field is converted to native Endianess.
-*   The length is, after implicit Endianess conversion if needed, and adjustment for the 14 bytes of the
+*   The status field is converted to native Endianness.
+*   The length is, after implicit Endianness conversion if needed, and adjustment for the 14 bytes of the
 *   802.3 MAC header, stored in IFB_RxLen.
 *   In MAC Monitor mode, 802.11 control frames with a TOTAL length of 14 are received, so without this
 *   length adjustment, IFB_RxLen could not be used to distinguish these frames from "no frame".
@@ -2894,7 +2894,7 @@ or
 *     - the Hermes reported Tunnel encapsulation or
 *     - the Hermes reported 1042 Encapsulation and hcf_encap reports that the HCF would not have used
 *       1042 as the encapsulation mechanism
-*   Note that the first field of the RxFS in bufp has Native Endianess due to the conversion done by the
+*   Note that the first field of the RxFS in bufp has Native Endianness due to the conversion done by the
 *   BE_PAR in get_frag.
 *36: The Type field is the only word kept (after moving) of the just read 8 bytes, it is moved to the
 *   L-field.  The original L-field and 6 byte SNAP header are discarded, so IFB_RxLen and buf_addr must
@@ -3831,7 +3831,7 @@ get_fid( IFBP ifbp )
  *.DESCRIPTION
  * process the single byte (if applicable) read by the previous get_frag and copy len (or len-1) bytes from
  * NIC to bufp.
- * On a Big Endian platform, the parameter word_len controls the number of leading bytes whose endianess is
+ * On a Big Endian platform, the parameter word_len controls the number of leading bytes whose endianness is
  * converted (i.e. byte swapped)
  *
  *
@@ -3980,7 +3980,7 @@ get_frag( IFBP ifbp, wci_bufp bufp, int len BE_PAR( int word_len ) )
  *    appropriate means on H-I: always
  *    and on H-II if F/W supplier reflects a primary (i.e. only after an Hermes Reset or Init
  *    command).
- *    QUESTION ;? !!!!!! should, For each of the above RIDs the Endianess is converted to native Endianess.
+ *    QUESTION ;? !!!!!! should, For each of the above RIDs the Endianness is converted to native Endianness.
  *    Only the return code of the first hcf_get_info is used. All hcf_get_info calls are made, regardless of
  *    the success or failure of the 1st hcf_get_info. The assumptions are:
  *     - if any call fails, they all fail, so remembering the result of the 1st call is adequate
