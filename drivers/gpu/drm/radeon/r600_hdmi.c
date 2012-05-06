@@ -328,10 +328,7 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 	WREG32(HDMI0_GC + offset, 0x0);
 
 	/* Send audio packets */
-	if (ASIC_IS_DCE4(rdev))
-		WREG32_P(0x74fc + offset,
-			 AFMT_AUDIO_SAMPLE_SEND, ~AFMT_AUDIO_SAMPLE_SEND);
-	else if (ASIC_IS_DCE32(rdev))
+	if (ASIC_IS_DCE32(rdev))
 		WREG32_P(AFMT_AUDIO_PACKET_CONTROL + offset,
 			 AFMT_AUDIO_SAMPLE_SEND, ~AFMT_AUDIO_SAMPLE_SEND);
 	else
@@ -458,10 +455,6 @@ static void r600_hdmi_assign_block(struct drm_encoder *encoder)
 			return;
 		}
 		radeon_encoder->hdmi_offset = eg_offsets[dig->dig_encoder];
-		/* Temp hack for Evergreen until we split r600_hdmi.c
-		 * Evergreen first block is 0x7030 instead of 0x7400.
-		 */
-		radeon_encoder->hdmi_offset -= 0x3d0;
 	} else if (ASIC_IS_DCE3(rdev)) {
 		radeon_encoder->hdmi_offset = dig->dig_encoder ?
 			DCE3_HDMI_OFFSET1 : DCE3_HDMI_OFFSET0;

@@ -1841,9 +1841,17 @@ struct radeon_hdmi_acr {
 
 };
 
+extern struct radeon_hdmi_acr r600_hdmi_acr(uint32_t clock);
+
 extern void r600_hdmi_enable(struct drm_encoder *encoder);
 extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
+
+/*
+ * evergreen functions used by radeon_encoder.c
+ */
+
+extern void evergreen_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 
 extern int ni_init_microcode(struct radeon_device *rdev);
 extern int ni_mc_load_microcode(struct radeon_device *rdev);

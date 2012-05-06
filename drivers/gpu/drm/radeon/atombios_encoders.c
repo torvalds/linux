@@ -1926,7 +1926,10 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
 		r600_hdmi_enable(encoder);
-		r600_hdmi_setmode(encoder, adjusted_mode);
+		if (ASIC_IS_DCE4(rdev))
+			evergreen_hdmi_setmode(encoder, adjusted_mode);
+		else
+			r600_hdmi_setmode(encoder, adjusted_mode);
 	}
 }
 
