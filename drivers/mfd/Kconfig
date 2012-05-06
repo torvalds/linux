@@ -195,6 +195,18 @@ config TWL4030_CORE
 	  high speed USB OTG transceiver, an audio codec (on most
 	  versions) and many other features.
 
+config TWL6030_POWER
+	bool "Support power resources on TWL6030 family chips"
+	depends on TWL4030_CORE
+	help
+	  Say yes here if you want to use the power resources on the
+	  TWL6030 family chips.  Most of these resources are regulators,
+	  which have a separate driver; some are control signals, such
+	  as clock request handshaking.
+
+	  This driver defaults to assuming only APPs processor uses
+	  the resource, it can however be overridden by board file
+
 config TWL4030_MADC
 	tristate "Texas Instruments TWL4030 MADC"
 	depends on TWL4030_CORE
@@ -232,6 +244,28 @@ config TWL6030_PWM
 	help
 	  Say yes here if you want support for TWL6030 PWM.
 	  This is used to control charging LED brightness.
+
+config TWL6030_POWEROFF
+	bool "TWL6030 device poweroff"
+	depends on TWL4030_CORE
+
+config TWL6030_MADC
+	tristate "Texas Instruments TWL6030 MADC"
+	depends on TWL4030_CORE
+	help
+	This driver provides support for TWL6030-MADC. The
+	driver supports both RT and SW conversion methods.
+
+	This driver can be built as a module. If so it will be
+	named twl6030-madc
+
+config TWL6030_GPADC
+	tristate "TWL6030 GPADC (General Purpose A/D Convertor) Support"
+	depends on TWL4030_CORE
+	default n
+	help
+	  Say yes here if you want support for the TWL6030 General Purpose
+	  A/D Convertor.
 
 config AIC3262_CODEC
 	bool "Support TI Codec Aic3262"

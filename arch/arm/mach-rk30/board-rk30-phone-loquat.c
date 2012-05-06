@@ -1543,18 +1543,9 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
-#include "board-rk30-sdk-wm8326.c"
 #include "board-rk30-sdk-twl80032.c"
 static struct i2c_board_info __initdata i2c1_info[] = {
-#if defined (CONFIG_MFD_WM831X_I2C)
-	{
-		.type          = "wm8326",
-		.addr          = 0x34,
-		.flags         = 0,
-		.irq           = RK30_PIN6_PA4,
-		.platform_data = &wm831x_platdata,
-	},
-#endif
+
 #if defined (CONFIG_TWL4030_CORE)
 	{
 		.type = "twl6032",

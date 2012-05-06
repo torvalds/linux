@@ -423,7 +423,7 @@ static int __devinit twl_rtc_probe(struct platform_device *pdev)
 	int ret = -EINVAL;
 	int irq = platform_get_irq(pdev, 0);
 	u8 rd_reg;
-
+	printk("+++ twl_rtc_probe +++\n");
 	if (irq <= 0)
 		goto out1;
 
