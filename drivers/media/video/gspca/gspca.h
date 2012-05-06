@@ -6,6 +6,7 @@
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <linux/mutex.h>
 
 /* compilation option */
@@ -159,6 +160,7 @@ struct gspca_frame {
 struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
 	struct module *module;		/* subdriver handling the device */
+	struct v4l2_device v4l2_dev;
 	struct usb_device *dev;
 	struct file *capt_file;		/* file doing video capture */
 #if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)

@@ -39,6 +39,7 @@
 #include <linux/ktime.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-ctrls.h>
+#include <media/v4l2-fh.h>
 
 #include "gspca.h"
 
@@ -1327,6 +1328,7 @@ static void gspca_release(struct video_device *vfd)
 		video_device_node_name(&gspca_dev->vdev));
 
 	v4l2_ctrl_handler_free(gspca_dev->vdev.ctrl_handler);
+	v4l2_device_unregister(&gspca_dev->v4l2_dev);
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 }
@@ -1352,7 +1354,7 @@ static int dev_open(struct file *file)
 		gspca_dev->vdev.debug &= ~(V4L2_DEBUG_IOCTL
 					| V4L2_DEBUG_IOCTL_ARG);
 #endif
-	return 0;
+	return v4l2_fh_open(file);
 }
 
 static int dev_close(struct file *file)
@@ -1378,7 +1380,7 @@ static int dev_close(struct file *file)
 
 	PDEBUG(D_STREAM, "close done");
 
-	return 0;
+	return v4l2_fh_release(file);
 }
 
 static int vidioc_querycap(struct file *file, void  *priv,
@@ -2345,12 +2347,16 @@ int gspca_dev_probe2(struct usb_interface *intf,
 		}
 	}
 
+	ret = v4l2_device_register(&intf->dev, &gspca_dev->v4l2_dev);
+	if (ret)
+		goto out;
 	gspca_dev->sd_desc = sd_desc;
 	gspca_dev->nbufread = 2;
 	gspca_dev->empty_packet = -1;	/* don't check the empty packets */
 	gspca_dev->vdev = gspca_template;
-	gspca_dev->vdev.parent = &intf->dev;
+	gspca_dev->vdev.v4l2_dev = &gspca_dev->v4l2_dev;
 	video_set_drvdata(&gspca_dev->vdev, gspca_dev);
+	set_bit(V4L2_FL_USE_FH_PRIO, &gspca_dev->vdev.flags);
 	gspca_dev->module = module;
 	gspca_dev->present = 1;
 
@@ -2462,6 +2468,7 @@ void gspca_disconnect(struct usb_interface *intf)
 
 	/* the device is freed at exit of this function */
 	gspca_dev->dev = NULL;
+	v4l2_device_disconnect(&gspca_dev->v4l2_dev);
 	mutex_unlock(&gspca_dev->usb_lock);
 
 	usb_set_intfdata(intf, NULL);
