@@ -218,6 +218,13 @@ config MEDIA_TUNER_FC0012
 	help
 	  Fitipower FC0012 silicon tuner driver.
 
+config MEDIA_TUNER_FC0013
+	tristate "Fitipower FC0013 silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if MEDIA_TUNER_CUSTOMISE
+	help
+	  Fitipower FC0013 silicon tuner driver.
+
 config MEDIA_TUNER_TDA18212
 	tristate "NXP TDA18212 silicon tuner"
 	depends on VIDEO_MEDIA && I2C
