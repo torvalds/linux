@@ -1066,10 +1066,10 @@ static int vidioc_g_register(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
 	if (!gspca_dev->sd_desc->get_chip_ident)
-		return -EINVAL;
+		return -ENOTTY;
 
 	if (!gspca_dev->sd_desc->get_register)
-		return -EINVAL;
+		return -ENOTTY;
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
@@ -1090,10 +1090,10 @@ static int vidioc_s_register(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
 	if (!gspca_dev->sd_desc->get_chip_ident)
-		return -EINVAL;
+		return -ENOTTY;
 
 	if (!gspca_dev->sd_desc->set_register)
-		return -EINVAL;
+		return -ENOTTY;
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
@@ -1115,7 +1115,7 @@ static int vidioc_g_chip_ident(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
 	if (!gspca_dev->sd_desc->get_chip_ident)
-		return -EINVAL;
+		return -ENOTTY;
 
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
@@ -1410,9 +1410,10 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	}
 	usb_make_path(gspca_dev->dev, (char *) cap->bus_info,
 			sizeof(cap->bus_info));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
 			  | V4L2_CAP_STREAMING
 			  | V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->usb_lock);
@@ -1565,7 +1566,7 @@ static int vidioc_querymenu(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 
 	if (!gspca_dev->sd_desc->querymenu)
-		return -EINVAL;
+		return -ENOTTY;
 	return gspca_dev->sd_desc->querymenu(gspca_dev, qmenu);
 }
 
@@ -1774,7 +1775,7 @@ static int vidioc_g_jpegcomp(struct file *file, void *priv,
 	int ret;
 
 	if (!gspca_dev->sd_desc->get_jcomp)
-		return -EINVAL;
+		return -ENOTTY;
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
 	gspca_dev->usb_err = 0;
@@ -1793,7 +1794,7 @@ static int vidioc_s_jpegcomp(struct file *file, void *priv,
 	int ret;
 
 	if (!gspca_dev->sd_desc->set_jcomp)
-		return -EINVAL;
+		return -ENOTTY;
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 		return -ERESTARTSYS;
 	gspca_dev->usb_err = 0;
