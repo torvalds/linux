@@ -45,6 +45,10 @@ BIAS(gpio_in_pu_slpm_gpio_nopull, PIN_INPUT_PULLUP|PIN_GPIOMODE_ENABLED|PIN_SLPM
 BIAS(gpio_in_pd_slpm_gpio_nopull, PIN_INPUT_PULLDOWN|PIN_GPIOMODE_ENABLED|PIN_SLPM_GPIO|PIN_SLPM_INPUT_NOPULL);
 BIAS(gpio_out_hi, PIN_OUTPUT_HIGH|PIN_GPIOMODE_ENABLED);
 BIAS(gpio_out_lo, PIN_OUTPUT_LOW|PIN_GPIOMODE_ENABLED);
+/* Sleep modes */
+BIAS(sleep_in_wkup_pdis, PIN_SLPM_DIR_INPUT|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
+BIAS(sleep_out_hi_wkup_pdis, PIN_SLPM_OUTPUT_HIGH|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
+BIAS(sleep_out_wkup_pdis, PIN_SLPM_DIR_OUTPUT|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
 
 /* We use these to define hog settings that are always done on boot */
 #define DB8500_MUX_HOG(group,func) \
@@ -57,6 +61,10 @@ BIAS(gpio_out_lo, PIN_OUTPUT_LOW|PIN_GPIOMODE_ENABLED);
 	PIN_MAP_MUX_GROUP_DEFAULT(dev, "pinctrl-db8500", group, func)
 #define DB8500_PIN(pin,conf,dev) \
 	PIN_MAP_CONFIGS_PIN_DEFAULT(dev, "pinctrl-db8500", pin, conf)
+
+#define DB8500_PIN_SLEEP(pin,conf,dev) \
+	PIN_MAP_CONFIGS_PIN(dev, PINCTRL_STATE_SLEEP, "pinctrl-db8500",	\
+			    pin, conf)
 
 /* Pin control settings */
 static struct pinctrl_map __initdata mop500_family_pinmap[] = {
@@ -115,6 +123,17 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	 * converted to the pinctrl model. Here we model them as "default"
 	 * states.
 	 */
+	/* Mux in UART0 after initialization */
+	DB8500_MUX("u0_a_1", "u0", "uart0"),
+	DB8500_PIN("GPIO0_AJ5", in_pu, "uart0"), /* CTS */
+	DB8500_PIN("GPIO1_AJ3", out_hi, "uart0"), /* RTS */
+	DB8500_PIN("GPIO2_AH4", in_pu, "uart0"), /* RXD */
+	DB8500_PIN("GPIO3_AH3", out_hi, "uart0"), /* TXD */
+	/* Sleep state for UART0 */
+	DB8500_PIN_SLEEP("GPIO0_AJ5", sleep_in_wkup_pdis, "uart0"),
+	DB8500_PIN_SLEEP("GPIO1_AJ3", sleep_out_hi_wkup_pdis, "uart0"),
+	DB8500_PIN_SLEEP("GPIO2_AH4", sleep_in_wkup_pdis, "uart0"),
+	DB8500_PIN_SLEEP("GPIO3_AH3", sleep_out_wkup_pdis, "uart0"),
 	/* Mux in LCD data lines 8 thru 11 and LCDA CLK for MCDE TVOUT */
 	DB8500_MUX("lcd_d8_d11_a_1", "lcd", "mcde-tvout"),
 	DB8500_MUX("lcdaclk_b_1", "lcda", "mcde-tvout"),
