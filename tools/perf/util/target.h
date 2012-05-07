@@ -43,4 +43,7 @@ enum perf_target_errno {
 enum perf_target_errno perf_target__validate(struct perf_target *target);
 enum perf_target_errno perf_target__parse_uid(struct perf_target *target);
 
+int perf_target__strerror(struct perf_target *target, int errnum, char *buf,
+			  size_t buflen);
+
 #endif /* _PERF_TARGET_H */

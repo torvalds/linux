@@ -10,6 +10,7 @@
 #include "debug.h"
 
 #include <pwd.h>
+#include <string.h>
 
 
 enum perf_target_errno perf_target__validate(struct perf_target *target)
@@ -88,4 +89,54 @@ enum perf_target_errno perf_target__parse_uid(struct perf_target *target)
 
 	target->uid = result->pw_uid;
 	return PERF_ERRNO_TARGET__SUCCESS;
+}
+
+/*
+ * This must have a same ordering as the enum perf_target_errno.
+ */
+static const char *perf_target__error_str[] = {
+	"PID/TID switch overriding CPU",
+	"PID/TID switch overriding UID",
+	"UID switch overriding CPU",
+	"PID/TID switch overriding SYSTEM",
+	"UID switch overriding SYSTEM",
+	"Invalid User: %s",
+	"Problems obtaining information for user %s",
+};
+
+int perf_target__strerror(struct perf_target *target, int errnum,
+			  char *buf, size_t buflen)
+{
+	int idx;
+	const char *msg;
+
+	if (errnum >= 0) {
+		strerror_r(errnum, buf, buflen);
+		return 0;
+	}
+
+	if (errnum <  __PERF_ERRNO_TARGET__START ||
+	    errnum >= __PERF_ERRNO_TARGET__END)
+		return -1;
+
+	idx = errnum - __PERF_ERRNO_TARGET__START;
+	msg = perf_target__error_str[idx];
+
+	switch (errnum) {
+	case PERF_ERRNO_TARGET__PID_OVERRIDE_CPU
+	 ... PERF_ERRNO_TARGET__UID_OVERRIDE_SYSTEM:
+		snprintf(buf, buflen, "%s", msg);
+		break;
+
+	case PERF_ERRNO_TARGET__INVALID_UID:
+	case PERF_ERRNO_TARGET__USER_NOT_FOUND:
+		snprintf(buf, buflen, msg, target->uid_str);
+		break;
+
+	default:
+		/* cannot reach here */
+		break;
+	}
+
+	return 0;
 }

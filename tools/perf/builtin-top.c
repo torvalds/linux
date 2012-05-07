@@ -1150,7 +1150,8 @@ static const char * const top_usage[] = {
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	struct perf_evsel *pos;
-	int status = -ENOMEM;
+	int status;
+	char errbuf[BUFSIZ];
 	struct perf_top top = {
 		.count_filter	     = 5,
 		.delay_secs	     = 2,
@@ -1252,10 +1253,22 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	setup_browser(false);
 
-	perf_target__validate(&top.target);
+	status = perf_target__validate(&top.target);
+	if (status) {
+		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
+	}
 
-	if (perf_target__parse_uid(&top.target) < 0)
+	status = perf_target__parse_uid(&top.target);
+	if (status) {
+		int saved_errno = errno;
+
+		perf_target__strerror(&top.target, status, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
+
+		status = -saved_errno;
 		goto out_delete_evlist;
+	}
 
 	if (top.target.tid == 0 && top.target.pid == 0 &&
 	    top.target.uid_str == NULL)

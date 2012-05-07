@@ -831,6 +831,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	struct perf_evsel *pos;
 	struct perf_evlist *evsel_list;
 	struct perf_record *rec = &record;
+	char errbuf[BUFSIZ];
 
 	perf_header__set_cmdline(argc, argv);
 
@@ -884,11 +885,24 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		goto out_symbol_exit;
 	}
 
-	perf_target__validate(&rec->opts.target);
+	err = perf_target__validate(&rec->opts.target);
+	if (err) {
+		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
+	}
 
-	if (perf_target__parse_uid(&rec->opts.target) < 0)
+	err = perf_target__parse_uid(&rec->opts.target);
+	if (err) {
+		int saved_errno = errno;
+
+		perf_target__strerror(&rec->opts.target, err, errbuf, BUFSIZ);
+		ui__warning("%s", errbuf);
+
+		err = -saved_errno;
 		goto out_free_fd;
+	}
 
+	err = -ENOMEM;
 	if (perf_evlist__create_maps(evsel_list, &rec->opts.target) < 0)
 		usage_with_options(record_usage, record_options);
 
