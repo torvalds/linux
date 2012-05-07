@@ -17,7 +17,6 @@
 #include <mach/hardware.h>
 
 #include "pins-db8500.h"
-#include "pins.h"
 #include "board-mop500.h"
 
 enum custom_pin_cfg_t {
