@@ -843,9 +843,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, record_options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && !rec->opts.target.pid && !rec->opts.target.tid &&
-	    !rec->opts.target.system_wide && !rec->opts.target.cpu_list &&
-	    !rec->opts.target.uid_str)
+	if (!argc && perf_target__none(&rec->opts.target))
 		usage_with_options(record_usage, record_options);
 
 	if (rec->force && rec->append_file) {
