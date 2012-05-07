@@ -379,7 +379,10 @@ static int l2cap_sock_getsockopt(struct socket *sock, int level, int optname, ch
 		}
 
 		memset(&sec, 0, sizeof(sec));
-		sec.level = chan->sec_level;
+		if (chan->conn)
+			sec.level = chan->conn->hcon->sec_level;
+		else
+			sec.level = chan->sec_level;
 
 		if (sk->sk_state == BT_CONNECTED)
 			sec.key_size = chan->conn->hcon->enc_key_size;
