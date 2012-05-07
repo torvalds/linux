@@ -262,8 +262,10 @@ static int tps62360_init_dcdc(struct tps62360_chip *tps,
 }
 
 static const struct regmap_config tps62360_regmap_config = {
-	.reg_bits = 8,
-	.val_bits = 8,
+	.reg_bits		= 8,
+	.val_bits		= 8,
+	.max_register		= REG_CHIPID,
+	.cache_type		= REGCACHE_RBTREE,
 };
 
 static int __devinit tps62360_probe(struct i2c_client *client,
