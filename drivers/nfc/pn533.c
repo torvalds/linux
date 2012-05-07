@@ -394,9 +394,6 @@ static void pn533_wq_cmd_complete(struct work_struct *work)
 	struct pn533_frame *in_frame;
 	int rc;
 
-	if (dev == NULL)
-		return;
-
 	in_frame = dev->wq_in_frame;
 
 	if (dev->wq_in_error)
