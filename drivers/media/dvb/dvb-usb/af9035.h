@@ -54,7 +54,6 @@ struct usb_req {
 
 struct state {
 	bool dual_mode;
-	bool hw_not_supported;
 
 	struct af9033_config af9033_config[2];
 };

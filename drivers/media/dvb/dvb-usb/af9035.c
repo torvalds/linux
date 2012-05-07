@@ -615,7 +615,6 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 			state->af9033_config[i].spec_inv = 1;
 			break;
 		default:
-			state->hw_not_supported = true;
 			warn("tuner ID=%02x not supported, please report!",
 				tmp);
 		};
@@ -809,7 +808,8 @@ static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 	struct state *state = adap->dev->priv;
 	int ret;
 
-	if (state->hw_not_supported) {
+	if (!state->af9033_config[adap->id].tuner) {
+		/* unsupported tuner */
 		ret = -ENODEV;
 		goto err;
 	}
