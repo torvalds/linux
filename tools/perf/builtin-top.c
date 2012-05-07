@@ -1254,8 +1254,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	perf_target__validate(&top.target);
 
-	top.target.uid = parse_target_uid(top.target.uid_str);
-	if (top.target.uid_str != NULL && top.target.uid == UINT_MAX - 1)
+	if (perf_target__parse_uid(&top.target) < 0)
 		goto out_delete_evlist;
 
 	if (top.target.tid == 0 && top.target.pid == 0 &&

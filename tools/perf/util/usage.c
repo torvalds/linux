@@ -82,34 +82,3 @@ void warning(const char *warn, ...)
 	warn_routine(warn, params);
 	va_end(params);
 }
-
-uid_t parse_target_uid(const char *str)
-{
-	struct passwd pwd, *result;
-	char buf[1024];
-
-	if (str == NULL)
-		return UINT_MAX;
-
-	getpwnam_r(str, &pwd, buf, sizeof(buf), &result);
-
-	if (result == NULL) {
-		char *endptr;
-		int uid = strtol(str, &endptr, 10);
-
-		if (*endptr != '\0') {
-			ui__error("Invalid user %s\n", str);
-			return UINT_MAX - 1;
-		}
-
-		getpwuid_r(uid, &pwd, buf, sizeof(buf), &result);
-
-		if (result == NULL) {
-			ui__error("Problems obtaining information for user %s\n",
-				  str);
-			return UINT_MAX - 1;
-		}
-	}
-
-	return result->pw_uid;
-}

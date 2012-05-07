@@ -33,9 +33,14 @@ enum perf_target_errno {
 	PERF_ERRNO_TARGET__PID_OVERRIDE_SYSTEM,
 	PERF_ERRNO_TARGET__UID_OVERRIDE_SYSTEM,
 
+	/* for perf_target__parse_uid() */
+	PERF_ERRNO_TARGET__INVALID_UID,
+	PERF_ERRNO_TARGET__USER_NOT_FOUND,
+
 	__PERF_ERRNO_TARGET__END,
 };
 
 enum perf_target_errno perf_target__validate(struct perf_target *target);
+enum perf_target_errno perf_target__parse_uid(struct perf_target *target);
 
 #endif /* _PERF_TARGET_H */
