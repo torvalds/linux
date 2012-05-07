@@ -90,7 +90,7 @@ static const struct regmap_config tps65910_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int __init tps65910_sleepinit(struct tps65910 *tps65910,
+static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
 		struct tps65910_board *pmic_pdata)
 {
 	struct device *dev = NULL;
@@ -150,8 +150,8 @@ err_sleep_init:
 }
 
 
-static int tps65910_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
+					const struct i2c_device_id *id)
 {
 	struct tps65910 *tps65910;
 	struct tps65910_board *pmic_plat_data;
@@ -213,7 +213,7 @@ regmap_err:
 	return ret;
 }
 
-static int tps65910_i2c_remove(struct i2c_client *i2c)
+static __devexit int tps65910_i2c_remove(struct i2c_client *i2c)
 {
 	struct tps65910 *tps65910 = i2c_get_clientdata(i2c);
 
@@ -239,7 +239,7 @@ static struct i2c_driver tps65910_i2c_driver = {
 		   .owner = THIS_MODULE,
 	},
 	.probe = tps65910_i2c_probe,
-	.remove = tps65910_i2c_remove,
+	.remove = __devexit_p(tps65910_i2c_remove),
 	.id_table = tps65910_i2c_id,
 };
 
