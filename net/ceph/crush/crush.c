@@ -62,6 +62,8 @@ void crush_destroy_bucket_list(struct crush_bucket_list *b)
 
 void crush_destroy_bucket_tree(struct crush_bucket_tree *b)
 {
+	kfree(b->h.perm);
+	kfree(b->h.items);
 	kfree(b->node_weights);
 	kfree(b);
 }
