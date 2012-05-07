@@ -57,7 +57,7 @@
 #include <plat/sdhci.h>
 #include <plat/ts.h>
 #include <plat/udc.h>
-#include <plat/udc-hs.h>
+#include <linux/platform_data/s3c-hsotg.h>
 #include <plat/usb-control.h>
 #include <plat/usb-phy.h>
 #include <plat/regs-iic.h>

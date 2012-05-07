@@ -44,6 +44,7 @@
 #include <plat/fb.h>
 #include <plat/sdhci.h>
 #include <plat/ehci.h>
+#include <linux/platform_data/s3c-hsotg.h>
 #include <plat/clock.h>
 #include <plat/gpio-cfg.h>
 #include <plat/iic.h>

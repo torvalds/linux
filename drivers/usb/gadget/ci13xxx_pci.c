@@ -148,27 +148,7 @@ static struct pci_driver ci13xxx_pci_driver = {
 	.remove       =	__devexit_p(ci13xxx_pci_remove),
 };
 
-/**
- * ci13xxx_pci_init: module init
- *
- * Driver load
- */
-static int __init ci13xxx_pci_init(void)
-{
-	return pci_register_driver(&ci13xxx_pci_driver);
-}
-module_init(ci13xxx_pci_init);
-
-/**
- * ci13xxx_pci_exit: module exit
- *
- * Driver unload
- */
-static void __exit ci13xxx_pci_exit(void)
-{
-	pci_unregister_driver(&ci13xxx_pci_driver);
-}
-module_exit(ci13xxx_pci_exit);
+module_pci_driver(ci13xxx_pci_driver);
 
 MODULE_AUTHOR("MIPS - David Lopo <dlopo@chipidea.mips.com>");
 MODULE_DESCRIPTION("MIPS CI13XXX USB Peripheral Controller");

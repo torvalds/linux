@@ -464,7 +464,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct mv_ep, ep);
 	udc = ep->udc;
 
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc || ep->ep.desc
 			|| desc->bDescriptorType != USB_DT_ENDPOINT)
 		return -EINVAL;
 
@@ -528,7 +528,7 @@ static int mv_ep_enable(struct usb_ep *_ep,
 	dqh->size_ioc_int_sts = 0;
 
 	ep->ep.maxpacket = max;
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->stopped = 0;
 
 	/* Enable the endpoint for Rx or Tx and set the endpoint type */
@@ -580,7 +580,7 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	unsigned long flags;
 
 	ep = container_of(_ep, struct mv_ep, ep);
-	if ((_ep == NULL) || !ep->desc)
+	if ((_ep == NULL) || !ep->ep.desc)
 		return -EINVAL;
 
 	udc = ep->udc;
@@ -606,7 +606,6 @@ static int  mv_ep_disable(struct usb_ep *_ep)
 	/* nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
 
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 
@@ -651,7 +650,7 @@ static void mv_ep_fifo_flush(struct usb_ep *_ep)
 		return;
 
 	ep = container_of(_ep, struct mv_ep, ep);
-	if (!ep->desc)
+	if (!ep->ep.desc)
 		return;
 
 	udc = ep->udc;
@@ -715,11 +714,11 @@ mv_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		dev_err(&udc->dev->dev, "%s, bad params", __func__);
 		return -EINVAL;
 	}
-	if (unlikely(!_ep || !ep->desc)) {
+	if (unlikely(!_ep || !ep->ep.desc)) {
 		dev_err(&udc->dev->dev, "%s, bad ep", __func__);
 		return -EINVAL;
 	}
-	if (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
+	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
 		if (req->req.length > ep->ep.maxpacket)
 			return -EMSGSIZE;
 	}
@@ -925,12 +924,12 @@ static int mv_ep_set_halt_wedge(struct usb_ep *_ep, int halt, int wedge)
 
 	ep = container_of(_ep, struct mv_ep, ep);
 	udc = ep->udc;
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		status = -EINVAL;
 		goto out;
 	}
 
-	if (ep->desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
+	if (ep->ep.desc->bmAttributes == USB_ENDPOINT_XFER_ISOC) {
 		status = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1279,7 +1278,7 @@ static int eps_init(struct mv_udc *udc)
 	ep->stopped = 0;
 	ep->ep.maxpacket = EP0_MAX_PKT_SIZE;
 	ep->ep_num = 0;
-	ep->desc = &mv_ep0_desc;
+	ep->ep.desc = &mv_ep0_desc;
 	INIT_LIST_HEAD(&ep->queue);
 
 	ep->ep_type = USB_ENDPOINT_XFER_CONTROL;

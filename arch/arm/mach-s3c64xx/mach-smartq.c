@@ -33,7 +33,7 @@
 #include <plat/gpio-cfg.h>
 #include <plat/hwmon.h>
 #include <plat/regs-serial.h>
-#include <plat/udc-hs.h>
+#include <linux/platform_data/s3c-hsotg.h>
 #include <plat/usb-control.h>
 #include <plat/sdhci.h>
 #include <plat/ts.h>

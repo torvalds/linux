@@ -567,7 +567,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	ep = container_of(_ep, struct fsl_ep, ep);
 
 	/* catch various bogus parameters */
-	if (!_ep || !desc || ep->desc
+	if (!_ep || !desc || ep->ep.desc
 			|| (desc->bDescriptorType != USB_DT_ENDPOINT))
 		return -EINVAL;
 
@@ -608,7 +608,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 
 	spin_lock_irqsave(&udc->lock, flags);
 	ep->ep.maxpacket = max;
-	ep->desc = desc;
+	ep->ep.desc = desc;
 	ep->stopped = 0;
 
 	/* Controller related setup */
@@ -632,7 +632,7 @@ static int fsl_ep_enable(struct usb_ep *_ep,
 	retval = 0;
 
 	VDBG("enabled %s (ep%d%s) maxpacket %d",ep->ep.name,
-			ep->desc->bEndpointAddress & 0x0f,
+			ep->ep.desc->bEndpointAddress & 0x0f,
 			(desc->bEndpointAddress & USB_DIR_IN)
 				? "in" : "out", max);
 en_done:
@@ -652,7 +652,7 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 	int ep_num;
 
 	ep = container_of(_ep, struct fsl_ep, ep);
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		VDBG("%s not enabled", _ep ? ep->ep.name : NULL);
 		return -EINVAL;
 	}
@@ -675,7 +675,6 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 	/* nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
 
-	ep->desc = NULL;
 	ep->ep.desc = NULL;
 	ep->stopped = 1;
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -754,6 +753,8 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 		lastreq = list_entry(ep->queue.prev, struct fsl_req, queue);
 		lastreq->tail->next_td_ptr =
 			cpu_to_hc32(req->head->td_dma & DTD_ADDR_MASK);
+		/* Ensure dTD's next dtd pointer to be updated */
+		wmb();
 		/* Read prime bit, if 1 goto done */
 		if (fsl_readl(&dr_regs->endpointprime) & bitmask)
 			return;
@@ -892,11 +893,11 @@ fsl_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		VDBG("%s, bad params", __func__);
 		return -EINVAL;
 	}
-	if (unlikely(!_ep || !ep->desc)) {
+	if (unlikely(!_ep || !ep->ep.desc)) {
 		VDBG("%s, bad ep", __func__);
 		return -EINVAL;
 	}
-	if (usb_endpoint_xfer_isoc(ep->desc)) {
+	if (usb_endpoint_xfer_isoc(ep->ep.desc)) {
 		if (req->req.length > ep->ep.maxpacket)
 			return -EMSGSIZE;
 	}
@@ -1035,12 +1036,12 @@ static int fsl_ep_set_halt(struct usb_ep *_ep, int value)
 
 	ep = container_of(_ep, struct fsl_ep, ep);
 	udc = ep->udc;
-	if (!_ep || !ep->desc) {
+	if (!_ep || !ep->ep.desc) {
 		status = -EINVAL;
 		goto out;
 	}
 
-	if (usb_endpoint_xfer_isoc(ep->desc)) {
+	if (usb_endpoint_xfer_isoc(ep->ep.desc)) {
 		status = -EOPNOTSUPP;
 		goto out;
 	}
@@ -1079,7 +1080,7 @@ static int fsl_ep_fifo_status(struct usb_ep *_ep)
 	struct ep_queue_head *qh;
 
 	ep = container_of(_ep, struct fsl_ep, ep);
-	if (!_ep || (!ep->desc && ep_index(ep) != 0))
+	if (!_ep || (!ep->ep.desc && ep_index(ep) != 0))
 		return -ENODEV;
 
 	udc = (struct fsl_udc *)ep->udc;
@@ -1112,7 +1113,7 @@ static void fsl_ep_fifo_flush(struct usb_ep *_ep)
 		return;
 	} else {
 		ep = container_of(_ep, struct fsl_ep, ep);
-		if (!ep->desc)
+		if (!ep->ep.desc)
 			return;
 	}
 	ep_num = ep_index(ep);
@@ -1367,7 +1368,7 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 		target_ep = get_ep_by_pipe(udc, get_pipe_by_windex(index));
 
 		/* stall if endpoint doesn't exist */
-		if (!target_ep->desc)
+		if (!target_ep->ep.desc)
 			goto stall;
 		tmp = dr_ep_get_stall(ep_index(target_ep), ep_is_in(target_ep))
 				<< USB_ENDPOINT_HALT;
@@ -2277,7 +2278,7 @@ static int fsl_proc_read(char *page, char **start, off_t off, int count,
 	}
 	/* other gadget->eplist ep */
 	list_for_each_entry(ep, &udc->gadget.ep_list, ep.ep_list) {
-		if (ep->desc) {
+		if (ep->ep.desc) {
 			t = scnprintf(next, size,
 					"\nFor %s Maxpkt is 0x%x "
 					"index is 0x%x\n",

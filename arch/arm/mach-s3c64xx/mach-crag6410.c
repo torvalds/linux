@@ -61,7 +61,7 @@
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <plat/s3c64xx-spi.h>
-#include <plat/udc-hs.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>

@@ -72,7 +72,7 @@
 #include <plat/keypad.h>
 #include <plat/backlight.h>
 #include <plat/regs-fb-v4.h>
-#include <plat/udc-hs.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include "common.h"
 
