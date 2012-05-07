@@ -335,7 +335,7 @@ void dss_select_dsi_clk_source(int dsi_module,
 		enum omap_dss_clk_source clk_src)
 {
 	struct platform_device *dsidev;
-	int b;
+	int b, pos;
 
 	switch (clk_src) {
 	case OMAP_DSS_CLK_SRC_FCK:
@@ -357,7 +357,8 @@ void dss_select_dsi_clk_source(int dsi_module,
 		BUG();
 	}
 
-	REG_FLD_MOD(DSS_CONTROL, b, 1, 1);	/* DSI_CLK_SWITCH */
+	pos = dsi_module == 0 ? 1 : 10;
+	REG_FLD_MOD(DSS_CONTROL, b, pos, pos);	/* DSIx_CLK_SWITCH */
 
 	dss.dsi_clk_source[dsi_module] = clk_src;
 }
