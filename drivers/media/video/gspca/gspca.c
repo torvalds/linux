@@ -2030,31 +2030,39 @@ out:
 static unsigned int dev_poll(struct file *file, poll_table *wait)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(file);
-	int ret;
+	unsigned long req_events = poll_requested_events(wait);
+	int ret = 0;
 
 	PDEBUG(D_FRAM, "poll");
 
-	poll_wait(file, &gspca_dev->wq, wait);
+	if (req_events & POLLPRI)
+		ret |= v4l2_ctrl_poll(file, wait);
 
-	/* if reqbufs is not done, the user would use read() */
-	if (gspca_dev->memory == GSPCA_MEMORY_NO) {
-		ret = read_alloc(gspca_dev, file);
-		if (ret != 0)
-			return POLLERR;
+	if (req_events & (POLLIN | POLLRDNORM)) {
+		/* if reqbufs is not done, the user would use read() */
+		if (gspca_dev->memory == GSPCA_MEMORY_NO) {
+			if (read_alloc(gspca_dev, file) != 0) {
+				ret |= POLLERR;
+				goto out;
+			}
+		}
+
+		poll_wait(file, &gspca_dev->wq, wait);
+
+		/* check if an image has been received */
+		if (mutex_lock_interruptible(&gspca_dev->queue_lock) != 0) {
+			ret |= POLLERR;
+			goto out;
+		}
+		if (gspca_dev->fr_o != atomic_read(&gspca_dev->fr_i))
+			ret |= POLLIN | POLLRDNORM;
+		mutex_unlock(&gspca_dev->queue_lock);
 	}
 
-	if (mutex_lock_interruptible(&gspca_dev->queue_lock) != 0)
-		return POLLERR;
-
-	/* check if an image has been received */
-	if (gspca_dev->fr_o != atomic_read(&gspca_dev->fr_i))
-		ret = POLLIN | POLLRDNORM;	/* yes */
-	else
-		ret = 0;
-	ret |= v4l2_ctrl_poll(file, wait);
-	mutex_unlock(&gspca_dev->queue_lock);
+out:
 	if (!gspca_dev->present)
-		return POLLHUP;
+		ret |= POLLHUP;
+
 	return ret;
 }
 
