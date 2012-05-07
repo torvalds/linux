@@ -6379,6 +6379,7 @@ static int qib_init_7322_variables(struct qib_devdata *dd)
 		dd->cspec->sdmabufcnt;
 	dd->lastctxt_piobuf = dd->cspec->lastbuf_for_pio - sbufs;
 	dd->cspec->lastbuf_for_pio--; /* range is <= , not < */
+	dd->last_pio = dd->cspec->lastbuf_for_pio;
 	dd->pbufsctxt = (dd->cfgctxts > dd->first_user_ctxt) ?
 		dd->lastctxt_piobuf / (dd->cfgctxts - dd->first_user_ctxt) : 0;
 

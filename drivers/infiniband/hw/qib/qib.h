@@ -873,7 +873,14 @@ struct qib_devdata {
 	 * pio_writing.
 	 */
 	spinlock_t pioavail_lock;
-
+	/*
+	 * index of last buffer to optimize search for next
+	 */
+	u32 last_pio;
+	/*
+	 * min kernel pio buffer to optimize search
+	 */
+	u32 min_kernel_pio;
 	/*
 	 * Shadow copies of registers; size indicates read access size.
 	 * Most of them are readonly, but some are write-only register,
