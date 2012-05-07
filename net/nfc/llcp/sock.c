@@ -27,6 +27,42 @@
 #include "../nfc.h"
 #include "llcp.h"
 
+static int sock_wait_state(struct sock *sk, int state, unsigned long timeo)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	int err = 0;
+
+	pr_debug("sk %p", sk);
+
+	add_wait_queue(sk_sleep(sk), &wait);
+	set_current_state(TASK_INTERRUPTIBLE);
+
+	while (sk->sk_state != state) {
+		if (!timeo) {
+			err = -EINPROGRESS;
+			break;
+		}
+
+		if (signal_pending(current)) {
+			err = sock_intr_errno(timeo);
+			break;
+		}
+
+		release_sock(sk);
+		timeo = schedule_timeout(timeo);
+		lock_sock(sk);
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		err = sock_error(sk);
+		if (err)
+			break;
+	}
+
+	__set_current_state(TASK_RUNNING);
+	remove_wait_queue(sk_sleep(sk), &wait);
+	return err;
+}
+
 static struct proto llcp_sock_proto = {
 	.name     = "NFC_LLCP",
 	.owner    = THIS_MODULE,
@@ -462,9 +498,13 @@ static int llcp_sock_connect(struct socket *sock, struct sockaddr *_addr,
 	if (ret)
 		goto put_dev;
 
-	sk->sk_state = LLCP_CONNECTED;
+	ret = sock_wait_state(sk, LLCP_CONNECTED,
+			      sock_sndtimeo(sk, flags & O_NONBLOCK));
+	if (ret)
+		goto put_dev;
 
 	release_sock(sk);
+
 	return 0;
 
 put_dev:
