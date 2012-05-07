@@ -37,9 +37,7 @@ int crush_get_bucket_item_weight(const struct crush_bucket *b, int p)
 	case CRUSH_BUCKET_LIST:
 		return ((struct crush_bucket_list *)b)->item_weights[p];
 	case CRUSH_BUCKET_TREE:
-		if (p & 1)
-			return ((struct crush_bucket_tree *)b)->node_weights[p];
-		return 0;
+		return ((struct crush_bucket_tree *)b)->node_weights[crush_calc_tree_node(p)];
 	case CRUSH_BUCKET_STRAW:
 		return ((struct crush_bucket_straw *)b)->item_weights[p];
 	}
