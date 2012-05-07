@@ -1,15 +1,17 @@
 /*
- *  (c) 2005, 2006 Advanced Micro Devices, Inc.
+ *  (c) 2005-2012 Advanced Micro Devices, Inc.
  *  Your use of this code is subject to the terms and conditions of the
  *  GNU general public license version 2. See "COPYING" or
  *  http://www.gnu.org/licenses/gpl.html
  *
  *  Written by Jacob Shin - AMD, Inc.
  *
- *  Support : jacob.shin@amd.com
+ *  Support: borislav.petkov@amd.com
  *
  *  April 2006
  *     - added support for AMD Family 0x10 processors
+ *  May 2012
+ *     - major scrubbing
  *
  *  All MC4_MISCi registers are shared between multi-cores
  */
