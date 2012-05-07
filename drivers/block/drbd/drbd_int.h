@@ -859,6 +859,7 @@ struct drbd_tconn {			/* is a resource from the config file */
 	unsigned int epochs;
 	enum write_ordering_e write_ordering;
 
+	unsigned long last_reconnect_jif;
 	struct drbd_thread receiver;
 	struct drbd_thread worker;
 	struct drbd_thread asender;
@@ -881,6 +882,7 @@ struct drbd_conf {
 	struct block_device *this_bdev;
 	struct gendisk	    *vdisk;
 
+	unsigned long last_reattach_jif;
 	struct drbd_work  resync_work,
 			  unplug_work,
 			  go_diskless,

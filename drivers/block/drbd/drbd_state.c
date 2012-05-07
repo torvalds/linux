@@ -1075,6 +1075,13 @@ __drbd_set_state(struct drbd_conf *mdev, union drbd_state ns,
 	if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED)
 		drbd_resume_al(mdev);
 
+	/* remember last attach time so request_timer_fn() won't
+	 * kill newly established sessions while we are still trying to thaw
+	 * previously frozen IO */
+	if ((os.disk == D_ATTACHING || os.disk == D_NEGOTIATING) &&
+	    ns.disk > D_NEGOTIATING)
+		mdev->last_reattach_jif = jiffies;
+
 	ascw = kmalloc(sizeof(*ascw), GFP_ATOMIC);
 	if (ascw) {
 		ascw->os = os;
@@ -1609,8 +1616,15 @@ conn_set_state(struct drbd_tconn *tconn, union drbd_state mask, union drbd_state
 	enum drbd_state_rv rv;
 	int vnr, number_of_volumes = 0;
 
-	if (mask.conn == C_MASK)
+	if (mask.conn == C_MASK) {
+		/* remember last connect time so request_timer_fn() won't
+		 * kill newly established sessions while we are still trying to thaw
+		 * previously frozen IO */
+		if (tconn->cstate != C_WF_REPORT_PARAMS && val.conn == C_WF_REPORT_PARAMS)
+			tconn->last_reconnect_jif = jiffies;
+
 		tconn->cstate = val.conn;
+	}
 
 	rcu_read_lock();
 	idr_for_each_entry(&tconn->volumes, mdev, vnr) {
