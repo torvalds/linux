@@ -19,7 +19,6 @@
 #include <linux/parser.h>
 #include <linux/bitops.h>
 #include <linux/magic.h>
-#include <linux/compat.h>
 #include "autofs_i.h"
 #include <linux/module.h>
 
@@ -225,7 +224,6 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 	set_autofs_type_indirect(&sbi->type);
 	sbi->min_proto = 0;
 	sbi->max_proto = 0;
-	sbi->compat_daemon = is_compat_task();
 	mutex_init(&sbi->wq_mutex);
 	mutex_init(&sbi->pipe_mutex);
 	spin_lock_init(&sbi->fs_lock);
@@ -292,7 +290,7 @@ int autofs4_fill_super(struct super_block *s, void *data, int silent)
 		printk("autofs: could not open pipe file descriptor\n");
 		goto fail_dput;
 	}
-	if (!pipe->f_op || !pipe->f_op->write)
+	if (autofs_prepare_pipe(pipe) < 0)
 		goto fail_fput;
 	sbi->pipe = pipe;
 	sbi->pipefd = pipefd;
