@@ -3133,35 +3133,13 @@ static int em_btc(struct x86_emulate_ctxt *ctxt)
 
 static int em_bsf(struct x86_emulate_ctxt *ctxt)
 {
-	u8 zf;
-
-	__asm__ ("bsf %2, %0; setz %1"
-		 : "=r"(ctxt->dst.val), "=q"(zf)
-		 : "r"(ctxt->src.val));
-
-	ctxt->eflags &= ~X86_EFLAGS_ZF;
-	if (zf) {
-		ctxt->eflags |= X86_EFLAGS_ZF;
-		/* Disable writeback. */
-		ctxt->dst.type = OP_NONE;
-	}
+	emulate_2op_SrcV_nobyte(ctxt, "bsf");
 	return X86EMUL_CONTINUE;
 }
 
 static int em_bsr(struct x86_emulate_ctxt *ctxt)
 {
-	u8 zf;
-
-	__asm__ ("bsr %2, %0; setz %1"
-		 : "=r"(ctxt->dst.val), "=q"(zf)
-		 : "r"(ctxt->src.val));
-
-	ctxt->eflags &= ~X86_EFLAGS_ZF;
-	if (zf) {
-		ctxt->eflags |= X86_EFLAGS_ZF;
-		/* Disable writeback. */
-		ctxt->dst.type = OP_NONE;
-	}
+	emulate_2op_SrcV_nobyte(ctxt, "bsr");
 	return X86EMUL_CONTINUE;
 }
 
