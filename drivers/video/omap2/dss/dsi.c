@@ -4152,10 +4152,6 @@ static void dsi_framedone_irq_callback(void *data, u32 mask)
 	__cancel_delayed_work(&dsi->framedone_timeout_work);
 
 	dsi_handle_framedone(dsidev, 0);
-
-#ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
-	dispc_fake_vsync_irq();
-#endif
 }
 
 int omap_dsi_update(struct omap_dss_device *dssdev, int channel,

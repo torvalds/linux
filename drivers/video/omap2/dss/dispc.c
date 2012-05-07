@@ -3441,27 +3441,6 @@ int omap_dispc_wait_for_irq_interruptible_timeout(u32 irqmask,
 	return 0;
 }
 
-#ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
-void dispc_fake_vsync_irq(void)
-{
-	u32 irqstatus = DISPC_IRQ_VSYNC;
-	int i;
-
-	WARN_ON(!in_interrupt());
-
-	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
-		struct omap_dispc_isr_data *isr_data;
-		isr_data = &dispc.registered_isr[i];
-
-		if (!isr_data->isr)
-			continue;
-
-		if (isr_data->mask & irqstatus)
-			isr_data->isr(isr_data->arg, irqstatus);
-	}
-}
-#endif
-
 static void _omap_dispc_initialize_irq(void)
 {
 	unsigned long flags;

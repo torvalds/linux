@@ -90,15 +90,6 @@ config OMAP2_DSS_DSI
 
 	  See http://www.mipi.org/ for DSI spesifications.
 
-config OMAP2_DSS_FAKE_VSYNC
-	bool "Fake VSYNC irq from manual update displays"
-	default n
-	help
-	  If this is selected, DSI will generate a fake DISPC VSYNC interrupt
-	  when DSI has sent a frame. This is only needed with DSI or RFBI
-	  displays using manual mode, and you want VSYNC to, for example,
-	  time animation.
-
 config OMAP2_DSS_MIN_FCK_PER_PCK
 	int "Minimum FCK/PCK ratio (for scaling)"
 	range 0 32
