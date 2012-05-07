@@ -47,7 +47,7 @@
 #ifdef CONFIG_FB_S3C_DEBUG_REGWRITE
 #undef writel
 #define writel(v, r) do { \
-	printk(KERN_DEBUG "%s: %08x => %p\n", __func__, (unsigned int)v, r); \
+	pr_debug("%s: %08x => %p\n", __func__, (unsigned int)v, r); \
 	__raw_writel(v, r); \
 } while (0)
 #endif /* FB_S3C_DEBUG_REGWRITE */
