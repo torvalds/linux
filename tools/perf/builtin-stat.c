@@ -175,7 +175,9 @@ static struct perf_event_attr very_very_detailed_attrs[] = {
 
 static struct perf_evlist	*evsel_list;
 
-static struct perf_target	target;
+static struct perf_target	target = {
+	.uid	= UINT_MAX,
+};
 
 static int			run_idx				=  0;
 static int			run_count			=  1;
@@ -1205,20 +1207,12 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	perf_target__validate(&target);
 
-	evsel_list->threads = thread_map__new_str(target.pid,
-						  target.tid, UINT_MAX);
-	if (evsel_list->threads == NULL) {
-		pr_err("Problems finding threads of monitor\n");
-		usage_with_options(stat_usage, options);
-	}
+	if (perf_evlist__create_maps(evsel_list, &target) < 0) {
+		if (!perf_target__no_task(&target))
+			pr_err("Problems finding threads of monitor\n");
+		if (!perf_target__no_cpu(&target))
+			perror("failed to parse CPUs map");
 
-	if (target.system_wide)
-		evsel_list->cpus = cpu_map__new(target.cpu_list);
-	else
-		evsel_list->cpus = cpu_map__dummy_new();
-
-	if (evsel_list->cpus == NULL) {
-		perror("failed to parse CPUs map");
 		usage_with_options(stat_usage, options);
 		return -1;
 	}
