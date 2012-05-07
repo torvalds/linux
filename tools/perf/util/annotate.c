@@ -113,6 +113,16 @@ bool ins__is_jump(const struct ins *ins)
 	return ins->ops == &jump_ops;
 }
 
+static int nop__scnprintf(struct ins *ins __used, char *bf, size_t size,
+			  struct ins_operands *ops __used)
+{
+	return scnprintf(bf, size, "%-6.6s", "nop");
+}
+
+static struct ins_ops nop_ops = {
+	.scnprintf = nop__scnprintf,
+};
+
 /*
  * Must be sorted by name!
  */
@@ -154,6 +164,9 @@ static struct ins instructions[] = {
 	{ .name = "jrcxz", .ops  = &jump_ops, },
 	{ .name = "js",	   .ops  = &jump_ops, },
 	{ .name = "jz",	   .ops  = &jump_ops, },
+	{ .name = "nop",   .ops  = &nop_ops, },
+	{ .name = "nopl",  .ops  = &nop_ops, },
+	{ .name = "nopw",  .ops  = &nop_ops, },
 };
 
 static int ins__cmp(const void *name, const void *insp)
