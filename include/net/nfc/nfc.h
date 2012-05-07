@@ -48,26 +48,28 @@ struct nfc_dev;
 typedef void (*data_exchange_cb_t)(void *context, struct sk_buff *skb,
 								int err);
 
+struct nfc_target;
+
 struct nfc_ops {
 	int (*dev_up)(struct nfc_dev *dev);
 	int (*dev_down)(struct nfc_dev *dev);
 	int (*start_poll)(struct nfc_dev *dev, u32 protocols);
 	void (*stop_poll)(struct nfc_dev *dev);
-	int (*dep_link_up)(struct nfc_dev *dev, int target_idx, u8 comm_mode,
-			   u8 *gb, size_t gb_len);
+	int (*dep_link_up)(struct nfc_dev *dev, struct nfc_target *target,
+			   u8 comm_mode, u8 *gb, size_t gb_len);
 	int (*dep_link_down)(struct nfc_dev *dev);
-	int (*activate_target)(struct nfc_dev *dev, u32 target_idx,
+	int (*activate_target)(struct nfc_dev *dev, struct nfc_target *target,
 			       u32 protocol);
-	void (*deactivate_target)(struct nfc_dev *dev, u32 target_idx);
-	int (*data_exchange)(struct nfc_dev *dev, u32 target_idx,
+	void (*deactivate_target)(struct nfc_dev *dev,
+				  struct nfc_target *target);
+	int (*data_exchange)(struct nfc_dev *dev, struct nfc_target *target,
 			     struct sk_buff *skb, data_exchange_cb_t cb,
 			     void *cb_context);
-	int (*check_presence)(struct nfc_dev *dev, u32 target_idx);
+	int (*check_presence)(struct nfc_dev *dev, struct nfc_target *target);
 };
 
 #define NFC_TARGET_IDX_ANY -1
 #define NFC_MAX_GT_LEN 48
-#define NFC_TARGET_IDX_NONE 0xffffffff
 
 struct nfc_target {
 	u32 idx;
@@ -99,7 +101,7 @@ struct nfc_dev {
 	struct device dev;
 	bool dev_up;
 	bool polling;
-	u32 activated_target_idx;
+	struct nfc_target *active_target;
 	bool dep_link_up;
 	u32 dep_rf_mode;
 	struct nfc_genl_data genl_data;

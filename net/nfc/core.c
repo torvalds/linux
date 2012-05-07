@@ -97,7 +97,7 @@ int nfc_dev_down(struct nfc_dev *dev)
 		goto error;
 	}
 
-	if (dev->polling || dev->activated_target_idx != NFC_TARGET_IDX_NONE) {
+	if (dev->polling || dev->active_target) {
 		rc = -EBUSY;
 		goto error;
 	}
@@ -183,11 +183,27 @@ error:
 	return rc;
 }
 
+static struct nfc_target *nfc_find_target(struct nfc_dev *dev, u32 target_idx)
+{
+	int i;
+
+	if (dev->n_targets == 0)
+		return NULL;
+
+	for (i = 0; i < dev->n_targets ; i++) {
+		if (dev->targets[i].idx == target_idx)
+			return &dev->targets[i];
+	}
+
+	return NULL;
+}
+
 int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 {
 	int rc = 0;
 	u8 *gb;
 	size_t gb_len;
+	struct nfc_target *target;
 
 	pr_debug("dev_name=%s comm %d\n", dev_name(&dev->dev), comm_mode);
 
@@ -212,9 +228,15 @@ int nfc_dep_link_up(struct nfc_dev *dev, int target_index, u8 comm_mode)
 		goto error;
 	}
 
-	rc = dev->ops->dep_link_up(dev, target_index, comm_mode, gb, gb_len);
+	target = nfc_find_target(dev, target_index);
+	if (target == NULL) {
+		rc = -ENOTCONN;
+		goto error;
+	}
+
+	rc = dev->ops->dep_link_up(dev, target, comm_mode, gb, gb_len);
 	if (!rc)
-		dev->activated_target_idx = target_index;
+		dev->active_target = target;
 
 error:
 	device_unlock(&dev->dev);
@@ -250,7 +272,7 @@ int nfc_dep_link_down(struct nfc_dev *dev)
 	rc = dev->ops->dep_link_down(dev);
 	if (!rc) {
 		dev->dep_link_up = false;
-		dev->activated_target_idx = NFC_TARGET_IDX_NONE;
+		dev->active_target = NULL;
 		nfc_llcp_mac_is_down(dev);
 		nfc_genl_dep_link_down_event(dev);
 	}
@@ -282,6 +304,7 @@ EXPORT_SYMBOL(nfc_dep_link_is_up);
 int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 {
 	int rc;
+	struct nfc_target *target;
 
 	pr_debug("dev_name=%s target_idx=%u protocol=%u\n",
 		 dev_name(&dev->dev), target_idx, protocol);
@@ -293,9 +316,20 @@ int nfc_activate_target(struct nfc_dev *dev, u32 target_idx, u32 protocol)
 		goto error;
 	}
 
-	rc = dev->ops->activate_target(dev, target_idx, protocol);
+	if (dev->active_target) {
+		rc = -EBUSY;
+		goto error;
+	}
+
+	target = nfc_find_target(dev, target_idx);
+	if (target == NULL) {
+		rc = -ENOTCONN;
+		goto error;
+	}
+
+	rc = dev->ops->activate_target(dev, target, protocol);
 	if (!rc) {
-		dev->activated_target_idx = target_idx;
+		dev->active_target = target;
 
 		if (dev->ops->check_presence)
 			mod_timer(&dev->check_pres_timer, jiffies +
@@ -327,11 +361,21 @@ int nfc_deactivate_target(struct nfc_dev *dev, u32 target_idx)
 		goto error;
 	}
 
+	if (dev->active_target == NULL) {
+		rc = -ENOTCONN;
+		goto error;
+	}
+
+	if (dev->active_target->idx != target_idx) {
+		rc = -ENOTCONN;
+		goto error;
+	}
+
 	if (dev->ops->check_presence)
 		del_timer_sync(&dev->check_pres_timer);
 
-	dev->ops->deactivate_target(dev, target_idx);
-	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
+	dev->ops->deactivate_target(dev, dev->active_target);
+	dev->active_target = NULL;
 
 error:
 	device_unlock(&dev->dev);
@@ -365,13 +409,13 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 		goto error;
 	}
 
-	if (dev->activated_target_idx == NFC_TARGET_IDX_NONE) {
+	if (dev->active_target == NULL) {
 		rc = -ENOTCONN;
 		kfree_skb(skb);
 		goto error;
 	}
 
-	if (target_idx != dev->activated_target_idx) {
+	if (dev->active_target->idx != target_idx) {
 		rc = -EADDRNOTAVAIL;
 		kfree_skb(skb);
 		goto error;
@@ -380,7 +424,8 @@ int nfc_data_exchange(struct nfc_dev *dev, u32 target_idx, struct sk_buff *skb,
 	if (dev->ops->check_presence)
 		del_timer_sync(&dev->check_pres_timer);
 
-	rc = dev->ops->data_exchange(dev, target_idx, skb, cb, cb_context);
+	rc = dev->ops->data_exchange(dev, dev->active_target, skb, cb,
+				     cb_context);
 
 	if (!rc && dev->ops->check_presence)
 		mod_timer(&dev->check_pres_timer, jiffies +
@@ -514,7 +559,7 @@ int nfc_target_lost(struct nfc_dev *dev, u32 target_idx)
 
 	dev->targets_generation++;
 	dev->n_targets--;
-	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
+	dev->active_target = NULL;
 
 	if (dev->n_targets) {
 		memcpy(&dev->targets[i], &dev->targets[i + 1],
@@ -556,15 +601,14 @@ static void nfc_check_pres_work(struct work_struct *work)
 
 	device_lock(&dev->dev);
 
-	if (dev->activated_target_idx != NFC_TARGET_IDX_NONE &&
-	    timer_pending(&dev->check_pres_timer) == 0) {
-		rc = dev->ops->check_presence(dev, dev->activated_target_idx);
+	if (dev->active_target && timer_pending(&dev->check_pres_timer) == 0) {
+		rc = dev->ops->check_presence(dev, dev->active_target);
 		if (!rc) {
 			mod_timer(&dev->check_pres_timer, jiffies +
 				  msecs_to_jiffies(NFC_CHECK_PRES_FREQ_MS));
 		} else {
-			nfc_target_lost(dev, dev->activated_target_idx);
-			dev->activated_target_idx = NFC_TARGET_IDX_NONE;
+			nfc_target_lost(dev, dev->active_target->idx);
+			dev->active_target = NULL;
 		}
 	}
 
@@ -643,8 +687,6 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 	/* first generation must not be 0 */
 	dev->targets_generation = 1;
 
-	dev->activated_target_idx = NFC_TARGET_IDX_NONE;
-
 	if (ops->check_presence) {
 		char name[32];
 		init_timer(&dev->check_pres_timer);
@@ -661,7 +703,6 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 			return NULL;
 		}
 	}
-
 
 	return dev;
 }
