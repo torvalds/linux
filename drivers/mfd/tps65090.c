@@ -335,20 +335,26 @@ static int __devexit tps65090_i2c_remove(struct i2c_client *client)
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int tps65090_i2c_suspend(struct i2c_client *client, pm_message_t state)
+static int tps65090_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	if (client->irq)
 		disable_irq(client->irq);
 	return 0;
 }
 
-static int tps65090_i2c_resume(struct i2c_client *client)
+static int tps65090_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	if (client->irq)
 		enable_irq(client->irq);
 	return 0;
 }
 #endif
+
+static const struct dev_pm_ops tps65090_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(tps65090_suspend, tps65090_resume)
+};
 
 static const struct i2c_device_id tps65090_id_table[] = {
 	{ "tps65090", 0 },
@@ -360,13 +366,10 @@ static struct i2c_driver tps65090_driver = {
 	.driver	= {
 		.name	= "tps65090",
 		.owner	= THIS_MODULE,
+		.pm	= &tps65090_pm_ops,
 	},
 	.probe		= tps65090_i2c_probe,
 	.remove		= __devexit_p(tps65090_i2c_remove),
-#ifdef CONFIG_PM_SLEEP
-	.suspend	= tps65090_i2c_suspend,
-	.resume		= tps65090_i2c_resume,
-#endif
 	.id_table	= tps65090_id_table,
 };
 
