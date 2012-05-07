@@ -423,6 +423,7 @@ void set_personality_ia32(bool x32)
 		current_thread_info()->status |= TS_COMPAT;
 	}
 }
+EXPORT_SYMBOL_GPL(set_personality_ia32);
 
 unsigned long get_wchan(struct task_struct *p)
 {
