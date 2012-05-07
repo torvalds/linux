@@ -577,27 +577,20 @@ static int ch341_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-
-static int ch341_reset_resume(struct usb_interface *intf)
+static int ch341_resume(struct usb_serial *serial)
 {
-	struct usb_device *dev = interface_to_usbdev(intf);
-	struct usb_serial *serial = NULL;
 	struct ch341_private *priv;
 
-	serial = usb_get_intfdata(intf);
 	priv = usb_get_serial_port_data(serial->port[0]);
 
-	/*reconfigure ch341 serial port after bus-reset*/
-	ch341_configure(dev, priv);
-
-	usb_serial_resume(intf);
+	/* reconfigure ch341 serial port after bus-reset */
+	ch341_configure(serial->dev, priv);
 
 	return 0;
 }
 
 static struct usb_driver ch341_driver = {
 	.name		= "ch341",
-	.reset_resume	= ch341_reset_resume,
 	.id_table	= id_table,
 };
 
@@ -619,6 +612,7 @@ static struct usb_serial_driver ch341_device = {
 	.tiocmset          = ch341_tiocmset,
 	.read_int_callback = ch341_read_int_callback,
 	.attach            = ch341_attach,
+	.resume            = ch341_resume,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
