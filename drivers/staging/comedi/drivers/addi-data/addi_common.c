@@ -2819,16 +2819,13 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			/* Set the initialisation flag */
 			devpriv->b_AiInitialisation = 1;
 
-			s->insn_config =
-				this_board->i_hwdrv_InsnConfigAnalogInput;
-			s->insn_read = this_board->i_hwdrv_InsnReadAnalogInput;
-			s->insn_write =
-				this_board->i_hwdrv_InsnWriteAnalogInput;
-			s->insn_bits = this_board->i_hwdrv_InsnBitsAnalogInput;
-			s->do_cmdtest =
-				this_board->i_hwdrv_CommandTestAnalogInput;
-			s->do_cmd = this_board->i_hwdrv_CommandAnalogInput;
-			s->cancel = this_board->i_hwdrv_CancelAnalogInput;
+			s->insn_config = this_board->ai_config;
+			s->insn_read = this_board->ai_read;
+			s->insn_write = this_board->ai_write;
+			s->insn_bits = this_board->ai_bits;
+			s->do_cmdtest = this_board->ai_cmdtest;
+			s->do_cmd = this_board->ai_cmd;
+			s->cancel = this_board->ai_cancel;
 
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
@@ -2844,10 +2841,8 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->len_chanlist =
 				devpriv->s_EeParameters.i_NbrAoChannel;
 			s->range_table = this_board->pr_AoRangelist;
-			s->insn_config =
-				this_board->i_hwdrv_InsnConfigAnalogOutput;
-			s->insn_write =
-				this_board->i_hwdrv_InsnWriteAnalogOutput;
+			s->insn_config = this_board->ao_config;
+			s->insn_write = this_board->ao_write;
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
@@ -2862,12 +2857,10 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				devpriv->s_EeParameters.i_NbrDiChannel;
 			s->range_table = &range_digital;
 			s->io_bits = 0;	/* all bits input */
-			s->insn_config =
-				this_board->i_hwdrv_InsnConfigDigitalInput;
-			s->insn_read = this_board->i_hwdrv_InsnReadDigitalInput;
-			s->insn_write =
-				this_board->i_hwdrv_InsnWriteDigitalInput;
-			s->insn_bits = this_board->i_hwdrv_InsnBitsDigitalInput;
+			s->insn_config = this_board->di_config;
+			s->insn_read = this_board->di_read;
+			s->insn_write = this_board->di_write;
+			s->insn_bits = this_board->di_bits;
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
@@ -2884,13 +2877,11 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->range_table = &range_digital;
 			s->io_bits = 0xf;	/* all bits output */
 
-			s->insn_config = this_board->i_hwdrv_InsnConfigDigitalOutput;	/* for digital output memory.. */
-			s->insn_write =
-				this_board->i_hwdrv_InsnWriteDigitalOutput;
-			s->insn_bits =
-				this_board->i_hwdrv_InsnBitsDigitalOutput;
-			s->insn_read =
-				this_board->i_hwdrv_InsnReadDigitalOutput;
+			/* insn_config - for digital output memory */
+			s->insn_config = this_board->do_config;
+			s->insn_write = this_board->do_write;
+			s->insn_bits = this_board->do_bits;
+			s->insn_read = this_board->do_read;
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
@@ -2905,10 +2896,10 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->len_chanlist = 1;
 			s->range_table = &range_digital;
 
-			s->insn_write = this_board->i_hwdrv_InsnWriteTimer;
-			s->insn_read = this_board->i_hwdrv_InsnReadTimer;
-			s->insn_config = this_board->i_hwdrv_InsnConfigTimer;
-			s->insn_bits = this_board->i_hwdrv_InsnBitsTimer;
+			s->insn_write = this_board->timer_write;
+			s->insn_read = this_board->timer_read;
+			s->insn_config = this_board->timer_config;
+			s->insn_bits = this_board->timer_bits;
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
@@ -2924,10 +2915,10 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			s->io_bits = 0;	/* all bits input */
 			s->len_chanlist = this_board->i_NbrTTLChannel;
 			s->range_table = &range_digital;
-			s->insn_config = this_board->i_hwdr_ConfigInitTTLIO;
-			s->insn_bits = this_board->i_hwdr_ReadTTLIOBits;
-			s->insn_read = this_board->i_hwdr_ReadTTLIOAllPortValue;
-			s->insn_write = this_board->i_hwdr_WriteTTLIOChlOnOff;
+			s->insn_config = this_board->ttl_config;
+			s->insn_bits = this_board->ttl_bits;
+			s->insn_read = this_board->ttl_read;
+			s->insn_write = this_board->ttl_write;
 		} else {
 			s->type = COMEDI_SUBD_UNUSED;
 		}
@@ -3039,7 +3030,7 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 static int i_ADDI_Reset(struct comedi_device *dev)
 {
 
-	this_board->i_hwdrv_Reset(dev);
+	this_board->reset(dev);
 	return 0;
 }
 
@@ -3065,7 +3056,7 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 static irqreturn_t v_ADDI_Interrupt(int irq, void *d)
 {
 	struct comedi_device *dev = d;
-	this_board->v_hwdrv_Interrupt(irq, d);
+	this_board->interrupt(irq, d);
 	return IRQ_RETVAL(1);
 }
 
