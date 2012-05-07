@@ -1448,7 +1448,7 @@ int pm_genpd_add_subdomain(struct generic_pm_domain *genpd,
 		goto out;
 	}
 
-	list_for_each_entry(link, &genpd->slave_links, slave_node) {
+	list_for_each_entry(link, &genpd->master_links, master_node) {
 		if (link->slave == subdomain && link->master == genpd) {
 			ret = -EINVAL;
 			goto out;
