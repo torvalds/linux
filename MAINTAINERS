@@ -5607,14 +5607,13 @@ F:	net/rds/
 READ-COPY UPDATE (RCU)
 M:	Dipankar Sarma <dipankar@in.ibm.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-W:	http://www.rdrop.com/users/paulmck/rclock/
+W:	http://www.rdrop.com/users/paulmck/RCU/
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
 F:	Documentation/RCU/
+X:	Documentation/RCU/torture.txt
 F:	include/linux/rcu*
-F:	include/linux/srcu*
 F:	kernel/rcu*
-F:	kernel/srcu*
 X:	kernel/rcutorture.c
 
 REAL TIME CLOCK (RTC) SUBSYSTEM
@@ -6130,6 +6129,15 @@ L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/sl?b*.h
 F:	mm/sl?b.c
+
+SLEEPABLE READ-COPY UPDATE (SRCU)
+M:	Lai Jiangshan <laijs@cn.fujitsu.com>
+M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
+W:	http://www.rdrop.com/users/paulmck/RCU/
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/paulmck/linux-rcu.git
+F:	include/linux/srcu*
+F:	kernel/srcu*
 
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
