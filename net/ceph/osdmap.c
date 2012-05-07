@@ -161,13 +161,6 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 	c->max_rules = ceph_decode_32(p);
 	c->max_devices = ceph_decode_32(p);
 
-	c->device_parents = kcalloc(c->max_devices, sizeof(u32), GFP_NOFS);
-	if (c->device_parents == NULL)
-		goto badmem;
-	c->bucket_parents = kcalloc(c->max_buckets, sizeof(u32), GFP_NOFS);
-	if (c->bucket_parents == NULL)
-		goto badmem;
-
 	c->buckets = kcalloc(c->max_buckets, sizeof(*c->buckets), GFP_NOFS);
 	if (c->buckets == NULL)
 		goto badmem;

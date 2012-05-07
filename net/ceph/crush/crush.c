@@ -46,29 +46,6 @@ int crush_get_bucket_item_weight(const struct crush_bucket *b, int p)
 	return 0;
 }
 
-/**
- * crush_calc_parents - Calculate parent vectors for the given crush map.
- * @map: crush_map pointer
- */
-void crush_calc_parents(struct crush_map *map)
-{
-	int i, b, c;
-
-	for (b = 0; b < map->max_buckets; b++) {
-		if (map->buckets[b] == NULL)
-			continue;
-		for (i = 0; i < map->buckets[b]->size; i++) {
-			c = map->buckets[b]->items[i];
-			BUG_ON(c >= map->max_devices ||
-			       c < -map->max_buckets);
-			if (c >= 0)
-				map->device_parents[c] = map->buckets[b]->id;
-			else
-				map->bucket_parents[-1-c] = map->buckets[b]->id;
-		}
-	}
-}
-
 void crush_destroy_bucket_uniform(struct crush_bucket_uniform *b)
 {
 	kfree(b->h.perm);
@@ -143,8 +120,6 @@ void crush_destroy(struct crush_map *map)
 		kfree(map->rules);
 	}
 
-	kfree(map->bucket_parents);
-	kfree(map->device_parents);
 	kfree(map);
 }
 
