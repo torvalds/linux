@@ -153,9 +153,6 @@ config ARCH_NO_VIRT_TO_BUS
 config ARCH_HAS_DEFAULT_IDLE
 	def_bool y
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	def_bool y
-
 config NO_IOPORT
 	def_bool !PCI
 	depends on !SH_CAYMAN && !SH_SH4202_MICRODEV && !SH_SHMIN

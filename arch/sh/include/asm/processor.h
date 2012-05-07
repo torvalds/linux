@@ -98,7 +98,6 @@ extern struct sh_cpuinfo cpu_data[];
 #define cpu_relax()	barrier()
 
 void default_idle(void);
-void cpu_idle_wait(void);
 void stop_this_cpu(void *);
 
 /* Forward decl */
