@@ -7709,7 +7709,7 @@ static int serdes_7322_init_new(struct qib_pportdata *ppd)
 	ibsd_wr_allchans(ppd, 5, 0, BMASK(0, 0));
 	msleep(20);
 	/*       Set Frequency Loop Bandwidth */
-	ibsd_wr_allchans(ppd, 2, (7 << 5), BMASK(8, 5));
+	ibsd_wr_allchans(ppd, 2, (15 << 5), BMASK(8, 5));
 	/*       Enable Frequency Loop */
 	ibsd_wr_allchans(ppd, 2, (1 << 4), BMASK(4, 4));
 	/*       Set Timing Loop Bandwidth */
