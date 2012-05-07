@@ -71,6 +71,7 @@ struct tps62360_chip {
 	int lru_index[4];
 	int curr_vset_vsel[4];
 	int curr_vset_id;
+	int change_uv_per_us;
 };
 
 /*
@@ -114,7 +115,7 @@ update_lru_index:
 	return found;
 }
 
-static int tps62360_dcdc_get_voltage(struct regulator_dev *dev)
+static int tps62360_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps62360_chip *tps = rdev_get_drvdata(dev);
 	int vsel;
@@ -128,7 +129,7 @@ static int tps62360_dcdc_get_voltage(struct regulator_dev *dev)
 		return ret;
 	}
 	vsel = (int)data & tps->voltage_reg_mask;
-	return (tps->voltage_base + vsel * 10) * 1000;
+	return vsel;
 }
 
 static int tps62360_dcdc_set_voltage(struct regulator_dev *dev,
@@ -193,10 +194,28 @@ static int tps62360_dcdc_list_voltage(struct regulator_dev *dev,
 	return (tps->voltage_base + selector * 10) * 1000;
 }
 
+static int tps62360_set_voltage_time_sel(struct regulator_dev *rdev,
+		unsigned int old_selector, unsigned int new_selector)
+{
+	struct tps62360_chip *tps = rdev_get_drvdata(rdev);
+	int old_uV, new_uV;
+
+	old_uV = tps62360_dcdc_list_voltage(rdev, old_selector);
+	if (old_uV < 0)
+		return old_uV;
+
+	new_uV = tps62360_dcdc_list_voltage(rdev, new_selector);
+	if (new_uV < 0)
+		return new_uV;
+
+	return DIV_ROUND_UP(abs(old_uV - new_uV), tps->change_uv_per_us);
+}
+
 static struct regulator_ops tps62360_dcdc_ops = {
-	.get_voltage = tps62360_dcdc_get_voltage,
-	.set_voltage = tps62360_dcdc_set_voltage,
-	.list_voltage = tps62360_dcdc_list_voltage,
+	.get_voltage_sel	= tps62360_dcdc_get_voltage_sel,
+	.set_voltage		= tps62360_dcdc_set_voltage,
+	.list_voltage		= tps62360_dcdc_list_voltage,
+	.set_voltage_time_sel	= tps62360_set_voltage_time_sel,
 };
 
 static int tps62360_init_force_pwm(struct tps62360_chip *tps,
@@ -228,6 +247,7 @@ static int tps62360_init_dcdc(struct tps62360_chip *tps,
 {
 	int ret;
 	int i;
+	unsigned int ramp_ctrl;
 
 	/* Initailize internal pull up/down control */
 	if (tps->en_internal_pulldn)
@@ -255,9 +275,23 @@ static int tps62360_init_dcdc(struct tps62360_chip *tps,
 
 	/* Reset output discharge path to reduce power consumption */
 	ret = regmap_update_bits(tps->regmap, REG_RAMPCTRL, BIT(2), 0);
-	if (ret < 0)
+	if (ret < 0) {
 		dev_err(tps->dev, "%s() fails in updating reg %d\n",
 			__func__, REG_RAMPCTRL);
+		return ret;
+	}
+
+	/* Get ramp value from ramp control register */
+	ret = regmap_read(tps->regmap, REG_RAMPCTRL, &ramp_ctrl);
+	if (ret < 0) {
+		dev_err(tps->dev, "%s() fails in reading reg %d\n",
+			__func__, REG_RAMPCTRL);
+		return ret;
+	}
+	ramp_ctrl = (ramp_ctrl >> 4) & 0x7;
+
+	/* ramp mV/us = 32/(2^ramp_ctrl) */
+	tps->change_uv_per_us = DIV_ROUND_UP(32000, BIT(ramp_ctrl));
 	return ret;
 }
 
