@@ -206,8 +206,10 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
 		if (local->hw.flags & IEEE80211_HW_QUEUE_CONTROL)
 			sdata->vif.hw_queue[i] = IEEE80211_INVAL_HW_QUEUE;
-		else
+		else if (local->hw.queues >= IEEE80211_NUM_ACS)
 			sdata->vif.hw_queue[i] = i;
+		else
+			sdata->vif.hw_queue[i] = 0;
 	}
 	sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 }
