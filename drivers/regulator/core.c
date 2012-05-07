@@ -1459,7 +1459,7 @@ void devm_regulator_put(struct regulator *regulator)
 {
 	int rc;
 
-	rc = devres_destroy(regulator->dev, devm_regulator_release,
+	rc = devres_release(regulator->dev, devm_regulator_release,
 			    devm_regulator_match, regulator);
 	if (rc == 0)
 		regulator_put(regulator);
