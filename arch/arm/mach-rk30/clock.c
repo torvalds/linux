@@ -445,6 +445,9 @@ struct clk *rk30_clk_get_parent(struct clk *clk)
 struct clk *clk_get_parent(struct clk *clk)
 #endif
 {
+	if (clk == NULL || IS_ERR(clk)) {
+		return ERR_PTR(-EINVAL);
+	}
 	return clk->parent;
 }
 
