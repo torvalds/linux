@@ -998,6 +998,7 @@ static int scrub_setup_recheck_block(struct scrub_dev *sdev,
 			page = sblock->pagev + page_index;
 			page->logical = logical;
 			page->physical = bbio->stripes[mirror_index].physical;
+			/* for missing devices, bdev is NULL */
 			page->bdev = bbio->stripes[mirror_index].dev->bdev;
 			page->mirror_num = mirror_index + 1;
 			page->page = alloc_page(GFP_NOFS);
@@ -1041,6 +1042,12 @@ static int scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		int ret;
 		struct scrub_page *page = sblock->pagev + page_num;
 		DECLARE_COMPLETION_ONSTACK(complete);
+
+		if (page->bdev == NULL) {
+			page->io_error = 1;
+			sblock->no_io_error_seen = 0;
+			continue;
+		}
 
 		BUG_ON(!page->page);
 		bio = bio_alloc(GFP_NOFS, 1);
