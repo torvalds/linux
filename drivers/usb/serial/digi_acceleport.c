@@ -273,7 +273,6 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static struct usb_driver digi_driver = {
 	.name =		"digi_acceleport",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
 };

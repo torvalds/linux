@@ -141,7 +141,6 @@ MODULE_DEVICE_TABLE(usb, usb_ipw_ids);
 
 static struct usb_driver usb_ipw_driver = {
 	.name =		"ipwtty",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	usb_ipw_ids,
 };

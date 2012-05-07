@@ -716,7 +716,6 @@ static void ark3116_process_read_urb(struct urb *urb)
 
 static struct usb_driver ark3116_driver = {
 	.name =		"ark3116",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };

@@ -213,7 +213,6 @@ static struct usb_device_id ti_id_table_combined[18+2*TI_EXTRA_VID_PID_COUNT+1] 
 
 static struct usb_driver ti_usb_driver = {
 	.name			= "ti_usb_3410_5052",
-	.probe			= usb_serial_probe,
 	.disconnect		= usb_serial_disconnect,
 	.id_table		= ti_id_table_combined,
 };

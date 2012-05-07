@@ -489,7 +489,6 @@ MODULE_DEVICE_TABLE(usb, keyspan_ids_combined);
 
 static struct usb_driver keyspan_driver = {
 	.name =		"keyspan",                
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	keyspan_ids_combined,
 };

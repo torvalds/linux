@@ -132,7 +132,6 @@ MODULE_DEVICE_TABLE(usb, quausb2_id_table);
 /* custom structures we need go here */
 static struct usb_driver quausb2_usb_driver = {
 	.name = "quatech-usb2-serial",
-	.probe = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table = quausb2_id_table,
 };

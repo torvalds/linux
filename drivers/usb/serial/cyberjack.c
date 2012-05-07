@@ -79,7 +79,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver cyberjack_driver = {
 	.name =		"cyberjack",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };

@@ -31,7 +31,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver siemens_usb_mpi_driver = {
 	.name =		"siemens_mpi",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };

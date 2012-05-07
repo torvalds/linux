@@ -197,7 +197,6 @@ struct quatech_port {
 
 static struct usb_driver serqt_usb_driver = {
 	.name = "quatech-usb-serial",
-	.probe = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table = serqt_id_table,
 };

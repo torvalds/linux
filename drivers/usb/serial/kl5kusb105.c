@@ -88,7 +88,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver kl5kusb105d_driver = {
 	.name =		"kl5kusb105d",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };

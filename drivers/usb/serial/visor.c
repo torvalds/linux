@@ -165,7 +165,6 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static struct usb_driver visor_driver = {
 	.name =		"visor",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
 };

@@ -199,7 +199,6 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static struct usb_driver io_driver = {
 	.name =		"io_ti",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
 };

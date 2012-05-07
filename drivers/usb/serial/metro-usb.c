@@ -421,7 +421,6 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 
 static struct usb_driver metrousb_driver = {
 	.name =		"metro-usb",
-	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table
 };

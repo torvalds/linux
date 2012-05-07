@@ -2785,7 +2785,6 @@ static void mos7840_release(struct usb_serial *serial)
 
 static struct usb_driver io_driver = {
 	.name = "mos7840",
-	.probe = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
 	.id_table = moschip_id_table_combined,
 };
