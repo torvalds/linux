@@ -1225,7 +1225,7 @@ static struct platform_device device_ion = {
  * SDMMC devices,  include the module of SD,MMC,and sdio.noted by xbw at 2012-03-05
 **************************************************************************************************/
 #ifdef CONFIG_SDMMC_RK29
-#include "board-rk30-sdk-sdmmc.c"
+#include "board-rk30-phone-sdmmc.c"
 
 #if defined(CONFIG_SDMMC0_RK29_WRITE_PROTECT)
 #define SDMMC0_WRITE_PROTECT_PIN	RK30_PIN3_PB7	//According to your own project to set the value of write-protect-pin.
