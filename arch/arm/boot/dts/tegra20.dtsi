@@ -206,5 +206,10 @@
 		interrupts = < 0 97 0x04 >;
 		phy_type = "utmi";
 	};
+
+	ahb: ahb@6000c004 {
+		compatible = "nvidia,tegra20-ahb";
+		reg = <0x6000c004 0x10c>; /* AHB Arbitration + Gizmo Controller */
+	};
 };
 
