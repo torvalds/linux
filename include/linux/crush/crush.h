@@ -177,4 +177,9 @@ extern void crush_destroy_bucket_straw(struct crush_bucket_straw *b);
 extern void crush_destroy_bucket(struct crush_bucket *b);
 extern void crush_destroy(struct crush_map *map);
 
+static inline int crush_calc_tree_node(int i)
+{
+	return ((i+1) << 1)-1;
+}
+
 #endif
