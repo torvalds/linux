@@ -1264,13 +1264,6 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	snd_array_init(&codec->cvt_setups, sizeof(struct hda_cvt_setup), 8);
 	snd_array_init(&codec->conn_lists, sizeof(hda_nid_t), 64);
 	snd_array_init(&codec->spdif_out, sizeof(struct hda_spdif_out), 16);
-	if (codec->bus->modelname) {
-		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
-		if (!codec->modelname) {
-			snd_hda_codec_free(codec);
-			return -ENODEV;
-		}
-	}
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	INIT_DELAYED_WORK(&codec->power_work, hda_power_work);
@@ -1280,6 +1273,14 @@ int /*__devinit*/ snd_hda_codec_new(struct hda_bus *bus,
 	 */
 	hda_keep_power_on(codec);
 #endif
+
+	if (codec->bus->modelname) {
+		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
+		if (!codec->modelname) {
+			snd_hda_codec_free(codec);
+			return -ENODEV;
+		}
+	}
 
 	list_add_tail(&codec->list, &bus->codec_list);
 	bus->caddr_tbl[codec_addr] = codec;
