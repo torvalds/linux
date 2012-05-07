@@ -113,6 +113,7 @@ static enum power_supply_property max17042_battery_props[] = {
 	POWER_SUPPLY_PROP_VOLTAGE_OCV,
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
+	POWER_SUPPLY_PROP_CHARGE_COUNTER,
 	POWER_SUPPLY_PROP_TEMP,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 	POWER_SUPPLY_PROP_CURRENT_AVG,
@@ -196,6 +197,13 @@ static int max17042_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = max17042_read_reg(chip->client, MAX17042_FullCAP);
+		if (ret < 0)
+			return ret;
+
+		val->intval = ret * 1000 / 2;
+		break;
+	case POWER_SUPPLY_PROP_CHARGE_COUNTER:
+		ret = max17042_read_reg(chip->client, MAX17042_QH);
 		if (ret < 0)
 			return ret;
 
