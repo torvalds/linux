@@ -1994,9 +1994,9 @@ enum nl80211_reg_rule_flags {
  * enum nl80211_dfs_regions - regulatory DFS regions
  *
  * @NL80211_DFS_UNSET: Country has no DFS master region specified
- * @NL80211_DFS_FCC_: Country follows DFS master rules from FCC
- * @NL80211_DFS_FCC_: Country follows DFS master rules from ETSI
- * @NL80211_DFS_JP_: Country follows DFS master rules from JP/MKK/Telec
+ * @NL80211_DFS_FCC: Country follows DFS master rules from FCC
+ * @NL80211_DFS_ETSI: Country follows DFS master rules from ETSI
+ * @NL80211_DFS_JP: Country follows DFS master rules from JP/MKK/Telec
  */
 enum nl80211_dfs_regions {
 	NL80211_DFS_UNSET	= 0,
