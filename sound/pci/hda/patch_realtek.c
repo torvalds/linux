@@ -4405,6 +4405,25 @@ static int alc_parse_auto_config(struct hda_codec *codec,
 	return 1;
 }
 
+/* common preparation job for alc_spec */
+static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
+{
+	struct alc_spec *spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	int err;
+
+	if (!spec)
+		return -ENOMEM;
+	codec->spec = spec;
+	spec->mixer_nid = mixer_nid;
+
+	err = alc_codec_rename_from_preset(codec);
+	if (err < 0) {
+		kfree(spec);
+		return err;
+	}
+	return 0;
+}
+
 static int alc880_parse_auto_config(struct hda_codec *codec)
 {
 	static const hda_nid_t alc880_ignore[] = { 0x1d, 0 };
@@ -4786,13 +4805,11 @@ static int patch_alc880(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x0b);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x0b;
+	spec = codec->spec;
 	spec->need_dac_fix = 1;
 
 	alc_pick_fixup(codec, alc880_fixup_models, alc880_fixup_tbl,
@@ -4979,13 +4996,11 @@ static int patch_alc260(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x07);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x07;
+	spec = codec->spec;
 
 	alc_pick_fixup(codec, NULL, alc260_fixup_tbl, alc260_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
@@ -5452,13 +5467,11 @@ static int patch_alc882(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x0b);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x0b;
+	spec = codec->spec;
 
 	switch (codec->vendor_id) {
 	case 0x10ec0882:
@@ -5469,10 +5482,6 @@ static int patch_alc882(struct hda_codec *codec)
 		alc_fix_pll_init(codec, 0x20, 0x0a, 10);
 		break;
 	}
-
-	err = alc_codec_rename_from_preset(codec);
-	if (err < 0)
-		goto error;
 
 	alc_pick_fixup(codec, alc882_fixup_models, alc882_fixup_tbl,
 		       alc882_fixups);
@@ -5597,13 +5606,11 @@ static int patch_alc262(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x0b);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x0b;
+	spec = codec->spec;
 
 #if 0
 	/* pshou 07/11/05  set a zero PCM sample to DAC when FIFO is
@@ -5699,13 +5706,12 @@ static int patch_alc268(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int i, has_beep, err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
-
 	/* ALC268 has no aa-loopback mixer */
+	err = alc_alloc_spec(codec, 0);
+	if (err < 0)
+		return err;
+
+	spec = codec->spec;
 
 	/* automatic parse from the BIOS config */
 	err = alc268_parse_auto_config(codec);
@@ -6216,19 +6222,13 @@ static void alc269_fill_coef(struct hda_codec *codec)
 static int patch_alc269(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err = 0;
+	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x0b;
-
-	err = alc_codec_rename_from_preset(codec);
+	err = alc_alloc_spec(codec, 0x0b);
 	if (err < 0)
-		goto error;
+		return err;
+
+	spec = codec->spec;
 
 	if (codec->vendor_id == 0x10ec0269) {
 		spec->codec_variant = ALC269_TYPE_ALC269VA;
@@ -6374,13 +6374,11 @@ static int patch_alc861(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x15);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x15;
+	spec = codec->spec;
 
 	alc_pick_fixup(codec, NULL, alc861_fixup_tbl, alc861_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
@@ -6477,13 +6475,11 @@ static int patch_alc861vd(struct hda_codec *codec)
 	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x0b);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x0b;
+	spec = codec->spec;
 
 	alc_pick_fixup(codec, NULL, alc861vd_fixup_tbl, alc861vd_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
@@ -6822,24 +6818,18 @@ static const struct alc_model_fixup alc662_fixup_models[] = {
 static int patch_alc662(struct hda_codec *codec)
 {
 	struct alc_spec *spec;
-	int err = 0;
+	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec)
-		return -ENOMEM;
+	err = alc_alloc_spec(codec, 0x0b);
+	if (err < 0)
+		return err;
 
-	codec->spec = spec;
-
-	spec->mixer_nid = 0x0b;
+	spec = codec->spec;
 
 	/* handle multiple HPs as is */
 	spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
-
-	err = alc_codec_rename_from_preset(codec);
-	if (err < 0)
-		goto error;
 
 	if ((alc_get_coef0(codec) & (1 << 14)) &&
 	    codec->bus->pci->subsystem_vendor == 0x1025 &&
@@ -6903,16 +6893,12 @@ static int alc680_parse_auto_config(struct hda_codec *codec)
  */
 static int patch_alc680(struct hda_codec *codec)
 {
-	struct alc_spec *spec;
 	int err;
 
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (spec == NULL)
-		return -ENOMEM;
-
-	codec->spec = spec;
-
 	/* ALC680 has no aa-loopback mixer */
+	err = alc_alloc_spec(codec, 0);
+	if (err < 0)
+		return err;
 
 	/* automatic parse from the BIOS config */
 	err = alc680_parse_auto_config(codec);
