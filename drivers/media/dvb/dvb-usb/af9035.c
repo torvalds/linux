@@ -20,24 +20,11 @@
  */
 
 #include "af9035.h"
-#include "af9033.h"
-#include "tua9001.h"
-#include "fc0011.h"
-#include "mxl5007t.h"
-#include "tda18218.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static DEFINE_MUTEX(af9035_usb_mutex);
-static struct config af9035_config;
 static struct dvb_usb_device_properties af9035_properties[2];
 static int af9035_properties_count = ARRAY_SIZE(af9035_properties);
-static struct af9033_config af9035_af9033_config[] = {
-	{
-		.ts_mode = AF9033_TS_MODE_USB,
-	}, {
-		.ts_mode = AF9033_TS_MODE_SERIAL,
-	}
-};
 
 static u16 af9035_checksum(const u8 *buf, size_t len)
 {
@@ -218,6 +205,7 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		struct i2c_msg msg[], int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
+	struct state *state = d->priv;
 	int ret;
 
 	if (mutex_lock_interruptible(&d->i2c_mutex) < 0)
@@ -244,7 +232,7 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		if (msg[0].len > 40 || msg[1].len > 40) {
 			/* TODO: correct limits > 40 */
 			ret = -EOPNOTSUPP;
-		} else if (msg[0].addr == af9035_af9033_config[0].i2c_addr) {
+		} else if (msg[0].addr == state->af9033_config[0].i2c_addr) {
 			/* integrated demod */
 			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
 					msg[0].buf[2];
@@ -267,7 +255,7 @@ static int af9035_i2c_master_xfer(struct i2c_adapter *adap,
 		if (msg[0].len > 40) {
 			/* TODO: correct limits > 40 */
 			ret = -EOPNOTSUPP;
-		} else if (msg[0].addr == af9035_af9033_config[0].i2c_addr) {
+		} else if (msg[0].addr == state->af9033_config[0].i2c_addr) {
 			/* integrated demod */
 			u32 reg = msg[0].buf[0] << 16 | msg[0].buf[1] << 8 |
 					msg[0].buf[2];
@@ -346,6 +334,7 @@ err:
 
 static int af9035_init(struct dvb_usb_device *d)
 {
+	struct state *state = d->priv;
 	int ret, i;
 	u16 frame_size = 87 * 188 / 4;
 	u8  packet_size = 512 / 4;
@@ -360,7 +349,7 @@ static int af9035_init(struct dvb_usb_device *d)
 		{ 0x00dd88, (frame_size >> 0) & 0xff, 0xff},
 		{ 0x00dd89, (frame_size >> 8) & 0xff, 0xff},
 		{ 0x00dd0c, packet_size, 0xff},
-		{ 0x00dd11, af9035_config.dual_mode << 6, 0x40 },
+		{ 0x00dd11, state->dual_mode << 6, 0x40 },
 		{ 0x00dd8a, (frame_size >> 0) & 0xff, 0xff},
 		{ 0x00dd8b, (frame_size >> 8) & 0xff, 0xff},
 		{ 0x00dd0d, packet_size, 0xff },
@@ -596,6 +585,7 @@ err:
 /* abuse that callback as there is no better one for reading eeprom */
 static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 {
+	struct state *state = d->priv;
 	int ret, i, eeprom_shift = 0;
 	u8 tmp;
 	u16 tmp16;
@@ -605,8 +595,8 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	if (ret < 0)
 		goto err;
 
-	af9035_config.dual_mode = tmp;
-	pr_debug("%s: dual mode=%d\n", __func__, af9035_config.dual_mode);
+	state->dual_mode = tmp;
+	pr_debug("%s: dual mode=%d\n", __func__, state->dual_mode);
 
 	for (i = 0; i < af9035_properties[0].num_adapters; i++) {
 		/* tuner */
@@ -614,7 +604,7 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		if (ret < 0)
 			goto err;
 
-		af9035_af9033_config[i].tuner = tmp;
+		state->af9033_config[i].tuner = tmp;
 		pr_debug("%s: [%d]tuner=%02x\n", __func__, i, tmp);
 
 		switch (tmp) {
@@ -622,10 +612,10 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 		case AF9033_TUNER_FC0011:
 		case AF9033_TUNER_MXL5007T:
 		case AF9033_TUNER_TDA18218:
-			af9035_af9033_config[i].spec_inv = 1;
+			state->af9033_config[i].spec_inv = 1;
 			break;
 		default:
-			af9035_config.hw_not_supported = true;
+			state->hw_not_supported = true;
 			warn("tuner ID=%02x not supported, please report!",
 				tmp);
 		};
@@ -656,7 +646,7 @@ static int af9035_read_mac_address(struct dvb_usb_device *d, u8 mac[6])
 	tmp = (tmp >> 0) & 0x0f;
 
 	for (i = 0; i < af9035_properties[0].num_adapters; i++)
-		af9035_af9033_config[i].clock = clock_lut[tmp];
+		state->af9033_config[i].clock = clock_lut[tmp];
 
 	ret = af9035_rd_reg(d, EEPROM_IR_MODE, &tmp);
 	if (ret < 0)
@@ -695,10 +685,11 @@ err:
 /* abuse that callback as there is no better one for reading eeprom */
 static int af9035_read_mac_address_it9135(struct dvb_usb_device *d, u8 mac[6])
 {
+	struct state *state = d->priv;
 	int ret, i;
 	u8 tmp;
 
-	af9035_config.dual_mode = 0;
+	state->dual_mode = false;
 
 	/* get demod clock */
 	ret = af9035_rd_reg(d, 0x00d800, &tmp);
@@ -708,7 +699,7 @@ static int af9035_read_mac_address_it9135(struct dvb_usb_device *d, u8 mac[6])
 	tmp = (tmp >> 0) & 0x0f;
 
 	for (i = 0; i < af9035_properties[0].num_adapters; i++)
-		af9035_af9033_config[i].clock = clock_lut_it9135[tmp];
+		state->af9033_config[i].clock = clock_lut_it9135[tmp];
 
 	return 0;
 
@@ -785,7 +776,9 @@ err:
 
 static int af9035_tuner_callback(struct dvb_usb_device *d, int cmd, int arg)
 {
-	switch (af9035_af9033_config[0].tuner) {
+	struct state *state = d->priv;
+
+	switch (state->af9033_config[0].tuner) {
 	case AF9033_TUNER_FC0011:
 		return af9035_fc0011_tuner_callback(d, cmd, arg);
 	default:
@@ -813,28 +806,32 @@ static int af9035_frontend_callback(void *adapter_priv, int component,
 
 static int af9035_frontend_attach(struct dvb_usb_adapter *adap)
 {
+	struct state *state = adap->dev->priv;
 	int ret;
 
-	if (af9035_config.hw_not_supported) {
+	if (state->hw_not_supported) {
 		ret = -ENODEV;
 		goto err;
 	}
 
 	if (adap->id == 0) {
+		state->af9033_config[0].ts_mode = AF9033_TS_MODE_USB;
+		state->af9033_config[1].ts_mode = AF9033_TS_MODE_SERIAL;
+
 		ret = af9035_wr_reg(adap->dev, 0x00417f,
-				af9035_af9033_config[1].i2c_addr);
+				state->af9033_config[1].i2c_addr);
 		if (ret < 0)
 			goto err;
 
 		ret = af9035_wr_reg(adap->dev, 0x00d81a,
-				af9035_config.dual_mode);
+				state->dual_mode);
 		if (ret < 0)
 			goto err;
 	}
 
 	/* attach demodulator */
 	adap->fe_adap[0].fe = dvb_attach(af9033_attach,
-			&af9035_af9033_config[adap->id], &adap->dev->i2c_adap);
+			&state->af9033_config[adap->id], &adap->dev->i2c_adap);
 	if (adap->fe_adap[0].fe == NULL) {
 		ret = -ENODEV;
 		goto err;
@@ -876,10 +873,11 @@ static struct tda18218_config af9035_tda18218_config = {
 
 static int af9035_tuner_attach(struct dvb_usb_adapter *adap)
 {
+	struct state *state = adap->dev->priv;
 	int ret;
 	struct dvb_frontend *fe;
 
-	switch (af9035_af9033_config[adap->id].tuner) {
+	switch (state->af9033_config[adap->id].tuner) {
 	case AF9033_TUNER_TUA9001:
 		/* AF9035 gpiot3 = TUA9001 RESETN
 		   AF9035 gpiot2 = TUA9001 RXEN */
@@ -1032,6 +1030,8 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 		.firmware = "dvb-usb-af9035-02.fw",
 		.no_reconnect = 1,
 
+		.size_of_priv = sizeof(struct state),
+
 		.num_adapters = 1,
 		.adapter = {
 			{
@@ -1108,6 +1108,8 @@ static struct dvb_usb_device_properties af9035_properties[] = {
 		.download_firmware = af9035_download_firmware_it9135,
 		.firmware = "dvb-usb-it9135-01.fw",
 		.no_reconnect = 1,
+
+		.size_of_priv = sizeof(struct state),
 
 		.num_adapters = 1,
 		.adapter = {
