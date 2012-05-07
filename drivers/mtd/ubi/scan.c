@@ -337,7 +337,7 @@ static int compare_lebs(struct ubi_device *ubi, const struct ubi_scan_leb *seb,
 	}
 
 	/* Obviously the LEB with lower sequence counter is older */
-	second_is_newer = !!(sqnum2 > seb->sqnum);
+	second_is_newer = (sqnum2 > seb->sqnum);
 
 	/*
 	 * Now we know which copy is newer. If the copy flag of the PEB with
