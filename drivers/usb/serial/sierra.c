@@ -1039,21 +1039,13 @@ static int sierra_resume(struct usb_serial *serial)
 	return ec ? -EIO : 0;
 }
 
-static int sierra_reset_resume(struct usb_interface *intf)
-{
-	struct usb_serial *serial = usb_get_intfdata(intf);
-	dev_err(&serial->dev->dev, "%s\n", __func__);
-	return usb_serial_resume(intf);
-}
 #else
 #define sierra_suspend NULL
 #define sierra_resume NULL
-#define sierra_reset_resume NULL
 #endif
 
 static struct usb_driver sierra_driver = {
 	.name       = "sierra",
-	.reset_resume = sierra_reset_resume,
 	.id_table   = id_table,
 };
 
