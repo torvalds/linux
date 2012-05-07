@@ -955,7 +955,10 @@ static int Rk610_hdmi_Display_switch(struct i2c_client *client)
     int mode;
     mode = (g_edid.HDMI_Sink == TRUE)? DISPLAY_HDMI:DISPLAY_DVI;
     ret = Rk610_hdmi_i2c_read_p0_reg(client, 0x52, &c);
-    c &= ((~(1<<1))| mode<<1);
+	if(mode == DISPLAY_HDMI)
+		c |= DISPLAY_MODE; 
+	else 
+		c &= ~DISPLAY_MODE;
     ret = Rk610_hdmi_i2c_write_p0_reg(client, 0x52, &c);
     RK610_DBG(&client->dev,">>>%s mode=%d,c=%x",__func__,mode,c);
     return ret;

@@ -97,7 +97,7 @@ enum{
 //output mode 0x52
 #define DISPLAY_DVI         0
 #define DISPLAY_HDMI        1
-
+#define DISPLAY_MODE 		(1<<1)
 //0x00
 #define RK610_INT_POL       1
 #define RK610_SYS_PWR_ON    0
