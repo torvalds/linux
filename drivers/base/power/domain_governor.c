@@ -105,7 +105,7 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 	struct generic_pm_domain *genpd = pd_to_genpd(pd);
 	struct gpd_link *link;
 	struct pm_domain_data *pdd;
-	s64 min_dev_off_time_ns;
+	s64 min_off_time_ns;
 	s64 off_on_time_ns;
 
 	if (genpd->max_off_time_changed) {
@@ -142,6 +142,7 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 				to_gpd_data(pdd)->td.save_state_latency_ns;
 	}
 
+	min_off_time_ns = -1;
 	/*
 	 * Check if subdomains can be off for enough time.
 	 *
@@ -161,12 +162,14 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		 */
 		if (sd_max_off_ns <= off_on_time_ns)
 			return false;
+
+		if (min_off_time_ns > sd_max_off_ns || min_off_time_ns < 0)
+			min_off_time_ns = sd_max_off_ns;
 	}
 
 	/*
 	 * Check if the devices in the domain can be off enough time.
 	 */
-	min_dev_off_time_ns = -1;
 	list_for_each_entry(pdd, &genpd->dev_list, list_node) {
 		struct gpd_timing_data *td;
 		s64 constraint_ns;
@@ -197,9 +200,8 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 		if (constraint_ns <= off_on_time_ns)
 			return false;
 
-		if (min_dev_off_time_ns > constraint_ns
-		    || min_dev_off_time_ns < 0)
-			min_dev_off_time_ns = constraint_ns;
+		if (min_off_time_ns > constraint_ns || min_off_time_ns < 0)
+			min_off_time_ns = constraint_ns;
 	}
 
 	genpd->cached_power_down_ok = true;
@@ -209,16 +211,15 @@ static bool default_power_down_ok(struct dev_pm_domain *pd)
 	 * latency constraints, so the domain can spend arbitrary time in the
 	 * "off" state.
 	 */
-	if (min_dev_off_time_ns < 0)
+	if (min_off_time_ns < 0)
 		return true;
 
 	/*
-	 * The difference between the computed minimum device off time and the
-	 * time needed to turn the domain on is the maximum theoretical time
-	 * this domain can spend in the "off" state.
+	 * The difference between the computed minimum subdomain or device off
+	 * time and the time needed to turn the domain on is the maximum
+	 * theoretical time this domain can spend in the "off" state.
 	 */
-	genpd->max_off_time_ns = min_dev_off_time_ns -
-					genpd->power_on_latency_ns;
+	genpd->max_off_time_ns = min_off_time_ns - genpd->power_on_latency_ns;
 	return true;
 }
 
