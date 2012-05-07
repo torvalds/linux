@@ -22,7 +22,7 @@ struct ins_operands {
 struct ins_ops {
 	int (*parse)(struct ins_operands *ops);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
-			 struct ins_operands *ops, bool addrs);
+			 struct ins_operands *ops);
 };
 
 struct ins {
@@ -32,6 +32,7 @@ struct ins {
 
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
+int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 
 struct disasm_line {
 	struct list_head    node;
@@ -49,6 +50,7 @@ static inline bool disasm_line__has_offset(const struct disasm_line *dl)
 
 void disasm_line__free(struct disasm_line *dl);
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
+int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 
 struct sym_hist {

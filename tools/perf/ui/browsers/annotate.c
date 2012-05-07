@@ -125,9 +125,6 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 			} else {
 				slsmg_write_nstring(" ", 2);
 			}
-
-			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf), &dl->ops,
-						!ab->use_offset);
 		} else {
 			if (strcmp(dl->name, "retq")) {
 				slsmg_write_nstring(" ", 2);
@@ -135,10 +132,9 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 				ui_browser__write_graph(self, SLSMG_LARROW_CHAR);
 				SLsmg_write_char(' ');
 			}
-
-			scnprintf(bf, sizeof(bf), "%-6.6s %s", dl->name, dl->ops.raw);
 		}
 
+		disasm_line__scnprintf(dl, bf, sizeof(bf), !ab->use_offset);
 		slsmg_write_nstring(bf, width - 10 - printed);
 	}
 
