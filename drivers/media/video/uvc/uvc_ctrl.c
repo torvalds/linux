@@ -1250,7 +1250,7 @@ static void uvc_ctrl_send_events(struct uvc_fh *handle,
 	}
 }
 
-static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev)
+static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 {
 	struct uvc_fh *handle = container_of(sev->fh, struct uvc_fh, vfh);
 	struct uvc_control_mapping *mapping;
@@ -1278,6 +1278,9 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev)
 
 		uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, val,
 				    changes);
+		/* Mark the queue as active, allowing this initial
+		   event to be accepted. */
+		sev->elems = elems;
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
 

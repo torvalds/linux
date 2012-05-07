@@ -85,7 +85,7 @@ struct v4l2_kevent {
   * @merge:	Optional callback that can merge event 'old' into event 'new'.
   */
 struct v4l2_subscribed_event_ops {
-	int  (*add)(struct v4l2_subscribed_event *sev);
+	int  (*add)(struct v4l2_subscribed_event *sev, unsigned elems);
 	void (*del)(struct v4l2_subscribed_event *sev);
 	void (*replace)(struct v4l2_event *old, const struct v4l2_event *new);
 	void (*merge)(const struct v4l2_event *old, struct v4l2_event *new);

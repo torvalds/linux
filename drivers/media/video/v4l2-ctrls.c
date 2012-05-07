@@ -2559,7 +2559,7 @@ int v4l2_ctrl_s_ctrl(struct v4l2_ctrl *ctrl, s32 val)
 }
 EXPORT_SYMBOL(v4l2_ctrl_s_ctrl);
 
-static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev)
+static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 {
 	struct v4l2_ctrl *ctrl = v4l2_ctrl_find(sev->fh->ctrl_handler, sev->id);
 
@@ -2576,6 +2576,9 @@ static int v4l2_ctrl_add_event(struct v4l2_subscribed_event *sev)
 		if (!(ctrl->flags & V4L2_CTRL_FLAG_WRITE_ONLY))
 			changes |= V4L2_EVENT_CTRL_CH_VALUE;
 		fill_event(&ev, ctrl, changes);
+		/* Mark the queue as active, allowing this initial
+		   event to be accepted. */
+		sev->elems = elems;
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
 	v4l2_ctrl_unlock(ctrl);
