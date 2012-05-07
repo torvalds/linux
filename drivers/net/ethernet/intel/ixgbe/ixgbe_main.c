@@ -637,7 +637,11 @@ static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 			clear_bit(__IXGBE_HANG_CHECK_ARMED,
 				  &adapter->tx_ring[i]->state);
 		return;
-	} else if (!(adapter->dcb_cfg.pfc_mode_enable))
+	} else if (((adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE) &&
+		    !(adapter->dcb_cfg.pfc_mode_enable)) ||
+		   ((adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) &&
+		    adapter->ixgbe_ieee_pfc &&
+		    !(adapter->ixgbe_ieee_pfc->pfc_en)))
 		return;
 
 	/* update stats for each tc, only valid with PFC enabled */
