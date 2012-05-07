@@ -97,7 +97,6 @@ struct nfc_dev {
 	struct nfc_target *targets;
 	int n_targets;
 	int targets_generation;
-	spinlock_t targets_lock;
 	struct device dev;
 	bool dev_up;
 	bool polling;
