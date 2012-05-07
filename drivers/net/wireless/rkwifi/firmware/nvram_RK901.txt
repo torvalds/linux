@@ -1,0 +1,52 @@
+# bcm943362sdgn (goldengate rev 3) board
+# $Copyright (C) 2010 Broadcom Corporation$
+# $Id: bcm943362sdgn.txt 242833 2011-02-25 00:22:28Z cfraser $
+#
+#----------------------------------------
+# History notes
+# 1. oct 4, 2010. created. copied from 4336sdgp with the following mods
+#			-  changed board rev, boardtype, ag0,macaddr
+#
+#----------------------------------------
+#
+#
+sromrev=3
+boardtype=0x0596
+boardrev=0x1100
+
+#[NVRAM ONLY]
+manfid=0x2d0
+prodid=0x492
+vendid=0x14e4
+devid=0x4343
+boardflags=0x200
+nocrc=1
+xtalfreq=26000
+boardnum=${serno}
+il0macaddr=00:90:4c:07:6${maclo12}
+ag0=0x0
+aa2g=3
+ccode=ww
+regrev=5
+pa0b0=5456
+pa0b1=-647
+pa0b2=-160
+pa0itssit=0x20
+rssismf2g=0xa
+rssismc2g=0x3
+rssisav2g=0x7
+maxp2ga0=0x46
+ofdm2gpo=0x22222222
+mcs2gpo0=0x3333
+mcs2gpo1=0x3333
+wl0id=0x431b
+cckdigfilttype=20
+cckPwrOffset=6
+ofdmanalogfiltbw2g=3
+rfreg033=0x19
+rfreg033_cck=0x1f
+swctrlmap_2g=0x0c050c05,0x0a030a03,0x0a030a03,0x0,0x1ff
+triso2g=0
+RAW1=4a 0b ff ff 20 04 d0 02 36 43
+otpimagesize=76
+
