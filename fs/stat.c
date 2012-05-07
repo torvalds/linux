@@ -199,6 +199,10 @@ SYSCALL_DEFINE2(fstat, unsigned int, fd, struct __old_kernel_stat __user *, stat
 #define valid_dev(x)  choose_32_64(old_valid_dev,new_valid_dev)(x)
 #define encode_dev(x) choose_32_64(old_encode_dev,new_encode_dev)(x)
 
+#ifndef INIT_STRUCT_STAT_PADDING
+#  define INIT_STRUCT_STAT_PADDING(st) memset(&st, 0, sizeof(st))
+#endif
+
 static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 {
 	struct stat tmp;
@@ -210,7 +214,7 @@ static int cp_new_stat(struct kstat *stat, struct stat __user *statbuf)
 		return -EOVERFLOW;
 #endif
 
-	memset(&tmp, 0, sizeof(tmp));
+	INIT_STRUCT_STAT_PADDING(tmp);
 	tmp.st_dev = encode_dev(stat->dev);
 	tmp.st_ino = stat->ino;
 	if (sizeof(tmp.st_ino) < sizeof(stat->ino) && tmp.st_ino != stat->ino)
@@ -323,11 +327,15 @@ SYSCALL_DEFINE3(readlink, const char __user *, path, char __user *, buf,
 /* ---------- LFS-64 ----------- */
 #ifdef __ARCH_WANT_STAT64
 
+#ifndef INIT_STRUCT_STAT64_PADDING
+#  define INIT_STRUCT_STAT64_PADDING(st) memset(&st, 0, sizeof(st))
+#endif
+
 static long cp_new_stat64(struct kstat *stat, struct stat64 __user *statbuf)
 {
 	struct stat64 tmp;
 
-	memset(&tmp, 0, sizeof(struct stat64));
+	INIT_STRUCT_STAT64_PADDING(tmp);
 #ifdef CONFIG_MIPS
 	/* mips has weird padding, so we don't get 64 bits there */
 	if (!new_valid_dev(stat->dev) || !new_valid_dev(stat->rdev))
