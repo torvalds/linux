@@ -241,8 +241,8 @@ int radeon_wb_init(struct radeon_device *rdev)
 				rdev->wb.use_event = true;
 		}
 	}
-	/* always use writeback/events on NI */
-	if (ASIC_IS_DCE5(rdev)) {
+	/* always use writeback/events on NI, APUs */
+	if (rdev->family >= CHIP_PALM) {
 		rdev->wb.enabled = true;
 		rdev->wb.use_event = true;
 	}

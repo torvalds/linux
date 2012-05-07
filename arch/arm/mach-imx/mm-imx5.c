@@ -35,7 +35,7 @@ static void imx5_idle(void)
 	}
 	clk_enable(gpc_dvfs_clk);
 	mx5_cpu_lp_set(WAIT_UNCLOCKED_POWER_OFF);
-	if (tzic_enable_wake() != 0)
+	if (!tzic_enable_wake())
 		cpu_do_idle();
 	clk_disable(gpc_dvfs_clk);
 }

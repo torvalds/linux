@@ -19,6 +19,7 @@
 #include <linux/nl80211.h>
 #include <linux/platform_device.h>
 #include <linux/etherdevice.h>
+#include <linux/export.h>
 #include <ar231x_platform.h>
 #include "ath5k.h"
 #include "debug.h"
@@ -119,7 +120,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no IRQ resource found\n");
 		ret = -ENXIO;
-		goto err_out;
+		goto err_iounmap;
 	}
 
 	irq = res->start;
@@ -128,7 +129,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	if (hw == NULL) {
 		dev_err(&pdev->dev, "no memory for ieee80211_hw\n");
 		ret = -ENOMEM;
-		goto err_out;
+		goto err_iounmap;
 	}
 
 	ah = hw->priv;
@@ -185,6 +186,8 @@ static int ath_ahb_probe(struct platform_device *pdev)
  err_free_hw:
 	ieee80211_free_hw(hw);
 	platform_set_drvdata(pdev, NULL);
+ err_iounmap:
+        iounmap(mem);
  err_out:
 	return ret;
 }
@@ -217,6 +220,7 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	}
 
 	ath5k_deinit_ah(ah);
+	iounmap(ah->iobase);
 	platform_set_drvdata(pdev, NULL);
 	ieee80211_free_hw(hw);
 

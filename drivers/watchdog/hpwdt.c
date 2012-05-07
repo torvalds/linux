@@ -435,16 +435,16 @@ static void hpwdt_start(void)
 {
 	reload = SECS_TO_TICKS(soft_margin);
 	iowrite16(reload, hpwdt_timer_reg);
-	iowrite16(0x85, hpwdt_timer_con);
+	iowrite8(0x85, hpwdt_timer_con);
 }
 
 static void hpwdt_stop(void)
 {
 	unsigned long data;
 
-	data = ioread16(hpwdt_timer_con);
+	data = ioread8(hpwdt_timer_con);
 	data &= 0xFE;
-	iowrite16(data, hpwdt_timer_con);
+	iowrite8(data, hpwdt_timer_con);
 }
 
 static void hpwdt_ping(void)
