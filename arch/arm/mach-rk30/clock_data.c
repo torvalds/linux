@@ -2637,7 +2637,7 @@ static struct clk_lookup clks[] = {
 	CLK1(pclk_timer2),
 
 	CLK(NULL, "rmii_clkin", &rmii_clkin),
-	CLK1(mac_pll_div),
+	CLK(NULL, "mac_ref_div", &clk_mac_pll_div), // compatible with rk29
 	CLK1(mac_ref),
 	CLK1(mii_tx),
 	CLK1(hsadc_pll_div),

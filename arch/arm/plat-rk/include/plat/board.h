@@ -127,6 +127,14 @@ struct rk29_gpio_expander_info {
 	unsigned int pin_value;	//GPIO_HIGH or GPIO_LOW
 };
 
+/*vmac*/
+struct rk29_vmac_platform_data {
+	int (*vmac_register_set)(void);
+	int (*rmii_io_init)(void);
+	int (*rmii_io_deinit)(void);
+	int (*rmii_power_control)(int enable);
+};
+
 #define BOOT_MODE_NORMAL		0
 #define BOOT_MODE_FACTORY2		1
 #define BOOT_MODE_RECOVERY		2

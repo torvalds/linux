@@ -847,7 +847,6 @@ static struct platform_device device_rga = {
 };
 #endif
 
-//#ifdef CONFIG_RK29_IPP
 static struct resource resource_ipp[] = {
 	[0] = {
 		.start = RK30_IPP_PHYS,
@@ -867,7 +866,6 @@ static struct platform_device device_ipp = {
 	.num_resources	= ARRAY_SIZE(resource_ipp),
 	.resource	= resource_ipp,
 };
-//#endif
 
 #ifdef CONFIG_SND_RK29_SOC_I2S
 #ifdef CONFIG_SND_RK29_SOC_I2S_8CH
@@ -983,6 +981,7 @@ static void __init rk30_init_i2s(void)
 #endif
 	platform_device_register(&device_pcm);
 }
+
 #ifdef CONFIG_USB20_OTG
 /*DWC_OTG*/
 static struct resource usb20_otg_resource[] = {
@@ -1100,7 +1099,33 @@ static void __init rk30_init_sdmmc(void)
 #endif
 }
 
-extern int rk29sdk_wifi_bt_gpio_control_init(void);
+#ifdef CONFIG_RK29_VMAC
+static u64 eth_dmamask = DMA_BIT_MASK(32);
+static struct resource resources_vmac[] = {
+	[0] = {
+		.start	= RK30_MAC_PHYS,
+		.end	= RK30_MAC_PHYS + RK30_MAC_SIZE - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= IRQ_MAC,
+		.end	= IRQ_MAC,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device device_vmac = {
+	.name		= "rk29 vmac",
+	.id		= 0,
+	.dev = {
+		.dma_mask		= &eth_dmamask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+		.platform_data		= &board_vmac_data,
+	},
+	.num_resources	= ARRAY_SIZE(resources_vmac),
+	.resource	= resources_vmac,
+};
+#endif
 
 static int __init rk30_init_devices(void)
 {
@@ -1123,9 +1148,7 @@ static int __init rk30_init_devices(void)
 #ifdef CONFIG_RGA_RK30
 	platform_device_register(&device_rga);
 #endif
-//#ifdef CONFIG_RK29_IPP
 	platform_device_register(&device_ipp);
-//#endif
 #ifdef CONFIG_LCDC0_RK30
 	platform_device_register(&device_lcdc0);
 #endif
@@ -1144,6 +1167,9 @@ static int __init rk30_init_devices(void)
 	rk_serial_debug_init(DEBUG_UART_BASE, IRQ_UART0 + CONFIG_RK_DEBUG_UART, IRQ_UART_SIGNAL, -1);
 #endif
 	rk30_init_i2s();
+#ifdef CONFIG_RK29_VMAC
+	platform_device_register(&device_vmac);
+#endif
 
 	return 0;
 }
