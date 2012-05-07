@@ -699,7 +699,7 @@ static const struct tty_port_operations serial_port_ops = {
 	.shutdown = serial_down,
 };
 
-int usb_serial_probe(struct usb_interface *interface,
+static int usb_serial_probe(struct usb_interface *interface,
 			       const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(interface);

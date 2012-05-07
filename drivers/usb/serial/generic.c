@@ -28,9 +28,6 @@ static int debug;
 
 #ifdef CONFIG_USB_SERIAL_GENERIC
 
-static int generic_probe(struct usb_interface *interface,
-			 const struct usb_device_id *id);
-
 static __u16 vendor  = 0x05f9;
 static __u16 product = 0xffff;
 
@@ -51,7 +48,6 @@ static const struct usb_device_id generic_serial_ids[] = {
 
 static struct usb_driver generic_driver = {
 	.name =		"usbserial_generic",
-	.probe =	generic_probe,
 	.id_table =	generic_serial_ids,
 };
 
@@ -74,16 +70,6 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&usb_serial_generic_device, NULL
 };
 
-static int generic_probe(struct usb_interface *interface,
-			       const struct usb_device_id *id)
-{
-	const struct usb_device_id *id_pattern;
-
-	id_pattern = usb_match_id(interface, generic_device_ids);
-	if (id_pattern != NULL)
-		return usb_serial_probe(interface, id);
-	return -ENODEV;
-}
 #endif
 
 int usb_serial_generic_register(int _debug)

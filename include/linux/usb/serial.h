@@ -298,9 +298,6 @@ extern void usb_serial_deregister_drivers(struct usb_driver *udriver,
 		struct usb_serial_driver * const serial_drivers[]);
 extern void usb_serial_port_softint(struct usb_serial_port *port);
 
-extern int usb_serial_probe(struct usb_interface *iface,
-			    const struct usb_device_id *id);
-
 extern int usb_serial_suspend(struct usb_interface *intf, pm_message_t message);
 extern int usb_serial_resume(struct usb_interface *intf);
 
