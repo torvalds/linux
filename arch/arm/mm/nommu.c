@@ -13,6 +13,7 @@
 #include <asm/sections.h>
 #include <asm/page.h>
 #include <asm/setup.h>
+#include <asm/traps.h>
 #include <asm/mach/arch.h>
 
 #include "mm.h"
@@ -39,6 +40,7 @@ void __init sanity_check_meminfo(void)
  */
 void __init paging_init(struct machine_desc *mdesc)
 {
+	early_trap_init((void *)CONFIG_VECTORS_BASE);
 	bootmem_init();
 }
 

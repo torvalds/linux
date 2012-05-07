@@ -123,7 +123,7 @@ static void sas_form_port(struct asd_sas_phy *phy)
 	spin_unlock_irqrestore(&sas_ha->phy_port_lock, flags);
 
 	if (!port->port) {
-		port->port = sas_port_alloc(phy->phy->dev.parent, phy->id);
+		port->port = sas_port_alloc(phy->phy->dev.parent, port->id);
 		BUG_ON(!port->port);
 		sas_port_add(port->port);
 	}
@@ -208,8 +208,7 @@ void sas_deform_port(struct asd_sas_phy *phy, int gone)
 
 void sas_porte_bytes_dmaed(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
 	clear_bit(PORTE_BYTES_DMAED, &phy->port_events_pending);
@@ -219,8 +218,7 @@ void sas_porte_bytes_dmaed(struct work_struct *work)
 
 void sas_porte_broadcast_rcvd(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 	unsigned long flags;
 	u32 prim;
@@ -237,8 +235,7 @@ void sas_porte_broadcast_rcvd(struct work_struct *work)
 
 void sas_porte_link_reset_err(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
 	clear_bit(PORTE_LINK_RESET_ERR, &phy->port_events_pending);
@@ -248,8 +245,7 @@ void sas_porte_link_reset_err(struct work_struct *work)
 
 void sas_porte_timer_event(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
 	clear_bit(PORTE_TIMER_EVENT, &phy->port_events_pending);
@@ -259,8 +255,7 @@ void sas_porte_timer_event(struct work_struct *work)
 
 void sas_porte_hard_reset(struct work_struct *work)
 {
-	struct asd_sas_event *ev =
-		container_of(work, struct asd_sas_event, work);
+	struct asd_sas_event *ev = to_asd_sas_event(work);
 	struct asd_sas_phy *phy = ev->phy;
 
 	clear_bit(PORTE_HARD_RESET, &phy->port_events_pending);

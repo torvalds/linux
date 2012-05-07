@@ -1126,19 +1126,20 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	dprintk("RPC:	sending pipefs MOUNT notification for net %p%s\n", net,
 								NET_NAME(net));
+	sn->pipefs_sb = sb;
 	err = blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_MOUNT,
 					   sb);
 	if (err)
 		goto err_depopulate;
 	sb->s_fs_info = get_net(net);
-	sn->pipefs_sb = sb;
 	return 0;
 
 err_depopulate:
 	blocking_notifier_call_chain(&rpc_pipefs_notifier_list,
 					   RPC_PIPEFS_UMOUNT,
 					   sb);
+	sn->pipefs_sb = NULL;
 	__rpc_depopulate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF);
 	return err;
 }

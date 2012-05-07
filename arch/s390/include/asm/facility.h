@@ -38,12 +38,11 @@ static inline void stfle(u64 *stfle_fac_list, int size)
 	unsigned long nr;
 
 	preempt_disable();
-	S390_lowcore.stfl_fac_list = 0;
 	asm volatile(
 		"	.insn s,0xb2b10000,0(0)\n" /* stfl */
 		"0:\n"
 		EX_TABLE(0b, 0b)
-		: "=m" (S390_lowcore.stfl_fac_list));
+		: "+m" (S390_lowcore.stfl_fac_list));
 	nr = 4; /* bytes stored by stfl */
 	memcpy(stfle_fac_list, &S390_lowcore.stfl_fac_list, 4);
 	if (S390_lowcore.stfl_fac_list & 0x01000000) {

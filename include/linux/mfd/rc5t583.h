@@ -26,6 +26,7 @@
 
 #include <linux/mutex.h>
 #include <linux/types.h>
+#include <linux/regmap.h>
 
 #define RC5T583_MAX_REGS		0xF8
 
@@ -279,14 +280,44 @@ struct rc5t583_platform_data {
 	bool		enable_shutdown;
 };
 
-int rc5t583_write(struct device *dev, u8 reg, uint8_t val);
-int rc5t583_read(struct device *dev, uint8_t reg, uint8_t *val);
-int rc5t583_set_bits(struct device *dev, unsigned int reg,
-		unsigned int bit_mask);
-int rc5t583_clear_bits(struct device *dev, unsigned int reg,
-		unsigned int bit_mask);
-int rc5t583_update(struct device *dev, unsigned int reg,
-		unsigned int val, unsigned int mask);
+static inline int rc5t583_write(struct device *dev, uint8_t reg, uint8_t val)
+{
+	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
+	return regmap_write(rc5t583->regmap, reg, val);
+}
+
+static inline int rc5t583_read(struct device *dev, uint8_t reg, uint8_t *val)
+{
+	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
+	unsigned int ival;
+	int ret;
+	ret = regmap_read(rc5t583->regmap, reg, &ival);
+	if (!ret)
+		*val = (uint8_t)ival;
+	return ret;
+}
+
+static inline int rc5t583_set_bits(struct device *dev, unsigned int reg,
+			unsigned int bit_mask)
+{
+	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
+	return regmap_update_bits(rc5t583->regmap, reg, bit_mask, bit_mask);
+}
+
+static inline int rc5t583_clear_bits(struct device *dev, unsigned int reg,
+			unsigned int bit_mask)
+{
+	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
+	return regmap_update_bits(rc5t583->regmap, reg, bit_mask, 0);
+}
+
+static inline int rc5t583_update(struct device *dev, unsigned int reg,
+		unsigned int val, unsigned int mask)
+{
+	struct rc5t583 *rc5t583 = dev_get_drvdata(dev);
+	return regmap_update_bits(rc5t583->regmap, reg, mask, val);
+}
+
 int rc5t583_ext_power_req_config(struct device *dev, int deepsleep_id,
 	int ext_pwr_req, int deepsleep_slot_nr);
 int rc5t583_irq_init(struct rc5t583 *rc5t583, int irq, int irq_base);
