@@ -373,7 +373,7 @@ static int lme2510_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 	struct lme2510_state *st = adap->dev->priv;
 	static u8 clear_pid_reg[] = LME_ALL_PIDS;
 	static u8 rbuf[1];
-	int ret;
+	int ret = 0;
 
 	deb_info(1, "PID Clearing Filter");
 
