@@ -2446,7 +2446,7 @@ static int xhci_configure_endpoint(struct xhci_hcd *xhci,
 				udev->slot_id, must_succeed);
 	else
 		ret = xhci_queue_evaluate_context(xhci, in_ctx->dma,
-				udev->slot_id);
+				udev->slot_id, must_succeed);
 	if (ret < 0) {
 		if (command)
 			list_del(&command->cmd_list);

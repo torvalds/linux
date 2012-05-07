@@ -1757,7 +1757,7 @@ int xhci_queue_isoc_tx_prepare(struct xhci_hcd *xhci, gfp_t mem_flags,
 int xhci_queue_configure_endpoint(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 		u32 slot_id, bool command_must_succeed);
 int xhci_queue_evaluate_context(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
-		u32 slot_id);
+		u32 slot_id, bool command_must_succeed);
 int xhci_queue_reset_ep(struct xhci_hcd *xhci, int slot_id,
 		unsigned int ep_index);
 int xhci_queue_reset_device(struct xhci_hcd *xhci, u32 slot_id);
