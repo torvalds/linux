@@ -733,23 +733,7 @@ static struct i2c_driver wm8994_i2c_driver = {
 	.id_table = wm8994_i2c_id,
 };
 
-static int __init wm8994_i2c_init(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&wm8994_i2c_driver);
-	if (ret != 0)
-		pr_err("Failed to register wm8994 I2C driver: %d\n", ret);
-
-	return ret;
-}
-module_init(wm8994_i2c_init);
-
-static void __exit wm8994_i2c_exit(void)
-{
-	i2c_del_driver(&wm8994_i2c_driver);
-}
-module_exit(wm8994_i2c_exit);
+module_i2c_driver(wm8994_i2c_driver);
 
 MODULE_DESCRIPTION("Core support for the WM8994 audio CODEC");
 MODULE_LICENSE("GPL");
