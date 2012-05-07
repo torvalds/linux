@@ -1168,12 +1168,11 @@ static int check_channel_list(struct comedi_device *dev,
 	for (i = 1, seglen = 1; i < n_chan; i++, seglen++) {
 		if (chanlist[0] == chanlist[i])
 			break;	/*  we detected a loop, stop */
-		if (CR_CHAN(chanlist[i]) & 1)
-			if (CR_AREF(chanlist[i]) == AREF_DIFF) {
-				comedi_error(dev,
-					     "Odd channel cannot be differential input!\n");
-				return 0;
-			}
+		if ((CR_CHAN(chanlist[i]) & 1) &&
+		    (CR_AREF(chanlist[i]) == AREF_DIFF)) {
+			comedi_error(dev, "Odd channel cannot be differential input!\n");
+			return 0;
+		}
 		nowmustbechan =
 			(CR_CHAN(chansegment[i - 1]) + 1) % s->n_chan;
 		if (CR_AREF(chansegment[i - 1]) == AREF_DIFF)
