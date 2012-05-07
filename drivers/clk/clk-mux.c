@@ -116,6 +116,7 @@ struct clk *clk_register_mux(struct device *dev, const char *name,
 	mux->width = width;
 	mux->flags = clk_mux_flags;
 	mux->lock = lock;
+	mux->hw.init = &init;
 
 	clk = clk_register(dev, &mux->hw);
 
