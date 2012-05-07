@@ -251,11 +251,6 @@ void nfc_hci_event_received(struct nfc_hci_dev *hdev, u8 pipe, u8 event,
 
 	switch (event) {
 	case NFC_HCI_EVT_TARGET_DISCOVERED:
-		if (hdev->poll_started == false) {
-			r = -EPROTO;
-			goto exit;
-		}
-
 		if (skb->len < 1) {	/* no status data? */
 			r = -EPROTO;
 			goto exit;
@@ -489,28 +484,20 @@ static int hci_dev_down(struct nfc_dev *nfc_dev)
 static int hci_start_poll(struct nfc_dev *nfc_dev, u32 protocols)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
-	int r;
 
 	if (hdev->ops->start_poll)
-		r = hdev->ops->start_poll(hdev, protocols);
+		return hdev->ops->start_poll(hdev, protocols);
 	else
-		r = nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
+		return nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
 				       NFC_HCI_EVT_READER_REQUESTED, NULL, 0);
-	if (r == 0)
-		hdev->poll_started = true;
-
-	return r;
 }
 
 static void hci_stop_poll(struct nfc_dev *nfc_dev)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->poll_started) {
-		nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
-				   NFC_HCI_EVT_END_OPERATION, NULL, 0);
-		hdev->poll_started = false;
-	}
+	nfc_hci_send_event(hdev, NFC_HCI_RF_READER_A_GATE,
+			   NFC_HCI_EVT_END_OPERATION, NULL, 0);
 }
 
 static int hci_activate_target(struct nfc_dev *nfc_dev,
