@@ -91,6 +91,15 @@
 #define AB8500_IT_MASK23_REG		0x56
 #define AB8500_IT_MASK24_REG		0x57
 
+/*
+ * latch hierarchy registers
+ */
+#define AB8500_IT_LATCHHIER1_REG	0x60
+#define AB8500_IT_LATCHHIER2_REG	0x61
+#define AB8500_IT_LATCHHIER3_REG	0x62
+
+#define AB8500_IT_LATCHHIER_NUM		3
+
 #define AB8500_REV_REG			0x80
 #define AB8500_IC_NAME_REG		0x82
 #define AB8500_SWITCH_OFF_STATUS	0x00
@@ -339,6 +348,90 @@ static struct irq_chip ab8500_irq_chip = {
 	.irq_disable		= ab8500_irq_mask,
 	.irq_unmask		= ab8500_irq_unmask,
 };
+
+static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
+					int latch_offset, u8 latch_val)
+{
+	int int_bit = __ffs(latch_val);
+	int line, i;
+
+	do {
+		int_bit = __ffs(latch_val);
+
+		for (i = 0; i < ab8500->mask_size; i++)
+			if (ab8500->irq_reg_offset[i] == latch_offset)
+				break;
+
+		if (i >= ab8500->mask_size) {
+			dev_err(ab8500->dev, "Register offset 0x%2x not declared\n",
+					latch_offset);
+			return -ENXIO;
+		}
+
+		line = (i << 3) + int_bit;
+		latch_val &= ~(1 << int_bit);
+
+		handle_nested_irq(ab8500->irq_base + line);
+	} while (latch_val);
+
+	return 0;
+}
+
+static int ab8500_handle_hierarchical_latch(struct ab8500 *ab8500,
+					int hier_offset, u8 hier_val)
+{
+	int latch_bit, status;
+	u8 latch_offset, latch_val;
+
+	do {
+		latch_bit = __ffs(hier_val);
+		latch_offset = (hier_offset << 3) + latch_bit;
+
+		/* Fix inconsistent ITFromLatch25 bit mapping... */
+		if (unlikely(latch_offset == 17))
+			latch_offset = 24;
+
+		status = get_register_interruptible(ab8500,
+				AB8500_INTERRUPT,
+				AB8500_IT_LATCH1_REG + latch_offset,
+				&latch_val);
+		if (status < 0 || latch_val == 0)
+			goto discard;
+
+		status = ab8500_handle_hierarchical_line(ab8500,
+				latch_offset, latch_val);
+		if (status < 0)
+			return status;
+discard:
+		hier_val &= ~(1 << latch_bit);
+	} while (hier_val);
+
+	return 0;
+}
+
+static irqreturn_t ab8500_hierarchical_irq(int irq, void *dev)
+{
+	struct ab8500 *ab8500 = dev;
+	u8 i;
+
+	dev_vdbg(ab8500->dev, "interrupt\n");
+
+	/*  Hierarchical interrupt version */
+	for (i = 0; i < AB8500_IT_LATCHHIER_NUM; i++) {
+		int status;
+		u8 hier_val;
+
+		status = get_register_interruptible(ab8500, AB8500_INTERRUPT,
+			AB8500_IT_LATCHHIER1_REG + i, &hier_val);
+		if (status < 0 || hier_val == 0)
+			continue;
+
+		status = ab8500_handle_hierarchical_latch(ab8500, i, hier_val);
+		if (status < 0)
+			break;
+	}
+	return IRQ_HANDLED;
+}
 
 static irqreturn_t ab8500_irq(int irq, void *dev)
 {
@@ -1179,9 +1272,18 @@ int __devinit ab8500_init(struct ab8500 *ab8500, enum ab8500_version version)
 		if (ret)
 			goto out_freeoldmask;
 
-		ret = request_threaded_irq(ab8500->irq, NULL, ab8500_irq,
-					   IRQF_ONESHOT | IRQF_NO_SUSPEND,
-					   "ab8500", ab8500);
+		/*  Activate this feature only in ab9540 */
+		/*  till tests are done on ab8500 1p2 or later*/
+		if (is_ab9540(ab8500))
+			ret = request_threaded_irq(ab8500->irq, NULL,
+					ab8500_hierarchical_irq,
+					IRQF_ONESHOT | IRQF_NO_SUSPEND,
+					"ab8500", ab8500);
+		else
+			ret = request_threaded_irq(ab8500->irq, NULL,
+					ab8500_irq,
+					IRQF_ONESHOT | IRQF_NO_SUSPEND,
+					"ab8500", ab8500);
 		if (ret)
 			goto out_removeirq;
 	}
