@@ -10,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/cpumask.h>
 #include <linux/pci-aspm.h>
+#include <asm-generic/pci-bridge.h>
 #include "pci.h"
 
 #define CARDBUS_LATENCY_TIMER	176	/* secondary latency timer */
@@ -1336,10 +1337,13 @@ static unsigned no_next_fn(struct pci_dev *dev, unsigned fn)
 static int only_one_child(struct pci_bus *bus)
 {
 	struct pci_dev *parent = bus->self;
+
 	if (!parent || !pci_is_pcie(parent))
 		return 0;
-	if (parent->pcie_type == PCI_EXP_TYPE_ROOT_PORT ||
-	    parent->pcie_type == PCI_EXP_TYPE_DOWNSTREAM)
+	if (parent->pcie_type == PCI_EXP_TYPE_ROOT_PORT)
+		return 1;
+	if (parent->pcie_type == PCI_EXP_TYPE_DOWNSTREAM &&
+	    !pci_has_flag(PCI_SCAN_ALL_PCIE_DEVS))
 		return 1;
 	return 0;
 }

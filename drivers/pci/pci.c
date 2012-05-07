@@ -22,6 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/pm_runtime.h>
+#include <asm-generic/pci-bridge.h>
 #include <asm/setup.h>
 #include "pci.h"
 
@@ -3900,6 +3901,8 @@ static int __init pci_setup(char *str)
 				pcie_bus_config = PCIE_BUS_PERFORMANCE;
 			} else if (!strncmp(str, "pcie_bus_peer2peer", 18)) {
 				pcie_bus_config = PCIE_BUS_PEER2PEER;
+			} else if (!strncmp(str, "pcie_scan_all", 13)) {
+				pci_add_flags(PCI_SCAN_ALL_PCIE_DEVS);
 			} else {
 				printk(KERN_ERR "PCI: Unknown option `%s'\n",
 						str);
