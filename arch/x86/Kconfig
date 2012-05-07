@@ -161,9 +161,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool X86_XADD
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	def_bool y
-
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
