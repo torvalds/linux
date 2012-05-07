@@ -72,7 +72,7 @@ sint _r8712_init_xmit_priv(struct xmit_priv *pxmitpriv,
 	memset((unsigned char *)pxmitpriv, 0, sizeof(struct xmit_priv));
 	spin_lock_init(&pxmitpriv->lock);
 	/*
-	Please insert all the queue initializaiton using _init_queue below
+	Please insert all the queue initialization using _init_queue below
 	*/
 	pxmitpriv->adapter = padapter;
 	_init_queue(&pxmitpriv->be_pending);

@@ -69,7 +69,7 @@ static void check_hw_pbc(struct _adapter *padapter)
 		 * After trigger PBC, the variable will be set to false */
 		DBG_8712("CheckPbcGPIO - PBC is pressed !!!!\n");
 		/* 0 is the default value and it means the application monitors
-		 * the HW PBC doesn't privde its pid to driver. */
+		 * the HW PBC doesn't provide its pid to driver. */
 		if (padapter->pid == 0)
 			return;
 		kill_pid(find_vpid(padapter->pid), SIGUSR1, 1);
@@ -382,7 +382,7 @@ _next:
 			*pcmdbuf = cpu_to_le32((cmdsz & 0x0000ffff) |
 					       (pcmd->cmdcode << 16) |
 					       (pcmdpriv->cmd_seq << 24));
-			pcmdbuf += 2 ; /* 8 bytes aligment */
+			pcmdbuf += 2 ; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
 			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
 				if ((padapter->bDriverStopped == true) ||
@@ -471,7 +471,7 @@ void r8712_event_handle(struct _adapter *padapter, uint *peventbuf)
 	pevt_priv->event_seq++;	/* update evt_seq */
 	if (pevt_priv->event_seq > 127)
 		pevt_priv->event_seq = 0;
-	peventbuf = peventbuf + 2; /* move to event content, 8 bytes aligment */
+	peventbuf = peventbuf + 2; /* move to event content, 8 bytes alignment */
 	if (peventbuf) {
 		event_callback = wlanevents[evt_code].event_callback;
 		if (event_callback)

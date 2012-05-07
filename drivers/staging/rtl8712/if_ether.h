@@ -25,7 +25,7 @@
  ******************************************************************************/
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
- *		operating system.  INET is implemented using the  BSD Socket
+ *		operating system.  INET is implemented using the BSD Socket
  *		interface as the means of communication with the user level.
  *
  *		Global definitions for the Ethernet IEEE 802.3 interface.
