@@ -75,7 +75,6 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static struct usb_driver belkin_driver = {
 	.name =		"belkin",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
 };
 

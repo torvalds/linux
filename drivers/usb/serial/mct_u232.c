@@ -85,7 +85,6 @@ MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static struct usb_driver mct_u232_driver = {
 	.name =		"mct_u232",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
 };
 

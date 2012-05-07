@@ -38,7 +38,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver hp49gp_driver = {
 	.name =		"hp4X",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

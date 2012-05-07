@@ -2160,7 +2160,6 @@ static void mos7720_release(struct usb_serial *serial)
 
 static struct usb_driver usb_driver = {
 	.name =		"moschip7720",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	moschip_port_id_table,
 };
 

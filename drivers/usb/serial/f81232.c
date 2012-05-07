@@ -352,7 +352,6 @@ static void f81232_release(struct usb_serial *serial)
 
 static struct usb_driver f81232_driver = {
 	.name =		"f81232",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

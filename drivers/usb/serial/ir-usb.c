@@ -79,7 +79,6 @@ MODULE_DEVICE_TABLE(usb, ir_id_table);
 
 static struct usb_driver ir_driver = {
 	.name		= "ir-usb",
-	.disconnect	= usb_serial_disconnect,
 	.id_table	= ir_id_table,
 };
 

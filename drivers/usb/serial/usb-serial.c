@@ -43,17 +43,6 @@
 #define DRIVER_AUTHOR "Greg Kroah-Hartman, greg@kroah.com, http://www.kroah.com/linux/"
 #define DRIVER_DESC "USB Serial Driver core"
 
-/* Driver structure we register with the USB core */
-static struct usb_driver usb_serial_driver = {
-	.name =		"usbserial",
-	.probe =	usb_serial_probe,
-	.disconnect =	usb_serial_disconnect,
-	.suspend =	usb_serial_suspend,
-	.resume =	usb_serial_resume,
-	.no_dynamic_id =	1,
-	.supports_autosuspend =	1,
-};
-
 /* There is no MODULE_DEVICE_TABLE for usbserial.c.  Instead
    the MODULE_DEVICE_TABLE declarations in each serial driver
    cause the "hotplug" program to pull in whatever module is necessary
@@ -1099,7 +1088,7 @@ probe_error:
 	return -EIO;
 }
 
-void usb_serial_disconnect(struct usb_interface *interface)
+static void usb_serial_disconnect(struct usb_interface *interface)
 {
 	int i;
 	struct usb_serial *serial = usb_get_intfdata(interface);
@@ -1134,7 +1123,6 @@ void usb_serial_disconnect(struct usb_interface *interface)
 	usb_serial_put(serial);
 	dev_info(dev, "device disconnected\n");
 }
-EXPORT_SYMBOL_GPL(usb_serial_disconnect);
 
 int usb_serial_suspend(struct usb_interface *intf, pm_message_t message)
 {
@@ -1200,6 +1188,17 @@ static const struct tty_operations serial_ops = {
 
 
 struct tty_driver *usb_serial_tty_driver;
+
+/* Driver structure we register with the USB core */
+static struct usb_driver usb_serial_driver = {
+	.name =		"usbserial",
+	.probe =	usb_serial_probe,
+	.disconnect =	usb_serial_disconnect,
+	.suspend =	usb_serial_suspend,
+	.resume =	usb_serial_resume,
+	.no_dynamic_id =	1,
+	.supports_autosuspend =	1,
+};
 
 static int __init usb_serial_init(void)
 {
@@ -1400,6 +1399,7 @@ int usb_serial_register_drivers(struct usb_driver *udriver,
 	udriver->suspend = usb_serial_suspend;
 	udriver->resume = usb_serial_resume;
 	udriver->probe = usb_serial_probe;
+	udriver->disconnect = usb_serial_disconnect;
 	rc = usb_register(udriver);
 	if (rc)
 		return rc;

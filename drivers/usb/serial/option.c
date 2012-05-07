@@ -1222,7 +1222,6 @@ MODULE_DEVICE_TABLE(usb, option_ids);
 
 static struct usb_driver option_driver = {
 	.name       = "option",
-	.disconnect = usb_serial_disconnect,
 	.id_table   = option_ids,
 };
 

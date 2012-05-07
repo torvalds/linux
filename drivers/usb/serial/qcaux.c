@@ -79,7 +79,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver qcaux_driver = {
 	.name =		"qcaux",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

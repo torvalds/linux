@@ -172,7 +172,6 @@ static void aircable_process_read_urb(struct urb *urb)
 
 static struct usb_driver aircable_driver = {
 	.name =		"aircable",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

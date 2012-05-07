@@ -153,7 +153,6 @@ enum spcp8x5_type {
 
 static struct usb_driver spcp8x5_driver = {
 	.name =			"spcp8x5",
-	.disconnect =		usb_serial_disconnect,
 	.id_table =		id_table,
 };
 

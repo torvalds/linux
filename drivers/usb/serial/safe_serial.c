@@ -153,7 +153,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver safe_driver = {
 	.name =		"safe_serial",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

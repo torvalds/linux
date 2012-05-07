@@ -59,7 +59,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver omninet_driver = {
 	.name =		"omninet",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

@@ -504,7 +504,6 @@ MODULE_DEVICE_TABLE(usb, ipaq_id_table);
 
 static struct usb_driver ipaq_driver = {
 	.name =		"ipaq",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	ipaq_id_table,
 };
 

@@ -585,7 +585,6 @@ static int opticon_resume(struct usb_interface *intf)
 
 static struct usb_driver opticon_driver = {
 	.name =		"opticon",
-	.disconnect =	usb_serial_disconnect,
 	.suspend =	opticon_suspend,
 	.resume =	opticon_resume,
 	.id_table =	id_table,

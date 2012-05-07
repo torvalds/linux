@@ -52,7 +52,6 @@ static const struct usb_device_id generic_serial_ids[] = {
 static struct usb_driver generic_driver = {
 	.name =		"usbserial_generic",
 	.probe =	generic_probe,
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	generic_serial_ids,
 };
 

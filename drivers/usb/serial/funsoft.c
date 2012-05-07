@@ -26,7 +26,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_driver funsoft_driver = {
 	.name =		"funsoft",
-	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
 };
 

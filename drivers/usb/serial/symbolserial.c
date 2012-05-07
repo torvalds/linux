@@ -271,7 +271,6 @@ static void symbol_release(struct usb_serial *serial)
 
 static struct usb_driver symbol_driver = {
 	.name =			"symbol",
-	.disconnect =		usb_serial_disconnect,
 	.id_table =		id_table,
 };
 
