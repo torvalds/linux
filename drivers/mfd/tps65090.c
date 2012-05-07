@@ -334,7 +334,7 @@ static int __devexit tps65090_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int tps65090_i2c_suspend(struct i2c_client *client, pm_message_t state)
 {
 	if (client->irq)
@@ -363,7 +363,7 @@ static struct i2c_driver tps65090_driver = {
 	},
 	.probe		= tps65090_i2c_probe,
 	.remove		= __devexit_p(tps65090_i2c_remove),
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 	.suspend	= tps65090_i2c_suspend,
 	.resume		= tps65090_i2c_resume,
 #endif
