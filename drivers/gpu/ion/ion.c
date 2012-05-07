@@ -135,6 +135,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 				     unsigned long flags)
 {
 	struct ion_buffer *buffer;
+	struct sg_table *table;
 	int ret;
 
 	buffer = kzalloc(sizeof(struct ion_buffer), GFP_KERNEL);
@@ -149,6 +150,15 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		kfree(buffer);
 		return ERR_PTR(ret);
 	}
+
+	table = buffer->heap->ops->map_dma(buffer->heap, buffer);
+	if (IS_ERR_OR_NULL(table)) {
+		heap->ops->free(buffer);
+		kfree(buffer);
+		return ERR_PTR(PTR_ERR(table));
+	}
+	buffer->sg_table = table;
+
 	buffer->dev = dev;
 	buffer->size = len;
 	mutex_init(&buffer->lock);
@@ -164,9 +174,7 @@ static void ion_buffer_destroy(struct kref *kref)
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
 
-	if (WARN_ON(buffer->dmap_cnt > 0))
-		buffer->heap->ops->unmap_dma(buffer->heap, buffer);
-
+	buffer->heap->ops->unmap_dma(buffer->heap, buffer);
 	buffer->heap->ops->free(buffer);
 	mutex_lock(&dev->lock);
 	rb_erase(&buffer->node, &dev->buffers);
@@ -345,6 +353,7 @@ struct ion_handle *ion_alloc(struct ion_client *client, size_t len,
 		ion_handle_add(client, handle);
 		mutex_unlock(&client->lock);
 	}
+
 
 	return handle;
 }
@@ -607,53 +616,42 @@ void ion_client_destroy(struct ion_client *client)
 	kfree(client);
 }
 
+struct sg_table *ion_map_dma(struct ion_client *client,
+			     struct ion_handle *handle)
+{
+	struct ion_buffer *buffer;
+	struct sg_table *table;
+
+	mutex_lock(&client->lock);
+	if (!ion_handle_validate(client, handle)) {
+		pr_err("%s: invalid handle passed to map_dma.\n",
+		       __func__);
+		mutex_unlock(&client->lock);
+		return ERR_PTR(-EINVAL);
+	}
+	buffer = handle->buffer;
+	table = buffer->sg_table;
+	mutex_unlock(&client->lock);
+	return table;
+}
+
+void ion_unmap_dma(struct ion_client *client, struct ion_handle *handle)
+{
+}
+
 static struct sg_table *ion_map_dma_buf(struct dma_buf_attachment *attachment,
 					enum dma_data_direction direction)
 {
 	struct dma_buf *dmabuf = attachment->dmabuf;
 	struct ion_buffer *buffer = dmabuf->priv;
-	struct sg_table *table;
 
-	mutex_lock(&buffer->lock);
-
-	if (!buffer->heap->ops->map_dma) {
-		pr_err("%s: map_dma is not implemented by this heap.\n",
-		       __func__);
-		mutex_unlock(&buffer->lock);
-		return ERR_PTR(-ENODEV);
-	}
-	/* if an sg list already exists for this buffer just return it */
-	if (buffer->dmap_cnt) {
-		table = buffer->sg_table;
-		goto end;
-	}
-
-	/* otherwise call into the heap to create one */
-	table = buffer->heap->ops->map_dma(buffer->heap, buffer);
-	if (IS_ERR_OR_NULL(table))
-		goto err;
-	buffer->sg_table = table;
-end:
-	buffer->dmap_cnt++;
-err:
-	mutex_unlock(&buffer->lock);
-	return table;
+	return buffer->sg_table;
 }
 
 static void ion_unmap_dma_buf(struct dma_buf_attachment *attachment,
 			      struct sg_table *table,
 			      enum dma_data_direction direction)
 {
-	struct dma_buf *dmabuf = attachment->dmabuf;
-	struct ion_buffer *buffer = dmabuf->priv;
-
-	mutex_lock(&buffer->lock);
-	buffer->dmap_cnt--;
-	if (!buffer->dmap_cnt) {
-		buffer->heap->ops->unmap_dma(buffer->heap, buffer);
-		buffer->sg_table = NULL;
-	}
-	mutex_unlock(&buffer->lock);
 }
 
 static int ion_mmap(struct dma_buf *dmabuf, struct vm_area_struct *vma)
@@ -986,6 +984,11 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 	struct rb_node **p = &dev->heaps.rb_node;
 	struct rb_node *parent = NULL;
 	struct ion_heap *entry;
+
+	if (!heap->ops->allocate || !heap->ops->free || !heap->ops->map_dma ||
+	    !heap->ops->unmap_dma)
+		pr_err("%s: can not add heap with invalid ops struct.\n",
+		       __func__);
 
 	heap->dev = dev;
 	mutex_lock(&dev->lock);
