@@ -574,6 +574,17 @@ static int hci_data_exchange(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	return 0;
 }
 
+static int hci_check_presence(struct nfc_dev *nfc_dev,
+			      struct nfc_target *target)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->check_presence)
+		return hdev->ops->check_presence(hdev, target);
+
+	return 0;
+}
+
 struct nfc_ops hci_nfc_ops = {
 	.dev_up = hci_dev_up,
 	.dev_down = hci_dev_down,
@@ -582,6 +593,7 @@ struct nfc_ops hci_nfc_ops = {
 	.activate_target = hci_activate_target,
 	.deactivate_target = hci_deactivate_target,
 	.data_exchange = hci_data_exchange,
+	.check_presence = hci_check_presence,
 };
 
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
