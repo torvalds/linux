@@ -1274,12 +1274,31 @@ static __sramfunc void ddr_adjust_config(uint32_t dram_type)
 {
     uint32 value;
     unsigned long save_sp;
-
-    DDR_SAVE_SP(save_sp);
+    u32 i;
+    volatile u32 n;	
+    volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
 
     //get data training address before idle port
     value = get_datatraing_addr();
 
+    /** 1. Make sure there is no host access */
+    flush_cache_all();
+	outer_flush_all();
+	flush_tlb_all();
+	DDR_SAVE_SP(save_sp);
+
+	for(i=0;i<16;i++)
+	{
+	    n=temp[1024*i];
+        barrier();
+	}
+    n= pDDR_Reg->SCFG.d32;
+    n= pPHY_Reg->RIDR;
+    n= pCRU_Reg->CRU_PLL_CON[0][0];
+    n= pPMU_Reg->PMU_WAKEUP_CFG[0];
+    n= *(volatile uint32_t *)SysSrv_DdrConf;
+    dsb();
+    
     //enter config state
     idle_port();
     move_to_Config_state();
@@ -1302,7 +1321,7 @@ static __sramfunc void ddr_adjust_config(uint32_t dram_type)
         pPHY_Reg->ZQ0CR[1] = 0x5B;  //DS=40ohm,ODT=60ohm
         pPHY_Reg->ZQ0CR[0] |= (1<<30);  //trigger
     }
-    if (dram_type == DDR2)
+    else if (dram_type == DDR2)
     {
         pPHY_Reg->ZQ0CR[1] = 0x4B;  //DS=40ohm,ODT=75ohm
         pPHY_Reg->ZQ0CR[0] |= (1<<30);  //trigger
