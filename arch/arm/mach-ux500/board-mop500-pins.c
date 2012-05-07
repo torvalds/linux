@@ -32,12 +32,14 @@ static enum custom_pin_cfg_t pinsfor;
 BIAS(pd, PIN_PULL_DOWN);
 BIAS(slpm_gpio_nopull, PIN_SLPM_GPIO|PIN_SLPM_INPUT_NOPULL);
 BIAS(in_nopull, PIN_INPUT_NOPULL);
+BIAS(in_nopull_sleep_nowkup, PIN_INPUT_NOPULL|PIN_SLPM_WAKEUP_DISABLE);
 BIAS(in_pu, PIN_INPUT_PULLUP);
 BIAS(in_pd, PIN_INPUT_PULLDOWN);
 BIAS(in_pd_slpm_in_pu, PIN_INPUT_PULLDOWN|PIN_SLPM_INPUT_PULLUP);
 BIAS(in_pu_slpm_out_lo, PIN_INPUT_PULLUP|PIN_SLPM_OUTPUT_LOW);
 BIAS(out_hi, PIN_OUTPUT_HIGH);
 BIAS(out_lo, PIN_OUTPUT_LOW);
+BIAS(out_lo_sleep_nowkup, PIN_OUTPUT_LOW|PIN_SLPM_WAKEUP_DISABLE);
 /* These also force them into GPIO mode */
 BIAS(gpio_in_pu, PIN_INPUT_PULLUP|PIN_GPIOMODE_ENABLED);
 BIAS(gpio_in_pd, PIN_INPUT_PULLDOWN|PIN_GPIOMODE_ENABLED);
@@ -47,7 +49,9 @@ BIAS(gpio_out_hi, PIN_OUTPUT_HIGH|PIN_GPIOMODE_ENABLED);
 BIAS(gpio_out_lo, PIN_OUTPUT_LOW|PIN_GPIOMODE_ENABLED);
 /* Sleep modes */
 BIAS(sleep_in_wkup_pdis, PIN_SLPM_DIR_INPUT|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
+BIAS(sleep_in_nopull_wkup, PIN_INPUT_NOPULL|PIN_SLPM_WAKEUP_ENABLE);
 BIAS(sleep_out_hi_wkup_pdis, PIN_SLPM_OUTPUT_HIGH|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
+BIAS(sleep_out_lo_wkup, PIN_OUTPUT_LOW|PIN_SLPM_WAKEUP_ENABLE);
 BIAS(sleep_out_wkup_pdis, PIN_SLPM_DIR_OUTPUT|PIN_SLPM_WAKEUP_ENABLE|PIN_SLPM_PDIS_DISABLED);
 
 /* We use these to define hog settings that are always done on boot */
@@ -129,11 +133,23 @@ static struct pinctrl_map __initdata mop500_family_pinmap[] = {
 	DB8500_PIN("GPIO1_AJ3", out_hi, "uart0"), /* RTS */
 	DB8500_PIN("GPIO2_AH4", in_pu, "uart0"), /* RXD */
 	DB8500_PIN("GPIO3_AH3", out_hi, "uart0"), /* TXD */
-	/* Sleep state for UART0 */
+	/* UART0 sleep state */
 	DB8500_PIN_SLEEP("GPIO0_AJ5", sleep_in_wkup_pdis, "uart0"),
 	DB8500_PIN_SLEEP("GPIO1_AJ3", sleep_out_hi_wkup_pdis, "uart0"),
 	DB8500_PIN_SLEEP("GPIO2_AH4", sleep_in_wkup_pdis, "uart0"),
 	DB8500_PIN_SLEEP("GPIO3_AH3", sleep_out_wkup_pdis, "uart0"),
+	/* MSP1 for ALSA codec */
+	DB8500_MUX("msp1txrx_a_1", "msp1", "ux500-msp-i2s.1"),
+	DB8500_MUX("msp1_a_1", "msp1", "ux500-msp-i2s.1"),
+	DB8500_PIN("GPIO33_AF2", out_lo_sleep_nowkup, "ux500-msp-i2s.1"),
+	DB8500_PIN("GPIO34_AE1", in_nopull_sleep_nowkup, "ux500-msp-i2s.1"),
+	DB8500_PIN("GPIO35_AE2", in_nopull_sleep_nowkup, "ux500-msp-i2s.1"),
+	DB8500_PIN("GPIO36_AG2", in_nopull_sleep_nowkup, "ux500-msp-i2s.1"),
+	/* MSP1 sleep state */
+	DB8500_PIN_SLEEP("GPIO33_AF2", sleep_out_lo_wkup, "ux500-msp-i2s.1"),
+	DB8500_PIN_SLEEP("GPIO34_AE1", sleep_in_nopull_wkup, "ux500-msp-i2s.1"),
+	DB8500_PIN_SLEEP("GPIO35_AE2", sleep_in_nopull_wkup, "ux500-msp-i2s.1"),
+	DB8500_PIN_SLEEP("GPIO36_AG2", sleep_in_nopull_wkup, "ux500-msp-i2s.1"),
 	/* Mux in LCD data lines 8 thru 11 and LCDA CLK for MCDE TVOUT */
 	DB8500_MUX("lcd_d8_d11_a_1", "lcd", "mcde-tvout"),
 	DB8500_MUX("lcdaclk_b_1", "lcda", "mcde-tvout"),
