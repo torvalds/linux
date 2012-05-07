@@ -415,7 +415,7 @@ reject:
 					if (collide && flocal < 3)
 						/* retry locally a few times */
 						retry_bucket = 1;
-					else if (flocal < in->size + orig_tries)
+					else if (flocal <= in->size + orig_tries)
 						/* exhaustive bucket search */
 						retry_bucket = 1;
 					else if (ftotal < 20)
