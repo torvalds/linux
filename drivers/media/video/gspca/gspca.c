@@ -595,6 +595,7 @@ static int gspca_set_alt0(struct gspca_dev *gspca_dev)
 static void gspca_stream_off(struct gspca_dev *gspca_dev)
 {
 	gspca_dev->streaming = 0;
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->sd_desc->stopN)
 		gspca_dev->sd_desc->stopN(gspca_dev);
 	destroy_urbs(gspca_dev);
@@ -1331,10 +1332,8 @@ static int dev_close(struct file *file)
 
 	/* if the file did the capture, free the streaming resources */
 	if (gspca_dev->capt_file == file) {
-		if (gspca_dev->streaming) {
-			gspca_dev->usb_err = 0;
+		if (gspca_dev->streaming)
 			gspca_stream_off(gspca_dev);
-		}
 		frame_free(gspca_dev);
 	}
 	module_put(gspca_dev->module);
@@ -1569,7 +1568,6 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	/* stop streaming */
 	streaming = gspca_dev->streaming;
 	if (streaming) {
-		gspca_dev->usb_err = 0;
 		gspca_stream_off(gspca_dev);
 
 		/* Don't restart the stream when switching from read
@@ -1675,7 +1673,6 @@ static int vidioc_streamoff(struct file *file, void *priv,
 	}
 
 	/* stop streaming */
-	gspca_dev->usb_err = 0;
 	gspca_stream_off(gspca_dev);
 	/* In case another thread is waiting in dqbuf */
 	wake_up_interruptible(&gspca_dev->wq);
