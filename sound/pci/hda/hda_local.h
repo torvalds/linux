@@ -262,6 +262,8 @@ int snd_hda_input_mux_put(struct hda_codec *codec,
 			  const struct hda_input_mux *imux,
 			  struct snd_ctl_elem_value *ucontrol, hda_nid_t nid,
 			  unsigned int *cur_val);
+int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
+			  int index, int *type_index_ret);
 
 /*
  * Channel mode helper
@@ -393,72 +395,7 @@ struct hda_bus_unsolicited {
 	struct hda_bus *bus;
 };
 
-/*
- * Helper for automatic pin configuration
- */
-
-enum {
-	AUTO_PIN_MIC,
-	AUTO_PIN_LINE_IN,
-	AUTO_PIN_CD,
-	AUTO_PIN_AUX,
-	AUTO_PIN_LAST
-};
-
-enum {
-	AUTO_PIN_LINE_OUT,
-	AUTO_PIN_SPEAKER_OUT,
-	AUTO_PIN_HP_OUT
-};
-
-#define AUTO_CFG_MAX_OUTS	HDA_MAX_OUTS
-#define AUTO_CFG_MAX_INS	8
-
-struct auto_pin_cfg_item {
-	hda_nid_t pin;
-	int type;
-};
-
-struct auto_pin_cfg;
-const char *hda_get_autocfg_input_label(struct hda_codec *codec,
-					const struct auto_pin_cfg *cfg,
-					int input);
-int snd_hda_get_pin_label(struct hda_codec *codec, hda_nid_t nid,
-			  const struct auto_pin_cfg *cfg,
-			  char *label, int maxlen, int *indexp);
-int snd_hda_add_imux_item(struct hda_input_mux *imux, const char *label,
-			  int index, int *type_index_ret);
-
-enum {
-	INPUT_PIN_ATTR_UNUSED,	/* pin not connected */
-	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
-	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
-	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
-	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
-	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
-};
-
-int snd_hda_get_input_pin_attr(unsigned int def_conf);
-
-struct auto_pin_cfg {
-	int line_outs;
-	/* sorted in the order of Front/Surr/CLFE/Side */
-	hda_nid_t line_out_pins[AUTO_CFG_MAX_OUTS];
-	int speaker_outs;
-	hda_nid_t speaker_pins[AUTO_CFG_MAX_OUTS];
-	int hp_outs;
-	int line_out_type;	/* AUTO_PIN_XXX_OUT */
-	hda_nid_t hp_pins[AUTO_CFG_MAX_OUTS];
-	int num_inputs;
-	struct auto_pin_cfg_item inputs[AUTO_CFG_MAX_INS];
-	int dig_outs;
-	hda_nid_t dig_out_pins[2];
-	hda_nid_t dig_in_pin;
-	hda_nid_t mono_out_pin;
-	int dig_out_type[2]; /* HDA_PCM_TYPE_XXX */
-	int dig_in_type; /* HDA_PCM_TYPE_XXX */
-};
-
+/* helper macros to retrieve pin default-config values */
 #define get_defcfg_connect(cfg) \
 	((cfg & AC_DEFCFG_PORT_CONN) >> AC_DEFCFG_PORT_CONN_SHIFT)
 #define get_defcfg_association(cfg) \
@@ -471,19 +408,6 @@ struct auto_pin_cfg {
 	((cfg & AC_DEFCFG_DEVICE) >> AC_DEFCFG_DEVICE_SHIFT)
 #define get_defcfg_misc(cfg) \
 	((cfg & AC_DEFCFG_MISC) >> AC_DEFCFG_MISC_SHIFT)
-
-/* bit-flags for snd_hda_parse_pin_def_config() behavior */
-#define HDA_PINCFG_NO_HP_FIXUP	(1 << 0) /* no HP-split */
-#define HDA_PINCFG_NO_LO_FIXUP	(1 << 1) /* don't take other outs as LO */
-
-int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
-			     struct auto_pin_cfg *cfg,
-			     const hda_nid_t *ignore_nids,
-			     unsigned int cond_flags);
-
-/* older function */
-#define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
-	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
 
 /* amp values */
 #define AMP_IN_MUTE(idx)	(0x7080 | ((idx)<<8))
