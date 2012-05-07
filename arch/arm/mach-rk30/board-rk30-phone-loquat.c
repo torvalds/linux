@@ -44,6 +44,8 @@
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
+#include <linux/mfd/tlv320aic3262-core.h>
+#include <linux/mfd/tlv320aic3262-registers.h>
 
 #if defined(CONFIG_SPIM_RK29)
 #include "../../../drivers/spi/rk29_spim.h"
@@ -1442,6 +1444,39 @@ static struct platform_device *devices[] __initdata = {
 #endif
 };
 
+static struct aic3262_gpio_setup aic3262_gpio[] = {
+	{ // GPIO1
+		.used 		= 0,
+		.in 		= 0,
+		.value 		= AIC3262_GPIO1_FUNC_INT1_OUTPUT ,
+		
+	},
+	{// GPIO2
+		.used 		= 0,
+		.in 		= 0,
+		.value 		= AIC3262_GPIO2_FUNC_CLOCK_OUTPUT,
+	},
+	{// GPI1
+		.used 		= 1,
+		.in   		= 1,
+		.value 		= 0,
+	},
+	{// GPI2
+		.used 		= 1,
+		.in   		= 1,
+		.value 		= AIC3262_GPO1_FUNC_DISABLED,
+	},
+	{// GPO1
+		.used 		= 0,
+		.in 		= 0,
+		.value		= AIC3262_GPO1_FUNC_ADC_MOD_CLK_OUTPUT,
+	},
+};
+static struct aic3262_pdata aic3262_codec_pdata = {
+	.gpio 		= aic3262_gpio,
+	.gpio_reset = RK30_PIN0_PB7,
+};
+
 // i2c
 #ifdef CONFIG_I2C0_RK30
 static struct i2c_board_info __initdata i2c0_info[] = {
@@ -1498,6 +1533,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 		.type    		= "tlv320aic3262",
 		.addr           = 0x18,
 		.flags			= 0,
+		.platform_data = &aic3262_codec_pdata,
 	},
 #endif
 

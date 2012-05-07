@@ -12,6 +12,9 @@
 
 #include <linux/mfd/tlv320aic3262-core.h>
 #include <linux/mfd/tlv320aic3262-registers.h>
+#include <mach/gpio.h>
+#include <mach/iomux.h>
+
 #define DEBUG 1
 struct aic3262_gpio
 {
@@ -317,7 +320,7 @@ static int aic3262_device_init(struct aic3262 *aic3262, int irq)
 	u8 revID, pgID;
 	unsigned int naudint = 0;
 	u8 resetVal = 1;
-	printk("aic3262_device_init beginning\n");
+	//printk("aic3262_device_init beginning\n");
 
 	mutex_init(&aic3262->io_lock);
 	dev_set_drvdata(aic3262->dev, aic3262);
@@ -328,15 +331,14 @@ static int aic3262_device_init(struct aic3262 *aic3262, int irq)
 				dev_err(aic3262->dev,"not able to acquire gpio %d for reseting the AIC3262 \n", pdata->gpio_reset);
 				goto err_return;
 			}
+			rk30_mux_api_set(GPIO0B7_I2S8CHSDO3_NAME, GPIO0B_GPIO0B7);  
 			gpio_direction_output(pdata->gpio_reset, 1);
 			msleep(5);
 			gpio_direction_output(pdata->gpio_reset, 0);
 			msleep(5);
 			gpio_direction_output(pdata->gpio_reset, 1);
 //			gpio_set_value(pdata->gpio_reset, 0);
-			msleep(5);
-			
-			
+			msleep(5);	
 		}	
 	}
 

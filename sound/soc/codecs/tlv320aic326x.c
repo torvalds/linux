@@ -2741,7 +2741,7 @@ static void test_playback(void)
 	int ret;
 	printk("test palyback start\n");
 
-	record_in1lr( );
+	AP_to_headphone( );
 
 }
 
