@@ -26,8 +26,7 @@ static long ceph_ioctl_get_layout(struct file *file, void __user *arg)
 		l.stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
 		l.object_size = ceph_file_layout_object_size(ci->i_layout);
 		l.data_pool = le32_to_cpu(ci->i_layout.fl_pg_pool);
-		l.preferred_osd =
-			(s32)le32_to_cpu(ci->i_layout.fl_pg_preferred);
+		l.preferred_osd = (s32)-1;
 		if (copy_to_user(arg, &l, sizeof(l)))
 			return -EFAULT;
 	}
@@ -49,6 +48,10 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 	if (copy_from_user(&l, arg, sizeof(l)))
 		return -EFAULT;
 
+	/* preferred_osd is no longer supported */
+	if (l.preferred_osd != -1)
+		return -EINVAL;
+
 	/* validate changed params against current layout */
 	err = ceph_do_getattr(file->f_dentry->d_inode, CEPH_STAT_CAP_LAYOUT);
 	if (!err) {
@@ -56,8 +59,6 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 		nl.stripe_count = ceph_file_layout_stripe_count(ci->i_layout);
 		nl.object_size = ceph_file_layout_object_size(ci->i_layout);
 		nl.data_pool = le32_to_cpu(ci->i_layout.fl_pg_pool);
-		nl.preferred_osd =
-				(s32)le32_to_cpu(ci->i_layout.fl_pg_preferred);
 	} else
 		return err;
 
@@ -69,8 +70,6 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 		nl.object_size = l.object_size;
 	if (l.data_pool)
 		nl.data_pool = l.data_pool;
-	if (l.preferred_osd)
-		nl.preferred_osd = l.preferred_osd;
 
 	if ((nl.object_size & ~PAGE_MASK) ||
 	    (nl.stripe_unit & ~PAGE_MASK) ||
@@ -106,8 +105,6 @@ static long ceph_ioctl_set_layout(struct file *file, void __user *arg)
 	req->r_args.setlayout.layout.fl_object_size =
 		cpu_to_le32(l.object_size);
 	req->r_args.setlayout.layout.fl_pg_pool = cpu_to_le32(l.data_pool);
-	req->r_args.setlayout.layout.fl_pg_preferred =
-		cpu_to_le32(l.preferred_osd);
 
 	parent_inode = ceph_get_dentry_parent_inode(file->f_dentry);
 	err = ceph_mdsc_do_request(mdsc, parent_inode, req);
@@ -171,8 +168,6 @@ static long ceph_ioctl_set_layout_policy (struct file *file, void __user *arg)
 			cpu_to_le32(l.object_size);
 	req->r_args.setlayout.layout.fl_pg_pool =
 			cpu_to_le32(l.data_pool);
-	req->r_args.setlayout.layout.fl_pg_preferred =
-			cpu_to_le32(l.preferred_osd);
 
 	err = ceph_mdsc_do_request(mdsc, inode, req);
 	ceph_mdsc_put_request(req);
