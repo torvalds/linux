@@ -406,9 +406,9 @@ int nfc_llcp_set_remote_gb(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 		return -EINVAL;
 	}
 
-	return nfc_llcp_parse_tlv(local,
-				  &local->remote_gb[3],
-				  local->remote_gb_len - 3);
+	return nfc_llcp_parse_gb_tlv(local,
+				     &local->remote_gb[3],
+				     local->remote_gb_len - 3);
 }
 
 static void nfc_llcp_tx_work(struct work_struct *work)
@@ -608,9 +608,6 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 
 	pr_debug("%d %d\n", dsap, ssap);
 
-	nfc_llcp_parse_tlv(local, &skb->data[LLCP_HEADER_SIZE],
-			   skb->len - LLCP_HEADER_SIZE);
-
 	if (dsap != LLCP_SAP_SDP) {
 		sock = nfc_llcp_sock_get(local, dsap, LLCP_SAP_SDP);
 		if (sock == NULL || sock->sk.sk_state != LLCP_LISTEN) {
@@ -663,6 +660,9 @@ static void nfc_llcp_recv_connect(struct nfc_llcp_local *local,
 	new_sock->dsap = ssap;
 	new_sock->parent = parent;
 
+	nfc_llcp_parse_connection_tlv(new_sock, &skb->data[LLCP_HEADER_SIZE],
+				      skb->len - LLCP_HEADER_SIZE);
+
 	pr_debug("new sock %p sk %p\n", new_sock, &new_sock->sk);
 
 	nfc_llcp_sock_link(&local->sockets, new_sk);
@@ -699,11 +699,11 @@ int nfc_llcp_queue_i_frames(struct nfc_llcp_sock *sock)
 
 	pr_debug("Remote ready %d tx queue len %d remote rw %d",
 		 sock->remote_ready, skb_queue_len(&sock->tx_pending_queue),
-		 local->remote_rw);
+		 sock->rw);
 
 	/* Try to queue some I frames for transmission */
 	while (sock->remote_ready &&
-	       skb_queue_len(&sock->tx_pending_queue) < local->remote_rw) {
+	       skb_queue_len(&sock->tx_pending_queue) < sock->rw) {
 		struct sk_buff *pdu, *pending_pdu;
 
 		pdu = skb_dequeue(&sock->tx_queue);
@@ -851,8 +851,8 @@ static void nfc_llcp_recv_cc(struct nfc_llcp_local *local, struct sk_buff *skb)
 	nfc_llcp_sock_link(&local->sockets, sk);
 	llcp_sock->dsap = ssap;
 
-	nfc_llcp_parse_tlv(local, &skb->data[LLCP_HEADER_SIZE],
-			   skb->len - LLCP_HEADER_SIZE);
+	nfc_llcp_parse_connection_tlv(llcp_sock, &skb->data[LLCP_HEADER_SIZE],
+				      skb->len - LLCP_HEADER_SIZE);
 
 	sk->sk_state = LLCP_CONNECTED;
 	sk->sk_state_change(sk);
@@ -1036,7 +1036,6 @@ int nfc_llcp_register_device(struct nfc_dev *ndev)
 
 	local->remote_miu = LLCP_DEFAULT_MIU;
 	local->remote_lto = LLCP_DEFAULT_LTO;
-	local->remote_rw = LLCP_DEFAULT_RW;
 
 	list_add(&llcp_devices, &local->list);
 

@@ -117,8 +117,8 @@ u8 *nfc_llcp_build_tlv(u8 type, u8 *value, u8 value_length, u8 *tlv_length)
 	return tlv;
 }
 
-int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
-		       u8 *tlv_array, u16 tlv_array_len)
+int nfc_llcp_parse_gb_tlv(struct nfc_llcp_local *local,
+			  u8 *tlv_array, u16 tlv_array_len)
 {
 	u8 *tlv = tlv_array, type, length, offset = 0;
 
@@ -149,8 +149,42 @@ int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
 		case LLCP_TLV_OPT:
 			local->remote_opt = llcp_tlv_opt(tlv);
 			break;
+		default:
+			pr_err("Invalid gt tlv value 0x%x\n", type);
+			break;
+		}
+
+		offset += length + 2;
+		tlv += length + 2;
+	}
+
+	pr_debug("version 0x%x miu %d lto %d opt 0x%x wks 0x%x\n",
+		 local->remote_version, local->remote_miu,
+		 local->remote_lto, local->remote_opt,
+		 local->remote_wks);
+
+	return 0;
+}
+
+int nfc_llcp_parse_connection_tlv(struct nfc_llcp_sock *sock,
+				  u8 *tlv_array, u16 tlv_array_len)
+{
+	u8 *tlv = tlv_array, type, length, offset = 0;
+
+	pr_debug("TLV array length %d\n", tlv_array_len);
+
+	if (sock == NULL)
+		return -ENOTCONN;
+
+	while (offset < tlv_array_len) {
+		type = tlv[0];
+		length = tlv[1];
+
+		pr_debug("type 0x%x length %d\n", type, length);
+
+		switch (type) {
 		case LLCP_TLV_RW:
-			local->remote_rw = llcp_tlv_rw(tlv);
+			sock->rw = llcp_tlv_rw(tlv);
 			break;
 		case LLCP_TLV_SN:
 			break;
@@ -163,10 +197,7 @@ int nfc_llcp_parse_tlv(struct nfc_llcp_local *local,
 		tlv += length + 2;
 	}
 
-	pr_debug("version 0x%x miu %d lto %d opt 0x%x wks 0x%x rw %d\n",
-		 local->remote_version, local->remote_miu,
-		 local->remote_lto, local->remote_opt,
-		 local->remote_wks, local->remote_rw);
+	pr_debug("sock %p rw %d\n", sock, sock->rw);
 
 	return 0;
 }
