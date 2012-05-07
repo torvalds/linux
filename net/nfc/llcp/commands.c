@@ -502,7 +502,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 	kfree(msg_data);
 
-	return 0;
+	return len;
 }
 
 int nfc_llcp_send_rr(struct nfc_llcp_sock *sock)
