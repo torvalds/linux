@@ -57,6 +57,7 @@ struct wm8994 {
 
 	enum wm8994_type type;
 	int revision;
+	int cust_id;
 
 	struct device *dev;
 	struct regmap *regmap;
