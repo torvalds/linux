@@ -1908,8 +1908,8 @@ rcu_torture_init(void)
 	static struct rcu_torture_ops *torture_ops[] =
 		{ &rcu_ops, &rcu_sync_ops, &rcu_expedited_ops,
 		  &rcu_bh_ops, &rcu_bh_sync_ops, &rcu_bh_expedited_ops,
-		  &srcu_ops, &srcu_sync_ops, &srcu_raw_ops,
-		  &srcu_raw_sync_ops, &srcu_expedited_ops,
+		  &srcu_ops, &srcu_sync_ops, &srcu_expedited_ops,
+		  &srcu_raw_ops, &srcu_raw_sync_ops,
 		  &sched_ops, &sched_sync_ops, &sched_expedited_ops, };
 
 	mutex_lock(&fullstop_mutex);
