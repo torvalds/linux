@@ -3625,10 +3625,10 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	int i, ret;
 
 	num_routes = of_property_count_strings(np, propname);
-	if (num_routes & 1) {
+	if (num_routes < 0 || num_routes & 1) {
 		dev_err(card->dev,
-			"Property '%s's length is not even\n",
-			propname);
+		     "Property '%s' does not exist or its length is not even\n",
+		     propname);
 		return -EINVAL;
 	}
 	num_routes /= 2;

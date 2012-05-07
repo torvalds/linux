@@ -141,7 +141,7 @@ int inet_sk_diag_fill(struct sock *sk, struct inet_connection_sock *icsk,
 			goto rtattr_failure;
 
 	if (icsk == NULL) {
-		r->idiag_rqueue = r->idiag_wqueue = 0;
+		handler->idiag_get_info(sk, r, NULL);
 		goto out;
 	}
 

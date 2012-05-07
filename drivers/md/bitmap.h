@@ -101,9 +101,6 @@ typedef __u16 bitmap_counter_t;
 
 #define BITMAP_BLOCK_SHIFT 9
 
-/* how many blocks per chunk? (this is variable) */
-#define CHUNK_BLOCK_RATIO(bitmap) ((bitmap)->mddev->bitmap_info.chunksize >> BITMAP_BLOCK_SHIFT)
-
 #endif
 
 /*

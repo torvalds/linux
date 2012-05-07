@@ -293,11 +293,11 @@ EXPORT_SYMBOL(pfn_valid);
 #endif
 
 #ifndef CONFIG_SPARSEMEM
-static void arm_memory_present(void)
+static void __init arm_memory_present(void)
 {
 }
 #else
-static void arm_memory_present(void)
+static void __init arm_memory_present(void)
 {
 	struct memblock_region *reg;
 
