@@ -574,7 +574,9 @@ int main(int ac, char **av)
 	case alldefconfig:
 	case randconfig:
 		name = getenv("KCONFIG_ALLCONFIG");
-		if (name && (strcmp(name, "") != 0) && (strcmp(name, "1") != 0)) {
+		if (!name)
+			break;
+		if ((strcmp(name, "") != 0) && (strcmp(name, "1") != 0)) {
 			if (conf_read_simple(name, S_DEF_USER)) {
 				fprintf(stderr,
 					_("*** Can't read seed configuration \"%s\"!\n"),
