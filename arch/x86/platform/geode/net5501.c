@@ -63,7 +63,7 @@ static struct gpio_led net5501_leds[] = {
 		.name = "net5501:1",
 		.gpio = 6,
 		.default_trigger = "default-on",
-		.active_low = 1,
+		.active_low = 0,
 	},
 };
 
