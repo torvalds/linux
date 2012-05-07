@@ -76,6 +76,10 @@
 
 #define AHB_ARBITRATION_AHB_MEM_WRQUE_MST_ID	0xf8
 
+#define AHB_ARBITRATION_XBAR_CTRL_SMMU_INIT_DONE BIT(17)
+
+static struct platform_driver tegra_ahb_driver;
+
 static const u32 tegra_ahb_gizmo[] = {
 	AHB_ARBITRATION_DISABLE,
 	AHB_ARBITRATION_PRIORITY_CTRL,
@@ -123,6 +127,34 @@ static inline void gizmo_writel(struct tegra_ahb *ahb, u32 value, u32 offset)
 {
 	writel(value, ahb->regs + offset);
 }
+
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+static int tegra_ahb_match_by_smmu(struct device *dev, void *data)
+{
+	struct tegra_ahb *ahb = dev_get_drvdata(dev);
+	struct device_node *dn = data;
+
+	return (ahb->dev->of_node == dn) ? 1 : 0;
+}
+
+int tegra_ahb_enable_smmu(struct device_node *dn)
+{
+	struct device *dev;
+	u32 val;
+	struct tegra_ahb *ahb;
+
+	dev = driver_find_device(&tegra_ahb_driver.driver, NULL, dn,
+				 tegra_ahb_match_by_smmu);
+	if (!dev)
+		return -EPROBE_DEFER;
+	ahb = dev_get_drvdata(dev);
+	val = gizmo_readl(ahb, AHB_ARBITRATION_XBAR_CTRL);
+	val |= AHB_ARBITRATION_XBAR_CTRL_SMMU_INIT_DONE;
+	gizmo_writel(ahb, val, AHB_ARBITRATION_XBAR_CTRL);
+	return 0;
+}
+EXPORT_SYMBOL(tegra_ahb_enable_smmu);
+#endif
 
 static int tegra_ahb_suspend(struct device *dev)
 {
