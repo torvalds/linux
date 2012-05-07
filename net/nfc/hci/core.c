@@ -585,7 +585,7 @@ static int hci_check_presence(struct nfc_dev *nfc_dev,
 	return 0;
 }
 
-struct nfc_ops hci_nfc_ops = {
+static struct nfc_ops hci_nfc_ops = {
 	.dev_up = hci_dev_up,
 	.dev_down = hci_dev_down,
 	.start_poll = hci_start_poll,
