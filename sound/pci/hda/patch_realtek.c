@@ -5641,12 +5641,12 @@ static int patch_alc262(struct hda_codec *codec)
 	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PROC_COEF, tmp | 0x80);
 	}
 #endif
-	alc_auto_parse_customize_define(codec);
-
 	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
 
 	alc_pick_fixup(codec, NULL, alc262_fixup_tbl, alc262_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc262_parse_auto_config(codec);
@@ -6252,8 +6252,6 @@ static int patch_alc269(struct hda_codec *codec)
 
 	spec->mixer_nid = 0x0b;
 
-	alc_auto_parse_customize_define(codec);
-
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0)
 		goto error;
@@ -6285,6 +6283,8 @@ static int patch_alc269(struct hda_codec *codec)
 	alc_pick_fixup(codec, alc269_fixup_models,
 		       alc269_fixup_tbl, alc269_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc269_parse_auto_config(codec);
@@ -6862,8 +6862,6 @@ static int patch_alc662(struct hda_codec *codec)
 	/* handle multiple HPs as is */
 	spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 
-	alc_auto_parse_customize_define(codec);
-
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
 	err = alc_codec_rename_from_preset(codec);
@@ -6880,6 +6878,9 @@ static int patch_alc662(struct hda_codec *codec)
 	alc_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
+
 	/* automatic parse from the BIOS config */
 	err = alc662_parse_auto_config(codec);
 	if (err < 0)
