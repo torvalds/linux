@@ -58,7 +58,7 @@ static struct mipi_dsim_platform_data *to_dsim_plat(struct platform_device
 }
 
 static struct regulator_bulk_data supplies[] = {
-	{ .supply = "vdd10", },
+	{ .supply = "vdd11", },
 	{ .supply = "vdd18", },
 };
 
