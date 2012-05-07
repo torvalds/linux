@@ -188,11 +188,6 @@ static struct clk *usb24s_parents[] = {
 	[1] = &extal2_clk
 };
 
-static unsigned long usb24s_recalc(struct clk *clk)
-{
-	return clk->parent->rate;
-};
-
 static int usb24s_enable(struct clk *clk)
 {
 	__raw_writel(__raw_readl(USBCKCR) & ~(1 << 8), USBCKCR);
@@ -234,7 +229,7 @@ static int usb24s_set_parent(struct clk *clk, struct clk *parent)
 }
 
 static struct sh_clk_ops usb24s_clk_ops = {
-	.recalc		= usb24s_recalc,
+	.recalc		= followparent_recalc,
 	.enable		= usb24s_enable,
 	.disable	= usb24s_disable,
 	.set_parent	= usb24s_set_parent,
