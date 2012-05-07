@@ -709,22 +709,28 @@ enum bm_flag {
 	BM_P_VMALLOCED = 0x10000, /* internal use only, will be masked out */
 
 	/* currently locked for bulk operation */
-	BM_LOCKED_MASK = 0x7,
+	BM_LOCKED_MASK = 0xf,
 
 	/* in detail, that is: */
 	BM_DONT_CLEAR = 0x1,
 	BM_DONT_SET   = 0x2,
 	BM_DONT_TEST  = 0x4,
 
+	/* so we can mark it locked for bulk operation,
+	 * and still allow all non-bulk operations */
+	BM_IS_LOCKED  = 0x8,
+
 	/* (test bit, count bit) allowed (common case) */
-	BM_LOCKED_TEST_ALLOWED = 0x3,
+	BM_LOCKED_TEST_ALLOWED = BM_DONT_CLEAR | BM_DONT_SET | BM_IS_LOCKED,
 
 	/* testing bits, as well as setting new bits allowed, but clearing bits
 	 * would be unexpected.  Used during bitmap receive.  Setting new bits
 	 * requires sending of "out-of-sync" information, though. */
-	BM_LOCKED_SET_ALLOWED = 0x1,
+	BM_LOCKED_SET_ALLOWED = BM_DONT_CLEAR | BM_IS_LOCKED,
 
-	/* clear is not expected while bitmap is locked for bulk operation */
+	/* for drbd_bm_write_copy_pages, everything is allowed,
+	 * only concurrent bulk operations are locked out. */
+	BM_LOCKED_CHANGE_ALLOWED = BM_IS_LOCKED,
 };
 
 struct drbd_work_queue {
@@ -1306,6 +1312,7 @@ extern int  drbd_bm_read(struct drbd_conf *mdev) __must_hold(local);
 extern void drbd_bm_mark_for_writeout(struct drbd_conf *mdev, int page_nr);
 extern int  drbd_bm_write(struct drbd_conf *mdev) __must_hold(local);
 extern int  drbd_bm_write_hinted(struct drbd_conf *mdev) __must_hold(local);
+extern int  drbd_bm_write_copy_pages(struct drbd_conf *mdev) __must_hold(local);
 extern size_t	     drbd_bm_words(struct drbd_conf *mdev);
 extern unsigned long drbd_bm_bits(struct drbd_conf *mdev);
 extern sector_t      drbd_bm_capacity(struct drbd_conf *mdev);
