@@ -524,8 +524,7 @@ static int __devinit twl6030_usb_probe(struct platform_device *pdev)
 	struct twl4030_usb_data *pdata;
 	struct device *dev = &pdev->dev;
 	pdata = dev->platform_data;
-printk("+++ twl6030_usb_probe+++\n");
-while(1);
+
 	twl = kzalloc(sizeof *twl, GFP_KERNEL);
 	if (!twl)
 		return -ENOMEM;

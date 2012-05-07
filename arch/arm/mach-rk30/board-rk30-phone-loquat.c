@@ -1543,7 +1543,7 @@ static struct i2c_board_info __initdata i2c0_info[] = {
 #endif
 
 #ifdef CONFIG_I2C1_RK30
-#include "board-rk30-sdk-twl80032.c"
+#include "board-rk30-phone-twl60xx.c"
 static struct i2c_board_info __initdata i2c1_info[] = {
 
 #if defined (CONFIG_TWL4030_CORE)
