@@ -87,10 +87,6 @@ config ARCH_HAS_ILOG2_U64
 	bool
 	default y if 64BIT
 
-config ARCH_HAS_CPU_IDLE_WAIT
-	bool
-	default y
-
 config GENERIC_HWEIGHT
 	bool
 	default y
