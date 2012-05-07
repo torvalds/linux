@@ -235,13 +235,6 @@ static int nfc_hci_target_discovered(struct nfc_hci_dev *hdev, u8 gate)
 	targets->hci_reader_gate = gate;
 
 	r = nfc_targets_found(hdev->ndev, targets, 1);
-	if (r < 0)
-		goto exit;
-
-	kfree(hdev->targets);
-	hdev->targets = targets;
-	targets = NULL;
-	hdev->target_count = 1;
 
 exit:
 	kfree(targets);

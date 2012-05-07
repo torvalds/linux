@@ -83,8 +83,6 @@ struct nfc_hci_dev {
 	u8 gate2pipe[NFC_HCI_MAX_GATES];
 
 	bool poll_started;
-	struct nfc_target *targets;
-	int target_count;
 
 	u8 sw_romlib;
 	u8 sw_patch;
