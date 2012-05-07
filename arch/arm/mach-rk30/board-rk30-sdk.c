@@ -1127,6 +1127,10 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 };
 #endif //endif--#ifdef CONFIG_SDMMC1_RK29
 
+/**************************************************************************************************
+ * the end of setting for SDMMC devices
+**************************************************************************************************/
+
 /* bluetooth rfkill device */
 static struct platform_device rk29sdk_rfkill = {
         .name = "rk29sdk_rfkill",
@@ -1152,9 +1156,10 @@ static struct platform_device rk30_device_adc_battery = {
 };
 #endif
 
-/**************************************************************************************************
- * the end of setting for SDMMC devices
-**************************************************************************************************/
+#ifdef CONFIG_RK29_VMAC
+#define PHY_PWR_EN_GPIO	RK30_PIN1_PD6
+#include "board-rk30-sdk-vmac.c"
+#endif
 
 static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_BACKLIGHT_RK29_BL
@@ -1179,10 +1184,10 @@ static struct platform_device *devices[] __initdata = {
 	&rk29sdk_wifi_device,
 #endif
 #ifdef CONFIG_BT
-    &rk29sdk_rfkill,
+	&rk29sdk_rfkill,
 #endif
 #ifdef CONFIG_RK29_SUPPORT_MODEM
-    &rk30_device_modem,
+	&rk30_device_modem,
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,
