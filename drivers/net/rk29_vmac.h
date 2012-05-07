@@ -31,7 +31,11 @@
 #define VMAC_VERSION		"1.0"
 
 /* Buffer descriptors */
+#ifdef CONFIG_ARCH_RK29
 #define TX_BDT_LEN		16    /* Number of receive BD's */
+#else
+#define TX_BDT_LEN		255   /* Number of receive BD's */
+#endif
 #define RX_BDT_LEN		255   /* Number of transmit BD's */
 
 /* BD poll rate, in 1024 cycles. @100Mhz: x * 1024 cy * 10ns = 1ms */

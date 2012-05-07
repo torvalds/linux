@@ -1044,8 +1044,16 @@ int vmac_open(struct net_device *dev)
 		
 	//set rmii ref clock 50MHz
 	mac_clk = clk_get(NULL, "mac_ref_div");
+	if (IS_ERR(mac_clk))
+		mac_clk = NULL;
 	arm_clk = clk_get(NULL, "arm_pll");
-	mac_parent = clk_get_parent(mac_clk);
+	if (IS_ERR(arm_clk))
+		arm_clk = NULL;
+	if (mac_clk) {
+		mac_parent = clk_get_parent(mac_clk);
+		if (IS_ERR(mac_parent))
+			mac_parent = NULL;
+	}
 	if (arm_clk && mac_parent && (arm_clk == mac_parent))
 		wake_lock(&idlelock);
 	
@@ -1184,8 +1192,16 @@ int vmac_close(struct net_device *dev)
 
 	//clock close
 	mac_clk = clk_get(NULL, "mac_ref_div");
-	mac_parent = clk_get_parent(mac_clk);	
+	if (IS_ERR(mac_clk))
+		mac_clk = NULL;
+	if (mac_clk) {
+		mac_parent = clk_get_parent(mac_clk);
+		if (IS_ERR(mac_parent))
+			mac_parent = NULL;
+	}
 	arm_clk = clk_get(NULL, "arm_pll");
+	if (IS_ERR(arm_clk))
+		arm_clk = NULL;
 
 	if (arm_clk && mac_parent && (arm_clk == mac_parent))
 		wake_unlock(&idlelock);
