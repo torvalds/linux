@@ -30,6 +30,7 @@
 
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_auto_parser.h"
 #include "hda_beep.h"
 #include "hda_jack.h"
 
@@ -66,6 +67,7 @@ struct imux_info {
 };
 
 struct conexant_spec {
+	struct hda_gen_spec gen;
 
 	const struct snd_kcontrol_new *mixers[5];
 	int num_mixers;
@@ -4407,47 +4409,21 @@ static const struct hda_codec_ops cx_auto_patch_ops = {
 /*
  * pin fix-up
  */
-struct cxt_pincfg {
-	hda_nid_t nid;
-	u32 val;
-};
-
-static void apply_pincfg(struct hda_codec *codec, const struct cxt_pincfg *cfg)
-{
-	for (; cfg->nid; cfg++)
-		snd_hda_codec_set_pincfg(codec, cfg->nid, cfg->val);
-
-}
-
 enum {
 	CXT_PINCFG_LENOVO_X200,
 	CXT_PINCFG_LENOVO_TP410,
 	CXT_FIXUP_STEREO_DMIC,
 };
 
-static void apply_fixup(struct hda_codec *codec,
-			    const struct snd_pci_quirk *quirk,
-			    const struct cxt_pincfg **table)
+static void cxt_fixup_stereo_dmic(struct hda_codec *codec,
+				  const struct hda_fixup *fix, int action)
 {
 	struct conexant_spec *spec = codec->spec;
-
-	quirk = snd_pci_quirk_lookup(codec->bus->pci, quirk);
-	if (!quirk)
-		return;
-	if (table[quirk->value]) {
-		snd_printdd(KERN_INFO "hda_codec: applying pincfg for %s\n",
-			    quirk->name);
-		apply_pincfg(codec, table[quirk->value]);
-	}
-	if (quirk->value == CXT_FIXUP_STEREO_DMIC) {
-		snd_printdd(KERN_INFO "hda_codec: applying internal mic workaround for %s\n",
-			    quirk->name);
-		spec->fixup_stereo_dmic = 1;
-	}
+	spec->fixup_stereo_dmic = 1;
 }
 
 /* ThinkPad X200 & co with cxt5051 */
-static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
+static const struct hda_pintbl cxt_pincfg_lenovo_x200[] = {
 	{ 0x16, 0x042140ff }, /* HP (seq# overridden) */
 	{ 0x17, 0x21a11000 }, /* dock-mic */
 	{ 0x19, 0x2121103f }, /* dock-HP */
@@ -4456,17 +4432,26 @@ static const struct cxt_pincfg cxt_pincfg_lenovo_x200[] = {
 };
 
 /* ThinkPad 410/420/510/520, X201 & co with cxt5066 */
-static const struct cxt_pincfg cxt_pincfg_lenovo_tp410[] = {
+static const struct hda_pintbl cxt_pincfg_lenovo_tp410[] = {
 	{ 0x19, 0x042110ff }, /* HP (seq# overridden) */
 	{ 0x1a, 0x21a190f0 }, /* dock-mic */
 	{ 0x1c, 0x212140ff }, /* dock-HP */
 	{}
 };
 
-static const struct cxt_pincfg *cxt_pincfg_tbl[] = {
-	[CXT_PINCFG_LENOVO_X200] = cxt_pincfg_lenovo_x200,
-	[CXT_PINCFG_LENOVO_TP410] = cxt_pincfg_lenovo_tp410,
-	[CXT_FIXUP_STEREO_DMIC] = NULL,
+static const struct hda_fixup cxt_fixups[] = {
+	[CXT_PINCFG_LENOVO_X200] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = cxt_pincfg_lenovo_x200,
+	},
+	[CXT_PINCFG_LENOVO_TP410] = {
+		.type = HDA_FIXUP_PINS,
+		.v.pins = cxt_pincfg_lenovo_tp410,
+	},
+	[CXT_FIXUP_STEREO_DMIC] = {
+		.type = HDA_FIXUP_FUNC,
+		.v.func = cxt_fixup_stereo_dmic,
+	},
 };
 
 static const struct snd_pci_quirk cxt5051_fixups[] = {
@@ -4520,12 +4505,15 @@ static int patch_conexant_auto(struct hda_codec *codec)
 	case 0x14f15051:
 		add_cx5051_fake_mutes(codec);
 		codec->pin_amp_workaround = 1;
-		apply_fixup(codec, cxt5051_fixups, cxt_pincfg_tbl);
+		snd_hda_pick_fixup(codec, NULL, cxt5051_fixups, cxt_fixups);
 		break;
 	default:
 		codec->pin_amp_workaround = 1;
-		apply_fixup(codec, cxt5066_fixups, cxt_pincfg_tbl);
+		snd_hda_pick_fixup(codec, NULL, cxt5066_fixups, cxt_fixups);
+		break;
 	}
+
+	snd_hda_apply_fixup(codec, HDA_FIXUP_ACT_PRE_PROBE);
 
 	/* Show mute-led control only on HP laptops
 	 * This is a sort of white-list: on HP laptops, EAPD corresponds
