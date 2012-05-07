@@ -340,10 +340,23 @@ static unsigned int llcp_sock_poll(struct file *file, struct socket *sock,
 		mask |= POLLERR;
 
 	if (!skb_queue_empty(&sk->sk_receive_queue))
-		mask |= POLLIN;
+		mask |= POLLIN | POLLRDNORM;
 
 	if (sk->sk_state == LLCP_CLOSED)
 		mask |= POLLHUP;
+
+	if (sk->sk_shutdown & RCV_SHUTDOWN)
+		mask |= POLLRDHUP | POLLIN | POLLRDNORM;
+
+	if (sk->sk_shutdown == SHUTDOWN_MASK)
+		mask |= POLLHUP;
+
+	if (sock_writeable(sk))
+		mask |= POLLOUT | POLLWRNORM | POLLWRBAND;
+	else
+		set_bit(SOCK_ASYNC_NOSPACE, &sk->sk_socket->flags);
+
+	pr_debug("mask 0x%x\n", mask);
 
 	return mask;
 }
