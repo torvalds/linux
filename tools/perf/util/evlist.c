@@ -609,8 +609,9 @@ int perf_evlist__create_maps(struct perf_evlist *evlist,
 	if (evlist->threads == NULL)
 		return -1;
 
-	if (target->uid != UINT_MAX ||
-	    (target->cpu_list == NULL && target->tid))
+	if (target->uid != UINT_MAX || target->tid)
+		evlist->cpus = cpu_map__dummy_new();
+	else if (!target->system_wide && target->cpu_list == NULL)
 		evlist->cpus = cpu_map__dummy_new();
 	else
 		evlist->cpus = cpu_map__new(target->cpu_list);
