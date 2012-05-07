@@ -438,23 +438,17 @@ static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 	if (!pdata || !pdata->dvs_gpio)
 		return;
 
-	ret = gpio_request(pdata->dvs_gpio, "DCDC DVS");
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
-			dcdc->name, ret);
-		return;
-	}
-
 	/* gpiolib won't let us read the GPIO status so pick the higher
 	 * of the two existing voltages so we take it as platform data.
 	 */
 	dcdc->dvs_gpio_state = pdata->dvs_init_state;
 
-	ret = gpio_direction_output(pdata->dvs_gpio, dcdc->dvs_gpio_state);
+	ret = gpio_request_one(pdata->dvs_gpio,
+			       dcdc->dvs_gpio_state ? GPIOF_INIT_HIGH : 0,
+			       "DCDC DVS");
 	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to enable %s DVS GPIO: %d\n",
+		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
 			dcdc->name, ret);
-		gpio_free(pdata->dvs_gpio);
 		return;
 	}
 
