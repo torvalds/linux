@@ -632,7 +632,7 @@ struct kobject *kobject_create(void)
 /**
  * kobject_create_and_add - create a struct kobject dynamically and register it with sysfs
  *
- * @name: the name for the kset
+ * @name: the name for the kobject
  * @parent: the parent kobject of this kobject, if any.
  *
  * This function creates a kobject structure dynamically and registers it
