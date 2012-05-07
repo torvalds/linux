@@ -1511,7 +1511,7 @@ static int emac_devioctl(struct net_device *ndev, struct ifreq *ifrq, int cmd)
 
 static int match_first_device(struct device *dev, void *data)
 {
-	return 1;
+	return !strncmp(dev_name(dev), "davinci_mdio", 12);
 }
 
 /**

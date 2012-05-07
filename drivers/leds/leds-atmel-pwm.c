@@ -35,7 +35,7 @@ static void pwmled_brightness(struct led_classdev *cdev, enum led_brightness b)
  * NOTE:  we reuse the platform_data structure of GPIO leds,
  * but repurpose its "gpio" number as a PWM channel number.
  */
-static int __init pwmled_probe(struct platform_device *pdev)
+static int __devinit pwmled_probe(struct platform_device *pdev)
 {
 	const struct gpio_led_platform_data	*pdata;
 	struct pwmled				*leds;

@@ -1820,6 +1820,7 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	struct ath_frame_info *fi = get_frame_info(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ath_buf *bf;
+	int fragno;
 	u16 seqno;
 
 	bf = ath_tx_get_buffer(sc);
@@ -1831,9 +1832,16 @@ static struct ath_buf *ath_tx_setup_buffer(struct ath_softc *sc,
 	ATH_TXBUF_RESET(bf);
 
 	if (tid) {
+		fragno = le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG;
 		seqno = tid->seq_next;
 		hdr->seq_ctrl = cpu_to_le16(tid->seq_next << IEEE80211_SEQ_SEQ_SHIFT);
-		INCR(tid->seq_next, IEEE80211_SEQ_MAX);
+
+		if (fragno)
+			hdr->seq_ctrl |= cpu_to_le16(fragno);
+
+		if (!ieee80211_has_morefrags(hdr->frame_control))
+			INCR(tid->seq_next, IEEE80211_SEQ_MAX);
+
 		bf->bf_state.seqno = seqno;
 	}
 

@@ -149,6 +149,12 @@ static bool radeon_msi_ok(struct radeon_device *rdev)
 	    (rdev->pdev->subsystem_device == 0x01fd))
 		return true;
 
+	/* RV515 seems to have MSI issues where it loses
+	 * MSI rearms occasionally. This leads to lockups and freezes.
+	 * disable it by default.
+	 */
+	if (rdev->family == CHIP_RV515)
+		return false;
 	if (rdev->flags & RADEON_IS_IGP) {
 		/* APUs work fine with MSIs */
 		if (rdev->family >= CHIP_PALM)
