@@ -27,6 +27,7 @@
 #include "core.h"
 
 #include <mach/motherboard.h>
+#include <mach/irqs.h>
 
 #include <plat/clcd.h>
 
