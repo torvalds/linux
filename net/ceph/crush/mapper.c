@@ -463,15 +463,12 @@ reject:
  * @x: hash input
  * @result: pointer to result vector
  * @result_max: maximum result size
- * @force: force initial replica choice; -1 for none
  */
 int crush_do_rule(const struct crush_map *map,
 		  int ruleno, int x, int *result, int result_max,
-		  int force, const __u32 *weight)
+		  const __u32 *weight)
 {
 	int result_len;
-	int force_context[CRUSH_MAX_DEPTH];
-	int force_pos = -1;
 	int a[CRUSH_MAX_SET];
 	int b[CRUSH_MAX_SET];
 	int c[CRUSH_MAX_SET];
@@ -497,27 +494,6 @@ int crush_do_rule(const struct crush_map *map,
 	w = a;
 	o = b;
 
-	/*
-	 * determine hierarchical context of force, if any.  note
-	 * that this may or may not correspond to the specific types
-	 * referenced by the crush rule.  it will also only affect
-	 * the first descent (TAKE).
-	 */
-	if (force >= 0 &&
-	    force < map->max_devices &&
-	    map->device_parents[force] != 0 &&
-	    !is_out(map, weight, force, x)) {
-		while (1) {
-			force_context[++force_pos] = force;
-			if (force >= 0)
-				force = map->device_parents[force];
-			else
-				force = map->bucket_parents[-1-force];
-			if (force == 0)
-				break;
-		}
-	}
-
 	for (step = 0; step < rule->len; step++) {
 		struct crush_rule_step *curstep = &rule->steps[step];
 
@@ -525,14 +501,6 @@ int crush_do_rule(const struct crush_map *map,
 		switch (curstep->op) {
 		case CRUSH_RULE_TAKE:
 			w[0] = curstep->arg1;
-
-			/* find position in force_context/hierarchy */
-			while (force_pos >= 0 && force_context[force_pos] != w[0])
-				force_pos--;
-			/* and move past it */
-			if (force_pos >= 0)
-				force_pos--;
-
 			wsize = 1;
 			break;
 
@@ -567,20 +535,6 @@ int crush_do_rule(const struct crush_map *map,
 						continue;
 				}
 				j = 0;
-				if (osize == 0 && force_pos >= 0) {
-					/* skip any intermediate types */
-					while (force_pos &&
-					       force_context[force_pos] < 0 &&
-					       curstep->arg2 !=
-					       map->buckets[-1 -
-					       force_context[force_pos]]->type)
-						force_pos--;
-					o[osize] = force_context[force_pos];
-					if (recurse_to_leaf)
-						c[osize] = force_context[0];
-					j++;
-					force_pos--;
-				}
 				osize += crush_choose(map,
 						      map->buckets[-1-w[i]],
 						      weight,

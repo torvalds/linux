@@ -1069,7 +1069,7 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 	pps += poolid;
 	*num = crush_do_rule(osdmap->crush, ruleno, pps, osds,
 			     min_t(int, pool->v.size, *num),
-			     -1, osdmap->osd_weight);
+			     osdmap->osd_weight);
 	return osds;
 }
 
