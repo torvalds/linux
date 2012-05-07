@@ -407,6 +407,15 @@ static void rateinfo_recalc(struct dsthash_ent *dh, unsigned long now)
 	dh->rateinfo.prev = now;
 }
 
+static void rateinfo_init(struct dsthash_ent *dh,
+			  struct xt_hashlimit_htable *hinfo)
+{
+	dh->rateinfo.prev = jiffies;
+	dh->rateinfo.credit = user2credits(hinfo->cfg.avg * hinfo->cfg.burst);
+	dh->rateinfo.cost = user2credits(hinfo->cfg.avg);
+	dh->rateinfo.credit_cap = dh->rateinfo.credit;
+}
+
 static inline __be32 maskl(__be32 a, unsigned int l)
 {
 	return l ? htonl(ntohl(a) & ~0 << (32 - l)) : 0;
@@ -531,11 +540,7 @@ hashlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 			goto hotdrop;
 		}
 		dh->expires = jiffies + msecs_to_jiffies(hinfo->cfg.expire);
-		dh->rateinfo.prev = jiffies;
-		dh->rateinfo.credit = user2credits(hinfo->cfg.avg *
-		                      hinfo->cfg.burst);
-		dh->rateinfo.credit_cap = dh->rateinfo.credit;
-		dh->rateinfo.cost = user2credits(hinfo->cfg.avg);
+		rateinfo_init(dh, hinfo);
 	} else {
 		/* update expiration timeout */
 		dh->expires = now + msecs_to_jiffies(hinfo->cfg.expire);
