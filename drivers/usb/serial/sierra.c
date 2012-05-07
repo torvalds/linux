@@ -1055,11 +1055,8 @@ static struct usb_driver sierra_driver = {
 	.name       = "sierra",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
-	.suspend    = usb_serial_suspend,
-	.resume     = usb_serial_resume,
 	.reset_resume = sierra_reset_resume,
 	.id_table   = id_table,
-	.supports_autosuspend =	1,
 };
 
 static struct usb_serial_driver sierra_device = {

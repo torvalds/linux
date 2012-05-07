@@ -599,11 +599,8 @@ static struct usb_driver ch341_driver = {
 	.name		= "ch341",
 	.probe		= usb_serial_probe,
 	.disconnect	= usb_serial_disconnect,
-	.suspend	= usb_serial_suspend,
-	.resume		= usb_serial_resume,
 	.reset_resume	= ch341_reset_resume,
 	.id_table	= id_table,
-	.supports_autosuspend =	1,
 };
 
 static struct usb_serial_driver ch341_device = {

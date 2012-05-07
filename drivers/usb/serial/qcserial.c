@@ -117,9 +117,6 @@ static struct usb_driver qcdriver = {
 	.probe			= usb_serial_probe,
 	.disconnect		= usb_serial_disconnect,
 	.id_table		= id_table,
-	.suspend		= usb_serial_suspend,
-	.resume			= usb_serial_resume,
-	.supports_autosuspend	= true,
 };
 
 static int qcprobe(struct usb_serial *serial, const struct usb_device_id *id)

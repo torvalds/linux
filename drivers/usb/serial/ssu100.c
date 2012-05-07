@@ -68,9 +68,6 @@ static struct usb_driver ssu100_driver = {
 	.probe			       = usb_serial_probe,
 	.disconnect		       = usb_serial_disconnect,
 	.id_table		       = id_table,
-	.suspend		       = usb_serial_suspend,
-	.resume			       = usb_serial_resume,
-	.supports_autosuspend	       = 1,
 };
 
 struct ssu100_port_private {

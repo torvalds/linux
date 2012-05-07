@@ -1224,11 +1224,6 @@ static struct usb_driver option_driver = {
 	.name       = "option",
 	.probe      = usb_serial_probe,
 	.disconnect = usb_serial_disconnect,
-#ifdef CONFIG_PM
-	.suspend    = usb_serial_suspend,
-	.resume     = usb_serial_resume,
-	.supports_autosuspend =	1,
-#endif
 	.id_table   = option_ids,
 };
 
