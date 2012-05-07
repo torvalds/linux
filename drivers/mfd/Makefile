@@ -39,8 +39,8 @@ obj-$(CONFIG_TPS6507X)		+= tps6507x.o
 obj-$(CONFIG_MENELAUS)		+= menelaus.o
 
 obj-$(CONFIG_TWL4030_CORE)	+= twl-core.o twl4030-irq.o twl6030-irq.o
-#obj-$(CONFIG_TWL4030_MADC)      += twl4030-madc.o
-obj-$(CONFIG_TWL4030_MADC)      += twl6030-madc.o
+obj-$(CONFIG_TWL4030_MADC)      += twl4030-madc.o
+obj-$(CONFIG_TWL6030_MADC)      += twl6030-madc.o
 obj-$(CONFIG_TWL4030_POWER)    += twl4030-power.o
 obj-$(CONFIG_TWL4030_CODEC)	+= twl4030-codec.o
 obj-$(CONFIG_TWL6030_PWM)	+= twl6030-pwm.o

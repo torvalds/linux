@@ -282,6 +282,13 @@ config CHARGER_TWL4030
 	help
 	  Say Y here to enable support for TWL4030 Battery Charge Interface.
 
+config TWL6030_BCI_BATTERY
+	tristate "OMAP TWL6030 BCI Battery driver"
+	depends on TWL4030_CORE && TWL6030_GPADC
+	help
+	  Support for OMAP TWL6030 BCI Battery driver.
+	  This driver can give support for TWL6030 Battery Charge Interface.
+
 config CHARGER_GPIO
 	tristate "GPIO charger"
 	depends on GPIOLIB

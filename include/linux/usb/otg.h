@@ -97,6 +97,10 @@ struct otg_transceiver {
 	int	(*set_power)(struct otg_transceiver *otg,
 				unsigned mA);
 
+	/* set/reset USB charger in High impedence mode on VBUS */
+	int	(*set_hz_mode)(struct otg_transceiver *otg,
+				bool enabled);
+
 	/* effective for A-peripheral, ignored for B devices */
 	int	(*set_vbus)(struct otg_transceiver *otg,
 				bool enabled);
@@ -190,6 +194,16 @@ static inline int
 otg_start_hnp(struct otg_transceiver *otg)
 {
 	return otg->start_hnp(otg);
+}
+
+/* Context: can sleep */
+static inline int
+otg_set_hz_mode(struct otg_transceiver *otg, bool enabled)
+{
+	if (otg->set_hz_mode)
+		return otg->set_hz_mode(otg, enabled);
+
+	return -EINVAL;
 }
 
 /* Context: can sleep */
