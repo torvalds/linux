@@ -162,9 +162,9 @@ over a rather long period of time, but improvements are always welcome!
 		when publicizing a pointer to a structure that can
 		be traversed by an RCU read-side critical section.
 
-5.	If call_rcu(), or a related primitive such as call_rcu_bh() or
-	call_rcu_sched(), is used, the callback function must be
-	written to be called from softirq context.  In particular,
+5.	If call_rcu(), or a related primitive such as call_rcu_bh(),
+	call_rcu_sched(), or call_srcu() is used, the callback function
+	must be written to be called from softirq context.  In particular,
 	it cannot block.
 
 6.	Since synchronize_rcu() can block, it cannot be called from
@@ -202,11 +202,12 @@ over a rather long period of time, but improvements are always welcome!
 	updater uses call_rcu_sched() or synchronize_sched(), then
 	the corresponding readers must disable preemption, possibly
 	by calling rcu_read_lock_sched() and rcu_read_unlock_sched().
-	If the updater uses synchronize_srcu(), the the corresponding
-	readers must use srcu_read_lock() and srcu_read_unlock(),
-	and with the same srcu_struct.	The rules for the expedited
-	primitives are the same as for their non-expedited counterparts.
-	Mixing things up will result in confusion and broken kernels.
+	If the updater uses synchronize_srcu() or call_srcu(),
+	the the corresponding readers must use srcu_read_lock() and
+	srcu_read_unlock(), and with the same srcu_struct.  The rules for
+	the expedited primitives are the same as for their non-expedited
+	counterparts.  Mixing things up will result in confusion and
+	broken kernels.
 
 	One exception to this rule: rcu_read_lock() and rcu_read_unlock()
 	may be substituted for rcu_read_lock_bh() and rcu_read_unlock_bh()
@@ -333,14 +334,14 @@ over a rather long period of time, but improvements are always welcome!
 	victim CPU from ever going offline.)
 
 14.	SRCU (srcu_read_lock(), srcu_read_unlock(), srcu_dereference(),
-	synchronize_srcu(), and synchronize_srcu_expedited()) may only
-	be invoked from process context.  Unlike other forms of RCU, it
-	-is- permissible to block in an SRCU read-side critical section
-	(demarked by srcu_read_lock() and srcu_read_unlock()), hence the
-	"SRCU": "sleepable RCU".  Please note that if you don't need
-	to sleep in read-side critical sections, you should be using
-	RCU rather than SRCU, because RCU is almost always faster and
-	easier to use than is SRCU.
+	synchronize_srcu(), synchronize_srcu_expedited(), and call_srcu())
+	may only be invoked from process context.  Unlike other forms of
+	RCU, it -is- permissible to block in an SRCU read-side critical
+	section (demarked by srcu_read_lock() and srcu_read_unlock()),
+	hence the "SRCU": "sleepable RCU".  Please note that if you
+	don't need to sleep in read-side critical sections, you should be
+	using RCU rather than SRCU, because RCU is almost always faster
+	and easier to use than is SRCU.
 
 	If you need to enter your read-side critical section in a
 	hardirq or exception handler, and then exit that same read-side
@@ -353,8 +354,8 @@ over a rather long period of time, but improvements are always welcome!
 	cleanup_srcu_struct().	These are passed a "struct srcu_struct"
 	that defines the scope of a given SRCU domain.	Once initialized,
 	the srcu_struct is passed to srcu_read_lock(), srcu_read_unlock()
-	synchronize_srcu(), and synchronize_srcu_expedited().  A given
-	synchronize_srcu() waits only for SRCU read-side critical
+	synchronize_srcu(), synchronize_srcu_expedited(), and call_srcu().
+	A given synchronize_srcu() waits only for SRCU read-side critical
 	sections governed by srcu_read_lock() and srcu_read_unlock()
 	calls that have been passed the same srcu_struct.  This property
 	is what makes sleeping read-side critical sections tolerable --
@@ -374,7 +375,7 @@ over a rather long period of time, but improvements are always welcome!
 	requiring SRCU's read-side deadlock immunity or low read-side
 	realtime latency.
 
-	Note that, rcu_assign_pointer() relates to SRCU just as they do
+	Note that, rcu_assign_pointer() relates to SRCU just as it does
 	to other forms of RCU.
 
 15.	The whole point of call_rcu(), synchronize_rcu(), and friends
