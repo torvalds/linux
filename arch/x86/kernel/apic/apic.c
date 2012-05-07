@@ -35,6 +35,7 @@
 #include <linux/smp.h>
 #include <linux/mm.h>
 
+#include <asm/irq_remapping.h>
 #include <asm/perf_event.h>
 #include <asm/x86_init.h>
 #include <asm/pgalloc.h>
@@ -1441,8 +1442,8 @@ void __init bsp_end_local_APIC_setup(void)
 	 * Now that local APIC setup is completed for BP, configure the fault
 	 * handling for interrupt remapping.
 	 */
-	if (intr_remapping_enabled)
-		enable_drhd_fault_handling();
+	if (irq_remapping_enabled)
+		irq_remap_enable_fault_handling();
 
 }
 
@@ -1517,7 +1518,7 @@ void enable_x2apic(void)
 int __init enable_IR(void)
 {
 #ifdef CONFIG_IRQ_REMAP
-	if (!intr_remapping_supported()) {
+	if (!irq_remapping_supported()) {
 		pr_debug("intr-remapping not supported\n");
 		return -1;
 	}
@@ -1528,7 +1529,7 @@ int __init enable_IR(void)
 		return -1;
 	}
 
-	return enable_intr_remapping();
+	return irq_remapping_enable();
 #endif
 	return -1;
 }
@@ -1537,10 +1538,13 @@ void __init enable_IR_x2apic(void)
 {
 	unsigned long flags;
 	int ret, x2apic_enabled = 0;
-	int dmar_table_init_ret;
+	int hardware_init_ret;
 
-	dmar_table_init_ret = dmar_table_init();
-	if (dmar_table_init_ret && !x2apic_supported())
+	/* Make sure irq_remap_ops are initialized */
+	setup_irq_remapping_ops();
+
+	hardware_init_ret = irq_remapping_prepare();
+	if (hardware_init_ret && !x2apic_supported())
 		return;
 
 	ret = save_ioapic_entries();
@@ -1556,7 +1560,7 @@ void __init enable_IR_x2apic(void)
 	if (x2apic_preenabled && nox2apic)
 		disable_x2apic();
 
-	if (dmar_table_init_ret)
+	if (hardware_init_ret)
 		ret = -1;
 	else
 		ret = enable_IR();
@@ -2176,8 +2180,8 @@ static int lapic_suspend(void)
 	local_irq_save(flags);
 	disable_local_APIC();
 
-	if (intr_remapping_enabled)
-		disable_intr_remapping();
+	if (irq_remapping_enabled)
+		irq_remapping_disable();
 
 	local_irq_restore(flags);
 	return 0;
@@ -2193,7 +2197,7 @@ static void lapic_resume(void)
 		return;
 
 	local_irq_save(flags);
-	if (intr_remapping_enabled) {
+	if (irq_remapping_enabled) {
 		/*
 		 * IO-APIC and PIC have their own resume routines.
 		 * We just mask them here to make sure the interrupt
@@ -2245,8 +2249,8 @@ static void lapic_resume(void)
 	apic_write(APIC_ESR, 0);
 	apic_read(APIC_ESR);
 
-	if (intr_remapping_enabled)
-		reenable_intr_remapping(x2apic_mode);
+	if (irq_remapping_enabled)
+		irq_remapping_reenable(x2apic_mode);
 
 	local_irq_restore(flags);
 }
