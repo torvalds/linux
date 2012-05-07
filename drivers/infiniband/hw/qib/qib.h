@@ -530,8 +530,6 @@ struct qib_pportdata {
 	/* qib_lflags driver is waiting for */
 	u32 state_wanted;
 	spinlock_t lflags_lock;
-	/* number of (port-specific) interrupts for this port -- saturates... */
-	u32 int_counter;
 
 	/* ref count for each pkey */
 	atomic_t pkeyrefs[4];
@@ -543,24 +541,26 @@ struct qib_pportdata {
 	u64 *statusp;
 
 	/* SendDMA related entries */
-	spinlock_t            sdma_lock;
-	struct qib_sdma_state sdma_state;
-	unsigned long         sdma_buf_jiffies;
-	struct qib_sdma_desc *sdma_descq;
-	u64                   sdma_descq_added;
-	u64                   sdma_descq_removed;
-	u16                   sdma_descq_cnt;
-	u16                   sdma_descq_tail;
-	u16                   sdma_descq_head;
-	u16                   sdma_next_intr;
-	u16                   sdma_reset_wait;
-	u8                    sdma_generation;
-	struct tasklet_struct sdma_sw_clean_up_task;
-	struct list_head      sdma_activelist;
 
+	/* read mostly */
+	struct qib_sdma_desc *sdma_descq;
+	struct qib_sdma_state sdma_state;
 	dma_addr_t       sdma_descq_phys;
 	volatile __le64 *sdma_head_dma; /* DMA'ed by chip */
 	dma_addr_t       sdma_head_phys;
+	u16                   sdma_descq_cnt;
+
+	/* read/write using lock */
+	spinlock_t            sdma_lock ____cacheline_aligned_in_smp;
+	struct list_head      sdma_activelist;
+	u64                   sdma_descq_added;
+	u64                   sdma_descq_removed;
+	u16                   sdma_descq_tail;
+	u16                   sdma_descq_head;
+	u8                    sdma_generation;
+
+	struct tasklet_struct sdma_sw_clean_up_task
+		____cacheline_aligned_in_smp;
 
 	wait_queue_head_t state_wait; /* for state_wanted */
 
