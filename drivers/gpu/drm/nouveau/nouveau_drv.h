@@ -910,7 +910,6 @@ extern void nouveau_notifier_takedown_channel(struct nouveau_channel *);
 extern int  nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle,
 				   int cout, uint32_t start, uint32_t end,
 				   uint32_t *offset);
-extern int  nouveau_notifier_offset(struct nouveau_gpuobj *, uint32_t *);
 
 /* nouveau_channel.c */
 extern void nouveau_channel_cleanup(struct drm_device *, struct drm_file *);

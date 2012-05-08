@@ -161,21 +161,3 @@ nouveau_notifier_alloc(struct nouveau_channel *chan, uint32_t handle,
 	*b_offset = mem->start;
 	return 0;
 }
-
-int
-nouveau_notifier_offset(struct nouveau_gpuobj *nobj, uint32_t *poffset)
-{
-	if (!nobj || nobj->dtor != nouveau_notifier_gpuobj_dtor)
-		return -EINVAL;
-
-	if (poffset) {
-		struct drm_mm_node *mem = nobj->priv;
-
-		if (*poffset >= mem->size)
-			return false;
-
-		*poffset += mem->start;
-	}
-
-	return 0;
-}
