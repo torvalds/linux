@@ -458,7 +458,11 @@ static int m88rs2000_init(struct dvb_frontend *fe)
 
 	deb_info("m88rs2000: init chip\n");
 	/* Setup frontend from shutdown/cold */
-	ret = m88rs2000_tab_set(state, m88rs2000_setup);
+	if (state->config->inittab)
+		ret = m88rs2000_tab_set(state,
+				(struct inittab *)state->config->inittab);
+	else
+		ret = m88rs2000_tab_set(state, m88rs2000_setup);
 
 	return ret;
 }
