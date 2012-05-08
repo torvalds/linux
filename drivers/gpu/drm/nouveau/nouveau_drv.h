@@ -872,10 +872,6 @@ extern int  nouveau_load(struct drm_device *, unsigned long flags);
 extern int  nouveau_firstopen(struct drm_device *);
 extern void nouveau_lastclose(struct drm_device *);
 extern int  nouveau_unload(struct drm_device *);
-extern int  nouveau_ioctl_getparam(struct drm_device *, void *data,
-				   struct drm_file *);
-extern int  nouveau_ioctl_setparam(struct drm_device *, void *data,
-				   struct drm_file *);
 extern bool nouveau_wait_eq(struct drm_device *, uint64_t timeout,
 			    uint32_t reg, uint32_t mask, uint32_t val);
 extern bool nouveau_wait_ne(struct drm_device *, uint64_t timeout,
@@ -915,14 +911,8 @@ extern int  nouveau_notifier_alloc(struct nouveau_channel *, uint32_t handle,
 				   int cout, uint32_t start, uint32_t end,
 				   uint32_t *offset);
 extern int  nouveau_notifier_offset(struct nouveau_gpuobj *, uint32_t *);
-extern int  nouveau_ioctl_notifier_alloc(struct drm_device *, void *data,
-					 struct drm_file *);
-extern int  nouveau_ioctl_notifier_free(struct drm_device *, void *data,
-					struct drm_file *);
 
 /* nouveau_channel.c */
-extern struct drm_ioctl_desc nouveau_ioctls[];
-extern int nouveau_max_ioctl;
 extern void nouveau_channel_cleanup(struct drm_device *, struct drm_file *);
 extern int  nouveau_channel_alloc(struct drm_device *dev,
 				  struct nouveau_channel **chan,
@@ -993,10 +983,6 @@ extern int nv50_gpuobj_dma_new(struct nouveau_channel *, int class, u64 base,
 extern void nv50_gpuobj_dma_init(struct nouveau_gpuobj *, u32 offset,
 				 int class, u64 base, u64 size, int target,
 				 int access, u32 type, u32 comp);
-extern int nouveau_ioctl_grobj_alloc(struct drm_device *, void *data,
-				     struct drm_file *);
-extern int nouveau_ioctl_gpuobj_free(struct drm_device *, void *data,
-				     struct drm_file *);
 
 /* nouveau_irq.c */
 extern int         nouveau_irq_init(struct drm_device *);

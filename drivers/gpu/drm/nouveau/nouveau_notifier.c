@@ -179,26 +179,3 @@ nouveau_notifier_offset(struct nouveau_gpuobj *nobj, uint32_t *poffset)
 
 	return 0;
 }
-
-int
-nouveau_ioctl_notifier_alloc(struct drm_device *dev, void *data,
-			     struct drm_file *file_priv)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct drm_nouveau_notifierobj_alloc *na = data;
-	struct nouveau_channel *chan;
-	int ret;
-
-	/* completely unnecessary for these chipsets... */
-	if (unlikely(dev_priv->card_type >= NV_C0))
-		return -EINVAL;
-
-	chan = nouveau_channel_get(file_priv, na->channel);
-	if (IS_ERR(chan))
-		return PTR_ERR(chan);
-
-	ret = nouveau_notifier_alloc(chan, na->handle, na->size, 0, 0x1000,
-				     &na->offset);
-	nouveau_channel_put(&chan);
-	return ret;
-}
