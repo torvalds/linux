@@ -2571,6 +2571,54 @@ static const struct usb_gadget_ops usb_gadget_ops = {
 	.stop		= ci13xxx_stop,
 };
 
+static int init_eps(struct ci13xxx *udc)
+{
+	int retval = 0, i, j;
+
+	for (i = 0; i < udc->hw_ep_max/2; i++)
+		for (j = RX; j <= TX; j++) {
+			int k = i + j * udc->hw_ep_max/2;
+			struct ci13xxx_ep *mEp = &udc->ci13xxx_ep[k];
+
+			scnprintf(mEp->name, sizeof(mEp->name), "ep%i%s", i,
+					(j == TX)  ? "in" : "out");
+
+			mEp->udc          = udc;
+			mEp->lock         = &udc->lock;
+			mEp->device       = &udc->gadget.dev;
+			mEp->td_pool      = udc->td_pool;
+
+			mEp->ep.name      = mEp->name;
+			mEp->ep.ops       = &usb_ep_ops;
+			mEp->ep.maxpacket = CTRL_PAYLOAD_MAX;
+
+			INIT_LIST_HEAD(&mEp->qh.queue);
+			mEp->qh.ptr = dma_pool_alloc(udc->qh_pool, GFP_KERNEL,
+						     &mEp->qh.dma);
+			if (mEp->qh.ptr == NULL)
+				retval = -ENOMEM;
+			else
+				memset(mEp->qh.ptr, 0, sizeof(*mEp->qh.ptr));
+
+			/*
+			 * set up shorthands for ep0 out and in endpoints,
+			 * don't add to gadget's ep_list
+			 */
+			if (i == 0) {
+				if (j == RX)
+					udc->ep0out = mEp;
+				else
+					udc->ep0in = mEp;
+
+				continue;
+			}
+
+			list_add_tail(&mEp->ep.ep_list, &udc->gadget.ep_list);
+		}
+
+	return retval;
+}
+
 /**
  * ci13xxx_start: register a gadget driver
  * @driver: the driver being registered
@@ -2599,74 +2647,11 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 	else if (udc->driver != NULL)
 		return -EBUSY;
 
-	/* alloc resources */
-	udc->qh_pool = dma_pool_create("ci13xxx_qh", &udc->gadget.dev,
-				       sizeof(struct ci13xxx_qh),
-				       64, CI13XXX_PAGE_SIZE);
-	if (udc->qh_pool == NULL)
-		return -ENOMEM;
-
-	udc->td_pool = dma_pool_create("ci13xxx_td", &udc->gadget.dev,
-				       sizeof(struct ci13xxx_td),
-				       64, CI13XXX_PAGE_SIZE);
-	if (udc->td_pool == NULL) {
-		dma_pool_destroy(udc->qh_pool);
-		udc->qh_pool = NULL;
-		return -ENOMEM;
-	}
-
 	spin_lock_irqsave(&udc->lock, flags);
 
 	dev_info(udc->dev, "hw_ep_max = %d\n", udc->hw_ep_max);
 
 	udc->gadget.dev.driver = NULL;
-
-	retval = 0;
-	for (i = 0; i < udc->hw_ep_max/2; i++) {
-		for (j = RX; j <= TX; j++) {
-			int k = i + j * udc->hw_ep_max/2;
-			struct ci13xxx_ep *mEp = &udc->ci13xxx_ep[k];
-
-			scnprintf(mEp->name, sizeof(mEp->name), "ep%i%s", i,
-					(j == TX)  ? "in" : "out");
-
-			mEp->udc          = udc;
-			mEp->lock         = &udc->lock;
-			mEp->device       = &udc->gadget.dev;
-			mEp->td_pool      = udc->td_pool;
-
-			mEp->ep.name      = mEp->name;
-			mEp->ep.ops       = &usb_ep_ops;
-			mEp->ep.maxpacket = CTRL_PAYLOAD_MAX;
-
-			INIT_LIST_HEAD(&mEp->qh.queue);
-			spin_unlock_irqrestore(&udc->lock, flags);
-			mEp->qh.ptr = dma_pool_alloc(udc->qh_pool, GFP_KERNEL,
-					&mEp->qh.dma);
-			spin_lock_irqsave(&udc->lock, flags);
-			if (mEp->qh.ptr == NULL)
-				retval = -ENOMEM;
-			else
-				memset(mEp->qh.ptr, 0, sizeof(*mEp->qh.ptr));
-
-			/*
-			 * set up shorthands for ep0 out and in endpoints,
-			 * don't add to gadget's ep_list
-			 */
-			if (i == 0) {
-				if (j == RX)
-					udc->ep0out = mEp;
-				else
-					udc->ep0in = mEp;
-
-				continue;
-			}
-
-			list_add_tail(&mEp->ep.ep_list, &udc->gadget.ep_list);
-		}
-	}
-	if (retval)
-		goto done;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 	udc->ep0out->ep.desc = &ctrl_endpt_out_desc;
@@ -2680,7 +2665,6 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 		return retval;
 	spin_lock_irqsave(&udc->lock, flags);
 
-	udc->gadget.ep0 = &udc->ep0in->ep;
 	/* bind gadget */
 	driver->driver.bus     = NULL;
 	udc->gadget.dev.driver = &driver->driver;
@@ -2754,31 +2738,9 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
 	spin_lock_irqsave(&udc->lock, flags);
 
 	udc->gadget.dev.driver = NULL;
-
-	/* free resources */
-	for (i = 0; i < udc->hw_ep_max; i++) {
-		struct ci13xxx_ep *mEp = &udc->ci13xxx_ep[i];
-
-		if (mEp->num)
-			list_del_init(&mEp->ep.ep_list);
-
-		if (mEp->qh.ptr != NULL)
-			dma_pool_free(udc->qh_pool, mEp->qh.ptr, mEp->qh.dma);
-	}
-
-	udc->gadget.ep0 = NULL;
 	udc->driver = NULL;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
-
-	if (udc->td_pool != NULL) {
-		dma_pool_destroy(udc->td_pool);
-		udc->td_pool = NULL;
-	}
-	if (udc->qh_pool != NULL) {
-		dma_pool_destroy(udc->qh_pool);
-		udc->qh_pool = NULL;
-	}
 
 	return 0;
 }
@@ -2920,16 +2882,39 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 
 	udc->dev = dev;
 
+	/* alloc resources */
+	udc->qh_pool = dma_pool_create("ci13xxx_qh", dev,
+				       sizeof(struct ci13xxx_qh),
+				       64, CI13XXX_PAGE_SIZE);
+	if (udc->qh_pool == NULL) {
+		retval = -ENOMEM;
+		goto free_udc;
+	}
+
+	udc->td_pool = dma_pool_create("ci13xxx_td", dev,
+				       sizeof(struct ci13xxx_td),
+				       64, CI13XXX_PAGE_SIZE);
+	if (udc->td_pool == NULL) {
+		retval = -ENOMEM;
+		goto free_qh_pool;
+	}
+
 	retval = hw_device_init(udc, regs, driver->capoffset);
 	if (retval < 0)
-		goto free_udc;
+		goto free_pools;
+
+	retval = init_eps(udc);
+	if (retval)
+		goto free_pools;
+
+	udc->gadget.ep0 = &udc->ep0in->ep;
 
 	udc->transceiver = usb_get_transceiver();
 
 	if (udc->udc_driver->flags & CI13XXX_REQUIRE_TRANSCEIVER) {
 		if (udc->transceiver == NULL) {
 			retval = -ENODEV;
-			goto free_udc;
+			goto free_pools;
 		}
 	}
 
@@ -2984,6 +2969,10 @@ unreg_device:
 put_transceiver:
 	if (udc->transceiver)
 		usb_put_transceiver(udc->transceiver);
+free_pools:
+	dma_pool_destroy(udc->td_pool);
+free_qh_pool:
+	dma_pool_destroy(udc->qh_pool);
 free_udc:
 	kfree(udc);
 	_udc = NULL;
@@ -2998,11 +2987,21 @@ free_udc:
 static void udc_remove(void)
 {
 	struct ci13xxx *udc = _udc;
+	int i;
 
 	if (udc == NULL)
 		return;
 
 	usb_del_gadget_udc(&udc->gadget);
+
+	for (i = 0; i < udc->hw_ep_max; i++) {
+		struct ci13xxx_ep *mEp = &udc->ci13xxx_ep[i];
+
+		dma_pool_free(udc->qh_pool, mEp->qh.ptr, mEp->qh.dma);
+	}
+
+	dma_pool_destroy(udc->td_pool);
+	dma_pool_destroy(udc->qh_pool);
 
 	if (udc->transceiver) {
 		otg_set_peripheral(udc->transceiver->otg, &udc->gadget);
