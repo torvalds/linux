@@ -192,6 +192,9 @@ static int dss_check_settings_low(struct omap_overlay_manager *mgr,
 
 	mp = get_mgr_priv(mgr);
 
+	if (!mp->enabled)
+		return 0;
+
 	if (applying && mp->user_info_dirty)
 		mi = &mp->user_info;
 	else
