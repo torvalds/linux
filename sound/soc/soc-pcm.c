@@ -2332,6 +2332,9 @@ static const struct file_operations dpcm_state_fops = {
 
 int soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 {
+	if (!rtd->dai_link)
+		return 0;
+
 	rtd->debugfs_dpcm_root = debugfs_create_dir(rtd->dai_link->name,
 			rtd->card->debugfs_card_root);
 	if (!rtd->debugfs_dpcm_root) {
