@@ -78,8 +78,8 @@ kallsyms()
 		kallsymopt=--all-symbols
 	fi
 
-	local aflags="${KBUILD_AFLAGS} ${NOSTDINC_FLAGS}                     \
-		      ${LINUXINCLUDE} ${KBUILD_CPPFLAGS}"
+	local aflags="${KBUILD_AFLAGS} ${KBUILD_AFLAGS_KERNEL}               \
+		      ${NOSTDINC_FLAGS} ${LINUXINCLUDE} ${KBUILD_CPPFLAGS}"
 
 	${NM} -n ${1} | \
 		scripts/kallsyms ${kallsymopt} | \
