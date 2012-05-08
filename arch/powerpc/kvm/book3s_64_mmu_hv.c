@@ -258,6 +258,8 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 			    !(memslot->userspace_addr & (s - 1))) {
 				start &= ~(s - 1);
 				pgsize = s;
+				get_page(hpage);
+				put_page(page);
 				page = hpage;
 			}
 		}
@@ -281,11 +283,8 @@ static long kvmppc_get_guest_page(struct kvm *kvm, unsigned long gfn,
 	err = 0;
 
  out:
-	if (got) {
-		if (PageHuge(page))
-			page = compound_head(page);
+	if (got)
 		put_page(page);
-	}
 	return err;
 
  up_err:
@@ -678,8 +677,15 @@ int kvmppc_book3s_hv_page_fault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		SetPageDirty(page);
 
  out_put:
-	if (page)
-		put_page(page);
+	if (page) {
+		/*
+		 * We drop pages[0] here, not page because page might
+		 * have been set to the head page of a compound, but
+		 * we have to drop the reference on the correct tail
+		 * page to match the get inside gup()
+		 */
+		put_page(pages[0]);
+	}
 	return ret;
 
  out_unlock:
@@ -979,6 +985,7 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 			pa = *physp;
 		}
 		page = pfn_to_page(pa >> PAGE_SHIFT);
+		get_page(page);
 	} else {
 		hva = gfn_to_hva_memslot(memslot, gfn);
 		npages = get_user_pages_fast(hva, 1, 1, pages);
@@ -991,8 +998,6 @@ void *kvmppc_pin_guest_page(struct kvm *kvm, unsigned long gpa,
 		page = compound_head(page);
 		psize <<= compound_order(page);
 	}
-	if (!kvm->arch.using_mmu_notifiers)
-		get_page(page);
 	offset = gpa & (psize - 1);
 	if (nb_ret)
 		*nb_ret = psize - offset;
@@ -1003,7 +1008,6 @@ void kvmppc_unpin_guest_page(struct kvm *kvm, void *va)
 {
 	struct page *page = virt_to_page(va);
 
-	page = compound_head(page);
 	put_page(page);
 }
 
