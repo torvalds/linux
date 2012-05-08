@@ -2382,7 +2382,7 @@ static int aic3262_codec_probe(struct snd_soc_codec *codec)
 	pm_runtime_resume(codec->dev);
 	aic3262->dsp_runstate = 0;
 	/* use switch-class based headset reporting if platform requires it */
-	jack = &aic3262->hs_jack;			
+	/*jack = &aic3262->hs_jack;			
 	jack->sdev.name = "h2w";
 	ret = switch_dev_register(&jack->sdev);
 	if(ret)	{
@@ -2399,7 +2399,7 @@ static int aic3262_codec_probe(struct snd_soc_codec *codec)
 			dev_err(codec->dev, "HEADSET detect irq request failed:%d\n",ret);
 			goto irq_err;
 		}
-	}
+	}*/		//sxj
 
 	aic3262_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 

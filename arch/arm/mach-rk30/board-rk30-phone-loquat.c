@@ -44,6 +44,7 @@
 #if defined(CONFIG_HDMI_RK30)
 	#include "../../../drivers/video/rockchip/hdmi/rk_hdmi.h"
 #endif
+#include "../../../drivers/headset_observe/rk_headset.h"
 #include <linux/mfd/tlv320aic3262-core.h>
 #include <linux/mfd/tlv320aic3262-registers.h>
 
@@ -821,6 +822,40 @@ static struct mma8452_platform_data mma8452_info = {
 	.orientation = {-1, 0, 0, 0, 0, 1, 0, -1, 0},
 };
 #endif
+
+#if defined (CONFIG_RK_HEADSET_DET) || defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
+
+static int rk_headset_io_init(int gpio, char *iomux_name, int iomux_mode)
+{
+	int ret;
+	ret = gpio_request(gpio, NULL);
+	if(ret) 
+		return ret;
+
+	rk30_mux_api_set(iomux_name, iomux_mode);
+	gpio_pull_updown(gpio, PullDisable);
+	gpio_direction_input(gpio);
+	return 0;
+};
+
+struct rk_headset_pdata rk_headset_info = {
+	.Headset_gpio		= RK30_PIN0_PD3,
+	.headset_in_type = HEADSET_IN_HIGH,
+	.Hook_adc_chn = 2,
+	.hook_key_code = KEY_MEDIA,
+	.headset_gpio_info = {GPIO0D3_I2S22CHLRCKTX_SMCADVN_NAME, GPIO0D_GPIO0D3},
+	.headset_io_init = rk_headset_io_init,
+};
+
+struct platform_device rk_device_headset = {
+		.name	= "rk_headsetdet",
+		.id 	= 0,
+		.dev    = {
+		    .platform_data = &rk_headset_info,
+		}
+};
+#endif
+
 #if defined (CONFIG_COMPASS_AK8975)
 static struct akm8975_platform_data akm8975_info =
 {
@@ -1444,6 +1479,9 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #if defined(CONFIG_TDSC8800)
 &rk29_device_tdsc8800,
+#endif
+#if defined (CONFIG_RK_HEADSET_DET) ||  defined (CONFIG_RK_HEADSET_IRQ_HOOK_ADC_DET)
+    &rk_device_headset,
 #endif
 #ifdef CONFIG_BATTERY_RK30_ADC
  	&rk30_device_adc_battery,

@@ -5,9 +5,14 @@
 menu "Headset device support"
 
 config RK_HEADSET_DET
-	tristate "RK headset detech support"
+	tristate "RK headset detect support"
 	---help---
 		Universal headphone driver(write begin rk29)
+
+config RK_HEADSET_IRQ_HOOK_ADC_DET
+	tristate "RK headset irq hook adc detect support"
+	---help---
+		if you use headset irq and hook adc detect, choose it
 
 endmenu
 
