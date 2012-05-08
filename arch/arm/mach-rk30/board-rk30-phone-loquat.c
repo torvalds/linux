@@ -745,8 +745,14 @@ static int sc8800_io_init(void)
 	rk30_mux_api_set(GPIO2B5_LCDC1DATA13_SMCADDR17_HSADCDATA8_NAME, GPIO2B_GPIO2B5);
 	rk30_mux_api_set(GPIO2A2_LCDCDATA2_SMCADDR6_NAME, GPIO2A_GPIO2A2);
 
+	rk30_mux_api_set(GPIO2C2_LCDC1DATA18_SMCBLSN1_HSADCDATA5_NAME, GPIO2C_GPIO2C2);//AP_ASK_BP_TEST1
+	gpio_request(RK30_PIN2_PC2, NULL);
+	gpio_direction_output(RK30_PIN2_PC2, 0);
+	gpio_request(RK30_PIN6_PB0, NULL);//AP_ON/OFF_BP
+	gpio_direction_output(RK30_PIN6_PB0, 0);
 
-	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME, GPIO2C_SPI1_CLK);
+
+	rk30_mux_api_set(GPIO2C3_LCDC1DATA19_SPI1CLK_HSADCDATA0_NAME, GPIO2C_SPI1_CLK);//spi 1
 	rk30_mux_api_set(GPIO2C4_LCDC1DATA20_SPI1CSN0_HSADCDATA1_NAME, GPIO2C_SPI1_CSN0);
 	rk30_mux_api_set(GPIO2C5_LCDC1DATA21_SPI1TXD_HSADCDATA2_NAME, GPIO2C_SPI1_TXD);
 	rk30_mux_api_set(GPIO2C6_LCDC1DATA22_SPI1RXD_HSADCDATA3_NAME, GPIO2C_SPI1_RXD);
@@ -782,7 +788,7 @@ static struct spi_board_info board_spi_devices[] = {
 			.modalias  = "sc8800",
 			.bus_num = 1,
 			.platform_data = &sc8800_plat_data,
-			.max_speed_hz  = 12*1000*1000,
+			.max_speed_hz  = 13*1000*1000,
 			.chip_select   = 0,		
 			.controller_data = &sc8800_spi_chip,
 		},

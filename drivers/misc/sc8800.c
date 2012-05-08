@@ -330,6 +330,7 @@ static int sc8800_tx(struct sc8800_data *sc8800)
 			ap_rts(sc8800,1);
 			#endif
 			sc8800_dbg(sc8800->dev, "ERR: %s write timeout ->bp not ready (bp_rdy = 1)\n", __func__);
+			msleep(1);
 			kfree(buf);
 			mutex_unlock(&sc8800s_lock);
 			return -1;
