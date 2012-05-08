@@ -16,4 +16,15 @@ ENTRY(real_mode_header)
 #ifdef CONFIG_X86_32
 		.long	pa_machine_real_restart_asm
 #endif
+		/* SMP trampoline */
+		.long	pa_trampoline_data
+		.long	pa_trampoline_status
+#ifdef CONFIG_X86_32
+		.long	pa_startup_32_smp
+		.long	pa_boot_gdt
+#else
+		.long	pa_startup_64_smp
+		.long	pa_level3_ident_pgt
+		.long	pa_level3_kernel_pgt
+#endif
 END(real_mode_header)

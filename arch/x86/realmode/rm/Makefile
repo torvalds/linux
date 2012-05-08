@@ -13,6 +13,7 @@ always := realmode.bin
 
 realmode-y			+= header.o
 realmode-$(CONFIG_X86_32)	+= reboot_32.o
+realmode-y			+= trampoline_$(BITS).o
 
 targets	+= $(realmode-y)
 

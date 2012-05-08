@@ -58,6 +58,20 @@ void __init setup_real_mode(void)
 	/* Copied header will contain relocated physical addresses. */
 	memcpy(&real_mode_header, real_mode_base,
 	       sizeof(struct real_mode_header));
+
+#ifdef CONFIG_X86_32
+	*((u32 *)__va(real_mode_header.startup_32_smp)) = __pa(startup_32_smp);
+	*((u32 *)__va(real_mode_header.boot_gdt)) = __pa(boot_gdt);
+#else
+	*((u64 *) __va(real_mode_header.startup_64_smp)) =
+		(u64) __pa(secondary_startup_64);
+
+	*((u64 *) __va(real_mode_header.level3_ident_pgt)) =
+		__pa(level3_ident_pgt) + _KERNPG_TABLE;
+
+	*((u64 *) __va(real_mode_header.level3_kernel_pgt)) =
+		__pa(level3_kernel_pgt) + _KERNPG_TABLE;
+#endif
 }
 
 /*
