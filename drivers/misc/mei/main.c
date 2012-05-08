@@ -951,7 +951,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	/* enable pci dev */
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "mei: Failed to enable pci device.\n");
+		dev_err(&pdev->dev, "failed to enable pci device.\n");
 		goto end;
 	}
 	/* set PCI host mastering  */
@@ -959,7 +959,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	/* pci request regions for mei driver */
 	err = pci_request_regions(pdev, mei_driver_name);
 	if (err) {
-		printk(KERN_ERR "mei: Failed to get pci regions.\n");
+		dev_err(&pdev->dev, "failed to get pci regions.\n");
 		goto disable_device;
 	}
 	/* allocates and initializes the mei dev structure */
@@ -971,7 +971,7 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 	/* mapping  IO device memory */
 	dev->mem_addr = pci_iomap(pdev, 0, 0);
 	if (!dev->mem_addr) {
-		printk(KERN_ERR "mei: mapping I/O device memory failure.\n");
+		dev_err(&pdev->dev, "mapping I/O device memory failure.\n");
 		err = -ENOMEM;
 		goto free_device;
 	}
@@ -990,13 +990,13 @@ static int __devinit mei_probe(struct pci_dev *pdev,
 			IRQF_SHARED, mei_driver_name, dev);
 
 	if (err) {
-		printk(KERN_ERR "mei: request_threaded_irq failure. irq = %d\n",
+		dev_err(&pdev->dev, "request_threaded_irq failure. irq = %d\n",
 		       pdev->irq);
 		goto unmap_memory;
 	}
 	INIT_DELAYED_WORK(&dev->timer_work, mei_timer);
 	if (mei_hw_init(dev)) {
-		printk(KERN_ERR "mei: Init hw failure.\n");
+		dev_err(&pdev->dev, "init hw failure.\n");
 		err = -ENODEV;
 		goto release_irq;
 	}
@@ -1034,7 +1034,7 @@ disable_device:
 	pci_disable_device(pdev);
 end:
 	mutex_unlock(&mei_mutex);
-	printk(KERN_ERR "mei: Driver initialization failed.\n");
+	dev_err(&pdev->dev, "initialization failed.\n");
 	return err;
 }
 
@@ -1153,8 +1153,8 @@ static int mei_pci_resume(struct device *device)
 			IRQF_SHARED, mei_driver_name, dev);
 
 	if (err) {
-		printk(KERN_ERR "mei: Request_irq failure. irq = %d\n",
-		       pdev->irq);
+		dev_err(&pdev->dev, "request_threaded_irq failed: irq = %d.\n",
+				pdev->irq);
 		return err;
 	}
 
