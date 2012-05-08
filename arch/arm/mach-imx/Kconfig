@@ -707,6 +707,7 @@ choice
 config MACH_EUKREA_MBIMXSD51_BASEBOARD
 	prompt "Eukrea MBIMXSD development board"
 	bool
+	select IMX_HAVE_PLATFORM_IMX_SSI
 	select IMX_HAVE_PLATFORM_SDHCI_ESDHC_IMX
 	select LEDS_GPIO_REGISTER
 	help
