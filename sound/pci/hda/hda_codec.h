@@ -867,6 +867,7 @@ struct hda_codec {
 	unsigned long power_on_acct;
 	unsigned long power_off_acct;
 	unsigned long power_jiffies;
+	spinlock_t power_lock;
 #endif
 
 	/* codec-specific additional proc output */
