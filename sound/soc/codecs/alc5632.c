@@ -1208,25 +1208,7 @@ static struct i2c_driver alc5632_i2c_driver = {
 	.id_table = alc5632_i2c_table,
 };
 
-static int __init alc5632_modinit(void)
-{
-	int ret;
-
-	ret = i2c_add_driver(&alc5632_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "%s: can't add i2c driver", __func__);
-		return ret;
-	}
-
-	return ret;
-}
-module_init(alc5632_modinit);
-
-static void __exit alc5632_modexit(void)
-{
-	i2c_del_driver(&alc5632_i2c_driver);
-}
-module_exit(alc5632_modexit);
+module_i2c_driver(alc5632_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC ALC5632 driver");
 MODULE_AUTHOR("Leon Romanovsky <leon@leon.nu>");
