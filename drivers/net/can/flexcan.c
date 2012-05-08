@@ -1050,6 +1050,42 @@ static struct of_device_id flexcan_of_match[] = {
 	{},
 };
 
+#ifdef CONFIG_PM
+static int flexcan_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct flexcan_priv *priv = netdev_priv(dev);
+
+	flexcan_chip_disable(priv);
+
+	if (netif_running(dev)) {
+		netif_stop_queue(dev);
+		netif_device_detach(dev);
+	}
+	priv->can.state = CAN_STATE_SLEEPING;
+
+	return 0;
+}
+
+static int flexcan_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct flexcan_priv *priv = netdev_priv(dev);
+
+	priv->can.state = CAN_STATE_ERROR_ACTIVE;
+	if (netif_running(dev)) {
+		netif_device_attach(dev);
+		netif_start_queue(dev);
+	}
+	flexcan_chip_enable(priv);
+
+	return 0;
+}
+#else
+#define flexcan_suspend NULL
+#define flexcan_resume NULL
+#endif
+
 static struct platform_driver flexcan_driver = {
 	.driver = {
 		.name = DRV_NAME,
@@ -1058,6 +1094,8 @@ static struct platform_driver flexcan_driver = {
 	},
 	.probe = flexcan_probe,
 	.remove = __devexit_p(flexcan_remove),
+	.suspend = flexcan_suspend,
+	.resume = flexcan_resume,
 };
 
 module_platform_driver(flexcan_driver);
