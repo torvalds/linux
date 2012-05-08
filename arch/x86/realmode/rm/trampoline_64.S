@@ -80,6 +80,7 @@ no_longmode:
 	jmp no_longmode
 #include "../kernel/verify_cpu.S"
 
+	.section ".text32","ax"
 	.code32
 	.balign 4
 ENTRY(startup_32)
@@ -114,6 +115,7 @@ ENTRY(startup_32)
 	 */
 	ljmpl	*(pa_startup_64_vector)
 
+	.section ".text64","ax"
 	.code64
 	.balign 4
 ENTRY(startup_64)
@@ -123,7 +125,8 @@ ENTRY(startup_64)
 	addl	%esi, %eax
 	jmp	*%rax
 
-	# Careful these need to be in the same 64K segment as the above;
+	.section ".rodata","a"
+	.balign	16
 tidt:
 	.word	0			# idt limit = 0
 	.word	0, 0			# idt base = 0L
@@ -153,9 +156,8 @@ startup_64_vector:
 	.word	__KERNEL_CS, 0
 
 	.data
-
 	.balign 4
-ENTRY(trampoline_status)
+GLOBAL(trampoline_status)
 	.long	0
 
 trampoline_stack:
@@ -164,7 +166,7 @@ trampoline_stack_end:
 
 	.globl	level3_ident_pgt
 	.globl	level3_kernel_pgt
-ENTRY(trampoline_level4_pgt)
+GLOBAL(trampoline_level4_pgt)
 	level3_ident_pgt:	.quad	0
 	.fill 510,8,0
 	level3_kernel_pgt:	.quad	0
