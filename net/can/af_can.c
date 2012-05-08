@@ -334,8 +334,8 @@ static struct dev_rcv_lists *find_dev_rcv_lists(struct net_device *dev)
  *  relevant bits for the filter.
  *
  *  The filter can be inverted (CAN_INV_FILTER bit set in can_id) or it can
- *  filter for error frames (CAN_ERR_FLAG bit set in mask). For error frames
- *  there is a special filterlist and a special rx path filter handling.
+ *  filter for error messages (CAN_ERR_FLAG bit set in mask). For error msg
+ *  frames there is a special filterlist and a special rx path filter handling.
  *
  * Return:
  *  Pointer to optimal filterlist for the given can_id/mask pair.
@@ -347,7 +347,7 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
 {
 	canid_t inv = *can_id & CAN_INV_FILTER; /* save flag before masking */
 
-	/* filter for error frames in extra filterlist */
+	/* filter for error message frames in extra filterlist */
 	if (*mask & CAN_ERR_FLAG) {
 		/* clear CAN_ERR_FLAG in filter entry */
 		*mask &= CAN_ERR_MASK;
@@ -408,7 +408,7 @@ static struct hlist_head *find_rcv_list(canid_t *can_id, canid_t *mask,
  *          <received_can_id> & mask == can_id & mask
  *
  *  The filter can be inverted (CAN_INV_FILTER bit set in can_id) or it can
- *  filter for error frames (CAN_ERR_FLAG bit set in mask).
+ *  filter for error message frames (CAN_ERR_FLAG bit set in mask).
  *
  *  The provided pointer to the sk_buff is guaranteed to be valid as long as
  *  the callback function is running. The callback function must *not* free
@@ -578,7 +578,7 @@ static int can_rcv_filter(struct dev_rcv_lists *d, struct sk_buff *skb)
 		return 0;
 
 	if (can_id & CAN_ERR_FLAG) {
-		/* check for error frame entries only */
+		/* check for error message frame entries only */
 		hlist_for_each_entry_rcu(r, n, &d->rx[RX_ERR], list) {
 			if (can_id & r->mask) {
 				deliver(skb, r);
