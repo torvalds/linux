@@ -105,15 +105,15 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 	return sta;
 }
 
-/** mesh_set_ht_prot_mode - set correct HT protection mode
+/*
+ * mesh_set_ht_prot_mode - set correct HT protection mode
  *
- * Section 9.23.3.5 of IEEE 80211s standard describes the protection rules for
- * HT mesh STA in a MBSS. Three HT protection modes are supported for now,
- * non-HT mixed mode, 20MHz-protection and no-protection mode. non-HT mixed
- * mode is selected if any non-HT peers are present in our MBSS.
- * 20MHz-protection mode is selected if all peers in our 20/40MHz MBSS support
- * HT and atleast one HT20 peer is present. Otherwise no-protection mode is
- * selected.
+ * Section 9.23.3.5 of IEEE 80211-2012 describes the protection rules for HT
+ * mesh STA in a MBSS. Three HT protection modes are supported for now, non-HT
+ * mixed mode, 20MHz-protection and no-protection mode. non-HT mixed mode is
+ * selected if any non-HT peers are present in our MBSS.  20MHz-protection mode
+ * is selected if all peers in our 20/40MHz MBSS support HT and atleast one
+ * HT20 peer is present. Otherwise no-protection mode is selected.
  */
 static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 {
@@ -128,21 +128,22 @@ static u32 mesh_set_ht_prot_mode(struct ieee80211_sub_if_data *sdata)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
-		if (sdata == sta->sdata &&
-		    sta->plink_state == NL80211_PLINK_ESTAB) {
-			switch (sta->ch_type) {
-			case NL80211_CHAN_NO_HT:
-				mpl_dbg("mesh_plink %pM: nonHT sta (%pM) is present",
-					sdata->vif.addr, sta->sta.addr);
-				non_ht_sta = true;
-				goto out;
-			case NL80211_CHAN_HT20:
-				mpl_dbg("mesh_plink %pM: HT20 sta (%pM) is present",
-					sdata->vif.addr, sta->sta.addr);
-				ht20_sta = true;
-			default:
-				break;
-			}
+		if (sdata != sta->sdata ||
+		    sta->plink_state != NL80211_PLINK_ESTAB)
+			continue;
+
+		switch (sta->ch_type) {
+		case NL80211_CHAN_NO_HT:
+			mpl_dbg("mesh_plink %pM: nonHT sta (%pM) is present",
+				sdata->vif.addr, sta->sta.addr);
+			non_ht_sta = true;
+			goto out;
+		case NL80211_CHAN_HT20:
+			mpl_dbg("mesh_plink %pM: HT20 sta (%pM) is present",
+				sdata->vif.addr, sta->sta.addr);
+			ht20_sta = true;
+		default:
+			break;
 		}
 	}
 out:
