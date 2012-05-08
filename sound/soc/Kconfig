@@ -47,6 +47,7 @@ source "sound/soc/s6000/Kconfig"
 source "sound/soc/sh/Kconfig"
 source "sound/soc/tegra/Kconfig"
 source "sound/soc/txx9/Kconfig"
+source "sound/soc/ux500/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"

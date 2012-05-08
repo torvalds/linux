@@ -1,0 +1,15 @@
+#
+# Ux500 SoC audio configuration
+#
+menuconfig SND_SOC_UX500
+	tristate "SoC Audio support for Ux500 platform"
+	depends on SND_SOC
+	help
+		Say Y if you want to enable ASoC-support for
+		any of the Ux500 platforms (e.g. U8500).
+
+config SND_SOC_UX500_PLAT_MSP_I2S
+	tristate "Platform - MSP (I2S)"
+	depends on SND_SOC_UX500
+	help
+		Say Y if you want to enable the Ux500 MSP I2S-driver.
