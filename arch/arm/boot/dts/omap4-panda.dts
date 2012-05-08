@@ -17,6 +17,21 @@
 		device_type = "memory";
 		reg = <0x80000000 0x40000000>; /* 1 GB */
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		heartbeat {
+			label = "pandaboard::status1";
+			gpios = <&gpio1 7 0>;
+			linux,default-trigger = "heartbeat";
+		};
+
+		mmc {
+			label = "pandaboard::status2";
+			gpios = <&gpio1 8 0>;
+			linux,default-trigger = "mmc0";
+		};
+	};
 };
 
 &i2c1 {
