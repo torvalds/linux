@@ -20,10 +20,10 @@
  * DEFINE
  *****************************************************************************/
 #define CI13XXX_PAGE_SIZE  4096ul /* page size for TD's */
-#define ENDPT_MAX          (32)
-#define CTRL_PAYLOAD_MAX   (64)
-#define RX        (0)  /* similar to USB_DIR_OUT but can be used as an index */
-#define TX        (1)  /* similar to USB_DIR_IN  but can be used as an index */
+#define ENDPT_MAX          32
+#define CTRL_PAYLOAD_MAX   64
+#define RX        0  /* similar to USB_DIR_OUT but can be used as an index */
+#define TX        1  /* similar to USB_DIR_IN  but can be used as an index */
 
 /******************************************************************************
  * STRUCTURES

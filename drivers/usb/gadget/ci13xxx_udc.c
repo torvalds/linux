@@ -1760,14 +1760,14 @@ __acquires(mEp->lock)
 
 	if ((setup->bRequestType & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
 		/* Assume that device is bus powered for now. */
-		*((u16 *)req->buf) = _udc->remote_wakeup << 1;
+		*(u16 *)req->buf = _udc->remote_wakeup << 1;
 		retval = 0;
 	} else if ((setup->bRequestType & USB_RECIP_MASK) \
 		   == USB_RECIP_ENDPOINT) {
 		dir = (le16_to_cpu(setup->wIndex) & USB_ENDPOINT_DIR_MASK) ?
 			TX : RX;
 		num =  le16_to_cpu(setup->wIndex) & USB_ENDPOINT_NUMBER_MASK;
-		*((u16 *)req->buf) = hw_ep_get_halt(num, dir);
+		*(u16 *)req->buf = hw_ep_get_halt(num, dir);
 	}
 	/* else do nothing; reserved for future use */
 
@@ -2284,8 +2284,8 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 		goto done;
 	}
 
-	if (req->length > (4 * CI13XXX_PAGE_SIZE)) {
-		req->length = (4 * CI13XXX_PAGE_SIZE);
+	if (req->length > 4 * CI13XXX_PAGE_SIZE) {
+		req->length = 4 * CI13XXX_PAGE_SIZE;
 		retval = -EMSGSIZE;
 		warn("request length truncated");
 	}
