@@ -73,7 +73,6 @@
 
 #include <asm/mtrr.h>
 #include <asm/apic.h>
-#include <asm/trampoline.h>
 #include <asm/realmode.h>
 #include <asm/e820.h>
 #include <asm/mpspec.h>
@@ -918,7 +917,6 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_DEBUG "initial memory mapped : 0 - %08lx\n",
 			max_pfn_mapped<<PAGE_SHIFT);
 
-	setup_trampolines();
 	setup_real_mode();
 
 	init_gbpages();

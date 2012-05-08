@@ -24,6 +24,10 @@ struct real_mode_header {
 	u32	level3_ident_pgt;
 	u32	level3_kernel_pgt;
 #endif
+#ifdef CONFIG_ACPI_SLEEP
+	u32	wakeup_start;
+	u32	wakeup_header;
+#endif
 } __attribute__((__packed__));
 
 extern struct real_mode_header real_mode_header;

@@ -32,7 +32,7 @@
 #include <linux/mm.h>
 #include <linux/tboot.h>
 
-#include <asm/trampoline.h>
+#include <asm/realmode.h>
 #include <asm/processor.h>
 #include <asm/bootparam.h>
 #include <asm/pgtable.h>
@@ -201,7 +201,8 @@ static int tboot_setup_sleep(void)
 		add_mac_region(e820.map[i].addr, e820.map[i].size);
 	}
 
-	tboot->acpi_sinfo.kernel_s3_resume_vector = acpi_wakeup_address;
+	tboot->acpi_sinfo.kernel_s3_resume_vector =
+		real_mode_header.wakeup_start;
 
 	return 0;
 }

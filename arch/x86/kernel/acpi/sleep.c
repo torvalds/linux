@@ -14,8 +14,9 @@
 #include <asm/desc.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
+#include <asm/realmode.h>
 
-#include "realmode/wakeup.h"
+#include "../../realmode/rm/wakeup/wakeup.h"
 #include "sleep.h"
 
 unsigned long acpi_realmode_flags;
@@ -36,40 +37,15 @@ asmlinkage void acpi_enter_s3(void)
  */
 int acpi_suspend_lowlevel(void)
 {
-	struct wakeup_header *header;
-	/* address in low memory of the wakeup routine. */
-	char *acpi_realmode;
+	struct wakeup_header *header =
+		(struct wakeup_header *) __va(real_mode_header.wakeup_header);
 
-	acpi_realmode = TRAMPOLINE_SYM(acpi_wakeup_code);
-
-	header = (struct wakeup_header *)(acpi_realmode + WAKEUP_HEADER_OFFSET);
 	if (header->signature != WAKEUP_HEADER_SIGNATURE) {
 		printk(KERN_ERR "wakeup header does not match\n");
 		return -EINVAL;
 	}
 
 	header->video_mode = saved_video_mode;
-
-	header->wakeup_jmp_seg = acpi_wakeup_address >> 4;
-
-	/*
-	 * Set up the wakeup GDT.  We set these up as Big Real Mode,
-	 * that is, with limits set to 4 GB.  At least the Lenovo
-	 * Thinkpad X61 is known to need this for the video BIOS
-	 * initialization quirk to work; this is likely to also
-	 * be the case for other laptops or integrated video devices.
-	 */
-
-	/* GDT[0]: GDT self-pointer */
-	header->wakeup_gdt[0] =
-		(u64)(sizeof(header->wakeup_gdt) - 1) +
-		((u64)__pa(&header->wakeup_gdt) << 16);
-	/* GDT[1]: big real mode-like code segment */
-	header->wakeup_gdt[1] =
-		GDT_ENTRY(0x809b, acpi_wakeup_address, 0xfffff);
-	/* GDT[2]: big real mode-like data segment */
-	header->wakeup_gdt[2] =
-		GDT_ENTRY(0x8093, acpi_wakeup_address, 0xfffff);
 
 #ifndef CONFIG_64BIT
 	store_gdt((struct desc_ptr *)&header->pmode_gdt);
@@ -95,7 +71,6 @@ int acpi_suspend_lowlevel(void)
 	header->pmode_cr3 = (u32)__pa(&initial_page_table);
 	saved_magic = 0x12345678;
 #else /* CONFIG_64BIT */
-	header->trampoline_segment = trampoline_address() >> 4;
 #ifdef CONFIG_SMP
 	stack_start = (unsigned long)temp_stack + sizeof(temp_stack);
 	early_gdt_descr.address =

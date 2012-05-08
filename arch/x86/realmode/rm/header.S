@@ -27,4 +27,9 @@ ENTRY(real_mode_header)
 		.long	pa_level3_ident_pgt
 		.long	pa_level3_kernel_pgt
 #endif
+		/* ACPI sleep */
+#ifdef CONFIG_ACPI_SLEEP
+		.long	pa_wakeup_start
+		.long	pa_wakeup_header
+#endif
 END(real_mode_header)

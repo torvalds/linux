@@ -14,8 +14,12 @@ always := realmode.bin
 realmode-y			+= header.o
 realmode-$(CONFIG_X86_32)	+= reboot_32.o
 realmode-y			+= trampoline_$(BITS).o
+realmode-$(CONFIG_ACPI_SLEEP)	+= wakeup/wakeup.o
 
 targets	+= $(realmode-y)
+
+$(obj)/wakeup/wakeup.o: FORCE
+	$(Q)$(MAKE) $(build)=$(obj)/wakeup $@
 
 REALMODE_OBJS = $(addprefix $(obj)/,$(realmode-y))
 

@@ -8,21 +8,15 @@
 #include <asm/processor-flags.h>
 #include "wakeup.h"
 
-	.code16
-	.section ".jump", "ax"
-	.globl	_start
-_start:
-	cli
-	jmp	wakeup_code
+		.code16
 
 /* This should match the structure in wakeup.h */
-		.section ".header", "a"
+		.section ".data", "aw"
 		.globl	wakeup_header
 wakeup_header:
 video_mode:	.short	0	/* Video mode number */
-pmode_return:	.byte	0x66, 0xea	/* ljmpl */
-		.long	0	/* offset goes here */
-		.short	__KERNEL_CS
+pmode_entry:	.long	0
+pmode_cs:	.short	__KERNEL_CS
 pmode_cr0:	.long	0	/* Saved %cr0 */
 pmode_cr3:	.long	0	/* Saved %cr3 */
 pmode_cr4:	.long	0	/* Saved %cr4 */
@@ -32,19 +26,20 @@ pmode_misc_en:	.quad	0	/* Saved MISC_ENABLE MSR */
 pmode_behavior:	.long	0	/* Wakeup behavior flags */
 realmode_flags:	.long	0
 real_magic:	.long	0
-trampoline_segment:	.word 0
-_pad1:		.byte	0
-wakeup_jmp:	.byte	0xea	/* ljmpw */
-wakeup_jmp_off:	.word	3f
-wakeup_jmp_seg:	.word	0
-wakeup_gdt:	.quad	0, 0, 0
 signature:	.long	WAKEUP_HEADER_SIGNATURE
+		.size	wakeup_header, .-wakeup_header
 
 	.text
 	.code16
-wakeup_code:
+	.globl	wakeup_start
+wakeup_start:
+	cli
 	cld
 
+	.byte	0xea		/* ljmpw */
+	.word	3f
+	.word	real_mode_seg
+3:
 	/* Apparently some dimwit BIOS programmers don't know how to
 	   program a PM to RM transition, and we might end up here with
 	   junk in the data segment descriptor registers.  The only way
@@ -54,8 +49,7 @@ wakeup_code:
 	movl	%cr0, %eax
 	orb	$X86_CR0_PE, %al
 	movl	%eax, %cr0
-	jmp	1f
-1:	ljmpw	$8, $2f
+	ljmpw	$8, $2f
 2:
 	movw	%cx, %ds
 	movw	%cx, %es
@@ -65,7 +59,9 @@ wakeup_code:
 
 	andb	$~X86_CR0_PE, %al
 	movl	%eax, %cr0
-	jmp	wakeup_jmp
+	.byte	0xea		/* ljmpw */
+	.word	3f
+	.word	real_mode_seg
 3:
 	/* Set up segments */
 	movw	%cs, %ax
@@ -130,18 +126,41 @@ wakeup_code:
 	/* This really couldn't... */
 	movl	pmode_cr0, %eax
 	movl	%eax, %cr0
-	jmp	pmode_return
+	ljmpl	*pmode_entry
 #else
-	pushw	$0
-	pushw	trampoline_segment
-	pushw	$0
-	lret
+	jmp	trampoline_data
 #endif
 
 bogus_real_magic:
 1:
 	hlt
 	jmp	1b
+
+	.section ".rodata","a"
+
+	/*
+	 * Set up the wakeup GDT.  We set these up as Big Real Mode,
+	 * that is, with limits set to 4 GB.  At least the Lenovo
+	 * Thinkpad X61 is known to need this for the video BIOS
+	 * initialization quirk to work; this is likely to also
+	 * be the case for other laptops or integrated video devices.
+	 */
+
+	.globl	wakeup_gdt
+	.balign	16
+wakeup_gdt:
+	.word	3*8-1		/* Self-descriptor */
+	.long	pa_wakeup_gdt
+	.word	0
+
+	.word	0xffff		/* 16-bit code segment @ real_mode_base */
+	.long	0x9b000000 + pa_real_mode_base
+	.word	0x008f		/* big real mode */
+
+	.word	0xffff		/* 16-bit data segment @ real_mode_base */
+	.long	0x93000000 + pa_real_mode_base
+	.word	0x008f		/* big real mode */
+	.size	wakeup_gdt, .-wakeup_gdt
 
 	.data
 	.balign	8

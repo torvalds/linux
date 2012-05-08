@@ -27,7 +27,6 @@
 #include <asm/proto.h>
 #include <asm/bios_ebda.h>
 #include <asm/e820.h>
-#include <asm/trampoline.h>
 #include <asm/setup.h>
 #include <asm/smp.h>
 
