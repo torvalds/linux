@@ -74,6 +74,25 @@ static int lowland_wm5100_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+static int lowland_wm9081_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_codec *codec = rtd->codec;
+
+	snd_soc_dapm_nc_pin(&codec->dapm, "LINEOUT");
+
+	/* At any time the WM9081 is active it will have this clock */
+	return snd_soc_codec_set_sysclk(codec, WM9081_SYSCLK_MCLK, 0,
+					CLKOUT_RATE, 0);
+}
+
+static const struct snd_soc_pcm_stream sub_params = {
+	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.rate_min = 44100,
+	.rate_max = 44100,
+	.channels_min = 2,
+	.channels_max = 2,
+};
+
 static struct snd_soc_dai_link lowland_dai[] = {
 	{
 		.name = "CPU",
@@ -96,21 +115,16 @@ static struct snd_soc_dai_link lowland_dai[] = {
 				SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 	},
-};
-
-static int lowland_wm9081_init(struct snd_soc_dapm_context *dapm)
-{
-	snd_soc_dapm_nc_pin(dapm, "LINEOUT");
-
-	/* At any time the WM9081 is active it will have this clock */
-	return snd_soc_codec_set_sysclk(dapm->codec, WM9081_SYSCLK_MCLK, 0,
-					CLKOUT_RATE, 0);
-}
-
-static struct snd_soc_aux_dev lowland_aux_dev[] = {
 	{
-		.name = "wm9081",
+		.name = "Sub Speaker",
+		.stream_name = "Sub Speaker",
+		.cpu_dai_name = "wm5100-aif3",
+		.codec_dai_name = "wm9081-hifi",
 		.codec_name = "wm9081.1-006c",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBM_CFM,
+		.ignore_suspend = 1,
+		.params = &sub_params,
 		.init = lowland_wm9081_init,
 	},
 };
@@ -155,8 +169,6 @@ static struct snd_soc_card lowland = {
 	.owner = THIS_MODULE,
 	.dai_link = lowland_dai,
 	.num_links = ARRAY_SIZE(lowland_dai),
-	.aux_dev = lowland_aux_dev,
-	.num_aux_devs = ARRAY_SIZE(lowland_aux_dev),
 	.codec_conf = lowland_codec_conf,
 	.num_configs = ARRAY_SIZE(lowland_codec_conf),
 
