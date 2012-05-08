@@ -1815,6 +1815,8 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	xhci->event_ring = NULL;
 	xhci_dbg(xhci, "Freed event ring\n");
 
+	if (xhci->lpm_command)
+		xhci_free_command(xhci, xhci->lpm_command);
 	xhci->cmd_ring_reserved_trbs = 0;
 	if (xhci->cmd_ring)
 		xhci_ring_free(xhci, xhci->cmd_ring);
@@ -2376,6 +2378,16 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	xhci_dbg(xhci, "// Setting command ring address to 0x%x\n", val);
 	xhci_write_64(xhci, val_64, &xhci->op_regs->cmd_ring);
 	xhci_dbg_cmd_ptrs(xhci);
+
+	xhci->lpm_command = xhci_alloc_command(xhci, true, true, flags);
+	if (!xhci->lpm_command)
+		goto fail;
+
+	/* Reserve one command ring TRB for disabling LPM.
+	 * Since the USB core grabs the shared usb_bus bandwidth mutex before
+	 * disabling LPM, we only need to reserve one TRB for all devices.
+	 */
+	xhci->cmd_ring_reserved_trbs++;
 
 	val = xhci_readl(xhci, &xhci->cap_regs->db_off);
 	val &= DBOFF_MASK;
