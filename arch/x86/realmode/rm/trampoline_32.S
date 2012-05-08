@@ -68,7 +68,7 @@ trampoline_data:
 
 	.data
 	.globl startup_32_smp, boot_gdt, trampoline_status
-
+	.balign	4
 boot_gdt_descr:
 	.word	__BOOT_DS + 7			# gdt limit
 boot_gdt:
