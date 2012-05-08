@@ -680,12 +680,8 @@ static struct platform_device power_supply = {
  */
 
 static struct regulator_consumer_supply bq24022_consumers[] = {
-	{
-		.supply = "vbus_draw",
-	},
-	{
-		.supply = "ac_draw",
-	},
+	REGULATOR_SUPPLY("vbus_draw", NULL),
+	REGULATOR_SUPPLY("ac_draw", NULL),
 };
 
 static struct regulator_init_data bq24022_init_data = {
@@ -764,9 +760,8 @@ static struct platform_device strataflash = {
  * Maxim MAX1587A on PI2C
  */
 
-static struct regulator_consumer_supply max1587a_consumer = {
-	.supply = "vcc_core",
-};
+static struct regulator_consumer_supply max1587a_consumer =
+	REGULATOR_SUPPLY("vcc_core", NULL);
 
 static struct regulator_init_data max1587a_v3_info = {
 	.constraints = {
