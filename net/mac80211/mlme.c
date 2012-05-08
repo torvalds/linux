@@ -1776,7 +1776,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 
 	memcpy(bssid, ifmgd->auth_data->bss->bssid, ETH_ALEN);
 
-	if (compare_ether_addr(bssid, mgmt->bssid))
+	if (!ether_addr_equal(bssid, mgmt->bssid))
 		return RX_MGMT_NONE;
 
 	auth_alg = le16_to_cpu(mgmt->u.auth.auth_alg);
@@ -1853,7 +1853,7 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 		return RX_MGMT_NONE;
 
 	if (!ifmgd->associated ||
-	    compare_ether_addr(mgmt->bssid, ifmgd->associated->bssid))
+	    !ether_addr_equal(mgmt->bssid, ifmgd->associated->bssid))
 		return RX_MGMT_NONE;
 
 	bssid = ifmgd->associated->bssid;
@@ -1886,7 +1886,7 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 		return RX_MGMT_NONE;
 
 	if (!ifmgd->associated ||
-	    compare_ether_addr(mgmt->bssid, ifmgd->associated->bssid))
+	    !ether_addr_equal(mgmt->bssid, ifmgd->associated->bssid))
 		return RX_MGMT_NONE;
 
 	reason_code = le16_to_cpu(mgmt->u.disassoc.reason_code);
@@ -2113,7 +2113,7 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 
 	if (!assoc_data)
 		return RX_MGMT_NONE;
-	if (compare_ether_addr(assoc_data->bss->bssid, mgmt->bssid))
+	if (!ether_addr_equal(assoc_data->bss->bssid, mgmt->bssid))
 		return RX_MGMT_NONE;
 
 	/*
@@ -2193,8 +2193,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	bool need_ps = false;
 
 	if (sdata->u.mgd.associated &&
-	    compare_ether_addr(mgmt->bssid, sdata->u.mgd.associated->bssid)
-	    == 0) {
+	    ether_addr_equal(mgmt->bssid, sdata->u.mgd.associated->bssid)) {
 		bss = (void *)sdata->u.mgd.associated->priv;
 		/* not previously set so we may need to recalc */
 		need_ps = !bss->dtim_period;
@@ -2249,7 +2248,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 
 	ASSERT_MGD_MTX(ifmgd);
 
-	if (compare_ether_addr(mgmt->da, sdata->vif.addr))
+	if (!ether_addr_equal(mgmt->da, sdata->vif.addr))
 		return; /* ignore ProbeResp to foreign address */
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
@@ -2262,12 +2261,11 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, false);
 
 	if (ifmgd->associated &&
-	    compare_ether_addr(mgmt->bssid, ifmgd->associated->bssid) == 0)
+	    ether_addr_equal(mgmt->bssid, ifmgd->associated->bssid))
 		ieee80211_reset_ap_probe(sdata);
 
 	if (ifmgd->auth_data && !ifmgd->auth_data->bss->proberesp_ies &&
-	    compare_ether_addr(mgmt->bssid, ifmgd->auth_data->bss->bssid)
-	    == 0) {
+	    ether_addr_equal(mgmt->bssid, ifmgd->auth_data->bss->bssid)) {
 		/* got probe response, continue with auth */
 		printk(KERN_DEBUG "%s: direct probe responded\n", sdata->name);
 		ifmgd->auth_data->tries = 0;
@@ -2324,8 +2322,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (ifmgd->assoc_data && !ifmgd->assoc_data->have_beacon &&
-	    compare_ether_addr(mgmt->bssid, ifmgd->assoc_data->bss->bssid)
-	    == 0) {
+	    ether_addr_equal(mgmt->bssid, ifmgd->assoc_data->bss->bssid)) {
 		ieee802_11_parse_elems(mgmt->u.beacon.variable,
 				       len - baselen, &elems);
 
@@ -2340,7 +2337,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!ifmgd->associated ||
-	    compare_ether_addr(mgmt->bssid, ifmgd->associated->bssid))
+	    !ether_addr_equal(mgmt->bssid, ifmgd->associated->bssid))
 		return;
 	bssid = ifmgd->associated->bssid;
 
@@ -3166,7 +3163,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			return err;
 		}
 	} else
-		WARN_ON_ONCE(compare_ether_addr(ifmgd->bssid, cbss->bssid));
+		WARN_ON_ONCE(!ether_addr_equal(ifmgd->bssid, cbss->bssid));
 
 	return 0;
 }
@@ -3306,7 +3303,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		bool match;
 
 		/* keep sta info, bssid if matching */
-		match = compare_ether_addr(ifmgd->bssid, req->bss->bssid) == 0;
+		match = ether_addr_equal(ifmgd->bssid, req->bss->bssid);
 		ieee80211_destroy_auth_data(sdata, match);
 	}
 
@@ -3466,7 +3463,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	       sdata->name, req->bssid, req->reason_code);
 
 	if (ifmgd->associated &&
-	    compare_ether_addr(ifmgd->associated->bssid, req->bssid) == 0)
+	    ether_addr_equal(ifmgd->associated->bssid, req->bssid))
 		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 				       req->reason_code, true, frame_buf);
 	else

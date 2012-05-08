@@ -127,7 +127,7 @@ static int ieee80211_check_concurrent_iface(struct ieee80211_sub_if_data *sdata,
 			 * The remaining checks are only performed for interfaces
 			 * with the same MAC address.
 			 */
-			if (compare_ether_addr(dev->dev_addr, ndev->dev_addr))
+			if (!ether_addr_equal(dev->dev_addr, ndev->dev_addr))
 				continue;
 
 			/*

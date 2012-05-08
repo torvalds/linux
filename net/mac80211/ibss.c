@@ -66,7 +66,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	skb_reset_tail_pointer(skb);
 	skb_reserve(skb, sdata->local->hw.extra_tx_headroom);
 
-	if (compare_ether_addr(ifibss->bssid, bssid))
+	if (!ether_addr_equal(ifibss->bssid, bssid))
 		sta_info_flush(sdata->local, sdata);
 
 	/* if merging, indicate to driver that we leave the old IBSS */
@@ -315,7 +315,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 		return NULL;
 	}
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid)) {
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid)) {
 		rcu_read_lock();
 		return NULL;
 	}
@@ -401,7 +401,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
-	    compare_ether_addr(mgmt->bssid, sdata->u.ibss.bssid) == 0) {
+	    ether_addr_equal(mgmt->bssid, sdata->u.ibss.bssid)) {
 
 		rcu_read_lock();
 		sta = sta_info_get(sdata, mgmt->sa);
@@ -506,7 +506,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		goto put_bss;
 
 	/* same BSSID */
-	if (compare_ether_addr(cbss->bssid, sdata->u.ibss.bssid) == 0)
+	if (ether_addr_equal(cbss->bssid, sdata->u.ibss.bssid))
 		goto put_bss;
 
 	if (rx_status->flag & RX_FLAG_MACTIME_MPDU) {
@@ -591,7 +591,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	if (ifibss->state == IEEE80211_IBSS_MLME_SEARCH)
 		return;
 
-	if (compare_ether_addr(bssid, sdata->u.ibss.bssid))
+	if (!ether_addr_equal(bssid, sdata->u.ibss.bssid))
 		return;
 
 	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
@@ -829,7 +829,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	if (!tx_last_beacon && is_multicast_ether_addr(mgmt->da))
 		return;
 
-	if (compare_ether_addr(mgmt->bssid, ifibss->bssid) != 0 &&
+	if (!ether_addr_equal(mgmt->bssid, ifibss->bssid) &&
 	    !is_broadcast_ether_addr(mgmt->bssid))
 		return;
 
