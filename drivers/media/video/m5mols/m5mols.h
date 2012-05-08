@@ -164,7 +164,7 @@ struct m5mols_version {
  * @exposure: manual exposure control
  * @auto_iso: auto/manual ISO sensitivity control
  * @iso: manual ISO sensitivity control
- * @autowb: Auto White Balance control
+ * @auto_wb: auto white balance control
  * @colorfx: color effect control
  * @saturation: saturation control
  * @zoom: zoom control
@@ -200,8 +200,8 @@ struct m5mols_info {
 		struct v4l2_ctrl *auto_iso;
 		struct v4l2_ctrl *iso;
 	};
-
 	struct v4l2_ctrl *auto_wb;
+
 	struct v4l2_ctrl *colorfx;
 	struct v4l2_ctrl *saturation;
 	struct v4l2_ctrl *zoom;

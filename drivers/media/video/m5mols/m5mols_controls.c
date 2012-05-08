@@ -256,16 +256,42 @@ static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 	return ret;
 }
 
-static int m5mols_set_white_balance(struct m5mols_info *info, int awb)
+static int m5mols_set_white_balance(struct m5mols_info *info, int val)
 {
-	int ret;
+	static const unsigned short wb[][2] = {
+		{ V4L2_WHITE_BALANCE_INCANDESCENT,  REG_AWB_INCANDESCENT },
+		{ V4L2_WHITE_BALANCE_FLUORESCENT,   REG_AWB_FLUORESCENT_1 },
+		{ V4L2_WHITE_BALANCE_FLUORESCENT_H, REG_AWB_FLUORESCENT_2 },
+		{ V4L2_WHITE_BALANCE_HORIZON,       REG_AWB_HORIZON },
+		{ V4L2_WHITE_BALANCE_DAYLIGHT,      REG_AWB_DAYLIGHT },
+		{ V4L2_WHITE_BALANCE_FLASH,         REG_AWB_LEDLIGHT },
+		{ V4L2_WHITE_BALANCE_CLOUDY,        REG_AWB_CLOUDY },
+		{ V4L2_WHITE_BALANCE_SHADE,         REG_AWB_SHADE },
+		{ V4L2_WHITE_BALANCE_AUTO,          REG_AWB_AUTO },
+	};
+	int i;
+	struct v4l2_subdev *sd = &info->sd;
+	int ret = -EINVAL;
 
-	ret = m5mols_lock_awb(info, !awb);
-	if (ret < 0)
-		return ret;
+	for (i = 0; i < ARRAY_SIZE(wb); i++) {
+		int awb;
+		if (wb[i][0] != val)
+			continue;
 
-	return m5mols_write(&info->sd, AWB_MODE, awb ? REG_AWB_AUTO :
-			    REG_AWB_PRESET);
+		v4l2_dbg(1, m5mols_debug, sd,
+			 "Setting white balance to: %#x\n", wb[i][0]);
+
+		awb = wb[i][0] == V4L2_WHITE_BALANCE_AUTO;
+		ret = m5mols_write(sd, AWB_MODE, awb ? REG_AWB_AUTO :
+						 REG_AWB_PRESET);
+		if (ret < 0)
+			return ret;
+
+		if (!awb)
+			ret = m5mols_write(sd, AWB_MANUAL, wb[i][1]);
+	}
+
+	return ret;
 }
 
 static int m5mols_set_saturation(struct m5mols_info *info, int val)
@@ -391,7 +417,7 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 		ret = m5mols_set_iso(info, ctrl->val);
 		break;
 
-	case V4L2_CID_AUTO_WHITE_BALANCE:
+	case V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE:
 		ret = m5mols_set_white_balance(info, ctrl->val);
 		break;
 
@@ -437,8 +463,9 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 
 	v4l2_ctrl_handler_init(&info->handle, 6);
 
-	info->auto_wb = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
-			V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 1);
+	info->auto_wb = v4l2_ctrl_new_std_menu(&info->handle,
+			&m5mols_ctrl_ops, V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE,
+			9, ~0x3fe, V4L2_WHITE_BALANCE_AUTO);
 
 	info->auto_exposure = v4l2_ctrl_new_std_menu(&info->handle,
 			&m5mols_ctrl_ops, V4L2_CID_EXPOSURE_AUTO,
