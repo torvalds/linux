@@ -189,6 +189,9 @@ ifneq ($(CONFIG_TIDSPBRIDGE),)
 obj-y					+= dsp.o
 endif
 
+# OMAP2420 MSDI controller integration support ("MMC")
+obj-$(CONFIG_SOC_OMAP2420)		+= msdi.o
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o

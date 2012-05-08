@@ -23,6 +23,7 @@
 #include <plat/dmtimer.h>
 #include <plat/l3_2xxx.h>
 #include <plat/l4_2xxx.h>
+#include <plat/mmc.h>
 
 #include "omap_hwmod_common_data.h"
 
@@ -239,6 +240,50 @@ static struct omap_hwmod omap2420_mcbsp2_hwmod = {
 	},
 };
 
+static struct omap_hwmod_class_sysconfig omap2420_msdi_sysc = {
+	.rev_offs	= 0x3c,
+	.sysc_offs	= 0x64,
+	.syss_offs	= 0x68,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2420_msdi_hwmod_class = {
+	.name	= "msdi",
+	.sysc	= &omap2420_msdi_sysc,
+	.reset	= &omap_msdi_reset,
+};
+
+/* msdi1 */
+static struct omap_hwmod_irq_info omap2420_msdi1_irqs[] = {
+	{ .irq = 83 },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_dma_info omap2420_msdi1_sdma_reqs[] = {
+	{ .name = "tx", .dma_req = 61 }, /* OMAP24XX_DMA_MMC1_TX */
+	{ .name = "rx", .dma_req = 62 }, /* OMAP24XX_DMA_MMC1_RX */
+	{ .dma_req = -1 }
+};
+
+static struct omap_hwmod omap2420_msdi1_hwmod = {
+	.name		= "msdi1",
+	.class		= &omap2420_msdi_hwmod_class,
+	.mpu_irqs	= omap2420_msdi1_irqs,
+	.sdma_reqs	= omap2420_msdi1_sdma_reqs,
+	.main_clk	= "mmc_fck",
+	.prcm		= {
+		.omap2 = {
+			.prcm_reg_id = 1,
+			.module_bit = OMAP2420_EN_MMC_SHIFT,
+			.module_offs = CORE_MOD,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP2420_ST_MMC_SHIFT,
+		},
+	},
+	.flags		= HWMOD_16BIT_REG,
+};
+
 /*
  * interfaces
  */
@@ -428,6 +473,24 @@ static struct omap_hwmod_ocp_if omap2420_l4_core__mcbsp2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+static struct omap_hwmod_addr_space omap2420_msdi1_addrs[] = {
+	{
+		.pa_start	= 0x4809c000,
+		.pa_end		= 0x4809c000 + SZ_128 - 1,
+		.flags		= ADDR_TYPE_RT,
+	},
+	{ }
+};
+
+/* l4_core -> msdi1 */
+static struct omap_hwmod_ocp_if omap2420_l4_core__msdi1 = {
+	.master		= &omap2xxx_l4_core_hwmod,
+	.slave		= &omap2420_msdi1_hwmod,
+	.clk		= "mmc_ick",
+	.addr		= omap2420_msdi1_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *omap2420_hwmod_ocp_ifs[] __initdata = {
 	&omap2xxx_l3_main__l4_core,
 	&omap2xxx_mpu__l3_main,
@@ -468,6 +531,7 @@ static struct omap_hwmod_ocp_if *omap2420_hwmod_ocp_ifs[] __initdata = {
 	&omap2420_l4_core__mailbox,
 	&omap2420_l4_core__mcbsp1,
 	&omap2420_l4_core__mcbsp2,
+	&omap2420_l4_core__msdi1,
 	NULL,
 };
 
