@@ -18,6 +18,7 @@
 #define __LINUX_MFD_TPS65910_H
 
 #include <linux/gpio.h>
+#include <linux/regmap.h>
 
 /* TPS chip id list */
 #define TPS65910			0
@@ -823,8 +824,6 @@ struct tps65910 {
 	struct regmap *regmap;
 	struct mutex io_mutex;
 	unsigned int id;
-	int (*read)(struct tps65910 *tps65910, u8 reg, int size, void *dest);
-	int (*write)(struct tps65910 *tps65910, u8 reg, int size, void *src);
 
 	/* Client devices */
 	struct tps65910_pmic *pmic;
@@ -847,8 +846,6 @@ struct tps65910_platform_data {
 	int irq_base;
 };
 
-int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
-int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask);
 void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		struct tps65910_platform_data *pdata);
@@ -857,6 +854,30 @@ int tps65910_irq_exit(struct tps65910 *tps65910);
 static inline int tps65910_chip_id(struct tps65910 *tps65910)
 {
 	return tps65910->id;
+}
+
+static inline int tps65910_reg_read(struct tps65910 *tps65910, u8 reg,
+		unsigned int *val)
+{
+	return regmap_read(tps65910->regmap, reg, val);
+}
+
+static inline int tps65910_reg_write(struct tps65910 *tps65910, u8 reg,
+		unsigned int val)
+{
+	return regmap_write(tps65910->regmap, reg, val);
+}
+
+static inline int tps65910_reg_set_bits(struct tps65910 *tps65910, u8 reg,
+		u8 mask)
+{
+	return regmap_update_bits(tps65910->regmap, reg, mask, mask);
+}
+
+static inline int tps65910_reg_clear_bits(struct tps65910 *tps65910, u8 reg,
+		u8 mask)
+{
+	return regmap_update_bits(tps65910->regmap, reg, mask, 0);
 }
 
 #endif /*  __LINUX_MFD_TPS65910_H */

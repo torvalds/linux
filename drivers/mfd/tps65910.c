@@ -37,30 +37,6 @@ static struct mfd_cell tps65910s[] = {
 };
 
 
-static int tps65910_i2c_read(struct tps65910 *tps65910, u8 reg,
-				  int bytes, void *dest)
-{
-	return regmap_bulk_read(tps65910->regmap, reg, dest, bytes);
-}
-
-static int tps65910_i2c_write(struct tps65910 *tps65910, u8 reg,
-				  int bytes, void *src)
-{
-	return regmap_bulk_write(tps65910->regmap, reg, src, bytes);
-}
-
-int tps65910_set_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
-{
-	return regmap_update_bits(tps65910->regmap, reg, mask, mask);
-}
-EXPORT_SYMBOL_GPL(tps65910_set_bits);
-
-int tps65910_clear_bits(struct tps65910 *tps65910, u8 reg, u8 mask)
-{
-	return regmap_update_bits(tps65910->regmap, reg, mask, 0);
-}
-EXPORT_SYMBOL_GPL(tps65910_clear_bits);
-
 static bool is_volatile_reg(struct device *dev, unsigned int reg)
 {
 	struct tps65910 *tps65910 = dev_get_drvdata(dev);
@@ -102,7 +78,7 @@ static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
 		return 0;
 
 	/* enabling SLEEP device state */
-	ret = tps65910_set_bits(tps65910, TPS65910_DEVCTRL,
+	ret = tps65910_reg_set_bits(tps65910, TPS65910_DEVCTRL,
 				DEVCTRL_DEV_SLP_MASK);
 	if (ret < 0) {
 		dev_err(dev, "set dev_slp failed: %d\n", ret);
@@ -114,7 +90,8 @@ static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
 		return 0;
 
 	if (pmic_pdata->slp_keepon->therm_keepon) {
-		ret = tps65910_set_bits(tps65910, TPS65910_SLEEP_KEEP_RES_ON,
+		ret = tps65910_reg_set_bits(tps65910,
+				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_THERM_KEEPON_MASK);
 		if (ret < 0) {
 			dev_err(dev, "set therm_keepon failed: %d\n", ret);
@@ -123,7 +100,8 @@ static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
 	}
 
 	if (pmic_pdata->slp_keepon->clkout32k_keepon) {
-		ret = tps65910_set_bits(tps65910, TPS65910_SLEEP_KEEP_RES_ON,
+		ret = tps65910_reg_set_bits(tps65910,
+				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_CLKOUT32K_KEEPON_MASK);
 		if (ret < 0) {
 			dev_err(dev, "set clkout32k_keepon failed: %d\n", ret);
@@ -132,7 +110,8 @@ static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
 	}
 
 	if (pmic_pdata->slp_keepon->i2chs_keepon) {
-		ret = tps65910_set_bits(tps65910, TPS65910_SLEEP_KEEP_RES_ON,
+		ret = tps65910_reg_set_bits(tps65910,
+				TPS65910_SLEEP_KEEP_RES_ON,
 				SLEEP_KEEP_RES_ON_I2CHS_KEEPON_MASK);
 		if (ret < 0) {
 			dev_err(dev, "set i2chs_keepon failed: %d\n", ret);
@@ -143,7 +122,8 @@ static int __devinit tps65910_sleepinit(struct tps65910 *tps65910,
 	return 0;
 
 disable_dev_slp:
-	tps65910_clear_bits(tps65910, TPS65910_DEVCTRL, DEVCTRL_DEV_SLP_MASK);
+	tps65910_reg_clear_bits(tps65910, TPS65910_DEVCTRL,
+				DEVCTRL_DEV_SLP_MASK);
 
 err_sleep_init:
 	return ret;
@@ -176,8 +156,6 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910->dev = &i2c->dev;
 	tps65910->i2c_client = i2c;
 	tps65910->id = id->driver_data;
-	tps65910->read = tps65910_i2c_read;
-	tps65910->write = tps65910_i2c_write;
 	mutex_init(&tps65910->io_mutex);
 
 	tps65910->regmap = regmap_init_i2c(i2c, &tps65910_regmap_config);

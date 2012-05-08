@@ -331,19 +331,14 @@ struct tps65910_reg {
 
 static inline int tps65910_read(struct tps65910_reg *pmic, u8 reg)
 {
-	u8 val;
+	unsigned int val;
 	int err;
 
-	err = pmic->mfd->read(pmic->mfd, reg, 1, &val);
+	err = tps65910_reg_read(pmic->mfd, reg, &val);
 	if (err)
 		return err;
 
 	return val;
-}
-
-static inline int tps65910_write(struct tps65910_reg *pmic, u8 reg, u8 val)
-{
-	return pmic->mfd->write(pmic->mfd, reg, 1, &val);
 }
 
 static int tps65910_modify_bits(struct tps65910_reg *pmic, u8 reg,
@@ -362,7 +357,7 @@ static int tps65910_modify_bits(struct tps65910_reg *pmic, u8 reg,
 
 	data &= ~clear_mask;
 	data |= set_mask;
-	err = tps65910_write(pmic, reg, data);
+	err = tps65910_reg_write(pmic->mfd, reg, data);
 	if (err)
 		dev_err(pmic->mfd->dev, "Write for reg 0x%x failed\n", reg);
 
@@ -371,7 +366,7 @@ out:
 	return err;
 }
 
-static int tps65910_reg_read(struct tps65910_reg *pmic, u8 reg)
+static int tps65910_reg_read_locked(struct tps65910_reg *pmic, u8 reg)
 {
 	int data;
 
@@ -385,13 +380,13 @@ static int tps65910_reg_read(struct tps65910_reg *pmic, u8 reg)
 	return data;
 }
 
-static int tps65910_reg_write(struct tps65910_reg *pmic, u8 reg, u8 val)
+static int tps65910_reg_write_locked(struct tps65910_reg *pmic, u8 reg, u8 val)
 {
 	int err;
 
 	mutex_lock(&pmic->mutex);
 
-	err = tps65910_write(pmic, reg, val);
+	err = tps65910_reg_write(pmic->mfd, reg, val);
 	if (err < 0)
 		dev_err(pmic->mfd->dev, "Write for reg 0x%x failed\n", reg);
 
@@ -476,7 +471,7 @@ static int tps65910_is_enabled(struct regulator_dev *dev)
 	if (reg < 0)
 		return reg;
 
-	value = tps65910_reg_read(pmic, reg);
+	value = tps65910_reg_read_locked(pmic, reg);
 	if (value < 0)
 		return value;
 
@@ -493,7 +488,7 @@ static int tps65910_enable(struct regulator_dev *dev)
 	if (reg < 0)
 		return reg;
 
-	return tps65910_set_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
+	return tps65910_reg_set_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
 }
 
 static int tps65910_disable(struct regulator_dev *dev)
@@ -506,7 +501,7 @@ static int tps65910_disable(struct regulator_dev *dev)
 	if (reg < 0)
 		return reg;
 
-	return tps65910_clear_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
+	return tps65910_reg_clear_bits(mfd, reg, TPS65910_SUPPLY_STATE_ENABLED);
 }
 
 static int tps65910_enable_time(struct regulator_dev *dev)
@@ -532,9 +527,9 @@ static int tps65910_set_mode(struct regulator_dev *dev, unsigned int mode)
 							LDO_ST_MODE_BIT);
 	case REGULATOR_MODE_IDLE:
 		value = LDO_ST_ON_BIT | LDO_ST_MODE_BIT;
-		return tps65910_set_bits(mfd, reg, value);
+		return tps65910_reg_set_bits(mfd, reg, value);
 	case REGULATOR_MODE_STANDBY:
-		return tps65910_clear_bits(mfd, reg, LDO_ST_ON_BIT);
+		return tps65910_reg_clear_bits(mfd, reg, LDO_ST_ON_BIT);
 	}
 
 	return -EINVAL;
@@ -549,7 +544,7 @@ static unsigned int tps65910_get_mode(struct regulator_dev *dev)
 	if (reg < 0)
 		return reg;
 
-	value = tps65910_reg_read(pmic, reg);
+	value = tps65910_reg_read_locked(pmic, reg);
 	if (value < 0)
 		return value;
 
@@ -569,28 +564,28 @@ static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
 
 	switch (id) {
 	case TPS65910_REG_VDD1:
-		opvsel = tps65910_reg_read(pmic, TPS65910_VDD1_OP);
-		mult = tps65910_reg_read(pmic, TPS65910_VDD1);
+		opvsel = tps65910_reg_read_locked(pmic, TPS65910_VDD1_OP);
+		mult = tps65910_reg_read_locked(pmic, TPS65910_VDD1);
 		mult = (mult & VDD1_VGAIN_SEL_MASK) >> VDD1_VGAIN_SEL_SHIFT;
-		srvsel = tps65910_reg_read(pmic, TPS65910_VDD1_SR);
+		srvsel = tps65910_reg_read_locked(pmic, TPS65910_VDD1_SR);
 		sr = opvsel & VDD1_OP_CMD_MASK;
 		opvsel &= VDD1_OP_SEL_MASK;
 		srvsel &= VDD1_SR_SEL_MASK;
 		vselmax = 75;
 		break;
 	case TPS65910_REG_VDD2:
-		opvsel = tps65910_reg_read(pmic, TPS65910_VDD2_OP);
-		mult = tps65910_reg_read(pmic, TPS65910_VDD2);
+		opvsel = tps65910_reg_read_locked(pmic, TPS65910_VDD2_OP);
+		mult = tps65910_reg_read_locked(pmic, TPS65910_VDD2);
 		mult = (mult & VDD2_VGAIN_SEL_MASK) >> VDD2_VGAIN_SEL_SHIFT;
-		srvsel = tps65910_reg_read(pmic, TPS65910_VDD2_SR);
+		srvsel = tps65910_reg_read_locked(pmic, TPS65910_VDD2_SR);
 		sr = opvsel & VDD2_OP_CMD_MASK;
 		opvsel &= VDD2_OP_SEL_MASK;
 		srvsel &= VDD2_SR_SEL_MASK;
 		vselmax = 75;
 		break;
 	case TPS65911_REG_VDDCTRL:
-		opvsel = tps65910_reg_read(pmic, TPS65911_VDDCTRL_OP);
-		srvsel = tps65910_reg_read(pmic, TPS65911_VDDCTRL_SR);
+		opvsel = tps65910_reg_read_locked(pmic, TPS65911_VDDCTRL_OP);
+		srvsel = tps65910_reg_read_locked(pmic, TPS65911_VDDCTRL_SR);
 		sr = opvsel & VDDCTRL_OP_CMD_MASK;
 		opvsel &= VDDCTRL_OP_SEL_MASK;
 		srvsel &= VDDCTRL_SR_SEL_MASK;
@@ -630,7 +625,7 @@ static int tps65910_get_voltage(struct regulator_dev *dev)
 	if (reg < 0)
 		return reg;
 
-	value = tps65910_reg_read(pmic, reg);
+	value = tps65910_reg_read_locked(pmic, reg);
 	if (value < 0)
 		return value;
 
@@ -669,7 +664,7 @@ static int tps65911_get_voltage(struct regulator_dev *dev)
 
 	reg = pmic->get_ctrl_reg(id);
 
-	value = tps65910_reg_read(pmic, reg);
+	value = tps65910_reg_read_locked(pmic, reg);
 
 	switch (id) {
 	case TPS65911_REG_LDO1:
@@ -728,7 +723,7 @@ static int tps65910_set_voltage_dcdc_sel(struct regulator_dev *dev,
 		tps65910_modify_bits(pmic, TPS65910_VDD1,
 				(dcdc_mult << VDD1_VGAIN_SEL_SHIFT),
 						VDD1_VGAIN_SEL_MASK);
-		tps65910_reg_write(pmic, TPS65910_VDD1_OP, vsel);
+		tps65910_reg_write_locked(pmic, TPS65910_VDD1_OP, vsel);
 		break;
 	case TPS65910_REG_VDD2:
 		dcdc_mult = (selector / VDD1_2_NUM_VOLT_FINE) + 1;
@@ -739,11 +734,11 @@ static int tps65910_set_voltage_dcdc_sel(struct regulator_dev *dev,
 		tps65910_modify_bits(pmic, TPS65910_VDD2,
 				(dcdc_mult << VDD2_VGAIN_SEL_SHIFT),
 						VDD1_VGAIN_SEL_MASK);
-		tps65910_reg_write(pmic, TPS65910_VDD2_OP, vsel);
+		tps65910_reg_write_locked(pmic, TPS65910_VDD2_OP, vsel);
 		break;
 	case TPS65911_REG_VDDCTRL:
 		vsel = selector + 3;
-		tps65910_reg_write(pmic, TPS65911_VDDCTRL_OP, vsel);
+		tps65910_reg_write_locked(pmic, TPS65911_VDDCTRL_OP, vsel);
 	}
 
 	return 0;
@@ -994,10 +989,10 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 
 	/* External EN1 control */
 	if (ext_sleep_config & TPS65910_SLEEP_CONTROL_EXT_INPUT_EN1)
-		ret = tps65910_set_bits(mfd,
+		ret = tps65910_reg_set_bits(mfd,
 				TPS65910_EN1_LDO_ASS + regoffs, bit_pos);
 	else
-		ret = tps65910_clear_bits(mfd,
+		ret = tps65910_reg_clear_bits(mfd,
 				TPS65910_EN1_LDO_ASS + regoffs, bit_pos);
 	if (ret < 0) {
 		dev_err(mfd->dev,
@@ -1007,10 +1002,10 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 
 	/* External EN2 control */
 	if (ext_sleep_config & TPS65910_SLEEP_CONTROL_EXT_INPUT_EN2)
-		ret = tps65910_set_bits(mfd,
+		ret = tps65910_reg_set_bits(mfd,
 				TPS65910_EN2_LDO_ASS + regoffs, bit_pos);
 	else
-		ret = tps65910_clear_bits(mfd,
+		ret = tps65910_reg_clear_bits(mfd,
 				TPS65910_EN2_LDO_ASS + regoffs, bit_pos);
 	if (ret < 0) {
 		dev_err(mfd->dev,
@@ -1022,10 +1017,10 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 	if ((tps65910_chip_id(mfd) == TPS65910) &&
 			(id >= TPS65910_REG_VDIG1)) {
 		if (ext_sleep_config & TPS65910_SLEEP_CONTROL_EXT_INPUT_EN3)
-			ret = tps65910_set_bits(mfd,
+			ret = tps65910_reg_set_bits(mfd,
 				TPS65910_EN3_LDO_ASS + regoffs, bit_pos);
 		else
-			ret = tps65910_clear_bits(mfd,
+			ret = tps65910_reg_clear_bits(mfd,
 				TPS65910_EN3_LDO_ASS + regoffs, bit_pos);
 		if (ret < 0) {
 			dev_err(mfd->dev,
@@ -1037,10 +1032,10 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 	/* Return if no external control is selected */
 	if (!(ext_sleep_config & EXT_SLEEP_CONTROL)) {
 		/* Clear all sleep controls */
-		ret = tps65910_clear_bits(mfd,
+		ret = tps65910_reg_clear_bits(mfd,
 			TPS65910_SLEEP_KEEP_LDO_ON + regoffs, bit_pos);
 		if (!ret)
-			ret = tps65910_clear_bits(mfd,
+			ret = tps65910_reg_clear_bits(mfd,
 				TPS65910_SLEEP_SET_LDO_OFF + regoffs, bit_pos);
 		if (ret < 0)
 			dev_err(mfd->dev,
@@ -1059,32 +1054,33 @@ static int tps65910_set_ext_sleep_config(struct tps65910_reg *pmic,
 				(tps65910_chip_id(mfd) == TPS65911))) {
 		int op_reg_add = pmic->get_ctrl_reg(id) + 1;
 		int sr_reg_add = pmic->get_ctrl_reg(id) + 2;
-		int opvsel = tps65910_reg_read(pmic, op_reg_add);
-		int srvsel = tps65910_reg_read(pmic, sr_reg_add);
+		int opvsel = tps65910_reg_read_locked(pmic, op_reg_add);
+		int srvsel = tps65910_reg_read_locked(pmic, sr_reg_add);
 		if (opvsel & VDD1_OP_CMD_MASK) {
 			u8 reg_val = srvsel & VDD1_OP_SEL_MASK;
-			ret = tps65910_reg_write(pmic, op_reg_add, reg_val);
+			ret = tps65910_reg_write_locked(pmic, op_reg_add,
+							reg_val);
 			if (ret < 0) {
 				dev_err(mfd->dev,
 					"Error in configuring op register\n");
 				return ret;
 			}
 		}
-		ret = tps65910_reg_write(pmic, sr_reg_add, 0);
+		ret = tps65910_reg_write_locked(pmic, sr_reg_add, 0);
 		if (ret < 0) {
 			dev_err(mfd->dev, "Error in settting sr register\n");
 			return ret;
 		}
 	}
 
-	ret = tps65910_clear_bits(mfd,
+	ret = tps65910_reg_clear_bits(mfd,
 			TPS65910_SLEEP_KEEP_LDO_ON + regoffs, bit_pos);
 	if (!ret) {
 		if (ext_sleep_config & TPS65911_SLEEP_CONTROL_EXT_INPUT_SLEEP)
-			ret = tps65910_set_bits(mfd,
+			ret = tps65910_reg_set_bits(mfd,
 				TPS65910_SLEEP_SET_LDO_OFF + regoffs, bit_pos);
 		else
-			ret = tps65910_clear_bits(mfd,
+			ret = tps65910_reg_clear_bits(mfd,
 				TPS65910_SLEEP_SET_LDO_OFF + regoffs, bit_pos);
 	}
 	if (ret < 0)
@@ -1117,7 +1113,7 @@ static __devinit int tps65910_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, pmic);
 
 	/* Give control of all register to control port */
-	tps65910_set_bits(pmic->mfd, TPS65910_DEVCTRL,
+	tps65910_reg_set_bits(pmic->mfd, TPS65910_DEVCTRL,
 				DEVCTRL_SR_CTL_I2C_SEL_MASK);
 
 	switch(tps65910_chip_id(tps65910)) {
