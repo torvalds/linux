@@ -1635,21 +1635,14 @@ int dwc_otg20phy_suspend( int exitsuspend )
         clk_enable(pcd->otg_dev->phyclk);
         pcd->phy_suspend = 0;
         *otg_phy_con1 = ((0x01<<2)<<16);    // exit suspend.
-//        *otg_phy_con1 |= (0x01<<3);
-//        *otg_phy_con1 &= ~(0x01<<2);
-        
-        /* 20091011,reenable usb phy ,will raise reset intr */
-//        DWC_PRINT("enable usb phy 0x%x\n", *otg_phy_con1);
         DWC_DEBUGPL(DBG_PCDV, "enable usb phy\n");
     }
     if( !exitsuspend && (pcd->phy_suspend == 0)) {
         pcd->phy_suspend = 1;
-        *otg_phy_con1 = ((0x01<<2)|(0x00<<3)|(0x05<<6))|(((0x01<<2)|(0x01<<3)|(0x07<<6))<<16);   // enter suspend.
+        *otg_phy_con1 = 0x554|(0xfff<<16);   // enter suspend.
         udelay(3);
         clk_disable(pcd->otg_dev->phyclk);
         clk_disable(pcd->otg_dev->ahbclk);
-        //*otg_phy_con1 &= ~(0x01<<2);
-//        DWC_PRINT("disable usb phy 0x%x\n", *otg_phy_con1);
         DWC_DEBUGPL(DBG_PCDV, "disable usb phy\n");
     }
 #endif
@@ -1824,6 +1817,8 @@ static void dwc_otg_pcd_check_vbus_timer( unsigned long pdata )
     	    _pcd->vbus_status = 1;
             if(_pcd->conn_en)
                 goto connect;
+            else
+                dwc_otg20phy_suspend( 0 );
         } 
         else if((_pcd->conn_en)&&(_pcd->conn_status>=0)&&(_pcd->conn_status <3)){
             DWC_PRINT("********soft reconnect******************************************\n");
