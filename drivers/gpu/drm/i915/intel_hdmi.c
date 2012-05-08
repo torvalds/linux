@@ -113,8 +113,8 @@ static u32 intel_infoframe_enable(struct dip_infoframe *frame)
 	return flags;
 }
 
-static void i9xx_write_infoframe(struct drm_encoder *encoder,
-				 struct dip_infoframe *frame)
+static void g4x_write_infoframe(struct drm_encoder *encoder,
+				struct dip_infoframe *frame)
 {
 	uint32_t *data = (uint32_t *)frame;
 	struct drm_device *dev = encoder->dev;
@@ -654,7 +654,7 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 	intel_hdmi->sdvox_reg = sdvox_reg;
 
 	if (!HAS_PCH_SPLIT(dev)) {
-		intel_hdmi->write_infoframe = i9xx_write_infoframe;
+		intel_hdmi->write_infoframe = g4x_write_infoframe;
 		I915_WRITE(VIDEO_DIP_CTL, 0);
 	} else if (IS_VALLEYVIEW(dev)) {
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
