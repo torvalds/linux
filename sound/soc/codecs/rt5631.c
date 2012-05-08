@@ -1751,17 +1751,7 @@ static struct i2c_driver rt5631_i2c_driver = {
 	.id_table = rt5631_i2c_id,
 };
 
-static int __init rt5631_modinit(void)
-{
-	return i2c_add_driver(&rt5631_i2c_driver);
-}
-module_init(rt5631_modinit);
-
-static void __exit rt5631_modexit(void)
-{
-	i2c_del_driver(&rt5631_i2c_driver);
-}
-module_exit(rt5631_modexit);
+module_i2c_driver(rt5631_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC RT5631 driver");
 MODULE_AUTHOR("flove <flove@realtek.com>");
