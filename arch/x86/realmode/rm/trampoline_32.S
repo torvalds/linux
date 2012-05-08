@@ -47,24 +47,29 @@ trampoline_data:
 
 	cli			# We should be safe anyway
 
+	movl	startup_32_smp, %eax	# where we need to go
+
 	movl	$0xA5A5A5A5, trampoline_status
 				# write marker for master knows we're running
 
-	/* GDT tables in non default location kernel can be beyond 16MB and
+	/*
+	 * GDT tables in non default location kernel can be beyond 16MB and
 	 * lgdt will not be able to load the address as in real mode default
 	 * operand size is 16bit. Use lgdtl instead to force operand size
 	 * to 32 bit.
 	 */
-
 	lidtl	boot_idt_descr		# load idt with 0, 0
 	lgdtl	boot_gdt_descr		# load gdt with whatever is appropriate
 
-	xor	%ax, %ax
-	inc	%ax			# protected mode (PE) bit
-	lmsw	%ax			# into protected mode
+	movw	$1, %dx			# protected mode (PE) bit
+	lmsw	%dx			# into protected mode
 
-	# flush prefetch and jump to startup_32_smp in arch/i386/kernel/head.S
-	ljmpl	*(startup_32_smp)
+	ljmpl	$__BOOT_CS, $pa_startup_32
+
+	.section ".text32","ax"
+	.code32
+ENTRY(startup_32)			# note: also used from wakeup_asm.S
+	jmp	*%eax
 
 	.data
 	.globl startup_32_smp, boot_gdt, trampoline_status
@@ -82,5 +87,4 @@ trampoline_status:
 	.long	0
 
 startup_32_smp:
-	.long	0x00000000
-	.word	__BOOT_CS, 0
+	.long	0
