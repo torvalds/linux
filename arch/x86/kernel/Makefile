@@ -36,6 +36,7 @@ obj-y			+= pci-iommu_table.o
 obj-y			+= resource.o
 
 obj-y				+= trampoline.o trampoline_$(BITS).o
+obj-y				+= realmode.o
 obj-y				+= process.o
 obj-y				+= i387.o xsave.o
 obj-y				+= ptrace.o
