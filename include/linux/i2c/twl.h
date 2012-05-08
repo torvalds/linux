@@ -762,6 +762,11 @@ struct twl_regulator_driver_data {
 #define TWL5031			BIT(2)  /* twl5031 has different registers */
 #define TWL6030_CLASS		BIT(3)	/* TWL6030 class */
 #define TWL6025_SUBCLASS	BIT(4)  /* TWL6025 has changed registers */
+#define TWL4030_ALLOW_UNSUPPORTED BIT(5) /* Some voltages are possible
+					  * but not officially supported.
+					  * This flag is necessary to
+					  * enable them.
+					  */
 
 /*----------------------------------------------------------------------*/
 
