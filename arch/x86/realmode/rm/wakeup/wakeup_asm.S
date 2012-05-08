@@ -1,6 +1,7 @@
 /*
  * ACPI wakeup real mode startup stub
  */
+#include <linux/linkage.h>
 #include <asm/segment.h>
 #include <asm/msr-index.h>
 #include <asm/page_types.h>
@@ -9,31 +10,33 @@
 #include "../realmode.h"
 #include "wakeup.h"
 
-		.code16
+	.code16
 
 /* This should match the structure in wakeup.h */
-		.section ".data", "aw"
-		.globl	wakeup_header
-wakeup_header:
-video_mode:	.short	0	/* Video mode number */
-pmode_entry:	.long	0
-pmode_cs:	.short	__KERNEL_CS
-pmode_cr0:	.long	0	/* Saved %cr0 */
-pmode_cr3:	.long	0	/* Saved %cr3 */
-pmode_cr4:	.long	0	/* Saved %cr4 */
-pmode_efer:	.quad	0	/* Saved EFER */
-pmode_gdt:	.quad	0
-pmode_misc_en:	.quad	0	/* Saved MISC_ENABLE MSR */
-pmode_behavior:	.long	0	/* Wakeup behavior flags */
-realmode_flags:	.long	0
-real_magic:	.long	0
-signature:	.long	WAKEUP_HEADER_SIGNATURE
-		.size	wakeup_header, .-wakeup_header
+	.section ".data", "aw"
+
+	.balign	16
+GLOBAL(wakeup_header)
+	video_mode:	.short	0	/* Video mode number */
+	pmode_entry:	.long	0
+	pmode_cs:	.short	__KERNEL_CS
+	pmode_cr0:	.long	0	/* Saved %cr0 */
+	pmode_cr3:	.long	0	/* Saved %cr3 */
+	pmode_cr4:	.long	0	/* Saved %cr4 */
+	pmode_efer:	.quad	0	/* Saved EFER */
+	pmode_gdt:	.quad	0
+	pmode_misc_en:	.quad	0	/* Saved MISC_ENABLE MSR */
+	pmode_behavior:	.long	0	/* Wakeup behavior flags */
+	realmode_flags:	.long	0
+	real_magic:	.long	0
+	signature:	.long	WAKEUP_HEADER_SIGNATURE
+END(wakeup_header)
 
 	.text
 	.code16
-	.globl	wakeup_start
-wakeup_start:
+
+	.balign	16
+ENTRY(wakeup_start)
 	cli
 	cld
 
@@ -62,12 +65,14 @@ wakeup_start:
 3:
 	/* Set up segments */
 	movw	%cs, %ax
+	movw	%ax, %ss
+	movl	$rm_stack_end, %esp
 	movw	%ax, %ds
 	movw	%ax, %es
-	movw	%ax, %ss
-	lidtl	wakeup_idt
+	movw	%ax, %fs
+	movw	%ax, %gs
 
-	movl	$wakeup_stack_end, %esp
+	lidtl	wakeup_idt
 
 	/* Clear the EFLAGS */
 	pushl	$0
@@ -145,9 +150,8 @@ bogus_real_magic:
 	 * be the case for other laptops or integrated video devices.
 	 */
 
-	.globl	wakeup_gdt
 	.balign	16
-wakeup_gdt:
+GLOBAL(wakeup_gdt)
 	.word	3*8-1		/* Self-descriptor */
 	.long	pa_wakeup_gdt
 	.word	0
@@ -159,29 +163,18 @@ wakeup_gdt:
 	.word	0xffff		/* 16-bit data segment @ real_mode_base */
 	.long	0x93000000 + pa_real_mode_base
 	.word	0x008f		/* big real mode */
-	.size	wakeup_gdt, .-wakeup_gdt
+END(wakeup_gdt)
 
-	.data
+	.section ".rodata","a"
 	.balign	8
 
 	/* This is the standard real-mode IDT */
-wakeup_idt:
+	.balign	16
+GLOBAL(wakeup_idt)
 	.word	0xffff		/* limit */
 	.long	0		/* address */
 	.word	0
-
-	.globl	HEAP, heap_end
-HEAP:
-	.long	wakeup_heap
-heap_end:
-	.long	wakeup_stack
-
-	.bss
-wakeup_heap:
-	.space	2048
-wakeup_stack:
-	.space	2048
-wakeup_stack_end:
+END(wakeup_idt)
 
 	.section ".signature","a"
 end_signature:

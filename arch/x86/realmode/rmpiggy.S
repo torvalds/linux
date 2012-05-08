@@ -9,10 +9,10 @@
 
 	.balign PAGE_SIZE
 
-ENTRY(real_mode_blob)
+GLOBAL(real_mode_blob)
 	.incbin	"arch/x86/realmode/rm/realmode.bin"
 END(real_mode_blob)
 
-ENTRY(real_mode_relocs)
+GLOBAL(real_mode_relocs)
 	.incbin	"arch/x86/realmode/rm/realmode.relocs"
 END(real_mode_relocs)

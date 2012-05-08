@@ -64,7 +64,7 @@ void __init setup_real_mode(void)
 	*((u32 *)__va(real_mode_header.boot_gdt)) = __pa(boot_gdt);
 #else
 	*((u64 *) __va(real_mode_header.startup_64_smp)) =
-		(u64) __pa(secondary_startup_64);
+		(u64)secondary_startup_64;
 
 	*((u64 *) __va(real_mode_header.level3_ident_pgt)) =
 		__pa(level3_ident_pgt) + _KERNPG_TABLE;

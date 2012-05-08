@@ -52,7 +52,7 @@ ENTRY(trampoline_data)
 	# write marker for master knows we're running
 
 	# Setup stack
-	movw	$trampoline_stack_end, %sp
+	movl	$rm_stack_end, %esp
 
 	call	verify_cpu		# Verify the cpu supports long mode
 	testl   %eax, %eax		# Check for return code
@@ -68,8 +68,11 @@ ENTRY(trampoline_data)
 	lidtl	tidt	# load idt with 0, 0
 	lgdtl	tgdt	# load gdt with whatever is appropriate
 
-	mov	$X86_CR0_PE, %ax	# protected mode (PE) bit
-	lmsw	%ax			# into protected mode
+	movw	$__KERNEL_DS, %dx	# Data segment descriptor
+
+	# Enable protected mode
+	movl	$X86_CR0_PE, %eax	# protected mode (PE) bit
+	movl	%eax, %cr0		# into protected mode
 
 	# flush prefetch and jump to startup_32
 	ljmpl	$__KERNEL32_CS, $pa_startup_32
@@ -83,27 +86,27 @@ no_longmode:
 	.code32
 	.balign 4
 ENTRY(startup_32)
-	movl	$__KERNEL_DS, %eax	# Initialize the %ds segment register
-	movl	%eax, %ds
+	movl	%edx, %ss
+	addl	$pa_real_mode_base, %esp
+	movl	%edx, %ds
+	movl	%edx, %es
+	movl	%edx, %fs
+	movl	%edx, %gs
 
 	movl	$X86_CR4_PAE, %eax
 	movl	%eax, %cr4		# Enable PAE mode
 
-	movl	pa_startup_64_smp, %esi
-	movl	pa_startup_64_smp_high, %edi
-
-					# Setup trampoline 4 level pagetables
-	leal	pa_trampoline_level4_pgt, %eax
+	# Setup trampoline 4 level pagetables
+	movl	$pa_level3_ident_pgt, %eax
 	movl	%eax, %cr3
 
 	movl	$MSR_EFER, %ecx
-	movl	$(1 << _EFER_LME), %eax	# Enable Long Mode
+	movl	$((1 << _EFER_LME) | (1 << _EFER_NX)), %eax	# Enable Long Mode
 	xorl	%edx, %edx
 	wrmsr
 
 	# Enable paging and in turn activate Long Mode
-	# Enable protected mode
-	movl	$(X86_CR0_PG | X86_CR0_PE), %eax
+	movl	$(X86_CR0_PG | X86_CR0_WP | X86_CR0_PE), %eax
 	movl	%eax, %cr0
 
 	/*
@@ -119,10 +122,7 @@ ENTRY(startup_32)
 	.balign 4
 ENTRY(startup_64)
 	# Now jump into the kernel using virtual addresses
-	movl	%edi, %eax
-	shlq	$32, %rax
-	addl	%esi, %eax
-	jmp	*%rax
+	jmpq	*startup_64_smp(%rip)
 
 	.section ".rodata","a"
 	.balign	16
@@ -132,10 +132,10 @@ tidt:
 
 	# Duplicate the global descriptor table
 	# so the kernel can live anywhere
-	.balign 4
+	.balign 16
 	.globl tgdt
 tgdt:
-	.short	tgdt_end - tgdt		# gdt limit
+	.short	tgdt_end - tgdt - 1	# gdt limit
 	.long	pa_tgdt
 	.short	0
 	.quad	0x00cf9b000000ffff	# __KERNEL32_CS
@@ -143,23 +143,12 @@ tgdt:
 	.quad	0x00cf93000000ffff	# __KERNEL_DS
 tgdt_end:
 
-	.data
-	.balign 4
-GLOBAL(trampoline_status)
-	.long	0
+	.bss
 
-trampoline_stack:
-	.org 0x1000
-trampoline_stack_end:
+	.balign	PAGE_SIZE
+GLOBAL(level3_ident_pgt)	.space	511*8
+GLOBAL(level3_kernel_pgt)	.space	8
 
-	.globl	level3_ident_pgt
-	.globl	level3_kernel_pgt
-GLOBAL(trampoline_level4_pgt)
-	level3_ident_pgt:	.quad	0
-	.fill 510,8,0
-	level3_kernel_pgt:	.quad	0
-
-	.globl	startup_64_smp
-	.globl	startup_64_smp_high
-startup_64_smp:		.long 0
-startup_64_smp_high:	.long 0
+	.balign	8
+GLOBAL(startup_64_smp)		.space	8
+GLOBAL(trampoline_status)	.space	4

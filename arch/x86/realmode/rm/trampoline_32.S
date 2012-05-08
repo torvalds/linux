@@ -33,10 +33,9 @@
 
 	.text
 	.code16
-	.globl trampoline_data
 
-	.balign PAGE_SIZE
-trampoline_data:
+	.balign	PAGE_SIZE
+ENTRY(trampoline_data)
 	wbinvd			# Needed for NUMA-Q should be harmless for others
 
 	LJMPW_RM(1f)
@@ -70,20 +69,22 @@ trampoline_data:
 ENTRY(startup_32)			# note: also used from wakeup_asm.S
 	jmp	*%eax
 
-	.data
-	.globl startup_32_smp, boot_gdt, trampoline_status
-	.balign	4
-boot_gdt_descr:
-	.word	__BOOT_DS + 7			# gdt limit
-boot_gdt:
-	.long	0				# gdt base
+	.section ".rodata","a"
 
+	.balign	4
 boot_idt_descr:
 	.word	0				# idt limit = 0
 	.long	0				# idt base = 0L
 
-trampoline_status:
-	.long	0
+	.data
 
-startup_32_smp:
-	.long	0
+boot_gdt_descr:
+	.word	__BOOT_DS + 7			# gdt limit
+GLOBAL(boot_gdt)
+	.long	0				# gdt base
+
+	.bss
+
+	.balign	4
+GLOBAL(trampoline_status)	.space	4
+GLOBAL(startup_32_smp)		.space	4

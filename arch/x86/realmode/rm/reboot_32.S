@@ -16,10 +16,9 @@
  */
 	.section ".text32", "ax"
 	.code32
-	.globl machine_real_restart_asm
 
-	.balign 16
-machine_real_restart_asm:
+	.balign	16
+ENTRY(machine_real_restart_asm)
 	/* Set up the IDT for real mode. */
 	lidtl	pa_machine_real_restart_idt
 
@@ -67,7 +66,7 @@ machine_real_restart_asm:
 	.text
 	.code16
 
-	.balign 16
+	.balign	16
 machine_real_restart_asm16:
 1:
 	xorl	%ecx, %ecx
@@ -102,15 +101,15 @@ bios:
 	ljmpw	$0xf000, $0xfff0
 
 	.section ".rodata", "a"
-	.globl	machine_real_restart_idt, machine_real_restart_gdt
 
-	.balign 16
-machine_real_restart_idt:
+	.balign	16
+GLOBAL(machine_real_restart_idt)
 	.word	0xffff		/* Length - real mode default value */
 	.long	0		/* Base - real mode default value */
+END(machine_real_restart_idt)
 
-	.balign 16
-machine_real_restart_gdt:
+	.balign	16
+GLOBAL(machine_real_restart_gdt)
 	/* Self-pointer */
 	.word	0xffff		/* Length - real mode default value */
 	.long	pa_machine_real_restart_gdt
@@ -130,3 +129,4 @@ machine_real_restart_gdt:
 	 * semantics we don't have to reload the segments once CR0.PE = 0.
 	 */
 	.quad	GDT_ENTRY(0x0093, 0x100, 0xffff)
+END(machine_real_restart_gdt)

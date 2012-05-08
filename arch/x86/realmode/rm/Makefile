@@ -13,6 +13,7 @@ always := realmode.bin
 
 realmode-y			+= header.o
 realmode-y			+= trampoline_$(BITS).o
+realmode-y			+= stack.o
 realmode-$(CONFIG_X86_32)	+= reboot_32.o
 realmode-$(CONFIG_ACPI_SLEEP)	+= wakeup/wakeup.o
 
