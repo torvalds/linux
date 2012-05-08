@@ -6,6 +6,7 @@
 #include <asm/realmode.h>
 
 struct real_mode_header *real_mode_header;
+u32 *trampoline_cr4_features;
 
 void __init setup_real_mode(void)
 {
@@ -64,7 +65,14 @@ void __init setup_real_mode(void)
 	trampoline_header->gdt_limit = __BOOT_DS + 7;
 	trampoline_header->gdt_base = __pa(boot_gdt);
 #else
+	if (rdmsr_safe(MSR_EFER, &trampoline_header->efer_low,
+		       &trampoline_header->efer_high))
+		BUG();
+
 	trampoline_header->start = (u64) secondary_startup_64;
+	trampoline_cr4_features = &trampoline_header->cr4;
+	*trampoline_cr4_features = read_cr4();
+
 	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
 	trampoline_pgd[0] = __pa(level3_ident_pgt) + _KERNPG_TABLE;
 	trampoline_pgd[511] = __pa(level3_kernel_pgt) + _KERNPG_TABLE;

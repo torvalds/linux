@@ -24,18 +24,22 @@ struct real_mode_header {
 #ifdef CONFIG_X86_32
 	u32	machine_real_restart_asm;
 #endif
-} __attribute__((__packed__));
+};
 
 /* This must match data at trampoline_32/64.S */
 struct trampoline_header {
 #ifdef CONFIG_X86_32
 	u32 start;
+	u16 gdt_pad;
 	u16 gdt_limit;
 	u32 gdt_base;
 #else
 	u64 start;
+	u32 cr4;
+	u32 efer_low;
+	u32 efer_high;
 #endif
-} __attribute__((__packed__));
+};
 
 extern struct real_mode_header *real_mode_header;
 extern unsigned char real_mode_blob_end[];

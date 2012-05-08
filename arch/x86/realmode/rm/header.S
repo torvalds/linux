@@ -9,6 +9,7 @@
 
 	.section ".header", "a"
 
+	.balign	16
 GLOBAL(real_mode_header)
 	.long	pa_text_start
 	.long	pa_ro_end

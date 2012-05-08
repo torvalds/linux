@@ -544,13 +544,16 @@ static inline void load_sp0(struct tss_struct *tss,
  * enable), so that any CPU's that boot up
  * after us can get the correct flags.
  */
-extern unsigned long		mmu_cr4_features;
+extern unsigned long mmu_cr4_features;
+extern u32 *trampoline_cr4_features;
 
 static inline void set_in_cr4(unsigned long mask)
 {
 	unsigned long cr4;
 
 	mmu_cr4_features |= mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
 	cr4 = read_cr4();
 	cr4 |= mask;
 	write_cr4(cr4);
@@ -561,6 +564,8 @@ static inline void clear_in_cr4(unsigned long mask)
 	unsigned long cr4;
 
 	mmu_cr4_features &= ~mask;
+	if (trampoline_cr4_features)
+		*trampoline_cr4_features = mmu_cr4_features;
 	cr4 = read_cr4();
 	cr4 &= ~mask;
 	write_cr4(cr4);

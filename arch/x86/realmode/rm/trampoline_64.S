@@ -34,9 +34,9 @@
 #include "realmode.h"
 
 	.text
-	.balign PAGE_SIZE
 	.code16
 
+	.balign	PAGE_SIZE
 ENTRY(trampoline_start)
 	cli			# We should be safe anyway
 	wbinvd
@@ -65,8 +65,8 @@ ENTRY(trampoline_start)
 	 * to 32 bit.
 	 */
 
-	lidtl	tidt	# load idt with 0, 0
-	lgdtl	tgdt	# load gdt with whatever is appropriate
+	lidtl	tr_idt	# load idt with 0, 0
+	lgdtl	tr_gdt	# load gdt with whatever is appropriate
 
 	movw	$__KERNEL_DS, %dx	# Data segment descriptor
 
@@ -93,16 +93,17 @@ ENTRY(startup_32)
 	movl	%edx, %fs
 	movl	%edx, %gs
 
-	movl	$X86_CR4_PAE, %eax
+	movl	pa_tr_cr4, %eax
 	movl	%eax, %cr4		# Enable PAE mode
 
 	# Setup trampoline 4 level pagetables
 	movl	$pa_trampoline_pgd, %eax
 	movl	%eax, %cr3
 
+	# Set up EFER
+	movl	pa_tr_efer, %eax
+	movl	pa_tr_efer + 4, %edx
 	movl	$MSR_EFER, %ecx
-	movl	$((1 << _EFER_LME) | (1 << _EFER_NX)), %eax	# Enable Long Mode
-	xorl	%edx, %edx
 	wrmsr
 
 	# Enable paging and in turn activate Long Mode
@@ -123,24 +124,5 @@ ENTRY(startup_32)
 ENTRY(startup_64)
 	# Now jump into the kernel using virtual addresses
 	jmpq	*tr_start(%rip)
-
-	.section ".rodata","a"
-	.balign	16
-tidt:
-	.word	0			# idt limit = 0
-	.word	0, 0			# idt base = 0L
-
-	# Duplicate the global descriptor table
-	# so the kernel can live anywhere
-	.balign 16
-	.globl tgdt
-tgdt:
-	.short	tgdt_end - tgdt - 1	# gdt limit
-	.long	pa_tgdt
-	.short	0
-	.quad	0x00cf9b000000ffff	# __KERNEL32_CS
-	.quad	0x00af9b000000ffff	# __KERNEL_CS
-	.quad	0x00cf93000000ffff	# __KERNEL_DS
-tgdt_end:
 
 #include "trampoline_common.S"
