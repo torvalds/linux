@@ -404,7 +404,7 @@ int rk610_lcd_init(struct rk610_core_info *rk610_core_info)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	g_lcd_inf->early_suspend.suspend = rk610_lcd_early_suspend;
 	g_lcd_inf->early_suspend.resume = rk610_lcd_early_resume;
-	g_lcd_inf->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
+	g_lcd_inf->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB- 1;
 	register_early_suspend(&g_lcd_inf->early_suspend);
 #endif
     g_lcd_inf->scl_inf.pll_pwr = DISABLE;
