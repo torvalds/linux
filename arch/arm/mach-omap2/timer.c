@@ -145,8 +145,10 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 {
 	char name[10]; /* 10 = sizeof("gptXX_Xck0") */
 	struct omap_hwmod *oh;
+	struct resource irq_rsrc, mem_rsrc;
 	size_t size;
 	int res = 0;
+	int r;
 
 	sprintf(name, "timer%d", gptimer_id);
 	omap_hwmod_setup_one(name);
@@ -154,9 +156,16 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	if (!oh)
 		return -ENODEV;
 
-	timer->irq = oh->mpu_irqs[0].irq;
-	timer->phys_base = oh->slaves[0]->addr->pa_start;
-	size = oh->slaves[0]->addr->pa_end - timer->phys_base;
+	r = omap_hwmod_get_resource_byname(oh, IORESOURCE_IRQ, NULL, &irq_rsrc);
+	if (r)
+		return -ENXIO;
+	timer->irq = irq_rsrc.start;
+
+	r = omap_hwmod_get_resource_byname(oh, IORESOURCE_MEM, NULL, &mem_rsrc);
+	if (r)
+		return -ENXIO;
+	timer->phys_base = mem_rsrc.start;
+	size = mem_rsrc.end - mem_rsrc.start;
 
 	/* Static mapping, never released */
 	timer->io_base = ioremap(timer->phys_base, size);

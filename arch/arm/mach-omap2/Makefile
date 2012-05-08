@@ -118,16 +118,18 @@ obj-$(CONFIG_ARCH_OMAP4)		+= $(powerdomain-common) \
 					   powerdomains44xx_data.o
 
 # PRCM clockdomain control
-obj-$(CONFIG_ARCH_OMAP2)		+= clockdomain.o \
+clockdomain-common			+= clockdomain.o \
+					   clockdomains_common_data.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(clockdomain-common) \
 					   clockdomain2xxx_3xxx.o \
 					   clockdomains2xxx_3xxx_data.o
 obj-$(CONFIG_SOC_OMAP2420)		+= clockdomains2420_data.o
 obj-$(CONFIG_SOC_OMAP2430)		+= clockdomains2430_data.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clockdomain.o \
+obj-$(CONFIG_ARCH_OMAP3)		+= $(clockdomain-common) \
 					   clockdomain2xxx_3xxx.o \
 					   clockdomains2xxx_3xxx_data.o \
 					   clockdomains3xxx_data.o
-obj-$(CONFIG_ARCH_OMAP4)		+= clockdomain.o \
+obj-$(CONFIG_ARCH_OMAP4)		+= $(clockdomain-common) \
 					   clockdomain44xx.o \
 					   clockdomains44xx_data.o
 
