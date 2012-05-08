@@ -232,8 +232,8 @@ struct trace_msg_t {
 #define CUR_ERR                 0x70	/* current error                    */
 #define DEF_ERR                 0x71	/* specific command error           */
 
-/*---- sense key Infomation ----*/
-#define SNSKEYINFO_LEN          3	/* length of sense key infomation   */
+/*---- sense key Information ----*/
+#define SNSKEYINFO_LEN          3	/* length of sense key information   */
 
 #define SKSV                    0x80
 #define CDB_ILLEGAL             0x40
@@ -286,13 +286,13 @@ struct sense_data_t {
 	unsigned char seg_no;	/* segment No.                      */
 	unsigned char sense_key;	/* byte5 : ILI                      */
 	/* bit3-0 : sense key              */
-	unsigned char info[4];	/* infomation                       */
+	unsigned char info[4];	/* information                       */
 	unsigned char ad_sense_len;	/* additional sense data length     */
-	unsigned char cmd_info[4];	/* command specific infomation      */
+	unsigned char cmd_info[4];	/* command specific information      */
 	unsigned char asc;	/* ASC                              */
 	unsigned char ascq;	/* ASCQ                             */
 	unsigned char rfu;	/* FRU                              */
-	unsigned char sns_key_info[3];	/* sense key specific infomation    */
+	unsigned char sns_key_info[3];	/* sense key specific information    */
 };
 
 /* sd_ctl bit map */

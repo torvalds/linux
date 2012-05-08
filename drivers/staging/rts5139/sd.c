@@ -1518,7 +1518,7 @@ static u8 sd_search_final_phase(struct rts51x_chip *chip, u32 phase_map,
 	}
 
 Search_Finish:
-	RTS51X_DEBUGP("Final choosen phase: %d\n", final_phase);
+	RTS51X_DEBUGP("Final chosen phase: %d\n", final_phase);
 	return final_phase;
 }
 
