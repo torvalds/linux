@@ -110,26 +110,23 @@ static inline int hash_add(struct hashtable_t *hash,
 	head = &hash->table[index];
 	list_lock = &hash->list_locks[index];
 
-	rcu_read_lock();
-	__hlist_for_each_rcu(node, head) {
+	spin_lock_bh(list_lock);
+
+	hlist_for_each(node, head) {
 		if (!compare(node, data))
 			continue;
 
 		ret = 1;
-		goto err_unlock;
+		goto unlock;
 	}
-	rcu_read_unlock();
 
 	/* no duplicate found in list, add new element */
-	spin_lock_bh(list_lock);
 	hlist_add_head_rcu(data_node, head);
-	spin_unlock_bh(list_lock);
 
 	ret = 0;
-	goto out;
 
-err_unlock:
-	rcu_read_unlock();
+unlock:
+	spin_unlock_bh(list_lock);
 out:
 	return ret;
 }
