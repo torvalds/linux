@@ -287,11 +287,6 @@ asmlinkage long sys32_sigaction(int sig, struct old_sigaction32 __user *act,
 	return ret;
 }
 
-asmlinkage long sys32_alarm(unsigned int seconds)
-{
-	return alarm_setitimer(seconds);
-}
-
 asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr,
 			      int options)
 {
@@ -299,11 +294,6 @@ asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int *stat_addr,
 }
 
 /* 32-bit timeval and related flotsam.  */
-
-asmlinkage long sys32_sysfs(int option, u32 arg1, u32 arg2)
-{
-	return sys_sysfs(option, arg1, arg2);
-}
 
 asmlinkage long sys32_sched_rr_get_interval(compat_pid_t pid,
 				    struct compat_timespec __user *interval)
@@ -374,19 +364,6 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
 			  ((loff_t)AA(poshi) << 32) | AA(poslo));
 }
 
-
-asmlinkage long sys32_personality(unsigned long personality)
-{
-	int ret;
-
-	if (personality(current->personality) == PER_LINUX32 &&
-		personality == PER_LINUX)
-		personality = PER_LINUX32;
-	ret = sys_personality(personality);
-	if (ret == PER_LINUX32)
-		ret = PER_LINUX;
-	return ret;
-}
 
 asmlinkage long sys32_sendfile(int out_fd, int in_fd,
 			       compat_off_t __user *offset, s32 count)
