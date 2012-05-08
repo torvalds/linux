@@ -392,6 +392,11 @@ struct usb_endpoint_descriptor {
 #define USB_ENDPOINT_XFER_INT		3
 #define USB_ENDPOINT_MAX_ADJUSTABLE	0x80
 
+/* The USB 3.0 spec redefines bits 5:4 of bmAttributes as interrupt ep type. */
+#define USB_ENDPOINT_INTRTYPE		0x30
+#define USB_ENDPOINT_INTR_PERIODIC	(0 << 4)
+#define USB_ENDPOINT_INTR_NOTIFICATION	(1 << 4)
+
 #define USB_ENDPOINT_SYNCTYPE		0x0c
 #define USB_ENDPOINT_SYNC_NONE		(0 << 2)
 #define USB_ENDPOINT_SYNC_ASYNC		(1 << 2)
@@ -592,6 +597,12 @@ static inline int usb_endpoint_is_isoc_out(
 static inline int usb_endpoint_maxp(const struct usb_endpoint_descriptor *epd)
 {
 	return __le16_to_cpu(epd->wMaxPacketSize);
+}
+
+static inline int usb_endpoint_interrupt_type(
+		const struct usb_endpoint_descriptor *epd)
+{
+	return epd->bmAttributes & USB_ENDPOINT_INTRTYPE;
 }
 
 /*-------------------------------------------------------------------------*/
