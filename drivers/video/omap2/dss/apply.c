@@ -548,11 +548,13 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 
 	oi = &op->info;
 
+	mp = get_mgr_priv(ovl->manager);
+
 	replication = dss_use_replication(ovl->manager->device, oi->color_mode);
 
 	ilace = ovl->manager->device->type == OMAP_DISPLAY_TYPE_VENC;
 
-	r = dispc_ovl_setup(ovl->id, oi, ilace, replication);
+	r = dispc_ovl_setup(ovl->id, oi, ilace, replication, &mp->timings);
 	if (r) {
 		/*
 		 * We can't do much here, as this function can be called from
@@ -565,8 +567,6 @@ static void dss_ovl_write_regs(struct omap_overlay *ovl)
 		dispc_ovl_enable(ovl->id, false);
 		return;
 	}
-
-	mp = get_mgr_priv(ovl->manager);
 
 	op->info_dirty = false;
 	if (mp->updating)
