@@ -62,6 +62,13 @@ static const char * const sym_regex_kernel[S_NSYMTYPES] = {
 
 static const char * const sym_regex_realmode[S_NSYMTYPES] = {
 /*
+ * These symbols are known to be relative, even if the linker marks them
+ * as absolute (typically defined outside any section in the linker script.)
+ */
+	[S_REL] =
+	"^pa_",
+
+/*
  * These are 16-bit segment symbols when compiling 16-bit code.
  */
 	[S_SEG] =
