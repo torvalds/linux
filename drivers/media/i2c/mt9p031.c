@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/log2.h>
 #include <linux/pm.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 
@@ -120,6 +121,10 @@ struct mt9p031 {
 	struct mt9p031_platform_data *pdata;
 	struct mutex power_lock; /* lock to protect power_count */
 	int power_count;
+
+	struct regulator *vaa;
+	struct regulator *vdd;
+	struct regulator *vdd_io;
 
 	enum mt9p031_model model;
 	struct aptina_pll pll;
@@ -264,6 +269,11 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 		usleep_range(1000, 2000);
 	}
 
+	/* Bring up the supplies */
+	regulator_enable(mt9p031->vdd);
+	regulator_enable(mt9p031->vdd_io);
+	regulator_enable(mt9p031->vaa);
+
 	/* Emable clock */
 	if (mt9p031->pdata->set_xclk)
 		mt9p031->pdata->set_xclk(&mt9p031->subdev,
@@ -284,6 +294,10 @@ static void mt9p031_power_off(struct mt9p031 *mt9p031)
 		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
+
+	regulator_disable(mt9p031->vaa);
+	regulator_disable(mt9p031->vdd_io);
+	regulator_disable(mt9p031->vdd);
 
 	if (mt9p031->pdata->set_xclk)
 		mt9p031->pdata->set_xclk(&mt9p031->subdev, 0);
@@ -936,6 +950,16 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->mode2 = MT9P031_READ_MODE_2_ROW_BLC;
 	mt9p031->model = did->driver_data;
 	mt9p031->reset = -1;
+
+	mt9p031->vaa = devm_regulator_get(&client->dev, "vaa");
+	mt9p031->vdd = devm_regulator_get(&client->dev, "vdd");
+	mt9p031->vdd_io = devm_regulator_get(&client->dev, "vdd_io");
+
+	if (IS_ERR(mt9p031->vaa) || IS_ERR(mt9p031->vdd) ||
+	    IS_ERR(mt9p031->vdd_io)) {
+		dev_err(&client->dev, "Unable to get regulators\n");
+		return -ENODEV;
+	}
 
 	v4l2_ctrl_handler_init(&mt9p031->ctrls, ARRAY_SIZE(mt9p031_ctrls) + 6);
 
