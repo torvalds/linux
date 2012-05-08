@@ -21,33 +21,6 @@
 #define MCLK1_RATE (44100 * 512)
 #define CLKOUT_RATE (44100 * 256)
 
-static int lowland_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *params)
-{
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	int ret;
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_I2S
-					 | SND_SOC_DAIFMT_NB_NF
-					 | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S
-					 | SND_SOC_DAIFMT_NB_NF
-					 | SND_SOC_DAIFMT_CBM_CFM);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static struct snd_soc_ops lowland_ops = {
-	.hw_params = lowland_hw_params,
-};
-
 static struct snd_soc_jack lowland_headset;
 
 /* Headset jack detection DAPM pins */
@@ -109,7 +82,8 @@ static struct snd_soc_dai_link lowland_dai[] = {
 		.codec_dai_name = "wm5100-aif1",
 		.platform_name = "samsung-audio",
 		.codec_name = "wm5100.1-001a",
-		.ops = &lowland_ops,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBM_CFM,
 		.init = lowland_wm5100_init,
 	},
 	{
@@ -118,7 +92,8 @@ static struct snd_soc_dai_link lowland_dai[] = {
 		.cpu_dai_name = "wm5100-aif2",
 		.codec_dai_name = "wm1250-ev1",
 		.codec_name = "wm1250-ev1.1-0027",
-		.ops = &lowland_ops,
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+				SND_SOC_DAIFMT_CBM_CFM,
 		.ignore_suspend = 1,
 	},
 };
