@@ -65,7 +65,6 @@ SECTIONS
 	.signature : {
 		*(.signature)
 	}
-	pa_end = .;
 
 	/DISCARD/ : {
 		*(.note*)

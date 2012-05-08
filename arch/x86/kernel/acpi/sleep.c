@@ -38,7 +38,7 @@ asmlinkage void acpi_enter_s3(void)
 int acpi_suspend_lowlevel(void)
 {
 	struct wakeup_header *header =
-		(struct wakeup_header *) __va(real_mode_header.wakeup_header);
+		(struct wakeup_header *) __va(real_mode_header->wakeup_header);
 
 	if (header->signature != WAKEUP_HEADER_SIGNATURE) {
 		printk(KERN_ERR "wakeup header does not match\n");

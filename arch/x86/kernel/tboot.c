@@ -202,7 +202,7 @@ static int tboot_setup_sleep(void)
 	}
 
 	tboot->acpi_sinfo.kernel_s3_resume_vector =
-		real_mode_header.wakeup_start;
+		real_mode_header->wakeup_start;
 
 	return 0;
 }

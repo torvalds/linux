@@ -5,8 +5,7 @@
 #include <asm/pgtable.h>
 #include <asm/realmode.h>
 
-unsigned char *real_mode_base;
-struct real_mode_header real_mode_header;
+struct real_mode_header *real_mode_header;
 
 void __init setup_real_mode(void)
 {
@@ -17,33 +16,32 @@ void __init setup_real_mode(void)
 	u32 *ptr;
 	u16 *seg;
 	int i;
+	unsigned char *base;
 
-	struct real_mode_header *header =
-		(struct real_mode_header *) real_mode_blob;
-
-	size_t size = PAGE_ALIGN(header->end);
+	size_t size = PAGE_ALIGN(real_mode_blob_end - real_mode_blob);
 
 	/* Has to be in very low memory so we can execute real-mode AP code. */
 	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
 	if (!mem)
 		panic("Cannot allocate trampoline\n");
 
-	real_mode_base = __va(mem);
+	base = __va(mem);
 	memblock_reserve(mem, size);
+	real_mode_header = (struct real_mode_header *) base;
 
 	printk(KERN_DEBUG "Base memory trampoline at [%p] %llx size %zu\n",
-	       real_mode_base, (unsigned long long)mem, size);
+	       base, (unsigned long long)mem, size);
 
-	memcpy(real_mode_base, real_mode_blob, size);
+	memcpy(base, real_mode_blob, size);
 
-	real_mode_seg = __pa(real_mode_base) >> 4;
+	real_mode_seg = __pa(base) >> 4;
 	rel = (u32 *) real_mode_relocs;
 
 	/* 16-bit segment relocations. */
 	count = rel[0];
 	rel = &rel[1];
 	for (i = 0; i < count; i++) {
-		seg = (u16 *) (real_mode_base + rel[i]);
+		seg = (u16 *) (base + rel[i]);
 		*seg = real_mode_seg;
 	}
 
@@ -51,25 +49,21 @@ void __init setup_real_mode(void)
 	count = rel[i];
 	rel =  &rel[i + 1];
 	for (i = 0; i < count; i++) {
-		ptr = (u32 *) (real_mode_base + rel[i]);
-		*ptr += __pa(real_mode_base);
+		ptr = (u32 *) (base + rel[i]);
+		*ptr += __pa(base);
 	}
 
-	/* Copied header will contain relocated physical addresses. */
-	memcpy(&real_mode_header, real_mode_base,
-	       sizeof(struct real_mode_header));
-
 #ifdef CONFIG_X86_32
-	*((u32 *)__va(real_mode_header.startup_32_smp)) = __pa(startup_32_smp);
-	*((u32 *)__va(real_mode_header.boot_gdt)) = __pa(boot_gdt);
+	*((u32 *)__va(real_mode_header->startup_32_smp)) = __pa(startup_32_smp);
+	*((u32 *)__va(real_mode_header->boot_gdt)) = __pa(boot_gdt);
 #else
-	*((u64 *) __va(real_mode_header.startup_64_smp)) =
+	*((u64 *) __va(real_mode_header->startup_64_smp)) =
 		(u64)secondary_startup_64;
 
-	*((u64 *) __va(real_mode_header.level3_ident_pgt)) =
+	*((u64 *) __va(real_mode_header->level3_ident_pgt)) =
 		__pa(level3_ident_pgt) + _KERNPG_TABLE;
 
-	*((u64 *) __va(real_mode_header.level3_kernel_pgt)) =
+	*((u64 *) __va(real_mode_header->level3_kernel_pgt)) =
 		__pa(level3_kernel_pgt) + _KERNPG_TABLE;
 #endif
 }
@@ -82,23 +76,22 @@ void __init setup_real_mode(void)
  */
 static int __init set_real_mode_permissions(void)
 {
-	size_t all_size =
-		PAGE_ALIGN(real_mode_header.end) -
-		__pa(real_mode_base);
+	unsigned char *base = (unsigned char *) real_mode_header;
+	size_t size = PAGE_ALIGN(real_mode_blob_end - real_mode_blob);
 
 	size_t ro_size =
-		PAGE_ALIGN(real_mode_header.ro_end) -
-		__pa(real_mode_base);
+		PAGE_ALIGN(real_mode_header->ro_end) -
+		__pa(base);
 
 	size_t text_size =
-		PAGE_ALIGN(real_mode_header.ro_end) -
-		real_mode_header.text_start;
+		PAGE_ALIGN(real_mode_header->ro_end) -
+		real_mode_header->text_start;
 
 	unsigned long text_start =
-		(unsigned long) __va(real_mode_header.text_start);
+		(unsigned long) __va(real_mode_header->text_start);
 
-	set_memory_nx((unsigned long) real_mode_base, all_size >> PAGE_SHIFT);
-	set_memory_ro((unsigned long) real_mode_base, ro_size >> PAGE_SHIFT);
+	set_memory_nx((unsigned long) base, size >> PAGE_SHIFT);
+	set_memory_ro((unsigned long) base, ro_size >> PAGE_SHIFT);
 	set_memory_x((unsigned long) text_start, text_size >> PAGE_SHIFT);
 
 	return 0;

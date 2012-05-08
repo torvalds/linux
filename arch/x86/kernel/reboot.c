@@ -336,7 +336,7 @@ core_initcall(reboot_init);
 void machine_real_restart(unsigned int type)
 {
 	void (*restart_lowmem)(unsigned int) = (void (*)(unsigned int))
-		real_mode_header.machine_real_restart_asm;
+		real_mode_header->machine_real_restart_asm;
 
 	local_irq_disable();
 

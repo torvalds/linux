@@ -665,9 +665,9 @@ static void __cpuinit announce_cpu(int cpu, int apicid)
 static int __cpuinit do_boot_cpu(int apicid, int cpu)
 {
 	volatile u32 *trampoline_status =
-		(volatile u32 *) __va(real_mode_header.trampoline_status);
+		(volatile u32 *) __va(real_mode_header->trampoline_status);
 	/* start_ip had better be page-aligned! */
-	unsigned long start_ip = real_mode_header.trampoline_data;
+	unsigned long start_ip = real_mode_header->trampoline_data;
 
 	unsigned long boot_error = 0;
 	int timeout;

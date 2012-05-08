@@ -8,7 +8,6 @@
 struct real_mode_header {
 	u32	text_start;
 	u32	ro_end;
-	u32	end;
 	/* reboot */
 #ifdef CONFIG_X86_32
 	u32	machine_real_restart_asm;
@@ -30,8 +29,8 @@ struct real_mode_header {
 #endif
 } __attribute__((__packed__));
 
-extern struct real_mode_header real_mode_header;
-extern unsigned char *real_mode_base;
+extern struct real_mode_header *real_mode_header;
+extern unsigned char real_mode_blob_end[];
 
 extern unsigned long init_rsp;
 extern unsigned long initial_code;
