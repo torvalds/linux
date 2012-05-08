@@ -1374,9 +1374,12 @@ int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 
 	for (i = 0; i < NUM_ACCESS_CATEGORIES_COPY; i++)
 		if (sta->wme && (sta->uapsd_queues & BIT(i)))
-			cmd->psd_type[i] = WL1271_PSD_UPSD_TRIGGER;
+			cmd->psd_type[NUM_ACCESS_CATEGORIES_COPY-1-i] =
+					WL1271_PSD_UPSD_TRIGGER;
 		else
-			cmd->psd_type[i] = WL1271_PSD_LEGACY;
+			cmd->psd_type[NUM_ACCESS_CATEGORIES_COPY-1-i] =
+					WL1271_PSD_LEGACY;
+
 
 	sta_rates = sta->supp_rates[wlvif->band];
 	if (sta->ht_cap.ht_supported)
