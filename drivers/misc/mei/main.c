@@ -1201,7 +1201,7 @@ static int __init mei_init_module(void)
 	/* init pci module */
 	ret = pci_register_driver(&mei_driver);
 	if (ret < 0)
-		printk(KERN_ERR "mei: Error registering driver.\n");
+		pr_err("error registering driver.\n");
 
 	return ret;
 }
