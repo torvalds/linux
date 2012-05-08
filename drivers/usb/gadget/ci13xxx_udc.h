@@ -103,6 +103,8 @@ struct ci13xxx_ep {
 struct ci13xxx;
 struct ci13xxx_udc_driver {
 	const char	*name;
+	/* offset of the capability registers */
+	uintptr_t	 capoffset;
 	unsigned long	 flags;
 #define CI13XXX_REGS_SHARED		BIT(0)
 #define CI13XXX_REQUIRE_TRANSCEIVER	BIT(1)
@@ -144,6 +146,7 @@ struct ci13xxx {
 	u8                         test_mode;  /* the selected test mode */
 
 	struct hw_bank             hw_bank;
+	int			   irq;
 	struct usb_gadget_driver  *driver;     /* 3rd party gadget driver */
 	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */
 	int                        vbus_active; /* is VBUS active */

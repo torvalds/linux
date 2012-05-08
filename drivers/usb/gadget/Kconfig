@@ -378,16 +378,28 @@ config USB_FSL_QE
 	   Set CONFIG_USB_GADGET to "m" to build this driver as a
 	   dynamically linked module called "fsl_qe_udc".
 
+config USB_CHIPIDEA_UDC
+	tristate "ChipIdea UDC driver"
+	select USB_GADGET_DUALSPEED
+	help
+	  This module contains the ChipIdea USB device controller driver;
+	  you will also need platform driver like ci13xxx_pci or ci13xxx_msm
+	  to use it.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "ci13xxx_udc", which will serve
+	  as a driver for ChipIdea udc on different platforms.
+
 config USB_CI13XXX_PCI
 	tristate "MIPS USB CI13xxx PCI UDC"
-	depends on PCI
+	depends on PCI && USB_CHIPIDEA_UDC
 	select USB_GADGET_DUALSPEED
 	help
 	  MIPS USB IP core family device controller
 	  Currently it only supports IP part number CI13412
 
 	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_udc" and force all
+	  dynamically linked module called "ci13xxx_pci" and force all
 	  gadget drivers to also be dynamically linked.
 
 config USB_NET2272
@@ -484,7 +496,7 @@ config USB_EG20T
 
 config USB_CI13XXX_MSM
 	tristate "MIPS USB CI13xxx for MSM"
-	depends on ARCH_MSM
+	depends on ARCH_MSM && USB_CHIPIDEA_UDC
 	select USB_GADGET_DUALSPEED
 	select USB_MSM_OTG
 	help

@@ -55,6 +55,8 @@
 #include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
+#include <linux/platform_device.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -66,7 +68,6 @@
 #include <linux/usb/otg.h>
 
 #include "ci13xxx_udc.h"
-
 
 /******************************************************************************
  * DEFINE
@@ -2806,7 +2807,7 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
  * This function returns IRQ_HANDLED if the IRQ has been handled
  * It locks access to registers
  */
-static irqreturn_t udc_irq(void)
+static irqreturn_t udc_irq(int irq, void *data)
 {
 	struct ci13xxx *udc = _udc;
 	irqreturn_t retval;
@@ -2901,7 +2902,7 @@ static void udc_release(struct device *dev)
  * Kernel assumes 32-bit DMA operations by default, no need to dma_set_mask
  */
 static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
-		     void __iomem *regs, uintptr_t capoffset)
+		     void __iomem *regs)
 {
 	struct ci13xxx *udc;
 	int retval = 0;
@@ -2935,7 +2936,7 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	udc->gadget.dev.parent   = dev;
 	udc->gadget.dev.release  = udc_release;
 
-	retval = hw_device_init(udc, regs, capoffset);
+	retval = hw_device_init(udc, regs, driver->capoffset);
 	if (retval < 0)
 		goto free_udc;
 
@@ -3033,3 +3034,72 @@ static void udc_remove(void)
 	kfree(udc);
 	_udc = NULL;
 }
+
+static int __devinit ci_udc_probe(struct platform_device *pdev)
+{
+	struct device	*dev = &pdev->dev;
+	struct ci13xxx_udc_driver *driver = dev->platform_data;
+	struct resource	*res;
+	void __iomem	*base;
+	int		ret;
+
+	if (!driver) {
+		dev_err(dev, "platform data missing\n");
+		return -ENODEV;
+	}
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res) {
+		dev_err(dev, "missing resource\n");
+		return -ENODEV;
+	}
+
+	base = devm_request_and_ioremap(dev, res);
+	if (!res) {
+		dev_err(dev, "can't request and ioremap resource\n");
+		return -ENOMEM;
+	}
+
+	ret = udc_probe(driver, dev, base);
+	if (ret)
+		return ret;
+
+	_udc->irq = platform_get_irq(pdev, 0);
+	if (_udc->irq < 0) {
+		dev_err(dev, "missing IRQ\n");
+		ret = -ENODEV;
+		goto out;
+	}
+
+	ret = request_irq(_udc->irq, udc_irq, IRQF_SHARED, driver->name, _udc);
+
+out:
+	if (ret)
+		udc_remove();
+
+	return ret;
+}
+
+static int __devexit ci_udc_remove(struct platform_device *pdev)
+{
+	free_irq(_udc->irq, _udc);
+	udc_remove();
+
+	return 0;
+}
+
+static struct platform_driver ci_udc_driver = {
+	.probe	= ci_udc_probe,
+	.remove	= __devexit_p(ci_udc_remove),
+	.driver	= {
+		.name	= "ci_udc",
+	},
+};
+
+module_platform_driver(ci_udc_driver);
+
+MODULE_ALIAS("platform:ci_udc");
+MODULE_ALIAS("platform:ci13xxx");
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("David Lopo <dlopo@chipidea.mips.com>");
+MODULE_DESCRIPTION("ChipIdea UDC Driver");
