@@ -5,7 +5,7 @@
 Overview
 --------
 Uprobe based trace events are similar to kprobe based trace events.
-To enable this feature, build your kernel with CONFIG_UPROBE_EVENTS=y.
+To enable this feature, build your kernel with CONFIG_UPROBE_EVENT=y.
 
 Similar to the kprobe-event tracer, this doesn't need to be activated via
 current_tracer. Instead of that, add probe points via
@@ -68,7 +68,25 @@ in the object. We can see the events that are registered by looking at the
 uprobe_events file.
 
     # cat uprobe_events
-    p:uprobes/p_zsh_0x46420 /bin/zsh:0x0000000000046420
+    p:uprobes/p_zsh_0x46420 /bin/zsh:0x00046420 arg1=%ip arg2=%ax
+
+The format of events can be seen by viewing the file events/uprobes/p_zsh_0x46420/format
+
+    # cat events/uprobes/p_zsh_0x46420/format
+    name: p_zsh_0x46420
+    ID: 922
+    format:
+	field:unsigned short common_type;	offset:0;	size:2;	signed:0;
+	field:unsigned char common_flags;	offset:2;	size:1;	signed:0;
+	field:unsigned char common_preempt_count;	offset:3;	size:1;	signed:0;
+	field:int common_pid;	offset:4;	size:4;	signed:1;
+	field:int common_padding;	offset:8;	size:4;	signed:1;
+
+	field:unsigned long __probe_ip;	offset:12;	size:4;	signed:0;
+	field:u32 arg1;	offset:16;	size:4;	signed:0;
+	field:u32 arg2;	offset:20;	size:4;	signed:0;
+
+    print fmt: "(%lx) arg1=%lx arg2=%lx", REC->__probe_ip, REC->arg1, REC->arg2
 
 Right after definition, each event is disabled by default. For tracing these
 events, you need to enable it by:
