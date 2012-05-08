@@ -296,8 +296,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 		return;
 	if (!IsQoSDataFrame(skb->data))
 		return;
-	if (is_multicast_ether_addr(hdr->addr1) ||
-	    is_broadcast_ether_addr(hdr->addr1))
+	if (is_multicast_ether_addr(hdr->addr1))
 		return;
 
 	if (tcb_desc->bdhcp || ieee->CntAfterLink < 2)
@@ -515,7 +514,7 @@ u16 rtllib_query_seqnum(struct rtllib_device *ieee, struct sk_buff *skb,
 {
 	u16 seqnum = 0;
 
-	if (is_multicast_ether_addr(dst) || is_broadcast_ether_addr(dst))
+	if (is_multicast_ether_addr(dst))
 		return 0;
 	if (IsQoSDataFrame(skb->data)) {
 		struct tx_ts_record *pTS = NULL;
@@ -698,8 +697,7 @@ int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			       ETH_ALEN);
 		}
 
-		bIsMulticast = is_broadcast_ether_addr(header.addr1) ||
-			       is_multicast_ether_addr(header.addr1);
+		bIsMulticast = is_multicast_ether_addr(header.addr1);
 
 		header.frame_ctl = cpu_to_le16(fc);
 

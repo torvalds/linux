@@ -413,10 +413,7 @@ int ieee80211_rtl_xmit(struct sk_buff *skb,
 
 		/* Determine fragmentation size based on destination (multicast
 		* and broadcast are not fragmented) */
-//		if (is_multicast_ether_addr(dest) ||
-//		is_broadcast_ether_addr(dest)) {
-		if (is_multicast_ether_addr(header.addr1) ||
-		is_broadcast_ether_addr(header.addr1)) {
+		if (is_multicast_ether_addr(header.addr1)) {
 			frag_size = MAX_FRAG_THRESHOLD;
 			qos_ctl = QOS_CTL_NOTCONTAIN_ACK;
 		}

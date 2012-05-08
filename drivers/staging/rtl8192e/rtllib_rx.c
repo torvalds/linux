@@ -1000,7 +1000,7 @@ static int rtllib_rx_data_filter(struct rtllib_device *ieee, u16 fc,
 			return -1;
 
 		/* {broad,multi}cast packets to our BSS go through */
-		if (is_multicast_ether_addr(dst) || is_broadcast_ether_addr(dst)) {
+		if (is_multicast_ether_addr(dst)) {
 			if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN))
 				return -1;
 		}
@@ -1269,7 +1269,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	sc = le16_to_cpu(hdr->seq_ctl);
 
 	/*Filter pkt not to me*/
-	multicast = is_multicast_ether_addr(hdr->addr1)|is_broadcast_ether_addr(hdr->addr1);
+	multicast = is_multicast_ether_addr(hdr->addr1);
 	unicast = !multicast;
 	if (unicast && (compare_ether_addr(dev->dev_addr, hdr->addr1) != 0)) {
 		if (ieee->bNetPromiscuousMode)
@@ -1350,7 +1350,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Get TS for Rx Reorder  */
 	hdr = (struct rtllib_hdr_4addr *) skb->data;
 	if (ieee->current_network.qos_data.active && IsQoSDataFrame(skb->data)
-		&& !is_multicast_ether_addr(hdr->addr1) && !is_broadcast_ether_addr(hdr->addr1)
+		&& !is_multicast_ether_addr(hdr->addr1)
 		&& (!bToOtherSTA)) {
 		TID = Frame_QoSTID(skb->data);
 		SeqNum = WLAN_GET_SEQ_SEQ(sc);

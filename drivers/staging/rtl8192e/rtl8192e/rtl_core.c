@@ -2024,10 +2024,10 @@ short rtl8192_tx(struct net_device *dev, struct sk_buff *skb)
 	stype = WLAN_FC_GET_STYPE(fc);
 	pda_addr = header->addr1;
 
-	if (is_multicast_ether_addr(pda_addr))
-		multi_addr = true;
-	else if (is_broadcast_ether_addr(pda_addr))
+	if (is_broadcast_ether_addr(pda_addr))
 		broad_addr = true;
+	else if (is_multicast_ether_addr(pda_addr))
+		multi_addr = true;
 	else
 		uni_addr = true;
 
@@ -2358,8 +2358,7 @@ static void rtl8192_rx_normal(struct net_device *dev)
 				stats.RxBufShift);
 			skb_trim(skb, skb->len - 4/*sCrcLng*/);
 			rtllib_hdr = (struct rtllib_hdr_1addr *)skb->data;
-			if (!is_broadcast_ether_addr(rtllib_hdr->addr1) &&
-			!is_multicast_ether_addr(rtllib_hdr->addr1)) {
+			if (!is_multicast_ether_addr(rtllib_hdr->addr1)) {
 				/* unicast packet */
 				unicast_packet = true;
 			}

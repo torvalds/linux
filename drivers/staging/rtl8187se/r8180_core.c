@@ -2003,8 +2003,7 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 	}
 
 		memcpy(&dest, frag_hdr->addr1, ETH_ALEN);
-		if (is_multicast_ether_addr(dest) ||
-				is_broadcast_ether_addr(dest)) {
+		if (is_multicast_ether_addr(dest)) {
 			Duration = 0;
 			RtsDur = 0;
 			bRTSEnable = 0;
