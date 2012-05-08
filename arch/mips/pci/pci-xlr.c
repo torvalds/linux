@@ -41,6 +41,7 @@
 #include <linux/irq.h>
 #include <linux/irqdesc.h>
 #include <linux/console.h>
+#include <linux/pci_regs.h>
 
 #include <asm/io.h>
 
@@ -156,35 +157,55 @@ struct pci_controller nlm_pci_controller = {
 	.io_offset      = 0x00000000UL,
 };
 
+/*
+ * The top level PCIe links on the XLS PCIe controller appear as
+ * bridges. Given a device, this function finds which link it is
+ * on.
+ */
+static struct pci_dev *xls_get_pcie_link(const struct pci_dev *dev)
+{
+	struct pci_bus *bus, *p;
+
+	/* Find the bridge on bus 0 */
+	bus = dev->bus;
+	for (p = bus->parent; p && p->number != 0; p = p->parent)
+		bus = p;
+
+	return p ? bus->self : NULL;
+}
+
 static int get_irq_vector(const struct pci_dev *dev)
 {
+	struct pci_dev *lnk;
+
 	if (!nlm_chip_is_xls())
-		return	PIC_PCIX_IRQ;	/* for XLR just one IRQ*/
+		return	PIC_PCIX_IRQ;	/* for XLR just one IRQ */
 
 	/*
 	 * For XLS PCIe, there is an IRQ per Link, find out which
 	 * link the device is on to assign interrupts
-	*/
-	if (dev->bus->self == NULL)
+	 */
+	lnk = xls_get_pcie_link(dev);
+	if (lnk == NULL)
 		return 0;
 
-	switch	(dev->bus->self->devfn) {
-	case 0x0:
+	switch	(PCI_SLOT(lnk->devfn)) {
+	case 0:
 		return PIC_PCIE_LINK0_IRQ;
-	case 0x8:
+	case 1:
 		return PIC_PCIE_LINK1_IRQ;
-	case 0x10:
+	case 2:
 		if (nlm_chip_is_xls_b())
 			return PIC_PCIE_XLSB0_LINK2_IRQ;
 		else
 			return PIC_PCIE_LINK2_IRQ;
-	case 0x18:
+	case 3:
 		if (nlm_chip_is_xls_b())
 			return PIC_PCIE_XLSB0_LINK3_IRQ;
 		else
 			return PIC_PCIE_LINK3_IRQ;
 	}
-	WARN(1, "Unexpected devfn %d\n", dev->bus->self->devfn);
+	WARN(1, "Unexpected devfn %d\n", lnk->devfn);
 	return 0;
 }
 
@@ -202,7 +223,27 @@ void arch_teardown_msi_irq(unsigned int irq)
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
 	struct msi_msg msg;
+	struct pci_dev *lnk;
 	int irq, ret;
+	u16 val;
+
+	/* MSI not supported on XLR */
+	if (!nlm_chip_is_xls())
+		return 1;
+
+	/*
+	 * Enable MSI on the XLS PCIe controller bridge which was disabled
+	 * at enumeration, the bridge MSI capability is at 0x50
+	 */
+	lnk = xls_get_pcie_link(dev);
+	if (lnk == NULL)
+		return 1;
+
+	pci_read_config_word(lnk, 0x50 + PCI_MSI_FLAGS, &val);
+	if ((val & PCI_MSI_FLAGS_ENABLE) == 0) {
+		val |= PCI_MSI_FLAGS_ENABLE;
+		pci_write_config_word(lnk, 0x50 + PCI_MSI_FLAGS, val);
+	}
 
 	irq = get_irq_vector(dev);
 	if (irq <= 0)
