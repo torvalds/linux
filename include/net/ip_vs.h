@@ -784,6 +784,16 @@ struct ip_vs_app {
 	void (*timeout_change)(struct ip_vs_app *app, int flags);
 };
 
+struct ipvs_master_sync_state {
+	struct list_head	sync_queue;
+	struct ip_vs_sync_buff	*sync_buff;
+	int			sync_queue_len;
+	unsigned int		sync_queue_delay;
+	struct task_struct	*master_thread;
+	struct delayed_work	master_wakeup_work;
+	struct netns_ipvs	*ipvs;
+};
+
 /* IPVS in network namespace */
 struct netns_ipvs {
 	int			gen;		/* Generation */
@@ -870,6 +880,7 @@ struct netns_ipvs {
 #endif
 	int			sysctl_snat_reroute;
 	int			sysctl_sync_ver;
+	int			sysctl_sync_ports;
 	int			sysctl_sync_qlen_max;
 	int			sysctl_sync_sock_size;
 	int			sysctl_cache_bypass;
@@ -893,16 +904,11 @@ struct netns_ipvs {
 	spinlock_t		est_lock;
 	struct timer_list	est_timer;	/* Estimation timer */
 	/* ip_vs_sync */
-	struct list_head	sync_queue;
-	int			sync_queue_len;
-	unsigned int		sync_queue_delay;
-	struct delayed_work	master_wakeup_work;
 	spinlock_t		sync_lock;
-	struct ip_vs_sync_buff  *sync_buff;
+	struct ipvs_master_sync_state *ms;
 	spinlock_t		sync_buff_lock;
-	struct sockaddr_in	sync_mcast_addr;
-	struct task_struct	*master_thread;
-	struct task_struct	*backup_thread;
+	struct task_struct	**backup_threads;
+	int			threads_mask;
 	int			send_mesg_maxlen;
 	int			recv_mesg_maxlen;
 	volatile int		sync_state;
@@ -926,6 +932,7 @@ struct netns_ipvs {
 #define IPVS_SYNC_SEND_DELAY	(HZ / 50)
 #define IPVS_SYNC_CHECK_PERIOD	HZ
 #define IPVS_SYNC_FLUSH_TIME	(HZ * 2)
+#define IPVS_SYNC_PORTS_MAX	(1 << 6)
 
 #ifdef CONFIG_SYSCTL
 
@@ -952,6 +959,11 @@ static inline int sysctl_sync_retries(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
 {
 	return ipvs->sysctl_sync_ver;
+}
+
+static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
+{
+	return ACCESS_ONCE(ipvs->sysctl_sync_ports);
 }
 
 static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
@@ -989,6 +1001,11 @@ static inline int sysctl_sync_retries(struct netns_ipvs *ipvs)
 static inline int sysctl_sync_ver(struct netns_ipvs *ipvs)
 {
 	return DEFAULT_SYNC_VER;
+}
+
+static inline int sysctl_sync_ports(struct netns_ipvs *ipvs)
+{
+	return 1;
 }
 
 static inline int sysctl_sync_qlen_max(struct netns_ipvs *ipvs)
@@ -1240,7 +1257,6 @@ extern void ip_vs_scheduler_err(struct ip_vs_service *svc, const char *msg);
 extern struct ip_vs_stats ip_vs_stats;
 extern int sysctl_ip_vs_sync_ver;
 
-extern void ip_vs_sync_switch_mode(struct net *net, int mode);
 extern struct ip_vs_service *
 ip_vs_service_get(struct net *net, int af, __u32 fwmark, __u16 protocol,
 		  const union nf_inet_addr *vaddr, __be16 vport);
