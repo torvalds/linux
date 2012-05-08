@@ -7,7 +7,7 @@
 #include <asm/page_types.h>
 #include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
-#include "../realmode.h"
+#include "realmode.h"
 #include "wakeup.h"
 
 	.code16

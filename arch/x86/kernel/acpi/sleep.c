@@ -16,7 +16,7 @@
 #include <asm/cacheflush.h>
 #include <asm/realmode.h>
 
-#include "../../realmode/rm/wakeup/wakeup.h"
+#include "../../realmode/rm/wakeup.h"
 #include "sleep.h"
 
 unsigned long acpi_realmode_flags;
