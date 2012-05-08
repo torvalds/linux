@@ -6,6 +6,7 @@
 #include <asm/page_types.h>
 #include <asm/pgtable_types.h>
 #include <asm/processor-flags.h>
+#include "../realmode.h"
 #include "wakeup.h"
 
 		.code16
@@ -36,9 +37,7 @@ wakeup_start:
 	cli
 	cld
 
-	.byte	0xea		/* ljmpw */
-	.word	3f
-	.word	real_mode_seg
+	LJMPW_RM(3f)
 3:
 	/* Apparently some dimwit BIOS programmers don't know how to
 	   program a PM to RM transition, and we might end up here with
@@ -59,9 +58,7 @@ wakeup_start:
 
 	andb	$~X86_CR0_PE, %al
 	movl	%eax, %cr0
-	.byte	0xea		/* ljmpw */
-	.word	3f
-	.word	real_mode_seg
+	LJMPW_RM(3f)
 3:
 	/* Set up segments */
 	movw	%cs, %ax

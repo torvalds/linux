@@ -29,6 +29,7 @@
 #include <linux/init.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
+#include "realmode.h"
 
 	.text
 	.code16
@@ -38,9 +39,7 @@
 trampoline_data:
 	wbinvd			# Needed for NUMA-Q should be harmless for others
 
-	.byte	0xea		# ljmpw
-	.word	1f		# Offset
-	.word	real_mode_seg	# Segment
+	LJMPW_RM(1f)
 1:
 	mov	%cs, %ax	# Code and data in the same place
 	mov	%ax, %ds

@@ -2,6 +2,7 @@
 #include <linux/init.h>
 #include <asm/segment.h>
 #include <asm/page_types.h>
+#include "realmode.h"
 
 /*
  * The following code and data reboots the machine by switching to real
@@ -82,10 +83,7 @@ machine_real_restart_asm16:
 2:
 	andb	$0x10, %dl
 	movl	%edx, %cr0
-	.byte	0xea			/* ljmpw */
-	.word	3f			/* Offset */
-	.word	real_mode_seg		/* Segment */
-
+	LJMPW_RM(3f)
 3:
 	testb	$0, %al
 	jz	bios
