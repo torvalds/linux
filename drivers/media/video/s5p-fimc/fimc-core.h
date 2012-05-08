@@ -712,6 +712,7 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix);
 struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
 				  unsigned int mask, int index);
+struct fimc_fmt *fimc_get_format(unsigned int index);
 
 int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
 			    int dw, int dh, int rotation);
@@ -722,7 +723,7 @@ int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f);
 void fimc_set_yuv_order(struct fimc_ctx *ctx);
 void fimc_fill_frame(struct fimc_frame *frame, struct v4l2_format *f);
-void fimc_capture_irq_handler(struct fimc_dev *fimc, bool done);
+void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf);
 
 int fimc_register_m2m_device(struct fimc_dev *fimc,
 			     struct v4l2_device *v4l2_dev);
@@ -731,18 +732,19 @@ int fimc_register_driver(void);
 void fimc_unregister_driver(void);
 
 /* -----------------------------------------------------*/
+/* fimc-m2m.c */
+void fimc_m2m_job_finish(struct fimc_ctx *ctx, int vb_state);
+
+/* -----------------------------------------------------*/
 /* fimc-capture.c					*/
 int fimc_register_capture_device(struct fimc_dev *fimc,
 				 struct v4l2_device *v4l2_dev);
 void fimc_unregister_capture_device(struct fimc_dev *fimc);
 int fimc_capture_ctrls_create(struct fimc_dev *fimc);
-int fimc_vid_cap_buf_queue(struct fimc_dev *fimc,
-			     struct fimc_vid_buffer *fimc_vb);
 void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 			void *arg);
 int fimc_capture_suspend(struct fimc_dev *fimc);
 int fimc_capture_resume(struct fimc_dev *fimc);
-int fimc_capture_config_update(struct fimc_ctx *ctx);
 
 /* Locking: the caller holds fimc->slock */
 static inline void fimc_activate_capture(struct fimc_ctx *ctx)

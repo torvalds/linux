@@ -139,7 +139,7 @@ static int fimc_stop_capture(struct fimc_dev *fimc, bool suspend)
  * spinlock held. It updates the camera pixel crop, rotation and
  * image flip in H/W.
  */
-int fimc_capture_config_update(struct fimc_ctx *ctx)
+static int fimc_capture_config_update(struct fimc_ctx *ctx)
 {
 	struct fimc_dev *fimc = ctx->fimc_dev;
 	int ret;
@@ -165,6 +165,70 @@ int fimc_capture_config_update(struct fimc_ctx *ctx)
 	clear_bit(ST_CAPT_APPLY_CFG, &fimc->state);
 	return ret;
 }
+
+void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf)
+{
+	struct fimc_vid_cap *cap = &fimc->vid_cap;
+	struct fimc_vid_buffer *v_buf;
+	struct timeval *tv;
+	struct timespec ts;
+
+	if (test_and_clear_bit(ST_CAPT_SHUT, &fimc->state)) {
+		wake_up(&fimc->irq_queue);
+		goto done;
+	}
+
+	if (!list_empty(&cap->active_buf_q) &&
+	    test_bit(ST_CAPT_RUN, &fimc->state) && deq_buf) {
+		ktime_get_real_ts(&ts);
+
+		v_buf = fimc_active_queue_pop(cap);
+
+		tv = &v_buf->vb.v4l2_buf.timestamp;
+		tv->tv_sec = ts.tv_sec;
+		tv->tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+		v_buf->vb.v4l2_buf.sequence = cap->frame_count++;
+
+		vb2_buffer_done(&v_buf->vb, VB2_BUF_STATE_DONE);
+	}
+
+	if (!list_empty(&cap->pending_buf_q)) {
+
+		v_buf = fimc_pending_queue_pop(cap);
+		fimc_hw_set_output_addr(fimc, &v_buf->paddr, cap->buf_index);
+		v_buf->index = cap->buf_index;
+
+		/* Move the buffer to the capture active queue */
+		fimc_active_queue_add(cap, v_buf);
+
+		dbg("next frame: %d, done frame: %d",
+		    fimc_hw_get_frame_index(fimc), v_buf->index);
+
+		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
+			cap->buf_index = 0;
+	}
+
+	if (cap->active_buf_cnt == 0) {
+		if (deq_buf)
+			clear_bit(ST_CAPT_RUN, &fimc->state);
+
+		if (++cap->buf_index >= FIMC_MAX_OUT_BUFS)
+			cap->buf_index = 0;
+	} else {
+		set_bit(ST_CAPT_RUN, &fimc->state);
+	}
+
+	fimc_capture_config_update(cap->ctx);
+done:
+	if (cap->active_buf_cnt == 1) {
+		fimc_deactivate_capture(fimc);
+		clear_bit(ST_CAPT_STREAM, &fimc->state);
+	}
+
+	dbg("frame: %d, active_buf_cnt: %d",
+	    fimc_hw_get_frame_index(fimc), cap->active_buf_cnt);
+}
+
 
 static int start_streaming(struct vb2_queue *q, unsigned int count)
 {
@@ -1245,7 +1309,7 @@ void fimc_sensor_notify(struct v4l2_subdev *sd, unsigned int notification,
 					 struct fimc_vid_buffer, list);
 			vb2_set_plane_payload(&buf->vb, 0, *((u32 *)arg));
 		}
-		fimc_capture_irq_handler(fimc, true);
+		fimc_capture_irq_handler(fimc, 1);
 		fimc_deactivate_capture(fimc);
 		spin_unlock_irqrestore(&fimc->slock, irq_flags);
 	}
