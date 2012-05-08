@@ -85,7 +85,7 @@ machine_real_restart_asm16:
 	movl	%edx, %cr0
 	LJMPW_RM(3f)
 3:
-	testb	$0, %al
+	andw	%ax, %ax
 	jz	bios
 
 apm:
