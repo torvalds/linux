@@ -501,7 +501,7 @@ void for_each_sta_info_type_check(struct ieee80211_local *local,
 		nxt = _sta ? rcu_dereference(_sta->hnext) : NULL	\
 	     )								\
 	/* compare address and run code only if it matches */		\
-	if (compare_ether_addr(_sta->sta.addr, (_addr)) == 0)
+	if (ether_addr_equal(_sta->sta.addr, (_addr)))
 
 /*
  * Get STA info by index, BROKEN!

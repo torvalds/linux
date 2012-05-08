@@ -1714,8 +1714,8 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * of whether the frame was encrypted or not.
 	 */
 	if (ehdr->h_proto == rx->sdata->control_port_protocol &&
-	    (compare_ether_addr(ehdr->h_dest, rx->sdata->vif.addr) == 0 ||
-	     compare_ether_addr(ehdr->h_dest, pae_group_addr) == 0))
+	    (ether_addr_equal(ehdr->h_dest, rx->sdata->vif.addr) ||
+	     ether_addr_equal(ehdr->h_dest, pae_group_addr)))
 		return true;
 
 	if (ieee80211_802_1x_port_control(rx) ||
