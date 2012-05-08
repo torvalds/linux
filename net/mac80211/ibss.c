@@ -163,6 +163,11 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 				   sizeof(struct ieee80211_ht_operation));
 		pos = ieee80211_ie_build_ht_cap(pos, &sband->ht_cap,
 						sband->ht_cap.cap);
+		/*
+		 * Note: According to 802.11n-2009 9.13.3.1, HT Protection
+		 * field and RIFS Mode are reserved in IBSS mode, therefore
+		 * keep them at 0
+		 */
 		pos = ieee80211_ie_build_ht_oper(pos, &sband->ht_cap,
 						 chan, channel_type, 0);
 	}
