@@ -204,7 +204,7 @@ static struct wf_sensor_ops wf_sat_ops = {
 static int wf_sat_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct device_node *dev = client->dev.platform_data;
+	struct device_node *dev = client->dev.of_node;
 	struct wf_sat *sat;
 	struct wf_sat_sensor *sens;
 	const u32 *reg;
