@@ -339,9 +339,9 @@ static const struct rtdBoard rtd520Boards[] = {
 */
 struct rtdPrivate {
 	/* memory mapped board structures */
-	void *las0;
-	void *las1;
-	void *lcfg;
+	void __iomem *las0;
+	void __iomem *las1;
+	void __iomem *lcfg;
 
 	unsigned long intCount;	/* interrupt count */
 	long aiCount;		/* total transfer size (samples) */
