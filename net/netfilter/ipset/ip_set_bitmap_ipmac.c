@@ -111,7 +111,7 @@ bitmap_ipmac_test(struct ip_set *set, void *value, u32 timeout, u32 flags)
 		return -EAGAIN;
 	case MAC_FILLED:
 		return data->ether == NULL ||
-		       compare_ether_addr(data->ether, elem->ether) == 0;
+		       ether_addr_equal(data->ether, elem->ether);
 	}
 	return 0;
 }
@@ -225,7 +225,7 @@ bitmap_ipmac_ttest(struct ip_set *set, void *value, u32 timeout, u32 flags)
 		return -EAGAIN;
 	case MAC_FILLED:
 		return (data->ether == NULL ||
-			compare_ether_addr(data->ether, elem->ether) == 0) &&
+			ether_addr_equal(data->ether, elem->ether)) &&
 		       !bitmap_expired(map, data->id);
 	}
 	return 0;
