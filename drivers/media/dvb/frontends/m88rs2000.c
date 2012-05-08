@@ -416,9 +416,25 @@ static int m88rs2000_tab_set(struct m88rs2000_state *state,
 
 static int m88rs2000_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t volt)
 {
-	deb_info("%s: %s\n", __func__,
-		volt == SEC_VOLTAGE_13 ? "SEC_VOLTAGE_13" :
-		volt == SEC_VOLTAGE_18 ? "SEC_VOLTAGE_18" : "??");
+	struct m88rs2000_state *state = fe->demodulator_priv;
+	u8 data;
+
+	data = m88rs2000_demod_read(state, 0xb2);
+	data |= 0x03; /* bit0 V/H, bit1 off/on */
+
+	switch (volt) {
+	case SEC_VOLTAGE_18:
+		data &= ~0x03;
+		break;
+	case SEC_VOLTAGE_13:
+		data &= ~0x03;
+		data |= 0x01;
+		break;
+	case SEC_VOLTAGE_OFF:
+		break;
+	}
+
+	m88rs2000_demod_write(state, 0xb2, data);
 
 	return 0;
 }
