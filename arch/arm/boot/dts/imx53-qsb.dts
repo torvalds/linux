@@ -73,8 +73,80 @@
 				};
 
 				pmic: dialog@48 {
-					compatible = "dialog,da9053", "dialog,da9052";
+					compatible = "dlg,da9053-aa", "dlg,da9052";
 					reg = <0x48>;
+
+					regulators {
+						buck0 {
+							regulator-min-microvolt = <500000>;
+							regulator-max-microvolt = <2075000>;
+						};
+
+						buck1 {
+							regulator-min-microvolt = <500000>;
+							regulator-max-microvolt = <2075000>;
+						};
+
+						buck2 {
+							regulator-min-microvolt = <925000>;
+					                regulator-max-microvolt = <2500000>;
+						};
+
+						buck3 {
+							regulator-min-microvolt = <925000>;
+					                regulator-max-microvolt = <2500000>;
+						};
+
+						ldo4 {
+							regulator-min-microvolt = <600000>;
+							regulator-max-microvolt = <1800000>;
+						};
+
+						ldo5 {
+							regulator-min-microvolt = <600000>;
+					                regulator-max-microvolt = <1800000>;
+						};
+
+						ldo6 {
+							regulator-min-microvolt = <1725000>;
+					                regulator-max-microvolt = <3300000>;
+						};
+
+						ldo7 {
+							regulator-min-microvolt = <1725000>;
+					                regulator-max-microvolt = <3300000>;
+						};
+
+						ldo8 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo9 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo10 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo11 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+
+						ldo12 {
+							regulator-min-microvolt = <1250000>;
+					                regulator-max-microvolt = <3650000>;
+						};
+
+						ldo13 {
+							regulator-min-microvolt = <1200000>;
+					                regulator-max-microvolt = <3600000>;
+						};
+					};
 				};
 			};
 
