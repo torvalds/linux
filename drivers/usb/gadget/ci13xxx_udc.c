@@ -96,9 +96,6 @@ ctrl_endpt_in_desc = {
 	.wMaxPacketSize  = cpu_to_le16(CTRL_PAYLOAD_MAX),
 };
 
-/* UDC descriptor */
-static struct ci13xxx *_udc;
-
 /* Interrupt statistics */
 #define ISR_MASK   0x1F
 static struct {
@@ -1679,7 +1676,8 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	usb_ep_fifo_flush(&udc->ep0out->ep);
 	usb_ep_fifo_flush(&udc->ep0in->ep);
 
-	udc->driver->disconnect(gadget);
+	if (udc->driver)
+		udc->driver->disconnect(gadget);
 
 	/* make sure to disable all endpoints */
 	gadget_for_each_ep(ep, gadget) {
@@ -1789,7 +1787,7 @@ __acquires(mEp->lock)
 
 	if ((setup->bRequestType & USB_RECIP_MASK) == USB_RECIP_DEVICE) {
 		/* Assume that device is bus powered for now. */
-		*(u16 *)req->buf = _udc->remote_wakeup << 1;
+		*(u16 *)req->buf = udc->remote_wakeup << 1;
 		retval = 0;
 	} else if ((setup->bRequestType & USB_RECIP_MASK) \
 		   == USB_RECIP_ENDPOINT) {
@@ -1896,7 +1894,7 @@ __acquires(mEp->lock)
 			spin_unlock(mEp->lock);
 			if ((mEp->type == USB_ENDPOINT_XFER_CONTROL) &&
 					mReq->req.length)
-				mEpTemp = _udc->ep0in;
+				mEpTemp = mEp->udc->ep0in;
 			mReq->req.complete(&mEpTemp->ep, &mReq->req);
 			spin_lock(mEp->lock);
 		}
@@ -2276,6 +2274,7 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 {
 	struct ci13xxx_ep  *mEp  = container_of(ep,  struct ci13xxx_ep, ep);
 	struct ci13xxx_req *mReq = container_of(req, struct ci13xxx_req, req);
+	struct ci13xxx *udc = mEp->udc;
 	int retval = 0;
 	unsigned long flags;
 
@@ -2288,8 +2287,8 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 
 	if (mEp->type == USB_ENDPOINT_XFER_CONTROL) {
 		if (req->length)
-			mEp = (_udc->ep0_dir == RX) ?
-				_udc->ep0out : _udc->ep0in;
+			mEp = (udc->ep0_dir == RX) ?
+			       udc->ep0out : udc->ep0in;
 		if (!list_empty(&mEp->qh.queue)) {
 			_ep_nuke(mEp);
 			retval = -EOVERFLOW;
@@ -2555,9 +2554,10 @@ static int ci13xxx_vbus_draw(struct usb_gadget *_gadget, unsigned mA)
 	return -ENOTSUPP;
 }
 
-static int ci13xxx_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *));
-static int ci13xxx_stop(struct usb_gadget_driver *driver);
+static int ci13xxx_start(struct usb_gadget *gadget,
+			 struct usb_gadget_driver *driver);
+static int ci13xxx_stop(struct usb_gadget *gadget,
+			struct usb_gadget_driver *driver);
 /**
  * Device operations part of the API to the USB controller hardware,
  * which don't involve endpoints (or i/o)
@@ -2567,8 +2567,8 @@ static const struct usb_gadget_ops usb_gadget_ops = {
 	.vbus_session	= ci13xxx_vbus_session,
 	.wakeup		= ci13xxx_wakeup,
 	.vbus_draw	= ci13xxx_vbus_draw,
-	.start		= ci13xxx_start,
-	.stop		= ci13xxx_stop,
+	.udc_start	= ci13xxx_start,
+	.udc_stop	= ci13xxx_stop,
 };
 
 static int init_eps(struct ci13xxx *udc)
@@ -2621,39 +2621,24 @@ static int init_eps(struct ci13xxx *udc)
 
 /**
  * ci13xxx_start: register a gadget driver
+ * @gadget: our gadget
  * @driver: the driver being registered
- * @bind: the driver's bind callback
  *
- * Check ci13xxx_start() at <linux/usb/gadget.h> for details.
  * Interrupts are enabled here.
  */
-static int ci13xxx_start(struct usb_gadget_driver *driver,
-		int (*bind)(struct usb_gadget *))
+static int ci13xxx_start(struct usb_gadget *gadget,
+			 struct usb_gadget_driver *driver)
 {
-	struct ci13xxx *udc = _udc;
+	struct ci13xxx *udc = container_of(gadget, struct ci13xxx, gadget);
 	unsigned long flags;
-	int i, j;
 	int retval = -ENOMEM;
 
 	trace(udc->dev, "%p", driver);
 
-	if (driver             == NULL ||
-	    bind               == NULL ||
-	    driver->setup      == NULL ||
-	    driver->disconnect == NULL)
+	if (driver->disconnect == NULL)
 		return -EINVAL;
-	else if (udc         == NULL)
-		return -ENODEV;
-	else if (udc->driver != NULL)
-		return -EBUSY;
 
-	spin_lock_irqsave(&udc->lock, flags);
 
-	dev_info(udc->dev, "hw_ep_max = %d\n", udc->hw_ep_max);
-
-	udc->gadget.dev.driver = NULL;
-
-	spin_unlock_irqrestore(&udc->lock, flags);
 	udc->ep0out->ep.desc = &ctrl_endpt_out_desc;
 	retval = usb_ep_enable(&udc->ep0out->ep);
 	if (retval)
@@ -2664,19 +2649,6 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 	if (retval)
 		return retval;
 	spin_lock_irqsave(&udc->lock, flags);
-
-	/* bind gadget */
-	driver->driver.bus     = NULL;
-	udc->gadget.dev.driver = &driver->driver;
-
-	spin_unlock_irqrestore(&udc->lock, flags);
-	retval = bind(&udc->gadget);                /* MAY SLEEP */
-	spin_lock_irqsave(&udc->lock, flags);
-
-	if (retval) {
-		udc->gadget.dev.driver = NULL;
-		goto done;
-	}
 
 	udc->driver = driver;
 	pm_runtime_get_sync(&udc->gadget.dev);
@@ -2701,22 +2673,14 @@ static int ci13xxx_start(struct usb_gadget_driver *driver,
 
 /**
  * ci13xxx_stop: unregister a gadget driver
- *
- * Check usb_gadget_unregister_driver() at "usb_gadget.h" for details
  */
-static int ci13xxx_stop(struct usb_gadget_driver *driver)
+static int ci13xxx_stop(struct usb_gadget *gadget,
+			struct usb_gadget_driver *driver)
 {
-	struct ci13xxx *udc = _udc;
-	unsigned long i, flags;
+	struct ci13xxx *udc = container_of(gadget, struct ci13xxx, gadget);
+	unsigned long flags;
 
 	trace(udc->dev, "%p", driver);
-
-	if (driver             == NULL ||
-	    driver->unbind     == NULL ||
-	    driver->setup      == NULL ||
-	    driver->disconnect == NULL ||
-	    driver             != udc->driver)
-		return -EINVAL;
 
 	spin_lock_irqsave(&udc->lock, flags);
 
@@ -2726,19 +2690,12 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
 		if (udc->udc_driver->notify_event)
 			udc->udc_driver->notify_event(udc,
 			CI13XXX_CONTROLLER_STOPPED_EVENT);
+		udc->driver = NULL;
 		spin_unlock_irqrestore(&udc->lock, flags);
 		_gadget_stop_activity(&udc->gadget);
 		spin_lock_irqsave(&udc->lock, flags);
 		pm_runtime_put(&udc->gadget.dev);
 	}
-
-	/* unbind gadget */
-	spin_unlock_irqrestore(&udc->lock, flags);
-	driver->unbind(&udc->gadget);               /* MAY SLEEP */
-	spin_lock_irqsave(&udc->lock, flags);
-
-	udc->gadget.dev.driver = NULL;
-	udc->driver = NULL;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -2756,7 +2713,7 @@ static int ci13xxx_stop(struct usb_gadget_driver *driver)
  */
 static irqreturn_t udc_irq(int irq, void *data)
 {
-	struct ci13xxx *udc = _udc;
+	struct ci13xxx *udc = data;
 	irqreturn_t retval;
 	u32 intr;
 
@@ -2846,7 +2803,7 @@ static void udc_release(struct device *dev)
  * Kernel assumes 32-bit DMA operations by default, no need to dma_set_mask
  */
 static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
-		     void __iomem *regs)
+		     void __iomem *regs, struct ci13xxx **_udc)
 {
 	struct ci13xxx *udc;
 	int retval = 0;
@@ -2872,7 +2829,6 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	udc->gadget.name         = driver->name;
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
-	udc->gadget.ep0 = NULL;
 
 	dev_set_name(&udc->gadget.dev, "gadget");
 	udc->gadget.dev.dma_mask = dev->dma_mask;
@@ -2950,7 +2906,7 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	pm_runtime_no_callbacks(&udc->gadget.dev);
 	pm_runtime_enable(&udc->gadget.dev);
 
-	_udc = udc;
+	*_udc = udc;
 	return retval;
 
 remove_trans:
@@ -2975,7 +2931,7 @@ free_qh_pool:
 	dma_pool_destroy(udc->qh_pool);
 free_udc:
 	kfree(udc);
-	_udc = NULL;
+	*_udc = NULL;
 	return retval;
 }
 
@@ -2984,9 +2940,8 @@ free_udc:
  *
  * No interrupts active, the IRQ has been released
  */
-static void udc_remove(void)
+static void udc_remove(struct ci13xxx *udc)
 {
-	struct ci13xxx *udc = _udc;
 	int i;
 
 	if (udc == NULL)
@@ -3014,13 +2969,13 @@ static void udc_remove(void)
 
 	kfree(udc->hw_bank.regmap);
 	kfree(udc);
-	_udc = NULL;
 }
 
 static int __devinit ci_udc_probe(struct platform_device *pdev)
 {
 	struct device	*dev = &pdev->dev;
 	struct ci13xxx_udc_driver *driver = dev->platform_data;
+	struct ci13xxx	*udc;
 	struct resource	*res;
 	void __iomem	*base;
 	int		ret;
@@ -3042,30 +2997,33 @@ static int __devinit ci_udc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	ret = udc_probe(driver, dev, base);
+	ret = udc_probe(driver, dev, base, &udc);
 	if (ret)
 		return ret;
 
-	_udc->irq = platform_get_irq(pdev, 0);
-	if (_udc->irq < 0) {
+	udc->irq = platform_get_irq(pdev, 0);
+	if (udc->irq < 0) {
 		dev_err(dev, "missing IRQ\n");
 		ret = -ENODEV;
 		goto out;
 	}
 
-	ret = request_irq(_udc->irq, udc_irq, IRQF_SHARED, driver->name, _udc);
+	platform_set_drvdata(pdev, udc);
+	ret = request_irq(udc->irq, udc_irq, IRQF_SHARED, driver->name, udc);
 
 out:
 	if (ret)
-		udc_remove();
+		udc_remove(udc);
 
 	return ret;
 }
 
 static int __devexit ci_udc_remove(struct platform_device *pdev)
 {
-	free_irq(_udc->irq, _udc);
-	udc_remove();
+	struct ci13xxx *udc = platform_get_drvdata(pdev);
+
+	free_irq(udc->irq, udc);
+	udc_remove(udc);
 
 	return 0;
 }
