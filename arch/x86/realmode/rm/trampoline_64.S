@@ -73,7 +73,7 @@ ENTRY(trampoline_data)
 	lmsw	%ax			# into protected mode
 
 	# flush prefetch and jump to startup_32
-	ljmpl	*(startup_32_vector)
+	ljmpl	$__KERNEL32_CS, $pa_startup_32
 
 no_longmode:
 	hlt
@@ -113,7 +113,7 @@ ENTRY(startup_32)
 	 * EFER.LMA = 1). Now we want to jump in 64bit mode, to do that we use
 	 * the new gdt/idt that has __KERNEL_CS with CS.L = 1.
 	 */
-	ljmpl	*(pa_startup_64_vector)
+	ljmpl	$__KERNEL_CS, $pa_startup_64
 
 	.section ".text64","ax"
 	.code64
@@ -143,17 +143,6 @@ tgdt:
 	.quad	0x00af9b000000ffff	# __KERNEL_CS
 	.quad	0x00cf93000000ffff	# __KERNEL_DS
 tgdt_end:
-
-	.balign 4
-startup_32_vector:
-	.long	pa_startup_32
-	.word	__KERNEL32_CS, 0
-
-	.balign 4
-	.globl startup_64_vector
-startup_64_vector:
-	.long	pa_startup_64
-	.word	__KERNEL_CS, 0
 
 	.data
 	.balign 4
