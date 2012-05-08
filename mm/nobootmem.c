@@ -298,13 +298,19 @@ void * __init __alloc_bootmem_node(pg_data_t *pgdat, unsigned long size,
 	if (WARN_ON_ONCE(slab_is_available()))
 		return kzalloc_node(size, GFP_NOWAIT, pgdat->node_id);
 
+again:
 	ptr = __alloc_memory_core_early(pgdat->node_id, size, align,
 					 goal, -1ULL);
 	if (ptr)
 		return ptr;
 
-	return __alloc_memory_core_early(MAX_NUMNODES, size, align,
-					 goal, -1ULL);
+	ptr = __alloc_memory_core_early(MAX_NUMNODES, size, align,
+					goal, -1ULL);
+	if (!ptr && goal) {
+		goal = 0;
+		goto again;
+	}
+	return ptr;
 }
 
 void * __init __alloc_bootmem_node_high(pg_data_t *pgdat, unsigned long size,

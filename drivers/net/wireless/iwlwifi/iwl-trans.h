@@ -258,6 +258,7 @@ struct iwl_rx_cmd_buffer {
 	struct page *_page;
 	int _offset;
 	bool _page_stolen;
+	unsigned int truesize;
 };
 
 static inline void *rxb_addr(struct iwl_rx_cmd_buffer *r)

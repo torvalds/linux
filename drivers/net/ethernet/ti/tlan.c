@@ -228,7 +228,7 @@ tlan_get_skb(const struct tlan_list *tag)
 	unsigned long addr;
 
 	addr = tag->buffer[9].address;
-	addr |= (tag->buffer[8].address << 16) << 16;
+	addr |= ((unsigned long) tag->buffer[8].address << 16) << 16;
 	return (struct sk_buff *) addr;
 }
 

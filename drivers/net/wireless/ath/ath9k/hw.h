@@ -985,7 +985,8 @@ void ath9k_hw_name(struct ath_hw *ah, char *hw_name, size_t len);
 /* PHY */
 void ath9k_hw_get_delta_slope_vals(struct ath_hw *ah, u32 coef_scaled,
 				   u32 *coef_mantissa, u32 *coef_exponent);
-void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan);
+void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
+			    bool test);
 
 /*
  * Code Specific to AR5008, AR9001 or AR9002,

@@ -44,18 +44,26 @@
 #define DCB_NO_HW_CHG   1  /* DCB configuration did not change */
 #define DCB_HW_CHG      2  /* DCB configuration changed, no reset */
 
-int ixgbe_copy_dcb_cfg(struct ixgbe_dcb_config *scfg,
-		       struct ixgbe_dcb_config *dcfg, int tc_max)
+static int ixgbe_copy_dcb_cfg(struct ixgbe_adapter *adapter, int tc_max)
 {
+	struct ixgbe_dcb_config *scfg = &adapter->temp_dcb_cfg;
+	struct ixgbe_dcb_config *dcfg = &adapter->dcb_cfg;
 	struct tc_configuration *src = NULL;
 	struct tc_configuration *dst = NULL;
 	int i, j;
 	int tx = DCB_TX_CONFIG;
 	int rx = DCB_RX_CONFIG;
 	int changes = 0;
+#ifdef IXGBE_FCOE
+	struct dcb_app app = {
+			      .selector = DCB_APP_IDTYPE_ETHTYPE,
+			      .protocol = ETH_P_FCOE,
+			     };
+	u8 up = dcb_getapp(adapter->netdev, &app);
 
-	if (!scfg || !dcfg)
-		return changes;
+	if (up && !(up & (1 << adapter->fcoe.up)))
+		changes |= BIT_APP_UPCHG;
+#endif
 
 	for (i = DCB_PG_ATTR_TC_0; i < tc_max + DCB_PG_ATTR_TC_0; i++) {
 		src = &scfg->tc_config[i - DCB_PG_ATTR_TC_0];
@@ -332,28 +340,12 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int ret = DCB_NO_HW_CHG;
 	int i;
-#ifdef IXGBE_FCOE
-	struct dcb_app app = {
-			      .selector = DCB_APP_IDTYPE_ETHTYPE,
-			      .protocol = ETH_P_FCOE,
-			     };
-	u8 up;
-
-	/* In IEEE mode, use the IEEE Ethertype selector value */
-	if (adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) {
-		app.selector = IEEE_8021QAZ_APP_SEL_ETHERTYPE;
-		up = dcb_ieee_getapp_mask(netdev, &app);
-	} else {
-		up = dcb_getapp(netdev, &app);
-	}
-#endif
 
 	/* Fail command if not in CEE mode */
 	if (!(adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE))
 		return ret;
 
-	adapter->dcb_set_bitmap |= ixgbe_copy_dcb_cfg(&adapter->temp_dcb_cfg,
-						      &adapter->dcb_cfg,
+	adapter->dcb_set_bitmap |= ixgbe_copy_dcb_cfg(adapter,
 						      MAX_TRAFFIC_CLASS);
 	if (!adapter->dcb_set_bitmap)
 		return ret;
@@ -440,8 +432,13 @@ static u8 ixgbe_dcbnl_set_all(struct net_device *netdev)
 	 * FCoE is using changes. This happens if the APP info
 	 * changes or the up2tc mapping is updated.
 	 */
-	if ((up && !(up & (1 << adapter->fcoe.up))) ||
-	    (adapter->dcb_set_bitmap & BIT_APP_UPCHG)) {
+	if (adapter->dcb_set_bitmap & BIT_APP_UPCHG) {
+		struct dcb_app app = {
+				      .selector = DCB_APP_IDTYPE_ETHTYPE,
+				      .protocol = ETH_P_FCOE,
+				     };
+		u8 up = dcb_getapp(netdev, &app);
+
 		adapter->fcoe.up = ffs(up) - 1;
 		ixgbe_dcbnl_devreset(netdev);
 		ret = DCB_HW_CHG_RST;

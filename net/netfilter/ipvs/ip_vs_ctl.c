@@ -3680,7 +3680,7 @@ int __net_init ip_vs_control_net_init_sysctl(struct net *net)
 	return 0;
 }
 
-void __net_init ip_vs_control_net_cleanup_sysctl(struct net *net)
+void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net)
 {
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
@@ -3692,7 +3692,7 @@ void __net_init ip_vs_control_net_cleanup_sysctl(struct net *net)
 #else
 
 int __net_init ip_vs_control_net_init_sysctl(struct net *net) { return 0; }
-void __net_init ip_vs_control_net_cleanup_sysctl(struct net *net) { }
+void __net_exit ip_vs_control_net_cleanup_sysctl(struct net *net) { }
 
 #endif
 
@@ -3750,20 +3750,9 @@ void __net_exit ip_vs_control_net_cleanup(struct net *net)
 	free_percpu(ipvs->tot_stats.cpustats);
 }
 
-int __init ip_vs_control_init(void)
+int __init ip_vs_register_nl_ioctl(void)
 {
-	int idx;
 	int ret;
-
-	EnterFunction(2);
-
-	/* Initialize svc_table, ip_vs_svc_fwm_table, rs_table */
-	for(idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++)  {
-		INIT_LIST_HEAD(&ip_vs_svc_table[idx]);
-		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);
-	}
-
-	smp_wmb();	/* Do we really need it now ? */
 
 	ret = nf_register_sockopt(&ip_vs_sockopts);
 	if (ret) {
@@ -3776,20 +3765,41 @@ int __init ip_vs_control_init(void)
 		pr_err("cannot register Generic Netlink interface.\n");
 		goto err_genl;
 	}
-
-	ret = register_netdevice_notifier(&ip_vs_dst_notifier);
-	if (ret < 0)
-		goto err_notf;
-
-	LeaveFunction(2);
 	return 0;
 
-err_notf:
-	ip_vs_genl_unregister();
 err_genl:
 	nf_unregister_sockopt(&ip_vs_sockopts);
 err_sock:
 	return ret;
+}
+
+void ip_vs_unregister_nl_ioctl(void)
+{
+	ip_vs_genl_unregister();
+	nf_unregister_sockopt(&ip_vs_sockopts);
+}
+
+int __init ip_vs_control_init(void)
+{
+	int idx;
+	int ret;
+
+	EnterFunction(2);
+
+	/* Initialize svc_table, ip_vs_svc_fwm_table, rs_table */
+	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
+		INIT_LIST_HEAD(&ip_vs_svc_table[idx]);
+		INIT_LIST_HEAD(&ip_vs_svc_fwm_table[idx]);
+	}
+
+	smp_wmb();	/* Do we really need it now ? */
+
+	ret = register_netdevice_notifier(&ip_vs_dst_notifier);
+	if (ret < 0)
+		return ret;
+
+	LeaveFunction(2);
+	return 0;
 }
 
 
@@ -3797,7 +3807,5 @@ void ip_vs_control_cleanup(void)
 {
 	EnterFunction(2);
 	unregister_netdevice_notifier(&ip_vs_dst_notifier);
-	ip_vs_genl_unregister();
-	nf_unregister_sockopt(&ip_vs_sockopts);
 	LeaveFunction(2);
 }

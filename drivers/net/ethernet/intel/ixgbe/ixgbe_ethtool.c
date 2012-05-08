@@ -1780,6 +1780,8 @@ static u16 ixgbe_clean_test_rings(struct ixgbe_ring *rx_ring,
 		rx_desc = IXGBE_RX_DESC(rx_ring, rx_ntc);
 	}
 
+	netdev_tx_reset_queue(txring_txq(tx_ring));
+
 	/* re-map buffers to ring, store next to clean values */
 	ixgbe_alloc_rx_buffers(rx_ring, count);
 	rx_ring->next_to_clean = rx_ntc;

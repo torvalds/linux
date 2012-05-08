@@ -385,6 +385,7 @@ static void iwl_rx_handle_rxbuf(struct iwl_trans *trans,
 			._offset = offset,
 			._page = rxb->page,
 			._page_stolen = false,
+			.truesize = max_len,
 		};
 
 		pkt = rxb_addr(&rxcb);
