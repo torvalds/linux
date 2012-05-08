@@ -761,7 +761,7 @@ static inline void ni_660x_write_register(struct comedi_device *dev,
 					  unsigned chip_index, unsigned bits,
 					  enum NI_660x_Register reg)
 {
-	void *const write_address =
+	void __iomem *write_address =
 	    private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
 	    registerData[reg].offset;
 
@@ -784,7 +784,7 @@ static inline unsigned ni_660x_read_register(struct comedi_device *dev,
 					     unsigned chip_index,
 					     enum NI_660x_Register reg)
 {
-	void *const read_address =
+	void __iomem *read_address =
 	    private(dev)->mite->daq_io_addr + GPCT_OFFSET[chip_index] +
 	    registerData[reg].offset;
 
