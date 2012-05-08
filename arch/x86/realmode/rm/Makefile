@@ -52,7 +52,7 @@ $(obj)/realmode.bin: $(obj)/realmode.elf
 	$(call if_changed,objcopy)
 
 quiet_cmd_relocs = RELOCS  $@
-      cmd_relocs = scripts/x86-relocs --realmode $< > $@
+      cmd_relocs = arch/x86/tools/relocs --realmode $< > $@
 $(obj)/realmode.relocs: $(obj)/realmode.elf FORCE
 	$(call if_changed,relocs)
 
