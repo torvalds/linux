@@ -1980,6 +1980,22 @@ static struct omap_hwmod omap3xxx_usb_tll_hs_hwmod = {
 	},
 };
 
+static struct omap_hwmod omap3xxx_hdq1w_hwmod = {
+	.name		= "hdq1w",
+	.mpu_irqs	= omap2_hdq1w_mpu_irqs,
+	.main_clk	= "hdq_fck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_EN_HDQ_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_HDQ_SHIFT,
+		},
+	},
+	.class		= &omap2_hdq1w_class,
+};
+
 /*
  * interfaces
  */
@@ -3059,6 +3075,16 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__usb_tll_hs = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
+/* l4_core -> hdq1w interface */
+static struct omap_hwmod_ocp_if omap3xxx_l4_core__hdq1w = {
+	.master		= &omap3xxx_l4_core_hwmod,
+	.slave		= &omap3xxx_hdq1w_hwmod,
+	.clk		= "hdq_ick",
+	.addr		= omap2_hdq1w_addr_space,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+	.flags		= OMAP_FIREWALL_L4 | OCPIF_SWSUP_IDLE,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3151,6 +3177,7 @@ static struct omap_hwmod_ocp_if *omap34xx_hwmod_ocp_ifs[] __initdata = {
 	&omap34xx_l4_core__sr1,
 	&omap34xx_l4_core__sr2,
 	&omap3xxx_l4_core__mailbox,
+	&omap3xxx_l4_core__hdq1w,
 	NULL
 };
 
@@ -3170,6 +3197,7 @@ static struct omap_hwmod_ocp_if *omap36xx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l4_core__usb_tll_hs,
 	&omap3xxx_l4_core__es3plus_mmc1,
 	&omap3xxx_l4_core__es3plus_mmc2,
+	&omap3xxx_l4_core__hdq1w,
 	NULL
 };
 
