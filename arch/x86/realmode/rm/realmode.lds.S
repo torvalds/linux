@@ -32,8 +32,8 @@ SECTIONS
 	}
 
 	. = ALIGN(PAGE_SIZE);
+	pa_text_start = .;
 	.text : {
-		pa_text_start = .;
 		*(.text)
 		*(.text.*)
 	}
@@ -41,8 +41,13 @@ SECTIONS
 	.text32 : {
 		*(.text32)
 		*(.text32.*)
-		pa_ro_end = .;
 	}
+
+	.text64 : {
+		*(.text64)
+		*(.text64.*)
+	}
+	pa_ro_end = .;
 
 	. = ALIGN(PAGE_SIZE);
 	.data : {
@@ -59,8 +64,8 @@ SECTIONS
 	. = ALIGN(4);
 	.signature : {
 		*(.signature)
-		pa_end = .;
 	}
+	pa_end = .;
 
 	/DISCARD/ : {
 		*(.note*)
