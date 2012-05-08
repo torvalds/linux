@@ -94,6 +94,7 @@ struct ci13xxx_ep {
 	int                                    wedge;
 
 	/* global resources */
+	struct ci13xxx                        *udc;
 	spinlock_t                            *lock;
 	struct device                         *device;
 	struct dma_pool                       *td_pool;
@@ -113,9 +114,17 @@ struct ci13xxx_udc_driver {
 	void	(*notify_event) (struct ci13xxx *udc, unsigned event);
 };
 
+struct hw_bank {
+	unsigned      lpm;    /* is LPM? */
+	void __iomem *abs;    /* bus map offset */
+	void __iomem *cap;    /* bus map offset + CAP offset */
+	void __iomem *op;     /* bus map offset + OP offset */
+	size_t        size;   /* bank size */
+};
+
 /* CI13XXX UDC descriptor & global resources */
 struct ci13xxx {
-	spinlock_t		  *lock;      /* ctrl register bank access */
+	spinlock_t		   lock;      /* ctrl register bank access */
 	void __iomem              *regs;      /* registers address space */
 
 	struct dma_pool           *qh_pool;   /* DMA pool for queue heads */
@@ -126,11 +135,14 @@ struct ci13xxx {
 	struct ci13xxx_ep          ci13xxx_ep[ENDPT_MAX]; /* extended endpts */
 	u32                        ep0_dir;    /* ep0 direction */
 	struct ci13xxx_ep          *ep0out, *ep0in;
+	unsigned		   hw_ep_max;  /* number of hw endpoints */
+
 	u8                         remote_wakeup; /* Is remote wakeup feature
 							enabled by the host? */
 	u8                         suspended;  /* suspended by the host */
 	u8                         test_mode;  /* the selected test mode */
 
+	struct hw_bank             hw_bank;
 	struct usb_gadget_driver  *driver;     /* 3rd party gadget driver */
 	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */
 	int                        vbus_active; /* is VBUS active */
