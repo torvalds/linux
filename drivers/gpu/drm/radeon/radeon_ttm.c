@@ -222,15 +222,12 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 {
 	struct radeon_device *rdev;
 	uint64_t old_start, new_start;
-	struct radeon_fence *fence, *old_fence;
+	struct radeon_fence *fence;
 	struct radeon_semaphore *sem = NULL;
-	int r;
+	int r, ridx;
 
 	rdev = radeon_get_rdev(bo->bdev);
-	r = radeon_fence_create(rdev, &fence, radeon_copy_ring_index(rdev));
-	if (unlikely(r)) {
-		return r;
-	}
+	ridx = radeon_copy_ring_index(rdev);
 	old_start = old_mem->start << PAGE_SHIFT;
 	new_start = new_mem->start << PAGE_SHIFT;
 
@@ -243,7 +240,6 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
-		radeon_fence_unref(&fence);
 		return -EINVAL;
 	}
 	switch (new_mem->mem_type) {
@@ -255,42 +251,38 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
-		radeon_fence_unref(&fence);
 		return -EINVAL;
 	}
-	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready) {
+	if (!rdev->ring[ridx].ready) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
-		radeon_fence_unref(&fence);
 		return -EINVAL;
 	}
 
 	BUILD_BUG_ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
 
 	/* sync other rings */
-	old_fence = bo->sync_obj;
-	if (old_fence && old_fence->ring != fence->ring
-	    && !radeon_fence_signaled(old_fence)) {
+	fence = bo->sync_obj;
+	if (fence && fence->ring != ridx
+	    && !radeon_fence_signaled(fence)) {
 		bool sync_to_ring[RADEON_NUM_RINGS] = { };
-		sync_to_ring[old_fence->ring] = true;
+		sync_to_ring[fence->ring] = true;
 
 		r = radeon_semaphore_create(rdev, &sem);
 		if (r) {
-			radeon_fence_unref(&fence);
 			return r;
 		}
 
-		r = radeon_semaphore_sync_rings(rdev, sem,
-						sync_to_ring, fence->ring);
+		r = radeon_semaphore_sync_rings(rdev, sem, sync_to_ring, ridx);
 		if (r) {
 			radeon_semaphore_free(rdev, sem, NULL);
-			radeon_fence_unref(&fence);
 			return r;
 		}
 	}
 
+	fence = NULL;
 	r = radeon_copy(rdev, old_start, new_start,
 			new_mem->num_pages * (PAGE_SIZE / RADEON_GPU_PAGE_SIZE), /* GPU pages */
-			fence);
+			&fence);
 	/* FIXME: handle copy error */
 	r = ttm_bo_move_accel_cleanup(bo, (void *)fence, NULL,
 				      evict, no_wait_reserve, no_wait_gpu, new_mem);

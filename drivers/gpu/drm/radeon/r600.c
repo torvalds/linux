@@ -2309,7 +2309,7 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset,
 		   uint64_t dst_offset,
 		   unsigned num_gpu_pages,
-		   struct radeon_fence *fence)
+		   struct radeon_fence **fence)
 {
 	struct radeon_sa_bo *vb = NULL;
 	int r;
@@ -2607,7 +2607,7 @@ void r600_fini(struct radeon_device *rdev)
  */
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
 
 	/* FIXME: implement */
 	radeon_ring_write(ring, PACKET3(PACKET3_INDIRECT_BUFFER, 2));

@@ -113,7 +113,6 @@ extern int radeon_lockup_timeout;
 
 /* fence seq are set to this number when signaled */
 #define RADEON_FENCE_SIGNALED_SEQ		0LL
-#define RADEON_FENCE_NOTEMITED_SEQ		(~0LL)
 
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
@@ -277,8 +276,7 @@ struct radeon_fence {
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
 int radeon_fence_driver_init(struct radeon_device *rdev);
 void radeon_fence_driver_fini(struct radeon_device *rdev);
-int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
-int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence);
+int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence **fence, int ring);
 void radeon_fence_process(struct radeon_device *rdev, int ring);
 bool radeon_fence_signaled(struct radeon_fence *fence);
 int radeon_fence_wait(struct radeon_fence *fence, bool interruptible);
@@ -630,6 +628,7 @@ struct radeon_ib {
 	uint32_t			length_dw;
 	uint64_t			gpu_addr;
 	uint32_t			*ptr;
+	int				ring;
 	struct radeon_fence		*fence;
 	unsigned			vm_id;
 	bool				is_const_ib;
@@ -1192,20 +1191,20 @@ struct radeon_asic {
 			    uint64_t src_offset,
 			    uint64_t dst_offset,
 			    unsigned num_gpu_pages,
-			    struct radeon_fence *fence);
+			    struct radeon_fence **fence);
 		u32 blit_ring_index;
 		int (*dma)(struct radeon_device *rdev,
 			   uint64_t src_offset,
 			   uint64_t dst_offset,
 			   unsigned num_gpu_pages,
-			   struct radeon_fence *fence);
+			   struct radeon_fence **fence);
 		u32 dma_ring_index;
 		/* method used for bo copy */
 		int (*copy)(struct radeon_device *rdev,
 			    uint64_t src_offset,
 			    uint64_t dst_offset,
 			    unsigned num_gpu_pages,
-			    struct radeon_fence *fence);
+			    struct radeon_fence **fence);
 		/* ring used for bo copies */
 		u32 copy_ring_index;
 	} copy;

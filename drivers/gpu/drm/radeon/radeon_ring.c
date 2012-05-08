@@ -49,13 +49,9 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 		dev_err(rdev->dev, "failed to get a new IB (%d)\n", r);
 		return r;
 	}
-	r = radeon_fence_create(rdev, &ib->fence, ring);
-	if (r) {
-		dev_err(rdev->dev, "failed to create fence for new IB (%d)\n", r);
-		radeon_sa_bo_free(rdev, &ib->sa_bo, NULL);
-		return r;
-	}
 
+	ib->ring = ring;
+	ib->fence = NULL;
 	ib->ptr = radeon_sa_bo_cpu_addr(ib->sa_bo);
 	ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
 	ib->vm_id = 0;
@@ -74,7 +70,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
 	int r = 0;
 
 	if (!ib->length_dw || !ring->ready) {
@@ -89,8 +85,13 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 		dev_err(rdev->dev, "scheduling IB failed (%d).\n", r);
 		return r;
 	}
-	radeon_ring_ib_execute(rdev, ib->fence->ring, ib);
-	radeon_fence_emit(rdev, ib->fence);
+	radeon_ring_ib_execute(rdev, ib->ring, ib);
+	r = radeon_fence_emit(rdev, &ib->fence, ib->ring);
+	if (r) {
+		dev_err(rdev->dev, "failed to emit fence for new IB (%d)\n", r);
+		radeon_ring_unlock_undo(rdev, ring);
+		return r;
+	}
 	radeon_ring_unlock_commit(rdev, ring);
 	return 0;
 }

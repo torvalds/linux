@@ -61,15 +61,21 @@ static u32 radeon_fence_read(struct radeon_device *rdev, int ring)
 	return seq;
 }
 
-int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
+int radeon_fence_emit(struct radeon_device *rdev,
+		      struct radeon_fence **fence,
+		      int ring)
 {
 	/* we are protected by the ring emission mutex */
-	if (fence->seq && fence->seq < RADEON_FENCE_NOTEMITED_SEQ) {
-		return 0;
+	*fence = kmalloc(sizeof(struct radeon_fence), GFP_KERNEL);
+	if ((*fence) == NULL) {
+		return -ENOMEM;
 	}
-	fence->seq = ++rdev->fence_drv[fence->ring].seq;
-	radeon_fence_ring_emit(rdev, fence->ring, fence);
-	trace_radeon_fence_emit(rdev->ddev, fence->seq);
+	kref_init(&((*fence)->kref));
+	(*fence)->rdev = rdev;
+	(*fence)->seq = ++rdev->fence_drv[ring].seq;
+	(*fence)->ring = ring;
+	radeon_fence_ring_emit(rdev, ring, *fence);
+	trace_radeon_fence_emit(rdev->ddev, (*fence)->seq);
 	return 0;
 }
 
@@ -138,23 +144,7 @@ static void radeon_fence_destroy(struct kref *kref)
 	struct radeon_fence *fence;
 
 	fence = container_of(kref, struct radeon_fence, kref);
-	fence->seq = RADEON_FENCE_NOTEMITED_SEQ;
 	kfree(fence);
-}
-
-int radeon_fence_create(struct radeon_device *rdev,
-			struct radeon_fence **fence,
-			int ring)
-{
-	*fence = kmalloc(sizeof(struct radeon_fence), GFP_KERNEL);
-	if ((*fence) == NULL) {
-		return -ENOMEM;
-	}
-	kref_init(&((*fence)->kref));
-	(*fence)->rdev = rdev;
-	(*fence)->seq = RADEON_FENCE_NOTEMITED_SEQ;
-	(*fence)->ring = ring;
-	return 0;
 }
 
 static bool radeon_fence_seq_signaled(struct radeon_device *rdev,
@@ -174,10 +164,6 @@ static bool radeon_fence_seq_signaled(struct radeon_device *rdev,
 bool radeon_fence_signaled(struct radeon_fence *fence)
 {
 	if (!fence) {
-		return true;
-	}
-	if (fence->seq == RADEON_FENCE_NOTEMITED_SEQ) {
-		WARN(1, "Querying an unemitted fence : %p !\n", fence);
 		return true;
 	}
 	if (fence->seq == RADEON_FENCE_SIGNALED_SEQ) {
@@ -444,9 +430,7 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 			return 0;
 		}
 
-		if (fences[i]->seq < RADEON_FENCE_NOTEMITED_SEQ) {
-			seq[i] = fences[i]->seq;
-		}
+		seq[i] = fences[i]->seq;
 	}
 
 	r = radeon_fence_wait_any_seq(rdev, seq, intr);

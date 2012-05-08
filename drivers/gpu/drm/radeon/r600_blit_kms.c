@@ -703,20 +703,20 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, unsigned num_gpu_pages,
 	return 0;
 }
 
-void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence,
+void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence **fence,
 			 struct radeon_sa_bo *vb)
 {
 	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	int r;
 
-	r = radeon_fence_emit(rdev, fence);
+	r = radeon_fence_emit(rdev, fence, RADEON_RING_TYPE_GFX_INDEX);
 	if (r) {
 		radeon_ring_unlock_undo(rdev, ring);
 		return;
 	}
 
 	radeon_ring_unlock_commit(rdev, ring);
-	radeon_sa_bo_free(rdev, &vb, fence);
+	radeon_sa_bo_free(rdev, &vb, *fence);
 }
 
 void r600_kms_blit_copy(struct radeon_device *rdev,

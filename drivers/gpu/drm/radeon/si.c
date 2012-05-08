@@ -1762,7 +1762,7 @@ void si_fence_ring_emit(struct radeon_device *rdev,
  */
 void si_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ring *ring = &rdev->ring[ib->fence->ring];
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
 	u32 header;
 
 	if (ib->is_const_ib)
@@ -2702,7 +2702,7 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 			if (ib->is_const_ib)
 				ret = si_vm_packet3_ce_check(rdev, ib->ptr, &pkt);
 			else {
-				switch (ib->fence->ring) {
+				switch (ib->ring) {
 				case RADEON_RING_TYPE_GFX_INDEX:
 					ret = si_vm_packet3_gfx_check(rdev, ib->ptr, &pkt);
 					break;
@@ -2711,7 +2711,7 @@ int si_ib_parse(struct radeon_device *rdev, struct radeon_ib *ib)
 					ret = si_vm_packet3_compute_check(rdev, ib->ptr, &pkt);
 					break;
 				default:
-					dev_err(rdev->dev, "Non-PM4 ring %d !\n", ib->fence->ring);
+					dev_err(rdev->dev, "Non-PM4 ring %d !\n", ib->ring);
 					ret = -EINVAL;
 					break;
 				}

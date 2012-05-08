@@ -349,7 +349,7 @@ void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo,
 
 	sa_manager = (*sa_bo)->manager;
 	spin_lock(&sa_manager->lock);
-	if (fence && fence->seq && fence->seq < RADEON_FENCE_NOTEMITED_SEQ) {
+	if (fence && !radeon_fence_signaled(fence)) {
 		(*sa_bo)->fence = radeon_fence_ref(fence);
 		list_add_tail(&(*sa_bo)->flist,
 			      &sa_manager->flist[fence->ring]);
