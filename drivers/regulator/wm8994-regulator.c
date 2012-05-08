@@ -233,7 +233,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	} else
 		ldo->is_enabled = true;
 
-	config.dev = &pdev->dev;
+	config.dev = wm8994->dev;
 	config.init_data = pdata->ldo[id].init_data;
 	config.driver_data = ldo;
 
