@@ -178,13 +178,6 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 	if (IS_ERR(timer->fclk))
 		return -ENODEV;
 
-	sprintf(name, "gpt%d_ick", gptimer_id);
-	timer->iclk = clk_get(NULL, name);
-	if (IS_ERR(timer->iclk)) {
-		clk_put(timer->fclk);
-		return -ENODEV;
-	}
-
 	omap_hwmod_enable(oh);
 
 	sys_timer_reserved |= (1 << (gptimer_id - 1));
