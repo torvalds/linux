@@ -222,18 +222,43 @@ struct sh_hdmi {
 	struct delayed_work edid_work;
 	struct fb_videomode mode;
 	struct fb_monspecs monspec;
+
+	/* register access functions */
+	void (*write)(struct sh_hdmi *hdmi, u8 data, u8 reg);
+	u8 (*read)(struct sh_hdmi *hdmi, u8 reg);
 };
 
 #define entity_to_sh_hdmi(e)	container_of(e, struct sh_hdmi, entity)
 
-static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
+static void __hdmi_write8(struct sh_hdmi *hdmi, u8 data, u8 reg)
 {
 	iowrite8(data, hdmi->base + reg);
 }
 
-static u8 hdmi_read(struct sh_hdmi *hdmi, u8 reg)
+static u8 __hdmi_read8(struct sh_hdmi *hdmi, u8 reg)
 {
 	return ioread8(hdmi->base + reg);
+}
+
+static void __hdmi_write32(struct sh_hdmi *hdmi, u8 data, u8 reg)
+{
+	iowrite32((u32)data, hdmi->base + (reg * 4));
+	udelay(100);
+}
+
+static u8 __hdmi_read32(struct sh_hdmi *hdmi, u8 reg)
+{
+	return (u8)ioread32(hdmi->base + (reg * 4));
+}
+
+static void hdmi_write(struct sh_hdmi *hdmi, u8 data, u8 reg)
+{
+	hdmi->write(hdmi, data, reg);
+}
+
+static u8 hdmi_read(struct sh_hdmi *hdmi, u8 reg)
+{
+	return hdmi->read(hdmi, reg);
 }
 
 static void hdmi_bit_set(struct sh_hdmi *hdmi, u8 mask, u8 data, u8 reg)
@@ -1146,6 +1171,15 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 		ret = PTR_ERR(hdmi->hdmi_clk);
 		dev_err(&pdev->dev, "Unable to get clock: %d\n", ret);
 		goto egetclk;
+	}
+
+	/* select register access functions */
+	if (pdata->flags & HDMI_32BIT_REG) {
+		hdmi->write	= __hdmi_write32;
+		hdmi->read	= __hdmi_read32;
+	} else {
+		hdmi->write	= __hdmi_write8;
+		hdmi->read	= __hdmi_read8;
 	}
 
 	/* An arbitrary relaxed pixclock just to get things started: from standard 480p */
