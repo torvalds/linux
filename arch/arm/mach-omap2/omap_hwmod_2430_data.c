@@ -865,6 +865,24 @@ static struct omap_hwmod_ocp_if omap2430_l4_core__hdq1w = {
 	.flags		= OMAP_FIREWALL_L4 | OCPIF_SWSUP_IDLE,
 };
 
+/* l4_wkup -> 32ksync_counter */
+static struct omap_hwmod_addr_space omap2430_counter_32k_addrs[] = {
+	{
+		.pa_start	= 0x49020000,
+		.pa_end		= 0x4902001f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if omap2430_l4_wkup__counter_32k = {
+	.master		= &omap2xxx_l4_wkup_hwmod,
+	.slave		= &omap2xxx_counter_32k_hwmod,
+	.clk		= "sync_32k_ick",
+	.addr		= omap2430_counter_32k_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *omap2430_hwmod_ocp_ifs[] __initdata = {
 	&omap2xxx_l3_main__l4_core,
 	&omap2xxx_mpu__l3_main,
@@ -914,6 +932,7 @@ static struct omap_hwmod_ocp_if *omap2430_hwmod_ocp_ifs[] __initdata = {
 	&omap2430_l4_core__mcbsp4,
 	&omap2430_l4_core__mcbsp5,
 	&omap2430_l4_core__hdq1w,
+	&omap2430_l4_wkup__counter_32k,
 	NULL,
 };
 

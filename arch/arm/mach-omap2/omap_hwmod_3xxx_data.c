@@ -1997,6 +1997,40 @@ static struct omap_hwmod omap3xxx_hdq1w_hwmod = {
 };
 
 /*
+ * '32K sync counter' class
+ * 32-bit ordinary counter, clocked by the falling edge of the 32 khz clock
+ */
+static struct omap_hwmod_class_sysconfig omap3xxx_counter_sysc = {
+	.rev_offs	= 0x0000,
+	.sysc_offs	= 0x0004,
+	.sysc_flags	= SYSC_HAS_SIDLEMODE,
+	.idlemodes	= (SIDLE_FORCE | SIDLE_NO),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap3xxx_counter_hwmod_class = {
+	.name	= "counter",
+	.sysc	= &omap3xxx_counter_sysc,
+};
+
+static struct omap_hwmod omap3xxx_counter_32k_hwmod = {
+	.name		= "counter_32k",
+	.class		= &omap3xxx_counter_hwmod_class,
+	.clkdm_name	= "wkup_clkdm",
+	.flags		= HWMOD_SWSUP_SIDLE,
+	.main_clk	= "wkup_32k_fck",
+	.prcm		= {
+		.omap2	= {
+			.module_offs = WKUP_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP3430_ST_32KSYNC_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP3430_ST_32KSYNC_SHIFT,
+		},
+	},
+};
+
+/*
  * interfaces
  */
 
@@ -3085,6 +3119,24 @@ static struct omap_hwmod_ocp_if omap3xxx_l4_core__hdq1w = {
 	.flags		= OMAP_FIREWALL_L4 | OCPIF_SWSUP_IDLE,
 };
 
+/* l4_wkup -> 32ksync_counter */
+static struct omap_hwmod_addr_space omap3xxx_counter_32k_addrs[] = {
+	{
+		.pa_start	= 0x48320000,
+		.pa_end		= 0x4832001f,
+		.flags		= ADDR_TYPE_RT
+	},
+	{ }
+};
+
+static struct omap_hwmod_ocp_if omap3xxx_l4_wkup__counter_32k = {
+	.master		= &omap3xxx_l4_wkup_hwmod,
+	.slave		= &omap3xxx_counter_32k_hwmod,
+	.clk		= "omap_32ksync_ick",
+	.addr		= omap3xxx_counter_32k_addrs,
+	.user		= OCP_USER_MPU | OCP_USER_SDMA,
+};
+
 static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap3xxx_l3_main__l4_core,
 	&omap3xxx_l3_main__l4_per,
@@ -3129,6 +3181,7 @@ static struct omap_hwmod_ocp_if *omap3xxx_hwmod_ocp_ifs[] __initdata = {
 	&omap34xx_l4_core__mcspi2,
 	&omap34xx_l4_core__mcspi3,
 	&omap34xx_l4_core__mcspi4,
+	&omap3xxx_l4_wkup__counter_32k,
 	NULL,
 };
 
