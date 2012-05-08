@@ -3768,7 +3768,7 @@ static int transport_lun_wait_for_tasks(struct se_cmd *cmd, struct se_lun *lun)
 	    (cmd->transport_state & CMD_T_SENT)) {
 		if (!target_stop_cmd(cmd, &flags))
 			ret++;
-		spin_lock_irqsave(&cmd->t_state_lock, flags);
+		spin_unlock_irqrestore(&cmd->t_state_lock, flags);
 	} else {
 		spin_unlock_irqrestore(&cmd->t_state_lock,
 				flags);
