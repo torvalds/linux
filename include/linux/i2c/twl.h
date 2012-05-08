@@ -171,8 +171,6 @@ static inline int twl_class_is_ ##class(void)	\
 TWL_CLASS_IS(4030, TWL4030_CLASS_ID)
 TWL_CLASS_IS(6030, TWL6030_CLASS_ID)
 
-#define TWL6025_SUBCLASS	BIT(4)  /* TWL6025 has changed registers */
-
 /*
  * Read and write single 8-bit registers
  */
@@ -758,6 +756,12 @@ struct twl_regulator_driver_data {
 	void		*data;
 	unsigned long	features;
 };
+/* chip-specific feature flags, for twl_regulator_driver_data.features */
+#define TWL4030_VAUX2		BIT(0)	/* pre-5030 voltage ranges */
+#define TPS_SUBSET		BIT(1)	/* tps659[23]0 have fewer LDOs */
+#define TWL5031			BIT(2)  /* twl5031 has different registers */
+#define TWL6030_CLASS		BIT(3)	/* TWL6030 class */
+#define TWL6025_SUBCLASS	BIT(4)  /* TWL6025 has changed registers */
 
 /*----------------------------------------------------------------------*/
 
