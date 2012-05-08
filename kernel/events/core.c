@@ -2039,8 +2039,8 @@ static void perf_event_context_sched_out(struct task_struct *task, int ctxn,
  * accessing the event control register. If a NMI hits, then it will
  * not restart the event.
  */
-void __perf_event_task_sched_out(struct task_struct *task,
-				 struct task_struct *next)
+static void __perf_event_task_sched_out(struct task_struct *task,
+					struct task_struct *next)
 {
 	int ctxn;
 
@@ -2279,8 +2279,8 @@ static void perf_branch_stack_sched_in(struct task_struct *prev,
  * accessing the event control register. If a NMI hits, then it will
  * keep the event running.
  */
-void __perf_event_task_sched_in(struct task_struct *prev,
-				struct task_struct *task)
+static void __perf_event_task_sched_in(struct task_struct *prev,
+				       struct task_struct *task)
 {
 	struct perf_event_context *ctx;
 	int ctxn;
@@ -2303,6 +2303,12 @@ void __perf_event_task_sched_in(struct task_struct *prev,
 	/* check for system-wide branch_stack events */
 	if (atomic_read(&__get_cpu_var(perf_branch_stack_events)))
 		perf_branch_stack_sched_in(prev, task);
+}
+
+void __perf_event_task_sched(struct task_struct *prev, struct task_struct *next)
+{
+	__perf_event_task_sched_out(prev, next);
+	__perf_event_task_sched_in(prev, next);
 }
 
 static u64 perf_calculate_period(struct perf_event *event, u64 nsec, u64 count)
