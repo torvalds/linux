@@ -103,6 +103,7 @@ extern void wlc_bmac_macphyclk_set(struct wlc_hw_info *wlc_hw, bool clk);
 extern void wlc_bmac_phy_reset(struct wlc_hw_info *wlc_hw);
 extern void wlc_bmac_corereset(struct wlc_hw_info *wlc_hw, u32 flags);
 extern void wlc_bmac_reset(struct wlc_hw_info *wlc_hw);
+extern void wlc_bmac_mute(struct wlc_hw_info *wlc_hw, bool want, mbool flags);
 extern void wlc_bmac_init(struct wlc_hw_info *wlc_hw, chanspec_t chanspec,
 			  bool mute);
 extern int wlc_bmac_up_prep(struct wlc_hw_info *wlc_hw);

@@ -108,8 +108,9 @@ static void wdm_out_callback(struct urb *urb)
 	spin_lock(&desc->iuspin);
 	desc->werr = urb->status;
 	spin_unlock(&desc->iuspin);
-	clear_bit(WDM_IN_USE, &desc->flags);
 	kfree(desc->outbuf);
+	desc->outbuf = NULL;
+	clear_bit(WDM_IN_USE, &desc->flags);
 	wake_up(&desc->wait);
 }
 
@@ -312,7 +313,7 @@ static ssize_t wdm_write
 	if (we < 0)
 		return -EIO;
 
-	desc->outbuf = buf = kmalloc(count, GFP_KERNEL);
+	buf = kmalloc(count, GFP_KERNEL);
 	if (!buf) {
 		rv = -ENOMEM;
 		goto outnl;
@@ -376,10 +377,12 @@ static ssize_t wdm_write
 	req->wIndex = desc->inum;
 	req->wLength = cpu_to_le16(count);
 	set_bit(WDM_IN_USE, &desc->flags);
+	desc->outbuf = buf;
 
 	rv = usb_submit_urb(desc->command, GFP_KERNEL);
 	if (rv < 0) {
 		kfree(buf);
+		desc->outbuf = NULL;
 		clear_bit(WDM_IN_USE, &desc->flags);
 		dev_err(&desc->intf->dev, "Tx URB error: %d\n", rv);
 	} else {
