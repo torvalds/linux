@@ -1186,6 +1186,13 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_get_sync(&pdev->dev);
 
+	/* init interrupt polarity */
+	if (pdata->flags & HDMI_OUTPUT_PUSH_PULL)
+		hdmi_bit_set(hdmi, 0x02, 0x02, HDMI_SYSTEM_CTRL);
+
+	if (pdata->flags & HDMI_OUTPUT_POLARITY_HI)
+		hdmi_bit_set(hdmi, 0x01, 0x01, HDMI_SYSTEM_CTRL);
+
 	/* Product and revision IDs are 0 in sh-mobile version */
 	dev_info(&pdev->dev, "Detected HDMI controller 0x%x:0x%x\n",
 		 hdmi_read(hdmi, HDMI_PRODUCT_ID), hdmi_read(hdmi, HDMI_REVISION_ID));

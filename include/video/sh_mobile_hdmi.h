@@ -18,9 +18,10 @@ struct clk;
 /*
  * flags format
  *
- * 0x0000000A
+ * 0x000000BA
  *
  * A: Audio source select
+ * B: Int output option
  */
 
 /* Audio source select */
@@ -29,6 +30,11 @@ struct clk;
 #define HDMI_SND_SRC_SPDIF	(1 << 0)
 #define HDMI_SND_SRC_DSD	(2 << 0)
 #define HDMI_SND_SRC_HBR	(3 << 0)
+
+/* Int output option */
+#define HDMI_OUTPUT_PUSH_PULL	(1 << 4) /* System control : output mode */
+#define HDMI_OUTPUT_POLARITY_HI	(1 << 5) /* System control : output polarity */
+
 
 struct sh_mobile_hdmi_info {
 	unsigned int			 flags;
