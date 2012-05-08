@@ -122,7 +122,7 @@ int iio_simple_dummy_write_event_value(struct iio_dev *indio_dev,
  * @private: pointer to device instance state.
  *
  * This handler is responsible for querying the device to find out what
- * event occured and for then pushing that event towards userspace.
+ * event occurred and for then pushing that event towards userspace.
  * Here only one event occurs so we push that directly on with locally
  * grabbed timestamp.
  */

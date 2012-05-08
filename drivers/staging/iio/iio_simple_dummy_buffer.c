@@ -37,7 +37,7 @@ static const s16 fakedata[] = {
  * @irq: the interrupt number
  * @p: private data - always a pointer to the poll func.
  *
- * This is the guts of buffered capture. On a trigger event occuring,
+ * This is the guts of buffered capture. On a trigger event occurring,
  * if the pollfunc is attached then this handler is called as a threaded
  * interrupt (and hence may sleep). It is responsible for grabbing data
  * from the device and pushing it into the associated buffer.
@@ -61,7 +61,7 @@ static irqreturn_t iio_simple_dummy_trigger_h(int irq, void *p)
 		 *   up a fast read.  The capture will consist of all of them.
 		 *   Hence we just call the grab data function and fill the
 		 *   buffer without processing.
-		 * sofware scans: can be considered to be random access
+		 * software scans: can be considered to be random access
 		 *   so efficient reading is just a case of minimal bus
 		 *   transactions.
 		 * software culled hardware scans:
