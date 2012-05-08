@@ -66,10 +66,11 @@ static struct gpio_port_t * const gpio_array[] = {
 	(struct gpio_port_t *)PORTE_FER,
 	(struct gpio_port_t *)PORTF_FER,
 	(struct gpio_port_t *)PORTG_FER,
-#elif defined(CONFIG_BF54x) 
+# if defined(CONFIG_BF54x)
 	(struct gpio_port_t *)PORTH_FER,
 	(struct gpio_port_t *)PORTI_FER,
 	(struct gpio_port_t *)PORTJ_FER,
+# endif
 #else
 # error no gpio arrays defined
 #endif
