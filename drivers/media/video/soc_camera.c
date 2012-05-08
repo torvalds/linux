@@ -1262,7 +1262,7 @@ static int default_enum_framesizes(struct soc_camera_device *icd,
 	/* map xlate-code to pixel_format, sensor only handle xlate-code*/
 	fsize_mbus.pixel_format = xlate->code;
 
-	ret = v4l2_subdev_call(sd, video, enum_mbus_fsizes, &fsize_mbus);
+	ret = v4l2_subdev_call(sd, video, enum_framesizes, &fsize_mbus);
 	if (ret < 0)
 		return ret;
 
