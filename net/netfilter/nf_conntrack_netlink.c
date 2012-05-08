@@ -2080,7 +2080,15 @@ static int
 ctnetlink_change_expect(struct nf_conntrack_expect *x,
 			const struct nlattr * const cda[])
 {
-	return -EOPNOTSUPP;
+	if (cda[CTA_EXPECT_TIMEOUT]) {
+		if (!del_timer(&x->timeout))
+			return -ETIME;
+
+		x->timeout.expires = jiffies +
+			ntohl(nla_get_be32(cda[CTA_EXPECT_TIMEOUT])) * HZ;
+		add_timer(&x->timeout);
+	}
+	return 0;
 }
 
 static const struct nla_policy exp_nat_nla_policy[CTA_EXPECT_NAT_MAX+1] = {
