@@ -246,7 +246,7 @@ out_unlock:
 
 out_bmap_cancel:
 	xfs_bmap_cancel(&free_list);
-	xfs_trans_unreserve_quota_nblks(tp, ip, qblocks, 0, quota_flag);
+	xfs_trans_unreserve_quota_nblks(tp, ip, (long)qblocks, 0, quota_flag);
 out_trans_cancel:
 	xfs_trans_cancel(tp, XFS_TRANS_RELEASE_LOG_RES | XFS_TRANS_ABORT);
 	goto out_unlock;

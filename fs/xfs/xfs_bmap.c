@@ -4526,7 +4526,7 @@ out_unreserve_blocks:
 		xfs_icsb_modify_counters(mp, XFS_SBS_FDBLOCKS, alen, 0);
 out_unreserve_quota:
 	if (XFS_IS_QUOTA_ON(mp))
-		xfs_trans_unreserve_quota_nblks(NULL, ip, alen, 0, rt ?
+		xfs_trans_unreserve_quota_nblks(NULL, ip, (long)alen, 0, rt ?
 				XFS_QMOPT_RES_RTBLKS : XFS_QMOPT_RES_REGBLKS);
 	return error;
 }
