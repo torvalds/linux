@@ -22,11 +22,9 @@
 #ifndef __X86_IRQ_REMAPPING_H
 #define __X86_IRQ_REMAPPING_H
 
-#ifdef CONFIG_IRQ_REMAP
+#include <asm/io_apic.h>
 
-struct IO_APIC_route_entry;
-struct io_apic_irq_attr;
-struct pci_dev;
+#ifdef CONFIG_IRQ_REMAP
 
 extern int irq_remapping_enabled;
 
