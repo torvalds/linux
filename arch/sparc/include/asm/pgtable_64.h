@@ -12,8 +12,6 @@
  * the SpitFire page tables.
  */
 
-#include <asm-generic/pgtable-nopud.h>
-
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
@@ -21,6 +19,8 @@
 #include <asm/asi.h>
 #include <asm/page.h>
 #include <asm/processor.h>
+
+#include <asm-generic/pgtable-nopud.h>
 
 /* The kernel image occupies 0x4000000 to 0x6000000 (4MB --> 96MB).
  * The page copy blockops can use 0x6000000 to 0x8000000.

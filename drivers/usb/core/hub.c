@@ -1667,7 +1667,6 @@ void usb_disconnect(struct usb_device **pdev)
 {
 	struct usb_device	*udev = *pdev;
 	int			i;
-	struct usb_hcd		*hcd = bus_to_hcd(udev->bus);
 
 	/* mark the device as inactive, so any further urb submissions for
 	 * this device (and any of its children) will fail immediately.
@@ -1690,9 +1689,7 @@ void usb_disconnect(struct usb_device **pdev)
 	 * so that the hardware is now fully quiesced.
 	 */
 	dev_dbg (&udev->dev, "unregistering device\n");
-	mutex_lock(hcd->bandwidth_mutex);
 	usb_disable_device(udev, 0);
-	mutex_unlock(hcd->bandwidth_mutex);
 	usb_hcd_synchronize_unlinks(udev);
 
 	usb_remove_ep_devs(&udev->ep0);
@@ -3162,6 +3159,22 @@ hub_port_init (struct usb_hub *hub, struct usb_device *udev, int port1,
 	}
 	if (retval)
 		goto fail;
+
+	/*
+	 * Some superspeed devices have finished the link training process
+	 * and attached to a superspeed hub port, but the device descriptor
+	 * got from those devices show they aren't superspeed devices. Warm
+	 * reset the port attached by the devices can fix them.
+	 */
+	if ((udev->speed == USB_SPEED_SUPER) &&
+			(le16_to_cpu(udev->descriptor.bcdUSB) < 0x0300)) {
+		dev_err(&udev->dev, "got a wrong device descriptor, "
+				"warm reset device\n");
+		hub_port_reset(hub, port1, udev,
+				HUB_BH_RESET_TIME, true);
+		retval = -EINVAL;
+		goto fail;
+	}
 
 	if (udev->descriptor.bMaxPacketSize0 == 0xff ||
 			udev->speed == USB_SPEED_SUPER)

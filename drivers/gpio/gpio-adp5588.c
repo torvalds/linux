@@ -252,7 +252,7 @@ static irqreturn_t adp5588_irq_handler(int irq, void *devid)
 		if (ret < 0)
 			memset(dev->irq_stat, 0, ARRAY_SIZE(dev->irq_stat));
 
-		for (bank = 0; bank <= ADP5588_BANK(ADP5588_MAXGPIO);
+		for (bank = 0, bit = 0; bank <= ADP5588_BANK(ADP5588_MAXGPIO);
 			bank++, bit = 0) {
 			pending = dev->irq_stat[bank] & dev->irq_mask[bank];
 

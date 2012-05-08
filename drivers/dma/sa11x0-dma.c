@@ -585,7 +585,7 @@ static dma_cookie_t sa11x0_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 
 static struct dma_async_tx_descriptor *sa11x0_dma_prep_slave_sg(
 	struct dma_chan *chan, struct scatterlist *sg, unsigned int sglen,
-	enum dma_transfer_direction dir, unsigned long flags)
+	enum dma_transfer_direction dir, unsigned long flags, void *context)
 {
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_desc *txd;

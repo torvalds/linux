@@ -150,7 +150,7 @@ static void p1022ds_set_monitor_port(enum fsl_diu_monitor_port port)
 {
 	struct device_node *guts_node;
 	struct device_node *indirect_node = NULL;
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 	u8 __iomem *lbc_lcs0_ba = NULL;
 	u8 __iomem *lbc_lcs1_ba = NULL;
 	u8 b;
@@ -269,7 +269,7 @@ exit:
 void p1022ds_set_pixel_clock(unsigned int pixclock)
 {
 	struct device_node *guts_np = NULL;
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 	unsigned long freq;
 	u64 temp;
 	u32 pxclk;
@@ -460,18 +460,7 @@ static void __init p1022_ds_setup_arch(void)
 	pr_info("Freescale P1022 DS reference board\n");
 }
 
-static struct of_device_id __initdata p1022_ds_ids[] = {
-	/* So that the DMA channel nodes can be probed individually: */
-	{ .compatible = "fsl,eloplus-dma", },
-	{},
-};
-
-static int __init p1022_ds_publish_devices(void)
-{
-	mpc85xx_common_publish_devices();
-	return of_platform_bus_probe(NULL, p1022_ds_ids, NULL);
-}
-machine_device_initcall(p1022_ds, p1022_ds_publish_devices);
+machine_device_initcall(p1022_ds, mpc85xx_common_publish_devices);
 
 machine_arch_initcall(p1022_ds, swiotlb_setup_bus_notifier);
 

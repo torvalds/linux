@@ -435,7 +435,7 @@ config GPIO_ML_IOH
 
 config GPIO_SODAVILLE
 	bool "Intel Sodaville GPIO support"
-	depends on X86 && PCI && OF && BROKEN
+	depends on X86 && PCI && OF
 	select GPIO_GENERIC
 	select GENERIC_IRQ_CHIP
 	help

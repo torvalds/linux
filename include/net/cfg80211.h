@@ -620,8 +620,10 @@ struct sta_bss_parameters {
  * @llid: mesh local link id
  * @plid: mesh peer link id
  * @plink_state: mesh peer link state
- * @signal: signal strength of last received packet in dBm
- * @signal_avg: signal strength average in dBm
+ * @signal: the signal strength, type depends on the wiphy's signal_type
+	NOTE: For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
+ * @signal_avg: avg signal strength, type depends on the wiphy's signal_type
+	NOTE: For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
  * @txrate: current unicast bitrate from this station
  * @rxrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station

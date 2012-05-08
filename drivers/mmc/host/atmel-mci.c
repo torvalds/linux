@@ -77,6 +77,7 @@ struct atmel_mci_caps {
 	bool    has_cstor_reg;
 	bool    has_highspeed;
 	bool    has_rwproof;
+	bool	has_odd_clk_div;
 };
 
 struct atmel_mci_dma {
@@ -482,7 +483,14 @@ err:
 static inline unsigned int atmci_ns_to_clocks(struct atmel_mci *host,
 					unsigned int ns)
 {
-	return (ns * (host->bus_hz / 1000000) + 999) / 1000;
+	/*
+	 * It is easier here to use us instead of ns for the timeout,
+	 * it prevents from overflows during calculation.
+	 */
+	unsigned int us = DIV_ROUND_UP(ns, 1000);
+
+	/* Maximum clock frequency is host->bus_hz/2 */
+	return us * (DIV_ROUND_UP(host->bus_hz, 2000000));
 }
 
 static void atmci_set_timeout(struct atmel_mci *host,
@@ -1127,15 +1135,26 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		}
 
 		/* Calculate clock divider */
-		clkdiv = DIV_ROUND_UP(host->bus_hz, 2 * clock_min) - 1;
-		if (clkdiv > 255) {
-			dev_warn(&mmc->class_dev,
-				"clock %u too slow; using %lu\n",
-				clock_min, host->bus_hz / (2 * 256));
-			clkdiv = 255;
+		if (host->caps.has_odd_clk_div) {
+			clkdiv = DIV_ROUND_UP(host->bus_hz, clock_min) - 2;
+			if (clkdiv > 511) {
+				dev_warn(&mmc->class_dev,
+				         "clock %u too slow; using %lu\n",
+				         clock_min, host->bus_hz / (511 + 2));
+				clkdiv = 511;
+			}
+			host->mode_reg = ATMCI_MR_CLKDIV(clkdiv >> 1)
+			                 | ATMCI_MR_CLKODD(clkdiv & 1);
+		} else {
+			clkdiv = DIV_ROUND_UP(host->bus_hz, 2 * clock_min) - 1;
+			if (clkdiv > 255) {
+				dev_warn(&mmc->class_dev,
+				         "clock %u too slow; using %lu\n",
+				         clock_min, host->bus_hz / (2 * 256));
+				clkdiv = 255;
+			}
+			host->mode_reg = ATMCI_MR_CLKDIV(clkdiv);
 		}
-
-		host->mode_reg = ATMCI_MR_CLKDIV(clkdiv);
 
 		/*
 		 * WRPROOF and RDPROOF prevent overruns/underruns by
@@ -2007,35 +2026,35 @@ static void __init atmci_get_cap(struct atmel_mci *host)
 			"version: 0x%x\n", version);
 
 	host->caps.has_dma = 0;
-	host->caps.has_pdc = 0;
+	host->caps.has_pdc = 1;
 	host->caps.has_cfg_reg = 0;
 	host->caps.has_cstor_reg = 0;
 	host->caps.has_highspeed = 0;
 	host->caps.has_rwproof = 0;
+	host->caps.has_odd_clk_div = 0;
 
 	/* keep only major version number */
 	switch (version & 0xf00) {
-	case 0x100:
-	case 0x200:
-		host->caps.has_pdc = 1;
-		host->caps.has_rwproof = 1;
-		break;
-	case 0x300:
-	case 0x400:
 	case 0x500:
+		host->caps.has_odd_clk_div = 1;
+	case 0x400:
+	case 0x300:
 #ifdef CONFIG_AT_HDMAC
 		host->caps.has_dma = 1;
 #else
-		host->caps.has_dma = 0;
 		dev_info(&host->pdev->dev,
 			"has dma capability but dma engine is not selected, then use pio\n");
 #endif
+		host->caps.has_pdc = 0;
 		host->caps.has_cfg_reg = 1;
 		host->caps.has_cstor_reg = 1;
 		host->caps.has_highspeed = 1;
+	case 0x200:
 		host->caps.has_rwproof = 1;
+	case 0x100:
 		break;
 	default:
+		host->caps.has_pdc = 0;
 		dev_warn(&host->pdev->dev,
 				"Unmanaged mci version, set minimum capabilities\n");
 		break;

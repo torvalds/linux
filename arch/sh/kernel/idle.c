@@ -17,8 +17,8 @@
 #include <linux/irqflags.h>
 #include <linux/smp.h>
 #include <linux/cpuidle.h>
-#include <asm/pgalloc.h>
 #include <linux/atomic.h>
+#include <asm/pgalloc.h>
 #include <asm/smp.h>
 #include <asm/bl_bit.h>
 

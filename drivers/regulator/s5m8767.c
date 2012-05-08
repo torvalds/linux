@@ -311,8 +311,7 @@ static int s5m8767_set_voltage(struct regulator_dev *rdev,
 	struct s5m8767_info *s5m8767 = rdev_get_drvdata(rdev);
 	const struct s5m_voltage_desc *desc;
 	int reg_id = rdev_get_id(rdev);
-	int reg, mask, ret;
-	int i;
+	int sel, reg, mask, ret;
 	u8 val;
 
 	switch (reg_id) {
@@ -333,19 +332,20 @@ static int s5m8767_set_voltage(struct regulator_dev *rdev,
 
 	desc = reg_voltage_map[reg_id];
 
-	i = s5m8767_convert_voltage_to_sel(desc, min_uV, max_uV);
-	if (i < 0)
-		return i;
+	sel = s5m8767_convert_voltage_to_sel(desc, min_uV, max_uV);
+	if (sel < 0)
+		return sel;
 
 	ret = s5m8767_get_voltage_register(rdev, &reg);
 	if (ret)
 		return ret;
 
 	s5m_reg_read(s5m8767->iodev, reg, &val);
-	val = val & mask;
+	val &= ~mask;
+	val |= sel;
 
 	ret = s5m_reg_write(s5m8767->iodev, reg, val);
-	*selector = i;
+	*selector = sel;
 
 	return ret;
 }

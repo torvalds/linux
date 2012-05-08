@@ -506,22 +506,19 @@ static int wm831x_aldo_set_mode(struct regulator_dev *rdev,
 {
 	struct wm831x_ldo *ldo = rdev_get_drvdata(rdev);
 	struct wm831x *wm831x = ldo->wm831x;
-	int ctrl_reg = ldo->base + WM831X_LDO_CONTROL;
 	int on_reg = ldo->base + WM831X_LDO_ON_CONTROL;
 	int ret;
 
 
 	switch (mode) {
 	case REGULATOR_MODE_NORMAL:
-		ret = wm831x_set_bits(wm831x, on_reg,
-				      WM831X_LDO7_ON_MODE, 0);
+		ret = wm831x_set_bits(wm831x, on_reg, WM831X_LDO7_ON_MODE, 0);
 		if (ret < 0)
 			return ret;
 		break;
 
 	case REGULATOR_MODE_IDLE:
-		ret = wm831x_set_bits(wm831x, ctrl_reg,
-				      WM831X_LDO7_ON_MODE,
+		ret = wm831x_set_bits(wm831x, on_reg, WM831X_LDO7_ON_MODE,
 				      WM831X_LDO7_ON_MODE);
 		if (ret < 0)
 			return ret;

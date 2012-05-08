@@ -2,6 +2,7 @@
 #include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/fpu.h>
+#include <asm/traps.h>
 
 int init_fpu(struct task_struct *tsk)
 {

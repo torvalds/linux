@@ -472,7 +472,7 @@ static int tlv320aic23_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int tlv320aic23_set_bias_level(struct snd_soc_codec *codec,
 				      enum snd_soc_bias_level level)
 {
-	u16 reg = snd_soc_read(codec, TLV320AIC23_PWR) & 0xff7f;
+	u16 reg = snd_soc_read(codec, TLV320AIC23_PWR) & 0x17f;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
@@ -491,7 +491,7 @@ static int tlv320aic23_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_OFF:
 		/* everything off, dac mute, inactive */
 		snd_soc_write(codec, TLV320AIC23_ACTIVE, 0x0);
-		snd_soc_write(codec, TLV320AIC23_PWR, 0xffff);
+		snd_soc_write(codec, TLV320AIC23_PWR, 0x1ff);
 		break;
 	}
 	codec->dapm.bias_level = level;

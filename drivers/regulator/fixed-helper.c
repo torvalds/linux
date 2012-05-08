@@ -18,7 +18,6 @@ static void regulator_fixed_release(struct device *dev)
 
 /**
  * regulator_register_fixed - register a no-op fixed regulator
- * @name: supply name
  * @id: platform device id
  * @supplies: consumers for this regulator
  * @num_supplies: number of consumers
@@ -32,7 +31,7 @@ struct platform_device *regulator_register_fixed(int id,
 	if (!data)
 		return NULL;
 
-	data->cfg.supply_name = "dummy";
+	data->cfg.supply_name = "fixed-dummy";
 	data->cfg.microvolts = 0;
 	data->cfg.gpio = -EINVAL;
 	data->cfg.enabled_at_boot = 1;

@@ -346,6 +346,7 @@ out:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(regcache_sync_region);
 
 /**
  * regcache_cache_only: Put a register map into cache only mode

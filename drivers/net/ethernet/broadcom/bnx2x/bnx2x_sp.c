@@ -3847,7 +3847,7 @@ static bool bnx2x_credit_pool_get_entry(
 			continue;
 
 		/* If we've got here we are going to find a free entry */
-		for (idx = vec * BNX2X_POOL_VEC_SIZE, i = 0;
+		for (idx = vec * BIT_VEC64_ELEM_SZ, i = 0;
 		      i < BIT_VEC64_ELEM_SZ; idx++, i++)
 
 			if (BIT_VEC64_TEST_BIT(o->pool_mirror, idx)) {

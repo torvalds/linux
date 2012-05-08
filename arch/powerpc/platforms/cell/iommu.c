@@ -564,7 +564,8 @@ static struct iommu_table *cell_get_iommu_table(struct device *dev)
 /* A coherent allocation implies strong ordering */
 
 static void *dma_fixed_alloc_coherent(struct device *dev, size_t size,
-				      dma_addr_t *dma_handle, gfp_t flag)
+				      dma_addr_t *dma_handle, gfp_t flag,
+				      struct dma_attrs *attrs)
 {
 	if (iommu_fixed_is_weak)
 		return iommu_alloc_coherent(dev, cell_get_iommu_table(dev),
@@ -572,18 +573,19 @@ static void *dma_fixed_alloc_coherent(struct device *dev, size_t size,
 					    device_to_mask(dev), flag,
 					    dev_to_node(dev));
 	else
-		return dma_direct_ops.alloc_coherent(dev, size, dma_handle,
-						     flag);
+		return dma_direct_ops.alloc(dev, size, dma_handle, flag,
+					    attrs);
 }
 
 static void dma_fixed_free_coherent(struct device *dev, size_t size,
-				    void *vaddr, dma_addr_t dma_handle)
+				    void *vaddr, dma_addr_t dma_handle,
+				    struct dma_attrs *attrs)
 {
 	if (iommu_fixed_is_weak)
 		iommu_free_coherent(cell_get_iommu_table(dev), size, vaddr,
 				    dma_handle);
 	else
-		dma_direct_ops.free_coherent(dev, size, vaddr, dma_handle);
+		dma_direct_ops.free(dev, size, vaddr, dma_handle, attrs);
 }
 
 static dma_addr_t dma_fixed_map_page(struct device *dev, struct page *page,
@@ -642,8 +644,8 @@ static int dma_fixed_dma_supported(struct device *dev, u64 mask)
 static int dma_set_mask_and_switch(struct device *dev, u64 dma_mask);
 
 struct dma_map_ops dma_iommu_fixed_ops = {
-	.alloc_coherent = dma_fixed_alloc_coherent,
-	.free_coherent  = dma_fixed_free_coherent,
+	.alloc          = dma_fixed_alloc_coherent,
+	.free           = dma_fixed_free_coherent,
 	.map_sg         = dma_fixed_map_sg,
 	.unmap_sg       = dma_fixed_unmap_sg,
 	.dma_supported  = dma_fixed_dma_supported,

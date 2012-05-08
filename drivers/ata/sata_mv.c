@@ -4025,7 +4025,8 @@ static int mv_platform_probe(struct platform_device *pdev)
 	struct ata_host *host;
 	struct mv_host_priv *hpriv;
 	struct resource *res;
-	int n_ports, rc;
+	int n_ports = 0;
+	int rc;
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 

@@ -1721,6 +1721,29 @@ static void bnx2x_squeeze_objects(struct bnx2x *bp)
 	} while (0)
 #endif
 
+bool bnx2x_test_firmware_version(struct bnx2x *bp, bool is_err)
+{
+	/* build FW version dword */
+	u32 my_fw = (BCM_5710_FW_MAJOR_VERSION) +
+		    (BCM_5710_FW_MINOR_VERSION << 8) +
+		    (BCM_5710_FW_REVISION_VERSION << 16) +
+		    (BCM_5710_FW_ENGINEERING_VERSION << 24);
+
+	/* read loaded FW from chip */
+	u32 loaded_fw = REG_RD(bp, XSEM_REG_PRAM);
+
+	DP(NETIF_MSG_IFUP, "loaded fw %x, my fw %x\n", loaded_fw, my_fw);
+
+	if (loaded_fw != my_fw) {
+		if (is_err)
+			BNX2X_ERR("bnx2x with FW %x was already loaded, which mismatches my %x FW. aborting\n",
+				  loaded_fw, my_fw);
+		return false;
+	}
+
+	return true;
+}
+
 /* must be called with rtnl_lock */
 int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 {
@@ -1815,23 +1838,8 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		}
 		if (load_code != FW_MSG_CODE_DRV_LOAD_COMMON_CHIP &&
 		    load_code != FW_MSG_CODE_DRV_LOAD_COMMON) {
-			/* build FW version dword */
-			u32 my_fw = (BCM_5710_FW_MAJOR_VERSION) +
-					(BCM_5710_FW_MINOR_VERSION << 8) +
-					(BCM_5710_FW_REVISION_VERSION << 16) +
-					(BCM_5710_FW_ENGINEERING_VERSION << 24);
-
-			/* read loaded FW from chip */
-			u32 loaded_fw = REG_RD(bp, XSEM_REG_PRAM);
-
-			DP(BNX2X_MSG_SP, "loaded fw %x, my fw %x",
-			   loaded_fw, my_fw);
-
 			/* abort nic load if version mismatch */
-			if (my_fw != loaded_fw) {
-				BNX2X_ERR("bnx2x with FW %x already loaded, "
-					  "which mismatches my %x FW. aborting",
-					  loaded_fw, my_fw);
+			if (!bnx2x_test_firmware_version(bp, true)) {
 				rc = -EBUSY;
 				LOAD_ERROR_EXIT(bp, load_error2);
 			}
@@ -1866,7 +1874,6 @@ int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		 * bnx2x_periodic_task().
 		 */
 		smp_mb();
-		queue_delayed_work(bnx2x_wq, &bp->period_task, 0);
 	} else
 		bp->port.pmf = 0;
 

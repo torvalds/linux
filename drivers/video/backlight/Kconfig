@@ -245,6 +245,12 @@ config BACKLIGHT_DA903X
 	  If you have a LCD backlight connected to the WLED output of DA9030
 	  or DA9034 WLED output, say Y here to enable this driver.
 
+config BACKLIGHT_DA9052
+	tristate "Dialog DA9052/DA9053 WLED"
+	depends on PMIC_DA9052
+	help
+	  Enable the Backlight Driver for DA9052-BC and DA9053-AA/Bx PMICs.
+
 config BACKLIGHT_MAX8925
 	tristate "Backlight driver for MAX8925"
 	depends on MFD_MAX8925

@@ -47,6 +47,31 @@ struct avc_cache_stats {
 };
 
 /*
+ * We only need this data after we have decided to send an audit message.
+ */
+struct selinux_late_audit_data {
+	u32 ssid;
+	u32 tsid;
+	u16 tclass;
+	u32 requested;
+	u32 audited;
+	u32 denied;
+	int result;
+};
+
+/*
+ * We collect this at the beginning or during an selinux security operation
+ */
+struct selinux_audit_data {
+	/*
+	 * auditdeny is a bit tricky and unintuitive.  See the
+	 * comments in avc.c for it's meaning and usage.
+	 */
+	u32 auditdeny;
+	struct selinux_late_audit_data *slad;
+};
+
+/*
  * AVC operations
  */
 

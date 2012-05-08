@@ -366,11 +366,20 @@ static void kw_i2c_timeout(unsigned long data)
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);
+
+	/*
+	 * If the timer is pending, that means we raced with the
+	 * irq, in which case we just return
+	 */
+	if (timer_pending(&host->timeout_timer))
+		goto skip;
+
 	kw_i2c_handle_interrupt(host, kw_read_reg(reg_isr));
 	if (host->state != state_idle) {
 		host->timeout_timer.expires = jiffies + KW_POLL_TIMEOUT;
 		add_timer(&host->timeout_timer);
 	}
+ skip:
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 

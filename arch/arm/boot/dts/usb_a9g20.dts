@@ -16,7 +16,7 @@
 		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock5 rw rootfstype=ubifs";
 	};
 
-	memory@20000000 {
+	memory {
 		reg = <0x20000000 0x4000000>;
 	};
 

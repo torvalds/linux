@@ -375,8 +375,8 @@ static void rionet_remove(struct rio_dev *rdev)
 	struct net_device *ndev = rio_get_drvdata(rdev);
 	struct rionet_peer *peer, *tmp;
 
-	free_pages((unsigned long)rionet_active, rdev->net->hport->sys_size ?
-					__fls(sizeof(void *)) + 4 : 0);
+	free_pages((unsigned long)rionet_active, get_order(sizeof(void *) *
+			RIO_MAX_ROUTE_ENTRIES(rdev->net->hport->sys_size)));
 	unregister_netdev(ndev);
 	free_netdev(ndev);
 
@@ -432,15 +432,16 @@ static int rionet_setup_netdev(struct rio_mport *mport, struct net_device *ndev)
 	int rc = 0;
 	struct rionet_private *rnet;
 	u16 device_id;
+	const size_t rionet_active_bytes = sizeof(void *) *
+				RIO_MAX_ROUTE_ENTRIES(mport->sys_size);
 
 	rionet_active = (struct rio_dev **)__get_free_pages(GFP_KERNEL,
-			mport->sys_size ? __fls(sizeof(void *)) + 4 : 0);
+			get_order(rionet_active_bytes));
 	if (!rionet_active) {
 		rc = -ENOMEM;
 		goto out;
 	}
-	memset((void *)rionet_active, 0, sizeof(void *) *
-				RIO_MAX_ROUTE_ENTRIES(mport->sys_size));
+	memset((void *)rionet_active, 0, rionet_active_bytes);
 
 	/* Set up private area */
 	rnet = netdev_priv(ndev);

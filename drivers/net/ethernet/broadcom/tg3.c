@@ -879,8 +879,13 @@ static inline unsigned int tg3_has_work(struct tg3_napi *tnapi)
 		if (sblk->status & SD_STATUS_LINK_CHG)
 			work_exists = 1;
 	}
-	/* check for RX/TX work to do */
-	if (sblk->idx[0].tx_consumer != tnapi->tx_cons ||
+
+	/* check for TX work to do */
+	if (sblk->idx[0].tx_consumer != tnapi->tx_cons)
+		work_exists = 1;
+
+	/* check for RX work to do */
+	if (tnapi->rx_rcb_prod_idx &&
 	    *(tnapi->rx_rcb_prod_idx) != tnapi->rx_rcb_ptr)
 		work_exists = 1;
 
@@ -2778,7 +2783,9 @@ static void tg3_power_down_phy(struct tg3 *tp, bool do_low_power)
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5700 ||
 	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5704 ||
 	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5780 &&
-	     (tp->phy_flags & TG3_PHYFLG_MII_SERDES)))
+	     (tp->phy_flags & TG3_PHYFLG_MII_SERDES)) ||
+	    (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717 &&
+	     !tp->pci_fn))
 		return;
 
 	if (GET_CHIP_REV(tp->pci_chip_rev_id) == CHIPREV_5784_AX ||
@@ -6122,6 +6129,9 @@ static int tg3_poll_work(struct tg3_napi *tnapi, int work_done, int budget)
 			return work_done;
 	}
 
+	if (!tnapi->rx_rcb_prod_idx)
+		return work_done;
+
 	/* run RX thread, within the bounds set by NAPI.
 	 * All RX "locking" is done by ensuring outside
 	 * code synchronizes with tg3->napi.poll()
@@ -7565,6 +7575,12 @@ static int tg3_alloc_consistent(struct tg3 *tp)
 		 */
 		switch (i) {
 		default:
+			if (tg3_flag(tp, ENABLE_RSS)) {
+				tnapi->rx_rcb_prod_idx = NULL;
+				break;
+			}
+			/* Fall through */
+		case 1:
 			tnapi->rx_rcb_prod_idx = &sblk->idx[0].rx_producer;
 			break;
 		case 2:

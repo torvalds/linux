@@ -46,7 +46,7 @@
  * ch: The channel on the DMA controller (0, 1, 2, or 3)
  * device: The device to set as the target (CCSR_GUTS_DMUXCR_xxx)
  */
-static inline void guts_set_dmuxcr(struct ccsr_guts_85xx __iomem *guts,
+static inline void guts_set_dmuxcr(struct ccsr_guts __iomem *guts,
 	unsigned int co, unsigned int ch, unsigned int device)
 {
 	unsigned int shift = 16 + (8 * (1 - co) + 2 * (3 - ch));
@@ -90,9 +90,9 @@ static int p1022_ds_machine_probe(struct snd_soc_card *card)
 {
 	struct machine_data *mdata =
 		container_of(card, struct machine_data, card);
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_85xx));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;
@@ -164,9 +164,9 @@ static int p1022_ds_machine_remove(struct snd_soc_card *card)
 {
 	struct machine_data *mdata =
 		container_of(card, struct machine_data, card);
-	struct ccsr_guts_85xx __iomem *guts;
+	struct ccsr_guts __iomem *guts;
 
-	guts = ioremap(guts_phys, sizeof(struct ccsr_guts_85xx));
+	guts = ioremap(guts_phys, sizeof(struct ccsr_guts));
 	if (!guts) {
 		dev_err(card->dev, "could not map global utilities\n");
 		return -ENOMEM;

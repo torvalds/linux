@@ -2191,6 +2191,7 @@ static int __ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 {
 	int rc = 0;
 	unsigned long flags;
+	unsigned long now, end;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	if (priv->status & STATUS_HCMD_ACTIVE) {
@@ -2232,10 +2233,20 @@ static int __ipw_send_cmd(struct ipw_priv *priv, struct host_cmd *cmd)
 	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
+	now = jiffies;
+	end = now + HOST_COMPLETE_TIMEOUT;
+again:
 	rc = wait_event_interruptible_timeout(priv->wait_command_queue,
 					      !(priv->
 						status & STATUS_HCMD_ACTIVE),
-					      HOST_COMPLETE_TIMEOUT);
+					      end - now);
+	if (rc < 0) {
+		now = jiffies;
+		if (time_before(now, end))
+			goto again;
+		rc = 0;
+	}
+
 	if (rc == 0) {
 		spin_lock_irqsave(&priv->lock, flags);
 		if (priv->status & STATUS_HCMD_ACTIVE) {
@@ -11507,9 +11518,9 @@ static int ipw_wdev_init(struct net_device *dev)
 			rc = -ENOMEM;
 			goto out;
 		}
-		/* translate geo->bg to a_band.channels */
+		/* translate geo->a to a_band.channels */
 		for (i = 0; i < geo->a_channels; i++) {
-			a_band->channels[i].band = IEEE80211_BAND_2GHZ;
+			a_band->channels[i].band = IEEE80211_BAND_5GHZ;
 			a_band->channels[i].center_freq = geo->a[i].freq;
 			a_band->channels[i].hw_value = geo->a[i].channel;
 			a_band->channels[i].max_power = geo->a[i].max_power;

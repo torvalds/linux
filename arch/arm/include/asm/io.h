@@ -119,7 +119,7 @@ static inline void __iomem *__typesafe_io(unsigned long addr)
 #ifdef CONFIG_NEED_MACH_IO_H
 #include <mach/io.h>
 #else
-#define __io(a)		({ (void)(a); __typesafe_io(0); })
+#define __io(a)		__typesafe_io((a) & IO_SPACE_LIMIT)
 #endif
 
 /*

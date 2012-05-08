@@ -835,13 +835,21 @@ cifs_posix_lock_set(struct file *file, struct file_lock *flock)
 	if ((flock->fl_flags & FL_POSIX) == 0)
 		return rc;
 
+try_again:
 	mutex_lock(&cinode->lock_mutex);
 	if (!cinode->can_cache_brlcks) {
 		mutex_unlock(&cinode->lock_mutex);
 		return rc;
 	}
-	rc = posix_lock_file_wait(file, flock);
+
+	rc = posix_lock_file(file, flock, NULL);
 	mutex_unlock(&cinode->lock_mutex);
+	if (rc == FILE_LOCK_DEFERRED) {
+		rc = wait_event_interruptible(flock->fl_wait, !flock->fl_next);
+		if (!rc)
+			goto try_again;
+		locks_delete_block(flock);
+	}
 	return rc;
 }
 
@@ -2170,7 +2178,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	unsigned long nr_pages, i;
 	size_t copied, len, cur_len;
 	ssize_t total_written = 0;
-	loff_t offset = *poffset;
+	loff_t offset;
 	struct iov_iter it;
 	struct cifsFileInfo *open_file;
 	struct cifs_tcon *tcon;
@@ -2192,6 +2200,7 @@ cifs_iovec_write(struct file *file, const struct iovec *iov,
 	cifs_sb = CIFS_SB(file->f_path.dentry->d_sb);
 	open_file = file->private_data;
 	tcon = tlink_tcon(open_file->tlink);
+	offset = *poffset;
 
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RWPIDFORWARD)
 		pid = open_file->pid;

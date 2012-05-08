@@ -1737,10 +1737,12 @@ static int stmmac_hw_init(struct stmmac_priv *priv)
 	struct mac_device_info *mac;
 
 	/* Identify the MAC HW device */
-	if (priv->plat->has_gmac)
+	if (priv->plat->has_gmac) {
+		priv->dev->priv_flags |= IFF_UNICAST_FLT;
 		mac = dwmac1000_setup(priv->ioaddr);
-	else
+	} else {
 		mac = dwmac100_setup(priv->ioaddr);
+	}
 	if (!mac)
 		return -ENOMEM;
 

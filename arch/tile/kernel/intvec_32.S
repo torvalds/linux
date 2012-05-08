@@ -799,6 +799,10 @@ handle_interrupt:
  * This routine takes a boolean in r30 indicating if this is an NMI.
  * If so, we also expect a boolean in r31 indicating whether to
  * re-enable the oprofile interrupts.
+ *
+ * Note that .Lresume_userspace is jumped to directly in several
+ * places, and we need to make sure r30 is set correctly in those
+ * callers as well.
  */
 STD_ENTRY(interrupt_return)
 	/* If we're resuming to kernel space, don't check thread flags. */
@@ -1237,7 +1241,10 @@ handle_syscall:
 	bzt     r30, 1f
 	jal	do_syscall_trace
 	FEEDBACK_REENTER(handle_syscall)
-1:	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+1:	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 
 .Linvalid_syscall:
 	/* Report an invalid syscall back to the user program */
@@ -1246,7 +1253,10 @@ handle_syscall:
 	 movei  r28, -ENOSYS
 	}
 	sw      r29, r28
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 	STD_ENDPROC(handle_syscall)
 
 	/* Return the address for oprofile to suppress in backtraces. */
@@ -1262,7 +1272,10 @@ STD_ENTRY(ret_from_fork)
 	jal     sim_notify_fork
 	jal     schedule_tail
 	FEEDBACK_REENTER(ret_from_fork)
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 	STD_ENDPROC(ret_from_fork)
 
 	/*
@@ -1376,7 +1389,10 @@ handle_ill:
 
 	jal     send_sigtrap    /* issue a SIGTRAP */
 	FEEDBACK_REENTER(handle_ill)
-	j       .Lresume_userspace   /* jump into middle of interrupt_return */
+	{
+	 movei  r30, 0               /* not an NMI */
+	 j      .Lresume_userspace   /* jump into middle of interrupt_return */
+	}
 
 .Ldispatch_normal_ill:
 	{

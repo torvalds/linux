@@ -60,16 +60,9 @@ static ssize_t read_file_dfs(struct file *file, char __user *user_buf,
 	return retval;
 }
 
-static int ath9k_dfs_debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-
-	return 0;
-}
-
 static const struct file_operations fops_dfs_stats = {
 	.read = read_file_dfs,
-	.open = ath9k_dfs_debugfs_open,
+	.open = simple_open,
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };

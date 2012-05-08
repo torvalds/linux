@@ -370,7 +370,7 @@ static int ieee80211_start_sw_scan(struct ieee80211_local *local)
 	 */
 	drv_sw_scan_start(local);
 
-	local->leave_oper_channel_time = 0;
+	local->leave_oper_channel_time = jiffies;
 	local->next_scan_state = SCAN_DECISION;
 	local->scan_channel_idx = 0;
 

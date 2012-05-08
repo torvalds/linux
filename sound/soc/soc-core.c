@@ -201,12 +201,6 @@ static ssize_t pmdown_time_set(struct device *dev,
 static DEVICE_ATTR(pmdown_time, 0644, pmdown_time_show, pmdown_time_set);
 
 #ifdef CONFIG_DEBUG_FS
-static int codec_reg_open_file(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static ssize_t codec_reg_read_file(struct file *file, char __user *user_buf,
 				   size_t count, loff_t *ppos)
 {
@@ -264,7 +258,7 @@ static ssize_t codec_reg_write_file(struct file *file,
 }
 
 static const struct file_operations codec_reg_fops = {
-	.open = codec_reg_open_file,
+	.open = simple_open,
 	.read = codec_reg_read_file,
 	.write = codec_reg_write_file,
 	.llseek = default_llseek,
@@ -1086,6 +1080,8 @@ static int soc_probe_platform(struct snd_soc_card *card,
 	if (driver->dapm_widgets)
 		snd_soc_dapm_new_controls(&platform->dapm,
 			driver->dapm_widgets, driver->num_dapm_widgets);
+
+	platform->dapm.idle_bias_off = 1;
 
 	if (driver->probe) {
 		ret = driver->probe(platform);
@@ -3117,6 +3113,7 @@ int snd_soc_register_card(struct snd_soc_card *card)
 				 GFP_KERNEL);
 	if (card->rtd == NULL)
 		return -ENOMEM;
+	card->num_rtd = 0;
 	card->rtd_aux = &card->rtd[card->num_links];
 
 	for (i = 0; i < card->num_links; i++)
@@ -3628,10 +3625,10 @@ int snd_soc_of_parse_audio_routing(struct snd_soc_card *card,
 	int i, ret;
 
 	num_routes = of_property_count_strings(np, propname);
-	if (num_routes & 1) {
+	if (num_routes < 0 || num_routes & 1) {
 		dev_err(card->dev,
-			"Property '%s's length is not even\n",
-			propname);
+		     "Property '%s' does not exist or its length is not even\n",
+		     propname);
 		return -EINVAL;
 	}
 	num_routes /= 2;

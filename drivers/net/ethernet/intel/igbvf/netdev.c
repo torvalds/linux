@@ -55,6 +55,11 @@ static const char igbvf_driver_string[] =
 static const char igbvf_copyright[] =
 		  "Copyright (c) 2009 - 2012 Intel Corporation.";
 
+#define DEFAULT_MSG_ENABLE (NETIF_MSG_DRV|NETIF_MSG_PROBE|NETIF_MSG_LINK)
+static int debug = -1;
+module_param(debug, int, 0);
+MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
+
 static int igbvf_poll(struct napi_struct *napi, int budget);
 static void igbvf_reset(struct igbvf_adapter *);
 static void igbvf_set_interrupt_capability(struct igbvf_adapter *);
@@ -2649,7 +2654,7 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 	adapter->flags = ei->flags;
 	adapter->hw.back = adapter;
 	adapter->hw.mac.type = ei->mac;
-	adapter->msg_enable = (1 << NETIF_MSG_DRV | NETIF_MSG_PROBE) - 1;
+	adapter->msg_enable = netif_msg_init(debug, DEFAULT_MSG_ENABLE);
 
 	/* PCI config space info */
 
@@ -2726,14 +2731,14 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 			netdev->addr_len);
 	}
 
-	if (!is_valid_ether_addr(netdev->perm_addr)) {
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
 		dev_err(&pdev->dev, "Invalid MAC Address: %pM\n",
 		        netdev->dev_addr);
 		err = -EIO;
 		goto err_hw_init;
 	}
 
-	memcpy(netdev->perm_addr, adapter->hw.mac.addr, netdev->addr_len);
+	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
 
 	setup_timer(&adapter->watchdog_timer, &igbvf_watchdog,
 	            (unsigned long) adapter);

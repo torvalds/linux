@@ -1978,6 +1978,18 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 	if (status == 0) {
 		usb_set_device_state(rhdev, USB_STATE_SUSPENDED);
 		hcd->state = HC_STATE_SUSPENDED;
+
+		/* Did we race with a root-hub wakeup event? */
+		if (rhdev->do_remote_wakeup) {
+			char	buffer[6];
+
+			status = hcd->driver->hub_status_data(hcd, buffer);
+			if (status != 0) {
+				dev_dbg(&rhdev->dev, "suspend raced with wakeup event\n");
+				hcd_bus_resume(rhdev, PMSG_AUTO_RESUME);
+				status = -EBUSY;
+			}
+		}
 	} else {
 		spin_lock_irq(&hcd_root_hub_lock);
 		if (!HCD_DEAD(hcd)) {

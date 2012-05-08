@@ -15,12 +15,6 @@
 #include "rate.h"
 #include "debugfs.h"
 
-int mac80211_open_file_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 #define DEBUGFS_FORMAT_BUFFER_SIZE 100
 
 int mac80211_format_buffer(char __user *userbuf, size_t count,
@@ -50,7 +44,7 @@ static ssize_t name## _read(struct file *file, char __user *userbuf,	\
 #define DEBUGFS_READONLY_FILE_OPS(name)			\
 static const struct file_operations name## _ops = {			\
 	.read = name## _read,						\
-	.open = mac80211_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 
@@ -93,7 +87,7 @@ static ssize_t reset_write(struct file *file, const char __user *user_buf,
 
 static const struct file_operations reset_ops = {
 	.write = reset_write,
-	.open = mac80211_open_file_generic,
+	.open = simple_open,
 	.llseek = noop_llseek,
 };
 
@@ -254,7 +248,7 @@ static ssize_t stats_ ##name## _read(struct file *file,			\
 									\
 static const struct file_operations stats_ ##name## _ops = {		\
 	.read = stats_ ##name## _read,					\
-	.open = mac80211_open_file_generic,				\
+	.open = simple_open,						\
 	.llseek = generic_file_llseek,					\
 };
 

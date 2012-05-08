@@ -23,12 +23,6 @@ struct wiimote_debug {
 	struct dentry *drm;
 };
 
-static int wiidebug_eeprom_open(struct inode *i, struct file *f)
-{
-	f->private_data = i->i_private;
-	return 0;
-}
-
 static ssize_t wiidebug_eeprom_read(struct file *f, char __user *u, size_t s,
 								loff_t *off)
 {
@@ -83,7 +77,7 @@ static ssize_t wiidebug_eeprom_read(struct file *f, char __user *u, size_t s,
 
 static const struct file_operations wiidebug_eeprom_fops = {
 	.owner = THIS_MODULE,
-	.open = wiidebug_eeprom_open,
+	.open = simple_open,
 	.read = wiidebug_eeprom_read,
 	.llseek = generic_file_llseek,
 };

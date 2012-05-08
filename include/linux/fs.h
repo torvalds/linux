@@ -1215,6 +1215,7 @@ extern int vfs_setlease(struct file *, long, struct file_lock **);
 extern int lease_modify(struct file_lock **, int);
 extern int lock_may_read(struct inode *, loff_t start, unsigned long count);
 extern int lock_may_write(struct inode *, loff_t start, unsigned long count);
+extern void locks_delete_block(struct file_lock *waiter);
 extern void lock_flocks(void);
 extern void unlock_flocks(void);
 #else /* !CONFIG_FILE_LOCKING */
@@ -1357,6 +1358,10 @@ static inline int lock_may_write(struct inode *inode, loff_t start,
 				 unsigned long len)
 {
 	return 1;
+}
+
+static inline void locks_delete_block(struct file_lock *waiter)
+{
 }
 
 static inline void lock_flocks(void)
@@ -2506,6 +2511,7 @@ extern int dcache_readdir(struct file *, void *, filldir_t);
 extern int simple_setattr(struct dentry *, struct iattr *);
 extern int simple_getattr(struct vfsmount *, struct dentry *, struct kstat *);
 extern int simple_statfs(struct dentry *, struct kstatfs *);
+extern int simple_open(struct inode *inode, struct file *file);
 extern int simple_link(struct dentry *, struct inode *, struct dentry *);
 extern int simple_unlink(struct inode *, struct dentry *);
 extern int simple_rmdir(struct inode *, struct dentry *);

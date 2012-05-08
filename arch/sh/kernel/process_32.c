@@ -26,6 +26,7 @@
 #include <asm/mmu_context.h>
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
+#include <asm/switch_to.h>
 
 void show_regs(struct pt_regs * regs)
 {

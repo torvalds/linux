@@ -40,6 +40,7 @@ MODULE_LICENSE("GPL");
 #define IP1001_PHASE_SEL_MASK		3	/* IP1001 RX/TXPHASE_SEL */
 #define IP1001_APS_ON			11	/* IP1001 APS Mode  bit */
 #define IP101A_G_APS_ON			2	/* IP101A/G APS Mode bit */
+#define IP101A_G_IRQ_CONF_STATUS	0x11	/* Conf Info IRQ & Status Reg */
 
 static int ip175c_config_init(struct phy_device *phydev)
 {
@@ -162,7 +163,8 @@ static int ip101a_g_config_init(struct phy_device *phydev)
 	/* Enable Auto Power Saving mode */
 	c = phy_read(phydev, IP10XX_SPEC_CTRL_STATUS);
 	c |= IP101A_G_APS_ON;
-	return c;
+
+	return phy_write(phydev, IP10XX_SPEC_CTRL_STATUS, c);
 }
 
 static int ip175c_read_status(struct phy_device *phydev)
@@ -180,6 +182,15 @@ static int ip175c_config_aneg(struct phy_device *phydev)
 {
 	if (phydev->addr == 4) /* WAN port */
 		genphy_config_aneg(phydev);
+
+	return 0;
+}
+
+static int ip101a_g_ack_interrupt(struct phy_device *phydev)
+{
+	int err = phy_read(phydev, IP101A_G_IRQ_CONF_STATUS);
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -203,7 +214,6 @@ static struct phy_driver ip1001_driver = {
 	.phy_id_mask	= 0x0ffffff0,
 	.features	= PHY_GBIT_FEATURES | SUPPORTED_Pause |
 			  SUPPORTED_Asym_Pause,
-	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= &ip1001_config_init,
 	.config_aneg	= &genphy_config_aneg,
 	.read_status	= &genphy_read_status,
@@ -219,6 +229,7 @@ static struct phy_driver ip101a_g_driver = {
 	.features	= PHY_BASIC_FEATURES | SUPPORTED_Pause |
 			  SUPPORTED_Asym_Pause,
 	.flags		= PHY_HAS_INTERRUPT,
+	.ack_interrupt	= ip101a_g_ack_interrupt,
 	.config_init	= &ip101a_g_config_init,
 	.config_aneg	= &genphy_config_aneg,
 	.read_status	= &genphy_read_status,

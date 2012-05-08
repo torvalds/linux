@@ -1667,9 +1667,15 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 	/* cpsdvsr = 254 & scr = 255 */
 	min_tclk = spi_rate(rate, CPSDVR_MAX, SCR_MAX);
 
-	if (!((freq <= max_tclk) && (freq >= min_tclk))) {
+	if (freq > max_tclk)
+		dev_warn(&pl022->adev->dev,
+			"Max speed that can be programmed is %d Hz, you requested %d\n",
+			max_tclk, freq);
+
+	if (freq < min_tclk) {
 		dev_err(&pl022->adev->dev,
-			"controller data is incorrect: out of range frequency");
+			"Requested frequency: %d Hz is less than minimum possible %d Hz\n",
+			freq, min_tclk);
 		return -EINVAL;
 	}
 
@@ -1681,25 +1687,36 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 		while (scr <= SCR_MAX) {
 			tmp = spi_rate(rate, cpsdvsr, scr);
 
-			if (tmp > freq)
+			if (tmp > freq) {
+				/* we need lower freq */
 				scr++;
+				continue;
+			}
+
 			/*
-			 * If found exact value, update and break.
-			 * If found more closer value, update and continue.
+			 * If found exact value, mark found and break.
+			 * If found more closer value, update and break.
 			 */
-			else if ((tmp == freq) || (tmp > best_freq)) {
+			if (tmp > best_freq) {
 				best_freq = tmp;
 				best_cpsdvsr = cpsdvsr;
 				best_scr = scr;
 
 				if (tmp == freq)
-					break;
+					found = 1;
 			}
-			scr++;
+			/*
+			 * increased scr will give lower rates, which are not
+			 * required
+			 */
+			break;
 		}
 		cpsdvsr += 2;
 		scr = SCR_MIN;
 	}
+
+	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate \n",
+			freq);
 
 	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
 	clk_freq->scr = (u8) (best_scr & 0xFF);
@@ -1823,9 +1840,12 @@ static int pl022_setup(struct spi_device *spi)
 	} else
 		chip->cs_control = chip_info->cs_control;
 
-	if (bits <= 3) {
-		/* PL022 doesn't support less than 4-bits */
+	/* Check bits per word with vendor specific range */
+	if ((bits <= 3) || (bits > pl022->vendor->max_bpw)) {
 		status = -ENOTSUPP;
+		dev_err(&spi->dev, "illegal data size for this controller!\n");
+		dev_err(&spi->dev, "This controller can only handle 4 <= n <= %d bit words\n",
+				pl022->vendor->max_bpw);
 		goto err_config_params;
 	} else if (bits <= 8) {
 		dev_dbg(&spi->dev, "4 <= n <=8 bits per word\n");
@@ -1838,20 +1858,10 @@ static int pl022_setup(struct spi_device *spi)
 		chip->read = READING_U16;
 		chip->write = WRITING_U16;
 	} else {
-		if (pl022->vendor->max_bpw >= 32) {
-			dev_dbg(&spi->dev, "17 <= n <= 32 bits per word\n");
-			chip->n_bytes = 4;
-			chip->read = READING_U32;
-			chip->write = WRITING_U32;
-		} else {
-			dev_err(&spi->dev,
-				"illegal data size for this controller!\n");
-			dev_err(&spi->dev,
-				"a standard pl022 can only handle "
-				"1 <= n <= 16 bit words\n");
-			status = -ENOTSUPP;
-			goto err_config_params;
-		}
+		dev_dbg(&spi->dev, "17 <= n <= 32 bits per word\n");
+		chip->n_bytes = 4;
+		chip->read = READING_U32;
+		chip->write = WRITING_U32;
 	}
 
 	/* Now Initialize all register settings required for this chip */
@@ -2195,7 +2205,6 @@ static int pl022_runtime_suspend(struct device *dev)
 	struct pl022 *pl022 = dev_get_drvdata(dev);
 
 	clk_disable(pl022->clk);
-	amba_vcore_disable(pl022->adev);
 
 	return 0;
 }
@@ -2204,7 +2213,6 @@ static int pl022_runtime_resume(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
 
-	amba_vcore_enable(pl022->adev);
 	clk_enable(pl022->clk);
 
 	return 0;

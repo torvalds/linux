@@ -4508,6 +4508,7 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct il_priv *il = hw->priv;
 	int err;
+	bool reset;
 
 	mutex_lock(&il->mutex);
 	D_MAC80211("enter: type %d, addr %pM\n", vif->type, vif->addr);
@@ -4518,7 +4519,12 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto out;
 	}
 
-	if (il->vif) {
+	/*
+	 * We do not support multiple virtual interfaces, but on hardware reset
+	 * we have to add the same interface again.
+	 */
+	reset = (il->vif == vif);
+	if (il->vif && !reset) {
 		err = -EOPNOTSUPP;
 		goto out;
 	}
@@ -4528,8 +4534,11 @@ il_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	err = il_set_mode(il);
 	if (err) {
-		il->vif = NULL;
-		il->iw_mode = NL80211_IFTYPE_STATION;
+		IL_WARN("Fail to set mode %d\n", vif->type);
+		if (!reset) {
+			il->vif = NULL;
+			il->iw_mode = NL80211_IFTYPE_STATION;
+		}
 	}
 
 out:
@@ -5279,9 +5288,9 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		D_MAC80211("BSSID %pM\n", bss_conf->bssid);
 
 		/*
-		 * If there is currently a HW scan going on in the
-		 * background then we need to cancel it else the RXON
-		 * below/in post_associate will fail.
+		 * If there is currently a HW scan going on in the background,
+		 * then we need to cancel it, otherwise sometimes we are not
+		 * able to authenticate (FIXME: why ?)
 		 */
 		if (il_scan_cancel_timeout(il, 100)) {
 			D_MAC80211("leave - scan abort failed\n");
@@ -5290,14 +5299,10 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		}
 
 		/* mac80211 only sets assoc when in STATION mode */
-		if (vif->type == NL80211_IFTYPE_ADHOC || bss_conf->assoc) {
-			memcpy(il->staging.bssid_addr, bss_conf->bssid,
-			       ETH_ALEN);
+		memcpy(il->staging.bssid_addr, bss_conf->bssid, ETH_ALEN);
 
-			/* currently needed in a few places */
-			memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
-		} else
-			il->staging.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
+		/* FIXME: currently needed in a few places */
+		memcpy(il->bssid, bss_conf->bssid, ETH_ALEN);
 	}
 
 	/*

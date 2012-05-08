@@ -21,6 +21,7 @@
 #include <asm/disassemble.h>
 #include <asm/kvm_book3s.h>
 #include <asm/reg.h>
+#include <asm/switch_to.h>
 
 #define OP_19_XOP_RFID		18
 #define OP_19_XOP_RFI		50

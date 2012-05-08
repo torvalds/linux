@@ -483,7 +483,7 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx2-wdt.0", NULL, wdog_clk)
 	_REGISTER_CLOCK(NULL, "max", max_clk)
 	_REGISTER_CLOCK(NULL, "audmux", audmux_clk)
-	_REGISTER_CLOCK(NULL, "csi", csi_clk)
+	_REGISTER_CLOCK("mx3-camera.0", NULL, csi_clk)
 	_REGISTER_CLOCK(NULL, "iim", iim_clk)
 	_REGISTER_CLOCK(NULL, "gpu2d", gpu2d_clk)
 	_REGISTER_CLOCK("mxc_nand.0", NULL, nfc_clk)
