@@ -1241,6 +1241,12 @@ static void mmci_dt_populate_generic_pdata(struct device_node *np,
 		pr_warn("%s: Unsupported bus width\n", np->full_name);
 	}
 }
+#else
+static void mmci_dt_populate_generic_pdata(struct device_node *np,
+					struct mmci_platform_data *pdata)
+{
+	return;
+}
 #endif
 
 static int __devinit mmci_probe(struct amba_device *dev,
