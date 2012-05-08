@@ -149,22 +149,12 @@ static int exynos_drm_gem_map_pages(struct drm_gem_object *obj,
 	unsigned long pfn;
 
 	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
-		unsigned long usize = buf->size;
-
 		if (!buf->pages)
 			return -EINTR;
 
-		while (usize > 0) {
-			pfn = page_to_pfn(buf->pages[page_offset++]);
-			vm_insert_mixed(vma, f_vaddr, pfn);
-			f_vaddr += PAGE_SIZE;
-			usize -= PAGE_SIZE;
-		}
-
-		return 0;
-	}
-
-	pfn = (buf->dma_addr >> PAGE_SHIFT) + page_offset;
+		pfn = page_to_pfn(buf->pages[page_offset++]);
+	} else
+		pfn = (buf->dma_addr >> PAGE_SHIFT) + page_offset;
 
 	return vm_insert_mixed(vma, f_vaddr, pfn);
 }
@@ -524,6 +514,8 @@ static int exynos_drm_gem_mmap_buffer(struct file *filp,
 		if (!buffer->pages)
 			return -EINVAL;
 
+		vma->vm_flags |= VM_MIXEDMAP;
+
 		do {
 			ret = vm_insert_page(vma, uaddr, buffer->pages[i++]);
 			if (ret) {
@@ -581,10 +573,8 @@ int exynos_drm_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	obj->filp->f_op = &exynos_drm_gem_fops;
 	obj->filp->private_data = obj;
 
-	down_write(&current->mm->mmap_sem);
-	addr = do_mmap(obj->filp, 0, args->size,
+	addr = vm_mmap(obj->filp, 0, args->size,
 			PROT_READ | PROT_WRITE, MAP_SHARED, 0);
-	up_write(&current->mm->mmap_sem);
 
 	drm_gem_object_unreference_unlocked(obj);
 
@@ -712,7 +702,6 @@ int exynos_drm_gem_dumb_destroy(struct drm_file *file_priv,
 int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
-	struct exynos_drm_gem_obj *exynos_gem_obj = to_exynos_gem_obj(obj);
 	struct drm_device *dev = obj->dev;
 	unsigned long f_vaddr;
 	pgoff_t page_offset;
@@ -724,21 +713,10 @@ int exynos_drm_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	mutex_lock(&dev->struct_mutex);
 
-	/*
-	 * allocate all pages as desired size if user wants to allocate
-	 * physically non-continuous memory.
-	 */
-	if (exynos_gem_obj->flags & EXYNOS_BO_NONCONTIG) {
-		ret = exynos_drm_gem_get_pages(obj);
-		if (ret < 0)
-			goto err;
-	}
-
 	ret = exynos_drm_gem_map_pages(obj, vma, f_vaddr, page_offset);
 	if (ret < 0)
 		DRM_ERROR("failed to map pages.\n");
 
-err:
 	mutex_unlock(&dev->struct_mutex);
 
 	return convert_to_vm_err_msg(ret);

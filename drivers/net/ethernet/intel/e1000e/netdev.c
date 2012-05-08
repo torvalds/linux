@@ -3799,7 +3799,7 @@ static int e1000_test_msi_interrupt(struct e1000_adapter *adapter)
 	/* fire an unusual interrupt on the test handler */
 	ew32(ICS, E1000_ICS_RXSEQ);
 	e1e_flush();
-	msleep(50);
+	msleep(100);
 
 	e1000_irq_disable(adapter);
 

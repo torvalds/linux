@@ -1233,7 +1233,7 @@ enomem:
 /*
  * handle mapping creation for uClinux
  */
-unsigned long do_mmap_pgoff(struct file *file,
+static unsigned long do_mmap_pgoff(struct file *file,
 			    unsigned long addr,
 			    unsigned long len,
 			    unsigned long prot,
@@ -1470,7 +1470,32 @@ error_getting_region:
 	show_free_areas(0);
 	return -ENOMEM;
 }
-EXPORT_SYMBOL(do_mmap_pgoff);
+
+unsigned long do_mmap(struct file *file, unsigned long addr,
+	unsigned long len, unsigned long prot,
+	unsigned long flag, unsigned long offset)
+{
+	if (unlikely(offset + PAGE_ALIGN(len) < offset))
+		return -EINVAL;
+	if (unlikely(offset & ~PAGE_MASK))
+		return -EINVAL;
+	return do_mmap_pgoff(file, addr, len, prot, flag, offset >> PAGE_SHIFT);
+}
+EXPORT_SYMBOL(do_mmap);
+
+unsigned long vm_mmap(struct file *file, unsigned long addr,
+	unsigned long len, unsigned long prot,
+	unsigned long flag, unsigned long offset)
+{
+	unsigned long ret;
+	struct mm_struct *mm = current->mm;
+
+	down_write(&mm->mmap_sem);
+	ret = do_mmap(file, addr, len, prot, flag, offset);
+	up_write(&mm->mmap_sem);
+	return ret;
+}
+EXPORT_SYMBOL(vm_mmap);
 
 SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 		unsigned long, prot, unsigned long, flags,
@@ -1709,15 +1734,21 @@ erase_whole_vma:
 }
 EXPORT_SYMBOL(do_munmap);
 
-SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
+int vm_munmap(unsigned long addr, size_t len)
 {
-	int ret;
 	struct mm_struct *mm = current->mm;
+	int ret;
 
 	down_write(&mm->mmap_sem);
 	ret = do_munmap(mm, addr, len);
 	up_write(&mm->mmap_sem);
 	return ret;
+}
+EXPORT_SYMBOL(vm_munmap);
+
+SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
+{
+	return vm_munmap(addr, len);
 }
 
 /*
@@ -1744,7 +1775,7 @@ void exit_mmap(struct mm_struct *mm)
 	kleave("");
 }
 
-unsigned long do_brk(unsigned long addr, unsigned long len)
+unsigned long vm_brk(unsigned long addr, unsigned long len)
 {
 	return -ENOMEM;
 }

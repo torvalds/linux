@@ -51,6 +51,10 @@
 #define IWL5000_UCODE_API_MAX 5
 #define IWL5150_UCODE_API_MAX 2
 
+/* Oldest version we won't warn about */
+#define IWL5000_UCODE_API_OK 5
+#define IWL5150_UCODE_API_OK 2
+
 /* Lowest firmware API version supported */
 #define IWL5000_UCODE_API_MIN 1
 #define IWL5150_UCODE_API_MIN 1
@@ -326,6 +330,7 @@ static const struct iwl_ht_params iwl5000_ht_params = {
 #define IWL_DEVICE_5000						\
 	.fw_name_pre = IWL5000_FW_PRE,				\
 	.ucode_api_max = IWL5000_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL5000_UCODE_API_OK,			\
 	.ucode_api_min = IWL5000_UCODE_API_MIN,			\
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
@@ -371,6 +376,7 @@ const struct iwl_cfg iwl5350_agn_cfg = {
 	.name = "Intel(R) WiMAX/WiFi Link 5350 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
+	.ucode_api_ok = IWL5000_UCODE_API_OK,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,
@@ -386,6 +392,7 @@ const struct iwl_cfg iwl5350_agn_cfg = {
 #define IWL_DEVICE_5150						\
 	.fw_name_pre = IWL5150_FW_PRE,				\
 	.ucode_api_max = IWL5150_UCODE_API_MAX,			\
+	.ucode_api_ok = IWL5150_UCODE_API_OK,			\
 	.ucode_api_min = IWL5150_UCODE_API_MIN,			\
 	.max_inst_size = IWLAGN_RTC_INST_SIZE,			\
 	.max_data_size = IWLAGN_RTC_DATA_SIZE,			\
@@ -409,5 +416,5 @@ const struct iwl_cfg iwl5150_abg_cfg = {
 	IWL_DEVICE_5150,
 };
 
-MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
-MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
+MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_OK));
+MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_OK));

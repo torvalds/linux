@@ -190,6 +190,9 @@ static void mid_pipe_event_handler(struct drm_device *dev, int pipe)
  */
 static void psb_vdc_interrupt(struct drm_device *dev, uint32_t vdc_stat)
 {
+	if (vdc_stat & _PSB_IRQ_ASLE)
+		psb_intel_opregion_asle_intr(dev);
+
 	if (vdc_stat & _PSB_VSYNC_PIPEA_FLAG)
 		mid_pipe_event_handler(dev, 0);
 
@@ -283,6 +286,7 @@ void psb_irq_preinstall(struct drm_device *dev)
 	/* Revisit this area - want per device masks ? */
 	if (dev_priv->ops->hotplug)
 		dev_priv->vdc_irq_mask |= _PSB_IRQ_DISP_HOTSYNC;
+	dev_priv->vdc_irq_mask |= _PSB_IRQ_ASLE;
 
 	/* This register is safe even if display island is off */
 	PSB_WVDC32(~dev_priv->vdc_irq_mask, PSB_INT_MASK_R);
@@ -422,7 +426,7 @@ void psb_irq_turn_off_dpst(struct drm_device *dev)
 		psb_disable_pipestat(dev_priv, 0, PIPE_DPST_EVENT_ENABLE);
 
 		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
-		PSB_WVDC32(pwm_reg & !(PWM_PHASEIN_INT_ENABLE),
+		PSB_WVDC32(pwm_reg & ~PWM_PHASEIN_INT_ENABLE,
 							PWM_CONTROL_LOGIC);
 		pwm_reg = PSB_RVDC32(PWM_CONTROL_LOGIC);
 

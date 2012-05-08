@@ -908,10 +908,6 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
 	unsigned selector = 0;
 
-	/* No grouping */
-	if (!ops)
-		return 0;
-
 	mutex_lock(&pinctrl_mutex);
 
 	seq_puts(s, "registered pin groups:\n");
@@ -1225,6 +1221,19 @@ static void pinctrl_remove_device_debugfs(struct pinctrl_dev *pctldev)
 
 #endif
 
+static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
+{
+	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
+
+	if (!ops ||
+	    !ops->list_groups ||
+	    !ops->get_group_name ||
+	    !ops->get_group_pins)
+		return -EINVAL;
+
+	return 0;
+}
+
 /**
  * pinctrl_register() - register a pin controller device
  * @pctldesc: descriptor for this pin controller
@@ -1255,6 +1264,14 @@ struct pinctrl_dev *pinctrl_register(struct pinctrl_desc *pctldesc,
 	INIT_RADIX_TREE(&pctldev->pin_desc_tree, GFP_KERNEL);
 	INIT_LIST_HEAD(&pctldev->gpio_ranges);
 	pctldev->dev = dev;
+
+	/* check core ops for sanity */
+	ret = pinctrl_check_ops(pctldev);
+	if (ret) {
+		pr_err("%s pinctrl ops lacks necessary functions\n",
+			pctldesc->name);
+		goto out_err;
+	}
 
 	/* If we're implementing pinmuxing, check the ops for sanity */
 	if (pctldesc->pmxops) {

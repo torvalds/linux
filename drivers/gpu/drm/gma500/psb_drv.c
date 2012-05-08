@@ -215,12 +215,11 @@ static int psb_driver_unload(struct drm_device *dev)
 	/* Kill vblank etc here */
 
 	gma_backlight_exit(dev);
-
 	psb_modeset_cleanup(dev);
 
 	if (dev_priv) {
+		psb_intel_opregion_fini(dev);
 		psb_lid_timer_takedown(dev_priv);
-		gma_intel_opregion_exit(dev);
 
 		if (dev_priv->ops->chip_teardown)
 			dev_priv->ops->chip_teardown(dev);
@@ -310,6 +309,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	if (!dev_priv->sgx_reg)
 		goto out_err;
 
+	psb_intel_opregion_setup(dev);
+
 	ret = dev_priv->ops->chip_setup(dev);
 	if (ret)
 		goto out_err;
@@ -349,9 +350,8 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 	PSB_WSGX32(0x20000000, PSB_CR_PDS_EXEC_BASE);
 	PSB_WSGX32(0x30000000, PSB_CR_BIF_3D_REQ_BASE);
 
-/*	igd_opregion_init(&dev_priv->opregion_dev); */
 	acpi_video_register();
-	if (dev_priv->lid_state)
+	if (dev_priv->opregion.lid_state)
 		psb_lid_timer_init(dev_priv);
 
 	ret = drm_vblank_init(dev, dev_priv->num_pipe);

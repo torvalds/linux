@@ -136,7 +136,7 @@ static void i9xx_write_infoframe(struct drm_encoder *encoder,
 
 	val &= ~VIDEO_DIP_SELECT_MASK;
 
-	I915_WRITE(VIDEO_DIP_CTL, val | port | flags);
+	I915_WRITE(VIDEO_DIP_CTL, VIDEO_DIP_ENABLE | val | port | flags);
 
 	for (i = 0; i < len; i += 4) {
 		I915_WRITE(VIDEO_DIP_DATA, *data);

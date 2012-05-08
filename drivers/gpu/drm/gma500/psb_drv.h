@@ -30,6 +30,7 @@
 #include "psb_intel_drv.h"
 #include "gtt.h"
 #include "power.h"
+#include "opregion.h"
 #include "oaktrail.h"
 
 /* Append new drm mode definition here, align with libdrm definition */
@@ -120,6 +121,7 @@ enum {
 #define PSB_HWSTAM		  0x2098
 #define PSB_INSTPM		  0x20C0
 #define PSB_INT_IDENTITY_R        0x20A4
+#define _PSB_IRQ_ASLE		  (1<<0)
 #define _MDFLD_PIPEC_EVENT_FLAG   (1<<2)
 #define _MDFLD_PIPEC_VBLANK_FLAG  (1<<3)
 #define _PSB_DPST_PIPEB_FLAG      (1<<4)
@@ -259,7 +261,7 @@ struct psb_intel_opregion {
 	struct opregion_swsci *swsci;
 	struct opregion_asle *asle;
 	void *vbt;
-	int enabled;
+	u32 __iomem *lid_state;
 };
 
 struct sdvo_device_mapping {
@@ -505,9 +507,9 @@ struct drm_psb_private {
 	/* GTT Memory manager */
 	struct psb_gtt_mm *gtt_mm;
 	struct page *scratch_page;
-	u32 *gtt_map;
+	u32 __iomem *gtt_map;
 	uint32_t stolen_base;
-	void *vram_addr;
+	u8 __iomem *vram_addr;
 	unsigned long vram_stolen_size;
 	int gtt_initialized;
 	u16 gmch_ctrl;		/* Saved GTT setup */
@@ -523,8 +525,8 @@ struct drm_psb_private {
 	 * Register base
 	 */
 
-	uint8_t *sgx_reg;
-	uint8_t *vdc_reg;
+	uint8_t __iomem *sgx_reg;
+	uint8_t __iomem *vdc_reg;
 	uint32_t gatt_free_offset;
 
 	/*
@@ -610,7 +612,7 @@ struct drm_psb_private {
 	int rpm_enabled;
 
 	/* MID specific */
-	struct oaktrail_vbt vbt_data;
+	bool has_gct;
 	struct oaktrail_gct_data gct_data;
 
 	/* Oaktrail HDMI state */
@@ -638,7 +640,6 @@ struct drm_psb_private {
 	spinlock_t lid_lock;
 	struct timer_list lid_timer;
 	struct psb_intel_opregion opregion;
-	u32 *lid_state;
 	u32 lid_last_state;
 
 	/*

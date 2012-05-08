@@ -248,6 +248,6 @@ void beatic_deinit_IRQ(void)
 {
 	int	i;
 
-	for (i = 1; i < NR_IRQS; i++)
+	for (i = 1; i < nr_irqs; i++)
 		beat_destruct_irq_plug(i);
 }

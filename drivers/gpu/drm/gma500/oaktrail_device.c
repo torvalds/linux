@@ -458,27 +458,26 @@ static int oaktrail_power_up(struct drm_device *dev)
 static int oaktrail_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct oaktrail_vbt *vbt = &dev_priv->vbt_data;
 	int ret;
-	
+
 	ret = mid_chip_setup(dev);
 	if (ret < 0)
 		return ret;
-	if (vbt->size == 0) {
+	if (!dev_priv->has_gct) {
 		/* Now pull the BIOS data */
-		gma_intel_opregion_init(dev);
+		psb_intel_opregion_init(dev);
 		psb_intel_init_bios(dev);
 	}
+	oaktrail_hdmi_setup(dev);
 	return 0;
 }
 
 static void oaktrail_teardown(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
-	struct oaktrail_vbt *vbt = &dev_priv->vbt_data;
 
 	oaktrail_hdmi_teardown(dev);
-	if (vbt->size == 0)
+	if (!dev_priv->has_gct)
 		psb_intel_destroy_bios(dev);
 }
 
