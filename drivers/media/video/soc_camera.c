@@ -257,13 +257,13 @@ static int soc_camera_g_std(struct file *file, void *priv, v4l2_std_id *a)
 	return v4l2_subdev_call(sd, core, g_std, a);
 }
 
-static int soc_camera_enum_fsizes(struct file *file, void *fh,
+static int soc_camera_enum_framesizes(struct file *file, void *fh,
 					 struct v4l2_frmsizeenum *fsize)
 {
 	struct soc_camera_device *icd = file->private_data;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 
-	return ici->ops->enum_fsizes(icd, fsize);
+	return ici->ops->enum_framesizes(icd, fsize);
 }
 
 static int soc_camera_reqbufs(struct file *file, void *priv,
@@ -1244,8 +1244,8 @@ static int default_s_parm(struct soc_camera_device *icd,
 	return v4l2_subdev_call(sd, video, s_parm, parm);
 }
 
-static int default_enum_fsizes(struct soc_camera_device *icd,
-			  struct v4l2_frmsizeenum *fsize)
+static int default_enum_framesizes(struct soc_camera_device *icd,
+				   struct v4l2_frmsizeenum *fsize)
 {
 	int ret;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -1298,8 +1298,8 @@ int soc_camera_host_register(struct soc_camera_host *ici)
 		ici->ops->set_parm = default_s_parm;
 	if (!ici->ops->get_parm)
 		ici->ops->get_parm = default_g_parm;
-	if (!ici->ops->enum_fsizes)
-		ici->ops->enum_fsizes = default_enum_fsizes;
+	if (!ici->ops->enum_framesizes)
+		ici->ops->enum_framesizes = default_enum_framesizes;
 
 	mutex_lock(&list_lock);
 	list_for_each_entry(ix, &hosts, list) {
@@ -1390,7 +1390,7 @@ static const struct v4l2_ioctl_ops soc_camera_ioctl_ops = {
 	.vidioc_s_input		 = soc_camera_s_input,
 	.vidioc_s_std		 = soc_camera_s_std,
 	.vidioc_g_std		 = soc_camera_g_std,
-	.vidioc_enum_framesizes  = soc_camera_enum_fsizes,
+	.vidioc_enum_framesizes  = soc_camera_enum_framesizes,
 	.vidioc_reqbufs		 = soc_camera_reqbufs,
 	.vidioc_querybuf	 = soc_camera_querybuf,
 	.vidioc_qbuf		 = soc_camera_qbuf,
