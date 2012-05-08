@@ -681,6 +681,7 @@ static struct bfin_rotary_platform_data bfin_rotary_data = {
 	.rotary_button_key = KEY_ENTER,
 	.debounce	   = 10,	/* 0..17 */
 	.mode		   = ROT_QUAD_ENC | ROT_DEBE,
+	.pm_wakeup	   = 1,
 };
 
 static struct resource bfin_rotary_resources[] = {
