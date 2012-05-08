@@ -274,9 +274,9 @@ static void vpu_service_power_off(void)
 	service.enabled = false;
 	total_running = atomic_read(&service.total_running);
 	if (total_running) {
-		pr_alert("power off when %d task running!!\n", total_running);
+		pr_alert("alert: power off when %d task running!!\n", total_running);
 		mdelay(50);
-		pr_alert("delay 50 ms for running task\n");
+		pr_alert("alert: delay 50 ms for running task\n");
 		vpu_service_dump();
 	}
 
@@ -307,7 +307,7 @@ static void vpu_service_power_maintain(void)
 	if (service.enabled) {
 		mod_timer(&service.timer, jiffies + POWER_OFF_DELAY);
 	} else {
-		pr_err("maintain power when power is off!\n");
+		pr_err("error: maintain power when power is off!\n");
 	}
 }
 
@@ -332,10 +332,7 @@ static void vpu_service_power_on(void)
 #endif
 		udelay(10);
 		clk_enable(aclk_ddr_vepu);
-		init_timer(&service.timer);
-		service.timer.expires = jiffies + POWER_OFF_DELAY;
-		service.timer.function = vpu_service_power_off_work_func;
-		add_timer(&service.timer);
+		mod_timer(&service.timer, jiffies + POWER_OFF_DELAY);
 		spin_unlock_bh(&service.lock_power);
 	} else {
 		spin_unlock_bh(&service.lock_power);
@@ -350,7 +347,7 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 	unsigned long flag;
 	vpu_reg *reg = kmalloc(sizeof(vpu_reg), GFP_KERNEL);
 	if (NULL == reg) {
-		pr_err("kmalloc fail in reg_init\n");
+		pr_err("error: kmalloc fail in reg_init\n");
 		return NULL;
 	}
 
@@ -361,7 +358,7 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 	INIT_LIST_HEAD(&reg->status_link);
 
 	if (copy_from_user(&reg->reg[0], (void __user *)src, size)) {
-		pr_err("copy_from_user failed in reg_init\n");
+		pr_err("error: copy_from_user failed in reg_init\n");
 		kfree(reg);
 		return NULL;
 	}
@@ -433,7 +430,7 @@ static void reg_from_run_to_done(vpu_reg *reg)
 		break;
 	}
 	default : {
-		pr_err("copy reg from hw with unknown type %d\n", reg->type);
+		pr_err("error: copy reg from hw with unknown type %d\n", reg->type);
 		break;
 	}
 	}
@@ -513,7 +510,7 @@ void reg_copy_to_hw(vpu_reg *reg)
 		dst[VPU_REG_EN_DEC]	 = src[VPU_REG_EN_DEC];
 	} break;
 	default : {
-		pr_err("unsupport session type %d", reg->type);
+		pr_err("error: unsupport session type %d", reg->type);
 		atomic_sub(1, &service.total_running);
 		atomic_sub(1, &reg->session->task_running);
 		break;
@@ -591,7 +588,7 @@ static int return_reg(vpu_reg *reg, u32 __user *dst)
 	}
 	default : {
 		ret = -EFAULT;
-		pr_err("copy reg to user with unknown type %d\n", reg->type);
+		pr_err("error: copy reg to user with unknown type %d\n", reg->type);
 		break;
 	}
 	}
@@ -614,17 +611,17 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	case VPU_IOC_GET_HW_FUSE_STATUS : {
 		vpu_request req;
 		if (copy_from_user(&req, (void __user *)arg, sizeof(vpu_request))) {
-			pr_err("VPU_IOC_GET_HW_FUSE_STATUS copy_from_user failed\n");
+			pr_err("error: VPU_IOC_GET_HW_FUSE_STATUS copy_from_user failed\n");
 			return -EFAULT;
 		} else {
 			if (VPU_ENC != session->type) {
 				if (copy_to_user((void __user *)req.req, &service.dec_config, sizeof(VPUHwDecConfig_t))) {
-					pr_err("VPU_IOC_GET_HW_FUSE_STATUS copy_to_user failed type %d\n", session->type);
+					pr_err("error: VPU_IOC_GET_HW_FUSE_STATUS copy_to_user failed type %d\n", session->type);
 					return -EFAULT;
 				}
 			} else {
 				if (copy_to_user((void __user *)req.req, &service.enc_config, sizeof(VPUHwEncConfig_t))) {
-					pr_err("VPU_IOC_GET_HW_FUSE_STATUS copy_to_user failed type %d\n", session->type);
+					pr_err("error: VPU_IOC_GET_HW_FUSE_STATUS copy_to_user failed type %d\n", session->type);
 					return -EFAULT;
 				}
 			}
@@ -636,7 +633,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		vpu_request req;
 		vpu_reg *reg;
 		if (copy_from_user(&req, (void __user *)arg, sizeof(vpu_request))) {
-			pr_err("VPU_IOC_SET_REG copy_from_user failed\n");
+			pr_err("error: VPU_IOC_SET_REG copy_from_user failed\n");
 			return -EFAULT;
 		}
 
@@ -655,15 +652,22 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		vpu_reg *reg;
 		unsigned long flag;
 		if (copy_from_user(&req, (void __user *)arg, sizeof(vpu_request))) {
-			pr_err("VPU_IOC_GET_REG copy_from_user failed\n");
+			pr_err("error: VPU_IOC_GET_REG copy_from_user failed\n");
 			return -EFAULT;
 		} else {
 			int ret = wait_event_interruptible_timeout(session->wait, !list_empty(&session->done), TIMEOUT_DELAY);
-			if (unlikely(ret < 0)) {
-				pr_err("pid %d wait task ret %d\n", session->pid, ret);
-			} else if (0 == ret) {
-				pr_err("pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
-				ret = -ETIMEDOUT;
+			if (!list_empty(&session->done)) {
+				if (ret < 0) {
+					pr_err("warning: pid %d wait task sucess but wait_evernt ret %d\n", session->pid, ret);
+				}
+				ret = 0;
+			} else {
+				if (unlikely(ret < 0)) {
+					pr_err("error: pid %d wait task ret %d\n", session->pid, ret);
+				} else if (0 == ret) {
+					pr_err("error: pid %d wait %d task done timeout\n", session->pid, atomic_read(&session->task_running));
+					ret = -ETIMEDOUT;
+				}
 			}
 			spin_lock_irqsave(&service.lock, flag);
 			if (ret < 0) {
@@ -689,7 +693,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 		break;
 	}
 	default : {
-		pr_err("unknow vpu service ioctl cmd %x\n", cmd);
+		pr_err("error: unknow vpu service ioctl cmd %x\n", cmd);
 		break;
 	}
 	}
@@ -782,7 +786,7 @@ static int vpu_service_open(struct inode *inode, struct file *filp)
 	unsigned long flag;
 	vpu_session *session = (vpu_session *)kmalloc(sizeof(vpu_session), GFP_KERNEL);
 	if (NULL == session) {
-		pr_err("unable to allocate memory for vpu_session.");
+		pr_err("error: unable to allocate memory for vpu_session.");
 		return -ENOMEM;
 	}
 
@@ -813,7 +817,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 
 	task_running = atomic_read(&session->task_running);
 	if (task_running) {
-		pr_err("vpu_service session %d still has %d task running when closing\n", session->pid, task_running);
+		pr_err("error: vpu_service session %d still has %d task running when closing\n", session->pid, task_running);
 		msleep(50);
 	}
 	wake_up_interruptible_sync(&session->wait);
@@ -1085,7 +1089,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		pr_debug("DEC IRQ received!\n");
 		spin_lock(&service.lock);
 		if (NULL == service.reg_codec) {
-			pr_err("dec isr with no task waiting\n");
+			pr_err("error: dec isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_codec);
 		}
@@ -1098,7 +1102,7 @@ static irqreturn_t vdpu_isr(int irq, void *dev_id)
 		pr_debug("PP IRQ received!\n");
 		spin_lock(&service.lock);
 		if (NULL == service.reg_pproc) {
-			pr_err("pp isr with no task waiting\n");
+			pr_err("error: pp isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_pproc);
 		}
@@ -1121,7 +1125,7 @@ static irqreturn_t vepu_isr(int irq, void *dev_id)
 		pr_debug("ENC IRQ received!\n");
 		spin_lock(&service.lock);
 		if (NULL == service.reg_codec) {
-			pr_err("enc isr with no task waiting\n");
+			pr_err("error: enc isr with no task waiting\n");
 		} else {
 			reg_from_run_to_done(service.reg_codec);
 		}
@@ -1155,37 +1159,39 @@ static int __init vpu_service_init(void)
 	service.enabled		= false;
 
 	vpu_get_clk();
+	init_timer(&service.timer);
+	service.timer.expires = jiffies + POWER_OFF_DELAY;
+	service.timer.function = vpu_service_power_off_work_func;
 	vpu_service_power_on();
 
 	ret = vpu_service_reserve_io();
 	if (ret < 0) {
-		pr_err("reserve io failed\n");
+		pr_err("error: reserve io failed\n");
 		goto err_reserve_io;
 	}
 
 	/* get the IRQ line */
 	ret = request_irq(IRQ_VDPU, vdpu_isr, IRQF_SHARED, "vdpu", (void *)&dec_dev);
 	if (ret) {
-		pr_err("can't request vdpu irq %d\n", IRQ_VDPU);
+		pr_err("error: can't request vdpu irq %d\n", IRQ_VDPU);
 		goto err_req_vdpu_irq;
 	}
 
 	ret = request_irq(IRQ_VEPU, vepu_isr, IRQF_SHARED, "vepu", (void *)&enc_dev);
 	if (ret) {
-		pr_err("can't request vepu irq %d\n", IRQ_VEPU);
+		pr_err("error: can't request vepu irq %d\n", IRQ_VEPU);
 		goto err_req_vepu_irq;
 	}
 
 	ret = misc_register(&vpu_service_misc_device);
 	if (ret) {
-		pr_err("misc_register failed\n");
+		pr_err("error: misc_register failed\n");
 		goto err_register;
 	}
 
 	platform_device_register(&vpu_service_device);
 	platform_driver_probe(&vpu_service_driver, NULL);
 	get_hw_info();
-	del_timer(&service.timer);
 	vpu_service_power_off();
 	pr_info("init success\n");
 
@@ -1199,7 +1205,6 @@ err_req_vepu_irq:
 err_req_vdpu_irq:
 	pr_info("init failed\n");
 err_reserve_io:
-	del_timer(&service.timer);
 	vpu_service_power_off();
 	vpu_service_release_io();
 	vpu_put_clk();
