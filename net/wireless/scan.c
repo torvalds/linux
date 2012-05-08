@@ -281,7 +281,7 @@ static bool is_bss(struct cfg80211_bss *a,
 {
 	const u8 *ssidie;
 
-	if (bssid && compare_ether_addr(a->bssid, bssid))
+	if (bssid && !ether_addr_equal(a->bssid, bssid))
 		return false;
 
 	if (!ssid)

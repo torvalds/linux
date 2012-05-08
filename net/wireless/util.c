@@ -609,10 +609,9 @@ void ieee80211_amsdu_to_8023s(struct sk_buff *skb, struct sk_buff_head *list,
 		payload = frame->data;
 		ethertype = (payload[6] << 8) | payload[7];
 
-		if (likely((compare_ether_addr(payload, rfc1042_header) == 0 &&
+		if (likely((ether_addr_equal(payload, rfc1042_header) &&
 			    ethertype != ETH_P_AARP && ethertype != ETH_P_IPX) ||
-			   compare_ether_addr(payload,
-					      bridge_tunnel_header) == 0)) {
+			   ether_addr_equal(payload, bridge_tunnel_header))) {
 			/* remove RFC1042 or Bridge-Tunnel
 			 * encapsulation and replace EtherType */
 			skb_pull(frame, 6);
