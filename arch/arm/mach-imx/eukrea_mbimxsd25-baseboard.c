@@ -97,10 +97,10 @@ static iomux_v3_cfg_t eukrea_mbimxsd_pads[] = {
 	MX25_PAD_CSPI1_RDY__GPIO_2_22,
 };
 
-#define GPIO_LED1	83
-#define GPIO_SWITCH1	82
-#define GPIO_SD1CD	52
-#define GPIO_LCDPWR	26
+#define GPIO_LED1		IMX_GPIO_NR(3, 19)
+#define GPIO_SWITCH1	IMX_GPIO_NR(3, 18)
+#define GPIO_SD1CD		IMX_GPIO_NR(2, 20)
+#define GPIO_LCDPWR		IMX_GPIO_NR(1, 26)
 #define	GPIO_SPI1_SS0	IMX_GPIO_NR(1, 16)
 #define	GPIO_SPI1_SS1	IMX_GPIO_NR(1, 17)
 #define	GPIO_SPI1_IRQ	IMX_GPIO_NR(2, 22)
