@@ -869,7 +869,7 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 	ar5008_hw_set_channel_regs(ah, chan);
 	ar5008_hw_init_chain_masks(ah);
 	ath9k_olc_init(ah);
-	ath9k_hw_apply_txpower(ah, chan);
+	ath9k_hw_apply_txpower(ah, chan, false);
 
 	/* Write analog registers */
 	if (!ath9k_hw_set_rf_regs(ah, chan, freqIndex)) {

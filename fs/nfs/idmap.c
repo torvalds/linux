@@ -554,12 +554,16 @@ static int rpc_pipefs_event(struct notifier_block *nb, unsigned long event,
 	struct nfs_client *clp;
 	int error = 0;
 
+	if (!try_module_get(THIS_MODULE))
+		return 0;
+
 	while ((clp = nfs_get_client_for_event(sb->s_fs_info, event))) {
 		error = __rpc_pipefs_event(clp, event, sb);
 		nfs_put_client(clp);
 		if (error)
 			break;
 	}
+	module_put(THIS_MODULE);
 	return error;
 }
 

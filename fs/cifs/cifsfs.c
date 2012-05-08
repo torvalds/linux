@@ -442,7 +442,7 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	seq_printf(s, ",rsize=%u", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->wsize);
 	/* convert actimeo and display it in seconds */
-		seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
+	seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
 
 	return 0;
 }

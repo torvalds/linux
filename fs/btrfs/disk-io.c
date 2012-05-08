@@ -323,13 +323,17 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
  * in the wrong place.
  */
 static int verify_parent_transid(struct extent_io_tree *io_tree,
-				 struct extent_buffer *eb, u64 parent_transid)
+				 struct extent_buffer *eb, u64 parent_transid,
+				 int atomic)
 {
 	struct extent_state *cached_state = NULL;
 	int ret;
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
+
+	if (atomic)
+		return -EAGAIN;
 
 	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
 			 0, &cached_state);
@@ -372,7 +376,8 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		ret = read_extent_buffer_pages(io_tree, eb, start,
 					       WAIT_COMPLETE,
 					       btree_get_extent, mirror_num);
-		if (!ret && !verify_parent_transid(io_tree, eb, parent_transid))
+		if (!ret && !verify_parent_transid(io_tree, eb,
+						   parent_transid, 0))
 			break;
 
 		/*
@@ -1202,7 +1207,7 @@ static int __must_check find_and_setup_root(struct btrfs_root *tree_root,
 	root->commit_root = NULL;
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	if (!root->node || !btrfs_buffer_uptodate(root->node, generation)) {
+	if (!root->node || !btrfs_buffer_uptodate(root->node, generation, 0)) {
 		free_extent_buffer(root->node);
 		root->node = NULL;
 		return -EIO;
@@ -3143,7 +3148,8 @@ int close_ctree(struct btrfs_root *root)
 	return 0;
 }
 
-int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
+int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
+			  int atomic)
 {
 	int ret;
 	struct inode *btree_inode = buf->pages[0]->mapping->host;
@@ -3153,7 +3159,9 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 		return ret;
 
 	ret = verify_parent_transid(&BTRFS_I(btree_inode)->io_tree, buf,
-				    parent_transid);
+				    parent_transid, atomic);
+	if (ret == -EAGAIN)
+		return ret;
 	return !ret;
 }
 

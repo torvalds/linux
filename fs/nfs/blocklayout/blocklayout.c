@@ -38,6 +38,8 @@
 #include <linux/buffer_head.h>	/* various write calls */
 #include <linux/prefetch.h>
 
+#include "../pnfs.h"
+#include "../internal.h"
 #include "blocklayout.h"
 
 #define NFSDBG_FACILITY	NFSDBG_PNFS_LD
@@ -868,7 +870,7 @@ nfs4_blk_get_deviceinfo(struct nfs_server *server, const struct nfs_fh *fh,
 	 * GETDEVICEINFO's maxcount
 	 */
 	max_resp_sz = server->nfs_client->cl_session->fc_attrs.max_resp_sz;
-	max_pages = max_resp_sz >> PAGE_SHIFT;
+	max_pages = nfs_page_array_len(0, max_resp_sz);
 	dprintk("%s max_resp_sz %u max_pages %d\n",
 		__func__, max_resp_sz, max_pages);
 
