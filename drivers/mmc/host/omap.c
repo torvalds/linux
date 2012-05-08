@@ -1614,19 +1614,7 @@ static struct platform_driver mmc_omap_driver = {
 	},
 };
 
-static int __init mmc_omap_init(void)
-{
-	return platform_driver_register(&mmc_omap_driver);
-}
-
-static void __exit mmc_omap_exit(void)
-{
-	platform_driver_unregister(&mmc_omap_driver);
-}
-
-module_init(mmc_omap_init);
-module_exit(mmc_omap_exit);
-
+module_platform_driver(mmc_omap_driver);
 MODULE_DESCRIPTION("OMAP Multimedia Card driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:" DRIVER_NAME);
