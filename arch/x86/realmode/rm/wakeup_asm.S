@@ -132,7 +132,7 @@ ENTRY(wakeup_start)
 	ljmpl	$__KERNEL_CS, $pa_startup_32
 	/* -> jmp *%eax in trampoline_32.S */
 #else
-	jmp	trampoline_data
+	jmp	trampoline_start
 #endif
 
 bogus_real_magic:

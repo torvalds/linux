@@ -17,8 +17,11 @@ void __init setup_real_mode(void)
 	u16 *seg;
 	int i;
 	unsigned char *base;
-
+	struct trampoline_header *trampoline_header;
 	size_t size = PAGE_ALIGN(real_mode_blob_end - real_mode_blob);
+#ifdef CONFIG_X86_64
+	u64 *trampoline_pgd;
+#endif
 
 	/* Has to be in very low memory so we can execute real-mode AP code. */
 	mem = memblock_find_in_range(0, 1<<20, size, PAGE_SIZE);
@@ -28,7 +31,6 @@ void __init setup_real_mode(void)
 	base = __va(mem);
 	memblock_reserve(mem, size);
 	real_mode_header = (struct real_mode_header *) base;
-
 	printk(KERN_DEBUG "Base memory trampoline at [%p] %llx size %zu\n",
 	       base, (unsigned long long)mem, size);
 
@@ -53,18 +55,19 @@ void __init setup_real_mode(void)
 		*ptr += __pa(base);
 	}
 
+	/* Must be perfomed *after* relocation. */
+	trampoline_header = (struct trampoline_header *)
+		__va(real_mode_header->trampoline_header);
+
 #ifdef CONFIG_X86_32
-	*((u32 *)__va(real_mode_header->startup_32_smp)) = __pa(startup_32_smp);
-	*((u32 *)__va(real_mode_header->boot_gdt)) = __pa(boot_gdt);
+	trampoline_header->start = __pa(startup_32_smp);
+	trampoline_header->gdt_limit = __BOOT_DS + 7;
+	trampoline_header->gdt_base = __pa(boot_gdt);
 #else
-	*((u64 *) __va(real_mode_header->startup_64_smp)) =
-		(u64)secondary_startup_64;
-
-	*((u64 *) __va(real_mode_header->level3_ident_pgt)) =
-		__pa(level3_ident_pgt) + _KERNPG_TABLE;
-
-	*((u64 *) __va(real_mode_header->level3_kernel_pgt)) =
-		__pa(level3_kernel_pgt) + _KERNPG_TABLE;
+	trampoline_header->start = (u64) secondary_startup_64;
+	trampoline_pgd = (u64 *) __va(real_mode_header->trampoline_pgd);
+	trampoline_pgd[0] = __pa(level3_ident_pgt) + _KERNPG_TABLE;
+	trampoline_pgd[511] = __pa(level3_kernel_pgt) + _KERNPG_TABLE;
 #endif
 }
 

@@ -10,7 +10,7 @@
  *	trampoline page to make our stack and everything else
  *	is a mystery.
  *
- *	On entry to trampoline_data, the processor is in real mode
+ *	On entry to trampoline_start, the processor is in real mode
  *	with 16-bit addressing and 16-bit data.  CS has some value
  *	and IP is zero.  Thus, data addresses need to be absolute
  *	(no relocation) and are taken with regard to r_base.
@@ -37,7 +37,7 @@
 	.balign PAGE_SIZE
 	.code16
 
-ENTRY(trampoline_data)
+ENTRY(trampoline_start)
 	cli			# We should be safe anyway
 	wbinvd
 
@@ -97,7 +97,7 @@ ENTRY(startup_32)
 	movl	%eax, %cr4		# Enable PAE mode
 
 	# Setup trampoline 4 level pagetables
-	movl	$pa_level3_ident_pgt, %eax
+	movl	$pa_trampoline_pgd, %eax
 	movl	%eax, %cr3
 
 	movl	$MSR_EFER, %ecx
@@ -122,7 +122,7 @@ ENTRY(startup_32)
 	.balign 4
 ENTRY(startup_64)
 	# Now jump into the kernel using virtual addresses
-	jmpq	*startup_64_smp(%rip)
+	jmpq	*tr_start(%rip)
 
 	.section ".rodata","a"
 	.balign	16
@@ -143,12 +143,4 @@ tgdt:
 	.quad	0x00cf93000000ffff	# __KERNEL_DS
 tgdt_end:
 
-	.bss
-
-	.balign	PAGE_SIZE
-GLOBAL(level3_ident_pgt)	.space	511*8
-GLOBAL(level3_kernel_pgt)	.space	8
-
-	.balign	8
-GLOBAL(startup_64_smp)		.space	8
-GLOBAL(trampoline_status)	.space	4
+#include "trampoline_common.S"

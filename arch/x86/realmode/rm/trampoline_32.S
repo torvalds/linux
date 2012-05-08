@@ -13,16 +13,10 @@
  *
  *	We jump into arch/x86/kernel/head_32.S.
  *
- *	On entry to trampoline_data, the processor is in real mode
+ *	On entry to trampoline_start, the processor is in real mode
  *	with 16-bit addressing and 16-bit data.  CS has some value
  *	and IP is zero.  Thus, we load CS to the physical segment
  *	of the real mode code before doing anything further.
- *
- *	The structure real_mode_header includes entries that need
- *	to be set up before executing this code:
- *
- *	startup_32_smp
- *	boot_gdt
  */
 
 #include <linux/linkage.h>
@@ -35,7 +29,7 @@
 	.code16
 
 	.balign	PAGE_SIZE
-ENTRY(trampoline_data)
+ENTRY(trampoline_start)
 	wbinvd			# Needed for NUMA-Q should be harmless for others
 
 	LJMPW_RM(1f)
@@ -45,7 +39,7 @@ ENTRY(trampoline_data)
 
 	cli			# We should be safe anyway
 
-	movl	startup_32_smp, %eax	# where we need to go
+	movl	tr_start, %eax	# where we need to go
 
 	movl	$0xA5A5A5A5, trampoline_status
 				# write marker for master knows we're running
@@ -56,8 +50,8 @@ ENTRY(trampoline_data)
 	 * operand size is 16bit. Use lgdtl instead to force operand size
 	 * to 32 bit.
 	 */
-	lidtl	boot_idt_descr		# load idt with 0, 0
-	lgdtl	boot_gdt_descr		# load gdt with whatever is appropriate
+	lidtl	tr_idt			# load idt with 0, 0
+	lgdtl	tr_gdt			# load gdt with whatever is appropriate
 
 	movw	$1, %dx			# protected mode (PE) bit
 	lmsw	%dx			# into protected mode
@@ -69,22 +63,4 @@ ENTRY(trampoline_data)
 ENTRY(startup_32)			# note: also used from wakeup_asm.S
 	jmp	*%eax
 
-	.section ".rodata","a"
-
-	.balign	4
-boot_idt_descr:
-	.word	0				# idt limit = 0
-	.long	0				# idt base = 0L
-
-	.data
-
-boot_gdt_descr:
-	.word	__BOOT_DS + 7			# gdt limit
-GLOBAL(boot_gdt)
-	.long	0				# gdt base
-
-	.bss
-
-	.balign	4
-GLOBAL(trampoline_status)	.space	4
-GLOBAL(startup_32_smp)		.space	4
+#include "trampoline_common.S"

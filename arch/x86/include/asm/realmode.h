@@ -8,24 +8,32 @@
 struct real_mode_header {
 	u32	text_start;
 	u32	ro_end;
-	/* reboot */
-#ifdef CONFIG_X86_32
-	u32	machine_real_restart_asm;
-#endif
 	/* SMP trampoline */
-	u32	trampoline_data;
+	u32	trampoline_start;
 	u32	trampoline_status;
-#ifdef CONFIG_X86_32
-	u32	startup_32_smp;
-	u32	boot_gdt;
-#else
-	u32	startup_64_smp;
-	u32	level3_ident_pgt;
-	u32	level3_kernel_pgt;
+	u32	trampoline_header;
+#ifdef CONFIG_X86_64
+	u32	trampoline_pgd;
 #endif
+	/* ACPI S3 wakeup */
 #ifdef CONFIG_ACPI_SLEEP
 	u32	wakeup_start;
 	u32	wakeup_header;
+#endif
+	/* APM/BIOS reboot */
+#ifdef CONFIG_X86_32
+	u32	machine_real_restart_asm;
+#endif
+} __attribute__((__packed__));
+
+/* This must match data at trampoline_32/64.S */
+struct trampoline_header {
+#ifdef CONFIG_X86_32
+	u32 start;
+	u16 gdt_limit;
+	u32 gdt_base;
+#else
+	u64 start;
 #endif
 } __attribute__((__packed__));
 
