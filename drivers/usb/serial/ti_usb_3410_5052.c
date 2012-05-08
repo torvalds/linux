@@ -211,11 +211,6 @@ static struct usb_device_id ti_id_table_combined[18+2*TI_EXTRA_VID_PID_COUNT+1] 
 	{ }
 };
 
-static struct usb_driver ti_usb_driver = {
-	.name			= "ti_usb_3410_5052",
-	.id_table		= ti_id_table_combined,
-};
-
 static struct usb_serial_driver ti_1port_device = {
 	.driver = {
 		.owner		= THIS_MODULE,
@@ -342,19 +337,17 @@ static int __init ti_init(void)
 		ti_id_table_combined[c].match_flags = USB_DEVICE_ID_MATCH_DEVICE;
 	}
 
-	ret = usb_serial_register_drivers(&ti_usb_driver, serial_drivers);
+	ret = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ti_id_table_combined);
 	if (ret == 0)
 		printk(KERN_INFO KBUILD_MODNAME ": " TI_DRIVER_VERSION ":"
 			       TI_DRIVER_DESC "\n");
 	return ret;
 }
 
-
 static void __exit ti_exit(void)
 {
-	usb_serial_deregister_drivers(&ti_usb_driver, serial_drivers);
+	usb_serial_deregister_drivers(serial_drivers);
 }
-
 
 module_init(ti_init);
 module_exit(ti_exit);

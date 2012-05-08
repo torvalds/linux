@@ -269,11 +269,6 @@ static void symbol_release(struct usb_serial *serial)
 	kfree(priv);
 }
 
-static struct usb_driver symbol_driver = {
-	.name =			"symbol",
-	.id_table =		id_table,
-};
-
 static struct usb_serial_driver symbol_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -294,7 +289,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&symbol_device, NULL
 };
 
-module_usb_serial_driver(symbol_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_LICENSE("GPL");
 

@@ -51,11 +51,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver iuu_driver = {
-	.name = "iuu_phoenix",
-	.id_table = id_table,
-};
-
 /* turbo parameter */
 static int boost = 100;
 static int clockmode = 1;
@@ -1254,7 +1249,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&iuu_device, NULL
 };
 
-module_usb_serial_driver(iuu_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR("Alain Degreffe eczema@ecze.com");
 

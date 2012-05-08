@@ -862,11 +862,6 @@ static struct usb_device_id id_table_combined [] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver ftdi_driver = {
-	.name =		"ftdi_sio",
-	.id_table =	id_table_combined,
-};
-
 static const char *ftdi_chip_name[] = {
 	[SIO] = "SIO",	/* the serial part of FT8U100AX */
 	[FT8U232AM] = "FT8U232AM",
@@ -2413,7 +2408,7 @@ static int __init ftdi_init(void)
 		id_table_combined[i].idVendor = vendor;
 		id_table_combined[i].idProduct = product;
 	}
-	retval = usb_serial_register_drivers(&ftdi_driver, serial_drivers);
+	retval = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, id_table_combined);
 	if (retval == 0)
 		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
 			       DRIVER_DESC "\n");
@@ -2422,7 +2417,7 @@ static int __init ftdi_init(void)
 
 static void __exit ftdi_exit(void)
 {
-	usb_serial_deregister_drivers(&ftdi_driver, serial_drivers);
+	usb_serial_deregister_drivers(serial_drivers);
 }
 
 

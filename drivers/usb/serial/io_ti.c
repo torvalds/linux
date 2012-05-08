@@ -197,12 +197,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver io_driver = {
-	.name =		"io_ti",
-	.id_table =	id_table_combined,
-};
-
-
 static unsigned char OperationalMajorVersion;
 static unsigned char OperationalMinorVersion;
 static unsigned short OperationalBuildNumber;
@@ -2788,7 +2782,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&edgeport_1port_device, &edgeport_2port_device, NULL
 };
 
-module_usb_serial_driver(io_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -216,13 +216,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(GARMIN_VENDOR_ID, 3) },
 	{ }					/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver garmin_driver = {
-	.name =		"garmin_gps",
-	.id_table =	id_table,
-};
 
 
 static inline int getLayerId(const __u8 *usbPacket)
@@ -1495,7 +1489,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&garmin_device, NULL
 };
 
-module_usb_serial_driver(garmin_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -1044,11 +1044,6 @@ static int sierra_resume(struct usb_serial *serial)
 #define sierra_resume NULL
 #endif
 
-static struct usb_driver sierra_driver = {
-	.name       = "sierra",
-	.id_table   = id_table,
-};
-
 static struct usb_serial_driver sierra_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -1077,7 +1072,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&sierra_device, NULL
 };
 
-module_usb_serial_driver(sierra_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

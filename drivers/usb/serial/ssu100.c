@@ -59,14 +59,7 @@ static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU100)},
 	{}			/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, id_table);
-
-
-static struct usb_driver ssu100_driver = {
-	.name			       = "ssu100",
-	.id_table		       = id_table,
-};
 
 struct ssu100_port_private {
 	spinlock_t status_lock;
@@ -671,7 +664,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ssu100_device, NULL
 };
 
-module_usb_serial_driver(ssu100_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

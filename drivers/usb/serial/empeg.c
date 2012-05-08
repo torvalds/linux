@@ -51,11 +51,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver empeg_driver = {
-	.name =		"empeg",
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver empeg_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -134,7 +129,7 @@ static void empeg_init_termios(struct tty_struct *tty)
 	tty_encode_baud_rate(tty, 115200, 115200);
 }
 
-module_usb_serial_driver(empeg_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

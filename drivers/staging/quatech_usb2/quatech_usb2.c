@@ -116,7 +116,7 @@ static bool debug;
 #define FOURTHCHAR	((unsigned char *)(urb->transfer_buffer))[i + 3]
 #define FIFTHCHAR	((unsigned char *)(urb->transfer_buffer))[i + 4]
 
-static const struct usb_device_id quausb2_id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU2_100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU2_100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU2_400)},
@@ -126,14 +126,7 @@ static const struct usb_device_id quausb2_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_ESU2_400)},
 	{}	/* Terminating entry */
 };
-
-MODULE_DEVICE_TABLE(usb, quausb2_id_table);
-
-/* custom structures we need go here */
-static struct usb_driver quausb2_usb_driver = {
-	.name = "quatech-usb2-serial",
-	.id_table = quausb2_id_table,
-};
+MODULE_DEVICE_TABLE(usb, id_table);
 
 /**
  * quatech2_port: Structure in which to keep all the messy stuff that this
@@ -1922,7 +1915,7 @@ static struct usb_serial_driver quatech2_device = {
 		.name = "quatech_usb2",
 	},
 	.description = DRIVER_DESC,
-	.id_table = quausb2_id_table,
+	.id_table = id_table,
 	.num_ports = 8,
 	.open = qt2_open,
 	.close = qt2_close,
@@ -1947,7 +1940,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&quatech2_device, NULL
 };
 
-module_usb_serial_driver(quausb2_usb_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

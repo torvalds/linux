@@ -130,7 +130,7 @@ struct keyspan_port_private {
 #include "keyspan_usa67msg.h"
 
 
-module_usb_serial_driver(keyspan_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, keyspan_ids_combined);
 
 static void keyspan_break_ctl(struct tty_struct *tty, int break_state)
 {

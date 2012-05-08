@@ -170,11 +170,6 @@ static void aircable_process_read_urb(struct urb *urb)
 	tty_kref_put(tty);
 }
 
-static struct usb_driver aircable_driver = {
-	.name =		"aircable",
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver aircable_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -194,7 +189,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&aircable_device, NULL
 };
 
-module_usb_serial_driver(aircable_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

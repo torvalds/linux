@@ -66,11 +66,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver oti6858_driver = {
-	.name =		"oti6858",
-	.id_table =	id_table,
-};
-
 static bool debug;
 
 /* requests */
@@ -921,7 +916,7 @@ static void oti6858_write_bulk_callback(struct urb *urb)
 	}
 }
 
-module_usb_serial_driver(oti6858_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(OTI6858_DESCRIPTION);
 MODULE_AUTHOR(OTI6858_AUTHOR);

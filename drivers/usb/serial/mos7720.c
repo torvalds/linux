@@ -79,12 +79,12 @@ static struct usb_serial_driver moschip7720_2port_driver;
 #define MOSCHIP_DEVICE_ID_7720		0x7720
 #define MOSCHIP_DEVICE_ID_7715		0x7715
 
-static const struct usb_device_id moschip_port_id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7720) },
 	{ USB_DEVICE(USB_VENDOR_ID_MOSCHIP, MOSCHIP_DEVICE_ID_7715) },
 	{ } /* terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, moschip_port_id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 #ifdef CONFIG_USB_SERIAL_MOS7715_PARPORT
 
@@ -2158,18 +2158,13 @@ static void mos7720_release(struct usb_serial *serial)
 		kfree(usb_get_serial_port_data(serial->port[i]));
 }
 
-static struct usb_driver usb_driver = {
-	.name =		"moschip7720",
-	.id_table =	moschip_port_id_table,
-};
-
 static struct usb_serial_driver moschip7720_2port_driver = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"moschip7720",
 	},
 	.description		= "Moschip 2 port adapter",
-	.id_table		= moschip_port_id_table,
+	.id_table		= id_table,
 	.calc_num_ports		= mos77xx_calc_num_ports,
 	.open			= mos7720_open,
 	.close			= mos7720_close,
@@ -2195,7 +2190,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&moschip7720_2port_driver, NULL
 };
 
-module_usb_serial_driver(usb_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

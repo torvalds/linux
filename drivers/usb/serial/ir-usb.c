@@ -77,11 +77,6 @@ static const struct usb_device_id ir_id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, ir_id_table);
 
-static struct usb_driver ir_driver = {
-	.name		= "ir-usb",
-	.id_table	= ir_id_table,
-};
-
 static struct usb_serial_driver ir_device = {
 	.driver	= {
 		.owner	= THIS_MODULE,
@@ -436,7 +431,7 @@ static int __init ir_init(void)
 		ir_device.bulk_out_size = buffer_size;
 	}
 
-	retval = usb_serial_register_drivers(&ir_driver, serial_drivers);
+	retval = usb_serial_register_drivers(serial_drivers, KBUILD_MODNAME, ir_id_table);
 	if (retval == 0)
 		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
 			       DRIVER_DESC "\n");
@@ -445,7 +440,7 @@ static int __init ir_init(void)
 
 static void __exit ir_exit(void)
 {
-	usb_serial_deregister_drivers(&ir_driver, serial_drivers);
+	usb_serial_deregister_drivers(serial_drivers);
 }
 
 

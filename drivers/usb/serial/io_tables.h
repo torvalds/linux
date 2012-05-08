@@ -95,11 +95,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver io_driver = {
-	.name =		"io_edgeport",
-	.id_table =	id_table_combined,
-};
-
 static struct usb_serial_driver edgeport_2port_device = {
 	.driver = {
 		.owner		= THIS_MODULE,

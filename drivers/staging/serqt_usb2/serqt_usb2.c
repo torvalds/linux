@@ -125,7 +125,7 @@ static bool debug;
 #define MODEM_CTRL          0x40
 #define RS232_MODE          0x00
 
-static const struct usb_device_id serqt_id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU200)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU200)},
@@ -152,8 +152,7 @@ static const struct usb_device_id serqt_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_ESU100_2)},
 	{}			/* Terminating entry */
 };
-
-MODULE_DEVICE_TABLE(usb, serqt_id_table);
+MODULE_DEVICE_TABLE(usb, id_table);
 
 struct qt_get_device_data {
 	__u8 porta;
@@ -193,11 +192,6 @@ struct quatech_port {
 	int RxHolding;
 	int ReadBulkStopped;
 	char closePending;
-};
-
-static struct usb_driver serqt_usb_driver = {
-	.name = "quatech-usb-serial",
-	.id_table = serqt_id_table,
 };
 
 static int port_paranoia_check(struct usb_serial_port *port,
@@ -1544,7 +1538,7 @@ static struct usb_serial_driver quatech_device = {
 		   .name = "serqt",
 		   },
 	.description = DRIVER_DESC,
-	.id_table = serqt_id_table,
+	.id_table = id_table,
 	.num_ports = 8,
 	.open = qt_open,
 	.close = qt_close,
@@ -1567,7 +1561,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&quatech_device, NULL
 };
 
-module_usb_serial_driver(serqt_usb_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

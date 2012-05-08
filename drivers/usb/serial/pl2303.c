@@ -95,11 +95,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver pl2303_driver = {
-	.name =		"pl2303",
-	.id_table =	id_table,
-};
-
 #define SET_LINE_REQUEST_TYPE		0x21
 #define SET_LINE_REQUEST		0x20
 
@@ -840,7 +835,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&pl2303_device, NULL
 };
 
-module_usb_serial_driver(pl2303_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

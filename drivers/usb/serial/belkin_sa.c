@@ -62,7 +62,7 @@ static int  belkin_sa_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
 
 
-static const struct usb_device_id id_table_combined[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(BELKIN_SA_VID, BELKIN_SA_PID) },
 	{ USB_DEVICE(BELKIN_OLD_VID, BELKIN_OLD_PID) },
 	{ USB_DEVICE(PERACOM_VID, PERACOM_PID) },
@@ -71,12 +71,7 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(BELKIN_DOCKSTATION_VID, BELKIN_DOCKSTATION_PID) },
 	{ }	/* Terminating entry */
 };
-MODULE_DEVICE_TABLE(usb, id_table_combined);
-
-static struct usb_driver belkin_driver = {
-	.name =		"belkin",
-	.id_table =	id_table_combined,
-};
+MODULE_DEVICE_TABLE(usb, id_table);
 
 /* All of the device info needed for the serial converters */
 static struct usb_serial_driver belkin_device = {
@@ -85,7 +80,7 @@ static struct usb_serial_driver belkin_device = {
 		.name =		"belkin",
 	},
 	.description =		"Belkin / Peracom / GoHubs USB Serial Adapter",
-	.id_table =		id_table_combined,
+	.id_table =		id_table,
 	.num_ports =		1,
 	.open =			belkin_sa_open,
 	.close =		belkin_sa_close,
@@ -513,7 +508,7 @@ exit:
 	return retval;
 }
 
-module_usb_serial_driver(belkin_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

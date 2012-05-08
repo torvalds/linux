@@ -419,11 +419,6 @@ static void metrousb_unthrottle(struct tty_struct *tty)
 			result);
 }
 
-static struct usb_driver metrousb_driver = {
-	.name =		"metro-usb",
-	.id_table =	id_table
-};
-
 static struct usb_serial_driver metrousb_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -449,7 +444,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	NULL,
 };
 
-module_usb_serial_driver(metrousb_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Philip Nicastro");

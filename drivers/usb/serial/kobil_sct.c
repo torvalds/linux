@@ -81,15 +81,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(KOBIL_VENDOR_ID, KOBIL_KAAN_SIM_PRODUCT_ID) },
 	{ }			/* Terminating entry */
 };
-
-
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver kobil_driver = {
-	.name =		"kobil",
-	.id_table =	id_table,
-};
-
 
 static struct usb_serial_driver kobil_device = {
 	.driver = {
@@ -674,7 +666,7 @@ static int kobil_ioctl(struct tty_struct *tty,
 	}
 }
 
-module_usb_serial_driver(kobil_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

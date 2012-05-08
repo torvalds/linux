@@ -502,11 +502,6 @@ static struct usb_device_id ipaq_id_table [] = {
 
 MODULE_DEVICE_TABLE(usb, ipaq_id_table);
 
-static struct usb_driver ipaq_driver = {
-	.name =		"ipaq",
-	.id_table =	ipaq_id_table,
-};
-
 
 /* All of the device info needed for the Compaq iPAQ */
 static struct usb_serial_driver ipaq_device = {
@@ -614,7 +609,7 @@ static int ipaq_startup(struct usb_serial *serial)
 	return usb_reset_configuration(serial->dev);
 }
 
-module_usb_serial_driver(ipaq_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, ipaq_id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

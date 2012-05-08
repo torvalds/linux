@@ -1220,11 +1220,6 @@ static const struct usb_device_id option_ids[] = {
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
 
-static struct usb_driver option_driver = {
-	.name       = "option",
-	.id_table   = option_ids,
-};
-
 /* The card has three separate interfaces, which the serial driver
  * recognizes separately, thus num_port=1.
  */
@@ -1293,7 +1288,7 @@ struct option_port_private {
 	unsigned long tx_start_time[N_OUT_URB];
 };
 
-module_usb_serial_driver(option_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, option_ids);
 
 static bool is_blacklisted(const u8 ifnum, enum option_blacklist_reason reason,
 			   const struct option_blacklist_info *blacklist)

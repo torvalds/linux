@@ -46,11 +46,6 @@ static const struct usb_device_id generic_serial_ids[] = {
 	{}
 };
 
-static struct usb_driver generic_driver = {
-	.name =		"usbserial_generic",
-	.id_table =	generic_serial_ids,
-};
-
 /* All of the device info needed for the Generic Serial Converter */
 struct usb_serial_driver usb_serial_generic_device = {
 	.driver = {
@@ -84,7 +79,7 @@ int usb_serial_generic_register(int _debug)
 		USB_DEVICE_ID_MATCH_VENDOR | USB_DEVICE_ID_MATCH_PRODUCT;
 
 	/* register our generic driver with ourselves */
-	retval = usb_serial_register_drivers(&generic_driver, serial_drivers);
+	retval = usb_serial_register_drivers(serial_drivers, "usbserial_generic", generic_serial_ids);
 #endif
 	return retval;
 }
@@ -93,7 +88,7 @@ void usb_serial_generic_deregister(void)
 {
 #ifdef CONFIG_USB_SERIAL_GENERIC
 	/* remove our generic driver */
-	usb_serial_deregister_drivers(&generic_driver, serial_drivers);
+	usb_serial_deregister_drivers(serial_drivers);
 #endif
 }
 

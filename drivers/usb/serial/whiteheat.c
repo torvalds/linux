@@ -77,10 +77,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver whiteheat_driver = {
-	.name =		"whiteheat",
-	.id_table =	id_table_combined,
-};
 
 /* function prototypes for the Connect Tech WhiteHEAT prerenumeration device */
 static int  whiteheat_firmware_download(struct usb_serial *serial,
@@ -914,7 +910,7 @@ static void stop_command_port(struct usb_serial *serial)
 	mutex_unlock(&command_info->mutex);
 }
 
-module_usb_serial_driver(whiteheat_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

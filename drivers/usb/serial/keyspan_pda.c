@@ -86,11 +86,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver keyspan_pda_driver = {
-	.name =		"keyspan_pda",
-	.id_table =	id_table_combined,
-};
-
 static const struct usb_device_id id_table_std[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_ID) },
 	{ }						/* Terminating entry */
@@ -828,7 +823,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	NULL
 };
 
-module_usb_serial_driver(keyspan_pda_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

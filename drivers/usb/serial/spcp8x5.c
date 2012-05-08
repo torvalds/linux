@@ -151,12 +151,6 @@ enum spcp8x5_type {
 	SPCP835_TYPE,
 };
 
-static struct usb_driver spcp8x5_driver = {
-	.name =			"spcp8x5",
-	.id_table =		id_table,
-};
-
-
 struct spcp8x5_private {
 	spinlock_t 	lock;
 	enum spcp8x5_type	type;
@@ -662,7 +656,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&spcp8x5_device, NULL
 };
 
-module_usb_serial_driver(spcp8x5_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);

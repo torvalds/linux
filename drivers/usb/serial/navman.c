@@ -30,11 +30,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver navman_driver = {
-	.name =		"navman",
-	.id_table =	id_table,
-};
-
 static void navman_read_int_callback(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
@@ -124,7 +119,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&navman_device, NULL
 };
 
-module_usb_serial_driver(navman_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_LICENSE("GPL");
 

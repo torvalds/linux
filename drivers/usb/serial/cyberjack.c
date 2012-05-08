@@ -77,11 +77,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver cyberjack_driver = {
-	.name =		"cyberjack",
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver cyberjack_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -455,7 +450,7 @@ exit:
 	usb_serial_port_softint(port);
 }
 
-module_usb_serial_driver(cyberjack_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

@@ -29,11 +29,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver siemens_usb_mpi_driver = {
-	.name =		"siemens_mpi",
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver siemens_usb_mpi_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -47,7 +42,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&siemens_usb_mpi_device, NULL
 };
 
-module_usb_serial_driver(siemens_usb_mpi_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

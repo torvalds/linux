@@ -350,18 +350,12 @@ static void f81232_release(struct usb_serial *serial)
 	}
 }
 
-static struct usb_driver f81232_driver = {
-	.name =		"f81232",
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver f81232_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
 		.name =		"f81232",
 	},
 	.id_table =		id_table,
-	.usb_driver = 		&f81232_driver,
 	.num_ports =		1,
 	.bulk_in_size =		256,
 	.bulk_out_size =	256,
@@ -385,7 +379,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	NULL,
 };
 
-module_usb_serial_driver(f81232_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION("Fintek F81232 USB to serial adaptor driver");
 MODULE_AUTHOR("Greg Kroah-Hartman <gregkh@linuxfoundation.org");

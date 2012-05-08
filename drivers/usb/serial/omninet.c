@@ -54,14 +54,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(ZYXEL_VENDOR_ID, BT_IGNITIONPRO_ID) },
 	{ }						/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, id_table);
-
-static struct usb_driver omninet_driver = {
-	.name =		"omninet",
-	.id_table =	id_table,
-};
-
 
 static struct usb_serial_driver zyxel_omninet_device = {
 	.driver = {
@@ -306,7 +299,7 @@ static void omninet_release(struct usb_serial *serial)
 	kfree(usb_get_serial_port_data(port));
 }
 
-module_usb_serial_driver(omninet_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

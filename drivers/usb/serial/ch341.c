@@ -589,11 +589,6 @@ static int ch341_resume(struct usb_serial *serial)
 	return 0;
 }
 
-static struct usb_driver ch341_driver = {
-	.name		= "ch341",
-	.id_table	= id_table,
-};
-
 static struct usb_serial_driver ch341_device = {
 	.driver = {
 		.owner	= THIS_MODULE,
@@ -619,7 +614,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&ch341_device, NULL
 };
 
-module_usb_serial_driver(ch341_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_LICENSE("GPL");
 

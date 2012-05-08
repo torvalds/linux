@@ -86,11 +86,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver kl5kusb105d_driver = {
-	.name =		"kl5kusb105d",
-	.id_table =	id_table,
-};
-
 static struct usb_serial_driver kl5kusb105d_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -681,7 +676,7 @@ static int klsi_105_tiocmset(struct tty_struct *tty,
 	return retval;
 }
 
-module_usb_serial_driver(kl5kusb105d_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

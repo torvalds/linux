@@ -292,10 +292,9 @@ struct usb_serial_driver {
 #define to_usb_serial_driver(d) \
 	container_of(d, struct usb_serial_driver, driver)
 
-extern int usb_serial_register_drivers(struct usb_driver *udriver,
-		struct usb_serial_driver * const serial_drivers[]);
-extern void usb_serial_deregister_drivers(struct usb_driver *udriver,
-		struct usb_serial_driver * const serial_drivers[]);
+extern int usb_serial_register_drivers(struct usb_serial_driver *const serial_drivers[],
+		const char *name, const struct usb_device_id *id_table);
+extern void usb_serial_deregister_drivers(struct usb_serial_driver *const serial_drivers[]);
 extern void usb_serial_port_softint(struct usb_serial_port *port);
 
 extern int usb_serial_suspend(struct usb_interface *intf, pm_message_t message);
@@ -396,8 +395,8 @@ do {									\
 
 /*
  * module_usb_serial_driver() - Helper macro for registering a USB Serial driver
- * @__usb_driver: usb_driver struct to register
  * @__serial_drivers: list of usb_serial drivers to register
+ * @__ids: all device ids that @__serial_drivers bind to
  *
  * Helper macro for USB serial drivers which do not do anything special
  * in module init/exit. This eliminates a lot of boilerplate. Each
@@ -405,9 +404,21 @@ do {									\
  * module_init() and module_exit()
  *
  */
-#define module_usb_serial_driver(__usb_driver, __serial_drivers)	\
-	module_driver(__usb_driver, usb_serial_register_drivers,	\
-		       usb_serial_deregister_drivers, __serial_drivers)
+#define usb_serial_module_driver(__name, __serial_drivers, __ids)	\
+static int __init usb_serial_module_init(void)				\
+{									\
+	return usb_serial_register_drivers(__serial_drivers,		\
+					   __name, __ids);		\
+}									\
+module_init(usb_serial_module_init);					\
+static void __exit usb_serial_module_exit(void)				\
+{									\
+	usb_serial_deregister_drivers(__serial_drivers);		\
+}									\
+module_exit(usb_serial_module_exit);
+
+#define module_usb_serial_driver(__serial_drivers, __ids)		\
+	usb_serial_module_driver(KBUILD_MODNAME, __serial_drivers, __ids)
 
 #endif /* __LINUX_USB_SERIAL_H */
 

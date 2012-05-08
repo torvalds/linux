@@ -271,12 +271,6 @@ static const struct usb_device_id id_table_4[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver digi_driver = {
-	.name =		"digi_acceleport",
-	.id_table =	id_table_combined,
-};
-
-
 /* device info needed for the Digi serial converter */
 
 static struct usb_serial_driver digi_acceleport_2_device = {
@@ -1553,7 +1547,7 @@ static int digi_read_oob_callback(struct urb *urb)
 
 }
 
-module_usb_serial_driver(digi_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

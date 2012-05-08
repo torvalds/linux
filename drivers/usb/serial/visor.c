@@ -163,11 +163,6 @@ static struct usb_device_id id_table_combined [] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver visor_driver = {
-	.name =		"visor",
-	.id_table =	id_table_combined,
-};
-
 /* All of the device info needed for the Handspring Visor,
    and Palm 4.0 devices */
 static struct usb_serial_driver handspring_device = {
@@ -625,7 +620,7 @@ static int clie_5_attach(struct usb_serial *serial)
 	return 0;
 }
 
-module_usb_serial_driver(visor_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

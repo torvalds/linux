@@ -615,7 +615,7 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&opticon_device, NULL
 };
 
-module_usb_serial_driver(opticon_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");

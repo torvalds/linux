@@ -73,20 +73,14 @@ static void mct_u232_unthrottle(struct tty_struct *tty);
 /*
  * All of the device info needed for the MCT USB-RS232 converter.
  */
-static const struct usb_device_id id_table_combined[] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(MCT_U232_VID, MCT_U232_PID) },
 	{ USB_DEVICE(MCT_U232_VID, MCT_U232_SITECOM_PID) },
 	{ USB_DEVICE(MCT_U232_VID, MCT_U232_DU_H3SP_PID) },
 	{ USB_DEVICE(MCT_U232_BELKIN_F5U109_VID, MCT_U232_BELKIN_F5U109_PID) },
 	{ }		/* Terminating entry */
 };
-
-MODULE_DEVICE_TABLE(usb, id_table_combined);
-
-static struct usb_driver mct_u232_driver = {
-	.name =		"mct_u232",
-	.id_table =	id_table_combined,
-};
+MODULE_DEVICE_TABLE(usb, id_table);
 
 static struct usb_serial_driver mct_u232_device = {
 	.driver = {
@@ -94,7 +88,7 @@ static struct usb_serial_driver mct_u232_device = {
 		.name =		"mct_u232",
 	},
 	.description =	     "MCT U232",
-	.id_table =	     id_table_combined,
+	.id_table =	     id_table,
 	.num_ports =	     1,
 	.open =		     mct_u232_open,
 	.close =	     mct_u232_close,
@@ -887,7 +881,7 @@ static int  mct_u232_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
-module_usb_serial_driver(mct_u232_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

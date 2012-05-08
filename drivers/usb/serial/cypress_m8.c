@@ -89,11 +89,6 @@ static const struct usb_device_id id_table_combined[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
-static struct usb_driver cypress_driver = {
-	.name =		"cypress",
-	.id_table =	id_table_combined,
-};
-
 enum packet_format {
 	packet_format_1,  /* b0:status, b1:payload count */
 	packet_format_2   /* b0[7:3]:status, b0[2:0]:payload count */
@@ -1308,7 +1303,7 @@ static void cypress_write_int_callback(struct urb *urb)
 	cypress_send(port);
 }
 
-module_usb_serial_driver(cypress_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);

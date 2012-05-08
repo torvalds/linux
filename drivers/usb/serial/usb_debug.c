@@ -35,11 +35,6 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver debug_driver = {
-	.name =		"debug",
-	.id_table =	id_table,
-};
-
 /* This HW really does not support a serial break, so one will be
  * emulated when ever the break state is set to true.
  */
@@ -81,5 +76,5 @@ static struct usb_serial_driver * const serial_drivers[] = {
 	&debug_device, NULL
 };
 
-module_usb_serial_driver(debug_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 MODULE_LICENSE("GPL");

@@ -156,11 +156,6 @@ struct cp210x_port_private {
 	__u8			bInterfaceNumber;
 };
 
-static struct usb_driver cp210x_driver = {
-	.name		= "cp210x",
-	.id_table	= id_table,
-};
-
 static struct usb_serial_driver cp210x_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -880,7 +875,7 @@ static void cp210x_release(struct usb_serial *serial)
 	}
 }
 
-module_usb_serial_driver(cp210x_driver, serial_drivers);
+module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
