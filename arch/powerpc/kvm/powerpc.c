@@ -244,10 +244,12 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
 #endif
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CAP_SPAPR_TCE:
 		r = 1;
 		break;
+#endif /* CONFIG_PPC_BOOK3S_64 */
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_CAP_PPC_SMT:
 		r = threads_per_core;
 		break;
@@ -277,6 +279,11 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_MAX_VCPUS:
 		r = KVM_MAX_VCPUS;
 		break;
+#ifdef CONFIG_PPC_BOOK3S_64
+	case KVM_CAP_PPC_GET_SMMU_INFO:
+		r = 1;
+		break;
+#endif
 	default:
 		r = 0;
 		break;
@@ -716,7 +723,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		break;
 	}
 #endif
-
 	default:
 		r = -EINVAL;
 	}
@@ -773,7 +779,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 
 		break;
 	}
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_CREATE_SPAPR_TCE: {
 		struct kvm_create_spapr_tce create_tce;
 		struct kvm *kvm = filp->private_data;
@@ -784,7 +790,9 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_create_spapr_tce(kvm, &create_tce);
 		goto out;
 	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	case KVM_ALLOCATE_RMA: {
 		struct kvm *kvm = filp->private_data;
 		struct kvm_allocate_rma rma;
@@ -796,6 +804,18 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
 
+#ifdef CONFIG_PPC_BOOK3S_64
+	case KVM_PPC_GET_SMMU_INFO: {
+		struct kvm *kvm = filp->private_data;
+		struct kvm_ppc_smmu_info info;
+
+		memset(&info, 0, sizeof(info));
+		r = kvm_vm_ioctl_get_smmu_info(kvm, &info);
+		if (r >= 0 && copy_to_user(argp, &info, sizeof(info)))
+			r = -EFAULT;
+		break;
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 	default:
 		r = -ENOTTY;
 	}

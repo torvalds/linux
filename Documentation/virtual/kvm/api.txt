@@ -1860,6 +1860,76 @@ See KVM_GET_PIT2 for details on struct kvm_pit_state2.
 This IOCTL replaces the obsolete KVM_SET_PIT.
 
 
+4.74 KVM_PPC_GET_SMMU_INFO
+
+Capability: KVM_CAP_PPC_GET_SMMU_INFO
+Architectures: powerpc
+Type: vm ioctl
+Parameters: None
+Returns: 0 on success, -1 on error
+
+This populates and returns a structure describing the features of
+the "Server" class MMU emulation supported by KVM.
+This can in turn be used by userspace to generate the appropariate
+device-tree properties for the guest operating system.
+
+The structure contains some global informations, followed by an
+array of supported segment page sizes:
+
+      struct kvm_ppc_smmu_info {
+	     __u64 flags;
+	     __u32 slb_size;
+	     __u32 pad;
+	     struct kvm_ppc_one_seg_page_size sps[KVM_PPC_PAGE_SIZES_MAX_SZ];
+      };
+
+The supported flags are:
+
+    - KVM_PPC_PAGE_SIZES_REAL:
+        When that flag is set, guest page sizes must "fit" the backing
+        store page sizes. When not set, any page size in the list can
+        be used regardless of how they are backed by userspace.
+
+    - KVM_PPC_1T_SEGMENTS
+        The emulated MMU supports 1T segments in addition to the
+        standard 256M ones.
+
+The "slb_size" field indicates how many SLB entries are supported
+
+The "sps" array contains 8 entries indicating the supported base
+page sizes for a segment in increasing order. Each entry is defined
+as follow:
+
+   struct kvm_ppc_one_seg_page_size {
+	__u32 page_shift;	/* Base page shift of segment (or 0) */
+	__u32 slb_enc;		/* SLB encoding for BookS */
+	struct kvm_ppc_one_page_size enc[KVM_PPC_PAGE_SIZES_MAX_SZ];
+   };
+
+An entry with a "page_shift" of 0 is unused. Because the array is
+organized in increasing order, a lookup can stop when encoutering
+such an entry.
+
+The "slb_enc" field provides the encoding to use in the SLB for the
+page size. The bits are in positions such as the value can directly
+be OR'ed into the "vsid" argument of the slbmte instruction.
+
+The "enc" array is a list which for each of those segment base page
+size provides the list of supported actual page sizes (which can be
+only larger or equal to the base page size), along with the
+corresponding encoding in the hash PTE. Similarily, the array is
+8 entries sorted by increasing sizes and an entry with a "0" shift
+is an empty entry and a terminator:
+
+   struct kvm_ppc_one_page_size {
+	__u32 page_shift;	/* Page shift (or 0) */
+	__u32 pte_enc;		/* Encoding in the HPTE (>>12) */
+   };
+
+The "pte_enc" field provides a value that can OR'ed into the hash
+PTE's RPN field (ie, it needs to be shifted left by 12 to OR it
+into the hash PTE second double word).
+
 5. The kvm_run structure
 ------------------------
 

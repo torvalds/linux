@@ -20,6 +20,16 @@
 #ifndef __POWERPC_KVM_ASM_H__
 #define __POWERPC_KVM_ASM_H__
 
+#ifdef __ASSEMBLY__
+#ifdef CONFIG_64BIT
+#define PPC_STD(sreg, offset, areg)  std sreg, (offset)(areg)
+#define PPC_LD(treg, offset, areg)   ld treg, (offset)(areg)
+#else
+#define PPC_STD(sreg, offset, areg)  stw sreg, (offset+4)(areg)
+#define PPC_LD(treg, offset, areg)   lwz treg, (offset+4)(areg)
+#endif
+#endif
+
 /* IVPR must be 64KiB-aligned. */
 #define VCPU_SIZE_ORDER 4
 #define VCPU_SIZE_LOG   (VCPU_SIZE_ORDER + 12)

@@ -54,6 +54,7 @@ kvm-book3s_64-objs-$(CONFIG_KVM_BOOK3S_64_PR) := \
 	book3s_paired_singles.o \
 	book3s_pr.o \
 	book3s_pr_papr.o \
+	book3s_64_vio_hv.o \
 	book3s_emulate.o \
 	book3s_interrupts.o \
 	book3s_mmu_hpte.o \
@@ -78,6 +79,7 @@ kvm-book3s_64-module-objs := \
 	powerpc.o \
 	emulate.o \
 	book3s.o \
+	book3s_64_vio.o \
 	$(kvm-book3s_64-objs-y)
 
 kvm-objs-$(CONFIG_KVM_BOOK3S_64) := $(kvm-book3s_64-module-objs)

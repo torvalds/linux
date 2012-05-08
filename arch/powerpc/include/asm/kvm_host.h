@@ -237,7 +237,6 @@ struct kvm_arch {
 	unsigned long vrma_slb_v;
 	int rma_setup_done;
 	int using_mmu_notifiers;
-	struct list_head spapr_tce_tables;
 	spinlock_t slot_phys_lock;
 	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
 	int slot_npages[KVM_MEM_SLOTS_NUM];
@@ -245,6 +244,9 @@ struct kvm_arch {
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	struct kvmppc_linear_info *hpt_li;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
+#ifdef CONFIG_PPC_BOOK3S_64
+	struct list_head spapr_tce_tables;
+#endif
 };
 
 /*

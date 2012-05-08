@@ -261,6 +261,9 @@ static int kvmppc_e500_tlb_index(struct kvmppc_vcpu_e500 *vcpu_e500,
 		set_base = gtlb0_set_base(vcpu_e500, eaddr);
 		size = vcpu_e500->gtlb_params[0].ways;
 	} else {
+		if (eaddr < vcpu_e500->tlb1_min_eaddr ||
+				eaddr > vcpu_e500->tlb1_max_eaddr)
+			return -1;
 		set_base = 0;
 	}
 
@@ -583,6 +586,65 @@ static int kvmppc_e500_tlb1_map(struct kvmppc_vcpu_e500 *vcpu_e500,
 	return victim;
 }
 
+static void kvmppc_recalc_tlb1map_range(struct kvmppc_vcpu_e500 *vcpu_e500)
+{
+	int size = vcpu_e500->gtlb_params[1].entries;
+	unsigned int offset;
+	gva_t eaddr;
+	int i;
+
+	vcpu_e500->tlb1_min_eaddr = ~0UL;
+	vcpu_e500->tlb1_max_eaddr = 0;
+	offset = vcpu_e500->gtlb_offset[1];
+
+	for (i = 0; i < size; i++) {
+		struct kvm_book3e_206_tlb_entry *tlbe =
+			&vcpu_e500->gtlb_arch[offset + i];
+
+		if (!get_tlb_v(tlbe))
+			continue;
+
+		eaddr = get_tlb_eaddr(tlbe);
+		vcpu_e500->tlb1_min_eaddr =
+				min(vcpu_e500->tlb1_min_eaddr, eaddr);
+
+		eaddr = get_tlb_end(tlbe);
+		vcpu_e500->tlb1_max_eaddr =
+				max(vcpu_e500->tlb1_max_eaddr, eaddr);
+	}
+}
+
+static int kvmppc_need_recalc_tlb1map_range(struct kvmppc_vcpu_e500 *vcpu_e500,
+				struct kvm_book3e_206_tlb_entry *gtlbe)
+{
+	unsigned long start, end, size;
+
+	size = get_tlb_bytes(gtlbe);
+	start = get_tlb_eaddr(gtlbe) & ~(size - 1);
+	end = start + size - 1;
+
+	return vcpu_e500->tlb1_min_eaddr == start ||
+			vcpu_e500->tlb1_max_eaddr == end;
+}
+
+/* This function is supposed to be called for a adding a new valid tlb entry */
+static void kvmppc_set_tlb1map_range(struct kvm_vcpu *vcpu,
+				struct kvm_book3e_206_tlb_entry *gtlbe)
+{
+	unsigned long start, end, size;
+	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
+
+	if (!get_tlb_v(gtlbe))
+		return;
+
+	size = get_tlb_bytes(gtlbe);
+	start = get_tlb_eaddr(gtlbe) & ~(size - 1);
+	end = start + size - 1;
+
+	vcpu_e500->tlb1_min_eaddr = min(vcpu_e500->tlb1_min_eaddr, start);
+	vcpu_e500->tlb1_max_eaddr = max(vcpu_e500->tlb1_max_eaddr, end);
+}
+
 static inline int kvmppc_e500_gtlbe_invalidate(
 				struct kvmppc_vcpu_e500 *vcpu_e500,
 				int tlbsel, int esel)
@@ -592,6 +654,9 @@ static inline int kvmppc_e500_gtlbe_invalidate(
 
 	if (unlikely(get_tlb_iprot(gtlbe)))
 		return -1;
+
+	if (tlbsel == 1 && kvmppc_need_recalc_tlb1map_range(vcpu_e500, gtlbe))
+		kvmppc_recalc_tlb1map_range(vcpu_e500);
 
 	gtlbe->mas1 = 0;
 
@@ -792,14 +857,19 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
 	struct kvm_book3e_206_tlb_entry *gtlbe, stlbe;
 	int tlbsel, esel, stlbsel, sesel;
+	int recal = 0;
 
 	tlbsel = get_tlb_tlbsel(vcpu);
 	esel = get_tlb_esel(vcpu, tlbsel);
 
 	gtlbe = get_entry(vcpu_e500, tlbsel, esel);
 
-	if (get_tlb_v(gtlbe))
+	if (get_tlb_v(gtlbe)) {
 		inval_gtlbe_on_host(vcpu_e500, tlbsel, esel);
+		if ((tlbsel == 1) &&
+			kvmppc_need_recalc_tlb1map_range(vcpu_e500, gtlbe))
+			recal = 1;
+	}
 
 	gtlbe->mas1 = vcpu->arch.shared->mas1;
 	gtlbe->mas2 = vcpu->arch.shared->mas2;
@@ -807,6 +877,18 @@ int kvmppc_e500_emul_tlbwe(struct kvm_vcpu *vcpu)
 
 	trace_kvm_booke206_gtlb_write(vcpu->arch.shared->mas0, gtlbe->mas1,
 	                              gtlbe->mas2, gtlbe->mas7_3);
+
+	if (tlbsel == 1) {
+		/*
+		 * If a valid tlb1 entry is overwritten then recalculate the
+		 * min/max TLB1 map address range otherwise no need to look
+		 * in tlb1 array.
+		 */
+		if (recal)
+			kvmppc_recalc_tlb1map_range(vcpu_e500);
+		else
+			kvmppc_set_tlb1map_range(vcpu, gtlbe);
+	}
 
 	/* Invalidate shadow mappings for the about-to-be-clobbered TLBE. */
 	if (tlbe_is_host_safe(vcpu, gtlbe)) {
@@ -1145,6 +1227,7 @@ int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 	vcpu_e500->gtlb_params[1].ways = params.tlb_sizes[1];
 	vcpu_e500->gtlb_params[1].sets = 1;
 
+	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;
 
 err_put_page:
@@ -1163,7 +1246,7 @@ int kvm_vcpu_ioctl_dirty_tlb(struct kvm_vcpu *vcpu,
 			     struct kvm_dirty_tlb *dirty)
 {
 	struct kvmppc_vcpu_e500 *vcpu_e500 = to_e500(vcpu);
-
+	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	clear_tlb_refs(vcpu_e500);
 	return 0;
 }
@@ -1272,6 +1355,7 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 	vcpu->arch.tlbcfg[1] |=
 		vcpu_e500->gtlb_params[1].ways << TLBnCFG_ASSOC_SHIFT;
 
+	kvmppc_recalc_tlb1map_range(vcpu_e500);
 	return 0;
 
 err:

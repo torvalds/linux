@@ -1093,115 +1093,6 @@ int kvmppc_vcpu_run(struct kvm_run *run, struct kvm_vcpu *vcpu)
 	return r;
 }
 
-static long kvmppc_stt_npages(unsigned long window_size)
-{
-	return ALIGN((window_size >> SPAPR_TCE_SHIFT)
-		     * sizeof(u64), PAGE_SIZE) / PAGE_SIZE;
-}
-
-static void release_spapr_tce_table(struct kvmppc_spapr_tce_table *stt)
-{
-	struct kvm *kvm = stt->kvm;
-	int i;
-
-	mutex_lock(&kvm->lock);
-	list_del(&stt->list);
-	for (i = 0; i < kvmppc_stt_npages(stt->window_size); i++)
-		__free_page(stt->pages[i]);
-	kfree(stt);
-	mutex_unlock(&kvm->lock);
-
-	kvm_put_kvm(kvm);
-}
-
-static int kvm_spapr_tce_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
-{
-	struct kvmppc_spapr_tce_table *stt = vma->vm_file->private_data;
-	struct page *page;
-
-	if (vmf->pgoff >= kvmppc_stt_npages(stt->window_size))
-		return VM_FAULT_SIGBUS;
-
-	page = stt->pages[vmf->pgoff];
-	get_page(page);
-	vmf->page = page;
-	return 0;
-}
-
-static const struct vm_operations_struct kvm_spapr_tce_vm_ops = {
-	.fault = kvm_spapr_tce_fault,
-};
-
-static int kvm_spapr_tce_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	vma->vm_ops = &kvm_spapr_tce_vm_ops;
-	return 0;
-}
-
-static int kvm_spapr_tce_release(struct inode *inode, struct file *filp)
-{
-	struct kvmppc_spapr_tce_table *stt = filp->private_data;
-
-	release_spapr_tce_table(stt);
-	return 0;
-}
-
-static struct file_operations kvm_spapr_tce_fops = {
-	.mmap           = kvm_spapr_tce_mmap,
-	.release	= kvm_spapr_tce_release,
-};
-
-long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
-				   struct kvm_create_spapr_tce *args)
-{
-	struct kvmppc_spapr_tce_table *stt = NULL;
-	long npages;
-	int ret = -ENOMEM;
-	int i;
-
-	/* Check this LIOBN hasn't been previously allocated */
-	list_for_each_entry(stt, &kvm->arch.spapr_tce_tables, list) {
-		if (stt->liobn == args->liobn)
-			return -EBUSY;
-	}
-
-	npages = kvmppc_stt_npages(args->window_size);
-
-	stt = kzalloc(sizeof(*stt) + npages* sizeof(struct page *),
-		      GFP_KERNEL);
-	if (!stt)
-		goto fail;
-
-	stt->liobn = args->liobn;
-	stt->window_size = args->window_size;
-	stt->kvm = kvm;
-
-	for (i = 0; i < npages; i++) {
-		stt->pages[i] = alloc_page(GFP_KERNEL | __GFP_ZERO);
-		if (!stt->pages[i])
-			goto fail;
-	}
-
-	kvm_get_kvm(kvm);
-
-	mutex_lock(&kvm->lock);
-	list_add(&stt->list, &kvm->arch.spapr_tce_tables);
-
-	mutex_unlock(&kvm->lock);
-
-	return anon_inode_getfd("kvm-spapr-tce", &kvm_spapr_tce_fops,
-				stt, O_RDWR);
-
-fail:
-	if (stt) {
-		for (i = 0; i < npages; i++)
-			if (stt->pages[i])
-				__free_page(stt->pages[i]);
-
-		kfree(stt);
-	}
-	return ret;
-}
 
 /* Work out RMLS (real mode limit selector) field value for a given RMA size.
    Assumes POWER7 or PPC970. */
@@ -1282,6 +1173,38 @@ long kvm_vm_ioctl_allocate_rma(struct kvm *kvm, struct kvm_allocate_rma *ret)
 
 	ret->rma_size = ri->npages << PAGE_SHIFT;
 	return fd;
+}
+
+static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
+				     int linux_psize)
+{
+	struct mmu_psize_def *def = &mmu_psize_defs[linux_psize];
+
+	if (!def->shift)
+		return;
+	(*sps)->page_shift = def->shift;
+	(*sps)->slb_enc = def->sllp;
+	(*sps)->enc[0].page_shift = def->shift;
+	(*sps)->enc[0].pte_enc = def->penc;
+	(*sps)++;
+}
+
+int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
+{
+	struct kvm_ppc_one_seg_page_size *sps;
+
+	info->flags = KVM_PPC_PAGE_SIZES_REAL;
+	if (mmu_has_feature(MMU_FTR_1T_SEGMENT))
+		info->flags |= KVM_PPC_1T_SEGMENTS;
+	info->slb_size = mmu_slb_size;
+
+	/* We only support these sizes for now, and no muti-size segments */
+	sps = &info->sps[0];
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_4K);
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_64K);
+	kvmppc_add_seg_page_size(&sps, MMU_PAGE_16M);
+
+	return 0;
 }
 
 /*
@@ -1582,12 +1505,12 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	return EMULATE_FAIL;
 }
 
-int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
+int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, ulong spr_val)
 {
 	return EMULATE_FAIL;
 }
 
-int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
+int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 {
 	return EMULATE_FAIL;
 }

@@ -107,8 +107,10 @@ extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
 
 extern int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
                                   unsigned int op, int *advance);
-extern int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs);
-extern int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt);
+extern int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn,
+				     ulong val);
+extern int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn,
+				     ulong *val);
 
 extern int kvmppc_booke_init(void);
 extern void kvmppc_booke_exit(void);
@@ -126,6 +128,8 @@ extern void kvmppc_map_vrma(struct kvm_vcpu *vcpu,
 extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce *args);
+extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
+			     unsigned long ioba, unsigned long tce);
 extern long kvm_vm_ioctl_allocate_rma(struct kvm *kvm,
 				struct kvm_allocate_rma *rma);
 extern struct kvmppc_linear_info *kvm_alloc_rma(void);
@@ -138,6 +142,8 @@ extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem);
 extern void kvmppc_core_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem);
+extern int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm,
+				      struct kvm_ppc_smmu_info *info);
 
 extern int kvmppc_bookehv_init(void);
 extern void kvmppc_bookehv_exit(void);

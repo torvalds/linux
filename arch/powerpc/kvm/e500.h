@@ -89,6 +89,10 @@ struct kvmppc_vcpu_e500 {
 	u64 *g2h_tlb1_map;
 	unsigned int *h2g_tlb1_rmap;
 
+	/* Minimum and maximum address mapped my TLB1 */
+	unsigned long tlb1_min_eaddr;
+	unsigned long tlb1_max_eaddr;
+
 #ifdef CONFIG_KVM_E500V2
 	u32 pid[E500_PID_NUM];
 

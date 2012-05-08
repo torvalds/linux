@@ -15,6 +15,8 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/anon_inodes.h>
+
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
@@ -211,6 +213,20 @@ static int kvmppc_h_pr_protect(struct kvm_vcpu *vcpu)
 	return EMULATE_DONE;
 }
 
+static int kvmppc_h_pr_put_tce(struct kvm_vcpu *vcpu)
+{
+	unsigned long liobn = kvmppc_get_gpr(vcpu, 4);
+	unsigned long ioba = kvmppc_get_gpr(vcpu, 5);
+	unsigned long tce = kvmppc_get_gpr(vcpu, 6);
+	long rc;
+
+	rc = kvmppc_h_put_tce(vcpu, liobn, ioba, tce);
+	if (rc == H_TOO_HARD)
+		return EMULATE_FAIL;
+	kvmppc_set_gpr(vcpu, 3, rc);
+	return EMULATE_DONE;
+}
+
 int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 {
 	switch (cmd) {
@@ -222,6 +238,8 @@ int kvmppc_h_pr(struct kvm_vcpu *vcpu, unsigned long cmd)
 		return kvmppc_h_pr_protect(vcpu);
 	case H_BULK_REMOVE:
 		return kvmppc_h_pr_bulk_remove(vcpu);
+	case H_PUT_TCE:
+		return kvmppc_h_pr_put_tce(vcpu);
 	case H_CEDE:
 		kvm_vcpu_block(vcpu);
 		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);

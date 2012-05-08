@@ -548,6 +548,9 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	run->exit_reason = KVM_EXIT_UNKNOWN;
 	run->ready_for_interrupt_injection = 1;
 
+	/* We get here with MSR.EE=0, so enable it to be a nice citizen */
+	__hard_irq_enable();
+
 	trace_kvm_book3s_exit(exit_nr, vcpu);
 	preempt_enable();
 	kvm_resched(vcpu);
@@ -1155,6 +1158,31 @@ out:
 	return r;
 }
 
+#ifdef CONFIG_PPC64
+int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm, struct kvm_ppc_smmu_info *info)
+{
+	/* No flags */
+	info->flags = 0;
+
+	/* SLB is always 64 entries */
+	info->slb_size = 64;
+
+	/* Standard 4k base page size segment */
+	info->sps[0].page_shift = 12;
+	info->sps[0].slb_enc = 0;
+	info->sps[0].enc[0].page_shift = 12;
+	info->sps[0].enc[0].pte_enc = 0;
+
+	/* Standard 16M large page size segment */
+	info->sps[1].page_shift = 24;
+	info->sps[1].slb_enc = SLB_VSID_L;
+	info->sps[1].enc[0].page_shift = 24;
+	info->sps[1].enc[0].pte_enc = 0;
+
+	return 0;
+}
+#endif /* CONFIG_PPC64 */
+
 int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				      struct kvm_userspace_memory_region *mem)
 {
@@ -1168,11 +1196,18 @@ void kvmppc_core_commit_memory_region(struct kvm *kvm,
 
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
+#ifdef CONFIG_PPC64
+	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
+#endif
+
 	return 0;
 }
 
 void kvmppc_core_destroy_vm(struct kvm *kvm)
 {
+#ifdef CONFIG_PPC64
+	WARN_ON(!list_empty(&kvm->arch.spapr_tce_tables));
+#endif
 }
 
 static int kvmppc_book3s_init(void)
