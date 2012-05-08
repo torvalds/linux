@@ -964,7 +964,7 @@ static void intel_compose_msi_msg(struct pci_dev *pdev,
 {
 	struct irq_cfg *cfg;
 	struct irte irte;
-	u16 sub_handle;
+	u16 sub_handle = 0;
 	int ir_index;
 
 	cfg = irq_get_chip_data(irq);
