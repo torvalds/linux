@@ -136,6 +136,33 @@ static int goodix_i2c_write_bytes(struct i2c_client *client,uint8_t *data,int le
 	return ret;
 }
 
+static int goodix_config_ok(struct rk_ts_data *ts)
+{
+        int ret = 0;
+        unsigned int w,h, n;
+	uint8_t rd_cfg_buf[7] = {0x66,};
+        
+	ret = goodix_i2c_read_bytes(ts->client, rd_cfg_buf, 7);
+
+	w = (rd_cfg_buf[1]<<8) + rd_cfg_buf[2];
+	h = (rd_cfg_buf[3]<<8) + rd_cfg_buf[4];
+        n = rd_cfg_buf[5];
+
+#ifdef CONFIG_ARCH_RK29
+        if((ret < 0) || (w != TS_MAX_X) || (h != TS_MAX_Y) || (n != 10))
+#else
+        if((ret < 0) || (w != TS_MAX_X) || (h != TS_MAX_Y) || (n != 170))
+#endif
+                return -1;
+
+	ts->abs_x_max = w;
+	ts->abs_y_max = h;
+	ts->max_touch_num = n;
+        
+	printk("goodix_ts_init: X_MAX = %d,Y_MAX = %d,MAX_TOUCH_NUM = %d\n",ts->abs_x_max,ts->abs_y_max,ts->max_touch_num);
+
+        return 0;
+}
 /*******************************************************
 Description:
 	Goodix touchscreen initialize function.
@@ -148,7 +175,7 @@ return:
 *******************************************************/
 static int goodix_init_panel(struct rk_ts_data *ts)
 {
-	int ret=-1;
+	int ret=-1, retry = 10;
 	uint8_t rd_cfg_buf[7] = {0x66,};
 
 #if (TS_MAX_X == 1024)&&(TS_MAX_Y == 768)			//for malata 10.1
@@ -162,6 +189,7 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 	};
              
 #elif (TS_MAX_X == 1280)&&(TS_MAX_Y == 800)	
+#ifdef CONFIG_ARCH_RK29
 	uint8_t config_info[] = {
 		0x65,0x02,0x05,0x00,0x03,0x20,0x0A,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
 		0x41,0x41,0x20,0x07,0x00,0xA0,0xA0,0x46,0x64,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
@@ -170,6 +198,16 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x0B,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
 		0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
 	};
+#else
+	uint8_t config_info[] = {
+                0x65,0xA2,0x05,0x00,0x03,0x20,0xAA,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
+                0x42,0x42,0x20,0x00,0x09,0x80,0x80,0x32,0x46,0x0E,0x0D,0x0C,0x0B,0x0A,0x09,
+                0x08,0x07,0x06,0x05,0x04,0x03,0x02,0x01,0x00,0x1D,0x1C,0x1B,0x1A,0x19,0x18,
+                0x17,0x16,0x15,0x14,0x13,0x12,0x11,0x10,0x0F,0x00,0x00,0x00,0x00,0x00,0x00,
+                0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+                0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00
+        };
+#endif
 #else
 	uint8_t config_info[] = {
 		0x65,0x02,0x05,0x00,0x03,0x20,0x0A,0x22,0x1E,0xE7,0x32,0x05,0x08,0x10,0x4C,
@@ -181,30 +219,21 @@ static int goodix_init_panel(struct rk_ts_data *ts)
 		0x00,0x00,0x00,0x00
 	};
 #endif
-	ret=goodix_i2c_write_bytes(ts->client,config_info, (sizeof(config_info)/sizeof(config_info[0])));
-	if (ret < 0) {
-		printk("goodix write cfg info err");
-		return ret;
-	}
-	ret=goodix_i2c_read_bytes(ts->client, rd_cfg_buf, 7);
-	if(ret != 2)
-	{
-		dev_info(&ts->client->dev, "Read resolution & max_touch_num failed, use default value!\n");
-		ts->max_touch_num = MAX_FINGER_NUM;
-		//ts->int_trigger_type = INT_TRIGGER;
-		return 0;
-	}
-	ts->abs_x_max = (rd_cfg_buf[1]<<8) + rd_cfg_buf[2];
-	ts->abs_y_max = (rd_cfg_buf[3]<<8) + rd_cfg_buf[4];
-	ts->max_touch_num = rd_cfg_buf[5];
-	//ts->int_trigger_type = rd_cfg_buf[6]&0x03;
-	if((!ts->abs_x_max)||(!ts->abs_y_max)||(!ts->max_touch_num))
-	{
-		printk(KERN_INFO "Read invalid resolution & max_touch_num, use default value!\n");
-		ts->max_touch_num = MAX_FINGER_NUM;
-	}
 
-	printk(KERN_INFO "X_MAX = %d,Y_MAX = %d,MAX_TOUCH_NUM = %d\n",ts->abs_x_max,ts->abs_y_max,ts->max_touch_num);
+        while(--retry && (goodix_config_ok(ts) < 0)){
+	        ret=goodix_i2c_write_bytes(ts->client,config_info, (sizeof(config_info)/sizeof(config_info[0])));
+	        if (ret < 0) {
+		        printk("goodix write cfg info err");
+		        return ret;
+	        }
+                msleep(100);
+        }
+
+        if(retry <= 0){
+                printk("goodix write cfg info err\n");
+                return -1;
+        }
+
 	
 	rd_cfg_buf[0] = 0x6e;
 	rd_cfg_buf[1] = 0x00;
@@ -478,8 +507,6 @@ static void  rk_ts_work_func(struct work_struct *pwork)
   }
 	
 	
-	
-
 /*******************************************************
 Description:
 	Timer interrupt service routine.
@@ -497,7 +524,6 @@ static enum hrtimer_restart goodix_ts_timer_func(struct hrtimer *timer)
 	hrtimer_start(&ts->timer, ktime_set(0, (POLL_TIME+6)*1000000), HRTIMER_MODE_REL);
 	return HRTIMER_NORESTART;
 }
-
 /*******************************************************
 Description:
 	External interrupt service routine.
@@ -662,10 +688,11 @@ static int goodix_input_params_init(struct rk_ts_data *ts)
 	
 static int goodix_ts_init(struct rk_ts_data *ts)
 {
-	char retry;
 	char ret ;
-	char test_data = 1;
 	char *version_info = NULL;
+#if 0
+	char test_data = 1;
+	char retry;
 	for(retry=0;retry < 30; retry++)    //test goodix
 	{
 		ret =goodix_i2c_write_bytes(ts->client, &test_data, 1);
@@ -677,16 +704,12 @@ static int goodix_ts_init(struct rk_ts_data *ts)
 		printk(KERN_INFO "I2C communication ERROR!Goodix touchscreen driver become invalid\n");
 		return -1;
 	}	
-	
+#endif	
 	
 	ret=goodix_init_panel(ts);
 	if(ret != 0) {
 		printk("goodix panel init fail\n");
 		return -1;
-	}
-	else
-	{
-		printk(KERN_INFO "%s>>>>>>>max_point %d\n",__func__,ts->max_touch_num);
 	}
 	ret = goodix_read_version(ts, &version_info);
 	if(ret <= 0)
@@ -695,7 +718,7 @@ static int goodix_ts_init(struct rk_ts_data *ts)
 	}
 	else
 	{
-		printk(KERN_INFO"Goodix TouchScreen Version:%s>>>max_point:%d\n", (version_info+1),ts->max_touch_num);
+		printk("goodix_ts_init: version %s\n", (version_info+1));
 	}
 	vfree(version_info);
 	#ifdef CONFIG_TOUCHSCREEN_GOODIX_IAP
@@ -708,7 +731,7 @@ static int goodix_ts_init(struct rk_ts_data *ts)
 	}
 	else
 	{
-		printk("Create proc entry success!\n");
+		printk("goodix_ts_init: create proc entry success!\n");
 		goodix_proc_entry->write_proc = goodix_update_write;
 		goodix_proc_entry->read_proc = goodix_update_read;
 		//goodix_proc_entry->owner = THIS_MODULE;
@@ -828,7 +851,7 @@ static int rk_ts_probe(struct i2c_client *client, const struct i2c_device_id *id
 			goto err_input_register_device_failed;
 		}
 	}
-	printk("Goodix TS probe successfully!\n");
+	printk("goodix_ts_init: probe successfully!\n");
 	return 0;
 
 	

@@ -502,11 +502,12 @@ int goodix_init_platform_hw(void)
 			printk("goodix gpio_request error\n");
 			return -EIO;
 		}
-		gpio_direction_output(TOUCH_RESET_PIN, 0);
-		gpio_set_value(TOUCH_RESET_PIN, GPIO_LOW);
-		msleep(10);
-		gpio_set_value(TOUCH_RESET_PIN, GPIO_HIGH);
-		msleep(500);
+		gpio_direction_output(TOUCH_RESET_PIN, 1);
+                msleep(100);
+		//gpio_set_value(TOUCH_RESET_PIN, GPIO_LOW);
+		//msleep(100);
+		//gpio_set_value(TOUCH_RESET_PIN, GPIO_HIGH);
+		//msleep(500);
 	}
 	return 0;
 }
