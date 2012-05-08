@@ -58,6 +58,8 @@
 
 #define SLI_PORT_CONTROL_IP_MASK	0x08000000
 
+#define PCICFG_CUST_SCRATCHPAD_CSR	0x1EC
+
 /********* Memory BAR register ************/
 #define PCICFG_MEMBAR_CTRL_INT_CTRL_OFFSET 	0xfc
 /* Host Interrupt Enable, if set interrupts are enabled although "PCI Interrupt
