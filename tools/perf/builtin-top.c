@@ -948,6 +948,10 @@ try_again:
 
 				attr->type = PERF_TYPE_SOFTWARE;
 				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				if (counter->name) {
+					free(counter->name);
+					counter->name = strdup(event_name(counter));
+				}
 				goto try_again;
 			}
 
