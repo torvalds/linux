@@ -1270,8 +1270,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		goto out_delete_evlist;
 	}
 
-	if (top.target.tid == 0 && top.target.pid == 0 &&
-	    top.target.uid_str == NULL)
+	if (perf_target__none(&top.target))
 		top.target.system_wide = true;
 
 	if (perf_evlist__create_maps(top.evlist, &top.target) < 0)
