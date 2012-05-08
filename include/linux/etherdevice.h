@@ -59,7 +59,7 @@ extern struct net_device *alloc_etherdev_mqs(int sizeof_priv, unsigned int txqs,
  *
  * Return true if the address is all zeroes.
  */
-static inline int is_zero_ether_addr(const u8 *addr)
+static inline bool is_zero_ether_addr(const u8 *addr)
 {
 	return !(addr[0] | addr[1] | addr[2] | addr[3] | addr[4] | addr[5]);
 }
@@ -71,7 +71,7 @@ static inline int is_zero_ether_addr(const u8 *addr)
  * Return true if the address is a multicast address.
  * By definition the broadcast address is also a multicast address.
  */
-static inline int is_multicast_ether_addr(const u8 *addr)
+static inline bool is_multicast_ether_addr(const u8 *addr)
 {
 	return 0x01 & addr[0];
 }
@@ -82,7 +82,7 @@ static inline int is_multicast_ether_addr(const u8 *addr)
  *
  * Return true if the address is a local address.
  */
-static inline int is_local_ether_addr(const u8 *addr)
+static inline bool is_local_ether_addr(const u8 *addr)
 {
 	return 0x02 & addr[0];
 }
@@ -93,7 +93,7 @@ static inline int is_local_ether_addr(const u8 *addr)
  *
  * Return true if the address is the broadcast address.
  */
-static inline int is_broadcast_ether_addr(const u8 *addr)
+static inline bool is_broadcast_ether_addr(const u8 *addr)
 {
 	return (addr[0] & addr[1] & addr[2] & addr[3] & addr[4] & addr[5]) == 0xff;
 }
@@ -104,7 +104,7 @@ static inline int is_broadcast_ether_addr(const u8 *addr)
  *
  * Return true if the address is a unicast address.
  */
-static inline int is_unicast_ether_addr(const u8 *addr)
+static inline bool is_unicast_ether_addr(const u8 *addr)
 {
 	return !is_multicast_ether_addr(addr);
 }
@@ -118,7 +118,7 @@ static inline int is_unicast_ether_addr(const u8 *addr)
  *
  * Return true if the address is valid.
  */
-static inline int is_valid_ether_addr(const u8 *addr)
+static inline bool is_valid_ether_addr(const u8 *addr)
 {
 	/* FF:FF:FF:FF:FF:FF is a multicast address so we don't need to
 	 * explicitly check for it here. */
