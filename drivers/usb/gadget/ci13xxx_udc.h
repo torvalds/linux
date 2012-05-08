@@ -120,6 +120,7 @@ struct hw_bank {
 	void __iomem *cap;    /* bus map offset + CAP offset */
 	void __iomem *op;     /* bus map offset + OP offset */
 	size_t        size;   /* bank size */
+	void *__iomem *regmap;
 };
 
 /* CI13XXX UDC descriptor & global resources */
@@ -157,6 +158,31 @@ struct ci13xxx {
 
 /* register size */
 #define REG_BITS   (32)
+
+/* register indices */
+enum ci13xxx_regs {
+	CAP_CAPLENGTH,
+	CAP_HCCPARAMS,
+	CAP_DCCPARAMS,
+	CAP_TESTMODE,
+	CAP_LAST = CAP_TESTMODE,
+	OP_USBCMD,
+	OP_USBSTS,
+	OP_USBINTR,
+	OP_DEVICEADDR,
+	OP_ENDPTLISTADDR,
+	OP_PORTSC,
+	OP_DEVLC,
+	OP_USBMODE,
+	OP_ENDPTSETUPSTAT,
+	OP_ENDPTPRIME,
+	OP_ENDPTFLUSH,
+	OP_ENDPTSTAT,
+	OP_ENDPTCOMPLETE,
+	OP_ENDPTCTRL,
+	/* endptctrl1..15 follow */
+	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
+};
 
 /* HCCPARAMS */
 #define HCCPARAMS_LEN         BIT(17)
