@@ -86,7 +86,21 @@ static int __init set_real_mode_permissions(void)
 		PAGE_ALIGN(real_mode_header.end) -
 		__pa(real_mode_base);
 
-	set_memory_x((unsigned long) real_mode_base, all_size >> PAGE_SHIFT);
+	size_t ro_size =
+		PAGE_ALIGN(real_mode_header.ro_end) -
+		__pa(real_mode_base);
+
+	size_t text_size =
+		PAGE_ALIGN(real_mode_header.ro_end) -
+		real_mode_header.text_start;
+
+	unsigned long text_start =
+		(unsigned long) __va(real_mode_header.text_start);
+
+	set_memory_nx((unsigned long) real_mode_base, all_size >> PAGE_SHIFT);
+	set_memory_ro((unsigned long) real_mode_base, ro_size >> PAGE_SHIFT);
+	set_memory_x((unsigned long) text_start, text_size >> PAGE_SHIFT);
+
 	return 0;
 }
 
