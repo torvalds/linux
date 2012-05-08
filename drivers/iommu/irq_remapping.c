@@ -111,6 +111,7 @@ int setup_ioapic_remapped_entry(int irq,
 					     vector, attr);
 }
 
+#ifdef CONFIG_SMP
 int set_remapped_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 			      bool force)
 {
@@ -119,6 +120,7 @@ int set_remapped_irq_affinity(struct irq_data *data, const struct cpumask *mask,
 
 	return remap_ops->set_affinity(data, mask, force);
 }
+#endif
 
 void free_remapped_irq(int irq)
 {
