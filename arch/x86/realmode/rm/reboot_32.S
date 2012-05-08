@@ -13,34 +13,21 @@
  *
  * This code is called with the restart type (0 = BIOS, 1 = APM) in %eax.
  */
-	.section ".x86_trampoline","a"
-	.balign 16
+	.section ".text32", "ax"
 	.code32
-ENTRY(machine_real_restart_asm)
-r_base = .
-	/* Get our own relocated address */
-	call	1f
-1:	popl	%ebx
-	subl	$(1b - r_base), %ebx
+	.globl machine_real_restart_asm
 
-	/* Compute the equivalent real-mode segment */
-	movl	%ebx, %ecx
-	shrl	$4, %ecx
-	
-	/* Patch post-real-mode segment jump */
-	movw	(dispatch_table - r_base)(%ebx,%eax,2),%ax
-	movw	%ax, (101f - r_base)(%ebx)
-	movw	%cx, (102f - r_base)(%ebx)
-
+	.balign 16
+machine_real_restart_asm:
 	/* Set up the IDT for real mode. */
-	lidtl	(machine_real_restart_idt - r_base)(%ebx)
+	lidtl	pa_machine_real_restart_idt
 
 	/*
 	 * Set up a GDT from which we can load segment descriptors for real
 	 * mode.  The GDT is not used in real mode; it is just needed here to
 	 * prepare the descriptors.
 	 */
-	lgdtl	(machine_real_restart_gdt - r_base)(%ebx)
+	lgdtl	pa_machine_real_restart_gdt
 
 	/*
 	 * Load the data segment registers with 16-bit compatible values
@@ -51,7 +38,7 @@ r_base = .
 	movl	%ecx, %fs
 	movl	%ecx, %gs
 	movl	%ecx, %ss
-	ljmpl	$8, $1f - r_base
+	ljmpw	$8, $1f
 
 /*
  * This is 16-bit protected mode code to disable paging and the cache,
@@ -76,27 +63,32 @@ r_base = .
  *
  * Most of this work is probably excessive, but it is what is tested.
  */
+	.text
 	.code16
+
+	.balign 16
+machine_real_restart_asm16:
 1:
 	xorl	%ecx, %ecx
-	movl	%cr0, %eax
-	andl	$0x00000011, %eax
-	orl	$0x60000000, %eax
-	movl	%eax, %cr0
+	movl	%cr0, %edx
+	andl	$0x00000011, %edx
+	orl	$0x60000000, %edx
+	movl	%edx, %cr0
 	movl	%ecx, %cr3
 	movl	%cr0, %edx
 	andl	$0x60000000, %edx	/* If no cache bits -> no wbinvd */
 	jz	2f
 	wbinvd
 2:
-	andb	$0x10, %al
-	movl	%eax, %cr0
+	andb	$0x10, %dl
+	movl	%edx, %cr0
 	.byte	0xea			/* ljmpw */
-101:	.word	0			/* Offset */
-102:	.word	0			/* Segment */
+	.word	3f			/* Offset */
+	.word	real_mode_seg		/* Segment */
 
-bios:
-	ljmpw	$0xf000, $0xfff0
+3:
+	testb	$0, %al
+	jz	bios
 
 apm:
 	movw	$0x1000, %ax
@@ -106,30 +98,37 @@ apm:
 	movw	$0x0001, %bx
 	movw	$0x0003, %cx
 	int	$0x15
+	/* This should never return... */
 
-END(machine_real_restart_asm)
+bios:
+	ljmpw	$0xf000, $0xfff0
 
-	.balign 16
-	/* These must match <asm/reboot.h */
-dispatch_table:
-	.word	bios - r_base
-	.word	apm - r_base
-END(dispatch_table)
+	.section ".rodata", "a"
+	.globl	machine_real_restart_idt, machine_real_restart_gdt
 
 	.balign 16
 machine_real_restart_idt:
 	.word	0xffff		/* Length - real mode default value */
 	.long	0		/* Base - real mode default value */
-END(machine_real_restart_idt)
 
 	.balign 16
-ENTRY(machine_real_restart_gdt)
-	.quad	0		/* Self-pointer, filled in by PM code */
-	.quad	0		/* 16-bit code segment, filled in by PM code */
+machine_real_restart_gdt:
+	/* Self-pointer */
+	.word	0xffff		/* Length - real mode default value */
+	.long	pa_machine_real_restart_gdt
+	.word	0
+
+	/*
+	 * 16-bit code segment pointing to real_mode_seg
+	 * Selector value 8
+	 */
+	.word	0xffff		/* Limit */
+	.long	0x9b000000 + pa_real_mode_base
+	.word	0
+
 	/*
 	 * 16-bit data segment with the selector value 16 = 0x10 and
 	 * base value 0x100; since this is consistent with real mode
 	 * semantics we don't have to reload the segments once CR0.PE = 0.
 	 */
 	.quad	GDT_ENTRY(0x0093, 0x100, 0xffff)
-END(machine_real_restart_gdt)

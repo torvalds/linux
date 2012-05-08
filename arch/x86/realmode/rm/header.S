@@ -13,4 +13,7 @@ ENTRY(real_mode_header)
 		.long	pa_text_start
 		.long	pa_ro_end
 		.long	pa_end
+#ifdef CONFIG_X86_32
+		.long	pa_machine_real_restart_asm
+#endif
 END(real_mode_header)

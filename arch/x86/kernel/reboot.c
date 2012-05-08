@@ -24,6 +24,7 @@
 #ifdef CONFIG_X86_32
 # include <linux/ctype.h>
 # include <linux/mc146818rtc.h>
+# include <asm/realmode.h>
 #else
 # include <asm/x86_init.h>
 #endif
@@ -332,15 +333,10 @@ static int __init reboot_init(void)
 }
 core_initcall(reboot_init);
 
-extern const unsigned char machine_real_restart_asm[];
-extern const u64 machine_real_restart_gdt[3];
-
 void machine_real_restart(unsigned int type)
 {
-	void *restart_va;
-	unsigned long restart_pa;
-	void (*restart_lowmem)(unsigned int);
-	u64 *lowmem_gdt;
+	void (*restart_lowmem)(unsigned int) = (void (*)(unsigned int))
+		real_mode_header.machine_real_restart_asm;
 
 	local_irq_disable();
 
@@ -368,21 +364,6 @@ void machine_real_restart(unsigned int type)
 	   REBOOT.COM programs, and the previous reset routine did this
 	   too. */
 	*((unsigned short *)0x472) = reboot_mode;
-
-	/* Patch the GDT in the low memory trampoline */
-	lowmem_gdt = TRAMPOLINE_SYM(machine_real_restart_gdt);
-
-	restart_va = TRAMPOLINE_SYM(machine_real_restart_asm);
-	restart_pa = virt_to_phys(restart_va);
-	restart_lowmem = (void (*)(unsigned int))restart_pa;
-
-	/* GDT[0]: GDT self-pointer */
-	lowmem_gdt[0] =
-		(u64)(sizeof(machine_real_restart_gdt) - 1) +
-		((u64)virt_to_phys(lowmem_gdt) << 16);
-	/* GDT[1]: 64K real mode code segment */
-	lowmem_gdt[1] =
-		GDT_ENTRY(0x009b, restart_pa, 0xffff);
 
 	/* Jump to the identity-mapped low memory code */
 	restart_lowmem(type);
