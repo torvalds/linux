@@ -635,6 +635,17 @@ static void srcu_torture_synchronize(void)
 	synchronize_srcu(&srcu_ctl);
 }
 
+static void srcu_torture_call(struct rcu_head *head,
+			      void (*func)(struct rcu_head *head))
+{
+	call_srcu(&srcu_ctl, head, func);
+}
+
+static void srcu_torture_barrier(void)
+{
+	srcu_barrier(&srcu_ctl);
+}
+
 static int srcu_torture_stats(char *page)
 {
 	int cnt = 0;
@@ -661,8 +672,8 @@ static struct rcu_torture_ops srcu_ops = {
 	.completed	= srcu_torture_completed,
 	.deferred_free	= srcu_torture_deferred_free,
 	.sync		= srcu_torture_synchronize,
-	.call		= NULL,
-	.cb_barrier	= NULL,
+	.call		= srcu_torture_call,
+	.cb_barrier	= srcu_torture_barrier,
 	.stats		= srcu_torture_stats,
 	.name		= "srcu"
 };
