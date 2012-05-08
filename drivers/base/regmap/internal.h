@@ -45,6 +45,7 @@ struct regmap {
 	struct regmap_format format;  /* Buffer format */
 	const struct regmap_bus *bus;
 	void *bus_context;
+	const char *name;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs;

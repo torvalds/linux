@@ -156,6 +156,7 @@ struct regmap *devm_regmap_init_mmio(struct device *dev,
 void regmap_exit(struct regmap *map);
 int regmap_reinit_cache(struct regmap *map,
 			const struct regmap_config *config);
+struct regmap *dev_get_regmap(struct device *dev, const char *name);
 int regmap_write(struct regmap *map, unsigned int reg, unsigned int val);
 int regmap_raw_write(struct regmap *map, unsigned int reg,
 		     const void *val, size_t val_len);
@@ -338,6 +339,13 @@ static inline int regmap_register_patch(struct regmap *map,
 {
 	WARN_ONCE(1, "regmap API is disabled");
 	return -EINVAL;
+}
+
+static inline struct regmap *dev_get_regmap(struct device *dev,
+					    const char *name)
+{
+	WARN_ONCE(1, "regmap API is disabled");
+	return NULL;
 }
 
 #endif
