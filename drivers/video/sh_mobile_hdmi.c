@@ -31,6 +31,7 @@
 
 #include "sh_mobile_lcdcfb.h"
 
+/* HDMI Core Control Register (HTOP0) */
 #define HDMI_SYSTEM_CTRL			0x00 /* System control */
 #define HDMI_L_R_DATA_SWAP_CTRL_RPKT		0x01 /* L/R data swap control,
 							bits 19..16 of 20-bit N for Audio Clock Regeneration packet */
@@ -201,6 +202,68 @@
 #define HDMI_REVISION_ID			0xF1 /* Revision ID */
 #define HDMI_TEST_MODE				0xFE /* Test mode */
 
+/* HDMI Control Register (HTOP1) */
+#define HDMI_HTOP1_TEST_MODE			0x0000 /* Test mode */
+#define HDMI_HTOP1_VIDEO_INPUT			0x0008 /* VideoInput */
+#define HDMI_HTOP1_CORE_RSTN			0x000C /* CoreResetn */
+#define HDMI_HTOP1_PLLBW			0x0018 /* PLLBW */
+#define HDMI_HTOP1_CLK_TO_PHY			0x001C /* Clk to Phy */
+#define HDMI_HTOP1_VIDEO_INPUT2			0x0020 /* VideoInput2 */
+#define HDMI_HTOP1_TISEMP0_1			0x0024 /* tisemp0-1 */
+#define HDMI_HTOP1_TISEMP2_C			0x0028 /* tisemp2-c */
+#define HDMI_HTOP1_TISIDRV			0x002C /* tisidrv */
+#define HDMI_HTOP1_TISEN			0x0034 /* tisen */
+#define HDMI_HTOP1_TISDREN			0x0038 /* tisdren  */
+#define HDMI_HTOP1_CISRANGE			0x003C /* cisrange  */
+#define HDMI_HTOP1_ENABLE_SELECTOR		0x0040 /* Enable Selector */
+#define HDMI_HTOP1_MACRO_RESET			0x0044 /* Macro reset */
+#define HDMI_HTOP1_PLL_CALIBRATION		0x0048 /* PLL calibration */
+#define HDMI_HTOP1_RE_CALIBRATION		0x004C /* Re-calibration */
+#define HDMI_HTOP1_CURRENT			0x0050 /* Current */
+#define HDMI_HTOP1_PLL_LOCK_DETECT		0x0054 /* PLL lock detect */
+#define HDMI_HTOP1_PHY_TEST_MODE		0x0058 /* PHY Test Mode */
+#define HDMI_HTOP1_CLK_SET			0x0080 /* Clock Set */
+#define HDMI_HTOP1_DDC_FAIL_SAFE		0x0084 /* DDC fail safe */
+#define HDMI_HTOP1_PRBS				0x0088 /* PRBS */
+#define HDMI_HTOP1_EDID_AINC_CONTROL		0x008C /* EDID ainc Control */
+#define HDMI_HTOP1_HTOP_DCL_MODE		0x00FC /* Deep Coloer Mode */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF0		0x0100 /* Deep Color:FRC COEF0 */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF1		0x0104 /* Deep Color:FRC COEF1 */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF2		0x0108 /* Deep Color:FRC COEF2 */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF3		0x010C /* Deep Color:FRC COEF3 */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF0_C		0x0110 /* Deep Color:FRC COEF0C */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF1_C		0x0114 /* Deep Color:FRC COEF1C */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF2_C		0x0118 /* Deep Color:FRC COEF2C */
+#define HDMI_HTOP1_HTOP_DCL_FRC_COEF3_C		0x011C /* Deep Color:FRC COEF3C */
+#define HDMI_HTOP1_HTOP_DCL_FRC_MODE		0x0120 /* Deep Color:FRC Mode */
+#define HDMI_HTOP1_HTOP_DCL_RECT_START1		0x0124 /* Deep Color:Rect Start1 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_SIZE1		0x0128 /* Deep Color:Rect Size1 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_START2		0x012C /* Deep Color:Rect Start2 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_SIZE2		0x0130 /* Deep Color:Rect Size2 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_START3		0x0134 /* Deep Color:Rect Start3 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_SIZE3		0x0138 /* Deep Color:Rect Size3 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_START4		0x013C /* Deep Color:Rect Start4 */
+#define HDMI_HTOP1_HTOP_DCL_RECT_SIZE4		0x0140 /* Deep Color:Rect Size4 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y1_1	0x0144 /* Deep Color:Fil Para Y1_1 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y1_2	0x0148 /* Deep Color:Fil Para Y1_2 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB1_1	0x014C /* Deep Color:Fil Para CB1_1 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB1_2	0x0150 /* Deep Color:Fil Para CB1_2 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR1_1	0x0154 /* Deep Color:Fil Para CR1_1 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR1_2	0x0158 /* Deep Color:Fil Para CR1_2 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y2_1	0x015C /* Deep Color:Fil Para Y2_1 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y2_2	0x0160 /* Deep Color:Fil Para Y2_2 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB2_1	0x0164 /* Deep Color:Fil Para CB2_1 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB2_2	0x0168 /* Deep Color:Fil Para CB2_2 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR2_1	0x016C /* Deep Color:Fil Para CR2_1 */
+#define HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR2_2	0x0170 /* Deep Color:Fil Para CR2_2 */
+#define HDMI_HTOP1_HTOP_DCL_COR_PARA_Y1		0x0174 /* Deep Color:Cor Para Y1 */
+#define HDMI_HTOP1_HTOP_DCL_COR_PARA_CB1	0x0178 /* Deep Color:Cor Para CB1 */
+#define HDMI_HTOP1_HTOP_DCL_COR_PARA_CR1	0x017C /* Deep Color:Cor Para CR1 */
+#define HDMI_HTOP1_HTOP_DCL_COR_PARA_Y2		0x0180 /* Deep Color:Cor Para Y2 */
+#define HDMI_HTOP1_HTOP_DCL_COR_PARA_CB2	0x0184 /* Deep Color:Cor Para CB2 */
+#define HDMI_HTOP1_HTOP_DCL_COR_PARA_CR2	0x0188 /* Deep Color:Cor Para CR2 */
+#define HDMI_HTOP1_EDID_DATA_READ		0x0200 /* EDID Data Read 128Byte:0x03FC */
+
 enum hotplug_state {
 	HDMI_HOTPLUG_DISCONNECTED,
 	HDMI_HOTPLUG_CONNECTED,
@@ -211,6 +274,7 @@ struct sh_hdmi {
 	struct sh_mobile_lcdc_entity entity;
 
 	void __iomem *base;
+	void __iomem *htop1;
 	enum hotplug_state hp_state;	/* hot-plug status */
 	u8 preprogrammed_vic;		/* use a pre-programmed VIC or
 					   the external mode */
@@ -269,6 +333,17 @@ static void hdmi_bit_set(struct sh_hdmi *hdmi, u8 mask, u8 data, u8 reg)
 	val |= (data & mask);
 
 	hdmi_write(hdmi, val, reg);
+}
+
+static void hdmi_htop1_write(struct sh_hdmi *hdmi, u32 data, u32 reg)
+{
+	iowrite32(data, hdmi->htop1 + reg);
+	udelay(100);
+}
+
+static u32 hdmi_htop1_read(struct sh_hdmi *hdmi, u32 reg)
+{
+	return ioread32(hdmi->htop1 + reg);
 }
 
 /*
@@ -781,7 +856,9 @@ static int sh_hdmi_read_edid(struct sh_hdmi *hdmi, unsigned long *hdmi_rate,
 	/* Read EDID */
 	dev_dbg(hdmi->dev, "Read back EDID code:");
 	for (i = 0; i < 128; i++) {
-		edid[i] = hdmi_read(hdmi, HDMI_EDID_KSV_FIFO_ACCESS_WINDOW);
+		edid[i] = (hdmi->htop1) ?
+			(u8)hdmi_htop1_read(hdmi, HDMI_HTOP1_EDID_DATA_READ + (i * 4)) :
+			hdmi_read(hdmi, HDMI_EDID_KSV_FIFO_ACCESS_WINDOW);
 #ifdef DEBUG
 		if ((i % 16) == 0) {
 			printk(KERN_CONT "\n");
@@ -1145,16 +1222,73 @@ out:
 	dev_dbg(hdmi->dev, "%s(%p): end\n", __func__, hdmi);
 }
 
+static void sh_hdmi_htop1_init(struct sh_hdmi *hdmi)
+{
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_MODE);
+	hdmi_htop1_write(hdmi, 0x0000000b, 0x0010);
+	hdmi_htop1_write(hdmi, 0x00006710, HDMI_HTOP1_HTOP_DCL_FRC_MODE);
+	hdmi_htop1_write(hdmi, 0x01020406, HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y1_1);
+	hdmi_htop1_write(hdmi, 0x07080806, HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y1_2);
+	hdmi_htop1_write(hdmi, 0x01020406, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB1_1);
+	hdmi_htop1_write(hdmi, 0x07080806, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB1_2);
+	hdmi_htop1_write(hdmi, 0x01020406, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR1_1);
+	hdmi_htop1_write(hdmi, 0x07080806, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR1_2);
+	hdmi_htop1_write(hdmi, 0x01020406, HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y2_1);
+	hdmi_htop1_write(hdmi, 0x07080806, HDMI_HTOP1_HTOP_DCL_FIL_PARA_Y2_2);
+	hdmi_htop1_write(hdmi, 0x01020406, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB2_1);
+	hdmi_htop1_write(hdmi, 0x07080806, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CB2_2);
+	hdmi_htop1_write(hdmi, 0x01020406, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR2_1);
+	hdmi_htop1_write(hdmi, 0x07080806, HDMI_HTOP1_HTOP_DCL_FIL_PARA_CR2_2);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_COR_PARA_Y1);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_COR_PARA_CB1);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_COR_PARA_CR1);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_COR_PARA_Y2);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_COR_PARA_CB2);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_HTOP_DCL_COR_PARA_CR2);
+	hdmi_htop1_write(hdmi, 0x00000008, HDMI_HTOP1_CURRENT);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_TISEMP0_1);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_TISEMP2_C);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_PHY_TEST_MODE);
+	hdmi_htop1_write(hdmi, 0x00000081, HDMI_HTOP1_TISIDRV);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_PLLBW);
+	hdmi_htop1_write(hdmi, 0x0000000f, HDMI_HTOP1_TISEN);
+	hdmi_htop1_write(hdmi, 0x0000000f, HDMI_HTOP1_TISDREN);
+	hdmi_htop1_write(hdmi, 0x00000003, HDMI_HTOP1_ENABLE_SELECTOR);
+	hdmi_htop1_write(hdmi, 0x00000001, HDMI_HTOP1_MACRO_RESET);
+	hdmi_htop1_write(hdmi, 0x00000016, HDMI_HTOP1_CISRANGE);
+	msleep(100);
+	hdmi_htop1_write(hdmi, 0x00000001, HDMI_HTOP1_ENABLE_SELECTOR);
+	msleep(100);
+	hdmi_htop1_write(hdmi, 0x00000003, HDMI_HTOP1_ENABLE_SELECTOR);
+	hdmi_htop1_write(hdmi, 0x00000001, HDMI_HTOP1_MACRO_RESET);
+	hdmi_htop1_write(hdmi, 0x0000000f, HDMI_HTOP1_TISEN);
+	hdmi_htop1_write(hdmi, 0x0000000f, HDMI_HTOP1_TISDREN);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_VIDEO_INPUT);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_CLK_TO_PHY);
+	hdmi_htop1_write(hdmi, 0x00000000, HDMI_HTOP1_VIDEO_INPUT2);
+	hdmi_htop1_write(hdmi, 0x0000000a, HDMI_HTOP1_CLK_SET);
+}
+
 static int __init sh_hdmi_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_hdmi_info *pdata = pdev->dev.platform_data;
 	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	struct resource *htop1_res;
 	int irq = platform_get_irq(pdev, 0), ret;
 	struct sh_hdmi *hdmi;
 	long rate;
 
 	if (!res || !pdata || irq < 0)
 		return -ENODEV;
+
+	htop1_res = NULL;
+	if (pdata->flags & HDMI_HAS_HTOP1) {
+		htop1_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
+		if (!htop1_res) {
+			dev_err(&pdev->dev, "htop1 needs register base\n");
+			return -EINVAL;
+		}
+	}
 
 	hdmi = kzalloc(sizeof(*hdmi), GFP_KERNEL);
 	if (!hdmi) {
@@ -1227,6 +1361,17 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 	if (pdata->flags & HDMI_OUTPUT_POLARITY_HI)
 		hdmi_bit_set(hdmi, 0x01, 0x01, HDMI_SYSTEM_CTRL);
 
+	/* enable htop1 register if needed */
+	if (htop1_res) {
+		hdmi->htop1 = ioremap(htop1_res->start, resource_size(htop1_res));
+		if (!hdmi->htop1) {
+			dev_err(&pdev->dev, "control register region already claimed\n");
+			ret = -ENOMEM;
+			goto emap_htop1;
+		}
+		sh_hdmi_htop1_init(hdmi);
+	}
+
 	/* Product and revision IDs are 0 in sh-mobile version */
 	dev_info(&pdev->dev, "Detected HDMI controller 0x%x:0x%x\n",
 		 hdmi_read(hdmi, HDMI_PRODUCT_ID), hdmi_read(hdmi, HDMI_REVISION_ID));
@@ -1250,6 +1395,9 @@ static int __init sh_hdmi_probe(struct platform_device *pdev)
 ecodec:
 	free_irq(irq, hdmi);
 ereqirq:
+	if (hdmi->htop1)
+		iounmap(hdmi->htop1);
+emap_htop1:
 	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	iounmap(hdmi->base);
@@ -1281,6 +1429,8 @@ static int __exit sh_hdmi_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	clk_disable(hdmi->hdmi_clk);
 	clk_put(hdmi->hdmi_clk);
+	if (hdmi->htop1)
+		iounmap(hdmi->htop1);
 	iounmap(hdmi->base);
 	release_mem_region(res->start, resource_size(res));
 	kfree(hdmi);

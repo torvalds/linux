@@ -38,6 +38,7 @@ struct clk;
 
 /* Chip specific option */
 #define HDMI_32BIT_REG		(1 << 8)
+#define HDMI_HAS_HTOP1		(1 << 9)
 
 struct sh_mobile_hdmi_info {
 	unsigned int			 flags;
