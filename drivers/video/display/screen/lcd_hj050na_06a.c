@@ -390,6 +390,6 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
     screen->init = lcd_init;
     screen->standby = lcd_standby;
 
-    if(gLcd_info)
+    if(lcd_info)
         gLcd_info = lcd_info;
 }
