@@ -267,6 +267,24 @@ static int da9030_get_ldo14_voltage(struct regulator_dev *rdev)
 			info->step_uV * (val & ~0x4);
 }
 
+static int da9030_list_ldo14_voltage(struct regulator_dev *rdev,
+				     unsigned selector)
+{
+	struct da903x_regulator_info *info = rdev_get_drvdata(rdev);
+	int volt;
+
+	if (selector & 0x4)
+		volt = info->min_uV + info->step_uV * (3 - (selector & ~0x4));
+	else
+		volt = (info->max_uV + info->min_uV) / 2 +
+		       info->step_uV * (selector & ~0x4);
+
+	if (volt > info->max_uV)
+		return -EINVAL;
+
+	return volt;
+}
+
 /* DA9034 specific operations */
 static int da9034_set_dvc_voltage(struct regulator_dev *rdev,
 				  int min_uV, int max_uV, unsigned *selector)
@@ -357,7 +375,7 @@ static struct regulator_ops da903x_regulator_ldo_ops = {
 static struct regulator_ops da9030_regulator_ldo14_ops = {
 	.set_voltage	= da9030_set_ldo14_voltage,
 	.get_voltage	= da9030_get_ldo14_voltage,
-	.list_voltage	= da903x_list_voltage,
+	.list_voltage	= da9030_list_ldo14_voltage,
 	.enable		= da903x_enable,
 	.disable	= da903x_disable,
 	.is_enabled	= da903x_is_enabled,
