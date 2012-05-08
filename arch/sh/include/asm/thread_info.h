@@ -98,7 +98,6 @@ static inline struct thread_info *current_thread_info(void)
 extern struct thread_info *alloc_thread_info_node(struct task_struct *tsk, int node);
 extern void free_thread_info(struct thread_info *ti);
 extern void arch_task_cache_init(void);
-#define arch_task_cache_init arch_task_cache_init
 extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
 extern void init_thread_xstate(void);
 

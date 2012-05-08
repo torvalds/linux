@@ -863,7 +863,6 @@ static void iwl_bg_run_time_calib_work(struct work_struct *work)
 
 void iwlagn_prepare_restart(struct iwl_priv *priv)
 {
-	struct iwl_rxon_context *ctx;
 	bool bt_full_concurrent;
 	u8 bt_ci_compliance;
 	u8 bt_load;
@@ -872,8 +871,6 @@ void iwlagn_prepare_restart(struct iwl_priv *priv)
 
 	lockdep_assert_held(&priv->mutex);
 
-	for_each_context(priv, ctx)
-		ctx->vif = NULL;
 	priv->is_open = 0;
 
 	/*
