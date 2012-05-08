@@ -76,6 +76,7 @@ struct rk30_i2c {
 	unsigned int		irq;
 
 	enum rk30_i2c_state	state;
+        unsigned int            complete_what;
 	unsigned long		clkrate;
 
 	void __iomem		*regs;
