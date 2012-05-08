@@ -111,10 +111,6 @@ config S3C24XX_SETUP_TS
 	help
 	  Compile in platform device definition for Samsung TouchScreen.
 
-# cpu-specific sections
-
-if CPU_S3C2410
-
 config S3C2410_DMA
 	bool
 	depends on S3C24XX_DMA && (CPU_S3C2410 || CPU_S3C2442)
@@ -126,6 +122,10 @@ config S3C2410_PM
 	bool
 	help
 	  Power Management code common to S3C2410 and better
+
+# cpu-specific sections
+
+if CPU_S3C2410
 
 config S3C24XX_SIMTEC_NOR
 	bool

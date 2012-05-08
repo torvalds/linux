@@ -104,7 +104,7 @@ static int pdc_console_tty_open(struct tty_struct *tty, struct file *filp)
 
 static void pdc_console_tty_close(struct tty_struct *tty, struct file *filp)
 {
-	if (!tty->count) {
+	if (tty->count == 1) {
 		del_timer_sync(&pdc_console_timer);
 		tty_port_tty_set(&tty_port, NULL);
 	}

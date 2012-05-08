@@ -241,8 +241,8 @@ int radeon_wb_init(struct radeon_device *rdev)
 				rdev->wb.use_event = true;
 		}
 	}
-	/* always use writeback/events on NI */
-	if (ASIC_IS_DCE5(rdev)) {
+	/* always use writeback/events on NI, APUs */
+	if (rdev->family >= CHIP_PALM) {
 		rdev->wb.enabled = true;
 		rdev->wb.use_event = true;
 	}
@@ -714,7 +714,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	rdev->is_atom_bios = false;
 	rdev->usec_timeout = RADEON_MAX_USEC_TIMEOUT;
 	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-	rdev->gpu_lockup = false;
 	rdev->accel_working = false;
 
 	DRM_INFO("initializing kernel modesetting (%s 0x%04X:0x%04X 0x%04X:0x%04X).\n",
@@ -916,7 +915,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	radeon_bo_evict_vram(rdev);
 	/* wait for gpu to finish processing current batch */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_last(rdev, i);
+		radeon_fence_wait_empty(rdev, i);
 
 	radeon_save_bios_scratch_regs(rdev);
 
@@ -987,9 +986,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 	int r;
 	int resched;
 
-	/* Prevent CS ioctl from interfering */
-	radeon_mutex_lock(&rdev->cs_mutex);
-
 	radeon_save_bios_scratch_regs(rdev);
 	/* block TTM */
 	resched = ttm_bo_lock_delayed_workqueue(&rdev->mman.bdev);
@@ -1003,8 +999,6 @@ int radeon_gpu_reset(struct radeon_device *rdev)
 		drm_helper_resume_force_mode(rdev->ddev);
 		ttm_bo_unlock_delayed_workqueue(&rdev->mman.bdev, resched);
 	}
-
-	radeon_mutex_unlock(&rdev->cs_mutex);
 
 	if (r) {
 		/* bad news, how to tell it to userspace ? */

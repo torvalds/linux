@@ -222,8 +222,8 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 {
 	struct radeon_device *rdev;
 	uint64_t old_start, new_start;
-	struct radeon_fence *fence;
-	int r, i;
+	struct radeon_fence *fence, *old_fence;
+	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
 	r = radeon_fence_create(rdev, &fence, radeon_copy_ring_index(rdev));
@@ -242,6 +242,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
+		radeon_fence_unref(&fence);
 		return -EINVAL;
 	}
 	switch (new_mem->mem_type) {
@@ -253,42 +254,35 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
+		radeon_fence_unref(&fence);
 		return -EINVAL;
 	}
 	if (!rdev->ring[radeon_copy_ring_index(rdev)].ready) {
 		DRM_ERROR("Trying to move memory with ring turned off.\n");
+		radeon_fence_unref(&fence);
 		return -EINVAL;
 	}
 
 	BUILD_BUG_ON((PAGE_SIZE % RADEON_GPU_PAGE_SIZE) != 0);
 
 	/* sync other rings */
-	if (rdev->family >= CHIP_R600) {
-		for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-			/* no need to sync to our own or unused rings */
-			if (i == radeon_copy_ring_index(rdev) || !rdev->ring[i].ready)
-				continue;
+	old_fence = bo->sync_obj;
+	if (old_fence && old_fence->ring != fence->ring
+	    && !radeon_fence_signaled(old_fence)) {
+		bool sync_to_ring[RADEON_NUM_RINGS] = { };
+		sync_to_ring[old_fence->ring] = true;
 
-			if (!fence->semaphore) {
-				r = radeon_semaphore_create(rdev, &fence->semaphore);
-				/* FIXME: handle semaphore error */
-				if (r)
-					continue;
-			}
+		r = radeon_semaphore_create(rdev, &fence->semaphore);
+		if (r) {
+			radeon_fence_unref(&fence);
+			return r;
+		}
 
-			r = radeon_ring_lock(rdev, &rdev->ring[i], 3);
-			/* FIXME: handle ring lock error */
-			if (r)
-				continue;
-			radeon_semaphore_emit_signal(rdev, i, fence->semaphore);
-			radeon_ring_unlock_commit(rdev, &rdev->ring[i]);
-
-			r = radeon_ring_lock(rdev, &rdev->ring[radeon_copy_ring_index(rdev)], 3);
-			/* FIXME: handle ring lock error */
-			if (r)
-				continue;
-			radeon_semaphore_emit_wait(rdev, radeon_copy_ring_index(rdev), fence->semaphore);
-			radeon_ring_unlock_commit(rdev, &rdev->ring[radeon_copy_ring_index(rdev)]);
+		r = radeon_semaphore_sync_rings(rdev, fence->semaphore,
+						sync_to_ring, fence->ring);
+		if (r) {
+			radeon_fence_unref(&fence);
+			return r;
 		}
 	}
 

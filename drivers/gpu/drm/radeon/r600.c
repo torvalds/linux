@@ -1135,7 +1135,7 @@ static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc 
 	}
 	if (rdev->flags & RADEON_IS_AGP) {
 		size_bf = mc->gtt_start;
-		size_af = 0xFFFFFFFF - mc->gtt_end + 1;
+		size_af = 0xFFFFFFFF - mc->gtt_end;
 		if (size_bf > size_af) {
 			if (mc->mc_vram_size > size_bf) {
 				dev_warn(rdev->dev, "limiting VRAM\n");
@@ -1149,7 +1149,7 @@ static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc 
 				mc->real_vram_size = size_af;
 				mc->mc_vram_size = size_af;
 			}
-			mc->vram_start = mc->gtt_end;
+			mc->vram_start = mc->gtt_end + 1;
 		}
 		mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
 		dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
@@ -1350,31 +1350,17 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	u32 srbm_status;
 	u32 grbm_status;
 	u32 grbm_status2;
-	struct r100_gpu_lockup *lockup;
-	int r;
-
-	if (rdev->family >= CHIP_RV770)
-		lockup = &rdev->config.rv770.lockup;
-	else
-		lockup = &rdev->config.r600.lockup;
 
 	srbm_status = RREG32(R_000E50_SRBM_STATUS);
 	grbm_status = RREG32(R_008010_GRBM_STATUS);
 	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
 	if (!G_008010_GUI_ACTIVE(grbm_status)) {
-		r100_gpu_lockup_update(lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(ring->rptr_reg);
-	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 int r600_asic_reset(struct radeon_device *rdev)
@@ -2494,12 +2480,9 @@ int r600_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }

@@ -103,11 +103,6 @@ int r100_pci_gart_enable(struct radeon_device *rdev);
 void r100_pci_gart_disable(struct radeon_device *rdev);
 int r100_debugfs_mc_info_init(struct radeon_device *rdev);
 int r100_gui_wait_for_idle(struct radeon_device *rdev);
-void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup,
-			    struct radeon_ring *cp);
-bool r100_gpu_cp_is_lockup(struct radeon_device *rdev,
-			   struct r100_gpu_lockup *lockup,
-			   struct radeon_ring *cp);
 void r100_ib_fini(struct radeon_device *rdev);
 int r100_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
 void r100_irq_disable(struct radeon_device *rdev);
@@ -159,7 +154,6 @@ extern int r300_init(struct radeon_device *rdev);
 extern void r300_fini(struct radeon_device *rdev);
 extern int r300_suspend(struct radeon_device *rdev);
 extern int r300_resume(struct radeon_device *rdev);
-extern bool r300_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 extern int r300_asic_reset(struct radeon_device *rdev);
 extern void r300_ring_start(struct radeon_device *rdev, struct radeon_ring *ring);
 extern void r300_fence_ring_emit(struct radeon_device *rdev,
@@ -443,7 +437,6 @@ int cayman_init(struct radeon_device *rdev);
 void cayman_fini(struct radeon_device *rdev);
 int cayman_suspend(struct radeon_device *rdev);
 int cayman_resume(struct radeon_device *rdev);
-bool cayman_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *cp);
 int cayman_asic_reset(struct radeon_device *rdev);
 void cayman_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int cayman_vm_init(struct radeon_device *rdev);

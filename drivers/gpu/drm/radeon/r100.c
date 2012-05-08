@@ -660,7 +660,7 @@ int r100_pci_gart_enable(struct radeon_device *rdev)
 	tmp = RREG32(RADEON_AIC_CNTL) | RADEON_PCIGART_TRANSLATE_EN;
 	WREG32(RADEON_AIC_CNTL, tmp);
 	r100_pci_gart_tlb_flush(rdev);
-	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
+	DRM_INFO("PCI GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(rdev->mc.gtt_size >> 20),
 		 (unsigned long long)rdev->gart.table_addr);
 	rdev->gart.ready = true;
@@ -2159,79 +2159,18 @@ int r100_mc_wait_for_idle(struct radeon_device *rdev)
 	return -1;
 }
 
-void r100_gpu_lockup_update(struct r100_gpu_lockup *lockup, struct radeon_ring *ring)
-{
-	lockup->last_cp_rptr = ring->rptr;
-	lockup->last_jiffies = jiffies;
-}
-
-/**
- * r100_gpu_cp_is_lockup() - check if CP is lockup by recording information
- * @rdev:	radeon device structure
- * @lockup:	r100_gpu_lockup structure holding CP lockup tracking informations
- * @cp:		radeon_cp structure holding CP information
- *
- * We don't need to initialize the lockup tracking information as we will either
- * have CP rptr to a different value of jiffies wrap around which will force
- * initialization of the lockup tracking informations.
- *
- * A possible false positivie is if we get call after while and last_cp_rptr ==
- * the current CP rptr, even if it's unlikely it might happen. To avoid this
- * if the elapsed time since last call is bigger than 2 second than we return
- * false and update the tracking information. Due to this the caller must call
- * r100_gpu_cp_is_lockup several time in less than 2sec for lockup to be reported
- * the fencing code should be cautious about that.
- *
- * Caller should write to the ring to force CP to do something so we don't get
- * false positive when CP is just gived nothing to do.
- *
- **/
-bool r100_gpu_cp_is_lockup(struct radeon_device *rdev, struct r100_gpu_lockup *lockup, struct radeon_ring *ring)
-{
-	unsigned long cjiffies, elapsed;
-
-	cjiffies = jiffies;
-	if (!time_after(cjiffies, lockup->last_jiffies)) {
-		/* likely a wrap around */
-		lockup->last_cp_rptr = ring->rptr;
-		lockup->last_jiffies = jiffies;
-		return false;
-	}
-	if (ring->rptr != lockup->last_cp_rptr) {
-		/* CP is still working no lockup */
-		lockup->last_cp_rptr = ring->rptr;
-		lockup->last_jiffies = jiffies;
-		return false;
-	}
-	elapsed = jiffies_to_msecs(cjiffies - lockup->last_jiffies);
-	if (elapsed >= 10000) {
-		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
-		return true;
-	}
-	/* give a chance to the GPU ... */
-	return false;
-}
-
 bool r100_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	u32 rbbm_status;
-	int r;
 
 	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
 	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
-		r100_gpu_lockup_update(&rdev->config.r100.lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	ring->rptr = RREG32(ring->rptr_reg);
-	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r100.lockup, ring);
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 void r100_bm_disable(struct radeon_device *rdev)
@@ -2300,7 +2239,6 @@ int r100_asic_reset(struct radeon_device *rdev)
 	if (G_000E40_SE_BUSY(status) || G_000E40_RE_BUSY(status) ||
 		G_000E40_TAM_BUSY(status) || G_000E40_PB_BUSY(status)) {
 		dev_err(rdev->dev, "failed to reset GPU\n");
-		rdev->gpu_lockup = true;
 		ret = -1;
 	} else
 		dev_info(rdev->dev, "GPU reset succeed\n");
@@ -3969,12 +3907,9 @@ static int r100_startup(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = radeon_ib_test(rdev, RADEON_RING_TYPE_GFX_INDEX, &rdev->ring[RADEON_RING_TYPE_GFX_INDEX]);
-	if (r) {
-		dev_err(rdev->dev, "failed testing IB (%d).\n", r);
-		rdev->accel_working = false;
+	r = radeon_ib_ring_tests(rdev);
+	if (r)
 		return r;
-	}
 
 	return 0;
 }

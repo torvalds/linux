@@ -154,6 +154,17 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 	radeon_bo_unreserve(rbo);
 }
 
+static int radeon_gem_handle_lockup(struct radeon_device *rdev, int r)
+{
+	if (r == -EDEADLK) {
+		radeon_mutex_lock(&rdev->cs_mutex);
+		r = radeon_gpu_reset(rdev);
+		if (!r)
+			r = -EAGAIN;
+		radeon_mutex_unlock(&rdev->cs_mutex);
+	}
+	return r;
+}
 
 /*
  * GEM ioctls.
@@ -210,12 +221,14 @@ int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 					args->initial_domain, false,
 					false, &gobj);
 	if (r) {
+		r = radeon_gem_handle_lockup(rdev, r);
 		return r;
 	}
 	r = drm_gem_handle_create(filp, gobj, &handle);
 	/* drop reference from allocate - handle holds it now */
 	drm_gem_object_unreference_unlocked(gobj);
 	if (r) {
+		r = radeon_gem_handle_lockup(rdev, r);
 		return r;
 	}
 	args->handle = handle;
@@ -245,6 +258,7 @@ int radeon_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 	r = radeon_gem_set_domain(gobj, args->read_domains, args->write_domain);
 
 	drm_gem_object_unreference_unlocked(gobj);
+	r = radeon_gem_handle_lockup(robj->rdev, r);
 	return r;
 }
 
@@ -301,6 +315,7 @@ int radeon_gem_busy_ioctl(struct drm_device *dev, void *data,
 		break;
 	}
 	drm_gem_object_unreference_unlocked(gobj);
+	r = radeon_gem_handle_lockup(robj->rdev, r);
 	return r;
 }
 
@@ -322,6 +337,7 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	if (robj->rdev->asic->ioctl_wait_idle)
 		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
 	drm_gem_object_unreference_unlocked(gobj);
+	r = radeon_gem_handle_lockup(robj->rdev, r);
 	return r;
 }
 

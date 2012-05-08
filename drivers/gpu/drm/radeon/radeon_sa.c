@@ -150,7 +150,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	offset = 0;
 	list_for_each_entry(tmp, &sa_manager->sa_bo, list) {
 		/* room before this object ? */
-		if ((tmp->offset - offset) >= size) {
+		if (offset < tmp->offset && (tmp->offset - offset) >= size) {
 			head = tmp->list.prev;
 			goto out;
 		}

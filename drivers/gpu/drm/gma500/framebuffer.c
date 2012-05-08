@@ -408,6 +408,8 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 			return -ENOMEM;
 	}
 
+	memset(dev_priv->vram_addr + backing->offset, 0, size);
+
 	mutex_lock(&dev->struct_mutex);
 
 	info = framebuffer_alloc(0, device);
@@ -453,8 +455,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 	info->fix.ypanstep = 0;
 
 	/* Accessed stolen memory directly */
-	info->screen_base = (char *)dev_priv->vram_addr +
-							backing->offset;
+	info->screen_base = dev_priv->vram_addr + backing->offset;
 	info->screen_size = size;
 
 	if (dev_priv->gtt.stolen_size) {
@@ -571,7 +572,7 @@ static int psbfb_probe(struct drm_fb_helper *helper,
 	return new_fb;
 }
 
-struct drm_fb_helper_funcs psb_fb_helper_funcs = {
+static struct drm_fb_helper_funcs psb_fb_helper_funcs = {
 	.gamma_set = psbfb_gamma_set,
 	.gamma_get = psbfb_gamma_get,
 	.fb_probe = psbfb_probe,

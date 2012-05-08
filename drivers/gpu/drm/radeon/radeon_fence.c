@@ -71,16 +71,13 @@ int radeon_fence_emit(struct radeon_device *rdev, struct radeon_fence *fence)
 		return 0;
 	}
 	fence->seq = atomic_add_return(1, &rdev->fence_drv[fence->ring].seq);
-	if (!rdev->ring[fence->ring].ready)
-		/* FIXME: cp is not running assume everythings is done right
-		 * away
-		 */
-		radeon_fence_write(rdev, fence->seq, fence->ring);
-	else
-		radeon_fence_ring_emit(rdev, fence->ring, fence);
-
+	radeon_fence_ring_emit(rdev, fence->ring, fence);
 	trace_radeon_fence_emit(rdev->ddev, fence->seq);
 	fence->emitted = true;
+	/* are we the first fence on a previusly idle ring? */
+	if (list_empty(&rdev->fence_drv[fence->ring].emitted)) {
+		rdev->fence_drv[fence->ring].last_activity = jiffies;
+	}
 	list_move_tail(&fence->list, &rdev->fence_drv[fence->ring].emitted);
 	write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 	return 0;
@@ -92,34 +89,14 @@ static bool radeon_fence_poll_locked(struct radeon_device *rdev, int ring)
 	struct list_head *i, *n;
 	uint32_t seq;
 	bool wake = false;
-	unsigned long cjiffies;
 
 	seq = radeon_fence_read(rdev, ring);
-	if (seq != rdev->fence_drv[ring].last_seq) {
-		rdev->fence_drv[ring].last_seq = seq;
-		rdev->fence_drv[ring].last_jiffies = jiffies;
-		rdev->fence_drv[ring].last_timeout = RADEON_FENCE_JIFFIES_TIMEOUT;
-	} else {
-		cjiffies = jiffies;
-		if (time_after(cjiffies, rdev->fence_drv[ring].last_jiffies)) {
-			cjiffies -= rdev->fence_drv[ring].last_jiffies;
-			if (time_after(rdev->fence_drv[ring].last_timeout, cjiffies)) {
-				/* update the timeout */
-				rdev->fence_drv[ring].last_timeout -= cjiffies;
-			} else {
-				/* the 500ms timeout is elapsed we should test
-				 * for GPU lockup
-				 */
-				rdev->fence_drv[ring].last_timeout = 1;
-			}
-		} else {
-			/* wrap around update last jiffies, we will just wait
-			 * a little longer
-			 */
-			rdev->fence_drv[ring].last_jiffies = cjiffies;
-		}
+	if (seq == rdev->fence_drv[ring].last_seq)
 		return false;
-	}
+
+	rdev->fence_drv[ring].last_seq = seq;
+	rdev->fence_drv[ring].last_activity = jiffies;
+
 	n = NULL;
 	list_for_each(i, &rdev->fence_drv[ring].emitted) {
 		fence = list_entry(i, struct radeon_fence, list);
@@ -162,8 +139,6 @@ int radeon_fence_create(struct radeon_device *rdev,
 			struct radeon_fence **fence,
 			int ring)
 {
-	unsigned long irq_flags;
-
 	*fence = kmalloc(sizeof(struct radeon_fence), GFP_KERNEL);
 	if ((*fence) == NULL) {
 		return -ENOMEM;
@@ -176,10 +151,6 @@ int radeon_fence_create(struct radeon_device *rdev,
 	(*fence)->ring = ring;
 	(*fence)->semaphore = NULL;
 	INIT_LIST_HEAD(&(*fence)->list);
-
-	write_lock_irqsave(&rdev->fence_lock, irq_flags);
-	list_add_tail(&(*fence)->list, &rdev->fence_drv[ring].created);
-	write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 	return 0;
 }
 
@@ -189,9 +160,6 @@ bool radeon_fence_signaled(struct radeon_fence *fence)
 	bool signaled = false;
 
 	if (!fence)
-		return true;
-
-	if (fence->rdev->gpu_lockup)
 		return true;
 
 	write_lock_irqsave(&fence->rdev->fence_lock, irq_flags);
@@ -217,68 +185,80 @@ int radeon_fence_wait(struct radeon_fence *fence, bool intr)
 	struct radeon_device *rdev;
 	unsigned long irq_flags, timeout;
 	u32 seq;
-	int r;
+	int i, r;
+	bool signaled;
 
 	if (fence == NULL) {
 		WARN(1, "Querying an invalid fence : %p !\n", fence);
-		return 0;
+		return -EINVAL;
 	}
+
 	rdev = fence->rdev;
-	if (radeon_fence_signaled(fence)) {
-		return 0;
-	}
-	timeout = rdev->fence_drv[fence->ring].last_timeout;
-retry:
-	/* save current sequence used to check for GPU lockup */
-	seq = rdev->fence_drv[fence->ring].last_seq;
-	trace_radeon_fence_wait_begin(rdev->ddev, seq);
-	if (intr) {
+	signaled = radeon_fence_signaled(fence);
+	while (!signaled) {
+		read_lock_irqsave(&rdev->fence_lock, irq_flags);
+		timeout = jiffies - RADEON_FENCE_JIFFIES_TIMEOUT;
+		if (time_after(rdev->fence_drv[fence->ring].last_activity, timeout)) {
+			/* the normal case, timeout is somewhere before last_activity */
+			timeout = rdev->fence_drv[fence->ring].last_activity - timeout;
+		} else {
+			/* either jiffies wrapped around, or no fence was signaled in the last 500ms
+			 * anyway we will just wait for the minimum amount and then check for a lockup */
+			timeout = 1;
+		}
+		/* save current sequence value used to check for GPU lockups */
+		seq = rdev->fence_drv[fence->ring].last_seq;
+		read_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+
+		trace_radeon_fence_wait_begin(rdev->ddev, seq);
 		radeon_irq_kms_sw_irq_get(rdev, fence->ring);
-		r = wait_event_interruptible_timeout(rdev->fence_drv[fence->ring].queue,
-				radeon_fence_signaled(fence), timeout);
+		if (intr) {
+			r = wait_event_interruptible_timeout(
+				rdev->fence_drv[fence->ring].queue,
+				(signaled = radeon_fence_signaled(fence)), timeout);
+		} else {
+			r = wait_event_timeout(
+				rdev->fence_drv[fence->ring].queue,
+				(signaled = radeon_fence_signaled(fence)), timeout);
+		}
 		radeon_irq_kms_sw_irq_put(rdev, fence->ring);
 		if (unlikely(r < 0)) {
 			return r;
 		}
-	} else {
-		radeon_irq_kms_sw_irq_get(rdev, fence->ring);
-		r = wait_event_timeout(rdev->fence_drv[fence->ring].queue,
-			 radeon_fence_signaled(fence), timeout);
-		radeon_irq_kms_sw_irq_put(rdev, fence->ring);
-	}
-	trace_radeon_fence_wait_end(rdev->ddev, seq);
-	if (unlikely(!radeon_fence_signaled(fence))) {
-		/* we were interrupted for some reason and fence isn't
-		 * isn't signaled yet, resume wait
-		 */
-		if (r) {
-			timeout = r;
-			goto retry;
+		trace_radeon_fence_wait_end(rdev->ddev, seq);
+
+		if (unlikely(!signaled)) {
+			/* we were interrupted for some reason and fence
+			 * isn't signaled yet, resume waiting */
+			if (r) {
+				continue;
+			}
+
+			write_lock_irqsave(&rdev->fence_lock, irq_flags);
+			/* check if sequence value has changed since last_activity */
+			if (seq != rdev->fence_drv[fence->ring].last_seq) {
+				write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+				continue;
+			}
+
+			/* change sequence value on all rings, so nobody else things there is a lockup */
+			for (i = 0; i < RADEON_NUM_RINGS; ++i)
+				rdev->fence_drv[i].last_seq -= 0x10000;
+
+			rdev->fence_drv[fence->ring].last_activity = jiffies;
+			write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+
+			if (radeon_ring_is_lockup(rdev, fence->ring, &rdev->ring[fence->ring])) {
+
+				/* good news we believe it's a lockup */
+				printk(KERN_WARNING "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n",
+				     fence->seq, seq);
+
+				/* mark the ring as not ready any more */
+				rdev->ring[fence->ring].ready = false;
+				return -EDEADLK;
+			}
 		}
-		/* don't protect read access to rdev->fence_drv[t].last_seq
-		 * if we experiencing a lockup the value doesn't change
-		 */
-		if (seq == rdev->fence_drv[fence->ring].last_seq &&
-		    radeon_gpu_is_lockup(rdev, &rdev->ring[fence->ring])) {
-			/* good news we believe it's a lockup */
-			printk(KERN_WARNING "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n",
-			     fence->seq, seq);
-			/* FIXME: what should we do ? marking everyone
-			 * as signaled for now
-			 */
-			rdev->gpu_lockup = true;
-			r = radeon_gpu_reset(rdev);
-			if (r)
-				return r;
-			radeon_fence_write(rdev, fence->seq, fence->ring);
-			rdev->gpu_lockup = false;
-		}
-		timeout = RADEON_FENCE_JIFFIES_TIMEOUT;
-		write_lock_irqsave(&rdev->fence_lock, irq_flags);
-		rdev->fence_drv[fence->ring].last_timeout = RADEON_FENCE_JIFFIES_TIMEOUT;
-		rdev->fence_drv[fence->ring].last_jiffies = jiffies;
-		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
-		goto retry;
 	}
 	return 0;
 }
@@ -289,13 +269,14 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 	struct radeon_fence *fence;
 	int r;
 
-	if (rdev->gpu_lockup) {
-		return 0;
-	}
 	write_lock_irqsave(&rdev->fence_lock, irq_flags);
+	if (!rdev->ring[ring].ready) {
+		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+		return -EBUSY;
+	}
 	if (list_empty(&rdev->fence_drv[ring].emitted)) {
 		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
-		return 0;
+		return -ENOENT;
 	}
 	fence = list_entry(rdev->fence_drv[ring].emitted.next,
 			   struct radeon_fence, list);
@@ -306,16 +287,17 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring)
 	return r;
 }
 
-int radeon_fence_wait_last(struct radeon_device *rdev, int ring)
+int radeon_fence_wait_empty(struct radeon_device *rdev, int ring)
 {
 	unsigned long irq_flags;
 	struct radeon_fence *fence;
 	int r;
 
-	if (rdev->gpu_lockup) {
-		return 0;
-	}
 	write_lock_irqsave(&rdev->fence_lock, irq_flags);
+	if (!rdev->ring[ring].ready) {
+		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
+		return -EBUSY;
+	}
 	if (list_empty(&rdev->fence_drv[ring].emitted)) {
 		write_unlock_irqrestore(&rdev->fence_lock, irq_flags);
 		return 0;
@@ -419,7 +401,6 @@ static void radeon_fence_driver_init_ring(struct radeon_device *rdev, int ring)
 	rdev->fence_drv[ring].cpu_addr = NULL;
 	rdev->fence_drv[ring].gpu_addr = 0;
 	atomic_set(&rdev->fence_drv[ring].seq, 0);
-	INIT_LIST_HEAD(&rdev->fence_drv[ring].created);
 	INIT_LIST_HEAD(&rdev->fence_drv[ring].emitted);
 	INIT_LIST_HEAD(&rdev->fence_drv[ring].signaled);
 	init_waitqueue_head(&rdev->fence_drv[ring].queue);
@@ -450,7 +431,7 @@ void radeon_fence_driver_fini(struct radeon_device *rdev)
 	for (ring = 0; ring < RADEON_NUM_RINGS; ring++) {
 		if (!rdev->fence_drv[ring].initialized)
 			continue;
-		radeon_fence_wait_last(rdev, ring);
+		radeon_fence_wait_empty(rdev, ring);
 		wake_up_all(&rdev->fence_drv[ring].queue);
 		write_lock_irqsave(&rdev->fence_lock, irq_flags);
 		radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);

@@ -34,7 +34,7 @@
 #include "atom.h"
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev);
-int radeon_debugfs_ring_init(struct radeon_device *rdev);
+int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring);
 
 u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 {
@@ -237,9 +237,6 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 	if (radeon_debugfs_ib_init(rdev)) {
 		DRM_ERROR("Failed to register debugfs file for IB !\n");
 	}
-	if (radeon_debugfs_ring_init(rdev)) {
-		DRM_ERROR("Failed to register debugfs file for rings !\n");
-	}
 	radeon_mutex_unlock(&rdev->ib_pool.mutex);
 	return 0;
 }
@@ -268,6 +265,36 @@ int radeon_ib_pool_start(struct radeon_device *rdev)
 int radeon_ib_pool_suspend(struct radeon_device *rdev)
 {
 	return radeon_sa_bo_manager_suspend(rdev, &rdev->ib_pool.sa_manager);
+}
+
+int radeon_ib_ring_tests(struct radeon_device *rdev)
+{
+	unsigned i;
+	int r;
+
+	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
+		struct radeon_ring *ring = &rdev->ring[i];
+
+		if (!ring->ready)
+			continue;
+
+		r = radeon_ib_test(rdev, i, ring);
+		if (r) {
+			ring->ready = false;
+
+			if (i == RADEON_RING_TYPE_GFX_INDEX) {
+				/* oh, oh, that's really bad */
+				DRM_ERROR("radeon: failed testing IB on GFX ring (%d).\n", r);
+		                rdev->accel_working = false;
+				return r;
+
+			} else {
+				/* still not good, but we can live with it */
+				DRM_ERROR("radeon: failed testing IB on ring %d (%d).\n", i, r);
+			}
+		}
+	}
+	return 0;
 }
 
 /*
@@ -319,7 +346,9 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
+		mutex_unlock(&ring->mutex);
 		r = radeon_fence_wait_next(rdev, radeon_ring_index(rdev, ring));
+		mutex_lock(&ring->mutex);
 		if (r)
 			return r;
 	}
@@ -369,6 +398,75 @@ void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *rin
 	mutex_unlock(&ring->mutex);
 }
 
+void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	int r;
+
+	mutex_lock(&ring->mutex);
+	radeon_ring_free_size(rdev, ring);
+	if (ring->rptr == ring->wptr) {
+		r = radeon_ring_alloc(rdev, ring, 1);
+		if (!r) {
+			radeon_ring_write(ring, ring->nop);
+			radeon_ring_commit(rdev, ring);
+		}
+	}
+	mutex_unlock(&ring->mutex);
+}
+
+void radeon_ring_lockup_update(struct radeon_ring *ring)
+{
+	ring->last_rptr = ring->rptr;
+	ring->last_activity = jiffies;
+}
+
+/**
+ * radeon_ring_test_lockup() - check if ring is lockedup by recording information
+ * @rdev:       radeon device structure
+ * @ring:       radeon_ring structure holding ring information
+ *
+ * We don't need to initialize the lockup tracking information as we will either
+ * have CP rptr to a different value of jiffies wrap around which will force
+ * initialization of the lockup tracking informations.
+ *
+ * A possible false positivie is if we get call after while and last_cp_rptr ==
+ * the current CP rptr, even if it's unlikely it might happen. To avoid this
+ * if the elapsed time since last call is bigger than 2 second than we return
+ * false and update the tracking information. Due to this the caller must call
+ * radeon_ring_test_lockup several time in less than 2sec for lockup to be reported
+ * the fencing code should be cautious about that.
+ *
+ * Caller should write to the ring to force CP to do something so we don't get
+ * false positive when CP is just gived nothing to do.
+ *
+ **/
+bool radeon_ring_test_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	unsigned long cjiffies, elapsed;
+	uint32_t rptr;
+
+	cjiffies = jiffies;
+	if (!time_after(cjiffies, ring->last_activity)) {
+		/* likely a wrap around */
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	rptr = RREG32(ring->rptr_reg);
+	ring->rptr = (rptr & ring->ptr_reg_mask) >> ring->ptr_reg_shift;
+	if (ring->rptr != ring->last_rptr) {
+		/* CP is still working no lockup */
+		radeon_ring_lockup_update(ring);
+		return false;
+	}
+	elapsed = jiffies_to_msecs(cjiffies - ring->last_activity);
+	if (radeon_lockup_timeout && elapsed >= radeon_lockup_timeout) {
+		dev_err(rdev->dev, "GPU lockup CP stall for more than %lumsec\n", elapsed);
+		return true;
+	}
+	/* give a chance to the GPU ... */
+	return false;
+}
+
 int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsigned ring_size,
 		     unsigned rptr_offs, unsigned rptr_reg, unsigned wptr_reg,
 		     u32 ptr_reg_shift, u32 ptr_reg_mask, u32 nop)
@@ -411,6 +509,9 @@ int radeon_ring_init(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 	}
 	ring->ptr_mask = (ring->ring_size / 4) - 1;
 	ring->ring_free_dw = ring->ring_size / 4;
+	if (radeon_debugfs_ring_init(rdev, ring)) {
+		DRM_ERROR("Failed to register debugfs file for rings !\n");
+	}
 	return 0;
 }
 
@@ -501,17 +602,24 @@ static char radeon_debugfs_ib_names[RADEON_IB_POOL_SIZE][32];
 static unsigned radeon_debugfs_ib_idx[RADEON_IB_POOL_SIZE];
 #endif
 
-int radeon_debugfs_ring_init(struct radeon_device *rdev)
+int radeon_debugfs_ring_init(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
-	if (rdev->family >= CHIP_CAYMAN)
-		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list,
-						ARRAY_SIZE(radeon_debugfs_ring_info_list));
-	else
-		return radeon_debugfs_add_files(rdev, radeon_debugfs_ring_info_list, 1);
-#else
-	return 0;
+	unsigned i;
+	for (i = 0; i < ARRAY_SIZE(radeon_debugfs_ring_info_list); ++i) {
+		struct drm_info_list *info = &radeon_debugfs_ring_info_list[i];
+		int ridx = *(int*)radeon_debugfs_ring_info_list[i].data;
+		unsigned r;
+
+		if (&rdev->ring[ridx] != ring)
+			continue;
+
+		r = radeon_debugfs_add_files(rdev, info, 1);
+		if (r)
+			return r;
+	}
 #endif
+	return 0;
 }
 
 int radeon_debugfs_ib_init(struct radeon_device *rdev)

@@ -2217,8 +2217,6 @@ bool si_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	u32 srbm_status;
 	u32 grbm_status, grbm_status2;
 	u32 grbm_status_se0, grbm_status_se1;
-	struct r100_gpu_lockup *lockup = &rdev->config.si.lockup;
-	int r;
 
 	srbm_status = RREG32(SRBM_STATUS);
 	grbm_status = RREG32(GRBM_STATUS);
@@ -2226,20 +2224,12 @@ bool si_gpu_is_lockup(struct radeon_device *rdev, struct radeon_ring *ring)
 	grbm_status_se0 = RREG32(GRBM_STATUS_SE0);
 	grbm_status_se1 = RREG32(GRBM_STATUS_SE1);
 	if (!(grbm_status & GUI_ACTIVE)) {
-		r100_gpu_lockup_update(lockup, ring);
+		radeon_ring_lockup_update(ring);
 		return false;
 	}
 	/* force CP activities */
-	r = radeon_ring_lock(rdev, ring, 2);
-	if (!r) {
-		/* PACKET2 NOP */
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_write(ring, 0x80000000);
-		radeon_ring_unlock_commit(rdev, ring);
-	}
-	/* XXX deal with CP0,1,2 */
-	ring->rptr = RREG32(ring->rptr_reg);
-	return r100_gpu_cp_is_lockup(rdev, lockup, ring);
+	radeon_ring_force_activity(rdev, ring);
+	return radeon_ring_test_lockup(rdev, ring);
 }
 
 static int si_gpu_soft_reset(struct radeon_device *rdev)
@@ -2999,8 +2989,8 @@ int si_rlc_init(struct radeon_device *rdev)
 	}
 	r = radeon_bo_pin(rdev->rlc.save_restore_obj, RADEON_GEM_DOMAIN_VRAM,
 			  &rdev->rlc.save_restore_gpu_addr);
+	radeon_bo_unreserve(rdev->rlc.save_restore_obj);
 	if (r) {
-		radeon_bo_unreserve(rdev->rlc.save_restore_obj);
 		dev_warn(rdev->dev, "(%d) pin RLC sr bo failed\n", r);
 		si_rlc_fini(rdev);
 		return r;
@@ -3023,9 +3013,8 @@ int si_rlc_init(struct radeon_device *rdev)
 	}
 	r = radeon_bo_pin(rdev->rlc.clear_state_obj, RADEON_GEM_DOMAIN_VRAM,
 			  &rdev->rlc.clear_state_gpu_addr);
+	radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 	if (r) {
-
-		radeon_bo_unreserve(rdev->rlc.clear_state_obj);
 		dev_warn(rdev->dev, "(%d) pin RLC c bo failed\n", r);
 		si_rlc_fini(rdev);
 		return r;

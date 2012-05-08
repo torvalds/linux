@@ -2104,7 +2104,7 @@ int drm_mode_addfb(struct drm_device *dev,
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, &r);
 	if (IS_ERR(fb)) {
-		DRM_ERROR("could not create framebuffer\n");
+		DRM_DEBUG_KMS("could not create framebuffer\n");
 		ret = PTR_ERR(fb);
 		goto out;
 	}
@@ -2193,7 +2193,7 @@ static int framebuffer_check(struct drm_mode_fb_cmd2 *r)
 
 	ret = format_check(r);
 	if (ret) {
-		DRM_ERROR("bad framebuffer format 0x%08x\n", r->pixel_format);
+		DRM_DEBUG_KMS("bad framebuffer format 0x%08x\n", r->pixel_format);
 		return ret;
 	}
 
@@ -2202,12 +2202,12 @@ static int framebuffer_check(struct drm_mode_fb_cmd2 *r)
 	num_planes = drm_format_num_planes(r->pixel_format);
 
 	if (r->width == 0 || r->width % hsub) {
-		DRM_ERROR("bad framebuffer width %u\n", r->height);
+		DRM_DEBUG_KMS("bad framebuffer width %u\n", r->height);
 		return -EINVAL;
 	}
 
 	if (r->height == 0 || r->height % vsub) {
-		DRM_ERROR("bad framebuffer height %u\n", r->height);
+		DRM_DEBUG_KMS("bad framebuffer height %u\n", r->height);
 		return -EINVAL;
 	}
 
@@ -2215,12 +2215,12 @@ static int framebuffer_check(struct drm_mode_fb_cmd2 *r)
 		unsigned int width = r->width / (i != 0 ? hsub : 1);
 
 		if (!r->handles[i]) {
-			DRM_ERROR("no buffer object handle for plane %d\n", i);
+			DRM_DEBUG_KMS("no buffer object handle for plane %d\n", i);
 			return -EINVAL;
 		}
 
 		if (r->pitches[i] < drm_format_plane_cpp(r->pixel_format, i) * width) {
-			DRM_ERROR("bad pitch %u for plane %d\n", r->pitches[i], i);
+			DRM_DEBUG_KMS("bad pitch %u for plane %d\n", r->pitches[i], i);
 			return -EINVAL;
 		}
 	}
@@ -2257,12 +2257,12 @@ int drm_mode_addfb2(struct drm_device *dev,
 		return -EINVAL;
 
 	if ((config->min_width > r->width) || (r->width > config->max_width)) {
-		DRM_ERROR("bad framebuffer width %d, should be >= %d && <= %d\n",
+		DRM_DEBUG_KMS("bad framebuffer width %d, should be >= %d && <= %d\n",
 			  r->width, config->min_width, config->max_width);
 		return -EINVAL;
 	}
 	if ((config->min_height > r->height) || (r->height > config->max_height)) {
-		DRM_ERROR("bad framebuffer height %d, should be >= %d && <= %d\n",
+		DRM_DEBUG_KMS("bad framebuffer height %d, should be >= %d && <= %d\n",
 			  r->height, config->min_height, config->max_height);
 		return -EINVAL;
 	}
@@ -2275,7 +2275,7 @@ int drm_mode_addfb2(struct drm_device *dev,
 
 	fb = dev->mode_config.funcs->fb_create(dev, file_priv, r);
 	if (IS_ERR(fb)) {
-		DRM_ERROR("could not create framebuffer\n");
+		DRM_DEBUG_KMS("could not create framebuffer\n");
 		ret = PTR_ERR(fb);
 		goto out;
 	}
@@ -3376,10 +3376,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 	ret = crtc->funcs->page_flip(crtc, fb, e);
 	if (ret) {
-		spin_lock_irqsave(&dev->event_lock, flags);
-		file_priv->event_space += sizeof e->event;
-		spin_unlock_irqrestore(&dev->event_lock, flags);
-		kfree(e);
+		if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
+			spin_lock_irqsave(&dev->event_lock, flags);
+			file_priv->event_space += sizeof e->event;
+			spin_unlock_irqrestore(&dev->event_lock, flags);
+			kfree(e);
+		}
 	}
 
 out:
