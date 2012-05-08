@@ -56,7 +56,7 @@ extern int sb_prepare_remount_readonly(struct super_block *);
 
 extern void __init mnt_init(void);
 
-DECLARE_BRLOCK(vfsmount_lock);
+extern struct lglock vfsmount_lock;
 
 
 /*
