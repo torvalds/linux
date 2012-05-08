@@ -870,11 +870,13 @@ static int sh_mobile_ceu_set_bus_param(struct soc_camera_device *icd)
 
 	value |= common_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW ? 1 << 1 : 0;
 	value |= common_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW ? 1 << 0 : 0;
-	value |= pcdev->is_16bit ? 1 << 12 : 0;
 
-	/* CSI2 mode */
-	if (pcdev->pdata->csi2)
+	if (pcdev->pdata->csi2) /* CSI2 mode */
 		value |= 3 << 12;
+	else if (pcdev->is_16bit)
+		value |= 1 << 12;
+	else if (pcdev->pdata->flags & SH_CEU_FLAG_LOWER_8BIT)
+		value |= 2 << 12;
 
 	ceu_write(pcdev, CAMCR, value);
 
