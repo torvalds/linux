@@ -30,8 +30,11 @@ struct annotate_browser {
 	int		    nr_entries;
 	bool		    hide_src_code;
 	bool		    use_offset;
+	bool		    jump_arrows;
 	bool		    searching_backwards;
-	u8		    offset_width;
+	u8		    addr_width;
+	u8		    min_addr_width;
+	u8		    max_addr_width;
 	char		    search_bf[128];
 };
 
@@ -61,47 +64,46 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 	bool change_color = (!ab->hide_src_code &&
 			     (!current_entry || (self->use_navkeypressed &&
 					         !self->navkeypressed)));
-	int width = self->width;
+	int width = self->width, printed;
+	char bf[256];
 
-	if (dl->offset != -1) {
+	if (dl->offset != -1 && bdl->percent != 0.0) {
 		ui_browser__set_percent_color(self, bdl->percent, current_entry);
-		slsmg_printf(" %7.2f ", bdl->percent);
+		slsmg_printf("%6.2f ", bdl->percent);
 	} else {
 		ui_browser__set_percent_color(self, 0, current_entry);
-		slsmg_write_nstring(" ", 9);
+		slsmg_write_nstring(" ", 7);
 	}
 
-	ui_browser__write_graph(self, SLSMG_VLINE_CHAR);
 	SLsmg_write_char(' ');
 
 	/* The scroll bar isn't being used */
 	if (!self->navkeypressed)
 		width += 1;
 
-	if (dl->offset != -1 && change_color)
-		ui_browser__set_color(self, HE_COLORSET_CODE);
-
 	if (!*dl->line)
-		slsmg_write_nstring(" ", width - 10);
-	else if (dl->offset == -1)
-		slsmg_write_nstring(dl->line, width - 10);
-	else {
-		char bf[256];
+		slsmg_write_nstring(" ", width - 7);
+	else if (dl->offset == -1) {
+		printed = scnprintf(bf, sizeof(bf), "%*s  ",
+				    ab->addr_width, " ");
+		slsmg_write_nstring(bf, printed);
+		slsmg_write_nstring(dl->line, width - printed - 6);
+	} else {
 		u64 addr = dl->offset;
-		int printed, color = -1;
+		int color = -1;
 
 		if (!ab->use_offset)
 			addr += ab->start;
 
 		if (!ab->use_offset) {
-			printed = scnprintf(bf, sizeof(bf), "  %" PRIx64 ":", addr);
+			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);
 		} else {
 			if (bdl->jump_target) {
-				printed = scnprintf(bf, sizeof(bf), "  %*" PRIx64 ":",
-						    ab->offset_width, addr);
+				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
+						    ab->addr_width, addr);
 			} else {
-				printed = scnprintf(bf, sizeof(bf), "  %*s ",
-						    ab->offset_width, " ");
+				printed = scnprintf(bf, sizeof(bf), "%*s  ",
+						    ab->addr_width, " ");
 			}
 		}
 
@@ -117,12 +119,12 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 				ui_browser__write_graph(self, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
 				SLsmg_write_char(' ');
+			} else if (ins__is_call(dl->ins)) {
+				ui_browser__write_graph(self, SLSMG_RARROW_CHAR);
+				SLsmg_write_char(' ');
 			} else {
 				slsmg_write_nstring(" ", 2);
 			}
-
-			dl->ins->ops->scnprintf(dl->ins, bf, sizeof(bf), &dl->ops,
-						!ab->use_offset);
 		} else {
 			if (strcmp(dl->name, "retq")) {
 				slsmg_write_nstring(" ", 2);
@@ -130,68 +132,56 @@ static void annotate_browser__write(struct ui_browser *self, void *entry, int ro
 				ui_browser__write_graph(self, SLSMG_LARROW_CHAR);
 				SLsmg_write_char(' ');
 			}
-
-			scnprintf(bf, sizeof(bf), "%-6.6s %s", dl->name, dl->ops.raw);
 		}
 
-		slsmg_write_nstring(bf, width - 12 - printed);
+		disasm_line__scnprintf(dl, bf, sizeof(bf), !ab->use_offset);
+		slsmg_write_nstring(bf, width - 10 - printed);
 	}
 
 	if (current_entry)
 		ab->selection = dl;
 }
 
-static void annotate_browser__draw_current_loop(struct ui_browser *browser)
+static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 {
 	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
-	struct map_symbol *ms = browser->priv;
-	struct symbol *sym = ms->sym;
-	struct annotation *notes = symbol__annotation(sym);
-	struct disasm_line *cursor = ab->selection, *pos = cursor, *target;
-	struct browser_disasm_line *bcursor = disasm_line__browser(cursor),
-				   *btarget, *bpos;
-	unsigned int from, to, start_width = 2;
+	struct disasm_line *cursor = ab->selection, *target;
+	struct browser_disasm_line *btarget, *bcursor;
+	unsigned int from, to;
 
-	list_for_each_entry_from(pos, &notes->src->source, node) {
-		if (!pos->ins || !ins__is_jump(pos->ins) ||
-		    !disasm_line__has_offset(pos))
-			continue;
+	if (!cursor->ins || !ins__is_jump(cursor->ins) ||
+	    !disasm_line__has_offset(cursor))
+		return;
 
-		target = ab->offsets[pos->ops.target.offset];
-		if (!target)
-			continue;
+	target = ab->offsets[cursor->ops.target.offset];
+	if (!target)
+		return;
 
-		btarget = disasm_line__browser(target);
-		if (btarget->idx <= bcursor->idx)
-			goto found;
-	}
+	bcursor = disasm_line__browser(cursor);
+	btarget = disasm_line__browser(target);
 
-	return;
-
-found:
-	bpos = disasm_line__browser(pos);
 	if (ab->hide_src_code) {
-		from = bpos->idx_asm;
+		from = bcursor->idx_asm;
 		to = btarget->idx_asm;
 	} else {
-		from = (u64)bpos->idx;
+		from = (u64)bcursor->idx;
 		to = (u64)btarget->idx;
 	}
 
 	ui_browser__set_color(browser, HE_COLORSET_CODE);
-
-	if (!bpos->jump_target)
-		start_width += ab->offset_width + 1;
-
-	__ui_browser__line_arrow_up(browser, 10, from, to, start_width);
+	__ui_browser__line_arrow(browser, 9 + ab->addr_width, from, to);
 }
 
 static unsigned int annotate_browser__refresh(struct ui_browser *browser)
 {
+	struct annotate_browser *ab = container_of(browser, struct annotate_browser, b);
 	int ret = ui_browser__list_head_refresh(browser);
 
-	annotate_browser__draw_current_loop(browser);
+	if (ab->jump_arrows)
+		annotate_browser__draw_current_jump(browser);
 
+	ui_browser__set_color(browser, HE_COLORSET_NORMAL);
+	__ui_browser__vline(browser, 7, 0, browser->height - 1);
 	return ret;
 }
 
@@ -624,6 +614,13 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 		case 'O':
 		case 'o':
 			self->use_offset = !self->use_offset;
+			if (self->use_offset)
+				self->addr_width = self->min_addr_width;
+			else
+				self->addr_width = self->max_addr_width;
+			continue;
+		case 'j':
+			self->jump_arrows = !self->jump_arrows;
 			continue;
 		case '/':
 			if (annotate_browser__search(self, delay_secs)) {
@@ -736,6 +733,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 			.use_navkeypressed = true,
 		},
 		.use_offset = true,
+		.jump_arrows = true,
 	};
 	int ret = -1;
 
@@ -786,7 +784,8 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
 
 	annotate_browser__mark_jump_targets(&browser, size);
 
-	browser.offset_width = hex_width(size);
+	browser.addr_width = browser.min_addr_width = hex_width(size);
+	browser.max_addr_width = hex_width(sym->end);
 	browser.b.nr_entries = browser.nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */

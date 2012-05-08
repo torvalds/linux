@@ -18,6 +18,21 @@
 
 const char 	*disassembler_style;
 
+static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
+			      struct ins_operands *ops)
+{
+	return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
+}
+
+int ins__scnprintf(struct ins *ins, char *bf, size_t size,
+		  struct ins_operands *ops)
+{
+	if (ins->ops->scnprintf)
+		return ins->ops->scnprintf(ins, bf, size, ops);
+
+	return ins__raw_scnprintf(ins, bf, size, ops);
+}
+
 static int call__parse(struct ins_operands *ops)
 {
 	char *endptr, *tok, *name;
@@ -50,11 +65,8 @@ indirect_call:
 }
 
 static int call__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, bool addrs)
+			   struct ins_operands *ops)
 {
-	if (addrs)
-		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
-
 	if (ops->target.name)
 		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target.name);
 
@@ -86,11 +98,8 @@ static int jump__parse(struct ins_operands *ops)
 }
 
 static int jump__scnprintf(struct ins *ins, char *bf, size_t size,
-			   struct ins_operands *ops, bool addrs)
+			   struct ins_operands *ops)
 {
-	if (addrs)
-		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->raw);
-
 	return scnprintf(bf, size, "%-6.6s %" PRIx64, ins->name, ops->target.offset);
 }
 
@@ -103,6 +112,16 @@ bool ins__is_jump(const struct ins *ins)
 {
 	return ins->ops == &jump_ops;
 }
+
+static int nop__scnprintf(struct ins *ins __used, char *bf, size_t size,
+			  struct ins_operands *ops __used)
+{
+	return scnprintf(bf, size, "%-6.6s", "nop");
+}
+
+static struct ins_ops nop_ops = {
+	.scnprintf = nop__scnprintf,
+};
 
 /*
  * Must be sorted by name!
@@ -145,6 +164,9 @@ static struct ins instructions[] = {
 	{ .name = "jrcxz", .ops  = &jump_ops, },
 	{ .name = "js",	   .ops  = &jump_ops, },
 	{ .name = "jz",	   .ops  = &jump_ops, },
+	{ .name = "nop",   .ops  = &nop_ops, },
+	{ .name = "nopl",  .ops  = &nop_ops, },
+	{ .name = "nopw",  .ops  = &nop_ops, },
 };
 
 static int ins__cmp(const void *name, const void *insp)
@@ -294,6 +316,14 @@ void disasm_line__free(struct disasm_line *dl)
 	free(dl->name);
 	free(dl->ops.target.name);
 	free(dl);
+}
+
+int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw)
+{
+	if (raw || !dl->ins)
+		return scnprintf(bf, size, "%-6.6s %s", dl->name, dl->ops.raw);
+
+	return ins__scnprintf(dl->ins, bf, size, &dl->ops);
 }
 
 static void disasm__add(struct list_head *head, struct disasm_line *line)
