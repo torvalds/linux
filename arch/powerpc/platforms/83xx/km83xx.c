@@ -70,7 +70,7 @@ static void __init mpc83xx_km_setup_arch(void)
 		for_each_node_by_name(np, "spi")
 			par_io_of_config(np);
 
-		for (np = NULL; (np = of_find_node_by_name(np, "ucc")) != NULL;)
+		for_each_node_by_name(np, "ucc")
 			par_io_of_config(np);
 	}
 
