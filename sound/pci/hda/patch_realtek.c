@@ -5381,6 +5381,8 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x1025, 0x0142, "Acer Aspire 7730G",
 		      ALC882_FIXUP_ACER_ASPIRE_4930G),
 	SND_PCI_QUIRK(0x1025, 0x0155, "Packard-Bell M5120", ALC882_FIXUP_PB_M5210),
+	SND_PCI_QUIRK(0x1025, 0x021e, "Acer Aspire 5739G",
+		      ALC882_FIXUP_ACER_ASPIRE_4930G),
 	SND_PCI_QUIRK(0x1025, 0x0259, "Acer Aspire 5935", ALC889_FIXUP_DAC_ROUTE),
 	SND_PCI_QUIRK(0x1025, 0x026b, "Acer Aspire 8940G", ALC882_FIXUP_ACER_ASPIRE_8930G),
 	SND_PCI_QUIRK(0x1025, 0x0296, "Acer Aspire 7736z", ALC882_FIXUP_ACER_ASPIRE_7736),
@@ -5414,6 +5416,7 @@ static const struct snd_pci_quirk alc882_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x106b, 0x4a00, "Macbook 5,2", ALC889_FIXUP_IMAC91_VREF),
 
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC882_FIXUP_EAPD),
+	SND_PCI_QUIRK(0x1462, 0x7350, "MSI-7350", ALC889_FIXUP_CD),
 	SND_PCI_QUIRK_VENDOR(0x1462, "MSI", ALC882_FIXUP_GPIO3),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte EP45-DS3", ALC889_FIXUP_CD),
 	SND_PCI_QUIRK(0x147b, 0x107a, "Abit AW9D-MAX", ALC882_FIXUP_ABIT_AW9D_MAX),
@@ -5614,12 +5617,12 @@ static int patch_alc262(struct hda_codec *codec)
 	snd_hda_codec_write(codec, 0x1a, 0, AC_VERB_SET_PROC_COEF, tmp | 0x80);
 	}
 #endif
-	alc_auto_parse_customize_define(codec);
-
 	alc_fix_pll_init(codec, 0x20, 0x0a, 10);
 
 	alc_pick_fixup(codec, NULL, alc262_fixup_tbl, alc262_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc262_parse_auto_config(codec);
@@ -6083,6 +6086,7 @@ static const struct alc_fixup alc269_fixups[] = {
 
 static const struct snd_pci_quirk alc269_fixup_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x1586, "HP", ALC269_FIXUP_MIC2_MUTE_LED),
+	SND_PCI_QUIRK(0x1043, 0x1427, "Asus Zenbook UX31E", ALC269VB_FIXUP_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x1a13, "Asus G73Jw", ALC269_FIXUP_ASUS_G73JW),
 	SND_PCI_QUIRK(0x1043, 0x16e3, "ASUS UX50", ALC269_FIXUP_STEREO_DMIC),
 	SND_PCI_QUIRK(0x1043, 0x831a, "ASUS P901", ALC269_FIXUP_STEREO_DMIC),
@@ -6222,8 +6226,6 @@ static int patch_alc269(struct hda_codec *codec)
 
 	spec->mixer_nid = 0x0b;
 
-	alc_auto_parse_customize_define(codec);
-
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0)
 		goto error;
@@ -6255,6 +6257,8 @@ static int patch_alc269(struct hda_codec *codec)
 	alc_pick_fixup(codec, alc269_fixup_models,
 		       alc269_fixup_tbl, alc269_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
 
 	/* automatic parse from the BIOS config */
 	err = alc269_parse_auto_config(codec);
@@ -6831,8 +6835,6 @@ static int patch_alc662(struct hda_codec *codec)
 	/* handle multiple HPs as is */
 	spec->parse_flags = HDA_PINCFG_NO_HP_FIXUP;
 
-	alc_auto_parse_customize_define(codec);
-
 	alc_fix_pll_init(codec, 0x20, 0x04, 15);
 
 	err = alc_codec_rename_from_preset(codec);
@@ -6849,6 +6851,9 @@ static int patch_alc662(struct hda_codec *codec)
 	alc_pick_fixup(codec, alc662_fixup_models,
 		       alc662_fixup_tbl, alc662_fixups);
 	alc_apply_fixup(codec, ALC_FIXUP_ACT_PRE_PROBE);
+
+	alc_auto_parse_customize_define(codec);
+
 	/* automatic parse from the BIOS config */
 	err = alc662_parse_auto_config(codec);
 	if (err < 0)
