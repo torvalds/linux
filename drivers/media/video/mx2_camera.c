@@ -22,6 +22,7 @@
 #include <linux/gcd.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/math64.h>
 #include <linux/mm.h>
 #include <linux/moduleparam.h>
 #include <linux/time.h>
@@ -1400,8 +1401,8 @@ static int mx2_camera_try_fmt(struct soc_camera_device *icd,
 		/* Check against the CSIRXCNT limit */
 		if (pix->sizeimage > 4 * 0x3ffff) {
 			/* Adjust geometry, preserve aspect ratio */
-			unsigned int new_height = int_sqrt(4 * 0x3ffff *
-					pix->height / pix->bytesperline);
+			unsigned int new_height = int_sqrt(div_u64(0x3ffffULL *
+					4 * pix->height, pix->bytesperline));
 			pix->width = new_height * pix->width / pix->height;
 			pix->height = new_height;
 			pix->bytesperline = soc_mbus_bytes_per_line(pix->width,
