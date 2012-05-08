@@ -518,7 +518,7 @@ enum conf_tx_ac {
 	CONF_TX_AC_VI = 2,         /* video */
 	CONF_TX_AC_VO = 3,         /* voice */
 	CONF_TX_AC_CTS2SELF = 4,   /* fictitious AC, follows AC_VO */
-	CONF_TX_AC_ANY_TID = 0x1f
+	CONF_TX_AC_ANY_TID = 0xff
 };
 
 struct conf_tx_ac_category {
