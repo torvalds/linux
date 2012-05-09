@@ -258,6 +258,49 @@ void __init omap1_camera_init(void *info)
 
 static inline void omap_init_sti(void) {}
 
+/* Numbering for the SPI-capable controllers when used for SPI:
+ * spi		= 1
+ * uwire	= 2
+ * mmc1..2	= 3..4
+ * mcbsp1..3	= 5..7
+ */
+
+#if defined(CONFIG_SPI_OMAP_UWIRE) || defined(CONFIG_SPI_OMAP_UWIRE_MODULE)
+
+#define	OMAP_UWIRE_BASE		0xfffb3000
+
+static struct resource uwire_resources[] = {
+	{
+		.start		= OMAP_UWIRE_BASE,
+		.end		= OMAP_UWIRE_BASE + 0x20,
+		.flags		= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device omap_uwire_device = {
+	.name	   = "omap_uwire",
+	.id	     = -1,
+	.num_resources	= ARRAY_SIZE(uwire_resources),
+	.resource	= uwire_resources,
+};
+
+static void omap_init_uwire(void)
+{
+	/* FIXME define and use a boot tag; not all boards will be hooking
+	 * up devices to the microwire controller, and multi-board configs
+	 * mean that CONFIG_SPI_OMAP_UWIRE may be configured anyway...
+	 */
+
+	/* board-specific code must configure chipselects (only a few
+	 * are normally used) and SCLK/SDI/SDO (each has two choices).
+	 */
+	(void) platform_device_register(&omap_uwire_device);
+}
+#else
+static inline void omap_init_uwire(void) {}
+#endif
+
+
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
  * on-chip peripherals accessible on this board (except for few like USB):
@@ -295,6 +338,7 @@ static int __init omap1_init_devices(void)
 	omap_init_rtc();
 	omap_init_spi100k();
 	omap_init_sti();
+	omap_init_uwire();
 
 	return 0;
 }
