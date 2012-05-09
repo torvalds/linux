@@ -434,34 +434,13 @@ int radeon_mode_dumb_destroy(struct drm_file *file_priv,
 /*
  * Semaphores.
  */
-struct radeon_ring;
-
-#define	RADEON_SEMAPHORE_BO_SIZE	256
-
-struct radeon_semaphore_driver {
-	rwlock_t			lock;
-	struct list_head		bo;
-};
-
-struct radeon_semaphore_bo;
-
 /* everything here is constant */
 struct radeon_semaphore {
-	struct list_head		list;
+	struct radeon_sa_bo		*sa_bo;
+	signed				waiters;
 	uint64_t			gpu_addr;
-	uint32_t			*cpu_ptr;
-	struct radeon_semaphore_bo	*bo;
 };
 
-struct radeon_semaphore_bo {
-	struct list_head		list;
-	struct radeon_ib		*ib;
-	struct list_head		free;
-	struct radeon_semaphore		semaphores[RADEON_SEMAPHORE_BO_SIZE/8];
-	unsigned			nused;
-};
-
-void radeon_semaphore_driver_fini(struct radeon_device *rdev);
 int radeon_semaphore_create(struct radeon_device *rdev,
 			    struct radeon_semaphore **semaphore);
 void radeon_semaphore_emit_signal(struct radeon_device *rdev, int ring,
@@ -473,7 +452,8 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				bool sync_to[RADEON_NUM_RINGS],
 				int dst_ring);
 void radeon_semaphore_free(struct radeon_device *rdev,
-			   struct radeon_semaphore *semaphore);
+			   struct radeon_semaphore *semaphore,
+			   struct radeon_fence *fence);
 
 /*
  * GART structures, functions & helpers
@@ -1540,7 +1520,6 @@ struct radeon_device {
 	struct radeon_mman		mman;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	wait_queue_head_t		fence_queue;
-	struct radeon_semaphore_driver	semaphore_drv;
 	struct mutex			ring_lock;
 	struct radeon_ring		ring[RADEON_NUM_RINGS];
 	struct radeon_ib_pool		ib_pool;
