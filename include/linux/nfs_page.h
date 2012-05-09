@@ -99,23 +99,13 @@ extern	void nfs_unlock_request(struct nfs_page *req);
 extern void nfs_unlock_request_dont_release(struct nfs_page *req);
 
 /*
- * Lock the page of an asynchronous request without getting a new reference
+ * Lock the page of an asynchronous request
  */
-static inline int
-nfs_lock_request_dontget(struct nfs_page *req)
-{
-	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
-}
-
 static inline int
 nfs_lock_request(struct nfs_page *req)
 {
-	if (test_and_set_bit(PG_BUSY, &req->wb_flags))
-		return 0;
-	kref_get(&req->wb_kref);
-	return 1;
+	return !test_and_set_bit(PG_BUSY, &req->wb_flags);
 }
-
 
 /**
  * nfs_list_add_request - Insert a request into a list

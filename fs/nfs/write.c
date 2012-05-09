@@ -260,10 +260,10 @@ static struct nfs_page *nfs_find_and_lock_request(struct page *page, bool nonblo
 		req = nfs_page_find_request_locked(page);
 		if (req == NULL)
 			break;
-		if (nfs_lock_request_dontget(req))
+		if (nfs_lock_request(req))
 			break;
 		/* Note: If we hold the page lock, as is the case in nfs_writepage,
-		 *	 then the call to nfs_lock_request_dontget() will always
+		 *	 then the call to nfs_lock_request() will always
 		 *	 succeed provided that someone hasn't already marked the
 		 *	 request as dirty (in which case we don't care).
 		 */
@@ -406,7 +406,7 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	/* Lock the request! */
-	nfs_lock_request_dontget(req);
+	nfs_lock_request(req);
 
 	spin_lock(&inode->i_lock);
 	if (!nfsi->npages && nfs_have_delegation(inode, FMODE_WRITE))
@@ -651,6 +651,7 @@ nfs_scan_commit_list(struct list_head *src, struct list_head *dst,
 	list_for_each_entry_safe(req, tmp, src, wb_list) {
 		if (!nfs_lock_request(req))
 			continue;
+		kref_get(&req->wb_kref);
 		if (cond_resched_lock(cinfo->lock))
 			list_safe_reset_next(req, tmp, wb_list);
 		nfs_request_remove_commit_list(req, cinfo);
@@ -741,7 +742,7 @@ static struct nfs_page *nfs_try_to_update_request(struct inode *inode,
 		    || end < req->wb_offset)
 			goto out_flushme;
 
-		if (nfs_lock_request_dontget(req))
+		if (nfs_lock_request(req))
 			break;
 
 		/* The request is locked, so wait and then retry */
@@ -1717,7 +1718,7 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 		req = nfs_page_find_request(page);
 		if (req == NULL)
 			break;
-		if (nfs_lock_request_dontget(req)) {
+		if (nfs_lock_request(req)) {
 			nfs_clear_request_commit(req);
 			nfs_inode_remove_request(req);
 			/*
