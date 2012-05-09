@@ -4490,6 +4490,12 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	hw->fc.send_xon = true;
 	hw->fc.disable_fc_autoneg = false;
 
+#ifdef CONFIG_PCI_IOV
+	/* assign number of SR-IOV VFs */
+	if (hw->mac.type != ixgbe_mac_82598EB)
+		adapter->num_vfs = (max_vfs > 63) ? 0 : max_vfs;
+
+#endif
 	/* enable itr by default in dynamic mode */
 	adapter->rx_itr_setting = 1;
 	adapter->tx_itr_setting = 1;
@@ -6942,26 +6948,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_fdb_dump		= ixgbe_ndo_fdb_dump,
 };
 
-static void __devinit ixgbe_probe_vf(struct ixgbe_adapter *adapter,
-				     const struct ixgbe_info *ii)
-{
-#ifdef CONFIG_PCI_IOV
-	struct ixgbe_hw *hw = &adapter->hw;
-
-	if (hw->mac.type == ixgbe_mac_82598EB)
-		return;
-
-	/* The 82599 supports up to 64 VFs per physical function
-	 * but this implementation limits allocation to 63 so that
-	 * basic networking resources are still available to the
-	 * physical function.  If the user requests greater thn
-	 * 63 VFs then it is an error - reset to default of zero.
-	 */
-	adapter->num_vfs = (max_vfs > 63) ? 0 : max_vfs;
-	ixgbe_enable_sriov(adapter, ii);
-#endif /* CONFIG_PCI_IOV */
-}
-
 /**
  * ixgbe_wol_supported - Check whether device supports WoL
  * @hw: hw specific details
@@ -7206,8 +7192,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_sw_init;
 	}
 
-	ixgbe_probe_vf(adapter, ii);
+#ifdef CONFIG_PCI_IOV
+	ixgbe_enable_sriov(adapter, ii);
 
+#endif
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
 			   NETIF_F_IPV6_CSUM |
@@ -7411,8 +7399,7 @@ err_register:
 	ixgbe_release_hw_control(adapter);
 	ixgbe_clear_interrupt_scheme(adapter);
 err_sw_init:
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
-		ixgbe_disable_sriov(adapter);
+	ixgbe_disable_sriov(adapter);
 	adapter->flags2 &= ~IXGBE_FLAG2_SEARCH_FOR_SFP;
 	iounmap(hw->hw_addr);
 err_ioremap:

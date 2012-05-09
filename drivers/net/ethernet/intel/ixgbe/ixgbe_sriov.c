@@ -82,7 +82,6 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 			 const struct ixgbe_info *ii)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	int err = 0;
 	int num_vf_macvlans, i;
 	struct vf_macvlans *mv_list;
 	int pre_existing_vfs = 0;
@@ -106,10 +105,21 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 			 "enabled for this device - Please reload all "
 			 "VF drivers to avoid spoofed packet errors\n");
 	} else {
+		int err;
+		/*
+		 * The 82599 supports up to 64 VFs per physical function
+		 * but this implementation limits allocation to 63 so that
+		 * basic networking resources are still available to the
+		 * physical function.  If the user requests greater thn
+		 * 63 VFs then it is an error - reset to default of zero.
+		 */
+		adapter->num_vfs = min_t(unsigned int, adapter->num_vfs, 63);
+
 		err = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
 		if (err) {
 			e_err(probe, "Failed to enable PCI sriov: %d\n", err);
-			goto err_novfs;
+			adapter->num_vfs = 0;
+			return;
 		}
 	}
 
@@ -193,11 +203,7 @@ void ixgbe_enable_sriov(struct ixgbe_adapter *adapter,
 	/* Oh oh */
 	e_err(probe, "Unable to allocate memory for VF Data Storage - "
 	      "SRIOV disabled\n");
-	pci_disable_sriov(adapter->pdev);
-
-err_novfs:
-	adapter->flags &= ~IXGBE_FLAG_SRIOV_ENABLED;
-	adapter->num_vfs = 0;
+	ixgbe_disable_sriov(adapter);
 }
 #endif /* #ifdef CONFIG_PCI_IOV */
 
@@ -218,6 +224,10 @@ void ixgbe_disable_sriov(struct ixgbe_adapter *adapter)
 	/* free macvlan list */
 	kfree(adapter->mv_list);
 	adapter->mv_list = NULL;
+
+	/* if SR-IOV is already disabled then there is nothing to do */
+	if (!(adapter->flags & IXGBE_FLAG_SRIOV_ENABLED))
+		return;
 
 #ifdef CONFIG_PCI_IOV
 	/* disable iov and allow time for transactions to clear */

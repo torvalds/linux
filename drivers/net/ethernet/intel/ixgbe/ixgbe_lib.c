@@ -1061,8 +1061,7 @@ static void ixgbe_set_interrupt_capability(struct ixgbe_adapter *adapter)
 	}
 	adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 	adapter->atr_sample_rate = 0;
-	if (adapter->flags & IXGBE_FLAG_SRIOV_ENABLED)
-		ixgbe_disable_sriov(adapter);
+	ixgbe_disable_sriov(adapter);
 
 	adapter->ring_feature[RING_F_RSS].limit = 1;
 	ixgbe_set_num_queues(adapter);
