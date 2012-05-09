@@ -148,6 +148,12 @@ static int bcm4329_rfkill_suspend(struct platform_device *pdev, pm_message_t sta
 	gpio_request(UART_RTS, "uart_rts");
 	gpio_set_value(UART_RTS, GPIO_HIGH);
 
+#ifdef CONFIG_RFKILL_RESET
+    extern void rfkill_set_block(struct rfkill *rfkill, bool blocked);
+    printk("rfkill_set_block\n");
+    rfkill_set_block(gBtCtrl.bt_rfk, true);
+#endif
+
     return 0;
 }
 
