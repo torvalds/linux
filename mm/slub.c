@@ -1561,7 +1561,6 @@ static void *get_partial_node(struct kmem_cache *s,
 
 		if (!object) {
 			c->page = page;
-			c->node = page_to_nid(page);
 			stat(s, ALLOC_FROM_PARTIAL);
 			object = t;
 			available =  page->objects - page->inuse;
@@ -2057,7 +2056,7 @@ static void flush_all(struct kmem_cache *s)
 static inline int node_match(struct kmem_cache_cpu *c, int node)
 {
 #ifdef CONFIG_NUMA
-	if (node != NUMA_NO_NODE && c->node != node)
+	if (node != NUMA_NO_NODE && page_to_nid(c->page) != node)
 		return 0;
 #endif
 	return 1;
@@ -2152,7 +2151,6 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
 		page->freelist = NULL;
 
 		stat(s, ALLOC_SLAB);
-		c->node = page_to_nid(page);
 		c->page = page;
 		*pc = c;
 	} else
@@ -2269,7 +2267,6 @@ new_slab:
 	if (c->partial) {
 		c->page = c->partial;
 		c->partial = c->page->next;
-		c->node = page_to_nid(c->page);
 		stat(s, CPU_PARTIAL_ALLOC);
 		c->freelist = NULL;
 		goto redo;
@@ -2294,7 +2291,6 @@ new_slab:
 
 	c->freelist = get_freepointer(s, freelist);
 	deactivate_slab(s, c);
-	c->node = NUMA_NO_NODE;
 	local_irq_restore(flags);
 	return freelist;
 }
@@ -4507,30 +4503,31 @@ static ssize_t show_slab_objects(struct kmem_cache *s,
 
 		for_each_possible_cpu(cpu) {
 			struct kmem_cache_cpu *c = per_cpu_ptr(s->cpu_slab, cpu);
-			int node = ACCESS_ONCE(c->node);
+			int node;
 			struct page *page;
 
-			if (node < 0)
-				continue;
 			page = ACCESS_ONCE(c->page);
-			if (page) {
-				if (flags & SO_TOTAL)
-					x = page->objects;
-				else if (flags & SO_OBJECTS)
-					x = page->inuse;
-				else
-					x = 1;
+			if (!page)
+				continue;
 
-				total += x;
-				nodes[node] += x;
-			}
-			page = c->partial;
+			node = page_to_nid(page);
+			if (flags & SO_TOTAL)
+				x = page->objects;
+			else if (flags & SO_OBJECTS)
+				x = page->inuse;
+			else
+				x = 1;
 
+			total += x;
+			nodes[node] += x;
+
+			page = ACCESS_ONCE(c->partial);
 			if (page) {
 				x = page->pobjects;
 				total += x;
 				nodes[node] += x;
 			}
+
 			per_cpu[node]++;
 		}
 	}
