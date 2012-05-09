@@ -3559,6 +3559,37 @@ void intel_sanitize_pm(struct drm_device *dev)
 		dev_priv->display.sanitize_pm(dev);
 }
 
+/* Starting with Haswell, we have different power wells for
+ * different parts of the GPU. This attempts to enable them all.
+ */
+void intel_init_power_wells(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long power_wells[] = {
+		HSW_PWR_WELL_CTL1,
+		HSW_PWR_WELL_CTL2,
+		HSW_PWR_WELL_CTL4
+	};
+	int i;
+
+	if (!IS_HASWELL(dev))
+		return;
+
+	mutex_lock(&dev->struct_mutex);
+
+	for (i = 0; i < ARRAY_SIZE(power_wells); i++) {
+		int well = I915_READ(power_wells[i]);
+
+		if ((well & HSW_PWR_WELL_STATE) == 0) {
+			I915_WRITE(power_wells[i], well & HSW_PWR_WELL_ENABLE);
+			if (wait_for(I915_READ(power_wells[i] & HSW_PWR_WELL_STATE), 20))
+				DRM_ERROR("Error enabling power well %lx\n", power_wells[i]);
+		}
+	}
+
+	mutex_unlock(&dev->struct_mutex);
+}
+
 /* Set up chip specific power management-related functions */
 void intel_init_pm(struct drm_device *dev)
 {
@@ -3707,5 +3738,10 @@ void intel_init_pm(struct drm_device *dev)
 		else
 			dev_priv->display.get_fifo_size = i830_get_fifo_size;
 	}
+
+	/* We attempt to init the necessary power wells early in the initialization
+	 * time, so the subsystems that expect power to be enabled can work.
+	 */
+	intel_init_power_wells(dev);
 }
 
