@@ -139,8 +139,6 @@ static void radeon_fence_destroy(struct kref *kref)
 
 	fence = container_of(kref, struct radeon_fence, kref);
 	fence->seq = RADEON_FENCE_NOTEMITED_SEQ;
-	if (fence->semaphore)
-		radeon_semaphore_free(fence->rdev, fence->semaphore, NULL);
 	kfree(fence);
 }
 
@@ -156,7 +154,6 @@ int radeon_fence_create(struct radeon_device *rdev,
 	(*fence)->rdev = rdev;
 	(*fence)->seq = RADEON_FENCE_NOTEMITED_SEQ;
 	(*fence)->ring = ring;
-	(*fence)->semaphore = NULL;
 	return 0;
 }
 

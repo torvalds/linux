@@ -272,7 +272,6 @@ struct radeon_fence {
 	uint64_t			seq;
 	/* RB, DMA, etc. */
 	unsigned			ring;
-	struct radeon_semaphore		*semaphore;
 };
 
 int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring);
@@ -624,13 +623,14 @@ void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
  */
 
 struct radeon_ib {
-	struct radeon_sa_bo	*sa_bo;
-	uint32_t		length_dw;
-	uint64_t		gpu_addr;
-	uint32_t		*ptr;
-	struct radeon_fence	*fence;
-	unsigned		vm_id;
-	bool			is_const_ib;
+	struct radeon_sa_bo		*sa_bo;
+	uint32_t			length_dw;
+	uint64_t			gpu_addr;
+	uint32_t			*ptr;
+	struct radeon_fence		*fence;
+	unsigned			vm_id;
+	bool				is_const_ib;
+	struct radeon_semaphore		*semaphore;
 };
 
 struct radeon_ring {

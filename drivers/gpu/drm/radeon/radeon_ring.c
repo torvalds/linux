@@ -93,6 +93,7 @@ int radeon_ib_get(struct radeon_device *rdev, int ring,
 	(*ib)->gpu_addr = radeon_sa_bo_gpu_addr((*ib)->sa_bo);
 	(*ib)->vm_id = 0;
 	(*ib)->is_const_ib = false;
+	(*ib)->semaphore = NULL;
 
 	return 0;
 }
@@ -105,6 +106,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 	if (tmp == NULL) {
 		return;
 	}
+	radeon_semaphore_free(rdev, tmp->semaphore, tmp->fence);
 	radeon_sa_bo_free(rdev, &tmp->sa_bo, tmp->fence);
 	radeon_fence_unref(&tmp->fence);
 	kfree(tmp);

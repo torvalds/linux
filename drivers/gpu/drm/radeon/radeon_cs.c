@@ -138,12 +138,12 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 		return 0;
 	}
 
-	r = radeon_semaphore_create(p->rdev, &p->ib->fence->semaphore);
+	r = radeon_semaphore_create(p->rdev, &p->ib->semaphore);
 	if (r) {
 		return r;
 	}
 
-	return radeon_semaphore_sync_rings(p->rdev, p->ib->fence->semaphore,
+	return radeon_semaphore_sync_rings(p->rdev, p->ib->semaphore,
 					   sync_to_ring, p->ring);
 }
 
