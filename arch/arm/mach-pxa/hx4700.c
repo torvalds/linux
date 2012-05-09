@@ -102,6 +102,10 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO44_BTUART_CTS,
 	GPIO45_BTUART_RTS_LPM_LOW,
 
+	/* STUART (IRDA) */
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+
 	/* PWM 1 (Backlight) */
 	GPIO17_PWM1_OUT,
 
@@ -125,7 +129,7 @@ static unsigned long hx4700_pin_config[] __initdata = {
 	GPIO88_GPIO,
 
 	/* HX4700 specific input GPIOs */
-	GPIO12_GPIO,	/* ASIC3_IRQ */
+	GPIO12_GPIO | WAKEUP_ON_EDGE_RISE,	/* ASIC3_IRQ */
 	GPIO13_GPIO,	/* W3220_IRQ */
 	GPIO14_GPIO,	/* nWLAN_IRQ */
 
@@ -227,7 +231,6 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOC0_LED0,		/* red */
 	ASIC3_GPIOC1_LED1,		/* green */
 	ASIC3_GPIOC2_LED2,		/* blue */
-	ASIC3_GPIOC4_CF_nCD,
 	ASIC3_GPIOC5_nCIOW,
 	ASIC3_GPIOC6_nCIOR,
 	ASIC3_GPIOC7_nPCE_1,
@@ -241,6 +244,7 @@ static u16 asic3_gpio_config[] = {
 	ASIC3_GPIOC15_nPIOR,
 
 	/* GPIOD: input GPIOs, CF */
+	ASIC3_GPIOD4_CF_nCD,
 	ASIC3_GPIOD11_nCIOIS16,
 	ASIC3_GPIOD12_nCWAIT,
 	ASIC3_GPIOD15_nPIOW,
@@ -291,6 +295,7 @@ static struct asic3_platform_data asic3_platform_data = {
 	.gpio_config_num = ARRAY_SIZE(asic3_gpio_config),
 	.irq_base        = IRQ_BOARD_START,
 	.gpio_base       = HX4700_ASIC3_GPIO_BASE,
+	.clock_rate      = 4000000,
 	.leds            = asic3_leds,
 };
 
@@ -859,6 +864,7 @@ static void __init hx4700_init(void)
 	int ret;
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(hx4700_pin_config));
+	gpio_set_wake(GPIO12_HX4700_ASIC3_IRQ, 1);
 	ret = gpio_request_array(ARRAY_AND_SIZE(global_gpios));
 	if (ret)
 		pr_err ("hx4700: Failed to request GPIOs.\n");
