@@ -123,7 +123,7 @@ static int __devinit twl6030_pwrbutton_probe(struct platform_device *pdev)
 
 	__set_bit(EV_KEY, pwr_button->input_dev->evbit);
 
-	pwr_button->report_key = KEY_END;
+	pwr_button->report_key = KEY_POWER;
 	pwr_button->dev = &pdev->dev;
 	pwr_button->input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	pwr_button->input_dev->keybit[BIT_WORD(pwr_button->report_key)] =
