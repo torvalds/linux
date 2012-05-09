@@ -81,16 +81,16 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 
 	.macro	HANDLE_SIE_INTERCEPT scratch
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
-	tm	__TI_flags+6(%r12),_TIF_SIE>>8
-	jz	.+42
-	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_SPP
-	jz	.+8
-	.insn	s,0xb2800000,BASED(.Lhost_id)	# set host id
+	tmhh	%r8,0x0001		# interrupting from user ?
+	jnz	.+42
 	lgr	\scratch,%r9
 	slg	\scratch,BASED(.Lsie_loop)
 	clg	\scratch,BASED(.Lsie_length)
-	jhe	.+10
+	jhe	.+22
 	lg	%r9,BASED(.Lsie_loop)
+	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_SPP
+	jz	.+8
+	.insn	s,0xb2800000,BASED(.Lhost_id)	# set host id
 #endif
 	.endm
 
