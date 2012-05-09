@@ -122,15 +122,15 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	int i, r;
 
 	for (i = 0; i < p->nrelocs; i++) {
+		struct radeon_fence *fence;
+
 		if (!p->relocs[i].robj || !p->relocs[i].robj->tbo.sync_obj)
 			continue;
 
-		if (!(p->relocs[i].flags & RADEON_RELOC_DONT_SYNC)) {
-			struct radeon_fence *fence = p->relocs[i].robj->tbo.sync_obj;
-			if (fence->ring != p->ring && !radeon_fence_signaled(fence)) {
-				sync_to_ring[fence->ring] = true;
-				need_sync = true;
-			}
+		fence = p->relocs[i].robj->tbo.sync_obj;
+		if (fence->ring != p->ring && !radeon_fence_signaled(fence)) {
+			sync_to_ring[fence->ring] = true;
+			need_sync = true;
 		}
 	}
 
