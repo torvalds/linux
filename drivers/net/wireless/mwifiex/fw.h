@@ -94,6 +94,9 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define CAL_SNR(RSSI, NF)		((s16)((s16)(RSSI)-(s16)(NF)))
 
 #define UAP_BSS_PARAMS_I			0
+#define UAP_CUSTOM_IE_I				1
+#define MWIFIEX_AUTO_IDX_MASK			0xffff
+#define MWIFIEX_DELETE_MASK			0x0000
 
 #define TLV_TYPE_UAP_SSID			0x0000
 
@@ -1297,6 +1300,20 @@ struct mwifiex_ie_types_rssi_threshold {
 struct host_cmd_ds_802_11_subsc_evt {
 	__le16 action;
 	__le16 events;
+} __packed;
+
+struct mwifiex_ie {
+	__le16 ie_index;
+	__le16 mgmt_subtype_mask;
+	__le16 ie_length;
+	u8 ie_buffer[IEEE_MAX_IE_SIZE];
+} __packed;
+
+#define MAX_MGMT_IE_INDEX	16
+struct mwifiex_ie_list {
+	__le16 type;
+	__le16 len;
+	struct mwifiex_ie ie_list[MAX_MGMT_IE_INDEX];
 } __packed;
 
 struct host_cmd_ds_command {

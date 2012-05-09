@@ -477,6 +477,7 @@ struct mwifiex_private {
 	s32 cqm_rssi_thold;
 	u32 cqm_rssi_hyst;
 	u8 subsc_evt_rssi_state;
+	struct mwifiex_ie mgmt_ie[MAX_MGMT_IE_INDEX];
 };
 
 enum mwifiex_ba_status {
@@ -680,6 +681,7 @@ struct mwifiex_adapter {
 	spinlock_t queue_lock;		/* lock for tx queues */
 	struct completion fw_load;
 	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
+	u16 max_mgmt_ie_index;
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);

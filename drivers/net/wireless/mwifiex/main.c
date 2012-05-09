@@ -640,6 +640,8 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	priv->current_key_index = 0;
 	priv->media_connected = false;
 	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
+	memset(priv->mgmt_ie, 0,
+	       sizeof(struct mwifiex_ie) * MAX_MGMT_IE_INDEX);
 	priv->num_tx_timeout = 0;
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 }

@@ -315,6 +315,26 @@ mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 	return 0;
 }
 
+/* This function parses custom IEs from IE list and prepares command buffer */
+static int mwifiex_uap_custom_ie_prepare(u8 *tlv, void *cmd_buf, u16 *ie_size)
+{
+	struct mwifiex_ie_list *ap_ie = cmd_buf;
+	struct host_cmd_tlv *tlv_ie = (struct host_cmd_tlv *)tlv;
+
+	if (!ap_ie || !ap_ie->len || !ap_ie->ie_list)
+		return -1;
+
+	*ie_size += le16_to_cpu(ap_ie->len) + sizeof(struct host_cmd_tlv);
+
+	tlv_ie->type = cpu_to_le16(TLV_TYPE_MGMT_IE);
+	tlv_ie->len = ap_ie->len;
+	tlv += sizeof(struct host_cmd_tlv);
+
+	memcpy(tlv, ap_ie->ie_list, le16_to_cpu(ap_ie->len));
+
+	return 0;
+}
+
 /* Parse AP config structure and prepare TLV based command structure
  * to be sent to FW for uAP configuration
  */
@@ -323,7 +343,7 @@ mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd, u16 cmd_action,
 			   u32 type, void *cmd_buf)
 {
 	u8 *tlv;
-	u16 cmd_size, param_size;
+	u16 cmd_size, param_size, ie_size;
 	struct host_cmd_ds_sys_config *sys_cfg;
 
 	cmd->command = cpu_to_le16(HostCmd_CMD_UAP_SYS_CONFIG);
@@ -338,6 +358,12 @@ mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd, u16 cmd_action,
 		if (mwifiex_uap_bss_param_prepare(tlv, cmd_buf, &param_size))
 			return -1;
 		cmd->size = cpu_to_le16(param_size);
+		break;
+	case UAP_CUSTOM_IE_I:
+		ie_size = cmd_size;
+		if (mwifiex_uap_custom_ie_prepare(tlv, cmd_buf, &ie_size))
+			return -1;
+		cmd->size = cpu_to_le16(ie_size);
 		break;
 	default:
 		return -1;
