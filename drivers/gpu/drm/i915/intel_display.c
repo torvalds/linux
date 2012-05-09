@@ -1299,6 +1299,69 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	POSTING_READ(reg);
 }
 
+/* SBI access */
+static void
+intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_READY) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to become ready\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(SBI_ADDR,
+			(reg << 16));
+	I915_WRITE(SBI_DATA,
+			value);
+	I915_WRITE(SBI_CTL_STAT,
+			SBI_BUSY |
+			SBI_CTL_OP_CRWR);
+
+	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_READY | SBI_RESPONSE_SUCCESS)) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to complete write transaction\n");
+		goto out_unlock;
+	}
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+}
+
+static u32
+intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg)
+{
+	unsigned long flags;
+	u32 value;
+
+	spin_lock_irqsave(&dev_priv->dpio_lock, flags);
+	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_READY) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to become ready\n");
+		goto out_unlock;
+	}
+
+	I915_WRITE(SBI_ADDR,
+			(reg << 16));
+	I915_WRITE(SBI_CTL_STAT,
+			SBI_BUSY |
+			SBI_CTL_OP_CRRD);
+
+	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_READY | SBI_RESPONSE_SUCCESS)) == 0,
+				100)) {
+		DRM_ERROR("timeout waiting for SBI to complete read transaction\n");
+		goto out_unlock;
+	}
+
+	value = I915_READ(SBI_DATA);
+
+out_unlock:
+	spin_unlock_irqrestore(&dev_priv->dpio_lock, flags);
+	return value;
+}
+
 /**
  * intel_enable_pch_pll - enable PCH PLL
  * @dev_priv: i915 private structure
