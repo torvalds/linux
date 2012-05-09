@@ -32,17 +32,19 @@ static struct platform_device *__init mxs_add_dma(const char *devid,
 
 static int __init mxs_add_mxs_dma(void)
 {
-	char *apbh = "mxs-dma-apbh";
-	char *apbx = "mxs-dma-apbx";
+	char *mx23_apbh = "imx23-dma-apbh";
+	char *mx23_apbx = "imx23-dma-apbx";
+	char *mx28_apbh = "imx28-dma-apbh";
+	char *mx28_apbx = "imx28-dma-apbx";
 
 	if (cpu_is_mx23()) {
-		mxs_add_dma(apbh, MX23_APBH_DMA_BASE_ADDR);
-		mxs_add_dma(apbx, MX23_APBX_DMA_BASE_ADDR);
+		mxs_add_dma(mx23_apbh, MX23_APBH_DMA_BASE_ADDR);
+		mxs_add_dma(mx23_apbx, MX23_APBX_DMA_BASE_ADDR);
 	}
 
 	if (cpu_is_mx28()) {
-		mxs_add_dma(apbh, MX28_APBH_DMA_BASE_ADDR);
-		mxs_add_dma(apbx, MX28_APBX_DMA_BASE_ADDR);
+		mxs_add_dma(mx28_apbh, MX28_APBH_DMA_BASE_ADDR);
+		mxs_add_dma(mx28_apbx, MX28_APBX_DMA_BASE_ADDR);
 	}
 
 	return 0;
