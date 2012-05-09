@@ -110,6 +110,7 @@ parameter is applicable:
 	USB	USB support is enabled.
 	USBHID	USB Human Interface Device support is enabled.
 	V4L	Video For Linux support is enabled.
+	VMMIO   Driver for memory mapped virtio devices is enabled.
 	VGA	The VGA console has been enabled.
 	VT	Virtual terminal support is enabled.
 	WDT	Watchdog support is enabled.
@@ -2846,6 +2847,22 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	video=		[FB] Frame buffer configuration
 			See Documentation/fb/modedb.txt.
+
+	virtio_mmio.device=
+			[VMMIO] Memory mapped virtio (platform) device.
+
+				<size>@<baseaddr>:<irq>[:<id>]
+			where:
+				<size>     := size (can use standard suffixes
+						like K, M and G)
+				<baseaddr> := physical base address
+				<irq>      := interrupt number (as passed to
+						request_irq())
+				<id>       := (optional) platform device id
+			example:
+				virtio_mmio.device=1K@0x100b0000:48:7
+
+			Can be used multiple times for multiple devices.
 
 	vga=		[BOOT,X86-32] Select a particular video mode
 			See Documentation/x86/boot.txt and
