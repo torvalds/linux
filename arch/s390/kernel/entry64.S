@@ -622,6 +622,7 @@ ext_skip:
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	stmg	%r8,%r9,__PT_PSW(%r11)
 	TRACE_IRQS_OFF
+	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lghi	%r1,4096
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	llgf	%r3,__LC_EXT_CPU_ADDR	# get cpu address + interruption code
