@@ -2130,9 +2130,15 @@ static inline void *new_slab_objects(struct kmem_cache *s, gfp_t flags,
 			int node, struct kmem_cache_cpu **pc)
 {
 	void *freelist;
-	struct kmem_cache_cpu *c;
-	struct page *page = new_slab(s, flags, node);
+	struct kmem_cache_cpu *c = *pc;
+	struct page *page;
 
+	freelist = get_partial(s, flags, node, c);
+
+	if (freelist)
+		return freelist;
+
+	page = new_slab(s, flags, node);
 	if (page) {
 		c = __this_cpu_ptr(s->cpu_slab);
 		if (c->page)
@@ -2269,11 +2275,7 @@ new_slab:
 		goto redo;
 	}
 
-	/* Then do expensive stuff like retrieving pages from the partial lists */
-	freelist = get_partial(s, gfpflags, node, c);
-
-	if (!freelist)
-		freelist = new_slab_objects(s, gfpflags, node, &c);
+	freelist = new_slab_objects(s, gfpflags, node, &c);
 
 	if (unlikely(!freelist)) {
 		if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
