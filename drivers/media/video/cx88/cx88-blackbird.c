@@ -722,21 +722,15 @@ static int vidioc_querymenu (struct file *file, void *priv,
 			cx2341x_ctrl_get_menu(&dev->params, qmenu->id));
 }
 
-static int vidioc_querycap (struct file *file, void  *priv,
+static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
 {
 	struct cx8802_dev *dev  = ((struct cx8802_fh *)priv)->dev;
 	struct cx88_core  *core = dev->core;
 
 	strcpy(cap->driver, "cx88_blackbird");
-	strlcpy(cap->card, core->board.name, sizeof(cap->card));
-	sprintf(cap->bus_info,"PCI:%s",pci_name(dev->pci));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE     |
-		V4L2_CAP_STREAMING;
-	if (UNSET != core->board.tuner_type)
-		cap->capabilities |= V4L2_CAP_TUNER;
+	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
+	cx88_querycap(file, core, cap);
 	return 0;
 }
 
