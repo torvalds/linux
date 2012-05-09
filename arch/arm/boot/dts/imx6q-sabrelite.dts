@@ -76,6 +76,8 @@
 			i2c@021a0000 { /* I2C1 */
 				status = "okay";
 				clock-frequency = <100000>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_i2c1_1>;
 
 				codec: sgtl5000@0a {
 					compatible = "fsl,sgtl5000";

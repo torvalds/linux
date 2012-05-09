@@ -486,6 +486,13 @@
 				reg = <0x020e0000 0x4000>;
 
 				/* shared pinctrl settings */
+				i2c1 {
+					pinctrl_i2c1_1: i2c1grp-1 {
+						fsl,pins = <137 0x4001b8b1	/* MX6Q_PAD_EIM_D21__I2C1_SCL */
+							    196 0x4001b8b1>;	/* MX6Q_PAD_EIM_D28__I2C1_SDA */
+					};
+				};
+
 				usdhc3 {
 					pinctrl_usdhc3_1: usdhc3grp-1 {
 						fsl,pins = <1273 0x17059	/* MX6Q_PAD_SD3_CMD__USDHC3_CMD */
