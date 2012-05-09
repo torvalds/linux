@@ -15,6 +15,7 @@ config SH_RSK7203
 
 config SH_RSK7264
 	bool "RSK2+SH7264"
+	select ARCH_REQUIRE_GPIOLIB
 	depends on CPU_SUBTYPE_SH7264
 
 endchoice

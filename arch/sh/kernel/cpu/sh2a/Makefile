@@ -17,5 +17,6 @@ obj-$(CONFIG_CPU_SUBTYPE_MXG)		+= setup-mxg.o clock-sh7206.o
 
 # Pinmux setup
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7203)	:= pinmux-sh7203.o
+pinmux-$(CONFIG_CPU_SUBTYPE_SH7264)	:= pinmux-sh7264.o
 
 obj-$(CONFIG_GENERIC_GPIO)	+= $(pinmux-y)
