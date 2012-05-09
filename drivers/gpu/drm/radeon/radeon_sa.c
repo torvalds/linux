@@ -152,11 +152,11 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	offset = 0;
 	list_for_each_entry(tmp, &sa_manager->sa_bo, list) {
 		/* room before this object ? */
-		if (offset < tmp->offset && (tmp->offset - offset) >= size) {
+		if (offset < tmp->soffset && (tmp->soffset - offset) >= size) {
 			head = tmp->list.prev;
 			goto out;
 		}
-		offset = tmp->offset + tmp->size;
+		offset = tmp->eoffset;
 		wasted = offset % align;
 		if (wasted) {
 			wasted = align - wasted;
@@ -166,7 +166,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	/* room at the end ? */
 	head = sa_manager->sa_bo.prev;
 	tmp = list_entry(head, struct radeon_sa_bo, list);
-	offset = tmp->offset + tmp->size;
+	offset = tmp->eoffset;
 	wasted = offset % align;
 	if (wasted) {
 		wasted = align - wasted;
@@ -180,8 +180,8 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 
 out:
 	sa_bo->manager = sa_manager;
-	sa_bo->offset = offset;
-	sa_bo->size = size;
+	sa_bo->soffset = offset;
+	sa_bo->eoffset = offset + size;
 	list_add(&sa_bo->list, head);
 	spin_unlock(&sa_manager->lock);
 	return 0;
@@ -202,7 +202,8 @@ void radeon_sa_bo_dump_debug_info(struct radeon_sa_manager *sa_manager,
 
 	spin_lock(&sa_manager->lock);
 	list_for_each_entry(i, &sa_manager->sa_bo, list) {
-		seq_printf(m, "offset %08d: size %4d\n", i->offset, i->size);
+		seq_printf(m, "[%08x %08x] size %4d [%p]\n",
+			   i->soffset, i->eoffset, i->eoffset - i->soffset, i);
 	}
 	spin_unlock(&sa_manager->lock);
 }

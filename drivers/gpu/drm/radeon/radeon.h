@@ -396,8 +396,8 @@ struct radeon_sa_bo;
 struct radeon_sa_bo {
 	struct list_head		list;
 	struct radeon_sa_manager	*manager;
-	unsigned			offset;
-	unsigned			size;
+	unsigned			soffset;
+	unsigned			eoffset;
 };
 
 /*
