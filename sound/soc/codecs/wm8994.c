@@ -3059,22 +3059,20 @@ int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 }
 EXPORT_SYMBOL_GPL(wm8994_mic_detect);
 
-static irqreturn_t wm8994_mic_irq(int irq, void *data)
+static void wm8994_mic_work(struct work_struct *work)
 {
-	struct wm8994_priv *priv = data;
+	struct wm8994_priv *priv = container_of(work,
+						struct wm8994_priv,
+						mic_work.work);
 	struct snd_soc_codec *codec = priv->codec;
 	int reg;
 	int report;
-
-#ifndef CONFIG_SND_SOC_WM8994_MODULE
-	trace_snd_soc_jack_irq(dev_name(codec->dev));
-#endif
 
 	reg = snd_soc_read(codec, WM8994_INTERRUPT_RAW_STATUS_2);
 	if (reg < 0) {
 		dev_err(codec->dev, "Failed to read microphone status: %d\n",
 			reg);
-		return IRQ_HANDLED;
+		return;
 	}
 
 	dev_dbg(codec->dev, "Microphone status: %x\n", reg);
@@ -3116,6 +3114,20 @@ static irqreturn_t wm8994_mic_irq(int irq, void *data)
 
 	snd_soc_jack_report(priv->micdet[1].jack, report,
 			    SND_JACK_HEADSET | SND_JACK_BTN_0);
+}
+
+static irqreturn_t wm8994_mic_irq(int irq, void *data)
+{
+	struct wm8994_priv *priv = data;
+	struct snd_soc_codec *codec = priv->codec;
+
+#ifndef CONFIG_SND_SOC_WM8994_MODULE
+	trace_snd_soc_jack_irq(dev_name(codec->dev));
+#endif
+
+	pm_wakeup_event(codec->dev, 300);
+
+	schedule_delayed_work(&priv->mic_work, msecs_to_jiffies(250));
 
 	return IRQ_HANDLED;
 }
@@ -3488,6 +3500,7 @@ static int wm8994_codec_probe(struct snd_soc_codec *codec)
 	wm8994->codec = codec;
 
 	mutex_init(&wm8994->accdet_lock);
+	INIT_DELAYED_WORK(&wm8994->mic_work, wm8994_mic_work);
 
 	for (i = 0; i < ARRAY_SIZE(wm8994->fll_locked); i++)
 		init_completion(&wm8994->fll_locked[i]);
