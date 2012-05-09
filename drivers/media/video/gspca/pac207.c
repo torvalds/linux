@@ -167,11 +167,14 @@ static const __u8 pac207_sensor_init[][8] = {
 	{0x32, 0x00, 0x96, 0x00, 0xa2, 0x02, 0xaf, 0x00},
 };
 
-static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
+static void pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
+
+	if (gspca_dev->usb_err < 0)
+		return;
 
 	memcpy(gspca_dev->usb_buf, buffer, length);
 
@@ -179,33 +182,38 @@ static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			0x00, index,
 			gspca_dev->usb_buf, length, PAC207_CTRL_TIMEOUT);
-	if (err < 0)
+	if (err < 0) {
 		pr_err("Failed to write registers to index 0x%04X, error %d\n",
 		       index, err);
-
-	return err;
+		gspca_dev->usb_err = err;
+	}
 }
 
-
-static int pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
+static void pac207_write_reg(struct gspca_dev *gspca_dev, u16 index, u16 value)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int err;
 
+	if (gspca_dev->usb_err < 0)
+		return;
+
 	err = usb_control_msg(udev, usb_sndctrlpipe(udev, 0), 0x00,
 			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
 			value, index, NULL, 0, PAC207_CTRL_TIMEOUT);
-	if (err)
+	if (err) {
 		pr_err("Failed to write a register (index 0x%04X, value 0x%02X, error %d)\n",
 		       index, value, err);
-
-	return err;
+		gspca_dev->usb_err = err;
+	}
 }
 
 static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 {
 	struct usb_device *udev = gspca_dev->dev;
 	int res;
+
+	if (gspca_dev->usb_err < 0)
+		return 0;
 
 	res = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0), 0x00,
 			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
@@ -214,7 +222,8 @@ static int pac207_read_reg(struct gspca_dev *gspca_dev, u16 index)
 	if (res < 0) {
 		pr_err("Failed to read a register (index 0x%04X, error %d)\n",
 		       index, res);
-		return res;
+		gspca_dev->usb_err = res;
+		return 0;
 	}
 
 	return gspca_dev->usb_buf[0];
@@ -264,7 +273,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 				 * Bit_2=Compression test mode enable */
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
 
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 /* -- start the camera -- */
@@ -308,7 +317,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->sof_read = 0;
 	sd->autogain_ignore_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
-	return 0;
+	return gspca_dev->usb_err;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
