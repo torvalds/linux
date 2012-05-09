@@ -110,8 +110,9 @@ static int __devinit serial8250_em_probe(struct platform_device *pdev)
 	}
 
 	priv->sclk = clk_get(&pdev->dev, "sclk");
-	if (!priv->sclk) {
+	if (IS_ERR(priv->sclk)) {
 		dev_err(&pdev->dev, "unable to get clock\n");
+		ret = PTR_ERR(priv->sclk);
 		goto err1;
 	}
 
