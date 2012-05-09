@@ -2265,7 +2265,7 @@ int snd_hda_codec_reset(struct hda_codec *codec)
 	/* OK, let it free */
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	cancel_delayed_work(&codec->power_work);
+	cancel_delayed_work_sync(&codec->power_work);
 	codec->power_on = 0;
 	codec->power_transition = 0;
 	codec->power_jiffies = jiffies;
@@ -3491,11 +3491,14 @@ static void hda_call_codec_suspend(struct hda_codec *codec)
 			    codec->afg ? codec->afg : codec->mfg,
 			    AC_PWRST_D3);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	snd_hda_update_power_acct(codec);
 	cancel_delayed_work(&codec->power_work);
+	spin_lock(&codec->power_lock);
+	snd_hda_update_power_acct(codec);
+	trace_hda_power_down(codec);
 	codec->power_on = 0;
 	codec->power_transition = 0;
 	codec->power_jiffies = jiffies;
+	spin_unlock(&codec->power_lock);
 #endif
 }
 
@@ -4294,13 +4297,15 @@ static void hda_power_work(struct work_struct *work)
 	struct hda_bus *bus = codec->bus;
 
 	spin_lock(&codec->power_lock);
+	if (codec->power_transition > 0) { /* during power-up sequence? */
+		spin_unlock(&codec->power_lock);
+		return;
+	}
 	if (!codec->power_on || codec->power_count) {
 		codec->power_transition = 0;
 		spin_unlock(&codec->power_lock);
 		return;
 	}
-
-	trace_hda_power_down(codec);
 	spin_unlock(&codec->power_lock);
 
 	hda_call_codec_suspend(codec);
@@ -4341,11 +4346,15 @@ void snd_hda_power_up(struct hda_codec *codec)
 
 	spin_lock(&codec->power_lock);
 	codec->power_count++;
-	if (codec->power_on || codec->power_transition) {
+	if (codec->power_on || codec->power_transition > 0) {
 		spin_unlock(&codec->power_lock);
 		return;
 	}
+	spin_unlock(&codec->power_lock);
 
+	cancel_delayed_work_sync(&codec->power_work);
+
+	spin_lock(&codec->power_lock);
 	trace_hda_power_up(codec);
 	snd_hda_update_power_acct(codec);
 	codec->power_on = 1;
@@ -4358,7 +4367,6 @@ void snd_hda_power_up(struct hda_codec *codec)
 	hda_call_codec_resume(codec);
 
 	spin_lock(&codec->power_lock);
-	cancel_delayed_work(&codec->power_work);
 	codec->power_transition = 0;
 	spin_unlock(&codec->power_lock);
 }
@@ -4383,7 +4391,7 @@ void snd_hda_power_down(struct hda_codec *codec)
 		return;
 	}
 	if (power_save(codec)) {
-		codec->power_transition = 1; /* avoid reentrance */
+		codec->power_transition = -1; /* avoid reentrance */
 		queue_delayed_work(codec->bus->workq, &codec->power_work,
 				msecs_to_jiffies(power_save(codec) * 1000));
 	}
