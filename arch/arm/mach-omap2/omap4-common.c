@@ -214,6 +214,7 @@ early_initcall(omap4_sar_ram_init);
 
 static struct of_device_id irq_match[] __initdata = {
 	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
+	{ .compatible = "arm,cortex-a15-gic", .data = gic_of_init, },
 	{ }
 };
 

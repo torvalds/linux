@@ -138,3 +138,22 @@ DT_MACHINE_START(OMAP4_DT, "Generic OMAP4 (Flattened Device Tree)")
 	.restart	= omap_prcm_restart,
 MACHINE_END
 #endif
+
+#ifdef CONFIG_SOC_OMAP5
+static const char *omap5_boards_compat[] __initdata = {
+	"ti,omap5",
+	NULL,
+};
+
+DT_MACHINE_START(OMAP5_DT, "Generic OMAP5 (Flattened Device Tree)")
+	.reserve	= omap_reserve,
+	.map_io		= omap5_map_io,
+	.init_early	= omap5_init_early,
+	.init_irq	= omap_gic_of_init,
+	.handle_irq	= gic_handle_irq,
+	.init_machine	= omap_generic_init,
+	.timer		= &omap5_timer,
+	.dt_compat	= omap5_boards_compat,
+	.restart	= omap_prcm_restart,
+MACHINE_END
+#endif
