@@ -1967,14 +1967,54 @@ int regulator_set_voltage_sel_regmap(struct regulator_dev *rdev, unsigned sel)
 }
 EXPORT_SYMBOL_GPL(regulator_set_voltage_sel_regmap);
 
+/**
+ * regulator_map_voltage_iterate - map_voltage() based on list_voltage()
+ *
+ * @rdev: Regulator to operate on
+ * @min_uV: Lower bound for voltage
+ * @max_uV: Upper bound for voltage
+ *
+ * Drivers implementing set_voltage_sel() and list_voltage() can use
+ * this as their map_voltage() operation.  It will find a suitable
+ * voltage by calling list_voltage() until it gets something in bounds
+ * for the requested voltages.
+ */
+int regulator_map_voltage_iterate(struct regulator_dev *rdev,
+				  int min_uV, int max_uV)
+{
+	int best_val = INT_MAX;
+	int selector = 0;
+	int i, ret;
+
+	/* Find the smallest voltage that falls within the specified
+	 * range.
+	 */
+	for (i = 0; i < rdev->desc->n_voltages; i++) {
+		ret = rdev->desc->ops->list_voltage(rdev, i);
+		if (ret < 0)
+			continue;
+
+		if (ret < best_val && ret >= min_uV && ret <= max_uV) {
+			best_val = ret;
+			selector = i;
+		}
+	}
+
+	if (best_val != INT_MAX)
+		return selector;
+	else
+		return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(regulator_map_voltage_iterate);
+
 static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 				     int min_uV, int max_uV)
 {
 	int ret;
 	int delay = 0;
+	int best_val;
 	unsigned int selector;
 	int old_selector = -1;
-	int best_val = INT_MAX;
 
 	trace_regulator_set_voltage(rdev_get_name(rdev), min_uV, max_uV);
 
@@ -1995,38 +2035,26 @@ static int _regulator_do_set_voltage(struct regulator_dev *rdev,
 	if (rdev->desc->ops->set_voltage) {
 		ret = rdev->desc->ops->set_voltage(rdev, min_uV, max_uV,
 						   &selector);
-
-		if (rdev->desc->ops->list_voltage)
-			best_val = rdev->desc->ops->list_voltage(rdev,
-								 selector);
-		else
-			best_val = -1;
 	} else if (rdev->desc->ops->set_voltage_sel) {
-		int i;
-
-		selector = 0;
-
-		/* Find the smallest voltage that falls within the specified
-		 * range.
-		 */
-		for (i = 0; i < rdev->desc->n_voltages; i++) {
-			ret = rdev->desc->ops->list_voltage(rdev, i);
-			if (ret < 0)
-				continue;
-
-			if (ret < best_val && ret >= min_uV && ret <= max_uV) {
-				best_val = ret;
-				selector = i;
-			}
-		}
-
-		if (best_val != INT_MAX)
-			ret = rdev->desc->ops->set_voltage_sel(rdev, selector);
+		if (rdev->desc->ops->map_voltage)
+			ret = rdev->desc->ops->map_voltage(rdev, min_uV,
+							   max_uV);
 		else
-			ret = -EINVAL;
+			ret = regulator_map_voltage_iterate(rdev, min_uV,
+							    max_uV);
+
+		if (ret >= 0) {
+			selector = ret;
+			ret = rdev->desc->ops->set_voltage_sel(rdev, ret);
+		}
 	} else {
 		ret = -EINVAL;
 	}
+
+	if (rdev->desc->ops->list_voltage)
+		best_val = rdev->desc->ops->list_voltage(rdev, selector);
+	else
+		best_val = -1;
 
 	/* Call set_voltage_time_sel if successfully obtained old_selector */
 	if (ret == 0 && old_selector >= 0 &&
