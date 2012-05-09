@@ -6,6 +6,7 @@
 #include <linux/usb.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <linux/mutex.h>
 
@@ -174,6 +175,15 @@ struct gspca_dev {
 	unsigned ctrl_dis;		/* disabled controls (bit map) */
 	unsigned ctrl_inac;		/* inactive controls (bit map) */
 
+	/* autogain and exposure or gain control cluster, these are global as
+	   the autogain/exposure functions in autogain_functions.c use them */
+	struct {
+		struct v4l2_ctrl *autogain;
+		struct v4l2_ctrl *exposure;
+		struct v4l2_ctrl *gain;
+		int exp_too_low_cnt, exp_too_high_cnt;
+	};
+
 #define USB_BUF_SZ 64
 	__u8 *usb_buf;				/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
@@ -242,4 +252,9 @@ int gspca_resume(struct usb_interface *intf);
 #endif
 int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
 	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
+int gspca_expo_autogain(struct gspca_dev *gspca_dev, int avg_lum,
+	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
+int gspca_coarse_grained_expo_autogain(struct gspca_dev *gspca_dev,
+        int avg_lum, int desired_avg_lum, int deadzone);
+
 #endif /* GSPCAV2_H */
