@@ -230,7 +230,6 @@ static int nfs_set_page_writeback(struct page *page)
 		struct inode *inode = page->mapping->host;
 		struct nfs_server *nfss = NFS_SERVER(inode);
 
-		page_cache_get(page);
 		if (atomic_long_inc_return(&nfss->writeback) >
 				NFS_CONGESTION_ON_THRESH) {
 			set_bdi_congested(&nfss->backing_dev_info,
@@ -246,7 +245,6 @@ static void nfs_end_page_writeback(struct page *page)
 	struct nfs_server *nfss = NFS_SERVER(inode);
 
 	end_page_writeback(page);
-	page_cache_release(page);
 	if (atomic_long_dec_return(&nfss->writeback) < NFS_CONGESTION_OFF_THRESH)
 		clear_bdi_congested(&nfss->backing_dev_info, BLK_RW_ASYNC);
 }
@@ -607,13 +605,12 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 	nfs_init_cinfo_from_inode(&cinfo, hdr->inode);
 	while (!list_empty(&hdr->pages)) {
 		struct nfs_page *req = nfs_list_entry(hdr->pages.next);
-		struct page *page = req->wb_page;
 
 		bytes += req->wb_bytes;
 		nfs_list_remove_request(req);
 		if (test_bit(NFS_IOHDR_ERROR, &hdr->flags) &&
 		    (hdr->good_bytes < bytes)) {
-			nfs_set_pageerror(page);
+			nfs_set_pageerror(req->wb_page);
 			nfs_context_set_write_error(req->wb_context, hdr->error);
 			goto remove_req;
 		}
@@ -629,7 +626,7 @@ remove_req:
 		nfs_inode_remove_request(req);
 next:
 		nfs_unlock_request_dont_release(req);
-		nfs_end_page_writeback(page);
+		nfs_end_page_writeback(req->wb_page);
 		nfs_release_request(req);
 	}
 out:
@@ -1040,11 +1037,9 @@ static int nfs_do_multiple_writes(struct list_head *head,
  */
 static void nfs_redirty_request(struct nfs_page *req)
 {
-	struct page *page = req->wb_page;
-
 	nfs_mark_request_dirty(req);
 	nfs_unlock_request_dont_release(req);
-	nfs_end_page_writeback(page);
+	nfs_end_page_writeback(req->wb_page);
 	nfs_release_request(req);
 }
 
