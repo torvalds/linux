@@ -447,6 +447,7 @@ extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
 extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
 extern void intel_prepare_ddi(struct drm_device *dev);
+extern void hsw_fdi_link_train(struct drm_crtc *crtc);
 
 /* For use by IVB LP watermark workaround in intel_sprite.c */
 extern void intel_update_watermarks(struct drm_device *dev);

@@ -105,3 +105,118 @@ void intel_prepare_ddi(struct drm_device *dev)
 		intel_prepare_ddi_buffers(dev, PORT_E, true);
 	}
 }
+
+static const long hsw_ddi_buf_ctl_values[] = {
+	DDI_BUF_EMP_400MV_0DB_HSW,
+	DDI_BUF_EMP_400MV_3_5DB_HSW,
+	DDI_BUF_EMP_400MV_6DB_HSW,
+	DDI_BUF_EMP_400MV_9_5DB_HSW,
+	DDI_BUF_EMP_600MV_0DB_HSW,
+	DDI_BUF_EMP_600MV_3_5DB_HSW,
+	DDI_BUF_EMP_600MV_6DB_HSW,
+	DDI_BUF_EMP_800MV_0DB_HSW,
+	DDI_BUF_EMP_800MV_3_5DB_HSW
+};
+
+
+/* Starting with Haswell, different DDI ports can work in FDI mode for
+ * connection to the PCH-located connectors. For this, it is necessary to train
+ * both the DDI port and PCH receiver for the desired DDI buffer settings.
+ *
+ * The recommended port to work in FDI mode is DDI E, which we use here. Also,
+ * please note that when FDI mode is active on DDI E, it shares 2 lines with
+ * DDI A (which is used for eDP)
+ */
+
+void hsw_fdi_link_train(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	int pipe = intel_crtc->pipe;
+	u32 reg, temp, i;
+
+	/* Configure CPU PLL, wait for warmup */
+	I915_WRITE(SPLL_CTL,
+			SPLL_PLL_ENABLE |
+			SPLL_PLL_FREQ_1350MHz |
+			SPLL_PLL_SCC);
+
+	/* Use SPLL to drive the output when in FDI mode */
+	I915_WRITE(PORT_CLK_SEL(PORT_E),
+			PORT_CLK_SEL_SPLL);
+	I915_WRITE(PIPE_CLK_SEL(pipe),
+			PIPE_CLK_SEL_PORT(PORT_E));
+
+	udelay(20);
+
+	/* Start the training iterating through available voltages and emphasis */
+	for (i=0; i < ARRAY_SIZE(hsw_ddi_buf_ctl_values); i++) {
+		/* Configure DP_TP_CTL with auto-training */
+		I915_WRITE(DP_TP_CTL(PORT_E),
+					DP_TP_CTL_FDI_AUTOTRAIN |
+					DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+					DP_TP_CTL_LINK_TRAIN_PAT1 |
+					DP_TP_CTL_ENABLE);
+
+		/* Configure and enable DDI_BUF_CTL for DDI E with next voltage */
+		temp = I915_READ(DDI_BUF_CTL(PORT_E));
+		temp = (temp & ~DDI_BUF_EMP_MASK);
+		I915_WRITE(DDI_BUF_CTL(PORT_E),
+				temp |
+				DDI_BUF_CTL_ENABLE |
+				DDI_PORT_WIDTH_X2 |
+				hsw_ddi_buf_ctl_values[i]);
+
+		udelay(600);
+
+		/* Enable CPU FDI Receiver with auto-training */
+		reg = FDI_RX_CTL(pipe);
+		I915_WRITE(reg,
+				I915_READ(reg) |
+					FDI_LINK_TRAIN_AUTO |
+					FDI_RX_ENABLE |
+					FDI_LINK_TRAIN_PATTERN_1_CPT |
+					FDI_RX_ENHANCE_FRAME_ENABLE |
+					FDI_PORT_WIDTH_2X_LPT |
+					FDI_RX_PLL_ENABLE);
+		POSTING_READ(reg);
+		udelay(100);
+
+		temp = I915_READ(DP_TP_STATUS(PORT_E));
+		if (temp & DP_TP_STATUS_AUTOTRAIN_DONE) {
+			DRM_DEBUG_DRIVER("BUF_CTL training done on %d step\n", i);
+
+			/* Enable normal pixel sending for FDI */
+			I915_WRITE(DP_TP_CTL(PORT_E),
+						DP_TP_CTL_FDI_AUTOTRAIN |
+						DP_TP_CTL_LINK_TRAIN_NORMAL |
+						DP_TP_CTL_ENHANCED_FRAME_ENABLE |
+						DP_TP_CTL_ENABLE);
+
+			/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in FDI mode */
+			temp = I915_READ(DDI_FUNC_CTL(pipe));
+			temp &= ~PIPE_DDI_PORT_MASK;
+			temp |= PIPE_DDI_SELECT_PORT(PORT_E) |
+					PIPE_DDI_MODE_SELECT_FDI |
+					PIPE_DDI_FUNC_ENABLE |
+					PIPE_DDI_PORT_WIDTH_X2;
+			I915_WRITE(DDI_FUNC_CTL(pipe),
+					temp);
+			break;
+		} else {
+			DRM_ERROR("Error training BUF_CTL %d\n", i);
+
+			/* Disable DP_TP_CTL and FDI_RX_CTL) and retry */
+			I915_WRITE(DP_TP_CTL(PORT_E),
+					I915_READ(DP_TP_CTL(PORT_E)) &
+						~DP_TP_CTL_ENABLE);
+			I915_WRITE(FDI_RX_CTL(pipe),
+					I915_READ(FDI_RX_CTL(pipe)) &
+						~FDI_RX_PLL_ENABLE);
+			continue;
+		}
+	}
+
+	DRM_DEBUG_KMS("FDI train done.\n");
+}

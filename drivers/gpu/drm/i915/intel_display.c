@@ -6607,6 +6607,8 @@ static void intel_init_display(struct drm_device *dev)
 			/* FIXME: detect B0+ stepping and use auto training */
 			dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
 			dev_priv->display.write_eld = ironlake_write_eld;
+		} else if (IS_HASWELL(dev)) {
+			dev_priv->display.fdi_link_train = hsw_fdi_link_train;
 		} else
 			dev_priv->display.update_wm = NULL;
 	} else if (IS_VALLEYVIEW(dev)) {
