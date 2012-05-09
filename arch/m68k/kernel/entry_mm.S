@@ -57,7 +57,7 @@ ENTRY(buserr)
 	movel	%sp,%sp@-		| stack frame pointer argument
 	bsrl	buserr_c
 	addql	#4,%sp
-	jra	.Lret_from_exception
+	jra	ret_from_exception
 
 ENTRY(trap)
 	SAVE_ALL_INT
@@ -65,7 +65,7 @@ ENTRY(trap)
 	movel	%sp,%sp@-		| stack frame pointer argument
 	bsrl	trap_c
 	addql	#4,%sp
-	jra	.Lret_from_exception
+	jra	ret_from_exception
 
 	| After a fork we jump here directly from resume,
 	| so that %d1 contains the previous task
@@ -74,7 +74,7 @@ ENTRY(ret_from_fork)
 	movel	%d1,%sp@-
 	jsr	schedule_tail
 	addql	#4,%sp
-	jra	.Lret_from_exception
+	jra	ret_from_exception
 
 do_trace_entry:
 	movel	#-ENOSYS,%sp@(PT_OFF_D0)| needed for strace
