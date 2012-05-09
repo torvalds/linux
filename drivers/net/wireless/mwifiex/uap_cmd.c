@@ -123,14 +123,12 @@ void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config)
 	config->retry_limit = 0x7F;
 }
 
-/* Parse AP config structure and prepare TLV based command structure
- * to be sent to FW for uAP configuration
- */
-static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
-				      u16 cmd_action, void *cmd_buf)
+/* This function parses BSS related parameters from structure
+ * and prepares TLVs. These TLVs are appended to command buffer.
+*/
+static int
+mwifiex_uap_bss_param_prepare(u8 *tlv, void *cmd_buf, u16 *param_size)
 {
-	u8 *tlv;
-	struct host_cmd_ds_sys_config *sys_config = &cmd->params.uap_sys_config;
 	struct host_cmd_tlv_dtim_period *dtim_period;
 	struct host_cmd_tlv_beacon_period *beacon_period;
 	struct host_cmd_tlv_ssid *ssid;
@@ -145,14 +143,7 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 	struct host_cmd_tlv_passphrase *passphrase;
 	struct host_cmd_tlv_akmp *tlv_akmp;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
-	u16 cmd_size;
-
-	cmd->command = cpu_to_le16(HostCmd_CMD_UAP_SYS_CONFIG);
-	cmd_size = (u16)(sizeof(struct host_cmd_ds_sys_config) + S_DS_GEN);
-
-	sys_config->action = cpu_to_le16(cmd_action);
-
-	tlv = sys_config->tlv;
+	u16 cmd_size = *param_size;
 
 	if (bss_cfg->ssid.ssid_len) {
 		ssid = (struct host_cmd_tlv_ssid *)tlv;
@@ -319,7 +310,39 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 		tlv += sizeof(struct host_cmd_tlv_encrypt_protocol);
 	}
 
-	cmd->size = cpu_to_le16(cmd_size);
+	*param_size = cmd_size;
+
+	return 0;
+}
+
+/* Parse AP config structure and prepare TLV based command structure
+ * to be sent to FW for uAP configuration
+ */
+static int
+mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd, u16 cmd_action,
+			   u32 type, void *cmd_buf)
+{
+	u8 *tlv;
+	u16 cmd_size, param_size;
+	struct host_cmd_ds_sys_config *sys_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_UAP_SYS_CONFIG);
+	cmd_size = (u16)(sizeof(struct host_cmd_ds_sys_config) + S_DS_GEN);
+	sys_cfg = (struct host_cmd_ds_sys_config *)&cmd->params.uap_sys_config;
+	sys_cfg->action = cpu_to_le16(cmd_action);
+	tlv = sys_cfg->tlv;
+
+	switch (type) {
+	case UAP_BSS_PARAMS_I:
+		param_size = cmd_size;
+		if (mwifiex_uap_bss_param_prepare(tlv, cmd_buf, &param_size))
+			return -1;
+		cmd->size = cpu_to_le16(param_size);
+		break;
+	default:
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -329,14 +352,14 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
  * routines based upon the command number.
  */
 int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, u16 cmd_no,
-			    u16 cmd_action, u32 cmd_oid,
+			    u16 cmd_action, u32 type,
 			    void *data_buf, void *cmd_buf)
 {
 	struct host_cmd_ds_command *cmd = cmd_buf;
 
 	switch (cmd_no) {
 	case HostCmd_CMD_UAP_SYS_CONFIG:
-		if (mwifiex_cmd_uap_sys_config(cmd, cmd_action, data_buf))
+		if (mwifiex_cmd_uap_sys_config(cmd, cmd_action, type, data_buf))
 			return -1;
 		break;
 	case HostCmd_CMD_UAP_BSS_START:
@@ -371,7 +394,8 @@ int mwifiex_uap_set_channel(struct mwifiex_private *priv, int channel)
 	bss_cfg->channel = channel;
 
 	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-				   HostCmd_ACT_GEN_SET, 0, bss_cfg)) {
+				   HostCmd_ACT_GEN_SET,
+				   UAP_BSS_PARAMS_I, bss_cfg)) {
 		wiphy_err(wiphy, "Failed to set the uAP channel\n");
 		kfree(bss_cfg);
 		return -1;

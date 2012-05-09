@@ -502,7 +502,7 @@ mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 			ret = mwifiex_send_cmd_async(priv,
 						     HostCmd_CMD_UAP_SYS_CONFIG,
 						     HostCmd_ACT_GEN_SET,
-						     0, bss_cfg);
+						     UAP_BSS_PARAMS_I, bss_cfg);
 
 			kfree(bss_cfg);
 
@@ -983,7 +983,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	}
 
 	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
-				   HostCmd_ACT_GEN_SET, 0, bss_cfg)) {
+				   HostCmd_ACT_GEN_SET,
+				   UAP_BSS_PARAMS_I, bss_cfg)) {
 		wiphy_err(wiphy, "Failed to set the SSID\n");
 		kfree(bss_cfg);
 		return -1;

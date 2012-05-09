@@ -93,6 +93,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define CAL_SNR(RSSI, NF)		((s16)((s16)(RSSI)-(s16)(NF)))
 
+#define UAP_BSS_PARAMS_I			0
+
 #define TLV_TYPE_UAP_SSID			0x0000
 
 #define PROPRIETARY_TLV_BASE_ID                 0x0100
