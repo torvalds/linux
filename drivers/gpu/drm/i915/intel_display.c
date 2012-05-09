@@ -953,9 +953,16 @@ static void assert_fdi_tx(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
-	reg = FDI_TX_CTL(pipe);
-	val = I915_READ(reg);
-	cur_state = !!(val & FDI_TX_ENABLE);
+	if (IS_HASWELL(dev_priv->dev)) {
+		/* On Haswell, DDI is used instead of FDI_TX_CTL */
+		reg = DDI_FUNC_CTL(pipe);
+		val = I915_READ(reg);
+		cur_state = !!(val & PIPE_DDI_FUNC_ENABLE);
+	} else {
+		reg = FDI_TX_CTL(pipe);
+		val = I915_READ(reg);
+		cur_state = !!(val & FDI_TX_ENABLE);
+	}
 	WARN(cur_state != state,
 	     "FDI TX state assertion failure (expected %s, current %s)\n",
 	     state_string(state), state_string(cur_state));
@@ -988,6 +995,10 @@ static void assert_fdi_tx_pll_enabled(struct drm_i915_private *dev_priv,
 
 	/* ILK FDI PLL is always enabled */
 	if (dev_priv->info->gen == 5)
+		return;
+
+	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
+	if (IS_HASWELL(dev_priv->dev))
 		return;
 
 	reg = FDI_TX_CTL(pipe);
@@ -2514,14 +2525,18 @@ static void ironlake_fdi_pll_enable(struct drm_crtc *crtc)
 	POSTING_READ(reg);
 	udelay(200);
 
-	/* Enable CPU FDI TX PLL, always on for Ironlake */
-	reg = FDI_TX_CTL(pipe);
-	temp = I915_READ(reg);
-	if ((temp & FDI_TX_PLL_ENABLE) == 0) {
-		I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
+	/* On Haswell, the PLL configuration for ports and pipes is handled
+	 * separately, as part of DDI setup */
+	if (!IS_HASWELL(dev)) {
+		/* Enable CPU FDI TX PLL, always on for Ironlake */
+		reg = FDI_TX_CTL(pipe);
+		temp = I915_READ(reg);
+		if ((temp & FDI_TX_PLL_ENABLE) == 0) {
+			I915_WRITE(reg, temp | FDI_TX_PLL_ENABLE);
 
-		POSTING_READ(reg);
-		udelay(100);
+			POSTING_READ(reg);
+			udelay(100);
+		}
 	}
 }
 
