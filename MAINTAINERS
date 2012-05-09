@@ -3610,6 +3610,14 @@ S:	Supported
 W:	http://wireless.kernel.org/en/users/Drivers/iwmc3200wifi
 F:	drivers/net/wireless/iwmc3200wifi/
 
+INTEL MANAGEMENT ENGINE (mei)
+M:	Tomas Winkler <tomas.winkler@intel.com>
+L:	linux-kernel@vger.kernel.org
+S:	Supported
+F:	include/linux/mei.h
+F:	drivers/misc/mei/*
+F:	Documentation/mei/*
+
 IOC3 ETHERNET DRIVER
 M:	Ralf Baechle <ralf@linux-mips.org>
 L:	linux-mips@linux-mips.org
