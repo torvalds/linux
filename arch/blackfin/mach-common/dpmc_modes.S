@@ -10,7 +10,6 @@
 #include <asm/dpmc.h>
 
 .section .l1.text
-#ifndef CONFIG_BF60x
 ENTRY(_sleep_mode)
 	[--SP] = (R7:4, P5:3);
 	[--SP] = RETS;
@@ -49,7 +48,6 @@ ENTRY(_sleep_mode)
 	(R7:4, P5:3) = [SP++];
 	RTS;
 ENDPROC(_sleep_mode)
-#endif
 
 /*
  * This func never returns as it puts the part into hibernate, and
@@ -64,7 +62,6 @@ ENTRY(_hibernate_mode)
 	/* Save/setup the regs we need early for minor pipeline optimization */
 	R4 = R0;
 
-#ifndef CONFIG_BF60x
 	P3.H = hi(VR_CTL);
 	P3.L = lo(VR_CTL);
 	/* Disable all wakeup sources */
@@ -74,7 +71,6 @@ ENTRY(_hibernate_mode)
 	call _set_sic_iwr;
 	call _set_dram_srfs;
 	SSYNC;
-#endif
 
 	/* Finally, we climb into our cave to hibernate */
 	W[P3] = R4.L;
@@ -84,7 +80,6 @@ ENTRY(_hibernate_mode)
 	jump .Lforever;
 ENDPROC(_hibernate_mode)
 
-#ifndef CONFIG_BF60x
 ENTRY(_sleep_deeper)
 	[--SP] = (R7:4, P5:3);
 	[--SP] = RETS;
@@ -279,7 +274,6 @@ ENTRY(_test_pll_locked)
 	IF !CC JUMP 1b;
 	RTS;
 ENDPROC(_test_pll_locked)
-#endif
 
 .section .text
 ENTRY(_do_hibernate)
