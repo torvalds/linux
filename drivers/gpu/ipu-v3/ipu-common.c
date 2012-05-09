@@ -874,8 +874,17 @@ static int ipu_submodules_init(struct ipu_soc *ipu,
 		goto err_dp;
 	}
 
+	ret = ipu_smfc_init(ipu, dev, ipu_base +
+			devtype->cm_ofs + IPU_CM_SMFC_REG_OFS);
+	if (ret) {
+		unit = "smfc";
+		goto err_smfc;
+	}
+
 	return 0;
 
+err_smfc:
+	ipu_dp_exit(ipu);
 err_dp:
 	ipu_dmfc_exit(ipu);
 err_dmfc:
@@ -947,6 +956,7 @@ EXPORT_SYMBOL_GPL(ipu_idmac_channel_irq);
 
 static void ipu_submodules_exit(struct ipu_soc *ipu)
 {
+	ipu_smfc_exit(ipu);
 	ipu_dp_exit(ipu);
 	ipu_dmfc_exit(ipu);
 	ipu_dc_exit(ipu);

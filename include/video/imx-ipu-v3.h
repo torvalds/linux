@@ -160,6 +160,12 @@ int ipu_dp_set_window_pos(struct ipu_dp *, u16 x_pos, u16 y_pos);
 int ipu_dp_set_global_alpha(struct ipu_dp *dp, bool enable, u8 alpha,
 		bool bg_chan);
 
+/*
+ * IPU Sensor Multiple FIFO Controller (SMFC) functions
+ */
+int ipu_smfc_map_channel(struct ipu_soc *ipu, int channel, int csi_id, int mipi_id);
+int ipu_smfc_set_burstsize(struct ipu_soc *ipu, int channel, int burstsize);
+
 #define IPU_CPMEM_WORD(word, ofs, size) ((((word) * 160 + (ofs)) << 8) | (size))
 
 #define IPU_FIELD_UBO		IPU_CPMEM_WORD(0, 46, 22)
