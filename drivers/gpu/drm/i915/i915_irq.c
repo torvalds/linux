@@ -577,72 +577,61 @@ static irqreturn_t ivybridge_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	int ret = IRQ_NONE;
-	u32 de_iir, gt_iir, de_ier, pch_iir, pm_iir;
+	u32 de_iir, gt_iir, de_ier, pm_iir;
+	irqreturn_t ret = IRQ_NONE;
+	int i;
 
 	atomic_inc(&dev_priv->irq_received);
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
 	I915_WRITE(DEIER, de_ier & ~DE_MASTER_IRQ_CONTROL);
-	POSTING_READ(DEIER);
+
+	gt_iir = I915_READ(GTIIR);
+	if (gt_iir) {
+		snb_gt_irq_handler(dev, dev_priv, gt_iir);
+		I915_WRITE(GTIIR, gt_iir);
+		ret = IRQ_HANDLED;
+	}
 
 	de_iir = I915_READ(DEIIR);
-	gt_iir = I915_READ(GTIIR);
-	pch_iir = I915_READ(SDEIIR);
+	if (de_iir) {
+		if (de_iir & DE_GSE_IVB)
+			intel_opregion_gse_intr(dev);
+
+		for (i = 0; i < 3; i++) {
+			if (de_iir & (DE_PLANEA_FLIP_DONE_IVB << (5 * i))) {
+				intel_prepare_page_flip(dev, i);
+				intel_finish_page_flip_plane(dev, i);
+			}
+			if (de_iir & (DE_PIPEA_VBLANK_IVB << (5 * i)))
+				drm_handle_vblank(dev, i);
+		}
+
+		/* check event from PCH */
+		if (de_iir & DE_PCH_EVENT_IVB) {
+			u32 pch_iir = I915_READ(SDEIIR);
+
+			if (pch_iir & SDE_HOTPLUG_MASK_CPT)
+				queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+			pch_irq_handler(dev, pch_iir);
+
+			/* clear PCH hotplug event before clear CPU irq */
+			I915_WRITE(SDEIIR, pch_iir);
+		}
+
+		I915_WRITE(DEIIR, de_iir);
+		ret = IRQ_HANDLED;
+	}
+
 	pm_iir = I915_READ(GEN6_PMIIR);
-
-	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0 && pm_iir == 0)
-		goto done;
-
-	ret = IRQ_HANDLED;
-
-	snb_gt_irq_handler(dev, dev_priv, gt_iir);
-
-	if (de_iir & DE_GSE_IVB)
-		intel_opregion_gse_intr(dev);
-
-	if (de_iir & DE_PLANEA_FLIP_DONE_IVB) {
-		intel_prepare_page_flip(dev, 0);
-		intel_finish_page_flip_plane(dev, 0);
+	if (pm_iir) {
+		if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
+			gen6_queue_rps_work(dev_priv, pm_iir);
+		I915_WRITE(GEN6_PMIIR, pm_iir);
+		ret = IRQ_HANDLED;
 	}
 
-	if (de_iir & DE_PLANEB_FLIP_DONE_IVB) {
-		intel_prepare_page_flip(dev, 1);
-		intel_finish_page_flip_plane(dev, 1);
-	}
-
-	if (de_iir & DE_PLANEC_FLIP_DONE_IVB) {
-		intel_prepare_page_flip(dev, 2);
-		intel_finish_page_flip_plane(dev, 2);
-	}
-
-	if (de_iir & DE_PIPEA_VBLANK_IVB)
-		drm_handle_vblank(dev, 0);
-
-	if (de_iir & DE_PIPEB_VBLANK_IVB)
-		drm_handle_vblank(dev, 1);
-
-	if (de_iir & DE_PIPEC_VBLANK_IVB)
-		drm_handle_vblank(dev, 2);
-
-	/* check event from PCH */
-	if (de_iir & DE_PCH_EVENT_IVB) {
-		if (pch_iir & SDE_HOTPLUG_MASK_CPT)
-			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		pch_irq_handler(dev, pch_iir);
-	}
-
-	if (pm_iir & GEN6_PM_DEFERRED_EVENTS)
-		gen6_queue_rps_work(dev_priv, pm_iir);
-
-	/* should clear PCH hotplug event before clear CPU irq */
-	I915_WRITE(SDEIIR, pch_iir);
-	I915_WRITE(GTIIR, gt_iir);
-	I915_WRITE(DEIIR, de_iir);
-	I915_WRITE(GEN6_PMIIR, pm_iir);
-
-done:
 	I915_WRITE(DEIER, de_ier);
 	POSTING_READ(DEIER);
 
