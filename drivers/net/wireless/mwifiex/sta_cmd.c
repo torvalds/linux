@@ -1248,13 +1248,15 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 		if (ret)
 			return -1;
 
-		/* Enable IEEE PS by default */
-		priv->adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_PSP;
-		ret = mwifiex_send_cmd_async(priv,
-					     HostCmd_CMD_802_11_PS_MODE_ENH,
-					     EN_AUTO_PS, BITMAP_STA_PS, NULL);
-		if (ret)
-			return -1;
+		if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
+			/* Enable IEEE PS by default */
+			priv->adapter->ps_mode = MWIFIEX_802_11_POWER_MODE_PSP;
+			ret = mwifiex_send_cmd_async(
+					priv, HostCmd_CMD_802_11_PS_MODE_ENH,
+					EN_AUTO_PS, BITMAP_STA_PS, NULL);
+			if (ret)
+				return -1;
+		}
 	}
 
 	/* get tx rate */
@@ -1270,12 +1272,14 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	if (ret)
 		return -1;
 
-	/* set ibss coalescing_status */
-	ret = mwifiex_send_cmd_async(priv,
-				     HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
-				     HostCmd_ACT_GEN_SET, 0, &enable);
-	if (ret)
-		return -1;
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA) {
+		/* set ibss coalescing_status */
+		ret = mwifiex_send_cmd_async(
+				priv, HostCmd_CMD_802_11_IBSS_COALESCING_STATUS,
+				HostCmd_ACT_GEN_SET, 0, &enable);
+		if (ret)
+			return -1;
+	}
 
 	memset(&amsdu_aggr_ctrl, 0, sizeof(amsdu_aggr_ctrl));
 	amsdu_aggr_ctrl.enable = true;
@@ -1293,7 +1297,8 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 	if (ret)
 		return -1;
 
-	if (first_sta && (priv->adapter->iface_type != MWIFIEX_USB)) {
+	if (first_sta && priv->adapter->iface_type != MWIFIEX_USB &&
+	    priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
 		/* Enable auto deep sleep */
 		auto_ds.auto_ds = DEEP_SLEEP_ON;
 		auto_ds.idle_time = DEEP_SLEEP_IDLE_TIME;
@@ -1305,12 +1310,16 @@ int mwifiex_sta_init_cmd(struct mwifiex_private *priv, u8 first_sta)
 			return -1;
 	}
 
-	/* Send cmd to FW to enable/disable 11D function */
-	state_11d = ENABLE_11D;
-	ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				     HostCmd_ACT_GEN_SET, DOT11D_I, &state_11d);
-	if (ret)
-		dev_err(priv->adapter->dev, "11D: failed to enable 11D\n");
+	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP) {
+		/* Send cmd to FW to enable/disable 11D function */
+		state_11d = ENABLE_11D;
+		ret = mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11_SNMP_MIB,
+					     HostCmd_ACT_GEN_SET, DOT11D_I,
+					     &state_11d);
+		if (ret)
+			dev_err(priv->adapter->dev,
+				"11D: failed to enable 11D\n");
+	}
 
 	/* Send cmd to FW to configure 11n specific configuration
 	 * (Short GI, Channel BW, Green field support etc.) for transmit

@@ -440,6 +440,11 @@ int mwifiex_process_event(struct mwifiex_adapter *adapter)
 		do_gettimeofday(&tstamp);
 		dev_dbg(adapter->dev, "event: %lu.%lu: cause: %#x\n",
 			tstamp.tv_sec, tstamp.tv_usec, eventcause);
+	} else {
+		/* Handle PS_SLEEP/AWAKE events on STA */
+		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
+		if (!priv)
+			priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 	}
 
 	ret = mwifiex_process_sta_event(priv);
