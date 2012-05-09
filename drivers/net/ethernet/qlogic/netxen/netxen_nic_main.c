@@ -1184,6 +1184,7 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	int err, ring;
 	struct nx_host_rds_ring *rds_ring;
 	struct nx_host_tx_ring *tx_ring;
+	u32 capab2;
 
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC)
 		return 0;
@@ -1191,6 +1192,13 @@ netxen_nic_attach(struct netxen_adapter *adapter)
 	err = netxen_init_firmware(adapter);
 	if (err)
 		return err;
+
+	adapter->flags &= ~NETXEN_FW_MSS_CAP;
+	if (adapter->capabilities & NX_FW_CAPABILITY_MORE_CAPS) {
+		capab2 = NXRD32(adapter, CRB_FW_CAPABILITIES_2);
+		if (capab2 & NX_FW_CAPABILITY_2_LRO_MAX_TCP_SEG)
+			adapter->flags |= NETXEN_FW_MSS_CAP;
+	}
 
 	err = netxen_napi_add(adapter, netdev);
 	if (err)
@@ -1810,7 +1818,6 @@ netxen_tso_check(struct net_device *netdev,
 		flags = FLAGS_VLAN_TAGGED;
 
 	} else if (vlan_tx_tag_present(skb)) {
-
 		flags = FLAGS_VLAN_OOB;
 		vid = vlan_tx_tag_get(skb);
 		netxen_set_tx_vlan_tci(first_desc, vid);

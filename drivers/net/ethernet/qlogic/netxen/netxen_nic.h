@@ -53,8 +53,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 78
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.78"
+#define _NETXEN_NIC_LINUX_SUBVERSION 79
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.79"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -419,6 +419,8 @@ struct rcv_desc {
 	(((sts_data) >> 52) & 0x1)
 #define netxen_get_lro_sts_seq_number(sts_data)		\
 	((sts_data) & 0x0FFFFFFFF)
+#define netxen_get_lro_sts_mss(sts_data1)		\
+	((sts_data1 >> 32) & 0x0FFFF)
 
 
 struct status_desc {
@@ -794,6 +796,7 @@ struct netxen_cmd_args {
 #define NX_CAP0_JUMBO_CONTIGUOUS	NX_CAP_BIT(0, 7)
 #define NX_CAP0_LRO_CONTIGUOUS		NX_CAP_BIT(0, 8)
 #define NX_CAP0_HW_LRO			NX_CAP_BIT(0, 10)
+#define NX_CAP0_HW_LRO_MSS		NX_CAP_BIT(0, 21)
 
 /*
  * Context state
@@ -1073,6 +1076,8 @@ typedef struct {
 #define NX_FW_CAPABILITY_FVLANTX		(1 << 9)
 #define NX_FW_CAPABILITY_HW_LRO			(1 << 10)
 #define NX_FW_CAPABILITY_GBE_LINK_CFG		(1 << 11)
+#define NX_FW_CAPABILITY_MORE_CAPS		(1 << 31)
+#define NX_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	(1 << 2)
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -1155,6 +1160,7 @@ typedef struct {
 #define NETXEN_NIC_BRIDGE_ENABLED       0X10
 #define NETXEN_NIC_DIAG_ENABLED		0x20
 #define NETXEN_FW_RESET_OWNER           0x40
+#define NETXEN_FW_MSS_CAP	        0x80
 #define NETXEN_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (NETXEN_NIC_MSI_ENABLED | NETXEN_NIC_MSIX_ENABLED))
 
