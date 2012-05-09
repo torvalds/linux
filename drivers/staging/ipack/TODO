@@ -1,0 +1,21 @@
+				TODO
+				====
+Introduction
+============
+
+These drivers add support for IndustryPack devices: carrier and mezzanine
+boards.
+
+The ipack driver is just an abstraction of the bus providing the common
+operations between the two kind of boards.
+
+TODO
+====
+
+Ipack
+-----
+
+* The structures and API exported can be improved a lot. For example, the
+  way to unregistering mezzanine devices, doing the mezzanine driver a call to
+  remove_device() to notify the carrier driver, or the opposite with the call to
+  the ipack_driver_ops' remove() function could be improved.

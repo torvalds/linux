@@ -1,0 +1,9 @@
+#
+# IPACK configuration.
+#
+
+menuconfig IPACK_BUS
+	tristate "IndustryPack bus support"
+	---help---
+	  If you say Y here you get support for the IndustryPack Framework.
+
