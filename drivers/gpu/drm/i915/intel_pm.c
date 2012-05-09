@@ -1803,8 +1803,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		enabled |= 2;
 	}
 
-	/* IVB has 3 pipes */
-	if (IS_IVYBRIDGE(dev) &&
+	if ((dev_priv->num_pipe == 3) &&
 	    g4x_compute_wm0(dev, 2,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
