@@ -2679,7 +2679,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	I915_WRITE(TRANS_VSYNC(pipe),  I915_READ(VSYNC(pipe)));
 	I915_WRITE(TRANS_VSYNCSHIFT(pipe),  I915_READ(VSYNCSHIFT(pipe)));
 
-	intel_fdi_normal_train(crtc);
+	if (!IS_HASWELL(dev))
+		intel_fdi_normal_train(crtc);
 
 	/* For PCH DP, enable TRANS_DP_CTL */
 	if (HAS_PCH_CPT(dev) &&
