@@ -82,7 +82,7 @@ bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib)
 	bool done = false;
 
 	/* only free ib which have been emited */
-	if (ib->fence && ib->fence->emitted) {
+	if (ib->fence && ib->fence->seq < RADEON_FENCE_NOTEMITED_SEQ) {
 		if (radeon_fence_signaled(ib->fence)) {
 			radeon_fence_unref(&ib->fence);
 			radeon_sa_bo_free(rdev, &ib->sa_bo);
@@ -149,8 +149,9 @@ retry:
 	/* this should be rare event, ie all ib scheduled none signaled yet.
 	 */
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
-		if (rdev->ib_pool.ibs[idx].fence && rdev->ib_pool.ibs[idx].fence->emitted) {
-			r = radeon_fence_wait(rdev->ib_pool.ibs[idx].fence, false);
+		struct radeon_fence *fence = rdev->ib_pool.ibs[idx].fence;
+		if (fence && fence->seq < RADEON_FENCE_NOTEMITED_SEQ) {
+			r = radeon_fence_wait(fence, false);
 			if (!r) {
 				goto retry;
 			}
@@ -173,7 +174,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 		return;
 	}
 	radeon_mutex_lock(&rdev->ib_pool.mutex);
-	if (tmp->fence && !tmp->fence->emitted) {
+	if (tmp->fence && tmp->fence->seq == RADEON_FENCE_NOTEMITED_SEQ) {
 		radeon_sa_bo_free(rdev, &tmp->sa_bo);
 		radeon_fence_unref(&tmp->fence);
 	}

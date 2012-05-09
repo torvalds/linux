@@ -100,28 +100,32 @@ extern int radeon_lockup_timeout;
  * Copy from radeon_drv.h so we don't have to include both and have conflicting
  * symbol;
  */
-#define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
-#define RADEON_FENCE_JIFFIES_TIMEOUT	(HZ / 2)
+#define RADEON_MAX_USEC_TIMEOUT			100000	/* 100 ms */
+#define RADEON_FENCE_JIFFIES_TIMEOUT		(HZ / 2)
 /* RADEON_IB_POOL_SIZE must be a power of 2 */
-#define RADEON_IB_POOL_SIZE		16
-#define RADEON_DEBUGFS_MAX_COMPONENTS	32
-#define RADEONFB_CONN_LIMIT		4
-#define RADEON_BIOS_NUM_SCRATCH		8
+#define RADEON_IB_POOL_SIZE			16
+#define RADEON_DEBUGFS_MAX_COMPONENTS		32
+#define RADEONFB_CONN_LIMIT			4
+#define RADEON_BIOS_NUM_SCRATCH			8
 
 /* max number of rings */
-#define RADEON_NUM_RINGS 3
+#define RADEON_NUM_RINGS			3
+
+/* fence seq are set to this number when signaled */
+#define RADEON_FENCE_SIGNALED_SEQ		0LL
+#define RADEON_FENCE_NOTEMITED_SEQ		(~0LL)
 
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
-#define RADEON_RING_TYPE_GFX_INDEX  0
+#define RADEON_RING_TYPE_GFX_INDEX		0
 
 /* cayman has 2 compute CP rings */
-#define CAYMAN_RING_TYPE_CP1_INDEX 1
-#define CAYMAN_RING_TYPE_CP2_INDEX 2
+#define CAYMAN_RING_TYPE_CP1_INDEX		1
+#define CAYMAN_RING_TYPE_CP2_INDEX		2
 
 /* hardcode those limit for now */
-#define RADEON_VA_RESERVED_SIZE		(8 << 20)
-#define RADEON_IB_VM_MAX_SIZE		(64 << 10)
+#define RADEON_VA_RESERVED_SIZE			(8 << 20)
+#define RADEON_IB_VM_MAX_SIZE			(64 << 10)
 
 /*
  * Errata workarounds.
@@ -254,8 +258,9 @@ struct radeon_fence_driver {
 	uint32_t			scratch_reg;
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
-	atomic_t			seq;
-	uint32_t			last_seq;
+	/* seq is protected by ring emission lock */
+	uint64_t			seq;
+	atomic64_t			last_seq;
 	unsigned long			last_activity;
 	wait_queue_head_t		queue;
 	struct list_head		emitted;
@@ -268,11 +273,9 @@ struct radeon_fence {
 	struct kref			kref;
 	struct list_head		list;
 	/* protected by radeon_fence.lock */
-	uint32_t			seq;
-	bool				emitted;
-	bool				signaled;
+	uint64_t			seq;
 	/* RB, DMA, etc. */
-	int				ring;
+	unsigned			ring;
 	struct radeon_semaphore		*semaphore;
 };
 
