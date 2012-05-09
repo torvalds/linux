@@ -309,9 +309,6 @@ static void free_urbs(struct wdm_device *desc)
 
 static void cleanup(struct wdm_device *desc)
 {
-	spin_lock(&wdm_device_list_lock);
-	list_del(&desc->device_list);
-	spin_unlock(&wdm_device_list_lock);
 	kfree(desc->sbuf);
 	kfree(desc->inbuf);
 	kfree(desc->orq);
@@ -778,6 +775,9 @@ static int wdm_create(struct usb_interface *intf, struct usb_endpoint_descriptor
 out:
 	return rv;
 err:
+	spin_lock(&wdm_device_list_lock);
+	list_del(&desc->device_list);
+	spin_unlock(&wdm_device_list_lock);
 	cleanup(desc);
 	return rv;
 }
@@ -903,6 +903,12 @@ static void wdm_disconnect(struct usb_interface *intf)
 	cancel_work_sync(&desc->rxwork);
 	mutex_unlock(&desc->wlock);
 	mutex_unlock(&desc->rlock);
+
+	/* the desc->intf pointer used as list key is now invalid */
+	spin_lock(&wdm_device_list_lock);
+	list_del(&desc->device_list);
+	spin_unlock(&wdm_device_list_lock);
+
 	if (!desc->count)
 		cleanup(desc);
 	mutex_unlock(&wdm_mutex);
