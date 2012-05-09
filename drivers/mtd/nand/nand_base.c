@@ -1791,6 +1791,7 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 	int readlen = ops->ooblen;
 	int len;
 	uint8_t *buf = ops->oobbuf;
+	int ret = 0;
 
 	pr_debug("%s: from = 0x%08Lx, len = %i\n",
 			__func__, (unsigned long long)from, readlen);
@@ -1826,9 +1827,12 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	while (1) {
 		if (ops->mode == MTD_OPS_RAW)
-			chip->ecc.read_oob_raw(mtd, chip, page);
+			ret = chip->ecc.read_oob_raw(mtd, chip, page);
 		else
-			chip->ecc.read_oob(mtd, chip, page);
+			ret = chip->ecc.read_oob(mtd, chip, page);
+
+		if (ret < 0)
+			break;
 
 		len = min(len, readlen);
 		buf = nand_transfer_oob(chip, buf, ops, len);
@@ -1857,7 +1861,10 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 		}
 	}
 
-	ops->oobretlen = ops->ooblen;
+	ops->oobretlen = ops->ooblen - readlen;
+
+	if (ret < 0)
+		return ret;
 
 	if (mtd->ecc_stats.failed - stats.failed)
 		return -EBADMSG;
