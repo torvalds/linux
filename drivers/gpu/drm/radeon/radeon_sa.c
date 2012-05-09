@@ -193,3 +193,17 @@ void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo *sa_bo)
 	list_del_init(&sa_bo->list);
 	spin_unlock(&sa_bo->manager->lock);
 }
+
+#if defined(CONFIG_DEBUG_FS)
+void radeon_sa_bo_dump_debug_info(struct radeon_sa_manager *sa_manager,
+				  struct seq_file *m)
+{
+	struct radeon_sa_bo *i;
+
+	spin_lock(&sa_manager->lock);
+	list_for_each_entry(i, &sa_manager->sa_bo, list) {
+		seq_printf(m, "offset %08d: size %4d\n", i->offset, i->size);
+	}
+	spin_unlock(&sa_manager->lock);
+}
+#endif
