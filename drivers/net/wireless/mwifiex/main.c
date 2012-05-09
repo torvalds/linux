@@ -64,17 +64,17 @@ static int mwifiex_register(void *card, struct mwifiex_if_ops *if_ops,
 
 	adapter->priv_num = 0;
 
-	/* Allocate memory for private structure */
-	adapter->priv[0] = kzalloc(sizeof(struct mwifiex_private), GFP_KERNEL);
-	if (!adapter->priv[0]) {
-		dev_err(adapter->dev,
-			"%s: failed to alloc priv[0]\n", __func__);
-		goto error;
+	for (i = 0; i < MWIFIEX_MAX_BSS_NUM; i++) {
+		/* Allocate memory for private structure */
+		adapter->priv[i] =
+			kzalloc(sizeof(struct mwifiex_private), GFP_KERNEL);
+		if (!adapter->priv[i])
+			goto error;
+
+		adapter->priv[i]->adapter = adapter;
+		adapter->priv[i]->bss_priority = i;
+		adapter->priv_num++;
 	}
-
-	adapter->priv_num++;
-
-	adapter->priv[0]->adapter = adapter;
 	mwifiex_init_lock_list(adapter);
 
 	init_timer(&adapter->cmd_timer);
@@ -836,13 +836,16 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter, struct semaphore *sem)
 	}
 
 	priv = adapter->priv[0];
-	if (!priv)
+	if (!priv || !priv->wdev)
 		goto exit_remove;
 
-	if (priv->wdev) {
-		wiphy_unregister(priv->wdev->wiphy);
-		wiphy_free(priv->wdev->wiphy);
-		kfree(priv->wdev);
+	wiphy_unregister(priv->wdev->wiphy);
+	wiphy_free(priv->wdev->wiphy);
+
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+		if (priv)
+			kfree(priv->wdev);
 	}
 
 	mwifiex_terminate_workqueue(adapter);
