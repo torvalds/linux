@@ -21,4 +21,12 @@ config EXTCON_GPIO
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.
 
+config EXTCON_MAX8997
+	tristate "MAX8997 EXTCON Support"
+	depends on MFD_MAX8997
+	help
+	  If you say yes here you get support for the MUIC device of
+	  Maxim MAX8997 PMIC. The MAX8997 MUIC is a USB port accessory
+	  detector and switch.
+
 endif # MULTISTATE_SWITCH
