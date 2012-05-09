@@ -243,6 +243,8 @@ struct drm_i915_display_funcs {
 	void (*update_sprite_wm)(struct drm_device *dev, int pipe,
 				 uint32_t sprite_width, int pixel_size);
 	void (*sanitize_pm)(struct drm_device *dev);
+	void (*update_linetime_wm)(struct drm_device *dev, int pipe,
+				 struct drm_display_mode *mode);
 	int (*crtc_mode_set)(struct drm_crtc *crtc,
 			     struct drm_display_mode *mode,
 			     struct drm_display_mode *adjusted_mode,

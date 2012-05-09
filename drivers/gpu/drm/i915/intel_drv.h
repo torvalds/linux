@@ -454,6 +454,8 @@ extern void intel_update_watermarks(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 					   uint32_t sprite_width,
 					   int pixel_size);
+extern void intel_update_linetime_watermarks(struct drm_device *dev, int pipe,
+			 struct drm_display_mode *mode);
 
 extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);

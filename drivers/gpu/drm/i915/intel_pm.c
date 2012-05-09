@@ -1883,6 +1883,33 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		   cursor_wm);
 }
 
+static void
+haswell_update_linetime_wm(struct drm_device *dev, int pipe,
+				 struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 temp;
+
+	temp = I915_READ(PIPE_WM_LINETIME(pipe));
+	temp &= ~PIPE_WM_LINETIME_MASK;
+
+	/* The WM are computed with base on how long it takes to fill a single
+	 * row at the given clock rate, multiplied by 8.
+	 * */
+	temp |= PIPE_WM_LINETIME_TIME(
+		((mode->crtc_hdisplay * 1000) / mode->clock) * 8);
+
+	/* IPS watermarks are only used by pipe A, and are ignored by
+	 * pipes B and C.  They are calculated similarly to the common
+	 * linetime values, except that we are using CD clock frequency
+	 * in MHz instead of pixel rate for the division.
+	 *
+	 * This is a placeholder for the IPS watermark calculation code.
+	 */
+
+	I915_WRITE(PIPE_WM_LINETIME(pipe), temp);
+}
+
 static bool
 sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
 			      uint32_t sprite_width, int pixel_size,
@@ -2076,6 +2103,15 @@ void intel_update_watermarks(struct drm_device *dev)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(dev);
+}
+
+void intel_update_linetime_watermarks(struct drm_device *dev,
+		int pipe, struct drm_display_mode *mode)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->display.update_linetime_wm)
+		dev_priv->display.update_linetime_wm(dev, pipe, mode);
 }
 
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
@@ -3689,6 +3725,7 @@ void intel_init_pm(struct drm_device *dev)
 			if (SNB_READ_WM0_LATENCY()) {
 				dev_priv->display.update_wm = sandybridge_update_wm;
 				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
+				dev_priv->display.update_linetime_wm = haswell_update_linetime_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
