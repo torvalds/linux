@@ -1729,14 +1729,12 @@ void init_kmem_cache_cpus(struct kmem_cache *s)
 /*
  * Remove the cpu slab
  */
-static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
+static void deactivate_slab(struct kmem_cache *s, struct page *page, void *freelist)
 {
 	enum slab_modes { M_NONE, M_PARTIAL, M_FULL, M_FREE };
-	struct page *page = c->page;
 	struct kmem_cache_node *n = get_node(s, page_to_nid(page));
 	int lock = 0;
 	enum slab_modes l = M_NONE, m = M_NONE;
-	void *freelist;
 	void *nextfree;
 	int tail = DEACTIVATE_TO_HEAD;
 	struct page new;
@@ -1746,11 +1744,6 @@ static void deactivate_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 		stat(s, DEACTIVATE_REMOTE_FREES);
 		tail = DEACTIVATE_TO_TAIL;
 	}
-
-	c->tid = next_tid(c->tid);
-	c->page = NULL;
-	freelist = c->freelist;
-	c->freelist = NULL;
 
 	/*
 	 * Stage one: Free all available per cpu objects back
@@ -2009,7 +2002,11 @@ int put_cpu_partial(struct kmem_cache *s, struct page *page, int drain)
 static inline void flush_slab(struct kmem_cache *s, struct kmem_cache_cpu *c)
 {
 	stat(s, CPUSLAB_FLUSH);
-	deactivate_slab(s, c);
+	deactivate_slab(s, c->page, c->freelist);
+
+	c->tid = next_tid(c->tid);
+	c->page = NULL;
+	c->freelist = NULL;
 }
 
 /*
@@ -2229,7 +2226,9 @@ redo:
 
 	if (unlikely(!node_match(c, node))) {
 		stat(s, ALLOC_NODE_MISMATCH);
-		deactivate_slab(s, c);
+		deactivate_slab(s, c->page, c->freelist);
+		c->page = NULL;
+		c->freelist = NULL;
 		goto new_slab;
 	}
 
@@ -2289,8 +2288,9 @@ new_slab:
 	if (!alloc_debug_processing(s, c->page, freelist, addr))
 		goto new_slab;	/* Slab failed checks. Next slab needed */
 
-	c->freelist = get_freepointer(s, freelist);
-	deactivate_slab(s, c);
+	deactivate_slab(s, c->page, get_freepointer(s, freelist));
+	c->page = NULL;
+	c->freelist = NULL;
 	local_irq_restore(flags);
 	return freelist;
 }
