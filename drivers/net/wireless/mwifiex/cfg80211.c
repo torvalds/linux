@@ -952,6 +952,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 
 	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP)
 		return -1;
+	if (mwifiex_set_mgmt_ies(priv, params))
+		return -1;
 
 	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
 	if (!bss_cfg)

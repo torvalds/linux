@@ -642,6 +642,10 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 	memset(&priv->nick_name, 0, sizeof(priv->nick_name));
 	memset(priv->mgmt_ie, 0,
 	       sizeof(struct mwifiex_ie) * MAX_MGMT_IE_INDEX);
+	priv->beacon_idx = MWIFIEX_AUTO_IDX_MASK;
+	priv->proberesp_idx = MWIFIEX_AUTO_IDX_MASK;
+	priv->assocresp_idx = MWIFIEX_AUTO_IDX_MASK;
+	priv->rsn_idx = MWIFIEX_AUTO_IDX_MASK;
 	priv->num_tx_timeout = 0;
 	memcpy(dev->dev_addr, priv->curr_addr, ETH_ALEN);
 }

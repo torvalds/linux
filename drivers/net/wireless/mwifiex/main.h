@@ -478,6 +478,10 @@ struct mwifiex_private {
 	u32 cqm_rssi_hyst;
 	u8 subsc_evt_rssi_state;
 	struct mwifiex_ie mgmt_ie[MAX_MGMT_IE_INDEX];
+	u16 beacon_idx;
+	u16 proberesp_idx;
+	u16 assocresp_idx;
+	u16 rsn_idx;
 };
 
 enum mwifiex_ba_status {
@@ -1001,6 +1005,8 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev);
 
 void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config);
 
+int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
+			 struct cfg80211_ap_settings *params);
 u8 *mwifiex_11d_code_2_region(u8 code);
 
 #ifdef CONFIG_DEBUG_FS
