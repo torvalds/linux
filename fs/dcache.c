@@ -1650,9 +1650,8 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
 
 	if (inode && S_ISDIR(inode->i_mode)) {
 		spin_lock(&inode->i_lock);
-		new = __d_find_alias(inode, 1);
+		new = __d_find_any_alias(inode);
 		if (new) {
-			BUG_ON(!(new->d_flags & DCACHE_DISCONNECTED));
 			spin_unlock(&inode->i_lock);
 			security_d_instantiate(new, inode);
 			d_move(new, dentry);
