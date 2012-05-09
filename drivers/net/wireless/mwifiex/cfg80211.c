@@ -387,7 +387,10 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 	if (mwifiex_bss_set_channel(priv, &cfp))
 		return -EFAULT;
 
-	return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
+	if (priv->bss_type == MWIFIEX_BSS_TYPE_STA)
+		return mwifiex_drv_change_adhoc_chan(priv, cfp.channel);
+	else
+		return mwifiex_uap_set_channel(priv, cfp.channel);
 }
 
 /*

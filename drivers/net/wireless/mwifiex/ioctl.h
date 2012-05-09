@@ -62,6 +62,12 @@ enum {
 	BAND_AN = 16,
 };
 
+#define BAND_CONFIG_MANUAL      0x00
+struct mwifiex_uap_bss_param {
+	u8 channel;
+	u8 band_cfg;
+};
+
 enum {
 	ADHOC_IDLE,
 	ADHOC_STARTED,

@@ -1112,9 +1112,20 @@ struct host_cmd_tlv {
 	__le16 len;
 } __packed;
 
+struct host_cmd_ds_sys_config {
+	__le16 action;
+	u8 tlv[0];
+};
+
 struct host_cmd_tlv_mac_addr {
 	struct host_cmd_tlv tlv;
 	u8 mac_addr[ETH_ALEN];
+} __packed;
+
+struct host_cmd_tlv_channel_band {
+	struct host_cmd_tlv tlv;
+	u8 band_config;
+	u8 channel;
 } __packed;
 
 struct host_cmd_ds_802_11_rf_channel {
@@ -1231,6 +1242,7 @@ struct host_cmd_ds_command {
 		struct host_cmd_ds_pcie_details pcie_host_spec;
 		struct host_cmd_ds_802_11_eeprom_access eeprom;
 		struct host_cmd_ds_802_11_subsc_evt subsc_evt;
+		struct host_cmd_ds_sys_config uap_sys_config;
 	} params;
 } __packed;
 
