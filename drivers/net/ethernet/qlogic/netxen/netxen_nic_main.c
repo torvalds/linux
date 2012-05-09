@@ -2926,6 +2926,134 @@ static struct bin_attribute bin_attr_mem = {
 	.write = netxen_sysfs_write_mem,
 };
 
+static ssize_t
+netxen_sysfs_read_dimm(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *attr,
+		char *buf, loff_t offset, size_t size)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct netxen_adapter *adapter = dev_get_drvdata(dev);
+	struct net_device *netdev = adapter->netdev;
+	struct netxen_dimm_cfg dimm;
+	u8 dw, rows, cols, banks, ranks;
+	u32 val;
+
+	if (size != sizeof(struct netxen_dimm_cfg)) {
+		netdev_err(netdev, "Invalid size\n");
+		return -1;
+	}
+
+	memset(&dimm, 0, sizeof(struct netxen_dimm_cfg));
+	val = NXRD32(adapter, NETXEN_DIMM_CAPABILITY);
+
+	/* Checks if DIMM info is valid. */
+	if (val & NETXEN_DIMM_VALID_FLAG) {
+		netdev_err(netdev, "Invalid DIMM flag\n");
+		dimm.presence = 0xff;
+		goto out;
+	}
+
+	rows = NETXEN_DIMM_NUMROWS(val);
+	cols = NETXEN_DIMM_NUMCOLS(val);
+	ranks = NETXEN_DIMM_NUMRANKS(val);
+	banks = NETXEN_DIMM_NUMBANKS(val);
+	dw = NETXEN_DIMM_DATAWIDTH(val);
+
+	dimm.presence = (val & NETXEN_DIMM_PRESENT);
+
+	/* Checks if DIMM info is present. */
+	if (!dimm.presence) {
+		netdev_err(netdev, "DIMM not present\n");
+		goto out;
+	}
+
+	dimm.dimm_type = NETXEN_DIMM_TYPE(val);
+
+	switch (dimm.dimm_type) {
+	case NETXEN_DIMM_TYPE_RDIMM:
+	case NETXEN_DIMM_TYPE_UDIMM:
+	case NETXEN_DIMM_TYPE_SO_DIMM:
+	case NETXEN_DIMM_TYPE_Micro_DIMM:
+	case NETXEN_DIMM_TYPE_Mini_RDIMM:
+	case NETXEN_DIMM_TYPE_Mini_UDIMM:
+		break;
+	default:
+		netdev_err(netdev, "Invalid DIMM type %x\n", dimm.dimm_type);
+		goto out;
+	}
+
+	if (val & NETXEN_DIMM_MEMTYPE_DDR2_SDRAM)
+		dimm.mem_type = NETXEN_DIMM_MEM_DDR2_SDRAM;
+	else
+		dimm.mem_type = NETXEN_DIMM_MEMTYPE(val);
+
+	if (val & NETXEN_DIMM_SIZE) {
+		dimm.size = NETXEN_DIMM_STD_MEM_SIZE;
+		goto out;
+	}
+
+	if (!rows) {
+		netdev_err(netdev, "Invalid no of rows %x\n", rows);
+		goto out;
+	}
+
+	if (!cols) {
+		netdev_err(netdev, "Invalid no of columns %x\n", cols);
+		goto out;
+	}
+
+	if (!banks) {
+		netdev_err(netdev, "Invalid no of banks %x\n", banks);
+		goto out;
+	}
+
+	ranks += 1;
+
+	switch (dw) {
+	case 0x0:
+		dw = 32;
+		break;
+	case 0x1:
+		dw = 33;
+		break;
+	case 0x2:
+		dw = 36;
+		break;
+	case 0x3:
+		dw = 64;
+		break;
+	case 0x4:
+		dw = 72;
+		break;
+	case 0x5:
+		dw = 80;
+		break;
+	case 0x6:
+		dw = 128;
+		break;
+	case 0x7:
+		dw = 144;
+		break;
+	default:
+		netdev_err(netdev, "Invalid data-width %x\n", dw);
+		goto out;
+	}
+
+	dimm.size = ((1 << rows) * (1 << cols) * dw * banks * ranks) / 8;
+	/* Size returned in MB. */
+	dimm.size = (dimm.size) / 0x100000;
+out:
+	memcpy(buf, &dimm, sizeof(struct netxen_dimm_cfg));
+	return sizeof(struct netxen_dimm_cfg);
+
+}
+
+static struct bin_attribute bin_attr_dimm = {
+	.attr = { .name = "dimm", .mode = (S_IRUGO | S_IWUSR) },
+	.size = 0,
+	.read = netxen_sysfs_read_dimm,
+};
+
 
 static void
 netxen_create_sysfs_entries(struct netxen_adapter *adapter)
@@ -2963,6 +3091,8 @@ netxen_create_diag_entries(struct netxen_adapter *adapter)
 		dev_info(dev, "failed to create crb sysfs entry\n");
 	if (device_create_bin_file(dev, &bin_attr_mem))
 		dev_info(dev, "failed to create mem sysfs entry\n");
+	if (device_create_bin_file(dev, &bin_attr_dimm))
+		dev_info(dev, "failed to create dimm sysfs entry\n");
 }
 
 
@@ -2975,6 +3105,7 @@ netxen_remove_diag_entries(struct netxen_adapter *adapter)
 	device_remove_file(dev, &dev_attr_diag_mode);
 	device_remove_bin_file(dev, &bin_attr_crb);
 	device_remove_bin_file(dev, &bin_attr_mem);
+	device_remove_bin_file(dev, &bin_attr_dimm);
 }
 
 #ifdef CONFIG_INET

@@ -1817,6 +1817,13 @@ struct netxen_brdinfo {
 	char short_name[NETXEN_MAX_SHORT_NAME];
 };
 
+struct netxen_dimm_cfg {
+	u8 presence;
+	u8 mem_type;
+	u8 dimm_type;
+	u32 size;
+};
+
 static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P2_SB31_10G_CX4, 1, "XGb CX4"},
 	{NETXEN_BRDTYPE_P2_SB31_10G_HMEZ, 1, "XGb HMEZ"},
