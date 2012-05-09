@@ -24,12 +24,6 @@ int rkwifi_set_country_code(char *code)
 }
 
 /* 
- * Set Crystal Freq
- */
- 
-#define CRYSTAL_FREQ 0 // 0: 37.4M; 1: 26M
-
-/* 
  * Set Firmware Path
  */
  
@@ -39,18 +33,20 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 {
 #ifdef CONFIG_RK903
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903.bin");
-#if CRYSTAL_FREQ	
+#ifdef CONFIG_26M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903_26M.cal");
-#else	
+#endif
+#ifdef CONFIG_37_4M	
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903.cal");
 #endif	
 #endif	
 
 #ifdef CONFIG_RK901
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
-#if CRYSTAL_FREQ
+#ifdef CONFIG_26M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901_26M.txt");
-#else
+#endif
+#ifdef CONFIG_37_4M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901.txt");
 #endif
 #endif
