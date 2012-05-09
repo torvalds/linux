@@ -286,18 +286,18 @@ static int __devinit bcm4329_rfkill_probe(struct platform_device *pdev)
 	
 	rc = gpio_request(BT_GPIO_WAKE_UP_HOST, "bt_wake");
 	if (rc) {
-		printk("%s:failed to request RAHO_BT_WAKE_UP_HOST\n",__FUNCTION__);
+		printk("%s:failed to request BT_WAKE_UP_HOST\n",__FUNCTION__);
 	}
 	
 	IOMUX_BT_GPIO_WAKE_UP_HOST();
 	gpio_pull_updown(BT_GPIO_WAKE_UP_HOST,GPIOPullUp);
-	rc = request_irq(gpio_to_irq(BT_GPIO_WAKE_UP_HOST),bcm4329_wake_host_irq,IRQF_TRIGGER_FALLING,NULL,NULL);
+	rc = request_irq(gpio_to_irq(BT_GPIO_WAKE_UP_HOST),bcm4329_wake_host_irq,IRQF_TRIGGER_FALLING,"bt_wake",NULL);
 	if(rc)
 	{
-		printk("%s:failed to request RAHO_BT_WAKE_UP_HOST irq\n",__FUNCTION__);
+		printk("%s:failed to request BT_WAKE_UP_HOST irq\n",__FUNCTION__);
 		gpio_free(BT_GPIO_WAKE_UP_HOST);
 	}
-	enable_irq_wake(gpio_to_irq(BT_GPIO_WAKE_UP_HOST)); // so RAHO_BT_WAKE_UP_HOST can wake up system
+	enable_irq_wake(gpio_to_irq(BT_GPIO_WAKE_UP_HOST)); // so BT_WAKE_UP_HOST can wake up system
 
 	printk(KERN_INFO "bcm4329 module has been initialized,rc=0x%x\n",rc);
  #endif
