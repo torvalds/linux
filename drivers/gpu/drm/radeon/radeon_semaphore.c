@@ -53,8 +53,8 @@ static int radeon_semaphore_add_bo(struct radeon_device *rdev)
 		kfree(bo);
 		return r;
 	}
-	gpu_addr = radeon_sa_bo_gpu_addr(&bo->ib->sa_bo);
-	cpu_ptr = radeon_sa_bo_cpu_addr(&bo->ib->sa_bo);
+	gpu_addr = radeon_sa_bo_gpu_addr(bo->ib->sa_bo);
+	cpu_ptr = radeon_sa_bo_cpu_addr(bo->ib->sa_bo);
 	for (i = 0; i < (RADEON_SEMAPHORE_BO_SIZE/8); i++) {
 		bo->semaphores[i].gpu_addr = gpu_addr;
 		bo->semaphores[i].cpu_ptr = cpu_ptr;

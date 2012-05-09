@@ -131,7 +131,7 @@ int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
  */
 int radeon_sa_bo_new(struct radeon_device *rdev,
 		     struct radeon_sa_manager *sa_manager,
-		     struct radeon_sa_bo *sa_bo,
+		     struct radeon_sa_bo **sa_bo,
 		     unsigned size, unsigned align)
 {
 	struct radeon_sa_bo *tmp;
@@ -140,6 +140,9 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 
 	BUG_ON(align > RADEON_GPU_PAGE_SIZE);
 	BUG_ON(size > sa_manager->size);
+
+	*sa_bo = kmalloc(sizeof(struct radeon_sa_bo), GFP_KERNEL);
+
 	spin_lock(&sa_manager->lock);
 
 	/* no one ? */
@@ -175,23 +178,30 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	if ((sa_manager->size - offset) < size) {
 		/* failed to find somethings big enough */
 		spin_unlock(&sa_manager->lock);
+		kfree(*sa_bo);
+		*sa_bo = NULL;
 		return -ENOMEM;
 	}
 
 out:
-	sa_bo->manager = sa_manager;
-	sa_bo->soffset = offset;
-	sa_bo->eoffset = offset + size;
-	list_add(&sa_bo->list, head);
+	(*sa_bo)->manager = sa_manager;
+	(*sa_bo)->soffset = offset;
+	(*sa_bo)->eoffset = offset + size;
+	list_add(&(*sa_bo)->list, head);
 	spin_unlock(&sa_manager->lock);
 	return 0;
 }
 
-void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo *sa_bo)
+void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo)
 {
-	spin_lock(&sa_bo->manager->lock);
-	list_del_init(&sa_bo->list);
-	spin_unlock(&sa_bo->manager->lock);
+	if (!sa_bo || !*sa_bo)
+		return;
+
+	spin_lock(&(*sa_bo)->manager->lock);
+	list_del_init(&(*sa_bo)->list);
+	spin_unlock(&(*sa_bo)->manager->lock);
+	kfree(*sa_bo);
+	*sa_bo = NULL;
 }
 
 #if defined(CONFIG_DEBUG_FS)

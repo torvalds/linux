@@ -638,7 +638,7 @@ void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
  */
 
 struct radeon_ib {
-	struct radeon_sa_bo	sa_bo;
+	struct radeon_sa_bo	*sa_bo;
 	unsigned		idx;
 	uint32_t		length_dw;
 	uint64_t		gpu_addr;
@@ -693,7 +693,7 @@ struct radeon_vm {
 	unsigned			last_pfn;
 	u64				pt_gpu_addr;
 	u64				*pt;
-	struct radeon_sa_bo		sa_bo;
+	struct radeon_sa_bo		*sa_bo;
 	struct mutex			mutex;
 	/* last fence for cs using this vm */
 	struct radeon_fence		*fence;

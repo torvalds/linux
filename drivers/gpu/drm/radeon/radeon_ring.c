@@ -127,8 +127,8 @@ retry:
 					     size, 256);
 			if (!r) {
 				*ib = &rdev->ib_pool.ibs[idx];
-				(*ib)->ptr = radeon_sa_bo_cpu_addr(&(*ib)->sa_bo);
-				(*ib)->gpu_addr = radeon_sa_bo_gpu_addr(&(*ib)->sa_bo);
+				(*ib)->ptr = radeon_sa_bo_cpu_addr((*ib)->sa_bo);
+				(*ib)->gpu_addr = radeon_sa_bo_gpu_addr((*ib)->sa_bo);
 				(*ib)->fence = fence;
 				(*ib)->vm_id = 0;
 				(*ib)->is_const_ib = false;
@@ -227,7 +227,7 @@ int radeon_ib_pool_init(struct radeon_device *rdev)
 		rdev->ib_pool.ibs[i].fence = NULL;
 		rdev->ib_pool.ibs[i].idx = i;
 		rdev->ib_pool.ibs[i].length_dw = 0;
-		INIT_LIST_HEAD(&rdev->ib_pool.ibs[i].sa_bo.list);
+		rdev->ib_pool.ibs[i].sa_bo = NULL;
 	}
 	rdev->ib_pool.head_id = 0;
 	rdev->ib_pool.ready = true;

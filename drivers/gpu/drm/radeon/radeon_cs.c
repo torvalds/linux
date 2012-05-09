@@ -477,7 +477,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 		/* ib pool is bind at 0 in virtual address space to gpu_addr is the
 		 * offset inside the pool bo
 		 */
-		parser->const_ib->gpu_addr = parser->const_ib->sa_bo.soffset;
+		parser->const_ib->gpu_addr = parser->const_ib->sa_bo->soffset;
 		r = radeon_ib_schedule(rdev, parser->const_ib);
 		if (r)
 			goto out;
@@ -487,7 +487,7 @@ static int radeon_cs_ib_vm_chunk(struct radeon_device *rdev,
 	/* ib pool is bind at 0 in virtual address space to gpu_addr is the
 	 * offset inside the pool bo
 	 */
-	parser->ib->gpu_addr = parser->ib->sa_bo.soffset;
+	parser->ib->gpu_addr = parser->ib->sa_bo->soffset;
 	parser->ib->is_const_ib = false;
 	r = radeon_ib_schedule(rdev, parser->ib);
 out:
