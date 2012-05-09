@@ -626,15 +626,6 @@ static struct platform_driver wm831x_aldo_driver = {
 
 #define WM831X_ALIVE_LDO_MAX_SELECTOR 0xf
 
-static int wm831x_alive_ldo_list_voltage(struct regulator_dev *rdev,
-				      unsigned int selector)
-{
-	/* 0.8-1.55V in 50mV steps */
-	if (selector <= WM831X_ALIVE_LDO_MAX_SELECTOR)
-		return 800000 + (selector * 50000);
-	return -EINVAL;
-}
-
 static int wm831x_alive_ldo_set_voltage_int(struct regulator_dev *rdev,
 					    int reg,
 					    int min_uV, int max_uV,
@@ -646,7 +637,7 @@ static int wm831x_alive_ldo_set_voltage_int(struct regulator_dev *rdev,
 
 	vsel = (min_uV - 800000) / 50000;
 
-	ret = wm831x_alive_ldo_list_voltage(rdev, vsel);
+	ret = regulator_list_voltage_linear(rdev, vsel);
 	if (ret < 0)
 		return ret;
 	if (ret < min_uV || ret > max_uV)
@@ -696,7 +687,7 @@ static int wm831x_alive_ldo_get_status(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops wm831x_alive_ldo_ops = {
-	.list_voltage = wm831x_alive_ldo_list_voltage,
+	.list_voltage = regulator_list_voltage_linear,
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage = wm831x_alive_ldo_set_voltage,
 	.set_suspend_voltage = wm831x_alive_ldo_set_suspend_voltage,
@@ -758,6 +749,8 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 	ldo->desc.vsel_mask = WM831X_LDO11_ON_VSEL_MASK;
 	ldo->desc.enable_reg = WM831X_LDO_ENABLE;
 	ldo->desc.enable_mask = 1 << id;
+	ldo->desc.min_uV = 800000;
+	ldo->desc.uV_step = 50000;
 
 	config.dev = pdev->dev.parent;
 	if (pdata)
