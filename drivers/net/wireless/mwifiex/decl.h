@@ -60,6 +60,7 @@
 #define MWIFIEX_FRAG_MIN_VALUE             (256)
 #define MWIFIEX_FRAG_MAX_VALUE             (2346)
 
+#define MWIFIEX_RETRY_LIMIT                14
 #define MWIFIEX_SDIO_BLOCK_SIZE            256
 
 #define MWIFIEX_BUF_FLAG_REQUEUED_PKT      BIT(0)

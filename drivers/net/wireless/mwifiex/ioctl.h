@@ -66,6 +66,9 @@ enum {
 struct mwifiex_uap_bss_param {
 	u8 channel;
 	u8 band_cfg;
+	u16 rts_threshold;
+	u16 frag_threshold;
+	u8 retry_limit;
 };
 
 enum {

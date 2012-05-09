@@ -993,6 +993,8 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					u32 *flags, struct vif_params *params);
 int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct net_device *dev);
 
+void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config);
+
 u8 *mwifiex_11d_code_2_region(u8 code);
 
 #ifdef CONFIG_DEBUG_FS

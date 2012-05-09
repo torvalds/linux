@@ -106,9 +106,12 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
 #define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
+#define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
+#define TLV_TYPE_UAP_FRAG_THRESHOLD (PROPRIETARY_TLV_BASE_ID + 70)
 #define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
 #define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
+#define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
 #define TLV_TYPE_MGMT_IE            (PROPRIETARY_TLV_BASE_ID + 105)
 #define TLV_TYPE_AUTO_DS_PARAM      (PROPRIETARY_TLV_BASE_ID + 113)
@@ -1116,6 +1119,21 @@ struct host_cmd_ds_sys_config {
 	__le16 action;
 	u8 tlv[0];
 };
+
+struct host_cmd_tlv_frag_threshold {
+	struct host_cmd_tlv tlv;
+	__le16 frag_thr;
+} __packed;
+
+struct host_cmd_tlv_rts_threshold {
+	struct host_cmd_tlv tlv;
+	__le16 rts_thr;
+} __packed;
+
+struct host_cmd_tlv_retry_limit {
+	struct host_cmd_tlv tlv;
+	u8 limit;
+} __packed;
 
 struct host_cmd_tlv_mac_addr {
 	struct host_cmd_tlv tlv;

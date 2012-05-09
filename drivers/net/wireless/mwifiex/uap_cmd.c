@@ -19,6 +19,17 @@
 
 #include "main.h"
 
+/* This function initializes some of mwifiex_uap_bss_param variables.
+ * This helps FW in ignoring invalid values. These values may or may not
+ * be get updated to valid ones at later stage.
+ */
+void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config)
+{
+	config->rts_threshold = 0x7FFF;
+	config->frag_threshold = 0x7FFF;
+	config->retry_limit = 0x7F;
+}
+
 /* Parse AP config structure and prepare TLV based command structure
  * to be sent to FW for uAP configuration
  */
@@ -28,6 +39,9 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 	u8 *tlv;
 	struct host_cmd_ds_sys_config *sys_config = &cmd->params.uap_sys_config;
 	struct host_cmd_tlv_channel_band *chan_band;
+	struct host_cmd_tlv_frag_threshold *frag_threshold;
+	struct host_cmd_tlv_rts_threshold *rts_threshold;
+	struct host_cmd_tlv_retry_limit *retry_limit;
 	struct mwifiex_uap_bss_param *bss_cfg = cmd_buf;
 	u16 cmd_size;
 
@@ -48,6 +62,39 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 		chan_band->channel = bss_cfg->channel;
 		cmd_size += sizeof(struct host_cmd_tlv_channel_band);
 		tlv += sizeof(struct host_cmd_tlv_channel_band);
+	}
+	if (bss_cfg->rts_threshold <= MWIFIEX_RTS_MAX_VALUE) {
+		rts_threshold = (struct host_cmd_tlv_rts_threshold *)tlv;
+		rts_threshold->tlv.type =
+					cpu_to_le16(TLV_TYPE_UAP_RTS_THRESHOLD);
+		rts_threshold->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_rts_threshold) -
+				    sizeof(struct host_cmd_tlv));
+		rts_threshold->rts_thr = cpu_to_le16(bss_cfg->rts_threshold);
+		cmd_size += sizeof(struct host_cmd_tlv_frag_threshold);
+		tlv += sizeof(struct host_cmd_tlv_frag_threshold);
+	}
+	if ((bss_cfg->frag_threshold >= MWIFIEX_FRAG_MIN_VALUE) &&
+	    (bss_cfg->frag_threshold <= MWIFIEX_FRAG_MAX_VALUE)) {
+		frag_threshold = (struct host_cmd_tlv_frag_threshold *)tlv;
+		frag_threshold->tlv.type =
+				cpu_to_le16(TLV_TYPE_UAP_FRAG_THRESHOLD);
+		frag_threshold->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_frag_threshold) -
+				    sizeof(struct host_cmd_tlv));
+		frag_threshold->frag_thr = cpu_to_le16(bss_cfg->frag_threshold);
+		cmd_size += sizeof(struct host_cmd_tlv_frag_threshold);
+		tlv += sizeof(struct host_cmd_tlv_frag_threshold);
+	}
+	if (bss_cfg->retry_limit <= MWIFIEX_RETRY_LIMIT) {
+		retry_limit = (struct host_cmd_tlv_retry_limit *)tlv;
+		retry_limit->tlv.type = cpu_to_le16(TLV_TYPE_UAP_RETRY_LIMIT);
+		retry_limit->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_retry_limit) -
+				    sizeof(struct host_cmd_tlv));
+		retry_limit->limit = (u8)bss_cfg->retry_limit;
+		cmd_size += sizeof(struct host_cmd_tlv_retry_limit);
+		tlv += sizeof(struct host_cmd_tlv_retry_limit);
 	}
 
 	cmd->size = cpu_to_le16(cmd_size);

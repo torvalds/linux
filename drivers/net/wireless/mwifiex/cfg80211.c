@@ -428,18 +428,13 @@ mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 static int
 mwifiex_set_frag(struct mwifiex_private *priv, u32 frag_thr)
 {
-	int ret;
-
 	if (frag_thr < MWIFIEX_FRAG_MIN_VALUE ||
 	    frag_thr > MWIFIEX_FRAG_MAX_VALUE)
-		return -EINVAL;
+		frag_thr = MWIFIEX_FRAG_MAX_VALUE;
 
-	/* Send request to firmware */
-	ret = mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
-				    HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
-				    &frag_thr);
-
-	return ret;
+	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_SNMP_MIB,
+				     HostCmd_ACT_GEN_SET, FRAG_THRESH_I,
+				     &frag_thr);
 }
 
 /*
@@ -469,20 +464,84 @@ static int
 mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
 	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
-	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
-							MWIFIEX_BSS_ROLE_STA);
-	int ret = 0;
+	struct mwifiex_private *priv;
+	struct mwifiex_uap_bss_param *bss_cfg;
+	int ret, bss_started, i;
 
-	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
-		ret = mwifiex_set_rts(priv, wiphy->rts_threshold);
-		if (ret)
-			return ret;
+	for (i = 0; i < adapter->priv_num; i++) {
+		priv = adapter->priv[i];
+
+		switch (priv->bss_role) {
+		case MWIFIEX_BSS_ROLE_UAP:
+			bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param),
+					  GFP_KERNEL);
+			if (!bss_cfg)
+				return -ENOMEM;
+
+			mwifiex_set_sys_config_invalid_data(bss_cfg);
+
+			if (changed & WIPHY_PARAM_RTS_THRESHOLD)
+				bss_cfg->rts_threshold = wiphy->rts_threshold;
+			if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
+				bss_cfg->frag_threshold = wiphy->frag_threshold;
+			if (changed & WIPHY_PARAM_RETRY_LONG)
+				bss_cfg->retry_limit = wiphy->retry_long;
+
+			bss_started = priv->bss_started;
+
+			ret = mwifiex_send_cmd_sync(priv,
+						    HostCmd_CMD_UAP_BSS_STOP,
+						    HostCmd_ACT_GEN_SET, 0,
+						    NULL);
+			if (ret) {
+				wiphy_err(wiphy, "Failed to stop the BSS\n");
+				kfree(bss_cfg);
+				return ret;
+			}
+
+			ret = mwifiex_send_cmd_async(priv,
+						     HostCmd_CMD_UAP_SYS_CONFIG,
+						     HostCmd_ACT_GEN_SET,
+						     0, bss_cfg);
+
+			kfree(bss_cfg);
+
+			if (ret) {
+				wiphy_err(wiphy, "Failed to set bss config\n");
+				return ret;
+			}
+
+			if (!bss_started)
+				break;
+
+			ret = mwifiex_send_cmd_async(priv,
+						     HostCmd_CMD_UAP_BSS_START,
+						     HostCmd_ACT_GEN_SET, 0,
+						     NULL);
+			if (ret) {
+				wiphy_err(wiphy, "Failed to start BSS\n");
+				return ret;
+			}
+
+			break;
+		case MWIFIEX_BSS_ROLE_STA:
+			if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
+				ret = mwifiex_set_rts(priv,
+						      wiphy->rts_threshold);
+				if (ret)
+					return ret;
+			}
+			if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+				ret = mwifiex_set_frag(priv,
+						       wiphy->frag_threshold);
+				if (ret)
+					return ret;
+			}
+			break;
+		}
 	}
 
-	if (changed & WIPHY_PARAM_FRAG_THRESHOLD)
-		ret = mwifiex_set_frag(priv, wiphy->frag_threshold);
-
-	return ret;
+	return 0;
 }
 
 /*
