@@ -9,6 +9,8 @@ menuconfig IPACK_BUS
 
 if IPACK_BUS
 
+source "drivers/staging/ipack/devices/Kconfig"
+
 source "drivers/staging/ipack/bridges/Kconfig"
 
 endif # IPACK
