@@ -249,10 +249,10 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		udelay(10);
 
 		if (gpio_is_valid(pdata->reset_gpio_port[0]))
-			gpio_set_value(pdata->reset_gpio_port[0], 1);
+			gpio_set_value_cansleep(pdata->reset_gpio_port[0], 1);
 
 		if (gpio_is_valid(pdata->reset_gpio_port[1]))
-			gpio_set_value(pdata->reset_gpio_port[1], 1);
+			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 1);
 	}
 
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
