@@ -63,7 +63,9 @@ static void pty_close(struct tty_struct *tty, struct file *filp)
 		        mutex_unlock(&devpts_mutex);
 		}
 #endif
+		tty_unlock(tty);
 		tty_vhangup(tty->link);
+		tty_lock(tty);
 	}
 }
 
