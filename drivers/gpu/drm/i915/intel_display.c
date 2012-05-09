@@ -977,9 +977,14 @@ static void assert_fdi_rx(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
-	reg = FDI_RX_CTL(pipe);
-	val = I915_READ(reg);
-	cur_state = !!(val & FDI_RX_ENABLE);
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+			DRM_ERROR("Attempting to enable FDI_RX on Haswell pipe > 0\n");
+			return;
+	} else {
+		reg = FDI_RX_CTL(pipe);
+		val = I915_READ(reg);
+		cur_state = !!(val & FDI_RX_ENABLE);
+	}
 	WARN(cur_state != state,
 	     "FDI RX state assertion failure (expected %s, current %s)\n",
 	     state_string(state), state_string(cur_state));
@@ -1012,6 +1017,10 @@ static void assert_fdi_rx_pll_enabled(struct drm_i915_private *dev_priv,
 	int reg;
 	u32 val;
 
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+		DRM_ERROR("Attempting to enable FDI on Haswell with pipe > 0\n");
+		return;
+	}
 	reg = FDI_RX_CTL(pipe);
 	val = I915_READ(reg);
 	WARN(!(val & FDI_RX_PLL_ENABLE), "FDI RX PLL assertion failure, should be active but is disabled\n");
@@ -1483,6 +1492,10 @@ static void intel_enable_transcoder(struct drm_i915_private *dev_priv,
 	assert_fdi_tx_enabled(dev_priv, pipe);
 	assert_fdi_rx_enabled(dev_priv, pipe);
 
+	if (IS_HASWELL(dev_priv->dev) && pipe > 0) {
+		DRM_ERROR("Attempting to enable transcoder on Haswell with pipe > 0\n");
+		return;
+	}
 	reg = TRANSCONF(pipe);
 	val = I915_READ(reg);
 	pipeconf_val = I915_READ(PIPECONF(pipe));

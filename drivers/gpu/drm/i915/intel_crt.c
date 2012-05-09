@@ -615,7 +615,11 @@ void intel_crt_init(struct drm_device *dev)
 	crt->base.clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT |
 				1 << INTEL_ANALOG_CLONE_BIT |
 				1 << INTEL_SDVO_LVDS_CLONE_BIT);
-	crt->base.crtc_mask = (1 << 0) | (1 << 1);
+	if (IS_HASWELL(dev))
+		crt->base.crtc_mask = (1 << 0);
+	else
+		crt->base.crtc_mask = (1 << 0) | (1 << 1);
+
 	if (IS_GEN2(dev))
 		connector->interlace_allowed = 0;
 	else
