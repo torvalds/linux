@@ -290,6 +290,19 @@ struct dip_infoframe {
 	} __attribute__ ((packed)) body;
 } __attribute__((packed));
 
+struct intel_hdmi {
+	struct intel_encoder base;
+	u32 sdvox_reg;
+	int ddc_bus;
+	int ddi_port;
+	uint32_t color_range;
+	bool has_hdmi_sink;
+	bool has_audio;
+	enum hdmi_force_audio force_audio;
+	void (*write_infoframe)(struct drm_encoder *encoder,
+				struct dip_infoframe *frame);
+};
+
 static inline struct drm_crtc *
 intel_get_crtc_for_pipe(struct drm_device *dev, int pipe)
 {
@@ -329,7 +342,11 @@ extern void intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 
 extern void intel_crt_init(struct drm_device *dev);
 extern void intel_hdmi_init(struct drm_device *dev, int sdvox_reg);
-void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
+extern struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder);
+extern void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
+			    struct drm_display_mode *adjusted_mode);
+extern void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder);
+extern void intel_dip_infoframe_csum(struct dip_infoframe *avi_if);
 extern bool intel_sdvo_init(struct drm_device *dev, uint32_t sdvo_reg,
 			    bool is_sdvob);
 extern void intel_dvo_init(struct drm_device *dev);

@@ -37,20 +37,7 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 
-struct intel_hdmi {
-	struct intel_encoder base;
-	u32 sdvox_reg;
-	int ddc_bus;
-	int ddi_port;
-	uint32_t color_range;
-	bool has_hdmi_sink;
-	bool has_audio;
-	enum hdmi_force_audio force_audio;
-	void (*write_infoframe)(struct drm_encoder *encoder,
-				struct dip_infoframe *frame);
-};
-
-static struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
+struct intel_hdmi *enc_to_intel_hdmi(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_hdmi, base.base);
 }
@@ -302,7 +289,7 @@ static void intel_set_infoframe(struct drm_encoder *encoder,
 	intel_hdmi->write_infoframe(encoder, frame);
 }
 
-static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
+void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 					 struct drm_display_mode *adjusted_mode)
 {
 	struct dip_infoframe avi_if = {
@@ -317,7 +304,7 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 	intel_set_infoframe(encoder, &avi_if);
 }
 
-static void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
+void intel_hdmi_set_spd_infoframe(struct drm_encoder *encoder)
 {
 	struct dip_infoframe spd_if;
 
