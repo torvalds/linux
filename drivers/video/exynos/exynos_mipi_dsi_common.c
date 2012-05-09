@@ -76,33 +76,25 @@ static unsigned int dpll_table[15] = {
 
 irqreturn_t exynos_mipi_dsi_interrupt_handler(int irq, void *dev_id)
 {
-	unsigned int intsrc = 0;
-	unsigned int intmsk = 0;
-	struct mipi_dsim_device *dsim = NULL;
+	struct mipi_dsim_device *dsim = dev_id;
+	unsigned int intsrc, intmsk;
 
-	dsim = dev_id;
-	if (!dsim) {
-		dev_dbg(dsim->dev, KERN_ERR "%s:error: wrong parameter\n",
-							__func__);
-		return IRQ_HANDLED;
+	if (dsim == NULL) {
+		dev_err(dsim->dev, "%s: wrong parameter\n", __func__);
+		return IRQ_NONE;
 	}
 
 	intsrc = exynos_mipi_dsi_read_interrupt(dsim);
 	intmsk = exynos_mipi_dsi_read_interrupt_mask(dsim);
+	intmsk = ~intmsk & intsrc;
 
-	intmsk = ~(intmsk) & intsrc;
-
-	switch (intmsk) {
-	case INTMSK_RX_DONE:
+	if (intsrc & INTMSK_RX_DONE) {
 		complete(&dsim_rd_comp);
 		dev_dbg(dsim->dev, "MIPI INTMSK_RX_DONE\n");
-		break;
-	case INTMSK_FIFO_EMPTY:
+	}
+	if (intsrc & INTMSK_FIFO_EMPTY) {
 		complete(&dsim_wr_comp);
 		dev_dbg(dsim->dev, "MIPI INTMSK_FIFO_EMPTY\n");
-		break;
-	default:
-		break;
 	}
 
 	exynos_mipi_dsi_clear_interrupt(dsim, intmsk);
