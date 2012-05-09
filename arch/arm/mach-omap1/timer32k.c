@@ -182,10 +182,15 @@ static __init void omap_init_32k_timer(void)
  * Timer initialization
  * ---------------------------------------------------------------------------
  */
-bool __init omap_32k_timer_init(void)
+int __init omap_32k_timer_init(void)
 {
-	omap_init_clocksource_32k();
-	omap_init_32k_timer();
+	int ret = -ENODEV;
 
-	return true;
+	if (cpu_is_omap16xx())
+		ret = omap_init_clocksource_32k();
+
+	if (!ret)
+		omap_init_32k_timer();
+
+	return ret;
 }
