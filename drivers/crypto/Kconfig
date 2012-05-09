@@ -111,6 +111,7 @@ config CRYPTO_DES_S390
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_DES
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
