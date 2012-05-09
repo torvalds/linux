@@ -384,11 +384,18 @@ static int __devexit em_sti_remove(struct platform_device *pdev)
 	return -EBUSY; /* cannot unregister clockevent and clocksource */
 }
 
+static const struct of_device_id em_sti_dt_ids[] __devinitconst = {
+	{ .compatible = "renesas,em-sti", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, em_sti_dt_ids);
+
 static struct platform_driver em_sti_device_driver = {
 	.probe		= em_sti_probe,
 	.remove		= __devexit_p(em_sti_remove),
 	.driver		= {
 		.name	= "em_sti",
+		.of_match_table = em_sti_dt_ids,
 	}
 };
 
