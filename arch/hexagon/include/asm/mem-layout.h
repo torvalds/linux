@@ -64,7 +64,7 @@ enum fixed_addresses {
 	__end_of_fixed_addresses
 };
 
-#define MIN_KERNEL_SEG 0x300   /* From 0xc0000000 */
+#define MIN_KERNEL_SEG (PAGE_OFFSET >> PGDIR_SHIFT)   /* L1 shift is 22 bits */
 extern int max_kernel_seg;
 
 /*
