@@ -231,7 +231,7 @@ static struct platform_device omap_vwlan_device = {
 	},
 };
 
-struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
+static struct wl12xx_platform_data omap_panda_wlan_data  __initdata = {
 	/* PANDA ref clock is 38.4 MHz */
 	.board_ref_clock = 2,
 };
@@ -438,7 +438,7 @@ static struct panel_dvi_platform_data omap4_dvi_panel = {
 	.i2c_bus_num = 3,
 };
 
-struct omap_dss_device omap4_panda_dvi_device = {
+static struct omap_dss_device omap4_panda_dvi_device = {
 	.type			= OMAP_DISPLAY_TYPE_DPI,
 	.name			= "dvi",
 	.driver_name		= "dvi",
@@ -448,7 +448,7 @@ struct omap_dss_device omap4_panda_dvi_device = {
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
 
-int __init omap4_panda_dvi_init(void)
+static int __init omap4_panda_dvi_init(void)
 {
 	int r;
 
@@ -509,7 +509,7 @@ static struct omap_dss_board_info omap4_panda_dss_data = {
 	.default_device	= &omap4_panda_dvi_device,
 };
 
-void __init omap4_panda_display_init(void)
+static void __init omap4_panda_display_init(void)
 {
 	int r;
 

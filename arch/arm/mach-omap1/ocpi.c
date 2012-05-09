@@ -4,6 +4,7 @@
  * Minimal OCP bus support for omap16xx
  *
  * Copyright (C) 2003 - 2005 Nokia Corporation
+ * Copyright (C) 2012 Texas Instruments, Inc.
  * Written by Tony Lindgren <tony@atomide.com>
  *
  * Modified for clock framework by Paul Mundt <paul.mundt@nokia.com>.
@@ -35,6 +36,8 @@
 
 #include <mach/hardware.h>
 
+#include "common.h"
+
 #define OCPI_BASE		0xfffec320
 #define OCPI_FAULT		(OCPI_BASE + 0x00)
 #define OCPI_CMD_FAULT		(OCPI_BASE + 0x04)
@@ -64,7 +67,7 @@ int ocpi_enable(void)
 	/* Enable access for OHCI in OCPI */
 	val = omap_readl(OCPI_PROT);
 	val &= ~0xff;
-	//val &= (1 << 0);	/* Allow access only to EMIFS */
+	/* val &= (1 << 0);	 Allow access only to EMIFS */
 	omap_writel(val, OCPI_PROT);
 
 	val = omap_readl(OCPI_SEC);
@@ -86,7 +89,7 @@ static int __init omap_ocpi_init(void)
 
 	clk_enable(ocpi_ck);
 	ocpi_enable();
-	printk("OMAP OCPI interconnect driver loaded\n");
+	pr_info("OMAP OCPI interconnect driver loaded\n");
 
 	return 0;
 }

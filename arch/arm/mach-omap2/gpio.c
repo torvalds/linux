@@ -58,7 +58,7 @@ static int __init omap2_gpio_dev_init(struct omap_hwmod *oh, void *unused)
 	pdata->virtual_irq_start = IH_GPIO_BASE + 32 * (id - 1);
 	pdata->get_context_loss_count = omap_pm_get_dev_context_loss_count;
 	pdata->regs = kzalloc(sizeof(struct omap_gpio_reg_offs), GFP_KERNEL);
-	if (!pdata) {
+	if (!pdata->regs) {
 		pr_err("gpio%d: Memory allocation failed\n", id);
 		return -ENOMEM;
 	}

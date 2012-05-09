@@ -134,8 +134,6 @@ void omap4_map_io(void);
 void ti81xx_map_io(void);
 void omap_barriers_init(void);
 
-extern void __init omap_init_consistent_dma_size(void);
-
 /**
  * omap_test_timeout - busy-loop, testing a condition
  * @cond: condition to test until it evaluates to true

@@ -259,7 +259,7 @@ static void irq_save_context(void)
 /*
  * Clear WakeupGen SAR backup status.
  */
-void irq_sar_clear(void)
+static void irq_sar_clear(void)
 {
 	u32 val;
 	val = __raw_readl(sar_base + SAR_BACKUP_STATUS_OFFSET);

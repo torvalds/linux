@@ -630,13 +630,13 @@ static struct regulator_consumer_supply dummy_supplies[] = {
 
 static void __init omap3_evm_init(void)
 {
+	struct omap_board_mux *obm;
+
 	omap3_evm_get_revision();
 	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
-	if (cpu_is_omap3630())
-		omap3_mux_init(omap36x_board_mux, OMAP_PACKAGE_CBB);
-	else
-		omap3_mux_init(omap35x_board_mux, OMAP_PACKAGE_CBB);
+	obm = (cpu_is_omap3630()) ? omap36x_board_mux : omap35x_board_mux;
+	omap3_mux_init(obm, OMAP_PACKAGE_CBB);
 
 	omap_board_config = omap3_evm_config;
 	omap_board_config_size = ARRAY_SIZE(omap3_evm_config);

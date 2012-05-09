@@ -31,6 +31,7 @@
 #include <plat/omap-pm.h>
 #include <plat/omap_hwmod.h>
 #include <plat/multi.h>
+#include <plat/dma.h>
 
 #include "iomap.h"
 #include "voltage.h"
