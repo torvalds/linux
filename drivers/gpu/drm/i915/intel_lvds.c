@@ -750,7 +750,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.ident = "Hewlett-Packard t5745",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_BOARD_NAME, "hp t5745"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "hp t5745"),
 		},
 	},
 	{
@@ -758,7 +758,7 @@ static const struct dmi_system_id intel_no_lvds[] = {
 		.ident = "Hewlett-Packard st5747",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "Hewlett-Packard"),
-			DMI_MATCH(DMI_BOARD_NAME, "hp st5747"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "hp st5747"),
 		},
 	},
 	{

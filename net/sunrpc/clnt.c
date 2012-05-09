@@ -176,16 +176,22 @@ rpc_setup_pipedir(struct rpc_clnt *clnt, const char *dir_name)
 	return 0;
 }
 
-static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
-				struct super_block *sb)
+static inline int rpc_clnt_skip_event(struct rpc_clnt *clnt, unsigned long event)
+{
+	if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
+	    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
+		return 1;
+	return 0;
+}
+
+static int __rpc_clnt_handle_event(struct rpc_clnt *clnt, unsigned long event,
+				   struct super_block *sb)
 {
 	struct dentry *dentry;
 	int err = 0;
 
 	switch (event) {
 	case RPC_PIPEFS_MOUNT:
-		if (clnt->cl_program->pipe_dir_name == NULL)
-			break;
 		dentry = rpc_setup_pipedir_sb(sb, clnt,
 					      clnt->cl_program->pipe_dir_name);
 		BUG_ON(dentry == NULL);
@@ -208,6 +214,20 @@ static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
 	return err;
 }
 
+static int __rpc_pipefs_event(struct rpc_clnt *clnt, unsigned long event,
+				struct super_block *sb)
+{
+	int error = 0;
+
+	for (;; clnt = clnt->cl_parent) {
+		if (!rpc_clnt_skip_event(clnt, event))
+			error = __rpc_clnt_handle_event(clnt, event, sb);
+		if (error || clnt == clnt->cl_parent)
+			break;
+	}
+	return error;
+}
+
 static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
@@ -215,10 +235,12 @@ static struct rpc_clnt *rpc_get_client_for_event(struct net *net, int event)
 
 	spin_lock(&sn->rpc_client_lock);
 	list_for_each_entry(clnt, &sn->all_clients, cl_clients) {
-		if (((event == RPC_PIPEFS_MOUNT) && clnt->cl_dentry) ||
-		    ((event == RPC_PIPEFS_UMOUNT) && !clnt->cl_dentry))
+		if (clnt->cl_program->pipe_dir_name == NULL)
+			break;
+		if (rpc_clnt_skip_event(clnt, event))
 			continue;
-		atomic_inc(&clnt->cl_count);
+		if (atomic_inc_not_zero(&clnt->cl_count) == 0)
+			continue;
 		spin_unlock(&sn->rpc_client_lock);
 		return clnt;
 	}
@@ -255,6 +277,14 @@ int rpc_clients_notifier_register(void)
 void rpc_clients_notifier_unregister(void)
 {
 	return rpc_pipefs_notifier_unregister(&rpc_clients_block);
+}
+
+static void rpc_clnt_set_nodename(struct rpc_clnt *clnt, const char *nodename)
+{
+	clnt->cl_nodelen = strlen(nodename);
+	if (clnt->cl_nodelen > UNX_MAXNODENAME)
+		clnt->cl_nodelen = UNX_MAXNODENAME;
+	memcpy(clnt->cl_nodename, nodename, clnt->cl_nodelen);
 }
 
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, struct rpc_xprt *xprt)
@@ -337,10 +367,7 @@ static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args, stru
 	}
 
 	/* save the nodename */
-	clnt->cl_nodelen = strlen(init_utsname()->nodename);
-	if (clnt->cl_nodelen > UNX_MAXNODENAME)
-		clnt->cl_nodelen = UNX_MAXNODENAME;
-	memcpy(clnt->cl_nodename, init_utsname()->nodename, clnt->cl_nodelen);
+	rpc_clnt_set_nodename(clnt, utsname()->nodename);
 	rpc_register_client(clnt);
 	return clnt;
 
@@ -499,6 +526,7 @@ rpc_clone_client(struct rpc_clnt *clnt)
 	err = rpc_setup_pipedir(new, clnt->cl_program->pipe_dir_name);
 	if (err != 0)
 		goto out_no_path;
+	rpc_clnt_set_nodename(new, utsname()->nodename);
 	if (new->cl_auth)
 		atomic_inc(&new->cl_auth->au_count);
 	atomic_inc(&clnt->cl_count);

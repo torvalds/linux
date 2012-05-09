@@ -290,16 +290,18 @@ static void ehea_update_bcmc_registrations(void)
 
 				arr[i].adh = adapter->handle;
 				arr[i].port_id = port->logical_port_id;
-				arr[i].reg_type = EHEA_BCMC_SCOPE_ALL |
-						  EHEA_BCMC_MULTICAST |
+				arr[i].reg_type = EHEA_BCMC_MULTICAST |
 						  EHEA_BCMC_UNTAGGED;
+				if (mc_entry->macaddr == 0)
+					arr[i].reg_type |= EHEA_BCMC_SCOPE_ALL;
 				arr[i++].macaddr = mc_entry->macaddr;
 
 				arr[i].adh = adapter->handle;
 				arr[i].port_id = port->logical_port_id;
-				arr[i].reg_type = EHEA_BCMC_SCOPE_ALL |
-						  EHEA_BCMC_MULTICAST |
+				arr[i].reg_type = EHEA_BCMC_MULTICAST |
 						  EHEA_BCMC_VLANID_ALL;
+				if (mc_entry->macaddr == 0)
+					arr[i].reg_type |= EHEA_BCMC_SCOPE_ALL;
 				arr[i++].macaddr = mc_entry->macaddr;
 				num_registrations -= 2;
 			}
@@ -1838,8 +1840,9 @@ static u64 ehea_multicast_reg_helper(struct ehea_port *port, u64 mc_mac_addr,
 	u64 hret;
 	u8 reg_type;
 
-	reg_type = EHEA_BCMC_SCOPE_ALL | EHEA_BCMC_MULTICAST
-		 | EHEA_BCMC_UNTAGGED;
+	reg_type = EHEA_BCMC_MULTICAST | EHEA_BCMC_UNTAGGED;
+	if (mc_mac_addr == 0)
+		reg_type |= EHEA_BCMC_SCOPE_ALL;
 
 	hret = ehea_h_reg_dereg_bcmc(port->adapter->handle,
 				     port->logical_port_id,
@@ -1847,8 +1850,9 @@ static u64 ehea_multicast_reg_helper(struct ehea_port *port, u64 mc_mac_addr,
 	if (hret)
 		goto out;
 
-	reg_type = EHEA_BCMC_SCOPE_ALL | EHEA_BCMC_MULTICAST
-		 | EHEA_BCMC_VLANID_ALL;
+	reg_type = EHEA_BCMC_MULTICAST | EHEA_BCMC_VLANID_ALL;
+	if (mc_mac_addr == 0)
+		reg_type |= EHEA_BCMC_SCOPE_ALL;
 
 	hret = ehea_h_reg_dereg_bcmc(port->adapter->handle,
 				     port->logical_port_id,
@@ -1898,7 +1902,7 @@ static void ehea_allmulti(struct net_device *dev, int enable)
 				netdev_err(dev,
 					   "failed enabling IFF_ALLMULTI\n");
 		}
-	} else
+	} else {
 		if (!enable) {
 			/* Disable ALLMULTI */
 			hret = ehea_multicast_reg_helper(port, 0, H_DEREG_BCMC);
@@ -1908,6 +1912,7 @@ static void ehea_allmulti(struct net_device *dev, int enable)
 				netdev_err(dev,
 					   "failed disabling IFF_ALLMULTI\n");
 		}
+	}
 }
 
 static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
@@ -1941,11 +1946,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int ret;
 
-	if (port->promisc) {
-		ehea_promiscuous(dev, 1);
-		return;
-	}
-	ehea_promiscuous(dev, 0);
+	ehea_promiscuous(dev, !!(dev->flags & IFF_PROMISC));
 
 	if (dev->flags & IFF_ALLMULTI) {
 		ehea_allmulti(dev, 1);
@@ -2463,6 +2464,7 @@ static int ehea_down(struct net_device *dev)
 		return 0;
 
 	ehea_drop_multicast_list(dev);
+	ehea_allmulti(dev, 0);
 	ehea_broadcast_reg_helper(port, H_DEREG_BCMC);
 
 	ehea_free_interrupts(dev);
@@ -3261,6 +3263,7 @@ static int __devinit ehea_probe_adapter(struct platform_device *dev,
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;
 	int ret;
+	int i;
 
 	if (!dev || !dev->dev.of_node) {
 		pr_err("Invalid ibmebus device probed\n");
@@ -3314,17 +3317,9 @@ static int __devinit ehea_probe_adapter(struct platform_device *dev,
 	tasklet_init(&adapter->neq_tasklet, ehea_neq_tasklet,
 		     (unsigned long)adapter);
 
-	ret = ibmebus_request_irq(adapter->neq->attr.ist1,
-				  ehea_interrupt_neq, IRQF_DISABLED,
-				  "ehea_neq", adapter);
-	if (ret) {
-		dev_err(&dev->dev, "requesting NEQ IRQ failed\n");
-		goto out_kill_eq;
-	}
-
 	ret = ehea_create_device_sysfs(dev);
 	if (ret)
-		goto out_free_irq;
+		goto out_kill_eq;
 
 	ret = ehea_setup_ports(adapter);
 	if (ret) {
@@ -3332,14 +3327,27 @@ static int __devinit ehea_probe_adapter(struct platform_device *dev,
 		goto out_rem_dev_sysfs;
 	}
 
+	ret = ibmebus_request_irq(adapter->neq->attr.ist1,
+				  ehea_interrupt_neq, IRQF_DISABLED,
+				  "ehea_neq", adapter);
+	if (ret) {
+		dev_err(&dev->dev, "requesting NEQ IRQ failed\n");
+		goto out_shutdown_ports;
+	}
+
+
 	ret = 0;
 	goto out;
 
+out_shutdown_ports:
+	for (i = 0; i < EHEA_MAX_PORTS; i++)
+		if (adapter->port[i]) {
+			ehea_shutdown_single_port(adapter->port[i]);
+			adapter->port[i] = NULL;
+		}
+
 out_rem_dev_sysfs:
 	ehea_remove_device_sysfs(dev);
-
-out_free_irq:
-	ibmebus_free_irq(adapter->neq->attr.ist1, adapter);
 
 out_kill_eq:
 	ehea_destroy_eq(adapter->neq);

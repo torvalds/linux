@@ -10,7 +10,7 @@
 	intc: interrupt-controller@02080000 {
 		compatible = "qcom,msm-8660-qgic";
 		interrupt-controller;
-		#interrupt-cells = <1>;
+		#interrupt-cells = <3>;
 		reg = < 0x02080000 0x1000 >,
 		      < 0x02081000 0x1000 >;
 	};
@@ -19,6 +19,6 @@
 		compatible = "qcom,msm-hsuart", "qcom,msm-uart";
 		reg = <0x19c40000 0x1000>,
 		      <0x19c00000 0x1000>;
-		interrupts = <195>;
+		interrupts = <0 195 0x0>;
 	};
 };

@@ -925,6 +925,13 @@ void omap_start_dma(int lch)
 			l |= OMAP_DMA_CCR_BUFFERING_DISABLE;
 	l |= OMAP_DMA_CCR_EN;
 
+	/*
+	 * As dma_write() uses IO accessors which are weakly ordered, there
+	 * is no guarantee that data in coherent DMA memory will be visible
+	 * to the DMA device.  Add a memory barrier here to ensure that any
+	 * such data is visible prior to enabling DMA.
+	 */
+	mb();
 	p->dma_write(l, CCR, lch);
 
 	dma_chan[lch].flags |= OMAP_DMA_ACTIVE;
@@ -973,6 +980,13 @@ void omap_stop_dma(int lch)
 		l &= ~OMAP_DMA_CCR_EN;
 		p->dma_write(l, CCR, lch);
 	}
+
+	/*
+	 * Ensure that data transferred by DMA is visible to any access
+	 * after DMA has been disabled.  This is important for coherent
+	 * DMA regions.
+	 */
+	mb();
 
 	if (!omap_dma_in_1510_mode() && dma_chan[lch].next_lch != -1) {
 		int next_lch, cur_lch = lch;

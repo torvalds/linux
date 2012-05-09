@@ -7072,9 +7072,6 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	int pipe = intel_crtc->pipe;
-	int dpll_reg = DPLL(pipe);
-	int dpll = I915_READ(dpll_reg);
 
 	if (HAS_PCH_SPLIT(dev))
 		return;
@@ -7087,10 +7084,15 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 	 * the manual case.
 	 */
 	if (!HAS_PIPE_CXSR(dev) && intel_crtc->lowfreq_avail) {
+		int pipe = intel_crtc->pipe;
+		int dpll_reg = DPLL(pipe);
+		u32 dpll;
+
 		DRM_DEBUG_DRIVER("downclocking LVDS\n");
 
 		assert_panel_unlocked(dev_priv, pipe);
 
+		dpll = I915_READ(dpll_reg);
 		dpll |= DISPLAY_RATE_SELECT_FPA1;
 		I915_WRITE(dpll_reg, dpll);
 		intel_wait_for_vblank(dev, pipe);
@@ -7098,7 +7100,6 @@ static void intel_decrease_pllclock(struct drm_crtc *crtc)
 		if (!(dpll & DISPLAY_RATE_SELECT_FPA1))
 			DRM_DEBUG_DRIVER("failed to downclock LVDS!\n");
 	}
-
 }
 
 /**

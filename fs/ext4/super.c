@@ -1597,7 +1597,9 @@ static int parse_options(char *options, struct super_block *sb,
 			 unsigned int *journal_ioprio,
 			 int is_remount)
 {
+#ifdef CONFIG_QUOTA
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+#endif
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int token;
