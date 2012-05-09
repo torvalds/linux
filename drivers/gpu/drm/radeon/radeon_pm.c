@@ -270,13 +270,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	} else {
 		struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 		if (ring->ready) {
-			struct radeon_fence *fence;
-			radeon_ring_alloc(rdev, ring, 64);
-			radeon_fence_create(rdev, &fence, radeon_ring_index(rdev, ring));
-			radeon_fence_emit(rdev, fence);
-			radeon_ring_commit(rdev, ring);
-			radeon_fence_wait(fence, false);
-			radeon_fence_unref(&fence);
+			radeon_fence_wait_empty_locked(rdev, RADEON_RING_TYPE_GFX_INDEX);
 		}
 	}
 	radeon_unmap_vram_bos(rdev);

@@ -912,9 +912,12 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	/* evict vram memory */
 	radeon_bo_evict_vram(rdev);
+
+	mutex_lock(&rdev->ring_lock);
 	/* wait for gpu to finish processing current batch */
 	for (i = 0; i < RADEON_NUM_RINGS; i++)
-		radeon_fence_wait_empty(rdev, i);
+		radeon_fence_wait_empty_locked(rdev, i);
+	mutex_unlock(&rdev->ring_lock);
 
 	radeon_save_bios_scratch_regs(rdev);
 

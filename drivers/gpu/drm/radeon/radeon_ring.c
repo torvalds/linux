@@ -347,9 +347,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
-		mutex_unlock(&rdev->ring_lock);
-		r = radeon_fence_wait_next(rdev, radeon_ring_index(rdev, ring));
-		mutex_lock(&rdev->ring_lock);
+		r = radeon_fence_wait_next_locked(rdev, radeon_ring_index(rdev, ring));
 		if (r)
 			return r;
 	}
@@ -408,7 +406,6 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
 {
 	int r;
 
-	mutex_lock(&rdev->ring_lock);
 	radeon_ring_free_size(rdev, ring);
 	if (ring->rptr == ring->wptr) {
 		r = radeon_ring_alloc(rdev, ring, 1);
@@ -417,7 +414,6 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
 			radeon_ring_commit(rdev, ring);
 		}
 	}
-	mutex_unlock(&rdev->ring_lock);
 }
 
 void radeon_ring_lockup_update(struct radeon_ring *ring)
