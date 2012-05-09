@@ -2675,6 +2675,97 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 	return true;
 }
 
+/* Program iCLKIP clock to the desired frequency */
+static void lpt_program_iclkip(struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 divsel, phaseinc, auxdiv, phasedir = 0;
+	u32 temp;
+
+	/* It is necessary to ungate the pixclk gate prior to programming
+	 * the divisors, and gate it back when it is done.
+	 */
+	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_GATE);
+
+	/* Disable SSCCTL */
+	intel_sbi_write(dev_priv, SBI_SSCCTL6,
+				intel_sbi_read(dev_priv, SBI_SSCCTL6) |
+					SBI_SSCCTL_DISABLE);
+
+	/* 20MHz is a corner case which is out of range for the 7-bit divisor */
+	if (crtc->mode.clock == 20000) {
+		auxdiv = 1;
+		divsel = 0x41;
+		phaseinc = 0x20;
+	} else {
+		/* The iCLK virtual clock root frequency is in MHz,
+		 * but the crtc->mode.clock in in KHz. To get the divisors,
+		 * it is necessary to divide one by another, so we
+		 * convert the virtual clock precision to KHz here for higher
+		 * precision.
+		 */
+		u32 iclk_virtual_root_freq = 172800 * 1000;
+		u32 iclk_pi_range = 64;
+		u32 desired_divisor, msb_divisor_value, pi_value;
+
+		desired_divisor = (iclk_virtual_root_freq / crtc->mode.clock);
+		msb_divisor_value = desired_divisor / iclk_pi_range;
+		pi_value = desired_divisor % iclk_pi_range;
+
+		auxdiv = 0;
+		divsel = msb_divisor_value - 2;
+		phaseinc = pi_value;
+	}
+
+	/* This should not happen with any sane values */
+	WARN_ON(SBI_SSCDIVINTPHASE_DIVSEL(divsel) &
+		~SBI_SSCDIVINTPHASE_DIVSEL_MASK);
+	WARN_ON(SBI_SSCDIVINTPHASE_DIR(phasedir) &
+		~SBI_SSCDIVINTPHASE_INCVAL_MASK);
+
+	DRM_DEBUG_KMS("iCLKIP clock: found settings for %dKHz refresh rate: auxdiv=%x, divsel=%x, phasedir=%x, phaseinc=%x\n",
+			crtc->mode.clock,
+			auxdiv,
+			divsel,
+			phasedir,
+			phaseinc);
+
+	/* Program SSCDIVINTPHASE6 */
+	temp = intel_sbi_read(dev_priv, SBI_SSCDIVINTPHASE6);
+	temp &= ~SBI_SSCDIVINTPHASE_DIVSEL_MASK;
+	temp |= SBI_SSCDIVINTPHASE_DIVSEL(divsel);
+	temp &= ~SBI_SSCDIVINTPHASE_INCVAL_MASK;
+	temp |= SBI_SSCDIVINTPHASE_INCVAL(phaseinc);
+	temp |= SBI_SSCDIVINTPHASE_DIR(phasedir);
+	temp |= SBI_SSCDIVINTPHASE_PROPAGATE;
+
+	intel_sbi_write(dev_priv,
+			SBI_SSCDIVINTPHASE6,
+			temp);
+
+	/* Program SSCAUXDIV */
+	temp = intel_sbi_read(dev_priv, SBI_SSCAUXDIV6);
+	temp &= ~SBI_SSCAUXDIV_FINALDIV2SEL(1);
+	temp |= SBI_SSCAUXDIV_FINALDIV2SEL(auxdiv);
+	intel_sbi_write(dev_priv,
+			SBI_SSCAUXDIV6,
+			temp);
+
+
+	/* Enable modulator and associated divider */
+	temp = intel_sbi_read(dev_priv, SBI_SSCCTL6);
+	temp &= ~SBI_SSCCTL_DISABLE;
+	intel_sbi_write(dev_priv,
+			SBI_SSCCTL6,
+			temp);
+
+	/* Wait for initialization time */
+	udelay(24);
+
+	I915_WRITE(PIXCLK_GATE, PIXCLK_GATE_UNGATE);
+}
+
 /*
  * Enable PCH resources required for PCH ports:
  *   - PCH PLLs
@@ -2694,10 +2785,13 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
-	intel_enable_pch_pll(intel_crtc);
-
-	if (HAS_PCH_CPT(dev)) {
+	if (HAS_PCH_LPT(dev)) {
+		DRM_DEBUG_KMS("LPT detected: programming iCLKIP\n");
+		lpt_program_iclkip(crtc);
+	} else if (HAS_PCH_CPT(dev)) {
 		u32 sel;
+
+		intel_enable_pch_pll(intel_crtc);
 
 		temp = I915_READ(PCH_DPLL_SEL);
 		switch (pipe) {
