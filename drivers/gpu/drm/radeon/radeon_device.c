@@ -724,7 +724,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
 	radeon_mutex_init(&rdev->cs_mutex);
-	radeon_mutex_init(&rdev->ib_pool.mutex);
 	mutex_init(&rdev->ring_lock);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
 	if (rdev->family >= CHIP_R600)

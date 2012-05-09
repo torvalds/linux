@@ -625,25 +625,12 @@ void radeon_irq_kms_pflip_irq_put(struct radeon_device *rdev, int crtc);
 
 struct radeon_ib {
 	struct radeon_sa_bo	*sa_bo;
-	unsigned		idx;
 	uint32_t		length_dw;
 	uint64_t		gpu_addr;
 	uint32_t		*ptr;
 	struct radeon_fence	*fence;
 	unsigned		vm_id;
 	bool			is_const_ib;
-};
-
-/*
- * locking -
- * mutex protects scheduled_ibs, ready, alloc_bm
- */
-struct radeon_ib_pool {
-	struct radeon_mutex		mutex;
-	struct radeon_sa_manager	sa_manager;
-	struct radeon_ib		ibs[RADEON_IB_POOL_SIZE];
-	bool				ready;
-	unsigned			head_id;
 };
 
 struct radeon_ring {
@@ -787,7 +774,6 @@ struct si_rlc {
 int radeon_ib_get(struct radeon_device *rdev, int ring,
 		  struct radeon_ib **ib, unsigned size);
 void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
-bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
@@ -1522,7 +1508,8 @@ struct radeon_device {
 	wait_queue_head_t		fence_queue;
 	struct mutex			ring_lock;
 	struct radeon_ring		ring[RADEON_NUM_RINGS];
-	struct radeon_ib_pool		ib_pool;
+	bool				ib_pool_ready;
+	struct radeon_sa_manager	ring_tmp_bo;
 	struct radeon_irq		irq;
 	struct radeon_asic		*asic;
 	struct radeon_gem		gem;

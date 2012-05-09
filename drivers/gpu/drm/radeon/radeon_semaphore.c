@@ -41,7 +41,7 @@ int radeon_semaphore_create(struct radeon_device *rdev,
 	if (*semaphore == NULL) {
 		return -ENOMEM;
 	}
-	r = radeon_sa_bo_new(rdev, &rdev->ib_pool.sa_manager,
+	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo,
 			     &(*semaphore)->sa_bo, 8, 8, true);
 	if (r) {
 		kfree(*semaphore);
