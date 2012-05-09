@@ -763,16 +763,6 @@ do_work:
 	SOFT_DISABLE_INTS(r3,r4)
 1:	bl	.preempt_schedule_irq
 
-	/* Hard-disable interrupts again (and update PACA) */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	0
-#else
-	ld	r10,PACAKMSR(r13) /* Get kernel MSR without EE */
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
-	li	r0,PACA_IRQ_HARD_DIS
-	stb	r0,PACAIRQHAPPENED(r13)
-
 	/* Re-test flags and eventually loop */
 	clrrdi	r9,r1,THREAD_SHIFT
 	ld	r4,TI_FLAGS(r9)
@@ -782,14 +772,6 @@ do_work:
 
 user_work:
 #endif /* CONFIG_PREEMPT */
-
-	/* Enable interrupts */
-#ifdef CONFIG_PPC_BOOK3E
-	wrteei	1
-#else
-	ori	r10,r10,MSR_EE
-	mtmsrd	r10,1
-#endif /* CONFIG_PPC_BOOK3E */
 
 	andi.	r0,r4,_TIF_NEED_RESCHED
 	beq	1f

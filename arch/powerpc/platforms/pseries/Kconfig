@@ -30,9 +30,9 @@ config PPC_SPLPAR
 	  two or more partitions.
 
 config EEH
-	bool "PCI Extended Error Handling (EEH)" if EXPERT
+	bool
 	depends on PPC_PSERIES && PCI
-	default y if !EXPERT
+	default y
 
 config PSERIES_MSI
        bool

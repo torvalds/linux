@@ -764,8 +764,8 @@ alignment_common:
 	std	r3,_DAR(r1)
 	std	r4,_DSISR(r1)
 	bl	.save_nvgprs
+	DISABLE_INTS
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ENABLE_INTS
 	bl	.alignment_exception
 	b	.ret_from_except
 
