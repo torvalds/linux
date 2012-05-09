@@ -950,6 +950,9 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	struct mwifiex_uap_bss_param *bss_cfg;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
+	if (priv->bss_type != MWIFIEX_BSS_TYPE_UAP)
+		return -1;
+
 	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
 	if (!bss_cfg)
 		return -ENOMEM;
@@ -964,6 +967,12 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 	if (params->ssid && params->ssid_len) {
 		memcpy(bss_cfg->ssid.ssid, params->ssid, params->ssid_len);
 		bss_cfg->ssid.ssid_len = params->ssid_len;
+	}
+
+	if (mwifiex_set_secure_params(priv, bss_cfg, params)) {
+		kfree(bss_cfg);
+		wiphy_err(wiphy, "Failed to parse secuirty parameters!\n");
+		return -1;
 	}
 
 	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,

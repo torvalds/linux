@@ -826,6 +826,9 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 int is_command_pending(struct mwifiex_adapter *adapter);
 void mwifiex_init_priv_params(struct mwifiex_private *priv,
 						struct net_device *dev);
+int mwifiex_set_secure_params(struct mwifiex_private *priv,
+			      struct mwifiex_uap_bss_param *bss_config,
+			      struct cfg80211_ap_settings *params);
 
 /*
  * This function checks if the queuing is RA based or not.
