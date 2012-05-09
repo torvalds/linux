@@ -37,6 +37,7 @@ int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 {
 	int r;
 
+	spin_lock_init(&sa_manager->lock);
 	sa_manager->bo = NULL;
 	sa_manager->size = size;
 	sa_manager->domain = domain;
@@ -139,6 +140,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 
 	BUG_ON(align > RADEON_GPU_PAGE_SIZE);
 	BUG_ON(size > sa_manager->size);
+	spin_lock(&sa_manager->lock);
 
 	/* no one ? */
 	head = sa_manager->sa_bo.prev;
@@ -172,6 +174,7 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	offset += wasted;
 	if ((sa_manager->size - offset) < size) {
 		/* failed to find somethings big enough */
+		spin_unlock(&sa_manager->lock);
 		return -ENOMEM;
 	}
 
@@ -180,10 +183,13 @@ out:
 	sa_bo->offset = offset;
 	sa_bo->size = size;
 	list_add(&sa_bo->list, head);
+	spin_unlock(&sa_manager->lock);
 	return 0;
 }
 
 void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo *sa_bo)
 {
+	spin_lock(&sa_bo->manager->lock);
 	list_del_init(&sa_bo->list);
+	spin_unlock(&sa_bo->manager->lock);
 }

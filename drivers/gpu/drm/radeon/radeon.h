@@ -381,6 +381,7 @@ struct radeon_bo_list {
  * alignment).
  */
 struct radeon_sa_manager {
+	spinlock_t		lock;
 	struct radeon_bo	*bo;
 	struct list_head	sa_bo;
 	unsigned		size;
