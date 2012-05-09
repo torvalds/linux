@@ -73,6 +73,8 @@
 
 			uart2: serial@021e8000 {
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_serial2_1>;
 			};
 
 			i2c@021a0000 { /* I2C1 */
