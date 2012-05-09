@@ -218,5 +218,11 @@
 		       0x7000f03c 0x3c4>;
 		interrupts = <0 77 0x04>;
 	};
+
+	gart {
+		compatible = "nvidia,tegra20-gart";
+		reg = <0x7000f024 0x00000018	/* controller registers */
+		       0x58000000 0x02000000>;	/* GART aperture */
+	};
 };
 
