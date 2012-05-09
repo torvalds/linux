@@ -978,7 +978,7 @@ struct wmi_bss_filter_cmd {
 } __packed;
 
 /* WMI_SET_PROBED_SSID_CMDID */
-#define MAX_PROBED_SSID_INDEX   9
+#define MAX_PROBED_SSIDS   16
 
 enum wmi_ssid_flag {
 	/* disables entry */
@@ -992,7 +992,7 @@ enum wmi_ssid_flag {
 };
 
 struct wmi_probed_ssid_cmd {
-	/* 0 to MAX_PROBED_SSID_INDEX */
+	/* 0 to MAX_PROBED_SSIDS - 1 */
 	u8 entry_index;
 
 	/* see, enum wmi_ssid_flg */

@@ -1995,7 +1995,7 @@ int ath6kl_wmi_probedssid_cmd(struct wmi *wmi, u8 if_idx, u8 index, u8 flag,
 	struct wmi_probed_ssid_cmd *cmd;
 	int ret;
 
-	if (index > MAX_PROBED_SSID_INDEX)
+	if (index >= MAX_PROBED_SSIDS)
 		return -EINVAL;
 
 	if (ssid_len > sizeof(cmd->ssid))
