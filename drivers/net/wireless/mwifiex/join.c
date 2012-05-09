@@ -1374,6 +1374,7 @@ static int mwifiex_deauthenticate_infra(struct mwifiex_private *priv, u8 *mac)
  *
  * In case of infra made, it sends deauthentication request, and
  * in case of ad-hoc mode, a stop network request is sent to the firmware.
+ * In AP mode, a command to stop bss is sent to firmware.
  */
 int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 {
@@ -1386,6 +1387,9 @@ int mwifiex_deauthenticate(struct mwifiex_private *priv, u8 *mac)
 	case NL80211_IFTYPE_ADHOC:
 		return mwifiex_send_cmd_sync(priv,
 					     HostCmd_CMD_802_11_AD_HOC_STOP,
+					     HostCmd_ACT_GEN_SET, 0, NULL);
+	case NL80211_IFTYPE_AP:
+		return mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
 					     HostCmd_ACT_GEN_SET, 0, NULL);
 	default:
 		break;
