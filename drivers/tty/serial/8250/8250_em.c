@@ -163,9 +163,16 @@ static int __devexit serial8250_em_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id serial8250_em_dt_ids[] __devinitconst = {
+	{ .compatible = "renesas,em-uart", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, serial8250_em_dt_ids);
+
 static struct platform_driver serial8250_em_platform_driver = {
 	.driver = {
 		.name		= "serial8250-em",
+		.of_match_table = serial8250_em_dt_ids,
 		.owner		= THIS_MODULE,
 	},
 	.probe			= serial8250_em_probe,
