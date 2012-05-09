@@ -916,6 +916,11 @@ static void assert_pch_pll(struct drm_i915_private *dev_priv,
 	u32 val;
 	bool cur_state;
 
+	if (HAS_PCH_LPT(dev_priv->dev)) {
+		DRM_DEBUG_DRIVER("LPT detected: skipping PCH PLL test\n");
+		return;
+	}
+
 	if (!intel_crtc->pch_pll) {
 		WARN(1, "asserting PCH PLL enabled with no PLL\n");
 		return;
@@ -1100,6 +1105,11 @@ static void assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 	bool enabled;
+
+	if (HAS_PCH_LPT(dev_priv->dev)) {
+		DRM_DEBUG_DRIVER("LPT does not has PCH refclk, skipping check\n");
+		return;
+	}
 
 	val = I915_READ(PCH_DREF_CONTROL);
 	enabled = !!(val & (DREF_SSC_SOURCE_MASK | DREF_NONSPREAD_SOURCE_MASK |
@@ -4406,8 +4416,12 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	DRM_DEBUG_KMS("Mode for pipe %d:\n", pipe);
 	drm_mode_debug_printmodeline(mode);
 
-	/* CPU eDP is the only output that doesn't need a PCH PLL of its own */
-	if (!is_cpu_edp) {
+	/* CPU eDP is the only output that doesn't need a PCH PLL of its own on
+	 * pre-Haswell/LPT generation */
+	if (HAS_PCH_LPT(dev)) {
+		DRM_DEBUG_KMS("LPT detected: no PLL for pipe %d necessary\n",
+				pipe);
+	} else if (!is_cpu_edp) {
 		struct intel_pch_pll *pll;
 
 		pll = intel_get_pch_pll(intel_crtc, dpll, fp);
