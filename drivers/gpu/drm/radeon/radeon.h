@@ -385,7 +385,9 @@ struct radeon_bo_list {
 struct radeon_sa_manager {
 	spinlock_t		lock;
 	struct radeon_bo	*bo;
-	struct list_head	sa_bo;
+	struct list_head	*hole;
+	struct list_head	flist[RADEON_NUM_RINGS];
+	struct list_head	olist;
 	unsigned		size;
 	uint64_t		gpu_addr;
 	void			*cpu_ptr;
@@ -396,7 +398,8 @@ struct radeon_sa_bo;
 
 /* sub-allocation buffer */
 struct radeon_sa_bo {
-	struct list_head		list;
+	struct list_head		olist;
+	struct list_head		flist;
 	struct radeon_sa_manager	*manager;
 	unsigned			soffset;
 	unsigned			eoffset;

@@ -204,25 +204,22 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int radeon_ib_pool_init(struct radeon_device *rdev)
 {
-	struct radeon_sa_manager tmp;
 	int i, r;
-
-	r = radeon_sa_bo_manager_init(rdev, &tmp,
-				      RADEON_IB_POOL_SIZE*64*1024,
-				      RADEON_GEM_DOMAIN_GTT);
-	if (r) {
-		return r;
-	}
 
 	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (rdev->ib_pool.ready) {
 		radeon_mutex_unlock(&rdev->ib_pool.mutex);
-		radeon_sa_bo_manager_fini(rdev, &tmp);
 		return 0;
 	}
 
-	rdev->ib_pool.sa_manager = tmp;
-	INIT_LIST_HEAD(&rdev->ib_pool.sa_manager.sa_bo);
+	r = radeon_sa_bo_manager_init(rdev, &rdev->ib_pool.sa_manager,
+				      RADEON_IB_POOL_SIZE*64*1024,
+				      RADEON_GEM_DOMAIN_GTT);
+	if (r) {
+		radeon_mutex_unlock(&rdev->ib_pool.mutex);
+		return r;
+	}
+
 	for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
 		rdev->ib_pool.ibs[i].fence = NULL;
 		rdev->ib_pool.ibs[i].idx = i;
