@@ -337,10 +337,10 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		for_each_cpu(i, cpu_sibling_setup_mask) {
 			struct cpuinfo_x86 *o = &cpu_data(i);
 
-#ifdef CONFIG_NUMA_EMU
-			if (cpu_to_node(cpu) != cpu_to_node(i))
+			if (cpu_to_node(cpu) != cpu_to_node(i)) {
+				WARN_ONCE(1, "sched: CPU #%d's thread-sibling CPU #%d not on the same node! [node %d != %d]. Ignoring sibling dependency.\n", cpu, i, cpu_to_node(cpu), cpu_to_node(i));
 				continue;
-#endif
+			}
 
 			if (cpu_has(c, X86_FEATURE_TOPOEXT)) {
 				if (c->phys_proc_id == o->phys_proc_id &&
@@ -365,10 +365,10 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 	}
 
 	for_each_cpu(i, cpu_sibling_setup_mask) {
-#ifdef CONFIG_NUMA_EMU
-		if (cpu_to_node(cpu) != cpu_to_node(i))
+		if (cpu_to_node(cpu) != cpu_to_node(i)) {
+			WARN_ONCE(1, "sched: CPU #%d's core-sibling CPU #%d not on the same node! [node %d != %d]. Ignoring sibling dependency.\n", cpu, i, cpu_to_node(cpu), cpu_to_node(i));
 			continue;
-#endif
+		}
 
 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
