@@ -74,7 +74,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <bits/wordsize.h>
-#include "mei.h"
+#include <linux/mei.h>
 
 /*****************************************************************************
  * Intel Management Engine Interface

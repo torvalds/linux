@@ -38,7 +38,7 @@
 #include <linux/miscdevice.h>
 
 #include "mei_dev.h"
-#include "mei.h"
+#include <linux/mei.h>
 #include "interface.h"
 
 static const char mei_driver_name[] = "mei";

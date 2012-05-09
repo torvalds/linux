@@ -16,7 +16,7 @@
 
 #include <linux/pci.h>
 #include "mei_dev.h"
-#include "mei.h"
+#include <linux/mei.h>
 #include "interface.h"
 
 

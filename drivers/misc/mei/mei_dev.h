@@ -19,7 +19,7 @@
 
 #include <linux/types.h>
 #include <linux/watchdog.h>
-#include "mei.h"
+#include <linux/mei.h>
 #include "hw.h"
 
 /*

@@ -1,7 +1,6 @@
 TODO:
 	- Cleanup and split the timer function
 Upon Unstaging:
-	- move mei.h to include/linux/mei.h
 	- Documentation/ioctl/ioctl-number.txt
 	- move mei.txt under Documentation/mei/
 	- move mei-amt-version.c under Documentation/mei

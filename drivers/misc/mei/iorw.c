@@ -35,7 +35,7 @@
 
 #include "mei_dev.h"
 #include "hw.h"
-#include "mei.h"
+#include <linux/mei.h>
 #include "interface.h"
 
 

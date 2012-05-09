@@ -22,7 +22,7 @@
 #include "mei_dev.h"
 #include "hw.h"
 #include "interface.h"
-#include "mei.h"
+#include <linux/mei.h>
 
 const uuid_le mei_amthi_guid  = UUID_LE(0x12f80028, 0xb4b7, 0x4b2d, 0xac,
 						0xa8, 0x46, 0xe0, 0xff, 0x65,

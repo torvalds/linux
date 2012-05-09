@@ -22,7 +22,7 @@
 #include <linux/jiffies.h>
 
 #include "mei_dev.h"
-#include "mei.h"
+#include <linux/mei.h>
 #include "hw.h"
 #include "interface.h"
 

@@ -19,7 +19,7 @@
 #ifndef _MEI_INTERFACE_H_
 #define _MEI_INTERFACE_H_
 
-#include "mei.h"
+#include <linux/mei.h>
 #include "mei_dev.h"
 
 
