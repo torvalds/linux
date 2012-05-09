@@ -876,12 +876,6 @@ int i915_restore_state(struct drm_device *dev)
 		I915_WRITE(IER, dev_priv->saveIER);
 		I915_WRITE(IMR, dev_priv->saveIMR);
 	}
-	mutex_unlock(&dev->struct_mutex);
-
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		intel_modeset_init_hw(dev);
-
-	mutex_lock(&dev->struct_mutex);
 
 	/* Cache mode state */
 	I915_WRITE(CACHE_MODE_0, dev_priv->saveCACHE_MODE_0 | 0xffff0000);

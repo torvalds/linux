@@ -624,15 +624,16 @@ static int i915_drm_thaw(struct drm_device *dev)
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		if (HAS_PCH_SPLIT(dev))
+			ironlake_init_pch_refclk(dev);
+
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
 		error = i915_gem_init_hw(dev);
 		mutex_unlock(&dev->struct_mutex);
 
-		if (HAS_PCH_SPLIT(dev))
-			ironlake_init_pch_refclk(dev);
-
+		intel_modeset_init_hw(dev);
 		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
 
@@ -640,9 +641,6 @@ static int i915_drm_thaw(struct drm_device *dev)
 		mutex_lock(&dev->mode_config.mutex);
 		drm_helper_resume_force_mode(dev);
 		mutex_unlock(&dev->mode_config.mutex);
-
-		if (IS_IRONLAKE_M(dev))
-			ironlake_enable_rc6(dev);
 	}
 
 	intel_opregion_init(dev);
