@@ -536,28 +536,34 @@ struct synaptics_rmi4_platform_data synaptics_s3202_info = {
 
 #if defined(CONFIG_TOUCHSCREEN_FT5306)
 
-#define TOUCH_RESET_PIN	 RK30_PIN4_PC2
-#define TOUCH_INT_PIN 	 RK30_PIN4_PC2
+#define TOUCH_RESET_PIN	 RK30_PIN6_PB1
+#define TOUCH_INT_PIN 	 RK30_PIN4_PD7
 int ft5306_init_platform_hw(void)
 {
+
+	printk("ft5406_init_platform_hw\n");
     if(gpio_request(TOUCH_RESET_PIN,NULL) != 0){
       gpio_free(TOUCH_RESET_PIN);
-      printk("ft5306_init_platform_hw gpio_request error\n");
+      printk("ft5406_init_platform_hw gpio_request error\n");
       return -EIO;
     }
 
     if(gpio_request(TOUCH_INT_PIN,NULL) != 0){
       gpio_free(TOUCH_INT_PIN);
-      printk("ift5306_init_platform_hw gpio_request error\n");
+      printk("ift5406_init_platform_hw gpio_request error\n");
       return -EIO;
     }
-	gpio_pull_updown(TOUCH_INT_PIN, 0);
-	gpio_direction_output(TOUCH_RESET_PIN, GPIO_HIGH);
-	msleep(5);
+    rk30_mux_api_set(GPIO4D7_SMCDATA15_TRACEDATA15_NAME, 0);
+
+	gpio_direction_output(TOUCH_RESET_PIN, 0);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_LOW);
-	mdelay(5);
+	mdelay(10);
+	gpio_direction_input(TOUCH_INT_PIN);
+	mdelay(10);
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
     return 0;
+
 }
 
 void ft5306_exit_platform_hw(void)
@@ -578,15 +584,16 @@ int ft5306_platform_wakeup(void)
 {
 	//printk("ft5306_platform_wakeup\n");
 	gpio_set_value(TOUCH_RESET_PIN,GPIO_HIGH);
+	msleep(300);
 	return 0;
 }
 
-struct ft5406_platform_data ft5306_info = {
+struct ft5x0x_platform_data ft5306_info = {
 
   .init_platform_hw= ft5306_init_platform_hw,
   .exit_platform_hw= ft5306_exit_platform_hw,
-  .platform_sleep  = ft5306_platform_sleep,
-  .platform_wakeup = ft5306_platform_wakeup,
+  .ft5x0x_platform_sleep  = ft5306_platform_sleep,
+  .ft5x0x_platform_wakeup = ft5306_platform_wakeup,
 };
 
 
@@ -1110,7 +1117,7 @@ struct rk29fb_info lcdc1_screen_info = {
 	#if defined(CONFIG_HDMI_RK30)
 	.prop		= EXTEND,	//extend display device
 	.lcd_info  = NULL,
-	.set_screen_info = hdmi_init_lcdc,
+	.set_screen_info = hdmi_set_info,
 	#endif
 };
 #endif
@@ -1658,7 +1665,7 @@ static struct i2c_board_info __initdata i2c2_info[] = {
 	.type           = "ft5x0x_ts",
 	.addr           = 0x38,
 	.flags          = 0,
-	.irq            = RK30_PIN4_PC2,
+	.irq            = RK30_PIN4_PD7,//RK30_PIN2_PC2,
 	.platform_data = &ft5306_info,
 },
 #endif
@@ -1756,16 +1763,6 @@ static void rk30_pm_power_off(void)
 static ssize_t rk_virtual_keys_show(struct kobject *kobj,
 			struct kobj_attribute *attr, char *buf)
 {
-#if defined (CONFIG_TOUCHSCREEN_FT5306)
-	 printk("rk_virtual_keys_show\n");
-    /* centerx;centery;width;height; */
-	return sprintf(buf,
-		__stringify(EV_KEY) ":" __stringify(KEY_BACK)	     ":900:400:100:100"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":1300:500:100:100"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)   ":1300:600:120:60"
-		":" __stringify(EV_KEY) ":" __stringify(KEY_SEARCH) ":900:700:50:60"
-		"\n");
-#endif
 #if (defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202))
 	 printk("rk_virtual_keys_show S3202\n");
     /* centerx;centery;width;height; */
@@ -1783,8 +1780,6 @@ static struct kobj_attribute rk_virtual_keys_attr = {
 	.attr = {
 #if defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202)
 		.name = "virtualkeys.synaptics_rmi4_i2c",
-#elif defined(CONFIG_TOUCHSCREEN_FT5306)
-		.name = "virtualkeys.ft5x0x_ts",
 #else
 		.name = "virtualkeys",
 #endif
@@ -1838,7 +1833,7 @@ static void __init machine_rk30_board_init(void)
 	rk29sdk_wifi_bt_gpio_control_init();
 #endif
 
-#if (defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202) || defined(CONFIG_TOUCHSCREEN_FT5306))
+#if (defined(CONFIG_TOUCHSCREEN_SYNAPTICS_S3202))
 	rk_virtual_keys_init();
 #endif
 

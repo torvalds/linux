@@ -52,6 +52,17 @@ struct wifi_platform_data {
 };
 #endif
 
+#if defined (CONFIG_TOUCHSCREEN_FT5306)
+struct ft5x0x_platform_data{
+	  u16     model;
+    int     (*get_pendown_state)(void);
+    int     (*init_platform_hw)(void);
+    int     (*ft5x0x_platform_sleep)(void);
+    int     (*ft5x0x_platform_wakeup)(void);
+    void    (*exit_platform_hw)(void);
+};
+#endif
+
 extern struct rk29_sdmmc_platform_data default_sdmmc0_data;
 extern struct rk29_sdmmc_platform_data default_sdmmc1_data;
 
