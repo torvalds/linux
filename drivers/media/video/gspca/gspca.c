@@ -2392,6 +2392,7 @@ int gspca_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->frozen = 1;		/* avoid urb error messages */
+	gspca_dev->usb_err = 0;
 	if (gspca_dev->sd_desc->stopN)
 		gspca_dev->sd_desc->stopN(gspca_dev);
 	destroy_urbs(gspca_dev);
@@ -2411,6 +2412,7 @@ int gspca_resume(struct usb_interface *intf)
 
 	mutex_lock(&gspca_dev->usb_lock);
 	gspca_dev->frozen = 0;
+	gspca_dev->usb_err = 0;
 	gspca_dev->sd_desc->init(gspca_dev);
 	gspca_input_create_urb(gspca_dev);
 	/*
