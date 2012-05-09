@@ -1007,6 +1007,7 @@ void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config);
 
 int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			 struct cfg80211_ap_settings *params);
+int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
 
 #ifdef CONFIG_DEBUG_FS
