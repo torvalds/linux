@@ -372,9 +372,8 @@ struct nand_ecc_ctrl {
 	int (*write_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
 			int page);
 	int (*read_oob_raw)(struct mtd_info *mtd, struct nand_chip *chip,
-			int page, int sndcmd);
-	int (*read_oob)(struct mtd_info *mtd, struct nand_chip *chip, int page,
-			int sndcmd);
+			int page);
+	int (*read_oob)(struct mtd_info *mtd, struct nand_chip *chip, int page);
 	int (*write_oob)(struct mtd_info *mtd, struct nand_chip *chip,
 			int page);
 };

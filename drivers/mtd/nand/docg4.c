@@ -799,7 +799,7 @@ static int docg4_read_page(struct mtd_info *mtd, struct nand_chip *nand,
 }
 
 static int docg4_read_oob(struct mtd_info *mtd, struct nand_chip *nand,
-			  int page, int sndcmd)
+			  int page)
 {
 	struct docg4_priv *doc = nand->priv;
 	void __iomem *docptr = doc->virtadr;

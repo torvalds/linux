@@ -1113,12 +1113,11 @@ static int denali_write_oob(struct mtd_info *mtd, struct nand_chip *chip,
 }
 
 static int denali_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-			   int page, int sndcmd)
+			   int page)
 {
 	read_oob_data(mtd, chip->oob_poi, page);
 
-	return 0; /* notify NAND core to send command to
-			   NAND device. */
+	return 0;
 }
 
 static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,

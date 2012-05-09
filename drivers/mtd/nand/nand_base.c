@@ -1645,17 +1645,13 @@ static int nand_read(struct mtd_info *mtd, loff_t from, size_t len,
  * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @page: page number to read
- * @sndcmd: flag whether to issue read command or not
  */
 static int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
-			     int page, int sndcmd)
+			     int page)
 {
-	if (sndcmd) {
-		chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
-		sndcmd = 0;
-	}
+	chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
 	chip->read_buf(mtd, chip->oob_poi, mtd->oobsize);
-	return sndcmd;
+	return 0;
 }
 
 /**
@@ -1664,10 +1660,9 @@ static int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip,
  * @mtd: mtd info structure
  * @chip: nand chip info structure
  * @page: page number to read
- * @sndcmd: flag whether to issue read command or not
  */
 static int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
-				  int page, int sndcmd)
+				  int page)
 {
 	uint8_t *buf = chip->oob_poi;
 	int length = mtd->oobsize;
@@ -1694,7 +1689,7 @@ static int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 	if (length > 0)
 		chip->read_buf(mtd, bufpoi, length);
 
-	return 1;
+	return 0;
 }
 
 /**
@@ -1831,9 +1826,9 @@ static int nand_do_read_oob(struct mtd_info *mtd, loff_t from,
 
 	while (1) {
 		if (ops->mode == MTD_OPS_RAW)
-			chip->ecc.read_oob_raw(mtd, chip, page, 1);
+			chip->ecc.read_oob_raw(mtd, chip, page);
 		else
-			chip->ecc.read_oob(mtd, chip, page, 1);
+			chip->ecc.read_oob(mtd, chip, page);
 
 		len = min(len, readlen);
 		buf = nand_transfer_oob(chip, buf, ops, len);

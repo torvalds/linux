@@ -1061,7 +1061,7 @@ exit_auxiliary:
  * this driver.
  */
 static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
-				int page, int sndcmd)
+				int page)
 {
 	struct gpmi_nand_data *this = chip->priv;
 
@@ -1084,11 +1084,7 @@ static int gpmi_ecc_read_oob(struct mtd_info *mtd, struct nand_chip *chip,
 		chip->oob_poi[0] = chip->read_byte(mtd);
 	}
 
-	/*
-	 * Return true, indicating that the next call to this function must send
-	 * a command.
-	 */
-	return true;
+	return 0;
 }
 
 static int
