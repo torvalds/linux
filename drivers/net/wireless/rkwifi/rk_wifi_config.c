@@ -12,7 +12,7 @@
 #include <linux/kernel.h>
 
 
-const char RKWIFI_DRV_VERSION[] = "4.03";
+const char RKWIFI_DRV_VERSION[] = "4.04";
 
 /* Set INIT_COUNTRY_CODE 
  * "US" ---> 11 channels, this is default setting. 
