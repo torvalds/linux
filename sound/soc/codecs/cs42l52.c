@@ -919,7 +919,7 @@ static struct snd_soc_dai_ops cs42l52_ops = {
 	.set_sysclk	= cs42l52_set_sysclk,
 };
 
-struct snd_soc_dai_driver cs42l52_dai = {
+static struct snd_soc_dai_driver cs42l52_dai = {
 		.name = "cs42l52",
 		.playback = {
 			.stream_name = "Playback",
@@ -1163,7 +1163,7 @@ static int cs42l52_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct snd_soc_codec_driver soc_codec_dev_cs42l52 = {
+static struct snd_soc_codec_driver soc_codec_dev_cs42l52 = {
 	.probe = cs42l52_probe,
 	.remove = cs42l52_remove,
 	.suspend = cs42l52_suspend,
