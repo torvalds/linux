@@ -661,6 +661,10 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 		intel_encoder->clone_mask = (1 << INTEL_HDMIF_CLONE_BIT);
 		intel_hdmi->ddc_bus = GMBUS_PORT_DPD;
 		dev_priv->hotplug_supported_mask |= HDMID_HOTPLUG_INT_STATUS;
+	} else {
+		/* If we got an unknown sdvox_reg, things are pretty much broken
+		 * in a way that we should let the kernel know about it */
+		BUG();
 	}
 
 	intel_hdmi->sdvox_reg = sdvox_reg;
