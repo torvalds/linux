@@ -31,6 +31,7 @@
 #include <linux/spi/spi.h>
 
 #include <linux/i2c/pca953x.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <video/platform_lcd.h>
 
@@ -61,7 +62,6 @@
 #include <plat/sdhci.h>
 #include <plat/gpio-cfg.h>
 #include <plat/s3c64xx-spi.h>
-#include <linux/platform_data/s3c-hsotg.h>
 
 #include <plat/keypad.h>
 #include <plat/clock.h>

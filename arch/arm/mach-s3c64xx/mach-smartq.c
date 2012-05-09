@@ -18,6 +18,7 @@
 #include <linux/serial_core.h>
 #include <linux/spi/spi_gpio.h>
 #include <linux/usb/gpio_vbus.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -33,7 +34,6 @@
 #include <plat/gpio-cfg.h>
 #include <plat/hwmon.h>
 #include <plat/regs-serial.h>
-#include <linux/platform_data/s3c-hsotg.h>
 #include <plat/usb-control.h>
 #include <plat/sdhci.h>
 #include <plat/ts.h>

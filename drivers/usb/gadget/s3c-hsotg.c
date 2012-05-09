@@ -32,11 +32,11 @@
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
+#include <linux/platform_data/s3c-hsotg.h>
 
 #include <mach/map.h>
 
 #include "s3c-hsotg.h"
-#include <linux/platform_data/s3c-hsotg.h>
 
 #define DMA_ADDR_INVALID (~((dma_addr_t)0))
 
