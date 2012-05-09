@@ -1201,6 +1201,9 @@ typedef struct {
 #define NX_FORCE_FW_RESET               0xdeaddead
 
 
+/* Fw dump levels */
+static const u32 FW_DUMP_LEVELS[] = { 0x3, 0x7, 0xf, 0x1f, 0x3f, 0x7f, 0xff };
+
 /* Flash read/write address */
 #define NX_FW_DUMP_REG1         0x00130060
 #define NX_FW_DUMP_REG2         0x001e0000
