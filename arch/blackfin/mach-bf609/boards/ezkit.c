@@ -137,6 +137,7 @@ static struct platform_device bfin_eth_device = {
 		},
 	},
 	.dev = {
+		.power.can_wakeup = 1,
 		.platform_data = &eth_private_data,
 	}
 };
