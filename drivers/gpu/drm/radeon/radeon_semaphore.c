@@ -39,7 +39,6 @@ static int radeon_semaphore_add_bo(struct radeon_device *rdev)
 	uint32_t *cpu_ptr;
 	int r, i;
 
-
 	bo = kmalloc(sizeof(struct radeon_semaphore_bo), GFP_KERNEL);
 	if (bo == NULL) {
 		return -ENOMEM;
@@ -154,13 +153,17 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				bool sync_to[RADEON_NUM_RINGS],
 				int dst_ring)
 {
-	int i, r;
+	int i = 0, r;
+
+	mutex_lock(&rdev->ring_lock);
+	r = radeon_ring_alloc(rdev, &rdev->ring[dst_ring], RADEON_NUM_RINGS * 8);
+	if (r) {
+		goto error;
+	}
 
 	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		unsigned num_ops = i == dst_ring ? RADEON_NUM_RINGS : 1;
-
-		/* don't lock unused rings */
-		if (!sync_to[i] && i != dst_ring)
+		/* no need to sync to our own or unused rings */
+		if (!sync_to[i] || i == dst_ring)
 			continue;
 
 		/* prevent GPU deadlocks */
@@ -170,28 +173,19 @@ int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 			goto error;
 		}
 
-                r = radeon_ring_lock(rdev, &rdev->ring[i], num_ops * 8);
-                if (r)
+		r = radeon_ring_alloc(rdev, &rdev->ring[i], 8);
+		if (r) {
 			goto error;
-	}
-
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		/* no need to sync to our own or unused rings */
-		if (!sync_to[i] || i == dst_ring)
-                        continue;
+		}
 
 		radeon_semaphore_emit_signal(rdev, i, semaphore);
 		radeon_semaphore_emit_wait(rdev, dst_ring, semaphore);
+
+		radeon_ring_commit(rdev, &rdev->ring[i]);
 	}
 
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-
-		/* don't unlock unused rings */
-		if (!sync_to[i] && i != dst_ring)
-			continue;
-
-		radeon_ring_unlock_commit(rdev, &rdev->ring[i]);
-	}
+	radeon_ring_commit(rdev, &rdev->ring[dst_ring]);
+	mutex_unlock(&rdev->ring_lock);
 
 	return 0;
 
@@ -199,9 +193,11 @@ error:
 	/* unlock all locks taken so far */
 	for (--i; i >= 0; --i) {
 		if (sync_to[i] || i == dst_ring) {
-			radeon_ring_unlock_undo(rdev, &rdev->ring[i]);
+			radeon_ring_undo(&rdev->ring[i]);
 		}
 	}
+	radeon_ring_undo(&rdev->ring[dst_ring]);
+	mutex_unlock(&rdev->ring_lock);
 	return r;
 }
 

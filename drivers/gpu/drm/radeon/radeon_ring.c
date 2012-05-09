@@ -346,9 +346,9 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *ring, unsi
 		if (ndw < ring->ring_free_dw) {
 			break;
 		}
-		mutex_unlock(&ring->mutex);
+		mutex_unlock(&rdev->ring_lock);
 		r = radeon_fence_wait_next(rdev, radeon_ring_index(rdev, ring));
-		mutex_lock(&ring->mutex);
+		mutex_lock(&rdev->ring_lock);
 		if (r)
 			return r;
 	}
@@ -361,10 +361,10 @@ int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *ring, unsig
 {
 	int r;
 
-	mutex_lock(&ring->mutex);
+	mutex_lock(&rdev->ring_lock);
 	r = radeon_ring_alloc(rdev, ring, ndw);
 	if (r) {
-		mutex_unlock(&ring->mutex);
+		mutex_unlock(&rdev->ring_lock);
 		return r;
 	}
 	return 0;
@@ -389,20 +389,25 @@ void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	radeon_ring_commit(rdev, ring);
-	mutex_unlock(&ring->mutex);
+	mutex_unlock(&rdev->ring_lock);
+}
+
+void radeon_ring_undo(struct radeon_ring *ring)
+{
+	ring->wptr = ring->wptr_old;
 }
 
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	ring->wptr = ring->wptr_old;
-	mutex_unlock(&ring->mutex);
+	radeon_ring_undo(ring);
+	mutex_unlock(&rdev->ring_lock);
 }
 
 void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	int r;
 
-	mutex_lock(&ring->mutex);
+	mutex_lock(&rdev->ring_lock);
 	radeon_ring_free_size(rdev, ring);
 	if (ring->rptr == ring->wptr) {
 		r = radeon_ring_alloc(rdev, ring, 1);
@@ -411,7 +416,7 @@ void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *
 			radeon_ring_commit(rdev, ring);
 		}
 	}
-	mutex_unlock(&ring->mutex);
+	mutex_unlock(&rdev->ring_lock);
 }
 
 void radeon_ring_lockup_update(struct radeon_ring *ring)
@@ -520,11 +525,12 @@ void radeon_ring_fini(struct radeon_device *rdev, struct radeon_ring *ring)
 	int r;
 	struct radeon_bo *ring_obj;
 
-	mutex_lock(&ring->mutex);
+	mutex_lock(&rdev->ring_lock);
 	ring_obj = ring->ring_obj;
+	ring->ready = false;
 	ring->ring = NULL;
 	ring->ring_obj = NULL;
-	mutex_unlock(&ring->mutex);
+	mutex_unlock(&rdev->ring_lock);
 
 	if (ring_obj) {
 		r = radeon_bo_reserve(ring_obj, false);

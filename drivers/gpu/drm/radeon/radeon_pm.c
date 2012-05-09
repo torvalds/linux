@@ -252,10 +252,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	mutex_lock(&rdev->ddev->struct_mutex);
 	mutex_lock(&rdev->vram_mutex);
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		if (rdev->ring[i].ring_obj)
-			mutex_lock(&rdev->ring[i].mutex);
-	}
+	mutex_lock(&rdev->ring_lock);
 
 	/* gui idle int has issues on older chips it seems */
 	if (rdev->family >= CHIP_R600) {
@@ -311,10 +308,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
 
-	for (i = 0; i < RADEON_NUM_RINGS; ++i) {
-		if (rdev->ring[i].ring_obj)
-			mutex_unlock(&rdev->ring[i].mutex);
-	}
+	mutex_unlock(&rdev->ring_lock);
 	mutex_unlock(&rdev->vram_mutex);
 	mutex_unlock(&rdev->ddev->struct_mutex);
 }

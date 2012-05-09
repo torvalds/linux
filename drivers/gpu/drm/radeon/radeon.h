@@ -676,7 +676,6 @@ struct radeon_ring {
 	uint64_t		gpu_addr;
 	uint32_t		align_mask;
 	uint32_t		ptr_mask;
-	struct mutex		mutex;
 	bool			ready;
 	u32			ptr_reg_shift;
 	u32			ptr_reg_mask;
@@ -815,6 +814,7 @@ int radeon_ring_alloc(struct radeon_device *rdev, struct radeon_ring *cp, unsign
 int radeon_ring_lock(struct radeon_device *rdev, struct radeon_ring *cp, unsigned ndw);
 void radeon_ring_commit(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_unlock_commit(struct radeon_device *rdev, struct radeon_ring *cp);
+void radeon_ring_undo(struct radeon_ring *ring);
 void radeon_ring_unlock_undo(struct radeon_device *rdev, struct radeon_ring *cp);
 int radeon_ring_test(struct radeon_device *rdev, struct radeon_ring *cp);
 void radeon_ring_force_activity(struct radeon_device *rdev, struct radeon_ring *ring);
@@ -1534,6 +1534,7 @@ struct radeon_device {
 	rwlock_t			fence_lock;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	struct radeon_semaphore_driver	semaphore_drv;
+	struct mutex			ring_lock;
 	struct radeon_ring		ring[RADEON_NUM_RINGS];
 	struct radeon_ib_pool		ib_pool;
 	struct radeon_irq		irq;
