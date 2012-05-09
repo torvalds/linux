@@ -471,7 +471,6 @@ struct mwifiex_private {
 	struct cfg80211_scan_request *scan_request;
 	struct mwifiex_user_scan_cfg *user_scan_cfg;
 	u8 cfg_bssid[6];
-	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 	struct wps wps;
 	u8 scan_block;
 	s32 cqm_rssi_thold;
@@ -679,6 +678,7 @@ struct mwifiex_adapter {
 	struct cmd_ctrl_node *cmd_queued;
 	spinlock_t queue_lock;		/* lock for tx queues */
 	struct completion fw_load;
+	u8 country_code[IEEE80211_COUNTRY_STRING_LEN];
 };
 
 int mwifiex_init_lock_list(struct mwifiex_adapter *adapter);

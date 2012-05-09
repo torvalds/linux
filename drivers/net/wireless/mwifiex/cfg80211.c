@@ -84,7 +84,7 @@ mwifiex_is_alg_wep(u32 cipher)
 /*
  * This function retrieves the private structure from kernel wiphy structure.
  */
-static void *mwifiex_cfg80211_get_priv(struct wiphy *wiphy)
+static void *mwifiex_cfg80211_get_adapter(struct wiphy *wiphy)
 {
 	return (void *) (*(unsigned long *) wiphy_priv(wiphy));
 }
@@ -115,7 +115,8 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 			      enum nl80211_tx_power_setting type,
 			      int mbm)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
 	struct mwifiex_power_cfg power_cfg;
 	int dbm = MBM_TO_DBM(mbm);
 
@@ -125,6 +126,8 @@ mwifiex_cfg80211_set_tx_power(struct wiphy *wiphy,
 	} else {
 		power_cfg.is_power_auto = 1;
 	}
+
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
 
 	return mwifiex_set_tx_power(priv, &power_cfg);
 }
@@ -209,13 +212,13 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 	enum ieee80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	struct mwifiex_adapter *adapter = priv->adapter;
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
 	struct mwifiex_802_11d_domain_reg *domain_info = &adapter->domain_reg;
 
 	/* Set country code */
-	domain_info->country_code[0] = priv->country_code[0];
-	domain_info->country_code[1] = priv->country_code[1];
+	domain_info->country_code[0] = adapter->country_code[0];
+	domain_info->country_code[1] = adapter->country_code[1];
 	domain_info->country_code[2] = ' ';
 
 	band = mwifiex_band_to_radio_type(adapter->config_bands);
@@ -267,6 +270,8 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 
 	domain_info->no_of_triplet = no_of_triplet;
 
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+
 	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_802_11D_DOMAIN_INFO,
 				   HostCmd_ACT_GEN_SET, 0, NULL)) {
 		wiphy_err(wiphy, "11D: setting domain info in FW\n");
@@ -289,12 +294,12 @@ static int mwifiex_send_domain_info_cmd_fw(struct wiphy *wiphy)
 static int mwifiex_reg_notifier(struct wiphy *wiphy,
 				struct regulatory_request *request)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 
-	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for domain"
-			" %c%c\n", request->alpha2[0], request->alpha2[1]);
+	wiphy_dbg(wiphy, "info: cfg80211 regulatory domain callback for %c%c\n",
+		  request->alpha2[0], request->alpha2[1]);
 
-	memcpy(priv->country_code, request->alpha2, sizeof(request->alpha2));
+	memcpy(adapter->country_code, request->alpha2, sizeof(request->alpha2));
 
 	switch (request->initiator) {
 	case NL80211_REGDOM_SET_BY_DRIVER:
@@ -392,15 +397,15 @@ mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
 			     enum nl80211_channel_type channel_type)
 {
 	struct mwifiex_private *priv;
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
 
 	if (dev)
 		priv = mwifiex_netdev_get_priv(dev);
 	else
-		priv = mwifiex_cfg80211_get_priv(wiphy);
+		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
 
 	if (priv->media_connected) {
-		wiphy_err(wiphy, "This setting is valid only when station "
-				"is not connected\n");
+		wiphy_err(wiphy, "This is invalid in connected state\n");
 		return -EINVAL;
 	}
 
@@ -456,7 +461,9 @@ mwifiex_set_rts(struct mwifiex_private *priv, u32 rts_thr)
 static int
 mwifiex_cfg80211_set_wiphy_params(struct wiphy *wiphy, u32 changed)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv = mwifiex_get_priv(adapter,
+							MWIFIEX_BSS_ROLE_STA);
 	int ret = 0;
 
 	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
@@ -1300,16 +1307,12 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 					    u32 *flags,
 					    struct vif_params *params)
 {
-	struct mwifiex_private *priv = mwifiex_cfg80211_get_priv(wiphy);
-	struct mwifiex_adapter *adapter;
+	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
+	struct mwifiex_private *priv;
 	struct net_device *dev;
 	void *mdev_priv;
 	struct wireless_dev *wdev;
 
-	if (!priv)
-		return NULL;
-
-	adapter = priv->adapter;
 	if (!adapter)
 		return NULL;
 
@@ -1538,10 +1541,9 @@ int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 
 	wiphy->reg_notifier = mwifiex_reg_notifier;
 
-	/* Set struct mwifiex_private pointer in wiphy_priv */
+	/* Set struct mwifiex_adapter pointer in wiphy_priv */
 	wdev_priv = wiphy_priv(wiphy);
-
-	*(unsigned long *) wdev_priv = (unsigned long) priv;
+	*(unsigned long *)wdev_priv = (unsigned long)adapter;
 
 	set_wiphy_dev(wiphy, (struct device *)priv->adapter->dev);
 
