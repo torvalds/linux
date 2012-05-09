@@ -166,8 +166,8 @@ static void ion_buffer_destroy(struct kref *kref)
 	struct ion_buffer *buffer = container_of(kref, struct ion_buffer, ref);
 	struct ion_device *dev = buffer->dev;
 
-	buffer->heap->ops->free(buffer);
 	mutex_lock(&dev->lock);
+	buffer->heap->ops->free(buffer);
 	rb_erase(&buffer->node, &dev->buffers);
 	mutex_unlock(&dev->lock);
 	kfree(buffer);
@@ -815,6 +815,7 @@ static void ion_vma_close(struct vm_area_struct *vma)
 	/* this indicates the client is gone, nothing to do here */
 	if (!handle)
 		return;
+        vma->vm_private_data = NULL;
 	client = handle->client;
 	pr_debug("%s: %d client_cnt %d handle_cnt %d alloc_cnt %d\n",
 		 __func__, __LINE__,
