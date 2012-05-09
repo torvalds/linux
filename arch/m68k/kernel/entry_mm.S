@@ -55,7 +55,7 @@ ENTRY(buserr)
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
 	movel	%sp,%sp@-		| stack frame pointer argument
-	bsrl	buserr_c
+	jbsr	buserr_c
 	addql	#4,%sp
 	jra	ret_from_exception
 
@@ -63,7 +63,7 @@ ENTRY(trap)
 	SAVE_ALL_INT
 	GET_CURRENT(%d0)
 	movel	%sp,%sp@-		| stack frame pointer argument
-	bsrl	trap_c
+	jbsr	trap_c
 	addql	#4,%sp
 	jra	ret_from_exception
 
