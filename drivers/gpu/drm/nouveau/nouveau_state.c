@@ -1102,7 +1102,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		goto err_priv;
 	}
 
-	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
+	NV_INFO(dev, "Detected an NV%02x generation card (0x%08x)\n",
 		     dev_priv->card_type, reg0);
 
 	/* map the mmio regs, limiting the amount to preserve vmap space */
