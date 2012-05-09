@@ -45,14 +45,17 @@ void *dma_alloc_coherent(struct device *dev,
 	gfp |= __GFP_ZERO;
 
 	/*
-	 * By forcing NUMA node 0 for 32-bit masks we ensure that the
-	 * high 32 bits of the resulting PA will be zero.  If the mask
-	 * size is, e.g., 24, we may still not be able to guarantee a
-	 * suitable memory address, in which case we will return NULL.
-	 * But such devices are uncommon.
+	 * If the mask specifies that the memory be in the first 4 GB, then
+	 * we force the allocation to come from the DMA zone.  We also
+	 * force the node to 0 since that's the only node where the DMA
+	 * zone isn't empty.  If the mask size is smaller than 32 bits, we
+	 * may still not be able to guarantee a suitable memory address, in
+	 * which case we will return NULL.  But such devices are uncommon.
 	 */
-	if (dma_mask <= DMA_BIT_MASK(32))
+	if (dma_mask <= DMA_BIT_MASK(32)) {
+		gfp |= GFP_DMA;
 		node = 0;
+	}
 
 	pg = homecache_alloc_pages_node(node, gfp, order, PAGE_HOME_DMA);
 	if (pg == NULL)

@@ -212,6 +212,9 @@ config HIGHMEM
 
 	  If unsure, say "true".
 
+config ZONE_DMA
+	def_bool y
+
 # We do not currently support disabling NUMA.
 config NUMA
 	bool # "NUMA Memory Allocation and Scheduler Support"

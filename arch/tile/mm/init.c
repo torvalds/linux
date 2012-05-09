@@ -733,16 +733,15 @@ static void __init set_non_bootmem_pages_init(void)
 	for_each_zone(z) {
 		unsigned long start, end;
 		int nid = z->zone_pgdat->node_id;
+#ifdef CONFIG_HIGHMEM
 		int idx = zone_idx(z);
+#endif
 
 		start = z->zone_start_pfn;
-		if (start == 0)
-			continue;  /* bootmem */
 		end = start + z->spanned_pages;
-		if (idx == ZONE_NORMAL) {
-			BUG_ON(start != node_start_pfn[nid]);
-			start = node_free_pfn[nid];
-		}
+		start = max(start, node_free_pfn[nid]);
+		start = max(start, max_low_pfn);
+
 #ifdef CONFIG_HIGHMEM
 		if (idx == ZONE_HIGHMEM)
 			totalhigh_pages += z->spanned_pages;

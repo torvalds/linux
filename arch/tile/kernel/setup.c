@@ -658,6 +658,8 @@ static void __init zone_sizes_init(void)
 	unsigned long zones_size[MAX_NR_ZONES] = { 0 };
 	int size = percpu_size();
 	int num_cpus = smp_height * smp_width;
+	const unsigned long dma_end = (1UL << (32 - PAGE_SHIFT));
+
 	int i;
 
 	for (i = 0; i < num_cpus; ++i)
@@ -729,6 +731,14 @@ static void __init zone_sizes_init(void)
 		zones_size[ZONE_NORMAL] = end - start;
 #endif
 
+		if (start < dma_end) {
+			zones_size[ZONE_DMA] = min(zones_size[ZONE_NORMAL],
+						   dma_end - start);
+			zones_size[ZONE_NORMAL] -= zones_size[ZONE_DMA];
+		} else {
+			zones_size[ZONE_DMA] = 0;
+		}
+
 		/* Take zone metadata from controller 0 if we're isolnode. */
 		if (node_isset(i, isolnodes))
 			NODE_DATA(i)->bdata = &bootmem_node_data[0];
@@ -738,7 +748,7 @@ static void __init zone_sizes_init(void)
 		       PFN_UP(node_percpu[i]));
 
 		/* Track the type of memory on each node */
-		if (zones_size[ZONE_NORMAL])
+		if (zones_size[ZONE_NORMAL] || zones_size[ZONE_DMA])
 			node_set_state(i, N_NORMAL_MEMORY);
 #ifdef CONFIG_HIGHMEM
 		if (end != start)
