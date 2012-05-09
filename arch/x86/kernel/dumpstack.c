@@ -271,7 +271,7 @@ int __kprobes __die(const char *str, struct pt_regs *regs, long err)
 			current->thread.trap_nr, SIGSEGV) == NOTIFY_STOP)
 		return 1;
 
-	show_registers(regs);
+	show_regs(regs);
 #ifdef CONFIG_X86_32
 	if (user_mode_vm(regs)) {
 		sp = regs->sp;

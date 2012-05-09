@@ -244,7 +244,7 @@ io_check_error(unsigned char reason, struct pt_regs *regs)
 	pr_emerg(
 	"NMI: IOCK error (debug interrupt?) for reason %02x on CPU %d.\n",
 		 reason, smp_processor_id());
-	show_registers(regs);
+	show_regs(regs);
 
 	if (panic_on_io_nmi)
 		panic("NMI IOCK error: Not continuing");
