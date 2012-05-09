@@ -464,25 +464,23 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	struct pwc_device *pdev = video_drvdata(file);
 	int ret, pixelformat, compression = 0;
 
-	if (pwc_test_n_set_capt_file(pdev, file))
-		return -EBUSY;
-
 	ret = pwc_vidioc_try_fmt(pdev, f);
 	if (ret < 0)
 		return ret;
 
-	pixelformat = f->fmt.pix.pixelformat;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	mutex_lock(&pdev->udevlock);
-	if (!pdev->udev) {
-		ret = -ENODEV;
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret)
 		goto leave;
-	}
 
-	if (pdev->iso_init) {
+	if (pdev->vb_queue.streaming) {
 		ret = -EBUSY;
 		goto leave;
 	}
+
+	pixelformat = f->fmt.pix.pixelformat;
 
 	PWC_DEBUG_IOCTL("Trying to set format to: width=%d height=%d fps=%d "
 			"format=%c%c%c%c\n",
@@ -499,16 +497,13 @@ static int pwc_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 
 	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
 leave:
-	mutex_unlock(&pdev->udevlock);
+	mutex_unlock(&pdev->vb_queue_lock);
 	return ret;
 }
 
 static int pwc_querycap(struct file *file, void *fh, struct v4l2_capability *cap)
 {
 	struct pwc_device *pdev = video_drvdata(file);
-
-	if (!pdev->udev)
-		return -ENODEV;
 
 	strcpy(cap->driver, PWC_NAME);
 	strlcpy(cap->card, pdev->vdev.name, sizeof(cap->card));
@@ -540,14 +535,11 @@ static int pwc_s_input(struct file *file, void *fh, unsigned int i)
 	return i ? -EINVAL : 0;
 }
 
-static int pwc_g_volatile_ctrl_unlocked(struct v4l2_ctrl *ctrl)
+static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct pwc_device *pdev =
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
-
-	if (!pdev->udev)
-		return -ENODEV;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTO_WHITE_BALANCE:
@@ -615,18 +607,6 @@ static int pwc_g_volatile_ctrl_unlocked(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
-static int pwc_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
-{
-	struct pwc_device *pdev =
-		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
-	int ret;
-
-	mutex_lock(&pdev->udevlock);
-	ret = pwc_g_volatile_ctrl_unlocked(ctrl);
-	mutex_unlock(&pdev->udevlock);
-	return ret;
-}
-
 static int pwc_set_awb(struct pwc_device *pdev)
 {
 	int ret;
@@ -648,7 +628,7 @@ static int pwc_set_awb(struct pwc_device *pdev)
 		if (pdev->auto_white_balance->val == awb_indoor ||
 		    pdev->auto_white_balance->val == awb_outdoor ||
 		    pdev->auto_white_balance->val == awb_fl)
-			pwc_g_volatile_ctrl_unlocked(pdev->auto_white_balance);
+			pwc_g_volatile_ctrl(pdev->auto_white_balance);
 	}
 	if (pdev->auto_white_balance->val != awb_manual)
 		return 0;
@@ -812,13 +792,6 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 		container_of(ctrl->handler, struct pwc_device, ctrl_handler);
 	int ret = 0;
 
-	mutex_lock(&pdev->udevlock);
-
-	if (!pdev->udev) {
-		ret = -ENODEV;
-		goto leave;
-	}
-
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
 		ret = pwc_set_u8_ctrl(pdev, SET_LUM_CTL,
@@ -915,8 +888,6 @@ static int pwc_s_ctrl(struct v4l2_ctrl *ctrl)
 	if (ret)
 		PWC_ERROR("s_ctrl %s error %d\n", ctrl->name, ret);
 
-leave:
-	mutex_unlock(&pdev->udevlock);
 	return ret;
 }
 
@@ -949,11 +920,9 @@ static int pwc_g_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f)
 	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	mutex_lock(&pdev->udevlock); /* To avoid race with s_fmt */
 	PWC_DEBUG_IOCTL("ioctl(VIDIOC_G_FMT) return size %dx%d\n",
 			pdev->width, pdev->height);
 	pwc_vidioc_fill_fmt(f, pdev->width, pdev->height, pdev->pixfmt);
-	mutex_unlock(&pdev->udevlock);
 	return 0;
 }
 
@@ -968,70 +937,98 @@ static int pwc_reqbufs(struct file *file, void *fh,
 		       struct v4l2_requestbuffers *rb)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	if (pwc_test_n_set_capt_file(pdev, file))
-		return -EBUSY;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	return vb2_reqbufs(&pdev->vb_queue, rb);
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_reqbufs(&pdev->vb_queue, rb);
+
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	return vb2_querybuf(&pdev->vb_queue, buf);
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
+
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_querybuf(&pdev->vb_queue, buf);
+
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_qbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	if (pdev->capt_file != file)
-		return -EBUSY;
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_qbuf(&pdev->vb_queue, buf);
 
-	return vb2_qbuf(&pdev->vb_queue, buf);
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	if (pdev->capt_file != file)
-		return -EBUSY;
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_dqbuf(&pdev->vb_queue, buf,
+				file->f_flags & O_NONBLOCK);
 
-	return vb2_dqbuf(&pdev->vb_queue, buf, file->f_flags & O_NONBLOCK);
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	if (pdev->capt_file != file)
-		return -EBUSY;
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_streamon(&pdev->vb_queue, i);
 
-	return vb2_streamon(&pdev->vb_queue, i);
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	struct pwc_device *pdev = video_drvdata(file);
+	int ret;
 
-	if (!pdev->udev)
-		return -ENODEV;
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	if (pdev->capt_file != file)
-		return -EBUSY;
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret == 0)
+		ret = vb2_streamoff(&pdev->vb_queue, i);
 
-	return vb2_streamoff(&pdev->vb_queue, i);
+	mutex_unlock(&pdev->vb_queue_lock);
+	return ret;
 }
 
 static int pwc_enum_framesizes(struct file *file, void *fh,
@@ -1119,19 +1116,17 @@ static int pwc_s_parm(struct file *file, void *fh,
 	    parm->parm.capture.timeperframe.numerator == 0)
 		return -EINVAL;
 
-	if (pwc_test_n_set_capt_file(pdev, file))
-		return -EBUSY;
-
 	fps = parm->parm.capture.timeperframe.denominator /
 	      parm->parm.capture.timeperframe.numerator;
 
-	mutex_lock(&pdev->udevlock);
-	if (!pdev->udev) {
-		ret = -ENODEV;
-		goto leave;
-	}
+	if (mutex_lock_interruptible(&pdev->vb_queue_lock))
+		return -ERESTARTSYS;
 
-	if (pdev->iso_init) {
+	ret = pwc_test_n_set_capt_file(pdev, file);
+	if (ret)
+		goto leave;
+
+	if (pdev->vb_queue.streaming) {
 		ret = -EBUSY;
 		goto leave;
 	}
@@ -1142,7 +1137,7 @@ static int pwc_s_parm(struct file *file, void *fh,
 	pwc_g_parm(file, fh, parm);
 
 leave:
-	mutex_unlock(&pdev->udevlock);
+	mutex_unlock(&pdev->vb_queue_lock);
 	return ret;
 }
 
