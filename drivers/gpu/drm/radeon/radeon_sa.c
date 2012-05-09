@@ -129,19 +129,31 @@ int radeon_sa_bo_manager_suspend(struct radeon_device *rdev,
  *
  * Alignment can't be bigger than page size
  */
+
+static void radeon_sa_bo_remove_locked(struct radeon_sa_bo *sa_bo)
+{
+	list_del(&sa_bo->list);
+	radeon_fence_unref(&sa_bo->fence);
+	kfree(sa_bo);
+}
+
 int radeon_sa_bo_new(struct radeon_device *rdev,
 		     struct radeon_sa_manager *sa_manager,
 		     struct radeon_sa_bo **sa_bo,
-		     unsigned size, unsigned align)
+		     unsigned size, unsigned align, bool block)
 {
-	struct radeon_sa_bo *tmp;
+	struct radeon_fence *fence = NULL;
+	struct radeon_sa_bo *tmp, *next;
 	struct list_head *head;
 	unsigned offset = 0, wasted = 0;
+	int r;
 
 	BUG_ON(align > RADEON_GPU_PAGE_SIZE);
 	BUG_ON(size > sa_manager->size);
 
 	*sa_bo = kmalloc(sizeof(struct radeon_sa_bo), GFP_KERNEL);
+
+retry:
 
 	spin_lock(&sa_manager->lock);
 
@@ -153,7 +165,17 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 
 	/* look for a hole big enough */
 	offset = 0;
-	list_for_each_entry(tmp, &sa_manager->sa_bo, list) {
+	list_for_each_entry_safe(tmp, next, &sa_manager->sa_bo, list) {
+		/* try to free this object */
+		if (tmp->fence) {
+			if (radeon_fence_signaled(tmp->fence)) {
+				radeon_sa_bo_remove_locked(tmp);
+				continue;
+			} else {
+				fence = tmp->fence;
+			}
+		}
+
 		/* room before this object ? */
 		if (offset < tmp->soffset && (tmp->soffset - offset) >= size) {
 			head = tmp->list.prev;
@@ -178,6 +200,13 @@ int radeon_sa_bo_new(struct radeon_device *rdev,
 	if ((sa_manager->size - offset) < size) {
 		/* failed to find somethings big enough */
 		spin_unlock(&sa_manager->lock);
+		if (block && fence) {
+			r = radeon_fence_wait(fence, false);
+			if (r)
+				return r;
+
+			goto retry;
+		}
 		kfree(*sa_bo);
 		*sa_bo = NULL;
 		return -ENOMEM;
@@ -192,15 +221,22 @@ out:
 	return 0;
 }
 
-void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo)
+void radeon_sa_bo_free(struct radeon_device *rdev, struct radeon_sa_bo **sa_bo,
+		       struct radeon_fence *fence)
 {
+	struct radeon_sa_manager *sa_manager;
+
 	if (!sa_bo || !*sa_bo)
 		return;
 
-	spin_lock(&(*sa_bo)->manager->lock);
-	list_del_init(&(*sa_bo)->list);
-	spin_unlock(&(*sa_bo)->manager->lock);
-	kfree(*sa_bo);
+	sa_manager = (*sa_bo)->manager;
+	spin_lock(&sa_manager->lock);
+	if (fence && fence->seq && fence->seq < RADEON_FENCE_NOTEMITED_SEQ) {
+		(*sa_bo)->fence = radeon_fence_ref(fence);
+	} else {
+		radeon_sa_bo_remove_locked(*sa_bo);
+	}
+	spin_unlock(&sa_manager->lock);
 	*sa_bo = NULL;
 }
 
@@ -212,8 +248,14 @@ void radeon_sa_bo_dump_debug_info(struct radeon_sa_manager *sa_manager,
 
 	spin_lock(&sa_manager->lock);
 	list_for_each_entry(i, &sa_manager->sa_bo, list) {
-		seq_printf(m, "[%08x %08x] size %4d [%p]\n",
+		seq_printf(m, "[%08x %08x] size %4d (%p)",
 			   i->soffset, i->eoffset, i->eoffset - i->soffset, i);
+		if (i->fence) {
+			seq_printf(m, " protected by %Ld (%p) on ring %d\n",
+				   i->fence->seq, i->fence, i->fence->ring);
+		} else {
+			seq_printf(m, "\n");
+		}
 	}
 	spin_unlock(&sa_manager->lock);
 }

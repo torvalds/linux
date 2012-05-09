@@ -85,7 +85,7 @@ bool radeon_ib_try_free(struct radeon_device *rdev, struct radeon_ib *ib)
 	if (ib->fence && ib->fence->seq < RADEON_FENCE_NOTEMITED_SEQ) {
 		if (radeon_fence_signaled(ib->fence)) {
 			radeon_fence_unref(&ib->fence);
-			radeon_sa_bo_free(rdev, &ib->sa_bo);
+			radeon_sa_bo_free(rdev, &ib->sa_bo, NULL);
 			done = true;
 		}
 	}
@@ -124,7 +124,7 @@ retry:
 		if (rdev->ib_pool.ibs[idx].fence == NULL) {
 			r = radeon_sa_bo_new(rdev, &rdev->ib_pool.sa_manager,
 					     &rdev->ib_pool.ibs[idx].sa_bo,
-					     size, 256);
+					     size, 256, false);
 			if (!r) {
 				*ib = &rdev->ib_pool.ibs[idx];
 				(*ib)->ptr = radeon_sa_bo_cpu_addr((*ib)->sa_bo);
@@ -173,7 +173,7 @@ void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
 	}
 	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (tmp->fence && tmp->fence->seq == RADEON_FENCE_NOTEMITED_SEQ) {
-		radeon_sa_bo_free(rdev, &tmp->sa_bo);
+		radeon_sa_bo_free(rdev, &tmp->sa_bo, NULL);
 		radeon_fence_unref(&tmp->fence);
 	}
 	radeon_mutex_unlock(&rdev->ib_pool.mutex);
@@ -247,7 +247,7 @@ void radeon_ib_pool_fini(struct radeon_device *rdev)
 	radeon_mutex_lock(&rdev->ib_pool.mutex);
 	if (rdev->ib_pool.ready) {
 		for (i = 0; i < RADEON_IB_POOL_SIZE; i++) {
-			radeon_sa_bo_free(rdev, &rdev->ib_pool.ibs[i].sa_bo);
+			radeon_sa_bo_free(rdev, &rdev->ib_pool.ibs[i].sa_bo, NULL);
 			radeon_fence_unref(&rdev->ib_pool.ibs[i].fence);
 		}
 		radeon_sa_bo_manager_fini(rdev, &rdev->ib_pool.sa_manager);

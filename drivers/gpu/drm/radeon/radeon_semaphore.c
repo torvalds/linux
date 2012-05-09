@@ -72,7 +72,7 @@ static int radeon_semaphore_add_bo(struct radeon_device *rdev)
 static void radeon_semaphore_del_bo_locked(struct radeon_device *rdev,
 					   struct radeon_semaphore_bo *bo)
 {
-	radeon_sa_bo_free(rdev, &bo->ib->sa_bo);
+	radeon_sa_bo_free(rdev, &bo->ib->sa_bo, NULL);
 	radeon_fence_unref(&bo->ib->fence);
 	list_del(&bo->list);
 	kfree(bo);

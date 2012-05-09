@@ -398,6 +398,7 @@ struct radeon_sa_bo {
 	struct radeon_sa_manager	*manager;
 	unsigned			soffset;
 	unsigned			eoffset;
+	struct radeon_fence		*fence;
 };
 
 /*

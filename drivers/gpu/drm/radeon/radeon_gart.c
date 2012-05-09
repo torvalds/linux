@@ -326,7 +326,7 @@ static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 	rdev->vm_manager.use_bitmap &= ~(1 << vm->id);
 	list_del_init(&vm->list);
 	vm->id = -1;
-	radeon_sa_bo_free(rdev, &vm->sa_bo);
+	radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
 	vm->pt = NULL;
 
 	list_for_each_entry(bo_va, &vm->va, vm_list) {
@@ -395,7 +395,7 @@ int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm)
 retry:
 	r = radeon_sa_bo_new(rdev, &rdev->vm_manager.sa_manager, &vm->sa_bo,
 			     RADEON_GPU_PAGE_ALIGN(vm->last_pfn * 8),
-			     RADEON_GPU_PAGE_SIZE);
+			     RADEON_GPU_PAGE_SIZE, false);
 	if (r) {
 		if (list_empty(&rdev->vm_manager.lru_vm)) {
 			return r;
@@ -426,7 +426,7 @@ retry_id:
 	/* do hw bind */
 	r = rdev->vm_manager.funcs->bind(rdev, vm, id);
 	if (r) {
-		radeon_sa_bo_free(rdev, &vm->sa_bo);
+		radeon_sa_bo_free(rdev, &vm->sa_bo, NULL);
 		return r;
 	}
 	rdev->vm_manager.use_bitmap |= 1 << id;
