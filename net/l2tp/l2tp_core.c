@@ -1762,7 +1762,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 
 		session->session_id = session_id;
 		session->peer_session_id = peer_session_id;
-		session->nr = 1;
+		session->nr = 0;
 
 		sprintf(&session->name[0], "sess %u/%u",
 			tunnel->tunnel_id, session->session_id);
