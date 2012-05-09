@@ -139,7 +139,7 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	if (mode > REG_SCENE_CANDLE)
 		return -EINVAL;
 
-	ret = m5mols_lock_3a(info, false);
+	ret = v4l2_ctrl_s_ctrl(info->lock_3a, 0);
 	if (!ret)
 		ret = m5mols_write(sd, AE_EV_PRESET_MONITOR, mode);
 	if (!ret)
@@ -186,42 +186,34 @@ int m5mols_do_scenemode(struct m5mols_info *info, u8 mode)
 	return ret;
 }
 
-static int m5mols_lock_ae(struct m5mols_info *info, bool lock)
+static int m5mols_3a_lock(struct m5mols_info *info, struct v4l2_ctrl *ctrl)
 {
+	bool af_lock = ctrl->val & V4L2_LOCK_FOCUS;
 	int ret = 0;
 
-	if (info->lock_ae != lock)
-		ret = m5mols_write(&info->sd, AE_LOCK,
-				lock ? REG_AE_LOCK : REG_AE_UNLOCK);
-	if (!ret)
-		info->lock_ae = lock;
+	if ((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_EXPOSURE) {
+		bool ae_lock = ctrl->val & V4L2_LOCK_EXPOSURE;
 
-	return ret;
-}
+		ret = m5mols_write(&info->sd, AE_LOCK, ae_lock ?
+				   REG_AE_LOCK : REG_AE_UNLOCK);
+		if (ret)
+			return ret;
+	}
 
-static int m5mols_lock_awb(struct m5mols_info *info, bool lock)
-{
-	int ret = 0;
+	if (((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_WHITE_BALANCE)
+	    && info->auto_wb->val) {
+		bool awb_lock = ctrl->val & V4L2_LOCK_WHITE_BALANCE;
 
-	if (info->lock_awb != lock)
-		ret = m5mols_write(&info->sd, AWB_LOCK,
-				lock ? REG_AWB_LOCK : REG_AWB_UNLOCK);
-	if (!ret)
-		info->lock_awb = lock;
+		ret = m5mols_write(&info->sd, AWB_LOCK, awb_lock ?
+				   REG_AWB_LOCK : REG_AWB_UNLOCK);
+		if (ret)
+			return ret;
+	}
 
-	return ret;
-}
+	if (!info->ver.af || !af_lock)
+		return ret;
 
-/* m5mols_lock_3a() - Lock 3A(Auto Exposure, Auto Whitebalance, Auto Focus) */
-int m5mols_lock_3a(struct m5mols_info *info, bool lock)
-{
-	int ret;
-
-	ret = m5mols_lock_ae(info, lock);
-	if (!ret)
-		ret = m5mols_lock_awb(info, lock);
-	/* Don't need to handle unlocking AF */
-	if (!ret && is_available_af(info) && lock)
+	if ((ctrl->val ^ ctrl->cur.val) & V4L2_LOCK_FOCUS)
 		ret = m5mols_write(&info->sd, AF_EXECUTE, REG_AF_STOP);
 
 	return ret;
@@ -249,13 +241,13 @@ static int m5mols_set_metering_mode(struct m5mols_info *info, int mode)
 static int m5mols_set_exposure(struct m5mols_info *info, int exposure)
 {
 	struct v4l2_subdev *sd = &info->sd;
-	int ret;
-
-	ret = m5mols_lock_ae(info, exposure != V4L2_EXPOSURE_AUTO);
-	if (ret < 0)
-		return ret;
+	int ret = 0;
 
 	if (exposure == V4L2_EXPOSURE_AUTO) {
+		/* Unlock auto exposure */
+		info->lock_3a->val &= ~V4L2_LOCK_EXPOSURE;
+		m5mols_3a_lock(info, info->lock_3a);
+
 		ret = m5mols_set_metering_mode(info, info->metering->val);
 		if (ret < 0)
 			return ret;
@@ -429,6 +421,26 @@ static int m5mols_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 		if (status != REG_ISO_AUTO)
 			info->iso->val = status - 1;
 		break;
+
+	case V4L2_CID_3A_LOCK:
+		ctrl->val &= ~0x7;
+
+		ret = m5mols_read_u8(sd, AE_LOCK, &status);
+		if (ret)
+			return ret;
+		if (status)
+			info->lock_3a->val |= V4L2_LOCK_EXPOSURE;
+
+		ret = m5mols_read_u8(sd, AWB_LOCK, &status);
+		if (ret)
+			return ret;
+		if (status)
+			info->lock_3a->val |= V4L2_LOCK_EXPOSURE;
+
+		ret = m5mols_read_u8(sd, AF_EXECUTE, &status);
+		if (!status)
+			info->lock_3a->val |= V4L2_LOCK_EXPOSURE;
+		break;
 	}
 
 	return ret;
@@ -461,6 +473,10 @@ static int m5mols_s_ctrl(struct v4l2_ctrl *ctrl)
 	}
 
 	switch (ctrl->id) {
+	case V4L2_CID_3A_LOCK:
+		ret = m5mols_3a_lock(info, ctrl);
+		break;
+
 	case V4L2_CID_ZOOM_ABSOLUTE:
 		ret = m5mols_write(sd, MON_ZOOM, ctrl->val);
 		break;
@@ -585,6 +601,9 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 	info->jpeg_quality = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
 			V4L2_CID_JPEG_COMPRESSION_QUALITY, 1, 100, 1, 80);
 
+	info->lock_3a = v4l2_ctrl_new_std(&info->handle, &m5mols_ctrl_ops,
+			V4L2_CID_3A_LOCK, 0, 0x7, 0, 0);
+
 	if (info->handle.error) {
 		int ret = info->handle.error;
 		v4l2_err(sd, "Failed to initialize controls: %d\n", ret);
@@ -596,6 +615,8 @@ int m5mols_init_controls(struct v4l2_subdev *sd)
 	info->auto_iso->flags |= V4L2_CTRL_FLAG_VOLATILE |
 				V4L2_CTRL_FLAG_UPDATE;
 	v4l2_ctrl_auto_cluster(2, &info->auto_iso, 0, false);
+
+	info->lock_3a->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	m5mols_set_ctrl_mode(info->auto_exposure, REG_PARAMETER);
 	m5mols_set_ctrl_mode(info->auto_wb, REG_PARAMETER);

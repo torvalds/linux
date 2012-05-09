@@ -158,7 +158,7 @@ struct m5mols_version {
  * @ffmt: current fmt according to resolution type
  * @res_type: current resolution type
  * @irq_waitq: waitqueue for the capture
- * @flags: state variable for the interrupt handler
+ * @irq_done: set to 1 in the interrupt handler
  * @handle: control handler
  * @auto_exposure: auto/manual exposure control
  * @exposure_bias: exposure compensation control
@@ -167,6 +167,7 @@ struct m5mols_version {
  * @auto_iso: auto/manual ISO sensitivity control
  * @iso: manual ISO sensitivity control
  * @auto_wb: auto white balance control
+ * @lock_3a: 3A lock control
  * @colorfx: color effect control
  * @saturation: saturation control
  * @zoom: zoom control
@@ -175,11 +176,9 @@ struct m5mols_version {
  * @jpeg_quality: JPEG compression quality control
  * @ver: information of the version
  * @cap: the capture mode attributes
- * @power: current sensor's power status
  * @isp_ready: 1 when the ISP controller has completed booting
+ * @power: current sensor's power status
  * @ctrl_sync: 1 when the control handler state is restored in H/W
- * @lock_ae: true means the Auto Exposure is locked
- * @lock_awb: true means the Aut WhiteBalance is locked
  * @resolution:	register value for current resolution
  * @mode: register value for current operation mode
  * @set_power: optional power callback to the board code
@@ -209,6 +208,7 @@ struct m5mols_info {
 	};
 	struct v4l2_ctrl *auto_wb;
 
+	struct v4l2_ctrl *lock_3a;
 	struct v4l2_ctrl *colorfx;
 	struct v4l2_ctrl *saturation;
 	struct v4l2_ctrl *zoom;
@@ -223,8 +223,6 @@ struct m5mols_info {
 	unsigned int power:1;
 	unsigned int ctrl_sync:1;
 
-	bool lock_ae;
-	bool lock_awb;
 	u8 resolution;
 	u8 mode;
 
