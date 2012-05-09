@@ -1980,16 +1980,10 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return 0;
 	}
 
-	switch (intel_crtc->plane) {
-	case 0:
-	case 1:
-		break;
-	case 2:
-		if (IS_IVYBRIDGE(dev))
-			break;
-		/* fall through otherwise */
-	default:
-		DRM_ERROR("no plane for crtc\n");
+	if(intel_crtc->plane > dev_priv->num_pipe) {
+		DRM_ERROR("no plane for crtc: plane %d, num_pipes %d\n",
+				intel_crtc->plane,
+				dev_priv->num_pipe);
 		return -EINVAL;
 	}
 
