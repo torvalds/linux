@@ -1490,12 +1490,12 @@ static inline void remove_partial(struct kmem_cache_node *n,
 }
 
 /*
- * Lock slab, remove from the partial list and put the object into the
- * per cpu freelist.
+ * Remove slab from the partial list, freeze it and
+ * return the pointer to the freelist.
  *
  * Returns a list of objects or NULL if it fails.
  *
- * Must hold list_lock.
+ * Must hold list_lock since we modify the partial list.
  */
 static inline void *acquire_slab(struct kmem_cache *s,
 		struct kmem_cache_node *n, struct page *page,
@@ -1510,22 +1510,24 @@ static inline void *acquire_slab(struct kmem_cache *s,
 	 * The old freelist is the list of objects for the
 	 * per cpu allocation list.
 	 */
-	do {
-		freelist = page->freelist;
-		counters = page->counters;
-		new.counters = counters;
-		if (mode)
-			new.inuse = page->objects;
+	freelist = page->freelist;
+	counters = page->counters;
+	new.counters = counters;
+	if (mode)
+		new.inuse = page->objects;
 
-		VM_BUG_ON(new.frozen);
-		new.frozen = 1;
+	VM_BUG_ON(new.frozen);
+	new.frozen = 1;
 
-	} while (!__cmpxchg_double_slab(s, page,
+	if (!__cmpxchg_double_slab(s, page,
 			freelist, counters,
 			NULL, new.counters,
-			"lock and freeze"));
+			"acquire_slab"))
+
+		return NULL;
 
 	remove_partial(n, page);
+	WARN_ON(!freelist);
 	return freelist;
 }
 
