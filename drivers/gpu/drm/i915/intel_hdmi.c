@@ -560,6 +560,14 @@ static void intel_hdmi_destroy(struct drm_connector *connector)
 	kfree(connector);
 }
 
+static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs_hsw = {
+	.dpms = intel_ddi_dpms,
+	.mode_fixup = intel_hdmi_mode_fixup,
+	.prepare = intel_encoder_prepare,
+	.mode_set = intel_ddi_mode_set,
+	.commit = intel_encoder_commit,
+};
+
 static const struct drm_encoder_helper_funcs intel_hdmi_helper_funcs = {
 	.dpms = intel_hdmi_dpms,
 	.mode_fixup = intel_hdmi_mode_fixup,
@@ -699,7 +707,10 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 			I915_WRITE(TVIDEO_DIP_CTL(i), 0);
 	}
 
-	drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
+	if (IS_HASWELL(dev))
+		drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs_hsw);
+	else
+		drm_encoder_helper_add(&intel_encoder->base, &intel_hdmi_helper_funcs);
 
 	intel_hdmi_add_properties(intel_hdmi, connector);
 

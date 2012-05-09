@@ -637,3 +637,119 @@ static const struct wrpll_tmds_clock wrpll_tmds_clock_table[] = {
 	{297000,	2,	22,	20},
 	{298000,	2,	21,	19},
 };
+
+void intel_ddi_mode_set(struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc = encoder->crtc;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	int port = intel_hdmi->ddi_port;
+	int pipe = intel_crtc->pipe;
+	int p, n2, r2, valid=0;
+	u32 temp, i;
+
+	/* On Haswell, we need to enable the clocks and prepare DDI function to
+	 * work in HDMI mode for this pipe.
+	 */
+	DRM_DEBUG_KMS("Preparing HDMI DDI mode for Haswell on port %c, pipe %c\n", port_name(port), pipe_name(pipe));
+
+	for (i=0; i < ARRAY_SIZE(wrpll_tmds_clock_table); i++) {
+		if (crtc->mode.clock == wrpll_tmds_clock_table[i].clock) {
+			p = wrpll_tmds_clock_table[i].p;
+			n2 = wrpll_tmds_clock_table[i].n2;
+			r2 = wrpll_tmds_clock_table[i].r2;
+
+			DRM_DEBUG_KMS("WR PLL clock: found settings for %dKHz refresh rate: p=%d, n2=%d, r2=%d\n",
+					crtc->mode.clock,
+					p, n2, r2);
+
+			valid = 1;
+			break;
+		}
+	}
+
+	if (!valid) {
+		DRM_ERROR("Unable to find WR PLL clock settings for %dKHz refresh rate\n",
+				crtc->mode.clock);
+		return;
+	}
+
+	/* Enable LCPLL if disabled */
+	temp = I915_READ(LCPLL_CTL);
+	if (temp & LCPLL_PLL_DISABLE)
+		I915_WRITE(LCPLL_CTL,
+				temp & ~LCPLL_PLL_DISABLE);
+
+	/* Configure WR PLL 1, program the correct divider values for
+	 * the desired frequency and wait for warmup */
+	I915_WRITE(WRPLL_CTL1,
+			WRPLL_PLL_ENABLE |
+			WRPLL_PLL_SELECT_LCPLL_2700 |
+			WRPLL_DIVIDER_REFERENCE(r2) |
+			WRPLL_DIVIDER_FEEDBACK(n2) |
+			WRPLL_DIVIDER_POST(p));
+
+	udelay(20);
+
+	/* Use WRPLL1 clock to drive the output to the port, and tell the pipe to use
+	 * this port for connection.
+	 */
+	I915_WRITE(PORT_CLK_SEL(port),
+			PORT_CLK_SEL_WRPLL1);
+	I915_WRITE(PIPE_CLK_SEL(pipe),
+			PIPE_CLK_SEL_PORT(port));
+
+	udelay(20);
+
+	if (intel_hdmi->has_audio) {
+		/* Proper support for digital audio needs a new logic and a new set
+		 * of registers, so we leave it for future patch bombing.
+		 */
+		DRM_DEBUG_DRIVER("HDMI audio on pipe %c not yet supported on DDI\n",
+				 pipe_name(intel_crtc->pipe));
+	}
+
+	/* Enable PIPE_DDI_FUNC_CTL for the pipe to work in HDMI mode */
+	temp = I915_READ(DDI_FUNC_CTL(pipe));
+	temp &= ~PIPE_DDI_PORT_MASK;
+	temp &= ~PIPE_DDI_BPC_12;
+	temp |= PIPE_DDI_SELECT_PORT(port) |
+			PIPE_DDI_MODE_SELECT_HDMI |
+			((intel_crtc->bpp > 24) ?
+				PIPE_DDI_BPC_12 :
+				PIPE_DDI_BPC_8) |
+			PIPE_DDI_FUNC_ENABLE;
+
+	I915_WRITE(DDI_FUNC_CTL(pipe), temp);
+
+	intel_hdmi_set_avi_infoframe(encoder, adjusted_mode);
+	intel_hdmi_set_spd_infoframe(encoder);
+}
+
+void intel_ddi_dpms(struct drm_encoder *encoder, int mode)
+{
+	struct drm_device *dev = encoder->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(encoder);
+	int port = intel_hdmi->ddi_port;
+	u32 temp;
+
+	temp = I915_READ(DDI_BUF_CTL(port));
+
+	if (mode != DRM_MODE_DPMS_ON) {
+		temp &= ~DDI_BUF_CTL_ENABLE;
+	} else {
+		temp |= DDI_BUF_CTL_ENABLE;
+	}
+
+	/* Enable DDI_BUF_CTL. In HDMI/DVI mode, the port width,
+	 * and swing/emphasis values are ignored so nothing special needs
+	 * to be done besides enabling the port.
+	 */
+	I915_WRITE(DDI_BUF_CTL(port),
+			temp);
+}
