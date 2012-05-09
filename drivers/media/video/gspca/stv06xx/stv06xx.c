@@ -268,7 +268,7 @@ static int stv06xx_init_controls(struct gspca_dev *gspca_dev)
 
 	PDEBUG(D_PROBE, "Initializing controls");
 
-	gspca_dev->vdev.ctrl_handler = &sd->ctrl_handler;
+	gspca_dev->vdev.ctrl_handler = &gspca_dev->ctrl_handler;
 	return sd->sensor->init_controls(sd);
 }
 

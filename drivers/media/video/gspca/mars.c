@@ -34,7 +34,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	struct v4l2_ctrl_handler ctrl_handler;
 	struct v4l2_ctrl *brightness;
 	struct v4l2_ctrl *saturation;
 	struct v4l2_ctrl *sharpness;
@@ -161,8 +160,9 @@ static void setilluminators(struct gspca_dev *gspca_dev, bool top, bool bottom)
 
 static int mars_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
-	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 
 	gspca_dev->usb_err = 0;
 
@@ -179,20 +179,20 @@ static int mars_s_ctrl(struct v4l2_ctrl *ctrl)
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
-		setbrightness(&sd->gspca_dev, ctrl->val);
+		setbrightness(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_SATURATION:
-		setcolors(&sd->gspca_dev, ctrl->val);
+		setcolors(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_GAMMA:
-		setgamma(&sd->gspca_dev, ctrl->val);
+		setgamma(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_ILLUMINATORS_1:
-		setilluminators(&sd->gspca_dev, sd->illum_top->val,
-						sd->illum_bottom->val);
+		setilluminators(gspca_dev, sd->illum_top->val,
+					   sd->illum_bottom->val);
 		break;
 	case V4L2_CID_SHARPNESS:
-		setsharpness(&sd->gspca_dev, ctrl->val);
+		setsharpness(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
 		jpeg_set_qual(sd->jpeg_hdr, ctrl->val);
@@ -211,7 +211,7 @@ static const struct v4l2_ctrl_ops mars_ctrl_ops = {
 static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct v4l2_ctrl_handler *hdl = &sd->ctrl_handler;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	gspca_dev->vdev.ctrl_handler = hdl;
 	v4l2_ctrl_handler_init(hdl, 7);

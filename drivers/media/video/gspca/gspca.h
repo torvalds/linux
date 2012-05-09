@@ -174,6 +174,7 @@ struct gspca_dev {
 	const struct sd_desc *sd_desc;		/* subdriver description */
 	unsigned ctrl_dis;		/* disabled controls (bit map) */
 	unsigned ctrl_inac;		/* inactive controls (bit map) */
+	struct v4l2_ctrl_handler ctrl_handler;
 
 	/* autogain and exposure or gain control cluster, these are global as
 	   the autogain/exposure functions in autogain_functions.c use them */

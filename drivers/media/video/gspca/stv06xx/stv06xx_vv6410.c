@@ -46,21 +46,22 @@ static struct v4l2_pix_format vv6410_mode[] = {
 
 static int vv6410_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 	int err = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_HFLIP:
-		err = vv6410_set_hflip(&sd->gspca_dev, ctrl->val);
+		err = vv6410_set_hflip(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_VFLIP:
-		err = vv6410_set_vflip(&sd->gspca_dev, ctrl->val);
+		err = vv6410_set_vflip(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_GAIN:
-		err = vv6410_set_analog_gain(&sd->gspca_dev, ctrl->val);
+		err = vv6410_set_analog_gain(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_EXPOSURE:
-		err = vv6410_set_exposure(&sd->gspca_dev, ctrl->val);
+		err = vv6410_set_exposure(gspca_dev, ctrl->val);
 		break;
 	}
 	return err;
@@ -91,7 +92,7 @@ static int vv6410_probe(struct sd *sd)
 
 static int vv6410_init_controls(struct sd *sd)
 {
-	struct v4l2_ctrl_handler *hdl = &sd->ctrl_handler;
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
 
 	v4l2_ctrl_handler_init(hdl, 4);
 	v4l2_ctrl_new_std(hdl, &vv6410_ctrl_ops,

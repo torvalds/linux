@@ -70,7 +70,6 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;
 
-	struct v4l2_ctrl_handler ctrl_handler;
 	struct { /* color control cluster */
 		struct v4l2_ctrl *brightness;
 		struct v4l2_ctrl *contrast;
@@ -1694,8 +1693,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
-	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 
 	gspca_dev->usb_err = 0;
 
@@ -1705,37 +1705,37 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	/* color control cluster */
 	case V4L2_CID_BRIGHTNESS:
-		set_cmatrix(&sd->gspca_dev, sd->brightness->val,
+		set_cmatrix(gspca_dev, sd->brightness->val,
 			sd->contrast->val, sd->saturation->val, sd->hue->val);
 		break;
 	case V4L2_CID_GAMMA:
-		set_gamma(&sd->gspca_dev, ctrl->val);
+		set_gamma(gspca_dev, ctrl->val);
 		break;
 	/* blue/red balance cluster */
 	case V4L2_CID_BLUE_BALANCE:
-		set_redblue(&sd->gspca_dev, sd->blue->val, sd->red->val);
+		set_redblue(gspca_dev, sd->blue->val, sd->red->val);
 		break;
 	/* h/vflip cluster */
 	case V4L2_CID_HFLIP:
-		set_hvflip(&sd->gspca_dev, sd->hflip->val, sd->vflip->val);
+		set_hvflip(gspca_dev, sd->hflip->val, sd->vflip->val);
 		break;
 	/* standalone exposure control */
 	case V4L2_CID_EXPOSURE:
-		set_exposure(&sd->gspca_dev, ctrl->val);
+		set_exposure(gspca_dev, ctrl->val);
 		break;
 	/* standalone gain control */
 	case V4L2_CID_GAIN:
-		set_gain(&sd->gspca_dev, ctrl->val);
+		set_gain(gspca_dev, ctrl->val);
 		break;
 	/* autogain + exposure or gain control cluster */
 	case V4L2_CID_AUTOGAIN:
 		if (sd->sensor == SENSOR_SOI968)
-			set_gain(&sd->gspca_dev, sd->gain->val);
+			set_gain(gspca_dev, sd->gain->val);
 		else
-			set_exposure(&sd->gspca_dev, sd->exposure->val);
+			set_exposure(gspca_dev, sd->exposure->val);
 		break;
 	case V4L2_CID_JPEG_COMPRESSION_QUALITY:
-		set_quality(&sd->gspca_dev, ctrl->val);
+		set_quality(gspca_dev, ctrl->val);
 		break;
 	}
 	return gspca_dev->usb_err;
@@ -1748,7 +1748,7 @@ static const struct v4l2_ctrl_ops sd_ctrl_ops = {
 static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct v4l2_ctrl_handler *hdl = &sd->ctrl_handler;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 
 	gspca_dev->vdev.ctrl_handler = hdl;
 	v4l2_ctrl_handler_init(hdl, 13);

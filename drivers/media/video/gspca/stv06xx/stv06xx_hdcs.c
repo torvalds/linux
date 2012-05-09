@@ -335,15 +335,16 @@ static int hdcs_set_size(struct sd *sd,
 
 static int hdcs_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 	int err = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_GAIN:
-		err = hdcs_set_gain(&sd->gspca_dev, ctrl->val);
+		err = hdcs_set_gain(gspca_dev, ctrl->val);
 		break;
 	case V4L2_CID_EXPOSURE:
-		err = hdcs_set_exposure(&sd->gspca_dev, ctrl->val);
+		err = hdcs_set_exposure(gspca_dev, ctrl->val);
 		break;
 	}
 	return err;
@@ -355,7 +356,7 @@ static const struct v4l2_ctrl_ops hdcs_ctrl_ops = {
 
 static int hdcs_init_controls(struct sd *sd)
 {
-	struct v4l2_ctrl_handler *hdl = &sd->ctrl_handler;
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
 
 	v4l2_ctrl_handler_init(hdl, 2);
 	v4l2_ctrl_new_std(hdl, &hdcs_ctrl_ops,

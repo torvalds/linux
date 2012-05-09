@@ -67,7 +67,9 @@ static int setexposure(struct sd *sd, s16 expo);
 
 static int st6422_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 	int err = -EINVAL;
 
 	switch (ctrl->id) {
@@ -98,7 +100,7 @@ static const struct v4l2_ctrl_ops st6422_ctrl_ops = {
 
 static int st6422_init_controls(struct sd *sd)
 {
-	struct v4l2_ctrl_handler *hdl = &sd->ctrl_handler;
+	struct v4l2_ctrl_handler *hdl = &sd->gspca_dev.ctrl_handler;
 
 	v4l2_ctrl_handler_init(hdl, 4);
 	v4l2_ctrl_new_std(hdl, &st6422_ctrl_ops,

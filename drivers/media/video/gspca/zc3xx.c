@@ -39,7 +39,6 @@ static int force_sensor = -1;
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	struct v4l2_ctrl_handler ctrl_handler;
 	struct { /* gamma/brightness/contrast control cluster */
 		struct v4l2_ctrl *gamma;
 		struct v4l2_ctrl *brightness;
@@ -6328,8 +6327,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 static int zcxx_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
-	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUTOGAIN:
@@ -6343,8 +6343,9 @@ static int zcxx_g_volatile_ctrl(struct v4l2_ctrl *ctrl)
 
 static int zcxx_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = container_of(ctrl->handler, struct sd, ctrl_handler);
-	struct gspca_dev *gspca_dev = &sd->gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
+	struct sd *sd = (struct sd *)gspca_dev;
 	int i, qual;
 
 	gspca_dev->usb_err = 0;
@@ -6404,7 +6405,7 @@ static const struct v4l2_ctrl_ops zcxx_ctrl_ops = {
 static int sd_init_controls(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *)gspca_dev;
-	struct v4l2_ctrl_handler *hdl = &sd->ctrl_handler;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
 	static const u8 gamma[SENSOR_MAX] = {
 		[SENSOR_ADCM2700] =	4,
 		[SENSOR_CS2102] =	4,
