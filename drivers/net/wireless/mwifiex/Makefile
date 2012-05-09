@@ -29,6 +29,7 @@ mwifiex-y += scan.o
 mwifiex-y += join.o
 mwifiex-y += sta_ioctl.o
 mwifiex-y += sta_cmd.o
+mwifiex-y += uap_cmd.o
 mwifiex-y += sta_cmdresp.o
 mwifiex-y += sta_event.o
 mwifiex-y += sta_tx.o

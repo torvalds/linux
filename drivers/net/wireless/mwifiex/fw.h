@@ -210,6 +210,9 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define HostCmd_CMD_RSSI_INFO                         0x00a4
 #define HostCmd_CMD_FUNC_INIT                         0x00a9
 #define HostCmd_CMD_FUNC_SHUTDOWN                     0x00aa
+#define HostCmd_CMD_UAP_SYS_CONFIG                    0x00b0
+#define HostCmd_CMD_UAP_BSS_START                     0x00b1
+#define HostCmd_CMD_UAP_BSS_STOP                      0x00b2
 #define HostCmd_CMD_11N_CFG                           0x00cd
 #define HostCmd_CMD_11N_ADDBA_REQ                     0x00ce
 #define HostCmd_CMD_11N_ADDBA_RSP                     0x00cf

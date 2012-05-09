@@ -762,6 +762,9 @@ int mwifiex_process_rx_packet(struct mwifiex_adapter *adapter,
 int mwifiex_sta_prepare_cmd(struct mwifiex_private *, uint16_t cmd_no,
 			    u16 cmd_action, u32 cmd_oid,
 			    void *data_buf, void *cmd_buf);
+int mwifiex_uap_prepare_cmd(struct mwifiex_private *priv, uint16_t cmd_no,
+			    u16 cmd_action, u32 cmd_oid,
+			    void *data_buf, void *cmd_buf);
 int mwifiex_process_sta_cmdresp(struct mwifiex_private *, u16 cmdresp_no,
 				struct host_cmd_ds_command *resp);
 int mwifiex_process_sta_rx_packet(struct mwifiex_adapter *,
