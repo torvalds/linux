@@ -4986,20 +4986,6 @@ static int stac92xx_suspend(struct hda_codec *codec, pm_message_t state)
 	return 0;
 }
 
-static int stac92xx_pre_resume(struct hda_codec *codec)
-{
-	struct sigmatel_spec *spec = codec->spec;
-
-	/* sync mute LED */
-	if (spec->vref_mute_led_nid)
-		stac_vrefout_set(codec, spec->vref_mute_led_nid,
-				 spec->vref_led);
-	else if (spec->gpio_led)
-		stac_gpio_set(codec, spec->gpio_mask,
-			      spec->gpio_dir, spec->gpio_data);
-	return 0;
-}
-
 static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 				unsigned int power_state)
 {
@@ -5023,7 +5009,6 @@ static void stac92xx_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 #else
 #define stac92xx_suspend	NULL
 #define stac92xx_resume		NULL
-#define stac92xx_pre_resume	NULL
 #define stac92xx_set_power_state NULL
 #endif /* CONFIG_PM */
 
@@ -5569,9 +5554,6 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
-#ifdef CONFIG_PM
-		codec->patch_ops.pre_resume = stac92xx_pre_resume;
-#endif
 	}
 
 	err = stac92xx_parse_auto_config(codec);
@@ -5878,9 +5860,6 @@ again:
 			codec->patch_ops.set_power_state =
 					stac92xx_set_power_state;
 		}
-#ifdef CONFIG_PM
-		codec->patch_ops.pre_resume = stac92xx_pre_resume;
-#endif
 	}
 
 	spec->multiout.dac_nids = spec->dac_nids;

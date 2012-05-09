@@ -4930,8 +4930,6 @@ int snd_hda_suspend(struct hda_bus *bus)
 	list_for_each_entry(codec, &bus->codec_list, list) {
 		if (hda_codec_is_power_on(codec))
 			hda_call_codec_suspend(codec);
-		if (codec->patch_ops.post_suspend)
-			codec->patch_ops.post_suspend(codec);
 	}
 	return 0;
 }
@@ -4951,8 +4949,6 @@ int snd_hda_resume(struct hda_bus *bus)
 	struct hda_codec *codec;
 
 	list_for_each_entry(codec, &bus->codec_list, list) {
-		if (codec->patch_ops.pre_resume)
-			codec->patch_ops.pre_resume(codec);
 		hda_call_codec_resume(codec);
 	}
 	return 0;
