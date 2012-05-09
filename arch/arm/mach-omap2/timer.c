@@ -90,7 +90,7 @@ static irqreturn_t omap2_gp_timer_interrupt(int irq, void *dev_id)
 }
 
 static struct irqaction omap2_gp_timer_irq = {
-	.name		= "gp timer",
+	.name		= "gp_timer",
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.handler	= omap2_gp_timer_interrupt,
 };
@@ -132,7 +132,7 @@ static void omap2_gp_timer_set_mode(enum clock_event_mode mode,
 }
 
 static struct clock_event_device clockevent_gpt = {
-	.name		= "gp timer",
+	.name		= "gp_timer",
 	.features       = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
 	.shift		= 32,
 	.set_next_event	= omap2_gp_timer_set_next_event,
@@ -262,7 +262,7 @@ static cycle_t clocksource_read_cycles(struct clocksource *cs)
 }
 
 static struct clocksource clocksource_gpt = {
-	.name		= "gp timer",
+	.name		= "gp_timer",
 	.rating		= 300,
 	.read		= clocksource_read_cycles,
 	.mask		= CLOCKSOURCE_MASK(32),
