@@ -217,7 +217,7 @@ config COMPAT
 	def_bool y
 	prompt "Kernel support for 31 bit emulation"
 	depends on 64BIT
-	select COMPAT_BINFMT_ELF
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
 	select ARCH_WANT_OLD_COMPAT_IPC
 	help
 	  Select this option if you want to enable your system kernel to
