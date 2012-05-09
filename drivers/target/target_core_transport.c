@@ -870,8 +870,9 @@ void transport_dump_dev_state(
 
 	*bl += sprintf(b + *bl, "  Execute/Max Queue Depth: %d/%d",
 		atomic_read(&dev->execute_tasks), dev->queue_depth);
-	*bl += sprintf(b + *bl, "  SectorSize: %u  MaxSectors: %u\n",
-		dev->se_sub_dev->se_dev_attrib.block_size, dev->se_sub_dev->se_dev_attrib.max_sectors);
+	*bl += sprintf(b + *bl, "  SectorSize: %u  HwMaxSectors: %u\n",
+		dev->se_sub_dev->se_dev_attrib.block_size,
+		dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
 	*bl += sprintf(b + *bl, "        ");
 }
 
@@ -3498,7 +3499,7 @@ int transport_generic_new_cmd(struct se_cmd *cmd)
 
 		BUG_ON(cmd->data_length % attr->block_size);
 		BUG_ON(DIV_ROUND_UP(cmd->data_length, attr->block_size) >
-			attr->max_sectors);
+			attr->hw_max_sectors);
 	}
 
 	atomic_inc(&cmd->t_fe_count);

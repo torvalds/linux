@@ -876,15 +876,12 @@ void se_dev_set_default_attribs(
 	dev->se_sub_dev->se_dev_attrib.hw_block_size = limits->logical_block_size;
 	dev->se_sub_dev->se_dev_attrib.block_size = limits->logical_block_size;
 	/*
-	 * max_sectors is based on subsystem plugin dependent requirements.
+	 * Align max_hw_sectors down to PAGE_SIZE I/O transfers
 	 */
-	dev->se_sub_dev->se_dev_attrib.hw_max_sectors = limits->max_hw_sectors;
-	/*
-	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
-	 */
-	limits->max_sectors = se_dev_align_max_sectors(limits->max_sectors,
+	limits->max_hw_sectors = se_dev_align_max_sectors(limits->max_hw_sectors,
 						limits->logical_block_size);
-	dev->se_sub_dev->se_dev_attrib.max_sectors = limits->max_sectors;
+	dev->se_sub_dev->se_dev_attrib.hw_max_sectors = limits->max_hw_sectors;
+
 	/*
 	 * Set fabric_max_sectors, which is reported in block limits
 	 * VPD page (B0h).
@@ -1165,64 +1162,6 @@ int se_dev_set_queue_depth(struct se_device *dev, u32 queue_depth)
 	dev->se_sub_dev->se_dev_attrib.queue_depth = dev->queue_depth = queue_depth;
 	pr_debug("dev[%p]: SE Device TCQ Depth changed to: %u\n",
 			dev, queue_depth);
-	return 0;
-}
-
-int se_dev_set_max_sectors(struct se_device *dev, u32 max_sectors)
-{
-	int force = 0; /* Force setting for VDEVS */
-
-	if (atomic_read(&dev->dev_export_obj.obj_access_count)) {
-		pr_err("dev[%p]: Unable to change SE Device"
-			" max_sectors while dev_export_obj: %d count exists\n",
-			dev, atomic_read(&dev->dev_export_obj.obj_access_count));
-		return -EINVAL;
-	}
-	if (!max_sectors) {
-		pr_err("dev[%p]: Illegal ZERO value for"
-			" max_sectors\n", dev);
-		return -EINVAL;
-	}
-	if (max_sectors < DA_STATUS_MAX_SECTORS_MIN) {
-		pr_err("dev[%p]: Passed max_sectors: %u less than"
-			" DA_STATUS_MAX_SECTORS_MIN: %u\n", dev, max_sectors,
-				DA_STATUS_MAX_SECTORS_MIN);
-		return -EINVAL;
-	}
-	if (dev->transport->transport_type == TRANSPORT_PLUGIN_PHBA_PDEV) {
-		if (max_sectors > dev->se_sub_dev->se_dev_attrib.hw_max_sectors) {
-			pr_err("dev[%p]: Passed max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors:"
-				" %u\n", dev, max_sectors,
-				dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
-			 return -EINVAL;
-		}
-	} else {
-		if (!force && (max_sectors >
-				 dev->se_sub_dev->se_dev_attrib.hw_max_sectors)) {
-			pr_err("dev[%p]: Passed max_sectors: %u"
-				" greater than TCM/SE_Device max_sectors"
-				": %u, use force=1 to override.\n", dev,
-				max_sectors, dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
-			return -EINVAL;
-		}
-		if (max_sectors > DA_STATUS_MAX_SECTORS_MAX) {
-			pr_err("dev[%p]: Passed max_sectors: %u"
-				" greater than DA_STATUS_MAX_SECTORS_MAX:"
-				" %u\n", dev, max_sectors,
-				DA_STATUS_MAX_SECTORS_MAX);
-			return -EINVAL;
-		}
-	}
-	/*
-	 * Align max_sectors down to PAGE_SIZE to follow transport_allocate_data_tasks()
-	 */
-	max_sectors = se_dev_align_max_sectors(max_sectors,
-				dev->se_sub_dev->se_dev_attrib.block_size);
-
-	dev->se_sub_dev->se_dev_attrib.max_sectors = max_sectors;
-	pr_debug("dev[%p]: SE Device max_sectors changed to %u\n",
-			dev, max_sectors);
 	return 0;
 }
 

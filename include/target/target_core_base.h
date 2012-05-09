@@ -708,7 +708,6 @@ struct se_dev_attrib {
 	u32		hw_block_size;
 	u32		block_size;
 	u32		hw_max_sectors;
-	u32		max_sectors;
 	u32		fabric_max_sectors;
 	u32		optimal_sectors;
 	u32		hw_queue_depth;

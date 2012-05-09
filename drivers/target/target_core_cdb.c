@@ -458,7 +458,7 @@ target_emulate_evpd_b0(struct se_cmd *cmd, unsigned char *buf)
 	 * Set MAXIMUM TRANSFER LENGTH
 	 */
 	max_sectors = min(dev->se_sub_dev->se_dev_attrib.fabric_max_sectors,
-			  dev->se_sub_dev->se_dev_attrib.max_sectors);
+			  dev->se_sub_dev->se_dev_attrib.hw_max_sectors);
 	put_unaligned_be32(max_sectors, &buf[8]);
 
 	/*
