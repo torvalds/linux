@@ -325,11 +325,13 @@ typedef void qdio_handler_t(struct ccw_device *, unsigned int, int,
 			    int, int, unsigned long);
 
 /* qdio errors reported to the upper-layer program */
-#define QDIO_ERROR_SIGA_TARGET			0x02
-#define QDIO_ERROR_SIGA_ACCESS_EXCEPTION	0x10
-#define QDIO_ERROR_SIGA_BUSY			0x20
-#define QDIO_ERROR_ACTIVATE_CHECK_CONDITION	0x40
-#define QDIO_ERROR_SLSB_STATE			0x80
+#define QDIO_ERROR_ACTIVATE			0x0001
+#define QDIO_ERROR_GET_BUF_STATE		0x0002
+#define QDIO_ERROR_SET_BUF_STATE		0x0004
+#define QDIO_ERROR_SLSB_STATE			0x0100
+
+#define QDIO_ERROR_FATAL			0x00ff
+#define QDIO_ERROR_TEMPORARY			0xff00
 
 /* for qdio_cleanup */
 #define QDIO_FLAG_CLEANUP_USING_CLEAR		0x01

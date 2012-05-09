@@ -3339,7 +3339,7 @@ static void qeth_flush_buffers(struct qeth_qdio_out_q *queue, int index,
 	if (rc) {
 		queue->card->stats.tx_errors += count;
 		/* ignore temporary SIGA errors without busy condition */
-		if (rc == QDIO_ERROR_SIGA_TARGET)
+		if (rc == -ENOBUFS)
 			return;
 		QETH_CARD_TEXT(queue->card, 2, "flushbuf");
 		QETH_CARD_TEXT_(queue->card, 2, " q%d", queue->queue_no);
@@ -3533,7 +3533,7 @@ void qeth_qdio_output_handler(struct ccw_device *ccwdev,
 	int i;
 
 	QETH_CARD_TEXT(card, 6, "qdouhdl");
-	if (qdio_error & QDIO_ERROR_ACTIVATE_CHECK_CONDITION) {
+	if (qdio_error & QDIO_ERROR_FATAL) {
 		QETH_CARD_TEXT(card, 2, "achkcond");
 		netif_stop_queue(card->dev);
 		qeth_schedule_recovery(card);

@@ -63,7 +63,7 @@ static inline int do_siga_input(unsigned long schid, unsigned int mask,
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (cc)
-		: "d" (__fc), "d" (__schid), "d" (__mask) : "cc", "memory");
+		: "d" (__fc), "d" (__schid), "d" (__mask) : "cc");
 	return cc;
 }
 
@@ -74,7 +74,7 @@ static inline int do_siga_input(unsigned long schid, unsigned int mask,
  * @bb: busy bit indicator, set only if SIGA-w/wt could not access a buffer
  * @fc: function code to perform
  *
- * Returns cc or QDIO_ERROR_SIGA_ACCESS_EXCEPTION.
+ * Returns condition code.
  * Note: For IQDC unicast queues only the highest priority queue is processed.
  */
 static inline int do_siga_output(unsigned long schid, unsigned long mask,
@@ -85,18 +85,16 @@ static inline int do_siga_output(unsigned long schid, unsigned long mask,
 	register unsigned long __schid asm("1") = schid;
 	register unsigned long __mask asm("2") = mask;
 	register unsigned long __aob asm("3") = aob;
-	int cc = QDIO_ERROR_SIGA_ACCESS_EXCEPTION;
+	int cc;
 
 	asm volatile(
 		"	siga	0\n"
-		"0:	ipm	%0\n"
+		"	ipm	%0\n"
 		"	srl	%0,28\n"
-		"1:\n"
-		EX_TABLE(0b, 1b)
-		: "+d" (cc), "+d" (__fc), "+d" (__schid), "+d" (__mask),
-		  "+d" (__aob)
-		: : "cc", "memory");
-	*bb = ((unsigned int) __fc) >> 31;
+		: "=d" (cc), "+d" (__fc), "+d" (__aob)
+		: "d" (__schid), "d" (__mask)
+		: "cc");
+	*bb = __fc >> 31;
 	return cc;
 }
 
@@ -167,7 +165,7 @@ again:
 
 	DBF_ERROR("%4x EQBS ERROR", SCH_NO(q));
 	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
+	q->handler(q->irq_ptr->cdev, QDIO_ERROR_GET_BUF_STATE,
 		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
 	return 0;
 }
@@ -215,7 +213,7 @@ again:
 
 	DBF_ERROR("%4x SQBS ERROR", SCH_NO(q));
 	DBF_ERROR("%3d%3d%2d", count, tmp_count, nr);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
+	q->handler(q->irq_ptr->cdev, QDIO_ERROR_SET_BUF_STATE,
 		   q->nr, q->first_to_kick, count, q->irq_ptr->int_parm);
 	return 0;
 }
@@ -313,7 +311,7 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 	cc = do_siga_sync(schid, output, input, fc);
 	if (unlikely(cc))
 		DBF_ERROR("%4x SIGA-S:%2d", SCH_NO(q), cc);
-	return cc;
+	return (cc) ? -EIO : 0;
 }
 
 static inline int qdio_siga_sync_q(struct qdio_q *q)
@@ -384,7 +382,7 @@ static inline int qdio_siga_input(struct qdio_q *q)
 	cc = do_siga_input(schid, q->mask, fc);
 	if (unlikely(cc))
 		DBF_ERROR("%4x SIGA-R:%2d", SCH_NO(q), cc);
-	return cc;
+	return (cc) ? -EIO : 0;
 }
 
 #define qdio_siga_sync_out(q) qdio_siga_sync(q, ~0U, 0)
@@ -443,7 +441,7 @@ static void process_buffer_error(struct qdio_q *q, int count)
 	unsigned char state = (q->is_input_q) ? SLSB_P_INPUT_NOT_INIT :
 					SLSB_P_OUTPUT_NOT_INIT;
 
-	q->qdio_error |= QDIO_ERROR_SLSB_STATE;
+	q->qdio_error = QDIO_ERROR_SLSB_STATE;
 
 	/* special handling for no target buffer empty */
 	if ((!q->is_input_q &&
@@ -575,7 +573,7 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 
 	bufnr = get_inbound_buffer_frontier(q);
 
-	if ((bufnr != q->last_move) || q->qdio_error) {
+	if (bufnr != q->last_move) {
 		q->last_move = bufnr;
 		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
 			q->u.in.timestamp = get_clock();
@@ -863,7 +861,7 @@ static inline int qdio_outbound_q_moved(struct qdio_q *q)
 
 	bufnr = get_outbound_buffer_frontier(q);
 
-	if ((bufnr != q->last_move) || q->qdio_error) {
+	if (bufnr != q->last_move) {
 		q->last_move = bufnr;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out moved:%1d", q->nr);
 		return 1;
@@ -894,13 +892,16 @@ retry:
 				goto retry;
 			}
 			DBF_ERROR("%4x cc2 BBC:%1d", SCH_NO(q), q->nr);
-			cc |= QDIO_ERROR_SIGA_BUSY;
-		} else
+			cc = -EBUSY;
+		} else {
 			DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w cc2:%1d", q->nr);
+			cc = -ENOBUFS;
+		}
 		break;
 	case 1:
 	case 3:
 		DBF_ERROR("%4x SIGA-W:%1d", SCH_NO(q), cc);
+		cc = -EIO;
 		break;
 	}
 	if (retries) {
@@ -1090,7 +1091,7 @@ static void qdio_handle_activate_check(struct ccw_device *cdev,
 	}
 
 	count = sub_buf(q->first_to_check, q->first_to_kick);
-	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE_CHECK_CONDITION,
+	q->handler(q->irq_ptr->cdev, QDIO_ERROR_ACTIVATE,
 		   q->nr, q->first_to_kick, count, irq_ptr->int_parm);
 no_handler:
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_STOPPED);
@@ -1691,7 +1692,7 @@ int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 		      "do%02x b:%02x c:%02x", callflags, bufnr, count);
 
 	if (irq_ptr->state != QDIO_IRQ_STATE_ACTIVE)
-		return -EBUSY;
+		return -EIO;
 	if (!count)
 		return 0;
 	if (callflags & QDIO_FLAG_SYNC_INPUT)
