@@ -2583,8 +2583,7 @@ void intel_irq_init(struct drm_device *dev)
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_GEN5(dev) || IS_GEN6(dev) || IS_IVYBRIDGE(dev) ||
-	    IS_VALLEYVIEW(dev)) {
+	if (IS_G4X(dev) || INTEL_INFO(dev)->gen >= 5) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
@@ -2604,6 +2603,14 @@ void intel_irq_init(struct drm_device *dev)
 		dev->driver->disable_vblank = valleyview_disable_vblank;
 	} else if (IS_IVYBRIDGE(dev)) {
 		/* Share pre & uninstall handlers with ILK/SNB */
+		dev->driver->irq_handler = ivybridge_irq_handler;
+		dev->driver->irq_preinstall = ironlake_irq_preinstall;
+		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
+		dev->driver->irq_uninstall = ironlake_irq_uninstall;
+		dev->driver->enable_vblank = ivybridge_enable_vblank;
+		dev->driver->disable_vblank = ivybridge_disable_vblank;
+	} else if (IS_HASWELL(dev)) {
+		/* Share interrupts handling with IVB */
 		dev->driver->irq_handler = ivybridge_irq_handler;
 		dev->driver->irq_preinstall = ironlake_irq_preinstall;
 		dev->driver->irq_postinstall = ivybridge_irq_postinstall;
