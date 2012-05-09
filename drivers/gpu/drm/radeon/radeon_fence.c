@@ -602,8 +602,8 @@ static int radeon_debugfs_fence_info(struct seq_file *m, void *data)
 			continue;
 
 		seq_printf(m, "--- ring %d ---\n", i);
-		seq_printf(m, "Last signaled fence 0x%016lx\n",
-			   atomic64_read(&rdev->fence_drv[i].last_seq));
+		seq_printf(m, "Last signaled fence 0x%016llx\n",
+			   (unsigned long long)atomic64_read(&rdev->fence_drv[i].last_seq));
 		seq_printf(m, "Last emitted  0x%016llx\n",
 			   rdev->fence_drv[i].seq);
 	}
