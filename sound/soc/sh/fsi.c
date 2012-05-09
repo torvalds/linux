@@ -1631,8 +1631,8 @@ static void fsi_handler_init(struct fsi_priv *fsi)
 	fsi->capture.priv	= fsi;
 
 	if (fsi->info->tx_id) {
-		fsi->playback.slave.slave_id	= fsi->info->tx_id;
-		fsi->playback.handler		= &fsi_dma_push_handler;
+		fsi->playback.slave.shdma_slave.slave_id = fsi->info->tx_id;
+		fsi->playback.handler = &fsi_dma_push_handler;
 	}
 }
 
