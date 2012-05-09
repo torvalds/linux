@@ -2675,7 +2675,7 @@ static void __init rcu_init_geometry(void)
 {
 	int i;
 	int j;
-	int n = NR_CPUS;
+	int n = nr_cpu_ids;
 	int rcu_capacity[MAX_RCU_LVLS + 1];
 
 	/* If the compile-time values are accurate, just leave. */
