@@ -497,31 +497,59 @@ mwifiex_cfg80211_change_virtual_intf(struct wiphy *wiphy,
 	int ret;
 	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
 
-	if (priv->bss_mode == type) {
-		wiphy_warn(wiphy, "already set to required type\n");
-		return 0;
-	}
-
-	priv->bss_mode = type;
-
-	switch (type) {
+	switch (dev->ieee80211_ptr->iftype) {
 	case NL80211_IFTYPE_ADHOC:
-		dev->ieee80211_ptr->iftype = NL80211_IFTYPE_ADHOC;
-		wiphy_dbg(wiphy, "info: setting interface type to adhoc\n");
+		switch (type) {
+		case NL80211_IFTYPE_STATION:
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+			wiphy_warn(wiphy, "%s: kept type as IBSS\n", dev->name);
+		case NL80211_IFTYPE_ADHOC:	/* This shouldn't happen */
+			return 0;
+		case NL80211_IFTYPE_AP:
+		default:
+			wiphy_err(wiphy, "%s: changing to %d not supported\n",
+				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
 		break;
 	case NL80211_IFTYPE_STATION:
-		dev->ieee80211_ptr->iftype = NL80211_IFTYPE_STATION;
-		wiphy_dbg(wiphy, "info: setting interface type to managed\n");
+		switch (type) {
+		case NL80211_IFTYPE_ADHOC:
+			break;
+		case NL80211_IFTYPE_UNSPECIFIED:
+			wiphy_warn(wiphy, "%s: kept type as STA\n", dev->name);
+		case NL80211_IFTYPE_STATION:	/* This shouldn't happen */
+			return 0;
+		case NL80211_IFTYPE_AP:
+		default:
+			wiphy_err(wiphy, "%s: changing to %d not supported\n",
+				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
 		break;
-	case NL80211_IFTYPE_UNSPECIFIED:
-		dev->ieee80211_ptr->iftype = NL80211_IFTYPE_STATION;
-		wiphy_dbg(wiphy, "info: setting interface type to auto\n");
-		return 0;
+	case NL80211_IFTYPE_AP:
+		switch (type) {
+		case NL80211_IFTYPE_UNSPECIFIED:
+			wiphy_warn(wiphy, "%s: kept type as AP\n", dev->name);
+		case NL80211_IFTYPE_AP:		/* This shouldn't happen */
+			return 0;
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_STATION:
+		default:
+			wiphy_err(wiphy, "%s: changing to %d not supported\n",
+				  dev->name, type);
+			return -EOPNOTSUPP;
+		}
+		break;
 	default:
-		wiphy_err(wiphy, "unknown interface type: %d\n", type);
-		return -EINVAL;
+		wiphy_err(wiphy, "%s: unknown iftype: %d\n",
+			  dev->name, dev->ieee80211_ptr->iftype);
+		return -EOPNOTSUPP;
 	}
 
+	dev->ieee80211_ptr->iftype = type;
+	priv->bss_mode = type;
 	mwifiex_deauthenticate(priv, NULL);
 
 	priv->sec_info.authentication_mode = NL80211_AUTHTYPE_OPEN_SYSTEM;
