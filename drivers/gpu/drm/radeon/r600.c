@@ -2681,7 +2681,7 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 
 int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
-	struct radeon_ib *ib;
+	struct radeon_ib ib;
 	uint32_t scratch;
 	uint32_t tmp = 0;
 	unsigned i;
@@ -2699,18 +2699,18 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_ERROR("radeon: failed to get ib (%d).\n", r);
 		return r;
 	}
-	ib->ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
-	ib->ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-	ib->ptr[2] = 0xDEADBEEF;
-	ib->length_dw = 3;
-	r = radeon_ib_schedule(rdev, ib);
+	ib.ptr[0] = PACKET3(PACKET3_SET_CONFIG_REG, 1);
+	ib.ptr[1] = ((scratch - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	ib.ptr[2] = 0xDEADBEEF;
+	ib.length_dw = 3;
+	r = radeon_ib_schedule(rdev, &ib);
 	if (r) {
 		radeon_scratch_free(rdev, scratch);
 		radeon_ib_free(rdev, &ib);
 		DRM_ERROR("radeon: failed to schedule ib (%d).\n", r);
 		return r;
 	}
-	r = radeon_fence_wait(ib->fence, false);
+	r = radeon_fence_wait(ib.fence, false);
 	if (r) {
 		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
 		return r;
@@ -2722,7 +2722,7 @@ int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		DRM_UDELAY(1);
 	}
 	if (i < rdev->usec_timeout) {
-		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib->fence->ring, i);
+		DRM_INFO("ib test on ring %d succeeded in %u usecs\n", ib.fence->ring, i);
 	} else {
 		DRM_ERROR("radeon: ib test failed (scratch(0x%04X)=0x%08X)\n",
 			  scratch, tmp);

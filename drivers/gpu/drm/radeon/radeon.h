@@ -769,8 +769,8 @@ struct si_rlc {
 };
 
 int radeon_ib_get(struct radeon_device *rdev, int ring,
-		  struct radeon_ib **ib, unsigned size);
-void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib);
+		  struct radeon_ib *ib, unsigned size);
+void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib);
 int radeon_ib_pool_init(struct radeon_device *rdev);
 void radeon_ib_pool_fini(struct radeon_device *rdev);
@@ -838,8 +838,8 @@ struct radeon_cs_parser {
 	int			chunk_relocs_idx;
 	int			chunk_flags_idx;
 	int			chunk_const_ib_idx;
-	struct radeon_ib	*ib;
-	struct radeon_ib	*const_ib;
+	struct radeon_ib	ib;
+	struct radeon_ib	const_ib;
 	void			*track;
 	unsigned		family;
 	int			parser_error;

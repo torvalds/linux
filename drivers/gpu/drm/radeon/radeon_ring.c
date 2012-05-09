@@ -65,51 +65,36 @@ u32 radeon_get_ib_value(struct radeon_cs_parser *p, int idx)
 }
 
 int radeon_ib_get(struct radeon_device *rdev, int ring,
-		  struct radeon_ib **ib, unsigned size)
+		  struct radeon_ib *ib, unsigned size)
 {
 	int r;
 
-	*ib = kmalloc(sizeof(struct radeon_ib), GFP_KERNEL);
-	if (*ib == NULL) {
-		return -ENOMEM;
-	}
-	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &(*ib)->sa_bo, size, 256, true);
+	r = radeon_sa_bo_new(rdev, &rdev->ring_tmp_bo, &ib->sa_bo, size, 256, true);
 	if (r) {
 		dev_err(rdev->dev, "failed to get a new IB (%d)\n", r);
-		kfree(*ib);
-		*ib = NULL;
 		return r;
 	}
-	r = radeon_fence_create(rdev, &(*ib)->fence, ring);
+	r = radeon_fence_create(rdev, &ib->fence, ring);
 	if (r) {
 		dev_err(rdev->dev, "failed to create fence for new IB (%d)\n", r);
-		radeon_sa_bo_free(rdev, &(*ib)->sa_bo, NULL);
-		kfree(*ib);
-		*ib = NULL;
+		radeon_sa_bo_free(rdev, &ib->sa_bo, NULL);
 		return r;
 	}
 
-	(*ib)->ptr = radeon_sa_bo_cpu_addr((*ib)->sa_bo);
-	(*ib)->gpu_addr = radeon_sa_bo_gpu_addr((*ib)->sa_bo);
-	(*ib)->vm_id = 0;
-	(*ib)->is_const_ib = false;
-	(*ib)->semaphore = NULL;
+	ib->ptr = radeon_sa_bo_cpu_addr(ib->sa_bo);
+	ib->gpu_addr = radeon_sa_bo_gpu_addr(ib->sa_bo);
+	ib->vm_id = 0;
+	ib->is_const_ib = false;
+	ib->semaphore = NULL;
 
 	return 0;
 }
 
-void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib **ib)
+void radeon_ib_free(struct radeon_device *rdev, struct radeon_ib *ib)
 {
-	struct radeon_ib *tmp = *ib;
-
-	*ib = NULL;
-	if (tmp == NULL) {
-		return;
-	}
-	radeon_semaphore_free(rdev, tmp->semaphore, tmp->fence);
-	radeon_sa_bo_free(rdev, &tmp->sa_bo, tmp->fence);
-	radeon_fence_unref(&tmp->fence);
-	kfree(tmp);
+	radeon_semaphore_free(rdev, ib->semaphore, ib->fence);
+	radeon_sa_bo_free(rdev, &ib->sa_bo, ib->fence);
+	radeon_fence_unref(&ib->fence);
 }
 
 int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib)
