@@ -1237,6 +1237,11 @@ mwifiex_cfg80211_connect(struct wiphy *wiphy, struct net_device *dev,
 		goto done;
 	}
 
+	if (priv->bss_mode == NL80211_IFTYPE_AP) {
+		wiphy_err(wiphy, "skip association request for AP interface\n");
+		goto done;
+	}
+
 	wiphy_dbg(wiphy, "info: Trying to associate to %s and bssid %pM\n",
 		  (char *) sme->ssid, sme->bssid);
 

@@ -117,6 +117,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_POWER_GROUP        (PROPRIETARY_TLV_BASE_ID + 84)
 #define TLV_TYPE_UAP_RETRY_LIMIT    (PROPRIETARY_TLV_BASE_ID + 93)
 #define TLV_TYPE_WAPI_IE            (PROPRIETARY_TLV_BASE_ID + 94)
+#define TLV_TYPE_UAP_MGMT_FRAME     (PROPRIETARY_TLV_BASE_ID + 104)
 #define TLV_TYPE_MGMT_IE            (PROPRIETARY_TLV_BASE_ID + 105)
 #define TLV_TYPE_AUTO_DS_PARAM      (PROPRIETARY_TLV_BASE_ID + 113)
 #define TLV_TYPE_PS_PARAM           (PROPRIETARY_TLV_BASE_ID + 114)
@@ -324,15 +325,20 @@ enum ENH_PS_MODES {
 #define EVENT_DATA_SNR_HIGH             0x00000027
 #define EVENT_LINK_QUALITY              0x00000028
 #define EVENT_PORT_RELEASE              0x0000002b
+#define EVENT_UAP_STA_DEAUTH            0x0000002c
+#define EVENT_UAP_STA_ASSOC             0x0000002d
+#define EVENT_UAP_BSS_START             0x0000002e
 #define EVENT_PRE_BEACON_LOST           0x00000031
 #define EVENT_ADDBA                     0x00000033
 #define EVENT_DELBA                     0x00000034
 #define EVENT_BA_STREAM_TIEMOUT         0x00000037
 #define EVENT_AMSDU_AGGR_CTRL           0x00000042
+#define EVENT_UAP_BSS_IDLE              0x00000043
+#define EVENT_UAP_BSS_ACTIVE            0x00000044
 #define EVENT_WEP_ICV_ERR               0x00000046
 #define EVENT_HS_ACT_REQ                0x00000047
 #define EVENT_BW_CHANGE                 0x00000048
-
+#define EVENT_UAP_MIC_COUNTERMEASURES   0x0000004c
 #define EVENT_HOSTWAKE_STAIE		0x0000004d
 
 #define EVENT_ID_MASK                   0xffff
@@ -1117,6 +1123,16 @@ struct host_cmd_ds_802_11_eeprom_access {
 struct host_cmd_tlv {
 	__le16 type;
 	__le16 len;
+} __packed;
+
+struct mwifiex_assoc_event {
+	u8 sta_addr[ETH_ALEN];
+	__le16 type;
+	__le16 len;
+	__le16 frame_control;
+	__le16 cap_info;
+	__le16 listen_interval;
+	u8 data[0];
 } __packed;
 
 struct host_cmd_ds_sys_config {
