@@ -941,7 +941,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 			goto zoom_dso;
 		case 't':
 			goto zoom_thread;
-		case 's':
+		case '/':
 			if (ui_browser__input_window("Symbol to show",
 					"Please enter the name of symbol you want to see",
 					buf, "ENTER: OK, ESC: Cancel",
@@ -969,7 +969,7 @@ static int perf_evsel__hists_browse(struct perf_evsel *evsel, int nr_events,
 					"E             Expand all callchains\n"
 					"d             Zoom into current DSO\n"
 					"t             Zoom into current Thread\n"
-					"s             Filter symbol by name");
+					"/             Filter symbol by name");
 			continue;
 		case K_ENTER:
 		case K_RIGHT:
