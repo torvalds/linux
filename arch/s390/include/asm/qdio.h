@@ -258,11 +258,6 @@ struct slsb {
 	u8 val[QDIO_MAX_BUFFERS_PER_Q];
 } __attribute__ ((packed, aligned(256)));
 
-#define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
-#define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
-#define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
-#define CHSC_AC2_DATA_DIV_ENABLED	0x0002
-
 /**
  * struct qdio_outbuf_state - SBAL related asynchronous operation information
  *   (for communication with upper layer programs)
@@ -293,6 +288,8 @@ struct qdio_outbuf_state {
 #define AC1_SC_QEBSM_AVAILABLE		0x02	/* available for subchannel */
 #define AC1_SC_QEBSM_ENABLED		0x01	/* enabled for subchannel */
 
+#define CHSC_AC2_MULTI_BUFFER_AVAILABLE	0x0080
+#define CHSC_AC2_MULTI_BUFFER_ENABLED	0x0040
 #define CHSC_AC2_DATA_DIV_AVAILABLE	0x0010
 #define CHSC_AC2_DATA_DIV_ENABLED	0x0002
 
