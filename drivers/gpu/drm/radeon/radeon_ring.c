@@ -127,10 +127,8 @@ retry:
 					     size, 256);
 			if (!r) {
 				*ib = &rdev->ib_pool.ibs[idx];
-				(*ib)->ptr = rdev->ib_pool.sa_manager.cpu_ptr;
-				(*ib)->ptr += ((*ib)->sa_bo.offset >> 2);
-				(*ib)->gpu_addr = rdev->ib_pool.sa_manager.gpu_addr;
-				(*ib)->gpu_addr += (*ib)->sa_bo.offset;
+				(*ib)->ptr = radeon_sa_bo_cpu_addr(&(*ib)->sa_bo);
+				(*ib)->gpu_addr = radeon_sa_bo_gpu_addr(&(*ib)->sa_bo);
 				(*ib)->fence = fence;
 				(*ib)->vm_id = 0;
 				(*ib)->is_const_ib = false;

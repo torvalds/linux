@@ -146,6 +146,17 @@ extern struct radeon_bo_va *radeon_bo_va(struct radeon_bo *rbo,
 /*
  * sub allocation
  */
+
+static inline uint64_t radeon_sa_bo_gpu_addr(struct radeon_sa_bo *sa_bo)
+{
+	return sa_bo->manager->gpu_addr + sa_bo->offset;
+}
+
+static inline void * radeon_sa_bo_cpu_addr(struct radeon_sa_bo *sa_bo)
+{
+	return sa_bo->manager->cpu_ptr + sa_bo->offset;
+}
+
 extern int radeon_sa_bo_manager_init(struct radeon_device *rdev,
 				     struct radeon_sa_manager *sa_manager,
 				     unsigned size, u32 domain);

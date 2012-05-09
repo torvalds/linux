@@ -404,10 +404,8 @@ retry:
 		radeon_vm_unbind(rdev, vm_evict);
 		goto retry;
 	}
-	vm->pt = rdev->vm_manager.sa_manager.cpu_ptr;
-	vm->pt += (vm->sa_bo.offset >> 3);
-	vm->pt_gpu_addr = rdev->vm_manager.sa_manager.gpu_addr;
-	vm->pt_gpu_addr += vm->sa_bo.offset;
+	vm->pt = radeon_sa_bo_cpu_addr(&vm->sa_bo);
+	vm->pt_gpu_addr = radeon_sa_bo_gpu_addr(&vm->sa_bo);
 	memset(vm->pt, 0, RADEON_GPU_PAGE_ALIGN(vm->last_pfn * 8));
 
 retry_id:
