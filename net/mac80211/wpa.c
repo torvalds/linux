@@ -183,7 +183,8 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	u8 *pos;
 
 	if (info->control.hw_key &&
-	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV)) {
+	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV) &&
+	    !(info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE)) {
 		/* hwaccel - with no need for software-generated IV */
 		return 0;
 	}
@@ -203,6 +204,11 @@ static int tkip_encrypt_skb(struct ieee80211_tx_data *tx, struct sk_buff *skb)
 	pos = skb_push(skb, TKIP_IV_LEN);
 	memmove(pos, pos + TKIP_IV_LEN, hdrlen);
 	pos += hdrlen;
+
+	/* the HW only needs room for the IV, but not the actual IV */
+	if (info->control.hw_key &&
+	    (info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE))
+		return 0;
 
 	/* Increase IV for the frame */
 	spin_lock_irqsave(&key->u.tkip.txlock, flags);

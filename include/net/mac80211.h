@@ -939,7 +939,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  *	CCMP key if it requires CCMP encryption of management frames (MFP) to
  *	be done in software.
  * @IEEE80211_KEY_FLAG_PUT_IV_SPACE: This flag should be set by the driver
- *	for a CCMP key if space should be prepared for the IV, but the IV
+ *	if space should be prepared for the IV, but the IV
  *	itself should not be generated. Do not set together with
  *	@IEEE80211_KEY_FLAG_GENERATE_IV on the same key.
  */
