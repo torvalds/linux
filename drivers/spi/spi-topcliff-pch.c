@@ -1779,7 +1779,7 @@ static struct pci_driver pch_spi_pcidev_driver = {
 	.name = "pch_spi",
 	.id_table = pch_spi_pcidev_id,
 	.probe = pch_spi_probe,
-	.remove = pch_spi_remove,
+	.remove = __devexit_p(pch_spi_remove),
 	.suspend = pch_spi_suspend,
 	.resume = pch_spi_resume,
 };
