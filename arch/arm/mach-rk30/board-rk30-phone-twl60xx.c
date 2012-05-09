@@ -593,8 +593,19 @@ static struct twl4030_bci_platform_data tps80032_bci_data = {
 	.battery_tmp_tbl	= tps_batt_table,
 	.tblsize		= ARRAY_SIZE(tps_batt_table),
 };
-static struct twl4030_usb_data tps80032_usb_data = {
-	.usb_mode	= T2_USB_MODE_ULPI,
+
+int rk30_phy_init(){}
+int rk30_phy_exit(){}
+int rk30_phy_power(){}
+int rk30_phy_set_clk(){}
+int rk30_phy_suspend(){}
+static struct twl4030_usb_data tps80032_usbphy_data = {
+	.phy_init	= rk30_phy_init,
+	.phy_exit	= rk30_phy_exit,
+	.phy_power	= rk30_phy_power,
+	.phy_set_clock	= rk30_phy_set_clk,
+	.phy_suspend	= rk30_phy_suspend,
+
 };
 static struct twl4030_ins sleep_on_seq[] __initdata = {
 /*
@@ -777,7 +788,7 @@ static struct twl4030_platform_data tps80032_data = {
 	
 	.madc		= &tps80032_madc_data,
 	.bci		= &tps80032_bci_data,
-	.usb		= &tps80032_usb_data,
+	.usb		= &tps80032_usbphy_data,
 //	.power			= &tps80032_scripts_data,
 	/* Regulators */
 	.ldo1		= &tps80032_ldo1,

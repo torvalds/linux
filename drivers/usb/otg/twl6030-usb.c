@@ -34,7 +34,7 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 
-#include <plat/usb.h>
+//#include <plat/usb.h>
 
 /* usb register definitions */
 #define USB_VENDOR_ID_LSB		0x00
@@ -91,6 +91,9 @@
 
 #define CONTROLLER_STAT1		0x03
 #define	VBUS_DET			BIT(2)
+
+extern int get_msc_connect_flag(void);
+
 
 struct twl6030_usb {
 	struct otg_transceiver	otg;
@@ -310,7 +313,11 @@ static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 
 		regulator_enable(twl->usb3v3);
 		twl6030_phy_suspend(&twl->otg, 0);
-		charger_type = omap4_charger_detect();
+		if(0 == get_msc_connect_flag())
+			charger_type = POWER_SUPPLY_TYPE_USB_DCP;
+		else
+			charger_type = POWER_SUPPLY_TYPE_USB;
+		
 		twl6030_phy_suspend(&twl->otg, 1);
 		if ((charger_type == POWER_SUPPLY_TYPE_USB_CDP)
 				|| (charger_type == POWER_SUPPLY_TYPE_USB)) {
