@@ -19,3 +19,4 @@ obj-$(CONFIG_PCI)		+= pci_gx.o
 else
 obj-$(CONFIG_PCI)		+= pci.o
 endif
+obj-$(CONFIG_TILE_USB)		+= usb.o

@@ -396,6 +396,16 @@ config NO_IOPORT
 
 source "drivers/pci/Kconfig"
 
+config TILE_USB
+	tristate "Tilera USB host adapter support"
+	default y
+	depends on USB
+	depends on TILEGX
+	select TILE_GXIO_USB_HOST
+	---help---
+	  Provides USB host adapter support for the built-in EHCI and OHCI
+	  interfaces on TILE-Gx chips.
+
 config HOTPLUG
 	bool "Support for hot-pluggable devices"
 	---help---
