@@ -743,7 +743,6 @@ struct r600_blit_cp_primitives {
 };
 
 struct r600_blit {
-	struct mutex		mutex;
 	struct radeon_bo	*shader_obj;
 	struct r600_blit_cp_primitives primitives;
 	int max_dim;
@@ -753,8 +752,6 @@ struct r600_blit {
 	u32 vs_offset, ps_offset;
 	u32 state_offset;
 	u32 state_len;
-	u32 vb_used, vb_total;
-	struct radeon_ib *vb_ib;
 };
 
 void r600_blit_suspend(struct radeon_device *rdev);

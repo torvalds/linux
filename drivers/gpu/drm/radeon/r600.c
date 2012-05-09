@@ -2363,20 +2363,15 @@ int r600_copy_blit(struct radeon_device *rdev,
 		   unsigned num_gpu_pages,
 		   struct radeon_fence *fence)
 {
+	struct radeon_sa_bo *vb = NULL;
 	int r;
 
-	mutex_lock(&rdev->r600_blit.mutex);
-	rdev->r600_blit.vb_ib = NULL;
-	r = r600_blit_prepare_copy(rdev, num_gpu_pages);
+	r = r600_blit_prepare_copy(rdev, num_gpu_pages, &vb);
 	if (r) {
-		if (rdev->r600_blit.vb_ib)
-			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
-		mutex_unlock(&rdev->r600_blit.mutex);
 		return r;
 	}
-	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages);
-	r600_blit_done_copy(rdev, fence);
-	mutex_unlock(&rdev->r600_blit.mutex);
+	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_gpu_pages, vb);
+	r600_blit_done_copy(rdev, fence, vb);
 	return 0;
 }
 
