@@ -931,6 +931,9 @@ void iwl_down(struct iwl_priv *priv)
 	priv->ucode_loaded = false;
 	iwl_trans_stop_device(priv->trans);
 
+	/* Set num_aux_in_flight must be done after the transport is stopped */
+	atomic_set(&priv->num_aux_in_flight, 0);
+
 	/* Clear out all status bits but a few that are stable across reset */
 	priv->status &= test_bit(STATUS_RF_KILL_HW, &priv->status) <<
 				STATUS_RF_KILL_HW |

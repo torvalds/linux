@@ -101,6 +101,7 @@ extern struct iwl_lib_ops iwl6030_lib;
 #define STATUS_CHANNEL_SWITCH_PENDING 11
 #define STATUS_SCAN_COMPLETE	12
 #define STATUS_POWER_PMI	13
+#define STATUS_SCAN_ROC_EXPIRED 14
 
 struct iwl_ucode_capabilities;
 
@@ -254,6 +255,10 @@ int __must_check iwl_scan_initiate(struct iwl_priv *priv,
 				   struct ieee80211_vif *vif,
 				   enum iwl_scan_type scan_type,
 				   enum ieee80211_band band);
+
+void iwl_scan_roc_expired(struct iwl_priv *priv);
+void iwl_scan_offchannel_skb(struct iwl_priv *priv);
+void iwl_scan_offchannel_skb_status(struct iwl_priv *priv);
 
 /* For faster active scanning, scan will move to the next channel if fewer than
  * PLCP_QUIET_THRESH packets are heard on this channel within

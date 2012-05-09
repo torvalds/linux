@@ -486,6 +486,9 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	if (sta_priv && sta_priv->client && !is_agg)
 		atomic_inc(&sta_priv->pending_frames);
 
+	if (info->flags & IEEE80211_TX_CTL_TX_OFFCHAN)
+		iwl_scan_offchannel_skb(priv);
+
 	return 0;
 
 drop_unlock_sta:
@@ -1136,6 +1139,7 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 	struct sk_buff *skb;
 	struct iwl_rxon_context *ctx;
 	bool is_agg = (txq_id >= IWLAGN_FIRST_AMPDU_QUEUE);
+	bool is_offchannel_skb;
 
 	tid = (tx_resp->ra_tid & IWLAGN_TX_RES_TID_MSK) >>
 		IWLAGN_TX_RES_TID_POS;
@@ -1148,6 +1152,8 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 		iwl_rx_reply_tx_agg(priv, tx_resp);
 
 	__skb_queue_head_init(&skbs);
+
+	is_offchannel_skb = false;
 
 	if (tx_resp->frame_count == 1) {
 		u16 next_reclaimed = le16_to_cpu(tx_resp->seq_ctl);
@@ -1225,10 +1231,19 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 			if (!is_agg)
 				iwlagn_non_agg_tx_status(priv, ctx, hdr->addr1);
 
+			is_offchannel_skb =
+				(info->flags & IEEE80211_TX_CTL_TX_OFFCHAN);
 			freed++;
 		}
 
 		WARN_ON(!is_agg && freed != 1);
+
+		/*
+		 * An offchannel frame can be send only on the AUX queue, where
+		 * there is no aggregation (and reordering) so it only is single
+		 * skb is expected to be processed.
+		 */
+		WARN_ON(is_offchannel_skb && freed != 1);
 	}
 
 	iwl_check_abort_status(priv, tx_resp->frame_count, status);
@@ -1238,6 +1253,9 @@ int iwlagn_rx_reply_tx(struct iwl_priv *priv, struct iwl_rx_cmd_buffer *rxb,
 		skb = __skb_dequeue(&skbs);
 		ieee80211_tx_status(priv->hw, skb);
 	}
+
+	if (is_offchannel_skb)
+		iwl_scan_offchannel_skb_status(priv);
 
 	return 0;
 }

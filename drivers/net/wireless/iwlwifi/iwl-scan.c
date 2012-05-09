@@ -101,11 +101,8 @@ static void iwl_complete_scan(struct iwl_priv *priv, bool aborted)
 		ieee80211_scan_completed(priv->hw, aborted);
 	}
 
-	if (priv->scan_type == IWL_SCAN_ROC) {
-		ieee80211_remain_on_channel_expired(priv->hw);
-		priv->hw_roc_channel = NULL;
-		schedule_delayed_work(&priv->hw_roc_disable_work, 10 * HZ);
-	}
+	if (priv->scan_type == IWL_SCAN_ROC)
+		iwl_scan_roc_expired(priv);
 
 	priv->scan_type = IWL_SCAN_NORMAL;
 	priv->scan_vif = NULL;
@@ -134,11 +131,8 @@ static void iwl_process_scan_complete(struct iwl_priv *priv)
 		goto out_settings;
 	}
 
-	if (priv->scan_type == IWL_SCAN_ROC) {
-		ieee80211_remain_on_channel_expired(priv->hw);
-		priv->hw_roc_channel = NULL;
-		schedule_delayed_work(&priv->hw_roc_disable_work, 10 * HZ);
-	}
+	if (priv->scan_type == IWL_SCAN_ROC)
+		iwl_scan_roc_expired(priv);
 
 	if (priv->scan_type != IWL_SCAN_NORMAL && !aborted) {
 		int err;
@@ -1156,5 +1150,42 @@ void iwl_cancel_scan_deferred_work(struct iwl_priv *priv)
 		mutex_lock(&priv->mutex);
 		iwl_force_scan_end(priv);
 		mutex_unlock(&priv->mutex);
+	}
+}
+
+void iwl_scan_roc_expired(struct iwl_priv *priv)
+{
+	/*
+	 * The status bit should be set here, to prevent a race
+	 * where the atomic_read returns 1, but before the execution continues
+	 * iwl_scan_offchannel_skb_status() checks if the status bit is set
+	 */
+	set_bit(STATUS_SCAN_ROC_EXPIRED, &priv->status);
+
+	if (atomic_read(&priv->num_aux_in_flight) == 0) {
+		ieee80211_remain_on_channel_expired(priv->hw);
+		priv->hw_roc_channel = NULL;
+		schedule_delayed_work(&priv->hw_roc_disable_work,
+				      10 * HZ);
+
+		clear_bit(STATUS_SCAN_ROC_EXPIRED, &priv->status);
+	} else {
+		IWL_DEBUG_SCAN(priv, "ROC done with %d frames in aux\n",
+			       atomic_read(&priv->num_aux_in_flight));
+	}
+}
+
+void iwl_scan_offchannel_skb(struct iwl_priv *priv)
+{
+	WARN_ON(!priv->hw_roc_start_notified);
+	atomic_inc(&priv->num_aux_in_flight);
+}
+
+void iwl_scan_offchannel_skb_status(struct iwl_priv *priv)
+{
+	if (atomic_dec_return(&priv->num_aux_in_flight) == 0 &&
+	    test_bit(STATUS_SCAN_ROC_EXPIRED, &priv->status)) {
+		IWL_DEBUG_SCAN(priv, "0 aux frames. Calling ROC expired\n");
+		iwl_scan_roc_expired(priv);
 	}
 }

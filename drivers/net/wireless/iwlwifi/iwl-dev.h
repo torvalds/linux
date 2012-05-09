@@ -846,6 +846,7 @@ struct iwl_priv {
 	struct iwl_station_entry stations[IWLAGN_STATION_COUNT];
 	unsigned long ucode_key_table;
 	struct iwl_tid_data tid_data[IWLAGN_STATION_COUNT][IWL_MAX_TID_COUNT];
+	atomic_t num_aux_in_flight;
 
 	u8 mac80211_registered;
 
