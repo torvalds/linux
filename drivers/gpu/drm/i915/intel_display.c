@@ -2610,6 +2610,22 @@ static bool intel_crtc_driving_pch(struct drm_crtc *crtc)
 		if (encoder->base.crtc != crtc)
 			continue;
 
+		/* On Haswell, LPT PCH handles the VGA connection via FDI, and Haswell
+		 * CPU handles all others */
+		if (IS_HASWELL(dev)) {
+			/* It is still unclear how this will work on PPT, so throw up a warning */
+			WARN_ON(!HAS_PCH_LPT(dev));
+
+			if (encoder->type == DRM_MODE_ENCODER_DAC) {
+				DRM_DEBUG_KMS("Haswell detected DAC encoder, assuming is PCH\n");
+				return true;
+			} else {
+				DRM_DEBUG_KMS("Haswell detected encoder %d, assuming is CPU\n",
+						encoder->type);
+				return false;
+			}
+		}
+
 		switch (encoder->type) {
 		case INTEL_OUTPUT_EDP:
 			if (!intel_encoder_is_pch_edp(&encoder->base))
