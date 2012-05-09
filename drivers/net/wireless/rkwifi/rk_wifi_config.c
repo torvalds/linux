@@ -11,36 +11,52 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 
-
-const char RKWIFI_DRV_VERSION[] = "4.04";
-
 /* Set INIT_COUNTRY_CODE 
  * "US" ---> 11 channels, this is default setting. 
  * "EU" ---> 13 channels
  * "JP" ---> 14 channels
  */
-const char INIT_COUNTRY_CODE[] = "EU";
 
+int rkwifi_set_country_code(char *code)
+{
+	sprintf(code, "%s", "EU");
+	return 0;
+}
+
+/* 
+ * Set Crystal Freq
+ */
+ 
+#define CRYSTAL_FREQ 0 // 0: 37.4M; 1: 26M
+
+/* 
+ * Set Firmware Path
+ */
+ 
+#define ANDROID_FW_PATH "/system/etc/firmware/"
+
+int rkwifi_set_firmware(char *fw, char *nvram)
+{
 #ifdef CONFIG_RK903
-const char WIFI_MODULE_NAME[] = "RK903";
-const char CONFIG_BCMDHD_FW_PATH[] = "/system/etc/firmware/fw_RK903.bin";
-const char CONFIG_BCMDHD_NVRAM_PATH[] = "/system/etc/firmware/nvram_RK903.cal";
-#endif
+	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903.bin");
+#if CRYSTAL_FREQ	
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903_26M.cal");
+#else	
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903.cal");
+#endif	
+#endif	
 
 #ifdef CONFIG_RK901
-const char WIFI_MODULE_NAME[] = "RK901";
-const char CONFIG_BCMDHD_FW_PATH[] = "/system/etc/firmware/fw_RK901.bin";
-const char CONFIG_BCMDHD_NVRAM_PATH[] = "/system/etc/firmware/nvram_RK901.txt";
+	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
+#if CRYSTAL_FREQ
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901_26M.txt");
+#else
+	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901.txt");
+#endif
 #endif
 
-#ifdef CONFIG_BCM4330
-const char WIFI_MODULE_NAME[] = "BCM4330";
-const char CONFIG_BCMDHD_FW_PATH[] = "/system/etc/firmware/fw_bcm4330.bin";
-const char CONFIG_BCMDHD_NVRAM_PATH[] = "/system/etc/firmware/nvram_4330.txt";
-#endif
+	return 0;
+}
 
-#ifdef CONFIG_BCM4329
-const char WIFI_MODULE_NAME[] = "BCM4329";
-const char CONFIG_BCMDHD_FW_PATH[] = "/system/etc/firmware/fw_bcm4329.bin";
-const char CONFIG_BCMDHD_NVRAM_PATH[] = "/system/etc/firmware/nvram_B23.txt";
-#endif
+EXPORT_SYMBOL(rkwifi_set_country_code);
+EXPORT_SYMBOL(rkwifi_set_firmware);
