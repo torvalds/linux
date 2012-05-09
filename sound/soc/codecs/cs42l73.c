@@ -1426,25 +1426,7 @@ static struct i2c_driver cs42l73_i2c_driver = {
 
 };
 
-static int __init cs42l73_modinit(void)
-{
-	int ret;
-	ret = i2c_add_driver(&cs42l73_i2c_driver);
-	if (ret != 0) {
-		pr_err("Failed to register CS42L73 I2C driver: %d\n", ret);
-		return ret;
-	}
-	return 0;
-}
-
-module_init(cs42l73_modinit);
-
-static void __exit cs42l73_exit(void)
-{
-	i2c_del_driver(&cs42l73_i2c_driver);
-}
-
-module_exit(cs42l73_exit);
+module_i2c_driver(cs42l73_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC CS42L73 driver");
 MODULE_AUTHOR("Georgi Vlaev, Nucleus Systems Ltd, <joe@nucleusys.com>");
