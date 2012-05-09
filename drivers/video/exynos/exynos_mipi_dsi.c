@@ -415,27 +415,30 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 		goto err_platform_get_irq;
 	}
 
+	init_completion(&dsim_wr_comp);
+	init_completion(&dsim_rd_comp);
+	platform_set_drvdata(pdev, dsim);
+
 	ret = request_irq(dsim->irq, exynos_mipi_dsi_interrupt_handler,
-			IRQF_SHARED, pdev->name, dsim);
+			IRQF_SHARED, dev_name(&pdev->dev), dsim);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to request dsim irq\n");
 		ret = -EINVAL;
 		goto err_bind;
 	}
 
-	init_completion(&dsim_wr_comp);
-	init_completion(&dsim_rd_comp);
-
-	/* enable interrupt */
+	/* enable interrupts */
 	exynos_mipi_dsi_init_interrupt(dsim);
 
 	/* initialize mipi-dsi client(lcd panel). */
 	if (dsim_ddi->dsim_lcd_drv && dsim_ddi->dsim_lcd_drv->probe)
 		dsim_ddi->dsim_lcd_drv->probe(dsim_ddi->dsim_lcd_dev);
 
-	/* in case that mipi got enabled at bootloader. */
-	if (dsim_pd->enabled)
-		goto out;
+	/* in case mipi-dsi has been enabled by bootloader */
+	if (dsim_pd->enabled) {
+		exynos_mipi_regulator_enable(dsim);
+		goto done;
+	}
 
 	/* lcd panel power on. */
 	if (dsim_ddi->dsim_lcd_drv && dsim_ddi->dsim_lcd_drv->power_on)
@@ -455,12 +458,11 @@ static int exynos_mipi_dsi_probe(struct platform_device *pdev)
 
 	dsim->suspended = false;
 
-out:
+done:
 	platform_set_drvdata(pdev, dsim);
 
-	dev_dbg(&pdev->dev, "mipi-dsi driver(%s mode) has been probed.\n",
-		(dsim_config->e_interface == DSIM_COMMAND) ?
-			"CPU" : "RGB");
+	dev_dbg(&pdev->dev, "%s() completed sucessfuly (%s mode)\n", __func__,
+		dsim_config->e_interface == DSIM_COMMAND ? "CPU" : "RGB");
 
 	return 0;
 
