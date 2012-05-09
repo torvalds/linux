@@ -792,7 +792,7 @@ static void vmid_reference(struct snd_soc_codec *codec)
 
 		switch (wm8994->vmid_mode) {
 		default:
-			WARN_ON(0 == "Invalid VMID mode");
+			WARN_ON(NULL == "Invalid VMID mode");
 		case WM8994_VMID_NORMAL:
 			/* Startup bias, VMID ramp & buffer */
 			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
