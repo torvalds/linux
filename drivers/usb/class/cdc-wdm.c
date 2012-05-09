@@ -530,7 +530,9 @@ static int wdm_flush(struct file *file, fl_owner_t id)
 	struct wdm_device *desc = file->private_data;
 
 	wait_event(desc->wait, !test_bit(WDM_IN_USE, &desc->flags));
-	if (desc->werr < 0)
+
+	/* cannot dereference desc->intf if WDM_DISCONNECTING */
+	if (desc->werr < 0 && !test_bit(WDM_DISCONNECTING, &desc->flags))
 		dev_err(&desc->intf->dev, "Error in flush path: %d\n",
 			desc->werr);
 
@@ -621,12 +623,15 @@ static int wdm_release(struct inode *inode, struct file *file)
 	mutex_unlock(&desc->wlock);
 
 	if (!desc->count) {
-		dev_dbg(&desc->intf->dev, "wdm_release: cleanup");
-		kill_urbs(desc);
-		if (!test_bit(WDM_DISCONNECTING, &desc->flags))
+		if (!test_bit(WDM_DISCONNECTING, &desc->flags)) {
+			dev_dbg(&desc->intf->dev, "wdm_release: cleanup");
+			kill_urbs(desc);
 			desc->manage_power(desc->intf, 0);
-		else
+		} else {
+			/* must avoid dev_printk here as desc->intf is invalid */
+			pr_debug(KBUILD_MODNAME " %s: device gone - cleaning up\n", __func__);
 			cleanup(desc);
+		}
 	}
 	mutex_unlock(&wdm_mutex);
 	return 0;
