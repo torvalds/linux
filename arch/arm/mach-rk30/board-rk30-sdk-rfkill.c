@@ -73,7 +73,11 @@ struct bt_ctrl
 
 static const char bt_name[] = 
 #if defined(CONFIG_RKWIFI)
-    "rk903"
+    #if defined(CONFIG_RKWIFI_26M)
+        "rk903_26M"
+    #else
+        "rk903"
+    #endif
 #elif defined(CONFIG_BCM4329)
     "bcm4329"
 #elif defined(CONFIG_MV8787)

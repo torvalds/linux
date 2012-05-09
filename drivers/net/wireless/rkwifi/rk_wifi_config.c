@@ -33,20 +33,20 @@ int rkwifi_set_firmware(char *fw, char *nvram)
 {
 #ifdef CONFIG_RK903
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK903.bin");
-#ifdef CONFIG_26M
+#ifdef CONFIG_RKWIFI_26M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903_26M.cal");
 #endif
-#ifdef CONFIG_37_4M	
+#ifdef CONFIG_RKWIFI_37_4M	
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK903.cal");
 #endif	
 #endif	
 
 #ifdef CONFIG_RK901
 	sprintf(fw, "%s%s", ANDROID_FW_PATH, "fw_RK901.bin");
-#ifdef CONFIG_26M
+#ifdef CONFIG_RKWIFI_26M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901_26M.txt");
 #endif
-#ifdef CONFIG_37_4M
+#ifdef CONFIG_RKWIFI_37_4M
 	sprintf(nvram, "%s%s", ANDROID_FW_PATH, "nvram_RK901.txt");
 #endif
 #endif
