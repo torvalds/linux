@@ -498,7 +498,8 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 {
 	struct host_cmd_ds_802_11_key_material *key_material =
 		&cmd->params.key_material;
-	u16 key_param_len = 0;
+	struct host_cmd_tlv_mac_addr *tlv_mac;
+	u16 key_param_len = 0, cmd_size;
 	int ret = 0;
 	const u8 bc_mac[] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
@@ -614,11 +615,26 @@ mwifiex_cmd_802_11_key_material(struct mwifiex_private *priv,
 			cpu_to_le16((u16) enc_key->key_len +
 				    KEYPARAMSET_FIXED_LEN);
 
-		key_param_len = (u16) (enc_key->key_len + KEYPARAMSET_FIXED_LEN)
+		key_param_len = (u16)(enc_key->key_len + KEYPARAMSET_FIXED_LEN)
 				+ sizeof(struct mwifiex_ie_types_header);
 
 		cmd->size = cpu_to_le16(sizeof(key_material->action) + S_DS_GEN
 					+ key_param_len);
+
+		if (priv->bss_type == MWIFIEX_BSS_TYPE_UAP) {
+			tlv_mac = (void *)((u8 *)&key_material->key_param_set +
+					   key_param_len);
+			tlv_mac->tlv.type = cpu_to_le16(TLV_TYPE_STA_MAC_ADDR);
+			tlv_mac->tlv.len = cpu_to_le16(ETH_ALEN);
+			memcpy(tlv_mac->mac_addr, enc_key->mac_addr, ETH_ALEN);
+			cmd_size = key_param_len + S_DS_GEN +
+				   sizeof(key_material->action) +
+				   sizeof(struct host_cmd_tlv_mac_addr);
+		} else {
+			cmd_size = key_param_len + S_DS_GEN +
+				   sizeof(key_material->action);
+		}
+		cmd->size = cpu_to_le16(cmd_size);
 	}
 
 	return ret;

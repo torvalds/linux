@@ -104,6 +104,7 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_TSFTIMESTAMP       (PROPRIETARY_TLV_BASE_ID + 19)
 #define TLV_TYPE_RSSI_HIGH          (PROPRIETARY_TLV_BASE_ID + 22)
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
+#define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
 #define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
 #define TLV_TYPE_RATE_SCOPE         (PROPRIETARY_TLV_BASE_ID + 83)
@@ -1101,6 +1102,16 @@ struct host_cmd_ds_802_11_eeprom_access {
 	__le16 offset;
 	__le16 byte_count;
 	u8 value;
+} __packed;
+
+struct host_cmd_tlv {
+	__le16 type;
+	__le16 len;
+} __packed;
+
+struct host_cmd_tlv_mac_addr {
+	struct host_cmd_tlv tlv;
+	u8 mac_addr[ETH_ALEN];
 } __packed;
 
 struct host_cmd_ds_802_11_rf_channel {
