@@ -26,6 +26,8 @@
 
 #include <mach/hardware.h>
 #include <mach/omap-secure.h>
+#include <mach/omap-wakeupgen.h>
+#include <asm/cputype.h>
 
 #include "iomap.h"
 #include "common.h"
@@ -73,6 +75,8 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	static struct clockdomain *cpu1_clkdm;
 	static bool booted;
+	void __iomem *base = omap_get_wakeupgen_base();
+
 	/*
 	 * Set synchronisation state between this boot processor
 	 * and the secondary one
@@ -85,7 +89,11 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * the AuxCoreBoot1 register is updated with cpu state
 	 * A barrier is added to ensure that write buffer is drained
 	 */
-	omap_modify_auxcoreboot0(0x200, 0xfffffdff);
+	if (omap_secure_apis_support())
+		omap_modify_auxcoreboot0(0x200, 0xfffffdff);
+	else
+		__raw_writel(0x20, base + OMAP_AUX_CORE_BOOT_0);
+
 	flush_cache_all();
 	smp_wmb();
 
@@ -124,13 +132,20 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 static void __init wakeup_secondary(void)
 {
+	void __iomem *base = omap_get_wakeupgen_base();
+
 	/*
 	 * Write the address of secondary startup routine into the
 	 * AuxCoreBoot1 where ROM code will jump and start executing
 	 * on secondary core once out of WFE
 	 * A barrier is added to ensure that write buffer is drained
 	 */
-	omap_auxcoreboot_addr(virt_to_phys(omap_secondary_startup));
+	if (omap_secure_apis_support())
+		omap_auxcoreboot_addr(virt_to_phys(omap_secondary_startup));
+	else
+		__raw_writel(virt_to_phys(omap5_secondary_startup),
+						base + OMAP_AUX_CORE_BOOT_1);
+
 	smp_wmb();
 
 	/*
