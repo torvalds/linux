@@ -220,3 +220,32 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 
 	DRM_DEBUG_KMS("FDI train done.\n");
 }
+
+/* For DDI connections, it is possible to support different outputs over the
+ * same DDI port, such as HDMI or DP or even VGA via FDI. So we don't know by
+ * the time the output is detected what exactly is on the other end of it. This
+ * function aims at providing support for this detection and proper output
+ * configuration.
+ */
+void intel_ddi_init(struct drm_device *dev, enum port port)
+{
+	/* For now, we don't do any proper output detection and assume that we
+	 * handle HDMI only */
+
+	switch(port){
+	case PORT_A:
+		/* We don't handle eDP and DP yet */
+		DRM_DEBUG_DRIVER("Found digital output on DDI port A\n");
+		break;
+	/* Assume that the  ports B, C and D are working in HDMI mode for now */
+	case PORT_B:
+	case PORT_C:
+	case PORT_D:
+		intel_hdmi_init(dev, DDI_BUF_CTL(port));
+		break;
+	default:
+		DRM_DEBUG_DRIVER("No handlers defined for port %d, skipping DDI initialization\n",
+				port);
+		break;
+	}
+}

@@ -6474,7 +6474,26 @@ static void intel_setup_outputs(struct drm_device *dev)
 
 	intel_crt_init(dev);
 
-	if (HAS_PCH_SPLIT(dev)) {
+	if (IS_HASWELL(dev)) {
+		int found;
+
+		/* Haswell uses DDI functions to detect digital outputs */
+		found = I915_READ(DDI_BUF_CTL_A) & DDI_INIT_DISPLAY_DETECTED;
+		/* DDI A only supports eDP */
+		if (found)
+			intel_ddi_init(dev, PORT_A);
+
+		/* DDI B, C and D detection is indicated by the SFUSE_STRAP
+		 * register */
+		found = I915_READ(SFUSE_STRAP);
+
+		if (found & SFUSE_STRAP_DDIB_DETECTED)
+			intel_ddi_init(dev, PORT_B);
+		if (found & SFUSE_STRAP_DDIC_DETECTED)
+			intel_ddi_init(dev, PORT_C);
+		if (found & SFUSE_STRAP_DDID_DETECTED)
+			intel_ddi_init(dev, PORT_D);
+	} else if (HAS_PCH_SPLIT(dev)) {
 		int found;
 
 		if (I915_READ(HDMIB) & PORT_DETECTED) {
