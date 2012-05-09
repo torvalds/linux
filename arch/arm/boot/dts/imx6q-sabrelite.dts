@@ -67,6 +67,8 @@
 
 			audmux@021d8000 {
 				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_audmux_1>;
 			};
 
 			uart2: serial@021e8000 {
