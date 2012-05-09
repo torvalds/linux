@@ -1287,6 +1287,7 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	struct mwifiex_adapter *adapter;
 	struct net_device *dev;
 	void *mdev_priv;
+	struct wireless_dev *wdev;
 
 	if (!priv)
 		return NULL;
@@ -1299,11 +1300,20 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
+		priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
 		if (priv->bss_mode) {
-			wiphy_err(wiphy, "cannot create multiple"
-					" station/adhoc interfaces\n");
+			wiphy_err(wiphy,
+				  "cannot create multiple sta/adhoc ifaces\n");
 			return NULL;
 		}
+
+		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+		if (!wdev)
+			return NULL;
+
+		wdev->wiphy = wiphy;
+		priv->wdev = wdev;
+		wdev->iftype = NL80211_IFTYPE_STATION;
 
 		if (type == NL80211_IFTYPE_UNSPECIFIED)
 			priv->bss_mode = NL80211_IFTYPE_STATION;
@@ -1312,9 +1322,34 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 		priv->bss_type = MWIFIEX_BSS_TYPE_STA;
 		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
-		priv->bss_priority = 0;
+		priv->bss_priority = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_role = MWIFIEX_BSS_ROLE_STA;
 		priv->bss_num = 0;
+
+		break;
+	case NL80211_IFTYPE_AP:
+		priv = adapter->priv[MWIFIEX_BSS_TYPE_UAP];
+
+		if (priv->bss_mode) {
+			wiphy_err(wiphy, "Can't create multiple AP interfaces");
+			return NULL;
+		}
+
+		wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
+		if (!wdev)
+			return NULL;
+
+		priv->wdev = wdev;
+		wdev->wiphy = wiphy;
+		wdev->iftype = NL80211_IFTYPE_AP;
+
+		priv->bss_type = MWIFIEX_BSS_TYPE_UAP;
+		priv->frame_type = MWIFIEX_DATA_FRAME_TYPE_ETH_II;
+		priv->bss_priority = MWIFIEX_BSS_ROLE_UAP;
+		priv->bss_role = MWIFIEX_BSS_ROLE_UAP;
+		priv->bss_started = 0;
+		priv->bss_num = 0;
+		priv->bss_mode = type;
 
 		break;
 	default:
@@ -1329,6 +1364,15 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 		goto error;
 	}
 
+	mwifiex_init_priv_params(priv, dev);
+	priv->netdev = dev;
+
+	mwifiex_setup_ht_caps(&wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap, priv);
+
+	if (adapter->config_bands & BAND_A)
+		mwifiex_setup_ht_caps(
+			&wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap, priv);
+
 	dev_net_set(dev, wiphy_net(wiphy));
 	dev->ieee80211_ptr = priv->wdev;
 	dev->ieee80211_ptr->iftype = priv->bss_mode;
@@ -1342,9 +1386,6 @@ struct net_device *mwifiex_add_virtual_intf(struct wiphy *wiphy,
 
 	mdev_priv = netdev_priv(dev);
 	*((unsigned long *) mdev_priv) = (unsigned long) priv;
-
-	priv->netdev = dev;
-	mwifiex_init_priv_params(priv, dev);
 
 	SET_NETDEV_DEV(dev, adapter->dev);
 
@@ -1436,82 +1477,65 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
  * default parameters and handler function pointers, and finally
  * registers the device.
  */
-int mwifiex_register_cfg80211(struct mwifiex_private *priv)
+
+int mwifiex_register_cfg80211(struct mwifiex_adapter *adapter)
 {
 	int ret;
 	void *wdev_priv;
-	struct wireless_dev *wdev;
-	struct ieee80211_sta_ht_cap *ht_info;
+	struct wiphy *wiphy;
+	struct mwifiex_private *priv = adapter->priv[MWIFIEX_BSS_TYPE_STA];
 	u8 *country_code;
 
-	wdev = kzalloc(sizeof(struct wireless_dev), GFP_KERNEL);
-	if (!wdev) {
-		dev_err(priv->adapter->dev, "%s: allocating wireless device\n",
-			__func__);
+	/* create a new wiphy for use with cfg80211 */
+	wiphy = wiphy_new(&mwifiex_cfg80211_ops,
+			  sizeof(struct mwifiex_adapter *));
+	if (!wiphy) {
+		dev_err(adapter->dev, "%s: creating new wiphy\n", __func__);
 		return -ENOMEM;
 	}
-	wdev->wiphy =
-		wiphy_new(&mwifiex_cfg80211_ops,
-			  sizeof(struct mwifiex_private *));
-	if (!wdev->wiphy) {
-		kfree(wdev);
-		return -ENOMEM;
-	}
-	wdev->iftype = NL80211_IFTYPE_STATION;
-	wdev->wiphy->max_scan_ssids = 10;
-	wdev->wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
-	wdev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
-				       BIT(NL80211_IFTYPE_ADHOC);
+	wiphy->max_scan_ssids = MWIFIEX_MAX_SSID_LIST_LENGTH;
+	wiphy->max_scan_ie_len = MWIFIEX_MAX_VSIE_LEN;
+	wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				 BIT(NL80211_IFTYPE_ADHOC) |
+				 BIT(NL80211_IFTYPE_AP);
 
-	wdev->wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
-	ht_info = &wdev->wiphy->bands[IEEE80211_BAND_2GHZ]->ht_cap;
-	mwifiex_setup_ht_caps(ht_info, priv);
-
-	if (priv->adapter->config_bands & BAND_A) {
-		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
-		ht_info = &wdev->wiphy->bands[IEEE80211_BAND_5GHZ]->ht_cap;
-		mwifiex_setup_ht_caps(ht_info, priv);
-	} else {
-		wdev->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
-	}
+	wiphy->bands[IEEE80211_BAND_2GHZ] = &mwifiex_band_2ghz;
+	if (adapter->config_bands & BAND_A)
+		wiphy->bands[IEEE80211_BAND_5GHZ] = &mwifiex_band_5ghz;
+	else
+		wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 
 	/* Initialize cipher suits */
-	wdev->wiphy->cipher_suites = mwifiex_cipher_suites;
-	wdev->wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
+	wiphy->cipher_suites = mwifiex_cipher_suites;
+	wiphy->n_cipher_suites = ARRAY_SIZE(mwifiex_cipher_suites);
 
-	memcpy(wdev->wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
-	wdev->wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	memcpy(wiphy->perm_addr, priv->curr_addr, ETH_ALEN);
+	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
+	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME | WIPHY_FLAG_CUSTOM_REGULATORY;
 
 	/* Reserve space for mwifiex specific private data for BSS */
-	wdev->wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
+	wiphy->bss_priv_size = sizeof(struct mwifiex_bss_priv);
 
-	wdev->wiphy->reg_notifier = mwifiex_reg_notifier;
+	wiphy->reg_notifier = mwifiex_reg_notifier;
 
 	/* Set struct mwifiex_private pointer in wiphy_priv */
-	wdev_priv = wiphy_priv(wdev->wiphy);
+	wdev_priv = wiphy_priv(wiphy);
 
 	*(unsigned long *) wdev_priv = (unsigned long) priv;
 
-	set_wiphy_dev(wdev->wiphy, (struct device *) priv->adapter->dev);
+	set_wiphy_dev(wiphy, (struct device *)priv->adapter->dev);
 
-	ret = wiphy_register(wdev->wiphy);
+	ret = wiphy_register(wiphy);
 	if (ret < 0) {
-		dev_err(priv->adapter->dev, "%s: registering cfg80211 device\n",
-			__func__);
-		wiphy_free(wdev->wiphy);
-		kfree(wdev);
+		dev_err(adapter->dev,
+			"%s: wiphy_register failed: %d\n", __func__, ret);
+		wiphy_free(wiphy);
 		return ret;
-	} else {
-		dev_dbg(priv->adapter->dev,
-			"info: successfully registered wiphy device\n");
 	}
-
 	country_code = mwifiex_11d_code_2_region(priv->adapter->region_code);
-	if (country_code && regulatory_hint(wdev->wiphy, country_code))
-		dev_err(priv->adapter->dev,
-			"%s: regulatory_hint failed\n", __func__);
+	if (country_code && regulatory_hint(wiphy, country_code))
+		dev_err(adapter->dev, "regulatory_hint() failed\n");
 
-	priv->wdev = wdev;
-
+	adapter->wiphy = wiphy;
 	return ret;
 }

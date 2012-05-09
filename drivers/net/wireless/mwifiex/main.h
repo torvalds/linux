@@ -370,6 +370,7 @@ struct mwifiex_private {
 	u8 bss_role;
 	u8 bss_priority;
 	u8 bss_num;
+	u8 bss_started;
 	u8 frame_type;
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
@@ -571,6 +572,7 @@ struct mwifiex_adapter {
 	char fw_name[32];
 	int winner;
 	struct device *dev;
+	struct wiphy *wiphy;
 	bool surprise_removed;
 	u32 fw_release_number;
 	u16 init_wait_q_woken;
