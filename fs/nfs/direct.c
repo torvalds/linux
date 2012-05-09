@@ -486,10 +486,8 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 	}
 	nfs_pageio_complete(&desc);
 
-	while (!list_empty(&failed)) {
-		nfs_release_request(req);
+	while (!list_empty(&failed))
 		nfs_unlock_and_release_request(req);
-	}
 
 	if (put_dreq(dreq))
 		nfs_direct_write_complete(dreq, dreq->inode);
@@ -518,9 +516,9 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		nfs_list_remove_request(req);
 		if (dreq->flags == NFS_ODIRECT_RESCHED_WRITES) {
 			/* Note the rewrite will go through mds */
+			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, NULL, &cinfo);
-		} else
-			nfs_release_request(req);
+		}
 		nfs_unlock_and_release_request(req);
 	}
 
@@ -657,13 +655,11 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 				break;
 			}
 			nfs_lock_request(req);
-			kref_get(&req->wb_kref);
 			req->wb_index = pos >> PAGE_SHIFT;
 			req->wb_offset = pos & ~PAGE_MASK;
 			if (!nfs_pageio_add_request(desc, req)) {
 				result = desc->pg_error;
 				nfs_unlock_and_release_request(req);
-				nfs_release_request(req);
 				break;
 			}
 			pgbase = 0;
@@ -734,10 +730,8 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		switch (bit) {
 		case NFS_IOHDR_NEED_RESCHED:
 		case NFS_IOHDR_NEED_COMMIT:
+			kref_get(&req->wb_kref);
 			nfs_mark_request_commit(req, hdr->lseg, &cinfo);
-			break;
-		default:
-			nfs_release_request(req);
 		}
 		nfs_unlock_and_release_request(req);
 	}
@@ -755,7 +749,6 @@ static void nfs_write_sync_pgio_error(struct list_head *head)
 	while (!list_empty(head)) {
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
-		nfs_release_request(req);
 		nfs_unlock_and_release_request(req);
 	}
 }
