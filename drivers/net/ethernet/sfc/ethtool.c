@@ -1023,7 +1023,7 @@ static int efx_ethtool_set_class_rule(struct efx_nic *efx,
 			return -EINVAL;
 
 		/* Is it a default UC or MC filter? */
-		if (!compare_ether_addr(mac_mask->h_dest, mac_addr_mc_mask) &&
+		if (ether_addr_equal(mac_mask->h_dest, mac_addr_mc_mask) &&
 		    vlan_tag_mask == 0) {
 			if (is_multicast_ether_addr(mac_entry->h_dest))
 				rc = efx_filter_set_mc_def(&spec);

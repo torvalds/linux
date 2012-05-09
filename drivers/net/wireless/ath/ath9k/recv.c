@@ -1833,7 +1833,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			RX_STAT_INC(rx_beacons);
 			if (!is_zero_ether_addr(common->curbssid) &&
-			    !compare_ether_addr(hdr->addr3, common->curbssid))
+			    ether_addr_equal(hdr->addr3, common->curbssid))
 				rs.is_mybeacon = true;
 			else
 				rs.is_mybeacon = false;

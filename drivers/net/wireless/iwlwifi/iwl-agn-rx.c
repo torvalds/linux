@@ -779,8 +779,8 @@ static void iwlagn_pass_packet_to_mac80211(struct iwl_priv *priv,
 	*/
 	if (unlikely(ieee80211_is_beacon(fc) && priv->passive_no_rx)) {
 		for_each_context(priv, ctx) {
-			if (compare_ether_addr(hdr->addr3,
-					       ctx->active.bssid_addr))
+			if (!ether_addr_equal(hdr->addr3,
+					      ctx->active.bssid_addr))
 				continue;
 			iwlagn_lift_passive_no_rx(priv);
 		}

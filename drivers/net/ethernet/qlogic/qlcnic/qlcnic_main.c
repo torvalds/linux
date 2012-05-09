@@ -1965,7 +1965,7 @@ qlcnic_send_filter(struct qlcnic_adapter *adapter,
 	__le16 vlan_id = 0;
 	u8 hindex;
 
-	if (!compare_ether_addr(phdr->h_source, adapter->mac_addr))
+	if (ether_addr_equal(phdr->h_source, adapter->mac_addr))
 		return;
 
 	if (adapter->fhash.fnum >= adapter->fhash.fmax)
@@ -2235,8 +2235,7 @@ qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	if (adapter->flags & QLCNIC_MACSPOOF) {
 		phdr = (struct ethhdr *)skb->data;
-		if (compare_ether_addr(phdr->h_source,
-					adapter->mac_addr))
+		if (!ether_addr_equal(phdr->h_source, adapter->mac_addr))
 			goto drop_packet;
 	}
 

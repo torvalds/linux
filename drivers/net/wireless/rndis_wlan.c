@@ -1801,8 +1801,8 @@ static struct ndis_80211_pmkid *remove_pmkid(struct usbnet *usbdev,
 		count = max_pmkids;
 
 	for (i = 0; i < count; i++)
-		if (!compare_ether_addr(pmkids->bssid_info[i].bssid,
-							pmksa->bssid))
+		if (ether_addr_equal(pmkids->bssid_info[i].bssid,
+				     pmksa->bssid))
 			break;
 
 	/* pmkid not found */
@@ -1843,8 +1843,8 @@ static struct ndis_80211_pmkid *update_pmkid(struct usbnet *usbdev,
 
 	/* update with new pmkid */
 	for (i = 0; i < count; i++) {
-		if (compare_ether_addr(pmkids->bssid_info[i].bssid,
-							pmksa->bssid))
+		if (!ether_addr_equal(pmkids->bssid_info[i].bssid,
+				      pmksa->bssid))
 			continue;
 
 		memcpy(pmkids->bssid_info[i].pmkid, pmksa->pmkid,
@@ -2139,7 +2139,7 @@ resize_buf:
 	while (check_bssid_list_item(bssid, bssid_len, buf, len)) {
 		if (rndis_bss_info_update(usbdev, bssid) && match_bssid &&
 		    matched) {
-			if (compare_ether_addr(bssid->mac, match_bssid))
+			if (!ether_addr_equal(bssid->mac, match_bssid))
 				*matched = true;
 		}
 
@@ -2531,7 +2531,7 @@ static int rndis_get_station(struct wiphy *wiphy, struct net_device *dev,
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
 	struct usbnet *usbdev = priv->usbdev;
 
-	if (compare_ether_addr(priv->bssid, mac))
+	if (!ether_addr_equal(priv->bssid, mac))
 		return -ENOENT;
 
 	rndis_fill_station_info(usbdev, sinfo);
