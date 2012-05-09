@@ -238,7 +238,7 @@ nouveau_gpuobj_takedown(struct drm_device *dev)
 		kfree(oc);
 	}
 
-	BUG_ON(!list_empty(&dev_priv->gpuobj_list));
+	WARN_ON(!list_empty(&dev_priv->gpuobj_list));
 }
 
 
