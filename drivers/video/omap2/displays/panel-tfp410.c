@@ -64,7 +64,7 @@ static int tfp410_power_on(struct omap_dss_device *dssdev)
 		goto err0;
 
 	if (gpio_is_valid(ddata->pd_gpio))
-		gpio_set_value(ddata->pd_gpio, 1);
+		gpio_set_value_cansleep(ddata->pd_gpio, 1);
 
 	return 0;
 err0:
@@ -79,7 +79,7 @@ static void tfp410_power_off(struct omap_dss_device *dssdev)
 		return;
 
 	if (gpio_is_valid(ddata->pd_gpio))
-		gpio_set_value(ddata->pd_gpio, 0);
+		gpio_set_value_cansleep(ddata->pd_gpio, 0);
 
 	omapdss_dpi_display_disable(dssdev);
 }
