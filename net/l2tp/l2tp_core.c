@@ -428,6 +428,7 @@ start:
 			       session->name, L2TP_SKB_CB(skb)->ns,
 			       L2TP_SKB_CB(skb)->length, session->nr,
 			       skb_queue_len(&session->reorder_q));
+			session->reorder_skip = 1;
 			__skb_unlink(skb, &session->reorder_q);
 			kfree_skb(skb);
 			if (session->deref)
@@ -436,6 +437,14 @@ start:
 		}
 
 		if (L2TP_SKB_CB(skb)->has_seq) {
+			if (session->reorder_skip) {
+				PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
+				       "%s: advancing nr to next pkt: %u -> %u",
+				       session->name, session->nr,
+				       L2TP_SKB_CB(skb)->ns);
+				session->reorder_skip = 0;
+				session->nr = L2TP_SKB_CB(skb)->ns;
+			}
 			if (L2TP_SKB_CB(skb)->ns != session->nr) {
 				PRINTK(session->debug, L2TP_MSG_SEQ, KERN_DEBUG,
 				       "%s: holding oos pkt %u len %d, "
