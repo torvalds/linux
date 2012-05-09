@@ -225,9 +225,9 @@ int radeon_wb_init(struct radeon_device *rdev)
 	/* disable event_write fences */
 	rdev->wb.use_event = false;
 	/* disabled via module param */
-	if (radeon_no_wb == 1)
+	if (radeon_no_wb == 1) {
 		rdev->wb.enabled = false;
-	else {
+	} else {
 		if (rdev->flags & RADEON_IS_AGP) {
 			/* often unreliable on AGP */
 			rdev->wb.enabled = false;
@@ -237,8 +237,9 @@ int radeon_wb_init(struct radeon_device *rdev)
 		} else {
 			rdev->wb.enabled = true;
 			/* event_write fences are only available on r600+ */
-			if (rdev->family >= CHIP_R600)
+			if (rdev->family >= CHIP_R600) {
 				rdev->wb.use_event = true;
+			}
 		}
 	}
 	/* always use writeback/events on NI, APUs */
@@ -731,7 +732,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
 	mutex_init(&rdev->vram_mutex);
-	rwlock_init(&rdev->fence_lock);
 	rwlock_init(&rdev->semaphore_drv.lock);
 	INIT_LIST_HEAD(&rdev->gem.objects);
 	init_waitqueue_head(&rdev->irq.vblank_queue);

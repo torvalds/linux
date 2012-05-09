@@ -263,15 +263,12 @@ struct radeon_fence_driver {
 	atomic64_t			last_seq;
 	unsigned long			last_activity;
 	wait_queue_head_t		queue;
-	struct list_head		emitted;
-	struct list_head		signaled;
 	bool				initialized;
 };
 
 struct radeon_fence {
 	struct radeon_device		*rdev;
 	struct kref			kref;
-	struct list_head		list;
 	/* protected by radeon_fence.lock */
 	uint64_t			seq;
 	/* RB, DMA, etc. */
@@ -291,7 +288,7 @@ int radeon_fence_wait_next(struct radeon_device *rdev, int ring);
 int radeon_fence_wait_empty(struct radeon_device *rdev, int ring);
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
-int radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
+unsigned radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
 
 /*
  * Tiling registers
@@ -1534,7 +1531,6 @@ struct radeon_device {
 	struct radeon_mode_info		mode_info;
 	struct radeon_scratch		scratch;
 	struct radeon_mman		mman;
-	rwlock_t			fence_lock;
 	struct radeon_fence_driver	fence_drv[RADEON_NUM_RINGS];
 	struct radeon_semaphore_driver	semaphore_drv;
 	struct mutex			ring_lock;
