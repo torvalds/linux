@@ -13,34 +13,21 @@
 #include <linux/dmaengine.h>
 #include <linux/list.h>
 #include <linux/shdma-base.h>
+#include <linux/types.h>
+
+struct device;
 
 /* Used by slave DMA clients to request DMA to/from a specific peripheral */
 struct sh_dmae_slave {
-	union {
-		unsigned int		slave_id; /* Set by the platform */
-		struct shdma_slave	shdma_slave;
-	};
-	struct device			*dma_dev; /* Set by the platform */
-	const struct sh_dmae_slave_config	*config;  /* Set by the driver */
+	struct shdma_slave		shdma_slave;	/* Set by the platform */
+	struct device			*dma_dev;	/* Set by the platform */
+	const struct sh_dmae_slave_config *config;	/* Set by the driver */
 };
 
-struct sh_dmae_regs {
-	u32 sar; /* SAR / source address */
-	u32 dar; /* DAR / destination address */
-	u32 tcr; /* TCR / transfer count */
-};
-
-struct sh_desc {
-	struct sh_dmae_regs hw;
-	struct list_head node;
-	struct dma_async_tx_descriptor async_tx;
-	enum dma_transfer_direction direction;
-	dma_cookie_t cookie;
-	size_t partial;
-	int chunks;
-	int mark;
-};
-
+/*
+ * Supplied by platforms to specify, how a DMA channel has to be configured for
+ * a certain peripheral
+ */
 struct sh_dmae_slave_config {
 	unsigned int			slave_id;
 	dma_addr_t			addr;
