@@ -905,7 +905,6 @@ static const struct snd_kcontrol_new alc_automute_mode_enum = {
 
 static struct snd_kcontrol_new *alc_kcontrol_new(struct alc_spec *spec)
 {
-	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
 	return snd_array_new(&spec->kctls);
 }
 
@@ -3605,7 +3604,6 @@ static struct hda_bind_ctls *new_bind_ctl(struct hda_codec *codec,
 {
 	struct alc_spec *spec = codec->spec;
 	struct hda_bind_ctls **ctlp, *ctl;
-	snd_array_init(&spec->bind_ctls, sizeof(ctl), 8);
 	ctlp = snd_array_new(&spec->bind_ctls);
 	if (!ctlp)
 		return NULL;
@@ -4376,6 +4374,8 @@ static int alc_alloc_spec(struct hda_codec *codec, hda_nid_t mixer_nid)
 	codec->spec = spec;
 	spec->mixer_nid = mixer_nid;
 	snd_hda_gen_init(&spec->gen);
+	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
+	snd_array_init(&spec->bind_ctls, sizeof(struct hda_bind_ctls *), 8);
 
 	err = alc_codec_rename_from_preset(codec);
 	if (err < 0) {

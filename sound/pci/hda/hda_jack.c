@@ -95,7 +95,6 @@ snd_hda_jack_tbl_new(struct hda_codec *codec, hda_nid_t nid)
 	struct hda_jack_tbl *jack = snd_hda_jack_tbl_get(codec, nid);
 	if (jack)
 		return jack;
-	snd_array_init(&codec->jacktbl, sizeof(*jack), 16);
 	jack = snd_array_new(&codec->jacktbl);
 	if (!jack)
 		return NULL;

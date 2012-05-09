@@ -241,6 +241,7 @@ static struct via_spec * via_new_spec(struct hda_codec *codec)
 	if (spec == NULL)
 		return NULL;
 
+	snd_array_init(&spec->kctls, sizeof(struct snd_kcontrol_new), 32);
 	mutex_init(&spec->config_mutex);
 	codec->spec = spec;
 	spec->codec = codec;
@@ -387,7 +388,6 @@ static struct snd_kcontrol_new *__via_clone_ctl(struct via_spec *spec,
 {
 	struct snd_kcontrol_new *knew;
 
-	snd_array_init(&spec->kctls, sizeof(*knew), 32);
 	knew = snd_array_new(&spec->kctls);
 	if (!knew)
 		return NULL;
