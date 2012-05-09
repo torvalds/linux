@@ -148,6 +148,14 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	ssm	__LC_RETURN_PSW
 	.endm
 
+	.macro STCK savearea
+#if defined(CONFIG_64BIT) && !defined(CONFIG_MARCH_Z900) && !defined(CONFIG_MARCH_Z990)
+	.insn	s,0xb27c0000,\savearea		# store clock fast
+#else
+	.insn	s,0xb2050000,\savearea		# store clock
+#endif
+	.endm
+
 	.section .kprobes.text, "ax"
 
 /*
@@ -458,7 +466,7 @@ pgm_svcper:
  * IO interrupt handler routine
  */
 ENTRY(io_int_handler)
-	stck	__LC_INT_CLOCK
+	STCK	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
@@ -604,7 +612,7 @@ io_notify_resume:
  * External interrupt handler routine
  */
 ENTRY(ext_int_handler)
-	stck	__LC_INT_CLOCK
+	STCK	__LC_INT_CLOCK
 	stpt	__LC_ASYNC_ENTER_TIMER
 	stmg	%r8,%r15,__LC_SAVE_AREA_ASYNC
 	lg	%r10,__LC_LAST_BREAK
@@ -639,7 +647,7 @@ ENTRY(psw_idle)
 	larl	%r1,psw_idle_lpsw+4
 	stg	%r1,__SF_EMPTY+8(%r15)
 	larl	%r1,.Lvtimer_max
-	stck	__IDLE_ENTER(%r2)
+	STCK	__IDLE_ENTER(%r2)
 	ltr	%r5,%r5
 	stpt	__VQ_IDLE_ENTER(%r3)
 	jz	psw_idle_lpsw
@@ -655,7 +663,7 @@ __critical_end:
  * Machine check handler routines
  */
 ENTRY(mcck_int_handler)
-	stck	__LC_MCCK_CLOCK
+	STCK	__LC_MCCK_CLOCK
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
