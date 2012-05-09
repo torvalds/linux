@@ -128,10 +128,10 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 }
 
 /**
- * nfs_unlock_request - Unlock request and wake up sleepers.
+ * nfs_unlock_request_dont_release - Unlock request and wake up sleepers.
  * @req:
  */
-void nfs_unlock_request(struct nfs_page *req)
+void nfs_unlock_request_dont_release(struct nfs_page *req)
 {
 	if (!NFS_WBACK_BUSY(req)) {
 		printk(KERN_ERR "NFS: Invalid unlock attempted\n");
@@ -141,6 +141,14 @@ void nfs_unlock_request(struct nfs_page *req)
 	clear_bit(PG_BUSY, &req->wb_flags);
 	smp_mb__after_clear_bit();
 	wake_up_bit(&req->wb_flags, PG_BUSY);
+}
+
+/**
+ * nfs_unlock_request - Unlock request and release the nfs_page
+ */
+void nfs_unlock_request(struct nfs_page *req)
+{
+	nfs_unlock_request_dont_release(req);
 	nfs_release_request(req);
 }
 

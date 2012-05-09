@@ -628,8 +628,9 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 remove_req:
 		nfs_inode_remove_request(req);
 next:
-		nfs_unlock_request(req);
+		nfs_unlock_request_dont_release(req);
 		nfs_end_page_writeback(page);
+		nfs_release_request(req);
 	}
 out:
 	hdr->release(hdr);
@@ -1042,8 +1043,9 @@ static void nfs_redirty_request(struct nfs_page *req)
 	struct page *page = req->wb_page;
 
 	nfs_mark_request_dirty(req);
-	nfs_unlock_request(req);
+	nfs_unlock_request_dont_release(req);
 	nfs_end_page_writeback(page);
+	nfs_release_request(req);
 }
 
 static void nfs_async_write_error(struct list_head *head)
