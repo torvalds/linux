@@ -506,7 +506,7 @@ static int mxt_write_object(struct mxt_data *data,
 	u16 reg;
 
 	object = mxt_get_object(data, type);
-	if (!object)
+	if (!object || offset >= object->size + 1)
 		return -EINVAL;
 
 	reg = object->start_address;
