@@ -94,7 +94,6 @@ struct mtp_dev {
 	wait_queue_head_t intr_wq;
 	struct usb_request *rx_req[RX_REQ_MAX];
 	int rx_done;
-	int tx_done;
 
 	/* for processing MTP_SEND_FILE, MTP_RECEIVE_FILE and
 	 * MTP_SEND_FILE_WITH_HEADER ioctls on a work queue
@@ -350,7 +349,6 @@ static struct usb_request
 static void mtp_complete_in(struct usb_ep *ep, struct usb_request *req)
 {
 	struct mtp_dev *dev = _mtp_dev;
-	dev->tx_done = 1;
 	if ((req->status != 0) && (dev->state != STATE_CANCELED))
 		dev->state = STATE_ERROR;
 
@@ -597,7 +595,6 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 			r = -EFAULT;
 			break;
 		}
-        dev->tx_done = 0;
 
 		req->length = xfer;
 		ret = usb_ep_queue(dev->ep_in, req, GFP_KERNEL);
@@ -606,14 +603,6 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 			r = -EIO;
 			break;
 		}
-		ret = wait_event_interruptible(dev->write_wq,
-			    dev->tx_done|| (dev->state != STATE_BUSY));
-    	if (dev->state == STATE_CANCELED) {
-    		r = -ECANCELED;
-    		if (!dev->rx_done)
-    			usb_ep_dequeue(dev->ep_out, req);
-    		goto done;
-    	}
 
 		buf += xfer;
 		count -= xfer;
@@ -631,7 +620,7 @@ static ssize_t mtp_write(struct file *fp, const char __user *buf,
 	else if (dev->state != STATE_OFFLINE)
 		dev->state = STATE_READY;
 	spin_unlock_irq(&dev->lock);
-done:
+
 	DBG(cdev, "mtp_write returning %d\n", r);
 	return r;
 }
@@ -753,7 +742,9 @@ static void receive_file_work(struct work_struct *data)
 	filp = dev->xfer_file;
 	offset = dev->xfer_file_offset;
 	count = dev->xfer_file_length;
-
+	/* yk@20120509 read zero length packet */
+    if(( count&0x1ff) == 0)
+    	count ++;
 	DBG(cdev, "receive_file_work(%lld)\n", count);
 
 	while (count > 0 || write_req) {
@@ -804,8 +795,11 @@ static void receive_file_work(struct work_struct *data)
 			if (read_req->actual < read_req->length) {
 				/* short packet is used to signal EOF for sizes > 4 gig */
 				DBG(cdev, "got short packet\n");
-				if (count == 0xFFFFFFFF)
-					count = 0;
+				count = 0;
+				/* yk@20120509 usb disconnect will couse short packet, 
+				 * and dev state change to STATE_OFFLINE */
+                if(dev->state != STATE_BUSY)
+                    r = -EIO;
 			}
 
 			write_req = read_req;
