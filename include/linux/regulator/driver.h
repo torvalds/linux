@@ -161,12 +161,16 @@ enum regulator_type {
  * @name: Identifying name for the regulator.
  * @supply_name: Identifying the regulator supply
  * @id: Numerical identifier for the regulator.
- * @n_voltages: Number of selectors available for ops.list_voltage().
  * @ops: Regulator operations table.
  * @irq: Interrupt number for the regulator.
  * @type: Indicates if the regulator is a voltage or current regulator.
  * @owner: Module providing the regulator, used for refcounting.
-
+ *
+ * @n_voltages: Number of selectors available for ops.list_voltage().
+ *
+ * @min_uV: Voltage given by the lowest selector (if linear mapping)
+ * @uV_step: Voltage increase with each selector (if linear mapping)
+ *
  * @vsel_reg: Register for selector when using regulator_regmap_X_voltage_
  * @vsel_mask: Mask for register bitfield used for selector
  * @enable_reg: Register for control when using regmap enable/disable ops
@@ -181,6 +185,9 @@ struct regulator_desc {
 	int irq;
 	enum regulator_type type;
 	struct module *owner;
+
+	unsigned int min_uV;
+	unsigned int uV_step;
 
 	unsigned int vsel_reg;
 	unsigned int vsel_mask;
@@ -262,6 +269,10 @@ int rdev_get_id(struct regulator_dev *rdev);
 
 int regulator_mode_to_status(unsigned int);
 
+int regulator_list_voltage_linear(struct regulator_dev *rdev,
+				  unsigned int selector);
+int regulator_map_voltage_linear(struct regulator_dev *rdev,
+				  int min_uV, int max_uV);
 int regulator_map_voltage_iterate(struct regulator_dev *rdev,
 				  int min_uV, int max_uV);
 int regulator_get_voltage_sel_regmap(struct regulator_dev *rdev);
