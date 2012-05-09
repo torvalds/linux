@@ -164,7 +164,7 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	eth = eth_hdr(skb);
 
 	if (unlikely(is_multicast_ether_addr(eth->h_dest))) {
-		if (!compare_ether_addr_64bits(eth->h_dest, dev->broadcast))
+		if (ether_addr_equal_64bits(eth->h_dest, dev->broadcast))
 			skb->pkt_type = PACKET_BROADCAST;
 		else
 			skb->pkt_type = PACKET_MULTICAST;
@@ -179,7 +179,8 @@ __be16 eth_type_trans(struct sk_buff *skb, struct net_device *dev)
 	 */
 
 	else if (1 /*dev->flags&IFF_PROMISC */ ) {
-		if (unlikely(compare_ether_addr_64bits(eth->h_dest, dev->dev_addr)))
+		if (unlikely(!ether_addr_equal_64bits(eth->h_dest,
+						      dev->dev_addr)))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
 
