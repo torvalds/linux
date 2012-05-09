@@ -2272,17 +2272,15 @@ new_slab:
 	/* Then do expensive stuff like retrieving pages from the partial lists */
 	freelist = get_partial(s, gfpflags, node, c);
 
-	if (unlikely(!freelist)) {
-
+	if (!freelist)
 		freelist = new_slab_objects(s, gfpflags, node, &c);
 
-		if (unlikely(!freelist)) {
-			if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
-				slab_out_of_memory(s, gfpflags, node);
+	if (unlikely(!freelist)) {
+		if (!(gfpflags & __GFP_NOWARN) && printk_ratelimit())
+			slab_out_of_memory(s, gfpflags, node);
 
-			local_irq_restore(flags);
-			return NULL;
-		}
+		local_irq_restore(flags);
+		return NULL;
 	}
 
 	if (likely(!kmem_cache_debug(s)))
