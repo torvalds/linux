@@ -3837,6 +3837,325 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 	return 0;
 }
 
+/*---------------------- USB 3.0 Link PM functions ------------------------*/
+
+static u16 xhci_get_timeout_no_hub_lpm(struct usb_device *udev,
+		enum usb3_link_state state)
+{
+	unsigned long long sel;
+	unsigned long long pel;
+	unsigned int max_sel_pel;
+	char *state_name;
+
+	switch (state) {
+	case USB3_LPM_U1:
+		/* Convert SEL and PEL stored in nanoseconds to microseconds */
+		sel = DIV_ROUND_UP(udev->u1_params.sel, 1000);
+		pel = DIV_ROUND_UP(udev->u1_params.pel, 1000);
+		max_sel_pel = USB3_LPM_MAX_U1_SEL_PEL;
+		state_name = "U1";
+		break;
+	case USB3_LPM_U2:
+		sel = DIV_ROUND_UP(udev->u2_params.sel, 1000);
+		pel = DIV_ROUND_UP(udev->u2_params.pel, 1000);
+		max_sel_pel = USB3_LPM_MAX_U2_SEL_PEL;
+		state_name = "U2";
+		break;
+	default:
+		dev_warn(&udev->dev, "%s: Can't get timeout for non-U1 or U2 state.\n",
+				__func__);
+		return -EINVAL;
+	}
+
+	if (sel <= max_sel_pel && pel <= max_sel_pel)
+		return USB3_LPM_DEVICE_INITIATED;
+
+	if (sel > max_sel_pel)
+		dev_dbg(&udev->dev, "Device-initiated %s disabled "
+				"due to long SEL %llu ms\n",
+				state_name, sel);
+	else
+		dev_dbg(&udev->dev, "Device-initiated %s disabled "
+				"due to long PEL %llu\n ms",
+				state_name, pel);
+	return USB3_LPM_DISABLED;
+}
+
+static u16 xhci_call_host_update_timeout_for_endpoint(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc,
+		enum usb3_link_state state,
+		u16 *timeout)
+{
+	return USB3_LPM_DISABLED;
+}
+
+static int xhci_update_timeout_for_endpoint(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_endpoint_descriptor *desc,
+		enum usb3_link_state state,
+		u16 *timeout)
+{
+	u16 alt_timeout;
+
+	alt_timeout = xhci_call_host_update_timeout_for_endpoint(xhci, udev,
+		desc, state, timeout);
+
+	/* If we found we can't enable hub-initiated LPM, or
+	 * the U1 or U2 exit latency was too high to allow
+	 * device-initiated LPM as well, just stop searching.
+	 */
+	if (alt_timeout == USB3_LPM_DISABLED ||
+			alt_timeout == USB3_LPM_DEVICE_INITIATED) {
+		*timeout = alt_timeout;
+		return -E2BIG;
+	}
+	if (alt_timeout > *timeout)
+		*timeout = alt_timeout;
+	return 0;
+}
+
+static int xhci_update_timeout_for_interface(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_host_interface *alt,
+		enum usb3_link_state state,
+		u16 *timeout)
+{
+	int j;
+
+	for (j = 0; j < alt->desc.bNumEndpoints; j++) {
+		if (xhci_update_timeout_for_endpoint(xhci, udev,
+					&alt->endpoint[j].desc, state, timeout))
+			return -E2BIG;
+		continue;
+	}
+	return 0;
+}
+
+static int xhci_check_tier_policy(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		enum usb3_link_state state)
+{
+	return -EINVAL;
+}
+
+/* Returns the U1 or U2 timeout that should be enabled.
+ * If the tier check or timeout setting functions return with a non-zero exit
+ * code, that means the timeout value has been finalized and we shouldn't look
+ * at any more endpoints.
+ */
+static u16 xhci_calculate_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	struct usb_host_config *config;
+	char *state_name;
+	int i;
+	u16 timeout = USB3_LPM_DISABLED;
+
+	if (state == USB3_LPM_U1)
+		state_name = "U1";
+	else if (state == USB3_LPM_U2)
+		state_name = "U2";
+	else {
+		dev_warn(&udev->dev, "Can't enable unknown link state %i\n",
+				state);
+		return timeout;
+	}
+
+	if (xhci_check_tier_policy(xhci, udev, state) < 0)
+		return timeout;
+
+	/* Gather some information about the currently installed configuration
+	 * and alternate interface settings.
+	 */
+	if (xhci_update_timeout_for_endpoint(xhci, udev, &udev->ep0.desc,
+			state, &timeout))
+		return timeout;
+
+	config = udev->actconfig;
+	if (!config)
+		return timeout;
+
+	for (i = 0; i < USB_MAXINTERFACES; i++) {
+		struct usb_driver *driver;
+		struct usb_interface *intf = config->interface[i];
+
+		if (!intf)
+			continue;
+
+		/* Check if any currently bound drivers want hub-initiated LPM
+		 * disabled.
+		 */
+		if (intf->dev.driver) {
+			driver = to_usb_driver(intf->dev.driver);
+			if (driver && driver->disable_hub_initiated_lpm) {
+				dev_dbg(&udev->dev, "Hub-initiated %s disabled "
+						"at request of driver %s\n",
+						state_name, driver->name);
+				return xhci_get_timeout_no_hub_lpm(udev, state);
+			}
+		}
+
+		/* Not sure how this could happen... */
+		if (!intf->cur_altsetting)
+			continue;
+
+		if (xhci_update_timeout_for_interface(xhci, udev,
+					intf->cur_altsetting,
+					state, &timeout))
+			return timeout;
+	}
+	return timeout;
+}
+
+/*
+ * Issue an Evaluate Context command to change the Maximum Exit Latency in the
+ * slot context.  If that succeeds, store the new MEL in the xhci_virt_device.
+ */
+static int xhci_change_max_exit_latency(struct xhci_hcd *xhci,
+			struct usb_device *udev, u16 max_exit_latency)
+{
+	struct xhci_virt_device *virt_dev;
+	struct xhci_command *command;
+	struct xhci_input_control_ctx *ctrl_ctx;
+	struct xhci_slot_ctx *slot_ctx;
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	if (max_exit_latency == xhci->devs[udev->slot_id]->current_mel) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return 0;
+	}
+
+	/* Attempt to issue an Evaluate Context command to change the MEL. */
+	virt_dev = xhci->devs[udev->slot_id];
+	command = xhci->lpm_command;
+	xhci_slot_copy(xhci, command->in_ctx, virt_dev->out_ctx);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	ctrl_ctx = xhci_get_input_control_ctx(xhci, command->in_ctx);
+	ctrl_ctx->add_flags |= cpu_to_le32(SLOT_FLAG);
+	slot_ctx = xhci_get_slot_ctx(xhci, command->in_ctx);
+	slot_ctx->dev_info2 &= cpu_to_le32(~((u32) MAX_EXIT));
+	slot_ctx->dev_info2 |= cpu_to_le32(max_exit_latency);
+
+	xhci_dbg(xhci, "Set up evaluate context for LPM MEL change.\n");
+	xhci_dbg(xhci, "Slot %u Input Context:\n", udev->slot_id);
+	xhci_dbg_ctx(xhci, command->in_ctx, 0);
+
+	/* Issue and wait for the evaluate context command. */
+	ret = xhci_configure_endpoint(xhci, udev, command,
+			true, true);
+	xhci_dbg(xhci, "Slot %u Output Context:\n", udev->slot_id);
+	xhci_dbg_ctx(xhci, virt_dev->out_ctx, 0);
+
+	if (!ret) {
+		spin_lock_irqsave(&xhci->lock, flags);
+		virt_dev->current_mel = max_exit_latency;
+		spin_unlock_irqrestore(&xhci->lock, flags);
+	}
+	return ret;
+}
+
+static int calculate_max_exit_latency(struct usb_device *udev,
+		enum usb3_link_state state_changed,
+		u16 hub_encoded_timeout)
+{
+	unsigned long long u1_mel_us = 0;
+	unsigned long long u2_mel_us = 0;
+	unsigned long long mel_us = 0;
+	bool disabling_u1;
+	bool disabling_u2;
+	bool enabling_u1;
+	bool enabling_u2;
+
+	disabling_u1 = (state_changed == USB3_LPM_U1 &&
+			hub_encoded_timeout == USB3_LPM_DISABLED);
+	disabling_u2 = (state_changed == USB3_LPM_U2 &&
+			hub_encoded_timeout == USB3_LPM_DISABLED);
+
+	enabling_u1 = (state_changed == USB3_LPM_U1 &&
+			hub_encoded_timeout != USB3_LPM_DISABLED);
+	enabling_u2 = (state_changed == USB3_LPM_U2 &&
+			hub_encoded_timeout != USB3_LPM_DISABLED);
+
+	/* If U1 was already enabled and we're not disabling it,
+	 * or we're going to enable U1, account for the U1 max exit latency.
+	 */
+	if ((udev->u1_params.timeout != USB3_LPM_DISABLED && !disabling_u1) ||
+			enabling_u1)
+		u1_mel_us = DIV_ROUND_UP(udev->u1_params.mel, 1000);
+	if ((udev->u2_params.timeout != USB3_LPM_DISABLED && !disabling_u2) ||
+			enabling_u2)
+		u2_mel_us = DIV_ROUND_UP(udev->u2_params.mel, 1000);
+
+	if (u1_mel_us > u2_mel_us)
+		mel_us = u1_mel_us;
+	else
+		mel_us = u2_mel_us;
+	/* xHCI host controller max exit latency field is only 16 bits wide. */
+	if (mel_us > MAX_EXIT) {
+		dev_warn(&udev->dev, "Link PM max exit latency of %lluus "
+				"is too big.\n", mel_us);
+		return -E2BIG;
+	}
+	return mel_us;
+}
+
+/* Returns the USB3 hub-encoded value for the U1/U2 timeout. */
+int xhci_enable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	struct xhci_hcd	*xhci;
+	u16 hub_encoded_timeout;
+	int mel;
+	int ret;
+
+	xhci = hcd_to_xhci(hcd);
+	/* The LPM timeout values are pretty host-controller specific, so don't
+	 * enable hub-initiated timeouts unless the vendor has provided
+	 * information about their timeout algorithm.
+	 */
+	if (!xhci || !(xhci->quirks & XHCI_LPM_SUPPORT) ||
+			!xhci->devs[udev->slot_id])
+		return USB3_LPM_DISABLED;
+
+	hub_encoded_timeout = xhci_calculate_lpm_timeout(hcd, udev, state);
+	mel = calculate_max_exit_latency(udev, state, hub_encoded_timeout);
+	if (mel < 0) {
+		/* Max Exit Latency is too big, disable LPM. */
+		hub_encoded_timeout = USB3_LPM_DISABLED;
+		mel = 0;
+	}
+
+	ret = xhci_change_max_exit_latency(xhci, udev, mel);
+	if (ret)
+		return ret;
+	return hub_encoded_timeout;
+}
+
+int xhci_disable_usb3_lpm_timeout(struct usb_hcd *hcd,
+			struct usb_device *udev, enum usb3_link_state state)
+{
+	struct xhci_hcd	*xhci;
+	u16 mel;
+	int ret;
+
+	xhci = hcd_to_xhci(hcd);
+	if (!xhci || !(xhci->quirks & XHCI_LPM_SUPPORT) ||
+			!xhci->devs[udev->slot_id])
+		return 0;
+
+	mel = calculate_max_exit_latency(udev, state, USB3_LPM_DISABLED);
+	ret = xhci_change_max_exit_latency(xhci, udev, mel);
+	if (ret)
+		return ret;
+	return 0;
+}
+/*-------------------------------------------------------------------------*/
+
 int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 {
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);

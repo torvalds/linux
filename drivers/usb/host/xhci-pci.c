@@ -170,6 +170,13 @@ static int xhci_pci_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (retval)
 		goto put_usb3_hcd;
 	/* Roothub already marked as USB 3.0 speed */
+
+	/* We know the LPM timeout algorithms for this host, let the USB core
+	 * enable and disable LPM for devices under the USB 3.0 roothub.
+	 */
+	if (xhci->quirks & XHCI_LPM_SUPPORT)
+		hcd_to_bus(xhci->shared_hcd)->root_hub->lpm_capable = 1;
+
 	return 0;
 
 put_usb3_hcd:
@@ -293,6 +300,8 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	 */
 	.update_device =        xhci_update_device,
 	.set_usb2_hw_lpm =	xhci_set_usb2_hardware_lpm,
+	.enable_usb3_lpm_timeout =	xhci_enable_usb3_lpm_timeout,
+	.disable_usb3_lpm_timeout =	xhci_disable_usb3_lpm_timeout,
 };
 
 /*-------------------------------------------------------------------------*/
