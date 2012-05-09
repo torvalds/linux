@@ -728,7 +728,6 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* mutex initialization are all done here so we
 	 * can recall function without having locking issues */
-	radeon_mutex_init(&rdev->cs_mutex);
 	mutex_init(&rdev->ring_lock);
 	mutex_init(&rdev->dc_hw_i2c_mutex);
 	atomic_set(&rdev->ih.lock, 0);
@@ -741,6 +740,7 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		return r;
 	/* initialize vm here */
+	mutex_init(&rdev->vm_manager.lock);
 	rdev->vm_manager.use_bitmap = 1;
 	rdev->vm_manager.max_pfn = 1 << 20;
 	INIT_LIST_HEAD(&rdev->vm_manager.lru_vm);

@@ -159,11 +159,9 @@ void radeon_gem_object_close(struct drm_gem_object *obj,
 static int radeon_gem_handle_lockup(struct radeon_device *rdev, int r)
 {
 	if (r == -EDEADLK) {
-		radeon_mutex_lock(&rdev->cs_mutex);
 		r = radeon_gpu_reset(rdev);
 		if (!r)
 			r = -EAGAIN;
-		radeon_mutex_unlock(&rdev->cs_mutex);
 	}
 	return r;
 }

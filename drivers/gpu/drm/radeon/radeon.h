@@ -159,48 +159,6 @@ static inline int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len)
 #endif
 bool radeon_get_bios(struct radeon_device *rdev);
 
-
-/*
- * Mutex which allows recursive locking from the same process.
- */
-struct radeon_mutex {
-	struct mutex		mutex;
-	struct task_struct	*owner;
-	int			level;
-};
-
-static inline void radeon_mutex_init(struct radeon_mutex *mutex)
-{
-	mutex_init(&mutex->mutex);
-	mutex->owner = NULL;
-	mutex->level = 0;
-}
-
-static inline void radeon_mutex_lock(struct radeon_mutex *mutex)
-{
-	if (mutex_trylock(&mutex->mutex)) {
-		/* The mutex was unlocked before, so it's ours now */
-		mutex->owner = current;
-	} else if (mutex->owner != current) {
-		/* Another process locked the mutex, take it */
-		mutex_lock(&mutex->mutex);
-		mutex->owner = current;
-	}
-	/* Otherwise the mutex was already locked by this process */
-
-	mutex->level++;
-}
-
-static inline void radeon_mutex_unlock(struct radeon_mutex *mutex)
-{
-	if (--mutex->level > 0)
-		return;
-
-	mutex->owner = NULL;
-	mutex_unlock(&mutex->mutex);
-}
-
-
 /*
  * Dummy page
  */
@@ -712,6 +670,7 @@ struct radeon_vm_funcs {
 };
 
 struct radeon_vm_manager {
+	struct mutex			lock;
 	struct list_head		lru_vm;
 	uint32_t			use_bitmap;
 	struct radeon_sa_manager	sa_manager;
@@ -1532,7 +1491,6 @@ struct radeon_device {
 	struct radeon_gem		gem;
 	struct radeon_pm		pm;
 	uint32_t			bios_scratch[RADEON_BIOS_NUM_SCRATCH];
-	struct radeon_mutex		cs_mutex;
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;
 	bool				shutdown;

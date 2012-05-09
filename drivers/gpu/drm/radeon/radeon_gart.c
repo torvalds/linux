@@ -305,7 +305,7 @@ int radeon_vm_manager_init(struct radeon_device *rdev)
 	return r;
 }
 
-/* cs mutex must be lock */
+/* global mutex must be lock */
 static void radeon_vm_unbind_locked(struct radeon_device *rdev,
 				    struct radeon_vm *vm)
 {
@@ -356,17 +356,17 @@ int radeon_vm_manager_suspend(struct radeon_device *rdev)
 {
 	struct radeon_vm *vm, *tmp;
 
-	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&rdev->vm_manager.lock);
 	/* unbind all active vm */
 	list_for_each_entry_safe(vm, tmp, &rdev->vm_manager.lru_vm, list) {
 		radeon_vm_unbind_locked(rdev, vm);
 	}
 	rdev->vm_manager.funcs->fini(rdev);
-	radeon_mutex_unlock(&rdev->cs_mutex);
+	mutex_unlock(&rdev->vm_manager.lock);
 	return radeon_sa_bo_manager_suspend(rdev, &rdev->vm_manager.sa_manager);
 }
 
-/* cs mutex must be lock */
+/* global mutex must be locked */
 void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	mutex_lock(&vm->mutex);
@@ -374,7 +374,7 @@ void radeon_vm_unbind(struct radeon_device *rdev, struct radeon_vm *vm)
 	mutex_unlock(&vm->mutex);
 }
 
-/* cs mutex must be lock & vm mutex must be lock */
+/* global and local mutex must be locked */
 int radeon_vm_bind(struct radeon_device *rdev, struct radeon_vm *vm)
 {
 	struct radeon_vm *vm_evict;
@@ -478,7 +478,7 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 	if (last_pfn > vm->last_pfn) {
 		/* release mutex and lock in right order */
 		mutex_unlock(&vm->mutex);
-		radeon_mutex_lock(&rdev->cs_mutex);
+		mutex_lock(&rdev->vm_manager.lock);
 		mutex_lock(&vm->mutex);
 		/* and check again */
 		if (last_pfn > vm->last_pfn) {
@@ -487,7 +487,7 @@ int radeon_vm_bo_add(struct radeon_device *rdev,
 			radeon_vm_unbind_locked(rdev, vm);
 			vm->last_pfn = (last_pfn + align) & ~align;
 		}
-		radeon_mutex_unlock(&rdev->cs_mutex);
+		mutex_unlock(&rdev->vm_manager.lock);
 	}
 	head = &vm->va;
 	last_offset = 0;
@@ -542,7 +542,7 @@ static u64 radeon_vm_get_addr(struct radeon_device *rdev,
 	return addr;
 }
 
-/* object have to be reserved & cs mutex took & vm mutex took */
+/* object have to be reserved & global and local mutex must be locked */
 int radeon_vm_bo_update_pte(struct radeon_device *rdev,
 			    struct radeon_vm *vm,
 			    struct radeon_bo *bo,
@@ -601,10 +601,10 @@ int radeon_vm_bo_rmv(struct radeon_device *rdev,
 	if (bo_va == NULL)
 		return 0;
 
-	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
 	radeon_vm_bo_update_pte(rdev, vm, bo, NULL);
-	radeon_mutex_unlock(&rdev->cs_mutex);
+	mutex_unlock(&rdev->vm_manager.lock);
 	list_del(&bo_va->vm_list);
 	mutex_unlock(&vm->mutex);
 	list_del(&bo_va->bo_list);
@@ -647,10 +647,10 @@ void radeon_vm_fini(struct radeon_device *rdev, struct radeon_vm *vm)
 	struct radeon_bo_va *bo_va, *tmp;
 	int r;
 
-	radeon_mutex_lock(&rdev->cs_mutex);
+	mutex_lock(&rdev->vm_manager.lock);
 	mutex_lock(&vm->mutex);
 	radeon_vm_unbind_locked(rdev, vm);
-	radeon_mutex_unlock(&rdev->cs_mutex);
+	mutex_unlock(&rdev->vm_manager.lock);
 
 	/* remove all bo */
 	r = radeon_bo_reserve(rdev->ring_tmp_bo.bo, false);
