@@ -2245,6 +2245,12 @@ redo:
 	stat(s, ALLOC_REFILL);
 
 load_freelist:
+	/*
+	 * freelist is pointing to the list of objects to be used.
+	 * page is pointing to the page from which the objects are obtained.
+	 * That page must be frozen for per cpu allocations to work.
+	 */
+	VM_BUG_ON(!c->page->frozen);
 	c->freelist = get_freepointer(s, freelist);
 	c->tid = next_tid(c->tid);
 	local_irq_restore(flags);
