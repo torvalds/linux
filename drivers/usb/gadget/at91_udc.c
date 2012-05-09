@@ -1863,8 +1863,8 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 			mod_timer(&udc->vbus_timer,
 				  jiffies + VBUS_POLL_TIMEOUT);
 		} else {
-			if (request_irq(udc->board.vbus_pin, at91_vbus_irq,
-					0, driver_name, udc)) {
+			if (request_irq(gpio_to_irq(udc->board.vbus_pin),
+					at91_vbus_irq, 0, driver_name, udc)) {
 				DBG("request vbus irq %d failed\n",
 				    udc->board.vbus_pin);
 				retval = -EBUSY;
@@ -1886,7 +1886,7 @@ static int __devinit at91udc_probe(struct platform_device *pdev)
 	return 0;
 fail4:
 	if (gpio_is_valid(udc->board.vbus_pin) && !udc->board.vbus_polled)
-		free_irq(udc->board.vbus_pin, udc);
+		free_irq(gpio_to_irq(udc->board.vbus_pin), udc);
 fail3:
 	if (gpio_is_valid(udc->board.vbus_pin))
 		gpio_free(udc->board.vbus_pin);
@@ -1924,7 +1924,7 @@ static int __exit at91udc_remove(struct platform_device *pdev)
 	device_init_wakeup(&pdev->dev, 0);
 	remove_debug_file(udc);
 	if (gpio_is_valid(udc->board.vbus_pin)) {
-		free_irq(udc->board.vbus_pin, udc);
+		free_irq(gpio_to_irq(udc->board.vbus_pin), udc);
 		gpio_free(udc->board.vbus_pin);
 	}
 	free_irq(udc->udp_irq, udc);

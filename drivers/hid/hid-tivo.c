@@ -62,7 +62,7 @@ static int tivo_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 
 static const struct hid_device_id tivo_devices[] = {
 	/* TiVo Slide Bluetooth remote, pairs with a Broadcom dongle */
-	{ HID_USB_DEVICE(USB_VENDOR_ID_TIVO, USB_DEVICE_ID_TIVO_SLIDE_BT) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_TIVO, USB_DEVICE_ID_TIVO_SLIDE_BT) },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_TIVO, USB_DEVICE_ID_TIVO_SLIDE) },
 	{ }
 };

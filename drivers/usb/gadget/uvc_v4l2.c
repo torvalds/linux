@@ -39,7 +39,7 @@ uvc_send_response(struct uvc_device *uvc, struct uvc_request_data *data)
 	if (data->length < 0)
 		return usb_ep_set_halt(cdev->gadget->ep0);
 
-	req->length = min(uvc->event_length, data->length);
+	req->length = min_t(unsigned int, uvc->event_length, data->length);
 	req->zero = data->length < uvc->event_length;
 	req->dma = DMA_ADDR_INVALID;
 

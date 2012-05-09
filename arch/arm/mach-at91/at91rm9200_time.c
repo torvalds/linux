@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/clockchips.h>
+#include <linux/export.h>
 
 #include <asm/mach/time.h>
 
@@ -176,6 +177,7 @@ static struct clock_event_device clkevt = {
 };
 
 void __iomem *at91_st_base;
+EXPORT_SYMBOL_GPL(at91_st_base);
 
 void __init at91rm9200_ioremap_st(u32 addr)
 {
