@@ -1858,8 +1858,12 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 
 	xlate = soc_camera_xlate_by_fourcc(icd, pixfmt);
 	if (!xlate) {
-		dev_warn(icd->parent, "Format %x not found\n", pixfmt);
-		return -EINVAL;
+		xlate = icd->current_fmt;
+		dev_dbg(icd->parent, "Format %x not found, keeping %x\n",
+			pixfmt, xlate->host_fmt->fourcc);
+		pixfmt = xlate->host_fmt->fourcc;
+		pix->pixelformat = pixfmt;
+		pix->colorspace = icd->colorspace;
 	}
 
 	/* FIXME: calculate using depth and bus width */
