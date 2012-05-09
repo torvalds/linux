@@ -477,9 +477,6 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing DCDC%d\n", id + 1);
 
-	if (pdata == NULL || pdata->dcdc[id] == NULL)
-		return -ENODEV;
-
 	dcdc = devm_kzalloc(&pdev->dev,  sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
 	if (dcdc == NULL) {
@@ -525,7 +522,8 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 		wm831x_buckv_dvs_init(dcdc, pdata->dcdc[id]->driver_data);
 
 	config.dev = pdev->dev.parent;
-	config.init_data = pdata->dcdc[id];
+	if (pdata)
+		config.init_data = pdata->dcdc[id];
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
@@ -680,9 +678,6 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing DCDC%d\n", id + 1);
 
-	if (pdata == NULL || pdata->dcdc[id] == NULL)
-		return -ENODEV;
-
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc),
 			    GFP_KERNEL);
 	if (dcdc == NULL) {
@@ -713,7 +708,8 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 	dcdc->desc.enable_mask = 1 << id;
 
 	config.dev = pdev->dev.parent;
-	config.init_data = pdata->dcdc[id];
+	if (pdata)
+		config.init_data = pdata->dcdc[id];
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
@@ -925,9 +921,6 @@ static __devinit int wm831x_epe_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "Probing EPE%d\n", id + 1);
 
-	if (pdata == NULL || pdata->epe[id] == NULL)
-		return -ENODEV;
-
 	dcdc = devm_kzalloc(&pdev->dev, sizeof(struct wm831x_dcdc), GFP_KERNEL);
 	if (dcdc == NULL) {
 		dev_err(&pdev->dev, "Unable to allocate private data\n");
@@ -949,7 +942,8 @@ static __devinit int wm831x_epe_probe(struct platform_device *pdev)
 	dcdc->desc.enable_mask = 1 << dcdc->desc.id;
 
 	config.dev = pdev->dev.parent;
-	config.init_data = pdata->epe[id];
+	if (pdata)
+		config.init_data = pdata->epe[id];
 	config.driver_data = dcdc;
 	config.regmap = wm831x->regmap;
 
