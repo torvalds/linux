@@ -84,7 +84,7 @@ static inline void trigger_next_adc_job_if_any(struct adc_host *adc)
 
         if(req == NULL)
                 return;
-        list_del(&req->entry);
+        list_del_init(&req->entry);
 	adc->cur = req->client;
 	kfree(req);
 	adc->ops->start(adc);
@@ -118,6 +118,7 @@ void adc_core_irq_handle(struct adc_host *adc)
 {
         int result = adc->ops->read(adc);
 
+	spin_lock(&adc->lock);
         adc->ops->stop(adc);
         adc->cur->callback(adc->cur, adc->cur->callback_param, result);
         adc_sync_read_callback(adc->cur, NULL, result);
@@ -125,6 +126,7 @@ void adc_core_irq_handle(struct adc_host *adc)
         wake_up(&adc->cur->wait);
 
         trigger_next_adc_job_if_any(adc);
+	spin_unlock(&adc->lock);
 }
 
 int adc_host_read(struct adc_client *client, enum read_type type)
