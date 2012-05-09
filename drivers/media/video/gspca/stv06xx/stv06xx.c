@@ -542,9 +542,8 @@ static int stv06xx_config(struct gspca_dev *gspca_dev,
 
 	PDEBUG(D_PROBE, "Configuring camera");
 
-	sd->desc = sd_desc;
 	sd->bridge = id->driver_info;
-	gspca_dev->sd_desc = &sd->desc;
+	gspca_dev->sd_desc = &sd_desc;
 
 	if (dump_bridge)
 		stv06xx_dump_bridge(sd);

@@ -92,9 +92,6 @@ struct sd {
 	/* Control handler */
 	struct v4l2_ctrl_handler ctrl_handler;
 
-	/* A pointer to the sd_desc struct */
-	struct sd_desc desc;
-
 	/* Sensor private data */
 	void *sensor_priv;
 
