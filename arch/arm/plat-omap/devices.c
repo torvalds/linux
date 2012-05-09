@@ -109,35 +109,6 @@ static void omap_init_rng(void)
 static inline void omap_init_rng(void) {}
 #endif
 
-#if defined(CONFIG_TIDSPBRIDGE) || defined(CONFIG_TIDSPBRIDGE_MODULE)
-
-static phys_addr_t omap_dsp_phys_mempool_base;
-
-void __init omap_dsp_reserve_sdram_memblock(void)
-{
-	phys_addr_t size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
-	phys_addr_t paddr;
-
-	if (!size)
-		return;
-
-	paddr = arm_memblock_steal(size, SZ_1M);
-	if (!paddr) {
-		pr_err("%s: failed to reserve %llx bytes\n",
-				__func__, (unsigned long long)size);
-		return;
-	}
-
-	omap_dsp_phys_mempool_base = paddr;
-}
-
-phys_addr_t omap_dsp_get_mempool_base(void)
-{
-	return omap_dsp_phys_mempool_base;
-}
-EXPORT_SYMBOL(omap_dsp_get_mempool_base);
-#endif
-
 /*
  * This gets called after board-specific INIT_MACHINE, and initializes most
  * on-chip peripherals accessible on this board (except for few like USB):
