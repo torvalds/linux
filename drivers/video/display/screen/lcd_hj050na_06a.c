@@ -27,7 +27,7 @@
 /* Base */
 #define OUT_TYPE	    SCREEN_RGB
 
-#define OUT_FACE	    OUT_P888
+#define OUT_FACE	  OUT_D888_P666 //OUT_P888
 
 
 #define OUT_CLK	         50000000    //50MHz
@@ -314,6 +314,7 @@ int lcd_standby(u8 enable)
         gLcd_info->io_init();
 
 	if(enable) {
+		printk("lcd_standby...\n");
 		Write_ADDR(0x0028);     //set Display Off
 		Write_ADDR(0x0010);		//enter sleep mode
 		msleep(100);			//wait at least 3 frames time
@@ -326,7 +327,7 @@ int lcd_standby(u8 enable)
 #endif
 
 	} else {
-
+		printk("lcd_resume...\n");
 #if CONFIG_DEEP_STANDBY_MODE
     	gpio_direction_output(LCD_RST_PORT, 0);
     	usleep_range(2*1000, 3*1000);
