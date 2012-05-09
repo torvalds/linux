@@ -96,7 +96,7 @@ EXPORT_SYMBOL_GPL(tps65217_reg_write);
  * @val: Value to write.
  * @level: Password protected level
  */
-int tps65217_update_bits(struct tps65217 *tps, unsigned int reg,
+static int tps65217_update_bits(struct tps65217 *tps, unsigned int reg,
 		unsigned int mask, unsigned int val, unsigned int level)
 {
 	int ret;
