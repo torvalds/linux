@@ -38,6 +38,9 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 {
 	u8 *tlv;
 	struct host_cmd_ds_sys_config *sys_config = &cmd->params.uap_sys_config;
+	struct host_cmd_tlv_dtim_period *dtim_period;
+	struct host_cmd_tlv_beacon_period *beacon_period;
+	struct host_cmd_tlv_ssid *ssid;
 	struct host_cmd_tlv_channel_band *chan_band;
 	struct host_cmd_tlv_frag_threshold *frag_threshold;
 	struct host_cmd_tlv_rts_threshold *rts_threshold;
@@ -52,6 +55,15 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 
 	tlv = sys_config->tlv;
 
+	if (bss_cfg->ssid.ssid_len) {
+		ssid = (struct host_cmd_tlv_ssid *)tlv;
+		ssid->tlv.type = cpu_to_le16(TLV_TYPE_UAP_SSID);
+		ssid->tlv.len = cpu_to_le16((u16)bss_cfg->ssid.ssid_len);
+		memcpy(ssid->ssid, bss_cfg->ssid.ssid, bss_cfg->ssid.ssid_len);
+		cmd_size += sizeof(struct host_cmd_tlv) +
+			    bss_cfg->ssid.ssid_len;
+		tlv += sizeof(struct host_cmd_tlv) + bss_cfg->ssid.ssid_len;
+	}
 	if (bss_cfg->channel && bss_cfg->channel <= MAX_CHANNEL_BAND_BG) {
 		chan_band = (struct host_cmd_tlv_channel_band *)tlv;
 		chan_band->tlv.type = cpu_to_le16(TLV_TYPE_CHANNELBANDLIST);
@@ -62,6 +74,29 @@ static int mwifiex_cmd_uap_sys_config(struct host_cmd_ds_command *cmd,
 		chan_band->channel = bss_cfg->channel;
 		cmd_size += sizeof(struct host_cmd_tlv_channel_band);
 		tlv += sizeof(struct host_cmd_tlv_channel_band);
+	}
+	if (bss_cfg->beacon_period >= MIN_BEACON_PERIOD &&
+	    bss_cfg->beacon_period <= MAX_BEACON_PERIOD) {
+		beacon_period = (struct host_cmd_tlv_beacon_period *)tlv;
+		beacon_period->tlv.type =
+					cpu_to_le16(TLV_TYPE_UAP_BEACON_PERIOD);
+		beacon_period->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_beacon_period) -
+				    sizeof(struct host_cmd_tlv));
+		beacon_period->period = cpu_to_le16(bss_cfg->beacon_period);
+		cmd_size += sizeof(struct host_cmd_tlv_beacon_period);
+		tlv += sizeof(struct host_cmd_tlv_beacon_period);
+	}
+	if (bss_cfg->dtim_period >= MIN_DTIM_PERIOD &&
+	    bss_cfg->dtim_period <= MAX_DTIM_PERIOD) {
+		dtim_period = (struct host_cmd_tlv_dtim_period *)tlv;
+		dtim_period->tlv.type = cpu_to_le16(TLV_TYPE_UAP_DTIM_PERIOD);
+		dtim_period->tlv.len =
+			cpu_to_le16(sizeof(struct host_cmd_tlv_dtim_period) -
+				    sizeof(struct host_cmd_tlv));
+		dtim_period->period = bss_cfg->dtim_period;
+		cmd_size += sizeof(struct host_cmd_tlv_dtim_period);
+		tlv += sizeof(struct host_cmd_tlv_dtim_period);
 	}
 	if (bss_cfg->rts_threshold <= MWIFIEX_RTS_MAX_VALUE) {
 		rts_threshold = (struct host_cmd_tlv_rts_threshold *)tlv;

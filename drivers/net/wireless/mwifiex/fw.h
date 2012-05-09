@@ -93,6 +93,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 
 #define CAL_SNR(RSSI, NF)		((s16)((s16)(RSSI)-(s16)(NF)))
 
+#define TLV_TYPE_UAP_SSID			0x0000
+
 #define PROPRIETARY_TLV_BASE_ID                 0x0100
 #define TLV_TYPE_KEY_MATERIAL       (PROPRIETARY_TLV_BASE_ID + 0)
 #define TLV_TYPE_CHANLIST           (PROPRIETARY_TLV_BASE_ID + 1)
@@ -106,6 +108,8 @@ enum MWIFIEX_802_11_PRIVACY_FILTER {
 #define TLV_TYPE_AUTH_TYPE          (PROPRIETARY_TLV_BASE_ID + 31)
 #define TLV_TYPE_STA_MAC_ADDR       (PROPRIETARY_TLV_BASE_ID + 32)
 #define TLV_TYPE_CHANNELBANDLIST    (PROPRIETARY_TLV_BASE_ID + 42)
+#define TLV_TYPE_UAP_BEACON_PERIOD  (PROPRIETARY_TLV_BASE_ID + 44)
+#define TLV_TYPE_UAP_DTIM_PERIOD    (PROPRIETARY_TLV_BASE_ID + 45)
 #define TLV_TYPE_UAP_RTS_THRESHOLD  (PROPRIETARY_TLV_BASE_ID + 51)
 #define TLV_TYPE_UAP_FRAG_THRESHOLD (PROPRIETARY_TLV_BASE_ID + 70)
 #define TLV_TYPE_RATE_DROP_CONTROL  (PROPRIETARY_TLV_BASE_ID + 82)
@@ -1119,6 +1123,20 @@ struct host_cmd_ds_sys_config {
 	__le16 action;
 	u8 tlv[0];
 };
+struct host_cmd_tlv_ssid {
+	struct host_cmd_tlv tlv;
+	u8 ssid[0];
+} __packed;
+
+struct host_cmd_tlv_beacon_period {
+	struct host_cmd_tlv tlv;
+	__le16 period;
+} __packed;
+
+struct host_cmd_tlv_dtim_period {
+	struct host_cmd_tlv tlv;
+	u8 period;
+} __packed;
 
 struct host_cmd_tlv_frag_threshold {
 	struct host_cmd_tlv tlv;

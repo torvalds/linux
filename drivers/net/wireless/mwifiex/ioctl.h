@@ -69,6 +69,11 @@ struct mwifiex_uap_bss_param {
 	u16 rts_threshold;
 	u16 frag_threshold;
 	u8 retry_limit;
+	struct mwifiex_802_11_ssid ssid;
+	u8 bcast_ssid_ctl;
+	u8 radio_ctl;
+	u8 dtim_period;
+	u16 beacon_period;
 };
 
 enum {

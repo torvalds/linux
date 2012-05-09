@@ -922,6 +922,75 @@ static int mwifiex_cfg80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	return 0;
 }
 
+/* cfg80211 operation handler for stop ap.
+ * Function stops BSS running at uAP interface.
+ */
+static int mwifiex_cfg80211_stop_ap(struct wiphy *wiphy, struct net_device *dev)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
+				  HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "Failed to stop the BSS\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+/* cfg80211 operation handler for start_ap.
+ * Function sets beacon period, DTIM period, SSID and security into
+ * AP config structure.
+ * AP is configured with these settings and BSS is started.
+ */
+static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
+				     struct net_device *dev,
+				     struct cfg80211_ap_settings *params)
+{
+	struct mwifiex_uap_bss_param *bss_cfg;
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+
+	bss_cfg = kzalloc(sizeof(struct mwifiex_uap_bss_param), GFP_KERNEL);
+	if (!bss_cfg)
+		return -ENOMEM;
+
+	mwifiex_set_sys_config_invalid_data(bss_cfg);
+
+	if (params->beacon_interval)
+		bss_cfg->beacon_period = params->beacon_interval;
+	if (params->dtim_period)
+		bss_cfg->dtim_period = params->dtim_period;
+
+	if (params->ssid && params->ssid_len) {
+		memcpy(bss_cfg->ssid.ssid, params->ssid, params->ssid_len);
+		bss_cfg->ssid.ssid_len = params->ssid_len;
+	}
+
+	if (mwifiex_send_cmd_sync(priv, HostCmd_CMD_UAP_BSS_STOP,
+				  HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "Failed to stop the BSS\n");
+		kfree(bss_cfg);
+		return -1;
+	}
+
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_SYS_CONFIG,
+				   HostCmd_ACT_GEN_SET, 0, bss_cfg)) {
+		wiphy_err(wiphy, "Failed to set the SSID\n");
+		kfree(bss_cfg);
+		return -1;
+	}
+
+	kfree(bss_cfg);
+
+	if (mwifiex_send_cmd_async(priv, HostCmd_CMD_UAP_BSS_START,
+				   HostCmd_ACT_GEN_SET, 0, NULL)) {
+		wiphy_err(wiphy, "Failed to start the BSS\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * CFG802.11 operation handler for disconnection request.
  *
@@ -1581,6 +1650,8 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.set_power_mgmt = mwifiex_cfg80211_set_power_mgmt,
 	.set_tx_power = mwifiex_cfg80211_set_tx_power,
 	.set_bitrate_mask = mwifiex_cfg80211_set_bitrate_mask,
+	.start_ap = mwifiex_cfg80211_start_ap,
+	.stop_ap = mwifiex_cfg80211_stop_ap,
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 };
 

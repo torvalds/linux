@@ -55,6 +55,11 @@
 #define MWIFIEX_RX_DATA_BUF_SIZE     (4 * 1024)
 #define MWIFIEX_RX_CMD_BUF_SIZE	     (2 * 1024)
 
+#define MAX_BEACON_PERIOD                  (4000)
+#define MIN_BEACON_PERIOD                  (50)
+#define MAX_DTIM_PERIOD                    (100)
+#define MIN_DTIM_PERIOD                    (1)
+
 #define MWIFIEX_RTS_MIN_VALUE              (0)
 #define MWIFIEX_RTS_MAX_VALUE              (2347)
 #define MWIFIEX_FRAG_MIN_VALUE             (256)
@@ -91,6 +96,11 @@ struct mwifiex_fw_image {
 	u32 helper_len;
 	u8 *fw_buf;
 	u32 fw_len;
+};
+
+struct mwifiex_802_11_ssid {
+	u32 ssid_len;
+	u8 ssid[IEEE80211_MAX_SSID_LEN];
 };
 
 struct mwifiex_wait_queue {
