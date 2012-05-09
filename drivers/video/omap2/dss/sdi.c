@@ -107,7 +107,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	}
 
 
-	dispc_mgr_set_timings(dssdev->manager->id, t);
+	dss_mgr_set_timings(dssdev->manager, t);
 
 	r = dss_set_clock_div(&dss_cinfo);
 	if (r)

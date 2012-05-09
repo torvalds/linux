@@ -444,7 +444,7 @@ static int venc_power_on(struct omap_dss_device *dssdev)
 	timings = dssdev->panel.timings;
 	timings.y_res /= 2;
 
-	dispc_mgr_set_timings(dssdev->manager->id, &timings);
+	dss_mgr_set_timings(dssdev->manager, &timings);
 
 	r = regulator_enable(venc.vdda_dac_reg);
 	if (r)

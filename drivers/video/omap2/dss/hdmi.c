@@ -376,7 +376,7 @@ static int hdmi_power_on(struct omap_dss_device *dssdev)
 	dispc_enable_gamma_table(0);
 
 	/* tv size */
-	dispc_mgr_set_timings(dssdev->manager->id, &dssdev->panel.timings);
+	dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
 
 	hdmi.ip_data.ops->video_enable(&hdmi.ip_data, 1);
 
@@ -435,6 +435,8 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 		r = hdmi_power_on(dssdev);
 		if (r)
 			DSSERR("failed to power on device\n");
+	} else {
+		dss_mgr_set_timings(dssdev->manager, &dssdev->panel.timings);
 	}
 }
 

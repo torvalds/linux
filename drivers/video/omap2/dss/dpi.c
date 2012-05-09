@@ -156,7 +156,7 @@ static int dpi_set_mode(struct omap_dss_device *dssdev)
 		t->pixel_clock = pck;
 	}
 
-	dispc_mgr_set_timings(dssdev->manager->id, t);
+	dss_mgr_set_timings(dssdev->manager, t);
 
 	return 0;
 }
@@ -294,10 +294,11 @@ void dpi_set_timings(struct omap_dss_device *dssdev,
 		}
 
 		dpi_set_mode(dssdev);
-		dispc_mgr_go(dssdev->manager->id);
 
 		dispc_runtime_put();
 		dss_runtime_put();
+	} else {
+		dss_mgr_set_timings(dssdev->manager, timings);
 	}
 }
 EXPORT_SYMBOL(dpi_set_timings);
@@ -312,7 +313,7 @@ int dpi_check_timings(struct omap_dss_device *dssdev,
 	unsigned long pck;
 	struct dispc_clock_info dispc_cinfo;
 
-	if (!dispc_mgr_timings_ok(dssdev->manager->id, timings))
+	if (dss_mgr_check_timings(dssdev->manager, timings))
 		return -EINVAL;
 
 	if (timings->pixel_clock == 0)
