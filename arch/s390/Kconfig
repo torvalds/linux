@@ -406,33 +406,6 @@ config CHSC_SCH
 
 comment "Misc"
 
-config IPL
-	def_bool y
-	prompt "Builtin IPL record support"
-	help
-	  If you want to use the produced kernel to IPL directly from a
-	  device, you have to merge a bootsector specific to the device
-	  into the first bytes of the kernel. You will have to select the
-	  IPL device.
-
-choice
-	prompt "IPL method generated into head.S"
-	depends on IPL
-	default IPL_VM
-	help
-	  Select "tape" if you want to IPL the image from a Tape.
-
-	  Select "vm_reader" if you are running under VM/ESA and want
-	  to IPL the image from the emulated card reader.
-
-config IPL_TAPE
-	bool "tape"
-
-config IPL_VM
-	bool "vm_reader"
-
-endchoice
-
 source "fs/Kconfig.binfmt"
 
 config FORCE_MAX_ZONEORDER
