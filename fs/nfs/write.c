@@ -625,7 +625,7 @@ static void nfs_write_completion(struct nfs_pgio_header *hdr)
 remove_req:
 		nfs_inode_remove_request(req);
 next:
-		nfs_unlock_request_dont_release(req);
+		nfs_unlock_request(req);
 		nfs_end_page_writeback(req->wb_page);
 		nfs_release_request(req);
 	}
@@ -812,7 +812,7 @@ static int nfs_writepage_setup(struct nfs_open_context *ctx, struct page *page,
 	nfs_grow_file(page, offset, count);
 	nfs_mark_uptodate(page, req->wb_pgbase, req->wb_bytes);
 	nfs_mark_request_dirty(req);
-	nfs_unlock_request(req);
+	nfs_unlock_and_release_request(req);
 	return 0;
 }
 
@@ -1039,7 +1039,7 @@ static int nfs_do_multiple_writes(struct list_head *head,
 static void nfs_redirty_request(struct nfs_page *req)
 {
 	nfs_mark_request_dirty(req);
-	nfs_unlock_request_dont_release(req);
+	nfs_unlock_request(req);
 	nfs_end_page_writeback(req->wb_page);
 	nfs_release_request(req);
 }
@@ -1477,7 +1477,7 @@ void nfs_retry_commit(struct list_head *page_list,
 			dec_bdi_stat(req->wb_page->mapping->backing_dev_info,
 				     BDI_RECLAIMABLE);
 		}
-		nfs_unlock_request(req);
+		nfs_unlock_and_release_request(req);
 	}
 }
 EXPORT_SYMBOL_GPL(nfs_retry_commit);
@@ -1555,7 +1555,7 @@ static void nfs_commit_release_pages(struct nfs_commit_data *data)
 		dprintk(" mismatch\n");
 		nfs_mark_request_dirty(req);
 	next:
-		nfs_unlock_request(req);
+		nfs_unlock_and_release_request(req);
 	}
 	nfs_init_cinfo(&cinfo, data->inode, data->dreq);
 	if (atomic_dec_and_test(&cinfo.mds->rpcs_out))
@@ -1726,7 +1726,7 @@ int nfs_wb_page_cancel(struct inode *inode, struct page *page)
 			 * page as being dirty
 			 */
 			cancel_dirty_page(page, PAGE_CACHE_SIZE);
-			nfs_unlock_request(req);
+			nfs_unlock_and_release_request(req);
 			break;
 		}
 		ret = nfs_wait_on_request(req);

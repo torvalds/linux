@@ -488,7 +488,7 @@ static void nfs_direct_write_reschedule(struct nfs_direct_req *dreq)
 
 	while (!list_empty(&failed)) {
 		nfs_release_request(req);
-		nfs_unlock_request(req);
+		nfs_unlock_and_release_request(req);
 	}
 
 	if (put_dreq(dreq))
@@ -521,7 +521,7 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 			nfs_mark_request_commit(req, NULL, &cinfo);
 		} else
 			nfs_release_request(req);
-		nfs_unlock_request(req);
+		nfs_unlock_and_release_request(req);
 	}
 
 	if (atomic_dec_and_test(&cinfo.mds->rpcs_out))
@@ -662,7 +662,7 @@ static ssize_t nfs_direct_write_schedule_segment(struct nfs_pageio_descriptor *d
 			req->wb_offset = pos & ~PAGE_MASK;
 			if (!nfs_pageio_add_request(desc, req)) {
 				result = desc->pg_error;
-				nfs_unlock_request(req);
+				nfs_unlock_and_release_request(req);
 				nfs_release_request(req);
 				break;
 			}
@@ -739,7 +739,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 		default:
 			nfs_release_request(req);
 		}
-		nfs_unlock_request(req);
+		nfs_unlock_and_release_request(req);
 	}
 
 out_put:
@@ -756,7 +756,7 @@ static void nfs_write_sync_pgio_error(struct list_head *head)
 		req = nfs_list_entry(head->next);
 		nfs_list_remove_request(req);
 		nfs_release_request(req);
-		nfs_unlock_request(req);
+		nfs_unlock_and_release_request(req);
 	}
 }
 
