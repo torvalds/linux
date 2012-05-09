@@ -937,6 +937,18 @@ check_for_new_grace_period(struct rcu_state *rsp, struct rcu_data *rdp)
 }
 
 /*
+ * Initialize the specified rcu_data structure's callback list to empty.
+ */
+static void init_callback_list(struct rcu_data *rdp)
+{
+	int i;
+
+	rdp->nxtlist = NULL;
+	for (i = 0; i < RCU_NEXT_SIZE; i++)
+		rdp->nxttail[i] = &rdp->nxtlist;
+}
+
+/*
  * Advance this CPU's callbacks, but only if the current grace period
  * has ended.  This may be called only from the CPU to whom the rdp
  * belongs.  In addition, the corresponding leaf rcu_node structure's
@@ -1328,8 +1340,6 @@ static void
 rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 			  struct rcu_node *rnp, struct rcu_data *rdp)
 {
-	int i;
-
 	/*
 	 * Orphan the callbacks.  First adjust the counts.  This is safe
 	 * because ->onofflock excludes _rcu_barrier()'s adoption of
@@ -1369,9 +1379,7 @@ rcu_send_cbs_to_orphanage(int cpu, struct rcu_state *rsp,
 	}
 
 	/* Finally, initialize the rcu_data structure's list to empty.  */
-	rdp->nxtlist = NULL;
-	for (i = 0; i < RCU_NEXT_SIZE; i++)
-		rdp->nxttail[i] = &rdp->nxtlist;
+	init_callback_list(rdp);
 }
 
 /*
@@ -2407,16 +2415,13 @@ static void __init
 rcu_boot_init_percpu_data(int cpu, struct rcu_state *rsp)
 {
 	unsigned long flags;
-	int i;
 	struct rcu_data *rdp = per_cpu_ptr(rsp->rda, cpu);
 	struct rcu_node *rnp = rcu_get_root(rsp);
 
 	/* Set up local state, ensuring consistent view of global state. */
 	raw_spin_lock_irqsave(&rnp->lock, flags);
 	rdp->grpmask = 1UL << (cpu - rdp->mynode->grplo);
-	rdp->nxtlist = NULL;
-	for (i = 0; i < RCU_NEXT_SIZE; i++)
-		rdp->nxttail[i] = &rdp->nxtlist;
+	init_callback_list(rdp);
 	rdp->qlen_lazy = 0;
 	rdp->qlen = 0;
 	rdp->dynticks = &per_cpu(rcu_dynticks, cpu);
