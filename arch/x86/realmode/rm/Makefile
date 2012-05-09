@@ -48,7 +48,7 @@ $(obj)/realmode.elf: $(obj)/realmode.lds $(REALMODE_OBJS) FORCE
 
 OBJCOPYFLAGS_realmode.bin := -O binary
 
-$(obj)/realmode.bin: $(obj)/realmode.elf
+$(obj)/realmode.bin: $(obj)/realmode.elf $(obj)/realmode.relocs
 	$(call if_changed,objcopy)
 
 quiet_cmd_relocs = RELOCS  $@

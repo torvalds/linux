@@ -11,10 +11,7 @@ subdir- := rm
 
 obj-y += rmpiggy.o
 
-$(obj)/rmpiggy.o: $(obj)/rm/realmode.relocs $(obj)/rm/realmode.bin
+$(obj)/rmpiggy.o: $(obj)/rm/realmode.bin
 
 $(obj)/rm/realmode.bin: FORCE
-	$(Q)$(MAKE) $(build)=$(obj)/rm $@
-
-$(obj)/rm/realmode.relocs: FORCE
 	$(Q)$(MAKE) $(build)=$(obj)/rm $@
