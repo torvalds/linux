@@ -344,50 +344,16 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 
 		if (num_InterruptThrottleRate > bd) {
 			adapter->itr = InterruptThrottleRate[bd];
-			switch (adapter->itr) {
-			case 0:
-				e_info("%s turned off\n", opt.name);
-				break;
-			case 1:
-				e_info("%s set to dynamic mode\n", opt.name);
-				adapter->itr_setting = adapter->itr;
-				adapter->itr = 20000;
-				break;
-			case 3:
-				e_info("%s set to dynamic conservative mode\n",
-					opt.name);
-				adapter->itr_setting = adapter->itr;
-				adapter->itr = 20000;
-				break;
-			case 4:
-				e_info("%s set to simplified (2000-8000 ints) mode\n",
-				       opt.name);
-				adapter->itr_setting = 4;
-				break;
-			default:
-				/*
-				 * Save the setting, because the dynamic bits
-				 * change itr.
-				 */
-				if (e1000_validate_option(&adapter->itr, &opt,
-							  adapter) &&
-				    (adapter->itr == 3)) {
-					/*
-					 * In case of invalid user value,
-					 * default to conservative mode.
-					 */
-					adapter->itr_setting = adapter->itr;
-					adapter->itr = 20000;
-				} else {
-					/*
-					 * Clear the lower two bits because
-					 * they are used as control.
-					 */
-					adapter->itr_setting =
-						adapter->itr & ~3;
-				}
-				break;
-			}
+
+			/*
+			 * Make sure a message is printed for non-special
+			 * values. And in case of an invalid option, display
+			 * warning, use default and go through itr/itr_setting
+			 * adjustment logic below
+			 */
+			if ((adapter->itr > 4) &&
+			    e1000_validate_option(&adapter->itr, &opt, adapter))
+				adapter->itr = opt.def;
 		} else {
 			/*
 			 * If no option specified, use default value and go
@@ -399,7 +365,7 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 			 * Make sure a message is printed for non-special
 			 * default values
 			 */
-			if (adapter->itr > 40)
+			if (adapter->itr > 4)
 				e_info("%s set to default %d\n", opt.name,
 				       adapter->itr);
 		}
