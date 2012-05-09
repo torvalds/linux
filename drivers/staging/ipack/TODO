@@ -12,6 +12,16 @@ operations between the two kind of boards.
 TODO
 ====
 
+TPCI-200
+--------
+
+* It receives the name of the mezzanine plugged in each slot by SYSFS.
+  No autodetection supported yet, because the mezzanine driver could not be
+  loaded at the time that the tpci200 driver loads.
+
+* It has a linked list with the tpci200 devices it is managing. Get rid of it
+  and use driver_for_each_device() instead.
+
 Ipack
 -----
 

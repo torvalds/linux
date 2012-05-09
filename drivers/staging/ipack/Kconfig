@@ -7,3 +7,8 @@ menuconfig IPACK_BUS
 	---help---
 	  If you say Y here you get support for the IndustryPack Framework.
 
+if IPACK_BUS
+
+source "drivers/staging/ipack/bridges/Kconfig"
+
+endif # IPACK
