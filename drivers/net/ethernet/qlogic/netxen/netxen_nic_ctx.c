@@ -229,7 +229,7 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 				adapter->mdump.md_template;
 	adapter->mdump.md_capture_buff = NULL;
 	adapter->mdump.fw_supports_md = 1;
-	adapter->mdump.md_enabled = 1;
+	adapter->mdump.md_enabled = 0;
 
 	return err;
 
