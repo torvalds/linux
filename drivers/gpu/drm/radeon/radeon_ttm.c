@@ -223,6 +223,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	struct radeon_device *rdev;
 	uint64_t old_start, new_start;
 	struct radeon_fence *fence, *old_fence;
+	struct radeon_semaphore *sem = NULL;
 	int r;
 
 	rdev = radeon_get_rdev(bo->bdev);
@@ -272,15 +273,16 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 		bool sync_to_ring[RADEON_NUM_RINGS] = { };
 		sync_to_ring[old_fence->ring] = true;
 
-		r = radeon_semaphore_create(rdev, &fence->semaphore);
+		r = radeon_semaphore_create(rdev, &sem);
 		if (r) {
 			radeon_fence_unref(&fence);
 			return r;
 		}
 
-		r = radeon_semaphore_sync_rings(rdev, fence->semaphore,
+		r = radeon_semaphore_sync_rings(rdev, sem,
 						sync_to_ring, fence->ring);
 		if (r) {
+			radeon_semaphore_free(rdev, sem, NULL);
 			radeon_fence_unref(&fence);
 			return r;
 		}
@@ -292,6 +294,7 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	/* FIXME: handle copy error */
 	r = ttm_bo_move_accel_cleanup(bo, (void *)fence, NULL,
 				      evict, no_wait_reserve, no_wait_gpu, new_mem);
+	radeon_semaphore_free(rdev, sem, fence);
 	radeon_fence_unref(&fence);
 	return r;
 }
