@@ -203,6 +203,8 @@ int twl_i2c_read_u8(u8 mod_no, u8 *val, u8 reg);
 int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
+void twl6030_poweroff(void);
+
 int twl_get_type(void);
 int twl_get_version(void);
 

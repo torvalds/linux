@@ -406,12 +406,12 @@ int twl_i2c_write(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	 * fill the data Tx buffer
 	 */
 	msg = &twl->xfer_msg[0];
-	#if 1                    //add
-	if((reg == 0x26)||(reg == 0x2C)||(reg == 0x2A))
+	#if 1    
+	//add
+	if(mod_no== TWL_MODULE_PM_DVS)
 		{
 		msg->addr = 0x12;
-		reg--;
-		}
+	}
 	else
 		{
 	msg->addr = twl->address;
@@ -475,7 +475,19 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes)
 	mutex_lock(&twl->xfer_lock);
 	/* [MSG1] fill the register address data */
 	msg = &twl->xfer_msg[0];
+	#if 1    
+	if(mod_no== 0x1a)
+		{
+		msg->addr = 0x12;
+	}
+	else
+		{
 	msg->addr = twl->address;
+
+		}
+	#else
+	msg->addr = twl->address;
+	#endif
 	msg->len = 1;
 	msg->flags = 0;	/* Read the register value */
 	val = twl_map[mod_no].base + reg;
@@ -519,8 +531,8 @@ int twl_i2c_write_u8(u8 mod_no, u8 value, u8 reg)
 	/* 2 bytes offset 1 contains the data offset 0 is used by i2c_write */
 	u8 temp_buffer[2] = { 0 };
 	
-	#if 1                //add
-	if(reg == 0x26)
+	#if 0               //add
+	if(mod_no == 0x1a)
 	{
 		temp_buffer[1] = 0x43;
 		 twl_i2c_write(mod_no, temp_buffer, 0x25, 1);
@@ -1317,7 +1329,7 @@ static void clocks_init(struct device *dev,
 
 #ifdef CONFIG_PM
 static int twl_suspend(struct i2c_client *client, pm_message_t mesg)
-{
+{	
 	return irq_set_irq_wake(client->irq, 1);
 }
 

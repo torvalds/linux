@@ -2419,7 +2419,7 @@ static int __devinit twl6030_bci_battery_probe(struct platform_device *pdev)
 	u8 chargerusb_ctrl1 = 0;
 	u8 hw_state = 0;
 	u8 reg = 0;
-
+	printk("%s\n", __func__);
 	if (!pdata) {
 		dev_dbg(&pdev->dev, "platform_data not available\n");
 		return -EINVAL;
@@ -2828,10 +2828,10 @@ static int twl6030_bci_battery_suspend(struct device *dev)
 	/* We cannot tolarate a sleep longer than 30 seconds
 	 * while on ac charging we have to reset the BQ watchdog timer.
 	 */
-	if ((di->charger_source == POWER_SUPPLY_TYPE_MAINS) &&
-		((wakeup_timer_seconds > 25) || !wakeup_timer_seconds)) {
-		wakeup_timer_seconds = 25;
-	}
+//	if ((di->charger_source == POWER_SUPPLY_TYPE_MAINS) &&
+//		((wakeup_timer_seconds > 25) || !wakeup_timer_seconds)) {
+//		wakeup_timer_seconds = 25;
+//	}
 
 	/*reset the BQ watch dog*/
 	events = BQ2415x_RESET_TIMER;
