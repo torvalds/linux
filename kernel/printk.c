@@ -227,8 +227,13 @@ static u32 clear_idx;
 #define LOG_LINE_MAX 1024
 
 /* record buffer */
+#if !defined(CONFIG_64BIT) || defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
+#define LOG_ALIGN 4
+#else
+#define LOG_ALIGN 8
+#endif
 #define __LOG_BUF_LEN (1 << CONFIG_LOG_BUF_SHIFT)
-static char __log_buf[__LOG_BUF_LEN];
+static char __log_buf[__LOG_BUF_LEN] __aligned(LOG_ALIGN);
 static char *log_buf = __log_buf;
 static u32 log_buf_len = __LOG_BUF_LEN;
 
@@ -278,12 +283,6 @@ static u32 log_next(u32 idx)
 	}
 	return idx + msg->len;
 }
-
-#if !defined(CONFIG_64BIT) || defined(CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS)
-#define LOG_ALIGN 4
-#else
-#define LOG_ALIGN 8
-#endif
 
 /* insert record into the buffer, discard old ones, update heads */
 static void log_store(int facility, int level,
