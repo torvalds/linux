@@ -20,4 +20,8 @@ config TI_EMIF
 	  parameters and other settings during frequency, voltage and
 	  temperature changes
 
+config TEGRA20_MC
+	bool
+	depends on ARCH_TEGRA_2x_SOC
+
 endif
