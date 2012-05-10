@@ -47,7 +47,6 @@
 #define RTS51X_DESC		"Realtek RTS5139/29 USB card reader driver"
 #define RTS51X_NAME		"rts5139"
 #define RTS51X_CTL_THREAD	"rts5139-control"
-#define RTS51X_SCAN_THREAD	"rts5139-scan"
 #define RTS51X_POLLING_THREAD	"rts5139-polling"
 
 #define POLLING_IN_THREAD
@@ -65,8 +64,6 @@ do {						\
 
 /* Size of the DMA-mapped I/O buffer */
 #define RTS51X_IOBUF_SIZE	1024
-/* Size of the autosense data buffer */
-#define RTS51X_SENSE_SIZE	18
 
 /* Dynamic bitflag definitions (dflags): used in set_bit() etc. */
 #define FLIDX_URB_ACTIVE	0	/* current_urb is in use    */
@@ -75,7 +72,6 @@ do {						\
 #define FLIDX_DISCONNECTING	3	/* disconnect in progress   */
 #define FLIDX_RESETTING		4	/* device reset in progress */
 #define FLIDX_TIMED_OUT		5	/* SCSI midlayer timed out  */
-#define FLIDX_DONT_SCAN		6	/* don't scan (disconnect)  */
 
 struct rts51x_chip;
 
