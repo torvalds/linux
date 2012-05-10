@@ -1138,6 +1138,7 @@ config ZVM_WATCHDOG
 config SH_WDT
 	tristate "SuperH Watchdog"
 	depends on SUPERH && (CPU_SH3 || CPU_SH4)
+	select WATCHDOG_CORE
 	help
 	  This driver adds watchdog support for the integrated watchdog in the
 	  SuperH processors. If you have one of these processors and wish

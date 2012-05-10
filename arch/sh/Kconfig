@@ -295,6 +295,13 @@ config CPU_SUBTYPE_SH7264
 	select SYS_SUPPORTS_CMT
 	select SYS_SUPPORTS_MTU2
 
+config CPU_SUBTYPE_SH7269
+	bool "Support SH7269 processor"
+	select CPU_SH2A
+	select CPU_HAS_FPU
+	select SYS_SUPPORTS_CMT
+	select SYS_SUPPORTS_MTU2
+
 config CPU_SUBTYPE_MXG
 	bool "Support MX-G processor"
 	select CPU_SH2A
@@ -602,7 +609,8 @@ config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
 	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
 		      !CPU_SHX3 && !CPU_SUBTYPE_SH7757 && \
-		      !CPU_SUBTYPE_SH7734 && !CPU_SUBTYPE_SH7264
+		      !CPU_SUBTYPE_SH7734 && !CPU_SUBTYPE_SH7264 && \
+		      !CPU_SUBTYPE_SH7269
 
 source "kernel/time/Kconfig"
 
