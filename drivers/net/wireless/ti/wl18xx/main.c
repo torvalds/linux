@@ -42,7 +42,7 @@
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
-static char *ht_mode_param;
+static char *ht_mode_param = "wide";
 static char *board_type_param = "hdk";
 static bool dc2dc_param = false;
 static int n_antennas_2_param = 1;
@@ -941,11 +941,12 @@ static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 					     struct wl12xx_vif *wlvif)
 {
-	if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
-	    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
+	if ((wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
+	     wlvif->channel_type == NL80211_CHAN_HT40PLUS) &&
+	    !strcmp(ht_mode_param, "wide")) {
 		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
 		return CONF_TX_RATE_USE_WIDE_CHAN;
-	} else {
+	} else if (!strcmp(ht_mode_param, "mimo")) {
 		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
 
 		/*
@@ -959,6 +960,8 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 			return CONF_TX_MIMO_RATES & ~CONF_HW_BIT_RATE_MCS_13;
 
 		return CONF_TX_MIMO_RATES;
+	} else {
+		return 0;
 	}
 }
 
@@ -1106,7 +1109,7 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->stats.fw_stats_len = sizeof(struct wl18xx_acx_statistics);
 	wl->static_data_priv_len = sizeof(struct wl18xx_static_data_priv);
 	memcpy(&wl->ht_cap, &wl18xx_ht_cap, sizeof(wl18xx_ht_cap));
-	if (ht_mode_param && !strcmp(ht_mode_param, "mimo"))
+	if (!strcmp(ht_mode_param, "mimo"))
 		memcpy(&wl->ht_cap, &wl18xx_mimo_ht_cap,
 		       sizeof(wl18xx_mimo_ht_cap));
 
