@@ -98,8 +98,7 @@ static inline int twl_reg_write(unsigned base, unsigned slave_subgp,
 #define PMU_POWER_SLEEP RK30_PIN6_PB3	
 
 int tps80032_pre_init(void){
-	int ret;
-	u8 value;
+	
 	printk("%s\n", __func__);	
 
 	gpio_request(PMU_POWER_SLEEP, "NULL");
@@ -594,11 +593,21 @@ static struct twl4030_bci_platform_data tps80032_bci_data = {
 	.tblsize		= ARRAY_SIZE(tps_batt_table),
 };
 
-static int rk30_phy_init(){}
-static int rk30_phy_exit(){}
-static int rk30_phy_power(){}
-static int rk30_phy_set_clk(){}
-static int rk30_phy_suspend(){}
+static int rk30_phy_init(struct device *dev){
+	return 0;
+	}
+static int rk30_phy_exit(struct device *dev){
+	return 0;
+	}
+static int rk30_phy_power(struct device *dev, int ID, int on){
+	return 0;
+	}
+static int rk30_phy_set_clk(struct device *dev, int on){
+	return 0;
+	}
+static int rk30_phy_suspend(struct device *dev, int suspend){
+	return 0;
+	}
 static struct twl4030_usb_data tps80032_usbphy_data = {
 	.phy_init	= rk30_phy_init,
 	.phy_exit	= rk30_phy_exit,
