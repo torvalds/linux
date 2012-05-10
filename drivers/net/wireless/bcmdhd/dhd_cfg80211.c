@@ -84,6 +84,8 @@ s32 dhd_cfg80211_set_p2p_info(struct wl_priv *wl, int val)
 	dhd_arp_offload_enable(dhd, false);
 #endif /* ARP_OFFLOAD_SUPPORT */
 
+	dhd_os_set_packet_filter(dhd, 0);
+
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
 	dhd_wl_ioctl_cmd(dhd, WLC_SET_VAR, iovbuf, sizeof(iovbuf), TRUE, 0);
@@ -106,6 +108,8 @@ s32 dhd_cfg80211_clean_p2p_info(struct wl_priv *wl)
 	dhd_arp_offload_set(dhd, dhd_arp_mode);
 	dhd_arp_offload_enable(dhd, true);
 #endif /* ARP_OFFLOAD_SUPPORT */
+
+	dhd_os_set_packet_filter(dhd, 1);
 
 	/* Setup timeout if Beacons are lost and roam is off to report link down */
 	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
