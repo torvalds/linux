@@ -299,6 +299,7 @@ static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
 	if( ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) && (vpara->output_color == VIDEO_OUTPUT_RGB444)) ||
 		((vpara->input_color == VIDEO_INPUT_COLOR_YCBCR) && (vpara->output_color != VIDEO_OUTPUT_RGB444) ))
 	{
+		HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(0));
 		HDMIWrReg(CSC_CONFIG1, v_CSC_MODE(CSC_MODE_AUTO) | v_CSC_BRSWAP_DIABLE(1));
 		return;
 	}
