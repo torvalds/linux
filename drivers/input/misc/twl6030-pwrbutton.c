@@ -89,12 +89,12 @@ static irqreturn_t powerbutton_irq(int irq, void *_pwr)
 		input_sync(pwr->input_dev);
 	} else if (!push_release_flag) {
 		push_release_flag = 1;
-		input_report_key(pwr->input_dev, pwr->report_key, !pwr_val);
+		input_report_key(pwr->input_dev, pwr->report_key, pwr_val);
 		input_sync(pwr->input_dev);
 
 		msleep(20);
 
-		input_report_key(pwr->input_dev, pwr->report_key, pwr_val);
+		input_report_key(pwr->input_dev, pwr->report_key, !pwr_val);
 		input_sync(pwr->input_dev);
 	} else
 		push_release_flag = 0;

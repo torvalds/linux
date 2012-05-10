@@ -1745,14 +1745,11 @@ static void __init rk30_i2c_register_board_info(void)
 }
 //end of i2c
 
-#define POWER_ON_PIN RK30_PIN6_PB0   //power_hold
 static void rk30_pm_power_off(void)
 {
 	printk(KERN_ERR "rk30_pm_power_off start...\n");
-	gpio_direction_output(POWER_ON_PIN, GPIO_LOW);
-#if defined(CONFIG_MFD_WM831X)
-	wm831x_set_bits(Wm831x,WM831X_GPIO_LEVEL,0x0001,0x0000);  //set sys_pwr 0
-	wm831x_device_shutdown(Wm831x);//wm8326 shutdown
+#if defined(CONFIG_TWL4030_CORE)
+	twl6030_poweroff();
 #endif
 	while (1);
 }
@@ -1823,9 +1820,6 @@ static int rk_virtual_keys_init(void)
 
 static void __init machine_rk30_board_init(void)
 {
-	gpio_request(POWER_ON_PIN, "poweronpin");
-	gpio_direction_output(POWER_ON_PIN, GPIO_HIGH);
-	
 	pm_power_off = rk30_pm_power_off;
 	
 	rk30_i2c_register_board_info();

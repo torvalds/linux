@@ -594,11 +594,11 @@ static struct twl4030_bci_platform_data tps80032_bci_data = {
 	.tblsize		= ARRAY_SIZE(tps_batt_table),
 };
 
-int rk30_phy_init(){}
-int rk30_phy_exit(){}
-int rk30_phy_power(){}
-int rk30_phy_set_clk(){}
-int rk30_phy_suspend(){}
+static int rk30_phy_init(){}
+static int rk30_phy_exit(){}
+static int rk30_phy_power(){}
+static int rk30_phy_set_clk(){}
+static int rk30_phy_suspend(){}
 static struct twl4030_usb_data tps80032_usbphy_data = {
 	.phy_init	= rk30_phy_init,
 	.phy_exit	= rk30_phy_exit,
