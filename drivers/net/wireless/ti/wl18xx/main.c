@@ -1051,6 +1051,8 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		priv->board_type = BOARD_TYPE_FPGA_18XX;
 	} else if (!strcmp(board_type_param, "hdk")) {
 		priv->board_type = BOARD_TYPE_HDK_18XX;
+		/* HACK! Just for now we hardcode HDK to 0x06 */
+		priv->conf.phy.low_band_component_type = 0x06;
 	} else if (!strcmp(board_type_param, "dvp")) {
 		priv->board_type = BOARD_TYPE_DVP_18XX;
 	} else if (!strcmp(board_type_param, "evb")) {
