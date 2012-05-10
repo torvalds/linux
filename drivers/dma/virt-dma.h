@@ -40,8 +40,8 @@ static inline struct virt_dma_chan *to_virt_chan(struct dma_chan *chan)
 }
 
 void vchan_dma_desc_free_list(struct virt_dma_chan *vc, struct list_head *head);
-
 void vchan_init(struct virt_dma_chan *vc, struct dma_device *dmadev);
+struct virt_dma_desc *vchan_find_desc(struct virt_dma_chan *, dma_cookie_t);
 
 /**
  * vchan_tx_prep - prepare a descriptor

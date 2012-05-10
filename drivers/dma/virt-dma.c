@@ -39,6 +39,19 @@ dma_cookie_t vchan_tx_submit(struct dma_async_tx_descriptor *tx)
 }
 EXPORT_SYMBOL_GPL(vchan_tx_submit);
 
+struct virt_dma_desc *vchan_find_desc(struct virt_dma_chan *vc,
+	dma_cookie_t cookie)
+{
+	struct virt_dma_desc *vd;
+
+	list_for_each_entry(vd, &vc->desc_issued, node)
+		if (vd->tx.cookie == cookie)
+			return vd;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(vchan_find_desc);
+
 /*
  * This tasklet handles the completion of a DMA descriptor by
  * calling its callback and freeing it.
