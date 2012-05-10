@@ -42,6 +42,7 @@ config NFS_V2
 config NFS_V3
 	bool "NFS client support for NFS version 3"
 	depends on NFS_FS
+	default y
 	help
 	  This option enables support for version 3 of the NFS protocol
 	  (RFC 1813) in the kernel's NFS client.
