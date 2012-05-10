@@ -3277,8 +3277,15 @@ static int wl1271_ap_set_probe_resp_tmpl(struct wl1271 *wl, u32 rates,
 				      skb->data,
 				      skb->len, 0,
 				      rates);
-
 	dev_kfree_skb(skb);
+
+	if (ret < 0)
+		goto out;
+
+	wl1271_debug(DEBUG_AP, "probe response updated");
+	set_bit(WLVIF_FLAG_AP_PROBE_RESP_SET, &wlvif->flags);
+
+out:
 	return ret;
 }
 
@@ -3383,6 +3390,87 @@ out:
 	return ret;
 }
 
+static int wlcore_set_beacon_template(struct wl1271 *wl,
+				      struct ieee80211_vif *vif,
+				      bool is_ap)
+{
+	struct wl12xx_vif *wlvif = wl12xx_vif_to_data(vif);
+	struct ieee80211_hdr *hdr;
+	u32 min_rate;
+	int ret;
+	int ieoffset = offsetof(struct ieee80211_mgmt,
+				u.beacon.variable);
+	struct sk_buff *beacon = ieee80211_beacon_get(wl->hw, vif);
+	u16 tmpl_id;
+
+	if (!beacon) {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	wl1271_debug(DEBUG_MASTER, "beacon updated");
+
+	ret = wl1271_ssid_set(vif, beacon, ieoffset);
+	if (ret < 0) {
+		dev_kfree_skb(beacon);
+		goto out;
+	}
+	min_rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
+	tmpl_id = is_ap ? CMD_TEMPL_AP_BEACON :
+		CMD_TEMPL_BEACON;
+	ret = wl1271_cmd_template_set(wl, wlvif->role_id, tmpl_id,
+				      beacon->data,
+				      beacon->len, 0,
+				      min_rate);
+	if (ret < 0) {
+		dev_kfree_skb(beacon);
+		goto out;
+	}
+
+	/*
+	 * In case we already have a probe-resp beacon set explicitly
+	 * by usermode, don't use the beacon data.
+	 */
+	if (test_bit(WLVIF_FLAG_AP_PROBE_RESP_SET, &wlvif->flags))
+		goto end_bcn;
+
+	/* remove TIM ie from probe response */
+	wl12xx_remove_ie(beacon, WLAN_EID_TIM, ieoffset);
+
+	/*
+	 * remove p2p ie from probe response.
+	 * the fw reponds to probe requests that don't include
+	 * the p2p ie. probe requests with p2p ie will be passed,
+	 * and will be responded by the supplicant (the spec
+	 * forbids including the p2p ie when responding to probe
+	 * requests that didn't include it).
+	 */
+	wl12xx_remove_vendor_ie(beacon, WLAN_OUI_WFA,
+				WLAN_OUI_TYPE_WFA_P2P, ieoffset);
+
+	hdr = (struct ieee80211_hdr *) beacon->data;
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					 IEEE80211_STYPE_PROBE_RESP);
+	if (is_ap)
+		ret = wl1271_ap_set_probe_resp_tmpl_legacy(wl, vif,
+							   beacon->data,
+							   beacon->len,
+							   min_rate);
+	else
+		ret = wl1271_cmd_template_set(wl, wlvif->role_id,
+					      CMD_TEMPL_PROBE_RESPONSE,
+					      beacon->data,
+					      beacon->len, 0,
+					      min_rate);
+end_bcn:
+	dev_kfree_skb(beacon);
+	if (ret < 0)
+		goto out;
+
+out:
+	return ret;
+}
+
 static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 					  struct ieee80211_vif *vif,
 					  struct ieee80211_bss_conf *bss_conf,
@@ -3401,81 +3489,12 @@ static int wl1271_bss_beacon_info_changed(struct wl1271 *wl,
 
 	if ((changed & BSS_CHANGED_AP_PROBE_RESP) && is_ap) {
 		u32 rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
-		if (!wl1271_ap_set_probe_resp_tmpl(wl, rate, vif)) {
-			wl1271_debug(DEBUG_AP, "probe response updated");
-			set_bit(WLVIF_FLAG_AP_PROBE_RESP_SET, &wlvif->flags);
-		}
+
+		wl1271_ap_set_probe_resp_tmpl(wl, rate, vif);
 	}
 
 	if ((changed & BSS_CHANGED_BEACON)) {
-		struct ieee80211_hdr *hdr;
-		u32 min_rate;
-		int ieoffset = offsetof(struct ieee80211_mgmt,
-					u.beacon.variable);
-		struct sk_buff *beacon = ieee80211_beacon_get(wl->hw, vif);
-		u16 tmpl_id;
-
-		if (!beacon) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		wl1271_debug(DEBUG_MASTER, "beacon updated");
-
-		ret = wl1271_ssid_set(vif, beacon, ieoffset);
-		if (ret < 0) {
-			dev_kfree_skb(beacon);
-			goto out;
-		}
-		min_rate = wl1271_tx_min_rate_get(wl, wlvif->basic_rate_set);
-		tmpl_id = is_ap ? CMD_TEMPL_AP_BEACON :
-				  CMD_TEMPL_BEACON;
-		ret = wl1271_cmd_template_set(wl, wlvif->role_id, tmpl_id,
-					      beacon->data,
-					      beacon->len, 0,
-					      min_rate);
-		if (ret < 0) {
-			dev_kfree_skb(beacon);
-			goto out;
-		}
-
-		/*
-		 * In case we already have a probe-resp beacon set explicitly
-		 * by usermode, don't use the beacon data.
-		 */
-		if (test_bit(WLVIF_FLAG_AP_PROBE_RESP_SET, &wlvif->flags))
-			goto end_bcn;
-
-		/* remove TIM ie from probe response */
-		wl12xx_remove_ie(beacon, WLAN_EID_TIM, ieoffset);
-
-		/*
-		 * remove p2p ie from probe response.
-		 * the fw reponds to probe requests that don't include
-		 * the p2p ie. probe requests with p2p ie will be passed,
-		 * and will be responded by the supplicant (the spec
-		 * forbids including the p2p ie when responding to probe
-		 * requests that didn't include it).
-		 */
-		wl12xx_remove_vendor_ie(beacon, WLAN_OUI_WFA,
-					WLAN_OUI_TYPE_WFA_P2P, ieoffset);
-
-		hdr = (struct ieee80211_hdr *) beacon->data;
-		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-						 IEEE80211_STYPE_PROBE_RESP);
-		if (is_ap)
-			ret = wl1271_ap_set_probe_resp_tmpl_legacy(wl, vif,
-						beacon->data,
-						beacon->len,
-						min_rate);
-		else
-			ret = wl1271_cmd_template_set(wl, wlvif->role_id,
-						CMD_TEMPL_PROBE_RESPONSE,
-						beacon->data,
-						beacon->len, 0,
-						min_rate);
-end_bcn:
-		dev_kfree_skb(beacon);
+		ret = wlcore_set_beacon_template(wl, vif, is_ap);
 		if (ret < 0)
 			goto out;
 	}
@@ -3510,6 +3529,14 @@ static void wl1271_bss_info_changed_ap(struct wl1271 *wl,
 		}
 
 		ret = wl1271_ap_init_templates(wl, vif);
+		if (ret < 0)
+			goto out;
+
+		ret = wl1271_ap_set_probe_resp_tmpl(wl, wlvif->basic_rate, vif);
+		if (ret < 0)
+			goto out;
+
+		ret = wlcore_set_beacon_template(wl, vif, true);
 		if (ret < 0)
 			goto out;
 	}
