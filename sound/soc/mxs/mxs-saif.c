@@ -620,7 +620,7 @@ static irqreturn_t mxs_saif_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int mxs_saif_probe(struct platform_device *pdev)
+static int __devinit mxs_saif_probe(struct platform_device *pdev)
 {
 	struct resource *iores, *dmares;
 	struct mxs_saif *saif;
