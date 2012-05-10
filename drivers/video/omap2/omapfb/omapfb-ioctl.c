@@ -70,7 +70,7 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 
 	DBG("omapfb_setup_plane\n");
 
-	if (ofbi->num_overlays != 1) {
+	if (ofbi->num_overlays == 0) {
 		r = -EINVAL;
 		goto out;
 	}
@@ -185,7 +185,7 @@ static int omapfb_query_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 
-	if (ofbi->num_overlays != 1) {
+	if (ofbi->num_overlays == 0) {
 		memset(pi, 0, sizeof(*pi));
 	} else {
 		struct omap_overlay *ovl;
