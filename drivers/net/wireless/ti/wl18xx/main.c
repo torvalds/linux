@@ -45,12 +45,6 @@
 static char *ht_mode_param;
 static char *board_type_param;
 
-static const u32 wl18xx_board_type_to_scrpad2[NUM_BOARD_TYPES] = {
-	[BOARD_TYPE_FPGA_18XX]		= SCR_PAD2_BOARD_TYPE_FPGA,
-	[BOARD_TYPE_HDK_18XX]		= SCR_PAD2_BOARD_TYPE_HDK,
-	[BOARD_TYPE_DVP_EVB_18XX]	= SCR_PAD2_BOARD_TYPE_DVP_EVB,
-};
-
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	15,                            /* WL18XX_CONF_HW_RXTX_RATE_MCS15 */
@@ -604,12 +598,7 @@ out:
 
 static void wl18xx_set_clk(struct wl1271 *wl)
 {
-	struct wl18xx_priv *priv = wl->priv;
 	u32 clk_freq;
-
-	/* write the translated board type to SCR_PAD2 */
-	wl1271_write32(wl, WL18XX_SCR_PAD2,
-		       wl18xx_board_type_to_scrpad2[priv->board_type]);
 
 	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
 
@@ -1046,21 +1035,22 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		       sizeof(wl18xx_mimo_ht_cap));
 
 	if (!board_type_param) {
-		board_type_param = kstrdup("dvp_evb", GFP_KERNEL);
-		priv->board_type = BOARD_TYPE_DVP_EVB_18XX;
+		board_type_param = kstrdup("dvp", GFP_KERNEL);
+		priv->board_type = BOARD_TYPE_DVP_18XX;
+	} else if (!strcmp(board_type_param, "fpga")) {
+		priv->board_type = BOARD_TYPE_FPGA_18XX;
+	} else if (!strcmp(board_type_param, "hdk")) {
+		priv->board_type = BOARD_TYPE_HDK_18XX;
+	} else if (!strcmp(board_type_param, "dvp")) {
+		priv->board_type = BOARD_TYPE_DVP_18XX;
+	} else if (!strcmp(board_type_param, "evb")) {
+		priv->board_type = BOARD_TYPE_EVB_18XX;
+	} else if (!strcmp(board_type_param, "com8")) {
+		priv->board_type = BOARD_TYPE_COM8_18XX;
 	} else {
-		if (!strcmp(board_type_param, "fpga"))
-			priv->board_type = BOARD_TYPE_FPGA_18XX;
-		else if (!strcmp(board_type_param, "hdk"))
-			priv->board_type = BOARD_TYPE_HDK_18XX;
-		else if (!strcmp(board_type_param, "dvp_evb"))
-			priv->board_type = BOARD_TYPE_DVP_EVB_18XX;
-		else {
-			wl1271_error("invalid board type '%s'",
-				     board_type_param);
-			wlcore_free_hw(wl);
-			return -EINVAL;
-		}
+		wl1271_error("invalid board type '%s'", board_type_param);
+		wlcore_free_hw(wl);
+		return -EINVAL;
 	}
 
 	wl18xx_conf_init(wl);
@@ -1100,7 +1090,8 @@ module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
 MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or mimo");
 
 module_param_named(board_type, board_type_param, charp, S_IRUSR);
-MODULE_PARM_DESC(board_type, "Board type: fpga, hdk or dvp_evb (default)");
+MODULE_PARM_DESC(board_type, "Board type: fpga, hdk, evb, com8 or "
+		 "dvp (default)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");

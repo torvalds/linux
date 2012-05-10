@@ -176,18 +176,13 @@ enum {
 };
 
 enum {
-	BOARD_TYPE_FPGA_18XX	= 0,
-	BOARD_TYPE_HDK_18XX	= 1,
-	BOARD_TYPE_DVP_EVB_18XX	= 2,
+	BOARD_TYPE_EVB_18XX     = 0,
+	BOARD_TYPE_DVP_18XX     = 1,
+	BOARD_TYPE_HDK_18XX     = 2,
+	BOARD_TYPE_FPGA_18XX    = 3,
+	BOARD_TYPE_COM8_18XX    = 4,
 
 	NUM_BOARD_TYPES,
-};
-
-/* board type values used by the firmware in the SCR_PAD2 register */
-enum {
-	SCR_PAD2_BOARD_TYPE_FPGA	= 0xB1,
-	SCR_PAD2_BOARD_TYPE_HDK		= 0xB2,
-	SCR_PAD2_BOARD_TYPE_DVP_EVB	= 0xB3,
 };
 
 struct wl18xx_mac_and_phy_params {
