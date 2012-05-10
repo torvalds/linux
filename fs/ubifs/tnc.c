@@ -2361,7 +2361,7 @@ int ubifs_tnc_add_nm(struct ubifs_info *c, const union ubifs_key *key,
 			 * by passing 'ubifs_tnc_remove_nm()' the same key but
 			 * an unmatchable name.
 			 */
-			struct qstr noname = { .len = 0, .name = "" };
+			struct qstr noname = { .name = "" };
 
 			err = dbg_check_tnc(c, 0);
 			mutex_unlock(&c->tnc_mutex);
