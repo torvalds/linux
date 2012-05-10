@@ -1886,8 +1886,9 @@ static void __cpuinit rcu_prepare_kthreads(int cpu)
  * Because we not have RCU_FAST_NO_HZ, just check whether this CPU needs
  * any flavor of RCU.
  */
-int rcu_needs_cpu(int cpu)
+int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
 {
+	*delta_jiffies = ULONG_MAX;
 	return rcu_cpu_has_callbacks(cpu);
 }
 
@@ -1963,28 +1964,6 @@ static void rcu_idle_count_callbacks_posted(void)
 #define RCU_IDLE_LAZY_GP_DELAY (6 * HZ)	/* Roughly six seconds. */
 
 /*
- * Allow the CPU to enter dyntick-idle mode if either: (1) There are no
- * callbacks on this CPU, (2) this CPU has not yet attempted to enter
- * dyntick-idle mode, or (3) this CPU is in the process of attempting to
- * enter dyntick-idle mode.  Otherwise, if we have recently tried and failed
- * to enter dyntick-idle mode, we refuse to try to enter it.  After all,
- * it is better to incur scheduling-clock interrupts than to spin
- * continuously for the same time duration!
- */
-int rcu_needs_cpu(int cpu)
-{
-	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
-
-	/* Flag a new idle sojourn to the idle-entry state machine. */
-	rdtp->idle_first_pass = 1;
-	/* If no callbacks, RCU doesn't need the CPU. */
-	if (!rcu_cpu_has_callbacks(cpu))
-		return 0;
-	/* Otherwise, RCU needs the CPU only if it recently tried and failed. */
-	return rdtp->dyntick_holdoff == jiffies;
-}
-
-/*
  * Does the specified flavor of RCU have non-lazy callbacks pending on
  * the specified CPU?  Both RCU flavor and CPU are specified by the
  * rcu_data structure.
@@ -2024,6 +2003,47 @@ static bool rcu_cpu_has_nonlazy_callbacks(int cpu)
 	return __rcu_cpu_has_nonlazy_callbacks(&per_cpu(rcu_sched_data, cpu)) ||
 	       __rcu_cpu_has_nonlazy_callbacks(&per_cpu(rcu_bh_data, cpu)) ||
 	       rcu_preempt_cpu_has_nonlazy_callbacks(cpu);
+}
+
+/*
+ * Allow the CPU to enter dyntick-idle mode if either: (1) There are no
+ * callbacks on this CPU, (2) this CPU has not yet attempted to enter
+ * dyntick-idle mode, or (3) this CPU is in the process of attempting to
+ * enter dyntick-idle mode.  Otherwise, if we have recently tried and failed
+ * to enter dyntick-idle mode, we refuse to try to enter it.  After all,
+ * it is better to incur scheduling-clock interrupts than to spin
+ * continuously for the same time duration!
+ *
+ * The delta_jiffies argument is used to store the time when RCU is
+ * going to need the CPU again if it still has callbacks.  The reason
+ * for this is that rcu_prepare_for_idle() might need to post a timer,
+ * but if so, it will do so after tick_nohz_stop_sched_tick() has set
+ * the wakeup time for this CPU.  This means that RCU's timer can be
+ * delayed until the wakeup time, which defeats the purpose of posting
+ * a timer.
+ */
+int rcu_needs_cpu(int cpu, unsigned long *delta_jiffies)
+{
+	struct rcu_dynticks *rdtp = &per_cpu(rcu_dynticks, cpu);
+
+	/* Flag a new idle sojourn to the idle-entry state machine. */
+	rdtp->idle_first_pass = 1;
+	/* If no callbacks, RCU doesn't need the CPU. */
+	if (!rcu_cpu_has_callbacks(cpu)) {
+		*delta_jiffies = ULONG_MAX;
+		return 0;
+	}
+	if (rdtp->dyntick_holdoff == jiffies) {
+		/* RCU recently tried and failed, so don't try again. */
+		*delta_jiffies = 1;
+		return 1;
+	}
+	/* Set up for the possibility that RCU will post a timer. */
+	if (rcu_cpu_has_nonlazy_callbacks(cpu))
+		*delta_jiffies = RCU_IDLE_GP_DELAY;
+	else
+		*delta_jiffies = RCU_IDLE_LAZY_GP_DELAY;
+	return 0;
 }
 
 /*
