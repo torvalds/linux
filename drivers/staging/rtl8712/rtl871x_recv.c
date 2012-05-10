@@ -28,6 +28,7 @@
 
 #define _RTL871X_RECV_C_
 
+#include <linux/ip.h>
 #include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/kmemleak.h>
@@ -36,7 +37,6 @@
 #include "drv_types.h"
 #include "recv_osdep.h"
 #include "mlme_osdep.h"
-#include "ip.h"
 #include "ethernet.h"
 #include "usb_ops.h"
 #include "wifi.h"
