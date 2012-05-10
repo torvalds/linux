@@ -237,6 +237,7 @@ bool wl12xx_is_dummy_packet(struct wl1271 *wl, struct sk_buff *skb);
 void wl12xx_rearm_rx_streaming(struct wl1271 *wl, unsigned long *active_hlids);
 unsigned int wlcore_calc_packet_alignment(struct wl1271 *wl,
 					  unsigned int packet_length);
+void wl1271_free_tx_id(struct wl1271 *wl, int id);
 
 /* from main.c */
 void wl1271_free_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 hlid);

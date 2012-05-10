@@ -33,11 +33,9 @@
 
 #include "reg.h"
 #include "conf.h"
+#include "tx.h"
 #include "wl18xx.h"
 
-#define WL18XX_TX_HW_BLOCK_SPARE        1
-#define WL18XX_TX_HW_GEM_BLOCK_SPARE    2
-#define WL18XX_TX_HW_BLOCK_SIZE         268
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -470,6 +468,11 @@ static u32 wl18xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
 	return data_len - sizeof(*desc);
 }
 
+static void wl18xx_tx_immediate_completion(struct wl1271 *wl)
+{
+	wl18xx_tx_immediate_complete(wl);
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -480,6 +483,8 @@ static struct wlcore_ops wl18xx_ops = {
 	.set_tx_desc_data_len = wl18xx_set_tx_desc_data_len,
 	.get_rx_buf_align = wl18xx_get_rx_buf_align,
 	.get_rx_packet_len = wl18xx_get_rx_packet_len,
+	.tx_immediate_compl = wl18xx_tx_immediate_completion,
+	.tx_delayed_compl = NULL,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
