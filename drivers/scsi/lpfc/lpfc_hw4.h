@@ -3295,7 +3295,13 @@ struct els_request64_wqe {
 struct xmit_els_rsp64_wqe {
 	struct ulp_bde64 bde;
 	uint32_t response_payload_len;
-	uint32_t rsvd4;
+	uint32_t word4;
+#define els_rsp64_sid_SHIFT         0
+#define els_rsp64_sid_MASK          0x00FFFFFF
+#define els_rsp64_sid_WORD          word4
+#define els_rsp64_sp_SHIFT          24
+#define els_rsp64_sp_MASK           0x00000001
+#define els_rsp64_sp_WORD           word4
 	struct wqe_did wqe_dest;
 	struct wqe_common wqe_com; /* words 6-11 */
 	uint32_t word12;

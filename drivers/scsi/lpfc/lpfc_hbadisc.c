@@ -2882,9 +2882,14 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	}
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		/* For private loop just start discovery and we are done. */
-		if ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
-		    !(vport->fc_flag & FC_PUBLIC_LOOP)) {
+		/*
+		 * For private loop or for NPort pt2pt,
+		 * just start discovery and we are done.
+		 */
+		if ((vport->fc_flag & FC_PT2PT) ||
+		    ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
+		    !(vport->fc_flag & FC_PUBLIC_LOOP))) {
+
 			/* Use loop map to make discovery list */
 			lpfc_disc_list_loopmap(vport);
 			/* Start discovery */
@@ -5491,9 +5496,9 @@ lpfc_nlp_release(struct kref *kref)
 		ndlp->nlp_DID, ndlp->nlp_flag, ndlp->nlp_type);
 
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-			"0279 lpfc_nlp_release: ndlp:x%p "
+			"0279 lpfc_nlp_release: ndlp:x%p did %x "
 			"usgmap:x%x refcnt:%d\n",
-			(void *)ndlp, ndlp->nlp_usg_map,
+			(void *)ndlp, ndlp->nlp_DID, ndlp->nlp_usg_map,
 			atomic_read(&ndlp->kref.refcount));
 
 	/* remove ndlp from action. */

@@ -75,10 +75,18 @@
 	 (fc_hdr)->fh_s_id[1] <<  8 | \
 	 (fc_hdr)->fh_s_id[2])
 
+#define sli4_did_from_fc_hdr(fc_hdr)  \
+	((fc_hdr)->fh_d_id[0] << 16 | \
+	 (fc_hdr)->fh_d_id[1] <<  8 | \
+	 (fc_hdr)->fh_d_id[2])
+
 #define sli4_fctl_from_fc_hdr(fc_hdr)  \
 	((fc_hdr)->fh_f_ctl[0] << 16 | \
 	 (fc_hdr)->fh_f_ctl[1] <<  8 | \
 	 (fc_hdr)->fh_f_ctl[2])
+
+#define sli4_type_from_fc_hdr(fc_hdr)  \
+	((fc_hdr)->fh_type)
 
 #define LPFC_FW_RESET_MAXIMUM_WAIT_10MS_CNT 12000
 
