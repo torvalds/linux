@@ -21,6 +21,7 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/ip.h>
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
@@ -501,7 +502,36 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
+	ret = wl18xx_acx_set_checksum_state(wl);
+	if (ret != 0)
+		return ret;
+
 	return ret;
+}
+
+static void wl18xx_set_tx_desc_csum(struct wl1271 *wl,
+				    struct wl1271_tx_hw_descr *desc,
+				    struct sk_buff *skb)
+{
+	u32 ip_hdr_offset;
+	struct iphdr *ip_hdr;
+
+	if (skb->ip_summed != CHECKSUM_PARTIAL) {
+		desc->wl18xx_checksum_data = 0;
+		return;
+	}
+
+	ip_hdr_offset = skb_network_header(skb) - skb_mac_header(skb);
+	if (WARN_ON(ip_hdr_offset >= (1<<7))) {
+		desc->wl18xx_checksum_data = 0;
+		return;
+	}
+
+	desc->wl18xx_checksum_data = ip_hdr_offset << 1;
+
+	/* FW is interested only in the LSB of the protocol  TCP=0 UDP=1 */
+	ip_hdr = (void *)skb_network_header(skb);
+	desc->wl18xx_checksum_data |= (ip_hdr->protocol & 0x01);
 }
 
 static struct wlcore_ops wl18xx_ops = {
@@ -517,6 +547,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.tx_immediate_compl = wl18xx_tx_immediate_completion,
 	.tx_delayed_compl = NULL,
 	.hw_init	= wl18xx_hw_init,
+	.set_tx_desc_csum = wl18xx_set_tx_desc_csum,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)

@@ -270,6 +270,7 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	if (extra) {
 		int hdrlen = ieee80211_hdrlen(frame_control);
 		memmove(frame_start, hdr, hdrlen);
+		skb_set_network_header(skb, skb_network_offset(skb) + extra);
 	}
 
 	/* configure packet life time */
@@ -332,9 +333,9 @@ static void wl1271_tx_fill_hdr(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	    ieee80211_has_protected(frame_control))
 		tx_attr |= TX_HW_ATTR_HOST_ENCRYPT;
 
-	desc->reserved = 0;
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
+	wlcore_hw_set_tx_desc_csum(wl, desc, skb);
 	wlcore_hw_set_tx_desc_data_len(wl, desc, skb);
 }
 

@@ -45,8 +45,24 @@ struct wl18xx_acx_host_config_bitmap {
 
 } __packed;
 
+enum {
+	CHECKSUM_OFFLOAD_DISABLED = 0,
+	CHECKSUM_OFFLOAD_ENABLED  = 1,
+	CHECKSUM_OFFLOAD_FAKE_RX  = 2,
+	CHECKSUM_OFFLOAD_INVALID  = 0xFF
+};
+
+struct wl18xx_acx_checksum_state {
+	struct acx_header header;
+
+	 /* enum acx_checksum_state */
+	u8 checksum_state;
+	u8 pad[3];
+} __packed;
+
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
 				  u32 sdio_blk_size, u32 extra_mem_blks,
 				  u32 len_field_size);
+int wl18xx_acx_set_checksum_state(struct wl1271 *wl);
 
 #endif /* __WL12XX_ACX_H__ */

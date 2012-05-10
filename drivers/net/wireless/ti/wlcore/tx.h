@@ -130,7 +130,16 @@ struct wl1271_tx_hw_descr {
 	u8 tid;
 	/* host link ID (HLID) */
 	u8 hlid;
-	u8 reserved;
+
+	union {
+		u8 wl12xx_reserved;
+
+		/*
+		 * bit 0   -> 0 = udp, 1 = tcp
+		 * bit 1:7 -> IP header offset
+		 */
+		u8 wl18xx_checksum_data;
+	} __packed;
 } __packed;
 
 enum wl1271_tx_hw_res_status {

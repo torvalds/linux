@@ -119,4 +119,15 @@ static inline int wlcore_identify_fw(struct wl1271 *wl)
 	return 0;
 }
 
+static inline void
+wlcore_hw_set_tx_desc_csum(struct wl1271 *wl,
+			   struct wl1271_tx_hw_descr *desc,
+			   struct sk_buff *skb)
+{
+	if (!wl->ops->set_tx_desc_csum)
+		BUG_ON(1);
+
+	wl->ops->set_tx_desc_csum(wl, desc, skb);
+}
+
 #endif

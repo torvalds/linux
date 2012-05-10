@@ -61,6 +61,9 @@ struct wlcore_ops {
 				    struct wl12xx_vif *wlvif);
 	s8 (*get_pg_ver)(struct wl1271 *wl);
 	void (*get_mac)(struct wl1271 *wl);
+	void (*set_tx_desc_csum)(struct wl1271 *wl,
+				 struct wl1271_tx_hw_descr *desc,
+				 struct sk_buff *skb);
 };
 
 enum wlcore_partitions {

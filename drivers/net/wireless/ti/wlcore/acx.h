@@ -1245,6 +1245,7 @@ enum {
 	ACX_CONFIG_HANGOVER              = 0x0042,
 	ACX_FEATURE_CFG                  = 0x0043,
 	ACX_PROTECTION_CFG               = 0x0044,
+	ACX_CHECKSUM_CONFIG              = 0x0045,
 };
 
 
