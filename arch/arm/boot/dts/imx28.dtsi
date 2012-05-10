@@ -204,6 +204,14 @@
 					fsl,drive-strength = <2>;
 					fsl,pull-up = <0>;
 				};
+
+				i2c0_pins_a: i2c0@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x3180 0x3190>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -345,12 +353,18 @@
 			};
 
 			i2c0: i2c@80058000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-i2c";
 				reg = <0x80058000 2000>;
 				interrupts = <111 68>;
 				status = "disabled";
 			};
 
 			i2c1: i2c@8005a000 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx28-i2c";
 				reg = <0x8005a000 2000>;
 				interrupts = <110 69>;
 				status = "disabled";
