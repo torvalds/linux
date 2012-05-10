@@ -103,6 +103,7 @@ struct nfs_parsed_mount_data {
 	unsigned int		version;
 	unsigned int		minorversion;
 	char			*fscache_uniq;
+	bool			need_mount;
 
 	struct {
 		struct sockaddr_storage	address;
