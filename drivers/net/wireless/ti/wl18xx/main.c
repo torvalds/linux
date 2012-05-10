@@ -53,6 +53,7 @@ static int low_band_component = -1;
 static int low_band_component_type = -1;
 static int high_band_component = -1;
 static int high_band_component_type = -1;
+static int pwr_limit_reference_11_abg = -1;
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -1190,6 +1191,13 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		priv->conf.phy.high_band_component_type =
 			high_band_component_type;
 
+	if (pwr_limit_reference_11_abg == -1)
+		pwr_limit_reference_11_abg =
+			priv->conf.phy.pwr_limit_reference_11_abg;
+	else
+		priv->conf.phy.pwr_limit_reference_11_abg =
+			pwr_limit_reference_11_abg;
+
 	if (!checksum_param) {
 		wl18xx_ops.set_rx_csum = NULL;
 		wl18xx_ops.init_vif = NULL;
@@ -1269,6 +1277,10 @@ MODULE_PARM_DESC(high_band_component, "High band component: u8, "
 module_param(high_band_component_type, uint, S_IRUSR);
 MODULE_PARM_DESC(high_band_component_type, "High band component type: u8 "
 		 "(default is 0x09)");
+
+module_param(pwr_limit_reference_11_abg, uint, S_IRUSR);
+MODULE_PARM_DESC(pwr_limit_reference_11_abg, "Power limit reference: u8 "
+		 "(default is 0xc8)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
