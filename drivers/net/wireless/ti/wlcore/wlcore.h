@@ -39,6 +39,7 @@ struct wlcore_ops {
 	int (*identify_chip)(struct wl1271 *wl);
 	int (*identify_fw)(struct wl1271 *wl);
 	int (*boot)(struct wl1271 *wl);
+	int (*plt_init)(struct wl1271 *wl);
 	void (*trigger_cmd)(struct wl1271 *wl, int cmd_box_addr,
 			    void *buf, size_t len);
 	void (*ack_event)(struct wl1271 *wl);

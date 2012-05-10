@@ -320,46 +320,6 @@ static void wlcore_adjust_conf(struct wl1271 *wl)
 	}
 }
 
-static int wl1271_plt_init(struct wl1271 *wl)
-{
-	int ret;
-
-	ret = wl->ops->hw_init(wl);
-	if (ret < 0)
-		return ret;
-
-	ret = wl1271_acx_init_mem_config(wl);
-	if (ret < 0)
-		return ret;
-
-	ret = wl12xx_acx_mem_cfg(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* Enable data path */
-	ret = wl1271_cmd_data_path(wl, 1);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* Configure for CAM power saving (ie. always active) */
-	ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	/* configure PM */
-	ret = wl1271_acx_pm_config(wl);
-	if (ret < 0)
-		goto out_free_memmap;
-
-	return 0;
-
- out_free_memmap:
-	kfree(wl->target_mem_map);
-	wl->target_mem_map = NULL;
-
-	return ret;
-}
-
 static void wl12xx_irq_ps_regulate_link(struct wl1271 *wl,
 					struct wl12xx_vif *wlvif,
 					u8 hlid, u8 tx_pkts)
@@ -1042,13 +1002,9 @@ int wl1271_plt_start(struct wl1271 *wl)
 		if (ret < 0)
 			goto power_off;
 
-		ret = wl->ops->boot(wl);
+		ret = wl->ops->plt_init(wl);
 		if (ret < 0)
 			goto power_off;
-
-		ret = wl1271_plt_init(wl);
-		if (ret < 0)
-			goto irq_disable;
 
 		wl->plt = true;
 		wl->state = WL1271_STATE_ON;
@@ -1062,19 +1018,6 @@ int wl1271_plt_start(struct wl1271 *wl)
 
 		goto out;
 
-irq_disable:
-		mutex_unlock(&wl->mutex);
-		/* Unlocking the mutex in the middle of handling is
-		   inherently unsafe. In this case we deem it safe to do,
-		   because we need to let any possibly pending IRQ out of
-		   the system (and while we are WL1271_STATE_OFF the IRQ
-		   work function will not do anything.) Also, any other
-		   possible concurrent operations will fail due to the
-		   current state, hence the wl1271 struct should be safe. */
-		wlcore_disable_interrupts(wl);
-		wl1271_flush_deferred_work(wl);
-		cancel_work_sync(&wl->netstack_work);
-		mutex_lock(&wl->mutex);
 power_off:
 		wl1271_power_off(wl);
 	}

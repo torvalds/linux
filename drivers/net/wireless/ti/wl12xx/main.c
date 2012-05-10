@@ -1302,10 +1302,67 @@ static void wl12xx_set_tx_desc_csum(struct wl1271 *wl,
 	desc->wl12xx_reserved = 0;
 }
 
+static int wl12xx_plt_init(struct wl1271 *wl)
+{
+	int ret;
+
+	ret = wl->ops->boot(wl);
+	if (ret < 0)
+		goto out;
+
+	ret = wl->ops->hw_init(wl);
+	if (ret < 0)
+		goto out_irq_disable;
+
+	ret = wl1271_acx_init_mem_config(wl);
+	if (ret < 0)
+		goto out_irq_disable;
+
+	ret = wl12xx_acx_mem_cfg(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Enable data path */
+	ret = wl1271_cmd_data_path(wl, 1);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* Configure for CAM power saving (ie. always active) */
+	ret = wl1271_acx_sleep_auth(wl, WL1271_PSM_CAM);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	/* configure PM */
+	ret = wl1271_acx_pm_config(wl);
+	if (ret < 0)
+		goto out_free_memmap;
+
+	goto out;
+
+out_free_memmap:
+	kfree(wl->target_mem_map);
+	wl->target_mem_map = NULL;
+
+out_irq_disable:
+	mutex_unlock(&wl->mutex);
+	/* Unlocking the mutex in the middle of handling is
+	   inherently unsafe. In this case we deem it safe to do,
+	   because we need to let any possibly pending IRQ out of
+	   the system (and while we are WL1271_STATE_OFF the IRQ
+	   work function will not do anything.) Also, any other
+	   possible concurrent operations will fail due to the
+	   current state, hence the wl1271 struct should be safe. */
+	wlcore_disable_interrupts(wl);
+	mutex_lock(&wl->mutex);
+out:
+	return ret;
+}
+
 static struct wlcore_ops wl12xx_ops = {
 	.identify_chip		= wl12xx_identify_chip,
 	.identify_fw		= wl12xx_identify_fw,
 	.boot			= wl12xx_boot,
+	.plt_init		= wl12xx_plt_init,
 	.trigger_cmd		= wl12xx_trigger_cmd,
 	.ack_event		= wl12xx_ack_event,
 	.calc_tx_blocks		= wl12xx_calc_tx_blocks,

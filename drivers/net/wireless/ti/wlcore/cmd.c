@@ -816,6 +816,7 @@ out:
 	kfree(cmd);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_cmd_data_path);
 
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u8 ps_mode, u16 auto_ps_timeout)

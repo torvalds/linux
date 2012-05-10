@@ -86,6 +86,7 @@ out:
 	kfree(auth);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_sleep_auth);
 
 int wl1271_acx_tx_power(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			int power)
@@ -997,6 +998,7 @@ out:
 	kfree(mem_conf);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl12xx_acx_mem_cfg);
 
 int wl1271_acx_init_mem_config(struct wl1271 *wl)
 {
@@ -1027,6 +1029,7 @@ int wl1271_acx_init_mem_config(struct wl1271 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_init_mem_config);
 
 int wl1271_acx_init_rx_interrupt(struct wl1271 *wl)
 {
@@ -1150,6 +1153,7 @@ out:
 	kfree(acx);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(wl1271_acx_pm_config);
 
 int wl1271_acx_keep_alive_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			       bool enable)
