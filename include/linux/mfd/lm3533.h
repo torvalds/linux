@@ -59,8 +59,23 @@ struct lm3533_led_platform_data {
 	u8 pwm;				/* 0 - 0x3f */
 };
 
+enum lm3533_boost_freq {
+	LM3533_BOOST_FREQ_500KHZ,
+	LM3533_BOOST_FREQ_1000KHZ,
+};
+
+enum lm3533_boost_ovp {
+	LM3533_BOOST_OVP_16V,
+	LM3533_BOOST_OVP_24V,
+	LM3533_BOOST_OVP_32V,
+	LM3533_BOOST_OVP_40V,
+};
+
 struct lm3533_platform_data {
 	int gpio_hwen;
+
+	enum lm3533_boost_ovp boost_ovp;
+	enum lm3533_boost_freq boost_freq;
 
 	struct lm3533_als_platform_data *als;
 

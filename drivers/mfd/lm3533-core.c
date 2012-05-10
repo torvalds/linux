@@ -138,6 +138,35 @@ int lm3533_update(struct lm3533 *lm3533, u8 reg, u8 val, u8 mask)
 }
 EXPORT_SYMBOL_GPL(lm3533_update);
 
+static int lm3533_set_boost_freq(struct lm3533 *lm3533,
+						enum lm3533_boost_freq freq)
+{
+	int ret;
+
+	ret = lm3533_update(lm3533, LM3533_REG_BOOST_PWM,
+					freq << LM3533_BOOST_FREQ_SHIFT,
+					LM3533_BOOST_FREQ_MASK);
+	if (ret)
+		dev_err(lm3533->dev, "failed to set boost frequency\n");
+
+	return ret;
+}
+
+
+static int lm3533_set_boost_ovp(struct lm3533 *lm3533,
+						enum lm3533_boost_ovp ovp)
+{
+	int ret;
+
+	ret = lm3533_update(lm3533, LM3533_REG_BOOST_PWM,
+					ovp << LM3533_BOOST_OVP_SHIFT,
+					LM3533_BOOST_OVP_MASK);
+	if (ret)
+		dev_err(lm3533->dev, "failed to set boost ovp\n");
+
+	return ret;
+}
+
 /*
  * HVLED output config -- output hvled controlled by backlight bl
  */
@@ -521,6 +550,22 @@ static int __devinit lm3533_device_led_init(struct lm3533 *lm3533)
 	return 0;
 }
 
+static int __devinit lm3533_device_setup(struct lm3533 *lm3533,
+					struct lm3533_platform_data *pdata)
+{
+	int ret;
+
+	ret = lm3533_set_boost_freq(lm3533, pdata->boost_freq);
+	if (ret)
+		return ret;
+
+	ret = lm3533_set_boost_ovp(lm3533, pdata->boost_ovp);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int __devinit lm3533_device_init(struct lm3533 *lm3533)
 {
 	struct lm3533_platform_data *pdata = lm3533->dev->platform_data;
@@ -550,6 +595,10 @@ static int __devinit lm3533_device_init(struct lm3533 *lm3533)
 
 	lm3533_enable(lm3533);
 
+	ret = lm3533_device_setup(lm3533, pdata);
+	if (ret)
+		goto err_disable;
+
 	lm3533_device_als_init(lm3533);
 	lm3533_device_bl_init(lm3533);
 	lm3533_device_led_init(lm3533);
@@ -564,6 +613,7 @@ static int __devinit lm3533_device_init(struct lm3533 *lm3533)
 
 err_unregister:
 	mfd_remove_devices(lm3533->dev);
+err_disable:
 	lm3533_disable(lm3533);
 	if (gpio_is_valid(lm3533->gpio_hwen))
 		gpio_free(lm3533->gpio_hwen);
