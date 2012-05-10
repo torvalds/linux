@@ -2573,9 +2573,6 @@ enum ixgbe_fc_mode {
 	ixgbe_fc_rx_pause,
 	ixgbe_fc_tx_pause,
 	ixgbe_fc_full,
-#ifdef CONFIG_DCB
-	ixgbe_fc_pfc,
-#endif
 	ixgbe_fc_default
 };
 
