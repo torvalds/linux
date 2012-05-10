@@ -197,39 +197,158 @@ static void rk30_hdmi_config_phy(unsigned char vic)
 
 static void rk30_hdmi_config_avi(unsigned char vic, unsigned char output_color)
 {
-	int i;
+	int i, clolorimetry, aspect_ratio;
 	char info[SIZE_AVI_INFOFRAME];
 	
-	HDMIWrReg(CONTROL_PACKET_BUF_INDEX, INFOFRAME_AVI);
-	HDMIWrReg(CONTROL_PACKET_HB0, 0x82);
-	HDMIWrReg(CONTROL_PACKET_HB1, 0x2);
-	HDMIWrReg(CONTROL_PACKET_HB2, 0x0D);
 	memset(info, 0, SIZE_AVI_INFOFRAME);
+	HDMIWrReg(CONTROL_PACKET_BUF_INDEX, INFOFRAME_AVI);
+	info[0] = 0x82;
+	info[1] = 0x02;
+	info[2] = 0x0D;	
+	info[3] = info[0] + info[1] + info[2];
+
+	if(output_color == VIDEO_OUTPUT_YCBCR444)	
+		info[4] = (AVI_COLOR_MODE_YCBCR444 << 5);
+	else if(output_color == VIDEO_OUTPUT_YCBCR422)
+		info[4] = (AVI_COLOR_MODE_YCBCR422 << 5);
+	else
+		info[4] = (AVI_COLOR_MODE_RGB << 5);
+	info[4] |= (1 << 4);	//Enable active format data bits is present in info[2]
 	
-	info[1] = (AVI_COLOR_MODE_RGB << 5);
-	info[2] = (AVI_COLORIMETRY_NO_DATA << 6) | (AVI_CODED_FRAME_ASPECT_NO_DATA << 4) | ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME;
-	info[3] = 0;
-	info[4] = vic;
-	info[5] = 0;
+	switch(vic)
+	{
+		case HDMI_720x480i_60Hz_4_3:
+		case HDMI_720x576i_50Hz_4_3:
+		case HDMI_720x480p_60Hz_4_3:
+		case HDMI_720x576p_50Hz_4_3:				
+			aspect_ratio = AVI_CODED_FRAME_ASPECT_4_3;
+			clolorimetry = AVI_COLORIMETRY_SMPTE_170M;
+			break;
+		case HDMI_720x480i_60Hz_16_9:
+		case HDMI_720x576i_50Hz_16_9:
+		case HDMI_720x480p_60Hz_16_9:
+		case HDMI_720x576p_50Hz_16_9:
+			aspect_ratio = AVI_CODED_FRAME_ASPECT_16_9;
+			clolorimetry = AVI_COLORIMETRY_SMPTE_170M;
+			break;
+		default:
+			aspect_ratio = AVI_CODED_FRAME_ASPECT_16_9;
+			clolorimetry = AVI_COLORIMETRY_ITU709;
+	}
+
+	if(output_color == VIDEO_OUTPUT_RGB444)
+		clolorimetry = AVI_COLORIMETRY_NO_DATA;
+	
+	info[5] = (clolorimetry << 6) | (aspect_ratio << 4) | ACTIVE_ASPECT_RATE_SAME_AS_CODED_FRAME;
+	info[6] = 0;
+	info[7] = vic;
+	info[8] = 0;
 
 	// Calculate AVI InfoFrame ChecKsum
-	info[0] = 0x82 + 0x02 +0x0D;
-	for (i = 1; i < SIZE_AVI_INFOFRAME; i++)
+	for (i = 4; i < SIZE_AVI_INFOFRAME; i++)
 	{
-    	info[0] += info[i];
+    	info[3] += info[i];
 	}
-	info[0] = 0x100 - info[0];
+	info[3] = 0x100 - info[3];
 	
 	for(i = 0; i < SIZE_AVI_INFOFRAME; i++)
-		HDMIWrReg(CONTROL_PACKET_PB_ADDR + i*4, info[i]);
+		HDMIWrReg(CONTROL_PACKET_HB0 + i*4, info[i]);
+}
+ 
+static char coeff_csc[][24] = {
+		//G			B			R			Bias
+	{	//CSC_RGB_0_255_TO_ITU601_16_235
+		0x11, 0xb6, 0x02, 0x0b, 0x10, 0x55, 0x00, 0x80, 	//Cr
+		0x02, 0x59, 0x01, 0x32, 0x00, 0x75, 0x00, 0x10, 	//Y
+		0x11, 0x5b, 0x10, 0xb0, 0x02, 0x0b, 0x00, 0x80, 	//Cb
+	},
+	{	//CSC_RGB_0_255_TO_ITU709_16_235
+		0x11, 0xdb, 0x02, 0x0b, 0x10, 0x30, 0x00, 0x80,		//Cr
+		0x02, 0xdc, 0x00, 0xda, 0x00, 0x4a, 0x00, 0x10, 	//Y
+		0x11, 0x93, 0x10, 0x78, 0x02, 0x0b, 0x00, 0x80, 	//Cb
+	},
+		//Y			Cr			Cb			Bias
+	{	//CSC_ITU601_16_235_TO_RGB_16_235
+		0x04, 0x00, 0x05, 0x7c, 0x00, 0x00, 0x02, 0xaf, 	//R
+		0x04, 0x00, 0x12, 0xcb, 0x11, 0x58, 0x00, 0x84, 	//G
+		0x04, 0x00, 0x00, 0x00, 0x06, 0xee, 0x02, 0xde,		//B
+	},
+	{	//CSC_ITU709_16_235_TO_RGB_16_235
+		0x04, 0x00, 0x06, 0x29, 0x00, 0x00, 0x02, 0xc5, 	//R
+		0x04, 0x00, 0x11, 0xd6, 0x10, 0xbb, 0x00, 0x52, 	//G
+		0x04, 0x00, 0x00, 0x00, 0x07, 0x44, 0x02, 0xe8, 	//B
+	},
+	{	//CSC_ITU601_16_235_TO_RGB_0_255
+		0x04, 0xa8, 0x05, 0x7c, 0x00, 0x00, 0x02, 0xc2, 	//R
+		0x04, 0xa8, 0x12, 0xcb, 0x11, 0x58, 0x00, 0x72, 	//G
+		0x04, 0xa8, 0x00, 0x00, 0x06, 0xee, 0x02, 0xf0, 	//B
+	},
+	{	//CSC_ITU709_16_235_TO_RGB_0_255
+		0x04, 0xa8, 0x06, 0x29, 0x00, 0x00, 0x02, 0xd8, 	//R
+		0x04, 0xa8, 0x11, 0xd6, 0x10, 0xbb, 0x00, 0x40, 	//G
+		0x04, 0xa8, 0x00, 0x00, 0x07, 0x44, 0x02, 0xfb, 	//B
+	},
+	
+};
+
+static void rk30_hdmi_config_csc(struct rk30_hdmi_video_para *vpara)
+{
+	int i, temp, mode;
+	char *coeff = NULL;
+	
+	if( ((vpara->input_color == VIDEO_INPUT_COLOR_RGB) && (vpara->output_color == VIDEO_OUTPUT_RGB444)) ||
+		((vpara->input_color == VIDEO_INPUT_COLOR_YCBCR) && (vpara->output_color != VIDEO_OUTPUT_RGB444) ))
+	{
+		HDMIWrReg(CSC_CONFIG1, v_CSC_MODE(CSC_MODE_AUTO) | v_CSC_BRSWAP_DIABLE(1));
+		return;
+	}
+	
+	switch(vpara->vic)
+	{
+		case HDMI_720x480i_60Hz_4_3:
+		case HDMI_720x576i_50Hz_4_3:
+		case HDMI_720x480p_60Hz_4_3:
+		case HDMI_720x576p_50Hz_4_3:
+		case HDMI_720x480i_60Hz_16_9:
+		case HDMI_720x576i_50Hz_16_9:
+		case HDMI_720x480p_60Hz_16_9:
+		case HDMI_720x576p_50Hz_16_9:
+			if(vpara->input_color == VIDEO_INPUT_COLOR_RGB)
+				mode = CSC_RGB_0_255_TO_ITU601_16_235;
+			else if(vpara->output_mode == OUTPUT_HDMI)
+				mode = CSC_ITU601_16_235_TO_RGB_16_235;
+			else
+				mode = CSC_ITU601_16_235_TO_RGB_0_255;
+			break;
+		default:
+			if(vpara->input_color == VIDEO_INPUT_COLOR_RGB)
+				mode = CSC_RGB_0_255_TO_ITU709_16_235;
+			else if(vpara->output_mode == OUTPUT_HDMI)
+				mode = CSC_ITU709_16_235_TO_RGB_16_235;
+			else
+				mode = CSC_ITU709_16_235_TO_RGB_0_255;
+			break;
+	}
+	
+	coeff = coeff_csc[mode];
+	
+	HDMIMskReg(temp, CSC_CONFIG1, m_CSC_MODE, v_CSC_MODE(CSC_MODE_MANUAL));
+	
+	for(i = 0; i < 24; i++)
+		HDMIWrReg(CSC_PARA_C0_H + i*4, coeff[i]);
+		
+	HDMIWrReg(AV_CTRL2, v_CSC_ENABLE(1));
 }
 
-int rk30_hdmi_config_video(int vic, int output_color, int output_mode)
+//int rk30_hdmi_config_video(int vic, int output_color, int output_mode)
+int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara)
 {
 	int value;
 	struct fb_videomode *mode;
 	
 	hdmi_dbg(hdmi->dev, "[%s]\n", __FUNCTION__);
+	if(vpara == NULL)
+		return -1;
 	
 	if(hdmi->pwr_mode == PWR_SAVE_MODE_E)
 		rk30_hdmi_set_pwr_mode(PWR_SAVE_MODE_D);
@@ -238,18 +357,20 @@ int rk30_hdmi_config_video(int vic, int output_color, int output_mode)
 		
 	// Input video mode is RGB24bit, Data enable signal from external
 	HDMIMskReg(value, AV_CTRL1, m_INPUT_VIDEO_MODE | m_DE_SIGNAL_SELECT, \
-		v_INPUT_VIDEO_MODE(VIDEO_INPUT_RGB_YCBCR_444) | EXTERNAL_DE)	
+		v_INPUT_VIDEO_MODE(vpara->input_mode) | EXTERNAL_DE)	
 	HDMIMskReg(value, VIDEO_CTRL1, m_VIDEO_OUTPUT_MODE | m_VIDEO_INPUT_DEPTH | m_VIDEO_INPUT_COLOR_MODE, \
-		v_VIDEO_OUTPUT_MODE(output_color) | v_VIDEO_INPUT_DEPTH(VIDEO_INPUT_DEPTH_8BIT) | VIDEO_INPUT_COLOR_RGB)
-	
+		v_VIDEO_OUTPUT_MODE(vpara->output_color) | v_VIDEO_INPUT_DEPTH(VIDEO_INPUT_DEPTH_8BIT) | vpara->input_color)
+	HDMIWrReg(DEEP_COLOR_MODE, 0x20);
+	// color space convert
+	rk30_hdmi_config_csc(vpara);
 	// Set HDMI Mode
-	HDMIWrReg(HDCP_CTRL, v_HDMI_DVI(output_mode));
+	HDMIWrReg(HDCP_CTRL, v_HDMI_DVI(vpara->output_mode));
 
 	// Set ext video
-	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vic);
+	mode = (struct fb_videomode *)hdmi_vic_to_videomode(vpara->vic);
 	if(mode == NULL)
 	{
-		hdmi_dbg(hdmi->dev, "[%s] not found vic %d\n", __FUNCTION__, vic);
+		hdmi_dbg(hdmi->dev, "[%s] not found vic %d\n", __FUNCTION__, vpara->vic);
 		return -ENOENT;
 	}
 	value = v_EXT_VIDEO_ENABLE(1) | v_INTERLACE(mode->vmode);
@@ -287,14 +408,15 @@ int rk30_hdmi_config_video(int vic, int output_color, int output_mode)
 	value = mode->vsync_len;
 	HDMIWrReg(EXT_VIDEO_PARA_VSYNCWIDTH, value & 0xFF);
 	
-	if(output_mode == OUTPUT_HDMI) {
-		rk30_hdmi_config_avi(vic, output_mode);
+	if(vpara->output_mode == OUTPUT_HDMI) {
+		rk30_hdmi_config_avi(vpara->vic, vpara->output_color);
 		hdmi_dbg(hdmi->dev, "[%s] sucess output HDMI.\n", __FUNCTION__);
 	}
 	else {
 		hdmi_dbg(hdmi->dev, "[%s] sucess output DVI.\n", __FUNCTION__);	
 	}
-	rk30_hdmi_config_phy(vic);
+	
+	rk30_hdmi_config_phy(vpara->vic);
 	rk30_hdmi_control_output(0);
 	return 0;
 }

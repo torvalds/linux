@@ -78,6 +78,11 @@ enum {
 #define m_DE_SIGNAL_SELECT			(1 << 0)
 
 /* HDMI_AV_CTRL2 */
+#define AV_CTRL2	0xec
+#define m_CSC_ENABLE				(1 << 0)
+#define v_CSC_ENABLE(n)				(n)
+
+/* HDMI_VIDEO_CTRL1 */
 #define VIDEO_CTRL1	0x58
 enum {
 	VIDEO_OUTPUT_RGB444 = 0,
@@ -116,6 +121,56 @@ enum{
 #define TMDS_CLOCK_MODE_MASK	0x3 << 6
 #define TMDS_CLOCK_MODE(n)		(n) << 6
 
+#define CSC_PARA_C0_H	0x60
+#define CSC_PARA_C0_L	0x64
+#define CSC_PARA_C1_H	0x68
+#define CSC_PARA_C1_L	0x6c
+#define CSC_PARA_C2_H	0x70
+#define CSC_PARA_C2_L	0x74
+#define CSC_PARA_C3_H	0x78
+#define CSC_PARA_C3_L	0x7c
+#define CSC_PARA_C4_H	0x80
+#define CSC_PARA_C4_L	0x84
+#define CSC_PARA_C5_H	0x88
+#define CSC_PARA_C5_L	0x8c
+#define CSC_PARA_C6_H	0x90
+#define CSC_PARA_C6_L	0x94
+#define CSC_PARA_C7_H	0x98
+#define CSC_PARA_C7_L	0x9c
+#define CSC_PARA_C8_H	0xa0
+#define CSC_PARA_C8_L	0xa4
+#define CSC_PARA_C9_H	0xa8
+#define CSC_PARA_C10_H	0xac
+#define CSC_PARA_C10_L	0xb4
+#define CSC_PARA_C11_H	0xb8
+#define CSC_PARA_C11_L	0xbc
+
+#define CSC_CONFIG1		0x34c
+#define m_CSC_MODE			(1 << 7)
+#define m_CSC_COEF_MODE 	(0xF << 3)	//Only used in auto csc mode
+#define m_CSC_STATUS		(1 << 2)
+#define m_CSC_VID_SELECT	(1 << 1)
+#define m_CSC_BRSWAP_DIABLE	(1)
+
+enum {
+	CSC_MODE_MANUAL	= 0,
+	CSC_MODE_AUTO
+};
+#define v_CSC_MODE(n)			(n << 7)
+enum {
+	COE_SDTV_LIMITED_RANGE = 0x08,
+	COE_SDTV_FULL_RANGE = 0x04,
+	COE_HDTV_60Hz = 0x2,
+	COE_HDTV_50Hz = 0x1
+};
+#define v_CSC_COE_MODE(n)		(n << 3)
+enum {
+	CSC_INPUT_VID_5_19 = 0,
+	CSC_INPUT_VID_28_29
+};
+#define v_CSC_VID_SELECT(n)		(n << 1)
+#define v_CSC_BRSWAP_DIABLE(n)	(n)
+
 /* VIDEO_SETTING2 */
 #define VIDEO_SETTING2	0x114
 #define m_UNMUTE					(1 << 7)
@@ -139,7 +194,7 @@ enum {
 #define CONTROL_PACKET_HB1			0x184
 #define CONTROL_PACKET_HB2			0x188
 #define CONTROL_PACKET_PB_ADDR		0x18c
-#define SIZE_AVI_INFOFRAME			0xe		// 14 bytes
+#define SIZE_AVI_INFOFRAME			0x11	// 17 bytes
 #define SIZE_AUDIO_INFOFRAME		0x0F	// 15 bytes
 enum {
 	AVI_COLOR_MODE_RGB = 0,
@@ -288,10 +343,29 @@ enum {
 	temp = __raw_readl(hdmi->regbase + addr) & (0xFF - (msk)) ; \
 	__raw_writel(temp | ( (val) & (msk) ),  hdmi->regbase + addr); 
 
+/* RK30 HDMI Video Configure Parameters */
+struct rk30_hdmi_video_para {
+	int vic;
+	int input_mode;		//input video data interface
+	int input_color;	//input video color mode
+	int output_mode;	//output hdmi or dvi
+	int output_color;	//output video color mode
+};
+
+/* Color Space Convertion Mode */
+enum {
+	CSC_RGB_0_255_TO_ITU601_16_235 = 0,	//RGB 0-255 input to YCbCr 16-235 output according BT601
+	CSC_RGB_0_255_TO_ITU709_16_235,		//RGB 0-255 input to YCbCr 16-235 output accroding BT709
+	CSC_ITU601_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT601
+	CSC_ITU709_16_235_TO_RGB_16_235,	//YCbCr 16-235 input to RGB 16-235 output according BT709
+	CSC_ITU601_16_235_TO_RGB_0_255,		//YCbCr 16-235 input to RGB 0-255 output according BT601
+	CSC_ITU709_16_235_TO_RGB_0_255		//YCbCr 16-235 input to RGB 0-255 output according BT709
+};
+
 extern int rk30_hdmi_detect_hotplug(void);
 extern int rk30_hdmi_read_edid(int block, unsigned char *buff);
 extern int rk30_hdmi_removed(void);
-extern int rk30_hdmi_config_video(int vic, int output_color, int output_mode);
+extern int rk30_hdmi_config_video(struct rk30_hdmi_video_para *vpara);
 extern int rk30_hdmi_config_audio(struct hdmi_audio *audio);
 extern void rk30_hdmi_control_output(int enable);
 #endif

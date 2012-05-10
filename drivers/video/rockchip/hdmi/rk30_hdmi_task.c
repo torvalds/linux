@@ -162,6 +162,7 @@ void hdmi_work(struct work_struct *work)
 {
 	int hotplug, state_last;
 	int rc = HDMI_ERROR_SUCESS, trytimes = 0;
+	struct rk30_hdmi_video_para video;
 	
 	mutex_lock(&work_mutex);
 	/* Process hdmi command */
@@ -230,7 +231,17 @@ void hdmi_work(struct work_struct *work)
 				break;
 			case CONFIG_VIDEO:
 				hdmi->display = HDMI_DISABLE;
-				rc = rk30_hdmi_config_video(hdmi->vic, VIDEO_OUTPUT_RGB444, hdmi->edid.sink_hdmi);			
+				video.vic = hdmi->vic;
+				video.input_mode = VIDEO_INPUT_RGB_YCBCR_444;
+				video.input_color = VIDEO_INPUT_COLOR_RGB;//VIDEO_INPUT_COLOR_YCBCR
+				video.output_mode = hdmi->edid.sink_hdmi;
+				if(hdmi->edid.ycbcr444)
+					video.output_color = VIDEO_OUTPUT_YCBCR444;
+				else if(hdmi->edid.ycbcr422)
+					video.output_color = VIDEO_OUTPUT_YCBCR422;
+				else
+					video.output_color = VIDEO_OUTPUT_RGB444;
+				rc = rk30_hdmi_config_video(&video);
 				if(rc == HDMI_ERROR_SUCESS)
 				{
 					if(hdmi->edid.sink_hdmi)
