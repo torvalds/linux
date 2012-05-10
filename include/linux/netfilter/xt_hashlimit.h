@@ -22,10 +22,12 @@ enum {
 	XT_HASHLIMIT_HASH_SPT = 1 << 3,
 	XT_HASHLIMIT_INVERT   = 1 << 4,
 	XT_HASHLIMIT_BYTES    = 1 << 5,
-#ifdef __KERNEL__
-	XT_HASHLIMIT_MAX      = 1 << 6,
-#endif
 };
+#ifdef __KERNEL__
+#define XT_HASHLIMIT_ALL (XT_HASHLIMIT_HASH_DIP | XT_HASHLIMIT_HASH_DPT | \
+			  XT_HASHLIMIT_HASH_SIP | XT_HASHLIMIT_HASH_SPT | \
+			  XT_HASHLIMIT_INVERT | XT_HASHLIMIT_BYTES)
+#endif
 
 struct hashlimit_cfg {
 	__u32 mode;	  /* bitmask of XT_HASHLIMIT_HASH_* */

@@ -647,7 +647,7 @@ static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 			return -EINVAL;
 	}
 
-	if (info->cfg.mode >= XT_HASHLIMIT_MAX) {
+	if (info->cfg.mode & ~XT_HASHLIMIT_ALL) {
 		pr_info("Unknown mode mask %X, kernel too old?\n",
 						info->cfg.mode);
 		return -EINVAL;
