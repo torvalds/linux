@@ -127,7 +127,7 @@ the first control with a higher ID. Drivers which do not support this
 flag yet always return an &EINVAL;.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-ctrl-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>Type of control, see <xref
 		linkend="v4l2-ctrl-type" />.</entry>

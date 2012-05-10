@@ -95,14 +95,14 @@ the &v4l2-output; <structfield>modulator</structfield> field and the
 &v4l2-modulator; <structfield>index</structfield> field.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-tuner-type;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>type</structfield></entry>
 	    <entry>The tuner type. This is the same value as in the
-&v4l2-tuner; <structfield>type</structfield> field. The type must be set
+&v4l2-tuner; <structfield>type</structfield> field. See The type must be set
 to <constant>V4L2_TUNER_RADIO</constant> for <filename>/dev/radioX</filename>
 device nodes, and to <constant>V4L2_TUNER_ANALOG_TV</constant>
 for all others. The field is not applicable to modulators, &ie; ignored
-by drivers.</entry>
+by drivers. See <xref linkend="v4l2-tuner-type" /></entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

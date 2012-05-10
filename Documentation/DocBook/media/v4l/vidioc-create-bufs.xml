@@ -94,16 +94,18 @@ information.</para>
 	    <entry>The number of buffers requested or granted.</entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-memory;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry>Applications set this field to
 <constant>V4L2_MEMORY_MMAP</constant> or
-<constant>V4L2_MEMORY_USERPTR</constant>.</entry>
+<constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
+/></entry>
 	  </row>
 	  <row>
-	    <entry>&v4l2-format;</entry>
+	    <entry>__u32</entry>
 	    <entry><structfield>format</structfield></entry>
-	    <entry>Filled in by the application, preserved by the driver.</entry>
+	    <entry>Filled in by the application, preserved by the driver.
+	    See <xref linkend="v4l2-format" />.</entry>
 	  </row>
 	  <row>
 	    <entry>__u32</entry>

@@ -37,7 +37,7 @@ struct v4l2_clip32 {
 
 struct v4l2_window32 {
 	struct v4l2_rect        w;
-	enum v4l2_field  	field;
+	__u32		  	field;	/* enum v4l2_field */
 	__u32			chromakey;
 	compat_caddr_t		clips; /* actually struct v4l2_clip32 * */
 	__u32			clipcount;
@@ -147,7 +147,7 @@ static inline int put_v4l2_sliced_vbi_format(struct v4l2_sliced_vbi_format *kp, 
 }
 
 struct v4l2_format32 {
-	enum v4l2_buf_type type;
+	__u32	type;	/* enum v4l2_buf_type */
 	union {
 		struct v4l2_pix_format	pix;
 		struct v4l2_pix_format_mplane	pix_mp;
@@ -170,7 +170,7 @@ struct v4l2_format32 {
 struct v4l2_create_buffers32 {
 	__u32			index;
 	__u32			count;
-	enum v4l2_memory        memory;
+	__u32			memory;	/* enum v4l2_memory */
 	struct v4l2_format32	format;
 	__u32			reserved[8];
 };
@@ -311,16 +311,16 @@ struct v4l2_plane32 {
 
 struct v4l2_buffer32 {
 	__u32			index;
-	enum v4l2_buf_type      type;
+	__u32			type;	/* enum v4l2_buf_type */
 	__u32			bytesused;
 	__u32			flags;
-	enum v4l2_field		field;
+	__u32			field;	/* enum v4l2_field */
 	struct compat_timeval	timestamp;
 	struct v4l2_timecode	timecode;
 	__u32			sequence;
 
 	/* memory location */
-	enum v4l2_memory        memory;
+	__u32			memory;	/* enum v4l2_memory */
 	union {
 		__u32           offset;
 		compat_long_t   userptr;
