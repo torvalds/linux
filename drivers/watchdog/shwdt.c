@@ -28,6 +28,7 @@
 #include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
+#include <linux/pm_runtime.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
@@ -87,6 +88,8 @@ static int sh_wdt_start(struct watchdog_device *wdt_dev)
 	unsigned long flags;
 	u8 csr;
 
+	pm_runtime_get_sync(wdt->dev);
+
 	spin_lock_irqsave(&wdt->lock, flags);
 
 	next_heartbeat = jiffies + (heartbeat * HZ);
@@ -136,6 +139,8 @@ static int sh_wdt_stop(struct watchdog_device *wdt_dev)
 	sh_wdt_write_csr(csr);
 
 	spin_unlock_irqrestore(&wdt->lock, flags);
+
+	pm_runtime_put_sync(wdt->dev);
 
 	return 0;
 }
@@ -283,6 +288,8 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "initialized.\n");
 
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 
 out_disable:
@@ -300,6 +307,7 @@ static int __devexit sh_wdt_remove(struct platform_device *pdev)
 
 	watchdog_unregister_device(&sh_wdt_dev);
 
+	pm_runtime_disable(&pdev->dev);
 	clk_disable(wdt->clk);
 	clk_put(wdt->clk);
 
