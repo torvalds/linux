@@ -321,6 +321,19 @@ wl18xx_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
 	desc->wl18xx_mem.reserved = 0;
 }
 
+static void
+wl18xx_set_tx_desc_data_len(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
+			    struct sk_buff *skb)
+{
+	desc->length = cpu_to_le16(skb->len);
+
+	wl1271_debug(DEBUG_TX, "tx_fill_hdr: hlid: %d "
+		     "len: %d life: %d mem: %d", desc->hlid,
+		     le16_to_cpu(desc->length),
+		     le16_to_cpu(desc->life_time),
+		     desc->wl18xx_mem.total_mem_blocks);
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -328,6 +341,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.ack_event	= wl18xx_ack_event,
 	.calc_tx_blocks = wl18xx_calc_tx_blocks,
 	.set_tx_desc_blocks = wl18xx_set_tx_desc_blocks,
+	.set_tx_desc_data_len = wl18xx_set_tx_desc_data_len,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
