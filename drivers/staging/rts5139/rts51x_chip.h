@@ -313,8 +313,6 @@ struct sense_data_t {
 #define SUPPORT_UHS50_MMC44		0x40
 
 struct rts51x_option {
-	u8 led_blink_speed;
-
 	int mspro_formatter_enable;
 
 	/* card clock expected by user for fpga platform */

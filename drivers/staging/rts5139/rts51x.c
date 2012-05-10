@@ -478,7 +478,6 @@ static void rts51x_init_options(struct rts51x_chip *chip)
 {
 	struct rts51x_option *option = &(chip->option);
 
-	option->led_blink_speed = 7;
 	option->mspro_formatter_enable = 1;
 
 	option->fpga_sd_sdr104_clk = CLK_100;
