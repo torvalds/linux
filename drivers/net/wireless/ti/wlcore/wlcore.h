@@ -33,6 +33,7 @@
 /* forward declaration */
 struct wl1271_tx_hw_descr;
 enum wl_rx_buf_align;
+struct wl1271_rx_descriptor;
 
 struct wlcore_ops {
 	int (*identify_chip)(struct wl1271 *wl);
@@ -64,6 +65,9 @@ struct wlcore_ops {
 	void (*set_tx_desc_csum)(struct wl1271 *wl,
 				 struct wl1271_tx_hw_descr *desc,
 				 struct sk_buff *skb);
+	void (*set_rx_csum)(struct wl1271 *wl,
+			    struct wl1271_rx_descriptor *desc,
+			    struct sk_buff *skb);
 };
 
 enum wlcore_partitions {

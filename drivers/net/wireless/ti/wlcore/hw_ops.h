@@ -130,4 +130,13 @@ wlcore_hw_set_tx_desc_csum(struct wl1271 *wl,
 	wl->ops->set_tx_desc_csum(wl, desc, skb);
 }
 
+static inline void
+wlcore_hw_set_rx_csum(struct wl1271 *wl,
+		      struct wl1271_rx_descriptor *desc,
+		      struct sk_buff *skb)
+{
+	if (wl->ops->set_rx_csum)
+		wl->ops->set_rx_csum(wl, desc, skb);
+}
+
 #endif

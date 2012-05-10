@@ -39,6 +39,8 @@
 #include "wl18xx.h"
 
 
+#define WL18XX_RX_CHECKSUM_MASK      0x40
+
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	15,                            /* WL18XX_CONF_HW_RXTX_RATE_MCS15 */
@@ -534,6 +536,14 @@ static void wl18xx_set_tx_desc_csum(struct wl1271 *wl,
 	desc->wl18xx_checksum_data |= (ip_hdr->protocol & 0x01);
 }
 
+static void wl18xx_set_rx_csum(struct wl1271 *wl,
+			       struct wl1271_rx_descriptor *desc,
+			       struct sk_buff *skb)
+{
+	if (desc->status & WL18XX_RX_CHECKSUM_MASK)
+		skb->ip_summed = CHECKSUM_UNNECESSARY;
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -548,6 +558,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.tx_delayed_compl = NULL,
 	.hw_init	= wl18xx_hw_init,
 	.set_tx_desc_csum = wl18xx_set_tx_desc_csum,
+	.set_rx_csum = wl18xx_set_rx_csum,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
