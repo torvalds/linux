@@ -696,7 +696,8 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 			rrq_empty = list_empty(&phba->active_rrq_list);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
 			if (ndlp) {
-				lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
+				lpfc_set_rrq_active(phba, ndlp,
+					psb->cur_iocbq.sli4_lxritag, rxid, 1);
 				lpfc_sli4_abts_err_handler(phba, ndlp, axri);
 			}
 			lpfc_release_scsi_buf_s4(phba, psb);
@@ -1099,7 +1100,7 @@ lpfc_get_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 	list_for_each_entry(lpfc_cmd, &phba->lpfc_scsi_buf_list,
 							list) {
 		if (lpfc_test_rrq_active(phba, ndlp,
-					 lpfc_cmd->cur_iocbq.sli4_xritag))
+					 lpfc_cmd->cur_iocbq.sli4_lxritag))
 			continue;
 		list_del(&lpfc_cmd->list);
 		found = 1;
@@ -3758,8 +3759,8 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				 * ABTS we cannot generate and RRQ.
 				 */
 				lpfc_set_rrq_active(phba, pnode,
-						lpfc_cmd->cur_iocbq.sli4_xritag,
-						0, 0);
+					lpfc_cmd->cur_iocbq.sli4_lxritag,
+					0, 0);
 			}
 		/* else: fall through */
 		default:

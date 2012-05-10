@@ -885,7 +885,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 	while (!found) {
 		if (!sglq)
 			return NULL;
-		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_xritag)) {
+		if (lpfc_test_rrq_active(phba, ndlp, sglq->sli4_lxritag)) {
 			/* This xri has an rrq outstanding for this DID.
 			 * put it back in the list and get another xri.
 			 */
@@ -13953,7 +13953,6 @@ lpfc_sli4_xri_inrange(struct lpfc_hba *phba,
 	return NO_XRI;
 }
 
-
 /**
  * lpfc_sli4_seq_abort_rsp - bls rsp to sequence abort
  * @phba: Pointer to HBA context object.
@@ -13968,7 +13967,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 {
 	struct lpfc_iocbq *ctiocb = NULL;
 	struct lpfc_nodelist *ndlp;
-	uint16_t oxid, rxid;
+	uint16_t oxid, rxid, xri, lxri;
 	uint32_t sid, fctl;
 	IOCB_t *icmd;
 	int rc;
@@ -13987,8 +13986,6 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 				"SID:x%x\n", oxid, sid);
 		return;
 	}
-	if (lpfc_sli4_xri_inrange(phba, rxid))
-		lpfc_set_rrq_active(phba, ndlp, rxid, oxid, 0);
 
 	/* Allocate buffer for rsp iocb */
 	ctiocb = lpfc_sli_get_iocbq(phba);
@@ -14019,13 +14016,24 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_hba *phba,
 	ctiocb->sli4_lxritag = NO_XRI;
 	ctiocb->sli4_xritag = NO_XRI;
 
+	if (fctl & FC_FC_EX_CTX)
+		/* Exchange responder sent the abort so we
+		 * own the oxid.
+		 */
+		xri = oxid;
+	else
+		xri = rxid;
+	lxri = lpfc_sli4_xri_inrange(phba, xri);
+	if (lxri != NO_XRI)
+		lpfc_set_rrq_active(phba, ndlp, lxri,
+			(xri == oxid) ? rxid : oxid, 0);
 	/* If the oxid maps to the FCP XRI range or if it is out of range,
 	 * send a BLS_RJT.  The driver no longer has that exchange.
 	 * Override the IOCB for a BA_RJT.
 	 */
-	if (oxid > (phba->sli4_hba.max_cfg_param.max_xri +
+	if (xri > (phba->sli4_hba.max_cfg_param.max_xri +
 		    phba->sli4_hba.max_cfg_param.xri_base) ||
-	    oxid > (lpfc_sli4_get_els_iocb_cnt(phba) +
+	    xri > (lpfc_sli4_get_els_iocb_cnt(phba) +
 		    phba->sli4_hba.max_cfg_param.xri_base)) {
 		icmd->un.xseq64.w5.hcsw.Rctl = FC_RCTL_BA_RJT;
 		bf_set(lpfc_vndr_code, &icmd->un.bls_rsp, 0);

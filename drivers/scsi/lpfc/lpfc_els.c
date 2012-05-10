@@ -3003,7 +3003,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * ABTS we cannot generate and RRQ.
 			 */
 			lpfc_set_rrq_active(phba, ndlp,
-					 cmdiocb->sli4_xritag, 0, 0);
+					 cmdiocb->sli4_lxritag, 0, 0);
 		}
 		break;
 	case IOSTAT_LOCAL_REJECT:
@@ -5673,7 +5673,7 @@ lpfc_issue_els_rrq(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	pcmd += sizeof(uint32_t);
 	els_rrq = (struct RRQ *) pcmd;
 
-	bf_set(rrq_oxid, els_rrq, rrq->xritag);
+	bf_set(rrq_oxid, els_rrq, phba->sli4_hba.xri_ids[rrq->xritag]);
 	bf_set(rrq_rxid, els_rrq, rrq->rxid);
 	bf_set(rrq_did, els_rrq, vport->fc_myDID);
 	els_rrq->rrq = cpu_to_be32(els_rrq->rrq);
@@ -7960,7 +7960,9 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 			sglq_entry->state = SGL_FREED;
 			spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
-			lpfc_set_rrq_active(phba, ndlp, xri, rxid, 1);
+			lpfc_set_rrq_active(phba, ndlp,
+				sglq_entry->sli4_lxritag,
+				rxid, 1);
 
 			/* Check if TXQ queue needs to be serviced */
 			if (pring->txq_cnt)
