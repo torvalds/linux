@@ -32,6 +32,9 @@ void __cpuinit cpu_probe(void)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7264)
 	boot_cpu_data.type			= CPU_SH7264;
 	boot_cpu_data.flags			|= CPU_HAS_FPU;
+#elif defined(CONFIG_CPU_SUBTYPE_SH7269)
+	boot_cpu_data.type			= CPU_SH7269;
+	boot_cpu_data.flags			|= CPU_HAS_FPU;
 #elif defined(CONFIG_CPU_SUBTYPE_SH7206)
 	boot_cpu_data.type			= CPU_SH7206;
 	boot_cpu_data.flags			|= CPU_HAS_DSP;
