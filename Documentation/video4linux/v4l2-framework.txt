@@ -619,6 +619,16 @@ in your v4l2_file_operations struct.
 
 Do not use .ioctl! This is deprecated and will go away in the future.
 
+In some cases you want to tell the core that a function you had specified in
+your v4l2_ioctl_ops should be ignored. You can mark such ioctls by calling this
+function before video_device_register is called:
+
+void v4l2_dont_use_cmd(struct video_device *vdev, unsigned int cmd);
+
+This tends to be needed if based on external factors (e.g. which card is
+being used) you want to turns off certain features in v4l2_ioctl_ops without
+having to make a new struct.
+
 The v4l2_file_operations struct is a subset of file_operations. The main
 difference is that the inode argument is omitted since it is never used.
 
