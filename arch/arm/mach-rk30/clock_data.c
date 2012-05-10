@@ -1059,12 +1059,17 @@ static struct clk general_pll_clk = {
 	.pll= &gpll_data
 };
 /********************************clocks***********************************/
+static int ddr_clk_set_rate(struct clk *c, unsigned long rate)
+{
+	return 0;
+}
 
 static struct clk *clk_ddr_parents[2] = {&ddr_pll_clk, &general_pll_clk};
 static struct clk clk_ddr = {
 	.name		= "ddr",	
 	.parent		= &ddr_pll_clk,
 	.recalc		= clksel_recalc_shift,
+	.set_rate	= ddr_clk_set_rate,
 	.clksel_con	= CRU_CLKSELS_CON(26),
 	//CRU_DIV_SET(0x3,0,4),
 	//CRU_SRC_SET(1,8),
@@ -2251,6 +2256,7 @@ static struct clk clk_gpu = {
 	.name		= "gpu",
 	.mode		= gate_mode,
 	.recalc		= clksel_recalc_div,
+	.round_rate	= clk_freediv_round_autosel_parents_rate,
 	.set_rate	= clkset_rate_freediv_autosel_parents,
 	.clksel_con = CRU_CLKSELS_CON(33),
 	.gate_idx	=  CLK_GATE_GPU_SRC,
