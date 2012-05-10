@@ -505,7 +505,6 @@ static void rts51x_init_options(struct rts51x_chip *chip)
 
 	option->ss_en = ss_en;
 	option->ss_delay = ss_delay;
-	option->needs_remote_wakeup = needs_remote_wakeup;
 
 	option->auto_delink_en = auto_delink_en;
 

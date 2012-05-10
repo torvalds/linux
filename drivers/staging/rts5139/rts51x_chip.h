@@ -356,7 +356,6 @@ struct rts51x_option {
 	int ss_en;
 	/* Interval to enter SS from IDLE state (second) */
 	int ss_delay;
-	int needs_remote_wakeup;
 	u8 ww_enable;	/* sangdy2010-08-03:add for remote wakeup */
 
 	/* Enable SSC clock */
