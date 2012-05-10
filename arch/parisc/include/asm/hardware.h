@@ -2,7 +2,6 @@
 #define _PARISC_HARDWARE_H
 
 #include <linux/mod_devicetable.h>
-#include <asm/pdc.h>
 
 #define HWTYPE_ANY_ID		PA_HWTYPE_ANY_ID
 #define HVERSION_ANY_ID		PA_HVERSION_ANY_ID
