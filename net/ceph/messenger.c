@@ -992,10 +992,8 @@ static int prepare_read_message(struct ceph_connection *con)
 
 
 static int read_partial(struct ceph_connection *con,
-			int to, int size, void *object)
+			int end, int size, void *object)
 {
-	int end = to + size;
-
 	while (con->in_base_pos < end) {
 		int left = end - con->in_base_pos;
 		int have = size - left;
@@ -1013,40 +1011,52 @@ static int read_partial(struct ceph_connection *con,
  */
 static int read_partial_banner(struct ceph_connection *con)
 {
-	int ret, to = 0;
+	int size;
+	int end;
+	int ret;
 
 	dout("read_partial_banner %p at %d\n", con, con->in_base_pos);
 
 	/* peer's banner */
-	ret = read_partial(con, to, strlen(CEPH_BANNER), con->in_banner);
+	size = strlen(CEPH_BANNER);
+	end = size;
+	ret = read_partial(con, end, size, con->in_banner);
 	if (ret <= 0)
 		goto out;
-	to += strlen(CEPH_BANNER);
-	ret = read_partial(con, to, sizeof(con->actual_peer_addr),
-			   &con->actual_peer_addr);
+
+	size = sizeof (con->actual_peer_addr);
+	end += size;
+	ret = read_partial(con, end, size, &con->actual_peer_addr);
 	if (ret <= 0)
 		goto out;
-	to += sizeof(con->actual_peer_addr);
-	ret = read_partial(con, to, sizeof(con->peer_addr_for_me),
-			   &con->peer_addr_for_me);
+
+	size = sizeof (con->peer_addr_for_me);
+	end += size;
+	ret = read_partial(con, end, size, &con->peer_addr_for_me);
 	if (ret <= 0)
 		goto out;
+
 out:
 	return ret;
 }
 
 static int read_partial_connect(struct ceph_connection *con)
 {
-	int ret, to = 0;
+	int size;
+	int end;
+	int ret;
 
 	dout("read_partial_connect %p at %d\n", con, con->in_base_pos);
 
-	ret = read_partial(con, to, sizeof(con->in_reply), &con->in_reply);
+	size = sizeof (con->in_reply);
+	end = size;
+	ret = read_partial(con, end, size, &con->in_reply);
 	if (ret <= 0)
 		goto out;
-	to += sizeof(con->in_reply);
-	ret = read_partial(con, to, le32_to_cpu(con->in_reply.authorizer_len),
-			   con->auth_reply_buf);
+
+	size = le32_to_cpu(con->in_reply.authorizer_len);
+	end += size;
+	ret = read_partial(con, end, size, con->auth_reply_buf);
 	if (ret <= 0)
 		goto out;
 
@@ -1495,8 +1505,10 @@ static int process_connect(struct ceph_connection *con)
  */
 static int read_partial_ack(struct ceph_connection *con)
 {
-	return read_partial(con, 0, sizeof(con->in_temp_ack),
-			    &con->in_temp_ack);
+	int size = sizeof (con->in_temp_ack);
+	int end = size;
+
+	return read_partial(con, end, size, &con->in_temp_ack);
 }
 
 
@@ -1629,8 +1641,9 @@ static int read_partial_message_bio(struct ceph_connection *con,
 static int read_partial_message(struct ceph_connection *con)
 {
 	struct ceph_msg *m = con->in_msg;
+	int size;
+	int end;
 	int ret;
-	int to;
 	unsigned front_len, middle_len, data_len;
 	bool do_datacrc = !con->msgr->nocrc;
 	int skip;
@@ -1640,7 +1653,9 @@ static int read_partial_message(struct ceph_connection *con)
 	dout("read_partial_message con %p msg %p\n", con, m);
 
 	/* header */
-	ret = read_partial(con, 0, sizeof (con->in_hdr), &con->in_hdr);
+	size = sizeof (con->in_hdr);
+	end = size;
+	ret = read_partial(con, end, size, &con->in_hdr);
 	if (ret <= 0)
 		return ret;
 
@@ -1755,8 +1770,9 @@ static int read_partial_message(struct ceph_connection *con)
 	}
 
 	/* footer */
-	to = sizeof (m->hdr);
-	ret = read_partial(con, to, sizeof (m->footer), &m->footer);
+	size = sizeof (m->footer);
+	end += size;
+	ret = read_partial(con, end, size, &m->footer);
 	if (ret <= 0)
 		return ret;
 
