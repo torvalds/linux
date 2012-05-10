@@ -49,6 +49,10 @@ static int n_antennas_2_param = 1;
 static int n_antennas_5_param = 1;
 static bool checksum_param = true;
 static bool enable_11a_param = true;
+static int low_band_component = -1;
+static int low_band_component_type = -1;
+static int high_band_component = -1;
+static int high_band_component_type = -1;
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -1160,6 +1164,32 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		goto out_free;
 	}
 
+	/*
+	 * If the module param is not set, update it with the one from
+	 * conf.  If it is set, overwrite conf with it.
+	 */
+	if (low_band_component == -1)
+		low_band_component = priv->conf.phy.low_band_component;
+	else
+		priv->conf.phy.low_band_component = low_band_component;
+	if (low_band_component_type == -1)
+		low_band_component_type =
+			priv->conf.phy.low_band_component_type;
+	else
+		priv->conf.phy.low_band_component_type =
+			low_band_component_type;
+
+	if (high_band_component == -1)
+		high_band_component = priv->conf.phy.high_band_component;
+	else
+		priv->conf.phy.high_band_component = high_band_component;
+	if (high_band_component_type == -1)
+		high_band_component_type =
+			priv->conf.phy.high_band_component_type;
+	else
+		priv->conf.phy.high_band_component_type =
+			high_band_component_type;
+
 	if (!checksum_param) {
 		wl18xx_ops.set_rx_csum = NULL;
 		wl18xx_ops.init_vif = NULL;
@@ -1223,6 +1253,22 @@ MODULE_PARM_DESC(checksum, "Enable TCP checksum: boolean (defaults to true)");
 
 module_param_named(enable_11a, enable_11a_param, bool, S_IRUSR);
 MODULE_PARM_DESC(enable_11a, "Enable 11a (5GHz): boolean (defaults to true)");
+
+module_param(low_band_component, uint, S_IRUSR);
+MODULE_PARM_DESC(low_band_component, "Low band component: u8 "
+		 "(default is 0x01)");
+
+module_param(low_band_component_type, uint, S_IRUSR);
+MODULE_PARM_DESC(low_band_component_type, "Low band component type: u8 "
+		 "(default is 0x05 or 0x06 depending on the board_type)");
+
+module_param(high_band_component, uint, S_IRUSR);
+MODULE_PARM_DESC(high_band_component, "High band component: u8, "
+		 "(default is 0x01)");
+
+module_param(high_band_component_type, uint, S_IRUSR);
+MODULE_PARM_DESC(high_band_component_type, "High band component type: u8 "
+		 "(default is 0x09)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
