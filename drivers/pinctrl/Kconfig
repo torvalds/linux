@@ -4,7 +4,6 @@
 
 config PINCTRL
 	bool
-	depends on EXPERIMENTAL
 
 if PINCTRL
 
