@@ -1235,7 +1235,9 @@ static int __devinit nmk_gpio_probe(struct platform_device *dev)
 	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
 	clk_disable(nmk_chip->clk);
 
+#ifdef CONFIG_OF_GPIO
 	chip->of_node = np;
+#endif
 
 	ret = gpiochip_add(&nmk_chip->chip);
 	if (ret)
