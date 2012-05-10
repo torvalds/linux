@@ -108,6 +108,7 @@ static const struct v4l2_pix_format vga_mode[] = {
 #define END_OF_SEQUENCE		0
 
 static const __u8 init_7311[] = {
+	0xff, 0x01,
 	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
 	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
 	0x78, 0x44,	/* Bit_0=start stream, Bit_6=LED */
