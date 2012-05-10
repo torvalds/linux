@@ -230,9 +230,15 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 		return -1;
 	}
 
-	if (parser->global.logical_maximum < parser->global.logical_minimum) {
-		hid_err(parser->device, "logical range invalid %d %d\n",
-				parser->global.logical_minimum, parser->global.logical_maximum);
+	if ((parser->global.logical_minimum < 0 &&
+		parser->global.logical_maximum <
+		parser->global.logical_minimum) ||
+		(parser->global.logical_minimum >= 0 &&
+		(__u32)parser->global.logical_maximum <
+		(__u32)parser->global.logical_minimum)) {
+		dbg_hid("logical range invalid 0x%x 0x%x\n",
+			parser->global.logical_minimum,
+			parser->global.logical_maximum);
 		return -1;
 	}
 
