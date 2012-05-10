@@ -93,6 +93,9 @@ struct lpfc_sli2_slim;
 /* lpfc wait event data ready flag */
 #define LPFC_DATA_READY		(1<<0)
 
+/* queue dump line buffer size */
+#define LPFC_LBUF_SZ		128
+
 enum lpfc_polling_flags {
 	ENABLE_FCP_RING_POLLING = 0x1,
 	DISABLE_FCP_RING_INT    = 0x2
