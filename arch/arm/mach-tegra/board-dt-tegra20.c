@@ -37,7 +37,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/setup.h>
-#include <asm/hardware/gic.h>
 
 #include <mach/iomap.h>
 #include <mach/irqs.h>
