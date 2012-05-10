@@ -380,7 +380,6 @@ struct rts51x_option {
 	u8 reset_or_rw_fail_set_pad_drive;
 
 	u8 debounce_num;	/* debounce number */
-	int polling_time;	/* polling delay time */
 	u8 led_toggle_interval;	/* used to control led toggle speed */
 	int xd_rwn_step;
 	u8 sd_send_status_en;
