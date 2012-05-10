@@ -3,7 +3,7 @@ ifneq ($(KERNELRELEASE),)
 # Uncomment the following line to enable kernel stack unwinding within gator, or update gator_backtrace.c
 # EXTRA_CFLAGS +=	-DGATOR_KERNEL_STACK_UNWINDING
 
-obj-m := gator.o
+obj-$(CONFIG_GATOR) := gator.o
 
 gator-y :=	gator_main.o \
 		gator_events_irq.o \
@@ -15,8 +15,9 @@ gator-y :=	gator_main.o \
 
 gator-y +=	gator_events_mmaped.o
 
-ifneq ($(GATOR_WITH_MALI_SUPPORT),)
-ifeq ($(GATOR_WITH_MALI_SUPPORT),MALI_T6xx)
+ifeq ($(CONFIG_GATOR_WITH_MALI_SUPPORT),y)
+
+ifeq ($(CONFIG_GATOR_MALI_T6XX),y)
 gator-y +=	gator_events_mali_t6xx.o \
 		gator_events_mali_t6xx_hw.o
 include $(M)/mali_t6xx.mk
@@ -24,7 +25,10 @@ else
 gator-y +=	gator_events_mali_400.o
 endif
 gator-y +=	gator_events_mali_common.o
-EXTRA_CFLAGS +=	-DMALI_SUPPORT=$(GATOR_WITH_MALI_SUPPORT)
+
+ccflags-y += -I$(CONFIG_GATOR_MALI_PATH)
+ccflags-$(CONFIG_GATOR_MALI_400MP) += -DMALI_SUPPORT=MALI_400
+ccflags-$(CONFIG_GATOR_MALI_T6XX) += -DMALI_SUPPORT=MALI_T6xx
 endif
 
 # GATOR_TEST controls whether to include (=1) or exclude (=0) test code. 
@@ -45,7 +49,7 @@ clean-files := gator_events.h
 silent_chk_events.h = :
 gator_events.h: FORCE
 	@$($(quiet)chk_events.h)
-	$(Q)cd $(obj) ; $(CONFIG_SHELL) $(obj)/gator_events.sh $@
+	$(Q)cd $(srctree)/$(src) ; $(CONFIG_SHELL) gator_events.sh $(objtree)/$(obj)/$@
 
 else
 
