@@ -26,10 +26,6 @@
 #include <linux/if_ether.h>
 #endif
 
-#ifdef CONFIG_TR
-#include <linux/if_tr.h>
-#endif
-
 static struct ctl_table_set *
 net_ctl_header_lookup(struct ctl_table_root *root, struct nsproxy *namespaces)
 {

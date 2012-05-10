@@ -983,10 +983,6 @@ static int ipxitf_create(struct ipx_interface_definition *idef)
 		goto out;
 
 	switch (idef->ipx_dlink_type) {
-	case IPX_FRAME_TR_8022:
-		printk(KERN_WARNING "IPX frame type 802.2TR is "
-			"obsolete Use 802.2 instead.\n");
-		/* fall through */
 	case IPX_FRAME_8022:
 		dlink_type 	= htons(ETH_P_802_2);
 		datalink 	= p8022_datalink;
@@ -996,10 +992,7 @@ static int ipxitf_create(struct ipx_interface_definition *idef)
 			dlink_type 	= htons(ETH_P_IPX);
 			datalink 	= pEII_datalink;
 			break;
-		} else
-			printk(KERN_WARNING "IPX frame type EtherII over "
-					"token-ring is obsolete. Use SNAP "
-					"instead.\n");
+		}
 		/* fall through */
 	case IPX_FRAME_SNAP:
 		dlink_type 	= htons(ETH_P_SNAP);
@@ -1275,7 +1268,6 @@ const char *ipx_frame_name(__be16 frame)
 	case ETH_P_802_2:	rc = "802.2";	break;
 	case ETH_P_SNAP:	rc = "SNAP";	break;
 	case ETH_P_802_3:	rc = "802.3";	break;
-	case ETH_P_TR_802_2:	rc = "802.2TR";	break;
 	}
 
 	return rc;
