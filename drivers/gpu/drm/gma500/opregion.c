@@ -149,7 +149,6 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 	struct backlight_device *bd = dev_priv->backlight_device;
-	u32 max;
 
 	DRM_DEBUG_DRIVER("asle set backlight %x\n", bclp);
 
@@ -163,11 +162,12 @@ static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 	if (bclp > 255)
 		return ASLE_BACKLIGHT_FAILED;
 
-#ifdef CONFIG_BACKLIGHT_CLASS_DEVICE
-	max = bd->props.max_brightness;
-	bd->props.brightness = bclp * max / 255;
-	backlight_update_status(bd);
-#endif
+	if (config_enabled(CONFIG_BACKLIGHT_CLASS_DEVICE)) {
+		int max = bd->props.max_brightness;
+		bd->props.brightness = bclp * max / 255;
+		backlight_update_status(bd);
+	}
+
 	asle->cblv = (bclp * 0x64) / 0xff | ASLE_CBLV_VALID;
 
 	return 0;
