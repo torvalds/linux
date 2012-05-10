@@ -713,6 +713,7 @@ lpfc_do_work(void *p)
 	int rc;
 
 	set_user_nice(current, -20);
+	current->flags |= PF_NOFREEZE;
 	phba->data_flags = 0;
 
 	while (!kthread_should_stop()) {
