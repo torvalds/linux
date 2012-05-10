@@ -282,8 +282,6 @@ source "drivers/net/slip/Kconfig"
 
 source "drivers/s390/net/Kconfig"
 
-source "drivers/net/tokenring/Kconfig"
-
 source "drivers/net/usb/Kconfig"
 
 source "drivers/net/wireless/Kconfig"
