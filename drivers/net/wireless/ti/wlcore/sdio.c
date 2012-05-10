@@ -33,6 +33,7 @@
 #include <linux/gpio.h>
 #include <linux/wl12xx.h>
 #include <linux/pm_runtime.h>
+#include <linux/printk.h>
 
 #include "wlcore.h"
 #include "wl12xx_80211.h"
@@ -45,6 +46,8 @@
 #ifndef SDIO_DEVICE_ID_TI_WL1271
 #define SDIO_DEVICE_ID_TI_WL1271	0x4076
 #endif
+
+static bool dump = false;
 
 struct wl12xx_sdio_glue {
 	struct device *dev;
@@ -77,6 +80,13 @@ static void wl12xx_sdio_raw_read(struct device *child, int addr, void *buf,
 
 	sdio_claim_host(func);
 
+	if (unlikely(dump)) {
+		printk(KERN_DEBUG "wlcore_sdio: READ from 0x%04x\n", addr);
+		print_hex_dump(KERN_DEBUG, "wlcore_sdio: READ ",
+				DUMP_PREFIX_OFFSET, 16, 1,
+				buf, len, false);
+	}
+
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		dev_dbg(child->parent, "sdio read 52 addr 0x%x, byte 0x%02x\n",
@@ -105,6 +115,13 @@ static void wl12xx_sdio_raw_write(struct device *child, int addr, void *buf,
 	struct sdio_func *func = dev_to_sdio_func(glue->dev);
 
 	sdio_claim_host(func);
+
+	if (unlikely(dump)) {
+		printk(KERN_DEBUG "wlcore_sdio: WRITE to 0x%04x\n", addr);
+		print_hex_dump(KERN_DEBUG, "wlcore_sdio: WRITE ",
+				DUMP_PREFIX_OFFSET, 16, 1,
+				buf, len, false);
+	}
 
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
@@ -379,6 +396,9 @@ static void __exit wl1271_exit(void)
 
 module_init(wl1271_init);
 module_exit(wl1271_exit);
+
+module_param(dump, bool, S_IRUSR | S_IWUSR);
+MODULE_PARM_DESC(dump, "Enable sdio read/write dumps.");
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
