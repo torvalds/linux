@@ -978,39 +978,6 @@ static inline int select_size(const struct sock *sk, bool sg)
 	return tmp;
 }
 
-static int tcp_send_rcvq(struct sock *sk, struct msghdr *msg, size_t size)
-{
-	struct sk_buff *skb;
-	struct tcphdr *th;
-	bool fragstolen;
-
-	skb = alloc_skb(size + sizeof(*th), sk->sk_allocation);
-	if (!skb)
-		goto err;
-
-	th = (struct tcphdr *)skb_put(skb, sizeof(*th));
-	skb_reset_transport_header(skb);
-	memset(th, 0, sizeof(*th));
-
-	if (memcpy_fromiovec(skb_put(skb, size), msg->msg_iov, size))
-		goto err_free;
-
-	TCP_SKB_CB(skb)->seq = tcp_sk(sk)->rcv_nxt;
-	TCP_SKB_CB(skb)->end_seq = TCP_SKB_CB(skb)->seq + size;
-	TCP_SKB_CB(skb)->ack_seq = tcp_sk(sk)->snd_una - 1;
-
-	if (tcp_queue_rcv(sk, skb, sizeof(*th), &fragstolen)) {
-		WARN_ON_ONCE(fragstolen); /* should not happen */
-		__kfree_skb(skb);
-	}
-	return size;
-
-err_free:
-	kfree_skb(skb);
-err:
-	return -ENOMEM;
-}
-
 int tcp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		size_t size)
 {
