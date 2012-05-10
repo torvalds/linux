@@ -611,9 +611,17 @@ static int radeon_ttm_tt_populate(struct ttm_tt *ttm)
 	struct radeon_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
 	int r;
+	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
 
 	if (ttm->state != tt_unpopulated)
 		return 0;
+
+	if (slave && ttm->sg) {
+		drm_prime_sg_to_page_addr_arrays(ttm->sg, ttm->pages,
+						 gtt->ttm.dma_address, ttm->num_pages);
+		ttm->state = tt_unbound;
+		return 0;
+	}
 
 	rdev = radeon_get_rdev(ttm->bdev);
 #if __OS_HAS_AGP
@@ -655,6 +663,10 @@ static void radeon_ttm_tt_unpopulate(struct ttm_tt *ttm)
 	struct radeon_device *rdev;
 	struct radeon_ttm_tt *gtt = (void *)ttm;
 	unsigned i;
+	bool slave = !!(ttm->page_flags & TTM_PAGE_FLAG_SG);
+
+	if (slave)
+		return;
 
 	rdev = radeon_get_rdev(ttm->bdev);
 #if __OS_HAS_AGP
@@ -726,8 +738,8 @@ int radeon_ttm_init(struct radeon_device *rdev)
 		return r;
 	}
 	r = radeon_bo_create(rdev, 256 * 1024, PAGE_SIZE, true,
-				RADEON_GEM_DOMAIN_VRAM,
-				&rdev->stollen_vga_memory);
+			     RADEON_GEM_DOMAIN_VRAM,
+			     NULL, &rdev->stollen_vga_memory);
 	if (r) {
 		return r;
 	}
