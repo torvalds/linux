@@ -927,7 +927,6 @@ struct sched_group_power {
 struct sched_group {
 	struct sched_group *next;	/* Must be a circular list */
 	atomic_t ref;
-	int balance_cpu;
 
 	unsigned int group_weight;
 	struct sched_group_power *sgp;
