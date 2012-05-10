@@ -71,6 +71,7 @@ struct wlcore_ops {
 			    struct sk_buff *skb);
 	u32 (*ap_get_mimo_wide_rate_mask)(struct wl1271 *wl,
 					  struct wl12xx_vif *wlvif);
+	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
 };
 
 enum wlcore_partitions {
@@ -117,6 +118,15 @@ enum wlcore_registers {
 	REG_RAW_FW_STATUS_ADDR,
 
 	REG_TABLE_LEN,
+};
+
+struct wl1271_stats {
+	void *fw_stats;
+	unsigned long fw_stats_update;
+	size_t fw_stats_len;
+
+	unsigned int retry_count;
+	unsigned int excessive_retries;
 };
 
 struct wl1271 {

@@ -132,14 +132,6 @@ struct wl1271_chip {
 	unsigned int fw_ver[NUM_FW_VER];
 };
 
-struct wl1271_stats {
-	struct acx_statistics *fw_stats;
-	unsigned long fw_stats_update;
-
-	unsigned int retry_count;
-	unsigned int excessive_retries;
-};
-
 #define NUM_TX_QUEUES              4
 
 #define AP_MAX_STATIONS            8

@@ -149,4 +149,13 @@ wlcore_hw_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 	return 0;
 }
 
+static inline int
+wlcore_debugfs_init(struct wl1271 *wl, struct dentry *rootdir)
+{
+	if (wl->ops->debugfs_init)
+		return wl->ops->debugfs_init(wl, rootdir);
+
+	return 0;
+}
+
 #endif
