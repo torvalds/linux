@@ -596,6 +596,7 @@ config HID_WACOM
 	tristate "Wacom Bluetooth devices support"
 	depends on BT_HIDP
 	select POWER_SUPPLY
+	select LEDS_CLASS
 	---help---
 	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 

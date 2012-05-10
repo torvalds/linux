@@ -24,12 +24,15 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/leds.h>
 #include <linux/slab.h>
 #include <linux/power_supply.h>
 
 #include "hid-ids.h"
 
 #define PAD_DEVICE_ID	0x0F
+
+#define WAC_CMD_LED_CONTROL     0x20
 
 struct wacom_data {
 	__u16 tool;
@@ -44,6 +47,8 @@ struct wacom_data {
 	__u8 ps_connected;
 	struct power_supply battery;
 	struct power_supply ac;
+	__u8 led_selector;
+	struct led_classdev *leds[4];
 };
 
 /*percent of battery capacity for Graphire
@@ -63,6 +68,117 @@ static enum power_supply_property wacom_ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 	POWER_SUPPLY_PROP_SCOPE,
 };
+
+static void wacom_leds_set_brightness(struct led_classdev *led_dev,
+						enum led_brightness value)
+{
+	struct device *dev = led_dev->dev->parent;
+	struct hid_device *hdev;
+	struct wacom_data *wdata;
+	unsigned char *buf;
+	__u8 led = 0;
+	int i;
+
+	hdev = container_of(dev, struct hid_device, dev);
+	wdata = hid_get_drvdata(hdev);
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i] == led_dev)
+			wdata->led_selector = i;
+	}
+
+	led = wdata->led_selector | 0x04;
+	buf = kzalloc(9, GFP_KERNEL);
+	if (buf) {
+		buf[0] = WAC_CMD_LED_CONTROL;
+		buf[1] = led;
+		buf[2] = value;
+		hdev->hid_output_raw_report(hdev, buf, 9, HID_FEATURE_REPORT);
+		kfree(buf);
+	}
+
+	return;
+}
+
+static enum led_brightness wacom_leds_get_brightness(struct led_classdev *led_dev)
+{
+	struct wacom_data *wdata;
+	struct device *dev = led_dev->dev->parent;
+	int value = 0;
+	int i;
+
+	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
+
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i] == led_dev) {
+			value = wdata->leds[i]->brightness;
+			break;
+		}
+	}
+
+	return value;
+}
+
+
+static int wacom_initialize_leds(struct hid_device *hdev)
+{
+	struct wacom_data *wdata = hid_get_drvdata(hdev);
+	struct led_classdev *led;
+	struct device *dev = &hdev->dev;
+	size_t namesz = strlen(dev_name(dev)) + 12;
+	char *name;
+	int i, ret;
+
+	wdata->led_selector = 0;
+
+	for (i = 0; i < 4; i++) {
+		led = kzalloc(sizeof(struct led_classdev) + namesz, GFP_KERNEL);
+		if (!led) {
+			hid_warn(hdev,
+				 "can't allocate memory for LED selector\n");
+			ret = -ENOMEM;
+			goto err;
+		}
+
+		name = (void *)&led[1];
+		snprintf(name, namesz, "%s:selector:%d", dev_name(dev), i);
+		led->name = name;
+		led->brightness = 0;
+		led->max_brightness = 127;
+		led->brightness_get = wacom_leds_get_brightness;
+		led->brightness_set = wacom_leds_set_brightness;
+
+		wdata->leds[i] = led;
+
+		ret = led_classdev_register(dev, wdata->leds[i]);
+
+		if (ret) {
+			wdata->leds[i] = NULL;
+			kfree(led);
+			hid_warn(hdev, "can't register LED\n");
+			goto err;
+		}
+	}
+
+err:
+	return ret;
+}
+
+static void wacom_destroy_leds(struct hid_device *hdev)
+{
+	struct wacom_data *wdata = hid_get_drvdata(hdev);
+	struct led_classdev *led;
+	int i;
+
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i]) {
+			led = wdata->leds[i];
+			wdata->leds[i] = NULL;
+			led_classdev_unregister(led);
+			kfree(led);
+		}
+	}
+
+}
 
 static int wacom_battery_get_property(struct power_supply *psy,
 				enum power_supply_property psp,
@@ -602,6 +718,12 @@ static int wacom_probe(struct hid_device *hdev,
 		sprintf(hdev->name, "%s", "Wacom Intuos4 WL");
 		wdata->features = 0;
 		wacom_set_features(hdev);
+		ret = wacom_initialize_leds(hdev);
+		if (ret) {
+			hid_warn(hdev,
+				 "can't create led attribute, err: %d\n", ret);
+			goto destroy_leds;
+		}
 		break;
 	}
 
@@ -644,6 +766,8 @@ err_ac:
 err_battery:
 	device_remove_file(&hdev->dev, &dev_attr_speed);
 	hid_hw_stop(hdev);
+destroy_leds:
+	wacom_destroy_leds(hdev);
 err_free:
 	kfree(wdata);
 	return ret;
@@ -652,6 +776,8 @@ err_free:
 static void wacom_remove(struct hid_device *hdev)
 {
 	struct wacom_data *wdata = hid_get_drvdata(hdev);
+
+	wacom_destroy_leds(hdev);
 	device_remove_file(&hdev->dev, &dev_attr_speed);
 	hid_hw_stop(hdev);
 
