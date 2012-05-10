@@ -445,8 +445,18 @@ static int abx500_chargalg_kick_watchdog(struct abx500_chargalg *di)
 {
 	/* Check if charger exists and kick watchdog if charging */
 	if (di->ac_chg && di->ac_chg->ops.kick_wd &&
-			di->chg_info.online_chg & AC_CHG)
+	    di->chg_info.online_chg & AC_CHG) {
+		/*
+		 * If AB charger watchdog expired, pm2xxx charging
+		 * gets disabled. To be safe, kick both AB charger watchdog
+		 * and pm2xxx watchdog.
+		 */
+		if (di->ac_chg->external &&
+		    di->usb_chg && di->usb_chg->ops.kick_wd)
+			di->usb_chg->ops.kick_wd(di->usb_chg);
+
 		return di->ac_chg->ops.kick_wd(di->ac_chg);
+	}
 	else if (di->usb_chg && di->usb_chg->ops.kick_wd &&
 			di->chg_info.online_chg & USB_CHG)
 		return di->usb_chg->ops.kick_wd(di->usb_chg);

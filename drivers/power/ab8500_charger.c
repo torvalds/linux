@@ -93,6 +93,8 @@
 
 #define CHARGER_STATUS_POLL 10 /* in ms */
 
+#define CHG_WD_INTERVAL			(60 * HZ)
+
 /* UsbLineStatus register - usb types */
 enum ab8500_charger_link_status {
 	USB_STAT_NOT_CONFIGURED,
@@ -2953,7 +2955,9 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->ac_chg.max_out_curr = ab8500_charger_current_map[
 		ARRAY_SIZE(ab8500_charger_current_map) - 1];
+	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->ac_chg.enabled = di->pdata->ac_enabled;
+	di->ac_chg.external = false;
 
 	/* USB supply */
 	/* power_supply base class */
@@ -2972,7 +2976,9 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
 	di->usb_chg.max_out_curr = ab8500_charger_current_map[
 		ARRAY_SIZE(ab8500_charger_current_map) - 1];
+	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->usb_chg.enabled = di->pdata->usb_enabled;
+	di->usb_chg.external = false;
 
 	/* Create a work queue for the charger */
 	di->charger_wq =

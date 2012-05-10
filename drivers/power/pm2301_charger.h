@@ -32,7 +32,7 @@
 
 /* Watchdog timeout constant */
 #define WD_TIMER			0x30 /* 4min */
-#define WD_KICK_INTERVAL		(60 * HZ)
+#define WD_KICK_INTERVAL		(30 * HZ)
 
 #define PM2XXX_NUM_INT_REG		0x6
 

@@ -875,7 +875,9 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		ARRAY_SIZE(pm2xxx_charger_voltage_map) - 1];
 	pm2->ac_chg.max_out_curr = pm2xxx_charger_current_map[
 		ARRAY_SIZE(pm2xxx_charger_current_map) - 1];
+	pm2->ac_chg.wdt_refresh = WD_KICK_INTERVAL;
 	pm2->ac_chg.enabled = true;
+	pm2->ac_chg.external = true;
 
 	/* Create a work queue for the charger */
 	pm2->charger_wq =
