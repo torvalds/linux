@@ -319,6 +319,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 
 	return 0;
 err_otg:
+	regulator_put(gpio_vbus->vbus_draw);
 	free_irq(irq, pdev);
 err_irq:
 	if (gpio_is_valid(pdata->gpio_pullup))
