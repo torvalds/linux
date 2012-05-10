@@ -5,6 +5,7 @@
  * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef _CRYPTO_UX500_H
+#define _CRYPTO_UX500_H
 #include <linux/dmaengine.h>
 #include <plat/ste_dma40.h>
 

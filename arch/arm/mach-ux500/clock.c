@@ -382,14 +382,15 @@ static DEFINE_PRCC_CLK(5, usb,		0,  0, NULL);
 /* Peripheral Cluster #6 */
 
 /* MTU ID in data */
-static DEFINE_PRCC_CLK_CUSTOM(6, mtu1, 8, -1, NULL, clk_mtu_get_rate, 1);
-static DEFINE_PRCC_CLK_CUSTOM(6, mtu0, 7, -1, NULL, clk_mtu_get_rate, 0);
-static DEFINE_PRCC_CLK(6, cfgreg,	6,  6, NULL);
-static DEFINE_PRCC_CLK(6, hash1,	5, -1, NULL);
-static DEFINE_PRCC_CLK(6, unipro,	4,  1, &clk_uniproclk);
-static DEFINE_PRCC_CLK(6, pka,		3, -1, NULL);
-static DEFINE_PRCC_CLK(6, hash0,	2, -1, NULL);
-static DEFINE_PRCC_CLK(6, cryp0,	1, -1, NULL);
+static DEFINE_PRCC_CLK_CUSTOM(6, mtu1, 9, -1, NULL, clk_mtu_get_rate, 1);
+static DEFINE_PRCC_CLK_CUSTOM(6, mtu0, 8, -1, NULL, clk_mtu_get_rate, 0);
+static DEFINE_PRCC_CLK(6, cfgreg,	7,  7, NULL);
+static DEFINE_PRCC_CLK(6, hash1,	6, -1, NULL);
+static DEFINE_PRCC_CLK(6, unipro,	5,  1, &clk_uniproclk);
+static DEFINE_PRCC_CLK(6, pka,		4, -1, NULL);
+static DEFINE_PRCC_CLK(6, hash0,	3, -1, NULL);
+static DEFINE_PRCC_CLK(6, cryp0,	2, -1, NULL);
+static DEFINE_PRCC_CLK(6, cryp1,    1, -1, NULL);
 static DEFINE_PRCC_CLK(6, rng,	0,  0, &clk_rngclk);
 
 static struct clk clk_dummy_apb_pclk = {
@@ -431,6 +432,7 @@ static struct clk_lookup u8500_clks[] = {
 	CLK(pka,	"pka",		NULL),
 	CLK(hash0,	"hash0",	NULL),
 	CLK(cryp0,	"cryp0",	NULL),
+	CLK(cryp1,  "cryp1",    NULL),
 
 	/* PRCMU level clock gating */
 

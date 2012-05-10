@@ -31,6 +31,9 @@
 #include <mach/db5500-regs.h>
 
 #define MSP_TX_RX_REG_OFFSET	0
+#define CRYP1_RX_REG_OFFSET	0x10
+#define CRYP1_TX_REG_OFFSET	0x8
+#define HASH1_TX_REG_OFFSET	0x4
 
 #ifndef __ASSEMBLY__
 

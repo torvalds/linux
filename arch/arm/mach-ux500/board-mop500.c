@@ -44,6 +44,7 @@
 #include <mach/setup.h>
 #include <mach/devices.h>
 #include <mach/irqs.h>
+#include <mach/crypto-ux500.h>
 
 #include "pins-db8500.h"
 #include "ste-dma40-db8500.h"
@@ -414,6 +415,45 @@ static void mop500_prox_deactivate(struct device *dev)
 	regulator_put(prox_regulator);
 }
 
+static struct cryp_platform_data u8500_cryp1_platform_data = {
+		.mem_to_engine = {
+				.dir = STEDMA40_MEM_TO_PERIPH,
+				.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
+				.dst_dev_type = DB8500_DMA_DEV48_CAC1_TX,
+				.src_info.data_width = STEDMA40_WORD_WIDTH,
+				.dst_info.data_width = STEDMA40_WORD_WIDTH,
+				.mode = STEDMA40_MODE_LOGICAL,
+				.src_info.psize = STEDMA40_PSIZE_LOG_4,
+				.dst_info.psize = STEDMA40_PSIZE_LOG_4,
+		},
+		.engine_to_mem = {
+				.dir = STEDMA40_PERIPH_TO_MEM,
+				.src_dev_type = DB8500_DMA_DEV48_CAC1_RX,
+				.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+				.src_info.data_width = STEDMA40_WORD_WIDTH,
+				.dst_info.data_width = STEDMA40_WORD_WIDTH,
+				.mode = STEDMA40_MODE_LOGICAL,
+				.src_info.psize = STEDMA40_PSIZE_LOG_4,
+				.dst_info.psize = STEDMA40_PSIZE_LOG_4,
+		}
+};
+
+static struct stedma40_chan_cfg u8500_hash_dma_cfg_tx = {
+		.dir = STEDMA40_MEM_TO_PERIPH,
+		.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
+		.dst_dev_type = DB8500_DMA_DEV50_HAC1_TX,
+		.src_info.data_width = STEDMA40_WORD_WIDTH,
+		.dst_info.data_width = STEDMA40_WORD_WIDTH,
+		.mode = STEDMA40_MODE_LOGICAL,
+		.src_info.psize = STEDMA40_PSIZE_LOG_16,
+		.dst_info.psize = STEDMA40_PSIZE_LOG_16,
+};
+
+static struct hash_platform_data u8500_hash1_platform_data = {
+		.mem_to_engine = &u8500_hash_dma_cfg_tx,
+		.dma_filter = stedma40_filter,
+};
+
 /* add any platform devices here - TODO */
 static struct platform_device *mop500_platform_devs[] __initdata = {
 	&mop500_gpio_keys_device,
@@ -599,6 +639,12 @@ static void __init mop500_uart_init(struct device *parent)
 	db8500_add_uart2(parent, &uart2_plat);
 }
 
+static void __init u8500_cryp1_hash1_init(struct device *parent)
+{
+	db8500_add_cryp1(parent, &u8500_cryp1_platform_data);
+	db8500_add_hash1(parent, &u8500_hash1_platform_data);
+}
+
 static struct platform_device *snowball_platform_devs[] __initdata = {
 	&snowball_led_dev,
 	&snowball_key_dev,
@@ -628,6 +674,8 @@ static void __init mop500_init_machine(void)
 	mop500_sdi_init(parent);
 	mop500_spi_init(parent);
 	mop500_uart_init(parent);
+
+	u8500_cryp1_hash1_init(parent);
 
 	i2c0_devs = ARRAY_SIZE(mop500_i2c0_devices);
 

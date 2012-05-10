@@ -124,4 +124,8 @@ db8500_add_ssp(struct device *parent, const char *name, resource_size_t base,
 	dbx500_add_uart(parent, "uart2", U8500_UART2_BASE, \
 			IRQ_DB8500_UART2, pdata)
 
+#define db8500_add_cryp1(parent, pdata) \
+	dbx500_add_cryp1(parent, -1, U8500_CRYP1_BASE, IRQ_DB8500_CRYP1, pdata)
+#define db8500_add_hash1(parent, pdata) \
+	dbx500_add_hash1(parent, -1, U8500_HASH1_BASE, pdata)
 #endif
