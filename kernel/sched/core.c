@@ -6395,8 +6395,7 @@ static void sched_init_numa(void)
 			sched_domains_numa_masks[i][j] = mask;
 
 			for (k = 0; k < nr_node_ids; k++) {
-				if (node_distance(cpu_to_node(j), k) >
-						sched_domains_numa_distance[i])
+				if (node_distance(j, k) > sched_domains_numa_distance[i])
 					continue;
 
 				cpumask_or(mask, mask, cpumask_of_node(k));
