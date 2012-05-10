@@ -27,9 +27,6 @@
 
 #include "reg.h"
 
-static struct wlcore_ops wl18xx_ops = {
-};
-
 static const struct wlcore_partition_set wl18xx_ptable[PART_TABLE_LEN] = {
 	[PART_TOP_PRCM_ELP_SOC] = {
 		.mem  = { .start = 0x00A02000, .size  = 0x00010000 },
@@ -84,6 +81,36 @@ static const int wl18xx_rtable[REG_TABLE_LEN] = {
 	[REG_RAW_FW_STATUS_ADDR]	= WL18XX_FW_STATUS_ADDR,
 };
 
+/* TODO: maybe move to a new header file? */
+#define WL18XX_FW_NAME "ti-connectivity/wl18xx-fw.bin"
+
+static int wl18xx_identify_chip(struct wl1271 *wl)
+{
+	int ret = 0;
+
+	switch (wl->chip.id) {
+	case CHIP_ID_185x_PG10:
+		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG10)",
+			     wl->chip.id);
+		wl->sr_fw_name = WL18XX_FW_NAME;
+		wl->quirks |= WLCORE_QUIRK_NO_ELP;
+
+		/* TODO: need to blocksize alignment for RX/TX separately? */
+		break;
+	default:
+		wl1271_warning("unsupported chip id: 0x%x", wl->chip.id);
+		ret = -ENODEV;
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+static struct wlcore_ops wl18xx_ops = {
+	.identify_chip = wl18xx_identify_chip,
+};
+
 int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -133,3 +160,4 @@ module_exit(wl18xx_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
+MODULE_FIRMWARE(WL18XX_FW_NAME);
