@@ -2864,12 +2864,15 @@ static int snd_hda_spdif_default_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	int idx = kcontrol->private_value;
-	struct hda_spdif_out *spdif = snd_array_elem(&codec->spdif_out, idx);
+	struct hda_spdif_out *spdif;
 
+	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_array_elem(&codec->spdif_out, idx);
 	ucontrol->value.iec958.status[0] = spdif->status & 0xff;
 	ucontrol->value.iec958.status[1] = (spdif->status >> 8) & 0xff;
 	ucontrol->value.iec958.status[2] = (spdif->status >> 16) & 0xff;
 	ucontrol->value.iec958.status[3] = (spdif->status >> 24) & 0xff;
+	mutex_unlock(&codec->spdif_mutex);
 
 	return 0;
 }
@@ -2955,12 +2958,14 @@ static int snd_hda_spdif_default_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	int idx = kcontrol->private_value;
-	struct hda_spdif_out *spdif = snd_array_elem(&codec->spdif_out, idx);
-	hda_nid_t nid = spdif->nid;
+	struct hda_spdif_out *spdif;
+	hda_nid_t nid;
 	unsigned short val;
 	int change;
 
 	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_array_elem(&codec->spdif_out, idx);
+	nid = spdif->nid;
 	spdif->status = ucontrol->value.iec958.status[0] |
 		((unsigned int)ucontrol->value.iec958.status[1] << 8) |
 		((unsigned int)ucontrol->value.iec958.status[2] << 16) |
@@ -2982,9 +2987,12 @@ static int snd_hda_spdif_out_switch_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	int idx = kcontrol->private_value;
-	struct hda_spdif_out *spdif = snd_array_elem(&codec->spdif_out, idx);
+	struct hda_spdif_out *spdif;
 
+	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_array_elem(&codec->spdif_out, idx);
 	ucontrol->value.integer.value[0] = spdif->ctls & AC_DIG1_ENABLE;
+	mutex_unlock(&codec->spdif_mutex);
 	return 0;
 }
 
@@ -3004,12 +3012,14 @@ static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	int idx = kcontrol->private_value;
-	struct hda_spdif_out *spdif = snd_array_elem(&codec->spdif_out, idx);
-	hda_nid_t nid = spdif->nid;
+	struct hda_spdif_out *spdif;
+	hda_nid_t nid;
 	unsigned short val;
 	int change;
 
 	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_array_elem(&codec->spdif_out, idx);
+	nid = spdif->nid;
 	val = spdif->ctls & ~AC_DIG1_ENABLE;
 	if (ucontrol->value.integer.value[0])
 		val |= AC_DIG1_ENABLE;
@@ -3097,6 +3107,9 @@ int snd_hda_create_spdif_out_ctls(struct hda_codec *codec,
 }
 EXPORT_SYMBOL_HDA(snd_hda_create_spdif_out_ctls);
 
+/* get the hda_spdif_out entry from the given NID
+ * call within spdif_mutex lock
+ */
 struct hda_spdif_out *snd_hda_spdif_out_of_nid(struct hda_codec *codec,
 					       hda_nid_t nid)
 {
@@ -3113,9 +3126,10 @@ EXPORT_SYMBOL_HDA(snd_hda_spdif_out_of_nid);
 
 void snd_hda_spdif_ctls_unassign(struct hda_codec *codec, int idx)
 {
-	struct hda_spdif_out *spdif = snd_array_elem(&codec->spdif_out, idx);
+	struct hda_spdif_out *spdif;
 
 	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_array_elem(&codec->spdif_out, idx);
 	spdif->nid = (u16)-1;
 	mutex_unlock(&codec->spdif_mutex);
 }
@@ -3123,10 +3137,11 @@ EXPORT_SYMBOL_HDA(snd_hda_spdif_ctls_unassign);
 
 void snd_hda_spdif_ctls_assign(struct hda_codec *codec, int idx, hda_nid_t nid)
 {
-	struct hda_spdif_out *spdif = snd_array_elem(&codec->spdif_out, idx);
+	struct hda_spdif_out *spdif;
 	unsigned short val;
 
 	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_array_elem(&codec->spdif_out, idx);
 	if (spdif->nid != nid) {
 		spdif->nid = nid;
 		val = spdif->ctls;
@@ -4747,11 +4762,11 @@ int snd_hda_multi_out_analog_prepare(struct hda_codec *codec,
 {
 	const hda_nid_t *nids = mout->dac_nids;
 	int chs = substream->runtime->channels;
-	struct hda_spdif_out *spdif =
-			snd_hda_spdif_out_of_nid(codec, mout->dig_out_nid);
+	struct hda_spdif_out *spdif;
 	int i;
 
 	mutex_lock(&codec->spdif_mutex);
+	spdif = snd_hda_spdif_out_of_nid(codec, mout->dig_out_nid);
 	if (mout->dig_out_nid && mout->share_spdif &&
 	    mout->dig_out_used != HDA_DIG_EXCLUSIVE) {
 		if (chs == 2 &&
