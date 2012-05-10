@@ -599,6 +599,7 @@ lpfc_bsg_rport_els(struct fc_bsg_job *job)
 
 	cmdiocbq->iocb_cmpl = lpfc_bsg_rport_els_cmp;
 	cmdiocbq->context1 = dd_data;
+	cmdiocbq->context_un.ndlp = ndlp;
 	cmdiocbq->context2 = rspiocbq;
 	dd_data->type = TYPE_IOCB;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
