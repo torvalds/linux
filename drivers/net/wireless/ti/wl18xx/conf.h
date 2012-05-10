@@ -33,9 +33,6 @@ struct wl18xx_conf_phy {
 	u8 low_band_component_type;
 	u8 high_band_component;
 	u8 high_band_component_type;
-	u8 number_of_assembled_ant2_4;
-	u8 number_of_assembled_ant5;
-	u8 external_pa_dc2dc;
 	u8 tcxo_ldo_voltage;
 	u8 xtal_itrim_val;
 	u8 srf_state;

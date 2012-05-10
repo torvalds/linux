@@ -44,6 +44,9 @@
 
 static char *ht_mode_param;
 static char *board_type_param;
+static bool dc2dc_param = false;
+static int n_antennas_2_param = 1;
+static int n_antennas_5_param = 1;
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -487,9 +490,6 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.low_band_component_type	= 0x05,
 		.high_band_component		= COMPONENT_2_WAY_SWITCH,
 		.high_band_component_type	= 0x09,
-		.number_of_assembled_ant2_4	= 0x01,
-		.number_of_assembled_ant5	= 0x01,
-		.external_pa_dc2dc		= 0x00,
 		.tcxo_ldo_voltage		= 0x00,
 		.xtal_itrim_val			= 0x04,
 		.srf_state			= 0x00,
@@ -704,10 +704,10 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 	params.high_band_component_type =
 		phy->high_band_component_type;
 	params.number_of_assembled_ant2_4 =
-		phy->number_of_assembled_ant2_4;
+		n_antennas_2_param;
 	params.number_of_assembled_ant5 =
-		phy->number_of_assembled_ant5;
-	params.external_pa_dc2dc = phy->external_pa_dc2dc;
+		n_antennas_5_param;
+	params.external_pa_dc2dc = dc2dc_param;
 	params.tcxo_ldo_voltage = phy->tcxo_ldo_voltage;
 	params.xtal_itrim_val = phy->xtal_itrim_val;
 	params.srf_state = phy->srf_state;
@@ -1104,6 +1104,15 @@ MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or mimo");
 module_param_named(board_type, board_type_param, charp, S_IRUSR);
 MODULE_PARM_DESC(board_type, "Board type: fpga, hdk, evb, com8 or "
 		 "dvp (default)");
+
+module_param_named(dc2dc, dc2dc_param, bool, S_IRUSR);
+MODULE_PARM_DESC(dc2dc, "External DC2DC: boolean (defaults to false)");
+
+module_param_named(n_antennas_2, n_antennas_2_param, uint, S_IRUSR);
+MODULE_PARM_DESC(n_antennas_2, "Number of installed 2.4GHz antennas: 1 (default) or 2");
+
+module_param_named(n_antennas_5, n_antennas_5_param, uint, S_IRUSR);
+MODULE_PARM_DESC(n_antennas_5, "Number of installed 5GHz antennas: 1 (default) or 2");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
