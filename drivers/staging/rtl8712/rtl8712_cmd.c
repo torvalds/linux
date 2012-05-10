@@ -50,7 +50,6 @@
 #include "drv_types.h"
 #include "recv_osdep.h"
 #include "mlme_osdep.h"
-#include "rtl871x_byteorder.h"
 #include "rtl871x_ioctl_set.h"
 
 static void check_hw_pbc(struct _adapter *padapter)

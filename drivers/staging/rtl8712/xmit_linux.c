@@ -35,7 +35,6 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#include "rtl871x_byteorder.h"
 #include "wifi.h"
 #include "mlme_osdep.h"
 #include "xmit_osdep.h"
