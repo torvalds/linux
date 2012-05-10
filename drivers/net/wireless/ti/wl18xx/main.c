@@ -1086,6 +1086,8 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		priv->board_type = BOARD_TYPE_EVB_18XX;
 	} else if (!strcmp(board_type_param, "com8")) {
 		priv->board_type = BOARD_TYPE_COM8_18XX;
+		/* HACK! Just for now we hardcode COM8 to 0x06 */
+		priv->conf.phy.low_band_component_type = 0x06;
 	} else {
 		wl1271_error("invalid board type '%s'", board_type_param);
 		wlcore_free_hw(wl);
