@@ -443,6 +443,12 @@ struct conf_rx_settings {
 	CONF_HW_BIT_RATE_MCS_5 | CONF_HW_BIT_RATE_MCS_6 |        \
 	CONF_HW_BIT_RATE_MCS_7)
 
+#define CONF_TX_MIMO_RATES (CONF_HW_BIT_RATE_MCS_8 |             \
+	CONF_HW_BIT_RATE_MCS_9 | CONF_HW_BIT_RATE_MCS_10 |       \
+	CONF_HW_BIT_RATE_MCS_11 | CONF_HW_BIT_RATE_MCS_12 |      \
+	CONF_HW_BIT_RATE_MCS_13 | CONF_HW_BIT_RATE_MCS_14 |      \
+	CONF_HW_BIT_RATE_MCS_15)
+
 /*
  * Default rates for management traffic when operating in AP mode. This
  * should be configured according to the basic rate set of the AP

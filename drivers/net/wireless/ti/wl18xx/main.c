@@ -862,6 +862,23 @@ static void wl18xx_set_rx_csum(struct wl1271 *wl,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
+static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
+				       struct wl12xx_vif *wlvif)
+{
+	u32 hw_rate_set = wlvif->rate_set;
+
+	if (wlvif->channel_type == NL80211_CHAN_HT40MINUS ||
+	    wlvif->channel_type == NL80211_CHAN_HT40PLUS) {
+		wl1271_debug(DEBUG_ACX, "using wide channel rate mask");
+		hw_rate_set |= CONF_TX_RATE_USE_WIDE_CHAN;
+
+		/* we don't support MIMO in wide-channel mode */
+		hw_rate_set &= ~CONF_TX_MIMO_RATES;
+	}
+
+	return hw_rate_set;
+}
+
 static void wl18xx_conf_init(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
@@ -888,6 +905,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.hw_init	= wl18xx_hw_init,
 	.set_tx_desc_csum = wl18xx_set_tx_desc_csum,
 	.set_rx_csum = wl18xx_set_rx_csum,
+	.sta_get_ap_rate_mask = wl18xx_sta_get_ap_rate_mask,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
