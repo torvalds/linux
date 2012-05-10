@@ -213,7 +213,7 @@ static int rk30_cpu_init(struct cpufreq_policy *policy)
 		if (!IS_ERR(ddr_clk))
 		{
 			clk_enable_dvfs(ddr_clk);
-			clk_set_rate(ddr_clk,clk_get_rate(ddr_clk)+1);
+			clk_set_rate(ddr_clk,clk_get_rate(ddr_clk)-1);
 		}
 		
 		cpu_clk = clk_get(NULL, "cpu");
