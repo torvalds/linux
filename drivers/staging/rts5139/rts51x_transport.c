@@ -120,7 +120,7 @@ unsigned int rts51x_access_sglist(unsigned char *buffer,
 	return cnt;
 }
 
-unsigned int rts51x_access_xfer_buf(unsigned char *buffer,
+static unsigned int rts51x_access_xfer_buf(unsigned char *buffer,
 				    unsigned int buflen, struct scsi_cmnd *srb,
 				    struct scatterlist **sgptr,
 				    unsigned int *offset, enum xfer_buf_dir dir)
@@ -252,6 +252,8 @@ static int rts51x_msg_common(struct rts51x_chip *chip, struct urb *urb,
 	return status;
 }
 
+static int rts51x_clear_halt(struct rts51x_chip *chip, unsigned int pipe);
+
 /*
  * Interpret the results of a URB transfer
  */
@@ -359,7 +361,7 @@ int rts51x_ctrl_transfer(struct rts51x_chip *chip, unsigned int pipe,
 				    rts51x->current_urb->actual_length);
 }
 
-int rts51x_clear_halt(struct rts51x_chip *chip, unsigned int pipe)
+static int rts51x_clear_halt(struct rts51x_chip *chip, unsigned int pipe)
 {
 	int result;
 	int endp = usb_pipeendpoint(pipe);
@@ -394,14 +396,14 @@ static void rts51x_sg_clean(struct usb_sg_request *io)
 	io->dev = NULL;
 }
 
-int rts51x_sg_init(struct usb_sg_request *io, struct usb_device *dev,
+static int rts51x_sg_init(struct usb_sg_request *io, struct usb_device *dev,
 		   unsigned pipe, unsigned period, struct scatterlist *sg,
 		   int nents, size_t length, gfp_t mem_flags)
 {
 	return usb_sg_init(io, dev, pipe, period, sg, nents, length, mem_flags);
 }
 
-int rts51x_sg_wait(struct usb_sg_request *io, int timeout)
+static int rts51x_sg_wait(struct usb_sg_request *io, int timeout)
 {
 	long timeleft;
 	int i;
@@ -532,7 +534,8 @@ static int rts51x_bulk_transfer_sglist(struct rts51x_chip *chip,
 				    chip->usb->current_sg.bytes);
 }
 
-int rts51x_bulk_transfer_buf(struct rts51x_chip *chip, unsigned int pipe,
+static int rts51x_bulk_transfer_buf(struct rts51x_chip *chip,
+			     unsigned int pipe,
 			     void *buf, unsigned int length,
 			     unsigned int *act_len, int timeout)
 {
