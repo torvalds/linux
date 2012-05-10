@@ -574,15 +574,6 @@ static int hash_init(struct ahash_request *req)
 	memset(&req_ctx->state, 0, sizeof(struct hash_state));
 	req_ctx->updated = 0;
 	if (hash_mode == HASH_MODE_DMA) {
-		if ((ctx->config.oper_mode == HASH_OPER_MODE_HMAC) &&
-				cpu_is_u5500()) {
-			pr_debug(DEV_DBG_NAME " [%s] HMAC and DMA not working "
-					"on u5500, directing to CPU mode.",
-					__func__);
-			req_ctx->dma_mode = false; /* Don't use DMA */
-			goto out;
-		}
-
 		if (req->nbytes < HASH_DMA_ALIGN_SIZE) {
 			req_ctx->dma_mode = false; /* Don't use DMA */
 
@@ -604,7 +595,6 @@ static int hash_init(struct ahash_request *req)
 			}
 		}
 	}
-out:
 	return 0;
 }
 
