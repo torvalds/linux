@@ -47,15 +47,15 @@ struct lm3533_als_platform_data {
 
 struct lm3533_bl_platform_data {
 	char *name;
+	u16 max_current;		/* 5000 - 29800 uA (800 uA step) */
 	u8 default_brightness;		/* 0 - 255 */
-	u8 max_current;			/* 0 - 31 */
 	u8 pwm;				/* 0 - 0x3f */
 };
 
 struct lm3533_led_platform_data {
 	char *name;
 	const char *default_trigger;
-	u8 max_current;			/* 0 - 31 */
+	u16 max_current;		/* 5000 - 29800 uA (800 uA step) */
 	u8 pwm;				/* 0 - 0x3f */
 };
 
@@ -91,7 +91,8 @@ extern int lm3533_ctrlbank_disable(struct lm3533_ctrlbank *cb);
 
 extern int lm3533_ctrlbank_set_brightness(struct lm3533_ctrlbank *cb, u8 val);
 extern int lm3533_ctrlbank_get_brightness(struct lm3533_ctrlbank *cb, u8 *val);
-extern int lm3533_ctrlbank_set_max_current(struct lm3533_ctrlbank *cb, u8 val);
+extern int lm3533_ctrlbank_set_max_current(struct lm3533_ctrlbank *cb,
+								u16 imax);
 extern int lm3533_ctrlbank_set_pwm(struct lm3533_ctrlbank *cb, u8 val);
 extern int lm3533_ctrlbank_get_pwm(struct lm3533_ctrlbank *cb, u8 *val);
 
