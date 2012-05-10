@@ -212,6 +212,7 @@ static struct dmi_system_id __devinitdata dell_quirks[] = {
 		},
 		.driver_data = &quirk_dell_vostro_v130,
 	},
+	{ }
 };
 
 static struct calling_interface_buffer *buffer;

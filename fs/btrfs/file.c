@@ -567,6 +567,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
 	int extent_type;
 	int recow;
 	int ret;
+	int modify_tree = -1;
 
 	if (drop_cache)
 		btrfs_drop_extent_cache(inode, start, end - 1, 0);
@@ -575,10 +576,13 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans, struct inode *inode,
 	if (!path)
 		return -ENOMEM;
 
+	if (start >= BTRFS_I(inode)->disk_i_size)
+		modify_tree = 0;
+
 	while (1) {
 		recow = 0;
 		ret = btrfs_lookup_file_extent(trans, root, path, ino,
-					       search_start, -1);
+					       search_start, modify_tree);
 		if (ret < 0)
 			break;
 		if (ret > 0 && path->slots[0] > 0 && search_start == start) {
@@ -634,7 +638,8 @@ next_slot:
 		}
 
 		search_start = max(key.offset, start);
-		if (recow) {
+		if (recow || !modify_tree) {
+			modify_tree = -1;
 			btrfs_release_path(path);
 			continue;
 		}

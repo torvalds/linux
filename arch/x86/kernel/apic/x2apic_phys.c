@@ -24,6 +24,12 @@ static int x2apic_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 {
 	if (x2apic_phys)
 		return x2apic_enabled();
+	else if ((acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID) &&
+		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL) &&
+		x2apic_enabled()) {
+		printk(KERN_DEBUG "System requires x2apic physical mode\n");
+		return 1;
+	}
 	else
 		return 0;
 }

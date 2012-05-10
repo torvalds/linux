@@ -104,15 +104,29 @@
  * (see struct iwl_tfd_frame).  These 16 pointer registers are offset by 0x04
  * bytes from one another.  Each TFD circular buffer in DRAM must be 256-byte
  * aligned (address bits 0-7 must be 0).
+ * Later devices have 20 (5000 series) or 30 (higher) queues, but the registers
+ * for them are in different places.
  *
  * Bit fields in each pointer register:
  *  27-0: TFD CB physical base address [35:8], must be 256-byte aligned
  */
-#define FH_MEM_CBBC_LOWER_BOUND          (FH_MEM_LOWER_BOUND + 0x9D0)
-#define FH_MEM_CBBC_UPPER_BOUND          (FH_MEM_LOWER_BOUND + 0xA10)
+#define FH_MEM_CBBC_0_15_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0x9D0)
+#define FH_MEM_CBBC_0_15_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xA10)
+#define FH_MEM_CBBC_16_19_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xBF0)
+#define FH_MEM_CBBC_16_19_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xC00)
+#define FH_MEM_CBBC_20_31_LOWER_BOUND		(FH_MEM_LOWER_BOUND + 0xB20)
+#define FH_MEM_CBBC_20_31_UPPER_BOUND		(FH_MEM_LOWER_BOUND + 0xB80)
 
-/* Find TFD CB base pointer for given queue (range 0-15). */
-#define FH_MEM_CBBC_QUEUE(x)  (FH_MEM_CBBC_LOWER_BOUND + (x) * 0x4)
+/* Find TFD CB base pointer for given queue */
+static inline unsigned int FH_MEM_CBBC_QUEUE(unsigned int chnl)
+{
+	if (chnl < 16)
+		return FH_MEM_CBBC_0_15_LOWER_BOUND + 4 * chnl;
+	if (chnl < 20)
+		return FH_MEM_CBBC_16_19_LOWER_BOUND + 4 * (chnl - 16);
+	WARN_ON_ONCE(chnl >= 32);
+	return FH_MEM_CBBC_20_31_LOWER_BOUND + 4 * (chnl - 20);
+}
 
 
 /**

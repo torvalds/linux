@@ -2301,6 +2301,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 
 				if (ret) {
 					printk(KERN_DEBUG "btrfs: run_delayed_extent_op returned %d\n", ret);
+					spin_lock(&delayed_refs->lock);
 					return ret;
 				}
 
@@ -2331,6 +2332,7 @@ static noinline int run_clustered_refs(struct btrfs_trans_handle *trans,
 
 		if (ret) {
 			printk(KERN_DEBUG "btrfs: run_one_delayed_ref returned %d\n", ret);
+			spin_lock(&delayed_refs->lock);
 			return ret;
 		}
 
@@ -3769,13 +3771,10 @@ again:
 		 */
 		if (current->journal_info)
 			return -EAGAIN;
-		ret = wait_event_interruptible(space_info->wait,
-					       !space_info->flush);
-		/* Must have been interrupted, return */
-		if (ret) {
-			printk(KERN_DEBUG "btrfs: %s returning -EINTR\n", __func__);
+		ret = wait_event_killable(space_info->wait, !space_info->flush);
+		/* Must have been killed, return */
+		if (ret)
 			return -EINTR;
-		}
 
 		spin_lock(&space_info->lock);
 	}
@@ -4215,8 +4214,8 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 
 	num_bytes = calc_global_metadata_size(fs_info);
 
-	spin_lock(&block_rsv->lock);
 	spin_lock(&sinfo->lock);
+	spin_lock(&block_rsv->lock);
 
 	block_rsv->size = num_bytes;
 
@@ -4242,8 +4241,8 @@ static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
 		block_rsv->full = 1;
 	}
 
-	spin_unlock(&sinfo->lock);
 	spin_unlock(&block_rsv->lock);
+	spin_unlock(&sinfo->lock);
 }
 
 static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
@@ -6569,7 +6568,7 @@ static noinline int do_walk_down(struct btrfs_trans_handle *trans,
 			goto skip;
 	}
 
-	if (!btrfs_buffer_uptodate(next, generation)) {
+	if (!btrfs_buffer_uptodate(next, generation, 0)) {
 		btrfs_tree_unlock(next);
 		free_extent_buffer(next);
 		next = NULL;
