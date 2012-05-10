@@ -77,7 +77,7 @@ static inline int get_rsp_type(u8 rsp_code, u8 *rsp_type, int *rsp_len)
 	return STATUS_SUCCESS;
 }
 
-int ext_sd_send_cmd_get_rsp(struct rts51x_chip *chip, u8 cmd_idx,
+static int ext_sd_send_cmd_get_rsp(struct rts51x_chip *chip, u8 cmd_idx,
 			    u32 arg, u8 rsp_type, u8 *rsp, int rsp_len,
 			    int special_check)
 {
@@ -224,7 +224,7 @@ RTY_SEND_CMD:
 	return STATUS_SUCCESS;
 }
 
-int ext_sd_get_rsp(struct rts51x_chip *chip, int len, u8 *rsp, u8 rsp_type)
+static int ext_sd_get_rsp(struct rts51x_chip *chip, int len, u8 *rsp, u8 rsp_type)
 {
 	int retval, rsp_len;
 	u16 reg_addr;
