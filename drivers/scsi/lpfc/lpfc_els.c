@@ -5198,7 +5198,6 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	cmdsize = sizeof(struct RLS_RSP) + sizeof(uint32_t);
-	mempool_free(pmb, phba->mbox_mem_pool);
 	elsiocb = lpfc_prep_els_iocb(phba->pport, 0, cmdsize,
 				     lpfc_max_els_tries, ndlp,
 				     ndlp->nlp_DID, ELS_CMD_ACC);
@@ -5206,8 +5205,10 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	/* Decrement the ndlp reference count from previous mbox command */
 	lpfc_nlp_put(ndlp);
 
-	if (!elsiocb)
+	if (!elsiocb) {
+		mempool_free(pmb, phba->mbox_mem_pool);
 		return;
+	}
 
 	icmd = &elsiocb->iocb;
 	icmd->ulpContext = rxid;
@@ -5224,7 +5225,7 @@ lpfc_els_rsp_rls_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	rls_rsp->primSeqErrCnt = cpu_to_be32(mb->un.varRdLnk.primSeqErrCnt);
 	rls_rsp->invalidXmitWord = cpu_to_be32(mb->un.varRdLnk.invalidXmitWord);
 	rls_rsp->crcCnt = cpu_to_be32(mb->un.varRdLnk.crcCnt);
-
+	mempool_free(pmb, phba->mbox_mem_pool);
 	/* Xmit ELS RLS ACC response tag <ulpIoTag> */
 	lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_ELS,
 			 "2874 Xmit ELS RLS ACC response tag x%x xri x%x, "
