@@ -34,11 +34,6 @@
 #define CREATE_RAW_FILE      0
 
 #if DO_DEBUG_MESSAGES
-#define CHECKPOINT printk(KERN_INFO "line6usb: %s (%s:%d)\n", \
-			  __func__, __FILE__, __LINE__)
-#endif
-
-#if DO_DEBUG_MESSAGES
 #define DEBUG_MESSAGES(x) (x)
 #else
 #define DEBUG_MESSAGES(x)
