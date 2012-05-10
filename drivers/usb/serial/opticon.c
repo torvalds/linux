@@ -557,18 +557,16 @@ static void opticon_release(struct usb_serial *serial)
 	kfree(priv);
 }
 
-static int opticon_suspend(struct usb_interface *intf, pm_message_t message)
+static int opticon_suspend(struct usb_serial *serial, pm_message_t message)
 {
-	struct usb_serial *serial = usb_get_intfdata(intf);
 	struct opticon_private *priv = usb_get_serial_data(serial);
 
 	usb_kill_urb(priv->bulk_read_urb);
 	return 0;
 }
 
-static int opticon_resume(struct usb_interface *intf)
+static int opticon_resume(struct usb_serial *serial)
 {
-	struct usb_serial *serial = usb_get_intfdata(intf);
 	struct opticon_private *priv = usb_get_serial_data(serial);
 	struct usb_serial_port *port = serial->port[0];
 	int result;
@@ -582,13 +580,6 @@ static int opticon_resume(struct usb_interface *intf)
 	mutex_unlock(&port->port.mutex);
 	return result;
 }
-
-static struct usb_driver opticon_driver = {
-	.name =		"opticon",
-	.suspend =	opticon_suspend,
-	.resume =	opticon_resume,
-	.id_table =	id_table,
-};
 
 static struct usb_serial_driver opticon_device = {
 	.driver = {
@@ -609,6 +600,8 @@ static struct usb_serial_driver opticon_device = {
 	.ioctl =		opticon_ioctl,
 	.tiocmget =		opticon_tiocmget,
 	.tiocmset =		opticon_tiocmset,
+	.suspend = 		opticon_suspend,
+	.resume =		opticon_resume,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {
