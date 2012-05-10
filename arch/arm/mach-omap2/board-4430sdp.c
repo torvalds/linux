@@ -666,6 +666,10 @@ static struct nokia_dsi_panel_data dsi1_panel = {
 		.use_ext_te	= false,
 		.ext_te_gpio	= 101,
 		.esd_interval	= 0,
+		.pin_config = {
+			.num_pins	= 6,
+			.pins		= { 0, 1, 2, 3, 4, 5 },
+		},
 };
 
 static struct omap_dss_device sdp4430_lcd_device = {
@@ -674,13 +678,6 @@ static struct omap_dss_device sdp4430_lcd_device = {
 	.type			= OMAP_DISPLAY_TYPE_DSI,
 	.data			= &dsi1_panel,
 	.phy.dsi		= {
-		.clk_lane	= 1,
-		.clk_pol	= 0,
-		.data1_lane	= 2,
-		.data1_pol	= 0,
-		.data2_lane	= 3,
-		.data2_pol	= 0,
-
 		.module		= 0,
 	},
 
@@ -715,6 +712,10 @@ static struct nokia_dsi_panel_data dsi2_panel = {
 		.use_ext_te	= false,
 		.ext_te_gpio	= 103,
 		.esd_interval	= 0,
+		.pin_config = {
+			.num_pins	= 6,
+			.pins		= { 0, 1, 2, 3, 4, 5 },
+		},
 };
 
 static struct omap_dss_device sdp4430_lcd2_device = {
@@ -723,12 +724,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	.type			= OMAP_DISPLAY_TYPE_DSI,
 	.data			= &dsi2_panel,
 	.phy.dsi		= {
-		.clk_lane	= 1,
-		.clk_pol	= 0,
-		.data1_lane	= 2,
-		.data1_pol	= 0,
-		.data2_lane	= 3,
-		.data2_pol	= 0,
 
 		.module		= 1,
 	},
@@ -757,21 +752,6 @@ static struct omap_dss_device sdp4430_lcd2_device = {
 	},
 	.channel		= OMAP_DSS_CHANNEL_LCD2,
 };
-
-static void sdp4430_lcd_init(void)
-{
-	int r;
-
-	r = gpio_request_one(dsi1_panel.reset_gpio, GPIOF_DIR_OUT,
-		"lcd1_reset_gpio");
-	if (r)
-		pr_err("%s: Could not get lcd1_reset_gpio\n", __func__);
-
-	r = gpio_request_one(dsi2_panel.reset_gpio, GPIOF_DIR_OUT,
-		"lcd2_reset_gpio");
-	if (r)
-		pr_err("%s: Could not get lcd2_reset_gpio\n", __func__);
-}
 
 static struct omap_dss_hdmi_data sdp4430_hdmi_data = {
 	.hpd_gpio = HDMI_GPIO_HPD,
@@ -858,7 +838,6 @@ static void __init omap_4430sdp_display_init(void)
 	if (r)
 		pr_err("%s: Could not get display_sel GPIO\n", __func__);
 
-	sdp4430_lcd_init();
 	sdp4430_picodlp_init();
 	omap_display_init(&sdp4430_dss_data);
 	/*
