@@ -666,7 +666,8 @@ atc_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		return NULL;
 	}
 
-	ctrla = atslave->ctrla;
+	ctrla =   ATC_SCSIZE(sconfig->src_maxburst)
+		| ATC_DCSIZE(sconfig->dst_maxburst);
 	ctrlb = ATC_IEN;
 
 	switch (direction) {
@@ -794,12 +795,12 @@ atc_dma_cyclic_fill_desc(struct dma_chan *chan, struct at_desc *desc,
 		enum dma_transfer_direction direction)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
-	struct at_dma_slave	*atslave = chan->private;
 	struct dma_slave_config	*sconfig = &atchan->dma_sconfig;
 	u32			ctrla;
 
 	/* prepare common CRTLA value */
-	ctrla = atslave->ctrla
+	ctrla =   ATC_SCSIZE(sconfig->src_maxburst)
+		| ATC_DCSIZE(sconfig->dst_maxburst)
 		| ATC_DST_WIDTH(reg_width)
 		| ATC_SRC_WIDTH(reg_width)
 		| period_len >> reg_width;

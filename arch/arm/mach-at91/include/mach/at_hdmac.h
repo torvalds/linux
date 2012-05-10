@@ -27,12 +27,10 @@ struct at_dma_platform_data {
  * struct at_dma_slave - Controller-specific information about a slave
  * @dma_dev: required DMA master device
  * @cfg: Platform-specific initializer for the CFG register
- * @ctrla: Platform-specific initializer for the CTRLA register
  */
 struct at_dma_slave {
 	struct device		*dma_dev;
 	u32			cfg;
-	u32			ctrla;
 };
 
 
@@ -59,24 +57,5 @@ struct at_dma_slave {
 #define		ATC_FIFOCFG_HALFFIFO		(0x1 << 28)
 #define		ATC_FIFOCFG_ENOUGHSPACE		(0x2 << 28)
 
-/* Platform-configurable bits in CTRLA */
-#define	ATC_SCSIZE_MASK		(0x7 << 16)	/* Source Chunk Transfer Size */
-#define		ATC_SCSIZE_1		(0x0 << 16)
-#define		ATC_SCSIZE_4		(0x1 << 16)
-#define		ATC_SCSIZE_8		(0x2 << 16)
-#define		ATC_SCSIZE_16		(0x3 << 16)
-#define		ATC_SCSIZE_32		(0x4 << 16)
-#define		ATC_SCSIZE_64		(0x5 << 16)
-#define		ATC_SCSIZE_128		(0x6 << 16)
-#define		ATC_SCSIZE_256		(0x7 << 16)
-#define	ATC_DCSIZE_MASK		(0x7 << 20)	/* Destination Chunk Transfer Size */
-#define		ATC_DCSIZE_1		(0x0 << 20)
-#define		ATC_DCSIZE_4		(0x1 << 20)
-#define		ATC_DCSIZE_8		(0x2 << 20)
-#define		ATC_DCSIZE_16		(0x3 << 20)
-#define		ATC_DCSIZE_32		(0x4 << 20)
-#define		ATC_DCSIZE_64		(0x5 << 20)
-#define		ATC_DCSIZE_128		(0x6 << 20)
-#define		ATC_DCSIZE_256		(0x7 << 20)
 
 #endif /* AT_HDMAC_H */
