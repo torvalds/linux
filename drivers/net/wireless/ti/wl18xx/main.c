@@ -38,7 +38,7 @@
 #include "tx.h"
 #include "wl18xx.h"
 #include "io.h"
-
+#include "debugfs.h"
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
@@ -1011,6 +1011,11 @@ static void wl18xx_get_mac(struct wl1271 *wl)
 	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
 }
 
+static int wl18xx_debugfs_init(struct wl1271 *wl, struct dentry *rootdir)
+{
+	return wl18xx_debugfs_add_files(wl, rootdir);
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -1031,6 +1036,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.sta_get_ap_rate_mask = wl18xx_sta_get_ap_rate_mask,
 	.ap_get_mimo_wide_rate_mask = wl18xx_ap_get_mimo_wide_rate_mask,
 	.get_mac	= wl18xx_get_mac,
+	.debugfs_init	= wl18xx_debugfs_init,
 };
 
 /* HT cap appropriate for wide channels */
@@ -1085,6 +1091,7 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
 	wl->fw_status_priv_len = sizeof(struct wl18xx_fw_status_priv);
+	wl->stats.fw_stats_len = sizeof(struct wl18xx_acx_statistics);
 	memcpy(&wl->ht_cap, &wl18xx_ht_cap, sizeof(wl18xx_ht_cap));
 	if (ht_mode_param && !strcmp(ht_mode_param, "mimo"))
 		memcpy(&wl->ht_cap, &wl18xx_mimo_ht_cap,

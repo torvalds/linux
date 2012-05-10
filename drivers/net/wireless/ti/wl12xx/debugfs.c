@@ -25,6 +25,7 @@
 
 #include "wl12xx.h"
 #include "acx.h"
+#include "debugfs.h"
 
 #define WL12XX_DEBUGFS_FWSTATS_FILE(a, b, c) \
 	DEBUGFS_FWSTATS_FILE(a, b, c, wl12xx_acx_statistics)
