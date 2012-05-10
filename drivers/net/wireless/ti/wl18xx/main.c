@@ -659,8 +659,6 @@ static void wl18xx_boot_soft_reset(struct wl1271 *wl)
 
 static int wl18xx_pre_boot(struct wl1271 *wl)
 {
-	/* TODO: add hw_pg_ver reading */
-
 	wl18xx_set_clk(wl);
 
 	/* Continue the ELP wake up sequence */
@@ -946,6 +944,20 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 	}
 }
 
+static s8 wl18xx_get_pg_ver(struct wl1271 *wl)
+{
+	u32 fuse;
+
+	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
+
+	fuse = wl1271_read32(wl, WL18XX_REG_FUSE_DATA_1_3);
+	fuse = (fuse & WL18XX_PG_VER_MASK) >> WL18XX_PG_VER_OFFSET;
+
+	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
+
+	return (s8)fuse;
+}
+
 static void wl18xx_conf_init(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
@@ -971,6 +983,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.tx_delayed_compl = NULL,
 	.hw_init	= wl18xx_hw_init,
 	.set_tx_desc_csum = wl18xx_set_tx_desc_csum,
+	.get_pg_ver	= wl18xx_get_pg_ver,
 	.set_rx_csum = wl18xx_set_rx_csum,
 	.sta_get_ap_rate_mask = wl18xx_sta_get_ap_rate_mask,
 	.ap_get_mimo_wide_rate_mask = wl18xx_ap_get_mimo_wide_rate_mask,
