@@ -250,11 +250,9 @@ static void lnw_irq_handler(unsigned irq, struct irq_desc *desc)
 	/* check GPIO controller to check which pin triggered the interrupt */
 	for (base = 0; base < lnw->chip.ngpio; base += 32) {
 		gedr = gpio_reg(&lnw->chip, base, GEDR);
-		pending = readl(gedr);
-		while (pending) {
+		while ((pending = readl(gedr))) {
 			gpio = __ffs(pending);
 			mask = BIT(gpio);
-			pending &= ~mask;
 			/* Clear before handling so we can't lose an edge */
 			writel(mask, gedr);
 			generic_handle_irq(irq_find_mapping(lnw->domain,
