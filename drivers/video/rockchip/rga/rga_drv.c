@@ -566,7 +566,7 @@ static void rga_try_set_reg(uint32_t num)
         return;
     }
 
-    udelay(100);
+    udelay(3);
         
 	spin_lock_irqsave(&rga_service.lock, flag);
 	if (!list_empty(&rga_service.waiting)) 

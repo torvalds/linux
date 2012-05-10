@@ -12,13 +12,15 @@
 #include <linux/mman.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/memory.h>
+#include <linux/dma-mapping.h>
+#include <asm/memory.h>
 #include <asm/atomic.h>
-
-
+#include <asm/cacheflush.h>
 #include "rga_mmu_info.h"
 
 extern rga_service_info rga_service;
-extern int mmu_buff_temp[1024];
+//extern int mmu_buff_temp[1024];
 
 #define KERNEL_SPACE_VALID    0xc0000000
 
