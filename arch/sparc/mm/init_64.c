@@ -805,12 +805,6 @@ static u64 memblock_nid_range(u64 start, u64 end, int *nid)
 
 	return start;
 }
-#else
-static u64 memblock_nid_range(u64 start, u64 end, int *nid)
-{
-	*nid = 0;
-	return end;
-}
 #endif
 
 /* This must be invoked after performing all of the necessary
@@ -819,10 +813,11 @@ static u64 memblock_nid_range(u64 start, u64 end, int *nid)
  */
 static void __init allocate_node_data(int nid)
 {
-	unsigned long paddr, start_pfn, end_pfn;
 	struct pglist_data *p;
-
+	unsigned long start_pfn, end_pfn;
 #ifdef CONFIG_NEED_MULTIPLE_NODES
+	unsigned long paddr;
+
 	paddr = memblock_alloc_try_nid(sizeof(struct pglist_data), SMP_CACHE_BYTES, nid);
 	if (!paddr) {
 		prom_printf("Cannot allocate pglist_data for nid[%d]\n", nid);
@@ -1623,6 +1618,7 @@ void __init paging_init(void)
 {
 	unsigned long end_pfn, shift, phys_base;
 	unsigned long real_end, i;
+	int node;
 
 	/* These build time checkes make sure that the dcache_dirty_cpu()
 	 * page->flags usage will work.
@@ -1756,7 +1752,7 @@ void __init paging_init(void)
 	 * IRQ stacks.
 	 */
 	for_each_possible_cpu(i) {
-		int node = cpu_to_node(i);
+		node = cpu_to_node(i);
 
 		softirq_stack[i] = __alloc_bootmem_node(NODE_DATA(node),
 							THREAD_SIZE,
