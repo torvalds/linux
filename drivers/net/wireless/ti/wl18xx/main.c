@@ -478,7 +478,7 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->band_rate_to_idx = wl18xx_band_rate_to_idx;
 	wl->hw_tx_rate_tbl_size = WL18XX_CONF_HW_RXTX_RATE_MAX;
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
-
+	wl->fw_status_priv_len = sizeof(struct wl18xx_fw_status_priv);
 	return wlcore_probe(wl, pdev);
 }
 
