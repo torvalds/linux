@@ -345,7 +345,7 @@ restart:
  * args->minlen no suitable extent could be found, and the higher level
  * code needs to force out the log and retry the allocation.
  */
-STATIC void
+void
 xfs_extent_busy_trim(
 	struct xfs_alloc_arg	*args,
 	xfs_agblock_t		bno,
