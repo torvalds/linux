@@ -95,6 +95,17 @@ static __initdata struct tegra_clk_init_table tegra20_clk_init_table[] = {
 };
 #endif
 
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
+static __initdata struct tegra_clk_init_table tegra30_clk_init_table[] = {
+	/* name		parent		rate		enabled */
+	{ "clk_m",	NULL,		0,		true },
+	{ "pll_p",	"clk_m",	408000000,	true },
+	{ "pll_p_out1",	"pll_p",	9600000,	true },
+	{ NULL,		NULL,		0,		0},
+};
+#endif
+
+
 static void __init tegra_init_cache(u32 tag_latency, u32 data_latency)
 {
 #ifdef CONFIG_CACHE_L2X0
@@ -129,6 +140,7 @@ void __init tegra30_init_early(void)
 {
 	tegra_init_fuse();
 	tegra30_init_clocks();
+	tegra_clk_init_from_table(tegra30_clk_init_table);
 	tegra_init_cache(0x441, 0x551);
 	tegra_pmc_init();
 	tegra_powergate_init();
