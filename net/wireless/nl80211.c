@@ -2410,9 +2410,15 @@ static int parse_station_flags(struct genl_info *info,
 		return -EINVAL;
 	}
 
-	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++)
-		if (flags[flag])
+	for (flag = 1; flag <= NL80211_STA_FLAG_MAX; flag++) {
+		if (flags[flag]) {
 			params->sta_flags_set |= (1<<flag);
+
+			/* no longer support new API additions in old API */
+			if (flag > NL80211_STA_FLAG_MAX_OLD_API)
+				return -EINVAL;
+		}
+	}
 
 	return 0;
 }
