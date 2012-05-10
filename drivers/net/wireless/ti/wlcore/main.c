@@ -5295,8 +5295,6 @@ int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev)
 	wlcore_adjust_conf(wl);
 
 	wl->irq = platform_get_irq(pdev, 0);
-	wl->ref_clock = pdata->board_ref_clock;
-	wl->tcxo_clock = pdata->board_tcxo_clock;
 	wl->platform_quirks = pdata->platform_quirks;
 	wl->set_power = pdata->set_power;
 	wl->dev = &pdev->dev;

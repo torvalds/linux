@@ -40,6 +40,9 @@
 #include "cmd.h"
 #include "acx.h"
 
+static char *fref_param;
+static char *tcxo_param;
+
 static struct wlcore_conf wl12xx_conf = {
 	.sg = {
 		.params = {
@@ -773,6 +776,7 @@ static int wl128x_configure_mcs_pll(struct wl1271 *wl, int clk)
 	u16 spare_reg;
 	u16 pll_config;
 	u8 input_freq;
+	struct wl12xx_priv *priv = wl->priv;
 
 	/* Mask bits [3:1] in the sys_clk_cfg register */
 	spare_reg = wl12xx_top_reg_read(wl, WL_SPARE_REG);
@@ -782,8 +786,8 @@ static int wl128x_configure_mcs_pll(struct wl1271 *wl, int clk)
 	wl12xx_top_reg_write(wl, WL_SPARE_REG, spare_reg);
 
 	/* Handle special cases of the TCXO clock */
-	if (wl->tcxo_clock == WL12XX_TCXOCLOCK_16_8 ||
-	    wl->tcxo_clock == WL12XX_TCXOCLOCK_33_6)
+	if (priv->tcxo_clock == WL12XX_TCXOCLOCK_16_8 ||
+	    priv->tcxo_clock == WL12XX_TCXOCLOCK_33_6)
 		return wl128x_manually_configure_mcs_pll(wl);
 
 	/* Set the input frequency according to the selected clock source */
@@ -808,11 +812,12 @@ static int wl128x_configure_mcs_pll(struct wl1271 *wl, int clk)
  */
 static int wl128x_boot_clk(struct wl1271 *wl, int *selected_clock)
 {
+	struct wl12xx_priv *priv = wl->priv;
 	u16 sys_clk_cfg;
 
 	/* For XTAL-only modes, FREF will be used after switching from TCXO */
-	if (wl->ref_clock == WL12XX_REFCLOCK_26_XTAL ||
-	    wl->ref_clock == WL12XX_REFCLOCK_38_XTAL) {
+	if (priv->ref_clock == WL12XX_REFCLOCK_26_XTAL ||
+	    priv->ref_clock == WL12XX_REFCLOCK_38_XTAL) {
 		if (!wl128x_switch_tcxo_to_fref(wl))
 			return -EINVAL;
 		goto fref_clk;
@@ -826,8 +831,8 @@ static int wl128x_boot_clk(struct wl1271 *wl, int *selected_clock)
 		goto fref_clk;
 
 	/* If TCXO is either 32.736MHz or 16.368MHz, switch to FREF */
-	if (wl->tcxo_clock == WL12XX_TCXOCLOCK_16_368 ||
-	    wl->tcxo_clock == WL12XX_TCXOCLOCK_32_736) {
+	if (priv->tcxo_clock == WL12XX_TCXOCLOCK_16_368 ||
+	    priv->tcxo_clock == WL12XX_TCXOCLOCK_32_736) {
 		if (!wl128x_switch_tcxo_to_fref(wl))
 			return -EINVAL;
 		goto fref_clk;
@@ -836,14 +841,14 @@ static int wl128x_boot_clk(struct wl1271 *wl, int *selected_clock)
 	/* TCXO clock is selected */
 	if (!wl128x_is_tcxo_valid(wl))
 		return -EINVAL;
-	*selected_clock = wl->tcxo_clock;
+	*selected_clock = priv->tcxo_clock;
 	goto config_mcs_pll;
 
 fref_clk:
 	/* FREF clock is selected */
 	if (!wl128x_is_fref_valid(wl))
 		return -EINVAL;
-	*selected_clock = wl->ref_clock;
+	*selected_clock = priv->ref_clock;
 
 config_mcs_pll:
 	return wl128x_configure_mcs_pll(wl, *selected_clock);
@@ -851,25 +856,26 @@ config_mcs_pll:
 
 static int wl127x_boot_clk(struct wl1271 *wl)
 {
+	struct wl12xx_priv *priv = wl->priv;
 	u32 pause;
 	u32 clk;
 
 	if (WL127X_PG_GET_MAJOR(wl->hw_pg_ver) < 3)
 		wl->quirks |= WLCORE_QUIRK_END_OF_TRANSACTION;
 
-	if (wl->ref_clock == CONF_REF_CLK_19_2_E ||
-	    wl->ref_clock == CONF_REF_CLK_38_4_E ||
-	    wl->ref_clock == CONF_REF_CLK_38_4_M_XTAL)
+	if (priv->ref_clock == CONF_REF_CLK_19_2_E ||
+	    priv->ref_clock == CONF_REF_CLK_38_4_E ||
+	    priv->ref_clock == CONF_REF_CLK_38_4_M_XTAL)
 		/* ref clk: 19.2/38.4/38.4-XTAL */
 		clk = 0x3;
-	else if (wl->ref_clock == CONF_REF_CLK_26_E ||
-		 wl->ref_clock == CONF_REF_CLK_52_E)
+	else if (priv->ref_clock == CONF_REF_CLK_26_E ||
+		 priv->ref_clock == CONF_REF_CLK_52_E)
 		/* ref clk: 26/52 */
 		clk = 0x5;
 	else
 		return -EINVAL;
 
-	if (wl->ref_clock != CONF_REF_CLK_19_2_E) {
+	if (priv->ref_clock != CONF_REF_CLK_19_2_E) {
 		u16 val;
 		/* Set clock type (open drain) */
 		val = wl12xx_top_reg_read(wl, OCP_REG_CLK_TYPE);
@@ -939,6 +945,7 @@ static int wl1271_boot_soft_reset(struct wl1271 *wl)
 
 static int wl12xx_pre_boot(struct wl1271 *wl)
 {
+	struct wl12xx_priv *priv = wl->priv;
 	int ret = 0;
 	u32 clk;
 	int selected_clock = -1;
@@ -970,7 +977,7 @@ static int wl12xx_pre_boot(struct wl1271 *wl)
 	if (wl->chip.id == CHIP_ID_1283_PG20)
 		clk |= ((selected_clock & 0x3) << 1) << 4;
 	else
-		clk |= (wl->ref_clock << 1) << 4;
+		clk |= (priv->ref_clock << 1) << 4;
 
 	wl1271_write32(wl, WL12XX_DRPW_SCRATCH_START, clk);
 
@@ -1333,6 +1340,7 @@ static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
 
 static int __devinit wl12xx_probe(struct platform_device *pdev)
 {
+	struct wl12xx_platform_data *pdata = pdev->dev.platform_data;
 	struct wl1271 *wl;
 	struct ieee80211_hw *hw;
 	struct wl12xx_priv *priv;
@@ -1344,6 +1352,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	}
 
 	wl = hw->priv;
+	priv = wl->priv;
 	wl->ops = &wl12xx_ops;
 	wl->ptable = wl12xx_ptable;
 	wl->rtable = wl12xx_rtable;
@@ -1356,6 +1365,48 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->fw_status_priv_len = 0;
 	memcpy(&wl->ht_cap, &wl12xx_ht_cap, sizeof(wl12xx_ht_cap));
 	wl12xx_conf_init(wl);
+
+	if (!fref_param) {
+		priv->ref_clock = pdata->board_ref_clock;
+	} else {
+		if (!strcmp(fref_param, "19.2"))
+			priv->ref_clock = WL12XX_REFCLOCK_19;
+		else if (!strcmp(fref_param, "26"))
+			priv->ref_clock = WL12XX_REFCLOCK_26;
+		else if (!strcmp(fref_param, "26x"))
+			priv->ref_clock = WL12XX_REFCLOCK_26_XTAL;
+		else if (!strcmp(fref_param, "38.4"))
+			priv->ref_clock = WL12XX_REFCLOCK_38;
+		else if (!strcmp(fref_param, "38.4x"))
+			priv->ref_clock = WL12XX_REFCLOCK_38_XTAL;
+		else if (!strcmp(fref_param, "52"))
+			priv->ref_clock = WL12XX_REFCLOCK_52;
+		else
+			wl1271_error("Invalid fref parameter %s", fref_param);
+	}
+
+	if (!tcxo_param) {
+		priv->tcxo_clock = pdata->board_tcxo_clock;
+	} else {
+		if (!strcmp(tcxo_param, "19.2"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_19_2;
+		else if (!strcmp(tcxo_param, "26"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_26;
+		else if (!strcmp(tcxo_param, "38.4"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_38_4;
+		else if (!strcmp(tcxo_param, "52"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_52;
+		else if (!strcmp(tcxo_param, "16.368"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_16_368;
+		else if (!strcmp(tcxo_param, "32.736"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_32_736;
+		else if (!strcmp(tcxo_param, "16.8"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_16_8;
+		else if (!strcmp(tcxo_param, "33.6"))
+			priv->tcxo_clock = WL12XX_TCXOCLOCK_33_6;
+		else
+			wl1271_error("Invalid tcxo parameter %s", tcxo_param);
+	}
 
 	return wlcore_probe(wl, pdev);
 }
@@ -1387,6 +1438,13 @@ static void __exit wl12xx_exit(void)
 	platform_driver_unregister(&wl12xx_driver);
 }
 module_exit(wl12xx_exit);
+
+module_param_named(fref, fref_param, charp, 0);
+MODULE_PARM_DESC(fref, "FREF clock: 19.2, 26, 26x, 38.4, 38.4x, 52");
+
+module_param_named(tcxo, tcxo_param, charp, 0);
+MODULE_PARM_DESC(tcxo,
+		 "TCXO clock: 19.2, 26, 38.4, 52, 16.368, 32.736, 16.8, 33.6");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");

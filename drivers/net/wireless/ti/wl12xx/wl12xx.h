@@ -26,6 +26,9 @@
 
 struct wl12xx_priv {
 	struct wl12xx_priv_conf conf;
+
+	int ref_clock;
+	int tcxo_clock;
 };
 
 #endif /* __WL12XX_PRIV_H__ */

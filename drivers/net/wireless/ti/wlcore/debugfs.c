@@ -535,8 +535,7 @@ static ssize_t driver_state_read(struct file *file, char __user *user_buf,
 	DRIVER_STATE_PRINT_LHEX(ap_ps_map);
 	DRIVER_STATE_PRINT_HEX(quirks);
 	DRIVER_STATE_PRINT_HEX(irq);
-	DRIVER_STATE_PRINT_HEX(ref_clock);
-	DRIVER_STATE_PRINT_HEX(tcxo_clock);
+	/* TODO: ref_clock and tcxo_clock were moved to wl12xx priv */
 	DRIVER_STATE_PRINT_HEX(hw_pg_ver);
 	DRIVER_STATE_PRINT_HEX(platform_quirks);
 	DRIVER_STATE_PRINT_HEX(chip.id);
