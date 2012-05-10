@@ -549,19 +549,15 @@ static void pfault_interrupt(struct ext_code ext_code,
 	if ((subcode & 0xff00) != __SUBCODE_MASK)
 		return;
 	kstat_cpu(smp_processor_id()).irqs[EXTINT_PFL]++;
-	if (subcode & 0x0080) {
-		/* Get the token (= pid of the affected task). */
-		pid = sizeof(void *) == 4 ? param32 : param64;
-		rcu_read_lock();
-		tsk = find_task_by_pid_ns(pid, &init_pid_ns);
-		if (tsk)
-			get_task_struct(tsk);
-		rcu_read_unlock();
-		if (!tsk)
-			return;
-	} else {
-		tsk = current;
-	}
+	/* Get the token (= pid of the affected task). */
+	pid = sizeof(void *) == 4 ? param32 : param64;
+	rcu_read_lock();
+	tsk = find_task_by_pid_ns(pid, &init_pid_ns);
+	if (tsk)
+		get_task_struct(tsk);
+	rcu_read_unlock();
+	if (!tsk)
+		return;
 	spin_lock(&pfault_lock);
 	if (subcode & 0x0080) {
 		/* signal bit is set -> a page has been swapped in by VM */
@@ -586,7 +582,6 @@ static void pfault_interrupt(struct ext_code ext_code,
 			if (tsk->state == TASK_RUNNING)
 				tsk->thread.pfault_wait = -1;
 		}
-		put_task_struct(tsk);
 	} else {
 		/* signal bit not set -> a real page is missing. */
 		if (tsk->thread.pfault_wait == 1) {
@@ -612,6 +607,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 		}
 	}
 	spin_unlock(&pfault_lock);
+	put_task_struct(tsk);
 }
 
 static int __cpuinit pfault_cpu_notify(struct notifier_block *self,
