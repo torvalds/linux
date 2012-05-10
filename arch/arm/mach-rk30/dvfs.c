@@ -51,6 +51,7 @@
 
 static LIST_HEAD(rk_dvfs_tree);
 static DEFINE_MUTEX(mutex);
+static DEFINE_MUTEX(rk_dvfs_mutex);
 
 extern int rk30_clk_notifier_register(struct clk *clk, struct notifier_block *nb);
 extern int rk30_clk_notifier_unregister(struct clk *clk, struct notifier_block *nb);
@@ -78,9 +79,11 @@ int dvfs_set_rate(struct clk *clk, unsigned long rate)
 		ret = -1;
 	} else {
 		vd = clk->dvfs_info->vd;
-		mutex_lock(&vd->dvfs_mutex);
+		// mutex_lock(&vd->dvfs_mutex);
+		mutex_lock(&rk_dvfs_mutex);
 		ret = vd->vd_dvfs_target(clk, rate);
-		mutex_unlock(&vd->dvfs_mutex);
+		mutex_unlock(&rk_dvfs_mutex);
+		// mutex_unlock(&vd->dvfs_mutex);
 	}
 	DVFS_DBG("%s(%s(%lu)),is end\n", __func__, clk->name, rate);
 	return ret;
@@ -439,7 +442,7 @@ static int rk_regist_vd(struct vd_node *vd)
 	if (!vd)
 		return -1;
 	mutex_lock(&mutex);
-	mutex_init(&vd->dvfs_mutex);
+	//mutex_init(&vd->dvfs_mutex);
 	list_add(&vd->node, &rk_dvfs_tree);
 	INIT_LIST_HEAD(&vd->pd_list);
 	INIT_LIST_HEAD(&vd->req_volt_list);
@@ -665,10 +668,16 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		DVFS_ERR("%s can't get dvfs regulater\n", clk->name);
 		return -1;
 	}
-
-	// clk_round_rate_nolock(clk, rate_hz);
+	
 	rate_new = rate_hz;
 	rate_old = clk_get_rate(clk);
+	if(!is_suport_round_rate(clk))
+	{
+		rate_new=clk_round_rate_nolock(clk, rate_hz);
+	}
+	if(rate_new==rate_old)
+		return 0;
+
 
 	// DVFS_DBG("dvfs(%s) round rate(%lu)(rount %lu)\n",dvfs_clk->name,rate_hz,rate_new);
 
@@ -679,11 +688,8 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 		return -1;
 	}
 	volt_old = dvfs_clk->vd->cur_volt;
-
 	volt_clk_old = dvfs_clk->set_volt;
-
 	dvfs_clk->set_volt = clk_fv.index;
-
 	volt_new = dvfs_vd_get_newvolt_byclk(dvfs_clk);
 
 	DVFS_DBG("dvfs--(%s),volt=%d(was %dmV),rate=%lu(was %lu),vd%u=(was%u)\n",
@@ -692,6 +698,12 @@ int dvfs_target_core(struct clk *clk, unsigned long rate_hz)
 
 	if (flag_core_set_volt_err) {
 		/* It means the last time set voltage error */	
+		if (!IS_ERR(dvfs_clk->vd->regulator))
+			flag_set_volt_correct = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
+		else {
+			DVFS_ERR("dvfs regulator is ERROR\n");
+		}
+
 		flag_set_volt_correct = dvfs_regulator_get_voltage(dvfs_clk->vd->regulator);
 		if (flag_set_volt_correct <= 0) {
 			DVFS_ERR("%s (clk:%s),volt=%d(was %dmV),rate=%lu(was %lu), try to reload core_volt error %d!!! stop scaling\n", 
@@ -937,8 +949,8 @@ static struct cpufreq_frequency_table ddr_dvfs_table[] = {
 };
 
 static struct cpufreq_frequency_table gpu_dvfs_table[] = {
-	{.frequency = 100 * DVFS_KHZ, .index = 1000 * DVFS_MV},
-	{.frequency = 200 * DVFS_KHZ, .index = 1050 * DVFS_MV},
+	{.frequency = 90 * DVFS_KHZ, .index = 1100 * DVFS_MV},
+	{.frequency = 180 * DVFS_KHZ, .index = 1150 * DVFS_MV},
 	{.frequency = 300 * DVFS_KHZ, .index = 1100 * DVFS_MV},
 	{.frequency = 400 * DVFS_KHZ, .index = 1150 * DVFS_MV},
 	{.frequency = 500 * DVFS_KHZ, .index = 1200 * DVFS_MV},

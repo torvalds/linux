@@ -43,7 +43,7 @@ struct vd_node {
 	struct list_head	node;
 	struct list_head	pd_list;
 	struct list_head	req_volt_list;
-	struct mutex		dvfs_mutex;
+	//struct mutex		dvfs_mutex;
 	vd_dvfs_target_callback	vd_dvfs_target;
 };
 

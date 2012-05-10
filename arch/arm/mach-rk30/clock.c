@@ -244,6 +244,11 @@ long clk_round_rate_nolock(struct clk *clk, unsigned long rate)
 
 	return clk->rate;
 }
+int is_suport_round_rate(struct clk *clk)
+{
+	return (clk->round_rate) ? 0:(-1);
+}
+
 int clk_set_rate_nolock(struct clk *clk, unsigned long rate)
 {
 	int ret;

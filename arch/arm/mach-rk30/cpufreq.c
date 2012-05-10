@@ -202,6 +202,20 @@ static int rk30_verify_speed(struct cpufreq_policy *policy)
 static int rk30_cpu_init(struct cpufreq_policy *policy)
 {
 	if (policy->cpu == 0) {
+		struct clk *gpu_clk;
+		struct clk *ddr_clk;
+		
+		gpu_clk = clk_get(NULL, "gpu");
+		if (!IS_ERR(gpu_clk))
+			clk_enable_dvfs(gpu_clk);
+
+		ddr_clk = clk_get(NULL, "ddr");
+		if (!IS_ERR(ddr_clk))
+		{
+			clk_enable_dvfs(ddr_clk);
+			clk_set_rate(ddr_clk,clk_get_rate(ddr_clk)+1);
+		}
+		
 		cpu_clk = clk_get(NULL, "cpu");
 		if (IS_ERR(cpu_clk))
 			return PTR_ERR(cpu_clk);
