@@ -159,6 +159,8 @@ static void paz00_i2c_init(void)
 
 static void paz00_usb_init(void)
 {
+	tegra_ehci2_ulpi_phy_config.reset_gpio = TEGRA_ULPI_RST;
+
 	platform_device_register(&tegra_ehci2_device);
 	platform_device_register(&tegra_ehci3_device);
 }
@@ -176,7 +178,6 @@ static __initdata struct tegra_clk_init_table paz00_clk_init_table[] = {
 	{ "uarta",	"pll_p",	216000000,	true },
 	{ "uartc",	"pll_p",	216000000,	true },
 
-	{ "pll_p_out4",	"pll_p",	24000000,	true },
 	{ "usbd",	"clk_m",	12000000,	false },
 	{ "usb2",	"clk_m",	12000000,	false },
 	{ "usb3",	"clk_m",	12000000,	false },

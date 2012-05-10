@@ -23,9 +23,11 @@
 #include <linux/sysfs.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/machine.h>
 #include "core.h"
+#include "devicetree.h"
 #include "pinmux.h"
 #include "pinconf.h"
 
@@ -45,7 +47,7 @@ struct pinctrl_maps {
 DEFINE_MUTEX(pinctrl_mutex);
 
 /* Global list of pin control devices (struct pinctrl_dev) */
-static LIST_HEAD(pinctrldev_list);
+LIST_HEAD(pinctrldev_list);
 
 /* List of pin controller handles (struct pinctrl) */
 static LIST_HEAD(pinctrl_list);
@@ -121,6 +123,25 @@ int pin_get_from_name(struct pinctrl_dev *pctldev, const char *name)
 	}
 
 	return -EINVAL;
+}
+
+/**
+ * pin_get_name_from_id() - look up a pin name from a pin id
+ * @pctldev: the pin control device to lookup the pin on
+ * @name: the name of the pin to look up
+ */
+const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
+{
+	const struct pin_desc *desc;
+
+	desc = pin_desc_get(pctldev, pin);
+	if (desc == NULL) {
+		dev_err(pctldev->dev, "failed to get pin(%d) name\n",
+			pin);
+		return NULL;
+	}
+
+	return desc->name;
 }
 
 /**
@@ -318,9 +339,10 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 			       const char *pin_group)
 {
 	const struct pinctrl_ops *pctlops = pctldev->desc->pctlops;
+	unsigned ngroups = pctlops->get_groups_count(pctldev);
 	unsigned group_selector = 0;
 
-	while (pctlops->list_groups(pctldev, group_selector) >= 0) {
+	while (group_selector < ngroups) {
 		const char *gname = pctlops->get_group_name(pctldev,
 							    group_selector);
 		if (!strcmp(gname, pin_group)) {
@@ -516,11 +538,14 @@ static int add_setting(struct pinctrl *p, struct pinctrl_map const *map)
 
 	setting->pctldev = get_pinctrl_dev_from_devname(map->ctrl_dev_name);
 	if (setting->pctldev == NULL) {
-		dev_err(p->dev, "unknown pinctrl device %s in map entry",
+		dev_info(p->dev, "unknown pinctrl device %s in map entry, deferring probe",
 			map->ctrl_dev_name);
 		kfree(setting);
-		/* Eventually, this should trigger deferred probe */
-		return -ENODEV;
+		/*
+		 * OK let us guess that the driver is not there yet, and
+		 * let's defer obtaining this pinctrl handle to later...
+		 */
+		return -EPROBE_DEFER;
 	}
 
 	switch (map->type) {
@@ -579,6 +604,13 @@ static struct pinctrl *create_pinctrl(struct device *dev)
 	}
 	p->dev = dev;
 	INIT_LIST_HEAD(&p->states);
+	INIT_LIST_HEAD(&p->dt_maps);
+
+	ret = pinctrl_dt_to_map(p);
+	if (ret < 0) {
+		kfree(p);
+		return ERR_PTR(ret);
+	}
 
 	devname = dev_name(dev);
 
@@ -661,6 +693,8 @@ static void pinctrl_put_locked(struct pinctrl *p, bool inlist)
 		list_del(&state->node);
 		kfree(state);
 	}
+
+	pinctrl_dt_free_maps(p);
 
 	if (inlist)
 		list_del(&p->node);
@@ -787,15 +821,63 @@ int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *state)
 }
 EXPORT_SYMBOL_GPL(pinctrl_select_state);
 
+static void devm_pinctrl_release(struct device *dev, void *res)
+{
+	pinctrl_put(*(struct pinctrl **)res);
+}
+
 /**
- * pinctrl_register_mappings() - register a set of pin controller mappings
- * @maps: the pincontrol mappings table to register. This should probably be
- *	marked with __initdata so it can be discarded after boot. This
- *	function will perform a shallow copy for the mapping entries.
- * @num_maps: the number of maps in the mapping table
+ * struct devm_pinctrl_get() - Resource managed pinctrl_get()
+ * @dev: the device to obtain the handle for
+ *
+ * If there is a need to explicitly destroy the returned struct pinctrl,
+ * devm_pinctrl_put() should be used, rather than plain pinctrl_put().
  */
-int pinctrl_register_mappings(struct pinctrl_map const *maps,
-			      unsigned num_maps)
+struct pinctrl *devm_pinctrl_get(struct device *dev)
+{
+	struct pinctrl **ptr, *p;
+
+	ptr = devres_alloc(devm_pinctrl_release, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr)
+		return ERR_PTR(-ENOMEM);
+
+	p = pinctrl_get(dev);
+	if (!IS_ERR(p)) {
+		*ptr = p;
+		devres_add(dev, ptr);
+	} else {
+		devres_free(ptr);
+	}
+
+	return p;
+}
+EXPORT_SYMBOL_GPL(devm_pinctrl_get);
+
+static int devm_pinctrl_match(struct device *dev, void *res, void *data)
+{
+	struct pinctrl **p = res;
+
+	return *p == data;
+}
+
+/**
+ * devm_pinctrl_put() - Resource managed pinctrl_put()
+ * @p: the pinctrl handle to release
+ *
+ * Deallocate a struct pinctrl obtained via devm_pinctrl_get(). Normally
+ * this function will not need to be called and the resource management
+ * code will ensure that the resource is freed.
+ */
+void devm_pinctrl_put(struct pinctrl *p)
+{
+	WARN_ON(devres_destroy(p->dev, devm_pinctrl_release,
+			       devm_pinctrl_match, p));
+	pinctrl_put(p);
+}
+EXPORT_SYMBOL_GPL(devm_pinctrl_put);
+
+int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
+			 bool dup, bool locked)
 {
 	int i, ret;
 	struct pinctrl_maps *maps_node;
@@ -851,18 +933,50 @@ int pinctrl_register_mappings(struct pinctrl_map const *maps,
 	}
 
 	maps_node->num_maps = num_maps;
-	maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps, GFP_KERNEL);
-	if (!maps_node->maps) {
-		pr_err("failed to duplicate mapping table\n");
-		kfree(maps_node);
-		return -ENOMEM;
+	if (dup) {
+		maps_node->maps = kmemdup(maps, sizeof(*maps) * num_maps,
+					  GFP_KERNEL);
+		if (!maps_node->maps) {
+			pr_err("failed to duplicate mapping table\n");
+			kfree(maps_node);
+			return -ENOMEM;
+		}
+	} else {
+		maps_node->maps = maps;
 	}
 
-	mutex_lock(&pinctrl_mutex);
+	if (!locked)
+		mutex_lock(&pinctrl_mutex);
 	list_add_tail(&maps_node->node, &pinctrl_maps);
-	mutex_unlock(&pinctrl_mutex);
+	if (!locked)
+		mutex_unlock(&pinctrl_mutex);
 
 	return 0;
+}
+
+/**
+ * pinctrl_register_mappings() - register a set of pin controller mappings
+ * @maps: the pincontrol mappings table to register. This should probably be
+ *	marked with __initdata so it can be discarded after boot. This
+ *	function will perform a shallow copy for the mapping entries.
+ * @num_maps: the number of maps in the mapping table
+ */
+int pinctrl_register_mappings(struct pinctrl_map const *maps,
+			      unsigned num_maps)
+{
+	return pinctrl_register_map(maps, num_maps, true, false);
+}
+
+void pinctrl_unregister_map(struct pinctrl_map const *map)
+{
+	struct pinctrl_maps *maps_node;
+
+	list_for_each_entry(maps_node, &pinctrl_maps, node) {
+		if (maps_node->maps == map) {
+			list_del(&maps_node->node);
+			return;
+		}
+	}
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -906,15 +1020,17 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
-	unsigned selector = 0;
+	unsigned ngroups, selector = 0;
 
+	ngroups = ops->get_groups_count(pctldev);
 	mutex_lock(&pinctrl_mutex);
 
 	seq_puts(s, "registered pin groups:\n");
-	while (ops->list_groups(pctldev, selector) >= 0) {
+	while (selector < ngroups) {
 		const unsigned *pins;
 		unsigned num_pins;
 		const char *gname = ops->get_group_name(pctldev, selector);
+		const char *pname;
 		int ret;
 		int i;
 
@@ -924,10 +1040,14 @@ static int pinctrl_groups_show(struct seq_file *s, void *what)
 			seq_printf(s, "%s [ERROR GETTING PINS]\n",
 				   gname);
 		else {
-			seq_printf(s, "group: %s, pins = [ ", gname);
-			for (i = 0; i < num_pins; i++)
-				seq_printf(s, "%d ", pins[i]);
-			seq_puts(s, "]\n");
+			seq_printf(s, "group: %s\n", gname);
+			for (i = 0; i < num_pins; i++) {
+				pname = pin_get_name(pctldev, pins[i]);
+				if (WARN_ON(!pname))
+					return -EINVAL;
+				seq_printf(s, "pin %d (%s)\n", pins[i], pname);
+			}
+			seq_puts(s, "\n");
 		}
 		selector++;
 	}
@@ -1226,9 +1346,12 @@ static int pinctrl_check_ops(struct pinctrl_dev *pctldev)
 	const struct pinctrl_ops *ops = pctldev->desc->pctlops;
 
 	if (!ops ||
-	    !ops->list_groups ||
+	    !ops->get_groups_count ||
 	    !ops->get_group_name ||
 	    !ops->get_group_pins)
+		return -EINVAL;
+
+	if (ops->dt_node_to_map && !ops->dt_free_map)
 		return -EINVAL;
 
 	return 0;

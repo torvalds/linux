@@ -36,6 +36,9 @@ extern struct pinctrl_state * __must_check pinctrl_lookup_state(
 							const char *name);
 extern int pinctrl_select_state(struct pinctrl *p, struct pinctrl_state *s);
 
+extern struct pinctrl * __must_check devm_pinctrl_get(struct device *dev);
+extern void devm_pinctrl_put(struct pinctrl *p);
+
 #else /* !CONFIG_PINCTRL */
 
 static inline int pinctrl_request_gpio(unsigned gpio)
@@ -79,6 +82,15 @@ static inline int pinctrl_select_state(struct pinctrl *p,
 	return 0;
 }
 
+static inline struct pinctrl * __must_check devm_pinctrl_get(struct device *dev)
+{
+	return NULL;
+}
+
+static inline void devm_pinctrl_put(struct pinctrl *p)
+{
+}
+
 #endif /* CONFIG_PINCTRL */
 
 static inline struct pinctrl * __must_check pinctrl_get_select(
@@ -111,6 +123,38 @@ static inline struct pinctrl * __must_check pinctrl_get_select_default(
 					struct device *dev)
 {
 	return pinctrl_get_select(dev, PINCTRL_STATE_DEFAULT);
+}
+
+static inline struct pinctrl * __must_check devm_pinctrl_get_select(
+					struct device *dev, const char *name)
+{
+	struct pinctrl *p;
+	struct pinctrl_state *s;
+	int ret;
+
+	p = devm_pinctrl_get(dev);
+	if (IS_ERR(p))
+		return p;
+
+	s = pinctrl_lookup_state(p, name);
+	if (IS_ERR(s)) {
+		devm_pinctrl_put(p);
+		return ERR_PTR(PTR_ERR(s));
+	}
+
+	ret = pinctrl_select_state(p, s);
+	if (ret < 0) {
+		devm_pinctrl_put(p);
+		return ERR_PTR(ret);
+	}
+
+	return p;
+}
+
+static inline struct pinctrl * __must_check devm_pinctrl_get_select_default(
+					struct device *dev)
+{
+	return devm_pinctrl_get_select(dev, PINCTRL_STATE_DEFAULT);
 }
 
 #ifdef CONFIG_PINCONF
