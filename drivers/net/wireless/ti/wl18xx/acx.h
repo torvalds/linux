@@ -71,13 +71,8 @@ struct wl18xx_acx_debug_stats {
 } __packed;
 
 struct wl18xx_acx_ring_stats {
-	u32 tx_procs;
 	u32 prepared_descs;
-	u32 tx_xfr;
-	u32 tx_dma;
 	u32 tx_cmplt;
-	u32 rx_procs;
-	u32 rx_data;
 } __packed;
 
 struct wl18xx_acx_tx_stats {
@@ -98,58 +93,51 @@ struct wl18xx_acx_tx_stats {
 	u32 tx_retry_data;
 	u32 tx_exch_pending;
 	u32 tx_exch_expiry;
-	u32 tx_exch_mismatch;
 	u32 tx_done_template;
 	u32 tx_done_data;
 	u32 tx_done_int_template;
-	u32 tx_pre_xfr;
-	u32 tx_xfr;
-	u32 tx_xfr_out_of_mem;
-	u32 tx_dma_programmed;
-	u32 tx_dma_done;
+	u32 tx_frame_checksum;
+	u32 tx_checksum_result;
+	u32 frag_called;
+	u32 frag_mpdu_alloc_failed;
+	u32 frag_init_called;
+	u32 frag_in_process_called;
+	u32 frag_tkip_called;
+	u32 frag_key_not_found;
+	u32 frag_need_fragmentation;
+	u32 frag_bad_mblk_num;
+	u32 frag_failed;
+	u32 frag_cache_hit;
+	u32 frag_cache_miss;
 } __packed;
 
 struct wl18xx_acx_rx_stats {
 	u32 rx_out_of_mem;
 	u32 rx_hdr_overflow;
-	u32 rx_hw_stuck;
 	u32 rx_dropped_frame;
-	u32 rx_complete_dropped_frame;
-	u32 rx_alloc_frame;
-	u32 rx_done_queue;
+	u32 rx_done_stage;
 	u32 rx_done;
 	u32 rx_defrag;
 	u32 rx_defrag_end;
-	u32 rx_mic;
-	u32 rx_mic_end;
-	u32 rx_xfr;
-	u32 rx_xfr_end;
 	u32 rx_cmplt;
 	u32 rx_pre_complt;
 	u32 rx_cmplt_task;
 	u32 rx_phy_hdr;
 	u32 rx_timeout;
-} __packed;
-
-struct wl18xx_acx_dma_stats {
-	u32 rx_dma_errors;
-	u32 tx_dma_errors;
+	u32 rx_frame_checksum;
+	u32 rx_checksum_result;
+	u32 defrag_called;
+	u32 defrag_init_called;
+	u32 defrag_in_process_called;
+	u32 defrag_tkip_called;
+	u32 defrag_need_defrag;
+	u32 defrag_decrypt_failed;
+	u32 decrypt_key_not_found;
+	u32 defrag_need_decrypt;
 } __packed;
 
 struct wl18xx_acx_isr_stats {
 	u32 irqs;
-} __packed;
-
-struct wl18xx_acx_wep_stats {
-	u32 wep_add_key_count;
-	u32 wep_default_key_count;
-	u32 wep_key_not_found;
-	u32 wep_decrypt_fail;
-	u32 wep_encrypt_fail;
-	u32 wep_dec_packets;
-	u32 wep_dec_interrupt;
-	u32 wep_enc_packets;
-	u32 wep_enc_interrupts;
 } __packed;
 
 #define PWR_STAT_MAX_CONT_MISSED_BCNS_SPREAD 10
@@ -160,29 +148,6 @@ struct wl18xx_acx_pwr_stats {
 	u32 connection_out_of_sync;
 	u32 cont_miss_bcns_spread[PWR_STAT_MAX_CONT_MISSED_BCNS_SPREAD];
 	u32 rcvd_awake_bcns_cnt;
-} __packed;
-
-struct wl18xx_acx_mic_stats {
-	u32 mic_rx_pkts;
-	u32 mic_calc_failure;
-} __packed;
-
-struct wl18xx_acx_aes_stats {
-	u32 aes_encrypt_fail;
-	u32 aes_decrypt_fail;
-	u32 aes_encrypt_packets;
-	u32 aes_decrypt_packets;
-	u32 aes_encrypt_interrupt;
-	u32 aes_decrypt_interrupt;
-} __packed;
-
-struct wl18xx_acx_gem_stats {
-	u32 gem_encrypt_fail;
-	u32 gem_decrypt_fail;
-	u32 gem_encrypt_packets;
-	u32 gem_decrypt_packets;
-	u32 gem_encrypt_interrupt;
-	u32 gem_decrypt_interrupt;
 } __packed;
 
 struct wl18xx_acx_event_stats {
@@ -210,31 +175,44 @@ struct wl18xx_acx_rx_filter_stats {
 	u32 protection_filter;
 } __packed;
 
-struct wl18xx_acx_calibration_stats {
-	u32 init_cal_total;
-	u32 init_radio_bands_fail;
-	u32 init_set_params;
-	u32 init_tx_clpc_fail;
-	u32 init_rx_iw_mm_fail;
-	u32 tune_cal_total;
-	u32 tune_drpw_rtrim_fail;
-	u32 tune_drpw_pd_buf_fail;
-	u32 tune_drpw_tx_mix_freq_fail;
-	u32 tune_drpw_ta_cal;
-	u32 tune_drpw_rx_if_2_gain;
-	u32 tune_drpw_rx_dac;
-	u32 tune_drpw_chan_tune;
-	u32 tune_drpw_rx_tx_lpf;
-	u32 tune_drpw_lna_tank;
-	u32 tune_tx_lo_leak_fail;
-	u32 tune_tx_iq_mm_fail;
-	u32 tune_tx_pdet_fail;
-	u32 tune_tx_ppa_fail;
-	u32 tune_tx_clpc_fail;
-	u32 tune_rx_ana_dc_fail;
-	u32 tune_rx_dig_dc_fail; /* check if this is needed */
-	u32 tune_rx_iq_mm_fail;
-	u32 cal_state_fail;
+struct wl18xx_acx_rx_rate_stats {
+	u32 rx_frames_per_rates[50];
+} __packed;
+
+#define AGGR_STATS_TX_SIZE_LEN 11
+#define AGGR_STATS_RX_SIZE_LEN 11
+
+struct wl18xx_acx_aggr_stats {
+	u32 tx_size[AGGR_STATS_TX_SIZE_LEN];
+	u32 rx_size[AGGR_STATS_RX_SIZE_LEN];
+} __packed;
+
+struct wl18xx_acx_pipeline_stats {
+	u32 hs_tx_stat_fifo_int;
+	u32 hs_rx_stat_fifo_int;
+	u32 tcp_tx_stat_fifo_int;
+	u32 tcp_rx_stat_fifo_int;
+	u32 enc_tx_stat_fifo_int;
+	u32 enc_rx_stat_fifo_int;
+	u32 rx_complete_stat_fifo_int;
+	u32 pre_proc_swi;
+	u32 post_proc_swi;
+	u32 sec_frag_swi;
+	u32 pre_to_defrag_swi;
+	u32 defrag_to_csum_swi;
+	u32 csum_to_rx_xfer_swi;
+	u32 dec_packet_in;
+	u32 dec_packet_in_fifo_full;
+	u32 dec_packet_out;
+	u32 cs_rx_packet_in;
+	u32 cs_rx_packet_out;
+} __packed;
+
+struct wl18xx_acx_mem_stats {
+	u32 rx_free_mem_blks;
+	u32 tx_free_mem_blks;
+	u32 fwlog_free_mem_blks;
+	u32 fw_gen_free_mem_blks;
 } __packed;
 
 struct wl18xx_acx_statistics {
@@ -244,17 +222,15 @@ struct wl18xx_acx_statistics {
 	struct wl18xx_acx_debug_stats		debug;
 	struct wl18xx_acx_tx_stats		tx;
 	struct wl18xx_acx_rx_stats		rx;
-	struct wl18xx_acx_dma_stats		dma;
 	struct wl18xx_acx_isr_stats		isr;
-	struct wl18xx_acx_wep_stats		wep;
 	struct wl18xx_acx_pwr_stats		pwr;
-	struct wl18xx_acx_aes_stats		aes;
-	struct wl18xx_acx_mic_stats		mic;
 	struct wl18xx_acx_event_stats		event;
 	struct wl18xx_acx_ps_poll_stats		ps_poll;
 	struct wl18xx_acx_rx_filter_stats	rx_filter;
-	struct wl18xx_acx_calibration_stats	calibration;
-	struct wl18xx_acx_gem_stats		gem;
+	struct wl18xx_acx_rx_rate_stats		rx_rate;
+	struct wl18xx_acx_aggr_stats		aggr_size;
+	struct wl18xx_acx_pipeline_stats	pipeline;
+	struct wl18xx_acx_mem_stats		mem;
 } __packed;
 
 int wl18xx_acx_host_if_cfg_bitmap(struct wl1271 *wl, u32 host_cfg_bitmap,
