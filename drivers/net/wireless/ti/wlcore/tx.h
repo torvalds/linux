@@ -85,6 +85,19 @@ struct wl128x_tx_mem {
 	u8 extra_bytes;
 } __packed;
 
+struct wl18xx_tx_mem {
+	/*
+	 * Total number of memory blocks allocated by the host for
+	 * this packet.
+	 */
+	u8 total_mem_blocks;
+
+	/*
+	 * always zero
+	 */
+	u8 reserved;
+} __packed;
+
 /*
  * On wl128x based devices, when TX packets are aggregated, each packet
  * size must be aligned to the SDIO block size. The maximum block size
@@ -100,6 +113,7 @@ struct wl1271_tx_hw_descr {
 	union {
 		struct wl127x_tx_mem wl127x_mem;
 		struct wl128x_tx_mem wl128x_mem;
+		struct wl18xx_tx_mem wl18xx_mem;
 	} __packed;
 	/* Device time (in us) when the packet arrived to the driver */
 	__le32 start_time;

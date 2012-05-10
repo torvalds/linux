@@ -26,6 +26,7 @@
 #include "../wlcore/debug.h"
 #include "../wlcore/io.h"
 #include "../wlcore/acx.h"
+#include "../wlcore/tx.h"
 #include "../wlcore/boot.h"
 
 #include "reg.h"
@@ -312,12 +313,21 @@ static u32 wl18xx_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
 	return (len + blk_size - 1) / blk_size + spare_blks;
 }
 
+static void
+wl18xx_set_tx_desc_blocks(struct wl1271 *wl, struct wl1271_tx_hw_descr *desc,
+			  u32 blks, u32 spare_blks)
+{
+	desc->wl18xx_mem.total_mem_blocks = blks;
+	desc->wl18xx_mem.reserved = 0;
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
 	.trigger_cmd	= wl18xx_trigger_cmd,
 	.ack_event	= wl18xx_ack_event,
 	.calc_tx_blocks = wl18xx_calc_tx_blocks,
+	.set_tx_desc_blocks = wl18xx_set_tx_desc_blocks,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
