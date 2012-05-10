@@ -213,9 +213,6 @@ struct wl1271 {
 	/* FW Rx counter */
 	u32 rx_counter;
 
-	/* Rx memory pool address */
-	struct wl1271_rx_mem_pool_addr rx_mem_pool_addr;
-
 	/* Intermediate buffer, used for packet aggregation */
 	u8 *aggr_buf;
 

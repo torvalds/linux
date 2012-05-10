@@ -596,7 +596,7 @@ static void wl127x_prepare_read(struct wl1271 *wl, u32 rx_desc, u32 len)
 {
 	if (wl->chip.id != CHIP_ID_1283_PG20) {
 		struct wl1271_acx_mem_map *wl_mem_map = wl->target_mem_map;
-		struct wl1271_rx_mem_pool_addr rx_mem_addr;
+		struct wl127x_rx_mem_pool_addr rx_mem_addr;
 
 		/*
 		 * Choose the block we want to read

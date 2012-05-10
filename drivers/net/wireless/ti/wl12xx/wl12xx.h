@@ -24,6 +24,11 @@
 
 #include "conf.h"
 
+struct wl127x_rx_mem_pool_addr {
+	u32 addr;
+	u32 addr_extra;
+};
+
 struct wl12xx_priv {
 	struct wl12xx_priv_conf conf;
 
