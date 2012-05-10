@@ -230,7 +230,7 @@ static inline void omap_intc_handle_irq(void __iomem *base_addr, struct pt_regs 
 			goto out;
 
 		irqnr = readl_relaxed(base_addr + 0xd8);
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 		if (irqnr)
 			goto out;
 		irqnr = readl_relaxed(base_addr + 0xf8);
