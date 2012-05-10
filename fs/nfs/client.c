@@ -90,7 +90,9 @@ static bool nfs4_disable_idmapping = true;
  * RPC cruft for NFS
  */
 static const struct rpc_version *nfs_version[5] = {
+#ifdef CONFIG_NFS_V2
 	[2]			= &nfs_version2,
+#endif
 #ifdef CONFIG_NFS_V3
 	[3]			= &nfs_version3,
 #endif
@@ -847,7 +849,7 @@ static int nfs_init_server(struct nfs_server *server,
 		.hostname = data->nfs_server.hostname,
 		.addr = (const struct sockaddr *)&data->nfs_server.address,
 		.addrlen = data->nfs_server.addrlen,
-		.rpc_ops = &nfs_v2_clientops,
+		.rpc_ops = NULL,
 		.proto = data->nfs_server.protocol,
 		.net = data->net,
 	};
@@ -857,10 +859,20 @@ static int nfs_init_server(struct nfs_server *server,
 
 	dprintk("--> nfs_init_server()\n");
 
-#ifdef CONFIG_NFS_V3
-	if (data->version == 3)
-		cl_init.rpc_ops = &nfs_v3_clientops;
+	switch (data->version) {
+#ifdef CONFIG_NFS_V2
+	case 2:
+		cl_init.rpc_ops = &nfs_v2_clientops;
+		break;
 #endif
+#ifdef CONFIG_NFS_V3
+	case 3:
+		cl_init.rpc_ops = &nfs_v3_clientops;
+		break;
+#endif
+	default:
+		return -EPROTONOSUPPORT;
+	}
 
 	nfs_init_timeout_values(&timeparms, data->nfs_server.protocol,
 			data->timeo, data->retrans);

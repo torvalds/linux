@@ -29,6 +29,16 @@ config NFS_FS
 
 	  If unsure, say N.
 
+config NFS_V2
+	bool "NFS client support for NFS version 2"
+	depends on NFS_FS
+	default y
+	help
+	  This option enables support for version 2 of the NFS protocol
+	  (RFC 1094) in the kernel's NFS client.
+
+	  If unsure, say Y.
+
 config NFS_V3
 	bool "NFS client support for NFS version 3"
 	depends on NFS_FS
