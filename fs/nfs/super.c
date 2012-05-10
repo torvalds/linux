@@ -335,6 +335,8 @@ static const struct super_operations nfs_sops = {
 
 #ifdef CONFIG_NFS_V4
 static void nfs4_validate_mount_flags(struct nfs_parsed_mount_data *);
+static int nfs4_validate_mount_data(void *options,
+	struct nfs_parsed_mount_data *args, const char *dev_name);
 static struct dentry *nfs4_try_mount(int flags, const char *dev_name,
 	struct nfs_parsed_mount_data *data);
 static struct dentry *nfs4_mount(struct file_system_type *fs_type,
@@ -1857,10 +1859,10 @@ out_path:
  * + breaking back: trying proto=udp after proto=tcp, v2 after v3,
  *   mountproto=tcp after mountproto=udp, and so on
  */
-static int nfs_validate_mount_data(void *options,
-				   struct nfs_parsed_mount_data *args,
-				   struct nfs_fh *mntfh,
-				   const char *dev_name)
+static int nfs23_validate_mount_data(void *options,
+				     struct nfs_parsed_mount_data *args,
+				     struct nfs_fh *mntfh,
+				     const char *dev_name)
 {
 	struct nfs_mount_data *data = (struct nfs_mount_data *)options;
 	struct sockaddr *sap = (struct sockaddr *)&args->nfs_server.address;
@@ -2008,6 +2010,28 @@ out_invalid_fh:
 	dfprintk(MOUNT, "NFS: invalid root filehandle\n");
 	return -EINVAL;
 }
+
+#ifdef CONFIG_NFS_V4
+static int nfs_validate_mount_data(struct file_system_type *fs_type,
+				   void *options,
+				   struct nfs_parsed_mount_data *args,
+				   struct nfs_fh *mntfh,
+				   const char *dev_name)
+{
+	if (fs_type == &nfs_fs_type)
+		return nfs23_validate_mount_data(options, args, mntfh, dev_name);
+	return nfs4_validate_mount_data(options, args, dev_name);
+}
+#else
+static int nfs_validate_mount_data(struct file_system_type *fs_type,
+				   void *options,
+				   struct nfs_parsed_mount_data *args,
+				   struct nfs_fh *mntfh,
+				   const char *dev_name)
+{
+	return nfs23_validate_mount_data(options, args, mntfh, dev_name);
+}
+#endif
 
 static int nfs_validate_text_mount_data(void *options,
 					struct nfs_parsed_mount_data *args,
@@ -2459,7 +2483,7 @@ static struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 		goto out;
 
 	/* Validate the mount data */
-	error = nfs_validate_mount_data(raw_data, data, mntfh, dev_name);
+	error = nfs_validate_mount_data(fs_type, raw_data, data, mntfh, dev_name);
 	if (error == NFS_TEXT_DATA)
 		error = nfs_validate_text_mount_data(raw_data, data, dev_name);
 	if (error < 0) {
@@ -2866,7 +2890,7 @@ static struct dentry *nfs4_mount(struct file_system_type *fs_type,
 		goto out;
 
 	/* Validate the mount data */
-	error = nfs4_validate_mount_data(raw_data, data, dev_name);
+	error = nfs_validate_mount_data(fs_type, raw_data, data, NULL, dev_name);
 	if (error == NFS_TEXT_DATA)
 		error = nfs_validate_text_mount_data(raw_data, data, dev_name);
 	if (error < 0) {
