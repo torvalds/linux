@@ -1465,7 +1465,7 @@ static int ms_format_cmnd(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 }
 
 #ifdef SUPPORT_PCGL_1P18
-int get_ms_information(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static int get_ms_information(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -1626,7 +1626,7 @@ static int sd_extention_cmnd(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 #endif
 
 #ifdef SUPPORT_MAGIC_GATE
-int mg_report_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static int mg_report_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
@@ -1713,7 +1713,7 @@ int mg_report_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 	return TRANSPORT_GOOD;
 }
 
-int mg_send_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static int mg_send_key(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	unsigned int lun = SCSI_LUN(srb);
