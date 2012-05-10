@@ -755,10 +755,6 @@ static int wl18xx_boot(struct wl1271 *wl)
 	if (ret < 0)
 		goto out;
 
-	ret = wlcore_boot_upload_nvs(wl);
-	if (ret < 0)
-		goto out;
-
 	wl18xx_pre_upload(wl);
 
 	ret = wlcore_boot_upload_firmware(wl);
