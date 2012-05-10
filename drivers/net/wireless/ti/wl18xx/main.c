@@ -41,6 +41,8 @@
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
+static char *ht_mode_param;
+
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	15,                            /* WL18XX_CONF_HW_RXTX_RATE_MCS15 */
@@ -936,6 +938,19 @@ static struct ieee80211_sta_ht_cap wl18xx_ht_cap = {
 		},
 };
 
+/* HT cap appropriate for MIMO rates in 20mhz channel */
+static struct ieee80211_sta_ht_cap wl18xx_mimo_ht_cap = {
+	.cap = IEEE80211_HT_CAP_SGI_20,
+	.ht_supported = true,
+	.ampdu_factor = IEEE80211_HT_MAX_AMPDU_16K,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_16,
+	.mcs = {
+		.rx_mask = { 0xff, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, },
+		.rx_highest = cpu_to_le16(144),
+		.tx_params = IEEE80211_HT_MCS_TX_DEFINED,
+		},
+};
+
 int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
@@ -960,6 +975,10 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->hw_min_ht_rate = WL18XX_CONF_HW_RXTX_RATE_MCS0;
 	wl->fw_status_priv_len = sizeof(struct wl18xx_fw_status_priv);
 	memcpy(&wl->ht_cap, &wl18xx_ht_cap, sizeof(wl18xx_ht_cap));
+	if (ht_mode_param && !strcmp(ht_mode_param, "mimo"))
+		memcpy(&wl->ht_cap, &wl18xx_mimo_ht_cap,
+		       sizeof(wl18xx_mimo_ht_cap));
+
 	wl18xx_conf_init(wl);
 
 	return wlcore_probe(wl, pdev);
@@ -992,6 +1011,9 @@ static void __exit wl18xx_exit(void)
 	platform_driver_unregister(&wl18xx_driver);
 }
 module_exit(wl18xx_exit);
+
+module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
+MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or mimo");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
