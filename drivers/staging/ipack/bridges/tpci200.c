@@ -867,8 +867,8 @@ static int tpci200_slot_unregister(struct ipack_device *dev)
 		return -ERESTARTSYS;
 
 	ipack_device_unregister(dev);
-	kfree(dev);
 	tpci200->slots[dev->slot].dev = NULL;
+	kfree(dev);
 	mutex_unlock(&tpci200->mutex);
 
 	return 0;
