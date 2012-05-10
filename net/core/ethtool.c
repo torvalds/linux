@@ -751,17 +751,16 @@ static int ethtool_get_link(struct net_device *dev, char __user *useraddr)
 	return 0;
 }
 
-static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
+static int ethtool_get_any_eeprom(struct net_device *dev, void __user *useraddr,
+				  int (*getter)(struct net_device *,
+						struct ethtool_eeprom *, u8 *),
+				  u32 total_len)
 {
 	struct ethtool_eeprom eeprom;
-	const struct ethtool_ops *ops = dev->ethtool_ops;
 	void __user *userbuf = useraddr + sizeof(eeprom);
 	u32 bytes_remaining;
 	u8 *data;
 	int ret = 0;
-
-	if (!ops->get_eeprom || !ops->get_eeprom_len)
-		return -EOPNOTSUPP;
 
 	if (copy_from_user(&eeprom, useraddr, sizeof(eeprom)))
 		return -EFAULT;
@@ -771,7 +770,7 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 		return -EINVAL;
 
 	/* Check for exceeding total eeprom len */
-	if (eeprom.offset + eeprom.len > ops->get_eeprom_len(dev))
+	if (eeprom.offset + eeprom.len > total_len)
 		return -EINVAL;
 
 	data = kmalloc(PAGE_SIZE, GFP_USER);
@@ -782,7 +781,7 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 	while (bytes_remaining > 0) {
 		eeprom.len = min(bytes_remaining, (u32)PAGE_SIZE);
 
-		ret = ops->get_eeprom(dev, &eeprom, data);
+		ret = getter(dev, &eeprom, data);
 		if (ret)
 			break;
 		if (copy_to_user(userbuf, data, eeprom.len)) {
@@ -801,6 +800,17 @@ static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
 
 	kfree(data);
 	return ret;
+}
+
+static int ethtool_get_eeprom(struct net_device *dev, void __user *useraddr)
+{
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!ops->get_eeprom || !ops->get_eeprom_len)
+		return -EOPNOTSUPP;
+
+	return ethtool_get_any_eeprom(dev, useraddr, ops->get_eeprom,
+				      ops->get_eeprom_len(dev));
 }
 
 static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
@@ -1325,6 +1335,47 @@ static int ethtool_get_ts_info(struct net_device *dev, void __user *useraddr)
 	return err;
 }
 
+static int ethtool_get_module_info(struct net_device *dev,
+				   void __user *useraddr)
+{
+	int ret;
+	struct ethtool_modinfo modinfo;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!ops->get_module_info)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&modinfo, useraddr, sizeof(modinfo)))
+		return -EFAULT;
+
+	ret = ops->get_module_info(dev, &modinfo);
+	if (ret)
+		return ret;
+
+	if (copy_to_user(useraddr, &modinfo, sizeof(modinfo)))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int ethtool_get_module_eeprom(struct net_device *dev,
+				     void __user *useraddr)
+{
+	int ret;
+	struct ethtool_modinfo modinfo;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+
+	if (!ops->get_module_info || !ops->get_module_eeprom)
+		return -EOPNOTSUPP;
+
+	ret = ops->get_module_info(dev, &modinfo);
+	if (ret)
+		return ret;
+
+	return ethtool_get_any_eeprom(dev, useraddr, ops->get_module_eeprom,
+				      modinfo.eeprom_len);
+}
+
 /* The main entry point in this file.  Called from net/core/dev.c */
 
 int dev_ethtool(struct net *net, struct ifreq *ifr)
@@ -1548,6 +1599,12 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GET_TS_INFO:
 		rc = ethtool_get_ts_info(dev, useraddr);
+		break;
+	case ETHTOOL_GMODULEINFO:
+		rc = ethtool_get_module_info(dev, useraddr);
+		break;
+	case ETHTOOL_GMODULEEEPROM:
+		rc = ethtool_get_module_eeprom(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;
