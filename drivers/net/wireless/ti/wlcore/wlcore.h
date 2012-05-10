@@ -24,7 +24,7 @@
 
 #include <linux/platform_device.h>
 
-#include "wl12xx.h"
+#include "wlcore_i.h"
 #include "event.h"
 
 /* The maximum number of Tx descriptors in all chip families */

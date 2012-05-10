@@ -22,8 +22,8 @@
  *
  */
 
-#ifndef __WL12XX_H__
-#define __WL12XX_H__
+#ifndef __WLCORE_I_H__
+#define __WLCORE_I_H__
 
 #include <linux/mutex.h>
 #include <linux/completion.h>
@@ -506,4 +506,4 @@ void wl1271_rx_filter_flatten_fields(struct wl12xx_rx_filter *filter,
 
 #define WL12XX_HW_BLOCK_SIZE	256
 
-#endif
+#endif /* __WLCORE_I_H__ */
