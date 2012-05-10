@@ -375,6 +375,9 @@ int snd_tea575x_init(struct snd_tea575x *tea)
 	tea->vd.v4l2_dev = tea->v4l2_dev;
 	tea->vd.ctrl_handler = &tea->ctrl_handler;
 	set_bit(V4L2_FL_USE_FH_PRIO, &tea->vd.flags);
+	/* disable hw_freq_seek if we can't use it */
+	if (tea->cannot_read_data)
+		v4l2_dont_use_cmd(&tea->vd, VIDIOC_S_HW_FREQ_SEEK);
 
 	v4l2_ctrl_handler_init(&tea->ctrl_handler, 1);
 	v4l2_ctrl_new_std(&tea->ctrl_handler, &tea575x_ctrl_ops, V4L2_CID_AUDIO_MUTE, 0, 1, 1, 1);
