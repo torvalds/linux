@@ -850,10 +850,14 @@ static void wl18xx_tx_immediate_completion(struct wl1271 *wl)
 static int wl18xx_hw_init(struct wl1271 *wl)
 {
 	int ret;
+	struct wl18xx_priv *priv = wl->priv;
 	u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE |
 		HOST_IF_CFG_ADD_RX_ALIGNMENT;
 
 	u32 sdio_align_size = 0;
+
+	/* (re)init private structures. Relevant on recovery as well. */
+	priv->last_fw_rls_idx = 0;
 
 	/* Enable Tx SDIO padding */
 	if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN) {
