@@ -303,8 +303,7 @@ void radeon_test_ring_sync(struct radeon_device *rdev,
 	}
 
 out_cleanup:
-	if (semaphore)
-		radeon_semaphore_free(rdev, semaphore, NULL);
+	radeon_semaphore_free(rdev, &semaphore, NULL);
 
 	if (fence1)
 		radeon_fence_unref(&fence1);
@@ -422,8 +421,7 @@ void radeon_test_ring_sync2(struct radeon_device *rdev,
 	}
 
 out_cleanup:
-	if (semaphore)
-		radeon_semaphore_free(rdev, semaphore, NULL);
+	radeon_semaphore_free(rdev, &semaphore, NULL);
 
 	if (fenceA)
 		radeon_fence_unref(&fenceA);

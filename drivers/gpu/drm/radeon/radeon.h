@@ -470,10 +470,9 @@ void radeon_semaphore_emit_wait(struct radeon_device *rdev, int ring,
 				struct radeon_semaphore *semaphore);
 int radeon_semaphore_sync_rings(struct radeon_device *rdev,
 				struct radeon_semaphore *semaphore,
-				bool sync_to[RADEON_NUM_RINGS],
-				int dst_ring);
+				int signaler, int waiter);
 void radeon_semaphore_free(struct radeon_device *rdev,
-			   struct radeon_semaphore *semaphore,
+			   struct radeon_semaphore **semaphore,
 			   struct radeon_fence *fence);
 
 /*
@@ -653,6 +652,7 @@ struct radeon_ib {
 	struct radeon_fence		*fence;
 	unsigned			vm_id;
 	bool				is_const_ib;
+	struct radeon_fence		*sync_to[RADEON_NUM_RINGS];
 	struct radeon_semaphore		*semaphore;
 };
 
