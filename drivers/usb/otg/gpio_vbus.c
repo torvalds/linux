@@ -319,7 +319,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 
 	return 0;
 err_otg:
-	free_irq(irq, &pdev->dev);
+	free_irq(irq, pdev);
 err_irq:
 	if (gpio_is_valid(pdata->gpio_pullup))
 		gpio_free(pdata->gpio_pullup);
@@ -341,7 +341,7 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 
 	usb_set_transceiver(NULL);
 
-	free_irq(gpio_to_irq(gpio), &pdev->dev);
+	free_irq(gpio_to_irq(gpio), pdev);
 	if (gpio_is_valid(pdata->gpio_pullup))
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(gpio);
