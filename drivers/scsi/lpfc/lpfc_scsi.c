@@ -4959,6 +4959,43 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 }
 
 /**
+ * lpfc_host_reset_handler - scsi_host_template eh_host_reset_handler entry pt
+ * @cmnd: Pointer to scsi_cmnd data structure.
+ *
+ * This routine does host reset to the adaptor port. It brings the HBA
+ * offline, performs a board restart, and then brings the board back online.
+ * The lpfc_offline calls lpfc_sli_hba_down which will abort and local
+ * reject all outstanding SCSI commands to the host and error returned
+ * back to SCSI mid-level. As this will be SCSI mid-level's last resort
+ * of error handling, it will only return error if resetting of the adapter
+ * is not successful; in all other cases, will return success.
+ *
+ * Return code :
+ *  0x2003 - Error
+ *  0x2002 - Success
+ **/
+static int
+lpfc_host_reset_handler(struct scsi_cmnd *cmnd)
+{
+	struct Scsi_Host *shost = cmnd->device->host;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	struct lpfc_hba *phba = vport->phba;
+	int rc, ret = SUCCESS;
+
+	lpfc_offline_prep(phba);
+	lpfc_offline(phba);
+	rc = lpfc_sli_brdrestart(phba);
+	if (rc)
+		ret = FAILED;
+	lpfc_online(phba);
+	lpfc_unblock_mgmt_io(phba);
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+			"3172 SCSI layer issued Host Reset Data: x%x\n", ret);
+	return ret;
+}
+
+/**
  * lpfc_slave_alloc - scsi_host_template slave_alloc entry point
  * @sdev: Pointer to scsi_device.
  *
@@ -5090,6 +5127,7 @@ struct scsi_host_template lpfc_template = {
 	.eh_device_reset_handler = lpfc_device_reset_handler,
 	.eh_target_reset_handler = lpfc_target_reset_handler,
 	.eh_bus_reset_handler	= lpfc_bus_reset_handler,
+	.eh_host_reset_handler  = lpfc_host_reset_handler,
 	.slave_alloc		= lpfc_slave_alloc,
 	.slave_configure	= lpfc_slave_configure,
 	.slave_destroy		= lpfc_slave_destroy,
