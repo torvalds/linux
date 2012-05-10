@@ -1767,6 +1767,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 
 	wl->rx_counter = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
+	wl->channel_type = NL80211_CHAN_NO_HT;
 	wl->tx_blocks_available = 0;
 	wl->tx_allocated_blocks = 0;
 	wl->tx_results_count = 0;
@@ -1919,6 +1920,7 @@ static int wl12xx_init_vif_data(struct wl1271 *wl, struct ieee80211_vif *vif)
 	wlvif->band = wl->band;
 	wlvif->channel = wl->channel;
 	wlvif->power_level = wl->power_level;
+	wlvif->channel_type = wl->channel_type;
 
 	INIT_WORK(&wlvif->rx_streaming_enable_work,
 		  wl1271_rx_streaming_enable_work);
@@ -2469,11 +2471,13 @@ static int wl12xx_config_vif(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 	/* if the channel changes while joined, join again */
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL &&
 	    ((wlvif->band != conf->channel->band) ||
-	     (wlvif->channel != channel))) {
+	     (wlvif->channel != channel) ||
+	     (wlvif->channel_type != conf->channel_type))) {
 		/* send all pending packets */
 		wl1271_tx_work_locked(wl);
 		wlvif->band = conf->channel->band;
 		wlvif->channel = channel;
+		wlvif->channel_type = conf->channel_type;
 
 		if (!is_ap) {
 			/*
@@ -2593,6 +2597,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		wl->band = conf->channel->band;
 		wl->channel = channel;
+		wl->channel_type = conf->channel_type;
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER)
@@ -3704,6 +3709,7 @@ sta_not_found:
 			u32 rates;
 			int ieoffset;
 			wlvif->aid = bss_conf->aid;
+			wlvif->channel_type = bss_conf->channel_type;
 			wlvif->beacon_int = bss_conf->beacon_int;
 			do_join = true;
 			set_assoc = true;
@@ -5117,6 +5123,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size)
 	wl->rx_counter = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->band = IEEE80211_BAND_2GHZ;
+	wl->channel_type = NL80211_CHAN_NO_HT;
 	wl->flags = 0;
 	wl->sg_enabled = true;
 	wl->hw_pg_ver = -1;

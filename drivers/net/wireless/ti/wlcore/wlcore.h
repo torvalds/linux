@@ -362,6 +362,9 @@ struct wl1271 {
 
 	/* RX Data filter rule state - enabled/disabled */
 	bool rx_filter_enabled[WL1271_MAX_RX_FILTERS];
+
+	/* the current channel type */
+	enum nl80211_channel_type channel_type;
 };
 
 int __devinit wlcore_probe(struct wl1271 *wl, struct platform_device *pdev);

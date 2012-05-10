@@ -367,6 +367,7 @@ struct wl12xx_vif {
 	/* The current band */
 	enum ieee80211_band band;
 	int channel;
+	enum nl80211_channel_type channel_type;
 
 	u32 bitrate_masks[IEEE80211_NUM_BANDS];
 	u32 basic_rate_set;
