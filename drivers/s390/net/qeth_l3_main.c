@@ -1671,10 +1671,7 @@ qeth_diags_trace(struct qeth_card *card, enum qeth_diags_trace_cmds diags_cmd)
 static void qeth_l3_get_mac_for_ipm(__u32 ipm, char *mac,
 				struct net_device *dev)
 {
-	if (dev->type == ARPHRD_IEEE802_TR)
-		ip_tr_mc_map(ipm, mac);
-	else
-		ip_eth_mc_map(ipm, mac);
+	ip_eth_mc_map(ipm, mac);
 }
 
 static void qeth_l3_add_mc(struct qeth_card *card, struct in_device *in4_dev)
@@ -1922,8 +1919,6 @@ static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
 #endif
 			case __constant_htons(ETH_P_IP):
 				ip_hdr = (struct iphdr *)skb->data;
-				(card->dev->type == ARPHRD_IEEE802_TR) ?
-				ip_tr_mc_map(ip_hdr->daddr, tg_addr):
 				ip_eth_mc_map(ip_hdr->daddr, tg_addr);
 				break;
 			default:
@@ -1959,12 +1954,7 @@ static inline int qeth_l3_rebuild_skb(struct qeth_card *card,
 				tg_addr, "FAKELL", card->dev->addr_len);
 	}
 
-#ifdef CONFIG_TR
-	if (card->dev->type == ARPHRD_IEEE802_TR)
-		skb->protocol = tr_type_trans(skb, card->dev);
-	else
-#endif
-		skb->protocol = eth_type_trans(skb, card->dev);
+	skb->protocol = eth_type_trans(skb, card->dev);
 
 	if (hdr->hdr.l3.ext_flags &
 	    (QETH_HDR_EXT_VLAN_FRAME | QETH_HDR_EXT_INCLUDE_VLAN_TAG)) {
@@ -2883,13 +2873,7 @@ static void qeth_l3_fill_header(struct qeth_card *card, struct qeth_hdr *hdr,
 			hdr->hdr.l3.flags &= ~QETH_HDR_PASSTHRU;
 		memcpy(hdr->hdr.l3.dest_addr, pkey, 16);
 	} else {
-		/* passthrough */
-		if ((skb->dev->type == ARPHRD_IEEE802_TR) &&
-			!memcmp(skb->data + sizeof(struct qeth_hdr) +
-			sizeof(__u16), skb->dev->broadcast, 6)) {
-			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
-						QETH_HDR_PASSTHRU;
-		} else if (!memcmp(skb->data + sizeof(struct qeth_hdr),
+		if (!memcmp(skb->data + sizeof(struct qeth_hdr),
 			    skb->dev->broadcast, 6)) {
 			/* broadcast? */
 			hdr->hdr.l3.flags = QETH_CAST_BROADCAST |
@@ -3031,10 +3015,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			skb_pull(new_skb, ETH_HLEN);
 	} else {
 		if (ipv == 4) {
-			if (card->dev->type == ARPHRD_IEEE802_TR)
-				skb_pull(new_skb, TR_HLEN);
-			else
-				skb_pull(new_skb, ETH_HLEN);
+			skb_pull(new_skb, ETH_HLEN);
 		}
 
 		if (ipv != 4 && vlan_tx_tag_present(new_skb)) {
@@ -3318,12 +3299,8 @@ static int qeth_l3_setup_netdev(struct qeth_card *card)
 	    card->info.type == QETH_CARD_TYPE_OSX) {
 		if ((card->info.link_type == QETH_LINK_TYPE_LANE_TR) ||
 		    (card->info.link_type == QETH_LINK_TYPE_HSTR)) {
-#ifdef CONFIG_TR
-			card->dev = alloc_trdev(0);
-#endif
-			if (!card->dev)
-				return -ENODEV;
-			card->dev->netdev_ops = &qeth_l3_netdev_ops;
+			pr_info("qeth_l3: ignoring TR device\n");
+			return -ENODEV;
 		} else {
 			card->dev = alloc_etherdev(0);
 			if (!card->dev)
