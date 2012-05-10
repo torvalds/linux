@@ -44,6 +44,12 @@
 static char *ht_mode_param;
 static char *board_type_param;
 
+static const u32 wl18xx_board_type_to_scrpad2[NUM_BOARD_TYPES] = {
+	[BOARD_TYPE_FPGA_18XX]		= SCR_PAD2_BOARD_TYPE_FPGA,
+	[BOARD_TYPE_HDK_18XX]		= SCR_PAD2_BOARD_TYPE_HDK,
+	[BOARD_TYPE_DVP_EVB_18XX]	= SCR_PAD2_BOARD_TYPE_DVP_EVB,
+};
+
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	15,                            /* WL18XX_CONF_HW_RXTX_RATE_MCS15 */
@@ -584,11 +590,11 @@ out:
 
 static void wl18xx_set_clk(struct wl1271 *wl)
 {
-	/*
-	 * TODO: this is hardcoded just for DVP/EVB, fix according to
-	 * new unified_drv.
-	 */
-	wl1271_write32(wl, WL18XX_SCR_PAD2, 0xB3);
+	struct wl18xx_priv *priv = wl->priv;
+
+	/* write the translated board type to SCR_PAD2 */
+	wl1271_write32(wl, WL18XX_SCR_PAD2,
+		       wl18xx_board_type_to_scrpad2[priv->board_type]);
 
 	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
 	wl1271_write32(wl, 0x00A02360, 0xD0078);
