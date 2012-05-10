@@ -7895,7 +7895,7 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 					iocbq->vport->fc_myDID);
 				bf_set(wqe_ct, &wqe->els_req.wqe_com, 1);
 				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
-					phba->vpi_ids[phba->pport->vpi]);
+					phba->vpi_ids[iocbq->vport->vpi]);
 			} else if (pcmd && iocbq->context1) {
 				bf_set(wqe_ct, &wqe->els_req.wqe_com, 0);
 				bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
