@@ -51,9 +51,6 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 	struct resource res[3];
 	int retval = 0, nres = 2;
 
-	if (id == NULL)
-		return -EINVAL;
-
 	retval = pci_enable_device(pdev);
 	if (retval)
 		goto done;
