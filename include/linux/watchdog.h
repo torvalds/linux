@@ -54,6 +54,8 @@ struct watchdog_info {
 #ifdef __KERNEL__
 
 #include <linux/bitops.h>
+#include <linux/device.h>
+#include <linux/cdev.h>
 
 struct watchdog_ops;
 struct watchdog_device;
@@ -89,6 +91,8 @@ struct watchdog_ops {
 
 /** struct watchdog_device - The structure that defines a watchdog device
  *
+ * @id:		The watchdog's ID. (Allocated by watchdog_register_device)
+ * @cdev:	The watchdog's Character device.
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
  * @bootstatus:	Status of the watchdog device at boot.
@@ -105,6 +109,8 @@ struct watchdog_ops {
  * via the watchdog_set_drvdata and watchdog_get_drvdata helpers.
  */
 struct watchdog_device {
+	int id;
+	struct cdev cdev;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;

@@ -34,8 +34,11 @@
 #include <linux/kernel.h>	/* For printk/panic/... */
 #include <linux/watchdog.h>	/* For watchdog specific items */
 #include <linux/init.h>		/* For __init/__exit/... */
+#include <linux/idr.h>		/* For ida_* macros */
 
 #include "watchdog_core.h"	/* For watchdog_dev_register/... */
+
+static DEFINE_IDA(watchdog_ida);
 
 /**
  * watchdog_register_device() - register a watchdog device
@@ -49,7 +52,7 @@
  */
 int watchdog_register_device(struct watchdog_device *wdd)
 {
-	int ret;
+	int ret, id;
 
 	if (wdd == NULL || wdd->info == NULL || wdd->ops == NULL)
 		return -EINVAL;
@@ -74,11 +77,28 @@ int watchdog_register_device(struct watchdog_device *wdd)
 	 * corrupted in a later stage then we expect a kernel panic!
 	 */
 
-	/* We only support 1 watchdog device via the /dev/watchdog interface */
+	id = ida_simple_get(&watchdog_ida, 0, MAX_DOGS, GFP_KERNEL);
+	if (id < 0)
+		return id;
+	wdd->id = id;
+
 	ret = watchdog_dev_register(wdd);
 	if (ret) {
-		pr_err("error registering /dev/watchdog (err=%d)\n", ret);
-		return ret;
+		ida_simple_remove(&watchdog_ida, id);
+		if (!(id == 0 && ret == -EBUSY))
+			return ret;
+
+		/* Retry in case a legacy watchdog module exists */
+		id = ida_simple_get(&watchdog_ida, 1, MAX_DOGS, GFP_KERNEL);
+		if (id < 0)
+			return id;
+		wdd->id = id;
+
+		ret = watchdog_dev_register(wdd);
+		if (ret) {
+			ida_simple_remove(&watchdog_ida, id);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -102,8 +122,23 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 	ret = watchdog_dev_unregister(wdd);
 	if (ret)
 		pr_err("error unregistering /dev/watchdog (err=%d)\n", ret);
+	ida_simple_remove(&watchdog_ida, wdd->id);
 }
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
+
+static int __init watchdog_init(void)
+{
+	return watchdog_dev_init();
+}
+
+static void __exit watchdog_exit(void)
+{
+	watchdog_dev_exit();
+	ida_destroy(&watchdog_ida);
+}
+
+subsys_initcall(watchdog_init);
+module_exit(watchdog_exit);
 
 MODULE_AUTHOR("Alan Cox <alan@lxorguk.ukuu.org.uk>");
 MODULE_AUTHOR("Wim Van Sebroeck <wim@iguana.be>");

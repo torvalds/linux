@@ -26,8 +26,12 @@
  *	This material is provided "AS-IS" and at no charge.
  */
 
+#define MAX_DOGS	32	/* Maximum number of watchdog devices */
+
 /*
  *	Functions/procedures to be called by the core
  */
 extern int watchdog_dev_register(struct watchdog_device *);
 extern int watchdog_dev_unregister(struct watchdog_device *);
+extern int __init watchdog_dev_init(void);
+extern void __exit watchdog_dev_exit(void);
