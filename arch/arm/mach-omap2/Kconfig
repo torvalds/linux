@@ -35,6 +35,7 @@ config ARCH_OMAP3
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARCH_HAS_OPP
+	select PM if CPU_IDLE
 	select PM_OPP if PM
 	select ARM_CPU_SUSPEND if PM
 	select MULTI_IRQ_HANDLER
@@ -52,6 +53,7 @@ config ARCH_OMAP4
 	select PL310_ERRATA_727915
 	select ARM_ERRATA_720789
 	select ARCH_HAS_OPP
+	select PM if CPU_IDLE
 	select PM_OPP if PM
 	select USB_ARCH_HAS_EHCI if USB_SUPPORT
 	select ARM_CPU_SUSPEND if PM
