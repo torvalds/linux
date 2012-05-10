@@ -1156,7 +1156,8 @@ static u32 wl12xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
 
 static void wl12xx_tx_delayed_compl(struct wl1271 *wl)
 {
-	if (wl->fw_status->tx_results_counter == (wl->tx_results_count & 0xff))
+	if (wl->fw_status_1->tx_results_counter ==
+	    (wl->tx_results_count & 0xff))
 		return;
 
 	wl1271_tx_complete(wl);
@@ -1414,6 +1415,7 @@ static int __devinit wl12xx_probe(struct platform_device *pdev)
 	wl->ptable = wl12xx_ptable;
 	wl->rtable = wl12xx_rtable;
 	wl->num_tx_desc = 16;
+	wl->num_rx_desc = 8;
 	wl->normal_tx_spare = WL12XX_TX_HW_BLOCK_SPARE_DEFAULT;
 	wl->gem_tx_spare = WL12XX_TX_HW_BLOCK_GEM_SPARE;
 	wl->band_rate_to_idx = wl12xx_band_rate_to_idx;

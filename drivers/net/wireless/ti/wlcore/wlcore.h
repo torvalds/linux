@@ -269,7 +269,8 @@ struct wl1271 {
 	u32 buffer_cmd;
 	u32 buffer_busyword[WL1271_BUSY_WORD_CNT];
 
-	struct wl_fw_status *fw_status;
+	struct wl_fw_status_1 *fw_status_1;
+	struct wl_fw_status_2 *fw_status_2;
 	struct wl1271_tx_hw_res_if *tx_res_if;
 
 	/* Current chipset configuration */
@@ -337,6 +338,8 @@ struct wl1271 {
 
 	/* number of TX descriptors the HW supports. */
 	u32 num_tx_desc;
+	/* number of RX descriptors the HW supports. */
+	u32 num_rx_desc;
 
 	/* spare Tx blocks for normal/GEM operating modes */
 	u32 normal_tx_spare;

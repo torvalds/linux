@@ -141,7 +141,6 @@ struct wl1271_stats {
 };
 
 #define NUM_TX_QUEUES              4
-#define NUM_RX_PKT_DESC            8
 
 #define AP_MAX_STATIONS            8
 
@@ -159,13 +158,26 @@ struct wl_fw_packet_counters {
 } __packed;
 
 /* FW status registers */
-struct wl_fw_status {
+struct wl_fw_status_1 {
 	__le32 intr;
 	u8  fw_rx_counter;
 	u8  drv_rx_counter;
 	u8  reserved;
 	u8  tx_results_counter;
-	__le32 rx_pkt_descs[NUM_RX_PKT_DESC];
+	__le32 rx_pkt_descs[0];
+} __packed;
+
+/*
+ * Each HW arch has a different number of Rx descriptors.
+ * The length of the status depends on it, since it holds an array
+ * of descriptors.
+ */
+#define WLCORE_FW_STATUS_1_LEN(num_rx_desc) \
+		(sizeof(struct wl_fw_status_1) + \
+		(sizeof(((struct wl_fw_status_1 *)0)->rx_pkt_descs[0])) * \
+		num_rx_desc)
+
+struct wl_fw_status_2 {
 	__le32 fw_localtime;
 
 	/*

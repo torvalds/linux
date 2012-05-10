@@ -94,7 +94,7 @@ static void wl18xx_tx_complete_packet(struct wl1271 *wl, u8 tx_stat_byte)
 void wl18xx_tx_immediate_complete(struct wl1271 *wl)
 {
 	struct wl18xx_fw_status_priv *status_priv =
-		(struct wl18xx_fw_status_priv *)wl->fw_status->priv;
+		(struct wl18xx_fw_status_priv *)wl->fw_status_2->priv;
 	struct wl18xx_priv *priv = wl->priv;
 	u8 i;
 

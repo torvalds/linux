@@ -38,8 +38,6 @@
 #define RX_DESC_PACKETID_SHIFT 11
 #define RX_MAX_PACKET_ID 3
 
-#define NUM_RX_PKT_DESC_MOD_MASK   7
-
 #define RX_DESC_VALID_FCS         0x0001
 #define RX_DESC_MATCH_RXADDR1     0x0002
 #define RX_DESC_MCAST             0x0004
@@ -139,7 +137,7 @@ struct wl1271_rx_descriptor {
 	u8  reserved;
 } __packed;
 
-void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status *status);
+void wl12xx_rx(struct wl1271 *wl, struct wl_fw_status_1 *status);
 u8 wl1271_rate_to_idx(int rate, enum ieee80211_band band);
 int wl1271_rx_filter_enable(struct wl1271 *wl,
 			    int index, bool enable,
