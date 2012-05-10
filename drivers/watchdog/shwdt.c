@@ -32,6 +32,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/io.h>
+#include <linux/clk.h>
 #include <asm/watchdog.h>
 
 #define DRV_NAME "sh-wdt"
@@ -74,6 +75,7 @@ static unsigned long next_heartbeat;
 struct sh_wdt {
 	void __iomem		*base;
 	struct device		*dev;
+	struct clk		*clk;
 	spinlock_t		lock;
 
 	struct timer_list	timer;
@@ -225,26 +227,31 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 	if (unlikely(!res))
 		return -EINVAL;
 
-	if (!devm_request_mem_region(&pdev->dev, res->start,
-				     resource_size(res), DRV_NAME))
-		return -EBUSY;
-
 	wdt = devm_kzalloc(&pdev->dev, sizeof(struct sh_wdt), GFP_KERNEL);
-	if (unlikely(!wdt)) {
-		rc = -ENOMEM;
-		goto out_release;
-	}
+	if (unlikely(!wdt))
+		return -ENOMEM;
 
 	wdt->dev = &pdev->dev;
 
+	wdt->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(wdt->clk)) {
+		/*
+		 * Clock framework support is optional, continue on
+		 * anyways if we don't find a matching clock.
+		 */
+		wdt->clk = NULL;
+	}
+
+	clk_enable(wdt->clk);
+
+	wdt->base = devm_request_and_ioremap(wdt->dev, res);
+	if (unlikely(!wdt->base)) {
+		rc = -EADDRNOTAVAIL;
+		goto out_disable;
+	}
+
 	watchdog_set_nowayout(&sh_wdt_dev, nowayout);
 	watchdog_set_drvdata(&sh_wdt_dev, wdt);
-
-	wdt->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
-	if (unlikely(!wdt->base)) {
-		rc = -ENXIO;
-		goto out_err;
-	}
 
 	spin_lock_init(&wdt->lock);
 
@@ -264,7 +271,7 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 	rc = watchdog_register_device(&sh_wdt_dev);
 	if (unlikely(rc)) {
 		dev_err(&pdev->dev, "Can't register watchdog (err=%d)\n", rc);
-		goto out_unmap;
+		goto out_disable;
 	}
 
 	init_timer(&wdt->timer);
@@ -278,12 +285,9 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_unmap:
-	devm_iounmap(&pdev->dev, wdt->base);
-out_err:
-	devm_kfree(&pdev->dev, wdt);
-out_release:
-	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+out_disable:
+	clk_disable(wdt->clk);
+	clk_put(wdt->clk);
 
 	return rc;
 }
@@ -291,15 +295,13 @@ out_release:
 static int __devexit sh_wdt_remove(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	platform_set_drvdata(pdev, NULL);
 
 	watchdog_unregister_device(&sh_wdt_dev);
 
-	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
-	devm_iounmap(&pdev->dev, wdt->base);
-	devm_kfree(&pdev->dev, wdt);
+	clk_disable(wdt->clk);
+	clk_put(wdt->clk);
 
 	return 0;
 }
