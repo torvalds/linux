@@ -27,7 +27,7 @@ int dlm_recover_locks(struct dlm_ls *ls);
 void dlm_recovered_lock(struct dlm_rsb *r);
 int dlm_create_root_list(struct dlm_ls *ls);
 void dlm_release_root_list(struct dlm_ls *ls);
-void dlm_clear_toss_list(struct dlm_ls *ls);
+void dlm_clear_toss(struct dlm_ls *ls);
 void dlm_recover_rsbs(struct dlm_ls *ls);
 
 #endif				/* __RECOVER_DOT_H__ */
