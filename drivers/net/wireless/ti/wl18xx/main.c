@@ -34,6 +34,7 @@
 
 #define WL18XX_TX_HW_BLOCK_SPARE        1
 #define WL18XX_TX_HW_GEM_BLOCK_SPARE    2
+#define WL18XX_TX_HW_BLOCK_SIZE         268
 
 static struct wl18xx_conf wl18xx_default_conf = {
 	.phy = {
@@ -305,11 +306,18 @@ static void wl18xx_ack_event(struct wl1271 *wl)
 	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL18XX_INTR_TRIG_EVENT_ACK);
 }
 
+static u32 wl18xx_calc_tx_blocks(struct wl1271 *wl, u32 len, u32 spare_blks)
+{
+	u32 blk_size = WL18XX_TX_HW_BLOCK_SIZE;
+	return (len + blk_size - 1) / blk_size + spare_blks;
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
 	.trigger_cmd	= wl18xx_trigger_cmd,
 	.ack_event	= wl18xx_ack_event,
+	.calc_tx_blocks = wl18xx_calc_tx_blocks,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
