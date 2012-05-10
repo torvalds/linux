@@ -14,7 +14,8 @@
 struct rk30_adc_device {
 	int			 irq;
 	void __iomem		*regs;
-	struct clk *		clk;
+	struct clk		*clk;
+	struct clk		*pclk;
 	struct resource		*ioarea;
 	struct adc_host		*adc;
 };
@@ -123,17 +124,26 @@ static int rk30_adc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to attach adc irq\n");
 		goto err_alloc;
 	}
+
+	dev->pclk = clk_get(&pdev->dev, "pclk_saradc");
+	if (IS_ERR(dev->pclk)) {
+		dev_err(&pdev->dev, "failed to get adc pclk\n");
+		ret = PTR_ERR(dev->pclk);
+		goto err_irq;
+	}
+	clk_enable(dev->pclk);
+
 	dev->clk = clk_get(&pdev->dev, "saradc");
 	if (IS_ERR(dev->clk)) {
 		dev_err(&pdev->dev, "failed to get adc clock\n");
 		ret = PTR_ERR(dev->clk);
-		goto err_irq;
+		goto err_pclk;
 	}
 
 	ret = clk_set_rate(dev->clk, ADC_CLK_RATE * 1000 * 1000);
 	if(ret < 0) {
 		dev_err(&pdev->dev, "failed to set adc clk\n");
-		goto err_clk;
+		goto err_clk2;
 	}
 	clk_enable(dev->clk);
 
@@ -163,9 +173,15 @@ static int rk30_adc_probe(struct platform_device *pdev)
  err_ioarea:
 	release_resource(dev->ioarea);
 	kfree(dev->ioarea);
-	clk_disable(dev->clk);
 
  err_clk:
+	clk_disable(dev->clk);
+
+ err_pclk:
+	clk_disable(dev->pclk);
+	clk_put(dev->pclk);
+
+ err_clk2:
 	clk_put(dev->clk);
 
  err_irq:
@@ -186,6 +202,8 @@ static int rk30_adc_remove(struct platform_device *pdev)
 	free_irq(dev->irq, dev);
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
+	clk_disable(dev->pclk);
+	clk_put(dev->pclk);
 	adc_free_host(dev->adc);
 
 	return 0;
