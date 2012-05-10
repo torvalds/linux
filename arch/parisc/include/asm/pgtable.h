@@ -44,6 +44,8 @@ struct vm_area_struct;
 
 #endif /* !__ASSEMBLY__ */
 
+#include <asm/page.h>
+
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
 #define pmd_ERROR(e) \
