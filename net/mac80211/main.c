@@ -682,6 +682,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	enum ieee80211_band band;
 	int channels, max_bitrates;
 	bool supp_ht;
+	netdev_features_t feature_whitelist;
 	static const u32 cipher_suites[] = {
 		/* keep WEP first, it may be removed below */
 		WLAN_CIPHER_SUITE_WEP40,
@@ -706,6 +707,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		return -EINVAL;
 
 	if ((hw->flags & IEEE80211_HW_SCAN_WHILE_IDLE) && !local->ops->hw_scan)
+		return -EINVAL;
+
+	/* Only HW csum features are currently compatible with mac80211 */
+	feature_whitelist = NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
+			    NETIF_F_HW_CSUM;
+	if (WARN_ON(hw->netdev_features & ~feature_whitelist))
 		return -EINVAL;
 
 	if (hw->max_report_rates == 0)

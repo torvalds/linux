@@ -1352,6 +1352,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 			sdata->u.mgd.use_4addr = params->use_4addr;
 	}
 
+	ndev->features |= local->hw.netdev_features;
+
 	ret = register_netdevice(ndev);
 	if (ret)
 		goto fail;
