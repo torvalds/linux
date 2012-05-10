@@ -488,7 +488,7 @@ int nfc_llcp_send_i_frame(struct nfc_llcp_sock *sock,
 
 		memcpy(skb_put(pdu, frag_len), msg_ptr, frag_len);
 
-		skb_queue_head(&sock->tx_queue, pdu);
+		skb_queue_tail(&sock->tx_queue, pdu);
 
 		lock_sock(sk);
 
