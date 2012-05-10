@@ -77,13 +77,18 @@
 
 	timer@2c000600 {
 		compatible = "arm,cortex-a5-twd-timer";
-		reg = <0x2c000600 0x38>;
-		interrupts = <1 2 0x304>,
-			     <1 3 0x304>;
+		reg = <0x2c000600 0x20>;
+		interrupts = <1 13 0x304>;
+	};
+
+	watchdog@2c000620 {
+		compatible = "arm,cortex-a5-twd-wdt";
+		reg = <0x2c000620 0x20>;
+		interrupts = <1 14 0x304>;
 	};
 
 	gic: interrupt-controller@2c001000 {
-		compatible = "arm,corex-a5-gic", "arm,cortex-a9-gic";
+		compatible = "arm,cortex-a5-gic", "arm,cortex-a9-gic";
 		#interrupt-cells = <3>;
 		#address-cells = <0>;
 		interrupt-controller;
