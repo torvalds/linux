@@ -734,6 +734,7 @@ int usb_add_config(struct usb_composite_dev *cdev,
 
 	INIT_LIST_HEAD(&config->functions);
 	config->next_interface_id = 0;
+	memset(config->interface, 0, sizeof(config->interface));
 
 	status = bind(config);
 	if (status < 0) {
