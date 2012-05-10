@@ -827,16 +827,7 @@ int card_power_on(struct rts51x_chip *chip, u8 card)
 	if ((card == SD_CARD) || (card == XD_CARD)) {
 		RTS51X_WRITE_REG(chip, CARD_PWR_CTL, mask | LDO3318_PWR_MASK,
 				 val1 | LDO_SUSPEND);
-		/* RTS51X_WRITE_REG(chip, CARD_PWR_CTL,
-				LDO3318_PWR_MASK, LDO_SUSPEND); */
 	}
-	/* else if(card==XD_CARD)
-	{
-		RTS51X_WRITE_REG(chip, CARD_PWR_CTL,
-			mask|LDO3318_PWR_MASK, val1|LDO_SUSPEND);
-		//RTS51X_WRITE_REG(chip, CARD_PWR_CTL,
-		//	LDO3318_PWR_MASK, LDO_SUSPEND);
-	} */
 	else {
 #endif
 		RTS51X_WRITE_REG(chip, CARD_PWR_CTL, mask, val1);
