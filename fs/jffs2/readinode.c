@@ -1421,6 +1421,7 @@ int jffs2_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *i
 		mutex_unlock(&f->sem);
 		jffs2_do_clear_inode(c, f);
 	}
+	jffs2_xattr_do_crccheck_inode(c, ic);
 	kfree (f);
 	return ret;
 }

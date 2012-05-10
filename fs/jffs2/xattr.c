@@ -437,6 +437,8 @@ static void unrefer_xattr_datum(struct jffs2_sb_info *c, struct jffs2_xattr_datu
  *   is called to release xattr related objects when unmounting. 
  * check_xattr_ref_inode(c, ic)
  *   is used to confirm inode does not have duplicate xattr name/value pair.
+ * jffs2_xattr_do_crccheck_inode(c, ic)
+ *   is used to force xattr data integrity check during the initial gc scan.
  * -------------------------------------------------- */
 static int verify_xattr_ref(struct jffs2_sb_info *c, struct jffs2_xattr_ref *ref)
 {
@@ -682,6 +684,11 @@ static int check_xattr_ref_inode(struct jffs2_sb_info *c, struct jffs2_inode_cac
 	up_write(&c->xattr_sem);
 
 	return rc;
+}
+
+void jffs2_xattr_do_crccheck_inode(struct jffs2_sb_info *c, struct jffs2_inode_cache *ic)
+{
+	check_xattr_ref_inode(c, ic);
 }
 
 /* -------- xattr subsystem functions ---------------
