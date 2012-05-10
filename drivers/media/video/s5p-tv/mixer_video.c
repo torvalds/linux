@@ -1069,6 +1069,10 @@ struct mxr_layer *mxr_base_layer_create(struct mxr_device *mdev,
 	set_bit(V4L2_FL_USE_FH_PRIO, &layer->vfd.flags);
 
 	video_set_drvdata(&layer->vfd, layer);
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &layer->vfd.flags);
 	layer->vfd.lock = &layer->mutex;
 	layer->vfd.v4l2_dev = &mdev->v4l2_dev;
 

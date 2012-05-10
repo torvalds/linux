@@ -274,11 +274,12 @@ static ssize_t v4l2_read(struct file *filp, char __user *buf,
 
 	if (!vdev->fops->read)
 		return -EINVAL;
-	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags) &&
+	    mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->read(filp, buf, sz, off);
-	if (vdev->lock)
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
 	return ret;
 }
@@ -291,11 +292,12 @@ static ssize_t v4l2_write(struct file *filp, const char __user *buf,
 
 	if (!vdev->fops->write)
 		return -EINVAL;
-	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags) &&
+	    mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->write(filp, buf, sz, off);
-	if (vdev->lock)
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
 	return ret;
 }
@@ -307,11 +309,11 @@ static unsigned int v4l2_poll(struct file *filp, struct poll_table_struct *poll)
 
 	if (!vdev->fops->poll)
 		return DEFAULT_POLLMASK;
-	if (vdev->lock)
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_lock(vdev->lock);
 	if (video_is_registered(vdev))
 		ret = vdev->fops->poll(filp, poll);
-	if (vdev->lock)
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
 	return ret;
 }
@@ -399,11 +401,12 @@ static int v4l2_mmap(struct file *filp, struct vm_area_struct *vm)
 
 	if (!vdev->fops->mmap)
 		return ret;
-	if (vdev->lock && mutex_lock_interruptible(vdev->lock))
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags) &&
+	    mutex_lock_interruptible(vdev->lock))
 		return -ERESTARTSYS;
 	if (video_is_registered(vdev))
 		ret = vdev->fops->mmap(filp, vm);
-	if (vdev->lock)
+	if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 		mutex_unlock(vdev->lock);
 	return ret;
 }
@@ -426,7 +429,8 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 	video_get(vdev);
 	mutex_unlock(&videodev_lock);
 	if (vdev->fops->open) {
-		if (vdev->lock && mutex_lock_interruptible(vdev->lock)) {
+		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags) &&
+		    mutex_lock_interruptible(vdev->lock)) {
 			ret = -ERESTARTSYS;
 			goto err;
 		}
@@ -434,7 +438,7 @@ static int v4l2_open(struct inode *inode, struct file *filp)
 			ret = vdev->fops->open(filp);
 		else
 			ret = -ENODEV;
-		if (vdev->lock)
+		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 			mutex_unlock(vdev->lock);
 	}
 
@@ -452,10 +456,10 @@ static int v4l2_release(struct inode *inode, struct file *filp)
 	int ret = 0;
 
 	if (vdev->fops->release) {
-		if (vdev->lock)
+		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 			mutex_lock(vdev->lock);
 		vdev->fops->release(filp);
-		if (vdev->lock)
+		if (test_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags))
 			mutex_unlock(vdev->lock);
 	}
 	/* decrease the refcount unconditionally since the release()
@@ -831,6 +835,10 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	WARN_ON(video_device[vdev->minor] != NULL);
 	vdev->index = get_index(vdev);
 	mutex_unlock(&videodev_lock);
+	/* if no lock was passed, then make sure the LOCK_ALL_FOPS bit is
+	   clear and warn if it wasn't. */
+	if (vdev->lock == NULL)
+		WARN_ON(test_and_clear_bit(V4L2_FL_LOCK_ALL_FOPS, &vdev->flags));
 
 	if (vdev->ioctl_ops)
 		determine_valid_ioctls(vdev);

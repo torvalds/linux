@@ -1516,6 +1516,10 @@ int fimc_register_capture_device(struct fimc_dev *fimc,
 	vfd->minor	= -1;
 	vfd->release	= video_device_release;
 	vfd->lock	= &fimc->lock;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	video_set_drvdata(vfd, fimc);
 
 	vid_cap = &fimc->vid_cap;

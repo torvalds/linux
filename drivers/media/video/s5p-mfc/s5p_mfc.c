@@ -1048,6 +1048,10 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->ioctl_ops	= get_dec_v4l2_ioctl_ops();
 	vfd->release	= video_device_release,
 	vfd->lock	= &dev->mfc_mutex;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_DEC_NAME);
 	dev->vfd_dec	= vfd;
@@ -1072,6 +1076,8 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->ioctl_ops	= get_enc_v4l2_ioctl_ops();
 	vfd->release	= video_device_release,
 	vfd->lock	= &dev->mfc_mutex;
+	/* This should not be necessary */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_ENC_NAME);
 	dev->vfd_enc	= vfd;

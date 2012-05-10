@@ -1948,6 +1948,10 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 		/* register 4 video devices */
 		channel->vdev = template;
 		channel->vdev.lock = &dev->lock;
+		/* Locking in file operations other than ioctl should be done
+		   by the driver, not the V4L2 core.
+		   This driver needs auditing so that this flag can be removed. */
+		set_bit(V4L2_FL_LOCK_ALL_FOPS, &channel->vdev.flags);
 		channel->vdev.v4l2_dev = &dev->v4l2_dev;
 		video_set_drvdata(&channel->vdev, channel);
 		if (video_nr == -1)

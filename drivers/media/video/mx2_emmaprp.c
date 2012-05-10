@@ -904,6 +904,10 @@ static int emmaprp_probe(struct platform_device *pdev)
 	}
 
 	*vfd = emmaprp_videodev;
+	/* Locking in file operations other than ioctl should be done
+	   by the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &pcdev->dev_mutex;
 
 	video_set_drvdata(vfd, pcdev);

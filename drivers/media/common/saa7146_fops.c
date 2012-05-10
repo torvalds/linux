@@ -511,6 +511,10 @@ int saa7146_register_device(struct video_device **vid, struct saa7146_dev* dev,
 	vfd->fops = &video_fops;
 	vfd->ioctl_ops = &dev->ext_vv_data->ops;
 	vfd->release = video_device_release;
+	/* Locking in file operations other than ioctl should be done by
+	   the driver, not the V4L2 core.
+	   This driver needs auditing so that this flag can be removed. */
+	set_bit(V4L2_FL_LOCK_ALL_FOPS, &vfd->flags);
 	vfd->lock = &dev->v4l2_lock;
 	vfd->tvnorms = 0;
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
