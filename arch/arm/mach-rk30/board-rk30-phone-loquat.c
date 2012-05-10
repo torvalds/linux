@@ -1028,14 +1028,13 @@ static int rk29_lcd_io_deinit(void)
 {
 	int ret = 0;
 
-	gpio_direction_output(LCD_TXD_PIN, 1);
-	gpio_direction_output(LCD_CLK_PIN, 1);
-	gpio_direction_output(LCD_CS_PIN, 1);
+	gpio_direction_input(LCD_TXD_PIN);
+	gpio_direction_input(LCD_CLK_PIN);
+	gpio_direction_input(LCD_CS_PIN);
 
 	gpio_free(LCD_CS_PIN);
 	gpio_free(LCD_CLK_PIN);
 	gpio_free(LCD_TXD_PIN);
-
 	return ret;
 }
 #else
@@ -1043,6 +1042,11 @@ static int rk29_lcd_io_deinit(void)
 {
 	int ret = 0;
 	//printk("rk29_lcd_io_deinit\n");
+
+	gpio_direction_input(LCD_TXD_PIN);
+	gpio_direction_input(LCD_CLK_PIN);
+	gpio_direction_input(LCD_CS_PIN);
+
 	gpio_free(LCD_CS_PIN);
 	gpio_free(LCD_CLK_PIN);
 	gpio_free(LCD_TXD_PIN);

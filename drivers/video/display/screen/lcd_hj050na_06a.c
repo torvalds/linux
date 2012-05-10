@@ -27,7 +27,7 @@
 /* Base */
 #define OUT_TYPE	    SCREEN_RGB
 
-#define OUT_FACE	  OUT_D888_P666 //OUT_P888
+#define OUT_FACE	 OUT_D888_P666 //OUT_P888
 
 
 #define OUT_CLK	         50000000    //50MHz
@@ -146,23 +146,16 @@ int lcd_init(void)
 
     printk("lcd hj050a_06a...\n");
 
-    if(LCD_RST_PORT){
-    	if (gpio_request(LCD_RST_PORT, NULL) != 0) {
-    		gpio_free(LCD_RST_PORT);
-    		printk("%s: request LCD_RST_PORT error\n", __func__);
-    	} else {
-        	gpio_direction_output(LCD_RST_PORT, 0);
-        	usleep_range(2*1000, 3*1000);
-        	gpio_set_value(LCD_RST_PORT, 1);
-        	usleep_range(6*1000, 7*1000);
-    	}
-    }
+	gpio_direction_output(LCD_RST_PORT, 0);
+	usleep_range(1*1000, 3*1000);
+	gpio_set_value(LCD_RST_PORT, 1);
+	usleep_range(5*1000, 7*1000);
 
     Write_ADDR(0x0001);     // Software Reset
     mdelay(10);
 
     Write_ADDR(0x0011);     // Sleep Out
-    mdelay(200);
+    mdelay(60);
 
 //<<<<<<<<<<<<<<<MANUFACTURE COMMAND ACCESS PROTECT>>>>>>>>>>>>>>>
     Write_ADDR(0x00B0);     //Manufacture Command Access Protect
@@ -293,10 +286,10 @@ int lcd_init(void)
 
     Write_ADDR(0x0036);     //
     Write_DATA(0x0000);     //
-    mdelay(20);
+    mdelay(17);
     Write_ADDR(0x003A);     //Set Pixel_Format
     Write_DATA(0x0077);     //
-    mdelay(20);
+    mdelay(17);
     Write_ADDR(0x0029);     //  Display On
 
     if(gLcd_info)
@@ -310,43 +303,27 @@ int lcd_init(void)
 
 int lcd_standby(u8 enable)
 {
-    if(gLcd_info)
-        gLcd_info->io_init();
-
 	if(enable) {
+	    if(gLcd_info)
+	        gLcd_info->io_init();
 		printk("lcd_standby...\n");
 		Write_ADDR(0x0028);     //set Display Off
 		Write_ADDR(0x0010);		//enter sleep mode
-		msleep(100);			//wait at least 3 frames time
-#if CONFIG_DEEP_STANDBY_MODE
+		msleep(50);			//wait at least 3 frames time
+#if 1
 		Write_ADDR(0x00b0);
 		Write_DATA(0x0004);
 		Write_ADDR(0x00b1);
 		Write_DATA(0x0001);
-		msleep(2);				//wait at least 1ms
+		msleep(1);				//wait at least 1ms
 #endif
+		gpio_direction_output(LCD_RST_PORT, 0);
+	    if(gLcd_info)
+	        gLcd_info->io_deinit();
 
 	} else {
-		printk("lcd_resume...\n");
-#if CONFIG_DEEP_STANDBY_MODE
-    	gpio_direction_output(LCD_RST_PORT, 0);
-    	usleep_range(2*1000, 3*1000);
-    	gpio_set_value(LCD_RST_PORT, 1);
-    	usleep_range(6*1000, 7*1000);
-#endif
-		Write_ADDR(0x0011);		//exit sleep mode
-		msleep(100);
-	    Write_ADDR(0x0036);		// set display on
-	    Write_DATA(0x0000);
-	    mdelay(20);
-	    Write_ADDR(0x003A);
-	    Write_DATA(0x0077);
-	    mdelay(20);
-	    Write_ADDR(0x0029);
+		lcd_init();
 	}
-
-    if(gLcd_info)
-        gLcd_info->io_deinit();
 
     return 0;
 }
@@ -393,4 +370,12 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 
     if(lcd_info)
         gLcd_info = lcd_info;
+
+    if(LCD_RST_PORT){
+    	if (gpio_request(LCD_RST_PORT, NULL) != 0) {
+    		gpio_free(LCD_RST_PORT);
+    		printk("%s: request LCD_RST_PORT error\n", __func__);
+    	}
+
+    }
 }
