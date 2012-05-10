@@ -33,6 +33,7 @@
 
 #include "reg.h"
 #include "conf.h"
+#include "acx.h"
 #include "tx.h"
 #include "wl18xx.h"
 
@@ -473,6 +474,36 @@ static void wl18xx_tx_immediate_completion(struct wl1271 *wl)
 	wl18xx_tx_immediate_complete(wl);
 }
 
+static int wl18xx_hw_init(struct wl1271 *wl)
+{
+	int ret;
+	u32 host_cfg_bitmap = HOST_IF_CFG_RX_FIFO_ENABLE |
+		HOST_IF_CFG_ADD_RX_ALIGNMENT;
+
+	u32 sdio_align_size = 0;
+
+	/* Enable Tx SDIO padding */
+	if (wl->quirks & WLCORE_QUIRK_TX_BLOCKSIZE_ALIGN) {
+		host_cfg_bitmap |= HOST_IF_CFG_TX_PAD_TO_SDIO_BLK;
+		sdio_align_size = WL12XX_BUS_BLOCK_SIZE;
+	}
+
+	/* Enable Rx SDIO padding */
+	if (wl->quirks & WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN) {
+		host_cfg_bitmap |= HOST_IF_CFG_RX_PAD_TO_SDIO_BLK;
+		sdio_align_size = WL12XX_BUS_BLOCK_SIZE;
+	}
+
+	ret = wl18xx_acx_host_if_cfg_bitmap(wl, host_cfg_bitmap,
+					    sdio_align_size,
+					    WL18XX_TX_HW_BLOCK_SPARE,
+					    WL18XX_HOST_IF_LEN_SIZE_FIELD);
+	if (ret < 0)
+		return ret;
+
+	return ret;
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
@@ -485,6 +516,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.get_rx_packet_len = wl18xx_get_rx_packet_len,
 	.tx_immediate_compl = wl18xx_tx_immediate_completion,
 	.tx_delayed_compl = NULL,
+	.hw_init	= wl18xx_hw_init,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
