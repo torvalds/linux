@@ -47,6 +47,7 @@ static char *board_type_param;
 static bool dc2dc_param = false;
 static int n_antennas_2_param = 1;
 static int n_antennas_5_param = 1;
+static bool checksum_param = true;
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -865,9 +866,11 @@ static int wl18xx_hw_init(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	ret = wl18xx_acx_set_checksum_state(wl);
-	if (ret != 0)
-		return ret;
+	if (checksum_param) {
+		ret = wl18xx_acx_set_checksum_state(wl);
+		if (ret != 0)
+			return ret;
+	}
 
 	return ret;
 }
@@ -878,6 +881,11 @@ static void wl18xx_set_tx_desc_csum(struct wl1271 *wl,
 {
 	u32 ip_hdr_offset;
 	struct iphdr *ip_hdr;
+
+	if (!checksum_param) {
+		desc->wl18xx_checksum_data = 0;
+		return;
+	}
 
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
 		desc->wl18xx_checksum_data = 0;
@@ -1065,6 +1073,11 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	if (!checksum_param) {
+		wl18xx_ops.set_rx_csum = NULL;
+		wl18xx_ops.init_vif = NULL;
+	}
+
 	wl18xx_conf_init(wl);
 
 	return wlcore_probe(wl, pdev);
@@ -1113,6 +1126,9 @@ MODULE_PARM_DESC(n_antennas_2, "Number of installed 2.4GHz antennas: 1 (default)
 
 module_param_named(n_antennas_5, n_antennas_5_param, uint, S_IRUSR);
 MODULE_PARM_DESC(n_antennas_5, "Number of installed 5GHz antennas: 1 (default) or 2");
+
+module_param_named(checksum, checksum_param, bool, S_IRUSR);
+MODULE_PARM_DESC(checksum, "Enable TCP checksum: boolean (defaults to true)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
