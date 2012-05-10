@@ -257,8 +257,8 @@ struct radeon_fence_driver {
 	uint32_t			scratch_reg;
 	uint64_t			gpu_addr;
 	volatile uint32_t		*cpu_addr;
-	/* seq is protected by ring emission lock */
-	uint64_t			seq;
+	/* sync_seq is protected by ring emission lock */
+	uint64_t			sync_seq[RADEON_NUM_RINGS];
 	atomic64_t			last_seq;
 	unsigned long			last_activity;
 	bool				initialized;
@@ -288,6 +288,27 @@ int radeon_fence_wait_any(struct radeon_device *rdev,
 struct radeon_fence *radeon_fence_ref(struct radeon_fence *fence);
 void radeon_fence_unref(struct radeon_fence **fence);
 unsigned radeon_fence_count_emitted(struct radeon_device *rdev, int ring);
+bool radeon_fence_need_sync(struct radeon_fence *fence, int ring);
+void radeon_fence_note_sync(struct radeon_fence *fence, int ring);
+static inline struct radeon_fence *radeon_fence_later(struct radeon_fence *a,
+						      struct radeon_fence *b)
+{
+	if (!a) {
+		return b;
+	}
+
+	if (!b) {
+		return a;
+	}
+
+	BUG_ON(a->ring != b->ring);
+
+	if (a->seq > b->seq) {
+		return a;
+	} else {
+		return b;
+	}
+}
 
 /*
  * Tiling registers
