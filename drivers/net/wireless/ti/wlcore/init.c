@@ -460,6 +460,9 @@ int wl1271_init_ap_rates(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 	/* unconditionally enable HT rates */
 	supported_rates |= CONF_TX_MCS_RATES;
 
+	/* get extra MIMO or wide-chan rates where the HW supports it */
+	supported_rates |= wlcore_hw_ap_get_mimo_wide_rate_mask(wl, wlvif);
+
 	/* configure unicast TX rate classes */
 	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
 		rc.enabled_rates = supported_rates;

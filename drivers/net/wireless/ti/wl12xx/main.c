@@ -1315,6 +1315,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.get_mac		= wl12xx_get_mac,
 	.set_tx_desc_csum	= wl12xx_set_tx_desc_csum,
 	.set_rx_csum		= NULL,
+	.ap_get_mimo_wide_rate_mask = NULL,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {
