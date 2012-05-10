@@ -836,9 +836,11 @@ static void wl1271_recovery_work(struct work_struct *work)
 
 	/* change partitions momentarily so we can read the FW pc */
 	wlcore_set_partition(wl, &wl->ptable[PART_BOOT]);
-	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x",
+	wl1271_info("Hardware recovery in progress. FW ver: %s pc: 0x%x "
+		    "hint_sts: 0x%08x",
 		    wl->chip.fw_ver_str,
-		    wlcore_read_reg(wl, REG_PC_ON_RECOVERY));
+		    wlcore_read_reg(wl, REG_PC_ON_RECOVERY),
+		    wlcore_read_reg(wl, REG_INTERRUPT_NO_CLEAR));
 	wlcore_set_partition(wl, &wl->ptable[PART_WORK]);
 
 	BUG_ON(bug_on_recovery &&
