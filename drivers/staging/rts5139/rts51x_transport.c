@@ -380,11 +380,6 @@ static int rts51x_clear_halt(struct rts51x_chip *chip, unsigned int pipe)
 	return STATUS_SUCCESS;
 }
 
-int rts51x_reset_pipe(struct rts51x_chip *chip, char pipe)
-{
-	return rts51x_clear_halt(chip, pipe);
-}
-
 static void rts51x_sg_clean(struct usb_sg_request *io)
 {
 	if (io->urbs) {
