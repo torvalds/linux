@@ -1791,6 +1791,14 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 {
 	struct pci_dev	*pdev = to_pci_dev(xhci_to_hcd(xhci)->self.controller);
 	struct dev_info	*dev_info, *next;
+	struct list_head *tt_list_head;
+	struct list_head *tt;
+	struct list_head *endpoints;
+	struct list_head *ep, *q;
+	struct xhci_tt_bw_info *tt_info;
+	struct xhci_interval_bw_table *bwt;
+	struct xhci_virt_ep *virt_ep;
+
 	unsigned long	flags;
 	int size;
 	int i;
@@ -1849,8 +1857,26 @@ void xhci_mem_cleanup(struct xhci_hcd *xhci)
 	}
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
+	bwt = &xhci->rh_bw->bw_table;
+	for (i = 0; i < XHCI_MAX_INTERVAL; i++) {
+		endpoints = &bwt->interval_bw[i].endpoints;
+		list_for_each_safe(ep, q, endpoints) {
+			virt_ep = list_entry(ep, struct xhci_virt_ep, bw_endpoint_list);
+			list_del(&virt_ep->bw_endpoint_list);
+			kfree(virt_ep);
+		}
+	}
+
+	tt_list_head = &xhci->rh_bw->tts;
+	list_for_each_safe(tt, q, tt_list_head) {
+		tt_info = list_entry(tt, struct xhci_tt_bw_info, tt_list);
+		list_del(tt);
+		kfree(tt_info);
+	}
+
 	xhci->num_usb2_ports = 0;
 	xhci->num_usb3_ports = 0;
+	xhci->num_active_eps = 0;
 	kfree(xhci->usb2_ports);
 	kfree(xhci->usb3_ports);
 	kfree(xhci->port_array);
