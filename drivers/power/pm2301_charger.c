@@ -47,9 +47,7 @@ static enum power_supply_property pm2xxx_charger_ac_props[] = {
 	POWER_SUPPLY_PROP_HEALTH,
 	POWER_SUPPLY_PROP_PRESENT,
 	POWER_SUPPLY_PROP_ONLINE,
-	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_VOLTAGE_AVG,
-	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
 
 static int pm2xxx_charger_voltage_map[] = {
@@ -438,19 +436,6 @@ static irqreturn_t  pm2xxx_irq_int(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int pm2xxx_charger_get_ac_voltage(struct pm2xxx_charger *pm2)
-{
-	int vch = 0;
-
-	if (pm2->ac.charger_connected) {
-		vch = ab8500_gpadc_convert(pm2->gpadc, MAIN_CHARGER_V);
-		if (vch < 0)
-			dev_err(pm2->dev, "%s gpadc conv failed,\n", __func__);
-	}
-
-	return vch;
-}
-
 static int pm2xxx_charger_get_ac_cv(struct pm2xxx_charger *pm2)
 {
 	int ret = 0;
@@ -471,19 +456,6 @@ static int pm2xxx_charger_get_ac_cv(struct pm2xxx_charger *pm2)
 	}
 out:
 	return ret;
-}
-
-static int pm2xxx_charger_get_ac_current(struct pm2xxx_charger *pm2)
-{
-	int ich = 0;
-
-	if (pm2->ac.charger_online) {
-		ich = ab8500_gpadc_convert(pm2->gpadc, MAIN_CHARGER_C);
-		if (ich < 0)
-			dev_err(pm2->dev, "%s gpadc conv failed\n", __func__);
-	}
-
-	return ich;
 }
 
 static int pm2xxx_current_to_regval(int curr)
@@ -585,16 +557,9 @@ static int pm2xxx_charger_ac_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = pm2->ac.charger_connected;
 		break;
-	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
-		pm2->ac.charger_voltage = pm2xxx_charger_get_ac_voltage(pm2);
-		val->intval = pm2->ac.charger_voltage * 1000;
-		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_AVG:
 		pm2->ac.cv_active = pm2xxx_charger_get_ac_cv(pm2);
 		val->intval = pm2->ac.cv_active;
-		break;
-	case POWER_SUPPLY_PROP_CURRENT_NOW:
-		val->intval = pm2xxx_charger_get_ac_current(pm2) * 1000;
 		break;
 	default:
 		return -EINVAL;

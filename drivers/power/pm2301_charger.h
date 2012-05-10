@@ -456,7 +456,6 @@ enum pm2xxx_source_reg_int6 {
 struct pm2xxx_charger_info {
 	int charger_connected;
 	int charger_online;
-	int charger_voltage;
 	int cv_active;
 	bool wd_expired;
 };
