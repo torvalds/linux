@@ -170,7 +170,7 @@ static int br_set_mac_address(struct net_device *dev, void *p)
 		return -EADDRNOTAVAIL;
 
 	spin_lock_bh(&br->lock);
-	if (compare_ether_addr(dev->dev_addr, addr->sa_data)) {
+	if (!ether_addr_equal(dev->dev_addr, addr->sa_data)) {
 		dev->addr_assign_type &= ~NET_ADDR_RANDOM;
 		memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
 		br_fdb_change_mac_address(br, addr->sa_data);

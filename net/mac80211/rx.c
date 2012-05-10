@@ -492,12 +492,12 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 			if (ieee80211_has_tods(hdr->frame_control) ||
 				!ieee80211_has_fromds(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (compare_ether_addr(hdr->addr3, dev_addr) == 0)
+			if (ether_addr_equal(hdr->addr3, dev_addr))
 				return RX_DROP_MONITOR;
 		} else {
 			if (!ieee80211_has_a4(hdr->frame_control))
 				return RX_DROP_MONITOR;
-			if (compare_ether_addr(hdr->addr4, dev_addr) == 0)
+			if (ether_addr_equal(hdr->addr4, dev_addr))
 				return RX_DROP_MONITOR;
 		}
 	}
@@ -1275,7 +1275,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
 						NL80211_IFTYPE_ADHOC);
-		if (compare_ether_addr(bssid, rx->sdata->u.ibss.bssid) == 0) {
+		if (ether_addr_equal(bssid, rx->sdata->u.ibss.bssid)) {
 			sta->last_rx = jiffies;
 			if (ieee80211_is_data(hdr->frame_control)) {
 				sta->last_rx_rate_idx = status->rate_idx;
@@ -1438,8 +1438,8 @@ ieee80211_reassemble_find(struct ieee80211_sub_if_data *sdata,
 		 */
 		if (((hdr->frame_control ^ f_hdr->frame_control) &
 		     cpu_to_le16(IEEE80211_FCTL_FTYPE)) ||
-		    compare_ether_addr(hdr->addr1, f_hdr->addr1) != 0 ||
-		    compare_ether_addr(hdr->addr2, f_hdr->addr2) != 0)
+		    !ether_addr_equal(hdr->addr1, f_hdr->addr1) ||
+		    !ether_addr_equal(hdr->addr2, f_hdr->addr2))
 			continue;
 
 		if (time_after(jiffies, entry->first_frag_time + 2 * HZ)) {
@@ -1714,8 +1714,8 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * of whether the frame was encrypted or not.
 	 */
 	if (ehdr->h_proto == rx->sdata->control_port_protocol &&
-	    (compare_ether_addr(ehdr->h_dest, rx->sdata->vif.addr) == 0 ||
-	     compare_ether_addr(ehdr->h_dest, pae_group_addr) == 0))
+	    (ether_addr_equal(ehdr->h_dest, rx->sdata->vif.addr) ||
+	     ether_addr_equal(ehdr->h_dest, pae_group_addr)))
 		return true;
 
 	if (ieee80211_802_1x_port_control(rx) ||
@@ -1925,7 +1925,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 			mpp_path_add(proxied_addr, mpp_addr, sdata);
 		} else {
 			spin_lock_bh(&mppath->state_lock);
-			if (compare_ether_addr(mppath->mpp, mpp_addr) != 0)
+			if (!ether_addr_equal(mppath->mpp, mpp_addr))
 				memcpy(mppath->mpp, mpp_addr, ETH_ALEN);
 			spin_unlock_bh(&mppath->state_lock);
 		}
@@ -1934,7 +1934,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	/* Frame has reached destination.  Don't forward */
 	if (!is_multicast_ether_addr(hdr->addr1) &&
-	    compare_ether_addr(sdata->vif.addr, hdr->addr3) == 0)
+	    ether_addr_equal(sdata->vif.addr, hdr->addr3))
 		return RX_CONTINUE;
 
 	q = ieee80211_select_queue_80211(local, skb, hdr);
@@ -2122,13 +2122,13 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *resp;
 
-	if (compare_ether_addr(mgmt->da, sdata->vif.addr) != 0) {
+	if (!ether_addr_equal(mgmt->da, sdata->vif.addr)) {
 		/* Not to own unicast address */
 		return;
 	}
 
-	if (compare_ether_addr(mgmt->sa, sdata->u.mgd.bssid) != 0 ||
-	    compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid) != 0) {
+	if (!ether_addr_equal(mgmt->sa, sdata->u.mgd.bssid) ||
+	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.bssid)) {
 		/* Not from the current AP or not associated yet. */
 		return;
 	}
@@ -2338,7 +2338,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
 				break;
 
-			if (compare_ether_addr(mgmt->bssid, sdata->u.mgd.bssid))
+			if (!ether_addr_equal(mgmt->bssid, sdata->u.mgd.bssid))
 				break;
 
 			goto queue;
@@ -2772,7 +2772,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		if (!bssid && !sdata->u.mgd.use_4addr)
 			return 0;
 		if (!multicast &&
-		    compare_ether_addr(sdata->vif.addr, hdr->addr1) != 0) {
+		    !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC) ||
 			    sdata->u.mgd.use_4addr)
 				return 0;
@@ -2790,8 +2790,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
 		} else if (!multicast &&
-			   compare_ether_addr(sdata->vif.addr,
-					      hdr->addr1) != 0) {
+			   !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 			status->rx_flags &= ~IEEE80211_RX_RA_MATCH;
@@ -2807,8 +2806,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		break;
 	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
-		    compare_ether_addr(sdata->vif.addr,
-				       hdr->addr1) != 0) {
+		    !ether_addr_equal(sdata->vif.addr, hdr->addr1)) {
 			if (!(sdata->dev->flags & IFF_PROMISC))
 				return 0;
 
@@ -2818,8 +2816,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:
 		if (!bssid) {
-			if (compare_ether_addr(sdata->vif.addr,
-					       hdr->addr1))
+			if (!ether_addr_equal(sdata->vif.addr, hdr->addr1))
 				return 0;
 		} else if (!ieee80211_bssid_match(bssid,
 					sdata->vif.addr)) {
@@ -2841,7 +2838,7 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 	case NL80211_IFTYPE_WDS:
 		if (bssid || !ieee80211_is_data(hdr->frame_control))
 			return 0;
-		if (compare_ether_addr(sdata->u.wds.remote_addr, hdr->addr2))
+		if (!ether_addr_equal(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
 		break;
 	default:

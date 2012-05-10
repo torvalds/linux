@@ -1255,7 +1255,7 @@ static int lane2_associate_req(struct net_device *dev, const u8 *lan_dst,
 	struct sk_buff *skb;
 	struct lec_priv *priv = netdev_priv(dev);
 
-	if (compare_ether_addr(lan_dst, dev->dev_addr))
+	if (!ether_addr_equal(lan_dst, dev->dev_addr))
 		return 0;	/* not our mac address */
 
 	kfree(priv->tlvs);	/* NULL if there was no previous association */
@@ -1662,7 +1662,7 @@ static struct lec_arp_table *lec_arp_find(struct lec_priv *priv,
 
 	head = &priv->lec_arp_tables[HASH(mac_addr[ETH_ALEN - 1])];
 	hlist_for_each_entry(entry, node, head, next) {
-		if (!compare_ether_addr(mac_addr, entry->mac_addr))
+		if (ether_addr_equal(mac_addr, entry->mac_addr))
 			return entry;
 	}
 	return NULL;
@@ -1849,7 +1849,7 @@ static struct atm_vcc *lec_arp_resolve(struct lec_priv *priv,
 		case 1:
 			return priv->mcast_vcc;
 		case 2:	/* LANE2 wants arp for multicast addresses */
-			if (!compare_ether_addr(mac_to_find, bus_mac))
+			if (ether_addr_equal(mac_to_find, bus_mac))
 				return priv->mcast_vcc;
 			break;
 		default:
