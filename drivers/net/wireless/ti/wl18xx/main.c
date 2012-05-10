@@ -325,6 +325,7 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	wl->ops = &wl18xx_ops;
 	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
+	wl->num_tx_desc = 32;
 
 	return wlcore_probe(wl, pdev);
 }
