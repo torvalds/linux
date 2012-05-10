@@ -8694,8 +8694,11 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	/* Release all the vports against this physical port */
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for (i = 1; i <= phba->max_vports && vports[i] != NULL; i++)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			if (vports[i]->port_type == LPFC_PHYSICAL_PORT)
+				continue;
 			fc_vport_terminate(vports[i]->fc_vport);
+		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	/* Remove FC host and then SCSI host with the physical port */
@@ -9455,8 +9458,11 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* Release all the vports against this physical port */
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
-		for (i = 1; i <= phba->max_vports && vports[i] != NULL; i++)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			if (vports[i]->port_type == LPFC_PHYSICAL_PORT)
+				continue;
 			fc_vport_terminate(vports[i]->fc_vport);
+		}
 	lpfc_destroy_vport_work_array(phba, vports);
 
 	/* Remove FC host and then SCSI host with the physical port */
