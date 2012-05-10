@@ -704,7 +704,7 @@ int sd_select_card(struct rts51x_chip *chip, int select)
 	return STATUS_SUCCESS;
 }
 
-int sd_wait_currentstate_dataready(struct rts51x_chip *chip, u8 statechk,
+static int sd_wait_currentstate_dataready(struct rts51x_chip *chip, u8 statechk,
 				   u8 rdychk, u16 pollingcnt)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
@@ -2885,7 +2885,7 @@ static int wait_data_buf_ready(struct rts51x_chip *chip)
 	TRACE_RET(chip, STATUS_FAIL);
 }
 
-void sd_stop_seq_mode(struct rts51x_chip *chip)
+static void sd_stop_seq_mode(struct rts51x_chip *chip)
 {
 	struct sd_info *sd_card = &(chip->sd_card);
 	int retval;
@@ -3179,7 +3179,7 @@ void sd_cleanup_work(struct rts51x_chip *chip)
 	}
 }
 
-inline void sd_fill_power_off_card3v3(struct rts51x_chip *chip)
+static inline void sd_fill_power_off_card3v3(struct rts51x_chip *chip)
 {
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_CLK_EN, SD_CLK_EN, 0);
 
@@ -3201,7 +3201,7 @@ inline void sd_fill_power_off_card3v3(struct rts51x_chip *chip)
 	}
 }
 
-int sd_power_off_card3v3(struct rts51x_chip *chip)
+static int sd_power_off_card3v3(struct rts51x_chip *chip)
 {
 	int retval;
 
