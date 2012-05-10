@@ -654,6 +654,48 @@ int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts)
 
 	return 0;
 }
+
+int hdmi_audio_enable(void)
+{
+	DSSDBG("audio_enable\n");
+
+	return hdmi.ip_data.ops->audio_enable(&hdmi.ip_data);
+}
+
+void hdmi_audio_disable(void)
+{
+	DSSDBG("audio_disable\n");
+
+	hdmi.ip_data.ops->audio_disable(&hdmi.ip_data);
+}
+
+int hdmi_audio_start(void)
+{
+	DSSDBG("audio_start\n");
+
+	return hdmi.ip_data.ops->audio_start(&hdmi.ip_data);
+}
+
+void hdmi_audio_stop(void)
+{
+	DSSDBG("audio_stop\n");
+
+	hdmi.ip_data.ops->audio_stop(&hdmi.ip_data);
+}
+
+bool hdmi_mode_has_audio(void)
+{
+	if (hdmi.ip_data.cfg.cm.mode == HDMI_HDMI)
+		return true;
+	else
+		return false;
+}
+
+int hdmi_audio_config(struct omap_dss_audio *audio)
+{
+	return hdmi.ip_data.ops->audio_config(&hdmi.ip_data, audio);
+}
+
 #endif
 
 static void __init hdmi_probe_pdata(struct platform_device *pdev)
