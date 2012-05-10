@@ -61,6 +61,7 @@
 #define NFS_readdirres_sz	(1)
 #define NFS_statfsres_sz	(1+NFS_info_sz)
 
+static int nfs_stat_to_errno(enum nfs_stat);
 
 /*
  * While encoding arguments, set up the reply buffer in advance to
@@ -1111,7 +1112,7 @@ static const struct {
  * Returns a local errno value, or -EIO if the NFS status code is
  * not recognized.  This function is used jointly by NFSv2 and NFSv3.
  */
-int nfs_stat_to_errno(enum nfs_stat status)
+static int nfs_stat_to_errno(enum nfs_stat status)
 {
 	int i;
 

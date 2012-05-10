@@ -208,7 +208,6 @@ extern void nfs_pgheader_init(struct nfs_pageio_descriptor *desc,
 void nfs_set_pgio_error(struct nfs_pgio_header *hdr, int error, loff_t pos);
 
 /* nfs2xdr.c */
-extern int nfs_stat_to_errno(enum nfs_stat);
 extern struct rpc_procinfo nfs_procedures[];
 extern int nfs2_decode_dirent(struct xdr_stream *,
 				struct nfs_entry *, int);
