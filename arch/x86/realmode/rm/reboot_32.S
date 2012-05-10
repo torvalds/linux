@@ -76,7 +76,7 @@ machine_real_restart_asm16:
 	movl	%edx, %cr0
 	movl	%ecx, %cr3
 	movl	%cr0, %edx
-	andl	$0x60000000, %edx	/* If no cache bits -> no wbinvd */
+	testl	$0x60000000, %edx	/* If no cache bits -> no wbinvd */
 	jz	2f
 	wbinvd
 2:
