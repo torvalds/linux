@@ -546,11 +546,11 @@ static void job_abort(void *prv)
 	struct g2d_dev *dev = ctx->dev;
 	int ret;
 
-	if (dev->curr == 0) /* No job currently running */
+	if (dev->curr == NULL) /* No job currently running */
 		return;
 
 	ret = wait_event_timeout(dev->irq_queue,
-		dev->curr == 0,
+		dev->curr == NULL,
 		msecs_to_jiffies(G2D_TIMEOUT));
 }
 
@@ -599,19 +599,19 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 	g2d_clear_int(dev);
 	clk_disable(dev->gate);
 
-	BUG_ON(ctx == 0);
+	BUG_ON(ctx == NULL);
 
 	src = v4l2_m2m_src_buf_remove(ctx->m2m_ctx);
 	dst = v4l2_m2m_dst_buf_remove(ctx->m2m_ctx);
 
-	BUG_ON(src == 0);
-	BUG_ON(dst == 0);
+	BUG_ON(src == NULL);
+	BUG_ON(dst == NULL);
 
 	v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 	v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
 	v4l2_m2m_job_finish(dev->m2m_dev, ctx->m2m_ctx);
 
-	dev->curr = 0;
+	dev->curr = NULL;
 	wake_up(&dev->irq_queue);
 	return IRQ_HANDLED;
 }
