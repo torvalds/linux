@@ -78,20 +78,18 @@ int rts51x_reset_chip(struct rts51x_chip *chip)
 				      chip->option.sd20_pad_drive);
 		if (chip->rts5179)
 			rts51x_write_register(chip, CARD_PULL_CTL5, 0x03, 0x01);
-		if (!chip->option.ww_enable) {
-			if (CHECK_PKG(chip, LQFP48)) {
-				rts51x_write_register(chip, CARD_PULL_CTL3,
-						      0x80, 0x80);
-				rts51x_write_register(chip, CARD_PULL_CTL6,
-						      0xf0, 0xA0);
-			} else {
-				rts51x_write_register(chip, CARD_PULL_CTL1,
-						      0x30, 0x20);
-				rts51x_write_register(chip, CARD_PULL_CTL3,
-						      0x80, 0x80);
-				rts51x_write_register(chip, CARD_PULL_CTL6,
-						      0x0c, 0x08);
-			}
+		if (CHECK_PKG(chip, LQFP48)) {
+			rts51x_write_register(chip, CARD_PULL_CTL3,
+					      0x80, 0x80);
+			rts51x_write_register(chip, CARD_PULL_CTL6,
+					      0xf0, 0xA0);
+		} else {
+			rts51x_write_register(chip, CARD_PULL_CTL1,
+					      0x30, 0x20);
+			rts51x_write_register(chip, CARD_PULL_CTL3,
+					      0x80, 0x80);
+			rts51x_write_register(chip, CARD_PULL_CTL6,
+					      0x0c, 0x08);
 		}
 	}
 	if (chip->option.sd_ctl & SUPPORT_UHS50_MMC44) {
@@ -715,7 +713,7 @@ void rts51x_do_before_power_down(struct rts51x_chip *chip)
 	chip->cur_clk = 0;
 	chip->card_exist = 0;
 	chip->cur_card = 0;
-	if (chip->asic_code && !chip->option.ww_enable) {
+	if (chip->asic_code) {
 		if (CHECK_PKG(chip, LQFP48)) {
 			rts51x_write_register(chip, CARD_PULL_CTL3, 0x80, 0x00);
 			rts51x_write_register(chip, CARD_PULL_CTL6, 0xf0, 0x50);
