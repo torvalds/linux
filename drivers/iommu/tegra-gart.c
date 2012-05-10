@@ -36,9 +36,10 @@
 /* bitmap of the page sizes currently supported */
 #define GART_IOMMU_PGSIZES	(SZ_4K)
 
-#define GART_CONFIG		0x24
-#define GART_ENTRY_ADDR		0x28
-#define GART_ENTRY_DATA		0x2c
+#define GART_REG_BASE		0x24
+#define GART_CONFIG		(0x24 - GART_REG_BASE)
+#define GART_ENTRY_ADDR		(0x28 - GART_REG_BASE)
+#define GART_ENTRY_DATA		(0x2c - GART_REG_BASE)
 #define GART_ENTRY_PHYS_ADDR_VALID	(1 << 31)
 
 #define GART_PAGE_SHIFT		12
