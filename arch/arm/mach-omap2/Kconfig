@@ -82,7 +82,7 @@ config SOC_TI81XX
 	depends on ARCH_OMAP3
 	default y
 
-config SOC_OMAPAM33XX
+config SOC_AM33XX
 	bool "AM33XX support"
 	depends on ARCH_OMAP3
 	default y
