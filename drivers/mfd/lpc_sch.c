@@ -69,7 +69,7 @@ static struct resource wdt_sch_resource = {
 
 static struct mfd_cell tunnelcreek_cells[] = {
 	{
-		.name = "tunnelcreek_wdt",
+		.name = "ie6xx_wdt",
 		.num_resources = 1,
 		.resources = &wdt_sch_resource,
 	},
