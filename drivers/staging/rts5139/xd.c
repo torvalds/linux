@@ -862,6 +862,8 @@ static void xd_set_l2p_tbl(struct rts51x_chip *chip, int zone_no, u16 log_off,
 	zone->l2p_table[log_off] = phy_off;
 }
 
+static int xd_delay_write(struct rts51x_chip *chip);
+
 static u32 xd_get_l2p_tbl(struct rts51x_chip *chip, int zone_no, u16 log_off)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
@@ -1822,7 +1824,7 @@ Fail:
 	TRACE_RET(chip, STATUS_FAIL);
 }
 
-int xd_delay_write(struct rts51x_chip *chip)
+static int xd_delay_write(struct rts51x_chip *chip)
 {
 	struct xd_info *xd_card = &(chip->xd_card);
 	struct xd_delay_write_tag *delay_write = &(xd_card->delay_write);
@@ -2091,7 +2093,7 @@ void xd_cleanup_work(struct rts51x_chip *chip)
 	}
 }
 
-int xd_power_off_card3v3(struct rts51x_chip *chip)
+static int xd_power_off_card3v3(struct rts51x_chip *chip)
 {
 	int retval;
 
