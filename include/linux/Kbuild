@@ -271,6 +271,7 @@ header-y += netfilter_ipv4.h
 header-y += netfilter_ipv6.h
 header-y += netlink.h
 header-y += netrom.h
+header-y += nfc.h
 header-y += nfs.h
 header-y += nfs2.h
 header-y += nfs3.h
