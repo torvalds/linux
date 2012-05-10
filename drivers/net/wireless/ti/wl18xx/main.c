@@ -48,6 +48,7 @@ static bool dc2dc_param = false;
 static int n_antennas_2_param = 1;
 static int n_antennas_5_param = 1;
 static bool checksum_param = true;
+static bool enable_11a_param = true;
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -1097,6 +1098,8 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 		wl18xx_ops.init_vif = NULL;
 	}
 
+	wl->enable_11a = enable_11a_param;
+
 	wl18xx_conf_init(wl);
 
 	return wlcore_probe(wl, pdev);
@@ -1148,6 +1151,9 @@ MODULE_PARM_DESC(n_antennas_5, "Number of installed 5GHz antennas: 1 (default) o
 
 module_param_named(checksum, checksum_param, bool, S_IRUSR);
 MODULE_PARM_DESC(checksum, "Enable TCP checksum: boolean (defaults to true)");
+
+module_param_named(enable_11a, enable_11a_param, bool, S_IRUSR);
+MODULE_PARM_DESC(enable_11a, "Enable 11a (5GHz): boolean (defaults to true)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
