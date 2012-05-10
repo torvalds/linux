@@ -267,7 +267,13 @@ void i915_ppgtt_bind_object(struct i915_hw_ppgtt *ppgtt,
 		BUG();
 	}
 
-	if (dev_priv->mm.gtt->needs_dmar) {
+	if (obj->sg_table) {
+		i915_ppgtt_insert_sg_entries(ppgtt,
+					     obj->sg_table->sgl,
+					     obj->sg_table->nents,
+					     obj->gtt_space->start >> PAGE_SHIFT,
+					     pte_flags);
+	} else if (dev_priv->mm.gtt->needs_dmar) {
 		BUG_ON(!obj->sg_list);
 
 		i915_ppgtt_insert_sg_entries(ppgtt,
@@ -371,7 +377,12 @@ void i915_gem_gtt_bind_object(struct drm_i915_gem_object *obj,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	unsigned int agp_type = cache_level_to_agp_type(dev, cache_level);
 
-	if (dev_priv->mm.gtt->needs_dmar) {
+	if (obj->sg_table) {
+		intel_gtt_insert_sg_entries(obj->sg_table->sgl,
+					    obj->sg_table->nents,
+					    obj->gtt_space->start >> PAGE_SHIFT,
+					    agp_type);
+	} else if (dev_priv->mm.gtt->needs_dmar) {
 		BUG_ON(!obj->sg_list);
 
 		intel_gtt_insert_sg_entries(obj->sg_list,

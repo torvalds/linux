@@ -35,6 +35,7 @@
 #include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/pci.h>
+#include <linux/dma-buf.h>
 
 static __must_check int i915_gem_object_flush_gpu_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
@@ -538,6 +539,14 @@ i915_gem_pread_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	/* prime objects have no backing filp to GEM pread/pwrite
+	 * pages from.
+	 */
+	if (!obj->base.filp) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	trace_i915_gem_object_pread(obj, args->offset, args->size);
 
 	ret = i915_gem_shmem_pread(dev, obj, args, file);
@@ -880,6 +889,14 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		goto out;
 	}
 
+	/* prime objects have no backing filp to GEM pread/pwrite
+	 * pages from.
+	 */
+	if (!obj->base.filp) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	trace_i915_gem_object_pwrite(obj, args->offset, args->size);
 
 	ret = -EFAULT;
@@ -1020,6 +1037,14 @@ i915_gem_mmap_ioctl(struct drm_device *dev, void *data,
 	obj = drm_gem_object_lookup(dev, file, args->handle);
 	if (obj == NULL)
 		return -ENOENT;
+
+	/* prime objects have no backing filp to GEM mmap
+	 * pages from.
+	 */
+	if (!obj->filp) {
+		drm_gem_object_unreference_unlocked(obj);
+		return -EINVAL;
+	}
 
 	addr = vm_mmap(obj->filp, 0, args->size,
 		       PROT_READ | PROT_WRITE, MAP_SHARED,
@@ -1302,8 +1327,7 @@ i915_gem_mmap_gtt_ioctl(struct drm_device *dev, void *data,
 	return i915_gem_mmap_gtt(file, dev, args->handle, &args->offset);
 }
 
-
-static int
+int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 			      gfp_t gfpmask)
 {
@@ -1311,6 +1335,9 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj,
 	struct address_space *mapping;
 	struct inode *inode;
 	struct page *page;
+
+	if (obj->pages || obj->sg_table)
+		return 0;
 
 	/* Get the list of pages out of our struct file.  They'll be pinned
 	 * at this point until we release them.
@@ -1352,6 +1379,9 @@ i915_gem_object_put_pages_gtt(struct drm_i915_gem_object *obj)
 {
 	int page_count = obj->base.size / PAGE_SIZE;
 	int i;
+
+	if (!obj->pages)
+		return;
 
 	BUG_ON(obj->madv == __I915_MADV_PURGED);
 
@@ -3326,6 +3356,9 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	trace_i915_gem_object_destroy(obj);
+
+	if (gem_obj->import_attach)
+		drm_prime_gem_destroy(gem_obj, obj->sg_table);
 
 	if (obj->phys_obj)
 		i915_gem_detach_phys_object(dev, obj);
