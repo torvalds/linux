@@ -113,7 +113,6 @@ lm3533_ctrlbank_get(brightness, BRIGHTNESS);
  *   31 - 29.8 mA
  */
 lm3533_ctrlbank_set(max_current, MAX_CURRENT);
-lm3533_ctrlbank_get(max_current, MAX_CURRENT);
 
 /*
  * PWM-input control mask:

@@ -92,8 +92,6 @@ extern int lm3533_ctrlbank_disable(struct lm3533_ctrlbank *cb);
 extern int lm3533_ctrlbank_set_brightness(struct lm3533_ctrlbank *cb, u8 val);
 extern int lm3533_ctrlbank_get_brightness(struct lm3533_ctrlbank *cb, u8 *val);
 extern int lm3533_ctrlbank_set_max_current(struct lm3533_ctrlbank *cb, u8 val);
-extern int lm3533_ctrlbank_get_max_current(struct lm3533_ctrlbank *cb,
-								u8 *val);
 extern int lm3533_ctrlbank_set_pwm(struct lm3533_ctrlbank *cb, u8 val);
 extern int lm3533_ctrlbank_get_pwm(struct lm3533_ctrlbank *cb, u8 *val);
 
