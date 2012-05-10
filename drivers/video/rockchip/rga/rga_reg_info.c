@@ -1426,7 +1426,7 @@ RGA_set_mmu_ctrl_reg_info(u8 *base, const struct rga_req *msg)
     reg = ((reg & (~m_RGA_MMU_CTRL_MMU_ENABLE)) | s_RGA_MMU_CTRL_MMU_ENABLE(mmu_enable));
     reg = ((reg & (~m_RGA_MMU_CTRL_SRC_FLUSH)) | s_RGA_MMU_CTRL_SRC_FLUSH(1));
     reg = ((reg & (~m_RGA_MMU_CTRL_DST_FLUSH)) | s_RGA_MMU_CTRL_DST_FLUSH(1));
-    reg = ((reg & (~m_RGA_MMU_CTRL_CMD_CHAN_FLUSH)) | s_RGA_MMU_CTRL_CMD_CHAN_FLUSH(CMD_flag));
+    reg = ((reg & (~m_RGA_MMU_CTRL_CMD_CHAN_FLUSH)) | s_RGA_MMU_CTRL_CMD_CHAN_FLUSH(1));
     *RGA_MMU_CTRL_ADDR = reg;
 
     return 0;

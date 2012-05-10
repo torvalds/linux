@@ -390,14 +390,14 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         /* Cal out the needed mem size */
         AllSize = SrcMemSize + DstMemSize;
                            
-        pages = (struct page **)kmalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;                
         }
         
-        MMU_Base = (uint32_t *)kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);      
+        MMU_Base = kzalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -556,13 +556,13 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
 
         AllSize = SrcMemSize + DstMemSize + CMDMemSize;
                    
-        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             return -EINVAL;                
         }
 
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             break;            
@@ -680,14 +680,14 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
 
         AllSize = DstMemSize;
                    
-        pages = (struct page **)kmalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR; 
             break;
         }
         
-        MMU_Base = (uint32_t *)kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -771,14 +771,14 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
 
         AllSize = DstMemSize;
                    
-        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;
         }
         
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -871,14 +871,14 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
 
         AllSize = SrcMemSize + DstMemSize;
                    
-        pages = (struct page **)kmalloc((AllSize + 1) * sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc((AllSize + 1) * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;    
         }
         
-        MMU_Base = (uint32_t *)kmalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -1010,7 +1010,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
 
         AllSize = SrcMemSize + DstMemSize;
                    
-        pages = (struct page **)kmalloc((AllSize)* sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc((AllSize)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) 
         {
             pr_err("RGA MMU malloc pages mem failed\n");
@@ -1022,7 +1022,7 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
          * Allocate MMU Index mem
          * This mem release in run_to_done fun 
          */
-        MMU_Base = (uint32_t *)kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;            
@@ -1160,14 +1160,14 @@ static int rga_mmu_info_update_palette_table_mode(struct rga_reg *reg, struct rg
 
         AllSize = SrcMemSize + CMDMemSize;
                    
-        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;    
         }
         
-        MMU_Base = (uint32_t *)kmalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc((AllSize + 1)* sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -1258,14 +1258,14 @@ static int rga_mmu_info_update_patten_buff_mode(struct rga_reg *reg, struct rga_
 
         AllSize = SrcMemSize + CMDMemSize;
                    
-        pages = (struct page **)kmalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;                
         }
         
-        MMU_Base = (uint32_t *)kmalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;

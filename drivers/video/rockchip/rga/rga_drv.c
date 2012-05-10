@@ -90,6 +90,7 @@ rga_service_info rga_service;
 
 static struct clk *aclk_rga;
 static struct clk *hclk_rga;
+static struct clk *pd_rga;
 
 
 static int rga_blit_async(rga_session *session, struct rga_req *req);
@@ -211,13 +212,15 @@ static void rga_power_on(void)
 {
 	//printk("rga_power_on\n");
 	//cancel_delayed_work_sync(&drvdata->power_off_work);
-	if (rga_service.enable)
-		return;
-
     spin_lock_bh(&rga_service.lock_power);
+	if (rga_service.enable)
+		goto out;
+
 	clk_enable(aclk_rga);
 	clk_enable(hclk_rga);
+	clk_enable(pd_rga);
 	rga_service.enable = true;
+out:
     spin_unlock_bh(&rga_service.lock_power);
 }
 
@@ -245,6 +248,7 @@ static void rga_power_off(struct work_struct *work)
         rga_dump();
 	}
     
+	clk_disable(pd_rga);
 	clk_disable(aclk_rga);
 	clk_disable(hclk_rga);
     spin_unlock_bh(&rga_service.lock_power);
@@ -391,7 +395,7 @@ static struct rga_reg * rga_reg_init(rga_session *session, struct rga_req *req)
 {
     unsigned long flag;
     uint32_t ret;
-	struct rga_reg *reg = kmalloc(sizeof(struct rga_reg), GFP_KERNEL);
+	struct rga_reg *reg = kzalloc(sizeof(struct rga_reg), GFP_KERNEL);
 	if (NULL == reg) {
 		pr_err("kmalloc fail in rga_reg_init\n");
 		return NULL;
@@ -401,7 +405,7 @@ static struct rga_reg * rga_reg_init(rga_session *session, struct rga_req *req)
 	INIT_LIST_HEAD(&reg->session_link);
 	INIT_LIST_HEAD(&reg->status_link);
 
-    memcpy(&reg->req, req, sizeof(struct rga_req));
+    //memcpy(&reg->req, req, sizeof(struct rga_req));
 
     reg->MMU_base = NULL;
             
@@ -449,13 +453,13 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
 
     do
     {    
-    	reg0 = kmalloc(sizeof(struct rga_reg), GFP_KERNEL);
+        reg0 = kzalloc(sizeof(struct rga_reg), GFP_KERNEL);
     	if (NULL == reg0) {
     		pr_err("%s [%d] kmalloc fail in rga_reg_init\n", __FUNCTION__, __LINE__);
             break;
     	}
 
-        reg1 = kmalloc(sizeof(struct rga_reg), GFP_KERNEL);
+        reg1 = kzalloc(sizeof(struct rga_reg), GFP_KERNEL);
     	if (NULL == reg1) {
     		pr_err("%s [%d] kmalloc fail in rga_reg_init\n", __FUNCTION__, __LINE__);
             break;
@@ -469,8 +473,8 @@ static struct rga_reg * rga_reg_init_2(rga_session *session, struct rga_req *req
         INIT_LIST_HEAD(&reg1->session_link);
     	INIT_LIST_HEAD(&reg1->status_link);
 
-        memcpy(&reg0->req, req0, sizeof(struct rga_req));
-        memcpy(&reg1->req, req1, sizeof(struct rga_req));
+        //memcpy(&reg0->req, req0, sizeof(struct rga_req));
+        //memcpy(&reg1->req, req1, sizeof(struct rga_req));
 
         if(req0->mmu_info.mmu_en)
         {
@@ -548,7 +552,6 @@ static void rga_service_session_clear(rga_session *session)
 	}
 }
 
-
 static void rga_try_set_reg(uint32_t num)
 {
     unsigned long flag;
@@ -562,6 +565,8 @@ static void rga_try_set_reg(uint32_t num)
         
         return;
     }
+
+    udelay(100);
         
 	spin_lock_irqsave(&rga_service.lock, flag);
 	if (!list_empty(&rga_service.waiting)) 
@@ -777,7 +782,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
         if((req->render_mode == bitblt_mode) && (((saw>>1) >= daw) || ((sah>>1) >= dah))) 
         {                                   
             /* generate 2 cmd for pre scale */        
-            req2 = kmalloc(sizeof(struct rga_req), GFP_KERNEL);
+            req2 = kzalloc(sizeof(struct rga_req), GFP_KERNEL);
             if(NULL == req2) {
                 return -EFAULT;            
             }
@@ -927,7 +932,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
     mutex_lock(&rga_service.mutex);
      
-    req = (struct rga_req *)kmalloc(sizeof(struct rga_req), GFP_KERNEL);
+    req = kzalloc(sizeof(struct rga_req), GFP_KERNEL);
     if(req == NULL) 
     {
         printk("%s [%d] get rga_req mem failed\n",__FUNCTION__,__LINE__);
@@ -988,13 +993,11 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 static int rga_open(struct inode *inode, struct file *file)
 {
     unsigned long flag;
-    rga_session *session = (rga_session *)kmalloc(sizeof(rga_session), GFP_KERNEL);
+    rga_session *session = kzalloc(sizeof(rga_session), GFP_KERNEL);
 	if (NULL == session) {
 		pr_err("unable to allocate memory for rga_session.");
 		return -ENOMEM;
 	}
-
-    memset(session, 0x0, sizeof(rga_session));
 
 	session->pid = current->pid;
     //printk(KERN_DEBUG  "+");
@@ -1115,9 +1118,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 	struct rga_drvdata *data;
 	int ret = 0;
 
-	data = kmalloc(sizeof(struct rga_drvdata), GFP_KERNEL);
-
-    memset(data, 0x0, sizeof(struct rga_drvdata));
+	data = kzalloc(sizeof(struct rga_drvdata), GFP_KERNEL);
 
     INIT_LIST_HEAD(&rga_service.waiting);
 	INIT_LIST_HEAD(&rga_service.running);
@@ -1136,6 +1137,7 @@ static int __devinit rga_drv_probe(struct platform_device *pdev)
 		return  -ENOMEM;
 	}
 	
+	pd_rga = clk_get(NULL, "pd_rga");
 	aclk_rga = clk_get(NULL, "aclk_rga");    
 	if (IS_ERR(aclk_rga))
 	{
@@ -1264,7 +1266,7 @@ static int __init rga_init(void)
     uint32_t *buf_p;
 
     /* malloc pre scale mid buf mmu table */
-    mmu_buf = (uint32_t *)kmalloc(1024*8, GFP_KERNEL);    
+    mmu_buf = kzalloc(1024*8, GFP_KERNEL);
     if(mmu_buf == NULL) 
     {
         printk(KERN_ERR "RGA get Pre Scale buff failed. \n");
@@ -1274,7 +1276,7 @@ static int __init rga_init(void)
     /* malloc 8 M buf */
     for(i=0; i<2048; i++)
     {        
-        buf_p = (uint32_t *)__get_free_page(GFP_KERNEL);               
+        buf_p = (uint32_t *)__get_free_page(GFP_KERNEL|__GFP_ZERO);
         if(buf_p == NULL)
         {
             printk(KERN_ERR "RGA init pre scale buf falied\n");
