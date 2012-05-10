@@ -39,7 +39,6 @@
 #define WL1271_DEBUGFS_STATS_LIFETIME 1000
 
 /* debugfs macros idea from mac80211 */
-#define DEBUGFS_FORMAT_BUFFER_SIZE 100
 int wl1271_format_buffer(char __user *userbuf, size_t count,
 			 loff_t *ppos, char *fmt, ...)
 {
