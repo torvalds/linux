@@ -7207,14 +7207,19 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 		if (rc != MBX_SUCCESS)
 			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX | LOG_SLI,
 					"(%d):2541 Mailbox command x%x "
-					"(x%x/x%x) cannot issue Data: "
-					"x%x x%x\n",
+					"(x%x/x%x) failure: "
+					"mqe_sta: x%x mcqe_sta: x%x/x%x "
+					"Data: x%x x%x\n,",
 					mboxq->vport ? mboxq->vport->vpi : 0,
 					mboxq->u.mb.mbxCommand,
 					lpfc_sli_config_mbox_subsys_get(phba,
 									mboxq),
 					lpfc_sli_config_mbox_opcode_get(phba,
 									mboxq),
+					bf_get(lpfc_mqe_status, &mboxq->u.mqe),
+					bf_get(lpfc_mcqe_status, &mboxq->mcqe),
+					bf_get(lpfc_mcqe_ext_status,
+					       &mboxq->mcqe),
 					psli->sli_flag, flag);
 		return rc;
 	} else if (flag == MBX_POLL) {
@@ -7233,18 +7238,22 @@ lpfc_sli_issue_mbox_s4(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 			/* Successfully blocked, now issue sync mbox cmd */
 			rc = lpfc_sli4_post_sync_mbox(phba, mboxq);
 			if (rc != MBX_SUCCESS)
-				lpfc_printf_log(phba, KERN_ERR,
+				lpfc_printf_log(phba, KERN_WARNING,
 					LOG_MBOX | LOG_SLI,
-					"(%d):2597 Mailbox command "
-					"x%x (x%x/x%x) cannot issue "
-					"Data: x%x x%x\n",
-					mboxq->vport ?
-					mboxq->vport->vpi : 0,
+					"(%d):2597 Sync Mailbox command "
+					"x%x (x%x/x%x) failure: "
+					"mqe_sta: x%x mcqe_sta: x%x/x%x "
+					"Data: x%x x%x\n,",
+					mboxq->vport ? mboxq->vport->vpi : 0,
 					mboxq->u.mb.mbxCommand,
 					lpfc_sli_config_mbox_subsys_get(phba,
 									mboxq),
 					lpfc_sli_config_mbox_opcode_get(phba,
 									mboxq),
+					bf_get(lpfc_mqe_status, &mboxq->u.mqe),
+					bf_get(lpfc_mcqe_status, &mboxq->mcqe),
+					bf_get(lpfc_mcqe_ext_status,
+					       &mboxq->mcqe),
 					psli->sli_flag, flag);
 			/* Unblock the async mailbox posting afterward */
 			lpfc_sli4_async_mbox_unblock(phba);
