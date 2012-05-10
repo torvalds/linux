@@ -56,6 +56,12 @@ struct wl18xx_fw_status_priv {
 	u8 padding[2];
 };
 
+#define WL18XX_PHY_VERSION_MAX_LEN 20
+
+struct wl18xx_static_data_priv {
+	char phy_version[WL18XX_PHY_VERSION_MAX_LEN];
+};
+
 struct wl18xx_clk_cfg {
 	u32 n;
 	u32 m;
