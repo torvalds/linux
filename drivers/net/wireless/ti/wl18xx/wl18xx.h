@@ -34,6 +34,8 @@ struct wl18xx_priv {
 
 	/* Index of last released Tx desc in FW */
 	u8 last_fw_rls_idx;
+
+	u8 board_type;
 };
 
 #define WL18XX_FW_MAX_TX_STATUS_DESC 33

@@ -42,6 +42,7 @@
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
 static char *ht_mode_param;
+static char *board_type_param;
 
 static const u8 wl18xx_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
@@ -680,8 +681,7 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 	params.secondary_clock_setting_time =
 		phy->secondary_clock_setting_time;
 
-	/* TODO: hardcoded for now */
-	params.board_type = BOARD_TYPE_DVP_EVB_18XX;
+	params.board_type = priv->board_type;
 
 	wlcore_set_partition(wl, &wl->ptable[PART_PHY_INIT]);
 	wl1271_write(wl, WL18XX_PHY_INIT_MEM_ADDR, (u8 *)&params,
@@ -964,6 +964,7 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	}
 
 	wl = hw->priv;
+	priv = wl->priv;
 	wl->ops = &wl18xx_ops;
 	wl->ptable = wl18xx_ptable;
 	wl->rtable = wl18xx_rtable;
@@ -978,6 +979,24 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 	if (ht_mode_param && !strcmp(ht_mode_param, "mimo"))
 		memcpy(&wl->ht_cap, &wl18xx_mimo_ht_cap,
 		       sizeof(wl18xx_mimo_ht_cap));
+
+	if (!board_type_param) {
+		board_type_param = kstrdup("dvp_evb", GFP_KERNEL);
+		priv->board_type = BOARD_TYPE_DVP_EVB_18XX;
+	} else {
+		if (!strcmp(board_type_param, "fpga"))
+			priv->board_type = BOARD_TYPE_FPGA_18XX;
+		else if (!strcmp(board_type_param, "hdk"))
+			priv->board_type = BOARD_TYPE_HDK_18XX;
+		else if (!strcmp(board_type_param, "dvp_evb"))
+			priv->board_type = BOARD_TYPE_DVP_EVB_18XX;
+		else {
+			wl1271_error("invalid board type '%s'",
+				     board_type_param);
+			wlcore_free_hw(wl);
+			return -EINVAL;
+		}
+	}
 
 	wl18xx_conf_init(wl);
 
@@ -1014,6 +1033,9 @@ module_exit(wl18xx_exit);
 
 module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
 MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or mimo");
+
+module_param_named(board_type, board_type_param, charp, S_IRUSR);
+MODULE_PARM_DESC(board_type, "Board type: fpga, hdk or dvp_evb (default)");
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
