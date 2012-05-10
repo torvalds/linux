@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/platform_device.h>
+#include <linux/mmc/sdio.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
@@ -196,6 +197,7 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	struct resource res[1];
 	mmc_pm_flag_t mmcflags;
 	int ret = -ENOMEM;
+	const char *chip_family;
 
 	/* We are only able to handle the wlan function */
 	if (func->num != 0x02)
@@ -236,7 +238,18 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	/* Tell PM core that we don't need the card to be powered now */
 	pm_runtime_put_noidle(&func->dev);
 
-	glue->core = platform_device_alloc("wl12xx", -1);
+	/*
+	 * Due to a hardware bug, we can't differentiate wl18xx from
+	 * wl12xx, because both report the same device ID.  The only
+	 * way to differentiate is by checking the SDIO revision,
+	 * which is 3.00 on the wl18xx chips.
+	 */
+	if (func->card->cccr.sdio_vsn == SDIO_SDIO_REV_3_00)
+		chip_family = "wl18xx";
+	else
+		chip_family = "wl12xx";
+
+	glue->core = platform_device_alloc(chip_family, -1);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device");
 		ret = -ENOMEM;
