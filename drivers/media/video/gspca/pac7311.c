@@ -50,6 +50,8 @@
  * 0x0f		Master gain 1-245, low value = high gain
  * 0x10		Another gain 0-15, limited influence (1-2x gain I guess)
  * 0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
+ *		Note setting vflip disabled leads to a much lower image quality,
+ *		so we always vflip, and tell userspace to flip it back
  * 0x27		Seems to toggle various gains on / off, Setting bit 7 seems to
  *		completely disable the analog amplification block. Set to 0x68
  *		for max gain, 0x14 for minimal gain.
@@ -75,10 +77,7 @@ struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
 	struct v4l2_ctrl *contrast;
-	struct { /* flip cluster */
-		struct v4l2_ctrl *hflip;
-		struct v4l2_ctrl *vflip;
-	};
+	struct v4l2_ctrl *hflip;
 
 	u8 sof_read;
 	u8 autogain_ignore_frames;
@@ -292,6 +291,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
+	cam->input_flags = V4L2_IN_ST_VFLIP;
 
 	return 0;
 }
@@ -399,7 +399,7 @@ static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 			setgain(gspca_dev, gspca_dev->gain->val);
 		break;
 	case V4L2_CID_HFLIP:
-		sethvflip(gspca_dev, sd->hflip->val, sd->vflip->val);
+		sethvflip(gspca_dev, sd->hflip->val, 1);
 		break;
 	default:
 		return -EINVAL;
@@ -432,8 +432,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 					PAC7311_GAIN_DEFAULT);
 	sd->hflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
 		V4L2_CID_HFLIP, 0, 1, 1, 0);
-	sd->vflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
-		V4L2_CID_VFLIP, 0, 1, 1, 0);
 
 	if (hdl->error) {
 		pr_err("Could not initialize controls\n");
@@ -441,7 +439,6 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	}
 
 	v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
-	v4l2_ctrl_cluster(2, &sd->hflip);
 	return 0;
 }
 
@@ -457,8 +454,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setcontrast(gspca_dev, v4l2_ctrl_g_ctrl(sd->contrast));
 	setgain(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->gain));
 	setexposure(gspca_dev, v4l2_ctrl_g_ctrl(gspca_dev->exposure));
-	sethvflip(gspca_dev, v4l2_ctrl_g_ctrl(sd->hflip),
-			     v4l2_ctrl_g_ctrl(sd->vflip));
+	sethvflip(gspca_dev, v4l2_ctrl_g_ctrl(sd->hflip), 1);
 
 	/* set correct resolution */
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
@@ -513,7 +509,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	if (avg_lum == -1)
 		return;
 
-	desired_lum = 200;
+	desired_lum = 170;
 	deadzone = 20;
 
 	if (sd->autogain_ignore_frames > 0)
