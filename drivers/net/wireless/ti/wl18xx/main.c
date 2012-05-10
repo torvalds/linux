@@ -588,6 +588,9 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 			      WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN;
 
+		/* PG 1.0 has some problems with MCS_13, so disable it */
+		wl->ht_cap.mcs.rx_mask[1] &= ~BIT(5);
+
 		/* TODO: need to blocksize alignment for RX/TX separately? */
 		break;
 	default:
@@ -914,6 +917,10 @@ static void wl18xx_set_rx_csum(struct wl1271 *wl,
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 }
 
+/*
+ * TODO: instead of having these two functions to get the rate mask,
+ * we should modify the wlvif->rate_set instead
+ */
 static u32 wl18xx_sta_get_ap_rate_mask(struct wl1271 *wl,
 				       struct wl12xx_vif *wlvif)
 {
@@ -940,6 +947,17 @@ static u32 wl18xx_ap_get_mimo_wide_rate_mask(struct wl1271 *wl,
 		return CONF_TX_RATE_USE_WIDE_CHAN;
 	} else {
 		wl1271_debug(DEBUG_ACX, "using MIMO rate mask");
+
+		/*
+		 * PG 1.0 has some problems with MCS_13, so disable it
+		 *
+		 * TODO: instead of hacking this in here, we should
+		 * make it more general and change a bit in the
+		 * wlvif->rate_set instead.
+		 */
+		if (wl->chip.id == CHIP_ID_185x_PG10)
+			return CONF_TX_MIMO_RATES & ~CONF_HW_BIT_RATE_MCS_13;
+
 		return CONF_TX_MIMO_RATES;
 	}
 }
