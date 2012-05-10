@@ -22,12 +22,15 @@
 #ifndef __WL18XX_PRIV_H__
 #define __WL18XX_PRIV_H__
 
+#include "conf.h"
 
 #define WL18XX_CMD_MAX_SIZE          740
 
 struct wl18xx_priv {
 	/* buffer for sending commands to FW */
 	u8 cmd_buf[WL18XX_CMD_MAX_SIZE];
+
+	struct wl18xx_priv_conf conf;
 
 	/* Index of last released Tx desc in FW */
 	u8 last_fw_rls_idx;

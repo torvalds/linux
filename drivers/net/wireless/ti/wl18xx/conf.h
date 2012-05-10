@@ -48,9 +48,7 @@ struct wl18xx_conf_phy {
 	u8 secondary_clock_setting_time;
 };
 
-struct wl18xx_conf {
-	/* TODO: move the wlcore conf here? */
-
+struct wl18xx_priv_conf {
 	struct wl18xx_conf_phy phy;
 };
 
