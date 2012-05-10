@@ -580,6 +580,8 @@ static int wl18xx_identify_chip(struct wl1271 *wl)
 		wl1271_debug(DEBUG_BOOT, "chip id 0x%x (185x PG10)",
 			     wl->chip.id);
 		wl->sr_fw_name = WL18XX_FW_NAME;
+		/* wl18xx uses the same firmware for PLT */
+		wl->plt_fw_name = WL18XX_FW_NAME;
 		wl->quirks |= WLCORE_QUIRK_NO_ELP |
 			      WLCORE_QUIRK_FWLOG_NOT_IMPLEMENTED |
 			      WLCORE_QUIRK_RX_BLOCKSIZE_ALIGN;
@@ -958,9 +960,17 @@ static void wl18xx_conf_init(struct wl1271 *wl)
 	memcpy(&priv->conf, &wl18xx_default_priv_conf, sizeof(priv->conf));
 }
 
+static int wl18xx_plt_init(struct wl1271 *wl)
+{
+	wl1271_write32(wl, WL18XX_SCR_PAD8, WL18XX_SCR_PAD8_PLT);
+
+	return wl->ops->boot(wl);
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
+	.plt_init	= wl18xx_plt_init,
 	.trigger_cmd	= wl18xx_trigger_cmd,
 	.ack_event	= wl18xx_ack_event,
 	.calc_tx_blocks = wl18xx_calc_tx_blocks,

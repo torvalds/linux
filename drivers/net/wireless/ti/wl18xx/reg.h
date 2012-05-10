@@ -154,6 +154,12 @@
  */
 #define WL18XX_INTR_TRIG_EVENT_ACK BIT(29)
 
+/*
+ * To boot the firmware in PLT mode we need to write this value in
+ * SCR_PAD8 before starting.
+ */
+#define WL18XX_SCR_PAD8_PLT	0xBABABEBE
+
 /* TODO: maybe move elsewhere? */
 #define NUM_OF_CHANNELS_11_ABG 150
 #define NUM_OF_CHANNELS_11_P 7
