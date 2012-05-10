@@ -296,7 +296,7 @@ void s5p_mfc_set_dec_desc_buffer(struct s5p_mfc_ctx *ctx)
 }
 
 /* Set registers for shared buffer */
-void s5p_mfc_set_shared_buffer(struct s5p_mfc_ctx *ctx)
+static void s5p_mfc_set_shared_buffer(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	mfc_write(dev, ctx->shm_ofs, S5P_FIMV_SI_CH0_HOST_WR_ADR);
