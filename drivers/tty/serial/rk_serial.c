@@ -173,6 +173,7 @@ struct uart_rk_port {
 	struct uart_port	port;
 	struct platform_device	*pdev;
 	struct clk		*clk;
+	struct clk		*pclk;
 	unsigned int		tx_loadsz;	/* transmit fifo load size */
 	unsigned char		ier;
 	unsigned char		lcr;
@@ -1204,6 +1205,7 @@ static int serial_rk_startup(struct uart_port *port)
 
 	up->mcr = 0;
 
+	clk_enable(up->pclk);
 	clk_enable(up->clk);  // enable the config uart clock
 
 	/*
@@ -1317,6 +1319,7 @@ static void serial_rk_shutdown(struct uart_port *port)
 
 	free_irq(up->port.irq, up);
 	clk_disable(up->clk);
+	clk_disable(up->pclk);
 }
 
 static void
@@ -1537,10 +1540,13 @@ serial_rk_pm(struct uart_port *port, unsigned int state,
 		container_of(port, struct uart_rk_port, port);
 
 	dev_dbg(port->dev, "%s: %s\n", __func__, state ? "disable" : "enable");
-	if (state)
+	if (state) {
 		clk_disable(up->clk);
-	else
+		clk_disable(up->pclk);
+	} else {
+		clk_enable(up->pclk);
 		clk_enable(up->clk);
+	}
 }
 
 static void serial_rk_release_port(struct uart_port *port)
@@ -1763,6 +1769,7 @@ static int __devinit serial_rk_probe(struct platform_device *pdev)
 
 	sprintf(up->name, "rk29_serial.%d", pdev->id);
 	up->pdev = pdev;
+	up->pclk = clk_get(&pdev->dev, "pclk_uart");
 	up->clk = clk_get(&pdev->dev, "uart");
 	if (unlikely(IS_ERR(up->clk))) {
 		ret = PTR_ERR(up->clk);
@@ -1856,6 +1863,7 @@ do_iounmap:
 	up->port.membase = NULL;
 do_put_clk:
 	clk_put(up->clk);
+	clk_put(up->pclk);
 do_free:
 	kfree(up);
 do_release_region:
@@ -1876,6 +1884,7 @@ static int __devexit serial_rk_remove(struct platform_device *pdev)
 		iounmap(up->port.membase);
 		up->port.membase = NULL;
 		clk_put(up->clk);
+		clk_put(up->pclk);
 		kfree(up);
 		release_mem_region(mem->start, (mem->end - mem->start) + 1);
 	}
