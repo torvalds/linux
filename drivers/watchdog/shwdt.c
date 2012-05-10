@@ -77,9 +77,6 @@ struct sh_wdt {
 	spinlock_t		lock;
 
 	struct timer_list	timer;
-
-	unsigned long		enabled;
-	char			expect_close;
 };
 
 static int sh_wdt_start(struct watchdog_device *wdt_dev)
