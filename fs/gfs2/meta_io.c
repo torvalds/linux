@@ -374,33 +374,24 @@ void gfs2_meta_wipe(struct gfs2_inode *ip, u64 bstart, u32 blen)
  * @ip: The GFS2 inode
  * @height: The level of this buf in the metadata (indir addr) tree (if any)
  * @num: The block number (device relative) of the buffer
- * @new: Non-zero if we may create a new buffer
  * @bhp: the buffer is returned here
  *
  * Returns: errno
  */
 
 int gfs2_meta_indirect_buffer(struct gfs2_inode *ip, int height, u64 num,
-			      int new, struct buffer_head **bhp)
+			      struct buffer_head **bhp)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_glock *gl = ip->i_gl;
 	struct buffer_head *bh;
 	int ret = 0;
+	u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
 
-	if (new) {
-		BUG_ON(height == 0);
-		bh = gfs2_meta_new(gl, num);
-		gfs2_trans_add_bh(ip->i_gl, bh, 1);
-		gfs2_metatype_set(bh, GFS2_METATYPE_IN, GFS2_FORMAT_IN);
-		gfs2_buffer_clear_tail(bh, sizeof(struct gfs2_meta_header));
-	} else {
-		u32 mtype = height ? GFS2_METATYPE_IN : GFS2_METATYPE_DI;
-		ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
-		if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
-			brelse(bh);
-			ret = -EIO;
-		}
+	ret = gfs2_meta_read(gl, num, DIO_WAIT, &bh);
+	if (ret == 0 && gfs2_metatype_check(sdp, bh, mtype)) {
+		brelse(bh);
+		ret = -EIO;
 	}
 	*bhp = bh;
 	return ret;
