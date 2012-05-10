@@ -1923,11 +1923,6 @@ int rts51x_scsi_handler(struct scsi_cmnd *srb, struct rts51x_chip *chip)
  * Host functions
  ***********************************************************************/
 
-const char *host_info(struct Scsi_Host *host)
-{
-	return "SCSI emulation for RTS51xx USB driver-based card reader";
-}
-
 int slave_alloc(struct scsi_device *sdev)
 {
 	/*

@@ -145,7 +145,6 @@ struct Scsi_Host;
 struct scsi_device;
 struct scsi_cmnd;
 
-const char *host_info(struct Scsi_Host *host);
 int slave_alloc(struct scsi_device *sdev);
 int slave_configure(struct scsi_device *sdev);
 int proc_info(struct Scsi_Host *host, char *buffer,
