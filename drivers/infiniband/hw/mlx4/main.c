@@ -1160,7 +1160,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 {
 	struct mlx4_ib_dev *ibdev;
 	int num_ports = 0;
-	int i;
+	int i, j;
 	int err;
 	struct mlx4_ib_iboe *iboe;
 
@@ -1323,9 +1323,9 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 			goto err_reg;
 	}
 
-	for (i = 0; i < ARRAY_SIZE(mlx4_class_attributes); ++i) {
+	for (j = 0; j < ARRAY_SIZE(mlx4_class_attributes); ++j) {
 		if (device_create_file(&ibdev->ib_dev.dev,
-				       mlx4_class_attributes[i]))
+				       mlx4_class_attributes[j]))
 			goto err_notif;
 	}
 
