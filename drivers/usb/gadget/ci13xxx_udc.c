@@ -2719,10 +2719,8 @@ static irqreturn_t udc_irq(int irq, void *data)
 
 	trace(udc ? udc->dev : NULL, "");
 
-	if (udc == NULL) {
-		dev_err(udc->dev, "ENODEV");
+	if (udc == NULL)
 		return IRQ_HANDLED;
-	}
 
 	spin_lock(&udc->lock);
 
