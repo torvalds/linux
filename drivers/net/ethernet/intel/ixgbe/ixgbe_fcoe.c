@@ -770,7 +770,7 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 	ixgbe_clear_interrupt_scheme(adapter);
 
 	adapter->flags |= IXGBE_FLAG_FCOE_ENABLED;
-	adapter->ring_feature[RING_F_FCOE].indices = IXGBE_FCRETA_SIZE;
+	adapter->ring_feature[RING_F_FCOE].limit = IXGBE_FCRETA_SIZE;
 	netdev->features |= NETIF_F_FCOE_CRC;
 	netdev->features |= NETIF_F_FSO;
 	netdev->features |= NETIF_F_FCOE_MTU;

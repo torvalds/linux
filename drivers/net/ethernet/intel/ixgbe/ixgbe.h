@@ -278,7 +278,8 @@ enum ixgbe_ring_f_enum {
 #define MAX_TX_QUEUES IXGBE_MAX_FDIR_INDICES
 #endif /* IXGBE_FCOE */
 struct ixgbe_ring_feature {
-	int indices;
+	u16 limit;	/* upper limit on feature indices */
+	u16 indices;	/* current value of indices */
 	int mask;
 } ____cacheline_internodealigned_in_smp;
 

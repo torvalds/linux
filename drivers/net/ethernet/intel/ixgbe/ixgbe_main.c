@@ -4386,7 +4386,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 
 	/* Set capability flags */
 	rss = min_t(int, IXGBE_MAX_RSS_INDICES, num_online_cpus());
-	adapter->ring_feature[RING_F_RSS].indices = rss;
+	adapter->ring_feature[RING_F_RSS].limit = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
@@ -4405,13 +4405,12 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		/* Flow Director hash filters enabled */
 		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
 		adapter->atr_sample_rate = 20;
-		adapter->ring_feature[RING_F_FDIR].indices =
+		adapter->ring_feature[RING_F_FDIR].limit =
 							 IXGBE_MAX_FDIR_INDICES;
 		adapter->fdir_pballoc = IXGBE_FDIR_PBALLOC_64K;
 #ifdef IXGBE_FCOE
 		adapter->flags |= IXGBE_FLAG_FCOE_CAPABLE;
 		adapter->flags &= ~IXGBE_FLAG_FCOE_ENABLED;
-		adapter->ring_feature[RING_F_FCOE].indices = 0;
 #ifdef CONFIG_IXGBE_DCB
 		/* Default traffic class to use for FCoE */
 		adapter->fcoe.up = IXGBE_FCOE_DEFTC;
@@ -6206,8 +6205,14 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	if (((protocol == htons(ETH_P_FCOE)) ||
 	    (protocol == htons(ETH_P_FIP))) &&
 	    (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)) {
-		txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
+		struct ixgbe_ring_feature *f;
+
+		f = &adapter->ring_feature[RING_F_FCOE];
+
+		while (txq >= f->indices)
+			txq -= f->indices;
 		txq += adapter->ring_feature[RING_F_FCOE].mask;
+
 		return txq;
 	}
 #endif

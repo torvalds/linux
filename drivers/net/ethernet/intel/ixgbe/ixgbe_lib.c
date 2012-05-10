@@ -302,7 +302,7 @@ static inline bool ixgbe_set_fdir_queues(struct ixgbe_adapter *adapter)
 	bool ret = false;
 	struct ixgbe_ring_feature *f_fdir = &adapter->ring_feature[RING_F_FDIR];
 
-	f_fdir->indices = min_t(int, num_online_cpus(), f_fdir->indices);
+	f_fdir->indices = min_t(int, num_online_cpus(), f_fdir->limit);
 	f_fdir->mask = 0;
 
 	/*
@@ -339,7 +339,7 @@ static inline bool ixgbe_set_fcoe_queues(struct ixgbe_adapter *adapter)
 	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return false;
 
-	f->indices = min_t(int, num_online_cpus(), f->indices);
+	f->indices = min_t(int, num_online_cpus(), f->limit);
 
 	adapter->num_rx_queues = 1;
 	adapter->num_tx_queues = 1;
