@@ -197,8 +197,8 @@ kvmppc_interrupt:
 	/* Save guest PC and MSR */
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
-	mr	r10, r12
-	andi.	r0,r12,0x2
+	andi.	r0, r12, 0x2
+	cmpwi	cr1, r0, 0
 	beq	1f
 	mfspr	r3,SPRN_HSRR0
 	mfspr	r4,SPRN_HSRR1
@@ -345,8 +345,7 @@ no_dcbz32_off:
 
 #ifdef CONFIG_PPC64
 BEGIN_FTR_SECTION
-	andi.	r0,r10,0x2
-	beq	1f
+	beq	cr1, 1f
 	mtspr	SPRN_HSRR1, r6
 	mtspr	SPRN_HSRR0, r8
 END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
