@@ -164,9 +164,6 @@ int rts51x_init_chip(struct rts51x_chip *chip)
 	RTS51X_SET_STAT(chip, STAT_RUN);
 
 	RTS51X_READ_REG(chip, HW_VERSION, &val);
-	if ((val & 0x0f) >= 2)
-		chip->option.rcc_bug_fix_en = 0;
-	RTS51X_DEBUGP("rcc bug fix enable:%d\n", chip->option.rcc_bug_fix_en);
 	RTS51X_DEBUGP("HW_VERSION: 0x%x\n", val);
 	if (val & FPGA_VER) {
 		chip->asic_code = 0;

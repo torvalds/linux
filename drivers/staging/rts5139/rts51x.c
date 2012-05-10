@@ -516,7 +516,6 @@ static void rts51x_init_options(struct rts51x_chip *chip)
 	option->rts5129_D3318_off_enable = 0;
 	option->sd20_pad_drive = 0;
 	option->reset_or_rw_fail_set_pad_drive = 1;
-	option->rcc_bug_fix_en = 1;
 	option->debounce_num = 2;
 	option->polling_time = 100;
 	option->led_toggle_interval = 6;
