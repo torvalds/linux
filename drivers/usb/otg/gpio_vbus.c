@@ -38,6 +38,7 @@ struct gpio_vbus_data {
 	int			vbus_draw_enabled;
 	unsigned		mA;
 	struct delayed_work	work;
+	int			vbus;
 };
 
 
@@ -96,10 +97,15 @@ static void gpio_vbus_work(struct work_struct *work)
 	struct gpio_vbus_data *gpio_vbus =
 		container_of(work, struct gpio_vbus_data, work.work);
 	struct gpio_vbus_mach_info *pdata = gpio_vbus->dev->platform_data;
-	int gpio, status;
+	int gpio, status, vbus;
 
 	if (!gpio_vbus->phy.otg->gadget)
 		return;
+
+	vbus = is_vbus_powered(pdata);
+	if ((vbus ^ gpio_vbus->vbus) == 0)
+		return;
+	gpio_vbus->vbus = vbus;
 
 	/* Peripheral controllers which manage the pullup themselves won't have
 	 * gpio_pullup configured here.  If it's configured here, we'll do what
@@ -107,7 +113,8 @@ static void gpio_vbus_work(struct work_struct *work)
 	 * that may complicate usb_gadget_{,dis}connect() support.
 	 */
 	gpio = pdata->gpio_pullup;
-	if (is_vbus_powered(pdata)) {
+
+	if (vbus) {
 		status = USB_EVENT_VBUS;
 		gpio_vbus->phy.state = OTG_STATE_B_PERIPHERAL;
 		gpio_vbus->phy.last_event = status;
@@ -195,6 +202,7 @@ static int gpio_vbus_set_peripheral(struct usb_otg *otg,
 	dev_dbg(&pdev->dev, "registered gadget '%s'\n", gadget->name);
 
 	/* initialize connection state */
+	gpio_vbus->vbus = 0; /* start with disconnected */
 	gpio_vbus_irq(irq, pdev);
 	return 0;
 }
