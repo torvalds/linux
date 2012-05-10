@@ -369,10 +369,6 @@ void set_sense_type(struct rts51x_chip *chip, unsigned int lun, int sense_type)
 			       ASC_INVLD_CDB, ASCQ_INVLD_CDB, CDB_ILLEGAL, 1);
 		break;
 
-	case SENSE_TYPE_FORMAT_IN_PROGRESS:
-		set_sense_data(chip, lun, CUR_ERR, 0x02, 0, 0x04, 0x04, 0, 0);
-		break;
-
 	case SENSE_TYPE_FORMAT_CMD_FAILED:
 		set_sense_data(chip, lun, CUR_ERR, 0x03, 0, 0x31, 0x01, 0, 0);
 		break;

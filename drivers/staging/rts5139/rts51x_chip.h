@@ -75,7 +75,6 @@
 
 #define MAX_ALLOWED_LUN_CNT	8
 #define CMD_BUF_LEN		1024
-#define RSP_BUF_LEN		1024
 #define POLLING_INTERVAL	50	/* 50ms */
 
 #define XD_FREE_TABLE_CNT	1200
@@ -122,8 +121,6 @@
 #endif
 
 #define STATUS_FAIL		1
-#define STATUS_READ_FAIL	2
-#define STATUS_WRITE_FAIL	3
 #define STATUS_TIMEDOUT		4
 #define STATUS_NOMEM		5
 #define STATUS_TRANS_SHORT	6
@@ -133,8 +130,6 @@
 
 #define IDLE_MAX_COUNT		10
 #define POLLING_WAIT_CNT	1
-#define DELINK_DELAY		100
-#define LED_TOGGLE_INTERVAL	6
 #define LED_GPIO		0
 
 /* package */
@@ -151,8 +146,6 @@
 #define TRANSPORT_GOOD		0
 /* Transport good, command failed */
 #define TRANSPORT_FAILED	1
-/* Command failed, no auto-sense */
-#define TRANSPORT_NO_SENSE	2
 /* Transport bad (i.e. device dead) */
 #define TRANSPORT_ERROR		3
 
@@ -189,7 +182,6 @@ struct trace_msg_t {
 #define	SENSE_TYPE_MEDIA_INVALID_CMD_FIELD		6
 #define	SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR		7
 #define	SENSE_TYPE_MEDIA_WRITE_ERR			8
-#define SENSE_TYPE_FORMAT_IN_PROGRESS			9
 #define SENSE_TYPE_FORMAT_CMD_FAILED			10
 #ifdef SUPPORT_MAGIC_GATE
 /* COPY PROTECTION KEY EXCHANGE FAILURE - KEY NOT ESTABLISHED */
@@ -203,77 +195,25 @@ struct trace_msg_t {
 #endif
 
 /*---- sense key ----*/
-#define ILI                     0x20	/* ILI bit is on                    */
-
-#define NO_SENSE                0x00	/* not exist sense key              */
-#define RECOVER_ERR             0x01	/* Target/Logical unit is recoverd  */
-#define NOT_READY               0x02	/* Logical unit is not ready        */
-#define MEDIA_ERR               0x03	/* medium/data error                */
-#define HARDWARE_ERR            0x04	/* hardware error                   */
 #define ILGAL_REQ               0x05	/* CDB/parameter/identify msg error */
-#define UNIT_ATTENTION          0x06	/* unit attention condition occur   */
-#define DAT_PRTCT               0x07	/* read/write is desable            */
-#define BLNC_CHK                0x08	/* find blank/DOF in read           */
-					/* write to unblank area            */
-#define CPY_ABRT                0x0a	/* Copy/Compare/Copy&Verify illgal  */
-#define ABRT_CMD                0x0b	/* Target make the command in error */
-#define EQUAL                   0x0c	/* Search Data end with Equal       */
-#define VLM_OVRFLW              0x0d	/* Some data are left in buffer     */
-#define MISCMP                  0x0e	/* find inequality                  */
 
 /*-----------------------------------
     SENSE_DATA
 -----------------------------------*/
-/*---- valid ----*/
-#define SENSE_VALID             0x80	/* Sense data is valid as SCSI2     */
-#define SENSE_INVALID           0x00	/* Sense data is invalid as SCSI2   */
 
 /*---- error code ----*/
 #define CUR_ERR                 0x70	/* current error                    */
-#define DEF_ERR                 0x71	/* specific command error           */
 
-/*---- sense key Information ----*/
-#define SNSKEYINFO_LEN          3	/* length of sense key information   */
+/*---- sense key Infomation ----*/
 
 #define SKSV                    0x80
 #define CDB_ILLEGAL             0x40
-#define DAT_ILLEGAL             0x00
-#define BPV                     0x08
-#define BIT_ILLEGAL0            0	/* bit0 is illegal                  */
-#define BIT_ILLEGAL1            1	/* bit1 is illegal                  */
-#define BIT_ILLEGAL2            2	/* bit2 is illegal                  */
-#define BIT_ILLEGAL3            3	/* bit3 is illegal                  */
-#define BIT_ILLEGAL4            4	/* bit4 is illegal                  */
-#define BIT_ILLEGAL5            5	/* bit5 is illegal                  */
-#define BIT_ILLEGAL6            6	/* bit6 is illegal                  */
-#define BIT_ILLEGAL7            7	/* bit7 is illegal                  */
 
 /*---- ASC ----*/
-#define ASC_NO_INFO             0x00
-#define ASC_MISCMP              0x1d
 #define ASC_INVLD_CDB           0x24
-#define ASC_INVLD_PARA          0x26
-#define ASC_LU_NOT_READY	0x04
-#define ASC_WRITE_ERR           0x0c
-#define ASC_READ_ERR            0x11
-#define ASC_LOAD_EJCT_ERR       0x53
-#define	ASC_MEDIA_NOT_PRESENT	0x3A
-#define	ASC_MEDIA_CHANGED	0x28
-#define	ASC_MEDIA_IN_PROCESS	0x04
-#define	ASC_WRITE_PROTECT	0x27
-#define ASC_LUN_NOT_SUPPORTED	0x25
 
 /*---- ASQC ----*/
-#define ASCQ_NO_INFO            0x00
-#define	ASCQ_MEDIA_IN_PROCESS	0x01
-#define ASCQ_MISCMP             0x00
 #define ASCQ_INVLD_CDB          0x00
-#define ASCQ_INVLD_PARA         0x02
-#define ASCQ_LU_NOT_READY	0x02
-#define ASCQ_WRITE_ERR          0x02
-#define ASCQ_READ_ERR           0x00
-#define ASCQ_LOAD_EJCT_ERR      0x00
-#define	ASCQ_WRITE_PROTECT	0x00
 
 struct sense_data_t {
 	unsigned char err_code;	/* error code */
