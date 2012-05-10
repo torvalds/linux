@@ -458,6 +458,17 @@ wl18xx_get_rx_buf_align(struct wl1271 *wl, u32 rx_desc)
 	return WLCORE_RX_BUF_ALIGNED;
 }
 
+static u32 wl18xx_get_rx_packet_len(struct wl1271 *wl, void *rx_data,
+				    u32 data_len)
+{
+	struct wl1271_rx_descriptor *desc = rx_data;
+
+	/* invalid packet */
+	if (data_len < sizeof(*desc))
+		return 0;
+
+	return data_len - sizeof(*desc);
+}
 
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
@@ -468,6 +479,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.set_tx_desc_blocks = wl18xx_set_tx_desc_blocks,
 	.set_tx_desc_data_len = wl18xx_set_tx_desc_data_len,
 	.get_rx_buf_align = wl18xx_get_rx_buf_align,
+	.get_rx_packet_len = wl18xx_get_rx_packet_len,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
