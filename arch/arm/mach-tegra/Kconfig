@@ -111,7 +111,7 @@ config MACH_VENTANA
          Support for the nVidia Ventana development platform
 
 choice
-        prompt "Low-level debug console UART"
+        prompt "Default low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
 
 config TEGRA_DEBUG_UART_NONE
@@ -131,6 +131,33 @@ config TEGRA_DEBUG_UARTD
 
 config TEGRA_DEBUG_UARTE
         bool "UART-E"
+
+endchoice
+
+choice
+	prompt "Automatic low-level debug console UART"
+	default TEGRA_DEBUG_UART_AUTO_NONE
+
+config TEGRA_DEBUG_UART_AUTO_NONE
+	bool "None"
+
+config TEGRA_DEBUG_UART_AUTO_ODMDATA
+	bool "Via ODMDATA"
+	help
+	  Automatically determines which UART to use for low-level debug based
+	  on the ODMDATA value. This value is part of the BCT, and is written
+	  to the boot memory device using nvflash, or other flashing tool.
+	  When bits 19:18 are 3, then bits 17:15 indicate which UART to use;
+	  0/1/2/3/4 are UART A/B/C/D/E.
+
+config TEGRA_DEBUG_UART_AUTO_SCRATCH
+	bool "Via UART scratch register"
+	help
+	  Automatically determines which UART to use for low-level debug based
+	  on the UART scratch register value. Some bootloaders put ASCII 'D'
+	  in this register when they initialize their own console UART output.
+	  Using this option allows the kernel to automatically pick the same
+	  UART.
 
 endchoice
 
