@@ -379,7 +379,6 @@ struct rts51x_option {
 	/*if reset or rw fail,then set SD20 pad drive again */
 	u8 reset_or_rw_fail_set_pad_drive;
 
-	u8 rcc_fail_flag;	/* add to indicate whether rcc bug happen */
 	u8 rcc_bug_fix_en;	/* if set,then support fixing rcc bug */
 	u8 debounce_num;	/* debounce number */
 	int polling_time;	/* polling delay time */
