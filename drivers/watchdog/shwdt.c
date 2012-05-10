@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/spinlock.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/fs.h>
@@ -65,8 +66,6 @@
 static int clock_division_ratio = WTCSR_CKS_4096;
 #define next_ping_period(cks)	(jiffies + msecs_to_jiffies(cks - 4))
 
-static DEFINE_SPINLOCK(shwdt_lock);
-
 #define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;	/* in seconds */
 static bool nowayout = WATCHDOG_NOWAYOUT;
@@ -75,6 +74,7 @@ static unsigned long next_heartbeat;
 struct sh_wdt {
 	void __iomem		*base;
 	struct device		*dev;
+	spinlock_t		lock;
 
 	struct timer_list	timer;
 
@@ -88,7 +88,7 @@ static int sh_wdt_start(struct watchdog_device *wdt_dev)
 	unsigned long flags;
 	u8 csr;
 
-	spin_lock_irqsave(&shwdt_lock, flags);
+	spin_lock_irqsave(&wdt->lock, flags);
 
 	next_heartbeat = jiffies + (heartbeat * HZ);
 	mod_timer(&wdt->timer, next_ping_period(clock_division_ratio));
@@ -117,7 +117,7 @@ static int sh_wdt_start(struct watchdog_device *wdt_dev)
 	csr &= ~RSTCSR_RSTS;
 	sh_wdt_write_rstcsr(csr);
 #endif
-	spin_unlock_irqrestore(&shwdt_lock, flags);
+	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
 }
@@ -128,7 +128,7 @@ static int sh_wdt_stop(struct watchdog_device *wdt_dev)
 	unsigned long flags;
 	u8 csr;
 
-	spin_lock_irqsave(&shwdt_lock, flags);
+	spin_lock_irqsave(&wdt->lock, flags);
 
 	del_timer(&wdt->timer);
 
@@ -136,33 +136,35 @@ static int sh_wdt_stop(struct watchdog_device *wdt_dev)
 	csr &= ~WTCSR_TME;
 	sh_wdt_write_csr(csr);
 
-	spin_unlock_irqrestore(&shwdt_lock, flags);
+	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
 }
 
 static int sh_wdt_keepalive(struct watchdog_device *wdt_dev)
 {
+	struct sh_wdt *wdt = watchdog_get_drvdata(wdt_dev);
 	unsigned long flags;
 
-	spin_lock_irqsave(&shwdt_lock, flags);
+	spin_lock_irqsave(&wdt->lock, flags);
 	next_heartbeat = jiffies + (heartbeat * HZ);
-	spin_unlock_irqrestore(&shwdt_lock, flags);
+	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
 }
 
 static int sh_wdt_set_heartbeat(struct watchdog_device *wdt_dev, unsigned t)
 {
+	struct sh_wdt *wdt = watchdog_get_drvdata(wdt_dev);
 	unsigned long flags;
 
 	if (unlikely(t < 1 || t > 3600)) /* arbitrary upper limit */
 		return -EINVAL;
 
-	spin_lock_irqsave(&shwdt_lock, flags);
+	spin_lock_irqsave(&wdt->lock, flags);
 	heartbeat = t;
 	wdt_dev->timeout = t;
-	spin_unlock_irqrestore(&shwdt_lock, flags);
+	spin_unlock_irqrestore(&wdt->lock, flags);
 
 	return 0;
 }
@@ -172,7 +174,7 @@ static void sh_wdt_ping(unsigned long data)
 	struct sh_wdt *wdt = (struct sh_wdt *)data;
 	unsigned long flags;
 
-	spin_lock_irqsave(&shwdt_lock, flags);
+	spin_lock_irqsave(&wdt->lock, flags);
 	if (time_before(jiffies, next_heartbeat)) {
 		u8 csr;
 
@@ -186,7 +188,7 @@ static void sh_wdt_ping(unsigned long data)
 	} else
 		dev_warn(wdt->dev, "Heartbeat lost! Will not ping "
 		         "the watchdog\n");
-	spin_unlock_irqrestore(&shwdt_lock, flags);
+	spin_unlock_irqrestore(&wdt->lock, flags);
 }
 
 static const struct watchdog_info sh_wdt_info = {
@@ -238,11 +240,16 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 
 	wdt->dev = &pdev->dev;
 
+	watchdog_set_nowayout(&sh_wdt_dev, nowayout);
+	watchdog_set_drvdata(&sh_wdt_dev, wdt);
+
 	wdt->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (unlikely(!wdt->base)) {
 		rc = -ENXIO;
 		goto out_err;
 	}
+
+	spin_lock_init(&wdt->lock);
 
 	rc = sh_wdt_set_heartbeat(&sh_wdt_dev, heartbeat);
 	if (unlikely(rc)) {
@@ -256,9 +263,6 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "configured with heartbeat=%d sec (nowayout=%d)\n",
 		 sh_wdt_dev.timeout, nowayout);
-
-	watchdog_set_nowayout(&sh_wdt_dev, nowayout);
-	watchdog_set_drvdata(&sh_wdt_dev, wdt);
 
 	rc = watchdog_register_device(&sh_wdt_dev);
 	if (unlikely(rc)) {
