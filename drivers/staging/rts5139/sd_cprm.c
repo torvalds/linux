@@ -77,11 +77,6 @@ static inline int get_rsp_type(u8 rsp_code, u8 *rsp_type, int *rsp_len)
 	return STATUS_SUCCESS;
 }
 
-int soft_reset_sd_card(struct rts51x_chip *chip)
-{
-	return reset_sd(chip);
-}
-
 int ext_sd_send_cmd_get_rsp(struct rts51x_chip *chip, u8 cmd_idx,
 			    u32 arg, u8 rsp_type, u8 *rsp, int rsp_len,
 			    int special_check)
@@ -1041,7 +1036,7 @@ int sd_hw_rst(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 	case 1:
 		/* reset CMD(CMD0) and Initialization
 		 * (without SD Card Power Off -> ON) */
-		retval = soft_reset_sd_card(chip);
+		retval = reset_sd(chip);
 		if (retval != STATUS_SUCCESS) {
 			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 			sd_card->pre_cmd_err = 1;
