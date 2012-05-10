@@ -502,7 +502,7 @@ lpfc_resp_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
  * allocation is successful, it returns pointer to the newly
  * allocated iocb object else it returns NULL.
  **/
-static struct lpfc_iocbq *
+struct lpfc_iocbq *
 __lpfc_sli_get_iocbq(struct lpfc_hba *phba)
 {
 	struct list_head *lpfc_iocb_list = &phba->lpfc_iocb_list;
@@ -1259,7 +1259,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			struct lpfc_iocbq *piocb)
 {
 	list_add_tail(&piocb->list, &pring->txcmplq);
-	piocb->iocb_flag |= LPFC_IO_ON_Q;
+	piocb->iocb_flag |= LPFC_IO_ON_TXCMPLQ;
 	pring->txcmplq_cnt++;
 	if (pring->txcmplq_cnt > pring->txcmplq_max)
 		pring->txcmplq_max = pring->txcmplq_cnt;
@@ -2558,9 +2558,9 @@ lpfc_sli_iocbq_lookup(struct lpfc_hba *phba,
 	if (iotag != 0 && iotag <= phba->sli.last_iotag) {
 		cmd_iocb = phba->sli.iocbq_lookup[iotag];
 		list_del_init(&cmd_iocb->list);
-		if (cmd_iocb->iocb_flag & LPFC_IO_ON_Q) {
+		if (cmd_iocb->iocb_flag & LPFC_IO_ON_TXCMPLQ) {
 			pring->txcmplq_cnt--;
-			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_Q;
+			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
 		}
 		return cmd_iocb;
 	}
@@ -2593,14 +2593,14 @@ lpfc_sli_iocbq_lookup_by_tag(struct lpfc_hba *phba,
 
 	if (iotag != 0 && iotag <= phba->sli.last_iotag) {
 		cmd_iocb = phba->sli.iocbq_lookup[iotag];
-		list_del_init(&cmd_iocb->list);
-		if (cmd_iocb->iocb_flag & LPFC_IO_ON_Q) {
-			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_Q;
+		if (cmd_iocb->iocb_flag & LPFC_IO_ON_TXCMPLQ) {
+			/* remove from txcmpl queue list */
+			list_del_init(&cmd_iocb->list);
+			cmd_iocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
 			pring->txcmplq_cnt--;
+			return cmd_iocb;
 		}
-		return cmd_iocb;
 	}
-
 	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 			"0372 iotag x%x is out off range: max iotag (x%x)\n",
 			iotag, phba->sli.last_iotag);
@@ -3468,6 +3468,9 @@ lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
 	/* Retrieve everything on the txcmplq */
 	list_splice_init(&pring->txcmplq, &txcmplq);
 	pring->txcmplq_cnt = 0;
+
+	/* Indicate the I/O queues are flushed */
+	phba->hba_flag |= HBA_FCP_IOQ_FLUSH;
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Flush the txq */
@@ -6068,6 +6071,8 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		phba->hba_flag |= HBA_FIP_SUPPORT;
 	else
 		phba->hba_flag &= ~HBA_FIP_SUPPORT;
+
+	phba->hba_flag &= ~HBA_FCP_IOQ_FLUSH;
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX | LOG_SLI,
