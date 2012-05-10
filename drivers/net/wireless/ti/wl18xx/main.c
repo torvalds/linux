@@ -43,7 +43,7 @@
 #define WL18XX_RX_CHECKSUM_MASK      0x40
 
 static char *ht_mode_param;
-static char *board_type_param;
+static char *board_type_param = "hdk";
 static bool dc2dc_param = false;
 static int n_antennas_2_param = 1;
 static int n_antennas_5_param = 1;
@@ -1074,10 +1074,7 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 
 	wl18xx_conf_init(wl);
 
-	if (!board_type_param) {
-		board_type_param = kstrdup("dvp", GFP_KERNEL);
-		priv->board_type = BOARD_TYPE_DVP_18XX;
-	} else if (!strcmp(board_type_param, "fpga")) {
+	if (!strcmp(board_type_param, "fpga")) {
 		priv->board_type = BOARD_TYPE_FPGA_18XX;
 	} else if (!strcmp(board_type_param, "hdk")) {
 		priv->board_type = BOARD_TYPE_HDK_18XX;
@@ -1137,8 +1134,8 @@ module_param_named(ht_mode, ht_mode_param, charp, S_IRUSR);
 MODULE_PARM_DESC(ht_mode, "Force HT mode: wide or mimo");
 
 module_param_named(board_type, board_type_param, charp, S_IRUSR);
-MODULE_PARM_DESC(board_type, "Board type: fpga, hdk, evb, com8 or "
-		 "dvp (default)");
+MODULE_PARM_DESC(board_type, "Board type: fpga, hdk (default), evb, com8 or "
+		 "dvp");
 
 module_param_named(dc2dc, dc2dc_param, bool, S_IRUSR);
 MODULE_PARM_DESC(dc2dc, "External DC2DC: boolean (defaults to false)");
