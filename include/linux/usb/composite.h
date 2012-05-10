@@ -253,6 +253,8 @@ void usb_remove_config(struct usb_composite_dev *,
  * @iManufacturer: Used as iManufacturer override if @dev->iManufacturer is
  *	not set. If NULL a default "<system> <release> with <udc>" value
  *	will be used.
+ * @iSerialNumber: Used as iSerialNumber override if @dev->iSerialNumber is
+ *	not set.
  * @dev: Template descriptor for the device, including default device
  *	identifiers.
  * @strings: tables of strings, keyed by identifiers assigned during bind()
@@ -283,6 +285,7 @@ struct usb_composite_driver {
 	const char				*name;
 	const char				*iProduct;
 	const char				*iManufacturer;
+	const char				*iSerialNumber;
 	const struct usb_device_descriptor	*dev;
 	struct usb_gadget_strings		**strings;
 	enum usb_device_speed			max_speed;

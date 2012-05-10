@@ -938,7 +938,7 @@ static int get_string(struct usb_composite_dev *cdev,
 	else if (cdev->product_override == id)
 		str = iProduct ?: composite->iProduct;
 	else if (cdev->serial_override == id)
-		str = iSerialNumber;
+		str = iSerialNumber ?: composite->iSerialNumber;
 	else
 		str = NULL;
 	if (str) {
@@ -1503,7 +1503,8 @@ static int composite_bind(struct usb_gadget *gadget)
 		cdev->product_override =
 			override_id(cdev, &cdev->desc.iProduct);
 
-	if (iSerialNumber)
+	if (iSerialNumber ||
+	    (!cdev->desc.iSerialNumber && composite->iSerialNumber))
 		cdev->serial_override =
 			override_id(cdev, &cdev->desc.iSerialNumber);
 
