@@ -904,7 +904,8 @@ static void wl1271_fw_wakeup(struct wl1271 *wl)
 static int wl1271_setup(struct wl1271 *wl)
 {
 	wl->fw_status_1 = kmalloc(WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc) +
-				  sizeof(*wl->fw_status_2), GFP_KERNEL);
+				  sizeof(*wl->fw_status_2) +
+				  wl->fw_status_priv_len, GFP_KERNEL);
 	if (!wl->fw_status_1)
 		return -ENOMEM;
 
