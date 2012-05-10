@@ -38,7 +38,7 @@
 
 #ifdef SUPPORT_MAGIC_GATE
 
-int mg_check_int_error(struct rts51x_chip *chip)
+static int mg_check_int_error(struct rts51x_chip *chip)
 {
 	u8 value;
 

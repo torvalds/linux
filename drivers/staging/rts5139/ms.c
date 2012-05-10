@@ -2680,7 +2680,7 @@ static int mspro_set_rw_cmd(struct rts51x_chip *chip, u32 start_sec,
 	return STATUS_SUCCESS;
 }
 
-void mspro_stop_seq_mode(struct rts51x_chip *chip)
+static void mspro_stop_seq_mode(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
@@ -4135,7 +4135,7 @@ void ms_cleanup_work(struct rts51x_chip *chip)
 	}
 }
 
-int ms_power_off_card3v3(struct rts51x_chip *chip)
+static int ms_power_off_card3v3(struct rts51x_chip *chip)
 {
 	int retval;
 
