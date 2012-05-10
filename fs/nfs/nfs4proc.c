@@ -2345,8 +2345,8 @@ static int nfs4_find_root_sec(struct nfs_server *server, struct nfs_fh *fhandle,
 /*
  * get the file handle for the "/" directory on the server
  */
-static int nfs4_proc_get_root(struct nfs_server *server, struct nfs_fh *fhandle,
-			      struct nfs_fsinfo *info)
+int nfs4_proc_get_rootfh(struct nfs_server *server, struct nfs_fh *fhandle,
+			 struct nfs_fsinfo *info)
 {
 	int minor_version = server->nfs_client->cl_minorversion;
 	int status = nfs4_lookup_root(server, fhandle, info);
@@ -6539,7 +6539,7 @@ const struct nfs_rpc_ops nfs_v4_clientops = {
 	.dir_inode_ops	= &nfs4_dir_inode_operations,
 	.file_inode_ops	= &nfs4_file_inode_operations,
 	.file_ops	= &nfs4_file_operations,
-	.getroot	= nfs4_proc_get_root,
+	.getroot	= nfs4_proc_get_rootfh,
 	.submount	= nfs4_submount,
 	.getattr	= nfs4_proc_getattr,
 	.setattr	= nfs4_proc_setattr,
