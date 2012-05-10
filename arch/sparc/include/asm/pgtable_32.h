@@ -16,7 +16,6 @@
 #include <linux/spinlock.h>
 #include <linux/swap.h>
 #include <asm/types.h>
-#include <asm/pgtsun4c.h>
 #include <asm/pgtsrmmu.h>
 #include <asm/vac-ops.h>
 #include <asm/oplib.h>
@@ -47,7 +46,7 @@ BTFIXUPDEF_INT(page_copy)
 BTFIXUPDEF_INT(page_readonly)
 BTFIXUPDEF_INT(page_kernel)
 
-#define PMD_SHIFT		SUN4C_PMD_SHIFT
+#define PMD_SHIFT		22
 #define PMD_SIZE        	(1UL << PMD_SHIFT)
 #define PMD_MASK        	(~(PMD_SIZE-1))
 #define PMD_ALIGN(__addr) 	(((__addr) + ~PMD_MASK) & PMD_MASK)
@@ -399,9 +398,6 @@ static inline unsigned long
 __get_phys (unsigned long addr)
 {
 	switch (sparc_cpu_model){
-	case sun4:
-	case sun4c:
-		return sun4c_get_pte (addr) << PAGE_SHIFT;
 	case sun4m:
 	case sun4d:
 		return ((srmmu_get_pte (addr) & 0xffffff00) << 4);
@@ -414,9 +410,6 @@ static inline int
 __get_iospace (unsigned long addr)
 {
 	switch (sparc_cpu_model){
-	case sun4:
-	case sun4c:
-		return -1; /* Don't check iospace on sun4c */
 	case sun4m:
 	case sun4d:
 		return (srmmu_get_pte (addr) >> 28);
@@ -463,7 +456,7 @@ static inline int io_remap_pfn_range(struct vm_area_struct *vma,
 		set_pte_at((__vma)->vm_mm, (__address), __ptep, __entry); \
 		flush_tlb_page(__vma, __address);			  \
 	}								  \
-	(sparc_cpu_model == sun4c) || __changed;			  \
+	__changed;							  \
 })
 
 #include <asm-generic/pgtable.h>

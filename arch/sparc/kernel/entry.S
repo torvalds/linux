@@ -19,7 +19,6 @@
 #include <asm/vaddrs.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
-#include <asm/pgtsun4c.h>
 #include <asm/winmacro.h>
 #include <asm/signal.h>
 #include <asm/obio.h>
