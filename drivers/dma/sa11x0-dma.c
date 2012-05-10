@@ -416,26 +416,46 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 	struct sa11x0_dma_chan *c = to_sa11x0_dma_chan(chan);
 	struct sa11x0_dma_dev *d = to_sa11x0_dma(chan->device);
 	struct sa11x0_dma_phy *p;
-	struct sa11x0_dma_desc *txd;
+	struct virt_dma_desc *vd;
 	unsigned long flags;
 	enum dma_status ret;
-	size_t bytes = 0;
 
 	ret = dma_cookie_status(&c->vc.chan, cookie, state);
 	if (ret == DMA_SUCCESS)
 		return ret;
 
+	if (!state)
+		return c->status;
+
 	spin_lock_irqsave(&c->vc.lock, flags);
 	p = c->phy;
-	ret = c->status;
-	if (p) {
-		dma_addr_t addr = sa11x0_dma_pos(p);
 
-		dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
+	/*
+	 * If the cookie is on our issue queue, then the residue is
+	 * its total size.
+	 */
+	vd = vchan_find_desc(&c->vc, cookie);
+	if (vd) {
+		state->residue = container_of(vd, struct sa11x0_dma_desc, vd)->size;
+	} else if (!p) {
+		state->residue = 0;
+	} else {
+		struct sa11x0_dma_desc *txd;
+		size_t bytes = 0;
 
-		txd = p->txd_done;
+		if (p->txd_done && p->txd_done->vd.tx.cookie == cookie)
+			txd = p->txd_done;
+		else if (p->txd_load && p->txd_load->vd.tx.cookie == cookie)
+			txd = p->txd_load;
+		else
+			txd = NULL;
+
+		ret = c->status;
 		if (txd) {
+			dma_addr_t addr = sa11x0_dma_pos(p);
 			unsigned i;
+
+			dev_vdbg(d->slave.dev, "tx_status: addr:%x\n", addr);
 
 			for (i = 0; i < txd->sglen; i++) {
 				dev_vdbg(d->slave.dev, "tx_status: [%u] %x+%x\n",
@@ -459,18 +479,11 @@ static enum dma_status sa11x0_dma_tx_status(struct dma_chan *chan,
 				bytes += txd->sg[i].len;
 			}
 		}
-		if (txd != p->txd_load && p->txd_load)
-			bytes += p->txd_load->size;
-	}
-	list_for_each_entry(txd, &c->vc.desc_issued, vd.node) {
-		bytes += txd->size;
+		state->residue = bytes;
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 
-	if (state)
-		state->residue = bytes;
-
-	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", bytes);
+	dev_vdbg(d->slave.dev, "tx_status: bytes 0x%zx\n", state->residue);
 
 	return ret;
 }
