@@ -1502,7 +1502,7 @@ static int omapfb_parse_vram_param(const char *param, int max_entries,
 
 		fbnum = simple_strtoul(p, &p, 10);
 
-		if (p == param)
+		if (p == start)
 			return -EINVAL;
 
 		if (*p != ':')
