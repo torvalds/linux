@@ -617,6 +617,11 @@ static bool iwlagn_fill_txpower_mode(struct iwl_priv *priv,
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	int ave_rssi;
 
+	if (!ctx->vif || (ctx->vif->type != NL80211_IFTYPE_STATION)) {
+		IWL_DEBUG_INFO(priv, "BSS ctx not active or not in sta mode\n");
+		return false;
+	}
+
 	ave_rssi = ieee80211_ave_rssi(ctx->vif);
 	if (!ave_rssi) {
 		/* no rssi data, no changes to reduce tx power */
