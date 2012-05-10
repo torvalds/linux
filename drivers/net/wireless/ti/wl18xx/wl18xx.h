@@ -56,4 +56,26 @@ struct wl18xx_fw_status_priv {
 	u8 padding[2];
 };
 
+struct wl18xx_clk_cfg {
+	u32 n;
+	u32 m;
+	u32 p;
+	u32 q;
+	bool swallow;
+};
+
+enum {
+	CLOCK_CONFIG_16_2_M	= 1,
+	CLOCK_CONFIG_16_368_M,
+	CLOCK_CONFIG_16_8_M,
+	CLOCK_CONFIG_19_2_M,
+	CLOCK_CONFIG_26_M,
+	CLOCK_CONFIG_32_736_M,
+	CLOCK_CONFIG_33_6_M,
+	CLOCK_CONFIG_38_468_M,
+	CLOCK_CONFIG_52_M,
+
+	NUM_CLOCK_CONFIGS,
+};
+
 #endif /* __WL18XX_PRIV_H__ */

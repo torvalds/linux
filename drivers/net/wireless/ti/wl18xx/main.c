@@ -37,6 +37,7 @@
 #include "acx.h"
 #include "tx.h"
 #include "wl18xx.h"
+#include "io.h"
 
 
 #define WL18XX_RX_CHECKSUM_MASK      0x40
@@ -561,6 +562,18 @@ static const int wl18xx_rtable[REG_TABLE_LEN] = {
 	[REG_RAW_FW_STATUS_ADDR]	= WL18XX_FW_STATUS_ADDR,
 };
 
+static const struct wl18xx_clk_cfg wl18xx_clk_table[NUM_CLOCK_CONFIGS] = {
+	[CLOCK_CONFIG_16_2_M]	= { 7,  104,  801, 4,  true },
+	[CLOCK_CONFIG_16_368_M]	= { 9,  132, 3751, 4,  true },
+	[CLOCK_CONFIG_16_8_M]	= { 7,  100,    0, 0, false },
+	[CLOCK_CONFIG_19_2_M]	= { 8,  100,    0, 0, false },
+	[CLOCK_CONFIG_26_M]	= { 13, 120,    0, 0, false },
+	[CLOCK_CONFIG_32_736_M]	= { 9,  132, 3751, 4,  true },
+	[CLOCK_CONFIG_33_6_M]	= { 7,  100,    0, 0, false },
+	[CLOCK_CONFIG_38_468_M]	= { 8,  100,    0, 0, false },
+	[CLOCK_CONFIG_52_M]	= { 13, 120,    0, 0, false },
+};
+
 /* TODO: maybe move to a new header file? */
 #define WL18XX_FW_NAME "ti-connectivity/wl18xx-fw.bin"
 
@@ -592,15 +605,47 @@ out:
 static void wl18xx_set_clk(struct wl1271 *wl)
 {
 	struct wl18xx_priv *priv = wl->priv;
+	u32 clk_freq;
 
 	/* write the translated board type to SCR_PAD2 */
 	wl1271_write32(wl, WL18XX_SCR_PAD2,
 		       wl18xx_board_type_to_scrpad2[priv->board_type]);
 
 	wlcore_set_partition(wl, &wl->ptable[PART_TOP_PRCM_ELP_SOC]);
-	wl1271_write32(wl, 0x00A02360, 0xD0078);
-	wl1271_write32(wl, 0x00A0236c, 0x12);
-	wl1271_write32(wl, 0x00A02390, 0x20118);
+
+	/* TODO: PG2: apparently we need to read the clk type */
+
+	clk_freq = wl18xx_top_reg_read(wl, PRIMARY_CLK_DETECT);
+	wl1271_debug(DEBUG_BOOT, "clock freq %d (%d, %d, %d, %d, %s)", clk_freq,
+		     wl18xx_clk_table[clk_freq].n, wl18xx_clk_table[clk_freq].m,
+		     wl18xx_clk_table[clk_freq].p, wl18xx_clk_table[clk_freq].q,
+		     wl18xx_clk_table[clk_freq].swallow ? "swallow" : "spit");
+
+	wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_N, wl18xx_clk_table[clk_freq].n);
+	wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_M, wl18xx_clk_table[clk_freq].m);
+
+	if (wl18xx_clk_table[clk_freq].swallow) {
+		/* first the 16 lower bits */
+		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_Q_FACTOR_CFG_1,
+				     wl18xx_clk_table[clk_freq].q &
+				     PLLSH_WCS_PLL_Q_FACTOR_CFG_1_MASK);
+		/* then the 16 higher bits, masked out */
+		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_Q_FACTOR_CFG_2,
+				     (wl18xx_clk_table[clk_freq].q >> 16) &
+				     PLLSH_WCS_PLL_Q_FACTOR_CFG_2_MASK);
+
+		/* first the 16 lower bits */
+		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_P_FACTOR_CFG_1,
+				     wl18xx_clk_table[clk_freq].p &
+				     PLLSH_WCS_PLL_P_FACTOR_CFG_1_MASK);
+		/* then the 16 higher bits, masked out */
+		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_P_FACTOR_CFG_2,
+				     (wl18xx_clk_table[clk_freq].p >> 16) &
+				     PLLSH_WCS_PLL_P_FACTOR_CFG_2_MASK);
+	} else {
+		wl18xx_top_reg_write(wl, PLLSH_WCS_PLL_SWALLOW_EN,
+				     PLLSH_WCS_PLL_SWALLOW_EN_VAL2);
+	}
 }
 
 static void wl18xx_boot_soft_reset(struct wl1271 *wl)
