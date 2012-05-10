@@ -373,7 +373,7 @@ static void s5p_mfc_handle_error(struct s5p_mfc_ctx *ctx,
 
 	/* If no context is available then all necessary
 	 * processing has been done. */
-	if (ctx == 0)
+	if (ctx == NULL)
 		return;
 
 	dev = ctx->dev;
@@ -429,7 +429,7 @@ static void s5p_mfc_handle_seq_done(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_dev *dev;
 	unsigned int guard_width, guard_height;
 
-	if (ctx == 0)
+	if (ctx == NULL)
 		return;
 	dev = ctx->dev;
 	if (ctx->c_ops->post_seq_start) {
@@ -496,7 +496,7 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 	struct s5p_mfc_dev *dev;
 	unsigned long flags;
 
-	if (ctx == 0)
+	if (ctx == NULL)
 		return;
 	dev = ctx->dev;
 	s5p_mfc_clear_int_flags(dev);
@@ -772,7 +772,7 @@ err_queue_init:
 err_init_hw:
 	s5p_mfc_release_firmware(dev);
 err_alloc_fw:
-	dev->ctx[ctx->num] = 0;
+	dev->ctx[ctx->num] = NULL;
 	del_timer_sync(&dev->watchdog_timer);
 	s5p_mfc_clock_off();
 err_pwr_enable:
@@ -849,7 +849,7 @@ static int s5p_mfc_release(struct file *file)
 	}
 	mfc_debug(2, "Shutting down clock\n");
 	s5p_mfc_clock_off();
-	dev->ctx[ctx->num] = 0;
+	dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
 	v4l2_fh_del(&ctx->fh);
 	v4l2_fh_exit(&ctx->fh);
