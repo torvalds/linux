@@ -580,19 +580,25 @@ allocated memory.
 You should also set these fields:
 
 - v4l2_dev: set to the v4l2_device parent device.
+
 - name: set to something descriptive and unique.
+
 - fops: set to the v4l2_file_operations struct.
+
 - ioctl_ops: if you use the v4l2_ioctl_ops to simplify ioctl maintenance
   (highly recommended to use this and it might become compulsory in the
   future!), then set this to your v4l2_ioctl_ops struct.
+
 - lock: leave to NULL if you want to do all the locking in the driver.
   Otherwise you give it a pointer to a struct mutex_lock and before any
   of the v4l2_file_operations is called this lock will be taken by the
-  core and released afterwards.
+  core and released afterwards. See the next section for more details.
+
 - prio: keeps track of the priorities. Used to implement VIDIOC_G/S_PRIORITY.
   If left to NULL, then it will use the struct v4l2_prio_state in v4l2_device.
   If you want to have a separate priority state per (group of) device node(s),
   then you can point it to your own struct v4l2_prio_state.
+
 - parent: you only set this if v4l2_device was registered with NULL as
   the parent device struct. This only happens in cases where one hardware
   device has multiple PCI devices that all share the same v4l2_device core.
@@ -602,6 +608,7 @@ You should also set these fields:
   (cx8802). Since the v4l2_device cannot be associated with a particular
   PCI device it is setup without a parent device. But when the struct
   video_device is setup you do know which parent PCI device to use.
+
 - flags: optional. Set to V4L2_FL_USE_FH_PRIO if you want to let the framework
   handle the VIDIOC_G/S_PRIORITY ioctls. This requires that you use struct
   v4l2_fh. Eventually this flag will disappear once all drivers use the core
@@ -634,8 +641,22 @@ v4l2_file_operations and locking
 --------------------------------
 
 You can set a pointer to a mutex_lock in struct video_device. Usually this
-will be either a top-level mutex or a mutex per device node. If you want
-finer-grained locking then you have to set it to NULL and do you own locking.
+will be either a top-level mutex or a mutex per device node. By default this
+lock will be used for each file operation and ioctl, but you can disable
+locking for selected ioctls by calling:
+
+	void v4l2_dont_use_lock(struct video_device *vdev, unsigned int cmd);
+
+E.g.: v4l2_dont_use_lock(vdev, VIDIOC_DQBUF);
+
+You have to call this before you register the video_device.
+
+Particularly with USB drivers where certain commands such as setting controls
+can take a long time you may want to do your own locking for the buffer queuing
+ioctls.
+
+If you want still finer-grained locking then you have to set mutex_lock to NULL
+and do you own locking completely.
 
 It is up to the driver developer to decide which method to use. However, if
 your driver has high-latency operations (for example, changing the exposure

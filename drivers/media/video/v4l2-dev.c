@@ -322,11 +322,19 @@ static long v4l2_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	int ret = -ENODEV;
 
 	if (vdev->fops->unlocked_ioctl) {
-		if (vdev->lock && mutex_lock_interruptible(vdev->lock))
-			return -ERESTARTSYS;
+		bool locked = false;
+
+		if (vdev->lock) {
+			/* always lock unless the cmd is marked as "don't use lock" */
+			locked = !v4l2_is_known_ioctl(cmd) ||
+				 !test_bit(_IOC_NR(cmd), vdev->dont_use_lock);
+
+			if (locked && mutex_lock_interruptible(vdev->lock))
+				return -ERESTARTSYS;
+		}
 		if (video_is_registered(vdev))
 			ret = vdev->fops->unlocked_ioctl(filp, cmd, arg);
-		if (vdev->lock)
+		if (locked)
 			mutex_unlock(vdev->lock);
 	} else if (vdev->fops->ioctl) {
 		/* This code path is a replacement for the BKL. It is a major
