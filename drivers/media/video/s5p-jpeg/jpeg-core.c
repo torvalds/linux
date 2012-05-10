@@ -813,7 +813,7 @@ static int s5p_jpeg_streamoff(struct file *file, void *priv,
 	return v4l2_m2m_streamoff(file, ctx->m2m_ctx, type);
 }
 
-int s5p_jpeg_g_selection(struct file *file, void *priv,
+static int s5p_jpeg_g_selection(struct file *file, void *priv,
 			 struct v4l2_selection *s)
 {
 	struct s5p_jpeg_ctx *ctx = fh_to_ctx(priv);
