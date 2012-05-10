@@ -204,13 +204,7 @@
 
 /* LDO_POWER_CFG */
 #define TUNE_SD18_MASK			0x1C
-#define TUNE_SD18_1V7			0x00
 #define TUNE_SD18_1V8			(0x01 << 2)
-#define TUNE_SD18_1V9			(0x02 << 2)
-#define TUNE_SD18_2V0			(0x03 << 2)
-#define TUNE_SD18_2V7			(0x04 << 2)
-#define TUNE_SD18_2V8			(0x05 << 2)
-#define TUNE_SD18_2V9			(0x06 << 2)
 #define TUNE_SD18_3V3			(0x07 << 2)
 
 /* XD_CP_WAITTIME */
