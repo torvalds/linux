@@ -24,4 +24,8 @@ config TEGRA20_MC
 	bool
 	depends on ARCH_TEGRA_2x_SOC
 
+config TEGRA30_MC
+	bool
+	depends on ARCH_TEGRA_3x_SOC
+
 endif

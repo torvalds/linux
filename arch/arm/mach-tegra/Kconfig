@@ -43,6 +43,8 @@ config ARCH_TEGRA_3x_SOC
 	select ARM_ERRATA_764369
 	select PL310_ERRATA_769419 if CACHE_L2X0
 	select CPU_FREQ_TABLE if CPU_FREQ
+	select MEMORY
+	select TEGRA30_MC
 	help
 	  Support for NVIDIA Tegra T30 processor family, based on the
 	  ARM CortexA9MP CPU and the ARM PL310 L2 cache controller
