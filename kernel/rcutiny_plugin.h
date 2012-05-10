@@ -846,8 +846,6 @@ EXPORT_SYMBOL_GPL(synchronize_rcu_expedited);
  */
 int rcu_preempt_needs_cpu(void)
 {
-	if (!rcu_preempt_running_reader())
-		rcu_preempt_cpu_qs();
 	return rcu_preempt_ctrlblk.rcb.rcucblist != NULL;
 }
 
