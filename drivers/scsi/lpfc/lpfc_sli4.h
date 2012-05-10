@@ -493,14 +493,12 @@ struct lpfc_sli4_hba {
 	uint16_t next_rpi;
 	uint16_t scsi_xri_max;
 	uint16_t scsi_xri_cnt;
+	uint16_t els_xri_cnt;
 	uint16_t scsi_xri_start;
 	struct list_head lpfc_free_sgl_list;
 	struct list_head lpfc_sgl_list;
-	struct lpfc_sglq **lpfc_els_sgl_array;
 	struct list_head lpfc_abts_els_sgl_list;
-	struct lpfc_scsi_buf **lpfc_scsi_psb_array;
 	struct list_head lpfc_abts_scsi_buf_list;
-	uint32_t total_sglq_bufs;
 	struct lpfc_sglq **lpfc_sglq_active_list;
 	struct list_head lpfc_rpi_hdr_list;
 	unsigned long *rpi_bmask;
@@ -509,7 +507,6 @@ struct lpfc_sli4_hba {
 	struct list_head lpfc_rpi_blk_list;
 	unsigned long *xri_bmask;
 	uint16_t *xri_ids;
-	uint16_t xri_count;
 	struct list_head lpfc_xri_blk_list;
 	unsigned long *vfi_bmask;
 	uint16_t *vfi_ids;
@@ -614,11 +611,7 @@ int lpfc_sli4_post_sgl(struct lpfc_hba *, dma_addr_t, dma_addr_t, uint16_t);
 int lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *);
 uint16_t lpfc_sli4_next_xritag(struct lpfc_hba *);
 int lpfc_sli4_post_async_mbox(struct lpfc_hba *);
-int lpfc_sli4_post_els_sgl_list(struct lpfc_hba *phba);
-int lpfc_sli4_post_els_sgl_list_ext(struct lpfc_hba *phba);
 int lpfc_sli4_post_scsi_sgl_block(struct lpfc_hba *, struct list_head *, int);
-int lpfc_sli4_post_scsi_sgl_blk_ext(struct lpfc_hba *, struct list_head *,
-				    int);
 struct lpfc_cq_event *__lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 struct lpfc_cq_event *lpfc_sli4_cq_event_alloc(struct lpfc_hba *);
 void __lpfc_sli4_cq_event_release(struct lpfc_hba *, struct lpfc_cq_event *);
