@@ -945,7 +945,7 @@ static void nfs_umount_begin(struct super_block *sb)
 		rpc_killall_tasks(rpc);
 }
 
-static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(unsigned int version)
+static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void)
 {
 	struct nfs_parsed_mount_data *data;
 
@@ -960,7 +960,6 @@ static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(unsigned int ve
 		data->nfs_server.protocol = XPRT_TRANSPORT_TCP;
 		data->auth_flavors[0]	= RPC_AUTH_UNIX;
 		data->auth_flavor_len	= 1;
-		data->version		= version;
 		data->minorversion	= 0;
 		data->net		= current->nsproxy->net_ns;
 		security_init_mnt_opts(&data->lsm_opts);
@@ -2416,7 +2415,7 @@ static struct dentry *nfs_fs_mount(struct file_system_type *fs_type,
 	struct dentry *mntroot = ERR_PTR(-ENOMEM);
 	int error;
 
-	data = nfs_alloc_parsed_mount_data(NFS_DEFAULT_VERSION);
+	data = nfs_alloc_parsed_mount_data();
 	mntfh = nfs_alloc_fhandle();
 	if (data == NULL || mntfh == NULL)
 		goto out;
@@ -2867,7 +2866,7 @@ static struct dentry *nfs4_mount(struct file_system_type *fs_type,
 	int error = -ENOMEM;
 	struct dentry *res = ERR_PTR(-ENOMEM);
 
-	data = nfs_alloc_parsed_mount_data(4);
+	data = nfs_alloc_parsed_mount_data();
 	if (data == NULL)
 		goto out;
 
