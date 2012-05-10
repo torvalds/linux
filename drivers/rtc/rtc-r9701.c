@@ -122,6 +122,7 @@ static const struct rtc_class_ops r9701_rtc_ops = {
 static int __devinit r9701_probe(struct spi_device *spi)
 {
 	struct rtc_device *rtc;
+	struct rtc_time dt;
 	unsigned char tmp;
 	int res;
 
@@ -130,6 +131,27 @@ static int __devinit r9701_probe(struct spi_device *spi)
 	if (res || tmp != 0x20) {
 		dev_err(&spi->dev, "cannot read RTC register\n");
 		return -ENODEV;
+	}
+
+	/*
+	 * The device seems to be present. Now check if the registers
+	 * contain invalid values. If so, try to write a default date:
+	 * 2000/1/1 00:00:00
+	 */
+	r9701_get_datetime(&spi->dev, &dt);
+	if (rtc_valid_tm(&dt)) {
+		dev_info(&spi->dev, "trying to repair invalid date/time\n");
+		dt.tm_sec  = 0;
+		dt.tm_min  = 0;
+		dt.tm_hour = 0;
+		dt.tm_mday = 1;
+		dt.tm_mon  = 0;
+		dt.tm_year = 100;
+
+		if (r9701_set_datetime(&spi->dev, &dt)) {
+			dev_err(&spi->dev, "cannot repair RTC register\n");
+			return -ENODEV;
+		}
 	}
 
 	rtc = rtc_device_register("r9701",

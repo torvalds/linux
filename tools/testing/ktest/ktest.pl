@@ -183,6 +183,9 @@ my %force_config;
 # do not force reboots on config problems
 my $no_reboot = 1;
 
+# reboot on success
+my $reboot_success = 0;
+
 my %option_map = (
     "MACHINE"			=> \$machine,
     "SSH_USER"			=> \$ssh_user,
@@ -2192,7 +2195,7 @@ sub run_bisect {
     }
 
     # Are we looking for where it worked, not failed?
-    if ($reverse_bisect) {
+    if ($reverse_bisect && $ret >= 0) {
 	$ret = !$ret;
     }
 
@@ -3469,6 +3472,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
     # Do not reboot on failing test options
     $no_reboot = 1;
+    $reboot_success = 0;
 
     $iteration = $i;
 
@@ -3554,9 +3558,11 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 	    die "failed to checkout $checkout";
     }
 
+    $no_reboot = 0;
+
     # A test may opt to not reboot the box
     if ($reboot_on_success) {
-	$no_reboot = 0;
+	$reboot_success = 1;
     }
 
     if ($test_type eq "bisect") {
@@ -3600,7 +3606,7 @@ for (my $i = 1; $i <= $opt{"NUM_TESTS"}; $i++) {
 
 if ($opt{"POWEROFF_ON_SUCCESS"}) {
     halt;
-} elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot) {
+} elsif ($opt{"REBOOT_ON_SUCCESS"} && !do_not_reboot && $reboot_success) {
     reboot_to_good;
 } elsif (defined($switch_to_good)) {
     # still need to get to the good kernel

@@ -433,14 +433,14 @@ int amd_set_l3_disable_slot(struct amd_northbridge *nb, int cpu, unsigned slot,
 	/*  check if @slot is already used or the index is already disabled */
 	ret = amd_get_l3_disable_slot(nb, slot);
 	if (ret >= 0)
-		return -EINVAL;
+		return -EEXIST;
 
 	if (index > nb->l3_cache.indices)
 		return -EINVAL;
 
 	/* check whether the other slot has disabled the same index already */
 	if (index == amd_get_l3_disable_slot(nb, !slot))
-		return -EINVAL;
+		return -EEXIST;
 
 	amd_l3_disable_index(nb, cpu, slot, index);
 
@@ -468,8 +468,8 @@ static ssize_t store_cache_disable(struct _cpuid4_info *this_leaf,
 	err = amd_set_l3_disable_slot(this_leaf->base.nb, cpu, slot, val);
 	if (err) {
 		if (err == -EEXIST)
-			printk(KERN_WARNING "L3 disable slot %d in use!\n",
-					    slot);
+			pr_warning("L3 slot %d in use/index already disabled!\n",
+				   slot);
 		return err;
 	}
 	return count;

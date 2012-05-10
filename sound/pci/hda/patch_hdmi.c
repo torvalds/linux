@@ -757,8 +757,6 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	struct hdmi_spec *spec = codec->spec;
 	int tag = res >> AC_UNSOL_RES_TAG_SHIFT;
 	int pin_nid;
-	int pd = !!(res & AC_UNSOL_RES_PD);
-	int eldv = !!(res & AC_UNSOL_RES_ELDV);
 	int pin_idx;
 	struct hda_jack_tbl *jack;
 
@@ -768,9 +766,10 @@ static void hdmi_intrinsic_event(struct hda_codec *codec, unsigned int res)
 	pin_nid = jack->nid;
 	jack->jack_dirty = 1;
 
-	printk(KERN_INFO
+	_snd_printd(SND_PR_VERBOSE,
 		"HDMI hot plug event: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
-		codec->addr, pin_nid, pd, eldv);
+		codec->addr, pin_nid,
+		!!(res & AC_UNSOL_RES_PD), !!(res & AC_UNSOL_RES_ELDV));
 
 	pin_idx = pin_nid_to_pin_index(spec, pin_nid);
 	if (pin_idx < 0)
@@ -992,7 +991,7 @@ static void hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
 	if (eld->monitor_present)
 		eld_valid	= !!(present & AC_PINSENSE_ELDV);
 
-	printk(KERN_INFO
+	_snd_printd(SND_PR_VERBOSE,
 		"HDMI status: Codec=%d Pin=%d Presence_Detect=%d ELD_Valid=%d\n",
 		codec->addr, pin_nid, eld->monitor_present, eld_valid);
 

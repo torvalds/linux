@@ -161,7 +161,7 @@ static struct usb_composite_driver gfs_driver = {
 static struct ffs_data *gfs_ffs_data;
 static unsigned long gfs_registered;
 
-static int  gfs_init(void)
+static int __init gfs_init(void)
 {
 	ENTER();
 
@@ -169,7 +169,7 @@ static int  gfs_init(void)
 }
 module_init(gfs_init);
 
-static void  gfs_exit(void)
+static void __exit gfs_exit(void)
 {
 	ENTER();
 
