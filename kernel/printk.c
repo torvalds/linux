@@ -1230,12 +1230,13 @@ asmlinkage int vprintk_emit(int facility, int level,
 	static size_t buflen;
 	static int buflevel;
 	static char textbuf[LOG_LINE_MAX];
+	static struct task_struct *cont;
 	char *text = textbuf;
 	size_t textlen;
 	unsigned long flags;
 	int this_cpu;
 	bool newline = false;
-	bool cont = false;
+	bool prefix = false;
 	int printed_len = 0;
 
 	boot_delay_msec();
@@ -1295,20 +1296,16 @@ asmlinkage int vprintk_emit(int facility, int level,
 		case '0' ... '7':
 			if (level == -1)
 				level = text[1] - '0';
-			text += 3;
-			textlen -= 3;
-			break;
-		case 'c':	/* KERN_CONT */
-			cont = true;
 		case 'd':	/* KERN_DEFAULT */
+			prefix = true;
+		case 'c':	/* KERN_CONT */
 			text += 3;
 			textlen -= 3;
-			break;
 		}
 	}
 
-	if (buflen && (!cont || dict)) {
-		/* no continuation; flush existing buffer */
+	if (buflen && (prefix || dict || cont != current)) {
+		/* flush existing buffer */
 		log_store(facility, buflevel, NULL, 0, buf, buflen);
 		printed_len += buflen;
 		buflen = 0;
@@ -1342,6 +1339,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 				  dict, dictlen, text, textlen);
 			printed_len += textlen;
 		}
+		cont = NULL;
+	} else {
+		/* remember thread which filled the buffer */
+		cont = current;
 	}
 
 	/*
