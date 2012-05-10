@@ -158,4 +158,13 @@ wlcore_debugfs_init(struct wl1271 *wl, struct dentry *rootdir)
 	return 0;
 }
 
+static inline int
+wlcore_handle_static_data(struct wl1271 *wl, void *static_data)
+{
+	if (wl->ops->handle_static_data)
+		return wl->ops->handle_static_data(wl, static_data);
+
+	return 0;
+}
+
 #endif

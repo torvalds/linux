@@ -26,6 +26,7 @@
 
 #include "wlcore_i.h"
 #include "event.h"
+#include "boot.h"
 
 /* The maximum number of Tx descriptors in all chip families */
 #define WLCORE_MAX_TX_DESCRIPTORS 32
@@ -72,6 +73,8 @@ struct wlcore_ops {
 	u32 (*ap_get_mimo_wide_rate_mask)(struct wl1271 *wl,
 					  struct wl12xx_vif *wlvif);
 	int (*debugfs_init)(struct wl1271 *wl, struct dentry *rootdir);
+	int (*handle_static_data)(struct wl1271 *wl,
+				  struct wl1271_static_data *static_data);
 };
 
 enum wlcore_partitions {
@@ -372,6 +375,9 @@ struct wl1271 {
 
 	/* RX Data filter rule state - enabled/disabled */
 	bool rx_filter_enabled[WL1271_MAX_RX_FILTERS];
+
+	/* size of the private static data */
+	size_t static_data_priv_len;
 
 	/* the current channel type */
 	enum nl80211_channel_type channel_type;
