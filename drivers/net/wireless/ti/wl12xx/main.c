@@ -1360,11 +1360,6 @@ out:
 	return ret;
 }
 
-static int wl12xx_debugfs_init(struct wl1271 *wl, struct dentry *rootdir)
-{
-	return wl12xx_debugfs_add_files(wl, rootdir);
-}
-
 static struct wlcore_ops wl12xx_ops = {
 	.identify_chip		= wl12xx_identify_chip,
 	.identify_fw		= wl12xx_identify_fw,
@@ -1387,7 +1382,7 @@ static struct wlcore_ops wl12xx_ops = {
 	.set_tx_desc_csum	= wl12xx_set_tx_desc_csum,
 	.set_rx_csum		= NULL,
 	.ap_get_mimo_wide_rate_mask = NULL,
-	.debugfs_init		= wl12xx_debugfs_init,
+	.debugfs_init		= wl12xx_debugfs_add_files,
 };
 
 static struct ieee80211_sta_ht_cap wl12xx_ht_cap = {

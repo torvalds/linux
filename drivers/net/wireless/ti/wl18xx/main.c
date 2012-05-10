@@ -1022,11 +1022,6 @@ static void wl18xx_get_mac(struct wl1271 *wl)
 	wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
 }
 
-static int wl18xx_debugfs_init(struct wl1271 *wl, struct dentry *rootdir)
-{
-	return wl18xx_debugfs_add_files(wl, rootdir);
-}
-
 static int wl18xx_handle_static_data(struct wl1271 *wl,
 				     struct wl1271_static_data *static_data)
 {
@@ -1058,7 +1053,7 @@ static struct wlcore_ops wl18xx_ops = {
 	.sta_get_ap_rate_mask = wl18xx_sta_get_ap_rate_mask,
 	.ap_get_mimo_wide_rate_mask = wl18xx_ap_get_mimo_wide_rate_mask,
 	.get_mac	= wl18xx_get_mac,
-	.debugfs_init	= wl18xx_debugfs_init,
+	.debugfs_init	= wl18xx_debugfs_add_files,
 	.handle_static_data	= wl18xx_handle_static_data,
 };
 

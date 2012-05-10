@@ -181,9 +181,15 @@ int wl18xx_debugfs_add_files(struct wl1271 *wl,
 			     struct dentry *rootdir)
 {
 	int ret = 0;
-	struct dentry *entry, *stats;
+	struct dentry *entry, *stats, *moddir;
 
-	stats = debugfs_create_dir("wl18xx_fw_stats", rootdir);
+	moddir = debugfs_create_dir(KBUILD_MODNAME, rootdir);
+	if (!moddir || IS_ERR(moddir)) {
+		entry = moddir;
+		goto err;
+	}
+
+	stats = debugfs_create_dir("fw_stats", moddir);
 	if (!stats || IS_ERR(stats)) {
 		entry = stats;
 		goto err;
