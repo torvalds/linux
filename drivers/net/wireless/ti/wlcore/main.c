@@ -3696,7 +3696,8 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 		sta_rate_set = sta->supp_rates[wl->hw->conf.channel->band];
 		if (sta->ht_cap.ht_supported)
 			sta_rate_set |=
-			    (sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET);
+			  (sta->ht_cap.mcs.rx_mask[0] << HW_HT_RATES_OFFSET) |
+			  (sta->ht_cap.mcs.rx_mask[1] << HW_MIMO_RATES_OFFSET);
 		sta_ht_cap = sta->ht_cap;
 		sta_exists = true;
 
