@@ -775,6 +775,8 @@ static int fuse_link(struct dentry *entry, struct inode *newdir,
 static void fuse_fillattr(struct inode *inode, struct fuse_attr *attr,
 			  struct kstat *stat)
 {
+	unsigned int blkbits;
+
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = attr->ino;
 	stat->mode = (inode->i_mode & S_IFMT) | (attr->mode & 07777);
@@ -790,7 +792,13 @@ static void fuse_fillattr(struct inode *inode, struct fuse_attr *attr,
 	stat->ctime.tv_nsec = attr->ctimensec;
 	stat->size = attr->size;
 	stat->blocks = attr->blocks;
-	stat->blksize = (1 << inode->i_blkbits);
+
+	if (attr->blksize != 0)
+		blkbits = ilog2(attr->blksize);
+	else
+		blkbits = inode->i_sb->s_blocksize_bits;
+
+	stat->blksize = 1 << blkbits;
 }
 
 static int fuse_do_getattr(struct inode *inode, struct kstat *stat,
