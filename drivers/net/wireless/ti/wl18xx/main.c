@@ -501,6 +501,7 @@ static struct wl18xx_priv_conf wl18xx_default_priv_conf = {
 		.enable_clpc			= 0x00,
 		.enable_tx_low_pwr_on_siso_rdl	= 0x00,
 		.rx_profile			= 0x00,
+		.pwr_limit_reference_11_abg	= 0xc8,
 	},
 };
 
@@ -726,6 +727,8 @@ static void wl18xx_set_mac_and_phy(struct wl1271 *wl)
 		phy->clock_valid_on_wake_up;
 	params.secondary_clock_setting_time =
 		phy->secondary_clock_setting_time;
+	params.pwr_limit_reference_11_abg =
+		phy->pwr_limit_reference_11_abg;
 
 	params.board_type = priv->board_type;
 
