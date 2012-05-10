@@ -20,6 +20,8 @@
 		gpio2 = &gpio2;
 		gpio3 = &gpio3;
 		gpio4 = &gpio4;
+		saif0 = &saif0;
+		saif1 = &saif1;
 	};
 
 	cpus {
@@ -212,6 +214,23 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <1>;
 				};
+
+				saif0_pins_a: saif0@0 {
+					reg = <0>;
+					fsl,pinmux-ids =
+						<0x3140 0x3150 0x3160 0x3170>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
+
+				saif1_pins_a: saif1@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <0x31a0>;
+					fsl,drive-strength = <2>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <1>;
+				};
 			};
 
 			digctl@8001c000 {
@@ -319,8 +338,10 @@
 			};
 
 			saif0: saif@80042000 {
+				compatible = "fsl,imx28-saif";
 				reg = <0x80042000 2000>;
 				interrupts = <59 80>;
+				fsl,saif-dma-channel = <4>;
 				status = "disabled";
 			};
 
@@ -330,8 +351,10 @@
 			};
 
 			saif1: saif@80046000 {
+				compatible = "fsl,imx28-saif";
 				reg = <0x80046000 2000>;
 				interrupts = <58 81>;
+				fsl,saif-dma-channel = <5>;
 				status = "disabled";
 			};
 
