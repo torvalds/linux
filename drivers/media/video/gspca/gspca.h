@@ -251,8 +251,6 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 int gspca_suspend(struct usb_interface *intf, pm_message_t message);
 int gspca_resume(struct usb_interface *intf);
 #endif
-int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
-	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
 int gspca_expo_autogain(struct gspca_dev *gspca_dev, int avg_lum,
 	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
 int gspca_coarse_grained_expo_autogain(struct gspca_dev *gspca_dev,
