@@ -73,9 +73,7 @@ extern void nfs_fscache_unregister(void);
 extern void nfs_fscache_get_client_cookie(struct nfs_client *);
 extern void nfs_fscache_release_client_cookie(struct nfs_client *);
 
-extern void nfs_fscache_get_super_cookie(struct super_block *,
-					 const char *,
-					 struct nfs_clone_mount *);
+extern void nfs_fscache_get_super_cookie(struct super_block *, const char *, int);
 extern void nfs_fscache_release_super_cookie(struct super_block *);
 
 extern void nfs_fscache_init_inode_cookie(struct inode *);
