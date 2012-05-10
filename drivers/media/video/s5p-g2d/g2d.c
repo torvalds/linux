@@ -65,7 +65,7 @@ static struct g2d_fmt formats[] = {
 };
 #define NUM_FORMATS ARRAY_SIZE(formats)
 
-struct g2d_frame def_frame = {
+static struct g2d_frame def_frame = {
 	.width		= DEFAULT_WIDTH,
 	.height		= DEFAULT_HEIGHT,
 	.c_width	= DEFAULT_WIDTH,
@@ -77,7 +77,7 @@ struct g2d_frame def_frame = {
 	.bottom		= DEFAULT_HEIGHT,
 };
 
-struct g2d_fmt *find_fmt(struct v4l2_format *f)
+static struct g2d_fmt *find_fmt(struct v4l2_format *f)
 {
 	unsigned int i;
 	for (i = 0; i < NUM_FORMATS; i++) {
@@ -202,7 +202,7 @@ static const struct v4l2_ctrl_ops g2d_ctrl_ops = {
 	.s_ctrl		= g2d_s_ctrl,
 };
 
-int g2d_setup_ctrls(struct g2d_ctx *ctx)
+static int g2d_setup_ctrls(struct g2d_ctx *ctx)
 {
 	struct g2d_dev *dev = ctx->dev;
 
