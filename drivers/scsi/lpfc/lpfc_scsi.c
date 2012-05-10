@@ -3660,11 +3660,16 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			logit = LOG_FCP | LOG_FCP_UNDER;
 		lpfc_printf_vlog(vport, KERN_WARNING, logit,
 			 "9030 FCP cmd x%x failed <%d/%d> "
-			 "status: x%x result: x%x Data: x%x x%x\n",
+			 "status: x%x result: x%x "
+			 "sid: x%x did: x%x oxid: x%x "
+			 "Data: x%x x%x\n",
 			 cmd->cmnd[0],
 			 cmd->device ? cmd->device->id : 0xffff,
 			 cmd->device ? cmd->device->lun : 0xffff,
 			 lpfc_cmd->status, lpfc_cmd->result,
+			 vport->fc_myDID, pnode->nlp_DID,
+			 phba->sli_rev == LPFC_SLI_REV4 ?
+			     lpfc_cmd->cur_iocbq.sli4_xritag : 0xffff,
 			 pIocbOut->iocb.ulpContext,
 			 lpfc_cmd->cur_iocbq.iocb.ulpIoTag);
 
