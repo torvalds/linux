@@ -37,6 +37,7 @@ obj-$(CONFIG_NET_SCH_PLUG)	+= sch_plug.o
 obj-$(CONFIG_NET_SCH_MQPRIO)	+= sch_mqprio.o
 obj-$(CONFIG_NET_SCH_CHOKE)	+= sch_choke.o
 obj-$(CONFIG_NET_SCH_QFQ)	+= sch_qfq.o
+obj-$(CONFIG_NET_SCH_CODEL)	+= sch_codel.o
 
 obj-$(CONFIG_NET_CLS_U32)	+= cls_u32.o
 obj-$(CONFIG_NET_CLS_ROUTE4)	+= cls_route.o
