@@ -89,6 +89,7 @@ static int sh_wdt_start(struct watchdog_device *wdt_dev)
 	u8 csr;
 
 	pm_runtime_get_sync(wdt->dev);
+	clk_enable(wdt->clk);
 
 	spin_lock_irqsave(&wdt->lock, flags);
 
@@ -140,6 +141,7 @@ static int sh_wdt_stop(struct watchdog_device *wdt_dev)
 
 	spin_unlock_irqrestore(&wdt->lock, flags);
 
+	clk_disable(wdt->clk);
 	pm_runtime_put_sync(wdt->dev);
 
 	return 0;
@@ -247,12 +249,10 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 		wdt->clk = NULL;
 	}
 
-	clk_enable(wdt->clk);
-
 	wdt->base = devm_request_and_ioremap(wdt->dev, res);
 	if (unlikely(!wdt->base)) {
 		rc = -EADDRNOTAVAIL;
-		goto out_disable;
+		goto err;
 	}
 
 	watchdog_set_nowayout(&sh_wdt_dev, nowayout);
@@ -276,7 +276,7 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 	rc = watchdog_register_device(&sh_wdt_dev);
 	if (unlikely(rc)) {
 		dev_err(&pdev->dev, "Can't register watchdog (err=%d)\n", rc);
-		goto out_disable;
+		goto err;
 	}
 
 	init_timer(&wdt->timer);
@@ -292,8 +292,7 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_disable:
-	clk_disable(wdt->clk);
+err:
 	clk_put(wdt->clk);
 
 	return rc;
@@ -308,7 +307,6 @@ static int __devexit sh_wdt_remove(struct platform_device *pdev)
 	watchdog_unregister_device(&sh_wdt_dev);
 
 	pm_runtime_disable(&pdev->dev);
-	clk_disable(wdt->clk);
 	clk_put(wdt->clk);
 
 	return 0;
