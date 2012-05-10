@@ -26,11 +26,6 @@ struct at_dma_platform_data {
 /**
  * struct at_dma_slave - Controller-specific information about a slave
  * @dma_dev: required DMA master device
- * @tx_reg: physical address of data register used for
- *	memory-to-peripheral transfers
- * @rx_reg: physical address of data register used for
- *	peripheral-to-memory transfers
- * @reg_width: peripheral register width
  * @cfg: Platform-specific initializer for the CFG register
  * @ctrla: Platform-specific initializer for the CTRLA register
  */
