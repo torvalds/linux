@@ -133,7 +133,7 @@ config SH_RTS7751R2D
 
 config SH_RSK
 	bool "Renesas Starter Kit"
-	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203
+	depends on CPU_SUBTYPE_SH7201 || CPU_SUBTYPE_SH7203 || CPU_SUBTYPE_SH7264
 	help
 	 Select this option if configuring for any of the RSK+ MCU
 	 evaluation platforms.

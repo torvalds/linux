@@ -288,13 +288,6 @@ label##_hv:								\
 /* Exception addition: Hard disable interrupts */
 #define DISABLE_INTS	SOFT_DISABLE_INTS(r10,r11)
 
-/* Exception addition: Keep interrupt state */
-#define ENABLE_INTS				\
-	ld	r11,PACAKMSR(r13);		\
-	ld	r12,_MSR(r1);			\
-	rlwimi	r11,r12,0,MSR_EE;		\
-	mtmsrd	r11,1
-
 #define ADD_NVGPRS				\
 	bl	.save_nvgprs
 

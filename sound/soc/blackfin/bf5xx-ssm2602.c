@@ -99,6 +99,7 @@ static struct snd_soc_dai_link bf5xx_ssm2602_dai[] = {
 		.platform_name = "bfin-i2s-pcm-audio",
 		.codec_name = "ssm2602.0-001b",
 		.ops = &bf5xx_ssm2602_ops,
+		.dai_fmt = BF5XX_SSM2602_DAIFMT,
 	},
 	{
 		.name = "ssm2602",
@@ -108,6 +109,7 @@ static struct snd_soc_dai_link bf5xx_ssm2602_dai[] = {
 		.platform_name = "bfin-i2s-pcm-audio",
 		.codec_name = "ssm2602.0-001b",
 		.ops = &bf5xx_ssm2602_ops,
+		.dai_fmt = BF5XX_SSM2602_DAIFMT,
 	},
 };
 
