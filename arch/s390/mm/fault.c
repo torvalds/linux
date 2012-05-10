@@ -586,7 +586,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 		/* signal bit not set -> a real page is missing. */
 		if (tsk->thread.pfault_wait == 1) {
 			/* Already on the list with a reference: put to sleep */
-			set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+			__set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
 		} else if (tsk->thread.pfault_wait == -1) {
 			/* Completion interrupt was faster than the initial
@@ -602,7 +602,7 @@ static void pfault_interrupt(struct ext_code ext_code,
 			get_task_struct(tsk);
 			tsk->thread.pfault_wait = 1;
 			list_add(&tsk->thread.list, &pfault_list);
-			set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+			__set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 			set_tsk_need_resched(tsk);
 		}
 	}
