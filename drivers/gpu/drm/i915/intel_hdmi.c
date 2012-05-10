@@ -277,6 +277,18 @@ static void vlv_write_infoframe(struct drm_encoder *encoder,
 	I915_WRITE(reg, val);
 }
 
+static void hsw_write_infoframe(struct drm_encoder *encoder,
+				     struct dip_infoframe *frame)
+{
+	/* Not implemented yet, so avoid doing anything at all.
+	 * This is the placeholder for Paulo Zanoni's infoframe writing patch
+	 */
+	DRM_DEBUG_DRIVER("Attempting to write infoframe on Haswell, this is not implemented yet.\n");
+
+	return;
+
+}
+
 static void intel_set_infoframe(struct drm_encoder *encoder,
 				struct dip_infoframe *frame)
 {
@@ -660,6 +672,13 @@ void intel_hdmi_init(struct drm_device *dev, int sdvox_reg)
 		intel_hdmi->write_infoframe = vlv_write_infoframe;
 		for_each_pipe(i)
 			I915_WRITE(VLV_TVIDEO_DIP_CTL(i), 0);
+	} else if (IS_HASWELL(dev)) {
+		/* FIXME: Haswell has a new set of DIP frame registers, but we are
+		 * just doing the minimal required for HDMI to work at this stage.
+		 */
+		intel_hdmi->write_infoframe = hsw_write_infoframe;
+		for_each_pipe(i)
+			I915_WRITE(HSW_TVIDEO_DIP_CTL(i), 0);
 	} else if (HAS_PCH_IBX(dev)) {
 		intel_hdmi->write_infoframe = ibx_write_infoframe;
 		for_each_pipe(i)
