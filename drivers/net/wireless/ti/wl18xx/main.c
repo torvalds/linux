@@ -313,8 +313,9 @@ int __devinit wl18xx_probe(struct platform_device *pdev)
 {
 	struct wl1271 *wl;
 	struct ieee80211_hw *hw;
+	struct wl18xx_priv *priv;
 
-	hw = wlcore_alloc_hw(0);
+	hw = wlcore_alloc_hw(sizeof(*priv));
 	if (IS_ERR(hw)) {
 		wl1271_error("can't allocate hw");
 		return PTR_ERR(hw);
