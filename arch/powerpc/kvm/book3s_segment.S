@@ -250,6 +250,12 @@ END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
 	beq	ld_last_prev_inst
 	cmpwi	r12, BOOK3S_INTERRUPT_ALIGNMENT
 	beq-	ld_last_inst
+#ifdef CONFIG_PPC64
+BEGIN_FTR_SECTION
+	cmpwi	r12, BOOK3S_INTERRUPT_H_EMUL_ASSIST
+	beq-	ld_last_inst
+END_FTR_SECTION_IFSET(CPU_FTR_HVMODE)
+#endif
 
 	b	no_ld_last_inst
 
