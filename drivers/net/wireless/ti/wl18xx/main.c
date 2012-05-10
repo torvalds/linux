@@ -30,6 +30,7 @@
 
 #include "reg.h"
 #include "conf.h"
+#include "wl18xx.h"
 
 static struct wl18xx_conf wl18xx_default_conf = {
 	.phy = {
@@ -284,9 +285,28 @@ out:
 	return ret;
 }
 
+static void wl18xx_trigger_cmd(struct wl1271 *wl, int cmd_box_addr,
+			       void *buf, size_t len)
+{
+	struct wl18xx_priv *priv = wl->priv;
+
+	memcpy(priv->cmd_buf, buf, len);
+	memset(priv->cmd_buf + len, 0, WL18XX_CMD_MAX_SIZE - len);
+
+	wl1271_write(wl, cmd_box_addr, priv->cmd_buf, WL18XX_CMD_MAX_SIZE,
+		     false);
+}
+
+static void wl18xx_ack_event(struct wl1271 *wl)
+{
+	wlcore_write_reg(wl, REG_INTERRUPT_TRIG, WL18XX_INTR_TRIG_EVENT_ACK);
+}
+
 static struct wlcore_ops wl18xx_ops = {
 	.identify_chip	= wl18xx_identify_chip,
 	.boot		= wl18xx_boot,
+	.trigger_cmd	= wl18xx_trigger_cmd,
+	.ack_event	= wl18xx_ack_event,
 };
 
 int __devinit wl18xx_probe(struct platform_device *pdev)
