@@ -399,6 +399,14 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 	num_rsrc_err = atomic_read(&phba->num_rsrc_err);
 	num_cmd_success = atomic_read(&phba->num_cmd_success);
 
+	/*
+	 * The error and success command counters are global per
+	 * driver instance.  If another handler has already
+	 * operated on this error event, just exit.
+	 */
+	if (num_rsrc_err == 0)
+		return;
+
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
