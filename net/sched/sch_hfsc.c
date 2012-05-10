@@ -1609,7 +1609,6 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	if (cl->qdisc->q.qlen == 1)
 		set_active(cl, qdisc_pkt_len(skb));
 
-	bstats_update(&cl->bstats, skb);
 	sch->q.qlen++;
 
 	return NET_XMIT_SUCCESS;
@@ -1657,6 +1656,7 @@ hfsc_dequeue(struct Qdisc *sch)
 		return NULL;
 	}
 
+	bstats_update(&cl->bstats, skb);
 	update_vf(cl, qdisc_pkt_len(skb), cur_time);
 	if (realtime)
 		cl->cl_cumul += qdisc_pkt_len(skb);
