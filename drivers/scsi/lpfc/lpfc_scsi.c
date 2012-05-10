@@ -1945,7 +1945,9 @@ lpfc_bg_setup_bpl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	dma_addr_t physaddr;
 	int i = 0, num_bde = 0, status;
 	int datadir = sc->sc_data_direction;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t rc;
+#endif
 	uint32_t checking = 1;
 	uint32_t reftag;
 	unsigned blksize;
@@ -2082,7 +2084,9 @@ lpfc_bg_setup_bpl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	int datadir = sc->sc_data_direction;
 	unsigned char pgdone = 0, alldone = 0;
 	unsigned blksize;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t rc;
+#endif
 	uint32_t checking = 1;
 	uint32_t reftag;
 	uint8_t txop, rxop;
@@ -2301,7 +2305,9 @@ lpfc_bg_setup_sgl(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	uint32_t reftag;
 	unsigned blksize;
 	uint8_t txop, rxop;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t rc;
+#endif
 	uint32_t checking = 1;
 	uint32_t dma_len;
 	uint32_t dma_offset = 0;
@@ -2431,7 +2437,9 @@ lpfc_bg_setup_sgl_prot(struct lpfc_hba *phba, struct scsi_cmnd *sc,
 	uint32_t reftag;
 	uint8_t txop, rxop;
 	uint32_t dma_len;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint32_t rc;
+#endif
 	uint32_t checking = 1;
 	uint32_t dma_offset = 0;
 	int num_sge = 0;
