@@ -786,6 +786,22 @@ static bool printk_time;
 #endif
 module_param_named(time, printk_time, bool, S_IRUGO | S_IWUSR);
 
+static size_t prepend_timestamp(unsigned long long t, char *buf)
+{
+	unsigned long rem_ns;
+
+	if (!printk_time)
+		return 0;
+
+	if (!buf)
+		return 15;
+
+	rem_ns = do_div(t, 1000000000);
+
+	return sprintf(buf, "[%5lu.%06lu] ",
+		       (unsigned long) t, rem_ns / 1000);
+}
+
 static int syslog_print_line(u32 idx, char *text, size_t size)
 {
 	struct log *msg;
@@ -800,9 +816,7 @@ static int syslog_print_line(u32 idx, char *text, size_t size)
 			len++;
 		if (msg->level > 99)
 			len++;
-
-		if (printk_time)
-			len += 15;
+		len += prepend_timestamp(0, NULL);
 
 		len += msg->text_len;
 		len++;
@@ -810,15 +824,7 @@ static int syslog_print_line(u32 idx, char *text, size_t size)
 	}
 
 	len = sprintf(text, "<%u>", msg->level);
-
-	if (printk_time) {
-		unsigned long long t = msg->ts_nsec;
-		unsigned long rem_ns = do_div(t, 1000000000);
-
-		len += sprintf(text + len, "[%5lu.%06lu] ",
-				   (unsigned long) t, rem_ns / 1000);
-	}
-
+	len += prepend_timestamp(msg->ts_nsec, text + len);
 	if (len + msg->text_len > size)
 		return -EINVAL;
 	memcpy(text + len, log_text(msg), msg->text_len);
@@ -1741,7 +1747,7 @@ again:
 	for (;;) {
 		struct log *msg;
 		static char text[LOG_LINE_MAX];
-		size_t len;
+		size_t len, l;
 		int level;
 
 		raw_spin_lock_irqsave(&logbuf_lock, flags);
@@ -1761,10 +1767,13 @@ again:
 
 		msg = log_from_idx(console_idx);
 		level = msg->level & 7;
-		len = msg->text_len;
-		if (len+1 >= sizeof(text))
-			len = sizeof(text)-1;
-		memcpy(text, log_text(msg), len);
+
+		len = prepend_timestamp(msg->ts_nsec, text);
+		l = msg->text_len;
+		if (len + l + 1 >= sizeof(text))
+			l = sizeof(text) - len - 1;
+		memcpy(text + len, log_text(msg), l);
+		len += l;
 		text[len++] = '\n';
 
 		console_idx = log_next(console_idx);
