@@ -3,7 +3,7 @@
  *
  * Watchdog driver for integrated watchdog in the SuperH processors.
  *
- * Copyright (C) 2001 - 2010  Paul Mundt <lethal@linux-sh.org>
+ * Copyright (C) 2001 - 2012  Paul Mundt <lethal@linux-sh.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,8 +27,6 @@
 #include <linux/types.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <linux/reboot.h>
-#include <linux/notifier.h>
 #include <linux/ioport.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
@@ -293,17 +291,6 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-static int sh_wdt_notify_sys(struct notifier_block *this,
-			     unsigned long code, void *unused)
-{
-	struct sh_wdt *wdt = platform_get_drvdata(sh_wdt_dev);
-
-	if (code == SYS_DOWN || code == SYS_HALT)
-		sh_wdt_stop(wdt);
-
-	return NOTIFY_DONE;
-}
-
 static const struct file_operations sh_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
@@ -318,10 +305,6 @@ static const struct watchdog_info sh_wdt_info = {
 				  WDIOF_MAGICCLOSE,
 	.firmware_version	= 1,
 	.identity		= "SH WDT",
-};
-
-static struct notifier_block sh_wdt_notifier = {
-	.notifier_call		= sh_wdt_notify_sys,
 };
 
 static struct miscdevice sh_wdt_miscdev = {
@@ -365,13 +348,6 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 		goto out_err;
 	}
 
-	rc = register_reboot_notifier(&sh_wdt_notifier);
-	if (unlikely(rc)) {
-		dev_err(&pdev->dev,
-			"Can't register reboot notifier (err=%d)\n", rc);
-		goto out_unmap;
-	}
-
 	sh_wdt_miscdev.parent = wdt->dev;
 
 	rc = misc_register(&sh_wdt_miscdev);
@@ -379,7 +355,7 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"Can't register miscdev on minor=%d (err=%d)\n",
 						sh_wdt_miscdev.minor, rc);
-		goto out_unreg;
+		goto out_unmap;
 	}
 
 	init_timer(&wdt->timer);
@@ -394,8 +370,6 @@ static int __devinit sh_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-out_unreg:
-	unregister_reboot_notifier(&sh_wdt_notifier);
 out_unmap:
 	devm_iounmap(&pdev->dev, wdt->base);
 out_err:
@@ -417,12 +391,18 @@ static int __devexit sh_wdt_remove(struct platform_device *pdev)
 
 	sh_wdt_dev = NULL;
 
-	unregister_reboot_notifier(&sh_wdt_notifier);
 	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
 	devm_iounmap(&pdev->dev, wdt->base);
 	devm_kfree(&pdev->dev, wdt);
 
 	return 0;
+}
+
+static void sh_wdt_shutdown(struct platform_device *pdev)
+{
+	struct sh_wdt *wdt = platform_get_drvdata(pdev);
+
+	sh_wdt_stop(wdt);
 }
 
 static struct platform_driver sh_wdt_driver = {
@@ -431,8 +411,9 @@ static struct platform_driver sh_wdt_driver = {
 		.owner	= THIS_MODULE,
 	},
 
-	.probe	= sh_wdt_probe,
-	.remove	= __devexit_p(sh_wdt_remove),
+	.probe		= sh_wdt_probe,
+	.remove		= __devexit_p(sh_wdt_remove),
+	.shutdown	= sh_wdt_shutdown,
 };
 
 static int __init sh_wdt_init(void)
