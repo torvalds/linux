@@ -542,8 +542,7 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 		desc = channel->device->device_prep_slave_sg(channel,
 					     ctx->device->dma.sg_src,
 					     ctx->device->dma.sg_src_len,
-					     direction,
-					     DMA_CTRL_ACK);
+					     direction, DMA_CTRL_ACK, NULL);
 		break;
 
 	case DMA_FROM_DEVICE:
@@ -569,7 +568,7 @@ static int cryp_set_dma_transfer(struct cryp_ctx *ctx,
 					     ctx->device->dma.sg_dst_len,
 					     direction,
 					     DMA_CTRL_ACK |
-					     DMA_PREP_INTERRUPT);
+					     DMA_PREP_INTERRUPT, NULL);
 
 		desc->callback = cryp_dma_out_callback;
 		desc->callback_param = ctx;
