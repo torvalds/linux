@@ -1907,8 +1907,9 @@ static struct pinmux_gpio pinmux_gpios[] = {
 
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
 	/* "name" addr register_size Field_Width */
+
 	/* where Field_Width is 1 for single mode registers or 4 for upto 16
-	/* mode registers and modes are described in assending order [0..16] */
+	   mode registers and modes are described in assending order [0..16] */
 
 	{ PINMUX_CFG_REG("PAIOR0", 0xfffe3812, 16, 1) {
 		0, 0, 0, 0, 0, 0, 0, 0,
