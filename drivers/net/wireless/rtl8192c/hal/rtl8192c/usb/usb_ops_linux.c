@@ -1067,6 +1067,7 @@ _func_enter_;
 			{
 				RT_TRACE(_module_hci_ops_os_c_,_drv_err_,("cannot submit rx in-token(err=0x%.8x), URB_STATUS =0x%.8x", err, purb->status));
 				DBG_8192C("cannot submit rx in-token(err = 0x%08x),urb_status = %d\n",err,purb->status);
+				printk("gwl ============ usb_read_port fail!\n");
 				ret = _FAIL;
 			}
 			

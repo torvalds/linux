@@ -31,7 +31,7 @@
 
 #define PLATFORM_LINUX	1
 
-
+//#define RK_DRIVER_LOCK	1 //added driver wake_lock judge,(gwl)
 /*
  * Internal  General Config
  */
