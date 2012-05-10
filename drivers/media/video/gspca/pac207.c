@@ -46,13 +46,11 @@ MODULE_LICENSE("GPL");
 #define PAC207_EXPOSURE_MIN		3
 #define PAC207_EXPOSURE_MAX		90 /* 1 sec expo time / 1 fps */
 #define PAC207_EXPOSURE_DEFAULT		5 /* power on default: 3 */
-#define PAC207_EXPOSURE_KNEE		9 /* fps: 90 / exposure -> 9: 10 fps */
 #define PAC207_EXPOSURE_REG		0x02
 
 #define PAC207_GAIN_MIN			0
 #define PAC207_GAIN_MAX			31
 #define PAC207_GAIN_DEFAULT		7 /* power on default: 9 */
-#define PAC207_GAIN_KNEE		15
 #define PAC207_GAIN_REG			0x0e
 
 #define PAC207_AUTOGAIN_DEADZONE	30
@@ -343,9 +341,8 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
-	else if (gspca_expo_autogain(gspca_dev, avg_lum,
-			90, PAC207_AUTOGAIN_DEADZONE,
-			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
+	else if (gspca_coarse_grained_expo_autogain(gspca_dev, avg_lum,
+			90, PAC207_AUTOGAIN_DEADZONE))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
