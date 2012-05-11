@@ -431,22 +431,6 @@ config USB_GOKU
 	   dynamically linked module called "goku_udc" and to force all
 	   gadget drivers to also be dynamically linked.
 
-config USB_LANGWELL
-	tristate "Intel Langwell USB Device Controller"
-	depends on PCI
-	depends on !PHYS_ADDR_T_64BIT
-	select USB_GADGET_DUALSPEED
-	help
-	   Intel Langwell USB Device Controller is a High-Speed USB
-	   On-The-Go device controller.
-
-	   The number of programmable endpoints is different through
-	   controller revision.
-
-	   Say "y" to link the driver statically, or "m" to build a
-	   dynamically linked module called "langwell_udc" and force all
-	   gadget drivers to also be dynamically linked.
-
 config USB_EG20T
 	tristate "Intel EG20T PCH/LAPIS Semiconductor IOH(ML7213/ML7831) UDC"
 	depends on PCI
