@@ -127,12 +127,21 @@ enum trace_flag_type {
 
 #define TRACE_BUF_SIZE		1024
 
+struct trace_array;
+
+struct trace_cpu {
+	struct trace_array	*tr;
+	struct dentry		*dir;
+	int			cpu;
+};
+
 /*
  * The CPU trace array - it consists of thousands of trace entries
  * plus some other descriptor data: (for example which task started
  * the trace, etc.)
  */
 struct trace_array_cpu {
+	struct trace_cpu	trace_cpu;
 	atomic_t		disabled;
 	void			*buffer_page;	/* ring buffer spare */
 
@@ -151,6 +160,8 @@ struct trace_array_cpu {
 	char			comm[TASK_COMM_LEN];
 };
 
+struct tracer;
+
 /*
  * The trace array - an array of per-CPU trace arrays. This is the
  * highest level data structure that individual tracers deal with.
@@ -161,9 +172,16 @@ struct trace_array {
 	struct list_head	list;
 	int			cpu;
 	int			buffer_disabled;
+	struct trace_cpu	trace_cpu;	/* place holder */
+	int			stop_count;
+	int			clock_id;
+	struct tracer		*current_trace;
 	unsigned int		flags;
 	cycle_t			time_start;
+	raw_spinlock_t		start_lock;
 	struct dentry		*dir;
+	struct dentry		*options;
+	struct dentry		*percpu_dir;
 	struct dentry		*event_dir;
 	struct list_head	systems;
 	struct list_head	events;
@@ -474,6 +492,7 @@ struct dentry *trace_create_file(const char *name,
 				 void *data,
 				 const struct file_operations *fops);
 
+struct dentry *tracing_init_dentry_tr(struct trace_array *tr);
 struct dentry *tracing_init_dentry(void);
 
 struct ring_buffer_event;
@@ -979,7 +998,7 @@ extern const char *__stop___trace_bprintk_fmt[];
 void trace_printk_init_buffers(void);
 void trace_printk_start_comm(void);
 int trace_keep_overwrite(struct tracer *tracer, u32 mask, int set);
-int set_tracer_flag(unsigned int mask, int enabled);
+int set_tracer_flag(struct trace_array *tr, unsigned int mask, int enabled);
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, id, tstruct, print, filter)	\
