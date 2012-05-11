@@ -267,13 +267,17 @@ BTFIXUPDEF_CALL_CONST(pte_t, mk_pte, struct page *, pgprot_t)
 
 BTFIXUPDEF_CALL_CONST(pte_t, mk_pte_phys, unsigned long, pgprot_t)
 BTFIXUPDEF_CALL_CONST(pte_t, mk_pte_io, unsigned long, pgprot_t, int)
-BTFIXUPDEF_CALL_CONST(pgprot_t, pgprot_noncached, pgprot_t)
 
 #define mk_pte(page,pgprot) BTFIXUP_CALL(mk_pte)(page,pgprot)
 #define mk_pte_phys(page,pgprot) BTFIXUP_CALL(mk_pte_phys)(page,pgprot)
 #define mk_pte_io(page,pgprot,space) BTFIXUP_CALL(mk_pte_io)(page,pgprot,space)
 
-#define pgprot_noncached(pgprot) BTFIXUP_CALL(pgprot_noncached)(pgprot)
+#define pgprot_noncached pgprot_noncached
+static inline pgprot_t pgprot_noncached(pgprot_t prot)
+{
+	prot &= ~__pgprot(SRMMU_CACHE);
+	return prot;
+}
 
 BTFIXUPDEF_INT(pte_modify_mask)
 
@@ -352,11 +356,15 @@ BTFIXUPDEF_CALL(swp_entry_t, __swp_entry, unsigned long, unsigned long)
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
 /* file-offset-in-pte helpers */
-BTFIXUPDEF_CALL(unsigned long, pte_to_pgoff, pte_t pte);
-BTFIXUPDEF_CALL(pte_t, pgoff_to_pte, unsigned long pgoff);
+static inline unsigned long pte_to_pgoff(pte_t pte)
+{
+	return pte_val(pte) >> SRMMU_PTE_FILE_SHIFT;
+}
 
-#define pte_to_pgoff(pte) BTFIXUP_CALL(pte_to_pgoff)(pte)
-#define pgoff_to_pte(off) BTFIXUP_CALL(pgoff_to_pte)(off)
+static inline pte_t pgoff_to_pte(unsigned long pgoff)
+{
+	return __pte((pgoff << SRMMU_PTE_FILE_SHIFT) | SRMMU_FILE);
+}
 
 /*
  * This is made a constant because mm/fremap.c required a constant.

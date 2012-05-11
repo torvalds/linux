@@ -40,7 +40,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_sgl));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_get_scsi_one));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_sgl));
 EXPORT_SYMBOL(BTFIXUP_CALL(mmu_release_scsi_one));
-EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
 
 /* Exporting a symbol from /init/main.c */
 EXPORT_SYMBOL(saved_command_line);

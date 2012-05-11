@@ -2144,23 +2144,6 @@ static void smp_flush_page_for_dma(unsigned long page)
 
 #endif
 
-static pte_t srmmu_pgoff_to_pte(unsigned long pgoff)
-{
-	return __pte((pgoff << SRMMU_PTE_FILE_SHIFT) | SRMMU_FILE);
-}
-
-static unsigned long srmmu_pte_to_pgoff(pte_t pte)
-{
-	return pte_val(pte) >> SRMMU_PTE_FILE_SHIFT;
-}
-
-static pgprot_t srmmu_pgprot_noncached(pgprot_t prot)
-{
-	prot &= ~__pgprot(SRMMU_CACHE);
-
-	return prot;
-}
-
 /* Load up routines and constants for sun4m and sun4d mmu */
 void __init ld_mmu_srmmu(void)
 {
@@ -2183,7 +2166,6 @@ void __init ld_mmu_srmmu(void)
 	page_kernel = pgprot_val(SRMMU_PAGE_KERNEL);
 
 	/* Functions */
-	BTFIXUPSET_CALL(pgprot_noncached, srmmu_pgprot_noncached, BTFIXUPCALL_NORM);
 #ifndef CONFIG_SMP	
 	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4md, BTFIXUPCALL_SWAPG1G2);
 #endif
@@ -2249,9 +2231,6 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(__swp_entry, srmmu_swp_entry, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(mmu_info, srmmu_mmu_info, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(pte_to_pgoff, srmmu_pte_to_pgoff, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pgoff_to_pte, srmmu_pgoff_to_pte, BTFIXUPCALL_NORM);
 
 	get_srmmu_type();
 
