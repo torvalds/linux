@@ -231,7 +231,6 @@ struct ixgbevf_adapter {
 	bool link_up;
 
 	struct work_struct watchdog_task;
-	bool netdev_registered;
 };
 
 enum ixbgevf_state_t {
