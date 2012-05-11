@@ -394,32 +394,6 @@ mwifiex_set_rf_channel(struct mwifiex_private *priv,
 }
 
 /*
- * CFG802.11 operation handler to set channel.
- *
- * This function can only be used when station is not connected.
- */
-static int
-mwifiex_cfg80211_set_channel(struct wiphy *wiphy, struct net_device *dev,
-			     struct ieee80211_channel *chan,
-			     enum nl80211_channel_type channel_type)
-{
-	struct mwifiex_private *priv;
-	struct mwifiex_adapter *adapter = mwifiex_cfg80211_get_adapter(wiphy);
-
-	if (dev)
-		priv = mwifiex_netdev_get_priv(dev);
-	else
-		priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA);
-
-	if (priv->media_connected) {
-		wiphy_err(wiphy, "This is invalid in connected state\n");
-		return -EINVAL;
-	}
-
-	return mwifiex_set_rf_channel(priv, chan, channel_type);
-}
-
-/*
  * This function sets the fragmentation threshold.
  *
  * The fragmentation threshold value must lie between MWIFIEX_FRAG_MIN_VALUE
@@ -1661,7 +1635,6 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.get_station = mwifiex_cfg80211_get_station,
 	.dump_station = mwifiex_cfg80211_dump_station,
 	.set_wiphy_params = mwifiex_cfg80211_set_wiphy_params,
-	.set_channel = mwifiex_cfg80211_set_channel,
 	.join_ibss = mwifiex_cfg80211_join_ibss,
 	.leave_ibss = mwifiex_cfg80211_leave_ibss,
 	.add_key = mwifiex_cfg80211_add_key,
