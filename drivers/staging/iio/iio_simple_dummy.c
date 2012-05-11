@@ -470,8 +470,6 @@ error_unconfigure_buffer:
 error_unregister_events:
 	iio_simple_dummy_events_unregister(indio_dev);
 error_free_device:
-	/* Note free device should only be called, before registration
-	 * has succeeded. */
 	iio_device_free(indio_dev);
 error_ret:
 	return ret;
