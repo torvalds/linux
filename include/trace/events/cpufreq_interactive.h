@@ -83,27 +83,27 @@ DEFINE_EVENT(loadeval, cpufreq_interactive_notyet,
 );
 
 TRACE_EVENT(cpufreq_interactive_boost,
-	    TP_PROTO(char *s),
+	    TP_PROTO(const char *s),
 	    TP_ARGS(s),
 	    TP_STRUCT__entry(
-		    __field(char *, s)
+		    __string(s, s)
 	    ),
 	    TP_fast_assign(
-		    __entry->s = s;
+		    __assign_str(s, s);
 	    ),
-	    TP_printk("%s", __entry->s)
+	    TP_printk("%s", __get_str(s))
 );
 
 TRACE_EVENT(cpufreq_interactive_unboost,
-	    TP_PROTO(char *s),
+	    TP_PROTO(const char *s),
 	    TP_ARGS(s),
 	    TP_STRUCT__entry(
-		    __field(char *, s)
+		    __string(s, s)
 	    ),
 	    TP_fast_assign(
-		    __entry->s = s;
+		    __assign_str(s, s);
 	    ),
-	    TP_printk("%s", __entry->s)
+	    TP_printk("%s", __get_str(s))
 );
 
 #endif /* _TRACE_CPUFREQ_INTERACTIVE_H */
