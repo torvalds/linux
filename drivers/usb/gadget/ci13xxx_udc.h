@@ -122,7 +122,7 @@ struct hw_bank {
 	void __iomem *cap;    /* bus map offset + CAP offset */
 	void __iomem *op;     /* bus map offset + OP offset */
 	size_t        size;   /* bank size */
-	void *__iomem *regmap;
+	void __iomem **regmap;
 };
 
 /* CI13XXX UDC descriptor & global resources */
