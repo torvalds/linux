@@ -41,8 +41,8 @@ sound {
 	ssi-controller = <&ssi1>;
 	audio-codec = <&sgtl5000>;
 	audio-routing =
+		"MIC_IN", "Mic Jack",
 		"Mic Jack", "Mic Bias",
-		"MIC_IN", "Mic Bias",
 		"Headphone Jack", "HP_OUT";
 	mux-int-port = <1>;
 	mux-ext-port = <3>;
