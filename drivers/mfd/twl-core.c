@@ -137,7 +137,7 @@
 
 /* Last - for index max*/
 #define TWL4030_MODULE_LAST		TWL4030_MODULE_SECURED_REG
-#define TWL6030_MODULE_LAST		TWL6030_MODULE_SLAVE_RES  //xsf
+//#define TWL6030_MODULE_LAST		TWL6030_MODULE_SLAVE_RES  //xsf
 #define TWL6030_MODULE_LAST		TWL_MODULE_PM_DVS //add
 #define TWL_NUM_SLAVES		4
 
@@ -1329,7 +1329,7 @@ static void clocks_init(struct device *dev,
 
 #ifdef CONFIG_PM
 static int twl_suspend(struct i2c_client *client, pm_message_t mesg)
-{	
+{		
 	return irq_set_irq_wake(client->irq, 1);
 }
 
@@ -1484,14 +1484,14 @@ twl_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (pdata && pdata->pre_init) {
 		ret = pdata->pre_init();
 		if (ret != 0) {
-			printk(" tps80032 pre_init() failed: %d\n");
+			printk(" tps80032 pre_init() failed\n");
 		}
 	}
 	
 	if (pdata && pdata->set_init) {
 		ret = pdata->set_init();
 		if (ret != 0) {
-			printk(" tps80032 set_init() failed: %d\n");
+			printk(" tps80032 set_init() failed\n");
 		}
 	}
 	
