@@ -17,6 +17,14 @@
 #include "gator_events_mali_common.h"
 #include "gator_events_mali_400.h"
 
+#if !defined(GATOR_MALI_INTERFACE_STYLE)
+/*
+ * At the moment, we only have users with the old style interface, so
+ * make our life easier by making it the default...
+ */
+#define GATOR_MALI_INTERFACE_STYLE (2)
+#endif
+
 /*
  * There are (currently) three different variants of the comms between gator and Mali:
  * 1 (deprecated): No software counter support
