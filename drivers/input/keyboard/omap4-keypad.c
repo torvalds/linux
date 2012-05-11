@@ -322,19 +322,18 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	input_dev->open = omap4_keypad_open;
 	input_dev->close = omap4_keypad_close;
 
-	input_dev->keycode	= keypad_data->keymap;
-	input_dev->keycodesize	= sizeof(keypad_data->keymap[0]);
-	input_dev->keycodemax	= max_keys;
+	error = matrix_keypad_build_keymap(pdata->keymap_data, NULL,
+					   pdata->rows, pdata->cols,
+					   keypad_data->keymap, input_dev);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto err_free_input;
+	}
 
-	__set_bit(EV_KEY, input_dev->evbit);
 	__set_bit(EV_REP, input_dev->evbit);
-
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
 	input_set_drvdata(input_dev, keypad_data);
-
-	matrix_keypad_build_keymap(pdata->keymap_data, row_shift,
-			input_dev->keycode, input_dev->keybit);
 
 	error = request_irq(keypad_data->irq, omap4_keypad_interrupt,
 			     IRQF_TRIGGER_RISING,

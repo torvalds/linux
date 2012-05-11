@@ -303,19 +303,16 @@ static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
 	input_dev->open = ep93xx_keypad_open;
 	input_dev->close = ep93xx_keypad_close;
 	input_dev->dev.parent = &pdev->dev;
-	input_dev->keycode = keypad->keycodes;
-	input_dev->keycodesize = sizeof(keypad->keycodes[0]);
-	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
 
-	input_set_drvdata(input_dev, keypad);
+	err = matrix_keypad_build_keymap(keymap_data, NULL,
+					 EP93XX_MATRIX_ROWS, EP93XX_MATRIX_COLS,
+					 keypad->keycodes, input_dev);
+	if (err)
+		goto failed_free_dev;
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 	if (keypad->pdata->flags & EP93XX_KEYPAD_AUTOREPEAT)
-		input_dev->evbit[0] |= BIT_MASK(EV_REP);
-
-	matrix_keypad_build_keymap(keymap_data, 3,
-				   input_dev->keycode, input_dev->keybit);
-	platform_set_drvdata(pdev, keypad);
+		__set_bit(EV_REP, input_dev->evbit);
+	input_set_drvdata(input_dev, keypad);
 
 	err = request_irq(keypad->irq, ep93xx_keypad_irq_handler,
 			  0, pdev->name, keypad);
@@ -326,6 +323,7 @@ static int __devinit ep93xx_keypad_probe(struct platform_device *pdev)
 	if (err)
 		goto failed_free_irq;
 
+	platform_set_drvdata(pdev, keypad);
 	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;

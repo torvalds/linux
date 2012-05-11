@@ -78,7 +78,7 @@
  * @input:      pointer to input device object
  * @board:      keypad platform device
  * @krow:	number of rows
- * @kcol:	number of coloumns
+ * @kcol:	number of columns
  * @keymap:     matrix scan code table for keycodes
  * @keypad_stopped: holds keypad status
  */
@@ -333,23 +333,22 @@ static int __devinit tc3589x_keypad_probe(struct platform_device *pdev)
 	input->name = pdev->name;
 	input->dev.parent = &pdev->dev;
 
-	input->keycode = keypad->keymap;
-	input->keycodesize = sizeof(keypad->keymap[0]);
-	input->keycodemax = ARRAY_SIZE(keypad->keymap);
-
 	input->open = tc3589x_keypad_open;
 	input->close = tc3589x_keypad_close;
 
-	input_set_drvdata(input, keypad);
+	error = matrix_keypad_build_keymap(plat->keymap_data, NULL,
+					   TC3589x_MAX_KPROW, TC3589x_MAX_KPCOL,
+					   keypad->keymap, input);
+	if (error) {
+		dev_err(&pdev->dev, "Failed to build keymap\n");
+		goto err_free_mem;
+	}
 
 	input_set_capability(input, EV_MSC, MSC_SCAN);
-
-	__set_bit(EV_KEY, input->evbit);
 	if (!plat->no_autorepeat)
 		__set_bit(EV_REP, input->evbit);
 
-	matrix_keypad_build_keymap(plat->keymap_data, 0x3,
-			input->keycode, input->keybit);
+	input_set_drvdata(input, keypad);
 
 	error = request_threaded_irq(irq, NULL,
 			tc3589x_keypad_irq, plat->irqtype,

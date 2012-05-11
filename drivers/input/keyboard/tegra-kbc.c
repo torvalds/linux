@@ -686,6 +686,7 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	int num_rows = 0;
 	unsigned int debounce_cnt;
 	unsigned int scan_time_rows;
+	unsigned int keymap_rows;
 
 	if (!pdata)
 		pdata = tegra_kbc_dt_parse_pdata(pdev);
@@ -757,29 +758,34 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	kbc->repoll_dly = KBC_ROW_SCAN_DLY + scan_time_rows + pdata->repeat_cnt;
 	kbc->repoll_dly = DIV_ROUND_UP(kbc->repoll_dly, KBC_CYCLE_MS);
 
+	kbc->wakeup_key = pdata->wakeup_key;
+	kbc->use_fn_map = pdata->use_fn_map;
+	kbc->use_ghost_filter = pdata->use_ghost_filter;
+
 	input_dev->name = pdev->name;
 	input_dev->id.bustype = BUS_HOST;
 	input_dev->dev.parent = &pdev->dev;
 	input_dev->open = tegra_kbc_open;
 	input_dev->close = tegra_kbc_close;
 
-	input_set_drvdata(input_dev, kbc);
+	keymap_rows = KBC_MAX_KEY;
+	if (pdata->use_fn_map)
+		keymap_rows *= 2;
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
+	keymap_data = pdata->keymap_data ?: &tegra_kbc_default_keymap_data;
+
+	err = matrix_keypad_build_keymap(keymap_data, NULL,
+					 keymap_rows, KBC_MAX_COL,
+					 kbc->keycode, input_dev);
+	if (err) {
+		dev_err(&pdev->dev, "failed to build keymap\n");
+		goto err_put_clk;
+	}
+
+	__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	input_dev->keycode = kbc->keycode;
-	input_dev->keycodesize = sizeof(kbc->keycode[0]);
-	input_dev->keycodemax = KBC_MAX_KEY;
-	if (pdata->use_fn_map)
-		input_dev->keycodemax *= 2;
-
-	kbc->use_fn_map = pdata->use_fn_map;
-	kbc->use_ghost_filter = pdata->use_ghost_filter;
-	keymap_data = pdata->keymap_data ?: &tegra_kbc_default_keymap_data;
-	matrix_keypad_build_keymap(keymap_data, KBC_ROW_SHIFT,
-				   input_dev->keycode, input_dev->keybit);
-	kbc->wakeup_key = pdata->wakeup_key;
+	input_set_drvdata(input_dev, kbc);
 
 	err = request_irq(kbc->irq, tegra_kbc_isr,
 			  IRQF_NO_SUSPEND | IRQF_TRIGGER_HIGH, pdev->name, kbc);

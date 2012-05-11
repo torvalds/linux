@@ -437,19 +437,18 @@ static int __devinit matrix_keypad_probe(struct platform_device *pdev)
 	input_dev->name		= pdev->name;
 	input_dev->id.bustype	= BUS_HOST;
 	input_dev->dev.parent	= &pdev->dev;
-	input_dev->evbit[0]	= BIT_MASK(EV_KEY);
-	if (!pdata->no_autorepeat)
-		input_dev->evbit[0] |= BIT_MASK(EV_REP);
 	input_dev->open		= matrix_keypad_start;
 	input_dev->close	= matrix_keypad_stop;
 
-	input_dev->keycode	= keypad->keycodes;
-	input_dev->keycodesize	= sizeof(keypad->keycodes[0]);
-	input_dev->keycodemax	= pdata->num_row_gpios << row_shift;
+	err = matrix_keypad_build_keymap(keymap_data, NULL,
+					 pdata->num_row_gpios,
+					 pdata->num_col_gpios,
+					 keypad->keycodes, input_dev);
+	if (err)
+		goto err_free_mem;
 
-	matrix_keypad_build_keymap(keymap_data, row_shift,
-				   input_dev->keycode, input_dev->keybit);
-
+	if (!pdata->no_autorepeat)
+		__set_bit(EV_REP, input_dev->evbit);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 	input_set_drvdata(input_dev, keypad);
 

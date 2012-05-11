@@ -29,9 +29,9 @@
 
 #define LM8333_FIFO_TRANSFER_SIZE	16
 
-#define LM8333_ROW_SHIFT	4
 #define LM8333_NUM_ROWS		8
-
+#define LM8333_NUM_COLS		16
+#define LM8333_ROW_SHIFT	4
 
 struct lm8333 {
 	struct i2c_client *client;
@@ -159,14 +159,13 @@ static int __devinit lm8333_probe(struct i2c_client *client,
 	input->dev.parent = &client->dev;
 	input->id.bustype = BUS_I2C;
 
-	input->keycode = lm8333->keycodes;
-	input->keycodesize = sizeof(lm8333->keycodes[0]);
-	input->keycodemax = ARRAY_SIZE(lm8333->keycodes);
-	input->evbit[0] = BIT_MASK(EV_KEY);
 	input_set_capability(input, EV_MSC, MSC_SCAN);
 
-	matrix_keypad_build_keymap(pdata->matrix_data, LM8333_ROW_SHIFT,
-			input->keycode, input->keybit);
+	err = matrix_keypad_build_keymap(pdata->matrix_data, NULL,
+					 LM8333_NUM_ROWS, LM8333_NUM_COLS,
+					 lm8333->keycodes, input);
+	if (err)
+		goto free_mem;
 
 	if (pdata->debounce_time) {
 		err = lm8333_write8(lm8333, LM8333_DEBOUNCE,
