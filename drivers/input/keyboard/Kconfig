@@ -522,9 +522,9 @@ config KEYBOARD_OMAP
 	  module will be called omap-keypad.
 
 config KEYBOARD_OMAP4
-	tristate "TI OMAP4 keypad support"
+	tristate "TI OMAP4+ keypad support"
 	help
-	  Say Y here if you want to use the OMAP4 keypad.
+	  Say Y here if you want to use the OMAP4+ keypad.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called omap4-keypad.

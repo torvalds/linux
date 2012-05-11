@@ -68,18 +68,51 @@
 
 #define OMAP4_MASK_IRQSTATUSDISABLE	0xFFFF
 
+enum {
+	KBD_REVISION_OMAP4 = 0,
+	KBD_REVISION_OMAP5,
+};
+
 struct omap4_keypad {
 	struct input_dev *input;
 
 	void __iomem *base;
-	int irq;
+	unsigned int irq;
 
 	unsigned int rows;
 	unsigned int cols;
+	u32 reg_offset;
+	u32 irqreg_offset;
 	unsigned int row_shift;
 	unsigned char key_state[8];
 	unsigned short keymap[];
 };
+
+static int kbd_readl(struct omap4_keypad *keypad_data, u32 offset)
+{
+	return __raw_readl(keypad_data->base +
+				keypad_data->reg_offset + offset);
+}
+
+static void kbd_writel(struct omap4_keypad *keypad_data, u32 offset, u32 value)
+{
+	__raw_writel(value,
+		     keypad_data->base + keypad_data->reg_offset + offset);
+}
+
+static int kbd_read_irqreg(struct omap4_keypad *keypad_data, u32 offset)
+{
+	return __raw_readl(keypad_data->base +
+				keypad_data->irqreg_offset + offset);
+}
+
+static void kbd_write_irqreg(struct omap4_keypad *keypad_data,
+			     u32 offset, u32 value)
+{
+	__raw_writel(value,
+		     keypad_data->base + keypad_data->irqreg_offset + offset);
+}
+
 
 /* Interrupt handler */
 static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
@@ -91,12 +124,11 @@ static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
 	u32 *new_state = (u32 *) key_state;
 
 	/* Disable interrupts */
-	__raw_writel(OMAP4_VAL_IRQDISABLE,
-		     keypad_data->base + OMAP4_KBD_IRQENABLE);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+			 OMAP4_VAL_IRQDISABLE);
 
-	*new_state = __raw_readl(keypad_data->base + OMAP4_KBD_FULLCODE31_0);
-	*(new_state + 1) = __raw_readl(keypad_data->base
-						+ OMAP4_KBD_FULLCODE63_32);
+	*new_state = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE31_0);
+	*(new_state + 1) = kbd_readl(keypad_data, OMAP4_KBD_FULLCODE63_32);
 
 	for (row = 0; row < keypad_data->rows; row++) {
 		changed = key_state[row] ^ keypad_data->key_state[row];
@@ -121,12 +153,13 @@ static irqreturn_t omap4_keypad_interrupt(int irq, void *dev_id)
 		sizeof(keypad_data->key_state));
 
 	/* clear pending interrupts */
-	__raw_writel(__raw_readl(keypad_data->base + OMAP4_KBD_IRQSTATUS),
-			keypad_data->base + OMAP4_KBD_IRQSTATUS);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
+			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
 
 	/* enable interrupts */
-	__raw_writel(OMAP4_DEF_IRQENABLE_EVENTEN | OMAP4_DEF_IRQENABLE_LONGKEY,
-			keypad_data->base + OMAP4_KBD_IRQENABLE);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+		OMAP4_DEF_IRQENABLE_EVENTEN |
+				OMAP4_DEF_IRQENABLE_LONGKEY);
 
 	return IRQ_HANDLED;
 }
@@ -139,16 +172,17 @@ static int omap4_keypad_open(struct input_dev *input)
 
 	disable_irq(keypad_data->irq);
 
-	__raw_writel(OMAP4_VAL_FUNCTIONALCFG,
-			keypad_data->base + OMAP4_KBD_CTRL);
-	__raw_writel(OMAP4_VAL_DEBOUNCINGTIME,
-			keypad_data->base + OMAP4_KBD_DEBOUNCINGTIME);
-	__raw_writel(OMAP4_VAL_IRQDISABLE,
-			keypad_data->base + OMAP4_KBD_IRQSTATUS);
-	__raw_writel(OMAP4_DEF_IRQENABLE_EVENTEN | OMAP4_DEF_IRQENABLE_LONGKEY,
-			keypad_data->base + OMAP4_KBD_IRQENABLE);
-	__raw_writel(OMAP4_DEF_WUP_EVENT_ENA | OMAP4_DEF_WUP_LONG_KEY_ENA,
-			keypad_data->base + OMAP4_KBD_WAKEUPENABLE);
+	kbd_writel(keypad_data, OMAP4_KBD_CTRL,
+			OMAP4_VAL_FUNCTIONALCFG);
+	kbd_writel(keypad_data, OMAP4_KBD_DEBOUNCINGTIME,
+			OMAP4_VAL_DEBOUNCINGTIME);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
+			OMAP4_VAL_IRQDISABLE);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+			OMAP4_DEF_IRQENABLE_EVENTEN |
+				OMAP4_DEF_IRQENABLE_LONGKEY);
+	kbd_writel(keypad_data, OMAP4_KBD_WAKEUPENABLE,
+			OMAP4_DEF_WUP_EVENT_ENA | OMAP4_DEF_WUP_LONG_KEY_ENA);
 
 	enable_irq(keypad_data->irq);
 
@@ -162,12 +196,12 @@ static void omap4_keypad_close(struct input_dev *input)
 	disable_irq(keypad_data->irq);
 
 	/* Disable interrupts */
-	__raw_writel(OMAP4_VAL_IRQDISABLE,
-		     keypad_data->base + OMAP4_KBD_IRQENABLE);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQENABLE,
+			 OMAP4_VAL_IRQDISABLE);
 
 	/* clear pending interrupts */
-	__raw_writel(__raw_readl(keypad_data->base + OMAP4_KBD_IRQSTATUS),
-			keypad_data->base + OMAP4_KBD_IRQSTATUS);
+	kbd_write_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS,
+			 kbd_read_irqreg(keypad_data, OMAP4_KBD_IRQSTATUS));
 
 	enable_irq(keypad_data->irq);
 
@@ -182,6 +216,7 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	struct resource *res;
 	resource_size_t size;
 	unsigned int row_shift, max_keys;
+	int rev;
 	int irq;
 	int error;
 
@@ -241,11 +276,40 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 	keypad_data->rows = pdata->rows;
 	keypad_data->cols = pdata->cols;
 
+	/*
+	* Enable clocks for the keypad module so that we can read
+	* revision register.
+	*/
+	pm_runtime_enable(&pdev->dev);
+	error = pm_runtime_get_sync(&pdev->dev);
+	if (error) {
+		dev_err(&pdev->dev, "pm_runtime_get_sync() failed\n");
+		goto err_unmap;
+	}
+	rev = __raw_readl(keypad_data->base + OMAP4_KBD_REVISION);
+	rev &= 0x03 << 30;
+	rev >>= 30;
+	switch (rev) {
+	case KBD_REVISION_OMAP4:
+		keypad_data->reg_offset = 0x00;
+		keypad_data->irqreg_offset = 0x00;
+		break;
+	case KBD_REVISION_OMAP5:
+		keypad_data->reg_offset = 0x10;
+		keypad_data->irqreg_offset = 0x0c;
+		break;
+	default:
+		dev_err(&pdev->dev,
+			"Keypad reports unsupported revision %d", rev);
+		error = -EINVAL;
+		goto err_pm_put_sync;
+	}
+
 	/* input device allocation */
 	keypad_data->input = input_dev = input_allocate_device();
 	if (!input_dev) {
 		error = -ENOMEM;
-		goto err_unmap;
+		goto err_pm_put_sync;
 	}
 
 	input_dev->name = pdev->name;
@@ -280,7 +344,7 @@ static int __devinit omap4_keypad_probe(struct platform_device *pdev)
 		goto err_free_input;
 	}
 
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 
 	error = input_register_device(keypad_data->input);
 	if (error < 0) {
@@ -296,6 +360,8 @@ err_pm_disable:
 	free_irq(keypad_data->irq, keypad_data);
 err_free_input:
 	input_free_device(input_dev);
+err_pm_put_sync:
+	pm_runtime_put_sync(&pdev->dev);
 err_unmap:
 	iounmap(keypad_data->base);
 err_release_mem:
