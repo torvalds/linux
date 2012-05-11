@@ -36,7 +36,6 @@
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/hardware/clps7111.h>
 #include <asm/system_misc.h>
 
 /*
@@ -44,8 +43,8 @@
  */
 static struct map_desc clps711x_io_desc[] __initdata = {
 	{
-		.virtual	= CLPS7111_VIRT_BASE,
-		.pfn		= __phys_to_pfn(CLPS7111_PHYS_BASE),
+		.virtual	= (unsigned long)CLPS711X_VIRT_BASE,
+		.pfn		= __phys_to_pfn(CLPS711X_PHYS_BASE),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE
 	}

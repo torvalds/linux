@@ -24,7 +24,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <mach/hardware.h>	/* for CLPS7111_VIRT_BASE */
+#include <mach/hardware.h>
 #include <asm/sizes.h>
 #include <mach/h1900-gpio.h>
 #include <mach/ipaq.h>

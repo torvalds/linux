@@ -24,18 +24,6 @@
 #define __ASM_HARDWARE_EP7212_H
 
 /*
- * define EP7212_BASE to be the base address of the region
- * you want to access.
- */
-
-#define EP7212_PHYS_BASE	(0x80000000)
-
-#ifndef __ASSEMBLY__
-#define ep_readl(off)		__raw_readl(EP7212_BASE + (off))
-#define ep_writel(val,off)	__raw_writel(val, EP7212_BASE + (off))
-#endif
-
-/*
  * These registers are specific to the EP7212 only
  */
 #define DAIR			0x2000

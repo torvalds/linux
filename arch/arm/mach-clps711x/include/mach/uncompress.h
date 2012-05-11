@@ -17,14 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-#include <mach/hardware.h>
 #include <asm/hardware/clps7111.h>
-
-#undef CLPS7111_BASE
-#define CLPS7111_BASE CLPS7111_PHYS_BASE
-
-#define __raw_readl(p)		(*(unsigned long *)(p))
-#define __raw_writel(v,p)	(*(unsigned long *)(p) = (v))
 
 #ifdef CONFIG_DEBUG_CLPS711X_UART2
 #define SYSFLGx	SYSFLG2
@@ -34,19 +27,25 @@
 #define UARTDRx	UARTDR1
 #endif
 
+#define phys_reg(x)	(*(volatile u32 *)(CLPS711X_PHYS_BASE + (x)))
+
 /*
+ * The following code assumes the serial port has already been
+ * initialized by the bootloader.  If you didn't setup a port in
+ * your bootloader then nothing will appear (which might be desired).
+ *
  * This does not append a newline
  */
 static inline void putc(int c)
 {
-	while (clps_readl(SYSFLGx) & SYSFLG_UTXFF)
+	while (phys_reg(SYSFLGx) & SYSFLG_UTXFF)
 		barrier();
-	clps_writel(c, UARTDRx);
+	phys_reg(UARTDRx) = c;
 }
 
 static inline void flush(void)
 {
-	while (clps_readl(SYSFLGx) & SYSFLG_UBUSY)
+	while (phys_reg(SYSFLGx) & SYSFLG_UBUSY)
 		barrier();
 }
 
