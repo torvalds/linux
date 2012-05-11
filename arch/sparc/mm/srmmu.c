@@ -2134,19 +2134,6 @@ extern unsigned long spwin_mmu_patchme, fwin_mmu_patchme,
 extern unsigned long spwin_srmmu_stackchk, srmmu_fwin_stackchk,
 	tsetup_srmmu_stackchk, srmmu_rett_stackchk;
 
-#define PATCH_BRANCH(insn, dest) do { \
-		iaddr = &(insn); \
-		daddr = &(dest); \
-		*iaddr = SPARC_BRANCH((unsigned long) daddr, (unsigned long) iaddr); \
-	} while(0)
-
-static void __init patch_window_trap_handlers(void)
-{
-	unsigned long *iaddr, *daddr;
-	
-	PATCH_BRANCH(rtrap_mmu_patchme, srmmu_rett_stackchk);
-}
-
 #ifdef CONFIG_SMP
 /* Local cross-calls. */
 static void smp_flush_page_for_dma(unsigned long page)
@@ -2270,7 +2257,6 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(pgoff_to_pte, srmmu_pgoff_to_pte, BTFIXUPCALL_NORM);
 
 	get_srmmu_type();
-	patch_window_trap_handlers();
 
 #ifdef CONFIG_SMP
 	/* El switcheroo... */

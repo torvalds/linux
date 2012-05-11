@@ -31,13 +31,6 @@ extern struct tt_entry *sparc_ttable;
 
 #define SPARC_MOV_CONST_L3(const) (0xa6102000 | (const&0xfff))
 
-/* The following assumes that the branch lies before the place we
- * are branching to.  This is the case for a trap vector...
- * You have been warned.
- */
-#define SPARC_BRANCH(dest_addr, inst_addr) \
-          (0x10800000 | (((dest_addr-inst_addr)>>2)&0x3fffff))
-
 #define SPARC_RD_PSR_L0  (0xa1480000)
 #define SPARC_RD_WIM_L3  (0xa7500000)
 #define SPARC_NOP (0x01000000)
