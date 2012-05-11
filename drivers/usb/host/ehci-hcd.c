@@ -1246,6 +1246,13 @@ static int ehci_get_frame (struct usb_hcd *hcd)
 }
 
 /*-------------------------------------------------------------------------*/
+/*
+ * The EHCI in ChipIdea HDRC cannot be a separate module or device,
+ * because its registers (and irq) are shared between host/gadget/otg
+ * functions  and in order to facilitate role switching we cannot
+ * give the ehci driver exclusive access to those.
+ */
+#ifndef CHIPIDEA_EHCI
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR (DRIVER_AUTHOR);
@@ -1504,3 +1511,4 @@ static void __exit ehci_hcd_cleanup(void)
 }
 module_exit(ehci_hcd_cleanup);
 
+#endif /* CHIPIDEA_EHCI */

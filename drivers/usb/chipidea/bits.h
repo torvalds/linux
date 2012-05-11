@@ -21,6 +21,7 @@
 /* DCCPARAMS */
 #define DCCPARAMS_DEN         (0x1F << 0)
 #define DCCPARAMS_DC          BIT(7)
+#define DCCPARAMS_HC          BIT(8)
 
 /* TESTMODE */
 #define TESTMODE_FORCE        BIT(0)

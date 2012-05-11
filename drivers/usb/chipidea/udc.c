@@ -1,5 +1,5 @@
 /*
- * udc.h - ChipIdea UDC driver
+ * udc.c - ChipIdea UDC driver
  *
  * Copyright (C) 2008 Chipidea - MIPS Technologies, Inc. All rights reserved.
  *
@@ -1396,7 +1396,7 @@ static int ci13xxx_vbus_session(struct usb_gadget *_gadget, int is_active)
 	if (gadget_ready) {
 		if (is_active) {
 			pm_runtime_get_sync(&_gadget->dev);
-			hw_device_reset(udc);
+			hw_device_reset(udc, USBMODE_CM_DC);
 			hw_device_state(udc, udc->ep0out->qh.dma);
 		} else {
 			hw_device_state(udc, 0);
@@ -1540,7 +1540,7 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 	if (udc->udc_driver->flags & CI13XXX_PULLUP_ON_VBUS) {
 		if (udc->vbus_active) {
 			if (udc->udc_driver->flags & CI13XXX_REGS_SHARED)
-				hw_device_reset(udc);
+				hw_device_reset(udc, USBMODE_CM_DC);
 		} else {
 			pm_runtime_put_sync(&udc->gadget.dev);
 			goto done;
@@ -1720,7 +1720,7 @@ static int udc_start(struct ci13xxx *udc)
 	}
 
 	if (!(udc->udc_driver->flags & CI13XXX_REGS_SHARED)) {
-		retval = hw_device_reset(udc);
+		retval = hw_device_reset(udc, USBMODE_CM_DC);
 		if (retval)
 			goto put_transceiver;
 	}

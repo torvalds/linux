@@ -18,6 +18,12 @@ config USB_CHIPIDEA_UDC
 	  Say Y here to enable device controller functionality of the
 	  ChipIdea driver.
 
+config USB_CHIPIDEA_HOST
+	bool "ChipIdea host controller"
+	help
+	  Say Y here to enable host controller functionality of the
+	  ChipIdea driver.
+
 config USB_CHIPIDEA_DEBUG
 	bool "ChipIdea driver debug"
 	help

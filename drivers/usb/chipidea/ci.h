@@ -15,6 +15,7 @@
 
 #include <linux/list.h>
 #include <linux/irqreturn.h>
+#include <linux/usb.h>
 #include <linux/usb/gadget.h>
 
 /******************************************************************************
@@ -84,6 +85,7 @@ struct ci_role_driver {
 /**
  * struct hw_bank - hardware register mapping representation
  * @lpm: set if the device is LPM capable
+ * @phys: physical address of the controller's registers
  * @abs: absolute address of the beginning of register window
  * @cap: capability registers
  * @op: operational registers
@@ -92,6 +94,7 @@ struct ci_role_driver {
  */
 struct hw_bank {
 	unsigned	lpm;
+	resource_size_t	phys;
 	void __iomem	*abs;
 	void __iomem	*cap;
 	void __iomem	*op;
@@ -128,6 +131,7 @@ struct hw_bank {
  * @udc_driver: platform specific information supplied by parent device
  * @vbus_active: is VBUS active
  * @transceiver: pointer to USB PHY, if any
+ * @hcd: pointer to usb_hcd for ehci host driver
  */
 struct ci13xxx {
 	struct device			*dev;
@@ -160,6 +164,7 @@ struct ci13xxx {
 	struct ci13xxx_udc_driver	*udc_driver;
 	int				vbus_active;
 	struct usb_phy			*transceiver;
+	struct usb_hcd			*hcd;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci13xxx *ci)
@@ -302,7 +307,7 @@ static inline u32 hw_test_and_write(struct ci13xxx *udc, enum ci13xxx_regs reg,
 	return (val & mask) >> ffs_nr(mask);
 }
 
-int hw_device_reset(struct ci13xxx *ci);
+int hw_device_reset(struct ci13xxx *ci, u32 mode);
 
 int hw_port_test_set(struct ci13xxx *ci, u8 mode);
 

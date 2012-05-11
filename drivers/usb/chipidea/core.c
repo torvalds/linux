@@ -70,6 +70,7 @@
 #include "ci.h"
 #include "udc.h"
 #include "bits.h"
+#include "host.h"
 #include "debug.h"
 
 /* Controller register map */
@@ -215,7 +216,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
   *
  * This function returns an error code
  */
-int hw_device_reset(struct ci13xxx *ci)
+int hw_device_reset(struct ci13xxx *ci, u32 mode)
 {
 	/* should flush & stop before reset */
 	hw_write(ci, OP_ENDPTFLUSH, ~0, ~0);
@@ -235,12 +236,12 @@ int hw_device_reset(struct ci13xxx *ci)
 
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
-	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DC);
+	hw_write(ci, OP_USBMODE, USBMODE_CM, mode);
 	/* HW >= 2.3 */
 	hw_write(ci, OP_USBMODE, USBMODE_SLOM, USBMODE_SLOM);
 
-	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != USBMODE_CM_DC) {
-		pr_err("cannot enter in device mode");
+	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != mode) {
+		pr_err("cannot enter in %s mode", ci_role(ci)->name);
 		pr_err("lpm = %i", ci->hw_bank.lpm);
 		return -ENODEV;
 	}
@@ -371,6 +372,8 @@ static int __devinit ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
+	ci->hw_bank.phys = res->start;
+
 	ci->irq = platform_get_irq(pdev, 0);
 	if (ci->irq < 0) {
 		dev_err(dev, "missing IRQ\n");
@@ -385,6 +388,10 @@ static int __devinit ci_hdrc_probe(struct platform_device *pdev)
 	}
 
 	/* initialize role(s) before the interrupt is requested */
+	ret = ci_hdrc_host_init(ci);
+	if (ret)
+		dev_info(dev, "doesn't support host\n");
+
 	ret = ci_hdrc_gadget_init(ci);
 	if (ret)
 		dev_info(dev, "doesn't support gadget\n");
