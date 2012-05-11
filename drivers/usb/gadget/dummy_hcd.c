@@ -598,7 +598,7 @@ static void dummy_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	struct dummy_request	*req;
 
 	if (!_ep || !_req) {
-		__WARN();
+		WARN_ON(1);
 		return;
 	}
 
