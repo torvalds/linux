@@ -115,23 +115,23 @@ static const u32 oid_supported_list[] =
 	/* mandatory 802.3 */
 	/* the general stuff */
 	RNDIS_OID_802_3_PERMANENT_ADDRESS,
-	OID_802_3_CURRENT_ADDRESS,
-	OID_802_3_MULTICAST_LIST,
-	OID_802_3_MAC_OPTIONS,
-	OID_802_3_MAXIMUM_LIST_SIZE,
+	RNDIS_OID_802_3_CURRENT_ADDRESS,
+	RNDIS_OID_802_3_MULTICAST_LIST,
+	RNDIS_OID_802_3_MAC_OPTIONS,
+	RNDIS_OID_802_3_MAXIMUM_LIST_SIZE,
 
 	/* the statistical stuff */
-	OID_802_3_RCV_ERROR_ALIGNMENT,
-	OID_802_3_XMIT_ONE_COLLISION,
-	OID_802_3_XMIT_MORE_COLLISIONS,
+	RNDIS_OID_802_3_RCV_ERROR_ALIGNMENT,
+	RNDIS_OID_802_3_XMIT_ONE_COLLISION,
+	RNDIS_OID_802_3_XMIT_MORE_COLLISIONS,
 #ifdef	RNDIS_OPTIONAL_STATS
-	OID_802_3_XMIT_DEFERRED,
-	OID_802_3_XMIT_MAX_COLLISIONS,
-	OID_802_3_RCV_OVERRUN,
-	OID_802_3_XMIT_UNDERRUN,
-	OID_802_3_XMIT_HEARTBEAT_FAILURE,
-	OID_802_3_XMIT_TIMES_CRS_LOST,
-	OID_802_3_XMIT_LATE_COLLISIONS,
+	RNDIS_OID_802_3_XMIT_DEFERRED,
+	RNDIS_OID_802_3_XMIT_MAX_COLLISIONS,
+	RNDIS_OID_802_3_RCV_OVERRUN,
+	RNDIS_OID_802_3_XMIT_UNDERRUN,
+	RNDIS_OID_802_3_XMIT_HEARTBEAT_FAILURE,
+	RNDIS_OID_802_3_XMIT_TIMES_CRS_LOST,
+	RNDIS_OID_802_3_XMIT_LATE_COLLISIONS,
 #endif	/* RNDIS_OPTIONAL_STATS */
 
 #ifdef	RNDIS_PM
@@ -408,7 +408,7 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 
 	/* mandatory */
 	case RNDIS_OID_802_3_PERMANENT_ADDRESS:
-		pr_debug("%s: OID_802_3_PERMANENT_ADDRESS\n", __func__);
+		pr_debug("%s: RNDIS_OID_802_3_PERMANENT_ADDRESS\n", __func__);
 		if (rndis_per_dev_params[configNr].dev) {
 			length = ETH_ALEN;
 			memcpy(outbuf,
@@ -419,8 +419,8 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 		break;
 
 	/* mandatory */
-	case OID_802_3_CURRENT_ADDRESS:
-		pr_debug("%s: OID_802_3_CURRENT_ADDRESS\n", __func__);
+	case RNDIS_OID_802_3_CURRENT_ADDRESS:
+		pr_debug("%s: RNDIS_OID_802_3_CURRENT_ADDRESS\n", __func__);
 		if (rndis_per_dev_params[configNr].dev) {
 			length = ETH_ALEN;
 			memcpy(outbuf,
@@ -431,23 +431,23 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 		break;
 
 	/* mandatory */
-	case OID_802_3_MULTICAST_LIST:
-		pr_debug("%s: OID_802_3_MULTICAST_LIST\n", __func__);
+	case RNDIS_OID_802_3_MULTICAST_LIST:
+		pr_debug("%s: RNDIS_OID_802_3_MULTICAST_LIST\n", __func__);
 		/* Multicast base address only */
 		*outbuf = cpu_to_le32(0xE0000000);
 		retval = 0;
 		break;
 
 	/* mandatory */
-	case OID_802_3_MAXIMUM_LIST_SIZE:
-		pr_debug("%s: OID_802_3_MAXIMUM_LIST_SIZE\n", __func__);
+	case RNDIS_OID_802_3_MAXIMUM_LIST_SIZE:
+		pr_debug("%s: RNDIS_OID_802_3_MAXIMUM_LIST_SIZE\n", __func__);
 		/* Multicast base address only */
 		*outbuf = cpu_to_le32(1);
 		retval = 0;
 		break;
 
-	case OID_802_3_MAC_OPTIONS:
-		pr_debug("%s: OID_802_3_MAC_OPTIONS\n", __func__);
+	case RNDIS_OID_802_3_MAC_OPTIONS:
+		pr_debug("%s: RNDIS_OID_802_3_MAC_OPTIONS\n", __func__);
 		*outbuf = cpu_to_le32(0);
 		retval = 0;
 		break;
@@ -455,8 +455,8 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 	/* ieee802.3 statistics OIDs (table 4-4) */
 
 	/* mandatory */
-	case OID_802_3_RCV_ERROR_ALIGNMENT:
-		pr_debug("%s: OID_802_3_RCV_ERROR_ALIGNMENT\n", __func__);
+	case RNDIS_OID_802_3_RCV_ERROR_ALIGNMENT:
+		pr_debug("%s: RNDIS_OID_802_3_RCV_ERROR_ALIGNMENT\n", __func__);
 		if (stats) {
 			*outbuf = cpu_to_le32(stats->rx_frame_errors);
 			retval = 0;
@@ -464,15 +464,15 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 		break;
 
 	/* mandatory */
-	case OID_802_3_XMIT_ONE_COLLISION:
-		pr_debug("%s: OID_802_3_XMIT_ONE_COLLISION\n", __func__);
+	case RNDIS_OID_802_3_XMIT_ONE_COLLISION:
+		pr_debug("%s: RNDIS_OID_802_3_XMIT_ONE_COLLISION\n", __func__);
 		*outbuf = cpu_to_le32(0);
 		retval = 0;
 		break;
 
 	/* mandatory */
-	case OID_802_3_XMIT_MORE_COLLISIONS:
-		pr_debug("%s: OID_802_3_XMIT_MORE_COLLISIONS\n", __func__);
+	case RNDIS_OID_802_3_XMIT_MORE_COLLISIONS:
+		pr_debug("%s: RNDIS_OID_802_3_XMIT_MORE_COLLISIONS\n", __func__);
 		*outbuf = cpu_to_le32(0);
 		retval = 0;
 		break;
@@ -545,9 +545,9 @@ static int gen_ndis_set_resp(u8 configNr, u32 OID, u8 *buf, u32 buf_len,
 		}
 		break;
 
-	case OID_802_3_MULTICAST_LIST:
+	case RNDIS_OID_802_3_MULTICAST_LIST:
 		/* I think we can ignore this */
-		pr_debug("%s: OID_802_3_MULTICAST_LIST\n", __func__);
+		pr_debug("%s: RNDIS_OID_802_3_MULTICAST_LIST\n", __func__);
 		retval = 0;
 		break;
 
