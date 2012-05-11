@@ -419,10 +419,8 @@ static int mc_device_add(struct device *dev, struct subsys_interface *sif)
 	if (err)
 		return err;
 
-	if (microcode_init_cpu(cpu) == UCODE_ERROR) {
-		sysfs_remove_group(&dev->kobj, &mc_attr_group);
+	if (microcode_init_cpu(cpu) == UCODE_ERROR)
 		return -EINVAL;
-	}
 
 	return err;
 }
@@ -528,11 +526,11 @@ static int __init microcode_init(void)
 		microcode_ops = init_intel_microcode();
 	else if (c->x86_vendor == X86_VENDOR_AMD)
 		microcode_ops = init_amd_microcode();
-
-	if (!microcode_ops) {
+	else
 		pr_err("no support for this CPU vendor\n");
+
+	if (!microcode_ops)
 		return -ENODEV;
-	}
 
 	microcode_pdev = platform_device_register_simple("microcode", -1,
 							 NULL, 0);

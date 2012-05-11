@@ -384,6 +384,11 @@ static struct platform_device sdp4430_dmic_codec = {
 	.id	= -1,
 };
 
+static struct platform_device sdp4430_hdmi_audio_codec = {
+	.name	= "hdmi-audio-codec",
+	.id	= -1,
+};
+
 static struct omap_abe_twl6040_data sdp4430_abe_audio_data = {
 	.card_name = "SDP4430",
 	.has_hs		= ABE_TWL6040_LEFT | ABE_TWL6040_RIGHT,
@@ -418,6 +423,7 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_vbat,
 	&sdp4430_dmic_codec,
 	&sdp4430_abe_audio,
+	&sdp4430_hdmi_audio_codec,
 };
 
 static struct omap_musb_board_data musb_board_data = {
@@ -615,7 +621,9 @@ static int __init omap4_i2c_init(void)
 			TWL_COMMON_REGULATOR_VANA |
 			TWL_COMMON_REGULATOR_VCXIO |
 			TWL_COMMON_REGULATOR_VUSB |
-			TWL_COMMON_REGULATOR_CLK32KG);
+			TWL_COMMON_REGULATOR_CLK32KG |
+			TWL_COMMON_REGULATOR_V1V8 |
+			TWL_COMMON_REGULATOR_V2V1);
 	omap4_pmic_init("twl6030", &sdp4430_twldata,
 			&twl6040_data, OMAP44XX_IRQ_SYS_2N);
 	omap_register_i2c_bus(2, 400, NULL, 0);
