@@ -27,9 +27,14 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 
+#ifdef DEBUG
 #define FREQ_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args)
-#define FREQ_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args)
 #define FREQ_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args)
+#else
+#define FREQ_PRINTK_DBG(fmt, args...) do {} while(0)
+#define FREQ_PRINTK_LOG(fmt, args...) do {} while(0)
+#endif
+#define FREQ_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args)
 
 /* Frequency table index must be sequential starting at 0 */
 static struct cpufreq_frequency_table default_freq_table[] = {
