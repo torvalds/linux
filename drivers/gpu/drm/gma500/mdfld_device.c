@@ -559,6 +559,84 @@ static int mdfld_power_up(struct drm_device *dev)
 	return 0;
 }
 
+/* Medfield  */
+static const struct psb_offset mdfld_regmap[3] = {
+	{
+		.fp0 = MRST_FPA0,
+		.fp1 = MRST_FPA1,
+		.cntr = DSPACNTR,
+		.conf = PIPEACONF,
+		.src = PIPEASRC,
+		.dpll = MRST_DPLL_A,
+		.htotal = HTOTAL_A,
+		.hblank = HBLANK_A,
+		.hsync = HSYNC_A,
+		.vtotal = VTOTAL_A,
+		.vblank = VBLANK_A,
+		.vsync = VSYNC_A,
+		.stride = DSPASTRIDE,
+		.size = DSPASIZE,
+		.pos = DSPAPOS,
+		.surf = DSPASURF,
+		.addr = DSPABASE,
+		.status = PIPEASTAT,
+		.linoff = DSPALINOFF,
+		.tileoff = DSPATILEOFF,
+		.palette = PALETTE_A,
+	},
+	{
+		.fp0 = MDFLD_DPLL_DIV0,
+		.cntr = DSPBCNTR,
+		.conf = PIPEBCONF,
+		.src = PIPEBSRC,
+		.dpll = MDFLD_DPLL_B,
+		.htotal = HTOTAL_B,
+		.hblank = HBLANK_B,
+		.hsync = HSYNC_B,
+		.vtotal = VTOTAL_B,
+		.vblank = VBLANK_B,
+		.vsync = VSYNC_B,
+		.stride = DSPBSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPBPOS,
+		.surf = DSPBSURF,
+		.addr = DSPBBASE,
+		.status = PIPEBSTAT,
+		.linoff = DSPBLINOFF,
+		.tileoff = DSPBTILEOFF,
+		.palette = PALETTE_B,
+	},
+	{
+		.cntr = DSPCCNTR,
+		.conf = PIPECCONF,
+		.src = PIPECSRC,
+		/* No DPLL_C */
+		.dpll = MRST_DPLL_A,
+		.htotal = HTOTAL_C,
+		.hblank = HBLANK_C,
+		.hsync = HSYNC_C,
+		.vtotal = VTOTAL_C,
+		.vblank = VBLANK_C,
+		.vsync = VSYNC_C,
+		.stride = DSPCSTRIDE,
+		.size = DSPBSIZE,
+		.pos = DSPCPOS,
+		.surf = DSPCSURF,
+		.addr = DSPCBASE,
+		.status = PIPECSTAT,
+		.linoff = DSPCLINOFF,
+		.tileoff = DSPCTILEOFF,
+		.palette = PALETTE_C,
+	},
+};
+
+static int mdfld_chip_setup(struct drm_device *dev)
+{
+	struct drm_psb_private *dev_priv = dev->dev_private;
+	dev_priv->regmap = mdfld_regmap;
+	return mid_chip_setup(dev);
+}
+
 const struct psb_ops mdfld_chip_ops = {
 	.name = "mdfld",
 	.accel_2d = 0,
@@ -568,7 +646,7 @@ const struct psb_ops mdfld_chip_ops = {
 	.hdmi_mask = (1 << 1),
 	.sgx_offset = MRST_SGX_OFFSET,
 
-	.chip_setup = mid_chip_setup,
+	.chip_setup = mdfld_chip_setup,
 	.crtc_helper = &mdfld_helper_funcs,
 	.crtc_funcs = &psb_intel_crtc_funcs,
 

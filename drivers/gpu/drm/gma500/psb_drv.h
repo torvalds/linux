@@ -281,6 +281,36 @@ struct intel_gmbus {
 };
 
 /*
+ *	Register offset maps
+ */
+
+struct psb_offset {
+	u32	fp0;
+	u32	fp1;
+	u32	cntr;
+	u32	conf;
+	u32	src;
+	u32	dpll;
+	u32	dpll_md;
+	u32	htotal;
+	u32	hblank;
+	u32	hsync;
+	u32	vtotal;
+	u32	vblank;
+	u32	vsync;
+	u32	stride;
+	u32	size;
+	u32	pos;
+	u32	surf;
+	u32	addr;
+	u32	base;
+	u32	status;
+	u32	linoff;
+	u32	tileoff;
+	u32	palette;
+};
+
+/*
  *	Register save state. This is used to hold the context when the
  *	device is powered off. In the case of Oaktrail this can (but does not
  *	yet) include screen blank. Operations occuring during the save
@@ -424,6 +454,7 @@ struct psb_ops;
 struct drm_psb_private {
 	struct drm_device *dev;
 	const struct psb_ops *ops;
+	const struct psb_offset *regmap;
 	
 	struct child_device_config *child_dev;
 	int child_dev_num;
