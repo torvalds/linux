@@ -518,6 +518,8 @@ static const struct psb_offset mdfld_regmap[3] = {
 static int mdfld_chip_setup(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	if (pci_enable_msi(dev->pdev))
+		dev_warn(dev->dev, "Enabling MSI failed!\n");
 	dev_priv->regmap = mdfld_regmap;
 	return mid_chip_setup(dev);
 }

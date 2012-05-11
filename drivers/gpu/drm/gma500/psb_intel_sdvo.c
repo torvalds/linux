@@ -2038,8 +2038,7 @@ psb_intel_sdvo_add_hdmi_properties(struct psb_intel_sdvo_connector *connector)
 	struct drm_device *dev = connector->base.base.dev;
 
 	intel_attach_force_audio_property(&connector->base.base);
-	if (INTEL_INFO(dev)->gen >= 4 && IS_MOBILE(dev))
-		intel_attach_broadcast_rgb_property(&connector->base.base);
+	intel_attach_broadcast_rgb_property(&connector->base.base);
 	*/
 }
 

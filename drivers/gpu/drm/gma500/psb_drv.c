@@ -280,11 +280,6 @@ static int psb_driver_load(struct drm_device *dev, unsigned long chipset)
 
 	pci_set_master(dev->pdev);
 
-	if (!IS_PSB(dev)) {
-		if (pci_enable_msi(dev->pdev))
-			dev_warn(dev->dev, "Enabling MSI failed!\n");
-	}
-
 	dev_priv->num_pipe = dev_priv->ops->pipes;
 
 	resource_start = pci_resource_start(dev->pdev, PSB_MMIO_RESOURCE);
