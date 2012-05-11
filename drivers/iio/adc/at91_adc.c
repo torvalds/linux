@@ -15,6 +15,8 @@
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -415,6 +417,123 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 	return -EINVAL;
 }
 
+static int at91_adc_probe_dt(struct at91_adc_state *st,
+			     struct platform_device *pdev)
+{
+	struct iio_dev *idev = iio_priv_to_dev(st);
+	struct device_node *node = pdev->dev.of_node;
+	struct device_node *trig_node;
+	int i = 0, ret;
+	u32 prop;
+
+	if (!node)
+		return -EINVAL;
+
+	st->use_external = of_property_read_bool(node, "atmel,adc-use-external-triggers");
+
+	if (of_property_read_u32(node, "atmel,adc-channels-used", &prop)) {
+		dev_err(&idev->dev, "Missing adc-channels-used property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->channels_mask = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-num-channels", &prop)) {
+		dev_err(&idev->dev, "Missing adc-num-channels property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->num_channels = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
+		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->startup_time = prop;
+
+
+	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
+		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->vref_mv = prop;
+
+	st->registers = devm_kzalloc(&idev->dev,
+				     sizeof(struct at91_adc_reg_desc),
+				     GFP_KERNEL);
+	if (!st->registers) {
+		dev_err(&idev->dev, "Could not allocate register memory.\n");
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+
+	if (of_property_read_u32(node, "atmel,adc-channel-base", &prop)) {
+		dev_err(&idev->dev, "Missing adc-channel-base property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->registers->channel_base = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-drdy-mask", &prop)) {
+		dev_err(&idev->dev, "Missing adc-drdy-mask property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->registers->drdy_mask = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-status-register", &prop)) {
+		dev_err(&idev->dev, "Missing adc-status-register property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->registers->status_register = prop;
+
+	if (of_property_read_u32(node, "atmel,adc-trigger-register", &prop)) {
+		dev_err(&idev->dev, "Missing adc-trigger-register property in the DT.\n");
+		ret = -EINVAL;
+		goto error_ret;
+	}
+	st->registers->trigger_register = prop;
+
+	st->trigger_number = of_get_child_count(node);
+	st->trigger_list = devm_kzalloc(&idev->dev, st->trigger_number *
+					sizeof(struct at91_adc_trigger),
+					GFP_KERNEL);
+	if (!st->trigger_list) {
+		dev_err(&idev->dev, "Could not allocate trigger list memory.\n");
+		ret = -ENOMEM;
+		goto error_ret;
+	}
+
+	for_each_child_of_node(node, trig_node) {
+		struct at91_adc_trigger *trig = st->trigger_list + i;
+		const char *name;
+
+		if (of_property_read_string(trig_node, "trigger-name", &name)) {
+			dev_err(&idev->dev, "Missing trigger-name property in the DT.\n");
+			ret = -EINVAL;
+			goto error_ret;
+		}
+	        trig->name = name;
+
+		if (of_property_read_u32(trig_node, "trigger-value", &prop)) {
+			dev_err(&idev->dev, "Missing trigger-value property in the DT.\n");
+			ret = -EINVAL;
+			goto error_ret;
+		}
+	        trig->value = prop;
+		trig->is_external = of_property_read_bool(trig_node, "trigger-external");
+		i++;
+	}
+
+	return 0;
+
+error_ret:
+	return ret;
+}
+
 static int at91_adc_probe_pdata(struct at91_adc_state *st,
 				struct platform_device *pdev)
 {
@@ -456,7 +575,11 @@ static int __devinit at91_adc_probe(struct platform_device *pdev)
 
 	st = iio_priv(idev);
 
-	ret = at91_adc_probe_pdata(st, pdev);
+	if (pdev->dev.of_node)
+		ret = at91_adc_probe_dt(st, pdev);
+	else
+		ret = at91_adc_probe_pdata(st, pdev);
+
 	if (ret) {
 		dev_err(&pdev->dev, "No platform data available.\n");
 		ret = -EINVAL;
@@ -657,11 +780,18 @@ static int __devexit at91_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id at91_adc_dt_ids[] = {
+	{ .compatible = "atmel,at91sam9260-adc" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, at91_adc_dt_ids);
+
 static struct platform_driver at91_adc_driver = {
 	.probe = at91_adc_probe,
 	.remove = __devexit_p(at91_adc_remove),
 	.driver = {
 		   .name = "at91_adc",
+		   .of_match_table = of_match_ptr(at91_adc_dt_ids),
 	},
 };
 
