@@ -110,6 +110,7 @@
  */
 
 static atomic_t stopping_cpu = ATOMIC_INIT(-1);
+static bool smp_no_nmi_ipi = false;
 
 /*
  * this function sends a 'reschedule' IPI to another CPU.
@@ -216,7 +217,7 @@ static void native_stop_other_cpus(int wait)
 	}
 	
 	/* if the REBOOT_VECTOR didn't work, try with the NMI */
-	if ((num_online_cpus() > 1))  {
+	if ((num_online_cpus() > 1) && (!smp_no_nmi_ipi))  {
 		if (register_nmi_handler(NMI_LOCAL, smp_stop_nmi_callback,
 					 NMI_FLAG_FIRST, "smp_stop"))
 			/* Note: we ignore failures here */
@@ -243,11 +244,6 @@ finish:
 	local_irq_save(flags);
 	disable_local_APIC();
 	local_irq_restore(flags);
-}
-
-static void native_smp_disable_nmi_ipi(void)
-{
-	smp_ops.stop_other_cpus = native_irq_stop_other_cpus;
 }
 
 /*
@@ -283,8 +279,8 @@ void smp_call_function_single_interrupt(struct pt_regs *regs)
 
 static int __init nonmi_ipi_setup(char *str)
 {
-        native_smp_disable_nmi_ipi();
-        return 1;
+	smp_no_nmi_ipi = true;
+	return 1;
 }
 
 __setup("nonmi_ipi", nonmi_ipi_setup);
