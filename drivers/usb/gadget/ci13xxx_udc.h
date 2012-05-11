@@ -243,21 +243,4 @@ enum ci13xxx_regs {
 #define ENDPTCTRL_TXR         BIT(22)        /* reserved for port 0 */
 #define ENDPTCTRL_TXE         BIT(23)
 
-/******************************************************************************
- * LOGGING
- *****************************************************************************/
-#ifdef TRACE
-#define trace(dev, format, args...)					\
-	do {								\
-		if (dev == NULL)					\
-			pr_debug("[%s] " format "\n", __func__,		\
-			       ## args);				\
-		else							\
-			dev_printk(KERN_DEBUG, dev, "[%s] " format "\n", \
-				   __func__, ## args);			\
-	} while (0)
-#else
-#define trace(dev, format, args...)      do {} while (0)
-#endif
-
 #endif	/* _CI13XXX_h_ */

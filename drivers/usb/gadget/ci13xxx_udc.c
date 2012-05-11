@@ -778,7 +778,6 @@ static ssize_t show_device(struct device *dev, struct device_attribute *attr,
 	struct usb_gadget *gadget = &udc->gadget;
 	int n = 0;
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -820,7 +819,6 @@ static ssize_t show_driver(struct device *dev, struct device_attribute *attr,
 	struct usb_gadget_driver *driver = udc->driver;
 	int n = 0;
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(dev, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -981,7 +979,6 @@ static ssize_t show_events(struct device *dev, struct device_attribute *attr,
 	unsigned long flags;
 	unsigned i, j, n = 0;
 
-	trace(dev->parent, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(dev->parent, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -1016,7 +1013,6 @@ static ssize_t store_events(struct device *dev, struct device_attribute *attr,
 {
 	unsigned tty;
 
-	trace(dev->parent, "[%s] %p, %d\n", __func__, buf, count);
 	if (attr == NULL || buf == NULL) {
 		dev_err(dev, "[%s] EINVAL\n", __func__);
 		goto done;
@@ -1048,7 +1044,6 @@ static ssize_t show_inters(struct device *dev, struct device_attribute *attr,
 	u32 intr;
 	unsigned i, j, n = 0;
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -1121,7 +1116,6 @@ static ssize_t store_inters(struct device *dev, struct device_attribute *attr,
 	unsigned long flags;
 	unsigned en, bit;
 
-	trace(udc->dev, "%p, %d\n", buf, count);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "EINVAL\n");
 		goto done;
@@ -1161,7 +1155,6 @@ static ssize_t show_port_test(struct device *dev,
 	unsigned long flags;
 	unsigned mode;
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "EINVAL\n");
 		return 0;
@@ -1187,7 +1180,6 @@ static ssize_t store_port_test(struct device *dev,
 	unsigned long flags;
 	unsigned mode;
 
-	trace(udc->dev, "%p, %d\n", buf, count);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		goto done;
@@ -1221,7 +1213,6 @@ static ssize_t show_qheads(struct device *dev, struct device_attribute *attr,
 	unsigned long flags;
 	unsigned i, j, n = 0;
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -1262,7 +1253,6 @@ static ssize_t show_registers(struct device *dev,
 	u32 *dump;
 	unsigned i, k, n = 0;
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -1300,7 +1290,6 @@ static ssize_t store_registers(struct device *dev,
 	struct ci13xxx *udc = container_of(dev, struct ci13xxx, gadget.dev);
 	unsigned long addr, data, flags;
 
-	trace(udc->dev, "%p, %d\n", buf, count);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		goto done;
@@ -1337,7 +1326,6 @@ static ssize_t show_requests(struct device *dev, struct device_attribute *attr,
 	struct ci13xxx_req *req = NULL;
 	unsigned i, j, n = 0, qSize = sizeof(struct ci13xxx_td)/sizeof(u32);
 
-	trace(udc->dev, "%p\n", buf);
 	if (attr == NULL || buf == NULL) {
 		dev_err(udc->dev, "[%s] EINVAL\n", __func__);
 		return 0;
@@ -1468,8 +1456,6 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 	int ret = 0;
 	unsigned length = mReq->req.length;
 
-	trace(udc->dev, "%p, %p", mEp, mReq);
-
 	/* don't queue twice */
 	if (mReq->req.status == -EALREADY)
 		return -EALREADY;
@@ -1570,8 +1556,6 @@ done:
  */
 static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 {
-	trace(mEp->udc->dev, "%p, %p", mEp, mReq);
-
 	if (mReq->req.status != -EALREADY)
 		return -EINVAL;
 
@@ -1621,8 +1605,6 @@ static int _ep_nuke(struct ci13xxx_ep *mEp)
 __releases(mEp->lock)
 __acquires(mEp->lock)
 {
-	trace(mEp->udc->dev, "%p", mEp);
-
 	if (mEp == NULL)
 		return -EINVAL;
 
@@ -1657,8 +1639,6 @@ static int _gadget_stop_activity(struct usb_gadget *gadget)
 	struct usb_ep *ep;
 	struct ci13xxx    *udc = container_of(gadget, struct ci13xxx, gadget);
 	unsigned long flags;
-
-	trace(udc->dev, "%p", gadget);
 
 	if (gadget == NULL)
 		return -EINVAL;
@@ -1707,8 +1687,6 @@ __acquires(udc->lock)
 {
 	int retval;
 
-	trace(udc->dev, "%p", udc);
-
 	dbg_event(0xFF, "BUS RST", 0);
 
 	spin_unlock(&udc->lock);
@@ -1740,8 +1718,6 @@ __acquires(udc->lock)
  */
 static void isr_get_status_complete(struct usb_ep *ep, struct usb_request *req)
 {
-	trace(NULL, "%p, %p", ep, req);
-
 	if (ep == NULL || req == NULL)
 		return;
 
@@ -1765,8 +1741,6 @@ __acquires(mEp->lock)
 	struct usb_request *req = NULL;
 	gfp_t gfp_flags = GFP_ATOMIC;
 	int dir, num, retval;
-
-	trace(udc->dev, "%p, %p", mEp, setup);
 
 	if (mEp == NULL || setup == NULL)
 		return -EINVAL;
@@ -1829,8 +1803,6 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
 	struct ci13xxx *udc = req->context;
 	unsigned long flags;
 
-	trace(udc->dev, "%p, %p", ep, req);
-
 	spin_lock_irqsave(&udc->lock, flags);
 	if (udc->test_mode)
 		hw_port_test_set(udc, udc->test_mode);
@@ -1849,8 +1821,6 @@ __acquires(mEp->lock)
 {
 	int retval;
 	struct ci13xxx_ep *mEp;
-
-	trace(udc->dev, "%p", udc);
 
 	mEp = (udc->ep0_dir == TX) ? udc->ep0out : udc->ep0in;
 	udc->status->context = udc;
@@ -1877,8 +1847,6 @@ __acquires(mEp->lock)
 	struct ci13xxx_req *mReq, *mReqTemp;
 	struct ci13xxx_ep *mEpTemp = mEp;
 	int uninitialized_var(retval);
-
-	trace(mEp->udc->dev, "%p", mEp);
 
 	if (list_empty(&mEp->qh.queue))
 		return -EINVAL;
@@ -1920,8 +1888,6 @@ __acquires(udc->lock)
 {
 	unsigned i;
 	u8 tmode = 0;
-
-	trace(udc->dev, "%p", udc);
 
 	for (i = 0; i < udc->hw_ep_max; i++) {
 		struct ci13xxx_ep *mEp  = &udc->ci13xxx_ep[i];
@@ -2114,8 +2080,6 @@ static int ep_enable(struct usb_ep *ep,
 	int retval = 0;
 	unsigned long flags;
 
-	trace(mEp->udc->dev, "%p, %p", ep, desc);
-
 	if (ep == NULL || desc == NULL)
 		return -EINVAL;
 
@@ -2171,8 +2135,6 @@ static int ep_disable(struct usb_ep *ep)
 	int direction, retval = 0;
 	unsigned long flags;
 
-	trace(mEp->udc->dev, "%p", ep);
-
 	if (ep == NULL)
 		return -EINVAL;
 	else if (mEp->ep.desc == NULL)
@@ -2210,8 +2172,6 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	struct ci13xxx_ep  *mEp  = container_of(ep, struct ci13xxx_ep, ep);
 	struct ci13xxx_req *mReq = NULL;
 
-	trace(mEp->udc->dev, "%p, %i", ep, gfp_flags);
-
 	if (ep == NULL)
 		return NULL;
 
@@ -2244,8 +2204,6 @@ static void ep_free_request(struct usb_ep *ep, struct usb_request *req)
 	struct ci13xxx_req *mReq = container_of(req, struct ci13xxx_req, req);
 	unsigned long flags;
 
-	trace(mEp->udc->dev, "%p, %p", ep, req);
-
 	if (ep == NULL || req == NULL) {
 		return;
 	} else if (!list_empty(&mReq->queue)) {
@@ -2277,8 +2235,6 @@ static int ep_queue(struct usb_ep *ep, struct usb_request *req,
 	struct ci13xxx *udc = mEp->udc;
 	int retval = 0;
 	unsigned long flags;
-
-	trace(mEp->udc->dev, "%p, %p, %X", ep, req, gfp_flags);
 
 	if (ep == NULL || req == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
@@ -2341,8 +2297,6 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 	struct ci13xxx_req *mReq = container_of(req, struct ci13xxx_req, req);
 	unsigned long flags;
 
-	trace(mEp->udc->dev, "%p, %p", ep, req);
-
 	if (ep == NULL || req == NULL || mReq->req.status != -EALREADY ||
 		mEp->ep.desc == NULL || list_empty(&mReq->queue) ||
 		list_empty(&mEp->qh.queue))
@@ -2385,8 +2339,6 @@ static int ep_set_halt(struct usb_ep *ep, int value)
 	int direction, retval = 0;
 	unsigned long flags;
 
-	trace(mEp->udc->dev, "%p, %i", ep, value);
-
 	if (ep == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
 
@@ -2428,8 +2380,6 @@ static int ep_set_wedge(struct usb_ep *ep)
 	struct ci13xxx_ep *mEp = container_of(ep, struct ci13xxx_ep, ep);
 	unsigned long flags;
 
-	trace(mEp->udc->dev, "%p", ep);
-
 	if (ep == NULL || mEp->ep.desc == NULL)
 		return -EINVAL;
 
@@ -2452,8 +2402,6 @@ static void ep_fifo_flush(struct usb_ep *ep)
 {
 	struct ci13xxx_ep *mEp = container_of(ep, struct ci13xxx_ep, ep);
 	unsigned long flags;
-
-	trace(mEp->udc->dev, "%p", ep);
 
 	if (ep == NULL) {
 		dev_err(mEp->udc->dev, "%02X: -EINVAL\n", _usb_addr(mEp));
@@ -2526,17 +2474,13 @@ static int ci13xxx_wakeup(struct usb_gadget *_gadget)
 	unsigned long flags;
 	int ret = 0;
 
-	trace(udc->dev, "");
-
 	spin_lock_irqsave(&udc->lock, flags);
 	if (!udc->remote_wakeup) {
 		ret = -EOPNOTSUPP;
-		trace(udc->dev, "remote wakeup feature is not enabled\n");
 		goto out;
 	}
 	if (!hw_read(udc, OP_PORTSC, PORTSC_SUSP)) {
 		ret = -EINVAL;
-		trace(udc->dev, "port is not suspended\n");
 		goto out;
 	}
 	hw_write(udc, OP_PORTSC, PORTSC_FPR, PORTSC_FPR);
@@ -2633,8 +2577,6 @@ static int ci13xxx_start(struct usb_gadget *gadget,
 	unsigned long flags;
 	int retval = -ENOMEM;
 
-	trace(udc->dev, "%p", driver);
-
 	if (driver->disconnect == NULL)
 		return -EINVAL;
 
@@ -2680,8 +2622,6 @@ static int ci13xxx_stop(struct usb_gadget *gadget,
 	struct ci13xxx *udc = container_of(gadget, struct ci13xxx, gadget);
 	unsigned long flags;
 
-	trace(udc->dev, "%p", driver);
-
 	spin_lock_irqsave(&udc->lock, flags);
 
 	if (!(udc->udc_driver->flags & CI13XXX_PULLUP_ON_VBUS) ||
@@ -2716,8 +2656,6 @@ static irqreturn_t udc_irq(int irq, void *data)
 	struct ci13xxx *udc = data;
 	irqreturn_t retval;
 	u32 intr;
-
-	trace(udc ? udc->dev : NULL, "");
 
 	if (udc == NULL)
 		return IRQ_HANDLED;
@@ -2787,7 +2725,6 @@ static irqreturn_t udc_irq(int irq, void *data)
  */
 static void udc_release(struct device *dev)
 {
-	trace(dev->parent, "%p", dev);
 }
 
 /**
@@ -2805,8 +2742,6 @@ static int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 {
 	struct ci13xxx *udc;
 	int retval = 0;
-
-	trace(dev, "%p, %p, %p", dev, regs, driver->name);
 
 	if (dev == NULL || regs == NULL || driver == NULL ||
 			driver->name == NULL)
