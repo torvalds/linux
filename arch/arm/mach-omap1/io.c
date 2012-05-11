@@ -138,6 +138,11 @@ void __init omap1_init_early(void)
 	omap_init_consistent_dma_size();
 }
 
+void __init omap1_init_late(void)
+{
+	omap_serial_wakeup_init();
+}
+
 /*
  * NOTE: Please use ioremap + __raw_read/write where possible instead of these
  */

@@ -350,6 +350,7 @@ MACHINE_START(MINI6410, "MINI6410")
 	.handle_irq	= vic_handle_irq,
 	.map_io		= mini6410_map_io,
 	.init_machine	= mini6410_machine_init,
+	.init_late	= s3c64xx_init_late,
 	.timer		= &s3c24xx_timer,
 	.restart	= s3c64xx_restart,
 MACHINE_END

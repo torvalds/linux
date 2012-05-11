@@ -93,6 +93,11 @@ static void __init msm8960_rumi3_init(void)
 	platform_add_devices(rumi3_devices, ARRAY_SIZE(rumi3_devices));
 }
 
+static void __init msm8960_init_late(void)
+{
+	smd_debugfs_init();
+}
+
 MACHINE_START(MSM8960_SIM, "QCT MSM8960 SIMULATOR")
 	.fixup = msm8960_fixup,
 	.reserve = msm8960_reserve,
@@ -101,6 +106,7 @@ MACHINE_START(MSM8960_SIM, "QCT MSM8960 SIMULATOR")
 	.timer = &msm_timer,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8960_sim_init,
+	.init_late = msm8960_init_late,
 MACHINE_END
 
 MACHINE_START(MSM8960_RUMI3, "QCT MSM8960 RUMI3")
@@ -111,5 +117,6 @@ MACHINE_START(MSM8960_RUMI3, "QCT MSM8960 RUMI3")
 	.timer = &msm_timer,
 	.handle_irq = gic_handle_irq,
 	.init_machine = msm8960_rumi3_init,
+	.init_late = msm8960_init_late,
 MACHINE_END
 

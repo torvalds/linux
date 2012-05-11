@@ -19,6 +19,13 @@ void exynos4_init_irq(void);
 void exynos5_init_irq(void);
 void exynos4_restart(char mode, const char *cmd);
 void exynos5_restart(char mode, const char *cmd);
+void exynos_init_late(void);
+
+#ifdef CONFIG_PM_GENERIC_DOMAINS
+int exynos_pm_late_initcall(void);
+#else
+static int exynos_pm_late_initcall(void) { return 0; }
+#endif
 
 #ifdef CONFIG_ARCH_EXYNOS4
 void exynos4_register_clocks(void);

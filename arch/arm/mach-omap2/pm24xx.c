@@ -301,12 +301,9 @@ static void __init prcm_setup_regs(void)
 				WKUP_MOD, PM_WKEN);
 }
 
-static int __init omap2_pm_init(void)
+int __init omap2_pm_init(void)
 {
 	u32 l;
-
-	if (!cpu_is_omap24xx())
-		return -ENODEV;
 
 	printk(KERN_INFO "Power Management for OMAP2 initializing\n");
 	l = omap2_prm_read_mod_reg(OCP_MOD, OMAP2_PRCM_REVISION_OFFSET);
@@ -373,17 +370,13 @@ static int __init omap2_pm_init(void)
 	 * These routines need to be in SRAM as that's the only
 	 * memory the MPU can see when it wakes up.
 	 */
-	if (cpu_is_omap24xx()) {
-		omap2_sram_idle = omap_sram_push(omap24xx_idle_loop_suspend,
-						 omap24xx_idle_loop_suspend_sz);
+	omap2_sram_idle = omap_sram_push(omap24xx_idle_loop_suspend,
+					 omap24xx_idle_loop_suspend_sz);
 
-		omap2_sram_suspend = omap_sram_push(omap24xx_cpu_suspend,
-						    omap24xx_cpu_suspend_sz);
-	}
+	omap2_sram_suspend = omap_sram_push(omap24xx_cpu_suspend,
+					    omap24xx_cpu_suspend_sz);
 
 	arm_pm_idle = omap2_pm_idle;
 
 	return 0;
 }
-
-late_initcall(omap2_pm_init);

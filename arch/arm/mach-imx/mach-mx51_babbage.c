@@ -426,5 +426,6 @@ MACHINE_START(MX51_BABBAGE, "Freescale MX51 Babbage Board")
 	.handle_irq = imx51_handle_irq,
 	.timer = &mx51_babbage_timer,
 	.init_machine = mx51_babbage_init,
+	.init_late	= imx51_init_late,
 	.restart	= mxc_restart,
 MACHINE_END

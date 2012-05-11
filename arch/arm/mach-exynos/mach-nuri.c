@@ -1351,6 +1351,7 @@ MACHINE_START(NURI, "NURI")
 	.map_io		= nuri_map_io,
 	.handle_irq	= gic_handle_irq,
 	.init_machine	= nuri_machine_init,
+	.init_late	= exynos_init_late,
 	.timer		= &exynos4_timer,
 	.reserve        = &nuri_reserve,
 	.restart	= exynos4_restart,

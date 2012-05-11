@@ -88,6 +88,7 @@ MACHINE_START(OMAP_GENERIC, "Generic OMAP1510/1610/1710")
 	.reserve	= omap_reserve,
 	.init_irq	= omap1_init_irq,
 	.init_machine	= omap_generic_init,
+	.init_late	= omap1_init_late,
 	.timer		= &omap1_timer,
 	.restart	= omap1_restart,
 MACHINE_END

@@ -694,6 +694,11 @@ static void __init pcm037_reserve(void)
 			MX3_CAMERA_BUF_SIZE);
 }
 
+static void __init pcm037_init_late(void)
+{
+	pcm037_eet_init_devices();
+}
+
 MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	/* Maintainer: Pengutronix */
 	.atag_offset = 0x100,
@@ -704,5 +709,6 @@ MACHINE_START(PCM037, "Phytec Phycore pcm037")
 	.handle_irq = imx31_handle_irq,
 	.timer = &pcm037_timer,
 	.init_machine = pcm037_init,
+	.init_late = pcm037_init_late,
 	.restart	= mxc_restart,
 MACHINE_END

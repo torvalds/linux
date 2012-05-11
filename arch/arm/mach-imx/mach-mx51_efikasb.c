@@ -211,22 +211,25 @@ static void mx51_efikasb_power_off(void)
 
 static int __init mx51_efikasb_power_init(void)
 {
-	if (machine_is_mx51_efikasb()) {
-		pwgt1 = regulator_get(NULL, "pwgt1");
-		pwgt2 = regulator_get(NULL, "pwgt2");
-		if (!IS_ERR(pwgt1) && !IS_ERR(pwgt2)) {
-			regulator_enable(pwgt1);
-			regulator_enable(pwgt2);
-		}
-		gpio_request(EFIKASB_POWEROFF, "poweroff");
-		pm_power_off = mx51_efikasb_power_off;
-
-		regulator_has_full_constraints();
+	pwgt1 = regulator_get(NULL, "pwgt1");
+	pwgt2 = regulator_get(NULL, "pwgt2");
+	if (!IS_ERR(pwgt1) && !IS_ERR(pwgt2)) {
+		regulator_enable(pwgt1);
+		regulator_enable(pwgt2);
 	}
+	gpio_request(EFIKASB_POWEROFF, "poweroff");
+	pm_power_off = mx51_efikasb_power_off;
+
+	regulator_has_full_constraints();
 
 	return 0;
 }
-late_initcall(mx51_efikasb_power_init);
+
+static void __init mx51_efikasb_init_late(void)
+{
+	imx51_init_late();
+	mx51_efikasb_power_init();
+}
 
 /* 01     R1.3 board
    10     R2.0 board */
@@ -287,6 +290,7 @@ MACHINE_START(MX51_EFIKASB, "Genesi Efika Smartbook")
 	.init_irq = mx51_init_irq,
 	.handle_irq = imx51_handle_irq,
 	.init_machine =  efikasb_board_init,
+	.init_late = mx51_efikasb_init_late,
 	.timer = &mx51_efikasb_timer,
 	.restart	= mxc_restart,
 MACHINE_END
