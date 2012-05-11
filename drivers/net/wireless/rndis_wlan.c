@@ -623,8 +623,8 @@ static int rndis_akm_suite_to_key_mgmt(u32 akm_suite)
 #ifdef DEBUG
 static const char *oid_to_string(__le32 oid)
 {
-	switch (oid) {
-#define OID_STR(oid) case cpu_to_le32(oid): return(#oid)
+	switch (le32_to_cpu(oid)) {
+#define OID_STR(oid) case oid: return(#oid)
 		/* from rndis_host.h */
 		OID_STR(RNDIS_OID_802_3_PERMANENT_ADDRESS);
 		OID_STR(RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE);
@@ -687,19 +687,19 @@ static const char *oid_to_string(__le32 oid)
 static int rndis_error_status(__le32 rndis_status)
 {
 	int ret = -EINVAL;
-	switch (rndis_status) {
-	case cpu_to_le32(RNDIS_STATUS_SUCCESS):
+	switch (le32_to_cpu(rndis_status)) {
+	case RNDIS_STATUS_SUCCESS:
 		ret = 0;
 		break;
-	case cpu_to_le32(RNDIS_STATUS_FAILURE):
-	case cpu_to_le32(RNDIS_STATUS_INVALID_DATA):
+	case RNDIS_STATUS_FAILURE:
+	case RNDIS_STATUS_INVALID_DATA:
 		ret = -EINVAL;
 		break;
-	case cpu_to_le32(RNDIS_STATUS_NOT_SUPPORTED):
+	case RNDIS_STATUS_NOT_SUPPORTED:
 		ret = -EOPNOTSUPP;
 		break;
-	case cpu_to_le32(RNDIS_STATUS_ADAPTER_NOT_READY):
-	case cpu_to_le32(RNDIS_STATUS_ADAPTER_NOT_OPEN):
+	case RNDIS_STATUS_ADAPTER_NOT_READY:
+	case RNDIS_STATUS_ADAPTER_NOT_OPEN:
 		ret = -EBUSY;
 		break;
 	}
@@ -3075,8 +3075,8 @@ static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct rndis_indicate *msg = ind;
 
-	switch (msg->status) {
-	case cpu_to_le32(RNDIS_STATUS_MEDIA_CONNECT):
+	switch (le32_to_cpu(msg->status)) {
+	case RNDIS_STATUS_MEDIA_CONNECT:
 		if (priv->current_command_oid == cpu_to_le32(RNDIS_OID_802_11_ADD_KEY)) {
 			/* OID_802_11_ADD_KEY causes sometimes extra
 			 * "media connect" indications which confuses driver
@@ -3096,7 +3096,7 @@ static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 		queue_work(priv->workqueue, &priv->work);
 		break;
 
-	case cpu_to_le32(RNDIS_STATUS_MEDIA_DISCONNECT):
+	case RNDIS_STATUS_MEDIA_DISCONNECT:
 		netdev_info(usbdev->net, "media disconnect\n");
 
 		/* queue work to avoid recursive calls into rndis_command */
@@ -3104,7 +3104,7 @@ static void rndis_wlan_indication(struct usbnet *usbdev, void *ind, int buflen)
 		queue_work(priv->workqueue, &priv->work);
 		break;
 
-	case cpu_to_le32(RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION):
+	case RNDIS_STATUS_MEDIA_SPECIFIC_INDICATION:
 		rndis_wlan_media_specific_indication(usbdev, msg, buflen);
 		break;
 
