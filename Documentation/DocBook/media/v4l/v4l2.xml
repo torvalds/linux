@@ -140,11 +140,18 @@ applications. -->
 
       <revision>
 	<revnumber>3.5</revnumber>
-	<date>2012-04-02</date>
+	<date>2012-05-07</date>
 	<authorinitials>sa, sn</authorinitials>
 	<revremark>Added V4L2_CTRL_TYPE_INTEGER_MENU and V4L2 subdev
 	    selections API. Improved the description of V4L2_CID_COLORFX
 	    control, added V4L2_CID_COLORFX_CBCR control.
+	    Added camera controls V4L2_CID_AUTO_EXPOSURE_BIAS,
+	    V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE, V4L2_CID_IMAGE_STABILIZATION,
+	    V4L2_CID_ISO_SENSITIVITY, V4L2_CID_ISO_SENSITIVITY_AUTO,
+	    V4L2_CID_EXPOSURE_METERING, V4L2_CID_SCENE_MODE,
+	    V4L2_CID_3A_LOCK, V4L2_CID_AUTO_FOCUS_START,
+	    V4L2_CID_AUTO_FOCUS_STOP, V4L2_CID_AUTO_FOCUS_STATUS
+	    and V4L2_CID_AUTO_FOCUS_RANGE.
 	</revremark>
       </revision>
 

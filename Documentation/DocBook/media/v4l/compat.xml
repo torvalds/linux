@@ -2435,6 +2435,21 @@ details.</para>
         <listitem>
 	  <para> Added <constant>V4L2_CID_COLORFX_CBCR</constant> control.</para>
         </listitem>
+        <listitem>
+	  <para> Added camera controls <constant>V4L2_CID_AUTO_EXPOSURE_BIAS</constant>,
+	  <constant>V4L2_CID_AUTO_N_PRESET_WHITE_BALANCE</constant>,
+	  <constant>V4L2_CID_IMAGE_STABILIZATION</constant>,
+	  <constant>V4L2_CID_ISO_SENSITIVITY</constant>,
+	  <constant>V4L2_CID_ISO_SENSITIVITY_AUTO</constant>,
+	  <constant>V4L2_CID_EXPOSURE_METERING</constant>,
+	  <constant>V4L2_CID_SCENE_MODE</constant>,
+	  <constant>V4L2_CID_3A_LOCK</constant>,
+	  <constant>V4L2_CID_AUTO_FOCUS_START</constant>,
+	  <constant>V4L2_CID_AUTO_FOCUS_STOP</constant>,
+	  <constant>V4L2_CID_AUTO_FOCUS_STATUS</constant> and
+	  <constant>V4L2_CID_AUTO_FOCUS_RANGE</constant>.
+	  </para>
+        </listitem>
       </orderedlist>
     </section>
 
@@ -2554,6 +2569,10 @@ ioctls.</para>
         <listitem>
 	  <para>Sub-device selection API: &VIDIOC-SUBDEV-G-SELECTION;
 	  and &VIDIOC-SUBDEV-S-SELECTION; ioctls.</para>
+        </listitem>
+        <listitem>
+	  <para><link linkend="v4l2-auto-focus-area"><constant>
+	  V4L2_CID_AUTO_FOCUS_AREA</constant></link> control.</para>
         </listitem>
       </itemizedlist>
     </section>
