@@ -375,8 +375,6 @@ static void ixgbevf_alloc_rx_buffers(struct ixgbevf_adapter *adapter,
 no_buffers:
 	if (rx_ring->next_to_use != i) {
 		rx_ring->next_to_use = i;
-		if (i-- == 0)
-			i = (rx_ring->count - 1);
 
 		ixgbevf_release_rx_desc(&adapter->hw, rx_ring, i);
 	}
@@ -1240,9 +1238,8 @@ static void ixgbevf_configure(struct ixgbevf_adapter *adapter)
 	ixgbevf_configure_rx(adapter);
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct ixgbevf_ring *ring = &adapter->rx_ring[i];
-		ixgbevf_alloc_rx_buffers(adapter, ring, ring->count);
-		ring->next_to_use = ring->count - 1;
-		writel(ring->next_to_use, adapter->hw.hw_addr + ring->tail);
+		ixgbevf_alloc_rx_buffers(adapter, ring,
+					 IXGBE_DESC_UNUSED(ring));
 	}
 }
 
