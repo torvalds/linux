@@ -27,25 +27,38 @@
 /******************************************************************************
  * STRUCTURES
  *****************************************************************************/
-/* Extension of usb_ep */
+/**
+ * struct ci13xxx_ep - endpoint representation
+ * @ep: endpoint structure for gadget drivers
+ * @dir: endpoint direction (TX/RX)
+ * @num: endpoint number
+ * @type: endpoint type
+ * @name: string description of the endpoint
+ * @qh: queue head for this endpoint
+ * @wedge: is the endpoint wedged
+ * @udc: pointer to the controller
+ * @lock: pointer to controller's spinlock
+ * @device: pointer to gadget's struct device
+ * @td_pool: pointer to controller's TD pool
+ */
 struct ci13xxx_ep {
-	struct usb_ep                          ep;
-	u8                                     dir;
-	u8                                     num;
-	u8                                     type;
-	char                                   name[16];
+	struct usb_ep				ep;
+	u8					dir;
+	u8					num;
+	u8					type;
+	char					name[16];
 	struct {
-		struct list_head   queue;
-		struct ci13xxx_qh *ptr;
-		dma_addr_t         dma;
-	}                                      qh;
-	int                                    wedge;
+		struct list_head	queue;
+		struct ci13xxx_qh	*ptr;
+		dma_addr_t		dma;
+	}					qh;
+	int					wedge;
 
 	/* global resources */
-	struct ci13xxx                        *udc;
-	spinlock_t                            *lock;
-	struct device                         *device;
-	struct dma_pool                       *td_pool;
+	struct ci13xxx				*udc;
+	spinlock_t				*lock;
+	struct device				*device;
+	struct dma_pool				*td_pool;
 };
 
 enum ci_role {
@@ -68,48 +81,85 @@ struct ci_role_driver {
 	const char	*name;
 };
 
+/**
+ * struct hw_bank - hardware register mapping representation
+ * @lpm: set if the device is LPM capable
+ * @abs: absolute address of the beginning of register window
+ * @cap: capability registers
+ * @op: operational registers
+ * @size: size of the register window
+ * @regmap: register lookup table
+ */
 struct hw_bank {
-	unsigned      lpm;    /* is LPM? */
-	void __iomem *abs;    /* bus map offset */
-	void __iomem *cap;    /* bus map offset + CAP offset */
-	void __iomem *op;     /* bus map offset + OP offset */
-	size_t        size;   /* bank size */
-	void __iomem **regmap;
+	unsigned	lpm;
+	void __iomem	*abs;
+	void __iomem	*cap;
+	void __iomem	*op;
+	size_t		size;
+	void __iomem	**regmap;
 };
 
-/* CI13XXX UDC descriptor & global resources */
+/**
+ * struct ci13xxx - chipidea device representation
+ * @dev: pointer to parent device
+ * @lock: access synchronization
+ * @hw_bank: hardware register mapping
+ * @irq: IRQ number
+ * @roles: array of supported roles for this controller
+ * @role: current role
+ * @is_otg: if the device is otg-capable
+ * @work: work for role changing
+ * @wq: workqueue thread
+ * @qh_pool: allocation pool for queue heads
+ * @td_pool: allocation pool for transfer descriptors
+ * @gadget: device side representation for peripheral controller
+ * @driver: gadget driver
+ * @hw_ep_max: total number of endpoints supported by hardware
+ * @ci13xxx_ep: array of endpoints
+ * @ep0_dir: ep0 direction
+ * @ep0out: pointer to ep0 OUT endpoint
+ * @ep0in: pointer to ep0 IN endpoint
+ * @status: ep0 status request
+ * @setaddr: if we should set the address on status completion
+ * @address: usb address received from the host
+ * @remote_wakeup: host-enabled remote wakeup
+ * @suspended: suspended by host
+ * @test_mode: the selected test mode
+ * @udc_driver: platform specific information supplied by parent device
+ * @vbus_active: is VBUS active
+ * @transceiver: pointer to USB PHY, if any
+ */
 struct ci13xxx {
-	spinlock_t		   lock;      /* ctrl register bank access */
+	struct device			*dev;
+	spinlock_t			lock;
+	struct hw_bank			hw_bank;
+	int				irq;
+	struct ci_role_driver		*roles[CI_ROLE_END];
+	enum ci_role			role;
+	bool				is_otg;
+	struct work_struct		work;
+	struct workqueue_struct		*wq;
 
-	struct dma_pool           *qh_pool;   /* DMA pool for queue heads */
-	struct dma_pool           *td_pool;   /* DMA pool for transfer descs */
-	struct usb_request        *status;    /* ep0 status request */
+	struct dma_pool			*qh_pool;
+	struct dma_pool			*td_pool;
 
-	struct device             *dev;
-	struct usb_gadget          gadget;     /* USB slave device */
-	struct ci13xxx_ep          ci13xxx_ep[ENDPT_MAX]; /* extended endpts */
-	u32                        ep0_dir;    /* ep0 direction */
-	struct ci13xxx_ep          *ep0out, *ep0in;
-	unsigned		   hw_ep_max;  /* number of hw endpoints */
+	struct usb_gadget		gadget;
+	struct usb_gadget_driver	*driver;
+	unsigned			hw_ep_max;
+	struct ci13xxx_ep		ci13xxx_ep[ENDPT_MAX];
+	u32				ep0_dir;
+	struct ci13xxx_ep		*ep0out, *ep0in;
 
-	bool			   setaddr;
-	u8			   address;
-	u8                         remote_wakeup; /* Is remote wakeup feature
-							enabled by the host? */
-	u8                         suspended;  /* suspended by the host */
-	u8                         test_mode;  /* the selected test mode */
+	struct usb_request		*status;
+	bool				setaddr;
+	u8				address;
+	u8				remote_wakeup;
+	u8				suspended;
+	u8				test_mode;
 
-	struct hw_bank             hw_bank;
-	int			   irq;
-	struct usb_gadget_driver  *driver;     /* 3rd party gadget driver */
-	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */
-	int                        vbus_active; /* is VBUS active */
-	struct usb_phy            *transceiver; /* Transceiver struct */
-	struct ci_role_driver     *roles[CI_ROLE_END];
-	enum ci_role               role;
-	bool			   is_otg;
-	struct work_struct	   work;
-	struct workqueue_struct	  *wq;
+	struct ci13xxx_udc_driver	*udc_driver;
+	int				vbus_active;
+	struct usb_phy			*transceiver;
 };
 
 static inline struct ci_role_driver *ci_role(struct ci13xxx *ci)

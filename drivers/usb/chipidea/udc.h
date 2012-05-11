@@ -59,15 +59,24 @@ struct ci13xxx_qh {
 	struct usb_ctrlrequest   setup;
 } __attribute__ ((packed));
 
-/* Extension of usb_request */
+/**
+ * struct ci13xxx_req - usb request representation
+ * @req: request structure for gadget drivers
+ * @map: is the request mapped
+ * @queue: link to QH list
+ * @ptr: transfer descriptor for this request
+ * @dma: dma address for the transfer descriptor
+ * @zptr: transfer descriptor for the zero packet
+ * @zdma: dma address of the zero packet's transfer descriptor
+ */
 struct ci13xxx_req {
-	struct usb_request   req;
-	unsigned             map;
-	struct list_head     queue;
-	struct ci13xxx_td   *ptr;
-	dma_addr_t           dma;
-	struct ci13xxx_td   *zptr;
-	dma_addr_t           zdma;
+	struct usb_request	req;
+	unsigned		map;
+	struct list_head	queue;
+	struct ci13xxx_td	*ptr;
+	dma_addr_t		dma;
+	struct ci13xxx_td	*zptr;
+	dma_addr_t		zdma;
 };
 
 #ifdef CONFIG_USB_CHIPIDEA_UDC
