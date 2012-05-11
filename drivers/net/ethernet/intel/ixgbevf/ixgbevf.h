@@ -81,11 +81,6 @@ struct ixgbevf_ring {
 		      * offset associated with this ring, which is different
 		      * for DCB and RSS modes */
 
-	u64 v_idx; /* maps directly to the index for this ring in the hardware
-		    * vector array, can also be used for finding the bit in EICR
-		    * and friends that represents the vector for this ring */
-
-	u16 work_limit;                /* max work per interrupt */
 	u16 rx_buf_len;
 };
 
@@ -140,6 +135,7 @@ struct ixgbevf_q_vector {
 	struct ixgbevf_ring_container rx, tx;
 	u32 eitr;
 	int v_idx;	  /* vector index in list */
+	char name[IFNAMSIZ + 9];
 };
 
 /* Helper macros to switch between ints/sec and what the register uses.
@@ -167,9 +163,8 @@ struct ixgbevf_q_vector {
 #define NON_Q_VECTORS (OTHER_VECTOR)
 
 #define MAX_MSIX_Q_VECTORS 2
-#define MAX_MSIX_COUNT 2
 
-#define MIN_MSIX_Q_VECTORS 2
+#define MIN_MSIX_Q_VECTORS 1
 #define MIN_MSIX_COUNT (MIN_MSIX_Q_VECTORS + NON_Q_VECTORS)
 
 /* board specific private data structure */
@@ -179,7 +174,6 @@ struct ixgbevf_adapter {
 	u16 bd_number;
 	struct work_struct reset_task;
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
-	char name[MAX_MSIX_COUNT][IFNAMSIZ + 9];
 
 	/* Interrupt Throttle Rate */
 	u32 itr_setting;
@@ -187,6 +181,7 @@ struct ixgbevf_adapter {
 	/* TX */
 	struct ixgbevf_ring *tx_ring;	/* One per active queue */
 	int num_tx_queues;
+	u16 tx_itr_setting;
 	u64 restart_queue;
 	u64 hw_csum_tx_good;
 	u64 lsc_int;
@@ -197,6 +192,7 @@ struct ixgbevf_adapter {
 	/* RX */
 	struct ixgbevf_ring *rx_ring;	/* One per active queue */
 	int num_rx_queues;
+	u16 rx_itr_setting;
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
 	u64 hw_csum_rx_good;

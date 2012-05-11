@@ -364,7 +364,6 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 			}
 			goto err_tx_ring_setup;
 		}
-		tx_ring[i].v_idx = adapter->tx_ring[i].v_idx;
 	}
 
 	memcpy(rx_ring, adapter->rx_ring,
@@ -380,7 +379,6 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 			}
 				goto err_rx_ring_setup;
 		}
-		rx_ring[i].v_idx = adapter->rx_ring[i].v_idx;
 	}
 
 	/*

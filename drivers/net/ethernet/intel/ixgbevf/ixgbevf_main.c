@@ -97,7 +97,7 @@ module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* forward decls */
-static void ixgbevf_set_itr_msix(struct ixgbevf_q_vector *q_vector);
+static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector);
 static void ixgbevf_write_eitr(struct ixgbevf_adapter *adapter, int v_idx,
 			       u32 itr_reg);
 
@@ -182,14 +182,14 @@ static void ixgbevf_tx_timeout(struct net_device *netdev);
 
 /**
  * ixgbevf_clean_tx_irq - Reclaim resources after transmit completes
- * @adapter: board private structure
+ * @q_vector: board private structure
  * @tx_ring: tx ring to clean
  **/
-static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
+static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 				 struct ixgbevf_ring *tx_ring)
 {
+	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct net_device *netdev = adapter->netdev;
-	struct ixgbe_hw *hw = &adapter->hw;
 	union ixgbe_adv_tx_desc *tx_desc, *eop_desc;
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned int i, eop, count = 0;
@@ -200,7 +200,7 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_adapter *adapter,
 	eop_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
 
 	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
-	       (count < tx_ring->work_limit)) {
+	       (count < tx_ring->count)) {
 		bool cleaned = false;
 		rmb(); /* read buffer_info after eop_desc */
 		/* eop could change between read and DD-check */
@@ -256,18 +256,12 @@ cont_loop:
 		}
 	}
 
-	/* re-arm the interrupt */
-	if ((count >= tx_ring->work_limit) &&
-	    (!test_bit(__IXGBEVF_DOWN, &adapter->state))) {
-		IXGBE_WRITE_REG(hw, IXGBE_VTEICS, tx_ring->v_idx);
-	}
-
 	u64_stats_update_begin(&tx_ring->syncp);
 	tx_ring->total_bytes += total_bytes;
 	tx_ring->total_packets += total_packets;
 	u64_stats_update_end(&tx_ring->syncp);
 
-	return count < tx_ring->work_limit;
+	return count < tx_ring->count;
 }
 
 /**
@@ -402,7 +396,7 @@ static inline void ixgbevf_irq_enable_queues(struct ixgbevf_adapter *adapter,
 
 static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 				 struct ixgbevf_ring *rx_ring,
-				 int *work_done, int work_to_do)
+				 int budget)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct pci_dev *pdev = adapter->pdev;
@@ -411,7 +405,6 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 	struct sk_buff *skb;
 	unsigned int i;
 	u32 len, staterr;
-	bool cleaned = false;
 	int cleaned_count = 0;
 	unsigned int total_rx_bytes = 0, total_rx_packets = 0;
 
@@ -421,13 +414,12 @@ static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
 	rx_buffer_info = &rx_ring->rx_buffer_info[i];
 
 	while (staterr & IXGBE_RXD_STAT_DD) {
-		if (*work_done >= work_to_do)
+		if (!budget)
 			break;
-		(*work_done)++;
+		budget--;
 
 		rmb(); /* read descriptor and rx_buffer_info after status DD */
 		len = le16_to_cpu(rx_desc->wb.upper.length);
-		cleaned = true;
 		skb = rx_buffer_info->skb;
 		prefetch(skb->data - NET_IP_ALIGN);
 		rx_buffer_info->skb = NULL;
@@ -510,74 +502,52 @@ next_desc:
 	rx_ring->total_bytes += total_rx_bytes;
 	u64_stats_update_end(&rx_ring->syncp);
 
-	return cleaned;
+	return !!budget;
 }
 
 /**
- * ixgbevf_clean_rxonly - msix (aka one shot) rx clean routine
+ * ixgbevf_poll - NAPI polling calback
  * @napi: napi struct with our devices info in it
  * @budget: amount of work driver is allowed to do this pass, in packets
  *
- * This function is optimized for cleaning one queue only on a single
- * q_vector!!!
- **/
-static int ixgbevf_clean_rxonly(struct napi_struct *napi, int budget)
-{
-	struct ixgbevf_q_vector *q_vector =
-		container_of(napi, struct ixgbevf_q_vector, napi);
-	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	int work_done = 0;
-
-	ixgbevf_clean_rx_irq(q_vector, q_vector->rx.ring, &work_done, budget);
-
-	/* If all Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		if (adapter->itr_setting & 1)
-			ixgbevf_set_itr_msix(q_vector);
-		if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-			ixgbevf_irq_enable_queues(adapter,
-						  1 << q_vector->v_idx);
-	}
-
-	return work_done;
-}
-
-/**
- * ixgbevf_clean_rxonly_many - msix (aka one shot) rx clean routine
- * @napi: napi struct with our devices info in it
- * @budget: amount of work driver is allowed to do this pass, in packets
- *
- * This function will clean more than one rx queue associated with a
+ * This function will clean more than one or more rings associated with a
  * q_vector.
  **/
-static int ixgbevf_clean_rxonly_many(struct napi_struct *napi, int budget)
+static int ixgbevf_poll(struct napi_struct *napi, int budget)
 {
 	struct ixgbevf_q_vector *q_vector =
 		container_of(napi, struct ixgbevf_q_vector, napi);
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	struct ixgbevf_ring *rx_ring;
-	int work_done = 0;
+	struct ixgbevf_ring *ring;
+	int per_ring_budget;
+	bool clean_complete = true;
+
+	ixgbevf_for_each_ring(ring, q_vector->tx)
+		clean_complete &= ixgbevf_clean_tx_irq(q_vector, ring);
 
 	/* attempt to distribute budget to each queue fairly, but don't allow
 	 * the budget to go below 1 because we'll exit polling */
-	budget /= (q_vector->rx.count ?: 1);
-	budget = max(budget, 1);
+	if (q_vector->rx.count > 1)
+		per_ring_budget = max(budget/q_vector->rx.count, 1);
+	else
+		per_ring_budget = budget;
 
-	ixgbevf_for_each_ring(rx_ring, q_vector->rx)
-		ixgbevf_clean_rx_irq(q_vector, rx_ring, &work_done, budget);
+	ixgbevf_for_each_ring(ring, q_vector->rx)
+		clean_complete &= ixgbevf_clean_rx_irq(q_vector, ring,
+						       per_ring_budget);
 
-	/* If all Rx work done, exit the polling mode */
-	if (work_done < budget) {
-		napi_complete(napi);
-		if (adapter->itr_setting & 1)
-			ixgbevf_set_itr_msix(q_vector);
-		if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
-			ixgbevf_irq_enable_queues(adapter,
-						  1 << q_vector->v_idx);
-	}
+	/* If all work not completed, return budget and keep polling */
+	if (!clean_complete)
+		return budget;
+	/* all work done, exit the polling mode */
+	napi_complete(napi);
+	if (adapter->rx_itr_setting & 1)
+		ixgbevf_set_itr(q_vector);
+	if (!test_bit(__IXGBEVF_DOWN, &adapter->state))
+		ixgbevf_irq_enable_queues(adapter,
+					  1 << q_vector->v_idx);
 
-	return work_done;
+	return 0;
 }
 
 
@@ -720,7 +690,7 @@ static void ixgbevf_write_eitr(struct ixgbevf_adapter *adapter, int v_idx,
 	IXGBE_WRITE_REG(hw, IXGBE_VTEITR(v_idx), itr_reg);
 }
 
-static void ixgbevf_set_itr_msix(struct ixgbevf_q_vector *q_vector)
+static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 {
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	u32 new_itr;
@@ -780,8 +750,7 @@ static void ixgbevf_set_itr_msix(struct ixgbevf_q_vector *q_vector)
 
 static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 {
-	struct net_device *netdev = data;
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
+	struct ixgbevf_adapter *adapter = data;
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 eicr;
 	u32 msg;
@@ -821,59 +790,22 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static irqreturn_t ixgbevf_msix_clean_tx(int irq, void *data)
-{
-	struct ixgbevf_q_vector *q_vector = data;
-	struct ixgbevf_adapter  *adapter = q_vector->adapter;
-	struct ixgbevf_ring     *tx_ring;
-
-	if (!q_vector->tx.ring)
-		return IRQ_HANDLED;
-
-	ixgbevf_for_each_ring(tx_ring, q_vector->tx) {
-		tx_ring->total_bytes = 0;
-		tx_ring->total_packets = 0;
-		ixgbevf_clean_tx_irq(adapter, tx_ring);
-	}
-
-	if (adapter->itr_setting & 1)
-		ixgbevf_set_itr_msix(q_vector);
-
-	return IRQ_HANDLED;
-}
 
 /**
- * ixgbevf_msix_clean_rx - single unshared vector rx clean (all queues)
+ * ixgbevf_msix_clean_rings - single unshared vector rx clean (all queues)
  * @irq: unused
  * @data: pointer to our q_vector struct for this interrupt vector
  **/
-static irqreturn_t ixgbevf_msix_clean_rx(int irq, void *data)
+static irqreturn_t ixgbevf_msix_clean_rings(int irq, void *data)
 {
 	struct ixgbevf_q_vector *q_vector = data;
 	struct ixgbevf_adapter  *adapter = q_vector->adapter;
 	struct ixgbe_hw *hw = &adapter->hw;
-	struct ixgbevf_ring  *rx_ring;
-
-	ixgbevf_for_each_ring(rx_ring, q_vector->rx) {
-		rx_ring->total_bytes = 0;
-		rx_ring->total_packets = 0;
-	}
-
-	if (!q_vector->rx.ring)
-		return IRQ_HANDLED;
 
 	/* disable interrupts on this vector only */
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMC, 1 << q_vector->v_idx);
-	napi_schedule(&q_vector->napi);
-
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ixgbevf_msix_clean_many(int irq, void *data)
-{
-	ixgbevf_msix_clean_rx(irq, data);
-	ixgbevf_msix_clean_tx(irq, data);
+	if (q_vector->rx.ring || q_vector->tx.ring)
+		napi_schedule(&q_vector->napi);
 
 	return IRQ_HANDLED;
 }
@@ -886,7 +818,6 @@ static inline void map_vector_to_rxq(struct ixgbevf_adapter *a, int v_idx,
 	a->rx_ring[r_idx].next = q_vector->rx.ring;
 	q_vector->rx.ring = &a->rx_ring[r_idx];
 	q_vector->rx.count++;
-	a->rx_ring[r_idx].v_idx = 1 << v_idx;
 }
 
 static inline void map_vector_to_txq(struct ixgbevf_adapter *a, int v_idx,
@@ -897,7 +828,6 @@ static inline void map_vector_to_txq(struct ixgbevf_adapter *a, int v_idx,
 	a->tx_ring[t_idx].next = q_vector->tx.ring;
 	q_vector->tx.ring = &a->tx_ring[t_idx];
 	q_vector->tx.count++;
-	a->tx_ring[t_idx].v_idx = 1 << v_idx;
 }
 
 /**
@@ -973,37 +903,30 @@ out:
 static int ixgbevf_request_msix_irqs(struct ixgbevf_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	irqreturn_t (*handler)(int, void *);
-	int i, vector, q_vectors, err;
+	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	int vector, err;
 	int ri = 0, ti = 0;
 
-	/* Decrement for Other and TCP Timer vectors */
-	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-
-#define SET_HANDLER(_v) (((_v)->rx.ring && (_v)->tx.ring)          \
-					? &ixgbevf_msix_clean_many : \
-			  (_v)->rx.ring ? &ixgbevf_msix_clean_rx   : \
-			  (_v)->tx.ring ? &ixgbevf_msix_clean_tx   : \
-			  NULL)
 	for (vector = 0; vector < q_vectors; vector++) {
-		handler = SET_HANDLER(adapter->q_vector[vector]);
+		struct ixgbevf_q_vector *q_vector = adapter->q_vector[vector];
+		struct msix_entry *entry = &adapter->msix_entries[vector];
 
-		if (handler == &ixgbevf_msix_clean_rx) {
-			sprintf(adapter->name[vector], "%s-%s-%d",
-				netdev->name, "rx", ri++);
-		} else if (handler == &ixgbevf_msix_clean_tx) {
-			sprintf(adapter->name[vector], "%s-%s-%d",
-				netdev->name, "tx", ti++);
-		} else if (handler == &ixgbevf_msix_clean_many) {
-			sprintf(adapter->name[vector], "%s-%s-%d",
-				netdev->name, "TxRx", vector);
+		if (q_vector->tx.ring && q_vector->rx.ring) {
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-%s-%d", netdev->name, "TxRx", ri++);
+			ti++;
+		} else if (q_vector->rx.ring) {
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-%s-%d", netdev->name, "rx", ri++);
+		} else if (q_vector->tx.ring) {
+			snprintf(q_vector->name, sizeof(q_vector->name) - 1,
+				 "%s-%s-%d", netdev->name, "tx", ti++);
 		} else {
 			/* skip this unused q_vector */
 			continue;
 		}
-		err = request_irq(adapter->msix_entries[vector].vector,
-				  handler, 0, adapter->name[vector],
-				  adapter->q_vector[vector]);
+		err = request_irq(entry->vector, &ixgbevf_msix_clean_rings, 0,
+				  q_vector->name, q_vector);
 		if (err) {
 			hw_dbg(&adapter->hw,
 			       "request_irq failed for MSIX interrupt "
@@ -1012,9 +935,8 @@ static int ixgbevf_request_msix_irqs(struct ixgbevf_adapter *adapter)
 		}
 	}
 
-	sprintf(adapter->name[vector], "%s:mbx", netdev->name);
 	err = request_irq(adapter->msix_entries[vector].vector,
-			  &ixgbevf_msix_mbx, 0, adapter->name[vector], netdev);
+			  &ixgbevf_msix_mbx, 0, netdev->name, adapter);
 	if (err) {
 		hw_dbg(&adapter->hw,
 		       "request_irq for msix_mbx failed: %d\n", err);
@@ -1024,9 +946,11 @@ static int ixgbevf_request_msix_irqs(struct ixgbevf_adapter *adapter)
 	return 0;
 
 free_queue_irqs:
-	for (i = vector - 1; i >= 0; i--)
-		free_irq(adapter->msix_entries[--vector].vector,
-			 &(adapter->q_vector[i]));
+	while (vector) {
+		vector--;
+		free_irq(adapter->msix_entries[vector].vector,
+			 adapter->q_vector[vector]);
+	}
 	pci_disable_msix(adapter->pdev);
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
@@ -1069,17 +993,20 @@ static int ixgbevf_request_irq(struct ixgbevf_adapter *adapter)
 
 static void ixgbevf_free_irq(struct ixgbevf_adapter *adapter)
 {
-	struct net_device *netdev = adapter->netdev;
 	int i, q_vectors;
 
 	q_vectors = adapter->num_msix_vectors;
-
 	i = q_vectors - 1;
 
-	free_irq(adapter->msix_entries[i].vector, netdev);
+	free_irq(adapter->msix_entries[i].vector, adapter);
 	i--;
 
 	for (; i >= 0; i--) {
+		/* free only the irqs that were actually requested */
+		if (!adapter->q_vector[i]->rx.ring &&
+		    !adapter->q_vector[i]->tx.ring)
+			continue;
+
 		free_irq(adapter->msix_entries[i].vector,
 			 adapter->q_vector[i]);
 	}
@@ -1317,15 +1244,8 @@ static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
 	int q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
-		struct napi_struct *napi;
 		q_vector = adapter->q_vector[q_idx];
-		if (!q_vector->rx.ring)
-			continue;
-		napi = &q_vector->napi;
-		if (q_vector->rx.count > 1)
-			napi->poll = &ixgbevf_clean_rxonly_many;
-
-		napi_enable(napi);
+		napi_enable(&q_vector->napi);
 	}
 }
 
@@ -1337,8 +1257,6 @@ static void ixgbevf_napi_disable_all(struct ixgbevf_adapter *adapter)
 
 	for (q_idx = 0; q_idx < q_vectors; q_idx++) {
 		q_vector = adapter->q_vector[q_idx];
-		if (!q_vector->rx.ring)
-			continue;
 		napi_disable(&q_vector->napi);
 	}
 }
@@ -1703,10 +1621,9 @@ static void ixgbevf_acquire_msix_vectors(struct ixgbevf_adapter *adapter,
 {
 	int err, vector_threshold;
 
-	/* We'll want at least 3 (vector_threshold):
-	 * 1) TxQ[0] Cleanup
-	 * 2) RxQ[0] Cleanup
-	 * 3) Other (Link Status Change, etc.)
+	/* We'll want at least 2 (vector_threshold):
+	 * 1) TxQ[0] + RxQ[0] handler
+	 * 2) Other (Link Status Change, etc.)
 	 */
 	vector_threshold = MIN_MSIX_COUNT;
 
@@ -1821,10 +1738,12 @@ static int ixgbevf_set_interrupt_capability(struct ixgbevf_adapter *adapter)
 	 * It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
 	 * than CPU's.  So let's be conservative and only ask for
-	 * (roughly) twice the number of vectors as there are CPU's.
+	 * (roughly) the same number of vectors as there are CPU's.
+	 * The default is to use pairs of vectors.
 	 */
-	v_budget = min(adapter->num_rx_queues + adapter->num_tx_queues,
-		       (int)(num_online_cpus() * 2)) + NON_Q_VECTORS;
+	v_budget = max(adapter->num_rx_queues, adapter->num_tx_queues);
+	v_budget = min_t(int, v_budget, num_online_cpus());
+	v_budget += NON_Q_VECTORS;
 
 	/* A failure in MSI-X entry allocation isn't fatal, but it does
 	 * mean we disable MSI-X capabilities of the adapter. */
@@ -1855,12 +1774,8 @@ static int ixgbevf_alloc_q_vectors(struct ixgbevf_adapter *adapter)
 {
 	int q_idx, num_q_vectors;
 	struct ixgbevf_q_vector *q_vector;
-	int napi_vectors;
-	int (*poll)(struct napi_struct *, int);
 
 	num_q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
-	napi_vectors = adapter->num_rx_queues;
-	poll = &ixgbevf_clean_rxonly;
 
 	for (q_idx = 0; q_idx < num_q_vectors; q_idx++) {
 		q_vector = kzalloc(sizeof(struct ixgbevf_q_vector), GFP_KERNEL);
@@ -1869,9 +1784,8 @@ static int ixgbevf_alloc_q_vectors(struct ixgbevf_adapter *adapter)
 		q_vector->adapter = adapter;
 		q_vector->v_idx = q_idx;
 		q_vector->eitr = adapter->eitr_param;
-		if (q_idx < napi_vectors)
-			netif_napi_add(adapter->netdev, &q_vector->napi,
-				       (*poll), 64);
+		netif_napi_add(adapter->netdev, &q_vector->napi,
+			       ixgbevf_poll, 64);
 		adapter->q_vector[q_idx] = q_vector;
 	}
 
@@ -2272,7 +2186,6 @@ int ixgbevf_setup_tx_resources(struct ixgbevf_adapter *adapter,
 
 	tx_ring->next_to_use = 0;
 	tx_ring->next_to_clean = 0;
-	tx_ring->work_limit = tx_ring->count;
 	return 0;
 
 err:
