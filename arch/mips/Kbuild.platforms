@@ -17,6 +17,7 @@ platforms += loongson
 platforms += loongson1
 platforms += mipssim
 platforms += mti-malta
+platforms += mti-sead3
 platforms += netlogic
 platforms += pmc-sierra
 platforms += pnx833x
