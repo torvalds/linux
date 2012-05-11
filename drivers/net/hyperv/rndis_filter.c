@@ -267,11 +267,11 @@ static void rndis_filter_receive_response(struct rndis_device *dev,
 			    REMOTE_NDIS_RESET_CMPLT) {
 				/* does not have a request id field */
 				request->response_msg.msg.reset_complete.
-					status = STATUS_BUFFER_OVERFLOW;
+					status = RNDIS_STATUS_BUFFER_OVERFLOW;
 			} else {
 				request->response_msg.msg.
 				init_complete.status =
-					STATUS_BUFFER_OVERFLOW;
+					RNDIS_STATUS_BUFFER_OVERFLOW;
 			}
 		}
 
