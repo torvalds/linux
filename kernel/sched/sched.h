@@ -876,7 +876,7 @@ extern void resched_cpu(int cpu);
 extern struct rt_bandwidth def_rt_bandwidth;
 extern void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime);
 
-extern void update_cpu_load(struct rq *this_rq);
+extern void update_idle_cpu_load(struct rq *this_rq);
 
 #ifdef CONFIG_CGROUP_CPUACCT
 #include <linux/cgroup.h>
