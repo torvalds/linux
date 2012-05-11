@@ -2162,6 +2162,12 @@ static void hci_queue_acl(struct hci_conn *conn, struct sk_buff_head *queue,
 	struct hci_dev *hdev = conn->hdev;
 	struct sk_buff *list;
 
+	skb->len = skb_headlen(skb);
+	skb->data_len = 0;
+
+	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
+	hci_add_acl_hdr(skb, conn->handle, flags);
+
 	list = skb_shinfo(skb)->frag_list;
 	if (!list) {
 		/* Non fragmented */
@@ -2205,8 +2211,6 @@ void hci_send_acl(struct hci_chan *chan, struct sk_buff *skb, __u16 flags)
 	BT_DBG("%s chan %p flags 0x%x", hdev->name, chan, flags);
 
 	skb->dev = (void *) hdev;
-	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags);
 
 	hci_queue_acl(conn, &chan->data_q, skb, flags);
 
