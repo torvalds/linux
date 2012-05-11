@@ -80,6 +80,11 @@ config EXYNOS4_DEV_AHCI
 	help
 	  Compile in platform device definitions for AHCI
 
+config EXYNOS_DEV_DRM
+	bool
+	help
+	  Compile in platform device definitions for core DRM device
+
 config EXYNOS4_SETUP_FIMD0
 	bool
 	help
