@@ -205,20 +205,9 @@ static struct trace_array	max_tr;
 
 static DEFINE_PER_CPU(struct trace_array_cpu, max_tr_data);
 
-/* tracer_enabled is used to toggle activation of a tracer */
-static int			tracer_enabled = 1;
-
-/**
- * tracing_is_enabled - return tracer_enabled status
- *
- * This function is used by other tracers to know the status
- * of the tracer_enabled flag.  Tracers may use this function
- * to know if it should enable their features when starting
- * up. See irqsoff tracer for an example (start_irqsoff_tracer).
- */
 int tracing_is_enabled(void)
 {
-	return tracer_enabled;
+	return tracing_is_on();
 }
 
 /*
@@ -1112,8 +1101,7 @@ void trace_find_cmdline(int pid, char comm[])
 
 void tracing_record_cmdline(struct task_struct *tsk)
 {
-	if (atomic_read(&trace_record_cmdline_disabled) || !tracer_enabled ||
-	    !tracing_is_on())
+	if (atomic_read(&trace_record_cmdline_disabled) || !tracing_is_on())
 		return;
 
 	if (!__this_cpu_read(trace_cmdline_save))
@@ -2967,56 +2955,6 @@ static const struct file_operations tracing_saved_cmdlines_fops = {
 };
 
 static ssize_t
-tracing_ctrl_read(struct file *filp, char __user *ubuf,
-		  size_t cnt, loff_t *ppos)
-{
-	char buf[64];
-	int r;
-
-	r = sprintf(buf, "%u\n", tracer_enabled);
-	return simple_read_from_buffer(ubuf, cnt, ppos, buf, r);
-}
-
-static ssize_t
-tracing_ctrl_write(struct file *filp, const char __user *ubuf,
-		   size_t cnt, loff_t *ppos)
-{
-	struct trace_array *tr = filp->private_data;
-	unsigned long val;
-	int ret;
-
-	ret = kstrtoul_from_user(ubuf, cnt, 10, &val);
-	if (ret)
-		return ret;
-
-	val = !!val;
-
-	mutex_lock(&trace_types_lock);
-	if (tracer_enabled ^ val) {
-
-		/* Only need to warn if this is used to change the state */
-		WARN_ONCE(1, "tracing_enabled is deprecated. Use tracing_on");
-
-		if (val) {
-			tracer_enabled = 1;
-			if (current_trace->start)
-				current_trace->start(tr);
-			tracing_start();
-		} else {
-			tracer_enabled = 0;
-			tracing_stop();
-			if (current_trace->stop)
-				current_trace->stop(tr);
-		}
-	}
-	mutex_unlock(&trace_types_lock);
-
-	*ppos += cnt;
-
-	return cnt;
-}
-
-static ssize_t
 tracing_set_trace_read(struct file *filp, char __user *ubuf,
 		       size_t cnt, loff_t *ppos)
 {
@@ -3469,7 +3407,7 @@ static int tracing_wait_pipe(struct file *filp)
 			return -EINTR;
 
 		/*
-		 * We block until we read something and tracing is disabled.
+		 * We block until we read something and tracing is enabled.
 		 * We still block if tracing is disabled, but we have never
 		 * read anything. This allows a user to cat this file, and
 		 * then enable tracing. But after we have read something,
@@ -3477,7 +3415,7 @@ static int tracing_wait_pipe(struct file *filp)
 		 *
 		 * iter->pos will be 0 if we haven't read anything.
 		 */
-		if (!tracer_enabled && iter->pos)
+		if (tracing_is_enabled() && iter->pos)
 			break;
 	}
 
@@ -4073,13 +4011,6 @@ static const struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
 	.write		= tracing_max_lat_write,
-	.llseek		= generic_file_llseek,
-};
-
-static const struct file_operations tracing_ctrl_fops = {
-	.open		= tracing_open_generic,
-	.read		= tracing_ctrl_read,
-	.write		= tracing_ctrl_write,
 	.llseek		= generic_file_llseek,
 };
 
@@ -4858,7 +4789,7 @@ static __init int tracer_init_debugfs(void)
 	d_tracer = tracing_init_dentry();
 
 	trace_create_file("tracing_enabled", 0644, d_tracer,
-			&global_trace, &tracing_ctrl_fops);
+			  &global_trace, &rb_simple_fops);
 
 	trace_create_file("trace_options", 0644, d_tracer,
 			NULL, &tracing_iter_fops);
