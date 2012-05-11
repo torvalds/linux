@@ -220,10 +220,12 @@ struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
  */
 static void add_root_to_dirty_list(struct btrfs_root *root)
 {
+	spin_lock(&root->fs_info->trans_lock);
 	if (root->track_dirty && list_empty(&root->dirty_list)) {
 		list_add(&root->dirty_list,
 			 &root->fs_info->dirty_cowonly_roots);
 	}
+	spin_unlock(&root->fs_info->trans_lock);
 }
 
 /*
@@ -723,7 +725,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 
 		cur = btrfs_find_tree_block(root, blocknr, blocksize);
 		if (cur)
-			uptodate = btrfs_buffer_uptodate(cur, gen);
+			uptodate = btrfs_buffer_uptodate(cur, gen, 0);
 		else
 			uptodate = 0;
 		if (!cur || !uptodate) {
@@ -1358,7 +1360,12 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 		block1 = btrfs_node_blockptr(parent, slot - 1);
 		gen = btrfs_node_ptr_generation(parent, slot - 1);
 		eb = btrfs_find_tree_block(root, block1, blocksize);
-		if (eb && btrfs_buffer_uptodate(eb, gen))
+		/*
+		 * if we get -eagain from btrfs_buffer_uptodate, we
+		 * don't want to return eagain here.  That will loop
+		 * forever
+		 */
+		if (eb && btrfs_buffer_uptodate(eb, gen, 1) != 0)
 			block1 = 0;
 		free_extent_buffer(eb);
 	}
@@ -1366,7 +1373,7 @@ static noinline int reada_for_balance(struct btrfs_root *root,
 		block2 = btrfs_node_blockptr(parent, slot + 1);
 		gen = btrfs_node_ptr_generation(parent, slot + 1);
 		eb = btrfs_find_tree_block(root, block2, blocksize);
-		if (eb && btrfs_buffer_uptodate(eb, gen))
+		if (eb && btrfs_buffer_uptodate(eb, gen, 1) != 0)
 			block2 = 0;
 		free_extent_buffer(eb);
 	}
@@ -1504,8 +1511,9 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 
 	tmp = btrfs_find_tree_block(root, blocknr, blocksize);
 	if (tmp) {
-		if (btrfs_buffer_uptodate(tmp, 0)) {
-			if (btrfs_buffer_uptodate(tmp, gen)) {
+		/* first we do an atomic uptodate check */
+		if (btrfs_buffer_uptodate(tmp, 0, 1) > 0) {
+			if (btrfs_buffer_uptodate(tmp, gen, 1) > 0) {
 				/*
 				 * we found an up to date block without
 				 * sleeping, return
@@ -1523,8 +1531,9 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 			free_extent_buffer(tmp);
 			btrfs_set_path_blocking(p);
 
+			/* now we're allowed to do a blocking uptodate check */
 			tmp = read_tree_block(root, blocknr, blocksize, gen);
-			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+			if (tmp && btrfs_buffer_uptodate(tmp, gen, 0) > 0) {
 				*eb_ret = tmp;
 				return 0;
 			}
@@ -1559,7 +1568,7 @@ read_block_for_search(struct btrfs_trans_handle *trans,
 		 * and give up so that our caller doesn't loop forever
 		 * on our EAGAINs.
 		 */
-		if (!btrfs_buffer_uptodate(tmp, 0))
+		if (!btrfs_buffer_uptodate(tmp, 0, 0))
 			ret = -EIO;
 		free_extent_buffer(tmp);
 	}
@@ -4043,7 +4052,7 @@ again:
 			tmp = btrfs_find_tree_block(root, blockptr,
 					    btrfs_level_size(root, level - 1));
 
-			if (tmp && btrfs_buffer_uptodate(tmp, gen)) {
+			if (tmp && btrfs_buffer_uptodate(tmp, gen, 1) > 0) {
 				free_extent_buffer(tmp);
 				break;
 			}
@@ -4166,7 +4175,8 @@ next:
 				struct extent_buffer *cur;
 				cur = btrfs_find_tree_block(root, blockptr,
 					    btrfs_level_size(root, level - 1));
-				if (!cur || !btrfs_buffer_uptodate(cur, gen)) {
+				if (!cur ||
+				    btrfs_buffer_uptodate(cur, gen, 1) <= 0) {
 					slot++;
 					if (cur)
 						free_extent_buffer(cur);

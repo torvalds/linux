@@ -108,9 +108,15 @@ static inline int brcmf_sdioh_f0_write_byte(struct brcmf_sdio_dev *sdiodev,
 			sdio_release_host(sdfunc);
 		}
 	} else if (regaddr == SDIO_CCCR_ABORT) {
+		sdfunc = kmemdup(sdiodev->func[0], sizeof(struct sdio_func),
+				 GFP_KERNEL);
+		if (!sdfunc)
+			return -ENOMEM;
+		sdfunc->num = 0;
 		sdio_claim_host(sdfunc);
 		sdio_writeb(sdfunc, *byte, regaddr, &err_ret);
 		sdio_release_host(sdfunc);
+		kfree(sdfunc);
 	} else if (regaddr < 0xF0) {
 		brcmf_dbg(ERROR, "F0 Wr:0x%02x: write disallowed\n", regaddr);
 		err_ret = -EPERM;
@@ -486,7 +492,7 @@ static int brcmf_ops_sdio_probe(struct sdio_func *func,
 			kfree(bus_if);
 			return -ENOMEM;
 		}
-		sdiodev->func[0] = func->card->sdio_func[0];
+		sdiodev->func[0] = func;
 		sdiodev->func[1] = func;
 		sdiodev->bus_if = bus_if;
 		bus_if->bus_priv.sdio = sdiodev;
