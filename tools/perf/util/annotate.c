@@ -56,6 +56,12 @@ static int call__parse(struct ins_operands *ops)
 	return ops->target.name == NULL ? -1 : 0;
 
 indirect_call:
+	tok = strchr(endptr, '(');
+	if (tok != NULL) {
+		ops->target.addr = 0;
+		return 0;
+	}
+
 	tok = strchr(endptr, '*');
 	if (tok == NULL)
 		return -1;
@@ -69,6 +75,9 @@ static int call__scnprintf(struct ins *ins, char *bf, size_t size,
 {
 	if (ops->target.name)
 		return scnprintf(bf, size, "%-6.6s %s", ins->name, ops->target.name);
+
+	if (ops->target.addr == 0)
+		return ins__raw_scnprintf(ins, bf, size, ops);
 
 	return scnprintf(bf, size, "%-6.6s *%" PRIx64, ins->name, ops->target.addr);
 }
