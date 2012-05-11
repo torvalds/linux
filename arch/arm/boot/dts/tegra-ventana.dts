@@ -240,31 +240,17 @@
 		};
 	};
 
-	i2s@70002a00 {
-		status = "disable";
-	};
-
-	serial@70006000 {
-		status = "disable";
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
+	i2s@70002800 {
+		status = "okay";
 	};
 
 	serial@70006300 {
+		status = "okay";
 		clock-frequency = <216000000>;
 	};
 
-	serial@70006400 {
-		status = "disable";
-	};
-
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <400000>;
 
 		wm8903: wm8903@1a {
@@ -291,36 +277,42 @@
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
+	usb@c5000000 {
+		status = "okay";
+	};
+
 	usb@c5004000 {
+		status = "okay";
 		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
 	};
 
-	sdhci@c8000000 {
-		status = "disable";
-	};
-
-	sdhci@c8000200 {
-		status = "disable";
+	usb@c5008000 {
+		status = "okay";
 	};
 
 	sdhci@c8000400 {
+		status = "okay";
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
 		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
 		power-gpios = <&gpio 70 0>; /* gpio PI6 */
 	};
 
 	sdhci@c8000600 {
+		status = "okay";
 		support-8bit;
 	};
 

@@ -82,6 +82,7 @@
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 36 0x04>;
+		status = "disable";
 	};
 
 	serial@70006040 {
@@ -89,6 +90,7 @@
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
 		interrupts = <0 37 0x04>;
+		status = "disable";
 	};
 
 	serial@70006200 {
@@ -96,6 +98,7 @@
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 46 0x04>;
+		status = "disable";
 	};
 
 	serial@70006300 {
@@ -103,6 +106,7 @@
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 90 0x04>;
+		status = "disable";
 	};
 
 	serial@70006400 {
@@ -110,6 +114,7 @@
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
 		interrupts = <0 91 0x04>;
+		status = "disable";
 	};
 
 	i2c@7000c000 {
@@ -118,6 +123,7 @@
 		interrupts = <0 38 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disable";
 	};
 
 	i2c@7000c400 {
@@ -126,6 +132,7 @@
 		interrupts = <0 84 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disable";
 	};
 
 	i2c@7000c500 {
@@ -134,6 +141,7 @@
 		interrupts = <0 92 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disable";
 	};
 
 	i2c@7000c700 {
@@ -142,6 +150,7 @@
 		interrupts = <0 120 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disable";
 	};
 
 	i2c@7000d000 {
@@ -150,6 +159,7 @@
 		interrupts = <0 53 0x04>;
 		#address-cells = <1>;
 		#size-cells = <0>;
+		status = "disable";
 	};
 
 	pmc {
@@ -191,30 +201,35 @@
 			compatible = "nvidia,tegra30-i2s";
 			reg = <0x70080300 0x100>;
 			nvidia,ahub-cif-ids = <4 4>;
+			status = "disable";
 		};
 
 		tegra_i2s1: i2s@70080400 {
 			compatible = "nvidia,tegra30-i2s";
 			reg = <0x70080400 0x100>;
 			nvidia,ahub-cif-ids = <5 5>;
+			status = "disable";
 		};
 
 		tegra_i2s2: i2s@70080500 {
 			compatible = "nvidia,tegra30-i2s";
 			reg = <0x70080500 0x100>;
 			nvidia,ahub-cif-ids = <6 6>;
+			status = "disable";
 		};
 
 		tegra_i2s3: i2s@70080600 {
 			compatible = "nvidia,tegra30-i2s";
 			reg = <0x70080600 0x100>;
 			nvidia,ahub-cif-ids = <7 7>;
+			status = "disable";
 		};
 
 		tegra_i2s4: i2s@70080700 {
 			compatible = "nvidia,tegra30-i2s";
 			reg = <0x70080700 0x100>;
 			nvidia,ahub-cif-ids = <8 8>;
+			status = "disable";
 		};
 	};
 
@@ -222,24 +237,28 @@
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000000 0x200>;
 		interrupts = <0 14 0x04>;
+		status = "disable";
 	};
 
 	sdhci@78000200 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000200 0x200>;
 		interrupts = <0 15 0x04>;
+		status = "disable";
 	};
 
 	sdhci@78000400 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000400 0x200>;
 		interrupts = <0 19 0x04>;
+		status = "disable";
 	};
 
 	sdhci@78000600 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000600 0x200>;
 		interrupts = <0 31 0x04>;
+		status = "disable";
 	};
 
 	pmu {

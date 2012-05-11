@@ -64,34 +64,22 @@
 	};
 
 	serial@70006000 {
+		status = "okay";
 		clock-frequency = <408000000>;
 	};
 
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		status = "disable";
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
 	i2c@7000c000 {
+		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	i2c@7000c400 {
+		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	i2c@7000c500 {
+		status = "okay";
 		clock-frequency = <100000>;
 
 		/* ALS and Proximity sensor */
@@ -104,10 +92,12 @@
 	};
 
 	i2c@7000c700 {
+		status = "okay";
 		clock-frequency = <100000>;
 	};
 
 	i2c@7000d000 {
+		status = "okay";
 		clock-frequency = <100000>;
 
 		wm8903: wm8903@1a {
@@ -139,38 +129,20 @@
 	};
 
 	ahub {
-		i2s@70080300 {
-			status = "disable";
-		};
-
-		i2s@70080500 {
-			status = "disable";
-		};
-
-		i2s@70080600 {
-			status = "disable";
-		};
-
-		i2s@70080700 {
-			status = "disable";
+		i2s@70080400 {
+			status = "okay";
 		};
 	};
 
 	sdhci@78000000 {
+		status = "okay";
 		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
 		wp-gpios = <&gpio 155 0>; /* gpio PT3 */
 		power-gpios = <&gpio 31 0>; /* gpio PD7 */
 	};
 
-	sdhci@78000200 {
-		status = "disable";
-	};
-
-	sdhci@78000400 {
-		status = "disable";
-	};
-
 	sdhci@78000600 {
+		status = "okay";
 		support-8bit;
 	};
 
