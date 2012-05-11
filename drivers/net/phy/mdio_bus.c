@@ -88,7 +88,7 @@ static struct class mdio_bus_class = {
 	.dev_release	= mdiobus_release,
 };
 
-#ifdef CONFIG_OF_MDIO
+#if IS_ENABLED(CONFIG_OF_MDIO)
 /* Helper function for of_mdio_find_bus */
 static int of_mdio_bus_match(struct device *dev, void *mdio_bus_np)
 {
