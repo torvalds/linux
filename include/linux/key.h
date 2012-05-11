@@ -33,8 +33,6 @@ typedef uint32_t key_perm_t;
 
 struct key;
 
-#define key_replace_session_keyring()	do { } while (0)
-
 #ifdef CONFIG_KEYS
 
 #undef KEY_DEBUGGING
