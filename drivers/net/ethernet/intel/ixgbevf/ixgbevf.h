@@ -55,6 +55,7 @@ struct ixgbevf_rx_buffer {
 };
 
 struct ixgbevf_ring {
+	struct ixgbevf_ring *next;
 	struct ixgbevf_adapter *adapter;  /* backlink */
 	void *desc;			/* descriptor ring memory */
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -120,18 +121,23 @@ struct ixgbevf_ring {
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
 
+struct ixgbevf_ring_container {
+	struct ixgbevf_ring *ring;	/* pointer to linked list of rings */
+	u8 count;			/* total number of rings in vector */
+	u8 itr;				/* current ITR setting for ring */
+};
+
+/* iterator for handling rings in ring container */
+#define ixgbevf_for_each_ring(pos, head) \
+	for (pos = (head).ring; pos != NULL; pos = pos->next)
+
 /* MAX_MSIX_Q_VECTORS of these are allocated,
  * but we only use one per queue-specific vector.
  */
 struct ixgbevf_q_vector {
 	struct ixgbevf_adapter *adapter;
 	struct napi_struct napi;
-	DECLARE_BITMAP(rxr_idx, MAX_RX_QUEUES); /* Rx ring indices */
-	DECLARE_BITMAP(txr_idx, MAX_TX_QUEUES); /* Tx ring indices */
-	u8 rxr_count;     /* Rx ring count assigned to this vector */
-	u8 txr_count;     /* Tx ring count assigned to this vector */
-	u8 tx_itr;
-	u8 rx_itr;
+	struct ixgbevf_ring_container rx, tx;
 	u32 eitr;
 	int v_idx;	  /* vector index in list */
 };
