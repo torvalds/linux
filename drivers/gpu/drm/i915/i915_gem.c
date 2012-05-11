@@ -1655,10 +1655,11 @@ void i915_gem_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj;
+	struct intel_ring_buffer *ring;
 	int i;
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		i915_gem_reset_ring_lists(dev_priv, &dev_priv->ring[i]);
+	for_each_ring(ring, dev_priv, i)
+		i915_gem_reset_ring_lists(dev_priv, ring);
 
 	/* Remove anything from the flushing lists. The GPU cache is likely
 	 * to be lost on reset along with the data, so simply move the
@@ -1763,10 +1764,11 @@ void
 i915_gem_retire_requests(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	int i;
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		i915_gem_retire_requests_ring(&dev_priv->ring[i]);
+	for_each_ring(ring, dev_priv, i)
+		i915_gem_retire_requests_ring(ring);
 }
 
 static void
@@ -1774,6 +1776,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 {
 	drm_i915_private_t *dev_priv;
 	struct drm_device *dev;
+	struct intel_ring_buffer *ring;
 	bool idle;
 	int i;
 
@@ -1793,9 +1796,7 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	 * objects indefinitely.
 	 */
 	idle = true;
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_ring_buffer *ring = &dev_priv->ring[i];
-
+	for_each_ring(ring, dev_priv, i) {
 		if (!list_empty(&ring->gpu_write_list)) {
 			struct drm_i915_gem_request *request;
 			int ret;
@@ -2137,13 +2138,18 @@ static int i915_ring_idle(struct intel_ring_buffer *ring)
 int i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	int ret, i;
 
 	/* Flush everything onto the inactive list. */
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		ret = i915_ring_idle(&dev_priv->ring[i]);
+	for_each_ring(ring, dev_priv, i) {
+		ret = i915_ring_idle(ring);
 		if (ret)
 			return ret;
+
+		/* Is the device fubar? */
+		if (WARN_ON(!list_empty(&ring->gpu_write_list)))
+			return -EBUSY;
 	}
 
 	return 0;
@@ -3463,9 +3469,7 @@ void i915_gem_init_ppgtt(struct drm_device *dev)
 		/* GFX_MODE is per-ring on gen7+ */
 	}
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		ring = &dev_priv->ring[i];
-
+	for_each_ring(ring, dev_priv, i) {
 		if (INTEL_INFO(dev)->gen >= 7)
 			I915_WRITE(RING_MODE_GEN7(ring),
 				   _MASKED_BIT_ENABLE(GFX_PPGTT_ENABLE));
@@ -3581,10 +3585,11 @@ void
 i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	int i;
 
-	for (i = 0; i < I915_NUM_RINGS; i++)
-		intel_cleanup_ring_buffer(&dev_priv->ring[i]);
+	for_each_ring(ring, dev_priv, i)
+		intel_cleanup_ring_buffer(ring);
 }
 
 int
@@ -3592,7 +3597,7 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret, i;
+	int ret;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET))
 		return 0;
@@ -3614,10 +3619,6 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	BUG_ON(!list_empty(&dev_priv->mm.active_list));
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		BUG_ON(!list_empty(&dev_priv->ring[i].active_list));
-		BUG_ON(!list_empty(&dev_priv->ring[i].request_list));
-	}
 	mutex_unlock(&dev->struct_mutex);
 
 	ret = drm_irq_install(dev);

@@ -893,15 +893,15 @@ int i915_reset(struct drm_device *dev)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 			!dev_priv->mm.suspended) {
+		struct intel_ring_buffer *ring;
+		int i;
+
 		dev_priv->mm.suspended = 0;
 
 		i915_gem_init_swizzling(dev);
 
-		dev_priv->ring[RCS].init(&dev_priv->ring[RCS]);
-		if (HAS_BSD(dev))
-		    dev_priv->ring[VCS].init(&dev_priv->ring[VCS]);
-		if (HAS_BLT(dev))
-		    dev_priv->ring[BCS].init(&dev_priv->ring[BCS]);
+		for_each_ring(ring, dev_priv, i)
+			ring->init(ring);
 
 		i915_gem_init_ppgtt(dev);
 

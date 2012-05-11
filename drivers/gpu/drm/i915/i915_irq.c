@@ -1022,15 +1022,11 @@ static void i915_gem_record_rings(struct drm_device *dev,
 				  struct drm_i915_error_state *error)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
 	struct drm_i915_gem_request *request;
 	int i, count;
 
-	for (i = 0; i < I915_NUM_RINGS; i++) {
-		struct intel_ring_buffer *ring = &dev_priv->ring[i];
-
-		if (ring->obj == NULL)
-			continue;
-
+	for_each_ring(ring, dev_priv, i) {
 		i915_record_ring_state(dev, error, ring);
 
 		error->ring[i].batchbuffer =
@@ -1295,6 +1291,8 @@ static void i915_report_and_clear_eir(struct drm_device *dev)
 void i915_handle_error(struct drm_device *dev, bool wedged)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_ring_buffer *ring;
+	int i;
 
 	i915_capture_error_state(dev);
 	i915_report_and_clear_eir(dev);
@@ -1306,11 +1304,8 @@ void i915_handle_error(struct drm_device *dev, bool wedged)
 		/*
 		 * Wakeup waiting processes so they don't hang
 		 */
-		wake_up_all(&dev_priv->ring[RCS].irq_queue);
-		if (HAS_BSD(dev))
-			wake_up_all(&dev_priv->ring[VCS].irq_queue);
-		if (HAS_BLT(dev))
-			wake_up_all(&dev_priv->ring[BCS].irq_queue);
+		for_each_ring(ring, dev_priv, i)
+			wake_up_all(&ring->irq_queue);
 	}
 
 	queue_work(dev_priv->wq, &dev_priv->error_work);
@@ -1515,11 +1510,6 @@ ring_last_seqno(struct intel_ring_buffer *ring)
 
 static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
 {
-	/* We don't check whether the ring even exists before calling this
-	 * function. Hence check whether it's initialized. */
-	if (ring->obj == NULL)
-		return true;
-
 	if (list_empty(&ring->request_list) ||
 	    i915_seqno_passed(ring->get_seqno(ring), ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
@@ -1553,26 +1543,25 @@ static bool i915_hangcheck_hung(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (dev_priv->hangcheck_count++ > 1) {
+		bool hung = true;
+
 		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
 		i915_handle_error(dev, true);
 
 		if (!IS_GEN2(dev)) {
+			struct intel_ring_buffer *ring;
+			int i;
+
 			/* Is the chip hanging on a WAIT_FOR_EVENT?
 			 * If so we can simply poke the RB_WAIT bit
 			 * and break the hang. This should work on
 			 * all but the second generation chipsets.
 			 */
-			if (kick_ring(&dev_priv->ring[RCS]))
-				return false;
-
-			if (HAS_BSD(dev) && kick_ring(&dev_priv->ring[VCS]))
-				return false;
-
-			if (HAS_BLT(dev) && kick_ring(&dev_priv->ring[BCS]))
-				return false;
+			for_each_ring(ring, dev_priv, i)
+				hung &= !kick_ring(ring);
 		}
 
-		return true;
+		return hung;
 	}
 
 	return false;
@@ -1588,16 +1577,23 @@ void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t acthd, instdone, instdone1, acthd_bsd, acthd_blt;
-	bool err = false;
+	uint32_t acthd[I915_NUM_RINGS], instdone, instdone1;
+	struct intel_ring_buffer *ring;
+	bool err = false, idle;
+	int i;
 
 	if (!i915_enable_hangcheck)
 		return;
 
+	memset(acthd, 0, sizeof(acthd));
+	idle = true;
+	for_each_ring(ring, dev_priv, i) {
+	    idle &= i915_hangcheck_ring_idle(ring, &err);
+	    acthd[i] = intel_ring_get_active_head(ring);
+	}
+
 	/* If all work is done then ACTHD clearly hasn't advanced. */
-	if (i915_hangcheck_ring_idle(&dev_priv->ring[RCS], &err) &&
-	    i915_hangcheck_ring_idle(&dev_priv->ring[VCS], &err) &&
-	    i915_hangcheck_ring_idle(&dev_priv->ring[BCS], &err)) {
+	if (idle) {
 		if (err) {
 			if (i915_hangcheck_hung(dev))
 				return;
@@ -1616,15 +1612,8 @@ void i915_hangcheck_elapsed(unsigned long data)
 		instdone = I915_READ(INSTDONE_I965);
 		instdone1 = I915_READ(INSTDONE1);
 	}
-	acthd = intel_ring_get_active_head(&dev_priv->ring[RCS]);
-	acthd_bsd = HAS_BSD(dev) ?
-		intel_ring_get_active_head(&dev_priv->ring[VCS]) : 0;
-	acthd_blt = HAS_BLT(dev) ?
-		intel_ring_get_active_head(&dev_priv->ring[BCS]) : 0;
 
-	if (dev_priv->last_acthd == acthd &&
-	    dev_priv->last_acthd_bsd == acthd_bsd &&
-	    dev_priv->last_acthd_blt == acthd_blt &&
+	if (memcmp(dev_priv->last_acthd, acthd, sizeof(acthd)) == 0 &&
 	    dev_priv->last_instdone == instdone &&
 	    dev_priv->last_instdone1 == instdone1) {
 		if (i915_hangcheck_hung(dev))
@@ -1632,9 +1621,7 @@ void i915_hangcheck_elapsed(unsigned long data)
 	} else {
 		dev_priv->hangcheck_count = 0;
 
-		dev_priv->last_acthd = acthd;
-		dev_priv->last_acthd_bsd = acthd_bsd;
-		dev_priv->last_acthd_blt = acthd_blt;
+		memcpy(dev_priv->last_acthd, acthd, sizeof(acthd));
 		dev_priv->last_instdone = instdone;
 		dev_priv->last_instdone1 = instdone1;
 	}
