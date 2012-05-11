@@ -1456,47 +1456,55 @@ long keyctl_session_to_parent(void)
 {
 	struct task_struct *me, *parent;
 	const struct cred *mycred, *pcred;
-	struct cred *cred, *oldcred;
+	struct task_work *newwork, *oldwork;
 	key_ref_t keyring_r;
+	struct cred *cred;
 	int ret;
 
 	keyring_r = lookup_user_key(KEY_SPEC_SESSION_KEYRING, 0, KEY_LINK);
 	if (IS_ERR(keyring_r))
 		return PTR_ERR(keyring_r);
 
+	ret = -ENOMEM;
+	newwork = kmalloc(sizeof(struct task_work), GFP_KERNEL);
+	if (!newwork)
+		goto error_keyring;
+
 	/* our parent is going to need a new cred struct, a new tgcred struct
 	 * and new security data, so we allocate them here to prevent ENOMEM in
 	 * our parent */
-	ret = -ENOMEM;
 	cred = cred_alloc_blank();
 	if (!cred)
-		goto error_keyring;
+		goto error_newwork;
 
 	cred->tgcred->session_keyring = key_ref_to_ptr(keyring_r);
-	keyring_r = NULL;
+	init_task_work(newwork, key_change_session_keyring, cred);
 
 	me = current;
 	rcu_read_lock();
 	write_lock_irq(&tasklist_lock);
 
-	parent = me->real_parent;
 	ret = -EPERM;
+	oldwork = NULL;
+	parent = me->real_parent;
 
 	/* the parent mustn't be init and mustn't be a kernel thread */
 	if (parent->pid <= 1 || !parent->mm)
-		goto not_permitted;
+		goto unlock;
 
 	/* the parent must be single threaded */
 	if (!thread_group_empty(parent))
-		goto not_permitted;
+		goto unlock;
 
 	/* the parent and the child must have different session keyrings or
 	 * there's no point */
 	mycred = current_cred();
 	pcred = __task_cred(parent);
 	if (mycred == pcred ||
-	    mycred->tgcred->session_keyring == pcred->tgcred->session_keyring)
-		goto already_same;
+	    mycred->tgcred->session_keyring == pcred->tgcred->session_keyring) {
+		ret = 0;
+		goto unlock;
+	}
 
 	/* the parent must have the same effective ownership and mustn't be
 	 * SUID/SGID */
@@ -1506,38 +1514,37 @@ long keyctl_session_to_parent(void)
 	    pcred->gid	!= mycred->egid	||
 	    pcred->egid	!= mycred->egid	||
 	    pcred->sgid	!= mycred->egid)
-		goto not_permitted;
+		goto unlock;
 
 	/* the keyrings must have the same UID */
 	if ((pcred->tgcred->session_keyring &&
 	     pcred->tgcred->session_keyring->uid != mycred->euid) ||
 	    mycred->tgcred->session_keyring->uid != mycred->euid)
-		goto not_permitted;
+		goto unlock;
 
-	/* if there's an already pending keyring replacement, then we replace
-	 * that */
-	oldcred = parent->replacement_session_keyring;
+	/* cancel an already pending keyring replacement */
+	oldwork = task_work_cancel(parent, key_change_session_keyring);
 
 	/* the replacement session keyring is applied just prior to userspace
 	 * restarting */
-	parent->replacement_session_keyring = cred;
-	cred = NULL;
-	set_ti_thread_flag(task_thread_info(parent), TIF_NOTIFY_RESUME);
-
+	ret = task_work_add(parent, newwork, true);
+	if (!ret)
+		newwork = NULL;
+unlock:
 	write_unlock_irq(&tasklist_lock);
 	rcu_read_unlock();
-	if (oldcred)
-		put_cred(oldcred);
-	return 0;
-
-already_same:
-	ret = 0;
-not_permitted:
-	write_unlock_irq(&tasklist_lock);
-	rcu_read_unlock();
-	put_cred(cred);
+	if (oldwork) {
+		put_cred(oldwork->data);
+		kfree(oldwork);
+	}
+	if (newwork) {
+		put_cred(newwork->data);
+		kfree(newwork);
+	}
 	return ret;
 
+error_newwork:
+	kfree(newwork);
 error_keyring:
 	key_ref_put(keyring_r);
 	return ret;
