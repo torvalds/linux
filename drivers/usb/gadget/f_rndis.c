@@ -637,7 +637,7 @@ static void rndis_open(struct gether *geth)
 
 	DBG(cdev, "%s\n", __func__);
 
-	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3,
+	rndis_set_param_medium(rndis->config, RNDIS_MEDIUM_802_3,
 				bitrate(cdev->gadget) / 100);
 	rndis_signal_connect(rndis->config);
 }
@@ -648,7 +648,7 @@ static void rndis_close(struct gether *geth)
 
 	DBG(geth->func.config->cdev, "%s\n", __func__);
 
-	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
+	rndis_set_param_medium(rndis->config, RNDIS_MEDIUM_802_3, 0);
 	rndis_signal_disconnect(rndis->config);
 }
 
@@ -765,7 +765,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 		goto fail;
 	rndis->config = status;
 
-	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
+	rndis_set_param_medium(rndis->config, RNDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->config, rndis->ethaddr);
 
 #if 0

@@ -252,7 +252,7 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 		if (rndis_debug > 1)
 			pr_debug("%s: RNDIS_OID_GEN_LINK_SPEED\n", __func__);
 		if (rndis_per_dev_params[configNr].media_state
-				== NDIS_MEDIA_STATE_DISCONNECTED)
+				== RNDIS_MEDIA_STATE_DISCONNECTED)
 			*outbuf = cpu_to_le32(0);
 		else
 			*outbuf = cpu_to_le32(
@@ -758,7 +758,7 @@ static int rndis_indicate_status_msg(int configNr, u32 status)
 int rndis_signal_connect(int configNr)
 {
 	rndis_per_dev_params[configNr].media_state
-			= NDIS_MEDIA_STATE_CONNECTED;
+			= RNDIS_MEDIA_STATE_CONNECTED;
 	return rndis_indicate_status_msg(configNr,
 					  RNDIS_STATUS_MEDIA_CONNECT);
 }
@@ -766,7 +766,7 @@ int rndis_signal_connect(int configNr)
 int rndis_signal_disconnect(int configNr)
 {
 	rndis_per_dev_params[configNr].media_state
-			= NDIS_MEDIA_STATE_DISCONNECTED;
+			= RNDIS_MEDIA_STATE_DISCONNECTED;
 	return rndis_indicate_status_msg(configNr,
 					  RNDIS_STATUS_MEDIA_DISCONNECT);
 }
@@ -1173,7 +1173,7 @@ int rndis_init(void)
 		rndis_per_dev_params[i].used = 0;
 		rndis_per_dev_params[i].state = RNDIS_UNINITIALIZED;
 		rndis_per_dev_params[i].media_state
-				= NDIS_MEDIA_STATE_DISCONNECTED;
+				= RNDIS_MEDIA_STATE_DISCONNECTED;
 		INIT_LIST_HEAD(&(rndis_per_dev_params[i].resp_queue));
 	}
 
