@@ -2158,9 +2158,9 @@ static int i915_irq_postinstall(struct drm_device *dev)
 			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
 			hotplug_en |= HDMID_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I915)
 			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I915)
 			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
 		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 			hotplug_en |= CRT_HOTPLUG_INT_EN;
@@ -2383,10 +2383,17 @@ static int i965_irq_postinstall(struct drm_device *dev)
 		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
 	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
 		hotplug_en |= HDMID_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
-		hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
-		hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+	if (IS_G4X(dev)) {
+		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_G4X)
+			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_G4X)
+			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+	} else {
+		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS_I965)
+			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS_I965)
+			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+	}
 	if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
 		hotplug_en |= CRT_HOTPLUG_INT_EN;
 
