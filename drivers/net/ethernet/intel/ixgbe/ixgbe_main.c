@@ -63,8 +63,8 @@ static char ixgbe_default_device_descr[] =
 			      "Intel(R) 10 Gigabit Network Connection";
 #endif
 #define MAJ 3
-#define MIN 8
-#define BUILD 21
+#define MIN 9
+#define BUILD 15
 #define DRV_VERSION __stringify(MAJ) "." __stringify(MIN) "." \
 	__stringify(BUILD) "-k"
 const char ixgbe_driver_version[] = DRV_VERSION;
@@ -610,39 +610,50 @@ void ixgbe_unmap_and_free_tx_resource(struct ixgbe_ring *ring,
 	/* tx_buffer must be completely set up in the transmit path */
 }
 
+static void ixgbe_update_xoff_rx_lfc(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_hw_stats *hwstats = &adapter->stats;
+	int i;
+	u32 data;
+
+	if ((hw->fc.current_mode != ixgbe_fc_full) &&
+	    (hw->fc.current_mode != ixgbe_fc_rx_pause))
+		return;
+
+	switch (hw->mac.type) {
+	case ixgbe_mac_82598EB:
+		data = IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
+		break;
+	default:
+		data = IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
+	}
+	hwstats->lxoffrxc += data;
+
+	/* refill credits (no tx hang) if we received xoff */
+	if (!data)
+		return;
+
+	for (i = 0; i < adapter->num_tx_queues; i++)
+		clear_bit(__IXGBE_HANG_CHECK_ARMED,
+			  &adapter->tx_ring[i]->state);
+}
+
 static void ixgbe_update_xoff_received(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ixgbe_hw_stats *hwstats = &adapter->stats;
-	u32 data = 0;
 	u32 xoff[8] = {0};
 	int i;
+	bool pfc_en = adapter->dcb_cfg.pfc_mode_enable;
 
-	if ((hw->fc.current_mode == ixgbe_fc_full) ||
-	    (hw->fc.current_mode == ixgbe_fc_rx_pause)) {
-		switch (hw->mac.type) {
-		case ixgbe_mac_82598EB:
-			data = IXGBE_READ_REG(hw, IXGBE_LXOFFRXC);
-			break;
-		default:
-			data = IXGBE_READ_REG(hw, IXGBE_LXOFFRXCNT);
-		}
-		hwstats->lxoffrxc += data;
+	if (adapter->ixgbe_ieee_pfc)
+		pfc_en |= !!(adapter->ixgbe_ieee_pfc->pfc_en);
 
-		/* refill credits (no tx hang) if we received xoff */
-		if (!data)
-			return;
-
-		for (i = 0; i < adapter->num_tx_queues; i++)
-			clear_bit(__IXGBE_HANG_CHECK_ARMED,
-				  &adapter->tx_ring[i]->state);
+	if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED) || !pfc_en) {
+		ixgbe_update_xoff_rx_lfc(adapter);
 		return;
-	} else if (((adapter->dcbx_cap & DCB_CAP_DCBX_VER_CEE) &&
-		    !(adapter->dcb_cfg.pfc_mode_enable)) ||
-		   ((adapter->dcbx_cap & DCB_CAP_DCBX_VER_IEEE) &&
-		    adapter->ixgbe_ieee_pfc &&
-		    !(adapter->ixgbe_ieee_pfc->pfc_en)))
-		return;
+	}
 
 	/* update stats for each tc, only valid with PFC enabled */
 	for (i = 0; i < MAX_TX_PACKET_BUFFERS; i++) {
@@ -778,6 +789,13 @@ static bool ixgbe_clean_tx_irq(struct ixgbe_q_vector *q_vector,
 		total_bytes += tx_buffer->bytecount;
 		total_packets += tx_buffer->gso_segs;
 
+#ifdef CONFIG_IXGBE_PTP
+		if (unlikely(tx_buffer->tx_flags &
+			     IXGBE_TX_FLAGS_TSTAMP))
+			ixgbe_ptp_tx_hwtstamp(q_vector,
+					      tx_buffer->skb);
+
+#endif
 		/* free the skb */
 		dev_kfree_skb_any(tx_buffer->skb);
 
@@ -1377,6 +1395,11 @@ static void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 	ixgbe_rx_hash(rx_ring, rx_desc, skb);
 
 	ixgbe_rx_checksum(rx_ring, rx_desc, skb);
+
+#ifdef CONFIG_IXGBE_PTP
+	if (ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS))
+		ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
+#endif
 
 	if (ixgbe_test_staterr(rx_desc, IXGBE_RXD_STAT_VP)) {
 		u16 vid = le16_to_cpu(rx_desc->wb.upper.vlan);
@@ -2299,6 +2322,9 @@ static irqreturn_t ixgbe_msix_other(int irq, void *data)
 	}
 
 	ixgbe_check_fan_failure(adapter, eicr);
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_check_pps_event(adapter, eicr);
+#endif
 
 	/* re-enable the original interrupt state, no lsc, no queues */
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
@@ -2491,6 +2517,9 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	}
 
 	ixgbe_check_fan_failure(adapter, eicr);
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_check_pps_event(adapter, eicr);
+#endif
 
 	/* would disable interrupts here but EIAM disabled it */
 	napi_schedule(&q_vector->napi);
@@ -2758,6 +2787,61 @@ static void ixgbe_configure_tx(struct ixgbe_adapter *adapter)
 	/* Setup the HW Tx Head and Tail descriptor pointers */
 	for (i = 0; i < adapter->num_tx_queues; i++)
 		ixgbe_configure_tx_ring(adapter, adapter->tx_ring[i]);
+}
+
+static void ixgbe_enable_rx_drop(struct ixgbe_adapter *adapter,
+				 struct ixgbe_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u8 reg_idx = ring->reg_idx;
+	u32 srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(reg_idx));
+
+	srrctl |= IXGBE_SRRCTL_DROP_EN;
+
+	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(reg_idx), srrctl);
+}
+
+static void ixgbe_disable_rx_drop(struct ixgbe_adapter *adapter,
+				  struct ixgbe_ring *ring)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	u8 reg_idx = ring->reg_idx;
+	u32 srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(reg_idx));
+
+	srrctl &= ~IXGBE_SRRCTL_DROP_EN;
+
+	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(reg_idx), srrctl);
+}
+
+#ifdef CONFIG_IXGBE_DCB
+void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter)
+#else
+static void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter)
+#endif
+{
+	int i;
+	bool pfc_en = adapter->dcb_cfg.pfc_mode_enable;
+
+	if (adapter->ixgbe_ieee_pfc)
+		pfc_en |= !!(adapter->ixgbe_ieee_pfc->pfc_en);
+
+	/*
+	 * We should set the drop enable bit if:
+	 *  SR-IOV is enabled
+	 *   or
+	 *  Number of Rx queues > 1 and flow control is disabled
+	 *
+	 *  This allows us to avoid head of line blocking for security
+	 *  and performance reasons.
+	 */
+	if (adapter->num_vfs || (adapter->num_rx_queues > 1 &&
+	    !(adapter->hw.fc.current_mode & ixgbe_fc_tx_pause) && !pfc_en)) {
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			ixgbe_enable_rx_drop(adapter, adapter->rx_ring[i]);
+	} else {
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			ixgbe_disable_rx_drop(adapter, adapter->rx_ring[i]);
+	}
 }
 
 #define IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT 2
@@ -4403,9 +4487,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	/* default flow control settings */
 	hw->fc.requested_mode = ixgbe_fc_full;
 	hw->fc.current_mode = ixgbe_fc_full;	/* init for ethtool output */
-#ifdef CONFIG_DCB
-	adapter->last_lfc_mode = hw->fc.current_mode;
-#endif
 	ixgbe_pbthresh_setup(adapter);
 	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 	hw->fc.send_xon = true;
@@ -5268,8 +5349,10 @@ static void ixgbe_watchdog_update_link(struct ixgbe_adapter *adapter)
 	if (adapter->ixgbe_ieee_pfc)
 		pfc_en |= !!(adapter->ixgbe_ieee_pfc->pfc_en);
 
-	if (link_up && !((adapter->flags & IXGBE_FLAG_DCB_ENABLED) && pfc_en))
+	if (link_up && !((adapter->flags & IXGBE_FLAG_DCB_ENABLED) && pfc_en)) {
 		hw->mac.ops.fc_enable(hw);
+		ixgbe_set_rx_drop_en(adapter);
+	}
 
 	if (link_up ||
 	    time_after(jiffies, (adapter->link_check_timeout +
@@ -5322,6 +5405,11 @@ static void ixgbe_watchdog_link_is_up(struct ixgbe_adapter *adapter)
 		flow_rx = false;
 		break;
 	}
+
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_start_cyclecounter(adapter);
+#endif
+
 	e_info(drv, "NIC Link is Up %s, Flow Control: %s\n",
 	       (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
 	       "10 Gbps" :
@@ -5358,6 +5446,10 @@ static void ixgbe_watchdog_link_is_down(struct ixgbe_adapter *adapter)
 	/* poll for SFP+ cable when link is down */
 	if (ixgbe_is_sfp(hw) && hw->mac.type == ixgbe_mac_82598EB)
 		adapter->flags2 |= IXGBE_FLAG2_SEARCH_FOR_SFP;
+
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_start_cyclecounter(adapter);
+#endif
 
 	e_info(drv, "NIC Link is Down\n");
 	netif_carrier_off(netdev);
@@ -5658,6 +5750,9 @@ static void ixgbe_service_task(struct work_struct *work)
 	ixgbe_watchdog_subtask(adapter);
 	ixgbe_fdir_reinit_subtask(adapter);
 	ixgbe_check_hang_subtask(adapter);
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_overflow_check(adapter);
+#endif
 
 	ixgbe_service_event_complete(adapter);
 }
@@ -5807,6 +5902,11 @@ static __le32 ixgbe_tx_cmd_type(u32 tx_flags)
 	/* set HW vlan bit if vlan is present */
 	if (tx_flags & IXGBE_TX_FLAGS_HW_VLAN)
 		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_DCMD_VLE);
+
+#ifdef CONFIG_IXGBE_PTP
+	if (tx_flags & IXGBE_TX_FLAGS_TSTAMP)
+		cmd_type |= cpu_to_le32(IXGBE_ADVTXD_MAC_TSTAMP);
+#endif
 
 	/* set segmentation enable bits for TSO/FSO */
 #ifdef IXGBE_FCOE
@@ -6198,6 +6298,15 @@ netdev_tx_t ixgbe_xmit_frame_ring(struct sk_buff *skb,
 		tx_flags |= IXGBE_TX_FLAGS_SW_VLAN;
 	}
 
+	skb_tx_timestamp(skb);
+
+#ifdef CONFIG_IXGBE_PTP
+	if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		skb_shinfo(skb)->tx_flags |= SKBTX_IN_PROGRESS;
+		tx_flags |= IXGBE_TX_FLAGS_TSTAMP;
+	}
+#endif
+
 #ifdef CONFIG_PCI_IOV
 	/*
 	 * Use the l2switch_enable flag - would be false if the DMA
@@ -6350,7 +6459,14 @@ static int ixgbe_ioctl(struct net_device *netdev, struct ifreq *req, int cmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
+	switch (cmd) {
+#ifdef CONFIG_IXGBE_PTP
+	case SIOCSHWTSTAMP:
+		return ixgbe_ptp_hwtstamp_ioctl(adapter, req, cmd);
+#endif
+	default:
+		return mdio_mii_ioctl(&adapter->hw.phy.mdio, if_mii(req), cmd);
+	}
 }
 
 /**
@@ -6542,15 +6658,17 @@ int ixgbe_setup_tc(struct net_device *dev, u8 tc)
 
 	if (tc) {
 		netdev_set_num_tc(dev, tc);
-		adapter->last_lfc_mode = adapter->hw.fc.current_mode;
 		adapter->flags |= IXGBE_FLAG_DCB_ENABLED;
 		adapter->flags &= ~IXGBE_FLAG_FDIR_HASH_CAPABLE;
 
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+			adapter->last_lfc_mode = adapter->hw.fc.requested_mode;
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+		}
 	} else {
 		netdev_reset_tc(dev);
-		adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
+		if (adapter->hw.mac.type == ixgbe_mac_82598EB)
+			adapter->hw.fc.requested_mode = adapter->last_lfc_mode;
 
 		adapter->flags &= ~IXGBE_FLAG_DCB_ENABLED;
 		adapter->flags |= IXGBE_FLAG_FDIR_HASH_CAPABLE;
@@ -7135,6 +7253,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	device_set_wakeup_enable(&adapter->pdev->dev, adapter->wol);
 
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_init(adapter);
+#endif /* CONFIG_IXGBE_PTP*/
+
 	/* save off EEPROM version number */
 	hw->eeprom.ops.read(hw, 0x2e, &adapter->eeprom_verh);
 	hw->eeprom.ops.read(hw, 0x2d, &adapter->eeprom_verl);
@@ -7222,8 +7344,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	e_dev_info("%s\n", ixgbe_default_device_descr);
 	cards_found++;
 
+#ifdef CONFIG_IXGBE_HWMON
 	if (ixgbe_sysfs_init(adapter))
 		e_err(probe, "failed to allocate sysfs resources\n");
+#endif /* CONFIG_IXGBE_HWMON */
 
 	return 0;
 
@@ -7263,6 +7387,10 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	set_bit(__IXGBE_DOWN, &adapter->state);
 	cancel_work_sync(&adapter->service_task);
 
+#ifdef CONFIG_IXGBE_PTP
+	ixgbe_ptp_stop(adapter);
+#endif
+
 #ifdef CONFIG_IXGBE_DCA
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
@@ -7271,7 +7399,9 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	}
 
 #endif
+#ifdef CONFIG_IXGBE_HWMON
 	ixgbe_sysfs_exit(adapter);
+#endif /* CONFIG_IXGBE_HWMON */
 
 #ifdef IXGBE_FCOE
 	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED)

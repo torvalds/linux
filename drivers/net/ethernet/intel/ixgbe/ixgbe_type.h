@@ -824,6 +824,8 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_TRGTTIMH0  0x08C28 /* Target Time Register 0 High - RW */
 #define IXGBE_TRGTTIML1  0x08C2C /* Target Time Register 1 Low - RW */
 #define IXGBE_TRGTTIMH1  0x08C30 /* Target Time Register 1 High - RW */
+#define IXGBE_CLKTIML    0x08C34 /* Clock Out Time Register Low - RW */
+#define IXGBE_CLKTIMH    0x08C38 /* Clock Out Time Register High - RW */
 #define IXGBE_FREQOUT0   0x08C34 /* Frequency Out 0 Control register - RW */
 #define IXGBE_FREQOUT1   0x08C38 /* Frequency Out 1 Control register - RW */
 #define IXGBE_AUXSTMPL0  0x08C3C /* Auxiliary Time Stamp 0 register Low - RO */
@@ -1309,6 +1311,7 @@ enum {
 #define IXGBE_EICR_LINKSEC      0x00200000 /* PN Threshold */
 #define IXGBE_EICR_MNG          0x00400000 /* Manageability Event Interrupt */
 #define IXGBE_EICR_TS           0x00800000 /* Thermal Sensor Event */
+#define IXGBE_EICR_TIMESYNC     0x01000000 /* Timesync Event */
 #define IXGBE_EICR_GPI_SDP0     0x01000000 /* Gen Purpose Interrupt on SDP0 */
 #define IXGBE_EICR_GPI_SDP1     0x02000000 /* Gen Purpose Interrupt on SDP1 */
 #define IXGBE_EICR_GPI_SDP2     0x04000000 /* Gen Purpose Interrupt on SDP2 */
@@ -1326,6 +1329,7 @@ enum {
 #define IXGBE_EICS_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
 #define IXGBE_EICS_LSC          IXGBE_EICR_LSC       /* Link Status Change */
 #define IXGBE_EICS_MNG          IXGBE_EICR_MNG       /* MNG Event Interrupt */
+#define IXGBE_EICS_TIMESYNC     IXGBE_EICR_TIMESYNC  /* Timesync Event */
 #define IXGBE_EICS_GPI_SDP0     IXGBE_EICR_GPI_SDP0  /* SDP0 Gen Purpose Int */
 #define IXGBE_EICS_GPI_SDP1     IXGBE_EICR_GPI_SDP1  /* SDP1 Gen Purpose Int */
 #define IXGBE_EICS_GPI_SDP2     IXGBE_EICR_GPI_SDP2  /* SDP2 Gen Purpose Int */
@@ -1344,6 +1348,7 @@ enum {
 #define IXGBE_EIMS_LSC          IXGBE_EICR_LSC       /* Link Status Change */
 #define IXGBE_EIMS_MNG          IXGBE_EICR_MNG       /* MNG Event Interrupt */
 #define IXGBE_EIMS_TS           IXGBE_EICR_TS        /* Thermel Sensor Event */
+#define IXGBE_EIMS_TIMESYNC     IXGBE_EICR_TIMESYNC  /* Timesync Event */
 #define IXGBE_EIMS_GPI_SDP0     IXGBE_EICR_GPI_SDP0  /* SDP0 Gen Purpose Int */
 #define IXGBE_EIMS_GPI_SDP1     IXGBE_EICR_GPI_SDP1  /* SDP1 Gen Purpose Int */
 #define IXGBE_EIMS_GPI_SDP2     IXGBE_EICR_GPI_SDP2  /* SDP2 Gen Purpose Int */
@@ -1361,6 +1366,7 @@ enum {
 #define IXGBE_EIMC_MAILBOX      IXGBE_EICR_MAILBOX   /* VF to PF Mailbox Int */
 #define IXGBE_EIMC_LSC          IXGBE_EICR_LSC       /* Link Status Change */
 #define IXGBE_EIMC_MNG          IXGBE_EICR_MNG       /* MNG Event Interrupt */
+#define IXGBE_EIMC_TIMESYNC     IXGBE_EICR_TIMESYNC  /* Timesync Event */
 #define IXGBE_EIMC_GPI_SDP0     IXGBE_EICR_GPI_SDP0  /* SDP0 Gen Purpose Int */
 #define IXGBE_EIMC_GPI_SDP1     IXGBE_EICR_GPI_SDP1  /* SDP1 Gen Purpose Int */
 #define IXGBE_EIMC_GPI_SDP2     IXGBE_EICR_GPI_SDP2  /* SDP2 Gen Purpose Int */
@@ -1501,8 +1507,10 @@ enum {
 #define IXGBE_ESDP_SDP4 0x00000010 /* SDP4 Data Value */
 #define IXGBE_ESDP_SDP5 0x00000020 /* SDP5 Data Value */
 #define IXGBE_ESDP_SDP6 0x00000040 /* SDP6 Data Value */
+#define IXGBE_ESDP_SDP0_DIR     0x00000100 /* SDP0 IO direction */
 #define IXGBE_ESDP_SDP4_DIR     0x00000004 /* SDP4 IO direction */
 #define IXGBE_ESDP_SDP5_DIR     0x00002000 /* SDP5 IO direction */
+#define IXGBE_ESDP_SDP0_NATIVE  0x00010000 /* SDP0 Native Function */
 
 /* LEDCTL Bit Masks */
 #define IXGBE_LED_IVRT_BASE      0x00000040
@@ -1879,6 +1887,40 @@ enum {
 #define IXGBE_RXDCTL_RLPML_EN   0x00008000
 #define IXGBE_RXDCTL_VME        0x40000000  /* VLAN mode enable */
 
+#define IXGBE_TSAUXC_EN_CLK   0x00000004
+#define IXGBE_TSAUXC_SYNCLK   0x00000008
+#define IXGBE_TSAUXC_SDP0_INT 0x00000040
+
+#define IXGBE_TSYNCTXCTL_VALID		0x00000001 /* Tx timestamp valid */
+#define IXGBE_TSYNCTXCTL_ENABLED	0x00000010 /* Tx timestamping enabled */
+
+#define IXGBE_TSYNCRXCTL_VALID		0x00000001 /* Rx timestamp valid */
+#define IXGBE_TSYNCRXCTL_TYPE_MASK	0x0000000E /* Rx type mask */
+#define IXGBE_TSYNCRXCTL_TYPE_L2_V2	0x00
+#define IXGBE_TSYNCRXCTL_TYPE_L4_V1	0x02
+#define IXGBE_TSYNCRXCTL_TYPE_L2_L4_V2	0x04
+#define IXGBE_TSYNCRXCTL_TYPE_EVENT_V2	0x0A
+#define IXGBE_TSYNCRXCTL_ENABLED	0x00000010 /* Rx Timestamping enabled */
+
+#define IXGBE_RXMTRL_V1_CTRLT_MASK	0x000000FF
+#define IXGBE_RXMTRL_V1_SYNC_MSG	0x00
+#define IXGBE_RXMTRL_V1_DELAY_REQ_MSG	0x01
+#define IXGBE_RXMTRL_V1_FOLLOWUP_MSG	0x02
+#define IXGBE_RXMTRL_V1_DELAY_RESP_MSG	0x03
+#define IXGBE_RXMTRL_V1_MGMT_MSG	0x04
+
+#define IXGBE_RXMTRL_V2_MSGID_MASK		0x0000FF00
+#define IXGBE_RXMTRL_V2_SYNC_MSG		0x0000
+#define IXGBE_RXMTRL_V2_DELAY_REQ_MSG		0x0100
+#define IXGBE_RXMTRL_V2_PDELAY_REQ_MSG		0x0200
+#define IXGBE_RXMTRL_V2_PDELAY_RESP_MSG		0x0300
+#define IXGBE_RXMTRL_V2_FOLLOWUP_MSG		0x0800
+#define IXGBE_RXMTRL_V2_DELAY_RESP_MSG		0x0900
+#define IXGBE_RXMTRL_V2_PDELAY_FOLLOWUP_MSG	0x0A00
+#define IXGBE_RXMTRL_V2_ANNOUNCE_MSG		0x0B00
+#define IXGBE_RXMTRL_V2_SIGNALING_MSG		0x0C00
+#define IXGBE_RXMTRL_V2_MGMT_MSG		0x0D00
+
 #define IXGBE_FCTRL_SBP 0x00000002 /* Store Bad Packet */
 #define IXGBE_FCTRL_MPE 0x00000100 /* Multicast Promiscuous Ena*/
 #define IXGBE_FCTRL_UPE 0x00000200 /* Unicast Promiscuous Ena */
@@ -2008,6 +2050,7 @@ enum {
 #define IXGBE_RXDADV_STAT_FCSTAT_NODDP  0x00000010 /* 01: Ctxt w/o DDP */
 #define IXGBE_RXDADV_STAT_FCSTAT_FCPRSP 0x00000020 /* 10: Recv. FCP_RSP */
 #define IXGBE_RXDADV_STAT_FCSTAT_DDP    0x00000030 /* 11: Ctxt w/ DDP */
+#define IXGBE_RXDADV_STAT_TS		0x00010000 /* IEEE 1588 Time Stamp */
 
 /* PSRTYPE bit definitions */
 #define IXGBE_PSRTYPE_TCPHDR    0x00000010
@@ -2285,6 +2328,7 @@ struct ixgbe_adv_tx_context_desc {
 /* Adv Transmit Descriptor Config Masks */
 #define IXGBE_ADVTXD_DTALEN_MASK      0x0000FFFF /* Data buf length(bytes) */
 #define IXGBE_ADVTXD_MAC_LINKSEC      0x00040000 /* Insert LinkSec */
+#define IXGBE_ADVTXD_MAC_TSTAMP	      0x00080000 /* IEEE 1588 Time Stamp */
 #define IXGBE_ADVTXD_IPSEC_SA_INDEX_MASK   0x000003FF /* IPSec SA index */
 #define IXGBE_ADVTXD_IPSEC_ESP_LEN_MASK    0x000001FF /* IPSec ESP length */
 #define IXGBE_ADVTXD_DTYP_MASK  0x00F00000 /* DTYP mask */
@@ -2573,9 +2617,6 @@ enum ixgbe_fc_mode {
 	ixgbe_fc_rx_pause,
 	ixgbe_fc_tx_pause,
 	ixgbe_fc_full,
-#ifdef CONFIG_DCB
-	ixgbe_fc_pfc,
-#endif
 	ixgbe_fc_default
 };
 
