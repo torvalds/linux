@@ -2671,13 +2671,23 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		}
 	}
 
-	/* VBUS OVV set to 6.3V and enable automatic current limitiation */
-	ret = abx500_set_register_interruptible(di->dev,
-		AB8500_CHARGER,
-		AB8500_USBCH_CTRL2_REG,
-		VBUS_OVV_SELECT_6P3V | VBUS_AUTO_IN_CURR_LIM_ENA);
+	if (is_ab9540_2p0(di->parent) || is_ab8505_2p0(di->parent))
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+			AB8500_CHARGER,
+			AB8500_USBCH_CTRL2_REG,
+			VBUS_AUTO_IN_CURR_LIM_ENA,
+			VBUS_AUTO_IN_CURR_LIM_ENA);
+	else
+		/*
+		 * VBUS OVV set to 6.3V and enable automatic current limitation
+		 */
+		ret = abx500_set_register_interruptible(di->dev,
+			AB8500_CHARGER,
+			AB8500_USBCH_CTRL2_REG,
+			VBUS_OVV_SELECT_6P3V | VBUS_AUTO_IN_CURR_LIM_ENA);
 	if (ret) {
-		dev_err(di->dev, "failed to set VBUS OVV\n");
+		dev_err(di->dev,
+			"failed to set automatic current limitation\n");
 		goto out;
 	}
 
