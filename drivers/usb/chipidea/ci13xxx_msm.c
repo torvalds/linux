@@ -11,8 +11,9 @@
 #include <linux/usb/msm_hsusb_hw.h>
 #include <linux/usb/ulpi.h>
 #include <linux/usb/gadget.h>
+#include <linux/usb/chipidea.h>
 
-#include "ci13xxx_udc.h"
+#include "ci.h"
 
 #define MSM_USB_BASE	(udc->regs)
 

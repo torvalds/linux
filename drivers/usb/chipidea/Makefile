@@ -1,6 +1,8 @@
 obj-$(CONFIG_USB_CHIPIDEA)		+= ci_hdrc.o
 
-ci_hdrc-y				:= ci13xxx_udc.o
+ci_hdrc-y				:= core.o
+ci_hdrc-$(CONFIG_USB_CHIPIDEA_UDC)	+= udc.o
+ci_hdrc-$(CONFIG_USB_CHIPIDEA_DEBUG)	+= debug.o
 
 ifneq ($(CONFIG_PCI),)
 	obj-$(CONFIG_USB_CHIPIDEA)	+= ci13xxx_pci.o
