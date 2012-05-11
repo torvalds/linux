@@ -196,8 +196,9 @@ static struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
 	return board_info;
 }
 #else
-static inline struct tps65910_board *tps65910_parse_dt(
-					struct i2c_client *client)
+static inline
+struct tps65910_board *tps65910_parse_dt(struct i2c_client *client,
+					 int *chip_id)
 {
 	return NULL;
 }
