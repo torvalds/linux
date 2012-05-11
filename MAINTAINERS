@@ -1809,6 +1809,12 @@ L:	linux-kernel@zh-kernel.org (moderated for non-subscribers)
 S:	Maintained
 F:	Documentation/zh_CN/
 
+CHIPIDEA USB HIGH SPEED DUAL ROLE CONTROLLER
+M:	Alexander Shishkin <alexander.shishkin@linux.intel.com>
+L:	linux-usb@vger.kernel.org
+S:	Maintained
+F:	drivers/usb/chipidea/
+
 CISCO VIC ETHERNET NIC DRIVER
 M:	Christian Benvenuti <benve@cisco.com>
 M:	Roopa Prabhu <roprabhu@cisco.com>
