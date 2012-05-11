@@ -80,16 +80,6 @@
 #define TRAP_ENTRY_INTERRUPT(int_level) \
         mov int_level, %l7; rd %psr, %l0; b real_irq_entry; rd %wim, %l3;
 
-/* NMI's (Non Maskable Interrupts) are special, you can't keep them
- * from coming in, and basically if you get one, the shows over. ;(
- * On the sun4c they are usually asynchronous memory errors, on the
- * the sun4m they could be either due to mem errors or a software
- * initiated interrupt from the prom/kern on an SMP box saying "I
- * command you to do CPU tricks, read your mailbox for more info."
- */
-#define NMI_TRAP \
-        rd %wim, %l3; b linux_trap_nmi_sun4c; mov %psr, %l0; nop;
-
 /* Window overflows/underflows are special and we need to try to be as
  * efficient as possible here....
  */

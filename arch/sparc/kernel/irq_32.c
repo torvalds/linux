@@ -346,11 +346,6 @@ void sparc_floppy_irq(int irq, void *dev_id, struct pt_regs *regs)
 void __init init_IRQ(void)
 {
 	switch (sparc_cpu_model) {
-	case sun4c:
-	case sun4:
-		sun4c_init_IRQ();
-		break;
-
 	case sun4m:
 		pcic_probe();
 		if (pcic_present())

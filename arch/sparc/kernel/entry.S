@@ -317,8 +317,8 @@ maybe_smp4m_msg_out:
 	RESTORE_ALL
 
 	.align	4
-	.globl	linux_trap_ipi15_sun4m
-linux_trap_ipi15_sun4m:
+	.globl	linux_trap_ipi15
+linux_trap_ipi15:
 	SAVE_ALL
 	sethi	%hi(0x80000000), %o2
 	GET_PROCESSOR4M_ID(o0)
@@ -760,19 +760,11 @@ setcc_trap_handler:
 	jmp	%l2		! advance over trap instruction
 	rett	%l2 + 0x4	! like this...
 
+#ifndef CONFIG_SMP
 	.align	4
-	.globl	linux_trap_nmi_sun4c
-linux_trap_nmi_sun4c:
+	.globl	linux_trap_ipi15
+linux_trap_ipi15:
 	SAVE_ALL
-
-	/* Ugh, we need to clear the IRQ line.  This is now
-	 * a very sun4c specific trap handler...
-	 */
-	sethi	%hi(interrupt_enable), %l5
-	ld	[%l5 + %lo(interrupt_enable)], %l5
-	ldub	[%l5], %l6
-	andn	%l6, INTS_ENAB, %l6
-	stb	%l6, [%l5]
 
 	/* Now it is safe to re-enable traps without recursion. */
 	or	%l0, PSR_PIL, %l0
@@ -796,6 +788,8 @@ linux_trap_nmi_sun4c:
 	 add	%sp, STACKFRAME_SZ, %o0
 
 	RESTORE_ALL
+
+#endif /* CONFIG_SMP */
 
 	.align	4
 	.globl	invalid_segment_patch1_ff

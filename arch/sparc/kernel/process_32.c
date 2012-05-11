@@ -100,7 +100,7 @@ void cpu_idle(void)
 				printk("kernel faults / second = %ld\n", fps);
 #endif
 				if (fps >= SUN4C_FAULT_HIGH) {
-					sun4c_grow_kernel_ring();
+					/*sun4c_grow_kernel_ring();*/
 				}
 			}
 			local_irq_enable();

@@ -18,8 +18,4 @@ obj-$(CONFIG_HUGETLB_PAGE) += hugetlbpage.o
 # Only used by sparc32
 obj-$(CONFIG_HIGHMEM)   += highmem.o
 
-ifdef CONFIG_SMP
 obj-$(CONFIG_SPARC32) += nosun4c.o
-else
-obj-$(CONFIG_SPARC32) += sun4c.o
-endif

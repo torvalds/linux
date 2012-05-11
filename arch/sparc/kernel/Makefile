@@ -28,7 +28,7 @@ obj-y                   += traps_$(BITS).o
 
 # IRQ
 obj-y                   += irq_$(BITS).o
-obj-$(CONFIG_SPARC32)   += sun4m_irq.o sun4c_irq.o sun4d_irq.o
+obj-$(CONFIG_SPARC32)   += sun4m_irq.o sun4d_irq.o
 
 obj-y                   += process_$(BITS).o
 obj-y                   += signal_$(BITS).o

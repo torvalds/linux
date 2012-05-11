@@ -43,9 +43,6 @@ extern spinlock_t irq_action_lock;
 extern void unexpected_irq(int irq, void *dev_id, struct pt_regs * regs);
 extern void init_IRQ(void);
 
-/* sun4c_irq.c */
-extern void sun4c_init_IRQ(void);
-
 /* sun4m_irq.c */
 extern void sun4m_init_IRQ(void);
 extern void sun4m_unmask_profile_irq(void);

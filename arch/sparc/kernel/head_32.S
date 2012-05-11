@@ -111,11 +111,8 @@ t_irq12:TRAP_ENTRY_INTERRUPT(12)            /* IRQ Zilog serial chip         */
 t_irq13:TRAP_ENTRY_INTERRUPT(13)            /* IRQ Audio Intr.               */
 t_irq14:TRAP_ENTRY_INTERRUPT(14)            /* IRQ Timer #2                  */
 	.globl	t_nmi
-#ifndef CONFIG_SMP
-t_nmi:	NMI_TRAP                            /* Level 15 (NMI)                */
-#else
-t_nmi:	TRAP_ENTRY(0x1f, linux_trap_ipi15_sun4m)
-#endif
+t_nmi:	TRAP_ENTRY(0x1f, linux_trap_ipi15)
+
 t_racc:	TRAP_ENTRY(0x20, do_reg_access)     /* General Register Access Error */
 t_iacce:BAD_TRAP(0x21)                      /* Instr Access Error            */
 t_bad22:BAD_TRAP(0x22) BAD_TRAP(0x23)
