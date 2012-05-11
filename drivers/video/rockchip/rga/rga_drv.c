@@ -595,11 +595,11 @@ static void rga_try_set_reg(uint32_t num)
                
                 #if RGA_TEST
                 {
-                    printk("cmd_addr = %.8x\n", rga_read(RGA_CMD_ADDR));
+                    //printk(KERN_DEBUG "cmd_addr = %.8x\n", rga_read(RGA_CMD_ADDR));
                     uint32_t i;
                     uint32_t *p;
                     p = rga_service.cmd_buff;                    
-                    printk("CMD_REG\n");
+                    printk(KERN_DEBUG "CMD_REG\n");
                     for (i=0; i<7; i++)                    
                         printk("%.8x %.8x %.8x %.8x\n", p[0 + i*4], p[1+i*4], p[2 + i*4], p[3 + i*4]);                   
                 }
@@ -618,9 +618,9 @@ static void rga_try_set_reg(uint32_t num)
                 #if RGA_TEST
                 {
                     uint32_t i;
-                    printk("CMD_READ_BACK_REG\n");
+                    printk(KERN_DEBUG "CMD_READ_BACK_REG\n");
                     for (i=0; i<7; i++)                    
-                        printk("%.8x %.8x %.8x %.8x\n", rga_read(0x100 + i*16 + 0), 
+                        printk(KERN_DEBUG "%.8x %.8x %.8x %.8x\n", rga_read(0x100 + i*16 + 0), 
                                rga_read(0x100 + i*16 + 4), rga_read(0x100 + i*16 + 8), rga_read(0x100 + i*16 + 12));                    
                 }
                 #endif
@@ -672,7 +672,7 @@ static void rga_del_running_list(void)
         
         if(list_empty(&reg->session->waiting))
         {
-            atomic_set(&reg->session->done, 1);
+            atomic_set(&reg->session->done, 1);            
             wake_up_interruptible_sync(&reg->session->wait);
         }
         
@@ -843,7 +843,7 @@ static int rga_blit(rga_session *session, struct rga_req *req)
         atomic_add(num, &rga_service.total_running);
         spin_unlock_irqrestore(&rga_service.lock, flag);
         
-        rga_try_set_reg(num);
+        rga_try_set_reg(1);
         
         return 0;         
     }

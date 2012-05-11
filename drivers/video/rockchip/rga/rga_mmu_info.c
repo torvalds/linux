@@ -392,14 +392,14 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         /* Cal out the needed mem size */
         AllSize = SrcMemSize + DstMemSize;
                            
-        pages = kzalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
+        pages = kmalloc((AllSize + 1)* sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;                
         }
         
-        MMU_Base = kzalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kmalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(MMU_Base == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -488,8 +488,8 @@ static int rga_mmu_info_BitBlt_mode(struct rga_reg *reg, struct rga_req *req)
         reg->MMU_base = MMU_Base;
         
         /* flush data to DDR */
-        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize + 1));
 
         status = 0;
                
@@ -632,8 +632,8 @@ static int rga_mmu_info_color_palette_mode(struct rga_reg *reg, struct rga_req *
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize + 1));
 
         /* Free the page table */
         if (pages != NULL) {            
@@ -728,8 +728,8 @@ static int rga_mmu_info_color_fill_mode(struct rga_reg *reg, struct rga_req *req
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize + 1));
 
         /* Free the page table */
         if (pages != NULL)             
@@ -773,14 +773,14 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
 
         AllSize = DstMemSize;
                    
-        pages = kzalloc(AllSize * sizeof(struct page *), GFP_KERNEL);
+        pages = kzalloc((AllSize + 1) * sizeof(struct page *), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc pages mem failed\n");
             status = RGA_MALLOC_ERROR;
             break;
         }
         
-        MMU_Base = kzalloc(AllSize * sizeof(uint32_t), GFP_KERNEL);
+        MMU_Base = kzalloc((AllSize + 1) * sizeof(uint32_t), GFP_KERNEL);
         if(pages == NULL) {
             pr_err("RGA MMU malloc MMU_Base point failed\n");
             status = RGA_MALLOC_ERROR;
@@ -818,8 +818,8 @@ static int rga_mmu_info_line_point_drawing_mode(struct rga_reg *reg, struct rga_
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize + 1));
 
         /* Free the page table */
         if (pages != NULL) {            
@@ -955,8 +955,8 @@ static int rga_mmu_info_blur_sharp_filter_mode(struct rga_reg *reg, struct rga_r
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize + 1));
 
         /* Free the page table */
         if (pages != NULL) {        
@@ -1111,8 +1111,8 @@ static int rga_mmu_info_pre_scale_mode(struct rga_reg *reg, struct rga_req *req)
         reg->MMU_base = MMU_Base;
 
         /* flush data to DDR */
-        dmac_flush_range(MMU_Base, (MMU_Base + AllSize));
-        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize));
+        dmac_flush_range(MMU_Base, (MMU_Base + AllSize + 1));
+        outer_flush_range(virt_to_phys(MMU_Base),virt_to_phys(MMU_Base + AllSize + 1));
 
         /* Free the page table */
         if (pages != NULL) 
