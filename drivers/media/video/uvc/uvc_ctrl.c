@@ -1351,9 +1351,12 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 
 		/* Reset the loaded flag for auto-update controls that were
 		 * marked as loaded in uvc_ctrl_get/uvc_ctrl_set to prevent
-		 * uvc_ctrl_get from using the cached value.
+		 * uvc_ctrl_get from using the cached value, and for write-only
+		 * controls to prevent uvc_ctrl_set from setting bits not
+		 * explicitly set by the user.
 		 */
-		if (ctrl->info.flags & UVC_CTRL_FLAG_AUTO_UPDATE)
+		if (ctrl->info.flags & UVC_CTRL_FLAG_AUTO_UPDATE ||
+		    !(ctrl->info.flags & UVC_CTRL_FLAG_GET_CUR))
 			ctrl->loaded = 0;
 
 		if (!ctrl->dirty)
