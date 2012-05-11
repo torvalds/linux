@@ -346,8 +346,8 @@ static int gen_ndis_query_resp(int configNr, u32 OID, u8 *buf,
 	case RNDIS_OID_GEN_MAC_OPTIONS:		/* from WinME */
 		pr_debug("%s: RNDIS_OID_GEN_MAC_OPTIONS\n", __func__);
 		*outbuf = cpu_to_le32(
-			  NDIS_MAC_OPTION_RECEIVE_SERIALIZED
-			| NDIS_MAC_OPTION_FULL_DUPLEX);
+			  RNDIS_MAC_OPTION_RECEIVE_SERIALIZED
+			| RNDIS_MAC_OPTION_FULL_DUPLEX);
 		retval = 0;
 		break;
 
