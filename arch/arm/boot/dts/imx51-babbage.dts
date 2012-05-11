@@ -162,6 +162,11 @@
 						};
 					};
 				};
+
+				ssi2: ssi@70014000 {
+					fsl,mode = "i2s-slave";
+					status = "okay";
+				};
 			};
 
 			wdog@73f98000 { /* WDOG1 */
@@ -191,10 +196,17 @@
 			i2c@83fc4000 { /* I2C2 */
 				status = "okay";
 
-				codec: sgtl5000@0a {
+				sgtl5000: codec@0a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					clock-frequency = <26000000>;
+					VDDA-supply = <&vdig_reg>;
+					VDDIO-supply = <&vvideo_reg>;
 				};
+			};
+
+			audmux@83fd0000 {
+				status = "okay";
 			};
 
 			ethernet@83fec000 {
@@ -213,5 +225,19 @@
 			linux,code = <116>; /* KEY_POWER */
 			gpio-key,wakeup;
 		};
+	};
+
+	sound {
+		compatible = "fsl,imx51-babbage-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx51-babbage-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <3>;
 	};
 };

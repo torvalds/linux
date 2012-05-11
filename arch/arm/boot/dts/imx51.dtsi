@@ -102,6 +102,15 @@
 					status = "disabled";
 				};
 
+				ssi2: ssi@70014000 {
+					compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
+					reg = <0x70014000 0x4000>;
+					interrupts = <30>;
+					fsl,fifo-depth = <15>;
+					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
+					status = "disabled";
+				};
+
 				esdhc@70020000 { /* ESDHC3 */
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70020000 0x4000>;
@@ -232,6 +241,30 @@
 				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
 				reg = <0x83fc8000 0x4000>;
 				interrupts = <62>;
+				status = "disabled";
+			};
+
+			ssi1: ssi@83fcc000 {
+				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
+				reg = <0x83fcc000 0x4000>;
+				interrupts = <29>;
+				fsl,fifo-depth = <15>;
+				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
+				status = "disabled";
+			};
+
+			audmux@83fd0000 {
+				compatible = "fsl,imx51-audmux", "fsl,imx31-audmux";
+				reg = <0x83fd0000 0x4000>;
+				status = "disabled";
+			};
+
+			ssi3: ssi@83fe8000 {
+				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
+				reg = <0x83fe8000 0x4000>;
+				interrupts = <96>;
+				fsl,fifo-depth = <15>;
+				fsl,ssi-dma-events = <47 46 37 35>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
