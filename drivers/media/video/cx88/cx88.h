@@ -455,8 +455,6 @@ struct cx8802_dev;
 
 struct cx8800_fh {
 	struct cx8800_dev          *dev;
-	enum v4l2_buf_type         type;
-	int                        radio;
 	unsigned int               resources;
 
 	/* video overlay */
