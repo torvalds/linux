@@ -252,7 +252,7 @@
 		reg = <0x7000C500 0x100>;
 		interrupts = <0 92 0x04>;
 		clock-frequency = <80000>;
-		request-gpios = <&gpio 170 0>;
+		request-gpios = <&gpio 170 0>; /* gpio PV2 */
 		slave-addr = <138>;
 	};
 
@@ -343,7 +343,7 @@
 
 		wifi {
 			label = "wifi-led";
-			gpios = <&gpio 24 0>;
+			gpios = <&gpio 24 0>; /* gpio PD0 */
 			linux,default-trigger = "rfkill0";
 		};
 	};

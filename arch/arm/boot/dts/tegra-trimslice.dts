@@ -305,8 +305,8 @@
 	};
 
 	sdhci@c8000600 {
-		cd-gpios = <&gpio 121 0>;
-		wp-gpios = <&gpio 122 0>;
+		cd-gpios = <&gpio 121 0>; /* gpio PP1 */
+		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
 	};
 
 	usb@c5004000 {
