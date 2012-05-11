@@ -2278,7 +2278,6 @@ struct iwl_ssid_ie {
 #define IWL_GOOD_CRC_TH_DISABLED	0
 #define IWL_GOOD_CRC_TH_DEFAULT		cpu_to_le16(1)
 #define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
-#define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
 
 /*

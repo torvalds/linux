@@ -52,6 +52,7 @@
 #define IWL_PASSIVE_DWELL_TIME_52   (10)
 #define IWL_PASSIVE_DWELL_BASE      (100)
 #define IWL_CHANNEL_TUNE_TIME       5
+#define MAX_SCAN_CHANNEL	    50
 
 static int iwl_send_scan_abort(struct iwl_priv *priv)
 {
@@ -679,6 +680,13 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	u8 active_chains;
 	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
 	int ret;
+	int scan_cmd_size = sizeof(struct iwl_scan_cmd) +
+			    MAX_SCAN_CHANNEL * sizeof(struct iwl_scan_channel) +
+			    priv->fw->ucode_capa.max_probe_length;
+
+	if (WARN_ON_ONCE(priv->scan_request &&
+			 priv->scan_request->n_channels > MAX_SCAN_CHANNEL))
+		return -EINVAL;
 
 	lockdep_assert_held(&priv->mutex);
 
@@ -686,8 +694,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		ctx = iwl_rxon_ctx_from_vif(vif);
 
 	if (!priv->scan_cmd) {
-		priv->scan_cmd = kmalloc(sizeof(struct iwl_scan_cmd) +
-					 IWL_MAX_SCAN_SIZE, GFP_KERNEL);
+		priv->scan_cmd = kmalloc(scan_cmd_size, GFP_KERNEL);
 		if (!priv->scan_cmd) {
 			IWL_DEBUG_SCAN(priv,
 				       "fail to allocate memory for scan\n");
@@ -695,7 +702,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		}
 	}
 	scan = priv->scan_cmd;
-	memset(scan, 0, sizeof(struct iwl_scan_cmd) + IWL_MAX_SCAN_SIZE);
+	memset(scan, 0, scan_cmd_size);
 
 	scan->quiet_plcp_th = IWL_PLCP_QUIET_THRESH;
 	scan->quiet_time = IWL_ACTIVE_QUIET_TIME;
@@ -883,7 +890,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 					vif->addr,
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
-					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+					scan_cmd_size - sizeof(*scan));
 		break;
 	case IWL_SCAN_RADIO_RESET:
 	case IWL_SCAN_ROC:
@@ -891,7 +898,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
 					iwl_bcast_addr, NULL, 0,
-					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+					scan_cmd_size - sizeof(*scan));
 		break;
 	default:
 		BUG();
