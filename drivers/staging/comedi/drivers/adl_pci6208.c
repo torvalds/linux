@@ -54,8 +54,6 @@ References:
 #include "../comedidev.h"
 #include "comedi_pci.h"
 
-#define PCI6208_DRIVER_NAME	"adl_pci6208"
-
 /* Board descriptions */
 struct pci6208_board {
 	const char *name;
@@ -248,7 +246,7 @@ pci6208_pci_setup(struct pci_dev *pci_dev, unsigned long *io_base_ptr,
 	unsigned long io_base, io_range, lcr_io_base, lcr_io_range;
 
 	/*  Enable PCI device and request regions */
-	if (comedi_pci_enable(pci_dev, PCI6208_DRIVER_NAME) < 0) {
+	if (comedi_pci_enable(pci_dev, "adl_pci6208") < 0) {
 		printk(KERN_ERR "comedi%d: Failed to enable PCI device "
 			"and request regions\n",
 			dev_minor);
@@ -345,59 +343,41 @@ static int pci6208_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_pci6208 = {
-	.driver_name	= PCI6208_DRIVER_NAME,
+static struct comedi_driver adl_pci6208_driver = {
+	.driver_name	= "adl_pci6208",
 	.module		= THIS_MODULE,
 	.attach		= pci6208_attach,
 	.detach		= pci6208_detach,
 };
 
-static int __devinit driver_pci6208_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static int __devinit adl_pci6208_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_pci6208);
+	return comedi_pci_auto_config(dev, &adl_pci6208_driver);
 }
 
-static void __devexit driver_pci6208_pci_remove(struct pci_dev *dev)
+static void __devexit adl_pci6208_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
 /* This is used by modprobe to translate PCI IDs to drivers.  Should
  * only be used for PCI and ISA-PnP devices */
-static DEFINE_PCI_DEVICE_TABLE(pci6208_pci_table) = {
+static DEFINE_PCI_DEVICE_TABLE(adl_pci6208_pci_table) = {
 	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	/* { PCI_VENDOR_ID_ADLINK, 0x6208, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 }, */
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, 0x6208) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, pci6208_pci_table);
+MODULE_DEVICE_TABLE(pci, adl_pci6208_pci_table);
 
-static struct pci_driver driver_pci6208_pci_driver = {
-	.id_table	= pci6208_pci_table,
-	.probe		= driver_pci6208_pci_probe,
-	.remove		= __devexit_p(driver_pci6208_pci_remove),
+static struct pci_driver adl_pci6208_pci_driver = {
+	.name		= "adl_pci6208",
+	.id_table	= adl_pci6208_pci_table,
+	.probe		= adl_pci6208_pci_probe,
+	.remove		= __devexit_p(adl_pci6208_pci_remove),
 };
-
-static int __init driver_pci6208_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_pci6208);
-	if (retval < 0)
-		return retval;
-
-	driver_pci6208_pci_driver.name = (char *)driver_pci6208.driver_name;
-	return pci_register_driver(&driver_pci6208_pci_driver);
-}
-module_init(driver_pci6208_init_module);
-
-static void __exit driver_pci6208_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_pci6208_pci_driver);
-	comedi_driver_unregister(&driver_pci6208);
-}
-module_exit(driver_pci6208_cleanup_module);
+module_comedi_pci_driver(adl_pci6208_driver, adl_pci6208_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

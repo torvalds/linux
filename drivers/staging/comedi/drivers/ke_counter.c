@@ -231,55 +231,37 @@ static int cnt_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver cnt_driver = {
-	.driver_name	= CNT_DRIVER_NAME,
+static struct comedi_driver ke_counter_driver = {
+	.driver_name	= "ke_counter",
 	.module		= THIS_MODULE,
 	.attach		= cnt_attach,
 	.detach		= cnt_detach,
 };
 
-static int __devinit cnt_driver_pci_probe(struct pci_dev *dev,
+static int __devinit ke_counter_pci_probe(struct pci_dev *dev,
 					  const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &cnt_driver);
+	return comedi_pci_auto_config(dev, &ke_counter_driver);
 }
 
-static void __devexit cnt_driver_pci_remove(struct pci_dev *dev)
+static void __devexit ke_counter_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(cnt_pci_table) = {
+static DEFINE_PCI_DEVICE_TABLE(ke_counter_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_KOLTER, CNT_CARD_DEVICE_ID) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, cnt_pci_table);
+MODULE_DEVICE_TABLE(pci, ke_counter_pci_table);
 
-static struct pci_driver cnt_driver_pci_driver = {
-	.id_table	= cnt_pci_table,
-	.probe		= cnt_driver_pci_probe,
-	.remove		= __devexit_p(cnt_driver_pci_remove),
+static struct pci_driver ke_counter_pci_driver = {
+	.name		= "ke_counter",
+	.id_table	= ke_counter_pci_table,
+	.probe		= ke_counter_pci_probe,
+	.remove		= __devexit_p(ke_counter_pci_remove),
 };
-
-static int __init cnt_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&cnt_driver);
-	if (retval < 0)
-		return retval;
-
-	cnt_driver_pci_driver.name = (char *)cnt_driver.driver_name;
-	return pci_register_driver(&cnt_driver_pci_driver);
-}
-module_init(cnt_driver_init_module);
-
-static void __exit cnt_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&cnt_driver_pci_driver);
-	comedi_driver_unregister(&cnt_driver);
-}
-module_exit(cnt_driver_cleanup_module);
+module_comedi_pci_driver(ke_counter_driver, ke_counter_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -2346,20 +2346,20 @@ static int rtd_dio_insn_config(struct comedi_device *dev,
 	return 1;
 }
 
-static struct comedi_driver rtd520Driver = {
-	.driver_name	= DRV_NAME,
+static struct comedi_driver rtd520_driver = {
+	.driver_name	= "rtd520",
 	.module		= THIS_MODULE,
 	.attach		= rtd_attach,
 	.detach		= rtd_detach,
 };
 
-static int __devinit rtd520Driver_pci_probe(struct pci_dev *dev,
-					    const struct pci_device_id *ent)
+static int __devinit rtd520_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &rtd520Driver);
+	return comedi_pci_auto_config(dev, &rtd520_driver);
 }
 
-static void __devexit rtd520Driver_pci_remove(struct pci_dev *dev)
+static void __devexit rtd520_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -2371,31 +2371,13 @@ static DEFINE_PCI_DEVICE_TABLE(rtd520_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, rtd520_pci_table);
 
-static struct pci_driver rtd520Driver_pci_driver = {
+static struct pci_driver rtd520_pci_driver = {
+	.name		= "rtd520",
 	.id_table	= rtd520_pci_table,
-	.probe		= &rtd520Driver_pci_probe,
-	.remove		= __devexit_p(&rtd520Driver_pci_remove)
+	.probe		= rtd520_pci_probe,
+	.remove		= __devexit_p(rtd520_pci_remove),
 };
-
-static int __init rtd520Driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&rtd520Driver);
-	if (retval < 0)
-		return retval;
-
-	rtd520Driver_pci_driver.name = (char *)rtd520Driver.driver_name;
-	return pci_register_driver(&rtd520Driver_pci_driver);
-}
-module_init(rtd520Driver_init_module);
-
-static void __exit rtd520Driver_cleanup_module(void)
-{
-	pci_unregister_driver(&rtd520Driver_pci_driver);
-	comedi_driver_unregister(&rtd520Driver);
-}
-module_exit(rtd520Driver_cleanup_module);
+module_comedi_pci_driver(rtd520_driver, rtd520_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

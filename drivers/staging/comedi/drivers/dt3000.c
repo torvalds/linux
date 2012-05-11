@@ -962,25 +962,25 @@ static int dt3000_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_dt3000 = {
+static struct comedi_driver dt3000_driver = {
 	.driver_name	= "dt3000",
 	.module		= THIS_MODULE,
 	.attach		= dt3000_attach,
 	.detach		= dt3000_detach,
 };
 
-static int __devinit driver_dt3000_pci_probe(struct pci_dev *dev,
-					     const struct pci_device_id *ent)
+static int __devinit dt3000_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_dt3000);
+	return comedi_pci_auto_config(dev, &dt3000_driver);
 }
 
-static void __devexit driver_dt3000_pci_remove(struct pci_dev *dev)
+static void __devexit dt3000_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
+static DEFINE_PCI_DEVICE_TABLE(dt3000_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0022) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0027) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0023) },
@@ -990,33 +990,15 @@ static DEFINE_PCI_DEVICE_TABLE(dt3k_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_DT, 0x0026) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, dt3k_pci_table);
+MODULE_DEVICE_TABLE(pci, dt3000_pci_table);
 
-static struct pci_driver driver_dt3000_pci_driver = {
-	.id_table	= dt3k_pci_table,
-	.probe		= driver_dt3000_pci_probe,
-	.remove		= __devexit_p(driver_dt3000_pci_remove),
+static struct pci_driver dt3000_pci_driver = {
+	.name		= "dt3000",
+	.id_table	= dt3000_pci_table,
+	.probe		= dt3000_pci_probe,
+	.remove		= __devexit_p(dt3000_pci_remove),
 };
-
-static int __init driver_dt3000_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_dt3000);
-	if (retval < 0)
-		return retval;
-
-	driver_dt3000_pci_driver.name = (char *)driver_dt3000.driver_name;
-	return pci_register_driver(&driver_dt3000_pci_driver);
-}
-module_init(driver_dt3000_init_module);
-
-static void __exit driver_dt3000_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_dt3000_pci_driver);
-	comedi_driver_unregister(&driver_dt3000);
-}
-module_exit(driver_dt3000_cleanup_module);
+module_comedi_pci_driver(dt3000_driver, dt3000_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -825,56 +825,38 @@ static int me_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver me_driver = {
-	.driver_name	= ME_DRIVER_NAME,
+static struct comedi_driver me_daq_driver = {
+	.driver_name	= "me_daq",
 	.module		= THIS_MODULE,
 	.attach		= me_attach,
 	.detach		= me_detach,
 };
 
-static int __devinit me_driver_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *ent)
+static int __devinit me_daq_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &me_driver);
+	return comedi_pci_auto_config(dev, &me_daq_driver);
 }
 
-static void __devexit me_driver_pci_remove(struct pci_dev *dev)
+static void __devexit me_daq_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
-static DEFINE_PCI_DEVICE_TABLE(me_pci_table) = {
+static DEFINE_PCI_DEVICE_TABLE(me_daq_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2600_DEVICE_ID) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_MEILHAUS, ME2000_DEVICE_ID) },
 	{ 0 }
 };
-MODULE_DEVICE_TABLE(pci, me_pci_table);
+MODULE_DEVICE_TABLE(pci, me_daq_pci_table);
 
-static struct pci_driver me_driver_pci_driver = {
-	.id_table	= me_pci_table,
-	.probe		= me_driver_pci_probe,
-	.remove		= __devexit_p(me_driver_pci_remove),
+static struct pci_driver me_daq_pci_driver = {
+	.name		= "me_daq",
+	.id_table	= me_daq_pci_table,
+	.probe		= me_daq_pci_probe,
+	.remove		= __devexit_p(me_daq_pci_remove),
 };
-
-static int __init me_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&me_driver);
-	if (retval < 0)
-		return retval;
-
-	me_driver_pci_driver.name = (char *)me_driver.driver_name;
-	return pci_register_driver(&me_driver_pci_driver);
-}
-module_init(me_driver_init_module);
-
-static void __exit me_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&me_driver_pci_driver);
-	comedi_driver_unregister(&me_driver);
-}
-module_exit(me_driver_cleanup_module);
+module_comedi_pci_driver(me_daq_driver, me_daq_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

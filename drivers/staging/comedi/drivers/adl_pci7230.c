@@ -163,57 +163,37 @@ static int adl_pci7230_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_adl_pci7230 = {
+static struct comedi_driver adl_pci7230_driver = {
 	.driver_name	= "adl_pci7230",
 	.module		= THIS_MODULE,
 	.attach		= adl_pci7230_attach,
 	.detach		= adl_pci7230_detach,
 };
 
-static int __devinit driver_adl_pci7230_pci_probe(struct pci_dev *dev,
-						  const struct pci_device_id
-						  *ent)
+static int __devinit adl_pci7230_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_adl_pci7230);
+	return comedi_pci_auto_config(dev, &adl_pci7230_driver);
 }
 
-static void __devexit driver_adl_pci7230_pci_remove(struct pci_dev *dev)
+static void __devexit adl_pci7230_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7230_pci_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7230) },
-	{0}
+	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci7230_pci_table);
 
-static struct pci_driver driver_adl_pci7230_pci_driver = {
+static struct pci_driver adl_pci7230_pci_driver = {
+	.name		= "adl_pci7230",
 	.id_table	= adl_pci7230_pci_table,
-	.probe		= driver_adl_pci7230_pci_probe,
-	.remove		= __devexit_p(driver_adl_pci7230_pci_remove)
+	.probe		= adl_pci7230_pci_probe,
+	.remove		= __devexit_p(adl_pci7230_pci_remove),
 };
-
-static int __init driver_adl_pci7230_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_adl_pci7230);
-	if (retval < 0)
-		return retval;
-
-	driver_adl_pci7230_pci_driver.name =
-	    (char *)driver_adl_pci7230.driver_name;
-	return pci_register_driver(&driver_adl_pci7230_pci_driver);
-}
-module_init(driver_adl_pci7230_init_module);
-
-static void __exit driver_adl_pci7230_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_adl_pci7230_pci_driver);
-	comedi_driver_unregister(&driver_adl_pci7230);
-}
-module_exit(driver_adl_pci7230_cleanup_module);
+module_comedi_pci_driver(adl_pci7230_driver, adl_pci7230_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

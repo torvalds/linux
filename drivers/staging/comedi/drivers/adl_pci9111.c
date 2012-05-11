@@ -1407,20 +1407,20 @@ static int pci9111_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver pci9111_driver = {
-	.driver_name	= PCI9111_DRIVER_NAME,
+static struct comedi_driver adl_pci9111_driver = {
+	.driver_name	= "adl_pci9111",
 	.module		= THIS_MODULE,
 	.attach		= pci9111_attach,
 	.detach		= pci9111_detach,
 };
 
-static int __devinit pci9111_driver_pci_probe(struct pci_dev *dev,
-					      const struct pci_device_id *ent)
+static int __devinit pci9111_pci_probe(struct pci_dev *dev,
+				       const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &pci9111_driver);
+	return comedi_pci_auto_config(dev, &adl_pci9111_driver);
 }
 
-static void __devexit pci9111_driver_pci_remove(struct pci_dev *dev)
+static void __devexit pci9111_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -1432,31 +1432,13 @@ static DEFINE_PCI_DEVICE_TABLE(pci9111_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, pci9111_pci_table);
 
-static struct pci_driver pci9111_driver_pci_driver = {
+static struct pci_driver adl_pci9111_pci_driver = {
+	.name		= "adl_pci9111",
 	.id_table	= pci9111_pci_table,
-	.probe		= pci9111_driver_pci_probe,
-	.remove		= __devexit_p(pci9111_driver_pci_remove),
+	.probe		= pci9111_pci_probe,
+	.remove		= __devexit_p(pci9111_pci_remove),
 };
-
-static int __init pci9111_driver_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&pci9111_driver);
-	if (retval < 0)
-		return retval;
-
-	pci9111_driver_pci_driver.name = (char *)pci9111_driver.driver_name;
-	return pci_register_driver(&pci9111_driver_pci_driver);
-}
-module_init(pci9111_driver_init_module);
-
-static void __exit pci9111_driver_cleanup_module(void)
-{
-	pci_unregister_driver(&pci9111_driver_pci_driver);
-	comedi_driver_unregister(&pci9111_driver);
-}
-module_exit(pci9111_driver_cleanup_module);
+module_comedi_pci_driver(adl_pci9111_driver, adl_pci9111_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

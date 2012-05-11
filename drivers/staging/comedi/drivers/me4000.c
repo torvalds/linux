@@ -2320,20 +2320,20 @@ static int me4000_detach(struct comedi_device *dev)
 	return 0;
 }
 
-static struct comedi_driver driver_me4000 = {
+static struct comedi_driver me4000_driver = {
 	.driver_name	= "me4000",
 	.module		= THIS_MODULE,
 	.attach		= me4000_attach,
 	.detach		= me4000_detach,
 };
 
-static int __devinit driver_me4000_pci_probe(struct pci_dev *dev,
-					     const struct pci_device_id *ent)
+static int __devinit me4000_pci_probe(struct pci_dev *dev,
+				      const struct pci_device_id *ent)
 {
-	return comedi_pci_auto_config(dev, &driver_me4000);
+	return comedi_pci_auto_config(dev, &me4000_driver);
 }
 
-static void __devexit driver_me4000_pci_remove(struct pci_dev *dev)
+static void __devexit me4000_pci_remove(struct pci_dev *dev)
 {
 	comedi_pci_auto_unconfig(dev);
 }
@@ -2356,31 +2356,13 @@ static DEFINE_PCI_DEVICE_TABLE(me4000_pci_table) = {
 };
 MODULE_DEVICE_TABLE(pci, me4000_pci_table);
 
-static struct pci_driver driver_me4000_pci_driver = {
+static struct pci_driver me4000_pci_driver = {
+	.name		= "me4000",
 	.id_table	= me4000_pci_table,
-	.probe		= driver_me4000_pci_probe,
-	.remove		= __devexit_p(driver_me4000_pci_remove),
+	.probe		= me4000_pci_probe,
+	.remove		= __devexit_p(me4000_pci_remove),
 };
-
-static int __init driver_me4000_init_module(void)
-{
-	int retval;
-
-	retval = comedi_driver_register(&driver_me4000);
-	if (retval < 0)
-		return retval;
-
-	driver_me4000_pci_driver.name = (char *)driver_me4000.driver_name;
-	return pci_register_driver(&driver_me4000_pci_driver);
-}
-module_init(driver_me4000_init_module);
-
-static void __exit driver_me4000_cleanup_module(void)
-{
-	pci_unregister_driver(&driver_me4000_pci_driver);
-	comedi_driver_unregister(&driver_me4000);
-}
-module_exit(driver_me4000_cleanup_module);
+module_comedi_pci_driver(me4000_driver, me4000_pci_driver);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
