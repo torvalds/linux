@@ -48,7 +48,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
-		reg = <0x7000C000 0x100>;
+		reg = <0x7000c000 0x100>;
 		interrupts = <0 38 0x04>;
 	};
 
@@ -56,7 +56,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
-		reg = <0x7000C400 0x100>;
+		reg = <0x7000c400 0x100>;
 		interrupts = <0 84 0x04>;
 	};
 
@@ -64,7 +64,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
-		reg = <0x7000C500 0x100>;
+		reg = <0x7000c500 0x100>;
 		interrupts = <0 92 0x04>;
 	};
 
@@ -72,7 +72,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c-dvc";
-		reg = <0x7000D000 0x200>;
+		reg = <0x7000d000 0x200>;
 		interrupts = <0 53 0x04>;
 	};
 
