@@ -460,15 +460,15 @@ bmap_to_share_mode(unsigned long bmap) {
 	return access;
 }
 
-static int
+static bool
 test_share(struct nfs4_ol_stateid *stp, struct nfsd4_open *open) {
 	unsigned int access, deny;
 
 	access = bmap_to_share_mode(stp->st_access_bmap);
 	deny = bmap_to_share_mode(stp->st_deny_bmap);
 	if ((access & open->op_share_deny) || (deny & open->op_share_access))
-		return 0;
-	return 1;
+		return false;
+	return true;
 }
 
 static int nfs4_access_to_omode(u32 access)
