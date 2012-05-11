@@ -45,16 +45,6 @@
 #define YMIN_NOMINAL 1408
 #define YMAX_NOMINAL 4448
 
-/*
- * Synaptics touchpads report the y coordinate from bottom to top, which is
- * opposite from what userspace expects.
- * This function is used to invert y before reporting.
- */
-static int synaptics_invert_y(int y)
-{
-	return YMAX_NOMINAL + YMIN_NOMINAL - y;
-}
-
 
 /*****************************************************************************
  *	Stuff we need even when we do not want native Synaptics support
@@ -110,6 +100,16 @@ void synaptics_reset(struct psmouse *psmouse)
 /*****************************************************************************
  *	Synaptics communications functions
  ****************************************************************************/
+
+/*
+ * Synaptics touchpads report the y coordinate from bottom to top, which is
+ * opposite from what userspace expects.
+ * This function is used to invert y before reporting.
+ */
+static int synaptics_invert_y(int y)
+{
+	return YMAX_NOMINAL + YMIN_NOMINAL - y;
+}
 
 /*
  * Send a command to the synpatics touchpad by special commands
