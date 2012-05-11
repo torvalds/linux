@@ -1487,7 +1487,8 @@ static struct omap_hwmod_class omap44xx_i2c_hwmod_class = {
 };
 
 static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.flags	= OMAP_I2C_FLAG_BUS_SHIFT_NONE,
+	.flags	= OMAP_I2C_FLAG_BUS_SHIFT_NONE |
+			OMAP_I2C_FLAG_RESET_REGS_POSTIDLE,
 };
 
 /* i2c1 */
@@ -1911,7 +1912,7 @@ static struct omap_hwmod_class omap44xx_mcbsp_hwmod_class = {
 
 /* mcbsp1 */
 static struct omap_hwmod_irq_info omap44xx_mcbsp1_irqs[] = {
-	{ .irq = 17 + OMAP44XX_IRQ_GIC_START },
+	{ .name = "common", .irq = 17 + OMAP44XX_IRQ_GIC_START },
 	{ .irq = -1 }
 };
 
@@ -1946,7 +1947,7 @@ static struct omap_hwmod omap44xx_mcbsp1_hwmod = {
 
 /* mcbsp2 */
 static struct omap_hwmod_irq_info omap44xx_mcbsp2_irqs[] = {
-	{ .irq = 22 + OMAP44XX_IRQ_GIC_START },
+	{ .name = "common", .irq = 22 + OMAP44XX_IRQ_GIC_START },
 	{ .irq = -1 }
 };
 
@@ -1981,7 +1982,7 @@ static struct omap_hwmod omap44xx_mcbsp2_hwmod = {
 
 /* mcbsp3 */
 static struct omap_hwmod_irq_info omap44xx_mcbsp3_irqs[] = {
-	{ .irq = 23 + OMAP44XX_IRQ_GIC_START },
+	{ .name = "common", .irq = 23 + OMAP44XX_IRQ_GIC_START },
 	{ .irq = -1 }
 };
 
@@ -2016,7 +2017,7 @@ static struct omap_hwmod omap44xx_mcbsp3_hwmod = {
 
 /* mcbsp4 */
 static struct omap_hwmod_irq_info omap44xx_mcbsp4_irqs[] = {
-	{ .irq = 16 + OMAP44XX_IRQ_GIC_START },
+	{ .name = "common", .irq = 16 + OMAP44XX_IRQ_GIC_START },
 	{ .irq = -1 }
 };
 
@@ -3534,6 +3535,7 @@ static struct omap_hwmod_class omap44xx_wd_timer_hwmod_class = {
 	.name		= "wd_timer",
 	.sysc		= &omap44xx_wd_timer_sysc,
 	.pre_shutdown	= &omap2_wd_timer_disable,
+	.reset		= &omap2_wd_timer_reset,
 };
 
 /* wd_timer2 */
