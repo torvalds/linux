@@ -396,7 +396,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	phym = NULL;
 	reply_len = sizeof *phym;
 	retval = rndis_query(dev, intf, u.buf,
-			     cpu_to_le32(OID_GEN_PHYSICAL_MEDIUM),
+			     cpu_to_le32(RNDIS_OID_GEN_PHYSICAL_MEDIUM),
 			0, (void **) &phym, &reply_len);
 	if (retval != 0 || !phym) {
 		/* OID is optional so don't fail here. */
@@ -421,7 +421,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	/* Get designated host ethernet address */
 	reply_len = ETH_ALEN;
 	retval = rndis_query(dev, intf, u.buf,
-			     cpu_to_le32(OID_802_3_PERMANENT_ADDRESS),
+			     cpu_to_le32(RNDIS_OID_802_3_PERMANENT_ADDRESS),
 			48, (void **) &bp, &reply_len);
 	if (unlikely(retval< 0)) {
 		dev_err(&intf->dev, "rndis get ethaddr, %d\n", retval);
@@ -434,7 +434,7 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	memset(u.set, 0, sizeof *u.set);
 	u.set->msg_type = cpu_to_le32(RNDIS_MSG_SET);
 	u.set->msg_len = cpu_to_le32(4 + sizeof *u.set);
-	u.set->oid = cpu_to_le32(OID_GEN_CURRENT_PACKET_FILTER);
+	u.set->oid = cpu_to_le32(RNDIS_OID_GEN_CURRENT_PACKET_FILTER);
 	u.set->len = cpu_to_le32(4);
 	u.set->offset = cpu_to_le32((sizeof *u.set) - 8);
 	*(__le32 *)(u.buf + sizeof *u.set) = cpu_to_le32(RNDIS_DEFAULT_FILTER);

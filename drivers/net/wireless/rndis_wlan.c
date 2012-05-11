@@ -626,20 +626,20 @@ static const char *oid_to_string(__le32 oid)
 	switch (oid) {
 #define OID_STR(oid) case cpu_to_le32(oid): return(#oid)
 		/* from rndis_host.h */
-		OID_STR(OID_802_3_PERMANENT_ADDRESS);
-		OID_STR(OID_GEN_MAXIMUM_FRAME_SIZE);
-		OID_STR(OID_GEN_CURRENT_PACKET_FILTER);
-		OID_STR(OID_GEN_PHYSICAL_MEDIUM);
+		OID_STR(RNDIS_OID_802_3_PERMANENT_ADDRESS);
+		OID_STR(RNDIS_OID_GEN_MAXIMUM_FRAME_SIZE);
+		OID_STR(RNDIS_OID_GEN_CURRENT_PACKET_FILTER);
+		OID_STR(RNDIS_OID_GEN_PHYSICAL_MEDIUM);
 
 		/* from rndis_wlan.c */
-		OID_STR(OID_GEN_LINK_SPEED);
-		OID_STR(OID_GEN_RNDIS_CONFIG_PARAMETER);
+		OID_STR(RNDIS_OID_GEN_LINK_SPEED);
+		OID_STR(RNDIS_OID_GEN_RNDIS_CONFIG_PARAMETER);
 
-		OID_STR(OID_GEN_XMIT_OK);
-		OID_STR(OID_GEN_RCV_OK);
-		OID_STR(OID_GEN_XMIT_ERROR);
-		OID_STR(OID_GEN_RCV_ERROR);
-		OID_STR(OID_GEN_RCV_NO_BUFFER);
+		OID_STR(RNDIS_OID_GEN_XMIT_OK);
+		OID_STR(RNDIS_OID_GEN_RCV_OK);
+		OID_STR(RNDIS_OID_GEN_XMIT_ERROR);
+		OID_STR(RNDIS_OID_GEN_RCV_ERROR);
+		OID_STR(RNDIS_OID_GEN_RCV_NO_BUFFER);
 
 		OID_STR(OID_802_3_CURRENT_ADDRESS);
 		OID_STR(OID_802_3_MULTICAST_LIST);
@@ -945,7 +945,7 @@ static int rndis_set_config_parameter(struct usbnet *dev, char *param,
 	}
 #endif
 
-	ret = rndis_set_oid(dev, cpu_to_le32(OID_GEN_RNDIS_CONFIG_PARAMETER),
+	ret = rndis_set_oid(dev, cpu_to_le32(RNDIS_OID_GEN_RNDIS_CONFIG_PARAMETER),
 							infobuf, info_len);
 	if (ret != 0)
 		netdev_dbg(dev->net, "setting rndis config parameter failed, %d\n",
@@ -1633,14 +1633,14 @@ static void set_multicast_list(struct usbnet *usbdev)
 	}
 
 set_filter:
-	ret = rndis_set_oid(usbdev, cpu_to_le32(OID_GEN_CURRENT_PACKET_FILTER), &filter,
+	ret = rndis_set_oid(usbdev, cpu_to_le32(RNDIS_OID_GEN_CURRENT_PACKET_FILTER), &filter,
 							sizeof(filter));
 	if (ret < 0) {
 		netdev_warn(usbdev->net, "couldn't set packet filter: %08x\n",
 			    le32_to_cpu(filter));
 	}
 
-	netdev_dbg(usbdev->net, "OID_GEN_CURRENT_PACKET_FILTER(%08x) -> %d\n",
+	netdev_dbg(usbdev->net, "RNDIS_OID_GEN_CURRENT_PACKET_FILTER(%08x) -> %d\n",
 		   le32_to_cpu(filter), ret);
 }
 
@@ -2462,7 +2462,7 @@ static void rndis_fill_station_info(struct usbnet *usbdev,
 	memset(sinfo, 0, sizeof(*sinfo));
 
 	len = sizeof(linkspeed);
-	ret = rndis_query_oid(usbdev, cpu_to_le32(OID_GEN_LINK_SPEED), &linkspeed, &len);
+	ret = rndis_query_oid(usbdev, cpu_to_le32(RNDIS_OID_GEN_LINK_SPEED), &linkspeed, &len);
 	if (ret == 0) {
 		sinfo->txrate.legacy = le32_to_cpu(linkspeed) / 1000;
 		sinfo->filled |= STATION_INFO_TX_BITRATE;
@@ -3418,7 +3418,7 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 
 	tmp = cpu_to_le32(RNDIS_PACKET_TYPE_DIRECTED | RNDIS_PACKET_TYPE_BROADCAST);
 	retval = rndis_set_oid(usbdev,
-			       cpu_to_le32(OID_GEN_CURRENT_PACKET_FILTER),
+			       cpu_to_le32(RNDIS_OID_GEN_CURRENT_PACKET_FILTER),
 			       &tmp, sizeof(tmp));
 
 	len = sizeof(tmp);
@@ -3554,7 +3554,7 @@ static int rndis_wlan_stop(struct usbnet *usbdev)
 	/* Set current packet filter zero to block receiving data packets from
 	   device. */
 	filter = 0;
-	rndis_set_oid(usbdev, cpu_to_le32(OID_GEN_CURRENT_PACKET_FILTER), &filter,
+	rndis_set_oid(usbdev, cpu_to_le32(RNDIS_OID_GEN_CURRENT_PACKET_FILTER), &filter,
 								sizeof(filter));
 
 	return retval;
