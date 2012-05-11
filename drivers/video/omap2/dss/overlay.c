@@ -628,6 +628,12 @@ int dss_ovl_simple_check(struct omap_overlay *ovl,
 		return -EINVAL;
 	}
 
+	if (dss_feat_rotation_type_supported(info->rotation_type) == 0) {
+		DSSERR("check_overlay: rotation type %d not supported\n",
+				info->rotation_type);
+		return -EINVAL;
+	}
+
 	return 0;
 }
 

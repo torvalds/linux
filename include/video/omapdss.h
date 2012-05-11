@@ -175,8 +175,9 @@ enum omap_dss_overlay_managers {
 };
 
 enum omap_dss_rotation_type {
-	OMAP_DSS_ROT_DMA = 0,
-	OMAP_DSS_ROT_VRFB = 1,
+	OMAP_DSS_ROT_DMA	= 1 << 0,
+	OMAP_DSS_ROT_VRFB	= 1 << 1,
+	OMAP_DSS_ROT_TILER	= 1 << 2,
 };
 
 /* clockwise rotation angle */
