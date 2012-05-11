@@ -61,6 +61,10 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 						  RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 
+	case NL80211_IFTYPE_MONITOR:
+		ctx->staging.dev_type = RXON_DEV_TYPE_SNIFFER;
+		break;
+
 	default:
 		IWL_ERR(priv, "Unsupported interface type %d\n",
 			ctx->vif->type);
