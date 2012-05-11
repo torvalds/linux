@@ -9,5 +9,6 @@ usbcore-y += config.o file.o buffer.o sysfs.o endpoint.o
 usbcore-y += devio.o notify.o generic.o quirks.o devices.o
 
 usbcore-$(CONFIG_PCI)		+= hcd-pci.o
+usbcore-$(CONFIG_ACPI)		+= usb-acpi.o
 
 obj-$(CONFIG_USB)		+= usbcore.o
