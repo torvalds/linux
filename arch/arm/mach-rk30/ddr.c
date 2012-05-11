@@ -1318,7 +1318,7 @@ static __sramfunc void ddr_adjust_config(uint32_t dram_type)
     //adjust DRV and ODT
     if(dram_type == DDR3)
     {
-        pPHY_Reg->ZQ0CR[1] = 0x5B;  //DS=40ohm,ODT=60ohm
+        pPHY_Reg->ZQ0CR[1] = 0x1B;  //DS=40ohm,ODT=120ohm
         pPHY_Reg->ZQ0CR[0] |= (1<<30);  //trigger
     }
     else if (dram_type == DDR2)
