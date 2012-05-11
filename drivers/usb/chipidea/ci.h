@@ -14,6 +14,7 @@
 #define __DRIVERS_USB_CHIPIDEA_CI_H
 
 #include <linux/list.h>
+#include <linux/irqreturn.h>
 #include <linux/usb/gadget.h>
 
 /******************************************************************************
@@ -45,6 +46,26 @@ struct ci13xxx_ep {
 	spinlock_t                            *lock;
 	struct device                         *device;
 	struct dma_pool                       *td_pool;
+};
+
+enum ci_role {
+	CI_ROLE_HOST = 0,
+	CI_ROLE_GADGET,
+	CI_ROLE_END,
+};
+
+/**
+ * struct ci_role_driver - host/gadget role driver
+ * start: start this role
+ * stop: stop this role
+ * irq: irq handler for this role
+ * name: role name string (host/gadget)
+ */
+struct ci_role_driver {
+	int		(*start)(struct ci13xxx *);
+	void		(*stop)(struct ci13xxx *);
+	irqreturn_t	(*irq)(struct ci13xxx *);
+	const char	*name;
 };
 
 struct hw_bank {
@@ -85,7 +106,46 @@ struct ci13xxx {
 	struct ci13xxx_udc_driver *udc_driver; /* device controller driver */
 	int                        vbus_active; /* is VBUS active */
 	struct usb_phy            *transceiver; /* Transceiver struct */
+	struct ci_role_driver     *roles[CI_ROLE_END];
+	enum ci_role               role;
+	bool			   is_otg;
+	struct work_struct	   work;
+	struct workqueue_struct	  *wq;
 };
+
+static inline struct ci_role_driver *ci_role(struct ci13xxx *ci)
+{
+	BUG_ON(ci->role >= CI_ROLE_END || !ci->roles[ci->role]);
+	return ci->roles[ci->role];
+}
+
+static inline int ci_role_start(struct ci13xxx *ci, enum ci_role role)
+{
+	int ret;
+
+	if (role >= CI_ROLE_END)
+		return -EINVAL;
+
+	if (!ci->roles[role])
+		return -ENXIO;
+
+	ret = ci->roles[role]->start(ci);
+	if (!ret)
+		ci->role = role;
+	return ret;
+}
+
+static inline void ci_role_stop(struct ci13xxx *ci)
+{
+	enum ci_role role = ci->role;
+
+	if (role == CI_ROLE_END)
+		return;
+
+	ci->role = CI_ROLE_END;
+
+	ci->roles[role]->stop(ci);
+}
 
 /******************************************************************************
  * REGISTERS
@@ -107,6 +167,7 @@ enum ci13xxx_regs {
 	OP_ENDPTLISTADDR,
 	OP_PORTSC,
 	OP_DEVLC,
+	OP_OTGSC,
 	OP_USBMODE,
 	OP_ENDPTSETUPSTAT,
 	OP_ENDPTPRIME,
@@ -117,7 +178,6 @@ enum ci13xxx_regs {
 	/* endptctrl1..15 follow */
 	OP_LAST = OP_ENDPTCTRL + ENDPT_MAX / 2,
 };
-
 
 /**
  * ffs_nr: find first (least significant) bit set
@@ -193,8 +253,6 @@ static inline u32 hw_test_and_write(struct ci13xxx *udc, enum ci13xxx_regs reg,
 	return (val & mask) >> ffs_nr(mask);
 }
 
-int hw_device_init(struct ci13xxx *udc, void __iomem *base,
-		   uintptr_t cap_offset);
 int hw_device_reset(struct ci13xxx *ci);
 
 int hw_port_test_set(struct ci13xxx *ci, u8 mode);

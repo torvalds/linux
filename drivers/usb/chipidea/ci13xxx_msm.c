@@ -62,9 +62,9 @@ static int ci13xxx_msm_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "ci13xxx_msm_probe\n");
 
-	plat_ci = platform_device_alloc("ci_udc", -1);
+	plat_ci = platform_device_alloc("ci_hdrc", -1);
 	if (!plat_ci) {
-		dev_err(&pdev->dev, "can't allocate ci_udc platform device\n");
+		dev_err(&pdev->dev, "can't allocate ci_hdrc platform device\n");
 		return -ENOMEM;
 	}
 

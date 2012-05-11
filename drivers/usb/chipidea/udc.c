@@ -1592,14 +1592,13 @@ static int ci13xxx_stop(struct usb_gadget *gadget,
  * BUS block
  *****************************************************************************/
 /**
- * udc_irq: global interrupt handler
+ * udc_irq: udc interrupt handler
  *
  * This function returns IRQ_HANDLED if the IRQ has been handled
  * It locks access to registers
  */
-irqreturn_t udc_irq(int irq, void *data)
+static irqreturn_t udc_irq(struct ci13xxx *udc)
 {
-	struct ci13xxx *udc = data;
 	irqreturn_t retval;
 	u32 intr;
 
@@ -1666,38 +1665,24 @@ static void udc_release(struct device *dev)
 }
 
 /**
- * udc_probe: parent probe must call this to initialize UDC
- * @dev:  parent device
- * @regs: registers base address
- * @name: driver name
- *
- * This function returns an error code
- * No interrupts active, the IRQ has not been requested yet
- * Kernel assumes 32-bit DMA operations by default, no need to dma_set_mask
+ * udc_start: initialize gadget role
+ * @udc: chipidea controller
  */
-int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
-	      void __iomem *regs, struct ci13xxx **_udc)
+static int udc_start(struct ci13xxx *udc)
 {
-	struct ci13xxx *udc;
+	struct device *dev = udc->dev;
 	int retval = 0;
 
-	if (dev == NULL || regs == NULL || driver == NULL ||
-			driver->name == NULL)
+	if (!udc)
 		return -EINVAL;
 
-	udc = kzalloc(sizeof(struct ci13xxx), GFP_KERNEL);
-	if (udc == NULL)
-		return -ENOMEM;
-
 	spin_lock_init(&udc->lock);
-	udc->regs = regs;
-	udc->udc_driver = driver;
 
 	udc->gadget.ops          = &usb_gadget_ops;
 	udc->gadget.speed        = USB_SPEED_UNKNOWN;
 	udc->gadget.max_speed    = USB_SPEED_HIGH;
 	udc->gadget.is_otg       = 0;
-	udc->gadget.name         = driver->name;
+	udc->gadget.name         = udc->udc_driver->name;
 
 	INIT_LIST_HEAD(&udc->gadget.ep_list);
 
@@ -1707,16 +1692,12 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	udc->gadget.dev.parent   = dev;
 	udc->gadget.dev.release  = udc_release;
 
-	udc->dev = dev;
-
 	/* alloc resources */
 	udc->qh_pool = dma_pool_create("ci13xxx_qh", dev,
 				       sizeof(struct ci13xxx_qh),
 				       64, CI13XXX_PAGE_SIZE);
-	if (udc->qh_pool == NULL) {
-		retval = -ENOMEM;
-		goto free_udc;
-	}
+	if (udc->qh_pool == NULL)
+		return -ENOMEM;
 
 	udc->td_pool = dma_pool_create("ci13xxx_td", dev,
 				       sizeof(struct ci13xxx_td),
@@ -1725,10 +1706,6 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 		retval = -ENOMEM;
 		goto free_qh_pool;
 	}
-
-	retval = hw_device_init(udc, regs, driver->capoffset);
-	if (retval < 0)
-		goto free_pools;
 
 	retval = init_eps(udc);
 	if (retval)
@@ -1775,7 +1752,6 @@ int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
 	pm_runtime_no_callbacks(&udc->gadget.dev);
 	pm_runtime_enable(&udc->gadget.dev);
 
-	*_udc = udc;
 	return retval;
 
 remove_trans:
@@ -1796,9 +1772,6 @@ free_pools:
 	dma_pool_destroy(udc->td_pool);
 free_qh_pool:
 	dma_pool_destroy(udc->qh_pool);
-free_udc:
-	kfree(udc);
-	*_udc = NULL;
 	return retval;
 }
 
@@ -1807,7 +1780,7 @@ free_udc:
  *
  * No interrupts active, the IRQ has been released
  */
-void udc_remove(struct ci13xxx *udc)
+static void udc_stop(struct ci13xxx *udc)
 {
 	int i;
 
@@ -1826,12 +1799,37 @@ void udc_remove(struct ci13xxx *udc)
 	dma_pool_destroy(udc->qh_pool);
 
 	if (udc->transceiver) {
-		otg_set_peripheral(udc->transceiver->otg, &udc->gadget);
+		otg_set_peripheral(udc->transceiver->otg, NULL);
 		usb_put_transceiver(udc->transceiver);
 	}
 	dbg_remove_files(&udc->gadget.dev);
 	device_unregister(&udc->gadget.dev);
+	/* my kobject is dynamic, I swear! */
+	memset(&udc->gadget, 0, sizeof(udc->gadget));
+}
 
-	kfree(udc->hw_bank.regmap);
-	kfree(udc);
+/**
+ * ci_hdrc_gadget_init - initialize device related bits
+ * ci: the controller
+ *
+ * This function enables the gadget role, if the device is "device capable".
+ */
+int ci_hdrc_gadget_init(struct ci13xxx *ci)
+{
+	struct ci_role_driver *rdrv;
+
+	if (!hw_read(ci, CAP_DCCPARAMS, DCCPARAMS_DC))
+		return -ENXIO;
+
+	rdrv = devm_kzalloc(ci->dev, sizeof(struct ci_role_driver), GFP_KERNEL);
+	if (!rdrv)
+		return -ENOMEM;
+
+	rdrv->start	= udc_start;
+	rdrv->stop	= udc_stop;
+	rdrv->irq	= udc_irq;
+	rdrv->name	= "gadget";
+	ci->roles[CI_ROLE_GADGET] = rdrv;
+
+	return 0;
 }

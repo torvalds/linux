@@ -50,6 +50,24 @@
 #define DEVLC_PSPD            (0x03UL << 25)
 #define    DEVLC_PSPD_HS      (0x02UL << 25)
 
+/* OTGSC */
+#define OTGSC_IDPU	      BIT(5)
+#define OTGSC_ID	      BIT(8)
+#define OTGSC_AVV	      BIT(9)
+#define OTGSC_ASV	      BIT(10)
+#define OTGSC_BSV	      BIT(11)
+#define OTGSC_BSE	      BIT(12)
+#define OTGSC_IDIS	      BIT(16)
+#define OTGSC_AVVIS	      BIT(17)
+#define OTGSC_ASVIS	      BIT(18)
+#define OTGSC_BSVIS	      BIT(19)
+#define OTGSC_BSEIS	      BIT(20)
+#define OTGSC_IDIE	      BIT(24)
+#define OTGSC_AVVIE	      BIT(25)
+#define OTGSC_ASVIE	      BIT(26)
+#define OTGSC_BSVIE	      BIT(27)
+#define OTGSC_BSEIE	      BIT(28)
+
 /* USBMODE */
 #define USBMODE_CM            (0x03UL <<  0)
 #define    USBMODE_CM_IDLE    (0x00UL <<  0)

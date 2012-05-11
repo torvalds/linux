@@ -71,26 +71,16 @@ struct ci13xxx_req {
 };
 
 #ifdef CONFIG_USB_CHIPIDEA_UDC
-irqreturn_t udc_irq(int irq, void *data);
-int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
-	      void __iomem *regs, struct ci13xxx **_udc);
-void udc_remove(struct ci13xxx *udc);
+
+int ci_hdrc_gadget_init(struct ci13xxx *ci);
+
 #else
-static inline irqreturn_t udc_irq(int irq, void *data)
+
+static inline int ci_hdrc_gadget_init(struct ci13xxx *ci)
 {
-	return IRQ_NONE;
+	return -ENXIO;
 }
 
-static inline
-int udc_probe(struct ci13xxx_udc_driver *driver, struct device *dev,
-	      void __iomem *regs, struct ci13xxx **_udc)
-{
-	return -ENODEV;
-}
-
-static inline void udc_remove(struct ci13xxx *udc)
-{
-}
 #endif
 
 #endif /* __DRIVERS_USB_CHIPIDEA_UDC_H */

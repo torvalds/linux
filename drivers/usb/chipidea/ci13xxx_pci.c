@@ -69,9 +69,9 @@ static int __devinit ci13xxx_pci_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
 
-	plat_ci = platform_device_alloc("ci_udc", -1);
+	plat_ci = platform_device_alloc("ci_hdrc", -1);
 	if (!plat_ci) {
-		dev_err(&pdev->dev, "can't allocate ci_udc platform device\n");
+		dev_err(&pdev->dev, "can't allocate ci_hdrc platform device\n");
 		retval = -ENOMEM;
 		goto disable_device;
 	}
