@@ -270,11 +270,11 @@
 	};
 
 	nvec {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,nvec";
 		reg = <0x7000c500 0x100>;
 		interrupts = <0 92 0x04>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 		clock-frequency = <80000>;
 		request-gpios = <&gpio 170 0>; /* gpio PV2 */
 		slave-addr = <138>;

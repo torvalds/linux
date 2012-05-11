@@ -6,10 +6,10 @@
 
 	intc: interrupt-controller {
 		compatible = "arm,cortex-a9-gic";
-		interrupt-controller;
-		#interrupt-cells = <3>;
 		reg = <0x50041000 0x1000
 		       0x50040100 0x0100>;
+		interrupt-controller;
+		#interrupt-cells = <3>;
 	};
 
 	apbdma: dma {
@@ -117,35 +117,35 @@
 	};
 
 	i2c@7000c000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000c000 0x100>;
 		interrupts = <0 38 0x04>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	i2c@7000c400 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000c400 0x100>;
 		interrupts = <0 84 0x04>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	i2c@7000c500 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c";
 		reg = <0x7000c500 0x100>;
 		interrupts = <0 92 0x04>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	i2c@7000d000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-i2c-dvc";
 		reg = <0x7000d000 0x200>;
 		interrupts = <0 53 0x04>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	pmc {
@@ -167,10 +167,10 @@
 	};
 
 	emc {
-		#address-cells = <1>;
-		#size-cells = <0>;
 		compatible = "nvidia,tegra20-emc";
 		reg = <0x7000f400 0x200>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 
 	usb@c5000000 {
