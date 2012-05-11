@@ -50,6 +50,19 @@
 #define GPMC_ECC_SIZE_CONFIG	0x1fc
 #define GPMC_ECC1_RESULT        0x200
 
+/* GPMC ECC control settings */
+#define GPMC_ECC_CTRL_ECCCLEAR		0x100
+#define GPMC_ECC_CTRL_ECCDISABLE	0x000
+#define GPMC_ECC_CTRL_ECCREG1		0x001
+#define GPMC_ECC_CTRL_ECCREG2		0x002
+#define GPMC_ECC_CTRL_ECCREG3		0x003
+#define GPMC_ECC_CTRL_ECCREG4		0x004
+#define GPMC_ECC_CTRL_ECCREG5		0x005
+#define GPMC_ECC_CTRL_ECCREG6		0x006
+#define GPMC_ECC_CTRL_ECCREG7		0x007
+#define GPMC_ECC_CTRL_ECCREG8		0x008
+#define GPMC_ECC_CTRL_ECCREG9		0x009
+
 #define GPMC_CS0_OFFSET		0x60
 #define GPMC_CS_SIZE		0x30
 
@@ -861,8 +874,9 @@ int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size)
 	gpmc_ecc_used = cs;
 
 	/* clear ecc and enable bits */
-	val = ((0x00000001<<8) | 0x00000001);
-	gpmc_write_reg(GPMC_ECC_CONTROL, val);
+	gpmc_write_reg(GPMC_ECC_CONTROL,
+			GPMC_ECC_CTRL_ECCCLEAR |
+			GPMC_ECC_CTRL_ECCREG1);
 
 	/* program ecc and result sizes */
 	val = ((((ecc_size >> 1) - 1) << 22) | (0x0000000F));
@@ -870,13 +884,15 @@ int gpmc_enable_hwecc(int cs, int mode, int dev_width, int ecc_size)
 
 	switch (mode) {
 	case GPMC_ECC_READ:
-		gpmc_write_reg(GPMC_ECC_CONTROL, 0x101);
+	case GPMC_ECC_WRITE:
+		gpmc_write_reg(GPMC_ECC_CONTROL,
+				GPMC_ECC_CTRL_ECCCLEAR |
+				GPMC_ECC_CTRL_ECCREG1);
 		break;
 	case GPMC_ECC_READSYN:
-		 gpmc_write_reg(GPMC_ECC_CONTROL, 0x100);
-		break;
-	case GPMC_ECC_WRITE:
-		gpmc_write_reg(GPMC_ECC_CONTROL, 0x101);
+		gpmc_write_reg(GPMC_ECC_CONTROL,
+				GPMC_ECC_CTRL_ECCCLEAR |
+				GPMC_ECC_CTRL_ECCDISABLE);
 		break;
 	default:
 		printk(KERN_INFO "Error: Unrecognized Mode[%d]!\n", mode);
