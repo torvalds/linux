@@ -36,16 +36,62 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 #include "i915_trace.h"
-#include "../../../platform/x86/intel_ips.h"
 #include <linux/pci.h>
 #include <linux/vgaarb.h>
 #include <linux/acpi.h>
 #include <linux/pnp.h>
 #include <linux/vga_switcheroo.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 #include <acpi/video.h>
 #include <asm/pat.h>
+
+#define LP_RING(d) (&((struct drm_i915_private *)(d))->ring[RCS])
+
+#define BEGIN_LP_RING(n) \
+	intel_ring_begin(LP_RING(dev_priv), (n))
+
+#define OUT_RING(x) \
+	intel_ring_emit(LP_RING(dev_priv), x)
+
+#define ADVANCE_LP_RING() \
+	intel_ring_advance(LP_RING(dev_priv))
+
+/**
+ * Lock test for when it's just for synchronization of ring access.
+ *
+ * In that case, we don't need to do it when GEM is initialized as nobody else
+ * has access to the ring.
+ */
+#define RING_LOCK_TEST_WITH_RETURN(dev, file) do {			\
+	if (LP_RING(dev->dev_private)->obj == NULL)			\
+		LOCK_TEST_WITH_RETURN(dev, file);			\
+} while (0)
+
+static inline u32
+intel_read_legacy_status_page(struct drm_i915_private *dev_priv, int reg)
+{
+	if (I915_NEED_GFX_HWS(dev_priv->dev))
+		return ioread32(dev_priv->dri1.gfx_hws_cpu_addr + reg);
+	else
+		return intel_read_status_page(LP_RING(dev_priv), reg);
+}
+
+#define READ_HWSP(dev_priv, reg) intel_read_legacy_status_page(dev_priv, reg)
+#define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
+#define I915_BREADCRUMB_INDEX		0x21
+
+void i915_update_dri1_breadcrumb(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_master_private *master_priv;
+
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
+	}
+}
 
 static void i915_write_hws_pga(struct drm_device *dev)
 {
@@ -100,7 +146,7 @@ static void i915_free_hws(struct drm_device *dev)
 
 	if (ring->status_page.gfx_addr) {
 		ring->status_page.gfx_addr = 0;
-		drm_core_ioremapfree(&dev_priv->hws_map, dev);
+		iounmap(dev_priv->dri1.gfx_hws_cpu_addr);
 	}
 
 	/* Need to rewrite hardware status page */
@@ -198,7 +244,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 
 	/* Allow hardware batchbuffers unless told otherwise.
 	 */
-	dev_priv->allow_batchbuffer = 1;
+	dev_priv->dri1.allow_batchbuffer = 1;
 
 	return 0;
 }
@@ -210,7 +256,7 @@ static int i915_dma_resume(struct drm_device * dev)
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
-	if (ring->map.handle == NULL) {
+	if (ring->virtual_start == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
@@ -238,6 +284,9 @@ static int i915_dma_init(struct drm_device *dev, void *data,
 {
 	drm_i915_init_t *init = data;
 	int retcode = 0;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	switch (init->func) {
 	case I915_INIT_DMA:
@@ -581,6 +630,9 @@ static int i915_flush_ioctl(struct drm_device *dev, void *data,
 {
 	int ret;
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	mutex_lock(&dev->struct_mutex);
@@ -601,7 +653,10 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	int ret;
 	struct drm_clip_rect *cliprects = NULL;
 
-	if (!dev_priv->allow_batchbuffer) {
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv->dri1.allow_batchbuffer) {
 		DRM_ERROR("Batchbuffer ioctl disabled\n");
 		return -EINVAL;
 	}
@@ -658,6 +713,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	DRM_DEBUG_DRIVER("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
 			cmdbuf->buf, cmdbuf->sz, cmdbuf->num_cliprects);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (cmdbuf->num_cliprects < 0)
@@ -709,10 +767,165 @@ fail_batch_free:
 	return ret;
 }
 
+static int i915_emit_irq(struct drm_device * dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+
+	i915_kernel_lost_context(dev);
+
+	DRM_DEBUG_DRIVER("\n");
+
+	dev_priv->counter++;
+	if (dev_priv->counter > 0x7FFFFFFFUL)
+		dev_priv->counter = 1;
+	if (master_priv->sarea_priv)
+		master_priv->sarea_priv->last_enqueue = dev_priv->counter;
+
+	if (BEGIN_LP_RING(4) == 0) {
+		OUT_RING(MI_STORE_DWORD_INDEX);
+		OUT_RING(I915_BREADCRUMB_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		OUT_RING(dev_priv->counter);
+		OUT_RING(MI_USER_INTERRUPT);
+		ADVANCE_LP_RING();
+	}
+
+	return dev_priv->counter;
+}
+
+static int i915_wait_irq(struct drm_device * dev, int irq_nr)
+{
+	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
+	int ret = 0;
+	struct intel_ring_buffer *ring = LP_RING(dev_priv);
+
+	DRM_DEBUG_DRIVER("irq_nr=%d breadcrumb=%d\n", irq_nr,
+		  READ_BREADCRUMB(dev_priv));
+
+	if (READ_BREADCRUMB(dev_priv) >= irq_nr) {
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+		return 0;
+	}
+
+	if (master_priv->sarea_priv)
+		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+
+	if (ring->irq_get(ring)) {
+		DRM_WAIT_ON(ret, ring->irq_queue, 3 * DRM_HZ,
+			    READ_BREADCRUMB(dev_priv) >= irq_nr);
+		ring->irq_put(ring);
+	} else if (wait_for(READ_BREADCRUMB(dev_priv) >= irq_nr, 3000))
+		ret = -EBUSY;
+
+	if (ret == -EBUSY) {
+		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",
+			  READ_BREADCRUMB(dev_priv), (int)dev_priv->counter);
+	}
+
+	return ret;
+}
+
+/* Needs the lock as it touches the ring.
+ */
+static int i915_irq_emit(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_irq_emit_t *emit = data;
+	int result;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv || !LP_RING(dev_priv)->virtual_start) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	mutex_lock(&dev->struct_mutex);
+	result = i915_emit_irq(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
+		DRM_ERROR("copy_to_user\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+/* Doesn't need the hardware lock.
+ */
+static int i915_irq_wait(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_irq_wait_t *irqwait = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	return i915_wait_irq(dev, irqwait->irq_seq);
+}
+
+static int i915_vblank_pipe_get(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	drm_i915_vblank_pipe_t *pipe = data;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
+	if (!dev_priv) {
+		DRM_ERROR("called with no initialization\n");
+		return -EINVAL;
+	}
+
+	pipe->pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
+
+	return 0;
+}
+
+/**
+ * Schedule buffer swap at given vertical blank.
+ */
+static int i915_vblank_swap(struct drm_device *dev, void *data,
+		     struct drm_file *file_priv)
+{
+	/* The delayed swap mechanism was fundamentally racy, and has been
+	 * removed.  The model was that the client requested a delayed flip/swap
+	 * from the kernel, then waited for vblank before continuing to perform
+	 * rendering.  The problem was that the kernel might wake the client
+	 * up before it dispatched the vblank swap (since the lock has to be
+	 * held while touching the ringbuffer), in which case the client would
+	 * clear and start the next frame before the swap occurred, and
+	 * flicker would occur in addition to likely missing the vblank.
+	 *
+	 * In the absence of this ioctl, userland falls back to a correct path
+	 * of waiting for a vblank, then dispatching the swap on its own.
+	 * Context switching to userland and back is plenty fast enough for
+	 * meeting the requirements of vblank swapping.
+	 */
+	return -EINVAL;
+}
+
 static int i915_flip_bufs(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
 	int ret;
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
@@ -742,7 +955,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pdev->irq ? 1 : 0;
 		break;
 	case I915_PARAM_ALLOW_BATCHBUFFER:
-		value = dev_priv->allow_batchbuffer ? 1 : 0;
+		value = dev_priv->dri1.allow_batchbuffer ? 1 : 0;
 		break;
 	case I915_PARAM_LAST_DISPATCH:
 		value = READ_BREADCRUMB(dev_priv);
@@ -751,7 +964,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		value = dev->pci_device;
 		break;
 	case I915_PARAM_HAS_GEM:
-		value = dev_priv->has_gem;
+		value = 1;
 		break;
 	case I915_PARAM_NUM_FENCES_AVAIL:
 		value = dev_priv->num_fence_regs - dev_priv->fence_reg_start;
@@ -764,7 +977,7 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_HAS_EXECBUF2:
 		/* depends on GEM */
-		value = dev_priv->has_gem;
+		value = 1;
 		break;
 	case I915_PARAM_HAS_BSD:
 		value = HAS_BSD(dev);
@@ -822,10 +1035,9 @@ static int i915_setparam(struct drm_device *dev, void *data,
 	case I915_SETPARAM_USE_MI_BATCHBUFFER_START:
 		break;
 	case I915_SETPARAM_TEX_LRU_LOG_GRANULARITY:
-		dev_priv->tex_lru_log_granularity = param->value;
 		break;
 	case I915_SETPARAM_ALLOW_BATCHBUFFER:
-		dev_priv->allow_batchbuffer = param->value;
+		dev_priv->dri1.allow_batchbuffer = param->value ? 1 : 0;
 		break;
 	case I915_SETPARAM_NUM_USED_FENCES:
 		if (param->value > dev_priv->num_fence_regs ||
@@ -850,6 +1062,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	drm_i915_hws_addr_t *hws = data;
 	struct intel_ring_buffer *ring = LP_RING(dev_priv);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET))
+		return -ENODEV;
+
 	if (!I915_NEED_GFX_HWS(dev))
 		return -EINVAL;
 
@@ -867,23 +1082,17 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 
 	ring->status_page.gfx_addr = hws->addr & (0x1ffff<<12);
 
-	dev_priv->hws_map.offset = dev->agp->base + hws->addr;
-	dev_priv->hws_map.size = 4*1024;
-	dev_priv->hws_map.type = 0;
-	dev_priv->hws_map.flags = 0;
-	dev_priv->hws_map.mtrr = 0;
-
-	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
-	if (dev_priv->hws_map.handle == NULL) {
+	dev_priv->dri1.gfx_hws_cpu_addr = ioremap_wc(dev->agp->base + hws->addr,
+						     4096);
+	if (dev_priv->dri1.gfx_hws_cpu_addr == NULL) {
 		i915_dma_cleanup(dev);
 		ring->status_page.gfx_addr = 0;
 		DRM_ERROR("can not ioremap virtual address for"
 				" G33 hw status page\n");
 		return -ENOMEM;
 	}
-	ring->status_page.page_addr =
-		(void __force __iomem *)dev_priv->hws_map.handle;
-	memset_io(ring->status_page.page_addr, 0, PAGE_SIZE);
+
+	memset_io(dev_priv->dri1.gfx_hws_cpu_addr, 0, PAGE_SIZE);
 	I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
 
 	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
@@ -1019,133 +1228,6 @@ intel_teardown_mchbar(struct drm_device *dev)
 		release_resource(&dev_priv->mch_res);
 }
 
-#define PTE_ADDRESS_MASK		0xfffff000
-#define PTE_ADDRESS_MASK_HIGH		0x000000f0 /* i915+ */
-#define PTE_MAPPING_TYPE_UNCACHED	(0 << 1)
-#define PTE_MAPPING_TYPE_DCACHE		(1 << 1) /* i830 only */
-#define PTE_MAPPING_TYPE_CACHED		(3 << 1)
-#define PTE_MAPPING_TYPE_MASK		(3 << 1)
-#define PTE_VALID			(1 << 0)
-
-/**
- * i915_stolen_to_phys - take an offset into stolen memory and turn it into
- *                       a physical one
- * @dev: drm device
- * @offset: address to translate
- *
- * Some chip functions require allocations from stolen space and need the
- * physical address of the memory in question.
- */
-static unsigned long i915_stolen_to_phys(struct drm_device *dev, u32 offset)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct pci_dev *pdev = dev_priv->bridge_dev;
-	u32 base;
-
-#if 0
-	/* On the machines I have tested the Graphics Base of Stolen Memory
-	 * is unreliable, so compute the base by subtracting the stolen memory
-	 * from the Top of Low Usable DRAM which is where the BIOS places
-	 * the graphics stolen memory.
-	 */
-	if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
-		/* top 32bits are reserved = 0 */
-		pci_read_config_dword(pdev, 0xA4, &base);
-	} else {
-		/* XXX presume 8xx is the same as i915 */
-		pci_bus_read_config_dword(pdev->bus, 2, 0x5C, &base);
-	}
-#else
-	if (INTEL_INFO(dev)->gen > 3 || IS_G33(dev)) {
-		u16 val;
-		pci_read_config_word(pdev, 0xb0, &val);
-		base = val >> 4 << 20;
-	} else {
-		u8 val;
-		pci_read_config_byte(pdev, 0x9c, &val);
-		base = val >> 3 << 27;
-	}
-	base -= dev_priv->mm.gtt->stolen_size;
-#endif
-
-	return base + offset;
-}
-
-static void i915_warn_stolen(struct drm_device *dev)
-{
-	DRM_ERROR("not enough stolen space for compressed buffer, disabling\n");
-	DRM_ERROR("hint: you may be able to increase stolen memory size in the BIOS to avoid this\n");
-}
-
-static void i915_setup_compression(struct drm_device *dev, int size)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mm_node *compressed_fb, *uninitialized_var(compressed_llb);
-	unsigned long cfb_base;
-	unsigned long ll_base = 0;
-
-	/* Just in case the BIOS is doing something questionable. */
-	intel_disable_fbc(dev);
-
-	compressed_fb = drm_mm_search_free(&dev_priv->mm.stolen, size, 4096, 0);
-	if (compressed_fb)
-		compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
-	if (!compressed_fb)
-		goto err;
-
-	cfb_base = i915_stolen_to_phys(dev, compressed_fb->start);
-	if (!cfb_base)
-		goto err_fb;
-
-	if (!(IS_GM45(dev) || HAS_PCH_SPLIT(dev))) {
-		compressed_llb = drm_mm_search_free(&dev_priv->mm.stolen,
-						    4096, 4096, 0);
-		if (compressed_llb)
-			compressed_llb = drm_mm_get_block(compressed_llb,
-							  4096, 4096);
-		if (!compressed_llb)
-			goto err_fb;
-
-		ll_base = i915_stolen_to_phys(dev, compressed_llb->start);
-		if (!ll_base)
-			goto err_llb;
-	}
-
-	dev_priv->cfb_size = size;
-
-	dev_priv->compressed_fb = compressed_fb;
-	if (HAS_PCH_SPLIT(dev))
-		I915_WRITE(ILK_DPFC_CB_BASE, compressed_fb->start);
-	else if (IS_GM45(dev)) {
-		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
-	} else {
-		I915_WRITE(FBC_CFB_BASE, cfb_base);
-		I915_WRITE(FBC_LL_BASE, ll_base);
-		dev_priv->compressed_llb = compressed_llb;
-	}
-
-	DRM_DEBUG_KMS("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n",
-		      cfb_base, ll_base, size >> 20);
-	return;
-
-err_llb:
-	drm_mm_put_block(compressed_llb);
-err_fb:
-	drm_mm_put_block(compressed_fb);
-err:
-	dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
-	i915_warn_stolen(dev);
-}
-
-static void i915_cleanup_compression(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	drm_mm_put_block(dev_priv->compressed_fb);
-	if (dev_priv->compressed_llb)
-		drm_mm_put_block(dev_priv->compressed_llb);
-}
-
 /* true = enable decode, false = disable decoder */
 static unsigned int i915_vga_set_decode(void *cookie, bool state)
 {
@@ -1189,88 +1271,6 @@ static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
 	return can_switch;
 }
 
-static bool
-intel_enable_ppgtt(struct drm_device *dev)
-{
-	if (i915_enable_ppgtt >= 0)
-		return i915_enable_ppgtt;
-
-#ifdef CONFIG_INTEL_IOMMU
-	/* Disable ppgtt on SNB if VT-d is on. */
-	if (INTEL_INFO(dev)->gen == 6 && intel_iommu_gfx_mapped)
-		return false;
-#endif
-
-	return true;
-}
-
-static int i915_load_gem_init(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	unsigned long prealloc_size, gtt_size, mappable_size;
-	int ret;
-
-	prealloc_size = dev_priv->mm.gtt->stolen_size;
-	gtt_size = dev_priv->mm.gtt->gtt_total_entries << PAGE_SHIFT;
-	mappable_size = dev_priv->mm.gtt->gtt_mappable_entries << PAGE_SHIFT;
-
-	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, prealloc_size);
-
-	mutex_lock(&dev->struct_mutex);
-	if (intel_enable_ppgtt(dev) && HAS_ALIASING_PPGTT(dev)) {
-		/* PPGTT pdes are stolen from global gtt ptes, so shrink the
-		 * aperture accordingly when using aliasing ppgtt. */
-		gtt_size -= I915_PPGTT_PD_ENTRIES*PAGE_SIZE;
-
-		i915_gem_init_global_gtt(dev, 0, mappable_size, gtt_size);
-
-		ret = i915_gem_init_aliasing_ppgtt(dev);
-		if (ret) {
-			mutex_unlock(&dev->struct_mutex);
-			return ret;
-		}
-	} else {
-		/* Let GEM Manage all of the aperture.
-		 *
-		 * However, leave one page at the end still bound to the scratch
-		 * page.  There are a number of places where the hardware
-		 * apparently prefetches past the end of the object, and we've
-		 * seen multiple hangs with the GPU head pointer stuck in a
-		 * batchbuffer bound at the last page of the aperture.  One page
-		 * should be enough to keep any prefetching inside of the
-		 * aperture.
-		 */
-		i915_gem_init_global_gtt(dev, 0, mappable_size,
-					 gtt_size);
-	}
-
-	ret = i915_gem_init_hw(dev);
-	mutex_unlock(&dev->struct_mutex);
-	if (ret) {
-		i915_gem_cleanup_aliasing_ppgtt(dev);
-		return ret;
-	}
-
-	/* Try to set up FBC with a reasonable compressed buffer size */
-	if (I915_HAS_FBC(dev) && i915_powersave) {
-		int cfb_size;
-
-		/* Leave 1M for line length buffer & misc. */
-
-		/* Try to get a 32M buffer... */
-		if (prealloc_size > (36*1024*1024))
-			cfb_size = 32*1024*1024;
-		else /* fall back to 7/8 of the stolen space */
-			cfb_size = prealloc_size * 7 / 8;
-		i915_setup_compression(dev, cfb_size);
-	}
-
-	/* Allow hardware batchbuffers unless told otherwise. */
-	dev_priv->allow_batchbuffer = 1;
-	return 0;
-}
-
 static int i915_load_modeset_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -1300,15 +1300,18 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (ret)
 		goto cleanup_vga_client;
 
-	/* IIR "flip pending" bit means done if this bit is set */
-	if (IS_GEN3(dev) && (I915_READ(ECOSKPD) & ECO_FLIP_DONE))
-		dev_priv->flip_pending_is_done = true;
+	/* Initialise stolen first so that we may reserve preallocated
+	 * objects for the BIOS to KMS transition.
+	 */
+	ret = i915_gem_init_stolen(dev);
+	if (ret)
+		goto cleanup_vga_switcheroo;
 
 	intel_modeset_init(dev);
 
-	ret = i915_load_gem_init(dev);
+	ret = i915_gem_init(dev);
 	if (ret)
-		goto cleanup_vga_switcheroo;
+		goto cleanup_gem_stolen;
 
 	intel_modeset_gem_init(dev);
 
@@ -1338,6 +1341,8 @@ cleanup_gem:
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
+cleanup_gem_stolen:
+	i915_gem_cleanup_stolen(dev);
 cleanup_vga_switcheroo:
 	vga_switcheroo_unregister_client(dev->pdev);
 cleanup_vga_client:
@@ -1368,575 +1373,6 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	kfree(master_priv);
 
 	master->driver_priv = NULL;
-}
-
-static void i915_pineview_get_mem_freq(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	u32 tmp;
-
-	tmp = I915_READ(CLKCFG);
-
-	switch (tmp & CLKCFG_FSB_MASK) {
-	case CLKCFG_FSB_533:
-		dev_priv->fsb_freq = 533; /* 133*4 */
-		break;
-	case CLKCFG_FSB_800:
-		dev_priv->fsb_freq = 800; /* 200*4 */
-		break;
-	case CLKCFG_FSB_667:
-		dev_priv->fsb_freq =  667; /* 167*4 */
-		break;
-	case CLKCFG_FSB_400:
-		dev_priv->fsb_freq = 400; /* 100*4 */
-		break;
-	}
-
-	switch (tmp & CLKCFG_MEM_MASK) {
-	case CLKCFG_MEM_533:
-		dev_priv->mem_freq = 533;
-		break;
-	case CLKCFG_MEM_667:
-		dev_priv->mem_freq = 667;
-		break;
-	case CLKCFG_MEM_800:
-		dev_priv->mem_freq = 800;
-		break;
-	}
-
-	/* detect pineview DDR3 setting */
-	tmp = I915_READ(CSHRDDR3CTL);
-	dev_priv->is_ddr3 = (tmp & CSHRDDR3CTL_DDR3) ? 1 : 0;
-}
-
-static void i915_ironlake_get_mem_freq(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	u16 ddrpll, csipll;
-
-	ddrpll = I915_READ16(DDRMPLL1);
-	csipll = I915_READ16(CSIPLL0);
-
-	switch (ddrpll & 0xff) {
-	case 0xc:
-		dev_priv->mem_freq = 800;
-		break;
-	case 0x10:
-		dev_priv->mem_freq = 1066;
-		break;
-	case 0x14:
-		dev_priv->mem_freq = 1333;
-		break;
-	case 0x18:
-		dev_priv->mem_freq = 1600;
-		break;
-	default:
-		DRM_DEBUG_DRIVER("unknown memory frequency 0x%02x\n",
-				 ddrpll & 0xff);
-		dev_priv->mem_freq = 0;
-		break;
-	}
-
-	dev_priv->r_t = dev_priv->mem_freq;
-
-	switch (csipll & 0x3ff) {
-	case 0x00c:
-		dev_priv->fsb_freq = 3200;
-		break;
-	case 0x00e:
-		dev_priv->fsb_freq = 3733;
-		break;
-	case 0x010:
-		dev_priv->fsb_freq = 4266;
-		break;
-	case 0x012:
-		dev_priv->fsb_freq = 4800;
-		break;
-	case 0x014:
-		dev_priv->fsb_freq = 5333;
-		break;
-	case 0x016:
-		dev_priv->fsb_freq = 5866;
-		break;
-	case 0x018:
-		dev_priv->fsb_freq = 6400;
-		break;
-	default:
-		DRM_DEBUG_DRIVER("unknown fsb frequency 0x%04x\n",
-				 csipll & 0x3ff);
-		dev_priv->fsb_freq = 0;
-		break;
-	}
-
-	if (dev_priv->fsb_freq == 3200) {
-		dev_priv->c_m = 0;
-	} else if (dev_priv->fsb_freq > 3200 && dev_priv->fsb_freq <= 4800) {
-		dev_priv->c_m = 1;
-	} else {
-		dev_priv->c_m = 2;
-	}
-}
-
-static const struct cparams {
-	u16 i;
-	u16 t;
-	u16 m;
-	u16 c;
-} cparams[] = {
-	{ 1, 1333, 301, 28664 },
-	{ 1, 1066, 294, 24460 },
-	{ 1, 800, 294, 25192 },
-	{ 0, 1333, 276, 27605 },
-	{ 0, 1066, 276, 27605 },
-	{ 0, 800, 231, 23784 },
-};
-
-unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
-{
-	u64 total_count, diff, ret;
-	u32 count1, count2, count3, m = 0, c = 0;
-	unsigned long now = jiffies_to_msecs(jiffies), diff1;
-	int i;
-
-	diff1 = now - dev_priv->last_time1;
-
-	/* Prevent division-by-zero if we are asking too fast.
-	 * Also, we don't get interesting results if we are polling
-	 * faster than once in 10ms, so just return the saved value
-	 * in such cases.
-	 */
-	if (diff1 <= 10)
-		return dev_priv->chipset_power;
-
-	count1 = I915_READ(DMIEC);
-	count2 = I915_READ(DDREC);
-	count3 = I915_READ(CSIEC);
-
-	total_count = count1 + count2 + count3;
-
-	/* FIXME: handle per-counter overflow */
-	if (total_count < dev_priv->last_count1) {
-		diff = ~0UL - dev_priv->last_count1;
-		diff += total_count;
-	} else {
-		diff = total_count - dev_priv->last_count1;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(cparams); i++) {
-		if (cparams[i].i == dev_priv->c_m &&
-		    cparams[i].t == dev_priv->r_t) {
-			m = cparams[i].m;
-			c = cparams[i].c;
-			break;
-		}
-	}
-
-	diff = div_u64(diff, diff1);
-	ret = ((m * diff) + c);
-	ret = div_u64(ret, 10);
-
-	dev_priv->last_count1 = total_count;
-	dev_priv->last_time1 = now;
-
-	dev_priv->chipset_power = ret;
-
-	return ret;
-}
-
-unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
-{
-	unsigned long m, x, b;
-	u32 tsfs;
-
-	tsfs = I915_READ(TSFS);
-
-	m = ((tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT);
-	x = I915_READ8(TR1);
-
-	b = tsfs & TSFS_INTR_MASK;
-
-	return ((m * x) / 127) - b;
-}
-
-static u16 pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
-{
-	static const struct v_table {
-		u16 vd; /* in .1 mil */
-		u16 vm; /* in .1 mil */
-	} v_table[] = {
-		{ 0, 0, },
-		{ 375, 0, },
-		{ 500, 0, },
-		{ 625, 0, },
-		{ 750, 0, },
-		{ 875, 0, },
-		{ 1000, 0, },
-		{ 1125, 0, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4125, 3000, },
-		{ 4250, 3125, },
-		{ 4375, 3250, },
-		{ 4500, 3375, },
-		{ 4625, 3500, },
-		{ 4750, 3625, },
-		{ 4875, 3750, },
-		{ 5000, 3875, },
-		{ 5125, 4000, },
-		{ 5250, 4125, },
-		{ 5375, 4250, },
-		{ 5500, 4375, },
-		{ 5625, 4500, },
-		{ 5750, 4625, },
-		{ 5875, 4750, },
-		{ 6000, 4875, },
-		{ 6125, 5000, },
-		{ 6250, 5125, },
-		{ 6375, 5250, },
-		{ 6500, 5375, },
-		{ 6625, 5500, },
-		{ 6750, 5625, },
-		{ 6875, 5750, },
-		{ 7000, 5875, },
-		{ 7125, 6000, },
-		{ 7250, 6125, },
-		{ 7375, 6250, },
-		{ 7500, 6375, },
-		{ 7625, 6500, },
-		{ 7750, 6625, },
-		{ 7875, 6750, },
-		{ 8000, 6875, },
-		{ 8125, 7000, },
-		{ 8250, 7125, },
-		{ 8375, 7250, },
-		{ 8500, 7375, },
-		{ 8625, 7500, },
-		{ 8750, 7625, },
-		{ 8875, 7750, },
-		{ 9000, 7875, },
-		{ 9125, 8000, },
-		{ 9250, 8125, },
-		{ 9375, 8250, },
-		{ 9500, 8375, },
-		{ 9625, 8500, },
-		{ 9750, 8625, },
-		{ 9875, 8750, },
-		{ 10000, 8875, },
-		{ 10125, 9000, },
-		{ 10250, 9125, },
-		{ 10375, 9250, },
-		{ 10500, 9375, },
-		{ 10625, 9500, },
-		{ 10750, 9625, },
-		{ 10875, 9750, },
-		{ 11000, 9875, },
-		{ 11125, 10000, },
-		{ 11250, 10125, },
-		{ 11375, 10250, },
-		{ 11500, 10375, },
-		{ 11625, 10500, },
-		{ 11750, 10625, },
-		{ 11875, 10750, },
-		{ 12000, 10875, },
-		{ 12125, 11000, },
-		{ 12250, 11125, },
-		{ 12375, 11250, },
-		{ 12500, 11375, },
-		{ 12625, 11500, },
-		{ 12750, 11625, },
-		{ 12875, 11750, },
-		{ 13000, 11875, },
-		{ 13125, 12000, },
-		{ 13250, 12125, },
-		{ 13375, 12250, },
-		{ 13500, 12375, },
-		{ 13625, 12500, },
-		{ 13750, 12625, },
-		{ 13875, 12750, },
-		{ 14000, 12875, },
-		{ 14125, 13000, },
-		{ 14250, 13125, },
-		{ 14375, 13250, },
-		{ 14500, 13375, },
-		{ 14625, 13500, },
-		{ 14750, 13625, },
-		{ 14875, 13750, },
-		{ 15000, 13875, },
-		{ 15125, 14000, },
-		{ 15250, 14125, },
-		{ 15375, 14250, },
-		{ 15500, 14375, },
-		{ 15625, 14500, },
-		{ 15750, 14625, },
-		{ 15875, 14750, },
-		{ 16000, 14875, },
-		{ 16125, 15000, },
-	};
-	if (dev_priv->info->is_mobile)
-		return v_table[pxvid].vm;
-	else
-		return v_table[pxvid].vd;
-}
-
-void i915_update_gfx_val(struct drm_i915_private *dev_priv)
-{
-	struct timespec now, diff1;
-	u64 diff;
-	unsigned long diffms;
-	u32 count;
-
-	if (dev_priv->info->gen != 5)
-		return;
-
-	getrawmonotonic(&now);
-	diff1 = timespec_sub(now, dev_priv->last_time2);
-
-	/* Don't divide by 0 */
-	diffms = diff1.tv_sec * 1000 + diff1.tv_nsec / 1000000;
-	if (!diffms)
-		return;
-
-	count = I915_READ(GFXEC);
-
-	if (count < dev_priv->last_count2) {
-		diff = ~0UL - dev_priv->last_count2;
-		diff += count;
-	} else {
-		diff = count - dev_priv->last_count2;
-	}
-
-	dev_priv->last_count2 = count;
-	dev_priv->last_time2 = now;
-
-	/* More magic constants... */
-	diff = diff * 1181;
-	diff = div_u64(diff, diffms * 10);
-	dev_priv->gfx_power = diff;
-}
-
-unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
-{
-	unsigned long t, corr, state1, corr2, state2;
-	u32 pxvid, ext_v;
-
-	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->cur_delay * 4));
-	pxvid = (pxvid >> 24) & 0x7f;
-	ext_v = pvid_to_extvid(dev_priv, pxvid);
-
-	state1 = ext_v;
-
-	t = i915_mch_val(dev_priv);
-
-	/* Revel in the empirically derived constants */
-
-	/* Correction factor in 1/100000 units */
-	if (t > 80)
-		corr = ((t * 2349) + 135940);
-	else if (t >= 50)
-		corr = ((t * 964) + 29317);
-	else /* < 50 */
-		corr = ((t * 301) + 1004);
-
-	corr = corr * ((150142 * state1) / 10000 - 78642);
-	corr /= 100000;
-	corr2 = (corr * dev_priv->corr);
-
-	state2 = (corr2 * state1) / 10000;
-	state2 /= 100; /* convert to mW */
-
-	i915_update_gfx_val(dev_priv);
-
-	return dev_priv->gfx_power + state2;
-}
-
-/* Global for IPS driver to get at the current i915 device */
-static struct drm_i915_private *i915_mch_dev;
-/*
- * Lock protecting IPS related data structures
- *   - i915_mch_dev
- *   - dev_priv->max_delay
- *   - dev_priv->min_delay
- *   - dev_priv->fmax
- *   - dev_priv->gpu_busy
- */
-static DEFINE_SPINLOCK(mchdev_lock);
-
-/**
- * i915_read_mch_val - return value for IPS use
- *
- * Calculate and return a value for the IPS driver to use when deciding whether
- * we have thermal and power headroom to increase CPU or GPU power budget.
- */
-unsigned long i915_read_mch_val(void)
-{
-	struct drm_i915_private *dev_priv;
-	unsigned long chipset_val, graphics_val, ret = 0;
-
-	spin_lock(&mchdev_lock);
-	if (!i915_mch_dev)
-		goto out_unlock;
-	dev_priv = i915_mch_dev;
-
-	chipset_val = i915_chipset_val(dev_priv);
-	graphics_val = i915_gfx_val(dev_priv);
-
-	ret = chipset_val + graphics_val;
-
-out_unlock:
-	spin_unlock(&mchdev_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i915_read_mch_val);
-
-/**
- * i915_gpu_raise - raise GPU frequency limit
- *
- * Raise the limit; IPS indicates we have thermal headroom.
- */
-bool i915_gpu_raise(void)
-{
-	struct drm_i915_private *dev_priv;
-	bool ret = true;
-
-	spin_lock(&mchdev_lock);
-	if (!i915_mch_dev) {
-		ret = false;
-		goto out_unlock;
-	}
-	dev_priv = i915_mch_dev;
-
-	if (dev_priv->max_delay > dev_priv->fmax)
-		dev_priv->max_delay--;
-
-out_unlock:
-	spin_unlock(&mchdev_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i915_gpu_raise);
-
-/**
- * i915_gpu_lower - lower GPU frequency limit
- *
- * IPS indicates we're close to a thermal limit, so throttle back the GPU
- * frequency maximum.
- */
-bool i915_gpu_lower(void)
-{
-	struct drm_i915_private *dev_priv;
-	bool ret = true;
-
-	spin_lock(&mchdev_lock);
-	if (!i915_mch_dev) {
-		ret = false;
-		goto out_unlock;
-	}
-	dev_priv = i915_mch_dev;
-
-	if (dev_priv->max_delay < dev_priv->min_delay)
-		dev_priv->max_delay++;
-
-out_unlock:
-	spin_unlock(&mchdev_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i915_gpu_lower);
-
-/**
- * i915_gpu_busy - indicate GPU business to IPS
- *
- * Tell the IPS driver whether or not the GPU is busy.
- */
-bool i915_gpu_busy(void)
-{
-	struct drm_i915_private *dev_priv;
-	bool ret = false;
-
-	spin_lock(&mchdev_lock);
-	if (!i915_mch_dev)
-		goto out_unlock;
-	dev_priv = i915_mch_dev;
-
-	ret = dev_priv->busy;
-
-out_unlock:
-	spin_unlock(&mchdev_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i915_gpu_busy);
-
-/**
- * i915_gpu_turbo_disable - disable graphics turbo
- *
- * Disable graphics turbo by resetting the max frequency and setting the
- * current frequency to the default.
- */
-bool i915_gpu_turbo_disable(void)
-{
-	struct drm_i915_private *dev_priv;
-	bool ret = true;
-
-	spin_lock(&mchdev_lock);
-	if (!i915_mch_dev) {
-		ret = false;
-		goto out_unlock;
-	}
-	dev_priv = i915_mch_dev;
-
-	dev_priv->max_delay = dev_priv->fstart;
-
-	if (!ironlake_set_drps(dev_priv->dev, dev_priv->fstart))
-		ret = false;
-
-out_unlock:
-	spin_unlock(&mchdev_lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
-
-/**
- * Tells the intel_ips driver that the i915 driver is now loaded, if
- * IPS got loaded first.
- *
- * This awkward dance is so that neither module has to depend on the
- * other in order for IPS to do the appropriate communication of
- * GPU turbo limits to i915.
- */
-static void
-ips_ping_for_i915_load(void)
-{
-	void (*link)(void);
-
-	link = symbol_get(ips_link_to_i915_driver);
-	if (link) {
-		link();
-		symbol_put(ips_link_to_i915_driver);
-	}
 }
 
 static void
@@ -2072,9 +1508,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto out_mtrrfree;
 	}
 
-	/* enable GEM by default */
-	dev_priv->has_gem = 1;
-
 	intel_irq_init(dev);
 
 	/* Try to make sure MCHBAR is enabled before poking at it */
@@ -2093,11 +1526,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		if (ret)
 			goto out_gem_unload;
 	}
-
-	if (IS_PINEVIEW(dev))
-		i915_pineview_get_mem_freq(dev);
-	else if (IS_GEN5(dev))
-		i915_ironlake_get_mem_freq(dev);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
@@ -2151,14 +1579,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
 		    (unsigned long) dev);
 
-	if (IS_GEN5(dev)) {
-		spin_lock(&mchdev_lock);
-		i915_mch_dev = dev_priv;
-		dev_priv->mchdev_lock = &mchdev_lock;
-		spin_unlock(&mchdev_lock);
-
-		ips_ping_for_i915_load();
-	}
+	if (IS_GEN5(dev))
+		intel_gpu_ips_init(dev_priv);
 
 	return 0;
 
@@ -2193,9 +1615,7 @@ int i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	spin_lock(&mchdev_lock);
-	i915_mch_dev = NULL;
-	spin_unlock(&mchdev_lock);
+	intel_gpu_ips_teardown();
 
 	i915_teardown_sysfs(dev);
 
@@ -2203,9 +1623,10 @@ int i915_driver_unload(struct drm_device *dev)
 		unregister_shrinker(&dev_priv->mm.inactive_shrinker);
 
 	mutex_lock(&dev->struct_mutex);
-	ret = i915_gpu_idle(dev, true);
+	ret = i915_gpu_idle(dev);
 	if (ret)
 		DRM_ERROR("failed to idle hardware: %d\n", ret);
+	i915_gem_retire_requests(dev);
 	mutex_unlock(&dev->struct_mutex);
 
 	/* Cancel the retire work handler, which should be idle now. */
@@ -2257,8 +1678,7 @@ int i915_driver_unload(struct drm_device *dev)
 		i915_gem_cleanup_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 		i915_gem_cleanup_aliasing_ppgtt(dev);
-		if (I915_HAS_FBC(dev) && i915_powersave)
-			i915_cleanup_compression(dev);
+		i915_gem_cleanup_stolen(dev);
 		drm_mm_takedown(&dev_priv->mm.stolen);
 
 		intel_cleanup_overlay(dev);
@@ -2351,7 +1771,7 @@ struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_INIT_HEAP, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_CMDBUFFER, i915_cmdbuffer, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_DESTROY_HEAP,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
-	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  i915_vblank_pipe_set, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
+	DRM_IOCTL_DEF_DRV(I915_SET_VBLANK_PIPE,  drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF_DRV(I915_GET_VBLANK_PIPE,  i915_vblank_pipe_get, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_VBLANK_SWAP, i915_vblank_swap, DRM_AUTH),
 	DRM_IOCTL_DEF_DRV(I915_HWS_ADDR, i915_set_status_page, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),

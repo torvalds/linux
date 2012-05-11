@@ -1116,11 +1116,17 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			return -EINVAL;
 		}
 
+		if (INTEL_INFO(dev)->gen >= 5) {
+			DRM_DEBUG("clip rectangles are only valid on pre-gen5\n");
+			return -EINVAL;
+		}
+
 		if (args->num_cliprects > UINT_MAX / sizeof(*cliprects)) {
 			DRM_DEBUG("execbuf with %u cliprects\n",
 				  args->num_cliprects);
 			return -EINVAL;
 		}
+
 		cliprects = kmalloc(args->num_cliprects * sizeof(*cliprects),
 				    GFP_KERNEL);
 		if (cliprects == NULL) {
@@ -1225,9 +1231,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 			 * so every billion or so execbuffers, we need to stall
 			 * the GPU in order to reset the counters.
 			 */
-			ret = i915_gpu_idle(dev, true);
+			ret = i915_gpu_idle(dev);
 			if (ret)
 				goto err;
+			i915_gem_retire_requests(dev);
 
 			BUG_ON(ring->sync_seqno[i]);
 		}

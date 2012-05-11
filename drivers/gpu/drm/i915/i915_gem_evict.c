@@ -35,6 +35,9 @@
 static bool
 mark_free(struct drm_i915_gem_object *obj, struct list_head *unwind)
 {
+	if (obj->pin_count)
+		return false;
+
 	list_add(&obj->exec_list, unwind);
 	return drm_mm_scan_add_block(obj->gtt_space);
 }
@@ -90,7 +93,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 	/* Now merge in the soon-to-be-expired objects... */
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
 		/* Does the object require an outstanding flush? */
-		if (obj->base.write_domain || obj->pin_count)
+		if (obj->base.write_domain)
 			continue;
 
 		if (mark_free(obj, &unwind_list))
@@ -99,14 +102,11 @@ i915_gem_evict_something(struct drm_device *dev, int min_size,
 
 	/* Finally add anything with a pending flush (in order of retirement) */
 	list_for_each_entry(obj, &dev_priv->mm.flushing_list, mm_list) {
-		if (obj->pin_count)
-			continue;
-
 		if (mark_free(obj, &unwind_list))
 			goto found;
 	}
 	list_for_each_entry(obj, &dev_priv->mm.active_list, mm_list) {
-		if (!obj->base.write_domain || obj->pin_count)
+		if (!obj->base.write_domain)
 			continue;
 
 		if (mark_free(obj, &unwind_list))
@@ -166,8 +166,9 @@ int
 i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	int ret;
+	struct drm_i915_gem_object *obj, *next;
 	bool lists_empty;
+	int ret,i;
 
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
@@ -177,31 +178,30 @@ i915_gem_evict_everything(struct drm_device *dev, bool purgeable_only)
 
 	trace_i915_gem_evict_everything(dev, purgeable_only);
 
-	/* Flush everything (on to the inactive lists) and evict */
-	ret = i915_gpu_idle(dev, true);
+	ret = i915_gpu_idle(dev);
 	if (ret)
 		return ret;
 
+	/* The gpu_idle will flush everything in the write domain to the
+	 * active list. Then we must move everything off the active list
+	 * with retire requests.
+	 */
+	for (i = 0; i < I915_NUM_RINGS; i++)
+		if (WARN_ON(!list_empty(&dev_priv->ring[i].gpu_write_list)))
+			return -EBUSY;
+
+	i915_gem_retire_requests(dev);
+
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 
-	return i915_gem_evict_inactive(dev, purgeable_only);
-}
-
-/** Unbinds all inactive objects. */
-int
-i915_gem_evict_inactive(struct drm_device *dev, bool purgeable_only)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-	struct drm_i915_gem_object *obj, *next;
-
+	/* Having flushed everything, unbind() should never raise an error */
 	list_for_each_entry_safe(obj, next,
 				 &dev_priv->mm.inactive_list, mm_list) {
 		if (!purgeable_only || obj->madv != I915_MADV_WILLNEED) {
-			int ret = i915_gem_object_unbind(obj);
-			if (ret)
-				return ret;
+			if (obj->pin_count == 0)
+				WARN_ON(i915_gem_object_unbind(obj));
 		}
 	}
 
-	return 0;
+	return ret;
 }

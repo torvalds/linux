@@ -183,8 +183,8 @@ struct intel_crtc {
 	bool cursor_visible;
 	unsigned int bpp;
 
-	bool no_pll; /* tertiary pipe for IVB */
-	bool use_pll_a;
+	/* We can share PLLs across outputs if the timings match */
+	struct intel_pch_pll *pch_pll;
 };
 
 struct intel_plane {
@@ -238,6 +238,8 @@ struct cxsr_latency {
 #define DIP_TYPE_AVI    0x82
 #define DIP_VERSION_AVI 0x2
 #define DIP_LEN_AVI     13
+#define DIP_AVI_PR_1    0
+#define DIP_AVI_PR_2    1
 
 #define DIP_TYPE_SPD	0x83
 #define DIP_VERSION_SPD	0x1
@@ -271,8 +273,8 @@ struct dip_infoframe {
 			uint8_t ITC_EC_Q_SC;
 			/* PB4 - VIC 6:0 */
 			uint8_t VIC;
-			/* PB5 - PR 3:0 */
-			uint8_t PR;
+			/* PB5 - YQ 7:6, CN 5:4, PR 3:0 */
+			uint8_t YQ_CN_PR;
 			/* PB6 to PB13 */
 			uint16_t top_bar_end;
 			uint16_t bottom_bar_start;
@@ -346,6 +348,8 @@ extern int intel_plane_init(struct drm_device *dev, enum pipe pipe);
 extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
 
+void intel_sanitize_pm(struct drm_device *dev);
+
 /* intel_panel.c */
 extern void intel_fixed_panel_mode(struct drm_display_mode *fixed_mode,
 				   struct drm_display_mode *adjusted_mode);
@@ -405,10 +409,6 @@ extern void intel_enable_clock_gating(struct drm_device *dev);
 extern void ironlake_disable_rc6(struct drm_device *dev);
 extern void ironlake_enable_drps(struct drm_device *dev);
 extern void ironlake_disable_drps(struct drm_device *dev);
-extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
-extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
-extern void gen6_disable_rps(struct drm_device *dev);
-extern void intel_init_emon(struct drm_device *dev);
 
 extern int intel_pin_and_fence_fb_obj(struct drm_device *dev,
 				      struct drm_i915_gem_object *obj,
@@ -466,5 +466,13 @@ extern void intel_init_pm(struct drm_device *dev);
 extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern void intel_update_fbc(struct drm_device *dev);
+/* IPS */
+extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
+extern void intel_gpu_ips_teardown(void);
+
+extern void gen6_enable_rps(struct drm_i915_private *dev_priv);
+extern void gen6_update_ring_freq(struct drm_i915_private *dev_priv);
+extern void gen6_disable_rps(struct drm_device *dev);
+extern void intel_init_emon(struct drm_device *dev);
 
 #endif /* __INTEL_DRV_H__ */

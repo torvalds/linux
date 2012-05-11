@@ -377,18 +377,23 @@ void intel_detect_pch(struct drm_device *dev)
 
 			if (id == INTEL_PCH_IBX_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_IBX;
+				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found Ibex Peak PCH\n");
 			} else if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CPT;
+				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
 			} else if (id == INTEL_PCH_PPT_DEVICE_ID_TYPE) {
 				/* PantherPoint is CPT compatible */
 				dev_priv->pch_type = PCH_CPT;
+				dev_priv->num_pch_pll = 2;
 				DRM_DEBUG_KMS("Found PatherPoint PCH\n");
 			} else if (id == INTEL_PCH_LPT_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_LPT;
+				dev_priv->num_pch_pll = 0;
 				DRM_DEBUG_KMS("Found LynxPoint PCH\n");
 			}
+			BUG_ON(dev_priv->num_pch_pll > I915_NUM_PLLS);
 		}
 		pci_dev_put(pch);
 	}
@@ -433,7 +438,7 @@ void __gen6_gt_force_wake_mt_get(struct drm_i915_private *dev_priv)
 	while (count++ < 50 && (I915_READ_NOTRACE(FORCEWAKE_MT_ACK) & 1))
 		udelay(10);
 
-	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 1);
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_ENABLE(1));
 	POSTING_READ(FORCEWAKE_MT);
 
 	count = 0;
@@ -475,7 +480,7 @@ void __gen6_gt_force_wake_put(struct drm_i915_private *dev_priv)
 
 void __gen6_gt_force_wake_mt_put(struct drm_i915_private *dev_priv)
 {
-	I915_WRITE_NOTRACE(FORCEWAKE_MT, (1<<16) | 0);
+	I915_WRITE_NOTRACE(FORCEWAKE_MT, _MASKED_BIT_DISABLE(1));
 	/* The below doubles as a POSTING_READ */
 	gen6_gt_check_fifodbg(dev_priv);
 }
@@ -668,7 +673,7 @@ int i915_resume(struct drm_device *dev)
 	return 0;
 }
 
-static int i8xx_do_reset(struct drm_device *dev, u8 flags)
+static int i8xx_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
@@ -702,11 +707,12 @@ static int i965_reset_complete(struct drm_device *dev)
 {
 	u8 gdrst;
 	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
-	return gdrst & 0x1;
+	return (gdrst & GRDOM_RESET_ENABLE) == 0;
 }
 
-static int i965_do_reset(struct drm_device *dev, u8 flags)
+static int i965_do_reset(struct drm_device *dev)
 {
+	int ret;
 	u8 gdrst;
 
 	/*
@@ -715,20 +721,43 @@ static int i965_do_reset(struct drm_device *dev, u8 flags)
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
 	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
-	pci_write_config_byte(dev->pdev, I965_GDRST, gdrst | flags | 0x1);
+	pci_write_config_byte(dev->pdev, I965_GDRST,
+			      gdrst | GRDOM_RENDER |
+			      GRDOM_RESET_ENABLE);
+	ret =  wait_for(i965_reset_complete(dev), 500);
+	if (ret)
+		return ret;
+
+	/* We can't reset render&media without also resetting display ... */
+	pci_read_config_byte(dev->pdev, I965_GDRST, &gdrst);
+	pci_write_config_byte(dev->pdev, I965_GDRST,
+			      gdrst | GRDOM_MEDIA |
+			      GRDOM_RESET_ENABLE);
 
 	return wait_for(i965_reset_complete(dev), 500);
 }
 
-static int ironlake_do_reset(struct drm_device *dev, u8 flags)
+static int ironlake_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
-	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR, gdrst | flags | 0x1);
+	u32 gdrst;
+	int ret;
+
+	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
+		   gdrst | GRDOM_RENDER | GRDOM_RESET_ENABLE);
+	ret = wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
+	if (ret)
+		return ret;
+
+	/* We can't reset render&media without also resetting display ... */
+	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
+	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
+		   gdrst | GRDOM_MEDIA | GRDOM_RESET_ENABLE);
 	return wait_for(I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1, 500);
 }
 
-static int gen6_do_reset(struct drm_device *dev, u8 flags)
+static int gen6_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int	ret;
@@ -763,10 +792,44 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
 	return ret;
 }
 
+static int intel_gpu_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = -ENODEV;
+
+	switch (INTEL_INFO(dev)->gen) {
+	case 7:
+	case 6:
+		ret = gen6_do_reset(dev);
+		break;
+	case 5:
+		ret = ironlake_do_reset(dev);
+		break;
+	case 4:
+		ret = i965_do_reset(dev);
+		break;
+	case 2:
+		ret = i8xx_do_reset(dev);
+		break;
+	}
+
+	/* Also reset the gpu hangman. */
+	if (dev_priv->stop_rings) {
+		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
+		dev_priv->stop_rings = 0;
+		if (ret == -ENODEV) {
+			DRM_ERROR("Reset not implemented, but ignoring "
+				  "error for simulated gpu hangs\n");
+			ret = 0;
+		}
+	}
+
+	return ret;
+}
+
 /**
  * i915_reset - reset chip after a hang
  * @dev: drm device to reset
- * @flags: reset domains
  *
  * Reset the chip.  Useful if a hang is detected. Returns zero on successful
  * reset or otherwise an error code.
@@ -779,14 +842,9 @@ static int gen6_do_reset(struct drm_device *dev, u8 flags)
  *   - re-init interrupt state
  *   - re-init display
  */
-int i915_reset(struct drm_device *dev, u8 flags)
+int i915_reset(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	/*
-	 * We really should only reset the display subsystem if we actually
-	 * need to
-	 */
-	bool need_display = true;
 	int ret;
 
 	if (!i915_try_reset)
@@ -795,26 +853,16 @@ int i915_reset(struct drm_device *dev, u8 flags)
 	if (!mutex_trylock(&dev->struct_mutex))
 		return -EBUSY;
 
+	dev_priv->stop_rings = 0;
+
 	i915_gem_reset(dev);
 
 	ret = -ENODEV;
-	if (get_seconds() - dev_priv->last_gpu_reset < 5) {
+	if (get_seconds() - dev_priv->last_gpu_reset < 5)
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-	} else switch (INTEL_INFO(dev)->gen) {
-	case 7:
-	case 6:
-		ret = gen6_do_reset(dev, flags);
-		break;
-	case 5:
-		ret = ironlake_do_reset(dev, flags);
-		break;
-	case 4:
-		ret = i965_do_reset(dev, flags);
-		break;
-	case 2:
-		ret = i8xx_do_reset(dev, flags);
-		break;
-	}
+	else
+		ret = intel_gpu_reset(dev);
+
 	dev_priv->last_gpu_reset = get_seconds();
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
@@ -856,23 +904,9 @@ int i915_reset(struct drm_device *dev, u8 flags)
 			intel_modeset_init_hw(dev);
 
 		drm_irq_uninstall(dev);
-		drm_mode_config_reset(dev);
 		drm_irq_install(dev);
-
-		mutex_lock(&dev->struct_mutex);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	/*
-	 * Perform a full modeset as on later generations, e.g. Ironlake, we may
-	 * need to retrain the display link and cannot just restore the register
-	 * values.
-	 */
-	if (need_display) {
-		mutex_lock(&dev->mode_config.mutex);
-		drm_helper_resume_force_mode(dev);
-		mutex_unlock(&dev->mode_config.mutex);
+	} else {
+		mutex_unlock(&dev->struct_mutex);
 	}
 
 	return 0;

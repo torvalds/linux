@@ -40,7 +40,7 @@ static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 		return false;
 
 	if (HAS_PCH_SPLIT(dev))
-		dpll_reg = PCH_DPLL(pipe);
+		dpll_reg = _PCH_DPLL(pipe);
 	else
 		dpll_reg = (pipe == PIPE_A) ? _DPLL_A : _DPLL_B;
 
