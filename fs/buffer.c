@@ -968,6 +968,7 @@ init_page_buffers(struct page *page, struct block_device *bdev,
 	struct buffer_head *head = page_buffers(page);
 	struct buffer_head *bh = head;
 	int uptodate = PageUptodate(page);
+	sector_t end_block = blkdev_max_block(I_BDEV(bdev->bd_inode));
 
 	do {
 		if (!buffer_mapped(bh)) {
@@ -976,7 +977,8 @@ init_page_buffers(struct page *page, struct block_device *bdev,
 			bh->b_blocknr = block;
 			if (uptodate)
 				set_buffer_uptodate(bh);
-			set_buffer_mapped(bh);
+			if (block < end_block)
+				set_buffer_mapped(bh);
 		}
 		block++;
 		bh = bh->b_this_page;
