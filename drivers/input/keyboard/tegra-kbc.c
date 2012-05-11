@@ -619,8 +619,8 @@ tegra_kbc_check_pin_cfg(const struct tegra_kbc_platform_data *pdata,
 }
 
 #ifdef CONFIG_OF
-static struct tegra_kbc_platform_data * __devinit
-tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
+static struct tegra_kbc_platform_data * __devinit tegra_kbc_dt_parse_pdata(
+	struct platform_device *pdev)
 {
 	struct tegra_kbc_platform_data *pdata;
 	struct device_node *np = pdev->dev.of_node;
@@ -660,10 +660,6 @@ tegra_kbc_dt_parse_pdata(struct platform_device *pdev)
 		pdata->pin_cfg[KBC_MAX_ROW + i].type = PIN_CFG_COL;
 	}
 
-	pdata->keymap_data = matrix_keyboard_of_fill_keymap(np, "linux,keymap");
-
-	/* FIXME: Add handling of linux,fn-keymap here */
-
 	return pdata;
 }
 #else
@@ -674,10 +670,36 @@ static inline struct tegra_kbc_platform_data *tegra_kbc_dt_parse_pdata(
 }
 #endif
 
+static int __devinit tegra_kbd_setup_keymap(struct tegra_kbc *kbc)
+{
+	const struct tegra_kbc_platform_data *pdata = kbc->pdata;
+	const struct matrix_keymap_data *keymap_data = pdata->keymap_data;
+	unsigned int keymap_rows = KBC_MAX_KEY;
+	int retval;
+
+	if (keymap_data && pdata->use_fn_map)
+		keymap_rows *= 2;
+
+	retval = matrix_keypad_build_keymap(keymap_data, NULL,
+					    keymap_rows, KBC_MAX_COL,
+					    kbc->keycode, kbc->idev);
+	if (retval == -ENOSYS || retval == -ENOENT) {
+		/*
+		 * If there is no OF support in kernel or keymap
+		 * property is missing, use default keymap.
+		 */
+		retval = matrix_keypad_build_keymap(
+					&tegra_kbc_default_keymap_data, NULL,
+					keymap_rows, KBC_MAX_COL,
+					kbc->keycode, kbc->idev);
+	}
+
+	return retval;
+}
+
 static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 {
 	const struct tegra_kbc_platform_data *pdata = pdev->dev.platform_data;
-	const struct matrix_keymap_data *keymap_data;
 	struct tegra_kbc *kbc;
 	struct input_dev *input_dev;
 	struct resource *res;
@@ -686,7 +708,6 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	int num_rows = 0;
 	unsigned int debounce_cnt;
 	unsigned int scan_time_rows;
-	unsigned int keymap_rows;
 
 	if (!pdata)
 		pdata = tegra_kbc_dt_parse_pdata(pdev);
@@ -768,17 +789,9 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	input_dev->open = tegra_kbc_open;
 	input_dev->close = tegra_kbc_close;
 
-	keymap_rows = KBC_MAX_KEY;
-	if (pdata->use_fn_map)
-		keymap_rows *= 2;
-
-	keymap_data = pdata->keymap_data ?: &tegra_kbc_default_keymap_data;
-
-	err = matrix_keypad_build_keymap(keymap_data, NULL,
-					 keymap_rows, KBC_MAX_COL,
-					 kbc->keycode, input_dev);
+	err = tegra_kbd_setup_keymap(kbc);
 	if (err) {
-		dev_err(&pdev->dev, "failed to build keymap\n");
+		dev_err(&pdev->dev, "failed to setup keymap\n");
 		goto err_put_clk;
 	}
 
@@ -805,9 +818,6 @@ static int __devinit tegra_kbc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, kbc);
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 
-	if (!pdev->dev.platform_data)
-		matrix_keyboard_of_free_keymap(pdata->keymap_data);
-
 	return 0;
 
 err_free_irq:
@@ -822,10 +832,8 @@ err_free_mem:
 	input_free_device(input_dev);
 	kfree(kbc);
 err_free_pdata:
-	if (!pdev->dev.platform_data) {
-		matrix_keyboard_of_free_keymap(pdata->keymap_data);
+	if (!pdev->dev.platform_data)
 		kfree(pdata);
-	}
 
 	return err;
 }
