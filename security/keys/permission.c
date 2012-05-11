@@ -87,20 +87,25 @@ EXPORT_SYMBOL(key_task_permission);
  * key_validate - Validate a key.
  * @key: The key to be validated.
  *
- * Check that a key is valid, returning 0 if the key is okay, -EKEYREVOKED if
- * the key's type has been removed or if the key has been revoked or
- * -EKEYEXPIRED if the key has expired.
+ * Check that a key is valid, returning 0 if the key is okay, -ENOKEY if the
+ * key is invalidated, -EKEYREVOKED if the key's type has been removed or if
+ * the key has been revoked or -EKEYEXPIRED if the key has expired.
  */
 int key_validate(struct key *key)
 {
 	struct timespec now;
+	unsigned long flags = key->flags;
 	int ret = 0;
 
 	if (key) {
+		ret = -ENOKEY;
+		if (flags & (1 << KEY_FLAG_INVALIDATED))
+			goto error;
+
 		/* check it's still accessible */
 		ret = -EKEYREVOKED;
-		if (test_bit(KEY_FLAG_REVOKED, &key->flags) ||
-		    test_bit(KEY_FLAG_DEAD, &key->flags))
+		if (flags & ((1 << KEY_FLAG_REVOKED) |
+			     (1 << KEY_FLAG_DEAD)))
 			goto error;
 
 		/* check it hasn't expired */
