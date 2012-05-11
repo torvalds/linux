@@ -577,7 +577,7 @@ static int rndis_init_response(int configNr, rndis_init_msg_type *buf)
 		return -ENOMEM;
 	resp = (rndis_init_cmplt_type *)r->buf;
 
-	resp->MessageType = cpu_to_le32(REMOTE_NDIS_INITIALIZE_CMPLT);
+	resp->MessageType = cpu_to_le32(RNDIS_MSG_INIT_C);
 	resp->MessageLength = cpu_to_le32(52);
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 	resp->Status = cpu_to_le32(RNDIS_STATUS_SUCCESS);
@@ -621,7 +621,7 @@ static int rndis_query_response(int configNr, rndis_query_msg_type *buf)
 		return -ENOMEM;
 	resp = (rndis_query_cmplt_type *)r->buf;
 
-	resp->MessageType = cpu_to_le32(REMOTE_NDIS_QUERY_CMPLT);
+	resp->MessageType = cpu_to_le32(RNDIS_MSG_QUERY_C);
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 
 	if (gen_ndis_query_resp(configNr, le32_to_cpu(buf->OID),
@@ -668,7 +668,7 @@ static int rndis_set_response(int configNr, rndis_set_msg_type *buf)
 	pr_debug("\n");
 #endif
 
-	resp->MessageType = cpu_to_le32(REMOTE_NDIS_SET_CMPLT);
+	resp->MessageType = cpu_to_le32(RNDIS_MSG_SET_C);
 	resp->MessageLength = cpu_to_le32(16);
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 	if (gen_ndis_set_resp(configNr, le32_to_cpu(buf->OID),
@@ -692,7 +692,7 @@ static int rndis_reset_response(int configNr, rndis_reset_msg_type *buf)
 		return -ENOMEM;
 	resp = (rndis_reset_cmplt_type *)r->buf;
 
-	resp->MessageType = cpu_to_le32(REMOTE_NDIS_RESET_CMPLT);
+	resp->MessageType = cpu_to_le32(RNDIS_MSG_RESET_C);
 	resp->MessageLength = cpu_to_le32(16);
 	resp->Status = cpu_to_le32(RNDIS_STATUS_SUCCESS);
 	/* resent information */
@@ -716,8 +716,7 @@ static int rndis_keepalive_response(int configNr,
 		return -ENOMEM;
 	resp = (rndis_keepalive_cmplt_type *)r->buf;
 
-	resp->MessageType = cpu_to_le32(
-			REMOTE_NDIS_KEEPALIVE_CMPLT);
+	resp->MessageType = cpu_to_le32(RNDIS_MSG_KEEPALIVE_C);
 	resp->MessageLength = cpu_to_le32(16);
 	resp->RequestID = buf->RequestID; /* Still LE in msg buffer */
 	resp->Status = cpu_to_le32(RNDIS_STATUS_SUCCESS);
@@ -745,7 +744,7 @@ static int rndis_indicate_status_msg(int configNr, u32 status)
 		return -ENOMEM;
 	resp = (rndis_indicate_status_msg_type *)r->buf;
 
-	resp->MessageType = cpu_to_le32(REMOTE_NDIS_INDICATE_STATUS_MSG);
+	resp->MessageType = cpu_to_le32(RNDIS_MSG_INDICATE);
 	resp->MessageLength = cpu_to_le32(20);
 	resp->Status = cpu_to_le32(status);
 	resp->StatusBufferLength = cpu_to_le32(0);
@@ -817,15 +816,15 @@ int rndis_msg_parser(u8 configNr, u8 *buf)
 
 	/* For USB: responses may take up to 10 seconds */
 	switch (MsgType) {
-	case REMOTE_NDIS_INITIALIZE_MSG:
-		pr_debug("%s: REMOTE_NDIS_INITIALIZE_MSG\n",
+	case RNDIS_MSG_INIT:
+		pr_debug("%s: RNDIS_MSG_INIT\n",
 			__func__);
 		params->state = RNDIS_INITIALIZED;
 		return rndis_init_response(configNr,
 					(rndis_init_msg_type *)buf);
 
-	case REMOTE_NDIS_HALT_MSG:
-		pr_debug("%s: REMOTE_NDIS_HALT_MSG\n",
+	case RNDIS_MSG_HALT:
+		pr_debug("%s: RNDIS_MSG_HALT\n",
 			__func__);
 		params->state = RNDIS_UNINITIALIZED;
 		if (params->dev) {
@@ -834,24 +833,24 @@ int rndis_msg_parser(u8 configNr, u8 *buf)
 		}
 		return 0;
 
-	case REMOTE_NDIS_QUERY_MSG:
+	case RNDIS_MSG_QUERY:
 		return rndis_query_response(configNr,
 					(rndis_query_msg_type *)buf);
 
-	case REMOTE_NDIS_SET_MSG:
+	case RNDIS_MSG_SET:
 		return rndis_set_response(configNr,
 					(rndis_set_msg_type *)buf);
 
-	case REMOTE_NDIS_RESET_MSG:
-		pr_debug("%s: REMOTE_NDIS_RESET_MSG\n",
+	case RNDIS_MSG_RESET:
+		pr_debug("%s: RNDIS_MSG_RESET\n",
 			__func__);
 		return rndis_reset_response(configNr,
 					(rndis_reset_msg_type *)buf);
 
-	case REMOTE_NDIS_KEEPALIVE_MSG:
+	case RNDIS_MSG_KEEPALIVE:
 		/* For USB: host does this every 5 seconds */
 		if (rndis_debug > 1)
-			pr_debug("%s: REMOTE_NDIS_KEEPALIVE_MSG\n",
+			pr_debug("%s: RNDIS_MSG_KEEPALIVE\n",
 				__func__);
 		return rndis_keepalive_response(configNr,
 						 (rndis_keepalive_msg_type *)
@@ -963,7 +962,7 @@ void rndis_add_hdr(struct sk_buff *skb)
 		return;
 	header = (void *)skb_push(skb, sizeof(*header));
 	memset(header, 0, sizeof *header);
-	header->MessageType = cpu_to_le32(REMOTE_NDIS_PACKET_MSG);
+	header->MessageType = cpu_to_le32(RNDIS_MSG_PACKET);
 	header->MessageLength = cpu_to_le32(skb->len);
 	header->DataOffset = cpu_to_le32(36);
 	header->DataLength = cpu_to_le32(skb->len - sizeof(*header));
@@ -1031,7 +1030,7 @@ int rndis_rm_hdr(struct gether *port,
 	__le32 *tmp = (void *)skb->data;
 
 	/* MessageType, MessageLength */
-	if (cpu_to_le32(REMOTE_NDIS_PACKET_MSG)
+	if (cpu_to_le32(RNDIS_MSG_PACKET)
 			!= get_unaligned(tmp++)) {
 		dev_kfree_skb_any(skb);
 		return -EINVAL;
