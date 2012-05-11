@@ -155,12 +155,6 @@ static const struct cx8800_fmt* format_by_fourcc(unsigned int fourcc)
 
 /* ------------------------------------------------------------------- */
 
-static const struct v4l2_queryctrl no_ctl = {
-	.name  = "42",
-	.flags = V4L2_CTRL_FLAG_DISABLED,
-};
-
-
 struct cx88_ctrl {
 	/* control information */
 	u32 id;
@@ -177,7 +171,7 @@ struct cx88_ctrl {
 	u32 shift;
 };
 
-static const struct cx88_ctrl cx8800_ctls[] = {
+static const struct cx88_ctrl cx8800_vid_ctls[] = {
 	/* --- video --- */
 	{
 		.id            = V4L2_CID_BRIGHTNESS,
@@ -260,7 +254,11 @@ static const struct cx88_ctrl cx8800_ctls[] = {
 		.reg           = MO_HTOTAL,
 		.mask          = 3 << 11,
 		.shift         = 11,
-	}, {
+	}
+};
+
+static const struct cx88_ctrl cx8800_aud_ctls[] = {
+	{
 		/* --- audio --- */
 		.id            = V4L2_CID_AUDIO_MUTE,
 		.minimum       = 0,
@@ -293,14 +291,10 @@ static const struct cx88_ctrl cx8800_ctls[] = {
 	}
 };
 
-enum { CX8800_CTLS = ARRAY_SIZE(cx8800_ctls) };
-
-
-int cx8800_ctrl_query(struct cx88_core *core, struct v4l2_queryctrl *qctrl)
-{
-	return 0;
-}
-EXPORT_SYMBOL(cx8800_ctrl_query);
+enum {
+	CX8800_VID_CTLS = ARRAY_SIZE(cx8800_vid_ctls),
+	CX8800_AUD_CTLS = ARRAY_SIZE(cx8800_aud_ctls),
+};
 
 /* ------------------------------------------------------------------- */
 /* resource management                                                 */
@@ -908,10 +902,56 @@ video_mmap(struct file *file, struct vm_area_struct * vma)
 /* ------------------------------------------------------------------ */
 /* VIDEO CTRL IOCTLS                                                  */
 
-static int cx8800_s_ctrl(struct v4l2_ctrl *ctrl)
+static int cx8800_s_vid_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct cx88_core *core =
-		container_of(ctrl->handler, struct cx88_core, hdl);
+		container_of(ctrl->handler, struct cx88_core, video_hdl);
+	const struct cx88_ctrl *cc = ctrl->priv;
+	u32 value, mask;
+
+	mask = cc->mask;
+	switch (ctrl->id) {
+	case V4L2_CID_SATURATION:
+		/* special v_sat handling */
+
+		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
+
+		if (core->tvnorm & V4L2_STD_SECAM) {
+			/* For SECAM, both U and V sat should be equal */
+			value = value << 8 | value;
+		} else {
+			/* Keeps U Saturation proportional to V Sat */
+			value = (value * 0x5a) / 0x7f << 8 | value;
+		}
+		mask = 0xffff;
+		break;
+	case V4L2_CID_SHARPNESS:
+		/* 0b000, 0b100, 0b101, 0b110, or 0b111 */
+		value = (ctrl->val < 1 ? 0 : ((ctrl->val + 3) << 7));
+		/* needs to be set for both fields */
+		cx_andor(MO_FILTER_EVEN, mask, value);
+		break;
+	case V4L2_CID_CHROMA_AGC:
+		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
+		break;
+	default:
+		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
+		break;
+	}
+	dprintk(1, "set_control id=0x%X(%s) ctrl=0x%02x, reg=0x%02x val=0x%02x (mask 0x%02x)%s\n",
+				ctrl->id, ctrl->name, ctrl->val, cc->reg, value,
+				mask, cc->sreg ? " [shadowed]" : "");
+	if (cc->sreg)
+		cx_sandor(cc->sreg, cc->reg, mask, value);
+	else
+		cx_andor(cc->reg, mask, value);
+	return 0;
+}
+
+static int cx8800_s_aud_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct cx88_core *core =
+		container_of(ctrl->handler, struct cx88_core, audio_hdl);
 	const struct cx88_ctrl *cc = ctrl->priv;
 	u32 value,mask;
 
@@ -940,32 +980,6 @@ static int cx8800_s_ctrl(struct v4l2_ctrl *ctrl)
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		value = 0x3f - (ctrl->val & 0x3f);
-		break;
-	case V4L2_CID_SATURATION:
-		/* special v_sat handling */
-
-		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
-
-		if (core->tvnorm & V4L2_STD_SECAM) {
-			/* For SECAM, both U and V sat should be equal */
-			value=value<<8|value;
-		} else {
-			/* Keeps U Saturation proportional to V Sat */
-			value=(value*0x5a)/0x7f<<8|value;
-		}
-		mask=0xffff;
-		break;
-	case V4L2_CID_SHARPNESS:
-		/* 0b000, 0b100, 0b101, 0b110, or 0b111 */
-		value = (ctrl->val < 1 ? 0 : ((ctrl->val + 3) << 7));
-		/* needs to be set for both fields */
-		cx_andor(MO_FILTER_EVEN, mask, value);
-		break;
-	case V4L2_CID_CHROMA_AGC:
-		/* Do not allow chroma AGC to be enabled for SECAM */
-		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
-		if ((core->tvnorm & V4L2_STD_SECAM) && value)
-			return -EINVAL;
 		break;
 	default:
 		value = ((ctrl->val - cc->off) << cc->shift) & cc->mask;
@@ -1599,8 +1613,12 @@ static const struct video_device cx8800_radio_template = {
 	.ioctl_ops 	      = &radio_ioctl_ops,
 };
 
-static const struct v4l2_ctrl_ops cx8800_ctrl_ops = {
-	.s_ctrl = cx8800_s_ctrl,
+static const struct v4l2_ctrl_ops cx8800_ctrl_vid_ops = {
+	.s_ctrl = cx8800_s_vid_ctrl,
+};
+
+static const struct v4l2_ctrl_ops cx8800_ctrl_aud_ops = {
+	.s_ctrl = cx8800_s_aud_ctrl,
 };
 
 /* ----------------------------------------------------------- */
@@ -1707,18 +1725,34 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	}
 	cx_set(MO_PCI_INTMSK, core->pci_irqmask);
 
-	for (i = 0; i < CX8800_CTLS; i++) {
-		const struct cx88_ctrl *cc = &cx8800_ctls[i];
+	for (i = 0; i < CX8800_AUD_CTLS; i++) {
+		const struct cx88_ctrl *cc = &cx8800_aud_ctls[i];
 		struct v4l2_ctrl *vc;
 
-		vc = v4l2_ctrl_new_std(&core->hdl, &cx8800_ctrl_ops,
+		vc = v4l2_ctrl_new_std(&core->audio_hdl, &cx8800_ctrl_aud_ops,
 			cc->id, cc->minimum, cc->maximum, cc->step, cc->default_value);
 		if (vc == NULL) {
-			err = core->hdl.error;
+			err = core->audio_hdl.error;
 			goto fail_core;
 		}
 		vc->priv = (void *)cc;
 	}
+
+	for (i = 0; i < CX8800_VID_CTLS; i++) {
+		const struct cx88_ctrl *cc = &cx8800_vid_ctls[i];
+		struct v4l2_ctrl *vc;
+
+		vc = v4l2_ctrl_new_std(&core->video_hdl, &cx8800_ctrl_vid_ops,
+			cc->id, cc->minimum, cc->maximum, cc->step, cc->default_value);
+		if (vc == NULL) {
+			err = core->video_hdl.error;
+			goto fail_core;
+		}
+		vc->priv = (void *)cc;
+		if (vc->id == V4L2_CID_CHROMA_AGC)
+			core->chroma_agc = vc;
+	}
+	v4l2_ctrl_add_handler(&core->video_hdl, &core->audio_hdl);
 
 	/* load and configure helper modules */
 
@@ -1771,13 +1805,15 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 	/* initial device configuration */
 	mutex_lock(&core->lock);
 	cx88_set_tvnorm(core, core->tvnorm);
-	v4l2_ctrl_handler_setup(&core->hdl);
+	v4l2_ctrl_handler_setup(&core->video_hdl);
+	v4l2_ctrl_handler_setup(&core->audio_hdl);
 	cx88_video_mux(core, 0);
 
 	/* register v4l devices */
 	dev->video_dev = cx88_vdev_init(core,dev->pci,
 					&cx8800_video_template,"video");
 	video_set_drvdata(dev->video_dev, dev);
+	dev->video_dev->ctrl_handler = &core->video_hdl;
 	err = video_register_device(dev->video_dev,VFL_TYPE_GRABBER,
 				    video_nr[core->nr]);
 	if (err < 0) {
@@ -1804,6 +1840,7 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 		dev->radio_dev = cx88_vdev_init(core,dev->pci,
 						&cx8800_radio_template,"radio");
 		video_set_drvdata(dev->radio_dev, dev);
+		dev->radio_dev->ctrl_handler = &core->audio_hdl;
 		err = video_register_device(dev->radio_dev,VFL_TYPE_RADIO,
 					    radio_nr[core->nr]);
 		if (err < 0) {

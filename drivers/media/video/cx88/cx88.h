@@ -350,7 +350,9 @@ struct cx88_core {
 
 	/* config info -- analog */
 	struct v4l2_device 	   v4l2_dev;
-	struct v4l2_ctrl_handler   hdl;
+	struct v4l2_ctrl_handler   video_hdl;
+	struct v4l2_ctrl	   *chroma_agc;
+	struct v4l2_ctrl_handler   audio_hdl;
 	struct v4l2_subdev	   *sd_wm8775;
 	struct i2c_client 	   *i2c_rtc;
 	unsigned int               boardnr;
