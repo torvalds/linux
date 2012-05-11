@@ -292,7 +292,7 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 	/* if we still have some more bcasts to send */
 	if (forw_packet->num_packets < 3) {
 		_add_bcast_packet_to_list(bat_priv, forw_packet,
-					  ((5 * HZ) / 1000));
+					  msecs_to_jiffies(5));
 		return;
 	}
 

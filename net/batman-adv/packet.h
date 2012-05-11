@@ -39,6 +39,7 @@ enum bat_packettype {
 #define COMPAT_VERSION 14
 
 enum batman_iv_flags {
+	NOT_BEST_NEXT_HOP   = 1 << 3,
 	PRIMARIES_FIRST_HOP = 1 << 4,
 	VIS_SERVER	    = 1 << 5,
 	DIRECTLINK	    = 1 << 6

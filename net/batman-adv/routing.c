@@ -248,37 +248,35 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 	return 0;
 }
 
-int recv_bat_ogm_packet(struct sk_buff *skb, struct hard_iface *hard_iface)
+bool check_management_packet(struct sk_buff *skb,
+			     struct hard_iface *hard_iface,
+			     int header_len)
 {
-	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct ethhdr *ethhdr;
 
 	/* drop packet if it has not necessary minimum size */
-	if (unlikely(!pskb_may_pull(skb, BATMAN_OGM_HLEN)))
-		return NET_RX_DROP;
+	if (unlikely(!pskb_may_pull(skb, header_len)))
+		return false;
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* packet with broadcast indication but unicast recipient */
 	if (!is_broadcast_ether_addr(ethhdr->h_dest))
-		return NET_RX_DROP;
+		return false;
 
 	/* packet with broadcast sender address */
 	if (is_broadcast_ether_addr(ethhdr->h_source))
-		return NET_RX_DROP;
+		return false;
 
 	/* create a copy of the skb, if needed, to modify it. */
 	if (skb_cow(skb, 0) < 0)
-		return NET_RX_DROP;
+		return false;
 
 	/* keep skb linear */
 	if (skb_linearize(skb) < 0)
-		return NET_RX_DROP;
+		return false;
 
-	bat_priv->bat_algo_ops->bat_ogm_receive(hard_iface, skb);
-
-	kfree_skb(skb);
-	return NET_RX_SUCCESS;
+	return true;
 }
 
 static int recv_my_icmp_packet(struct bat_priv *bat_priv,

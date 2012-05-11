@@ -558,10 +558,10 @@ static bool is_type_dhcprequest(struct sk_buff *skb, int header_len)
 			p++;
 
 			/* ...and then we jump over the data */
-			if (pkt_len < *p)
+			if (pkt_len < 1 + (*p))
 				goto out;
-			pkt_len -= *p;
-			p += (*p);
+			pkt_len -= 1 + (*p);
+			p += 1 + (*p);
 		}
 	}
 out:

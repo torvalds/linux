@@ -155,6 +155,12 @@ void mesh_free(struct net_device *soft_iface);
 void inc_module_count(void);
 void dec_module_count(void);
 int is_my_mac(const uint8_t *addr);
+int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
+		    struct packet_type *ptype, struct net_device *orig_dev);
+int recv_handler_register(uint8_t packet_type,
+			  int (*recv_handler)(struct sk_buff *,
+					      struct hard_iface *));
+void recv_handler_unregister(uint8_t packet_type);
 int bat_algo_register(struct bat_algo_ops *bat_algo_ops);
 int bat_algo_select(struct bat_priv *bat_priv, char *name);
 int bat_algo_seq_print_text(struct seq_file *seq, void *offset);

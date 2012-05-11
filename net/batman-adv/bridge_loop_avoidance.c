@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2011-2012 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich
  *

@@ -52,7 +52,7 @@ struct hard_iface {
 /**
  *	orig_node - structure for orig_list maintaining nodes of mesh
  *	@primary_addr: hosts primary interface address
- *	@last_valid: when last packet from this node was received
+ *	@last_seen: when last packet from this node was received
  *	@bcast_seqno_reset: time when the broadcast seqno window was reset
  *	@batman_seqno_reset: time when the batman seqno window was reset
  *	@gw_flags: flags related to gateway class
@@ -70,7 +70,7 @@ struct orig_node {
 	struct neigh_node __rcu *router; /* rcu protected pointer */
 	unsigned long *bcast_own;
 	uint8_t *bcast_own_sum;
-	unsigned long last_valid;
+	unsigned long last_seen;
 	unsigned long bcast_seqno_reset;
 	unsigned long batman_seqno_reset;
 	uint8_t gw_flags;
@@ -120,7 +120,7 @@ struct gw_node {
 
 /**
  *	neigh_node
- *	@last_valid: when last packet via this neighbor was received
+ *	@last_seen: when last packet via this neighbor was received
  */
 struct neigh_node {
 	struct hlist_node list;
@@ -131,7 +131,7 @@ struct neigh_node {
 	uint8_t tq_avg;
 	uint8_t last_ttl;
 	struct list_head bonding_list;
-	unsigned long last_valid;
+	unsigned long last_seen;
 	DECLARE_BITMAP(real_bits, TQ_LOCAL_WINDOW_SIZE);
 	atomic_t refcount;
 	struct rcu_head rcu;
@@ -381,18 +381,17 @@ struct bat_algo_ops {
 	int (*bat_iface_enable)(struct hard_iface *hard_iface);
 	/* de-init routing info when hard-interface is disabled */
 	void (*bat_iface_disable)(struct hard_iface *hard_iface);
+	/* (re-)init mac addresses of the protocol information
+	 * belonging to this hard-interface
+	 */
+	void (*bat_iface_update_mac)(struct hard_iface *hard_iface);
 	/* called when primary interface is selected / changed */
 	void (*bat_primary_iface_set)(struct hard_iface *hard_iface);
-	/* init mac addresses of the OGM belonging to this hard-interface */
-	void (*bat_ogm_update_mac)(struct hard_iface *hard_iface);
 	/* prepare a new outgoing OGM for the send queue */
 	void (*bat_ogm_schedule)(struct hard_iface *hard_iface,
 				 int tt_num_changes);
 	/* send scheduled OGM */
 	void (*bat_ogm_emit)(struct forw_packet *forw_packet);
-	/* receive incoming OGM */
-	void (*bat_ogm_receive)(struct hard_iface *if_incoming,
-				struct sk_buff *skb);
 };
 
 #endif /* _NET_BATMAN_ADV_TYPES_H_ */
