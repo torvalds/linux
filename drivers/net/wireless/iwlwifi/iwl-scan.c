@@ -617,7 +617,8 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
  */
 
 static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
-			      const u8 *ies, int ie_len, int left)
+			      const u8 *ies, int ie_len, const u8 *ssid,
+			      u8 ssid_len, int left)
 {
 	int len = 0;
 	u8 *pos = NULL;
@@ -639,14 +640,18 @@ static u16 iwl_fill_probe_req(struct ieee80211_mgmt *frame, const u8 *ta,
 	/* ...next IE... */
 	pos = &frame->u.probe_req.variable[0];
 
-	/* fill in our indirect SSID IE */
-	left -= 2;
+	/* fill in our SSID IE */
+	left -= ssid_len + 2;
 	if (left < 0)
 		return 0;
 	*pos++ = WLAN_EID_SSID;
-	*pos++ = 0;
+	*pos++ = ssid_len;
+	if (ssid && ssid_len) {
+		memcpy(pos, ssid, ssid_len);
+		pos += ssid_len;
+	}
 
-	len += 2;
+	len += ssid_len + 2;
 
 	if (WARN_ON(left < ie_len))
 		return len;
@@ -683,6 +688,8 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	int scan_cmd_size = sizeof(struct iwl_scan_cmd) +
 			    MAX_SCAN_CHANNEL * sizeof(struct iwl_scan_channel) +
 			    priv->fw->ucode_capa.max_probe_length;
+	const u8 *ssid = NULL;
+	u8 ssid_len = 0;
 
 	if (WARN_ON_ONCE(priv->scan_request &&
 			 priv->scan_request->n_channels > MAX_SCAN_CHANNEL))
@@ -753,10 +760,14 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		if (priv->scan_request->n_ssids) {
 			int i, p = 0;
 			IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
-			for (i = 0; i < priv->scan_request->n_ssids; i++) {
-				/* always does wildcard anyway */
-				if (!priv->scan_request->ssids[i].ssid_len)
-					continue;
+			/*
+			 * The highest priority SSID is inserted to the
+			 * probe request template.
+			 */
+			ssid_len = priv->scan_request->ssids[0].ssid_len;
+			ssid = priv->scan_request->ssids[0].ssid;
+
+			for (i = 1; i < priv->scan_request->n_ssids; i++) {
 				scan->direct_scan[p].id = WLAN_EID_SSID;
 				scan->direct_scan[p].len =
 					priv->scan_request->ssids[i].ssid_len;
@@ -890,6 +901,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 					vif->addr,
 					priv->scan_request->ie,
 					priv->scan_request->ie_len,
+					ssid, ssid_len,
 					scan_cmd_size - sizeof(*scan));
 		break;
 	case IWL_SCAN_RADIO_RESET:
@@ -898,6 +910,7 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 		cmd_len = iwl_fill_probe_req(
 					(struct ieee80211_mgmt *)scan->data,
 					iwl_bcast_addr, NULL, 0,
+					NULL, 0,
 					scan_cmd_size - sizeof(*scan));
 		break;
 	default:
