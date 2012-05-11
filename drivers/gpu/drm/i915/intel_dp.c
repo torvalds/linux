@@ -2066,25 +2066,23 @@ g4x_dp_detect(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	uint32_t temp, bit;
+	uint32_t bit;
 
 	switch (intel_dp->output_reg) {
 	case DP_B:
-		bit = DPB_HOTPLUG_INT_STATUS;
+		bit = DPB_HOTPLUG_LIVE_STATUS;
 		break;
 	case DP_C:
-		bit = DPC_HOTPLUG_INT_STATUS;
+		bit = DPC_HOTPLUG_LIVE_STATUS;
 		break;
 	case DP_D:
-		bit = DPD_HOTPLUG_INT_STATUS;
+		bit = DPD_HOTPLUG_LIVE_STATUS;
 		break;
 	default:
 		return connector_status_unknown;
 	}
 
-	temp = I915_READ(PORT_HOTPLUG_STAT);
-
-	if ((temp & bit) == 0)
+	if ((I915_READ(PORT_HOTPLUG_STAT) & bit) == 0)
 		return connector_status_disconnected;
 
 	return intel_dp_detect_dpcd(intel_dp);

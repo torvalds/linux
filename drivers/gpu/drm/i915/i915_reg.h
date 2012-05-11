@@ -1558,12 +1558,21 @@
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 
 #define PORT_HOTPLUG_STAT	0x61114
-#define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
-#define   DPB_HOTPLUG_INT_STATUS		(1 << 29)
-#define   HDMIC_HOTPLUG_INT_STATUS		(1 << 28)
-#define   DPC_HOTPLUG_INT_STATUS		(1 << 28)
-#define   HDMID_HOTPLUG_INT_STATUS		(1 << 27)
-#define   DPD_HOTPLUG_INT_STATUS		(1 << 27)
+/* HDMI/DP bits are gen4+ */
+#define   DPB_HOTPLUG_LIVE_STATUS               (1 << 29)
+#define   DPC_HOTPLUG_LIVE_STATUS               (1 << 28)
+#define   DPD_HOTPLUG_LIVE_STATUS               (1 << 27)
+#define   DPD_HOTPLUG_INT_STATUS		(3 << 21)
+#define   DPC_HOTPLUG_INT_STATUS		(3 << 19)
+#define   DPB_HOTPLUG_INT_STATUS		(3 << 17)
+/* HDMI bits are shared with the DP bits */
+#define   HDMIB_HOTPLUG_LIVE_STATUS             (1 << 29)
+#define   HDMIC_HOTPLUG_LIVE_STATUS             (1 << 28)
+#define   HDMID_HOTPLUG_LIVE_STATUS             (1 << 27)
+#define   HDMID_HOTPLUG_INT_STATUS		(3 << 21)
+#define   HDMIC_HOTPLUG_INT_STATUS		(3 << 19)
+#define   HDMIB_HOTPLUG_INT_STATUS		(3 << 17)
+/* CRT/TV/SDVO common between gen3+ */
 #define   CRT_HOTPLUG_INT_STATUS		(1 << 11)
 #define   TV_HOTPLUG_INT_STATUS			(1 << 10)
 #define   CRT_HOTPLUG_MONITOR_MASK		(3 << 8)
