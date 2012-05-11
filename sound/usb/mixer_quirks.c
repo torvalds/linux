@@ -79,16 +79,8 @@ static int snd_create_std_mono_ctl(struct usb_mixer_interface *mixer,
 	cval->control = control;
 	cval->cmask = cmask;
 
-	/* FIXME: Do we need this?
-	 * The following values are for compatibility with
-	 * Ebox-44 mixer.
-	 * But the corresponding ebox-44 function says:
-	 *    "Volume controls will override these values"
-	 *
-	 * These values don't have any effect at all for
-	 * M-Audio FTUs.
-	 * So I think, we can safely omit the range settings here.
-	 */
+	/* get_min_max() is called only for integer volumes later,
+	 * so provide a short-cut for booleans */
 	cval->min = 0;
 	cval->max = 1;
 	cval->res = 0;
