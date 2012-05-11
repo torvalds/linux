@@ -478,8 +478,11 @@ void __init omap4xxx_check_revision(void)
 	case 0xb94e:
 		switch (rev) {
 		case 0:
-		default:
 			omap_revision = OMAP4460_REV_ES1_0;
+			break;
+		case 2:
+		default:
+			omap_revision = OMAP4460_REV_ES1_1;
 			break;
 		}
 		break;
