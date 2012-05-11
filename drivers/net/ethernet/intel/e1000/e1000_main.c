@@ -4391,30 +4391,6 @@ e1000_alloc_jumbo_rx_buffers(struct e1000_adapter *adapter,
 			break;
 		}
 
-		/* Fix for errata 23, can't cross 64kB boundary */
-		if (!e1000_check_64k_bound(adapter, skb->data, bufsz)) {
-			struct sk_buff *oldskb = skb;
-			e_err(rx_err, "skb align check failed: %u bytes at "
-			      "%p\n", bufsz, skb->data);
-			/* Try again, without freeing the previous */
-			skb = netdev_alloc_skb_ip_align(netdev, bufsz);
-			/* Failed allocation, critical failure */
-			if (!skb) {
-				dev_kfree_skb(oldskb);
-				adapter->alloc_rx_buff_failed++;
-				break;
-			}
-
-			if (!e1000_check_64k_bound(adapter, skb->data, bufsz)) {
-				/* give up */
-				dev_kfree_skb(skb);
-				dev_kfree_skb(oldskb);
-				break; /* while (cleaned_count--) */
-			}
-
-			/* Use new allocation */
-			dev_kfree_skb(oldskb);
-		}
 		buffer_info->skb = skb;
 		buffer_info->length = adapter->rx_buffer_len;
 check_page:
