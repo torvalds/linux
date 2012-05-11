@@ -5,7 +5,11 @@
 menuconfig IPACK_BUS
 	tristate "IndustryPack bus support"
 	---help---
-	  If you say Y here you get support for the IndustryPack Framework.
+	  If you say Y here you get support for the IndustryPack Framework
+	  for drivers for many types of boards that support this industrial
+	  bus. The IndustryPack Framework is a virtual bus allowing to
+	  communicate between carrier and mezzanine cards connected through
+	  this bus.
 
 if IPACK_BUS
 
