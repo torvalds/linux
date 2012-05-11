@@ -2144,7 +2144,6 @@ static void __init patch_window_trap_handlers(void)
 {
 	unsigned long *iaddr, *daddr;
 	
-	PATCH_BRANCH(tsetup_mmu_patchme, tsetup_srmmu_stackchk);
 	PATCH_BRANCH(rtrap_mmu_patchme, srmmu_rett_stackchk);
 }
 
