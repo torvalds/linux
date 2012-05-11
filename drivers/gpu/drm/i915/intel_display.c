@@ -2782,6 +2782,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
+	assert_transcoder_disabled(dev_priv, pipe);
+
 	/* For PCH output, training FDI link */
 	dev_priv->display.fdi_link_train(crtc);
 
