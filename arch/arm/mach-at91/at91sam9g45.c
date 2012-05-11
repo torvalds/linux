@@ -176,6 +176,12 @@ static struct clk vdec_clk = {
 	.type		= CLK_TYPE_PERIPHERAL,
 };
 
+static struct clk adc_op_clk = {
+	.name		= "adc_op_clk",
+	.type		= CLK_TYPE_PERIPHERAL,
+	.rate_hz	= 13200000,
+};
+
 static struct clk *periph_clocks[] __initdata = {
 	&pioA_clk,
 	&pioB_clk,
@@ -204,6 +210,7 @@ static struct clk *periph_clocks[] __initdata = {
 	&isi_clk,
 	&udphs_clk,
 	&mmc1_clk,
+	&adc_op_clk,
 	// irq0
 };
 
@@ -242,6 +249,8 @@ static struct clk_lookup periph_clocks_lookups[] = {
 	CLKDEV_CON_ID("pioC", &pioC_clk),
 	CLKDEV_CON_ID("pioD", &pioDE_clk),
 	CLKDEV_CON_ID("pioE", &pioDE_clk),
+	/* Fake adc clock */
+	CLKDEV_CON_ID("adc_clk", &tsc_clk),
 };
 
 static struct clk_lookup usart_clocks_lookups[] = {

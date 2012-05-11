@@ -27,6 +27,8 @@
 #include <linux/atmel-mci.h>
 #include <linux/delay.h>
 
+#include <linux/platform_data/at91_adc.h>
+
 #include <mach/hardware.h>
 #include <video/atmel_lcdc.h>
 #include <media/soc_camera.h>
@@ -315,6 +317,14 @@ static struct at91_tsadcc_data ek_tsadcc_data = {
 	.ts_sample_hold_time	= 0x0a,
 };
 
+/*
+ * ADCs
+ */
+static struct at91_adc_data ek_adc_data = {
+	.channels_used = BIT(0) | BIT(1) | BIT(2) | BIT(3) | BIT(4) | BIT(5) | BIT(6) | BIT(7),
+	.use_external_triggers = true,
+	.vref = 3300,
+};
 
 /*
  * GPIO Buttons
@@ -480,6 +490,8 @@ static void __init ek_board_init(void)
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Touch Screen */
 	at91_add_device_tsadcc(&ek_tsadcc_data);
+	/* ADC */
+	at91_add_device_adc(&ek_adc_data);
 	/* Push Buttons */
 	ek_add_device_buttons();
 	/* AC97 */
