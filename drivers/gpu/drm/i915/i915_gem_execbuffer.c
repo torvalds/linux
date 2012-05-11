@@ -1064,21 +1064,18 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ring = &dev_priv->ring[RCS];
 		break;
 	case I915_EXEC_BSD:
-		if (!HAS_BSD(dev)) {
-			DRM_DEBUG("execbuf with invalid ring (BSD)\n");
-			return -EINVAL;
-		}
 		ring = &dev_priv->ring[VCS];
 		break;
 	case I915_EXEC_BLT:
-		if (!HAS_BLT(dev)) {
-			DRM_DEBUG("execbuf with invalid ring (BLT)\n");
-			return -EINVAL;
-		}
 		ring = &dev_priv->ring[BCS];
 		break;
 	default:
 		DRM_DEBUG("execbuf with unknown ring: %d\n",
+			  (int)(args->flags & I915_EXEC_RING_MASK));
+		return -EINVAL;
+	}
+	if (!intel_ring_initialized(ring)) {
+		DRM_DEBUG("execbuf with invalid ring: %d\n",
 			  (int)(args->flags & I915_EXEC_RING_MASK));
 		return -EINVAL;
 	}
