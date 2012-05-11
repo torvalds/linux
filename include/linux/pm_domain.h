@@ -14,6 +14,7 @@
 #include <linux/pm.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/notifier.h>
 
 enum gpd_status {
 	GPD_STATE_ACTIVE = 0,	/* PM domain is active */
@@ -70,9 +71,9 @@ struct generic_pm_domain {
 	int (*power_on)(struct generic_pm_domain *domain);
 	s64 power_on_latency_ns;
 	struct gpd_dev_ops dev_ops;
-	s64 break_even_ns;	/* Power break even for the entire domain. */
 	s64 max_off_time_ns;	/* Maximum allowed "suspended" time. */
-	ktime_t power_off_time;
+	bool max_off_time_changed;
+	bool cached_power_down_ok;
 	struct device_node *of_node; /* Node in device tree */
 };
 
@@ -93,13 +94,17 @@ struct gpd_timing_data {
 	s64 start_latency_ns;
 	s64 save_state_latency_ns;
 	s64 restore_state_latency_ns;
-	s64 break_even_ns;
+	s64 effective_constraint_ns;
+	bool constraint_changed;
+	bool cached_stop_ok;
 };
 
 struct generic_pm_domain_data {
 	struct pm_domain_data base;
 	struct gpd_dev_ops ops;
 	struct gpd_timing_data td;
+	struct notifier_block nb;
+	struct mutex lock;
 	bool need_restore;
 	bool always_on;
 };
