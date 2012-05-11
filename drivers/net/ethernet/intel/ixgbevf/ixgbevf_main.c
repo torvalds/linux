@@ -307,7 +307,7 @@ static inline void ixgbevf_rx_checksum(struct ixgbevf_adapter *adapter,
 	skb_checksum_none_assert(skb);
 
 	/* Rx csum disabled */
-	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
+	if (!(adapter->netdev->features & NETIF_F_RXCSUM))
 		return;
 
 	/* if IP and error */
@@ -2077,9 +2077,6 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	adapter->tx_ring_count = IXGBEVF_DEFAULT_TXD;
 	adapter->rx_ring_count = IXGBEVF_DEFAULT_RXD;
 
-	/* enable rx csum by default */
-	adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
-
 	set_bit(__IXGBEVF_DOWN, &adapter->state);
 	return 0;
 
@@ -3112,19 +3109,6 @@ static struct rtnl_link_stats64 *ixgbevf_get_stats(struct net_device *netdev,
 	return stats;
 }
 
-static int ixgbevf_set_features(struct net_device *netdev,
-	netdev_features_t features)
-{
-	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
-
-	if (features & NETIF_F_RXCSUM)
-		adapter->flags |= IXGBE_FLAG_RX_CSUM_ENABLED;
-	else
-		adapter->flags &= ~IXGBE_FLAG_RX_CSUM_ENABLED;
-
-	return 0;
-}
-
 static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_open		= ixgbevf_open,
 	.ndo_stop		= ixgbevf_close,
@@ -3137,7 +3121,6 @@ static const struct net_device_ops ixgbe_netdev_ops = {
 	.ndo_tx_timeout		= ixgbevf_tx_timeout,
 	.ndo_vlan_rx_add_vid	= ixgbevf_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= ixgbevf_vlan_rx_kill_vid,
-	.ndo_set_features	= ixgbevf_set_features,
 };
 
 static void ixgbevf_assign_netdev_ops(struct net_device *dev)

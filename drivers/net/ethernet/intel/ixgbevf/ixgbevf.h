@@ -207,8 +207,7 @@ struct ixgbevf_adapter {
 	 * thus the additional *_CAPABLE flags.
 	 */
 	u32 flags;
-#define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
-#define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 1)
+#define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1)
 
 	/* OS defined structs */
 	struct net_device *netdev;
