@@ -108,8 +108,7 @@ static int watchdog_stop(struct watchdog_device *wddev)
 	int err = -EBUSY;
 
 	if (test_bit(WDOG_NO_WAY_OUT, &wddev->status)) {
-		pr_info("%s: nowayout prevents watchdog to be stopped!\n",
-							wddev->info->identity);
+		dev_info(wddev->dev, "nowayout prevents watchdog being stopped!\n");
 		return err;
 	}
 
@@ -324,7 +323,7 @@ static int watchdog_release(struct inode *inode, struct file *file)
 
 	/* If the watchdog was not stopped, send a keepalive ping */
 	if (err < 0) {
-		pr_crit("%s: watchdog did not stop!\n", wdd->info->identity);
+		dev_crit(wdd->dev, "watchdog did not stop!\n");
 		watchdog_ping(wdd);
 	}
 
