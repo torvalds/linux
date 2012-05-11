@@ -273,7 +273,7 @@ void omap_sram_idle(void)
 	per_next_state = pwrdm_read_next_pwrst(per_pwrdm);
 	core_next_state = pwrdm_read_next_pwrst(core_pwrdm);
 
-	pwrdm_pre_transition();
+	pwrdm_pre_transition(NULL);
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
@@ -338,7 +338,7 @@ void omap_sram_idle(void)
 	}
 	omap3_intc_resume_idle();
 
-	pwrdm_post_transition();
+	pwrdm_post_transition(NULL);
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON)
