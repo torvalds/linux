@@ -72,9 +72,6 @@
 #include "bits.h"
 #include "debug.h"
 
-/* MSM specific */
-#define ABS_AHBBURST        (0x0090UL)
-#define ABS_AHBMODE         (0x0098UL)
 /* Controller register map */
 static uintptr_t ci_regs_nolpm[] = {
 	[CAP_CAPLENGTH]		= 0x000UL,
