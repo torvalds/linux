@@ -6,11 +6,11 @@
 	model = "Compulab TrimSlice board";
 	compatible = "compulab,trimslice", "nvidia,tegra20";
 
-	memory@0 {
+	memory {
 		reg = <0x00000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 

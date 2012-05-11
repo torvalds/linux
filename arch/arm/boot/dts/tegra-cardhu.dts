@@ -10,7 +10,7 @@
 		reg = <0x80000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -156,7 +156,7 @@
 		support-8bit;
 	};
 
-	ahub@70080000 {
+	ahub {
 		i2s@70080300 {
 			status = "disable";
 		};

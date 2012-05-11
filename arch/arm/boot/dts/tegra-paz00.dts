@@ -6,11 +6,11 @@
 	model = "Toshiba AC100 / Dynabook AZ";
 	compatible = "compal,paz00", "nvidia,tegra20";
 
-	memory@0 {
+	memory {
 		reg = <0x00000000 0x20000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -245,7 +245,7 @@
 		status = "disable";
 	};
 
-	nvec@7000c500 {
+	nvec {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nvidia,nvec";

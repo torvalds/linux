@@ -4,12 +4,12 @@
 	compatible = "nvidia,tegra30";
 	interrupt-parent = <&intc>;
 
-	pmc@7000f400 {
+	pmc {
 		compatible = "nvidia,tegra20-pmc", "nvidia,tegra30-pmc";
 		reg = <0x7000e400 0x400>;
 	};
 
-	intc: interrupt-controller@50041000 {
+	intc: interrupt-controller {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
@@ -25,7 +25,7 @@
 			      0 147 0x04>;
 	};
 
-	apbdma: dma@6000a000 {
+	apbdma: dma {
 		compatible = "nvidia,tegra30-apbdma", "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1400>;
 		interrupts = <0 104 0x04
@@ -102,7 +102,7 @@
 		interrupts = <0 53 0x04>;
 	};
 
-	gpio: gpio@6000d000 {
+	gpio: gpio {
 		compatible = "nvidia,tegra30-gpio", "nvidia,tegra20-gpio";
 		reg = <0x6000d000 0x1000>;
 		interrupts = <0 32 0x04
@@ -178,7 +178,7 @@
 		interrupts = <0 31 0x04>;
 	};
 
-	pinmux: pinmux@70000000 {
+	pinmux: pinmux {
 		compatible = "nvidia,tegra30-pinmux";
 		reg = <0x70000868 0xd0    /* Pad control registers */
 		       0x70003000 0x3e0>; /* Mux registers */
@@ -225,7 +225,7 @@
 		};
 	};
 
-	ahb: ahb@6000c004 {
+	ahb: ahb {
 		compatible = "nvidia,tegra30-ahb";
 		reg = <0x6000c004 0x14c>; /* AHB Arbitration + Gizmo Controller */
 	};

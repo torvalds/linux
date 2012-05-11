@@ -6,11 +6,11 @@
 	model = "NVIDIA Tegra2 Harmony evaluation board";
 	compatible = "nvidia,harmony", "nvidia,tegra20";
 
-	memory@0 {
+	memory {
 		reg = <0x00000000 0x40000000>;
 	};
 
-	pinmux@70000000 {
+	pinmux {
 		pinctrl-names = "default";
 		pinctrl-0 = <&state_default>;
 
@@ -234,7 +234,7 @@
 		};
 	};
 
-	pmc@7000f400 {
+	pmc {
 		nvidia,invert-interrupt;
 	};
 
