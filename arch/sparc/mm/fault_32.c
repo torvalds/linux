@@ -60,14 +60,11 @@ unsigned long probe_memory(void)
 	return total;
 }
 
-extern void sun4c_complete_all_stores(void);
-
 /* Whee, a level 15 NMI interrupt memory error.  Let's have fun... */
 asmlinkage void sparc_lvl15_nmi(struct pt_regs *regs, unsigned long serr,
 				unsigned long svaddr, unsigned long aerr,
 				unsigned long avaddr)
 {
-	sun4c_complete_all_stores();
 	printk("FAULT: NMI received\n");
 	printk("SREGS: Synchronous Error %08lx\n", serr);
 	printk("       Synchronous Vaddr %08lx\n", svaddr);

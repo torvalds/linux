@@ -308,7 +308,6 @@ void check_pgt_cache(void)
  * init routine based upon the Sun model type on the Sparc.
  *
  */
-extern void sun4c_paging_init(void);
 extern void srmmu_paging_init(void);
 extern void device_scan(void);
 
@@ -318,13 +317,6 @@ EXPORT_SYMBOL(PAGE_SHARED);
 void __init paging_init(void)
 {
 	switch(sparc_cpu_model) {
-	case sun4c:
-	case sun4e:
-	case sun4:
-		sun4c_paging_init();
-		sparc_unmapped_base = 0xe0000000;
-		BTFIXUPSET_SETHI(sparc_unmapped_base, 0xe0000000);
-		break;
 	case sparc_leon:
 		leon_init();
 		/* fall through */
