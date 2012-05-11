@@ -80,7 +80,6 @@ struct hw_bank {
 /* CI13XXX UDC descriptor & global resources */
 struct ci13xxx {
 	spinlock_t		   lock;      /* ctrl register bank access */
-	void __iomem              *regs;      /* registers address space */
 
 	struct dma_pool           *qh_pool;   /* DMA pool for queue heads */
 	struct dma_pool           *td_pool;   /* DMA pool for transfer descs */

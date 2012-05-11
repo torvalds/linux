@@ -15,7 +15,7 @@
 
 #include "ci.h"
 
-#define MSM_USB_BASE	(udc->regs)
+#define MSM_USB_BASE	(udc->hw_bank.abs)
 
 static void ci13xxx_msm_notify_event(struct ci13xxx *udc, unsigned event)
 {
