@@ -1120,9 +1120,14 @@ static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+	spin_lock(&adapter->mbx_lock);
+
 	/* add VID to filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, true);
+
+	spin_unlock(&adapter->mbx_lock);
+
 	set_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -1133,9 +1138,14 @@ static int ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+	spin_lock(&adapter->mbx_lock);
+
 	/* remove VID from filter table */
 	if (hw->mac.ops.set_vfta)
 		hw->mac.ops.set_vfta(hw, vid, 0, false);
+
+	spin_unlock(&adapter->mbx_lock);
+
 	clear_bit(vid, adapter->active_vlans);
 
 	return 0;
@@ -1190,11 +1200,15 @@ static void ixgbevf_set_rx_mode(struct net_device *netdev)
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 
+	spin_lock(&adapter->mbx_lock);
+
 	/* reprogram multicast list */
 	if (hw->mac.ops.update_mc_addr_list)
 		hw->mac.ops.update_mc_addr_list(hw, netdev);
 
 	ixgbevf_write_uc_addr_list(netdev);
+
+	spin_unlock(&adapter->mbx_lock);
 }
 
 static void ixgbevf_napi_enable_all(struct ixgbevf_adapter *adapter)
@@ -1339,6 +1353,8 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 
 	ixgbevf_configure_msix(adapter);
 
+	spin_lock(&adapter->mbx_lock);
+
 	if (hw->mac.ops.set_rar) {
 		if (is_valid_ether_addr(hw->mac.addr))
 			hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0);
@@ -1349,6 +1365,8 @@ static void ixgbevf_up_complete(struct ixgbevf_adapter *adapter)
 	msg[0] = IXGBE_VF_SET_LPE;
 	msg[1] = netdev->mtu + ETH_HLEN + ETH_FCS_LEN;
 	hw->mbx.ops.write_posted(hw, msg, 2);
+
+	spin_unlock(&adapter->mbx_lock);
 
 	clear_bit(__IXGBEVF_DOWN, &adapter->state);
 	ixgbevf_napi_enable_all(adapter);
@@ -1562,10 +1580,14 @@ void ixgbevf_reset(struct ixgbevf_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct net_device *netdev = adapter->netdev;
 
+	spin_lock(&adapter->mbx_lock);
+
 	if (hw->mac.ops.reset_hw(hw))
 		hw_dbg(hw, "PF still resetting\n");
 	else
 		hw->mac.ops.init_hw(hw);
+
+	spin_unlock(&adapter->mbx_lock);
 
 	if (is_valid_ether_addr(adapter->hw.mac.addr)) {
 		memcpy(netdev->dev_addr, adapter->hw.mac.addr,
@@ -1893,6 +1915,9 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 			adapter->netdev->addr_len);
 	}
 
+	/* lock to protect mailbox accesses */
+	spin_lock_init(&adapter->mbx_lock);
+
 	/* Enable dynamic interrupt throttling rates */
 	adapter->rx_itr_setting = 1;
 	adapter->tx_itr_setting = 1;
@@ -2032,8 +2057,16 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 	 * no LSC interrupt
 	 */
 	if (hw->mac.ops.check_link) {
-		if ((hw->mac.ops.check_link(hw, &link_speed,
-					    &link_up, false)) != 0) {
+		s32 need_reset;
+
+		spin_lock(&adapter->mbx_lock);
+
+		need_reset = hw->mac.ops.check_link(hw, &link_speed,
+						    &link_up, false);
+
+		spin_unlock(&adapter->mbx_lock);
+
+		if (need_reset) {
 			adapter->link_up = link_up;
 			adapter->link_speed = link_speed;
 			netif_carrier_off(netdev);
@@ -2813,8 +2846,12 @@ static int ixgbevf_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(hw->mac.addr, addr->sa_data, netdev->addr_len);
 
+	spin_lock(&adapter->mbx_lock);
+
 	if (hw->mac.ops.set_rar)
 		hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0);
+
+	spin_unlock(&adapter->mbx_lock);
 
 	return 0;
 }
