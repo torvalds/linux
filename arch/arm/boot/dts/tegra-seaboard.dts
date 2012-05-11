@@ -257,6 +257,30 @@
 		};
 	};
 
+	i2s@70002a00 {
+		status = "disable";
+	};
+
+	serial@70006000 {
+		status = "disable";
+	};
+
+	serial@70006040 {
+		status = "disable";
+	};
+
+	serial@70006200 {
+		status = "disable";
+	};
+
+	serial@70006300 {
+		clock-frequency = <216000000>;
+	};
+
+	serial@70006400 {
+		status = "disable";
+	};
+
 	i2c@7000c000 {
 		clock-frequency = <400000>;
 
@@ -321,95 +345,6 @@
 		};
 	};
 
-	i2s@70002a00 {
-		status = "disable";
-	};
-
-	sound {
-		compatible = "nvidia,tegra-audio-wm8903-seaboard",
-			     "nvidia,tegra-audio-wm8903";
-		nvidia,model = "NVIDIA Tegra Seaboard";
-
-		nvidia,audio-routing =
-			"Headphone Jack", "HPOUTR",
-			"Headphone Jack", "HPOUTL",
-			"Int Spk", "ROP",
-			"Int Spk", "RON",
-			"Int Spk", "LOP",
-			"Int Spk", "LON",
-			"Mic Jack", "MICBIAS",
-			"IN1R", "Mic Jack";
-
-		nvidia,i2s-controller = <&tegra_i2s1>;
-		nvidia,audio-codec = <&wm8903>;
-
-		nvidia,spkr-en-gpios = <&wm8903 2 0>;
-		nvidia,hp-det-gpios = <&gpio 185 0>; /* gpio PX1 */
-	};
-
-	serial@70006000 {
-		status = "disable";
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		clock-frequency = <216000000>;
-	};
-
-	serial@70006400 {
-		status = "disable";
-	};
-
-	sdhci@c8000000 {
-		status = "disable";
-	};
-
-	sdhci@c8000200 {
-		status = "disable";
-	};
-
-	sdhci@c8000400 {
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
-		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
-		power-gpios = <&gpio 70 0>; /* gpio PI6 */
-	};
-
-	sdhci@c8000600 {
-		support-8bit;
-	};
-
-	usb@c5000000 {
-		nvidia,vbus-gpio = <&gpio 24 0>; /* PD0 */
-		dr_mode = "otg";
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		power {
-			label = "Power";
-			gpios = <&gpio 170 1>; /* gpio PV2, active low */
-			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
-		};
-
-		lid {
-			label = "Lid";
-			gpios = <&gpio 23 0>; /* gpio PC7 */
-			linux,input-type = <5>; /* EV_SW */
-			linux,code = <0>; /* SW_LID */
-			debounce-interval = <1>;
-			gpio-key,wakeup;
-		};
-	};
-
 	emc {
 		emc-table@190000 {
 			reg = <190000>;
@@ -448,7 +383,72 @@
 		};
 	};
 
+	usb@c5000000 {
+		nvidia,vbus-gpio = <&gpio 24 0>; /* PD0 */
+		dr_mode = "otg";
+	};
+
 	usb@c5004000 {
 		nvidia,phy-reset-gpio = <&gpio 169 0>; /* gpio PV1 */
+	};
+
+	sdhci@c8000000 {
+		status = "disable";
+	};
+
+	sdhci@c8000200 {
+		status = "disable";
+	};
+
+	sdhci@c8000400 {
+		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
+		power-gpios = <&gpio 70 0>; /* gpio PI6 */
+	};
+
+	sdhci@c8000600 {
+		support-8bit;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		power {
+			label = "Power";
+			gpios = <&gpio 170 1>; /* gpio PV2, active low */
+			linux,code = <116>; /* KEY_POWER */
+			gpio-key,wakeup;
+		};
+
+		lid {
+			label = "Lid";
+			gpios = <&gpio 23 0>; /* gpio PC7 */
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <0>; /* SW_LID */
+			debounce-interval = <1>;
+			gpio-key,wakeup;
+		};
+	};
+
+	sound {
+		compatible = "nvidia,tegra-audio-wm8903-seaboard",
+			     "nvidia,tegra-audio-wm8903";
+		nvidia,model = "NVIDIA Tegra Seaboard";
+
+		nvidia,audio-routing =
+			"Headphone Jack", "HPOUTR",
+			"Headphone Jack", "HPOUTL",
+			"Int Spk", "ROP",
+			"Int Spk", "RON",
+			"Int Spk", "LOP",
+			"Int Spk", "LON",
+			"Mic Jack", "MICBIAS",
+			"IN1R", "Mic Jack";
+
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&wm8903>;
+
+		nvidia,spkr-en-gpios = <&wm8903 2 0>;
+		nvidia,hp-det-gpios = <&gpio 185 0>; /* gpio PX1 */
 	};
 };

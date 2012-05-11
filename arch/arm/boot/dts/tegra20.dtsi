@@ -4,23 +4,12 @@
 	compatible = "nvidia,tegra20";
 	interrupt-parent = <&intc>;
 
-	pmc {
-		compatible = "nvidia,tegra20-pmc";
-		reg = <0x7000e400 0x400>;
-	};
-
 	intc: interrupt-controller {
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		reg = <0x50041000 0x1000
 		       0x50040100 0x0100>;
-	};
-
-	pmu {
-		compatible = "arm,cortex-a9-pmu";
-		interrupts = <0 56 0x04
-			      0 57 0x04>;
 	};
 
 	apbdma: dma {
@@ -44,55 +33,9 @@
 			      0 119 0x04>;
 	};
 
-	i2c@7000c000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "nvidia,tegra20-i2c";
-		reg = <0x7000c000 0x100>;
-		interrupts = <0 38 0x04>;
-	};
-
-	i2c@7000c400 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "nvidia,tegra20-i2c";
-		reg = <0x7000c400 0x100>;
-		interrupts = <0 84 0x04>;
-	};
-
-	i2c@7000c500 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "nvidia,tegra20-i2c";
-		reg = <0x7000c500 0x100>;
-		interrupts = <0 92 0x04>;
-	};
-
-	i2c@7000d000 {
-		#address-cells = <1>;
-		#size-cells = <0>;
-		compatible = "nvidia,tegra20-i2c-dvc";
-		reg = <0x7000d000 0x200>;
-		interrupts = <0 53 0x04>;
-	};
-
-	tegra_i2s1: i2s@70002800 {
-		compatible = "nvidia,tegra20-i2s";
-		reg = <0x70002800 0x200>;
-		interrupts = <0 13 0x04>;
-		nvidia,dma-request-selector = <&apbdma 2>;
-	};
-
-	tegra_i2s2: i2s@70002a00 {
-		compatible = "nvidia,tegra20-i2s";
-		reg = <0x70002a00 0x200>;
-		interrupts = <0 3 0x04>;
-		nvidia,dma-request-selector = <&apbdma 1>;
-	};
-
-	das {
-		compatible = "nvidia,tegra20-das";
-		reg = <0x70000c00 0x80>;
+	ahb {
+		compatible = "nvidia,tegra20-ahb";
+		reg = <0x6000c004 0x10c>; /* AHB Arbitration + Gizmo Controller */
 	};
 
 	gpio: gpio {
@@ -117,6 +60,25 @@
 		       0x70000080 0x20   /* Mux registers */
 		       0x700000a0 0x14   /* Pull-up/down registers */
 		       0x70000868 0xa8>; /* Pad control registers */
+	};
+
+	das {
+		compatible = "nvidia,tegra20-das";
+		reg = <0x70000c00 0x80>;
+	};
+
+	tegra_i2s1: i2s@70002800 {
+		compatible = "nvidia,tegra20-i2s";
+		reg = <0x70002800 0x200>;
+		interrupts = <0 13 0x04>;
+		nvidia,dma-request-selector = <&apbdma 2>;
+	};
+
+	tegra_i2s2: i2s@70002a00 {
+		compatible = "nvidia,tegra20-i2s";
+		reg = <0x70002a00 0x200>;
+		interrupts = <0 3 0x04>;
+		nvidia,dma-request-selector = <&apbdma 1>;
 	};
 
 	serial@70006000 {
@@ -154,11 +116,83 @@
 		interrupts = <0 91 0x04>;
 	};
 
+	i2c@7000c000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nvidia,tegra20-i2c";
+		reg = <0x7000c000 0x100>;
+		interrupts = <0 38 0x04>;
+	};
+
+	i2c@7000c400 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nvidia,tegra20-i2c";
+		reg = <0x7000c400 0x100>;
+		interrupts = <0 84 0x04>;
+	};
+
+	i2c@7000c500 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nvidia,tegra20-i2c";
+		reg = <0x7000c500 0x100>;
+		interrupts = <0 92 0x04>;
+	};
+
+	i2c@7000d000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "nvidia,tegra20-i2c-dvc";
+		reg = <0x7000d000 0x200>;
+		interrupts = <0 53 0x04>;
+	};
+
+	pmc {
+		compatible = "nvidia,tegra20-pmc";
+		reg = <0x7000e400 0x400>;
+	};
+
+	mc {
+		compatible = "nvidia,tegra20-mc";
+		reg = <0x7000f000 0x024
+		       0x7000f03c 0x3c4>;
+		interrupts = <0 77 0x04>;
+	};
+
+	gart {
+		compatible = "nvidia,tegra20-gart";
+		reg = <0x7000f024 0x00000018	/* controller registers */
+		       0x58000000 0x02000000>;	/* GART aperture */
+	};
+
 	emc {
 		#address-cells = <1>;
 		#size-cells = <0>;
 		compatible = "nvidia,tegra20-emc";
 		reg = <0x7000f400 0x200>;
+	};
+
+	usb@c5000000 {
+		compatible = "nvidia,tegra20-ehci", "usb-ehci";
+		reg = <0xc5000000 0x4000>;
+		interrupts = <0 20 0x04>;
+		phy_type = "utmi";
+		nvidia,has-legacy-mode;
+	};
+
+	usb@c5004000 {
+		compatible = "nvidia,tegra20-ehci", "usb-ehci";
+		reg = <0xc5004000 0x4000>;
+		interrupts = <0 21 0x04>;
+		phy_type = "ulpi";
+	};
+
+	usb@c5008000 {
+		compatible = "nvidia,tegra20-ehci", "usb-ehci";
+		reg = <0xc5008000 0x4000>;
+		interrupts = <0 97 0x04>;
+		phy_type = "utmi";
 	};
 
 	sdhci@c8000000 {
@@ -185,43 +219,9 @@
 		interrupts = <0 31 0x04>;
 	};
 
-	usb@c5000000 {
-		compatible = "nvidia,tegra20-ehci", "usb-ehci";
-		reg = <0xc5000000 0x4000>;
-		interrupts = <0 20 0x04>;
-		phy_type = "utmi";
-		nvidia,has-legacy-mode;
-	};
-
-	usb@c5004000 {
-		compatible = "nvidia,tegra20-ehci", "usb-ehci";
-		reg = <0xc5004000 0x4000>;
-		interrupts = <0 21 0x04>;
-		phy_type = "ulpi";
-	};
-
-	usb@c5008000 {
-		compatible = "nvidia,tegra20-ehci", "usb-ehci";
-		reg = <0xc5008000 0x4000>;
-		interrupts = <0 97 0x04>;
-		phy_type = "utmi";
-	};
-
-	ahb {
-		compatible = "nvidia,tegra20-ahb";
-		reg = <0x6000c004 0x10c>; /* AHB Arbitration + Gizmo Controller */
-	};
-
-	mc {
-		compatible = "nvidia,tegra20-mc";
-		reg = <0x7000f000 0x024
-		       0x7000f03c 0x3c4>;
-		interrupts = <0 77 0x04>;
-	};
-
-	gart {
-		compatible = "nvidia,tegra20-gart";
-		reg = <0x7000f024 0x00000018	/* controller registers */
-		       0x58000000 0x02000000>;	/* GART aperture */
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 56 0x04
+			      0 57 0x04>;
 	};
 };

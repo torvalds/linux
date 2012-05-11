@@ -240,6 +240,30 @@
 		};
 	};
 
+	i2s@70002a00 {
+		status = "disable";
+	};
+
+	serial@70006000 {
+		clock-frequency = <216000000>;
+	};
+
+	serial@70006040 {
+		status = "disable";
+	};
+
+	serial@70006200 {
+		status = "disable";
+	};
+
+	serial@70006300 {
+		status = "disable";
+	};
+
+	serial@70006400 {
+		status = "disable";
+	};
+
 	i2c@7000c000 {
 		clock-frequency = <400000>;
 	};
@@ -266,34 +290,8 @@
 		status = "disable";
 	};
 
-	i2s@70002a00 {
-		status = "disable";
-	};
-
-	sound {
-		compatible = "nvidia,tegra-audio-trimslice";
-		nvidia,i2s-controller = <&tegra_i2s1>;
-		nvidia,audio-codec = <&codec>;
-	};
-
-	serial@70006000 {
-		clock-frequency = <216000000>;
-	};
-
-	serial@70006040 {
-		status = "disable";
-	};
-
-	serial@70006200 {
-		status = "disable";
-	};
-
-	serial@70006300 {
-		status = "disable";
-	};
-
-	serial@70006400 {
-		status = "disable";
+	usb@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
 	};
 
 	sdhci@c8000200 {
@@ -309,7 +307,9 @@
 		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
 	};
 
-	usb@c5004000 {
-		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+	sound {
+		compatible = "nvidia,tegra-audio-trimslice";
+		nvidia,i2s-controller = <&tegra_i2s1>;
+		nvidia,audio-codec = <&codec>;
 	};
 };

@@ -138,24 +138,6 @@
 		};
 	};
 
-	sdhci@78000000 {
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
-		wp-gpios = <&gpio 155 0>; /* gpio PT3 */
-		power-gpios = <&gpio 31 0>; /* gpio PD7 */
-	};
-
-	sdhci@78000200 {
-		status = "disable";
-	};
-
-	sdhci@78000400 {
-		status = "disable";
-	};
-
-	sdhci@78000600 {
-		support-8bit;
-	};
-
 	ahub {
 		i2s@70080300 {
 			status = "disable";
@@ -172,6 +154,24 @@
 		i2s@70080700 {
 			status = "disable";
 		};
+	};
+
+	sdhci@78000000 {
+		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+		wp-gpios = <&gpio 155 0>; /* gpio PT3 */
+		power-gpios = <&gpio 31 0>; /* gpio PD7 */
+	};
+
+	sdhci@78000200 {
+		status = "disable";
+	};
+
+	sdhci@78000400 {
+		status = "disable";
+	};
+
+	sdhci@78000600 {
+		support-8bit;
 	};
 
 	sound {
