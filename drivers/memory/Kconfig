@@ -21,8 +21,14 @@ config TI_EMIF
 	  temperature changes
 
 config TEGRA20_MC
-	bool
+	bool "Tegra20 Memory Controller(MC) driver"
+	default y
 	depends on ARCH_TEGRA_2x_SOC
+	help
+	  This driver is for the Memory Controller(MC) module available
+	  in Tegra20 SoCs, mainly for a address translation fault
+	  analysis, especially for IOMMU/GART(Graphics Address
+	  Relocation Table) module.
 
 config TEGRA30_MC
 	bool
