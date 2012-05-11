@@ -295,26 +295,33 @@ static ssize_t iio_read_channel_info(struct device *dev,
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	int val, val2;
+	bool scale_db = false;
 	int ret = indio_dev->info->read_raw(indio_dev, this_attr->c,
 					    &val, &val2, this_attr->address);
 
 	if (ret < 0)
 		return ret;
 
-	if (ret == IIO_VAL_INT)
+	switch (ret) {
+	case IIO_VAL_INT:
 		return sprintf(buf, "%d\n", val);
-	else if (ret == IIO_VAL_INT_PLUS_MICRO) {
+	case IIO_VAL_INT_PLUS_MICRO_DB:
+		scale_db = true;
+	case IIO_VAL_INT_PLUS_MICRO:
 		if (val2 < 0)
-			return sprintf(buf, "-%d.%06u\n", val, -val2);
+			return sprintf(buf, "-%d.%06u%s\n", val, -val2,
+				scale_db ? " dB" : "");
 		else
-			return sprintf(buf, "%d.%06u\n", val, val2);
-	} else if (ret == IIO_VAL_INT_PLUS_NANO) {
+			return sprintf(buf, "%d.%06u%s\n", val, val2,
+				scale_db ? " dB" : "");
+	case IIO_VAL_INT_PLUS_NANO:
 		if (val2 < 0)
 			return sprintf(buf, "-%d.%09u\n", val, -val2);
 		else
 			return sprintf(buf, "%d.%09u\n", val, val2);
-	} else
+	default:
 		return 0;
+	}
 }
 
 static ssize_t iio_write_channel_info(struct device *dev,
