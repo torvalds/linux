@@ -34,9 +34,7 @@ struct vga_switcheroo_client {
 	struct pci_dev *pdev;
 	struct fb_info *fb_info;
 	int pwr_state;
-	void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state);
-	void (*reprobe)(struct pci_dev *pdev);
-	bool (*can_switch)(struct pci_dev *pdev);
+	const struct vga_switcheroo_client_ops *ops;
 	int id;
 	bool active;
 	struct list_head list;
@@ -109,9 +107,7 @@ static void vga_switcheroo_enable(void)
 }
 
 int vga_switcheroo_register_client(struct pci_dev *pdev,
-				   void (*set_gpu_state)(struct pci_dev *pdev, enum vga_switcheroo_state),
-				   void (*reprobe)(struct pci_dev *pdev),
-				   bool (*can_switch)(struct pci_dev *pdev))
+				   const struct vga_switcheroo_client_ops *ops)
 {
 	struct vga_switcheroo_client *client;
 
@@ -121,9 +117,7 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 
 	client->pwr_state = VGA_SWITCHEROO_ON;
 	client->pdev = pdev;
-	client->set_gpu_state = set_gpu_state;
-	client->reprobe = reprobe;
-	client->can_switch = can_switch;
+	client->ops = ops;
 	client->id = -1;
 	if (pdev == vga_default_device())
 		client->active = true;
@@ -230,7 +224,7 @@ static int vga_switchon(struct vga_switcheroo_client *client)
 	if (vgasr_priv.handler->power_state)
 		vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_ON);
 	/* call the driver callback to turn on device */
-	client->set_gpu_state(client->pdev, VGA_SWITCHEROO_ON);
+	client->ops->set_gpu_state(client->pdev, VGA_SWITCHEROO_ON);
 	client->pwr_state = VGA_SWITCHEROO_ON;
 	return 0;
 }
@@ -238,7 +232,7 @@ static int vga_switchon(struct vga_switcheroo_client *client)
 static int vga_switchoff(struct vga_switcheroo_client *client)
 {
 	/* call the driver callback to turn off device */
-	client->set_gpu_state(client->pdev, VGA_SWITCHEROO_OFF);
+	client->ops->set_gpu_state(client->pdev, VGA_SWITCHEROO_OFF);
 	if (vgasr_priv.handler->power_state)
 		vgasr_priv.handler->power_state(client->id, VGA_SWITCHEROO_OFF);
 	client->pwr_state = VGA_SWITCHEROO_OFF;
@@ -284,8 +278,8 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	if (ret)
 		return ret;
 
-	if (new_client->reprobe)
-		new_client->reprobe(new_client->pdev);
+	if (new_client->ops->reprobe)
+		new_client->ops->reprobe(new_client->pdev);
 
 	if (active->pwr_state == VGA_SWITCHEROO_ON)
 		vga_switchoff(active);
@@ -299,7 +293,7 @@ static bool check_can_switch(void)
 	struct vga_switcheroo_client *client;
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
-		if (!client->can_switch(client->pdev)) {
+		if (!client->ops->can_switch(client->pdev)) {
 			printk(KERN_ERR "vga_switcheroo: client %x refused switch\n", client->id);
 			return false;
 		}
