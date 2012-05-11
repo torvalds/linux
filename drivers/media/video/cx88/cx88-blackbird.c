@@ -35,6 +35,7 @@
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 #include <media/cx2341x.h>
 
 #include "cx88.h"
@@ -1053,7 +1054,7 @@ mpeg_poll(struct file *file, struct poll_table_struct *wait)
 	if (!dev->mpeg_active && (req_events & (POLLIN | POLLRDNORM)))
 		blackbird_start_codec(file, fh);
 
-	return videobuf_poll_stream(file, &fh->mpegq, wait);
+	return v4l2_ctrl_poll(file, wait) | videobuf_poll_stream(file, &fh->mpegq, wait);
 }
 
 static int
@@ -1096,6 +1097,8 @@ static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_s_std         = vidioc_s_std,
+	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 };
 
 static struct video_device cx8802_mpeg_template = {

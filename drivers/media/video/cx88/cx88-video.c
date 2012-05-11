@@ -40,6 +40,7 @@
 #include "cx88.h"
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 #include <media/wm8775.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx2388x based TV cards");
@@ -823,12 +824,12 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	struct video_device *vdev = video_devdata(file);
 	struct cx8800_fh *fh = file->private_data;
 	struct cx88_buffer *buf;
-	unsigned int rc = POLLERR;
+	unsigned int rc = v4l2_ctrl_poll(file, wait);
 
 	if (vdev->vfl_type == VFL_TYPE_VBI) {
 		if (!res_get(fh->dev,fh,RESOURCE_VBI))
-			return POLLERR;
-		return videobuf_poll_stream(file, &fh->vbiq, wait);
+			return rc | POLLERR;
+		return rc | videobuf_poll_stream(file, &fh->vbiq, wait);
 	}
 
 	mutex_lock(&fh->vidq.vb_lock);
@@ -846,9 +847,7 @@ video_poll(struct file *file, struct poll_table_struct *wait)
 	poll_wait(file, &buf->vb.done, wait);
 	if (buf->vb.state == VIDEOBUF_DONE ||
 	    buf->vb.state == VIDEOBUF_ERROR)
-		rc = POLLIN|POLLRDNORM;
-	else
-		rc = 0;
+		rc |= POLLIN|POLLRDNORM;
 done:
 	mutex_unlock(&fh->vidq.vb_lock);
 	return rc;
@@ -1561,6 +1560,8 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
@@ -1581,6 +1582,7 @@ static const struct v4l2_file_operations radio_fops =
 {
 	.owner         = THIS_MODULE,
 	.open          = video_open,
+	.poll          = v4l2_ctrl_poll,
 	.release       = video_release,
 	.unlocked_ioctl = video_ioctl2,
 };
@@ -1591,6 +1593,8 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_tuner       = radio_s_tuner,
 	.vidioc_g_frequency   = vidioc_g_frequency,
 	.vidioc_s_frequency   = vidioc_s_frequency,
+	.vidioc_subscribe_event      = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event    = v4l2_event_unsubscribe,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
