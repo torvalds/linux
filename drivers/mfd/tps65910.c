@@ -218,15 +218,13 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	if (!pmic_plat_data)
 		return -EINVAL;
 
-	init_data = kzalloc(sizeof(struct tps65910_platform_data), GFP_KERNEL);
+	init_data = devm_kzalloc(&i2c->dev, sizeof(*init_data), GFP_KERNEL);
 	if (init_data == NULL)
 		return -ENOMEM;
 
-	tps65910 = kzalloc(sizeof(struct tps65910), GFP_KERNEL);
-	if (tps65910 == NULL) {
-		kfree(init_data);
+	tps65910 = devm_kzalloc(&i2c->dev, sizeof(*tps65910), GFP_KERNEL);
+	if (tps65910 == NULL)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(i2c, tps65910);
 	tps65910->dev = &i2c->dev;
@@ -234,18 +232,20 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 	tps65910->id = chip_id;
 	mutex_init(&tps65910->io_mutex);
 
-	tps65910->regmap = regmap_init_i2c(i2c, &tps65910_regmap_config);
+	tps65910->regmap = devm_regmap_init_i2c(i2c, &tps65910_regmap_config);
 	if (IS_ERR(tps65910->regmap)) {
 		ret = PTR_ERR(tps65910->regmap);
 		dev_err(&i2c->dev, "regmap initialization failed: %d\n", ret);
-		goto regmap_err;
+		return ret;
 	}
 
 	ret = mfd_add_devices(tps65910->dev, -1,
 			      tps65910s, ARRAY_SIZE(tps65910s),
 			      NULL, 0);
-	if (ret < 0)
-		goto err;
+	if (ret < 0) {
+		dev_err(&i2c->dev, "mfd_add_devices failed: %d\n", ret);
+		return ret;
+	}
 
 	init_data->irq = pmic_plat_data->irq;
 	init_data->irq_base = pmic_plat_data->irq_base;
@@ -256,14 +256,6 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 
 	tps65910_sleepinit(tps65910, pmic_plat_data);
 
-	kfree(init_data);
-	return ret;
-
-err:
-	regmap_exit(tps65910->regmap);
-regmap_err:
-	kfree(tps65910);
-	kfree(init_data);
 	return ret;
 }
 
@@ -273,8 +265,6 @@ static __devexit int tps65910_i2c_remove(struct i2c_client *i2c)
 
 	tps65910_irq_exit(tps65910);
 	mfd_remove_devices(tps65910->dev);
-	regmap_exit(tps65910->regmap);
-	kfree(tps65910);
 
 	return 0;
 }
