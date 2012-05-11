@@ -62,6 +62,9 @@ struct dss_reg {
 #define REG_FLD_MOD(idx, val, start, end) \
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
 
+static int dss_runtime_get(void);
+static void dss_runtime_put(void);
+
 static struct {
 	struct platform_device *pdev;
 	void __iomem    *base;
@@ -277,7 +280,7 @@ void dss_dump_clocks(struct seq_file *s)
 	dss_runtime_put();
 }
 
-void dss_dump_regs(struct seq_file *s)
+static void dss_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, dss_read_reg(r))
 
@@ -707,7 +710,7 @@ static void dss_put_clocks(void)
 	clk_put(dss.dss_clk);
 }
 
-int dss_runtime_get(void)
+static int dss_runtime_get(void)
 {
 	int r;
 
@@ -718,7 +721,7 @@ int dss_runtime_get(void)
 	return r < 0 ? r : 0;
 }
 
-void dss_runtime_put(void)
+static void dss_runtime_put(void)
 {
 	int r;
 
@@ -741,7 +744,7 @@ void dss_debug_dump_clocks(struct seq_file *s)
 #endif
 
 /* DSS HW IP initialisation */
-static int omap_dsshw_probe(struct platform_device *pdev)
+static int __init omap_dsshw_probe(struct platform_device *pdev)
 {
 	struct resource *dss_mem;
 	u32 rev;
@@ -786,40 +789,24 @@ static int omap_dsshw_probe(struct platform_device *pdev)
 	dss.lcd_clk_source[0] = OMAP_DSS_CLK_SRC_FCK;
 	dss.lcd_clk_source[1] = OMAP_DSS_CLK_SRC_FCK;
 
-	r = dpi_init();
-	if (r) {
-		DSSERR("Failed to initialize DPI\n");
-		goto err_dpi;
-	}
-
-	r = sdi_init();
-	if (r) {
-		DSSERR("Failed to initialize SDI\n");
-		goto err_sdi;
-	}
-
 	rev = dss_read_reg(DSS_REVISION);
 	printk(KERN_INFO "OMAP DSS rev %d.%d\n",
 			FLD_GET(rev, 7, 4), FLD_GET(rev, 3, 0));
 
 	dss_runtime_put();
 
+	dss_debugfs_create_file("dss", dss_dump_regs);
+
 	return 0;
-err_sdi:
-	dpi_exit();
-err_dpi:
-	dss_runtime_put();
+
 err_runtime_get:
 	pm_runtime_disable(&pdev->dev);
 	dss_put_clocks();
 	return r;
 }
 
-static int omap_dsshw_remove(struct platform_device *pdev)
+static int __exit omap_dsshw_remove(struct platform_device *pdev)
 {
-	dpi_exit();
-	sdi_exit();
-
 	pm_runtime_disable(&pdev->dev);
 
 	dss_put_clocks();
@@ -858,8 +845,7 @@ static const struct dev_pm_ops dss_pm_ops = {
 };
 
 static struct platform_driver omap_dsshw_driver = {
-	.probe          = omap_dsshw_probe,
-	.remove         = omap_dsshw_remove,
+	.remove         = __exit_p(omap_dsshw_remove),
 	.driver         = {
 		.name   = "omapdss_dss",
 		.owner  = THIS_MODULE,
@@ -867,12 +853,12 @@ static struct platform_driver omap_dsshw_driver = {
 	},
 };
 
-int dss_init_platform_driver(void)
+int __init dss_init_platform_driver(void)
 {
-	return platform_driver_register(&omap_dsshw_driver);
+	return platform_driver_probe(&omap_dsshw_driver, omap_dsshw_probe);
 }
 
 void dss_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omap_dsshw_driver);
+	platform_driver_unregister(&omap_dsshw_driver);
 }

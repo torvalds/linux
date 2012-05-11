@@ -819,7 +819,7 @@ int omap_rfbi_update(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omap_rfbi_update);
 
-void rfbi_dump_regs(struct seq_file *s)
+static void rfbi_dump_regs(struct seq_file *s)
 {
 #define DUMPREG(r) seq_printf(s, "%-35s %08x\n", #r, rfbi_read_reg(r))
 
@@ -920,15 +920,39 @@ void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_rfbi_display_disable);
 
-int rfbi_init_display(struct omap_dss_device *dssdev)
+static int __init rfbi_init_display(struct omap_dss_device *dssdev)
 {
 	rfbi.dssdev[dssdev->phy.rfbi.channel] = dssdev;
 	dssdev->caps = OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE;
 	return 0;
 }
 
+static void __init rfbi_probe_pdata(struct platform_device *pdev)
+{
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int i, r;
+
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_DBI)
+			continue;
+
+		r = rfbi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+				dssdev->name, r);
+	}
+}
+
 /* RFBI HW IP initialisation */
-static int omap_rfbihw_probe(struct platform_device *pdev)
+static int __init omap_rfbihw_probe(struct platform_device *pdev)
 {
 	u32 rev;
 	struct resource *rfbi_mem;
@@ -976,6 +1000,10 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 
 	rfbi_runtime_put();
 
+	dss_debugfs_create_file("rfbi", rfbi_dump_regs);
+
+	rfbi_probe_pdata(pdev);
+
 	return 0;
 
 err_runtime_get:
@@ -983,8 +1011,9 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_rfbihw_remove(struct platform_device *pdev)
+static int __exit omap_rfbihw_remove(struct platform_device *pdev)
 {
+	omap_dss_unregister_child_devices(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	return 0;
 }
@@ -992,7 +1021,6 @@ static int omap_rfbihw_remove(struct platform_device *pdev)
 static int rfbi_runtime_suspend(struct device *dev)
 {
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	return 0;
 }
@@ -1001,20 +1029,11 @@ static int rfbi_runtime_resume(struct device *dev)
 {
 	int r;
 
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r < 0)
-		goto err_get_dispc;
+		return r;
 
 	return 0;
-
-err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static const struct dev_pm_ops rfbi_pm_ops = {
@@ -1023,8 +1042,7 @@ static const struct dev_pm_ops rfbi_pm_ops = {
 };
 
 static struct platform_driver omap_rfbihw_driver = {
-	.probe          = omap_rfbihw_probe,
-	.remove         = omap_rfbihw_remove,
+	.remove         = __exit_p(omap_rfbihw_remove),
 	.driver         = {
 		.name   = "omapdss_rfbi",
 		.owner  = THIS_MODULE,
@@ -1032,12 +1050,12 @@ static struct platform_driver omap_rfbihw_driver = {
 	},
 };
 
-int rfbi_init_platform_driver(void)
+int __init rfbi_init_platform_driver(void)
 {
-	return platform_driver_register(&omap_rfbihw_driver);
+	return platform_driver_probe(&omap_rfbihw_driver, omap_rfbihw_probe);
 }
 
-void rfbi_uninit_platform_driver(void)
+void __exit rfbi_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omap_rfbihw_driver);
+	platform_driver_unregister(&omap_rfbihw_driver);
 }

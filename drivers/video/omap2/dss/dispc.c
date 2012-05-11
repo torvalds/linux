@@ -131,23 +131,6 @@ static inline u32 dispc_read_reg(const u16 idx)
 	return __raw_readl(dispc.base + idx);
 }
 
-static int dispc_get_ctx_loss_count(void)
-{
-	struct device *dev = &dispc.pdev->dev;
-	struct omap_display_platform_data *pdata = dev->platform_data;
-	struct omap_dss_board_info *board_data = pdata->board_data;
-	int cnt;
-
-	if (!board_data->get_context_loss_count)
-		return -ENOENT;
-
-	cnt = board_data->get_context_loss_count(dev);
-
-	WARN_ONCE(cnt < 0, "get_context_loss_count failed: %d\n", cnt);
-
-	return cnt;
-}
-
 #define SR(reg) \
 	dispc.ctx[DISPC_##reg / sizeof(u32)] = dispc_read_reg(DISPC_##reg)
 #define RR(reg) \
@@ -251,7 +234,7 @@ static void dispc_save_context(void)
 	if (dss_has_feature(FEAT_CORE_CLK_DIV))
 		SR(DIVISOR);
 
-	dispc.ctx_loss_cnt = dispc_get_ctx_loss_count();
+	dispc.ctx_loss_cnt = dss_get_ctx_loss_count(&dispc.pdev->dev);
 	dispc.ctx_valid = true;
 
 	DSSDBG("context saved, ctx_loss_count %d\n", dispc.ctx_loss_cnt);
@@ -266,7 +249,7 @@ static void dispc_restore_context(void)
 	if (!dispc.ctx_valid)
 		return;
 
-	ctx = dispc_get_ctx_loss_count();
+	ctx = dss_get_ctx_loss_count(&dispc.pdev->dev);
 
 	if (ctx >= 0 && ctx == dispc.ctx_loss_cnt)
 		return;
@@ -2778,7 +2761,7 @@ void dispc_dump_irqs(struct seq_file *s)
 }
 #endif
 
-void dispc_dump_regs(struct seq_file *s)
+static void dispc_dump_regs(struct seq_file *s)
 {
 	int i, j;
 	const char *mgr_names[] = {
@@ -3499,7 +3482,7 @@ static void _omap_dispc_initial_config(void)
 }
 
 /* DISPC HW IP initialisation */
-static int omap_dispchw_probe(struct platform_device *pdev)
+static int __init omap_dispchw_probe(struct platform_device *pdev)
 {
 	u32 rev;
 	int r = 0;
@@ -3568,6 +3551,11 @@ static int omap_dispchw_probe(struct platform_device *pdev)
 
 	dispc_runtime_put();
 
+	dss_debugfs_create_file("dispc", dispc_dump_regs);
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	dss_debugfs_create_file("dispc_irq", dispc_dump_irqs);
+#endif
 	return 0;
 
 err_runtime_get:
@@ -3576,7 +3564,7 @@ err_runtime_get:
 	return r;
 }
 
-static int omap_dispchw_remove(struct platform_device *pdev)
+static int __exit omap_dispchw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
 
@@ -3588,19 +3576,12 @@ static int omap_dispchw_remove(struct platform_device *pdev)
 static int dispc_runtime_suspend(struct device *dev)
 {
 	dispc_save_context();
-	dss_runtime_put();
 
 	return 0;
 }
 
 static int dispc_runtime_resume(struct device *dev)
 {
-	int r;
-
-	r = dss_runtime_get();
-	if (r < 0)
-		return r;
-
 	dispc_restore_context();
 
 	return 0;
@@ -3612,8 +3593,7 @@ static const struct dev_pm_ops dispc_pm_ops = {
 };
 
 static struct platform_driver omap_dispchw_driver = {
-	.probe          = omap_dispchw_probe,
-	.remove         = omap_dispchw_remove,
+	.remove         = __exit_p(omap_dispchw_remove),
 	.driver         = {
 		.name   = "omapdss_dispc",
 		.owner  = THIS_MODULE,
@@ -3621,12 +3601,12 @@ static struct platform_driver omap_dispchw_driver = {
 	},
 };
 
-int dispc_init_platform_driver(void)
+int __init dispc_init_platform_driver(void)
 {
-	return platform_driver_register(&omap_dispchw_driver);
+	return platform_driver_probe(&omap_dispchw_driver, omap_dispchw_probe);
 }
 
-void dispc_uninit_platform_driver(void)
+void __exit dispc_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omap_dispchw_driver);
+	platform_driver_unregister(&omap_dispchw_driver);
 }

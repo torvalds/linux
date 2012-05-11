@@ -63,7 +63,6 @@
 
 static struct {
 	struct mutex lock;
-	struct omap_display_platform_data *pdata;
 	struct platform_device *pdev;
 	struct hdmi_ip_data ip_data;
 
@@ -130,25 +129,12 @@ static int hdmi_runtime_get(void)
 
 	DSSDBG("hdmi_runtime_get\n");
 
-	/*
-	 * HACK: Add dss_runtime_get() to ensure DSS clock domain is enabled.
-	 * This should be removed later.
-	 */
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = pm_runtime_get_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
 	if (r < 0)
-		goto err_get_hdmi;
+		return r;
 
 	return 0;
-
-err_get_hdmi:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static void hdmi_runtime_put(void)
@@ -159,15 +145,9 @@ static void hdmi_runtime_put(void)
 
 	r = pm_runtime_put_sync(&hdmi.pdev->dev);
 	WARN_ON(r < 0);
-
-	/*
-	 * HACK: This is added to complement the dss_runtime_get() call in
-	 * hdmi_runtime_get(). This should be removed later.
-	 */
-	dss_runtime_put();
 }
 
-int hdmi_init_display(struct omap_dss_device *dssdev)
+static int __init hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
@@ -440,7 +420,7 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev)
 	}
 }
 
-void hdmi_dump_regs(struct seq_file *s)
+static void hdmi_dump_regs(struct seq_file *s)
 {
 	mutex_lock(&hdmi.lock);
 
@@ -791,13 +771,36 @@ static void hdmi_put_clocks(void)
 		clk_put(hdmi.sys_clk);
 }
 
+static void __init hdmi_probe_pdata(struct platform_device *pdev)
+{
+	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
+	int r, i;
+
+	for (i = 0; i < pdata->num_devices; ++i) {
+		struct omap_dss_device *dssdev = pdata->devices[i];
+
+		if (dssdev->type != OMAP_DISPLAY_TYPE_HDMI)
+			continue;
+
+		r = hdmi_init_display(dssdev);
+		if (r) {
+			DSSERR("device %s init failed: %d\n", dssdev->name, r);
+			continue;
+		}
+
+		r = omap_dss_register_device(dssdev, &pdev->dev, i);
+		if (r)
+			DSSERR("device %s register failed: %d\n",
+					dssdev->name, r);
+	}
+}
+
 /* HDMI HW IP initialisation */
-static int omapdss_hdmihw_probe(struct platform_device *pdev)
+static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 {
 	struct resource *hdmi_mem;
 	int r;
 
-	hdmi.pdata = pdev->dev.platform_data;
 	hdmi.pdev = pdev;
 
 	mutex_init(&hdmi.lock);
@@ -831,6 +834,10 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 
 	hdmi_panel_init();
 
+	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
+
+	hdmi_probe_pdata(pdev);
+
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
 	defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI_MODULE)
 
@@ -845,8 +852,10 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int omapdss_hdmihw_remove(struct platform_device *pdev)
+static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 {
+	omap_dss_unregister_child_devices(&pdev->dev);
+
 	hdmi_panel_exit();
 
 #if defined(CONFIG_SND_OMAP_SOC_OMAP4_HDMI) || \
@@ -868,7 +877,6 @@ static int hdmi_runtime_suspend(struct device *dev)
 	clk_disable(hdmi.sys_clk);
 
 	dispc_runtime_put();
-	dss_runtime_put();
 
 	return 0;
 }
@@ -877,23 +885,13 @@ static int hdmi_runtime_resume(struct device *dev)
 {
 	int r;
 
-	r = dss_runtime_get();
-	if (r < 0)
-		goto err_get_dss;
-
 	r = dispc_runtime_get();
 	if (r < 0)
-		goto err_get_dispc;
-
+		return r;
 
 	clk_enable(hdmi.sys_clk);
 
 	return 0;
-
-err_get_dispc:
-	dss_runtime_put();
-err_get_dss:
-	return r;
 }
 
 static const struct dev_pm_ops hdmi_pm_ops = {
@@ -902,8 +900,7 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 };
 
 static struct platform_driver omapdss_hdmihw_driver = {
-	.probe          = omapdss_hdmihw_probe,
-	.remove         = omapdss_hdmihw_remove,
+	.remove         = __exit_p(omapdss_hdmihw_remove),
 	.driver         = {
 		.name   = "omapdss_hdmi",
 		.owner  = THIS_MODULE,
@@ -911,12 +908,12 @@ static struct platform_driver omapdss_hdmihw_driver = {
 	},
 };
 
-int hdmi_init_platform_driver(void)
+int __init hdmi_init_platform_driver(void)
 {
-	return platform_driver_register(&omapdss_hdmihw_driver);
+	return platform_driver_probe(&omapdss_hdmihw_driver, omapdss_hdmihw_probe);
 }
 
-void hdmi_uninit_platform_driver(void)
+void __exit hdmi_uninit_platform_driver(void)
 {
-	return platform_driver_unregister(&omapdss_hdmihw_driver);
+	platform_driver_unregister(&omapdss_hdmihw_driver);
 }

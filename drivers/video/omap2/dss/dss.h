@@ -159,7 +159,16 @@ struct platform_device;
 struct bus_type *dss_get_bus(void);
 struct regulator *dss_get_vdds_dsi(void);
 struct regulator *dss_get_vdds_sdi(void);
+int dss_get_ctx_loss_count(struct device *dev);
+int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
+void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
+
+int omap_dss_register_device(struct omap_dss_device *dssdev,
+		struct device *parent, int disp_num);
+void omap_dss_unregister_device(struct omap_dss_device *dssdev);
+void omap_dss_unregister_child_devices(struct device *parent);
 
 /* apply */
 void dss_apply_init(void);
@@ -227,18 +236,14 @@ int dss_ovl_check(struct omap_overlay *ovl, struct omap_overlay_info *info,
 		const struct omap_video_timings *mgr_timings);
 
 /* DSS */
-int dss_init_platform_driver(void);
+int dss_init_platform_driver(void) __init;
 void dss_uninit_platform_driver(void);
-
-int dss_runtime_get(void);
-void dss_runtime_put(void);
 
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
 const char *dss_get_generic_clk_source_name(enum omap_dss_clk_source clk_src);
 void dss_dump_clocks(struct seq_file *s);
 
-void dss_dump_regs(struct seq_file *s);
 #if defined(CONFIG_DEBUG_FS) && defined(CONFIG_OMAP2_DSS_DEBUG_SUPPORT)
 void dss_debug_dump_clocks(struct seq_file *s);
 #endif
@@ -268,19 +273,8 @@ int dss_calc_clock_div(bool is_tft, unsigned long req_pck,
 		struct dispc_clock_info *dispc_cinfo);
 
 /* SDI */
-#ifdef CONFIG_OMAP2_DSS_SDI
-int sdi_init(void);
-void sdi_exit(void);
-int sdi_init_display(struct omap_dss_device *display);
-#else
-static inline int sdi_init(void)
-{
-	return 0;
-}
-static inline void sdi_exit(void)
-{
-}
-#endif
+int sdi_init_platform_driver(void) __init;
+void sdi_uninit_platform_driver(void) __exit;
 
 /* DSI */
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -288,19 +282,14 @@ static inline void sdi_exit(void)
 struct dentry;
 struct file_operations;
 
-int dsi_init_platform_driver(void);
-void dsi_uninit_platform_driver(void);
+int dsi_init_platform_driver(void) __init;
+void dsi_uninit_platform_driver(void) __exit;
 
 int dsi_runtime_get(struct platform_device *dsidev);
 void dsi_runtime_put(struct platform_device *dsidev);
 
 void dsi_dump_clocks(struct seq_file *s);
-void dsi_create_debugfs_files_irq(struct dentry *debugfs_dir,
-		const struct file_operations *debug_fops);
-void dsi_create_debugfs_files_reg(struct dentry *debugfs_dir,
-		const struct file_operations *debug_fops);
 
-int dsi_init_display(struct omap_dss_device *display);
 void dsi_irq_handler(void);
 u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
@@ -317,13 +306,6 @@ void dsi_wait_pll_hsdiv_dispc_active(struct platform_device *dsidev);
 void dsi_wait_pll_hsdiv_dsi_active(struct platform_device *dsidev);
 struct platform_device *dsi_get_dsidev_from_id(int module);
 #else
-static inline int dsi_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void dsi_uninit_platform_driver(void)
-{
-}
 static inline int dsi_runtime_get(struct platform_device *dsidev)
 {
 	return 0;
@@ -380,26 +362,13 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 #endif
 
 /* DPI */
-#ifdef CONFIG_OMAP2_DSS_DPI
-int dpi_init(void);
-void dpi_exit(void);
-int dpi_init_display(struct omap_dss_device *dssdev);
-#else
-static inline int dpi_init(void)
-{
-	return 0;
-}
-static inline void dpi_exit(void)
-{
-}
-#endif
+int dpi_init_platform_driver(void) __init;
+void dpi_uninit_platform_driver(void) __exit;
 
 /* DISPC */
-int dispc_init_platform_driver(void);
-void dispc_uninit_platform_driver(void);
+int dispc_init_platform_driver(void) __init;
+void dispc_uninit_platform_driver(void) __exit;
 void dispc_dump_clocks(struct seq_file *s);
-void dispc_dump_irqs(struct seq_file *s);
-void dispc_dump_regs(struct seq_file *s);
 void dispc_irq_handler(void);
 
 int dispc_runtime_get(void);
@@ -463,19 +432,10 @@ void dispc_mgr_setup(enum omap_channel channel,
 
 /* VENC */
 #ifdef CONFIG_OMAP2_DSS_VENC
-int venc_init_platform_driver(void);
-void venc_uninit_platform_driver(void);
-void venc_dump_regs(struct seq_file *s);
-int venc_init_display(struct omap_dss_device *display);
+int venc_init_platform_driver(void) __init;
+void venc_uninit_platform_driver(void) __exit;
 unsigned long venc_get_pixel_clock(void);
 #else
-static inline int venc_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void venc_uninit_platform_driver(void)
-{
-}
 static inline unsigned long venc_get_pixel_clock(void)
 {
 	WARN("%s: VENC not compiled in, returning pclk as 0\n", __func__);
@@ -485,23 +445,10 @@ static inline unsigned long venc_get_pixel_clock(void)
 
 /* HDMI */
 #ifdef CONFIG_OMAP4_DSS_HDMI
-int hdmi_init_platform_driver(void);
-void hdmi_uninit_platform_driver(void);
-int hdmi_init_display(struct omap_dss_device *dssdev);
+int hdmi_init_platform_driver(void) __init;
+void hdmi_uninit_platform_driver(void) __exit;
 unsigned long hdmi_get_pixel_clock(void);
-void hdmi_dump_regs(struct seq_file *s);
 #else
-static inline int hdmi_init_display(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-static inline int hdmi_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void hdmi_uninit_platform_driver(void)
-{
-}
 static inline unsigned long hdmi_get_pixel_clock(void)
 {
 	WARN("%s: HDMI not compiled in, returning pclk as 0\n", __func__);
@@ -519,20 +466,8 @@ int hdmi_panel_init(void);
 void hdmi_panel_exit(void);
 
 /* RFBI */
-#ifdef CONFIG_OMAP2_DSS_RFBI
-int rfbi_init_platform_driver(void);
-void rfbi_uninit_platform_driver(void);
-void rfbi_dump_regs(struct seq_file *s);
-int rfbi_init_display(struct omap_dss_device *display);
-#else
-static inline int rfbi_init_platform_driver(void)
-{
-	return 0;
-}
-static inline void rfbi_uninit_platform_driver(void)
-{
-}
-#endif
+int rfbi_init_platform_driver(void) __init;
+void rfbi_uninit_platform_driver(void) __exit;
 
 
 #ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
