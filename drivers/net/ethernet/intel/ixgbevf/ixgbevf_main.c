@@ -98,8 +98,6 @@ MODULE_PARM_DESC(debug, "Debug level (0=none,...,16=all)");
 
 /* forward decls */
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector);
-static void ixgbevf_write_eitr(struct ixgbevf_adapter *adapter, int v_idx,
-			       u32 itr_reg);
 
 static inline void ixgbevf_release_rx_desc(struct ixgbe_hw *hw,
 					   struct ixgbevf_ring *rx_ring,
@@ -385,13 +383,11 @@ no_buffers:
 }
 
 static inline void ixgbevf_irq_enable_queues(struct ixgbevf_adapter *adapter,
-					     u64 qmask)
+					     u32 qmask)
 {
-	u32 mask;
 	struct ixgbe_hw *hw = &adapter->hw;
 
-	mask = (qmask & 0xFFFFFFFF);
-	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, mask);
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, qmask);
 }
 
 static bool ixgbevf_clean_rx_irq(struct ixgbevf_q_vector *q_vector,
@@ -561,11 +557,10 @@ static int ixgbevf_poll(struct napi_struct *napi, int budget)
 static void ixgbevf_configure_msix(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbevf_q_vector *q_vector;
-	struct ixgbe_hw *hw = &adapter->hw;
 	int q_vectors, v_idx;
-	u32 mask;
 
 	q_vectors = adapter->num_msix_vectors - NON_Q_VECTORS;
+	adapter->eims_enable_mask = 0;
 
 	/*
 	 * Populate the IVAR table and set the ITR values to the
@@ -581,22 +576,30 @@ static void ixgbevf_configure_msix(struct ixgbevf_adapter *adapter)
 		ixgbevf_for_each_ring(ring, q_vector->tx)
 			ixgbevf_set_ivar(adapter, 1, ring->reg_idx, v_idx);
 
-		/* if this is a tx only vector halve the interrupt rate */
-		if (q_vector->tx.ring && !q_vector->rx.ring)
-			q_vector->eitr = (adapter->eitr_param >> 1);
-		else if (q_vector->rx.ring)
-			/* rx only */
-			q_vector->eitr = adapter->eitr_param;
+		if (q_vector->tx.ring && !q_vector->rx.ring) {
+			/* tx only vector */
+			if (adapter->tx_itr_setting == 1)
+				q_vector->itr = IXGBE_10K_ITR;
+			else
+				q_vector->itr = adapter->tx_itr_setting;
+		} else {
+			/* rx or rx/tx vector */
+			if (adapter->rx_itr_setting == 1)
+				q_vector->itr = IXGBE_20K_ITR;
+			else
+				q_vector->itr = adapter->rx_itr_setting;
+		}
 
-		ixgbevf_write_eitr(adapter, v_idx, q_vector->eitr);
+		/* add q_vector eims value to global eims_enable_mask */
+		adapter->eims_enable_mask |= 1 << v_idx;
+
+		ixgbevf_write_eitr(q_vector);
 	}
 
 	ixgbevf_set_ivar(adapter, -1, 1, v_idx);
-
-	/* set up to autoclear timer, and the vectors */
-	mask = IXGBE_EIMS_ENABLE_MASK;
-	mask &= ~IXGBE_EIMS_OTHER;
-	IXGBE_WRITE_REG(hw, IXGBE_VTEIAC, mask);
+	/* setup eims_other and add value to global eims_enable_mask */
+	adapter->eims_other = 1 << v_idx;
+	adapter->eims_enable_mask |= adapter->eims_other;
 }
 
 enum latency_range {
@@ -608,11 +611,8 @@ enum latency_range {
 
 /**
  * ixgbevf_update_itr - update the dynamic ITR value based on statistics
- * @adapter: pointer to adapter
- * @eitr: eitr setting (ints per sec) to give last timeslice
- * @itr_setting: current throttle rate in ints/second
- * @packets: the number of packets during this measurement interval
- * @bytes: the number of bytes during this measurement interval
+ * @q_vector: structure containing interrupt and ring information
+ * @ring_container: structure containing ring performance data
  *
  *      Stores a new ITR value based on packets and byte
  *      counts during the last interrupt.  The advantage of per interrupt
@@ -622,17 +622,17 @@ enum latency_range {
  *      on testing data as well as attempting to minimize response time
  *      while increasing bulk throughput.
  **/
-static u8 ixgbevf_update_itr(struct ixgbevf_adapter *adapter,
-			     u32 eitr, u8 itr_setting,
-			     int packets, int bytes)
+static void ixgbevf_update_itr(struct ixgbevf_q_vector *q_vector,
+			       struct ixgbevf_ring_container *ring_container)
 {
-	unsigned int retval = itr_setting;
+	int bytes = ring_container->total_bytes;
+	int packets = ring_container->total_packets;
 	u32 timepassed_us;
 	u64 bytes_perint;
+	u8 itr_setting = ring_container->itr;
 
 	if (packets == 0)
-		goto update_itr_done;
-
+		return;
 
 	/* simple throttlerate management
 	 *    0-20MB/s lowest (100000 ints/s)
@@ -640,46 +640,48 @@ static u8 ixgbevf_update_itr(struct ixgbevf_adapter *adapter,
 	 *  100-1249MB/s bulk (8000 ints/s)
 	 */
 	/* what was last interrupt timeslice? */
-	timepassed_us = 1000000/eitr;
+	timepassed_us = q_vector->itr >> 2;
 	bytes_perint = bytes / timepassed_us; /* bytes/usec */
 
 	switch (itr_setting) {
 	case lowest_latency:
 		if (bytes_perint > 10)
-			retval = low_latency;
+			itr_setting = low_latency;
 		break;
 	case low_latency:
 		if (bytes_perint > 20)
-			retval = bulk_latency;
+			itr_setting = bulk_latency;
 		else if (bytes_perint <= 10)
-			retval = lowest_latency;
+			itr_setting = lowest_latency;
 		break;
 	case bulk_latency:
 		if (bytes_perint <= 20)
-			retval = low_latency;
+			itr_setting = low_latency;
 		break;
 	}
 
-update_itr_done:
-	return retval;
+	/* clear work counters since we have the values we need */
+	ring_container->total_bytes = 0;
+	ring_container->total_packets = 0;
+
+	/* write updated itr to ring container */
+	ring_container->itr = itr_setting;
 }
 
 /**
  * ixgbevf_write_eitr - write VTEITR register in hardware specific way
- * @adapter: pointer to adapter struct
- * @v_idx: vector index into q_vector array
- * @itr_reg: new value to be written in *register* format, not ints/s
+ * @q_vector: structure containing interrupt and ring information
  *
  * This function is made to be called by ethtool and by the driver
  * when it needs to update VTEITR registers at runtime.  Hardware
  * specific quirks/differences are taken care of here.
  */
-static void ixgbevf_write_eitr(struct ixgbevf_adapter *adapter, int v_idx,
-			       u32 itr_reg)
+void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector)
 {
+	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	struct ixgbe_hw *hw = &adapter->hw;
-
-	itr_reg = EITR_INTS_PER_SEC_TO_REG(itr_reg);
+	int v_idx = q_vector->v_idx;
+	u32 itr_reg = q_vector->itr & IXGBE_MAX_EITR;
 
 	/*
 	 * set the WDIS bit to not clear the timer bits and cause an
@@ -692,59 +694,37 @@ static void ixgbevf_write_eitr(struct ixgbevf_adapter *adapter, int v_idx,
 
 static void ixgbevf_set_itr(struct ixgbevf_q_vector *q_vector)
 {
-	struct ixgbevf_adapter *adapter = q_vector->adapter;
-	u32 new_itr;
-	u8 current_itr, ret_itr;
-	int v_idx = q_vector->v_idx;
-	struct ixgbevf_ring *rx_ring, *tx_ring;
+	u32 new_itr = q_vector->itr;
+	u8 current_itr;
 
-	ixgbevf_for_each_ring(tx_ring, q_vector->tx) {
-		ret_itr = ixgbevf_update_itr(adapter, q_vector->eitr,
-					     q_vector->tx.itr,
-					     tx_ring->total_packets,
-					     tx_ring->total_bytes);
-		/* if the result for this queue would decrease interrupt
-		 * rate for this vector then use that result */
-		q_vector->tx.itr = ((q_vector->tx.itr > ret_itr) ?
-				    q_vector->tx.itr - 1 : ret_itr);
-	}
-
-	ixgbevf_for_each_ring(rx_ring, q_vector->rx) {
-		ret_itr = ixgbevf_update_itr(adapter, q_vector->eitr,
-					     q_vector->rx.itr,
-					     rx_ring->total_packets,
-					     rx_ring->total_bytes);
-		/* if the result for this queue would decrease interrupt
-		 * rate for this vector then use that result */
-		q_vector->rx.itr = ((q_vector->rx.itr > ret_itr) ?
-				    q_vector->rx.itr - 1 : ret_itr);
-	}
+	ixgbevf_update_itr(q_vector, &q_vector->tx);
+	ixgbevf_update_itr(q_vector, &q_vector->rx);
 
 	current_itr = max(q_vector->rx.itr, q_vector->tx.itr);
 
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
 	case lowest_latency:
-		new_itr = 100000;
+		new_itr = IXGBE_100K_ITR;
 		break;
 	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
+		new_itr = IXGBE_20K_ITR;
 		break;
 	case bulk_latency:
 	default:
-		new_itr = 8000;
+		new_itr = IXGBE_8K_ITR;
 		break;
 	}
 
-	if (new_itr != q_vector->eitr) {
-		u32 itr_reg;
-
-		/* save the algorithm value here, not the smoothed one */
-		q_vector->eitr = new_itr;
+	if (new_itr != q_vector->itr) {
 		/* do an exponential smoothing */
-		new_itr = ((q_vector->eitr * 90)/100) + ((new_itr * 10)/100);
-		itr_reg = EITR_INTS_PER_SEC_TO_REG(new_itr);
-		ixgbevf_write_eitr(adapter, v_idx, itr_reg);
+		new_itr = (10 * new_itr * q_vector->itr) /
+			  ((9 * new_itr) + q_vector->itr);
+
+		/* save the algorithm value here */
+		q_vector->itr = new_itr;
+
+		ixgbevf_write_eitr(q_vector);
 	}
 }
 
@@ -752,12 +732,8 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 {
 	struct ixgbevf_adapter *adapter = data;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 eicr;
 	u32 msg;
 	bool got_ack = false;
-
-	eicr = IXGBE_READ_REG(hw, IXGBE_VTEICS);
-	IXGBE_WRITE_REG(hw, IXGBE_VTEICR, eicr);
 
 	if (!hw->mbx.ops.check_for_ack(hw))
 		got_ack = true;
@@ -787,6 +763,8 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 	if (got_ack)
 		hw->mbx.v2p_mailbox |= IXGBE_VFMAILBOX_PFACK;
 
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, adapter->eims_other);
+
 	return IRQ_HANDLED;
 }
 
@@ -799,11 +777,8 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 static irqreturn_t ixgbevf_msix_clean_rings(int irq, void *data)
 {
 	struct ixgbevf_q_vector *q_vector = data;
-	struct ixgbevf_adapter  *adapter = q_vector->adapter;
-	struct ixgbe_hw *hw = &adapter->hw;
 
-	/* disable interrupts on this vector only */
-	IXGBE_WRITE_REG(hw, IXGBE_VTEIMC, 1 << q_vector->v_idx);
+	/* EIAM disabled interrupts (on this vector) for us */
 	if (q_vector->rx.ring || q_vector->tx.ring)
 		napi_schedule(&q_vector->napi);
 
@@ -967,7 +942,6 @@ static inline void ixgbevf_reset_q_vectors(struct ixgbevf_adapter *adapter)
 		q_vector->tx.ring = NULL;
 		q_vector->rx.count = 0;
 		q_vector->tx.count = 0;
-		q_vector->eitr = adapter->eitr_param;
 	}
 }
 
@@ -1020,10 +994,12 @@ static void ixgbevf_free_irq(struct ixgbevf_adapter *adapter)
  **/
 static inline void ixgbevf_irq_disable(struct ixgbevf_adapter *adapter)
 {
-	int i;
 	struct ixgbe_hw *hw = &adapter->hw;
+	int i;
 
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIAM, 0);
 	IXGBE_WRITE_REG(hw, IXGBE_VTEIMC, ~0);
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIAC, 0);
 
 	IXGBE_WRITE_FLUSH(hw);
 
@@ -1035,23 +1011,13 @@ static inline void ixgbevf_irq_disable(struct ixgbevf_adapter *adapter)
  * ixgbevf_irq_enable - Enable default interrupt generation settings
  * @adapter: board private structure
  **/
-static inline void ixgbevf_irq_enable(struct ixgbevf_adapter *adapter,
-				      bool queues, bool flush)
+static inline void ixgbevf_irq_enable(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
-	u32 mask;
-	u64 qmask;
 
-	mask = (IXGBE_EIMS_ENABLE_MASK & ~IXGBE_EIMS_RTX_QUEUE);
-	qmask = ~0;
-
-	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, mask);
-
-	if (queues)
-		ixgbevf_irq_enable_queues(adapter, qmask);
-
-	if (flush)
-		IXGBE_WRITE_FLUSH(hw);
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIAM, adapter->eims_enable_mask);
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIAC, adapter->eims_enable_mask);
+	IXGBE_WRITE_REG(hw, IXGBE_VTEIMS, adapter->eims_enable_mask);
 }
 
 /**
@@ -1414,7 +1380,7 @@ void ixgbevf_up(struct ixgbevf_adapter *adapter)
 	/* clear any pending interrupts, may auto mask */
 	IXGBE_READ_REG(hw, IXGBE_VTEICR);
 
-	ixgbevf_irq_enable(adapter, true, true);
+	ixgbevf_irq_enable(adapter);
 }
 
 /**
@@ -1783,7 +1749,6 @@ static int ixgbevf_alloc_q_vectors(struct ixgbevf_adapter *adapter)
 			goto err_out;
 		q_vector->adapter = adapter;
 		q_vector->v_idx = q_idx;
-		q_vector->eitr = adapter->eitr_param;
 		netif_napi_add(adapter->netdev, &q_vector->napi,
 			       ixgbevf_poll, 64);
 		adapter->q_vector[q_idx] = q_vector;
@@ -1932,8 +1897,8 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	}
 
 	/* Enable dynamic interrupt throttling rates */
-	adapter->eitr_param = 20000;
-	adapter->itr_setting = 1;
+	adapter->rx_itr_setting = 1;
+	adapter->tx_itr_setting = 1;
 
 	/* set default ring sizes */
 	adapter->tx_ring_count = IXGBEVF_DEFAULT_TXD;
@@ -1998,7 +1963,7 @@ static void ixgbevf_watchdog(unsigned long data)
 {
 	struct ixgbevf_adapter *adapter = (struct ixgbevf_adapter *)data;
 	struct ixgbe_hw *hw = &adapter->hw;
-	u64 eics = 0;
+	u32 eics = 0;
 	int i;
 
 	/*
@@ -2013,10 +1978,10 @@ static void ixgbevf_watchdog(unsigned long data)
 	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
 		struct ixgbevf_q_vector *qv = adapter->q_vector[i];
 		if (qv->rx.ring || qv->tx.ring)
-			eics |= (1 << i);
+			eics |= 1 << i;
 	}
 
-	IXGBE_WRITE_REG(hw, IXGBE_VTEICS, (u32)eics);
+	IXGBE_WRITE_REG(hw, IXGBE_VTEICS, eics);
 
 watchdog_short_circuit:
 	schedule_work(&adapter->watchdog_task);
@@ -2389,7 +2354,7 @@ static int ixgbevf_open(struct net_device *netdev)
 	if (err)
 		goto err_req_irq;
 
-	ixgbevf_irq_enable(adapter, true, true);
+	ixgbevf_irq_enable(adapter);
 
 	return 0;
 

@@ -118,6 +118,8 @@ struct ixgbevf_ring {
 
 struct ixgbevf_ring_container {
 	struct ixgbevf_ring *ring;	/* pointer to linked list of rings */
+	unsigned int total_bytes;	/* total bytes processed this int */
+	unsigned int total_packets;	/* total packets processed this int */
 	u8 count;			/* total number of rings in vector */
 	u8 itr;				/* current ITR setting for ring */
 };
@@ -131,12 +133,24 @@ struct ixgbevf_ring_container {
  */
 struct ixgbevf_q_vector {
 	struct ixgbevf_adapter *adapter;
+	u16 v_idx;		/* index of q_vector within array, also used for
+				 * finding the bit in EICR and friends that
+				 * represents the vector for this ring */
+	u16 itr;		/* Interrupt throttle rate written to EITR */
 	struct napi_struct napi;
 	struct ixgbevf_ring_container rx, tx;
-	u32 eitr;
-	int v_idx;	  /* vector index in list */
 	char name[IFNAMSIZ + 9];
 };
+
+/*
+ * microsecond values for various ITR rates shifted by 2 to fit itr register
+ * with the first 3 bits reserved 0
+ */
+#define IXGBE_MIN_RSC_ITR	24
+#define IXGBE_100K_ITR		40
+#define IXGBE_20K_ITR		200
+#define IXGBE_10K_ITR		400
+#define IXGBE_8K_ITR		500
 
 /* Helper macros to switch between ints/sec and what the register uses.
  * And yes, it's the same math going both ways.  The lowest value
@@ -176,12 +190,16 @@ struct ixgbevf_adapter {
 	struct ixgbevf_q_vector *q_vector[MAX_MSIX_Q_VECTORS];
 
 	/* Interrupt Throttle Rate */
-	u32 itr_setting;
+	u16 rx_itr_setting;
+	u16 tx_itr_setting;
+
+	/* interrupt masks */
+	u32 eims_enable_mask;
+	u32 eims_other;
 
 	/* TX */
 	struct ixgbevf_ring *tx_ring;	/* One per active queue */
 	int num_tx_queues;
-	u16 tx_itr_setting;
 	u64 restart_queue;
 	u64 hw_csum_tx_good;
 	u64 lsc_int;
@@ -192,7 +210,6 @@ struct ixgbevf_adapter {
 	/* RX */
 	struct ixgbevf_ring *rx_ring;	/* One per active queue */
 	int num_rx_queues;
-	u16 rx_itr_setting;
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
 	u64 hw_csum_rx_good;
@@ -265,7 +282,7 @@ extern void ixgbevf_free_rx_resources(struct ixgbevf_adapter *,
 extern void ixgbevf_free_tx_resources(struct ixgbevf_adapter *,
 				      struct ixgbevf_ring *);
 extern void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
-
+void ixgbevf_write_eitr(struct ixgbevf_q_vector *);
 extern int ethtool_ioctl(struct ifreq *ifr);
 
 extern void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
