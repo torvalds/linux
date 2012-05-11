@@ -169,6 +169,7 @@ static int mdfld_save_display_registers(struct drm_device *dev, int pipenum)
 	struct medfield_state *regs = &dev_priv->regs.mdfld;
 	struct psb_pipe *pipe = &dev_priv->regs.pipe[pipenum];
 	int i;
+	u32 *mipi_val;
 
 	/* register */
 	u32 dpll_reg = MRST_DPLL_A;
@@ -192,33 +193,13 @@ static int mdfld_save_display_registers(struct drm_device *dev, int pipenum)
 	u32 dspstatus_reg = PIPEASTAT;
 	u32 palette_reg = PALETTE_A;
 
-	/* pointer to values */
-	u32 *dpll_val = &pipe->dpll;
-	u32 *fp_val = &pipe->fp0;
-	u32 *pipeconf_val = &pipe->conf;
-	u32 *htot_val = &pipe->htotal;
-	u32 *hblank_val = &pipe->hblank;
-	u32 *hsync_val = &pipe->hsync;
-	u32 *vtot_val = &pipe->vtotal;
-	u32 *vblank_val = &pipe->vblank;
-	u32 *vsync_val = &pipe->vsync;
-	u32 *pipesrc_val = &pipe->src;
-	u32 *dspstride_val = &pipe->stride;
-	u32 *dsplinoff_val = &pipe->linoff;
-	u32 *dsptileoff_val = &pipe->tileoff;
-	u32 *dspsize_val = &pipe->size;
-	u32 *dsppos_val = &pipe->pos;
-	u32 *dspsurf_val = &pipe->surf;
-	u32 *mipi_val = &regs->saveMIPI;
-	u32 *dspcntr_val = &pipe->cntr;
-	u32 *dspstatus_val = &pipe->status;
-	u32 *palette_val = pipe->palette;
-
 	switch (pipenum) {
 	case 0:
+		mipi_val = &regs->saveMIPI;
 		break;
 	case 1:
-		/* regester */
+		mipi_val = &regs->saveMIPI;
+		/* register */
 		dpll_reg = MDFLD_DPLL_B;
 		fp_reg = MDFLD_DPLL_DIV0;
 		pipeconf_reg = PIPEBCONF;
@@ -269,28 +250,28 @@ static int mdfld_save_display_registers(struct drm_device *dev, int pipenum)
 	}
 
 	/* Pipe & plane A info */
-	*dpll_val = PSB_RVDC32(dpll_reg);
-	*fp_val = PSB_RVDC32(fp_reg);
-	*pipeconf_val = PSB_RVDC32(pipeconf_reg);
-	*htot_val = PSB_RVDC32(htot_reg);
-	*hblank_val = PSB_RVDC32(hblank_reg);
-	*hsync_val = PSB_RVDC32(hsync_reg);
-	*vtot_val = PSB_RVDC32(vtot_reg);
-	*vblank_val = PSB_RVDC32(vblank_reg);
-	*vsync_val = PSB_RVDC32(vsync_reg);
-	*pipesrc_val = PSB_RVDC32(pipesrc_reg);
-	*dspstride_val = PSB_RVDC32(dspstride_reg);
-	*dsplinoff_val = PSB_RVDC32(dsplinoff_reg);
-	*dsptileoff_val = PSB_RVDC32(dsptileoff_reg);
-	*dspsize_val = PSB_RVDC32(dspsize_reg);
-	*dsppos_val = PSB_RVDC32(dsppos_reg);
-	*dspsurf_val = PSB_RVDC32(dspsurf_reg);
-	*dspcntr_val = PSB_RVDC32(dspcntr_reg);
-	*dspstatus_val = PSB_RVDC32(dspstatus_reg);
+	pipe->dpll = PSB_RVDC32(dpll_reg);
+	pipe->fp0 = PSB_RVDC32(fp_reg);
+	pipe->conf = PSB_RVDC32(pipeconf_reg);
+	pipe->htotal = PSB_RVDC32(htot_reg);
+	pipe->hblank = PSB_RVDC32(hblank_reg);
+	pipe->hsync = PSB_RVDC32(hsync_reg);
+	pipe->vtotal = PSB_RVDC32(vtot_reg);
+	pipe->vblank = PSB_RVDC32(vblank_reg);
+	pipe->vsync = PSB_RVDC32(vsync_reg);
+	pipe->src = PSB_RVDC32(pipesrc_reg);
+	pipe->stride = PSB_RVDC32(dspstride_reg);
+	pipe->linoff = PSB_RVDC32(dsplinoff_reg);
+	pipe->tileoff = PSB_RVDC32(dsptileoff_reg);
+	pipe->size = PSB_RVDC32(dspsize_reg);
+	pipe->pos = PSB_RVDC32(dsppos_reg);
+	pipe->surf = PSB_RVDC32(dspsurf_reg);
+	pipe->cntr = PSB_RVDC32(dspcntr_reg);
+	pipe->status = PSB_RVDC32(dspstatus_reg);
 
 	/*save palette (gamma) */
 	for (i = 0; i < 256; i++)
-		palette_val[i] = PSB_RVDC32(palette_reg + (i << 2));
+		pipe->palette[i] = PSB_RVDC32(palette_reg + (i << 2));
 
 	if (pipenum == 1) {
 		regs->savePFIT_CONTROL = PSB_RVDC32(PFIT_CONTROL);
@@ -321,8 +302,8 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 	struct mdfld_dsi_config *dsi_config = NULL;
 	struct medfield_state *regs = &dev_priv->regs.mdfld;
 	struct psb_pipe *pipe = &dev_priv->regs.pipe[pipenum];
-	u32 i = 0;
-	u32 dpll = 0;
+	u32 i;
+	u32 dpll;
 	u32 timeout = 0;
 
 	/* register */
@@ -349,25 +330,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 
 	/* values */
 	u32 dpll_val = pipe->dpll;
-	u32 fp_val = pipe->fp0;
-	u32 pipeconf_val = pipe->conf;
-	u32 htot_val = pipe->htotal;
-	u32 hblank_val = pipe->hblank;
-	u32 hsync_val = pipe->hsync;
-	u32 vtot_val = pipe->vtotal;
-	u32 vblank_val = pipe->vblank;
-	u32 vsync_val = pipe->vsync;
-	u32 pipesrc_val = pipe->src;
-	u32 dspstride_val = pipe->stride;
-	u32 dsplinoff_val = pipe->linoff;
-	u32 dsptileoff_val = pipe->tileoff;
-	u32 dspsize_val = pipe->size;
-	u32 dsppos_val = pipe->pos;
-	u32 dspsurf_val = pipe->surf;
-	u32 dspstatus_val = pipe->status;
 	u32 mipi_val = regs->saveMIPI;
-	u32 dspcntr_val = pipe->cntr;
-	u32 *palette_val = pipe->palette;
 
 	switch (pipenum) {
 	case 0:
@@ -436,7 +399,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 		PSB_WVDC32(dpll_val & ~DPLL_VCO_ENABLE, dpll_reg);
 		PSB_RVDC32(dpll_reg);
 
-		PSB_WVDC32(fp_val, fp_reg);
+		PSB_WVDC32(pipe->fp0, fp_reg);
 	} else {
 
 		dpll = PSB_RVDC32(dpll_reg);
@@ -452,7 +415,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 				udelay(500);
 			}
 
-			PSB_WVDC32(fp_val, fp_reg);
+			PSB_WVDC32(pipe->fp0, fp_reg);
 			PSB_WVDC32(dpll_val, dpll_reg);
 			/* FIXME_MDFLD PO - change 500 to 1 after PO */
 			udelay(500);
@@ -476,28 +439,28 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 		}
 	}
 	/* Restore mode */
-	PSB_WVDC32(htot_val, htot_reg);
-	PSB_WVDC32(hblank_val, hblank_reg);
-	PSB_WVDC32(hsync_val, hsync_reg);
-	PSB_WVDC32(vtot_val, vtot_reg);
-	PSB_WVDC32(vblank_val, vblank_reg);
-	PSB_WVDC32(vsync_val, vsync_reg);
-	PSB_WVDC32(pipesrc_val, pipesrc_reg);
-	PSB_WVDC32(dspstatus_val, dspstatus_reg);
+	PSB_WVDC32(pipe->htotal, htot_reg);
+	PSB_WVDC32(pipe->hblank, hblank_reg);
+	PSB_WVDC32(pipe->hsync, hsync_reg);
+	PSB_WVDC32(pipe->vtotal, vtot_reg);
+	PSB_WVDC32(pipe->vblank, vblank_reg);
+	PSB_WVDC32(pipe->vsync, vsync_reg);
+	PSB_WVDC32(pipe->src, pipesrc_reg);
+	PSB_WVDC32(pipe->status, dspstatus_reg);
 
 	/*set up the plane*/
-	PSB_WVDC32(dspstride_val, dspstride_reg);
-	PSB_WVDC32(dsplinoff_val, dsplinoff_reg);
-	PSB_WVDC32(dsptileoff_val, dsptileoff_reg);
-	PSB_WVDC32(dspsize_val, dspsize_reg);
-	PSB_WVDC32(dsppos_val, dsppos_reg);
-	PSB_WVDC32(dspsurf_val, dspsurf_reg);
+	PSB_WVDC32(pipe->stride, dspstride_reg);
+	PSB_WVDC32(pipe->linoff, dsplinoff_reg);
+	PSB_WVDC32(pipe->tileoff, dsptileoff_reg);
+	PSB_WVDC32(pipe->size, dspsize_reg);
+	PSB_WVDC32(pipe->pos, dsppos_reg);
+	PSB_WVDC32(pipe->surf, dspsurf_reg);
 
 	if (pipenum == 1) {
 		/* restore palette (gamma) */
 		/*DRM_UDELAY(50000); */
 		for (i = 0; i < 256; i++)
-			PSB_WVDC32(palette_val[i], palette_reg + (i << 2));
+			PSB_WVDC32(pipe->palette[i], palette_reg + (i << 2));
 
 		PSB_WVDC32(regs->savePFIT_CONTROL, PFIT_CONTROL);
 		PSB_WVDC32(regs->savePFIT_PGM_RATIOS, PFIT_PGM_RATIOS);
@@ -507,7 +470,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 		/*TODO: resume pipe*/
 
 		/*enable the plane*/
-		PSB_WVDC32(dspcntr_val & ~DISPLAY_PLANE_ENABLE, dspcntr_reg);
+		PSB_WVDC32(pipe->cntr & ~DISPLAY_PLANE_ENABLE, dspcntr_reg);
 
 		return 0;
 	}
@@ -525,7 +488,7 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 		msleep(20);
 
 	/*enable the plane*/
-	PSB_WVDC32(dspcntr_val, dspcntr_reg);
+	PSB_WVDC32(pipe->cntr, dspcntr_reg);
 
 	if (in_atomic() || in_interrupt())
 		mdelay(20);
@@ -554,12 +517,12 @@ static int mdfld_restore_display_registers(struct drm_device *dev, int pipenum)
 	mdelay(1);
 
 	/*enable the pipe*/
-	PSB_WVDC32(pipeconf_val, pipeconf_reg);
+	PSB_WVDC32(pipe->conf, pipeconf_reg);
 
 	/* restore palette (gamma) */
 	/*DRM_UDELAY(50000); */
 	for (i = 0; i < 256; i++)
-		PSB_WVDC32(palette_val[i], palette_reg + (i << 2));
+		PSB_WVDC32(pipe->palette[i], palette_reg + (i << 2));
 
 	return 0;
 }
