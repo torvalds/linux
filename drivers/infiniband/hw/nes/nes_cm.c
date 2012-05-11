@@ -2884,7 +2884,8 @@ static int nes_cm_disconn_true(struct nes_qp *nesqp)
 			ibevent.device = nesqp->ibqp.device;
 			ibevent.event = nesqp->terminate_eventtype;
 			ibevent.element.qp = &nesqp->ibqp;
-			nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
+			if (nesqp->ibqp.event_handler)
+				nesqp->ibqp.event_handler(&ibevent, nesqp->ibqp.qp_context);
 		}
 	}
 
