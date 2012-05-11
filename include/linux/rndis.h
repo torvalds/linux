@@ -1,4 +1,7 @@
-/* From include/linux/usb/rndis_host.h */
+/*
+ * Remote Network Driver Interface Specification (RNDIS)
+ * definitions of the magic numbers used by this protocol
+ */
 
 #define RNDIS_MSG_COMPLETION	0x80000000
 
@@ -148,8 +151,6 @@
 #define RNDIS_PACKET_TYPE_FUNCTIONAL		0x00004000
 #define RNDIS_PACKET_TYPE_MAC_FRAME		0x00008000
 
-/* From drivers/usb/gadget/ndis.h */
-
 /* NDIS_PNP_CAPABILITIES.Flags constants */
 #define NDIS_DEVICE_WAKE_UP_ENABLE                0x00000001
 #define NDIS_DEVICE_WAKE_ON_PATTERN_MATCH_ENABLE  0x00000002
@@ -194,8 +195,6 @@
 #define NDIS_MAC_OPTION_8021P_PRIORITY          0x00000040
 #define NDIS_MAC_OPTION_RESERVED                0x80000000
 
-/* From drivers/usb/gadget/rndis.h */
-
 /* Remote NDIS Versions */
 #define RNDIS_MAJOR_VERSION		0x00000001
 #define RNDIS_MINOR_VERSION		0x00000000
@@ -221,16 +220,6 @@
 #define RNDIS_DF_CONNECTIONLESS		0x00000001U
 #define RNDIS_DF_CONNECTION_ORIENTED	0x00000002U
 #define RNDIS_DF_RAW_DATA		0x00000004U
-
-/* from drivers/net/sk98lin/h/skgepnmi.h */
-#define OID_PNP_CAPABILITIES			0xFD010100
-#define OID_PNP_SET_POWER			0xFD010101
-#define OID_PNP_QUERY_POWER			0xFD010102
-#define OID_PNP_ADD_WAKE_UP_PATTERN		0xFD010103
-#define OID_PNP_REMOVE_WAKE_UP_PATTERN		0xFD010104
-#define OID_PNP_ENABLE_WAKE_UP			0xFD010106
-
-/* From drivers/net/hyperv/hyperv_net.h */
 
 /* Object Identifiers used by NdisRequest Query/Set Information */
 /* General (Required) Objects */
@@ -395,6 +384,14 @@
 #define RNDIS_OID_802_11_CONFIGURATION			0x0d010211
 #define RNDIS_OID_802_11_POWER_MODE			0x0d010216
 #define RNDIS_OID_802_11_BSSID_LIST			0x0d010217
+
+/* Plug and Play capabilities */
+#define RNDIS_OID_PNP_CAPABILITIES		0xFD010100
+#define RNDIS_OID_PNP_SET_POWER			0xFD010101
+#define RNDIS_OID_PNP_QUERY_POWER		0xFD010102
+#define RNDIS_OID_PNP_ADD_WAKE_UP_PATTERN	0xFD010103
+#define RNDIS_OID_PNP_REMOVE_WAKE_UP_PATTERN	0xFD010104
+#define RNDIS_OID_PNP_ENABLE_WAKE_UP		0xFD010106
 
 #define REMOTE_CONDIS_MP_CREATE_VC_MSG		0x00008001
 #define REMOTE_CONDIS_MP_DELETE_VC_MSG		0x00008002
