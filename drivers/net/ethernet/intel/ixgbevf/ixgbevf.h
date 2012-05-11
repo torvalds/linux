@@ -56,6 +56,8 @@ struct ixgbevf_rx_buffer {
 
 struct ixgbevf_ring {
 	struct ixgbevf_ring *next;
+	struct net_device *netdev;
+	struct device *dev;
 	struct ixgbevf_adapter *adapter;  /* backlink */
 	void *desc;			/* descriptor ring memory */
 	dma_addr_t dma;			/* phys. address of descriptor ring */

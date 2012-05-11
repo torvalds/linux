@@ -359,8 +359,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		if (err) {
 			while (i) {
 				i--;
-				ixgbevf_free_tx_resources(adapter,
-							  &tx_ring[i]);
+				ixgbevf_free_tx_resources(adapter, &tx_ring[i]);
 			}
 			goto err_tx_ring_setup;
 		}
@@ -374,8 +373,7 @@ static int ixgbevf_set_ringparam(struct net_device *netdev,
 		if (err) {
 			while (i) {
 				i--;
-				ixgbevf_free_rx_resources(adapter,
-							  &rx_ring[i]);
+				ixgbevf_free_rx_resources(adapter, &rx_ring[i]);
 			}
 				goto err_rx_ring_setup;
 		}
