@@ -519,8 +519,9 @@ static int
 buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 {
 	struct cx8800_fh *fh = q->priv_data;
+	struct cx8800_dev  *dev = fh->dev;
 
-	*size = fh->fmt->depth*fh->width*fh->height >> 3;
+	*size = dev->fmt->depth * dev->width * dev->height >> 3;
 	if (0 == *count)
 		*count = 32;
 	if (*size * *count > vid_limit * 1024 * 1024)
@@ -539,21 +540,21 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	struct videobuf_dmabuf *dma=videobuf_to_dma(&buf->vb);
 	int rc, init_buffer = 0;
 
-	BUG_ON(NULL == fh->fmt);
-	if (fh->width  < 48 || fh->width  > norm_maxw(core->tvnorm) ||
-	    fh->height < 32 || fh->height > norm_maxh(core->tvnorm))
+	BUG_ON(NULL == dev->fmt);
+	if (dev->width  < 48 || dev->width  > norm_maxw(core->tvnorm) ||
+	    dev->height < 32 || dev->height > norm_maxh(core->tvnorm))
 		return -EINVAL;
-	buf->vb.size = (fh->width * fh->height * fh->fmt->depth) >> 3;
+	buf->vb.size = (dev->width * dev->height * dev->fmt->depth) >> 3;
 	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
 		return -EINVAL;
 
-	if (buf->fmt       != fh->fmt    ||
-	    buf->vb.width  != fh->width  ||
-	    buf->vb.height != fh->height ||
+	if (buf->fmt       != dev->fmt    ||
+	    buf->vb.width  != dev->width  ||
+	    buf->vb.height != dev->height ||
 	    buf->vb.field  != field) {
-		buf->fmt       = fh->fmt;
-		buf->vb.width  = fh->width;
-		buf->vb.height = fh->height;
+		buf->fmt       = dev->fmt;
+		buf->vb.width  = dev->width;
+		buf->vb.height = dev->height;
 		buf->vb.field  = field;
 		init_buffer = 1;
 	}
@@ -603,7 +604,7 @@ buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	}
 	dprintk(2,"[%p/%d] buffer_prepare - %dx%d %dbpp \"%s\" - dma=0x%08lx\n",
 		buf, buf->vb.i,
-		fh->width, fh->height, fh->fmt->depth, fh->fmt->name,
+		dev->width, dev->height, dev->fmt->depth, dev->fmt->name,
 		(unsigned long)buf->risc.dma);
 
 	buf->vb.state = VIDEOBUF_PREPARED;
@@ -745,9 +746,6 @@ static int video_open(struct file *file)
 
 	file->private_data = fh;
 	fh->dev      = dev;
-	fh->width    = 320;
-	fh->height   = 240;
-	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
 	mutex_lock(&core->lock);
 
@@ -1005,15 +1003,17 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8800_fh  *fh   = priv;
+	struct cx8800_dev *dev = fh->dev;
 
-	f->fmt.pix.width        = fh->width;
-	f->fmt.pix.height       = fh->height;
+	f->fmt.pix.width        = dev->width;
+	f->fmt.pix.height       = dev->height;
 	f->fmt.pix.field        = fh->vidq.field;
-	f->fmt.pix.pixelformat  = fh->fmt->fourcc;
+	f->fmt.pix.pixelformat  = dev->fmt->fourcc;
 	f->fmt.pix.bytesperline =
-		(f->fmt.pix.width * fh->fmt->depth) >> 3;
+		(f->fmt.pix.width * dev->fmt->depth) >> 3;
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
+	f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
 
@@ -1065,13 +1065,14 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 					struct v4l2_format *f)
 {
 	struct cx8800_fh  *fh   = priv;
+	struct cx8800_dev *dev = fh->dev;
 	int err = vidioc_try_fmt_vid_cap (file,priv,f);
 
 	if (0 != err)
 		return err;
-	fh->fmt        = format_by_fourcc(f->fmt.pix.pixelformat);
-	fh->width      = f->fmt.pix.width;
-	fh->height     = f->fmt.pix.height;
+	dev->fmt        = format_by_fourcc(f->fmt.pix.pixelformat);
+	dev->width      = f->fmt.pix.width;
+	dev->height     = f->fmt.pix.height;
 	fh->vidq.field = f->fmt.pix.field;
 	return 0;
 }
@@ -1786,6 +1787,10 @@ static int __devinit cx8800_initdev(struct pci_dev *pci_dev,
 
 	/* Sets device info at pci_dev */
 	pci_set_drvdata(pci_dev, dev);
+
+	dev->width   = 320;
+	dev->height  = 240;
+	dev->fmt     = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 
 	/* initial device configuration */
 	mutex_lock(&core->lock);

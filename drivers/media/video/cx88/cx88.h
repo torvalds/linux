@@ -457,14 +457,7 @@ struct cx8800_fh {
 	struct cx8800_dev          *dev;
 	unsigned int               resources;
 
-	/* video overlay */
-	struct v4l2_window         win;
-	struct v4l2_clip           *clips;
-	unsigned int               nclips;
-
 	/* video capture */
-	const struct cx8800_fmt    *fmt;
-	unsigned int               width,height;
 	struct videobuf_queue      vidq;
 
 	/* vbi capture */
@@ -489,6 +482,8 @@ struct cx8800_dev {
 	struct pci_dev             *pci;
 	unsigned char              pci_rev,pci_lat;
 
+	const struct cx8800_fmt    *fmt;
+	unsigned int               width, height;
 
 	/* capture queues */
 	struct cx88_dmaqueue       vidq;
