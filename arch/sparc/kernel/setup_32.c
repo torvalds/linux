@@ -182,13 +182,6 @@ static void __init boot_flags_init(char *commands)
 	}
 }
 
-/* This routine will in the future do all the nasty prom stuff
- * to probe for the mmu type and its parameters, etc. This will
- * also be where SMP things happen.
- */
-
-extern void sun4c_probe_vac(void);
-
 extern unsigned short root_flags;
 extern unsigned short root_dev;
 extern unsigned short ram_flags;
@@ -275,8 +268,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	idprom_init();
-	if (ARCH_SUN4C)
-		sun4c_probe_vac();
 	load_mmu();
 
 	phys_base = 0xffffffffUL;

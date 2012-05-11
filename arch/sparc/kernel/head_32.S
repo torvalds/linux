@@ -84,7 +84,7 @@ trapbase_cpu0:
 #endif
 /* We get control passed to us here at t_zero. */
 t_zero:	b gokernel; nop; nop; nop;
-t_tflt:	SPARC_TFAULT                        /* Inst. Access Exception        */
+t_tflt:	SRMMU_TFAULT                        /* Inst. Access Exception        */
 t_bins:	TRAP_ENTRY(0x2, bad_instruction)    /* Illegal Instruction           */
 t_pins:	TRAP_ENTRY(0x3, priv_instruction)   /* Privileged Instruction        */
 t_fpd:	TRAP_ENTRY(0x4, fpd_trap_handler)   /* Floating Point Disabled       */
@@ -92,7 +92,7 @@ t_wovf:	WINDOW_SPILL                        /* Window Overflow               */
 t_wunf:	WINDOW_FILL                         /* Window Underflow              */
 t_mna:	TRAP_ENTRY(0x7, mna_handler)        /* Memory Address Not Aligned    */
 t_fpe:	TRAP_ENTRY(0x8, fpe_trap_handler)   /* Floating Point Exception      */
-t_dflt:	SPARC_DFAULT                        /* Data Miss Exception           */
+t_dflt:	SRMMU_DFAULT                        /* Data Miss Exception           */
 t_tio:	TRAP_ENTRY(0xa, do_tag_overflow)    /* Tagged Instruction Ovrflw     */
 t_wpt:	TRAP_ENTRY(0xb, do_watchpoint)      /* Watchpoint Detected           */
 t_badc:	BAD_TRAP(0xc) BAD_TRAP(0xd) BAD_TRAP(0xe) BAD_TRAP(0xf) BAD_TRAP(0x10)
@@ -120,7 +120,7 @@ t_cpdis:TRAP_ENTRY(0x24, do_cp_disabled)    /* Co-Processor Disabled         */
 t_uflsh:SKIP_TRAP(0x25, unimp_flush)        /* Unimplemented FLUSH inst.     */
 t_bad26:BAD_TRAP(0x26) BAD_TRAP(0x27)
 t_cpexc:TRAP_ENTRY(0x28, do_cp_exception)   /* Co-Processor Exception        */
-t_dacce:SPARC_DFAULT                        /* Data Access Error             */
+t_dacce:SRMMU_DFAULT                        /* Data Access Error             */
 t_hwdz:	TRAP_ENTRY(0x2a, do_hw_divzero)     /* Division by zero, you lose... */
 t_dserr:BAD_TRAP(0x2b)                      /* Data Store Error              */
 t_daccm:BAD_TRAP(0x2c)                      /* Data Access MMU-Miss          */

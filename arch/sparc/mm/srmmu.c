@@ -2134,8 +2134,6 @@ extern unsigned long spwin_mmu_patchme, fwin_mmu_patchme,
 extern unsigned long spwin_srmmu_stackchk, srmmu_fwin_stackchk,
 	tsetup_srmmu_stackchk, srmmu_rett_stackchk;
 
-extern unsigned long srmmu_fault;
-
 #define PATCH_BRANCH(insn, dest) do { \
 		iaddr = &(insn); \
 		daddr = &(dest); \
@@ -2150,9 +2148,6 @@ static void __init patch_window_trap_handlers(void)
 	PATCH_BRANCH(fwin_mmu_patchme, srmmu_fwin_stackchk);
 	PATCH_BRANCH(tsetup_mmu_patchme, tsetup_srmmu_stackchk);
 	PATCH_BRANCH(rtrap_mmu_patchme, srmmu_rett_stackchk);
-	PATCH_BRANCH(sparc_ttable[SP_TRAP_TFLT].inst_three, srmmu_fault);
-	PATCH_BRANCH(sparc_ttable[SP_TRAP_DFLT].inst_three, srmmu_fault);
-	PATCH_BRANCH(sparc_ttable[SP_TRAP_DACC].inst_three, srmmu_fault);
 }
 
 #ifdef CONFIG_SMP

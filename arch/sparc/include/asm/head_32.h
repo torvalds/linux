@@ -18,9 +18,7 @@
 #define TRAP_ENTRY(type, label) \
 	rd %psr, %l0; b label; rd %wim, %l3; nop;
 
-/* Data/text faults. Defaults to sun4c version at boot time. */
-#define SPARC_TFAULT rd %psr, %l0; rd %wim, %l3; b sun4c_fault; mov 1, %l7;
-#define SPARC_DFAULT rd %psr, %l0; rd %wim, %l3; b sun4c_fault; mov 0, %l7;
+/* Data/text faults */
 #define SRMMU_TFAULT rd %psr, %l0; rd %wim, %l3; b srmmu_fault; mov 1, %l7;
 #define SRMMU_DFAULT rd %psr, %l0; rd %wim, %l3; b srmmu_fault; mov 0, %l7;
 
