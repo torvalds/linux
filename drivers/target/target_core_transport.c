@@ -330,9 +330,9 @@ void target_get_session(struct se_session *se_sess)
 }
 EXPORT_SYMBOL(target_get_session);
 
-int target_put_session(struct se_session *se_sess)
+void target_put_session(struct se_session *se_sess)
 {
-	return kref_put(&se_sess->sess_kref, target_release_session);
+	kref_put(&se_sess->sess_kref, target_release_session);
 }
 EXPORT_SYMBOL(target_put_session);
 
