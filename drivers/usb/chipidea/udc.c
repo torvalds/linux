@@ -1450,7 +1450,6 @@ static int init_eps(struct ci13xxx *udc)
 
 			mEp->udc          = udc;
 			mEp->lock         = &udc->lock;
-			mEp->device       = &udc->gadget.dev;
 			mEp->td_pool      = udc->td_pool;
 
 			mEp->ep.name      = mEp->name;

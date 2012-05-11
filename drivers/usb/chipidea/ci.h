@@ -38,7 +38,6 @@
  * @wedge: is the endpoint wedged
  * @udc: pointer to the controller
  * @lock: pointer to controller's spinlock
- * @device: pointer to gadget's struct device
  * @td_pool: pointer to controller's TD pool
  */
 struct ci13xxx_ep {
@@ -57,7 +56,6 @@ struct ci13xxx_ep {
 	/* global resources */
 	struct ci13xxx				*udc;
 	spinlock_t				*lock;
-	struct device				*device;
 	struct dma_pool				*td_pool;
 };
 
