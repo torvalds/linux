@@ -90,7 +90,7 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.codec_dai_name	= "sgtl5000",
 		.codec_name	= "sgtl5000.0-000a",
 		.cpu_dai_name	= "mxs-saif.0",
-		.platform_name	= "mxs-pcm-audio.0",
+		.platform_name	= "mxs-saif.0",
 		.ops		= &mxs_sgtl5000_hifi_ops,
 	}, {
 		.name		= "HiFi Rx",
@@ -98,7 +98,7 @@ static struct snd_soc_dai_link mxs_sgtl5000_dai[] = {
 		.codec_dai_name	= "sgtl5000",
 		.codec_name	= "sgtl5000.0-000a",
 		.cpu_dai_name	= "mxs-saif.1",
-		.platform_name	= "mxs-pcm-audio.1",
+		.platform_name	= "mxs-saif.1",
 		.ops		= &mxs_sgtl5000_hifi_ops,
 	},
 };

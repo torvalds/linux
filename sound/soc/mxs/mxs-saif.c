@@ -708,24 +708,14 @@ static int __devinit mxs_saif_probe(struct platform_device *pdev)
 		goto failed_get_resource;
 	}
 
-	saif->soc_platform_pdev = platform_device_alloc(
-					"mxs-pcm-audio", pdev->id);
-	if (!saif->soc_platform_pdev) {
-		ret = -ENOMEM;
-		goto failed_pdev_alloc;
-	}
-
-	platform_set_drvdata(saif->soc_platform_pdev, saif);
-	ret = platform_device_add(saif->soc_platform_pdev);
+	ret = mxs_pcm_platform_register(&pdev->dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to add soc platform device\n");
-		goto failed_pdev_add;
+		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
+		goto failed_pdev_alloc;
 	}
 
 	return 0;
 
-failed_pdev_add:
-	platform_device_put(saif->soc_platform_pdev);
 failed_pdev_alloc:
 	snd_soc_unregister_dai(&pdev->dev);
 failed_get_resource:
@@ -738,7 +728,7 @@ static int __devexit mxs_saif_remove(struct platform_device *pdev)
 {
 	struct mxs_saif *saif = platform_get_drvdata(pdev);
 
-	platform_device_unregister(saif->soc_platform_pdev);
+	mxs_pcm_platform_unregister(&pdev->dev);
 	snd_soc_unregister_dai(&pdev->dev);
 	clk_put(saif->clk);
 
