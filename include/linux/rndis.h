@@ -31,6 +31,11 @@
 #define RNDIS_MSG_INDICATE	0x00000007
 #define RNDIS_MSG_KEEPALIVE	0x00000008
 #define RNDIS_MSG_KEEPALIVE_C	(RNDIS_MSG_KEEPALIVE|RNDIS_MSG_COMPLETION)
+/*
+ * Reserved message type for private communication between lower-layer host
+ * driver and remote device, if necessary.
+ */
+#define RNDIS_MSG_BUS		0xff000001
 
 /* codes for "status" field of completion messages */
 #define	RNDIS_STATUS_SUCCESS			0x00000000
@@ -383,9 +388,3 @@
 #define REMOTE_CONDIS_MP_DELETE_VC_CMPLT	0x80008002
 #define REMOTE_CONDIS_MP_ACTIVATE_VC_CMPLT	0x80008005
 #define REMOTE_CONDIS_MP_DEACTIVATE_VC_CMPLT	0x80008006
-
-/*
- * Reserved message type for private communication between lower-layer host
- * driver and remote device, if necessary.
- */
-#define REMOTE_NDIS_BUS_MSG			0xff000001
