@@ -29,6 +29,11 @@
 					status = "okay";
 				};
 
+				ssi2: ssi@50014000 {
+					fsl,mode = "i2s-slave";
+					status = "okay";
+				};
+
 				esdhc@50020000 { /* ESDHC3 */
 					cd-gpios = <&gpio3 11 0>;
 					wp-gpios = <&gpio3 12 0>;
@@ -58,9 +63,11 @@
 			i2c@63fc4000 { /* I2C2 */
 				status = "okay";
 
-				codec: sgtl5000@0a {
+				sgtl5000: codec@0a {
 					compatible = "fsl,sgtl5000";
 					reg = <0x0a>;
+					VDDA-supply = <&reg_3p2v>;
+					VDDIO-supply = <&reg_3p2v>;
 				};
 			};
 
@@ -150,6 +157,10 @@
 				};
 			};
 
+			audmux@63fd0000 {
+				status = "okay";
+			};
+
 			ethernet@63fec000 {
 				phy-mode = "rmii";
 				phy-reset-gpios = <&gpio7 6 0>;
@@ -189,5 +200,31 @@
 			gpios = <&gpio7 7 0>;
 			linux,default-trigger = "heartbeat";
 		};
+	};
+
+	regulators {
+		compatible = "simple-bus";
+
+		reg_3p2v: 3p2v {
+			compatible = "regulator-fixed";
+			regulator-name = "3P2V";
+			regulator-min-microvolt = <3200000>;
+			regulator-max-microvolt = <3200000>;
+			regulator-always-on;
+		};
+	};
+
+	sound {
+		compatible = "fsl,imx53-qsb-sgtl5000",
+			     "fsl,imx-audio-sgtl5000";
+		model = "imx53-qsb-sgtl5000";
+		ssi-controller = <&ssi2>;
+		audio-codec = <&sgtl5000>;
+		audio-routing =
+			"MIC_IN", "Mic Jack",
+			"Mic Jack", "Mic Bias",
+			"Headphone Jack", "HP_OUT";
+		mux-int-port = <2>;
+		mux-ext-port = <5>;
 	};
 };
