@@ -378,30 +378,6 @@ config USB_FSL_QE
 	   Set CONFIG_USB_GADGET to "m" to build this driver as a
 	   dynamically linked module called "fsl_qe_udc".
 
-config USB_CHIPIDEA_UDC
-	tristate "ChipIdea UDC driver"
-	select USB_GADGET_DUALSPEED
-	help
-	  This module contains the ChipIdea USB device controller driver;
-	  you will also need platform driver like ci13xxx_pci or ci13xxx_msm
-	  to use it.
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_udc", which will serve
-	  as a driver for ChipIdea udc on different platforms.
-
-config USB_CI13XXX_PCI
-	tristate "MIPS USB CI13xxx PCI UDC"
-	depends on PCI && USB_CHIPIDEA_UDC
-	select USB_GADGET_DUALSPEED
-	help
-	  MIPS USB IP core family device controller
-	  Currently it only supports IP part number CI13412
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_pci" and force all
-	  gadget drivers to also be dynamically linked.
-
 config USB_NET2272
 	tristate "PLX NET2272"
 	select USB_GADGET_DUALSPEED
@@ -493,23 +469,6 @@ config USB_EG20T
 	  ML7831 is for general purpose use.
 	  ML7213/ML7831 is companion chip for Intel Atom E6xx series.
 	  ML7213/ML7831 is completely compatible for Intel EG20T PCH.
-
-config USB_CI13XXX_MSM
-	tristate "MIPS USB CI13xxx for MSM"
-	depends on ARCH_MSM && USB_CHIPIDEA_UDC
-	select USB_GADGET_DUALSPEED
-	select USB_MSM_OTG
-	help
-	  MSM SoC has chipidea USB controller.  This driver uses
-	  ci13xxx_udc core.
-	  This driver depends on OTG driver for PHY initialization,
-	  clock management, powering up VBUS, and power management.
-	  This driver is not supported on boards like trout which
-	  has an external PHY.
-
-	  Say "y" to link the driver statically, or "m" to build a
-	  dynamically linked module called "ci13xxx_msm" and force all
-	  gadget drivers to also be dynamically linked.
 
 #
 # LAST -- dummy/emulated controller
