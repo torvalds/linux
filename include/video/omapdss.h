@@ -51,6 +51,8 @@
 
 struct omap_dss_device;
 struct omap_overlay_manager;
+struct snd_aes_iec958;
+struct snd_cea_861_aud_if;
 
 enum omap_display_type {
 	OMAP_DISPLAY_TYPE_NONE		= 0,
@@ -156,6 +158,13 @@ enum omap_dss_display_state {
 	OMAP_DSS_DISPLAY_DISABLED = 0,
 	OMAP_DSS_DISPLAY_ACTIVE,
 	OMAP_DSS_DISPLAY_SUSPENDED,
+};
+
+enum omap_dss_audio_state {
+	OMAP_DSS_AUDIO_DISABLED = 0,
+	OMAP_DSS_AUDIO_ENABLED,
+	OMAP_DSS_AUDIO_CONFIGURED,
+	OMAP_DSS_AUDIO_PLAYING,
 };
 
 /* XXX perhaps this should be removed */
@@ -583,6 +592,8 @@ struct omap_dss_device {
 
 	enum omap_dss_display_state state;
 
+	enum omap_dss_audio_state audio_state;
+
 	/* platform specific  */
 	int (*platform_enable)(struct omap_dss_device *dssdev);
 	void (*platform_disable)(struct omap_dss_device *dssdev);
@@ -593,6 +604,11 @@ struct omap_dss_device {
 struct omap_dss_hdmi_data
 {
 	int hpd_gpio;
+};
+
+struct omap_dss_audio {
+	struct snd_aes_iec958 *iec;
+	struct snd_cea_861_aud_if *cea;
 };
 
 struct omap_dss_driver {
@@ -642,6 +658,24 @@ struct omap_dss_driver {
 
 	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
 	bool (*detect)(struct omap_dss_device *dssdev);
+
+	/*
+	 * For display drivers that support audio. This encompasses
+	 * HDMI and DisplayPort at the moment.
+	 */
+	/*
+	 * Note: These functions might sleep. Do not call while
+	 * holding a spinlock/readlock.
+	 */
+	int (*audio_enable)(struct omap_dss_device *dssdev);
+	void (*audio_disable)(struct omap_dss_device *dssdev);
+	bool (*audio_supported)(struct omap_dss_device *dssdev);
+	int (*audio_config)(struct omap_dss_device *dssdev,
+		struct omap_dss_audio *audio);
+	/* Note: These functions may not sleep */
+	int (*audio_start)(struct omap_dss_device *dssdev);
+	void (*audio_stop)(struct omap_dss_device *dssdev);
+
 };
 
 int omap_dss_register_driver(struct omap_dss_driver *);
