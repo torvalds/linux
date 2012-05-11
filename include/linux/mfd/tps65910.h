@@ -830,9 +830,6 @@ struct tps65910 {
 	struct tps65910_rtc *rtc;
 	struct tps65910_power *power;
 
-	/* GPIO Handling */
-	struct gpio_chip gpio;
-
 	/* IRQ Handling */
 	struct mutex irq_lock;
 	int chip_irq;
@@ -846,7 +843,6 @@ struct tps65910_platform_data {
 	int irq_base;
 };
 
-void tps65910_gpio_init(struct tps65910 *tps65910, int gpio_base);
 int tps65910_irq_init(struct tps65910 *tps65910, int irq,
 		struct tps65910_platform_data *pdata);
 int tps65910_irq_exit(struct tps65910 *tps65910);

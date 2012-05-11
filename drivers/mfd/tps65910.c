@@ -19,13 +19,15 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/gpio.h>
 #include <linux/mfd/core.h>
 #include <linux/regmap.h>
 #include <linux/mfd/tps65910.h>
 #include <linux/of_device.h>
 
 static struct mfd_cell tps65910s[] = {
+	{
+		.name = "tps65910-gpio",
+	},
 	{
 		.name = "tps65910-pmic",
 	},
@@ -249,8 +251,6 @@ static __devinit int tps65910_i2c_probe(struct i2c_client *i2c,
 
 	init_data->irq = pmic_plat_data->irq;
 	init_data->irq_base = pmic_plat_data->irq_base;
-
-	tps65910_gpio_init(tps65910, pmic_plat_data->gpio_base);
 
 	tps65910_irq_init(tps65910, init_data->irq, init_data);
 
