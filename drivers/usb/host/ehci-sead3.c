@@ -28,16 +28,16 @@ static int ehci_sead3_setup(struct usb_hcd *hcd)
 
 	ehci->caps = hcd->regs + 0x100;
 
+#ifdef __BIG_ENDIAN
+	ehci->big_endian_mmio = 1;
+	ehci->big_endian_desc = 1;
+#endif
+
 	ret = ehci_setup(hcd);
 	if (ret)
 		return ret;
 
 	ehci->need_io_watchdog = 0;
-
-#ifdef __BIG_ENDIAN
-	ehci->big_endian_mmio = 1;
-	ehci->big_endian_desc = 1;
-#endif
 
 	/* Set burst length to 16 words. */
 	ehci_writel(ehci, 0x1010, &ehci->regs->reserved[1]);
