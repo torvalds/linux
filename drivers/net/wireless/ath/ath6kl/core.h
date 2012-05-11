@@ -100,6 +100,13 @@ enum ath6kl_fw_capability {
 	/* Firmware has support to override rsn cap of rsn ie */
 	ATH6KL_FW_CAPABILITY_RSN_CAP_OVERRIDE,
 
+	/*
+	 * Multicast support in WOW and host awake mode.
+	 * Allow all multicast in host awake mode.
+	 * Apply multicast filter in WOW mode.
+	 */
+	ATH6KL_FW_CAPABILITY_WOW_MULTICAST_FILTER,
+
 	/* this needs to be last */
 	ATH6KL_FW_CAPABILITY_MAX,
 };

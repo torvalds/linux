@@ -2074,7 +2074,9 @@ static int ath6kl_wow_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
 	if (wow && (wow->n_patterns > WOW_MAX_FILTERS_PER_LIST))
 		return -EINVAL;
 
-	if (!test_bit(NETDEV_MCAST_ALL_ON, &vif->flags)) {
+	if (!test_bit(NETDEV_MCAST_ALL_ON, &vif->flags) &&
+	    test_bit(ATH6KL_FW_CAPABILITY_WOW_MULTICAST_FILTER,
+		     ar->fw_capabilities)) {
 		ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi,
 						vif->fw_vif_idx, false);
 		if (ret)
@@ -2209,7 +2211,9 @@ static int ath6kl_wow_resume(struct ath6kl *ar)
 
 	ar->state = ATH6KL_STATE_ON;
 
-	if (!test_bit(NETDEV_MCAST_ALL_OFF, &vif->flags)) {
+	if (!test_bit(NETDEV_MCAST_ALL_OFF, &vif->flags) &&
+	    test_bit(ATH6KL_FW_CAPABILITY_WOW_MULTICAST_FILTER,
+		     ar->fw_capabilities)) {
 		ret = ath6kl_wmi_mcast_filter_cmd(vif->ar->wmi,
 					vif->fw_vif_idx, true);
 		if (ret)

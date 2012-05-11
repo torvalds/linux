@@ -1167,7 +1167,10 @@ static void ath6kl_set_multicast_list(struct net_device *ndev)
 	else
 		clear_bit(NETDEV_MCAST_ALL_ON, &vif->flags);
 
-	mc_all_on = mc_all_on || (vif->ar->state == ATH6KL_STATE_ON);
+	if (test_bit(ATH6KL_FW_CAPABILITY_WOW_MULTICAST_FILTER,
+		     vif->ar->fw_capabilities)) {
+		mc_all_on = mc_all_on || (vif->ar->state == ATH6KL_STATE_ON);
+	}
 
 	if (!(ndev->flags & IFF_MULTICAST)) {
 		mc_all_on = false;
