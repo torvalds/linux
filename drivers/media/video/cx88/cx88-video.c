@@ -744,6 +744,7 @@ static int video_open(struct file *file)
 	if (unlikely(!fh))
 		return -ENOMEM;
 
+	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
 	fh->dev      = dev;
 
@@ -788,6 +789,7 @@ static int video_open(struct file *file)
 
 	core->users++;
 	mutex_unlock(&core->lock);
+	v4l2_fh_add(&fh->fh);
 
 	return 0;
 }
@@ -883,6 +885,8 @@ static int video_release(struct file *file)
 	videobuf_mmap_free(&fh->vbiq);
 
 	mutex_lock(&dev->core->lock);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
 	kfree(fh);
 

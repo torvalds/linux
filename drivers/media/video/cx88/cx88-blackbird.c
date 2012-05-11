@@ -974,6 +974,7 @@ static int mpeg_open(struct file *file)
 		mutex_unlock(&dev->core->lock);
 		return -ENOMEM;
 	}
+	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
 	fh->dev      = dev;
 
@@ -990,6 +991,7 @@ static int mpeg_open(struct file *file)
 
 	dev->core->mpeg_users++;
 	mutex_unlock(&dev->core->lock);
+	v4l2_fh_add(&fh->fh);
 	return 0;
 }
 
@@ -1010,6 +1012,8 @@ static int mpeg_release(struct file *file)
 
 	videobuf_mmap_free(&fh->mpegq);
 
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
 	kfree(fh);
 

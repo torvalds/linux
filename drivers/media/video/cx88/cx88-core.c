@@ -1036,6 +1036,7 @@ struct video_device *cx88_vdev_init(struct cx88_core *core,
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 core->name, type, core->board.name);
+	set_bit(V4L2_FL_USE_FH_PRIO, &vfd->flags);
 	return vfd;
 }
 

@@ -26,6 +26,7 @@
 #include <linux/kdev_t.h>
 
 #include <media/v4l2-device.h>
+#include <media/v4l2-fh.h>
 #include <media/tuner.h>
 #include <media/tveeprom.h>
 #include <media/videobuf-dma-sg.h>
@@ -454,6 +455,7 @@ struct cx8802_dev;
 /* function 0: video stuff                                     */
 
 struct cx8800_fh {
+	struct v4l2_fh		   fh;
 	struct cx8800_dev          *dev;
 	unsigned int               resources;
 
@@ -504,6 +506,7 @@ struct cx8800_dev {
 /* function 2: mpeg stuff                                      */
 
 struct cx8802_fh {
+	struct v4l2_fh		   fh;
 	struct cx8802_dev          *dev;
 	struct videobuf_queue      mpegq;
 };
