@@ -492,6 +492,27 @@ test_access(u32 access, struct nfs4_ol_stateid *stp)
 	return test_bit(access, &stp->st_access_bmap);
 }
 
+/* set share deny for a given stateid */
+static inline void
+set_deny(u32 access, struct nfs4_ol_stateid *stp)
+{
+	__set_bit(access, &stp->st_deny_bmap);
+}
+
+/* clear share deny for a given stateid */
+static inline void
+clear_deny(u32 access, struct nfs4_ol_stateid *stp)
+{
+	__clear_bit(access, &stp->st_deny_bmap);
+}
+
+/* test whether a given stateid is denying specific access */
+static inline bool
+test_deny(u32 access, struct nfs4_ol_stateid *stp)
+{
+	return test_bit(access, &stp->st_deny_bmap);
+}
+
 static int nfs4_access_to_omode(u32 access)
 {
 	switch (access & NFS4_SHARE_ACCESS_BOTH) {
@@ -2462,7 +2483,7 @@ static void init_open_stateid(struct nfs4_ol_stateid *stp, struct nfs4_file *fp,
 	stp->st_access_bmap = 0;
 	stp->st_deny_bmap = 0;
 	set_access(open->op_share_access, stp);
-	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
+	set_deny(open->op_share_deny, stp);
 	stp->st_openstp = NULL;
 }
 
@@ -2541,8 +2562,8 @@ nfs4_share_conflict(struct svc_fh *current_fh, unsigned int deny_type)
 	ret = nfserr_locked;
 	/* Search for conflicting share reservations */
 	list_for_each_entry(stp, &fp->fi_stateids, st_perfile) {
-		if (test_bit(deny_type, &stp->st_deny_bmap) ||
-		    test_bit(NFS4_SHARE_DENY_BOTH, &stp->st_deny_bmap))
+		if (test_deny(deny_type, stp) ||
+		    test_deny(NFS4_SHARE_DENY_BOTH, stp))
 			goto out;
 	}
 	ret = nfs_ok;
@@ -2814,7 +2835,7 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct nfs4_file *fp, struct svc_fh *c
 	}
 	/* remember the open */
 	set_access(op_share_access, stp);
-	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
+	set_deny(open->op_share_deny, stp);
 
 	return nfs_ok;
 }
@@ -3687,12 +3708,12 @@ static inline void nfs4_stateid_downgrade(struct nfs4_ol_stateid *stp, u32 to_ac
 }
 
 static void
-reset_union_bmap_deny(unsigned long deny, unsigned long *bmap)
+reset_union_bmap_deny(unsigned long deny, struct nfs4_ol_stateid *stp)
 {
 	int i;
 	for (i = 0; i < 4; i++) {
 		if ((i & deny) != i)
-			__clear_bit(i, bmap);
+			clear_deny(i, stp);
 	}
 }
 
@@ -3724,14 +3745,14 @@ nfsd4_open_downgrade(struct svc_rqst *rqstp,
 			stp->st_access_bmap, od->od_share_access);
 		goto out;
 	}
-	if (!test_bit(od->od_share_deny, &stp->st_deny_bmap)) {
+	if (!test_deny(od->od_share_deny, stp)) {
 		dprintk("NFSD:deny not a subset current bitmap: 0x%lx, input deny=%08x\n",
 			stp->st_deny_bmap, od->od_share_deny);
 		goto out;
 	}
 	nfs4_stateid_downgrade(stp, od->od_share_access);
 
-	reset_union_bmap_deny(od->od_share_deny, &stp->st_deny_bmap);
+	reset_union_bmap_deny(od->od_share_deny, stp);
 
 	update_stateid(&stp->st_stid.sc_stateid);
 	memcpy(&od->od_stateid, &stp->st_stid.sc_stateid, sizeof(stateid_t));
