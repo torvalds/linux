@@ -148,7 +148,7 @@ static void key_gc_keyring(struct key *keyring, time_t limit)
 	loop = klist->nkeys;
 	smp_rmb();
 	for (loop--; loop >= 0; loop--) {
-		key = klist->keys[loop];
+		key = rcu_dereference(klist->keys[loop]);
 		if (test_bit(KEY_FLAG_DEAD, &key->flags) ||
 		    (key->expiry > 0 && key->expiry <= limit))
 			goto do_gc;
