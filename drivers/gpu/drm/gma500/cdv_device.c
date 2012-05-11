@@ -255,7 +255,7 @@ static int cdv_save_display_registers(struct drm_device *dev)
 	struct psb_save_area *regs = &dev_priv->regs;
 	struct drm_connector *connector;
 
-	dev_info(dev->dev, "Saving GPU registers.\n");
+	dev_dbg(dev->dev, "Saving GPU registers.\n");
 
 	pci_read_config_byte(dev->pdev, 0xF4, &regs->cdv.saveLBB);
 

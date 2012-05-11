@@ -172,24 +172,6 @@ static int psb_do_init(struct drm_device *dev)
 	dev_priv->gatt_free_offset = pg->mmu_gatt_start +
 	    (stolen_gtt << PAGE_SHIFT) * 1024;
 
-	if (1 || drm_debug) {
-		uint32_t core_id = PSB_RSGX32(PSB_CR_CORE_ID);
-		uint32_t core_rev = PSB_RSGX32(PSB_CR_CORE_REVISION);
-		DRM_INFO("SGX core id = 0x%08x\n", core_id);
-		DRM_INFO("SGX core rev major = 0x%02x, minor = 0x%02x\n",
-			 (core_rev & _PSB_CC_REVISION_MAJOR_MASK) >>
-			 _PSB_CC_REVISION_MAJOR_SHIFT,
-			 (core_rev & _PSB_CC_REVISION_MINOR_MASK) >>
-			 _PSB_CC_REVISION_MINOR_SHIFT);
-		DRM_INFO
-		    ("SGX core rev maintenance = 0x%02x, designer = 0x%02x\n",
-		     (core_rev & _PSB_CC_REVISION_MAINTENANCE_MASK) >>
-		     _PSB_CC_REVISION_MAINTENANCE_SHIFT,
-		     (core_rev & _PSB_CC_REVISION_DESIGNER_MASK) >>
-		     _PSB_CC_REVISION_DESIGNER_SHIFT);
-	}
-
-
 	spin_lock_init(&dev_priv->irqmask_lock);
 	spin_lock_init(&dev_priv->lock_2d);
 
