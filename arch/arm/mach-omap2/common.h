@@ -27,6 +27,7 @@
 #ifndef __ASSEMBLER__
 
 #include <linux/delay.h>
+#include <linux/i2c/twl.h>
 #include <plat/common.h>
 #include <asm/proc-fns.h>
 
@@ -54,7 +55,7 @@ static inline void omap34xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPTI81XX
+#ifdef CONFIG_SOC_TI81XX
 extern void omapti81xx_map_common_io(void);
 #else
 static inline void omapti81xx_map_common_io(void)
@@ -62,7 +63,7 @@ static inline void omapti81xx_map_common_io(void)
 }
 #endif
 
-#ifdef CONFIG_SOC_OMAPAM33XX
+#ifdef CONFIG_SOC_AM33XX
 extern void omapam33xx_map_common_io(void);
 #else
 static inline void omapam33xx_map_common_io(void)
@@ -254,6 +255,8 @@ static inline u32 omap4_mpuss_read_prev_context_state(void)
 struct omap_sdrc_params;
 extern void omap_sdrc_init(struct omap_sdrc_params *sdrc_cs0,
 				      struct omap_sdrc_params *sdrc_cs1);
+struct omap2_hsmmc_info;
+extern int omap4_twl6030_hsmmc_init(struct omap2_hsmmc_info *controllers);
 
 #endif /* __ASSEMBLER__ */
 #endif /* __ARCH_ARM_MACH_OMAP2PLUS_COMMON_H */
