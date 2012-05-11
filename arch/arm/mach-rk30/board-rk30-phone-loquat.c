@@ -243,39 +243,36 @@ static int sensor_powerdown_usr_cb (struct rk29camera_gpio_res *res,int on)
 //sgm3140 LED driver
 #define CONFIG_SENSOR_FALSH_EN_PIN_0		  RK30_PIN4_PD6    //high:enable
 #define CONFIG_SENSOR_FALSH_MODE_PIN_0		  RK30_PIN0_PD6    //high:FLASH, low:torch
-static int sensor_flash_usr_cb (struct rk29camera_gpio_res *res,int on)
+static int sensor_flash_usr_cb (struct rk29camera_gpio_res *res, int on)
 {
-
-	gpio_request(CONFIG_SENSOR_FALSH_MODE_PIN_0, "camera_falsh_mode");
-	rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_GPIO0D6);
-	gpio_request(CONFIG_SENSOR_FALSH_EN_PIN_0, "camera_falsh_en");
-	rk30_mux_api_set(GPIO4D6_SMCDATA14_TRACEDATA14_NAME, GPIO4D_GPIO4D6);
-
-	switch (on)
-	{
-		case Flash_Off:
-		{
+	static int init_flag = 0;
+	if(init_flag == 0) {
+		gpio_request(CONFIG_SENSOR_FALSH_MODE_PIN_0, "camera_falsh_mode");
+		rk30_mux_api_set(GPIO0D6_PWM2_NAME, GPIO0D_GPIO0D6);
+		gpio_request(CONFIG_SENSOR_FALSH_EN_PIN_0, "camera_falsh_en");
+		rk30_mux_api_set(GPIO4D6_SMCDATA14_TRACEDATA14_NAME, GPIO4D_GPIO4D6);
+		init_flag = 1;
+	}
+	switch (on) {
+		case Flash_Off: {
 			gpio_direction_output(CONFIG_SENSOR_FALSH_EN_PIN_0, 0);
-			gpio_direction_output(CONFIG_SENSOR_FALSH_PIN_0, 1);
+			gpio_direction_output(CONFIG_SENSOR_FALSH_MODE_PIN_0, 1);
 			break;
 		}
 
-		case Flash_On:
-		{
+		case Flash_On: {
 			gpio_direction_output(CONFIG_SENSOR_FALSH_EN_PIN_0, 1);
-			gpio_direction_output(CONFIG_SENSOR_FALSH_PIN_0, 1);
+			gpio_direction_output(CONFIG_SENSOR_FALSH_MODE_PIN_0, 1);
 			break;
 		}
 
-		case Flash_Torch:
-		{
+		case Flash_Torch: {
 			gpio_direction_output(CONFIG_SENSOR_FALSH_EN_PIN_0, 1);
-			gpio_direction_output(CONFIG_SENSOR_FALSH_PIN_0, 0);
+			gpio_direction_output(CONFIG_SENSOR_FALSH_MODE_PIN_0, 0);
 			break;
 		}
 
-		default:
-		{
+		default: {
 			printk("%s..Flash command(%d) is invalidate \n",__FUNCTION__, on);
 			gpio_direction_output(CONFIG_SENSOR_FALSH_EN_PIN_0, 0);
 			break;
