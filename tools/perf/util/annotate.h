@@ -13,10 +13,16 @@ struct ins;
 struct ins_operands {
 	char	*raw;
 	struct {
+		char	*raw;
 		char	*name;
-		u64	offset;
 		u64	addr;
+		u64	offset;
 	} target;
+	struct {
+		char	*raw;
+		char	*name;
+		u64	addr;
+	} source;
 };
 
 struct ins_ops {
