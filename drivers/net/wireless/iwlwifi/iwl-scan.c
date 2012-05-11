@@ -767,7 +767,11 @@ static int iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 			ssid_len = priv->scan_request->ssids[0].ssid_len;
 			ssid = priv->scan_request->ssids[0].ssid;
 
-			for (i = 1; i < priv->scan_request->n_ssids; i++) {
+			/*
+			 * Invert the order of ssids, the firmware will invert
+			 * it back.
+			 */
+			for (i = priv->scan_request->n_ssids - 1; i >= 1; i--) {
 				scan->direct_scan[p].id = WLAN_EID_SSID;
 				scan->direct_scan[p].len =
 					priv->scan_request->ssids[i].ssid_len;
