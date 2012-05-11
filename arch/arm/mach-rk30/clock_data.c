@@ -175,10 +175,14 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 #define cru_writel_frac(v,offset) cru_writel((v),(offset))
 #endif
 
-
-#define CRU_PRINTK_DBG(fmt, args...) {while(0);}//pr_debug(fmt, ## args);
-#define CRU_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args);
-#define CRU_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args);
+#ifdef DEBUG
+#define CRU_PRINTK_DBG(fmt, args...) pr_debug(fmt, ## args)
+#define CRU_PRINTK_LOG(fmt, args...) pr_debug(fmt, ## args)
+#else
+#define CRU_PRINTK_DBG(fmt, args...) do {} while(0)
+#define CRU_PRINTK_LOG(fmt, args...) do {} while(0)
+#endif
+#define CRU_PRINTK_ERR(fmt, args...) pr_err(fmt, ## args)
 
 
 #define get_cru_bits(con,mask,shift)\
