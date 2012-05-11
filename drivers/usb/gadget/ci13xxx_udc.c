@@ -313,6 +313,9 @@ static int hw_device_init(struct ci13xxx *udc, void __iomem *base,
 	if (udc->hw_ep_max == 0 || udc->hw_ep_max > ENDPT_MAX)
 		return -ENODEV;
 
+	dev_dbg(udc->dev, "ChipIdea UDC found, lpm: %d; cap: %p op: %p\n",
+		udc->hw_bank.lpm, udc->hw_bank.cap, udc->hw_bank.op);
+
 	/* setup lock mode ? */
 
 	/* ENDPTSETUPSTAT is '0' by default */
