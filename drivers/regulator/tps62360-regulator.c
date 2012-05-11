@@ -408,7 +408,7 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	}
 
 	config.dev = &client->dev;
-	config.init_data = &pdata->reg_init_data;
+	config.init_data = pdata->reg_init_data;
 	config.driver_data = tps;
 
 	/* Register the regulators */
