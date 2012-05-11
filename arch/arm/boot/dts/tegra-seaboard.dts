@@ -7,7 +7,6 @@
 	compatible = "nvidia,seaboard", "nvidia,tegra20";
 
 	memory {
-		device_type = "memory";
 		reg = <0x00000000 0x40000000>;
 	};
 
