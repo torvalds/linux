@@ -38,3 +38,9 @@ Ipack
   way to unregistering mezzanine devices, doing the mezzanine driver a call to
   remove_device() to notify the carrier driver, or the opposite with the call to
   the ipack_driver_ops' remove() function could be improved.
+
+
+Contact
+=======
+
+Contact: Samuel Iglesias Gonsalvez <siglesias@igalia.com>
