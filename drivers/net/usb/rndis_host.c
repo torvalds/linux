@@ -239,7 +239,7 @@ EXPORT_SYMBOL_GPL(rndis_command);
  * ActiveSync 4.1 Windows driver.
  */
 static int rndis_query(struct usbnet *dev, struct usb_interface *intf,
-		void *buf, __le32 oid, u32 in_len,
+		void *buf, u32 oid, u32 in_len,
 		void **reply, int *reply_len)
 {
 	int retval;
@@ -256,7 +256,7 @@ static int rndis_query(struct usbnet *dev, struct usb_interface *intf,
 	memset(u.get, 0, sizeof *u.get + in_len);
 	u.get->msg_type = cpu_to_le32(RNDIS_MSG_QUERY);
 	u.get->msg_len = cpu_to_le32(sizeof *u.get + in_len);
-	u.get->oid = oid;
+	u.get->oid = cpu_to_le32(oid);
 	u.get->len = cpu_to_le32(in_len);
 	u.get->offset = cpu_to_le32(20);
 
@@ -399,8 +399,8 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	phym = NULL;
 	reply_len = sizeof *phym;
 	retval = rndis_query(dev, intf, u.buf,
-			     cpu_to_le32(RNDIS_OID_GEN_PHYSICAL_MEDIUM),
-			0, (void **) &phym, &reply_len);
+			     RNDIS_OID_GEN_PHYSICAL_MEDIUM,
+			     0, (void **) &phym, &reply_len);
 	if (retval != 0 || !phym) {
 		/* OID is optional so don't fail here. */
 		phym_unspec = cpu_to_le32(RNDIS_PHYSICAL_MEDIUM_UNSPECIFIED);
@@ -424,8 +424,8 @@ generic_rndis_bind(struct usbnet *dev, struct usb_interface *intf, int flags)
 	/* Get designated host ethernet address */
 	reply_len = ETH_ALEN;
 	retval = rndis_query(dev, intf, u.buf,
-			     cpu_to_le32(RNDIS_OID_802_3_PERMANENT_ADDRESS),
-			48, (void **) &bp, &reply_len);
+			     RNDIS_OID_802_3_PERMANENT_ADDRESS,
+			     48, (void **) &bp, &reply_len);
 	if (unlikely(retval< 0)) {
 		dev_err(&intf->dev, "rndis get ethaddr, %d\n", retval);
 		goto halt_fail_and_release;
