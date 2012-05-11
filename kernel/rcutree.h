@@ -29,18 +29,14 @@
 #include <linux/seqlock.h>
 
 /*
- * Define shape of hierarchy based on NR_CPUS and CONFIG_RCU_FANOUT.
+ * Define shape of hierarchy based on NR_CPUS, CONFIG_RCU_FANOUT, and
+ * CONFIG_RCU_FANOUT_LEAF.
  * In theory, it should be possible to add more levels straightforwardly.
  * In practice, this did work well going from three levels to four.
  * Of course, your mileage may vary.
  */
 #define MAX_RCU_LVLS 4
-#if CONFIG_RCU_FANOUT > 16
-#define RCU_FANOUT_LEAF       16
-#else /* #if CONFIG_RCU_FANOUT > 16 */
-#define RCU_FANOUT_LEAF       (CONFIG_RCU_FANOUT)
-#endif /* #else #if CONFIG_RCU_FANOUT > 16 */
-#define RCU_FANOUT_1	      (RCU_FANOUT_LEAF)
+#define RCU_FANOUT_1	      (CONFIG_RCU_FANOUT_LEAF)
 #define RCU_FANOUT_2	      (RCU_FANOUT_1 * CONFIG_RCU_FANOUT)
 #define RCU_FANOUT_3	      (RCU_FANOUT_2 * CONFIG_RCU_FANOUT)
 #define RCU_FANOUT_4	      (RCU_FANOUT_3 * CONFIG_RCU_FANOUT)
@@ -434,7 +430,6 @@ DECLARE_PER_CPU(char, rcu_cpu_has_work);
 /* Forward declarations for rcutree_plugin.h */
 static void rcu_bootup_announce(void);
 long rcu_batches_completed(void);
-static void rcu_preempt_note_context_switch(int cpu);
 static int rcu_preempt_blocked_readers_cgp(struct rcu_node *rnp);
 #ifdef CONFIG_HOTPLUG_CPU
 static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp,
