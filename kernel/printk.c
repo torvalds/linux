@@ -1439,6 +1439,10 @@ static struct log *log_from_idx(u32 idx) { return NULL; }
 static u32 log_next(u32 idx) { return 0; }
 static char *log_text(const struct log *msg) { return NULL; }
 static void call_console_drivers(int level, const char *text, size_t len) {}
+static size_t prepend_timestamp(unsigned long long t, char *buf)
+{
+	return 0;
+}
 
 #endif /* CONFIG_PRINTK */
 
