@@ -788,7 +788,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 				 u8 *socket,
 				 long *channel_mask,
 				 u8 *rank,
-				 char *area_type, char *msg)
+				 char **area_type, char *msg)
 {
 	struct mem_ctl_info	*new_mci;
 	struct sbridge_pvt *pvt = mci->pvt_info;
@@ -843,7 +843,7 @@ static int get_memory_error_data(struct mem_ctl_info *mci,
 		sprintf(msg, "Can't discover the memory socket");
 		return -EINVAL;
 	}
-	area_type = get_dram_attr(reg);
+	*area_type = get_dram_attr(reg);
 	interleave_mode = INTERLEAVE_MODE(reg);
 
 	pci_read_config_dword(pvt->pci_sad0, interleave_list[n_sads],
@@ -1342,7 +1342,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	struct mem_ctl_info *new_mci;
 	struct sbridge_pvt *pvt = mci->pvt_info;
 	enum hw_event_mc_err_type tp_event;
-	char *type, *optype, msg[256], *recoverable_msg;
+	char *type, *optype, msg[256];
 	bool ripv = GET_BITFIELD(m->mcgstatus, 0, 0);
 	bool overflow = GET_BITFIELD(m->status, 62, 62);
 	bool uncorrected_error = GET_BITFIELD(m->status, 61, 61);
@@ -1355,7 +1355,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	long channel_mask, first_channel;
 	u8  rank, socket;
 	int rc, dimm;
-	char *area_type = "Unknown";
+	char *area_type = NULL;
 
 	if (uncorrected_error) {
 		if (ripv) {
@@ -1407,7 +1407,7 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	}
 
 	rc = get_memory_error_data(mci, m->addr, &socket,
-				   &channel_mask, &rank, area_type, msg);
+				   &channel_mask, &rank, &area_type, msg);
 	if (rc < 0)
 		goto err_parsing;
 	new_mci = get_mci_for_node_id(socket);
@@ -1427,29 +1427,23 @@ static void sbridge_mce_output_error(struct mem_ctl_info *mci,
 	else
 		dimm = 2;
 
-	if (uncorrected_error && recoverable)
-		recoverable_msg = " recoverable";
-	else
-		recoverable_msg = "";
 
 	/*
-	 * FIXME: What should we do with "channel" information on mcelog?
-	 * Probably, we can just discard it, as the channel information
-	 * comes from the get_memory_error_data() address decoding
+	 * FIXME: On some memory configurations (mirror, lockstep), the
+	 * Memory Controller can't point the error to a single DIMM. The
+	 * EDAC core should be handling the channel mask, in order to point
+	 * to the group of dimm's where the error may be happening.
 	 */
 	snprintf(msg, sizeof(msg),
-			"%d error(s)%s: %s%s: cpu=%d Err=%04x:%04x addr = 0x%08llx socket=%d Channel=%ld(mask=%ld), rank=%d\n",
-			core_err_cnt,
-			overflow ? " OVERFLOW" : "",
-			area_type,
-			recoverable_msg,
-			m->cpu,
-			mscod, errcode,
-			(long long) m->addr,
-			socket,
-			first_channel,		/* This is the real channel on SB */
-			channel_mask,
-			rank);
+		 "count:%d%s%s area:%s err_code:%04x:%04x socket:%d channel_mask:%ld rank:%d",
+		 core_err_cnt,
+		 overflow ? " OVERFLOW" : "",
+		 (uncorrected_error && recoverable) ? " recoverable" : "",
+		 area_type,
+		 mscod, errcode,
+		 socket,
+		 channel_mask,
+		 rank);
 
 	debugf0("%s", msg);
 

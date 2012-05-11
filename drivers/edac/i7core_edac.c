@@ -1623,7 +1623,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				    const struct mce *m)
 {
 	struct i7core_pvt *pvt = mci->pvt_info;
-	char *type, *optype, *err, *msg;
+	char *type, *optype, *err, msg[80];
 	enum hw_event_mc_err_type tp_event;
 	unsigned long error = m->status & 0x1ff0000l;
 	bool uncorrected_error = m->mcgstatus & 1ll << 61;
@@ -1701,10 +1701,7 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 		err = "unknown";
 	}
 
-	msg = kasprintf(GFP_ATOMIC,
-		"addr=0x%08llx cpu=%d count=%d Err=%08llx:%08llx (%s: %s))\n",
-		(long long) m->addr, m->cpu, core_err_cnt,
-		(long long)m->status, (long long)m->misc, optype, err);
+	snprintf(msg, sizeof(msg), "count=%d %s", core_err_cnt, optype);
 
 	/*
 	 * Call the helper to output message
@@ -1718,8 +1715,6 @@ static void i7core_mce_output_error(struct mem_ctl_info *mci,
 				     syndrome,
 				     channel, dimm, -1,
 				     err, msg, m);
-
-	kfree(msg);
 }
 
 /*
