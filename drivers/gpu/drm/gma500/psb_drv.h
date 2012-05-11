@@ -808,12 +808,6 @@ psb_disable_pipestat(struct drm_psb_private *dev_priv, int pipe, u32 mask);
 extern u32 psb_get_vblank_counter(struct drm_device *dev, int crtc);
 
 /*
- * intel_opregion.c
- */
-extern int gma_intel_opregion_init(struct drm_device *dev);
-extern int gma_intel_opregion_exit(struct drm_device *dev);
-
-/*
  * framebuffer.c
  */
 extern int psbfb_probed(struct drm_device *dev);

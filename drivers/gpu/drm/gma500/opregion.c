@@ -21,10 +21,8 @@
  * DEALINGS IN THE SOFTWARE.
  *
  */
-#ifdef CONFIG_ACPI
 #include <linux/acpi.h>
 #include <linux/acpi_io.h>
-#endif
 #include "psb_drv.h"
 #include "psb_intel_reg.h"
 
@@ -311,11 +309,7 @@ int psb_intel_opregion_setup(struct drm_device *dev)
 		return -ENOTSUPP;
 	}
 	DRM_DEBUG("OpRegion detected at 0x%8x\n", opregion_phy);
-#ifdef CONFIG_ACPI
 	base = acpi_os_ioremap(opregion_phy, 8*1024);
-#else
-	base = ioremap(opregion_phy, 8*1024);
-#endif
 	if (!base)
 		return -ENOMEM;
 

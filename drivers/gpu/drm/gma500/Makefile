@@ -13,7 +13,6 @@ gma500_gfx-y += gem_glue.o \
 	  intel_i2c.o \
 	  intel_gmbus.o \
 	  mmu.o \
-	  opregion.o \
 	  power.o \
 	  psb_drv.o \
 	  psb_intel_display.o \
@@ -24,6 +23,8 @@ gma500_gfx-y += gem_glue.o \
 	  psb_irq.o \
 	  psb_device.o \
 	  mid_bios.o
+
+gma500_gfx-$(CONFIG_ACPI) +=  opregion.o \
 
 gma500_gfx-$(CONFIG_DRM_GMA3600) +=  cdv_device.o \
 	  cdv_intel_crt.o \
