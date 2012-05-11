@@ -7,7 +7,7 @@
 	compatible = "compulab,trimslice", "nvidia,tegra20";
 
 	memory@0 {
-		reg = < 0x00000000 0x40000000 >;
+		reg = <0x00000000 0x40000000>;
 	};
 
 	pinmux@70000000 {
@@ -277,7 +277,7 @@
 	};
 
 	serial@70006000 {
-		clock-frequency = < 216000000 >;
+		clock-frequency = <216000000>;
 	};
 
 	serial@70006040 {

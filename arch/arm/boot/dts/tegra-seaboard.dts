@@ -8,7 +8,7 @@
 
 	memory {
 		device_type = "memory";
-		reg = < 0x00000000 0x40000000 >;
+		reg = <0x00000000 0x40000000>;
 	};
 
 	pinmux@70000000 {
@@ -265,14 +265,14 @@
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
-			interrupts = < 187 0x04 >;
+			interrupts = <187 0x04>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
 
 			micdet-cfg = <0>;
 			micdet-delay = <100>;
-			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
+			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
 		};
 
 		/* ALS and proximity sensor */
@@ -280,7 +280,7 @@
 			compatible = "isil,isl29018";
 			reg = <0x44>;
 			interrupt-parent = <&gpio>;
-			interrupts = < 202 0x04 >; /* GPIO PZ2 */
+			interrupts = <202 0x04>; /* GPIO PZ2 */
 		};
 
 		gyrometer@68 {
@@ -361,7 +361,7 @@
 	};
 
 	serial@70006300 {
-		clock-frequency = < 216000000 >;
+		clock-frequency = <216000000>;
 	};
 
 	serial@70006400 {
@@ -413,10 +413,10 @@
 
 	emc@7000f400 {
 		emc-table@190000 {
-			reg = < 190000 >;
+			reg = <190000>;
 			compatible = "nvidia,tegra20-emc-table";
-			clock-frequency = < 190000 >;
-			nvidia,emc-registers = < 0x0000000c 0x00000026
+			clock-frequency = <190000>;
+			nvidia,emc-registers = <0x0000000c 0x00000026
 				0x00000009 0x00000003 0x00000004 0x00000004
 				0x00000002 0x0000000c 0x00000003 0x00000003
 				0x00000002 0x00000001 0x00000004 0x00000005
@@ -427,14 +427,14 @@
 				0x00000002 0x00000000 0x00000000 0x00000002
 				0x00000000 0x00000000 0x00000083 0xa06204ae
 				0x007dc010 0x00000000 0x00000000 0x00000000
-				0x00000000 0x00000000 0x00000000 0x00000000 >;
+				0x00000000 0x00000000 0x00000000 0x00000000>;
 		};
 
 		emc-table@380000 {
-			reg = < 380000 >;
+			reg = <380000>;
 			compatible = "nvidia,tegra20-emc-table";
-			clock-frequency = < 380000 >;
-			nvidia,emc-registers = < 0x00000017 0x0000004b
+			clock-frequency = <380000>;
+			nvidia,emc-registers = <0x00000017 0x0000004b
 				0x00000012 0x00000006 0x00000004 0x00000005
 				0x00000003 0x0000000c 0x00000006 0x00000006
 				0x00000003 0x00000001 0x00000004 0x00000005
@@ -445,7 +445,7 @@
 				0x00000002 0x00000000 0x00000000 0x00000002
 				0x00000000 0x00000000 0x00000083 0xe044048b
 				0x007d8010 0x00000000 0x00000000 0x00000000
-				0x00000000 0x00000000 0x00000000 0x00000000 >;
+				0x00000000 0x00000000 0x00000000 0x00000000>;
 		};
 	};
 

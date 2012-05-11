@@ -13,8 +13,8 @@
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = < 0x50041000 0x1000 >,
-		      < 0x50040100 0x0100 >;
+		reg = <0x50041000 0x1000>,
+		      <0x50040100 0x0100>;
 	};
 
 	pmu {
@@ -28,38 +28,38 @@
 	apbdma: dma@6000a000 {
 		compatible = "nvidia,tegra30-apbdma", "nvidia,tegra20-apbdma";
 		reg = <0x6000a000 0x1400>;
-		interrupts = < 0 104 0x04
-			       0 105 0x04
-			       0 106 0x04
-			       0 107 0x04
-			       0 108 0x04
-			       0 109 0x04
-			       0 110 0x04
-			       0 111 0x04
-			       0 112 0x04
-			       0 113 0x04
-			       0 114 0x04
-			       0 115 0x04
-			       0 116 0x04
-			       0 117 0x04
-			       0 118 0x04
-			       0 119 0x04
-			       0 128 0x04
-			       0 129 0x04
-			       0 130 0x04
-			       0 131 0x04
-			       0 132 0x04
-			       0 133 0x04
-			       0 134 0x04
-			       0 135 0x04
-			       0 136 0x04
-			       0 137 0x04
-			       0 138 0x04
-			       0 139 0x04
-			       0 140 0x04
-			       0 141 0x04
-			       0 142 0x04
-			       0 143 0x04 >;
+		interrupts = <0 104 0x04
+			      0 105 0x04
+			      0 106 0x04
+			      0 107 0x04
+			      0 108 0x04
+			      0 109 0x04
+			      0 110 0x04
+			      0 111 0x04
+			      0 112 0x04
+			      0 113 0x04
+			      0 114 0x04
+			      0 115 0x04
+			      0 116 0x04
+			      0 117 0x04
+			      0 118 0x04
+			      0 119 0x04
+			      0 128 0x04
+			      0 129 0x04
+			      0 130 0x04
+			      0 131 0x04
+			      0 132 0x04
+			      0 133 0x04
+			      0 134 0x04
+			      0 135 0x04
+			      0 136 0x04
+			      0 137 0x04
+			      0 138 0x04
+			      0 139 0x04
+			      0 140 0x04
+			      0 141 0x04
+			      0 142 0x04
+			      0 143 0x04>;
 	};
 
 	i2c@7000c000 {
@@ -67,7 +67,7 @@
 		#size-cells = <0>;
 		compatible =  "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000C000 0x100>;
-		interrupts = < 0 38 0x04 >;
+		interrupts = <0 38 0x04>;
 	};
 
 	i2c@7000c400 {
@@ -75,7 +75,7 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000C400 0x100>;
-		interrupts = < 0 84 0x04 >;
+		interrupts = <0 84 0x04>;
 	};
 
 	i2c@7000c500 {
@@ -83,7 +83,7 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000C500 0x100>;
-		interrupts = < 0 92 0x04 >;
+		interrupts = <0 92 0x04>;
 	};
 
 	i2c@7000c700 {
@@ -91,7 +91,7 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000c700 0x100>;
-		interrupts = < 0 120 0x04 >;
+		interrupts = <0 120 0x04>;
 	};
 
 	i2c@7000d000 {
@@ -99,20 +99,20 @@
 		#size-cells = <0>;
 		compatible = "nvidia,tegra30-i2c", "nvidia,tegra20-i2c";
 		reg = <0x7000D000 0x100>;
-		interrupts = < 0 53 0x04 >;
+		interrupts = <0 53 0x04>;
 	};
 
 	gpio: gpio@6000d000 {
 		compatible = "nvidia,tegra30-gpio", "nvidia,tegra20-gpio";
-		reg = < 0x6000d000 0x1000 >;
-		interrupts = < 0 32 0x04
-			       0 33 0x04
-			       0 34 0x04
-			       0 35 0x04
-			       0 55 0x04
-			       0 87 0x04
-			       0 89 0x04
-			       0 125 0x04 >;
+		reg = <0x6000d000 0x1000>;
+		interrupts = <0 32 0x04
+			      0 33 0x04
+			      0 34 0x04
+			      0 35 0x04
+			      0 55 0x04
+			      0 87 0x04
+			      0 89 0x04
+			      0 125 0x04>;
 		#gpio-cells = <2>;
 		gpio-controller;
 		#interrupt-cells = <2>;
@@ -123,71 +123,71 @@
 		compatible = "nvidia,tegra30-uart", "nvidia,tegra20-uart";
 		reg = <0x70006000 0x40>;
 		reg-shift = <2>;
-		interrupts = < 0 36 0x04 >;
+		interrupts = <0 36 0x04>;
 	};
 
 	serial@70006040 {
 		compatible = "nvidia,tegra30-uart", "nvidia,tegra20-uart";
 		reg = <0x70006040 0x40>;
 		reg-shift = <2>;
-		interrupts = < 0 37 0x04 >;
+		interrupts = <0 37 0x04>;
 	};
 
 	serial@70006200 {
 		compatible = "nvidia,tegra30-uart", "nvidia,tegra20-uart";
 		reg = <0x70006200 0x100>;
 		reg-shift = <2>;
-		interrupts = < 0 46 0x04 >;
+		interrupts = <0 46 0x04>;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra30-uart", "nvidia,tegra20-uart";
 		reg = <0x70006300 0x100>;
 		reg-shift = <2>;
-		interrupts = < 0 90 0x04 >;
+		interrupts = <0 90 0x04>;
 	};
 
 	serial@70006400 {
 		compatible = "nvidia,tegra30-uart", "nvidia,tegra20-uart";
 		reg = <0x70006400 0x100>;
 		reg-shift = <2>;
-		interrupts = < 0 91 0x04 >;
+		interrupts = <0 91 0x04>;
 	};
 
 	sdhci@78000000 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000000 0x200>;
-		interrupts = < 0 14 0x04 >;
+		interrupts = <0 14 0x04>;
 	};
 
 	sdhci@78000200 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000200 0x200>;
-		interrupts = < 0 15 0x04 >;
+		interrupts = <0 15 0x04>;
 	};
 
 	sdhci@78000400 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000400 0x200>;
-		interrupts = < 0 19 0x04 >;
+		interrupts = <0 19 0x04>;
 	};
 
 	sdhci@78000600 {
 		compatible = "nvidia,tegra30-sdhci", "nvidia,tegra20-sdhci";
 		reg = <0x78000600 0x200>;
-		interrupts = < 0 31 0x04 >;
+		interrupts = <0 31 0x04>;
 	};
 
 	pinmux: pinmux@70000000 {
 		compatible = "nvidia,tegra30-pinmux";
-		reg = < 0x70000868 0xd0     /* Pad control registers */
-			0x70003000 0x3e0 >; /* Mux registers */
+		reg = <0x70000868 0xd0    /* Pad control registers */
+		       0x70003000 0x3e0>; /* Mux registers */
 	};
 
 	ahub {
 		compatible = "nvidia,tegra30-ahub";
 		reg = <0x70080000 0x200 0x70080200 0x100>;
-		interrupts = < 0 103 0x04 >;
+		interrupts = <0 103 0x04>;
 		nvidia,dma-request-selector = <&apbdma 1>;
 
 		ranges;

@@ -7,7 +7,7 @@
 	compatible = "nvidia,ventana", "nvidia,tegra20";
 
 	memory {
-		reg = < 0x00000000 0x40000000 >;
+		reg = <0x00000000 0x40000000>;
 	};
 
 	pinmux@70000000 {
@@ -247,14 +247,14 @@
 			compatible = "wlf,wm8903";
 			reg = <0x1a>;
 			interrupt-parent = <&gpio>;
-			interrupts = < 187 0x04 >;
+			interrupts = <187 0x04>;
 
 			gpio-controller;
 			#gpio-cells = <2>;
 
 			micdet-cfg = <0>;
 			micdet-delay = <100>;
-			gpio-cfg = < 0xffffffff 0xffffffff 0 0xffffffff 0xffffffff >;
+			gpio-cfg = <0xffffffff 0xffffffff 0 0xffffffff 0xffffffff>;
 		};
 
 		/* ALS and proximity sensor */
@@ -319,7 +319,7 @@
 	};
 
 	serial@70006300 {
-		clock-frequency = < 216000000 >;
+		clock-frequency = <216000000>;
 	};
 
 	serial@70006400 {
