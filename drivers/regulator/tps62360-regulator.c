@@ -26,6 +26,10 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_gpio.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
@@ -297,6 +301,56 @@ static const struct regmap_config tps62360_regmap_config = {
 	.cache_type		= REGCACHE_RBTREE,
 };
 
+static struct tps62360_regulator_platform_data *
+	of_get_tps62360_platform_data(struct device *dev)
+{
+	struct tps62360_regulator_platform_data *pdata;
+	struct device_node *np = dev->of_node;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "Memory alloc failed for platform data\n");
+		return NULL;
+	}
+
+	pdata->reg_init_data = of_get_regulator_init_data(dev, dev->of_node);
+	if (!pdata->reg_init_data) {
+		dev_err(dev, "Not able to get OF regulator init data\n");
+		return NULL;
+	}
+
+	pdata->vsel0_gpio = of_get_named_gpio(np, "vsel0-gpio", 0);
+	pdata->vsel1_gpio = of_get_named_gpio(np, "vsel1-gpio", 0);
+
+	if (of_find_property(np, "ti,vsel0-state-high", NULL))
+		pdata->vsel0_def_state = 1;
+
+	if (of_find_property(np, "ti,vsel1-state-high", NULL))
+		pdata->vsel1_def_state = 1;
+
+	if (of_find_property(np, "ti,enable-pull-down", NULL))
+		pdata->en_internal_pulldn = true;
+
+	if (of_find_property(np, "ti,enable-force-pwm", NULL))
+		pdata->en_force_pwm = true;
+
+	if (of_find_property(np, "ti,enable-vout-discharge", NULL))
+		pdata->en_discharge = true;
+
+	return pdata;
+}
+
+#if defined(CONFIG_OF)
+static const struct of_device_id tps62360_of_match[] = {
+	 { .compatible = "ti,tps62360", .data = (void *)TPS62360},
+	 { .compatible = "ti,tps62361", .data = (void *)TPS62361},
+	 { .compatible = "ti,tps62362", .data = (void *)TPS62362},
+	 { .compatible = "ti,tps62363", .data = (void *)TPS62363},
+	{},
+}
+MODULE_DEVICE_TABLE(of, tps62360_of_match);
+#endif
+
 static int __devinit tps62360_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
@@ -306,8 +360,24 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	struct tps62360_chip *tps;
 	int ret;
 	int i;
+	int chip_id;
 
 	pdata = client->dev.platform_data;
+	chip_id = id->driver_data;
+
+	if (client->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_device(of_match_ptr(tps62360_of_match),
+				&client->dev);
+		if (!match) {
+			dev_err(&client->dev, "Error: No device match found\n");
+			return -ENODEV;
+		}
+		chip_id = (int)match->data;
+		if (!pdata)
+			pdata = of_get_tps62360_platform_data(&client->dev);
+	}
+
 	if (!pdata) {
 		dev_err(&client->dev, "%s(): Platform data not found\n",
 						__func__);
@@ -328,7 +398,7 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	tps->vsel1_gpio = pdata->vsel1_gpio;
 	tps->dev = &client->dev;
 
-	switch (id->driver_data) {
+	switch (chip_id) {
 	case TPS62360:
 	case TPS62362:
 		tps->voltage_base = TPS62360_BASE_VOLTAGE;
@@ -484,6 +554,7 @@ static struct i2c_driver tps62360_i2c_driver = {
 	.driver = {
 		.name = "tps62360",
 		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(tps62360_of_match),
 	},
 	.probe = tps62360_probe,
 	.remove = __devexit_p(tps62360_remove),
