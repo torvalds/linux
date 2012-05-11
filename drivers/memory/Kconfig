@@ -31,7 +31,13 @@ config TEGRA20_MC
 	  Relocation Table) module.
 
 config TEGRA30_MC
-	bool
+	bool "Tegra30 Memory Controller(MC) driver"
+	default y
 	depends on ARCH_TEGRA_3x_SOC
+	help
+	  This driver is for the Memory Controller(MC) module available
+	  in Tegra30 SoCs, mainly for a address translation fault
+	  analysis, especially for IOMMU/SMMU(System Memory Management
+	  Unit) module.
 
 endif
