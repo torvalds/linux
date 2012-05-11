@@ -950,6 +950,37 @@ void comedi_pci_auto_unconfig(struct pci_dev *pcidev)
 }
 EXPORT_SYMBOL_GPL(comedi_pci_auto_unconfig);
 
+int comedi_pci_driver_register(struct comedi_driver *comedi_driver,
+		struct pci_driver *pci_driver)
+{
+	int ret;
+
+	ret = comedi_driver_register(comedi_driver);
+	if (ret < 0)
+		return ret;
+
+	/* FIXME: Remove this test after auditing all comedi pci drivers */
+	if (!pci_driver->name)
+		pci_driver->name = comedi_driver->driver_name;
+
+	ret = pci_register_driver(pci_driver);
+	if (ret < 0) {
+		comedi_driver_unregister(comedi_driver);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(comedi_pci_driver_register);
+
+void comedi_pci_driver_unregister(struct comedi_driver *comedi_driver,
+		struct pci_driver *pci_driver)
+{
+	pci_unregister_driver(pci_driver);
+	comedi_driver_unregister(comedi_driver);
+}
+EXPORT_SYMBOL_GPL(comedi_pci_driver_unregister);
+
 static int comedi_old_usb_auto_config(struct usb_interface *intf,
 				      struct comedi_driver *driver)
 {
