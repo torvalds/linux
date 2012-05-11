@@ -280,6 +280,13 @@ Description:
 		If a discrete set of scale values are available, they
 		are listed in this attribute.
 
+What		/sys/bus/iio/devices/iio:deviceX/out_voltageY_hardwaregain
+KernelVersion:	2.6.35
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Hardware applied gain factor. If shared across all channels,
+		<type>_hardwaregain is used.
+
 What:		/sys/.../in_accel_filter_low_pass_3db_frequency
 What:		/sys/.../in_magn_filter_low_pass_3db_frequency
 What:		/sys/.../in_anglvel_filter_low_pass_3db_frequency

@@ -91,6 +91,7 @@ static const char * const iio_chan_info_postfix[] = {
 	[IIO_CHAN_INFO_SAMP_FREQ] = "sampling_frequency",
 	[IIO_CHAN_INFO_FREQUENCY] = "frequency",
 	[IIO_CHAN_INFO_PHASE] = "phase",
+	[IIO_CHAN_INFO_HARDWAREGAIN] = "hardwaregain",
 };
 
 const struct iio_chan_spec
