@@ -52,9 +52,6 @@ struct ixgbevf_tx_buffer {
 struct ixgbevf_rx_buffer {
 	struct sk_buff *skb;
 	dma_addr_t dma;
-	struct page *page;
-	dma_addr_t page_dma;
-	unsigned int page_offset;
 };
 
 struct ixgbevf_ring {
@@ -83,27 +80,12 @@ struct ixgbevf_ring {
 		      * offset associated with this ring, which is different
 		      * for DCB and RSS modes */
 
-#if defined(CONFIG_DCA) || defined(CONFIG_DCA_MODULE)
-	/* cpu for tx queue */
-	int cpu;
-#endif
-
 	u64 v_idx; /* maps directly to the index for this ring in the hardware
 		    * vector array, can also be used for finding the bit in EICR
 		    * and friends that represents the vector for this ring */
 
 	u16 work_limit;                /* max work per interrupt */
 	u16 rx_buf_len;
-};
-
-enum ixgbevf_ring_f_enum {
-	RING_F_NONE = 0,
-	RING_F_ARRAY_SIZE      /* must be last in enum set */
-};
-
-struct ixgbevf_ring_feature {
-	int indices;
-	int mask;
 };
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
@@ -120,8 +102,6 @@ struct ixgbevf_ring_feature {
 #define IXGBEVF_MIN_RXD       64
 
 /* Supported Rx Buffer Sizes */
-#define IXGBEVF_RXBUFFER_64    64     /* Used for packet split */
-#define IXGBEVF_RXBUFFER_128   128    /* Used for packet split */
 #define IXGBEVF_RXBUFFER_256   256    /* Used for packet split */
 #define IXGBEVF_RXBUFFER_2048  2048
 #define IXGBEVF_MAX_RXBUFFER   16384  /* largest size for single descriptor */
@@ -213,18 +193,13 @@ struct ixgbevf_adapter {
 	/* RX */
 	struct ixgbevf_ring *rx_ring;	/* One per active queue */
 	int num_rx_queues;
-	int num_rx_pools;               /* == num_rx_queues in 82598 */
-	int num_rx_queues_per_pool;	/* 1 if 82598, can be many if 82599 */
 	u64 hw_csum_rx_error;
 	u64 hw_rx_no_dma_resources;
 	u64 hw_csum_rx_good;
 	u64 non_eop_descs;
 	int num_msix_vectors;
-	int max_msix_q_vectors;         /* true count of q_vectors for device */
-	struct ixgbevf_ring_feature ring_feature[RING_F_ARRAY_SIZE];
 	struct msix_entry *msix_entries;
 
-	u64 rx_hdr_split;
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
@@ -233,14 +208,8 @@ struct ixgbevf_adapter {
 	 */
 	u32 flags;
 #define IXGBE_FLAG_RX_CSUM_ENABLED              (u32)(1)
-#define IXGBE_FLAG_RX_1BUF_CAPABLE              (u32)(1 << 1)
-#define IXGBE_FLAG_RX_PS_CAPABLE                (u32)(1 << 2)
-#define IXGBE_FLAG_RX_PS_ENABLED                (u32)(1 << 3)
-#define IXGBE_FLAG_IN_NETPOLL                   (u32)(1 << 4)
-#define IXGBE_FLAG_IMIR_ENABLED                 (u32)(1 << 5)
-#define IXGBE_FLAG_MQ_CAPABLE                   (u32)(1 << 6)
-#define IXGBE_FLAG_NEED_LINK_UPDATE             (u32)(1 << 7)
-#define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 8)
+#define IXGBE_FLAG_IN_WATCHDOG_TASK             (u32)(1 << 1)
+
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
@@ -254,18 +223,15 @@ struct ixgbevf_adapter {
 	u32 eitr_param;
 
 	unsigned long state;
-	u32 *config_space;
 	u64 tx_busy;
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
 
 	u32 link_speed;
 	bool link_up;
-	unsigned long link_check_timeout;
 
 	struct work_struct watchdog_task;
 	bool netdev_registered;
-	bool dev_closed;
 };
 
 enum ixbgevf_state_t {
@@ -302,10 +268,8 @@ extern void ixgbevf_free_tx_resources(struct ixgbevf_adapter *,
 				      struct ixgbevf_ring *);
 extern void ixgbevf_update_stats(struct ixgbevf_adapter *adapter);
 
-#ifdef ETHTOOL_OPS_COMPAT
 extern int ethtool_ioctl(struct ifreq *ifr);
 
-#endif
 extern void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
 extern void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 

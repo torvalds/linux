@@ -43,7 +43,6 @@
 
 #define IXGBE_ALL_RAR_ENTRIES 16
 
-#ifdef ETHTOOL_GSTATS
 struct ixgbe_stats {
 	char stat_string[ETH_GSTRING_LEN];
 	int sizeof_stat;
@@ -75,21 +74,17 @@ static const struct ixgbe_stats ixgbe_gstrings_stats[] = {
 						zero_base)},
 	{"tx_csum_offload_ctxt", IXGBEVF_STAT(hw_csum_tx_good, zero_base,
 					      zero_base)},
-	{"rx_header_split", IXGBEVF_STAT(rx_hdr_split, zero_base, zero_base)},
 };
 
 #define IXGBE_QUEUE_STATS_LEN 0
 #define IXGBE_GLOBAL_STATS_LEN	ARRAY_SIZE(ixgbe_gstrings_stats)
 
 #define IXGBEVF_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
-#endif /* ETHTOOL_GSTATS */
-#ifdef ETHTOOL_TEST
 static const char ixgbe_gstrings_test[][ETH_GSTRING_LEN] = {
 	"Register test  (offline)",
 	"Link test   (on/offline)"
 };
 #define IXGBE_TEST_LEN (sizeof(ixgbe_gstrings_test) / ETH_GSTRING_LEN)
-#endif /* ETHTOOL_TEST */
 
 static int ixgbevf_get_settings(struct net_device *netdev,
 				struct ethtool_cmd *ecmd)
@@ -674,10 +669,8 @@ static int ixgbevf_nway_reset(struct net_device *netdev)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 
-	if (netif_running(netdev)) {
-		if (!adapter->dev_closed)
-			ixgbevf_reinit_locked(adapter);
-	}
+	if (netif_running(netdev))
+		ixgbevf_reinit_locked(adapter);
 
 	return 0;
 }
