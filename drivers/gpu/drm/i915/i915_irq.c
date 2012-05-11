@@ -2320,10 +2320,8 @@ static void i965_irq_preinstall(struct drm_device * dev)
 
 	atomic_set(&dev_priv->irq_received, 0);
 
-	if (I915_HAS_HOTPLUG(dev)) {
-		I915_WRITE(PORT_HOTPLUG_EN, 0);
-		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-	}
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	I915_WRITE(HWSTAM, 0xeffe);
 	for_each_pipe(pipe)
@@ -2336,11 +2334,13 @@ static void i965_irq_preinstall(struct drm_device * dev)
 static int i965_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	u32 hotplug_en;
 	u32 enable_mask;
 	u32 error_mask;
 
 	/* Unmask the interrupts that we always want on. */
 	dev_priv->irq_mask = ~(I915_ASLE_INTERRUPT |
+			       I915_DISPLAY_PORT_INTERRUPT |
 			       I915_DISPLAY_PIPE_A_EVENT_INTERRUPT |
 			       I915_DISPLAY_PIPE_B_EVENT_INTERRUPT |
 			       I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT |
@@ -2355,13 +2355,6 @@ static int i965_irq_postinstall(struct drm_device *dev)
 
 	dev_priv->pipestat[0] = 0;
 	dev_priv->pipestat[1] = 0;
-
-	if (I915_HAS_HOTPLUG(dev)) {
-		/* Enable in IER... */
-		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
-		/* and unmask in IMR */
-		dev_priv->irq_mask &= ~I915_DISPLAY_PORT_INTERRUPT;
-	}
 
 	/*
 	 * Enable some error detection, note the instruction error mask
@@ -2382,36 +2375,33 @@ static int i965_irq_postinstall(struct drm_device *dev)
 	I915_WRITE(IER, enable_mask);
 	POSTING_READ(IER);
 
-	if (I915_HAS_HOTPLUG(dev)) {
-		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
+	/* Note HDMI and DP share hotplug bits */
+	hotplug_en = 0;
+	if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
+		hotplug_en |= HDMIB_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
+		hotplug_en |= HDMIC_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
+		hotplug_en |= HDMID_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+		hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+		hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+	if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
+		hotplug_en |= CRT_HOTPLUG_INT_EN;
 
-		/* Note HDMI and DP share bits */
-		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
-			hotplug_en |= HDMID_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
-			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
-		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS) {
-			hotplug_en |= CRT_HOTPLUG_INT_EN;
-
-			/* Programming the CRT detection parameters tends
-			   to generate a spurious hotplug event about three
-			   seconds later.  So just do it once.
-			*/
-			if (IS_G4X(dev))
-				hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
-			hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
-		}
-
-		/* Ignore TV since it's buggy */
-
-		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
+		/* Programming the CRT detection parameters tends
+		   to generate a spurious hotplug event about three
+		   seconds later.  So just do it once.
+		   */
+		if (IS_G4X(dev))
+			hotplug_en |= CRT_HOTPLUG_ACTIVATION_PERIOD_64;
+		hotplug_en |= CRT_HOTPLUG_VOLTAGE_COMPARE_50;
 	}
+
+	/* Ignore TV since it's buggy */
+
+	I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 
 	intel_opregion_enable_asle(dev);
 
@@ -2469,8 +2459,7 @@ static irqreturn_t i965_irq_handler(DRM_IRQ_ARGS)
 		ret = IRQ_HANDLED;
 
 		/* Consume port.  Then clear IIR or we'll miss events */
-		if ((I915_HAS_HOTPLUG(dev)) &&
-		    (iir & I915_DISPLAY_PORT_INTERRUPT)) {
+		if (iir & I915_DISPLAY_PORT_INTERRUPT) {
 			u32 hotplug_status = I915_READ(PORT_HOTPLUG_STAT);
 
 			DRM_DEBUG_DRIVER("hotplug event received, stat 0x%08x\n",
@@ -2543,10 +2532,8 @@ static void i965_irq_uninstall(struct drm_device * dev)
 	if (!dev_priv)
 		return;
 
-	if (I915_HAS_HOTPLUG(dev)) {
-		I915_WRITE(PORT_HOTPLUG_EN, 0);
-		I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
-	}
+	I915_WRITE(PORT_HOTPLUG_EN, 0);
+	I915_WRITE(PORT_HOTPLUG_STAT, I915_READ(PORT_HOTPLUG_STAT));
 
 	I915_WRITE(HWSTAM, 0xffffffff);
 	for_each_pipe(pipe)
