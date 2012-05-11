@@ -13,26 +13,6 @@
 __atomic_begin:
 
 #ifndef CONFIG_SMP
-	.globl	___xchg32_sun4c
-___xchg32_sun4c:
-	rd	%psr, %g3
-	andcc	%g3, PSR_PIL, %g0
-	bne	1f
-	 nop
-	wr	%g3, PSR_PIL, %psr
-	nop; nop; nop
-1:
-	andcc	%g3, PSR_PIL, %g0
-	ld	[%g1], %g7
-	bne	1f
-	 st	%g2, [%g1]
-	wr	%g3, 0x0, %psr
-	nop; nop; nop
-1:
-	mov	%g7, %g2
-	jmpl	%o7 + 8, %g0
-	 mov	%g4, %o7
-
 	.globl	___xchg32_sun4md
 ___xchg32_sun4md:
 	swap	[%g1], %g2
