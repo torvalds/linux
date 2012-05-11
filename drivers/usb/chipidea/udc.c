@@ -404,36 +404,23 @@ static int _hardware_enqueue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 		return -EALREADY;
 
 	mReq->req.status = -EALREADY;
-	if (length && mReq->req.dma == DMA_ADDR_INVALID) {
-		mReq->req.dma = \
-			dma_map_single(mEp->device, mReq->req.buf,
-				       length, mEp->dir ? DMA_TO_DEVICE :
-				       DMA_FROM_DEVICE);
-		if (mReq->req.dma == 0)
-			return -ENOMEM;
-
-		mReq->map = 1;
-	}
 
 	if (mReq->req.zero && length && (length % mEp->ep.maxpacket == 0)) {
 		mReq->zptr = dma_pool_alloc(mEp->td_pool, GFP_ATOMIC,
 					   &mReq->zdma);
-		if (mReq->zptr == NULL) {
-			if (mReq->map) {
-				dma_unmap_single(mEp->device, mReq->req.dma,
-					length, mEp->dir ? DMA_TO_DEVICE :
-					DMA_FROM_DEVICE);
-				mReq->req.dma = DMA_ADDR_INVALID;
-				mReq->map     = 0;
-			}
+		if (mReq->zptr == NULL)
 			return -ENOMEM;
-		}
+
 		memset(mReq->zptr, 0, sizeof(*mReq->zptr));
 		mReq->zptr->next    = TD_TERMINATE;
 		mReq->zptr->token   = TD_STATUS_ACTIVE;
 		if (!mReq->req.no_interrupt)
 			mReq->zptr->token   |= TD_IOC;
 	}
+	ret = usb_gadget_map_request(&udc->gadget, &mReq->req, mEp->dir);
+	if (ret)
+		return ret;
+
 	/*
 	 * TD configuration
 	 * TODO - handle requests which spawns into several TDs
@@ -514,12 +501,7 @@ static int _hardware_dequeue(struct ci13xxx_ep *mEp, struct ci13xxx_req *mReq)
 
 	mReq->req.status = 0;
 
-	if (mReq->map) {
-		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
-				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		mReq->req.dma = DMA_ADDR_INVALID;
-		mReq->map     = 0;
-	}
+	usb_gadget_unmap_request(&mEp->udc->gadget, &mReq->req, mEp->dir);
 
 	mReq->req.status = mReq->ptr->token & TD_STATUS;
 	if ((TD_STATUS_HALTED & mReq->req.status) != 0)
@@ -1121,7 +1103,6 @@ static struct usb_request *ep_alloc_request(struct usb_ep *ep, gfp_t gfp_flags)
 	mReq = kzalloc(sizeof(struct ci13xxx_req), gfp_flags);
 	if (mReq != NULL) {
 		INIT_LIST_HEAD(&mReq->queue);
-		mReq->req.dma = DMA_ADDR_INVALID;
 
 		mReq->ptr = dma_pool_alloc(mEp->td_pool, gfp_flags,
 					   &mReq->dma);
@@ -1253,12 +1234,9 @@ static int ep_dequeue(struct usb_ep *ep, struct usb_request *req)
 
 	/* pop request */
 	list_del_init(&mReq->queue);
-	if (mReq->map) {
-		dma_unmap_single(mEp->device, mReq->req.dma, mReq->req.length,
-				 mEp->dir ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		mReq->req.dma = DMA_ADDR_INVALID;
-		mReq->map     = 0;
-	}
+
+	usb_gadget_unmap_request(&mEp->udc->gadget, req, mEp->dir);
+
 	req->status = -ECONNRESET;
 
 	if (mReq->req.complete != NULL) {

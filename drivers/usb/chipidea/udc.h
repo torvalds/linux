@@ -62,7 +62,6 @@ struct ci13xxx_qh {
 /**
  * struct ci13xxx_req - usb request representation
  * @req: request structure for gadget drivers
- * @map: is the request mapped
  * @queue: link to QH list
  * @ptr: transfer descriptor for this request
  * @dma: dma address for the transfer descriptor
@@ -71,7 +70,6 @@ struct ci13xxx_qh {
  */
 struct ci13xxx_req {
 	struct usb_request	req;
-	unsigned		map;
 	struct list_head	queue;
 	struct ci13xxx_td	*ptr;
 	dma_addr_t		dma;
