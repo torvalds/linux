@@ -553,10 +553,7 @@ static void alps_process_touchpad_packet_v3(struct psmouse *psmouse)
 
 	alps_report_semi_mt_data(dev, fingers, x1, y1, x2, y2);
 
-	input_report_key(dev, BTN_TOOL_FINGER, fingers == 1);
-	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
-	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
-	input_report_key(dev, BTN_TOOL_QUADTAP, fingers == 4);
+	input_mt_report_finger_count(dev, fingers);
 
 	input_report_key(dev, BTN_LEFT, left);
 	input_report_key(dev, BTN_RIGHT, right);
@@ -685,10 +682,7 @@ static void alps_process_packet_v4(struct psmouse *psmouse)
 
 	alps_report_semi_mt_data(dev, fingers, x1, y1, x2, y2);
 
-	input_report_key(dev, BTN_TOOL_FINGER, fingers == 1);
-	input_report_key(dev, BTN_TOOL_DOUBLETAP, fingers == 2);
-	input_report_key(dev, BTN_TOOL_TRIPLETAP, fingers == 3);
-	input_report_key(dev, BTN_TOOL_QUADTAP, fingers == 4);
+	input_mt_report_finger_count(dev, fingers);
 
 	input_report_key(dev, BTN_LEFT, left);
 	input_report_key(dev, BTN_RIGHT, right);
