@@ -235,7 +235,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	 * nothing more.
 	 */
 	code = SEGV_MAPERR;
-	if (!ARCH_SUN4C && address >= TASK_SIZE)
+	if (address >= TASK_SIZE)
 		goto vmalloc_fault;
 
 	/*

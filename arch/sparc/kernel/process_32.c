@@ -67,8 +67,6 @@ struct thread_info *current_set[NR_CPUS];
 
 #ifndef CONFIG_SMP
 
-#define SUN4C_FAULT_HIGH 100
-
 /*
  * the idle loop on a Sparc... ;)
  */
@@ -76,36 +74,6 @@ void cpu_idle(void)
 {
 	/* endless idle loop with no priority at all */
 	for (;;) {
-		if (ARCH_SUN4C) {
-			static int count = HZ;
-			static unsigned long last_jiffies;
-			static unsigned long last_faults;
-			static unsigned long fps;
-			unsigned long now;
-			unsigned long faults;
-
-			extern unsigned long sun4c_kernel_faults;
-			extern void sun4c_grow_kernel_ring(void);
-
-			local_irq_disable();
-			now = jiffies;
-			count -= (now - last_jiffies);
-			last_jiffies = now;
-			if (count < 0) {
-				count += HZ;
-				faults = sun4c_kernel_faults;
-				fps = (fps + (faults - last_faults)) >> 1;
-				last_faults = faults;
-#if 0
-				printk("kernel faults / second = %ld\n", fps);
-#endif
-				if (fps >= SUN4C_FAULT_HIGH) {
-					/*sun4c_grow_kernel_ring();*/
-				}
-			}
-			local_irq_enable();
-		}
-
 		if (pm_idle) {
 			while (!need_resched())
 				(*pm_idle)();
