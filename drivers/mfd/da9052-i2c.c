@@ -70,7 +70,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 	struct da9052 *da9052;
 	int ret;
 
-	da9052 = kzalloc(sizeof(struct da9052), GFP_KERNEL);
+	da9052 = devm_kzalloc(&client->dev, sizeof(struct da9052), GFP_KERNEL);
 	if (!da9052)
 		return -ENOMEM;
 
@@ -78,8 +78,7 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_info(&client->dev, "Error in %s:i2c_check_functionality\n",
 			 __func__);
-		ret = -ENODEV;
-		goto err;
+		return  -ENODEV;
 	}
 
 	da9052->dev = &client->dev;
@@ -87,17 +86,17 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, da9052);
 
-	da9052->regmap = regmap_init_i2c(client, &da9052_regmap_config);
+	da9052->regmap = devm_regmap_init_i2c(client, &da9052_regmap_config);
 	if (IS_ERR(da9052->regmap)) {
 		ret = PTR_ERR(da9052->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n",
 			ret);
-		goto err;
+		return ret;
 	}
 
 	ret = da9052_i2c_enable_multiwrite(da9052);
 	if (ret < 0)
-		goto err_regmap;
+		return ret;
 
 #ifdef CONFIG_OF
 	if (!id) {
@@ -112,20 +111,14 @@ static int __devinit da9052_i2c_probe(struct i2c_client *client,
 	if (!id) {
 		ret = -ENODEV;
 		dev_err(&client->dev, "id is null.\n");
-		goto err_regmap;
+		return ret;
 	}
 
 	ret = da9052_device_init(da9052, id->driver_data);
 	if (ret != 0)
-		goto err_regmap;
+		return ret;
 
 	return 0;
-
-err_regmap:
-	regmap_exit(da9052->regmap);
-err:
-	kfree(da9052);
-	return ret;
 }
 
 static int __devexit da9052_i2c_remove(struct i2c_client *client)
@@ -133,9 +126,6 @@ static int __devexit da9052_i2c_remove(struct i2c_client *client)
 	struct da9052 *da9052 = i2c_get_clientdata(client);
 
 	da9052_device_exit(da9052);
-	regmap_exit(da9052->regmap);
-	kfree(da9052);
-
 	return 0;
 }
 
