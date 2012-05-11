@@ -33,6 +33,12 @@ struct ci13xxx_udc_driver langwell_pci_driver = {
 	.capoffset	= 0,
 };
 
+struct ci13xxx_udc_driver penwell_pci_driver = {
+	.name		= UDC_DRIVER_NAME,
+	.capoffset	= 0,
+	.power_budget	= 200,
+};
+
 /**
  * ci13xxx_pci_probe: PCI probe
  * @pdev: USB device controller being probed
@@ -153,7 +159,7 @@ static DEFINE_PCI_DEVICE_TABLE(ci13xxx_pci_id_table) = {
 	},
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x0829),
-		.driver_data = (kernel_ulong_t)&langwell_pci_driver,
+		.driver_data = (kernel_ulong_t)&penwell_pci_driver,
 	},
 	{ 0, 0, 0, 0, 0, 0, 0 /* end: all zeroes */ }
 };

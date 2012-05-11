@@ -10,6 +10,7 @@ struct ci13xxx_udc_driver {
 	const char	*name;
 	/* offset of the capability registers */
 	uintptr_t	 capoffset;
+	unsigned	 power_budget;
 	unsigned long	 flags;
 #define CI13XXX_REGS_SHARED		BIT(0)
 #define CI13XXX_REQUIRE_TRANSCEIVER	BIT(1)
