@@ -32,12 +32,16 @@
 				cd-gpios = <&gpio6 11 0>;
 				wp-gpios = <&gpio6 14 0>;
 				vmmc-supply = <&reg_3p3v>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc3_1>;
 				status = "okay";
 			};
 
 			usdhc@0219c000 { /* uSDHC4 */
 				fsl,card-wired;
 				vmmc-supply = <&reg_3p3v>;
+				pinctrl-names = "default";
+				pinctrl-0 = <&pinctrl_usdhc4_1>;
 				status = "okay";
 			};
 
