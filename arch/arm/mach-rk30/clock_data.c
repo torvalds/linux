@@ -2331,7 +2331,7 @@ static int pd_display_mode(struct clk *clk, int on)
 static struct clk pd_display = {
 	.name	= "pd_display",
 	.flags  = IS_PD,
-	.mode	= pd_display_mode,
+//	.mode	= pd_display_mode,
 	.gate_idx	= PD_VIO,
 };
 
