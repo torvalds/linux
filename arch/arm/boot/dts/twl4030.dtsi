@@ -36,4 +36,12 @@
 		regulator-min-microvolt = <1850000>;
 		regulator-max-microvolt = <3150000>;
 	};
+
+	twl_gpio: gpio {
+		compatible = "ti,twl4030-gpio";
+		gpio-controller;
+		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
 };

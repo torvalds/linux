@@ -27,6 +27,49 @@
 		enable-active-high;
 		regulator-boot-on;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		debug0 {
+			label = "omap4:green:debug0";
+			gpios = <&gpio2 29 0>; /* 61 */
+		};
+
+		debug1 {
+			label = "omap4:green:debug1";
+			gpios = <&gpio1 30 0>; /* 30 */
+		};
+
+		debug2 {
+			label = "omap4:green:debug2";
+			gpios = <&gpio1 7 0>; /* 7 */
+		};
+
+		debug3 {
+			label = "omap4:green:debug3";
+			gpios = <&gpio1 8 0>; /* 8 */
+		};
+
+		debug4 {
+			label = "omap4:green:debug4";
+			gpios = <&gpio2 18 0>; /* 50 */
+		};
+
+		user1 {
+			label = "omap4:blue:user";
+			gpios = <&gpio6 9 0>; /* 169 */
+		};
+
+		user2 {
+			label = "omap4:red:user";
+			gpios = <&gpio6 10 0>; /* 170 */
+		};
+
+		user3 {
+			label = "omap4:green:user";
+			gpios = <&gpio5 11 0>; /* 139 */
+		};
+	};
 };
 
 &i2c1 {
