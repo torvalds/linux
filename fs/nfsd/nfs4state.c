@@ -448,34 +448,24 @@ static struct list_head close_lru;
  *
  * which we should reject.
  */
-static void
-set_access(unsigned int *access, unsigned long bmap) {
+static unsigned int
+bmap_to_share_mode(unsigned long bmap) {
 	int i;
+	unsigned int access = 0;
 
-	*access = 0;
 	for (i = 1; i < 4; i++) {
 		if (test_bit(i, &bmap))
-			*access |= i;
+			access |= i;
 	}
-}
-
-static void
-set_deny(unsigned int *deny, unsigned long bmap) {
-	int i;
-
-	*deny = 0;
-	for (i = 0; i < 4; i++) {
-		if (test_bit(i, &bmap))
-			*deny |= i ;
-	}
+	return access;
 }
 
 static int
 test_share(struct nfs4_ol_stateid *stp, struct nfsd4_open *open) {
 	unsigned int access, deny;
 
-	set_access(&access, stp->st_access_bmap);
-	set_deny(&deny, stp->st_deny_bmap);
+	access = bmap_to_share_mode(stp->st_access_bmap);
+	deny = bmap_to_share_mode(stp->st_deny_bmap);
 	if ((access & open->op_share_deny) || (deny & open->op_share_access))
 		return 0;
 	return 1;
