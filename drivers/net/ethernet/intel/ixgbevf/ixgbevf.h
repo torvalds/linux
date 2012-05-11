@@ -177,8 +177,6 @@ struct ixgbevf_adapter {
 
 	/* Interrupt Throttle Rate */
 	u32 itr_setting;
-	u16 eitr_low;
-	u16 eitr_high;
 
 	/* TX */
 	struct ixgbevf_ring *tx_ring;	/* One per active queue */

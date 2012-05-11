@@ -704,17 +704,17 @@ static u8 ixgbevf_update_itr(struct ixgbevf_adapter *adapter,
 
 	switch (itr_setting) {
 	case lowest_latency:
-		if (bytes_perint > adapter->eitr_low)
+		if (bytes_perint > 10)
 			retval = low_latency;
 		break;
 	case low_latency:
-		if (bytes_perint > adapter->eitr_high)
+		if (bytes_perint > 20)
 			retval = bulk_latency;
-		else if (bytes_perint <= adapter->eitr_low)
+		else if (bytes_perint <= 10)
 			retval = lowest_latency;
 		break;
 	case bulk_latency:
-		if (bytes_perint <= adapter->eitr_high)
+		if (bytes_perint <= 20)
 			retval = low_latency;
 		break;
 	}
@@ -2068,10 +2068,6 @@ static int __devinit ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	/* Enable dynamic interrupt throttling rates */
 	adapter->eitr_param = 20000;
 	adapter->itr_setting = 1;
-
-	/* set defaults for eitr in MegaBytes */
-	adapter->eitr_low = 10;
-	adapter->eitr_high = 20;
 
 	/* set default ring sizes */
 	adapter->tx_ring_count = IXGBEVF_DEFAULT_TXD;
