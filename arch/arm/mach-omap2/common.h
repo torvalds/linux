@@ -111,6 +111,7 @@ struct omap_globals {
 	void __iomem	*prm;            /* Power and Reset Management */
 	void __iomem	*cm;             /* Clock Management */
 	void __iomem	*cm2;
+	void __iomem	*prcm_mpu;
 };
 
 void omap2_set_globals_242x(void);

@@ -18,20 +18,26 @@
 
 #include "iomap.h"
 #include "common.h"
+#include "prcm-common.h"
 #include "prm44xx.h"
 #include "prminst44xx.h"
 #include "prm-regbits-44xx.h"
 #include "prcm44xx.h"
 #include "prcm_mpu44xx.h"
 
-static u32 _prm_bases[OMAP4_MAX_PRCM_PARTITIONS] = {
-	[OMAP4430_INVALID_PRCM_PARTITION]	= 0,
-	[OMAP4430_PRM_PARTITION]		= OMAP4430_PRM_BASE,
-	[OMAP4430_CM1_PARTITION]		= 0,
-	[OMAP4430_CM2_PARTITION]		= 0,
-	[OMAP4430_SCRM_PARTITION]		= 0,
-	[OMAP4430_PRCM_MPU_PARTITION]		= OMAP4430_PRCM_MPU_BASE,
-};
+static void __iomem *_prm_bases[OMAP4_MAX_PRCM_PARTITIONS];
+
+/**
+ * omap_prm_base_init - Populates the prm partitions
+ *
+ * Populates the base addresses of the _prm_bases
+ * array used for read/write of prm module registers.
+ */
+void omap_prm_base_init(void)
+{
+	_prm_bases[OMAP4430_PRM_PARTITION] = prm_base;
+	_prm_bases[OMAP4430_PRCM_MPU_PARTITION] = prcm_mpu_base;
+}
 
 /* Read a register in a PRM instance */
 u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
@@ -39,8 +45,7 @@ u32 omap4_prminst_read_inst_reg(u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	return __raw_readl(OMAP2_L4_IO_ADDRESS(_prm_bases[part] + inst +
-					       idx));
+	return __raw_readl(_prm_bases[part] + inst + idx);
 }
 
 /* Write into a register in a PRM instance */
@@ -49,7 +54,7 @@ void omap4_prminst_write_inst_reg(u32 val, u8 part, s16 inst, u16 idx)
 	BUG_ON(part >= OMAP4_MAX_PRCM_PARTITIONS ||
 	       part == OMAP4430_INVALID_PRCM_PARTITION ||
 	       !_prm_bases[part]);
-	__raw_writel(val, OMAP2_L4_IO_ADDRESS(_prm_bases[part] + inst + idx));
+	__raw_writel(val, _prm_bases[part] + inst + idx);
 }
 
 /* Read-modify-write a register in PRM. Caller must lock */
