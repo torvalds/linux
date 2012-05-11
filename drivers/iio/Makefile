@@ -8,3 +8,5 @@ industrialio-$(CONFIG_IIO_BUFFER) += industrialio-buffer.o
 industrialio-$(CONFIG_IIO_TRIGGER) += industrialio-trigger.o
 
 obj-$(CONFIG_IIO_KFIFO_BUF) += kfifo_buf.o
+
+obj-y += amplifiers/
