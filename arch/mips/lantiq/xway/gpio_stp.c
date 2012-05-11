@@ -78,11 +78,6 @@ static struct gpio_chip ltq_stp_chip = {
 
 static int ltq_stp_hw_init(void)
 {
-	/* the 3 pins used to control the external stp */
-	ltq_gpio_request(4, 1, 0, 1, "stp-st");
-	ltq_gpio_request(5, 1, 0, 1, "stp-d");
-	ltq_gpio_request(6, 1, 0, 1, "stp-sh");
-
 	/* sane defaults */
 	ltq_stp_w32(0, LTQ_STP_AR);
 	ltq_stp_w32(0, LTQ_STP_CPU0);

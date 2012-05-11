@@ -68,32 +68,6 @@
 #define ltq_pci_cfg_w32(x, y)	ltq_w32((x), ltq_pci_mapped_cfg + (y))
 #define ltq_pci_cfg_r32(x)	ltq_r32(ltq_pci_mapped_cfg + (x))
 
-struct ltq_pci_gpio_map {
-	int pin;
-	int alt0;
-	int alt1;
-	int dir;
-	char *name;
-};
-
-/* the pci core can make use of the following gpios */
-static struct ltq_pci_gpio_map ltq_pci_gpio_map[] = {
-	{ 0, 1, 0, 0, "pci-exin0" },
-	{ 1, 1, 0, 0, "pci-exin1" },
-	{ 2, 1, 0, 0, "pci-exin2" },
-	{ 39, 1, 0, 0, "pci-exin3" },
-	{ 10, 1, 0, 0, "pci-exin4" },
-	{ 9, 1, 0, 0, "pci-exin5" },
-	{ 30, 1, 0, 1, "pci-gnt1" },
-	{ 23, 1, 0, 1, "pci-gnt2" },
-	{ 19, 1, 0, 1, "pci-gnt3" },
-	{ 38, 1, 0, 1, "pci-gnt4" },
-	{ 29, 1, 0, 0, "pci-req1" },
-	{ 31, 1, 0, 0, "pci-req2" },
-	{ 3, 1, 0, 0, "pci-req3" },
-	{ 37, 1, 0, 0, "pci-req4" },
-};
-
 __iomem void *ltq_pci_mapped_cfg;
 static __iomem void *ltq_pci_membase;
 
@@ -151,22 +125,6 @@ static u32 ltq_calc_bar11mask(void)
 	return bar11mask;
 }
 
-static void ltq_pci_setup_gpio(int gpio)
-{
-	int i;
-	for (i = 0; i < ARRAY_SIZE(ltq_pci_gpio_map); i++) {
-		if (gpio & (1 << i)) {
-			ltq_gpio_request(ltq_pci_gpio_map[i].pin,
-				ltq_pci_gpio_map[i].alt0,
-				ltq_pci_gpio_map[i].alt1,
-				ltq_pci_gpio_map[i].dir,
-				ltq_pci_gpio_map[i].name);
-		}
-	}
-	ltq_gpio_request(21, 0, 0, 1, "pci-reset");
-	ltq_pci_req_mask = (gpio >> PCI_REQ_SHIFT) & PCI_REQ_MASK;
-}
-
 static int __devinit ltq_pci_startup(struct ltq_pci_data *conf)
 {
 	u32 temp_buffer;
@@ -192,7 +150,7 @@ static int __devinit ltq_pci_startup(struct ltq_pci_data *conf)
 	}
 
 	/* setup pci clock and gpis used by pci */
-	ltq_pci_setup_gpio(conf->gpio);
+	gpio_request(21, "pci-reset");
 
 	/* enable auto-switching between PCI and EBU */
 	ltq_pci_w32(0xa, PCI_CR_CLK_CTRL);
