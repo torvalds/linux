@@ -201,13 +201,7 @@ ia64_rt_sigreturn (struct sigscratch *scr)
 		goto give_sigsegv;
 
 	sigdelsetmask(&set, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	{
-		current->blocked = set;
-		recalc_sigpending();
-	}
-	spin_unlock_irq(&current->sighand->siglock);
+	set_current_blocked(&set);
 
 	if (restore_sigcontext(sc, scr))
 		goto give_sigsegv;
@@ -427,12 +421,7 @@ handle_signal (unsigned long sig, struct k_sigaction *ka, siginfo_t *info, sigse
 	if (!setup_frame(sig, ka, info, oldset, scr))
 		return 0;
 
-	spin_lock_irq(&current->sighand->siglock);
-	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-	if (!(ka->sa.sa_flags & SA_NODEFER))
-		sigaddset(&current->blocked, sig);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
+	block_sigmask(ka, sig);
 
 	/*
 	 * Let tracing know that we've done the handler setup.
