@@ -37,7 +37,7 @@
 u32 booke_wdt_enabled;
 u32 booke_wdt_period = CONFIG_BOOKE_WDT_DEFAULT_TIMEOUT;
 
-#ifdef	CONFIG_FSL_BOOKE
+#ifdef	CONFIG_PPC_FSL_BOOK3E
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
 #define WDTP_MASK	(WDTP(0x3f))
 #else
@@ -190,7 +190,7 @@ static long booke_wdt_ioctl(struct file *file,
 	case WDIOC_SETTIMEOUT:
 		if (get_user(tmp, p))
 			return -EFAULT;
-#ifdef	CONFIG_FSL_BOOKE
+#ifdef	CONFIG_PPC_FSL_BOOK3E
 		/* period of 1 gives the largest possible timeout */
 		if (tmp > period_to_sec(1))
 			return -EINVAL;
