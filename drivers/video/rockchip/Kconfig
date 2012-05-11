@@ -23,14 +23,14 @@ config LCDC0_RK30
 config LCDC1_RK30
         bool "lcdc1 support"
         depends on LCDC_RK30
-        default y
+        default y if HDMI_RK30
         help
            Support rk30 lcdc1 if you say y here
 
 config DUAL_DISP_IN_KERNEL
 	bool "implement dual display in kernel"
 	depends on FB_ROCKCHIP
-	default n
+	default y if HDMI_RK30
 	help
 	  select y will implement dual screen display in kernel
 source "drivers/video/rockchip/hdmi/Kconfig"
