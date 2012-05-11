@@ -1855,6 +1855,9 @@ static inline int l2cap_skbuff_fromiovec(struct l2cap_chan *chan,
 		sent += count;
 		len  -= count;
 
+		skb->len += (*frag)->len;
+		skb->data_len += (*frag)->len;
+
 		frag = &(*frag)->next;
 	}
 
