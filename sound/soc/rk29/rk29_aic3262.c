@@ -111,10 +111,10 @@ static const struct snd_soc_dapm_widget rk29_aic3262_dapm_widgets[] = {
 
 static const struct snd_soc_dapm_route audio_map[] = {
 	/* External Mics: MAINMIC, SUBMIC with bias*/
-	{"IN2L", NULL, "Mic Bias Int"},
-	{"IN2R", NULL, "Mic Bias Int"},
-	{"IN3L", NULL, "Mic Bias Int"},
-	{"IN3R", NULL, "Mic Bias Int"},
+	{"IN1L", NULL, "Mic Bias Int"},
+	{"IN1R", NULL, "Mic Bias Int"},
+	{"IN4L", NULL, "Mic Bias Int"},
+	{"IN4R", NULL, "Mic Bias Int"},
 	{"Mic Bias Int", NULL, "Ext Mic"},
 
 	/* External Speakers: HFL, HFR */
@@ -122,8 +122,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Ext Spk", NULL, "SPKR"},
 
 	/* Headset Mic: HSMIC with bias */
-	{"IN1L", NULL, "Mic Bias Ext"},
-	{"IN1R", NULL, "Mic Bias Ext"},
+	{"IN2L", NULL, "Mic Bias Ext"},
+	{"IN2R", NULL, "Mic Bias Ext"},
 	{"Mic Bias Ext", NULL, "Headset Mic"},
 
 	/* Headset Stereophone (Headphone): HPL, HPR */
@@ -135,8 +135,8 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"Earphone Spk", NULL, "RECM"},
 
 	/* Aux/FM Stereo In: IN4L, IN4R */
-	{"IN4L", NULL, "FM Stereo In"},
-	{"IN4R", NULL, "FM Stereo In"},
+	{"IN3L", NULL, "FM Stereo In"},
+	{"IN3R", NULL, "FM Stereo In"},
 	
 	/* Aux/FM Stereo Out: LOL, LOR */
 	{"FM Stereo Out", NULL, "LOL"},
