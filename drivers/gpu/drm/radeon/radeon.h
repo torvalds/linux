@@ -1059,6 +1059,8 @@ struct radeon_power_state {
 
 struct radeon_pm {
 	struct mutex		mutex;
+	/* write locked while reprogramming mclk */
+	struct rw_semaphore	mclk_lock;
 	u32			active_crtcs;
 	int			active_crtc_count;
 	int			req_vblank;
@@ -1554,7 +1556,6 @@ struct radeon_device {
 	struct work_struct audio_work;
 	int num_crtc; /* number of crtcs */
 	struct mutex dc_hw_i2c_mutex; /* display controller hw i2c mutex */
-	struct mutex vram_mutex;
 	bool audio_enabled;
 	struct r600_audio audio_status; /* audio stuff */
 	struct notifier_block acpi_nb;

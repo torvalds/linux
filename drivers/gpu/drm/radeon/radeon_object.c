@@ -154,11 +154,11 @@ retry:
 	INIT_LIST_HEAD(&bo->va);
 	radeon_ttm_placement_from_domain(bo, domain);
 	/* Kernel allocation are uninterruptible */
-	mutex_lock(&rdev->vram_mutex);
+	down_read(&rdev->pm.mclk_lock);
 	r = ttm_bo_init(&rdev->mman.bdev, &bo->tbo, size, type,
 			&bo->placement, page_align, 0, !kernel, NULL,
 			acc_size, sg, &radeon_ttm_bo_destroy);
-	mutex_unlock(&rdev->vram_mutex);
+	up_read(&rdev->pm.mclk_lock);
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS) {
 			if (domain == RADEON_GEM_DOMAIN_VRAM) {
@@ -219,9 +219,9 @@ void radeon_bo_unref(struct radeon_bo **bo)
 		return;
 	rdev = (*bo)->rdev;
 	tbo = &((*bo)->tbo);
-	mutex_lock(&rdev->vram_mutex);
+	down_read(&rdev->pm.mclk_lock);
 	ttm_bo_unref(&tbo);
-	mutex_unlock(&rdev->vram_mutex);
+	up_read(&rdev->pm.mclk_lock);
 	if (tbo == NULL)
 		*bo = NULL;
 }

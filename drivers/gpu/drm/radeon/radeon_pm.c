@@ -251,7 +251,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		return;
 
 	mutex_lock(&rdev->ddev->struct_mutex);
-	mutex_lock(&rdev->vram_mutex);
+	down_write(&rdev->pm.mclk_lock);
 	mutex_lock(&rdev->ring_lock);
 
 	/* gui idle int has issues on older chips it seems */
@@ -303,7 +303,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	rdev->pm.dynpm_planned_action = DYNPM_ACTION_NONE;
 
 	mutex_unlock(&rdev->ring_lock);
-	mutex_unlock(&rdev->vram_mutex);
+	up_write(&rdev->pm.mclk_lock);
 	mutex_unlock(&rdev->ddev->struct_mutex);
 }
 

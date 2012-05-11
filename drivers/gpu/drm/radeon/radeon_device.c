@@ -735,7 +735,7 @@ int radeon_device_init(struct radeon_device *rdev,
 		spin_lock_init(&rdev->ih.lock);
 	mutex_init(&rdev->gem.mutex);
 	mutex_init(&rdev->pm.mutex);
-	mutex_init(&rdev->vram_mutex);
+	init_rwsem(&rdev->pm.mclk_lock);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
 	init_waitqueue_head(&rdev->irq.idle_queue);
 	r = radeon_gem_init(rdev);
