@@ -424,7 +424,6 @@ enum usb_device_removable {
  *	access from userspace
  * @usbfs_dentry: usbfs dentry entry for the device
  * @maxchild: number of ports if hub
- * @children: child devices - USB devices that are attached to this hub
  * @quirks: quirks of the whole device
  * @urbnum: number of URBs submitted for the whole device
  * @active_duration: total time device is not suspended
@@ -491,7 +490,6 @@ struct usb_device {
 	struct list_head filelist;
 
 	int maxchild;
-	struct usb_device **children;
 
 	u32 quirks;
 	atomic_t urbnum;
@@ -517,6 +515,8 @@ static inline struct usb_device *interface_to_usbdev(struct usb_interface *intf)
 
 extern struct usb_device *usb_get_dev(struct usb_device *dev);
 extern void usb_put_dev(struct usb_device *dev);
+extern struct usb_device *usb_get_hub_child_device(struct usb_device *hdev,
+	int port1);
 
 /* USB device locking */
 #define usb_lock_device(udev)		device_lock(&(udev)->dev)
