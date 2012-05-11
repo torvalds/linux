@@ -50,6 +50,7 @@ struct cpufreq_interactive_cpuinfo {
 	unsigned int target_freq;
 	unsigned int floor_freq;
 	u64 floor_validate_time;
+	u64 hispeed_validate_time;
 	int governor_enabled;
 };
 
@@ -207,7 +208,7 @@ static void cpufreq_interactive_timer(unsigned long data)
 			if (pcpu->target_freq == hispeed_freq &&
 			    new_freq > hispeed_freq &&
 			    cputime64_sub(pcpu->timer_run_time,
-					  pcpu->target_set_time)
+					  pcpu->hispeed_validate_time)
 			    < above_hispeed_delay_val) {
 				trace_cpufreq_interactive_notyet(data, cpu_load,
 								 pcpu->target_freq,
@@ -218,6 +219,9 @@ static void cpufreq_interactive_timer(unsigned long data)
 	} else {
 		new_freq = pcpu->policy->max * cpu_load / 100;
 	}
+
+	if (new_freq <= hispeed_freq)
+		pcpu->hispeed_validate_time = pcpu->timer_run_time;
 
 	if (cpufreq_frequency_table_target(pcpu->policy, pcpu->freq_table,
 					   new_freq, CPUFREQ_RELATION_H,
@@ -507,6 +511,7 @@ static void cpufreq_interactive_boost(void)
 			cpumask_set_cpu(i, &up_cpumask);
 			pcpu->target_set_time_in_idle =
 				get_cpu_idle_time_us(i, &pcpu->target_set_time);
+			pcpu->hispeed_validate_time = pcpu->target_set_time;
 			anyboost = 1;
 		}
 
@@ -839,6 +844,8 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 					     &pcpu->target_set_time);
 			pcpu->floor_freq = pcpu->target_freq;
 			pcpu->floor_validate_time =
+				pcpu->target_set_time;
+			pcpu->hispeed_validate_time =
 				pcpu->target_set_time;
 			pcpu->governor_enabled = 1;
 			smp_wmb();
