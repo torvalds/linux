@@ -13,8 +13,8 @@
 		compatible = "arm,cortex-a9-gic";
 		interrupt-controller;
 		#interrupt-cells = <3>;
-		reg = <0x50041000 0x1000>,
-		      <0x50040100 0x0100>;
+		reg = <0x50041000 0x1000
+		       0x50040100 0x0100>;
 	};
 
 	pmu {
