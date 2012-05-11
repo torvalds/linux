@@ -1606,7 +1606,7 @@ static irqreturn_t udc_irq(struct ci13xxx *udc)
 
 	if (udc->udc_driver->flags & CI13XXX_REGS_SHARED) {
 		if (hw_read(udc, OP_USBMODE, USBMODE_CM) !=
-				USBMODE_CM_DEVICE) {
+				USBMODE_CM_DC) {
 			spin_unlock(&udc->lock);
 			return IRQ_NONE;
 		}

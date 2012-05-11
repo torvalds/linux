@@ -13,6 +13,8 @@
 #ifndef __DRIVERS_USB_CHIPIDEA_BITS_H
 #define __DRIVERS_USB_CHIPIDEA_BITS_H
 
+#include <linux/usb/ehci_def.h>
+
 /* HCCPARAMS */
 #define HCCPARAMS_LEN         BIT(17)
 
@@ -70,11 +72,9 @@
 
 /* USBMODE */
 #define USBMODE_CM            (0x03UL <<  0)
-#define    USBMODE_CM_IDLE    (0x00UL <<  0)
-#define    USBMODE_CM_DEVICE  (0x02UL <<  0)
-#define    USBMODE_CM_HOST    (0x03UL <<  0)
+#define USBMODE_CM_DC         (0x02UL <<  0)
 #define USBMODE_SLOM          BIT(3)
-#define USBMODE_SDIS          BIT(4)
+#define USBMODE_CI_SDIS       BIT(4)
 
 /* ENDPTCTRL */
 #define ENDPTCTRL_RXS         BIT(0)

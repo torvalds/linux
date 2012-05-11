@@ -231,15 +231,15 @@ int hw_device_reset(struct ci13xxx *ci)
 			CI13XXX_CONTROLLER_RESET_EVENT);
 
 	if (ci->udc_driver->flags & CI13XXX_DISABLE_STREAMING)
-		hw_write(ci, OP_USBMODE, USBMODE_SDIS, USBMODE_SDIS);
+		hw_write(ci, OP_USBMODE, USBMODE_CI_SDIS, USBMODE_CI_SDIS);
 
 	/* USBMODE should be configured step by step */
 	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_IDLE);
-	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DEVICE);
+	hw_write(ci, OP_USBMODE, USBMODE_CM, USBMODE_CM_DC);
 	/* HW >= 2.3 */
 	hw_write(ci, OP_USBMODE, USBMODE_SLOM, USBMODE_SLOM);
 
-	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != USBMODE_CM_DEVICE) {
+	if (hw_read(ci, OP_USBMODE, USBMODE_CM) != USBMODE_CM_DC) {
 		pr_err("cannot enter in device mode");
 		pr_err("lpm = %i", ci->hw_bank.lpm);
 		return -ENODEV;
