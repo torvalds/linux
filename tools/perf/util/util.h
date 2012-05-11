@@ -74,7 +74,6 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <pwd.h>
 #include <inttypes.h>
 #include "../../../include/linux/magic.h"
 #include "types.h"
@@ -248,8 +247,6 @@ int readn(int fd, void *buf, size_t size);
 struct perf_event_attr;
 
 void event_attr_init(struct perf_event_attr *attr);
-
-uid_t parse_target_uid(const char *str, const char *tid, const char *pid);
 
 #define _STR(x) #x
 #define STR(x) _STR(x)

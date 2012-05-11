@@ -1108,16 +1108,10 @@ more:
 	}
 
 	if ((skip = perf_session__process_event(self, &event, tool, head)) < 0) {
-		dump_printf("%#" PRIx64 " [%#x]: skipping unknown header type: %d\n",
-			    head, event.header.size, event.header.type);
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
+		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d\n",
+		       head, event.header.size, event.header.type);
+		err = -EINVAL;
+		goto out_err;
 	}
 
 	head += size;
@@ -1226,17 +1220,11 @@ more:
 
 	if (size == 0 ||
 	    perf_session__process_event(session, event, tool, file_pos) < 0) {
-		dump_printf("%#" PRIx64 " [%#x]: skipping unknown header type: %d\n",
-			    file_offset + head, event->header.size,
-			    event->header.type);
-		/*
-		 * assume we lost track of the stream, check alignment, and
-		 * increment a single u64 in the hope to catch on again 'soon'.
-		 */
-		if (unlikely(head & 7))
-			head &= ~7ULL;
-
-		size = 8;
+		pr_err("%#" PRIx64 " [%#x]: failed to process type: %d\n",
+		       file_offset + head, event->header.size,
+		       event->header.type);
+		err = -EINVAL;
+		goto out_err;
 	}
 
 	head += size;
