@@ -227,9 +227,6 @@ static ssize_t store_max_read_buffer_kb(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(max_read_buffer_kb, S_IRUGO | S_IWUSR,
-		show_max_read_buffer_kb, store_max_read_buffer_kb);
-
 static ssize_t show_read_buffer_kb(struct device *dev,
 				   struct device_attribute *attr, char *buf)
 {
@@ -287,9 +284,6 @@ static ssize_t store_read_buffer_kb(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(read_buffer_kb, S_IRUGO | S_IWUSR | S_IWGRP,
-		show_read_buffer_kb, store_read_buffer_kb);
-
 static ssize_t show_max_write_buffer_kb(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
@@ -343,9 +337,6 @@ static ssize_t store_max_write_buffer_kb(struct device *dev,
 
 	return count;
 }
-
-static DEVICE_ATTR(max_write_buffer_kb, S_IRUGO | S_IWUSR,
-		show_max_write_buffer_kb, store_max_write_buffer_kb);
 
 static ssize_t show_write_buffer_kb(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -404,19 +395,16 @@ static ssize_t store_write_buffer_kb(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(write_buffer_kb, S_IRUGO | S_IWUSR | S_IWGRP,
-		show_write_buffer_kb, store_write_buffer_kb);
-
-static struct attribute *comedi_attrs[] = {
-	&dev_attr_max_read_buffer_kb.attr,
-	&dev_attr_read_buffer_kb.attr,
-	&dev_attr_max_write_buffer_kb.attr,
-	&dev_attr_write_buffer_kb.attr,
-	NULL
-};
-
-static const struct attribute_group comedi_sysfs_files = {
-	.attrs	= comedi_attrs,
+static struct device_attribute comedi_dev_attrs[] = {
+	__ATTR(max_read_buffer_kb, S_IRUGO | S_IWUSR,
+		show_max_read_buffer_kb, store_max_read_buffer_kb),
+	__ATTR(read_buffer_kb, S_IRUGO | S_IWUSR | S_IWGRP,
+		show_read_buffer_kb, store_read_buffer_kb),
+	__ATTR(max_write_buffer_kb, S_IRUGO | S_IWUSR,
+		show_max_write_buffer_kb, store_max_write_buffer_kb),
+	__ATTR(write_buffer_kb, S_IRUGO | S_IWUSR | S_IWGRP,
+		show_write_buffer_kb, store_write_buffer_kb),
+	__ATTR_NULL
 };
 
 static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
@@ -2355,6 +2343,8 @@ static int __init comedi_init(void)
 		return PTR_ERR(comedi_class);
 	}
 
+	comedi_class->dev_attrs = comedi_dev_attrs;
+
 	/* XXX requires /proc interface */
 	comedi_proc_init();
 
@@ -2496,7 +2486,6 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	struct comedi_device_file_info *info;
 	struct device *csdev;
 	unsigned i;
-	int retval;
 
 	info = kzalloc(sizeof(struct comedi_device_file_info), GFP_KERNEL);
 	if (info == NULL)
@@ -2531,14 +2520,6 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	if (!IS_ERR(csdev))
 		info->device->class_dev = csdev;
 	dev_set_drvdata(csdev, info);
-
-	retval = sysfs_create_group(&csdev->kobj, &comedi_sysfs_files);
-	if (retval) {
-		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute files\n");
-		comedi_free_board_minor(i);
-		return retval;
-	}
 
 	return i;
 }
@@ -2590,7 +2571,6 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	struct comedi_device_file_info *info;
 	struct device *csdev;
 	unsigned i;
-	int retval;
 
 	info = kmalloc(sizeof(struct comedi_device_file_info), GFP_KERNEL);
 	if (info == NULL)
@@ -2620,14 +2600,6 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	if (!IS_ERR(csdev))
 		s->class_dev = csdev;
 	dev_set_drvdata(csdev, info);
-
-	retval = sysfs_create_group(&csdev->kobj, &comedi_sysfs_files);
-	if (retval) {
-		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute files\n");
-		comedi_free_subdevice_minor(s);
-		return retval;
-	}
 
 	return i;
 }
