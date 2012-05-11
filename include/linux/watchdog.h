@@ -95,6 +95,8 @@ struct watchdog_ops {
  *
  * @id:		The watchdog's ID. (Allocated by watchdog_register_device)
  * @cdev:	The watchdog's Character device.
+ * @dev:	The device for our watchdog
+ * @parent:	The parent bus device
  * @info:	Pointer to a watchdog_info structure.
  * @ops:	Pointer to the list of watchdog operations.
  * @bootstatus:	Status of the watchdog device at boot.
@@ -113,6 +115,8 @@ struct watchdog_ops {
 struct watchdog_device {
 	int id;
 	struct cdev cdev;
+	struct device *dev;
+	struct device *parent;
 	const struct watchdog_info *info;
 	const struct watchdog_ops *ops;
 	unsigned int bootstatus;
