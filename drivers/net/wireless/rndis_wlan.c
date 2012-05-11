@@ -88,49 +88,6 @@ module_param_named(workaround_interval, modparam_workaround_interval,
 MODULE_PARM_DESC(workaround_interval,
 	"set stall workaround interval in msecs (0=disabled) (default: 0)");
 
-
-/* various RNDIS OID defs */
-#define OID_GEN_LINK_SPEED			0x00010107
-#define OID_GEN_RNDIS_CONFIG_PARAMETER		0x0001021b
-
-#define OID_GEN_XMIT_OK				0x00020101
-#define OID_GEN_RCV_OK				0x00020102
-#define OID_GEN_XMIT_ERROR			0x00020103
-#define OID_GEN_RCV_ERROR			0x00020104
-#define OID_GEN_RCV_NO_BUFFER			0x00020105
-
-#define OID_802_3_CURRENT_ADDRESS		0x01010102
-#define OID_802_3_MULTICAST_LIST		0x01010103
-#define OID_802_3_MAXIMUM_LIST_SIZE		0x01010104
-
-#define OID_802_11_BSSID			0x0d010101
-#define OID_802_11_SSID				0x0d010102
-#define OID_802_11_INFRASTRUCTURE_MODE		0x0d010108
-#define OID_802_11_ADD_WEP			0x0d010113
-#define OID_802_11_REMOVE_WEP			0x0d010114
-#define OID_802_11_DISASSOCIATE			0x0d010115
-#define OID_802_11_AUTHENTICATION_MODE		0x0d010118
-#define OID_802_11_PRIVACY_FILTER		0x0d010119
-#define OID_802_11_BSSID_LIST_SCAN		0x0d01011a
-#define OID_802_11_ENCRYPTION_STATUS		0x0d01011b
-#define OID_802_11_ADD_KEY			0x0d01011d
-#define OID_802_11_REMOVE_KEY			0x0d01011e
-#define OID_802_11_ASSOCIATION_INFORMATION	0x0d01011f
-#define OID_802_11_CAPABILITY			0x0d010122
-#define OID_802_11_PMKID			0x0d010123
-#define OID_802_11_NETWORK_TYPES_SUPPORTED	0x0d010203
-#define OID_802_11_NETWORK_TYPE_IN_USE		0x0d010204
-#define OID_802_11_TX_POWER_LEVEL		0x0d010205
-#define OID_802_11_RSSI				0x0d010206
-#define OID_802_11_RSSI_TRIGGER			0x0d010207
-#define OID_802_11_FRAGMENTATION_THRESHOLD	0x0d010209
-#define OID_802_11_RTS_THRESHOLD		0x0d01020a
-#define OID_802_11_SUPPORTED_RATES		0x0d01020e
-#define OID_802_11_CONFIGURATION		0x0d010211
-#define OID_802_11_POWER_MODE			0x0d010216
-#define OID_802_11_BSSID_LIST			0x0d010217
-
-
 /* Typical noise/maximum signal level values taken from ndiswrapper iw_ndis.h */
 #define	WL_NOISE	-96	/* typical noise level in dBm */
 #define	WL_SIGMAX	-32	/* typical maximum signal level in dBm */
@@ -148,12 +105,6 @@ MODULE_PARM_DESC(workaround_interval,
 #define BCM4320_DEFAULT_TXPOWER_DBM_75  12
 #define BCM4320_DEFAULT_TXPOWER_DBM_50  10
 #define BCM4320_DEFAULT_TXPOWER_DBM_25  7
-
-
-/* codes for "status" field of completion messages */
-#define RNDIS_STATUS_ADAPTER_NOT_READY		0xc0010011
-#define RNDIS_STATUS_ADAPTER_NOT_OPEN		0xc0010012
-
 
 /* Known device types */
 #define RNDIS_UNKNOWN	0
