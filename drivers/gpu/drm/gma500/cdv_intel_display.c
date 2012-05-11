@@ -758,7 +758,7 @@ static void cdv_intel_crtc_load_lut(struct drm_crtc *crtc)
 		gma_power_end(dev);
 	} else {
 		for (i = 0; i < 256; i++) {
-			dev_priv->regs.psb.save_palette_a[i] =
+			dev_priv->regs.pipe[0].palette[i] =
 				  ((psb_intel_crtc->lut_r[i] +
 				  psb_intel_crtc->lut_adj[i]) << 16) |
 				  ((psb_intel_crtc->lut_g[i] +
@@ -1497,6 +1497,7 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 	struct cdv_intel_clock_t clock;
 	bool is_lvds;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 
 	if (gma_power_begin(dev, false)) {
 		dpll = REG_READ((pipe == 0) ? DPLL_A : DPLL_B);
@@ -1507,18 +1508,11 @@ static int cdv_intel_crtc_clock_get(struct drm_device *dev,
 		is_lvds = (pipe == 1) && (REG_READ(LVDS) & LVDS_PORT_EN);
 		gma_power_end(dev);
 	} else {
-		dpll = (pipe == 0) ?
-			dev_priv->regs.psb.saveDPLL_A :
-			dev_priv->regs.psb.saveDPLL_B;
-
+		dpll = p->dpll;
 		if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-			fp = (pipe == 0) ?
-				dev_priv->regs.psb.saveFPA0 :
-				dev_priv->regs.psb.saveFPB0;
+			fp = p->fp0;
 		else
-			fp = (pipe == 0) ?
-				dev_priv->regs.psb.saveFPA1 :
-				dev_priv->regs.psb.saveFPB1;
+			fp = p->fp1;
 
 		is_lvds = (pipe == 1) &&
 				(dev_priv->regs.psb.saveLVDS & LVDS_PORT_EN);
@@ -1582,6 +1576,7 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 	int vtot;
 	int vsync;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct psb_pipe *p = &dev_priv->regs.pipe[pipe];
 
 	if (gma_power_begin(dev, false)) {
 		htot = REG_READ((pipe == 0) ? HTOTAL_A : HTOTAL_B);
@@ -1590,18 +1585,10 @@ struct drm_display_mode *cdv_intel_crtc_mode_get(struct drm_device *dev,
 		vsync = REG_READ((pipe == 0) ? VSYNC_A : VSYNC_B);
 		gma_power_end(dev);
 	} else {
-		htot = (pipe == 0) ?
-			dev_priv->regs.psb.saveHTOTAL_A :
-			dev_priv->regs.psb.saveHTOTAL_B;
-		hsync = (pipe == 0) ?
-			dev_priv->regs.psb.saveHSYNC_A :
-			dev_priv->regs.psb.saveHSYNC_B;
-		vtot = (pipe == 0) ?
-			dev_priv->regs.psb.saveVTOTAL_A :
-			dev_priv->regs.psb.saveVTOTAL_B;
-		vsync = (pipe == 0) ?
-			dev_priv->regs.psb.saveVSYNC_A :
-			dev_priv->regs.psb.saveVSYNC_B;
+		htot = p->htotal;
+		hsync = p->hsync;
+		vtot = p->vtotal;
+		vsync = p->vsync;
 	}
 
 	mode = kzalloc(sizeof(*mode), GFP_KERNEL);

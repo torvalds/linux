@@ -434,6 +434,7 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct oaktrail_hdmi_dev *hdmi_dev = dev_priv->hdmi_priv;
 	struct psb_state *regs = &dev_priv->regs.psb;
+	struct psb_pipe *pipeb = &dev_priv->regs.pipe[1];
 	int i;
 
 	/* dpll */
@@ -444,14 +445,14 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 	hdmi_dev->saveDPLL_CLK_ENABLE = PSB_RVDC32(DPLL_CLK_ENABLE);
 
 	/* pipe B */
-	regs->savePIPEBCONF = PSB_RVDC32(PIPEBCONF);
-	regs->savePIPEBSRC  = PSB_RVDC32(PIPEBSRC);
-	regs->saveHTOTAL_B  = PSB_RVDC32(HTOTAL_B);
-	regs->saveHBLANK_B  = PSB_RVDC32(HBLANK_B);
-	regs->saveHSYNC_B   = PSB_RVDC32(HSYNC_B);
-	regs->saveVTOTAL_B  = PSB_RVDC32(VTOTAL_B);
-	regs->saveVBLANK_B  = PSB_RVDC32(VBLANK_B);
-	regs->saveVSYNC_B   = PSB_RVDC32(VSYNC_B);
+	pipeb->conf = PSB_RVDC32(PIPEBCONF);
+	pipeb->src = PSB_RVDC32(PIPEBSRC);
+	pipeb->htotal = PSB_RVDC32(HTOTAL_B);
+	pipeb->hblank = PSB_RVDC32(HBLANK_B);
+	pipeb->hsync = PSB_RVDC32(HSYNC_B);
+	pipeb->vtotal = PSB_RVDC32(VTOTAL_B);
+	pipeb->vblank = PSB_RVDC32(VBLANK_B);
+	pipeb->vsync = PSB_RVDC32(VSYNC_B);
 
 	hdmi_dev->savePCH_PIPEBCONF = PSB_RVDC32(PCH_PIPEBCONF);
 	hdmi_dev->savePCH_PIPEBSRC = PSB_RVDC32(PCH_PIPEBSRC);
@@ -463,12 +464,12 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 	hdmi_dev->savePCH_VSYNC_B  = PSB_RVDC32(PCH_VSYNC_B);
 
 	/* plane */
-	regs->saveDSPBCNTR = PSB_RVDC32(DSPBCNTR);
-	regs->saveDSPBSTRIDE = PSB_RVDC32(DSPBSTRIDE);
-	regs->saveDSPBADDR = PSB_RVDC32(DSPBBASE);
-	regs->saveDSPBSURF = PSB_RVDC32(DSPBSURF);
-	regs->saveDSPBLINOFF = PSB_RVDC32(DSPBLINOFF);
-	regs->saveDSPBTILEOFF = PSB_RVDC32(DSPBTILEOFF);
+	pipeb->cntr = PSB_RVDC32(DSPBCNTR);
+	pipeb->stride = PSB_RVDC32(DSPBSTRIDE);
+	pipeb->addr = PSB_RVDC32(DSPBBASE);
+	pipeb->surf = PSB_RVDC32(DSPBSURF);
+	pipeb->linoff = PSB_RVDC32(DSPBLINOFF);
+	pipeb->tileoff = PSB_RVDC32(DSPBTILEOFF);
 
 	/* cursor B */
 	regs->saveDSPBCURSOR_CTRL = PSB_RVDC32(CURBCNTR);
@@ -477,7 +478,7 @@ void oaktrail_hdmi_save(struct drm_device *dev)
 
 	/* save palette */
 	for (i = 0; i < 256; i++)
-		regs->save_palette_b[i] = PSB_RVDC32(PALETTE_B + (i << 2));
+		pipeb->palette[i] = PSB_RVDC32(PALETTE_B + (i << 2));
 }
 
 /* restore HDMI register state */
@@ -486,6 +487,7 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	struct drm_psb_private *dev_priv = dev->dev_private;
 	struct oaktrail_hdmi_dev *hdmi_dev = dev_priv->hdmi_priv;
 	struct psb_state *regs = &dev_priv->regs.psb;
+	struct psb_pipe *pipeb = &dev_priv->regs.pipe[1];
 	int i;
 
 	/* dpll */
@@ -497,13 +499,13 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	DRM_UDELAY(150);
 
 	/* pipe */
-	PSB_WVDC32(regs->savePIPEBSRC, PIPEBSRC);
-	PSB_WVDC32(regs->saveHTOTAL_B, HTOTAL_B);
-	PSB_WVDC32(regs->saveHBLANK_B, HBLANK_B);
-	PSB_WVDC32(regs->saveHSYNC_B,  HSYNC_B);
-	PSB_WVDC32(regs->saveVTOTAL_B, VTOTAL_B);
-	PSB_WVDC32(regs->saveVBLANK_B, VBLANK_B);
-	PSB_WVDC32(regs->saveVSYNC_B,  VSYNC_B);
+	PSB_WVDC32(pipeb->src, PIPEBSRC);
+	PSB_WVDC32(pipeb->htotal, HTOTAL_B);
+	PSB_WVDC32(pipeb->hblank, HBLANK_B);
+	PSB_WVDC32(pipeb->hsync,  HSYNC_B);
+	PSB_WVDC32(pipeb->vtotal, VTOTAL_B);
+	PSB_WVDC32(pipeb->vblank, VBLANK_B);
+	PSB_WVDC32(pipeb->vsync,  VSYNC_B);
 
 	PSB_WVDC32(hdmi_dev->savePCH_PIPEBSRC, PCH_PIPEBSRC);
 	PSB_WVDC32(hdmi_dev->savePCH_HTOTAL_B, PCH_HTOTAL_B);
@@ -513,15 +515,15 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 	PSB_WVDC32(hdmi_dev->savePCH_VBLANK_B, PCH_VBLANK_B);
 	PSB_WVDC32(hdmi_dev->savePCH_VSYNC_B,  PCH_VSYNC_B);
 
-	PSB_WVDC32(regs->savePIPEBCONF, PIPEBCONF);
+	PSB_WVDC32(pipeb->conf, PIPEBCONF);
 	PSB_WVDC32(hdmi_dev->savePCH_PIPEBCONF, PCH_PIPEBCONF);
 
 	/* plane */
-	PSB_WVDC32(regs->saveDSPBLINOFF, DSPBLINOFF);
-	PSB_WVDC32(regs->saveDSPBSTRIDE, DSPBSTRIDE);
-	PSB_WVDC32(regs->saveDSPBTILEOFF, DSPBTILEOFF);
-	PSB_WVDC32(regs->saveDSPBCNTR, DSPBCNTR);
-	PSB_WVDC32(regs->saveDSPBSURF, DSPBSURF);
+	PSB_WVDC32(pipeb->linoff, DSPBLINOFF);
+	PSB_WVDC32(pipeb->stride, DSPBSTRIDE);
+	PSB_WVDC32(pipeb->tileoff, DSPBTILEOFF);
+	PSB_WVDC32(pipeb->cntr, DSPBCNTR);
+	PSB_WVDC32(pipeb->surf, DSPBSURF);
 
 	/* cursor B */
 	PSB_WVDC32(regs->saveDSPBCURSOR_CTRL, CURBCNTR);
@@ -530,5 +532,5 @@ void oaktrail_hdmi_restore(struct drm_device *dev)
 
 	/* restore palette */
 	for (i = 0; i < 256; i++)
-		PSB_WVDC32(regs->save_palette_b[i], PALETTE_B + (i << 2));
+		PSB_WVDC32(pipeb->palette[i], PALETTE_B + (i << 2));
 }
