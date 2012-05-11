@@ -141,6 +141,8 @@ struct ci13xxx {
 	struct ci13xxx_ep          *ep0out, *ep0in;
 	unsigned		   hw_ep_max;  /* number of hw endpoints */
 
+	bool			   setaddr;
+	u8			   address;
 	u8                         remote_wakeup; /* Is remote wakeup feature
 							enabled by the host? */
 	u8                         suspended;  /* suspended by the host */

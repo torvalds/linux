@@ -722,14 +722,13 @@ static int hw_test_and_set_setup_guard(struct ci13xxx *udc)
  * hw_usb_set_address: configures USB address (execute without interruption)
  * @value: new USB address
  *
- * This function returns an error code
+ * This function explicitly sets the address, without the "USBADRA" (advance)
+ * feature, which is not supported by older versions of the controller.
  */
-static int hw_usb_set_address(struct ci13xxx *udc, u8 value)
+static void hw_usb_set_address(struct ci13xxx *udc, u8 value)
 {
-	/* advance */
-	hw_write(udc, OP_DEVICEADDR, DEVICEADDR_USBADR | DEVICEADDR_USBADRA,
-		  value << ffs_nr(DEVICEADDR_USBADR) | DEVICEADDR_USBADRA);
-	return 0;
+	hw_write(udc, OP_DEVICEADDR, DEVICEADDR_USBADR,
+		 value << ffs_nr(DEVICEADDR_USBADR));
 }
 
 /**
@@ -1803,6 +1802,11 @@ isr_setup_status_complete(struct usb_ep *ep, struct usb_request *req)
 	struct ci13xxx *udc = req->context;
 	unsigned long flags;
 
+	if (udc->setaddr) {
+		hw_usb_set_address(udc, udc->address);
+		udc->setaddr = false;
+	}
+
 	spin_lock_irqsave(&udc->lock, flags);
 	if (udc->test_mode)
 		hw_port_test_set(udc, udc->test_mode);
@@ -1990,10 +1994,8 @@ __acquires(udc->lock)
 			if (le16_to_cpu(req.wLength) != 0 ||
 			    le16_to_cpu(req.wIndex)  != 0)
 				break;
-			err = hw_usb_set_address(udc,
-						 (u8)le16_to_cpu(req.wValue));
-			if (err)
-				break;
+			udc->address = (u8)le16_to_cpu(req.wValue);
+			udc->setaddr = true;
 			err = isr_setup_status_phase(udc);
 			break;
 		case USB_REQ_SET_FEATURE:
