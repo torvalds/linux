@@ -645,9 +645,9 @@ __acquires(udc->lock)
 	if (udc->status == NULL)
 		retval = -ENOMEM;
 
+done:
 	spin_lock(&udc->lock);
 
- done:
 	if (retval)
 		dev_err(udc->dev, "error: %i\n", retval);
 }
