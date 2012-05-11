@@ -89,7 +89,8 @@ static struct omap_hwmod_class_sysconfig omap2xxx_wd_timer_sysc = {
 struct omap_hwmod_class omap2xxx_wd_timer_hwmod_class = {
 	.name		= "wd_timer",
 	.sysc		= &omap2xxx_wd_timer_sysc,
-	.pre_shutdown	= &omap2_wd_timer_disable
+	.pre_shutdown	= &omap2_wd_timer_disable,
+	.reset		= &omap2_wd_timer_reset,
 };
 
 /*
@@ -731,4 +732,24 @@ struct omap_hwmod omap2xxx_mcspi2_hwmod = {
 	},
 	.class		= &omap2xxx_mcspi_class,
 	.dev_attr	= &omap_mcspi2_dev_attr,
+};
+
+
+static struct omap_hwmod_class omap2xxx_counter_hwmod_class = {
+	.name	= "counter",
+};
+
+struct omap_hwmod omap2xxx_counter_32k_hwmod = {
+	.name		= "counter_32k",
+	.main_clk	= "func_32k_ck",
+	.prcm		= {
+		.omap2	= {
+			.module_offs = WKUP_MOD,
+			.prcm_reg_id = 1,
+			.module_bit = OMAP24XX_ST_32KSYNC_SHIFT,
+			.idlest_reg_id = 1,
+			.idlest_idle_bit = OMAP24XX_ST_32KSYNC_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_counter_hwmod_class,
 };

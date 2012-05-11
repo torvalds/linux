@@ -28,8 +28,6 @@
 
 #include <plat/dsp.h>
 
-extern phys_addr_t omap_dsp_get_mempool_base(void);
-
 static struct platform_device *omap_dsp_pdev;
 
 static struct omap_dsp_platform_data omap_dsp_pdata __initdata = {
@@ -46,6 +44,31 @@ static struct omap_dsp_platform_data omap_dsp_pdata __initdata = {
 	.dsp_cm_write = omap2_cm_write_mod_reg,
 	.dsp_cm_rmw_bits = omap2_cm_rmw_mod_reg_bits,
 };
+
+static phys_addr_t omap_dsp_phys_mempool_base;
+
+void __init omap_dsp_reserve_sdram_memblock(void)
+{
+	phys_addr_t size = CONFIG_TIDSPBRIDGE_MEMPOOL_SIZE;
+	phys_addr_t paddr;
+
+	if (!size)
+		return;
+
+	paddr = arm_memblock_steal(size, SZ_1M);
+	if (!paddr) {
+		pr_err("%s: failed to reserve %llx bytes\n",
+				__func__, (unsigned long long)size);
+		return;
+	}
+
+	omap_dsp_phys_mempool_base = paddr;
+}
+
+static phys_addr_t omap_dsp_get_mempool_base(void)
+{
+	return omap_dsp_phys_mempool_base;
+}
 
 static int __init omap_dsp_init(void)
 {
