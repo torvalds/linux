@@ -532,6 +532,29 @@ copy_prom_done:
 		be	go_to_highmem		! this will be a nop then
 		 nop
 
+		/* Validate that we are in fact running on an
+		 * SRMMU based cpu.
+		 */
+		set	0x4000, %g6
+		cmp	%g7, %g6
+		bne	not_a_sun4
+		 nop
+
+halt_sun4_or_sun4c:
+		ld	[%g7 + 0x68], %o1
+		set	sun4c_notsup, %o0
+		sub	%o0, %l6, %o0
+		call	%o1
+		 nop
+		ba	halt_me
+		 nop
+
+not_a_sun4:
+		lda	[%g0] ASI_M_MMUREGS, %g1
+		andcc	%g1, 1, %g0
+		be	halt_sun4_or_sun4c
+		 nop
+
 srmmu_remap:
 		/* First, check for a viking (TI) module. */
 		set	0x40000000, %g2
