@@ -46,37 +46,59 @@ struct vmbus_channel_message_table_entry {
  *
  * @icmsghdrp is of type &struct icmsg_hdr.
  * @negop is of type &struct icmsg_negotiate.
- * Set up and fill in default negotiate response message. This response can
- * come from both the vmbus driver and the hv_utils driver. The current api
- * will respond properly to both Windows 2008 and Windows 2008-R2 operating
- * systems.
+ * Set up and fill in default negotiate response message.
+ *
+ * The max_fw_version specifies the maximum framework version that
+ * we can support and max _srv_version specifies the maximum service
+ * version we can support. A special value MAX_SRV_VER can be
+ * specified to indicate that we can handle the maximum version
+ * exposed by the host.
  *
  * Mainly used by Hyper-V drivers.
  */
 void vmbus_prep_negotiate_resp(struct icmsg_hdr *icmsghdrp,
-			       struct icmsg_negotiate *negop, u8 *buf)
+				struct icmsg_negotiate *negop, u8 *buf,
+				int max_fw_version, int max_srv_version)
 {
+	int icframe_vercnt;
+	int icmsg_vercnt;
+	int i;
+
 	icmsghdrp->icmsgsize = 0x10;
 
 	negop = (struct icmsg_negotiate *)&buf[
 		sizeof(struct vmbuspipe_hdr) +
 		sizeof(struct icmsg_hdr)];
 
-	if (negop->icframe_vercnt == 2 &&
-	   negop->icversion_data[1].major == 3) {
-		negop->icversion_data[0].major = 3;
-		negop->icversion_data[0].minor = 0;
-		negop->icversion_data[1].major = 3;
-		negop->icversion_data[1].minor = 0;
-	} else {
-		negop->icversion_data[0].major = 1;
-		negop->icversion_data[0].minor = 0;
-		negop->icversion_data[1].major = 1;
-		negop->icversion_data[1].minor = 0;
+	icframe_vercnt = negop->icframe_vercnt;
+	icmsg_vercnt = negop->icmsg_vercnt;
+
+	/*
+	 * Select the framework version number we will
+	 * support.
+	 */
+
+	for (i = 0; i < negop->icframe_vercnt; i++) {
+		if (negop->icversion_data[i].major <= max_fw_version)
+			icframe_vercnt = negop->icversion_data[i].major;
 	}
 
+	for (i = negop->icframe_vercnt;
+		 (i < negop->icframe_vercnt + negop->icmsg_vercnt); i++) {
+		if (negop->icversion_data[i].major <= max_srv_version)
+			icmsg_vercnt = negop->icversion_data[i].major;
+	}
+
+	/*
+	 * Respond with the maximum framework and service
+	 * version numbers we can support.
+	 */
 	negop->icframe_vercnt = 1;
 	negop->icmsg_vercnt = 1;
+	negop->icversion_data[0].major = icframe_vercnt;
+	negop->icversion_data[0].minor = 0;
+	negop->icversion_data[1].major = icmsg_vercnt;
+	negop->icversion_data[1].minor = 0;
 }
 
 EXPORT_SYMBOL_GPL(vmbus_prep_negotiate_resp);

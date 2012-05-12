@@ -1035,8 +1035,10 @@ struct hyperv_service_callback {
 	void (*callback) (void *context);
 };
 
+#define MAX_SRV_VER	0x7ffffff
 extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
-				      struct icmsg_negotiate *, u8 *);
+					struct icmsg_negotiate *, u8 *, int,
+					int);
 
 int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);
