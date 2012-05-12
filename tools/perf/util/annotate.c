@@ -21,6 +21,14 @@ const char 	*disassembler_style;
 static struct ins *ins__find(const char *name);
 static int disasm_line__parse(char *line, char **namep, char **rawp);
 
+static void ins__delete(struct ins_operands *ops)
+{
+	free(ops->source.raw);
+	free(ops->source.name);
+	free(ops->target.raw);
+	free(ops->target.name);
+}
+
 static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
 			      struct ins_operands *ops)
 {
@@ -192,7 +200,15 @@ static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
 					size - printed, ops->locked.ops);
 }
 
+static void lock__delete(struct ins_operands *ops)
+{
+	free(ops->locked.ops);
+	free(ops->target.raw);
+	free(ops->target.name);
+}
+
 static struct ins_ops lock_ops = {
+	.free	   = lock__delete,
 	.parse	   = lock__parse,
 	.scnprintf = lock__scnprintf,
 };
@@ -542,14 +558,10 @@ void disasm_line__free(struct disasm_line *dl)
 {
 	free(dl->line);
 	free(dl->name);
-	if (dl->ins && dl->ins->ops == &lock_ops) {
-		free(dl->ops.locked.ops);
-	} else {
-		free(dl->ops.source.raw);
-		free(dl->ops.source.name);
-	}
-	free(dl->ops.target.raw);
-	free(dl->ops.target.name);
+	if (dl->ins && dl->ins->ops->free)
+		dl->ins->ops->free(&dl->ops);
+	else
+		ins__delete(&dl->ops);
 	free(dl);
 }
 
