@@ -167,12 +167,13 @@ int bat_algo_select(struct bat_priv *bat_priv, char *name);
 int bat_algo_seq_print_text(struct seq_file *seq, void *offset);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
-int debug_log(struct bat_priv *bat_priv, const char *fmt, ...) __printf(2, 3);
+int batadv_debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
+__printf(2, 3);
 
 #define bat_dbg(type, bat_priv, fmt, arg...)			\
 	do {							\
 		if (atomic_read(&bat_priv->log_level) & type)	\
-			debug_log(bat_priv, fmt, ## arg);	\
+			batadv_debug_log(bat_priv, fmt, ## arg);\
 	}							\
 	while (0)
 #else /* !CONFIG_BATMAN_ADV_DEBUG */

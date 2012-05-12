@@ -76,7 +76,7 @@ static int fdebug_log(struct debug_log *debug_log, const char *fmt, ...)
 	return 0;
 }
 
-int debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
+int batadv_debug_log(struct bat_priv *bat_priv, const char *fmt, ...)
 {
 	va_list args;
 	char tmp_log_buf[256];
@@ -304,7 +304,7 @@ static struct bat_debuginfo *mesh_debuginfos[] = {
 	NULL,
 };
 
-void debugfs_init(void)
+void batadv_debugfs_init(void)
 {
 	struct bat_debuginfo *bat_debug;
 	struct dentry *file;
@@ -327,7 +327,7 @@ out:
 	return;
 }
 
-void debugfs_destroy(void)
+void batadv_debugfs_destroy(void)
 {
 	if (bat_debugfs) {
 		debugfs_remove_recursive(bat_debugfs);
@@ -335,7 +335,7 @@ void debugfs_destroy(void)
 	}
 }
 
-int debugfs_add_meshif(struct net_device *dev)
+int batadv_debugfs_add_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 	struct bat_debuginfo **bat_debug;
@@ -378,7 +378,7 @@ out:
 #endif /* CONFIG_DEBUG_FS */
 }
 
-void debugfs_del_meshif(struct net_device *dev)
+void batadv_debugfs_del_meshif(struct net_device *dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(dev);
 

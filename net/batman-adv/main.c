@@ -66,7 +66,7 @@ static int __init batman_init(void)
 		return -ENOMEM;
 
 	bat_socket_init();
-	debugfs_init();
+	batadv_debugfs_init();
 
 	register_netdevice_notifier(&hard_if_notifier);
 
@@ -78,7 +78,7 @@ static int __init batman_init(void)
 
 static void __exit batman_exit(void)
 {
-	debugfs_destroy();
+	batadv_debugfs_destroy();
 	unregister_netdevice_notifier(&hard_if_notifier);
 	hardif_remove_interfaces();
 
