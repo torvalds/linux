@@ -1,6 +1,6 @@
 lib_LIBRARIES = libpmc.a
 
-AM_CFLAGS = -Wall -Werror
+AM_CFLAGS = -Wall
 
 SUBDIRS = . autotest
 DIST_SUBDIRS = autotest
