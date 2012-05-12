@@ -409,7 +409,7 @@ static ssize_t show_gw_bwidth(struct kobject *kobj, struct attribute *attr,
 	int down, up;
 	int gw_bandwidth = atomic_read(&bat_priv->gw_bandwidth);
 
-	gw_bandwidth_to_kbit(gw_bandwidth, &down, &up);
+	batadv_gw_bandwidth_to_kbit(gw_bandwidth, &down, &up);
 	return sprintf(buff, "%i%s/%i%s\n",
 		       (down > 2048 ? down / 1024 : down),
 		       (down > 2048 ? "MBit" : "KBit"),
@@ -425,7 +425,7 @@ static ssize_t store_gw_bwidth(struct kobject *kobj, struct attribute *attr,
 	if (buff[count - 1] == '\n')
 		buff[count - 1] = '\0';
 
-	return gw_bandwidth_set(net_dev, buff, count);
+	return batadv_gw_bandwidth_set(net_dev, buff, count);
 }
 
 BAT_ATTR_SIF_BOOL(aggregated_ogms, S_IRUGO | S_IWUSR, NULL);

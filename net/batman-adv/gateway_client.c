@@ -116,13 +116,15 @@ static struct gw_node *gw_get_best_gw_node(struct bat_priv *bat_priv)
 	uint32_t max_gw_factor = 0, tmp_gw_factor = 0;
 	uint8_t max_tq = 0;
 	int down, up;
+	struct orig_node *orig_node;
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(gw_node, node, &bat_priv->gw_list, list) {
 		if (gw_node->deleted)
 			continue;
 
-		router = orig_node_get_router(gw_node->orig_node);
+		orig_node = gw_node->orig_node;
+		router = orig_node_get_router(orig_node);
 		if (!router)
 			continue;
 
@@ -131,8 +133,8 @@ static struct gw_node *gw_get_best_gw_node(struct bat_priv *bat_priv)
 
 		switch (atomic_read(&bat_priv->gw_sel_class)) {
 		case 1: /* fast connection */
-			gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags,
-					     &down, &up);
+			batadv_gw_bandwidth_to_kbit(orig_node->gw_flags,
+						    &down, &up);
 
 			tmp_gw_factor = (router->tq_avg * router->tq_avg *
 					 down * 100 * 100) /
@@ -319,7 +321,7 @@ static void gw_node_add(struct bat_priv *bat_priv,
 	hlist_add_head_rcu(&gw_node->list, &bat_priv->gw_list);
 	spin_unlock_bh(&bat_priv->gw_list_lock);
 
-	gw_bandwidth_to_kbit(new_gwflags, &down, &up);
+	batadv_gw_bandwidth_to_kbit(new_gwflags, &down, &up);
 	bat_dbg(DBG_BATMAN, bat_priv,
 		"Found new gateway %pM -> gw_class: %i - %i%s/%i%s\n",
 		orig_node->orig, new_gwflags,
@@ -434,7 +436,7 @@ static int _write_buffer_text(struct bat_priv *bat_priv, struct seq_file *seq,
 	struct neigh_node *router;
 	int down, up, ret = -1;
 
-	gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
+	batadv_gw_bandwidth_to_kbit(gw_node->orig_node->gw_flags, &down, &up);
 
 	router = orig_node_get_router(gw_node->orig_node);
 	if (!router)

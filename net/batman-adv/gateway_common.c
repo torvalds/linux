@@ -59,7 +59,7 @@ static void kbit_to_gw_bandwidth(int down, int up, long *gw_srv_class)
 }
 
 /* returns the up and downspeeds in kbit, calculated from the class */
-void gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
+void batadv_gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
 {
 	int sbit = (gw_srv_class & 0x80) >> 7;
 	int dpart = (gw_srv_class & 0x78) >> 3;
@@ -136,7 +136,8 @@ static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
 	return true;
 }
 
-ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
+ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
+				size_t count)
 {
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
 	long gw_bandwidth_tmp = 0;
@@ -160,7 +161,7 @@ ssize_t gw_bandwidth_set(struct net_device *net_dev, char *buff, size_t count)
 	 * speeds, hence we need to calculate it back to show the number
 	 * that is going to be propagated
 	 **/
-	gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp, &down, &up);
+	batadv_gw_bandwidth_to_kbit((uint8_t)gw_bandwidth_tmp, &down, &up);
 
 	if (atomic_read(&bat_priv->gw_bandwidth) == gw_bandwidth_tmp)
 		return count;
