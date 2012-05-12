@@ -334,6 +334,7 @@ static int sun_floppy_init(void)
 	/* Look up irq in platform_device.
 	 * We try "SUNW,fdtwo" and "fd"
 	 */
+	op = NULL;
 	for_each_node_by_name(dp, "SUNW,fdtwo") {
 		op = of_find_device_by_node(dp);
 		if (op)
