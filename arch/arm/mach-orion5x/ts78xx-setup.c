@@ -292,11 +292,8 @@ static struct platform_nand_data ts78xx_ts_nand_data = {
 	},
 };
 
-static struct resource ts78xx_ts_nand_resources = {
-	.start		= TS_NAND_DATA,
-	.end		= TS_NAND_DATA + 4,
-	.flags		= IORESOURCE_MEM,
-};
+static struct resource ts78xx_ts_nand_resources
+			= DEFINE_RES_MEM(TS_NAND_DATA, 4);
 
 static struct platform_device ts78xx_ts_nand_device = {
 	.name		= "gen_nand",
@@ -332,11 +329,8 @@ static void ts78xx_ts_nand_unload(void)
  ****************************************************************************/
 #define TS_RNG_DATA	(TS78XX_FPGA_REGS_PHYS_BASE | 0x044)
 
-static struct resource ts78xx_ts_rng_resource = {
-	.flags		= IORESOURCE_MEM,
-	.start		= TS_RNG_DATA,
-	.end		= TS_RNG_DATA + 4 - 1,
-};
+static struct resource ts78xx_ts_rng_resource
+			= DEFINE_RES_MEM(TS_RNG_DATA, 4);
 
 static struct timeriomem_rng_data ts78xx_ts_rng_data = {
 	.period		= 1000000, /* one second */
