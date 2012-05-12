@@ -28,9 +28,8 @@ BTFIXUPDEF_CALL(void, destroy_context, struct mm_struct *)
 #define destroy_context(mm) BTFIXUP_CALL(destroy_context)(mm)
 
 /* Switch the current MM context. */
-BTFIXUPDEF_CALL(void, switch_mm, struct mm_struct *, struct mm_struct *, struct task_struct *)
-
-#define switch_mm(old_mm, mm, tsk) BTFIXUP_CALL(switch_mm)(old_mm, mm, tsk)
+void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
+	       struct task_struct *tsk);
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
 

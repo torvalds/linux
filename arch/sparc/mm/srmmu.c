@@ -560,8 +560,8 @@ static inline void free_context(int context)
 }
 
 
-static void srmmu_switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
-    struct task_struct *tsk, int cpu)
+void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm,
+	       struct task_struct *tsk)
 {
 	if(mm->context == NO_CONTEXT) {
 		spin_lock(&srmmu_context_spinlock);
@@ -2171,7 +2171,6 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(do_check_pgt_cache, srmmu_check_pgt_cache, BTFIXUPCALL_NOP);
 
 	BTFIXUPSET_CALL(set_pte, srmmu_set_pte, BTFIXUPCALL_SWAPO0O1);
-	BTFIXUPSET_CALL(switch_mm, srmmu_switch_mm, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pte_pfn, srmmu_pte_pfn, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_page, srmmu_pmd_page, BTFIXUPCALL_NORM);
