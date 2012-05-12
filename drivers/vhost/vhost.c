@@ -1598,10 +1598,9 @@ void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *ubufs)
 	kfree(ubufs);
 }
 
-void vhost_zerocopy_callback(void *arg)
+void vhost_zerocopy_callback(struct ubuf_info *ubuf)
 {
-	struct ubuf_info *ubuf = arg;
-	struct vhost_ubuf_ref *ubufs = ubuf->arg;
+	struct vhost_ubuf_ref *ubufs = ubuf->ctx;
 	struct vhost_virtqueue *vq = ubufs->vq;
 
 	/* set len = 1 to mark this desc buffers done DMA */

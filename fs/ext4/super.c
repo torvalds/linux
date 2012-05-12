@@ -1305,20 +1305,20 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 		ext4_msg(sb, KERN_ERR,
 			"Cannot change journaled "
 			"quota options when quota turned on");
-		return 0;
+		return -1;
 	}
 	qname = match_strdup(args);
 	if (!qname) {
 		ext4_msg(sb, KERN_ERR,
 			"Not enough memory for storing quotafile name");
-		return 0;
+		return -1;
 	}
 	if (sbi->s_qf_names[qtype] &&
 		strcmp(sbi->s_qf_names[qtype], qname)) {
 		ext4_msg(sb, KERN_ERR,
 			"%s quota file already specified", QTYPE2NAME(qtype));
 		kfree(qname);
-		return 0;
+		return -1;
 	}
 	sbi->s_qf_names[qtype] = qname;
 	if (strchr(sbi->s_qf_names[qtype], '/')) {
@@ -1326,7 +1326,7 @@ static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
 			"quotafile must be on filesystem root");
 		kfree(sbi->s_qf_names[qtype]);
 		sbi->s_qf_names[qtype] = NULL;
-		return 0;
+		return -1;
 	}
 	set_opt(sb, QUOTA);
 	return 1;
@@ -1341,7 +1341,7 @@ static int clear_qf_name(struct super_block *sb, int qtype)
 		sbi->s_qf_names[qtype]) {
 		ext4_msg(sb, KERN_ERR, "Cannot change journaled quota options"
 			" when quota turned on");
-		return 0;
+		return -1;
 	}
 	/*
 	 * The space will be released later when all options are confirmed
@@ -1450,6 +1450,16 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 	const struct mount_opts *m;
 	int arg = 0;
 
+#ifdef CONFIG_QUOTA
+	if (token == Opt_usrjquota)
+		return set_qf_name(sb, USRQUOTA, &args[0]);
+	else if (token == Opt_grpjquota)
+		return set_qf_name(sb, GRPQUOTA, &args[0]);
+	else if (token == Opt_offusrjquota)
+		return clear_qf_name(sb, USRQUOTA);
+	else if (token == Opt_offgrpjquota)
+		return clear_qf_name(sb, GRPQUOTA);
+#endif
 	if (args->from && match_int(args, &arg))
 		return -1;
 	switch (token) {
@@ -1549,18 +1559,6 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
 				sbi->s_mount_opt |= m->mount_opt;
 			}
 #ifdef CONFIG_QUOTA
-		} else if (token == Opt_usrjquota) {
-			if (!set_qf_name(sb, USRQUOTA, &args[0]))
-				return -1;
-		} else if (token == Opt_grpjquota) {
-			if (!set_qf_name(sb, GRPQUOTA, &args[0]))
-				return -1;
-		} else if (token == Opt_offusrjquota) {
-			if (!clear_qf_name(sb, USRQUOTA))
-				return -1;
-		} else if (token == Opt_offgrpjquota) {
-			if (!clear_qf_name(sb, GRPQUOTA))
-				return -1;
 		} else if (m->flags & MOPT_QFMT) {
 			if (sb_any_quota_loaded(sb) &&
 			    sbi->s_jquota_fmt != m->mount_opt) {
@@ -1599,7 +1597,9 @@ static int parse_options(char *options, struct super_block *sb,
 			 unsigned int *journal_ioprio,
 			 int is_remount)
 {
+#ifdef CONFIG_QUOTA
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
+#endif
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int token;
@@ -2366,18 +2366,6 @@ static ssize_t lifetime_write_kbytes_show(struct ext4_attr *a,
 			  EXT4_SB(sb)->s_sectors_written_start) >> 1)));
 }
 
-static ssize_t extent_cache_hits_show(struct ext4_attr *a,
-				      struct ext4_sb_info *sbi, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%lu\n", sbi->extent_cache_hits);
-}
-
-static ssize_t extent_cache_misses_show(struct ext4_attr *a,
-					struct ext4_sb_info *sbi, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%lu\n", sbi->extent_cache_misses);
-}
-
 static ssize_t inode_readahead_blks_store(struct ext4_attr *a,
 					  struct ext4_sb_info *sbi,
 					  const char *buf, size_t count)
@@ -2435,8 +2423,6 @@ static struct ext4_attr ext4_attr_##name = __ATTR(name, mode, show, store)
 EXT4_RO_ATTR(delayed_allocation_blocks);
 EXT4_RO_ATTR(session_write_kbytes);
 EXT4_RO_ATTR(lifetime_write_kbytes);
-EXT4_RO_ATTR(extent_cache_hits);
-EXT4_RO_ATTR(extent_cache_misses);
 EXT4_ATTR_OFFSET(inode_readahead_blks, 0644, sbi_ui_show,
 		 inode_readahead_blks_store, s_inode_readahead_blks);
 EXT4_RW_ATTR_SBI_UI(inode_goal, s_inode_goal);
@@ -2452,8 +2438,6 @@ static struct attribute *ext4_attrs[] = {
 	ATTR_LIST(delayed_allocation_blocks),
 	ATTR_LIST(session_write_kbytes),
 	ATTR_LIST(lifetime_write_kbytes),
-	ATTR_LIST(extent_cache_hits),
-	ATTR_LIST(extent_cache_misses),
 	ATTR_LIST(inode_readahead_blks),
 	ATTR_LIST(inode_goal),
 	ATTR_LIST(mb_stats),

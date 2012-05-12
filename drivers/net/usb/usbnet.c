@@ -210,6 +210,7 @@ static int init_status (struct usbnet *dev, struct usb_interface *intf)
 		} else {
 			usb_fill_int_urb(dev->interrupt, dev->udev, pipe,
 				buf, maxp, intr_complete, dev, period);
+			dev->interrupt->transfer_flags |= URB_FREE_BUFFER;
 			dev_dbg(&intf->dev,
 				"status ep%din, %d bytes period %d\n",
 				usb_pipeendpoint(pipe), maxp, period);
@@ -1443,7 +1444,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 
 	status = register_netdev (net);
 	if (status)
-		goto out3;
+		goto out4;
 	netif_info(dev, probe, dev->net,
 		   "register '%s' at usb-%s-%s, %s, %pM\n",
 		   udev->dev.driver->name,
@@ -1461,6 +1462,8 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 
 	return 0;
 
+out4:
+	usb_free_urb(dev->interrupt);
 out3:
 	if (info->unbind)
 		info->unbind (dev, udev);

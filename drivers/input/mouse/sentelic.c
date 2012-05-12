@@ -741,6 +741,14 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 			}
 		} else {
 			/* SFAC packet */
+			if ((packet[0] & (FSP_PB0_LBTN|FSP_PB0_PHY_BTN)) ==
+				FSP_PB0_LBTN) {
+				/* On-pad click in SFAC mode should be handled
+				 * by userspace.  On-pad clicks in MFMC mode
+				 * are real clickpad clicks, and not ignored.
+				 */
+				packet[0] &= ~FSP_PB0_LBTN;
+			}
 
 			/* no multi-finger information */
 			ad->last_mt_fgr = 0;

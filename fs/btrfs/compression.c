@@ -405,6 +405,7 @@ int btrfs_submit_compressed_write(struct inode *inode, u64 start,
 			bio_put(bio);
 
 			bio = compressed_bio_alloc(bdev, first_byte, GFP_NOFS);
+			BUG_ON(!bio);
 			bio->bi_private = cb;
 			bio->bi_end_io = end_compressed_bio_write;
 			bio_add_page(bio, page, PAGE_CACHE_SIZE, 0);
@@ -687,6 +688,7 @@ int btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 
 			comp_bio = compressed_bio_alloc(bdev, cur_disk_byte,
 							GFP_NOFS);
+			BUG_ON(!comp_bio);
 			comp_bio->bi_private = cb;
 			comp_bio->bi_end_io = end_compressed_bio_read;
 

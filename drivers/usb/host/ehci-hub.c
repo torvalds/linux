@@ -223,15 +223,10 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	 * remote wakeup, we must fail the suspend.
 	 */
 	if (hcd->self.root_hub->do_remote_wakeup) {
-		port = HCS_N_PORTS(ehci->hcs_params);
-		while (port--) {
-			if (ehci->reset_done[port] != 0) {
-				spin_unlock_irq(&ehci->lock);
-				ehci_dbg(ehci, "suspend failed because "
-						"port %d is resuming\n",
-						port + 1);
-				return -EBUSY;
-			}
+		if (ehci->resuming_ports) {
+			spin_unlock_irq(&ehci->lock);
+			ehci_dbg(ehci, "suspend failed because a port is resuming\n");
+			return -EBUSY;
 		}
 	}
 
@@ -554,15 +549,11 @@ static int
 ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci (hcd);
-	u32		temp, status = 0;
+	u32		temp, status;
 	u32		mask;
 	int		ports, i, retval = 1;
 	unsigned long	flags;
 	u32		ppcd = 0;
-
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
-	if (ehci->rh_state != EHCI_RH_RUNNING)
-		return 0;
 
 	/* init status to no-changes */
 	buf [0] = 0;
@@ -571,6 +562,11 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		buf [1] = 0;
 		retval++;
 	}
+
+	/* Inform the core about resumes-in-progress by returning
+	 * a non-zero value even if there are no status changes.
+	 */
+	status = ehci->resuming_ports;
 
 	/* Some boards (mostly VIA?) report bogus overcurrent indications,
 	 * causing massive log spam unless we completely ignore them.  It
@@ -846,6 +842,7 @@ static int ehci_hub_control (
 				ehci_writel(ehci,
 					temp & ~(PORT_RWC_BITS | PORT_RESUME),
 					status_reg);
+				clear_bit(wIndex, &ehci->resuming_ports);
 				retval = handshake(ehci, status_reg,
 					   PORT_RESUME, 0, 2000 /* 2msec */);
 				if (retval != 0) {
@@ -864,6 +861,7 @@ static int ehci_hub_control (
 					ehci->reset_done[wIndex])) {
 			status |= USB_PORT_STAT_C_RESET << 16;
 			ehci->reset_done [wIndex] = 0;
+			clear_bit(wIndex, &ehci->resuming_ports);
 
 			/* force reset to complete */
 			ehci_writel(ehci, temp & ~(PORT_RWC_BITS | PORT_RESET),
@@ -884,8 +882,10 @@ static int ehci_hub_control (
 					ehci_readl(ehci, status_reg));
 		}
 
-		if (!(temp & (PORT_RESUME|PORT_RESET)))
+		if (!(temp & (PORT_RESUME|PORT_RESET))) {
 			ehci->reset_done[wIndex] = 0;
+			clear_bit(wIndex, &ehci->resuming_ports);
+		}
 
 		/* transfer dedicated ports to the companion hc */
 		if ((temp & PORT_CONNECT) &&
@@ -920,6 +920,7 @@ static int ehci_hub_control (
 			status |= USB_PORT_STAT_SUSPEND;
 		} else if (test_bit(wIndex, &ehci->suspended_ports)) {
 			clear_bit(wIndex, &ehci->suspended_ports);
+			clear_bit(wIndex, &ehci->resuming_ports);
 			ehci->reset_done[wIndex] = 0;
 			if (temp & PORT_PE)
 				set_bit(wIndex, &ehci->port_c_suspend);

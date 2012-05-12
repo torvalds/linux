@@ -365,6 +365,27 @@ static const struct driver_info	qmi_wwan_force_int4 = {
 	.data		= BIT(4), /* interface whitelist bitmap */
 };
 
+/* Sierra Wireless provide equally useless interface descriptors
+ * Devices in QMI mode can be switched between two different
+ * configurations:
+ *   a) USB interface #8 is QMI/wwan
+ *   b) USB interfaces #8, #19 and #20 are QMI/wwan
+ *
+ * Both configurations provide a number of other interfaces (serial++),
+ * some of which have the same endpoint configuration as we expect, so
+ * a whitelist or blacklist is necessary.
+ *
+ * FIXME: The below whitelist should include BIT(20).  It does not
+ * because I cannot get it to work...
+ */
+static const struct driver_info	qmi_wwan_sierra = {
+	.description	= "Sierra Wireless wwan/QMI device",
+	.flags		= FLAG_WWAN,
+	.bind		= qmi_wwan_bind_gobi,
+	.unbind		= qmi_wwan_unbind_shared,
+	.manage_power	= qmi_wwan_manage_power,
+	.data		= BIT(8) | BIT(19), /* interface whitelist bitmap */
+};
 
 #define HUAWEI_VENDOR_ID	0x12D1
 #define QMI_GOBI_DEVICE(vend, prod) \
@@ -444,6 +465,15 @@ static const struct usb_device_id products[] = {
 		.bInterfaceSubClass = 0xff,
 		.bInterfaceProtocol = 0xff,
 		.driver_info        = (unsigned long)&qmi_wwan_force_int4,
+	},
+	{	/* Sierra Wireless MC77xx in QMI mode */
+		.match_flags	    = USB_DEVICE_ID_MATCH_DEVICE | USB_DEVICE_ID_MATCH_INT_INFO,
+		.idVendor           = 0x1199,
+		.idProduct          = 0x68a2,
+		.bInterfaceClass    = 0xff,
+		.bInterfaceSubClass = 0xff,
+		.bInterfaceProtocol = 0xff,
+		.driver_info        = (unsigned long)&qmi_wwan_sierra,
 	},
 	{QMI_GOBI_DEVICE(0x05c6, 0x9212)},	/* Acer Gobi Modem Device */
 	{QMI_GOBI_DEVICE(0x03f0, 0x1f1d)},	/* HP un2400 Gobi Modem Device */

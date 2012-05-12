@@ -526,8 +526,10 @@ static int dw_mci_submit_data_dma(struct dw_mci *host, struct mmc_data *data)
 		return -ENODEV;
 
 	sg_len = dw_mci_pre_dma_transfer(host, data, 0);
-	if (sg_len < 0)
+	if (sg_len < 0) {
+		host->dma_ops->stop(host);
 		return sg_len;
+	}
 
 	host->using_dma = 1;
 
@@ -1879,7 +1881,8 @@ static void dw_mci_init_dma(struct dw_mci *host)
 	if (!host->dma_ops)
 		goto no_dma;
 
-	if (host->dma_ops->init) {
+	if (host->dma_ops->init && host->dma_ops->start &&
+	    host->dma_ops->stop && host->dma_ops->cleanup) {
 		if (host->dma_ops->init(host)) {
 			dev_err(&host->dev, "%s: Unable to initialize "
 				"DMA Controller.\n", __func__);

@@ -1044,6 +1044,24 @@ static void lowpan_dev_free(struct net_device *dev)
 	free_netdev(dev);
 }
 
+static struct wpan_phy *lowpan_get_phy(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_phy(real_dev);
+}
+
+static u16 lowpan_get_pan_id(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_pan_id(real_dev);
+}
+
+static u16 lowpan_get_short_addr(const struct net_device *dev)
+{
+	struct net_device *real_dev = lowpan_dev_info(dev)->real_dev;
+	return ieee802154_mlme_ops(real_dev)->get_short_addr(real_dev);
+}
+
 static struct header_ops lowpan_header_ops = {
 	.create	= lowpan_header_create,
 };
@@ -1051,6 +1069,12 @@ static struct header_ops lowpan_header_ops = {
 static const struct net_device_ops lowpan_netdev_ops = {
 	.ndo_start_xmit		= lowpan_xmit,
 	.ndo_set_mac_address	= eth_mac_addr,
+};
+
+static struct ieee802154_mlme_ops lowpan_mlme = {
+	.get_pan_id = lowpan_get_pan_id,
+	.get_phy = lowpan_get_phy,
+	.get_short_addr = lowpan_get_short_addr,
 };
 
 static void lowpan_setup(struct net_device *dev)
@@ -1070,6 +1094,7 @@ static void lowpan_setup(struct net_device *dev)
 
 	dev->netdev_ops		= &lowpan_netdev_ops;
 	dev->header_ops		= &lowpan_header_ops;
+	dev->ml_priv		= &lowpan_mlme;
 	dev->destructor		= lowpan_dev_free;
 }
 
@@ -1143,6 +1168,8 @@ static int lowpan_newlink(struct net *src_net, struct net_device *dev,
 	list_add_tail(&entry->list, &lowpan_devices);
 	mutex_unlock(&lowpan_dev_info(dev)->dev_list_mtx);
 
+	spin_lock_init(&flist_lock);
+
 	register_netdevice(dev);
 
 	return 0;
@@ -1152,10 +1179,19 @@ static void lowpan_dellink(struct net_device *dev, struct list_head *head)
 {
 	struct lowpan_dev_info *lowpan_dev = lowpan_dev_info(dev);
 	struct net_device *real_dev = lowpan_dev->real_dev;
-	struct lowpan_dev_record *entry;
-	struct lowpan_dev_record *tmp;
+	struct lowpan_dev_record *entry, *tmp;
+	struct lowpan_fragment *frame, *tframe;
 
 	ASSERT_RTNL();
+
+	spin_lock(&flist_lock);
+	list_for_each_entry_safe(frame, tframe, &lowpan_fragments, list) {
+		del_timer(&frame->timer);
+		list_del(&frame->list);
+		dev_kfree_skb(frame->skb);
+		kfree(frame);
+	}
+	spin_unlock(&flist_lock);
 
 	mutex_lock(&lowpan_dev_info(dev)->dev_list_mtx);
 	list_for_each_entry_safe(entry, tmp, &lowpan_devices, list) {

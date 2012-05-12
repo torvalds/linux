@@ -1429,6 +1429,7 @@ static int pl08x_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
 			 * signal
 			 */
 			release_phy_channel(plchan);
+			plchan->phychan_hold = 0;
 		}
 		/* Dequeue jobs and free LLIs */
 		if (plchan->at) {

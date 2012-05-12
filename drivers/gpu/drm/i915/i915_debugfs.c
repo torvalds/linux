@@ -1224,6 +1224,9 @@ static int i915_emon_status(struct seq_file *m, void *unused)
 	unsigned long temp, chipset, gfx;
 	int ret;
 
+	if (!IS_GEN5(dev))
+		return -ENODEV;
+
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
 		return ret;
