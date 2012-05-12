@@ -257,8 +257,8 @@ static int __devinit ie6xx_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!request_region(res->start, resource_size(res), pdev->name)) {
-		dev_err(&pdev->dev, "Watchdog region 0x%x already in use!\n",
-			res->start);
+		dev_err(&pdev->dev, "Watchdog region 0x%llx already in use!\n",
+			(u64)res->start);
 		return -EBUSY;
 	}
 
