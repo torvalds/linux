@@ -464,7 +464,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 	struct hlist_node *node;
 	int gw_count = 0, ret = 0;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
 		ret = seq_printf(seq,
 				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
@@ -503,7 +503,7 @@ int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return ret;
 }
 

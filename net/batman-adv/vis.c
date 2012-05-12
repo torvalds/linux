@@ -208,7 +208,7 @@ int batadv_vis_seq_print_text(struct seq_file *seq, void *offset)
 	size_t buff_pos, buf_size;
 	char *buff;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -329,7 +329,7 @@ int batadv_vis_seq_print_text(struct seq_file *seq, void *offset)
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return ret;
 }
 
@@ -828,7 +828,7 @@ static void send_vis_packet(struct bat_priv *bat_priv, struct vis_info *info)
 	struct hard_iface *primary_if;
 	struct vis_packet *packet;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -849,7 +849,7 @@ static void send_vis_packet(struct bat_priv *bat_priv, struct vis_info *info)
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 /* called from timer; send (and maybe generate) vis packet. */

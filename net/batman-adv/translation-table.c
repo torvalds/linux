@@ -298,7 +298,7 @@ static void tt_prepare_packet_buff(struct bat_priv *bat_priv,
 	struct hard_iface *primary_if;
 	int req_len;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 
 	req_len = min_packet_len;
 	req_len += batadv_tt_len(atomic_read(&bat_priv->tt_local_changes));
@@ -313,7 +313,7 @@ static void tt_prepare_packet_buff(struct bat_priv *bat_priv,
 			       min_packet_len, req_len);
 
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 static int tt_changes_fill_buff(struct bat_priv *bat_priv,
@@ -381,7 +381,7 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 	uint32_t i;
 	int ret = 0;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
 		ret = seq_printf(seq,
 				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
@@ -423,7 +423,7 @@ int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset)
 	}
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return ret;
 }
 
@@ -727,7 +727,7 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	uint32_t i;
 	int ret = 0;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
 		ret = seq_printf(seq,
 				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
@@ -763,7 +763,7 @@ int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset)
 	}
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return ret;
 }
 
@@ -1370,7 +1370,7 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	struct tt_req_node *tt_req_node = NULL;
 	int ret = 1;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -1420,7 +1420,7 @@ out:
 	if (neigh_node)
 		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (ret)
 		kfree_skb(skb);
 	if (ret && tt_req_node) {
@@ -1464,7 +1464,7 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 	if (!neigh_node)
 		goto out;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -1555,7 +1555,7 @@ out:
 	if (neigh_node)
 		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (!ret)
 		kfree_skb(skb);
 	return ret;
@@ -1592,7 +1592,7 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	if (!neigh_node)
 		goto out;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -1672,7 +1672,7 @@ out:
 	if (neigh_node)
 		batadv_neigh_node_free_ref(neigh_node);
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (!ret)
 		kfree_skb(skb);
 	/* This packet was for me, so it doesn't need to be re-routed */
@@ -1956,11 +1956,11 @@ static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 	roam_adv_packet->header.packet_type = BAT_ROAM_ADV;
 	roam_adv_packet->header.version = COMPAT_VERSION;
 	roam_adv_packet->header.ttl = TTL;
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 	memcpy(roam_adv_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
-	hardif_free_ref(primary_if);
+	batadv_hardif_free_ref(primary_if);
 	memcpy(roam_adv_packet->dst, orig_node->orig, ETH_ALEN);
 	memcpy(roam_adv_packet->client, client, ETH_ALEN);
 

@@ -292,7 +292,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -322,7 +322,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (router)
 		batadv_neigh_node_free_ref(router);
 	if (orig_node)
@@ -348,7 +348,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -377,7 +377,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (router)
 		batadv_neigh_node_free_ref(router);
 	if (orig_node)
@@ -955,12 +955,12 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 		if (!orig_node) {
 			if (!batadv_is_my_client(bat_priv, ethhdr->h_dest))
 				return 0;
-			primary_if = primary_if_get_selected(bat_priv);
+			primary_if = batadv_primary_if_get_selected(bat_priv);
 			if (!primary_if)
 				return 0;
 			memcpy(unicast_packet->dest,
 			       primary_if->net_dev->dev_addr, ETH_ALEN);
-			hardif_free_ref(primary_if);
+			batadv_hardif_free_ref(primary_if);
 		} else {
 			memcpy(unicast_packet->dest, orig_node->orig,
 			       ETH_ALEN);

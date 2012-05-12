@@ -101,7 +101,7 @@ static void forw_packet_free(struct forw_packet *forw_packet)
 	if (forw_packet->skb)
 		kfree_skb(forw_packet->skb);
 	if (forw_packet->if_incoming)
-		hardif_free_ref(forw_packet->if_incoming);
+		batadv_hardif_free_ref(forw_packet->if_incoming);
 	kfree(forw_packet);
 }
 
@@ -146,7 +146,7 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out_and_inc;
 
@@ -180,7 +180,7 @@ out_and_inc:
 	atomic_inc(&bat_priv->bcast_queue_left);
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return NETDEV_TX_BUSY;
 }
 

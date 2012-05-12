@@ -255,7 +255,7 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 	struct bla_claim_dst local_claim_dest;
 	__be32 zeroip = 0;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		return;
 
@@ -339,7 +339,7 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 	netif_rx(skb);
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 /* @bat_priv: the bat priv with all the soft interface information
@@ -1075,7 +1075,7 @@ static void bla_periodic_work(struct work_struct *work)
 	struct hard_iface *primary_if;
 	int i;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -1106,7 +1106,7 @@ static void bla_periodic_work(struct work_struct *work)
 	}
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 
 	bla_start_timer(bat_priv);
 }
@@ -1131,12 +1131,12 @@ int batadv_bla_init(struct bat_priv *bat_priv)
 	/* setting claim destination address */
 	memcpy(&bat_priv->claim_dest.magic, claim_dest, 3);
 	bat_priv->claim_dest.type = 0;
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (primary_if) {
 		bat_priv->claim_dest.group =
 			htons(crc16(0, primary_if->net_dev->dev_addr,
 				    ETH_ALEN));
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	} else {
 		bat_priv->claim_dest.group = 0; /* will be set later */
 	}
@@ -1319,7 +1319,7 @@ void batadv_bla_free(struct bat_priv *bat_priv)
 	struct hard_iface *primary_if;
 
 	cancel_delayed_work_sync(&bat_priv->bla_work);
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 
 	if (bat_priv->claim_hash) {
 		bla_purge_claims(bat_priv, primary_if, 1);
@@ -1332,7 +1332,7 @@ void batadv_bla_free(struct bat_priv *bat_priv)
 		bat_priv->backbone_hash = NULL;
 	}
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 /* @bat_priv: the bat priv with all the soft interface information
@@ -1356,7 +1356,7 @@ int batadv_bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 
 	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto handled;
 
@@ -1416,7 +1416,7 @@ handled:
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (claim)
 		claim_free_ref(claim);
 	return ret;
@@ -1441,7 +1441,7 @@ int batadv_bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 	struct hard_iface *primary_if;
 	int ret = 0;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -1502,7 +1502,7 @@ handled:
 	ret = 1;
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	if (claim)
 		claim_free_ref(claim);
 	return ret;
@@ -1521,7 +1521,7 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 	bool is_own;
 	int ret = 0;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
 		ret = seq_printf(seq,
 				 "BATMAN mesh %s disabled - please specify interfaces to enable it\n",
@@ -1559,6 +1559,6 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 	}
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return ret;
 }

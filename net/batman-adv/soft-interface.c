@@ -199,7 +199,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 
 	/* ethernet packet should be broadcasted */
 	if (do_bcast) {
-		primary_if = primary_if_get_selected(bat_priv);
+		primary_if = batadv_primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto dropped;
 
@@ -253,7 +253,7 @@ dropped_freed:
 	bat_priv->stats.tx_dropped++;
 end:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return NETDEV_TX_OK;
 }
 

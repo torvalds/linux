@@ -132,7 +132,7 @@ ssize_t store_##_name(struct kobject *kobj, struct attribute *attr,	\
 	length = __store_uint_attr(buff, count, _min, _max, _post_func,	\
 				   attr, &hard_iface->_name, net_dev);	\
 									\
-	hardif_free_ref(hard_iface);					\
+	batadv_hardif_free_ref(hard_iface);				\
 	return length;							\
 }
 
@@ -150,7 +150,7 @@ ssize_t show_##_name(struct kobject *kobj,				\
 									\
 	length = sprintf(buff, "%i\n", atomic_read(&hard_iface->_name));\
 									\
-	hardif_free_ref(hard_iface);					\
+	batadv_hardif_free_ref(hard_iface);				\
 	return length;							\
 }
 
@@ -535,7 +535,7 @@ static ssize_t show_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	length = sprintf(buff, "%s\n", hard_iface->if_status == IF_NOT_IN_USE ?
 			 "none" : hard_iface->soft_iface->name);
 
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 
 	return length;
 }
@@ -557,7 +557,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 	if (strlen(buff) >= IFNAMSIZ) {
 		pr_err("Invalid parameter for 'mesh_iface' setting received: interface name too long '%s'\n",
 		       buff);
-		hardif_free_ref(hard_iface);
+		batadv_hardif_free_ref(hard_iface);
 		return -EINVAL;
 	}
 
@@ -592,7 +592,7 @@ static ssize_t store_mesh_iface(struct kobject *kobj, struct attribute *attr,
 unlock:
 	rtnl_unlock();
 out:
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 	return ret;
 }
 
@@ -625,7 +625,7 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 		break;
 	}
 
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 
 	return length;
 }
@@ -688,7 +688,7 @@ int batadv_throw_uevent(struct bat_priv *bat_priv, enum uev_type type,
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -727,7 +727,7 @@ out:
 	kfree(uevent_env[2]);
 
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 
 	if (ret)
 		bat_dbg(DBG_BATMAN, bat_priv,

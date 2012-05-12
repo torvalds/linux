@@ -102,7 +102,7 @@ static void primary_if_update_addr(struct bat_priv *bat_priv,
 	struct vis_packet *vis_packet;
 	struct hard_iface *primary_if;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -115,7 +115,7 @@ static void primary_if_update_addr(struct bat_priv *bat_priv,
 	batadv_bla_update_orig_address(bat_priv, primary_if, oldif);
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 static void primary_if_select(struct bat_priv *bat_priv,
@@ -139,7 +139,7 @@ static void primary_if_select(struct bat_priv *bat_priv,
 
 out:
 	if (curr_hard_iface)
-		hardif_free_ref(curr_hard_iface);
+		batadv_hardif_free_ref(curr_hard_iface);
 }
 
 static bool hardif_is_iface_up(const struct hard_iface *hard_iface)
@@ -229,7 +229,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 	/* the first active interface becomes our primary interface or
 	 * the next active interface after the old primary interface was removed
 	 */
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		primary_if_select(bat_priv, hard_iface);
 
@@ -240,7 +240,7 @@ static void hardif_activate_interface(struct hard_iface *hard_iface)
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 static void hardif_deactivate_interface(struct hard_iface *hard_iface)
@@ -347,7 +347,7 @@ out:
 err_dev:
 	dev_put(soft_iface);
 err:
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 	return ret;
 }
 
@@ -369,7 +369,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 	bat_priv->num_ifaces--;
 	batadv_orig_hash_del_if(hard_iface, bat_priv->num_ifaces);
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (hard_iface == primary_if) {
 		struct hard_iface *new_if;
 
@@ -377,7 +377,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 		primary_if_select(bat_priv, new_if);
 
 		if (new_if)
-			hardif_free_ref(new_if);
+			batadv_hardif_free_ref(new_if);
 	}
 
 	bat_priv->bat_algo_ops->bat_iface_disable(hard_iface);
@@ -393,11 +393,11 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 		batadv_softif_destroy(hard_iface->soft_iface);
 
 	hard_iface->soft_iface = NULL;
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
@@ -461,7 +461,7 @@ static void hardif_remove_interface(struct hard_iface *hard_iface)
 
 	hard_iface->if_status = IF_TO_BE_REMOVED;
 	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 }
 
 void batadv_hardif_remove_interfaces(void)
@@ -517,7 +517,7 @@ static int hard_if_event(struct notifier_block *this,
 		bat_priv = netdev_priv(hard_iface->soft_iface);
 		bat_priv->bat_algo_ops->bat_iface_update_mac(hard_iface);
 
-		primary_if = primary_if_get_selected(bat_priv);
+		primary_if = batadv_primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto hardif_put;
 
@@ -529,10 +529,10 @@ static int hard_if_event(struct notifier_block *this,
 	}
 
 hardif_put:
-	hardif_free_ref(hard_iface);
+	batadv_hardif_free_ref(hard_iface);
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return NOTIFY_DONE;
 }
 

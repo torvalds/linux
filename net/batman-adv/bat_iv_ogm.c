@@ -232,7 +232,7 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 	if (forw_packet->if_incoming->if_status != IF_ACTIVE)
 		goto out;
 
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if)
 		goto out;
 
@@ -273,7 +273,7 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 /* return true if new_packet can be aggregated with forw_packet */
@@ -311,7 +311,7 @@ static bool bat_iv_ogm_can_aggregate(const struct batman_ogm_packet
 		 *    a "global" packet as well as the base
 		 *    packet
 		 */
-		primary_if = primary_if_get_selected(bat_priv);
+		primary_if = batadv_primary_if_get_selected(bat_priv);
 		if (!primary_if)
 			goto out;
 
@@ -352,7 +352,7 @@ static bool bat_iv_ogm_can_aggregate(const struct batman_ogm_packet
 
 out:
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 	return res;
 }
 
@@ -431,7 +431,7 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 
 	return;
 out:
-	hardif_free_ref(if_incoming);
+	batadv_hardif_free_ref(if_incoming);
 }
 
 /* aggregate a new packet into the existing ogm packet */
@@ -570,7 +570,7 @@ static void bat_iv_ogm_schedule(struct hard_iface *hard_iface)
 	int vis_server, tt_num_changes = 0;
 
 	vis_server = atomic_read(&bat_priv->vis_mode);
-	primary_if = primary_if_get_selected(bat_priv);
+	primary_if = batadv_primary_if_get_selected(bat_priv);
 
 	if (hard_iface == primary_if)
 		tt_num_changes = batadv_tt_append_diff(bat_priv,
@@ -608,7 +608,7 @@ static void bat_iv_ogm_schedule(struct hard_iface *hard_iface)
 			     bat_iv_ogm_emit_send_time(bat_priv));
 
 	if (primary_if)
-		hardif_free_ref(primary_if);
+		batadv_hardif_free_ref(primary_if);
 }
 
 static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
