@@ -183,16 +183,9 @@ static struct s3c_fb_platdata smdkv310_lcd0_pdata __initdata = {
 };
 
 static struct resource smdkv310_smsc911x_resources[] = {
-	[0] = {
-		.start	= EXYNOS4_PA_SROM_BANK(1),
-		.end	= EXYNOS4_PA_SROM_BANK(1) + SZ_64K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_EINT(5),
-		.end	= IRQ_EINT(5),
-		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_LOW,
-	},
+	[0] = DEFINE_RES_MEM(EXYNOS4_PA_SROM_BANK(1), SZ_64K),
+	[1] = DEFINE_RES_NAMED(IRQ_EINT(5), 1, NULL, IORESOURCE_IRQ \
+						| IRQF_TRIGGER_LOW),
 };
 
 static struct smsc911x_platform_config smsc9215_config = {
