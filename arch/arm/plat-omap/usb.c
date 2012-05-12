@@ -37,7 +37,6 @@ void __init
 omap_otg_init(struct omap_usb_config *config)
 {
 	u32		syscon;
-	int		status;
 	int		alt_pingroup = 0;
 
 	/* NOTE:  no bus or clock setup (yet?) */
@@ -102,6 +101,7 @@ omap_otg_init(struct omap_usb_config *config)
 #ifdef	CONFIG_USB_GADGET_OMAP
 	if (config->otg || config->register_dev) {
 		struct platform_device *udc_device = config->udc_device;
+		int status;
 
 		syscon &= ~DEV_IDLE_EN;
 		udc_device->dev.platform_data = config;
@@ -114,6 +114,7 @@ omap_otg_init(struct omap_usb_config *config)
 #if	defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
 	if (config->otg || config->register_host) {
 		struct platform_device *ohci_device = config->ohci_device;
+		int status;
 
 		syscon &= ~HST_IDLE_EN;
 		ohci_device->dev.platform_data = config;
@@ -126,6 +127,7 @@ omap_otg_init(struct omap_usb_config *config)
 #ifdef	CONFIG_USB_OTG
 	if (config->otg) {
 		struct platform_device *otg_device = config->otg_device;
+		int status;
 
 		syscon &= ~OTG_IDLE_EN;
 		otg_device->dev.platform_data = config;

@@ -67,6 +67,10 @@ extern bool omap_32k_timer_init(void);
 
 extern u32 omap_irq_flags;
 
+#ifdef CONFIG_ARCH_OMAP16XX
 extern int ocpi_enable(void);
+#else
+static inline int ocpi_enable(void) { return 0; }
+#endif
 
 #endif /* __ARCH_ARM_MACH_OMAP1_COMMON_H */
