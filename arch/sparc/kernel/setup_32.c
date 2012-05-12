@@ -217,10 +217,6 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
-	if (!strcmp(&cputypval[0], "sun4 "))
-		sparc_cpu_model = sun4;
-	if (!strcmp(&cputypval[0], "sun4c"))
-		sparc_cpu_model = sun4c;
 	if (!strcmp(&cputypval[0], "sun4m"))
 		sparc_cpu_model = sun4m;
 	if (!strcmp(&cputypval[0], "sun4s"))
@@ -236,12 +232,6 @@ void __init setup_arch(char **cmdline_p)
 
 	printk("ARCH: ");
 	switch(sparc_cpu_model) {
-	case sun4:
-		printk("SUN4\n");
-		break;
-	case sun4c:
-		printk("SUN4C\n");
-		break;
 	case sun4m:
 		printk("SUN4M\n");
 		break;
