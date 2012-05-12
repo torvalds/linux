@@ -44,6 +44,7 @@
 #include <mach/map.h>
 #include <mach/ohci.h>
 
+#include <drm/exynos_drm.h>
 #include "common.h"
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
@@ -160,6 +161,26 @@ static struct platform_device smdkv310_lcd_lte480wv = {
 	.dev.platform_data	= &smdkv310_lcd_lte480wv_data,
 };
 
+#ifdef CONFIG_DRM_EXYNOS
+static struct exynos_drm_fimd_pdata drm_fimd_pdata = {
+	.panel	= {
+		.timing	= {
+			.left_margin	= 13,
+			.right_margin	= 8,
+			.upper_margin	= 7,
+			.lower_margin	= 5,
+			.hsync_len	= 3,
+			.vsync_len	= 1,
+			.xres		= 800,
+			.yres		= 480,
+		},
+	},
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
+	.default_win	= 0,
+	.bpp		= 32,
+};
+#else
 static struct s3c_fb_pd_win smdkv310_fb_win0 = {
 	.win_mode = {
 		.left_margin	= 13,
@@ -181,6 +202,7 @@ static struct s3c_fb_platdata smdkv310_lcd0_pdata __initdata = {
 	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC,
 	.setup_gpio	= exynos4_fimd0_gpio_setup_24bpp,
 };
+#endif
 
 static struct resource smdkv310_smsc911x_resources[] = {
 	[0] = {
@@ -273,6 +295,9 @@ static struct platform_device *smdkv310_devices[] __initdata = {
 	&s5p_device_fimc_md,
 	&s5p_device_g2d,
 	&s5p_device_jpeg,
+#ifdef CONFIG_DRM_EXYNOS
+	&exynos_device_drm,
+#endif
 	&exynos4_device_ac97,
 	&exynos4_device_i2s0,
 	&exynos4_device_ohci,
@@ -364,7 +389,12 @@ static void __init smdkv310_machine_init(void)
 	samsung_keypad_set_platdata(&smdkv310_keypad_data);
 
 	samsung_bl_set(&smdkv310_bl_gpio_info, &smdkv310_bl_data);
+#ifdef CONFIG_DRM_EXYNOS
+	s5p_device_fimd0.dev.platform_data = &drm_fimd_pdata;
+	exynos4_fimd0_gpio_setup_24bpp();
+#else
 	s5p_fimd0_set_platdata(&smdkv310_lcd0_pdata);
+#endif
 
 	smdkv310_ehci_init();
 	smdkv310_ohci_init();
