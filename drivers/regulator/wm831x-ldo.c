@@ -25,7 +25,7 @@
 #include <linux/mfd/wm831x/regulator.h>
 #include <linux/mfd/wm831x/pdata.h>
 
-#define WM831X_LDO_MAX_NAME 6
+#define WM831X_LDO_MAX_NAME 9
 
 #define WM831X_LDO_CONTROL       0
 #define WM831X_LDO_ON_CONTROL    1
@@ -36,6 +36,7 @@
 
 struct wm831x_ldo {
 	char name[WM831X_LDO_MAX_NAME];
+	char supply_name[WM831X_LDO_MAX_NAME];
 	struct regulator_desc desc;
 	int base;
 	struct wm831x *wm831x;
@@ -291,6 +292,11 @@ static __devinit int wm831x_gp_ldo_probe(struct platform_device *pdev)
 
 	snprintf(ldo->name, sizeof(ldo->name), "LDO%d", id + 1);
 	ldo->desc.name = ldo->name;
+
+	snprintf(ldo->supply_name, sizeof(ldo->supply_name),
+		 "LDO%dVDD", id + 1);
+	ldo->desc.supply_name = ldo->supply_name;
+
 	ldo->desc.id = id;
 	ldo->desc.type = REGULATOR_VOLTAGE;
 	ldo->desc.n_voltages = WM831X_GP_LDO_MAX_SELECTOR + 1;
@@ -547,6 +553,11 @@ static __devinit int wm831x_aldo_probe(struct platform_device *pdev)
 
 	snprintf(ldo->name, sizeof(ldo->name), "LDO%d", id + 1);
 	ldo->desc.name = ldo->name;
+
+	snprintf(ldo->supply_name, sizeof(ldo->supply_name),
+		 "LDO%dVDD", id + 1);
+	ldo->desc.supply_name = ldo->supply_name;
+
 	ldo->desc.id = id;
 	ldo->desc.type = REGULATOR_VOLTAGE;
 	ldo->desc.n_voltages = WM831X_ALDO_MAX_SELECTOR + 1;
@@ -733,6 +744,11 @@ static __devinit int wm831x_alive_ldo_probe(struct platform_device *pdev)
 
 	snprintf(ldo->name, sizeof(ldo->name), "LDO%d", id + 1);
 	ldo->desc.name = ldo->name;
+
+	snprintf(ldo->supply_name, sizeof(ldo->supply_name),
+		 "LDO%dVDD", id + 1);
+	ldo->desc.supply_name = ldo->supply_name;
+
 	ldo->desc.id = id;
 	ldo->desc.type = REGULATOR_VOLTAGE;
 	ldo->desc.n_voltages = WM831X_ALIVE_LDO_MAX_SELECTOR + 1;

@@ -69,11 +69,6 @@ static int max8952_write_reg(struct max8952_data *max8952,
 	return i2c_smbus_write_byte_data(max8952->client, reg, value);
 }
 
-static int max8952_voltage(struct max8952_data *max8952, u8 mode)
-{
-	return (max8952->pdata->dvs_mode[mode] * 10 + 770) * 1000;
-}
-
 static int max8952_list_voltage(struct regulator_dev *rdev,
 		unsigned int selector)
 {
@@ -82,7 +77,7 @@ static int max8952_list_voltage(struct regulator_dev *rdev,
 	if (rdev_get_id(rdev) != 0)
 		return -EINVAL;
 
-	return max8952_voltage(max8952, selector);
+	return (max8952->pdata->dvs_mode[selector] * 10 + 770) * 1000;
 }
 
 static int max8952_is_enabled(struct regulator_dev *rdev)
@@ -117,7 +112,7 @@ static int max8952_disable(struct regulator_dev *rdev)
 	return 0;
 }
 
-static int max8952_get_voltage(struct regulator_dev *rdev)
+static int max8952_get_voltage_sel(struct regulator_dev *rdev)
 {
 	struct max8952_data *max8952 = rdev_get_drvdata(rdev);
 	u8 vid = 0;
@@ -127,7 +122,7 @@ static int max8952_get_voltage(struct regulator_dev *rdev)
 	if (max8952->vid1)
 		vid += 2;
 
-	return max8952_voltage(max8952, vid);
+	return vid;
 }
 
 static int max8952_set_voltage_sel(struct regulator_dev *rdev,
@@ -154,7 +149,7 @@ static struct regulator_ops max8952_ops = {
 	.is_enabled		= max8952_is_enabled,
 	.enable			= max8952_enable,
 	.disable		= max8952_disable,
-	.get_voltage		= max8952_get_voltage,
+	.get_voltage_sel	= max8952_get_voltage_sel,
 	.set_voltage_sel	= max8952_set_voltage_sel,
 	.set_suspend_disable	= max8952_disable,
 };

@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/mfd/tps65912.h>
@@ -406,7 +405,7 @@ static int tps65912_list_voltage(struct regulator_dev *dev, unsigned selector)
 	return voltage;
 }
 
-static int tps65912_get_voltage(struct regulator_dev *dev)
+static int tps65912_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	struct tps65912 *mfd = pmic->mfd;
@@ -420,7 +419,7 @@ static int tps65912_get_voltage(struct regulator_dev *dev)
 	vsel = tps65912_reg_read(mfd, reg);
 	vsel &= 0x3F;
 
-	return tps65912_list_voltage(dev, vsel);
+	return vsel;
 }
 
 static int tps65912_set_voltage_sel(struct regulator_dev *dev,
@@ -445,7 +444,7 @@ static struct regulator_ops tps65912_ops_dcdc = {
 	.disable = tps65912_reg_disable,
 	.set_mode = tps65912_set_mode,
 	.get_mode = tps65912_get_mode,
-	.get_voltage = tps65912_get_voltage,
+	.get_voltage_sel = tps65912_get_voltage_sel,
 	.set_voltage_sel = tps65912_set_voltage_sel,
 	.list_voltage = tps65912_list_voltage,
 };
@@ -455,7 +454,7 @@ static struct regulator_ops tps65912_ops_ldo = {
 	.is_enabled = tps65912_reg_is_enabled,
 	.enable = tps65912_reg_enable,
 	.disable = tps65912_reg_disable,
-	.get_voltage = tps65912_get_voltage,
+	.get_voltage_sel = tps65912_get_voltage_sel,
 	.set_voltage_sel = tps65912_set_voltage_sel,
 	.list_voltage = tps65912_list_voltage,
 };

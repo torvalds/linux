@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/mutex.h>
-#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/mfd/max8998.h>
@@ -719,16 +718,15 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	max8998 = kzalloc(sizeof(struct max8998_data), GFP_KERNEL);
+	max8998 = devm_kzalloc(&pdev->dev, sizeof(struct max8998_data),
+			       GFP_KERNEL);
 	if (!max8998)
 		return -ENOMEM;
 
 	size = sizeof(struct regulator_dev *) * pdata->num_regulators;
-	max8998->rdev = kzalloc(size, GFP_KERNEL);
-	if (!max8998->rdev) {
-		kfree(max8998);
+	max8998->rdev = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	if (!max8998->rdev)
 		return -ENOMEM;
-	}
 
 	rdev = max8998->rdev;
 	max8998->dev = &pdev->dev;
@@ -752,14 +750,14 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 			printk(KERN_ERR "MAX8998 SET1 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set1);
 			ret = -EIO;
-			goto err_free_mem;
+			goto err_out;
 		}
 		/* Check if SET2 is not equal to 0 */
 		if (!pdata->buck1_set2) {
 			printk(KERN_ERR "MAX8998 SET2 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck1_set2);
 			ret = -EIO;
-			goto err_free_mem;
+			goto err_out;
 		}
 
 		gpio_request(pdata->buck1_set1, "MAX8998 BUCK1_SET1");
@@ -779,7 +777,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		max8998->buck1_vol[0] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE1, i);
 		if (ret)
-			goto err_free_mem;
+			goto err_out;
 
 		/* Set predefined value for BUCK1 register 2 */
 		i = 0;
@@ -791,7 +789,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		max8998->buck1_vol[1] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE2, i);
 		if (ret)
-			goto err_free_mem;
+			goto err_out;
 
 		/* Set predefined value for BUCK1 register 3 */
 		i = 0;
@@ -803,7 +801,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		max8998->buck1_vol[2] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE3, i);
 		if (ret)
-			goto err_free_mem;
+			goto err_out;
 
 		/* Set predefined value for BUCK1 register 4 */
 		i = 0;
@@ -815,7 +813,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		max8998->buck1_vol[3] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK1_VOLTAGE4, i);
 		if (ret)
-			goto err_free_mem;
+			goto err_out;
 
 	}
 
@@ -825,7 +823,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 			printk(KERN_ERR "MAX8998 SET3 GPIO defined as 0 !\n");
 			WARN_ON(!pdata->buck2_set3);
 			ret = -EIO;
-			goto err_free_mem;
+			goto err_out;
 		}
 		gpio_request(pdata->buck2_set3, "MAX8998 BUCK2_SET3");
 		gpio_direction_output(pdata->buck2_set3,
@@ -840,7 +838,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		max8998->buck2_vol[0] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE1, i);
 		if (ret)
-			goto err_free_mem;
+			goto err_out;
 
 		/* BUCK2 register 2 */
 		i = 0;
@@ -851,7 +849,7 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 		max8998->buck2_vol[1] = i;
 		ret = max8998_write_reg(i2c, MAX8998_REG_BUCK2_VOLTAGE2, i);
 		if (ret)
-			goto err_free_mem;
+			goto err_out;
 	}
 
 	for (i = 0; i < pdata->num_regulators; i++) {
@@ -881,14 +879,9 @@ static __devinit int max8998_pmic_probe(struct platform_device *pdev)
 
 	return 0;
 err:
-	for (i = 0; i < max8998->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-
-err_free_mem:
-	kfree(max8998->rdev);
-	kfree(max8998);
-
+	while (--i >= 0)
+		regulator_unregister(rdev[i]);
+err_out:
 	return ret;
 }
 
@@ -899,12 +892,7 @@ static int __devexit max8998_pmic_remove(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < max8998->num_regulators; i++)
-		if (rdev[i])
-			regulator_unregister(rdev[i]);
-
-	kfree(max8998->rdev);
-	kfree(max8998);
-
+		regulator_unregister(rdev[i]);
 	return 0;
 }
 

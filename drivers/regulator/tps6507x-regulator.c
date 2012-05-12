@@ -23,7 +23,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/tps6507x.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/mfd/tps6507x.h>
 
@@ -283,7 +282,7 @@ static int tps6507x_pmic_disable(struct regulator_dev *dev)
 					1 << shift);
 }
 
-static int tps6507x_pmic_get_voltage(struct regulator_dev *dev)
+static int tps6507x_pmic_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps6507x_pmic *tps = rdev_get_drvdata(dev);
 	int data, rid = rdev_get_id(dev);
@@ -325,7 +324,7 @@ static int tps6507x_pmic_get_voltage(struct regulator_dev *dev)
 		return data;
 
 	data &= mask;
-	return tps->info[rid]->table[data] * 1000;
+	return data;
 }
 
 static int tps6507x_pmic_set_voltage_sel(struct regulator_dev *dev,
@@ -395,7 +394,7 @@ static struct regulator_ops tps6507x_pmic_ops = {
 	.is_enabled = tps6507x_pmic_is_enabled,
 	.enable = tps6507x_pmic_enable,
 	.disable = tps6507x_pmic_disable,
-	.get_voltage = tps6507x_pmic_get_voltage,
+	.get_voltage_sel = tps6507x_pmic_get_voltage_sel,
 	.set_voltage_sel = tps6507x_pmic_set_voltage_sel,
 	.list_voltage = tps6507x_pmic_list_voltage,
 };

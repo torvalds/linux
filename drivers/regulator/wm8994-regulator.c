@@ -182,23 +182,16 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 	if (pdata->ldo[id].enable && gpio_is_valid(pdata->ldo[id].enable)) {
 		ldo->enable = pdata->ldo[id].enable;
 
-		ret = gpio_request(ldo->enable, "WM8994 LDO enable");
+		ret = gpio_request_one(ldo->enable, 0, "WM8994 LDO enable");
 		if (ret < 0) {
 			dev_err(&pdev->dev, "Failed to get enable GPIO: %d\n",
 				ret);
 			goto err;
 		}
-
-		ret = gpio_direction_output(ldo->enable, ldo->is_enabled);
-		if (ret < 0) {
-			dev_err(&pdev->dev, "Failed to set GPIO up: %d\n",
-				ret);
-			goto err_gpio;
-		}
 	} else
 		ldo->is_enabled = true;
 
-	config.dev = &pdev->dev;
+	config.dev = wm8994->dev;
 	config.init_data = pdata->ldo[id].init_data;
 	config.driver_data = ldo;
 	config.regmap = wm8994->regmap;

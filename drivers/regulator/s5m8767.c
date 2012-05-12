@@ -12,7 +12,6 @@
  */
 
 #include <linux/bug.h>
-#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -347,7 +346,10 @@ static int s5m8767_convert_voltage_to_sel(
 	if (max_vol < desc->min || min_vol > desc->max)
 		return -EINVAL;
 
-	selector = (min_vol - desc->min) / desc->step;
+	if (min_vol < desc->min)
+		min_vol = desc->min;
+
+	selector = DIV_ROUND_UP(min_vol - desc->min, desc->step);
 
 	if (desc->min + desc->step * selector > max_vol)
 		return -EINVAL;

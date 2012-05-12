@@ -35,7 +35,7 @@
 #define WM831X_DCDC_MODE_IDLE    2
 #define WM831X_DCDC_MODE_STANDBY 3
 
-#define WM831X_DCDC_MAX_NAME 6
+#define WM831X_DCDC_MAX_NAME 9
 
 /* Register offsets in control block */
 #define WM831X_DCDC_CONTROL_1     0
@@ -50,6 +50,7 @@
 
 struct wm831x_dcdc {
 	char name[WM831X_DCDC_MAX_NAME];
+	char supply_name[WM831X_DCDC_MAX_NAME];
 	struct regulator_desc desc;
 	int base;
 	struct wm831x *wm831x;
@@ -402,23 +403,17 @@ static __devinit void wm831x_buckv_dvs_init(struct wm831x_dcdc *dcdc,
 	if (!pdata || !pdata->dvs_gpio)
 		return;
 
-	ret = gpio_request(pdata->dvs_gpio, "DCDC DVS");
-	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
-			dcdc->name, ret);
-		return;
-	}
-
 	/* gpiolib won't let us read the GPIO status so pick the higher
 	 * of the two existing voltages so we take it as platform data.
 	 */
 	dcdc->dvs_gpio_state = pdata->dvs_init_state;
 
-	ret = gpio_direction_output(pdata->dvs_gpio, dcdc->dvs_gpio_state);
+	ret = gpio_request_one(pdata->dvs_gpio,
+			       dcdc->dvs_gpio_state ? GPIOF_INIT_HIGH : 0,
+			       "DCDC DVS");
 	if (ret < 0) {
-		dev_err(wm831x->dev, "Failed to enable %s DVS GPIO: %d\n",
+		dev_err(wm831x->dev, "Failed to get %s DVS GPIO: %d\n",
 			dcdc->name, ret);
-		gpio_free(pdata->dvs_gpio);
 		return;
 	}
 
@@ -496,6 +491,11 @@ static __devinit int wm831x_buckv_probe(struct platform_device *pdev)
 
 	snprintf(dcdc->name, sizeof(dcdc->name), "DCDC%d", id + 1);
 	dcdc->desc.name = dcdc->name;
+
+	snprintf(dcdc->supply_name, sizeof(dcdc->supply_name),
+		 "DC%dVDD", id + 1);
+	dcdc->desc.supply_name = dcdc->supply_name;
+
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
 	dcdc->desc.n_voltages = WM831X_BUCKV_MAX_SELECTOR + 1;
@@ -697,6 +697,11 @@ static __devinit int wm831x_buckp_probe(struct platform_device *pdev)
 
 	snprintf(dcdc->name, sizeof(dcdc->name), "DCDC%d", id + 1);
 	dcdc->desc.name = dcdc->name;
+
+	snprintf(dcdc->supply_name, sizeof(dcdc->supply_name),
+		 "DC%dVDD", id + 1);
+	dcdc->desc.supply_name = dcdc->supply_name;
+
 	dcdc->desc.id = id;
 	dcdc->desc.type = REGULATOR_VOLTAGE;
 	dcdc->desc.n_voltages = WM831X_BUCKP_MAX_SELECTOR + 1;

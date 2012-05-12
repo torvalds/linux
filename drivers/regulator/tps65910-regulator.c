@@ -20,7 +20,6 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
-#include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/mfd/tps65910.h>
@@ -579,10 +578,10 @@ static int tps65910_get_voltage_dcdc_sel(struct regulator_dev *dev)
 	return -EINVAL;
 }
 
-static int tps65910_get_voltage(struct regulator_dev *dev)
+static int tps65910_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
-	int reg, value, id = rdev_get_id(dev), voltage = 0;
+	int reg, value, id = rdev_get_id(dev);
 
 	reg = pmic->get_ctrl_reg(id);
 	if (reg < 0)
@@ -609,9 +608,7 @@ static int tps65910_get_voltage(struct regulator_dev *dev)
 		return -EINVAL;
 	}
 
-	voltage = pmic->info[id]->voltage_table[value] * 1000;
-
-	return voltage;
+	return value;
 }
 
 static int tps65910_get_voltage_vdd3(struct regulator_dev *dev)
@@ -619,10 +616,10 @@ static int tps65910_get_voltage_vdd3(struct regulator_dev *dev)
 	return 5 * 1000 * 1000;
 }
 
-static int tps65911_get_voltage(struct regulator_dev *dev)
+static int tps65911_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps65910_reg *pmic = rdev_get_drvdata(dev);
-	int step_mv, id = rdev_get_id(dev);
+	int id = rdev_get_id(dev);
 	u8 value, reg;
 
 	reg = pmic->get_ctrl_reg(id);
@@ -635,13 +632,6 @@ static int tps65911_get_voltage(struct regulator_dev *dev)
 	case TPS65911_REG_LDO4:
 		value &= LDO1_SEL_MASK;
 		value >>= LDO_SEL_SHIFT;
-		/* The first 5 values of the selector correspond to 1V */
-		if (value < 5)
-			value = 0;
-		else
-			value -= 4;
-
-		step_mv = 50;
 		break;
 	case TPS65911_REG_LDO3:
 	case TPS65911_REG_LDO5:
@@ -650,23 +640,16 @@ static int tps65911_get_voltage(struct regulator_dev *dev)
 	case TPS65911_REG_LDO8:
 		value &= LDO3_SEL_MASK;
 		value >>= LDO_SEL_SHIFT;
-		/* The first 3 values of the selector correspond to 1V */
-		if (value < 3)
-			value = 0;
-		else
-			value -= 2;
-
-		step_mv = 100;
 		break;
 	case TPS65910_REG_VIO:
 		value &= LDO_SEL_MASK;
 		value >>= LDO_SEL_SHIFT;
-		return pmic->info[id]->voltage_table[value] * 1000;
+		break;
 	default:
 		return -EINVAL;
 	}
 
-	return (LDO_MIN_VOLT + value * step_mv) * 1000;
+	return value;
 }
 
 static int tps65910_set_voltage_dcdc_sel(struct regulator_dev *dev,
@@ -902,7 +885,7 @@ static struct regulator_ops tps65910_ops = {
 	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
-	.get_voltage		= tps65910_get_voltage,
+	.get_voltage_sel	= tps65910_get_voltage_sel,
 	.set_voltage_sel	= tps65910_set_voltage_sel,
 	.list_voltage		= tps65910_list_voltage,
 };
@@ -914,7 +897,7 @@ static struct regulator_ops tps65911_ops = {
 	.enable_time		= tps65910_enable_time,
 	.set_mode		= tps65910_set_mode,
 	.get_mode		= tps65910_get_mode,
-	.get_voltage		= tps65911_get_voltage,
+	.get_voltage_sel	= tps65911_get_voltage_sel,
 	.set_voltage_sel	= tps65911_set_voltage_sel,
 	.list_voltage		= tps65911_list_voltage,
 };

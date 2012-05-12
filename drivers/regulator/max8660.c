@@ -370,7 +370,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	max8660 = kzalloc(sizeof(struct max8660) +
+	max8660 = devm_kzalloc(&client->dev, sizeof(struct max8660) +
 			sizeof(struct regulator_dev *) * MAX8660_V_END,
 			GFP_KERNEL);
 	if (!max8660)
