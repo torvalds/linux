@@ -51,6 +51,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_i2c.h>
+#include <linux/pinctrl/consumer.h>
 
 #include <mach/irqs.h>
 #include <mach/hardware.h>
@@ -470,6 +471,7 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	struct imx_i2c_struct *i2c_imx;
 	struct resource *res;
 	struct imxi2c_platform_data *pdata = pdev->dev.platform_data;
+	struct pinctrl *pinctrl;
 	void __iomem *base;
 	resource_size_t res_size;
 	int irq, bitrate;
@@ -519,6 +521,12 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	i2c_imx->irq			= irq;
 	i2c_imx->base			= base;
 	i2c_imx->res			= res;
+
+	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
+	if (IS_ERR(pinctrl)) {
+		ret = PTR_ERR(pinctrl);
+		goto fail3;
+	}
 
 	/* Get I2C clock */
 	i2c_imx->clk = clk_get(&pdev->dev, "i2c_clk");
