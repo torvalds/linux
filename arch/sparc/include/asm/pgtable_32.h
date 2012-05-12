@@ -153,16 +153,20 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 	__pte_clear(ptep);
 }
 
-BTFIXUPDEF_CALL_CONST(int, pmd_bad, pmd_t)
-BTFIXUPDEF_CALL_CONST(int, pmd_present, pmd_t)
+static inline int pmd_bad(pmd_t pmd)
+{
+	return (pmd_val(pmd) & SRMMU_ET_MASK) != SRMMU_ET_PTD;
+}
+
+static inline int pmd_present(pmd_t pmd)
+{
+	return ((pmd_val(pmd) & SRMMU_ET_MASK) == SRMMU_ET_PTD);
+}
 
 static inline int pmd_none(pmd_t pmd)
 {
 	return !pmd_val(pmd);
 }
-
-#define pmd_bad(pmd) BTFIXUP_CALL(pmd_bad)(pmd)
-#define pmd_present(pmd) BTFIXUP_CALL(pmd_present)(pmd)
 
 static inline void pmd_clear(pmd_t *pmdp)
 {

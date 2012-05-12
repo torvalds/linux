@@ -118,12 +118,6 @@ static inline int srmmu_pte_present(pte_t pte)
 static inline int srmmu_pmd_none(pmd_t pmd)
 { return !(pmd_val(pmd) & 0xFFFFFFF); }
 
-static inline int srmmu_pmd_bad(pmd_t pmd)
-{ return (pmd_val(pmd) & SRMMU_ET_MASK) != SRMMU_ET_PTD; }
-
-static inline int srmmu_pmd_present(pmd_t pmd)
-{ return ((pmd_val(pmd) & SRMMU_ET_MASK) == SRMMU_ET_PTD); }
-
 static inline pte_t srmmu_pte_wrprotect(pte_t pte)
 { return __pte(pte_val(pte) & ~SRMMU_WRITE);}
 
@@ -2077,9 +2071,6 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
-
-	BTFIXUPSET_CALL(pmd_bad, srmmu_pmd_bad, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_present, srmmu_pmd_present, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(mk_pte, srmmu_mk_pte, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mk_pte_phys, srmmu_mk_pte_phys, BTFIXUPCALL_NORM);
