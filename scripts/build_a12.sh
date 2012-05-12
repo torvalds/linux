@@ -42,13 +42,6 @@ Invalid Options:
 "
 }
 
-build_standby()
-{
-	echo "build standby"
-	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} KDIR=${LICHEE_KDIR} \
-		-C ${LICHEE_KDIR}/arch/arm/mach-sun5i/pm/standby all
-}
-
 build_kernel()
 {
 	if [ ! -e .config ]; then
@@ -56,7 +49,6 @@ build_kernel()
 		cp arch/arm/configs/a12_defconfig .config
 	fi
 
-	build_standby
 	make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} -j8 uImage modules
 
 	update_kern_ver
