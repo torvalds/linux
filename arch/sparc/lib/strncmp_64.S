@@ -4,13 +4,11 @@
  * Copyright (C) 1997 Jakub Jelinek (jj@sunsite.mff.cuni.cz)
  */
 
+#include <linux/linkage.h>
 #include <asm/asi.h>
 
 	.text
-	.align	32
-	.globl	strncmp
-	.type	strncmp,#function
-strncmp:
+ENTRY(strncmp)
 	brlez,pn %o2, 3f
 	 lduba	[%o0] (ASI_PNF), %o3
 1:
@@ -29,4 +27,4 @@ strncmp:
 3:
 	retl
 	 clr	%o0
-	.size	strncmp, .-strncmp
+ENDPROC(strncmp)

@@ -3,10 +3,10 @@
  *            generic strncmp routine.
  */
 
+#include <linux/linkage.h>
+
 	.text
-	.align 4
-	.global strncmp
-strncmp:
+ENTRY(strncmp)
 	mov	%o0, %g3
 	mov	0, %o3
 
@@ -115,3 +115,4 @@ strncmp:
 	and	%g2, 0xff, %o0
 	retl
 	 sub	%o3, %o0, %o0
+ENDPROC(strncmp)
