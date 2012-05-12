@@ -121,16 +121,9 @@ static void __init armlex4210_wlan_init(void)
 }
 
 static struct resource armlex4210_smsc911x_resources[] = {
-	[0] = {
-		.start	= EXYNOS4_PA_SROM_BANK(3),
-		.end	= EXYNOS4_PA_SROM_BANK(3) + SZ_64K - 1,
-		.flags	= IORESOURCE_MEM,
-	},
-	[1] = {
-		.start	= IRQ_EINT(27),
-		.end	= IRQ_EINT(27),
-		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
-	},
+	[0] = DEFINE_RES_MEM(EXYNOS4_PA_SROM_BANK(3), SZ_64K),
+	[1] = DEFINE_RES_NAMED(IRQ_EINT(27), 1, NULL, IORESOURCE_IRQ \
+					| IRQF_TRIGGER_HIGH),
 };
 
 static struct smsc911x_platform_config smsc9215_config = {
