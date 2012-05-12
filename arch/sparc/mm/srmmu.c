@@ -2122,11 +2122,6 @@ static void __init get_srmmu_type(void)
 	srmmu_is_bad();
 }
 
-/* don't laugh, static pagetables */
-static void srmmu_check_pgt_cache(int low, int high)
-{
-}
-
 extern unsigned long spwin_mmu_patchme, fwin_mmu_patchme,
 	tsetup_mmu_patchme, rtrap_mmu_patchme;
 
@@ -2168,7 +2163,6 @@ void __init ld_mmu_srmmu(void)
 #ifndef CONFIG_SMP	
 	BTFIXUPSET_CALL(___xchg32, ___xchg32_sun4md, BTFIXUPCALL_SWAPG1G2);
 #endif
-	BTFIXUPSET_CALL(do_check_pgt_cache, srmmu_check_pgt_cache, BTFIXUPCALL_NOP);
 
 	BTFIXUPSET_CALL(set_pte, srmmu_set_pte, BTFIXUPCALL_SWAPO0O1);
 

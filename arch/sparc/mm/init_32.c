@@ -286,22 +286,6 @@ unsigned long __init bootmem_init(unsigned long *pages_avail)
 }
 
 /*
- * check_pgt_cache
- *
- * This is called at the end of unmapping of VMA (zap_page_range),
- * to rescan the page cache for architecture specific things.
- * Most architectures define check_pgt_cache empty.
- *
- * We simply copy the 2.4 implementation for now.
- */
-static int pgt_cache_water[2] = { 25, 50 };
-
-void check_pgt_cache(void)
-{
-	do_check_pgt_cache(pgt_cache_water[0], pgt_cache_water[1]);
-}
-
-/*
  * paging_init() sets up the page tables: We call the MMU specific
  * init routine based upon the Sun model type on the Sparc.
  *

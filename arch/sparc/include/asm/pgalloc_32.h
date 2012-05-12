@@ -21,9 +21,7 @@ extern struct pgtable_cache_struct {
 #define pgtable_cache_size      (pgt_quicklists.pgtable_cache_sz)
 #define pgd_cache_size		(pgt_quicklists.pgd_cache_sz)
 
-extern void check_pgt_cache(void);
-BTFIXUPDEF_CALL(void,	 do_check_pgt_cache, int, int)
-#define do_check_pgt_cache(low,high) BTFIXUP_CALL(do_check_pgt_cache)(low,high)
+#define check_pgt_cache()	do { } while (0)
 
 BTFIXUPDEF_CALL(pgd_t *, get_pgd_fast, void)
 #define get_pgd_fast()		BTFIXUP_CALL(get_pgd_fast)()

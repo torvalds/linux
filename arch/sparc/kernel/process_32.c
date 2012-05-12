@@ -82,7 +82,6 @@ void cpu_idle(void)
 				cpu_relax();
 		}
 		schedule_preempt_disabled();
-		check_pgt_cache();
 	}
 }
 
@@ -105,7 +104,6 @@ void cpu_idle(void)
 				cpu_relax();
 		}
 		schedule_preempt_disabled();
-		check_pgt_cache();
 	}
 }
 
