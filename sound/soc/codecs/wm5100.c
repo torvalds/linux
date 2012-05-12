@@ -2730,17 +2730,7 @@ static struct i2c_driver wm5100_i2c_driver = {
 	.id_table = wm5100_i2c_id,
 };
 
-static int __init wm5100_modinit(void)
-{
-	return i2c_add_driver(&wm5100_i2c_driver);
-}
-module_init(wm5100_modinit);
-
-static void __exit wm5100_exit(void)
-{
-	i2c_del_driver(&wm5100_i2c_driver);
-}
-module_exit(wm5100_exit);
+module_i2c_driver(wm5100_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM5100 driver");
 MODULE_AUTHOR("Mark Brown <broonie@opensource.wolfsonmicro.com>");
