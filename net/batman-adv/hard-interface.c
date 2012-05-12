@@ -163,8 +163,8 @@ static void check_known_mac_addr(const struct net_device *net_dev)
 		if (hard_iface->net_dev == net_dev)
 			continue;
 
-		if (!compare_eth(hard_iface->net_dev->dev_addr,
-				 net_dev->dev_addr))
+		if (!batadv_compare_eth(hard_iface->net_dev->dev_addr,
+					net_dev->dev_addr))
 			continue;
 
 		pr_warn("The newly added mac address (%pM) already exists on: %s\n",

@@ -730,9 +730,9 @@ out:
 		batadv_hardif_free_ref(primary_if);
 
 	if (ret)
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
-			uev_type_str[type], uev_action_str[action],
-			(action == UEV_DEL ? "NULL" : data), ret);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Impossible to send uevent for (%s,%s,%s) event (err: %d)\n",
+			   uev_type_str[type], uev_action_str[action],
+			   (action == UEV_DEL ? "NULL" : data), ret);
 	return ret;
 }

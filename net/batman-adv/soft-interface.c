@@ -168,7 +168,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	/* don't accept stp packets. STP does not help in meshes.
 	 * better use the bridge loop avoidance ...
 	 */
-	if (compare_eth(ethhdr->h_dest, stp_addr))
+	if (batadv_compare_eth(ethhdr->h_dest, stp_addr))
 		goto dropped;
 
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {

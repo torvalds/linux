@@ -142,7 +142,7 @@ int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
 	struct sk_buff *newskb;
 
 	if (!atomic_dec_not_zero(&bat_priv->bcast_queue_left)) {
-		bat_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
+		batadv_dbg(DBG_BATMAN, bat_priv, "bcast packet queue full\n");
 		goto out;
 	}
 
@@ -271,12 +271,12 @@ void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
 	bool pending;
 
 	if (hard_iface)
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"purge_outstanding_packets(): %s\n",
-			hard_iface->net_dev->name);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "purge_outstanding_packets(): %s\n",
+			   hard_iface->net_dev->name);
 	else
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"purge_outstanding_packets()\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "purge_outstanding_packets()\n");
 
 	/* free bcast list */
 	spin_lock_bh(&bat_priv->forw_bcast_list_lock);

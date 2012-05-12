@@ -66,7 +66,7 @@ static struct tt_common_entry *tt_hash_find(struct hashtable_t *hash,
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tt_common_entry, node, head, hash_entry) {
-		if (!compare_eth(tt_common_entry, data))
+		if (!batadv_compare_eth(tt_common_entry, data))
 			continue;
 
 		if (!atomic_inc_not_zero(&tt_common_entry->refcount))
@@ -213,9 +213,9 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	if (!tt_local_entry)
 		goto out;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Creating new local tt entry: %pM (ttvn: %d)\n", addr,
-		(uint8_t)atomic_read(&bat_priv->ttvn));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Creating new local tt entry: %pM (ttvn: %d)\n", addr,
+		   (uint8_t)atomic_read(&bat_priv->ttvn));
 
 	memcpy(tt_local_entry->common.addr, addr, ETH_ALEN);
 	tt_local_entry->common.flags = NO_FLAGS;
@@ -225,7 +225,7 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	tt_local_entry->last_seen = jiffies;
 
 	/* the batman interface mac address should never be purged */
-	if (compare_eth(addr, soft_iface->dev_addr))
+	if (batadv_compare_eth(addr, soft_iface->dev_addr))
 		tt_local_entry->common.flags |= TT_CLIENT_NOPURGE;
 
 	/* The local entry has to be marked as NEW to avoid to send it in
@@ -441,9 +441,9 @@ static void tt_local_set_pending(struct bat_priv *bat_priv,
 	 */
 	tt_local_entry->common.flags |= TT_CLIENT_PENDING;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Local tt entry (%pM) pending to be removed: %s\n",
-		tt_local_entry->common.addr, message);
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Local tt entry (%pM) pending to be removed: %s\n",
+		   tt_local_entry->common.addr, message);
 }
 
 void batadv_tt_local_remove(struct bat_priv *bat_priv, const uint8_t *addr,
@@ -489,8 +489,8 @@ static void tt_local_purge(struct bat_priv *bat_priv)
 			if (tt_local_entry->common.flags & TT_CLIENT_PENDING)
 				continue;
 
-			if (!has_timed_out(tt_local_entry->last_seen,
-					   TT_LOCAL_TIMEOUT))
+			if (!batadv_has_timed_out(tt_local_entry->last_seen,
+						  TT_LOCAL_TIMEOUT))
 				continue;
 
 			tt_local_set_pending(bat_priv, tt_local_entry,
@@ -674,9 +674,9 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	if (wifi)
 		tt_global_entry->common.flags |= TT_CLIENT_WIFI;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Creating new global tt entry: %pM (via %pM)\n",
-		tt_global_entry->common.addr, orig_node->orig);
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Creating new global tt entry: %pM (via %pM)\n",
+		   tt_global_entry->common.addr, orig_node->orig);
 
 out_remove:
 	/* remove address from local hash if present */
@@ -800,10 +800,10 @@ static void tt_global_del_orig_entry(struct bat_priv *bat_priv,
 	head = &tt_global_entry->orig_list;
 	hlist_for_each_entry_safe(orig_entry, node, safe, head, list) {
 		if (orig_entry->orig_node == orig_node) {
-			bat_dbg(DBG_TT, bat_priv,
-				"Deleting %pM from global tt entry %pM: %s\n",
-				orig_node->orig, tt_global_entry->common.addr,
-				message);
+			batadv_dbg(DBG_TT, bat_priv,
+				   "Deleting %pM from global tt entry %pM: %s\n",
+				   orig_node->orig,
+				   tt_global_entry->common.addr, message);
 			hlist_del_rcu(node);
 			tt_orig_list_entry_free_ref(orig_entry);
 		}
@@ -815,9 +815,8 @@ static void tt_global_del_struct(struct bat_priv *bat_priv,
 				 struct tt_global_entry *tt_global_entry,
 				 const char *message)
 {
-	bat_dbg(DBG_TT, bat_priv,
-		"Deleting global tt entry %pM: %s\n",
-		tt_global_entry->common.addr, message);
+	batadv_dbg(DBG_TT, bat_priv, "Deleting global tt entry %pM: %s\n",
+		   tt_global_entry->common.addr, message);
 
 	batadv_hash_remove(bat_priv->tt_global_hash, compare_tt,
 			   batadv_choose_orig, tt_global_entry->common.addr);
@@ -951,10 +950,10 @@ void batadv_tt_global_del_orig(struct bat_priv *bat_priv,
 						 orig_node, message);
 
 			if (hlist_empty(&tt_global_entry->orig_list)) {
-				bat_dbg(DBG_TT, bat_priv,
-					"Deleting global tt entry %pM: %s\n",
-					tt_global_entry->common.addr,
-					message);
+				batadv_dbg(DBG_TT, bat_priv,
+					   "Deleting global tt entry %pM: %s\n",
+					   tt_global_entry->common.addr,
+					   message);
 				hlist_del_rcu(node);
 				tt_global_entry_free_ref(tt_global_entry);
 			}
@@ -987,13 +986,13 @@ static void tt_global_roam_purge(struct bat_priv *bat_priv)
 						       common);
 			if (!(tt_global_entry->common.flags & TT_CLIENT_ROAM))
 				continue;
-			if (!has_timed_out(tt_global_entry->roam_at,
-					   TT_CLIENT_ROAM_TIMEOUT))
+			if (!batadv_has_timed_out(tt_global_entry->roam_at,
+						  TT_CLIENT_ROAM_TIMEOUT))
 				continue;
 
-			bat_dbg(DBG_TT, bat_priv,
-				"Deleting global tt entry (%pM): Roaming timeout\n",
-				tt_global_entry->common.addr);
+			batadv_dbg(DBG_TT, bat_priv,
+				   "Deleting global tt entry (%pM): Roaming timeout\n",
+				   tt_global_entry->common.addr);
 
 			hlist_del_rcu(node);
 			tt_global_entry_free_ref(tt_global_entry);
@@ -1234,7 +1233,7 @@ static void tt_req_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (has_timed_out(node->issued_at, TT_REQUEST_TIMEOUT)) {
+		if (batadv_has_timed_out(node->issued_at, TT_REQUEST_TIMEOUT)) {
 			list_del(&node->list);
 			kfree(node);
 		}
@@ -1252,9 +1251,9 @@ static struct tt_req_node *new_tt_req_node(struct bat_priv *bat_priv,
 
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry(tt_req_node_tmp, &bat_priv->tt_req_list, list) {
-		if (compare_eth(tt_req_node_tmp, orig_node) &&
-		    !has_timed_out(tt_req_node_tmp->issued_at,
-				   TT_REQUEST_TIMEOUT))
+		if (batadv_compare_eth(tt_req_node_tmp, orig_node) &&
+		    !batadv_has_timed_out(tt_req_node_tmp->issued_at,
+					  TT_REQUEST_TIMEOUT))
 			goto unlock;
 	}
 
@@ -1409,10 +1408,10 @@ static int send_tt_request(struct bat_priv *bat_priv,
 	if (!neigh_node)
 		goto out;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Sending TT_REQUEST to %pM via %pM [%c]\n",
-		dst_orig_node->orig, neigh_node->addr,
-		(full_table ? 'F' : '.'));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Sending TT_REQUEST to %pM via %pM [%c]\n",
+		   dst_orig_node->orig, neigh_node->addr,
+		   (full_table ? 'F' : '.'));
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_TX);
 
@@ -1449,10 +1448,10 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 	struct sk_buff *skb = NULL;
 	struct tt_query_packet *tt_response;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Received TT_REQUEST from %pM for ttvn: %u (%pM) [%c]\n",
-		tt_request->src, tt_request->ttvn, tt_request->dst,
-		(tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Received TT_REQUEST from %pM for ttvn: %u (%pM) [%c]\n",
+		   tt_request->src, tt_request->ttvn, tt_request->dst,
+		   (tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* Let's get the orig node of the REAL destination */
 	req_dst_orig_node = batadv_orig_hash_find(bat_priv, tt_request->dst);
@@ -1536,10 +1535,10 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 	if (full_table)
 		tt_response->flags |= TT_FULL_TABLE;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Sending TT_RESPONSE %pM via %pM for %pM (ttvn: %u)\n",
-		res_dst_orig_node->orig, neigh_node->addr,
-		req_dst_orig_node->orig, req_ttvn);
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Sending TT_RESPONSE %pM via %pM for %pM (ttvn: %u)\n",
+		   res_dst_orig_node->orig, neigh_node->addr,
+		   req_dst_orig_node->orig, req_ttvn);
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_TX);
 
@@ -1578,10 +1577,10 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	struct sk_buff *skb = NULL;
 	struct tt_query_packet *tt_response;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Received TT_REQUEST from %pM for ttvn: %u (me) [%c]\n",
-		tt_request->src, tt_request->ttvn,
-		(tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Received TT_REQUEST from %pM for ttvn: %u (me) [%c]\n",
+		   tt_request->src, tt_request->ttvn,
+		   (tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 
 	my_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
@@ -1656,10 +1655,10 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	if (full_table)
 		tt_response->flags |= TT_FULL_TABLE;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Sending TT_RESPONSE to %pM via %pM [%c]\n",
-		orig_node->orig, neigh_node->addr,
-		(tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Sending TT_RESPONSE to %pM via %pM [%c]\n",
+		   orig_node->orig, neigh_node->addr,
+		   (tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_TX);
 
@@ -1795,11 +1794,11 @@ void batadv_handle_tt_response(struct bat_priv *bat_priv,
 	struct tt_req_node *node, *safe;
 	struct orig_node *orig_node = NULL;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
-		tt_response->src, tt_response->ttvn,
-		ntohs(tt_response->tt_data),
-		(tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Received TT_RESPONSE from %pM for ttvn %d t_size: %d [%c]\n",
+		   tt_response->src, tt_response->ttvn,
+		   ntohs(tt_response->tt_data),
+		   (tt_response->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* we should have never asked a backbone gw */
 	if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_response->src))
@@ -1820,7 +1819,7 @@ void batadv_handle_tt_response(struct bat_priv *bat_priv,
 	/* Delete the tt_req_node from pending tt_requests list */
 	spin_lock_bh(&bat_priv->tt_req_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_req_list, list) {
-		if (!compare_eth(node->addr, tt_response->src))
+		if (!batadv_compare_eth(node->addr, tt_response->src))
 			continue;
 		list_del(&node->list);
 		kfree(node);
@@ -1875,7 +1874,7 @@ static void tt_roam_purge(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->tt_roam_list_lock);
 	list_for_each_entry_safe(node, safe, &bat_priv->tt_roam_list, list) {
-		if (!has_timed_out(node->first_time, ROAMING_MAX_TIME))
+		if (!batadv_has_timed_out(node->first_time, ROAMING_MAX_TIME))
 			continue;
 
 		list_del(&node->list);
@@ -1901,10 +1900,11 @@ static bool tt_check_roam_count(struct bat_priv *bat_priv,
 	 * reply from the same orig_node yet
 	 */
 	list_for_each_entry(tt_roam_node, &bat_priv->tt_roam_list, list) {
-		if (!compare_eth(tt_roam_node->addr, client))
+		if (!batadv_compare_eth(tt_roam_node->addr, client))
 			continue;
 
-		if (has_timed_out(tt_roam_node->first_time, ROAMING_MAX_TIME))
+		if (batadv_has_timed_out(tt_roam_node->first_time,
+					 ROAMING_MAX_TIME))
 			continue;
 
 		if (!atomic_dec_not_zero(&tt_roam_node->counter))
@@ -1971,9 +1971,9 @@ static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 	if (!neigh_node)
 		goto out;
 
-	bat_dbg(DBG_TT, bat_priv,
-		"Sending ROAMING_ADV to %pM (client %pM) via %pM\n",
-		orig_node->orig, client, neigh_node->addr);
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Sending ROAMING_ADV to %pM (client %pM) via %pM\n",
+		   orig_node->orig, client, neigh_node->addr);
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_ROAM_ADV_TX);
 
@@ -2078,9 +2078,9 @@ static void tt_local_purge_pending_clients(struct bat_priv *bat_priv)
 			if (!(tt_common_entry->flags & TT_CLIENT_PENDING))
 				continue;
 
-			bat_dbg(DBG_TT, bat_priv,
-				"Deleting local tt entry (%pM): pending\n",
-				tt_common_entry->addr);
+			batadv_dbg(DBG_TT, bat_priv,
+				   "Deleting local tt entry (%pM): pending\n",
+				   tt_common_entry->addr);
 
 			atomic_dec(&bat_priv->num_local_tt);
 			hlist_del_rcu(node);
@@ -2113,8 +2113,9 @@ static int tt_commit_changes(struct bat_priv *bat_priv,
 
 	/* Increment the TTVN only once per OGM interval */
 	atomic_inc(&bat_priv->ttvn);
-	bat_dbg(DBG_TT, bat_priv, "Local changes committed, updating to ttvn %u\n",
-		(uint8_t)atomic_read(&bat_priv->ttvn));
+	batadv_dbg(DBG_TT, bat_priv,
+		   "Local changes committed, updating to ttvn %u\n",
+		   (uint8_t)atomic_read(&bat_priv->ttvn));
 	bat_priv->tt_poss_change = false;
 
 	/* reset the sending counter */
@@ -2235,10 +2236,10 @@ void batadv_tt_update_orig(struct bat_priv *bat_priv,
 		if (!orig_node->tt_initialised || ttvn != orig_ttvn ||
 		    orig_node->tt_crc != tt_crc) {
 request_table:
-			bat_dbg(DBG_TT, bat_priv,
-				"TT inconsistency for %pM. Need to retrieve the correct information (ttvn: %u last_ttvn: %u crc: %u last_crc: %u num_changes: %u)\n",
-				orig_node->orig, ttvn, orig_ttvn, tt_crc,
-				orig_node->tt_crc, tt_num_changes);
+			batadv_dbg(DBG_TT, bat_priv,
+				   "TT inconsistency for %pM. Need to retrieve the correct information (ttvn: %u last_ttvn: %u crc: %u last_crc: %u num_changes: %u)\n",
+				   orig_node->orig, ttvn, orig_ttvn, tt_crc,
+				   orig_node->tt_crc, tt_num_changes);
 			send_tt_request(bat_priv, orig_node, ttvn, tt_crc,
 					full_table);
 			return;

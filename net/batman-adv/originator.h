@@ -77,7 +77,7 @@ static inline struct orig_node *batadv_orig_hash_find(struct bat_priv *bat_priv,
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(orig_node, node, head, hash_entry) {
-		if (!compare_eth(orig_node, data))
+		if (!batadv_compare_eth(orig_node, data))
 			continue;
 
 		if (!atomic_inc_not_zero(&orig_node->refcount))

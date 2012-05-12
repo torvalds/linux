@@ -179,16 +179,16 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 		fwd_str = (packet_num > 0 ? "Forwarding" : (forw_packet->own ?
 							    "Sending own" :
 							    "Forwarding"));
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"%s %spacket (originator %pM, seqno %u, TQ %d, TTL %d, IDF %s, ttvn %d) on interface %s [%pM]\n",
-			fwd_str, (packet_num > 0 ? "aggregated " : ""),
-			batman_ogm_packet->orig,
-			ntohl(batman_ogm_packet->seqno),
-			batman_ogm_packet->tq, batman_ogm_packet->header.ttl,
-			(batman_ogm_packet->flags & DIRECTLINK ?
-			 "on" : "off"),
-			batman_ogm_packet->ttvn, hard_iface->net_dev->name,
-			hard_iface->net_dev->dev_addr);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "%s %spacket (originator %pM, seqno %u, TQ %d, TTL %d, IDF %s, ttvn %d) on interface %s [%pM]\n",
+			   fwd_str, (packet_num > 0 ? "aggregated " : ""),
+			   batman_ogm_packet->orig,
+			   ntohl(batman_ogm_packet->seqno),
+			   batman_ogm_packet->tq, batman_ogm_packet->header.ttl,
+			   (batman_ogm_packet->flags & DIRECTLINK ?
+			    "on" : "off"),
+			   batman_ogm_packet->ttvn, hard_iface->net_dev->name,
+			   hard_iface->net_dev->dev_addr);
 
 		buff_pos += BATMAN_OGM_HLEN;
 		buff_pos += batadv_tt_len(batman_ogm_packet->tt_num_changes);
@@ -243,14 +243,14 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 	    (forw_packet->own && (forw_packet->if_incoming != primary_if))) {
 
 		/* FIXME: what about aggregated packets ? */
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"%s packet (originator %pM, seqno %u, TTL %d) on interface %s [%pM]\n",
-			(forw_packet->own ? "Sending own" : "Forwarding"),
-			batman_ogm_packet->orig,
-			ntohl(batman_ogm_packet->seqno),
-			batman_ogm_packet->header.ttl,
-			forw_packet->if_incoming->net_dev->name,
-			forw_packet->if_incoming->net_dev->dev_addr);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "%s packet (originator %pM, seqno %u, TTL %d) on interface %s [%pM]\n",
+			   (forw_packet->own ? "Sending own" : "Forwarding"),
+			   batman_ogm_packet->orig,
+			   ntohl(batman_ogm_packet->seqno),
+			   batman_ogm_packet->header.ttl,
+			   forw_packet->if_incoming->net_dev->name,
+			   forw_packet->if_incoming->net_dev->dev_addr);
 
 		/* skb is only used once and than forw_packet is free'd */
 		batadv_send_skb_packet(forw_packet->skb,
@@ -373,8 +373,8 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	/* own packet should always be scheduled */
 	if (!own_packet) {
 		if (!atomic_dec_not_zero(&bat_priv->batman_queue_left)) {
-			bat_dbg(DBG_BATMAN, bat_priv,
-				"batman packet queue full\n");
+			batadv_dbg(DBG_BATMAN, bat_priv,
+				   "batman packet queue full\n");
 			goto out;
 		}
 	}
@@ -521,7 +521,7 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 	uint8_t tt_num_changes;
 
 	if (batman_ogm_packet->header.ttl <= 1) {
-		bat_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
+		batadv_dbg(DBG_BATMAN, bat_priv, "ttl exceeded\n");
 		return;
 	}
 
@@ -546,9 +546,9 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 	/* apply hop penalty */
 	batman_ogm_packet->tq = hop_penalty(batman_ogm_packet->tq, bat_priv);
 
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"Forwarding packet: tq: %i, ttl: %i\n",
-		batman_ogm_packet->tq, batman_ogm_packet->header.ttl);
+	batadv_dbg(DBG_BATMAN, bat_priv,
+		   "Forwarding packet: tq: %i, ttl: %i\n",
+		   batman_ogm_packet->tq, batman_ogm_packet->header.ttl);
 
 	/* switch of primaries first hop flag when forwarding */
 	batman_ogm_packet->flags &= ~PRIMARIES_FIRST_HOP;
@@ -625,16 +625,18 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 	struct orig_node *orig_node_tmp;
 	struct hlist_node *node;
 	uint8_t bcast_own_sum_orig, bcast_own_sum_neigh;
+	uint8_t *neigh_addr;
 
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"update_originator(): Searching and updating originator entry of received packet\n");
+	batadv_dbg(DBG_BATMAN, bat_priv,
+		   "update_originator(): Searching and updating originator entry of received packet\n");
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
 				 &orig_node->neigh_list, list) {
-		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
-		    (tmp_neigh_node->if_incoming == if_incoming) &&
-		     atomic_inc_not_zero(&tmp_neigh_node->refcount)) {
+		neigh_addr = tmp_neigh_node->addr;
+		if (batadv_compare_eth(neigh_addr, ethhdr->h_source) &&
+		    tmp_neigh_node->if_incoming == if_incoming &&
+		    atomic_inc_not_zero(&tmp_neigh_node->refcount)) {
 			if (neigh_node)
 				batadv_neigh_node_free_ref(neigh_node);
 			neigh_node = tmp_neigh_node;
@@ -667,8 +669,8 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 		if (!neigh_node)
 			goto unlock;
 	} else
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Updating existing last-hop neighbor of originator\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Updating existing last-hop neighbor of originator\n");
 
 	rcu_read_unlock();
 
@@ -774,7 +776,8 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 	hlist_for_each_entry_rcu(tmp_neigh_node, node,
 				 &orig_neigh_node->neigh_list, list) {
 
-		if (!compare_eth(tmp_neigh_node->addr, orig_neigh_node->orig))
+		if (!batadv_compare_eth(tmp_neigh_node->addr,
+					orig_neigh_node->orig))
 			continue;
 
 		if (tmp_neigh_node->if_incoming != if_incoming)
@@ -844,10 +847,11 @@ static int bat_iv_ogm_calc_tq(struct orig_node *orig_node,
 							* tq_asym_penalty) /
 						(TQ_MAX_VALUE * TQ_MAX_VALUE));
 
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"bidirectional: orig = %-15pM neigh = %-15pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, total tq: %3i\n",
-		orig_node->orig, orig_neigh_node->orig, total_count,
-		neigh_rq_count, tq_own,	tq_asym_penalty, batman_ogm_packet->tq);
+	batadv_dbg(DBG_BATMAN, bat_priv,
+		   "bidirectional: orig = %-15pM neigh = %-15pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, total tq: %3i\n",
+		   orig_node->orig, orig_neigh_node->orig, total_count,
+		   neigh_rq_count, tq_own,
+		   tq_asym_penalty, batman_ogm_packet->tq);
 
 	/* if link has the minimum required transmission quality
 	 * consider it bidirectional
@@ -883,6 +887,7 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	int need_update = 0;
 	int set_mark, ret = -1;
 	uint32_t seqno = ntohl(batman_ogm_packet->seqno);
+	uint8_t *neigh_addr;
 
 	orig_node = batadv_get_orig_node(bat_priv, batman_ogm_packet->orig);
 	if (!orig_node)
@@ -905,8 +910,9 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 						orig_node->last_real_seqno,
 						seqno);
 
-		if (compare_eth(tmp_neigh_node->addr, ethhdr->h_source) &&
-		    (tmp_neigh_node->if_incoming == if_incoming))
+		neigh_addr = tmp_neigh_node->addr;
+		if (batadv_compare_eth(neigh_addr, ethhdr->h_source) &&
+		    tmp_neigh_node->if_incoming == if_incoming)
 			set_mark = 1;
 		else
 			set_mark = 0;
@@ -923,9 +929,9 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 	rcu_read_unlock();
 
 	if (need_update) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"updating last_seqno: old %u, new %u\n",
-			orig_node->last_real_seqno, seqno);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "updating last_seqno: old %u, new %u\n",
+			   orig_node->last_real_seqno, seqno);
 		orig_node->last_real_seqno = seqno;
 	}
 
@@ -954,6 +960,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	bool is_from_best_next_hop = false;
 	int is_duplicate;
 	uint32_t if_incoming_seqno;
+	uint8_t *prev_sender;
 
 	/* Silently drop when the batman packet is actually not a
 	 * correct packet.
@@ -975,18 +982,19 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 
 	has_directlink_flag = (batman_ogm_packet->flags & DIRECTLINK ? 1 : 0);
 
-	if (compare_eth(ethhdr->h_source, batman_ogm_packet->orig))
+	if (batadv_compare_eth(ethhdr->h_source, batman_ogm_packet->orig))
 		is_single_hop_neigh = true;
 
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
-		ethhdr->h_source, if_incoming->net_dev->name,
-		if_incoming->net_dev->dev_addr, batman_ogm_packet->orig,
-		batman_ogm_packet->prev_sender, ntohl(batman_ogm_packet->seqno),
-		batman_ogm_packet->ttvn, ntohs(batman_ogm_packet->tt_crc),
-		batman_ogm_packet->tt_num_changes, batman_ogm_packet->tq,
-		batman_ogm_packet->header.ttl,
-		batman_ogm_packet->header.version, has_directlink_flag);
+	batadv_dbg(DBG_BATMAN, bat_priv,
+		   "Received BATMAN packet via NB: %pM, IF: %s [%pM] (from OG: %pM, via prev OG: %pM, seqno %u, ttvn %u, crc %u, changes %u, td %d, TTL %d, V %d, IDF %d)\n",
+		   ethhdr->h_source, if_incoming->net_dev->name,
+		   if_incoming->net_dev->dev_addr, batman_ogm_packet->orig,
+		   batman_ogm_packet->prev_sender,
+		   ntohl(batman_ogm_packet->seqno), batman_ogm_packet->ttvn,
+		   ntohs(batman_ogm_packet->tt_crc),
+		   batman_ogm_packet->tt_num_changes, batman_ogm_packet->tq,
+		   batman_ogm_packet->header.ttl,
+		   batman_ogm_packet->header.version, has_directlink_flag);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -996,16 +1004,16 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		if (hard_iface->soft_iface != if_incoming->soft_iface)
 			continue;
 
-		if (compare_eth(ethhdr->h_source,
-				hard_iface->net_dev->dev_addr))
+		if (batadv_compare_eth(ethhdr->h_source,
+				       hard_iface->net_dev->dev_addr))
 			is_my_addr = 1;
 
-		if (compare_eth(batman_ogm_packet->orig,
-				hard_iface->net_dev->dev_addr))
+		if (batadv_compare_eth(batman_ogm_packet->orig,
+				       hard_iface->net_dev->dev_addr))
 			is_my_orig = 1;
 
-		if (compare_eth(batman_ogm_packet->prev_sender,
-				hard_iface->net_dev->dev_addr))
+		if (batadv_compare_eth(batman_ogm_packet->prev_sender,
+				       hard_iface->net_dev->dev_addr))
 			is_my_oldorig = 1;
 
 		if (is_broadcast_ether_addr(ethhdr->h_source))
@@ -1014,23 +1022,23 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	rcu_read_unlock();
 
 	if (batman_ogm_packet->header.version != COMPAT_VERSION) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: incompatible batman version (%i)\n",
-			batman_ogm_packet->header.version);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: incompatible batman version (%i)\n",
+			   batman_ogm_packet->header.version);
 		return;
 	}
 
 	if (is_my_addr) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: received my own broadcast (sender: %pM)\n",
-			ethhdr->h_source);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: received my own broadcast (sender: %pM)\n",
+			   ethhdr->h_source);
 		return;
 	}
 
 	if (is_broadcast) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: ignoring all packets with broadcast source addr (sender: %pM)\n",
-			ethhdr->h_source);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: ignoring all packets with broadcast source addr (sender: %pM)\n",
+			   ethhdr->h_source);
 		return;
 	}
 
@@ -1049,8 +1057,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		 * save packet seqno for bidirectional check
 		 */
 		if (has_directlink_flag &&
-		    compare_eth(if_incoming->net_dev->dev_addr,
-				batman_ogm_packet->orig)) {
+		    batadv_compare_eth(if_incoming->net_dev->dev_addr,
+				       batman_ogm_packet->orig)) {
 			offset = if_incoming->if_num * NUM_WORDS;
 
 			spin_lock_bh(&orig_neigh_node->ogm_cnt_lock);
@@ -1063,23 +1071,23 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 			spin_unlock_bh(&orig_neigh_node->ogm_cnt_lock);
 		}
 
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: originator packet from myself (via neighbor)\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: originator packet from myself (via neighbor)\n");
 		batadv_orig_node_free_ref(orig_neigh_node);
 		return;
 	}
 
 	if (is_my_oldorig) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: ignoring all rebroadcast echos (sender: %pM)\n",
-			ethhdr->h_source);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: ignoring all rebroadcast echos (sender: %pM)\n",
+			   ethhdr->h_source);
 		return;
 	}
 
 	if (batman_ogm_packet->flags & NOT_BEST_NEXT_HOP) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: ignoring all packets not forwarded from the best next hop (sender: %pM)\n",
-			ethhdr->h_source);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: ignoring all packets not forwarded from the best next hop (sender: %pM)\n",
+			   ethhdr->h_source);
 		return;
 	}
 
@@ -1091,15 +1099,15 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 						if_incoming);
 
 	if (is_duplicate == -1) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: packet within seqno protection time (sender: %pM)\n",
-			ethhdr->h_source);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: packet within seqno protection time (sender: %pM)\n",
+			   ethhdr->h_source);
 		goto out;
 	}
 
 	if (batman_ogm_packet->tq == 0) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: originator packet with tq equal 0\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: originator packet with tq equal 0\n");
 		goto out;
 	}
 
@@ -1108,18 +1116,18 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		router_router = batadv_orig_node_get_router(router->orig_node);
 
 	if ((router && router->tq_avg != 0) &&
-	    (compare_eth(router->addr, ethhdr->h_source)))
+	    (batadv_compare_eth(router->addr, ethhdr->h_source)))
 		is_from_best_next_hop = true;
 
+	prev_sender = batman_ogm_packet->prev_sender;
 	/* avoid temporary routing loops */
 	if (router && router_router &&
-	    (compare_eth(router->addr, batman_ogm_packet->prev_sender)) &&
-	    !(compare_eth(batman_ogm_packet->orig,
-			  batman_ogm_packet->prev_sender)) &&
-	    (compare_eth(router->addr, router_router->addr))) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: ignoring all rebroadcast packets that may make me loop (sender: %pM)\n",
-			ethhdr->h_source);
+	    (batadv_compare_eth(router->addr, prev_sender)) &&
+	    !(batadv_compare_eth(batman_ogm_packet->orig, prev_sender)) &&
+	    (batadv_compare_eth(router->addr, router_router->addr))) {
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: ignoring all rebroadcast packets that may make me loop (sender: %pM)\n",
+			   ethhdr->h_source);
 		goto out;
 	}
 
@@ -1138,8 +1146,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	 * don't route towards it
 	 */
 	if (!is_single_hop_neigh && (!orig_neigh_router)) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: OGM via unknown neighbor!\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: OGM via unknown neighbor!\n");
 		goto out_neigh;
 	}
 
@@ -1168,26 +1176,26 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 				   is_single_hop_neigh, is_from_best_next_hop,
 				   if_incoming);
 
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Forwarding packet: rebroadcast neighbor packet with direct link flag\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Forwarding packet: rebroadcast neighbor packet with direct link flag\n");
 		goto out_neigh;
 	}
 
 	/* multihop originator */
 	if (!is_bidirectional) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: not received via bidirectional link\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: not received via bidirectional link\n");
 		goto out_neigh;
 	}
 
 	if (is_duplicate) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Drop packet: duplicate packet received\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Drop packet: duplicate packet received\n");
 		goto out_neigh;
 	}
 
-	bat_dbg(DBG_BATMAN, bat_priv,
-		"Forwarding packet: rebroadcast originator packet\n");
+	batadv_dbg(DBG_BATMAN, bat_priv,
+		   "Forwarding packet: rebroadcast originator packet\n");
 	bat_iv_ogm_forward(orig_node, ethhdr, batman_ogm_packet,
 			   is_single_hop_neigh, is_from_best_next_hop,
 			   if_incoming);

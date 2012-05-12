@@ -294,25 +294,26 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 		 * set Ethernet SRC to the clients mac
 		 */
 		memcpy(ethhdr->h_source, mac, ETH_ALEN);
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_send_claim(): CLAIM %pM on vid %d\n", mac, vid);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_send_claim(): CLAIM %pM on vid %d\n", mac, vid);
 		break;
 	case CLAIM_TYPE_DEL:
 		/* unclaim frame
 		 * set HW SRC to the clients mac
 		 */
 		memcpy(hw_src, mac, ETH_ALEN);
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_send_claim(): UNCLAIM %pM on vid %d\n", mac, vid);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_send_claim(): UNCLAIM %pM on vid %d\n", mac,
+			   vid);
 		break;
 	case CLAIM_TYPE_ANNOUNCE:
 		/* announcement frame
 		 * set HW SRC to the special mac containg the crc
 		 */
 		memcpy(hw_src, mac, ETH_ALEN);
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_send_claim(): ANNOUNCE of %pM on vid %d\n",
-			ethhdr->h_source, vid);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_send_claim(): ANNOUNCE of %pM on vid %d\n",
+			   ethhdr->h_source, vid);
 		break;
 	case CLAIM_TYPE_REQUEST:
 		/* request frame
@@ -320,9 +321,9 @@ static void bla_send_claim(struct bat_priv *bat_priv, uint8_t *mac,
 		 */
 		memcpy(hw_src, mac, ETH_ALEN);
 		memcpy(ethhdr->h_dest, mac, ETH_ALEN);
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_send_claim(): REQUEST of %pM to %pMon vid %d\n",
-			ethhdr->h_source, ethhdr->h_dest, vid);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_send_claim(): REQUEST of %pM to %pMon vid %d\n",
+			   ethhdr->h_source, ethhdr->h_dest, vid);
 		break;
 
 	}
@@ -361,9 +362,9 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 	if (entry)
 		return entry;
 
-	bat_dbg(DBG_BLA, bat_priv,
-		"bla_get_backbone_gw(): not found (%pM, %d), creating new entry\n",
-		orig, vid);
+	batadv_dbg(DBG_BLA, bat_priv,
+		   "bla_get_backbone_gw(): not found (%pM, %d), creating new entry\n",
+		   orig, vid);
 
 	entry = kzalloc(sizeof(*entry), GFP_ATOMIC);
 	if (!entry)
@@ -433,8 +434,8 @@ static void bla_answer_request(struct bat_priv *bat_priv,
 	struct backbone_gw *backbone_gw;
 	int i;
 
-	bat_dbg(DBG_BLA, bat_priv,
-		"bla_answer_request(): received a claim request, send all of our own claims again\n");
+	batadv_dbg(DBG_BLA, bat_priv,
+		   "bla_answer_request(): received a claim request, send all of our own claims again\n");
 
 	backbone_gw = backbone_hash_find(bat_priv,
 					 primary_if->net_dev->dev_addr, vid);
@@ -473,9 +474,8 @@ static void bla_send_request(struct backbone_gw *backbone_gw)
 	/* first, remove all old entries */
 	bla_del_backbone_claims(backbone_gw);
 
-	bat_dbg(DBG_BLA, backbone_gw->bat_priv,
-		"Sending REQUEST to %pM\n",
-		backbone_gw->orig);
+	batadv_dbg(DBG_BLA, backbone_gw->bat_priv, "Sending REQUEST to %pM\n",
+		   backbone_gw->orig);
 
 	/* send request */
 	bla_send_claim(backbone_gw->bat_priv, backbone_gw->orig,
@@ -538,9 +538,9 @@ static void bla_add_claim(struct bat_priv *bat_priv, const uint8_t *mac,
 		claim->backbone_gw = backbone_gw;
 
 		atomic_set(&claim->refcount, 2);
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
-			mac, vid);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
+			   mac, vid);
 		hash_added = batadv_hash_add(bat_priv->claim_hash,
 					     compare_claim, choose_claim,
 					     claim, &claim->hash_entry);
@@ -556,9 +556,9 @@ static void bla_add_claim(struct bat_priv *bat_priv, const uint8_t *mac,
 			/* no need to register a new backbone */
 			goto claim_free_ref;
 
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_add_claim(): changing ownership for %pM, vid %d\n",
-			mac, vid);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_add_claim(): changing ownership for %pM, vid %d\n",
+			   mac, vid);
 
 		claim->backbone_gw->crc ^=
 			crc16(0, claim->addr, ETH_ALEN);
@@ -590,7 +590,8 @@ static void bla_del_claim(struct bat_priv *bat_priv, const uint8_t *mac,
 	if (!claim)
 		return;
 
-	bat_dbg(DBG_BLA, bat_priv, "bla_del_claim(): %pM, vid %d\n", mac, vid);
+	batadv_dbg(DBG_BLA, bat_priv, "bla_del_claim(): %pM, vid %d\n", mac,
+		   vid);
 
 	batadv_hash_remove(bat_priv->claim_hash, compare_claim, choose_claim,
 			   claim);
@@ -622,15 +623,15 @@ static int handle_announce(struct bat_priv *bat_priv,
 	backbone_gw->lasttime = jiffies;
 	crc = ntohs(*((__be16 *)(&an_addr[4])));
 
-	bat_dbg(DBG_BLA, bat_priv,
-		"handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %04x\n",
-		vid, backbone_gw->orig, crc);
+	batadv_dbg(DBG_BLA, bat_priv,
+		   "handle_announce(): ANNOUNCE vid %d (sent by %pM)... CRC = %04x\n",
+		   vid, backbone_gw->orig, crc);
 
 	if (backbone_gw->crc != crc) {
-		bat_dbg(DBG_BLA, backbone_gw->bat_priv,
-			"handle_announce(): CRC FAILED for %pM/%d (my = %04x, sent = %04x)\n",
-			backbone_gw->orig, backbone_gw->vid, backbone_gw->crc,
-			crc);
+		batadv_dbg(DBG_BLA, backbone_gw->bat_priv,
+			   "handle_announce(): CRC FAILED for %pM/%d (my = %04x, sent = %04x)\n",
+			   backbone_gw->orig, backbone_gw->vid,
+			   backbone_gw->crc, crc);
 
 		bla_send_request(backbone_gw);
 	} else {
@@ -654,18 +655,18 @@ static int handle_request(struct bat_priv *bat_priv,
 			  struct ethhdr *ethhdr, short vid)
 {
 	/* check for REQUEST frame */
-	if (!compare_eth(backbone_addr, ethhdr->h_dest))
+	if (!batadv_compare_eth(backbone_addr, ethhdr->h_dest))
 		return 0;
 
 	/* sanity check, this should not happen on a normal switch,
 	 * we ignore it in this case.
 	 */
-	if (!compare_eth(ethhdr->h_dest, primary_if->net_dev->dev_addr))
+	if (!batadv_compare_eth(ethhdr->h_dest, primary_if->net_dev->dev_addr))
 		return 1;
 
-	bat_dbg(DBG_BLA, bat_priv,
-		"handle_request(): REQUEST vid %d (sent by %pM)...\n",
-		vid, ethhdr->h_source);
+	batadv_dbg(DBG_BLA, bat_priv,
+		   "handle_request(): REQUEST vid %d (sent by %pM)...\n",
+		   vid, ethhdr->h_source);
 
 	bla_answer_request(bat_priv, primary_if, vid);
 	return 1;
@@ -680,8 +681,8 @@ static int handle_unclaim(struct bat_priv *bat_priv,
 	struct backbone_gw *backbone_gw;
 
 	/* unclaim in any case if it is our own */
-	if (primary_if && compare_eth(backbone_addr,
-				      primary_if->net_dev->dev_addr))
+	if (primary_if && batadv_compare_eth(backbone_addr,
+					     primary_if->net_dev->dev_addr))
 		bla_send_claim(bat_priv, claim_addr, vid, CLAIM_TYPE_DEL);
 
 	backbone_gw = backbone_hash_find(bat_priv, backbone_addr, vid);
@@ -690,9 +691,9 @@ static int handle_unclaim(struct bat_priv *bat_priv,
 		return 1;
 
 	/* this must be an UNCLAIM frame */
-	bat_dbg(DBG_BLA, bat_priv,
-		"handle_unclaim(): UNCLAIM %pM on vid %d (sent by %pM)...\n",
-		claim_addr, vid, backbone_gw->orig);
+	batadv_dbg(DBG_BLA, bat_priv,
+		   "handle_unclaim(): UNCLAIM %pM on vid %d (sent by %pM)...\n",
+		   claim_addr, vid, backbone_gw->orig);
 
 	bla_del_claim(bat_priv, claim_addr, vid);
 	backbone_gw_free_ref(backbone_gw);
@@ -715,7 +716,7 @@ static int handle_claim(struct bat_priv *bat_priv,
 
 	/* this must be a CLAIM frame */
 	bla_add_claim(bat_priv, claim_addr, vid, backbone_gw);
-	if (compare_eth(backbone_addr, primary_if->net_dev->dev_addr))
+	if (batadv_compare_eth(backbone_addr, primary_if->net_dev->dev_addr))
 		bla_send_claim(bat_priv, claim_addr, vid, CLAIM_TYPE_ADD);
 
 	/* TODO: we could call something like tt_local_del() here. */
@@ -772,7 +773,7 @@ static int check_claim_group(struct bat_priv *bat_priv,
 	}
 
 	/* don't accept claim frames from ourselves */
-	if (compare_eth(backbone_addr, primary_if->net_dev->dev_addr))
+	if (batadv_compare_eth(backbone_addr, primary_if->net_dev->dev_addr))
 		return 0;
 
 	/* if its already the same group, it is fine. */
@@ -790,9 +791,9 @@ static int check_claim_group(struct bat_priv *bat_priv,
 
 	/* if our mesh friends mac is bigger, use it for ourselves. */
 	if (ntohs(bla_dst->group) > ntohs(bla_dst_own->group)) {
-		bat_dbg(DBG_BLA, bat_priv,
-			"taking other backbones claim group: %04x\n",
-			ntohs(bla_dst->group));
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "taking other backbones claim group: %04x\n",
+			   ntohs(bla_dst->group));
 		bla_dst_own->group = bla_dst->group;
 	}
 
@@ -867,9 +868,9 @@ static int bla_process_claim(struct bat_priv *bat_priv,
 	/* check if it is a claim frame. */
 	ret = check_claim_group(bat_priv, primary_if, hw_src, hw_dst, ethhdr);
 	if (ret == 1)
-		bat_dbg(DBG_BLA, bat_priv,
-			"bla_process_claim(): received a claim frame from another group. From: %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
-			ethhdr->h_source, vid, hw_src, hw_dst);
+		batadv_dbg(DBG_BLA, bat_priv,
+			   "bla_process_claim(): received a claim frame from another group. From: %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
+			   ethhdr->h_source, vid, hw_src, hw_dst);
 
 	if (ret < 2)
 		return ret;
@@ -900,9 +901,9 @@ static int bla_process_claim(struct bat_priv *bat_priv,
 		break;
 	}
 
-	bat_dbg(DBG_BLA, bat_priv,
-		"bla_process_claim(): ERROR - this looks like a claim frame, but is useless. eth src %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
-		ethhdr->h_source, vid, hw_src, hw_dst);
+	batadv_dbg(DBG_BLA, bat_priv,
+		   "bla_process_claim(): ERROR - this looks like a claim frame, but is useless. eth src %pM on vid %d ...(hw_src %pM, hw_dst %pM)\n",
+		   ethhdr->h_source, vid, hw_src, hw_dst);
 	return 1;
 }
 
@@ -931,13 +932,13 @@ static void bla_purge_backbone_gw(struct bat_priv *bat_priv, int now)
 					  head, hash_entry) {
 			if (now)
 				goto purge_now;
-			if (!has_timed_out(backbone_gw->lasttime,
-					   BLA_BACKBONE_TIMEOUT))
+			if (!batadv_has_timed_out(backbone_gw->lasttime,
+						  BLA_BACKBONE_TIMEOUT))
 				continue;
 
-			bat_dbg(DBG_BLA, backbone_gw->bat_priv,
-				"bla_purge_backbone_gw(): backbone gw %pM timed out\n",
-				backbone_gw->orig);
+			batadv_dbg(DBG_BLA, backbone_gw->bat_priv,
+				   "bla_purge_backbone_gw(): backbone gw %pM timed out\n",
+				   backbone_gw->orig);
 
 purge_now:
 			/* don't wait for the pending request anymore */
@@ -980,16 +981,16 @@ static void bla_purge_claims(struct bat_priv *bat_priv,
 		hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
 			if (now)
 				goto purge_now;
-			if (!compare_eth(claim->backbone_gw->orig,
-					 primary_if->net_dev->dev_addr))
+			if (!batadv_compare_eth(claim->backbone_gw->orig,
+						primary_if->net_dev->dev_addr))
 				continue;
-			if (!has_timed_out(claim->lasttime,
-					   BLA_CLAIM_TIMEOUT))
+			if (!batadv_has_timed_out(claim->lasttime,
+						  BLA_CLAIM_TIMEOUT))
 				continue;
 
-			bat_dbg(DBG_BLA, bat_priv,
-				"bla_purge_claims(): %pM, vid %d, time out\n",
-				claim->addr, claim->vid);
+			batadv_dbg(DBG_BLA, bat_priv,
+				   "bla_purge_claims(): %pM, vid %d, time out\n",
+				   claim->addr, claim->vid);
 
 purge_now:
 			handle_unclaim(bat_priv, primary_if,
@@ -1036,8 +1037,8 @@ void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
 			/* own orig still holds the old value. */
-			if (!compare_eth(backbone_gw->orig,
-					 oldif->net_dev->dev_addr))
+			if (!batadv_compare_eth(backbone_gw->orig,
+						oldif->net_dev->dev_addr))
 				continue;
 
 			memcpy(backbone_gw->orig,
@@ -1097,8 +1098,8 @@ static void bla_periodic_work(struct work_struct *work)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
-			if (!compare_eth(backbone_gw->orig,
-					 primary_if->net_dev->dev_addr))
+			if (!batadv_compare_eth(backbone_gw->orig,
+						primary_if->net_dev->dev_addr))
 				continue;
 
 			backbone_gw->lasttime = jiffies;
@@ -1129,7 +1130,7 @@ int batadv_bla_init(struct bat_priv *bat_priv)
 	uint8_t claim_dest[ETH_ALEN] = {0xff, 0x43, 0x05, 0x00, 0x00, 0x00};
 	struct hard_iface *primary_if;
 
-	bat_dbg(DBG_BLA, bat_priv, "bla hash registering\n");
+	batadv_dbg(DBG_BLA, bat_priv, "bla hash registering\n");
 
 	/* setting claim destination address */
 	memcpy(&bat_priv->claim_dest.magic, claim_dest, 3);
@@ -1164,7 +1165,7 @@ int batadv_bla_init(struct bat_priv *bat_priv)
 	batadv_hash_set_lock_class(bat_priv->backbone_hash,
 				   &backbone_hash_lock_class_key);
 
-	bat_dbg(DBG_BLA, bat_priv, "bla hashes initialized\n");
+	batadv_dbg(DBG_BLA, bat_priv, "bla hashes initialized\n");
 
 	bla_start_timer(bat_priv);
 	return 0;
@@ -1206,13 +1207,13 @@ int batadv_bla_check_bcast_duplist(struct bat_priv *bat_priv,
 		/* we can stop searching if the entry is too old ;
 		 * later entries will be even older
 		 */
-		if (has_timed_out(entry->entrytime, DUPLIST_TIMEOUT))
+		if (batadv_has_timed_out(entry->entrytime, DUPLIST_TIMEOUT))
 			break;
 
 		if (entry->crc != crc)
 			continue;
 
-		if (compare_eth(entry->orig, bcast_packet->orig))
+		if (batadv_compare_eth(entry->orig, bcast_packet->orig))
 			continue;
 
 		/* this entry seems to match: same crc, not too old,
@@ -1260,7 +1261,7 @@ int batadv_bla_is_backbone_gw_orig(struct bat_priv *bat_priv, uint8_t *orig)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(backbone_gw, node, head, hash_entry) {
-			if (compare_eth(backbone_gw->orig, orig)) {
+			if (batadv_compare_eth(backbone_gw->orig, orig)) {
 				rcu_read_unlock();
 				return 1;
 			}
@@ -1387,8 +1388,8 @@ int batadv_bla_rx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 	}
 
 	/* if it is our own claim ... */
-	if (compare_eth(claim->backbone_gw->orig,
-			primary_if->net_dev->dev_addr)) {
+	if (batadv_compare_eth(claim->backbone_gw->orig,
+			       primary_if->net_dev->dev_addr)) {
 		/* ... allow it in any case */
 		claim->lasttime = jiffies;
 		goto allow;
@@ -1474,8 +1475,8 @@ int batadv_bla_tx(struct bat_priv *bat_priv, struct sk_buff *skb, short vid)
 		goto allow;
 
 	/* check if we are responsible. */
-	if (compare_eth(claim->backbone_gw->orig,
-			primary_if->net_dev->dev_addr)) {
+	if (batadv_compare_eth(claim->backbone_gw->orig,
+			       primary_if->net_dev->dev_addr)) {
 		/* if yes, the client has roamed and we have
 		 * to unclaim it.
 		 */
@@ -1523,6 +1524,7 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 	uint32_t i;
 	bool is_own;
 	int ret = 0;
+	uint8_t *primary_addr;
 
 	primary_if = batadv_primary_if_get_selected(bat_priv);
 	if (!primary_if) {
@@ -1539,9 +1541,10 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 		goto out;
 	}
 
+	primary_addr = primary_if->net_dev->dev_addr;
 	seq_printf(seq,
 		   "Claims announced for the mesh %s (orig %pM, group id %04x)\n",
-		   net_dev->name, primary_if->net_dev->dev_addr,
+		   net_dev->name, primary_addr,
 		   ntohs(bat_priv->claim_dest.group));
 	seq_printf(seq, "   %-17s    %-5s    %-17s [o] (%-4s)\n",
 		   "Client", "VID", "Originator", "CRC");
@@ -1550,8 +1553,8 @@ int batadv_bla_claim_table_seq_print_text(struct seq_file *seq, void *offset)
 
 		rcu_read_lock();
 		hlist_for_each_entry_rcu(claim, node, head, hash_entry) {
-			is_own = compare_eth(claim->backbone_gw->orig,
-					     primary_if->net_dev->dev_addr);
+			is_own = batadv_compare_eth(claim->backbone_gw->orig,
+						    primary_addr);
 			seq_printf(seq,	" * %pM on % 5d by %pM [%c] (%04x)\n",
 				   claim->addr, claim->vid,
 				   claim->backbone_gw->orig,

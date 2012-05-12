@@ -158,8 +158,8 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	size_t packet_len = sizeof(struct icmp_packet);
 
 	if (len < sizeof(struct icmp_packet)) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Error - can't send packet from char device: invalid packet size\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Error - can't send packet from char device: invalid packet size\n");
 		return -EINVAL;
 	}
 
@@ -188,15 +188,15 @@ static ssize_t bat_socket_write(struct file *file, const char __user *buff,
 	}
 
 	if (icmp_packet->header.packet_type != BAT_ICMP) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}
 
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
 		len = -EINVAL;
 		goto free_skb;
 	}

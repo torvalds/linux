@@ -66,9 +66,9 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 	/* sequence number is much newer, probably missed a lot of packets */
 	if ((seq_num_diff >= TQ_LOCAL_WINDOW_SIZE) &&
 	    (seq_num_diff < EXPECTED_SEQNO_RANGE)) {
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"We missed a lot of packets (%i) !\n",
-			seq_num_diff - 1);
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "We missed a lot of packets (%i) !\n",
+			   seq_num_diff - 1);
 		bitmap_zero(seq_bits, TQ_LOCAL_WINDOW_SIZE);
 		if (set_mark)
 			batadv_set_bit(seq_bits, 0);
@@ -83,8 +83,8 @@ int batadv_bit_get_packet(void *priv, unsigned long *seq_bits,
 	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE) ||
 	    (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
 
-		bat_dbg(DBG_BATMAN, bat_priv,
-			"Other host probably restarted!\n");
+		batadv_dbg(DBG_BATMAN, bat_priv,
+			   "Other host probably restarted!\n");
 
 		bitmap_zero(seq_bits, TQ_LOCAL_WINDOW_SIZE);
 		if (set_mark)
