@@ -423,7 +423,7 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 	if (!hard_iface)
 		goto release_dev;
 
-	ret = sysfs_add_hardif(&hard_iface->hardif_obj, net_dev);
+	ret = batadv_sysfs_add_hardif(&hard_iface->hardif_obj, net_dev);
 	if (ret)
 		goto free_if;
 
@@ -467,7 +467,7 @@ static void hardif_remove_interface(struct hard_iface *hard_iface)
 		return;
 
 	hard_iface->if_status = IF_TO_BE_REMOVED;
-	sysfs_del_hardif(&hard_iface->hardif_obj);
+	batadv_sysfs_del_hardif(&hard_iface->hardif_obj);
 	hardif_free_ref(hard_iface);
 }
 
