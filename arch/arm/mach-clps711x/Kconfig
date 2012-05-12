@@ -1,6 +1,6 @@
 if ARCH_CLPS711X
 
-menu "CLPS711X/EP721X Implementations"
+menu "CLPS711X/EP721X/EP731X Implementations"
 
 config ARCH_AUTCPU12
 	bool "AUTCPU12"
@@ -45,26 +45,13 @@ config ARCH_P720T
 config ARCH_FORTUNET
 	bool "FORTUNET"
 
-# XXX Maybe these should indicate register compatibility
-# instead of being mutually exclusive.
-config ARCH_EP7211
-	bool
-	depends on ARCH_EDB7211
-	default y
-
-config ARCH_EP7212
-	bool
-	depends on ARCH_P720T || ARCH_CEIVA
-	default y
-
 config EP72XX_ROM_BOOT
-	bool "EP72xx ROM boot"
-	depends on ARCH_EP7211 || ARCH_EP7212
-	---help---
+	bool "EP721x/EP731x ROM boot"
+	help
 	  If you say Y here, your CLPS711x-based kernel will use the bootstrap
 	  mode memory map instead of the normal memory map.
 
-	  Processors derived from the Cirrus CLPS-711X core support two boot
+	  Processors derived from the Cirrus CLPS711X core support two boot
 	  modes.  Normal mode boots from the external memory device at CS0.
 	  Bootstrap mode rearranges parts of the memory map, placing an
 	  internal 128 byte bootstrap ROM at CS0.  This option performs the
