@@ -2,15 +2,8 @@
 #define __SPARC_HEAD_H
 
 #define KERNBASE        0xf0000000  /* First address the kernel will eventually be */
-#define LOAD_ADDR       0x4000      /* prom jumps to us here unless this is elf /boot */
-#define SUN4C_SEGSZ     (1 << 18)
-#define SRMMU_L1_KBASE_OFFSET ((KERNBASE>>24)<<2)  /* Used in boot remapping. */
-#define INTS_ENAB        0x01           /* entry.S uses this. */
-
-#define SUN4_PROM_VECTOR 0xFFE81000     /* SUN4 PROM needs to be hardwired */
 
 #define WRITE_PAUSE      nop; nop; nop; /* Have to do this after %wim/%psr chg */
-#define NOP_INSN         0x01000000     /* Used to patch sparc_save_state */
 
 /* Here are some trap goodies */
 
