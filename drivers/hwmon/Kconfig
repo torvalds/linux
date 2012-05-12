@@ -1102,6 +1102,19 @@ config SENSORS_AMC6821
 	  This driver can also be build as a module.  If so, the module
 	  will be called amc6821.
 
+config SENSORS_INA2XX
+	tristate "Texas Instruments INA219, INA226"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for INA219 and INA226 power
+	  monitor chips.
+
+	  The INA2xx driver is configured for the default configuration of
+	  the part as described in the datasheet.
+	  Default value for Rshunt is 10 mOhms.
+	  This driver can also be built as a module.  If so, the module
+	  will be called ina2xx.
+
 config SENSORS_THMC50
 	tristate "Texas Instruments THMC50 / Analog Devices ADM1022"
 	depends on I2C
