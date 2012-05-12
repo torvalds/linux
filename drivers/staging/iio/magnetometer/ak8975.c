@@ -242,7 +242,7 @@ static int ak8975_setup(struct i2c_client *client)
 static ssize_t show_mode(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ak8975_data *data = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", data->mode);
@@ -255,7 +255,7 @@ static ssize_t show_mode(struct device *dev, struct device_attribute *devattr,
 static ssize_t store_mode(struct device *dev, struct device_attribute *devattr,
 			  const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ak8975_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 	bool value;
