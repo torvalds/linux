@@ -119,6 +119,22 @@ extern unsigned long empty_zero_page;
 #define ZERO_PAGE(vaddr) (virt_to_page(&empty_zero_page))
 
 /*
+ * In general all page table modifications should use the V8 atomic
+ * swap instruction.  This insures the mmu and the cpu are in sync
+ * with respect to ref/mod bits in the page tables.
+ */
+static inline unsigned long srmmu_swap(unsigned long *addr, unsigned long value)
+{
+	__asm__ __volatile__("swap [%2], %0" : "=&r" (value) : "0" (value), "r" (addr));
+	return value;
+}
+
+static inline void srmmu_set_pte(pte_t *ptep, pte_t pteval)
+{
+	srmmu_swap((unsigned long *)ptep, pte_val(pteval));
+}
+
+/*
  */
 BTFIXUPDEF_CALL_CONST(struct page *, pmd_page, pmd_t)
 BTFIXUPDEF_CALL_CONST(unsigned long, pgd_page_vaddr, pgd_t)
@@ -127,7 +143,6 @@ BTFIXUPDEF_CALL_CONST(unsigned long, pgd_page_vaddr, pgd_t)
 #define pgd_page_vaddr(pgd) BTFIXUP_CALL(pgd_page_vaddr)(pgd)
 
 BTFIXUPDEF_CALL_CONST(int, pte_present, pte_t)
-BTFIXUPDEF_CALL(void, pte_clear, pte_t *)
 
 static inline int pte_none(pte_t pte)
 {
@@ -135,11 +150,19 @@ static inline int pte_none(pte_t pte)
 }
 
 #define pte_present(pte) BTFIXUP_CALL(pte_present)(pte)
-#define pte_clear(mm,addr,pte) BTFIXUP_CALL(pte_clear)(pte)
+
+static inline void __pte_clear(pte_t *ptep)
+{
+	srmmu_set_pte(ptep, __pte(0));
+}
+
+static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+{
+	__pte_clear(ptep);
+}
 
 BTFIXUPDEF_CALL_CONST(int, pmd_bad, pmd_t)
 BTFIXUPDEF_CALL_CONST(int, pmd_present, pmd_t)
-BTFIXUPDEF_CALL(void, pmd_clear, pmd_t *)
 
 static inline int pmd_none(pmd_t pmd)
 {
@@ -148,17 +171,26 @@ static inline int pmd_none(pmd_t pmd)
 
 #define pmd_bad(pmd) BTFIXUP_CALL(pmd_bad)(pmd)
 #define pmd_present(pmd) BTFIXUP_CALL(pmd_present)(pmd)
-#define pmd_clear(pmd) BTFIXUP_CALL(pmd_clear)(pmd)
+
+static inline void pmd_clear(pmd_t *pmdp)
+{
+	int i;
+	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++)
+		srmmu_set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
+}
 
 BTFIXUPDEF_CALL_CONST(int, pgd_none, pgd_t)
 BTFIXUPDEF_CALL_CONST(int, pgd_bad, pgd_t)
 BTFIXUPDEF_CALL_CONST(int, pgd_present, pgd_t)
-BTFIXUPDEF_CALL(void, pgd_clear, pgd_t *)
 
 #define pgd_none(pgd) BTFIXUP_CALL(pgd_none)(pgd)
 #define pgd_bad(pgd) BTFIXUP_CALL(pgd_bad)(pgd)
 #define pgd_present(pgd) BTFIXUP_CALL(pgd_present)(pgd)
-#define pgd_clear(pgd) BTFIXUP_CALL(pgd_clear)(pgd)
+
+static inline void pgd_clear(pgd_t *pgdp)
+{
+	srmmu_set_pte((pte_t *)pgdp, __pte(0));
+}
 
 /*
  * The following only work if pte_present() is true.

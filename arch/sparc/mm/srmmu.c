@@ -91,22 +91,6 @@ static DEFINE_SPINLOCK(srmmu_context_spinlock);
 
 static int is_hypersparc;
 
-/*
- * In general all page table modifications should use the V8 atomic
- * swap instruction.  This insures the mmu and the cpu are in sync
- * with respect to ref/mod bits in the page tables.
- */
-static inline unsigned long srmmu_swap(unsigned long *addr, unsigned long value)
-{
-	__asm__ __volatile__("swap [%2], %0" : "=&r" (value) : "0" (value), "r" (addr));
-	return value;
-}
-
-static inline void srmmu_set_pte(pte_t *ptep, pte_t pteval)
-{
-	srmmu_swap((unsigned long *)ptep, pte_val(pteval));
-}
-
 /* The very generic SRMMU page table operations. */
 static inline int srmmu_device_memory(unsigned long x)
 {
@@ -160,9 +144,6 @@ static inline int srmmu_pte_none(pte_t pte)
 static inline int srmmu_pte_present(pte_t pte)
 { return ((pte_val(pte) & SRMMU_ET_MASK) == SRMMU_ET_PTE); }
 
-static inline void srmmu_pte_clear(pte_t *ptep)
-{ srmmu_set_pte(ptep, __pte(0)); }
-
 static inline int srmmu_pmd_none(pmd_t pmd)
 { return !(pmd_val(pmd) & 0xFFFFFFF); }
 
@@ -172,12 +153,6 @@ static inline int srmmu_pmd_bad(pmd_t pmd)
 static inline int srmmu_pmd_present(pmd_t pmd)
 { return ((pmd_val(pmd) & SRMMU_ET_MASK) == SRMMU_ET_PTD); }
 
-static inline void srmmu_pmd_clear(pmd_t *pmdp) {
-	int i;
-	for (i = 0; i < PTRS_PER_PTE/SRMMU_REAL_PTRS_PER_PTE; i++)
-		srmmu_set_pte((pte_t *)&pmdp->pmdv[i], __pte(0));
-}
-
 static inline int srmmu_pgd_none(pgd_t pgd)          
 { return !(pgd_val(pgd) & 0xFFFFFFF); }
 
@@ -186,9 +161,6 @@ static inline int srmmu_pgd_bad(pgd_t pgd)
 
 static inline int srmmu_pgd_present(pgd_t pgd)
 { return ((pgd_val(pgd) & SRMMU_ET_MASK) == SRMMU_ET_PTD); }
-
-static inline void srmmu_pgd_clear(pgd_t * pgdp)
-{ srmmu_set_pte((pte_t *)pgdp, __pte(0)); }
 
 static inline pte_t srmmu_pte_wrprotect(pte_t pte)
 { return __pte(pte_val(pte) & ~SRMMU_WRITE);}
@@ -628,7 +600,7 @@ static inline void srmmu_unmapioaddr(unsigned long virt_addr)
 	ptep = srmmu_pte_offset(pmdp, virt_addr);
 
 	/* No need to flush uncacheable page. */
-	srmmu_pte_clear(ptep);
+	__pte_clear(ptep);
 }
 
 static void srmmu_unmapiorange(unsigned long virt_addr, unsigned int len)
@@ -1480,9 +1452,6 @@ static void __init init_hypersparc(void)
 
 	is_hypersparc = 1;
 
-	BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_clear, srmmu_pmd_clear, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pgd_clear, srmmu_pgd_clear, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_all, hypersparc_flush_cache_all, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_mm, hypersparc_flush_cache_mm, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_range, hypersparc_flush_cache_range, BTFIXUPCALL_NORM);
@@ -1546,9 +1515,6 @@ static void __init init_cypress_common(void)
 {
 	init_vac_layout();
 
-	BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_clear, srmmu_pmd_clear, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pgd_clear, srmmu_pgd_clear, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_all, cypress_flush_cache_all, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_mm, cypress_flush_cache_mm, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(flush_cache_range, cypress_flush_cache_range, BTFIXUPCALL_NORM);
@@ -1930,10 +1896,6 @@ static void __init init_viking(void)
 		viking_mxcc_present = 0;
 		msi_set_sync();
 
-		BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(pmd_clear, srmmu_pmd_clear, BTFIXUPCALL_NORM);
-		BTFIXUPSET_CALL(pgd_clear, srmmu_pgd_clear, BTFIXUPCALL_NORM);
-
 		/*
 		 * We need this to make sure old viking takes no hits
 		 * on it's cache for dma snoops to workaround the
@@ -2162,16 +2124,13 @@ void __init ld_mmu_srmmu(void)
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pte_clear, srmmu_pte_clear, BTFIXUPCALL_SWAPO0G0);
 
 	BTFIXUPSET_CALL(pmd_bad, srmmu_pmd_bad, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pmd_present, srmmu_pmd_present, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_clear, srmmu_pmd_clear, BTFIXUPCALL_SWAPO0G0);
 
 	BTFIXUPSET_CALL(pgd_none, srmmu_pgd_none, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pgd_bad, srmmu_pgd_bad, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pgd_present, srmmu_pgd_present, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pgd_clear, srmmu_pgd_clear, BTFIXUPCALL_SWAPO0G0);
 
 	BTFIXUPSET_CALL(mk_pte, srmmu_mk_pte, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mk_pte_phys, srmmu_mk_pte_phys, BTFIXUPCALL_NORM);

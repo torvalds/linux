@@ -120,7 +120,6 @@ extern unsigned int ___illegal_use_of_BTFIXUP_INT_in_module(void);
 #define BTFIXUPCALL_RETO0	0x01000000			/* Return first parameter, actually a nop */
 #define BTFIXUPCALL_ANDNINT(i)	(0x902a2000|((i) & 0x1fff))	/* Possibly optimize to andn %o0, i, %o0 */
 #define BTFIXUPCALL_SWAPO0O1	0xd27a0000			/* Possibly optimize to swap [%o0],%o1 */
-#define BTFIXUPCALL_SWAPO0G0	0xc07a0000			/* Possibly optimize to swap [%o0],%g0 */
 #define BTFIXUPCALL_SWAPG1G2	0xc4784000			/* Possibly optimize to swap [%g1],%g2 */
 #define BTFIXUPCALL_STG0O0	0xc0220000			/* Possibly optimize to st %g0,[%o0] */
 #define BTFIXUPCALL_STO1O0	0xd2220000			/* Possibly optimize to st %o1,[%o0] */
