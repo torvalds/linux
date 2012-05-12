@@ -850,15 +850,16 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (unicast_packet->header.packet_type == BAT_UNICAST &&
 	    atomic_read(&bat_priv->fragmentation) &&
 	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
-		ret = frag_send_skb(skb, bat_priv,
-				    neigh_node->if_incoming, neigh_node->addr);
+		ret = batadv_frag_send_skb(skb, bat_priv,
+					   neigh_node->if_incoming,
+					   neigh_node->addr);
 		goto out;
 	}
 
 	if (unicast_packet->header.packet_type == BAT_UNICAST_FRAG &&
 	    frag_can_reassemble(skb, neigh_node->if_incoming->net_dev->mtu)) {
 
-		ret = frag_reassemble_skb(skb, bat_priv, &new_skb);
+		ret = batadv_frag_reassemble_skb(skb, bat_priv, &new_skb);
 
 		if (ret == NET_RX_DROP)
 			goto out;
@@ -1013,7 +1014,7 @@ int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
 	/* packet for me */
 	if (is_my_mac(unicast_packet->dest)) {
 
-		ret = frag_reassemble_skb(skb, bat_priv, &new_skb);
+		ret = batadv_frag_reassemble_skb(skb, bat_priv, &new_skb);
 
 		if (ret == NET_RX_DROP)
 			return NET_RX_DROP;
