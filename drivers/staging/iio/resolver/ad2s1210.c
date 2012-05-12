@@ -200,7 +200,7 @@ static ssize_t ad2s1210_store_softreset(struct device *dev,
 					const char *buf,
 					size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	int ret;
 
 	mutex_lock(&st->lock);
@@ -214,7 +214,7 @@ static ssize_t ad2s1210_show_fclkin(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	return sprintf(buf, "%d\n", st->fclkin);
 }
 
@@ -223,7 +223,7 @@ static ssize_t ad2s1210_store_fclkin(struct device *dev,
 				     const char *buf,
 				     size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned long fclkin;
 	int ret;
 
@@ -252,7 +252,7 @@ static ssize_t ad2s1210_show_fexcit(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	return sprintf(buf, "%d\n", st->fexcit);
 }
 
@@ -260,7 +260,7 @@ static ssize_t ad2s1210_store_fexcit(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned long fexcit;
 	int ret;
 
@@ -287,7 +287,7 @@ static ssize_t ad2s1210_show_control(struct device *dev,
 				     struct device_attribute *attr,
 				     char *buf)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	int ret;
 	mutex_lock(&st->lock);
 	ret = ad2s1210_config_read(st, AD2S1210_REG_CONTROL);
@@ -299,7 +299,7 @@ static ssize_t ad2s1210_store_control(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned long udata;
 	unsigned char data;
 	int ret;
@@ -345,7 +345,7 @@ error_ret:
 static ssize_t ad2s1210_show_resolution(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	return sprintf(buf, "%d\n", st->resolution);
 }
 
@@ -353,7 +353,7 @@ static ssize_t ad2s1210_store_resolution(struct device *dev,
 			struct device_attribute *attr,
 			const char *buf, size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned char data;
 	unsigned long udata;
 	int ret;
@@ -403,7 +403,7 @@ error_ret:
 static ssize_t ad2s1210_show_fault(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	int ret;
 
 	mutex_lock(&st->lock);
@@ -418,7 +418,7 @@ static ssize_t ad2s1210_clear_fault(struct device *dev,
 				    const char *buf,
 				    size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	int ret;
 
 	mutex_lock(&st->lock);
@@ -441,7 +441,7 @@ static ssize_t ad2s1210_show_reg(struct device *dev,
 				 struct device_attribute *attr,
 				 char *buf)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	struct iio_dev_attr *iattr = to_iio_dev_attr(attr);
 	int ret;
 
@@ -455,7 +455,7 @@ static ssize_t ad2s1210_show_reg(struct device *dev,
 static ssize_t ad2s1210_store_reg(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct ad2s1210_state *st = iio_priv(dev_get_drvdata(dev));
+	struct ad2s1210_state *st = iio_priv(dev_to_iio_dev(dev));
 	unsigned long data;
 	int ret;
 	struct iio_dev_attr *iattr = to_iio_dev_attr(attr);
