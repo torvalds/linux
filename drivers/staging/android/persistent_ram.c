@@ -364,6 +364,9 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size)
 static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 		struct persistent_ram_zone *prz)
 {
+	prz->paddr = start;
+	prz->size = size;
+
 	if (pfn_valid(start >> PAGE_SHIFT))
 		prz->vaddr = persistent_ram_vmap(start, size);
 	else
@@ -435,6 +438,18 @@ static int __init persistent_ram_post_init(struct persistent_ram_zone *prz, bool
 	atomic_set(&prz->buffer->size, 0);
 
 	return 0;
+}
+
+void persistent_ram_free(struct persistent_ram_zone *prz)
+{
+	if (pfn_valid(prz->paddr >> PAGE_SHIFT)) {
+		vunmap(prz->vaddr);
+	} else {
+		iounmap(prz->vaddr);
+		release_mem_region(prz->paddr, prz->size);
+	}
+	persistent_ram_free_old(prz);
+	kfree(prz);
 }
 
 struct persistent_ram_zone * __init persistent_ram_new(phys_addr_t start,
