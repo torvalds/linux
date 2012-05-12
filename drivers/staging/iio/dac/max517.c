@@ -59,7 +59,7 @@ static ssize_t max517_set_value(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count, int channel)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max517_data *data = iio_priv(indio_dev);
 	struct i2c_client *client = data->client;
 	u8 outbuf[4]; /* 1x or 2x command + value */
@@ -128,7 +128,7 @@ static ssize_t max517_show_scale(struct device *dev,
 				struct device_attribute *attr,
 				char *buf, int channel)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max517_data *data = iio_priv(indio_dev);
 	/* Corresponds to Vref / 2^(bits) */
 	unsigned int scale_uv = (data->vref_mv[channel - 1] * 1000) >> 8;

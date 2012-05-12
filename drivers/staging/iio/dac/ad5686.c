@@ -173,7 +173,7 @@ static int ad5686_spi_read(struct ad5686_state *st, u8 addr)
 static ssize_t ad5686_read_powerdown_mode(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
@@ -187,7 +187,7 @@ static ssize_t ad5686_write_powerdown_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	unsigned mode;
@@ -211,7 +211,7 @@ static ssize_t ad5686_read_dac_powerdown(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 
@@ -225,7 +225,7 @@ static ssize_t ad5686_write_dac_powerdown(struct device *dev,
 {
 	bool readin;
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5686_state *st = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 

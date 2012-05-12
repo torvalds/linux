@@ -251,7 +251,7 @@ static ssize_t ad5360_read_dac_powerdown(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5360_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", (bool)(st->ctrl & AD5360_SF_CTRL_PWR_DOWN));
@@ -279,7 +279,7 @@ static int ad5360_update_ctrl(struct iio_dev *indio_dev, unsigned int set,
 static ssize_t ad5360_write_dac_powerdown(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	bool pwr_down;
 	int ret;
 

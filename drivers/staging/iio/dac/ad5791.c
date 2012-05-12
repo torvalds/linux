@@ -94,7 +94,7 @@ static const struct iio_chan_spec ad5791_channels[] = {
 static ssize_t ad5791_read_powerdown_mode(struct device *dev,
 				      struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	const char mode[][14] = {"6kohm_to_gnd", "three_state"};
@@ -106,7 +106,7 @@ static ssize_t ad5791_write_powerdown_mode(struct device *dev,
 				       struct device_attribute *attr,
 				       const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 	int ret;
 
@@ -124,7 +124,7 @@ static ssize_t ad5791_read_dac_powerdown(struct device *dev,
 					   struct device_attribute *attr,
 					   char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", st->pwr_down);
@@ -136,7 +136,7 @@ static ssize_t ad5791_write_dac_powerdown(struct device *dev,
 {
 	long readin;
 	int ret;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad5791_state *st = iio_priv(indio_dev);
 
 	ret = strict_strtol(buf, 10, &readin);
