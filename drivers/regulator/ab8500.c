@@ -234,25 +234,8 @@ static int ab8500_regulator_get_voltage_sel(struct regulator_dev *rdev)
 		return val;
 }
 
-static int ab8500_get_best_voltage_index(struct regulator_dev *rdev,
-		int min_uV, int max_uV)
-{
-	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
-	int i;
-
-	/* check the supported voltage */
-	for (i = 0; i < info->voltages_len; i++) {
-		if ((info->voltages[i] >= min_uV) &&
-		    (info->voltages[i] <= max_uV))
-			return i;
-	}
-
-	return -EINVAL;
-}
-
-static int ab8500_regulator_set_voltage(struct regulator_dev *rdev,
-					int min_uV, int max_uV,
-					unsigned *selector)
+static int ab8500_regulator_set_voltage_sel(struct regulator_dev *rdev,
+					    unsigned selector)
 {
 	int ret;
 	struct ab8500_regulator_info *info = rdev_get_drvdata(rdev);
@@ -263,18 +246,8 @@ static int ab8500_regulator_set_voltage(struct regulator_dev *rdev,
 		return -EINVAL;
 	}
 
-	/* get the appropriate voltages within the range */
-	ret = ab8500_get_best_voltage_index(rdev, min_uV, max_uV);
-	if (ret < 0) {
-		dev_err(rdev_get_dev(rdev),
-				"couldn't get best voltage for regulator\n");
-		return ret;
-	}
-
-	*selector = ret;
-
 	/* set the registers for the request */
-	regval = (u8)ret;
+	regval = (u8)selector;
 	ret = abx500_mask_and_set_register_interruptible(info->dev,
 			info->voltage_bank, info->voltage_reg,
 			info->voltage_mask, regval);
@@ -319,7 +292,7 @@ static struct regulator_ops ab8500_regulator_ops = {
 	.disable	= ab8500_regulator_disable,
 	.is_enabled	= ab8500_regulator_is_enabled,
 	.get_voltage_sel = ab8500_regulator_get_voltage_sel,
-	.set_voltage	= ab8500_regulator_set_voltage,
+	.set_voltage_sel = ab8500_regulator_set_voltage_sel,
 	.list_voltage	= ab8500_list_voltage,
 	.enable_time	= ab8500_regulator_enable_time,
 	.set_voltage_time_sel = ab8500_regulator_set_voltage_time_sel,
@@ -739,6 +712,7 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 {
 	struct ab8500 *ab8500 = dev_get_drvdata(pdev->dev.parent);
 	struct ab8500_platform_data *pdata;
+	struct regulator_config config = { };
 	int i, err;
 
 	if (!ab8500) {
@@ -806,6 +780,10 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		info = &ab8500_regulator_info[i];
 		info->dev = &pdev->dev;
 
+		config.dev = &pdev->dev;
+		config.init_data = &pdata->regulator[i];
+		config.driver_data = info;
+
 		/* fix for hardware before ab8500v2.0 */
 		if (abx500_get_chip_id(info->dev) < 0x20) {
 			if (info->desc.id == AB8500_LDO_AUX3) {
@@ -819,8 +797,7 @@ static __devinit int ab8500_regulator_probe(struct platform_device *pdev)
 		}
 
 		/* register regulator with framework */
-		info->regulator = regulator_register(&info->desc, &pdev->dev,
-				&pdata->regulator[i], info, NULL);
+		info->regulator = regulator_register(&info->desc, &config);
 		if (IS_ERR(info->regulator)) {
 			err = PTR_ERR(info->regulator);
 			dev_err(&pdev->dev, "failed to register regulator %s\n",

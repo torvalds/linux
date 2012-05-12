@@ -207,7 +207,7 @@ static struct regulator_ops max8649_dcdc_ops = {
 
 };
 
-static struct regulator_desc dcdc_desc = {
+static const struct regulator_desc dcdc_desc = {
 	.name		= "max8649",
 	.ops		= &max8649_dcdc_ops,
 	.type		= REGULATOR_VOLTAGE,
@@ -225,21 +225,23 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 {
 	struct max8649_platform_data *pdata = client->dev.platform_data;
 	struct max8649_regulator_info *info = NULL;
+	struct regulator_config config = { };
 	unsigned int val;
 	unsigned char data;
 	int ret;
 
-	info = kzalloc(sizeof(struct max8649_regulator_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(struct max8649_regulator_info),
+			    GFP_KERNEL);
 	if (!info) {
 		dev_err(&client->dev, "No enough memory\n");
 		return -ENOMEM;
 	}
 
-	info->regmap = regmap_init_i2c(client, &max8649_regmap_config);
+	info->regmap = devm_regmap_init_i2c(client, &max8649_regmap_config);
 	if (IS_ERR(info->regmap)) {
 		ret = PTR_ERR(info->regmap);
 		dev_err(&client->dev, "Failed to allocate register map: %d\n", ret);
-		goto fail;
+		return ret;
 	}
 
 	info->dev = &client->dev;
@@ -267,7 +269,7 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 	if (ret != 0) {
 		dev_err(info->dev, "Failed to detect ID of MAX8649:%d\n",
 			ret);
-		goto out;
+		return ret;
 	}
 	dev_info(info->dev, "Detected MAX8649 (ID:%x)\n", val);
 
@@ -297,22 +299,18 @@ static int __devinit max8649_regulator_probe(struct i2c_client *client,
 				   MAX8649_RAMP_DOWN);
 	}
 
-	info->regulator = regulator_register(&dcdc_desc, &client->dev,
-					     pdata->regulator, info, NULL);
+	config.dev = &client->dev;
+	config.init_data = pdata->regulator;
+	config.driver_data = info;
+
+	info->regulator = regulator_register(&dcdc_desc, &config);
 	if (IS_ERR(info->regulator)) {
 		dev_err(info->dev, "failed to register regulator %s\n",
 			dcdc_desc.name);
-		ret = PTR_ERR(info->regulator);
-		goto out;
+		return PTR_ERR(info->regulator);
 	}
 
-	dev_info(info->dev, "Max8649 regulator device is detected.\n");
 	return 0;
-out:
-	regmap_exit(info->regmap);
-fail:
-	kfree(info);
-	return ret;
 }
 
 static int __devexit max8649_regulator_remove(struct i2c_client *client)
@@ -322,8 +320,6 @@ static int __devexit max8649_regulator_remove(struct i2c_client *client)
 	if (info) {
 		if (info->regulator)
 			regulator_unregister(info->regulator);
-		regmap_exit(info->regmap);
-		kfree(info);
 	}
 
 	return 0;

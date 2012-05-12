@@ -313,7 +313,7 @@ static struct regulator_ops max8660_ldo67_ops = {
 	.set_voltage = max8660_ldo67_set,
 };
 
-static struct regulator_desc max8660_reg[] = {
+static const struct regulator_desc max8660_reg[] = {
 	{
 		.name = "V3(DCDC)",
 		.id = MAX8660_V3,
@@ -361,21 +361,20 @@ static int __devinit max8660_probe(struct i2c_client *client,
 {
 	struct regulator_dev **rdev;
 	struct max8660_platform_data *pdata = client->dev.platform_data;
+	struct regulator_config config = { };
 	struct max8660 *max8660;
 	int boot_on, i, id, ret = -EINVAL;
 
 	if (pdata->num_subdevs > MAX8660_V_END) {
 		dev_err(&client->dev, "Too many regulators found!\n");
-		goto out;
+		return -EINVAL;
 	}
 
 	max8660 = kzalloc(sizeof(struct max8660) +
 			sizeof(struct regulator_dev *) * MAX8660_V_END,
 			GFP_KERNEL);
-	if (!max8660) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!max8660)
+		return -ENOMEM;
 
 	max8660->client = client;
 	rdev = max8660->rdev;
@@ -404,7 +403,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 	for (i = 0; i < pdata->num_subdevs; i++) {
 
 		if (!pdata->subdevs[i].platform_data)
-			goto err_free;
+			goto err_out;
 
 		boot_on = pdata->subdevs[i].platform_data->constraints.boot_on;
 
@@ -430,7 +429,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 		case MAX8660_V7:
 			if (!strcmp(i2c_id->name, "max8661")) {
 				dev_err(&client->dev, "Regulator not on this chip!\n");
-				goto err_free;
+				goto err_out;
 			}
 
 			if (boot_on)
@@ -440,7 +439,7 @@ static int __devinit max8660_probe(struct i2c_client *client,
 		default:
 			dev_err(&client->dev, "invalid regulator %s\n",
 				 pdata->subdevs[i].name);
-			goto err_free;
+			goto err_out;
 		}
 	}
 
@@ -449,9 +448,11 @@ static int __devinit max8660_probe(struct i2c_client *client,
 
 		id = pdata->subdevs[i].id;
 
-		rdev[i] = regulator_register(&max8660_reg[id], &client->dev,
-					     pdata->subdevs[i].platform_data,
-					     max8660, NULL);
+		config.dev = &client->dev;
+		config.init_data = pdata->subdevs[i].platform_data;
+		config.driver_data = max8660;
+
+		rdev[i] = regulator_register(&max8660_reg[id], &config);
 		if (IS_ERR(rdev[i])) {
 			ret = PTR_ERR(rdev[i]);
 			dev_err(&client->dev, "failed to register %s\n",
@@ -461,15 +462,12 @@ static int __devinit max8660_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, max8660);
-	dev_info(&client->dev, "Maxim 8660/8661 regulator driver loaded\n");
 	return 0;
 
 err_unregister:
 	while (--i >= 0)
 		regulator_unregister(rdev[i]);
-err_free:
-	kfree(max8660);
-out:
+err_out:
 	return ret;
 }
 
@@ -481,8 +479,6 @@ static int __devexit max8660_remove(struct i2c_client *client)
 	for (i = 0; i < MAX8660_V_END; i++)
 		if (max8660->rdev[i])
 			regulator_unregister(max8660->rdev[i]);
-	kfree(max8660);
-
 	return 0;
 }
 

@@ -323,11 +323,14 @@ static struct regulator_desc regulators[] = {
 static int __devinit wm8400_regulator_probe(struct platform_device *pdev)
 {
 	struct wm8400 *wm8400 = container_of(pdev, struct wm8400, regulators[pdev->id]);
+	struct regulator_config config = { };
 	struct regulator_dev *rdev;
 
-	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, wm8400, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = wm8400;
 
+	rdev = regulator_register(&regulators[pdev->id], &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

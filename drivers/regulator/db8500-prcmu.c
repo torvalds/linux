@@ -414,6 +414,7 @@ static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 {
 	struct regulator_init_data *db8500_init_data =
 					dev_get_platdata(&pdev->dev);
+	struct regulator_config config = { };
 	int i, err;
 
 	/* register all regulators */
@@ -425,9 +426,12 @@ static int __devinit db8500_regulator_probe(struct platform_device *pdev)
 		info = &dbx500_regulator_info[i];
 		info->dev = &pdev->dev;
 
+		config.dev = &pdev->dev;
+		config.init_data = init_data;
+		config.driver_data = info;
+
 		/* register with the regulator framework */
-		info->rdev = regulator_register(&info->desc, &pdev->dev,
-				init_data, info, NULL);
+		info->rdev = regulator_register(&info->desc, &config);
 		if (IS_ERR(info->rdev)) {
 			err = PTR_ERR(info->rdev);
 			dev_err(&pdev->dev, "failed to register %s: err %i\n",

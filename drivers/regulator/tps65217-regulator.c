@@ -312,7 +312,7 @@ static struct regulator_ops tps65217_pmic_ldo1_ops = {
 	.list_voltage		= tps65217_pmic_list_voltage,
 };
 
-static struct regulator_desc regulators[] = {
+static const struct regulator_desc regulators[] = {
 	TPS65217_REGULATOR("DCDC1", TPS65217_DCDC_1, tps65217_pmic_ops, 64),
 	TPS65217_REGULATOR("DCDC2", TPS65217_DCDC_2, tps65217_pmic_ops, 64),
 	TPS65217_REGULATOR("DCDC3", TPS65217_DCDC_3, tps65217_pmic_ops, 64),
@@ -327,13 +327,17 @@ static int __devinit tps65217_regulator_probe(struct platform_device *pdev)
 	struct regulator_dev *rdev;
 	struct tps65217 *tps;
 	struct tps_info *info = &tps65217_pmic_regs[pdev->id];
+	struct regulator_config config = { };
 
 	/* Already set by core driver */
 	tps = dev_to_tps65217(pdev->dev.parent);
 	tps->info[pdev->id] = info;
 
-	rdev = regulator_register(&regulators[pdev->id], &pdev->dev,
-				  pdev->dev.platform_data, tps, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdev->dev.platform_data;
+	config.driver_data = tps;
+
+	rdev = regulator_register(&regulators[pdev->id], &config);
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 

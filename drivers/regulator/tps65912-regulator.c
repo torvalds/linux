@@ -372,11 +372,13 @@ static unsigned int tps65912_get_mode(struct regulator_dev *dev)
 	return mode;
 }
 
-static int tps65912_list_voltage_dcdc(struct regulator_dev *dev,
-					unsigned selector)
+static int tps65912_list_voltage(struct regulator_dev *dev, unsigned selector)
 {
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	int range, voltage = 0, id = rdev_get_id(dev);
+
+	if (id >= TPS65912_REG_LDO1 && id <= TPS65912_REG_LDO10)
+		return tps65912_vsel_to_uv_ldo(selector);
 
 	if (id > TPS65912_REG_DCDC4)
 		return -EINVAL;
@@ -404,7 +406,7 @@ static int tps65912_list_voltage_dcdc(struct regulator_dev *dev,
 	return voltage;
 }
 
-static int tps65912_get_voltage_dcdc(struct regulator_dev *dev)
+static int tps65912_get_voltage(struct regulator_dev *dev)
 {
 	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
 	struct tps65912 *mfd = pmic->mfd;
@@ -418,7 +420,7 @@ static int tps65912_get_voltage_dcdc(struct regulator_dev *dev)
 	vsel = tps65912_reg_read(mfd, reg);
 	vsel &= 0x3F;
 
-	return tps65912_list_voltage_dcdc(dev, vsel);
+	return tps65912_list_voltage(dev, vsel);
 }
 
 static int tps65912_set_voltage_sel(struct regulator_dev *dev,
@@ -436,32 +438,6 @@ static int tps65912_set_voltage_sel(struct regulator_dev *dev,
 	return tps65912_reg_write(mfd, reg, selector | value);
 }
 
-static int tps65912_get_voltage_ldo(struct regulator_dev *dev)
-{
-	struct tps65912_reg *pmic = rdev_get_drvdata(dev);
-	struct tps65912 *mfd = pmic->mfd;
-	int id = rdev_get_id(dev);
-	int vsel = 0;
-	u8 reg;
-
-	reg = tps65912_get_sel_register(pmic, id);
-	vsel = tps65912_reg_read(mfd, reg);
-	vsel &= 0x3F;
-
-	return tps65912_vsel_to_uv_ldo(vsel);
-}
-
-static int tps65912_list_voltage_ldo(struct regulator_dev *dev,
-					unsigned selector)
-{
-	int ldo = rdev_get_id(dev);
-
-	if (ldo < TPS65912_REG_LDO1 || ldo > TPS65912_REG_LDO10)
-		return -EINVAL;
-
-	return tps65912_vsel_to_uv_ldo(selector);
-}
-
 /* Operations permitted on DCDCx */
 static struct regulator_ops tps65912_ops_dcdc = {
 	.is_enabled = tps65912_reg_is_enabled,
@@ -469,9 +445,9 @@ static struct regulator_ops tps65912_ops_dcdc = {
 	.disable = tps65912_reg_disable,
 	.set_mode = tps65912_set_mode,
 	.get_mode = tps65912_get_mode,
-	.get_voltage = tps65912_get_voltage_dcdc,
+	.get_voltage = tps65912_get_voltage,
 	.set_voltage_sel = tps65912_set_voltage_sel,
-	.list_voltage = tps65912_list_voltage_dcdc,
+	.list_voltage = tps65912_list_voltage,
 };
 
 /* Operations permitted on LDOx */
@@ -479,14 +455,15 @@ static struct regulator_ops tps65912_ops_ldo = {
 	.is_enabled = tps65912_reg_is_enabled,
 	.enable = tps65912_reg_enable,
 	.disable = tps65912_reg_disable,
-	.get_voltage = tps65912_get_voltage_ldo,
+	.get_voltage = tps65912_get_voltage,
 	.set_voltage_sel = tps65912_set_voltage_sel,
-	.list_voltage = tps65912_list_voltage_ldo,
+	.list_voltage = tps65912_list_voltage,
 };
 
 static __devinit int tps65912_probe(struct platform_device *pdev)
 {
 	struct tps65912 *tps65912 = dev_get_drvdata(pdev->dev.parent);
+	struct regulator_config config = { };
 	struct tps_info *info;
 	struct regulator_init_data *reg_data;
 	struct regulator_dev *rdev;
@@ -500,7 +477,7 @@ static __devinit int tps65912_probe(struct platform_device *pdev)
 
 	reg_data = pmic_plat_data->tps65912_pmic_init_data;
 
-	pmic = kzalloc(sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -524,8 +501,12 @@ static __devinit int tps65912_probe(struct platform_device *pdev)
 		pmic->desc[i].type = REGULATOR_VOLTAGE;
 		pmic->desc[i].owner = THIS_MODULE;
 		range = tps65912_get_range(pmic, i);
-		rdev = regulator_register(&pmic->desc[i],
-					tps65912->dev, reg_data, pmic, NULL);
+
+		config.dev = tps65912->dev;
+		config.init_data = reg_data;
+		config.driver_data = pmic;
+
+		rdev = regulator_register(&pmic->desc[i], &config);
 		if (IS_ERR(rdev)) {
 			dev_err(tps65912->dev,
 				"failed to register %s regulator\n",
@@ -542,8 +523,6 @@ static __devinit int tps65912_probe(struct platform_device *pdev)
 err:
 	while (--i >= 0)
 		regulator_unregister(pmic->rdev[i]);
-
-	kfree(pmic);
 	return err;
 }
 
@@ -554,8 +533,6 @@ static int __devexit tps65912_remove(struct platform_device *pdev)
 
 	for (i = 0; i < TPS65912_NUM_REGULATOR; i++)
 		regulator_unregister(tps65912_reg->rdev[i]);
-
-	kfree(tps65912_reg);
 	return 0;
 }
 

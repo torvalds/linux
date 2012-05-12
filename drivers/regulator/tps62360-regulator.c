@@ -1,7 +1,7 @@
 /*
  * tps62360.c -- TI tps62360
  *
- * Driver for processor core supply tps62360 and tps62361B
+ * Driver for processor core supply tps62360, tps62361B, tps62362 and tps62363.
  *
  * Copyright (c) 2012, NVIDIA Corporation.
  *
@@ -46,7 +46,7 @@
 #define REG_RAMPCTRL		6
 #define REG_CHIPID		8
 
-enum chips {TPS62360, TPS62361};
+enum chips {TPS62360, TPS62361, TPS62362, TPS62363};
 
 #define TPS62360_BASE_VOLTAGE	770
 #define TPS62360_N_VOLTAGES	64
@@ -56,10 +56,8 @@ enum chips {TPS62360, TPS62361};
 
 /* tps 62360 chip information */
 struct tps62360_chip {
-	const char *name;
 	struct device *dev;
 	struct regulator_desc desc;
-	struct i2c_client *client;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	int chip_id;
@@ -272,6 +270,7 @@ static const struct regmap_config tps62360_regmap_config = {
 static int __devinit tps62360_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
+	struct regulator_config config = { };
 	struct tps62360_regulator_platform_data *pdata;
 	struct regulator_dev *rdev;
 	struct tps62360_chip *tps;
@@ -297,21 +296,31 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 	tps->en_internal_pulldn = pdata->en_internal_pulldn;
 	tps->vsel0_gpio = pdata->vsel0_gpio;
 	tps->vsel1_gpio = pdata->vsel1_gpio;
-	tps->client = client;
 	tps->dev = &client->dev;
-	tps->name = id->name;
-	tps->voltage_base = (id->driver_data == TPS62360) ?
-				TPS62360_BASE_VOLTAGE : TPS62361_BASE_VOLTAGE;
-	tps->voltage_reg_mask = (id->driver_data == TPS62360) ? 0x3F : 0x7F;
+
+	switch (id->driver_data) {
+	case TPS62360:
+	case TPS62362:
+		tps->voltage_base = TPS62360_BASE_VOLTAGE;
+		tps->voltage_reg_mask = 0x3F;
+		tps->desc.n_voltages = TPS62360_N_VOLTAGES;
+		break;
+	case TPS62361:
+	case TPS62363:
+		tps->voltage_base = TPS62361_BASE_VOLTAGE;
+		tps->voltage_reg_mask = 0x7F;
+		tps->desc.n_voltages = TPS62361_N_VOLTAGES;
+		break;
+	default:
+		return -ENODEV;
+	}
 
 	tps->desc.name = id->name;
 	tps->desc.id = 0;
-	tps->desc.n_voltages = (id->driver_data == TPS62360) ?
-				TPS62360_N_VOLTAGES : TPS62361_N_VOLTAGES;
 	tps->desc.ops = &tps62360_dcdc_ops;
 	tps->desc.type = REGULATOR_VOLTAGE;
 	tps->desc.owner = THIS_MODULE;
-	tps->regmap = regmap_init_i2c(client, &tps62360_regmap_config);
+	tps->regmap = devm_regmap_init_i2c(client, &tps62360_regmap_config);
 	if (IS_ERR(tps->regmap)) {
 		ret = PTR_ERR(tps->regmap);
 		dev_err(&client->dev, "%s() Err: Failed to allocate register"
@@ -376,9 +385,12 @@ static int __devinit tps62360_probe(struct i2c_client *client,
 		goto err_init;
 	}
 
+	config.dev = &client->dev;
+	config.init_data = &pdata->reg_init_data;
+	config.driver_data = tps;
+
 	/* Register the regulators */
-	rdev = regulator_register(&tps->desc, &client->dev,
-				&pdata->reg_init_data, tps, NULL);
+	rdev = regulator_register(&tps->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(tps->dev, "%s() Err: Failed to register %s\n",
 				__func__, id->name);
@@ -396,7 +408,6 @@ err_gpio1:
 	if (gpio_is_valid(tps->vsel0_gpio))
 		gpio_free(tps->vsel0_gpio);
 err_gpio0:
-	regmap_exit(tps->regmap);
 	return ret;
 }
 
@@ -417,7 +428,6 @@ static int __devexit tps62360_remove(struct i2c_client *client)
 		gpio_free(tps->vsel0_gpio);
 
 	regulator_unregister(tps->rdev);
-	regmap_exit(tps->regmap);
 	return 0;
 }
 
@@ -439,6 +449,8 @@ static void tps62360_shutdown(struct i2c_client *client)
 static const struct i2c_device_id tps62360_id[] = {
 	{.name = "tps62360", .driver_data = TPS62360},
 	{.name = "tps62361", .driver_data = TPS62361},
+	{.name = "tps62362", .driver_data = TPS62362},
+	{.name = "tps62363", .driver_data = TPS62363},
 	{},
 };
 
@@ -468,5 +480,5 @@ static void __exit tps62360_cleanup(void)
 module_exit(tps62360_cleanup);
 
 MODULE_AUTHOR("Laxman Dewangan <ldewangan@nvidia.com>");
-MODULE_DESCRIPTION("TPS62360 voltage regulator driver");
+MODULE_DESCRIPTION("TPS6236x voltage regulator driver");
 MODULE_LICENSE("GPL v2");

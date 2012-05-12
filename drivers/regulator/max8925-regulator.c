@@ -42,8 +42,6 @@ struct max8925_regulator_info {
 	int	max_uV;
 	int	step_uV;
 	int	vol_reg;
-	int	vol_shift;
-	int	vol_nbits;
 	int	enable_reg;
 };
 
@@ -75,8 +73,7 @@ static int max8925_set_voltage(struct regulator_dev *rdev,
 	}
 	data = DIV_ROUND_UP(min_uV - info->min_uV, info->step_uV);
 	*selector = data;
-	data <<= info->vol_shift;
-	mask = ((1 << info->vol_nbits) - 1) << info->vol_shift;
+	mask = rdev->desc->n_voltages - 1;
 
 	return max8925_set_bits(info->i2c, info->vol_reg, mask, data);
 }
@@ -90,8 +87,8 @@ static int max8925_get_voltage(struct regulator_dev *rdev)
 	ret = max8925_reg_read(info->i2c, info->vol_reg);
 	if (ret < 0)
 		return ret;
-	mask = ((1 << info->vol_nbits) - 1) << info->vol_shift;
-	data = (ret & mask) >> info->vol_shift;
+	mask = rdev->desc->n_voltages - 1;
+	data = ret & mask;
 
 	return max8925_list_voltage(rdev, data);
 }
@@ -163,6 +160,7 @@ static int max8925_set_dvm_disable(struct regulator_dev *rdev)
 }
 
 static struct regulator_ops max8925_regulator_sdv_ops = {
+	.list_voltage		= max8925_list_voltage,
 	.set_voltage		= max8925_set_voltage,
 	.get_voltage		= max8925_get_voltage,
 	.enable			= max8925_enable,
@@ -174,6 +172,7 @@ static struct regulator_ops max8925_regulator_sdv_ops = {
 };
 
 static struct regulator_ops max8925_regulator_ldo_ops = {
+	.list_voltage		= max8925_list_voltage,
 	.set_voltage		= max8925_set_voltage,
 	.get_voltage		= max8925_get_voltage,
 	.enable			= max8925_enable,
@@ -189,13 +188,12 @@ static struct regulator_ops max8925_regulator_ldo_ops = {
 		.type	= REGULATOR_VOLTAGE,			\
 		.id	= MAX8925_ID_SD##_id,			\
 		.owner	= THIS_MODULE,				\
+		.n_voltages = 64,				\
 	},							\
 	.min_uV		= min * 1000,				\
 	.max_uV		= max * 1000,				\
 	.step_uV	= step * 1000,				\
 	.vol_reg	= MAX8925_SDV##_id,			\
-	.vol_shift	= 0,					\
-	.vol_nbits	= 6,					\
 	.enable_reg	= MAX8925_SDCTL##_id,			\
 }
 
@@ -207,13 +205,12 @@ static struct regulator_ops max8925_regulator_ldo_ops = {
 		.type	= REGULATOR_VOLTAGE,			\
 		.id	= MAX8925_ID_LDO##_id,			\
 		.owner	= THIS_MODULE,				\
+		.n_voltages = 64,				\
 	},							\
 	.min_uV		= min * 1000,				\
 	.max_uV		= max * 1000,				\
 	.step_uV	= step * 1000,				\
 	.vol_reg	= MAX8925_LDOVOUT##_id,			\
-	.vol_shift	= 0,					\
-	.vol_nbits	= 6,					\
 	.enable_reg	= MAX8925_LDOCTL##_id,			\
 }
 
@@ -261,6 +258,7 @@ static int __devinit max8925_regulator_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_platform_data *pdata = chip->dev->platform_data;
+	struct regulator_config config = { };
 	struct max8925_regulator_info *ri;
 	struct regulator_dev *rdev;
 
@@ -272,8 +270,11 @@ static int __devinit max8925_regulator_probe(struct platform_device *pdev)
 	ri->i2c = chip->i2c;
 	ri->chip = chip;
 
-	rdev = regulator_register(&ri->desc, &pdev->dev,
-				  pdata->regulator[pdev->id], ri, NULL);
+	config.dev = &pdev->dev;
+	config.init_data = pdata->regulator[pdev->id];
+	config.driver_data = ri;
+
+	rdev = regulator_register(&ri->desc, &config);
 	if (IS_ERR(rdev)) {
 		dev_err(&pdev->dev, "failed to register regulator %s\n",
 				ri->desc.name);

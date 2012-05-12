@@ -112,7 +112,7 @@ static struct regulator_ops isl_fixed_ops = {
 	.list_voltage	= isl6271a_list_fixed_voltage,
 };
 
-static struct regulator_desc isl_rd[] = {
+static const struct regulator_desc isl_rd[] = {
 	{
 		.name		= "Core Buck",
 		.id		= 0,
@@ -140,6 +140,7 @@ static struct regulator_desc isl_rd[] = {
 static int __devinit isl6271a_probe(struct i2c_client *i2c,
 				     const struct i2c_device_id *id)
 {
+	struct regulator_config config = { };
 	struct regulator_init_data *init_data	= i2c->dev.platform_data;
 	struct isl_pmic *pmic;
 	int err, i;
@@ -147,12 +148,7 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 	if (!i2c_check_functionality(i2c->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	if (!init_data) {
-		dev_err(&i2c->dev, "no platform data supplied\n");
-		return -EIO;
-	}
-
-	pmic = kzalloc(sizeof(struct isl_pmic), GFP_KERNEL);
+	pmic = devm_kzalloc(&i2c->dev, sizeof(struct isl_pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -161,8 +157,14 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 	mutex_init(&pmic->mtx);
 
 	for (i = 0; i < 3; i++) {
-		pmic->rdev[i] = regulator_register(&isl_rd[i], &i2c->dev,
-						init_data, pmic, NULL);
+		config.dev = &i2c->dev;
+		if (i == 0)
+			config.init_data = init_data;
+		else
+			config.init_data = 0;
+		config.driver_data = pmic;
+
+		pmic->rdev[i] = regulator_register(&isl_rd[i], &config);
 		if (IS_ERR(pmic->rdev[i])) {
 			dev_err(&i2c->dev, "failed to register %s\n", id->name);
 			err = PTR_ERR(pmic->rdev[i]);
@@ -177,8 +179,6 @@ static int __devinit isl6271a_probe(struct i2c_client *i2c,
 error:
 	while (--i >= 0)
 		regulator_unregister(pmic->rdev[i]);
-
-	kfree(pmic);
 	return err;
 }
 
@@ -189,9 +189,6 @@ static int __devexit isl6271a_remove(struct i2c_client *i2c)
 
 	for (i = 0; i < 3; i++)
 		regulator_unregister(pmic->rdev[i]);
-
-	kfree(pmic);
-
 	return 0;
 }
 
