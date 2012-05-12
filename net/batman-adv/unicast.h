@@ -33,7 +33,7 @@ int batadv_frag_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 			 struct hard_iface *hard_iface,
 			 const uint8_t dstaddr[]);
 
-static inline int frag_can_reassemble(const struct sk_buff *skb, int mtu)
+static inline int batadv_frag_can_reassemble(const struct sk_buff *skb, int mtu)
 {
 	const struct unicast_frag_packet *unicast_packet;
 	int uneven_correction = 0;

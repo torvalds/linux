@@ -869,7 +869,8 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	}
 
 	if (unicast_packet->header.packet_type == BAT_UNICAST_FRAG &&
-	    frag_can_reassemble(skb, neigh_node->if_incoming->net_dev->mtu)) {
+	    batadv_frag_can_reassemble(skb,
+				       neigh_node->if_incoming->net_dev->mtu)) {
 
 		ret = batadv_frag_reassemble_skb(skb, bat_priv, &new_skb);
 
