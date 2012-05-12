@@ -145,7 +145,7 @@ static ssize_t rcname_read(struct file *file, char __user *userbuf,
 
 static const struct file_operations rcname_ops = {
 	.read = rcname_read,
-	.open = mac80211_open_file_generic,
+	.open = simple_open,
 	.llseek = default_llseek,
 };
 #endif

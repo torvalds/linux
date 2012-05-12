@@ -42,10 +42,6 @@
 /* This number is used when no interrupt has been assigned */
 #define NO_IRQ		0
 
-struct irq_data;
-extern irq_hw_number_t irqd_to_hwirq(struct irq_data *d);
-extern irq_hw_number_t virq_to_hw(unsigned int virq);
-
 extern void __init init_pic_c64xplus(void);
 
 extern void init_IRQ(void);

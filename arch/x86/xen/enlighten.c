@@ -261,7 +261,8 @@ static void xen_cpuid(unsigned int *ax, unsigned int *bx,
 
 static bool __init xen_check_mwait(void)
 {
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI) && !defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR) && \
+	!defined(CONFIG_ACPI_PROCESSOR_AGGREGATOR_MODULE)
 	struct xen_platform_op op = {
 		.cmd			= XENPF_set_processor_pminfo,
 		.u.set_pminfo.id	= -1,
@@ -349,7 +350,6 @@ static void __init xen_init_cpuid_mask(void)
 	/* Xen will set CR4.OSXSAVE if supported and not disabled by force */
 	if ((cx & xsave_mask) != xsave_mask)
 		cpuid_leaf1_ecx_mask &= ~xsave_mask; /* disable XSAVE & OSXSAVE */
-
 	if (xen_check_mwait())
 		cpuid_leaf1_ecx_set_mask = (1 << (X86_FEATURE_MWAIT % 32));
 }
@@ -967,7 +967,7 @@ void xen_setup_shared_info(void)
 	xen_setup_mfn_list_list();
 }
 
-/* This is called once we have the cpu_possible_map */
+/* This is called once we have the cpu_possible_mask */
 void xen_setup_vcpu_info_placement(void)
 {
 	int cpu;

@@ -1,5 +1,5 @@
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/interface_capabilities
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/device_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/interface_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/device_capabilities
 Date:		August 2008
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
@@ -12,8 +12,8 @@ Description:
 		The files are read only.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/usb488_interface_capabilities
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/usb488_device_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/usb488_interface_capabilities
+What:		/sys/bus/usb/drivers/usbtmc/*/usb488_device_capabilities
 Date:		August 2008
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
@@ -27,7 +27,7 @@ Description:
 		The files are read only.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/TermChar
+What:		/sys/bus/usb/drivers/usbtmc/*/TermChar
 Date:		August 2008
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
@@ -40,7 +40,7 @@ Description:
 		sent to the device or not.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/TermCharEnabled
+What:		/sys/bus/usb/drivers/usbtmc/*/TermCharEnabled
 Date:		August 2008
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:
@@ -51,7 +51,7 @@ Description:
 		published by the USB-IF.
 
 
-What:		/sys/bus/usb/drivers/usbtmc/devices/*/auto_abort
+What:		/sys/bus/usb/drivers/usbtmc/*/auto_abort
 Date:		August 2008
 Contact:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 Description:

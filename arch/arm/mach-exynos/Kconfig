@@ -370,6 +370,7 @@ comment "Flattened Device Tree based board for EXYNOS SoCs"
 
 config MACH_EXYNOS4_DT
 	bool "Samsung Exynos4 Machine using device tree"
+	depends on ARCH_EXYNOS4
 	select CPU_EXYNOS4210
 	select USE_OF
 	select ARM_AMBA
@@ -382,6 +383,7 @@ config MACH_EXYNOS4_DT
 
 config MACH_EXYNOS5_DT
 	bool "SAMSUNG EXYNOS5 Machine using device tree"
+	depends on ARCH_EXYNOS5
 	select SOC_EXYNOS5250
 	select USE_OF
 	select ARM_AMBA

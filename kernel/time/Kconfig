@@ -1,6 +1,10 @@
 #
 # Timer subsystem related configuration options
 #
+
+# Core internal switch. Selected by NO_HZ / HIGH_RES_TIMERS. This is
+# only related to the tick functionality. Oneshot clockevent devices
+# are supported independ of this.
 config TICK_ONESHOT
 	bool
 

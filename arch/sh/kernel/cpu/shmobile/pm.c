@@ -16,6 +16,7 @@
 #include <asm/suspend.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
+#include <asm/bl_bit.h>
 
 /*
  * Notifier lists for pre/post sleep notification

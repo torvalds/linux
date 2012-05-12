@@ -58,8 +58,8 @@ static void __init ar913x_wmac_setup(void)
 
 static int ar933x_wmac_reset(void)
 {
-	ath79_device_reset_clear(AR933X_RESET_WMAC);
 	ath79_device_reset_set(AR933X_RESET_WMAC);
+	ath79_device_reset_clear(AR933X_RESET_WMAC);
 
 	return 0;
 }

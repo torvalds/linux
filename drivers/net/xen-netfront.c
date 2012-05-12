@@ -1965,7 +1965,7 @@ static int __init netif_init(void)
 	if (xen_initial_domain())
 		return 0;
 
-	if (!xen_platform_pci_unplug)
+	if (xen_hvm_domain() && !xen_platform_pci_unplug)
 		return -ENODEV;
 
 	printk(KERN_INFO "Initialising Xen virtual ethernet driver.\n");

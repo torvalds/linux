@@ -124,46 +124,38 @@ static int _usbctrl_vendorreq_sync_read(struct usb_device *udev, u8 request,
 	return status;
 }
 
-static u32 _usb_read_sync(struct usb_device *udev, u32 addr, u16 len)
+static u32 _usb_read_sync(struct rtl_priv *rtlpriv, u32 addr, u16 len)
 {
+	struct device *dev = rtlpriv->io.dev;
+	struct usb_device *udev = to_usb_device(dev);
 	u8 request;
 	u16 wvalue;
 	u16 index;
-	u32 *data;
-	u32 ret;
+	__le32 *data = &rtlpriv->usb_data[rtlpriv->usb_data_index];
 
-	data = kmalloc(sizeof(u32), GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
 	request = REALTEK_USB_VENQT_CMD_REQ;
 	index = REALTEK_USB_VENQT_CMD_IDX; /* n/a */
 
 	wvalue = (u16)addr;
 	_usbctrl_vendorreq_sync_read(udev, request, wvalue, index, data, len);
-	ret = le32_to_cpu(*data);
-	kfree(data);
-	return ret;
+	if (++rtlpriv->usb_data_index >= RTL_USB_MAX_RX_COUNT)
+		rtlpriv->usb_data_index = 0;
+	return le32_to_cpu(*data);
 }
 
 static u8 _usb_read8_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	return (u8)_usb_read_sync(to_usb_device(dev), addr, 1);
+	return (u8)_usb_read_sync(rtlpriv, addr, 1);
 }
 
 static u16 _usb_read16_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	return (u16)_usb_read_sync(to_usb_device(dev), addr, 2);
+	return (u16)_usb_read_sync(rtlpriv, addr, 2);
 }
 
 static u32 _usb_read32_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
-	struct device *dev = rtlpriv->io.dev;
-
-	return _usb_read_sync(to_usb_device(dev), addr, 4);
+	return _usb_read_sync(rtlpriv, addr, 4);
 }
 
 static void _usb_write_async(struct usb_device *udev, u32 addr, u32 val,
@@ -955,6 +947,11 @@ int __devinit rtl_usb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 	rtlpriv = hw->priv;
+	rtlpriv->usb_data = kzalloc(RTL_USB_MAX_RX_COUNT * sizeof(u32),
+				    GFP_KERNEL);
+	if (!rtlpriv->usb_data)
+		return -ENOMEM;
+	rtlpriv->usb_data_index = 0;
 	init_completion(&rtlpriv->firmware_loading_complete);
 	SET_IEEE80211_DEV(hw, &intf->dev);
 	udev = interface_to_usbdev(intf);
@@ -1025,6 +1022,7 @@ void rtl_usb_disconnect(struct usb_interface *intf)
 	/* rtl_deinit_rfkill(hw); */
 	rtl_usb_deinit(hw);
 	rtl_deinit_core(hw);
+	kfree(rtlpriv->usb_data);
 	rtlpriv->cfg->ops->deinit_sw_leds(hw);
 	rtlpriv->cfg->ops->deinit_sw_vars(hw);
 	_rtl_usb_io_handler_release(hw);

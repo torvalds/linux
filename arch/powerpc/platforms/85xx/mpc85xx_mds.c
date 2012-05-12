@@ -270,7 +270,7 @@ static void __init mpc85xx_mds_qe_init(void)
 
 	if (machine_is(p1021_mds)) {
 
-		struct ccsr_guts_85xx __iomem *guts;
+		struct ccsr_guts __iomem *guts;
 
 		np = of_find_node_by_name(NULL, "global-utilities");
 		if (np) {
@@ -399,12 +399,6 @@ static int __init board_fixups(void)
 machine_arch_initcall(mpc8568_mds, board_fixups);
 machine_arch_initcall(mpc8569_mds, board_fixups);
 
-static struct of_device_id mpc85xx_ids[] = {
-	{ .compatible = "fsl,mpc8548-guts", },
-	{ .compatible = "gpio-leds", },
-	{},
-};
-
 static int __init mpc85xx_publish_devices(void)
 {
 	if (machine_is(mpc8568_mds))
@@ -412,10 +406,7 @@ static int __init mpc85xx_publish_devices(void)
 	if (machine_is(mpc8569_mds))
 		simple_gpiochip_init("fsl,mpc8569mds-bcsr-gpio");
 
-	mpc85xx_common_publish_devices();
-	of_platform_bus_probe(NULL, mpc85xx_ids, NULL);
-
-	return 0;
+	return mpc85xx_common_publish_devices();
 }
 
 machine_device_initcall(mpc8568_mds, mpc85xx_publish_devices);

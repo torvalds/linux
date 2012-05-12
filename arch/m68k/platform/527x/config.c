@@ -74,9 +74,7 @@ static void __init m527x_fec_init(void)
 	writew(par | 0xf00, MCF_IPSBAR + 0x100082);
 	v = readb(MCF_IPSBAR + 0x100078);
 	writeb(v | 0xc0, MCF_IPSBAR + 0x100078);
-#endif
 
-#ifdef CONFIG_FEC2
 	/* Set multi-function pins to ethernet mode for fec1 */
 	par = readw(MCF_IPSBAR + 0x100082);
 	writew(par | 0xa0, MCF_IPSBAR + 0x100082);

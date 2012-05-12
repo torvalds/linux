@@ -206,40 +206,43 @@ reenable_mmu:				/* re-enable mmu so we can */
 	andi.	r10,r10,MSR_EE		/* Did EE change? */
 	beq	1f
 
-	/* Save handler and return address into the 2 unused words
-	 * of the STACK_FRAME_OVERHEAD (sneak sneak sneak). Everything
-	 * else can be recovered from the pt_regs except r3 which for
-	 * normal interrupts has been set to pt_regs and for syscalls
-	 * is an argument, so we temporarily use ORIG_GPR3 to save it
-	 */
-	stw	r9,8(r1)
-	stw	r11,12(r1)
-	stw	r3,ORIG_GPR3(r1)
 	/*
 	 * The trace_hardirqs_off will use CALLER_ADDR0 and CALLER_ADDR1.
 	 * If from user mode there is only one stack frame on the stack, and
 	 * accessing CALLER_ADDR1 will cause oops. So we need create a dummy
 	 * stack frame to make trace_hardirqs_off happy.
+	 *
+	 * This is handy because we also need to save a bunch of GPRs,
+	 * r3 can be different from GPR3(r1) at this point, r9 and r11
+	 * contains the old MSR and handler address respectively,
+	 * r4 & r5 can contain page fault arguments that need to be passed
+	 * along as well. r12, CCR, CTR, XER etc... are left clobbered as
+	 * they aren't useful past this point (aren't syscall arguments),
+	 * the rest is restored from the exception frame.
 	 */
+	stwu	r1,-32(r1)
+	stw	r9,8(r1)
+	stw	r11,12(r1)
+	stw	r3,16(r1)
+	stw	r4,20(r1)
+	stw	r5,24(r1)
 	andi.	r12,r12,MSR_PR
-	beq	11f
-	stwu	r1,-16(r1)
+	b	11f
 	bl	trace_hardirqs_off
-	addi	r1,r1,16
 	b	12f
-
 11:
 	bl	trace_hardirqs_off
 12:
+	lwz	r5,24(r1)
+	lwz	r4,20(r1)
+	lwz	r3,16(r1)
+	lwz	r11,12(r1)
+	lwz	r9,8(r1)
+	addi	r1,r1,32
 	lwz	r0,GPR0(r1)
-	lwz	r3,ORIG_GPR3(r1)
-	lwz	r4,GPR4(r1)
-	lwz	r5,GPR5(r1)
 	lwz	r6,GPR6(r1)
 	lwz	r7,GPR7(r1)
 	lwz	r8,GPR8(r1)
-	lwz	r9,8(r1)
-	lwz	r11,12(r1)
 1:	mtctr	r11
 	mtlr	r9
 	bctr				/* jump to handler */

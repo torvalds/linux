@@ -2604,8 +2604,6 @@ extern void		net_disable_timestamp(void);
 extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
 extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 extern void dev_seq_stop(struct seq_file *seq, void *v);
-extern int dev_seq_open_ops(struct inode *inode, struct file *file,
-			    const struct seq_operations *ops);
 #endif
 
 extern int netdev_class_create_file(struct class_attribute *class_attr);

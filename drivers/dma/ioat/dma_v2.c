@@ -128,7 +128,7 @@ static void ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 	spin_unlock_bh(&ioat->prep_lock);
 }
 
-static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
+static void __cleanup(struct ioat2_dma_chan *ioat, dma_addr_t phys_complete)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	struct dma_async_tx_descriptor *tx;
@@ -179,7 +179,7 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 static void ioat2_cleanup(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	unsigned long phys_complete;
+	dma_addr_t phys_complete;
 
 	spin_lock_bh(&chan->cleanup_lock);
 	if (ioat_cleanup_preamble(chan, &phys_complete))
@@ -260,7 +260,7 @@ int ioat2_reset_sync(struct ioat_chan_common *chan, unsigned long tmo)
 static void ioat2_restart_channel(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
-	unsigned long phys_complete;
+	dma_addr_t phys_complete;
 
 	ioat2_quiesce(chan, 0);
 	if (ioat_cleanup_preamble(chan, &phys_complete))
@@ -275,7 +275,7 @@ void ioat2_timer_event(unsigned long data)
 	struct ioat_chan_common *chan = &ioat->base;
 
 	if (test_bit(IOAT_COMPLETION_PENDING, &chan->state)) {
-		unsigned long phys_complete;
+		dma_addr_t phys_complete;
 		u64 status;
 
 		status = ioat_chansts(chan);
@@ -572,9 +572,9 @@ bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
 	 */
 	struct ioat_chan_common *chan = &ioat->base;
 	struct dma_chan *c = &chan->common;
-	const u16 curr_size = ioat2_ring_size(ioat);
+	const u32 curr_size = ioat2_ring_size(ioat);
 	const u16 active = ioat2_ring_active(ioat);
-	const u16 new_size = 1 << order;
+	const u32 new_size = 1 << order;
 	struct ioat_ring_ent **ring;
 	u16 i;
 

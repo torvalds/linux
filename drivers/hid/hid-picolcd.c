@@ -1525,12 +1525,6 @@ static const struct file_operations picolcd_debug_reset_fops = {
 /*
  * The "eeprom" file
  */
-static int picolcd_debug_eeprom_open(struct inode *i, struct file *f)
-{
-	f->private_data = i->i_private;
-	return 0;
-}
-
 static ssize_t picolcd_debug_eeprom_read(struct file *f, char __user *u,
 		size_t s, loff_t *off)
 {
@@ -1618,7 +1612,7 @@ static ssize_t picolcd_debug_eeprom_write(struct file *f, const char __user *u,
  */
 static const struct file_operations picolcd_debug_eeprom_fops = {
 	.owner    = THIS_MODULE,
-	.open     = picolcd_debug_eeprom_open,
+	.open     = simple_open,
 	.read     = picolcd_debug_eeprom_read,
 	.write    = picolcd_debug_eeprom_write,
 	.llseek   = generic_file_llseek,
@@ -1627,12 +1621,6 @@ static const struct file_operations picolcd_debug_eeprom_fops = {
 /*
  * The "flash" file
  */
-static int picolcd_debug_flash_open(struct inode *i, struct file *f)
-{
-	f->private_data = i->i_private;
-	return 0;
-}
-
 /* record a flash address to buf (bounds check to be done by caller) */
 static int _picolcd_flash_setaddr(struct picolcd_data *data, u8 *buf, long off)
 {
@@ -1817,7 +1805,7 @@ static ssize_t picolcd_debug_flash_write(struct file *f, const char __user *u,
  */
 static const struct file_operations picolcd_debug_flash_fops = {
 	.owner    = THIS_MODULE,
-	.open     = picolcd_debug_flash_open,
+	.open     = simple_open,
 	.read     = picolcd_debug_flash_read,
 	.write    = picolcd_debug_flash_write,
 	.llseek   = generic_file_llseek,

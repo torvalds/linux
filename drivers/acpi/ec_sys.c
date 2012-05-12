@@ -27,12 +27,6 @@ MODULE_PARM_DESC(write_support, "Dangerous, reboot and removal of battery may "
 
 static struct dentry *acpi_ec_debugfs_dir;
 
-static int acpi_ec_open_io(struct inode *i, struct file *f)
-{
-	f->private_data = i->i_private;
-	return 0;
-}
-
 static ssize_t acpi_ec_read_io(struct file *f, char __user *buf,
 			       size_t count, loff_t *off)
 {
@@ -95,7 +89,7 @@ static ssize_t acpi_ec_write_io(struct file *f, const char __user *buf,
 
 static const struct file_operations acpi_ec_io_ops = {
 	.owner = THIS_MODULE,
-	.open  = acpi_ec_open_io,
+	.open  = simple_open,
 	.read  = acpi_ec_read_io,
 	.write = acpi_ec_write_io,
 	.llseek = default_llseek,

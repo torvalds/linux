@@ -17,7 +17,7 @@
 		bootargs = "mem=64M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=jffs2";
 	};
 
-	memory@70000000 {
+	memory {
 		reg = <0x70000000 0x4000000>;
 	};
 
@@ -73,8 +73,8 @@
 		usb0: ohci@00700000 {
 			status = "okay";
 			num-ports = <2>;
-			atmel,vbus-gpio = <&pioD 1 0
-					   &pioD 3 0>;
+			atmel,vbus-gpio = <&pioD 1 1
+					   &pioD 3 1>;
 		};
 
 		usb1: ehci@00800000 {

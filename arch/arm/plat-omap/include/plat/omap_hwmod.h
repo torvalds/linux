@@ -47,17 +47,17 @@ extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
  * with the original PRCM protocol defined for OMAP2420
  */
 #define SYSC_TYPE1_MIDLEMODE_SHIFT	12
-#define SYSC_TYPE1_MIDLEMODE_MASK	(0x3 << SYSC_MIDLEMODE_SHIFT)
+#define SYSC_TYPE1_MIDLEMODE_MASK	(0x3 << SYSC_TYPE1_MIDLEMODE_SHIFT)
 #define SYSC_TYPE1_CLOCKACTIVITY_SHIFT	8
-#define SYSC_TYPE1_CLOCKACTIVITY_MASK	(0x3 << SYSC_CLOCKACTIVITY_SHIFT)
+#define SYSC_TYPE1_CLOCKACTIVITY_MASK	(0x3 << SYSC_TYPE1_CLOCKACTIVITY_SHIFT)
 #define SYSC_TYPE1_SIDLEMODE_SHIFT	3
-#define SYSC_TYPE1_SIDLEMODE_MASK	(0x3 << SYSC_SIDLEMODE_SHIFT)
+#define SYSC_TYPE1_SIDLEMODE_MASK	(0x3 << SYSC_TYPE1_SIDLEMODE_SHIFT)
 #define SYSC_TYPE1_ENAWAKEUP_SHIFT	2
-#define SYSC_TYPE1_ENAWAKEUP_MASK	(1 << SYSC_ENAWAKEUP_SHIFT)
+#define SYSC_TYPE1_ENAWAKEUP_MASK	(1 << SYSC_TYPE1_ENAWAKEUP_SHIFT)
 #define SYSC_TYPE1_SOFTRESET_SHIFT	1
-#define SYSC_TYPE1_SOFTRESET_MASK	(1 << SYSC_SOFTRESET_SHIFT)
+#define SYSC_TYPE1_SOFTRESET_MASK	(1 << SYSC_TYPE1_SOFTRESET_SHIFT)
 #define SYSC_TYPE1_AUTOIDLE_SHIFT	0
-#define SYSC_TYPE1_AUTOIDLE_MASK	(1 << SYSC_AUTOIDLE_SHIFT)
+#define SYSC_TYPE1_AUTOIDLE_MASK	(1 << SYSC_TYPE1_AUTOIDLE_SHIFT)
 
 /*
  * OCP SYSCONFIG bit shifts/masks TYPE2. These are for IPs compliant
@@ -305,6 +305,7 @@ struct omap_hwmod_sysc_fields {
  * @rev_offs: IP block revision register offset (from module base addr)
  * @sysc_offs: OCP_SYSCONFIG register offset (from module base addr)
  * @syss_offs: OCP_SYSSTATUS register offset (from module base addr)
+ * @srst_udelay: Delay needed after doing a softreset in usecs
  * @idlemodes: One or more of {SIDLE,MSTANDBY}_{OFF,FORCE,SMART}
  * @sysc_flags: SYS{C,S}_HAS* flags indicating SYSCONFIG bits supported
  * @clockact: the default value of the module CLOCKACTIVITY bits
@@ -330,9 +331,10 @@ struct omap_hwmod_class_sysconfig {
 	u16 sysc_offs;
 	u16 syss_offs;
 	u16 sysc_flags;
+	struct omap_hwmod_sysc_fields *sysc_fields;
+	u8 srst_udelay;
 	u8 idlemodes;
 	u8 clockact;
-	struct omap_hwmod_sysc_fields *sysc_fields;
 };
 
 /**

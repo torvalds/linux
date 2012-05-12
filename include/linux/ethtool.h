@@ -896,8 +896,7 @@ static inline u32 ethtool_rxfh_indir_default(u32 index, u32 n_rx_rings)
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
- * hold the RTNL, except that for @get_drvinfo the caller may or may
- * not hold the RTNL.
+ * hold the RTNL lock.
  *
  * See the structures used by these operations for further documentation.
  *

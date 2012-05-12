@@ -330,13 +330,9 @@ void migrate_irqs(void)
 
 	alloc_cpumask_var(&mask, GFP_KERNEL);
 
-	for_each_irq(irq) {
+	for_each_irq_desc(irq, desc) {
 		struct irq_data *data;
 		struct irq_chip *chip;
-
-		desc = irq_to_desc(irq);
-		if (!desc)
-			continue;
 
 		data = irq_desc_get_irq_data(desc);
 		if (irqd_is_per_cpu(data))
@@ -559,12 +555,6 @@ void do_softirq(void)
 
 	local_irq_restore(flags);
 }
-
-irq_hw_number_t irqd_to_hwirq(struct irq_data *d)
-{
-	return d->hwirq;
-}
-EXPORT_SYMBOL_GPL(irqd_to_hwirq);
 
 irq_hw_number_t virq_to_hw(unsigned int virq)
 {

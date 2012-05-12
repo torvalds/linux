@@ -13,6 +13,7 @@ config DRM_NOUVEAU
 	select ACPI_VIDEO if ACPI && X86 && BACKLIGHT_CLASS_DEVICE && VIDEO_OUTPUT_CONTROL && INPUT
 	select ACPI_WMI if ACPI
 	select MXM_WMI if ACPI
+	select POWER_SUPPLY
 	help
 	  Choose this option for open-source nVidia support.
 

@@ -279,7 +279,7 @@ static int process_one_buffer(struct btrfs_root *log,
 						log->fs_info->extent_root,
 						eb->start, eb->len);
 
-	if (btrfs_buffer_uptodate(eb, gen)) {
+	if (btrfs_buffer_uptodate(eb, gen, 0)) {
 		if (wc->write)
 			btrfs_write_tree_block(eb);
 		if (wc->wait)

@@ -7,11 +7,13 @@ extern void xen_swiotlb_init(int verbose);
 
 extern void
 *xen_swiotlb_alloc_coherent(struct device *hwdev, size_t size,
-			    dma_addr_t *dma_handle, gfp_t flags);
+			    dma_addr_t *dma_handle, gfp_t flags,
+			    struct dma_attrs *attrs);
 
 extern void
 xen_swiotlb_free_coherent(struct device *hwdev, size_t size,
-			  void *vaddr, dma_addr_t dma_handle);
+			  void *vaddr, dma_addr_t dma_handle,
+			  struct dma_attrs *attrs);
 
 extern dma_addr_t xen_swiotlb_map_page(struct device *dev, struct page *page,
 				       unsigned long offset, size_t size,

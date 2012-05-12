@@ -475,25 +475,25 @@ static struct clk exynos5_init_clocks_off[] = {
 		.ctrlbit	= (1 << 20),
 	}, {
 		.name		= "hsmmc",
-		.devname	= "s3c-sdhci.0",
+		.devname	= "exynos4-sdhci.0",
 		.parent		= &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 12),
 	}, {
 		.name		= "hsmmc",
-		.devname	= "s3c-sdhci.1",
+		.devname	= "exynos4-sdhci.1",
 		.parent		= &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 13),
 	}, {
 		.name		= "hsmmc",
-		.devname	= "s3c-sdhci.2",
+		.devname	= "exynos4-sdhci.2",
 		.parent		= &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 14),
 	}, {
 		.name		= "hsmmc",
-		.devname	= "s3c-sdhci.3",
+		.devname	= "exynos4-sdhci.3",
 		.parent		= &exynos5_clk_aclk_200.clk,
 		.enable		= exynos5_clk_ip_fsys_ctrl,
 		.ctrlbit	= (1 << 15),
@@ -903,7 +903,7 @@ static struct clksrc_clk exynos5_clk_sclk_uart3 = {
 static struct clksrc_clk exynos5_clk_sclk_mmc0 = {
 	.clk	= {
 		.name		= "sclk_mmc",
-		.devname	= "s3c-sdhci.0",
+		.devname	= "exynos4-sdhci.0",
 		.parent		= &exynos5_clk_dout_mmc0.clk,
 		.enable		= exynos5_clksrc_mask_fsys_ctrl,
 		.ctrlbit	= (1 << 0),
@@ -914,7 +914,7 @@ static struct clksrc_clk exynos5_clk_sclk_mmc0 = {
 static struct clksrc_clk exynos5_clk_sclk_mmc1 = {
 	.clk	= {
 		.name		= "sclk_mmc",
-		.devname	= "s3c-sdhci.1",
+		.devname	= "exynos4-sdhci.1",
 		.parent		= &exynos5_clk_dout_mmc1.clk,
 		.enable		= exynos5_clksrc_mask_fsys_ctrl,
 		.ctrlbit	= (1 << 4),
@@ -925,7 +925,7 @@ static struct clksrc_clk exynos5_clk_sclk_mmc1 = {
 static struct clksrc_clk exynos5_clk_sclk_mmc2 = {
 	.clk	= {
 		.name		= "sclk_mmc",
-		.devname	= "s3c-sdhci.2",
+		.devname	= "exynos4-sdhci.2",
 		.parent		= &exynos5_clk_dout_mmc2.clk,
 		.enable		= exynos5_clksrc_mask_fsys_ctrl,
 		.ctrlbit	= (1 << 8),
@@ -936,7 +936,7 @@ static struct clksrc_clk exynos5_clk_sclk_mmc2 = {
 static struct clksrc_clk exynos5_clk_sclk_mmc3 = {
 	.clk	= {
 		.name		= "sclk_mmc",
-		.devname	= "s3c-sdhci.3",
+		.devname	= "exynos4-sdhci.3",
 		.parent		= &exynos5_clk_dout_mmc3.clk,
 		.enable		= exynos5_clksrc_mask_fsys_ctrl,
 		.ctrlbit	= (1 << 12),
@@ -1080,10 +1080,10 @@ static struct clk_lookup exynos5_clk_lookup[] = {
 	CLKDEV_INIT("exynos4210-uart.1", "clk_uart_baud0", &exynos5_clk_sclk_uart1.clk),
 	CLKDEV_INIT("exynos4210-uart.2", "clk_uart_baud0", &exynos5_clk_sclk_uart2.clk),
 	CLKDEV_INIT("exynos4210-uart.3", "clk_uart_baud0", &exynos5_clk_sclk_uart3.clk),
-	CLKDEV_INIT("s3c-sdhci.0", "mmc_busclk.2", &exynos5_clk_sclk_mmc0.clk),
-	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.2", &exynos5_clk_sclk_mmc1.clk),
-	CLKDEV_INIT("s3c-sdhci.2", "mmc_busclk.2", &exynos5_clk_sclk_mmc2.clk),
-	CLKDEV_INIT("s3c-sdhci.3", "mmc_busclk.2", &exynos5_clk_sclk_mmc3.clk),
+	CLKDEV_INIT("exynos4-sdhci.0", "mmc_busclk.2", &exynos5_clk_sclk_mmc0.clk),
+	CLKDEV_INIT("exynos4-sdhci.1", "mmc_busclk.2", &exynos5_clk_sclk_mmc1.clk),
+	CLKDEV_INIT("exynos4-sdhci.2", "mmc_busclk.2", &exynos5_clk_sclk_mmc2.clk),
+	CLKDEV_INIT("exynos4-sdhci.3", "mmc_busclk.2", &exynos5_clk_sclk_mmc3.clk),
 	CLKDEV_INIT("dma-pl330.0", "apb_pclk", &exynos5_clk_pdma0),
 	CLKDEV_INIT("dma-pl330.1", "apb_pclk", &exynos5_clk_pdma1),
 	CLKDEV_INIT("dma-pl330.2", "apb_pclk", &exynos5_clk_mdma1),

@@ -1568,9 +1568,14 @@ shrink_inactive_list(unsigned long nr_to_scan, struct mem_cgroup_zone *mz,
 	reclaim_stat->recent_scanned[0] += nr_anon;
 	reclaim_stat->recent_scanned[1] += nr_file;
 
-	if (current_is_kswapd())
-		__count_vm_events(KSWAPD_STEAL, nr_reclaimed);
-	__count_zone_vm_events(PGSTEAL, zone, nr_reclaimed);
+	if (global_reclaim(sc)) {
+		if (current_is_kswapd())
+			__count_zone_vm_events(PGSTEAL_KSWAPD, zone,
+					       nr_reclaimed);
+		else
+			__count_zone_vm_events(PGSTEAL_DIRECT, zone,
+					       nr_reclaimed);
+	}
 
 	putback_inactive_pages(mz, &page_list);
 
@@ -2107,12 +2112,7 @@ restart:
 		 * with multiple processes reclaiming pages, the total
 		 * freeing target can get unreasonably large.
 		 */
-		if (nr_reclaimed >= nr_to_reclaim)
-			nr_to_reclaim = 0;
-		else
-			nr_to_reclaim -= nr_reclaimed;
-
-		if (!nr_to_reclaim && priority < DEF_PRIORITY)
+		if (nr_reclaimed >= nr_to_reclaim && priority < DEF_PRIORITY)
 			break;
 	}
 	blk_finish_plug(&plug);

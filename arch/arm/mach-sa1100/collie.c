@@ -313,6 +313,10 @@ static struct sa1100fb_mach_info collie_lcd_info = {
 
 	.lccr0		= LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
 	.lccr3		= LCCR3_OutEnH | LCCR3_PixRsEdg | LCCR3_ACBsDiv(2),
+
+#ifdef CONFIG_BACKLIGHT_LOCOMO
+	.lcd_power	= locomolcd_power
+#endif
 };
 
 static void __init collie_init(void)

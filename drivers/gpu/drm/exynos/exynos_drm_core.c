@@ -54,16 +54,18 @@ static int exynos_drm_subdrv_probe(struct drm_device *dev,
 		 *
 		 * P.S. note that this driver is considered for modularization.
 		 */
-		ret = subdrv->probe(dev, subdrv->manager.dev);
+		ret = subdrv->probe(dev, subdrv->dev);
 		if (ret)
 			return ret;
 	}
 
-	if (subdrv->is_local)
+	if (!subdrv->manager)
 		return 0;
 
+	subdrv->manager->dev = subdrv->dev;
+
 	/* create and initialize a encoder for this sub driver. */
-	encoder = exynos_drm_encoder_create(dev, &subdrv->manager,
+	encoder = exynos_drm_encoder_create(dev, subdrv->manager,
 			(1 << MAX_CRTC) - 1);
 	if (!encoder) {
 		DRM_ERROR("failed to create encoder\n");
@@ -186,7 +188,7 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 
 	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
 		if (subdrv->open) {
-			ret = subdrv->open(dev, subdrv->manager.dev, file);
+			ret = subdrv->open(dev, subdrv->dev, file);
 			if (ret)
 				goto err;
 		}
@@ -197,7 +199,7 @@ int exynos_drm_subdrv_open(struct drm_device *dev, struct drm_file *file)
 err:
 	list_for_each_entry_reverse(subdrv, &subdrv->list, list) {
 		if (subdrv->close)
-			subdrv->close(dev, subdrv->manager.dev, file);
+			subdrv->close(dev, subdrv->dev, file);
 	}
 	return ret;
 }
@@ -209,7 +211,7 @@ void exynos_drm_subdrv_close(struct drm_device *dev, struct drm_file *file)
 
 	list_for_each_entry(subdrv, &exynos_drm_subdrv_list, list) {
 		if (subdrv->close)
-			subdrv->close(dev, subdrv->manager.dev, file);
+			subdrv->close(dev, subdrv->dev, file);
 	}
 }
 EXPORT_SYMBOL_GPL(exynos_drm_subdrv_close);

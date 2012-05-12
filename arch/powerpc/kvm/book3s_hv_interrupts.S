@@ -46,8 +46,10 @@ _GLOBAL(__kvmppc_vcore_entry)
 	/* Save host state to the stack */
 	stdu	r1, -SWITCH_FRAME_SIZE(r1)
 
-	/* Save non-volatile registers (r14 - r31) */
+	/* Save non-volatile registers (r14 - r31) and CR */
 	SAVE_NVGPRS(r1)
+	mfcr	r3
+	std	r3, _CCR(r1)
 
 	/* Save host DSCR */
 BEGIN_FTR_SECTION
@@ -157,8 +159,10 @@ kvmppc_handler_highmem:
 	 * R13      = PACA
 	 */
 
-	/* Restore non-volatile host registers (r14 - r31) */
+	/* Restore non-volatile host registers (r14 - r31) and CR */
 	REST_NVGPRS(r1)
+	ld	r4, _CCR(r1)
+	mtcr	r4
 
 	addi    r1, r1, SWITCH_FRAME_SIZE
 	ld	r0, PPC_LR_STKOFF(r1)

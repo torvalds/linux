@@ -515,7 +515,8 @@ core_initcall(ps3_system_bus_init);
  * to the dma address (mapping) of the first page.
  */
 static void * ps3_alloc_coherent(struct device *_dev, size_t size,
-				      dma_addr_t *dma_handle, gfp_t flag)
+				 dma_addr_t *dma_handle, gfp_t flag,
+				 struct dma_attrs *attrs)
 {
 	int result;
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
@@ -552,7 +553,7 @@ clean_none:
 }
 
 static void ps3_free_coherent(struct device *_dev, size_t size, void *vaddr,
-	dma_addr_t dma_handle)
+			      dma_addr_t dma_handle, struct dma_attrs *attrs)
 {
 	struct ps3_system_bus_device *dev = ps3_dev_to_system_bus_dev(_dev);
 
@@ -701,8 +702,8 @@ static u64 ps3_dma_get_required_mask(struct device *_dev)
 }
 
 static struct dma_map_ops ps3_sb_dma_ops = {
-	.alloc_coherent = ps3_alloc_coherent,
-	.free_coherent = ps3_free_coherent,
+	.alloc = ps3_alloc_coherent,
+	.free = ps3_free_coherent,
 	.map_sg = ps3_sb_map_sg,
 	.unmap_sg = ps3_sb_unmap_sg,
 	.dma_supported = ps3_dma_supported,
@@ -712,8 +713,8 @@ static struct dma_map_ops ps3_sb_dma_ops = {
 };
 
 static struct dma_map_ops ps3_ioc0_dma_ops = {
-	.alloc_coherent = ps3_alloc_coherent,
-	.free_coherent = ps3_free_coherent,
+	.alloc = ps3_alloc_coherent,
+	.free = ps3_free_coherent,
 	.map_sg = ps3_ioc0_map_sg,
 	.unmap_sg = ps3_ioc0_unmap_sg,
 	.dma_supported = ps3_dma_supported,

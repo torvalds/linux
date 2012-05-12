@@ -84,6 +84,10 @@ kvm_start_entry:
 	/* Save non-volatile registers (r14 - r31) */
 	SAVE_NVGPRS(r1)
 
+	/* Save CR */
+	mfcr	r14
+	stw	r14, _CCR(r1)
+
 	/* Save LR */
 	PPC_STL	r0, _LINK(r1)
 
@@ -164,6 +168,9 @@ kvm_exit_loop:
 
 	PPC_LL	r4, _LINK(r1)
 	mtlr	r4
+
+	lwz	r14, _CCR(r1)
+	mtcr	r14
 
 	/* Restore non-volatile host registers (r14 - r31) */
 	REST_NVGPRS(r1)

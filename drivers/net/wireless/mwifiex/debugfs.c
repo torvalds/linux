@@ -140,18 +140,6 @@ static struct mwifiex_debug_data items[] = {
 static int num_of_items = ARRAY_SIZE(items);
 
 /*
- * Generic proc file open handler.
- *
- * This function is called every time a file is accessed for read or write.
- */
-static int
-mwifiex_open_generic(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-/*
  * Proc info file read handler.
  *
  * This function is called when the 'info' file is opened for reading.
@@ -676,19 +664,19 @@ done:
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.read = mwifiex_##name##_read,                                  \
 	.write = mwifiex_##name##_write,                                \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 #define MWIFIEX_DFS_FILE_READ_OPS(name)                                 \
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.read = mwifiex_##name##_read,                                  \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 #define MWIFIEX_DFS_FILE_WRITE_OPS(name)                                \
 static const struct file_operations mwifiex_dfs_##name##_fops = {       \
 	.write = mwifiex_##name##_write,                                \
-	.open = mwifiex_open_generic,                                   \
+	.open = simple_open,                                            \
 };
 
 

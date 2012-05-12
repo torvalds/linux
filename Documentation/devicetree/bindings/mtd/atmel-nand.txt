@@ -27,13 +27,13 @@ nand0: nand@40000000,0 {
 	reg = <0x40000000 0x10000000
 	       0xffffe800 0x200
 	      >;
-	atmel,nand-addr-offset = <21>;
-	atmel,nand-cmd-offset = <22>;
+	atmel,nand-addr-offset = <21>;	/* ale */
+	atmel,nand-cmd-offset = <22>;	/* cle */
 	nand-on-flash-bbt;
 	nand-ecc-mode = "soft";
-	gpios = <&pioC 13 0
-		 &pioC 14 0
-		 0
+	gpios = <&pioC 13 0	/* rdy */
+		 &pioC 14 0 	/* nce */
+		 0		/* cd */
 		>;
 	partition@0 {
 		...

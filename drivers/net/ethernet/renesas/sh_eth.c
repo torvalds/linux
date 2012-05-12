@@ -1,8 +1,8 @@
 /*
  *  SuperH Ethernet device driver
  *
- *  Copyright (C) 2006-2008 Nobuhiro Iwamatsu
- *  Copyright (C) 2008-2009 Renesas Solutions Corp.
+ *  Copyright (C) 2006-2012 Nobuhiro Iwamatsu
+ *  Copyright (C) 2008-2012 Renesas Solutions Corp.
  *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
@@ -38,6 +38,7 @@
 #include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/clk.h>
 #include <linux/sh_eth.h>
 
 #include "sh_eth.h"
@@ -279,8 +280,9 @@ static struct sh_eth_cpu_data *sh_eth_get_cpu_data(struct sh_eth_private *mdp)
 		return &sh_eth_my_cpu_data;
 }
 
-#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
+#elif defined(CONFIG_CPU_SUBTYPE_SH7734) || defined(CONFIG_CPU_SUBTYPE_SH7763)
 #define SH_ETH_HAS_TSU	1
+static void sh_eth_reset_hw_crc(struct net_device *ndev);
 static void sh_eth_chip_reset(struct net_device *ndev)
 {
 	struct sh_eth_private *mdp = netdev_priv(ndev);
@@ -314,6 +316,9 @@ static void sh_eth_reset(struct net_device *ndev)
 	sh_eth_write(ndev, 0x0, RDFAR);
 	sh_eth_write(ndev, 0x0, RDFXR);
 	sh_eth_write(ndev, 0x0, RDFFR);
+
+	/* Reset HW CRC register */
+	sh_eth_reset_hw_crc(ndev);
 }
 
 static void sh_eth_set_duplex(struct net_device *ndev)
@@ -370,7 +375,16 @@ static struct sh_eth_cpu_data sh_eth_my_cpu_data = {
 	.no_trimd	= 1,
 	.no_ade		= 1,
 	.tsu		= 1,
+#if defined(CONFIG_CPU_SUBTYPE_SH7734)
+	.hw_crc     = 1,
+#endif
 };
+
+static void sh_eth_reset_hw_crc(struct net_device *ndev)
+{
+	if (sh_eth_my_cpu_data.hw_crc)
+		sh_eth_write(ndev, 0x0, CSMR);
+}
 
 #elif defined(CONFIG_CPU_SUBTYPE_SH7619)
 #define SH_ETH_RESET_DEFAULT	1
@@ -790,7 +804,7 @@ static int sh_eth_dev_init(struct net_device *ndev)
 	/* all sh_eth int mask */
 	sh_eth_write(ndev, 0, EESIPR);
 
-#if defined(__LITTLE_ENDIAN__)
+#if defined(__LITTLE_ENDIAN)
 	if (mdp->cd->hw_swap)
 		sh_eth_write(ndev, EDMR_EL, EDMR);
 	else

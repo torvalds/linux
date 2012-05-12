@@ -47,7 +47,7 @@ struct ad7314_data {
 	u16 rx ____cacheline_aligned;
 };
 
-static int ad7314_spi_read(struct ad7314_data *chip, s16 *data)
+static int ad7314_spi_read(struct ad7314_data *chip)
 {
 	int ret;
 
@@ -57,9 +57,7 @@ static int ad7314_spi_read(struct ad7314_data *chip, s16 *data)
 		return ret;
 	}
 
-	*data = be16_to_cpu(chip->rx);
-
-	return ret;
+	return be16_to_cpu(chip->rx);
 }
 
 static ssize_t ad7314_show_temperature(struct device *dev,
@@ -70,12 +68,12 @@ static ssize_t ad7314_show_temperature(struct device *dev,
 	s16 data;
 	int ret;
 
-	ret = ad7314_spi_read(chip, &data);
+	ret = ad7314_spi_read(chip);
 	if (ret < 0)
 		return ret;
 	switch (spi_get_device_id(chip->spi_dev)->driver_data) {
 	case ad7314:
-		data = (data & AD7314_TEMP_MASK) >> AD7314_TEMP_OFFSET;
+		data = (ret & AD7314_TEMP_MASK) >> AD7314_TEMP_OFFSET;
 		data = (data << 6) >> 6;
 
 		return sprintf(buf, "%d\n", 250 * data);
@@ -86,7 +84,7 @@ static ssize_t ad7314_show_temperature(struct device *dev,
 		 * with a sign bit - which is a 14 bit 2's complement
 		 * register.  1lsb - 31.25 milli degrees centigrade
 		 */
-		data &= ADT7301_TEMP_MASK;
+		data = ret & ADT7301_TEMP_MASK;
 		data = (data << 2) >> 2;
 
 		return sprintf(buf, "%d\n",
@@ -128,6 +126,7 @@ static int __devinit ad7314_probe(struct spi_device *spi_dev)
 		ret = PTR_ERR(chip->hwmon_dev);
 		goto error_remove_group;
 	}
+	chip->spi_dev = spi_dev;
 
 	return 0;
 error_remove_group:

@@ -29,6 +29,8 @@
 #include <linux/usb/ulpi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
+#include <linux/regulator/machine.h>
+#include <linux/regulator/fixed.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -226,6 +228,11 @@ void __init mx31lite_map_io(void)
 static int mx31lite_baseboard;
 core_param(mx31lite_baseboard, mx31lite_baseboard, int, 0444);
 
+static struct regulator_consumer_supply dummy_supplies[] = {
+	REGULATOR_SUPPLY("vdd33a", "smsc911x"),
+	REGULATOR_SUPPLY("vddvario", "smsc911x"),
+};
+
 static void __init mx31lite_init(void)
 {
 	int ret;
@@ -258,6 +265,8 @@ static void __init mx31lite_init(void)
 			ULPI_OTG_DRVVBUS_EXT);
 	if (usbh2_pdata.otg)
 		imx31_add_mxc_ehci_hs(2, &usbh2_pdata);
+
+	regulator_register_fixed(0, dummy_supplies, ARRAY_SIZE(dummy_supplies));
 
 	/* SMSC9117 IRQ pin */
 	ret = gpio_request(IOMUX_TO_GPIO(MX31_PIN_SFS6), "sms9117-irq");

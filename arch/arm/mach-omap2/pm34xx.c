@@ -153,8 +153,7 @@ static void omap3_save_secure_ram_context(void)
 		pwrdm_set_next_pwrst(mpu_pwrdm, mpu_next_state);
 		/* Following is for error tracking, it should not happen */
 		if (ret) {
-			printk(KERN_ERR "save_secure_sram() returns %08x\n",
-				ret);
+			pr_err("save_secure_sram() returns %08x\n", ret);
 			while (1)
 				;
 		}
@@ -289,7 +288,7 @@ void omap_sram_idle(void)
 		break;
 	default:
 		/* Invalid state */
-		printk(KERN_ERR "Invalid mpu state in sram_idle\n");
+		pr_err("Invalid mpu state in sram_idle\n");
 		return;
 	}
 
@@ -439,18 +438,17 @@ restore:
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		state = pwrdm_read_prev_pwrst(pwrst->pwrdm);
 		if (state > pwrst->next_state) {
-			printk(KERN_INFO "Powerdomain (%s) didn't enter "
-			       "target state %d\n",
+			pr_info("Powerdomain (%s) didn't enter "
+				"target state %d\n",
 			       pwrst->pwrdm->name, pwrst->next_state);
 			ret = -1;
 		}
 		omap_set_pwrdm_state(pwrst->pwrdm, pwrst->saved_state);
 	}
 	if (ret)
-		printk(KERN_ERR "Could not enter target state in pm_suspend\n");
+		pr_err("Could not enter target state in pm_suspend\n");
 	else
-		printk(KERN_INFO "Successfully put all powerdomains "
-		       "to target state\n");
+		pr_info("Successfully put all powerdomains to target state\n");
 
 	return ret;
 }
@@ -734,21 +732,22 @@ static int __init omap3_pm_init(void)
 
 	if (ret) {
 		pr_err("pm: Failed to request pm_io irq\n");
-		goto err1;
+		goto err2;
 	}
 
 	ret = pwrdm_for_each(pwrdms_setup, NULL);
 	if (ret) {
-		printk(KERN_ERR "Failed to setup powerdomains\n");
-		goto err2;
+		pr_err("Failed to setup powerdomains\n");
+		goto err3;
 	}
 
 	(void) clkdm_for_each(omap_pm_clkdms_setup, NULL);
 
 	mpu_pwrdm = pwrdm_lookup("mpu_pwrdm");
 	if (mpu_pwrdm == NULL) {
-		printk(KERN_ERR "Failed to get mpu_pwrdm\n");
-		goto err2;
+		pr_err("Failed to get mpu_pwrdm\n");
+		ret = -EINVAL;
+		goto err3;
 	}
 
 	neon_pwrdm = pwrdm_lookup("neon_pwrdm");
@@ -781,8 +780,8 @@ static int __init omap3_pm_init(void)
 		omap3_secure_ram_storage =
 			kmalloc(0x803F, GFP_KERNEL);
 		if (!omap3_secure_ram_storage)
-			printk(KERN_ERR "Memory allocation failed when"
-					"allocating for secure sram context\n");
+			pr_err("Memory allocation failed when "
+			       "allocating for secure sram context\n");
 
 		local_irq_disable();
 		local_fiq_disable();
@@ -796,14 +795,17 @@ static int __init omap3_pm_init(void)
 	}
 
 	omap3_save_scratchpad_contents();
-err1:
 	return ret;
-err2:
-	free_irq(INT_34XX_PRCM_MPU_IRQ, NULL);
+
+err3:
 	list_for_each_entry_safe(pwrst, tmp, &pwrst_list, node) {
 		list_del(&pwrst->node);
 		kfree(pwrst);
 	}
+	free_irq(omap_prcm_event_to_irq("io"), omap3_pm_init);
+err2:
+	free_irq(omap_prcm_event_to_irq("wkup"), NULL);
+err1:
 	return ret;
 }
 

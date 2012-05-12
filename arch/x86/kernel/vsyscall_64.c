@@ -216,9 +216,9 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 	current_thread_info()->sig_on_uaccess_error = 1;
 
 	/*
-	 * 0 is a valid user pointer (in the access_ok sense) on 32-bit and
+	 * NULL is a valid user pointer (in the access_ok sense) on 32-bit and
 	 * 64-bit, so we don't need to special-case it here.  For all the
-	 * vsyscalls, 0 means "don't write anything" not "write it at
+	 * vsyscalls, NULL means "don't write anything" not "write it at
 	 * address 0".
 	 */
 	ret = -EFAULT;
@@ -247,7 +247,7 @@ bool emulate_vsyscall(struct pt_regs *regs, unsigned long address)
 
 		ret = sys_getcpu((unsigned __user *)regs->di,
 				 (unsigned __user *)regs->si,
-				 0);
+				 NULL);
 		break;
 	}
 
