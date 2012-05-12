@@ -201,7 +201,7 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 		batadv_inc_counter(bat_priv, BAT_CNT_MGMT_TX);
 		batadv_add_counter(bat_priv, BAT_CNT_MGMT_TX_BYTES,
 				   skb->len + ETH_HLEN);
-		send_skb_packet(skb, hard_iface, broadcast_addr);
+		batadv_send_skb_packet(skb, hard_iface, broadcast_addr);
 	}
 }
 
@@ -250,8 +250,9 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 			forw_packet->if_incoming->net_dev->dev_addr);
 
 		/* skb is only used once and than forw_packet is free'd */
-		send_skb_packet(forw_packet->skb, forw_packet->if_incoming,
-				broadcast_addr);
+		batadv_send_skb_packet(forw_packet->skb,
+				       forw_packet->if_incoming,
+				       broadcast_addr);
 		forw_packet->skb = NULL;
 
 		goto out;
@@ -420,7 +421,7 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet_aggr->delayed_work,
-			  send_outstanding_bat_ogm_packet);
+			  batadv_send_outstanding_bat_ogm_packet);
 	queue_delayed_work(bat_event_workqueue,
 			   &forw_packet_aggr->delayed_work,
 			   send_time - jiffies);

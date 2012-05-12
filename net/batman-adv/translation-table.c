@@ -1406,7 +1406,7 @@ static int send_tt_request(struct bat_priv *bat_priv,
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_REQUEST_TX);
 
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = 0;
 
 out:
@@ -1532,7 +1532,7 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_TX);
 
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = true;
 	goto out;
 
@@ -1650,7 +1650,7 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_RESPONSE_TX);
 
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = true;
 	goto out;
 
@@ -1957,7 +1957,7 @@ static void send_roam_adv(struct bat_priv *bat_priv, uint8_t *client,
 
 	batadv_inc_counter(bat_priv, BAT_CNT_TT_ROAM_ADV_TX);
 
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = 0;
 
 out:

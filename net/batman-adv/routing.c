@@ -319,7 +319,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 	icmp_packet->msg_type = ECHO_REPLY;
 	icmp_packet->header.ttl = TTL;
 
-	send_skb_packet(skb, router->if_incoming, router->addr);
+	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;
 
 out:
@@ -374,7 +374,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 	icmp_packet->msg_type = TTL_EXCEEDED;
 	icmp_packet->header.ttl = TTL;
 
-	send_skb_packet(skb, router->if_incoming, router->addr);
+	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;
 
 out:
@@ -459,7 +459,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	icmp_packet->header.ttl--;
 
 	/* route it */
-	send_skb_packet(skb, router->if_incoming, router->addr);
+	batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 	ret = NET_RX_SUCCESS;
 
 out:
@@ -881,7 +881,7 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 			   skb->len + ETH_HLEN);
 
 	/* route it */
-	send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
 	ret = NET_RX_SUCCESS;
 
 out:
@@ -1095,7 +1095,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		goto out;
 
 	/* rebroadcast packet */
-	add_bcast_packet_to_list(bat_priv, skb, 1);
+	batadv_add_bcast_packet_to_list(bat_priv, skb, 1);
 
 	/* don't hand the broadcast up if it is from an originator
 	 * from the same backbone.

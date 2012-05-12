@@ -777,7 +777,8 @@ static void broadcast_vis_packet(struct bat_priv *bat_priv,
 
 			skb = skb_clone(info->skb_packet, GFP_ATOMIC);
 			if (skb)
-				send_skb_packet(skb, hard_iface, dstaddr);
+				batadv_send_skb_packet(skb, hard_iface,
+						       dstaddr);
 
 		}
 		rcu_read_unlock();
@@ -804,7 +805,7 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 
 	skb = skb_clone(info->skb_packet, GFP_ATOMIC);
 	if (skb)
-		send_skb_packet(skb, router->if_incoming, router->addr);
+		batadv_send_skb_packet(skb, router->if_incoming, router->addr);
 
 out:
 	if (router)

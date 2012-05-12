@@ -145,7 +145,7 @@ void mesh_free(struct net_device *soft_iface)
 
 	atomic_set(&bat_priv->mesh_state, MESH_DEACTIVATING);
 
-	purge_outstanding_packets(bat_priv, NULL);
+	batadv_purge_outstanding_packets(bat_priv, NULL);
 
 	vis_quit(bat_priv);
 

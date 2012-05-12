@@ -345,7 +345,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 			hard_iface->net_dev->name);
 
 	/* begin scheduling originator messages on that interface */
-	schedule_bat_ogm(hard_iface);
+	batadv_schedule_bat_ogm(hard_iface);
 
 out:
 	return 0;
@@ -391,7 +391,7 @@ void batadv_hardif_disable_interface(struct hard_iface *hard_iface)
 
 	/* delete all references to this hard_iface */
 	batadv_purge_orig_ref(bat_priv);
-	purge_outstanding_packets(bat_priv, hard_iface);
+	batadv_purge_outstanding_packets(bat_priv, hard_iface);
 	dev_put(hard_iface->soft_iface);
 
 	/* nobody uses this interface anymore */

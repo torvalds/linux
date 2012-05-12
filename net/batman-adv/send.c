@@ -33,8 +33,8 @@ static void send_outstanding_bcast_packet(struct work_struct *work);
 
 /* send out an already prepared packet to the given address via the
  * specified batman interface */
-int send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
-		    const uint8_t *dst_addr)
+int batadv_send_skb_packet(struct sk_buff *skb, struct hard_iface *hard_iface,
+			   const uint8_t *dst_addr)
 {
 	struct ethhdr *ethhdr;
 
@@ -77,7 +77,7 @@ send_skb_err:
 	return NET_XMIT_DROP;
 }
 
-void schedule_bat_ogm(struct hard_iface *hard_iface)
+void batadv_schedule_bat_ogm(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 
@@ -133,8 +133,9 @@ static void _add_bcast_packet_to_list(struct bat_priv *bat_priv,
  *
  * The skb is not consumed, so the caller should make sure that the
  * skb is freed. */
-int add_bcast_packet_to_list(struct bat_priv *bat_priv,
-			     const struct sk_buff *skb, unsigned long delay)
+int batadv_add_bcast_packet_to_list(struct bat_priv *bat_priv,
+				    const struct sk_buff *skb,
+				    unsigned long delay)
 {
 	struct hard_iface *primary_if = NULL;
 	struct forw_packet *forw_packet;
@@ -211,7 +212,8 @@ static void send_outstanding_bcast_packet(struct work_struct *work)
 		/* send a copy of the saved skb */
 		skb1 = skb_clone(forw_packet->skb, GFP_ATOMIC);
 		if (skb1)
-			send_skb_packet(skb1, hard_iface, broadcast_addr);
+			batadv_send_skb_packet(skb1, hard_iface,
+					       broadcast_addr);
 	}
 	rcu_read_unlock();
 
@@ -229,7 +231,7 @@ out:
 	atomic_inc(&bat_priv->bcast_queue_left);
 }
 
-void send_outstanding_bat_ogm_packet(struct work_struct *work)
+void batadv_send_outstanding_bat_ogm_packet(struct work_struct *work)
 {
 	struct delayed_work *delayed_work =
 		container_of(work, struct delayed_work, work);
@@ -253,7 +255,7 @@ void send_outstanding_bat_ogm_packet(struct work_struct *work)
 	 * shutting down
 	 */
 	if (forw_packet->own)
-		schedule_bat_ogm(forw_packet->if_incoming);
+		batadv_schedule_bat_ogm(forw_packet->if_incoming);
 
 out:
 	/* don't count own packet */
@@ -263,8 +265,8 @@ out:
 	forw_packet_free(forw_packet);
 }
 
-void purge_outstanding_packets(struct bat_priv *bat_priv,
-			       const struct hard_iface *hard_iface)
+void batadv_purge_outstanding_packets(struct bat_priv *bat_priv,
+				      const struct hard_iface *hard_iface)
 {
 	struct forw_packet *forw_packet;
 	struct hlist_node *tmp_node, *safe_tmp_node;
