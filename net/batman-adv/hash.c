@@ -21,7 +21,7 @@
 #include "hash.h"
 
 /* clears the hash */
-static void hash_init(struct hashtable_t *hash)
+static void batadv_hash_init(struct hashtable_t *hash)
 {
 	uint32_t i;
 
@@ -58,7 +58,7 @@ struct hashtable_t *batadv_hash_new(uint32_t size)
 		goto free_table;
 
 	hash->size = size;
-	hash_init(hash);
+	batadv_hash_init(hash);
 	return hash;
 
 free_table:
