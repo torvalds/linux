@@ -31,10 +31,4 @@
 /* All traps low-level code here must end with this macro. */
 #define RESTORE_ALL b ret_trap_entry; clr %l6;
 
-/* sun4 probably wants half word accesses to ASI_SEGMAP, while sun4c+
-   likes byte accesses. These are to avoid ifdef mania. */
-
-#define lduXa	lduba
-#define stXa	stba
-
 #endif /* !(_SPARC_ASMMACRO_H) */
