@@ -581,10 +581,7 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 	struct rb_node *nd = NULL;
 	struct map_symbol *ms = self->b.priv;
 	struct symbol *sym = ms->sym;
-	const char *help = "<-/ESC: Exit, TAB/shift+TAB: Cycle hot lines, "
-			   "H: Hottest line, ->/ENTER: Line action, "
-			   "O: Offset view, "
-			   "S: Source view";
+	const char *help = "Press 'h' for help on key bindings";
 	int key;
 
 	if (ui_browser__show(&self->b, sym->name, help) < 0)
@@ -637,16 +634,30 @@ static int annotate_browser__run(struct annotate_browser *self, int evidx,
 			else
 				nd = self->curr_hot;
 			break;
-		case 'H':
+		case K_F1:
 		case 'h':
+			ui_browser__help_window(&self->b,
+		"UP/DOWN/PGUP\n"
+		"PGDN/SPACE    Navigate\n"
+		"q/ESC/CTRL+C  Exit\n\n"
+		"->            Go to target\n"
+		"<-            Exit\n"
+		"h             Cycle thru hottest instructions\n"
+		"j             Toggle showing jump to target arrows\n"
+		"J             Toggle showing number of jump sources on targets\n"
+		"n             Search next string\n"
+		"o             Toggle disassembler output/simplified view\n"
+		"s             Toggle source code view\n"
+		"/             Search string\n"
+		"?             Search previous string\n");
+			continue;
+		case 'H':
 			nd = self->curr_hot;
 			break;
-		case 'S':
 		case 's':
 			if (annotate_browser__toggle_source(self))
 				ui_helpline__puts(help);
 			continue;
-		case 'O':
 		case 'o':
 			self->use_offset = !self->use_offset;
 			if (self->use_offset)
