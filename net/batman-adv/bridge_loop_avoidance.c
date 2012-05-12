@@ -390,7 +390,7 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 	}
 
 	/* this is a gateway now, remove any tt entries */
-	orig_node = orig_hash_find(bat_priv, orig);
+	orig_node = batadv_orig_hash_find(bat_priv, orig);
 	if (orig_node) {
 		batadv_tt_global_del_orig(bat_priv, orig_node,
 					  "became a backbone gateway");
@@ -780,7 +780,7 @@ static int check_claim_group(struct bat_priv *bat_priv,
 		return 2;
 
 	/* lets see if this originator is in our mesh */
-	orig_node = orig_hash_find(bat_priv, backbone_addr);
+	orig_node = batadv_orig_hash_find(bat_priv, backbone_addr);
 
 	/* dont accept claims from gateways which are not in
 	 * the same mesh or group.

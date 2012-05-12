@@ -298,7 +298,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 
 	/* answer echo request (ping) */
 	/* get routing information */
-	orig_node = orig_hash_find(bat_priv, icmp_packet->orig);
+	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->orig);
 	if (!orig_node)
 		goto out;
 
@@ -353,7 +353,7 @@ static int recv_icmp_ttl_exceeded(struct bat_priv *bat_priv,
 		goto out;
 
 	/* get routing information */
-	orig_node = orig_hash_find(bat_priv, icmp_packet->orig);
+	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->orig);
 	if (!orig_node)
 		goto out;
 
@@ -437,7 +437,7 @@ int batadv_recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		return recv_icmp_ttl_exceeded(bat_priv, skb);
 
 	/* get routing information */
-	orig_node = orig_hash_find(bat_priv, icmp_packet->dst);
+	orig_node = batadv_orig_hash_find(bat_priv, icmp_packet->dst);
 	if (!orig_node)
 		goto out;
 
@@ -684,7 +684,7 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (batadv_bla_is_backbone_gw_orig(bat_priv, roam_adv_packet->src))
 		goto out;
 
-	orig_node = orig_hash_find(bat_priv, roam_adv_packet->src);
+	orig_node = batadv_orig_hash_find(bat_priv, roam_adv_packet->src);
 	if (!orig_node)
 		goto out;
 
@@ -721,6 +721,7 @@ struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 	struct neigh_node *router;
 	static uint8_t zero_mac[ETH_ALEN] = {0, 0, 0, 0, 0, 0};
 	int bonding_enabled;
+	uint8_t *primary_addr;
 
 	if (!orig_node)
 		return NULL;
@@ -743,20 +744,22 @@ struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
 	if ((!recv_if) && (!bonding_enabled))
 		goto return_router;
 
+	primary_addr = router_orig->primary_addr;
+
 	/* if we have something in the primary_addr, we can search
 	 * for a potential bonding candidate.
 	 */
-	if (compare_eth(router_orig->primary_addr, zero_mac))
+	if (compare_eth(primary_addr, zero_mac))
 		goto return_router;
 
 	/* find the orig_node which has the primary interface. might
 	 * even be the same as our router_orig in many cases
 	 */
-	if (compare_eth(router_orig->primary_addr, router_orig->orig)) {
+	if (compare_eth(primary_addr, router_orig->orig)) {
 		primary_orig_node = router_orig;
 	} else {
-		primary_orig_node = orig_hash_find(bat_priv,
-						   router_orig->primary_addr);
+		primary_orig_node = batadv_orig_hash_find(bat_priv,
+							  primary_addr);
 		if (!primary_orig_node)
 			goto return_router;
 
@@ -839,7 +842,7 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	}
 
 	/* get routing information */
-	orig_node = orig_hash_find(bat_priv, unicast_packet->dest);
+	orig_node = batadv_orig_hash_find(bat_priv, unicast_packet->dest);
 
 	if (!orig_node)
 		goto out;
@@ -922,7 +925,8 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 		tt_poss_change = bat_priv->tt_poss_change;
 		curr_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
 	} else {
-		orig_node = orig_hash_find(bat_priv, unicast_packet->dest);
+		orig_node = batadv_orig_hash_find(bat_priv,
+						  unicast_packet->dest);
 
 		if (!orig_node)
 			return 0;
@@ -1078,7 +1082,7 @@ int batadv_recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	if (bcast_packet->header.ttl < 2)
 		goto out;
 
-	orig_node = orig_hash_find(bat_priv, bcast_packet->orig);
+	orig_node = batadv_orig_hash_find(bat_priv, bcast_packet->orig);
 
 	if (!orig_node)
 		goto out;

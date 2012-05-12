@@ -181,7 +181,7 @@ int batadv_frag_reassemble_skb(struct sk_buff *skb, struct bat_priv *bat_priv,
 
 	*new_skb = NULL;
 
-	orig_node = orig_hash_find(bat_priv, unicast_packet->orig);
+	orig_node = batadv_orig_hash_find(bat_priv, unicast_packet->orig);
 	if (!orig_node)
 		goto out;
 

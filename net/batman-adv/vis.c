@@ -803,7 +803,7 @@ static void unicast_vis_packet(struct bat_priv *bat_priv,
 
 	packet = (struct vis_packet *)info->skb_packet->data;
 
-	orig_node = orig_hash_find(bat_priv, packet->target_orig);
+	orig_node = batadv_orig_hash_find(bat_priv, packet->target_orig);
 	if (!orig_node)
 		goto out;
 

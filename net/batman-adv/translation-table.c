@@ -61,7 +61,7 @@ static struct tt_common_entry *tt_hash_find(struct hashtable_t *hash,
 	if (!hash)
 		return NULL;
 
-	index = choose_orig(data, hash->size);
+	index = batadv_choose_orig(data, hash->size);
 	head = &hash->table[index];
 
 	rcu_read_lock();
@@ -235,7 +235,8 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	tt_local_entry->common.flags |= TT_CLIENT_NEW;
 
 	hash_added = batadv_hash_add(bat_priv->tt_local_hash, compare_tt,
-				     choose_orig, &tt_local_entry->common,
+				     batadv_choose_orig,
+				     &tt_local_entry->common,
 				     &tt_local_entry->common.hash_entry);
 
 	if (unlikely(hash_added != 0)) {
@@ -639,7 +640,7 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		spin_lock_init(&tt_global_entry->list_lock);
 
 		hash_added = batadv_hash_add(bat_priv->tt_global_hash,
-					     compare_tt, choose_orig,
+					     compare_tt, batadv_choose_orig,
 					     common, &common->hash_entry);
 
 		if (unlikely(hash_added != 0)) {
@@ -818,8 +819,8 @@ static void tt_global_del_struct(struct bat_priv *bat_priv,
 		"Deleting global tt entry %pM: %s\n",
 		tt_global_entry->common.addr, message);
 
-	batadv_hash_remove(bat_priv->tt_global_hash, compare_tt, choose_orig,
-			   tt_global_entry->common.addr);
+	batadv_hash_remove(bat_priv->tt_global_hash, compare_tt,
+			   batadv_choose_orig, tt_global_entry->common.addr);
 	tt_global_entry_free_ref(tt_global_entry);
 
 }
@@ -1454,11 +1455,11 @@ static bool send_other_tt_response(struct bat_priv *bat_priv,
 		(tt_request->flags & TT_FULL_TABLE ? 'F' : '.'));
 
 	/* Let's get the orig node of the REAL destination */
-	req_dst_orig_node = orig_hash_find(bat_priv, tt_request->dst);
+	req_dst_orig_node = batadv_orig_hash_find(bat_priv, tt_request->dst);
 	if (!req_dst_orig_node)
 		goto out;
 
-	res_dst_orig_node = orig_hash_find(bat_priv, tt_request->src);
+	res_dst_orig_node = batadv_orig_hash_find(bat_priv, tt_request->src);
 	if (!res_dst_orig_node)
 		goto out;
 
@@ -1586,7 +1587,7 @@ static bool send_my_tt_response(struct bat_priv *bat_priv,
 	my_ttvn = (uint8_t)atomic_read(&bat_priv->ttvn);
 	req_ttvn = tt_request->ttvn;
 
-	orig_node = orig_hash_find(bat_priv, tt_request->src);
+	orig_node = batadv_orig_hash_find(bat_priv, tt_request->src);
 	if (!orig_node)
 		goto out;
 
@@ -1731,7 +1732,7 @@ static void tt_fill_gtable(struct bat_priv *bat_priv,
 {
 	struct orig_node *orig_node = NULL;
 
-	orig_node = orig_hash_find(bat_priv, tt_response->src);
+	orig_node = batadv_orig_hash_find(bat_priv, tt_response->src);
 	if (!orig_node)
 		goto out;
 
@@ -1804,7 +1805,7 @@ void batadv_handle_tt_response(struct bat_priv *bat_priv,
 	if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_response->src))
 		goto out;
 
-	orig_node = orig_hash_find(bat_priv, tt_response->src);
+	orig_node = batadv_orig_hash_find(bat_priv, tt_response->src);
 	if (!orig_node)
 		goto out;
 

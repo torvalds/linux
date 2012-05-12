@@ -195,7 +195,7 @@ struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 	int size;
 	int hash_added;
 
-	orig_node = orig_hash_find(bat_priv, addr);
+	orig_node = batadv_orig_hash_find(bat_priv, addr);
 	if (orig_node)
 		return orig_node;
 
@@ -249,7 +249,7 @@ struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 		goto free_bcast_own;
 
 	hash_added = batadv_hash_add(bat_priv->orig_hash, compare_orig,
-				     choose_orig, orig_node,
+				     batadv_choose_orig, orig_node,
 				     &orig_node->hash_entry);
 	if (hash_added != 0)
 		goto free_bcast_own_sum;
