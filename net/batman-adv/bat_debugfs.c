@@ -236,7 +236,7 @@ static int originators_open(struct inode *inode, struct file *file)
 static int gateways_open(struct inode *inode, struct file *file)
 {
 	struct net_device *net_dev = (struct net_device *)inode->i_private;
-	return single_open(file, gw_client_seq_print_text, net_dev);
+	return single_open(file, batadv_gw_client_seq_print_text, net_dev);
 }
 
 static int transtable_global_open(struct inode *inode, struct file *file)

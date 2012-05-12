@@ -361,7 +361,8 @@ static void _purge_orig(struct bat_priv *bat_priv)
 					  head, hash_entry) {
 			if (purge_orig_node(bat_priv, orig_node)) {
 				if (orig_node->gw_flags)
-					gw_node_delete(bat_priv, orig_node);
+					batadv_gw_node_delete(bat_priv,
+							      orig_node);
 				hlist_del_rcu(node);
 				orig_node_free_ref(orig_node);
 				continue;
@@ -374,8 +375,8 @@ static void _purge_orig(struct bat_priv *bat_priv)
 		spin_unlock_bh(list_lock);
 	}
 
-	gw_node_purge(bat_priv);
-	gw_election(bat_priv);
+	batadv_gw_node_purge(bat_priv);
+	batadv_gw_election(bat_priv);
 }
 
 static void purge_orig(struct work_struct *work)

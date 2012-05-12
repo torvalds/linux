@@ -294,7 +294,7 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 
 	/* get routing information */
 	if (is_multicast_ether_addr(ethhdr->h_dest)) {
-		orig_node = gw_get_selected_orig(bat_priv);
+		orig_node = batadv_gw_get_selected_orig(bat_priv);
 		if (orig_node)
 			goto find_router;
 	}

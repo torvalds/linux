@@ -326,7 +326,7 @@ static ssize_t show_bat_algo(struct kobject *kobj, struct attribute *attr,
 static void post_gw_deselect(struct net_device *net_dev)
 {
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 }
 
 static ssize_t show_gw_mode(struct kobject *kobj, struct attribute *attr,
@@ -397,7 +397,7 @@ static ssize_t store_gw_mode(struct kobject *kobj, struct attribute *attr,
 	bat_info(net_dev, "Changing gw mode from: %s to: %s\n",
 		 curr_gw_mode_str, buff);
 
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 	atomic_set(&bat_priv->gw_mode, (unsigned int)gw_mode_tmp);
 	return count;
 }

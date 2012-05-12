@@ -729,8 +729,8 @@ update_tt:
 			       ntohs(batman_ogm_packet->tt_crc));
 
 	if (orig_node->gw_flags != batman_ogm_packet->gw_flags)
-		gw_node_update(bat_priv, orig_node,
-			       batman_ogm_packet->gw_flags);
+		batadv_gw_node_update(bat_priv, orig_node,
+				      batman_ogm_packet->gw_flags);
 
 	orig_node->gw_flags = batman_ogm_packet->gw_flags;
 
@@ -738,7 +738,7 @@ update_tt:
 	if ((orig_node->gw_flags) &&
 	    (atomic_read(&bat_priv->gw_mode) == GW_MODE_CLIENT) &&
 	    (atomic_read(&bat_priv->gw_sel_class) > 2))
-		gw_check_election(bat_priv, orig_node);
+		batadv_gw_check_election(bat_priv, orig_node);
 
 	goto out;
 

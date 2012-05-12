@@ -181,14 +181,14 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 		case GW_MODE_SERVER:
 			/* gateway servers should not send dhcp
 			 * requests into the mesh */
-			ret = gw_is_dhcp_target(skb, &header_len);
+			ret = batadv_gw_is_dhcp_target(skb, &header_len);
 			if (ret)
 				goto dropped;
 			break;
 		case GW_MODE_CLIENT:
 			/* gateway clients should send dhcp requests
 			 * via unicast to their gateway */
-			ret = gw_is_dhcp_target(skb, &header_len);
+			ret = batadv_gw_is_dhcp_target(skb, &header_len);
 			if (ret)
 				do_bcast = false;
 			break;
@@ -232,7 +232,7 @@ static int interface_tx(struct sk_buff *skb, struct net_device *soft_iface)
 	/* unicast packet */
 	} else {
 		if (atomic_read(&bat_priv->gw_mode) != GW_MODE_OFF) {
-			ret = gw_out_of_range(bat_priv, skb, ethhdr);
+			ret = batadv_gw_out_of_range(bat_priv, skb, ethhdr);
 			if (ret)
 				goto dropped;
 		}

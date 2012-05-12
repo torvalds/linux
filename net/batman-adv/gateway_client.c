@@ -60,7 +60,7 @@ out:
 	return gw_node;
 }
 
-struct orig_node *gw_get_selected_orig(struct bat_priv *bat_priv)
+struct orig_node *batadv_gw_get_selected_orig(struct bat_priv *bat_priv)
 {
 	struct gw_node *gw_node;
 	struct orig_node *orig_node = NULL;
@@ -103,7 +103,7 @@ static void gw_select(struct bat_priv *bat_priv, struct gw_node *new_gw_node)
 	spin_unlock_bh(&bat_priv->gw_list_lock);
 }
 
-void gw_deselect(struct bat_priv *bat_priv)
+void batadv_gw_deselect(struct bat_priv *bat_priv)
 {
 	atomic_set(&bat_priv->gw_reselect, 1);
 }
@@ -182,7 +182,7 @@ next:
 	return curr_gw;
 }
 
-void gw_election(struct bat_priv *bat_priv)
+void batadv_gw_election(struct bat_priv *bat_priv)
 {
 	struct gw_node *curr_gw = NULL, *next_gw = NULL;
 	struct neigh_node *router = NULL;
@@ -212,7 +212,7 @@ void gw_election(struct bat_priv *bat_priv)
 
 		router = orig_node_get_router(next_gw->orig_node);
 		if (!router) {
-			gw_deselect(bat_priv);
+			batadv_gw_deselect(bat_priv);
 			goto out;
 		}
 	}
@@ -246,13 +246,14 @@ out:
 		neigh_node_free_ref(router);
 }
 
-void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
+void batadv_gw_check_election(struct bat_priv *bat_priv,
+			      struct orig_node *orig_node)
 {
 	struct orig_node *curr_gw_orig;
 	struct neigh_node *router_gw = NULL, *router_orig = NULL;
 	uint8_t gw_tq_avg, orig_tq_avg;
 
-	curr_gw_orig = gw_get_selected_orig(bat_priv);
+	curr_gw_orig = batadv_gw_get_selected_orig(bat_priv);
 	if (!curr_gw_orig)
 		goto deselect;
 
@@ -288,7 +289,7 @@ void gw_check_election(struct bat_priv *bat_priv, struct orig_node *orig_node)
 		gw_tq_avg, orig_tq_avg);
 
 deselect:
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 out:
 	if (curr_gw_orig)
 		orig_node_free_ref(curr_gw_orig);
@@ -328,8 +329,8 @@ static void gw_node_add(struct bat_priv *bat_priv,
 		(up > 2048 ? "MBit" : "KBit"));
 }
 
-void gw_node_update(struct bat_priv *bat_priv,
-		    struct orig_node *orig_node, uint8_t new_gwflags)
+void batadv_gw_node_update(struct bat_priv *bat_priv,
+			   struct orig_node *orig_node, uint8_t new_gwflags)
 {
 	struct hlist_node *node;
 	struct gw_node *gw_node, *curr_gw;
@@ -374,7 +375,7 @@ void gw_node_update(struct bat_priv *bat_priv,
 	goto unlock;
 
 deselect:
-	gw_deselect(bat_priv);
+	batadv_gw_deselect(bat_priv);
 unlock:
 	rcu_read_unlock();
 
@@ -382,12 +383,13 @@ unlock:
 		gw_node_free_ref(curr_gw);
 }
 
-void gw_node_delete(struct bat_priv *bat_priv, struct orig_node *orig_node)
+void batadv_gw_node_delete(struct bat_priv *bat_priv,
+			   struct orig_node *orig_node)
 {
-	gw_node_update(bat_priv, orig_node, 0);
+	batadv_gw_node_update(bat_priv, orig_node, 0);
 }
 
-void gw_node_purge(struct bat_priv *bat_priv)
+void batadv_gw_node_purge(struct bat_priv *bat_priv)
 {
 	struct gw_node *gw_node, *curr_gw;
 	struct hlist_node *node, *node_tmp;
@@ -416,7 +418,7 @@ void gw_node_purge(struct bat_priv *bat_priv)
 
 	/* gw_deselect() needs to acquire the gw_list_lock */
 	if (do_deselect)
-		gw_deselect(bat_priv);
+		batadv_gw_deselect(bat_priv);
 
 	if (curr_gw)
 		gw_node_free_ref(curr_gw);
@@ -458,7 +460,7 @@ out:
 	return ret;
 }
 
-int gw_client_seq_print_text(struct seq_file *seq, void *offset)
+int batadv_gw_client_seq_print_text(struct seq_file *seq, void *offset)
 {
 	struct net_device *net_dev = (struct net_device *)seq->private;
 	struct bat_priv *bat_priv = netdev_priv(net_dev);
@@ -568,7 +570,7 @@ out:
 	return ret;
 }
 
-bool gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
+bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 {
 	struct ethhdr *ethhdr;
 	struct iphdr *iphdr;
@@ -634,8 +636,8 @@ bool gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 	return true;
 }
 
-bool gw_out_of_range(struct bat_priv *bat_priv,
-		     struct sk_buff *skb, struct ethhdr *ethhdr)
+bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
+			    struct sk_buff *skb, struct ethhdr *ethhdr)
 {
 	struct neigh_node *neigh_curr = NULL, *neigh_old = NULL;
 	struct orig_node *orig_dst_node = NULL;
@@ -644,7 +646,7 @@ bool gw_out_of_range(struct bat_priv *bat_priv,
 	unsigned int header_len = 0;
 	uint8_t curr_tq_avg;
 
-	ret = gw_is_dhcp_target(skb, &header_len);
+	ret = batadv_gw_is_dhcp_target(skb, &header_len);
 	if (!ret)
 		goto out;
 
