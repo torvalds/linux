@@ -18,6 +18,9 @@
 
 const char 	*disassembler_style;
 
+static struct ins *ins__find(const char *name);
+static int disasm_line__parse(char *line, char **namep, char **rawp);
+
 static int ins__raw_scnprintf(struct ins *ins, char *bf, size_t size,
 			      struct ins_operands *ops)
 {
@@ -147,6 +150,53 @@ static int comment__symbol(char *raw, char *comment, u64 *addrp, char **namep)
 	return 0;
 }
 
+static int lock__parse(struct ins_operands *ops)
+{
+	char *name;
+
+	ops->locked.ops = zalloc(sizeof(*ops->locked.ops));
+	if (ops->locked.ops == NULL)
+		return 0;
+
+	if (disasm_line__parse(ops->raw, &name, &ops->locked.ops->raw) < 0)
+		goto out_free_ops;
+
+        ops->locked.ins = ins__find(name);
+        if (ops->locked.ins == NULL)
+                goto out_free_ops;
+
+        if (!ops->locked.ins->ops)
+                return 0;
+
+        if (ops->locked.ins->ops->parse)
+                ops->locked.ins->ops->parse(ops->locked.ops);
+
+	return 0;
+
+out_free_ops:
+	free(ops->locked.ops);
+	ops->locked.ops = NULL;
+	return 0;
+}
+
+static int lock__scnprintf(struct ins *ins, char *bf, size_t size,
+			   struct ins_operands *ops)
+{
+	int printed;
+
+	if (ops->locked.ins == NULL)
+		return ins__raw_scnprintf(ins, bf, size, ops);
+
+	printed = scnprintf(bf, size, "%-6.6s ", ins->name);
+	return printed + ins__scnprintf(ops->locked.ins, bf + printed,
+					size - printed, ops->locked.ops);
+}
+
+static struct ins_ops lock_ops = {
+	.parse	   = lock__parse,
+	.scnprintf = lock__scnprintf,
+};
+
 static int mov__parse(struct ins_operands *ops)
 {
 	char *s = strchr(ops->raw, ','), *target, *comment, prev;
@@ -265,6 +315,7 @@ static struct ins instructions[] = {
 	{ .name = "addq",  .ops  = &mov_ops, },
 	{ .name = "addw",  .ops  = &mov_ops, },
 	{ .name = "and",   .ops  = &mov_ops, },
+	{ .name = "bts",   .ops  = &mov_ops, },
 	{ .name = "call",  .ops  = &call_ops, },
 	{ .name = "callq", .ops  = &call_ops, },
 	{ .name = "cmp",   .ops  = &mov_ops, },
@@ -314,6 +365,7 @@ static struct ins instructions[] = {
 	{ .name = "js",	   .ops  = &jump_ops, },
 	{ .name = "jz",	   .ops  = &jump_ops, },
 	{ .name = "lea",   .ops  = &mov_ops, },
+	{ .name = "lock",  .ops  = &lock_ops, },
 	{ .name = "mov",   .ops  = &mov_ops, },
 	{ .name = "movb",  .ops  = &mov_ops, },
 	{ .name = "movdqa",.ops  = &mov_ops, },
@@ -330,6 +382,7 @@ static struct ins instructions[] = {
 	{ .name = "test",  .ops  = &mov_ops, },
 	{ .name = "testb", .ops  = &mov_ops, },
 	{ .name = "testl", .ops  = &mov_ops, },
+	{ .name = "xadd",  .ops  = &mov_ops, },
 };
 
 static int ins__cmp(const void *name, const void *insp)
@@ -420,6 +473,44 @@ static void disasm_line__init_ins(struct disasm_line *dl)
 		dl->ins->ops->parse(&dl->ops);
 }
 
+static int disasm_line__parse(char *line, char **namep, char **rawp)
+{
+	char *name = line, tmp;
+
+	while (isspace(name[0]))
+		++name;
+
+	if (name[0] == '\0')
+		return -1;
+
+	*rawp = name + 1;
+
+	while ((*rawp)[0] != '\0' && !isspace((*rawp)[0]))
+		++*rawp;
+
+	tmp = (*rawp)[0];
+	(*rawp)[0] = '\0';
+	*namep = strdup(name);
+
+	if (*namep == NULL)
+		goto out_free_name;
+
+	(*rawp)[0] = tmp;
+
+	if ((*rawp)[0] != '\0') {
+		(*rawp)++;
+		while (isspace((*rawp)[0]))
+			++(*rawp);
+	}
+
+	return 0;
+
+out_free_name:
+	free(*namep);
+	*namep = NULL;
+	return -1;
+}
+
 static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privsize)
 {
 	struct disasm_line *dl = zalloc(sizeof(*dl) + privsize);
@@ -431,34 +522,8 @@ static struct disasm_line *disasm_line__new(s64 offset, char *line, size_t privs
 			goto out_delete;
 
 		if (offset != -1) {
-			char *name = dl->line, tmp;
-
-			while (isspace(name[0]))
-				++name;
-
-			if (name[0] == '\0')
-				goto out_delete;
-
-			dl->ops.raw = name + 1;
-
-			while (dl->ops.raw[0] != '\0' &&
-			       !isspace(dl->ops.raw[0]))
-				++dl->ops.raw;
-
-			tmp = dl->ops.raw[0];
-			dl->ops.raw[0] = '\0';
-			dl->name = strdup(name);
-
-			if (dl->name == NULL)
+			if (disasm_line__parse(dl->line, &dl->name, &dl->ops.raw) < 0)
 				goto out_free_line;
-
-			dl->ops.raw[0] = tmp;
-
-			if (dl->ops.raw[0] != '\0') {
-				dl->ops.raw++;
-				while (isspace(dl->ops.raw[0]))
-					++dl->ops.raw;
-			}
 
 			disasm_line__init_ins(dl);
 		}
@@ -477,8 +542,12 @@ void disasm_line__free(struct disasm_line *dl)
 {
 	free(dl->line);
 	free(dl->name);
-	free(dl->ops.source.raw);
-	free(dl->ops.source.name);
+	if (dl->ins && dl->ins->ops == &lock_ops) {
+		free(dl->ops.locked.ops);
+	} else {
+		free(dl->ops.source.raw);
+		free(dl->ops.source.name);
+	}
 	free(dl->ops.target.raw);
 	free(dl->ops.target.name);
 	free(dl);

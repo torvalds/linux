@@ -18,11 +18,17 @@ struct ins_operands {
 		u64	addr;
 		u64	offset;
 	} target;
-	struct {
-		char	*raw;
-		char	*name;
-		u64	addr;
-	} source;
+	union {
+		struct {
+			char	*raw;
+			char	*name;
+			u64	addr;
+		} source;
+		struct {
+			struct ins *ins;
+			struct ins_operands *ops;
+		} locked;
+	};
 };
 
 struct ins_ops {
