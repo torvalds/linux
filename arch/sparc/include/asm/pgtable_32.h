@@ -77,14 +77,6 @@ extern pgd_t swapper_pg_dir[1024];
 
 extern void paging_init(void);
 
-/* Page table for 0-4MB for everybody, on the Sparc this
- * holds the same as on the i386.
- */
-extern pte_t pg0[1024];
-extern pte_t pg1[1024];
-extern pte_t pg2[1024];
-extern pte_t pg3[1024];
-
 extern unsigned long ptr_in_current_pgd;
 
 /* Here is a trick, since mmap.c need the initializer elements for

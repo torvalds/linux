@@ -45,12 +45,6 @@ struct sparc_phys_banks {
 
 extern struct sparc_phys_banks sp_banks[SPARC_PHYS_BANKS+1];
 
-/* Cache alias structure.  Entry is valid if context != -1. */
-struct cache_palias {
-	unsigned long vaddr;
-	int context;
-};
-
 /* passing structs on the Sparc slow us down tremendously... */
 
 /* #define STRICT_MM_TYPECHECKS */
