@@ -48,7 +48,7 @@ static ssize_t ad5930_set_parameter(struct device *dev,
 	struct spi_transfer xfer;
 	int ret;
 	struct ad5903_config *config = (struct ad5903_config *)buf;
-	struct iio_dev *idev = dev_get_drvdata(dev);
+	struct iio_dev *idev = dev_to_iio_dev(dev);
 	struct ad5930_state *st = iio_priv(idev);
 
 	config->control = (config->control & ~value_mask);

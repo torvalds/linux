@@ -123,7 +123,7 @@ static ssize_t ad9910_set_parameter(struct device *dev,
 	struct spi_transfer xfer;
 	int ret;
 	struct ad9910_config *config = (struct ad9910_config *)buf;
-	struct iio_dev *idev = dev_get_drvdata(dev);
+	struct iio_dev *idev = dev_to_iio_dev(dev);
 	struct ad9910_state *st = iio_priv(idev);
 
 	xfer.len = 5;

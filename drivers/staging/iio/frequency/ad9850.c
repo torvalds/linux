@@ -43,7 +43,7 @@ static ssize_t ad9850_set_parameter(struct device *dev,
 	struct spi_transfer xfer;
 	int ret;
 	struct ad9850_config *config = (struct ad9850_config *)buf;
-	struct iio_dev *idev = dev_get_drvdata(dev);
+	struct iio_dev *idev = dev_to_iio_dev(dev);
 	struct ad9850_state *st = iio_priv(idev);
 
 	xfer.len = len;
