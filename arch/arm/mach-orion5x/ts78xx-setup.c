@@ -608,7 +608,7 @@ static void __init ts78xx_init(void)
 	/* FPGA init */
 	ts78xx_fpga_devices_zero_init();
 	ret = ts78xx_fpga_load();
-	ret = sysfs_create_file(power_kobj, &ts78xx_fpga_attr.attr);
+	ret = sysfs_create_file(firmware_kobj, &ts78xx_fpga_attr.attr);
 	if (ret)
 		pr_err("sysfs_create_file failed: %d\n", ret);
 }
