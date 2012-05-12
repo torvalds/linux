@@ -2767,6 +2767,6 @@ static void dm_thin_exit(void)
 module_init(dm_thin_init);
 module_exit(dm_thin_exit);
 
-MODULE_DESCRIPTION(DM_NAME "device-mapper thin provisioning target");
+MODULE_DESCRIPTION(DM_NAME " thin provisioning target");
 MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
 MODULE_LICENSE("GPL");
