@@ -113,7 +113,7 @@ static ssize_t ad7816_show_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
 	if (chip->mode)
@@ -127,7 +127,7 @@ static ssize_t ad7816_store_mode(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
 	if (strcmp(buf, "full")) {
@@ -159,7 +159,7 @@ static ssize_t ad7816_show_channel(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", chip->channel_id);
@@ -170,7 +170,7 @@ static ssize_t ad7816_store_channel(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	unsigned long data;
 	int ret;
@@ -208,7 +208,7 @@ static ssize_t ad7816_show_value(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	u16 data;
 	s8 value;
@@ -263,7 +263,7 @@ static ssize_t ad7816_show_oti(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	int value;
 
@@ -284,7 +284,7 @@ static inline ssize_t ad7816_set_oti(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7816_chip_info *chip = iio_priv(indio_dev);
 	long value;
 	u8 data;

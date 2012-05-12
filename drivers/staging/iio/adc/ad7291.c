@@ -132,7 +132,7 @@ static ssize_t ad7291_store_reset(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 
 	return ad7291_i2c_write(chip, AD7291_COMMAND,
@@ -214,7 +214,7 @@ static inline ssize_t ad7291_show_hyst(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	u16 data;
@@ -232,7 +232,7 @@ static inline ssize_t ad7291_set_hyst(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7291_chip_info *chip = iio_priv(indio_dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
 	u16 data;

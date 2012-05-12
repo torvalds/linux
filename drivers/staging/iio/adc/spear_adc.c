@@ -231,7 +231,7 @@ static ssize_t spear_adc_read_frequency(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct spear_adc_info *info = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n", info->current_clk);
@@ -242,7 +242,7 @@ static ssize_t spear_adc_write_frequency(struct device *dev,
 					 const char *buf,
 					 size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct spear_adc_info *info = iio_priv(indio_dev);
 	u32 clk_high, clk_low, count;
 	u32 apb_clk = clk_get_rate(info->clk);

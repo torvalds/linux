@@ -499,7 +499,7 @@ static ssize_t max1363_monitor_show_freq(struct device *dev,
 					struct device_attribute *attr,
 					char *buf)
 {
-	struct max1363_state *st = iio_priv(dev_get_drvdata(dev));
+	struct max1363_state *st = iio_priv(dev_to_iio_dev(dev));
 	return sprintf(buf, "%d\n", max1363_monitor_speeds[st->monitor_speed]);
 }
 
@@ -508,7 +508,7 @@ static ssize_t max1363_monitor_store_freq(struct device *dev,
 					const char *buf,
 					size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max1363_state *st = iio_priv(indio_dev);
 	int i, ret;
 	unsigned long val;

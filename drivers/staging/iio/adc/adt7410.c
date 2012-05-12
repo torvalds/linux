@@ -144,7 +144,7 @@ static ssize_t adt7410_show_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	u8 config;
 
@@ -167,7 +167,7 @@ static ssize_t adt7410_store_mode(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	u16 config;
 	int ret;
@@ -211,7 +211,7 @@ static ssize_t adt7410_show_resolution(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	int bits;
@@ -233,7 +233,7 @@ static ssize_t adt7410_store_resolution(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	unsigned long data;
 	u16 config;
@@ -269,7 +269,7 @@ static ssize_t adt7410_show_id(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	u8 id;
 	int ret;
@@ -319,7 +319,7 @@ static ssize_t adt7410_show_value(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	u8 status;
 	u16 data;
@@ -392,7 +392,7 @@ static ssize_t adt7410_show_event_mode(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
@@ -411,7 +411,7 @@ static ssize_t adt7410_set_event_mode(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	u16 config;
 	int ret;
@@ -444,7 +444,7 @@ static ssize_t adt7410_show_fault_queue(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	int ret;
 
@@ -460,7 +460,7 @@ static ssize_t adt7410_set_fault_queue(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	unsigned long data;
 	int ret;
@@ -490,7 +490,7 @@ static inline ssize_t adt7410_show_t_bound(struct device *dev,
 		u8 bound_reg,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	u16 data;
 	int ret;
@@ -508,7 +508,7 @@ static inline ssize_t adt7410_set_t_bound(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	long tmp1, tmp2;
 	u16 data;
@@ -628,7 +628,7 @@ static ssize_t adt7410_show_t_hyst(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	u8 t_hyst;
@@ -645,7 +645,7 @@ static inline ssize_t adt7410_set_t_hyst(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct iio_dev *dev_info = dev_to_iio_dev(dev);
 	struct adt7410_chip_info *chip = iio_priv(dev_info);
 	int ret;
 	unsigned long data;

@@ -524,7 +524,7 @@ static ssize_t ad7793_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7793_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%d\n",
@@ -536,7 +536,7 @@ static ssize_t ad7793_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7793_state *st = iio_priv(indio_dev);
 	long lval;
 	int i, ret;
@@ -578,7 +578,7 @@ static IIO_CONST_ATTR_SAMP_FREQ_AVAIL(
 static ssize_t ad7793_show_scale_available(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7793_state *st = iio_priv(indio_dev);
 	int i, len = 0;
 

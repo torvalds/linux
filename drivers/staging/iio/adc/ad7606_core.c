@@ -113,7 +113,7 @@ static int ad7606_read_raw(struct iio_dev *indio_dev,
 static ssize_t ad7606_show_range(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", st->range);
@@ -122,7 +122,7 @@ static ssize_t ad7606_show_range(struct device *dev,
 static ssize_t ad7606_store_range(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 
@@ -147,7 +147,7 @@ static IIO_CONST_ATTR(in_voltage_range_available, "5000 10000");
 static ssize_t ad7606_show_oversampling_ratio(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 
 	return sprintf(buf, "%u\n", st->oversampling);
@@ -168,7 +168,7 @@ static int ad7606_oversampling_get_index(unsigned val)
 static ssize_t ad7606_store_oversampling_ratio(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
 	int ret;
