@@ -134,12 +134,20 @@ static inline void srmmu_set_pte(pte_t *ptep, pte_t pteval)
 	srmmu_swap((unsigned long *)ptep, pte_val(pteval));
 }
 
-/*
- */
-BTFIXUPDEF_CALL_CONST(struct page *, pmd_page, pmd_t)
+static inline int srmmu_device_memory(unsigned long x)
+{
+	return ((x & 0xF0000000) != 0);
+}
+
+static inline struct page *pmd_page(pmd_t pmd)
+{
+	if (srmmu_device_memory(pmd_val(pmd)))
+		BUG();
+	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
+}
+
 BTFIXUPDEF_CALL_CONST(unsigned long, pgd_page_vaddr, pgd_t)
 
-#define pmd_page(pmd) BTFIXUP_CALL(pmd_page)(pmd)
 #define pgd_page_vaddr(pgd) BTFIXUP_CALL(pgd_page_vaddr)(pgd)
 
 BTFIXUPDEF_CALL_CONST(int, pte_present, pte_t)
@@ -270,8 +278,19 @@ BTFIXUPDEF_CALL_CONST(pte_t, pte_mkyoung, pte_t)
 
 #define pfn_pte(pfn, prot)		mk_pte(pfn_to_page(pfn), prot)
 
-BTFIXUPDEF_CALL(unsigned long,	 pte_pfn, pte_t)
-#define pte_pfn(pte) BTFIXUP_CALL(pte_pfn)(pte)
+static inline unsigned long pte_pfn(pte_t pte)
+{
+	if (srmmu_device_memory(pte_val(pte))) {
+		/* Just return something that will cause
+		 * pfn_valid() to return false.  This makes
+		 * copy_one_pte() to just directly copy to
+		 * PTE over.
+		 */
+		return ~0UL;
+	}
+	return (pte_val(pte) & SRMMU_PTE_PMASK) >> (PAGE_SHIFT-4);
+}
+
 #define pte_page(pte)	pfn_to_page(pte_pfn(pte))
 
 /*

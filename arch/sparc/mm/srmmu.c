@@ -91,12 +91,6 @@ static DEFINE_SPINLOCK(srmmu_context_spinlock);
 
 static int is_hypersparc;
 
-/* The very generic SRMMU page table operations. */
-static inline int srmmu_device_memory(unsigned long x)
-{
-	return ((x & 0xF0000000) != 0);
-}
-
 static int srmmu_cache_pagetables;
 
 /* these will be initialized in srmmu_nocache_calcsize() */
@@ -112,27 +106,6 @@ static unsigned long srmmu_nocache_end;
 void *srmmu_nocache_pool;
 void *srmmu_nocache_bitmap;
 static struct bit_map srmmu_nocache_map;
-
-static unsigned long srmmu_pte_pfn(pte_t pte)
-{
-	if (srmmu_device_memory(pte_val(pte))) {
-		/* Just return something that will cause
-		 * pfn_valid() to return false.  This makes
-		 * copy_one_pte() to just directly copy to
-		 * PTE over.
-		 */
-		return ~0UL;
-	}
-	return (pte_val(pte) & SRMMU_PTE_PMASK) >> (PAGE_SHIFT-4);
-}
-
-static struct page *srmmu_pmd_page(pmd_t pmd)
-{
-
-	if (srmmu_device_memory(pmd_val(pmd)))
-		BUG();
-	return pfn_to_page((pmd_val(pmd) & SRMMU_PTD_PMASK) >> (PAGE_SHIFT-4));
-}
 
 static inline unsigned long srmmu_pgd_page(pgd_t pgd)
 { return srmmu_device_memory(pgd_val(pgd))?~0:(unsigned long)__nocache_va((pgd_val(pgd) & SRMMU_PTD_PMASK) << 4); }
@@ -2119,8 +2092,6 @@ void __init ld_mmu_srmmu(void)
 
 	BTFIXUPSET_CALL(set_pte, srmmu_set_pte, BTFIXUPCALL_SWAPO0O1);
 
-	BTFIXUPSET_CALL(pte_pfn, srmmu_pte_pfn, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(pmd_page, srmmu_pmd_page, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(pgd_page_vaddr, srmmu_pgd_page, BTFIXUPCALL_NORM);
 
 	BTFIXUPSET_CALL(pte_present, srmmu_pte_present, BTFIXUPCALL_NORM);
