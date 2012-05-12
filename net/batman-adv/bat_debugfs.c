@@ -94,13 +94,13 @@ static int log_open(struct inode *inode, struct file *file)
 {
 	nonseekable_open(inode, file);
 	file->private_data = inode->i_private;
-	inc_module_count();
+	batadv_inc_module_count();
 	return 0;
 }
 
 static int log_release(struct inode *inode, struct file *file)
 {
-	dec_module_count();
+	batadv_dec_module_count();
 	return 0;
 }
 
@@ -224,7 +224,7 @@ static void debug_log_cleanup(struct bat_priv *bat_priv)
 
 static int bat_algorithms_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, bat_algo_seq_print_text, NULL);
+	return single_open(file, batadv_algo_seq_print_text, NULL);
 }
 
 static int originators_open(struct inode *inode, struct file *file)

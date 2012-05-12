@@ -73,7 +73,7 @@ static int bat_socket_open(struct inode *inode, struct file *file)
 
 	file->private_data = socket_client;
 
-	inc_module_count();
+	batadv_inc_module_count();
 	return 0;
 }
 
@@ -98,7 +98,7 @@ static int bat_socket_release(struct inode *inode, struct file *file)
 	spin_unlock_bh(&socket_client->lock);
 
 	kfree(socket_client);
-	dec_module_count();
+	batadv_dec_module_count();
 
 	return 0;
 }

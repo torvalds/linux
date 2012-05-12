@@ -46,7 +46,7 @@ struct hard_iface *batadv_hardif_get_by_netdev(const struct net_device *net_dev)
 	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->net_dev == net_dev &&
 		    atomic_inc_not_zero(&hard_iface->refcount))
 			goto out;
@@ -86,7 +86,7 @@ static struct hard_iface *hardif_get_active(const struct net_device *soft_iface)
 	struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
@@ -161,7 +161,7 @@ static void check_known_mac_addr(const struct net_device *net_dev)
 	const struct hard_iface *hard_iface;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if ((hard_iface->if_status != IF_ACTIVE) &&
 		    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
 			continue;
@@ -192,7 +192,7 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 		goto out;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if ((hard_iface->if_status != IF_ACTIVE) &&
 		    (hard_iface->if_status != IF_TO_BE_ACTIVATED))
 			continue;
@@ -315,7 +315,7 @@ int batadv_hardif_enable_interface(struct hard_iface *hard_iface,
 	batadv_orig_hash_add_if(hard_iface, bat_priv->num_ifaces);
 
 	hard_iface->batman_adv_ptype.type = __constant_htons(ETH_P_BATMAN);
-	hard_iface->batman_adv_ptype.func = batman_skb_recv;
+	hard_iface->batman_adv_ptype.func = batadv_batman_skb_recv;
 	hard_iface->batman_adv_ptype.dev = hard_iface->net_dev;
 	dev_add_pack(&hard_iface->batman_adv_ptype);
 
@@ -436,7 +436,7 @@ static struct hard_iface *hardif_add_interface(struct net_device *net_dev)
 	atomic_set(&hard_iface->refcount, 2);
 
 	check_known_mac_addr(hard_iface->net_dev);
-	list_add_tail_rcu(&hard_iface->list, &hardif_list);
+	list_add_tail_rcu(&hard_iface->list, &batadv_hardif_list);
 
 	/**
 	 * This can't be called via a bat_priv callback because
@@ -477,7 +477,7 @@ void batadv_hardif_remove_interfaces(void)
 
 	rtnl_lock();
 	list_for_each_entry_safe(hard_iface, hard_iface_tmp,
-				 &hardif_list, list) {
+				 &batadv_hardif_list, list) {
 		list_del_rcu(&hard_iface->list);
 		hardif_remove_interface(hard_iface);
 	}

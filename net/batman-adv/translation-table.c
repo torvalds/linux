@@ -48,7 +48,7 @@ static int compare_tt(const struct hlist_node *node, const void *data2)
 static void tt_start_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->tt_work, tt_purge);
-	queue_delayed_work(bat_event_workqueue, &bat_priv->tt_work,
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->tt_work,
 			   msecs_to_jiffies(5000));
 }
 
@@ -1673,7 +1673,7 @@ out:
 bool batadv_send_tt_response(struct bat_priv *bat_priv,
 			     struct tt_query_packet *tt_request)
 {
-	if (is_my_mac(tt_request->dst)) {
+	if (batadv_is_my_mac(tt_request->dst)) {
 		/* don't answer backbone gws! */
 		if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_request->src))
 			return true;

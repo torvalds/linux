@@ -411,7 +411,7 @@ struct net_device *batadv_softif_create(const char *name)
 	if (!bat_priv->bat_counters)
 		goto unreg_soft_iface;
 
-	ret = bat_algo_select(bat_priv, bat_routing_algo);
+	ret = batadv_algo_select(bat_priv, batadv_routing_algo);
 	if (ret < 0)
 		goto free_bat_counters;
 
@@ -423,7 +423,7 @@ struct net_device *batadv_softif_create(const char *name)
 	if (ret < 0)
 		goto unreg_sysfs;
 
-	ret = mesh_init(soft_iface);
+	ret = batadv_mesh_init(soft_iface);
 	if (ret < 0)
 		goto unreg_debugfs;
 
@@ -449,7 +449,7 @@ void batadv_softif_destroy(struct net_device *soft_iface)
 {
 	batadv_debugfs_del_meshif(soft_iface);
 	batadv_sysfs_del_meshif(soft_iface);
-	mesh_free(soft_iface);
+	batadv_mesh_free(soft_iface);
 	unregister_netdevice(soft_iface);
 }
 

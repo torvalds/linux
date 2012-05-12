@@ -145,26 +145,27 @@ enum dbg_level {
 #include <linux/seq_file.h>
 #include "types.h"
 
-extern char bat_routing_algo[];
-extern struct list_head hardif_list;
+extern char batadv_routing_algo[];
+extern struct list_head batadv_hardif_list;
 
-extern unsigned char broadcast_addr[];
-extern struct workqueue_struct *bat_event_workqueue;
+extern unsigned char batadv_broadcast_addr[];
+extern struct workqueue_struct *batadv_event_workqueue;
 
-int mesh_init(struct net_device *soft_iface);
-void mesh_free(struct net_device *soft_iface);
-void inc_module_count(void);
-void dec_module_count(void);
-int is_my_mac(const uint8_t *addr);
-int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *ptype, struct net_device *orig_dev);
-int recv_handler_register(uint8_t packet_type,
-			  int (*recv_handler)(struct sk_buff *,
-					      struct hard_iface *));
-void recv_handler_unregister(uint8_t packet_type);
-int bat_algo_register(struct bat_algo_ops *bat_algo_ops);
-int bat_algo_select(struct bat_priv *bat_priv, char *name);
-int bat_algo_seq_print_text(struct seq_file *seq, void *offset);
+int batadv_mesh_init(struct net_device *soft_iface);
+void batadv_mesh_free(struct net_device *soft_iface);
+void batadv_inc_module_count(void);
+void batadv_dec_module_count(void);
+int batadv_is_my_mac(const uint8_t *addr);
+int batadv_batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
+			   struct packet_type *ptype,
+			   struct net_device *orig_dev);
+int batadv_recv_handler_register(uint8_t packet_type,
+				 int (*recv_handler)(struct sk_buff *,
+						     struct hard_iface *));
+void batadv_recv_handler_unregister(uint8_t packet_type);
+int batadv_algo_register(struct bat_algo_ops *bat_algo_ops);
+int batadv_algo_select(struct bat_priv *bat_priv, char *name);
+int batadv_algo_seq_print_text(struct seq_file *seq, void *offset);
 
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 int batadv_debug_log(struct bat_priv *bat_priv, const char *fmt, ...)

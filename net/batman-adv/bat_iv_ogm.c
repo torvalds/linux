@@ -204,7 +204,7 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 		batadv_inc_counter(bat_priv, BAT_CNT_MGMT_TX);
 		batadv_add_counter(bat_priv, BAT_CNT_MGMT_TX_BYTES,
 				   skb->len + ETH_HLEN);
-		batadv_send_skb_packet(skb, hard_iface, broadcast_addr);
+		batadv_send_skb_packet(skb, hard_iface, batadv_broadcast_addr);
 	}
 }
 
@@ -255,7 +255,7 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 		/* skb is only used once and than forw_packet is free'd */
 		batadv_send_skb_packet(forw_packet->skb,
 				       forw_packet->if_incoming,
-				       broadcast_addr);
+				       batadv_broadcast_addr);
 		forw_packet->skb = NULL;
 
 		goto out;
@@ -263,7 +263,7 @@ static void bat_iv_ogm_emit(struct forw_packet *forw_packet)
 
 	/* broadcast on every interface */
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
@@ -425,7 +425,7 @@ static void bat_iv_ogm_aggregate_new(const unsigned char *packet_buff,
 	/* start timer for this packet */
 	INIT_DELAYED_WORK(&forw_packet_aggr->delayed_work,
 			  batadv_send_outstanding_bat_ogm_packet);
-	queue_delayed_work(bat_event_workqueue,
+	queue_delayed_work(batadv_event_workqueue,
 			   &forw_packet_aggr->delayed_work,
 			   send_time - jiffies);
 
@@ -984,7 +984,7 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 		batman_ogm_packet->header.version, has_directlink_flag);
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface, &hardif_list, list) {
+	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
 		if (hard_iface->if_status != IF_ACTIVE)
 			continue;
 
@@ -1259,18 +1259,18 @@ int __init batadv_iv_init(void)
 	int ret;
 
 	/* batman originator packet */
-	ret = recv_handler_register(BAT_IV_OGM, bat_iv_ogm_receive);
+	ret = batadv_recv_handler_register(BAT_IV_OGM, bat_iv_ogm_receive);
 	if (ret < 0)
 		goto out;
 
-	ret = bat_algo_register(&batman_iv);
+	ret = batadv_algo_register(&batman_iv);
 	if (ret < 0)
 		goto handler_unregister;
 
 	goto out;
 
 handler_unregister:
-	recv_handler_unregister(BAT_IV_OGM);
+	batadv_recv_handler_unregister(BAT_IV_OGM);
 out:
 	return ret;
 }

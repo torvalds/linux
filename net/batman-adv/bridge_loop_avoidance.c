@@ -1070,7 +1070,7 @@ void batadv_bla_update_orig_address(struct bat_priv *bat_priv,
 static void bla_start_timer(struct bat_priv *bat_priv)
 {
 	INIT_DELAYED_WORK(&bat_priv->bla_work, bla_periodic_work);
-	queue_delayed_work(bat_event_workqueue, &bat_priv->bla_work,
+	queue_delayed_work(batadv_event_workqueue, &bat_priv->bla_work,
 			   msecs_to_jiffies(BLA_PERIOD_LENGTH));
 }
 
