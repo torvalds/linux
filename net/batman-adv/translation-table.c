@@ -234,9 +234,9 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	 */
 	tt_local_entry->common.flags |= TT_CLIENT_NEW;
 
-	hash_added = hash_add(bat_priv->tt_local_hash, compare_tt, choose_orig,
-			 &tt_local_entry->common,
-			 &tt_local_entry->common.hash_entry);
+	hash_added = batadv_hash_add(bat_priv->tt_local_hash, compare_tt,
+				     choose_orig, &tt_local_entry->common,
+				     &tt_local_entry->common.hash_entry);
 
 	if (unlikely(hash_added != 0)) {
 		/* remove the reference for the hash */
@@ -618,6 +618,7 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 	struct tt_global_entry *tt_global_entry = NULL;
 	int ret = 0;
 	int hash_added;
+	struct tt_common_entry *common;
 
 	tt_global_entry = tt_global_hash_find(bat_priv, tt_addr);
 
@@ -627,18 +628,19 @@ int batadv_tt_global_add(struct bat_priv *bat_priv, struct orig_node *orig_node,
 		if (!tt_global_entry)
 			goto out;
 
-		memcpy(tt_global_entry->common.addr, tt_addr, ETH_ALEN);
+		common = &tt_global_entry->common;
+		memcpy(common->addr, tt_addr, ETH_ALEN);
 
-		tt_global_entry->common.flags = NO_FLAGS;
+		common->flags = NO_FLAGS;
 		tt_global_entry->roam_at = 0;
-		atomic_set(&tt_global_entry->common.refcount, 2);
+		atomic_set(&common->refcount, 2);
 
 		INIT_HLIST_HEAD(&tt_global_entry->orig_list);
 		spin_lock_init(&tt_global_entry->list_lock);
 
-		hash_added = hash_add(bat_priv->tt_global_hash, compare_tt,
-				 choose_orig, &tt_global_entry->common,
-				 &tt_global_entry->common.hash_entry);
+		hash_added = batadv_hash_add(bat_priv->tt_global_hash,
+					     compare_tt, choose_orig,
+					     common, &common->hash_entry);
 
 		if (unlikely(hash_added != 0)) {
 			/* remove the reference for the hash */
@@ -816,8 +818,8 @@ static void tt_global_del_struct(struct bat_priv *bat_priv,
 		"Deleting global tt entry %pM: %s\n",
 		tt_global_entry->common.addr, message);
 
-	hash_remove(bat_priv->tt_global_hash, compare_tt, choose_orig,
-		    tt_global_entry->common.addr);
+	batadv_hash_remove(bat_priv->tt_global_hash, compare_tt, choose_orig,
+			   tt_global_entry->common.addr);
 	tt_global_entry_free_ref(tt_global_entry);
 
 }

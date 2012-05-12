@@ -248,8 +248,9 @@ struct orig_node *batadv_get_orig_node(struct bat_priv *bat_priv,
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
 
-	hash_added = hash_add(bat_priv->orig_hash, compare_orig,
-			      choose_orig, orig_node, &orig_node->hash_entry);
+	hash_added = batadv_hash_add(bat_priv->orig_hash, compare_orig,
+				     choose_orig, orig_node,
+				     &orig_node->hash_entry);
 	if (hash_added != 0)
 		goto free_bcast_own_sum;
 

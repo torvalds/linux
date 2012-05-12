@@ -433,8 +433,8 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 			}
 		}
 		/* remove old entry */
-		hash_remove(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
-			    old_info);
+		batadv_hash_remove(bat_priv->vis_hash, vis_info_cmp,
+				   vis_info_choose, old_info);
 		send_list_del(old_info);
 		kref_put(&old_info->refcount, free_info);
 	}
@@ -474,8 +474,8 @@ static struct vis_info *add_packet(struct bat_priv *bat_priv,
 	recv_list_add(bat_priv, &info->recv_list, packet->sender_orig);
 
 	/* try to add it */
-	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
-			      info, &info->hash_entry);
+	hash_added = batadv_hash_add(bat_priv->vis_hash, vis_info_cmp,
+				     vis_info_choose, info, &info->hash_entry);
 	if (hash_added != 0) {
 		/* did not work (for some reason) */
 		kref_put(&info->refcount, free_info);
@@ -934,9 +934,9 @@ int batadv_vis_init(struct bat_priv *bat_priv)
 
 	INIT_LIST_HEAD(&bat_priv->vis_send_list);
 
-	hash_added = hash_add(bat_priv->vis_hash, vis_info_cmp, vis_info_choose,
-			      bat_priv->my_vis_info,
-			      &bat_priv->my_vis_info->hash_entry);
+	hash_added = batadv_hash_add(bat_priv->vis_hash, vis_info_cmp,
+				     vis_info_choose, bat_priv->my_vis_info,
+				     &bat_priv->my_vis_info->hash_entry);
 	if (hash_added != 0) {
 		pr_err("Can't add own vis packet into hash\n");
 		/* not in hash, need to remove it manually. */
@@ -977,7 +977,7 @@ void batadv_vis_quit(struct bat_priv *bat_priv)
 
 	spin_lock_bh(&bat_priv->vis_hash_lock);
 	/* properly remove, kill timers ... */
-	hash_delete(bat_priv->vis_hash, free_info_ref, NULL);
+	batadv_hash_delete(bat_priv->vis_hash, free_info_ref, NULL);
 	bat_priv->vis_hash = NULL;
 	bat_priv->my_vis_info = NULL;
 	spin_unlock_bh(&bat_priv->vis_hash_lock);

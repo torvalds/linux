@@ -379,8 +379,9 @@ static struct backbone_gw *bla_get_backbone_gw(struct bat_priv *bat_priv,
 	/* one for the hash, one for returning */
 	atomic_set(&entry->refcount, 2);
 
-	hash_added = hash_add(bat_priv->backbone_hash, compare_backbone_gw,
-			      choose_backbone_gw, entry, &entry->hash_entry);
+	hash_added = batadv_hash_add(bat_priv->backbone_hash,
+				     compare_backbone_gw, choose_backbone_gw,
+				     entry, &entry->hash_entry);
 
 	if (unlikely(hash_added != 0)) {
 		/* hash failed, free the structure */
@@ -540,8 +541,9 @@ static void bla_add_claim(struct bat_priv *bat_priv, const uint8_t *mac,
 		bat_dbg(DBG_BLA, bat_priv,
 			"bla_add_claim(): adding new entry %pM, vid %d to hash ...\n",
 			mac, vid);
-		hash_added = hash_add(bat_priv->claim_hash, compare_claim,
-				      choose_claim, claim, &claim->hash_entry);
+		hash_added = batadv_hash_add(bat_priv->claim_hash,
+					     compare_claim, choose_claim,
+					     claim, &claim->hash_entry);
 
 		if (unlikely(hash_added != 0)) {
 			/* only local changes happened. */
@@ -590,7 +592,8 @@ static void bla_del_claim(struct bat_priv *bat_priv, const uint8_t *mac,
 
 	bat_dbg(DBG_BLA, bat_priv, "bla_del_claim(): %pM, vid %d\n", mac, vid);
 
-	hash_remove(bat_priv->claim_hash, compare_claim, choose_claim, claim);
+	batadv_hash_remove(bat_priv->claim_hash, compare_claim, choose_claim,
+			   claim);
 	claim_free_ref(claim); /* reference from the hash is gone */
 
 	claim->backbone_gw->crc ^= crc16(0, claim->addr, ETH_ALEN);

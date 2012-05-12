@@ -54,8 +54,8 @@ void batadv_hash_destroy(struct hashtable_t *hash);
  * called to remove the elements inside of the hash.  if you don't remove the
  * elements, memory might be leaked.
  */
-static inline void hash_delete(struct hashtable_t *hash,
-			       hashdata_free_cb free_cb, void *arg)
+static inline void batadv_hash_delete(struct hashtable_t *hash,
+				      hashdata_free_cb free_cb, void *arg)
 {
 	struct hlist_head *head;
 	struct hlist_node *node, *node_tmp;
@@ -89,10 +89,11 @@ static inline void hash_delete(struct hashtable_t *hash,
  *	Returns 0 on success, 1 if the element already is in the hash
  *	and -1 on error.
  */
-static inline int hash_add(struct hashtable_t *hash,
-			   hashdata_compare_cb compare,
-			   hashdata_choose_cb choose,
-			   const void *data, struct hlist_node *data_node)
+static inline int batadv_hash_add(struct hashtable_t *hash,
+				  hashdata_compare_cb compare,
+				  hashdata_choose_cb choose,
+				  const void *data,
+				  struct hlist_node *data_node)
 {
 	uint32_t index;
 	int ret = -1;
@@ -133,9 +134,9 @@ out:
  * structure you use with just the key filled, we just need the key for
  * comparing.
  */
-static inline void *hash_remove(struct hashtable_t *hash,
-				hashdata_compare_cb compare,
-				hashdata_choose_cb choose, void *data)
+static inline void *batadv_hash_remove(struct hashtable_t *hash,
+				       hashdata_compare_cb compare,
+				       hashdata_choose_cb choose, void *data)
 {
 	uint32_t index;
 	struct hlist_node *node;
