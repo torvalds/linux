@@ -65,7 +65,7 @@ static int __init batman_init(void)
 	if (!bat_event_workqueue)
 		return -ENOMEM;
 
-	bat_socket_init();
+	batadv_socket_init();
 	batadv_debugfs_init();
 
 	register_netdevice_notifier(&batadv_hard_if_notifier);

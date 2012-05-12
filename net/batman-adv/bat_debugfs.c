@@ -349,7 +349,7 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 	if (!bat_priv->debug_dir)
 		goto out;
 
-	if (bat_socket_setup(bat_priv) < 0)
+	if (batadv_socket_setup(bat_priv) < 0)
 		goto rem_attr;
 
 	if (debug_log_setup(bat_priv) < 0)

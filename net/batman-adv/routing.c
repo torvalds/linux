@@ -289,7 +289,7 @@ static int recv_my_icmp_packet(struct bat_priv *bat_priv,
 
 	/* add data to device queue */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		bat_socket_receive_packet(icmp_packet, icmp_len);
+		batadv_socket_receive_packet(icmp_packet, icmp_len);
 		goto out;
 	}
 

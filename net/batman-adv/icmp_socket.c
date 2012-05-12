@@ -34,7 +34,7 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 				  struct icmp_packet_rr *icmp_packet,
 				  size_t icmp_len);
 
-void bat_socket_init(void)
+void batadv_socket_init(void)
 {
 	memset(socket_client_hash, 0, sizeof(socket_client_hash));
 }
@@ -276,7 +276,7 @@ static const struct file_operations fops = {
 	.llseek = no_llseek,
 };
 
-int bat_socket_setup(struct bat_priv *bat_priv)
+int batadv_socket_setup(struct bat_priv *bat_priv)
 {
 	struct dentry *d;
 
@@ -336,8 +336,8 @@ static void bat_socket_add_packet(struct socket_client *socket_client,
 	wake_up(&socket_client->queue_wait);
 }
 
-void bat_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
-			       size_t icmp_len)
+void batadv_socket_receive_packet(struct icmp_packet_rr *icmp_packet,
+				  size_t icmp_len)
 {
 	struct socket_client *hash = socket_client_hash[icmp_packet->uid];
 
