@@ -165,21 +165,10 @@ static void __init anw6410_dm9000_enable(void)
 }
 
 static struct resource anw6410_dm9000_resource[] = {
-	[0] = {
-		.start = ANW6410_PA_DM9000,
-		.end   = ANW6410_PA_DM9000 + 3,
-		.flags = IORESOURCE_MEM,
-	},
-	[1] = {
-		.start = ANW6410_PA_DM9000 + 4,
-		.end   = ANW6410_PA_DM9000 + 4 + 500,
-		.flags = IORESOURCE_MEM,
-	},
-	[2] = {
-		.start = IRQ_EINT(15),
-		.end   = IRQ_EINT(15),
-		.flags = IORESOURCE_IRQ | IRQF_TRIGGER_HIGH,
-	},
+	[0] = DEFINE_RES_MEM(ANW6410_PA_DM9000, 4),
+	[1] = DEFINE_RES_MEM(ANW6410_PA_DM9000 + 4, 501),
+	[2] = DEFINE_RES_NAMED(IRQ_EINT(15), 1, NULL, IORESOURCE_IRQ \
+					| IRQF_TRIGGER_HIGH),
 };
 
 static struct dm9000_plat_data anw6410_dm9000_pdata = {
