@@ -223,7 +223,7 @@ static int get_inner_hdr(const struct sk_buff *skb, int iphsz, int *nhoff)
 
 	/* Not enough header? */
 	icmph = skb_header_pointer(skb, *nhoff + iphsz, sizeof(_ih), &_ih);
-	if (icmph == NULL && icmph->type > NR_ICMP_TYPES)
+	if (icmph == NULL || icmph->type > NR_ICMP_TYPES)
 		return 0;
 
 	/* Error message? */
