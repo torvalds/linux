@@ -21,9 +21,11 @@
 
 struct device;
 struct pinctrl_dev;
+struct pinctrl_map;
 struct pinmux_ops;
 struct pinconf_ops;
 struct gpio_chip;
+struct device_node;
 
 /**
  * struct pinctrl_pin_desc - boards/machines provide information on their
@@ -64,17 +66,24 @@ struct pinctrl_gpio_range {
 /**
  * struct pinctrl_ops - global pin control operations, to be implemented by
  * pin controller drivers.
- * @list_groups: list the number of selectable named groups available
- *	in this pinmux driver, the core will begin on 0 and call this
- *	repeatedly as long as it returns >= 0 to enumerate the groups
+ * @get_groups_count: Returns the count of total number of groups registered.
  * @get_group_name: return the group name of the pin group
  * @get_group_pins: return an array of pins corresponding to a certain
  *	group selector @pins, and the size of the array in @num_pins
  * @pin_dbg_show: optional debugfs display hook that will provide per-device
  *	info for a certain pin in debugfs
+ * @dt_node_to_map: parse a device tree "pin configuration node", and create
+ *	mapping table entries for it. These are returned through the @map and
+ *	@num_maps output parameters. This function is optional, and may be
+ *	omitted for pinctrl drivers that do not support device tree.
+ * @dt_free_map: free mapping table entries created via @dt_node_to_map. The
+ *	top-level @map pointer must be freed, along with any dynamically
+ *	allocated members of the mapping table entries themselves. This
+ *	function is optional, and may be omitted for pinctrl drivers that do
+ *	not support device tree.
  */
 struct pinctrl_ops {
-	int (*list_groups) (struct pinctrl_dev *pctldev, unsigned selector);
+	int (*get_groups_count) (struct pinctrl_dev *pctldev);
 	const char *(*get_group_name) (struct pinctrl_dev *pctldev,
 				       unsigned selector);
 	int (*get_group_pins) (struct pinctrl_dev *pctldev,
@@ -83,6 +92,11 @@ struct pinctrl_ops {
 			       unsigned *num_pins);
 	void (*pin_dbg_show) (struct pinctrl_dev *pctldev, struct seq_file *s,
 			  unsigned offset);
+	int (*dt_node_to_map) (struct pinctrl_dev *pctldev,
+			       struct device_node *np_config,
+			       struct pinctrl_map **map, unsigned *num_maps);
+	void (*dt_free_map) (struct pinctrl_dev *pctldev,
+			     struct pinctrl_map *map, unsigned num_maps);
 };
 
 /**
