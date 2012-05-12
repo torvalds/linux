@@ -19,11 +19,10 @@
 
 /**
  * ade7758_spi_read_burst() - read data registers
- * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @indio_dev: the IIO device
  **/
-static int ade7758_spi_read_burst(struct device *dev)
+static int ade7758_spi_read_burst(struct iio_dev *indio_dev)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct ade7758_state *st = iio_priv(indio_dev);
 	int ret;
 
@@ -68,7 +67,7 @@ static irqreturn_t ade7758_trigger_handler(int irq, void *p)
 	u32 *dat32 = (u32 *)dat64;
 
 	if (!bitmap_empty(indio_dev->active_scan_mask, indio_dev->masklength))
-		if (ade7758_spi_read_burst(&indio_dev->dev) >= 0)
+		if (ade7758_spi_read_burst(indio_dev) >= 0)
 			*dat32 = get_unaligned_be32(&st->rx_buf[5]) & 0xFFFFFF;
 
 	/* Guaranteed to be aligned with 8 byte boundary */
