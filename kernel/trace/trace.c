@@ -882,32 +882,6 @@ int register_tracer(struct tracer *type)
 	return ret;
 }
 
-void unregister_tracer(struct tracer *type)
-{
-	struct tracer **t;
-
-	mutex_lock(&trace_types_lock);
-	for (t = &trace_types; *t; t = &(*t)->next) {
-		if (*t == type)
-			goto found;
-	}
-	pr_info("Tracer %s not registered\n", type->name);
-	goto out;
-
- found:
-	*t = (*t)->next;
-
-	if (type == current_trace && tracer_enabled) {
-		tracer_enabled = 0;
-		tracing_stop();
-		if (current_trace->stop)
-			current_trace->stop(&global_trace);
-		current_trace = &nop_trace;
-	}
-out:
-	mutex_unlock(&trace_types_lock);
-}
-
 void tracing_reset(struct trace_array *tr, int cpu)
 {
 	struct ring_buffer *buffer = tr->buffer;
