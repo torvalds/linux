@@ -225,12 +225,9 @@ static inline int pte_young(pte_t pte)
 /*
  * The following only work if pte_present() is not true.
  */
-BTFIXUPDEF_HALF(pte_filei)
-
-static int pte_file(pte_t pte) __attribute_const__;
 static inline int pte_file(pte_t pte)
 {
-	return pte_val(pte) & BTFIXUP_HALF(pte_filei);
+	return pte_val(pte) & SRMMU_FILE;
 }
 
 static inline int pte_special(pte_t pte)
@@ -238,37 +235,35 @@ static inline int pte_special(pte_t pte)
 	return 0;
 }
 
-/*
- */
-BTFIXUPDEF_HALF(pte_wrprotecti)
-BTFIXUPDEF_HALF(pte_mkcleani)
-BTFIXUPDEF_HALF(pte_mkoldi)
-
-static pte_t pte_wrprotect(pte_t pte) __attribute_const__;
 static inline pte_t pte_wrprotect(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_wrprotecti));
+	return __pte(pte_val(pte) & ~SRMMU_WRITE);
 }
 
-static pte_t pte_mkclean(pte_t pte) __attribute_const__;
 static inline pte_t pte_mkclean(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_mkcleani));
+	return __pte(pte_val(pte) & ~SRMMU_DIRTY);
 }
 
-static pte_t pte_mkold(pte_t pte) __attribute_const__;
 static inline pte_t pte_mkold(pte_t pte)
 {
-	return __pte(pte_val(pte) & ~BTFIXUP_HALF(pte_mkoldi));
+	return __pte(pte_val(pte) & ~SRMMU_REF);
 }
 
-BTFIXUPDEF_CALL_CONST(pte_t, pte_mkwrite, pte_t)
-BTFIXUPDEF_CALL_CONST(pte_t, pte_mkdirty, pte_t)
-BTFIXUPDEF_CALL_CONST(pte_t, pte_mkyoung, pte_t)
+static inline pte_t pte_mkwrite(pte_t pte)
+{
+	return __pte(pte_val(pte) | SRMMU_WRITE);
+}
 
-#define pte_mkwrite(pte) BTFIXUP_CALL(pte_mkwrite)(pte)
-#define pte_mkdirty(pte) BTFIXUP_CALL(pte_mkdirty)(pte)
-#define pte_mkyoung(pte) BTFIXUP_CALL(pte_mkyoung)(pte)
+static inline pte_t pte_mkdirty(pte_t pte)
+{
+	return __pte(pte_val(pte) | SRMMU_DIRTY);
+}
+
+static inline pte_t pte_mkyoung(pte_t pte)
+{
+	return __pte(pte_val(pte) | SRMMU_REF);
+}
 
 #define pte_mkspecial(pte)    (pte)
 

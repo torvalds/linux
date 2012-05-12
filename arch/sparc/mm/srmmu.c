@@ -128,15 +128,6 @@ static inline pte_t srmmu_pte_mkclean(pte_t pte)
 static inline pte_t srmmu_pte_mkold(pte_t pte)
 { return __pte(pte_val(pte) & ~SRMMU_REF);}
 
-static inline pte_t srmmu_pte_mkwrite(pte_t pte)
-{ return __pte(pte_val(pte) | SRMMU_WRITE);}
-
-static inline pte_t srmmu_pte_mkdirty(pte_t pte)
-{ return __pte(pte_val(pte) | SRMMU_DIRTY);}
-
-static inline pte_t srmmu_pte_mkyoung(pte_t pte)
-{ return __pte(pte_val(pte) | SRMMU_REF);}
-
 /* XXX should we hyper_flush_whole_icache here - Anton */
 static inline void srmmu_ctxd_set(ctxd_t *ctxp, pgd_t *pgdp)
 { set_pte((pte_t *)ctxp, (SRMMU_ET_PTD | (__nocache_pa((unsigned long) pgdp) >> 4))); }
@@ -2073,13 +2064,6 @@ void __init load_mmu(void)
 	BTFIXUPSET_CALL(free_pgd_fast, srmmu_free_pgd_fast, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(get_pgd_fast, srmmu_get_pgd_fast, BTFIXUPCALL_NORM);
 
-	BTFIXUPSET_HALF(pte_filei, SRMMU_FILE);
-	BTFIXUPSET_HALF(pte_wrprotecti, SRMMU_WRITE);
-	BTFIXUPSET_HALF(pte_mkcleani, SRMMU_DIRTY);
-	BTFIXUPSET_HALF(pte_mkoldi, SRMMU_REF);
-	BTFIXUPSET_CALL(pte_mkwrite, srmmu_pte_mkwrite, BTFIXUPCALL_ORINT(SRMMU_WRITE));
-	BTFIXUPSET_CALL(pte_mkdirty, srmmu_pte_mkdirty, BTFIXUPCALL_ORINT(SRMMU_DIRTY));
-	BTFIXUPSET_CALL(pte_mkyoung, srmmu_pte_mkyoung, BTFIXUPCALL_ORINT(SRMMU_REF));
 	BTFIXUPSET_CALL(update_mmu_cache, srmmu_update_mmu_cache, BTFIXUPCALL_NOP);
 	BTFIXUPSET_CALL(destroy_context, srmmu_destroy_context, BTFIXUPCALL_NORM);
 
