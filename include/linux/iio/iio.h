@@ -427,6 +427,17 @@ static inline void iio_device_put(struct iio_dev *indio_dev)
 		put_device(&indio_dev->dev);
 };
 
+/**
+ * dev_to_iio_dev() - Get IIO device struct from a device struct
+ * @dev: The device embedded in the IIO device
+ *
+ * Note: The device must be a IIO device, otherwise the result is undefined.
+ */
+static inline struct iio_dev *dev_to_iio_dev(struct device *dev)
+{
+	return container_of(dev, struct iio_dev, dev);
+}
+
 /* Can we make this smaller? */
 #define IIO_ALIGN L1_CACHE_BYTES
 /**
