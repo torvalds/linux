@@ -22,7 +22,7 @@
 #include "gateway_client.h"
 
 /* calculates the gateway class from kbit */
-static void kbit_to_gw_bandwidth(int down, int up, long *gw_srv_class)
+static void batadv_kbit_to_gw_bandwidth(int down, int up, long *gw_srv_class)
 {
 	int mdown = 0, tdown, tup, difference;
 	uint8_t sbit, part;
@@ -73,8 +73,8 @@ void batadv_gw_bandwidth_to_kbit(uint8_t gw_srv_class, int *down, int *up)
 	*up = ((upart + 1) * (*down)) / 8;
 }
 
-static bool parse_gw_bandwidth(struct net_device *net_dev, char *buff,
-			       int *up, int *down)
+static bool batadv_parse_gw_bandwidth(struct net_device *net_dev, char *buff,
+				      int *up, int *down)
 {
 	int ret, multi = 1;
 	char *slash_ptr, *tmp_ptr;
@@ -142,7 +142,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 	int up = 0, down = 0;
 	bool ret;
 
-	ret = parse_gw_bandwidth(net_dev, buff, &up, &down);
+	ret = batadv_parse_gw_bandwidth(net_dev, buff, &up, &down);
 	if (!ret)
 		goto end;
 
@@ -152,7 +152,7 @@ ssize_t batadv_gw_bandwidth_set(struct net_device *net_dev, char *buff,
 	if (!up)
 		up = down / 5;
 
-	kbit_to_gw_bandwidth(down, up, &gw_bandwidth_tmp);
+	batadv_kbit_to_gw_bandwidth(down, up, &gw_bandwidth_tmp);
 
 	/* the gw bandwidth we guessed above might not match the given
 	 * speeds, hence we need to calculate it back to show the number
