@@ -482,6 +482,9 @@ enum {
 	GPIO_FN_FSIAILR_PU,
 	GPIO_FN_FSIAIBT_PU,
 	GPIO_FN_FSIAISLD_PU,
+
+	/* end of GPIO */
+	GPIO_NR,
 };
 
 /* DMA slave IDs */

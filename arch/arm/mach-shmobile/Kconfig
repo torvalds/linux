@@ -103,6 +103,11 @@ config MACH_MARZEN
 	depends on ARCH_R8A7779
 	select ARCH_REQUIRE_GPIOLIB
 
+config MACH_KZM9G
+	bool "KZM-A9-GT board"
+	depends on ARCH_SH73A0
+	select ARCH_REQUIRE_GPIOLIB
+
 comment "SH-Mobile System Configuration"
 
 config CPU_HAS_INTEVT
