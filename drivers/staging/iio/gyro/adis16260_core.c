@@ -149,7 +149,7 @@ static ssize_t adis16260_read_frequency_available(struct device *dev,
 						  struct device_attribute *attr,
 						  char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16260_state *st = iio_priv(indio_dev);
 	if (spi_get_device_id(st->us)->driver_data)
 		return sprintf(buf, "%s\n", "0.129 ~ 256");
@@ -161,7 +161,7 @@ static ssize_t adis16260_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16260_state *st = iio_priv(indio_dev);
 	int ret, len = 0;
 	u16 t;
@@ -186,7 +186,7 @@ static ssize_t adis16260_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16260_state *st = iio_priv(indio_dev);
 	long val;
 	int ret;
@@ -237,7 +237,7 @@ static ssize_t adis16260_write_reset(struct device *dev,
 		struct device_attribute *attr,
 		const char *buf, size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	if (len < 1)
 		return -EINVAL;
 	switch (buf[0]) {
