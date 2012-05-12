@@ -1980,8 +1980,8 @@ static int sd_isoc_init(struct gspca_dev *gspca_dev)
 
 		if (intf->num_altsetting != 9) {
 			pr_warn("sn9c20x camera with unknown number of alt "
-			        "settings (%d), please report!\n",
-			        intf->num_altsetting);
+				"settings (%d), please report!\n",
+				intf->num_altsetting);
 			gspca_dev->alt = intf->num_altsetting;
 			return 0;
 		}
