@@ -652,8 +652,8 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 	if (!ret)
 		goto out;
 
-	orig_dst_node = transtable_search(bat_priv, ethhdr->h_source,
-					  ethhdr->h_dest);
+	orig_dst_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
+						 ethhdr->h_dest);
 	if (!orig_dst_node)
 		goto out;
 

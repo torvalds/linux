@@ -75,8 +75,8 @@ static void _update_route(struct bat_priv *bat_priv,
 	if ((curr_router) && (!neigh_node)) {
 		bat_dbg(DBG_ROUTES, bat_priv, "Deleting route towards: %pM\n",
 			orig_node->orig);
-		tt_global_del_orig(bat_priv, orig_node,
-				   "Deleted route towards originator");
+		batadv_tt_global_del_orig(bat_priv, orig_node,
+					  "Deleted route towards originator");
 
 	/* route added */
 	} else if ((!curr_router) && (neigh_node)) {
@@ -603,7 +603,7 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 
 		/* If we cannot provide an answer the tt_request is
 		 * forwarded */
-		if (!send_tt_response(bat_priv, tt_query)) {
+		if (!batadv_send_tt_response(bat_priv, tt_query)) {
 			bat_dbg(DBG_TT, bat_priv,
 				"Routing TT_REQUEST to %pM [%c]\n",
 				tt_query->dst,
@@ -622,14 +622,14 @@ int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 			/* skb_linearize() possibly changed skb->data */
 			tt_query = (struct tt_query_packet *)skb->data;
 
-			tt_size = tt_len(ntohs(tt_query->tt_data));
+			tt_size = batadv_tt_len(ntohs(tt_query->tt_data));
 
 			/* Ensure we have all the claimed data */
 			if (unlikely(skb_headlen(skb) <
 				     sizeof(struct tt_query_packet) + tt_size))
 				goto out;
 
-			handle_tt_response(bat_priv, tt_query);
+			batadv_handle_tt_response(bat_priv, tt_query);
 		} else {
 			bat_dbg(DBG_TT, bat_priv,
 				"Routing TT_RESPONSE to %pM [%c]\n",
@@ -688,8 +688,9 @@ int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 		"Received ROAMING_ADV from %pM (client %pM)\n",
 		roam_adv_packet->src, roam_adv_packet->client);
 
-	tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
-		      atomic_read(&orig_node->last_ttvn) + 1, true, false);
+	batadv_tt_global_add(bat_priv, orig_node, roam_adv_packet->client,
+			     atomic_read(&orig_node->last_ttvn) + 1, true,
+			     false);
 
 	/* Roaming phase starts: I have new information but the ttvn has not
 	 * been incremented yet. This flag will make me check all the incoming
@@ -934,13 +935,15 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 		/* we don't have an updated route for this client, so we should
 		 * not try to reroute the packet!!
 		 */
-		if (tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+		if (batadv_tt_global_client_is_roaming(bat_priv,
+						       ethhdr->h_dest))
 			return 1;
 
-		orig_node = transtable_search(bat_priv, NULL, ethhdr->h_dest);
+		orig_node = batadv_transtable_search(bat_priv, NULL,
+						     ethhdr->h_dest);
 
 		if (!orig_node) {
-			if (!is_my_client(bat_priv, ethhdr->h_dest))
+			if (!batadv_is_my_client(bat_priv, ethhdr->h_dest))
 				return 0;
 			primary_if = primary_if_get_selected(bat_priv);
 			if (!primary_if)

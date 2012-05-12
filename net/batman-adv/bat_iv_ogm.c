@@ -138,7 +138,10 @@ static uint8_t hop_penalty(uint8_t tq, const struct bat_priv *bat_priv)
 static int bat_iv_ogm_aggr_packet(int buff_pos, int packet_len,
 				  int tt_num_changes)
 {
-	int next_buff_pos = buff_pos + BATMAN_OGM_HLEN + tt_len(tt_num_changes);
+	int next_buff_pos = 0;
+
+	next_buff_pos += buff_pos + BATMAN_OGM_HLEN;
+	next_buff_pos += batadv_tt_len(tt_num_changes);
 
 	return (next_buff_pos <= packet_len) &&
 		(next_buff_pos <= MAX_AGGREGATION_BYTES);
@@ -188,8 +191,8 @@ static void bat_iv_ogm_send_to_if(struct forw_packet *forw_packet,
 			batman_ogm_packet->ttvn, hard_iface->net_dev->name,
 			hard_iface->net_dev->dev_addr);
 
-		buff_pos += BATMAN_OGM_HLEN +
-				tt_len(batman_ogm_packet->tt_num_changes);
+		buff_pos += BATMAN_OGM_HLEN;
+		buff_pos += batadv_tt_len(batman_ogm_packet->tt_num_changes);
 		packet_num++;
 		batman_ogm_packet = (struct batman_ogm_packet *)
 					(forw_packet->skb->data + buff_pos);
@@ -556,7 +559,7 @@ static void bat_iv_ogm_forward(struct orig_node *orig_node,
 		batman_ogm_packet->flags &= ~DIRECTLINK;
 
 	bat_iv_ogm_queue_add(bat_priv, (unsigned char *)batman_ogm_packet,
-			     BATMAN_OGM_HLEN + tt_len(tt_num_changes),
+			     BATMAN_OGM_HLEN + batadv_tt_len(tt_num_changes),
 			     if_incoming, 0, bat_iv_ogm_fwd_send_time());
 }
 
@@ -724,10 +727,10 @@ update_tt:
 	if (((batman_ogm_packet->orig != ethhdr->h_source) &&
 	     (batman_ogm_packet->header.ttl > 2)) ||
 	    (batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
-		tt_update_orig(bat_priv, orig_node, tt_buff,
-			       batman_ogm_packet->tt_num_changes,
-			       batman_ogm_packet->ttvn,
-			       ntohs(batman_ogm_packet->tt_crc));
+		batadv_tt_update_orig(bat_priv, orig_node, tt_buff,
+				      batman_ogm_packet->tt_num_changes,
+				      batman_ogm_packet->ttvn,
+				      ntohs(batman_ogm_packet->tt_crc));
 
 	if (orig_node->gw_flags != batman_ogm_packet->gw_flags)
 		batadv_gw_node_update(bat_priv, orig_node,
@@ -1229,8 +1232,8 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 		bat_iv_ogm_process(ethhdr, batman_ogm_packet,
 				   tt_buff, if_incoming);
 
-		buff_pos += BATMAN_OGM_HLEN +
-				tt_len(batman_ogm_packet->tt_num_changes);
+		buff_pos += BATMAN_OGM_HLEN;
+		buff_pos += batadv_tt_len(batman_ogm_packet->tt_num_changes);
 
 		batman_ogm_packet = (struct batman_ogm_packet *)
 						(packet_buff + buff_pos);

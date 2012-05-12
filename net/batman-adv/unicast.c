@@ -301,9 +301,8 @@ int unicast_send_skb(struct sk_buff *skb, struct bat_priv *bat_priv)
 
 	/* check for tt host - increases orig_node refcount.
 	 * returns NULL in case of AP isolation */
-	orig_node = transtable_search(bat_priv, ethhdr->h_source,
-				      ethhdr->h_dest);
-
+	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
+					     ethhdr->h_dest);
 find_router:
 	/**
 	 * find_router():
@@ -335,7 +334,7 @@ find_router:
 	 * try to reroute it because the ttvn contained in the header is less
 	 * than the current one
 	 */
-	if (tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
 		unicast_packet->ttvn = unicast_packet->ttvn - 1;
 
 	if (atomic_read(&bat_priv->fragmentation) &&

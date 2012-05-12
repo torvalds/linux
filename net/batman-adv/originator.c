@@ -139,8 +139,8 @@ static void orig_node_free_rcu(struct rcu_head *rcu)
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
 	frag_list_free(&orig_node->frag_list);
-	tt_global_del_orig(orig_node->bat_priv, orig_node,
-			   "originator timed out");
+	batadv_tt_global_del_orig(orig_node->bat_priv, orig_node,
+				  "originator timed out");
 
 	kfree(orig_node->tt_buff);
 	kfree(orig_node->bcast_own);
