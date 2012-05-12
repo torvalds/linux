@@ -307,7 +307,7 @@ static bool purge_orig_neighbors(struct bat_priv *bat_priv,
 			neigh_purged = true;
 
 			hlist_del_rcu(&neigh_node->list);
-			bonding_candidate_del(orig_node, neigh_node);
+			batadv_bonding_candidate_del(orig_node, neigh_node);
 			batadv_neigh_node_free_ref(neigh_node);
 		} else {
 			if ((!*best_neigh_node) ||
@@ -334,7 +334,8 @@ static bool purge_orig_node(struct bat_priv *bat_priv,
 	} else {
 		if (purge_orig_neighbors(bat_priv, orig_node,
 					 &best_neigh_node))
-			update_route(bat_priv, orig_node, best_neigh_node);
+			batadv_update_route(bat_priv, orig_node,
+					    best_neigh_node);
 	}
 
 	return false;

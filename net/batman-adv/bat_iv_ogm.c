@@ -599,7 +599,7 @@ static void bat_iv_ogm_schedule(struct hard_iface *hard_iface)
 	else
 		batman_ogm_packet->gw_flags = NO_FLAGS;
 
-	slide_own_bcast_window(hard_iface);
+	batadv_slide_own_bcast_window(hard_iface);
 	bat_iv_ogm_queue_add(bat_priv, hard_iface->packet_buff,
 			     hard_iface->packet_len, hard_iface, 1,
 			     bat_iv_ogm_emit_send_time(bat_priv));
@@ -684,7 +684,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 		neigh_node->last_ttl = batman_ogm_packet->header.ttl;
 	}
 
-	bonding_candidate_add(orig_node, neigh_node);
+	batadv_bonding_candidate_add(orig_node, neigh_node);
 
 	/* if this neighbor already is our next hop there is nothing
 	 * to change */
@@ -715,7 +715,7 @@ static void bat_iv_ogm_orig_update(struct bat_priv *bat_priv,
 			goto update_tt;
 	}
 
-	update_route(bat_priv, orig_node, neigh_node);
+	batadv_update_route(bat_priv, orig_node, neigh_node);
 
 update_tt:
 	/* I have to check for transtable changes only if the OGM has been
@@ -884,8 +884,8 @@ static int bat_iv_ogm_update_seqnos(const struct ethhdr *ethhdr,
 
 	/* signalize caller that the packet is to be dropped. */
 	if (!hlist_empty(&orig_node->neigh_list) &&
-	    window_protected(bat_priv, seq_diff,
-			     &orig_node->batman_seqno_reset))
+	    batadv_window_protected(bat_priv, seq_diff,
+				    &orig_node->batman_seqno_reset))
 		goto out;
 
 	rcu_read_lock();
@@ -1133,7 +1133,8 @@ static void bat_iv_ogm_process(const struct ethhdr *ethhdr,
 	is_bidirectional = bat_iv_ogm_calc_tq(orig_node, orig_neigh_node,
 					      batman_ogm_packet, if_incoming);
 
-	bonding_save_primary(orig_node, orig_neigh_node, batman_ogm_packet);
+	batadv_bonding_save_primary(orig_node, orig_neigh_node,
+				    batman_ogm_packet);
 
 	/* update ranking if it is not a duplicate or has the same
 	 * seqno and similar ttl as the non-duplicate */
@@ -1201,7 +1202,7 @@ static int bat_iv_ogm_receive(struct sk_buff *skb,
 	unsigned char *tt_buff, *packet_buff;
 	bool ret;
 
-	ret = check_management_packet(skb, if_incoming, BATMAN_OGM_HLEN);
+	ret = batadv_check_management_packet(skb, if_incoming, BATMAN_OGM_HLEN);
 	if (!ret)
 		return NET_RX_DROP;
 

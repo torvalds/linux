@@ -272,19 +272,19 @@ static void recv_handler_init(void)
 		recv_packet_handler[i] = recv_unhandled_packet;
 
 	/* batman icmp packet */
-	recv_packet_handler[BAT_ICMP] = recv_icmp_packet;
+	recv_packet_handler[BAT_ICMP] = batadv_recv_icmp_packet;
 	/* unicast packet */
-	recv_packet_handler[BAT_UNICAST] = recv_unicast_packet;
+	recv_packet_handler[BAT_UNICAST] = batadv_recv_unicast_packet;
 	/* fragmented unicast packet */
-	recv_packet_handler[BAT_UNICAST_FRAG] = recv_ucast_frag_packet;
+	recv_packet_handler[BAT_UNICAST_FRAG] = batadv_recv_ucast_frag_packet;
 	/* broadcast packet */
-	recv_packet_handler[BAT_BCAST] = recv_bcast_packet;
+	recv_packet_handler[BAT_BCAST] = batadv_recv_bcast_packet;
 	/* vis packet */
-	recv_packet_handler[BAT_VIS] = recv_vis_packet;
+	recv_packet_handler[BAT_VIS] = batadv_recv_vis_packet;
 	/* Translation table query (request or response) */
-	recv_packet_handler[BAT_TT_QUERY] = recv_tt_query;
+	recv_packet_handler[BAT_TT_QUERY] = batadv_recv_tt_query;
 	/* Roaming advertisement */
-	recv_packet_handler[BAT_ROAM_ADV] = recv_roam_adv;
+	recv_packet_handler[BAT_ROAM_ADV] = batadv_recv_roam_adv;
 }
 
 int recv_handler_register(uint8_t packet_type,

@@ -682,7 +682,8 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 		/* If the dhcp packet has been sent to a different gw,
 		 * we have to evaluate whether the old gw is still
 		 * reliable enough */
-		neigh_curr = find_router(bat_priv, curr_gw->orig_node, NULL);
+		neigh_curr = batadv_find_router(bat_priv, curr_gw->orig_node,
+						NULL);
 		if (!neigh_curr)
 			goto out;
 
@@ -693,7 +694,7 @@ bool batadv_gw_out_of_range(struct bat_priv *bat_priv,
 		goto out;
 	}
 
-	neigh_old = find_router(bat_priv, orig_dst_node, NULL);
+	neigh_old = batadv_find_router(bat_priv, orig_dst_node, NULL);
 	if (!neigh_old)
 		goto out;
 

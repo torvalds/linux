@@ -310,8 +310,7 @@ find_router:
 	 *  - if orig_node is NULL it returns NULL
 	 *  - increases neigh_nodes refcount if found.
 	 */
-	neigh_node = find_router(bat_priv, orig_node, NULL);
-
+	neigh_node = batadv_find_router(bat_priv, orig_node, NULL);
 	if (!neigh_node)
 		goto out;
 

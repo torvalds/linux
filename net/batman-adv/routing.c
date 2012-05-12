@@ -34,7 +34,7 @@
 static int route_unicast_packet(struct sk_buff *skb,
 				struct hard_iface *recv_if);
 
-void slide_own_bcast_window(struct hard_iface *hard_iface)
+void batadv_slide_own_bcast_window(struct hard_iface *hard_iface)
 {
 	struct bat_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
 	struct hashtable_t *hash = bat_priv->orig_hash;
@@ -108,8 +108,8 @@ static void _update_route(struct bat_priv *bat_priv,
 		batadv_neigh_node_free_ref(curr_router);
 }
 
-void update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
-		  struct neigh_node *neigh_node)
+void batadv_update_route(struct bat_priv *bat_priv, struct orig_node *orig_node,
+			 struct neigh_node *neigh_node)
 {
 	struct neigh_node *router = NULL;
 
@@ -127,8 +127,8 @@ out:
 }
 
 /* caller must hold the neigh_list_lock */
-void bonding_candidate_del(struct orig_node *orig_node,
-			   struct neigh_node *neigh_node)
+void batadv_bonding_candidate_del(struct orig_node *orig_node,
+				  struct neigh_node *neigh_node)
 {
 	/* this neighbor is not part of our candidate list */
 	if (list_empty(&neigh_node->bonding_list))
@@ -143,8 +143,8 @@ out:
 	return;
 }
 
-void bonding_candidate_add(struct orig_node *orig_node,
-			   struct neigh_node *neigh_node)
+void batadv_bonding_candidate_add(struct orig_node *orig_node,
+				  struct neigh_node *neigh_node)
 {
 	struct hlist_node *node;
 	struct neigh_node *tmp_neigh_node, *router = NULL;
@@ -204,7 +204,7 @@ void bonding_candidate_add(struct orig_node *orig_node,
 	goto out;
 
 candidate_del:
-	bonding_candidate_del(orig_node, neigh_node);
+	batadv_bonding_candidate_del(orig_node, neigh_node);
 
 out:
 	spin_unlock_bh(&orig_node->neigh_list_lock);
@@ -214,9 +214,10 @@ out:
 }
 
 /* copy primary address for bonding */
-void bonding_save_primary(const struct orig_node *orig_node,
-			  struct orig_node *orig_neigh_node,
-			  const struct batman_ogm_packet *batman_ogm_packet)
+void
+batadv_bonding_save_primary(const struct orig_node *orig_node,
+			    struct orig_node *orig_neigh_node,
+			    const struct batman_ogm_packet *batman_ogm_packet)
 {
 	if (!(batman_ogm_packet->flags & PRIMARIES_FIRST_HOP))
 		return;
@@ -229,8 +230,8 @@ void bonding_save_primary(const struct orig_node *orig_node,
  *  0 if the packet is to be accepted
  *  1 if the packet is to be ignored.
  */
-int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
-		     unsigned long *last_reset)
+int batadv_window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
+			    unsigned long *last_reset)
 {
 	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE) ||
 	    (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
@@ -245,9 +246,9 @@ int window_protected(struct bat_priv *bat_priv, int32_t seq_num_diff,
 	return 0;
 }
 
-bool check_management_packet(struct sk_buff *skb,
-			     struct hard_iface *hard_iface,
-			     int header_len)
+bool batadv_check_management_packet(struct sk_buff *skb,
+				    struct hard_iface *hard_iface,
+				    int header_len)
 {
 	struct ethhdr *ethhdr;
 
@@ -387,7 +388,7 @@ out:
 }
 
 
-int recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_icmp_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct icmp_packet_rr *icmp_packet;
@@ -569,7 +570,7 @@ static struct neigh_node *find_ifalter_router(struct orig_node *primary_orig,
 	return router;
 }
 
-int recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_tt_query(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct tt_query_packet *tt_query;
@@ -644,7 +645,7 @@ out:
 	return NET_RX_DROP;
 }
 
-int recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_roam_adv(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct roam_adv_packet *roam_adv_packet;
@@ -704,9 +705,9 @@ out:
 /* find a suitable router for this originator, and use
  * bonding if possible. increases the found neighbors
  * refcount.*/
-struct neigh_node *find_router(struct bat_priv *bat_priv,
-			       struct orig_node *orig_node,
-			       const struct hard_iface *recv_if)
+struct neigh_node *batadv_find_router(struct bat_priv *bat_priv,
+				      struct orig_node *orig_node,
+				      const struct hard_iface *recv_if)
 {
 	struct orig_node *primary_orig_node;
 	struct orig_node *router_orig;
@@ -834,7 +835,7 @@ static int route_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 		goto out;
 
 	/* find_router() increases neigh_nodes refcount if found. */
-	neigh_node = find_router(bat_priv, orig_node, recv_if);
+	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
 
 	if (!neigh_node)
 		goto out;
@@ -965,7 +966,7 @@ static int check_unicast_ttvn(struct bat_priv *bat_priv,
 	return 1;
 }
 
-int recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_packet *unicast_packet;
@@ -988,7 +989,8 @@ int recv_unicast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	return route_unicast_packet(skb, recv_if);
 }
 
-int recv_ucast_frag_packet(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_ucast_frag_packet(struct sk_buff *skb,
+				  struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct unicast_frag_packet *unicast_packet;
@@ -1025,7 +1027,7 @@ int recv_ucast_frag_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 }
 
 
-int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct bat_priv *bat_priv = netdev_priv(recv_if->soft_iface);
 	struct orig_node *orig_node = NULL;
@@ -1077,8 +1079,8 @@ int recv_bcast_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 	seq_diff = ntohl(bcast_packet->seqno) - orig_node->last_bcast_seqno;
 
 	/* check whether the packet is old and the host just restarted. */
-	if (window_protected(bat_priv, seq_diff,
-			     &orig_node->bcast_seqno_reset))
+	if (batadv_window_protected(bat_priv, seq_diff,
+				    &orig_node->bcast_seqno_reset))
 		goto spin_unlock;
 
 	/* mark broadcast in flood history, update window position
@@ -1114,7 +1116,7 @@ out:
 	return ret;
 }
 
-int recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
+int batadv_recv_vis_packet(struct sk_buff *skb, struct hard_iface *recv_if)
 {
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;
