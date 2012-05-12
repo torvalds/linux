@@ -163,12 +163,11 @@ static irqreturn_t lis3l02dq_trigger_handler(int irq, void *p)
 
 /* Caller responsible for locking as necessary. */
 static int
-__lis3l02dq_write_data_ready_config(struct device *dev, bool state)
+__lis3l02dq_write_data_ready_config(struct iio_dev *indio_dev, bool state)
 {
 	int ret;
 	u8 valold;
 	bool currentlyset;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct lis3l02dq_state *st = iio_priv(indio_dev);
 
 /* Get the current event mask register */
@@ -236,7 +235,7 @@ static int lis3l02dq_data_rdy_trigger_set_state(struct iio_trigger *trig,
 	int ret = 0;
 	u8 t;
 
-	__lis3l02dq_write_data_ready_config(&indio_dev->dev, state);
+	__lis3l02dq_write_data_ready_config(indio_dev, state);
 	if (state == false) {
 		/*
 		 * A possible quirk with the handler is currently worked around
