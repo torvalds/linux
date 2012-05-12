@@ -102,25 +102,13 @@ static struct sun_floppy_ops sun_fdops;
 /* Routines unique to each controller type on a Sun. */
 static void sun_set_dor(unsigned char value, int fdc_82077)
 {
-	if (sparc_cpu_model == sun4c) {
-		unsigned int bits = 0;
-		if (value & 0x10)
-			bits |= AUXIO_FLPY_DSEL;
-		if ((value & 0x80) == 0)
-			bits |= AUXIO_FLPY_EJCT;
-		set_auxio(bits, (~bits) & (AUXIO_FLPY_DSEL|AUXIO_FLPY_EJCT));
-	}
-	if (fdc_82077) {
+	if (fdc_82077)
 		sun_fdc->dor_82077 = value;
-	}
 }
 
 static unsigned char sun_read_dir(void)
 {
-	if (sparc_cpu_model == sun4c)
-		return (get_auxio() & AUXIO_FLPY_DCHG) ? 0x80 : 0;
-	else
-		return sun_fdc->dir_82077;
+	return sun_fdc->dir_82077;
 }
 
 static unsigned char sun_82072_fd_inb(int port)
