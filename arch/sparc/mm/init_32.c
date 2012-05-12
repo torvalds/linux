@@ -27,7 +27,6 @@
 #include <linux/gfp.h>
 
 #include <asm/sections.h>
-#include <asm/vac-ops.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/vaddrs.h>

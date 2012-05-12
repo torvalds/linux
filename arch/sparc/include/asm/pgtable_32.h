@@ -17,7 +17,6 @@
 #include <linux/swap.h>
 #include <asm/types.h>
 #include <asm/pgtsrmmu.h>
-#include <asm/vac-ops.h>
 #include <asm/oplib.h>
 #include <asm/btfixup.h>
 #include <asm/cpu_type.h>
