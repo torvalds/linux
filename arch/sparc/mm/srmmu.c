@@ -55,6 +55,10 @@ static unsigned int hwbug_bitmask;
 int vac_cache_size;
 int vac_line_size;
 
+struct ctx_list *ctx_list_pool;
+struct ctx_list ctx_free;
+struct ctx_list ctx_used;
+
 extern struct resource sparc_iomap;
 
 extern unsigned long last_valid_pfn;
@@ -2055,7 +2059,7 @@ static void smp_flush_page_for_dma(unsigned long page)
 #endif
 
 /* Load up routines and constants for sun4m and sun4d mmu */
-void __init ld_mmu_srmmu(void)
+void __init load_mmu(void)
 {
 	extern void ld_mmu_iommu(void);
 	extern void ld_mmu_iounit(void);
@@ -2170,4 +2174,5 @@ void __init ld_mmu_srmmu(void)
 	else
 		sun4m_init_smp();
 #endif
+	btfixup();
 }
