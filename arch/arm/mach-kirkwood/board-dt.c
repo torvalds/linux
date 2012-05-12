@@ -77,6 +77,9 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("raidsonic,ib-nas62x0"))
 		ib62x0_init();
 
+	if (of_machine_is_compatible("qnap,ts219"))
+		qnap_dt_ts219_init();
+
 	of_platform_populate(NULL, kirkwood_dt_match_table,
 			     kirkwood_auxdata_lookup, NULL);
 }
@@ -87,6 +90,7 @@ static const char *kirkwood_dt_board_compat[] = {
 	"dlink,dns-325",
 	"iom,iconnect",
 	"raidsonic,ib-nas62x0",
+	"qnap,ts219",
 	NULL
 };
 

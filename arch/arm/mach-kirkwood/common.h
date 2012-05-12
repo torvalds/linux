@@ -58,6 +58,11 @@ void dreamplug_init(void);
 #else
 static inline void dreamplug_init(void) {};
 #endif
+#ifdef CONFIG_MACH_TS219_DT
+void qnap_dt_ts219_init(void);
+#else
+static inline void qnap_dt_ts219_init(void) {};
+#endif
 
 #ifdef CONFIG_MACH_DLINK_KIRKWOOD_DT
 void dnskw_init(void);
