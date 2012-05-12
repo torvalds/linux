@@ -179,7 +179,7 @@ static ssize_t adis16400_read_frequency(struct device *dev,
 		struct device_attribute *attr,
 		char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	int ret, len = 0;
 	ret = adis16400_get_freq(indio_dev);
 	if (ret < 0)
@@ -225,7 +225,7 @@ static ssize_t adis16400_write_frequency(struct device *dev,
 		const char *buf,
 		size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct adis16400_state *st = iio_priv(indio_dev);
 	long val;
 	int ret;
@@ -279,7 +279,7 @@ static ssize_t adis16400_write_reset(struct device *dev,
 	if (ret < 0)
 		return ret;
 	if (val) {
-		ret = adis16400_reset(dev_get_drvdata(dev));
+		ret = adis16400_reset(dev_to_iio_dev(dev));
 		if (ret < 0)
 			return ret;
 	}
